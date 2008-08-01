@@ -22,6 +22,10 @@ Module Parameters
 			and PWM output control functions. Using this parameter
 			shouldn't be required since the BIOS usually takes care
 			of this.
+* probe_all_addr: bool	Include non-standard LPC addresses 0x162e and 0x164e
+			when probing for ISA devices. This is required for the
+			following boards:
+			- VIA EPIA SN18000
 
 Note that there is no need to use this parameter if the driver loads without
 complaining. The driver will say so if it is necessary.

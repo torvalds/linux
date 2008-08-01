@@ -1878,13 +1878,9 @@ W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARDWARE MONITORING
-P:	Mark M. Hoffman
-M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git testing
-T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git release
-S:	Maintained
+S:	Orphaned
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
 S:	Orphaned

@@ -48,6 +48,11 @@ static unsigned short force_id;
 module_param(force_id, ushort, 0);
 MODULE_PARM_DESC(force_id, "Override the detected device ID");
 
+static int probe_all_addr;
+module_param(probe_all_addr, bool, 0);
+MODULE_PARM_DESC(probe_all_addr, "Include probing of non-standard LPC "
+		 "addresses");
+
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = {0x2c, 0x2d, 0x2e, I2C_CLIENT_END};
 
@@ -176,6 +181,7 @@ struct dme1737_data {
 	int valid;			/* !=0 if following fields are valid */
 	unsigned long last_update;	/* in jiffies */
 	unsigned long last_vbat;	/* in jiffies */
+	enum chips type;
 
 	u8 vid;
 	u8 pwm_rr_en;
@@ -210,20 +216,27 @@ struct dme1737_data {
 };
 
 /* Nominal voltage values */
-static const int IN_NOMINAL[] = {5000, 2250, 3300, 5000, 12000, 3300, 3300};
+static const int IN_NOMINAL_DME1737[] = {5000, 2250, 3300, 5000, 12000, 3300,
+					 3300};
+static const int IN_NOMINAL_SCH311x[] = {2500, 1500, 3300, 5000, 12000, 3300,
+					 3300};
+#define IN_NOMINAL(ix, type)	(((type) == dme1737) ? \
+				IN_NOMINAL_DME1737[(ix)] : \
+				IN_NOMINAL_SCH311x[(ix)])
 
 /* Voltage input
  * Voltage inputs have 16 bits resolution, limit values have 8 bits
  * resolution. */
-static inline int IN_FROM_REG(int reg, int ix, int res)
+static inline int IN_FROM_REG(int reg, int ix, int res, int type)
 {
-	return (reg * IN_NOMINAL[ix] + (3 << (res - 3))) / (3 << (res - 2));
+	return (reg * IN_NOMINAL(ix, type) + (3 << (res - 3))) /
+		(3 << (res - 2));
 }
 
-static inline int IN_TO_REG(int val, int ix)
+static inline int IN_TO_REG(int val, int ix, int type)
 {
-	return SENSORS_LIMIT((val * 192 + IN_NOMINAL[ix] / 2) /
-			     IN_NOMINAL[ix], 0, 255);
+	return SENSORS_LIMIT((val * 192 + IN_NOMINAL(ix, type) / 2) /
+			     IN_NOMINAL(ix, type), 0, 255);
 }
 
 /* Temperature input
@@ -722,13 +735,13 @@ static ssize_t show_in(struct device *dev, struct device_attribute *attr,
 
 	switch (fn) {
 	case SYS_IN_INPUT:
-		res = IN_FROM_REG(data->in[ix], ix, 16);
+		res = IN_FROM_REG(data->in[ix], ix, 16, data->type);
 		break;
 	case SYS_IN_MIN:
-		res = IN_FROM_REG(data->in_min[ix], ix, 8);
+		res = IN_FROM_REG(data->in_min[ix], ix, 8, data->type);
 		break;
 	case SYS_IN_MAX:
-		res = IN_FROM_REG(data->in_max[ix], ix, 8);
+		res = IN_FROM_REG(data->in_max[ix], ix, 8, data->type);
 		break;
 	case SYS_IN_ALARM:
 		res = (data->alarms >> DME1737_BIT_ALARM_IN[ix]) & 0x01;
@@ -755,12 +768,12 @@ static ssize_t set_in(struct device *dev, struct device_attribute *attr,
 	mutex_lock(&data->update_lock);
 	switch (fn) {
 	case SYS_IN_MIN:
-		data->in_min[ix] = IN_TO_REG(val, ix);
+		data->in_min[ix] = IN_TO_REG(val, ix, data->type);
 		dme1737_write(client, DME1737_REG_IN_MIN(ix),
 			      data->in_min[ix]);
 		break;
 	case SYS_IN_MAX:
-		data->in_max[ix] = IN_TO_REG(val, ix);
+		data->in_max[ix] = IN_TO_REG(val, ix, data->type);
 		dme1737_write(client, DME1737_REG_IN_MAX(ix),
 			      data->in_max[ix]);
 		break;
@@ -1501,9 +1514,9 @@ SENSOR_DEVICE_ATTR_PWM_1TO3(3);
 /* PWMs 5-6 */
 
 #define SENSOR_DEVICE_ATTR_PWM_5TO6(ix) \
-static SENSOR_DEVICE_ATTR_2(pwm##ix, S_IRUGO | S_IWUSR, \
+static SENSOR_DEVICE_ATTR_2(pwm##ix, S_IRUGO, \
 	show_pwm, set_pwm, SYS_PWM, ix-1); \
-static SENSOR_DEVICE_ATTR_2(pwm##ix##_freq, S_IRUGO | S_IWUSR, \
+static SENSOR_DEVICE_ATTR_2(pwm##ix##_freq, S_IRUGO, \
 	show_pwm, set_pwm, SYS_PWM_FREQ, ix-1); \
 static SENSOR_DEVICE_ATTR_2(pwm##ix##_enable, S_IRUGO, \
 	show_pwm, NULL, SYS_PWM_ENABLE, ix-1)
@@ -1517,91 +1530,75 @@ static DEVICE_ATTR(vrm, S_IRUGO | S_IWUSR, show_vrm, set_vrm);
 static DEVICE_ATTR(cpu0_vid, S_IRUGO, show_vid, NULL);
 static DEVICE_ATTR(name, S_IRUGO, show_name, NULL);   /* for ISA devices */
 
-#define SENSOR_DEV_ATTR_IN(ix) \
-&sensor_dev_attr_in##ix##_input.dev_attr.attr, \
-&sensor_dev_attr_in##ix##_min.dev_attr.attr, \
-&sensor_dev_attr_in##ix##_max.dev_attr.attr, \
-&sensor_dev_attr_in##ix##_alarm.dev_attr.attr
-
-/* These attributes are read-writeable only if the chip is *not* locked */
-#define SENSOR_DEV_ATTR_TEMP_LOCK(ix) \
-&sensor_dev_attr_temp##ix##_offset.dev_attr.attr
-
-#define SENSOR_DEV_ATTR_TEMP(ix) \
-SENSOR_DEV_ATTR_TEMP_LOCK(ix), \
-&sensor_dev_attr_temp##ix##_input.dev_attr.attr, \
-&sensor_dev_attr_temp##ix##_min.dev_attr.attr, \
-&sensor_dev_attr_temp##ix##_max.dev_attr.attr, \
-&sensor_dev_attr_temp##ix##_alarm.dev_attr.attr, \
-&sensor_dev_attr_temp##ix##_fault.dev_attr.attr
-
-/* These attributes are read-writeable only if the chip is *not* locked */
-#define SENSOR_DEV_ATTR_ZONE_LOCK(ix) \
-&sensor_dev_attr_zone##ix##_auto_point1_temp_hyst.dev_attr.attr, \
-&sensor_dev_attr_zone##ix##_auto_point1_temp.dev_attr.attr, \
-&sensor_dev_attr_zone##ix##_auto_point2_temp.dev_attr.attr, \
-&sensor_dev_attr_zone##ix##_auto_point3_temp.dev_attr.attr
-
-#define SENSOR_DEV_ATTR_ZONE(ix) \
-SENSOR_DEV_ATTR_ZONE_LOCK(ix), \
-&sensor_dev_attr_zone##ix##_auto_channels_temp.dev_attr.attr
-
-#define SENSOR_DEV_ATTR_FAN_1TO4(ix) \
-&sensor_dev_attr_fan##ix##_input.dev_attr.attr, \
-&sensor_dev_attr_fan##ix##_min.dev_attr.attr, \
-&sensor_dev_attr_fan##ix##_alarm.dev_attr.attr, \
-&sensor_dev_attr_fan##ix##_type.dev_attr.attr
-
-#define SENSOR_DEV_ATTR_FAN_5TO6(ix) \
-&sensor_dev_attr_fan##ix##_input.dev_attr.attr, \
-&sensor_dev_attr_fan##ix##_min.dev_attr.attr, \
-&sensor_dev_attr_fan##ix##_alarm.dev_attr.attr, \
-&sensor_dev_attr_fan##ix##_max.dev_attr.attr
-
-/* These attributes are read-writeable only if the chip is *not* locked */
-#define SENSOR_DEV_ATTR_PWM_1TO3_LOCK(ix) \
-&sensor_dev_attr_pwm##ix##_freq.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_enable.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_ramp_rate.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_auto_channels_zone.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_auto_pwm_min.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_auto_point1_pwm.dev_attr.attr
-
-#define SENSOR_DEV_ATTR_PWM_1TO3(ix) \
-SENSOR_DEV_ATTR_PWM_1TO3_LOCK(ix), \
-&sensor_dev_attr_pwm##ix.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_auto_point2_pwm.dev_attr.attr
-
-/* These attributes are read-writeable only if the chip is *not* locked */
-#define SENSOR_DEV_ATTR_PWM_5TO6_LOCK(ix) \
-&sensor_dev_attr_pwm##ix.dev_attr.attr, \
-&sensor_dev_attr_pwm##ix##_freq.dev_attr.attr
-
-#define SENSOR_DEV_ATTR_PWM_5TO6(ix) \
-SENSOR_DEV_ATTR_PWM_5TO6_LOCK(ix), \
-&sensor_dev_attr_pwm##ix##_enable.dev_attr.attr
-
 /* This struct holds all the attributes that are always present and need to be
  * created unconditionally. The attributes that need modification of their
  * permissions are created read-only and write permissions are added or removed
  * on the fly when required */
 static struct attribute *dme1737_attr[] ={
 	/* Voltages */
-	SENSOR_DEV_ATTR_IN(0),
-	SENSOR_DEV_ATTR_IN(1),
-	SENSOR_DEV_ATTR_IN(2),
-	SENSOR_DEV_ATTR_IN(3),
-	SENSOR_DEV_ATTR_IN(4),
-	SENSOR_DEV_ATTR_IN(5),
-	SENSOR_DEV_ATTR_IN(6),
+	&sensor_dev_attr_in0_input.dev_attr.attr,
+	&sensor_dev_attr_in0_min.dev_attr.attr,
+	&sensor_dev_attr_in0_max.dev_attr.attr,
+	&sensor_dev_attr_in0_alarm.dev_attr.attr,
+	&sensor_dev_attr_in1_input.dev_attr.attr,
+	&sensor_dev_attr_in1_min.dev_attr.attr,
+	&sensor_dev_attr_in1_max.dev_attr.attr,
+	&sensor_dev_attr_in1_alarm.dev_attr.attr,
+	&sensor_dev_attr_in2_input.dev_attr.attr,
+	&sensor_dev_attr_in2_min.dev_attr.attr,
+	&sensor_dev_attr_in2_max.dev_attr.attr,
+	&sensor_dev_attr_in2_alarm.dev_attr.attr,
+	&sensor_dev_attr_in3_input.dev_attr.attr,
+	&sensor_dev_attr_in3_min.dev_attr.attr,
+	&sensor_dev_attr_in3_max.dev_attr.attr,
+	&sensor_dev_attr_in3_alarm.dev_attr.attr,
+	&sensor_dev_attr_in4_input.dev_attr.attr,
+	&sensor_dev_attr_in4_min.dev_attr.attr,
+	&sensor_dev_attr_in4_max.dev_attr.attr,
+	&sensor_dev_attr_in4_alarm.dev_attr.attr,
+	&sensor_dev_attr_in5_input.dev_attr.attr,
+	&sensor_dev_attr_in5_min.dev_attr.attr,
+	&sensor_dev_attr_in5_max.dev_attr.attr,
+	&sensor_dev_attr_in5_alarm.dev_attr.attr,
+	&sensor_dev_attr_in6_input.dev_attr.attr,
+	&sensor_dev_attr_in6_min.dev_attr.attr,
+	&sensor_dev_attr_in6_max.dev_attr.attr,
+	&sensor_dev_attr_in6_alarm.dev_attr.attr,
 	/* Temperatures */
-	SENSOR_DEV_ATTR_TEMP(1),
-	SENSOR_DEV_ATTR_TEMP(2),
-	SENSOR_DEV_ATTR_TEMP(3),
+	&sensor_dev_attr_temp1_input.dev_attr.attr,
+	&sensor_dev_attr_temp1_min.dev_attr.attr,
+	&sensor_dev_attr_temp1_max.dev_attr.attr,
+	&sensor_dev_attr_temp1_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp1_fault.dev_attr.attr,
+	&sensor_dev_attr_temp1_offset.dev_attr.attr,
+	&sensor_dev_attr_temp2_input.dev_attr.attr,
+	&sensor_dev_attr_temp2_min.dev_attr.attr,
+	&sensor_dev_attr_temp2_max.dev_attr.attr,
+	&sensor_dev_attr_temp2_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp2_fault.dev_attr.attr,
+	&sensor_dev_attr_temp2_offset.dev_attr.attr,
+	&sensor_dev_attr_temp3_input.dev_attr.attr,
+	&sensor_dev_attr_temp3_min.dev_attr.attr,
+	&sensor_dev_attr_temp3_max.dev_attr.attr,
+	&sensor_dev_attr_temp3_alarm.dev_attr.attr,
+	&sensor_dev_attr_temp3_fault.dev_attr.attr,
+	&sensor_dev_attr_temp3_offset.dev_attr.attr,
 	/* Zones */
-	SENSOR_DEV_ATTR_ZONE(1),
-	SENSOR_DEV_ATTR_ZONE(2),
-	SENSOR_DEV_ATTR_ZONE(3),
+	&sensor_dev_attr_zone1_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_channels_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_channels_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_channels_temp.dev_attr.attr,
 	/* Misc */
 	&dev_attr_vrm.attr,
 	&dev_attr_cpu0_vid.attr,
@@ -1616,23 +1613,48 @@ static const struct attribute_group dme1737_group = {
  * Their creation depends on the chip configuration which is determined during
  * module load. */
 static struct attribute *dme1737_attr_pwm1[] = {
-	SENSOR_DEV_ATTR_PWM_1TO3(1),
+	&sensor_dev_attr_pwm1.dev_attr.attr,
+	&sensor_dev_attr_pwm1_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm1_ramp_rate.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_channels_zone.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_pwm_min.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point2_pwm.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm2[] = {
-	SENSOR_DEV_ATTR_PWM_1TO3(2),
+	&sensor_dev_attr_pwm2.dev_attr.attr,
+	&sensor_dev_attr_pwm2_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm2_ramp_rate.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_channels_zone.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_pwm_min.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point2_pwm.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm3[] = {
-	SENSOR_DEV_ATTR_PWM_1TO3(3),
+	&sensor_dev_attr_pwm3.dev_attr.attr,
+	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm3_ramp_rate.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_channels_zone.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_pwm_min.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point2_pwm.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm5[] = {
-	SENSOR_DEV_ATTR_PWM_5TO6(5),
+	&sensor_dev_attr_pwm5.dev_attr.attr,
+	&sensor_dev_attr_pwm5_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm5_enable.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm6[] = {
-	SENSOR_DEV_ATTR_PWM_5TO6(6),
+	&sensor_dev_attr_pwm6.dev_attr.attr,
+	&sensor_dev_attr_pwm6_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm6_enable.dev_attr.attr,
 	NULL
 };
 
@@ -1649,27 +1671,45 @@ static const struct attribute_group dme1737_pwm_group[] = {
  * Their creation depends on the chip configuration which is determined during
  * module load. */
 static struct attribute *dme1737_attr_fan1[] = {
-	SENSOR_DEV_ATTR_FAN_1TO4(1),
+	&sensor_dev_attr_fan1_input.dev_attr.attr,
+	&sensor_dev_attr_fan1_min.dev_attr.attr,
+	&sensor_dev_attr_fan1_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan1_type.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_fan2[] = {
-	SENSOR_DEV_ATTR_FAN_1TO4(2),
+	&sensor_dev_attr_fan2_input.dev_attr.attr,
+	&sensor_dev_attr_fan2_min.dev_attr.attr,
+	&sensor_dev_attr_fan2_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan2_type.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_fan3[] = {
-	SENSOR_DEV_ATTR_FAN_1TO4(3),
+	&sensor_dev_attr_fan3_input.dev_attr.attr,
+	&sensor_dev_attr_fan3_min.dev_attr.attr,
+	&sensor_dev_attr_fan3_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan3_type.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_fan4[] = {
-	SENSOR_DEV_ATTR_FAN_1TO4(4),
+	&sensor_dev_attr_fan4_input.dev_attr.attr,
+	&sensor_dev_attr_fan4_min.dev_attr.attr,
+	&sensor_dev_attr_fan4_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan4_type.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_fan5[] = {
-	SENSOR_DEV_ATTR_FAN_5TO6(5),
+	&sensor_dev_attr_fan5_input.dev_attr.attr,
+	&sensor_dev_attr_fan5_min.dev_attr.attr,
+	&sensor_dev_attr_fan5_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan5_max.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_fan6[] = {
-	SENSOR_DEV_ATTR_FAN_5TO6(6),
+	&sensor_dev_attr_fan6_input.dev_attr.attr,
+	&sensor_dev_attr_fan6_min.dev_attr.attr,
+	&sensor_dev_attr_fan6_alarm.dev_attr.attr,
+	&sensor_dev_attr_fan6_max.dev_attr.attr,
 	NULL
 };
 
@@ -1686,13 +1726,22 @@ static const struct attribute_group dme1737_fan_group[] = {
  * writeable if the chip is *not* locked. Otherwise they stay read-only. */
 static struct attribute *dme1737_attr_lock[] = {
 	/* Temperatures */
-	SENSOR_DEV_ATTR_TEMP_LOCK(1),
-	SENSOR_DEV_ATTR_TEMP_LOCK(2),
-	SENSOR_DEV_ATTR_TEMP_LOCK(3),
+	&sensor_dev_attr_temp1_offset.dev_attr.attr,
+	&sensor_dev_attr_temp2_offset.dev_attr.attr,
+	&sensor_dev_attr_temp3_offset.dev_attr.attr,
 	/* Zones */
-	SENSOR_DEV_ATTR_ZONE_LOCK(1),
-	SENSOR_DEV_ATTR_ZONE_LOCK(2),
-	SENSOR_DEV_ATTR_ZONE_LOCK(3),
+	&sensor_dev_attr_zone1_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_zone1_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_zone2_auto_point3_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point1_temp_hyst.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point1_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point2_temp.dev_attr.attr,
+	&sensor_dev_attr_zone3_auto_point3_temp.dev_attr.attr,
 	NULL
 };
 
@@ -1704,23 +1753,40 @@ static const struct attribute_group dme1737_lock_group = {
  * writeable if the chip is *not* locked and the respective PWM is available.
  * Otherwise they stay read-only. */
 static struct attribute *dme1737_attr_pwm1_lock[] = {
-	SENSOR_DEV_ATTR_PWM_1TO3_LOCK(1),
+	&sensor_dev_attr_pwm1_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm1_ramp_rate.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_channels_zone.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_pwm_min.dev_attr.attr,
+	&sensor_dev_attr_pwm1_auto_point1_pwm.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm2_lock[] = {
-	SENSOR_DEV_ATTR_PWM_1TO3_LOCK(2),
+	&sensor_dev_attr_pwm2_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm2_ramp_rate.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_channels_zone.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_pwm_min.dev_attr.attr,
+	&sensor_dev_attr_pwm2_auto_point1_pwm.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm3_lock[] = {
-	SENSOR_DEV_ATTR_PWM_1TO3_LOCK(3),
+	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
+	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm3_ramp_rate.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_channels_zone.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_pwm_min.dev_attr.attr,
+	&sensor_dev_attr_pwm3_auto_point1_pwm.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm5_lock[] = {
-	SENSOR_DEV_ATTR_PWM_5TO6_LOCK(5),
+	&sensor_dev_attr_pwm5.dev_attr.attr,
+	&sensor_dev_attr_pwm5_freq.dev_attr.attr,
 	NULL
 };
 static struct attribute *dme1737_attr_pwm6_lock[] = {
-	SENSOR_DEV_ATTR_PWM_5TO6_LOCK(6),
+	&sensor_dev_attr_pwm6.dev_attr.attr,
+	&sensor_dev_attr_pwm6_freq.dev_attr.attr,
 	NULL
 };
 
@@ -2109,6 +2175,7 @@ static int dme1737_i2c_detect(struct i2c_adapter *adapter, int address,
 
 	kind = dme1737;
 	name = "dme1737";
+	data->type = kind;
 
 	/* Fill in the remaining client fields and put it into the global
 	 * list */
@@ -2301,6 +2368,7 @@ static int __devinit dme1737_isa_probe(struct platform_device *pdev)
 		err = -ENODEV;
 		goto exit_kfree;
 	}
+	data->type = -1;
 
 	/* Fill in the remaining client fields and initialize the mutex */
 	strlcpy(client->name, "sch311x", I2C_NAME_SIZE);
@@ -2377,7 +2445,10 @@ static int __init dme1737_init(void)
 	}
 
 	if (dme1737_isa_detect(0x2e, &addr) &&
-	    dme1737_isa_detect(0x4e, &addr)) {
+	    dme1737_isa_detect(0x4e, &addr) &&
+	    (!probe_all_addr ||
+	     (dme1737_isa_detect(0x162e, &addr) &&
+	      dme1737_isa_detect(0x164e, &addr)))) {
 		/* Return 0 if we didn't find an ISA device */
 		return 0;
 	}
