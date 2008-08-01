@@ -55,8 +55,8 @@
  *		in a single CPU package.
  *	1.10	28 Feb 2002 Asit K Mallick <asit.k.mallick@intel.com> and
  *		Tigran Aivazian <tigran@veritas.com>,
- *		Serialize updates as required on HT processors due to speculative
- *		nature of implementation.
+ *		Serialize updates as required on HT processors due to
+ *		speculative nature of implementation.
  *	1.11	22 Mar 2002 Tigran Aivazian <tigran@veritas.com>
  *		Fix the panic when writing zero-length microcode chunk.
  *	1.12	29 Sep 2003 Nitin Kamble <nitin.a.kamble@intel.com>,
@@ -71,7 +71,7 @@
  *		Thanks to Stuart Swales for pointing out this bug.
  */
 
-//#define DEBUG /* pr_debug */
+/*#define DEBUG pr_debug */
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -116,7 +116,7 @@ EXPORT_SYMBOL_GPL(user_buffer);
 unsigned int user_buffer_size;		/* it's size */
 EXPORT_SYMBOL_GPL(user_buffer_size);
 
-static int do_microcode_update (void)
+static int do_microcode_update(void)
 {
 	long cursor = 0;
 	int error = 0;
@@ -158,18 +158,20 @@ out:
 	return error;
 }
 
-static int microcode_open (struct inode *unused1, struct file *unused2)
+static int microcode_open(struct inode *unused1, struct file *unused2)
 {
 	cycle_kernel_lock();
 	return capable(CAP_SYS_RAWIO) ? 0 : -EPERM;
 }
 
-static ssize_t microcode_write (struct file *file, const char __user *buf, size_t len, loff_t *ppos)
+static ssize_t microcode_write(struct file *file, const char __user *buf,
+			       size_t len, loff_t *ppos)
 {
 	ssize_t ret;
 
 	if ((len >> PAGE_SHIFT) > num_physpages) {
-		printk(KERN_ERR "microcode: too much data (max %ld pages)\n", num_physpages);
+		printk(KERN_ERR "microcode: too much data (max %ld pages)\n",
+		       num_physpages);
 		return -EINVAL;
 	}
 
@@ -201,7 +203,7 @@ static struct miscdevice microcode_dev = {
 	.fops		= &microcode_fops,
 };
 
-static int __init microcode_dev_init (void)
+static int __init microcode_dev_init(void)
 {
 	int error;
 
@@ -216,7 +218,7 @@ static int __init microcode_dev_init (void)
 	return 0;
 }
 
-static void microcode_dev_exit (void)
+static void microcode_dev_exit(void)
 {
 	misc_deregister(&microcode_dev);
 }
@@ -224,7 +226,7 @@ static void microcode_dev_exit (void)
 MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 #else
 #define microcode_dev_init() 0
-#define microcode_dev_exit() do { } while(0)
+#define microcode_dev_exit() do { } while (0)
 #endif
 
 /* fake device for request_firmware */
@@ -451,7 +453,7 @@ int microcode_init(void *opaque, struct module *module)
 }
 EXPORT_SYMBOL_GPL(microcode_init);
 
-void __exit microcode_exit (void)
+void __exit microcode_exit(void)
 {
 	microcode_dev_exit();
 
