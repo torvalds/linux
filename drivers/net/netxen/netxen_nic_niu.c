@@ -764,7 +764,7 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 
 /* Set promiscuous mode for a GbE interface */
 int netxen_niu_set_promiscuous_mode(struct netxen_adapter *adapter,
-				    netxen_niu_prom_mode_t mode)
+		u32 mode)
 {
 	__u32 reg;
 	u32 port = adapter->physical_port;
@@ -906,7 +906,7 @@ int netxen_niu_xg_macaddr_get(struct netxen_adapter *adapter,
 #endif  /*  0  */
 
 int netxen_niu_xg_set_promiscuous_mode(struct netxen_adapter *adapter,
-				       netxen_niu_prom_mode_t mode)
+		u32 mode)
 {
 	__u32 reg;
 	u32 port = adapter->physical_port;

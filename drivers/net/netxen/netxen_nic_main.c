@@ -1113,9 +1113,7 @@ static int netxen_nic_open(struct net_device *netdev)
 	netxen_nic_set_link_parameters(adapter);
 
 	netdev->set_multicast_list(netdev);
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		nx_fw_cmd_set_mtu(adapter, netdev->mtu);
-	else
+	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, netdev->mtu);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
