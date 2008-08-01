@@ -3352,8 +3352,9 @@ static int ext4_quota_on(struct super_block *sb, int type, int format_id,
 		jbd2_journal_unlock_updates(EXT4_SB(sb)->s_journal);
 	}
 
+	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
 	path_put(&nd.path);
-	return vfs_quota_on(sb, type, format_id, path, remount);
+	return err;
 }
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford
