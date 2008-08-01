@@ -876,11 +876,10 @@ struct ubifs_mount_opts {
  * @bdi: backing device info object to make VFS happy and disable read-ahead
  *
  * @highest_inum: highest used inode number
- * @vfs_gen: VFS inode generation counter
  * @max_sqnum: current global sequence number
  * @cmt_no: commit number of the last successfully completed commit, protected
  *          by @commit_sem
- * @cnt_lock: protects @highest_inum, @vfs_gen, and @max_sqnum counters
+ * @cnt_lock: protects @highest_inum and @max_sqnum counters
  * @fmt_version: UBIFS on-flash format version
  * @uuid: UUID from super block
  *
@@ -1117,7 +1116,6 @@ struct ubifs_info {
 	struct backing_dev_info bdi;
 
 	ino_t highest_inum;
-	unsigned int vfs_gen;
 	unsigned long long max_sqnum;
 	unsigned long long cmt_no;
 	spinlock_t cnt_lock;

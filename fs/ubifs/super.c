@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <linux/random.h>
 #include <linux/kthread.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
@@ -1671,7 +1670,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&c->orph_new);
 
 	c->highest_inum = UBIFS_FIRST_INO;
-	get_random_bytes(&c->vfs_gen, sizeof(int));
 	c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
 
 	ubi_get_volume_info(ubi, &c->vi);

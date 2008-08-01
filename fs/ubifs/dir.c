@@ -165,7 +165,6 @@ struct inode *ubifs_new_inode(struct ubifs_info *c, const struct inode *dir,
 	}
 
 	inode->i_ino = ++c->highest_inum;
-	inode->i_generation = ++c->vfs_gen;
 	/*
 	 * The creation sequence number remains with this inode for its
 	 * lifetime. All nodes for this inode have a greater sequence number,
