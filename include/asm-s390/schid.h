@@ -11,6 +11,7 @@ struct subchannel_id {
 } __attribute__ ((packed, aligned(4)));
 
 #ifdef __KERNEL__
+#include <linux/string.h>
 
 /* Helper function for sane state of pre-allocated subchannel_id. */
 static inline void
