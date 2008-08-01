@@ -98,6 +98,14 @@
     "Kernel debugging" select "KGDB: kernel debugging with remote gdb".
     </para>
     <para>
+    It is advised, but not required that you turn on the
+    CONFIG_FRAME_POINTER kernel option.  This option inserts code to
+    into the compiled executable which saves the frame information in
+    registers or on the stack at different points which will allow a
+    debugger such as gdb to more accurately construct stack back traces
+    while debugging the kernel.
+    </para>
+    <para>
     Next you should choose one of more I/O drivers to interconnect debugging
     host and debugged target.  Early boot debugging requires a KGDB
     I/O driver that supports early debugging and the driver must be
