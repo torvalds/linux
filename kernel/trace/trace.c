@@ -197,12 +197,14 @@ unsigned long nsecs_to_usecs(unsigned long nsecs)
  *  NEED_RESCED - reschedule is requested
  *  HARDIRQ	- inside an interrupt handler
  *  SOFTIRQ	- inside a softirq handler
+ *  CONT	- multiple entries hold the trace item
  */
 enum trace_flag_type {
 	TRACE_FLAG_IRQS_OFF		= 0x01,
 	TRACE_FLAG_NEED_RESCHED		= 0x02,
 	TRACE_FLAG_HARDIRQ		= 0x04,
 	TRACE_FLAG_SOFTIRQ		= 0x08,
+	TRACE_FLAG_CONT			= 0x10,
 };
 
 /*
@@ -1074,6 +1076,7 @@ enum trace_file_type {
 	TRACE_FILE_LAT_FMT	= 1,
 };
 
+/* Return the current entry.  */
 static struct trace_entry *
 trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 		struct trace_iterator *iter, int cpu)
@@ -1104,8 +1107,58 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 	return &array[iter->next_page_idx[cpu]];
 }
 
+/* Increment the index counter of an iterator by one */
+static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
+{
+	iter->idx++;
+	iter->next_idx[cpu]++;
+	iter->next_page_idx[cpu]++;
+
+	if (iter->next_page_idx[cpu] >= ENTRIES_PER_PAGE) {
+		struct trace_array_cpu *data = iter->tr->data[cpu];
+
+		iter->next_page_idx[cpu] = 0;
+		iter->next_page[cpu] =
+			trace_next_list(data, iter->next_page[cpu]);
+	}
+}
+
 static struct trace_entry *
-find_next_entry(struct trace_iterator *iter, int *ent_cpu)
+trace_entry_next(struct trace_array *tr, struct trace_array_cpu *data,
+		 struct trace_iterator *iter, int cpu)
+{
+	struct list_head *next_page;
+	struct trace_entry *ent;
+	int idx, next_idx, next_page_idx;
+
+	ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
+
+	if (likely(!ent || ent->type != TRACE_CONT))
+		return ent;
+
+	/* save the iterator details */
+	idx		= iter->idx;
+	next_idx	= iter->next_idx[cpu];
+	next_page_idx	= iter->next_page_idx[cpu];
+	next_page	= iter->next_page[cpu];
+
+	/* find a real entry */
+	do {
+		trace_iterator_increment(iter, cpu);
+		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
+	} while (ent && ent->type != TRACE_CONT);
+
+	/* reset the iterator */
+	iter->idx			= idx;
+	iter->next_idx[cpu]		= next_idx;
+	iter->next_page_idx[cpu]	= next_page_idx;
+	iter->next_page[cpu]		= next_page;
+
+	return ent;
+}
+
+static struct trace_entry *
+__find_next_entry(struct trace_iterator *iter, int *ent_cpu, int inc)
 {
 	struct trace_array *tr = iter->tr;
 	struct trace_entry *ent, *next = NULL;
@@ -1115,7 +1168,23 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	for_each_tracing_cpu(cpu) {
 		if (!head_page(tr->data[cpu]))
 			continue;
+
 		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
+
+		if (ent && ent->type == TRACE_CONT) {
+			struct trace_array_cpu *data = tr->data[cpu];
+
+			if (!inc)
+				ent = trace_entry_next(tr, data, iter, cpu);
+			else {
+				while (ent && ent->type == TRACE_CONT) {
+					trace_iterator_increment(iter, cpu);
+					ent = trace_entry_idx(tr, tr->data[cpu],
+							      iter, cpu);
+				}
+			}
+		}
+
 		/*
 		 * Pick the entry with the smallest timestamp:
 		 */
@@ -1131,25 +1200,39 @@ find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 	return next;
 }
 
-static void trace_iterator_increment(struct trace_iterator *iter)
+/* Find the next real entry, without updating the iterator itself */
+static struct trace_entry *
+find_next_entry(struct trace_iterator *iter, int *ent_cpu)
 {
-	iter->idx++;
-	iter->next_idx[iter->cpu]++;
-	iter->next_page_idx[iter->cpu]++;
+	return __find_next_entry(iter, ent_cpu, 0);
+}
 
-	if (iter->next_page_idx[iter->cpu] >= ENTRIES_PER_PAGE) {
-		struct trace_array_cpu *data = iter->tr->data[iter->cpu];
+/* Find the next real entry, and increment the iterator to the next entry */
+static void *find_next_entry_inc(struct trace_iterator *iter)
+{
+	struct trace_entry *next;
+	int next_cpu = -1;
 
-		iter->next_page_idx[iter->cpu] = 0;
-		iter->next_page[iter->cpu] =
-			trace_next_list(data, iter->next_page[iter->cpu]);
-	}
+	next = __find_next_entry(iter, &next_cpu, 1);
+
+	iter->prev_ent = iter->ent;
+	iter->prev_cpu = iter->cpu;
+
+	iter->ent = next;
+	iter->cpu = next_cpu;
+
+	if (next)
+		trace_iterator_increment(iter, iter->cpu);
+
+	return next ? iter : NULL;
 }
 
 static void trace_consume(struct trace_iterator *iter)
 {
 	struct trace_array_cpu *data = iter->tr->data[iter->cpu];
+	struct trace_entry *ent;
 
+ again:
 	data->trace_tail_idx++;
 	if (data->trace_tail_idx >= ENTRIES_PER_PAGE) {
 		data->trace_tail = trace_next_page(data, data->trace_tail);
@@ -1160,25 +1243,11 @@ static void trace_consume(struct trace_iterator *iter)
 	if (data->trace_head == data->trace_tail &&
 	    data->trace_head_idx == data->trace_tail_idx)
 		data->trace_idx = 0;
-}
 
-static void *find_next_entry_inc(struct trace_iterator *iter)
-{
-	struct trace_entry *next;
-	int next_cpu = -1;
-
-	next = find_next_entry(iter, &next_cpu);
-
-	iter->prev_ent = iter->ent;
-	iter->prev_cpu = iter->cpu;
-
-	iter->ent = next;
-	iter->cpu = next_cpu;
-
-	if (next)
-		trace_iterator_increment(iter);
-
-	return next ? iter : NULL;
+	ent = trace_entry_idx(iter->tr, iter->tr->data[iter->cpu],
+			      iter, iter->cpu);
+	if (ent && ent->type == TRACE_CONT)
+		goto again;
 }
 
 static void *s_next(struct seq_file *m, void *v, loff_t *pos)
@@ -1473,6 +1542,26 @@ lat_print_timestamp(struct trace_seq *s, unsigned long long abs_usecs,
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
+static void
+trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
+{
+	struct trace_array *tr = iter->tr;
+	struct trace_array_cpu *data = tr->data[iter->cpu];
+	struct trace_entry *ent;
+
+	ent = trace_entry_idx(tr, data, iter, iter->cpu);
+	if (!ent || ent->type != TRACE_CONT) {
+		trace_seq_putc(s, '\n');
+		return;
+	}
+
+	do {
+		trace_seq_printf(s, "%s", ent->cont.buf);
+		trace_iterator_increment(iter, iter->cpu);
+		ent = trace_entry_idx(tr, data, iter, iter->cpu);
+	} while (ent && ent->type == TRACE_CONT);
+}
+
 static int
 print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 {
@@ -1491,6 +1580,10 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 
 	if (!next_entry)
 		next_entry = entry;
+
+	if (entry->type == TRACE_CONT)
+		return 1;
+
 	rel_usecs = ns2usecs(next_entry->field.t - entry->field.t);
 	abs_usecs = ns2usecs(entry->field.t - iter->tr->time_start);
 
@@ -1550,6 +1643,12 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 		}
 		trace_seq_puts(s, "\n");
 		break;
+	case TRACE_PRINT:
+		seq_print_ip_sym(s, field->print.ip, sym_flags);
+		trace_seq_printf(s, ": %s", field->print.buf);
+		if (field->flags && TRACE_FLAG_CONT)
+			trace_seq_print_cont(s, iter);
+		break;
 	default:
 		trace_seq_printf(s, "Unknown type %d\n", entry->type);
 	}
@@ -1571,6 +1670,10 @@ static int print_trace_fmt(struct trace_iterator *iter)
 	int i;
 
 	entry = iter->ent;
+
+	if (entry->type == TRACE_CONT)
+		return 1;
+
 	field = &entry->field;
 
 	comm = trace_find_cmdline(iter->ent->field.pid);
@@ -1653,6 +1756,12 @@ static int print_trace_fmt(struct trace_iterator *iter)
 		if (!ret)
 			return 0;
 		break;
+	case TRACE_PRINT:
+		seq_print_ip_sym(s, field->print.ip, sym_flags);
+		trace_seq_printf(s, ": %s", field->print.buf);
+		if (field->flags && TRACE_FLAG_CONT)
+			trace_seq_print_cont(s, iter);
+		break;
 	}
 	return 1;
 }
@@ -1666,6 +1775,10 @@ static int print_raw_fmt(struct trace_iterator *iter)
 	int S, T;
 
 	entry = iter->ent;
+
+	if (entry->type == TRACE_CONT)
+		return 1;
+
 	field = &entry->field;
 
 	ret = trace_seq_printf(s, "%d %d %llu ",
@@ -1708,6 +1821,12 @@ static int print_raw_fmt(struct trace_iterator *iter)
 		if (!ret)
 			return 0;
 		break;
+	case TRACE_PRINT:
+		trace_seq_printf(s, "# %lx %s",
+				 field->print.ip, field->print.buf);
+		if (field->flags && TRACE_FLAG_CONT)
+			trace_seq_print_cont(s, iter);
+		break;
 	}
 	return 1;
 }
@@ -1733,6 +1852,10 @@ static int print_hex_fmt(struct trace_iterator *iter)
 	int S, T;
 
 	entry = iter->ent;
+
+	if (entry->type == TRACE_CONT)
+		return 1;
+
 	field = &entry->field;
 
 	SEQ_PUT_HEX_FIELD_RET(s, field->pid);
@@ -1778,6 +1901,10 @@ static int print_bin_fmt(struct trace_iterator *iter)
 	struct trace_field *field;
 
 	entry = iter->ent;
+
+	if (entry->type == TRACE_CONT)
+		return 1;
+
 	field = &entry->field;
 
 	SEQ_PUT_FIELD_RET(s, field->pid);
@@ -2942,6 +3069,94 @@ static __init void tracer_init_debugfs(void)
 	init_tracer_sysprof_debugfs(d_tracer);
 #endif
 }
+
+#define TRACE_BUF_SIZE 1024
+#define TRACE_PRINT_BUF_SIZE \
+	(sizeof(struct trace_field) - offsetof(struct trace_field, print.buf))
+#define TRACE_CONT_BUF_SIZE sizeof(struct trace_field)
+
+/**
+ * ftrace_printk - printf formatting in the ftrace buffer
+ * @fmt - the printf format for printing.
+ *
+ * Note: __ftrace_printk is an internal function for ftrace_printk and
+ *       the @ip is passed in via the ftrace_printk macro.
+ *
+ * This function allows a kernel developer to debug fast path sections
+ * that printk is not appropriate for. By scattering in various
+ * printk like tracing in the code, a developer can quickly see
+ * where problems are occurring.
+ *
+ * This is intended as a debugging tool for the developer only.
+ * Please reframe from leaving ftrace_printks scattered around in
+ * your code.
+ */
+int __ftrace_printk(unsigned long ip, const char *fmt, ...)
+{
+	struct trace_array *tr = &global_trace;
+	static DEFINE_SPINLOCK(trace_buf_lock);
+	static char trace_buf[TRACE_BUF_SIZE];
+	struct trace_array_cpu *data;
+	struct trace_entry *entry;
+	unsigned long flags;
+	long disabled;
+	va_list ap;
+	int cpu, len = 0, write, written = 0;
+
+	if (likely(!ftrace_function_enabled))
+		return 0;
+
+	local_irq_save(flags);
+	cpu = raw_smp_processor_id();
+	data = tr->data[cpu];
+	disabled = atomic_inc_return(&data->disabled);
+
+	if (unlikely(disabled != 1 || !ftrace_function_enabled))
+		goto out;
+
+	spin_lock(&trace_buf_lock);
+	va_start(ap, fmt);
+	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, ap);
+	va_end(ap);
+
+	len = min(len, TRACE_BUF_SIZE-1);
+	trace_buf[len] = 0;
+
+	__raw_spin_lock(&data->lock);
+	entry				= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, flags);
+	entry->type			= TRACE_PRINT;
+	entry->field.print.ip		= ip;
+
+	write = min(len, (int)(TRACE_PRINT_BUF_SIZE-1));
+
+	memcpy(&entry->field.print.buf, trace_buf, write);
+	entry->field.print.buf[write] = 0;
+	written = write;
+
+	if (written != len)
+		entry->field.flags |= TRACE_FLAG_CONT;
+
+	while (written != len) {
+		entry = tracing_get_trace_entry(tr, data);
+
+		entry->type = TRACE_CONT;
+		write = min(len - written, (int)(TRACE_CONT_BUF_SIZE-1));
+		memcpy(&entry->cont.buf, trace_buf+written, write);
+		entry->cont.buf[write] = 0;
+		written += write;
+	}
+	__raw_spin_unlock(&data->lock);
+
+	spin_unlock(&trace_buf_lock);
+
+ out:
+	atomic_dec(&data->disabled);
+	local_irq_restore(flags);
+
+	return len;
+}
+EXPORT_SYMBOL_GPL(__ftrace_printk);
 
 static int trace_alloc_page(void)
 {

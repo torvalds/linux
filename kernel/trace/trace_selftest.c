@@ -9,7 +9,9 @@ static inline int trace_valid_entry(struct trace_entry *entry)
 	case TRACE_FN:
 	case TRACE_CTX:
 	case TRACE_WAKE:
+	case TRACE_CONT:
 	case TRACE_STACK:
+	case TRACE_PRINT:
 	case TRACE_SPECIAL:
 		return 1;
 	}
@@ -120,11 +122,11 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 					   struct trace_array *tr,
 					   int (*func)(void))
 {
-	unsigned long count;
-	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	unsigned long count;
 	char *func_name;
+	int ret;
 
 	/* The ftrace test PASSED */
 	printk(KERN_CONT "PASSED\n");
@@ -157,6 +159,7 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 	/* enable tracing */
 	tr->ctrl = 1;
 	trace->init(tr);
+
 	/* Sleep for a 1/10 of a second */
 	msleep(100);
 
@@ -212,10 +215,10 @@ int trace_selftest_startup_dynamic_tracing(struct tracer *trace,
 int
 trace_selftest_startup_function(struct tracer *trace, struct trace_array *tr)
 {
-	unsigned long count;
-	int ret;
 	int save_ftrace_enabled = ftrace_enabled;
 	int save_tracer_enabled = tracer_enabled;
+	unsigned long count;
+	int ret;
 
 	/* make sure msleep has been recorded */
 	msleep(1);

@@ -157,9 +157,18 @@ static inline void __ftrace_enabled_restore(int enabled)
 #ifdef CONFIG_TRACING
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
+# define ftrace_printk(x...) __ftrace_printk(_THIS_IP_, x)
+extern int
+__ftrace_printk(unsigned long ip, const char *fmt, ...)
+	__attribute__ ((format (printf, 2, 3)));
 #else
 static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
+static inline int
+ftrace_printk(const char *fmt, ...) __attribute__ ((format (printf, 1, 0)))
+{
+	return 0;
+}
 #endif
 
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
@@ -172,5 +181,6 @@ static inline void
 ftrace_init_module(unsigned long *start, unsigned long *end) { }
 static inline void ftrace_release(void *start, unsigned long size) { }
 #endif
+
 
 #endif /* _LINUX_FTRACE_H */

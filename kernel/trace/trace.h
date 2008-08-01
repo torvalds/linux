@@ -13,7 +13,9 @@ enum trace_type {
 	TRACE_FN,
 	TRACE_CTX,
 	TRACE_WAKE,
+	TRACE_CONT,
 	TRACE_STACK,
+	TRACE_PRINT,
 	TRACE_SPECIAL,
 	TRACE_MMIO_RW,
 	TRACE_MMIO_MAP,
@@ -61,6 +63,14 @@ struct stack_entry {
 };
 
 /*
+ * ftrace_printk entry:
+ */
+struct print_entry {
+	unsigned long		ip;
+	char			buf[];
+};
+
+/*
  * The trace field - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:
  *
@@ -77,6 +87,7 @@ struct trace_field {
 		struct ctx_switch_entry		ctx;
 		struct special_entry		special;
 		struct stack_entry		stack;
+		struct print_entry		print;
 		struct mmiotrace_rw		mmiorw;
 		struct mmiotrace_map		mmiomap;
 	};
