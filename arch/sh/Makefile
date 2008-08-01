@@ -95,8 +95,6 @@ head-y			:= arch/sh/kernel/init_task.o
 head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o
 head-$(CONFIG_SUPERH64)	+= arch/sh/kernel/head_64.o
 
-LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-
 core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
@@ -145,10 +143,6 @@ cpuincdir-$(CONFIG_CPU_SH4)	+= cpu-sh4
 cpuincdir-$(CONFIG_CPU_SH5)	+= cpu-sh5
 cpuincdir-y			+= cpu-common	# Must be last
 
-libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
-libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
-libs-y				+= $(LIBGCC)
-
 drivers-y			+= arch/sh/drivers/
 drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
@@ -160,6 +154,12 @@ cflags-y	+= $(foreach d, $(cpuincdir-y), -Iarch/sh/include/$(d)) \
 KBUILD_CFLAGS		+= -pipe $(cflags-y)
 KBUILD_CPPFLAGS		+= $(cflags-y)
 KBUILD_AFLAGS		+= $(cflags-y)
+
+LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
+
+libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
+libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
+libs-y				+= $(LIBGCC)
 
 PHONY += maketools FORCE
 
