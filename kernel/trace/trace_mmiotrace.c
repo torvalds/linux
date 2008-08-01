@@ -174,14 +174,14 @@ print_out:
 static int mmio_print_rw(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
-	struct mmiotrace_rw *rw	= &entry->mmiorw;
+	struct mmiotrace_rw *rw	= &entry->field.mmiorw;
 	struct trace_seq *s	= &iter->seq;
-	unsigned long long t	= ns2usecs(entry->t);
+	unsigned long long t	= ns2usecs(entry->field.t);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
 	int ret = 1;
 
-	switch (entry->mmiorw.opcode) {
+	switch (entry->field.mmiorw.opcode) {
 	case MMIO_READ:
 		ret = trace_seq_printf(s,
 			"R %d %lu.%06lu %d 0x%llx 0x%lx 0x%lx %d\n",
@@ -216,14 +216,14 @@ static int mmio_print_rw(struct trace_iterator *iter)
 static int mmio_print_map(struct trace_iterator *iter)
 {
 	struct trace_entry *entry = iter->ent;
-	struct mmiotrace_map *m	= &entry->mmiomap;
+	struct mmiotrace_map *m	= &entry->field.mmiomap;
 	struct trace_seq *s	= &iter->seq;
-	unsigned long long t	= ns2usecs(entry->t);
+	unsigned long long t	= ns2usecs(entry->field.t);
 	unsigned long usec_rem	= do_div(t, 1000000ULL);
 	unsigned secs		= (unsigned long)t;
 	int ret = 1;
 
-	switch (entry->mmiorw.opcode) {
+	switch (entry->field.mmiorw.opcode) {
 	case MMIO_PROBE:
 		ret = trace_seq_printf(s,
 			"MAP %lu.%06lu %d 0x%llx 0x%lx 0x%lx 0x%lx %d\n",

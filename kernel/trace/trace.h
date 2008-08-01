@@ -61,13 +61,12 @@ struct stack_entry {
 };
 
 /*
- * The trace entry - the most basic unit of tracing. This is what
+ * The trace field - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:
  *
  *     bash-15816 [01]   235.197585: idle_cpu <- irq_enter
  */
-struct trace_entry {
-	char			type;
+struct trace_field {
 	char			cpu;
 	char			flags;
 	char			preempt_count;
@@ -80,6 +79,18 @@ struct trace_entry {
 		struct stack_entry		stack;
 		struct mmiotrace_rw		mmiorw;
 		struct mmiotrace_map		mmiomap;
+	};
+};
+
+struct trace_field_cont {
+	char				buf[sizeof(struct trace_field)];
+};
+
+struct trace_entry {
+	char 				type;
+	union {
+		struct trace_field	field;
+		struct trace_field_cont	cont;
 	};
 };
 
