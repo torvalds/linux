@@ -161,7 +161,7 @@ xfs_trans_free_item(xfs_trans_t	*tp, xfs_log_item_desc_t *lidp)
 			licpp = &((*licpp)->lic_next);
 		}
 		*licpp = licp->lic_next;
-		kmem_free(licp, sizeof(xfs_log_item_chunk_t));
+		kmem_free(licp);
 		tp->t_items_free -= XFS_LIC_NUM_SLOTS;
 	}
 }
@@ -314,7 +314,7 @@ xfs_trans_free_items(
 		ASSERT(!XFS_LIC_ARE_ALL_FREE(licp));
 		(void) xfs_trans_unlock_chunk(licp, 1, abort, NULLCOMMITLSN);
 		next_licp = licp->lic_next;
-		kmem_free(licp, sizeof(xfs_log_item_chunk_t));
+		kmem_free(licp);
 		licp = next_licp;
 	}
 
@@ -363,7 +363,7 @@ xfs_trans_unlock_items(xfs_trans_t *tp, xfs_lsn_t commit_lsn)
 		next_licp = licp->lic_next;
 		if (XFS_LIC_ARE_ALL_FREE(licp)) {
 			*licpp = next_licp;
-			kmem_free(licp, sizeof(xfs_log_item_chunk_t));
+			kmem_free(licp);
 			freed -= XFS_LIC_NUM_SLOTS;
 		} else {
 			licpp = &(licp->lic_next);
@@ -530,7 +530,7 @@ xfs_trans_free_busy(xfs_trans_t *tp)
 	lbcp = tp->t_busy.lbc_next;
 	while (lbcp != NULL) {
 		lbcq = lbcp->lbc_next;
-		kmem_free(lbcp, sizeof(xfs_log_busy_chunk_t));
+		kmem_free(lbcp);
 		lbcp = lbcq;
 	}
 

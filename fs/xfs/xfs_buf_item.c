@@ -889,9 +889,9 @@ xfs_buf_item_relse(
 	}
 
 #ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig, XFS_BUF_COUNT(bp));
+	kmem_free(bip->bli_orig);
 	bip->bli_orig = NULL;
-	kmem_free(bip->bli_logged, XFS_BUF_COUNT(bp) / NBBY);
+	kmem_free(bip->bli_logged);
 	bip->bli_logged = NULL;
 #endif /* XFS_TRANS_DEBUG */
 
@@ -1138,9 +1138,9 @@ xfs_buf_iodone(
 	xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
 
 #ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig, XFS_BUF_COUNT(bp));
+	kmem_free(bip->bli_orig);
 	bip->bli_orig = NULL;
-	kmem_free(bip->bli_logged, XFS_BUF_COUNT(bp) / NBBY);
+	kmem_free(bip->bli_logged);
 	bip->bli_logged = NULL;
 #endif /* XFS_TRANS_DEBUG */
 

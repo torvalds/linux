@@ -1435,8 +1435,7 @@ xfs_dqlock2(
 /* ARGSUSED */
 int
 xfs_qm_dqpurge(
-	xfs_dquot_t	*dqp,
-	uint		flags)
+	xfs_dquot_t	*dqp)
 {
 	xfs_dqhash_t	*thishash;
 	xfs_mount_t	*mp = dqp->q_mount;

@@ -22,7 +22,6 @@ typedef struct {
 	unsigned char	__u_bits[16];
 } uuid_t;
 
-extern void uuid_init(void);
 extern void uuid_create_nil(uuid_t *uuid);
 extern int uuid_is_nil(uuid_t *uuid);
 extern int uuid_equal(uuid_t *uuid1, uuid_t *uuid2);
