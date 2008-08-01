@@ -941,8 +941,10 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	 * hooks: /n/, see "layering violations".
 	 */
 	ret = devcgroup_inode_permission(bdev->bd_inode, perm);
-	if (ret != 0)
+	if (ret != 0) {
+		bdput(bdev);
 		return ret;
+	}
 
 	ret = -ENXIO;
 	file->f_mapping = bdev->bd_inode->i_mapping;
