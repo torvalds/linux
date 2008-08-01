@@ -37,21 +37,6 @@ struct pt_regs {
 	unsigned int magic;
 };
 
-static inline int pt_regs_trap_type(struct pt_regs *regs)
-{
-	return regs->magic & 0x1ff;
-}
-
-static inline bool pt_regs_is_syscall(struct pt_regs *regs)
-{
-	return (regs->tstate & TSTATE_SYSCALL);
-}
-
-static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
-{
-	return (regs->tstate &= ~TSTATE_SYSCALL);
-}
-
 struct pt_regs32 {
 	unsigned int psr;
 	unsigned int pc;
@@ -128,6 +113,21 @@ struct sparc_trapf {
 
 #ifdef __KERNEL__
 
+static inline int pt_regs_trap_type(struct pt_regs *regs)
+{
+	return regs->magic & 0x1ff;
+}
+
+static inline bool pt_regs_is_syscall(struct pt_regs *regs)
+{
+	return (regs->tstate & TSTATE_SYSCALL);
+}
+
+static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
+{
+	return (regs->tstate &= ~TSTATE_SYSCALL);
+}
+
 struct global_reg_snapshot {
 	unsigned long		tstate;
 	unsigned long		tpc;
@@ -154,7 +154,6 @@ extern unsigned long profile_pc(struct pt_regs *);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 extern void show_regs(struct pt_regs *);
-extern void __show_regs(struct pt_regs *);
 #endif
 
 #else /* __ASSEMBLY__ */
