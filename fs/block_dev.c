@@ -1236,6 +1236,7 @@ fail:
 	bdev = ERR_PTR(error);
 	goto out;
 }
+EXPORT_SYMBOL(lookup_bdev);
 
 /**
  * open_bdev_excl  -  open a block device by name and set it up for use
