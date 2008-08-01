@@ -157,7 +157,24 @@ static inline void __ftrace_enabled_restore(int enabled)
 #ifdef CONFIG_TRACING
 extern void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3);
-# define ftrace_printk(x...) __ftrace_printk(_THIS_IP_, x)
+
+/**
+ * ftrace_printk - printf formatting in the ftrace buffer
+ * @fmt: the printf format for printing
+ *
+ * Note: __ftrace_printk is an internal function for ftrace_printk and
+ *       the @ip is passed in via the ftrace_printk macro.
+ *
+ * This function allows a kernel developer to debug fast path sections
+ * that printk is not appropriate for. By scattering in various
+ * printk like tracing in the code, a developer can quickly see
+ * where problems are occurring.
+ *
+ * This is intended as a debugging tool for the developer only.
+ * Please refrain from leaving ftrace_printks scattered around in
+ * your code.
+ */
+# define ftrace_printk(fmt...) __ftrace_printk(_THIS_IP_, fmt)
 extern int
 __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	__attribute__ ((format (printf, 2, 3)));

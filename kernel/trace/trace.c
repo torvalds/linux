@@ -3075,22 +3075,6 @@ static __init void tracer_init_debugfs(void)
 	(sizeof(struct trace_field) - offsetof(struct trace_field, print.buf))
 #define TRACE_CONT_BUF_SIZE sizeof(struct trace_field)
 
-/**
- * ftrace_printk - printf formatting in the ftrace buffer
- * @fmt - the printf format for printing.
- *
- * Note: __ftrace_printk is an internal function for ftrace_printk and
- *       the @ip is passed in via the ftrace_printk macro.
- *
- * This function allows a kernel developer to debug fast path sections
- * that printk is not appropriate for. By scattering in various
- * printk like tracing in the code, a developer can quickly see
- * where problems are occurring.
- *
- * This is intended as a debugging tool for the developer only.
- * Please reframe from leaving ftrace_printks scattered around in
- * your code.
- */
 int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 {
 	struct trace_array *tr = &global_trace;
