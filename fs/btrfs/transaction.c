@@ -211,11 +211,9 @@ static void throttle_on_drops(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *info = root->fs_info;
 
-harder:
 	if (atomic_read(&info->throttles)) {
 		DEFINE_WAIT(wait);
 		int thr;
-		int harder_count = 0;
 		thr = atomic_read(&info->throttle_gen);
 
 		do {
@@ -228,18 +226,6 @@ harder:
 			schedule();
 			finish_wait(&info->transaction_throttle, &wait);
 		} while (thr == atomic_read(&info->throttle_gen));
-
-		if (harder_count < 5 &&
-		    info->total_ref_cache_size > 1 * 1024 * 1024) {
-			harder_count++;
-			goto harder;
-		}
-
-		if (harder_count < 10 &&
-		    info->total_ref_cache_size > 5 * 1024 * 1024) {
-			harder_count++;
-			goto harder;
-		}
 	}
 }
 

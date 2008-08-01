@@ -2535,6 +2535,10 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 						root_gen, 0, 0, 1);
 			BUG_ON(ret);
 			mutex_unlock(&root->fs_info->alloc_mutex);
+
+			atomic_inc(&root->fs_info->throttle_gen);
+			wake_up(&root->fs_info->transaction_throttle);
+
 			continue;
 		}
 		/*
@@ -2602,7 +2606,6 @@ out:
 	blocksize = btrfs_level_size(root, *level);
 	root_owner = btrfs_header_owner(parent);
 	root_gen = btrfs_header_generation(parent);
-
 
 	mutex_lock(&root->fs_info->alloc_mutex);
 	ret = __btrfs_free_extent(trans, root, bytenr, blocksize,
@@ -2726,7 +2729,6 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 		}
 	}
 	while(1) {
-		atomic_inc(&root->fs_info->throttle_gen);
 		wret = walk_down_tree(trans, root, path, &level);
 		if (wret > 0)
 			break;
@@ -2742,6 +2744,7 @@ int btrfs_drop_snapshot(struct btrfs_trans_handle *trans, struct btrfs_root
 			ret = -EAGAIN;
 			break;
 		}
+		atomic_inc(&root->fs_info->throttle_gen);
 		wake_up(&root->fs_info->transaction_throttle);
 	}
 	for (i = 0; i <= orig_level; i++) {
