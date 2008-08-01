@@ -515,7 +515,7 @@ int __init qdio_setup_init(void)
 	return 0;
 }
 
-void __exit qdio_setup_exit(void)
+void qdio_setup_exit(void)
 {
 	kmem_cache_destroy(qdio_q_cache);
 }
