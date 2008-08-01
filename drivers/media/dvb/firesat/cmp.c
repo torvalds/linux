@@ -1,3 +1,15 @@
+/*
+ * FireSAT DVB driver
+ *
+ * Copyright (c) ?
+ * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ *
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License as
+ *	published by the Free Software Foundation; either version 2 of
+ *	the License, or (at your option) any later version.
+ */
+
 #include "cmp.h"
 #include <ieee1394.h>
 #include <nodemgr.h>
@@ -10,18 +22,18 @@
 
 typedef struct _OPCR
 {
-	BYTE PTPConnCount    : 6 ; // Point to point connect. counter
-	BYTE BrConnCount     : 1 ; // Broadcast connection counter
-	BYTE OnLine          : 1 ; // On Line
+	__u8 PTPConnCount    : 6 ; // Point to point connect. counter
+	__u8 BrConnCount     : 1 ; // Broadcast connection counter
+	__u8 OnLine          : 1 ; // On Line
 
-	BYTE ChNr            : 6 ; // Channel number
-	BYTE Res             : 2 ; // Reserved
+	__u8 ChNr            : 6 ; // Channel number
+	__u8 Res             : 2 ; // Reserved
 
-	BYTE PayloadHi       : 2 ; // Payoad high bits
-	BYTE OvhdID          : 4 ; // Overhead ID
-	BYTE DataRate        : 2 ; // Data Rate
+	__u8 PayloadHi       : 2 ; // Payoad high bits
+	__u8 OvhdID          : 4 ; // Overhead ID
+	__u8 DataRate        : 2 ; // Data Rate
 
-	BYTE PayloadLo           ; // Payoad low byte
+	__u8 PayloadLo           ; // Payoad low byte
 } OPCR ;
 
 #define FIRESAT_SPEED IEEE1394_SPEED_400
@@ -94,13 +106,13 @@ int try_CMPEstablishPPconnection(struct firesat *firesat, int output_plug, int i
 	u64 oPCR_address=0xfffff0000904ull+(output_plug << 2);
 	int result=cmp_read(firesat, &test_oPCR, oPCR_address, 4);
 
-	printk(KERN_INFO "%s: nodeid = %d\n",__func__,firesat->nodeentry->nodeid);
+/* 	printk(KERN_INFO "%s: nodeid = %d\n",__func__,firesat->nodeentry->nodeid); */
 
 	if (result < 0) {
 		printk("%s: cannot read oPCR\n", __func__);
 		return result;
 	} else {
-		printk(KERN_INFO "%s: oPCR = %08x\n",__func__,test_oPCR);
+/* 		printk(KERN_INFO "%s: oPCR = %08x\n",__func__,test_oPCR); */
 		do {
 			OPCR *hilf= (OPCR*) &test_oPCR;
 
@@ -134,8 +146,8 @@ int try_CMPEstablishPPconnection(struct firesat *firesat, int output_plug, int i
 
 				hilf->PTPConnCount++;
 				new_oPCR=test_oPCR;
-				printk(KERN_INFO "%s: trying compare_swap...\n",__func__);
-				printk(KERN_INFO "%s: oPCR_old: %08x, oPCR_new: %08x\n",__func__, old_oPCR, new_oPCR);
+/* 				printk(KERN_INFO "%s: trying compare_swap...\n",__func__); */
+/* 				printk(KERN_INFO "%s: oPCR_old: %08x, oPCR_new: %08x\n",__func__, old_oPCR, new_oPCR); */
 				result=cmp_lock(firesat, &test_oPCR, oPCR_address, old_oPCR, 2);
 
 				if (result < 0) {
@@ -169,7 +181,7 @@ int try_CMPBreakPPconnection(struct firesat *firesat, int output_plug,int iso_ch
 	u64 oPCR_address=0xfffff0000904ull+(output_plug << 2);
 	int result=cmp_read(firesat, &test_oPCR, oPCR_address, 4);
 
-	printk(KERN_INFO "%s\n",__func__);
+/* 	printk(KERN_INFO "%s\n",__func__); */
 
 	if (result < 0) {
 		printk("%s: cannot read oPCR\n", __func__);

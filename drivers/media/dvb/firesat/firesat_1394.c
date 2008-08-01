@@ -3,6 +3,7 @@
  *
  * Copyright (c) 2004 Andreas Monitzer <andy@monitzer.com>
  * Copyright (c) 2007-2008 Ben Backx <ben@bbackx.com>
+ * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -18,7 +19,6 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/semaphore.h>
 #include <ieee1394_hotplug.h>
 #include <nodemgr.h>
 #include <highlevel.h>
@@ -79,11 +79,6 @@ static void firesat_add_host(struct hpsb_host *host);
 static void firesat_remove_host(struct hpsb_host *host);
 static void firesat_host_reset(struct hpsb_host *host);
 
-/*
-static void iso_receive(struct hpsb_host *host, int channel, quadlet_t *data,
-			size_t length);
-*/
-
 static void fcp_request(struct hpsb_host *host,
 			int nodeid,
 			int direction,
@@ -96,7 +91,6 @@ static struct hpsb_highlevel firesat_highlevel = {
 	.add_host	= firesat_add_host,
 	.remove_host	= firesat_remove_host,
 	.host_reset	= firesat_host_reset,
-// FIXME	.iso_receive =	iso_receive,
 	.fcp_request	= fcp_request,
 };
 
@@ -126,100 +120,6 @@ static void firesat_host_reset(struct hpsb_host *host)
 {
     printk(KERN_INFO "FireSAT host_reset (nodeid = 0x%x, hosts active = %d)\n",host->node_id,host->nodes_active);
 }
-
-struct firewireheader {
-    union {
-	struct {
-	    unsigned char tcode:4;
-	    unsigned char sy:4;
-	    unsigned char tag:2;
-	    unsigned char channel:6;
-
-	    unsigned char length_l;
-	    unsigned char length_h;
-	} hdr;
-	unsigned long val;
-    };
-};
-
-struct CIPHeader {
-    union {
-	struct {
-	    unsigned char syncbits:2;
-	    unsigned char sid:6;
-	    unsigned char dbs;
-	    unsigned char fn:2;
-	    unsigned char qpc:3;
-	    unsigned char sph:1;
-	    unsigned char rsv:2;
-	    unsigned char dbc;
-	    unsigned char syncbits2:2;
-	    unsigned char fmt:6;
-	    unsigned long fdf:24;
-	} cip;
-	unsigned long long val;
-    };
-};
-
-struct MPEG2Header {
-    union {
-	struct {
-	    unsigned char sync; // must be 0x47
-	    unsigned char transport_error_indicator:1;
-	    unsigned char payload_unit_start_indicator:1;
-	    unsigned char transport_priority:1;
-	    unsigned short pid:13;
-	    unsigned char transport_scrambling_control:2;
-	    unsigned char adaption_field_control:2;
-	    unsigned char continuity_counter:4;
-	} hdr;
-	unsigned long val;
-    };
-};
-
-#if 0
-static void iso_receive(struct hpsb_host *host,
-			int channel,
-			quadlet_t *data,
-			size_t length)
-{
-	struct firesat *firesat = NULL;
-	struct firesat *firesat_entry;
-	unsigned long flags;
-
-//    printk(KERN_INFO "FireSAT iso_receive: channel %d, length = %d\n", channel, length);
-
-	if (length <= 12)
-		return; // ignore empty packets
-	else {
-
-		spin_lock_irqsave(&firesat_list_lock, flags);
-		list_for_each_entry(firesat_entry,&firesat_list,list) {
-			if(firesat_entry->host == host && firesat_entry->isochannel == channel) {
-				firesat=firesat_entry;
-				break;
-			}
-		}
-		spin_unlock_irqrestore(&firesat_list_lock, flags);
-
-		if (firesat) {
-			char *buf= ((char*)data) + sizeof(struct firewireheader)+sizeof(struct CIPHeader);
-			int count = (length-sizeof(struct CIPHeader)) / 192;
-
-//			printk(KERN_INFO "%s: length = %u\n data[0] = %08x\n data[1] = %08x\n data[2] = %08x\n data[3] = %08x\n data[4] = %08x\n",__func__, length, data[0],data[1],data[2],data[3],data[4]);
-
-			while (count--) {
-
-				if (buf[sizeof(quadlet_t) /*timestamp*/] == 0x47)
-					dvb_dmx_swfilter_packets(&firesat->demux, &buf[sizeof(quadlet_t)], 1);
-				else
-					printk("%s: invalid packet, skipping\n", __func__);
-				buf += 188 + sizeof (quadlet_t) /* timestamp */;
-			}
-		}
-	}
-}
-#endif
 
 static void fcp_request(struct hpsb_host *host,
 			int nodeid,
@@ -251,7 +151,9 @@ static void fcp_request(struct hpsb_host *host,
 			AVCRecv(firesat,data,length);
 		else
 			printk("%s: received fcp request from unknown source, ignored\n", __func__);
-	} // else ignore
+	}
+	else
+	  printk("%s: received invalid fcp request, ignored\n", __func__);
 }
 
 static int firesat_probe(struct device *dev)
@@ -260,7 +162,6 @@ static int firesat_probe(struct device *dev)
 	struct firesat *firesat;
 	struct dvb_frontend *fe;
 	unsigned long flags;
-	int result;
 	unsigned char subunitcount = 0xff, subunit;
 	struct firesat **firesats = kmalloc(sizeof (void*) * 2,GFP_KERNEL);
 	int kv_len;
@@ -298,6 +199,7 @@ static int firesat_probe(struct device *dev)
 		firesat->isochannel	= -1;
 		firesat->tone		= 0xff;
 		firesat->voltage	= 0xff;
+		firesat->fe             = fe;
 
 		if (!(firesat->respfrm = kmalloc(sizeof (AVCRspFrm), GFP_KERNEL))) {
 			printk("%s: couldn't allocate memory.\n", __func__);
@@ -357,7 +259,7 @@ static int firesat_probe(struct device *dev)
 		}
 		kfree(kv_buf);
 
-		if (AVCIdentifySubunit(firesat, NULL, (int*)&firesat->type, &firesat->has_ci)) {
+		if (AVCIdentifySubunit(firesat, NULL, (int*)&firesat->type)) {
 			printk("%s: cannot identify subunit %d\n", __func__, subunit);
 			spin_lock_irqsave(&firesat_list_lock, flags);
 			list_del(&firesat->list);
@@ -382,7 +284,6 @@ static int firesat_probe(struct device *dev)
 static int firesat_remove(struct device *dev)
 {
 	struct unit_directory *ud = container_of(dev, struct unit_directory, device);
-	struct dvb_frontend* fe;
 	struct firesat **firesats = ud->device.driver_data;
 	int k;
 	unsigned long flags;
@@ -390,18 +291,9 @@ static int firesat_remove(struct device *dev)
 	if (firesats) {
 		for (k = 0; k < 2; k++)
 			if (firesats[k]) {
-				if (firesats[k]->has_ci)
 					firesat_ca_release(firesats[k]);
 
-#if 0
-				if (!(fe = kmalloc(sizeof (struct dvb_frontend), GFP_KERNEL))) {
-					fe->ops = firesat_ops;
-					fe->dvb = firesats[k]->adapter;
-
-					dvb_unregister_frontend(fe);
-					kfree(fe);
-				}
-#endif
+				dvb_unregister_frontend(firesats[k]->fe);
 				dvb_net_release(&firesats[k]->dvbnet);
 				firesats[k]->demux.dmx.close(&firesats[k]->demux.dmx);
 				firesats[k]->demux.dmx.remove_frontend(&firesats[k]->demux.dmx, &firesats[k]->frontend);
@@ -413,6 +305,7 @@ static int firesat_remove(struct device *dev)
 				list_del(&firesats[k]->list);
 				spin_unlock_irqrestore(&firesat_list_lock, flags);
 
+				kfree(firesats[k]->fe);
 				kfree(firesats[k]->adapter);
 				kfree(firesats[k]->respfrm);
 				kfree(firesats[k]);

@@ -4,6 +4,7 @@
     begin                : Wed May 1 2000
     copyright            : (C) 2000 by Manfred Weihs
     copyright            : (C) 2003 by Philipp Gutgsell
+    copyright            : (C) 2008 by Henrik Kurelid (henrik@kurelid.se)
     email                : 0014guph@edu.fh-kaernten.ac.at
  ***************************************************************************/
 
@@ -27,12 +28,10 @@
 
 #include <linux/dvb/frontend.h>
 
-#define BYTE	unsigned char
-#define WORD	unsigned short
-#define DWORD	unsigned long
-#define ULONG	unsigned long
-#define LONG	long
-
+/*************************************************************
+	Constants from EN510221
+**************************************************************/
+#define LIST_MANAGEMENT_ONLY 0x03
 
 /*************************************************************
 	FCP Address range
@@ -68,12 +67,12 @@ typedef struct {
 typedef struct _AVCCmdFrm
 {
 		// AV/C command frame
-	BYTE ctype  : 4 ;   // command type
-	BYTE cts    : 4 ;   // always 0x0 for AVC
-	BYTE suid   : 3 ;   // subunit ID
-	BYTE sutyp  : 5 ;   // subunit_typ
-	BYTE opcode : 8 ;   // opcode
-	BYTE operand[509] ; // array of operands [1-507]
+	__u8 ctype  : 4 ;   // command type
+	__u8 cts    : 4 ;   // always 0x0 for AVC
+	__u8 suid   : 3 ;   // subunit ID
+	__u8 sutyp  : 5 ;   // subunit_typ
+	__u8 opcode : 8 ;   // opcode
+	__u8 operand[509] ; // array of operands [1-507]
 	int length;         //length of the command frame
 } AVCCmdFrm ;
 
@@ -81,12 +80,12 @@ typedef struct _AVCCmdFrm
 typedef struct _AVCRspFrm
 {
         // AV/C response frame
-	BYTE resp		: 4 ;   // response type
-	BYTE cts		: 4 ;   // always 0x0 for AVC
-	BYTE suid		: 3 ;   // subunit ID
-	BYTE sutyp	: 5 ;   // subunit_typ
-	BYTE opcode	: 8 ;   // opcode
-	BYTE operand[509] ; // array of operands [1-507]
+	__u8 resp		: 4 ;   // response type
+	__u8 cts		: 4 ;   // always 0x0 for AVC
+	__u8 suid		: 3 ;   // subunit ID
+	__u8 sutyp	: 5 ;   // subunit_typ
+	__u8 opcode	: 8 ;   // opcode
+	__u8 operand[509] ; // array of operands [1-507]
 	int length;         //length of the response frame
 } AVCRspFrm ;
 
@@ -94,23 +93,23 @@ typedef struct _AVCRspFrm
 
 typedef struct _AVCCmdFrm
 {
-	BYTE cts:4;
-	BYTE ctype:4;
-	BYTE sutyp:5;
-	BYTE suid:3;
-	BYTE opcode;
-	BYTE operand[509];
+	__u8 cts:4;
+	__u8 ctype:4;
+	__u8 sutyp:5;
+	__u8 suid:3;
+	__u8 opcode;
+	__u8 operand[509];
 	int length;
 } AVCCmdFrm;
 
 typedef struct _AVCRspFrm
 {
-	BYTE cts:4;
-	BYTE resp:4;
-	BYTE sutyp:5;
-	BYTE suid:3;
-	BYTE opcode;
-	BYTE operand[509];
+	__u8 cts:4;
+	__u8 resp:4;
+	__u8 sutyp:5;
+	__u8 suid:3;
+	__u8 opcode;
+	__u8 operand[509];
 	int length;
 } AVCRspFrm;
 
@@ -197,6 +196,14 @@ typedef struct _AVCRspFrm
 #define SFE_VENDOR_OPCODE_CISTATUS				0x59
 #define SFE_VENDOR_OPCODE_TUNE_QPSK2			0x60 // QPSK command for DVB-S2 devices
 
+// CA Tags
+#define SFE_VENDOR_TAG_CA_RESET			0x00
+#define SFE_VENDOR_TAG_CA_APPLICATION_INFO	0x01
+#define SFE_VENDOR_TAG_CA_PMT			0x02
+#define SFE_VENDOR_TAG_CA_DATE_TIME		0x04
+#define SFE_VENDOR_TAG_CA_MMI			0x05
+#define SFE_VENDOR_TAG_CA_ENTER_MENU		0x07
+
 
 //AVCTuner DVB identifier service_ID
 #define DVB 0x20
@@ -209,8 +216,8 @@ typedef struct _AVCRspFrm
 #define Tuner_Status_Descriptor				 0x80
 
 typedef struct {
-	BYTE          Subunit_Type;
-	BYTE          Max_Subunit_ID;
+	__u8          Subunit_Type;
+	__u8          Max_Subunit_ID;
 } SUBUNIT_INFO;
 
 /*************************************************************
@@ -220,12 +227,12 @@ typedef struct {
 **************************************************************/
 
 typedef struct {
-	BYTE  Byte0;
-	BYTE  Byte1;
-	BYTE  Byte2;
-	BYTE  Byte3;
-	BYTE  Byte4;
-	BYTE  Byte5;
+	__u8  Byte0;
+	__u8  Byte1;
+	__u8  Byte2;
+	__u8  Byte3;
+	__u8  Byte4;
+	__u8  Byte5;
 }OBJECT_ID;
 
 /*************************************************************
@@ -234,14 +241,14 @@ typedef struct {
 typedef struct
 {
 #ifdef __LITTLE_ENDIAN
-	BYTE       RF_frequency_hByte:6;
-	BYTE       raster_Frequency:2;//Bit7,6 raster frequency
+	__u8       RF_frequency_hByte:6;
+	__u8       raster_Frequency:2;//Bit7,6 raster frequency
 #else
-	BYTE raster_Frequency:2;
-	BYTE RF_frequency_hByte:6;
+	__u8 raster_Frequency:2;
+	__u8 RF_frequency_hByte:6;
 #endif
-	BYTE       RF_frequency_mByte;
-	BYTE       RF_frequency_lByte;
+	__u8       RF_frequency_mByte;
+	__u8       RF_frequency_lByte;
 
 }FREQUENCY;
 
@@ -249,63 +256,63 @@ typedef struct
 
 typedef struct
 {
-		 BYTE        Modulation	    :1;
-		 BYTE        FEC_inner	    :1;
-		 BYTE        FEC_outer	    :1;
-		 BYTE        Symbol_Rate    :1;
-		 BYTE        Frequency	    :1;
-		 BYTE        Orbital_Pos	:1;
-		 BYTE        Polarisation	:1;
-		 BYTE        reserved_fields :1;
-		 BYTE        reserved1		:7;
-		 BYTE        Network_ID	:1;
+		 __u8        Modulation	    :1;
+		 __u8        FEC_inner	    :1;
+		 __u8        FEC_outer	    :1;
+		 __u8        Symbol_Rate    :1;
+		 __u8        Frequency	    :1;
+		 __u8        Orbital_Pos	:1;
+		 __u8        Polarisation	:1;
+		 __u8        reserved_fields :1;
+		 __u8        reserved1		:7;
+		 __u8        Network_ID	:1;
 
 }MULTIPLEX_VALID_FLAGS;
 
 typedef struct
 {
-	BYTE	GuardInterval:1;
-	BYTE	CodeRateLPStream:1;
-	BYTE	CodeRateHPStream:1;
-	BYTE	HierarchyInfo:1;
-	BYTE	Constellation:1;
-	BYTE	Bandwidth:1;
-	BYTE	CenterFrequency:1;
-	BYTE	reserved1:1;
-	BYTE	reserved2:5;
-	BYTE	OtherFrequencyFlag:1;
-	BYTE	TransmissionMode:1;
-	BYTE	NetworkId:1;
+	__u8	GuardInterval:1;
+	__u8	CodeRateLPStream:1;
+	__u8	CodeRateHPStream:1;
+	__u8	HierarchyInfo:1;
+	__u8	Constellation:1;
+	__u8	Bandwidth:1;
+	__u8	CenterFrequency:1;
+	__u8	reserved1:1;
+	__u8	reserved2:5;
+	__u8	OtherFrequencyFlag:1;
+	__u8	TransmissionMode:1;
+	__u8	NetworkId:1;
 }MULTIPLEX_VALID_FLAGS_DVBT;
 
 #else
 
 typedef struct {
-	BYTE reserved_fields:1;
-	BYTE Polarisation:1;
-	BYTE Orbital_Pos:1;
-	BYTE Frequency:1;
-	BYTE Symbol_Rate:1;
-	BYTE FEC_outer:1;
-	BYTE FEC_inner:1;
-	BYTE Modulation:1;
-	BYTE Network_ID:1;
-	BYTE reserved1:7;
+	__u8 reserved_fields:1;
+	__u8 Polarisation:1;
+	__u8 Orbital_Pos:1;
+	__u8 Frequency:1;
+	__u8 Symbol_Rate:1;
+	__u8 FEC_outer:1;
+	__u8 FEC_inner:1;
+	__u8 Modulation:1;
+	__u8 Network_ID:1;
+	__u8 reserved1:7;
 }MULTIPLEX_VALID_FLAGS;
 
 typedef struct {
-	BYTE reserved1:1;
-	BYTE CenterFrequency:1;
-	BYTE Bandwidth:1;
-	BYTE Constellation:1;
-	BYTE HierarchyInfo:1;
-	BYTE CodeRateHPStream:1;
-	BYTE CodeRateLPStream:1;
-	BYTE GuardInterval:1;
-	BYTE NetworkId:1;
-	BYTE TransmissionMode:1;
-	BYTE OtherFrequencyFlag:1;
-	BYTE reserved2:5;
+	__u8 reserved1:1;
+	__u8 CenterFrequency:1;
+	__u8 Bandwidth:1;
+	__u8 Constellation:1;
+	__u8 HierarchyInfo:1;
+	__u8 CodeRateHPStream:1;
+	__u8 CodeRateLPStream:1;
+	__u8 GuardInterval:1;
+	__u8 NetworkId:1;
+	__u8 TransmissionMode:1;
+	__u8 OtherFrequencyFlag:1;
+	__u8 reserved2:5;
 }MULTIPLEX_VALID_FLAGS_DVBT;
 
 #endif
@@ -314,47 +321,98 @@ typedef union {
 	MULTIPLEX_VALID_FLAGS Bits;
 	MULTIPLEX_VALID_FLAGS_DVBT Bits_T;
 	struct {
-		BYTE	ByteHi;
-		BYTE	ByteLo;
+		__u8	ByteHi;
+		__u8	ByteLo;
 	} Valid_Word;
 } M_VALID_FLAGS;
 
 typedef struct
 {
 #ifdef __LITTLE_ENDIAN
-  BYTE      ActiveSystem;
-  BYTE      reserved:5;
-  BYTE      NoRF:1;
-  BYTE      Moving:1;
-  BYTE      Searching:1;
+  __u8      ActiveSystem;
+  __u8      reserved:5;
+  __u8      NoRF:1;
+  __u8      Moving:1;
+  __u8      Searching:1;
 
-  BYTE      SelectedAntenna:7;
-  BYTE      Input:1;
+  __u8      SelectedAntenna:7;
+  __u8      Input:1;
 
-  BYTE      BER[4];
+  __u8      BER[4];
 
-  BYTE      SignalStrength;
+  __u8      SignalStrength;
   FREQUENCY Frequency;
 
-  BYTE      ManDepInfoLength;
+  __u8      ManDepInfoLength;
+
+  __u8 PowerSupply:1;
+  __u8 FrontEndPowerStatus:1;
+  __u8 reserved3:1;
+  __u8 AntennaError:1;
+  __u8 FrontEndError:1;
+  __u8 reserved2:3;
+
+  __u8 CarrierNoiseRatio[2];
+  __u8 reserved4[2];
+  __u8 PowerSupplyVoltage;
+  __u8 AntennaVoltage;
+  __u8 FirewireBusVoltage;
+
+  __u8 CaMmi:1;
+  __u8 reserved5:7;
+
+  __u8 reserved6:1;
+  __u8 CaInitializationStatus:1;
+  __u8 CaErrorFlag:1;
+  __u8 CaDvbFlag:1;
+  __u8 CaModulePresentStatus:1;
+  __u8 CaApplicationInfo:1;
+  __u8 CaDateTimeRequest:1;
+  __u8 CaPmtReply:1;
+
 #else
-  BYTE ActiveSystem;
-  BYTE Searching:1;
-  BYTE Moving:1;
-  BYTE NoRF:1;
-  BYTE reserved:5;
+  __u8 ActiveSystem;
+  __u8 Searching:1;
+  __u8 Moving:1;
+  __u8 NoRF:1;
+  __u8 reserved:5;
 
-  BYTE Input:1;
-  BYTE SelectedAntenna:7;
+  __u8 Input:1;
+  __u8 SelectedAntenna:7;
 
-  BYTE BER[4];
+  __u8 BER[4];
 
-  BYTE SignalStrength;
+  __u8 SignalStrength;
   FREQUENCY Frequency;
 
-  BYTE ManDepInfoLength;
+  __u8 ManDepInfoLength;
+
+  __u8 reserved2:3;
+  __u8 FrontEndError:1;
+  __u8 AntennaError:1;
+  __u8 reserved3:1;
+  __u8 FrontEndPowerStatus:1;
+  __u8 PowerSupply:1;
+
+  __u8 CarrierNoiseRatio[2];
+  __u8 reserved4[2];
+  __u8 PowerSupplyVoltage;
+  __u8 AntennaVoltage;
+  __u8 FirewireBusVoltage;
+
+  __u8 reserved5:7;
+  __u8 CaMmi:1;
+  __u8 CaPmtReply:1;
+  __u8 CaDateTimeRequest:1;
+  __u8 CaApplicationInfo:1;
+  __u8 CaModulePresentStatus:1;
+  __u8 CaDvbFlag:1;
+  __u8 CaErrorFlag:1;
+  __u8 CaInitializationStatus:1;
+  __u8 reserved6:1;
+
 #endif
-} ANTENNA_INPUT_INFO; // 11 Byte
+} ANTENNA_INPUT_INFO; // 22 Byte
 
 #define LNBCONTROL_DONTCARE 0xff
 
@@ -365,17 +423,27 @@ extern int AVCRecv(struct firesat *firesat, u8 *data, size_t length);
 extern int AVCTuner_DSIT(struct firesat *firesat,
                            int Source_Plug,
 						   struct dvb_frontend_parameters *params,
-                           BYTE *status);
+                           __u8 *status);
 
 extern int AVCTunerStatus(struct firesat *firesat, ANTENNA_INPUT_INFO *antenna_input_info);
-extern int AVCTuner_DSD(struct firesat *firesat, struct dvb_frontend_parameters *params, BYTE *status);
+extern int AVCTuner_DSD(struct firesat *firesat, struct dvb_frontend_parameters *params, __u8 *status);
 extern int AVCTuner_SetPIDs(struct firesat *firesat, unsigned char pidc, u16 pid[]);
 extern int AVCTuner_GetTS(struct firesat *firesat);
 
-extern int AVCIdentifySubunit(struct firesat *firesat, unsigned char *systemId, int *transport, int *has_ci);
+extern int AVCIdentifySubunit(struct firesat *firesat, unsigned char *systemId, int *transport);
 extern int AVCLNBControl(struct firesat *firesat, char voltage, char burst, char conttone, char nrdiseq, struct dvb_diseqc_master_cmd *diseqcmd);
 extern int AVCSubUnitInfo(struct firesat *firesat, char *subunitcount);
 extern int AVCRegisterRemoteControl(struct firesat *firesat);
+extern int AVCTuner_Host2Ca(struct firesat *firesat);
+extern int avc_ca_app_info(struct firesat *firesat, char *app_info,
+			   int *length);
+extern int avc_ca_info(struct firesat *firesat, char *app_info, int *length);
+extern int avc_ca_reset(struct firesat *firesat);
+extern int avc_ca_pmt(struct firesat *firesat, char *app_info, int length);
+extern int avc_ca_get_time_date(struct firesat *firesat, int *interval);
+extern int avc_ca_enter_menu(struct firesat *firesat);
+extern int avc_ca_get_mmi(struct firesat *firesat, char *mmi_object,
+			  int *length);
 
 #endif
 

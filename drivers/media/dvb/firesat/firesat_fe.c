@@ -1,3 +1,15 @@
+/*
+ * FireSAT DVB driver
+ *
+ * Copyright (c) ?
+ * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ *
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License as
+ *	published by the Free Software Foundation; either version 2 of
+ *	the License, or (at your option) any later version.
+ */
+
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -6,7 +18,6 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/semaphore.h>
 #include <ieee1394_hotplug.h>
 #include <nodemgr.h>
 #include <highlevel.h>
@@ -22,22 +33,29 @@
 
 static int firesat_dvb_init(struct dvb_frontend *fe)
 {
+	int result;
 	struct firesat *firesat = fe->sec_priv;
-	printk("fdi: 1\n");
+//	printk("fdi: 1\n");
 	firesat->isochannel = firesat->adapter->num; //<< 1 | (firesat->subunit & 0x1); // ### ask IRM
-	printk("fdi: 2\n");
-	try_CMPEstablishPPconnection(firesat, firesat->subunit, firesat->isochannel);
-	printk("fdi: 3\n");
-//FIXME	hpsb_listen_channel(&firesat_highlevel, firesat->host, firesat->isochannel);
-	printk("fdi: 4\n");
-	return 0;
+//	printk("fdi: 2\n");
+	result = try_CMPEstablishPPconnection(firesat, firesat->subunit, firesat->isochannel);
+	if (result != 0) {
+		printk(KERN_ERR "Could not establish point to point "
+		       "connection.\n");
+		return -1;
+	}
+//	printk("fdi: 3\n");
+
+	result = setup_iso_channel(firesat);
+//	printk("fdi: 4. Result was %d\n", result);
+	return result;
 }
 
 static int firesat_sleep(struct dvb_frontend *fe)
 {
 	struct firesat *firesat = fe->sec_priv;
 
-//FIXME	hpsb_unlisten_channel(&firesat_highlevel, firesat->host, firesat->isochannel);
+	tear_down_iso_channel(firesat);
 	try_CMPBreakPPconnection(firesat, firesat->subunit, firesat->isochannel);
 	firesat->isochannel = -1;
 	return 0;
@@ -83,19 +101,20 @@ static int firesat_read_status (struct dvb_frontend *fe, fe_status_t *status)
 	if (AVCTunerStatus(firesat, &info))
 		return -EINVAL;
 
-	if (info.NoRF)
+	if (info.NoRF) {
 		*status = 0;
-	else
-		*status = *status = FE_HAS_SIGNAL	|
-				    FE_HAS_VITERBI	|
-				    FE_HAS_SYNC		|
-				    FE_HAS_CARRIER	|
-				    FE_HAS_LOCK;
+	} else {
+		*status = FE_HAS_SIGNAL	|
+			FE_HAS_VITERBI	|
+			FE_HAS_SYNC	|
+			FE_HAS_CARRIER	|
+			FE_HAS_LOCK;
+	}
 
 	return 0;
 }
 
-static int firesat_read_ber (struct dvb_frontend *fe, u32 *ber)
+static int firesat_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
 	struct firesat *firesat = fe->sec_priv;
 	ANTENNA_INPUT_INFO info;
@@ -103,10 +122,10 @@ static int firesat_read_ber (struct dvb_frontend *fe, u32 *ber)
 	if (AVCTunerStatus(firesat, &info))
 		return -EINVAL;
 
-	*ber = ((info.BER[0] << 24) & 0xff)	|
-	       ((info.BER[1] << 16) & 0xff)	|
-	       ((info.BER[2] << 8) & 0xff)	|
-		(info.BER[3] & 0xff);
+	*ber = (info.BER[0] << 24) |
+		(info.BER[1] << 16) |
+		(info.BER[2] <<  8) |
+		info.BER[3];
 
 	return 0;
 }
@@ -115,19 +134,29 @@ static int firesat_read_signal_strength (struct dvb_frontend *fe, u16 *strength)
 {
 	struct firesat *firesat = fe->sec_priv;
 	ANTENNA_INPUT_INFO info;
-	u16 *signal = strength;
 
 	if (AVCTunerStatus(firesat, &info))
 		return -EINVAL;
 
-	*signal = info.SignalStrength;
+	*strength = info.SignalStrength << 8;
 
 	return 0;
 }
 
 static int firesat_read_snr(struct dvb_frontend *fe, u16 *snr)
 {
-	return -EOPNOTSUPP;
+	struct firesat *firesat = fe->sec_priv;
+	ANTENNA_INPUT_INFO info;
+
+	if (AVCTunerStatus(firesat, &info))
+		return -EINVAL;
+
+	*snr = (info.CarrierNoiseRatio[0] << 8) +
+		info.CarrierNoiseRatio[1];
+	*snr *= 257;
+	// C/N[dB] = -10 * log10(snr / 65535)
+
+	return 0;
 }
 
 static int firesat_read_uncorrected_blocks(struct dvb_frontend *fe, u32 *ucblocks)
@@ -192,14 +221,13 @@ int firesat_frontend_attach(struct firesat *firesat, struct dvb_frontend *fe)
 		firesat->frontend_info = &firesat_T_frontend_info;
 		break;
 	default:
-//		printk("%s: unknown model type 0x%x on subunit %d!\n",
-//			__func__, firesat->type,subunit);
 		printk("%s: unknown model type 0x%x !\n",
 			__func__, firesat->type);
 		firesat->model_name = "Unknown";
 		firesat->frontend_info = NULL;
 	}
 	fe->ops = firesat_ops;
+	fe->ops.info = *(firesat->frontend_info);
 	fe->dvb = firesat->adapter;
 
 	return 0;

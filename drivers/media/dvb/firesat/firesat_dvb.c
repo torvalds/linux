@@ -1,3 +1,15 @@
+/*
+ * FireSAT DVB driver
+ *
+ * Copyright (c) ?
+ * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ *
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License as
+ *	published by the Free Software Foundation; either version 2 of
+ *	the License, or (at your option) any later version.
+ */
+
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/wait.h>
@@ -6,7 +18,6 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/interrupt.h>
-#include <linux/semaphore.h>
 #include <ieee1394_hotplug.h>
 #include <nodemgr.h>
 #include <highlevel.h>
@@ -26,13 +37,13 @@ static struct firesat_channel *firesat_channel_allocate(struct firesat *firesat)
 {
 	int k;
 
-	printk(KERN_INFO "%s\n", __func__);
+	//printk(KERN_INFO "%s\n", __func__);
 
 	if (down_interruptible(&firesat->demux_sem))
 		return NULL;
 
 	for (k = 0; k < 16; k++) {
-		printk(KERN_INFO "%s: channel %d: active = %d, pid = 0x%x\n",__func__,k,firesat->channel[k].active,firesat->channel[k].pid);
+		//printk(KERN_INFO "%s: channel %d: active = %d, pid = 0x%x\n",__func__,k,firesat->channel[k].active,firesat->channel[k].pid);
 
 		if (firesat->channel[k].active == 0) {
 			firesat->channel[k].active = 1;
@@ -82,14 +93,15 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	int pidc,k;
 	u16 pids[16];
 
-	printk(KERN_INFO "%s (pid %u)\n",__func__,dvbdmxfeed->pid);
+//	printk(KERN_INFO "%s (pid %u)\n", __func__, dvbdmxfeed->pid);
 
 	switch (dvbdmxfeed->type) {
 	case DMX_TYPE_TS:
 	case DMX_TYPE_SEC:
 		break;
 	default:
-		printk("%s: invalid type %u\n",__func__,dvbdmxfeed->type);
+		printk(KERN_ERR "%s: invalid type %u\n",
+		       __func__, dvbdmxfeed->type);
 		return -EINVAL;
 	}
 
@@ -110,7 +122,8 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 			channel = firesat_channel_allocate(firesat);
 			break;
 		default:
-			printk("%s: invalid pes type %u\n",__func__, dvbdmxfeed->pes_type);
+			printk(KERN_ERR "%s: invalid pes type %u\n",
+			       __func__, dvbdmxfeed->pes_type);
 			return -EINVAL;
 		}
 	} else {
@@ -118,7 +131,7 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 	}
 
 	if (!channel) {
-		printk("%s: busy!\n", __func__);
+		printk(KERN_ERR "%s: busy!\n", __func__);
 		return -EBUSY;
 	}
 
@@ -131,22 +144,23 @@ int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	if (firesat_channel_collect(firesat, &pidc, pids)) {
 		firesat_channel_release(firesat, channel);
+		printk(KERN_ERR "%s: could not collect pids!\n", __func__);
 		return -EINTR;
 	}
 
 	if(dvbdmxfeed->pid == 8192) {
-		if((k=AVCTuner_GetTS(firesat))) {
+		if((k = AVCTuner_GetTS(firesat))) {
 			firesat_channel_release(firesat, channel);
 			printk("%s: AVCTuner_GetTS failed with error %d\n",
-				__func__,k);
+			       __func__, k);
 			return k;
 		}
 	}
 	else {
-		if((k=AVCTuner_SetPIDs(firesat, pidc, pids))) {
+		if((k = AVCTuner_SetPIDs(firesat, pidc, pids))) {
 			firesat_channel_release(firesat, channel);
 			printk("%s: AVCTuner_SetPIDs failed with error %d\n",
-				__func__,k);
+			       __func__, k);
 			return k;
 		}
 	}
@@ -161,7 +175,7 @@ int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 	int k, l = 0;
 	u16 pids[16];
 
-	printk(KERN_INFO "%s (pid %u)\n", __func__, dvbdmxfeed->pid);
+	//printk(KERN_INFO "%s (pid %u)\n", __func__, dvbdmxfeed->pid);
 
 	if (dvbdmxfeed->type == DMX_TYPE_TS && !((dvbdmxfeed->ts_type & TS_PACKET) &&
 				(demux->dmx.frontend->source != DMX_MEMORY_FE))) {
@@ -189,12 +203,13 @@ int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
 
 	// list except channel to be removed
 	for (k = 0; k < 16; k++)
-		if (firesat->channel[k].active == 1)
+		if (firesat->channel[k].active == 1) {
 			if (&firesat->channel[k] !=
 				(struct firesat_channel *)dvbdmxfeed->priv)
 				pids[l++] = firesat->channel[k].pid;
 			else
 				firesat->channel[k].active = 0;
+		}
 
 	if ((k = AVCTuner_SetPIDs(firesat, l, pids))) {
 		up(&firesat->demux_sem);
@@ -213,8 +228,6 @@ int firesat_dvbdev_init(struct firesat *firesat,
 			struct dvb_frontend *fe)
 {
 	int result;
-
-		firesat->has_ci = 1; // TEMP workaround
 
 #if 0
 		switch (firesat->type) {
@@ -254,7 +267,7 @@ int firesat_dvbdev_init(struct firesat *firesat,
 			return -ENOMEM;
 		}
 
-		if ((result = dvb_register_adapter(firesat->adapter,
+		if ((result = DVB_REGISTER_ADAPTER(firesat->adapter,
 						   firesat->model_name,
 						   THIS_MODULE,
 						   dev, adapter_nr)) < 0) {
@@ -271,6 +284,7 @@ int firesat_dvbdev_init(struct firesat *firesat,
 			return result;
 		}
 
+		memset(&firesat->demux, 0, sizeof(struct dvb_demux));
 		firesat->demux.dmx.capabilities = 0/*DMX_TS_FILTERING | DMX_SECTION_FILTERING*/;
 
 		firesat->demux.priv		= (void *)firesat;
@@ -343,8 +357,9 @@ int firesat_dvbdev_init(struct firesat *firesat,
 			return result;
 		}
 
-		if (firesat->has_ci)
 			firesat_ca_init(firesat);
 
 		return 0;
 }
+
+
