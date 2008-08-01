@@ -3336,7 +3336,9 @@ S:	Maintained
 
 PNP SUPPORT
 P:	Adam Belay
-M:	ambx1@neo.rr.com
+M:	abelay@mit.edu
+P:	Bjorn Helgaas
+M:	bjorn.helgaas@hp.com
 S:	Maintained
 
 PNXxxxx I2C DRIVER
