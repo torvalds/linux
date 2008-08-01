@@ -610,6 +610,9 @@ int netxen_niu_macaddr_set(struct netxen_adapter *adapter,
 	int i;
 	DECLARE_MAC_BUF(mac);
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
 	for (i = 0; i < 10; i++) {
 		temp[0] = temp[1] = 0;
 		memcpy(temp + 2, addr, 2);
@@ -727,6 +730,9 @@ int netxen_niu_disable_gbe_port(struct netxen_adapter *adapter)
 	__u32 mac_cfg0;
 	u32 port = adapter->physical_port;
 
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
+
 	if (port > NETXEN_NIU_MAX_GBE_PORTS)
 		return -EINVAL;
 	mac_cfg0 = 0;
@@ -742,6 +748,9 @@ int netxen_niu_disable_xg_port(struct netxen_adapter *adapter)
 {
 	__u32 mac_cfg;
 	u32 port = adapter->physical_port;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
 
 	if (port > NETXEN_NIU_MAX_XG_PORTS)
 		return -EINVAL;
@@ -818,6 +827,9 @@ int netxen_niu_xg_macaddr_set(struct netxen_adapter *adapter,
 	int phy = adapter->physical_port;
 	u8 temp[4];
 	u32 val;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
+		return 0;
 
 	if ((phy < 0) || (phy > NETXEN_NIU_MAX_XG_PORTS))
 		return -EIO;

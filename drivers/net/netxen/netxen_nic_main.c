@@ -1410,20 +1410,17 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 
 	port = adapter->physical_port;
 
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
-		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
-		linkup = (val >> port) & 1;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE_P3);
+		val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
+		linkup = (val == XG_LINK_UP_P3);
 	} else {
-		if (adapter->fw_major < 4) {
-			val = adapter->pci_read_normalize(adapter,
-					CRB_XG_STATE);
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
+		if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+			linkup = (val >> port) & 1;
+		else {
 			val = (val >> port*8) & 0xff;
 			linkup = (val == XG_LINK_UP);
-		} else {
-			val = adapter->pci_read_normalize(adapter,
-				CRB_XG_STATE_P3);
-			val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
-			linkup = (val == XG_LINK_UP_P3);
 		}
 	}
 

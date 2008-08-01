@@ -724,6 +724,13 @@ enum {
 #define XG_LINK_STATE_P3(pcifn,val) \
 	(((val) >> ((pcifn) * 4)) & XG_LINK_STATE_P3_MASK)
 
+#define P3_LINK_SPEED_MHZ	100
+#define P3_LINK_SPEED_MASK	0xff
+#define P3_LINK_SPEED_REG(pcifn)	\
+	(CRB_PF_LINK_SPEED_1 + (((pcifn) / 4) * 4))
+#define P3_LINK_SPEED_VAL(pcifn, reg)	\
+	(((reg) >> (8 * ((pcifn) & 0x3))) & P3_LINK_SPEED_MASK)
+
 #define NETXEN_CAM_RAM_BASE	(NETXEN_CRB_CAM + 0x02000)
 #define NETXEN_CAM_RAM(reg)	(NETXEN_CAM_RAM_BASE + (reg))
 #define NETXEN_FW_VERSION_MAJOR (NETXEN_CAM_RAM(0x150))

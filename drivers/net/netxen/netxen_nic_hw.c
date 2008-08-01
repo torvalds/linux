@@ -2074,12 +2074,22 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 	__u32 status;
 	__u32 autoneg;
 	__u32 mode;
+	__u32 port_mode;
 
 	netxen_nic_read_w0(adapter, NETXEN_NIU_MODE, &mode);
 	if (netxen_get_niu_enable_ge(mode)) {	/* Gb 10/100/1000 Mbps mode */
+
+		adapter->hw_read_wx(adapter,
+				NETXEN_PORT_MODE_ADDR, &port_mode, 4);
+		if (port_mode == NETXEN_PORT_MODE_802_3_AP) {
+			adapter->link_speed   = SPEED_1000;
+			adapter->link_duplex  = DUPLEX_FULL;
+			adapter->link_autoneg = AUTONEG_DISABLE;
+			return;
+		}
+
 		if (adapter->phy_read
-		    && adapter->
-		    phy_read(adapter,
+		    && adapter->phy_read(adapter,
 			     NETXEN_NIU_GB_MII_MGMT_ADDR_PHY_STATUS,
 			     &status) == 0) {
 			if (netxen_get_phy_link(status)) {
@@ -2109,8 +2119,7 @@ void netxen_nic_set_link_parameters(struct netxen_adapter *adapter)
 					break;
 				}
 				if (adapter->phy_read
-				    && adapter->
-				    phy_read(adapter,
+				    && adapter->phy_read(adapter,
 					     NETXEN_NIU_GB_MII_MGMT_ADDR_AUTONEG,
 					     &autoneg) != 0)
 					adapter->link_autoneg = autoneg;
