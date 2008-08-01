@@ -739,7 +739,8 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 		device->cap._DSS = 1;
 	}
 
-	max_level = acpi_video_init_brightness(device);
+	if (acpi_video_backlight_support())
+		max_level = acpi_video_init_brightness(device);
 
 	if (device->cap._BCL && device->cap._BCM && max_level > 0) {
 		int result;
@@ -785,18 +786,21 @@ static void acpi_video_device_find_cap(struct acpi_video_device *device)
 			printk(KERN_ERR PREFIX "Create sysfs link\n");
 
 	}
-	if (device->cap._DCS && device->cap._DSS){
-		static int count = 0;
-		char *name;
-		name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
-		if (!name)
-			return;
-		sprintf(name, "acpi_video%d", count++);
-		device->output_dev = video_output_register(name,
-				NULL, device, &acpi_output_properties);
-		kfree(name);
+
+	if (acpi_video_display_switch_support()) {
+
+		if (device->cap._DCS && device->cap._DSS) {
+			static int count;
+			char *name;
+			name = kzalloc(MAX_NAME_LEN, GFP_KERNEL);
+			if (!name)
+				return;
+			sprintf(name, "acpi_video%d", count++);
+			device->output_dev = video_output_register(name,
+					NULL, device, &acpi_output_properties);
+			kfree(name);
+		}
 	}
-	return;
 }
 
 /*

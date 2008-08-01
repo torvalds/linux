@@ -198,6 +198,18 @@ and is between 256 and 4096 characters. It is defined in the file
 			that require a timer override, but don't have
 			HPET
 
+	acpi_backlight=	[HW,ACPI]
+			acpi_backlight=vendor
+			acpi_backlight=video
+			If set to vendor, prefer vendor specific driver
+			(e.g. thinkpad_acpi, sony_acpi, etc.) instead
+			of the ACPI video.ko driver.
+
+	acpi_display_output=	[HW,ACPI]
+			acpi_display_output=vendor
+			acpi_display_output=video
+			See above.
+
 	acpi.debug_layer=	[HW,ACPI]
 			Format: <int>
 			Each bit of the <int> indicates an ACPI debug layer,
