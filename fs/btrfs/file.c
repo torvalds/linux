@@ -338,6 +338,13 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		btrfs_drop_extent_cache(inode, start_pos, aligned_end - 1);
 		BUG_ON(err);
 		mutex_unlock(&BTRFS_I(inode)->extent_mutex);
+
+		/*
+		 * an ugly way to do all the prop accounting around
+		 * the page bits and mapping tags
+		 */
+		set_page_writeback(pages[0]);
+		end_page_writeback(pages[0]);
 		did_inline = 1;
 	}
 	if (end_pos > isize) {
@@ -833,11 +840,7 @@ again:
 			      start_pos, last_pos - 1, GFP_NOFS);
 	}
 	for (i = 0; i < num_pages; i++) {
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
-		ClearPageDirty(pages[i]);
-#else
-		cancel_dirty_page(pages[i], PAGE_CACHE_SIZE);
-#endif
+		clear_page_dirty_for_io(pages[i]);
 		set_page_extent_mapped(pages[i]);
 		WARN_ON(!PageLocked(pages[i]));
 	}

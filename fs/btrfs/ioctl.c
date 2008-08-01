@@ -268,6 +268,12 @@ again:
 		}
 		set_page_extent_mapped(page);
 
+		/*
+		 * this makes sure page_mkwrite is called on the
+		 * page if it is dirtied again later
+		 */
+		clear_page_dirty_for_io(page);
+
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
 

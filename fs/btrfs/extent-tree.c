@@ -2333,8 +2333,6 @@ static int noinline drop_leaf_ref_no_cache(struct btrfs_trans_handle *trans,
 	leaf_owner = btrfs_header_owner(leaf);
 	leaf_generation = btrfs_header_generation(leaf);
 
-	mutex_unlock(&root->fs_info->alloc_mutex);
-
 	for (i = 0; i < nritems; i++) {
 		u64 disk_bytenr;
 		cond_resched();
@@ -2362,8 +2360,6 @@ static int noinline drop_leaf_ref_no_cache(struct btrfs_trans_handle *trans,
 		mutex_unlock(&root->fs_info->alloc_mutex);
 		BUG_ON(ret);
 	}
-
-	mutex_lock(&root->fs_info->alloc_mutex);
 	return 0;
 }
 
@@ -2375,7 +2371,6 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 	int ret;
 	struct btrfs_extent_info *info = ref->extents;
 
-	mutex_unlock(&root->fs_info->alloc_mutex);
 	for (i = 0; i < ref->nritems; i++) {
 		mutex_lock(&root->fs_info->alloc_mutex);
 		ret = __btrfs_free_extent(trans, root,
@@ -2386,7 +2381,6 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 		BUG_ON(ret);
 		info++;
 	}
-	mutex_lock(&root->fs_info->alloc_mutex);
 
 	return 0;
 }
@@ -2440,10 +2434,39 @@ int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
 			      u32 *refs)
 {
 	int ret;
-	mutex_unlock(&root->fs_info->alloc_mutex);
+
 	ret = lookup_extent_ref(NULL, root, start, len, refs);
+	BUG_ON(ret);
+
+#if 0 // some debugging code in case we see problems here
+	/* if the refs count is one, it won't get increased again.  But
+	 * if the ref count is > 1, someone may be decreasing it at
+	 * the same time we are.
+	 */
+	if (*refs != 1) {
+		struct extent_buffer *eb = NULL;
+		eb = btrfs_find_create_tree_block(root, start, len);
+		if (eb)
+			btrfs_tree_lock(eb);
+
+		mutex_lock(&root->fs_info->alloc_mutex);
+		ret = lookup_extent_ref(NULL, root, start, len, refs);
+		BUG_ON(ret);
+		mutex_unlock(&root->fs_info->alloc_mutex);
+
+		if (eb) {
+			btrfs_tree_unlock(eb);
+			free_extent_buffer(eb);
+		}
+		if (*refs == 1) {
+			printk("block %llu went down to one during drop_snap\n",
+			       (unsigned long long)start);
+		}
+
+	}
+#endif
+
 	cond_resched();
-	mutex_lock(&root->fs_info->alloc_mutex);
 	return ret;
 }
 
@@ -2466,8 +2489,6 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 	u32 blocksize;
 	int ret;
 	u32 refs;
-
-	mutex_lock(&root->fs_info->alloc_mutex);
 
 	WARN_ON(*level < 0);
 	WARN_ON(*level >= BTRFS_MAX_LEVEL);
@@ -2507,13 +2528,21 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 			root_owner = btrfs_header_owner(parent);
 			root_gen = btrfs_header_generation(parent);
 			path->slots[*level]++;
+
+			mutex_lock(&root->fs_info->alloc_mutex);
 			ret = __btrfs_free_extent(trans, root, bytenr,
 						blocksize, root_owner,
 						root_gen, 0, 0, 1);
 			BUG_ON(ret);
+			mutex_unlock(&root->fs_info->alloc_mutex);
 			continue;
 		}
-
+		/*
+		 * at this point, we have a single ref, and since the
+		 * only place referencing this extent is a dead root
+		 * the reference count should never go higher.
+		 * So, we don't need to check it again
+		 */
 		if (*level == 1) {
 			struct btrfs_key key;
 			btrfs_node_key_to_cpu(cur, &key, path->slots[*level]);
@@ -2533,33 +2562,23 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		next = btrfs_find_tree_block(root, bytenr, blocksize);
 		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {
 			free_extent_buffer(next);
-			mutex_unlock(&root->fs_info->alloc_mutex);
 
 			if (path->slots[*level] == 0)
 				reada_walk_down(root, cur, path->slots[*level]);
 			next = read_tree_block(root, bytenr, blocksize,
 					       ptr_gen);
 			cond_resched();
-			mutex_lock(&root->fs_info->alloc_mutex);
-
-			/* we've dropped the lock, double check */
+#if 0
+			/*
+			 * this is a debugging check and can go away
+			 * the ref should never go all the way down to 1
+			 * at this point
+			 */
 			ret = lookup_extent_ref(NULL, root, bytenr, blocksize,
 						&refs);
 			BUG_ON(ret);
-			if (refs != 1) {
-				parent = path->nodes[*level];
-				root_owner = btrfs_header_owner(parent);
-				root_gen = btrfs_header_generation(parent);
-
-				path->slots[*level]++;
-				free_extent_buffer(next);
-				ret = __btrfs_free_extent(trans, root, bytenr,
-							blocksize,
-							root_owner,
-							root_gen, 0, 0, 1);
-				BUG_ON(ret);
-				continue;
-			}
+			WARN_ON(refs != 1);
+#endif
 		}
 		WARN_ON(*level <= 0);
 		if (path->nodes[*level-1])
@@ -2584,6 +2603,8 @@ out:
 	root_owner = btrfs_header_owner(parent);
 	root_gen = btrfs_header_generation(parent);
 
+
+	mutex_lock(&root->fs_info->alloc_mutex);
 	ret = __btrfs_free_extent(trans, root, bytenr, blocksize,
 				  root_owner, root_gen, 0, 0, 1);
 	free_extent_buffer(path->nodes[*level]);
@@ -2591,6 +2612,7 @@ out:
 	*level += 1;
 	BUG_ON(ret);
 	mutex_unlock(&root->fs_info->alloc_mutex);
+
 	cond_resched();
 	return 0;
 }
@@ -2834,6 +2856,11 @@ again:
 		}
 		set_page_extent_mapped(page);
 
+		/*
+		 * make sure page_mkwrite is called for this page if userland
+		 * wants to change it from mmap
+		 */
+		clear_page_dirty_for_io(page);
 
 		set_extent_delalloc(io_tree, page_start,
 				    page_end, GFP_NOFS);
