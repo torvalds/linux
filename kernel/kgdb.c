@@ -166,13 +166,6 @@ early_param("nokgdbroundup", opt_nokgdbroundup);
  * Weak aliases for breakpoint management,
  * can be overriden by architectures when needed:
  */
-int __weak kgdb_validate_break_address(unsigned long addr)
-{
-	char tmp_variable[BREAK_INSTR_SIZE];
-
-	return probe_kernel_read(tmp_variable, (char *)addr, BREAK_INSTR_SIZE);
-}
-
 int __weak kgdb_arch_set_breakpoint(unsigned long addr, char *saved_instr)
 {
 	int err;
@@ -189,6 +182,25 @@ int __weak kgdb_arch_remove_breakpoint(unsigned long addr, char *bundle)
 {
 	return probe_kernel_write((char *)addr,
 				  (char *)bundle, BREAK_INSTR_SIZE);
+}
+
+int __weak kgdb_validate_break_address(unsigned long addr)
+{
+	char tmp_variable[BREAK_INSTR_SIZE];
+	int err;
+	/* Validate setting the breakpoint and then removing it.  In the
+	 * remove fails, the kernel needs to emit a bad message because we
+	 * are deep trouble not being able to put things back the way we
+	 * found them.
+	 */
+	err = kgdb_arch_set_breakpoint(addr, tmp_variable);
+	if (err)
+		return err;
+	err = kgdb_arch_remove_breakpoint(addr, tmp_variable);
+	if (err)
+		printk(KERN_ERR "KGDB: Critical breakpoint error, kernel "
+		   "memory destroyed at: %lx", addr);
+	return err;
 }
 
 unsigned long __weak kgdb_arch_pc(int exception, struct pt_regs *regs)
