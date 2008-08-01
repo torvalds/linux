@@ -164,7 +164,7 @@ KBUILD_AFLAGS		+= $(cflags-y)
 PHONY += maketools FORCE
 
 maketools:  include/linux/version.h FORCE
-	$(Q)$(MAKE) $(build)=arch/sh/tools arch/sh/include/asm/machtypes.h
+	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
 
 all: $(KBUILD_IMAGE)
 
@@ -215,4 +215,4 @@ arch/sh/lib64/syscalltab.h: arch/sh/kernel/syscalls_64.S
 	$(call filechk,gen-syscalltab)
 
 CLEAN_FILES += arch/sh/lib64/syscalltab.h \
-	       arch/sh/include/asm/machtypes.h
+	       include/asm-sh/machtypes.h
