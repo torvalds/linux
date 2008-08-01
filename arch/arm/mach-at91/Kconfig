@@ -297,7 +297,7 @@ config MTD_AT91_DATAFLASH_CARD
 	help
 	  Enable support for the DataFlash card.
 
-config MTD_NAND_AT91_BUSWIDTH_16
+config MTD_NAND_ATMEL_BUSWIDTH_16
 	bool "Enable 16-bit data bus interface to NAND flash"
 	depends on (MACH_AT91SAM9260EK || MACH_AT91SAM9261EK || MACH_AT91SAM9263EK || MACH_AT91SAM9G20EK || MACH_AT91CAP9ADK)
 	help

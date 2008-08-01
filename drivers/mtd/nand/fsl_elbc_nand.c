@@ -887,7 +887,7 @@ static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 		goto err;
 	}
 
-	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", res.start);
+	priv->mtd.name = kasprintf(GFP_KERNEL, "%x.flash", (unsigned)res.start);
 	if (!priv->mtd.name) {
 		ret = -ENOMEM;
 		goto err;
