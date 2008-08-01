@@ -19,8 +19,8 @@
 #include <linux/mii.h>
 #include <linux/kthread.h>
 
-#include <asm-s390/ebcdic.h>
-#include <asm-s390/io.h>
+#include <asm/ebcdic.h>
+#include <asm/io.h>
 #include <asm/s390_rdev.h>
 
 #include "qeth_core.h"
