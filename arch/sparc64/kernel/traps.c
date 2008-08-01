@@ -1777,7 +1777,7 @@ static void sun4v_log_error(struct pt_regs *regs, struct sun4v_error_entry *ent,
 	       pfx,
 	       ent->err_raddr, ent->err_size, ent->err_cpu);
 
-	__show_regs(regs);
+	show_regs(regs);
 
 	if ((cnt = atomic_read(ocnt)) != 0) {
 		atomic_set(ocnt, 0);
@@ -2189,7 +2189,7 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 	printk("%s(%d): %s [#%d]\n", current->comm, task_pid_nr(current), str, ++die_counter);
 	notify_die(DIE_OOPS, str, regs, 0, 255, SIGSEGV);
 	__asm__ __volatile__("flushw");
-	__show_regs(regs);
+	show_regs(regs);
 	add_taint(TAINT_DIE);
 	if (regs->tstate & TSTATE_PRIV) {
 		struct reg_window *rw = (struct reg_window *)

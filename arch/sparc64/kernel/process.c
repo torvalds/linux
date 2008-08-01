@@ -211,22 +211,8 @@ static void show_regwindow(struct pt_regs *regs)
 		printk("I7: <%pS>\n", (void *) rwk->ins[7]);
 }
 
-#ifdef CONFIG_SMP
-static DEFINE_SPINLOCK(regdump_lock);
-#endif
-
-void __show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
-#ifdef CONFIG_SMP
-	unsigned long flags;
-
-	/* Protect against xcall ipis which might lead to livelock on the lock */
-	__asm__ __volatile__("rdpr      %%pstate, %0\n\t"
-			     "wrpr      %0, %1, %%pstate"
-			     : "=r" (flags)
-			     : "i" (PSTATE_IE));
-	spin_lock(&regdump_lock);
-#endif
 	printk("TSTATE: %016lx TPC: %016lx TNPC: %016lx Y: %08x    %s\n", regs->tstate,
 	       regs->tpc, regs->tnpc, regs->y, print_tainted());
 	printk("TPC: <%pS>\n", (void *) regs->tpc);
@@ -244,16 +230,6 @@ void __show_regs(struct pt_regs * regs)
 	       regs->u_regs[15]);
 	printk("RPC: <%pS>\n", (void *) regs->u_regs[15]);
 	show_regwindow(regs);
-#ifdef CONFIG_SMP
-	spin_unlock(&regdump_lock);
-	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
-			     : : "r" (flags));
-#endif
-}
-
-void show_regs(struct pt_regs *regs)
-{
-	__show_regs(regs);
 }
 
 struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
