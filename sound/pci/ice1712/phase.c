@@ -120,6 +120,7 @@ static int __devinit phase22_init(struct snd_ice1712 *ice)
 	// Configure DAC/ADC description for generic part of ice1724
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_PHASE22:
+	case VT1724_SUBDEVICE_TS22:
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;
 		ice->vt1720 = 1; // Envy24HT-S have 16 bit wide GPIO
@@ -136,6 +137,7 @@ static int __devinit phase22_init(struct snd_ice1712 *ice)
 	ice->akm_codecs = 1;
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_PHASE22:
+	case VT1724_SUBDEVICE_TS22:
 		if ((err = snd_ice1712_akm4xxx_init(ak, &akm_phase22, &akm_phase22_priv, ice)) < 0)
 			return err;
 		break;
@@ -150,6 +152,7 @@ static int __devinit phase22_add_controls(struct snd_ice1712 *ice)
 
 	switch (ice->eeprom.subvendor) {
 	case VT1724_SUBDEVICE_PHASE22:
+	case VT1724_SUBDEVICE_TS22:
 		err = snd_ice1712_akm4xxx_build_controls(ice);
 		if (err < 0)
 			return err;
@@ -903,6 +906,15 @@ struct snd_ice1712_card_info snd_vt1724_phase_cards[] __devinitdata = {
 		.build_controls = phase28_add_controls,
 		.eeprom_size = sizeof(phase28_eeprom),
 		.eeprom_data = phase28_eeprom,
+	},
+	{
+		.subvendor = VT1724_SUBDEVICE_TS22,
+		.name = "Terrasoniq TS22 PCI",
+		.model = "TS22",
+		.chip_init = phase22_init,
+		.build_controls = phase22_add_controls,
+		.eeprom_size = sizeof(phase22_eeprom),
+		.eeprom_data = phase22_eeprom,
 	},
 	{ } /* terminator */
 };
