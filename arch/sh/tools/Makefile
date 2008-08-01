@@ -10,7 +10,7 @@
 # Shamelessly cloned from ARM.
 #
 
-include/asm-sh/machtypes.h: $(src)/gen-mach-types $(src)/mach-types
+arch/sh/include/asm/machtypes.h: $(src)/gen-mach-types $(src)/mach-types
 	@echo '  Generating $@'
-	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
+	$(Q)if [ ! -d arch/sh/include/asm ]; then mkdir -p arch/sh/include/asm; fi
 	$(Q)$(AWK) -f $^ > $@ || { rm -f $@; /bin/false; }
