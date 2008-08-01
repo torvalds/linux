@@ -33,7 +33,6 @@
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/audio.h>
-#include <asm/arch/tosa.h>
 
 #include "../codecs/wm9712.h"
 #include "pxa2xx-pcm.h"
