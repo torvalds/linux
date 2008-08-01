@@ -3223,7 +3223,9 @@ int __init ip_rt_init(void)
  */
 void __init ip_static_sysctl_init(void)
 {
+#ifdef CONFIG_SYSCTL
 	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
+#endif
 }
 #endif
 
