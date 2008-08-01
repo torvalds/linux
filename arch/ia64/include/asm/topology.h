@@ -1,6 +1,4 @@
 /*
- * linux/include/asm-ia64/topology.h
- *
  * Copyright (C) 2002, Erich Focht, NEC
  *
  * All rights reserved.

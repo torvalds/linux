@@ -1,6 +1,4 @@
 /*
- *  asm-ia64/acpi.h
- *
  *  Copyright (C) 1999 VA Linux Systems
  *  Copyright (C) 1999 Walt Drummond <drummond@valinux.com>
  *  Copyright (C) 2000,2001 J.I. Lee <jung-ik.lee@intel.com>

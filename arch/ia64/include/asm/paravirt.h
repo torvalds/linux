@@ -1,6 +1,4 @@
 /******************************************************************************
- * include/asm-ia64/paravirt.h
- *
  * Copyright (c) 2008 Isaku Yamahata <yamahata at valinux co jp>
  *                    VA Linux Systems Japan K.K.
  *

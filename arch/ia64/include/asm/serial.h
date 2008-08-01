@@ -1,6 +1,4 @@
 /*
- * include/asm-ia64/serial.h
- *
  * Derived from the i386 version.
  */
 

@@ -2,7 +2,6 @@
 #define _ASM_KPROBES_H
 /*
  *  Kernel Probes (KProbes)
- *  include/asm-ia64/kprobes.h
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
