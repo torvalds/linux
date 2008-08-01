@@ -2947,7 +2947,7 @@ static void register_oss_dsp(struct snd_pcm *pcm, int index)
 static int snd_pcm_oss_register_minor(struct snd_pcm *pcm)
 {
 	pcm->oss.reg = 0;
-	if (dsp_map[pcm->card->number] == pcm->device) {
+	if (dsp_map[pcm->card->number] == (int)pcm->device) {
 		char name[128];
 		int duplex;
 		register_oss_dsp(pcm, 0);
@@ -2963,7 +2963,7 @@ static int snd_pcm_oss_register_minor(struct snd_pcm *pcm)
 		pcm->oss.reg++;
 		pcm->oss.reg_mask |= 1;
 	}
-	if (adsp_map[pcm->card->number] == pcm->device) {
+	if (adsp_map[pcm->card->number] == (int)pcm->device) {
 		register_oss_dsp(pcm, 1);
 		pcm->oss.reg++;
 		pcm->oss.reg_mask |= 2;
@@ -2988,7 +2988,7 @@ static int snd_pcm_oss_disconnect_minor(struct snd_pcm *pcm)
 			snd_unregister_oss_device(SNDRV_OSS_DEVICE_TYPE_PCM,
 						  pcm->card, 1);
 		}
-		if (dsp_map[pcm->card->number] == pcm->device) {
+		if (dsp_map[pcm->card->number] == (int)pcm->device) {
 #ifdef SNDRV_OSS_INFO_DEV_AUDIO
 			snd_oss_info_unregister(SNDRV_OSS_INFO_DEV_AUDIO, pcm->card->number);
 #endif
@@ -3019,12 +3019,12 @@ static int __init alsa_pcm_oss_init(void)
 
 	/* check device map table */
 	for (i = 0; i < SNDRV_CARDS; i++) {
-		if (dsp_map[i] < 0 || dsp_map[i] >= SNDRV_OS_MINORS) {
+		if (dsp_map[i] < 0 || dsp_map[i] >= SNDRV_PCM_DEVICES) {
 			snd_printk(KERN_ERR "invalid dsp_map[%d] = %d\n",
 				   i, dsp_map[i]);
 			dsp_map[i] = 0;
 		}
-		if (adsp_map[i] < 0 || adsp_map[i] >= SNDRV_OS_MINORS) {
+		if (adsp_map[i] < 0 || adsp_map[i] >= SNDRV_PCM_DEVICES) {
 			snd_printk(KERN_ERR "invalid adsp_map[%d] = %d\n",
 				   i, adsp_map[i]);
 			adsp_map[i] = 1;
