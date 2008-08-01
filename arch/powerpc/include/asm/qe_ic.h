@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/qe_ic.h
- *
  * Copyright (C) 2006 Freescale Semicondutor, Inc. All rights reserved.
  *
  * Authors: 	Shlomi Gridish <gridish@freescale.com>

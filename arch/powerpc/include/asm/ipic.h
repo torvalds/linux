@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/ipic.h
- *
  * IPIC external definitions and structure.
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>

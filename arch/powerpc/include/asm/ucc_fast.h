@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/ucc_fast.h
- *
  * Internal header file for UCC FAST unit routines.
  *
  * Copyright (C) 2006 Freescale Semicondutor, Inc. All rights reserved.

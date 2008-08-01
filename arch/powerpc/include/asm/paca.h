@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/paca.h
- *
  * This control block defines the PACA which defines the processor
  * specific data for each logical processor on the system.
  * There are some pointers defined that are utilized by PLIC.
