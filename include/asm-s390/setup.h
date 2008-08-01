@@ -65,7 +65,6 @@ extern unsigned long machine_flags;
 
 #define MACHINE_FLAG_VM		(1UL << 0)
 #define MACHINE_FLAG_IEEE	(1UL << 1)
-#define MACHINE_FLAG_P390	(1UL << 2)
 #define MACHINE_FLAG_CSP	(1UL << 3)
 #define MACHINE_FLAG_MVPG	(1UL << 4)
 #define MACHINE_FLAG_DIAG44	(1UL << 5)
