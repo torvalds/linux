@@ -181,7 +181,8 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			     struct extent_buffer *buf,
 			     struct extent_buffer *parent, int parent_slot,
 			     struct extent_buffer **cow_ret,
-			     u64 search_start, u64 empty_size)
+			     u64 search_start, u64 empty_size,
+			     u64 prealloc_dest)
 {
 	u64 root_gen;
 	struct extent_buffer *cow;
@@ -216,10 +217,27 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	} else {
 		first_key.objectid = 0;
 	}
-	cow = btrfs_alloc_free_block(trans, root, buf->len,
-				     root->root_key.objectid,
-				     root_gen, first_key.objectid, level,
-				     search_start, empty_size);
+	if (prealloc_dest) {
+		struct btrfs_key ins;
+
+		ins.objectid = prealloc_dest;
+		ins.offset = buf->len;
+		ins.type = BTRFS_EXTENT_ITEM_KEY;
+
+		ret = btrfs_alloc_reserved_extent(trans, root,
+						  root->root_key.objectid,
+						  root_gen, level,
+						  first_key.objectid,
+						  &ins);
+		BUG_ON(ret);
+		cow = btrfs_init_new_buffer(trans, root, prealloc_dest,
+					    buf->len);
+	} else {
+		cow = btrfs_alloc_free_block(trans, root, buf->len,
+					     root->root_key.objectid,
+					     root_gen, first_key.objectid,
+					     level, search_start, empty_size);
+	}
 	if (IS_ERR(cow))
 		return PTR_ERR(cow);
 
@@ -279,7 +297,7 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
-		    struct extent_buffer **cow_ret)
+		    struct extent_buffer **cow_ret, u64 prealloc_dest)
 {
 	u64 search_start;
 	u64 header_trans;
@@ -302,12 +320,14 @@ int btrfs_cow_block(struct btrfs_trans_handle *trans,
 	    !btrfs_header_flag(buf, BTRFS_HEADER_FLAG_WRITTEN)) {
 		*cow_ret = buf;
 		spin_unlock(&root->fs_info->hash_lock);
+		WARN_ON(prealloc_dest);
 		return 0;
 	}
 	spin_unlock(&root->fs_info->hash_lock);
 	search_start = buf->start & ~((u64)(1024 * 1024 * 1024) - 1);
 	ret = __btrfs_cow_block(trans, root, buf, parent,
-				 parent_slot, cow_ret, search_start, 0);
+				 parent_slot, cow_ret, search_start, 0,
+				 prealloc_dest);
 	return ret;
 }
 
@@ -451,7 +471,7 @@ int btrfs_realloc_node(struct btrfs_trans_handle *trans,
 		err = __btrfs_cow_block(trans, root, cur, parent, i,
 					&cur, search_start,
 					min(16 * blocksize,
-					    (end_slot - i) * blocksize));
+					    (end_slot - i) * blocksize), 0);
 		if (err) {
 			btrfs_tree_unlock(cur);
 			free_extent_buffer(cur);
@@ -803,7 +823,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 		child = read_node_slot(root, mid, 0);
 		btrfs_tree_lock(child);
 		BUG_ON(!child);
-		ret = btrfs_cow_block(trans, root, child, mid, 0, &child);
+		ret = btrfs_cow_block(trans, root, child, mid, 0, &child, 0);
 		BUG_ON(ret);
 
 		spin_lock(&root->node_lock);
@@ -836,7 +856,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 	if (left) {
 		btrfs_tree_lock(left);
 		wret = btrfs_cow_block(trans, root, left,
-				       parent, pslot - 1, &left);
+				       parent, pslot - 1, &left, 0);
 		if (wret) {
 			ret = wret;
 			goto enospc;
@@ -846,7 +866,7 @@ static int balance_level(struct btrfs_trans_handle *trans,
 	if (right) {
 		btrfs_tree_lock(right);
 		wret = btrfs_cow_block(trans, root, right,
-				       parent, pslot + 1, &right);
+				       parent, pslot + 1, &right, 0);
 		if (wret) {
 			ret = wret;
 			goto enospc;
@@ -1021,7 +1041,7 @@ static int noinline push_nodes_for_insert(struct btrfs_trans_handle *trans,
 			wret = 1;
 		} else {
 			ret = btrfs_cow_block(trans, root, left, parent,
-					      pslot - 1, &left);
+					      pslot - 1, &left, 0);
 			if (ret)
 				wret = 1;
 			else {
@@ -1069,7 +1089,7 @@ static int noinline push_nodes_for_insert(struct btrfs_trans_handle *trans,
 		} else {
 			ret = btrfs_cow_block(trans, root, right,
 					      parent, pslot + 1,
-					      &right);
+					      &right, 0);
 			if (ret)
 				wret = 1;
 			else {
@@ -1245,6 +1265,7 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 	u8 lowest_level = 0;
 	u64 blocknr;
 	u64 gen;
+	struct btrfs_key prealloc_block;
 
 	lowest_level = p->lowest_level;
 	WARN_ON(lowest_level && ins_len);
@@ -1253,6 +1274,9 @@ int btrfs_search_slot(struct btrfs_trans_handle *trans, struct btrfs_root
 		!mutex_is_locked(&root->fs_info->alloc_mutex));
 	if (ins_len < 0)
 		lowest_unlock = 2;
+
+	prealloc_block.objectid = 0;
+
 again:
 	if (p->skip_locking)
 		b = btrfs_root_node(root);
@@ -1261,27 +1285,82 @@ again:
 
 	while (b) {
 		level = btrfs_header_level(b);
+
+		/*
+		 * setup the path here so we can release it under lock
+		 * contention with the cow code
+		 */
+		p->nodes[level] = b;
+		if (!p->skip_locking)
+			p->locks[level] = 1;
+
 		if (cow) {
 			int wret;
+
+			/* is a cow on this block not required */
+			spin_lock(&root->fs_info->hash_lock);
+			if (btrfs_header_generation(b) == trans->transid &&
+			    !btrfs_header_flag(b, BTRFS_HEADER_FLAG_WRITTEN)) {
+				spin_unlock(&root->fs_info->hash_lock);
+				goto cow_done;
+			}
+			spin_unlock(&root->fs_info->hash_lock);
+
+			/* ok, we have to cow, is our old prealloc the right
+			 * size?
+			 */
+			if (prealloc_block.objectid &&
+			    prealloc_block.offset != b->len) {
+				btrfs_free_reserved_extent(root,
+					   prealloc_block.objectid,
+					   prealloc_block.offset);
+				prealloc_block.objectid = 0;
+			}
+
+			/*
+			 * for higher level blocks, try not to allocate blocks
+			 * with the block and the parent locks held.
+			 */
+			if (level > 1 && !prealloc_block.objectid &&
+			    btrfs_path_lock_waiting(p, level)) {
+				u32 size = b->len;
+				u64 hint = b->start;
+
+				btrfs_release_path(root, p);
+				ret = btrfs_reserve_extent(trans, root,
+							   size, size, 0,
+							   hint, (u64)-1,
+							   &prealloc_block, 0);
+				BUG_ON(ret);
+				goto again;
+			}
+
 			wret = btrfs_cow_block(trans, root, b,
 					       p->nodes[level + 1],
 					       p->slots[level + 1],
-					       &b);
+					       &b, prealloc_block.objectid);
+			prealloc_block.objectid = 0;
 			if (wret) {
 				free_extent_buffer(b);
-				return wret;
+				ret = wret;
+				goto done;
 			}
 		}
+cow_done:
 		BUG_ON(!cow && ins_len);
 		if (level != btrfs_header_level(b))
 			WARN_ON(1);
 		level = btrfs_header_level(b);
+
 		p->nodes[level] = b;
 		if (!p->skip_locking)
 			p->locks[level] = 1;
+
 		ret = check_block(root, p, level);
-		if (ret)
-			return -1;
+		if (ret) {
+			ret = -1;
+			goto done;
+		}
 
 		ret = bin_search(b, key, level, &slot);
 		if (level != 0) {
@@ -1292,15 +1371,19 @@ again:
 			    BTRFS_NODEPTRS_PER_BLOCK(root) - 3) {
 				int sret = split_node(trans, root, p, level);
 				BUG_ON(sret > 0);
-				if (sret)
-					return sret;
+				if (sret) {
+					ret = sret;
+					goto done;
+				}
 				b = p->nodes[level];
 				slot = p->slots[level];
 			} else if (ins_len < 0) {
 				int sret = balance_level(trans, root, p,
 							 level);
-				if (sret)
-					return sret;
+				if (sret) {
+					ret = sret;
+					goto done;
+				}
 				b = p->nodes[level];
 				if (!b) {
 					btrfs_release_path(NULL, p);
@@ -1362,14 +1445,24 @@ again:
 				int sret = split_leaf(trans, root, key,
 						      p, ins_len, ret == 0);
 				BUG_ON(sret > 0);
-				if (sret)
-					return sret;
+				if (sret) {
+					ret = sret;
+					goto done;
+				}
 			}
 			unlock_up(p, level, lowest_unlock);
-			return ret;
+			goto done;
 		}
 	}
-	return 1;
+	ret = 1;
+done:
+	if (prealloc_block.objectid) {
+		btrfs_free_reserved_extent(root,
+			   prealloc_block.objectid,
+			   prealloc_block.offset);
+	}
+
+	return ret;
 }
 
 /*
@@ -1840,7 +1933,7 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, right, upper,
-			      slot + 1, &right);
+			      slot + 1, &right, 0);
 	if (ret)
 		goto out_unlock;
 
@@ -2021,7 +2114,7 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 
 	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, left,
-			      path->nodes[1], slot - 1, &left);
+			      path->nodes[1], slot - 1, &left, 0);
 	if (ret) {
 		/* we hit -ENOSPC, but it isn't fatal here */
 		ret = 1;

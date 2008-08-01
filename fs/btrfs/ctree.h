@@ -1421,6 +1421,9 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 					     int level,
 					     u64 hint,
 					     u64 empty_size);
+struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
+					    struct btrfs_root *root,
+					    u64 bytenr, u32 blocksize);
 int btrfs_shrink_extent_tree(struct btrfs_root *root, u64 new_size);
 int btrfs_insert_extent_backref(struct btrfs_trans_handle *trans,
 				 struct btrfs_root *root,
@@ -1451,6 +1454,7 @@ int btrfs_free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		      *root, u64 bytenr, u64 num_bytes,
 		      u64 root_objectid, u64 ref_generation,
 		      u64 owner_objectid, u64 owner_offset, int pin);
+int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len);
 int btrfs_finish_extent_commit(struct btrfs_trans_handle *trans,
 			       struct btrfs_root *root,
 			       struct extent_io_tree *unpin);
@@ -1484,7 +1488,7 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 int btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
-		    struct extent_buffer **cow_ret);
+		    struct extent_buffer **cow_ret, u64 prealloc_dest);
 int btrfs_copy_root(struct btrfs_trans_handle *trans,
 		      struct btrfs_root *root,
 		      struct extent_buffer *buf,

@@ -622,7 +622,7 @@ static noinline int create_pending_snapshot(struct btrfs_trans_handle *trans,
 	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
 
 	old = btrfs_lock_root_node(root);
-	btrfs_cow_block(trans, root, old, NULL, 0, &old);
+	btrfs_cow_block(trans, root, old, NULL, 0, &old, 0);
 
 	btrfs_copy_root(trans, root, old, &tmp, objectid);
 	btrfs_tree_unlock(old);

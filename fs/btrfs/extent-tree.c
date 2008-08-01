@@ -2118,6 +2118,15 @@ again:
 	return 0;
 }
 
+int btrfs_free_reserved_extent(struct btrfs_root *root, u64 start, u64 len)
+{
+	maybe_lock_mutex(root);
+	set_extent_dirty(&root->fs_info->free_space_cache,
+			 start, start + len - 1, GFP_NOFS);
+	maybe_unlock_mutex(root);
+	return 0;
+}
+
 int btrfs_reserve_extent(struct btrfs_trans_handle *trans,
 				  struct btrfs_root *root,
 				  u64 num_bytes, u64 min_alloc_size,
@@ -2267,6 +2276,26 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 	maybe_unlock_mutex(root);
 	return ret;
 }
+
+struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
+					    struct btrfs_root *root,
+					    u64 bytenr, u32 blocksize)
+{
+	struct extent_buffer *buf;
+
+	buf = btrfs_find_create_tree_block(root, bytenr, blocksize);
+	if (!buf)
+		return ERR_PTR(-ENOMEM);
+	btrfs_set_header_generation(buf, trans->transid);
+	btrfs_tree_lock(buf);
+	clean_tree_block(trans, root, buf);
+	btrfs_set_buffer_uptodate(buf);
+	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
+			 buf->start + buf->len - 1, GFP_NOFS);
+	trans->blocks_used++;
+	return buf;
+}
+
 /*
  * helper function to allocate a block for a given tree
  * returns the tree buffer or NULL.
@@ -2293,26 +2322,8 @@ struct extent_buffer *btrfs_alloc_free_block(struct btrfs_trans_handle *trans,
 		BUG_ON(ret > 0);
 		return ERR_PTR(ret);
 	}
-	buf = btrfs_find_create_tree_block(root, ins.objectid, blocksize);
-	if (!buf) {
-		btrfs_free_extent(trans, root, ins.objectid, blocksize,
-				  root->root_key.objectid, ref_generation,
-				  0, 0, 0);
-		return ERR_PTR(-ENOMEM);
-	}
-	btrfs_set_header_generation(buf, trans->transid);
-	btrfs_tree_lock(buf);
-	clean_tree_block(trans, root, buf);
-	btrfs_set_buffer_uptodate(buf);
 
-	if (PageDirty(buf->first_page)) {
-		printk("page %lu dirty\n", buf->first_page->index);
-		WARN_ON(1);
-	}
-
-	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
-			 buf->start + buf->len - 1, GFP_NOFS);
-	trans->blocks_used++;
+	buf = btrfs_init_new_buffer(trans, root, ins.objectid, blocksize);
 	return buf;
 }
 

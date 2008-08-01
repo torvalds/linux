@@ -56,3 +56,19 @@ int btrfs_tree_locked(struct extent_buffer *eb)
 {
 	return mutex_is_locked(&eb->mutex);
 }
+
+int btrfs_path_lock_waiting(struct btrfs_path *path, int level)
+{
+	int i;
+	struct extent_buffer *eb;
+	for (i = level; i <= level + 1 && i < BTRFS_MAX_LEVEL; i++) {
+		eb = path->nodes[i];
+		if (!eb)
+			break;
+		smp_mb();
+		if (!list_empty(&eb->mutex.wait_list))
+			return 1;
+	}
+	return 0;
+}
+
