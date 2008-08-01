@@ -2,7 +2,7 @@
 #define __ASM_IA64_KVM_H
 
 /*
- * asm-ia64/kvm.h: kvm structure definitions  for ia64
+ * kvm structure definitions  for ia64
  *
  * Copyright (C) 2007 Xiantao Zhang <xiantao.zhang@intel.com>
  *

@@ -1,6 +1,5 @@
 /*
- * include/asm-ia64/cputime.h:
- *		Definitions for measuring cputime on ia64 machines.
+ * Definitions for measuring cputime on ia64 machines.
  *
  * Based on <asm-powerpc/cputime.h>.
  *

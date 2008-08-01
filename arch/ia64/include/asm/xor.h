@@ -1,6 +1,4 @@
 /*
- * include/asm-ia64/xor.h
- *
  * Optimized RAID-5 checksumming functions for IA-64.
  *
  * This program is free software; you can redistribute it and/or modify

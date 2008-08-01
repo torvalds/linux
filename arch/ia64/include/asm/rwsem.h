@@ -1,5 +1,5 @@
 /*
- * asm-ia64/rwsem.h: R/W semaphores for ia64
+ * R/W semaphores for ia64
  *
  * Copyright (C) 2003 Ken Chen <kenneth.w.chen@intel.com>
  * Copyright (C) 2003 Asit Mallick <asit.k.mallick@intel.com>

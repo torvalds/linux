@@ -290,7 +290,7 @@ extern void machvec_init (const char *name);
 extern void machvec_init_from_cmdline(const char *cmdline);
 
 # else
-#  error Unknown configuration.  Update asm-ia64/machvec.h.
+#  error Unknown configuration.  Update arch/ia64/include/asm/machvec.h.
 # endif /* CONFIG_IA64_GENERIC */
 
 /*

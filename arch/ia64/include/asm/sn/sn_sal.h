@@ -1094,7 +1094,7 @@ ia64_sn_get_sn_info(int fc, u8 *shubtype, u16 *nasid_bitmask, u8 *nasid_shift,
 /*
  * This is the access point to the Altix PROM hardware performance
  * and status monitoring interface. For info on using this, see
- * include/asm-ia64/sn/sn2/sn_hwperf.h
+ * arch/ia64/include/asm/sn/sn2/sn_hwperf.h
  */
 static inline int
 ia64_sn_hwperf_op(nasid_t nasid, u64 opcode, u64 a0, u64 a1, u64 a2,

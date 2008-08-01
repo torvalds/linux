@@ -1123,7 +1123,7 @@ SET_REG(b5);
 	 *   p15    - used to track flag status.
 	 *
 	 * If you patch this code to use more registers, do not forget to update
-	 * the clobber lists for spin_lock() in include/asm-ia64/spinlock.h.
+	 * the clobber lists for spin_lock() in arch/ia64/include/asm/spinlock.h.
 	 */
 
 #if (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
