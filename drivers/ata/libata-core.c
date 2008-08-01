@@ -3288,7 +3288,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 		dev->dma_mode = ata_xfer_mask2mode(dma_mask);
 
 		found = 1;
-		if (dev->dma_mode != 0xff)
+		if (ata_dma_enabled(dev))
 			used_dma = 1;
 	}
 	if (!found)
@@ -3313,7 +3313,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 
 	/* step 3: set host DMA timings */
 	ata_link_for_each_dev(dev, link) {
-		if (!ata_dev_enabled(dev) || dev->dma_mode == 0xff)
+		if (!ata_dev_enabled(dev) || !ata_dma_enabled(dev))
 			continue;
 
 		dev->xfer_mode = dev->dma_mode;
