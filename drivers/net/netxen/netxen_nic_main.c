@@ -166,7 +166,8 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
 		do {
 			adapter->pci_write_immediate(adapter,
-					ISR_INT_TARGET_STATUS, 0xffffffff);
+					adapter->legacy_intr.tgt_status_reg,
+					0xffffffff);
 			mask = adapter->pci_read_immediate(adapter,
 					ISR_INT_VECTOR);
 			if (!(mask & 0x80))
@@ -175,7 +176,7 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 		} while (--retries);
 
 		if (!retries) {
-			printk(KERN_NOTICE "%s: Failed to disable interrupt completely\n",
+			printk(KERN_NOTICE "%s: Failed to disable interrupt\n",
 					netxen_nic_driver_name);
 		}
 	} else {
@@ -189,8 +190,6 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 {
 	u32 mask;
-
-	DPRINTK(1, INFO, "Entered ISR Enable \n");
 
 	if (adapter->intr_scheme != -1 &&
 		adapter->intr_scheme != INTR_SCHEME_PERPORT) {
@@ -213,16 +212,13 @@ static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 
 	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
 		mask = 0xbff;
-		if (adapter->intr_scheme != -1 &&
-			adapter->intr_scheme != INTR_SCHEME_PERPORT) {
+		if (adapter->intr_scheme == INTR_SCHEME_PERPORT)
+			adapter->pci_write_immediate(adapter,
+				adapter->legacy_intr.tgt_mask_reg, mask);
+		else
 			adapter->pci_write_normalize(adapter,
 					CRB_INT_VECTOR, 0);
-		}
-		adapter->pci_write_immediate(adapter,
-				ISR_INT_TARGET_MASK, mask);
 	}
-
-	DPRINTK(1, INFO, "Done with enable Int\n");
 }
 
 static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
@@ -1538,15 +1534,33 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	struct netxen_adapter *adapter = data;
 	u32 our_int = 0;
 
-	our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
-	/* not our interrupt */
-	if ((our_int & (0x80 << adapter->portnum)) == 0)
+	u32 status = 0;
+
+	status = adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+
+	if (!(status & adapter->legacy_intr.int_vec_bit))
 		return IRQ_NONE;
 
-	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
-		/* claim interrupt */
-		adapter->pci_write_normalize(adapter, CRB_INT_VECTOR,
+	if (adapter->ahw.revision_id >= NX_P3_B1) {
+		/* check interrupt state machine, to be sure */
+		status = adapter->pci_read_immediate(adapter,
+				ISR_INT_STATE_REG);
+		if (!ISR_LEGACY_INT_TRIGGERED(status))
+			return IRQ_NONE;
+
+	} else if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+
+		our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
+		/* not our interrupt */
+		if ((our_int & (0x80 << adapter->portnum)) == 0)
+			return IRQ_NONE;
+
+		if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
+			/* claim interrupt */
+			adapter->pci_write_normalize(adapter,
+				CRB_INT_VECTOR,
 				our_int & ~((u32)(0x80 << adapter->portnum)));
+		}
 	}
 
 	netxen_handle_int(adapter);
