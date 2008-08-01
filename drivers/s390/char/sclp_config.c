@@ -8,7 +8,6 @@
 #include <linux/init.h>
 #include <linux/errno.h>
 #include <linux/cpu.h>
-#include <linux/kthread.h>
 #include <linux/sysdev.h>
 #include <linux/workqueue.h>
 #include <asm/smp.h>
@@ -41,19 +40,9 @@ static void sclp_cpu_capability_notify(struct work_struct *work)
 	put_online_cpus();
 }
 
-static int sclp_cpu_kthread(void *data)
-{
-	smp_rescan_cpus();
-	return 0;
-}
-
 static void __ref sclp_cpu_change_notify(struct work_struct *work)
 {
-	/* Can't call smp_rescan_cpus() from  workqueue context since it may
-	 * deadlock in case of cpu hotplug. So we have to create a kernel
-	 * thread in order to call it.
-	 */
-	kthread_run(sclp_cpu_kthread, NULL, "cpu_rescan");
+	smp_rescan_cpus();
 }
 
 static void sclp_conf_receiver_fn(struct evbuf_header *evbuf)

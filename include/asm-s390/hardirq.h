@@ -34,4 +34,18 @@ typedef struct {
 
 void clock_comparator_work(void);
 
+static inline unsigned long long local_tick_disable(void)
+{
+	unsigned long long old;
+
+	old = S390_lowcore.clock_comparator;
+	S390_lowcore.clock_comparator = -1ULL;
+	return old;
+}
+
+static inline void local_tick_enable(unsigned long long comp)
+{
+	S390_lowcore.clock_comparator = comp;
+}
+
 #endif /* __ASM_HARDIRQ_H */

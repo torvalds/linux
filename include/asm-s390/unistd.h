@@ -259,7 +259,13 @@
 #define __NR_timerfd_create	319
 #define __NR_timerfd_settime	320
 #define __NR_timerfd_gettime	321
-#define NR_syscalls 322
+#define __NR_signalfd4		322
+#define __NR_eventfd2		323
+#define __NR_inotify_init1	324
+#define __NR_pipe2		325
+#define __NR_dup3		326
+#define __NR_epoll_create1	327
+#define NR_syscalls 328
 
 /* 
  * There are some system calls that are not present on 64 bit, some

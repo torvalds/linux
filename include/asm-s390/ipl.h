@@ -159,7 +159,8 @@ enum diag308_vm_flags {
 };
 
 enum diag308_rc {
-	DIAG308_RC_OK	= 1,
+	DIAG308_RC_OK		= 0x0001,
+	DIAG308_RC_NOCONFIG	= 0x0102,
 };
 
 extern int diag308(unsigned long subcode, void *addr);
