@@ -1198,7 +1198,7 @@ static int __devinit pxa_camera_init(void)
 
 static void __exit pxa_camera_exit(void)
 {
-	return platform_driver_unregister(&pxa_camera_driver);
+	platform_driver_unregister(&pxa_camera_driver);
 }
 
 module_init(pxa_camera_init);
