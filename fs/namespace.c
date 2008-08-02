@@ -1425,9 +1425,8 @@ out_unlock:
 
 /*
  * recursively change the type of the mountpoint.
- * noinline this do_mount helper to save do_mount stack space.
  */
-static noinline int do_change_type(struct path *path, int flag)
+static int do_change_type(struct path *path, int flag)
 {
 	struct vfsmount *m, *mnt = path->mnt;
 	int recurse = flag & MS_REC;
@@ -1459,9 +1458,8 @@ static noinline int do_change_type(struct path *path, int flag)
 
 /*
  * do loopback mount.
- * noinline this do_mount helper to save do_mount stack space.
  */
-static noinline int do_loopback(struct path *path, char *old_name,
+static int do_loopback(struct path *path, char *old_name,
 				int recurse)
 {
 	struct path old_path;
@@ -1528,9 +1526,8 @@ static int change_mount_flags(struct vfsmount *mnt, int ms_flags)
  * change filesystem flags. dir should be a physical root of filesystem.
  * If you've mounted a non-root directory somewhere and want to do remount
  * on it - tough luck.
- * noinline this do_mount helper to save do_mount stack space.
  */
-static noinline int do_remount(struct path *path, int flags, int mnt_flags,
+static int do_remount(struct path *path, int flags, int mnt_flags,
 		      void *data)
 {
 	int err;
@@ -1568,10 +1565,7 @@ static inline int tree_contains_unbindable(struct vfsmount *mnt)
 	return 0;
 }
 
-/*
- * noinline this do_mount helper to save do_mount stack space.
- */
-static noinline int do_move_mount(struct path *path, char *old_name)
+static int do_move_mount(struct path *path, char *old_name)
 {
 	struct path old_path, parent_path;
 	struct vfsmount *p;
@@ -1648,9 +1642,8 @@ out:
 /*
  * create a new mount for userspace and request it to be added into the
  * namespace's tree
- * noinline this do_mount helper to save do_mount stack space.
  */
-static noinline int do_new_mount(struct path *path, char *type, int flags,
+static int do_new_mount(struct path *path, char *type, int flags,
 			int mnt_flags, char *name, void *data)
 {
 	struct vfsmount *mnt;
