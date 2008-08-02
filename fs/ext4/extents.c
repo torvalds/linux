@@ -2323,7 +2323,10 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		unsigned int newdepth;
 		/* If extent has less than EXT4_EXT_ZERO_LEN zerout directly */
 		if (allocated <= EXT4_EXT_ZERO_LEN) {
-			/* Mark first half uninitialized.
+			/*
+			 * iblock == ee_block is handled by the zerouout
+			 * at the beginning.
+			 * Mark first half uninitialized.
 			 * Mark second half initialized and zero out the
 			 * initialized extent
 			 */
@@ -2346,7 +2349,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 				ex->ee_len   = orig_ex.ee_len;
 				ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 				ext4_ext_dirty(handle, inode, path + depth);
-				/* zeroed the full extent */
+				/* blocks available from iblock */
 				return allocated;
 
 			} else if (err)
@@ -2374,6 +2377,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 					err = PTR_ERR(path);
 					return err;
 				}
+				/* get the second half extent details */
 				ex = path[depth].p_ext;
 				err = ext4_ext_get_access(handle, inode,
 								path + depth);
@@ -2403,6 +2407,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 			ext4_ext_dirty(handle, inode, path + depth);
 			/* zeroed the full extent */
+			/* blocks available from iblock */
 			return allocated;
 
 		} else if (err)
@@ -2418,23 +2423,22 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 		 */
 		orig_ex.ee_len = cpu_to_le16(ee_len -
 						ext4_ext_get_actual_len(ex3));
-		if (newdepth != depth) {
-			depth = newdepth;
-			ext4_ext_drop_refs(path);
-			path = ext4_ext_find_extent(inode, iblock, path);
-			if (IS_ERR(path)) {
-				err = PTR_ERR(path);
-				goto out;
-			}
-			eh = path[depth].p_hdr;
-			ex = path[depth].p_ext;
-			if (ex2 != &newex)
-				ex2 = ex;
-
-			err = ext4_ext_get_access(handle, inode, path + depth);
-			if (err)
-				goto out;
+		depth = newdepth;
+		ext4_ext_drop_refs(path);
+		path = ext4_ext_find_extent(inode, iblock, path);
+		if (IS_ERR(path)) {
+			err = PTR_ERR(path);
+			goto out;
 		}
+		eh = path[depth].p_hdr;
+		ex = path[depth].p_ext;
+		if (ex2 != &newex)
+			ex2 = ex;
+
+		err = ext4_ext_get_access(handle, inode, path + depth);
+		if (err)
+			goto out;
+
 		allocated = max_blocks;
 
 		/* If extent has less than EXT4_EXT_ZERO_LEN and we are trying
@@ -2452,6 +2456,7 @@ static int ext4_ext_convert_to_initialized(handle_t *handle,
 			ext4_ext_store_pblock(ex, ext_pblock(&orig_ex));
 			ext4_ext_dirty(handle, inode, path + depth);
 			/* zero out the first half */
+			/* blocks available from iblock */
 			return allocated;
 		}
 	}
