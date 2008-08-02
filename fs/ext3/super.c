@@ -2783,30 +2783,30 @@ static int ext3_quota_on_mount(struct super_block *sb, int type)
  * Standard function to be called on quota_on
  */
 static int ext3_quota_on(struct super_block *sb, int type, int format_id,
-			 char *path, int remount)
+			 char *name, int remount)
 {
 	int err;
-	struct nameidata nd;
+	struct path path;
 
 	if (!test_opt(sb, QUOTA))
 		return -EINVAL;
-	/* When remounting, no checks are needed and in fact, path is NULL */
+	/* When remounting, no checks are needed and in fact, name is NULL */
 	if (remount)
-		return vfs_quota_on(sb, type, format_id, path, remount);
+		return vfs_quota_on(sb, type, format_id, name, remount);
 
-	err = path_lookup(path, LOOKUP_FOLLOW, &nd);
+	err = kern_path(name, LOOKUP_FOLLOW, &path);
 	if (err)
 		return err;
 
 	/* Quotafile not on the same filesystem? */
-	if (nd.path.mnt->mnt_sb != sb) {
-		path_put(&nd.path);
+	if (path.mnt->mnt_sb != sb) {
+		path_put(&path);
 		return -EXDEV;
 	}
 	/* Journaling quota? */
 	if (EXT3_SB(sb)->s_qf_names[type]) {
 		/* Quotafile not of fs root? */
-		if (nd.path.dentry->d_parent->d_inode != sb->s_root->d_inode)
+		if (path.dentry->d_parent != sb->s_root)
 			printk(KERN_WARNING
 				"EXT3-fs: Quota file not on filesystem root. "
 				"Journaled quota will not work.\n");
@@ -2816,7 +2816,7 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 	 * When we journal data on quota file, we have to flush journal to see
 	 * all updates to the file when we bypass pagecache...
 	 */
-	if (ext3_should_journal_data(nd.path.dentry->d_inode)) {
+	if (ext3_should_journal_data(path.dentry->d_inode)) {
 		/*
 		 * We don't need to lock updates but journal_flush() could
 		 * otherwise be livelocked...
@@ -2826,8 +2826,8 @@ static int ext3_quota_on(struct super_block *sb, int type, int format_id,
 		journal_unlock_updates(EXT3_SB(sb)->s_journal);
 	}
 
-	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
-	path_put(&nd.path);
+	err = vfs_quota_on_path(sb, type, format_id, &path);
+	path_put(&path);
 	return err;
 }
 
