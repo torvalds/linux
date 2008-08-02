@@ -715,6 +715,45 @@ has_ce2_string(struct pcmcia_device * p_dev)
 	return 0;
 }
 
+static int
+xirc2ps_config_modem(struct pcmcia_device *p_dev,
+		     cistpl_cftable_entry_t *cf,
+		     void *priv_data)
+{
+	unsigned int ioaddr;
+
+	if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
+		for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
+			p_dev->conf.ConfigIndex = cf->index ;
+			p_dev->io.BasePort2 = cf->io.win[0].base;
+			p_dev->io.BasePort1 = ioaddr;
+			if (!pcmcia_request_io(p_dev, &p_dev->io))
+				return 0;
+		}
+	}
+	return -ENODEV;
+}
+
+static int
+xirc2ps_config_check(struct pcmcia_device *p_dev,
+		     cistpl_cftable_entry_t *cf,
+		     void *priv_data)
+{
+	int *pass = priv_data;
+
+	if (cf->io.nwin > 0 && (cf->io.win[0].base & 0xf) == 8) {
+		p_dev->conf.ConfigIndex = cf->index ;
+		p_dev->io.BasePort2 = cf->io.win[0].base;
+		p_dev->io.BasePort1 = p_dev->io.BasePort2
+			+ (*pass ? (cf->index & 0x20 ? -24:8)
+			   : (cf->index & 0x20 ?   8:-24));
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
+			return 0;
+	}
+	return -ENODEV;
+
+}
+
 /****************
  * xirc2ps_config() is scheduled to run after a CARD_INSERTION event
  * is received, to configure the PCMCIA socket, and to make the
@@ -725,13 +764,12 @@ xirc2ps_config(struct pcmcia_device * link)
 {
     struct net_device *dev = link->priv;
     local_info_t *local = netdev_priv(dev);
+    unsigned int ioaddr;
     tuple_t tuple;
     cisparse_t parse;
-    unsigned int ioaddr;
     int err, i;
     u_char buf[64];
     cistpl_lan_node_id_t *node_id = (cistpl_lan_node_id_t*)parse.funce.data;
-    cistpl_cftable_entry_t *cf = &parse.cftable_entry;
     DECLARE_MAC_BUF(mac);
 
     local->dingo_ccr = NULL;
@@ -846,19 +884,8 @@ xirc2ps_config(struct pcmcia_device * link)
 	    /* Take the Modem IO port from the CIS and scan for a free
 	     * Ethernet port */
 	    link->io.NumPorts1 = 16; /* no Mako stuff anymore */
-	    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	    for (err = first_tuple(link, &tuple, &parse); !err;
-				 err = next_tuple(link, &tuple, &parse)) {
-		if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
-		    for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-			link->conf.ConfigIndex = cf->index ;
-			link->io.BasePort2 = cf->io.win[0].base;
-			link->io.BasePort1 = ioaddr;
-			if (!(err=pcmcia_request_io(link, &link->io)))
-			    goto port_found;
-		    }
-		}
-	    }
+	    if (!pcmcia_loop_config(link, xirc2ps_config_modem, NULL))
+		    goto port_found;
 	} else {
 	    link->io.NumPorts1 = 18;
 	    /* We do 2 passes here: The first one uses the regular mapping and
@@ -866,21 +893,9 @@ xirc2ps_config(struct pcmcia_device * link)
 	     * mirrored every 32 bytes. Actually we use a mirrored port for
 	     * the Mako if (on the first pass) the COR bit 5 is set.
 	     */
-	    for (pass=0; pass < 2; pass++) {
-		tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-		for (err = first_tuple(link, &tuple, &parse); !err;
-				     err = next_tuple(link, &tuple, &parse)){
-		    if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8){
-			link->conf.ConfigIndex = cf->index ;
-			link->io.BasePort2 = cf->io.win[0].base;
-			link->io.BasePort1 = link->io.BasePort2
-				    + (pass ? (cf->index & 0x20 ? -24:8)
-					    : (cf->index & 0x20 ?   8:-24));
-			if (!(err=pcmcia_request_io(link, &link->io)))
+	    for (pass=0; pass < 2; pass++)
+		    if (!pcmcia_loop_config(link, xirc2ps_config_check, &pass))
 			    goto port_found;
-		    }
-		}
-	    }
 	    /* if special option:
 	     * try to configure as Ethernet only.
 	     * .... */
