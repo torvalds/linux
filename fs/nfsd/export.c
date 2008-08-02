@@ -500,35 +500,22 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 	int len;
 	int err;
 	struct auth_domain *dom = NULL;
-	struct nameidata nd;
-	struct svc_export exp, *expp;
+	struct svc_export exp = {}, *expp;
 	int an_int;
-
-	nd.path.dentry = NULL;
-	exp.ex_pathname = NULL;
-
-	/* fs locations */
-	exp.ex_fslocs.locations = NULL;
-	exp.ex_fslocs.locations_count = 0;
-	exp.ex_fslocs.migrated = 0;
-
-	exp.ex_uuid = NULL;
-
-	/* secinfo */
-	exp.ex_nflavors = 0;
 
 	if (mesg[mlen-1] != '\n')
 		return -EINVAL;
 	mesg[mlen-1] = 0;
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
-	err = -ENOMEM;
-	if (!buf) goto out;
+	if (!buf)
+		return -ENOMEM;
 
 	/* client */
-	len = qword_get(&mesg, buf, PAGE_SIZE);
 	err = -EINVAL;
-	if (len <= 0) goto out;
+	len = qword_get(&mesg, buf, PAGE_SIZE);
+	if (len <= 0)
+		goto out;
 
 	err = -ENOENT;
 	dom = auth_domain_find(buf);
@@ -537,25 +524,25 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 
 	/* path */
 	err = -EINVAL;
-	if ((len=qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
-		goto out;
-	err = path_lookup(buf, 0, &nd);
-	if (err) goto out_no_path;
+	if ((len = qword_get(&mesg, buf, PAGE_SIZE)) <= 0)
+		goto out1;
 
-	exp.h.flags = 0;
+	err = kern_path(buf, 0, &exp.ex_path);
+	if (err)
+		goto out1;
+
 	exp.ex_client = dom;
-	exp.ex_path.mnt = nd.path.mnt;
-	exp.ex_path.dentry = nd.path.dentry;
-	exp.ex_pathname = kstrdup(buf, GFP_KERNEL);
+
 	err = -ENOMEM;
+	exp.ex_pathname = kstrdup(buf, GFP_KERNEL);
 	if (!exp.ex_pathname)
-		goto out;
+		goto out2;
 
 	/* expiry */
 	err = -EINVAL;
 	exp.h.expiry_time = get_expiry(&mesg);
 	if (exp.h.expiry_time == 0)
-		goto out;
+		goto out3;
 
 	/* flags */
 	err = get_int(&mesg, &an_int);
@@ -563,22 +550,26 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		err = 0;
 		set_bit(CACHE_NEGATIVE, &exp.h.flags);
 	} else {
-		if (err || an_int < 0) goto out;	
+		if (err || an_int < 0)
+			goto out3;
 		exp.ex_flags= an_int;
 	
 		/* anon uid */
 		err = get_int(&mesg, &an_int);
-		if (err) goto out;
+		if (err)
+			goto out3;
 		exp.ex_anon_uid= an_int;
 
 		/* anon gid */
 		err = get_int(&mesg, &an_int);
-		if (err) goto out;
+		if (err)
+			goto out3;
 		exp.ex_anon_gid= an_int;
 
 		/* fsid */
 		err = get_int(&mesg, &an_int);
-		if (err) goto out;
+		if (err)
+			goto out3;
 		exp.ex_fsid = an_int;
 
 		while ((len = qword_get(&mesg, buf, PAGE_SIZE)) > 0) {
@@ -604,12 +595,13 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 				 */
 				break;
 			if (err)
-				goto out;
+				goto out4;
 		}
 
-		err = check_export(nd.path.dentry->d_inode, exp.ex_flags,
+		err = check_export(exp.ex_path.dentry->d_inode, exp.ex_flags,
 				   exp.ex_uuid);
-		if (err) goto out;
+		if (err)
+			goto out4;
 	}
 
 	expp = svc_export_lookup(&exp);
@@ -622,15 +614,16 @@ static int svc_export_parse(struct cache_detail *cd, char *mesg, int mlen)
 		err = -ENOMEM;
 	else
 		exp_put(expp);
- out:
+out4:
 	nfsd4_fslocs_free(&exp.ex_fslocs);
 	kfree(exp.ex_uuid);
+out3:
 	kfree(exp.ex_pathname);
-	if (nd.path.dentry)
-		path_put(&nd.path);
- out_no_path:
-	if (dom)
-		auth_domain_put(dom);
+out2:
+	path_put(&exp.ex_path);
+out1:
+	auth_domain_put(dom);
+out:
 	kfree(buf);
 	return err;
 }
