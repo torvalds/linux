@@ -110,9 +110,10 @@ struct rfkill {
 };
 #define to_rfkill(d)	container_of(d, struct rfkill, dev)
 
-struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type);
+struct rfkill * __must_check rfkill_allocate(struct device *parent,
+					     enum rfkill_type type);
 void rfkill_free(struct rfkill *rfkill);
-int rfkill_register(struct rfkill *rfkill);
+int __must_check rfkill_register(struct rfkill *rfkill);
 void rfkill_unregister(struct rfkill *rfkill);
 
 int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state);

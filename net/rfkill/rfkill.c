@@ -645,7 +645,8 @@ static void rfkill_remove_switch(struct rfkill *rfkill)
  * NOTE: If registration fails the structure shoudl be freed by calling
  * rfkill_free() otherwise rfkill_unregister() should be used.
  */
-struct rfkill *rfkill_allocate(struct device *parent, enum rfkill_type type)
+struct rfkill * __must_check rfkill_allocate(struct device *parent,
+					     enum rfkill_type type)
 {
 	struct rfkill *rfkill;
 	struct device *dev;
@@ -716,7 +717,7 @@ static void rfkill_led_trigger_unregister(struct rfkill *rfkill)
  * structure needs to be registered. Immediately from registration the
  * switch driver should be able to service calls to toggle_radio.
  */
-int rfkill_register(struct rfkill *rfkill)
+int __must_check rfkill_register(struct rfkill *rfkill)
 {
 	static atomic_t rfkill_no = ATOMIC_INIT(0);
 	struct device *dev = &rfkill->dev;
