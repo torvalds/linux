@@ -321,8 +321,7 @@ static void ssfdcr_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	DEBUG(MTD_DEBUG_LEVEL1,
 		"SSFDC_RO: cis_block=%d,erase_size=%d,map_len=%d,n_zones=%d\n",
 		ssfdc->cis_block, ssfdc->erase_size, ssfdc->map_len,
-		(ssfdc->map_len + MAX_PHYS_BLK_PER_ZONE - 1) /
-		MAX_PHYS_BLK_PER_ZONE);
+		DIV_ROUND_UP(ssfdc->map_len, MAX_PHYS_BLK_PER_ZONE));
 
 	/* Set geometry */
 	ssfdc->heads = 16;

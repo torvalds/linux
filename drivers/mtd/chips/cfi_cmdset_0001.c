@@ -1640,7 +1640,7 @@ static int __xipram do_write_buffer(struct map_info *map, struct flchip *chip,
 
 	/* Figure out the number of words to write */
 	word_gap = (-adr & (map_bankwidth(map)-1));
-	words = (len - word_gap + map_bankwidth(map) - 1) / map_bankwidth(map);
+	words = DIV_ROUND_UP(len - word_gap, map_bankwidth(map));
 	if (!word_gap) {
 		words--;
 	} else {
