@@ -194,13 +194,14 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
     int any;
     u_char *b, hole, most;
 
-    printk(KERN_INFO "cs: IO port probe %#x-%#x:",
-	   base, base+num-1);
+    dev_printk(KERN_INFO, &s->dev, "cs: IO port probe %#x-%#x:",
+	       base, base+num-1);
 
     /* First, what does a floating port look like? */
     b = kzalloc(256, GFP_KERNEL);
     if (!b) {
-            printk(KERN_ERR "do_io_probe: unable to kmalloc 256 bytes");
+	    dev_printk(KERN_ERR, &s->dev,
+		   "do_io_probe: unable to kmalloc 256 bytes");
             return;
     }
     for (i = base, most = 0; i < base+num; i += 8) {
@@ -366,8 +367,8 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
     struct socket_data *s_data = s->resource_data;
     u_long i, j, bad, fail, step;
 
-    printk(KERN_INFO "cs: memory probe 0x%06lx-0x%06lx:",
-	   base, base+num-1);
+    dev_printk(KERN_INFO, &s->dev, "cs: memory probe 0x%06lx-0x%06lx:",
+	       base, base+num-1);
     bad = fail = 0;
     step = (num < 0x20000) ? 0x2000 : ((num>>4) & ~0x1fff);
     /* don't allow too large steps */
@@ -431,8 +432,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	if (probe_mask & MEM_PROBE_HIGH) {
 		if (inv_probe(s_data->mem_db.next, s) > 0)
 			return 0;
-		printk(KERN_NOTICE "cs: warning: no high memory space "
-		       "available!\n");
+		dev_printk(KERN_NOTICE, &s->dev,
+			   "cs: warning: no high memory space available!\n");
 		return -ENODEV;
 	}
 
@@ -794,10 +795,11 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_IO) {
 			if (res == &ioport_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge I/O "
-				"window: 0x%llx - 0x%llx\n",
-				(unsigned long long)res->start,
-				(unsigned long long)res->end);
+			dev_printk(KERN_INFO, &s->cb_dev->dev,
+				   "pcmcia: parent PCI bridge I/O "
+				   "window: 0x%llx - 0x%llx\n",
+				   (unsigned long long)res->start,
+				   (unsigned long long)res->end);
 			if (!adjust_io(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_IO;
 
@@ -806,10 +808,11 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		if (res->flags & IORESOURCE_MEM) {
 			if (res == &iomem_resource)
 				continue;
-			printk(KERN_INFO "pcmcia: parent PCI bridge Memory "
-				"window: 0x%llx - 0x%llx\n",
-				(unsigned long long)res->start,
-				(unsigned long long)res->end);
+			dev_printk(KERN_INFO, &s->cb_dev->dev,
+				   "pcmcia: parent PCI bridge Memory "
+				   "window: 0x%llx - 0x%llx\n",
+				   (unsigned long long)res->start,
+				   (unsigned long long)res->end);
 			if (!adjust_memory(s, ADD_MANAGED_RESOURCE, res->start, res->end))
 				done |= IORESOURCE_MEM;
 		}
