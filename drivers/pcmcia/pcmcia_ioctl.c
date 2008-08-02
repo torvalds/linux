@@ -287,6 +287,78 @@ static int pccard_get_status(struct pcmcia_socket *s,
 	return CS_SUCCESS;
 } /* pccard_get_status */
 
+int pccard_get_configuration_info(struct pcmcia_socket *s,
+				  struct pcmcia_device *p_dev,
+				  config_info_t *config)
+{
+	config_t *c;
+
+	if (!(s->state & SOCKET_PRESENT))
+		return CS_NO_CARD;
+
+
+#ifdef CONFIG_CARDBUS
+	if (s->state & SOCKET_CARDBUS) {
+		memset(config, 0, sizeof(config_info_t));
+		config->Vcc = s->socket.Vcc;
+		config->Vpp1 = config->Vpp2 = s->socket.Vpp;
+		config->Option = s->cb_dev->subordinate->number;
+		if (s->state & SOCKET_CARDBUS_CONFIG) {
+			config->Attributes = CONF_VALID_CLIENT;
+			config->IntType = INT_CARDBUS;
+			config->AssignedIRQ = s->irq.AssignedIRQ;
+			if (config->AssignedIRQ)
+				config->Attributes |= CONF_ENABLE_IRQ;
+			if (s->io[0].res) {
+				config->BasePort1 = s->io[0].res->start;
+				config->NumPorts1 = s->io[0].res->end -
+					config->BasePort1 + 1;
+			}
+		}
+		return CS_SUCCESS;
+	}
+#endif
+
+	if (p_dev) {
+		c = p_dev->function_config;
+		config->Function = p_dev->func;
+	} else {
+		c = NULL;
+		config->Function = 0;
+	}
+
+	if ((c == NULL) || !(c->state & CONFIG_LOCKED)) {
+		config->Attributes = 0;
+		config->Vcc = s->socket.Vcc;
+		config->Vpp1 = config->Vpp2 = s->socket.Vpp;
+		return CS_SUCCESS;
+	}
+
+	config->Attributes = c->Attributes | CONF_VALID_CLIENT;
+	config->Vcc = s->socket.Vcc;
+	config->Vpp1 = config->Vpp2 = s->socket.Vpp;
+	config->IntType = c->IntType;
+	config->ConfigBase = c->ConfigBase;
+	config->Status = c->Status;
+	config->Pin = c->Pin;
+	config->Copy = c->Copy;
+	config->Option = c->Option;
+	config->ExtStatus = c->ExtStatus;
+	config->Present = config->CardValues = c->CardValues;
+	config->IRQAttributes = c->irq.Attributes;
+	config->AssignedIRQ = s->irq.AssignedIRQ;
+	config->BasePort1 = c->io.BasePort1;
+	config->NumPorts1 = c->io.NumPorts1;
+	config->Attributes1 = c->io.Attributes1;
+	config->BasePort2 = c->io.BasePort2;
+	config->NumPorts2 = c->io.NumPorts2;
+	config->Attributes2 = c->io.Attributes2;
+	config->IOAddrLines = c->io.IOAddrLines;
+
+	return CS_SUCCESS;
+} /* pccard_get_configuration_info */
+
+
 /*======================================================================
 
     These manage a ring buffer of events pending for one user process

@@ -372,7 +372,6 @@ enum service {
 struct pcmcia_socket;
 
 int pcmcia_access_configuration_register(struct pcmcia_device *p_dev, conf_reg_t *reg);
-int pcmcia_get_configuration_info(struct pcmcia_device *p_dev, config_info_t *config);
 int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
 int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
