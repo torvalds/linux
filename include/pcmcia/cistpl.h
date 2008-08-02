@@ -617,6 +617,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
 						 cistpl_cftable_entry_t *cf,
 						 cistpl_cftable_entry_t *dflt,
+						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data);
 

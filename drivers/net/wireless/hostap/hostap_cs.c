@@ -536,17 +536,12 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 /* run after a CARD_INSERTION event is received to configure the PCMCIA
  * socket and make the device available to the system */
 
-struct prism2_config_data {
-	config_info_t conf;
-};
-
 static int prism2_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       cistpl_cftable_entry_t *dflt,
+			       unsigned int vcc,
 			       void *priv_data)
 {
-	struct prism2_config_data *cfg_mem = priv_data;
-
 	if (cfg->index == 0)
 		return -ENODEV;
 
@@ -562,14 +557,14 @@ static int prism2_config_check(struct pcmcia_device *p_dev,
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] /
+		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] /
 		    10000 && !ignore_cis_vcc) {
 			PDEBUG(DEBUG_EXTRA, "  Vcc mismatch - skipping"
 			       " this entry\n");
 			return -ENODEV;
 		}
 	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != dflt->vcc.param[CISTPL_POWER_VNOM] /
+		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] /
 		    10000 && !ignore_cis_vcc) {
 			PDEBUG(DEBUG_EXTRA, "  Vcc (default) mismatch "
 			       "- skipping this entry\n");
@@ -627,7 +622,6 @@ static int prism2_config(struct pcmcia_device *link)
 {
 	struct net_device *dev;
 	struct hostap_interface *iface;
-	struct prism2_config_data *cfg_mem;
 	local_info_t *local;
 	int ret = 1;
 	int last_fn, last_ret;
@@ -635,21 +629,14 @@ static int prism2_config(struct pcmcia_device *link)
 
 	PDEBUG(DEBUG_FLOW, "prism2_config()\n");
 
-	cfg_mem = kzalloc(sizeof(struct prism2_config_data), GFP_KERNEL);
-	if (!cfg_mem)
-		return -ENOMEM;
-
 	hw_priv = kzalloc(sizeof(*hw_priv), GFP_KERNEL);
 	if (hw_priv == NULL) {
 		ret = -ENOMEM;
 		goto failed;
 	}
 
-	CS_CHECK(GetConfigurationInfo,
-		 pcmcia_get_configuration_info(link, &cfg_mem->conf));
-
 	/* Look for an appropriate configuration table entry in the CIS */
-	last_ret = pcmcia_loop_config(link, prism2_config_check, cfg_mem);
+	last_ret = pcmcia_loop_config(link, prism2_config_check, NULL);
 	if (last_ret) {
 		if (!ignore_cis_vcc)
 			printk(KERN_ERR "GetNextTuple(): No matching "
@@ -724,7 +711,6 @@ static int prism2_config(struct pcmcia_device *link)
 		if (ret == 0 && local->ddev)
 			strcpy(hw_priv->node.dev_name, local->ddev->name);
 	}
-	kfree(cfg_mem);
 	return ret;
 
  cs_failed:
@@ -732,7 +718,6 @@ static int prism2_config(struct pcmcia_device *link)
 
  failed:
 	kfree(hw_priv);
-	kfree(cfg_mem);
 	prism2_release((u_long)link);
 	return ret;
 }

@@ -515,6 +515,7 @@ static int try_io_port(struct pcmcia_device *link)
 static int pcnet_confcheck(struct pcmcia_device *p_dev,
 			   cistpl_cftable_entry_t *cfg,
 			   cistpl_cftable_entry_t *dflt,
+			   unsigned int vcc,
 			   void *priv_data)
 {
 	int *has_shmem = priv_data;

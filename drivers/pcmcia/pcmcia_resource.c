@@ -935,6 +935,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
 						 cistpl_cftable_entry_t *cfg,
 						 cistpl_cftable_entry_t *dflt,
+						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data)
 {
@@ -942,10 +943,14 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 
 	tuple_t *tuple;
 	int ret = -ENODEV;
+	unsigned int vcc;
 
 	cfg_mem = kzalloc(sizeof(struct pcmcia_cfg_mem), GFP_KERNEL);
 	if (cfg_mem == NULL)
 		return -ENOMEM;
+
+	/* get the current Vcc setting */
+	vcc = p_dev->socket->socket.Vcc;
 
 	tuple = &cfg_mem->tuple;
 	tuple->TupleData = cfg_mem->buf;
@@ -969,7 +974,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
 			cfg_mem->dflt = *cfg;
 
-		ret = conf_check(p_dev, cfg, &cfg_mem->dflt, priv_data);
+		ret = conf_check(p_dev, cfg, &cfg_mem->dflt, vcc, priv_data);
 		if (!ret)
 			break;
 

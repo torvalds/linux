@@ -217,17 +217,13 @@ static void sedlbauer_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-struct sedlbauer_config_data {
-	config_info_t conf;
-	win_req_t req;
-};
-
 static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 				  cistpl_cftable_entry_t *cfg,
 				  cistpl_cftable_entry_t *dflt,
+				  unsigned int vcc,
 				  void *priv_data)
 {
-	struct sedlbauer_config_data *cfg_mem = priv_data;
+	win_req_t *req = priv_data;
 
 	if (cfg->index == 0)
 		return -ENODEV;
@@ -241,12 +237,10 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc !=
-		    cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
+		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
 			return -ENODEV;
 	} else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc !=
-		    dflt->vcc.param[CISTPL_POWER_VNOM]/10000)
+		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM]/10000)
 			return -ENODEV;
 	}
 
@@ -294,12 +288,12 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
 		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
 		memreq_t map;
-		cfg_mem->req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-		cfg_mem->req.Attributes |= WIN_ENABLE;
-		cfg_mem->req.Base = mem->win[0].host_addr;
-		cfg_mem->req.Size = mem->win[0].len;
-		cfg_mem->req.AccessSpeed = 0;
-		if (pcmcia_request_window(&p_dev, &cfg_mem->req, &p_dev->win) != 0)
+		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
+		req->Attributes |= WIN_ENABLE;
+		req->Base = mem->win[0].host_addr;
+		req->Size = mem->win[0].len;
+		req->AccessSpeed = 0;
+		if (pcmcia_request_window(&p_dev, req, &p_dev->win) != 0)
 			return -ENODEV;
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
@@ -314,19 +308,15 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 static int sedlbauer_config(struct pcmcia_device *link)
 {
     local_info_t *dev = link->priv;
-    struct sedlbauer_config_data *cfg_mem;
+    win_req_t *req;
     int last_fn, last_ret;
     IsdnCard_t  icard;
 
     DEBUG(0, "sedlbauer_config(0x%p)\n", link);
 
-    cfg_mem = kzalloc(sizeof(struct sedlbauer_config_data), GFP_KERNEL);
-    if (!cfg_mem)
+    req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
+    if (!req)
 	    return -ENOMEM;
-
-    /* Look up the current Vcc */
-    CS_CHECK(GetConfigurationInfo,
-	     pcmcia_get_configuration_info(link, &cfg_mem->conf));
 
     /*
       In this loop, we scan the CIS for configuration table entries,
@@ -340,7 +330,7 @@ static int sedlbauer_config(struct pcmcia_device *link)
       these things without consulting the CIS, and most client drivers
       will only use the CIS to fill in implementation-defined details.
     */
-    last_ret = pcmcia_loop_config(link, sedlbauer_config_check, cfg_mem);
+    last_ret = pcmcia_loop_config(link, sedlbauer_config_check, req);
     if (last_ret)
 	    goto failed;
 
@@ -381,8 +371,8 @@ static int sedlbauer_config(struct pcmcia_device *link)
 	printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 	       link->io.BasePort2+link->io.NumPorts2-1);
     if (link->win)
-	printk(", mem 0x%06lx-0x%06lx", cfg_mem->req.Base,
-	       cfg_mem->req.Base+cfg_mem->req.Size-1);
+	printk(", mem 0x%06lx-0x%06lx", req->Base,
+	       req->Base+req->Size-1);
     printk("\n");
 
     icard.para[0] = link->irq.AssignedIRQ;

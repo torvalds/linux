@@ -150,7 +150,6 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 
 struct pcmcia_config_check {
-	config_info_t conf;
 	unsigned long ctl_base;
 	int skip_vcc;
 	int is_kme;
@@ -159,6 +158,7 @@ struct pcmcia_config_check {
 static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 				   cistpl_cftable_entry_t *cfg,
 				   cistpl_cftable_entry_t *dflt,
+				   unsigned int vcc,
 				   void *priv_data)
 {
 	struct pcmcia_config_check *stk = priv_data;
@@ -166,12 +166,10 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 	/* Check for matching Vcc, unless we're desperate */
 	if (!stk->skip_vcc) {
 		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (stk->conf.Vcc !=
-			    cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
+			if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
 				return -ENODEV;
 		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (stk->conf.Vcc !=
-			    dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
+			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
 				return -ENODEV;
 		}
 	}
@@ -257,10 +255,8 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	if (!stk)
 		goto out1;
 	stk->is_kme = is_kme;
-
-	/* Not sure if this is right... look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(pdev, &stk->conf));
 	stk->skip_vcc = io_base = ctl_base = 0;
+
 	if (pcmcia_loop_config(pdev, pcmcia_check_one_config, stk)) {
 		stk->skip_vcc = 1;
 		if (pcmcia_loop_config(pdev, pcmcia_check_one_config, stk))

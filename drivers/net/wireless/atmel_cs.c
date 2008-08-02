@@ -227,6 +227,7 @@ static int card_present(void *arg)
 static int atmel_config_check(struct pcmcia_device *p_dev,
 			      cistpl_cftable_entry_t *cfg,
 			      cistpl_cftable_entry_t *dflt,
+			      unsigned int vcc,
 			      void *priv_data)
 {
 	if (cfg->index == 0)

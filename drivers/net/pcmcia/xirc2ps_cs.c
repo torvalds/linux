@@ -719,6 +719,7 @@ static int
 xirc2ps_config_modem(struct pcmcia_device *p_dev,
 		     cistpl_cftable_entry_t *cf,
 		     cistpl_cftable_entry_t *dflt,
+		     unsigned int vcc,
 		     void *priv_data)
 {
 	unsigned int ioaddr;
@@ -738,6 +739,7 @@ static int
 xirc2ps_config_check(struct pcmcia_device *p_dev,
 		     cistpl_cftable_entry_t *cf,
 		     cistpl_cftable_entry_t *dflt,
+		     unsigned int vcc,
 		     void *priv_data)
 {
 	int *pass = priv_data;

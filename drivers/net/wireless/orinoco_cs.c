@@ -164,31 +164,26 @@ static void orinoco_cs_detach(struct pcmcia_device *link)
 		last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; \
 	} while (0)
 
-struct orinoco_cs_config_data {
-	config_info_t conf;
-};
-
 static int orinoco_cs_config_check(struct pcmcia_device *p_dev,
 				   cistpl_cftable_entry_t *cfg,
 				   cistpl_cftable_entry_t *dflt,
+				   unsigned int vcc,
 				   void *priv_data)
 {
-	struct orinoco_cs_config_data *cfg_mem = priv_data;
-
 	if (cfg->index == 0)
 		goto next_entry;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/* Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "spectrum_cs_config: Vcc mismatch (cfg_mem->conf.Vcc = %d, CIS = %d)\n",  cfg_mem->conf.Vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
+		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
+			DEBUG(2, "spectrum_cs_config: Vcc mismatch (vcc = %d, CIS = %d)\n",  vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
 			if (!ignore_cis_vcc)
 				goto next_entry;
 		}
 	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-			DEBUG(2, "spectrum_cs_config: Vcc mismatch (cfg_mem->conf.Vcc = %d, CIS = %d)\n",  cfg_mem->conf.Vcc, dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
+		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000) {
+			DEBUG(2, "spectrum_cs_config: Vcc mismatch (vcc = %d, CIS = %d)\n",  vcc, dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
 			if (!ignore_cis_vcc)
 				goto next_entry;
 		}
@@ -236,21 +231,12 @@ next_entry:
 static int
 orinoco_cs_config(struct pcmcia_device *link)
 {
-	struct orinoco_cs_config_data *cfg_mem;
 	struct net_device *dev = link->priv;
 	struct orinoco_private *priv = netdev_priv(dev);
 	struct orinoco_pccard *card = priv->card;
 	hermes_t *hw = &priv->hw;
 	int last_fn, last_ret;
 	void __iomem *mem;
-
-	cfg_mem = kzalloc(sizeof(struct orinoco_cs_config_data), GFP_KERNEL);
-	if (!cfg_mem)
-		return -ENOMEM;
-
-	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo,
-		 pcmcia_get_configuration_info(link, &cfg_mem->conf));
 
 	/*
 	 * In this loop, we scan the CIS for configuration table
@@ -266,7 +252,7 @@ orinoco_cs_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
-	last_ret = pcmcia_loop_config(link, orinoco_cs_config_check, cfg_mem);
+	last_ret = pcmcia_loop_config(link, orinoco_cs_config_check, NULL);
 	if (last_ret) {
 		if (!ignore_cis_vcc)
 			printk(KERN_ERR PFX "GetNextTuple(): No matching "
@@ -324,7 +310,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 	       "0x%04x-0x%04x\n", dev->name, dev->dev.parent->bus_id,
 	       link->irq.AssignedIRQ, link->io.BasePort1,
 	       link->io.BasePort1 + link->io.NumPorts1 - 1);
-	kfree(cfg_mem);
 	return 0;
 
  cs_failed:
@@ -332,7 +317,6 @@ orinoco_cs_config(struct pcmcia_device *link)
 
  failed:
 	orinoco_cs_release(link);
-	kfree(cfg_mem);
 	return -ENODEV;
 }				/* orinoco_cs_config */
 

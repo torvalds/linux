@@ -209,6 +209,7 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 static int airo_cs_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
 				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
 				void *priv_data)
 {
 	win_req_t *req = priv_data;

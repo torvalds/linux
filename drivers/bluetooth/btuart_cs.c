@@ -610,16 +610,17 @@ static void btuart_detach(struct pcmcia_device *link)
 static int btuart_check_config(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cf,
 			       cistpl_cftable_entry_t *dflt,
+			       unsigned int vcc,
 			       void *priv_data)
 {
-	unsigned long try = (unsigned long) priv_data;
+	int *try = priv_data;
 
 	if (cf->vpp1.present & (1 << CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = cf->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 	if ((cf->io.nwin > 0) && (cf->io.win[0].len == 8) &&
 	    (cf->io.win[0].base != 0)) {
 		p_dev->io.BasePort1 = cf->io.win[0].base;
-		p_dev->io.IOAddrLines = (try == 0) ? 16 :
+		p_dev->io.IOAddrLines = (*try == 0) ? 16 :
 			cf->io.flags & CISTPL_IO_LINES_MASK;
 		if (!pcmcia_request_io(p_dev, &p_dev->io))
 			return 0;
@@ -630,6 +631,7 @@ static int btuart_check_config(struct pcmcia_device *p_dev,
 static int btuart_check_config_notpicky(struct pcmcia_device *p_dev,
 					cistpl_cftable_entry_t *cf,
 					cistpl_cftable_entry_t *dflt,
+					unsigned int vcc,
 					void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
@@ -650,13 +652,12 @@ static int btuart_config(struct pcmcia_device *link)
 {
 	btuart_info_t *info = link->priv;
 	int i;
-	unsigned long try;
+	int try;
 
 	/* First pass: look for a config entry that looks normal.
 	   Two tries: without IO aliases, then with aliases */
 	for (try = 0; try < 2; try++)
-		if (!pcmcia_loop_config(link, btuart_check_config,
-					(void *) try))
+		if (!pcmcia_loop_config(link, btuart_check_config, &try))
 			goto found_port;
 
 	/* Second pass: try to find an entry that isn't picky about

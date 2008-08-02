@@ -155,29 +155,22 @@ static void sl811_cs_release(struct pcmcia_device * link)
 	platform_device_unregister(&platform_dev);
 }
 
-struct sl811_css_cfg {
-	config_info_t		conf;
-};
-
 static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 				 cistpl_cftable_entry_t *cfg,
 				 cistpl_cftable_entry_t *dflt,
+				 unsigned int vcc,
 				 void *priv_data)
 {
-	struct sl811_css_cfg	*cfg_mem = priv_data;
-
 	if (cfg->index == 0)
 		return -ENODEV;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg->vcc.param[CISTPL_POWER_VNOM]/10000 !=
-		    cfg_mem->conf.Vcc)
+		if (cfg->vcc.param[CISTPL_POWER_VNOM]/10000 != vcc)
 			return -ENODEV;
 	} else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (dflt->vcc.param[CISTPL_POWER_VNOM]/10000
-		    != cfg_mem->conf.Vcc)
+		if (dflt->vcc.param[CISTPL_POWER_VNOM]/10000 != vcc)
 			return -ENODEV;
 		}
 
@@ -214,29 +207,20 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	struct device		*parent = &handle_to_dev(link);
 	local_info_t		*dev = link->priv;
 	int			last_fn, last_ret;
-	struct sl811_css_cfg	*cfg_mem;
 
 	DBG(0, "sl811_cs_config(0x%p)\n", link);
 
-	cfg_mem = kzalloc(sizeof(struct sl811_css_cfg), GFP_KERNEL);
-	if (!cfg_mem)
-		return -ENOMEM;
-
-	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo,
-			pcmcia_get_configuration_info(link, &cfg_mem->conf));
-
-	if (pcmcia_loop_config(link, sl811_cs_config_check, cfg_mem))
-		return -ENODEV;
+	if (pcmcia_loop_config(link, sl811_cs_config_check, NULL))
+		goto failed;
 
 	/* require an IRQ and two registers */
 	if (!link->io.NumPorts1 || link->io.NumPorts1 < 2)
-		goto cs_failed;
+		goto failed;
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		CS_CHECK(RequestIRQ,
 			pcmcia_request_irq(link, &link->irq));
 	else
-		goto cs_failed;
+		goto failed;
 
 	CS_CHECK(RequestConfiguration,
 		pcmcia_request_configuration(link, &link->conf));
@@ -257,13 +241,12 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	if (sl811_hc_init(parent, link->io.BasePort1, link->irq.AssignedIRQ)
 			< 0) {
 cs_failed:
-		printk("sl811_cs_config failed\n");
 		cs_error(link, last_fn, last_ret);
+failed:
+		printk(KERN_WARNING "sl811_cs_config failed\n");
 		sl811_cs_release(link);
-		kfree(cfg_mem);
 		return  -ENODEV;
 	}
-	kfree(cfg_mem);
 	return 0;
 }
 

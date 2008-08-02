@@ -1611,12 +1611,12 @@ static void nsp_cs_detach(struct pcmcia_device *link)
 struct nsp_cs_configdata {
 	nsp_hw_data		*data;
 	win_req_t		req;
-	config_info_t		conf;
 };
 
 static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       cistpl_cftable_entry_t *dflt,
+			       unsigned int vcc,
 			       void *priv_data)
 {
 	struct nsp_cs_configdata *cfg_mem = priv_data;
@@ -1633,10 +1633,10 @@ static int nsp_cs_config_check(struct pcmcia_device *p_dev,
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
+		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
 			return -ENODEV;
 		else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-			if (cfg_mem->conf.Vcc != dflt->vcc.param[CISTPL_POWER_VNOM]/10000)
+			if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM]/10000)
 				return -ENODEV;
 		}
 
@@ -1719,8 +1719,6 @@ static int nsp_cs_config(struct pcmcia_device *link)
 		return -ENOMEM;
 	cfg_mem->data = data;
 
-	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &cfg_mem->conf));
 	ret = pcmcia_loop_config(link, nsp_cs_config_check, cfg_mem);
 		goto cs_failed;
 

@@ -444,6 +444,7 @@ first_tuple(struct pcmcia_device *handle, tuple_t * tuple, cisparse_t * parse)
 static int simple_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cf,
 			       cistpl_cftable_entry_t *dflt,
+			       unsigned int vcc,
 			       void *priv_data)
 {
 	static const int size_table[2] = { 8, 16 };
@@ -467,6 +468,7 @@ static int simple_config_check(struct pcmcia_device *p_dev,
 static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
 					cistpl_cftable_entry_t *cf,
 					cistpl_cftable_entry_t *dflt,
+					unsigned int vcc,
 					void *priv_data)
 {
 	static const unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };
@@ -549,6 +551,7 @@ found_port:
 static int multi_config_check(struct pcmcia_device *p_dev,
 			      cistpl_cftable_entry_t *cf,
 			      cistpl_cftable_entry_t *dflt,
+			      unsigned int vcc,
 			      void *priv_data)
 {
 	int *base2 = priv_data;
@@ -569,6 +572,7 @@ static int multi_config_check(struct pcmcia_device *p_dev,
 static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
 				       cistpl_cftable_entry_t *cf,
 				       cistpl_cftable_entry_t *dflt,
+				       unsigned int vcc,
 				       void *priv_data)
 {
 	int *base2 = priv_data;
