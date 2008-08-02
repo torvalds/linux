@@ -493,7 +493,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	int last_ret = 0, last_fn = 0;
 	int ret;
 	int i;
-	config_info_t t;
 	static char *probes[] = { "jedec_probe", "cfi_probe" };
 	int new_name = 0;
 
@@ -571,10 +570,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	dev->pcmcia_map.map_priv_1 = (unsigned long)dev;
 	dev->pcmcia_map.map_priv_2 = (unsigned long)link->win;
 
-	DEBUG(2, "Getting configuration");
-	CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &t));
-	DEBUG(2, "Vcc = %d Vpp1 = %d Vpp2 = %d", t.Vcc, t.Vpp1, t.Vpp2);
-	dev->vpp = (vpp) ? vpp : t.Vpp1;
+	dev->vpp = (vpp) ? vpp : link->socket.socket.Vpp;
 	link->conf.Attributes = 0;
 	if(setvpp == 2) {
 		link->conf.Vpp = dev->vpp;
@@ -583,13 +579,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	}
 
 	link->conf.IntType = INT_MEMORY;
-	link->conf.ConfigBase = t.ConfigBase;
-	link->conf.Status = t.Status;
-	link->conf.Pin = t.Pin;
-	link->conf.Copy = t.Copy;
-	link->conf.ExtStatus = t.ExtStatus;
 	link->conf.ConfigIndex = 0;
-	link->conf.Present = t.Present;
 	DEBUG(2, "Setting Configuration");
 	ret = pcmcia_request_configuration(link, &link->conf);
 	if(ret != CS_SUCCESS) {

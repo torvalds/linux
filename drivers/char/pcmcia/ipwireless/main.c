@@ -83,7 +83,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 {
 	struct pcmcia_device *link = ipw->link;
 	int ret;
-	config_info_t conf;
 	tuple_t tuple;
 	unsigned short buf[64];
 	cisparse_t parse;
@@ -295,15 +294,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	if (ret != CS_SUCCESS) {
 		cs_error(link, RequestIRQ, ret);
 		goto exit3;
-	}
-
-	/* Look up current Vcc */
-
-	ret = pcmcia_get_configuration_info(link, &conf);
-
-	if (ret != CS_SUCCESS) {
-		cs_error(link, GetConfigurationInfo, ret);
-		goto exit4;
 	}
 
 	printk(KERN_INFO IPWIRELESS_PCCARD_NAME ": Card type %s\n",

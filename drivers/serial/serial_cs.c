@@ -488,23 +488,23 @@ static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
 static int simple_config(struct pcmcia_device *link)
 {
 	struct serial_info *info = link->priv;
-	config_info_t config;
-	int i, try;
+	int i = -ENODEV, try;
 
 	/* If the card is already configured, look up the port and irq */
-	i = pcmcia_get_configuration_info(link, &config);
-	if ((i == CS_SUCCESS) && (config.Attributes & CONF_VALID_CLIENT)) {
+	if (link->function_config) {
 		unsigned int port = 0;
-		if ((config.BasePort2 != 0) && (config.NumPorts2 == 8)) {
-			port = config.BasePort2;
+		if ((link->io.BasePort2 != 0) &&
+		    (link->io.NumPorts2 == 8)) {
+			port = link->io.BasePort2;
 			info->slave = 1;
 		} else if ((info->manfid == MANFID_OSITECH) &&
-			   (config.NumPorts1 == 0x40)) {
-			port = config.BasePort1 + 0x28;
+			   (link->io.NumPorts1 == 0x40)) {
+			port = link->io.BasePort1 + 0x28;
 			info->slave = 1;
 		}
 		if (info->slave) {
-			return setup_serial(link, info, port, config.AssignedIRQ);
+			return setup_serial(link, info, port,
+					    link->irq.AssignedIRQ);
 		}
 	}
 
