@@ -49,11 +49,12 @@ extern int ds_pc_debug;
 
 #define ds_dbg(skt, lvl, fmt, arg...) do {			\
 	if (ds_pc_debug >= lvl)					\
-		printk(KERN_DEBUG "pcmcia_resource: %s: " fmt,	\
-			cs_socket_name(skt) , ## arg);		\
+		dev_printk(KERN_DEBUG, &skt->dev,		\
+			   "pcmcia_resource: " fmt,		\
+			   ## arg);				\
 } while (0)
 #else
-#define ds_dbg(lvl, fmt, arg...) do { } while (0)
+#define ds_dbg(skt, lvl, fmt, arg...) do { } while (0)
 #endif
 
 
@@ -802,8 +803,10 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	/* Make sure the fact the request type was overridden is passed back */
 	if (type == IRQF_SHARED && !(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
 		req->Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
-		printk(KERN_WARNING "pcmcia: request for exclusive IRQ could not be fulfilled.\n");
-		printk(KERN_WARNING "pcmcia: the driver needs updating to supported shared IRQ lines.\n");
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: "
+			"request for exclusive IRQ could not be fulfilled.\n");
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: the driver "
+			"needs updating to supported shared IRQ lines.\n");
 	}
 	c->irq.Attributes = req->Attributes;
 	s->irq.AssignedIRQ = req->AssignedIRQ = irq;
