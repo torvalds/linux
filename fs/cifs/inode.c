@@ -1709,20 +1709,17 @@ out:
 	return rc;
 }
 
-int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
+static int
+cifs_setattr_nounix(struct dentry *direntry, struct iattr *attrs)
 {
 	int xid;
 	struct inode *inode = direntry->d_inode;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *pTcon = cifs_sb->tcon;
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	char *full_path = NULL;
 	int rc = -EACCES;
 	__u32 dosattr = 0;
 	__u64 mode = NO_CHANGE_64;
-
-	if (pTcon->unix_ext)
-		return cifs_setattr_unix(direntry, attrs);
 
 	xid = GetXid();
 
@@ -1848,6 +1845,21 @@ cifs_setattr_exit:
 	kfree(full_path);
 	FreeXid(xid);
 	return rc;
+}
+
+int
+cifs_setattr(struct dentry *direntry, struct iattr *attrs)
+{
+	struct inode *inode = direntry->d_inode;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+
+	if (pTcon->unix_ext)
+		return cifs_setattr_unix(direntry, attrs);
+
+	return cifs_setattr_nounix(direntry, attrs);
+
+	/* BB: add cifs_setattr_legacy for really old servers */
 }
 
 #if 0
