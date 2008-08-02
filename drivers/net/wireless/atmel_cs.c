@@ -234,8 +234,6 @@ static int atmel_config_check(struct pcmcia_device *p_dev,
 		*dflt = *cfg;
 	if (cfg->index == 0)
 		return -ENODEV;
-	p_dev->conf.ConfigIndex = cfg->index;
-
 	/* Does this card need audio output? */
 	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
 		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;

@@ -595,7 +595,6 @@ static int dtl1_confcheck(struct pcmcia_device *p_dev,
 			  void *priv_data)
 {
 	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-		p_dev->conf.ConfigIndex = cf->index;
 		p_dev->io.BasePort1 = cf->io.win[0].base;
 		p_dev->io.NumPorts1 = cf->io.win[0].len;	/*yo */
 		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;

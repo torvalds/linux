@@ -454,7 +454,6 @@ static int simple_config_check(struct pcmcia_device *p_dev,
 
 	if ((cf->io.nwin > 0) && (cf->io.win[0].len == size_table[(*try >> 1)])
 	    && (cf->io.win[0].base != 0)) {
-		p_dev->conf.ConfigIndex = cf->index;
 		p_dev->io.BasePort1 = cf->io.win[0].base;
 		p_dev->io.IOAddrLines = ((*try & 0x1) == 0) ?
 			16 : cf->io.flags & CISTPL_IO_LINES_MASK;
@@ -472,7 +471,6 @@ static int simple_config_check_notpicky(struct pcmcia_device *p_dev,
 	int j;
 
 	if ((cf->io.nwin > 0) && ((cf->io.flags & CISTPL_IO_LINES_MASK) <= 3)) {
-		p_dev->conf.ConfigIndex = cf->index;
 		for (j = 0; j < 5; j++) {
 			p_dev->io.BasePort1 = base[j];
 			p_dev->io.IOAddrLines = base[j] ? 16 : 3;
@@ -555,7 +553,6 @@ static int multi_config_check(struct pcmcia_device *p_dev,
 	/* The quad port cards have bad CIS's, so just look for a
 	   window larger than 8 ports and assume it will be right */
 	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {
-		p_dev->conf.ConfigIndex = cf->index;
 		p_dev->io.BasePort1 = cf->io.win[0].base;
 		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 		if (!pcmcia_request_io(p_dev, &p_dev->io)) {
@@ -573,7 +570,6 @@ static int multi_config_check_notpicky(struct pcmcia_device *p_dev,
 	int *base2 = priv_data;
 
 	if (cf->io.nwin == 2) {
-		p_dev->conf.ConfigIndex = cf->index;
 		p_dev->io.BasePort1 = cf->io.win[0].base;
 		p_dev->io.BasePort2 = cf->io.win[1].base;
 		p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;

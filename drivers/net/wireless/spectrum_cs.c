@@ -648,7 +648,6 @@ static int spectrum_cs_config_check(struct pcmcia_device *p_dev,
 		cfg_mem->dflt = *cfg;
 	if (cfg->index == 0)
 		goto next_entry;
-	p_dev->conf.ConfigIndex = cfg->index;
 
 	/* Use power settings for Vcc and Vpp if present */
 	/* Note that the CIS values need to be rescaled */

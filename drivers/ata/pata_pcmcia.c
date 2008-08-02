@@ -181,7 +181,6 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 
 	if ((cfg->io.nwin > 0) || (stk->dflt.io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &stk->dflt.io;
-		pdev->conf.ConfigIndex = cfg->index;
 		pdev->io.BasePort1 = io->win[0].base;
 		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
 		if (!(io->flags & CISTPL_IO_16BIT))

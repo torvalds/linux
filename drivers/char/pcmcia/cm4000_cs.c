@@ -1763,8 +1763,6 @@ static int cm4000_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
 			       void *priv_data)
 {
-	p_dev->conf.ConfigIndex = cfg->index;
-
 	if (!cfg->io.nwin)
 		return -ENODEV;
 

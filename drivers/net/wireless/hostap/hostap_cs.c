@@ -552,7 +552,6 @@ static int prism2_config_check(struct pcmcia_device *p_dev,
 	if (cfg->index == 0)
 		return -ENODEV;
 
-	p_dev->conf.ConfigIndex = cfg->index;
 	PDEBUG(DEBUG_EXTRA, "Checking CFTABLE_ENTRY 0x%02X "
 	       "(default 0x%02X)\n", cfg->index, cfg_mem->dflt.index);
 

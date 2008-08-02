@@ -953,14 +953,18 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 
 	ret = pcmcia_get_first_tuple(p_dev, tuple);
 	while (!ret) {
+		cistpl_cftable_entry_t *cfg = &cfg_mem->parse.cftable_entry;
+
 		if (pcmcia_get_tuple_data(p_dev, tuple))
 			goto next_entry;
 
 		if (pcmcia_parse_tuple(p_dev, tuple, &cfg_mem->parse))
 			goto next_entry;
 
-		ret = conf_check(p_dev, &cfg_mem->parse.cftable_entry,
-				 priv_data);
+		/* default values */
+		p_dev->conf.ConfigIndex = cfg->index;
+
+		ret = conf_check(p_dev, cfg, priv_data);
 		if (!ret)
 			break;
 

@@ -172,8 +172,6 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 	if (cfg->index == 0)
 		return -ENODEV;
 
-	p_dev->conf.ConfigIndex = cfg->index;
-
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {

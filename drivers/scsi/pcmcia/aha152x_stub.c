@@ -152,7 +152,6 @@ static int aha152x_config_check(struct pcmcia_device *p_dev,
 		p_dev->io.BasePort1 = cfg->io.win[1].base;
 	if ((cfg->io.nwin > 0) &&
 	    (p_dev->io.BasePort1 < 0xffff)) {
-		p_dev->conf.ConfigIndex = cfg->index;
 		if (!pcmcia_request_io(p_dev, &p_dev->io))
 			return 0;
 	}

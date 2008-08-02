@@ -531,8 +531,6 @@ static int cm4040_config_check(struct pcmcia_device *p_dev,
 			       void *priv_data)
 {
 	int rc;
-	p_dev->conf.ConfigIndex = cfg->index;
-
 	if (!cfg->io.nwin)
 		return -ENODEV;
 

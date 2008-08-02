@@ -464,7 +464,6 @@ static int mhz_mfc_config_check(struct pcmcia_device *p_dev,
 				void *priv_data)
 {
 	int k;
-	p_dev->conf.ConfigIndex = cf->index;
 	p_dev->io.BasePort2 = cf->io.win[0].base;
 	for (k = 0; k < 0x400; k += 0x10) {
 		if (k & 0x80)
@@ -654,7 +653,6 @@ static int smc_configcheck(struct pcmcia_device *p_dev,
 			   cistpl_cftable_entry_t *cf,
 			   void *priv_data)
 {
-	p_dev->conf.ConfigIndex = cf->index;
 	p_dev->io.BasePort1 = cf->io.win[0].base;
 	p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
 	return pcmcia_request_io(p_dev, &p_dev->io);

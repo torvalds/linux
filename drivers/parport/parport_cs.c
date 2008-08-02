@@ -156,7 +156,6 @@ static int parport_config_check(struct pcmcia_device *p_dev,
 	cistpl_cftable_entry_t *dflt = priv_data;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->conf.ConfigIndex = cfg->index;
 		if (epp_mode)
 			p_dev->conf.ConfigIndex |= FORCE_EPP_MODE;
 		p_dev->io.BasePort1 = io->win[0].base;

@@ -212,13 +212,11 @@ static int elsa_cs_configcheck(struct pcmcia_device *p_dev,
 
 	if ((cf->io.nwin > 0) && cf->io.win[0].base) {
 		printk(KERN_INFO "(elsa_cs: looks like the 96 model)\n");
-		p_dev->conf.ConfigIndex = cf->index;
 		p_dev->io.BasePort1 = cf->io.win[0].base;
 		if (!pcmcia_request_io(p_dev, &p_dev->io))
 			return 0;
 	} else {
 		printk(KERN_INFO "(elsa_cs: looks like the 97 model)\n");
-		p_dev->conf.ConfigIndex = cf->index;
 		for (j = 0x2f0; j > 0x100; j -= 0x10) {
 			p_dev->io.BasePort1 = j;
 			if (!pcmcia_request_io(p_dev, &p_dev->io))

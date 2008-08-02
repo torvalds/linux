@@ -132,7 +132,6 @@ static int ixj_config_check(struct pcmcia_device *p_dev,
 
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
-		p_dev->conf.ConfigIndex = cfg->index;
 		p_dev->io.BasePort1 = io->win[0].base;
 		p_dev->io.NumPorts1 = io->win[0].len;
 		if (io->nwin == 2) {

@@ -724,7 +724,6 @@ xirc2ps_config_modem(struct pcmcia_device *p_dev,
 
 	if (cf->io.nwin > 0  &&  (cf->io.win[0].base & 0xf) == 8) {
 		for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
-			p_dev->conf.ConfigIndex = cf->index ;
 			p_dev->io.BasePort2 = cf->io.win[0].base;
 			p_dev->io.BasePort1 = ioaddr;
 			if (!pcmcia_request_io(p_dev, &p_dev->io))
@@ -742,7 +741,6 @@ xirc2ps_config_check(struct pcmcia_device *p_dev,
 	int *pass = priv_data;
 
 	if (cf->io.nwin > 0 && (cf->io.win[0].base & 0xf) == 8) {
-		p_dev->conf.ConfigIndex = cf->index ;
 		p_dev->io.BasePort2 = cf->io.win[0].base;
 		p_dev->io.BasePort1 = p_dev->io.BasePort2
 			+ (*pass ? (cf->index & 0x20 ? -24:8)

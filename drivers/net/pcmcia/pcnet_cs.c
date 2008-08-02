@@ -523,8 +523,6 @@ static int pcnet_confcheck(struct pcmcia_device *p_dev,
 	if (cfg->index == 0 || cfg->io.nwin == 0)
 		return -EINVAL;
 
-	p_dev->conf.ConfigIndex = cfg->index;
-
 	/* For multifunction cards, by convention, we configure the
 	   network function with window 0, and serial with window 1 */
 	if (io->nwin > 1) {

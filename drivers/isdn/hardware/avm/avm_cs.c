@@ -161,7 +161,6 @@ static int avmcs_configcheck(struct pcmcia_device *p_dev,
 	if (cf->io.nwin <= 0)
 		return -ENODEV;
 
-	p_dev->conf.ConfigIndex = cf->index;
 	p_dev->io.BasePort1 = cf->io.win[0].base;
 	p_dev->io.NumPorts1 = cf->io.win[0].len;
 	p_dev->io.NumPorts2 = 0;

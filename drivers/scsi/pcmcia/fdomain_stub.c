@@ -127,7 +127,6 @@ static int fdomain_config_check(struct pcmcia_device *p_dev,
 				  cistpl_cftable_entry_t *cfg,
 				  void *priv_data)
 {
-	p_dev->conf.ConfigIndex = cfg->index;
 	p_dev->io.BasePort1 = cfg->io.win[0].base;
 	return pcmcia_request_io(p_dev, &p_dev->io);
 }
