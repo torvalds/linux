@@ -1505,6 +1505,101 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 }
 
 static int
+cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
+		    char *full_path, __u32 dosattr)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid;
+	__u32 netpid;
+	bool set_time = false;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	FILE_BASIC_INFO	info_buf;
+
+	if (attrs->ia_valid & ATTR_ATIME) {
+		set_time = true;
+		info_buf.LastAccessTime =
+			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
+	} else
+		info_buf.LastAccessTime = 0;
+
+	if (attrs->ia_valid & ATTR_MTIME) {
+		set_time = true;
+		info_buf.LastWriteTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
+	} else
+		info_buf.LastWriteTime = 0;
+
+	/*
+	 * Samba throws this field away, but windows may actually use it.
+	 * Do not set ctime unless other time stamps are changed explicitly
+	 * (i.e. by utimes()) since we would then have a mix of client and
+	 * server times.
+	 */
+	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
+		cFYI(1, ("CIFS - CTIME changed"));
+		info_buf.ChangeTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
+	} else
+		info_buf.ChangeTime = 0;
+
+	info_buf.CreationTime = 0;	/* don't change */
+	info_buf.Attributes = cpu_to_le32(dosattr);
+
+	/*
+	 * If the file is already open for write, just use that fileid
+	 */
+	open_file = find_writable_file(cifsInode);
+	if (open_file) {
+		netfid = open_file->netfid;
+		netpid = open_file->pid;
+		goto set_via_filehandle;
+	}
+
+	/*
+	 * NT4 apparently returns success on this call, but it doesn't
+	 * really work.
+	 */
+	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
+		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
+				     &info_buf, cifs_sb->local_nls,
+				     cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc != -EOPNOTSUPP && rc != -EINVAL)
+			goto out;
+	}
+
+	cFYI(1, ("calling SetFileInfo since SetPathInfo for "
+		 "times not supported by this server"));
+	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
+			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR, &netfid, &oplock,
+			 NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc != 0) {
+		if (rc == -EIO)
+			rc = -EINVAL;
+		goto out;
+	}
+
+	netpid = current->tgid;
+
+set_via_filehandle:
+	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
+	if (open_file == NULL)
+		CIFSSMBClose(xid, pTcon, netfid);
+	else
+		atomic_dec(&open_file->wrtPending);
+out:
+	return rc;
+}
+
+static int
 cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 {
 	int rc;
@@ -1623,9 +1718,7 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
 	char *full_path = NULL;
 	int rc = -EACCES;
-	FILE_BASIC_INFO time_buf;
-	bool set_time = false;
-	bool set_dosattr = false;
+	__u32 dosattr = 0;
 	__u64 mode = NO_CHANGE_64;
 
 	if (pTcon->unix_ext)
@@ -1684,8 +1777,6 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 	if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID))
 		attrs->ia_valid &= ~(ATTR_UID | ATTR_GID);
 
-	time_buf.Attributes = 0;
-
 	/* skip mode change if it's just for clearing setuid/setgid */
 	if (attrs->ia_valid & (ATTR_KILL_SUID|ATTR_KILL_SGID))
 		attrs->ia_valid &= ~ATTR_MODE;
@@ -1704,24 +1795,19 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 #endif
 		if (((mode & S_IWUGO) == 0) &&
 		    (cifsInode->cifsAttrs & ATTR_READONLY) == 0) {
-			set_dosattr = true;
-			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs |
-							  ATTR_READONLY);
+
+			dosattr = cifsInode->cifsAttrs | ATTR_READONLY;
+
 			/* fix up mode if we're not using dynperm */
 			if ((cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM) == 0)
 				attrs->ia_mode = inode->i_mode & ~S_IWUGO;
 		} else if ((mode & S_IWUGO) &&
 			   (cifsInode->cifsAttrs & ATTR_READONLY)) {
-			/* If file is readonly on server, we would
-			not be able to write to it - so if any write
-			bit is enabled for user or group or other we
-			need to at least try to remove r/o dos attr */
-			set_dosattr = true;
-			time_buf.Attributes = cpu_to_le32(cifsInode->cifsAttrs &
-					    (~ATTR_READONLY));
-			/* Windows ignores set to zero */
-			if (time_buf.Attributes == 0)
-				time_buf.Attributes |= cpu_to_le32(ATTR_NORMAL);
+
+			dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+			/* Attributes of 0 are ignored */
+			if (dosattr == 0)
+				dosattr |= ATTR_NORMAL;
 
 			/* reset local inode permissions to normal */
 			if (!(cifs_sb->mnt_cifs_flags & CIFS_MOUNT_DYNPERM)) {
@@ -1739,82 +1825,18 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		}
 	}
 
-	if (attrs->ia_valid & ATTR_ATIME) {
-		set_time = true;
-		time_buf.LastAccessTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
-	} else
-		time_buf.LastAccessTime = 0;
+	if (attrs->ia_valid & (ATTR_MTIME|ATTR_ATIME|ATTR_CTIME) ||
+	    ((attrs->ia_valid & ATTR_MODE) && dosattr)) {
+		rc = cifs_set_file_info(inode, attrs, xid, full_path, dosattr);
+		/* BB: check for rc = -EOPNOTSUPP and switch to legacy mode */
 
-	if (attrs->ia_valid & ATTR_MTIME) {
-		set_time = true;
-		time_buf.LastWriteTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
-	} else
-		time_buf.LastWriteTime = 0;
-	/* Do not set ctime explicitly unless other time
-	   stamps are changed explicitly (i.e. by utime()
-	   since we would then have a mix of client and
-	   server times */
-
-	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
-		set_time = true;
-		/* Although Samba throws this field away
-		it may be useful to Windows - but we do
-		not want to set ctime unless some other
-		timestamp is changing */
-		cFYI(1, ("CIFS - CTIME changed"));
-		time_buf.ChangeTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
-	} else
-		time_buf.ChangeTime = 0;
-
-	if (set_time || set_dosattr) {
-		time_buf.CreationTime = 0;	/* do not change */
-		/* In the future we should experiment - try setting timestamps
-		   via Handle (SetFileInfo) instead of by path */
-		if (!(pTcon->ses->flags & CIFS_SES_NT4))
-			rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
-					     &time_buf, cifs_sb->local_nls,
-					     cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-		else
-			rc = -EOPNOTSUPP;
-
-		if (rc == -EOPNOTSUPP) {
-			int oplock = 0;
-			__u16 netfid;
-
-			cFYI(1, ("calling SetFileInfo since SetPathInfo for "
-				 "times not supported by this server"));
-			/* BB we could scan to see if we already have it open
-			   and pass in pid of opener to function */
-			rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
-					 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
-					 CREATE_NOT_DIR, &netfid, &oplock,
-					 NULL, cifs_sb->local_nls,
-					 cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (rc == 0) {
-				rc = CIFSSMBSetFileInfo(xid, pTcon, &time_buf,
-							 netfid, current->tgid);
-				CIFSSMBClose(xid, pTcon, netfid);
-			} else {
-			/* BB For even older servers we could convert time_buf
-			   into old DOS style which uses two second
-			   granularity */
-
-			/* rc = CIFSSMBSetTimesLegacy(xid, pTcon, full_path,
-					&time_buf, cifs_sb->local_nls); */
-			}
-		}
 		/* Even if error on time set, no sense failing the call if
 		the server would set the time to a reasonable value anyway,
 		and this check ensures that we are not being called from
 		sys_utimes in which case we ought to fail the call back to
 		the user when the server rejects the call */
 		if ((rc) && (attrs->ia_valid &
-			 (ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
+				(ATTR_MODE | ATTR_GID | ATTR_UID | ATTR_SIZE)))
 			rc = 0;
 	}
 
