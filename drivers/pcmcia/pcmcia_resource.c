@@ -44,7 +44,7 @@ static u8 pcmcia_used_irq[NR_IRQS];
 #endif
 
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 extern int ds_pc_debug;
 
 #define ds_dbg(skt, lvl, fmt, arg...) do {			\

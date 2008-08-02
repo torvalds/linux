@@ -64,8 +64,8 @@
 #include <pcmcia/cs.h>
 #include <pcmcia/ss.h>
 
-#ifdef PCMCIA_DEBUG
-static int pc_debug = PCMCIA_DEBUG;
+#ifdef CONFIG_PCMCIA_DEBUG
+static int pc_debug;
 module_param(pc_debug, int, 0);
 #define dprintk(args...) printk(KERN_DEBUG "m8xx_pcmcia: " args);
 #else

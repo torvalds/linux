@@ -130,7 +130,7 @@ struct pcmcia_callback{
 
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 extern int cs_debug_level(int);
 
 #define cs_dbg(skt, lvl, fmt, arg...) do {		\

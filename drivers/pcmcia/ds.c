@@ -42,7 +42,7 @@ MODULE_AUTHOR("David Hinds <dahinds@users.sourceforge.net>");
 MODULE_DESCRIPTION("PCMCIA Driver Services");
 MODULE_LICENSE("GPL");
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 int ds_pc_debug;
 
 module_param_named(pc_debug, ds_pc_debug, int, 0644);

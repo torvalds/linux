@@ -54,7 +54,7 @@
 #include <asm/arch/pxa-regs.h>
 #endif
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 
 static int pc_debug;
 module_param(pc_debug, int, 0644);

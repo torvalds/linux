@@ -2,10 +2,6 @@
 # Makefile for the kernel pcmcia subsystem (c/o David Hinds)
 #
 
-ifeq ($(CONFIG_PCMCIA_DEBUG),y)
-EXTRA_CFLAGS += -DDEBUG
-endif
-
 pcmcia_core-y					+= cs.o cistpl.o rsrc_mgr.o socket_sysfs.o
 pcmcia_core-$(CONFIG_CARDBUS)			+= cardbus.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_core.o

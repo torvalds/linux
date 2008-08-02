@@ -61,7 +61,7 @@ INT_MODULE_PARM(unreset_limit,	30);		/* unreset_check's */
 /* Access speed for attribute memory windows */
 INT_MODULE_PARM(cis_speed,	300);		/* ns */
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 static int pc_debug;
 
 module_param(pc_debug, int, 0644);
