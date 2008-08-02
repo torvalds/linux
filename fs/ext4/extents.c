@@ -99,7 +99,7 @@ static int ext4_ext_journal_restart(handle_t *handle, int needed)
 	if (handle->h_buffer_credits > needed)
 		return 0;
 	err = ext4_journal_extend(handle, needed);
-	if (err)
+	if (err <= 0)
 		return err;
 	return ext4_journal_restart(handle, needed);
 }
