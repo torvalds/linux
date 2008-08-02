@@ -2280,8 +2280,11 @@ retry:
 	}
 
 	page = __grab_cache_page(mapping, index);
-	if (!page)
-		return -ENOMEM;
+	if (!page) {
+		ext4_journal_stop(handle);
+		ret = -ENOMEM;
+		goto out;
+	}
 	*pagep = page;
 
 	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
