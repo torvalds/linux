@@ -843,7 +843,6 @@ void smp_tsb_sync(struct mm_struct *mm)
 extern unsigned long xcall_flush_tlb_mm;
 extern unsigned long xcall_flush_tlb_pending;
 extern unsigned long xcall_flush_tlb_kernel_range;
-extern unsigned long xcall_report_regs;
 #ifdef CONFIG_MAGIC_SYSRQ
 extern unsigned long xcall_fetch_glob_regs;
 #endif
@@ -1021,11 +1020,6 @@ void kgdb_roundup_cpus(unsigned long flags)
 	smp_cross_call(&xcall_kgdb_capture, 0, 0, 0);
 }
 #endif
-
-void smp_report_regs(void)
-{
-	smp_cross_call(&xcall_report_regs, 0, 0, 0);
-}
 
 #ifdef CONFIG_MAGIC_SYSRQ
 void smp_fetch_global_regs(void)
