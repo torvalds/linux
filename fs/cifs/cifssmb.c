@@ -4816,8 +4816,8 @@ CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon, __u64 size,
    time and resort to the original setpathinfo level which takes the ancient
    DOS time format with 2 second granularity */
 int
-CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
-		    const FILE_BASIC_INFO *data, __u16 fid)
+CIFSSMBSetFileInfo(const int xid, struct cifsTconInfo *tcon,
+		    const FILE_BASIC_INFO *data, __u16 fid, __u32 pid_of_opener)
 {
 	struct smb_com_transaction2_sfi_req *pSMB  = NULL;
 	char *data_offset;
@@ -4830,11 +4830,8 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
 	if (rc)
 		return rc;
 
-	/* At this point there is no need to override the current pid
-	with the pid of the opener, but that could change if we someday
-	use an existing handle (rather than opening one on the fly) */
-	/* pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
-	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));*/
+	pSMB->hdr.Pid = cpu_to_le16((__u16)pid_of_opener);
+	pSMB->hdr.PidHigh = cpu_to_le16((__u16)(pid_of_opener >> 16));
 
 	params = 6;
 	pSMB->MaxSetupCount = 0;

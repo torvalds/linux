@@ -767,9 +767,10 @@ psx_del_no_retry:
 						 cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc == 0) {
-					rc = CIFSSMBSetFileTimes(xid, pTcon,
-								 pinfo_buf,
-								 netfid);
+					rc = CIFSSMBSetFileInfo(xid, pTcon,
+								pinfo_buf,
+								netfid,
+								current->tgid);
 					CIFSSMBClose(xid, pTcon, netfid);
 				}
 			}
@@ -1702,8 +1703,8 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 					 cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (rc == 0) {
-				rc = CIFSSMBSetFileTimes(xid, pTcon, &time_buf,
-							 netfid);
+				rc = CIFSSMBSetFileInfo(xid, pTcon, &time_buf,
+							 netfid, current->tgid);
 				CIFSSMBClose(xid, pTcon, netfid);
 			} else {
 			/* BB For even older servers we could convert time_buf
