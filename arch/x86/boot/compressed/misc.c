@@ -27,7 +27,7 @@
 #include <linux/linkage.h>
 #include <linux/screen_info.h>
 #include <linux/elf.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/page.h>
 #include <asm/boot.h>
 #include <asm/bootparam.h>
@@ -251,7 +251,7 @@ static void __putstr(int error, const char *s)
 				y--;
 			}
 		} else {
-			vidmem [(x + cols * y) * 2] = c;
+			vidmem[(x + cols * y) * 2] = c;
 			if (++x >= cols) {
 				x = 0;
 				if (++y >= lines) {
@@ -277,7 +277,8 @@ static void *memset(void *s, int c, unsigned n)
 	int i;
 	char *ss = s;
 
-	for (i = 0; i < n; i++) ss[i] = c;
+	for (i = 0; i < n; i++)
+		ss[i] = c;
 	return s;
 }
 
@@ -287,7 +288,8 @@ static void *memcpy(void *dest, const void *src, unsigned n)
 	const char *s = src;
 	char *d = dest;
 
-	for (i = 0; i < n; i++) d[i] = s[i];
+	for (i = 0; i < n; i++)
+		d[i] = s[i];
 	return dest;
 }
 
