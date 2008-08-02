@@ -5013,10 +5013,9 @@ SetAttrLgcyRetry:
 #endif /* temporarily unneeded SetAttr legacy function */
 
 int
-CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *tcon,
-		    char *fileName, __u64 mode, __u64 uid, __u64 gid,
-		    dev_t device, const struct nls_table *nls_codepage,
-		    int remap)
+CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
+		   const struct cifs_unix_set_info_args *args, 
+		   const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;
@@ -5025,6 +5024,7 @@ CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *tcon,
 	int bytes_returned = 0;
 	FILE_UNIX_BASIC_INFO *data_offset;
 	__u16 params, param_offset, offset, count, byte_count;
+	__u64 mode = args->mode;
 
 	cFYI(1, ("In SetUID/GID/Mode"));
 setPermsRetry:
@@ -5080,16 +5080,16 @@ setPermsRetry:
 	set file size and do not want to truncate file size to zero
 	accidently as happened on one Samba server beta by putting
 	zero instead of -1 here */
-	data_offset->EndOfFile = NO_CHANGE_64;
-	data_offset->NumOfBytes = NO_CHANGE_64;
-	data_offset->LastStatusChange = NO_CHANGE_64;
-	data_offset->LastAccessTime = NO_CHANGE_64;
-	data_offset->LastModificationTime = NO_CHANGE_64;
-	data_offset->Uid = cpu_to_le64(uid);
-	data_offset->Gid = cpu_to_le64(gid);
+	data_offset->EndOfFile = cpu_to_le64(NO_CHANGE_64);
+	data_offset->NumOfBytes = cpu_to_le64(NO_CHANGE_64);
+	data_offset->LastStatusChange = cpu_to_le64(args->ctime);
+	data_offset->LastAccessTime = cpu_to_le64(args->atime);
+	data_offset->LastModificationTime = cpu_to_le64(args->mtime);
+	data_offset->Uid = cpu_to_le64(args->uid);
+	data_offset->Gid = cpu_to_le64(args->gid);
 	/* better to leave device as zero when it is  */
-	data_offset->DevMajor = cpu_to_le64(MAJOR(device));
-	data_offset->DevMinor = cpu_to_le64(MINOR(device));
+	data_offset->DevMajor = cpu_to_le64(MAJOR(args->device));
+	data_offset->DevMinor = cpu_to_le64(MINOR(args->device));
 	data_offset->Permissions = cpu_to_le64(mode);
 
 	if (S_ISREG(mode))

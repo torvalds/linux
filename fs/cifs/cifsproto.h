@@ -191,9 +191,20 @@ extern int CIFSSMBSetEOF(const int xid, struct cifsTconInfo *tcon,
 extern int CIFSSMBSetFileSize(const int xid, struct cifsTconInfo *tcon,
 			 __u64 size, __u16 fileHandle, __u32 opener_pid,
 			bool AllocSizeFlag);
-extern int CIFSSMBUnixSetPerms(const int xid, struct cifsTconInfo *pTcon,
-			char *full_path, __u64 mode, __u64 uid,
-			__u64 gid, dev_t dev,
+
+struct cifs_unix_set_info_args {
+	__u64	ctime;
+	__u64	atime;
+	__u64	mtime;
+	__u64	mode;
+	__u64	uid;
+	__u64	gid;
+	dev_t	device;
+};
+
+extern int CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *pTcon,
+			char *fileName,
+			const struct cifs_unix_set_info_args *args,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
 
