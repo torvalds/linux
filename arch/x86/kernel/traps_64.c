@@ -84,8 +84,8 @@ static inline void preempt_conditional_cli(struct pt_regs *regs)
 
 void printk_address(unsigned long address, int reliable)
 {
-	printk(" [<%016lx>] %s%pS\n", address, reliable ?
-			"" : "? ", (void *) address);
+	printk(" [<%016lx>] %s%pS\n",
+			address, reliable ?	"" : "? ", (void *) address);
 }
 
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
@@ -98,8 +98,8 @@ static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 		[STACKFAULT_STACK - 1] = "#SS",
 		[MCE_STACK - 1] = "#MC",
 #if DEBUG_STKSZ > EXCEPTION_STKSZ
-		[N_EXCEPTION_STACKS ... N_EXCEPTION_STACKS + DEBUG_STKSZ /
-			EXCEPTION_STKSZ - 2] = "#DB[?]"
+		[N_EXCEPTION_STACKS ...
+			N_EXCEPTION_STACKS + DEBUG_STKSZ / EXCEPTION_STKSZ - 2] = "#DB[?]"
 #endif
 	};
 	unsigned k;
@@ -363,8 +363,10 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 	unsigned long *irqstack =
 		(unsigned long *) (cpu_pda(cpu)->irqstackptr - IRQSTACKSIZE);
 
-	/* debugging aid: "show_stack(NULL, NULL);" prints the
-	  back trace for this cpu. */
+	/*
+	 * debugging aid: "show_stack(NULL, NULL);" prints the
+	 * back trace for this cpu.
+	 */
 
 	if (sp == NULL) {
 		if (task)
