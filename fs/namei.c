@@ -1106,6 +1106,15 @@ int path_lookup(const char *name, unsigned int flags,
 	return do_path_lookup(AT_FDCWD, name, flags, nd);
 }
 
+int kern_path(const char *name, unsigned int flags, struct path *path)
+{
+	struct nameidata nd;
+	int res = do_path_lookup(AT_FDCWD, name, flags, &nd);
+	if (!res)
+		*path = nd.path;
+	return res;
+}
+
 /**
  * vfs_path_lookup - lookup a file path relative to a dentry-vfsmount pair
  * @dentry:  pointer to dentry of the base directory
@@ -2855,6 +2864,7 @@ EXPORT_SYMBOL(__page_symlink);
 EXPORT_SYMBOL(page_symlink);
 EXPORT_SYMBOL(page_symlink_inode_operations);
 EXPORT_SYMBOL(path_lookup);
+EXPORT_SYMBOL(kern_path);
 EXPORT_SYMBOL(vfs_path_lookup);
 EXPORT_SYMBOL(inode_permission);
 EXPORT_SYMBOL(vfs_permission);
