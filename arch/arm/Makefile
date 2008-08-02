@@ -114,13 +114,16 @@ endif
  machine-$(CONFIG_ARCH_IOP32X)	   := iop32x
  machine-$(CONFIG_ARCH_IOP33X)	   := iop33x
  machine-$(CONFIG_ARCH_IOP13XX)	   := iop13xx
+    plat-$(CONFIG_PLAT_IOP)	   := iop
  machine-$(CONFIG_ARCH_IXP4XX)	   := ixp4xx
  machine-$(CONFIG_ARCH_IXP2000)    := ixp2000
  machine-$(CONFIG_ARCH_IXP23XX)    := ixp23xx
  machine-$(CONFIG_ARCH_OMAP1)	   := omap1
  machine-$(CONFIG_ARCH_OMAP2)	   := omap2
   incdir-$(CONFIG_ARCH_OMAP)	   := omap
- machine-$(CONFIG_ARCH_S3C2410)	   := s3c2410
+    plat-$(CONFIG_ARCH_OMAP)	   := omap
+ machine-$(CONFIG_ARCH_S3C2410)	   := s3c2410 s3c2400 s3c2412 s3c2440 s3c2442 s3c2443
+    plat-$(CONFIG_PLAT_S3C24XX)	   := s3c24xx
  machine-$(CONFIG_ARCH_LH7A40X)	   := lh7a40x
  machine-$(CONFIG_ARCH_VERSATILE)  := versatile
  machine-$(CONFIG_ARCH_IMX)	   := imx
@@ -136,9 +139,11 @@ endif
  machine-$(CONFIG_ARCH_KIRKWOOD)   := kirkwood
  machine-$(CONFIG_ARCH_KS8695)     := ks8695
   incdir-$(CONFIG_ARCH_MXC)	   := mxc
+    plat-$(CONFIG_ARCH_MXC)	   := mxc
  machine-$(CONFIG_ARCH_MX2)	   := mx2
  machine-$(CONFIG_ARCH_MX3)	   := mx3
  machine-$(CONFIG_ARCH_ORION5X)	   := orion5x
+    plat-$(CONFIG_PLAT_ORION)	   := orion
  machine-$(CONFIG_ARCH_MSM7X00A)   := msm
  machine-$(CONFIG_ARCH_LOKI)       := loki
  machine-$(CONFIG_ARCH_MV78XX0)    := mv78xx0
@@ -154,14 +159,24 @@ endif
 TEXT_OFFSET := $(textofs-y)
 
 ifeq ($(incdir-y),)
-incdir-y := $(machine-y)
+incdir-y := $(word 1,$(machine-y))
 endif
 INCDIR   := arch-$(incdir-y)
 
+# The first directory contains additional information for the boot setup code
 ifneq ($(machine-y),)
-MACHINE  := arch/arm/mach-$(machine-y)/
+MACHINE  := arch/arm/mach-$(word 1,$(machine-y))/
 else
 MACHINE  :=
+endif
+
+machdirs := $(patsubst %,arch/arm/mach-%/,$(machine-y))
+platdirs := $(patsubst %,arch/arm/plat-%/,$(plat-y))
+
+ifeq ($(KBUILD_SRC),)
+KBUILD_CPPFLAGS += $(patsubst %,-I%include,$(machdirs) $(platdirs))
+else
+KBUILD_CPPFLAGS += $(patsubst %,-I$(srctree)/%include,$(machdirs) $(platdirs))
 endif
 
 export	TEXT_OFFSET GZFLAGS MMUEXT
@@ -174,22 +189,10 @@ endif
 
 # If we have a machine-specific directory, then include it in the build.
 core-y				+= arch/arm/kernel/ arch/arm/mm/ arch/arm/common/
-core-y				+= $(MACHINE)
-core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2400/
-core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2412/
-core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2440/
-core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2442/
-core-$(CONFIG_ARCH_S3C2410)	+= arch/arm/mach-s3c2443/
+core-y				+= $(machdirs) $(platdirs)
 core-$(CONFIG_FPE_NWFPE)	+= arch/arm/nwfpe/
 core-$(CONFIG_FPE_FASTFPE)	+= $(FASTFPE_OBJ)
 core-$(CONFIG_VFP)		+= arch/arm/vfp/
-
-# If we have a common platform directory, then include it in the build.
-core-$(CONFIG_PLAT_IOP)		+= arch/arm/plat-iop/
-core-$(CONFIG_PLAT_ORION)		+= arch/arm/plat-orion/
-core-$(CONFIG_ARCH_OMAP)	+= arch/arm/plat-omap/
-core-$(CONFIG_PLAT_S3C24XX)		+= arch/arm/plat-s3c24xx/
-core-$(CONFIG_ARCH_MXC)		+= arch/arm/plat-mxc/
 
 drivers-$(CONFIG_OPROFILE)      += arch/arm/oprofile/
 
