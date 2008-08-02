@@ -1104,7 +1104,7 @@ xfs_page_state_convert(
 			 * that we are writing into for the first time.
 			 */
 			type = IOMAP_NEW;
-			if (!test_and_set_bit(BH_Lock, &bh->b_state)) {
+			if (trylock_buffer(bh)) {
 				ASSERT(buffer_mapped(bh));
 				if (iomap_valid)
 					all_bh = 1;
