@@ -351,11 +351,9 @@ cifs_demultiplex_thread(struct TCP_Server_Info *server)
 
 	current->flags |= PF_MEMALLOC;
 	cFYI(1, ("Demultiplex PID: %d", task_pid_nr(current)));
-	write_lock(&GlobalSMBSeslock);
-	atomic_inc(&tcpSesAllocCount);
-	length = tcpSesAllocCount.counter;
-	write_unlock(&GlobalSMBSeslock);
-	if (length  > 1)
+
+	length = atomic_inc_return(&tcpSesAllocCount);
+	if (length > 1)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
 
@@ -745,14 +743,11 @@ multi_t2_fnd:
 		coming home not much else we can do but free the memory */
 	}
 
-	write_lock(&GlobalSMBSeslock);
-	atomic_dec(&tcpSesAllocCount);
-	length = tcpSesAllocCount.counter;
-
 	/* last chance to mark ses pointers invalid
 	if there are any pointing to this (e.g
 	if a crazy root user tried to kill cifsd
 	kernel thread explicitly this might happen) */
+	write_lock(&GlobalSMBSeslock);
 	list_for_each(tmp, &GlobalSMBSessionList) {
 		ses = list_entry(tmp, struct cifsSesInfo,
 				cifsSessionList);
@@ -763,6 +758,8 @@ multi_t2_fnd:
 
 	kfree(server->hostname);
 	kfree(server);
+
+	length = atomic_dec_return(&tcpSesAllocCount);
 	if (length  > 0)
 		mempool_resize(cifs_req_poolp, length + cifs_min_rcv,
 				GFP_KERNEL);
