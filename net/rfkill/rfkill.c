@@ -44,7 +44,13 @@ module_param_named(default_state, rfkill_default_state, uint, 0444);
 MODULE_PARM_DESC(default_state,
 		 "Default initial state for all radio types, 0 = radio off");
 
-static enum rfkill_state rfkill_states[RFKILL_TYPE_MAX];
+struct rfkill_gsw_state {
+	enum rfkill_state current_state;
+	enum rfkill_state default_state;
+};
+
+static struct rfkill_gsw_state rfkill_global_states[RFKILL_TYPE_MAX];
+static unsigned long rfkill_states_lockdflt[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
 
 static BLOCKING_NOTIFIER_HEAD(rfkill_notifier_list);
 
@@ -213,22 +219,22 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 }
 
 /**
- * rfkill_switch_all - Toggle state of all switches of given type
+ * __rfkill_switch_all - Toggle state of all switches of given type
  * @type: type of interfaces to be affected
  * @state: the new state
  *
  * This function toggles the state of all switches of given type,
  * unless a specific switch is claimed by userspace (in which case,
  * that switch is left alone) or suspended.
+ *
+ * Caller must have acquired rfkill_mutex.
  */
-void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
+static void __rfkill_switch_all(const enum rfkill_type type,
+				const enum rfkill_state state)
 {
 	struct rfkill *rfkill;
 
-	mutex_lock(&rfkill_mutex);
-
-	rfkill_states[type] = state;
-
+	rfkill_global_states[type].current_state = state;
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		if ((!rfkill->user_claim) && (rfkill->type == type)) {
 			mutex_lock(&rfkill->mutex);
@@ -236,7 +242,20 @@ void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 			mutex_unlock(&rfkill->mutex);
 		}
 	}
+}
 
+/**
+ * rfkill_switch_all - Toggle state of all switches of given type
+ * @type: type of interfaces to be affected
+ * @state: the new state
+ *
+ * Acquires rfkill_mutex and calls __rfkill_switch_all(@type, @state).
+ * Please refer to __rfkill_switch_all() for details.
+ */
+void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
+{
+	mutex_lock(&rfkill_mutex);
+	__rfkill_switch_all(type, state);
 	mutex_unlock(&rfkill_mutex);
 }
 EXPORT_SYMBOL(rfkill_switch_all);
@@ -246,10 +265,14 @@ EXPORT_SYMBOL(rfkill_switch_all);
  *
  * This kicks all non-suspended rfkill devices to RFKILL_STATE_SOFT_BLOCKED,
  * ignoring everything in its path but rfkill_mutex and rfkill->mutex.
+ *
+ * The global state before the EPO is saved and can be restored later
+ * using rfkill_restore_states().
  */
 void rfkill_epo(void)
 {
 	struct rfkill *rfkill;
+	int i;
 
 	mutex_lock(&rfkill_mutex);
 	list_for_each_entry(rfkill, &rfkill_list, node) {
@@ -257,9 +280,33 @@ void rfkill_epo(void)
 		rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
 		mutex_unlock(&rfkill->mutex);
 	}
+	for (i = 0; i < RFKILL_TYPE_MAX; i++) {
+		rfkill_global_states[i].default_state =
+				rfkill_global_states[i].current_state;
+		rfkill_global_states[i].current_state =
+				RFKILL_STATE_SOFT_BLOCKED;
+	}
 	mutex_unlock(&rfkill_mutex);
 }
 EXPORT_SYMBOL_GPL(rfkill_epo);
+
+/**
+ * rfkill_restore_states - restore global states
+ *
+ * Restore (and sync switches to) the global state from the
+ * states in rfkill_default_states.  This can undo the effects of
+ * a call to rfkill_epo().
+ */
+void rfkill_restore_states(void)
+{
+	int i;
+
+	mutex_lock(&rfkill_mutex);
+	for (i = 0; i < RFKILL_TYPE_MAX; i++)
+		__rfkill_switch_all(i, rfkill_global_states[i].default_state);
+	mutex_unlock(&rfkill_mutex);
+}
+EXPORT_SYMBOL_GPL(rfkill_restore_states);
 
 /**
  * rfkill_force_state - Force the internal rfkill radio state
@@ -406,8 +453,8 @@ static ssize_t rfkill_claim_store(struct device *dev,
 		if (!claim) {
 			mutex_lock(&rfkill->mutex);
 			rfkill_toggle_radio(rfkill,
-					    rfkill_states[rfkill->type],
-					    0);
+					rfkill_global_states[rfkill->type].current_state,
+					0);
 			mutex_unlock(&rfkill->mutex);
 		}
 		rfkill->user_claim = claim;
@@ -554,7 +601,16 @@ static int rfkill_add_switch(struct rfkill *rfkill)
 	if (error < 0)
 		goto unlock_out;
 
-	rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type], 0);
+	if (!error) {
+		/* lock default after first use */
+		set_bit(rfkill->type, rfkill_states_lockdflt);
+		rfkill_global_states[rfkill->type].current_state =
+			rfkill_global_states[rfkill->type].default_state;
+	}
+
+	rfkill_toggle_radio(rfkill,
+			    rfkill_global_states[rfkill->type].current_state,
+			    0);
 
 	list_add_tail(&rfkill->node, &rfkill_list);
 
@@ -710,6 +766,53 @@ void rfkill_unregister(struct rfkill *rfkill)
 }
 EXPORT_SYMBOL(rfkill_unregister);
 
+/**
+ * rfkill_set_default - set initial value for a switch type
+ * @type - the type of switch to set the default state of
+ * @state - the new default state for that group of switches
+ *
+ * Sets the initial state rfkill should use for a given type.
+ * The following initial states are allowed: RFKILL_STATE_SOFT_BLOCKED
+ * and RFKILL_STATE_UNBLOCKED.
+ *
+ * This function is meant to be used by platform drivers for platforms
+ * that can save switch state across power down/reboot.
+ *
+ * The default state for each switch type can be changed exactly once.
+ * After a switch of that type is registered, the default state cannot
+ * be changed anymore.  This guards against multiple drivers it the
+ * same platform trying to set the initial switch default state, which
+ * is not allowed.
+ *
+ * Returns -EPERM if the state has already been set once or is in use,
+ * so drivers likely want to either ignore or at most printk(KERN_NOTICE)
+ * if this function returns -EPERM.
+ *
+ * Returns 0 if the new default state was set, or an error if it
+ * could not be set.
+ */
+int rfkill_set_default(enum rfkill_type type, enum rfkill_state state)
+{
+	int error;
+
+	if (type >= RFKILL_TYPE_MAX ||
+	    (state != RFKILL_STATE_SOFT_BLOCKED &&
+	     state != RFKILL_STATE_UNBLOCKED))
+		return -EINVAL;
+
+	mutex_lock(&rfkill_mutex);
+
+	if (!test_and_set_bit(type, rfkill_states_lockdflt)) {
+		rfkill_global_states[type].default_state = state;
+		error = 0;
+	} else
+		error = -EPERM;
+
+	mutex_unlock(&rfkill_mutex);
+	return error;
+}
+EXPORT_SYMBOL_GPL(rfkill_set_default);
+
 /*
  * Rfkill module initialization/deinitialization.
  */
@@ -723,8 +826,8 @@ static int __init rfkill_init(void)
 	    rfkill_default_state != RFKILL_STATE_UNBLOCKED)
 		return -EINVAL;
 
-	for (i = 0; i < ARRAY_SIZE(rfkill_states); i++)
-		rfkill_states[i] = rfkill_default_state;
+	for (i = 0; i < RFKILL_TYPE_MAX; i++)
+		rfkill_global_states[i].default_state = rfkill_default_state;
 
 	error = class_register(&rfkill_class);
 	if (error) {

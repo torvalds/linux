@@ -13,5 +13,6 @@
 
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state);
 void rfkill_epo(void);
+void rfkill_restore_states(void);
 
 #endif /* __RFKILL_INPUT_H */
