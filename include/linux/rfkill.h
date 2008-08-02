@@ -49,6 +49,7 @@ enum rfkill_state {
 	RFKILL_STATE_SOFT_BLOCKED = 0,	/* Radio output blocked */
 	RFKILL_STATE_UNBLOCKED    = 1,	/* Radio output allowed */
 	RFKILL_STATE_HARD_BLOCKED = 2,	/* Output blocked, non-overrideable */
+	RFKILL_STATE_MAX,		/* marker for last valid state */
 };
 
 /*

@@ -201,6 +201,8 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 		 * BLOCK even a transmitter that is already in state
 		 * RFKILL_STATE_HARD_BLOCKED */
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	if (force || state != rfkill->state) {
@@ -233,6 +235,9 @@ static void __rfkill_switch_all(const enum rfkill_type type,
 				const enum rfkill_state state)
 {
 	struct rfkill *rfkill;
+
+	if (unlikely(state >= RFKILL_STATE_MAX))
+		return;
 
 	rfkill_global_states[type].current_state = state;
 	list_for_each_entry(rfkill, &rfkill_list, node) {
@@ -329,9 +334,7 @@ int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 {
 	enum rfkill_state oldstate;
 
-	if (state != RFKILL_STATE_SOFT_BLOCKED &&
-	    state != RFKILL_STATE_UNBLOCKED &&
-	    state != RFKILL_STATE_HARD_BLOCKED)
+	if (unlikely(state >= RFKILL_STATE_MAX))
 		return -EINVAL;
 
 	mutex_lock(&rfkill->mutex);
@@ -726,6 +729,8 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 	if (!rfkill->toggle_radio)
 		return -EINVAL;
 	if (rfkill->type >= RFKILL_TYPE_MAX)
+		return -EINVAL;
+	if (rfkill->state >= RFKILL_STATE_MAX)
 		return -EINVAL;
 
 	snprintf(dev->bus_id, sizeof(dev->bus_id),
