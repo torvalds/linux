@@ -4882,9 +4882,9 @@ CIFSSMBSetFileTimes(const int xid, struct cifsTconInfo *tcon,
 
 
 int
-CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon, const char *fileName,
-		const FILE_BASIC_INFO *data,
-		const struct nls_table *nls_codepage, int remap)
+CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,
+		   const char *fileName, const FILE_BASIC_INFO *data,
+		   const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
 	TRANSACTION2_SPI_RSP *pSMBr = NULL;

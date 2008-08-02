@@ -737,7 +737,7 @@ psx_del_no_retry:
 			/* ATTRS set to normal clears r/o bit */
 			pinfo_buf->Attributes = cpu_to_le32(ATTR_NORMAL);
 			if (!(pTcon->ses->flags & CIFS_SES_NT4))
-				rc = CIFSSMBSetTimes(xid, pTcon, full_path,
+				rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
 						     pinfo_buf,
 						     cifs_sb->local_nls,
 						     cifs_sb->mnt_cifs_flags &
@@ -1010,7 +1010,7 @@ mkdir_get_info:
 				FILE_BASIC_INFO pInfo;
 				memset(&pInfo, 0, sizeof(pInfo));
 				pInfo.Attributes = cpu_to_le32(ATTR_READONLY);
-				CIFSSMBSetTimes(xid, pTcon, full_path,
+				CIFSSMBSetPathInfo(xid, pTcon, full_path,
 						&pInfo, cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1680,8 +1680,8 @@ int cifs_setattr(struct dentry *direntry, struct iattr *attrs)
 		/* In the future we should experiment - try setting timestamps
 		   via Handle (SetFileInfo) instead of by path */
 		if (!(pTcon->ses->flags & CIFS_SES_NT4))
-			rc = CIFSSMBSetTimes(xid, pTcon, full_path, &time_buf,
-					     cifs_sb->local_nls,
+			rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
+					     &time_buf, cifs_sb->local_nls,
 					     cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 		else

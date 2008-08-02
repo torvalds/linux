@@ -172,7 +172,7 @@ extern int CIFSSMBQFSUnixInfo(const int xid, struct cifsTconInfo *tcon);
 extern int CIFSSMBQFSPosixInfo(const int xid, struct cifsTconInfo *tcon,
 			struct kstatfs *FSData);
 
-extern int CIFSSMBSetTimes(const int xid, struct cifsTconInfo *tcon,
+extern int CIFSSMBSetPathInfo(const int xid, struct cifsTconInfo *tcon,
 			const char *fileName, const FILE_BASIC_INFO *data,
 			const struct nls_table *nls_codepage,
 			int remap_special_chars);
