@@ -627,7 +627,7 @@ static int journal_list_still_alive(struct super_block *s,
 static void release_buffer_page(struct buffer_head *bh)
 {
 	struct page *page = bh->b_page;
-	if (!page->mapping && !TestSetPageLocked(page)) {
+	if (!page->mapping && trylock_page(page)) {
 		page_cache_get(page);
 		put_bh(bh);
 		if (!page->mapping)
