@@ -11,8 +11,8 @@
 #include <linux/platform_device.h>
 #include <linux/serial_8250.h>
 
-#include <asm/arch-ns9xxx/regs-board-a9m9750dev.h>
-#include <asm/arch-ns9xxx/board.h>
+#include <asm/arch/regs-board-a9m9750dev.h>
+#include <asm/arch/board.h>
 
 #define DRIVER_NAME "serial8250"
 

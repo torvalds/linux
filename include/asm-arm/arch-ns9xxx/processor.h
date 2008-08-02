@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_PROCESSOR_H
 #define __ASM_ARCH_PROCESSOR_H
 
-#include <asm/arch-ns9xxx/module.h>
+#include <asm/arch/module.h>
 
 #define processor_is_ns9210()	(0			\
 		|| module_is_cc7ucamry()		\

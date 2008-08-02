@@ -25,7 +25,7 @@
 #endif
 
 #include <asm/hardware.h>
-#include <asm/arch-sa1100/h3600.h>
+#include <asm/arch/h3600.h>
 #include <asm/io.h>
 
 

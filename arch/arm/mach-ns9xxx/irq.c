@@ -13,9 +13,9 @@
 #include <asm/io.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
-#include <asm/arch-ns9xxx/regs-sys-common.h>
-#include <asm/arch-ns9xxx/irqs.h>
-#include <asm/arch-ns9xxx/board.h>
+#include <asm/arch/regs-sys-common.h>
+#include <asm/arch/irqs.h>
+#include <asm/arch/board.h>
 
 #include "generic.h"
 

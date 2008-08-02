@@ -13,9 +13,9 @@
 #include <linux/spinlock.h>
 #include <linux/module.h>
 
-#include <asm/arch-ns9xxx/gpio.h>
-#include <asm/arch-ns9xxx/processor.h>
-#include <asm/arch-ns9xxx/processor-ns9360.h>
+#include <asm/arch/gpio.h>
+#include <asm/arch/processor.h>
+#include <asm/arch/processor-ns9360.h>
 #include <asm/bug.h>
 #include <asm/types.h>
 #include <asm/bitops.h>
