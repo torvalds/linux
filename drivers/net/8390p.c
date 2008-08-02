@@ -39,7 +39,7 @@ struct net_device *__alloc_eip_netdev(int size)
 
 void NS8390p_init(struct net_device *dev, int startp)
 {
-	return __NS8390_init(dev, startp);
+	__NS8390_init(dev, startp);
 }
 
 EXPORT_SYMBOL(eip_open);
