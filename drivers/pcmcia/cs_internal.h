@@ -137,8 +137,8 @@ extern int cs_debug_level(int);
 
 #define cs_dbg(skt, lvl, fmt, arg...) do {		\
 	if (cs_debug_level(lvl))			\
-		printk(KERN_DEBUG "cs: %s: " fmt, 	\
-		       cs_socket_name(skt) , ## arg);	\
+		dev_printk(KERN_DEBUG, &skt->dev,	\
+		 "cs: " fmt, ## arg);			\
 } while (0)
 
 #else
@@ -146,6 +146,6 @@ extern int cs_debug_level(int);
 #endif
 
 #define cs_err(skt, fmt, arg...) \
-	printk(KERN_ERR "cs: %s: " fmt, (skt)->dev.bus_id , ## arg)
+	dev_printk(KERN_ERR, &skt->dev, "cs: " fmt, ## arg)
 
 #endif /* _LINUX_CS_INTERNAL_H */

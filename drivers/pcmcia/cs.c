@@ -247,7 +247,8 @@ int pcmcia_register_socket(struct pcmcia_socket *socket)
 
 	wait_for_completion(&socket->thread_done);
 	if (!socket->thread) {
-		printk(KERN_WARNING "PCMCIA: warning: socket thread for socket %p did not start\n", socket);
+		dev_printk(KERN_WARNING, &socket->dev,
+			   "PCMCIA: warning: socket thread did not start\n");
 		return -EIO;
 	}
 
@@ -412,7 +413,8 @@ static void socket_shutdown(struct pcmcia_socket *s)
 
 	s->ops->get_status(s, &status);
 	if (status & SS_POWERON) {
-		printk(KERN_ERR "PCMCIA: socket %p: *** DANGER *** unable to remove socket power\n", s);
+		dev_printk(KERN_ERR, &s->dev,
+			   "*** DANGER *** unable to remove socket power\n");
 	}
 
 	cs_socket_put(s);
@@ -508,9 +510,10 @@ static int socket_insert(struct pcmcia_socket *skt)
 	if (ret == CS_SUCCESS) {
 		skt->state |= SOCKET_PRESENT;
 
-		printk(KERN_NOTICE "pccard: %s card inserted into slot %d\n",
-		       (skt->state & SOCKET_CARDBUS) ? "CardBus" : "PCMCIA",
-		       skt->sock);
+		dev_printk(KERN_NOTICE, &skt->dev,
+			   "pccard: %s card inserted into slot %d\n",
+			   (skt->state & SOCKET_CARDBUS) ? "CardBus" : "PCMCIA",
+			   skt->sock);
 
 #ifdef CONFIG_CARDBUS
 		if (skt->state & SOCKET_CARDBUS) {
@@ -595,7 +598,8 @@ static int socket_resume(struct pcmcia_socket *skt)
 
 static void socket_remove(struct pcmcia_socket *skt)
 {
-	printk(KERN_NOTICE "pccard: card ejected from slot %d\n", skt->sock);
+	dev_printk(KERN_NOTICE, &skt->dev,
+		   "pccard: card ejected from slot %d\n", skt->sock);
 	socket_shutdown(skt);
 }
 
@@ -641,8 +645,8 @@ static int pccardd(void *__skt)
 	/* register with the device core */
 	ret = device_register(&skt->dev);
 	if (ret) {
-		printk(KERN_WARNING "PCMCIA: unable to register socket 0x%p\n",
-			skt);
+		dev_printk(KERN_WARNING, &skt->dev,
+			   "PCMCIA: unable to register socket\n");
 		skt->thread = NULL;
 		complete(&skt->thread_done);
 		return 0;
