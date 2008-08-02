@@ -162,20 +162,18 @@ static int expkey_parse(struct cache_detail *cd, char *mesg, int mlen)
 			cache_put(&ek->h, &svc_expkey_cache);
 		else err = -ENOMEM;
 	} else {
-		struct nameidata nd;
-		err = path_lookup(buf, 0, &nd);
+		err = kern_path(buf, 0, &key.ek_path);
 		if (err)
 			goto out;
 
 		dprintk("Found the path %s\n", buf);
-		key.ek_path = nd.path;
 
 		ek = svc_expkey_update(&key, ek);
 		if (ek)
 			cache_put(&ek->h, &svc_expkey_cache);
 		else
 			err = -ENOMEM;
-		path_put(&nd.path);
+		path_put(&key.ek_path);
 	}
 	cache_flush();
  out:
@@ -991,7 +989,7 @@ exp_export(struct nfsctl_export *nxp)
 	struct svc_export	*exp = NULL;
 	struct svc_export	new;
 	struct svc_expkey	*fsid_key = NULL;
-	struct nameidata nd;
+	struct path path;
 	int		err;
 
 	/* Consistency check */
@@ -1014,12 +1012,12 @@ exp_export(struct nfsctl_export *nxp)
 
 
 	/* Look up the dentry */
-	err = path_lookup(nxp->ex_path, 0, &nd);
+	err = kern_path(nxp->ex_path, 0, &path);
 	if (err)
 		goto out_put_clp;
 	err = -EINVAL;
 
-	exp = exp_get_by_name(clp, nd.path.mnt, nd.path.dentry, NULL);
+	exp = exp_get_by_name(clp, path.mnt, path.dentry, NULL);
 
 	memset(&new, 0, sizeof(new));
 
@@ -1027,8 +1025,8 @@ exp_export(struct nfsctl_export *nxp)
 	if ((nxp->ex_flags & NFSEXP_FSID) &&
 	    (!IS_ERR(fsid_key = exp_get_fsid_key(clp, nxp->ex_dev))) &&
 	    fsid_key->ek_path.mnt &&
-	    (fsid_key->ek_path.mnt != nd.path.mnt ||
-	     fsid_key->ek_path.dentry != nd.path.dentry))
+	    (fsid_key->ek_path.mnt != path.mnt ||
+	     fsid_key->ek_path.dentry != path.dentry))
 		goto finish;
 
 	if (!IS_ERR(exp)) {
@@ -1044,7 +1042,7 @@ exp_export(struct nfsctl_export *nxp)
 		goto finish;
 	}
 
-	err = check_export(nd.path.dentry->d_inode, nxp->ex_flags, NULL);
+	err = check_export(path.dentry->d_inode, nxp->ex_flags, NULL);
 	if (err) goto finish;
 
 	err = -ENOMEM;
@@ -1057,7 +1055,7 @@ exp_export(struct nfsctl_export *nxp)
 	if (!new.ex_pathname)
 		goto finish;
 	new.ex_client = clp;
-	new.ex_path = nd.path;
+	new.ex_path = path;
 	new.ex_flags = nxp->ex_flags;
 	new.ex_anon_uid = nxp->ex_anon_uid;
 	new.ex_anon_gid = nxp->ex_anon_gid;
@@ -1083,7 +1081,7 @@ finish:
 		exp_put(exp);
 	if (fsid_key && !IS_ERR(fsid_key))
 		cache_put(&fsid_key->h, &svc_expkey_cache);
-	path_put(&nd.path);
+	path_put(&path);
 out_put_clp:
 	auth_domain_put(clp);
 out_unlock:
@@ -1114,7 +1112,7 @@ exp_unexport(struct nfsctl_export *nxp)
 {
 	struct auth_domain *dom;
 	svc_export *exp;
-	struct nameidata nd;
+	struct path path;
 	int		err;
 
 	/* Consistency check */
@@ -1131,13 +1129,13 @@ exp_unexport(struct nfsctl_export *nxp)
 		goto out_unlock;
 	}
 
-	err = path_lookup(nxp->ex_path, 0, &nd);
+	err = kern_path(nxp->ex_path, 0, &path);
 	if (err)
 		goto out_domain;
 
 	err = -EINVAL;
-	exp = exp_get_by_name(dom, nd.path.mnt, nd.path.dentry, NULL);
-	path_put(&nd.path);
+	exp = exp_get_by_name(dom, path.mnt, path.dentry, NULL);
+	path_put(&path);
 	if (IS_ERR(exp))
 		goto out_domain;
 
@@ -1159,26 +1157,26 @@ out_unlock:
  * since its harder to fool a kernel module than a user space program.
  */
 int
-exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
+exp_rootfh(svc_client *clp, char *name, struct knfsd_fh *f, int maxsize)
 {
 	struct svc_export	*exp;
-	struct nameidata	nd;
+	struct path		path;
 	struct inode		*inode;
 	struct svc_fh		fh;
 	int			err;
 
 	err = -EPERM;
 	/* NB: we probably ought to check that it's NUL-terminated */
-	if (path_lookup(path, 0, &nd)) {
-		printk("nfsd: exp_rootfh path not found %s", path);
+	if (kern_path(name, 0, &path)) {
+		printk("nfsd: exp_rootfh path not found %s", name);
 		return err;
 	}
-	inode = nd.path.dentry->d_inode;
+	inode = path.dentry->d_inode;
 
 	dprintk("nfsd: exp_rootfh(%s [%p] %s:%s/%ld)\n",
-		 path, nd.path.dentry, clp->name,
+		 name, path.dentry, clp->name,
 		 inode->i_sb->s_id, inode->i_ino);
-	exp = exp_parent(clp, nd.path.mnt, nd.path.dentry, NULL);
+	exp = exp_parent(clp, path.mnt, path.dentry, NULL);
 	if (IS_ERR(exp)) {
 		err = PTR_ERR(exp);
 		goto out;
@@ -1188,7 +1186,7 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 	 * fh must be initialized before calling fh_compose
 	 */
 	fh_init(&fh, maxsize);
-	if (fh_compose(&fh, exp, nd.path.dentry, NULL))
+	if (fh_compose(&fh, exp, path.dentry, NULL))
 		err = -EINVAL;
 	else
 		err = 0;
@@ -1196,7 +1194,7 @@ exp_rootfh(svc_client *clp, char *path, struct knfsd_fh *f, int maxsize)
 	fh_put(&fh);
 	exp_put(exp);
 out:
-	path_put(&nd.path);
+	path_put(&path);
 	return err;
 }
 
