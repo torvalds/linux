@@ -32,10 +32,6 @@
 /* ieee80211.o internal definitions, etc. These are not included into
  * low-level drivers. */
 
-#ifndef ETH_P_PAE
-#define ETH_P_PAE 0x888E /* Port Access Entity (IEEE 802.1X) */
-#endif /* ETH_P_PAE */
-
 struct ieee80211_local;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the
