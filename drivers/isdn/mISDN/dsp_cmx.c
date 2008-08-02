@@ -1168,11 +1168,18 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 		dsp->rx_init = 0;
 		if (dsp->features.unordered) {
 			dsp->rx_R = (hh->id & CMX_BUFF_MASK);
-			dsp->rx_W = (dsp->rx_R + dsp->cmx_delay)
-				& CMX_BUFF_MASK;
+			if (dsp->cmx_delay)
+				dsp->rx_W = (dsp->rx_R + dsp->cmx_delay)
+					& CMX_BUFF_MASK;
+			else
+				dsp->rx_W = (dsp->rx_R + (dsp_poll >> 1))
+					& CMX_BUFF_MASK;
 		} else {
 			dsp->rx_R = 0;
-			dsp->rx_W = dsp->cmx_delay;
+			if (dsp->cmx_delay)
+				dsp->rx_W = dsp->cmx_delay;
+			else
+				dsp->rx_W = dsp_poll >> 1;
 		}
 	}
 	/* if frame contains time code, write directly */
@@ -1190,14 +1197,20 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 			    "cmx_receive(dsp=%lx): UNDERRUN (or overrun the "
 			    "maximum delay), adjusting read pointer! "
 			    "(inst %s)\n", (u_long)dsp, dsp->name);
-		/* flush buffer */
+		/* flush rx buffer and set delay to dsp_poll / 2 */
 		if (dsp->features.unordered) {
 			dsp->rx_R = (hh->id & CMX_BUFF_MASK);
-			dsp->rx_W = (dsp->rx_R + dsp->cmx_delay)
-				& CMX_BUFF_MASK;
+			if (dsp->cmx_delay)
+				dsp->rx_W = (dsp->rx_R + dsp->cmx_delay)
+					& CMX_BUFF_MASK;
+				dsp->rx_W = (dsp->rx_R + (dsp_poll >> 1))
+					& CMX_BUFF_MASK;
 		} else {
 			dsp->rx_R = 0;
-			dsp->rx_W = dsp->cmx_delay;
+			if (dsp->cmx_delay)
+				dsp->rx_W = dsp->cmx_delay;
+			else
+				dsp->rx_W = dsp_poll >> 1;
 		}
 		memset(dsp->rx_buff, dsp_silence, sizeof(dsp->rx_buff));
 	}
@@ -1360,8 +1373,11 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 				t = (t+1) & CMX_BUFF_MASK;
 				r = (r+1) & CMX_BUFF_MASK;
 			}
-			if (r != rr)
+			if (r != rr) {
+				printk(KERN_DEBUG "%s: buffer empty\n",
+					__func__);
 				memset(d, dsp_silence, (rr-r)&CMX_BUFF_MASK);
+			}
 		/* -> if echo is enabled */
 		} else {
 			/*
@@ -1704,9 +1720,10 @@ dsp_cmx_send(void *arg)
 			}
 			/*
 			 * remove rx_delay only if we have delay AND we
-			 * have not preset cmx_delay
+			 * have not preset cmx_delay AND
+			 * the delay is greater dsp_poll
 			 */
-			if (delay && !dsp->cmx_delay) {
+			if (delay > dsp_poll && !dsp->cmx_delay) {
 				if (dsp_debug & DEBUG_DSP_CMX)
 					printk(KERN_DEBUG
 					    "%s lowest rx_delay of %d bytes for"
@@ -1714,7 +1731,8 @@ dsp_cmx_send(void *arg)
 					    __func__, delay,
 					    dsp->name);
 				r = dsp->rx_R;
-				rr = (r + delay) & CMX_BUFF_MASK;
+				rr = (r + delay - (dsp_poll >> 1))
+					& CMX_BUFF_MASK;
 				/* delete rx-data */
 				while (r != rr) {
 					p[r] = dsp_silence;
@@ -1736,7 +1754,7 @@ dsp_cmx_send(void *arg)
 			 * remove delay only if we have delay AND we
 			 * have enabled tx_dejitter
 			 */
-			if (delay && dsp->tx_dejitter) {
+			if (delay > dsp_poll && dsp->tx_dejitter) {
 				if (dsp_debug & DEBUG_DSP_CMX)
 					printk(KERN_DEBUG
 					    "%s lowest tx_delay of %d bytes for"
@@ -1744,7 +1762,8 @@ dsp_cmx_send(void *arg)
 					    __func__, delay,
 					    dsp->name);
 				r = dsp->tx_R;
-				rr = (r + delay) & CMX_BUFF_MASK;
+				rr = (r + delay - (dsp_poll >> 1))
+					& CMX_BUFF_MASK;
 				/* delete tx-data */
 				while (r != rr) {
 					q[r] = dsp_silence;
@@ -1797,14 +1816,13 @@ dsp_cmx_transmit(struct dsp *dsp, struct sk_buff *skb)
 	ww = dsp->tx_R;
 	p = dsp->tx_buff;
 	d = skb->data;
-	space = ww-w;
-	if (space <= 0)
-		space += CMX_BUFF_SIZE;
+	space = (ww - w - 1) & CMX_BUFF_MASK;
 	/* write-pointer should not overrun nor reach read pointer */
-	if (space-1 < skb->len)
+	if (space < skb->len) {
 		/* write to the space we have left */
-		ww = (ww - 1) & CMX_BUFF_MASK;
-	else
+		ww = (ww - 1) & CMX_BUFF_MASK; /* end one byte prior tx_R */
+		printk(KERN_DEBUG "%s: buffer overflow\n", __func__);
+	} else
 		/* write until all byte are copied */
 		ww = (w + skb->len) & CMX_BUFF_MASK;
 	dsp->tx_W = ww;

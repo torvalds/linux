@@ -198,6 +198,7 @@ struct dsp {
 	/* hardware stuff */
 	struct dsp_features features;
 	int		features_rx_off; /* set if rx_off is featured */
+	int		features_fill_empty; /* set if fill_empty is featured */
 	int		pcm_slot_rx; /* current PCM slot (or -1) */
 	int		pcm_bank_rx;
 	int		pcm_slot_tx;

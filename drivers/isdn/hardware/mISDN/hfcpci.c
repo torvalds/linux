@@ -751,6 +751,36 @@ hfcpci_fill_fifo(struct bchannel *bch)
 			    /* fcnt contains available bytes in fifo */
 		fcnt = B_FIFO_SIZE - fcnt;
 		    /* remaining bytes to send (bytes in fifo) */
+
+		/* "fill fifo if empty" feature */
+		if (test_bit(FLG_FILLEMPTY, &bch->Flags) && !fcnt) {
+			/* printk(KERN_DEBUG "%s: buffer empty, so we have "
+				"underrun\n", __func__); */
+			/* fill buffer, to prevent future underrun */
+			count = HFCPCI_FILLEMPTY;
+			new_z1 = le16_to_cpu(*z1t) + count;
+			   /* new buffer Position */
+			if (new_z1 >= (B_FIFO_SIZE + B_SUB_VAL))
+				new_z1 -= B_FIFO_SIZE;	/* buffer wrap */
+			dst = bdata + (le16_to_cpu(*z1t) - B_SUB_VAL);
+			maxlen = (B_FIFO_SIZE + B_SUB_VAL) - le16_to_cpu(*z1t);
+			    /* end of fifo */
+			if (bch->debug & DEBUG_HW_BFIFO)
+				printk(KERN_DEBUG "hfcpci_FFt fillempty "
+				    "fcnt(%d) maxl(%d) nz1(%x) dst(%p)\n",
+				    fcnt, maxlen, new_z1, dst);
+			fcnt += count;
+			if (maxlen > count)
+				maxlen = count; 	/* limit size */
+			memset(dst, 0x2a, maxlen);	/* first copy */
+			count -= maxlen;		/* remaining bytes */
+			if (count) {
+				dst = bdata;		/* start of buffer */
+				memset(dst, 0x2a, count);
+			}
+			*z1t = cpu_to_le16(new_z1);	/* now send data */
+		}
+
 next_t_frame:
 		count = bch->tx_skb->len - bch->tx_idx;
 		/* maximum fill shall be HFCPCI_BTRANS_MAX */
@@ -1481,11 +1511,17 @@ deactivate_bchannel(struct bchannel *bch)
 static int
 channel_bctrl(struct bchannel *bch, struct mISDN_ctrl_req *cq)
 {
-	int			ret = 0;
+	int	ret = 0;
 
 	switch (cq->op) {
 	case MISDN_CTRL_GETOP:
-		cq->op = 0;
+		cq->op = MISDN_CTRL_FILL_EMPTY;
+		break;
+	case MISDN_CTRL_FILL_EMPTY: /* fill fifo, if empty */
+		test_and_set_bit(FLG_FILLEMPTY, &bch->Flags);
+		if (debug & DEBUG_HW_OPEN)
+			printk(KERN_DEBUG "%s: FILL_EMPTY request (nr=%d "
+				"off=%d)\n", __func__, bch->nr, !!cq->p1);
 		break;
 	default:
 		printk(KERN_WARNING "%s: unknown Op %x\n", __func__, cq->op);
@@ -1903,6 +1939,7 @@ open_bchannel(struct hfc_pci *hc, struct channel_req *rq)
 	bch = &hc->bch[rq->adr.channel - 1];
 	if (test_and_set_bit(FLG_OPEN, &bch->Flags))
 		return -EBUSY; /* b-channel can be only open once */
+	test_and_clear_bit(FLG_FILLEMPTY, &bch->Flags);
 	bch->ch.protocol = rq->protocol;
 	rq->ch = &bch->ch; /* TODO: E-channel */
 	if (!try_module_get(THIS_MODULE))
