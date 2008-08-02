@@ -915,6 +915,7 @@ struct pcmcia_cfg_mem {
 	tuple_t tuple;
 	cisparse_t parse;
 	u8 buf[256];
+	cistpl_cftable_entry_t dflt;
 };
 
 /**
@@ -933,10 +934,12 @@ struct pcmcia_cfg_mem {
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,
 						 cistpl_cftable_entry_t *cfg,
+						 cistpl_cftable_entry_t *dflt,
 						 void *priv_data),
 		       void *priv_data)
 {
 	struct pcmcia_cfg_mem *cfg_mem;
+
 	tuple_t *tuple;
 	int ret = -ENODEV;
 
@@ -963,8 +966,10 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 
 		/* default values */
 		p_dev->conf.ConfigIndex = cfg->index;
+		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+			cfg_mem->dflt = *cfg;
 
-		ret = conf_check(p_dev, cfg, priv_data);
+		ret = conf_check(p_dev, cfg, &cfg_mem->dflt, priv_data);
 		if (!ret)
 			break;
 

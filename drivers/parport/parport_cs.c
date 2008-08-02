@@ -151,9 +151,9 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int parport_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
 				void *priv_data)
 {
-	cistpl_cftable_entry_t *dflt = priv_data;
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		if (epp_mode)
@@ -166,26 +166,20 @@ static int parport_config_check(struct pcmcia_device *p_dev,
 			p_dev->io.NumPorts2 = io->win[1].len;
 		}
 		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
-			goto next_entry;
+			return -ENODEV;
 		return 0;
 	}
-
-next_entry:
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-		*dflt = *cfg;
-	return -ENODEV;
 }
 
 static int parport_config(struct pcmcia_device *link)
 {
     parport_info_t *info = link->priv;
-    cistpl_cftable_entry_t dflt = { 0 };
     struct parport *p;
     int last_ret, last_fn;
 
     DEBUG(0, "parport_config(0x%p)\n", link);
 
-    last_ret = pcmcia_loop_config(link, parport_config_check, &dflt);
+    last_ret = pcmcia_loop_config(link, parport_config_check, NULL);
     if (last_ret) {
 	    cs_error(link, RequestIO, last_ret);
 	    goto failed;

@@ -141,8 +141,9 @@ static void aha152x_detach(struct pcmcia_device *link)
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int aha152x_config_check(struct pcmcia_device *p_dev,
-			   cistpl_cftable_entry_t *cfg,
-			   void *priv_data)
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				void *priv_data)
 {
 	/* For New Media T&J, look for a SCSI window */
 	if (cfg->io.win[0].len >= 0x20)

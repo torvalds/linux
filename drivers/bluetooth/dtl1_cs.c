@@ -592,6 +592,7 @@ static void dtl1_detach(struct pcmcia_device *link)
 
 static int dtl1_confcheck(struct pcmcia_device *p_dev,
 			  cistpl_cftable_entry_t *cf,
+			  cistpl_cftable_entry_t *dflt,
 			  void *priv_data)
 {
 	if ((cf->io.nwin == 1) && (cf->io.win[0].len > 8)) {

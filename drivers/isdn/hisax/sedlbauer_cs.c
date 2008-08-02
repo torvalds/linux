@@ -218,19 +218,17 @@ static void sedlbauer_detach(struct pcmcia_device *link)
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 struct sedlbauer_config_data {
-	cistpl_cftable_entry_t dflt;
 	config_info_t conf;
 	win_req_t req;
 };
 
 static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 				  cistpl_cftable_entry_t *cfg,
+				  cistpl_cftable_entry_t *dflt,
 				  void *priv_data)
 {
 	struct sedlbauer_config_data *cfg_mem = priv_data;
 
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-		cfg_mem->dflt = *cfg;
 	if (cfg->index == 0)
 		return -ENODEV;
 
@@ -243,26 +241,28 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	/* Use power settings for Vcc and Vpp if present */
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
+		if (cfg_mem->conf.Vcc !=
+		    cfg->vcc.param[CISTPL_POWER_VNOM]/10000)
 			return -ENODEV;
-	} else if (cfg_mem->dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg_mem->conf.Vcc != cfg_mem->dflt.vcc.param[CISTPL_POWER_VNOM]/10000)
+	} else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
+		if (cfg_mem->conf.Vcc !=
+		    dflt->vcc.param[CISTPL_POWER_VNOM]/10000)
 			return -ENODEV;
 	}
 
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (cfg_mem->dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cfg_mem->dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
+	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || cfg_mem->dflt.irq.IRQInfo1)
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (cfg_mem->dflt.io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &cfg_mem->dflt.io;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 		if (!(io->flags & CISTPL_IO_8BIT))
 			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
@@ -291,8 +291,8 @@ static int sedlbauer_config_check(struct pcmcia_device *p_dev,
 	  needs to be mapped to virtual space with ioremap() before it
 	  is used.
 	*/
-	if ((cfg->mem.nwin > 0) || (cfg_mem->dflt.mem.nwin > 0)) {
-		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &cfg_mem->dflt.mem;
+	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
+		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
 		memreq_t map;
 		cfg_mem->req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
 		cfg_mem->req.Attributes |= WIN_ENABLE;

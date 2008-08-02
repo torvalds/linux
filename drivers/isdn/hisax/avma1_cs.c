@@ -175,8 +175,9 @@ static void avma1cs_detach(struct pcmcia_device *link)
 ======================================================================*/
 
 static int avma1cs_configcheck(struct pcmcia_device *p_dev,
-			     cistpl_cftable_entry_t *cf,
-			     void *priv_data)
+			       cistpl_cftable_entry_t *cf,
+			       cistpl_cftable_entry_t *dflt,
+			       void *priv_data)
 {
 	if (cf->io.nwin <= 0)
 		return -ENODEV;

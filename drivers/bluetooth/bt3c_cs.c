@@ -680,6 +680,7 @@ static void bt3c_detach(struct pcmcia_device *link)
 
 static int bt3c_check_config(struct pcmcia_device *p_dev,
 			     cistpl_cftable_entry_t *cf,
+			     cistpl_cftable_entry_t *dflt,
 			     void *priv_data)
 {
 	unsigned long try = (unsigned long) priv_data;
@@ -699,6 +700,7 @@ static int bt3c_check_config(struct pcmcia_device *p_dev,
 
 static int bt3c_check_config_notpicky(struct pcmcia_device *p_dev,
 				      cistpl_cftable_entry_t *cf,
+				      cistpl_cftable_entry_t *dflt,
 				      void *priv_data)
 {
 	static unsigned int base[5] = { 0x3f8, 0x2f8, 0x3e8, 0x2e8, 0x0 };

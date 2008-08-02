@@ -226,14 +226,12 @@ static int card_present(void *arg)
 
 static int atmel_config_check(struct pcmcia_device *p_dev,
 			      cistpl_cftable_entry_t *cfg,
+			      cistpl_cftable_entry_t *dflt,
 			      void *priv_data)
 {
-	cistpl_cftable_entry_t *dflt = priv_data;
-
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-		*dflt = *cfg;
 	if (cfg->index == 0)
 		return -ENODEV;
+
 	/* Does this card need audio output? */
 	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
 		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -278,7 +276,6 @@ static int atmel_config(struct pcmcia_device *link)
 	local_info_t *dev;
 	int last_fn, last_ret;
 	struct pcmcia_device_id *did;
-	cistpl_cftable_entry_t dflt = { 0 };
 
 	dev = link->priv;
 	did = handle_to_dev(link).driver_data;
@@ -297,7 +294,7 @@ static int atmel_config(struct pcmcia_device *link)
 	  these things without consulting the CIS, and most client drivers
 	  will only use the CIS to fill in implementation-defined details.
 	*/
-	if (pcmcia_loop_config(link, atmel_config_check, &dflt))
+	if (pcmcia_loop_config(link, atmel_config_check, NULL))
 		goto failed;
 
 	/*

@@ -1761,6 +1761,7 @@ static void cmm_cm4000_release(struct pcmcia_device * link)
 
 static int cm4000_config_check(struct pcmcia_device *p_dev,
 			       cistpl_cftable_entry_t *cfg,
+			       cistpl_cftable_entry_t *dflt,
 			       void *priv_data)
 {
 	if (!cfg->io.nwin)

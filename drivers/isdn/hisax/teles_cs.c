@@ -196,6 +196,7 @@ static void teles_detach(struct pcmcia_device *link)
 
 static int teles_cs_configcheck(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cf,
+				cistpl_cftable_entry_t *dflt,
 				void *priv_data)
 {
 	int j;

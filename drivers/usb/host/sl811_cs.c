@@ -156,18 +156,15 @@ static void sl811_cs_release(struct pcmcia_device * link)
 }
 
 struct sl811_css_cfg {
-	cistpl_cftable_entry_t	dflt;
 	config_info_t		conf;
 };
 
 static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 				 cistpl_cftable_entry_t *cfg,
+				 cistpl_cftable_entry_t *dflt,
 				 void *priv_data)
 {
 	struct sl811_css_cfg	*cfg_mem = priv_data;
-
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-		memcpy(&cfg_mem->dflt, cfg, sizeof(cistpl_cftable_entry_t));
 
 	if (cfg->index == 0)
 		return -ENODEV;
@@ -178,8 +175,8 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 		if (cfg->vcc.param[CISTPL_POWER_VNOM]/10000 !=
 		    cfg_mem->conf.Vcc)
 			return -ENODEV;
-	} else if (cfg_mem->dflt.vcc.present & (1<<CISTPL_POWER_VNOM)) {
-		if (cfg_mem->dflt.vcc.param[CISTPL_POWER_VNOM]/10000
+	} else if (dflt->vcc.present & (1<<CISTPL_POWER_VNOM)) {
+		if (dflt->vcc.param[CISTPL_POWER_VNOM]/10000
 		    != cfg_mem->conf.Vcc)
 			return -ENODEV;
 		}
@@ -187,18 +184,18 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp =
 			cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (cfg_mem->dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
+	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp =
-			cfg_mem->dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
+			dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* we need an interrupt */
-	if (cfg->irq.IRQInfo1 || cfg_mem->dflt.irq.IRQInfo1)
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (cfg_mem->dflt.io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &cfg_mem->dflt.io;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 
 		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;

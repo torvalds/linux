@@ -206,19 +206,12 @@ static void airo_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
-struct airo_cs_config_data {
-	cistpl_cftable_entry_t dflt;
-	win_req_t req;
-};
-
 static int airo_cs_config_check(struct pcmcia_device *p_dev,
 				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
 				void *priv_data)
 {
-	struct airo_cs_config_data *cfg_mem = priv_data;
-
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-		cfg_mem->dflt = *cfg;
+	win_req_t *req = priv_data;
 
 	if (cfg->index == 0)
 		return -ENODEV;
@@ -233,17 +226,17 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 	/*  Note that the CIS values need to be rescaled */
 	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-	else if (cfg_mem->dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-		p_dev->conf.Vpp = cfg_mem->dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
+	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || cfg_mem->dflt.irq.IRQInfo1)
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
 		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
-	if ((cfg->io.nwin > 0) || (cfg_mem->dflt.io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &cfg_mem->dflt.io;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 		if (!(io->flags & CISTPL_IO_8BIT))
 			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
@@ -273,14 +266,14 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 	  needs to be mapped to virtual space with ioremap() before it
 	  is used.
 	*/
-	if ((cfg->mem.nwin > 0) || (cfg_mem->dflt.mem.nwin > 0)) {
-		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &cfg_mem->dflt.mem;
+	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
+		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
 		memreq_t map;
-		cfg_mem->req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-		cfg_mem->req.Base = mem->win[0].host_addr;
-		cfg_mem->req.Size = mem->win[0].len;
-		cfg_mem->req.AccessSpeed = 0;
-		if (pcmcia_request_window(&p_dev, &cfg_mem->req, &p_dev->win) != 0)
+		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
+		req->Base = mem->win[0].host_addr;
+		req->Size = mem->win[0].len;
+		req->AccessSpeed = 0;
+		if (pcmcia_request_window(&p_dev, req, &p_dev->win) != 0)
 			return -ENODEV;
 		map.Page = 0;
 		map.CardOffset = mem->win[0].card_addr;
@@ -295,15 +288,15 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 static int airo_config(struct pcmcia_device *link)
 {
 	local_info_t *dev;
-	struct airo_cs_config_data *cfg_mem;
+	win_req_t *req;
 	int last_fn, last_ret;
 
 	dev = link->priv;
 
 	DEBUG(0, "airo_config(0x%p)\n", link);
 
-	cfg_mem = kzalloc(sizeof(struct airo_cs_config_data), GFP_KERNEL);
-	if (!cfg_mem)
+	req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
+	if (!req)
 		return -ENOMEM;
 
 	/*
@@ -320,7 +313,7 @@ static int airo_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
-	last_ret = pcmcia_loop_config(link, airo_cs_config_check, cfg_mem);
+	last_ret = pcmcia_loop_config(link, airo_cs_config_check, req);
 	if (last_ret)
 		goto failed;
 
@@ -365,17 +358,17 @@ static int airo_config(struct pcmcia_device *link)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 		       link->io.BasePort2+link->io.NumPorts2-1);
 	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", cfg_mem->req.Base,
-		       cfg_mem->req.Base+cfg_mem->req.Size-1);
+		printk(", mem 0x%06lx-0x%06lx", req->Base,
+		       req->Base+req->Size-1);
 	printk("\n");
-	kfree(cfg_mem);
+	kfree(req);
 	return 0;
 
  cs_failed:
 	cs_error(link, last_fn, last_ret);
  failed:
 	airo_release(link);
-	kfree(cfg_mem);
+	kfree(req);
 	return -ENODEV;
 } /* airo_config */
 

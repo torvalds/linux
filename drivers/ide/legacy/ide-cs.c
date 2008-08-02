@@ -222,7 +222,6 @@ do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 struct pcmcia_config_check {
 	config_info_t conf;
-	cistpl_cftable_entry_t dflt;
 	unsigned long ctl_base;
 	int skip_vcc;
 	int is_kme;
@@ -230,6 +229,7 @@ struct pcmcia_config_check {
 
 static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 				   cistpl_cftable_entry_t *cfg,
+				   cistpl_cftable_entry_t *dflt,
 				   void *priv_data)
 {
 	struct pcmcia_config_check *stk = priv_data;
@@ -237,21 +237,23 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 	/* Check for matching Vcc, unless we're desperate */
 	if (!stk->skip_vcc) {
 		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (stk->conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
-				goto next_entry;
-		} else if (stk->dflt.vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (stk->conf.Vcc != stk->dflt.vcc.param[CISTPL_POWER_VNOM] / 10000)
-				goto next_entry;
+			if (stk->conf.Vcc !=
+			    cfg->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
+		} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+			if (stk->conf.Vcc !=
+			    dflt->vcc.param[CISTPL_POWER_VNOM] / 10000)
+				return -ENODEV;
 		}
 	}
 
 	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
 		pdev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-	else if (stk->dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-		pdev->conf.Vpp = stk->dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		pdev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
-	if ((cfg->io.nwin > 0) || (stk->dflt.io.nwin > 0)) {
-		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &stk->dflt.io;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		pdev->conf.ConfigIndex = cfg->index;
 		pdev->io.BasePort1 = io->win[0].base;
 		pdev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
@@ -262,23 +264,19 @@ static int pcmcia_check_one_config(struct pcmcia_device *pdev,
 			pdev->io.BasePort2 = io->win[1].base;
 			pdev->io.NumPorts2 = (stk->is_kme) ? 2 : 1;
 			if (pcmcia_request_io(pdev, &pdev->io) != 0)
-				goto next_entry;
+				return -ENODEV;
 			stk->ctl_base = pdev->io.BasePort2;
 		} else if ((io->nwin == 1) && (io->win[0].len >= 16)) {
 			pdev->io.NumPorts1 = io->win[0].len;
 			pdev->io.NumPorts2 = 0;
 			if (pcmcia_request_io(pdev, &pdev->io) != 0)
-				goto next_entry;
+				return -ENODEV;
 			stk->ctl_base = pdev->io.BasePort1 + 0x0e;
 		} else
-			goto next_entry;
+			return -ENODEV;
 		/* If we've got this far, we're done */
 		return 0;
 	}
-next_entry:
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-		memcpy(&stk->dflt, cfg, sizeof(stk->dflt));
-
 	return -ENODEV;
 }
 
@@ -305,7 +303,6 @@ static int ide_config(struct pcmcia_device *link)
     CS_CHECK(GetConfigurationInfo, pcmcia_get_configuration_info(link, &stk->conf));
     stk->skip_vcc = io_base = ctl_base = 0;
     if (pcmcia_loop_config(link, pcmcia_check_one_config, stk)) {
-	    memset(&stk->dflt, 0, sizeof(stk->dflt));
 	    stk->skip_vcc = 1;
 	    if (pcmcia_loop_config(link, pcmcia_check_one_config, stk))
 		    goto failed; /* No suitable config found */

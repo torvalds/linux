@@ -196,8 +196,9 @@ static void qlogic_detach(struct pcmcia_device *link)
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
 static int qlogic_config_check(struct pcmcia_device *p_dev,
-				  cistpl_cftable_entry_t *cfg,
-				  void *priv_data)
+			       cistpl_cftable_entry_t *cfg,
+			       cistpl_cftable_entry_t *dflt,
+			       void *priv_data)
 {
 	p_dev->io.BasePort1 = cfg->io.win[0].base;
 	p_dev->io.NumPorts1 = cfg->io.win[0].len;

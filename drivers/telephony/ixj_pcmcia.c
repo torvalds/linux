@@ -126,10 +126,9 @@ static void ixj_get_serial(struct pcmcia_device * link, IXJ * j)
 
 static int ixj_config_check(struct pcmcia_device *p_dev,
 			    cistpl_cftable_entry_t *cfg,
+			    cistpl_cftable_entry_t *dflt,
 			    void *priv_data)
 {
-	cistpl_cftable_entry_t *dflt = priv_data;
-
 	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
 		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
 		p_dev->io.BasePort1 = io->win[0].base;
@@ -138,10 +137,7 @@ static int ixj_config_check(struct pcmcia_device *p_dev,
 			p_dev->io.BasePort2 = io->win[1].base;
 			p_dev->io.NumPorts2 = io->win[1].len;
 		}
-		if (pcmcia_request_io(p_dev, &p_dev->io)) {
-			if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-				*dflt = *cfg;
-		} else
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
 			return 0;
 	}
 	return -ENODEV;
