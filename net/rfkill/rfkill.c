@@ -525,17 +525,44 @@ static struct class rfkill_class = {
 	.dev_uevent	= rfkill_dev_uevent,
 };
 
+static int rfkill_check_duplicity(const struct rfkill *rfkill)
+{
+	struct rfkill *p;
+	unsigned long seen[BITS_TO_LONGS(RFKILL_TYPE_MAX)];
+
+	memset(seen, 0, sizeof(seen));
+
+	list_for_each_entry(p, &rfkill_list, node) {
+		if (p == rfkill) {
+			WARN_ON(1);
+			return -EEXIST;
+		}
+		set_bit(p->type, seen);
+	}
+
+	/* 0: first switch of its kind */
+	return test_bit(rfkill->type, seen);
+}
+
 static int rfkill_add_switch(struct rfkill *rfkill)
 {
+	int error;
+
 	mutex_lock(&rfkill_mutex);
+
+	error = rfkill_check_duplicity(rfkill);
+	if (error < 0)
+		goto unlock_out;
 
 	rfkill_toggle_radio(rfkill, rfkill_states[rfkill->type], 0);
 
 	list_add_tail(&rfkill->node, &rfkill_list);
 
+	error = 0;
+unlock_out:
 	mutex_unlock(&rfkill_mutex);
 
-	return 0;
+	return error;
 }
 
 static void rfkill_remove_switch(struct rfkill *rfkill)
