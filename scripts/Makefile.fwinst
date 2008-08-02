@@ -50,8 +50,12 @@ PHONY +=  __fw_install __fw_modinst FORCE
 .PHONY: $(PHONY)
 
 __fw_install: $(installed-fw)
+
 __fw_modinst: $(installed-mod-fw)
+	@:
+
 __fw_modbuild: $(addprefix $(obj)/,$(mod-fw))
+	@:
 
 FORCE:
 
