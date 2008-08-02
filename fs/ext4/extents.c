@@ -1910,9 +1910,13 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			BUG_ON(b != ex_ee_block + ex_ee_len - 1);
 		}
 
-		/* at present, extent can't cross block group: */
-		/* leaf + bitmap + group desc + sb + inode */
-		credits = 5;
+		/*
+		 * 3 for leaf, sb, and inode plus 2 (bmap and group
+		 * descriptor) for each block group; assume two block
+		 * groups plus ex_ee_len/blocks_per_block_group for
+		 * the worst case
+		 */
+		credits = 7 + 2*(ex_ee_len/EXT4_BLOCKS_PER_GROUP(inode->i_sb));
 		if (ex == EXT_FIRST_EXTENT(eh)) {
 			correct_index = 1;
 			credits += (ext_depth(inode)) + 1;
