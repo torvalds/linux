@@ -466,6 +466,12 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
+ARM/AFEB9260 MACHINE SUPPORT
+P:	Sergey Lapin
+M:	slapin@ossfans.org
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/AJECO 1ARM MACHINE SUPPORT
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org

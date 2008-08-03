@@ -175,6 +175,15 @@ config MACH_SAM9_L9260
 	  Select this if you are using Olimex's SAM9-L9260 board based on the Atmel AT91SAM9260.
 	  <http://www.olimex.com/dev/sam9-L9260.html>
 
+config MACH_AFEB9260
+	bool "Custom afeb9260 board v1"
+	depends on ARCH_AT91SAM9260
+	help
+	  Select this if you are using custom afeb9260 board based on
+	  open hardware design. Select this for revision 1 of the board.
+	  <svn://194.85.238.22/home/users/george/svn/arm9eb>
+	  <http://groups.google.com/group/arm9fpga-evolution-board>
+
 config MACH_USB_A9260
 	bool "CALAO USB-A9260"
 	depends on ARCH_AT91SAM9260
