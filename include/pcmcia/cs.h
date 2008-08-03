@@ -294,7 +294,7 @@ typedef struct error_info_t {
 #define CS_BAD_BASE		-EINVAL
 #define CS_BAD_EDC		-ENODEV
 #define CS_BAD_IRQ		-EINVAL
-#define CS_BAD_OFFSET		-EIO
+#define CS_BAD_OFFSET		-EINVAL
 #define CS_BAD_PAGE		-EINVAL
 #define CS_READ_FAILURE		-EIO
 #define CS_BAD_SIZE		-EINVAL
@@ -312,7 +312,7 @@ typedef struct error_info_t {
 #define CS_GENERAL_FAILURE	-ETIMEDOUT
 #define CS_WRITE_PROTECTED	-EPERM
 #define CS_BAD_ARG_LENGTH	-ENODEV
-#define CS_BAD_ARGS		0x1c
+#define CS_BAD_ARGS		-EINVAL
 #define CS_CONFIGURATION_LOCKED	-EACCES
 #define CS_IN_USE		-EBUSY
 #define CS_NO_MORE_ITEMS	-ENOSPC

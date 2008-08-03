@@ -189,7 +189,7 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 		pcmcia_write_cis_mem(s, 1, addr, 1, &val);
 		break;
 	default:
-		return CS_BAD_ARGS;
+		return -EINVAL;
 		break;
 	}
 	return 0;
@@ -401,7 +401,7 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	    (c->io.NumPorts1 != req->NumPorts1) ||
 	    (c->io.BasePort2 != req->BasePort2) ||
 	    (c->io.NumPorts2 != req->NumPorts2))
-		return CS_BAD_ARGS;
+		return -EINVAL;
 
 	c->state &= ~CONFIG_IO_REQ;
 
@@ -855,8 +855,10 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	if (req->Attributes & WIN_USE_WAIT)
 		win->ctl.flags |= MAP_USE_WAIT;
 	win->ctl.card_start = 0;
-	if (s->ops->set_mem_map(s, &win->ctl) != 0)
-		return CS_BAD_ARGS;
+	if (s->ops->set_mem_map(s, &win->ctl) != 0) {
+		ds_dbg(s, 0, "failed to set memory mapping\n");
+		return -EIO;
+	}
 	s->state |= SOCKET_WIN_REQ(w);
 
 	/* Return window handle */

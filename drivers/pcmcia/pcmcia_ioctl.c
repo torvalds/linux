@@ -836,7 +836,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     case DS_GET_CONFIGURATION_INFO:
 	if (buf->config.Function &&
 	   (buf->config.Function >= s->functions))
-	    ret = CS_BAD_ARGS;
+	    ret = -EINVAL;
 	else {
 	    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->config.Function);
 	    ret = pccard_get_configuration_info(s, p_dev, &buf->config);
@@ -867,7 +867,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     case DS_GET_STATUS:
 	    if (buf->status.Function &&
 		(buf->status.Function >= s->functions))
-		    ret = CS_BAD_ARGS;
+		    ret = -EINVAL;
 	    else {
 		    struct pcmcia_device *p_dev = get_pcmcia_device(s, buf->status.Function);
 		    ret = pccard_get_status(s, p_dev, &buf->status);
@@ -898,7 +898,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    goto free_out;
 	}
 
-	ret = CS_BAD_ARGS;
+	ret = -EINVAL;
 
 	if (!(buf->conf_reg.Function &&
 	     (buf->conf_reg.Function >= s->functions))) {
@@ -970,7 +970,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	case -ENOSYS:
 	    err = ret;
 	    break;
-	case CS_BAD_ARGS: case CS_BAD_TUPLE:
+	case CS_BAD_TUPLE:
 	    err = -EINVAL; break;
 	case -ENOMEM:
 	    err = -ENOSPC; break;
