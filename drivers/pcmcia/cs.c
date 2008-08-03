@@ -534,7 +534,7 @@ static int socket_insert(struct pcmcia_socket *skt)
 static int socket_suspend(struct pcmcia_socket *skt)
 {
 	if (skt->state & SOCKET_SUSPEND)
-		return CS_IN_USE;
+		return -EBUSY;
 
 	send_event(skt, CS_EVENT_PM_SUSPEND, CS_EVENT_PRI_LOW);
 	skt->socket = dead_socket;
@@ -556,7 +556,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 	int ret;
 
 	if (!(skt->state & SOCKET_SUSPEND))
-		return CS_IN_USE;
+		return -EBUSY;
 
 	skt->socket = dead_socket;
 	skt->ops->init(skt);
@@ -765,7 +765,7 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 			break;
 		}
 		if (skt->state & SOCKET_SUSPEND) {
-			ret = CS_IN_USE;
+			ret = -EBUSY;
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {

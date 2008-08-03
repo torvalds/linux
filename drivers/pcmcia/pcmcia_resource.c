@@ -609,23 +609,30 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return -EACCES;
-	if (c->state & CONFIG_IO_REQ)
-		return CS_IN_USE;
+	if (c->state & CONFIG_IO_REQ) {
+		ds_dbg(s, 0, "IO already configured\n");
+		return -EBUSY;
+	}
 	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))
 		return CS_BAD_ATTRIBUTE;
 	if ((req->NumPorts2 > 0) &&
 	    (req->Attributes2 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS)))
 		return CS_BAD_ATTRIBUTE;
 
+	ds_dbg(s, 1, "trying to allocate resource 1\n");
 	if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
-			   req->NumPorts1, req->IOAddrLines))
-		return CS_IN_USE;
+			   req->NumPorts1, req->IOAddrLines)) {
+		ds_dbg(s, 0, "allocation of resource 1 failed\n");
+		return -EBUSY;
+	}
 
 	if (req->NumPorts2) {
+		ds_dbg(s, 1, "trying to allocate resource 2\n");
 		if (alloc_io_space(s, req->Attributes2, &req->BasePort2,
 				   req->NumPorts2, req->IOAddrLines)) {
+			ds_dbg(s, 0, "allocation of resource 2 failed\n");
 			release_io_space(s, req->BasePort1, req->NumPorts1);
-			return CS_IN_USE;
+			return -EBUSY;
 		}
 	}
 
@@ -658,7 +665,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 	config_t *c;
-	int ret = CS_IN_USE, irq = 0;
+	int ret = -EINVAL, irq = 0;
 	int type;
 
 	if (!(s->state & SOCKET_PRESENT))
@@ -666,8 +673,10 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return -EACCES;
-	if (c->state & CONFIG_IRQ_REQ)
-		return CS_IN_USE;
+	if (c->state & CONFIG_IRQ_REQ) {
+		ds_dbg(s, 0, "IRQ already configured\n");
+		return -EBUSY;
+	}
 
 	/* Decide what type of interrupt we are registering */
 	type = 0;
@@ -730,8 +739,10 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	}
 
 	if (ret && (req->Attributes & IRQ_HANDLE_PRESENT)) {
-		if (request_irq(irq, req->Handler, type,  p_dev->devname, req->Instance))
-			return CS_IN_USE;
+		ret = request_irq(irq, req->Handler, type,
+				  p_dev->devname, req->Instance);
+		if (ret)
+			return ret;
 	}
 
 	/* Make sure the fact the request type was overridden is passed back */
@@ -792,8 +803,10 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	/* Allocate system memory window */
 	for (w = 0; w < MAX_WIN; w++)
 		if (!(s->state & SOCKET_WIN_REQ(w))) break;
-	if (w == MAX_WIN)
-		return CS_IN_USE;
+	if (w == MAX_WIN) {
+		ds_dbg(s, 0, "all windows are used already\n");
+		return -EINVAL;
+	}
 
 	win = &s->win[w];
 	win->magic = WINDOW_MAGIC;
@@ -804,8 +817,10 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	if (!(s->features & SS_CAP_STATIC_MAP)) {
 		win->ctl.res = pcmcia_find_mem_region(req->Base, req->Size, align,
 						      (req->Attributes & WIN_MAP_BELOW_1MB), s);
-		if (!win->ctl.res)
-			return CS_IN_USE;
+		if (!win->ctl.res) {
+			ds_dbg(s, 0, "allocating mem region failed\n");
+			return -EINVAL;
+		}
 	}
 	(*p_dev)->_win |= CLIENT_WIN_REQ(w);
 
