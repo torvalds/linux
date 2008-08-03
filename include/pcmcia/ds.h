@@ -74,6 +74,27 @@ typedef struct cisdump_t {
     cisdata_t	Data[CISTPL_MAX_CIS_SIZE];
 } cisdump_t;
 
+/* for GetConfigurationInfo */
+typedef struct config_info_t {
+    u_char	Function;
+    u_int	Attributes;
+    u_int	Vcc, Vpp1, Vpp2;
+    u_int	IntType;
+    u_int	ConfigBase;
+    u_char	Status, Pin, Copy, Option, ExtStatus;
+    u_int	Present;
+    u_int	CardValues;
+    u_int	AssignedIRQ;
+    u_int	IRQAttributes;
+    ioaddr_t	BasePort1;
+    ioaddr_t	NumPorts1;
+    u_int	Attributes1;
+    ioaddr_t	BasePort2;
+    ioaddr_t	NumPorts2;
+    u_int	Attributes2;
+    u_int	IOAddrLines;
+} config_info_t;
+
 typedef union ds_ioctl_arg_t {
     adjust_t		adjust;
     config_info_t	config;
