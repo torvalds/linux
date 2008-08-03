@@ -1424,11 +1424,7 @@ static int ext4_ordered_write_end(struct file *file,
 {
 	handle_t *handle = ext4_journal_current_handle();
 	struct inode *inode = mapping->host;
-	unsigned from, to;
 	int ret = 0, ret2;
-
-	from = pos & (PAGE_CACHE_SIZE - 1);
-	to = from + len;
 
 	ret = ext4_jbd2_file_inode(handle, inode);
 
