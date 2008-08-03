@@ -23,7 +23,6 @@
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/platform.h>
 #include <asm/arch/irqs.h>

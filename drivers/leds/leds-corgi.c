@@ -15,7 +15,6 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
-#include <asm/mach-types.h>
 #include <asm/arch/corgi.h>
 #include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>

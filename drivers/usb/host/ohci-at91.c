@@ -15,7 +15,6 @@
 #include <linux/clk.h>
 #include <linux/platform_device.h>
 
-#include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/gpio.h>
 

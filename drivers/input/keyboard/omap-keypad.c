@@ -40,7 +40,6 @@
 #include <asm/irq.h>
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/arch/mux.h>
 
 #undef NEW_BOARD_LEARNING_MODE

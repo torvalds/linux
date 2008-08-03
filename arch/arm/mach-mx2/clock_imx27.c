@@ -25,7 +25,6 @@
 #include <asm/arch/clock.h>
 #include <asm/arch/common.h>
 #include <asm/div64.h>
-#include <asm/mach-types.h>
 
 #include "crm_regs.h"
 

@@ -28,7 +28,6 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 
-#include <asm/mach-types.h>
 #include <asm/arch/dma.h>
 #include <asm/arch/omapfb.h>
 

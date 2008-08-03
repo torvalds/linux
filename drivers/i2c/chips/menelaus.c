@@ -41,7 +41,6 @@
 #include <linux/rtc.h>
 #include <linux/bcd.h>
 
-#include <asm/mach-types.h>
 #include <asm/mach/irq.h>
 
 #include <asm/arch/gpio.h>

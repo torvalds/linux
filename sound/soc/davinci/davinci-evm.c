@@ -19,7 +19,6 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/mach-types.h>
 #include <asm/dma.h>
 #include <asm/arch/hardware.h>
 

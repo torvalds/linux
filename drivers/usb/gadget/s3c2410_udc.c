@@ -57,7 +57,6 @@
 #include <asm/plat-s3c24xx/regs-udc.h>
 #include <asm/plat-s3c24xx/udc.h>
 
-#include <asm/mach-types.h>
 
 #include "s3c2410_udc.h"
 

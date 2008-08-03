@@ -24,7 +24,6 @@
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
 
-#include <asm/mach-types.h>
 #include <asm/hardware/scoop.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>

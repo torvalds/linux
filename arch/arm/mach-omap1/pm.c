@@ -47,7 +47,6 @@
 #include <asm/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/cpu.h>
 #include <asm/arch/irqs.h>

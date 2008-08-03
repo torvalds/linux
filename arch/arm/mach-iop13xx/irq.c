@@ -24,7 +24,6 @@
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/msi.h>
 

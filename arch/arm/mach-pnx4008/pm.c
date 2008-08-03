@@ -20,7 +20,6 @@
 #include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/cacheflush.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/clock.h>

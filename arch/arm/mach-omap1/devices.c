@@ -16,7 +16,6 @@
 
 #include <asm/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
 #include <asm/arch/tc.h>

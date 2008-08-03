@@ -27,7 +27,6 @@
 #include <linux/suspend.h>
 
 #include <asm/hardware.h>
-#include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>

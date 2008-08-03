@@ -29,7 +29,6 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach-types.h>
 
 #include <asm/arch/board.h>
 #include <asm/arch/mmc.h>

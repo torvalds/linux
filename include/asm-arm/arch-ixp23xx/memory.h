@@ -28,7 +28,6 @@
  *		to an address that the kernel can use.
  */
 #ifndef __ASSEMBLY__
-#include <asm/mach-types.h>
 
 #define __virt_to_bus(v)						\
 	({ unsigned int ret;						\

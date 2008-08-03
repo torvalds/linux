@@ -24,7 +24,6 @@
 #include <asm/hardware.h>
 #include <asm/mach/pci.h>
 #include <asm/hardware/iop3xx.h>
-#include <asm/mach-types.h>
 
 // #define DEBUG
 

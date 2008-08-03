@@ -24,7 +24,6 @@
 #include <linux/platform_device.h>
 
 #include <asm/irq.h>
-#include <asm/mach-types.h>
 #include <asm/hardware.h>
 #include <asm/hardware/scoop.h>
 #include <asm/dma.h>

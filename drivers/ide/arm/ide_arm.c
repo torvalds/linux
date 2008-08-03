@@ -11,7 +11,6 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
-#include <asm/mach-types.h>
 #include <asm/irq.h>
 
 #define DRV_NAME "ide_arm"
