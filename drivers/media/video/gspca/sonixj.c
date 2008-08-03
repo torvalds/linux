@@ -32,7 +32,7 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 
-	int avg_lum;
+	atomic_t avg_lum;
 	unsigned int exposure;
 
 	unsigned short brightness;
@@ -781,6 +781,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
 	sd->autogain = AUTOGAIN_DEF;
+	sd->ag_cnt = -1;
+
 	return 0;
 }
 
@@ -946,6 +948,22 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x05, data);
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+	case SENSOR_MO4000:
+	case SENSOR_MI0360:
+		if (sd->autogain)
+			sd->ag_cnt = AG_CNT_START;
+		else
+			sd->ag_cnt = -1;
+		break;
+	}
+}
+
 /* -- start the camera -- */
 static void sd_start(struct gspca_dev *gspca_dev)
 {
@@ -1078,6 +1096,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x01, reg1);
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
+	setautogain(gspca_dev);
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -1124,16 +1143,23 @@ static void sd_close(struct gspca_dev *gspca_dev)
 {
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	/* Thanks S., without your advice, autobright should not work :) */
 	int delta;
-	int expotimes = 0;
+	int expotimes;
 	__u8 luma_mean = 130;
 	__u8 luma_delta = 20;
 
-	delta = sd->avg_lum;
+	/* Thanks S., without your advice, autobright should not work :) */
+	if (sd->ag_cnt < 0)
+		return;
+	if (--sd->ag_cnt >= 0)
+		return;
+	sd->ag_cnt = AG_CNT_START;
+
+	delta = atomic_read(&sd->avg_lum);
+	PDEBUG(D_FRAM, "mean lum %d", delta);
 	if (delta < luma_mean - luma_delta ||
 	    delta > luma_mean + luma_delta) {
 		switch (sd->sensor) {
@@ -1145,8 +1171,9 @@ static void setautogain(struct gspca_dev *gspca_dev)
 			sd->exposure = setexposure(gspca_dev,
 					(unsigned int) (expotimes << 8));
 			break;
-		case SENSOR_MO4000:
-		case SENSOR_MI0360:
+		default:
+/*		case SENSOR_MO4000: */
+/*		case SENSOR_MI0360: */
 			expotimes = sd->exposure;
 			expotimes += (luma_mean - delta) >> 6;
 			if (expotimes < 0)
@@ -1159,6 +1186,8 @@ static void setautogain(struct gspca_dev *gspca_dev)
 	}
 }
 
+/* scan the URB packets */
+/* This function is run at interrupt level. */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1175,9 +1204,6 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				frame, data, sof + 2);
 		if (sd->ag_cnt < 0)
 			return;
-		if (--sd->ag_cnt >= 0)
-			return;
-		sd->ag_cnt = AG_CNT_START;
 /* w1 w2 w3 */
 /* w4 w5 w6 */
 /* w7 w8 */
@@ -1192,9 +1218,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 /* w5 */
 		avg_lum += ((data[sof + 31] << 8) | data[sof + 32]) >> 4;
 		avg_lum >>= 4;
-		sd->avg_lum = avg_lum;
-		PDEBUG(D_PACK, "mean lum %d", avg_lum);
-		setautogain(gspca_dev);
+		atomic_set(&sd->avg_lum, avg_lum);
 		return;
 	}
 	if (gspca_dev->last_packet_type == LAST_PACKET) {
@@ -1321,10 +1345,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
-	if (val)
-		sd->ag_cnt = AG_CNT_START;
-	else
-		sd->ag_cnt = -1;
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
 	return 0;
 }
 
@@ -1348,6 +1370,7 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */
