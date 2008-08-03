@@ -3988,6 +3988,10 @@ int register_netdevice(struct net_device *dev)
 		}
 	}
 
+	/* Enable software GSO if SG is supported. */
+	if (dev->features & NETIF_F_SG)
+		dev->features |= NETIF_F_GSO;
+
 	netdev_initialize_kobject(dev);
 	ret = netdev_register_kobject(dev);
 	if (ret)
