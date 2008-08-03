@@ -137,9 +137,15 @@ extern int cs_debug_level(int);
 		dev_printk(KERN_DEBUG, &skt->dev,	\
 		 "cs: " fmt, ## arg);			\
 } while (0)
+#define __cs_dbg(lvl, fmt, arg...) do {			\
+	if (cs_debug_level(lvl))			\
+		printk(KERN_DEBUG 			\
+		 "cs: " fmt, ## arg);			\
+} while (0)
 
 #else
 #define cs_dbg(skt, lvl, fmt, arg...) do { } while (0)
+#define __cs_dbg(lvl, fmt, arg...) do { } while (0)
 #endif
 
 #define cs_err(skt, fmt, arg...) \

@@ -82,7 +82,6 @@ static const lookup_t error_table[] = {
     { -EBUSY,			"Resource in use" },
     { -ENOSPC,			"No more items" },
     { -ENOMEM,			"Out of resource" },
-    { CS_BAD_TUPLE,		"Bad CIS tuple" }
 };
 
 

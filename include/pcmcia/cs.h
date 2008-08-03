@@ -319,7 +319,7 @@ typedef struct error_info_t {
 #define CS_OUT_OF_RESOURCE	-ENOMEM
 #define CS_BAD_HANDLE		-EINVAL
 
-#define CS_BAD_TUPLE		0x40
+#define CS_BAD_TUPLE		-EINVAL
 
 #ifdef __KERNEL__
 
