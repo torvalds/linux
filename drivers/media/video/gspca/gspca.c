@@ -904,7 +904,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		if (ctrl->id != ctrls->qctrl.id)
 			continue;
 		if (ctrl->value < ctrls->qctrl.minimum
-		    && ctrl->value > ctrls->qctrl.maximum)
+		    || ctrl->value > ctrls->qctrl.maximum)
 			return -ERANGE;
 		PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
