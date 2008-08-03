@@ -1796,7 +1796,7 @@ gso:
 	skb->tc_verd = SET_TC_AT(skb->tc_verd,AT_EGRESS);
 #endif
 	if (q->enqueue) {
-		spinlock_t *root_lock = qdisc_root_lock(q);
+		spinlock_t *root_lock = qdisc_lock(q);
 
 		spin_lock(root_lock);
 
@@ -1995,7 +1995,7 @@ static void net_tx_action(struct softirq_action *h)
 			smp_mb__before_clear_bit();
 			clear_bit(__QDISC_STATE_SCHED, &q->state);
 
-			root_lock = qdisc_root_lock(q);
+			root_lock = qdisc_lock(q);
 			if (spin_trylock(root_lock)) {
 				qdisc_run(q);
 				spin_unlock(root_lock);
