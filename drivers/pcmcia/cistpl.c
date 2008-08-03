@@ -392,7 +392,7 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 	return CS_OUT_OF_RESOURCE;
     s->fake_cis_len = len;
     memcpy(s->fake_cis, data, len);
-    return CS_SUCCESS;
+    return 0;
 }
 EXPORT_SYMBOL(pcmcia_replace_cis);
 
@@ -441,9 +441,9 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
 	!(tuple->Attributes & TUPLE_RETURN_COMMON)) {
 	cisdata_t req = tuple->DesiredTuple;
 	tuple->DesiredTuple = CISTPL_LONGLINK_MFC;
-	if (pccard_get_next_tuple(s, function, tuple) == CS_SUCCESS) {
+	if (pccard_get_next_tuple(s, function, tuple) == 0) {
 	    tuple->DesiredTuple = CISTPL_LINKTARGET;
-	    if (pccard_get_next_tuple(s, function, tuple) != CS_SUCCESS)
+	    if (pccard_get_next_tuple(s, function, tuple) != 0)
 		return CS_NO_MORE_ITEMS;
 	} else
 	    tuple->CISOffset = tuple->TupleLink = 0;
@@ -584,7 +584,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
     tuple->TupleCode = link[0];
     tuple->TupleLink = link[1];
     tuple->CISOffset = ofs + 2;
-    return CS_SUCCESS;
+    return 0;
 }
 EXPORT_SYMBOL(pccard_get_next_tuple);
 
@@ -604,11 +604,11 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
     len = tuple->TupleLink - tuple->TupleOffset;
     tuple->TupleDataLen = tuple->TupleLink;
     if (len == 0)
-	return CS_SUCCESS;
+	return 0;
     read_cis_cache(s, SPACE(tuple->Flags),
 		   tuple->CISOffset + tuple->TupleOffset,
 		   _MIN(len, tuple->TupleDataMax), tuple->TupleData);
-    return CS_SUCCESS;
+    return 0;
 }
 EXPORT_SYMBOL(pccard_get_tuple_data);
 
@@ -659,7 +659,7 @@ static int parse_device(tuple_t *tuple, cistpl_device_t *device)
 	if (++p == q) break;
     }
     
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -673,7 +673,7 @@ static int parse_checksum(tuple_t *tuple, cistpl_checksum_t *csum)
     csum->addr = tuple->CISOffset + get_unaligned_le16(p) - 2;
     csum->len = get_unaligned_le16(p + 2);
     csum->sum = *(p + 4);
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -683,7 +683,7 @@ static int parse_longlink(tuple_t *tuple, cistpl_longlink_t *link)
     if (tuple->TupleDataLen < 4)
 	return CS_BAD_TUPLE;
     link->addr = get_unaligned_le32(tuple->TupleData);
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -704,7 +704,7 @@ static int parse_longlink_mfc(tuple_t *tuple,
 	link->fn[i].addr = get_unaligned_le32(p);
 	p += 4;
     }
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -729,9 +729,9 @@ static int parse_strings(u_char *p, u_char *q, int max,
     }
     if (found) {
 	*found = ns;
-	return CS_SUCCESS;
+	return 0;
     } else {
-	return (ns == max) ? CS_SUCCESS : CS_BAD_TUPLE;
+	return (ns == max) ? 0 : CS_BAD_TUPLE;
     }
 }
 
@@ -782,7 +782,7 @@ static int parse_jedec(tuple_t *tuple, cistpl_jedec_t *jedec)
 	p += 2;
     }
     jedec->nid = nid;
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -793,7 +793,7 @@ static int parse_manfid(tuple_t *tuple, cistpl_manfid_t *m)
 	return CS_BAD_TUPLE;
     m->manf = get_unaligned_le16(tuple->TupleData);
     m->card = get_unaligned_le16(tuple->TupleData + 2);
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -806,7 +806,7 @@ static int parse_funcid(tuple_t *tuple, cistpl_funcid_t *f)
     p = (u_char *)tuple->TupleData;
     f->func = p[0];
     f->sysinit = p[1];
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -821,7 +821,7 @@ static int parse_funce(tuple_t *tuple, cistpl_funce_t *f)
     f->type = p[0];
     for (i = 1; i < tuple->TupleDataLen; i++)
 	f->data[i-1] = p[i];
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -847,7 +847,7 @@ static int parse_config(tuple_t *tuple, cistpl_config_t *config)
     for (i = 0; i <= rmsz; i++)
 	config->rmask[i>>2] += p[i] << (8*(i%4));
     config->subtuples = tuple->TupleDataLen - (rasz+rmsz+4);
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*======================================================================
@@ -1122,7 +1122,7 @@ static int parse_cftable_entry(tuple_t *tuple,
 
     entry->subtuples = q-p;
     
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -1138,7 +1138,7 @@ static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
     bar->attr = *p;
     p += 2;
     bar->size = get_unaligned_le32(p);
-    return CS_SUCCESS;
+    return 0;
 }
 
 static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
@@ -1152,7 +1152,7 @@ static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
     p++;
     config->base = get_unaligned_le32(p);
     config->subtuples = tuple->TupleDataLen - 6;
-    return CS_SUCCESS;
+    return 0;
 }
 
 static int parse_cftable_entry_cb(tuple_t *tuple,
@@ -1223,7 +1223,7 @@ static int parse_cftable_entry_cb(tuple_t *tuple,
 
     entry->subtuples = q-p;
     
-    return CS_SUCCESS;
+    return 0;
 }
 
 #endif
@@ -1249,7 +1249,7 @@ static int parse_device_geo(tuple_t *tuple, cistpl_device_geo_t *geo)
 	p += 6;
     }
     geo->ngeo = n;
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -1291,7 +1291,7 @@ static int parse_org(tuple_t *tuple, cistpl_org_t *org)
 	if (*p == '\0') break;
 	if (++p == q) return CS_BAD_TUPLE;
     }
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -1310,14 +1310,14 @@ static int parse_format(tuple_t *tuple, cistpl_format_t *fmt)
     fmt->offset = get_unaligned_le32(p + 2);
     fmt->length = get_unaligned_le32(p + 6);
 
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
 
 int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 {
-    int ret = CS_SUCCESS;
+    int ret = 0;
     
     if (tuple->TupleDataLen > tuple->TupleDataMax)
 	return CS_BAD_TUPLE;
@@ -1388,7 +1388,7 @@ int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 	break;
     case CISTPL_NO_LINK:
     case CISTPL_LINKTARGET:
-	ret = CS_SUCCESS;
+	ret = 0;
 	break;
     default:
 	ret = CS_UNSUPPORTED_FUNCTION;
@@ -1416,12 +1416,14 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function, cisdata_t 
     tuple.DesiredTuple = code;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     ret = pccard_get_first_tuple(s, function, &tuple);
-    if (ret != CS_SUCCESS) goto done;
+    if (ret != 0)
+	    goto done;
     tuple.TupleData = buf;
     tuple.TupleOffset = 0;
     tuple.TupleDataMax = 255;
     ret = pccard_get_tuple_data(s, &tuple);
-    if (ret != CS_SUCCESS) goto done;
+    if (ret != 0)
+	    goto done;
     ret = pccard_parse_tuple(&tuple, parse);
 done:
     kfree(buf);
@@ -1462,21 +1464,21 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
     tuple->DesiredTuple = RETURN_FIRST_TUPLE;
     tuple->Attributes = TUPLE_RETURN_COMMON;
     ret = pccard_get_first_tuple(s, function, tuple);
-    if (ret != CS_SUCCESS)
+    if (ret != 0)
 	goto done;
 
     /* First tuple should be DEVICE; we should really have either that
        or a CFTABLE_ENTRY of some sort */
     if ((tuple->TupleCode == CISTPL_DEVICE) ||
-	(pccard_read_tuple(s, function, CISTPL_CFTABLE_ENTRY, p) == CS_SUCCESS) ||
-	(pccard_read_tuple(s, function, CISTPL_CFTABLE_ENTRY_CB, p) == CS_SUCCESS))
+	(pccard_read_tuple(s, function, CISTPL_CFTABLE_ENTRY, p) == 0) ||
+	(pccard_read_tuple(s, function, CISTPL_CFTABLE_ENTRY_CB, p) == 0))
 	dev_ok++;
 
     /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
        tuple, for card identification.  Certain old D-Link and Linksys
        cards have only a broken VERS_2 tuple; hence the bogus test. */
-    if ((pccard_read_tuple(s, function, CISTPL_MANFID, p) == CS_SUCCESS) ||
-	(pccard_read_tuple(s, function, CISTPL_VERS_1, p) == CS_SUCCESS) ||
+    if ((pccard_read_tuple(s, function, CISTPL_MANFID, p) == 0) ||
+	(pccard_read_tuple(s, function, CISTPL_VERS_1, p) == 0) ||
 	(pccard_read_tuple(s, function, CISTPL_VERS_2, p) != CS_NO_MORE_ITEMS))
 	ident_ok++;
 
@@ -1485,7 +1487,8 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
 
     for (count = 1; count < MAX_TUPLES; count++) {
 	ret = pccard_get_next_tuple(s, function, tuple);
-	if (ret != CS_SUCCESS) break;
+	if (ret != 0)
+		break;
 	if (((tuple->TupleCode > 0x23) && (tuple->TupleCode < 0x40)) ||
 	    ((tuple->TupleCode > 0x47) && (tuple->TupleCode < 0x80)) ||
 	    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
@@ -1500,6 +1503,6 @@ done:
 	    *info = count;
     kfree(tuple);
     kfree(p);
-    return CS_SUCCESS;
+    return 0;
 }
 EXPORT_SYMBOL(pccard_validate_cis);

@@ -262,7 +262,7 @@ static int try_io_port(struct pcmcia_device *link)
 	if (link->io.NumPorts2 > 0) {
 	    /* for master/slave multifunction cards */
 	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	    link->irq.Attributes = 
+	    link->irq.Attributes =
 		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
 	}
     } else {
@@ -276,7 +276,8 @@ static int try_io_port(struct pcmcia_device *link)
 	    link->io.BasePort1 = j ^ 0x300;
 	    link->io.BasePort2 = (j ^ 0x300) + 0x10;
 	    ret = pcmcia_request_io(link, &link->io);
-	    if (ret == CS_SUCCESS) return ret;
+	    if (ret == 0)
+		    return ret;
 	}
 	return ret;
     } else {
@@ -327,7 +328,7 @@ static int axnet_config(struct pcmcia_device *link)
     /* don't trust the CIS on this; Linksys got it wrong */
     link->conf.Present = 0x63;
     last_ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
-    if (last_ret != CS_SUCCESS) {
+    if (last_ret != 0) {
 	cs_error(link, RequestIO, last_ret);
 	goto failed;
     }

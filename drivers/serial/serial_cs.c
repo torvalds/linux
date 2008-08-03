@@ -431,10 +431,10 @@ first_tuple(struct pcmcia_device *handle, tuple_t * tuple, cisparse_t * parse)
 {
 	int i;
 	i = pcmcia_get_first_tuple(handle, tuple);
-	if (i != CS_SUCCESS)
+	if (i != 0)
 		return CS_NO_MORE_ITEMS;
 	i = pcmcia_get_tuple_data(handle, tuple);
-	if (i != CS_SUCCESS)
+	if (i != 0)
 		return i;
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
@@ -527,7 +527,7 @@ static int simple_config(struct pcmcia_device *link)
 
 found_port:
 	i = pcmcia_request_irq(link, &link->irq);
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 		cs_error(link, RequestIRQ, i);
 		link->irq.AssignedIRQ = 0;
 	}
@@ -541,7 +541,7 @@ found_port:
 		info->quirk->config(link);
 
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 		cs_error(link, RequestConfiguration, i);
 		return -1;
 	}
@@ -609,7 +609,7 @@ static int multi_config(struct pcmcia_device *link)
 	}
 
 	i = pcmcia_request_irq(link, &link->irq);
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 		/* FIXME: comment does not fit, error handling does not fit */
 		printk(KERN_NOTICE
 		       "serial_cs: no usable port range found, giving up\n");
@@ -624,7 +624,7 @@ static int multi_config(struct pcmcia_device *link)
 		info->quirk->config(link);
 
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 		cs_error(link, RequestConfiguration, i);
 		return -ENODEV;
 	}
@@ -702,7 +702,7 @@ static int serial_config(struct pcmcia_device * link)
 	/* Is this a compliant multifunction card? */
 	tuple->DesiredTuple = CISTPL_LONGLINK_MFC;
 	tuple->Attributes = TUPLE_RETURN_COMMON | TUPLE_RETURN_LINK;
-	info->multi = (first_tuple(link, tuple, parse) == CS_SUCCESS);
+	info->multi = (first_tuple(link, tuple, parse) == 0);
 
 	/* Is this a multiport card? */
 	tuple->DesiredTuple = CISTPL_MANFID;
@@ -726,7 +726,7 @@ static int serial_config(struct pcmcia_device * link)
 	    ((link->func_id == CISTPL_FUNCID_MULTI) ||
 	     (link->func_id == CISTPL_FUNCID_SERIAL))) {
 		tuple->DesiredTuple = CISTPL_CFTABLE_ENTRY;
-		if (first_tuple(link, tuple, parse) == CS_SUCCESS) {
+		if (first_tuple(link, tuple, parse) == 0) {
 			if ((cf->io.nwin == 1) && (cf->io.win[0].len % 8 == 0))
 				info->multi = cf->io.win[0].len >> 3;
 			if ((cf->io.nwin == 2) && (cf->io.win[0].len == 8) &&

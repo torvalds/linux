@@ -187,7 +187,7 @@ static int pcmcia_report_error(struct pcmcia_device *p_dev, error_info_t *err)
 	else
 		printk("%s: Unknown error code %#x\n", serv, err->retcode);
 
-	return CS_SUCCESS;
+	return 0;
 } /* report_error */
 
 /* end of code which was in cs.c before */

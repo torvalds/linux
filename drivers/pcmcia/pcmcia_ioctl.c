@@ -167,7 +167,7 @@ static int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
 #else
 
 static inline int adjust_irq(struct pcmcia_socket *s, adjust_t *adj) {
-	return CS_SUCCESS;
+	return 0;
 }
 
 #endif
@@ -274,7 +274,7 @@ static int pccard_get_status(struct pcmcia_socket *s,
 			status->CardState |=
 				(reg & ESR_REQ_ATTN) ? CS_EVENT_REQUEST_ATTENTION : 0;
 		}
-		return CS_SUCCESS;
+		return 0;
 	}
 	status->CardState |=
 		(val & SS_WRPROT) ? CS_EVENT_WRITE_PROTECT : 0;
@@ -284,7 +284,7 @@ static int pccard_get_status(struct pcmcia_socket *s,
 		(val & SS_BATWARN) ? CS_EVENT_BATTERY_LOW : 0;
 	status->CardState |=
 		(val & SS_READY) ? CS_EVENT_READY_CHANGE : 0;
-	return CS_SUCCESS;
+	return 0;
 } /* pccard_get_status */
 
 int pccard_get_configuration_info(struct pcmcia_socket *s,
@@ -315,7 +315,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 					config->BasePort1 + 1;
 			}
 		}
-		return CS_SUCCESS;
+		return 0;
 	}
 #endif
 
@@ -331,7 +331,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 		config->Attributes = 0;
 		config->Vcc = s->socket.Vcc;
 		config->Vpp1 = config->Vpp2 = s->socket.Vpp;
-		return CS_SUCCESS;
+		return 0;
 	}
 
 	config->Attributes = c->Attributes | CONF_VALID_CLIENT;
@@ -355,7 +355,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 	config->Attributes2 = c->io.Attributes2;
 	config->IOAddrLines = c->io.IOAddrLines;
 
-	return CS_SUCCESS;
+	return 0;
 } /* pccard_get_configuration_info */
 
 
@@ -961,7 +961,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	err = -EINVAL;
     }
 
-    if ((err == 0) && (ret != CS_SUCCESS)) {
+    if ((err == 0) && (ret != 0)) {
 	ds_dbg(2, "ds_ioctl: ret = %d\n", ret);
 	switch (ret) {
 	case CS_BAD_SOCKET: case CS_NO_CARD:

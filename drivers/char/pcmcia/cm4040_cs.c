@@ -567,8 +567,8 @@ static int reader_config(struct pcmcia_device *link, int devno)
 
 	link->conf.IntType = 00000002;
 
-	if ((fail_rc = pcmcia_request_configuration(link,&link->conf))
-								!=CS_SUCCESS) {
+	fail_rc = pcmcia_request_configuration(link, &link->conf);
+	if (fail_rc != 0) {
 		dev_printk(KERN_INFO, &handle_to_dev(link),
 			   "pcmcia_request_configuration failed 0x%x\n",
 			   fail_rc);

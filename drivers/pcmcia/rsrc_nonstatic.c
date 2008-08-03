@@ -134,7 +134,7 @@ static int add_interval(struct resource_map *map, u_long base, u_long num)
     if (!q) return CS_OUT_OF_RESOURCE;
     q->base = base; q->num = num;
     q->next = p->next; p->next = q;
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*====================================================================*/
@@ -174,7 +174,7 @@ static int sub_interval(struct resource_map *map, u_long base, u_long num)
 	    }
 	}
     }
-    return CS_SUCCESS;
+    return 0;
 }
 
 /*======================================================================

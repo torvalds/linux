@@ -370,7 +370,7 @@ static int socket_reset(struct pcmcia_socket *skt)
 			return CS_NO_CARD;
 
 		if (status & SS_READY)
-			return CS_SUCCESS;
+			return 0;
 
 		msleep(unreset_check * 10);
 	}
@@ -507,7 +507,7 @@ static int socket_insert(struct pcmcia_socket *skt)
 		return CS_NO_CARD;
 
 	ret = socket_setup(skt, setup_delay);
-	if (ret == CS_SUCCESS) {
+	if (ret == 0) {
 		skt->state |= SOCKET_PRESENT;
 
 		dev_printk(KERN_NOTICE, &skt->dev,
@@ -543,7 +543,7 @@ static int socket_suspend(struct pcmcia_socket *skt)
 		skt->ops->suspend(skt);
 	skt->state |= SOCKET_SUSPEND;
 
-	return CS_SUCCESS;
+	return 0;
 }
 
 /*
@@ -568,7 +568,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 	}
 
 	ret = socket_setup(skt, resume_delay);
-	if (ret == CS_SUCCESS) {
+	if (ret == 0) {
 		/*
 		 * FIXME: need a better check here for cardbus cards.
 		 */
@@ -593,7 +593,7 @@ static int socket_resume(struct pcmcia_socket *skt)
 
 	skt->state &= ~SOCKET_SUSPEND;
 
-	return CS_SUCCESS;
+	return 0;
 }
 
 static void socket_remove(struct pcmcia_socket *skt)
@@ -778,14 +778,14 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 			send_event(skt, CS_EVENT_RESET_PHYSICAL, CS_EVENT_PRI_LOW);
 			if (skt->callback)
 				skt->callback->suspend(skt);
-			if (socket_reset(skt) == CS_SUCCESS) {
+			if (socket_reset(skt) == 0) {
 				send_event(skt, CS_EVENT_CARD_RESET, CS_EVENT_PRI_LOW);
 				if (skt->callback)
 					skt->callback->resume(skt);
 			}
 		}
 
-		ret = CS_SUCCESS;
+		ret = 0;
 	} while (0);
 	mutex_unlock(&skt->skt_mutex);
 

@@ -192,7 +192,7 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 		return CS_BAD_ARGS;
 		break;
 	}
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_access_configuration_register */
 EXPORT_SYMBOL(pcmcia_access_configuration_register);
 
@@ -226,7 +226,7 @@ int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle,
 	if (win->ctl.flags & MAP_USE_WAIT)
 		req->Attributes |= WIN_USE_WAIT;
 	*handle = win;
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_get_window */
 EXPORT_SYMBOL(pcmcia_get_window);
 
@@ -241,7 +241,7 @@ int pcmcia_get_mem_page(window_handle_t win, memreq_t *req)
 		return CS_BAD_HANDLE;
 	req->Page = 0;
 	req->CardOffset = win->ctl.card_start;
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_get_mem_page */
 EXPORT_SYMBOL(pcmcia_get_mem_page);
 
@@ -257,7 +257,7 @@ int pcmcia_map_mem_page(window_handle_t win, memreq_t *req)
 	win->ctl.card_start = req->CardOffset;
 	if (s->ops->set_mem_map(s, &win->ctl) != 0)
 		return CS_BAD_OFFSET;
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_map_mem_page */
 EXPORT_SYMBOL(pcmcia_map_mem_page);
 
@@ -328,7 +328,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		}
 	}
 
-	return CS_SUCCESS;
+	return 0;
 } /* modify_configuration */
 EXPORT_SYMBOL(pcmcia_modify_configuration);
 
@@ -363,7 +363,7 @@ int pcmcia_release_configuration(struct pcmcia_device *p_dev)
 			}
 	}
 
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_release_configuration */
 
 
@@ -397,7 +397,7 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	if (req->NumPorts2)
 		release_io_space(s, req->BasePort2, req->NumPorts2);
 
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_release_io */
 
 
@@ -429,7 +429,7 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	pcmcia_used_irq[req->AssignedIRQ]--;
 #endif
 
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_release_irq */
 
 
@@ -458,7 +458,7 @@ int pcmcia_release_window(window_handle_t win)
 
 	win->magic = 0;
 
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_release_window */
 EXPORT_SYMBOL(pcmcia_release_window);
 
@@ -573,7 +573,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 
 	c->state |= CONFIG_LOCKED;
 	p_dev->_locked = 1;
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_request_configuration */
 EXPORT_SYMBOL(pcmcia_request_configuration);
 
@@ -619,7 +619,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 	c->io = *req;
 	c->state |= CONFIG_IO_REQ;
 	p_dev->_io = 1;
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_request_io */
 EXPORT_SYMBOL(pcmcia_request_io);
 
@@ -740,7 +740,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	pcmcia_used_irq[irq]++;
 #endif
 
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_request_irq */
 EXPORT_SYMBOL(pcmcia_request_irq);
 
@@ -821,7 +821,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	}
 	*wh = win;
 
-	return CS_SUCCESS;
+	return 0;
 } /* pcmcia_request_window */
 EXPORT_SYMBOL(pcmcia_request_window);
 

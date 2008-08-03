@@ -309,7 +309,8 @@ static int mfc_try_io_port(struct pcmcia_device *link)
 	    printk(KERN_NOTICE "fmvj18x_cs: out of resource for serial\n");
 	}
 	ret = pcmcia_request_io(link, &link->io);
-	if (ret == CS_SUCCESS) return ret;
+	if (ret == 0)
+		return ret;
     }
     return ret;
 }
@@ -325,7 +326,7 @@ static int ungermann_try_io_port(struct pcmcia_device *link)
     for (ioaddr = 0x300; ioaddr < 0x3e0; ioaddr += 0x20) {
 	link->io.BasePort1 = ioaddr;
 	ret = pcmcia_request_io(link, &link->io);
-	if (ret == CS_SUCCESS) {
+	if (ret == 0) {
 	    /* calculate ConfigIndex value */
 	    link->conf.ConfigIndex = 
 		((link->io.BasePort1 & 0x0f0) >> 3) | 0x22;
@@ -356,7 +357,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
     tuple.TupleOffset = 0;
     tuple.DesiredTuple = CISTPL_FUNCE;
     tuple.TupleOffset = 0;
-    if (pcmcia_get_first_tuple(link, &tuple) == CS_SUCCESS) {
+    if (pcmcia_get_first_tuple(link, &tuple) == 0) {
 	/* Yes, I have CISTPL_FUNCE. Let's check CISTPL_MANFID */
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
@@ -430,10 +431,10 @@ static int fmvj18x_config(struct pcmcia_device *link)
     	link->irq.Attributes =
 		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED|IRQ_HANDLE_PRESENT;
 	ret = mfc_try_io_port(link);
-	if (ret != CS_SUCCESS) goto cs_failed;
+	if (ret != 0) goto cs_failed;
     } else if (cardtype == UNGERMANN) {
 	ret = ungermann_try_io_port(link);
-	if (ret != CS_SUCCESS) goto cs_failed;
+	if (ret != 0) goto cs_failed;
     } else { 
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));
     }
@@ -565,7 +566,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
     i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	cs_error(link, RequestWindow, i);
 	return -1;
     }
@@ -599,7 +600,7 @@ static int fmvj18x_get_hwinfo(struct pcmcia_device *link, u_char *node_id)
 
     iounmap(base);
     j = pcmcia_release_window(link->win);
-    if (j != CS_SUCCESS)
+    if (j != 0)
 	cs_error(link, ReleaseWindow, j);
     return (i != 0x200) ? 0 : -1;
 
@@ -620,7 +621,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
     req.Base = 0; req.Size = 0;
     req.AccessSpeed = 0;
     i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	cs_error(link, RequestWindow, i);
 	return -1;
     }
@@ -642,7 +643,7 @@ static int fmvj18x_setup_mfc(struct pcmcia_device *link)
 
     iounmap(base);
     j = pcmcia_release_window(link->win);
-    if (j != CS_SUCCESS)
+    if (j != 0)
 	cs_error(link, ReleaseWindow, j);
     return 0;
 

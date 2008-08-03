@@ -18,6 +18,12 @@ extern int handle_request(struct pcmcia_socket *s, event_t event);
 #else
 static inline void __init pcmcia_setup_ioctl(void) { return; }
 static inline void __exit pcmcia_cleanup_ioctl(void) { return; }
-static inline void handle_event(struct pcmcia_socket *s, event_t event) { return; }
-static inline int handle_request(struct pcmcia_socket *s, event_t event) { return CS_SUCCESS; }
+static inline void handle_event(struct pcmcia_socket *s, event_t event)
+{
+	return;
+}
+static inline int handle_request(struct pcmcia_socket *s, event_t event)
+{
+	return 0;
+}
 #endif

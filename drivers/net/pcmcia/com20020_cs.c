@@ -260,21 +260,21 @@ static int com20020_config(struct pcmcia_device *link)
     DEBUG(0, "com20020_config(0x%p)\n", link);
 
     DEBUG(1,"arcnet: baseport1 is %Xh\n", link->io.BasePort1);
-    i = !CS_SUCCESS;
+    i = -ENODEV;
     if (!link->io.BasePort1)
     {
 	for (ioaddr = 0x100; ioaddr < 0x400; ioaddr += 0x10)
 	{
 	    link->io.BasePort1 = ioaddr;
 	    i = pcmcia_request_io(link, &link->io);
-	    if (i == CS_SUCCESS)
+	    if (i == 0)
 		break;
 	}
     }
     else
 	i = pcmcia_request_io(link, &link->io);
     
-    if (i != CS_SUCCESS)
+    if (i != 0)
     {
 	DEBUG(1,"arcnet: requestIO failed totally!\n");
 	goto failed;
@@ -287,7 +287,7 @@ static int com20020_config(struct pcmcia_device *link)
 	   link->irq.AssignedIRQ,
 	   link->irq.IRQInfo1, link->irq.IRQInfo2);
     i = pcmcia_request_irq(link, &link->irq);
-    if (i != CS_SUCCESS)
+    if (i != 0)
     {
 	DEBUG(1,"arcnet: requestIRQ failed totally!\n");
 	goto failed;

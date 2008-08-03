@@ -409,8 +409,11 @@ static int first_tuple(struct pcmcia_device *handle, tuple_t *tuple,
 {
 	int i;
 
-	if ((i = pcmcia_get_first_tuple(handle, tuple)) != CS_SUCCESS ||
-			(i = pcmcia_get_tuple_data(handle, tuple)) != CS_SUCCESS)
+	i = pcmcia_get_first_tuple(handle, tuple);
+	if (i != 0)
+		return i;
+	i = pcmcia_get_tuple_data(handle, tuple);
+	if (i != 0)
 		return i;
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
@@ -420,8 +423,8 @@ static int next_tuple(struct pcmcia_device *handle, tuple_t *tuple,
 {
 	int i;
 
-	if ((i = pcmcia_get_next_tuple(handle, tuple)) != CS_SUCCESS ||
-			(i = pcmcia_get_tuple_data(handle, tuple)) != CS_SUCCESS)
+	if ((i = pcmcia_get_next_tuple(handle, tuple)) != 0 ||
+			(i = pcmcia_get_tuple_data(handle, tuple)) != 0)
 		return i;
 	return pcmcia_parse_tuple(handle, tuple, parse);
 }
@@ -509,7 +512,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     req.Base = req.Size = 0;
     req.AccessSpeed = 0;
     i = pcmcia_request_window(&link, &req, &link->win);
-    if (i != CS_SUCCESS)
+    if (i != 0)
 	goto free_cfg_mem;
     smc->base = ioremap(req.Base, req.Size);
     mem.CardOffset = mem.Page = 0;
@@ -517,7 +520,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 	mem.CardOffset = link->conf.ConfigBase;
     i = pcmcia_map_mem_page(link->win, &mem);
 
-    if ((i == CS_SUCCESS)
+    if ((i == 0)
 	&& (smc->manfid == MANFID_MEGAHERTZ)
 	&& (smc->cardid == PRODID_MEGAHERTZ_EM3288))
 	mhz_3288_power(link);
@@ -551,12 +554,12 @@ static int mhz_setup(struct pcmcia_device *link)
     /* Read the station address from the CIS.  It is stored as the last
        (fourth) string in the Version 1 Version/ID tuple. */
     tuple->DesiredTuple = CISTPL_VERS_1;
-    if (first_tuple(link, tuple, parse) != CS_SUCCESS) {
+    if (first_tuple(link, tuple, parse) != 0) {
 	rc = -1;
 	goto free_cfg_mem;
     }
     /* Ugh -- the EM1144 card has two VERS_1 tuples!?! */
-    if (next_tuple(link, tuple, parse) != CS_SUCCESS)
+    if (next_tuple(link, tuple, parse) != 0)
 	first_tuple(link, tuple, parse);
     if (parse->version_1.ns > 3) {
 	station_addr = parse->version_1.str + parse->version_1.ofs[3];
@@ -568,11 +571,11 @@ static int mhz_setup(struct pcmcia_device *link)
 
     /* Another possibility: for the EM3288, in a special tuple */
     tuple->DesiredTuple = 0x81;
-    if (pcmcia_get_first_tuple(link, tuple) != CS_SUCCESS) {
+    if (pcmcia_get_first_tuple(link, tuple) != 0) {
 	rc = -1;
 	goto free_cfg_mem;
     }
-    if (pcmcia_get_tuple_data(link, tuple) != CS_SUCCESS) {
+    if (pcmcia_get_tuple_data(link, tuple) != 0) {
 	rc = -1;
 	goto free_cfg_mem;
     }
@@ -700,12 +703,12 @@ static int smc_setup(struct pcmcia_device *link)
     /* Check for a LAN function extension tuple */
     tuple->DesiredTuple = CISTPL_FUNCE;
     i = first_tuple(link, tuple, parse);
-    while (i == CS_SUCCESS) {
+    while (i == 0) {
 	if (parse->funce.type == CISTPL_FUNCE_LAN_NODE_ID)
 	    break;
 	i = next_tuple(link, tuple, parse);
     }
-    if (i == CS_SUCCESS) {
+    if (i == 0) {
 	node_id = (cistpl_lan_node_id_t *)parse->funce.data;
 	if (node_id->nb == 6) {
 	    for (i = 0; i < 6; i++)
@@ -752,9 +755,10 @@ static int osi_config(struct pcmcia_device *link)
     for (i = j = 0; j < 4; j++) {
 	link->io.BasePort2 = com[j];
 	i = pcmcia_request_io(link, &link->io);
-	if (i == CS_SUCCESS) break;
+	if (i == 0)
+		break;
     }
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	/* Fallback: turn off hard decode */
 	link->conf.ConfigIndex = 0x03;
 	link->io.NumPorts2 = 0;
@@ -787,13 +791,13 @@ static int osi_setup(struct pcmcia_device *link, u_short manfid, u_short cardid)
     /* Read the station address from tuple 0x90, subtuple 0x04 */
     tuple->DesiredTuple = 0x90;
     i = pcmcia_get_first_tuple(link, tuple);
-    while (i == CS_SUCCESS) {
+    while (i == 0) {
 	i = pcmcia_get_tuple_data(link, tuple);
-	if ((i != CS_SUCCESS) || (buf[0] == 0x04))
+	if ((i != 0) || (buf[0] == 0x04))
 	    break;
 	i = pcmcia_get_next_tuple(link, tuple);
     }
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	rc = -1;
 	goto free_cfg_mem;
     }
@@ -931,8 +935,11 @@ static int check_sig(struct pcmcia_device *link)
 
 ======================================================================*/
 
-#define CS_EXIT_TEST(ret, svc, label) \
-if (ret != CS_SUCCESS) { cs_error(link, svc, ret); goto label; }
+#define CS_EXIT_TEST(ret, svc, label)	\
+if (ret != 0) {				\
+	cs_error(link, svc, ret);	\
+	goto label; 			\
+}
 
 static int smc91c92_config(struct pcmcia_device *link)
 {

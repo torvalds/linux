@@ -238,7 +238,7 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     /* Try PRIMARY card at 0xA20-0xA23 */
     link->io.BasePort1 = 0xA20;
     i = pcmcia_request_io(link, &link->io);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	/* Couldn't get 0xA20-0xA23.  Try ALTERNATE at 0xA24-0xA27. */
 	link->io.BasePort1 = 0xA24;
 	CS_CHECK(RequestIO, pcmcia_request_io(link, &link->io));

@@ -3708,7 +3708,7 @@ wv_pcmcia_reset(struct net_device *	dev)
 #endif
 
   i = pcmcia_access_configuration_register(link, &reg);
-  if(i != CS_SUCCESS)
+  if (i != 0)
     {
       cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
@@ -3722,7 +3722,7 @@ wv_pcmcia_reset(struct net_device *	dev)
   reg.Action = CS_WRITE;
   reg.Value = reg.Value | COR_SW_RESET;
   i = pcmcia_access_configuration_register(link, &reg);
-  if(i != CS_SUCCESS)
+  if (i != 0)
     {
       cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
@@ -3731,7 +3731,7 @@ wv_pcmcia_reset(struct net_device *	dev)
   reg.Action = CS_WRITE;
   reg.Value = COR_LEVEL_IRQ | COR_CONFIG;
   i = pcmcia_access_configuration_register(link, &reg);
-  if(i != CS_SUCCESS)
+  if (i != 0)
     {
       cs_error(link, AccessConfigurationRegister, i);
       return FALSE;
@@ -3909,7 +3909,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
   do
     {
       i = pcmcia_request_io(link, &link->io);
-      if(i != CS_SUCCESS)
+      if (i != 0)
 	{
 	  cs_error(link, RequestIO, i);
 	  break;
@@ -3920,7 +3920,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
        * actually assign a handler to the interrupt.
        */
       i = pcmcia_request_irq(link, &link->irq);
-      if(i != CS_SUCCESS)
+      if (i != 0)
 	{
 	  cs_error(link, RequestIRQ, i);
 	  break;
@@ -3932,7 +3932,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
        */
       link->conf.ConfigIndex = 1;
       i = pcmcia_request_configuration(link, &link->conf);
-      if(i != CS_SUCCESS)
+      if (i != 0)
 	{
 	  cs_error(link, RequestConfiguration, i);
 	  break;
@@ -3948,7 +3948,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
       req.Base = req.Size = 0;
       req.AccessSpeed = mem_speed;
       i = pcmcia_request_window(&link, &req, &link->win);
-      if(i != CS_SUCCESS)
+      if (i != 0)
 	{
 	  cs_error(link, RequestWindow, i);
 	  break;
@@ -3960,7 +3960,7 @@ wv_pcmcia_config(struct pcmcia_device *	link)
 
       mem.CardOffset = 0; mem.Page = 0;
       i = pcmcia_map_mem_page(link->win, &mem);
-      if(i != CS_SUCCESS)
+      if (i != 0)
 	{
 	  cs_error(link, MapMemPage, i);
 	  break;

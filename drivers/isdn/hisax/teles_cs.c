@@ -228,20 +228,20 @@ static int teles_cs_config(struct pcmcia_device *link)
     dev = link->priv;
 
     i = pcmcia_loop_config(link, teles_cs_configcheck, NULL);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
 	last_fn = RequestIO;
 	goto cs_failed;
     }
 
     i = pcmcia_request_irq(link, &link->irq);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
         link->irq.AssignedIRQ = 0;
 	last_fn = RequestIRQ;
         goto cs_failed;
     }
 
     i = pcmcia_request_configuration(link, &link->conf);
-    if (i != CS_SUCCESS) {
+    if (i != 0) {
       last_fn = RequestConfiguration;
       goto cs_failed;
     }

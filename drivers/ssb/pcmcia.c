@@ -80,7 +80,7 @@ static int ssb_pcmcia_cfg_write(struct ssb_bus *bus, u8 offset, u8 value)
 	reg.Action = CS_WRITE;
 	reg.Value = value;
 	res = pcmcia_access_configuration_register(bus->host_pcmcia, &reg);
-	if (unlikely(res != CS_SUCCESS))
+	if (unlikely(res != 0))
 		return -EBUSY;
 
 	return 0;
@@ -96,7 +96,7 @@ static int ssb_pcmcia_cfg_read(struct ssb_bus *bus, u8 offset, u8 *value)
 	reg.Offset = offset;
 	reg.Action = CS_READ;
 	res = pcmcia_access_configuration_register(bus->host_pcmcia, &reg);
-	if (unlikely(res != CS_SUCCESS))
+	if (unlikely(res != 0))
 		return -EBUSY;
 	*value = reg.Value;
 
@@ -638,17 +638,17 @@ int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	res = pcmcia_get_first_tuple(bus->host_pcmcia, &tuple);
-	GOTO_ERROR_ON(res != CS_SUCCESS, "MAC first tpl");
+	GOTO_ERROR_ON(res != 0, "MAC first tpl");
 	res = pcmcia_get_tuple_data(bus->host_pcmcia, &tuple);
-	GOTO_ERROR_ON(res != CS_SUCCESS, "MAC first tpl data");
+	GOTO_ERROR_ON(res != 0, "MAC first tpl data");
 	while (1) {
 		GOTO_ERROR_ON(tuple.TupleDataLen < 1, "MAC tpl < 1");
 		if (tuple.TupleData[0] == CISTPL_FUNCE_LAN_NODE_ID)
 			break;
 		res = pcmcia_get_next_tuple(bus->host_pcmcia, &tuple);
-		GOTO_ERROR_ON(res != CS_SUCCESS, "MAC next tpl");
+		GOTO_ERROR_ON(res != 0, "MAC next tpl");
 		res = pcmcia_get_tuple_data(bus->host_pcmcia, &tuple);
-		GOTO_ERROR_ON(res != CS_SUCCESS, "MAC next tpl data");
+		GOTO_ERROR_ON(res != 0, "MAC next tpl data");
 	}
 	GOTO_ERROR_ON(tuple.TupleDataLen != ETH_ALEN + 2, "MAC tpl size");
 	memcpy(sprom->il0mac, &tuple.TupleData[2], ETH_ALEN);
@@ -659,9 +659,9 @@ int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 	tuple.TupleData = buf;
 	tuple.TupleDataMax = sizeof(buf);
 	res = pcmcia_get_first_tuple(bus->host_pcmcia, &tuple);
-	GOTO_ERROR_ON(res != CS_SUCCESS, "VEN first tpl");
+	GOTO_ERROR_ON(res != 0, "VEN first tpl");
 	res = pcmcia_get_tuple_data(bus->host_pcmcia, &tuple);
-	GOTO_ERROR_ON(res != CS_SUCCESS, "VEN first tpl data");
+	GOTO_ERROR_ON(res != 0, "VEN first tpl data");
 	while (1) {
 		GOTO_ERROR_ON(tuple.TupleDataLen < 1, "VEN tpl < 1");
 		switch (tuple.TupleData[0]) {
@@ -735,9 +735,9 @@ int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 		res = pcmcia_get_next_tuple(bus->host_pcmcia, &tuple);
 		if (res == CS_NO_MORE_ITEMS)
 			break;
-		GOTO_ERROR_ON(res != CS_SUCCESS, "VEN next tpl");
+		GOTO_ERROR_ON(res != 0, "VEN next tpl");
 		res = pcmcia_get_tuple_data(bus->host_pcmcia, &tuple);
-		GOTO_ERROR_ON(res != CS_SUCCESS, "VEN next tpl data");
+		GOTO_ERROR_ON(res != 0, "VEN next tpl data");
 	}
 
 	return 0;

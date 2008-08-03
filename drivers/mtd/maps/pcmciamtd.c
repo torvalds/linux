@@ -118,7 +118,8 @@ static caddr_t remap_window(struct map_info *map, unsigned long to)
 		DEBUG(2, "Remapping window from 0x%8.8x to 0x%8.8x",
 		      dev->offset, mrq.CardOffset);
 		mrq.Page = 0;
-		if( (ret = pcmcia_map_mem_page(win, &mrq)) != CS_SUCCESS) {
+		ret = pcmcia_map_mem_page(win, &mrq);
+		if (ret != 0) {
 			cs_error(dev->p_dev, MapMemPage, ret);
 			return NULL;
 		}
@@ -326,9 +327,8 @@ static void pcmciamtd_set_vpp(struct map_info *map, int on)
 
 	DEBUG(2, "dev = %p on = %d vpp = %d\n", dev, on, dev->vpp);
 	ret = pcmcia_modify_configuration(link, &mod);
-	if(ret != CS_SUCCESS) {
+	if (ret != 0)
 		cs_error(link, ModifyConfiguration, ret);
-	}
 }
 
 
@@ -368,14 +368,14 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *link,
 	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
 
 	rc = pcmcia_get_first_tuple(link, &tuple);
-	while(rc == CS_SUCCESS) {
+	while (rc == 0) {
 		rc = pcmcia_get_tuple_data(link, &tuple);
-		if(rc != CS_SUCCESS) {
+		if (rc != 0) {
 			cs_error(link, GetTupleData, rc);
 			break;
 		}
 		rc = pcmcia_parse_tuple(link, &tuple, &parse);
-		if(rc != CS_SUCCESS) {
+		if (rc != 0) {
 			cs_error(link, ParseTuple, rc);
 			break;
 		}
@@ -500,9 +500,8 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 
 	DEBUG(2, "Validating CIS");
 	ret = pcmcia_validate_cis(link, NULL);
-	if(ret != CS_SUCCESS) {
+	if (ret != 0)
 		cs_error(link, GetTupleData, ret);
-	}
 
 	card_settings(dev, link, &new_name);
 
@@ -582,7 +581,7 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	link->conf.ConfigIndex = 0;
 	DEBUG(2, "Setting Configuration");
 	ret = pcmcia_request_configuration(link, &link->conf);
-	if(ret != CS_SUCCESS) {
+	if (ret != 0) {
 		cs_error(link, RequestConfiguration, ret);
 		if (dev->win_base) {
 			iounmap(dev->win_base);

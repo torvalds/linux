@@ -238,7 +238,7 @@ int __ref cb_alloc(struct pcmcia_socket * s)
 	pci_bus_add_devices(bus);
 
 	s->irq.AssignedIRQ = s->pci_irq;
-	return CS_SUCCESS;
+	return 0;
 }
 
 void cb_free(struct pcmcia_socket * s)

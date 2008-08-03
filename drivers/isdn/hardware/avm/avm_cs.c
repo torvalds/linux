@@ -197,7 +197,7 @@ static int avmcs_config(struct pcmcia_device *link)
 	 * allocate an interrupt line
 	 */
 	i = pcmcia_request_irq(link, &link->irq);
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 	    cs_error(link, RequestIRQ, i);
 	    /* undo */
 	    pcmcia_disable_device(link);
@@ -208,7 +208,7 @@ static int avmcs_config(struct pcmcia_device *link)
          * configure the PCMCIA socket
 	  */
 	i = pcmcia_request_configuration(link, &link->conf);
-	if (i != CS_SUCCESS) {
+	if (i != 0) {
 	    cs_error(link, RequestConfiguration, i);
 	    pcmcia_disable_device(link);
 	    break;
