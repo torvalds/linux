@@ -45,6 +45,15 @@ struct cryptomgr_param {
 
 	char larval[CRYPTO_MAX_ALG_NAME];
 	char template[CRYPTO_MAX_ALG_NAME];
+
+	u32 otype;
+	u32 omask;
+};
+
+struct crypto_test_param {
+	char driver[CRYPTO_MAX_ALG_NAME];
+	char alg[CRYPTO_MAX_ALG_NAME];
+	u32 type;
 };
 
 static int cryptomgr_probe(void *data)
@@ -76,8 +85,7 @@ out:
 	module_put_and_exit(0);
 
 err:
-	crypto_larval_error(param->larval, param->type.data.type,
-			    param->type.data.mask);
+	crypto_larval_error(param->larval, param->otype, param->omask);
 	goto out;
 }
 
@@ -169,13 +177,68 @@ static int cryptomgr_schedule_probe(struct crypto_larval *larval)
 
 	param->type.attr.rta_len = sizeof(param->type);
 	param->type.attr.rta_type = CRYPTOA_TYPE;
-	param->type.data.type = larval->alg.cra_flags;
-	param->type.data.mask = larval->mask;
+	param->type.data.type = larval->alg.cra_flags & ~CRYPTO_ALG_TESTED;
+	param->type.data.mask = larval->mask & ~CRYPTO_ALG_TESTED;
 	param->tb[0] = &param->type.attr;
+
+	param->otype = larval->alg.cra_flags;
+	param->omask = larval->mask;
 
 	memcpy(param->larval, larval->alg.cra_name, CRYPTO_MAX_ALG_NAME);
 
-	thread = kthread_run(cryptomgr_probe, param, "cryptomgr");
+	thread = kthread_run(cryptomgr_probe, param, "cryptomgr_probe");
+	if (IS_ERR(thread))
+		goto err_free_param;
+
+	return NOTIFY_STOP;
+
+err_free_param:
+	kfree(param);
+err_put_module:
+	module_put(THIS_MODULE);
+err:
+	return NOTIFY_OK;
+}
+
+static int cryptomgr_test(void *data)
+{
+	struct crypto_test_param *param = data;
+	u32 type = param->type;
+	int err = 0;
+
+	if (!((type ^ CRYPTO_ALG_TYPE_BLKCIPHER) &
+	      CRYPTO_ALG_TYPE_BLKCIPHER_MASK) && !(type & CRYPTO_ALG_GENIV))
+		goto skiptest;
+
+	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER)
+		goto skiptest;
+
+	err = alg_test(param->driver, param->alg, 0, CRYPTO_ALG_TESTED);
+
+skiptest:
+	crypto_alg_tested(param->driver, err);
+
+	kfree(param);
+	module_put_and_exit(0);
+}
+
+static int cryptomgr_schedule_test(struct crypto_alg *alg)
+{
+	struct task_struct *thread;
+	struct crypto_test_param *param;
+
+	if (!try_module_get(THIS_MODULE))
+		goto err;
+
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param)
+		goto err_put_module;
+
+	memcpy(param->driver, alg->cra_driver_name, sizeof(param->driver));
+	memcpy(param->alg, alg->cra_name, sizeof(param->alg));
+	param->type = alg->cra_flags;
+
+	thread = kthread_run(cryptomgr_test, param, "cryptomgr_test");
 	if (IS_ERR(thread))
 		goto err_free_param;
 
@@ -195,6 +258,8 @@ static int cryptomgr_notify(struct notifier_block *this, unsigned long msg,
 	switch (msg) {
 	case CRYPTO_MSG_ALG_REQUEST:
 		return cryptomgr_schedule_probe(data);
+	case CRYPTO_MSG_ALG_REGISTER:
+		return cryptomgr_schedule_test(data);
 	}
 
 	return NOTIFY_DONE;

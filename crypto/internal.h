@@ -94,9 +94,11 @@ void crypto_exit_digest_ops(struct crypto_tfm *tfm);
 void crypto_exit_cipher_ops(struct crypto_tfm *tfm);
 void crypto_exit_compress_ops(struct crypto_tfm *tfm);
 
+struct crypto_larval *crypto_larval_alloc(const char *name, u32 type, u32 mask);
 void crypto_larval_kill(struct crypto_alg *alg);
 struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask);
 void crypto_larval_error(const char *name, u32 type, u32 mask);
+void crypto_alg_tested(const char *name, int err);
 
 void crypto_shoot_alg(struct crypto_alg *alg);
 struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
@@ -107,6 +109,7 @@ int crypto_register_instance(struct crypto_template *tmpl,
 
 int crypto_register_notifier(struct notifier_block *nb);
 int crypto_unregister_notifier(struct notifier_block *nb);
+int crypto_probing_notify(unsigned long val, void *v);
 
 int __init testmgr_init(void);
 void testmgr_exit(void);
@@ -142,9 +145,9 @@ static inline int crypto_is_moribund(struct crypto_alg *alg)
 	return alg->cra_flags & (CRYPTO_ALG_DEAD | CRYPTO_ALG_DYING);
 }
 
-static inline int crypto_notify(unsigned long val, void *v)
+static inline void crypto_notify(unsigned long val, void *v)
 {
-	return blocking_notifier_call_chain(&crypto_chain, val, v);
+	blocking_notifier_call_chain(&crypto_chain, val, v);
 }
 
 #endif	/* _CRYPTO_INTERNAL_H */

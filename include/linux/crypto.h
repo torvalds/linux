@@ -61,6 +61,14 @@
 #define CRYPTO_ALG_GENIV		0x00000200
 
 /*
+ * Set if the algorithm has passed automated run-time testing.  Note that
+ * if there is no run-time testing for a given algorithm it is considered
+ * to have passed.
+ */
+
+#define CRYPTO_ALG_TESTED		0x00000400
+
+/*
  * Transform masks and values (for crt_flags).
  */
 #define CRYPTO_TFM_REQ_MASK		0x000fff00
