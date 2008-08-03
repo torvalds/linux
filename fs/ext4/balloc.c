@@ -321,12 +321,15 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	if (bh_uptodate_or_lock(bh))
 		return bh;
 
+	spin_lock(sb_bgl_lock(EXT4_SB(sb), block_group));
 	if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 		ext4_init_block_bitmap(sb, bh, block_group, desc);
 		set_buffer_uptodate(bh);
 		unlock_buffer(bh);
+		spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
 		return bh;
 	}
+	spin_unlock(sb_bgl_lock(EXT4_SB(sb), block_group));
 	if (bh_submit_read(bh) < 0) {
 		put_bh(bh);
 		ext4_error(sb, __func__,

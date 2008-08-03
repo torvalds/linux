@@ -787,13 +787,16 @@ static int ext4_mb_init_cache(struct page *page, char *incore)
 		if (bh_uptodate_or_lock(bh[i]))
 			continue;
 
+		spin_lock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
 		if (desc->bg_flags & cpu_to_le16(EXT4_BG_BLOCK_UNINIT)) {
 			ext4_init_block_bitmap(sb, bh[i],
 						first_group + i, desc);
 			set_buffer_uptodate(bh[i]);
 			unlock_buffer(bh[i]);
+			spin_unlock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
 			continue;
 		}
+		spin_unlock(sb_bgl_lock(EXT4_SB(sb), first_group + i));
 		get_bh(bh[i]);
 		bh[i]->b_end_io = end_buffer_read_sync;
 		submit_bh(READ, bh[i]);
