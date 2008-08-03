@@ -20,7 +20,7 @@ unsigned long acpi_realmode_flags;
 /* address in low memory of the wakeup routine. */
 static unsigned long acpi_realmode;
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_SMP) && defined(CONFIG_64BIT)
 static char temp_stack[10240];
 #endif
 
