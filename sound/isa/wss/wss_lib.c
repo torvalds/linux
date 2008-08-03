@@ -1866,10 +1866,6 @@ int snd_wss_pcm(struct snd_wss *chip, int device, struct snd_pcm **rpcm)
 	if (err < 0)
 		return err;
 
-	spin_lock_init(&chip->reg_lock);
-	mutex_init(&chip->mce_mutex);
-	mutex_init(&chip->open_mutex);
-
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_wss_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_wss_capture_ops);
 
