@@ -175,7 +175,7 @@ static inline int adjust_irq(struct pcmcia_socket *s, adjust_t *adj) {
 static int pcmcia_adjust_resource_info(adjust_t *adj)
 {
 	struct pcmcia_socket *s;
-	int ret = CS_UNSUPPORTED_FUNCTION;
+	int ret = -ENOSYS;
 	unsigned long flags;
 
 	down_read(&pcmcia_socket_list_rwsem);
@@ -975,7 +975,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    err = -ENOSPC; break;
 	case CS_NO_MORE_ITEMS:
 	    err = -ENODATA; break;
-	case CS_UNSUPPORTED_FUNCTION:
+	case -ENOSYS:
 	    err = -ENOSYS; break;
 	default:
 	    err = -EIO; break;

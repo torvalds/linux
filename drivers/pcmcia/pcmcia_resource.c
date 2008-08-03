@@ -475,8 +475,10 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	if (!(s->state & SOCKET_PRESENT))
 		return CS_NO_CARD;
 
-	if (req->IntType & INT_CARDBUS)
-		return CS_UNSUPPORTED_MODE;
+	if (req->IntType & INT_CARDBUS) {
+		ds_dbg(p_dev->socket, 0, "IntType may not be INT_CARDBUS\n");
+		return -EINVAL;
+	}
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;
@@ -592,7 +594,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 		return CS_NO_CARD;
 
 	if (!req)
-		return CS_UNSUPPORTED_MODE;
+		return -EINVAL;
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;

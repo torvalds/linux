@@ -1397,7 +1397,7 @@ int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 	ret = 0;
 	break;
     default:
-	ret = CS_UNSUPPORTED_FUNCTION;
+	ret = -EINVAL;
 	break;
     }
     return ret;

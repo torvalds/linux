@@ -769,7 +769,7 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {
-			ret = CS_UNSUPPORTED_FUNCTION;
+			ret = -EPERM;
 			break;
 		}
 
@@ -810,7 +810,7 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt)
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {
-			ret = CS_UNSUPPORTED_FUNCTION;
+			ret = -EPERM;
 			break;
 		}
 		if (skt->callback) {
@@ -840,7 +840,7 @@ int pcmcia_resume_card(struct pcmcia_socket *skt)
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {
-			ret = CS_UNSUPPORTED_FUNCTION;
+			ret = -EPERM;
 			break;
 		}
 		ret = socket_resume(skt);
