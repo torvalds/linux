@@ -15,9 +15,9 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 
-#include <asm/arch-ns9xxx/processor-ns9360.h>
-#include <asm/arch-ns9xxx/regs-sys-ns9360.h>
-#include <asm/arch-ns9xxx/irqs.h>
+#include <asm/arch/processor-ns9360.h>
+#include <asm/arch/regs-sys-ns9360.h>
+#include <asm/arch/irqs.h>
 #include <asm/arch/system.h>
 #include "generic.h"
 

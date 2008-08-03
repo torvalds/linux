@@ -13,12 +13,12 @@
 #include <asm/mach/map.h>
 #include <asm/gpio.h>
 
-#include <asm/arch-ns9xxx/board.h>
-#include <asm/arch-ns9xxx/processor-ns9360.h>
-#include <asm/arch-ns9xxx/regs-sys-ns9360.h>
-#include <asm/arch-ns9xxx/regs-mem.h>
-#include <asm/arch-ns9xxx/regs-bbu.h>
-#include <asm/arch-ns9xxx/regs-board-a9m9750dev.h>
+#include <asm/arch/board.h>
+#include <asm/arch/processor-ns9360.h>
+#include <asm/arch/regs-sys-ns9360.h>
+#include <asm/arch/regs-mem.h>
+#include <asm/arch/regs-bbu.h>
+#include <asm/arch/regs-board-a9m9750dev.h>
 
 #include "board-a9m9750dev.h"
 

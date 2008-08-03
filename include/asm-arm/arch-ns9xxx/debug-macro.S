@@ -9,7 +9,7 @@
  */
 #include <asm/hardware.h>
 
-#include <asm/arch-ns9xxx/regs-board-a9m9750dev.h>
+#include <asm/arch/regs-board-a9m9750dev.h>
 
 		.macro	addruart,rx
 		mrc	p15, 0, \rx, c1, c0

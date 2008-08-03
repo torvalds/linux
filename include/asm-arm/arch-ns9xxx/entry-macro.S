@@ -9,7 +9,7 @@
  * the Free Software Foundation.
  */
 #include <asm/hardware.h>
-#include <asm/arch-ns9xxx/regs-sys-common.h>
+#include <asm/arch/regs-sys-common.h>
 
 		.macro	get_irqnr_preamble, base, tmp
 		ldr	\base, =SYS_ISRADDR

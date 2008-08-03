@@ -12,8 +12,8 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/proc-fns.h>
-#include <asm/arch-ns9xxx/processor.h>
-#include <asm/arch-ns9xxx/processor-ns9360.h>
+#include <asm/arch/processor.h>
+#include <asm/arch/processor-ns9360.h>
 
 static inline void arch_idle(void)
 {
