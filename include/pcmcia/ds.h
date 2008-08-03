@@ -249,7 +249,18 @@ struct pcmcia_device {
 #define handle_to_dev(handle) (handle->dev)
 
 /* error reporting */
-void cs_error(struct pcmcia_device *handle, int func, int ret);
+
+const char *pcmcia_error_func(int func);
+const char *pcmcia_error_ret(int ret);
+
+#define cs_error(p_dev, func, ret)			\
+	{						\
+		dev_printk(KERN_NOTICE, &p_dev->dev,	\
+			   "%s : %s\n",			\
+			   pcmcia_error_func(func),	\
+			   pcmcia_error_ret(ret));	\
+	}
+
 
 #endif /* __KERNEL__ */
 #endif /* _LINUX_DS_H */

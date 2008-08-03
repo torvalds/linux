@@ -69,8 +69,8 @@ spinlock_t pcmcia_dev_list_lock;
 /* String tables for error messages */
 
 typedef struct lookup_t {
-    int key;
-    char *msg;
+    const int key;
+    const char *msg;
 } lookup_t;
 
 static const lookup_t error_table[] = {
@@ -137,46 +137,32 @@ static const lookup_t service_table[] = {
     { ReplaceCIS,			"ReplaceCIS" }
 };
 
-
-static int pcmcia_report_error(struct pcmcia_device *p_dev, error_info_t *err)
+const char *pcmcia_error_func(int func)
 {
 	int i;
-	char *serv;
-
-	if (!p_dev)
-		printk(KERN_NOTICE);
-	else
-		printk(KERN_NOTICE "%s: ", p_dev->dev.bus_id);
 
 	for (i = 0; i < ARRAY_SIZE(service_table); i++)
-		if (service_table[i].key == err->func)
-			break;
-	if (i < ARRAY_SIZE(service_table))
-		serv = service_table[i].msg;
-	else
-		serv = "Unknown service number";
+		if (service_table[i].key == func)
+			return service_table[i].msg;
+
+	return "Unknown service number";
+}
+EXPORT_SYMBOL(pcmcia_error_func);
+
+const char *pcmcia_error_ret(int ret)
+{
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(error_table); i++)
-		if (error_table[i].key == err->retcode)
-			break;
-	if (i < ARRAY_SIZE(error_table))
-		printk("%s: %s\n", serv, error_table[i].msg);
-	else
-		printk("%s: Unknown error code %#x\n", serv, err->retcode);
+		if (error_table[i].key == ret)
+			return error_table[i].msg;
 
-	return 0;
-} /* report_error */
-
-/* end of code which was in cs.c before */
+	return "unknown";
+}
+EXPORT_SYMBOL(pcmcia_error_ret);
 
 /*======================================================================*/
 
-void cs_error(struct pcmcia_device *p_dev, int func, int ret)
-{
-	error_info_t err = { func, ret };
-	pcmcia_report_error(p_dev, &err);
-}
-EXPORT_SYMBOL(cs_error);
 
 
 static void pcmcia_check_driver(struct pcmcia_driver *p_drv)
