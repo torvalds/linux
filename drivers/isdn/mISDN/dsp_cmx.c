@@ -1192,7 +1192,7 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 	 * we set our new read pointer, and write silence to buffer
 	 */
 	if (((dsp->rx_W-dsp->rx_R) & CMX_BUFF_MASK) >= CMX_BUFF_HALF) {
-		if (dsp_debug & DEBUG_DSP_CMX)
+		if (dsp_debug & DEBUG_DSP_CLOCK)
 			printk(KERN_DEBUG
 			    "cmx_receive(dsp=%lx): UNDERRUN (or overrun the "
 			    "maximum delay), adjusting read pointer! "
@@ -1218,7 +1218,7 @@ dsp_cmx_receive(struct dsp *dsp, struct sk_buff *skb)
 	if (dsp->cmx_delay)
 		if (((dsp->rx_W - dsp->rx_R) & CMX_BUFF_MASK) >=
 		    (dsp->cmx_delay << 1)) {
-			if (dsp_debug & DEBUG_DSP_CMX)
+			if (dsp_debug & DEBUG_DSP_CLOCK)
 				printk(KERN_DEBUG
 				    "cmx_receive(dsp=%lx): OVERRUN (because "
 				    "twice the delay is reached), adjusting "
@@ -1374,8 +1374,9 @@ dsp_cmx_send_member(struct dsp *dsp, int len, s32 *c, int members)
 				r = (r+1) & CMX_BUFF_MASK;
 			}
 			if (r != rr) {
-				printk(KERN_DEBUG "%s: buffer empty\n",
-					__func__);
+				if (dsp_debug & DEBUG_DSP_CLOCK)
+					printk(KERN_DEBUG "%s: RX empty\n",
+						__func__);
 				memset(d, dsp_silence, (rr-r)&CMX_BUFF_MASK);
 			}
 		/* -> if echo is enabled */
@@ -1724,7 +1725,7 @@ dsp_cmx_send(void *arg)
 			 * the delay is greater dsp_poll
 			 */
 			if (delay > dsp_poll && !dsp->cmx_delay) {
-				if (dsp_debug & DEBUG_DSP_CMX)
+				if (dsp_debug & DEBUG_DSP_CLOCK)
 					printk(KERN_DEBUG
 					    "%s lowest rx_delay of %d bytes for"
 					    " dsp %s are now removed.\n",
@@ -1755,7 +1756,7 @@ dsp_cmx_send(void *arg)
 			 * have enabled tx_dejitter
 			 */
 			if (delay > dsp_poll && dsp->tx_dejitter) {
-				if (dsp_debug & DEBUG_DSP_CMX)
+				if (dsp_debug & DEBUG_DSP_CLOCK)
 					printk(KERN_DEBUG
 					    "%s lowest tx_delay of %d bytes for"
 					    " dsp %s are now removed.\n",
@@ -1821,7 +1822,8 @@ dsp_cmx_transmit(struct dsp *dsp, struct sk_buff *skb)
 	if (space < skb->len) {
 		/* write to the space we have left */
 		ww = (ww - 1) & CMX_BUFF_MASK; /* end one byte prior tx_R */
-		printk(KERN_DEBUG "%s: buffer overflow\n", __func__);
+		if (dsp_debug & DEBUG_DSP_CLOCK)
+			printk(KERN_DEBUG "%s: TX overflow\n", __func__);
 	} else
 		/* write until all byte are copied */
 		ww = (w + skb->len) & CMX_BUFF_MASK;
