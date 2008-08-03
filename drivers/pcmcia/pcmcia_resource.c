@@ -175,7 +175,7 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 
 	if (!(c->state & CONFIG_LOCKED))
-		return CS_CONFIGURATION_LOCKED;
+		return -EACCES;
 
 	addr = (c->ConfigBase + reg->Offset) >> 1;
 
@@ -278,7 +278,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
 	if (!(c->state & CONFIG_LOCKED))
-		return CS_CONFIGURATION_LOCKED;
+		return -EACCES;
 
 	if (mod->Attributes & CONF_IRQ_CHANGE_VALID) {
 		if (mod->Attributes & CONF_ENABLE_IRQ) {
@@ -419,7 +419,7 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	p_dev->_irq = 0;
 
 	if (c->state & CONFIG_LOCKED)
-		return CS_CONFIGURATION_LOCKED;
+		return -EACCES;
 	if (c->irq.Attributes != req->Attributes)
 		return CS_BAD_ATTRIBUTE;
 	if (s->irq.AssignedIRQ != req->AssignedIRQ)
@@ -489,7 +489,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	}
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
-		return CS_CONFIGURATION_LOCKED;
+		return -EACCES;
 
 	/* Do power control.  We don't allow changes in Vcc. */
 	s->socket.Vpp = req->Vpp;
@@ -608,7 +608,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 		return -EINVAL;
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
-		return CS_CONFIGURATION_LOCKED;
+		return -EACCES;
 	if (c->state & CONFIG_IO_REQ)
 		return CS_IN_USE;
 	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))
@@ -665,7 +665,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		return -ENODEV;
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
-		return CS_CONFIGURATION_LOCKED;
+		return -EACCES;
 	if (c->state & CONFIG_IRQ_REQ)
 		return CS_IN_USE;
 

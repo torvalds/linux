@@ -86,7 +86,7 @@ static const lookup_t error_table[] = {
     { -ENODEV,			"No card present" },
     { -EINVAL,			"Bad parameter" },
     { CS_BAD_ARGS,		"Bad arguments" },
-    { CS_CONFIGURATION_LOCKED,	"Configuration locked" },
+    { -EACCES,			"Configuration locked" },
     { CS_IN_USE,		"Resource in use" },
     { CS_NO_MORE_ITEMS,		"No more items" },
     { CS_OUT_OF_RESOURCE,	"Out of resource" },

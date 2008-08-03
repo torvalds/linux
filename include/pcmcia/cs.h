@@ -313,7 +313,7 @@ typedef struct error_info_t {
 #define CS_WRITE_PROTECTED	-EPERM
 #define CS_BAD_ARG_LENGTH	-ENODEV
 #define CS_BAD_ARGS		0x1c
-#define CS_CONFIGURATION_LOCKED	0x1d
+#define CS_CONFIGURATION_LOCKED	-EACCES
 #define CS_IN_USE		0x1e
 #define CS_NO_MORE_ITEMS	0x1f
 #define CS_OUT_OF_RESOURCE	-ENOMEM
