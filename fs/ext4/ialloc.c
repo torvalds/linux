@@ -97,34 +97,41 @@ unsigned ext4_init_inode_bitmap(struct super_block *sb, struct buffer_head *bh,
  * Return buffer_head of bitmap on success or NULL.
  */
 static struct buffer_head *
-read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
+ext4_read_inode_bitmap(struct super_block *sb, ext4_group_t block_group)
 {
 	struct ext4_group_desc *desc;
 	struct buffer_head *bh = NULL;
+	ext4_fsblk_t bitmap_blk;
 
 	desc = ext4_get_group_desc(sb, block_group, NULL);
 	if (!desc)
-		goto error_out;
-	if (desc->bg_flags & cpu_to_le16(EXT4_BG_INODE_UNINIT)) {
-		bh = sb_getblk(sb, ext4_inode_bitmap(sb, desc));
-		if (!buffer_uptodate(bh)) {
-			lock_buffer(bh);
-			if (!buffer_uptodate(bh)) {
-				ext4_init_inode_bitmap(sb, bh, block_group,
-						       desc);
-				set_buffer_uptodate(bh);
-			}
-			unlock_buffer(bh);
-		}
-	} else {
-		bh = sb_bread(sb, ext4_inode_bitmap(sb, desc));
-	}
-	if (!bh)
-		ext4_error(sb, "read_inode_bitmap",
+		return NULL;
+	bitmap_blk = ext4_inode_bitmap(sb, desc);
+	bh = sb_getblk(sb, bitmap_blk);
+	if (unlikely(!bh)) {
+		ext4_error(sb, __func__,
 			    "Cannot read inode bitmap - "
 			    "block_group = %lu, inode_bitmap = %llu",
-			    block_group, ext4_inode_bitmap(sb, desc));
-error_out:
+			    block_group, bitmap_blk);
+		return NULL;
+	}
+	if (bh_uptodate_or_lock(bh))
+		return bh;
+
+	if (desc->bg_flags & cpu_to_le16(EXT4_BG_INODE_UNINIT)) {
+		ext4_init_inode_bitmap(sb, bh, block_group, desc);
+		set_buffer_uptodate(bh);
+		unlock_buffer(bh);
+		return bh;
+	}
+	if (bh_submit_read(bh) < 0) {
+		put_bh(bh);
+		ext4_error(sb, __func__,
+			    "Cannot read inode bitmap - "
+			    "block_group = %lu, inode_bitmap = %llu",
+			    block_group, bitmap_blk);
+		return NULL;
+	}
 	return bh;
 }
 
@@ -200,7 +207,7 @@ void ext4_free_inode (handle_t *handle, struct inode * inode)
 	}
 	block_group = (ino - 1) / EXT4_INODES_PER_GROUP(sb);
 	bit = (ino - 1) % EXT4_INODES_PER_GROUP(sb);
-	bitmap_bh = read_inode_bitmap(sb, block_group);
+	bitmap_bh = ext4_read_inode_bitmap(sb, block_group);
 	if (!bitmap_bh)
 		goto error_return;
 
@@ -623,7 +630,7 @@ got_group:
 			goto fail;
 
 		brelse(bitmap_bh);
-		bitmap_bh = read_inode_bitmap(sb, group);
+		bitmap_bh = ext4_read_inode_bitmap(sb, group);
 		if (!bitmap_bh)
 			goto fail;
 
@@ -891,7 +898,7 @@ struct inode *ext4_orphan_get(struct super_block *sb, unsigned long ino)
 
 	block_group = (ino - 1) / EXT4_INODES_PER_GROUP(sb);
 	bit = (ino - 1) % EXT4_INODES_PER_GROUP(sb);
-	bitmap_bh = read_inode_bitmap(sb, block_group);
+	bitmap_bh = ext4_read_inode_bitmap(sb, block_group);
 	if (!bitmap_bh) {
 		ext4_warning(sb, __func__,
 			     "inode bitmap error for orphan %lu", ino);
@@ -969,7 +976,7 @@ unsigned long ext4_count_free_inodes (struct super_block * sb)
 			continue;
 		desc_count += le16_to_cpu(gdp->bg_free_inodes_count);
 		brelse(bitmap_bh);
-		bitmap_bh = read_inode_bitmap(sb, i);
+		bitmap_bh = ext4_read_inode_bitmap(sb, i);
 		if (!bitmap_bh)
 			continue;
 

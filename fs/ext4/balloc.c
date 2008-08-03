@@ -314,8 +314,8 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 	if (unlikely(!bh)) {
 		ext4_error(sb, __func__,
 			    "Cannot read block bitmap - "
-			    "block_group = %d, block_bitmap = %llu",
-			    (int)block_group, (unsigned long long)bitmap_blk);
+			    "block_group = %lu, block_bitmap = %llu",
+			    block_group, bitmap_blk);
 		return NULL;
 	}
 	if (bh_uptodate_or_lock(bh))
@@ -331,8 +331,8 @@ ext4_read_block_bitmap(struct super_block *sb, ext4_group_t block_group)
 		put_bh(bh);
 		ext4_error(sb, __func__,
 			    "Cannot read block bitmap - "
-			    "block_group = %d, block_bitmap = %llu",
-			    (int)block_group, (unsigned long long)bitmap_blk);
+			    "block_group = %lu, block_bitmap = %llu",
+			    block_group, bitmap_blk);
 		return NULL;
 	}
 	ext4_valid_block_bitmap(sb, desc, block_group, bh);
