@@ -75,10 +75,6 @@ typedef struct lookup_t {
 
 static const lookup_t error_table[] = {
     { 0,			"Operation succeeded" },
-    { CS_BAD_BASE,		"Bad base address" },
-    { CS_BAD_IRQ,		"Bad IRQ" },
-    { CS_BAD_OFFSET,		"Bad offset" },
-    { CS_BAD_SIZE,		"Bad size" },
     { -EIO,			"Input/Output error" },
     { -ENODEV,			"No card present" },
     { -EINVAL,			"Bad parameter" },

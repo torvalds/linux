@@ -149,7 +149,7 @@ static int adjust_irq(struct pcmcia_socket *s, adjust_t *adj)
 
 	irq = adj->resource.irq.IRQ;
 	if ((irq < 0) || (irq > 15))
-		return CS_BAD_IRQ;
+		return -EINVAL;
 
 	if (adj->Action != REMOVE_MANAGED_RESOURCE)
 		return 0;
@@ -970,8 +970,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	case -ENOSYS:
 	    err = ret;
 	    break;
-	case CS_BAD_ARGS: case CS_BAD_IRQ:
-	case CS_BAD_TUPLE:
+	case CS_BAD_ARGS: case CS_BAD_TUPLE:
 	    err = -EINVAL; break;
 	case -ENOMEM:
 	    err = -ENOSPC; break;

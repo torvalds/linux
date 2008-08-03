@@ -257,8 +257,10 @@ int pcmcia_map_mem_page(window_handle_t win, memreq_t *req)
 		return -EINVAL;
 	}
 	win->ctl.card_start = req->CardOffset;
-	if (s->ops->set_mem_map(s, &win->ctl) != 0)
-		return CS_BAD_OFFSET;
+	if (s->ops->set_mem_map(s, &win->ctl) != 0) {
+		ds_dbg(s, 0, "failed to set_mem_map\n");
+		return -EIO;
+	}
 	return 0;
 } /* pcmcia_map_mem_page */
 EXPORT_SYMBOL(pcmcia_map_mem_page);
@@ -426,8 +428,10 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		ds_dbg(s, 0, "IRQ attributes must match assigned ones\n");
 		return -EINVAL;
 	}
-	if (s->irq.AssignedIRQ != req->AssignedIRQ)
-		return CS_BAD_IRQ;
+	if (s->irq.AssignedIRQ != req->AssignedIRQ) {
+		ds_dbg(s, 0, "IRQ must match assigned one\n");
+		return -EINVAL;
+	}
 	if (--s->irq.Config == 0) {
 		c->state &= ~CONFIG_IRQ_REQ;
 		s->irq.AssignedIRQ = 0;
@@ -802,11 +806,15 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	align = (((s->features & SS_CAP_MEM_ALIGN) ||
 		  (req->Attributes & WIN_STRICT_ALIGN)) ?
 		 req->Size : s->map_size);
-	if (req->Size & (s->map_size-1))
-		return CS_BAD_SIZE;
+	if (req->Size & (s->map_size-1)) {
+		ds_dbg(s, 0, "invalid map size\n");
+		return -EINVAL;
+	}
 	if ((req->Base && (s->features & SS_CAP_STATIC_MAP)) ||
-	    (req->Base & (align-1)))
-		return CS_BAD_BASE;
+	    (req->Base & (align-1))) {
+		ds_dbg(s, 0, "invalid base address\n");
+		return -EINVAL;
+	}
 	if (req->Base)
 		align = 0;
 
