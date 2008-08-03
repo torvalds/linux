@@ -367,7 +367,7 @@ static int socket_reset(struct pcmcia_socket *skt)
 		skt->ops->get_status(skt, &status);
 
 		if (!(status & SS_DETECT))
-			return CS_NO_CARD;
+			return -ENODEV;
 
 		if (status & SS_READY)
 			return 0;
@@ -428,14 +428,14 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 
 	skt->ops->get_status(skt, &status);
 	if (!(status & SS_DETECT))
-		return CS_NO_CARD;
+		return -ENODEV;
 
 	msleep(initial_delay * 10);
 
 	for (i = 0; i < 100; i++) {
 		skt->ops->get_status(skt, &status);
 		if (!(status & SS_DETECT))
-			return CS_NO_CARD;
+			return -ENODEV;
 
 		if (!(status & SS_PENDING))
 			break;
@@ -504,7 +504,7 @@ static int socket_insert(struct pcmcia_socket *skt)
 	cs_dbg(skt, 4, "insert\n");
 
 	if (!cs_socket_get(skt))
-		return CS_NO_CARD;
+		return -ENODEV;
 
 	ret = socket_setup(skt, setup_delay);
 	if (ret == 0) {
@@ -761,7 +761,7 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
-			ret = CS_NO_CARD;
+			ret = -ENODEV;
 			break;
 		}
 		if (skt->state & SOCKET_SUSPEND) {
@@ -806,7 +806,7 @@ int pcmcia_suspend_card(struct pcmcia_socket *skt)
 	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
-			ret = CS_NO_CARD;
+			ret = -ENODEV;
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {
@@ -836,7 +836,7 @@ int pcmcia_resume_card(struct pcmcia_socket *skt)
 	mutex_lock(&skt->skt_mutex);
 	do {
 		if (!(skt->state & SOCKET_PRESENT)) {
-			ret = CS_NO_CARD;
+			ret = -ENODEV;
 			break;
 		}
 		if (skt->state & SOCKET_CARDBUS) {
@@ -896,7 +896,7 @@ int pcmcia_insert_card(struct pcmcia_socket *skt)
 			ret = -EBUSY;
 			break;
 		}
-		if (socket_insert(skt) == CS_NO_CARD) {
+		if (socket_insert(skt) == -ENODEV) {
 			ret = -ENODEV;
 			break;
 		}

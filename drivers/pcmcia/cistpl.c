@@ -427,7 +427,7 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
     if (!s)
 	return CS_BAD_HANDLE;
     if (!(s->state & SOCKET_PRESENT))
-	return CS_NO_CARD;
+	return -ENODEV;
     tuple->TupleLink = tuple->Flags = 0;
 #ifdef CONFIG_CARDBUS
     if (s->state & SOCKET_CARDBUS) {
@@ -507,7 +507,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
     if (!s)
 	return CS_BAD_HANDLE;
     if (!(s->state & SOCKET_PRESENT))
-	return CS_NO_CARD;
+	return -ENODEV;
 
     link[1] = tuple->TupleLink;
     ofs = tuple->CISOffset + tuple->TupleLink;

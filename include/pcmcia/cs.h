@@ -304,7 +304,7 @@ typedef struct error_info_t {
 #define CS_BAD_VPP		-EINVAL
 #define CS_BAD_WINDOW		-ENODEV
 #define CS_WRITE_FAILURE	-EIO
-#define CS_NO_CARD		0x14
+#define CS_NO_CARD		-ENODEV
 #define CS_UNSUPPORTED_FUNCTION	-ENODEV
 #define CS_UNSUPPORTED_MODE	-ENODEV
 #define CS_BAD_SPEED		-ENODEV

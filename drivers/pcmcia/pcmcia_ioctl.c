@@ -248,7 +248,7 @@ static int pccard_get_status(struct pcmcia_socket *s,
 	if (s->state & SOCKET_SUSPEND)
 		status->CardState |= CS_EVENT_PM_SUSPEND;
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 
 	c = (p_dev) ? p_dev->function_config : NULL;
 
@@ -294,7 +294,7 @@ int pccard_get_configuration_info(struct pcmcia_socket *s,
 	config_t *c;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 
 
 #ifdef CONFIG_CARDBUS

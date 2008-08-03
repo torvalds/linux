@@ -169,7 +169,7 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 	u_char val;
 
 	if (!p_dev || !p_dev->function_config)
-		return CS_NO_CARD;
+		return -EINVAL;
 
 	s = p_dev->socket;
 	c = p_dev->function_config;
@@ -206,7 +206,7 @@ int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle,
 	int w;
 
 	if (!s || !(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 	for (w = idx; w < MAX_WIN; w++)
 		if (s->state & SOCKET_WIN_REQ(w))
 			break;
@@ -276,7 +276,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	c = p_dev->function_config;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 	if (!(c->state & CONFIG_LOCKED))
 		return CS_CONFIGURATION_LOCKED;
 
@@ -481,7 +481,7 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 	pccard_io_map iomap;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;;
 
 	if (req->IntType & INT_CARDBUS) {
 		ds_dbg(p_dev->socket, 0, "IntType may not be INT_CARDBUS\n");
@@ -602,7 +602,7 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 	config_t *c;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 
 	if (!req)
 		return -EINVAL;
@@ -662,7 +662,7 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	int type;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 	c = p_dev->function_config;
 	if (c->state & CONFIG_LOCKED)
 		return CS_CONFIGURATION_LOCKED;
@@ -771,7 +771,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	int w;
 
 	if (!(s->state & SOCKET_PRESENT))
-		return CS_NO_CARD;
+		return -ENODEV;
 	if (req->Attributes & (WIN_PAGED | WIN_SHARED))
 		return CS_BAD_ATTRIBUTE;
 

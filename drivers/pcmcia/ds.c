@@ -83,7 +83,7 @@ static const lookup_t error_table[] = {
     { CS_BAD_SIZE,		"Bad size" },
     { CS_BAD_TYPE,		"Bad type" },
     { -EIO,			"Input/Output error" },
-    { CS_NO_CARD,		"No card present" },
+    { -ENODEV,			"No card present" },
     { -EINVAL,			"Bad parameter" },
     { CS_GENERAL_FAILURE,	"General failure" },
     { CS_BAD_ARGS,		"Bad arguments" },
