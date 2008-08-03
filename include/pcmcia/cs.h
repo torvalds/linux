@@ -300,8 +300,8 @@ typedef struct error_info_t {
 #define CS_BAD_SIZE		0x0a
 #define CS_BAD_SOCKET		-EINVAL
 #define CS_BAD_TYPE		0x0d
-#define CS_BAD_VCC		0x0e
-#define CS_BAD_VPP		0x0f
+#define CS_BAD_VCC		-EINVAL
+#define CS_BAD_VPP		-EINVAL
 #define CS_BAD_WINDOW		-ENODEV
 #define CS_WRITE_FAILURE	-EIO
 #define CS_NO_CARD		0x14

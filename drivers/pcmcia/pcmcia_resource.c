@@ -291,20 +291,28 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		s->ops->set_socket(s, &s->socket);
 	}
 
-	if (mod->Attributes & CONF_VCC_CHANGE_VALID)
-		return CS_BAD_VCC;
+	if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
+		ds_dbg(s, 0, "changing Vcc is not allowed at this time\n");
+		return -EINVAL;
+	}
 
 	/* We only allow changing Vpp1 and Vpp2 to the same value */
 	if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) &&
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		if (mod->Vpp1 != mod->Vpp2)
-			return CS_BAD_VPP;
+			ds_dbg(s, 0, "Vpp1 and Vpp2 must be the same\n");
+			return -EINVAL;
 		s->socket.Vpp = mod->Vpp1;
-		if (s->ops->set_socket(s, &s->socket))
-			return CS_BAD_VPP;
+		if (s->ops->set_socket(s, &s->socket)) {
+			dev_printk(KERN_WARNING, &s->dev,
+				   "Unable to set VPP\n");
+			return -EIO;
+		}
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
-		   (mod->Attributes & CONF_VPP2_CHANGE_VALID))
-		return CS_BAD_VPP;
+		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
+		ds_dbg(s, 0, "changing Vcc is not allowed at this time\n");
+		return -EINVAL;
+	}
 
 	if (mod->Attributes & CONF_IO_CHANGE_WIDTH) {
 		pccard_io_map io_off = { 0, 0, 0, 0, 1 };
@@ -485,8 +493,11 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 
 	/* Do power control.  We don't allow changes in Vcc. */
 	s->socket.Vpp = req->Vpp;
-	if (s->ops->set_socket(s, &s->socket))
-		return CS_BAD_VPP;
+	if (s->ops->set_socket(s, &s->socket)) {
+		dev_printk(KERN_WARNING, &s->dev,
+			   "Unable to set socket state\n");
+		return -EINVAL;
+	}
 
 	/* Pick memory or I/O card, DMA mode, interrupt */
 	c->IntType = req->IntType;
