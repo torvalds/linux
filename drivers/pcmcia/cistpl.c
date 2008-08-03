@@ -352,7 +352,9 @@ int verify_cis_cache(struct pcmcia_socket *s)
 
 	buf = kmalloc(256, GFP_KERNEL);
 	if (buf == NULL)
-		return -1;
+		dev_printk(KERN_WARNING, &s->dev,
+			   "no memory for verifying CIS\n");
+		return -ENOMEM;
 	list_for_each_entry(cis, &s->cis_cache, node) {
 		int len = cis->len;
 
@@ -384,15 +386,19 @@ int verify_cis_cache(struct pcmcia_socket *s)
 int pcmcia_replace_cis(struct pcmcia_socket *s,
 		       const u8 *data, const size_t len)
 {
-    if (len > CISTPL_MAX_CIS_SIZE)
-	return CS_BAD_SIZE;
-    kfree(s->fake_cis);
-    s->fake_cis = kmalloc(len, GFP_KERNEL);
-    if (s->fake_cis == NULL)
-	return CS_OUT_OF_RESOURCE;
-    s->fake_cis_len = len;
-    memcpy(s->fake_cis, data, len);
-    return 0;
+	if (len > CISTPL_MAX_CIS_SIZE) {
+		dev_printk(KERN_WARNING, &s->dev, "replacement CIS too big\n");
+		return -EINVAL;
+	}
+	kfree(s->fake_cis);
+	s->fake_cis = kmalloc(len, GFP_KERNEL);
+	if (s->fake_cis == NULL) {
+		dev_printk(KERN_WARNING, &s->dev, "no memory to replace CIS\n");
+		return -ENOMEM;
+	}
+	s->fake_cis_len = len;
+	memcpy(s->fake_cis, data, len);
+	return 0;
 }
 EXPORT_SYMBOL(pcmcia_replace_cis);
 
@@ -1411,8 +1417,10 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function, cisdata_t 
     int ret;
 
     buf = kmalloc(256, GFP_KERNEL);
-    if (buf == NULL)
-	return CS_OUT_OF_RESOURCE;
+    if (buf == NULL) {
+	    dev_printk(KERN_WARNING, &s->dev, "no memory to read tuple\n");
+	    return -ENOMEM;
+    }
     tuple.DesiredTuple = code;
     tuple.Attributes = TUPLE_RETURN_COMMON;
     ret = pccard_get_first_tuple(s, function, &tuple);
@@ -1452,12 +1460,15 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
 	return CS_BAD_HANDLE;
 
     tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
-    if (tuple == NULL)
-	return CS_OUT_OF_RESOURCE;
+    if (tuple == NULL) {
+	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
+	    return -ENOMEM;
+    }
     p = kmalloc(sizeof(*p), GFP_KERNEL);
     if (p == NULL) {
-	kfree(tuple);
-	return CS_OUT_OF_RESOURCE;
+	    kfree(tuple);
+	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
+	    return -ENOMEM;
     }
 
     count = reserved = 0;

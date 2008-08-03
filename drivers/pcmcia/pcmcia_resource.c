@@ -780,7 +780,7 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 	for (w = 0; w < MAX_WIN; w++)
 		if (!(s->state & SOCKET_WIN_REQ(w))) break;
 	if (w == MAX_WIN)
-		return CS_OUT_OF_RESOURCE;
+		return CS_IN_USE;
 
 	win = &s->win[w];
 	win->magic = WINDOW_MAGIC;

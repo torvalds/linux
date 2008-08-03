@@ -491,7 +491,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
     if (!cfg_mem)
-        return CS_OUT_OF_RESOURCE;
+	    return -ENOMEM;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
@@ -690,7 +690,7 @@ static int smc_setup(struct pcmcia_device *link)
 
     cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
     if (!cfg_mem)
-	return CS_OUT_OF_RESOURCE;
+	    return -ENOMEM;
 
     tuple = &cfg_mem->tuple;
     parse = &cfg_mem->parse;
