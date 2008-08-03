@@ -425,7 +425,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int func, tuple_t *t
 int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple_t *tuple)
 {
     if (!s)
-	return CS_BAD_HANDLE;
+	return -EINVAL;
     if (!(s->state & SOCKET_PRESENT))
 	return -ENODEV;
     tuple->TupleLink = tuple->Flags = 0;
@@ -505,7 +505,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
     int ofs, i, attr;
 
     if (!s)
-	return CS_BAD_HANDLE;
+	return -EINVAL;
     if (!(s->state & SOCKET_PRESENT))
 	return -ENODEV;
 
@@ -603,7 +603,7 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
     u_int len;
 
     if (!s)
-	return CS_BAD_HANDLE;
+	return -EINVAL;
 
     if (tuple->TupleLink < tuple->TupleOffset)
 	return CS_NO_MORE_ITEMS;
@@ -1457,7 +1457,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
     int ret, reserved, dev_ok = 0, ident_ok = 0;
 
     if (!s)
-	return CS_BAD_HANDLE;
+	return -EINVAL;
 
     tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
     if (tuple == NULL) {

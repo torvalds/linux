@@ -238,7 +238,7 @@ EXPORT_SYMBOL(pcmcia_get_window);
 int pcmcia_get_mem_page(window_handle_t win, memreq_t *req)
 {
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
-		return CS_BAD_HANDLE;
+		return -EINVAL;
 	req->Page = 0;
 	req->CardOffset = win->ctl.card_start;
 	return 0;
@@ -250,7 +250,7 @@ int pcmcia_map_mem_page(window_handle_t win, memreq_t *req)
 {
 	struct pcmcia_socket *s;
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
-		return CS_BAD_HANDLE;
+		return -EINVAL;
 	if (req->Page != 0)
 		return CS_BAD_PAGE;
 	s = win->sock;
@@ -389,7 +389,7 @@ static int pcmcia_release_io(struct pcmcia_device *p_dev, io_req_t *req)
 	config_t *c = p_dev->function_config;
 
 	if (!p_dev->_io )
-		return CS_BAD_HANDLE;
+		return -EINVAL;
 
 	p_dev->_io = 0;
 
@@ -415,7 +415,7 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	config_t *c= p_dev->function_config;
 
 	if (!p_dev->_irq)
-		return CS_BAD_HANDLE;
+		return -EINVAL;
 	p_dev->_irq = 0;
 
 	if (c->state & CONFIG_LOCKED)
@@ -446,10 +446,10 @@ int pcmcia_release_window(window_handle_t win)
 	struct pcmcia_socket *s;
 
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
-		return CS_BAD_HANDLE;
+		return -EINVAL;
 	s = win->sock;
 	if (!(win->handle->_win & CLIENT_WIN_REQ(win->index)))
-		return CS_BAD_HANDLE;
+		return -EINVAL;
 
 	/* Shut down memory window */
 	win->ctl.flags &= ~MAP_ACTIVE;

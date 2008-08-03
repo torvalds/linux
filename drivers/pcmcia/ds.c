@@ -90,7 +90,6 @@ static const lookup_t error_table[] = {
     { CS_IN_USE,		"Resource in use" },
     { CS_NO_MORE_ITEMS,		"No more items" },
     { CS_OUT_OF_RESOURCE,	"Out of resource" },
-    { CS_BAD_HANDLE,		"Bad handle" },
     { CS_BAD_TUPLE,		"Bad CIS tuple" }
 };
 

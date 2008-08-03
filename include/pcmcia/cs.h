@@ -317,7 +317,7 @@ typedef struct error_info_t {
 #define CS_IN_USE		0x1e
 #define CS_NO_MORE_ITEMS	0x1f
 #define CS_OUT_OF_RESOURCE	-ENOMEM
-#define CS_BAD_HANDLE		0x21
+#define CS_BAD_HANDLE		-EINVAL
 
 #define CS_BAD_TUPLE		0x40
 
