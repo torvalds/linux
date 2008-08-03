@@ -138,6 +138,9 @@ typedef union ds_ioctl_arg_t {
 #define DS_UNBIND_REQUEST		_IOW ('d', 63, bind_info_t)
 #define DS_BIND_MTD			_IOWR('d', 64, mtd_info_t)
 
+/* used in userspace only */
+#define CS_IN_USE			0x1e
+
 #ifdef __KERNEL__
 #include <linux/device.h>
 #include <pcmcia/ss.h>
