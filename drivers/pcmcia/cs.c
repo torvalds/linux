@@ -376,7 +376,7 @@ static int socket_reset(struct pcmcia_socket *skt)
 	}
 
 	cs_err(skt, "time out after reset.\n");
-	return CS_GENERAL_FAILURE;
+	return -ETIMEDOUT;
 }
 
 /*
@@ -445,7 +445,7 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 
 	if (status & SS_PENDING) {
 		cs_err(skt, "voltage interrogation timed out.\n");
-		return CS_GENERAL_FAILURE;
+		return -ETIMEDOUT;
 	}
 
 	if (status & SS_CARDBUS) {

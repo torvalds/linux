@@ -309,7 +309,7 @@ typedef struct error_info_t {
 #define CS_UNSUPPORTED_MODE	-ENODEV
 #define CS_BAD_SPEED		-ENODEV
 #define CS_BUSY			-ENODEV
-#define CS_GENERAL_FAILURE	0x19
+#define CS_GENERAL_FAILURE	-ETIMEDOUT
 #define CS_WRITE_PROTECTED	-EPERM
 #define CS_BAD_ARG_LENGTH	-ENODEV
 #define CS_BAD_ARGS		0x1c
