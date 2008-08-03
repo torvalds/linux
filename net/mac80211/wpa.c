@@ -127,7 +127,7 @@ ieee80211_rx_h_michael_mic_verify(struct ieee80211_rx_data *rx)
 		if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 			return RX_DROP_UNUSABLE;
 
-		mac80211_ev_michael_mic_failure(rx->dev, rx->key->conf.keyidx,
+		mac80211_ev_michael_mic_failure(rx->sdata, rx->key->conf.keyidx,
 						(void *) skb->data);
 		return RX_DROP_UNUSABLE;
 	}

@@ -851,65 +851,65 @@ u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
 
 /* ieee80211_ioctl.c */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
-int ieee80211_set_freq(struct net_device *dev, int freq);
+int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
 
 /* ieee80211_sta.c */
 void ieee80211_sta_timer(unsigned long data);
 void ieee80211_sta_work(struct work_struct *work);
 void ieee80211_sta_scan_work(struct work_struct *work);
-void ieee80211_sta_rx_mgmt(struct net_device *dev, struct sk_buff *skb,
+void ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 			   struct ieee80211_rx_status *rx_status);
-int ieee80211_sta_set_ssid(struct net_device *dev, char *ssid, size_t len);
-int ieee80211_sta_get_ssid(struct net_device *dev, char *ssid, size_t *len);
-int ieee80211_sta_set_bssid(struct net_device *dev, u8 *bssid);
-int ieee80211_sta_req_scan(struct net_device *dev, u8 *ssid, size_t ssid_len);
-void ieee80211_sta_req_auth(struct net_device *dev,
+int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len);
+int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len);
+int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid);
+int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t ssid_len);
+void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata,
 			    struct ieee80211_if_sta *ifsta);
-int ieee80211_sta_scan_results(struct net_device *dev,
+int ieee80211_sta_scan_results(struct ieee80211_local *local,
 			       struct iw_request_info *info,
 			       char *buf, size_t len);
 ieee80211_rx_result ieee80211_sta_rx_scan(
-	struct net_device *dev, struct sk_buff *skb,
+	struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	struct ieee80211_rx_status *rx_status);
 void ieee80211_rx_bss_list_init(struct ieee80211_local *local);
 void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local);
-int ieee80211_sta_set_extra_ie(struct net_device *dev, char *ie, size_t len);
-struct sta_info *ieee80211_ibss_add_sta(struct net_device *dev,
+int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata, char *ie, size_t len);
+struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 					struct sk_buff *skb, u8 *bssid,
 					u8 *addr, u64 supp_rates);
-int ieee80211_sta_deauthenticate(struct net_device *dev, u16 reason);
-int ieee80211_sta_disassociate(struct net_device *dev, u16 reason);
+int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason);
+int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);
-u32 ieee80211_reset_erp_info(struct net_device *dev);
+u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
 				   struct ieee80211_ht_info *ht_info);
 int ieee80211_ht_addt_info_ie_to_ht_bss_info(
 			struct ieee80211_ht_addt_info *ht_add_info_ie,
 			struct ieee80211_ht_bss_info *bss_info);
-void ieee80211_send_addba_request(struct net_device *dev, const u8 *da,
+void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata, const u8 *da,
 				  u16 tid, u8 dialog_token, u16 start_seq_num,
 				  u16 agg_size, u16 timeout);
-void ieee80211_send_delba(struct net_device *dev, const u8 *da, u16 tid,
+void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata, const u8 *da, u16 tid,
 				u16 initiator, u16 reason_code);
-void ieee80211_send_bar(struct net_device *dev, u8 *ra, u16 tid, u16 ssn);
+void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
 
-void ieee80211_sta_stop_rx_ba_session(struct net_device *dev, u8 *da,
+void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
 				u16 tid, u16 initiator, u16 reason);
 void sta_addba_resp_timer_expired(unsigned long data);
-void ieee80211_sta_tear_down_BA_sessions(struct net_device *dev, u8 *addr);
+void ieee80211_sta_tear_down_BA_sessions(struct ieee80211_sub_if_data *sdata, u8 *addr);
 u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band);
-void ieee80211_sta_tx(struct net_device *dev, struct sk_buff *skb,
+void ieee80211_sta_tx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		int encrypt);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 				   struct ieee802_11_elems *elems);
 
 #ifdef CONFIG_MAC80211_MESH
-void ieee80211_start_mesh(struct net_device *dev);
+void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
 #else
-static inline void ieee80211_start_mesh(struct net_device *dev)
+static inline void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 {}
 #endif
 
@@ -920,7 +920,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		     struct vif_params *params);
 int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 			     enum ieee80211_if_types type);
-void ieee80211_if_remove(struct net_device *dev);
+void ieee80211_if_remove(struct ieee80211_sub_if_data *sdata);
 void ieee80211_remove_interfaces(struct ieee80211_local *local);
 
 /* tx handling */
@@ -938,7 +938,7 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum ieee80211_if_types type);
 int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 			     int rate, int erp, int short_preamble);
-void mac80211_ev_michael_mic_failure(struct net_device *dev, int keyidx,
+void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int keyidx,
 				     struct ieee80211_hdr *hdr);
 
 #ifdef CONFIG_MAC80211_NOINLINE

@@ -1327,7 +1327,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 			if (is_multicast_ether_addr(hdr->addr3))
 				memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
 			else
-				if (mesh_nexthop_lookup(skb, odev))
+				if (mesh_nexthop_lookup(skb, osdata))
 					return  0;
 			if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
 				IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.sta,
@@ -1908,7 +1908,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		*pos++ = WLAN_EID_SSID;
 		*pos++ = 0x0;
 
-		mesh_mgmt_ies_add(skb, sdata->dev);
+		mesh_mgmt_ies_add(skb, sdata);
 
 		num_beacons = &sdata->u.sta.num_beacons;
 	} else {

@@ -47,7 +47,7 @@ enum mesh_path_flags {
  * struct mesh_path - mac80211 mesh path structure
  *
  * @dst: mesh path destination mac address
- * @dev: mesh path device
+ * @sdata: mesh subif
  * @next_hop: mesh neighbor to which frames for this destination will be
  * 	forwarded
  * @timer: mesh path discovery timer
@@ -64,14 +64,14 @@ enum mesh_path_flags {
  * @state_lock: mesh pat state lock
  *
  *
- * The combination of dst and dev is unique in the mesh path table. Since the
+ * The combination of dst and sdata is unique in the mesh path table. Since the
  * next_hop STA is only protected by RCU as well, deleting the STA must also
  * remove/substitute the mesh_path structure and wait until that is no longer
  * reachable before destroying the STA completely.
  */
 struct mesh_path {
 	u8 dst[ETH_ALEN];
-	struct net_device *dev;
+	struct ieee80211_sub_if_data *sdata;
 	struct sta_info *next_hop;
 	struct timer_list timer;
 	struct sk_buff_head frame_queue;
@@ -203,59 +203,66 @@ int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
 int ieee80211_new_mesh_header(struct ieee80211s_hdr *meshhdr,
 		struct ieee80211_sub_if_data *sdata);
 int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,
-		struct net_device *dev);
-bool mesh_matches_local(struct ieee802_11_elems *ie, struct net_device *dev);
+		struct ieee80211_sub_if_data *sdata);
+bool mesh_matches_local(struct ieee802_11_elems *ie,
+		struct ieee80211_sub_if_data *sdata);
 void mesh_ids_set_default(struct ieee80211_if_sta *sta);
-void mesh_mgmt_ies_add(struct sk_buff *skb, struct net_device *dev);
-void mesh_rmc_free(struct net_device *dev);
-int mesh_rmc_init(struct net_device *dev);
+void mesh_mgmt_ies_add(struct sk_buff *skb,
+		struct ieee80211_sub_if_data *sdata);
+void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
+int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
 void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
 
 /* Mesh paths */
-int mesh_nexthop_lookup(struct sk_buff *skb, struct net_device *dev);
-void mesh_path_start_discovery(struct net_device *dev);
-struct mesh_path *mesh_path_lookup(u8 *dst, struct net_device *dev);
-struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev);
+int mesh_nexthop_lookup(struct sk_buff *skb,
+		struct ieee80211_sub_if_data *sdata);
+void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata);
+struct mesh_path *mesh_path_lookup(u8 *dst,
+		struct ieee80211_sub_if_data *sdata);
+struct mesh_path *mesh_path_lookup_by_idx(int idx,
+		struct ieee80211_sub_if_data *sdata);
 void mesh_path_fix_nexthop(struct mesh_path *mpath, struct sta_info *next_hop);
-void mesh_path_expire(struct net_device *dev);
-void mesh_path_flush(struct net_device *dev);
-void mesh_rx_path_sel_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
-		size_t len);
-int mesh_path_add(u8 *dst, struct net_device *dev);
+void mesh_path_expire(struct ieee80211_sub_if_data *sdata);
+void mesh_path_flush(struct ieee80211_sub_if_data *sdata);
+void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
+		struct ieee80211_mgmt *mgmt, size_t len);
+int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata);
 /* Mesh plinks */
-void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct net_device *dev,
-		bool add);
-bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie,
-			      struct net_device *dev);
+void mesh_neighbour_update(u8 *hw_addr, u64 rates,
+		struct ieee80211_sub_if_data *sdata, bool add);
+bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie);
 void mesh_accept_plinks_update(struct ieee80211_sub_if_data *sdata);
 void mesh_plink_broken(struct sta_info *sta);
 void mesh_plink_deactivate(struct sta_info *sta);
 int mesh_plink_open(struct sta_info *sta);
 int mesh_plink_close(struct sta_info *sta);
 void mesh_plink_block(struct sta_info *sta);
-void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
-			 size_t len, struct ieee80211_rx_status *rx_status);
+void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_mgmt *mgmt, size_t len,
+			 struct ieee80211_rx_status *rx_status);
 
 /* Private interfaces */
 /* Mesh tables */
 struct mesh_table *mesh_table_alloc(int size_order);
 void mesh_table_free(struct mesh_table *tbl, bool free_leafs);
 struct mesh_table *mesh_table_grow(struct mesh_table *tbl);
-u32 mesh_table_hash(u8 *addr, struct net_device *dev, struct mesh_table *tbl);
+u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata,
+		struct mesh_table *tbl);
 /* Mesh paths */
 int mesh_path_error_tx(u8 *dest, __le32 dest_dsn, u8 *ra,
-		struct net_device *dev);
+		struct ieee80211_sub_if_data *sdata);
 void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta);
 void mesh_path_flush_pending(struct mesh_path *mpath);
 void mesh_path_tx_pending(struct mesh_path *mpath);
 int mesh_pathtbl_init(void);
 void mesh_pathtbl_unregister(void);
-int mesh_path_del(u8 *addr, struct net_device *dev);
+int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata);
 void mesh_path_timer(unsigned long data);
 void mesh_path_flush_by_nexthop(struct sta_info *sta);
-void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev);
+void mesh_path_discard_frame(struct sk_buff *skb,
+		struct ieee80211_sub_if_data *sdata);
 
 #ifdef CONFIG_MAC80211_MESH
 extern int mesh_allocated;

@@ -144,10 +144,10 @@ void mesh_plink_deactivate(struct sta_info *sta)
 	spin_unlock_bh(&sta->lock);
 }
 
-static int mesh_plink_frame_tx(struct net_device *dev,
+static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 		enum plink_frame_type action, u8 *da, __le16 llid, __le16 plid,
 		__le16 reason) {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb = dev_alloc_skb(local->hw.extra_tx_headroom + 400);
 	struct ieee80211_mgmt *mgmt;
 	bool include_plid = false;
@@ -166,7 +166,7 @@ static int mesh_plink_frame_tx(struct net_device *dev,
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
-	memcpy(mgmt->sa, dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 	/* BSSID is left zeroed, wildcard value */
 	mgmt->u.action.category = PLINK_CATEGORY;
 	mgmt->u.action.u.plink_action.action_code = action;
@@ -180,7 +180,7 @@ static int mesh_plink_frame_tx(struct net_device *dev,
 			/* two-byte status code followed by two-byte AID */
 			memset(pos, 0, 4);
 		}
-		mesh_mgmt_ies_add(skb, dev);
+		mesh_mgmt_ies_add(skb, sdata);
 	}
 
 	/* Add Peer Link Management element */
@@ -217,15 +217,14 @@ static int mesh_plink_frame_tx(struct net_device *dev,
 		memcpy(pos, &reason, 2);
 	}
 
-	ieee80211_sta_tx(dev, skb, 0);
+	ieee80211_sta_tx(sdata, skb, 0);
 	return 0;
 }
 
-void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct net_device *dev,
+void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct ieee80211_sub_if_data *sdata,
 			   bool peer_accepting_plinks)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 
 	rcu_read_lock();
@@ -257,7 +256,6 @@ static void mesh_plink_timer(unsigned long data)
 {
 	struct sta_info *sta;
 	__le16 llid, plid, reason;
-	struct net_device *dev = NULL;
 	struct ieee80211_sub_if_data *sdata;
 #ifdef CONFIG_MAC80211_VERBOSE_MPL_DEBUG
 	DECLARE_MAC_BUF(mac);
@@ -282,7 +280,6 @@ static void mesh_plink_timer(unsigned long data)
 	llid = sta->llid;
 	plid = sta->plid;
 	sdata = sta->sdata;
-	dev = sdata->dev;
 
 	switch (sta->plink_state) {
 	case PLINK_OPN_RCVD:
@@ -299,7 +296,7 @@ static void mesh_plink_timer(unsigned long data)
 			++sta->plink_retries;
 			mod_plink_timer(sta, sta->plink_timeout);
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_OPEN, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_OPEN, sta->addr, llid,
 					    0, 0);
 			break;
 		}
@@ -312,7 +309,7 @@ static void mesh_plink_timer(unsigned long data)
 		sta->plink_state = PLINK_HOLDING;
 		mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
 		spin_unlock_bh(&sta->lock);
-		mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid, plid,
+		mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->addr, llid, plid,
 				    reason);
 		break;
 	case PLINK_HOLDING:
@@ -357,7 +354,7 @@ int mesh_plink_open(struct sta_info *sta)
 	mpl_dbg("Mesh plink: starting establishment with %s\n",
 		print_mac(mac, sta->addr));
 
-	return mesh_plink_frame_tx(sdata->dev, PLINK_OPEN,
+	return mesh_plink_frame_tx(sdata, PLINK_OPEN,
 				   sta->addr, llid, 0, 0);
 }
 
@@ -403,15 +400,14 @@ int mesh_plink_close(struct sta_info *sta)
 	llid = sta->llid;
 	plid = sta->plid;
 	spin_unlock_bh(&sta->lock);
-	mesh_plink_frame_tx(sta->sdata->dev, PLINK_CLOSE, sta->addr, llid,
+	mesh_plink_frame_tx(sta->sdata, PLINK_CLOSE, sta->addr, llid,
 			    plid, reason);
 	return 0;
 }
 
-void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
+void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_mgmt *mgmt,
 			 size_t len, struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = sdata->local;
 	struct ieee802_11_elems elems;
 	struct sta_info *sta;
@@ -478,7 +474,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 
 	/* Now we will figure out the appropriate event... */
 	event = PLINK_UNDEFINED;
-	if (ftype != PLINK_CLOSE && (!mesh_matches_local(&elems, dev))) {
+	if (ftype != PLINK_CLOSE && (!mesh_matches_local(&elems, sdata))) {
 		switch (ftype) {
 		case PLINK_OPEN:
 			event = OPN_RJCT;
@@ -577,9 +573,9 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			sta->llid = llid;
 			mesh_plink_timer_set(sta, dot11MeshRetryTimeout(sdata));
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_OPEN, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_OPEN, sta->addr, llid,
 					    0, 0);
-			mesh_plink_frame_tx(dev, PLINK_CONFIRM, sta->addr,
+			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->addr,
 					    llid, plid, 0);
 			break;
 		default:
@@ -604,7 +600,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->addr, llid,
 					    plid, reason);
 			break;
 		case OPN_ACPT:
@@ -613,7 +609,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			sta->plid = plid;
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CONFIRM, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->addr, llid,
 					    plid, 0);
 			break;
 		case CNF_ACPT:
@@ -646,13 +642,13 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->addr, llid,
 					    plid, reason);
 			break;
 		case OPN_ACPT:
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CONFIRM, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->addr, llid,
 					    plid, 0);
 			break;
 		case CNF_ACPT:
@@ -685,7 +681,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->addr, llid,
 					    plid, reason);
 			break;
 		case OPN_ACPT:
@@ -695,7 +691,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			spin_unlock_bh(&sta->lock);
 			mpl_dbg("Mesh plink with %s ESTABLISHED\n",
 					print_mac(mac, sta->addr));
-			mesh_plink_frame_tx(dev, PLINK_CONFIRM, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->addr, llid,
 					    plid, 0);
 			break;
 		default:
@@ -714,13 +710,13 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			llid = sta->llid;
 			mod_plink_timer(sta, dot11MeshHoldingTimeout(sdata));
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->addr, llid,
 					    plid, reason);
 			break;
 		case OPN_ACPT:
 			llid = sta->llid;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CONFIRM, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CONFIRM, sta->addr, llid,
 					    plid, 0);
 			break;
 		default:
@@ -743,7 +739,7 @@ void mesh_rx_plink_frame(struct net_device *dev, struct ieee80211_mgmt *mgmt,
 			llid = sta->llid;
 			reason = sta->reason;
 			spin_unlock_bh(&sta->lock);
-			mesh_plink_frame_tx(dev, PLINK_CLOSE, sta->addr, llid,
+			mesh_plink_frame_tx(sdata, PLINK_CLOSE, sta->addr, llid,
 					    plid, reason);
 			break;
 		default:

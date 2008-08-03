@@ -404,11 +404,11 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 
 	if (unlikely(local->sta_hw_scanning))
-		return ieee80211_sta_rx_scan(rx->dev, skb, rx->status);
+		return ieee80211_sta_rx_scan(rx->sdata, skb, rx->status);
 
 	if (unlikely(local->sta_sw_scanning)) {
 		/* drop all the other packets during a software scan anyway */
-		if (ieee80211_sta_rx_scan(rx->dev, skb, rx->status)
+		if (ieee80211_sta_rx_scan(rx->sdata, skb, rx->status)
 		    != RX_QUEUED)
 			dev_kfree_skb(skb);
 		return RX_QUEUED;
@@ -466,7 +466,7 @@ ieee80211_rx_mesh_check(struct ieee80211_rx_data *rx)
 
 	if (ieee80211_is_data(hdr->frame_control) &&
 	    is_multicast_ether_addr(hdr->addr1) &&
-	    mesh_rmc_check(hdr->addr4, msh_h_get(hdr, hdrlen), rx->dev))
+	    mesh_rmc_check(hdr->addr4, msh_h_get(hdr, hdrlen), rx->sdata))
 		return RX_DROP_MONITOR;
 #undef msh_h_get
 
@@ -1523,7 +1523,7 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	     sdata->vif.type == IEEE80211_IF_TYPE_IBSS ||
 	     sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) &&
 	    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
-		ieee80211_sta_rx_mgmt(rx->dev, rx->skb, rx->status);
+		ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
 	else
 		return RX_DROP_MONITOR;
 
@@ -1570,7 +1570,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	    !ieee80211_is_auth(hdr->frame_control))
 		goto ignore;
 
-	mac80211_ev_michael_mic_failure(rx->dev, keyidx, hdr);
+	mac80211_ev_michael_mic_failure(rx->sdata, keyidx, hdr);
  ignore:
 	dev_kfree_skb(rx->skb);
 	rx->skb = NULL;
@@ -1744,7 +1744,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			return 0;
 		if (ieee80211_is_beacon(hdr->frame_control)) {
 			if (!rx->sta)
-				rx->sta = ieee80211_ibss_add_sta(sdata->dev,
+				rx->sta = ieee80211_ibss_add_sta(sdata,
 						rx->skb, bssid, hdr->addr2,
 						BIT(rx->status->rate_idx));
 			return 1;
@@ -1760,7 +1760,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 				return 0;
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		} else if (!rx->sta)
-			rx->sta = ieee80211_ibss_add_sta(sdata->dev, rx->skb,
+			rx->sta = ieee80211_ibss_add_sta(sdata, rx->skb,
 						bssid, hdr->addr2,
 						BIT(rx->status->rate_idx));
 		break;
@@ -2066,7 +2066,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	if (sc & IEEE80211_SCTL_FRAG) {
-		ieee80211_sta_stop_rx_ba_session(sta->sdata->dev, sta->addr,
+		ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->addr,
 			tid, 0, WLAN_REASON_QSTA_REQUIRE_SETUP);
 		ret = 1;
 		goto end_reorder;

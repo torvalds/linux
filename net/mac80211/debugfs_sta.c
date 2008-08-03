@@ -201,7 +201,7 @@ static ssize_t sta_agg_status_write(struct file *file,
 		tid_num = tid_num - 100;
 		if (tid_static_rx[tid_num] == 1) {
 			strcpy(state, "off ");
-			ieee80211_sta_stop_rx_ba_session(dev, da, tid_num, 0,
+			ieee80211_sta_stop_rx_ba_session(sta->sdata, da, tid_num, 0,
 					WLAN_REASON_QSTA_REQUIRE_SETUP);
 			sta->ampdu_mlme.tid_state_rx[tid_num] |=
 					HT_AGG_STATE_DEBUGFS_CTL;

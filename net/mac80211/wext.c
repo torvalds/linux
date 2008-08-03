@@ -27,22 +27,19 @@
 #include "aes_ccm.h"
 
 
-static int ieee80211_set_encryption(struct net_device *dev, u8 *sta_addr,
+static int ieee80211_set_encryption(struct ieee80211_sub_if_data *sdata, u8 *sta_addr,
 				    int idx, int alg, int remove,
 				    int set_tx_key, const u8 *_key,
 				    size_t key_len)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sdata->local;
 	struct sta_info *sta;
 	struct ieee80211_key *key;
-	struct ieee80211_sub_if_data *sdata;
 	int err;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (idx < 0 || idx >= NUM_DEFAULT_KEYS) {
 		printk(KERN_DEBUG "%s: set_encrypt - invalid idx=%d\n",
-		       dev->name, idx);
+		       sdata->dev->name, idx);
 		return -EINVAL;
 	}
 
@@ -127,11 +124,11 @@ static int ieee80211_ioctl_siwgenie(struct net_device *dev,
 
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
-		int ret = ieee80211_sta_set_extra_ie(dev, extra, data->length);
+		int ret = ieee80211_sta_set_extra_ie(sdata, extra, data->length);
 		if (ret)
 			return ret;
 		sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
-		ieee80211_sta_req_auth(dev, &sdata->u.sta);
+		ieee80211_sta_req_auth(sdata, &sdata->u.sta);
 		return 0;
 	}
 
@@ -333,12 +330,11 @@ static int ieee80211_ioctl_giwmode(struct net_device *dev,
 	return 0;
 }
 
-int ieee80211_set_freq(struct net_device *dev, int freqMHz)
+int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 {
 	int ret = -EINVAL;
 	struct ieee80211_channel *chan;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 
 	chan = ieee80211_get_channel(local->hw.wiphy, freqMHz);
 
@@ -346,7 +342,7 @@ int ieee80211_set_freq(struct net_device *dev, int freqMHz)
 		if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
 		    chan->flags & IEEE80211_CHAN_NO_IBSS) {
 			printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
-				"%d MHz\n", dev->name, chan->center_freq);
+				"%d MHz\n", sdata->dev->name, chan->center_freq);
 			return ret;
 		}
 		local->oper_channel = chan;
@@ -379,14 +375,14 @@ static int ieee80211_ioctl_siwfreq(struct net_device *dev,
 					IEEE80211_STA_AUTO_CHANNEL_SEL;
 			return 0;
 		} else
-			return ieee80211_set_freq(dev,
+			return ieee80211_set_freq(sdata,
 				ieee80211_channel_to_frequency(freq->m));
 	} else {
 		int i, div = 1000000;
 		for (i = 0; i < freq->e; i++)
 			div /= 10;
 		if (div > 0)
-			return ieee80211_set_freq(dev, freq->m / div);
+			return ieee80211_set_freq(sdata, freq->m / div);
 		else
 			return -EINVAL;
 	}
@@ -432,10 +428,10 @@ static int ieee80211_ioctl_siwessid(struct net_device *dev,
 			sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_SSID_SEL;
 		else
 			sdata->u.sta.flags |= IEEE80211_STA_AUTO_SSID_SEL;
-		ret = ieee80211_sta_set_ssid(dev, ssid, len);
+		ret = ieee80211_sta_set_ssid(sdata, ssid, len);
 		if (ret)
 			return ret;
-		ieee80211_sta_req_auth(dev, &sdata->u.sta);
+		ieee80211_sta_req_auth(sdata, &sdata->u.sta);
 		return 0;
 	}
 
@@ -460,7 +456,7 @@ static int ieee80211_ioctl_giwessid(struct net_device *dev,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
-		int res = ieee80211_sta_get_ssid(dev, ssid, &len);
+		int res = ieee80211_sta_get_ssid(sdata, ssid, &len);
 		if (res == 0) {
 			data->length = len;
 			data->flags = 1;
@@ -504,10 +500,10 @@ static int ieee80211_ioctl_siwap(struct net_device *dev,
 			sdata->u.sta.flags |= IEEE80211_STA_AUTO_BSSID_SEL;
 		else
 			sdata->u.sta.flags &= ~IEEE80211_STA_AUTO_BSSID_SEL;
-		ret = ieee80211_sta_set_bssid(dev, (u8 *) &ap_addr->sa_data);
+		ret = ieee80211_sta_set_bssid(sdata, (u8 *) &ap_addr->sa_data);
 		if (ret)
 			return ret;
-		ieee80211_sta_req_auth(dev, &sdata->u.sta);
+		ieee80211_sta_req_auth(sdata, &sdata->u.sta);
 		return 0;
 	} else if (sdata->vif.type == IEEE80211_IF_TYPE_WDS) {
 		/*
@@ -584,7 +580,7 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 		ssid_len = req->essid_len;
 	}
 
-	return ieee80211_sta_req_scan(dev, ssid, ssid_len);
+	return ieee80211_sta_req_scan(sdata, ssid, ssid_len);
 }
 
 
@@ -594,11 +590,14 @@ static int ieee80211_ioctl_giwscan(struct net_device *dev,
 {
 	int res;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
 	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return -EAGAIN;
 
-	res = ieee80211_sta_scan_results(dev, info, extra, data->length);
+	res = ieee80211_sta_scan_results(local, info, extra, data->length);
 	if (res >= 0) {
 		data->length = res;
 		return 0;
@@ -894,10 +893,10 @@ static int ieee80211_ioctl_siwmlme(struct net_device *dev,
 	switch (mlme->cmd) {
 	case IW_MLME_DEAUTH:
 		/* TODO: mlme->addr.sa_data */
-		return ieee80211_sta_deauthenticate(dev, mlme->reason_code);
+		return ieee80211_sta_deauthenticate(sdata, mlme->reason_code);
 	case IW_MLME_DISASSOC:
 		/* TODO: mlme->addr.sa_data */
-		return ieee80211_sta_disassociate(dev, mlme->reason_code);
+		return ieee80211_sta_disassociate(sdata, mlme->reason_code);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -938,7 +937,7 @@ static int ieee80211_ioctl_siwencode(struct net_device *dev,
 	}
 
 	return ieee80211_set_encryption(
-		dev, bcaddr,
+		sdata, bcaddr,
 		idx, alg, remove,
 		!sdata->default_key,
 		keybuf, erq->length);
@@ -1184,7 +1183,7 @@ static int ieee80211_ioctl_siwencodeext(struct net_device *dev,
 	} else
 		idx--;
 
-	return ieee80211_set_encryption(dev, ext->addr.sa_data, idx, alg,
+	return ieee80211_set_encryption(sdata, ext->addr.sa_data, idx, alg,
 					remove,
 					ext->ext_flags &
 					IW_ENCODE_EXT_SET_TX_KEY,

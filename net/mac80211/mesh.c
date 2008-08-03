@@ -39,14 +39,13 @@ void ieee80211s_stop(void)
  * mesh_matches_local - check if the config of a mesh point matches ours
  *
  * @ie: information elements of a management frame from the mesh peer
- * @dev: local mesh interface
+ * @sdata: local mesh subif
  *
  * This function checks if the mesh configuration of a mesh point matches the
  * local mesh configuration, i.e. if both nodes belong to the same mesh network.
  */
-bool mesh_matches_local(struct ieee802_11_elems *ie, struct net_device *dev)
+bool mesh_matches_local(struct ieee802_11_elems *ie, struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_if_sta *sta = &sdata->u.sta;
 
 	/*
@@ -73,10 +72,8 @@ bool mesh_matches_local(struct ieee802_11_elems *ie, struct net_device *dev)
  * mesh_peer_accepts_plinks - check if an mp is willing to establish peer links
  *
  * @ie: information elements of a management frame from the mesh peer
- * @dev: local mesh interface
  */
-bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie,
-			      struct net_device *dev)
+bool mesh_peer_accepts_plinks(struct ieee802_11_elems *ie)
 {
 	return (*(ie->mesh_config + CAPAB_OFFSET) & ACCEPT_PLINKS) != 0;
 }
@@ -111,9 +108,8 @@ void mesh_ids_set_default(struct ieee80211_if_sta *sta)
 	memcpy(sta->mesh_cc_id, def_id, 4);
 }
 
-int mesh_rmc_init(struct net_device *dev)
+int mesh_rmc_init(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	int i;
 
 	sdata->u.sta.rmc = kmalloc(sizeof(struct mesh_rmc), GFP_KERNEL);
@@ -125,9 +121,8 @@ int mesh_rmc_init(struct net_device *dev)
 	return 0;
 }
 
-void mesh_rmc_free(struct net_device *dev)
+void mesh_rmc_free(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct mesh_rmc *rmc = sdata->u.sta.rmc;
 	struct rmc_entry *p, *n;
 	int i;
@@ -158,9 +153,8 @@ void mesh_rmc_free(struct net_device *dev)
  * it.
  */
 int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
-		   struct net_device *dev)
+		   struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct mesh_rmc *rmc = sdata->u.sta.rmc;
 	u32 seqnum = 0;
 	int entries = 0;
@@ -194,10 +188,9 @@ int mesh_rmc_check(u8 *sa, struct ieee80211s_hdr *mesh_hdr,
 	return 0;
 }
 
-void mesh_mgmt_ies_add(struct sk_buff *skb, struct net_device *dev)
+void mesh_mgmt_ies_add(struct sk_buff *skb, struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
 	u8 *pos;
 	int len, i, rate;
@@ -262,10 +255,10 @@ void mesh_mgmt_ies_add(struct sk_buff *skb, struct net_device *dev)
 	return;
 }
 
-u32 mesh_table_hash(u8 *addr, struct net_device *dev, struct mesh_table *tbl)
+u32 mesh_table_hash(u8 *addr, struct ieee80211_sub_if_data *sdata, struct mesh_table *tbl)
 {
 	/* Use last four bytes of hw addr and interface index as hash index */
-	return jhash_2words(*(u32 *)(addr+2), dev->ifindex, tbl->hash_rnd)
+	return jhash_2words(*(u32 *)(addr+2), sdata->dev->ifindex, tbl->hash_rnd)
 		& tbl->hash_mask;
 }
 
@@ -434,7 +427,7 @@ void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata)
 	ifsta->preq_id = 0;
 	ifsta->dsn = 0;
 	atomic_set(&ifsta->mpaths, 0);
-	mesh_rmc_init(sdata->dev);
+	mesh_rmc_init(sdata);
 	ifsta->last_preq = jiffies;
 	/* Allocate all mesh structures when creating the first mesh interface. */
 	if (!mesh_allocated)

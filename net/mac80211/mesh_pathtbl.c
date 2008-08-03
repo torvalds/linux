@@ -9,7 +9,6 @@
 
 #include <linux/etherdevice.h>
 #include <linux/list.h>
-#include <linux/netdevice.h>
 #include <linux/random.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
@@ -62,13 +61,13 @@ void mesh_path_assign_nexthop(struct mesh_path *mpath, struct sta_info *sta)
 /**
  * mesh_path_lookup - look up a path in the mesh path table
  * @dst: hardware address (ETH_ALEN length) of destination
- * @dev: local interface
+ * @sdata: local subif
  *
  * Returns: pointer to the mesh path structure, or NULL if not found
  *
  * Locking: must be called within a read rcu section.
  */
-struct mesh_path *mesh_path_lookup(u8 *dst, struct net_device *dev)
+struct mesh_path *mesh_path_lookup(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
 	struct hlist_node *n;
@@ -78,10 +77,10 @@ struct mesh_path *mesh_path_lookup(u8 *dst, struct net_device *dev)
 
 	tbl = rcu_dereference(mesh_paths);
 
-	bucket = &tbl->hash_buckets[mesh_table_hash(dst, dev, tbl)];
+	bucket = &tbl->hash_buckets[mesh_table_hash(dst, sdata, tbl)];
 	hlist_for_each_entry_rcu(node, n, bucket, list) {
 		mpath = node->mpath;
-		if (mpath->dev == dev &&
+		if (mpath->sdata == sdata &&
 				memcmp(dst, mpath->dst, ETH_ALEN) == 0) {
 			if (MPATH_EXPIRED(mpath)) {
 				spin_lock_bh(&mpath->state_lock);
@@ -98,13 +97,13 @@ struct mesh_path *mesh_path_lookup(u8 *dst, struct net_device *dev)
 /**
  * mesh_path_lookup_by_idx - look up a path in the mesh path table by its index
  * @idx: index
- * @dev: local interface, or NULL for all entries
+ * @sdata: local subif, or NULL for all entries
  *
  * Returns: pointer to the mesh path structure, or NULL if not found.
  *
  * Locking: must be called within a read rcu section.
  */
-struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev)
+struct mesh_path *mesh_path_lookup_by_idx(int idx, struct ieee80211_sub_if_data *sdata)
 {
 	struct mpath_node *node;
 	struct hlist_node *p;
@@ -112,7 +111,7 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev)
 	int j = 0;
 
 	for_each_mesh_entry(mesh_paths, p, node, i) {
-		if (dev && node->mpath->dev != dev)
+		if (sdata && node->mpath->sdata != sdata)
 			continue;
 		if (j++ == idx) {
 			if (MPATH_EXPIRED(node->mpath)) {
@@ -131,15 +130,14 @@ struct mesh_path *mesh_path_lookup_by_idx(int idx, struct net_device *dev)
 /**
  * mesh_path_add - allocate and add a new path to the mesh path table
  * @addr: destination address of the path (ETH_ALEN length)
- * @dev: local interface
+ * @sdata: local subif
  *
  * Returns: 0 on sucess
  *
  * State: the initial state of the new path is set to 0
  */
-int mesh_path_add(u8 *dst, struct net_device *dev)
+int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct mesh_path *mpath, *new_mpath;
 	struct mpath_node *node, *new_node;
 	struct hlist_head *bucket;
@@ -148,7 +146,7 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 	int err = 0;
 	u32 hash_idx;
 
-	if (memcmp(dst, dev->dev_addr, ETH_ALEN) == 0)
+	if (memcmp(dst, sdata->dev->dev_addr, ETH_ALEN) == 0)
 		/* never add ourselves as neighbours */
 		return -ENOTSUPP;
 
@@ -169,7 +167,7 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 
 	read_lock(&pathtbl_resize_lock);
 	memcpy(new_mpath->dst, dst, ETH_ALEN);
-	new_mpath->dev = dev;
+	new_mpath->sdata = sdata;
 	new_mpath->flags = 0;
 	skb_queue_head_init(&new_mpath->frame_queue);
 	new_node->mpath = new_mpath;
@@ -179,7 +177,7 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 	spin_lock_init(&new_mpath->state_lock);
 	init_timer(&new_mpath->timer);
 
-	hash_idx = mesh_table_hash(dst, dev, mesh_paths);
+	hash_idx = mesh_table_hash(dst, sdata, mesh_paths);
 	bucket = &mesh_paths->hash_buckets[hash_idx];
 
 	spin_lock(&mesh_paths->hashwlock[hash_idx]);
@@ -187,7 +185,7 @@ int mesh_path_add(u8 *dst, struct net_device *dev)
 	err = -EEXIST;
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
-		if (mpath->dev == dev && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
+		if (mpath->sdata == sdata && memcmp(dst, mpath->dst, ETH_ALEN) == 0)
 			goto err_exists;
 	}
 
@@ -241,7 +239,7 @@ void mesh_plink_broken(struct sta_info *sta)
 	struct mesh_path *mpath;
 	struct mpath_node *node;
 	struct hlist_node *p;
-	struct net_device *dev = sta->sdata->dev;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	int i;
 
 	rcu_read_lock();
@@ -256,7 +254,7 @@ void mesh_plink_broken(struct sta_info *sta)
 			spin_unlock_bh(&mpath->state_lock);
 			mesh_path_error_tx(mpath->dst,
 					cpu_to_le32(mpath->dsn),
-					dev->broadcast, dev);
+					sdata->dev->broadcast, sdata);
 		} else
 		spin_unlock_bh(&mpath->state_lock);
 	}
@@ -284,11 +282,11 @@ void mesh_path_flush_by_nexthop(struct sta_info *sta)
 	for_each_mesh_entry(mesh_paths, p, node, i) {
 		mpath = node->mpath;
 		if (mpath->next_hop == sta)
-			mesh_path_del(mpath->dst, mpath->dev);
+			mesh_path_del(mpath->dst, mpath->sdata);
 	}
 }
 
-void mesh_path_flush(struct net_device *dev)
+void mesh_path_flush(struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node;
@@ -297,16 +295,15 @@ void mesh_path_flush(struct net_device *dev)
 
 	for_each_mesh_entry(mesh_paths, p, node, i) {
 		mpath = node->mpath;
-		if (mpath->dev == dev)
-			mesh_path_del(mpath->dst, mpath->dev);
+		if (mpath->sdata == sdata)
+			mesh_path_del(mpath->dst, mpath->sdata);
 	}
 }
 
 static void mesh_path_node_reclaim(struct rcu_head *rp)
 {
 	struct mpath_node *node = container_of(rp, struct mpath_node, rcu);
-	struct ieee80211_sub_if_data *sdata =
-		IEEE80211_DEV_TO_SUB_IF(node->mpath->dev);
+	struct ieee80211_sub_if_data *sdata = node->mpath->sdata;
 
 	del_timer_sync(&node->mpath->timer);
 	atomic_dec(&sdata->u.sta.mpaths);
@@ -318,11 +315,11 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
  * mesh_path_del - delete a mesh path from the table
  *
  * @addr: dst address (ETH_ALEN length)
- * @dev: local interface
+ * @sdata: local subif
  *
  * Returns: 0 if succesful
  */
-int mesh_path_del(u8 *addr, struct net_device *dev)
+int mesh_path_del(u8 *addr, struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node;
@@ -332,13 +329,13 @@ int mesh_path_del(u8 *addr, struct net_device *dev)
 	int err = 0;
 
 	read_lock(&pathtbl_resize_lock);
-	hash_idx = mesh_table_hash(addr, dev, mesh_paths);
+	hash_idx = mesh_table_hash(addr, sdata, mesh_paths);
 	bucket = &mesh_paths->hash_buckets[hash_idx];
 
 	spin_lock(&mesh_paths->hashwlock[hash_idx]);
 	hlist_for_each_entry(node, n, bucket, list) {
 		mpath = node->mpath;
-		if (mpath->dev == dev &&
+		if (mpath->sdata == sdata &&
 				memcmp(addr, mpath->dst, ETH_ALEN) == 0) {
 			spin_lock_bh(&mpath->state_lock);
 			mpath->flags |= MESH_PATH_RESOLVING;
@@ -378,29 +375,29 @@ void mesh_path_tx_pending(struct mesh_path *mpath)
  * mesh_path_discard_frame - discard a frame whose path could not be resolved
  *
  * @skb: frame to discard
- * @dev: network device the frame was to be sent through
+ * @sdata: network subif the frame was to be sent through
  *
  * If the frame was beign forwarded from another MP, a PERR frame will be sent
  * to the precursor.
  *
  * Locking: the function must me called within a rcu_read_lock region
  */
-void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev)
+void mesh_path_discard_frame(struct sk_buff *skb,
+			     struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct mesh_path *mpath;
 	u32 dsn = 0;
 
-	if (memcmp(hdr->addr4, dev->dev_addr, ETH_ALEN) != 0) {
+	if (memcmp(hdr->addr4, sdata->dev->dev_addr, ETH_ALEN) != 0) {
 		u8 *ra, *da;
 
 		da = hdr->addr3;
 		ra = hdr->addr2;
-		mpath = mesh_path_lookup(da, dev);
+		mpath = mesh_path_lookup(da, sdata);
 		if (mpath)
 			dsn = ++mpath->dsn;
-		mesh_path_error_tx(skb->data, cpu_to_le32(dsn), ra, dev);
+		mesh_path_error_tx(skb->data, cpu_to_le32(dsn), ra, sdata);
 	}
 
 	kfree_skb(skb);
@@ -416,14 +413,11 @@ void mesh_path_discard_frame(struct sk_buff *skb, struct net_device *dev)
  */
 void mesh_path_flush_pending(struct mesh_path *mpath)
 {
-	struct ieee80211_sub_if_data *sdata;
 	struct sk_buff *skb;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(mpath->dev);
 
 	while ((skb = skb_dequeue(&mpath->frame_queue)) &&
 			(mpath->flags & MESH_PATH_ACTIVE))
-		mesh_path_discard_frame(skb, mpath->dev);
+		mesh_path_discard_frame(skb, mpath->sdata);
 }
 
 /**
@@ -472,7 +466,7 @@ static int mesh_path_node_copy(struct hlist_node *p, struct mesh_table *newtbl)
 	node = hlist_entry(p, struct mpath_node, list);
 	mpath = node->mpath;
 	new_node->mpath = mpath;
-	hash_idx = mesh_table_hash(mpath->dst, mpath->dev, newtbl);
+	hash_idx = mesh_table_hash(mpath->dst, mpath->sdata, newtbl);
 	hlist_add_head(&new_node->list,
 			&newtbl->hash_buckets[hash_idx]);
 	return 0;
@@ -489,7 +483,7 @@ int mesh_pathtbl_init(void)
 	return 0;
 }
 
-void mesh_path_expire(struct net_device *dev)
+void mesh_path_expire(struct ieee80211_sub_if_data *sdata)
 {
 	struct mesh_path *mpath;
 	struct mpath_node *node;
@@ -498,7 +492,7 @@ void mesh_path_expire(struct net_device *dev)
 
 	read_lock(&pathtbl_resize_lock);
 	for_each_mesh_entry(mesh_paths, p, node, i) {
-		if (node->mpath->dev != dev)
+		if (node->mpath->sdata != sdata)
 			continue;
 		mpath = node->mpath;
 		spin_lock_bh(&mpath->state_lock);
@@ -507,7 +501,7 @@ void mesh_path_expire(struct net_device *dev)
 			time_after(jiffies,
 			 mpath->exp_time + MESH_PATH_EXPIRE)) {
 			spin_unlock_bh(&mpath->state_lock);
-			mesh_path_del(mpath->dst, mpath->dev);
+			mesh_path_del(mpath->dst, mpath->sdata);
 		} else
 			spin_unlock_bh(&mpath->state_lock);
 	}

@@ -347,8 +347,8 @@ static int ieee80211_open(struct net_device *dev)
 			goto err_stop;
 
 		if (ieee80211_vif_is_mesh(&sdata->vif))
-			ieee80211_start_mesh(sdata->dev);
-		changed |= ieee80211_reset_erp_info(dev);
+			ieee80211_start_mesh(sdata);
+		changed |= ieee80211_reset_erp_info(sdata);
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
 
@@ -448,7 +448,7 @@ static int ieee80211_stop(struct net_device *dev)
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		if (sta->sdata == sdata)
-			ieee80211_sta_tear_down_BA_sessions(dev, sta->addr);
+			ieee80211_sta_tear_down_BA_sessions(sdata, sta->addr);
 	}
 
 	rcu_read_unlock();
@@ -706,7 +706,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	sta->ampdu_mlme.tid_tx[tid]->ssn = start_seq_num;
 
 
-	ieee80211_send_addba_request(sta->sdata->dev, ra, tid,
+	ieee80211_send_addba_request(sta->sdata, ra, tid,
 			 sta->ampdu_mlme.tid_tx[tid]->dialog_token,
 			 sta->ampdu_mlme.tid_tx[tid]->ssn,
 			 0x40, 5000);
@@ -889,7 +889,7 @@ void ieee80211_stop_tx_ba_cb(struct ieee80211_hw *hw, u8 *ra, u8 tid)
 	}
 
 	if (*state & HT_AGG_STATE_INITIATOR_MSK)
-		ieee80211_send_delba(sta->sdata->dev, ra, tid,
+		ieee80211_send_delba(sta->sdata, ra, tid,
 			WLAN_BACK_INITIATOR, WLAN_REASON_QSTA_NOT_USE);
 
 	agg_queue = sta->tid_to_tx_q[tid];
@@ -1200,10 +1200,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 					     changed);
 }
 
-u32 ieee80211_reset_erp_info(struct net_device *dev)
+u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-
 	sdata->bss_conf.use_cts_prot = 0;
 	sdata->bss_conf.use_short_preamble = 0;
 	return BSS_CHANGED_ERP_CTS_PROT | BSS_CHANGED_ERP_PREAMBLE;
@@ -1438,7 +1436,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			tid = qc[0] & 0xf;
 			ssn = ((le16_to_cpu(hdr->seq_ctrl) + 0x10)
 						& IEEE80211_SCTL_SEQ);
-			ieee80211_send_bar(sta->sdata->dev, hdr->addr1,
+			ieee80211_send_bar(sta->sdata, hdr->addr1,
 					   tid, ssn);
 		}
 	}
