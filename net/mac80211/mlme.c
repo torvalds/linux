@@ -2550,9 +2550,6 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	DECLARE_MAC_BUF(mac);
 	DECLARE_MAC_BUF(mac2);
 
-	if (!beacon && memcmp(mgmt->da, sdata->dev->dev_addr, ETH_ALEN))
-		return; /* ignore ProbeResp to foreign address */
-
 	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && elems->mesh_id &&
@@ -2869,6 +2866,9 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 {
 	size_t baselen;
 	struct ieee802_11_elems elems;
+
+	if (memcmp(mgmt->da, sdata->dev->dev_addr, ETH_ALEN))
+		return; /* ignore ProbeResp to foreign address */
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
 	if (baselen > len)
