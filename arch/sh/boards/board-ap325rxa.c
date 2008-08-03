@@ -17,7 +17,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/delay.h>
 #include <linux/smc911x.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
