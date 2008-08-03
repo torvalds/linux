@@ -451,7 +451,7 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 	if (status & SS_CARDBUS) {
 		if (!(skt->features & SS_CAP_CARDBUS)) {
 			cs_err(skt, "cardbus cards are not supported.\n");
-			return CS_BAD_TYPE;
+			return -EINVAL;
 		}
 		skt->state |= SOCKET_CARDBUS;
 	}
@@ -465,7 +465,7 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 		skt->socket.Vcc = skt->socket.Vpp = 50;
 	else {
 		cs_err(skt, "unsupported voltage key.\n");
-		return CS_BAD_TYPE;
+		return -EIO;
 	}
 
 	if (skt->power_hook)
@@ -482,7 +482,7 @@ static int socket_setup(struct pcmcia_socket *skt, int initial_delay)
 	skt->ops->get_status(skt, &status);
 	if (!(status & SS_POWERON)) {
 		cs_err(skt, "unable to apply power.\n");
-		return CS_BAD_TYPE;
+		return -EIO;
 	}
 
 	status = socket_reset(skt);

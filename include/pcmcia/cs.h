@@ -290,16 +290,16 @@ typedef struct error_info_t {
 /* Return codes */
 #define CS_SUCCESS		0x00
 #define CS_BAD_ADAPTER		-ENODEV
-#define CS_BAD_ATTRIBUTE	0x02
+#define CS_BAD_ATTRIBUTE	-EINVAL
 #define CS_BAD_BASE		0x03
 #define CS_BAD_EDC		-ENODEV
 #define CS_BAD_IRQ		0x06
 #define CS_BAD_OFFSET		0x07
-#define CS_BAD_PAGE		0x08
+#define CS_BAD_PAGE		-EINVAL
 #define CS_READ_FAILURE		-EIO
 #define CS_BAD_SIZE		0x0a
 #define CS_BAD_SOCKET		-EINVAL
-#define CS_BAD_TYPE		0x0d
+#define CS_BAD_TYPE		-EINVAL
 #define CS_BAD_VCC		-EINVAL
 #define CS_BAD_VPP		-EINVAL
 #define CS_BAD_WINDOW		-ENODEV

@@ -74,22 +74,19 @@ typedef struct lookup_t {
 } lookup_t;
 
 static const lookup_t error_table[] = {
-    { CS_SUCCESS,		"Operation succeeded" },
-    { CS_BAD_ATTRIBUTE, 	"Bad attribute", },
+    { 0,			"Operation succeeded" },
     { CS_BAD_BASE,		"Bad base address" },
     { CS_BAD_IRQ,		"Bad IRQ" },
     { CS_BAD_OFFSET,		"Bad offset" },
-    { CS_BAD_PAGE,		"Bad page number" },
     { CS_BAD_SIZE,		"Bad size" },
-    { CS_BAD_TYPE,		"Bad type" },
     { -EIO,			"Input/Output error" },
     { -ENODEV,			"No card present" },
     { -EINVAL,			"Bad parameter" },
     { CS_BAD_ARGS,		"Bad arguments" },
     { -EACCES,			"Configuration locked" },
-    { CS_IN_USE,		"Resource in use" },
+    { -EBUSY,			"Resource in use" },
     { -ENOSPC,			"No more items" },
-    { CS_OUT_OF_RESOURCE,	"Out of resource" },
+    { -ENOMEM,			"Out of resource" },
     { CS_BAD_TUPLE,		"Bad CIS tuple" }
 };
 

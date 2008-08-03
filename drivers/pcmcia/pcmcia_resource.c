@@ -251,9 +251,11 @@ int pcmcia_map_mem_page(window_handle_t win, memreq_t *req)
 	struct pcmcia_socket *s;
 	if ((win == NULL) || (win->magic != WINDOW_MAGIC))
 		return -EINVAL;
-	if (req->Page != 0)
-		return CS_BAD_PAGE;
 	s = win->sock;
+	if (req->Page != 0) {
+		ds_dbg(s, 0, "failure: requested page is zero\n");
+		return -EINVAL;
+	}
 	win->ctl.card_start = req->CardOffset;
 	if (s->ops->set_mem_map(s, &win->ctl) != 0)
 		return CS_BAD_OFFSET;
@@ -420,8 +422,10 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 
 	if (c->state & CONFIG_LOCKED)
 		return -EACCES;
-	if (c->irq.Attributes != req->Attributes)
-		return CS_BAD_ATTRIBUTE;
+	if (c->irq.Attributes != req->Attributes) {
+		ds_dbg(s, 0, "IRQ attributes must match assigned ones\n");
+		return -EINVAL;
+	}
 	if (s->irq.AssignedIRQ != req->AssignedIRQ)
 		return CS_BAD_IRQ;
 	if (--s->irq.Config == 0) {
@@ -613,11 +617,15 @@ int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req)
 		ds_dbg(s, 0, "IO already configured\n");
 		return -EBUSY;
 	}
-	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))
-		return CS_BAD_ATTRIBUTE;
+	if (req->Attributes1 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS)) {
+		ds_dbg(s, 0, "bad attribute setting for IO region 1\n");
+		return -EINVAL;
+	}
 	if ((req->NumPorts2 > 0) &&
-	    (req->Attributes2 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS)))
-		return CS_BAD_ATTRIBUTE;
+	    (req->Attributes2 & (IO_SHARED | IO_FORCE_ALIAS_ACCESS))) {
+		ds_dbg(s, 0, "bad attribute setting for IO region 2\n");
+		return -EINVAL;
+	}
 
 	ds_dbg(s, 1, "trying to allocate resource 1\n");
 	if (alloc_io_space(s, req->Attributes1, &req->BasePort1,
@@ -783,8 +791,10 @@ int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_h
 
 	if (!(s->state & SOCKET_PRESENT))
 		return -ENODEV;
-	if (req->Attributes & (WIN_PAGED | WIN_SHARED))
-		return CS_BAD_ATTRIBUTE;
+	if (req->Attributes & (WIN_PAGED | WIN_SHARED)) {
+		ds_dbg(s, 0, "bad attribute setting for iomem region\n");
+		return -EINVAL;
+	}
 
 	/* Window size defaults to smallest available */
 	if (req->Size == 0)

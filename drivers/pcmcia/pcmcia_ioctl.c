@@ -964,19 +964,19 @@ static int ds_ioctl(struct inode * inode, struct file * file,
     if ((err == 0) && (ret != 0)) {
 	ds_dbg(2, "ds_ioctl: ret = %d\n", ret);
 	switch (ret) {
-	case CS_BAD_SOCKET: case CS_NO_CARD:
-	    err = -ENODEV; break;
-	case CS_BAD_ARGS: case CS_BAD_ATTRIBUTE: case CS_BAD_IRQ:
+	case -ENODEV:
+	case -EINVAL:
+	case -EBUSY:
+	case -ENOSYS:
+	    err = ret;
+	    break;
+	case CS_BAD_ARGS: case CS_BAD_IRQ:
 	case CS_BAD_TUPLE:
 	    err = -EINVAL; break;
-	case CS_IN_USE:
-	    err = -EBUSY; break;
-	case CS_OUT_OF_RESOURCE:
+	case -ENOMEM:
 	    err = -ENOSPC; break;
 	case -ENOSPC:
 	    err = -ENODATA; break;
-	case -ENOSYS:
-	    err = -ENOSYS; break;
 	default:
 	    err = -EIO; break;
 	}
