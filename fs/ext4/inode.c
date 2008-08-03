@@ -191,6 +191,7 @@ static int ext4_journal_test_restart(handle_t *handle, struct inode *inode)
 void ext4_delete_inode (struct inode * inode)
 {
 	handle_t *handle;
+	int err;
 
 	if (ext4_should_order_data(inode))
 		ext4_begin_ordered_truncate(inode, 0);
@@ -199,8 +200,9 @@ void ext4_delete_inode (struct inode * inode)
 	if (is_bad_inode(inode))
 		goto no_delete;
 
-	handle = start_transaction(inode);
+	handle = ext4_journal_start(inode, blocks_for_truncate(inode)+3);
 	if (IS_ERR(handle)) {
+		ext4_std_error(inode->i_sb, PTR_ERR(handle));
 		/*
 		 * If we're going to skip the normal cleanup, we still need to
 		 * make sure that the in-core orphan linked list is properly
@@ -213,8 +215,34 @@ void ext4_delete_inode (struct inode * inode)
 	if (IS_SYNC(inode))
 		handle->h_sync = 1;
 	inode->i_size = 0;
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (err) {
+		ext4_warning(inode->i_sb, __func__,
+			     "couldn't mark inode dirty (err %d)", err);
+		goto stop_handle;
+	}
 	if (inode->i_blocks)
 		ext4_truncate(inode);
+
+	/*
+	 * ext4_ext_truncate() doesn't reserve any slop when it
+	 * restarts journal transactions; therefore there may not be
+	 * enough credits left in the handle to remove the inode from
+	 * the orphan list and set the dtime field.
+	 */
+	if (handle->h_buffer_credits < 3) {
+		err = ext4_journal_extend(handle, 3);
+		if (err > 0)
+			err = ext4_journal_restart(handle, 3);
+		if (err != 0) {
+			ext4_warning(inode->i_sb, __func__,
+				     "couldn't extend journal (err %d)", err);
+		stop_handle:
+			ext4_journal_stop(handle);
+			goto no_delete;
+		}
+	}
+
 	/*
 	 * Kill off the orphan record which ext4_truncate created.
 	 * AKPM: I think this can be inside the above `if'.
