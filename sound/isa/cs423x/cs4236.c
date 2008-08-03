@@ -239,6 +239,8 @@ static struct pnp_card_device_id snd_cs423x_pnpids[] = {
 	{ .id = "CSC9836", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* Gallant SC-70P */
 	{ .id = "CSC9837", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
+	/* Techmakers MF-4236PW */
+	{ .id = "CSCa736", .devs = { { "CSC0000" }, { "CSC0010" }, { "CSC0003" } } },
 	/* TerraTec AudioSystem EWS64XL - CS4236B */
 	{ .id = "CSCa836", .devs = { { "CSCa800" }, { "CSCa810" }, { "CSCa803" } } },
 	/* TerraTec AudioSystem EWS64XL - CS4236B */
