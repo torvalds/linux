@@ -88,7 +88,7 @@ static const lookup_t error_table[] = {
     { CS_BAD_ARGS,		"Bad arguments" },
     { -EACCES,			"Configuration locked" },
     { CS_IN_USE,		"Resource in use" },
-    { CS_NO_MORE_ITEMS,		"No more items" },
+    { -ENOSPC,			"No more items" },
     { CS_OUT_OF_RESOURCE,	"Out of resource" },
     { CS_BAD_TUPLE,		"Bad CIS tuple" }
 };

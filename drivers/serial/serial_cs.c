@@ -432,7 +432,7 @@ first_tuple(struct pcmcia_device *handle, tuple_t * tuple, cisparse_t * parse)
 	int i;
 	i = pcmcia_get_first_tuple(handle, tuple);
 	if (i != 0)
-		return CS_NO_MORE_ITEMS;
+		return i;
 	i = pcmcia_get_tuple_data(handle, tuple);
 	if (i != 0)
 		return i;

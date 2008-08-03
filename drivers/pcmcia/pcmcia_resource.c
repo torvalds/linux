@@ -211,7 +211,7 @@ int pcmcia_get_window(struct pcmcia_socket *s, window_handle_t *handle,
 		if (s->state & SOCKET_WIN_REQ(w))
 			break;
 	if (w == MAX_WIN)
-		return CS_NO_MORE_ITEMS;
+		return -EINVAL;
 	win = &s->win[w];
 	req->Base = win->ctl.res->start;
 	req->Size = win->ctl.res->end - win->ctl.res->start + 1;

@@ -733,7 +733,7 @@ int ssb_pcmcia_get_invariants(struct ssb_bus *bus,
 			break;
 		}
 		res = pcmcia_get_next_tuple(bus->host_pcmcia, &tuple);
-		if (res == CS_NO_MORE_ITEMS)
+		if (res == -ENOSPC)
 			break;
 		GOTO_ERROR_ON(res != 0, "VEN next tpl");
 		res = pcmcia_get_tuple_data(bus->host_pcmcia, &tuple);

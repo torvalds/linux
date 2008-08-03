@@ -973,7 +973,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	    err = -EBUSY; break;
 	case CS_OUT_OF_RESOURCE:
 	    err = -ENOSPC; break;
-	case CS_NO_MORE_ITEMS:
+	case -ENOSPC:
 	    err = -ENODATA; break;
 	case -ENOSYS:
 	    err = -ENOSYS; break;

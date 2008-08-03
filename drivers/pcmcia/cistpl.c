@@ -450,7 +450,7 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
 	if (pccard_get_next_tuple(s, function, tuple) == 0) {
 	    tuple->DesiredTuple = CISTPL_LINKTARGET;
 	    if (pccard_get_next_tuple(s, function, tuple) != 0)
-		return CS_NO_MORE_ITEMS;
+		return -ENOSPC;
 	} else
 	    tuple->CISOffset = tuple->TupleLink = 0;
 	tuple->DesiredTuple = req;
@@ -526,7 +526,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	/* End of chain?  Follow long link if possible */
 	if (link[0] == CISTPL_END) {
 	    if ((ofs = follow_link(s, tuple)) < 0)
-		return CS_NO_MORE_ITEMS;
+		return -ENOSPC;
 	    attr = SPACE(tuple->Flags);
 	    read_cis_cache(s, attr, ofs, 2, link);
 	}
@@ -584,7 +584,7 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
     }
     if (i == MAX_TUPLES) {
 	cs_dbg(s, 1, "cs: overrun in pcmcia_get_next_tuple\n");
-	return CS_NO_MORE_ITEMS;
+	return -ENOSPC;
     }
     
     tuple->TupleCode = link[0];
@@ -606,7 +606,7 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
 	return -EINVAL;
 
     if (tuple->TupleLink < tuple->TupleOffset)
-	return CS_NO_MORE_ITEMS;
+	return -ENOSPC;
     len = tuple->TupleLink - tuple->TupleOffset;
     tuple->TupleDataLen = tuple->TupleLink;
     if (len == 0)
@@ -1490,7 +1490,7 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
        cards have only a broken VERS_2 tuple; hence the bogus test. */
     if ((pccard_read_tuple(s, function, CISTPL_MANFID, p) == 0) ||
 	(pccard_read_tuple(s, function, CISTPL_VERS_1, p) == 0) ||
-	(pccard_read_tuple(s, function, CISTPL_VERS_2, p) != CS_NO_MORE_ITEMS))
+	(pccard_read_tuple(s, function, CISTPL_VERS_2, p) != -ENOSPC))
 	ident_ok++;
 
     if (!dev_ok && !ident_ok)
