@@ -152,14 +152,14 @@ static void wait_current_trans(struct btrfs_root *root)
 }
 
 struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
-					     int num_blocks, int join)
+					     int num_blocks, int wait)
 {
 	struct btrfs_trans_handle *h =
 		kmem_cache_alloc(btrfs_trans_handle_cachep, GFP_NOFS);
 	int ret;
 
 	mutex_lock(&root->fs_info->trans_mutex);
-	if (!join)
+	if ((wait == 1 && !root->fs_info->open_ioctl_trans) || wait == 2)
 		wait_current_trans(root);
 	ret = join_transaction(root);
 	BUG_ON(ret);
@@ -180,13 +180,20 @@ struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 struct btrfs_trans_handle *btrfs_start_transaction(struct btrfs_root *root,
 						   int num_blocks)
 {
-	return start_transaction(root, num_blocks, 0);
+	return start_transaction(root, num_blocks, 1);
 }
 struct btrfs_trans_handle *btrfs_join_transaction(struct btrfs_root *root,
 						   int num_blocks)
 {
-	return start_transaction(root, num_blocks, 1);
+	return start_transaction(root, num_blocks, 0);
 }
+
+struct btrfs_trans_handle *btrfs_start_ioctl_transaction(struct btrfs_root *r,
+							 int num_blocks)
+{
+	return start_transaction(r, num_blocks, 2);
+}
+
 
 static noinline int wait_for_commit(struct btrfs_root *root,
 				    struct btrfs_transaction *commit)
@@ -247,7 +254,8 @@ harder:
 void btrfs_throttle(struct btrfs_root *root)
 {
 	mutex_lock(&root->fs_info->trans_mutex);
-	wait_current_trans(root);
+	if (!root->fs_info->open_ioctl_trans)
+		wait_current_trans(root);
 	mutex_unlock(&root->fs_info->trans_mutex);
 
 	throttle_on_drops(root);

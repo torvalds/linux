@@ -715,7 +715,12 @@ long btrfs_ioctl_trans_start(struct file *file)
 		ret = -EINPROGRESS;
 		goto out;
 	}
-	trans = btrfs_start_transaction(root, 0);
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	root->fs_info->open_ioctl_trans++;
+	mutex_unlock(&root->fs_info->trans_mutex);
+
+	trans = btrfs_start_ioctl_transaction(root, 0);
 	if (trans)
 		file->private_data = trans;
 	else
@@ -745,6 +750,11 @@ long btrfs_ioctl_trans_end(struct file *file)
 	}
 	btrfs_end_transaction(trans, root);
 	file->private_data = 0;
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	root->fs_info->open_ioctl_trans--;
+	mutex_unlock(&root->fs_info->trans_mutex);
+
 out:
 	return ret;
 }

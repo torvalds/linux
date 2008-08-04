@@ -518,6 +518,7 @@ struct btrfs_fs_info {
 
 	u64 generation;
 	u64 last_trans_committed;
+	u64 open_ioctl_trans;
 	unsigned long mount_opt;
 	u64 max_extent;
 	u64 max_inline;
