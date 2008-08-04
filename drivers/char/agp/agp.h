@@ -30,6 +30,10 @@
 #define _AGP_BACKEND_PRIV_H 1
 
 #include <asm/agp.h>	/* for flush_agp_cache() */
+#ifndef map_page_into_agp_noflush
+#define map_page_into_agp_noflush(page) map_page_into_agp(page)
+#define map_page_into_agp_global_flush()
+#endif
 
 #define PFX "agpgart: "
 
