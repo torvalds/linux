@@ -2258,6 +2258,40 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 		IWL_ERROR("TODO:  Implement Tx ABORT REQUIRED!!!\n");
 }
 
+static int iwl4965_calc_rssi(struct iwl_priv *priv,
+			     struct iwl_rx_phy_res *rx_resp)
+{
+	/* data from PHY/DSP regarding signal strength, etc.,
+	 *   contents are always there, not configurable by host.  */
+	struct iwl4965_rx_non_cfg_phy *ncphy =
+	    (struct iwl4965_rx_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
+	u32 agc = (le16_to_cpu(ncphy->agc_info) & IWL49_AGC_DB_MASK)
+			>> IWL49_AGC_DB_POS;
+
+	u32 valid_antennae =
+	    (le16_to_cpu(rx_resp->phy_flags) & IWL49_RX_PHY_FLAGS_ANTENNAE_MASK)
+			>> IWL49_RX_PHY_FLAGS_ANTENNAE_OFFSET;
+	u8 max_rssi = 0;
+	u32 i;
+
+	/* Find max rssi among 3 possible receivers.
+	 * These values are measured by the digital signal processor (DSP).
+	 * They should stay fairly constant even as the signal strength varies,
+	 *   if the radio's automatic gain control (AGC) is working right.
+	 * AGC value (see below) will provide the "interesting" info. */
+	for (i = 0; i < 3; i++)
+		if (valid_antennae & (1 << i))
+			max_rssi = max(ncphy->rssi_info[i << 1], max_rssi);
+
+	IWL_DEBUG_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+		ncphy->rssi_info[0], ncphy->rssi_info[2], ncphy->rssi_info[4],
+		max_rssi, agc);
+
+	/* dBm = max_rssi dB - agc dB - constant.
+	 * Higher AGC (higher radio gain) means lower signal. */
+	return max_rssi - agc - IWL_RSSI_OFFSET;
+}
+
 
 /* Set up 4965-specific Rx frame reply handlers */
 static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
@@ -2289,6 +2323,7 @@ static struct iwl_hcmd_utils_ops iwl4965_hcmd_utils = {
 	.chain_noise_reset = iwl4965_chain_noise_reset,
 	.gain_computation = iwl4965_gain_computation,
 	.rts_tx_cmd_flag = iwl4965_rts_tx_cmd_flag,
+	.calc_rssi = iwl4965_calc_rssi,
 };
 
 static struct iwl_lib_ops iwl4965_lib = {
