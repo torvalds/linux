@@ -1136,6 +1136,12 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
 		hw_dbg("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
 	}
+
+	if (hw->mac.type == e1000_82576) {
+		reg |= E1000_PCS_LCTL_FORCE_FCTRL;
+		igb_force_mac_fc(hw);
+	}
+
 	wr32(E1000_PCS_LCTL, reg);
 
 	return 0;
