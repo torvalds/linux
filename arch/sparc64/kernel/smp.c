@@ -626,16 +626,15 @@ retry:
 /* Multi-cpu list version.  */
 static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 {
-	int retries, this_cpu, prev_sent, i;
+	int retries, this_cpu, prev_sent, i, saw_cpu_error;
 	unsigned long status;
-	cpumask_t error_mask;
 	u16 *cpu_list;
 
 	this_cpu = smp_processor_id();
 
 	cpu_list = __va(tb->cpu_list_pa);
 
-	cpus_clear(error_mask);
+	saw_cpu_error = 0;
 	retries = 0;
 	prev_sent = 0;
 	do {
@@ -680,10 +679,9 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 					continue;
 
 				err = sun4v_cpu_state(cpu);
-				if (err >= 0 &&
-				    err == HV_CPU_STATE_ERROR) {
+				if (err == HV_CPU_STATE_ERROR) {
+					saw_cpu_error = (cpu + 1);
 					cpu_list[i] = 0xffff;
-					cpu_set(cpu, error_mask);
 				}
 			}
 		} else if (unlikely(status != HV_EWOULDBLOCK))
@@ -707,19 +705,15 @@ static void hypervisor_xcall_deliver(struct trap_per_cpu *tb, int cnt)
 		}
 	} while (1);
 
-	if (unlikely(!cpus_empty(error_mask)))
+	if (unlikely(saw_cpu_error))
 		goto fatal_mondo_cpu_error;
 
 	return;
 
 fatal_mondo_cpu_error:
 	printk(KERN_CRIT "CPU[%d]: SUN4V mondo cpu error, some target cpus "
-	       "were in error state\n",
-	       this_cpu);
-	printk(KERN_CRIT "CPU[%d]: Error mask [ ", this_cpu);
-	for_each_cpu_mask_nr(i, error_mask)
-		printk("%d ", i);
-	printk("]\n");
+	       "(including %d) were in error state\n",
+	       this_cpu, saw_cpu_error - 1);
 	return;
 
 fatal_mondo_timeout:
