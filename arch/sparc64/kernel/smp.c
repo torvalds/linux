@@ -890,29 +890,24 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 		__local_flush_dcache_page(page);
 	} else if (cpu_online(cpu)) {
 		void *pg_addr = page_address(page);
-		u64 data0;
+		u64 data0 = 0;
 
 		if (tlb_type == spitfire) {
-			data0 =
-				((u64)&xcall_flush_dcache_page_spitfire);
+			data0 = ((u64)&xcall_flush_dcache_page_spitfire);
 			if (page_mapping(page) != NULL)
 				data0 |= ((u64)1 << 32);
-			spitfire_xcall_deliver(data0,
-					       __pa(pg_addr),
-					       (u64) pg_addr,
-					       mask);
 		} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 #ifdef DCACHE_ALIASING_POSSIBLE
-			data0 =
-				((u64)&xcall_flush_dcache_page_cheetah);
-			cheetah_xcall_deliver(data0,
-					      __pa(pg_addr),
-					      0, mask);
+			data0 =	((u64)&xcall_flush_dcache_page_cheetah);
 #endif
 		}
+		if (data0) {
+			xcall_deliver(data0, __pa(pg_addr),
+				      (u64) pg_addr, mask);
 #ifdef CONFIG_DEBUG_DCFLUSH
-		atomic_inc(&dcpage_flushes_xcall);
+			atomic_inc(&dcpage_flushes_xcall);
 #endif
+		}
 	}
 
 	put_cpu();
@@ -920,10 +915,10 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 
 void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 {
-	void *pg_addr = page_address(page);
 	cpumask_t mask = cpu_online_map;
-	u64 data0;
+	void *pg_addr;
 	int this_cpu;
+	u64 data0;
 
 	if (tlb_type == hypervisor)
 		return;
@@ -937,25 +932,24 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 #endif
 	if (cpus_empty(mask))
 		goto flush_self;
+	data0 = 0;
+	pg_addr = page_address(page);
 	if (tlb_type == spitfire) {
 		data0 = ((u64)&xcall_flush_dcache_page_spitfire);
 		if (page_mapping(page) != NULL)
 			data0 |= ((u64)1 << 32);
-		spitfire_xcall_deliver(data0,
-				       __pa(pg_addr),
-				       (u64) pg_addr,
-				       mask);
 	} else if (tlb_type == cheetah || tlb_type == cheetah_plus) {
 #ifdef DCACHE_ALIASING_POSSIBLE
 		data0 = ((u64)&xcall_flush_dcache_page_cheetah);
-		cheetah_xcall_deliver(data0,
-				      __pa(pg_addr),
-				      0, mask);
 #endif
 	}
+	if (data0) {
+		xcall_deliver(data0, __pa(pg_addr),
+			      (u64) pg_addr, mask);
 #ifdef CONFIG_DEBUG_DCFLUSH
-	atomic_inc(&dcpage_flushes_xcall);
+		atomic_inc(&dcpage_flushes_xcall);
 #endif
+	}
  flush_self:
 	__local_flush_dcache_page(page);
 
