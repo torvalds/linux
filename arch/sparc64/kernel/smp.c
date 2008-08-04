@@ -759,7 +759,12 @@ dump_cpu_list_and_out:
 	printk("]\n");
 }
 
-static void (*xcall_deliver)(u64, u64, u64, const cpumask_t *);
+static void (*xcall_deliver_impl)(u64, u64, u64, const cpumask_t *);
+
+static void xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask)
+{
+	xcall_deliver_impl(data0, data1, data2, mask);
+}
 
 /* Send cross call to all processors mentioned in MASK_P
  * except self.  Really, there are only two cases currently,
@@ -1182,11 +1187,11 @@ void __devinit smp_prepare_boot_cpu(void)
 void __init smp_setup_processor_id(void)
 {
 	if (tlb_type == spitfire)
-		xcall_deliver = spitfire_xcall_deliver;
+		xcall_deliver_impl = spitfire_xcall_deliver;
 	else if (tlb_type == cheetah || tlb_type == cheetah_plus)
-		xcall_deliver = cheetah_xcall_deliver;
+		xcall_deliver_impl = cheetah_xcall_deliver;
 	else
-		xcall_deliver = hypervisor_xcall_deliver;
+		xcall_deliver_impl = hypervisor_xcall_deliver;
 }
 
 void __devinit smp_fill_in_sib_core_maps(void)
