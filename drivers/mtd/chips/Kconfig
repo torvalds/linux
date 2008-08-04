@@ -188,7 +188,7 @@ config MTD_CFI_INTELEXT
 	  StrataFlash and other parts.
 
 config MTD_CFI_AMDSTD
-	tristate "Support for AMD/Fujitsu flash chips"
+	tristate "Support for AMD/Fujitsu/Spansion flash chips"
 	depends on MTD_GEN_PROBE
 	select MTD_CFI_UTIL
 	help
