@@ -224,7 +224,7 @@ static struct platform_device sa1111_device = {
  * for the temperature sensors.
  */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
-	.num_chipselect	= 0,
+	.num_chipselect	= 1,
 };
 
 static int lubbock_ads7846_pendown_state(void)
