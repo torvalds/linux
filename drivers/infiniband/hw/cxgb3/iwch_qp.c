@@ -879,20 +879,13 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 		(qhp->attr.mpa_attr.xmit_marker_enabled << 1) |
 		(qhp->attr.mpa_attr.crc_enabled << 2);
 
-	/*
-	 * XXX - The IWCM doesn't quite handle getting these
-	 * attrs set before going into RTS.  For now, just turn
-	 * them on always...
-	 */
-#if 0
-	init_attr.qpcaps = qhp->attr.enableRdmaRead |
-		(qhp->attr.enableRdmaWrite << 1) |
-		(qhp->attr.enableBind << 2) |
-		(qhp->attr.enable_stag0_fastreg << 3) |
-		(qhp->attr.enable_stag0_fastreg << 4);
-#else
-	init_attr.qpcaps = 0x1f;
-#endif
+	init_attr.qpcaps = uP_RI_QP_RDMA_READ_ENABLE |
+			   uP_RI_QP_RDMA_WRITE_ENABLE |
+			   uP_RI_QP_BIND_ENABLE;
+	if (!qhp->ibqp.uobject)
+		init_attr.qpcaps |= uP_RI_QP_STAG0_ENABLE |
+				    uP_RI_QP_FAST_REGISTER_ENABLE;
+
 	init_attr.tcp_emss = qhp->ep->emss;
 	init_attr.ord = qhp->attr.max_ord;
 	init_attr.ird = qhp->attr.max_ird;
@@ -900,8 +893,6 @@ static int rdma_init(struct iwch_dev *rhp, struct iwch_qp *qhp,
 	init_attr.qp_dma_size = (1UL << qhp->wq.size_log2);
 	init_attr.rqe_count = iwch_rqes_posted(qhp);
 	init_attr.flags = qhp->attr.mpa_attr.initiator ? MPA_INITIATOR : 0;
-	if (!qhp->ibqp.uobject)
-		init_attr.flags |= PRIV_QP;
 	if (peer2peer) {
 		init_attr.rtr_type = RTR_READ;
 		if (init_attr.ord == 0 && qhp->attr.mpa_attr.initiator)
