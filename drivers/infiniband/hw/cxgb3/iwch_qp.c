@@ -565,7 +565,7 @@ int iwch_bind_mw(struct ib_qp *qp,
 	wqe->bind.type = TPT_VATO;
 
 	/* TBD: check perms */
-	wqe->bind.perms = iwch_ib_to_tpt_access(mw_bind->mw_access_flags);
+	wqe->bind.perms = iwch_ib_to_tpt_bind_access(mw_bind->mw_access_flags);
 	wqe->bind.mr_stag = cpu_to_be32(mw_bind->mr->lkey);
 	wqe->bind.mw_stag = cpu_to_be32(mw->rkey);
 	wqe->bind.mw_len = cpu_to_be32(mw_bind->length);
