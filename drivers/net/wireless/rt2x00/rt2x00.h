@@ -144,6 +144,17 @@ struct rf_channel {
 };
 
 /*
+ * Channel information structure
+ */
+struct channel_info {
+	unsigned int flags;
+#define GEOGRAPHY_ALLOWED	0x00000001
+
+	short tx_power1;
+	short tx_power2;
+};
+
+/*
  * Antenna setup values.
  */
 struct antenna_setup {
@@ -394,10 +405,7 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
  * @num_channels: Number of supported channels. This is used as array size
  *	for @tx_power_a, @tx_power_bg and @channels.
  * @channels: Device/chipset specific channel values (See &struct rf_channel).
- * @tx_power_a: TX power values for all 5.2GHz channels (may be NULL).
- * @tx_power_bg: TX power values for all 2.4GHz channels (may be NULL).
- * @tx_power_default: Default TX power value to use when either
- *	@tx_power_a or @tx_power_bg is missing.
+ * @channels_info: Additional information for channels (See &struct channel_info).
  */
 struct hw_mode_spec {
 	unsigned int supported_bands;
@@ -410,10 +418,7 @@ struct hw_mode_spec {
 
 	unsigned int num_channels;
 	const struct rf_channel *channels;
-
-	const u8 *tx_power_a;
-	const u8 *tx_power_bg;
-	u8 tx_power_default;
+	const struct channel_info *channels_info;
 };
 
 /*
@@ -425,7 +430,9 @@ struct hw_mode_spec {
  */
 struct rt2x00lib_conf {
 	struct ieee80211_conf *conf;
+
 	struct rf_channel rf;
+	struct channel_info channel;
 
 	struct antenna_setup ant;
 

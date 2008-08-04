@@ -245,6 +245,10 @@ config:
 		memcpy(&libconf.rf,
 		       &rt2x00dev->spec.channels[conf->channel->hw_value],
 		       sizeof(libconf.rf));
+
+		memcpy(&libconf.channel,
+		       &rt2x00dev->spec.channels_info[conf->channel->hw_value],
+		       sizeof(libconf.channel));
 	}
 
 	if (flags & CONFIG_UPDATE_ANTENNA) {

@@ -1721,10 +1721,11 @@ static const struct rf_channel rf_vals_5222[] = {
 	{ 161, 0x00022020, 0x000090be, 0x00000101, 0x00000a07 },
 };
 
-static void rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
+static int rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 {
 	struct hw_mode_spec *spec = &rt2x00dev->spec;
-	u8 *txpower;
+	struct channel_info *info;
+	char *tx_power;
 	unsigned int i;
 
 	/*
@@ -1741,20 +1742,10 @@ static void rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 						   EEPROM_MAC_ADDR_0));
 
 	/*
-	 * Convert tx_power array in eeprom.
-	 */
-	txpower = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
-	for (i = 0; i < 14; i++)
-		txpower[i] = TXPOWER_FROM_DEV(txpower[i]);
-
-	/*
 	 * Initialize hw_mode information.
 	 */
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
-	spec->tx_power_a = NULL;
-	spec->tx_power_bg = txpower;
-	spec->tx_power_default = DEFAULT_TXPOWER;
 
 	if (rt2x00_rf(&rt2x00dev->chip, RF2522)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2522);
@@ -1776,6 +1767,26 @@ static void rt2500pci_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 		spec->num_channels = ARRAY_SIZE(rf_vals_5222);
 		spec->channels = rf_vals_5222;
 	}
+
+	/*
+	 * Create channel information array
+	 */
+	info = kzalloc(spec->num_channels * sizeof(*info), GFP_KERNEL);
+	if (!info)
+		return -ENOMEM;
+
+	spec->channels_info = info;
+
+	tx_power = rt2x00_eeprom_addr(rt2x00dev, EEPROM_TXPOWER_START);
+	for (i = 0; i < 14; i++)
+		info[i].tx_power1 = TXPOWER_FROM_DEV(tx_power[i]);
+
+	if (spec->num_channels > 14) {
+		for (i = 14; i < spec->num_channels; i++)
+			info[i].tx_power1 = DEFAULT_TXPOWER;
+	}
+
+	return 0;
 }
 
 static int rt2500pci_probe_hw(struct rt2x00_dev *rt2x00dev)
@@ -1796,7 +1807,9 @@ static int rt2500pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize hw specifications.
 	 */
-	rt2500pci_probe_hw_mode(rt2x00dev);
+	retval = rt2500pci_probe_hw_mode(rt2x00dev);
+	if (retval)
+		return retval;
 
 	/*
 	 * This device requires the atim queue and DMA-mapped skbs.

@@ -818,7 +818,6 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_rate *rates;
 	unsigned int num_rates;
 	unsigned int i;
-	unsigned char tx_power;
 
 	num_rates = 0;
 	if (spec->supported_rates & SUPPORT_RATE_CCK)
@@ -844,20 +843,9 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	 * Initialize Channel list.
 	 */
 	for (i = 0; i < spec->num_channels; i++) {
-		if (spec->channels[i].channel <= 14) {
-			if (spec->tx_power_bg)
-				tx_power = spec->tx_power_bg[i];
-			else
-				tx_power = spec->tx_power_default;
-		} else {
-			if (spec->tx_power_a)
-				tx_power = spec->tx_power_a[i];
-			else
-				tx_power = spec->tx_power_default;
-		}
-
 		rt2x00lib_channel(&channels[i],
-				  spec->channels[i].channel, tx_power, i);
+				  spec->channels[i].channel,
+				  spec->channels_info[i].tx_power1, i);
 	}
 
 	/*
@@ -909,6 +897,8 @@ static void rt2x00lib_remove_hw(struct rt2x00_dev *rt2x00dev)
 		rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_2GHZ] = NULL;
 		rt2x00dev->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = NULL;
 	}
+
+	kfree(rt2x00dev->spec.channels_info);
 }
 
 static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
