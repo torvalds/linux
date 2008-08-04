@@ -94,6 +94,7 @@ void maple_driver_unregister(struct maple_driver *drv)
 {
 	driver_unregister(&drv->drv);
 }
+EXPORT_SYMBOL_GPL(maple_driver_unregister);
 
 /* set hardware registers to enable next round of dma */
 static void maplebus_dma_reset(void)

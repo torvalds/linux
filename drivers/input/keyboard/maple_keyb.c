@@ -139,7 +139,7 @@ static void dc_scan_kbd(struct dc_kbd *kbd)
 static void dc_kbd_callback(struct mapleq *mq)
 {
 	struct maple_device *mapledev = mq->dev;
-	struct dc_kbd *kbd = mapledev->private_data;
+	struct dc_kbd *kbd = maple_get_drvdata(mapledev);
 	unsigned long *buf = mq->recvbuf;
 
 	/*
@@ -175,8 +175,6 @@ static int probe_maple_kbd(struct device *dev)
 		goto fail;
 	}
 
-	mdev->private_data = kbd;
-
 	kbd->dev = idev;
 	memcpy(kbd->keycode, dc_kbd_keycode, sizeof(kbd->keycode));
 
@@ -204,26 +202,29 @@ static int probe_maple_kbd(struct device *dev)
 		MAPLE_FUNC_KEYBOARD);
 
 	mdev->driver = mdrv;
+
+	maple_set_drvdata(mdev, kbd);
+
 	return error;
 
 fail:
 	input_free_device(idev);
 	kfree(kbd);
-	mdev->private_data = NULL;
+	maple_set_drvdata(mdev, NULL);
 	return error;
 }
 
 static int remove_maple_kbd(struct device *dev)
 {
 	struct maple_device *mdev = to_maple_dev(dev);
-	struct dc_kbd *kbd;
+	struct dc_kbd *kbd = maple_get_drvdata(mdev);
 
 	mutex_lock(&maple_keyb_mutex);
 
-	kbd = mdev->private_data;
-	mdev->private_data = NULL;
 	input_unregister_device(kbd->dev);
 	kfree(kbd);
+
+	maple_set_drvdata(mdev, NULL);
 
 	mutex_unlock(&maple_keyb_mutex);
 	return 0;
