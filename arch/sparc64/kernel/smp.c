@@ -792,16 +792,15 @@ extern unsigned long xcall_call_function;
 
 void arch_send_call_function_ipi(cpumask_t mask)
 {
-	smp_cross_call_masked(&xcall_call_function, 0, 0, 0, mask);
+	xcall_deliver((u64) &xcall_call_function, 0, 0, &mask);
 }
 
 extern unsigned long xcall_call_function_single;
 
 void arch_send_call_function_single_ipi(int cpu)
 {
-	cpumask_t mask = cpumask_of_cpu(cpu);
-
-	smp_cross_call_masked(&xcall_call_function_single, 0, 0, 0, mask);
+	xcall_deliver((u64) &xcall_call_function_single, 0, 0,
+		      &cpumask_of_cpu(cpu));
 }
 
 /* Send cross call to all processors except self. */
@@ -957,24 +956,6 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	__local_flush_dcache_page(page);
 
 	put_cpu();
-}
-
-static void __smp_receive_signal_mask(cpumask_t mask)
-{
-	smp_cross_call_masked(&xcall_receive_signal, 0, 0, 0, mask);
-}
-
-void smp_receive_signal(int cpu)
-{
-	cpumask_t mask = cpumask_of_cpu(cpu);
-
-	if (cpu_online(cpu))
-		__smp_receive_signal_mask(mask);
-}
-
-void smp_receive_signal_client(int irq, struct pt_regs *regs)
-{
-	clear_softint(1 << irq);
 }
 
 void smp_new_mmu_context_version_client(int irq, struct pt_regs *regs)
@@ -1374,7 +1355,13 @@ void __init smp_cpus_done(unsigned int max_cpus)
 
 void smp_send_reschedule(int cpu)
 {
-	smp_receive_signal(cpu);
+	xcall_deliver((u64) &xcall_receive_signal, 0, 0,
+		      &cpumask_of_cpu(cpu));
+}
+
+void smp_receive_signal_client(int irq, struct pt_regs *regs)
+{
+	clear_softint(1 << irq);
 }
 
 /* This is a nop because we capture all other cpus
