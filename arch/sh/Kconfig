@@ -48,6 +48,9 @@ config GENERIC_HWEIGHT
 config GENERIC_HARDIRQS
 	def_bool y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
+
 config GENERIC_IRQ_PROBE
 	def_bool y
 
