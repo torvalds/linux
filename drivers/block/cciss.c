@@ -1533,15 +1533,18 @@ mem_msg:
  * where new drives will be added.  If the index to be returned is greater
  * than the highest_lun index for the controller then highest_lun is set
  * to this new index.  If there are no available indexes then -1 is returned.
+ * "controller_node" is used to know if this is a real logical drive, or just
+ * the controller node, which determines if this counts towards highest_lun.
  */
-static int cciss_find_free_drive_index(int ctlr)
+static int cciss_find_free_drive_index(int ctlr, int controller_node)
 {
 	int i;
 
 	for (i = 0; i < CISS_MAX_LUN; i++) {
 		if (hba[ctlr]->drv[i].raid_level == -1) {
 			if (i > hba[ctlr]->highest_lun)
-				hba[ctlr]->highest_lun = i;
+				if (!controller_node)
+					hba[ctlr]->highest_lun = i;
 			return i;
 		}
 	}
@@ -1557,11 +1560,11 @@ static int cciss_find_free_drive_index(int ctlr)
  * a means to talk to the controller in case no logical
  * drives have yet been configured.
  */
-static int cciss_add_gendisk(ctlr_info_t *h, __u32 lunid)
+static int cciss_add_gendisk(ctlr_info_t *h, __u32 lunid, int controller_node)
 {
 	int drv_index;
 
-	drv_index = cciss_find_free_drive_index(h->ctlr);
+	drv_index = cciss_find_free_drive_index(h->ctlr, controller_node);
 	if (drv_index == -1)
 		return -1;
 	/*Check if the gendisk needs to be allocated */
@@ -1598,7 +1601,7 @@ static void cciss_add_controller_node(ctlr_info_t *h)
 	if (h->gendisk[0] != NULL) /* already did this? Then bail. */
 		return;
 
-	drv_index = cciss_add_gendisk(h, 0);
+	drv_index = cciss_add_gendisk(h, 0, 1);
 	if (drv_index == -1) {
 		printk(KERN_WARNING "cciss%d: could not "
 			"add disk 0.\n", h->ctlr);
@@ -1732,7 +1735,7 @@ static int rebuild_lun_table(ctlr_info_t *h, int first_time)
 
 		/* check if the drive was found already in the array */
 		if (!drv_found) {
-			drv_index = cciss_add_gendisk(h, lunid);
+			drv_index = cciss_add_gendisk(h, lunid, 0);
 			if (drv_index == -1)
 				goto freeret;
 		}
