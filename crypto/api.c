@@ -55,7 +55,8 @@ void crypto_mod_put(struct crypto_alg *alg)
 }
 EXPORT_SYMBOL_GPL(crypto_mod_put);
 
-struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type, u32 mask)
+static struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type,
+					      u32 mask)
 {
 	struct crypto_alg *q, *alg = NULL;
 	int best = -2;
@@ -92,7 +93,6 @@ struct crypto_alg *__crypto_alg_lookup(const char *name, u32 type, u32 mask)
 
 	return alg;
 }
-EXPORT_SYMBOL_GPL(__crypto_alg_lookup);
 
 static void crypto_larval_destroy(struct crypto_alg *alg)
 {
@@ -165,8 +165,7 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	return alg;
 }
 
-static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
-					    u32 mask)
+struct crypto_alg *crypto_alg_lookup(const char *name, u32 type, u32 mask)
 {
 	struct crypto_alg *alg;
 
@@ -176,6 +175,7 @@ static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 
 	return alg;
 }
+EXPORT_SYMBOL_GPL(crypto_alg_lookup);
 
 struct crypto_alg *crypto_larval_lookup(const char *name, u32 type, u32 mask)
 {
