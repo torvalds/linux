@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_REGSSYSNS9360_H
 #define __ASM_ARCH_REGSSYSNS9360_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /* System Control Module */
 

@@ -22,7 +22,7 @@
 
 #include <asm/arch/regs-gpio.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 int s3c2412_gpio_set_sleepcfg(unsigned int pin, unsigned int state)
 {

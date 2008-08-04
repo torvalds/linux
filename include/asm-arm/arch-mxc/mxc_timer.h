@@ -24,7 +24,7 @@
 #define __PLAT_MXC_TIMER_H
 
 #include <linux/clk.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #ifdef CONFIG_ARCH_IMX
 #define TIMER_BASE		IO_ADDRESS(TIM1_BASE_ADDR)

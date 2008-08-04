@@ -43,7 +43,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach/flash.h>
 #include <asm/arch/tc.h>
 

@@ -10,7 +10,7 @@
  * warranty of any kind, whether express or implied.
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/at91_aic.h>
 
 	.macro	disable_fiq

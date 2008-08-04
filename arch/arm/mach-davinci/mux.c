@@ -11,7 +11,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm/arch/mux.h>
 

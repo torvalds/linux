@@ -26,7 +26,7 @@
 #include <linux/spi/at73c213.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>

@@ -18,7 +18,7 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/timex.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>

@@ -9,7 +9,7 @@
  */
 
 #include <linux/cpufreq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/clocks.h>
 #include <linux/err.h>
 

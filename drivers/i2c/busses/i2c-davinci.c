@@ -36,7 +36,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm/arch/i2c.h>
 

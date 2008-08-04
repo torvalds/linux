@@ -22,7 +22,7 @@
 #include <linux/device.h>
 #include <linux/errno.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>

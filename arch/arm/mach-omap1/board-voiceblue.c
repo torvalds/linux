@@ -22,7 +22,7 @@
 #include <linux/serial_8250.h>
 #include <linux/serial_reg.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>

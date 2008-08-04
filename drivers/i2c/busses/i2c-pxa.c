@@ -34,7 +34,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/arch/i2c.h>

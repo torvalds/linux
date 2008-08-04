@@ -71,7 +71,7 @@
 #include <linux/pm.h>
 #endif
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/h3600.h>
 #include <asm/mach-types.h>
 #include <asm/dma.h>

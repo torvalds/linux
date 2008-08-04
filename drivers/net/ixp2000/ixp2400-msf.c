@@ -13,7 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/ixp2000-regs.h>
 #include <asm/delay.h>
 #include <asm/io.h>

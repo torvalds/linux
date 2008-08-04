@@ -23,7 +23,7 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/irq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/pgtable.h>

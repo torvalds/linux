@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial.h>
 #include <linux/gpio.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/imx-uart.h>
 
 static struct resource uart0[] = {

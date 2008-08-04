@@ -33,7 +33,7 @@
 #include <linux/irq.h>
 
 #include <asm/byteorder.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>

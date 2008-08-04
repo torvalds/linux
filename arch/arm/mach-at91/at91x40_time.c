@@ -23,7 +23,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/time.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/time.h>
 #include <asm/arch/at91_tc.h>

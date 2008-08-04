@@ -11,7 +11,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/arch/cerf.h>

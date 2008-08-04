@@ -27,7 +27,7 @@
 #include <asm/hardware/scoop.h>
 #include <asm/arch/regs-clock.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/audio.h>
 #include <linux/io.h>
 #include <asm/arch/spi-gpio.h>

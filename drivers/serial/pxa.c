@@ -45,7 +45,7 @@
 #include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/arch/pxa-regs.h>
 

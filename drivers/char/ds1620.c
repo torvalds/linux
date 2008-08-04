@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/uaccess.h>
 #include <asm/therm.h>

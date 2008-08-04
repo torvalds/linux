@@ -19,7 +19,7 @@
 #include <linux/serial_reg.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>

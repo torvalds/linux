@@ -26,7 +26,7 @@
 #include <linux/apm-emulation.h>
 #include <linux/suspend.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/arch/pm.h>
 #include <asm/arch/pxa-regs.h>

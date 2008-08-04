@@ -15,7 +15,7 @@
 #include <linux/smp.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 

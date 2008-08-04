@@ -7,7 +7,7 @@
  * under the terms of the GNU General Public License version 2 as published by
  * the Free Software Foundation.
  */
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm/arch/regs-board-a9m9750dev.h>
 

@@ -43,7 +43,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

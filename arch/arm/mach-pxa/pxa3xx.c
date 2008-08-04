@@ -22,7 +22,7 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/pxa3xx-regs.h>
 #include <asm/arch/ohci.h>
 #include <asm/arch/pm.h>

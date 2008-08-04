@@ -15,7 +15,7 @@
 
 #include <linux/bitops.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #define IO_SPACE_LIMIT 0xffff0000
 

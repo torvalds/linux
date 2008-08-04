@@ -14,7 +14,7 @@
 #include <linux/device.h>
 #include <asm/page.h>
 #include <asm/sizes.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #define MAX_DMA_ADDRESS		(PAGE_OFFSET + SZ_64M)
 

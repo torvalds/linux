@@ -22,7 +22,7 @@
 #include <linux/mutex.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/netx-regs.h>
 #include <asm/arch/pfifo.h>
 

@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_MXC_MEMORY_H__
 #define __ASM_ARCH_MXC_MEMORY_H__
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /*
  * Virtual view <-> DMA view memory address translations

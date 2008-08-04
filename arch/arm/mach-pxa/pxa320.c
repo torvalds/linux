@@ -17,7 +17,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/mfp.h>
 #include <asm/arch/pxa3xx-regs.h>
 #include <asm/arch/mfp-pxa320.h>

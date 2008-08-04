@@ -13,7 +13,7 @@
  *
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 void arch_idle(void);
 

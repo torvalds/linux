@@ -31,7 +31,7 @@
 
 #include <asm/setup.h>
 #include <asm/page.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>

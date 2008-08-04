@@ -26,7 +26,7 @@
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/arch/magician.h>

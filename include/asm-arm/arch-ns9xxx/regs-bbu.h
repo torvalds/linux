@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_REGSBBU_H
 #define __ASM_ARCH_REGSBBU_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /* BBus Utility */
 

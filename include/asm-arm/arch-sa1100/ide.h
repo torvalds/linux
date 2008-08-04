@@ -10,7 +10,7 @@
  */
 
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 
 #error "This code is broken and needs update to match with current ide support"

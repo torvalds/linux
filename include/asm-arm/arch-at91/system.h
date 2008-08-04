@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/at91_st.h>
 #include <asm/arch/at91_dbgu.h>
 

@@ -24,7 +24,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/iomd.h>
 #include <asm/setup.h>
 #include <asm/io.h>

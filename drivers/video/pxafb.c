@@ -45,7 +45,7 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>

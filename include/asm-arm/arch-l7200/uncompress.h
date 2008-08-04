@@ -9,7 +9,7 @@
  *  07-26-2000	SJH	Removed hard coded baud rate
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #define IO_UART  IO_START + 0x00044000
 

@@ -23,7 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/mach/arch.h>

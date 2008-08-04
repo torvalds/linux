@@ -20,7 +20,7 @@
 
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/scoop.h>
 
 #include <asm/arch/sharpsl.h>

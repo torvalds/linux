@@ -14,7 +14,7 @@
 #ifndef __PNX4008_TIMEX_H
 #define __PNX4008_TIMEX_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #define CLOCK_TICK_RATE		1000000

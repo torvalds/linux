@@ -21,7 +21,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 #include <asm/mach/arch.h>

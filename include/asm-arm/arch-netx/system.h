@@ -20,7 +20,7 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include "netx-regs.h"
 
 static inline void arch_idle(void)

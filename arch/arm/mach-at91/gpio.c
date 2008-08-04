@@ -20,7 +20,7 @@
 #include <linux/module.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/at91_pio.h>
 #include <asm/arch/gpio.h>
 

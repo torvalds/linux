@@ -22,7 +22,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/usb-control.h>
 
 #define valid_port(idx) ((idx) == 1 || (idx) == 2)

@@ -12,7 +12,7 @@
 #ifndef __ASM_ARCH_MEMORY_H
 #define __ASM_ARCH_MEMORY_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /*
  * Physical DRAM offset.

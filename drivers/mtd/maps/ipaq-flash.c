@@ -24,7 +24,7 @@
 #include <linux/mtd/concat.h>
 #endif
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/h3600.h>
 #include <asm/io.h>
 

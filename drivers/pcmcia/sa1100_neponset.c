@@ -9,7 +9,7 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/arch/neponset.h>
 #include <asm/hardware/sa1111.h>

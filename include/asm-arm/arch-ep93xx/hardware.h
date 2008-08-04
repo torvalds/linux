@@ -1,6 +1,8 @@
 /*
  * linux/include/asm-arm/arch-ep93xx/hardware.h
  */
+#ifndef __ASM_ARCH_HARDWARE_H
+#define __ASM_ARCH_HARDWARE_H
 
 #include "ep93xx-regs.h"
 
@@ -10,3 +12,5 @@
 
 #include "gesbc9312.h"
 #include "ts72xx.h"
+
+#endif

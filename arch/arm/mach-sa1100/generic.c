@@ -21,7 +21,7 @@
 
 #include <asm/div64.h>
 #include <asm/cnt32_to_63.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>

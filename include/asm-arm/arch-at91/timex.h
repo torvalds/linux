@@ -21,7 +21,7 @@
 #ifndef __ASM_ARCH_TIMEX_H
 #define __ASM_ARCH_TIMEX_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #if defined(CONFIG_ARCH_AT91RM9200)
 

@@ -6,7 +6,7 @@
 #include <linux/kernel.h>
 #include <linux/tty.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 

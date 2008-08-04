@@ -31,7 +31,7 @@
 #include <linux/pm.h>
 #include <linux/bitops.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 
 #ifdef CONFIG_ARCH_PXA

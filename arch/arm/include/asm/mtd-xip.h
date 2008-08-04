@@ -17,7 +17,7 @@
 #ifndef __ARM_MTD_XIP_H__
 #define __ARM_MTD_XIP_H__
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/mtd-xip.h>
 
 /* fill instruction prefetch */

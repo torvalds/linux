@@ -13,7 +13,7 @@
 
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/leds.h>
 #include <asm/system.h>
 #include <asm/arch/pxa-regs.h>

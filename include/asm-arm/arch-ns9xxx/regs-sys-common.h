@@ -11,7 +11,7 @@
 
 #ifndef __ASM_ARCH_REGSSYSCOMMON_H
 #define __ASM_ARCH_REGSSYSCOMMON_H
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /* Interrupt Vector Address Register Level x */
 #define SYS_IVA(x)	__REG2(0xa09000c4, (x))

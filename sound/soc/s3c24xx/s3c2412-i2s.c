@@ -28,7 +28,7 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <linux/io.h>
 #include <asm/dma.h>

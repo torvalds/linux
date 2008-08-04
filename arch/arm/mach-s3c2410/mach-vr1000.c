@@ -35,7 +35,7 @@
 #include <asm/arch/vr1000-irq.h>
 #include <asm/arch/vr1000-cpld.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>

@@ -18,7 +18,7 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 #include <asm/arch/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/clps7111.h>
 
 #undef CLPS7111_BASE

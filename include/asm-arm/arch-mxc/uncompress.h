@@ -25,7 +25,7 @@
 
 #define __MXC_BOOT_UNCOMPRESS
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #define UART(x) (*(volatile unsigned long *)(serial_port + (x)))
 

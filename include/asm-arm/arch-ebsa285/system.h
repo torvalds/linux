@@ -9,7 +9,7 @@
  */
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 

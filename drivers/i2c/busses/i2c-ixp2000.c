@@ -33,7 +33,7 @@
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
 
-#include <asm/hardware.h>	/* Pick up IXP2000-specific bits */
+#include <asm/arch/hardware.h>	/* Pick up IXP2000-specific bits */
 #include <asm/arch/gpio.h>
 
 static inline int ixp2000_scl_pin(void *data)

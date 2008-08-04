@@ -26,7 +26,7 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach/time.h>
 #include <asm/arch/common.h>
 #include <asm/arch/mxc_timer.h>

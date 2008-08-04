@@ -33,7 +33,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/gpio.h>
 
 #include "../codecs/wm8731.h"

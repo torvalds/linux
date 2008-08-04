@@ -21,7 +21,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-gpio.h>
 #include <asm/arch/audio.h>

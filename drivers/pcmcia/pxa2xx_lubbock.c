@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/mach-types.h>
 #include <asm/arch/pxa-regs.h>

@@ -32,7 +32,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /*
  * Resource definition for the MXC IrDA

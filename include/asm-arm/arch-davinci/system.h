@@ -12,7 +12,7 @@
 #define __ASM_ARCH_SYSTEM_H
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 extern void davinci_watchdog_reset(void);
 

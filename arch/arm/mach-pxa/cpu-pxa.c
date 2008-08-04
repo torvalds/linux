@@ -37,7 +37,7 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h>
 

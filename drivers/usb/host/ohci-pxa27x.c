@@ -24,7 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/pxa2xx-regs.h> /* FIXME: for PSSR */
 #include <asm/arch/ohci.h>

@@ -21,7 +21,7 @@
 #include <linux/delay.h>
 #include <linux/jiffies.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/sizes.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>

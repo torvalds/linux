@@ -25,7 +25,7 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm/arch/regs-gpio.h>
 #include <asm/plat-s3c24xx/regs-spi.h>

@@ -28,7 +28,7 @@
 #include <linux/io.h>
 
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/dma.h>
 
 #include <asm/arch/tc.h>

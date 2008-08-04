@@ -22,7 +22,7 @@
 #include <sound/soc.h>
 
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/audio.h>
 

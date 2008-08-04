@@ -25,7 +25,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/arch/netx-regs.h>

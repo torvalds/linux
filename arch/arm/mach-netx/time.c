@@ -22,7 +22,7 @@
 #include <linux/irq.h>
 #include <linux/clocksource.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/time.h>
 #include <asm/arch/netx-regs.h>

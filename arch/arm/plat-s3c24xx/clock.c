@@ -40,7 +40,7 @@
 #include <linux/mutex.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 

@@ -20,6 +20,6 @@
 #ifndef __ASM_ARCH_MXC_TIMEX_H__
 #define __ASM_ARCH_MXC_TIMEX_H__
 
-#include <asm/hardware.h>	/* for CLOCK_TICK_RATE */
+#include <asm/arch/hardware.h>	/* for CLOCK_TICK_RATE */
 
 #endif				/* __ASM_ARCH_MXC_TIMEX_H__ */

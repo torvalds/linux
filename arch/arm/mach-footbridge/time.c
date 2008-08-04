@@ -23,7 +23,7 @@
 #include <linux/mc146818rtc.h>
 #include <linux/bcd.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #include <asm/mach/time.h>

@@ -31,7 +31,7 @@
 #include <asm/arch/anubis-irq.h>
 #include <asm/arch/anubis-cpld.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>

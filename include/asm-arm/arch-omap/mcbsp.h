@@ -27,7 +27,7 @@
 #include <linux/completion.h>
 #include <linux/spinlock.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/clock.h>
 
 #define OMAP730_MCBSP1_BASE	0xfffb1000

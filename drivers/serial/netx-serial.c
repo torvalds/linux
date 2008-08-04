@@ -35,7 +35,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/netx-regs.h>
 
 /* We've been assigned a range on the "Low-density serial ports" major */

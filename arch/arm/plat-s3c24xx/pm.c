@@ -37,7 +37,7 @@
 #include <linux/serial_core.h>
 
 #include <asm/cacheflush.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #include <asm/plat-s3c/regs-serial.h>

@@ -20,7 +20,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/ssp.h>
 #include <asm/arch/jornada720.h>
 

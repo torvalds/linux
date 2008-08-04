@@ -30,7 +30,7 @@
 
 #include <asm/errno.h>
 #include <asm/arch/imxfb.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/imx-regs.h>
 
 #include <asm/mach/map.h>

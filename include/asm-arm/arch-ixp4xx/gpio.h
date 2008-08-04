@@ -25,7 +25,7 @@
 #ifndef __ASM_ARCH_IXP4XX_GPIO_H
 #define __ASM_ARCH_IXP4XX_GPIO_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 static inline int gpio_request(unsigned gpio, const char *label)
 {

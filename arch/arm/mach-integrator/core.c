@@ -20,7 +20,7 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/hardware/arm_timer.h>

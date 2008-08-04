@@ -31,7 +31,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/ssp.h>
 #include <asm/arch/pxa-regs.h>
 #include <asm/arch/regs-ssp.h>

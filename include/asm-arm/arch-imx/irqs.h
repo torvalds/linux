@@ -23,7 +23,7 @@
 #define __ARM_IRQS_H__
 
 /* Use the imx definitions */
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /*
  *  IMX Interrupt numbers

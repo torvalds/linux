@@ -28,7 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>

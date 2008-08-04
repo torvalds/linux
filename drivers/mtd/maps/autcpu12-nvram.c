@@ -25,7 +25,7 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/autcpu12.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>

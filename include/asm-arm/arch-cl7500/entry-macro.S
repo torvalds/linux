@@ -1,4 +1,4 @@
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/hardware/entry-macro-iomd.S>
 
 	.equ	ioc_base_high, IOC_BASE & 0xff000000

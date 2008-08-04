@@ -9,7 +9,7 @@
  */
 #define VIDMEM ((char *)SCREEN_START)
  
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/page.h>

@@ -1,6 +1,6 @@
 #include <asm/types.h>
 #include <linux/serial_reg.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #define UART_BASE ((volatile u32 *)IOP13XX_UART1_PHYS)
 #define TX_DONE (UART_LSR_TEMT | UART_LSR_THRE)

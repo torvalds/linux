@@ -34,7 +34,7 @@
 
 #include <asm/mach/map.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #include <asm/plat-s3c/regs-serial.h>

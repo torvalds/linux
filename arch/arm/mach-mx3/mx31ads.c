@@ -23,7 +23,7 @@
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>

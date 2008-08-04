@@ -23,7 +23,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/audio.h>
 #include <asm/arch/gpio.h>
 #include <asm/arch/pxafb.h>

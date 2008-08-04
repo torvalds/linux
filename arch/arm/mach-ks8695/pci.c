@@ -31,7 +31,7 @@
 #include <asm/io.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm/arch/devices.h>
 #include <asm/arch/regs-pci.h>

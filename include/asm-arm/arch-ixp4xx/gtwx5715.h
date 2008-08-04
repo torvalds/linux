@@ -21,7 +21,7 @@
  */
 
 #ifndef __ASM_ARCH_HARDWARE_H__
-#error "Do not include this directly, instead #include <asm/hardware.h>"
+#error "Do not include this directly, instead #include <asm/arch/hardware.h>"
 #endif
 #include "irqs.h"
 

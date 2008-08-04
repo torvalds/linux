@@ -27,7 +27,7 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/plat-s3c/regs-ac97.h>
 #include <asm/arch/regs-gpio.h>
 #include <asm/arch/regs-clock.h>

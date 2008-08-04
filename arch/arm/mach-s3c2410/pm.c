@@ -26,7 +26,7 @@
 #include <linux/time.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #include <asm/mach-types.h>

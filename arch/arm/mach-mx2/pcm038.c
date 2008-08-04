@@ -22,7 +22,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 #include <asm/arch/common.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/iomux-mx1-mx2.h>
 #include <asm/mach/time.h>
 #include <asm/arch/imx-uart.h>

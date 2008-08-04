@@ -177,7 +177,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/arch/assabet.h>

@@ -21,7 +21,7 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/pxa3xx-regs.h>
 #include <asm/arch/mfp-pxa930.h>
 

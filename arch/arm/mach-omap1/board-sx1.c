@@ -26,7 +26,7 @@
 #include <linux/i2c.h>
 #include <linux/errno.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>

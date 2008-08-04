@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/system.h>
 #include <asm/arch/mcp.h>

@@ -19,7 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/page.h>
 #include <asm/arch/msm_iomap.h>

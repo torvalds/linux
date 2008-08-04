@@ -22,7 +22,7 @@
 #include <linux/clk.h>
 #include <linux/log2.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/irq.h>

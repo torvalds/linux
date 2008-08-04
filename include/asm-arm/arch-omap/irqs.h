@@ -327,6 +327,6 @@
 extern void omap_init_irq(void);
 #endif
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #endif

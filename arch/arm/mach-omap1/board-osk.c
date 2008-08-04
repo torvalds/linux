@@ -39,7 +39,7 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>

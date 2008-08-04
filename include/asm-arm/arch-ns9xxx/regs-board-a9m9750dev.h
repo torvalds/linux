@@ -11,7 +11,7 @@
 #ifndef __ASM_ARCH_REGSBOARDA9M9750_H
 #define __ASM_ARCH_REGSBOARDA9M9750_H
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #define FPGA_UARTA_BASE	io_p2v(NS9XXX_CSxSTAT_PHYS(0))
 #define FPGA_UARTB_BASE	io_p2v(NS9XXX_CSxSTAT_PHYS(0) + 0x08)

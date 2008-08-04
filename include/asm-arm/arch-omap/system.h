@@ -7,7 +7,7 @@
 #include <linux/clk.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #ifndef CONFIG_MACH_VOICEBLUE
 #define voiceblue_reset()		do {} while (0)

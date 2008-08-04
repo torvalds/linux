@@ -26,7 +26,7 @@
 
 #include <asm/arch/pxa-regs.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm-generic/gpio.h>
 

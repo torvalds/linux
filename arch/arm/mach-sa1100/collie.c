@@ -26,7 +26,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/setup.h>

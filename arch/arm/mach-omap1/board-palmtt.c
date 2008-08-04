@@ -23,7 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/leds.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

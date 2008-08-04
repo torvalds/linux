@@ -23,7 +23,7 @@
 #include <linux/init.h>
 #include <linux/initrd.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>

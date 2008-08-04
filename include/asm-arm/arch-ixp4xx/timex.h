@@ -3,7 +3,7 @@
  * 
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 /*
  * We use IXP425 General purpose timer for our timer needs, it runs at 

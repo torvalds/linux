@@ -10,7 +10,7 @@
  * published by the Free Software Foundation.
 */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #include <asm/plat-s3c/regs-watchdog.h>

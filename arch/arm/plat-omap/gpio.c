@@ -18,7 +18,7 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/irq.h>
 #include <asm/arch/irqs.h>
 #include <asm/arch/gpio.h>

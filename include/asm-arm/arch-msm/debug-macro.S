@@ -14,7 +14,7 @@
  *
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/msm_iomap.h>
 
 	.macro	addruart,rx

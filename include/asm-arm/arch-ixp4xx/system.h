@@ -9,7 +9,7 @@
  *
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 static inline void arch_idle(void)
 {

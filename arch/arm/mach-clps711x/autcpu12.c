@@ -23,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/sizes.h>
 #include <asm/io.h>
 #include <asm/setup.h>

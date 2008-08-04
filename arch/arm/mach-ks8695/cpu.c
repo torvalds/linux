@@ -25,7 +25,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

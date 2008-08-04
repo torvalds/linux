@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 
 #include <asm/arch/platform.h>

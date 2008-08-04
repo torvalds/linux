@@ -28,7 +28,7 @@
 #include <asm/arch/osiris-map.h>
 #include <asm/arch/osiris-cpld.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>

@@ -30,7 +30,7 @@
 #include <linux/clockchips.h>
 
 #include <asm/arch/udc.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>

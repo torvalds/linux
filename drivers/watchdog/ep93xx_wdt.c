@@ -29,7 +29,7 @@
 #include <linux/watchdog.h>
 #include <linux/timer.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/uaccess.h>
 
 #define WDT_VERSION	"0.3"

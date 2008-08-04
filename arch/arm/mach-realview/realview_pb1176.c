@@ -24,7 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>

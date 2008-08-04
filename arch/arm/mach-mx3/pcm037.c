@@ -23,7 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/memory.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>

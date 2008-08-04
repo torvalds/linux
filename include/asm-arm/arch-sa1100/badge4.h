@@ -13,7 +13,7 @@
  */
 
 #ifndef __ASM_ARCH_HARDWARE_H
-#error "include <asm/hardware.h> instead"
+#error "include <asm/arch/hardware.h> instead"
 #endif
 
 #define BADGE4_SA1111_BASE		(0x48000000)

@@ -43,7 +43,7 @@
 
 #include <asm/io.h>
 #include <asm/uaccess.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 #include <asm/arch/prcm.h>
 

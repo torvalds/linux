@@ -31,7 +31,7 @@
 #include <asm/arch/usb-control.h>
 #include <asm/arch/regs-gpio.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

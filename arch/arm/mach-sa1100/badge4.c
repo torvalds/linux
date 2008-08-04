@@ -23,7 +23,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/errno.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/arch/irqs.h>

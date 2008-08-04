@@ -18,7 +18,7 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/gpio.h>

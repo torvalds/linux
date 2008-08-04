@@ -12,7 +12,7 @@
 
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 
 static void arch_idle(void)
 {

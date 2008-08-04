@@ -21,7 +21,7 @@
 #include <asm/irq.h>
 #include <asm/signal.h>
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach/pci.h>
 #include <asm/hardware/iop3xx.h>
 

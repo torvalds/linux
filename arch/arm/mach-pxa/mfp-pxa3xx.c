@@ -19,7 +19,7 @@
 #include <linux/io.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/mfp.h>
 #include <asm/arch/mfp-pxa3xx.h>
 #include <asm/arch/pxa3xx-regs.h>

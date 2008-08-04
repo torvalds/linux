@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 
 static inline void arch_idle(void)

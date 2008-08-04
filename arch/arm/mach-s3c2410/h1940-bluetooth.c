@@ -17,7 +17,7 @@
 #include <linux/ctype.h>
 #include <linux/leds.h>
 #include <asm/arch/regs-gpio.h>
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/h1940-latch.h>
 
 #define DRV_NAME              "h1940-bt"

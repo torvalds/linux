@@ -11,7 +11,7 @@
  *
 */
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/arch/at91_dbgu.h>
 
 	.macro	addruart,rx

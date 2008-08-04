@@ -30,7 +30,7 @@
 #include <linux/string.h>
 #include <linux/gpio.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach/map.h>
 #include <asm/arch/iomux-mx1-mx2.h>
 

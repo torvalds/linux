@@ -10,7 +10,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/mach/map.h>

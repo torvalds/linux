@@ -19,7 +19,7 @@
 #ifndef __ASM_ARCH_MXC_GPIO_H__
 #define __ASM_ARCH_MXC_GPIO_H__
 
-#include <asm/hardware.h>
+#include <asm/arch/hardware.h>
 #include <asm-generic/gpio.h>
 
 /* use gpiolib dispatchers */
