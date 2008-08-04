@@ -434,13 +434,6 @@ config MTD_CEIVA
 	  PhotoMax Digital Picture Frame.
 	  If you have such a device, say 'Y'.
 
-config MTD_NOR_TOTO
-	tristate "NOR Flash device on TOTO board"
-	depends on ARCH_OMAP && OMAP_TOTO
-	help
-	  This enables access to the NOR flash on the Texas Instruments
-	  TOTO board.
-
 config MTD_H720X
 	tristate "Hynix evaluation board mappings"
 	depends on MTD_CFI && ( ARCH_H7201 || ARCH_H7202 )
