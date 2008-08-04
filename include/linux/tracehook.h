@@ -487,6 +487,9 @@ static inline int tracehook_notify_jctl(int notify, int why)
 	return notify || (current->ptrace & PT_PTRACED);
 }
 
+#define DEATH_REAP			-1
+#define DEATH_DELAYED_GROUP_LEADER	-2
+
 /**
  * tracehook_notify_death - task is dead, ready to notify parent
  * @task:		@current task now exiting
@@ -501,8 +504,6 @@ static inline int tracehook_notify_jctl(int notify, int why)
  *
  * Called with write_lock_irq(&tasklist_lock) held.
  */
-#define DEATH_REAP			-1
-#define DEATH_DELAYED_GROUP_LEADER	-2
 static inline int tracehook_notify_death(struct task_struct *task,
 					 void **death_cookie, int group_dead)
 {
