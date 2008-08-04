@@ -876,7 +876,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	spin_lock_init(&priv->power_data.lock);
 	spin_lock_init(&priv->sta_lock);
 	spin_lock_init(&priv->hcmd_lock);
-	spin_lock_init(&priv->lq_mngr.lock);
 
 	INIT_LIST_HEAD(&priv->free_frames);
 

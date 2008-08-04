@@ -672,18 +672,6 @@ struct iwl_kw {
 
 #define TX_POWER_IWL_ILLEGAL_VOLTAGE -10000
 
-struct iwl4965_lq_mngr {
-	spinlock_t lock;
-	s32 max_window_size;
-	s32 *expected_tpt;
-	u8 *next_higher_rate;
-	u8 *next_lower_rate;
-	unsigned long stamp;
-	unsigned long stamp_last;
-	u32 flush_time;
-	u32 tx_packets;
-};
-
 /* Sensitivity and chain noise calibration */
 #define INTERFERENCE_DATA_AVAILABLE	__constant_cpu_to_le32(1)
 #define INITIALIZATION_VALUE		0xFFFF
@@ -937,9 +925,6 @@ struct iwl_priv {
 
 	struct iwl_ht_info current_ht_config;
 	u8 last_phy_res[100];
-
-	/* Rate scaling data */
-	struct iwl4965_lq_mngr lq_mngr;
 
 	/* Rate scaling data */
 	s8 data_retry_limit;
