@@ -3614,7 +3614,9 @@ static void __devexit cciss_remove_one(struct pci_dev *pdev)
 		}
 	}
 
+#ifdef CONFIG_CISS_SCSI_TAPE
 	cciss_unregister_scsi(i);	/* unhook from SCSI subsystem */
+#endif
 
 	cciss_shutdown(pdev);
 
