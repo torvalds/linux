@@ -6,7 +6,7 @@
 # Copyright 2008, Oracle
 # Released under the GNU GPLv2
  
-v="v0.15"
+v="v0.16"
 
 which hg > /dev/null
 if [ -d .hg ] && [ $? == 0 ]; then
