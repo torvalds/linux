@@ -2,6 +2,7 @@
  * Core maple bus functionality
  *
  *  Copyright (C) 2007, 2008 Adrian McMenamin
+ *  Copyright (C) 2001 - 2008 Paul Mundt
  *
  * Based on 2.4 code by:
  *
@@ -31,7 +32,7 @@
 #include <mach/dma.h>
 #include <mach/sysasic.h>
 
-MODULE_AUTHOR("Yaegshi Takeshi, Paul Mundt, M.R. Brown, Adrian McMenamin");
+MODULE_AUTHOR("Yaegashi Takeshi, Paul Mundt, M. R. Brown, Adrian McMenamin");
 MODULE_DESCRIPTION("Maple bus driver for Dreamcast");
 MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{SEGA, Dreamcast/Maple}}");
@@ -65,18 +66,34 @@ static bool checked[4];
 static struct maple_device *baseunits[4];
 
 /**
- *  maple_driver_register - register a device driver
- *  automatically makes the driver bus a maple bus
- *  @drv: the driver to be registered
+ * maple_driver_register - register a maple driver
+ * @drv: maple driver to be registered.
+ *
+ * Registers the passed in @drv, while updating the bus type.
+ * Devices with matching function IDs will be automatically probed.
  */
-int maple_driver_register(struct device_driver *drv)
+int maple_driver_register(struct maple_driver *drv)
 {
 	if (!drv)
 		return -EINVAL;
-	drv->bus = &maple_bus_type;
-	return driver_register(drv);
+
+	drv->drv.bus = &maple_bus_type;
+
+	return driver_register(&drv->drv);
 }
 EXPORT_SYMBOL_GPL(maple_driver_register);
+
+/**
+ * maple_driver_unregister - unregister a maple driver.
+ * @drv: maple driver to unregister.
+ *
+ * Cleans up after maple_driver_register(). To be invoked in the exit
+ * path of any module drivers.
+ */
+void maple_driver_unregister(struct maple_driver *drv)
+{
+	driver_unregister(&drv->drv);
+}
 
 /* set hardware registers to enable next round of dma */
 static void maplebus_dma_reset(void)
@@ -724,11 +741,9 @@ static int maple_get_dma_buffer(void)
 static int match_maple_bus_driver(struct device *devptr,
 				  struct device_driver *drvptr)
 {
-	struct maple_driver *maple_drv;
-	struct maple_device *maple_dev;
+	struct maple_driver *maple_drv = to_maple_driver(drvptr);
+	struct maple_device *maple_dev = to_maple_dev(devptr);
 
-	maple_drv = container_of(drvptr, struct maple_driver, drv);
-	maple_dev = container_of(devptr, struct maple_device, dev);
 	/* Trap empty port case */
 	if (maple_dev->devinfo.function == 0xFFFFFFFF)
 		return 0;

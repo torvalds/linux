@@ -70,7 +70,9 @@ void maple_getcond_callback(struct maple_device *dev,
 			    void (*callback) (struct mapleq * mq),
 			    unsigned long interval,
 			    unsigned long function);
-int maple_driver_register(struct device_driver *drv);
+int maple_driver_register(struct maple_driver *);
+void maple_driver_unregister(struct maple_driver *);
+
 int maple_add_packet_sleeps(struct maple_device *mdev, u32 function,
 	u32 command, u32 length, void *data);
 void maple_clear_dev(struct maple_device *mdev);

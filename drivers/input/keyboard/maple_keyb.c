@@ -235,17 +235,17 @@ static struct maple_driver dc_kbd_driver = {
 		.name = "Dreamcast_keyboard",
 		.probe = probe_maple_kbd,
 		.remove = remove_maple_kbd,
-       },
+	},
 };
 
 static int __init dc_kbd_init(void)
 {
-	return maple_driver_register(&dc_kbd_driver.drv);
+	return maple_driver_register(&dc_kbd_driver);
 }
 
 static void __exit dc_kbd_exit(void)
 {
-	driver_unregister(&dc_kbd_driver.drv);
+	maple_driver_unregister(&dc_kbd_driver);
 }
 
 module_init(dc_kbd_init);
