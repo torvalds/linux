@@ -237,7 +237,6 @@ choice
 
 config CACHE_WRITEBACK
 	bool "Write-back"
-	depends on CPU_SH2A || CPU_SH3 || CPU_SH4 || CPU_SH5
 
 config CACHE_WRITETHROUGH
 	bool "Write-through"
