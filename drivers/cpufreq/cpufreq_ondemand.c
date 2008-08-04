@@ -334,9 +334,7 @@ static struct attribute_group dbs_attr_group = {
 
 static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 {
-	unsigned int idle_ticks, total_ticks;
-	unsigned int load = 0;
-	cputime64_t cur_jiffies;
+	unsigned int max_load_freq;
 
 	struct cpufreq_policy *policy;
 	unsigned int j;
@@ -346,13 +344,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 	this_dbs_info->freq_lo = 0;
 	policy = this_dbs_info->cur_policy;
-	cur_jiffies = jiffies64_to_cputime64(get_jiffies_64());
-	total_ticks = (unsigned int) cputime64_sub(cur_jiffies,
-			this_dbs_info->prev_cpu_wall);
-	this_dbs_info->prev_cpu_wall = get_jiffies_64();
 
-	if (!total_ticks)
-		return;
 	/*
 	 * Every sampling_rate, we check, if current idle time is less
 	 * than 20% (default), then we try to increase frequency
@@ -365,27 +357,46 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * 5% (default) of current frequency
 	 */
 
-	/* Get Idle Time */
-	idle_ticks = UINT_MAX;
+	/* Get Absolute Load - in terms of freq */
+	max_load_freq = 0;
+
 	for_each_cpu_mask_nr(j, policy->cpus) {
-		cputime64_t total_idle_ticks;
-		unsigned int tmp_idle_ticks;
 		struct cpu_dbs_info_s *j_dbs_info;
+		cputime64_t cur_wall_time, cur_idle_time;
+		unsigned int idle_time, wall_time;
+		unsigned int load, load_freq;
+		int freq_avg;
 
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
-		total_idle_ticks = get_cpu_idle_time(j);
-		tmp_idle_ticks = (unsigned int) cputime64_sub(total_idle_ticks,
-				j_dbs_info->prev_cpu_idle);
-		j_dbs_info->prev_cpu_idle = total_idle_ticks;
+		cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
+		wall_time = (unsigned int) cputime64_sub(cur_wall_time,
+				j_dbs_info->prev_cpu_wall);
+		j_dbs_info->prev_cpu_wall = cur_wall_time;
 
-		if (tmp_idle_ticks < idle_ticks)
-			idle_ticks = tmp_idle_ticks;
+		cur_idle_time = get_cpu_idle_time(j);
+		idle_time = (unsigned int) cputime64_sub(cur_idle_time,
+				j_dbs_info->prev_cpu_idle);
+		j_dbs_info->prev_cpu_idle = cur_idle_time;
+
+		if (unlikely(wall_time <= idle_time ||
+			     (cputime_to_msecs(wall_time) <
+			      dbs_tuners_ins.sampling_rate / (2 * 1000)))) {
+			continue;
+		}
+
+		load = 100 * (wall_time - idle_time) / wall_time;
+
+		freq_avg = __cpufreq_driver_getavg(policy, j);
+		if (freq_avg <= 0)
+			freq_avg = policy->cur;
+
+		load_freq = load * freq_avg;
+		if (load_freq > max_load_freq)
+			max_load_freq = load_freq;
 	}
-	if (likely(total_ticks > idle_ticks))
-		load = (100 * (total_ticks - idle_ticks)) / total_ticks;
 
 	/* Check for frequency increase */
-	if (load > dbs_tuners_ins.up_threshold) {
+	if (max_load_freq > dbs_tuners_ins.up_threshold * policy->cur) {
 		/* if we are already at full speed then break out early */
 		if (!dbs_tuners_ins.powersave_bias) {
 			if (policy->cur == policy->max)
@@ -412,15 +423,9 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	 * can support the current CPU usage without triggering the up
 	 * policy. To be safe, we focus 10 points under the threshold.
 	 */
-	if (load < (dbs_tuners_ins.up_threshold - 10)) {
-		unsigned int freq_next, freq_cur;
-
-		freq_cur = __cpufreq_driver_getavg(policy, policy->cpu);
-		if (!freq_cur)
-			freq_cur = policy->cur;
-
-		freq_next = (freq_cur * load) /
-			(dbs_tuners_ins.up_threshold - 10);
+	if (max_load_freq < (dbs_tuners_ins.up_threshold - 10) * policy->cur) {
+		unsigned int freq_next;
+		freq_next = max_load_freq / (dbs_tuners_ins.up_threshold - 10);
 
 		if (!dbs_tuners_ins.powersave_bias) {
 			__cpufreq_driver_target(policy, freq_next,
