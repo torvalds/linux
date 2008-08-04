@@ -101,9 +101,6 @@ config ARCH_HAS_ILOG2_U64
 config ARCH_NO_VIRT_TO_BUS
 	def_bool y
 
-config ARCH_SUPPORTS_AOUT
-	def_bool y
-
 config IO_TRAPPED
 	bool
 
