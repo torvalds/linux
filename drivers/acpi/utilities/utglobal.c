@@ -677,14 +677,14 @@ u8 acpi_ut_valid_object_type(acpi_object_type type)
  *
  * PARAMETERS:  None
  *
- * RETURN:      None
+ * RETURN:      Status
  *
  * DESCRIPTION: Init library globals.  All globals that require specific
  *              initialization should be initialized here!
  *
  ******************************************************************************/
 
-void acpi_ut_init_globals(void)
+acpi_status acpi_ut_init_globals(void)
 {
 	acpi_status status;
 	u32 i;
@@ -695,7 +695,7 @@ void acpi_ut_init_globals(void)
 
 	status = acpi_ut_create_caches();
 	if (ACPI_FAILURE(status)) {
-		return;
+		return_ACPI_STATUS(status);
 	}
 
 	/* Mutex locked flags */
@@ -772,7 +772,7 @@ void acpi_ut_init_globals(void)
 	acpi_gbl_display_final_mem_stats = FALSE;
 #endif
 
-	return_VOID;
+	return_ACPI_STATUS(AE_OK);
 }
 
 ACPI_EXPORT_SYMBOL(acpi_dbg_level)

@@ -110,7 +110,7 @@ struct acpi_pkg_info {
 /*
  * utglobal - Global data structures and procedures
  */
-void acpi_ut_init_globals(void);
+acpi_status acpi_ut_init_globals(void);
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)
 
