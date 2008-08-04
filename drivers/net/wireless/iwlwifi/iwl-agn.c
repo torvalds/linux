@@ -2232,17 +2232,16 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	}
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(priv, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 	else
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 
-	if (!test_bit(STATUS_IN_SUSPEND, &priv->status) &&
-	    iwl_is_rfkill(priv)) {
+	if (iwl_is_rfkill(priv)) {
+		iwl4965_enable_interrupts(priv);
 		IWL_WARNING("Radio disabled by %s RF Kill switch\n",
 		    test_bit(STATUS_RF_KILL_HW, &priv->status) ? "HW" : "SW");
-		return -ENODEV;
+		return 0;
 	}
 
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
@@ -2277,11 +2276,6 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	 * data SRAM for a clean start when the runtime program first loads. */
 	memcpy(priv->ucode_data_backup.v_addr, priv->ucode_data.v_addr,
 	       priv->ucode_data.len);
-
-	/* We return success when we resume from suspend and rf_kill is on. */
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-	    test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
@@ -2651,6 +2645,9 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto out_release_irq;
 
+	if (iwl_is_rfkill(priv))
+		goto out;
+
 	IWL_DEBUG_INFO("Start UP work done.\n");
 
 	if (test_bit(STATUS_IN_SUSPEND, &priv->status))
@@ -2670,6 +2667,7 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
+out:
 	priv->is_open = 1;
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
