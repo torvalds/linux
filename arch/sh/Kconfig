@@ -63,6 +63,10 @@ config GENERIC_TIME
 config GENERIC_CLOCKEVENTS
 	def_bool n
 
+config GENERIC_LOCKBREAK
+	def_bool y
+	depends on SMP && PREEMPT
+
 config SYS_SUPPORTS_PM
 	bool
 
