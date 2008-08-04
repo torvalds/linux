@@ -756,6 +756,8 @@ dump_cpu_list_and_out:
 	printk("]\n");
 }
 
+static void (*xcall_deliver)(u64, u64, u64, cpumask_t);
+
 /* Send cross call to all processors mentioned in MASK
  * except self.
  */
@@ -767,12 +769,7 @@ static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 d
 	cpus_and(mask, mask, cpu_online_map);
 	cpu_clear(this_cpu, mask);
 
-	if (tlb_type == spitfire)
-		spitfire_xcall_deliver(data0, data1, data2, mask);
-	else if (tlb_type == cheetah || tlb_type == cheetah_plus)
-		cheetah_xcall_deliver(data0, data1, data2, mask);
-	else
-		hypervisor_xcall_deliver(data0, data1, data2, mask);
+	xcall_deliver(data0, data1, data2, mask);
 	/* NOTE: Caller runs local copy on master. */
 
 	put_cpu();
@@ -1200,6 +1197,16 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 
 void __devinit smp_prepare_boot_cpu(void)
 {
+}
+
+void __init smp_setup_processor_id(void)
+{
+	if (tlb_type == spitfire)
+		xcall_deliver = spitfire_xcall_deliver;
+	else if (tlb_type == cheetah || tlb_type == cheetah_plus)
+		xcall_deliver = cheetah_xcall_deliver;
+	else
+		xcall_deliver = hypervisor_xcall_deliver;
 }
 
 void __devinit smp_fill_in_sib_core_maps(void)
