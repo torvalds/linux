@@ -188,13 +188,6 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 	btrfs_csum_final(crc, result);
 
 	if (verify) {
-		int from_this_trans = 0;
-
-		if (root->fs_info->running_transaction &&
-		    btrfs_header_generation(buf) ==
-		    root->fs_info->running_transaction->transid)
-			from_this_trans = 1;
-
 		/* FIXME, this is not good */
 		if (memcmp_extent_buffer(buf, result, 0, BTRFS_CRC32_SIZE)) {
 			u32 val;
@@ -203,11 +196,9 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 
 			read_extent_buffer(buf, &val, 0, BTRFS_CRC32_SIZE);
 			printk("btrfs: %s checksum verify failed on %llu "
-			       "wanted %X found %X from_this_trans %d "
-			       "level %d\n",
+			       "wanted %X found %X level %d\n",
 			       root->fs_info->sb->s_id,
-			       buf->start, val, found, from_this_trans,
-			       btrfs_header_level(buf));
+			       buf->start, val, found, btrfs_header_level(buf));
 			return 1;
 		}
 	} else {

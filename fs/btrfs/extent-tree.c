@@ -2369,6 +2369,11 @@ static int noinline drop_leaf_ref_no_cache(struct btrfs_trans_handle *trans,
 				leaf_owner, leaf_generation,
 				key.objectid, key.offset, 0);
 		mutex_unlock(&root->fs_info->alloc_mutex);
+
+		atomic_inc(&root->fs_info->throttle_gen);
+		wake_up(&root->fs_info->transaction_throttle);
+		cond_resched();
+
 		BUG_ON(ret);
 	}
 	return 0;
@@ -2389,56 +2394,16 @@ static int noinline drop_leaf_ref(struct btrfs_trans_handle *trans,
 					ref->owner, ref->generation,
 					info->objectid, info->offset, 0);
 		mutex_unlock(&root->fs_info->alloc_mutex);
+
+		atomic_inc(&root->fs_info->throttle_gen);
+		wake_up(&root->fs_info->transaction_throttle);
+		cond_resched();
+
 		BUG_ON(ret);
 		info++;
 	}
 
 	return 0;
-}
-
-static void noinline reada_walk_down(struct btrfs_root *root,
-				     struct extent_buffer *node,
-				     int slot)
-{
-	u64 bytenr;
-	u64 last = 0;
-	u32 nritems;
-	u32 refs;
-	u32 blocksize;
-	int ret;
-	int i;
-	int level;
-	int skipped = 0;
-
-	nritems = btrfs_header_nritems(node);
-	level = btrfs_header_level(node);
-	if (level)
-		return;
-
-	for (i = slot; i < nritems && skipped < 32; i++) {
-		bytenr = btrfs_node_blockptr(node, i);
-		if (last && ((bytenr > last && bytenr - last > 32 * 1024) ||
-			     (last > bytenr && last - bytenr > 32 * 1024))) {
-			skipped++;
-			continue;
-		}
-		blocksize = btrfs_level_size(root, level - 1);
-		if (i != slot) {
-			ret = lookup_extent_ref(NULL, root, bytenr,
-						blocksize, &refs);
-			BUG_ON(ret);
-			if (refs != 1) {
-				skipped++;
-				continue;
-			}
-		}
-		ret = readahead_tree_block(root, bytenr, blocksize,
-					   btrfs_node_ptr_generation(node, i));
-		last = bytenr + blocksize;
-		cond_resched();
-		if (ret)
-			break;
-	}
 }
 
 int drop_snap_lookup_refcount(struct btrfs_root *root, u64 start, u64 len,
@@ -2549,6 +2514,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 
 			atomic_inc(&root->fs_info->throttle_gen);
 			wake_up(&root->fs_info->transaction_throttle);
+			cond_resched();
 
 			continue;
 		}
@@ -2578,8 +2544,6 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		if (!next || !btrfs_buffer_uptodate(next, ptr_gen)) {
 			free_extent_buffer(next);
 
-			if (path->slots[*level] == 0)
-				reada_walk_down(root, cur, path->slots[*level]);
 			next = read_tree_block(root, bytenr, blocksize,
 					       ptr_gen);
 			cond_resched();
@@ -2601,6 +2565,7 @@ static int noinline walk_down_tree(struct btrfs_trans_handle *trans,
 		path->nodes[*level-1] = next;
 		*level = btrfs_header_level(next);
 		path->slots[*level] = 0;
+		cond_resched();
 	}
 out:
 	WARN_ON(*level < 0);

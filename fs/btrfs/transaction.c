@@ -210,7 +210,9 @@ static noinline int wait_for_commit(struct btrfs_root *root,
 static void throttle_on_drops(struct btrfs_root *root)
 {
 	struct btrfs_fs_info *info = root->fs_info;
+	int harder_count = 0;
 
+harder:
 	if (atomic_read(&info->throttles)) {
 		DEFINE_WAIT(wait);
 		int thr;
@@ -226,6 +228,19 @@ static void throttle_on_drops(struct btrfs_root *root)
 			schedule();
 			finish_wait(&info->transaction_throttle, &wait);
 		} while (thr == atomic_read(&info->throttle_gen));
+		harder_count++;
+
+		if (root->fs_info->total_ref_cache_size > 1 * 1024 * 1024 &&
+		    harder_count < 2)
+			goto harder;
+
+		if (root->fs_info->total_ref_cache_size > 5 * 1024 * 1024 &&
+		    harder_count < 10)
+			goto harder;
+
+		if (root->fs_info->total_ref_cache_size > 10 * 1024 * 1024 &&
+		    harder_count < 20)
+			goto harder;
 	}
 }
 
