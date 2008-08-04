@@ -140,7 +140,8 @@ static int __init atstk1004_init(void)
 	at32_add_device_mci(0, NULL);
 #endif
 	at32_add_device_lcdc(0, &atstk1000_lcdc_data,
-			     fbmem_start, fbmem_size, 0);
+			     fbmem_start, fbmem_size,
+			     ATMEL_LCDC_PRI_24BIT | ATMEL_LCDC_PRI_CONTROL);
 	at32_add_device_usba(0, NULL);
 #ifndef CONFIG_BOARD_ATSTK100X_SW3_CUSTOM
 	at32_add_device_ssc(0, ATMEL_SSC_TX);

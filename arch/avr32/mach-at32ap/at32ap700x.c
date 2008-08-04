@@ -1353,13 +1353,14 @@ static struct clk atmel_lcdfb0_pixclk = {
 struct platform_device *__init
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len,
-		     unsigned int pin_config)
+		     u64 pin_mask)
 {
 	struct platform_device *pdev;
 	struct atmel_lcdfb_info *info;
 	struct fb_monspecs *monspecs;
 	struct fb_videomode *modedb;
 	unsigned int modedb_size;
+	int i;
 
 	/*
 	 * Do a deep copy of the fb data, monspecs and modedb. Make
@@ -1381,75 +1382,29 @@ at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 	case 0:
 		pdev = &atmel_lcdfb0_device;
 
-		switch (pin_config) {
-		case 0:
-			select_peripheral(PC(19), PERIPH_A, 0);	/* CC	  */
-			select_peripheral(PC(20), PERIPH_A, 0);	/* HSYNC  */
-			select_peripheral(PC(21), PERIPH_A, 0);	/* PCLK	  */
-			select_peripheral(PC(22), PERIPH_A, 0);	/* VSYNC  */
-			select_peripheral(PC(23), PERIPH_A, 0);	/* DVAL	  */
-			select_peripheral(PC(24), PERIPH_A, 0);	/* MODE	  */
-			select_peripheral(PC(25), PERIPH_A, 0);	/* PWR	  */
-			select_peripheral(PC(26), PERIPH_A, 0);	/* DATA0  */
-			select_peripheral(PC(27), PERIPH_A, 0);	/* DATA1  */
-			select_peripheral(PC(28), PERIPH_A, 0);	/* DATA2  */
-			select_peripheral(PC(29), PERIPH_A, 0);	/* DATA3  */
-			select_peripheral(PC(30), PERIPH_A, 0);	/* DATA4  */
-			select_peripheral(PC(31), PERIPH_A, 0);	/* DATA5  */
-			select_peripheral(PD(0),  PERIPH_A, 0);	/* DATA6  */
-			select_peripheral(PD(1),  PERIPH_A, 0);	/* DATA7  */
-			select_peripheral(PD(2),  PERIPH_A, 0);	/* DATA8  */
-			select_peripheral(PD(3),  PERIPH_A, 0);	/* DATA9  */
-			select_peripheral(PD(4),  PERIPH_A, 0);	/* DATA10 */
-			select_peripheral(PD(5),  PERIPH_A, 0);	/* DATA11 */
-			select_peripheral(PD(6),  PERIPH_A, 0);	/* DATA12 */
-			select_peripheral(PD(7),  PERIPH_A, 0);	/* DATA13 */
-			select_peripheral(PD(8),  PERIPH_A, 0);	/* DATA14 */
-			select_peripheral(PD(9),  PERIPH_A, 0);	/* DATA15 */
-			select_peripheral(PD(10), PERIPH_A, 0);	/* DATA16 */
-			select_peripheral(PD(11), PERIPH_A, 0);	/* DATA17 */
-			select_peripheral(PD(12), PERIPH_A, 0);	/* DATA18 */
-			select_peripheral(PD(13), PERIPH_A, 0);	/* DATA19 */
-			select_peripheral(PD(14), PERIPH_A, 0);	/* DATA20 */
-			select_peripheral(PD(15), PERIPH_A, 0);	/* DATA21 */
-			select_peripheral(PD(16), PERIPH_A, 0);	/* DATA22 */
-			select_peripheral(PD(17), PERIPH_A, 0);	/* DATA23 */
-			break;
-		case 1:
-			select_peripheral(PE(0),  PERIPH_B, 0);	/* CC	  */
-			select_peripheral(PC(20), PERIPH_A, 0);	/* HSYNC  */
-			select_peripheral(PC(21), PERIPH_A, 0);	/* PCLK	  */
-			select_peripheral(PC(22), PERIPH_A, 0);	/* VSYNC  */
-			select_peripheral(PE(1),  PERIPH_B, 0);	/* DVAL	  */
-			select_peripheral(PE(2),  PERIPH_B, 0);	/* MODE	  */
-			select_peripheral(PC(25), PERIPH_A, 0);	/* PWR	  */
-			select_peripheral(PE(3),  PERIPH_B, 0);	/* DATA0  */
-			select_peripheral(PE(4),  PERIPH_B, 0);	/* DATA1  */
-			select_peripheral(PE(5),  PERIPH_B, 0);	/* DATA2  */
-			select_peripheral(PE(6),  PERIPH_B, 0);	/* DATA3  */
-			select_peripheral(PE(7),  PERIPH_B, 0);	/* DATA4  */
-			select_peripheral(PC(31), PERIPH_A, 0);	/* DATA5  */
-			select_peripheral(PD(0),  PERIPH_A, 0);	/* DATA6  */
-			select_peripheral(PD(1),  PERIPH_A, 0);	/* DATA7  */
-			select_peripheral(PE(8),  PERIPH_B, 0);	/* DATA8  */
-			select_peripheral(PE(9),  PERIPH_B, 0);	/* DATA9  */
-			select_peripheral(PE(10), PERIPH_B, 0);	/* DATA10 */
-			select_peripheral(PE(11), PERIPH_B, 0);	/* DATA11 */
-			select_peripheral(PE(12), PERIPH_B, 0);	/* DATA12 */
-			select_peripheral(PD(7),  PERIPH_A, 0);	/* DATA13 */
-			select_peripheral(PD(8),  PERIPH_A, 0);	/* DATA14 */
-			select_peripheral(PD(9),  PERIPH_A, 0);	/* DATA15 */
-			select_peripheral(PE(13), PERIPH_B, 0);	/* DATA16 */
-			select_peripheral(PE(14), PERIPH_B, 0);	/* DATA17 */
-			select_peripheral(PE(15), PERIPH_B, 0);	/* DATA18 */
-			select_peripheral(PE(16), PERIPH_B, 0);	/* DATA19 */
-			select_peripheral(PE(17), PERIPH_B, 0);	/* DATA20 */
-			select_peripheral(PE(18), PERIPH_B, 0);	/* DATA21 */
-			select_peripheral(PD(16), PERIPH_A, 0);	/* DATA22 */
-			select_peripheral(PD(17), PERIPH_A, 0);	/* DATA23 */
-			break;
-		default:
-			goto err_invalid_id;
+		if (pin_mask == 0ULL)
+			/* Default to "full" lcdc control signals and 24bit */
+			pin_mask = ATMEL_LCDC_PRI_24BIT | ATMEL_LCDC_PRI_CONTROL;
+
+		/* LCDC on port C */
+		for (i = 19; i < 32; i++) {
+			if (pin_mask & (1ULL << i))
+				at32_select_periph(GPIO_PIOC_BASE + i,
+						GPIO_PERIPH_A, 0);
+		}
+
+		/* LCDC on port D */
+		for (i = 0; i < 18; i++) {
+			if (pin_mask & (1ULL << i))
+				at32_select_periph(GPIO_PIOD_BASE + i,
+						GPIO_PERIPH_A, 0);
+		}
+
+		/* LCDC on port E */
+		for (i = 0; i < 19; i++) {
+			if (pin_mask & (1ULL << (i + 32)))
+				at32_select_periph(GPIO_PIOE_BASE + i,
+						GPIO_PERIPH_B, 0);
 		}
 
 		clk_set_parent(&atmel_lcdfb0_pixclk, &pll0);

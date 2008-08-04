@@ -43,7 +43,7 @@ struct atmel_lcdfb_info;
 struct platform_device *
 at32_add_device_lcdc(unsigned int id, struct atmel_lcdfb_info *data,
 		     unsigned long fbmem_start, unsigned long fbmem_len,
-		     unsigned int pin_config);
+		     u64 pin_mask);
 
 struct usba_platform_data;
 struct platform_device *
