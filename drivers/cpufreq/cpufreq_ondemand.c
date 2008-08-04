@@ -94,13 +94,13 @@ static struct dbs_tuners {
 	.powersave_bias = 0,
 };
 
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
+static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
 {
 	cputime64_t idle_time;
-	cputime64_t cur_jiffies;
+	cputime64_t cur_wall_time;
 	cputime64_t busy_time;
 
-	cur_jiffies = jiffies64_to_cputime64(get_jiffies_64());
+	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
 	busy_time = cputime64_add(kstat_cpu(cpu).cpustat.user,
 			kstat_cpu(cpu).cpustat.system);
 
@@ -113,7 +113,10 @@ static inline cputime64_t get_cpu_idle_time(unsigned int cpu)
 				kstat_cpu(cpu).cpustat.nice);
 	}
 
-	idle_time = cputime64_sub(cur_jiffies, busy_time);
+	idle_time = cputime64_sub(cur_wall_time, busy_time);
+	if (wall)
+		*wall = cur_wall_time;
+
 	return idle_time;
 }
 
@@ -277,8 +280,8 @@ static ssize_t store_ignore_nice_load(struct cpufreq_policy *policy,
 	for_each_online_cpu(j) {
 		struct cpu_dbs_info_s *dbs_info;
 		dbs_info = &per_cpu(cpu_dbs_info, j);
-		dbs_info->prev_cpu_idle = get_cpu_idle_time(j);
-		dbs_info->prev_cpu_wall = get_jiffies_64();
+		dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
+						&dbs_info->prev_cpu_wall);
 	}
 	mutex_unlock(&dbs_mutex);
 
@@ -368,21 +371,19 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		int freq_avg;
 
 		j_dbs_info = &per_cpu(cpu_dbs_info, j);
-		cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
+
+		cur_idle_time = get_cpu_idle_time(j, &cur_wall_time);
+
 		wall_time = (unsigned int) cputime64_sub(cur_wall_time,
 				j_dbs_info->prev_cpu_wall);
 		j_dbs_info->prev_cpu_wall = cur_wall_time;
 
-		cur_idle_time = get_cpu_idle_time(j);
 		idle_time = (unsigned int) cputime64_sub(cur_idle_time,
 				j_dbs_info->prev_cpu_idle);
 		j_dbs_info->prev_cpu_idle = cur_idle_time;
 
-		if (unlikely(wall_time <= idle_time ||
-			     (cputime_to_msecs(wall_time) <
-			      dbs_tuners_ins.sampling_rate / (2 * 1000)))) {
+		if (unlikely(!wall_time || wall_time < idle_time))
 			continue;
-		}
 
 		load = 100 * (wall_time - idle_time) / wall_time;
 
@@ -531,8 +532,8 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 			j_dbs_info = &per_cpu(cpu_dbs_info, j);
 			j_dbs_info->cur_policy = policy;
 
-			j_dbs_info->prev_cpu_idle = get_cpu_idle_time(j);
-			j_dbs_info->prev_cpu_wall = get_jiffies_64();
+			j_dbs_info->prev_cpu_idle = get_cpu_idle_time(j,
+						&j_dbs_info->prev_cpu_wall);
 		}
 		this_dbs_info->cpu = cpu;
 		/*
