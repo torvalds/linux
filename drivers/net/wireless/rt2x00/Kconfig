@@ -156,6 +156,7 @@ config RT73USB
 	depends on USB
 	select RT2X00_LIB_USB
 	select RT2X00_LIB_FIRMWARE
+	select RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
 	---help---
 	  This adds support for rt2501 wireless chipset family.
