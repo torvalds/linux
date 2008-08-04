@@ -1243,7 +1243,7 @@ out:
 u32 igb_translate_register_82576(u32 reg)
 {
 	/*
-	 * Some of the Kawela registers are located at different
+	 * Some of the 82576 registers are located at different
 	 * offsets than they are in older adapters.
 	 * Despite the difference in location, the registers
 	 * function in the same manner.
