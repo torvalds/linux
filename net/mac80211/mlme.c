@@ -3920,7 +3920,7 @@ done:
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
-		    (!ifsta->state == IEEE80211_IBSS_JOINED &&
+		    (!(ifsta->state == IEEE80211_IBSS_JOINED) &&
 		    !ieee80211_sta_active_ibss(dev)))
 			ieee80211_sta_find_ibss(dev, ifsta);
 	}
