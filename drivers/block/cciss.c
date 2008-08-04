@@ -1134,7 +1134,7 @@ static int cciss_ioctl(struct inode *inode, struct file *filep,
 				if (ioc->Request.Type.Direction == XFER_WRITE) {
 					if (copy_from_user
 					    (buff[sg_used], data_ptr, sz)) {
-						status = -ENOMEM;
+						status = -EFAULT;
 						goto cleanup1;
 					}
 				} else {
