@@ -45,6 +45,7 @@
 
 #include <acpi/acpi.h>
 #include <acpi/acnamesp.h>
+#include <acpi/amlcode.h>
 
 ACPI_EXPORT_SYMBOL(acpi_gbl_FADT)
 #define _COMPONENT          ACPI_UTILITIES
@@ -573,6 +574,41 @@ char *acpi_ut_get_descriptor_name(void *object)
 			      acpi_gbl_desc_type_names[ACPI_GET_DESCRIPTOR_TYPE
 						       (object)]));
 
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ut_get_reference_name
+ *
+ * PARAMETERS:  Object               - An ACPI reference object
+ *
+ * RETURN:      Pointer to a string
+ *
+ * DESCRIPTION: Decode a reference object sub-type to a string.
+ *
+ ******************************************************************************/
+
+/* Printable names of reference object sub-types */
+
+const char *acpi_ut_get_reference_name(union acpi_operand_object *object)
+{
+
+	switch (object->reference.opcode) {
+	case AML_INT_NAMEPATH_OP:
+		return "Name";
+
+	case AML_LOAD_OP:
+		return "DDB-Handle";
+
+	case AML_REF_OF_OP:
+		return "RefOf";
+
+	case AML_INDEX_OP:
+		return "Index";
+
+	default:
+		return "Unknown";
+	}
 }
 
 #if defined(ACPI_DEBUG_OUTPUT) || defined(ACPI_DEBUGGER)

@@ -126,6 +126,8 @@ char *acpi_ut_get_node_name(void *object);
 
 char *acpi_ut_get_descriptor_name(void *object);
 
+const char *acpi_ut_get_reference_name(union acpi_operand_object *object);
+
 char *acpi_ut_get_object_type_name(union acpi_operand_object *obj_desc);
 
 char *acpi_ut_get_region_name(u8 space_id);
