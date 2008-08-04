@@ -1065,12 +1065,26 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	phys_addr += offsetof(struct iwl_cmd, hdr);
 	iwl_hw_txq_attach_buf_to_tfd(priv, tfd, phys_addr, fix_size);
 
-	IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
-		     "%d bytes at %d[%d]:%d\n",
-		     get_cmd_string(out_cmd->hdr.cmd),
-		     out_cmd->hdr.cmd, le16_to_cpu(out_cmd->hdr.sequence),
-		     fix_size, q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
-
+#ifdef CONFIG_IWLWIFI_DEBUG
+	switch (out_cmd->hdr.cmd) {
+	case REPLY_TX_LINK_QUALITY_CMD:
+	case SENSITIVITY_CMD:
+		IWL_DEBUG_HC_DUMP("Sending command %s (#%x), seq: 0x%04X, "
+				"%d bytes at %d[%d]:%d\n",
+				get_cmd_string(out_cmd->hdr.cmd),
+				out_cmd->hdr.cmd,
+				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
+				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
+				break;
+	default:
+		IWL_DEBUG_HC("Sending command %s (#%x), seq: 0x%04X, "
+				"%d bytes at %d[%d]:%d\n",
+				get_cmd_string(out_cmd->hdr.cmd),
+				out_cmd->hdr.cmd,
+				le16_to_cpu(out_cmd->hdr.sequence), fix_size,
+				q->write_ptr, idx, IWL_CMD_QUEUE_NUM);
+	}
+#endif
 	txq->need_update = 1;
 
 	/* Set up entry in queue's byte count circular buffer */
