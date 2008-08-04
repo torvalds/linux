@@ -719,6 +719,8 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 	chip->dma1 = dma1;
 #if defined(CS4231) || defined(OPTi93X)
 	chip->dma2 = dma2;
+#else
+	chip->dma2 = -1;
 #endif
 
 	if (chip->wss_base == SNDRV_AUTO_PORT) {
@@ -734,10 +736,10 @@ static int __devinit snd_opti9xx_probe(struct snd_card *card)
 
 	error = snd_wss_create(card, chip->wss_base + 4, -1,
 			       chip->irq, chip->dma1, chip->dma2,
-#ifdef CS4231
-			       WSS_HW_DETECT, 0,
-#else /* OPTi93x */
+#ifdef OPTi93X
 			       WSS_HW_OPTI93X, WSS_HWSHARE_IRQ,
+#else
+			       WSS_HW_DETECT, 0,
 #endif
 			       &codec);
 	if (error < 0)
