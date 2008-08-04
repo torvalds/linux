@@ -147,13 +147,13 @@ static void maple_release_device(struct device *dev)
 	kfree(mdev);
 }
 
-/*
+/**
  * maple_add_packet - add a single instruction to the queue
- * @mdev - maple device
- * @function - function on device being queried
- * @command - maple command to add
- * @length - length of command string (in 32 bit words)
- * @data - remainder of command string
+ * @mdev: maple device
+ * @function: function on device being queried
+ * @command: maple command to add
+ * @length: length of command string (in 32 bit words)
+ * @data: remainder of command string
  */
 int maple_add_packet(struct maple_device *mdev, u32 function, u32 command,
 	size_t length, void *data)
@@ -194,14 +194,15 @@ out:
 }
 EXPORT_SYMBOL_GPL(maple_add_packet);
 
-/*
+/**
  * maple_add_packet_sleeps - add a single instruction to the queue
- *  - waits for lock to be free
- * @mdev - maple device
- * @function - function on device being queried
- * @command - maple command to add
- * @length - length of command string (in 32 bit words)
- * @data - remainder of command string
+ * @mdev: maple device
+ * @function: function on device being queried
+ * @command: maple command to add
+ * @length: length of command string (in 32 bit words)
+ * @data: remainder of command string
+ *
+ * Same as maple_add_packet(), but waits for the lock to become free.
  */
 int maple_add_packet_sleeps(struct maple_device *mdev, u32 function,
 	u32 command, size_t length, void *data)
