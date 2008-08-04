@@ -782,10 +782,8 @@ extern unsigned long xcall_sync_tick;
 
 static void smp_start_sync_tick_client(int cpu)
 {
-	cpumask_t mask = cpumask_of_cpu(cpu);
-
-	smp_cross_call_masked(&xcall_sync_tick,
-			      0, 0, 0, mask);
+	xcall_deliver((u64) &xcall_sync_tick, 0, 0,
+		      &cpumask_of_cpu(cpu));
 }
 
 extern unsigned long xcall_call_function;
