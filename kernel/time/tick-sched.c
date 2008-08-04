@@ -20,6 +20,7 @@
 #include <linux/profile.h>
 #include <linux/sched.h>
 #include <linux/tick.h>
+#include <linux/module.h>
 
 #include <asm/irq_regs.h>
 
@@ -190,9 +191,17 @@ u64 get_cpu_idle_time_us(int cpu, u64 *last_update_time)
 {
 	struct tick_sched *ts = &per_cpu(tick_cpu_sched, cpu);
 
-	*last_update_time = ktime_to_us(ts->idle_lastupdate);
+	if (!tick_nohz_enabled)
+		return -1;
+
+	if (ts->idle_active)
+		*last_update_time = ktime_to_us(ts->idle_lastupdate);
+	else
+		*last_update_time = ktime_to_us(ktime_get());
+
 	return ktime_to_us(ts->idle_sleeptime);
 }
+EXPORT_SYMBOL_GPL(get_cpu_idle_time_us);
 
 /**
  * tick_nohz_stop_sched_tick - stop the idle tick from the idle task
