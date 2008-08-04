@@ -18,6 +18,9 @@
 #include <linux/jiffies.h>
 #include <linux/kernel_stat.h>
 #include <linux/mutex.h>
+#include <linux/hrtimer.h>
+#include <linux/tick.h>
+#include <linux/ktime.h>
 
 /*
  * dbs is used in this file as a shortform for demandbased switching
@@ -26,6 +29,8 @@
 
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
+#define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 
@@ -58,6 +63,7 @@ enum {DBS_NORMAL_SAMPLE, DBS_SUB_SAMPLE};
 struct cpu_dbs_info_s {
 	cputime64_t prev_cpu_idle;
 	cputime64_t prev_cpu_wall;
+	cputime64_t prev_cpu_nice;
 	struct cpufreq_policy *cur_policy;
  	struct delayed_work work;
 	struct cpufreq_frequency_table *freq_table;
@@ -97,7 +103,8 @@ static struct dbs_tuners {
 	.powersave_bias = 0,
 };
 
-static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
+static inline cputime64_t get_cpu_idle_time_jiffy(unsigned int cpu,
+							cputime64_t *wall)
 {
 	cputime64_t idle_time;
 	cputime64_t cur_wall_time;
@@ -120,6 +127,33 @@ static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
 	if (wall)
 		*wall = cur_wall_time;
 
+	return idle_time;
+}
+
+static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
+{
+	u64 idle_time = get_cpu_idle_time_us(cpu, wall);
+
+	if (idle_time == -1ULL)
+		return get_cpu_idle_time_jiffy(cpu, wall);
+
+	if (dbs_tuners_ins.ignore_nice) {
+		cputime64_t cur_nice;
+		unsigned long cur_nice_jiffies;
+		struct cpu_dbs_info_s *dbs_info;
+
+		dbs_info = &per_cpu(cpu_dbs_info, cpu);
+		cur_nice = cputime64_sub(kstat_cpu(cpu).cpustat.nice,
+					 dbs_info->prev_cpu_nice);
+		/*
+		 * Assumption: nice time between sampling periods will be
+		 * less than 2^32 jiffies for 32 bit sys
+		 */
+		cur_nice_jiffies = (unsigned long)
+					cputime64_to_jiffies64(cur_nice);
+		dbs_info->prev_cpu_nice = kstat_cpu(cpu).cpustat.nice;
+		return idle_time + jiffies_to_usecs(cur_nice_jiffies);
+	}
 	return idle_time;
 }
 
@@ -603,6 +637,15 @@ EXPORT_SYMBOL(cpufreq_gov_ondemand);
 static int __init cpufreq_gov_dbs_init(void)
 {
 	int err;
+	cputime64_t wall;
+	u64 idle_time = get_cpu_idle_time_us(smp_processor_id(), &wall);
+
+	if (idle_time != -1ULL) {
+		/* Idle micro accounting is supported. Use finer thresholds */
+		dbs_tuners_ins.up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
+		dbs_tuners_ins.down_differential =
+					MICRO_FREQUENCY_DOWN_DIFFERENTIAL;
+	}
 
 	kondemand_wq = create_workqueue("kondemand");
 	if (!kondemand_wq) {
