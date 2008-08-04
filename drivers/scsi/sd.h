@@ -31,12 +31,6 @@
  */
 #define SD_BUF_SIZE		512
 
-/*
- * Number of sectors at the end of the device to avoid multi-sector
- * accesses to in the case of last_sector_bug
- */
-#define SD_LAST_BUGGY_SECTORS	8
-
 struct scsi_disk {
 	struct scsi_driver *driver;	/* always &sd_template */
 	struct scsi_device *device;
