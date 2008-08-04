@@ -143,8 +143,8 @@ static void dc_kbd_callback(struct mapleq *mq)
 	unsigned long *buf = mq->recvbuf;
 
 	/*
-	 * We should always be getting the lock because the only
-	 * time it may be locked if driver is in cleanup phase.
+	 * We should always get the lock because the only
+	 * time it may be locked is if the driver is in the cleanup phase.
 	 */
 	if (likely(mutex_trylock(&maple_keyb_mutex))) {
 
@@ -157,122 +157,86 @@ static void dc_kbd_callback(struct mapleq *mq)
 	}
 }
 
-static int dc_kbd_connect(struct maple_device *mdev)
+static int probe_maple_kbd(struct device *dev)
 {
+	struct maple_device *mdev = to_maple_dev(dev);
+	struct maple_driver *mdrv = to_maple_driver(dev->driver);
 	int i, error;
 	struct dc_kbd *kbd;
-	struct input_dev *dev;
+	struct input_dev *idev;
+
+	if (!(mdev->function & MAPLE_FUNC_KEYBOARD))
+		return -EINVAL;
 
 	kbd = kzalloc(sizeof(struct dc_kbd), GFP_KERNEL);
-	if (!kbd) {
+	idev = input_allocate_device();
+	if (!kbd || !idev) {
 		error = -ENOMEM;
-		goto fail_kbd;
-	}
-	dev = input_allocate_device();
-	if (!dev) {
-		error = -ENOMEM;
-		goto fail_dev;
+		goto fail;
 	}
 
 	mdev->private_data = kbd;
 
-	kbd->dev = dev;
+	kbd->dev = idev;
 	memcpy(kbd->keycode, dc_kbd_keycode, sizeof(kbd->keycode));
 
-	dev->name = mdev->product_name;
-	dev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
-	dev->keycode = kbd->keycode;
-	dev->keycodesize = sizeof(unsigned short);
-	dev->keycodemax = ARRAY_SIZE(kbd->keycode);
-	dev->id.bustype = BUS_HOST;
-	dev->dev.parent = &mdev->dev;
+	idev->name = mdev->product_name;
+	idev->evbit[0] = BIT(EV_KEY) | BIT(EV_REP);
+	idev->keycode = kbd->keycode;
+	idev->keycodesize = sizeof(unsigned short);
+	idev->keycodemax = ARRAY_SIZE(kbd->keycode);
+	idev->id.bustype = BUS_HOST;
+	idev->dev.parent = &mdev->dev;
 
 	for (i = 0; i < NR_SCANCODES; i++)
-		__set_bit(dc_kbd_keycode[i], dev->keybit);
-	__clear_bit(KEY_RESERVED, dev->keybit);
+		__set_bit(dc_kbd_keycode[i], idev->keybit);
+	__clear_bit(KEY_RESERVED, idev->keybit);
 
-	input_set_capability(dev, EV_MSC, MSC_SCAN);
-	input_set_drvdata(dev, kbd);
+	input_set_capability(idev, EV_MSC, MSC_SCAN);
+	input_set_drvdata(idev, kbd);
 
-	error = input_register_device(dev);
+	error = input_register_device(idev);
 	if (error)
 		goto fail;
 
 	/* Maple polling is locked to VBLANK - which may be just 50/s */
 	maple_getcond_callback(mdev, dc_kbd_callback, HZ/50,
 		MAPLE_FUNC_KEYBOARD);
-	return 0;
+
+	mdev->driver = mdrv;
+	return error;
 
 fail:
-	input_free_device(dev);
-fail_dev:
+	input_free_device(idev);
 	kfree(kbd);
-fail_kbd:
 	mdev->private_data = NULL;
 	return error;
 }
 
-static void dc_kbd_disconnect(struct maple_device *mdev)
+static int remove_maple_kbd(struct device *dev)
 {
+	struct maple_device *mdev = to_maple_dev(dev);
 	struct dc_kbd *kbd;
 
 	mutex_lock(&maple_keyb_mutex);
-	mdev->callback = NULL;
+
 	kbd = mdev->private_data;
 	mdev->private_data = NULL;
 	input_unregister_device(kbd->dev);
 	kfree(kbd);
 
 	mutex_unlock(&maple_keyb_mutex);
-}
-
-/* allow the keyboard to be used */
-static int probe_maple_kbd(struct device *dev)
-{
-	struct maple_device *mdev = to_maple_dev(dev);
-	struct maple_driver *mdrv = to_maple_driver(dev->driver);
-	int error;
-
-	error = dc_kbd_connect(mdev);
-	if (error)
-		return error;
-
-	mdev->driver = mdrv;
-
-	return 0;
-}
-
-static int remove_maple_kbd(struct device *dev)
-{
-	struct maple_device *mdev = to_maple_dev(dev);
-
-	dc_kbd_disconnect(mdev);
 	return 0;
 }
 
 static struct maple_driver dc_kbd_driver = {
 	.function = MAPLE_FUNC_KEYBOARD,
-	.connect = dc_kbd_connect,
-	.disconnect = dc_kbd_disconnect,
 	.drv = {
 		.name = "Dreamcast_keyboard",
 		.probe = probe_maple_kbd,
 		.remove = remove_maple_kbd,
        },
 };
-
-static int unplug_maple_keyb(struct device *dev, void *ignored)
-{
-	/* Please DO NOT really unplug your keyboard */
-	struct maple_device *mdev;
-
-	mdev = to_maple_dev(dev);
-	if ((mdev->function & MAPLE_FUNC_KEYBOARD)
-		&& (mdev->driver == &dc_kbd_driver))
-		remove_maple_kbd(dev);
-
-	return 0;
-}
 
 static int __init dc_kbd_init(void)
 {
@@ -281,7 +245,6 @@ static int __init dc_kbd_init(void)
 
 static void __exit dc_kbd_exit(void)
 {
-	bus_for_each_dev(&maple_bus_type, NULL, NULL, unplug_maple_keyb);
 	driver_unregister(&dc_kbd_driver.drv);
 }
 
