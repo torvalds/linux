@@ -939,8 +939,8 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 	len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 
 	if (txq_id != IWL_CMD_QUEUE_NUM) {
-		sta = txq->cmd[txq->q.write_ptr].cmd.tx.sta_id;
-		sec_ctl = txq->cmd[txq->q.write_ptr].cmd.tx.sec_ctl;
+		sta = txq->cmd[txq->q.write_ptr]->cmd.tx.sta_id;
+		sec_ctl = txq->cmd[txq->q.write_ptr]->cmd.tx.sec_ctl;
 
 		switch (sec_ctl & TX_CMD_SEC_MSK) {
 		case TX_CMD_SEC_CCM:
@@ -979,7 +979,7 @@ static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 	u8 sta = 0;
 
 	if (txq_id != IWL_CMD_QUEUE_NUM)
-		sta = txq->cmd[txq->q.read_ptr].cmd.tx.sta_id;
+		sta = txq->cmd[txq->q.read_ptr]->cmd.tx.sta_id;
 
 	shared_data->queues_byte_cnt_tbls[txq_id].tfd_offset[txq->q.read_ptr].
 					val = cpu_to_le16(1 | (sta << 12));

@@ -135,8 +135,7 @@ struct iwl_tx_info {
 struct iwl_tx_queue {
 	struct iwl_queue q;
 	struct iwl_tfd_frame *bd;
-	struct iwl_cmd *cmd;
-	dma_addr_t dma_addr_cmd;
+	struct iwl_cmd *cmd[TFD_TX_CMD_SLOTS];
 	struct iwl_tx_info *txb;
 	int need_update;
 	int sched_retry;
