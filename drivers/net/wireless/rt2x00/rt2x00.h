@@ -452,6 +452,23 @@ struct rt2x00lib_erp {
 };
 
 /*
+ * Configuration structure for hardware encryption.
+ */
+struct rt2x00lib_crypto {
+	enum cipher cipher;
+
+	enum set_key_cmd cmd;
+	const u8 *address;
+
+	u32 bssidx;
+	u32 aid;
+
+	u8 key[16];
+	u8 tx_mic[8];
+	u8 rx_mic[8];
+};
+
+/*
  * Configuration structure wrapper around the
  * rt2x00 interface configuration handler.
  */
@@ -547,6 +564,12 @@ struct rt2x00lib_ops {
 	/*
 	 * Configuration handlers.
 	 */
+	int (*config_shared_key) (struct rt2x00_dev *rt2x00dev,
+				  struct rt2x00lib_crypto *crypto,
+				  struct ieee80211_key_conf *key);
+	int (*config_pairwise_key) (struct rt2x00_dev *rt2x00dev,
+				    struct rt2x00lib_crypto *crypto,
+				    struct ieee80211_key_conf *key);
 	void (*config_filter) (struct rt2x00_dev *rt2x00dev,
 			       const unsigned int filter_flags);
 	void (*config_intf) (struct rt2x00_dev *rt2x00dev,
@@ -609,7 +632,7 @@ enum rt2x00_flags {
 	DEVICE_DIRTY_CONFIG,
 
 	/*
-	 * Driver features
+	 * Driver requirements
 	 */
 	DRIVER_REQUIRE_FIRMWARE,
 	DRIVER_REQUIRE_BEACON_GUARD,
@@ -618,9 +641,14 @@ enum rt2x00_flags {
 	DRIVER_REQUIRE_DMA,
 
 	/*
-	 * Driver configuration
+	 * Driver features
 	 */
 	CONFIG_SUPPORT_HW_BUTTON,
+	CONFIG_SUPPORT_HW_CRYPTO,
+
+	/*
+	 * Driver configuration
+	 */
 	CONFIG_FRAME_TYPE,
 	CONFIG_RF_SEQUENCE,
 	CONFIG_EXTERNAL_LNA_A,
@@ -966,6 +994,13 @@ void rt2x00mac_configure_filter(struct ieee80211_hw *hw,
 				unsigned int changed_flags,
 				unsigned int *total_flags,
 				int mc_count, struct dev_addr_list *mc_list);
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+int rt2x00mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
+		      const u8 *local_address, const u8 *address,
+		      struct ieee80211_key_conf *key);
+#else
+#define rt2x00mac_set_key	NULL
+#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 int rt2x00mac_get_stats(struct ieee80211_hw *hw,
 			struct ieee80211_low_level_stats *stats);
 int rt2x00mac_get_tx_stats(struct ieee80211_hw *hw,

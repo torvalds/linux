@@ -33,6 +33,10 @@ config RT2X00_LIB_FIRMWARE
 	depends on RT2X00_LIB
 	select FW_LOADER
 
+config RT2X00_LIB_CRYPTO
+	boolean
+	depends on RT2X00_LIB
+
 config RT2X00_LIB_RFKILL
 	boolean
 	depends on RT2X00_LIB

@@ -508,6 +508,15 @@ void rt2x00lib_txdone(struct queue_entry *entry,
 	rt2x00queue_unmap_skb(rt2x00dev, entry->skb);
 
 	/*
+	 * If the IV/EIV data was stripped from the frame before it was
+	 * passed to the hardware, we should now reinsert it again because
+	 * mac80211 will expect the the same data to be present it the
+	 * frame as it was passed to us.
+	 */
+	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
+		rt2x00crypto_tx_insert_iv(entry->skb);
+
+	/*
 	 * Send frame to debugfs immediately, after this call is completed
 	 * we are going to overwrite the skb->cb array.
 	 */
@@ -585,7 +594,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
 	const struct rt2x00_rate *rate;
-	unsigned int header_size;
+	unsigned int header_length;
 	unsigned int align;
 	unsigned int i;
 	int idx = -1;
@@ -613,10 +622,19 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
 	 */
-	header_size = ieee80211_get_hdrlen_from_skb(entry->skb);
-	align = ((unsigned long)(entry->skb->data + header_size)) & 3;
+	header_length = ieee80211_get_hdrlen_from_skb(entry->skb);
+	align = ((unsigned long)(entry->skb->data + header_length)) & 3;
 
-	if (align) {
+	/*
+	 * Hardware might have stripped the IV/EIV/ICV data,
+	 * in that case it is possible that the data was
+	 * provided seperately (through hardware descriptor)
+	 * in which case we should reinsert the data into the frame.
+	 */
+	if ((rxdesc.flags & RX_FLAG_IV_STRIPPED)) {
+		rt2x00crypto_rx_insert_iv(entry->skb, align,
+					  header_length, &rxdesc);
+	} else if (align) {
 		skb_push(entry->skb, align);
 		/* Move entire frame in 1 command */
 		memmove(entry->skb->data, entry->skb->data + align,
@@ -656,6 +674,10 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	if (ieee80211_is_beacon(hdr->frame_control) &&
 	    (rxdesc.dev_flags & RXDONE_MY_BSS))
 		rt2x00lib_update_link_stats(&rt2x00dev->link, rxdesc.rssi);
+
+	rt2x00debug_update_crypto(rt2x00dev,
+				  rxdesc.cipher,
+				  rxdesc.cipher_status);
 
 	rt2x00dev->link.qual.rx_success++;
 

@@ -35,6 +35,13 @@
 
 #define MAX_LINE_LENGTH 64
 
+struct rt2x00debug_crypto {
+	unsigned long success;
+	unsigned long icv_error;
+	unsigned long mic_error;
+	unsigned long key_error;
+};
+
 struct rt2x00debug_intf {
 	/*
 	 * Pointer to driver structure where
@@ -63,6 +70,7 @@ struct rt2x00debug_intf {
 	 *   - queue folder
 	 *     - frame dump file
 	 *     - queue stats file
+	 *     - crypto stats file
 	 */
 	struct dentry *driver_folder;
 	struct dentry *driver_entry;
@@ -80,6 +88,7 @@ struct rt2x00debug_intf {
 	struct dentry *queue_folder;
 	struct dentry *queue_frame_dump_entry;
 	struct dentry *queue_stats_entry;
+	struct dentry *crypto_stats_entry;
 
 	/*
 	 * The frame dump file only allows a single reader,
@@ -98,6 +107,12 @@ struct rt2x00debug_intf {
 	wait_queue_head_t frame_dump_waitqueue;
 
 	/*
+	 * HW crypto statistics.
+	 * All statistics are stored seperately per cipher type.
+	 */
+	struct rt2x00debug_crypto crypto_stats[CIPHER_MAX];
+
+	/*
 	 * Driver and chipset files will use a data buffer
 	 * that has been created in advance. This will simplify
 	 * the code since we can use the debugfs functions.
@@ -113,6 +128,25 @@ struct rt2x00debug_intf {
 	unsigned int offset_bbp;
 	unsigned int offset_rf;
 };
+
+void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
+			       enum cipher cipher, enum rx_crypto status)
+{
+	struct rt2x00debug_intf *intf = rt2x00dev->debugfs_intf;
+
+	if (cipher == CIPHER_TKIP_NO_MIC)
+		cipher = CIPHER_TKIP;
+	if (cipher == CIPHER_NONE || cipher > CIPHER_MAX)
+		return;
+
+	/* Remove CIPHER_NONE index */
+	cipher--;
+
+	intf->crypto_stats[cipher].success += (status == RX_CRYPTO_SUCCESS);
+	intf->crypto_stats[cipher].icv_error += (status == RX_CRYPTO_FAIL_ICV);
+	intf->crypto_stats[cipher].mic_error += (status == RX_CRYPTO_FAIL_MIC);
+	intf->crypto_stats[cipher].key_error += (status == RX_CRYPTO_FAIL_KEY);
+}
 
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 			    enum rt2x00_dump_type type, struct sk_buff *skb)
@@ -326,6 +360,59 @@ static const struct file_operations rt2x00debug_fop_queue_stats = {
 	.open		= rt2x00debug_file_open,
 	.release	= rt2x00debug_file_release,
 };
+
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+static ssize_t rt2x00debug_read_crypto_stats(struct file *file,
+					     char __user *buf,
+					     size_t length,
+					     loff_t *offset)
+{
+	struct rt2x00debug_intf *intf = file->private_data;
+	char *name[] = { "WEP64", "WEP128", "TKIP", "AES" };
+	char *data;
+	char *temp;
+	size_t size;
+	unsigned int i;
+
+	if (*offset)
+		return 0;
+
+	data = kzalloc((1 + CIPHER_MAX)* MAX_LINE_LENGTH, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	temp = data;
+	temp += sprintf(data, "cipher\tsuccess\ticv err\tmic err\tkey err\n");
+
+	for (i = 0; i < CIPHER_MAX; i++) {
+		temp += sprintf(temp, "%s\t%lu\t%lu\t%lu\t%lu\n", name[i],
+				intf->crypto_stats[i].success,
+				intf->crypto_stats[i].icv_error,
+				intf->crypto_stats[i].mic_error,
+				intf->crypto_stats[i].key_error);
+	}
+
+	size = strlen(data);
+	size = min(size, length);
+
+	if (copy_to_user(buf, data, size)) {
+		kfree(data);
+		return -EFAULT;
+	}
+
+	kfree(data);
+
+	*offset += size;
+	return size;
+}
+
+static const struct file_operations rt2x00debug_fop_crypto_stats = {
+	.owner		= THIS_MODULE,
+	.read		= rt2x00debug_read_crypto_stats,
+	.open		= rt2x00debug_file_open,
+	.release	= rt2x00debug_file_release,
+};
+#endif
 
 #define RT2X00DEBUGFS_OPS_READ(__name, __format, __type)	\
 static ssize_t rt2x00debug_read_##__name(struct file *file,	\
@@ -569,6 +656,13 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	    debugfs_create_file("queue", S_IRUSR, intf->queue_folder,
 				intf, &rt2x00debug_fop_queue_stats);
 
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags))
+		intf->crypto_stats_entry =
+		    debugfs_create_file("crypto", S_IRUGO, intf->queue_folder,
+					intf, &rt2x00debug_fop_crypto_stats);
+#endif
+
 	return;
 
 exit:
@@ -587,6 +681,9 @@ void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev)
 
 	skb_queue_purge(&intf->frame_dump_skbqueue);
 
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+	debugfs_remove(intf->crypto_stats_entry);
+#endif
 	debugfs_remove(intf->queue_stats_entry);
 	debugfs_remove(intf->queue_frame_dump_entry);
 	debugfs_remove(intf->queue_folder);

@@ -87,10 +87,13 @@ enum data_queue_qid {
  *
  * @SKBDESC_DMA_MAPPED_RX: &skb_dma field has been mapped for RX
  * @SKBDESC_DMA_MAPPED_TX: &skb_dma field has been mapped for TX
+ * @FRAME_DESC_IV_STRIPPED: Frame contained a IV/EIV provided by
+ *	mac80211 but was stripped for processing by the driver.
  */
 enum skb_frame_desc_flags {
-	SKBDESC_DMA_MAPPED_RX = (1 << 0),
-	SKBDESC_DMA_MAPPED_TX = (1 << 1),
+	SKBDESC_DMA_MAPPED_RX = 1 << 0,
+	SKBDESC_DMA_MAPPED_TX = 1 << 1,
+	FRAME_DESC_IV_STRIPPED = 1 << 2,
 };
 
 /**
@@ -104,6 +107,8 @@ enum skb_frame_desc_flags {
  * @desc: Pointer to descriptor part of the frame.
  *	Note that this pointer could point to something outside
  *	of the scope of the skb->data pointer.
+ * @iv: IV data used during encryption/decryption.
+ * @eiv: EIV data used during encryption/decryption.
  * @skb_dma: (PCI-only) the DMA address associated with the sk buffer.
  * @entry: The entry to which this sk buffer belongs.
  */
@@ -112,6 +117,9 @@ struct skb_frame_desc {
 
 	unsigned int desc_len;
 	void *desc;
+
+	__le32 iv;
+	__le32 eiv;
 
 	dma_addr_t skb_dma;
 
@@ -152,7 +160,11 @@ enum rxdone_entry_desc_flags {
  * @size: Data size of the received frame.
  * @flags: MAC80211 receive flags (See &enum mac80211_rx_flags).
  * @dev_flags: Ralink receive flags (See &enum rxdone_entry_desc_flags).
-
+ * @cipher: Cipher type used during decryption.
+ * @cipher_status: Decryption status.
+ * @iv: IV data used during decryption.
+ * @eiv: EIV data used during decryption.
+ * @icv: ICV data used during decryption.
  */
 struct rxdone_entry_desc {
 	u64 timestamp;
@@ -161,6 +173,12 @@ struct rxdone_entry_desc {
 	int size;
 	int flags;
 	int dev_flags;
+	u8 cipher;
+	u8 cipher_status;
+
+	__le32 iv;
+	__le32 eiv;
+	__le32 icv;
 };
 
 /**
@@ -206,6 +224,10 @@ struct txdone_entry_desc {
  * @ENTRY_TXD_BURST: This frame belongs to the same burst event.
  * @ENTRY_TXD_ACK: An ACK is required for this frame.
  * @ENTRY_TXD_RETRY_MODE: When set, the long retry count is used.
+ * @ENTRY_TXD_ENCRYPT: This frame should be encrypted.
+ * @ENTRY_TXD_ENCRYPT_PAIRWISE: Use pairwise key table (instead of shared).
+ * @ENTRY_TXD_ENCRYPT_IV: Generate IV/EIV in hardware.
+ * @ENTRY_TXD_ENCRYPT_MMIC: Generate MIC in hardware.
  */
 enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
@@ -218,6 +240,10 @@ enum txentry_desc_flags {
 	ENTRY_TXD_BURST,
 	ENTRY_TXD_ACK,
 	ENTRY_TXD_RETRY_MODE,
+	ENTRY_TXD_ENCRYPT,
+	ENTRY_TXD_ENCRYPT_PAIRWISE,
+	ENTRY_TXD_ENCRYPT_IV,
+	ENTRY_TXD_ENCRYPT_MMIC,
 };
 
 /**
@@ -236,6 +262,9 @@ enum txentry_desc_flags {
  * @ifs: IFS value.
  * @cw_min: cwmin value.
  * @cw_max: cwmax value.
+ * @cipher: Cipher type used for encryption.
+ * @key_idx: Key index used for encryption.
+ * @iv_offset: Position where IV should be inserted by hardware.
  */
 struct txentry_desc {
 	unsigned long flags;
@@ -252,6 +281,10 @@ struct txentry_desc {
 	short ifs;
 	short cw_min;
 	short cw_max;
+
+	enum cipher cipher;
+	u16 key_idx;
+	u16 iv_offset;
 };
 
 /**
@@ -484,25 +517,51 @@ static inline int rt2x00queue_threshold(struct data_queue *queue)
 }
 
 /**
- * rt2x00_desc_read - Read a word from the hardware descriptor.
+ * _rt2x00_desc_read - Read a word from the hardware descriptor.
+ * @desc: Base descriptor address
+ * @word: Word index from where the descriptor should be read.
+ * @value: Address where the descriptor value should be written into.
+ */
+static inline void _rt2x00_desc_read(__le32 *desc, const u8 word, __le32 *value)
+{
+	*value = desc[word];
+}
+
+/**
+ * rt2x00_desc_read - Read a word from the hardware descriptor, this
+ * function will take care of the byte ordering.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be read.
  * @value: Address where the descriptor value should be written into.
  */
 static inline void rt2x00_desc_read(__le32 *desc, const u8 word, u32 *value)
 {
-	*value = le32_to_cpu(desc[word]);
+	__le32 tmp;
+	_rt2x00_desc_read(desc, word, &tmp);
+	*value = le32_to_cpu(tmp);
 }
 
 /**
- * rt2x00_desc_write - wrote a word to the hardware descriptor.
+ * rt2x00_desc_write - write a word to the hardware descriptor, this
+ * function will take care of the byte ordering.
+ * @desc: Base descriptor address
+ * @word: Word index from where the descriptor should be written.
+ * @value: Value that should be written into the descriptor.
+ */
+static inline void _rt2x00_desc_write(__le32 *desc, const u8 word, __le32 value)
+{
+	desc[word] = value;
+}
+
+/**
+ * rt2x00_desc_write - write a word to the hardware descriptor.
  * @desc: Base descriptor address
  * @word: Word index from where the descriptor should be written.
  * @value: Value that should be written into the descriptor.
  */
 static inline void rt2x00_desc_write(__le32 *desc, const u8 word, u32 value)
 {
-	desc[word] = cpu_to_le32(value);
+	_rt2x00_desc_write(desc, word, cpu_to_le32(value));
 }
 
 #endif /* RT2X00QUEUE_H */

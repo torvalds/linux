@@ -33,10 +33,11 @@
 struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 					struct queue_entry *entry)
 {
-	unsigned int frame_size;
-	unsigned int reserved_size;
 	struct sk_buff *skb;
 	struct skb_frame_desc *skbdesc;
+	unsigned int frame_size;
+	unsigned int head_size = 0;
+	unsigned int tail_size = 0;
 
 	/*
 	 * The frame size includes descriptor size, because the
@@ -49,16 +50,32 @@ struct sk_buff *rt2x00queue_alloc_rxskb(struct rt2x00_dev *rt2x00dev,
 	 * this means we need at least 3 bytes for moving the frame
 	 * into the correct offset.
 	 */
-	reserved_size = 4;
+	head_size = 4;
+
+	/*
+	 * For IV/EIV/ICV assembly we must make sure there is
+	 * at least 8 bytes bytes available in headroom for IV/EIV
+	 * and 4 bytes for ICV data as tailroon.
+	 */
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags)) {
+		head_size += 8;
+		tail_size += 4;
+	}
+#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	/*
 	 * Allocate skbuffer.
 	 */
-	skb = dev_alloc_skb(frame_size + reserved_size);
+	skb = dev_alloc_skb(frame_size + head_size + tail_size);
 	if (!skb)
 		return NULL;
 
-	skb_reserve(skb, reserved_size);
+	/*
+	 * Make sure we not have a frame with the requested bytes
+	 * available in the head and tail.
+	 */
+	skb_reserve(skb, head_size);
 	skb_put(skb, frame_size);
 
 	/*
@@ -140,7 +157,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	txdesc->cw_max = entry->queue->cw_max;
 	txdesc->aifs = entry->queue->aifs;
 
-	/* Data length should be extended with 4 bytes for CRC */
+	/* Data length + CRC + IV/EIV/ICV/MMIC (when using encryption) */
 	data_length = entry->skb->len + 4;
 
 	/*
@@ -148,6 +165,35 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 */
 	if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK))
 		__set_bit(ENTRY_TXD_ACK, &txdesc->flags);
+
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+	if (test_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags) &&
+	    !entry->skb->do_not_encrypt) {
+		struct ieee80211_key_conf *hw_key = tx_info->control.hw_key;
+
+		__set_bit(ENTRY_TXD_ENCRYPT, &txdesc->flags);
+
+		txdesc->cipher = rt2x00crypto_key_to_cipher(hw_key);
+
+		if (hw_key->flags & IEEE80211_KEY_FLAG_PAIRWISE)
+			__set_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags);
+
+		txdesc->key_idx = hw_key->hw_key_idx;
+		txdesc->iv_offset = ieee80211_get_hdrlen_from_skb(entry->skb);
+
+		/*
+		 * Extend frame length to include all encryption overhead
+		 * that will be added by the hardware.
+		 */
+		data_length += rt2x00crypto_tx_overhead(tx_info);
+
+		if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_IV))
+			__set_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc->flags);
+
+		if (!(hw_key->flags & IEEE80211_KEY_FLAG_GENERATE_MMIC))
+			__set_bit(ENTRY_TXD_ENCRYPT_MMIC, &txdesc->flags);
+	}
+#endif /* CONFIG_RT2X00_LIB_CRYPTO */
 
 	/*
 	 * Check if this is a RTS/CTS frame
@@ -305,6 +351,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	struct queue_entry *entry = rt2x00queue_get_entry(queue, Q_INDEX);
 	struct txentry_desc txdesc;
 	struct skb_frame_desc *skbdesc;
+	unsigned int iv_len = IEEE80211_SKB_CB(skb)->control.iv_len;
 
 	if (unlikely(rt2x00queue_full(queue)))
 		return -EINVAL;
@@ -326,15 +373,33 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	rt2x00queue_create_tx_descriptor(entry, &txdesc);
 
 	/*
-	 * skb->cb array is now ours and we are free to use it.
+	 * All information is retreived from the skb->cb array,
+	 * now we should claim ownership of the driver part of that
+	 * array.
 	 */
 	skbdesc = get_skb_frame_desc(entry->skb);
 	memset(skbdesc, 0, sizeof(*skbdesc));
 	skbdesc->entry = entry;
 
+	/*
+	 * When hardware encryption is supported, and this frame
+	 * is to be encrypted, we should strip the IV/EIV data from
+	 * the frame so we can provide it to the driver seperately.
+	 */
+	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
+	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags))
+		rt2x00crypto_tx_remove_iv(skb, iv_len);
+
+	/*
+	 * It could be possible that the queue was corrupted and this
+	 * call failed. Just drop the frame, we cannot rollback and pass
+	 * the frame to mac80211 because the skb->cb has now been tainted.
+	 */
 	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
 		__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
-		return -EIO;
+		dev_kfree_skb_any(entry->skb);
+		entry->skb = NULL;
+		return 0;
 	}
 
 	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))

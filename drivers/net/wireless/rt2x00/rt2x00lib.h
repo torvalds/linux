@@ -181,6 +181,8 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev);
 void rt2x00debug_deregister(struct rt2x00_dev *rt2x00dev);
 void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 			    enum rt2x00_dump_type type, struct sk_buff *skb);
+void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
+			       enum cipher cipher, enum rx_crypto status);
 #else
 static inline void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 {
@@ -195,7 +197,52 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
 					  struct sk_buff *skb)
 {
 }
+
+static inline void rt2x00debug_update_crypto(struct rt2x00_dev *rt2x00dev,
+					     enum cipher cipher,
+					     enum rx_crypto status)
+{
+}
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
+
+/*
+ * Crypto handlers.
+ */
+#ifdef CONFIG_RT2X00_LIB_CRYPTO
+enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key);
+unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info);
+void rt2x00crypto_tx_remove_iv(struct sk_buff *skb, unsigned int iv_len);
+void rt2x00crypto_tx_insert_iv(struct sk_buff *skb);
+void rt2x00crypto_rx_insert_iv(struct sk_buff *skb, unsigned int align,
+			       unsigned int header_length,
+			       struct rxdone_entry_desc *rxdesc);
+#else
+static inline enum cipher rt2x00crypto_key_to_cipher(struct ieee80211_key_conf *key)
+{
+	return CIPHER_NONE;
+}
+
+static inline unsigned int rt2x00crypto_tx_overhead(struct ieee80211_tx_info *tx_info)
+{
+	return 0;
+}
+
+static inline void rt2x00crypto_tx_remove_iv(struct sk_buff *skb,
+					     unsigned int iv_len)
+{
+}
+
+static inline void rt2x00crypto_tx_insert_iv(struct sk_buff *skb)
+{
+}
+
+static inline void rt2x00crypto_rx_insert_iv(struct sk_buff *skb,
+					     unsigned int align,
+					     unsigned int header_length,
+					     struct rxdone_entry_desc *rxdesc)
+{
+}
+#endif
 
 /*
  * RFkill handlers.
