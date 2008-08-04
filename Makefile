@@ -1492,7 +1492,7 @@ quiet_cmd_cscope-file = FILELST cscope.files
       cmd_cscope-file = (echo \-k; echo \-q; $(all-sources)) > cscope.files
 
 quiet_cmd_cscope = MAKE    cscope.out
-      cmd_cscope = cscope -b
+      cmd_cscope = cscope -b -f cscope.out
 
 cscope: FORCE
 	$(call cmd,cscope-file)
