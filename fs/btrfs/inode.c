@@ -376,7 +376,9 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	if (!(rw & (1 << BIO_RW))) {
 		if (!btrfs_test_opt(root, NODATASUM) &&
 		    !btrfs_test_flag(inode, NODATASUM)) {
+			mutex_lock(&BTRFS_I(inode)->csum_mutex);
 			btrfs_lookup_bio_sums(root, inode, bio);
+			mutex_unlock(&BTRFS_I(inode)->csum_mutex);
 		}
 		goto mapit;
 	}

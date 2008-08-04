@@ -150,7 +150,6 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 
 	path = btrfs_alloc_path();
-	path->reada = 2;
 
 	WARN_ON(bio->bi_vcnt <= 0);
 
@@ -177,6 +176,7 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 				printk("no csum found for inode %lu start "
 				       "%llu\n", inode->i_ino,
 				       (unsigned long long)offset);
+				item = NULL;
 				goto found;
 			}
 			btrfs_item_key_to_cpu(path->nodes[0], &found_key,
