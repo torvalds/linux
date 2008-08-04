@@ -1187,28 +1187,6 @@ static ssize_t show_rev(struct device *dev, struct device_attribute *attr,
 	return sprintf(buf, "%d\n", iwch_dev->rdev.t3cdev_p->type);
 }
 
-static int fw_supports_fastreg(struct iwch_dev *iwch_dev)
-{
-	struct ethtool_drvinfo info;
-	struct net_device *lldev = iwch_dev->rdev.t3cdev_p->lldev;
-	char *cp, *next;
-	unsigned fw_maj, fw_min;
-
-	rtnl_lock();
-	lldev->ethtool_ops->get_drvinfo(lldev, &info);
-	rtnl_unlock();
-
-	next = info.fw_version+1;
-	cp = strsep(&next, ".");
-	sscanf(cp, "%i", &fw_maj);
-	cp = strsep(&next, ".");
-	sscanf(cp, "%i", &fw_min);
-
-	PDBG("%s maj %u min %u\n", __func__, fw_maj, fw_min);
-
-	return fw_maj > 6 || (fw_maj == 6 && fw_min > 0);
-}
-
 static ssize_t show_fw_ver(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	struct iwch_dev *iwch_dev = container_of(dev, struct iwch_dev,
@@ -1325,12 +1303,12 @@ int iwch_register_device(struct iwch_dev *dev)
 	memset(&dev->ibdev.node_guid, 0, sizeof(dev->ibdev.node_guid));
 	memcpy(&dev->ibdev.node_guid, dev->rdev.t3cdev_p->lldev->dev_addr, 6);
 	dev->ibdev.owner = THIS_MODULE;
-	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY | IB_DEVICE_MEM_WINDOW;
+	dev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
+				IB_DEVICE_MEM_WINDOW |
+				IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	/* cxgb3 supports STag 0. */
 	dev->ibdev.local_dma_lkey = 0;
-	if (fw_supports_fastreg(dev))
-		dev->device_cap_flags |= IB_DEVICE_MEM_MGT_EXTENSIONS;
 
 	dev->ibdev.uverbs_cmd_mask =
 	    (1ull << IB_USER_VERBS_CMD_GET_CONTEXT) |
