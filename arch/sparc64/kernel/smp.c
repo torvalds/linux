@@ -787,21 +787,17 @@ static void xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask
  * except self.  Really, there are only two cases currently,
  * "&cpu_online_map" and "&mm->cpu_vm_mask".
  */
-static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 data2, const cpumask_t *mask_p)
+static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 data2, const cpumask_t *mask)
 {
 	u64 data0 = (((u64)ctx)<<32 | (((u64)func) & 0xffffffff));
-	int this_cpu = get_cpu();
-	cpumask_t mask;
 
-	mask = *mask_p;
-	if (mask_p != &cpu_online_map)
-		cpus_and(mask, mask, cpu_online_map);
-	cpu_clear(this_cpu, mask);
+	xcall_deliver(data0, data1, data2, mask);
+}
 
-	xcall_deliver(data0, data1, data2, &mask);
-	/* NOTE: Caller runs local copy on master. */
-
-	put_cpu();
+/* Send cross call to all processors except self. */
+static void smp_cross_call(unsigned long *func, u32 ctx, u64 data1, u64 data2)
+{
+	smp_cross_call_masked(func, ctx, data1, data2, &cpu_online_map);
 }
 
 extern unsigned long xcall_sync_tick;
@@ -826,10 +822,6 @@ void arch_send_call_function_single_ipi(int cpu)
 	xcall_deliver((u64) &xcall_call_function_single, 0, 0,
 		      &cpumask_of_cpu(cpu));
 }
-
-/* Send cross call to all processors except self. */
-#define smp_cross_call(func, ctx, data1, data2) \
-	smp_cross_call_masked(func, ctx, data1, data2, &cpu_online_map)
 
 void smp_call_function_client(int irq, struct pt_regs *regs)
 {
@@ -900,7 +892,6 @@ static inline void __local_flush_dcache_page(struct page *page)
 
 void smp_flush_dcache_page_impl(struct page *page, int cpu)
 {
-	cpumask_t mask = cpumask_of_cpu(cpu);
 	int this_cpu;
 
 	if (tlb_type == hypervisor)
@@ -929,7 +920,7 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 		}
 		if (data0) {
 			xcall_deliver(data0, __pa(pg_addr),
-				      (u64) pg_addr, &mask);
+				      (u64) pg_addr, &cpumask_of_cpu(cpu));
 #ifdef CONFIG_DEBUG_DCFLUSH
 			atomic_inc(&dcpage_flushes_xcall);
 #endif
@@ -941,7 +932,6 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 
 void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 {
-	cpumask_t mask = cpu_online_map;
 	void *pg_addr;
 	int this_cpu;
 	u64 data0;
@@ -951,13 +941,9 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 
 	this_cpu = get_cpu();
 
-	cpu_clear(this_cpu, mask);
-
 #ifdef CONFIG_DEBUG_DCFLUSH
 	atomic_inc(&dcpage_flushes);
 #endif
-	if (cpus_empty(mask))
-		goto flush_self;
 	data0 = 0;
 	pg_addr = page_address(page);
 	if (tlb_type == spitfire) {
@@ -971,12 +957,11 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	}
 	if (data0) {
 		xcall_deliver(data0, __pa(pg_addr),
-			      (u64) pg_addr, &mask);
+			      (u64) pg_addr, &cpu_online_map);
 #ifdef CONFIG_DEBUG_DCFLUSH
 		atomic_inc(&dcpage_flushes_xcall);
 #endif
 	}
- flush_self:
 	__local_flush_dcache_page(page);
 
 	put_cpu();
