@@ -17,6 +17,10 @@
 #include <linux/mfd/tmio.h>
 #include <linux/mfd/tc6387xb.h>
 
+enum {
+	TC6387XB_CELL_MMC,
+};
+
 #ifdef CONFIG_PM
 static int tc6387xb_suspend(struct platform_device *dev, pm_message_t state)
 {
@@ -87,7 +91,7 @@ static struct resource tc6387xb_mmc_resources[] = {
 };
 
 static struct mfd_cell tc6387xb_cells[] = {
-	{
+	[TC6387XB_CELL_MMC] = {
 		.name = "tmio-mmc",
 		.enable = tc6387xb_mmc_enable,
 		.disable = tc6387xb_mmc_disable,
@@ -118,6 +122,11 @@ static int tc6387xb_probe(struct platform_device *dev)
 		data->enable(dev);
 
 	printk(KERN_INFO "Toshiba tc6387xb initialised\n");
+
+	tc6387xb_cells[TC6387XB_CELL_MMC].platform_data =
+		&tc6387xb_cells[TC6387XB_CELL_MMC];
+	tc6387xb_cells[TC6387XB_CELL_MMC].data_size =
+		sizeof(tc6387xb_cells[TC6387XB_CELL_MMC]);
 
 	ret = mfd_add_devices(&dev->dev, dev->id, tc6387xb_cells,
 			      ARRAY_SIZE(tc6387xb_cells), iomem, irq);
