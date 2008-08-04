@@ -1710,17 +1710,15 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	if (retval == 0)
-		retval = driver->bind(&musb->g);
-	if (retval != 0) {
-		DBG(3, "bind to driver %s failed --> %d\n",
-			driver->driver.name, retval);
-		musb->gadget_driver = NULL;
-		musb->g.dev.driver = NULL;
-	}
-
-	/* start peripheral and/or OTG engines */
 	if (retval == 0) {
+		retval = driver->bind(&musb->g);
+		if (retval != 0) {
+			DBG(3, "bind to driver %s failed --> %d\n",
+					driver->driver.name, retval);
+			musb->gadget_driver = NULL;
+			musb->g.dev.driver = NULL;
+		}
+
 		spin_lock_irqsave(&musb->lock, flags);
 
 		/* REVISIT always use otg_set_peripheral(), handling
