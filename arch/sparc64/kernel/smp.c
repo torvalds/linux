@@ -761,15 +761,19 @@ dump_cpu_list_and_out:
 
 static void (*xcall_deliver)(u64, u64, u64, const cpumask_t *);
 
-/* Send cross call to all processors mentioned in MASK
- * except self.
+/* Send cross call to all processors mentioned in MASK_P
+ * except self.  Really, there are only two cases currently,
+ * "&cpu_online_map" and "&mm->cpu_vm_mask".
  */
-static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 data2, cpumask_t mask)
+static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 data2, const cpumask_t *mask_p)
 {
 	u64 data0 = (((u64)ctx)<<32 | (((u64)func) & 0xffffffff));
 	int this_cpu = get_cpu();
+	cpumask_t mask;
 
-	cpus_and(mask, mask, cpu_online_map);
+	mask = *mask_p;
+	if (mask_p != &cpu_online_map)
+		cpus_and(mask, mask, cpu_online_map);
 	cpu_clear(this_cpu, mask);
 
 	xcall_deliver(data0, data1, data2, &mask);
@@ -803,7 +807,7 @@ void arch_send_call_function_single_ipi(int cpu)
 
 /* Send cross call to all processors except self. */
 #define smp_cross_call(func, ctx, data1, data2) \
-	smp_cross_call_masked(func, ctx, data1, data2, cpu_online_map)
+	smp_cross_call_masked(func, ctx, data1, data2, &cpu_online_map)
 
 void smp_call_function_client(int irq, struct pt_regs *regs)
 {
@@ -1056,7 +1060,7 @@ void smp_flush_tlb_mm(struct mm_struct *mm)
 
 	smp_cross_call_masked(&xcall_flush_tlb_mm,
 			      ctx, 0, 0,
-			      mm->cpu_vm_mask);
+			      &mm->cpu_vm_mask);
 
 local_flush_and_out:
 	__flush_tlb_mm(ctx, SECONDARY_CONTEXT);
@@ -1074,7 +1078,7 @@ void smp_flush_tlb_pending(struct mm_struct *mm, unsigned long nr, unsigned long
 	else
 		smp_cross_call_masked(&xcall_flush_tlb_pending,
 				      ctx, nr, (unsigned long) vaddrs,
-				      mm->cpu_vm_mask);
+				      &mm->cpu_vm_mask);
 
 	__flush_tlb_pending(ctx, nr, vaddrs);
 
