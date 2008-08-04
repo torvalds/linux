@@ -1487,7 +1487,7 @@ no_policy:
 }
 EXPORT_SYMBOL_GPL(cpufreq_driver_target);
 
-int __cpufreq_driver_getavg(struct cpufreq_policy *policy)
+int __cpufreq_driver_getavg(struct cpufreq_policy *policy, unsigned int cpu)
 {
 	int ret = 0;
 
@@ -1495,8 +1495,8 @@ int __cpufreq_driver_getavg(struct cpufreq_policy *policy)
 	if (!policy)
 		return -EINVAL;
 
-	if (cpu_online(policy->cpu) && cpufreq_driver->getavg)
-		ret = cpufreq_driver->getavg(policy->cpu);
+	if (cpu_online(cpu) && cpufreq_driver->getavg)
+		ret = cpufreq_driver->getavg(policy, cpu);
 
 	cpufreq_cpu_put(policy);
 	return ret;

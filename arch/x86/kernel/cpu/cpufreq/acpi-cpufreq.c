@@ -256,7 +256,8 @@ static u32 get_cur_val(const cpumask_t *mask)
  * Only IA32_APERF/IA32_MPERF ratio is architecturally defined and
  * no meaning should be associated with absolute values of these MSRs.
  */
-static unsigned int get_measured_perf(unsigned int cpu)
+static unsigned int get_measured_perf(struct cpufreq_policy *policy,
+				      unsigned int cpu)
 {
 	union {
 		struct {
@@ -326,7 +327,7 @@ static unsigned int get_measured_perf(unsigned int cpu)
 
 #endif
 
-	retval = per_cpu(drv_data, cpu)->max_freq * perf_percent / 100;
+	retval = per_cpu(drv_data, policy->cpu)->max_freq * perf_percent / 100;
 
 	put_cpu();
 	set_cpus_allowed_ptr(current, &saved_mask);

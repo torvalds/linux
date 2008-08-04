@@ -415,7 +415,7 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 	if (load < (dbs_tuners_ins.up_threshold - 10)) {
 		unsigned int freq_next, freq_cur;
 
-		freq_cur = __cpufreq_driver_getavg(policy);
+		freq_cur = __cpufreq_driver_getavg(policy, policy->cpu);
 		if (!freq_cur)
 			freq_cur = policy->cur;
 
