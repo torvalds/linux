@@ -100,6 +100,7 @@ enum {
 	ALC262_BENQ_T31,
 	ALC262_ULTRA,
 	ALC262_LENOVO_3000,
+	ALC262_NEC,
 	ALC262_AUTO,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -8948,6 +8949,41 @@ static void alc262_hippo1_unsol_event(struct hda_codec *codec,
 }
 
 /*
+ * nec model
+ *  0x15 = headphone
+ *  0x16 = internal speaker
+ *  0x18 = external mic
+ */
+
+static struct snd_kcontrol_new alc262_nec_mixer[] = {
+	HDA_CODEC_VOLUME_MONO("Speaker Playback Volume", 0x0e, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE_MONO("Speaker Playback Switch", 0x16, 0, 0x0, HDA_OUTPUT),
+
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+
+	HDA_CODEC_VOLUME("Headphone Playback Volume", 0x0d, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	{ } /* end */
+};
+
+static struct hda_verb alc262_nec_verbs[] = {
+	/* Unmute Speaker */
+	{0x16, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
+
+	/* Headphone */
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+
+	/* External mic to headphone */
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	/* External mic to speaker */
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{}
+};
+
+/*
  * fujitsu model
  *  0x14 = headphone/spdif-out, 0x15 = internal speaker,
  *  0x1b = port replicator headphone out
@@ -9731,11 +9767,13 @@ static const char *alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_SONY_ASSAMD]	= "sony-assamd",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_LENOVO_3000]	= "lenovo-3000",
+	[ALC262_NEC]		= "nec",
 	[ALC262_AUTO]		= "auto",
 };
 
 static struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x1002, 0x437b, "Hippo", ALC262_HIPPO),
+	SND_PCI_QUIRK(0x1033, 0x8895, "NEC Versa S9100", ALC262_NEC),
 	SND_PCI_QUIRK(0x103c, 0x12fe, "HP xw9400", ALC262_HP_BPC),
 	SND_PCI_QUIRK(0x103c, 0x12ff, "HP xw4550", ALC262_HP_BPC),
 	SND_PCI_QUIRK(0x103c, 0x1306, "HP xw8600", ALC262_HP_BPC),
@@ -9945,6 +9983,16 @@ static struct alc_config_preset alc262_presets[] = {
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_fujitsu_capture_source,
 		.unsol_event = alc262_lenovo_3000_unsol_event,
+	},
+	[ALC262_NEC] = {
+		.mixers = { alc262_nec_mixer },
+		.init_verbs = { alc262_nec_verbs },
+		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
+		.dac_nids = alc262_dac_nids,
+		.hp_nid = 0x03,
+		.num_channel_mode = ARRAY_SIZE(alc262_modes),
+		.channel_mode = alc262_modes,
+		.input_mux = &alc262_capture_source,
 	},
 };
 
