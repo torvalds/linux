@@ -459,13 +459,13 @@ again:
 	}
 }
 
-static inline void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
+static inline void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask)
 {
 	u64 pstate;
 	int i;
 
 	__asm__ __volatile__("rdpr %%pstate, %0" : "=r" (pstate));
-	for_each_cpu_mask(i, mask)
+	for_each_cpu_mask_nr(i, *mask)
 		spitfire_xcall_helper(data0, data1, data2, pstate, i);
 }
 
@@ -473,13 +473,16 @@ static inline void spitfire_xcall_deliver(u64 data0, u64 data1, u64 data2, cpuma
  * packet, but we have no use for that.  However we do take advantage of
  * the new pipelining feature (ie. dispatch to multiple cpus simultaneously).
  */
-static void cheetah_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
+static void cheetah_xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask_p)
 {
 	u64 pstate, ver, busy_mask;
 	int nack_busy_id, is_jbus, need_more;
+	cpumask_t mask;
 
-	if (cpus_empty(mask))
+	if (cpus_empty(*mask_p))
 		return;
+
+	mask = *mask_p;
 
 	/* Unfortunately, someone at Sun had the brilliant idea to make the
 	 * busy/nack fields hard-coded by ITID number for this Ultra-III
@@ -511,7 +514,7 @@ retry:
 	{
 		int i;
 
-		for_each_cpu_mask(i, mask) {
+		for_each_cpu_mask_nr(i, mask) {
 			u64 target = (i << 14) | 0x70;
 
 			if (is_jbus) {
@@ -550,7 +553,7 @@ retry:
 						     : : "r" (pstate));
 				if (unlikely(need_more)) {
 					int i, cnt = 0;
-					for_each_cpu_mask(i, mask) {
+					for_each_cpu_mask_nr(i, mask) {
 						cpu_clear(i, mask);
 						cnt++;
 						if (cnt == 32)
@@ -584,7 +587,7 @@ retry:
 			/* Clear out the mask bits for cpus which did not
 			 * NACK us.
 			 */
-			for_each_cpu_mask(i, mask) {
+			for_each_cpu_mask_nr(i, mask) {
 				u64 check_mask;
 
 				if (is_jbus)
@@ -605,16 +608,16 @@ retry:
 }
 
 /* Multi-cpu list version.  */
-static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t mask)
+static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask)
 {
+	int cnt, retries, this_cpu, prev_sent, i;
+	unsigned long flags, status;
+	cpumask_t error_mask;
 	struct trap_per_cpu *tb;
 	u16 *cpu_list;
 	u64 *mondo;
-	cpumask_t error_mask;
-	unsigned long flags, status;
-	int cnt, retries, this_cpu, prev_sent, i;
 
-	if (cpus_empty(mask))
+	if (cpus_empty(*mask))
 		return;
 
 	/* We have to do this whole thing with interrupts fully disabled.
@@ -642,7 +645,7 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, cpumask_t 
 
 	/* Setup the initial cpu list.  */
 	cnt = 0;
-	for_each_cpu_mask(i, mask)
+	for_each_cpu_mask_nr(i, *mask)
 		cpu_list[cnt++] = i;
 
 	cpus_clear(error_mask);
@@ -729,7 +732,7 @@ fatal_mondo_cpu_error:
 	       "were in error state\n",
 	       this_cpu);
 	printk(KERN_CRIT "CPU[%d]: Error mask [ ", this_cpu);
-	for_each_cpu_mask(i, error_mask)
+	for_each_cpu_mask_nr(i, error_mask)
 		printk("%d ", i);
 	printk("]\n");
 	return;
@@ -756,7 +759,7 @@ dump_cpu_list_and_out:
 	printk("]\n");
 }
 
-static void (*xcall_deliver)(u64, u64, u64, cpumask_t);
+static void (*xcall_deliver)(u64, u64, u64, const cpumask_t *);
 
 /* Send cross call to all processors mentioned in MASK
  * except self.
@@ -769,7 +772,7 @@ static void smp_cross_call_masked(unsigned long *func, u32 ctx, u64 data1, u64 d
 	cpus_and(mask, mask, cpu_online_map);
 	cpu_clear(this_cpu, mask);
 
-	xcall_deliver(data0, data1, data2, mask);
+	xcall_deliver(data0, data1, data2, &mask);
 	/* NOTE: Caller runs local copy on master. */
 
 	put_cpu();
@@ -903,7 +906,7 @@ void smp_flush_dcache_page_impl(struct page *page, int cpu)
 		}
 		if (data0) {
 			xcall_deliver(data0, __pa(pg_addr),
-				      (u64) pg_addr, mask);
+				      (u64) pg_addr, &mask);
 #ifdef CONFIG_DEBUG_DCFLUSH
 			atomic_inc(&dcpage_flushes_xcall);
 #endif
@@ -945,7 +948,7 @@ void flush_dcache_page_all(struct mm_struct *mm, struct page *page)
 	}
 	if (data0) {
 		xcall_deliver(data0, __pa(pg_addr),
-			      (u64) pg_addr, mask);
+			      (u64) pg_addr, &mask);
 #ifdef CONFIG_DEBUG_DCFLUSH
 		atomic_inc(&dcpage_flushes_xcall);
 #endif
