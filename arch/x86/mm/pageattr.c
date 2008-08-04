@@ -752,12 +752,12 @@ static inline int cache_attr(pgprot_t attr)
 		(_PAGE_PAT | _PAGE_PAT_LARGE | _PAGE_PWT | _PAGE_PCD);
 }
 
-static int change_page_attr_set_clr(unsigned long addr, int numpages,
+static int do_change_page_attr_set_clr(unsigned long addr, int numpages,
 				    pgprot_t mask_set, pgprot_t mask_clr,
-				    int force_split)
+				    int force_split, int *tlb_flush)
 {
 	struct cpa_data cpa;
-	int ret, cache, checkalias;
+	int ret, checkalias;
 
 	/*
 	 * Check, if we are requested to change a not supported
@@ -792,9 +792,22 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 	/*
 	 * Check whether we really changed something:
 	 */
-	if (!cpa.flushtlb)
-		goto out;
+	*tlb_flush = cpa.flushtlb;
+	cpa_fill_pool(NULL);
 
+	return ret;
+}
+
+static int change_page_attr_set_clr(unsigned long addr, int numpages,
+				    pgprot_t mask_set, pgprot_t mask_clr,
+				    int force_split)
+{
+	int cache, flush_cache = 0, ret;
+
+	ret = do_change_page_attr_set_clr(addr, numpages, mask_set, mask_clr,
+		force_split, &flush_cache);
+	if (!flush_cache)
+		goto out;
 	/*
 	 * No need to flush, when we did not set any of the caching
 	 * attributes:
@@ -811,10 +824,7 @@ static int change_page_attr_set_clr(unsigned long addr, int numpages,
 		cpa_flush_range(addr, numpages, cache);
 	else
 		cpa_flush_all(cache);
-
 out:
-	cpa_fill_pool(NULL);
-
 	return ret;
 }
 
@@ -851,6 +861,30 @@ int set_memory_uc(unsigned long addr, int numpages)
 	return _set_memory_uc(addr, numpages);
 }
 EXPORT_SYMBOL(set_memory_uc);
+
+int set_memory_uc_noflush(unsigned long addr, int numpages)
+{
+	int flush;
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
+	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+			    _PAGE_CACHE_UC_MINUS, NULL))
+		return -EINVAL;
+	/*
+	 * for now UC MINUS. see comments in ioremap_nocache()
+	 */
+	return do_change_page_attr_set_clr(addr, numpages,
+				    __pgprot(_PAGE_CACHE_UC_MINUS),
+					__pgprot(0), 0, &flush);
+}
+EXPORT_SYMBOL(set_memory_uc_noflush);
+
+void set_memory_flush_all(void)
+{
+	cpa_flush_all(1);
+}
+EXPORT_SYMBOL(set_memory_flush_all);
 
 int _set_memory_wc(unsigned long addr, int numpages)
 {
@@ -925,6 +959,14 @@ int set_pages_uc(struct page *page, int numpages)
 	return set_memory_uc(addr, numpages);
 }
 EXPORT_SYMBOL(set_pages_uc);
+
+int set_pages_uc_noflush(struct page *page, int numpages)
+{
+	unsigned long addr = (unsigned long)page_address(page);
+
+	return set_memory_uc_noflush(addr, numpages);
+}
+EXPORT_SYMBOL(set_pages_uc_noflush);
 
 int set_pages_wb(struct page *page, int numpages)
 {
