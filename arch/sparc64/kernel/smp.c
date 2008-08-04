@@ -611,7 +611,7 @@ retry:
 static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask)
 {
 	int cnt, retries, this_cpu, prev_sent, i;
-	unsigned long flags, status;
+	unsigned long status;
 	cpumask_t error_mask;
 	struct trap_per_cpu *tb;
 	u16 *cpu_list;
@@ -619,18 +619,6 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, const cpum
 
 	if (cpus_empty(*mask))
 		return;
-
-	/* We have to do this whole thing with interrupts fully disabled.
-	 * Otherwise if we send an xcall from interrupt context it will
-	 * corrupt both our mondo block and cpu list state.
-	 *
-	 * One consequence of this is that we cannot use timeout mechanisms
-	 * that depend upon interrupts being delivered locally.  So, for
-	 * example, we cannot sample jiffies and expect it to advance.
-	 *
-	 * Fortunately, udelay() uses %stick/%tick so we can use that.
-	 */
-	local_irq_save(flags);
 
 	this_cpu = smp_processor_id();
 	tb = &trap_block[this_cpu];
@@ -720,8 +708,6 @@ static void hypervisor_xcall_deliver(u64 data0, u64 data1, u64 data2, const cpum
 		}
 	} while (1);
 
-	local_irq_restore(flags);
-
 	if (unlikely(!cpus_empty(error_mask)))
 		goto fatal_mondo_cpu_error;
 
@@ -738,14 +724,12 @@ fatal_mondo_cpu_error:
 	return;
 
 fatal_mondo_timeout:
-	local_irq_restore(flags);
 	printk(KERN_CRIT "CPU[%d]: SUN4V mondo timeout, no forward "
 	       " progress after %d retries.\n",
 	       this_cpu, retries);
 	goto dump_cpu_list_and_out;
 
 fatal_mondo_error:
-	local_irq_restore(flags);
 	printk(KERN_CRIT "CPU[%d]: Unexpected SUN4V mondo error %lu\n",
 	       this_cpu, status);
 	printk(KERN_CRIT "CPU[%d]: Args were cnt(%d) cpulist_pa(%lx) "
@@ -763,7 +747,21 @@ static void (*xcall_deliver_impl)(u64, u64, u64, const cpumask_t *);
 
 static void xcall_deliver(u64 data0, u64 data1, u64 data2, const cpumask_t *mask)
 {
+	unsigned long flags;
+
+	/* We have to do this whole thing with interrupts fully disabled.
+	 * Otherwise if we send an xcall from interrupt context it will
+	 * corrupt both our mondo block and cpu list state.
+	 *
+	 * One consequence of this is that we cannot use timeout mechanisms
+	 * that depend upon interrupts being delivered locally.  So, for
+	 * example, we cannot sample jiffies and expect it to advance.
+	 *
+	 * Fortunately, udelay() uses %stick/%tick so we can use that.
+	 */
+	local_irq_save(flags);
 	xcall_deliver_impl(data0, data1, data2, mask);
+	local_irq_restore(flags);
 }
 
 /* Send cross call to all processors mentioned in MASK_P
