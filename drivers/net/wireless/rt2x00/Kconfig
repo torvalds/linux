@@ -107,6 +107,7 @@ config RT61PCI
 	depends on PCI
 	select RT2X00_LIB_PCI
 	select RT2X00_LIB_FIRMWARE
+	select RT2X00_LIB_CRYPTO
 	select CRC_ITU_T
 	select EEPROM_93CX6
 	---help---
