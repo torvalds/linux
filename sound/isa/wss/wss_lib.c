@@ -1168,11 +1168,13 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 				ad1847 = 1;
 				break;
 			}
-			if (snd_wss_in(chip, CS4231_LEFT_INPUT) == 0xaa &&
-			    rev == 0x45) {
-				spin_unlock_irqrestore(&chip->reg_lock, flags);
-				id = 1;
-				break;
+			if (rev == 0x45) {
+				rev = snd_wss_in(chip, CS4231_LEFT_INPUT);
+				if (rev == 0xaa || rev == 0x8a) {
+					spin_unlock_irqrestore(&chip->reg_lock, flags);
+					id = 1;
+					break;
+				}
 			}
 			spin_unlock_irqrestore(&chip->reg_lock, flags);
 		}
