@@ -639,7 +639,7 @@ static int is_dev_seagate_sata(ide_drive_t *drive)
  *	that can occur before we know what drives are present.
  */
 
-static void __devinit sil_quirkproc(ide_drive_t *drive)
+static void sil_quirkproc(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 

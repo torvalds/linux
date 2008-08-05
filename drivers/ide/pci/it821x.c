@@ -443,7 +443,7 @@ static u8 __devinit it821x_cable_detect(ide_hwif_t *hwif)
  *	final tuning that is needed, or fixups to work around bugs.
  */
 
-static void __devinit it821x_quirkproc(ide_drive_t *drive)
+static void it821x_quirkproc(ide_drive_t *drive)
 {
 	struct it821x_dev *itdev = ide_get_hwifdata(drive->hwif);
 	struct hd_driveid *id = drive->id;
