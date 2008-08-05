@@ -51,8 +51,9 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 /*
  * Intent data
  */
-#define LOOKUP_OPEN		(0x0100)
-#define LOOKUP_CREATE		(0x0200)
+#define LOOKUP_OPEN		0x0100
+#define LOOKUP_CREATE		0x0200
+#define LOOKUP_EXCL		0x0400
 
 extern int user_path_at(int, const char __user *, unsigned, struct path *);
 

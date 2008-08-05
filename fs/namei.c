@@ -1709,6 +1709,8 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	dir = nd.path.dentry;
 	nd.flags &= ~LOOKUP_PARENT;
 	nd.flags |= LOOKUP_CREATE | LOOKUP_OPEN;
+	if (flag & O_EXCL)
+		nd.flags |= LOOKUP_EXCL;
 	mutex_lock(&dir->d_inode->i_mutex);
 	path.dentry = lookup_hash(&nd);
 	path.mnt = nd.path.mnt;
@@ -1906,7 +1908,7 @@ struct dentry *lookup_create(struct nameidata *nd, int is_dir)
 	if (nd->last_type != LAST_NORM)
 		goto fail;
 	nd->flags &= ~LOOKUP_PARENT;
-	nd->flags |= LOOKUP_CREATE;
+	nd->flags |= LOOKUP_CREATE | LOOKUP_EXCL;
 	nd->intent.open.flags = O_EXCL;
 
 	/*
