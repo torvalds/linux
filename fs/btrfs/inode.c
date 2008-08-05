@@ -303,6 +303,10 @@ int btrfs_set_bit_hook(struct inode *inode, u64 start, u64 end,
 		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
 		BTRFS_I(inode)->delalloc_bytes += end - start + 1;
 		root->fs_info->delalloc_bytes += end - start + 1;
+		if (list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
+			list_add_tail(&BTRFS_I(inode)->delalloc_inodes,
+				      &root->fs_info->delalloc_inodes);
+		}
 		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
 	}
 	return 0;
@@ -324,6 +328,10 @@ int btrfs_clear_bit_hook(struct inode *inode, u64 start, u64 end,
 		} else {
 			root->fs_info->delalloc_bytes -= end - start + 1;
 			BTRFS_I(inode)->delalloc_bytes -= end - start + 1;
+		}
+		if (BTRFS_I(inode)->delalloc_bytes == 0 &&
+		    !list_empty(&BTRFS_I(inode)->delalloc_inodes)) {
+			list_del_init(&BTRFS_I(inode)->delalloc_inodes);
 		}
 		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
 	}
@@ -408,6 +416,12 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end)
+{
+	return set_extent_delalloc(&BTRFS_I(inode)->io_tree, start, end,
+				   GFP_NOFS);
+}
+
 struct btrfs_writepage_fixup {
 	struct page *page;
 	struct btrfs_work work;
@@ -453,8 +467,7 @@ again:
 		goto again;
 	}
 
-	set_extent_delalloc(&BTRFS_I(inode)->io_tree, page_start, page_end,
-			    GFP_NOFS);
+	btrfs_set_extent_delalloc(inode, page_start, page_end);
 	ClearPageChecked(page);
 out:
 	unlock_extent(&BTRFS_I(inode)->io_tree, page_start, page_end, GFP_NOFS);
@@ -1530,8 +1543,7 @@ again:
 		goto again;
 	}
 
-	set_extent_delalloc(&BTRFS_I(inode)->io_tree, page_start,
-			    page_end, GFP_NOFS);
+	btrfs_set_extent_delalloc(inode, page_start, page_end);
 	ret = 0;
 	if (offset != PAGE_CACHE_SIZE) {
 		kaddr = kmap(page);
@@ -1766,6 +1778,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 			     inode->i_mapping, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
+	INIT_LIST_HEAD(&BTRFS_I(inode)->delalloc_inodes);
 	btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	mutex_init(&BTRFS_I(inode)->extent_mutex);
@@ -2158,6 +2171,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 			     inode->i_mapping, GFP_NOFS);
 	btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
+	INIT_LIST_HEAD(&BTRFS_I(inode)->delalloc_inodes);
 	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	mutex_init(&BTRFS_I(inode)->extent_mutex);
 	BTRFS_I(inode)->delalloc_bytes = 0;
@@ -2400,6 +2414,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 				     inode->i_mapping, GFP_NOFS);
 		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
+		INIT_LIST_HEAD(&BTRFS_I(inode)->delalloc_inodes);
 		mutex_init(&BTRFS_I(inode)->csum_mutex);
 		mutex_init(&BTRFS_I(inode)->extent_mutex);
 		BTRFS_I(inode)->delalloc_bytes = 0;
@@ -3049,8 +3064,7 @@ again:
 		goto again;
 	}
 
-	set_extent_delalloc(&BTRFS_I(inode)->io_tree, page_start,
-			    page_end, GFP_NOFS);
+	btrfs_set_extent_delalloc(inode, page_start, page_end);
 	ret = 0;
 
 	/* page is wholly or partially inside EOF */
@@ -3373,6 +3387,26 @@ out_unlock:
 	return ret;
 }
 
+int btrfs_start_delalloc_inodes(struct btrfs_root *root)
+{
+	struct list_head *head = &root->fs_info->delalloc_inodes;
+	struct btrfs_inode *binode;
+	unsigned long flags;
+
+	spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+	while(!list_empty(head)) {
+		binode = list_entry(head->next, struct btrfs_inode,
+				    delalloc_inodes);
+		atomic_inc(&binode->vfs_inode.i_count);
+		spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+		filemap_write_and_wait(binode->vfs_inode.i_mapping);
+		iput(&binode->vfs_inode);
+		spin_lock_irqsave(&root->fs_info->delalloc_lock, flags);
+	}
+	spin_unlock_irqrestore(&root->fs_info->delalloc_lock, flags);
+	return 0;
+}
+
 static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 			 const char *symname)
 {
@@ -3436,6 +3470,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 				     inode->i_mapping, GFP_NOFS);
 		extent_io_tree_init(&BTRFS_I(inode)->io_failure_tree,
 				     inode->i_mapping, GFP_NOFS);
+		INIT_LIST_HEAD(&BTRFS_I(inode)->delalloc_inodes);
 		mutex_init(&BTRFS_I(inode)->csum_mutex);
 		mutex_init(&BTRFS_I(inode)->extent_mutex);
 		BTRFS_I(inode)->delalloc_bytes = 0;

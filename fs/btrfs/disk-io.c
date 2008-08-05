@@ -1234,6 +1234,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->trans_list);
 	INIT_LIST_HEAD(&fs_info->dead_roots);
 	INIT_LIST_HEAD(&fs_info->hashers);
+	INIT_LIST_HEAD(&fs_info->delalloc_inodes);
 	spin_lock_init(&fs_info->hash_lock);
 	spin_lock_init(&fs_info->delalloc_lock);
 	spin_lock_init(&fs_info->new_trans_lock);

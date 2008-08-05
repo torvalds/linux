@@ -42,6 +42,8 @@ struct btrfs_inode {
 	/* for keeping track of orphaned inodes */
 	struct list_head i_orphan;
 
+	struct list_head delalloc_inodes;
+
 	/*
 	 * transid of the trans_handle that last modified this inode
 	 */

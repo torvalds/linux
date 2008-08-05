@@ -551,6 +551,7 @@ struct btrfs_fs_info {
 	 */
 	spinlock_t ordered_extent_lock;
 	struct list_head ordered_extents;
+	struct list_head delalloc_inodes;
 
 	/*
 	 * there is a pool of worker threads for checksumming during writes
@@ -637,6 +638,7 @@ struct btrfs_root {
 	struct kobject root_kobj;
 	struct completion kobj_unregister;
 	struct mutex objectid_mutex;
+
 	u64 objectid;
 	u64 last_trans;
 
@@ -1651,6 +1653,8 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 #define PageChecked PageFsMisc
 #endif
 
+int btrfs_start_delalloc_inodes(struct btrfs_root *root);
+int btrfs_set_extent_delalloc(struct inode *inode, u64 start, u64 end);
 int btrfs_writepages(struct address_space *mapping,
 		     struct writeback_control *wbc);
 int btrfs_create_subvol_root(struct btrfs_root *new_root,

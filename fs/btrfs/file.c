@@ -312,8 +312,7 @@ static int noinline dirty_and_release_pages(struct btrfs_trans_handle *trans,
 		 * to reset the delalloc bit on things that already have
 		 * extents reserved.
 		 */
-		set_extent_delalloc(io_tree, start_pos,
-				    end_of_last_block, GFP_NOFS);
+		btrfs_set_extent_delalloc(inode, start_pos, end_of_last_block);
 		for (i = 0; i < num_pages; i++) {
 			struct page *p = pages[i];
 			SetPageUptodate(p);

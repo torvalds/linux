@@ -1230,7 +1230,6 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 		found->total_bytes += total_bytes;
 		found->bytes_used += bytes_used;
 		found->full = 0;
-		WARN_ON(found->total_bytes < found->bytes_used);
 		*space_info = found;
 		return 0;
 	}
@@ -2841,8 +2840,7 @@ again:
 		 */
 		clear_page_dirty_for_io(page);
 
-		set_extent_delalloc(io_tree, page_start,
-				    page_end, GFP_NOFS);
+		btrfs_set_extent_delalloc(inode, page_start, page_end);
 		set_page_dirty(page);
 
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
@@ -3319,6 +3317,13 @@ again:
 	key.type = 0;
 	cur_byte = key.objectid;
 
+	mutex_unlock(&root->fs_info->alloc_mutex);
+
+	btrfs_start_delalloc_inodes(root);
+	btrfs_wait_ordered_extents(tree_root);
+
+	mutex_lock(&root->fs_info->alloc_mutex);
+
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto out;
@@ -3401,6 +3406,7 @@ next:
 
 		btrfs_clean_old_snapshots(tree_root);
 
+		btrfs_start_delalloc_inodes(root);
 		btrfs_wait_ordered_extents(tree_root);
 
 		trans = btrfs_start_transaction(tree_root, 1);

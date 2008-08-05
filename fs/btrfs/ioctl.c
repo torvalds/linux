@@ -274,8 +274,7 @@ again:
 		 */
 		clear_page_dirty_for_io(page);
 
-		set_extent_delalloc(io_tree, page_start,
-				    page_end, GFP_NOFS);
+		btrfs_set_extent_delalloc(inode, page_start, page_end);
 
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
 		set_page_dirty(page);
@@ -784,6 +783,7 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_TRANS_END:
 		return btrfs_ioctl_trans_end(file);
 	case BTRFS_IOC_SYNC:
+		btrfs_start_delalloc_inodes(root);
 		btrfs_sync_fs(file->f_dentry->d_sb, 1);
 		return 0;
 	}
