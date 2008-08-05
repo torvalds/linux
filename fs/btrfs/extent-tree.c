@@ -3437,8 +3437,10 @@ next:
 			   key.objectid, key.objectid + key.offset - 1,
 			   (unsigned int)-1, GFP_NOFS);
 
+	/*
 	memset(shrink_block_group, 0, sizeof(*shrink_block_group));
 	kfree(shrink_block_group);
+	*/
 
 	btrfs_del_item(trans, root, path);
 	btrfs_release_path(root, path);
