@@ -264,16 +264,6 @@ static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 	bfin_rtc_sync_pending(dev);
 
 	switch (cmd) {
-	case RTC_PIE_ON:
-		dev_dbg_stamp(dev);
-		bfin_rtc_int_set(RTC_ISTAT_STOPWATCH);
-		bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
-		break;
-	case RTC_PIE_OFF:
-		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(~RTC_ISTAT_STOPWATCH);
-		break;
-
 	case RTC_UIE_ON:
 		dev_dbg_stamp(dev);
 		bfin_rtc_int_set(RTC_ISTAT_SEC);
@@ -381,6 +371,23 @@ static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 #undef yesno
 }
 
+static int bfin_irq_set_state(struct device *dev, int enabled)
+{
+	struct bfin_rtc *rtc = dev_get_drvdata(dev);
+
+	dev_dbg_stamp(dev);
+
+	bfin_rtc_sync_pending(dev);
+
+	if (enabled) {
+		bfin_rtc_int_set(RTC_ISTAT_STOPWATCH);
+		bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
+	} else
+		bfin_rtc_int_clear(~RTC_ISTAT_STOPWATCH);
+
+	return 0;
+}
+
 static struct rtc_class_ops bfin_rtc_ops = {
 	.open          = bfin_rtc_open,
 	.release       = bfin_rtc_release,
@@ -390,6 +397,7 @@ static struct rtc_class_ops bfin_rtc_ops = {
 	.read_alarm    = bfin_rtc_read_alarm,
 	.set_alarm     = bfin_rtc_set_alarm,
 	.proc          = bfin_rtc_proc,
+	.irq_set_state = bfin_irq_set_state,
 };
 
 static int __devinit bfin_rtc_probe(struct platform_device *pdev)
