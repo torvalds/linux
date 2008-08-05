@@ -66,11 +66,11 @@ static struct cdrom_info *ide_cd_get(struct gendisk *disk)
 	mutex_lock(&idecd_ref_mutex);
 	cd = ide_cd_g(disk);
 	if (cd) {
-		kref_get(&cd->kref);
-		if (ide_device_get(cd->drive)) {
-			kref_put(&cd->kref, ide_cd_release);
+		if (ide_device_get(cd->drive))
 			cd = NULL;
-		}
+		else
+			kref_get(&cd->kref);
+
 	}
 	mutex_unlock(&idecd_ref_mutex);
 	return cd;
@@ -78,9 +78,11 @@ static struct cdrom_info *ide_cd_get(struct gendisk *disk)
 
 static void ide_cd_put(struct cdrom_info *cd)
 {
+	ide_drive_t *drive = cd->drive;
+
 	mutex_lock(&idecd_ref_mutex);
-	ide_device_put(cd->drive);
 	kref_put(&cd->kref, ide_cd_release);
+	ide_device_put(drive);
 	mutex_unlock(&idecd_ref_mutex);
 }
 
