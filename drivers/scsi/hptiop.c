@@ -25,7 +25,6 @@
 #include <linux/delay.h>
 #include <linux/timer.h>
 #include <linux/spinlock.h>
-#include <linux/hdreg.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/div64.h>

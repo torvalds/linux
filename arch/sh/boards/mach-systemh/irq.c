@@ -12,7 +12,6 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 
-#include <linux/hdreg.h>
 #include <linux/ide.h>
 #include <asm/io.h>
 #include <asm/systemh7751.h>
