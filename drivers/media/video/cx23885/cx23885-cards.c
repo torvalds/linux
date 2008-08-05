@@ -319,13 +319,9 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 			dev->name, tv.model);
 }
 
-/* Tuner callback function for cx23885 boards. Currently only needed
- * for HVR1500Q, which has an xc5000 tuner.
- */
-int cx23885_tuner_callback(void *priv, int command, int arg)
+static int cx23885_tuner_callback(struct cx23885_dev *dev, int port,
+				  int command, int arg)
 {
-	struct cx23885_i2c *bus = priv;
-	struct cx23885_dev *dev = bus->dev;
 	u32 bitmask = 0;
 
 	if (command != 0) {
@@ -345,9 +341,9 @@ int cx23885_tuner_callback(void *priv, int command, int arg)
 
 			/* Two identical tuners on two different i2c buses,
 			 * we need to reset the correct gpio. */
-			if (bus->nr == 0)
+			if (port == 0)
 				bitmask = 0x01;
-			else if (bus->nr == 1)
+			else if (port == 1)
 				bitmask = 0x04;
 		}
 		break;
@@ -361,6 +357,14 @@ int cx23885_tuner_callback(void *priv, int command, int arg)
 	}
 
 	return 0;
+}
+
+int cx23885_xc5000_tuner_callback(void *priv, int command, int arg)
+{
+	struct cx23885_i2c *bus = priv;
+	struct cx23885_dev *dev = bus->dev;
+
+	return cx23885_tuner_callback(dev, bus->nr, command, arg);
 }
 
 void cx23885_gpio_setup(struct cx23885_dev *dev)

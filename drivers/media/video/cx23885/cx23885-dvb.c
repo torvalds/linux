@@ -188,13 +188,13 @@ static struct s5h1411_config dvico_s5h1411_config = {
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
-	.tuner_callback   = cx23885_tuner_callback
+	.tuner_callback   = cx23885_xc5000_tuner_callback,
 };
 
 static struct xc5000_config dvico_xc5000_tunerconfig = {
 	.i2c_address      = 0x64,
 	.if_khz           = 5380,
-	.tuner_callback   = cx23885_tuner_callback
+	.tuner_callback   = cx23885_xc5000_tuner_callback,
 };
 
 static struct tda829x_config tda829x_no_probe = {
