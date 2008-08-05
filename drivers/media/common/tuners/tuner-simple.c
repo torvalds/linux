@@ -142,6 +142,7 @@ static inline int tuner_stereo(const int type, const int status)
 	case TUNER_PHILIPS_FM1236_MK3:
 	case TUNER_PHILIPS_FM1256_IH3:
 	case TUNER_LG_NTSC_TAPE:
+	case TUNER_TCL_MF02GIP_5N:
 		return ((status & TUNER_SIGNAL) == TUNER_STEREO_MK3);
 	default:
 		return status & TUNER_STEREO;
@@ -494,6 +495,7 @@ static int simple_radio_bandswitch(struct dvb_frontend *fe, u8 *buffer)
 	case TUNER_PHILIPS_FMD1216ME_MK3:
 	case TUNER_LG_NTSC_TAPE:
 	case TUNER_PHILIPS_FM1256_IH3:
+	case TUNER_TCL_MF02GIP_5N:
 		buffer[3] = 0x19;
 		break;
 	case TUNER_TNF_5335MF:
