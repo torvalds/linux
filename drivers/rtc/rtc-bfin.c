@@ -435,9 +435,10 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	if (device_may_wakeup(&pdev->dev))
+	if (device_may_wakeup(&pdev->dev)) {
 		enable_irq_wake(IRQ_RTC);
-	else
+		bfin_rtc_sync_pending(&pdev->dev);
+	} else
 		bfin_rtc_int_clear(-1);
 
 	return 0;
