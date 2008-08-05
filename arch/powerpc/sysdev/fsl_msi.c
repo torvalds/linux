@@ -108,7 +108,8 @@ static int fsl_msi_free_dt_hwirqs(struct fsl_msi *msi)
 	bitmap_allocate_region(msi->fsl_msi_bitmap, 0,
 		       get_count_order(NR_MSI_IRQS));
 
-	p = of_get_property(msi->of_node, "msi-available-ranges", &len);
+	p = of_get_property(msi->irqhost->of_node, "msi-available-ranges",
+			    &len);
 
 	if (!p) {
 		/* No msi-available-ranges property,
@@ -120,7 +121,7 @@ static int fsl_msi_free_dt_hwirqs(struct fsl_msi *msi)
 
 	if ((len % (2 * sizeof(u32))) != 0) {
 		printk(KERN_WARNING "fsl_msi: Malformed msi-available-ranges "
-		       "property on %s\n", msi->of_node->full_name);
+		       "property on %s\n", msi->irqhost->of_node->full_name);
 		return -EINVAL;
 	}
 
@@ -317,14 +318,11 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		goto error_out;
 	}
 
-	msi->of_node = of_node_get(dev->node);
+	msi->irqhost = irq_alloc_host(dev->node, IRQ_HOST_MAP_LINEAR,
+				      NR_MSI_IRQS, &fsl_msi_host_ops, 0);
 
-	msi->irqhost = irq_alloc_host(of_node_get(dev->node),
-				IRQ_HOST_MAP_LINEAR,
-				NR_MSI_IRQS, &fsl_msi_host_ops, 0);
 	if (msi->irqhost == NULL) {
 		dev_err(&dev->dev, "No memory for MSI irqhost\n");
-		of_node_put(dev->node);
 		err = -ENOMEM;
 		goto error_out;
 	}

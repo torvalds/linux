@@ -22,9 +22,6 @@
 #define FSL_PIC_IP_IPIC	0x00000002
 
 struct fsl_msi {
-	/* Device node of the MSI interrupt*/
-	struct device_node *of_node;
-
 	struct irq_host *irqhost;
 
 	unsigned long cascade_irq;
