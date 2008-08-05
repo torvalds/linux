@@ -144,13 +144,13 @@ static void bfin_rtc_sync_pending(struct device *dev)
  * Initialize the RTC.  Enable pre-scaler to scale RTC clock
  * to 1Hz and clear interrupt/status registers.
  */
-static void bfin_rtc_reset(struct device *dev)
+static void bfin_rtc_reset(struct device *dev, u16 rtc_ictl)
 {
 	struct bfin_rtc *rtc = dev_get_drvdata(dev);
 	dev_dbg_stamp(dev);
 	bfin_rtc_sync_pending(dev);
 	bfin_write_RTC_PREN(0x1);
-	bfin_write_RTC_ICTL(RTC_ISTAT_WRITE_COMPLETE);
+	bfin_write_RTC_ICTL(rtc_ictl);
 	bfin_write_RTC_SWCNT(0);
 	bfin_write_RTC_ALARM(0);
 	bfin_write_RTC_ISTAT(0xFFFF);
@@ -226,7 +226,7 @@ static int bfin_rtc_open(struct device *dev)
 
 	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, IRQF_SHARED, to_platform_device(dev)->name, dev);
 	if (!ret)
-		bfin_rtc_reset(dev);
+		bfin_rtc_reset(dev, RTC_ISTAT_WRITE_COMPLETE);
 
 	return ret;
 }
@@ -234,7 +234,7 @@ static int bfin_rtc_open(struct device *dev)
 static void bfin_rtc_release(struct device *dev)
 {
 	dev_dbg_stamp(dev);
-	bfin_rtc_reset(dev);
+	bfin_rtc_reset(dev, 0);
 	free_irq(IRQ_RTC, dev);
 }
 
