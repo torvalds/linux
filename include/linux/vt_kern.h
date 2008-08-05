@@ -86,6 +86,7 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 #define con_copy_unimap(d, s) (0)
 #define con_get_unimap(vc, ct, uct, list) (-EINVAL)
 #define con_free_unimap(vc) do { ; } while (0)
+#define con_protect_unimap(vc, rdonly) do { ; } while (0)
 
 #define vc_translate(vc, c) (c)
 #endif
