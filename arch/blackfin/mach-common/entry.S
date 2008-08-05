@@ -158,6 +158,7 @@ ENTRY(_ex_single_step)
 	cc = r7 == r6;
 	if cc jump _bfin_return_from_exception;
 
+#ifdef CONFIG_KGDB
 	/* Don't do single step in hardware exception handler */
         p5.l = lo(IPEND);
         p5.h = hi(IPEND);
@@ -165,7 +166,6 @@ ENTRY(_ex_single_step)
 	cc = bittst(r6, 5);
 	if cc jump _bfin_return_from_exception;
 
-#ifdef CONFIG_KGDB
 	/* skip single step if current interrupt priority is higher than
 	 * that of the first instruction, from which gdb starts single step */
 	r6 >>= 6;
@@ -191,12 +191,22 @@ ENTRY(_ex_single_step)
 #endif
 
 	/* If we were in user mode, do the single step normally.  */
+	p5.l = lo(IPEND);
+	p5.h = hi(IPEND);
 	r6 = [p5];
 	r7 = 0xffe0 (z);
 	r7 = r7 & r6;
 	cc = r7 == 0;
-	if cc jump 1f;
+	if !cc jump 1f;
 
+	/* Single stepping only a single instruction, so clear the trace
+	 * bit here.  */
+	r7 = syscfg;
+	bitclr (r7, 0);
+	syscfg = R7;
+	jump _ex_trap_c;
+
+1:
 	/*
 	 * We were in an interrupt handler.  By convention, all of them save
 	 * SYSCFG with their first instruction, so by checking whether our
@@ -224,15 +234,11 @@ ENTRY(_ex_single_step)
 	cc = R7 == R6;
 	if !cc jump _bfin_return_from_exception;
 
-1:
-	/* Single stepping only a single instruction, so clear the trace
-	 * bit here.  */
 	r7 = syscfg;
 	bitclr (r7, 0);
 	syscfg = R7;
 
-	jump _ex_trap_c;
-
+	/* Fall through to _bfin_return_from_exception.  */
 ENDPROC(_ex_single_step)
 
 ENTRY(_bfin_return_from_exception)
