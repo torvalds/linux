@@ -166,7 +166,7 @@ static int cow_file_range(struct inode *inode, u64 start, u64 end)
 
 		cur_alloc_size = ins.offset;
 		ret = btrfs_add_ordered_extent(inode, start, ins.objectid,
-					       ins.offset);
+					       ins.offset, 0);
 		BUG_ON(ret);
 		if (num_bytes < cur_alloc_size) {
 			printk("num_bytes %Lu cur_alloc %Lu\n", num_bytes,
@@ -187,31 +187,32 @@ static int run_delalloc_nocow(struct inode *inode, u64 start, u64 end)
 	u64 extent_start;
 	u64 extent_end;
 	u64 bytenr;
-	u64 cow_end;
 	u64 loops = 0;
 	u64 total_fs_bytes;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_block_group_cache *block_group;
+	struct btrfs_trans_handle *trans;
 	struct extent_buffer *leaf;
 	int found_type;
 	struct btrfs_path *path;
 	struct btrfs_file_extent_item *item;
 	int ret;
-	int err;
+	int err = 0;
 	struct btrfs_key found_key;
 
 	total_fs_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	path = btrfs_alloc_path();
 	BUG_ON(!path);
+	trans = btrfs_join_transaction(root, 1);
+	BUG_ON(!trans);
 again:
 	ret = btrfs_lookup_file_extent(NULL, root, path,
 				       inode->i_ino, start, 0);
 	if (ret < 0) {
-		btrfs_free_path(path);
-		return ret;
+		err = ret;
+		goto out;
 	}
 
-	cow_end = end;
 	if (ret != 0) {
 		if (path->slots[0] == 0)
 			goto not_found;
@@ -244,12 +245,11 @@ again:
 		if (start < extent_start || start >= extent_end)
 			goto not_found;
 
-		cow_end = min(end, extent_end - 1);
 		bytenr = btrfs_file_extent_disk_bytenr(leaf, item);
 		if (bytenr == 0)
 			goto not_found;
 
-		if (btrfs_cross_ref_exists(root, &found_key, bytenr))
+		if (btrfs_cross_ref_exists(trans, root, &found_key, bytenr))
 			goto not_found;
 		/*
 		 * we may be called by the resizer, make sure we're inside
@@ -260,24 +260,32 @@ again:
 		if (!block_group || block_group->ro)
 			goto not_found;
 
-		start = extent_end;
-	} else {
-		goto not_found;
-	}
-loop:
-	if (start > end) {
-		btrfs_free_path(path);
-		return 0;
-	}
-	btrfs_release_path(root, path);
-	loops++;
-	goto again;
+		bytenr += btrfs_file_extent_offset(leaf, item);
+		extent_num_bytes = min(end + 1, extent_end) - start;
+		ret = btrfs_add_ordered_extent(inode, start, bytenr,
+						extent_num_bytes, 1);
+		if (ret) {
+			err = ret;
+			goto out;
+		}
 
+		btrfs_release_path(root, path);
+		start = extent_end;
+		if (start <= end) {
+			loops++;
+			goto again;
+		}
+	} else {
 not_found:
-	btrfs_release_path(root, path);
-	cow_file_range(inode, start, end);
-	start = end + 1;
-	goto loop;
+		btrfs_end_transaction(trans, root);
+		btrfs_free_path(path);
+		return cow_file_range(inode, start, end);
+	}
+out:
+	WARN_ON(err);
+	btrfs_end_transaction(trans, root);
+	btrfs_free_path(path);
+	return err;
 }
 
 static int run_delalloc_range(struct inode *inode, u64 start, u64 end)
@@ -382,6 +390,11 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	BUG_ON(ret);
 
 	if (!(rw & (1 << BIO_RW))) {
+		goto mapit;
+	}
+
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM)) {
 		goto mapit;
 	}
 
@@ -527,6 +540,8 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 
 	ordered_extent = btrfs_lookup_ordered_extent(inode, start);
 	BUG_ON(!ordered_extent);
+	if (test_bit(BTRFS_ORDERED_NOCOW, &ordered_extent->flags))
+		goto nocow;
 
 	lock_extent(io_tree, ordered_extent->file_offset,
 		    ordered_extent->file_offset + ordered_extent->len - 1,
@@ -567,6 +582,7 @@ static int btrfs_finish_ordered_io(struct inode *inode, u64 start, u64 end)
 	unlock_extent(io_tree, ordered_extent->file_offset,
 		    ordered_extent->file_offset + ordered_extent->len - 1,
 		    GFP_NOFS);
+nocow:
 	add_pending_csums(trans, inode, ordered_extent->file_offset,
 			  &ordered_extent->list);
 

@@ -1403,7 +1403,8 @@ static inline struct dentry *fdentry(struct file *file) {
 }
 
 /* extent-tree.c */
-int btrfs_cross_ref_exists(struct btrfs_root *root,
+int btrfs_cross_ref_exists(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
 			   struct btrfs_key *key, u64 bytenr);
 int btrfs_extent_post_op(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root);

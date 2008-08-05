@@ -438,6 +438,7 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 
 				free_extent_buffer(root->commit_root);
 				root->commit_root = NULL;
+				root->dirty_root = NULL;
 
 				spin_lock(&root->list_lock);
 				list_del_init(&dirty->root->dead_list);
@@ -461,6 +462,7 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 			       sizeof(struct btrfs_disk_key));
 			root->root_item.drop_level = 0;
 			root->commit_root = NULL;
+			root->dirty_root = NULL;
 			root->root_key.offset = root->fs_info->generation;
 			btrfs_set_root_bytenr(&root->root_item,
 					      root->node->start);
@@ -762,7 +764,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	}
 
 	do {
+		int snap_pending = 0;
 		joined = cur_trans->num_joined;
+		if (!list_empty(&trans->transaction->pending_snapshots))
+			snap_pending = 1;
+
 		WARN_ON(cur_trans != trans->transaction);
 		prepare_to_wait(&cur_trans->writer_wait, &wait,
 				TASK_UNINTERRUPTIBLE);
@@ -773,6 +779,11 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 			timeout = 1;
 
 		mutex_unlock(&root->fs_info->trans_mutex);
+
+		if (snap_pending) {
+			ret = btrfs_wait_ordered_extents(root, 1);
+			BUG_ON(ret);
+		}
 
 		schedule_timeout(timeout);
 

@@ -893,10 +893,10 @@ out:
 	return ret;
 }
 
-int btrfs_cross_ref_exists(struct btrfs_root *root,
+int btrfs_cross_ref_exists(struct btrfs_trans_handle *trans,
+			   struct btrfs_root *root,
 			   struct btrfs_key *key, u64 bytenr)
 {
-	struct btrfs_trans_handle *trans;
 	struct btrfs_root *old_root;
 	struct btrfs_path *path = NULL;
 	struct extent_buffer *eb;
@@ -908,6 +908,7 @@ int btrfs_cross_ref_exists(struct btrfs_root *root,
 	int level;
 	int ret;
 
+	BUG_ON(trans == NULL);
 	BUG_ON(key->type != BTRFS_EXTENT_DATA_KEY);
 	ret = get_reference_status(root, bytenr, 0, key->objectid,
 				   &min_generation, &ref_count);
@@ -917,7 +918,6 @@ int btrfs_cross_ref_exists(struct btrfs_root *root,
 	if (ref_count != 1)
 		return 1;
 
-	trans = btrfs_start_transaction(root, 0);
 	old_root = root->dirty_root->root;
 	ref_generation = old_root->root_key.offset;
 
@@ -973,7 +973,6 @@ int btrfs_cross_ref_exists(struct btrfs_root *root,
 out:
 	if (path)
 		btrfs_free_path(path);
-	btrfs_end_transaction(trans, root);
 	return ret;
 }
 
@@ -3320,7 +3319,7 @@ again:
 	mutex_unlock(&root->fs_info->alloc_mutex);
 
 	btrfs_start_delalloc_inodes(root);
-	btrfs_wait_ordered_extents(tree_root);
+	btrfs_wait_ordered_extents(tree_root, 0);
 
 	mutex_lock(&root->fs_info->alloc_mutex);
 
@@ -3407,7 +3406,7 @@ next:
 		btrfs_clean_old_snapshots(tree_root);
 
 		btrfs_start_delalloc_inodes(root);
-		btrfs_wait_ordered_extents(tree_root);
+		btrfs_wait_ordered_extents(tree_root, 0);
 
 		trans = btrfs_start_transaction(tree_root, 1);
 		btrfs_commit_transaction(trans, tree_root);

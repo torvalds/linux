@@ -152,7 +152,7 @@ static inline struct rb_node *tree_search(struct btrfs_ordered_inode_tree *tree,
  * inserted.
  */
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
-			     u64 start, u64 len)
+			     u64 start, u64 len, int nocow)
 {
 	struct btrfs_ordered_inode_tree *tree;
 	struct rb_node *node;
@@ -168,6 +168,8 @@ int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
 	entry->start = start;
 	entry->len = len;
 	entry->inode = inode;
+	if (nocow)
+		set_bit(BTRFS_ORDERED_NOCOW, &entry->flags);
 
 	/* one ref for the tree */
 	atomic_set(&entry->refs, 1);
@@ -303,10 +305,11 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 	return 0;
 }
 
-int btrfs_wait_ordered_extents(struct btrfs_root *root)
+int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only)
 {
 	struct list_head splice;
 	struct list_head *cur;
+	struct list_head *tmp;
 	struct btrfs_ordered_extent *ordered;
 	struct inode *inode;
 
@@ -314,10 +317,16 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root)
 
 	spin_lock(&root->fs_info->ordered_extent_lock);
 	list_splice_init(&root->fs_info->ordered_extents, &splice);
-	while(!list_empty(&splice)) {
+	list_for_each_safe(cur, tmp, &splice) {
 		cur = splice.next;
 		ordered = list_entry(cur, struct btrfs_ordered_extent,
 				     root_extent_list);
+		if (nocow_only &&
+		    !test_bit(BTRFS_ORDERED_NOCOW, &ordered->flags)) {
+			cond_resched_lock(&root->fs_info->ordered_extent_lock);
+			continue;
+		}
+
 		list_del_init(&ordered->root_extent_list);
 		atomic_inc(&ordered->refs);
 		inode = ordered->inode;
@@ -338,6 +347,7 @@ int btrfs_wait_ordered_extents(struct btrfs_root *root)
 
 		spin_lock(&root->fs_info->ordered_extent_lock);
 	}
+	list_splice_init(&splice, &root->fs_info->ordered_extents);
 	spin_unlock(&root->fs_info->ordered_extent_lock);
 	return 0;
 }

@@ -64,6 +64,8 @@ struct btrfs_ordered_sum {
 
 #define BTRFS_ORDERED_COMPLETE 1 /* set when removed from the tree */
 
+#define BTRFS_ORDERED_NOCOW 2 /* set when we want to write in place */
+
 struct btrfs_ordered_extent {
 	/* logical offset in the file */
 	u64 file_offset;
@@ -125,7 +127,7 @@ int btrfs_remove_ordered_extent(struct inode *inode,
 int btrfs_dec_test_ordered_pending(struct inode *inode,
 				       u64 file_offset, u64 io_size);
 int btrfs_add_ordered_extent(struct inode *inode, u64 file_offset,
-			     u64 start, u64 len);
+			     u64 start, u64 len, int nocow);
 int btrfs_add_ordered_sum(struct inode *inode,
 			  struct btrfs_ordered_extent *entry,
 			  struct btrfs_ordered_sum *sum);
@@ -143,5 +145,5 @@ int btrfs_wait_on_page_writeback_range(struct address_space *mapping,
 				       pgoff_t start, pgoff_t end);
 int btrfs_fdatawrite_range(struct address_space *mapping, loff_t start,
 			   loff_t end, int sync_mode);
-int btrfs_wait_ordered_extents(struct btrfs_root *root);
+int btrfs_wait_ordered_extents(struct btrfs_root *root, int nocow_only);
 #endif
