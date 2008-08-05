@@ -1739,6 +1739,7 @@ int close_ctree(struct btrfs_root *root)
 		free_extent_buffer(root->fs_info->dev_root->node);
 
 	btrfs_free_block_groups(root->fs_info);
+	fs_info->closing = 2;
 	del_fs_roots(fs_info);
 
 	filemap_write_and_wait(fs_info->btree_inode->i_mapping);

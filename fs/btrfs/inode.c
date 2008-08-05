@@ -2092,6 +2092,9 @@ int btrfs_write_inode(struct inode *inode, int wait)
 	struct btrfs_trans_handle *trans;
 	int ret = 0;
 
+	if (root->fs_info->closing > 1)
+		return 0;
+
 	if (wait) {
 		trans = btrfs_join_transaction(root, 1);
 		btrfs_set_trans_block_group(trans, inode);
