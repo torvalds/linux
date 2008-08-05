@@ -1310,10 +1310,11 @@ int cifs_revalidate(struct dentry *direntry)
 /*		if (S_ISDIR(direntry->d_inode->i_mode))
 			shrink_dcache_parent(direntry); */
 		if (S_ISREG(direntry->d_inode->i_mode)) {
-			if (direntry->d_inode->i_mapping)
+			if (direntry->d_inode->i_mapping) {
 				wbrc = filemap_fdatawait(direntry->d_inode->i_mapping);
 				if (wbrc)
 					CIFS_I(direntry->d_inode)->write_behind_rc = wbrc;
+			}
 			/* may eventually have to do this for open files too */
 			if (list_empty(&(cifsInode->openFileList))) {
 				/* changed on server - flush read ahead pages */
