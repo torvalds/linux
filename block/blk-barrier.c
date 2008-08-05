@@ -315,3 +315,72 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	return ret;
 }
 EXPORT_SYMBOL(blkdev_issue_flush);
+
+static void blkdev_discard_end_io(struct bio *bio, int err)
+{
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+	}
+
+	bio_put(bio);
+}
+
+/**
+ * blkdev_issue_discard - queue a discard
+ * @bdev:	blockdev to issue discard for
+ * @sector:	start sector
+ * @nr_sects:	number of sectors to discard
+ *
+ * Description:
+ *    Issue a discard request for the sectors in question. Does not wait.
+ */
+int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
+			 unsigned nr_sects)
+{
+	struct request_queue *q;
+	struct bio *bio;
+	int ret = 0;
+
+	if (bdev->bd_disk == NULL)
+		return -ENXIO;
+
+	q = bdev_get_queue(bdev);
+	if (!q)
+		return -ENXIO;
+
+	if (!q->prepare_discard_fn)
+		return -EOPNOTSUPP;
+
+	while (nr_sects && !ret) {
+		bio = bio_alloc(GFP_KERNEL, 0);
+		if (!bio)
+			return -ENOMEM;
+
+		bio->bi_end_io = blkdev_discard_end_io;
+		bio->bi_bdev = bdev;
+
+		bio->bi_sector = sector;
+
+		if (nr_sects > q->max_hw_sectors) {
+			bio->bi_size = q->max_hw_sectors << 9;
+			nr_sects -= q->max_hw_sectors;
+			sector += q->max_hw_sectors;
+		} else {
+			bio->bi_size = nr_sects << 9;
+			nr_sects = 0;
+		}
+		bio_get(bio);
+		submit_bio(WRITE_DISCARD, bio);
+
+		/* Check if it failed immediately */
+		if (bio_flagged(bio, BIO_EOPNOTSUPP))
+			ret = -EOPNOTSUPP;
+		else if (!bio_flagged(bio, BIO_UPTODATE))
+			ret = -EIO;
+		bio_put(bio);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(blkdev_issue_discard);

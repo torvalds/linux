@@ -1079,6 +1079,10 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	 */
 	if (unlikely(bio_barrier(bio)))
 		req->cmd_flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
+	if (unlikely(bio_discard(bio))) {
+		req->cmd_flags |= (REQ_SOFTBARRIER | REQ_DISCARD);
+		req->q->prepare_discard_fn(req->q, req);
+	}
 
 	if (bio_sync(bio))
 		req->cmd_flags |= REQ_RW_SYNC;
@@ -1095,7 +1099,7 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 static int __make_request(struct request_queue *q, struct bio *bio)
 {
 	struct request *req;
-	int el_ret, nr_sectors, barrier, err;
+	int el_ret, nr_sectors, barrier, discard, err;
 	const unsigned short prio = bio_prio(bio);
 	const int sync = bio_sync(bio);
 	int rw_flags;
@@ -1111,6 +1115,12 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 
 	barrier = bio_barrier(bio);
 	if (unlikely(barrier) && (q->next_ordered == QUEUE_ORDERED_NONE)) {
+		err = -EOPNOTSUPP;
+		goto end_io;
+	}
+
+	discard = bio_discard(bio);
+	if (unlikely(discard) && !q->prepare_discard_fn) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}
@@ -1405,7 +1415,8 @@ end_io:
 
 		if (bio_check_eod(bio, nr_sectors))
 			goto end_io;
-		if (bio_empty_barrier(bio) && !q->prepare_flush_fn) {
+		if ((bio_empty_barrier(bio) && !q->prepare_flush_fn) ||
+		    (bio_discard(bio) && !q->prepare_discard_fn)) {
 			err = -EOPNOTSUPP;
 			goto end_io;
 		}
@@ -1487,7 +1498,6 @@ void submit_bio(int rw, struct bio *bio)
 	 * go through the normal accounting stuff before submission.
 	 */
 	if (bio_has_data(bio)) {
-
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
 		} else {
@@ -1881,7 +1891,7 @@ static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
 
-	if (bio_has_data(rq->bio)) {
+	if (bio_has_data(rq->bio) || blk_discard_rq(rq)) {
 		if (__end_that_request_first(rq, error, nr_bytes))
 			return 1;
 
@@ -1939,7 +1949,7 @@ EXPORT_SYMBOL_GPL(blk_end_request);
  **/
 int __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
-	if (bio_has_data(rq->bio) &&
+	if ((bio_has_data(rq->bio) || blk_discard_rq(rq)) &&
 	    __end_that_request_first(rq, error, nr_bytes))
 		return 1;
 
@@ -2012,12 +2022,14 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 	   we want BIO_RW_AHEAD (bit 1) to imply REQ_FAILFAST (bit 1). */
 	rq->cmd_flags |= (bio->bi_rw & 3);
 
-	rq->nr_phys_segments = bio_phys_segments(q, bio);
-	rq->nr_hw_segments = bio_hw_segments(q, bio);
+	if (bio_has_data(bio)) {
+		rq->nr_phys_segments = bio_phys_segments(q, bio);
+		rq->nr_hw_segments = bio_hw_segments(q, bio);
+		rq->buffer = bio_data(bio);
+	}
 	rq->current_nr_sectors = bio_cur_sectors(bio);
 	rq->hard_cur_sectors = rq->current_nr_sectors;
 	rq->hard_nr_sectors = rq->nr_sectors = bio_sectors(bio);
-	rq->buffer = bio_data(bio);
 	rq->data_len = bio->bi_size;
 
 	rq->bio = rq->biotail = bio;

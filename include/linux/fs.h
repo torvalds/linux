@@ -86,7 +86,8 @@ extern int dir_notify_enable;
 #define READ_META	(READ | (1 << BIO_RW_META))
 #define WRITE_SYNC	(WRITE | (1 << BIO_RW_SYNC))
 #define SWRITE_SYNC	(SWRITE | (1 << BIO_RW_SYNC))
-#define WRITE_BARRIER	((1 << BIO_RW) | (1 << BIO_RW_BARRIER))
+#define WRITE_BARRIER	(WRITE | (1 << BIO_RW_BARRIER))
+#define WRITE_DISCARD	(WRITE | (1 << BIO_RW_DISCARD))
 
 #define SEL_IN		1
 #define SEL_OUT		2
