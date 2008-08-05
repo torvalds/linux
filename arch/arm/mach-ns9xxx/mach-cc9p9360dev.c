@@ -11,7 +11,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/processor-ns9360.h>
+#include <mach/processor-ns9360.h>
 
 #include "board-a9m9750dev.h"
 #include "generic.h"

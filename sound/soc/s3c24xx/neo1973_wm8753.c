@@ -25,12 +25,12 @@
 #include <sound/tlv.h>
 
 #include <asm/hardware/scoop.h>
-#include <asm/arch/regs-clock.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/audio.h>
+#include <mach/regs-clock.h>
+#include <mach/regs-gpio.h>
+#include <mach/hardware.h>
+#include <mach/audio.h>
 #include <linux/io.h>
-#include <asm/arch/spi-gpio.h>
+#include <mach/spi-gpio.h>
 
 #include <asm/plat-s3c24xx/regs-iis.h>
 

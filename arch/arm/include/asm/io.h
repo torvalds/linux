@@ -82,7 +82,7 @@ extern void __readwrite_bug(const char *fn);
 /*
  * Now, pick up the machine-defined IO definitions
  */
-#include <asm/arch/io.h>
+#include <mach/io.h>
 
 /*
  *  IO port access primitives

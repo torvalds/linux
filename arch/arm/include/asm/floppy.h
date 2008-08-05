@@ -12,7 +12,7 @@
 #ifndef __ASM_ARM_FLOPPY_H
 #define __ASM_ARM_FLOPPY_H
 #if 0
-#include <asm/arch/floppy.h>
+#include <mach/floppy.h>
 #endif
 
 #define fd_outb(val,port)			\

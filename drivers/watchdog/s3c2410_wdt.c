@@ -49,7 +49,7 @@
 #include <linux/uaccess.h>
 #include <linux/io.h>
 
-#include <asm/arch/map.h>
+#include <mach/map.h>
 
 #undef S3C_VA_WATCHDOG
 #define S3C_VA_WATCHDOG (0)

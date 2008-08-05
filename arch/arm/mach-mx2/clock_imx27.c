@@ -22,8 +22,8 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 
-#include <asm/arch/clock.h>
-#include <asm/arch/common.h>
+#include <mach/clock.h>
+#include <mach/common.h>
 #include <asm/div64.h>
 
 #include "crm_regs.h"

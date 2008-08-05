@@ -15,9 +15,9 @@
 
 #include <linux/usb/musb.h>
 
-#include <asm/arch/gpmc.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
+#include <mach/gpmc.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
 
 
 static u8		async_cs, sync_cs;

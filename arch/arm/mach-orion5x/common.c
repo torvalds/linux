@@ -24,8 +24,8 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/orion5x.h>
+#include <mach/hardware.h>
+#include <mach/orion5x.h>
 #include <asm/plat-orion/ehci-orion.h>
 #include <asm/plat-orion/orion_nand.h>
 #include <asm/plat-orion/time.h>

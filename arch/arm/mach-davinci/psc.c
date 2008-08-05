@@ -23,9 +23,9 @@
 #include <linux/init.h>
 
 #include <asm/io.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/psc.h>
-#include <asm/arch/mux.h>
+#include <mach/hardware.h>
+#include <mach/psc.h>
+#include <mach/mux.h>
 
 /* PSC register offsets */
 #define EPCPR		0x070

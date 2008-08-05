@@ -26,7 +26,7 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/uaccess.h>
 
 static int nowayout = WATCHDOG_NOWAYOUT;

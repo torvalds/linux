@@ -12,7 +12,7 @@
 #ifndef __PNX008_DUM_H__
 #define __PNX008_DUM_H__
 
-#include <asm/arch/platform.h>
+#include <mach/platform.h>
 
 #define PNX4008_DUMCONF_VA_BASE		IO_ADDRESS(PNX4008_DUMCONF_BASE)
 #define PNX4008_DUM_MAIN_VA_BASE	IO_ADDRESS(PNX4008_DUM_MAINCFG_BASE)

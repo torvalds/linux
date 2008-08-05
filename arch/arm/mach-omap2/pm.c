@@ -31,10 +31,10 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/irqs.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/sram.h>
-#include <asm/arch/pm.h>
+#include <mach/irqs.h>
+#include <mach/clock.h>
+#include <mach/sram.h>
+#include <mach/pm.h>
 
 static struct clk *vclk;
 static void (*omap2_sram_idle)(void);

@@ -23,7 +23,7 @@
 #include <asm/mach/irq.h>
 
 #include <asm/system.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
 

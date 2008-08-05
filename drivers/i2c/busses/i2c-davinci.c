@@ -36,9 +36,9 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/i2c.h>
+#include <mach/i2c.h>
 
 /* ----- global defines ----------------------------------------------- */
 

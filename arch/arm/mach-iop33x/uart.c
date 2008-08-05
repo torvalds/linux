@@ -24,7 +24,7 @@
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/memory.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iop3xx.h>
 #include <asm/mach/arch.h>
 

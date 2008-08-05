@@ -11,7 +11,7 @@
  */
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iomd.h>
 
 		.text

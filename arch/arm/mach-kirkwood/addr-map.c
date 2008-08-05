@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/mbus.h>
 #include <linux/io.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include "common.h"
 
 /*

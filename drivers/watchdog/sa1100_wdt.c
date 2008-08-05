@@ -28,10 +28,10 @@
 #include <linux/bitops.h>
 
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #endif
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/uaccess.h>
 
 #define OSCR_FREQ		CLOCK_TICK_RATE

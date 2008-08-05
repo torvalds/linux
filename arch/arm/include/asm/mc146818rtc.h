@@ -4,7 +4,7 @@
 #ifndef _ASM_MC146818RTC_H
 #define _ASM_MC146818RTC_H
 
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 #include <asm/io.h>
 
 #ifndef RTC_PORT

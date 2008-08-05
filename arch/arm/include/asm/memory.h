@@ -24,7 +24,7 @@
 #endif
 
 #include <linux/compiler.h>
-#include <asm/arch/memory.h>
+#include <mach/memory.h>
 #include <asm/sizes.h>
 
 #ifdef CONFIG_MMU

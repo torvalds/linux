@@ -35,9 +35,9 @@
 #include <asm/irq.h>
 #include <asm/delay.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/imx-dma.h>
-#include <asm/arch/spi_imx.h>
+#include <mach/hardware.h>
+#include <mach/imx-dma.h>
+#include <mach/spi_imx.h>
 
 /*-------------------------------------------------------------------------*/
 /* SPI Registers offsets from peripheral base address */

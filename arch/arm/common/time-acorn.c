@@ -18,7 +18,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/hardware/ioc.h>
 

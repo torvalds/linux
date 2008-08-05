@@ -28,7 +28,7 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

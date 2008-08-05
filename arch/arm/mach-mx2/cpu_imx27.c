@@ -24,7 +24,7 @@
 #include <linux/io.h>
 #include <linux/module.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 #include "crm_regs.h"
 

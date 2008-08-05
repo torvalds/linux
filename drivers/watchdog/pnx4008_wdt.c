@@ -29,7 +29,7 @@
 #include <linux/clk.h>
 #include <linux/spinlock.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 

@@ -52,8 +52,8 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/usb.h>
+#include <mach/dma.h>
+#include <mach/usb.h>
 
 #include "omap_udc.h"
 

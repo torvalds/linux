@@ -16,7 +16,7 @@
 #include <linux/clockchips.h>
 
 #include <asm/mach/time.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 #define MIN_OSCR_DELTA 2
 

@@ -12,7 +12,7 @@
 #ifndef _ASMARM_TIMEX_H
 #define _ASMARM_TIMEX_H
 
-#include <asm/arch/timex.h>
+#include <mach/timex.h>
 
 typedef unsigned long cycles_t;
 

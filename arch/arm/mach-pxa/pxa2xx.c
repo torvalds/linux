@@ -14,9 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 
-#include <asm/arch/mfp-pxa2xx.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/irda.h>
+#include <mach/mfp-pxa2xx.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/irda.h>
 
 static unsigned long pxa2xx_mfp_fir[] = {
 	GPIO46_FICP_RXD,

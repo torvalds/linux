@@ -8,7 +8,7 @@
 #include <linux/linkage.h>
 
 #include <asm/assembler.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 #if defined(__APCS_32__)
 #define LOADREGS(t,r,l...)	ldm##t	r, l

@@ -20,12 +20,12 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 #include "generic.h"
 

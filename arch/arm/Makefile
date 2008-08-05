@@ -97,9 +97,7 @@ textofs-y	:= 0x00008000
  machine-$(CONFIG_ARCH_RPC)	   := rpc
  machine-$(CONFIG_ARCH_EBSA110)	   := ebsa110
  machine-$(CONFIG_ARCH_CLPS7500)   := clps7500
-  incdir-$(CONFIG_ARCH_CLPS7500)   := cl7500
  machine-$(CONFIG_FOOTBRIDGE)	   := footbridge
-  incdir-$(CONFIG_FOOTBRIDGE)	   := ebsa285
  machine-$(CONFIG_ARCH_SHARK)	   := shark
  machine-$(CONFIG_ARCH_SA1100)	   := sa1100
 ifeq ($(CONFIG_ARCH_SA1100),y)
@@ -120,7 +118,6 @@ endif
  machine-$(CONFIG_ARCH_IXP23XX)    := ixp23xx
  machine-$(CONFIG_ARCH_OMAP1)	   := omap1
  machine-$(CONFIG_ARCH_OMAP2)	   := omap2
-  incdir-$(CONFIG_ARCH_OMAP)	   := omap
     plat-$(CONFIG_ARCH_OMAP)	   := omap
  machine-$(CONFIG_ARCH_S3C2410)	   := s3c2410 s3c2400 s3c2412 s3c2440 s3c2442 s3c2443
     plat-$(CONFIG_PLAT_S3C24XX)	   := s3c24xx
@@ -138,7 +135,6 @@ endif
  machine-$(CONFIG_ARCH_DAVINCI)	   := davinci
  machine-$(CONFIG_ARCH_KIRKWOOD)   := kirkwood
  machine-$(CONFIG_ARCH_KS8695)     := ks8695
-  incdir-$(CONFIG_ARCH_MXC)	   := mxc
     plat-$(CONFIG_ARCH_MXC)	   := mxc
  machine-$(CONFIG_ARCH_MX2)	   := mx2
  machine-$(CONFIG_ARCH_MX3)	   := mx3
@@ -157,11 +153,6 @@ endif
 
 # The byte offset of the kernel image in RAM from the start of RAM.
 TEXT_OFFSET := $(textofs-y)
-
-ifeq ($(incdir-y),)
-incdir-y := $(word 1,$(machine-y))
-endif
-INCDIR   := arch-$(incdir-y)
 
 # The first directory contains additional information for the boot setup code
 ifneq ($(machine-y),)
@@ -213,20 +204,10 @@ boot := arch/arm/boot
 #	them changed.  We use .arch to indicate when they were updated
 #	last, otherwise make uses the target directory mtime.
 
-include/asm-arm/.arch: $(wildcard include/config/arch/*.h) include/config/auto.conf
-	@echo '  SYMLINK include/asm-arm/arch -> include/asm-arm/$(INCDIR)'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-arm
-	$(Q)ln -fsn $(srctree)/include/asm-arm/$(INCDIR) include/asm-arm/arch
-else
-	$(Q)ln -fsn $(INCDIR) include/asm-arm/arch
-endif
-	@touch $@
-
 archprepare: maketools
 
 PHONY += maketools FORCE
-maketools: include/linux/version.h include/asm-arm/.arch FORCE
+maketools: include/linux/version.h FORCE
 	$(Q)$(MAKE) $(build)=arch/arm/tools include/asm-arm/mach-types.h
 
 # Convert bzImage to zImage

@@ -35,7 +35,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/irq.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/hardware/iomd.h>
 #include <asm/system.h>

@@ -10,8 +10,8 @@
 #include <asm/io.h>
 #include <asm/proc-fns.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
 
 static void do_hw_reset(void);
 

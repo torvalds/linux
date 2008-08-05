@@ -29,9 +29,9 @@
 #include <asm/div64.h>
 
 #include <asm/mach/map.h>
-#include <asm/arch/regs-lcd.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/fb.h>
+#include <mach/regs-lcd.h>
+#include <mach/regs-gpio.h>
+#include <mach/fb.h>
 
 #ifdef CONFIG_PM
 #include <linux/pm.h>

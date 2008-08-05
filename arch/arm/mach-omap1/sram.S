@@ -10,8 +10,8 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/arch/io.h>
-#include <asm/arch/hardware.h>
+#include <mach/io.h>
+#include <mach/hardware.h>
 
 	.text
 

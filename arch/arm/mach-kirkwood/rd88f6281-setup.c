@@ -22,7 +22,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/kirkwood.h>
+#include <mach/kirkwood.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
 

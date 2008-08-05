@@ -14,8 +14,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#include <asm/arch/regs-bbu.h>
-#include <asm/arch/processor-ns9360.h>
+#include <mach/regs-bbu.h>
+#include <mach/processor-ns9360.h>
 
 #include "gpio-ns9360.h"
 
