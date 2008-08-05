@@ -647,6 +647,28 @@ static int str_to_user(const char *str, unsigned int maxlen, void __user *p)
 	return copy_to_user(p, str, len) ? -EFAULT : len;
 }
 
+static int handle_eviocgbit(struct input_dev *dev, unsigned int cmd, void __user *p, int compat_mode)
+{
+	unsigned long *bits;
+	int len;
+
+	switch (_IOC_NR(cmd) & EV_MAX) {
+
+	case      0: bits = dev->evbit;  len = EV_MAX;  break;
+	case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
+	case EV_REL: bits = dev->relbit; len = REL_MAX; break;
+	case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
+	case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
+	case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
+	case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
+	case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
+	case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
+	default: return -EINVAL;
+	}
+	return bits_to_user(bits, len, _IOC_SIZE(cmd), p, compat_mode);
+}
+
+
 static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			   void __user *p, int compat_mode)
 {
@@ -733,26 +755,8 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 
 		if (_IOC_DIR(cmd) == _IOC_READ) {
 
-			if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0, 0))) {
-
-				unsigned long *bits;
-				int len;
-
-				switch (_IOC_NR(cmd) & EV_MAX) {
-
-				case      0: bits = dev->evbit;  len = EV_MAX;  break;
-				case EV_KEY: bits = dev->keybit; len = KEY_MAX; break;
-				case EV_REL: bits = dev->relbit; len = REL_MAX; break;
-				case EV_ABS: bits = dev->absbit; len = ABS_MAX; break;
-				case EV_MSC: bits = dev->mscbit; len = MSC_MAX; break;
-				case EV_LED: bits = dev->ledbit; len = LED_MAX; break;
-				case EV_SND: bits = dev->sndbit; len = SND_MAX; break;
-				case EV_FF:  bits = dev->ffbit;  len = FF_MAX;  break;
-				case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
-				default: return -EINVAL;
-				}
-				return bits_to_user(bits, len, _IOC_SIZE(cmd), p, compat_mode);
-			}
+			if ((_IOC_NR(cmd) & ~EV_MAX) == _IOC_NR(EVIOCGBIT(0, 0)))
+				return handle_eviocgbit(dev, cmd, p, compat_mode);
 
 			if (_IOC_NR(cmd) == _IOC_NR(EVIOCGKEY(0)))
 				return bits_to_user(dev->key, KEY_MAX, _IOC_SIZE(cmd),
