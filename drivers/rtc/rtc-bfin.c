@@ -2,7 +2,7 @@
  * Blackfin On-Chip Real Time Clock Driver
  *  Supports BF52[257]/BF53[123]/BF53[467]/BF54[24789]
  *
- * Copyright 2004-2007 Analog Devices Inc.
+ * Copyright 2004-2008 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
@@ -412,6 +412,8 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, rtc);
 
+	device_init_wakeup(&pdev->dev, 1);
+
 	return 0;
 
  err:
@@ -433,25 +435,28 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-#ifdef PM_WAKEUP_SIC_IWR
 	struct bfin_rtc *rtc = dev_get_drvdata(&pdev->dev);
-#endif
-	bfin_rtc_reset(&pdev->dev);
-#ifdef PM_WAKEUP_SIC_IWR
-	bfin_write_RTC_SWCNT(10);
-	bfin_rtc_int_set(rtc, RTC_ISTAT_STOPWATCH);
-#endif
+
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(IRQ_RTC);
+	else
+		bfin_rtc_int_clear(rtc, -1);
+
 	return 0;
 }
 
 static int bfin_rtc_resume(struct platform_device *pdev)
 {
-#ifdef PM_WAKEUP_SIC_IWR
-	struct bfin_rtc *rtc = dev_get_drvdata(&pdev->dev);
-	bfin_rtc_int_clear(rtc, RTC_ISTAT_STOPWATCH);
-#endif
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(IRQ_RTC);
+	else
+		bfin_write_RTC_ISTAT(-1);
+
 	return 0;
 }
+#else
+# define bfin_rtc_suspend NULL
+# define bfin_rtc_resume  NULL
 #endif
 
 static struct platform_driver bfin_rtc_driver = {
@@ -461,10 +466,8 @@ static struct platform_driver bfin_rtc_driver = {
 	},
 	.probe		= bfin_rtc_probe,
 	.remove		= __devexit_p(bfin_rtc_remove),
-#ifdef CONFIG_PM
 	.suspend	= bfin_rtc_suspend,
 	.resume		= bfin_rtc_resume,
-#endif
 };
 
 static int __init bfin_rtc_init(void)
