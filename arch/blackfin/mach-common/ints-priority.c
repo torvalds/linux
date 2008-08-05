@@ -71,6 +71,7 @@ atomic_t num_spurious;
 
 #ifdef CONFIG_PM
 unsigned long bfin_sic_iwr[3];	/* Up to 3 SIC_IWRx registers */
+unsigned vr_wakeup;
 #endif
 
 struct ivgx {
@@ -184,17 +185,56 @@ static void bfin_internal_unmask_irq(unsigned int irq)
 #ifdef CONFIG_PM
 int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 {
-	unsigned bank, bit;
+	unsigned bank, bit, wakeup = 0;
 	unsigned long flags;
 	bank = SIC_SYSIRQ(irq) / 32;
 	bit = SIC_SYSIRQ(irq) % 32;
 
+	switch (irq) {
+#ifdef IRQ_RTC
+	case IRQ_RTC:
+	wakeup |= WAKE;
+	break;
+#endif
+#ifdef IRQ_CAN0_RX
+	case IRQ_CAN0_RX:
+	wakeup |= CANWE;
+	break;
+#endif
+#ifdef IRQ_CAN1_RX
+	case IRQ_CAN1_RX:
+	wakeup |= CANWE;
+	break;
+#endif
+#ifdef IRQ_USB_INT0
+	case IRQ_USB_INT0:
+	wakeup |= USBWE;
+	break;
+#endif
+#ifdef IRQ_KEY
+	case IRQ_KEY:
+	wakeup |= KPADWE;
+	break;
+#endif
+#ifdef IRQ_CNT
+	case IRQ_CNT:
+	wakeup |= ROTWE;
+	break;
+#endif
+	default:
+	break;
+	}
+
 	local_irq_save(flags);
 
-	if (state)
+	if (state) {
 		bfin_sic_iwr[bank] |= (1 << bit);
-	else
+		vr_wakeup  |= wakeup;
+
+	} else {
 		bfin_sic_iwr[bank] &= ~(1 << bit);
+		vr_wakeup  &= ~wakeup;
+	}
 
 	local_irq_restore(flags);
 

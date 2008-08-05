@@ -113,6 +113,7 @@ extern const char bfin_board_name[];
 extern unsigned long wall_jiffies;
 
 extern unsigned long bfin_sic_iwr[];
+extern unsigned vr_wakeup;
 extern u16 _bfin_swrst; /* shadow for Software Reset Register (SWRST) */
 extern struct file_operations dpmc_fops;
 extern unsigned long _ramstart, _ramend, _rambase;

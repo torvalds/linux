@@ -229,27 +229,11 @@ int bfin_pm_suspend_mem_enter(void)
 	wakeup = bfin_read_VR_CTL() & ~FREQ;
 	wakeup |= SCKELOW;
 
-	/* FIXME: merge this somehow with set_irq_wake */
-#ifdef CONFIG_PM_BFIN_WAKE_RTC
-	wakeup |= WAKE;
-#endif
 #ifdef CONFIG_PM_BFIN_WAKE_PH6
 	wakeup |= PHYWE;
 #endif
-#ifdef CONFIG_PM_BFIN_WAKE_CAN
-	wakeup |= CANWE;
-#endif
 #ifdef CONFIG_PM_BFIN_WAKE_GP
 	wakeup |= GPWE;
-#endif
-#ifdef CONFIG_PM_BFIN_WAKE_USB
-	wakeup |= USBWE;
-#endif
-#ifdef CONFIG_PM_BFIN_WAKE_KEYPAD
-	wakeup |= KPADWE;
-#endif
-#ifdef CONFIG_PM_BFIN_WAKE_ROTARY
-	wakeup |= ROTWE;
 #endif
 
 	local_irq_save(flags);
@@ -268,7 +252,7 @@ int bfin_pm_suspend_mem_enter(void)
 	icache_disable();
 	bf53x_suspend_l1_mem(memptr);
 
-	do_hibernate(wakeup);	/* Goodbye */
+	do_hibernate(wakeup | vr_wakeup);	/* Goodbye */
 
 	bf53x_resume_l1_mem(memptr);
 
