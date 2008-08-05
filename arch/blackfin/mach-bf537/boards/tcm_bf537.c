@@ -445,7 +445,7 @@ static struct platform_device bfin_mac_device = {
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-#define PATA_INT	64
+#define PATA_INT	IRQ_PF14
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 2,
