@@ -82,6 +82,14 @@ typedef struct _drm_i915_vbl_swap {
 	unsigned int sequence;
 } drm_i915_vbl_swap_t;
 
+struct intel_opregion {
+	struct opregion_header *header;
+	struct opregion_acpi *acpi;
+	struct opregion_swsci *swsci;
+	struct opregion_asle *asle;
+	int enabled;
+};
+
 typedef struct drm_i915_private {
 	drm_local_map_t *sarea;
 	drm_local_map_t *mmio_map;
@@ -121,6 +129,8 @@ typedef struct drm_i915_private {
 	spinlock_t swaps_lock;
 	drm_i915_vbl_swap_t vbl_swaps;
 	unsigned int swaps_pending;
+
+	struct intel_opregion opregion;
 
 	/* Register state */
 	u8 saveLBB;
@@ -244,6 +254,7 @@ extern int i915_vblank_pipe_get(struct drm_device *dev, void *data,
 				struct drm_file *file_priv);
 extern int i915_vblank_swap(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv);
+extern void i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask);
 
 /* i915_mem.c */
 extern int i915_mem_alloc(struct drm_device *dev, void *data,
@@ -257,6 +268,12 @@ extern int i915_mem_destroy_heap(struct drm_device *dev, void *data,
 extern void i915_mem_takedown(struct mem_block **heap);
 extern void i915_mem_release(struct drm_device * dev,
 			     struct drm_file *file_priv, struct mem_block *heap);
+
+/* i915_opregion.c */
+extern int intel_opregion_init(struct drm_device *dev);
+extern void intel_opregion_free(struct drm_device *dev);
+extern void opregion_asle_intr(struct drm_device *dev);
+extern void opregion_enable_asle(struct drm_device *dev);
 
 #define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, (reg))
 #define I915_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, (reg), (val))

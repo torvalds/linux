@@ -371,6 +371,8 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	i915_save_vga(dev);
 
+	intel_opregion_free(dev);
+
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
@@ -531,6 +533,8 @@ static int i915_resume(struct drm_device *dev)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);
 
 	i915_restore_vga(dev);
+
+	intel_opregion_init(dev);
 
 	return 0;
 }

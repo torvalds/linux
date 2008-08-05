@@ -36,9 +36,11 @@
 /** These are the interrupts used by the driver */
 #define I915_INTERRUPT_ENABLE_MASK (I915_USER_INTERRUPT |		\
 				    I915_DISPLAY_PIPE_A_VBLANK_INTERRUPT | \
-				    I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT)
+				    I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT | \
+				    I915_ASLE_INTERRUPT |		\
+				    I915_DISPLAY_PIPE_B_EVENT_INTERRUPT)
 
-static inline void
+void
 i915_enable_irq(drm_i915_private_t *dev_priv, u32 mask)
 {
 	if ((dev_priv->irq_mask_reg & mask) != 0) {
@@ -274,6 +276,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		return IRQ_NONE;
 	}
 
+	I915_WRITE(PIPEASTAT, pipea_stats);
+	I915_WRITE(PIPEBSTAT, pipeb_stats);
+
 	I915_WRITE(IIR, iir);
 	if (dev->pdev->msi_enabled)
 		I915_WRITE(IMR, dev_priv->irq_mask_reg);
@@ -306,13 +311,13 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 
 		if (dev_priv->swaps_pending > 0)
 			drm_locked_tasklet(dev, i915_vblank_tasklet);
-		I915_WRITE(PIPEASTAT,
-			pipea_stats|I915_VBLANK_INTERRUPT_ENABLE|
-			PIPE_VBLANK_INTERRUPT_STATUS);
-		I915_WRITE(PIPEBSTAT,
-			pipeb_stats|I915_VBLANK_INTERRUPT_ENABLE|
-			PIPE_VBLANK_INTERRUPT_STATUS);
 	}
+
+	if (iir & I915_ASLE_INTERRUPT)
+		opregion_asle_intr(dev);
+
+	if (iir & I915_DISPLAY_PIPE_B_EVENT_INTERRUPT)
+		opregion_asle_intr(dev);
 
 	return IRQ_HANDLED;
 }
@@ -661,9 +666,13 @@ void i915_driver_irq_postinstall(struct drm_device * dev)
 	if (dev_priv->vblank_pipe & DRM_I915_VBLANK_PIPE_B)
 		dev_priv->irq_mask_reg &= ~I915_DISPLAY_PIPE_B_VBLANK_INTERRUPT;
 
+	dev_priv->irq_mask_reg &= I915_INTERRUPT_ENABLE_MASK;
+
 	I915_WRITE(IMR, dev_priv->irq_mask_reg);
 	I915_WRITE(IER, I915_INTERRUPT_ENABLE_MASK);
 	(void) I915_READ(IER);
+
+	opregion_enable_asle(dev);
 
 	DRM_INIT_WAITQUEUE(&dev_priv->irq_queue);
 }

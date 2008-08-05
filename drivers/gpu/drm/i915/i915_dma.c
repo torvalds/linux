@@ -810,6 +810,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (!IS_I945G(dev) && !IS_I945GM(dev))
 		pci_enable_msi(dev->pdev);
 
+	intel_opregion_init(dev);
+
 	spin_lock_init(&dev_priv->user_irq_lock);
 
 	return ret;
@@ -826,6 +828,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 	if (dev_priv->mmio_map)
 		drm_rmmap(dev, dev_priv->mmio_map);
+
+	intel_opregion_free(dev);
 
 	drm_free(dev->dev_private, sizeof(drm_i915_private_t),
 		 DRM_MEM_DRIVER);
