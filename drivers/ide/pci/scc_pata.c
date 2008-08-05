@@ -827,7 +827,7 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
-static u8 __devinit scc_cable_detect(ide_hwif_t *hwif)
+static u8 scc_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }

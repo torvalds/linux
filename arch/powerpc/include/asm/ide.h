@@ -20,7 +20,6 @@
 #define __ide_mm_outsl(p, a, c)	writesl((void __iomem *)(p), (a), (c))
 
 #ifndef  __powerpc64__
-#include <linux/hdreg.h>
 #include <linux/ioport.h>
 
 /* FIXME: use ide_platform host driver */
