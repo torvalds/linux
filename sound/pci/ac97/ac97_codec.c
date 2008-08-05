@@ -122,7 +122,7 @@ static const struct ac97_codec_id snd_ac97_codec_ids[] = {
 { 0x414c4740, 0xfffffff0, "ALC202",		NULL,		NULL },
 { 0x414c4750, 0xfffffff0, "ALC250",		NULL,		NULL },
 { 0x414c4760, 0xfffffff0, "ALC655",		patch_alc655,	NULL },
-{ 0x414c4770, 0xfffffff0, "ALC203",		NULL,		NULL },
+{ 0x414c4770, 0xfffffff0, "ALC203",		patch_alc203,	NULL },
 { 0x414c4781, 0xffffffff, "ALC658D",		NULL,	NULL }, /* already patched */
 { 0x414c4780, 0xfffffff0, "ALC658",		patch_alc655,	NULL },
 { 0x414c4790, 0xfffffff0, "ALC850",		patch_alc850,	NULL },

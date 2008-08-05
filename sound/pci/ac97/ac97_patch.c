@@ -2560,6 +2560,14 @@ static int patch_ad1986(struct snd_ac97 * ac97)
 	return 0;
 }
 
+/*
+ * realtek ALC203: use mono-out for pin 37
+ */
+static int patch_alc203(struct snd_ac97 *ac97)
+{
+	snd_ac97_update_bits(ac97, 0x7a, 0x400, 0x400);
+	return 0;
+}
 
 /*
  * realtek ALC65x/850 codecs
