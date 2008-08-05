@@ -17,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/fb.h>
-#include <linux/ide.h>
 #include <linux/pm.h>
 #include <linux/screen_info.h>
 #include <linux/platform_device.h>

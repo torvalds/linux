@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/initrd.h>
 #include <linux/irq.h>
-#include <linux/ide.h>
 #include <linux/ioport.h>
 #include <linux/param.h>	/* for HZ */
 #include <linux/root_dev.h>
