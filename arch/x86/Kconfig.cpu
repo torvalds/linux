@@ -415,3 +415,73 @@ config X86_MINIMUM_CPU_FAMILY
 config X86_DEBUGCTLMSR
 	def_bool y
 	depends on !(MK6 || MWINCHIPC6 || MWINCHIP2 || MWINCHIP3D || MCYRIXIII || M586MMX || M586TSC || M586 || M486 || M386)
+
+menuconfig PROCESSOR_SELECT
+	default y
+	bool "Supported processor vendors" if EMBEDDED
+	help
+	  This lets you choose what x86 vendor support code your kernel
+	  will include.
+
+config CPU_SUP_INTEL_32
+	default y
+	bool "Support Intel processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables extended support for Intel processors
+
+config CPU_SUP_INTEL_64
+	default y
+	bool "Support Intel processors" if PROCESSOR_SELECT
+	depends on 64BIT
+	help
+	  This enables extended support for Intel processors
+
+config CPU_SUP_CYRIX_32
+	default y
+	bool "Support Cyrix processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables extended support for Cyrix processors
+
+config CPU_SUP_AMD_32
+	default y
+	bool "Support AMD processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables extended support for AMD processors
+
+config CPU_SUP_AMD_64
+	default y
+	bool "Support AMD processors" if PROCESSOR_SELECT
+	depends on 64BIT
+	help
+	  This enables extended support for AMD processors
+
+config CPU_SUP_CENTAUR_32
+	default y
+	bool "Support Centaur processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables extended support for Centaur processors
+
+config CPU_SUP_CENTAUR_64
+	default y
+	bool "Support Centaur processors" if PROCESSOR_SELECT
+	depends on 64BIT
+	help
+	  This enables extended support for Centaur processors
+
+config CPU_SUP_TRANSMETA_32
+	default y
+	bool "Support Transmeta processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables extended support for Transmeta processors
+
+config CPU_SUP_UMC_32
+	default y
+	bool "Support UMC processors" if PROCESSOR_SELECT
+	depends on !64BIT
+	help
+	  This enables extended support for UMC processors
