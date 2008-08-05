@@ -64,6 +64,7 @@ struct wireless_dev;
 #define NET_XMIT_BYPASS		4	/* packet does not leave via dequeue;
 					   (TC use only - dev_queue_xmit
 					   returns this as NET_XMIT_SUCCESS) */
+#define NET_XMIT_MASK		0xFFFF	/* qdisc flags in net/sch_generic.h */
 
 /* Backlog congestion levels */
 #define NET_RX_SUCCESS		0   /* keep 'em coming, baby */

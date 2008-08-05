@@ -343,6 +343,18 @@ static inline unsigned int qdisc_pkt_len(struct sk_buff *skb)
 	return qdisc_skb_cb(skb)->pkt_len;
 }
 
+#ifdef CONFIG_NET_CLS_ACT
+/* additional qdisc xmit flags */
+enum net_xmit_qdisc_t {
+	__NET_XMIT_STOLEN = 0x00010000,
+};
+
+#define net_xmit_drop_count(e)	((e) & __NET_XMIT_STOLEN ? 0 : 1)
+
+#else
+#define net_xmit_drop_count(e)	(1)
+#endif
+
 static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 #ifdef CONFIG_NET_SCHED
@@ -355,7 +367,7 @@ static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 static inline int qdisc_enqueue_root(struct sk_buff *skb, struct Qdisc *sch)
 {
 	qdisc_skb_cb(skb)->pkt_len = skb->len;
-	return qdisc_enqueue(skb, sch);
+	return qdisc_enqueue(skb, sch) & NET_XMIT_MASK;
 }
 
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,

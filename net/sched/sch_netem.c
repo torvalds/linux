@@ -240,8 +240,9 @@ static int netem_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		sch->q.qlen++;
 		sch->bstats.bytes += qdisc_pkt_len(skb);
 		sch->bstats.packets++;
-	} else
+	} else if (net_xmit_drop_count(ret)) {
 		sch->qstats.drops++;
+	}
 
 	pr_debug("netem: enqueue ret %d\n", ret);
 	return ret;

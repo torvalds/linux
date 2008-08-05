@@ -45,7 +45,7 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		switch (err) {
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
-			*qerr = NET_XMIT_SUCCESS;
+			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -88,7 +88,8 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		sch->q.qlen++;
 		return NET_XMIT_SUCCESS;
 	}
-	sch->qstats.drops++;
+	if (net_xmit_drop_count(ret))
+		sch->qstats.drops++;
 	return ret;
 }
 
@@ -114,7 +115,8 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 		sch->qstats.requeues++;
 		return 0;
 	}
-	sch->qstats.drops++;
+	if (net_xmit_drop_count(ret))
+		sch->qstats.drops++;
 	return NET_XMIT_DROP;
 }
 

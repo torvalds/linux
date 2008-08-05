@@ -1166,7 +1166,7 @@ hfsc_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		switch (result) {
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
-			*qerr = NET_XMIT_SUCCESS;
+			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -1586,8 +1586,10 @@ hfsc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	err = qdisc_enqueue(skb, cl->qdisc);
 	if (unlikely(err != NET_XMIT_SUCCESS)) {
-		cl->qstats.drops++;
-		sch->qstats.drops++;
+		if (net_xmit_drop_count(err)) {
+			cl->qstats.drops++;
+			sch->qstats.drops++;
+		}
 		return err;
 	}
 
