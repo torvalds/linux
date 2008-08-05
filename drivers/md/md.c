@@ -2393,6 +2393,8 @@ static void analyze_sbs(mddev_t * mddev)
 
 }
 
+static void md_safemode_timeout(unsigned long data);
+
 static ssize_t
 safe_delay_show(mddev_t *mddev, char *page)
 {
@@ -2432,9 +2434,12 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 	if (msec == 0)
 		mddev->safemode_delay = 0;
 	else {
+		unsigned long old_delay = mddev->safemode_delay;
 		mddev->safemode_delay = (msec*HZ)/1000;
 		if (mddev->safemode_delay == 0)
 			mddev->safemode_delay = 1;
+		if (mddev->safemode_delay < old_delay)
+			md_safemode_timeout((unsigned long)mddev);
 	}
 	return len;
 }
