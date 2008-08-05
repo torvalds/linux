@@ -95,6 +95,7 @@ struct btrfs_bio_stripe {
 struct btrfs_multi_bio {
 	atomic_t stripes_pending;
 	bio_end_io_t *end_io;
+	struct bio *orig_bio;
 	void *private;
 	atomic_t error;
 	int max_errors;

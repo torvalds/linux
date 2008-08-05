@@ -2070,6 +2070,7 @@ static int end_bio_multi_stripe(struct bio *bio,
 #endif
 {
 	struct btrfs_multi_bio *multi = bio->bi_private;
+	int is_orig_bio = 0;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
 	if (bio->bi_size)
@@ -2078,7 +2079,14 @@ static int end_bio_multi_stripe(struct bio *bio,
 	if (err)
 		atomic_inc(&multi->error);
 
+	if (bio == multi->orig_bio)
+		is_orig_bio = 1;
+
 	if (atomic_dec_and_test(&multi->stripes_pending)) {
+		if (!is_orig_bio) {
+			bio_put(bio);
+			bio = multi->orig_bio;
+		}
 		bio->bi_private = multi->private;
 		bio->bi_end_io = multi->end_io;
 		/* only send an error to the higher layers if it is
@@ -2101,7 +2109,7 @@ static int end_bio_multi_stripe(struct bio *bio,
 #else
 		bio_endio(bio, err);
 #endif
-	} else {
+	} else if (!is_orig_bio) {
 		bio_put(bio);
 	}
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,23)
@@ -2196,6 +2204,7 @@ int btrfs_map_bio(struct btrfs_root *root, int rw, struct bio *bio,
 	}
 	multi->end_io = first_bio->bi_end_io;
 	multi->private = first_bio->bi_private;
+	multi->orig_bio = first_bio;
 	atomic_set(&multi->stripes_pending, multi->num_stripes);
 
 	while(dev_nr < total_devs) {
