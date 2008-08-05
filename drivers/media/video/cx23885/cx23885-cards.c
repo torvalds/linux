@@ -520,6 +520,9 @@ int cx23885_ir_init(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 		/* FIXME: Implement me */
 		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
+		request_module("ir-kbd-i2c");
+		break;
 	}
 
 	return 0;
