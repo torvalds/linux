@@ -42,6 +42,7 @@
 #include "tuner-simple.h"
 #include "dib7000p.h"
 #include "dibx000_common.h"
+#include "zl10353.h"
 
 static unsigned int debug;
 
@@ -303,6 +304,12 @@ static struct dib7000p_config hauppauge_hvr1400_dib7000_config = {
 	.output_mode = OUTMODE_MPEG2_SERIAL,
 };
 
+static struct zl10353_config dvico_fusionhdtv_xc3028 = {
+	.demod_address = 0x0f,
+	.if2           = 45600,
+	.no_tuner      = 1,
+};
+
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -465,6 +472,33 @@ static int dvb_register(struct cx23885_tsport *port)
 				&i2c_bus->i2c_adap,
 				&dvico_xc5000_tunerconfig, i2c_bus);
 		break;
+	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP: {
+		i2c_bus = &dev->i2c_bus[port->nr - 1];
+
+		port->dvb.frontend = dvb_attach(zl10353_attach,
+					       &dvico_fusionhdtv_xc3028,
+					       &i2c_bus->i2c_adap);
+		if (port->dvb.frontend != NULL) {
+			struct dvb_frontend      *fe;
+			struct xc2028_config	  cfg = {
+				.i2c_adap  = &i2c_bus->i2c_adap,
+				.i2c_addr  = 0x61,
+				.video_dev = port,
+				.callback  = cx23885_xc3028_tuner_callback,
+			};
+			static struct xc2028_ctrl ctl = {
+				.fname       = "xc3028-v27.fw",
+				.max_len     = 64,
+				.demod       = XC3028_FE_ZARLINK456,
+			};
+
+			fe = dvb_attach(xc2028_attach, port->dvb.frontend,
+					&cfg);
+			if (fe != NULL && fe->ops.tuner_ops.set_config != NULL)
+				fe->ops.tuner_ops.set_config(fe, &ctl);
+		}
+		break;
+	}
 	default:
 		printk("%s: The frontend of your DVB/ATSC card isn't supported yet\n",
 		       dev->name);
