@@ -382,12 +382,6 @@ int btrfs_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 	BUG_ON(ret);
 
 	if (!(rw & (1 << BIO_RW))) {
-		if (!btrfs_test_opt(root, NODATASUM) &&
-		    !btrfs_test_flag(inode, NODATASUM)) {
-			mutex_lock(&BTRFS_I(inode)->csum_mutex);
-			btrfs_lookup_bio_sums(root, inode, bio);
-			mutex_unlock(&BTRFS_I(inode)->csum_mutex);
-		}
 		goto mapit;
 	}
 
@@ -593,6 +587,58 @@ int btrfs_writepage_end_io_hook(struct page *page, u64 start, u64 end,
 				struct extent_state *state, int uptodate)
 {
 	return btrfs_finish_ordered_io(page->mapping->host, start, end);
+}
+
+int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
+{
+	int ret = 0;
+	struct inode *inode = page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct btrfs_csum_item *item;
+	struct btrfs_path *path = NULL;
+	u32 csum;
+
+	if (btrfs_test_opt(root, NODATASUM) ||
+	    btrfs_test_flag(inode, NODATASUM))
+		return 0;
+
+	/*
+	 * It is possible there is an ordered extent that has
+	 * not yet finished for this range in the file.  If so,
+	 * that extent will have a csum cached, and it will insert
+	 * the sum after all the blocks in the extent are fully
+	 * on disk.  So, look for an ordered extent and use the
+	 * sum if found.  We have to do this before looking in the
+	 * btree because csum items are pre-inserted based on
+	 * the file size.  btrfs_lookup_csum might find an item
+	 * that still hasn't been fully filled.
+	 */
+	ret = btrfs_find_ordered_sum(inode, start, &csum);
+	if (ret == 0)
+		goto found;
+
+	ret = 0;
+	path = btrfs_alloc_path();
+	item = btrfs_lookup_csum(NULL, root, path, inode->i_ino, start, 0);
+	if (IS_ERR(item)) {
+		ret = PTR_ERR(item);
+		/* a csum that isn't present is a preallocated region. */
+		if (ret == -ENOENT || ret == -EFBIG)
+			ret = 0;
+		csum = 0;
+		printk("no csum found for inode %lu start %Lu\n", inode->i_ino,
+		       start);
+		goto out;
+	}
+	read_extent_buffer(path->nodes[0], &csum, (unsigned long)item,
+			   BTRFS_CRC32_SIZE);
+found:
+	set_state_private(io_tree, start, csum);
+out:
+	if (path)
+		btrfs_free_path(path);
+	return ret;
 }
 
 struct io_failure_record {
@@ -3580,6 +3626,7 @@ static struct extent_io_ops btrfs_extent_io_ops = {
 	.fill_delalloc = run_delalloc_range,
 	.submit_bio_hook = btrfs_submit_bio_hook,
 	.merge_bio_hook = btrfs_merge_bio_hook,
+	.readpage_io_hook = btrfs_readpage_io_hook,
 	.readpage_end_io_hook = btrfs_readpage_end_io_hook,
 	.writepage_end_io_hook = btrfs_writepage_end_io_hook,
 	.writepage_start_hook = btrfs_writepage_start_hook,

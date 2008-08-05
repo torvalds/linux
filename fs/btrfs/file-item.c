@@ -134,6 +134,7 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
+#if 0 /* broken */
 int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 			  struct bio *bio)
 {
@@ -200,7 +201,7 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 		diff = diff * BTRFS_CRC32_SIZE;
 
 		read_extent_buffer(path->nodes[0], &sum,
-				   (unsigned long)item + diff,
+				   ((unsigned long)item) + diff,
 				   BTRFS_CRC32_SIZE);
 found:
 		set_state_private(io_tree, offset, sum);
@@ -210,6 +211,7 @@ found:
 	btrfs_free_path(path);
 	return 0;
 }
+#endif
 
 int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		       struct bio *bio)
