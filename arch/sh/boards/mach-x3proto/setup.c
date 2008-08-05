@@ -3,7 +3,7 @@
  *
  * Renesas SH-X3 Prototype Board Support.
  *
- * Copyright (C) 2007 Paul Mundt
+ * Copyright (C) 2007 - 2008 Paul Mundt
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/kernel.h>
 #include <linux/io.h>
+#include <linux/smc91x.h>
 #include <asm/ilsel.h>
 
 static struct resource heartbeat_resources[] = {
@@ -28,6 +29,10 @@ static struct platform_device heartbeat_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(heartbeat_resources),
 	.resource	= heartbeat_resources,
+};
+
+static struct smc91x_platdata smc91x_info = {
+	.flags	= SMC91X_USE_16BIT | SMC91X_NOWAIT,
 };
 
 static struct resource smc91x_resources[] = {
@@ -47,6 +52,9 @@ static struct platform_device smc91x_device = {
 	.id		= -1,
 	.resource	= smc91x_resources,
 	.num_resources	= ARRAY_SIZE(smc91x_resources),
+	.dev	= {
+		.platform_data = &smc91x_info,
+	},
 };
 
 static struct resource r8a66597_usb_host_resources[] = {
