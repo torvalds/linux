@@ -3,7 +3,7 @@
 
 #define NR_INTERNAL_IRQS	64
 
-#include <asm/arch/irq.h>
+#include <mach/irq.h>
 
 #ifndef NR_IRQS
 #define NR_IRQS			(NR_INTERNAL_IRQS)

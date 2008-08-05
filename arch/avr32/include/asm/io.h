@@ -8,7 +8,7 @@
 #include <asm/addrspace.h>
 #include <asm/byteorder.h>
 
-#include <asm/arch/io.h>
+#include <mach/io.h>
 
 /* virt_to_phys will only work when address is in P1 or P2 */
 static __inline__ unsigned long virt_to_phys(volatile void *address)
