@@ -5,6 +5,7 @@
 #include <linux/irq.h>
 #include <linux/sysdev.h>
 #include <asm/dcr.h>
+#include <asm/msi_bitmap.h>
 
 /*
  * Global registers
@@ -301,8 +302,7 @@ struct mpic
 #endif
 
 #ifdef CONFIG_PCI_MSI
-	spinlock_t		bitmap_lock;
-	unsigned long		*hwirq_bitmap;
+	struct msi_bitmap	msi_bitmap;
 #endif
 
 #ifdef CONFIG_MPIC_BROKEN_REGREAD
