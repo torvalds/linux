@@ -5,6 +5,8 @@
 obj-$(CONFIG_CRYPTO) += crypto.o
 crypto-objs := api.o cipher.o digest.o compress.o
 
+obj-$(CONFIG_CRYPTO_FIPS) += fips.o
+
 crypto_algapi-$(CONFIG_PROC_FS) += proc.o
 crypto_algapi-objs := algapi.o scatterwalk.o $(crypto_algapi-y)
 obj-$(CONFIG_CRYPTO_ALGAPI) += crypto_algapi.o
