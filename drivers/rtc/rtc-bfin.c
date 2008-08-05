@@ -381,20 +381,6 @@ static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 #undef yesno
 }
 
-/**
- *	bfin_irq_set_freq - make sure hardware supports requested freq
- *	@dev: pointer to RTC device structure
- *	@freq: requested frequency rate
- *
- *	The Blackfin RTC can only generate periodic events at 1 per
- *	second (1 Hz), so reject any attempt at changing it.
- */
-static int bfin_irq_set_freq(struct device *dev, int freq)
-{
-	dev_dbg_stamp(dev);
-	return -ENOTTY;
-}
-
 static struct rtc_class_ops bfin_rtc_ops = {
 	.open          = bfin_rtc_open,
 	.release       = bfin_rtc_release,
@@ -404,7 +390,6 @@ static struct rtc_class_ops bfin_rtc_ops = {
 	.read_alarm    = bfin_rtc_read_alarm,
 	.set_alarm     = bfin_rtc_set_alarm,
 	.proc          = bfin_rtc_proc,
-	.irq_set_freq  = bfin_irq_set_freq,
 };
 
 static int __devinit bfin_rtc_probe(struct platform_device *pdev)
