@@ -1792,11 +1792,60 @@ IR_KEYTAB_TYPE ir_codes_encore_enltv[IR_KEYTAB_SIZE] = {
 	[ 0x41 ] = KEY_GREEN,		/* AP2 */
 	[ 0x47 ] = KEY_YELLOW,		/* AP3 */
 	[ 0x57 ] = KEY_BLUE,		/* AP4 */
-
-
 };
-
 EXPORT_SYMBOL_GPL(ir_codes_encore_enltv);
+
+/* Encore ENLTV2-FM  - silver plastic - "Wand Media" written at the botton
+    Mauro Carvalho Chehab <mchehab@infradead.org> */
+IR_KEYTAB_TYPE ir_codes_encore_enltv2[IR_KEYTAB_SIZE] = {
+	[0x4c] = KEY_POWER2,
+	[0x4a] = KEY_TUNER,
+	[0x40] = KEY_1,
+	[0x60] = KEY_2,
+	[0x50] = KEY_3,
+	[0x70] = KEY_4,
+	[0x48] = KEY_5,
+	[0x68] = KEY_6,
+	[0x58] = KEY_7,
+	[0x78] = KEY_8,
+	[0x44] = KEY_9,
+	[0x54] = KEY_0,
+
+	[0x64] = KEY_LAST,		/* +100 */
+	[0x4e] = KEY_AGAIN,		/* Recall */
+
+	[0x6c] = KEY_SWITCHVIDEOMODE,	/* Video Source */
+	[0x5e] = KEY_MENU,
+	[0x56] = KEY_SCREEN,
+	[0x7a] = KEY_SETUP,
+
+	[0x46] = KEY_MUTE,
+	[0x5c] = KEY_MODE,		/* Stereo */
+	[0x74] = KEY_INFO,
+	[0x7c] = KEY_CLEAR,
+
+	[0x55] = KEY_UP,
+	[0x49] = KEY_DOWN,
+	[0x7e] = KEY_LEFT,
+	[0x59] = KEY_RIGHT,
+	[0x6a] = KEY_ENTER,
+
+	[0x42] = KEY_VOLUMEUP,
+	[0x62] = KEY_VOLUMEDOWN,
+	[0x52] = KEY_CHANNELUP,
+	[0x72] = KEY_CHANNELDOWN,
+
+	[0x41] = KEY_RECORD,
+	[0x51] = KEY_SHUFFLE,	/* Snapshot */
+	[0x75] = KEY_TIME,	/* Timeshift */
+	[0x71] = KEY_TV2,	/* PIP */
+
+	[0x45] = KEY_REWIND,
+	[0x6f] = KEY_PAUSE,
+	[0x7d] = KEY_FORWARD,
+	[0x79] = KEY_STOP,
+};
+EXPORT_SYMBOL_GPL(ir_codes_encore_enltv2);
 
 /* for the Technotrend 1500 bundled remotes (grey and black): */
 IR_KEYTAB_TYPE ir_codes_tt_1500[IR_KEYTAB_SIZE] = {
