@@ -59,12 +59,13 @@ static const struct rc_config {
 	u8  offset;
 	u8  length;
 	u8  packet_length;
+	u8  min_packet_length; /* minimum accepted length of the URB result */
 	u8  mute_mixer_id;
 	u32 mute_code;
 } rc_configs[] = {
-	{ USB_ID(0x041e, 0x3000), 0, 1, 2,  18, 0x0013 }, /* Extigy       */
-	{ USB_ID(0x041e, 0x3020), 2, 1, 6,  18, 0x0013 }, /* Audigy 2 NX  */
-	{ USB_ID(0x041e, 0x3040), 2, 2, 6,  2,  0x6e91 }, /* Live! 24-bit */
+	{ USB_ID(0x041e, 0x3000), 0, 1, 2, 1,  18, 0x0013 }, /* Extigy       */
+	{ USB_ID(0x041e, 0x3020), 2, 1, 6, 6,  18, 0x0013 }, /* Audigy 2 NX  */
+	{ USB_ID(0x041e, 0x3040), 2, 2, 6, 6,  2,  0x6e91 }, /* Live! 24-bit */
 };
 
 struct usb_mixer_interface {
@@ -1781,7 +1782,7 @@ static void snd_usb_soundblaster_remote_complete(struct urb *urb)
 	const struct rc_config *rc = mixer->rc_cfg;
 	u32 code;
 
-	if (urb->status < 0 || urb->actual_length < rc->packet_length)
+	if (urb->status < 0 || urb->actual_length < rc->min_packet_length)
 		return;
 
 	code = mixer->rc_buffer[rc->offset];
