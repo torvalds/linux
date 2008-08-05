@@ -32,6 +32,14 @@ struct mtd_blkcore_priv {
 	spinlock_t queue_lock;
 };
 
+static int blktrans_discard_request(struct request_queue *q,
+				    struct request *req)
+{
+	req->cmd_type = REQ_TYPE_LINUX_BLOCK;
+	req->cmd[0] = REQ_LB_OP_DISCARD;
+	return 0;
+}
+
 static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 			       struct mtd_blktrans_dev *dev,
 			       struct request *req)
@@ -43,6 +51,10 @@ static int do_blktrans_request(struct mtd_blktrans_ops *tr,
 	nsect = req->current_nr_sectors << 9 >> tr->blkshift;
 
 	buf = req->buffer;
+
+	if (req->cmd_type == REQ_TYPE_LINUX_BLOCK &&
+	    req->cmd[0] == REQ_LB_OP_DISCARD)
+		return !tr->discard(dev, block, nsect);
 
 	if (!blk_fs_request(req))
 		return 0;
@@ -367,6 +379,10 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 
 	tr->blkcore_priv->rq->queuedata = tr;
 	blk_queue_hardsect_size(tr->blkcore_priv->rq, tr->blksize);
+	if (tr->discard)
+		blk_queue_set_discard(tr->blkcore_priv->rq,
+				      blktrans_discard_request);
+
 	tr->blkshift = ffs(tr->blksize) - 1;
 
 	tr->blkcore_priv->thread = kthread_run(mtd_blktrans_thread, tr,

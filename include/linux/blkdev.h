@@ -81,6 +81,7 @@ enum {
 	 */
 	REQ_LB_OP_EJECT	= 0x40,		/* eject request */
 	REQ_LB_OP_FLUSH = 0x41,		/* flush device */
+	REQ_LB_OP_DISCARD = 0x42,	/* discard sectors */
 };
 
 /*
