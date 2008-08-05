@@ -428,7 +428,7 @@ static void it821x_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	the needed logic onboard.
  */
 
-static u8 __devinit it821x_cable_detect(ide_hwif_t *hwif)
+static u8 it821x_cable_detect(ide_hwif_t *hwif)
 {
 	/* The reference driver also only does disk side */
 	return ATA_CBL_PATA80;

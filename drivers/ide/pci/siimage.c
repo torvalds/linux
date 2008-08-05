@@ -679,7 +679,7 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
  *	Check for the presence of an ATA66 capable cable on the interface.
  */
 
-static u8 __devinit sil_cable_detect(ide_hwif_t *hwif)
+static u8 sil_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	unsigned long addr	= siimage_selreg(hwif, 0);
