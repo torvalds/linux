@@ -32,6 +32,15 @@
  * writes to clear status registers complete immediately.
  */
 
+/* It may seem odd that there is no SWCNT code in here (which would be exposed
+ * via the periodic interrupt event, or PIE).  Since the Blackfin RTC peripheral
+ * runs in units of seconds (N/HZ) but the Linux framework runs in units of HZ
+ * (2^N HZ), there is no point in keeping code that only provides 1 HZ PIEs.
+ * The same exact behavior can be accomplished by using the update interrupt
+ * event (UIE).  Maybe down the line the RTC peripheral will suck less in which
+ * case we can re-introduce PIE support.
+ */
+
 #include <linux/bcd.h>
 #include <linux/completion.h>
 #include <linux/delay.h>
@@ -151,7 +160,6 @@ static void bfin_rtc_reset(struct device *dev, u16 rtc_ictl)
 	bfin_rtc_sync_pending(dev);
 	bfin_write_RTC_PREN(0x1);
 	bfin_write_RTC_ICTL(rtc_ictl);
-	bfin_write_RTC_SWCNT(0);
 	bfin_write_RTC_ALARM(0);
 	bfin_write_RTC_ISTAT(0xFFFF);
 	rtc->rtc_wrote_regs = 0;
@@ -191,14 +199,6 @@ static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 		if (rtc_istat & (RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY)) {
 			bfin_write_RTC_ISTAT(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY);
 			events |= RTC_AF | RTC_IRQF;
-		}
-	}
-
-	if (rtc_ictl & RTC_ISTAT_STOPWATCH) {
-		if (rtc_istat & RTC_ISTAT_STOPWATCH) {
-			bfin_write_RTC_ISTAT(RTC_ISTAT_STOPWATCH);
-			events |= RTC_PF | RTC_IRQF;
-			bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
 		}
 	}
 
@@ -361,31 +361,12 @@ static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 	seq_printf(seq,
 		"alarm_IRQ\t: %s\n"
 		"wkalarm_IRQ\t: %s\n"
-		"seconds_IRQ\t: %s\n"
-		"periodic_IRQ\t: %s\n",
+		"seconds_IRQ\t: %s\n",
 		yesno(ictl & RTC_ISTAT_ALARM),
 		yesno(ictl & RTC_ISTAT_ALARM_DAY),
-		yesno(ictl & RTC_ISTAT_SEC),
-		yesno(ictl & RTC_ISTAT_STOPWATCH));
+		yesno(ictl & RTC_ISTAT_SEC));
 	return 0;
 #undef yesno
-}
-
-static int bfin_irq_set_state(struct device *dev, int enabled)
-{
-	struct bfin_rtc *rtc = dev_get_drvdata(dev);
-
-	dev_dbg_stamp(dev);
-
-	bfin_rtc_sync_pending(dev);
-
-	if (enabled) {
-		bfin_rtc_int_set(RTC_ISTAT_STOPWATCH);
-		bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
-	} else
-		bfin_rtc_int_clear(~RTC_ISTAT_STOPWATCH);
-
-	return 0;
 }
 
 static struct rtc_class_ops bfin_rtc_ops = {
@@ -397,7 +378,6 @@ static struct rtc_class_ops bfin_rtc_ops = {
 	.read_alarm    = bfin_rtc_read_alarm,
 	.set_alarm     = bfin_rtc_set_alarm,
 	.proc          = bfin_rtc_proc,
-	.irq_set_state = bfin_irq_set_state,
 };
 
 static int __devinit bfin_rtc_probe(struct platform_device *pdev)
@@ -416,7 +396,9 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto err;
 	}
-	rtc->rtc_dev->irq_freq = 1;
+
+	/* see comment at top of file about stopwatch/PIE */
+	bfin_write_RTC_SWCNT(0);
 
 	platform_set_drvdata(pdev, rtc);
 
