@@ -5,6 +5,7 @@ endif
 mpic-msi-obj-$(CONFIG_PCI_MSI)	+= mpic_msi.o mpic_u3msi.o mpic_pasemi_msi.o
 obj-$(CONFIG_MPIC)		+= mpic.o $(mpic-msi-obj-y)
 fsl-msi-obj-$(CONFIG_PCI_MSI)	+= fsl_msi.o
+obj-$(CONFIG_PPC_MSI_BITMAP)	+= msi_bitmap.o
 
 obj-$(CONFIG_PPC_MPC106)	+= grackle.o
 obj-$(CONFIG_PPC_DCR_NATIVE)	+= dcr-low.o
