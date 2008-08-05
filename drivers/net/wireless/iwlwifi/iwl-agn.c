@@ -65,7 +65,7 @@
  * NOTE: DRV_NAME is defined in iwlwifi.h for use by iwl-debug.h and printk
  */
 
-#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link 4965AGN driver for Linux"
+#define DRV_DESCRIPTION	"Intel(R) Wireless WiFi Link AGN driver for Linux"
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 #define VD "d"
@@ -73,7 +73,7 @@
 #define VD
 #endif
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 #define VS "s"
 #else
 #define VS
@@ -86,6 +86,7 @@ MODULE_DESCRIPTION(DRV_DESCRIPTION);
 MODULE_VERSION(DRV_VERSION);
 MODULE_AUTHOR(DRV_COPYRIGHT);
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("iwl4965");
 
 /*************** STATION TABLE MANAGEMENT ****
  * mac80211 should be examined to determine if sta_info is duplicating
@@ -444,11 +445,10 @@ static void iwl_free_frame(struct iwl_priv *priv, struct iwl_frame *frame)
 	list_add(&frame->list, &priv->free_frames);
 }
 
-unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
-				struct ieee80211_hdr *hdr,
-				const u8 *dest, int left)
+static unsigned int iwl_fill_beacon_frame(struct iwl_priv *priv,
+					  struct ieee80211_hdr *hdr,
+					  const u8 *dest, int left)
 {
-
 	if (!iwl_is_associated(priv) || !priv->ibss_beacon ||
 	    ((priv->iw_mode != IEEE80211_IF_TYPE_IBSS) &&
 	     (priv->iw_mode != IEEE80211_IF_TYPE_AP)))
@@ -487,6 +487,38 @@ static u8 iwl4965_rate_get_lowest_plcp(struct iwl_priv *priv)
 		return IWL_RATE_6M_PLCP;
 }
 
+unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
+				       struct iwl_frame *frame, u8 rate)
+{
+	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
+	unsigned int frame_size;
+
+	tx_beacon_cmd = &frame->u.beacon;
+	memset(tx_beacon_cmd, 0, sizeof(*tx_beacon_cmd));
+
+	tx_beacon_cmd->tx.sta_id = priv->hw_params.bcast_sta_id;
+	tx_beacon_cmd->tx.stop_time.life_time = TX_CMD_LIFE_TIME_INFINITE;
+
+	frame_size = iwl_fill_beacon_frame(priv, tx_beacon_cmd->frame,
+				iwl_bcast_addr,
+				sizeof(frame->u) - sizeof(*tx_beacon_cmd));
+
+	BUG_ON(frame_size > MAX_MPDU_SIZE);
+	tx_beacon_cmd->tx.len = cpu_to_le16((u16)frame_size);
+
+	if ((rate == IWL_RATE_1M_PLCP) || (rate >= IWL_RATE_2M_PLCP))
+		tx_beacon_cmd->tx.rate_n_flags =
+			iwl_hw_set_rate_n_flags(rate, RATE_MCS_CCK_MSK);
+	else
+		tx_beacon_cmd->tx.rate_n_flags =
+			iwl_hw_set_rate_n_flags(rate, 0);
+
+	tx_beacon_cmd->tx.tx_flags = TX_CMD_FLG_SEQ_CTL_MSK |
+				     TX_CMD_FLG_TSF_MSK |
+				     TX_CMD_FLG_STA_RATE_MSK;
+
+	return sizeof(*tx_beacon_cmd) + frame_size;
+}
 static int iwl4965_send_beacon_cmd(struct iwl_priv *priv)
 {
 	struct iwl_frame *frame;
@@ -608,7 +640,6 @@ static void iwl_activate_qos(struct iwl_priv *priv, u8 force)
 }
 
 #define MAX_UCODE_BEACON_INTERVAL	4096
-#define INTEL_CONN_LISTEN_INTERVAL	__constant_cpu_to_le16(0xA)
 
 static __le16 iwl4965_adjust_beacon_interval(u16 beacon_val)
 {
@@ -638,7 +669,7 @@ static void iwl4965_setup_rxon_timing(struct iwl_priv *priv)
 	priv->rxon_timing.timestamp.dw[0] =
 				cpu_to_le32(priv->timestamp & 0xFFFFFFFF);
 
-	priv->rxon_timing.listen_interval = INTEL_CONN_LISTEN_INTERVAL;
+	priv->rxon_timing.listen_interval = cpu_to_le16(conf->listen_interval);
 
 	tsf = priv->timestamp;
 
@@ -853,7 +884,7 @@ static void iwl4965_set_rate(struct iwl_priv *priv)
 		   (IWL_OFDM_BASIC_RATES_MASK >> IWL_FIRST_OFDM_RATE) & 0xFF;
 }
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 
 #include "iwl-spectrum.h"
 
@@ -1057,7 +1088,7 @@ static void iwl4965_rx_csa(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 static void iwl4965_rx_spectrum_measure_notif(struct iwl_priv *priv,
 					  struct iwl_rx_mem_buffer *rxb)
 {
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	struct iwl_rx_packet *pkt = (struct iwl_rx_packet *)rxb->skb->data;
 	struct iwl4965_spectrum_notification *report = &(pkt->u.spectrum_notif);
 
@@ -1229,6 +1260,37 @@ static void iwl4965_rx_card_state_notif(struct iwl_priv *priv,
 		queue_work(priv->workqueue, &priv->rf_kill);
 	else
 		wake_up_interruptible(&priv->wait_command_queue);
+}
+
+int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
+{
+	int ret;
+	unsigned long flags;
+
+	spin_lock_irqsave(&priv->lock, flags);
+	ret = iwl_grab_nic_access(priv);
+	if (ret)
+		goto err;
+
+	if (src == IWL_PWR_SRC_VAUX) {
+		u32 val;
+		ret = pci_read_config_dword(priv->pci_dev, PCI_POWER_SOURCE,
+					    &val);
+
+		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT)
+			iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+					       APMG_PS_CTRL_VAL_PWR_SRC_VAUX,
+					       ~APMG_PS_CTRL_MSK_PWR_SRC);
+	} else {
+		iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+				       APMG_PS_CTRL_VAL_PWR_SRC_VMAIN,
+				       ~APMG_PS_CTRL_MSK_PWR_SRC);
+	}
+
+	iwl_release_nic_access(priv);
+err:
+	spin_unlock_irqrestore(&priv->lock, flags);
+	return ret;
 }
 
 /**
@@ -2170,17 +2232,16 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	}
 
 	/* If platform's RF_KILL switch is NOT set to KILL */
-	if (iwl_read32(priv, CSR_GP_CNTRL) &
-				CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
+	if (iwl_read32(priv, CSR_GP_CNTRL) & CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW)
 		clear_bit(STATUS_RF_KILL_HW, &priv->status);
 	else
 		set_bit(STATUS_RF_KILL_HW, &priv->status);
 
-	if (!test_bit(STATUS_IN_SUSPEND, &priv->status) &&
-	    iwl_is_rfkill(priv)) {
+	if (iwl_is_rfkill(priv)) {
+		iwl4965_enable_interrupts(priv);
 		IWL_WARNING("Radio disabled by %s RF Kill switch\n",
 		    test_bit(STATUS_RF_KILL_HW, &priv->status) ? "HW" : "SW");
-		return -ENODEV;
+		return 0;
 	}
 
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
@@ -2215,11 +2276,6 @@ static int __iwl4965_up(struct iwl_priv *priv)
 	 * data SRAM for a clean start when the runtime program first loads. */
 	memcpy(priv->ucode_data_backup.v_addr, priv->ucode_data.v_addr,
 	       priv->ucode_data.len);
-
-	/* We return success when we resume from suspend and rf_kill is on. */
-	if (test_bit(STATUS_RF_KILL_HW, &priv->status) ||
-	    test_bit(STATUS_RF_KILL_SW, &priv->status))
-		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
 
@@ -2415,7 +2471,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	unsigned long flags;
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
-		IWL_ERROR("%s Should not be called in AP mode\n", __FUNCTION__);
+		IWL_ERROR("%s Should not be called in AP mode\n", __func__);
 		return;
 	}
 
@@ -2491,7 +2547,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 
 	default:
 		IWL_ERROR("%s Should not be called in %d mode\n",
-				__FUNCTION__, priv->iw_mode);
+			  __func__, priv->iw_mode);
 		break;
 	}
 
@@ -2589,6 +2645,9 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 	if (ret)
 		goto out_release_irq;
 
+	if (iwl_is_rfkill(priv))
+		goto out;
+
 	IWL_DEBUG_INFO("Start UP work done.\n");
 
 	if (test_bit(STATUS_IN_SUSPEND, &priv->status))
@@ -2608,6 +2667,7 @@ static int iwl4965_mac_start(struct ieee80211_hw *hw)
 		}
 	}
 
+out:
 	priv->is_open = 1;
 	IWL_DEBUG_MAC80211("leave\n");
 	return 0;
@@ -2772,6 +2832,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	}
 
 	spin_lock_irqsave(&priv->lock, flags);
+
 
 	/* if we are switching from ht to 2.4 clear flags
 	 * from any ht related info since 2.4 does not
@@ -3102,6 +3163,7 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 		if (bss_conf->assoc) {
 			priv->assoc_id = bss_conf->aid;
 			priv->beacon_int = bss_conf->beacon_int;
+			priv->power_data.dtim_period = bss_conf->dtim_period;
 			priv->timestamp = bss_conf->timestamp;
 			priv->assoc_capability = bss_conf->assoc_capability;
 			priv->next_scan_jiffies = jiffies +
@@ -3345,6 +3407,39 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	return 0;
 }
 
+static int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
+			     enum ieee80211_ampdu_mlme_action action,
+			     const u8 *addr, u16 tid, u16 *ssn)
+{
+	struct iwl_priv *priv = hw->priv;
+	DECLARE_MAC_BUF(mac);
+
+	IWL_DEBUG_HT("A-MPDU action on addr %s tid %d\n",
+		     print_mac(mac, addr), tid);
+
+	if (!(priv->cfg->sku & IWL_SKU_N))
+		return -EACCES;
+
+	switch (action) {
+	case IEEE80211_AMPDU_RX_START:
+		IWL_DEBUG_HT("start Rx\n");
+		return iwl_rx_agg_start(priv, addr, tid, *ssn);
+	case IEEE80211_AMPDU_RX_STOP:
+		IWL_DEBUG_HT("stop Rx\n");
+		return iwl_rx_agg_stop(priv, addr, tid);
+	case IEEE80211_AMPDU_TX_START:
+		IWL_DEBUG_HT("start Tx\n");
+		return iwl_tx_agg_start(priv, addr, tid, ssn);
+	case IEEE80211_AMPDU_TX_STOP:
+		IWL_DEBUG_HT("stop Tx\n");
+		return iwl_tx_agg_stop(priv, addr, tid);
+	default:
+		IWL_DEBUG_HT("unknown\n");
+		return -EINVAL;
+		break;
+	}
+	return 0;
+}
 static int iwl4965_mac_get_tx_stats(struct ieee80211_hw *hw,
 				struct ieee80211_tx_queue_stats *stats)
 {
@@ -3592,15 +3687,6 @@ static ssize_t show_temperature(struct device *d,
 
 static DEVICE_ATTR(temperature, S_IRUGO, show_temperature, NULL);
 
-static ssize_t show_rs_window(struct device *d,
-			      struct device_attribute *attr,
-			      char *buf)
-{
-	struct iwl_priv *priv = d->driver_data;
-	return iwl4965_fill_rs_info(priv->hw, buf, IWL_AP_ID);
-}
-static DEVICE_ATTR(rs_window, S_IRUGO, show_rs_window, NULL);
-
 static ssize_t show_tx_power(struct device *d,
 			     struct device_attribute *attr, char *buf)
 {
@@ -3699,7 +3785,7 @@ static ssize_t store_filter_flags(struct device *d,
 static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
 		   store_filter_flags);
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 
 static ssize_t show_measurement(struct device *d,
 				struct device_attribute *attr, char *buf)
@@ -3707,7 +3793,7 @@ static ssize_t show_measurement(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	struct iwl4965_spectrum_notification measure_report;
 	u32 size = sizeof(measure_report), len = 0, ofs = 0;
-	u8 *data = (u8 *) & measure_report;
+	u8 *data = (u8 *)&measure_report;
 	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -3770,7 +3856,7 @@ static ssize_t store_measurement(struct device *d,
 
 static DEVICE_ATTR(measurement, S_IRUSR | S_IWUSR,
 		   show_measurement, store_measurement);
-#endif /* CONFIG_IWL4965_SPECTRUM_MEASUREMENT */
+#endif /* CONFIG_IWLAGN_SPECTRUM_MEASUREMENT */
 
 static ssize_t store_retry_rate(struct device *d,
 				struct device_attribute *attr,
@@ -3800,77 +3886,54 @@ static ssize_t store_power_level(struct device *d,
 				 const char *buf, size_t count)
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
-	int rc;
+	int ret;
 	int mode;
 
 	mode = simple_strtoul(buf, NULL, 0);
 	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready(priv)) {
-		rc = -EAGAIN;
+		ret = -EAGAIN;
 		goto out;
 	}
 
-	rc = iwl_power_set_user_mode(priv, mode);
-	if (rc) {
+	ret = iwl_power_set_user_mode(priv, mode);
+	if (ret) {
 		IWL_DEBUG_MAC80211("failed setting power mode.\n");
 		goto out;
 	}
-	rc = count;
+	ret = count;
 
  out:
 	mutex_unlock(&priv->mutex);
-	return rc;
+	return ret;
 }
-
-#define MAX_WX_STRING 80
-
-/* Values are in microsecond */
-static const s32 timeout_duration[] = {
-	350000,
-	250000,
-	75000,
-	37000,
-	25000,
-};
-static const s32 period_duration[] = {
-	400000,
-	700000,
-	1000000,
-	1000000,
-	1000000
-};
 
 static ssize_t show_power_level(struct device *d,
 				struct device_attribute *attr, char *buf)
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
+	int mode = priv->power_data.user_power_setting;
+	int system = priv->power_data.system_power_setting;
 	int level = priv->power_data.power_mode;
 	char *p = buf;
 
-	p += sprintf(p, "%d ", level);
-	switch (level) {
-	case IWL_POWER_MODE_CAM:
-	case IWL_POWER_AC:
-		p += sprintf(p, "(AC)");
+	switch (system) {
+	case IWL_POWER_SYS_AUTO:
+		p += sprintf(p, "SYSTEM:auto");
 		break;
-	case IWL_POWER_BATTERY:
-		p += sprintf(p, "(BATTERY)");
+	case IWL_POWER_SYS_AC:
+		p += sprintf(p, "SYSTEM:ac");
 		break;
-	default:
-		p += sprintf(p,
-			     "(Timeout %dms, Period %dms)",
-			     timeout_duration[level - 1] / 1000,
-			     period_duration[level - 1] / 1000);
+	case IWL_POWER_SYS_BATTERY:
+		p += sprintf(p, "SYSTEM:battery");
+		break;
 	}
-/*
-	if (!(priv->power_mode & IWL_POWER_ENABLED))
-		p += sprintf(p, " OFF\n");
-	else
-		p += sprintf(p, " \n");
-*/
-	p += sprintf(p, " \n");
-	return (p - buf + 1);
+
+	p += sprintf(p, "\tMODE:%s", (mode < IWL_POWER_AUTO)?"fixed":"auto");
+	p += sprintf(p, "\tINDEX:%d", level);
+	p += sprintf(p, "\n");
+	return p - buf + 1;
 }
 
 static DEVICE_ATTR(power_level, S_IWUSR | S_IRUSR, show_power_level,
@@ -3945,7 +4008,7 @@ static ssize_t show_statistics(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	u32 size = sizeof(struct iwl_notif_statistics);
 	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *) & priv->statistics;
+	u8 *data = (u8 *)&priv->statistics;
 	int rc = 0;
 
 	if (!iwl_is_alive(priv))
@@ -4041,12 +4104,11 @@ static struct attribute *iwl4965_sysfs_entries[] = {
 	&dev_attr_channels.attr,
 	&dev_attr_flags.attr,
 	&dev_attr_filter_flags.attr,
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	&dev_attr_measurement.attr,
 #endif
 	&dev_attr_power_level.attr,
 	&dev_attr_retry_rate.attr,
-	&dev_attr_rs_window.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_status.attr,
 	&dev_attr_temperature.attr,
@@ -4394,8 +4456,10 @@ static int iwl4965_pci_resume(struct pci_dev *pdev)
 
 /* Hardware specific file defines the PCI IDs table for that hardware module */
 static struct pci_device_id iwl_hw_card_ids[] = {
+#ifdef CONFIG_IWL4965
 	{IWL_PCI_DEVICE(0x4229, PCI_ANY_ID, iwl4965_agn_cfg)},
 	{IWL_PCI_DEVICE(0x4230, PCI_ANY_ID, iwl4965_agn_cfg)},
+#endif /* CONFIG_IWL4965 */
 #ifdef CONFIG_IWL5000
 	{IWL_PCI_DEVICE(0x4232, 0x1205, iwl5100_bg_cfg)},
 	{IWL_PCI_DEVICE(0x4232, 0x1305, iwl5100_bg_cfg)},
@@ -4431,7 +4495,7 @@ static int __init iwl4965_init(void)
 	printk(KERN_INFO DRV_NAME ": " DRV_DESCRIPTION ", " DRV_VERSION "\n");
 	printk(KERN_INFO DRV_NAME ": " DRV_COPYRIGHT "\n");
 
-	ret = iwl4965_rate_control_register();
+	ret = iwlagn_rate_control_register();
 	if (ret) {
 		IWL_ERROR("Unable to register rate control algorithm: %d\n", ret);
 		return ret;
@@ -4446,14 +4510,14 @@ static int __init iwl4965_init(void)
 	return ret;
 
 error_register:
-	iwl4965_rate_control_unregister();
+	iwlagn_rate_control_unregister();
 	return ret;
 }
 
 static void __exit iwl4965_exit(void)
 {
 	pci_unregister_driver(&iwl_driver);
-	iwl4965_rate_control_unregister();
+	iwlagn_rate_control_unregister();
 }
 
 module_exit(iwl4965_exit);
