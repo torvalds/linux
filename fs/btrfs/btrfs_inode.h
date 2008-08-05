@@ -57,15 +57,6 @@ struct btrfs_inode {
 	 * number for new files that are created
 	 */
 	u64 index_cnt;
-
-	/*
-	 * index holds the directory index for this inode on creation, so
-	 * add_link can do what its supposed to.  This isn't populated when the
-	 * inode is read because there isn't really a reason to know this unless
-	 * we are creating the directory index or deleting it, and deletion
-	 * reads the index off of the inode reference at unlink time.
-	 */
-	u64 index;
 };
 
 static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
