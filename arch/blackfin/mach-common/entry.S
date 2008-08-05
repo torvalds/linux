@@ -163,6 +163,8 @@ ENTRY(_ex_single_step)
         p5.l = lo(IPEND);
         p5.h = hi(IPEND);
 	r6 = [p5];
+	cc = bittst(r6, 4);
+	if cc jump _bfin_return_from_exception;
 	cc = bittst(r6, 5);
 	if cc jump _bfin_return_from_exception;
 
@@ -186,10 +188,9 @@ ENTRY(_ex_single_step)
 	if cc jump .Ldo_single_step;
 	r6 += -1;
 	cc = r6 < r7;
-	if cc jump _bfin_return_from_exception;
+	if cc jump 1f;
 .Ldo_single_step:
-#endif
-
+#else
 	/* If we were in user mode, do the single step normally.  */
 	p5.l = lo(IPEND);
 	p5.h = hi(IPEND);
@@ -198,6 +199,7 @@ ENTRY(_ex_single_step)
 	r7 = r7 & r6;
 	cc = r7 == 0;
 	if !cc jump 1f;
+#endif
 
 	/* Single stepping only a single instruction, so clear the trace
 	 * bit here.  */
