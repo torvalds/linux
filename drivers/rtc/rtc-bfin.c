@@ -430,6 +430,30 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+#ifdef PM_WAKEUP_SIC_IWR
+	struct bfin_rtc *rtc = dev_get_drvdata(&pdev->dev);
+#endif
+	bfin_rtc_reset(&pdev->dev);
+#ifdef PM_WAKEUP_SIC_IWR
+	bfin_write_RTC_SWCNT(10);
+	bfin_rtc_int_set(rtc, RTC_ISTAT_STOPWATCH);
+#endif
+	return 0;
+}
+
+static int bfin_rtc_resume(struct platform_device *pdev)
+{
+#ifdef PM_WAKEUP_SIC_IWR
+	struct bfin_rtc *rtc = dev_get_drvdata(&pdev->dev);
+	bfin_rtc_int_clear(rtc, RTC_ISTAT_STOPWATCH);
+#endif
+	return 0;
+}
+#endif
+
 static struct platform_driver bfin_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-bfin",
@@ -437,6 +461,10 @@ static struct platform_driver bfin_rtc_driver = {
 	},
 	.probe		= bfin_rtc_probe,
 	.remove		= __devexit_p(bfin_rtc_remove),
+#ifdef CONFIG_PM
+	.suspend	= bfin_rtc_suspend,
+	.resume		= bfin_rtc_resume,
+#endif
 };
 
 static int __init bfin_rtc_init(void)
