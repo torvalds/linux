@@ -548,7 +548,7 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 		 */
 		test = rb_entry(node, struct btrfs_ordered_extent, rb_node);
 		if (test->file_offset > entry_end(ordered)) {
-			i_size_test = test->file_offset - 1;
+			i_size_test = test->file_offset;
 		}
 	} else {
 		i_size_test = i_size_read(inode);
@@ -561,7 +561,7 @@ int btrfs_ordered_update_i_size(struct inode *inode,
 	 * disk_i_size to the end of the region.
 	 */
 	if (i_size_test > entry_end(ordered) &&
-	    !test_range_bit(io_tree, entry_end(ordered), i_size_test,
+	    !test_range_bit(io_tree, entry_end(ordered), i_size_test - 1,
 			   EXTENT_DELALLOC, 0)) {
 		new_i_size = min_t(u64, i_size_test, i_size_read(inode));
 	}

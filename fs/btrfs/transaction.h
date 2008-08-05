@@ -90,8 +90,7 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 			    struct btrfs_root *root);
 
-int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest,
-			struct list_head *dead_list);
+int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest);
 int btrfs_defrag_root(struct btrfs_root *root, int cacheonly);
 int btrfs_clean_old_snapshots(struct btrfs_root *root);
 int btrfs_commit_transaction(struct btrfs_trans_handle *trans,

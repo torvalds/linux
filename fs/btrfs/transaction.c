@@ -389,9 +389,7 @@ int btrfs_commit_tree_roots(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_add_dead_root(struct btrfs_root *root,
-			struct btrfs_root *latest,
-			struct list_head *dead_list)
+int btrfs_add_dead_root(struct btrfs_root *root, struct btrfs_root *latest)
 {
 	struct btrfs_dirty_root *dirty;
 
@@ -400,7 +398,10 @@ int btrfs_add_dead_root(struct btrfs_root *root,
 		return -ENOMEM;
 	dirty->root = root;
 	dirty->latest_root = latest;
-	list_add(&dirty->list, dead_list);
+
+	mutex_lock(&root->fs_info->trans_mutex);
+	list_add(&dirty->list, &latest->fs_info->dead_roots);
+	mutex_unlock(&root->fs_info->trans_mutex);
 	return 0;
 }
 

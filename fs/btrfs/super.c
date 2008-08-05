@@ -449,7 +449,9 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		s->s_flags |= MS_ACTIVE;
 	}
 
+	mutex_lock(&s->s_root->d_inode->i_mutex);
 	root = lookup_one_len(subvol_name, s->s_root, strlen(subvol_name));
+	mutex_unlock(&s->s_root->d_inode->i_mutex);
 	if (IS_ERR(root)) {
 		up_write(&s->s_umount);
 		deactivate_super(s);

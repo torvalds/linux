@@ -209,8 +209,7 @@ again:
 			goto err;
 		}
 
-		ret = btrfs_add_dead_root(dead_root, latest,
-					  &root->fs_info->dead_roots);
+		ret = btrfs_add_dead_root(dead_root, latest);
 		if (ret)
 			goto err;
 		goto again;
