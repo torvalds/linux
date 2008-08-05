@@ -4177,6 +4177,28 @@ static void e1000_print_device_info(struct e1000_adapter *adapter)
 	       hw->mac.type, hw->phy.type, (pba_num >> 8), (pba_num & 0xff));
 }
 
+static void e1000_eeprom_checks(struct e1000_adapter *adapter)
+{
+	struct e1000_hw *hw = &adapter->hw;
+	int ret_val;
+	u16 buf = 0;
+
+	if (hw->mac.type != e1000_82573)
+		return;
+
+	ret_val = e1000_read_nvm(hw, NVM_INIT_CONTROL2_REG, 1, &buf);
+	if (!(le16_to_cpu(buf) & (1 << 0))) {
+		/* Deep Smart Power Down (DSPD) */
+		e_warn("Warning: detected DSPD enabled in EEPROM\n");
+	}
+
+	ret_val = e1000_read_nvm(hw, NVM_INIT_3GIO_3, 1, &buf);
+	if (le16_to_cpu(buf) & (3 << 2)) {
+		/* ASPM enable */
+		e_warn("Warning: detected ASPM enabled in EEPROM\n");
+	}
+}
+
 /**
  * e1000e_is_need_ioport - determine if an adapter needs ioport resources or not
  * @pdev: PCI device information struct
@@ -4399,6 +4421,8 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 			goto err_eeprom;
 		}
 	}
+
+	e1000_eeprom_checks(adapter);
 
 	/* copy the MAC address out of the NVM */
 	if (e1000e_read_mac_addr(&adapter->hw))
