@@ -238,12 +238,12 @@ static void bfin_rtc_release(struct device *dev)
 	free_irq(IRQ_RTC, dev);
 }
 
-static void bfin_rtc_int_set(struct bfin_rtc *rtc, u16 rtc_int)
+static void bfin_rtc_int_set(u16 rtc_int)
 {
 	bfin_write_RTC_ISTAT(rtc_int);
 	bfin_write_RTC_ICTL(bfin_read_RTC_ICTL() | rtc_int);
 }
-static void bfin_rtc_int_clear(struct bfin_rtc *rtc, u16 rtc_int)
+static void bfin_rtc_int_clear(u16 rtc_int)
 {
 	bfin_write_RTC_ICTL(bfin_read_RTC_ICTL() & rtc_int);
 }
@@ -252,7 +252,7 @@ static void bfin_rtc_int_set_alarm(struct bfin_rtc *rtc)
 	/* Blackfin has different bits for whether the alarm is
 	 * more than 24 hours away.
 	 */
-	bfin_rtc_int_set(rtc, (rtc->rtc_alarm.tm_yday == -1 ? RTC_ISTAT_ALARM : RTC_ISTAT_ALARM_DAY));
+	bfin_rtc_int_set(rtc->rtc_alarm.tm_yday == -1 ? RTC_ISTAT_ALARM : RTC_ISTAT_ALARM_DAY);
 }
 static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
@@ -266,21 +266,21 @@ static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 	switch (cmd) {
 	case RTC_PIE_ON:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_set(rtc, RTC_ISTAT_STOPWATCH);
+		bfin_rtc_int_set(RTC_ISTAT_STOPWATCH);
 		bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
 		break;
 	case RTC_PIE_OFF:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(rtc, ~RTC_ISTAT_STOPWATCH);
+		bfin_rtc_int_clear(~RTC_ISTAT_STOPWATCH);
 		break;
 
 	case RTC_UIE_ON:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_set(rtc, RTC_ISTAT_SEC);
+		bfin_rtc_int_set(RTC_ISTAT_SEC);
 		break;
 	case RTC_UIE_OFF:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(rtc, ~RTC_ISTAT_SEC);
+		bfin_rtc_int_clear(~RTC_ISTAT_SEC);
 		break;
 
 	case RTC_AIE_ON:
@@ -289,7 +289,7 @@ static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 		break;
 	case RTC_AIE_OFF:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(rtc, ~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
+		bfin_rtc_int_clear(~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
 		break;
 
 	default:
@@ -435,12 +435,10 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 #ifdef CONFIG_PM
 static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
 {
-	struct bfin_rtc *rtc = dev_get_drvdata(&pdev->dev);
-
 	if (device_may_wakeup(&pdev->dev))
 		enable_irq_wake(IRQ_RTC);
 	else
-		bfin_rtc_int_clear(rtc, -1);
+		bfin_rtc_int_clear(-1);
 
 	return 0;
 }
