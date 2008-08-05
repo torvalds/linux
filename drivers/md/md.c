@@ -6237,7 +6237,11 @@ static int md_notify_reboot(struct notifier_block *this,
 
 		for_each_mddev(mddev, tmp)
 			if (mddev_trylock(mddev)) {
-				do_md_stop (mddev, 1, 0);
+				/* Force a switch to readonly even array
+				 * appears to still be in use.  Hence
+				 * the '100'.
+				 */
+				do_md_stop (mddev, 1, 100);
 				mddev_unlock(mddev);
 			}
 		/*
