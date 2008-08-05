@@ -303,36 +303,6 @@ static struct dib7000p_config hauppauge_hvr1400_dib7000_config = {
 	.output_mode = OUTMODE_MPEG2_SERIAL,
 };
 
-static int cx23885_hvr1500_xc3028_callback(void *ptr, int command, int arg)
-{
-	struct cx23885_tsport *port = ptr;
-	struct cx23885_dev *dev = port->dev;
-
-	switch (command) {
-	case XC2028_TUNER_RESET:
-		/* Send the tuner in then out of reset */
-		/* GPIO-2 xc3028 tuner */
-		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __func__, arg);
-
-		cx_set(GP0_IO, 0x00040000);
-		cx_clear(GP0_IO, 0x00000004);
-		msleep(5);
-
-		cx_set(GP0_IO, 0x00040004);
-		msleep(5);
-		break;
-	case XC2028_RESET_CLK:
-		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __func__, arg);
-		break;
-	default:
-		dprintk(1, "%s: unknown command %d, arg %d\n", __func__,
-			command, arg);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int dvb_register(struct cx23885_tsport *port)
 {
 	struct cx23885_dev *dev = port->dev;
@@ -426,7 +396,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
 				.i2c_addr  = 0x61,
-				.callback  = cx23885_hvr1500_xc3028_callback,
+				.callback  = cx23885_xc3028_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = "xc3028-v27.fw",
@@ -465,7 +435,7 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &dev->i2c_bus[1].i2c_adap,
 				.i2c_addr  = 0x64,
-				.callback  = cx23885_hvr1500_xc3028_callback,
+				.callback  = cx23885_xc3028_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname   = "xc3028L-v36.fw",

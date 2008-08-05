@@ -26,6 +26,7 @@
 #include <media/cx25840.h>
 
 #include "cx23885.h"
+#include "tuner-xc2028.h"
 
 /* ------------------------------------------------------------------ */
 /* board config info                                                  */
@@ -331,8 +332,10 @@ static int cx23885_tuner_callback(struct cx23885_dev *dev, int port,
 	}
 
 	switch(dev->board) {
+	case CX23885_BOARD_HAUPPAUGE_HVR1400:
+	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
-		/* Tuner Reset Command from xc5000 */
+		/* Tuner Reset Command */
 		if (command == 0)
 			bitmask = 0x04;
 		break;
@@ -365,6 +368,17 @@ int cx23885_xc5000_tuner_callback(void *priv, int command, int arg)
 	struct cx23885_dev *dev = bus->dev;
 
 	return cx23885_tuner_callback(dev, bus->nr, command, arg);
+}
+
+int cx23885_xc3028_tuner_callback(void *priv, int command, int arg)
+{
+	struct cx23885_tsport *port = priv;
+	struct cx23885_dev *dev = port->dev;
+
+	if (command == XC2028_RESET_CLK)
+		return 0;
+
+	return cx23885_tuner_callback(dev, port->nr, command, arg);
 }
 
 void cx23885_gpio_setup(struct cx23885_dev *dev)
