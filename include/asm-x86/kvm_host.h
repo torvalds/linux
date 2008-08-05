@@ -341,7 +341,6 @@ struct kvm_assigned_dev_kernel {
 	struct kvm_irq_ack_notifier ack_notifier;
 	struct work_struct interrupt_work;
 	struct list_head list;
-	struct kvm_assigned_pci_dev assigned_dev;
 	int assigned_dev_id;
 	int host_busnr;
 	int host_devfn;
