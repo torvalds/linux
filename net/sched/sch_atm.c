@@ -457,7 +457,7 @@ drop: __maybe_unused
 		return 0;
 	}
 	tasklet_schedule(&p->task);
-	return NET_XMIT_BYPASS;
+	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 }
 
 /*

@@ -214,7 +214,7 @@ static struct htb_class *htb_classify(struct sk_buff *skb, struct Qdisc *sch,
 	if ((cl = htb_find(skb->priority, sch)) != NULL && cl->level == 0)
 		return cl;
 
-	*qerr = NET_XMIT_BYPASS;
+	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	tcf = q->filter_list;
 	while (tcf && (result = tc_classify(skb, tcf, &res)) >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -567,7 +567,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 #ifdef CONFIG_NET_CLS_ACT
 	} else if (!cl) {
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -612,7 +612,7 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 		}
 #ifdef CONFIG_NET_CLS_ACT
 	} else if (!cl) {
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;

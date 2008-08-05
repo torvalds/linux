@@ -1805,7 +1805,6 @@ gso:
 
 		spin_unlock(root_lock);
 
-		rc = rc == NET_XMIT_BYPASS ? NET_XMIT_SUCCESS : rc;
 		goto out;
 	}
 

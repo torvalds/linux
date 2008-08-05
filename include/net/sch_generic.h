@@ -343,14 +343,14 @@ static inline unsigned int qdisc_pkt_len(struct sk_buff *skb)
 	return qdisc_skb_cb(skb)->pkt_len;
 }
 
-#ifdef CONFIG_NET_CLS_ACT
-/* additional qdisc xmit flags */
+/* additional qdisc xmit flags (NET_XMIT_MASK in linux/netdevice.h) */
 enum net_xmit_qdisc_t {
 	__NET_XMIT_STOLEN = 0x00010000,
+	__NET_XMIT_BYPASS = 0x00020000,
 };
 
+#ifdef CONFIG_NET_CLS_ACT
 #define net_xmit_drop_count(e)	((e) & __NET_XMIT_STOLEN ? 0 : 1)
-
 #else
 #define net_xmit_drop_count(e)	(1)
 #endif

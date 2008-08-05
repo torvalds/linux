@@ -171,7 +171,7 @@ static unsigned int sfq_classify(struct sk_buff *skb, struct Qdisc *sch,
 	if (!q->filter_list)
 		return sfq_hash(q, skb) + 1;
 
-	*qerr = NET_XMIT_BYPASS;
+	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	result = tc_classify(skb, q->filter_list, &res);
 	if (result >= 0) {
 #ifdef CONFIG_NET_CLS_ACT
@@ -285,7 +285,7 @@ sfq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 
 	hash = sfq_classify(skb, sch, &ret);
 	if (hash == 0) {
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -339,7 +339,7 @@ sfq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 
 	hash = sfq_classify(skb, sch, &ret);
 	if (hash == 0) {
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
