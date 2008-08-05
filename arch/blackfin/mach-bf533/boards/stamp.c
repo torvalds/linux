@@ -114,15 +114,15 @@ static struct platform_device net2272_bfin_device = {
 #if defined(CONFIG_MTD_BFIN_ASYNC) || defined(CONFIG_MTD_BFIN_ASYNC_MODULE)
 static struct mtd_partition stamp_partitions[] = {
 	{
-		.name   = "Bootloader",
+		.name   = "bootloader(nor)",
 		.size   = 0x40000,
 		.offset = 0,
 	}, {
-		.name   = "Kernel",
+		.name   = "linux kernel(nor)",
 		.size   = 0xE0000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
-		.name   = "RootFS",
+		.name   = "file system(nor)",
 		.size   = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	}
@@ -164,16 +164,16 @@ static struct platform_device stamp_flash_device = {
 #if defined(CONFIG_MTD_M25P80) || defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "kernel",
+		.name = "linux kernel(spi)",
 		.size = 0xe0000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
-		.name = "file system",
+		.name = "file system(spi)",
 		.size = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	}
