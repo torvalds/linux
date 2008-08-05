@@ -25,6 +25,7 @@
 
 #include <linux/input.h>
 #include <linux/workqueue.h>
+#include <linux/interrupt.h>
 
 #define IR_TYPE_RC5     1
 #define IR_TYPE_PD      2 /* Pulse distance encoded IR */
@@ -85,6 +86,10 @@ struct card_ir {
 	u32 code;			/* raw code under construction */
 	struct timeval base_time;	/* time of last seen code */
 	int active;			/* building raw code */
+
+	/* NEC decoding */
+	u32			nec_gpio;
+	struct tasklet_struct   tlet;
 };
 
 void ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
