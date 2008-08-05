@@ -3991,10 +3991,7 @@ static int e1000_resume(struct pci_dev *pdev)
 	pci_restore_state(pdev);
 	e1000e_disable_l1aspm(pdev);
 
-	if (adapter->need_ioport)
-		err = pci_enable_device(pdev);
-	else
-		err = pci_enable_device_mem(pdev);
+	err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Cannot enable PCI device from suspend\n");
@@ -4096,10 +4093,7 @@ static pci_ers_result_t e1000_io_slot_reset(struct pci_dev *pdev)
 	int err;
 
 	e1000e_disable_l1aspm(pdev);
-	if (adapter->need_ioport)
-		err = pci_enable_device(pdev);
-	else
-		err = pci_enable_device_mem(pdev);
+	err = pci_enable_device_mem(pdev);
 	if (err) {
 		dev_err(&pdev->dev,
 			"Cannot re-enable PCI device after reset.\n");
@@ -4197,21 +4191,6 @@ static void e1000_eeprom_checks(struct e1000_adapter *adapter)
 }
 
 /**
- * e1000e_is_need_ioport - determine if an adapter needs ioport resources or not
- * @pdev: PCI device information struct
- *
- * Returns true if an adapters needs ioport resources
- **/
-static int e1000e_is_need_ioport(struct pci_dev *pdev)
-{
-	switch (pdev->device) {
-	/* Currently there are no adapters that need ioport resources */
-	default:
-		return false;
-	}
-}
-
-/**
  * e1000_probe - Device Initialization Routine
  * @pdev: PCI device information struct
  * @ent: entry in e1000_pci_tbl
@@ -4236,19 +4215,10 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	int i, err, pci_using_dac;
 	u16 eeprom_data = 0;
 	u16 eeprom_apme_mask = E1000_EEPROM_APME;
-	int bars, need_ioport;
 
 	e1000e_disable_l1aspm(pdev);
 
-	/* do not allocate ioport bars when not needed */
-	need_ioport = e1000e_is_need_ioport(pdev);
-	if (need_ioport) {
-		bars = pci_select_bars(pdev, IORESOURCE_MEM | IORESOURCE_IO);
-		err = pci_enable_device(pdev);
-	} else {
-		bars = pci_select_bars(pdev, IORESOURCE_MEM);
-		err = pci_enable_device_mem(pdev);
-	}
+	err = pci_enable_device_mem(pdev);
 	if (err)
 		return err;
 
@@ -4271,7 +4241,9 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		}
 	}
 
-	err = pci_request_selected_regions(pdev, bars, e1000e_driver_name);
+	err = pci_request_selected_regions(pdev,
+	                                  pci_select_bars(pdev, IORESOURCE_MEM),
+	                                  e1000e_driver_name);
 	if (err)
 		goto err_pci_reg;
 
@@ -4296,8 +4268,6 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 	adapter->hw.adapter = adapter;
 	adapter->hw.mac.type = ei->mac;
 	adapter->msg_enable = (1 << NETIF_MSG_DRV | NETIF_MSG_PROBE) - 1;
-	adapter->bars = bars;
-	adapter->need_ioport = need_ioport;
 
 	mmio_start = pci_resource_start(pdev, 0);
 	mmio_len = pci_resource_len(pdev, 0);
@@ -4536,7 +4506,8 @@ err_flashmap:
 err_ioremap:
 	free_netdev(netdev);
 err_alloc_etherdev:
-	pci_release_selected_regions(pdev, bars);
+	pci_release_selected_regions(pdev,
+	                             pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_reg:
 err_dma:
 	pci_disable_device(pdev);
@@ -4584,7 +4555,8 @@ static void __devexit e1000_remove(struct pci_dev *pdev)
 	iounmap(adapter->hw.hw_addr);
 	if (adapter->hw.flash_address)
 		iounmap(adapter->hw.flash_address);
-	pci_release_selected_regions(pdev, adapter->bars);
+	pci_release_selected_regions(pdev,
+	                             pci_select_bars(pdev, IORESOURCE_MEM));
 
 	free_netdev(netdev);
 
