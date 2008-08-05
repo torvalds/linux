@@ -329,10 +329,14 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 			dev->name, tv.model);
 }
 
-static int cx23885_tuner_callback(struct cx23885_dev *dev, int port,
-				  int command, int arg)
+int cx23885_tuner_callback(void *priv, int command, int arg)
 {
+	struct cx23885_tsport *port = priv;
+	struct cx23885_dev *dev = port->dev;
 	u32 bitmask = 0;
+
+	if (command == XC2028_RESET_CLK)
+		return 0;
 
 	if (command != 0) {
 		printk(KERN_ERR "%s(): Unknown command 0x%x.\n",
@@ -354,9 +358,9 @@ static int cx23885_tuner_callback(struct cx23885_dev *dev, int port,
 
 			/* Two identical tuners on two different i2c buses,
 			 * we need to reset the correct gpio. */
-			if (port == 0)
+			if (port->nr == 0)
 				bitmask = 0x01;
-			else if (port == 1)
+			else if (port->nr == 1)
 				bitmask = 0x04;
 		}
 		break;
@@ -370,25 +374,6 @@ static int cx23885_tuner_callback(struct cx23885_dev *dev, int port,
 	}
 
 	return 0;
-}
-
-int cx23885_xc5000_tuner_callback(void *priv, int command, int arg)
-{
-	struct cx23885_i2c *bus = priv;
-	struct cx23885_dev *dev = bus->dev;
-
-	return cx23885_tuner_callback(dev, bus->nr, command, arg);
-}
-
-int cx23885_xc3028_tuner_callback(void *priv, int command, int arg)
-{
-	struct cx23885_tsport *port = priv;
-	struct cx23885_dev *dev = port->dev;
-
-	if (command == XC2028_RESET_CLK)
-		return 0;
-
-	return cx23885_tuner_callback(dev, port->nr, command, arg);
 }
 
 void cx23885_gpio_setup(struct cx23885_dev *dev)

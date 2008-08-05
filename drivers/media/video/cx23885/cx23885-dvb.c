@@ -189,13 +189,13 @@ static struct s5h1411_config dvico_s5h1411_config = {
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
-	.tuner_callback   = cx23885_xc5000_tuner_callback,
+	.tuner_callback   = cx23885_tuner_callback,
 };
 
 static struct xc5000_config dvico_xc5000_tunerconfig = {
 	.i2c_address      = 0x64,
 	.if_khz           = 5380,
-	.tuner_callback   = cx23885_xc5000_tuner_callback,
+	.tuner_callback   = cx23885_tuner_callback,
 };
 
 static struct tda829x_config tda829x_no_probe = {
@@ -391,7 +391,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
-				&hauppauge_hvr1500q_tunerconfig, i2c_bus);
+				&hauppauge_hvr1500q_tunerconfig, port);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 		i2c_bus = &dev->i2c_bus[1];
@@ -403,7 +403,8 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
 				.i2c_addr  = 0x61,
-				.callback  = cx23885_xc3028_tuner_callback,
+				.video_dev = port,
+				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = "xc3028-v27.fw",
@@ -442,7 +443,8 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &dev->i2c_bus[1].i2c_adap,
 				.i2c_addr  = 0x64,
-				.callback  = cx23885_xc3028_tuner_callback,
+				.video_dev = port,
+				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname   = "xc3028L-v36.fw",
@@ -470,7 +472,7 @@ static int dvb_register(struct cx23885_tsport *port)
 		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
 				&i2c_bus->i2c_adap,
-				&dvico_xc5000_tunerconfig, i2c_bus);
+				&dvico_xc5000_tunerconfig, port);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP: {
 		i2c_bus = &dev->i2c_bus[port->nr - 1];
@@ -484,7 +486,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.i2c_adap  = &i2c_bus->i2c_adap,
 				.i2c_addr  = 0x61,
 				.video_dev = port,
-				.callback  = cx23885_xc3028_tuner_callback,
+				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = "xc3028-v27.fw",
