@@ -68,7 +68,7 @@ static void kgdb_call_nmi_hook(void *ignored)
 void kgdb_roundup_cpus(unsigned long flags)
 {
 	local_irq_enable();
-	smp_call_function(kgdb_call_nmi_hook, NULL, NULL);
+	smp_call_function(kgdb_call_nmi_hook, NULL, 0);
 	local_irq_disable();
 }
 
