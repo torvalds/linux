@@ -915,12 +915,18 @@ static void __init sun4v_init_mondo_queues(void)
 		alloc_one_mondo(&tb->nonresum_mondo_pa, tb->nonresum_qmask);
 		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa,
 			       tb->nonresum_qmask);
+	}
+}
+
+static void __init init_send_mondo_info(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct trap_per_cpu *tb = &trap_block[cpu];
 
 		init_cpu_send_mondo_info(tb);
 	}
-
-	/* Load up the boot cpu's entries.  */
-	sun4v_register_mondo_queues(hard_smp_processor_id());
 }
 
 static struct irqaction timer_irq_action = {
@@ -948,6 +954,13 @@ void __init init_IRQ(void)
 
 	if (tlb_type == hypervisor)
 		sun4v_init_mondo_queues();
+
+	init_send_mondo_info();
+
+	if (tlb_type == hypervisor) {
+		/* Load up the boot cpu's entries.  */
+		sun4v_register_mondo_queues(hard_smp_processor_id());
+	}
 
 	/* We need to clear any IRQ's pending in the soft interrupt
 	 * registers, a spurious one could be left around from the
