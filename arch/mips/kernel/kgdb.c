@@ -62,7 +62,7 @@ void arch_kgdb_breakpoint(void)
 
 static void kgdb_call_nmi_hook(void *ignored)
 {
-	kgdb_nmicallback(raw_smp_processor_id(), (void *)0);
+	kgdb_nmicallback(raw_smp_processor_id(), NULL);
 }
 
 void kgdb_roundup_cpus(unsigned long flags)
