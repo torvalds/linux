@@ -23,9 +23,14 @@ KBUILD_AFLAGS	+= $(cpuflags-y)
 
 CHECKFLAGS	+= -D__avr32__ -D__BIG_ENDIAN
 
+machine-$(CONFIG_PLATFORM_AT32AP) := at32ap
+machdirs	:= $(patsubst %,arch/avr32/mach-%/, $(machine-y))
+
+KBUILD_CPPFLAGS	+= $(patsubst %,-I$(srctree)/%include,$(machdirs))
+
 head-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/head.o
 head-y					+= arch/avr32/kernel/head.o
-core-$(CONFIG_PLATFORM_AT32AP)		+= arch/avr32/mach-at32ap/
+core-y					+= $(machdirs)
 core-$(CONFIG_BOARD_ATSTK1000)		+= arch/avr32/boards/atstk1000/
 core-$(CONFIG_BOARD_ATNGW100)		+= arch/avr32/boards/atngw100/
 core-$(CONFIG_LOADER_U_BOOT)		+= arch/avr32/boot/u-boot/
