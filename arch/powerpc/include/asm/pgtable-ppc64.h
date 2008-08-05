@@ -100,7 +100,7 @@
 
 #define _PAGE_WRENABLE	(_PAGE_RW | _PAGE_DIRTY)
 
-/* __pgprot defined in asm-powerpc/page.h */
+/* __pgprot defined in arch/powerpc/incliude/asm/page.h */
 #define PAGE_NONE	__pgprot(_PAGE_PRESENT | _PAGE_ACCESSED)
 
 #define PAGE_SHARED	__pgprot(_PAGE_BASE | _PAGE_RW | _PAGE_USER)

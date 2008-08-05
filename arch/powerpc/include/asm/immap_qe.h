@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/immap_qe.h
- *
  * QUICC Engine (QE) Internal Memory Map.
  * The Internal Memory Map for devices with QE on them. This
  * is the superset of all QE devices (8360, etc.).

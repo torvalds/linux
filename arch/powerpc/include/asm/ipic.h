@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/ipic.h
- *
  * IPIC external definitions and structure.
  *
  * Maintainer: Kumar Gala <galak@kernel.crashing.org>
@@ -79,15 +77,8 @@ extern void ipic_disable_mcp(enum ipic_mcp_irq mcp_irq);
 extern u32 ipic_get_mcp_status(void);
 extern void ipic_clear_mcp_status(u32 mask);
 
-#ifdef CONFIG_PPC_MERGE
 extern struct ipic * ipic_init(struct device_node *node, unsigned int flags);
 extern unsigned int ipic_get_irq(void);
-#else
-extern void ipic_init(phys_addr_t phys_addr, unsigned int flags,
-		unsigned int irq_offset,
-		unsigned char *senses, unsigned int senses_count);
-extern int ipic_get_irq(void);
-#endif
 
 #endif /* __ASM_IPIC_H__ */
 #endif /* __KERNEL__ */

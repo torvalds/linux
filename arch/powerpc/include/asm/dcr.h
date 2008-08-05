@@ -65,17 +65,13 @@ typedef dcr_host_mmio_t dcr_host_t;
 #endif /* defined(CONFIG_PPC_DCR_NATIVE) && defined(CONFIG_PPC_DCR_MMIO) */
 
 /*
- * On CONFIG_PPC_MERGE, we have additional helpers to read the DCR
- * base from the device-tree
+ * additional helpers to read the DCR * base from the device-tree
  */
-#ifdef CONFIG_PPC_MERGE
 struct device_node;
 extern unsigned int dcr_resource_start(struct device_node *np,
 				       unsigned int index);
 extern unsigned int dcr_resource_len(struct device_node *np,
 				     unsigned int index);
-#endif /* CONFIG_PPC_MERGE */
-
 #endif /* CONFIG_PPC_DCR */
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */

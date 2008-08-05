@@ -1,6 +1,4 @@
 /*
- * include/asm-powerpc/uic.h
- *
  * IBM PPC4xx UIC external definitions and structure.
  *
  * Maintainer: David Gibson <dwg@au1.ibm.com>
