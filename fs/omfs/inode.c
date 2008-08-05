@@ -492,7 +492,8 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (sbi->s_num_blocks != be64_to_cpu(omfs_rb->r_num_blocks)) {
 		printk(KERN_ERR "omfs: block count discrepancy between "
 			"super and root blocks (%llx, %llx)\n",
-			sbi->s_num_blocks, be64_to_cpu(omfs_rb->r_num_blocks));
+			(unsigned long long)sbi->s_num_blocks,
+			(unsigned long long)be64_to_cpu(omfs_rb->r_num_blocks));
 		goto out_brelse_bh2;
 	}
 
