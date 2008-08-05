@@ -6003,7 +6003,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 			}
 		}
 
-	if (mddev->degraded) {
+	if (mddev->degraded && ! mddev->ro) {
 		rdev_for_each(rdev, rtmp, mddev) {
 			if (rdev->raid_disk >= 0 &&
 			    !test_bit(In_sync, &rdev->flags) &&
@@ -6077,6 +6077,8 @@ void md_check_recovery(mddev_t *mddev)
 		flush_signals(current);
 	}
 
+	if (mddev->ro && !test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
+		return;
 	if ( ! (
 		(mddev->flags && !mddev->external) ||
 		test_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
@@ -6089,6 +6091,15 @@ void md_check_recovery(mddev_t *mddev)
 
 	if (mddev_trylock(mddev)) {
 		int spares = 0;
+
+		if (mddev->ro) {
+			/* Only thing we do on a ro array is remove
+			 * failed devices.
+			 */
+			remove_and_add_spares(mddev);
+			clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+			goto unlock;
+		}
 
 		if (!mddev->external) {
 			int did_change = 0;
