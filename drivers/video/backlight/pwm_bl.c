@@ -187,3 +187,5 @@ module_exit(pwm_backlight_exit);
 
 MODULE_DESCRIPTION("PWM based Backlight Driver");
 MODULE_LICENSE("GPL");
+MODULE_ALIAS("platform:pwm-backlight");
+
