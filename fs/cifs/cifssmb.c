@@ -5014,7 +5014,7 @@ SetAttrLgcyRetry:
 
 int
 CIFSSMBUnixSetInfo(const int xid, struct cifsTconInfo *tcon, char *fileName,
-		   const struct cifs_unix_set_info_args *args, 
+		   const struct cifs_unix_set_info_args *args,
 		   const struct nls_table *nls_codepage, int remap)
 {
 	TRANSACTION2_SPI_REQ *pSMB = NULL;
