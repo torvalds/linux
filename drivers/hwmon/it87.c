@@ -272,9 +272,11 @@ struct it87_data {
 
 static inline int has_16bit_fans(const struct it87_data *data)
 {
-	/* IT8712F Datasheet 0.9.1, section 8.3.5 indicates 7h == Version I.
-	   This is the first revision with 16bit tachometer support. */
-	return (data->type == it8712 && data->revision >= 0x07)
+	/* IT8705F Datasheet 0.4.1, 3h == Version G.
+	   IT8712F Datasheet 0.9.1, section 8.3.5 indicates 7h == Version I.
+	   These are the first revisions with 16bit tachometer support. */
+	return (data->type == it87 && data->revision >= 0x03)
+	    || (data->type == it8712 && data->revision >= 0x07)
 	    || data->type == it8716
 	    || data->type == it8718;
 }
@@ -1370,10 +1372,13 @@ static void __devinit it87_init_device(struct platform_device *pdev)
 			it87_write_value(data, IT87_REG_FAN_16BIT,
 					 tmp | 0x07);
 		}
-		if (tmp & (1 << 4))
-			data->has_fan |= (1 << 3);	/* fan4 enabled */
-		if (tmp & (1 << 5))
-			data->has_fan |= (1 << 4);	/* fan5 enabled */
+		/* IT8705F only supports three fans. */
+		if (data->type != it87) {
+			if (tmp & (1 << 4))
+				data->has_fan |= (1 << 3); /* fan4 enabled */
+			if (tmp & (1 << 5))
+				data->has_fan |= (1 << 4); /* fan5 enabled */
+		}
 	}
 
 	/* Set current fan mode registers and the default settings for the
