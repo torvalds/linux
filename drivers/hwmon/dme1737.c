@@ -2360,13 +2360,16 @@ static int __devinit dme1737_isa_probe(struct platform_device *pdev)
 	client->addr = res->start;
 	platform_set_drvdata(pdev, data);
 
-	company = dme1737_read(client, DME1737_REG_COMPANY);
-	device = dme1737_read(client, DME1737_REG_DEVICE);
+	/* Skip chip detection if module is loaded with force_id parameter */
+	if (!force_id) {
+		company = dme1737_read(client, DME1737_REG_COMPANY);
+		device = dme1737_read(client, DME1737_REG_DEVICE);
 
-	if (!((company == DME1737_COMPANY_SMSC) &&
-	      (device == SCH311X_DEVICE))) {
-		err = -ENODEV;
-		goto exit_kfree;
+		if (!((company == DME1737_COMPANY_SMSC) &&
+		      (device == SCH311X_DEVICE))) {
+			err = -ENODEV;
+			goto exit_kfree;
+		}
 	}
 	data->type = -1;
 
