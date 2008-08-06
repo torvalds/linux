@@ -5,6 +5,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4535
 	select SND_SOC_UDA1380
 	select SND_SOC_WM8510
+	select SND_SOC_WM8580
 	select SND_SOC_WM8731
 	select SND_SOC_WM8750
 	select SND_SOC_WM8753
@@ -36,6 +37,9 @@ config SND_SOC_UDA1380
         tristate
 
 config SND_SOC_WM8510
+	tristate
+
+config SND_SOC_WM8580
 	tristate
 
 config SND_SOC_WM8731
