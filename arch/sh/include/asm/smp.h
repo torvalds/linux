@@ -21,11 +21,6 @@ extern int __cpu_number_map[NR_CPUS];
 extern int __cpu_logical_map[NR_CPUS];
 #define cpu_logical_map(cpu)  __cpu_logical_map[cpu]
 
-/* I've no idea what the real meaning of this is */
-#define PROC_CHANGE_PENALTY	20
-
-#define NO_PROC_ID	(-1)
-
 #define SMP_MSG_FUNCTION	0
 #define SMP_MSG_RESCHEDULE	1
 #define SMP_MSG_FUNCTION_SINGLE	2
