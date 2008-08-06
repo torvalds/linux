@@ -11,6 +11,7 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/blackfin.h>
+#include <asm/thread_info.h>
 #include <asm/trace.h>
 
 /* A little BF561 glue ... */
