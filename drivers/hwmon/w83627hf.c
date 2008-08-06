@@ -209,6 +209,13 @@ static const u16 w83627hf_reg_temp_over[]	= { 0x39, 0x155, 0x255 };
 #define W83627HF_REG_PWM1 0x5A
 #define W83627HF_REG_PWM2 0x5B
 
+static const u8 W83627THF_REG_PWM_ENABLE[] = {
+	0x04,		/* FAN 1 mode */
+	0x04,		/* FAN 2 mode */
+	0x12,		/* FAN AUX mode */
+};
+static const u8 W83627THF_PWM_ENABLE_SHIFT[] = { 2, 4, 1 };
+
 #define W83627THF_REG_PWM1		0x01	/* 697HF/637HF/687THF too */
 #define W83627THF_REG_PWM2		0x03	/* 697HF/637HF/687THF too */
 #define W83627THF_REG_PWM3		0x11	/* 637HF/687THF too */
@@ -366,6 +373,9 @@ struct w83627hf_data {
 	u32 alarms;		/* Register encoding, combined */
 	u32 beep_mask;		/* Register encoding, combined */
 	u8 pwm[3];		/* Register value */
+	u8 pwm_enable[3];	/* 1 = manual
+				   2 = thermal cruise (also called SmartFan I)
+				   3 = fan speed cruise */
 	u8 pwm_freq[3];		/* Register value */
 	u16 sens[3];		/* 1 = pentium diode; 2 = 3904 diode;
 				   4 = thermistor */
@@ -957,6 +967,42 @@ static SENSOR_DEVICE_ATTR(pwm2, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 1);
 static SENSOR_DEVICE_ATTR(pwm3, S_IRUGO|S_IWUSR, show_pwm, store_pwm, 2);
 
 static ssize_t
+show_pwm_enable(struct device *dev, struct device_attribute *devattr, char *buf)
+{
+	int nr = to_sensor_dev_attr(devattr)->index;
+	struct w83627hf_data *data = w83627hf_update_device(dev);
+	return sprintf(buf, "%d\n", data->pwm_enable[nr]);
+}
+
+static ssize_t
+store_pwm_enable(struct device *dev, struct device_attribute *devattr,
+	  const char *buf, size_t count)
+{
+	int nr = to_sensor_dev_attr(devattr)->index;
+	struct w83627hf_data *data = dev_get_drvdata(dev);
+	unsigned long val = simple_strtoul(buf, NULL, 10);
+	u8 reg;
+
+	if (!val || (val > 3))	/* modes 1, 2 and 3 are supported */
+		return -EINVAL;
+	mutex_lock(&data->update_lock);
+	data->pwm_enable[nr] = val;
+	reg = w83627hf_read_value(data, W83627THF_REG_PWM_ENABLE[nr]);
+	reg &= ~(0x03 << W83627THF_PWM_ENABLE_SHIFT[nr]);
+	reg |= (val - 1) << W83627THF_PWM_ENABLE_SHIFT[nr];
+	w83627hf_write_value(data, W83627THF_REG_PWM_ENABLE[nr], reg);
+	mutex_unlock(&data->update_lock);
+	return count;
+}
+
+static SENSOR_DEVICE_ATTR(pwm1_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
+						  store_pwm_enable, 0);
+static SENSOR_DEVICE_ATTR(pwm2_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
+						  store_pwm_enable, 1);
+static SENSOR_DEVICE_ATTR(pwm3_enable, S_IRUGO|S_IWUSR, show_pwm_enable,
+						  store_pwm_enable, 2);
+
+static ssize_t
 show_pwm_freq(struct device *dev, struct device_attribute *devattr, char *buf)
 {
 	int nr = to_sensor_dev_attr(devattr)->index;
@@ -1223,6 +1269,11 @@ static struct attribute *w83627hf_attributes_opt[] = {
 	&sensor_dev_attr_pwm1_freq.dev_attr.attr,
 	&sensor_dev_attr_pwm2_freq.dev_attr.attr,
 	&sensor_dev_attr_pwm3_freq.dev_attr.attr,
+
+	&sensor_dev_attr_pwm1_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm2_enable.dev_attr.attr,
+	&sensor_dev_attr_pwm3_enable.dev_attr.attr,
+
 	NULL
 };
 
@@ -1364,6 +1415,19 @@ static int __devinit w83627hf_probe(struct platform_device *pdev)
 				&sensor_dev_attr_pwm2_freq.dev_attr))
 		 || (err = device_create_file(dev,
 				&sensor_dev_attr_pwm3_freq.dev_attr)))
+			goto ERROR4;
+
+	if (data->type != w83627hf)
+		if ((err = device_create_file(dev,
+				&sensor_dev_attr_pwm1_enable.dev_attr))
+		 || (err = device_create_file(dev,
+				&sensor_dev_attr_pwm2_enable.dev_attr)))
+			goto ERROR4;
+
+	if (data->type == w83627thf || data->type == w83637hf
+	 || data->type == w83687thf)
+		if ((err = device_create_file(dev,
+				&sensor_dev_attr_pwm3_enable.dev_attr)))
 			goto ERROR4;
 
 	data->hwmon_dev = hwmon_device_register(dev);
@@ -1655,6 +1719,7 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 {
 	struct w83627hf_data *data = dev_get_drvdata(dev);
 	int i, num_temps = (data->type == w83697hf) ? 2 : 3;
+	int num_pwms = (data->type == w83697hf) ? 2 : 3;
 
 	mutex_lock(&data->update_lock);
 
@@ -1705,6 +1770,15 @@ static struct w83627hf_data *w83627hf_update_device(struct device *dev)
 						W83637HF_REG_PWM_FREQ[i - 1]);
 				if (i == 2 && (data->type == w83697hf))
 					break;
+			}
+		}
+		if (data->type != w83627hf) {
+			for (i = 0; i < num_pwms; i++) {
+				u8 tmp = w83627hf_read_value(data,
+					W83627THF_REG_PWM_ENABLE[i]);
+				data->pwm_enable[i] =
+					((tmp >> W83627THF_PWM_ENABLE_SHIFT[i])
+					& 0x03) + 1;
 			}
 		}
 		for (i = 0; i < num_temps; i++) {
