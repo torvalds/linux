@@ -207,7 +207,7 @@
 			reg = <0xe4000 0x100>;
 		};
 
-		i2s@16000 {
+		ssi@16000 {
 			compatible = "fsl,mpc8610-ssi";
 			cell-index = <0>;
 			reg = <0x16000 0x100>;
@@ -215,6 +215,8 @@
 			interrupts = <62 2>;
 			fsl,mode = "i2s-slave";
 			codec-handle = <&cs4270>;
+			fsl,playback-dma = <&dma00>;
+			fsl,capture-dma = <&dma01>;
 		};
 
 		ssi@16100 {
@@ -233,7 +235,7 @@
 			reg = <0x21300 0x4>; /* DMA general status register */
 			ranges = <0x0 0x21100 0x200>;
 
-			dma-channel@0 {
+			dma00: dma-channel@0 {
 				compatible = "fsl,mpc8610-dma-channel",
 					"fsl,eloplus-dma-channel";
 				cell-index = <0>;
@@ -241,7 +243,7 @@
 				interrupt-parent = <&mpic>;
 				interrupts = <20 2>;
 			};
-			dma-channel@1 {
+			dma01: dma-channel@1 {
 				compatible = "fsl,mpc8610-dma-channel",
 					"fsl,eloplus-dma-channel";
 				cell-index = <1>;

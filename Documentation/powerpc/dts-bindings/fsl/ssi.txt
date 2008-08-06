@@ -24,6 +24,12 @@ Required properties:
 		    "rj-master" - r.j., SSI is clock master
 		    "ac97-slave" - AC97 mode, SSI is clock slave
 		    "ac97-master" - AC97 mode, SSI is clock master
+- fsl,playback-dma: phandle to a DMA node for the DMA channel to use for
+		    playback of audio.  This is typically dictated by SOC
+		    design.  See the notes below.
+- fsl,capture-dma:  phandle to a DMA node for the DMA channel to use for
+		    capture (recording) of audio.  This is typically dictated
+		    by SOC design.  See the notes below.
 
 Optional properties:
 - codec-handle	  : phandle to a 'codec' node that defines an audio
@@ -36,3 +42,12 @@ Child 'codec' node required properties:
 Child 'codec' node optional properties:
 - clock-frequency  : The frequency of the input clock, which typically
                      comes from an on-board dedicated oscillator.
+
+Notes on fsl,playback-dma and fsl,capture-dma:
+
+On SOCs that have an SSI, specific DMA channels are hard-wired for playback
+and capture.  On the MPC8610, for example, SSI1 must use DMA channel 0 for
+playback and DMA channel 1 for capture.  SSI2 must use DMA channel 2 for
+playback and DMA channel 3 for capture.  The developer can choose which
+DMA controller to use, but the channels themselves are hard-wired.  The
+purpose of these two properties is to represent this hardware design.
