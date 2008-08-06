@@ -1147,79 +1147,84 @@ static snd_pcm_uframes_t snd_wss_capture_pointer(struct snd_pcm_substream *subst
 
 static int snd_ad1848_probe(struct snd_wss *chip)
 {
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 	unsigned long flags;
-	int i, id, rev, ad1847;
+	unsigned char r;
+	unsigned short hardware = 0;
+	int err = 0;
+	int i;
 
-	id = 0;
-	ad1847 = 0;
-	for (i = 0; i < 1000; i++) {
-		mb();
-		if (inb(chip->port + CS4231P(REGSEL)) & CS4231_INIT)
-			msleep(1);
-		else {
-			spin_lock_irqsave(&chip->reg_lock, flags);
-			snd_wss_out(chip, CS4231_MISC_INFO, 0x00);
-			snd_wss_out(chip, CS4231_LEFT_INPUT, 0xaa);
-			snd_wss_out(chip, CS4231_RIGHT_INPUT, 0x45);
-			rev = snd_wss_in(chip, CS4231_RIGHT_INPUT);
-			if (rev == 0x65) {
-				spin_unlock_irqrestore(&chip->reg_lock, flags);
-				id = 1;
-				ad1847 = 1;
-				break;
-			}
-			if (rev == 0x45) {
-				rev = snd_wss_in(chip, CS4231_LEFT_INPUT);
-				if (rev == 0xaa || rev == 0x8a) {
-					spin_unlock_irqrestore(&chip->reg_lock, flags);
-					id = 1;
-					break;
-				}
-			}
-			spin_unlock_irqrestore(&chip->reg_lock, flags);
-		}
+	while (wss_inb(chip, CS4231P(REGSEL)) & CS4231_INIT) {
+		if (time_after(jiffies, timeout))
+			return -ENODEV;
+		cond_resched();
 	}
-	if (id != 1)
-		return -ENODEV;	/* no valid device found */
-	id = 0;
-	if (chip->hardware == WSS_HW_DETECT)
-		id = ad1847 ? WSS_HW_AD1847 : WSS_HW_AD1848;
-
 	spin_lock_irqsave(&chip->reg_lock, flags);
-	inb(chip->port + CS4231P(STATUS));	/* clear any pendings IRQ */
-	outb(0, chip->port + CS4231P(STATUS));
-	mb();
-	if (id == WSS_HW_AD1848) {
-		/* check if there are more than 16 registers */
-		rev = snd_wss_in(chip, CS4231_MISC_INFO);
-		snd_wss_out(chip, CS4231_MISC_INFO, 0x40);
-		for (i = 0; i < 16; ++i) {
-			if (snd_wss_in(chip, i) != snd_wss_in(chip, i + 16)) {
-				id = WSS_HW_CMI8330;
-				break;
-			}
-		}
-		snd_wss_out(chip, CS4231_MISC_INFO, 0x00);
-		if (id != WSS_HW_CMI8330 && (rev & 0x80))
-			id = WSS_HW_CS4248;
-		if (id == WSS_HW_CMI8330 && (rev & 0x0f) != 0x0a)
-			id = 0;
-	}
-	if (id == WSS_HW_CMI8330) {
-		/* verify it is not CS4231 by changing the version register */
-		/* on CMI8330 it is volume control register and can be set 0 */
-		snd_wss_out(chip, CS4231_MISC_INFO, CS4231_MODE2);
-		snd_wss_dout(chip, CS4231_VERSION, 0x00);
-		rev = snd_wss_in(chip, CS4231_VERSION) & 0xe7;
-		if (rev)
-			id = 0;
-		snd_wss_out(chip, CS4231_MISC_INFO, 0);
-	}
-	if (id)
-		chip->hardware = id;
 
+	/* set CS423x MODE 1 */
+	snd_wss_out(chip, CS4231_MISC_INFO, 0);
+
+	snd_wss_out(chip, CS4231_RIGHT_INPUT, 0x45); /* 0x55 & ~0x10 */
+	r = snd_wss_in(chip, CS4231_RIGHT_INPUT);
+	if (r != 0x45) {
+		/* RMGE always high on AD1847 */
+		if ((r & ~CS4231_ENABLE_MIC_GAIN) != 0x45) {
+			err = -ENODEV;
+			goto out;
+		}
+		hardware = WSS_HW_AD1847;
+	} else {
+		snd_wss_out(chip, CS4231_LEFT_INPUT,  0xaa);
+		r = snd_wss_in(chip, CS4231_LEFT_INPUT);
+		/* L/RMGE always low on AT2320 */
+		if ((r | CS4231_ENABLE_MIC_GAIN) != 0xaa) {
+			err = -ENODEV;
+			goto out;
+		}
+	}
+
+	/* clear pending IRQ */
+	wss_inb(chip, CS4231P(STATUS));
+	wss_outb(chip, CS4231P(STATUS), 0);
+	mb();
+
+	if ((chip->hardware & WSS_HW_TYPE_MASK) != WSS_HW_DETECT)
+		goto out;
+
+	if (hardware) {
+		chip->hardware = hardware;
+		goto out;
+	}
+
+	r = snd_wss_in(chip, CS4231_MISC_INFO);
+
+	/* set CS423x MODE 2 */
+	snd_wss_out(chip, CS4231_MISC_INFO, CS4231_MODE2);
+	for (i = 0; i < 16; i++) {
+		if (snd_wss_in(chip, i) != snd_wss_in(chip, 16 + i)) {
+			/* we have more than 16 registers: check ID */
+			if ((r & 0xf) != 0xa)
+				goto out_mode;
+			/*
+			 * on CMI8330, CS4231_VERSION is volume control and
+			 * can be set to 0
+			 */
+			snd_wss_dout(chip, CS4231_VERSION, 0);
+			r = snd_wss_in(chip, CS4231_VERSION) & 0xe7;
+			if (!r)
+				chip->hardware = WSS_HW_CMI8330;
+			goto out_mode;
+		}
+	}
+	if (r & 0x80)
+		chip->hardware = WSS_HW_CS4248;
+	else
+		chip->hardware = WSS_HW_AD1848;
+out_mode:
+	snd_wss_out(chip, CS4231_MISC_INFO, 0);
+out:
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
-	return 0;		/* all things are ok.. */
+	return err;
 }
 
 static int snd_wss_probe(struct snd_wss *chip)
