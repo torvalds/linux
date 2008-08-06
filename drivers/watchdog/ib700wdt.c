@@ -129,8 +129,7 @@ MODULE_PARM_DESC(nowayout,
  *	Watchdog Operations
  */
 
-static void
-ibwdt_ping(void)
+static void ibwdt_ping(void)
 {
 	spin_lock(&ibwdt_lock);
 
@@ -140,16 +139,14 @@ ibwdt_ping(void)
 	spin_unlock(&ibwdt_lock);
 }
 
-static void
-ibwdt_disable(void)
+static void ibwdt_disable(void)
 {
 	spin_lock(&ibwdt_lock);
 	outb_p(0, WDT_STOP);
 	spin_unlock(&ibwdt_lock);
 }
 
-static int
-ibwdt_set_heartbeat(int t)
+static int ibwdt_set_heartbeat(int t)
 {
 	int i;
 
@@ -263,8 +260,7 @@ static int ibwdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int
-ibwdt_close(struct inode *inode, struct file *file)
+static int ibwdt_close(struct inode *inode, struct file *file)
 {
 	if (expect_close == 42) {
 		ibwdt_disable();

@@ -96,7 +96,7 @@
 #define CMD_GET_CLEAR_RESET_COUNT		0x84
 
 /* Watchdog's Dip Switch heartbeat values */
-static const int heartbeat_tbl [] = {
+static const int heartbeat_tbl[] = {
 	5,	/* OFF-OFF-OFF	=  5 Sec  */
 	10,	/* OFF-OFF-ON	= 10 Sec  */
 	30,	/* OFF-ON-OFF	= 30 Sec  */
@@ -219,11 +219,10 @@ static void pcipcwd_show_card_info(void)
 	int option_switches;
 
 	got_fw_rev = send_command(CMD_GET_FIRMWARE_VERSION, &fw_rev_major, &fw_rev_minor);
-	if (got_fw_rev) {
+	if (got_fw_rev)
 		sprintf(fw_ver_str, "%u.%02u", fw_rev_major, fw_rev_minor);
-	} else {
+	else
 		sprintf(fw_ver_str, "<card no answer>");
-	}
 
 	/* Get switch settings */
 	option_switches = pcipcwd_get_option_switches();
@@ -330,7 +329,7 @@ static int pcipcwd_get_status(int *status)
 {
 	int control_status;
 
-	*status=0;
+	*status = 0;
 	control_status = inb_p(pcipcwd_private.io_addr + 1);
 	if (control_status & WD_PCI_WTRP)
 		*status |= WDIOF_CARDRESET;
@@ -368,8 +367,8 @@ static int pcipcwd_clear_status(void)
 	outb_p((control_status & WD_PCI_R2DS) | WD_PCI_WTRP, pcipcwd_private.io_addr + 1);
 
 	/* clear reset counter */
-	msb=0;
-	reset_counter=0xff;
+	msb = 0;
+	reset_counter = 0xff;
 	send_command(CMD_GET_CLEAR_RESET_COUNT, &msb, &reset_counter);
 
 	if (debug >= DEBUG) {
@@ -441,7 +440,7 @@ static ssize_t pcipcwd_write(struct file *file, const char __user *data,
 			/* scan to see whether or not we got the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if(get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;
@@ -471,8 +470,7 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		return copy_to_user(argp, &ident,
-			sizeof (ident)) ? -EFAULT : 0;
+		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
 	{
@@ -498,7 +496,7 @@ static long pcipcwd_ioctl(struct file *file, unsigned int cmd,
 	{
 		int new_options, retval = -EINVAL;
 
-		if (get_user (new_options, p))
+		if (get_user(new_options, p))
 			return -EFAULT;
 
 		if (new_options & WDIOS_DISABLECARD) {
@@ -600,7 +598,7 @@ static ssize_t pcipcwd_temp_read(struct file *file, char __user *data,
 	if (pcipcwd_get_temperature(&temperature))
 		return -EFAULT;
 
-	if (copy_to_user (data, &temperature, 1))
+	if (copy_to_user(data, &temperature, 1))
 		return -EFAULT;
 
 	return 1;
@@ -625,10 +623,8 @@ static int pcipcwd_temp_release(struct inode *inode, struct file *file)
 
 static int pcipcwd_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
 {
-	if (code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		pcipcwd_stop();
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		pcipcwd_stop();	/* Turn the WDT off */
 
 	return NOTIFY_DONE;
 }

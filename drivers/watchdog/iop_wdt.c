@@ -241,7 +241,7 @@ static int __init iop_wdt_init(void)
 	   with an open */
 	ret = misc_register(&iop_wdt_miscdev);
 	if (ret == 0)
-		printk("iop watchdog timer: timeout %lu sec\n",
+		printk(KERN_INFO "iop watchdog timer: timeout %lu sec\n",
 		       iop_watchdog_timeout());
 
 	return ret;

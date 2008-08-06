@@ -125,7 +125,7 @@ static void wdt_timer_ping(unsigned long data)
 
 static void wdt_change(int writeval)
 {
-	char	tmp;
+	char tmp;
 
 	pci_read_config_byte(alim7101_pmu, ALI_7101_WDT, &tmp);
 	if (writeval == WDT_ENABLE) {
@@ -198,7 +198,7 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 			/* now scan */
 			for (ofs = 0; ofs != count; ofs++) {
 				char c;
-				if (get_user(c, buf+ofs))
+				if (get_user(c, buf + ofs))
 					return -EFAULT;
 				if (c == 'V')
 					wdt_expect_close = 42;

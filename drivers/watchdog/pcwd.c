@@ -145,7 +145,7 @@ static int pcwd_ioports[] = { 0x270, 0x350, 0x370, 0x000 };
 #define CMD_ISA_RESET_RELAYS		0x0D
 
 /* Watchdog's Dip Switch heartbeat values */
-static const int heartbeat_tbl [] = {
+static const int heartbeat_tbl[] = {
 	20,	/* OFF-OFF-OFF	= 20 Sec  */
 	40,	/* OFF-OFF-ON	= 40 Sec  */
 	60,	/* OFF-ON-OFF	=  1 Min  */
@@ -272,7 +272,7 @@ static int set_command_mode(void)
 		printk(KERN_DEBUG PFX "command_mode=%d\n",
 				pcwd_private.command_mode);
 
-	return(found);
+	return found;
 }
 
 static void unset_command_mode(void)
@@ -325,7 +325,7 @@ static inline int pcwd_get_option_switches(void)
 	}
 
 	unset_command_mode();
-	return(option_switches);
+	return option_switches;
 }
 
 static void pcwd_show_card_info(void)

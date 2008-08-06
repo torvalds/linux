@@ -408,7 +408,7 @@ static ssize_t wb_smsc_wdt_write(struct file *file, const char __user *data,
 			   magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_close = 42;
@@ -438,7 +438,7 @@ static long wb_smsc_wdt_ioctl(struct file *file,
 					WDIOF_SETTIMEOUT |
 					WDIOF_MAGICCLOSE,
 		.firmware_version =	0,
-		.identity = 		"SMsC 37B787 Watchdog"
+		.identity = 		"SMsC 37B787 Watchdog",
 	};
 
 	uarg.i = (int __user *)arg;

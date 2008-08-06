@@ -210,7 +210,7 @@ size_t count, loff_t *ppos)
 
 			for (i = 0; i != count; i++) {
 				char c;
-				if (get_user(c, buf+i))
+				if (get_user(c, buf + i))
 					return -EFAULT;
 				if (c == 'V')
 					eur_expect_close = 42;
@@ -360,10 +360,8 @@ static int eurwdt_release(struct inode *inode, struct file *file)
 static int eurwdt_notify_sys(struct notifier_block *this, unsigned long code,
 	void *unused)
 {
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Turn the card off */
-		eurwdt_disable_timer();
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		eurwdt_disable_timer();	/* Turn the card off */
 
 	return NOTIFY_DONE;
 }

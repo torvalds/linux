@@ -405,7 +405,7 @@ static int __devinit detect_cru_service(void)
 	dmi_walk(dmi_find_cru);
 
 	/* if cru_rom_addr has been set then we found a CRU service */
-	return ((cru_rom_addr != NULL)? 0: -ENODEV);
+	return ((cru_rom_addr != NULL) ? 0: -ENODEV);
 }
 
 /* ------------------------------------------------------------------------- */
@@ -533,7 +533,7 @@ static ssize_t hpwdt_write(struct file *file, const char __user *data,
 			/* scan to see whether or not we got the magic char. */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;

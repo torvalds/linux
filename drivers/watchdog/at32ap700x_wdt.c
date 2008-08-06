@@ -283,7 +283,7 @@ static ssize_t at32_wdt_write(struct file *file, const char __user *data,
 			 */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;

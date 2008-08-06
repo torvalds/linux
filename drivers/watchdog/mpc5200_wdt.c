@@ -164,7 +164,7 @@ static int mpc5200_wdt_release(struct inode *inode, struct file *file)
 static const struct file_operations mpc5200_wdt_fops = {
 	.owner	= THIS_MODULE,
 	.write	= mpc5200_wdt_write,
-	.ioctl	= mpc5200_wdt_ioctl,
+	.unlocked_ioctl	= mpc5200_wdt_ioctl,
 	.open	= mpc5200_wdt_open,
 	.release = mpc5200_wdt_release,
 };
@@ -219,9 +219,9 @@ static int mpc5200_wdt_probe(struct of_device *op,
 		return 0;
 
 	iounmap(wdt->regs);
- out_release:
+out_release:
 	release_mem_region(wdt->mem.start, size);
- out_free:
+out_free:
 	kfree(wdt);
 	return err;
 }

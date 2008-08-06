@@ -245,7 +245,7 @@ static const struct file_operations omap_wdt_fops = {
 static struct miscdevice omap_wdt_miscdev = {
 	.minor = WATCHDOG_MINOR,
 	.name = "watchdog",
-	.fops = &omap_wdt_fops
+	.fops = &omap_wdt_fops,
 };
 
 static int __init omap_wdt_probe(struct platform_device *pdev)

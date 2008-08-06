@@ -190,7 +190,7 @@ static struct miscdevice txx9wdt_miscdev = {
 };
 
 static struct notifier_block txx9wdt_notifier = {
-	.notifier_call = txx9wdt_notify_sys
+	.notifier_call = txx9wdt_notify_sys,
 };
 
 static int __init txx9wdt_probe(struct platform_device *dev)

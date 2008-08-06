@@ -55,9 +55,9 @@
  */
 
 /* Module and version information */
-#define DRV_NAME        "iTCO_wdt"
-#define DRV_VERSION     "1.03"
-#define DRV_RELDATE     "30-Apr-2008"
+#define DRV_NAME	"iTCO_wdt"
+#define DRV_VERSION	"1.03"
+#define DRV_RELDATE	"30-Apr-2008"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -107,7 +107,7 @@ enum iTCO_chipsets {
 	TCO_ICH9,	/* ICH9 */
 	TCO_ICH9R,	/* ICH9R */
 	TCO_ICH9DH,	/* ICH9DH */
-	TCO_ICH9DO,     /* ICH9DO */
+	TCO_ICH9DO,	/* ICH9DO */
 	TCO_631XESB,	/* 631xESB/632xESB */
 };
 
@@ -497,7 +497,7 @@ static ssize_t iTCO_wdt_write(struct file *file, const char __user *data,
 			   magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;

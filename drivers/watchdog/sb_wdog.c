@@ -215,8 +215,8 @@ static long sbwdog_ioctl(struct file *file, unsigned int cmd,
 /*
  *	Notifier for system down
  */
-static int
-sbwdog_notify_sys(struct notifier_block *this, unsigned long code, void *erf)
+static int sbwdog_notify_sys(struct notifier_block *this, unsigned long code,
+								void *erf)
 {
 	if (code == SYS_DOWN || code == SYS_HALT) {
 		/*

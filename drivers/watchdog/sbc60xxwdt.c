@@ -183,7 +183,7 @@ static ssize_t fop_write(struct file *file, const char __user *buf,
 			   magic character */
 			for (ofs = 0; ofs != count; ofs++) {
 				char c;
-				if (get_user(c, buf+ofs))
+				if (get_user(c, buf + ofs))
 					return -EFAULT;
 				if (c == 'V')
 					wdt_expect_close = 42;
@@ -238,7 +238,7 @@ static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		return copy_to_user(argp, &ident, sizeof(ident))? -EFAULT : 0;
+		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);

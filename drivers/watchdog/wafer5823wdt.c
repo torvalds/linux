@@ -1,11 +1,11 @@
 /*
  *	ICP Wafer 5823 Single Board Computer WDT driver
- *      http://www.icpamerica.com/wafer_5823.php
- *      May also work on other similar models
+ *	http://www.icpamerica.com/wafer_5823.php
+ *	May also work on other similar models
  *
  *	(c) Copyright 2002 Justin Cormack <justin@street-vision.com>
  *
- *      Release 0.02
+ *	Release 0.02
  *
  *	Based on advantechwdt.c which is based on wdt.c.
  *	Original copyright messages:
@@ -50,10 +50,10 @@ static DEFINE_SPINLOCK(wafwdt_lock);
 /*
  *	You must set these - there is no sane way to probe for this board.
  *
- *      To enable, write the timeout value in seconds (1 to 255) to I/O
- *      port WDT_START, then read the port to start the watchdog. To pat
- *      the dog, read port WDT_STOP to stop the timer, then read WDT_START
- *      to restart it again.
+ *	To enable, write the timeout value in seconds (1 to 255) to I/O
+ *	port WDT_START, then read the port to start the watchdog. To pat
+ *	the dog, read port WDT_STOP to stop the timer, then read WDT_START
+ *	to restart it again.
  */
 
 static int wdt_stop = 0x843;
@@ -87,8 +87,7 @@ static void wafwdt_start(void)
 	inb_p(wdt_start);
 }
 
-static void
-wafwdt_stop(void)
+static void wafwdt_stop(void)
 {
 	/* stop watchdog */
 	inb_p(wdt_stop);
@@ -199,8 +198,7 @@ static int wafwdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int
-wafwdt_close(struct inode *inode, struct file *file)
+static int wafwdt_close(struct inode *inode, struct file *file)
 {
 	if (expect_close == 42)
 		wafwdt_stop();

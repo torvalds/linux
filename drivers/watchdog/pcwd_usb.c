@@ -87,7 +87,7 @@ MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default=" _
 #define USB_PCWD_PRODUCT_ID	0x1140
 
 /* table of devices that work with this driver */
-static struct usb_device_id usb_pcwd_table [] = {
+static struct usb_device_id usb_pcwd_table[] = {
 	{ USB_DEVICE(USB_PCWD_VENDOR_ID, USB_PCWD_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };
@@ -109,7 +109,7 @@ MODULE_DEVICE_TABLE (usb, usb_pcwd_table);
 #define CMD_DISABLE_WATCHDOG		CMD_ENABLE_WATCHDOG
 
 /* Watchdog's Dip Switch heartbeat values */
-static const int heartbeat_tbl [] = {
+static const int heartbeat_tbl[] = {
 	5,	/* OFF-OFF-OFF	=  5 Sec  */
 	10,	/* OFF-OFF-ON	= 10 Sec  */
 	30,	/* OFF-ON-OFF	= 30 Sec  */
@@ -129,15 +129,15 @@ static char expect_release;
 
 /* Structure to hold all of our device specific stuff */
 struct usb_pcwd_private {
-	struct usb_device *	udev;			/* save off the usb device pointer */
-	struct usb_interface *	interface;		/* the interface for this device */
+	struct usb_device	*udev;			/* save off the usb device pointer */
+	struct usb_interface	*interface;		/* the interface for this device */
 
 	unsigned int		interface_number;	/* the interface number used for cmd's */
 
-	unsigned char *		intr_buffer;		/* the buffer to intr data */
+	unsigned char		*intr_buffer;		/* the buffer to intr data */
 	dma_addr_t		intr_dma;		/* the dma address for the intr buffer */
 	size_t			intr_size;		/* the size of the intr buffer */
-	struct urb *		intr_urb;		/* the urb used for the intr pipe */
+	struct urb		*intr_urb;		/* the urb used for the intr pipe */
 
 	unsigned char		cmd_command;		/* The command that is reported back */
 	unsigned char		cmd_data_msb;		/* The data MSB that is reported back */
@@ -153,8 +153,8 @@ static struct usb_pcwd_private *usb_pcwd_device;
 static DEFINE_MUTEX(disconnect_mutex);
 
 /* local function prototypes */
-static int usb_pcwd_probe	(struct usb_interface *interface, const struct usb_device_id *id);
-static void usb_pcwd_disconnect	(struct usb_interface *interface);
+static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_device_id *id);
+static void usb_pcwd_disconnect(struct usb_interface *interface);
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver usb_pcwd_driver = {
@@ -194,10 +194,10 @@ static void usb_pcwd_intr_done(struct urb *urb)
 	usb_pcwd->cmd_data_lsb = data[2];
 
 	/* notify anyone waiting that the cmd has finished */
-	atomic_set (&usb_pcwd->cmd_received, 1);
+	atomic_set(&usb_pcwd->cmd_received, 1);
 
 resubmit:
-	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		printk(KERN_ERR PFX "can't resubmit intr, usb_submit_urb failed with result %d\n",
 			retval);
@@ -223,7 +223,7 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd, unsigned cha
 	dbg("sending following data cmd=0x%02x msb=0x%02x lsb=0x%02x",
 		buf[0], buf[1], buf[2]);
 
-	atomic_set (&usb_pcwd->cmd_received, 0);
+	atomic_set(&usb_pcwd->cmd_received, 0);
 
 	if (usb_control_msg(usb_pcwd->udev, usb_sndctrlpipe(usb_pcwd->udev, 0),
 			HID_REQ_SET_REPORT, HID_DT_REPORT,
@@ -236,7 +236,7 @@ static int usb_pcwd_send_command(struct usb_pcwd_private *usb_pcwd, unsigned cha
 	got_response = 0;
 	for (count = 0; (count < USB_COMMAND_TIMEOUT) && (!got_response); count++) {
 		mdelay(1);
-		if (atomic_read (&usb_pcwd->cmd_received))
+		if (atomic_read(&usb_pcwd->cmd_received))
 			got_response = 1;
 	}
 
@@ -355,7 +355,7 @@ static ssize_t usb_pcwd_write(struct file *file, const char __user *data,
 			/* scan to see whether or not we got the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if(get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_release = 42;
@@ -383,8 +383,7 @@ static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		return copy_to_user(argp, &ident,
-			sizeof (ident)) ? -EFAULT : 0;
+		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
@@ -404,7 +403,7 @@ static long usb_pcwd_ioctl(struct file *file, unsigned int cmd,
 	{
 		int new_options, retval = -EINVAL;
 
-		if (get_user (new_options, p))
+		if (get_user(new_options, p))
 			return -EFAULT;
 
 		if (new_options & WDIOS_DISABLECARD) {
@@ -518,10 +517,8 @@ static int usb_pcwd_temperature_release(struct inode *inode, struct file *file)
 
 static int usb_pcwd_notify_sys(struct notifier_block *this, unsigned long code, void *unused)
 {
-	if (code==SYS_DOWN || code==SYS_HALT) {
-		/* Turn the WDT off */
-		usb_pcwd_stop(usb_pcwd_device);
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		usb_pcwd_stop(usb_pcwd_device);	/* Turn the WDT off */
 
 	return NOTIFY_DONE;
 }
@@ -566,13 +563,13 @@ static struct notifier_block usb_pcwd_notifier = {
 /**
  *	usb_pcwd_delete
  */
-static inline void usb_pcwd_delete (struct usb_pcwd_private *usb_pcwd)
+static inline void usb_pcwd_delete(struct usb_pcwd_private *usb_pcwd)
 {
 	usb_free_urb(usb_pcwd->intr_urb);
 	if (usb_pcwd->intr_buffer != NULL)
 		usb_buffer_free(usb_pcwd->udev, usb_pcwd->intr_size,
 				usb_pcwd->intr_buffer, usb_pcwd->intr_dma);
-	kfree (usb_pcwd);
+	kfree(usb_pcwd);
 }
 
 /**
@@ -625,7 +622,7 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
 
 	/* allocate memory for our device and initialize it */
-	usb_pcwd = kzalloc (sizeof(struct usb_pcwd_private), GFP_KERNEL);
+	usb_pcwd = kzalloc(sizeof(struct usb_pcwd_private), GFP_KERNEL);
 	if (usb_pcwd == NULL) {
 		printk(KERN_ERR PFX "Out of memory\n");
 		goto error;
@@ -640,7 +637,8 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 	usb_pcwd->intr_size = (le16_to_cpu(endpoint->wMaxPacketSize) > 8 ? le16_to_cpu(endpoint->wMaxPacketSize) : 8);
 
 	/* set up the memory buffer's */
-	if (!(usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size, GFP_ATOMIC, &usb_pcwd->intr_dma))) {
+	usb_pcwd->intr_buffer = usb_buffer_alloc(udev, usb_pcwd->intr_size, GFP_ATOMIC, &usb_pcwd->intr_dma);
+	if (!usb_pcwd->intr_buffer) {
 		printk(KERN_ERR PFX "Out of memory\n");
 		goto error;
 	}
@@ -674,11 +672,10 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 
 	/* Get the Firmware Version */
 	got_fw_rev = usb_pcwd_send_command(usb_pcwd, CMD_GET_FIRMWARE_VERSION, &fw_rev_major, &fw_rev_minor);
-	if (got_fw_rev) {
+	if (got_fw_rev)
 		sprintf(fw_ver_str, "%u.%02u", fw_rev_major, fw_rev_minor);
-	} else {
+	else
 		sprintf(fw_ver_str, "<card no answer>");
-	}
 
 	printk(KERN_INFO PFX "Found card (Firmware: %s) with temp option\n",
 		fw_ver_str);
@@ -724,7 +721,7 @@ static int usb_pcwd_probe(struct usb_interface *interface, const struct usb_devi
 	}
 
 	/* we can register the device now, as it is ready */
-	usb_set_intfdata (interface, usb_pcwd);
+	usb_set_intfdata(interface, usb_pcwd);
 
 	printk(KERN_INFO PFX "initialized. heartbeat=%d sec (nowayout=%d)\n",
 		heartbeat, nowayout);
@@ -758,8 +755,8 @@ static void usb_pcwd_disconnect(struct usb_interface *interface)
 	/* prevent races with open() */
 	mutex_lock(&disconnect_mutex);
 
-	usb_pcwd = usb_get_intfdata (interface);
-	usb_set_intfdata (interface, NULL);
+	usb_pcwd = usb_get_intfdata(interface);
+	usb_set_intfdata(interface, NULL);
 
 	mutex_lock(&usb_pcwd->mtx);
 
@@ -819,5 +816,5 @@ static void __exit usb_pcwd_exit(void)
 }
 
 
-module_init (usb_pcwd_init);
-module_exit (usb_pcwd_exit);
+module_init(usb_pcwd_init);
+module_exit(usb_pcwd_exit);

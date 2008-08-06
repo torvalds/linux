@@ -18,9 +18,9 @@
  */
 
 /* Module and version information */
-#define DRV_NAME        "iTCO_vendor_support"
-#define DRV_VERSION     "1.01"
-#define DRV_RELDATE     "11-Nov-2006"
+#define DRV_NAME	"iTCO_vendor_support"
+#define DRV_VERSION	"1.01"
+#define DRV_RELDATE	"11-Nov-2006"
 #define PFX		DRV_NAME ": "
 
 /* Includes */
@@ -37,8 +37,8 @@
 
 /* iTCO defines */
 #define	SMI_EN		acpibase + 0x30	/* SMI Control and Enable Register */
-#define	TCOBASE		acpibase + 0x60	/* TCO base address		*/
-#define	TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register		*/
+#define	TCOBASE		acpibase + 0x60	/* TCO base address */
+#define	TCO1_STS	TCOBASE + 0x04	/* TCO1 Status Register */
 
 /* List of vendor support modes */
 /* SuperMicro Pentium 3 Era 370SSE+-OEM1/P3TSSE */

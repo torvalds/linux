@@ -157,8 +157,7 @@ static int ixp4xx_wdt_release(struct inode *inode, struct file *file)
 }
 
 
-static const struct file_operations ixp4xx_wdt_fops =
-{
+static const struct file_operations ixp4xx_wdt_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= ixp4xx_wdt_write,
@@ -167,8 +166,7 @@ static const struct file_operations ixp4xx_wdt_fops =
 	.release	= ixp4xx_wdt_release,
 };
 
-static struct miscdevice ixp4xx_wdt_miscdev =
-{
+static struct miscdevice ixp4xx_wdt_miscdev = {
 	.minor		= WATCHDOG_MINOR,
 	.name		= "watchdog",
 	.fops		= &ixp4xx_wdt_fops,
@@ -181,8 +179,8 @@ static int __init ixp4xx_wdt_init(void)
 
 	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
 	if (!(processor_id & 0xf) && !cpu_is_ixp46x()) {
-		printk("IXP4XXX Watchdog: Rev. A0 IXP42x CPU detected - "
-			"watchdog disabled\n");
+		printk(KERN_ERR "IXP4XXX Watchdog: Rev. A0 IXP42x CPU detected"
+			" - watchdog disabled\n");
 
 		return -ENODEV;
 	}
@@ -191,7 +189,8 @@ static int __init ixp4xx_wdt_init(void)
 			WDIOF_CARDRESET : 0;
 	ret = misc_register(&ixp4xx_wdt_miscdev);
 	if (ret == 0)
-		printk("IXP4xx Watchdog Timer: heartbeat %d sec\n", heartbeat);
+		printk(KERN_INFO "IXP4xx Watchdog Timer: heartbeat %d sec\n",
+			heartbeat);
 	return ret;
 }
 

@@ -153,7 +153,7 @@ static ssize_t ali_write(struct file *file, const char __user *data,
 			   the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					ali_expect_release = 42;

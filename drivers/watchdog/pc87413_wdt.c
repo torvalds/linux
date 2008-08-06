@@ -38,7 +38,7 @@
 
 /* #define DEBUG 1 */
 
-#define DEFAULT_TIMEOUT     1            /* 1 minute */
+#define DEFAULT_TIMEOUT     1		/* 1 minute */
 #define MAX_TIMEOUT         255
 
 #define VERSION             "1.1"
@@ -46,17 +46,17 @@
 #define PFX                 MODNAME ": "
 #define DPFX                MODNAME " - DEBUG: "
 
-#define WDT_INDEX_IO_PORT   (io+0)       /* I/O port base (index register) */
+#define WDT_INDEX_IO_PORT   (io+0)	/* I/O port base (index register) */
 #define WDT_DATA_IO_PORT    (WDT_INDEX_IO_PORT+1)
 #define SWC_LDN             0x04
-#define SIOCFG2             0x22         /* Serial IO register */
-#define WDCTL               0x10         /* Watchdog-Timer-Controll-Register */
-#define WDTO                0x11         /* Watchdog timeout register */
-#define WDCFG               0x12         /* Watchdog config register */
+#define SIOCFG2             0x22	/* Serial IO register */
+#define WDCTL               0x10	/* Watchdog-Timer-Controll-Register */
+#define WDTO                0x11	/* Watchdog timeout register */
+#define WDCFG               0x12	/* Watchdog config register */
 
-static int io = 0x2E;		         /* Address used on Portwell Boards */
+static int io = 0x2E;			/* Address used on Portwell Boards */
 
-static int timeout = DEFAULT_TIMEOUT;   /* timeout value */
+static int timeout = DEFAULT_TIMEOUT;	/* timeout value */
 static unsigned long timer_enabled;	/* is the timer enabled? */
 
 static char expect_close;		/* is the close expected? */
@@ -99,14 +99,14 @@ static inline void pc87413_enable_swc(void)
 
 	/* Step 2: Enable SWC functions */
 
-	outb_p(0x07, WDT_INDEX_IO_PORT);        /* Point SWC_LDN (LDN=4) */
+	outb_p(0x07, WDT_INDEX_IO_PORT);	/* Point SWC_LDN (LDN=4) */
 	outb_p(SWC_LDN, WDT_DATA_IO_PORT);
 
-	outb_p(0x30, WDT_INDEX_IO_PORT);        /* Read Index 0x30 First */
+	outb_p(0x30, WDT_INDEX_IO_PORT);	/* Read Index 0x30 First */
 	cr_data = inb(WDT_DATA_IO_PORT);
-	cr_data |= 0x01;                        /* Set Bit0 to 1 */
+	cr_data |= 0x01;			/* Set Bit0 to 1 */
 	outb_p(0x30, WDT_INDEX_IO_PORT);
-	outb_p(cr_data, WDT_DATA_IO_PORT);      /* Index0x30_bit0P1 */
+	outb_p(cr_data, WDT_DATA_IO_PORT);	/* Index0x30_bit0P1 */
 
 #ifdef DEBUG
 	printk(KERN_INFO DPFX "pc87413 - Enable SWC functions\n");
@@ -122,10 +122,10 @@ static inline unsigned int pc87413_get_swc_base(void)
 
 	/* Step 3: Read SWC I/O Base Address */
 
-	outb_p(0x60, WDT_INDEX_IO_PORT);        /* Read Index 0x60 */
+	outb_p(0x60, WDT_INDEX_IO_PORT);	/* Read Index 0x60 */
 	addr_h = inb(WDT_DATA_IO_PORT);
 
-	outb_p(0x61, WDT_INDEX_IO_PORT);        /* Read Index 0x61 */
+	outb_p(0x61, WDT_INDEX_IO_PORT);	/* Read Index 0x61 */
 
 	addr_l = inb(WDT_DATA_IO_PORT);
 
@@ -374,7 +374,7 @@ static ssize_t pc87413_write(struct file *file, const char __user *data,
 			   magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_close = 42;
@@ -413,7 +413,7 @@ static long pc87413_ioctl(struct file *file, unsigned int cmd,
 				    WDIOF_SETTIMEOUT |
 				    WDIOF_MAGICCLOSE,
 		.firmware_version = 1,
-		.identity         = "PC87413(HF/F) watchdog"
+		.identity         = "PC87413(HF/F) watchdog",
 	};
 
 	uarg.i = (int __user *)arg;
@@ -507,7 +507,7 @@ static struct notifier_block pc87413_notifier = {
 static struct miscdevice pc87413_miscdev = {
 	.minor          = WATCHDOG_MINOR,
 	.name           = "watchdog",
-	.fops           = &pc87413_fops
+	.fops           = &pc87413_fops,
 };
 
 /* -- Module init functions -------------------------------------*/
@@ -567,9 +567,9 @@ static void __exit pc87413_exit(void)
 
 	misc_deregister(&pc87413_miscdev);
 	unregister_reboot_notifier(&pc87413_notifier);
-	/* release_region(io,2); */
+	/* release_region(io, 2); */
 
-	printk(MODNAME " watchdog component driver removed.\n");
+	printk(KERN_INFO MODNAME " watchdog component driver removed.\n");
 }
 
 module_init(pc87413_init);

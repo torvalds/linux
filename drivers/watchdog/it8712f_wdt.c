@@ -221,7 +221,7 @@ static ssize_t it8712f_wdt_write(struct file *file, const char __user *data,
 		expect_close = 0;
 		for (i = 0; i < len; ++i) {
 			char c;
-			if (get_user(c, data+i))
+			if (get_user(c, data + i))
 				return -EFAULT;
 			if (c == 'V')
 				expect_close = 42;

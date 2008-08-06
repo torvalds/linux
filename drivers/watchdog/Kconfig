@@ -463,7 +463,7 @@ config PC87413_WDT
 	  module will be called pc87413_wdt.
 
 	  Most people will say N.
- 
+
 config 60XX_WDT
 	tristate "SBC-60XX Watchdog Timer"
 	depends on X86

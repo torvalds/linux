@@ -126,7 +126,7 @@ static ssize_t acq_write(struct file *file, const char __user *buf,
 		if (!nowayout) {
 			size_t i;
 			/* note: just in case someone wrote the magic character
-			 * five months ago... */
+			   five months ago... */
 			expect_close = 0;
 			/* scan to see whether or not we got the
 			   magic character */

@@ -47,7 +47,8 @@
 #define WATCHDOG_NAME "Advantech WDT"
 #define WATCHDOG_TIMEOUT 60		/* 60 sec default timeout */
 
-static struct platform_device *advwdt_platform_device;	/* the watchdog platform device */
+/* the watchdog platform device */
+static struct platform_device *advwdt_platform_device;
 static unsigned long advwdt_is_open;
 static char adv_expect_close;
 
@@ -120,7 +121,7 @@ static ssize_t advwdt_write(struct file *file, const char __user *buf,
 
 			for (i = 0; i != count; i++) {
 				char c;
-				if (get_user(c, buf+i))
+				if (get_user(c, buf + i))
 					return -EFAULT;
 				if (c == 'V')
 					adv_expect_close = 42;
@@ -199,8 +200,7 @@ static int advwdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static int
-advwdt_close(struct inode *inode, struct file *file)
+static int advwdt_close(struct inode *inode, struct file *file)
 {
 	if (adv_expect_close == 42) {
 		advwdt_disable();
@@ -288,9 +288,9 @@ unreg_stop:
 static int __devexit advwdt_remove(struct platform_device *dev)
 {
 	misc_deregister(&advwdt_miscdev);
-	release_region(wdt_start,1);
-	if(wdt_stop != wdt_start)
-		release_region(wdt_stop,1);
+	release_region(wdt_start, 1);
+	if (wdt_stop != wdt_start)
+		release_region(wdt_stop, 1);
 
 	return 0;
 }
@@ -315,7 +315,8 @@ static int __init advwdt_init(void)
 {
 	int err;
 
-	printk(KERN_INFO "WDT driver for Advantech single board computer initialising.\n");
+	printk(KERN_INFO
+	     "WDT driver for Advantech single board computer initialising.\n");
 
 	err = platform_driver_register(&advwdt_driver);
 	if (err)

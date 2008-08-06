@@ -9,18 +9,18 @@
  *	as published by the Free Software Foundation; either version
  *	2 of the License, or (at your option) any later version.
  *
- *      based on i810-tco.c which is in turn based on softdog.c
+ *	based on i810-tco.c which is in turn based on softdog.c
  *
- * 	The timer is implemented in the following I/O controller hubs:
- * 	(See the intel documentation on http://developer.intel.com.)
- * 	6300ESB chip : document number 300641-003
+ *	The timer is implemented in the following I/O controller hubs:
+ *	(See the intel documentation on http://developer.intel.com.)
+ *	6300ESB chip : document number 300641-003
  *
  *  2004YYZZ Ross Biro
  *	Initial version 0.01
  *  2004YYZZ Ross Biro
- *  	Version 0.02
+ *	Version 0.02
  *  20050210 David Härdeman <david@2gen.com>
- *      Ported driver to kernel 2.6
+ *	Ported driver to kernel 2.6
  */
 
 /*
@@ -108,7 +108,8 @@ MODULE_PARM_DESC(nowayout,
  * reload register. After this the appropriate registers can be written
  * to once before they need to be unlocked again.
  */
-static inline void esb_unlock_registers(void) {
+static inline void esb_unlock_registers(void)
+{
 	writeb(ESB_UNLOCK1, ESB_RELOAD_REG);
 	writeb(ESB_UNLOCK2, ESB_RELOAD_REG);
 }
@@ -169,7 +170,7 @@ static int esb_timer_set_heartbeat(int time)
 
 	/* Write timer 2 */
 	esb_unlock_registers();
-        writel(val, ESB_TIMER2_REG);
+	writel(val, ESB_TIMER2_REG);
 
 	/* Reload */
 	esb_unlock_registers();
@@ -196,7 +197,7 @@ static int esb_timer_read(void)
 }
 
 /*
- * 	/dev/watchdog handling
+ *	/dev/watchdog handling
  */
 
 static int esb_open(struct inode *inode, struct file *file)
@@ -242,7 +243,7 @@ static ssize_t esb_write(struct file *file, const char __user *data,
 			/* scan to see whether or not we got the magic character */
 			for (i = 0; i != len; i++) {
 				char c;
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					esb_expect_close = 42;
@@ -262,11 +263,11 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
 	static struct watchdog_info ident = {
-		.options =              WDIOF_SETTIMEOUT |
+		.options =		WDIOF_SETTIMEOUT |
 					WDIOF_KEEPALIVEPING |
 					WDIOF_MAGICCLOSE,
-		.firmware_version =     0,
-		.identity =             ESB_MODULE_NAME,
+		.firmware_version =	0,
+		.identity =		ESB_MODULE_NAME,
 	};
 
 	switch (cmd) {
@@ -324,10 +325,9 @@ static long esb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 static int esb_notify_sys(struct notifier_block *this,
 					unsigned long code, void *unused)
 {
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Turn the WDT off */
-		esb_timer_stop();
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		esb_timer_stop();	/* Turn the WDT off */
+
 	return NOTIFY_DONE;
 }
 

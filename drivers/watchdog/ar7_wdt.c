@@ -213,7 +213,7 @@ static int ar7_wdt_notify_sys(struct notifier_block *this,
 }
 
 static struct notifier_block ar7_wdt_notifier = {
-	.notifier_call = ar7_wdt_notify_sys
+	.notifier_call = ar7_wdt_notify_sys,
 };
 
 static ssize_t ar7_wdt_write(struct file *file, const char *data,
@@ -230,7 +230,7 @@ static ssize_t ar7_wdt_write(struct file *file, const char *data,
 		expect_close = 0;
 		for (i = 0; i < len; ++i) {
 			char c;
-			if (get_user(c, data+i))
+			if (get_user(c, data + i))
 				return -EFAULT;
 			if (c == 'V')
 				expect_close = 1;

@@ -377,13 +377,13 @@ static int __devinit mpcore_wdt_probe(struct platform_device *dev)
 
 	return 0;
 
- err_irq:
+err_irq:
 	misc_deregister(&mpcore_wdt_miscdev);
- err_misc:
+err_misc:
 	iounmap(wdt->base);
- err_free:
+err_free:
 	kfree(wdt);
- err_out:
+err_out:
 	return ret;
 }
 

@@ -381,7 +381,7 @@ static ssize_t wdtpci_write(struct file *file, const char __user *buf,
 
 			for (i = 0; i != count; i++) {
 				char c;
-				if (get_user(c, buf+i))
+				if (get_user(c, buf + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_close = 42;

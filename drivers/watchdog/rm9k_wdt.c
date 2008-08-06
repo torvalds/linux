@@ -234,8 +234,8 @@ static int wdt_gpi_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t
-wdt_gpi_write(struct file *f, const char __user *d, size_t s, loff_t *o)
+static ssize_t wdt_gpi_write(struct file *f, const char __user *d, size_t s,
+								loff_t *o)
 {
 	char val;
 
@@ -325,8 +325,8 @@ static long wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 
 /* Shutdown notifier */
-static int
-wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
+static int wdt_gpi_notify(struct notifier_block *this, unsigned long code,
+			  void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdt_gpi_stop();
@@ -336,9 +336,8 @@ wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 
 
 /* Init & exit procedures */
-static const struct resource *
-wdt_gpi_get_resource(struct platform_device *pdv, const char *name,
-		      unsigned int type)
+static const struct resource *wdt_gpi_get_resource(struct platform_device *pdv,
+					const char *name, unsigned int type)
 {
 	char buf[80];
 	if (snprintf(buf, sizeof buf, "%s_0", name) >= sizeof buf)

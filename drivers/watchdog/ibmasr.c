@@ -275,7 +275,7 @@ static long asr_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	static const struct watchdog_info ident = {
 		.options =	WDIOF_KEEPALIVEPING |
 				WDIOF_MAGICCLOSE,
-		.identity =	"IBM ASR"
+		.identity =	"IBM ASR",
 	};
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
@@ -345,7 +345,7 @@ static int asr_release(struct inode *inode, struct file *file)
 
 static const struct file_operations asr_fops = {
 	.owner =		THIS_MODULE,
-	.llseek	=		no_llseek,
+	.llseek =		no_llseek,
 	.write =		asr_write,
 	.unlocked_ioctl =	asr_ioctl,
 	.open =			asr_open,

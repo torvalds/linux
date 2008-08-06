@@ -191,14 +191,14 @@ static const struct file_operations mtx1_wdt_fops = {
 	.unlocked_ioctl	= mtx1_wdt_ioctl,
 	.open 		= mtx1_wdt_open,
 	.write 		= mtx1_wdt_write,
-	.release 	= mtx1_wdt_release
+	.release 	= mtx1_wdt_release,
 };
 
 
 static struct miscdevice mtx1_wdt_misc = {
 	.minor 	= WATCHDOG_MINOR,
 	.name 	= "watchdog",
-	.fops 	= &mtx1_wdt_fops
+	.fops 	= &mtx1_wdt_fops,
 };
 
 

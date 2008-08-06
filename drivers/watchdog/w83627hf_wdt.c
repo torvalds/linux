@@ -180,7 +180,7 @@ static ssize_t wdt_write(struct file *file, const char __user *buf,
 
 			for (i = 0; i != count; i++) {
 				char c;
-				if (get_user(c, buf+i))
+				if (get_user(c, buf + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_close = 42;
@@ -278,10 +278,9 @@ static int wdt_close(struct inode *inode, struct file *file)
 static int wdt_notify_sys(struct notifier_block *this, unsigned long code,
 	void *unused)
 {
-	if (code == SYS_DOWN || code == SYS_HALT) {
-		/* Turn the WDT off */
-		wdt_disable();
-	}
+	if (code == SYS_DOWN || code == SYS_HALT)
+		wdt_disable();	/* Turn the WDT off */
+
 	return NOTIFY_DONE;
 }
 
