@@ -67,10 +67,6 @@ module_param(force_i2c, byte, 0);
 MODULE_PARM_DESC(force_i2c,
 		 "Initialize the i2c address of the sensors");
 
-static int reset;
-module_param(reset, bool, 0);
-MODULE_PARM_DESC(reset, "Set to one to reset chip on load");
-
 static int init = 1;
 module_param(init, bool, 0);
 MODULE_PARM_DESC(init, "Set to zero to bypass chip initialization");
@@ -1599,29 +1595,6 @@ static void __devinit w83627hf_init_device(struct platform_device *pdev)
 	int i;
 	enum chips type = data->type;
 	u8 tmp;
-
-	if (reset) {
-		/* Resetting the chip has been the default for a long time,
-		   but repeatedly caused problems (fans going to full
-		   speed...) so it is now optional. It might even go away if
-		   nobody reports it as being useful, as I see very little
-		   reason why this would be needed at all. */
-		dev_info(&pdev->dev, "If reset=1 solved a problem you were "
-			 "having, please report!\n");
-
-		/* save this register */
-		i = w83627hf_read_value(data, W83781D_REG_BEEP_CONFIG);
-		/* Reset all except Watchdog values and last conversion values
-		   This sets fan-divs to 2, among others */
-		w83627hf_write_value(data, W83781D_REG_CONFIG, 0x80);
-		/* Restore the register and disable power-on abnormal beep.
-		   This saves FAN 1/2/3 input/output values set by BIOS. */
-		w83627hf_write_value(data, W83781D_REG_BEEP_CONFIG, i | 0x80);
-		/* Disable master beep-enable (reset turns it on).
-		   Individual beeps should be reset to off but for some reason
-		   disabling this bit helps some people not get beeped */
-		w83627hf_write_value(data, W83781D_REG_BEEP_INTS2, 0);
-	}
 
 	/* Minimize conflicts with other winbond i2c-only clients...  */
 	/* disable i2c subclients... how to disable main i2c client?? */
