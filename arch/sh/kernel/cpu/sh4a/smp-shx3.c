@@ -82,7 +82,7 @@ void plat_start_cpu(unsigned int cpu, unsigned long entry_point)
 		ctrl_outl(STBCR_MSTP, STBCR_REG(cpu));
 
 	while (!(ctrl_inl(STBCR_REG(cpu)) & STBCR_MSTP))
-		;
+		cpu_relax();
 
 	/* Start up secondary processor by sending a reset */
 	ctrl_outl(STBCR_AP_VAL, STBCR_REG(cpu));
