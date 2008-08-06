@@ -492,7 +492,7 @@ void unmap_devmem(unsigned long pfn, unsigned long size, pgprot_t vma_prot)
 	free_memtype(addr, addr + size);
 }
 
-#if defined(CONFIG_DEBUG_FS)
+#if defined(CONFIG_DEBUG_FS) && defined(CONFIG_X86_PAT)
 
 /* get Nth element of the linked list */
 static struct memtype *memtype_get_idx(loff_t pos)
@@ -576,4 +576,4 @@ static int __init pat_memtype_list_init(void)
 
 late_initcall(pat_memtype_list_init);
 
-#endif /* CONFIG_DEBUG_FS */
+#endif /* CONFIG_DEBUG_FS && CONFIG_X86_PAT */
