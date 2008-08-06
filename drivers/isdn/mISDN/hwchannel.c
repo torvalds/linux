@@ -50,9 +50,6 @@ bchannel_bh(struct work_struct *ws)
 
 	if (test_and_clear_bit(FLG_RECVQUEUE, &bch->Flags)) {
 		while ((skb = skb_dequeue(&bch->rqueue))) {
-			if (bch->rcount >= 64)
-				printk(KERN_WARNING "B-channel %p receive "
-					"queue if full, but empties...\n", bch);
 			bch->rcount--;
 			if (likely(bch->ch.peer)) {
 				err = bch->ch.recv(bch->ch.peer, skb);
@@ -177,8 +174,10 @@ recv_Bchannel(struct bchannel *bch)
 	hh->prim = PH_DATA_IND;
 	hh->id = MISDN_ID_ANY;
 	if (bch->rcount >= 64) {
-		dev_kfree_skb(bch->rx_skb);
-		bch->rx_skb = NULL;
+		printk(KERN_WARNING "B-channel %p receive queue overflow, "
+			"fushing!\n", bch);
+		skb_queue_purge(&bch->rqueue);
+		bch->rcount = 0;
 		return;
 	}
 	bch->rcount++;
@@ -200,8 +199,10 @@ void
 recv_Bchannel_skb(struct bchannel *bch, struct sk_buff *skb)
 {
 	if (bch->rcount >= 64) {
-		dev_kfree_skb(skb);
-		return;
+		printk(KERN_WARNING "B-channel %p receive queue overflow, "
+			"fushing!\n", bch);
+		skb_queue_purge(&bch->rqueue);
+		bch->rcount = 0;
 	}
 	bch->rcount++;
 	skb_queue_tail(&bch->rqueue, skb);
@@ -245,8 +246,12 @@ confirm_Bsend(struct bchannel *bch)
 {
 	struct sk_buff	*skb;
 
-	if (bch->rcount >= 64)
-		return;
+	if (bch->rcount >= 64) {
+		printk(KERN_WARNING "B-channel %p receive queue overflow, "
+			"fushing!\n", bch);
+		skb_queue_purge(&bch->rqueue);
+		bch->rcount = 0;
+	}
 	skb = _alloc_mISDN_skb(PH_DATA_CNF, mISDN_HEAD_ID(bch->tx_skb),
 	    0, NULL, GFP_ATOMIC);
 	if (!skb) {
