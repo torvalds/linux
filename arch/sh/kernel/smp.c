@@ -184,6 +184,21 @@ void arch_send_call_function_single_ipi(int cpu)
 	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
 }
 
+void smp_timer_broadcast(cpumask_t mask)
+{
+	int cpu;
+
+	for_each_cpu_mask(cpu, mask)
+		plat_send_ipi(cpu, SMP_MSG_TIMER);
+}
+
+static void ipi_timer(void)
+{
+	irq_enter();
+	/* XXX ... */
+	irq_exit();
+}
+
 void smp_message_recv(unsigned int msg)
 {
 	switch (msg) {
@@ -194,6 +209,9 @@ void smp_message_recv(unsigned int msg)
 		break;
 	case SMP_MSG_FUNCTION_SINGLE:
 		generic_smp_call_function_single_interrupt();
+		break;
+	case SMP_MSG_TIMER:
+		ipi_timer();
 		break;
 	default:
 		printk(KERN_WARNING "SMP %d: %s(): unknown IPI %d\n",
