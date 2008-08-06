@@ -2166,7 +2166,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 			mc = random32() % pkt_dev->src_mac_count;
 		else {
 			mc = pkt_dev->cur_src_mac_offset++;
-			if (pkt_dev->cur_src_mac_offset >
+			if (pkt_dev->cur_src_mac_offset >=
 			    pkt_dev->src_mac_count)
 				pkt_dev->cur_src_mac_offset = 0;
 		}
@@ -2193,7 +2193,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 		else {
 			mc = pkt_dev->cur_dst_mac_offset++;
-			if (pkt_dev->cur_dst_mac_offset >
+			if (pkt_dev->cur_dst_mac_offset >=
 			    pkt_dev->dst_mac_count) {
 				pkt_dev->cur_dst_mac_offset = 0;
 			}
