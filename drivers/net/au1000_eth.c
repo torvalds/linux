@@ -807,7 +807,7 @@ err_out:
 static int au1000_init(struct net_device *dev)
 {
 	struct au1000_private *aup = (struct au1000_private *) dev->priv;
-	u32 flags;
+	unsigned long flags;
 	int i;
 	u32 control;
 
