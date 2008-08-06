@@ -526,6 +526,7 @@
 #define FTDI_ELV_WS500_PID	0xE0E9	/* PC-Wetterstation (WS 500) */
 #define FTDI_ELV_HS485_PID	0xE0EA	/* USB to RS-485 adapter */
 #define FTDI_ELV_EM1010PC_PID	0xE0EF	/* Engery monitor EM 1010 PC */
+#define FTDI_PHI_FISCO_PID      0xE40B  /* PHI Fisco USB to Serial cable */
 
 /*
  * Definitions for ID TECH (www.idt-net.com) devices
