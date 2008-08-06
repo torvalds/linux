@@ -2,7 +2,7 @@
 *******************************************************************************
 **
 **  Copyright (C) Sistina Software, Inc.  1997-2003  All rights reserved.
-**  Copyright (C) 2004-2007 Red Hat, Inc.  All rights reserved.
+**  Copyright (C) 2004-2008 Red Hat, Inc.  All rights reserved.
 **
 **  This copyrighted material is made available to anyone wishing to use,
 **  modify, copy, or redistribute it subject to the terms and conditions
@@ -23,6 +23,7 @@
 #include "lock.h"
 #include "recover.h"
 #include "requestqueue.h"
+#include "user.h"
 
 static int			ls_count;
 static struct mutex		ls_lock;
@@ -246,23 +247,6 @@ static void dlm_scand_stop(void)
 	kthread_stop(scand_task);
 }
 
-static struct dlm_ls *dlm_find_lockspace_name(char *name, int namelen)
-{
-	struct dlm_ls *ls;
-
-	spin_lock(&lslist_lock);
-
-	list_for_each_entry(ls, &lslist, ls_list) {
-		if (ls->ls_namelen == namelen &&
-		    memcmp(ls->ls_name, name, namelen) == 0)
-			goto out;
-	}
-	ls = NULL;
- out:
-	spin_unlock(&lslist_lock);
-	return ls;
-}
-
 struct dlm_ls *dlm_find_lockspace_global(uint32_t id)
 {
 	struct dlm_ls *ls;
@@ -327,6 +311,7 @@ static void remove_lockspace(struct dlm_ls *ls)
 	for (;;) {
 		spin_lock(&lslist_lock);
 		if (ls->ls_count == 0) {
+			WARN_ON(ls->ls_create_count != 0);
 			list_del(&ls->ls_list);
 			spin_unlock(&lslist_lock);
 			return;
@@ -381,7 +366,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 			 uint32_t flags, int lvblen)
 {
 	struct dlm_ls *ls;
-	int i, size, error = -ENOMEM;
+	int i, size, error;
 	int do_unreg = 0;
 
 	if (namelen > DLM_LOCKSPACE_LEN)
@@ -393,12 +378,32 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
-	ls = dlm_find_lockspace_name(name, namelen);
-	if (ls) {
-		*lockspace = ls;
+	error = 0;
+
+	spin_lock(&lslist_lock);
+	list_for_each_entry(ls, &lslist, ls_list) {
+		WARN_ON(ls->ls_create_count <= 0);
+		if (ls->ls_namelen != namelen)
+			continue;
+		if (memcmp(ls->ls_name, name, namelen))
+			continue;
+		if (flags & DLM_LSFL_NEWEXCL) {
+			error = -EEXIST;
+			break;
+		}
+		ls->ls_create_count++;
 		module_put(THIS_MODULE);
-		return -EEXIST;
+		error = 1; /* not an error, return 0 */
+		break;
 	}
+	spin_unlock(&lslist_lock);
+
+	if (error < 0)
+		goto out;
+	if (error)
+		goto ret_zero;
+
+	error = -ENOMEM;
 
 	ls = kzalloc(sizeof(struct dlm_ls) + namelen, GFP_KERNEL);
 	if (!ls)
@@ -418,8 +423,9 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 		ls->ls_allocation = GFP_KERNEL;
 
 	/* ls_exflags are forced to match among nodes, and we don't
-	   need to require all nodes to have TIMEWARN or FS set */
-	ls->ls_exflags = (flags & ~(DLM_LSFL_TIMEWARN | DLM_LSFL_FS));
+	   need to require all nodes to have some flags set */
+	ls->ls_exflags = (flags & ~(DLM_LSFL_TIMEWARN | DLM_LSFL_FS |
+				    DLM_LSFL_NEWEXCL));
 
 	size = dlm_config.ci_rsbtbl_size;
 	ls->ls_rsbtbl_size = size;
@@ -510,6 +516,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	down_write(&ls->ls_in_recovery);
 
 	spin_lock(&lslist_lock);
+	ls->ls_create_count = 1;
 	list_add(&ls->ls_list, &lslist);
 	spin_unlock(&lslist_lock);
 
@@ -548,7 +555,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	dlm_create_debug_file(ls);
 
 	log_debug(ls, "join complete");
-
+ ret_zero:
 	*lockspace = ls;
 	return 0;
 
@@ -635,11 +642,32 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	struct dlm_lkb *lkb;
 	struct dlm_rsb *rsb;
 	struct list_head *head;
-	int i;
-	int busy = lockspace_busy(ls);
+	int i, busy, rv;
 
-	if (busy > force)
-		return -EBUSY;
+	busy = lockspace_busy(ls);
+
+	spin_lock(&lslist_lock);
+	if (ls->ls_create_count == 1) {
+		if (busy > force)
+			rv = -EBUSY;
+		else {
+			/* remove_lockspace takes ls off lslist */
+			ls->ls_create_count = 0;
+			rv = 0;
+		}
+	} else if (ls->ls_create_count > 1) {
+		rv = --ls->ls_create_count;
+	} else {
+		rv = -EINVAL;
+	}
+	spin_unlock(&lslist_lock);
+
+	if (rv) {
+		log_debug(ls, "release_lockspace no remove %d", rv);
+		return rv;
+	}
+
+	dlm_device_deregister(ls);
 
 	if (force < 3)
 		do_uevent(ls, 0);
@@ -720,14 +748,9 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 	dlm_clear_members(ls);
 	dlm_clear_members_gone(ls);
 	kfree(ls->ls_node_array);
+	log_debug(ls, "release_lockspace final free");
 	kobject_put(&ls->ls_kobj);
 	/* The ls structure will be freed when the kobject is done with */
-
-	mutex_lock(&ls_lock);
-	ls_count--;
-	if (!ls_count)
-		threads_stop();
-	mutex_unlock(&ls_lock);
 
 	module_put(THIS_MODULE);
 	return 0;
@@ -750,11 +773,21 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 int dlm_release_lockspace(void *lockspace, int force)
 {
 	struct dlm_ls *ls;
+	int error;
 
 	ls = dlm_find_lockspace_local(lockspace);
 	if (!ls)
 		return -EINVAL;
 	dlm_put_lockspace(ls);
-	return release_lockspace(ls, force);
+
+	mutex_lock(&ls_lock);
+	error = release_lockspace(ls, force);
+	if (!error)
+		ls_count--;
+	else if (!ls_count)
+		threads_stop();
+	mutex_unlock(&ls_lock);
+
+	return error;
 }
 

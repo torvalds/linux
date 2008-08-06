@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2007 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2006-2008 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -340,9 +340,14 @@ static int device_user_deadlock(struct dlm_user_proc *proc,
 	return error;
 }
 
-static int create_misc_device(struct dlm_ls *ls, char *name)
+static int dlm_device_register(struct dlm_ls *ls, char *name)
 {
 	int error, len;
+
+	/* The device is already registered.  This happens when the
+	   lockspace is created multiple times from userspace. */
+	if (ls->ls_device.name)
+		return 0;
 
 	error = -ENOMEM;
 	len = strlen(name) + strlen(name_prefix) + 2;
@@ -360,6 +365,22 @@ static int create_misc_device(struct dlm_ls *ls, char *name)
 		kfree(ls->ls_device.name);
 	}
 fail:
+	return error;
+}
+
+int dlm_device_deregister(struct dlm_ls *ls)
+{
+	int error;
+
+	/* The device is not registered.  This happens when the lockspace
+	   was never used from userspace, or when device_create_lockspace()
+	   calls dlm_release_lockspace() after the register fails. */
+	if (!ls->ls_device.name)
+		return 0;
+
+	error = misc_deregister(&ls->ls_device);
+	if (!error)
+		kfree(ls->ls_device.name);
 	return error;
 }
 
@@ -397,7 +418,7 @@ static int device_create_lockspace(struct dlm_lspace_params *params)
 	if (!ls)
 		return -ENOENT;
 
-	error = create_misc_device(ls, params->name);
+	error = dlm_device_register(ls, params->name);
 	dlm_put_lockspace(ls);
 
 	if (error)
@@ -421,31 +442,22 @@ static int device_remove_lockspace(struct dlm_lspace_params *params)
 	if (!ls)
 		return -ENOENT;
 
-	/* Deregister the misc device first, so we don't have
-	 * a device that's not attached to a lockspace. If
-	 * dlm_release_lockspace fails then we can recreate it
-	 */
-	error = misc_deregister(&ls->ls_device);
-	if (error) {
-		dlm_put_lockspace(ls);
-		goto out;
-	}
-	kfree(ls->ls_device.name);
-
 	if (params->flags & DLM_USER_LSFLG_FORCEFREE)
 		force = 2;
 
 	lockspace = ls->ls_local_handle;
-
-	/* dlm_release_lockspace waits for references to go to zero,
-	   so all processes will need to close their device for the ls
-	   before the release will procede */
-
 	dlm_put_lockspace(ls);
+
+	/* The final dlm_release_lockspace waits for references to go to
+	   zero, so all processes will need to close their device for the
+	   ls before the release will proceed.  release also calls the
+	   device_deregister above.  Converting a positive return value
+	   from release to zero means that userspace won't know when its
+	   release was the final one, but it shouldn't need to know. */
+
 	error = dlm_release_lockspace(lockspace, force);
-	if (error)
-		create_misc_device(ls, ls->ls_name);
- out:
+	if (error > 0)
+		error = 0;
 	return error;
 }
 
