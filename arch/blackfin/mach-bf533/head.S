@@ -116,17 +116,8 @@ ENTRY(__start)
 	R1 = [p0];
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
-
-	/* Anomaly 05000125 */
-#if ANOMALY_05000125
-	CLI R2;
-	SSYNC;
-#endif
 	[p0] = R0;
 	SSYNC;
-#if ANOMALY_05000125
-	STI R2;
-#endif
 
 	/* Turn off the dcache */
 	p0.l = LO(DMEM_CONTROL);
@@ -134,17 +125,8 @@ ENTRY(__start)
 	R1 = [p0];
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
-
-	/* Anomaly 05000125 */
-#if ANOMALY_05000125
-	CLI R2;
-	SSYNC;
-#endif
 	[p0] = R0;
 	SSYNC;
-#if ANOMALY_05000125
-	STI R2;
-#endif
 
 	/* Initialise UART - when booting from u-boot, the UART is not disabled
 	 * so if we dont initalize here, our serial console gets hosed */

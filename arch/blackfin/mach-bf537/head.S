@@ -105,17 +105,8 @@ ENTRY(__start)
 	R1 = [p0];
 	R0 = ~ENICPLB;
 	R0 = R0 & R1;
-
-	/* Anomaly 05000125 */
-#if ANOMALY_05000125
-	CLI R2;
-	SSYNC;
-#endif
 	[p0] = R0;
 	SSYNC;
-#if ANOMALY_05000125
-	STI R2;
-#endif
 
 	/* Turn off the dcache */
 	p0.l = LO(DMEM_CONTROL);
@@ -123,48 +114,20 @@ ENTRY(__start)
 	R1 = [p0];
 	R0 = ~ENDCPLB;
 	R0 = R0 & R1;
-
-	/* Anomaly 05000125 */
-#if ANOMALY_05000125
-	CLI R2;
-	SSYNC;
-#endif
 	[p0] = R0;
 	SSYNC;
-#if ANOMALY_05000125
-	STI R2;
-#endif
 
 	/* Initialise General-Purpose I/O Modules on BF537 */
-	/* Rev 0.0 Anomaly 05000212 - PORTx_FER,
-	 * PORT_MUX Registers Do Not accept "writes" correctly:
-	 */
 	p0.h = hi(BFIN_PORT_MUX);
 	p0.l = lo(BFIN_PORT_MUX);
-#if ANOMALY_05000212
-	R0.L = W[P0]; /* Read */
-	SSYNC;
-#endif
 	R0 = (PGDE_UART | PFTE_UART)(Z);
-#if ANOMALY_05000212
-	W[P0] = R0.L; /* Write */
-	SSYNC;
-#endif
 	W[P0] = R0.L; /* Enable both UARTS */
 	SSYNC;
 
+	/* Enable peripheral function of PORTF for UART0 and UART1 */
 	p0.h = hi(PORTF_FER);
 	p0.l = lo(PORTF_FER);
-#if ANOMALY_05000212
-	R0.L = W[P0]; /* Read */
-	SSYNC;
-#endif
 	R0 = 0x000F(Z);
-#if ANOMALY_05000212
-	W[P0] = R0.L; /* Write */
-	SSYNC;
-#endif
-	/* Enable peripheral function of PORTF for UART0 and UART1 */
 	W[P0] = R0.L;
 	SSYNC;
 
