@@ -30,8 +30,8 @@
 #include <linux/spinlock.h>
 
 #include <asm/hardware.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #define MODULE_NAME "PNX4008-WDT: "
 
@@ -144,9 +144,8 @@ static int pnx4008_wdt_open(struct inode *inode, struct file *file)
 	return nonseekable_open(inode, file);
 }
 
-static ssize_t
-pnx4008_wdt_write(struct file *file, const char *data, size_t len,
-		  loff_t * ppos)
+static ssize_t pnx4008_wdt_write(struct file *file, const char *data,
+					size_t len, loff_t *ppos)
 {
 	if (len) {
 		if (!nowayout) {
@@ -169,15 +168,14 @@ pnx4008_wdt_write(struct file *file, const char *data, size_t len,
 	return len;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_CARDRESET | WDIOF_MAGICCLOSE |
 	    WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity = "PNX4008 Watchdog",
 };
 
-static int
-pnx4008_wdt_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		  unsigned long arg)
+static long pnx4008_wdt_ioctl(struct inode *inode, struct file *file,
+					unsigned int cmd, unsigned long arg)
 {
 	int ret = -ENOTTY;
 	int time;
@@ -238,7 +236,7 @@ static const struct file_operations pnx4008_wdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = pnx4008_wdt_write,
-	.ioctl = pnx4008_wdt_ioctl,
+	.unlocked_ioctl = pnx4008_wdt_ioctl,
 	.open = pnx4008_wdt_open,
 	.release = pnx4008_wdt_release,
 };

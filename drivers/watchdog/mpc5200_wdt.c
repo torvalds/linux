@@ -5,7 +5,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/of_platform.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <asm/mpc52xx.h>
 
 
@@ -57,7 +57,8 @@ static int mpc5200_wdt_start(struct mpc5200_wdt *wdt)
 	/* set timeout, with maximum prescaler */
 	out_be32(&wdt->regs->count, 0x0 | wdt->count);
 	/* enable watchdog */
-	out_be32(&wdt->regs->mode, GPT_MODE_CE | GPT_MODE_WDT | GPT_MODE_MS_TIMER);
+	out_be32(&wdt->regs->mode, GPT_MODE_CE | GPT_MODE_WDT |
+						GPT_MODE_MS_TIMER);
 	spin_unlock(&wdt->io_lock);
 
 	return 0;
@@ -66,7 +67,8 @@ static int mpc5200_wdt_ping(struct mpc5200_wdt *wdt)
 {
 	spin_lock(&wdt->io_lock);
 	/* writing A5 to OCPW resets the watchdog */
-	out_be32(&wdt->regs->mode, 0xA5000000 | (0xffffff & in_be32(&wdt->regs->mode)));
+	out_be32(&wdt->regs->mode, 0xA5000000 |
+				(0xffffff & in_be32(&wdt->regs->mode)));
 	spin_unlock(&wdt->io_lock);
 	return 0;
 }
@@ -92,8 +94,8 @@ static struct watchdog_info mpc5200_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity	= "mpc5200 watchdog on GPT0",
 };
-static int mpc5200_wdt_ioctl(struct inode *inode, struct file *file,
-		unsigned int cmd, unsigned long arg)
+static long mpc5200_wdt_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	struct mpc5200_wdt *wdt = file->private_data;
 	int __user *data = (int __user *)arg;
@@ -103,7 +105,7 @@ static int mpc5200_wdt_ioctl(struct inode *inode, struct file *file,
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
 		ret = copy_to_user(data, &mpc5200_wdt_info,
-			sizeof(mpc5200_wdt_info));
+						sizeof(mpc5200_wdt_info));
 		if (ret)
 			ret = -EFAULT;
 		break;
@@ -135,6 +137,7 @@ static int mpc5200_wdt_ioctl(struct inode *inode, struct file *file,
 	}
 	return ret;
 }
+
 static int mpc5200_wdt_open(struct inode *inode, struct file *file)
 {
 	/* /dev/watchdog can only be opened once */
@@ -167,7 +170,8 @@ static const struct file_operations mpc5200_wdt_fops = {
 };
 
 /* module operations */
-static int mpc5200_wdt_probe(struct of_device *op, const struct of_device_id *match)
+static int mpc5200_wdt_probe(struct of_device *op,
+					const struct of_device_id *match)
 {
 	struct mpc5200_wdt *wdt;
 	int err;

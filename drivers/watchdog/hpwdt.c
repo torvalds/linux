@@ -39,9 +39,9 @@
 #include <linux/string.h>
 #include <linux/bootmem.h>
 #include <linux/slab.h>
-#include <asm/dmi.h>
+#include <linux/dmi.h>
 #include <asm/desc.h>
-#include <asm/kdebug.h>
+#include <linux/kdebug.h>
 
 #define PCI_BIOS32_SD_VALUE		0x5F32335F	/* "_32_" */
 #define CRU_BIOS_SIGNATURE_VALUE	0x55524324
