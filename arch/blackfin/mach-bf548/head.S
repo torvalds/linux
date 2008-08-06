@@ -30,145 +30,18 @@
 #include <linux/linkage.h>
 #include <linux/init.h>
 #include <asm/blackfin.h>
-#include <asm/trace.h>
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 #include <asm/mach-common/clocks.h>
 #include <asm/mach/mem_init.h>
 #endif
 
-.extern ___bss_stop
-.extern ___bss_start
 .extern _bf53x_relocate_l1_mem
-
-#define INITIAL_STACK   0xFFB01000
 
 __INIT
 
-ENTRY(__start)
-	/* R0: argument of command line string, passed from uboot, save it */
-	R7 = R0;
-	/* Enable Cycle Counter and Nesting Of Interrupts */
-#ifdef CONFIG_BFIN_SCRATCH_REG_CYCLES
-	R0 = SYSCFG_SNEN;
-#else
-	R0 = SYSCFG_SNEN | SYSCFG_CCEN;
-#endif
-	SYSCFG = R0;
-	R0 = 0;
-
-	/* Clear Out All the data and pointer  Registers*/
-	R1 = R0;
-	R2 = R0;
-	R3 = R0;
-	R4 = R0;
-	R5 = R0;
-	R6 = R0;
-
-	P0 = R0;
-	P1 = R0;
-	P2 = R0;
-	P3 = R0;
-	P4 = R0;
-	P5 = R0;
-
-	LC0 = r0;
-	LC1 = r0;
-	L0 = r0;
-	L1 = r0;
-	L2 = r0;
-	L3 = r0;
-
-	/* Clear Out All the DAG Registers*/
-	B0 = r0;
-	B1 = r0;
-	B2 = r0;
-	B3 = r0;
-
-	I0 = r0;
-	I1 = r0;
-	I2 = r0;
-	I3 = r0;
-
-	M0 = r0;
-	M1 = r0;
-	M2 = r0;
-	M3 = r0;
-
-	trace_buffer_init(p0,r0);
-	P0 = R1;
-	R0 = R1;
-
-	/* Turn off the icache */
-	p0.l = LO(IMEM_CONTROL);
-	p0.h = HI(IMEM_CONTROL);
-	R1 = [p0];
-	R0 = ~ENICPLB;
-	R0 = R0 & R1;
-	[p0] = R0;
-	SSYNC;
-
-	/* Turn off the dcache */
-	p0.l = LO(DMEM_CONTROL);
-	p0.h = HI(DMEM_CONTROL);
-	R1 = [p0];
-	R0 = ~ENDCPLB;
-	R0 = R0 & R1;
-	[p0] = R0;
-	SSYNC;
-
-	/* Initialize stack pointer */
-	SP.L = LO(INITIAL_STACK);
-	SP.H = HI(INITIAL_STACK);
-	FP = SP;
-	USP = SP;
-
-#ifdef CONFIG_EARLY_PRINTK
-	SP += -12;
-	call _init_early_exception_vectors;
-	SP += 12;
-#endif
-
-	/* Put The Code for PLL Programming and SDRAM Programming in L1 ISRAM */
-	call _bf53x_relocate_l1_mem;
-#ifdef CONFIG_BFIN_KERNEL_CLOCK
-	call _start_dma_code;
-#endif
-
-	/* This section keeps the processor in supervisor mode
-	 * during kernel boot.  Switches to user mode at end of boot.
-	 * See page 3-9 of Hardware Reference manual for documentation.
-	 */
-
-	/* EVT15 = _real_start */
-
-	p0.l = lo(EVT15);
-	p0.h = hi(EVT15);
-	p1.l = _real_start;
-	p1.h = _real_start;
-	[p0] = p1;
-	csync;
-
-	p0.l = lo(IMASK);
-	p0.h = hi(IMASK);
-	p1.l = IMASK_IVG15;
-	p1.h = 0x0;
-	[p0] = p1;
-	csync;
-
-	raise 15;
-	p0.l = .LWAIT_HERE;
-	p0.h = .LWAIT_HERE;
-	reti = p0;
-#if ANOMALY_05000281
-	nop;
-	nop;
-	nop;
-#endif
-	rti;
-
-.LWAIT_HERE:
-	jump .LWAIT_HERE;
-ENDPROC(__start)
+ENTRY(_mach_early_start)
+	rts;
+ENDPROC(_mach_early_start)
 
 __FINIT
 
