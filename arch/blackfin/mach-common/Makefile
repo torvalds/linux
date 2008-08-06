@@ -3,7 +3,7 @@
 #
 
 obj-y := \
-	cache.o entry.o \
+	cache.o entry.o head.o \
 	interrupt.o lock.o irqpanic.o arch_checks.o ints-priority.o
 
 obj-$(CONFIG_PM)          += pm.o dpmc_modes.o
