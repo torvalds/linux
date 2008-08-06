@@ -886,9 +886,12 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 {
 	int ret;
+	struct p54_common *priv = dev->priv;
 
+	mutex_lock(&priv->conf_mutex);
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
+	mutex_unlock(&priv->conf_mutex);
 	return ret;
 }
 
@@ -898,10 +901,12 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
+	mutex_lock(&priv->conf_mutex);
 	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 0, 1, 0, 0xF642);
 	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 2, 0, 0, 0);
 	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
 	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -1009,6 +1014,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	}
 
 	p54_init_vdcf(dev);
+	mutex_init(&priv->conf_mutex);
 
 	return dev;
 }

@@ -1060,13 +1060,14 @@ static int ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 			  struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_info *info;
 	int ret, i;
 
-	if (netif_subqueue_stopped(local->mdev, skb))
-		return IEEE80211_TX_AGAIN;
-
 	if (skb) {
+		if (netif_subqueue_stopped(local->mdev, skb))
+			return IEEE80211_TX_AGAIN;
+		info =  IEEE80211_SKB_CB(skb);
+
 		ieee80211_dump_frame(wiphy_name(local->hw.wiphy),
 				     "TX to low-level driver", skb);
 		ret = local->ops->tx(local_to_hw(local), skb);
@@ -1215,6 +1216,7 @@ retry:
 
 		if (ret == IEEE80211_TX_FRAG_AGAIN)
 			skb = NULL;
+
 		set_bit(queue, local->queues_pending);
 		smp_mb();
 		/*
@@ -1708,13 +1710,18 @@ void ieee80211_tx_pending(unsigned long data)
 	netif_tx_lock_bh(dev);
 	for (i = 0; i < ieee80211_num_regular_queues(&local->hw); i++) {
 		/* Check that this queue is ok */
-		if (__netif_subqueue_stopped(local->mdev, i))
+		if (__netif_subqueue_stopped(local->mdev, i) &&
+		    !test_bit(i, local->queues_pending_run))
 			continue;
 
 		if (!test_bit(i, local->queues_pending)) {
+			clear_bit(i, local->queues_pending_run);
 			ieee80211_wake_queue(&local->hw, i);
 			continue;
 		}
+
+		clear_bit(i, local->queues_pending_run);
+		netif_start_subqueue(local->mdev, i);
 
 		store = &local->pending_packet[i];
 		tx.extra_frag = store->extra_frag;

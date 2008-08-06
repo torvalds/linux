@@ -649,6 +649,7 @@ config RTL8187
 	  Trendnet TEW-424UB
 	  ASUS P5B Deluxe
 	  Toshiba Satellite Pro series of laptops
+	  Asus Wireless Link
 
 	  Thanks to Realtek for their support!
 

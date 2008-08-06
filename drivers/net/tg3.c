@@ -7687,21 +7687,11 @@ static int tg3_reset_hw(struct tg3 *tp, int reset_phy)
  */
 static int tg3_init_hw(struct tg3 *tp, int reset_phy)
 {
-	int err;
-
-	/* Force the chip into D0. */
-	err = tg3_set_power_state(tp, PCI_D0);
-	if (err)
-		goto out;
-
 	tg3_switch_clocks(tp);
 
 	tw32(TG3PCI_MEM_WIN_BASE_ADDR, 0);
 
-	err = tg3_reset_hw(tp, reset_phy);
-
-out:
-	return err;
+	return tg3_reset_hw(tp, reset_phy);
 }
 
 #define TG3_STAT_ADD32(PSTAT, REG) \
@@ -8016,13 +8006,11 @@ static int tg3_open(struct net_device *dev)
 
 	netif_carrier_off(tp->dev);
 
-	tg3_full_lock(tp, 0);
-
 	err = tg3_set_power_state(tp, PCI_D0);
-	if (err) {
-		tg3_full_unlock(tp);
+	if (err)
 		return err;
-	}
+
+	tg3_full_lock(tp, 0);
 
 	tg3_disable_ints(tp);
 	tp->tg3_flags &= ~TG3_FLAG_INIT_COMPLETE;
