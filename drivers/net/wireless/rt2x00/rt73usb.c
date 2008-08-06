@@ -37,6 +37,13 @@
 #include "rt73usb.h"
 
 /*
+ * Allow hardware encryption to be disabled.
+ */
+static int modparam_nohwcrypt = 0;
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+
+/*
  * Register access.
  * All access to the CSR registers will go through the methods
  * rt73usb_register_read and rt73usb_register_write.
@@ -2211,7 +2218,8 @@ static int rt73usb_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_SCHEDULED, &rt2x00dev->flags);
-	__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
+	if (!modparam_nohwcrypt)
+		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.

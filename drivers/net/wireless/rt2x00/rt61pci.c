@@ -38,6 +38,13 @@
 #include "rt61pci.h"
 
 /*
+ * Allow hardware encryption to be disabled.
+ */
+static int modparam_nohwcrypt = 0;
+module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
+MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
+
+/*
  * Register access.
  * BBP and RF register require indirect register access,
  * and use the CSR registers PHY_CSR3 and PHY_CSR4 to achieve this.
@@ -2617,7 +2624,8 @@ static int rt61pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	 */
 	__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
-	__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
+	if (!modparam_nohwcrypt)
+		__set_bit(CONFIG_SUPPORT_HW_CRYPTO, &rt2x00dev->flags);
 
 	/*
 	 * Set the rssi offset.
