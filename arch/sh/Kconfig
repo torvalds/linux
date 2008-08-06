@@ -66,6 +66,9 @@ config GENERIC_TIME
 config GENERIC_CLOCKEVENTS
 	def_bool n
 
+config GENERIC_CLOCKEVENTS_BROADCAST
+	bool
+
 config GENERIC_LOCKBREAK
 	def_bool y
 	depends on SMP && PREEMPT
@@ -323,6 +326,7 @@ config CPU_SUBTYPE_SHX3
 	select ARCH_SPARSEMEM_ENABLE
 	select SYS_SUPPORTS_NUMA
 	select SYS_SUPPORTS_SMP
+	select GENERIC_CLOCKEVENTS_BROADCAST
 
 # SH4AL-DSP Processor Support
 

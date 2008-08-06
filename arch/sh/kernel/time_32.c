@@ -1,9 +1,9 @@
 /*
- *  arch/sh/kernel/time.c
+ *  arch/sh/kernel/time_32.c
  *
  *  Copyright (C) 1999  Tetsuya Okada & Niibe Yutaka
  *  Copyright (C) 2000  Philipp Rumpf <prumpf@tux.org>
- *  Copyright (C) 2002 - 2007  Paul Mundt
+ *  Copyright (C) 2002 - 2008  Paul Mundt
  *  Copyright (C) 2002  M. R. Brown  <mrbrown@linux-sh.org>
  *
  *  Some code taken from i386 version.
@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/clockchips.h>
+#include <linux/smp.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>
 #include <asm/timer.h>
@@ -259,6 +260,10 @@ void __init time_init(void)
 	 */
 	sys_timer = get_sys_timer();
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
+
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	local_timer_setup(smp_processor_id());
+#endif
 
 	if (sys_timer->ops->read)
 		clocksource_sh.read = sys_timer->ops->read;

@@ -33,6 +33,9 @@ enum {
 void smp_message_recv(unsigned int msg);
 void smp_timer_broadcast(cpumask_t mask);
 
+void local_timer_interrupt(void);
+void local_timer_setup(unsigned int cpu);
+
 void plat_smp_setup(void);
 void plat_prepare_cpus(unsigned int max_cpus);
 int plat_smp_processor_id(void);

@@ -84,9 +84,12 @@ asmlinkage void __cpuinit start_secondary(void)
 
 	local_irq_enable();
 
+	cpu = smp_processor_id();
+
+	/* Enable local timers */
+	local_timer_setup(cpu);
 	calibrate_delay();
 
-	cpu = smp_processor_id();
 	smp_store_cpu_info(cpu);
 
 	cpu_set(cpu, cpu_online_map);
@@ -195,7 +198,7 @@ void smp_timer_broadcast(cpumask_t mask)
 static void ipi_timer(void)
 {
 	irq_enter();
-	/* XXX ... */
+	local_timer_interrupt();
 	irq_exit();
 }
 
