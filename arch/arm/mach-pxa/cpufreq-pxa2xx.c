@@ -1,5 +1,5 @@
 /*
- *  linux/arch/arm/mach-pxa/cpu-pxa.c
+ *  linux/arch/arm/mach-pxa/cpufreq-pxa2xx.c
  *
  *  Copyright (C) 2002,2003 Intrinsyc Software
  *
