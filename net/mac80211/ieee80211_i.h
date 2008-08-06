@@ -292,17 +292,33 @@ struct mesh_config {
 #define IEEE80211_STA_AUTO_BSSID_SEL	BIT(11)
 #define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
 #define IEEE80211_STA_PRIVACY_INVOKED	BIT(13)
+/* flags for  MLME request*/
+#define IEEE80211_STA_REQ_SCAN 0
+#define IEEE80211_STA_REQ_AUTH 1
+#define IEEE80211_STA_REQ_RUN  2
+
+/* flags used for setting mlme state */
+enum ieee80211_sta_mlme_state {
+	IEEE80211_STA_MLME_DISABLED,
+	IEEE80211_STA_MLME_AUTHENTICATE,
+	IEEE80211_STA_MLME_ASSOCIATE,
+	IEEE80211_STA_MLME_ASSOCIATED,
+	IEEE80211_STA_MLME_IBSS_SEARCH,
+	IEEE80211_STA_MLME_IBSS_JOINED,
+	IEEE80211_STA_MLME_MESH_UP
+};
+
+/* bitfield of allowed auth algs */
+#define IEEE80211_AUTH_ALG_OPEN BIT(0)
+#define IEEE80211_AUTH_ALG_SHARED_KEY BIT(1)
+#define IEEE80211_AUTH_ALG_LEAP BIT(2)
+
 struct ieee80211_if_sta {
 	struct timer_list timer;
 	struct work_struct work;
 	u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	enum {
-		IEEE80211_DISABLED, IEEE80211_AUTHENTICATE,
-		IEEE80211_ASSOCIATE, IEEE80211_ASSOCIATED,
-		IEEE80211_IBSS_SEARCH, IEEE80211_IBSS_JOINED,
-		IEEE80211_MESH_UP
-	} state;
+	enum ieee80211_sta_mlme_state state;
 	size_t ssid_len;
 	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
 	size_t scan_ssid_len;
@@ -352,13 +368,7 @@ struct ieee80211_if_sta {
 	unsigned long last_probe;
 
 	unsigned int flags;
-#define IEEE80211_STA_REQ_SCAN 0
-#define IEEE80211_STA_REQ_AUTH 1
-#define IEEE80211_STA_REQ_RUN  2
 
-#define IEEE80211_AUTH_ALG_OPEN BIT(0)
-#define IEEE80211_AUTH_ALG_SHARED_KEY BIT(1)
-#define IEEE80211_AUTH_ALG_LEAP BIT(2)
 	unsigned int auth_algs; /* bitfield of allowed auth algs */
 	int auth_alg; /* currently used IEEE 802.11 authentication algorithm */
 	int auth_transaction;

@@ -535,8 +535,8 @@ static int ieee80211_ioctl_giwap(struct net_device *dev,
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
-		if (sdata->u.sta.state == IEEE80211_ASSOCIATED ||
-		    sdata->u.sta.state == IEEE80211_IBSS_JOINED) {
+		if (sdata->u.sta.state == IEEE80211_STA_MLME_ASSOCIATED ||
+		    sdata->u.sta.state == IEEE80211_STA_MLME_IBSS_JOINED) {
 			ap_addr->sa_family = ARPHRD_ETHER;
 			memcpy(&ap_addr->sa_data, sdata->u.sta.bssid, ETH_ALEN);
 			return 0;

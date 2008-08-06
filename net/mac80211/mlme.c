@@ -663,11 +663,11 @@ static void ieee80211_authenticate(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: authentication with AP %s"
 		       " timed out\n",
 		       sdata->dev->name, print_mac(mac, ifsta->bssid));
-		ifsta->state = IEEE80211_DISABLED;
+		ifsta->state = IEEE80211_STA_MLME_DISABLED;
 		return;
 	}
 
-	ifsta->state = IEEE80211_AUTHENTICATE;
+	ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 	printk(KERN_DEBUG "%s: authenticate with AP %s\n",
 	       sdata->dev->name, print_mac(mac, ifsta->bssid));
 
@@ -1004,17 +1004,17 @@ static void ieee80211_associate(struct ieee80211_sub_if_data *sdata,
 		printk(KERN_DEBUG "%s: association with AP %s"
 		       " timed out\n",
 		       sdata->dev->name, print_mac(mac, ifsta->bssid));
-		ifsta->state = IEEE80211_DISABLED;
+		ifsta->state = IEEE80211_STA_MLME_DISABLED;
 		return;
 	}
 
-	ifsta->state = IEEE80211_ASSOCIATE;
+	ifsta->state = IEEE80211_STA_MLME_ASSOCIATE;
 	printk(KERN_DEBUG "%s: associate with AP %s\n",
 	       sdata->dev->name, print_mac(mac, ifsta->bssid));
 	if (ieee80211_privacy_mismatch(sdata, ifsta)) {
 		printk(KERN_DEBUG "%s: mismatch in privacy configuration and "
 		       "mixed-cell disabled - abort association\n", sdata->dev->name);
-		ifsta->state = IEEE80211_DISABLED;
+		ifsta->state = IEEE80211_STA_MLME_DISABLED;
 		return;
 	}
 
@@ -1037,7 +1037,7 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 	 * for better APs. */
 	/* TODO: remove expired BSSes */
 
-	ifsta->state = IEEE80211_ASSOCIATED;
+	ifsta->state = IEEE80211_STA_MLME_ASSOCIATED;
 
 	rcu_read_lock();
 
@@ -1080,7 +1080,7 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 		sta_info_destroy(sta);
 
 	if (disassoc) {
-		ifsta->state = IEEE80211_DISABLED;
+		ifsta->state = IEEE80211_STA_MLME_DISABLED;
 		ieee80211_set_associated(sdata, ifsta, 0);
 	} else {
 		mod_timer(&ifsta->timer, jiffies +
@@ -1838,7 +1838,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	u16 auth_alg, auth_transaction, status_code;
 	DECLARE_MAC_BUF(mac);
 
-	if (ifsta->state != IEEE80211_AUTHENTICATE &&
+	if (ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE &&
 	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
 		return;
 
@@ -1942,10 +1942,10 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 	if (ifsta->flags & IEEE80211_STA_AUTHENTICATED)
 		printk(KERN_DEBUG "%s: deauthenticated\n", sdata->dev->name);
 
-	if (ifsta->state == IEEE80211_AUTHENTICATE ||
-	    ifsta->state == IEEE80211_ASSOCIATE ||
-	    ifsta->state == IEEE80211_ASSOCIATED) {
-		ifsta->state = IEEE80211_AUTHENTICATE;
+	if (ifsta->state == IEEE80211_STA_MLME_AUTHENTICATE ||
+	    ifsta->state == IEEE80211_STA_MLME_ASSOCIATE ||
+	    ifsta->state == IEEE80211_STA_MLME_ASSOCIATED) {
+		ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 		mod_timer(&ifsta->timer, jiffies +
 				      IEEE80211_RETRY_AUTH_INTERVAL);
 	}
@@ -1974,8 +1974,8 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 	if (ifsta->flags & IEEE80211_STA_ASSOCIATED)
 		printk(KERN_DEBUG "%s: disassociated\n", sdata->dev->name);
 
-	if (ifsta->state == IEEE80211_ASSOCIATED) {
-		ifsta->state = IEEE80211_ASSOCIATE;
+	if (ifsta->state == IEEE80211_STA_MLME_ASSOCIATED) {
+		ifsta->state = IEEE80211_STA_MLME_ASSOCIATE;
 		mod_timer(&ifsta->timer, jiffies +
 				      IEEE80211_RETRY_AUTH_INTERVAL);
 	}
@@ -2005,7 +2005,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	/* AssocResp and ReassocResp have identical structure, so process both
 	 * of them in this function. */
 
-	if (ifsta->state != IEEE80211_ASSOCIATE)
+	if (ifsta->state != IEEE80211_STA_MLME_ASSOCIATE)
 		return;
 
 	if (len < 24 + 6)
@@ -2487,7 +2487,7 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_sta_def_wmm_params(sdata, bss, 1);
 
-	ifsta->state = IEEE80211_IBSS_JOINED;
+	ifsta->state = IEEE80211_STA_MLME_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
 
 	memset(&wrqu, 0, sizeof(wrqu));
@@ -2960,7 +2960,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 #endif
 
 	if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS ||
-	    ifsta->state != IEEE80211_IBSS_JOINED ||
+	    ifsta->state != IEEE80211_STA_MLME_IBSS_JOINED ||
 	    len < 24 + 2 || !ifsta->probe_resp)
 		return;
 
@@ -3279,7 +3279,7 @@ void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_sta *ifsta;
 	ifsta = &sdata->u.sta;
-	ifsta->state = IEEE80211_MESH_UP;
+	ifsta->state = IEEE80211_STA_MLME_MESH_UP;
 	ieee80211_sta_timer((unsigned long)sdata);
 	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
 }
@@ -3327,8 +3327,8 @@ void ieee80211_sta_work(struct work_struct *work)
 		mesh_path_start_discovery(sdata);
 #endif
 
-	if (ifsta->state != IEEE80211_AUTHENTICATE &&
-	    ifsta->state != IEEE80211_ASSOCIATE &&
+	if (ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE &&
+	    ifsta->state != IEEE80211_STA_MLME_ASSOCIATE &&
 	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request)) {
 		if (ifsta->scan_ssid_len)
 			ieee80211_sta_start_scan(sdata, ifsta->scan_ssid, ifsta->scan_ssid_len);
@@ -3345,25 +3345,25 @@ void ieee80211_sta_work(struct work_struct *work)
 		return;
 
 	switch (ifsta->state) {
-	case IEEE80211_DISABLED:
+	case IEEE80211_STA_MLME_DISABLED:
 		break;
-	case IEEE80211_AUTHENTICATE:
+	case IEEE80211_STA_MLME_AUTHENTICATE:
 		ieee80211_authenticate(sdata, ifsta);
 		break;
-	case IEEE80211_ASSOCIATE:
+	case IEEE80211_STA_MLME_ASSOCIATE:
 		ieee80211_associate(sdata, ifsta);
 		break;
-	case IEEE80211_ASSOCIATED:
+	case IEEE80211_STA_MLME_ASSOCIATED:
 		ieee80211_associated(sdata, ifsta);
 		break;
-	case IEEE80211_IBSS_SEARCH:
+	case IEEE80211_STA_MLME_IBSS_SEARCH:
 		ieee80211_sta_find_ibss(sdata, ifsta);
 		break;
-	case IEEE80211_IBSS_JOINED:
+	case IEEE80211_STA_MLME_IBSS_JOINED:
 		ieee80211_sta_merge_ibss(sdata, ifsta);
 		break;
 #ifdef CONFIG_MAC80211_MESH
-	case IEEE80211_MESH_UP:
+	case IEEE80211_STA_MLME_MESH_UP:
 		ieee80211_mesh_housekeeping(sdata, ifsta);
 		break;
 #endif
@@ -3506,20 +3506,20 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 		ieee80211_sta_set_bssid(sdata, selected->bssid);
 		ieee80211_sta_def_wmm_params(sdata, selected, 0);
 		ieee80211_rx_bss_put(local, selected);
-		ifsta->state = IEEE80211_AUTHENTICATE;
+		ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 		ieee80211_sta_reset_auth(sdata, ifsta);
 		return 0;
 	} else {
-		if (ifsta->state != IEEE80211_AUTHENTICATE) {
+		if (ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE) {
 			if (ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL)
 				ieee80211_sta_start_scan(sdata, NULL, 0);
 			else
 				ieee80211_sta_start_scan(sdata, ifsta->ssid,
 							 ifsta->ssid_len);
-			ifsta->state = IEEE80211_AUTHENTICATE;
+			ifsta->state = IEEE80211_STA_MLME_AUTHENTICATE;
 			set_bit(IEEE80211_STA_REQ_AUTH, &ifsta->request);
 		} else
-			ifsta->state = IEEE80211_DISABLED;
+			ifsta->state = IEEE80211_STA_MLME_DISABLED;
 	}
 	return -1;
 }
@@ -3657,7 +3657,7 @@ dont_join:
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 
 	/* Selected IBSS not found in current scan results - try to scan */
-	if (ifsta->state == IEEE80211_IBSS_JOINED &&
+	if (ifsta->state == IEEE80211_STA_MLME_IBSS_JOINED &&
 	    !ieee80211_sta_active_ibss(sdata)) {
 		mod_timer(&ifsta->timer, jiffies +
 				      IEEE80211_IBSS_MERGE_INTERVAL);
@@ -3667,7 +3667,7 @@ dont_join:
 		       "join\n", sdata->dev->name);
 		return ieee80211_sta_req_scan(sdata, ifsta->ssid,
 					      ifsta->ssid_len);
-	} else if (ifsta->state != IEEE80211_IBSS_JOINED) {
+	} else if (ifsta->state != IEEE80211_STA_MLME_IBSS_JOINED) {
 		int interval = IEEE80211_SCAN_INTERVAL;
 
 		if (time_after(jiffies, ifsta->ibss_join_req +
@@ -3687,7 +3687,7 @@ dont_join:
 			interval = IEEE80211_SCAN_INTERVAL_SLOW;
 		}
 
-		ifsta->state = IEEE80211_IBSS_SEARCH;
+		ifsta->state = IEEE80211_STA_MLME_IBSS_SEARCH;
 		mod_timer(&ifsta->timer, jiffies + interval);
 		return 0;
 	}
@@ -3734,7 +3734,7 @@ int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
 	    !(ifsta->flags & IEEE80211_STA_BSSID_SET)) {
 		ifsta->ibss_join_req = jiffies;
-		ifsta->state = IEEE80211_IBSS_SEARCH;
+		ifsta->state = IEEE80211_STA_MLME_IBSS_SEARCH;
 		return ieee80211_sta_find_ibss(sdata, ifsta);
 	}
 
@@ -3881,7 +3881,7 @@ done:
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
-		    (!(ifsta->state == IEEE80211_IBSS_JOINED) &&
+		    (!(ifsta->state == IEEE80211_STA_MLME_IBSS_JOINED) &&
 		    !ieee80211_sta_active_ibss(sdata)))
 			ieee80211_sta_find_ibss(sdata, ifsta);
 	}
