@@ -419,6 +419,14 @@ config FS_POSIX_ACL
 	bool
 	default n
 
+config FILE_LOCKING
+	bool "Enable POSIX file locking API" if EMBEDDED
+	default y
+	help
+	  This option enables standard file locking support, required
+          for filesystems like NFS and for the flock() system
+          call. Disabling this option saves about 11k.
+
 source "fs/xfs/Kconfig"
 source "fs/gfs2/Kconfig"
 
