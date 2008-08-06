@@ -224,42 +224,10 @@ struct o2net_send_tracking {
 	struct timeval			st_send_time;
 	struct timeval			st_status_time;
 };
-
-void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
-		    u32 msgkey, struct task_struct *task, u8 node);
-void o2net_set_nst_sock_time(struct o2net_send_tracking *nst);
-void o2net_set_nst_send_time(struct o2net_send_tracking *nst);
-void o2net_set_nst_status_time(struct o2net_send_tracking *nst);
-void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
-				  struct o2net_sock_container *sc);
-void o2net_set_nst_msg_id(struct o2net_send_tracking *nst, u32 msg_id);
-
 #else
 struct o2net_send_tracking {
 	u32	dummy;
 };
-
-static inline void o2net_init_nst(struct o2net_send_tracking *nst, u32 msgtype,
-				  u32 msgkey, struct task_struct *task, u8 node)
-{
-}
-static inline void o2net_set_nst_sock_time(struct o2net_send_tracking *nst)
-{
-}
-static inline void o2net_set_nst_send_time(struct o2net_send_tracking *nst)
-{
-}
-static inline void o2net_set_nst_status_time(struct o2net_send_tracking *nst)
-{
-}
-static inline void o2net_set_nst_sock_container(struct o2net_send_tracking *nst,
-						struct o2net_sock_container *sc)
-{
-}
-static inline void o2net_set_nst_msg_id(struct o2net_send_tracking *nst,
-					u32 msg_id)
-{
-}
 #endif	/* CONFIG_DEBUG_FS */
 
 #endif /* O2CLUSTER_TCP_INTERNAL_H */
