@@ -1068,13 +1068,13 @@ int __init init_arch_irq(void)
 	    IMASK_IVG10 | IMASK_IVG9 | IMASK_IVG8 | IMASK_IVG7 | IMASK_IVGHW;
 
 #if defined(CONFIG_BF54x) || defined(CONFIG_BF52x) || defined(CONFIG_BF561)
-	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
-	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
+	bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
 # ifdef CONFIG_BF54x
-	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR2(IWR_DISABLE_ALL);
 # endif
 #else
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
 
 	return 0;

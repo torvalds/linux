@@ -83,13 +83,13 @@ void bfin_pm_suspend_standby_enter(void)
 	bfin_pm_standby_restore();
 
 #if defined(CONFIG_BF54x) || defined(CONFIG_BF52x)  || defined(CONFIG_BF561)
-	bfin_write_SIC_IWR0(IWR_ENABLE_ALL);
-	bfin_write_SIC_IWR1(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR0(IWR_DISABLE_ALL);
+	bfin_write_SIC_IWR1(IWR_DISABLE_ALL);
 # ifdef CONFIG_BF54x
-	bfin_write_SIC_IWR2(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR2(IWR_DISABLE_ALL);
 # endif
 #else
-	bfin_write_SIC_IWR(IWR_ENABLE_ALL);
+	bfin_write_SIC_IWR(IWR_DISABLE_ALL);
 #endif
 
 	local_irq_restore(flags);

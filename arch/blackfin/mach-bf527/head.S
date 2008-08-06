@@ -183,13 +183,6 @@ ENTRY(_start_dma_code)
 	[P2] = R1;
 	SSYNC;
 
-	p0.h = hi(SIC_IWR0);
-	p0.l = lo(SIC_IWR0);
-	r0.l = lo(IWR_ENABLE_ALL);
-	r0.h = hi(IWR_ENABLE_ALL);
-	[p0] = r0;
-	SSYNC;
-
 	RTS;
 ENDPROC(_start_dma_code)
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
