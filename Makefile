@@ -929,10 +929,10 @@ ifneq ($(KBUILD_SRC),)
 		echo "  in the '$(srctree)' directory.";\
 		/bin/false; \
 	fi;
-	$(Q)if [ ! -d include2 ]; then mkdir -p include2; fi;
-	$(Q)if [ -e $(srctree)/include/asm-$(SRCARCH)/errno.h ]; then  \
+	$(Q)if [ ! -d include2 ]; then                                  \
+	    mkdir -p include2;                                          \
 	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
-	    fi
+	fi
 endif
 
 # prepare2 creates a makefile if using a separate output directory
