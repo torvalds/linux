@@ -575,8 +575,8 @@ config SENSORS_DME1737
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the hardware monitoring
-	  and fan control features of the SMSC DME1737 (and compatibles
-	  like the Asus A8000) and SCH311x Super-I/O chips.
+	  and fan control features of the SMSC DME1737, SCH311x, SCH5027, and
+	  Asus A8000 Super-I/O chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called dme1737.
