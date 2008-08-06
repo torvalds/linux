@@ -32,8 +32,6 @@ void plat_prepare_cpus(unsigned int max_cpus);
 int plat_smp_processor_id(void);
 void plat_start_cpu(unsigned int cpu, unsigned long entry_point);
 void plat_send_ipi(unsigned int cpu, unsigned int message);
-int plat_register_ipi_handler(unsigned int message,
-			      void (*handler)(void *), void *arg);
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi(cpumask_t mask);
 

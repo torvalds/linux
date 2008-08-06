@@ -1,7 +1,7 @@
 /*
  * SH-X3 SMP
  *
- *  Copyright (C) 2007  Paul Mundt
+ *  Copyright (C) 2007 - 2008  Paul Mundt
  *  Copyright (C) 2007  Magnus Damm
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -13,6 +13,22 @@
 #include <linux/smp.h>
 #include <linux/interrupt.h>
 #include <linux/io.h>
+
+static irqreturn_t ipi_interrupt_handler(int irq, void *arg)
+{
+	unsigned int message = (unsigned int)(long)arg;
+	unsigned int cpu = hard_smp_processor_id();
+	unsigned int offs = 4 * cpu;
+	unsigned int x;
+
+	x = ctrl_inl(0xfe410070 + offs); /* C0INITICI..CnINTICI */
+	x &= (1 << (message << 2));
+	ctrl_outl(x, 0xfe410080 + offs); /* C0INTICICLR..CnINTICICLR */
+
+	smp_message_recv(message);
+
+	return IRQ_HANDLED;
+}
 
 void __init plat_smp_setup(void)
 {
@@ -40,6 +56,13 @@ void __init plat_smp_setup(void)
 
 void __init plat_prepare_cpus(unsigned int max_cpus)
 {
+	int i;
+
+	BUILD_BUG_ON(SMP_MSG_NR >= 8);
+
+	for (i = 0; i < SMP_MSG_NR; i++)
+		request_irq(104 + i, ipi_interrupt_handler, IRQF_DISABLED,
+			    "IPI", (void *)(long)i);
 }
 
 #define STBCR_REG(phys_id) (0xfe400004 | (phys_id << 12))
@@ -75,46 +98,6 @@ void plat_send_ipi(unsigned int cpu, unsigned int message)
 	unsigned long addr = 0xfe410070 + (cpu * 4);
 
 	BUG_ON(cpu >= 4);
-	BUG_ON(message >= SMP_MSG_NR);
 
 	ctrl_outl(1 << (message << 2), addr); /* C0INTICI..CnINTICI */
-}
-
-struct ipi_data {
-	void (*handler)(void *);
-	void *arg;
-	unsigned int message;
-};
-
-static irqreturn_t ipi_interrupt_handler(int irq, void *arg)
-{
-	struct ipi_data *id = arg;
-	unsigned int cpu = hard_smp_processor_id();
-	unsigned int offs = 4 * cpu;
-	unsigned int x;
-
-	x = ctrl_inl(0xfe410070 + offs); /* C0INITICI..CnINTICI */
-	x &= (1 << (id->message << 2));
-	ctrl_outl(x, 0xfe410080 + offs); /* C0INTICICLR..CnINTICICLR */
-
-	id->handler(id->arg);
-
-	return IRQ_HANDLED;
-}
-
-static struct ipi_data ipi_handlers[SMP_MSG_NR];
-
-int plat_register_ipi_handler(unsigned int message,
-			      void (*handler)(void *), void *arg)
-{
-	struct ipi_data *id = &ipi_handlers[message];
-
-	BUG_ON(SMP_MSG_NR >= 8);
-	BUG_ON(message >= SMP_MSG_NR);
-
-	id->handler = handler;
-	id->arg = arg;
-	id->message = message;
-
-	return request_irq(104 + message, ipi_interrupt_handler, 0, "IPI", id);
 }
