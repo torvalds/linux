@@ -804,6 +804,11 @@ struct rt2x00_dev {
 	u32 *rf;
 
 	/*
+	 * LNA gain
+	 */
+	short lna_gain;
+
+	/*
 	 * USB Max frame size (for rt2500usb & rt73usb).
 	 */
 	u16 usb_maxpacket;

@@ -638,6 +638,30 @@ static void rt61pci_config_erp(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, TXRX_CSR4, reg);
 }
 
+
+static void rt61pci_config_lna_gain(struct rt2x00_dev *rt2x00dev,
+				    struct rt2x00lib_conf *libconf)
+{
+	u16 eeprom;
+	short lna_gain = 0;
+
+	if (libconf->band == IEEE80211_BAND_2GHZ) {
+		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags))
+			lna_gain += 14;
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
+		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_BG_1);
+	} else {
+		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
+			lna_gain += 14;
+
+		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &eeprom);
+		lna_gain -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_A_1);
+	}
+
+	rt2x00dev->lna_gain = lna_gain;
+}
+
 static void rt61pci_config_phymode(struct rt2x00_dev *rt2x00dev,
 				   const int basic_rate_mask)
 {
@@ -956,6 +980,9 @@ static void rt61pci_config(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00lib_conf *libconf,
 			   const unsigned int flags)
 {
+	/* Always recalculate LNA gain before changing configuration */
+	rt61pci_config_lna_gain(rt2x00dev, libconf);
+
 	if (flags & CONFIG_UPDATE_PHYMODE)
 		rt61pci_config_phymode(rt2x00dev, libconf->basic_rates);
 	if (flags & CONFIG_UPDATE_CHANNEL)
@@ -1883,40 +1910,27 @@ static void rt61pci_kick_tx_queue(struct rt2x00_dev *rt2x00dev,
  */
 static int rt61pci_agc_to_rssi(struct rt2x00_dev *rt2x00dev, int rxd_w1)
 {
-	u16 eeprom;
-	u8 offset;
+	u8 offset = rt2x00dev->lna_gain;
 	u8 lna;
 
 	lna = rt2x00_get_field32(rxd_w1, RXD_W1_RSSI_LNA);
 	switch (lna) {
 	case 3:
-		offset = 90;
+		offset += 90;
 		break;
 	case 2:
-		offset = 74;
+		offset += 74;
 		break;
 	case 1:
-		offset = 64;
+		offset += 64;
 		break;
 	default:
 		return 0;
 	}
 
 	if (rt2x00dev->rx_status.band == IEEE80211_BAND_5GHZ) {
-		if (test_bit(CONFIG_EXTERNAL_LNA_A, &rt2x00dev->flags))
-			offset += 14;
-
 		if (lna == 3 || lna == 2)
 			offset += 10;
-
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_A, &eeprom);
-		offset -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_A_1);
-	} else {
-		if (test_bit(CONFIG_EXTERNAL_LNA_BG, &rt2x00dev->flags))
-			offset += 14;
-
-		rt2x00_eeprom_read(rt2x00dev, EEPROM_RSSI_OFFSET_BG, &eeprom);
-		offset -= rt2x00_get_field16(eeprom, EEPROM_RSSI_OFFSET_BG_1);
 	}
 
 	return rt2x00_get_field32(rxd_w1, RXD_W1_RSSI_AGC) * 2 - offset;
