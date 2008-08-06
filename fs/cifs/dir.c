@@ -236,12 +236,14 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				args.uid = (__u64) current->fsuid;
-				args.gid = (__u64) current->fsgid;
+				if (inode->i_mode & S_ISGID)
+					args.gid = (__u64) inode->i_gid;
+				else
+					args.gid = (__u64) current->fsgid;
 			} else {
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
 			}
-
 			CIFSSMBUnixSetInfo(xid, pTcon, full_path, &args,
 				cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
@@ -270,7 +272,12 @@ cifs_create(struct inode *inode, struct dentry *direntry, int mode,
 				    (cifs_sb->mnt_cifs_flags &
 				     CIFS_MOUNT_SET_UID)) {
 					newinode->i_uid = current->fsuid;
-					newinode->i_gid = current->fsgid;
+					if (inode->i_mode & S_ISGID)
+						newinode->i_gid =
+							inode->i_gid;
+					else
+						newinode->i_gid =
+							current->fsgid;
 				}
 			}
 		}

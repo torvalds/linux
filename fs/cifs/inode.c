@@ -985,7 +985,12 @@ mkdir_get_info:
 		  * failed to get it from the server or was set bogus */
 		if ((direntry->d_inode) && (direntry->d_inode->i_nlink < 2))
 				direntry->d_inode->i_nlink = 2;
+
 		mode &= ~current->fs->umask;
+		/* must turn on setgid bit if parent dir has it */
+		if (inode->i_mode & S_ISGID)
+			mode |= S_ISGID;
+
 		if (pTcon->unix_ext) {
 			struct cifs_unix_set_info_args args = {
 				.mode	= mode,
@@ -996,7 +1001,10 @@ mkdir_get_info:
 			};
 			if (cifs_sb->mnt_cifs_flags & CIFS_MOUNT_SET_UID) {
 				args.uid = (__u64)current->fsuid;
-				args.gid = (__u64)current->fsgid;
+				if (inode->i_mode & S_ISGID)
+					args.gid = (__u64)inode->i_gid;
+				else
+					args.gid = (__u64)current->fsgid;
 			} else {
 				args.uid = NO_CHANGE_64;
 				args.gid = NO_CHANGE_64;
@@ -1026,8 +1034,12 @@ mkdir_get_info:
 				     CIFS_MOUNT_SET_UID) {
 					direntry->d_inode->i_uid =
 						current->fsuid;
-					direntry->d_inode->i_gid =
-						current->fsgid;
+					if (inode->i_mode & S_ISGID)
+						direntry->d_inode->i_gid =
+							inode->i_gid;
+					else
+						direntry->d_inode->i_gid =
+							current->fsgid;
 				}
 			}
 		}
