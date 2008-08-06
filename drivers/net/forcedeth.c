@@ -402,6 +402,7 @@ union ring_type {
 #define NV_RX_FRAMINGERR	(1<<29)
 #define NV_RX_ERROR		(1<<30)
 #define NV_RX_AVAIL		(1<<31)
+#define NV_RX_ERROR_MASK	(NV_RX_ERROR1|NV_RX_ERROR2|NV_RX_ERROR3|NV_RX_ERROR4|NV_RX_CRCERR|NV_RX_OVERFLOW|NV_RX_FRAMINGERR)
 
 #define NV_RX2_CHECKSUMMASK	(0x1C000000)
 #define NV_RX2_CHECKSUM_IP	(0x10000000)
@@ -419,6 +420,7 @@ union ring_type {
 /* error and avail are the same for both */
 #define NV_RX2_ERROR		(1<<30)
 #define NV_RX2_AVAIL		(1<<31)
+#define NV_RX2_ERROR_MASK	(NV_RX2_ERROR1|NV_RX2_ERROR2|NV_RX2_ERROR3|NV_RX2_ERROR4|NV_RX2_CRCERR|NV_RX2_OVERFLOW|NV_RX2_FRAMINGERR)
 
 #define NV_RX3_VLAN_TAG_PRESENT (1<<16)
 #define NV_RX3_VLAN_TAG_MASK	(0x0000FFFF)
@@ -2632,7 +2634,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 			if (likely(flags & NV_RX_DESCRIPTORVALID)) {
 				len = flags & LEN_MASK_V1;
 				if (unlikely(flags & NV_RX_ERROR)) {
-					if (flags & NV_RX_ERROR4) {
+					if ((flags & NV_RX_ERROR_MASK) == NV_RX_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
 							dev->stats.rx_errors++;
@@ -2641,7 +2643,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 						}
 					}
 					/* framing errors are soft errors */
-					else if (flags & NV_RX_FRAMINGERR) {
+					else if ((flags & NV_RX_ERROR_MASK) == NV_RX_FRAMINGERR) {
 						if (flags & NV_RX_SUBSTRACT1) {
 							len--;
 						}
@@ -2667,7 +2669,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 			if (likely(flags & NV_RX2_DESCRIPTORVALID)) {
 				len = flags & LEN_MASK_V2;
 				if (unlikely(flags & NV_RX2_ERROR)) {
-					if (flags & NV_RX2_ERROR4) {
+					if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_ERROR4) {
 						len = nv_getlen(dev, skb->data, len);
 						if (len < 0) {
 							dev->stats.rx_errors++;
@@ -2676,7 +2678,7 @@ static int nv_rx_process(struct net_device *dev, int limit)
 						}
 					}
 					/* framing errors are soft errors */
-					else if (flags & NV_RX2_FRAMINGERR) {
+					else if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_FRAMINGERR) {
 						if (flags & NV_RX2_SUBSTRACT1) {
 							len--;
 						}
@@ -2766,7 +2768,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 		if (likely(flags & NV_RX2_DESCRIPTORVALID)) {
 			len = flags & LEN_MASK_V2;
 			if (unlikely(flags & NV_RX2_ERROR)) {
-				if (flags & NV_RX2_ERROR4) {
+				if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_ERROR4) {
 					len = nv_getlen(dev, skb->data, len);
 					if (len < 0) {
 						dev_kfree_skb(skb);
@@ -2774,7 +2776,7 @@ static int nv_rx_process_optimized(struct net_device *dev, int limit)
 					}
 				}
 				/* framing errors are soft errors */
-				else if (flags & NV_RX2_FRAMINGERR) {
+				else if ((flags & NV_RX2_ERROR_MASK) == NV_RX2_FRAMINGERR) {
 					if (flags & NV_RX2_SUBSTRACT1) {
 						len--;
 					}
