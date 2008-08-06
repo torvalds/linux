@@ -83,6 +83,7 @@ SECTIONS
 #if !L1_DATA_B_LENGTH
 		*(.l1.bss.B)
 #endif
+		. = ALIGN(4);
 		___bss_stop = .;
 	}
 
