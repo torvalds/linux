@@ -2085,15 +2085,19 @@ static inline int f_pick(struct pktgen_dev *pkt_dev)
 		if (pkt_dev->flows[flow].count >= pkt_dev->lflow) {
 			/* reset time */
 			pkt_dev->flows[flow].count = 0;
+			pkt_dev->flows[flow].flags = 0;
 			pkt_dev->curfl += 1;
 			if (pkt_dev->curfl >= pkt_dev->cflows)
 				pkt_dev->curfl = 0; /*reset */
 		}
 	} else {
 		flow = random32() % pkt_dev->cflows;
+		pkt_dev->curfl = flow;
 
-		if (pkt_dev->flows[flow].count > pkt_dev->lflow)
+		if (pkt_dev->flows[flow].count > pkt_dev->lflow) {
 			pkt_dev->flows[flow].count = 0;
+			pkt_dev->flows[flow].flags = 0;
+		}
 	}
 
 	return pkt_dev->curfl;
