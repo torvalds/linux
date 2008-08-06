@@ -37,17 +37,13 @@
  * For VRD 10.0 and up, "VRD x.y Design Guide",
  * available at http://developer.intel.com/.
  *
+ * AMD NPT 0Fh (Athlon64 & Opteron), AMD Publication 32559,
+ * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/32559.pdf
+ * Table 71. VID Code Voltages
  * AMD Opteron processors don't follow the Intel specifications.
  * I'm going to "make up" 2.4 as the spec number for the Opterons.
  * No good reason just a mnemonic for the 24x Opteron processor
  * series.
- *
- * Opteron VID encoding is:
- *    00000  =  1.550 V
- *    00001  =  1.525 V
- *     . . . .
- *    11110  =  0.800 V
- *    11111  =  0.000 V (off)
  *
  * The 17 specification is in fact Intel Mobile Voltage Positioning -
  * (IMVP-II). You can find more information in the datasheet of Max1718
@@ -98,9 +94,11 @@ int vid_from_reg(int val, u8 vrm)
 		if (val < 0x02 || val > 0xb2)
 			return 0;
 		return((1600000 - (val - 2) * 6250 + 500) / 1000);
-	case 24:                /* Opteron processor */
-		val &= 0x1f;
-		return(val == 0x1f ? 0 : 1550 - val * 25);
+
+	case 24:		/* AMD NPT 0Fh (Athlon64 & Opteron) */
+		val &= 0x3f;
+		return (val < 32) ? 1550 - 25 * val
+			: 775 - (25 * (val - 31)) / 2;
 
 	case 91:		/* VRM 9.1 */
 	case 90:		/* VRM 9.0 */
