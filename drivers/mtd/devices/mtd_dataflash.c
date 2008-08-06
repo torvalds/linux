@@ -618,7 +618,7 @@ static char *otp_setup(struct mtd_info *device, char revision)
 
 #else
 
-static char *otp_setup(struct mtd_info *device)
+static char *otp_setup(struct mtd_info *device, char revision)
 {
 	return " (OTP)";
 }
