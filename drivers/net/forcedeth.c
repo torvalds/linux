@@ -249,6 +249,8 @@ enum {
 #define NVREG_TX_PAUSEFRAME_ENABLE_V1	0x01800010
 #define NVREG_TX_PAUSEFRAME_ENABLE_V2	0x056003f0
 #define NVREG_TX_PAUSEFRAME_ENABLE_V3	0x09f00880
+	NvRegTxPauseFrameLimit = 0x174,
+#define NVREG_TX_PAUSEFRAMELIMIT_ENABLE	0x00010000
 	NvRegMIIStatus = 0x180,
 #define NVREG_MIISTAT_ERROR		0x0001
 #define NVREG_MIISTAT_LINKCHANGE	0x0008
@@ -3076,8 +3078,11 @@ static void nv_update_pause(struct net_device *dev, u32 pause_flags)
 			u32 pause_enable = NVREG_TX_PAUSEFRAME_ENABLE_V1;
 			if (np->driver_data & DEV_HAS_PAUSEFRAME_TX_V2)
 				pause_enable = NVREG_TX_PAUSEFRAME_ENABLE_V2;
-			if (np->driver_data & DEV_HAS_PAUSEFRAME_TX_V3)
+			if (np->driver_data & DEV_HAS_PAUSEFRAME_TX_V3) {
 				pause_enable = NVREG_TX_PAUSEFRAME_ENABLE_V3;
+				/* limit the number of tx pause frames to a default of 8 */
+				writel(readl(base + NvRegTxPauseFrameLimit)|NVREG_TX_PAUSEFRAMELIMIT_ENABLE, base + NvRegTxPauseFrameLimit);
+			}
 			writel(pause_enable,  base + NvRegTxPauseFrame);
 			writel(regmisc|NVREG_MISC1_PAUSE_TX, base + NvRegMisc1);
 			np->pause_flags |= NV_PAUSEFRAME_TX_ENABLE;
