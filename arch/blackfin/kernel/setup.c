@@ -738,6 +738,16 @@ void __init setup_arch(char **cmdline_p)
 
 	memory_setup();
 
+	/* Initialize Async memory banks */
+	bfin_write_EBIU_AMBCTL0(AMBCTL0VAL);
+	bfin_write_EBIU_AMBCTL1(AMBCTL1VAL);
+	bfin_write_EBIU_AMGCTL(AMGCTLVAL);
+#ifdef CONFIG_EBIU_MBSCTLVAL
+	bfin_write_EBIU_MBSCTL(CONFIG_EBIU_MBSCTLVAL);
+	bfin_write_EBIU_MODE(CONFIG_EBIU_MODEVAL);
+	bfin_write_EBIU_FCTL(CONFIG_EBIU_FCTLVAL);
+#endif
+
 	cclk = get_cclk();
 	sclk = get_sclk();
 

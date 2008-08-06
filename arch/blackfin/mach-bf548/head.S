@@ -133,48 +133,6 @@ ENTRY(__start)
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 	call _start_dma_code;
 #endif
-	/* Code for initializing Async memory banks */
-
-	p2.h = hi(EBIU_AMBCTL1);
-	p2.l = lo(EBIU_AMBCTL1);
-	r0.h = hi(AMBCTL1VAL);
-	r0.l = lo(AMBCTL1VAL);
-	[p2] = r0;
-	ssync;
-
-	p2.h = hi(EBIU_AMBCTL0);
-	p2.l = lo(EBIU_AMBCTL0);
-	r0.h = hi(AMBCTL0VAL);
-	r0.l = lo(AMBCTL0VAL);
-	[p2] = r0;
-	ssync;
-
-	p2.h = hi(EBIU_AMGCTL);
-	p2.l = lo(EBIU_AMGCTL);
-	r0 = AMGCTLVAL;
-	w[p2] = r0;
-	ssync;
-
-	p2.h = hi(EBIU_MBSCTL);
-	p2.l = lo(EBIU_MBSCTL);
-	r0.h = hi(CONFIG_EBIU_MBSCTLVAL);
-	r0.l = lo(CONFIG_EBIU_MBSCTLVAL);
-	[p2] = r0;
-	ssync;
-
-	p2.h = hi(EBIU_MODE);
-	p2.l = lo(EBIU_MODE);
-	r0.h = hi(CONFIG_EBIU_MODEVAL);
-	r0.l = lo(CONFIG_EBIU_MODEVAL);
-	[p2] = r0;
-	ssync;
-
-	p2.h = hi(EBIU_FCTL);
-	p2.l = lo(EBIU_FCTL);
-	r0.h = hi(CONFIG_EBIU_FCTLVAL);
-	r0.l = lo(CONFIG_EBIU_FCTLVAL);
-	[p2] = r0;
-	ssync;
 
 	/* This section keeps the processor in supervisor mode
 	 * during kernel boot.  Switches to user mode at end of boot.
