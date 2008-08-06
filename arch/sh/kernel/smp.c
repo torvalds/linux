@@ -3,7 +3,7 @@
  *
  * SMP support for the SuperH processors.
  *
- * Copyright (C) 2002 - 2007 Paul Mundt
+ * Copyright (C) 2002 - 2008 Paul Mundt
  * Copyright (C) 2006 - 2007 Akio Idehara
  *
  * This file is subject to the terms and conditions of the GNU General Public
@@ -182,6 +182,24 @@ void arch_send_call_function_ipi(cpumask_t mask)
 void arch_send_call_function_single_ipi(int cpu)
 {
 	plat_send_ipi(cpu, SMP_MSG_FUNCTION_SINGLE);
+}
+
+void smp_message_recv(unsigned int msg)
+{
+	switch (msg) {
+	case SMP_MSG_FUNCTION:
+		generic_smp_call_function_interrupt();
+		break;
+	case SMP_MSG_RESCHEDULE:
+		break;
+	case SMP_MSG_FUNCTION_SINGLE:
+		generic_smp_call_function_single_interrupt();
+		break;
+	default:
+		printk(KERN_WARNING "SMP %d: %s(): unknown IPI %d\n",
+		       smp_processor_id(), __func__, msg);
+		break;
+	}
 }
 
 /* Not really SMP stuff ... */

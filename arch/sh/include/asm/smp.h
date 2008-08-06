@@ -26,6 +26,7 @@ extern int __cpu_logical_map[NR_CPUS];
 #define SMP_MSG_FUNCTION_SINGLE	2
 #define SMP_MSG_NR		3
 
+void smp_message_recv(unsigned int msg);
 void plat_smp_setup(void);
 void plat_prepare_cpus(unsigned int max_cpus);
 int plat_smp_processor_id(void);
