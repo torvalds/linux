@@ -51,6 +51,7 @@
  */
 
 #undef DEBUG
+#undef VERBOSE_DEBUG
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -70,6 +71,9 @@
 
 #include "cdc-acm.h"
 
+
+#define ACM_CLOSE_TIMEOUT	15	/* seconds to let writes drain */
+
 /*
  * Version Information
  */
@@ -84,6 +88,12 @@ static struct acm *acm_table[ACM_TTY_MINORS];
 static DEFINE_MUTEX(open_mutex);
 
 #define ACM_READY(acm)	(acm && acm->dev && acm->used)
+
+#ifdef VERBOSE_DEBUG
+#define verbose	1
+#else
+#define verbose	0
+#endif
 
 /*
  * Functions for ACM control messages.
@@ -136,11 +146,14 @@ static int acm_wb_alloc(struct acm *acm)
 static int acm_wb_is_avail(struct acm *acm)
 {
 	int i, n;
+	unsigned long flags;
 
 	n = ACM_NW;
+	spin_lock_irqsave(&acm->write_lock, flags);
 	for (i = 0; i < ACM_NW; i++) {
 		n -= acm->wb[i].use;
 	}
+	spin_unlock_irqrestore(&acm->write_lock, flags);
 	return n;
 }
 
@@ -467,22 +480,28 @@ urbs:
 /* data interface wrote those outgoing bytes */
 static void acm_write_bulk(struct urb *urb)
 {
-	struct acm *acm;
 	struct acm_wb *wb = urb->context;
+	struct acm *acm = wb->instance;
 
-	dbg("Entering acm_write_bulk with status %d", urb->status);
+	if (verbose || urb->status
+			|| (urb->actual_length != urb->transfer_buffer_length))
+		dev_dbg(&acm->data->dev, "tx %d/%d bytes -- > %d\n",
+			urb->actual_length,
+			urb->transfer_buffer_length,
+			urb->status);
 
-	acm = wb->instance;
 	acm_write_done(acm, wb);
 	if (ACM_READY(acm))
 		schedule_work(&acm->work);
+	else
+		wake_up_interruptible(&acm->drain_wait);
 }
 
 static void acm_softint(struct work_struct *work)
 {
 	struct acm *acm = container_of(work, struct acm, work);
-	dbg("Entering acm_softint.");
-	
+
+	dev_vdbg(&acm->data->dev, "tx work\n");
 	if (!ACM_READY(acm))
 		return;
 	tty_wakeup(acm->tty);
@@ -603,6 +622,8 @@ static void acm_tty_unregister(struct acm *acm)
 	kfree(acm);
 }
 
+static int acm_tty_chars_in_buffer(struct tty_struct *tty);
+
 static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 {
 	struct acm *acm = tty->driver_data;
@@ -617,6 +638,13 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 		if (acm->dev) {
 			usb_autopm_get_interface(acm->control);
 			acm_set_control(acm, acm->ctrlout = 0);
+
+			/* try letting the last writes drain naturally */
+			wait_event_interruptible_timeout(acm->drain_wait,
+					(ACM_NW == acm_wb_is_avail(acm))
+						|| !acm->dev,
+					ACM_CLOSE_TIMEOUT * HZ);
+
 			usb_kill_urb(acm->ctrlurb);
 			for (i = 0; i < ACM_NW; i++)
 				usb_kill_urb(acm->wb[i].urb);
@@ -1047,6 +1075,7 @@ skip_normal_probe:
 	acm->urb_task.data = (unsigned long) acm;
 	INIT_WORK(&acm->work, acm_softint);
 	INIT_WORK(&acm->waker, acm_waker);
+	init_waitqueue_head(&acm->drain_wait);
 	spin_lock_init(&acm->throttle_lock);
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
