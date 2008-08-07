@@ -70,6 +70,8 @@
 
 #ifdef CONFIG_GUSA_RB
 #include <asm/cmpxchg-grb.h>
+#elif defined(CONFIG_CPU_SH4A)
+#include <asm/cmpxchg-llsc.h>
 #else
 #include <asm/cmpxchg-irq.h>
 #endif
