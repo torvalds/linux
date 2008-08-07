@@ -60,7 +60,8 @@
  * tty_struct links to the tty/filesystem framework
  *
  * gserial <---> gs_port ... links will be null when the USB link is
- * inactive; managed by gserial_{connect,disconnect}().
+ * inactive; managed by gserial_{connect,disconnect}().  each gserial
+ * instance can wrap its own USB control protocol.
  *	gserial->ioport == usb_ep->driver_data ... gs_port
  *	gs_port->port_usb ... gserial
  *
@@ -181,7 +182,7 @@ static void gs_buf_clear(struct gs_buf *gb)
 /*
  * gs_buf_data_avail
  *
- * Return the number of bytes of data available in the circular
+ * Return the number of bytes of data written into the circular
  * buffer.
  */
 static unsigned gs_buf_data_avail(struct gs_buf *gb)
@@ -282,7 +283,7 @@ gs_buf_get(struct gs_buf *gb, char *buf, unsigned count)
  * Allocate a usb_request and its buffer.  Returns a pointer to the
  * usb_request or NULL if there is an error.
  */
-static struct usb_request *
+struct usb_request *
 gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
 {
 	struct usb_request *req;
@@ -306,7 +307,7 @@ gs_alloc_req(struct usb_ep *ep, unsigned len, gfp_t kmalloc_flags)
  *
  * Free a usb_request and its buffer.
  */
-static void gs_free_req(struct usb_ep *ep, struct usb_request *req)
+void gs_free_req(struct usb_ep *ep, struct usb_request *req)
 {
 	kfree(req->buf);
 	usb_ep_free_request(ep, req);
@@ -788,10 +789,13 @@ static int gs_open(struct tty_struct *tty, struct file *file)
 
 	/* if connected, start the I/O stream */
 	if (port->port_usb) {
+		struct gserial	*gser = port->port_usb;
+
 		pr_debug("gs_open: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
 
-		/* REVISIT for ACM, issue "network connected" event */
+		if (gser->connect)
+			gser->connect(gser);
 	}
 
 	pr_debug("gs_open: ttyGS%d (%p,%p)\n", port->port_num, tty, file);
@@ -818,6 +822,7 @@ static int gs_writes_finished(struct gs_port *p)
 static void gs_close(struct tty_struct *tty, struct file *file)
 {
 	struct gs_port *port = tty->driver_data;
+	struct gserial	*gser;
 
 	spin_lock_irq(&port->port_lock);
 
@@ -837,26 +842,27 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 	port->openclose = true;
 	port->open_count = 0;
 
-	if (port->port_usb)
-		/* REVISIT for ACM, issue "network disconnected" event */;
+	gser = port->port_usb;
+	if (gser && gser->disconnect)
+		gser->disconnect(gser);
 
 	/* wait for circular write buffer to drain, disconnect, or at
 	 * most GS_CLOSE_TIMEOUT seconds; then discard the rest
 	 */
-	if (gs_buf_data_avail(&port->port_write_buf) > 0
-			&& port->port_usb) {
+	if (gs_buf_data_avail(&port->port_write_buf) > 0 && gser) {
 		spin_unlock_irq(&port->port_lock);
 		wait_event_interruptible_timeout(port->drain_wait,
 					gs_writes_finished(port),
 					GS_CLOSE_TIMEOUT * HZ);
 		spin_lock_irq(&port->port_lock);
+		gser = port->port_usb;
 	}
 
 	/* Iff we're disconnected, there can be no I/O in flight so it's
 	 * ok to free the circular buffer; else just scrub it.  And don't
 	 * let the push tasklet fire again until we're re-opened.
 	 */
-	if (port->port_usb == NULL)
+	if (gser == NULL)
 		gs_buf_free(&port->port_write_buf);
 	else
 		gs_buf_clear(&port->port_write_buf);
@@ -974,6 +980,24 @@ static void gs_unthrottle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&port->port_lock, flags);
 }
 
+static int gs_break_ctl(struct tty_struct *tty, int duration)
+{
+	struct gs_port	*port = tty->driver_data;
+	int		status = 0;
+	struct gserial	*gser;
+
+	pr_vdebug("gs_break_ctl: ttyGS%d, send break (%d) \n",
+			port->port_num, duration);
+
+	spin_lock_irq(&port->port_lock);
+	gser = port->port_usb;
+	if (gser && gser->send_break)
+		status = gser->send_break(gser, duration);
+	spin_unlock_irq(&port->port_lock);
+
+	return status;
+}
+
 static const struct tty_operations gs_tty_ops = {
 	.open =			gs_open,
 	.close =		gs_close,
@@ -983,6 +1007,7 @@ static const struct tty_operations gs_tty_ops = {
 	.write_room =		gs_write_room,
 	.chars_in_buffer =	gs_chars_in_buffer,
 	.unthrottle =		gs_unthrottle,
+	.break_ctl =		gs_break_ctl,
 };
 
 /*-------------------------------------------------------------------------*/
@@ -1230,14 +1255,17 @@ int gserial_connect(struct gserial *gser, u8 port_num)
 
 	/* REVISIT if waiting on "carrier detect", signal. */
 
-	/* REVISIT for ACM, issue "network connection" status notification:
-	 * connected if open_count, else disconnected.
+	/* if it's already open, start I/O ... and notify the serial
+	 * protocol about open/close status (connect/disconnect).
 	 */
-
-	/* if it's already open, start I/O */
 	if (port->open_count) {
 		pr_debug("gserial_connect: start ttyGS%d\n", port->port_num);
 		gs_start_io(port);
+		if (gser->connect)
+			gser->connect(gser);
+	} else {
+		if (gser->disconnect)
+			gser->disconnect(gser);
 	}
 
 	spin_unlock_irqrestore(&port->port_lock, flags);
