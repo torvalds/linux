@@ -89,6 +89,8 @@
  * @NL80211_CMD_DEL_PATH: Remove a mesh path identified by %NL80211_ATTR_MAC
  *	or, if no MAC address given, all mesh paths, on the interface identified
  *	by %NL80211_ATTR_IFINDEX.
+ * @NL80211_CMD_SET_BSS: Set BSS attributes for BSS identified by
+ *	%NL80211_ATTR_IFINDEX.
  *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
@@ -127,6 +129,8 @@ enum nl80211_commands {
 	NL80211_CMD_NEW_MPATH,
 	NL80211_CMD_DEL_MPATH,
 
+	NL80211_CMD_SET_BSS,
+
 	/* add commands here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -134,6 +138,11 @@ enum nl80211_commands {
 	NL80211_CMD_MAX = __NL80211_CMD_AFTER_LAST - 1
 };
 
+/*
+ * Allow user space programs to use #ifdef on new commands by defining them
+ * here
+ */
+#define NL80211_CMD_SET_BSS NL80211_CMD_SET_BSS
 
 /**
  * enum nl80211_attrs - nl80211 netlink attributes
@@ -192,6 +201,12 @@ enum nl80211_commands {
  * @NL80211_ATTR_MNTR_FLAGS: flags, nested element with NLA_FLAG attributes of
  *      &enum nl80211_mntr_flags.
  *
+ * @NL80211_ATTR_BSS_CTS_PROT: whether CTS protection is enabled (u8, 0 or 1)
+ * @NL80211_ATTR_BSS_SHORT_PREAMBLE: whether short preamble is enabled
+ *	(u8, 0 or 1)
+ * @NL80211_ATTR_BSS_SHORT_SLOT_TIME: whether short slot time enabled
+ *	(u8, 0 or 1)
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -234,6 +249,10 @@ enum nl80211_attrs {
 	NL80211_ATTR_STA_PLINK_ACTION,
 	NL80211_ATTR_MPATH_NEXT_HOP,
 	NL80211_ATTR_MPATH_INFO,
+
+	NL80211_ATTR_BSS_CTS_PROT,
+	NL80211_ATTR_BSS_SHORT_PREAMBLE,
+	NL80211_ATTR_BSS_SHORT_SLOT_TIME,
 
 	/* add attributes here, update the policy in nl80211.c */
 

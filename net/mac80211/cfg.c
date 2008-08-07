@@ -1010,6 +1010,42 @@ static int ieee80211_dump_mpath(struct wiphy *wiphy, struct net_device *dev,
 }
 #endif
 
+static int ieee80211_change_bss(struct wiphy *wiphy,
+				struct net_device *dev,
+				struct bss_parameters *params)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	struct ieee80211_sub_if_data *sdata;
+	u32 changed = 0;
+
+	if (dev == local->mdev)
+		return -EOPNOTSUPP;
+
+	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	if (sdata->vif.type != IEEE80211_IF_TYPE_AP)
+		return -EINVAL;
+
+	if (params->use_cts_prot >= 0) {
+		sdata->bss_conf.use_cts_prot = params->use_cts_prot;
+		changed |= BSS_CHANGED_ERP_CTS_PROT;
+	}
+	if (params->use_short_preamble >= 0) {
+		sdata->bss_conf.use_short_preamble =
+			params->use_short_preamble;
+		changed |= BSS_CHANGED_ERP_PREAMBLE;
+	}
+	if (params->use_short_slot_time >= 0) {
+		sdata->bss_conf.use_short_slot =
+			params->use_short_slot_time;
+		changed |= BSS_CHANGED_ERP_SLOT;
+	}
+
+	ieee80211_bss_info_change_notify(sdata, changed);
+
+	return 0;
+}
+
 struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -1033,4 +1069,5 @@ struct cfg80211_ops mac80211_config_ops = {
 	.get_mpath = ieee80211_get_mpath,
 	.dump_mpath = ieee80211_dump_mpath,
 #endif
+	.change_bss = ieee80211_change_bss,
 };
