@@ -792,7 +792,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		if (parent && !(sch->flags & TCQ_F_INGRESS))
+		if ((parent != TC_H_ROOT) && !(sch->flags & TCQ_F_INGRESS))
 			list_add_tail(&sch->list, &dev_queue->qdisc->list);
 
 		return sch;
