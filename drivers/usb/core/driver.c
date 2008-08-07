@@ -774,8 +774,6 @@ void usb_deregister(struct usb_driver *driver)
 }
 EXPORT_SYMBOL_GPL(usb_deregister);
 
-#ifdef CONFIG_PM
-
 /* Forced unbinding of a USB interface driver, either because
  * it doesn't support pre_reset/post_reset/reset_resume or
  * because it doesn't support suspend/resume.
@@ -821,6 +819,8 @@ void usb_rebind_intf(struct usb_interface *intf)
 	if (rc < 0)
 		dev_warn(&intf->dev, "rebind failed: %d\n", rc);
 }
+
+#ifdef CONFIG_PM
 
 #define DO_UNBIND	0
 #define DO_REBIND	1
