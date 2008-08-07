@@ -24,6 +24,7 @@
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa27x.h>
+#include <mach/reset.h>
 #include <mach/ohci.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
@@ -384,6 +385,9 @@ static int __init pxa27x_init(void)
 	int i, ret = 0;
 
 	if (cpu_is_pxa27x()) {
+
+		reset_status = RCSR;
+
 		clks_register(pxa27x_clks, ARRAY_SIZE(pxa27x_clks));
 
 		if ((ret = pxa_init_dma(32)))

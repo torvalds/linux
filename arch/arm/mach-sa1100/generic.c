@@ -31,6 +31,9 @@
 
 #include "generic.h"
 
+unsigned int reset_status;
+EXPORT_SYMBOL(reset_status);
+
 #define NR_FREQS	16
 
 /*

@@ -28,6 +28,7 @@
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
 #include <mach/pm.h>
 #include <mach/dma.h>
 
@@ -348,6 +349,9 @@ static int __init pxa25x_init(void)
 		clks_register(&pxa25x_hwuart_clk, 1);
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+
+		reset_status = RCSR;
+
 		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
 
 		if ((ret = pxa_init_dma(16)))

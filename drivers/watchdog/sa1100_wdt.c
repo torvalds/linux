@@ -31,6 +31,7 @@
 #include <mach/pxa-regs.h>
 #endif
 
+#include <mach/reset.h>
 #include <mach/hardware.h>
 #include <asm/uaccess.h>
 
@@ -162,7 +163,8 @@ static int __init sa1100dog_init(void)
 	 * we suspend, RCSR will be cleared, and the watchdog
 	 * reset reason will be lost.
 	 */
-	boot_status = (RCSR & RCSR_WDR) ? WDIOF_CARDRESET : 0;
+	boot_status = (reset_status & RESET_STATUS_WATCHDOG) ?
+				WDIOF_CARDRESET : 0;
 	pre_margin = OSCR_FREQ * margin;
 
 	ret = misc_register(&sa1100dog_miscdev);

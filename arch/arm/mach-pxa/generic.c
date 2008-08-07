@@ -26,8 +26,18 @@
 #include <asm/mach/map.h>
 
 #include <mach/pxa-regs.h>
+#include <mach/reset.h>
 
 #include "generic.h"
+
+void clear_reset_status(unsigned int mask)
+{
+	if (cpu_is_pxa2xx())
+		pxa2xx_clear_reset_status(mask);
+
+	if (cpu_is_pxa3xx())
+		pxa3xx_clear_reset_status(mask);
+}
 
 /*
  * Get the clock frequency as reflected by CCCR and the turbo flag.
