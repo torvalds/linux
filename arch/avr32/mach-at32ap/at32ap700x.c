@@ -1272,10 +1272,13 @@ static struct clk atmel_mci0_pclk = {
 struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
-	struct mci_platform_data	_data;
 	struct platform_device		*pdev;
 
-	if (id != 0)
+	if (id != 0 || !data)
+		return NULL;
+
+	/* Must have at least one usable slot */
+	if (!data->slot[0].bus_width && !data->slot[1].bus_width)
 		return NULL;
 
 	pdev = platform_device_alloc("atmel_mci", id);
@@ -1286,28 +1289,61 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
-	if (!data) {
-		data = &_data;
-		memset(data, -1, sizeof(struct mci_platform_data));
-		data->detect_pin = GPIO_PIN_NONE;
-		data->wp_pin = GPIO_PIN_NONE;
-	}
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
 		goto fail;
 
-	select_peripheral(PA(10), PERIPH_A, 0);	/* CLK	 */
-	select_peripheral(PA(11), PERIPH_A, 0);	/* CMD	 */
-	select_peripheral(PA(12), PERIPH_A, 0);	/* DATA0 */
-	select_peripheral(PA(13), PERIPH_A, 0);	/* DATA1 */
-	select_peripheral(PA(14), PERIPH_A, 0);	/* DATA2 */
-	select_peripheral(PA(15), PERIPH_A, 0);	/* DATA3 */
+	/* CLK line is common to both slots */
+	select_peripheral(PA(10), PERIPH_A, 0);
 
-	if (gpio_is_valid(data->detect_pin))
-		at32_select_gpio(data->detect_pin, 0);
-	if (gpio_is_valid(data->wp_pin))
-		at32_select_gpio(data->wp_pin, 0);
+	switch (data->slot[0].bus_width) {
+	case 4:
+		select_peripheral(PA(13), PERIPH_A, 0);	/* DATA1 */
+		select_peripheral(PA(14), PERIPH_A, 0);	/* DATA2 */
+		select_peripheral(PA(15), PERIPH_A, 0);	/* DATA3 */
+		/* fall through */
+	case 1:
+		select_peripheral(PA(11), PERIPH_A, 0);	/* CMD	 */
+		select_peripheral(PA(12), PERIPH_A, 0);	/* DATA0 */
+
+		if (gpio_is_valid(data->slot[0].detect_pin))
+			at32_select_gpio(data->slot[0].detect_pin, 0);
+		if (gpio_is_valid(data->slot[0].wp_pin))
+			at32_select_gpio(data->slot[0].wp_pin, 0);
+		break;
+	case 0:
+		/* Slot is unused */
+		break;
+	default:
+		goto fail;
+	}
+
+	switch (data->slot[1].bus_width) {
+	case 4:
+		select_peripheral(PB(8),  PERIPH_B, 0);	/* DATA1 */
+		select_peripheral(PB(9),  PERIPH_B, 0);	/* DATA2 */
+		select_peripheral(PB(10), PERIPH_B, 0);	/* DATA3 */
+		/* fall through */
+	case 1:
+		select_peripheral(PB(6),  PERIPH_B, 0); /* CMD	 */
+		select_peripheral(PB(7),  PERIPH_B, 0); /* DATA0 */
+
+		if (gpio_is_valid(data->slot[1].detect_pin))
+			at32_select_gpio(data->slot[1].detect_pin, 0);
+		if (gpio_is_valid(data->slot[1].wp_pin))
+			at32_select_gpio(data->slot[1].wp_pin, 0);
+		break;
+	case 0:
+		/* Slot is unused */
+		break;
+	default:
+		if (!data->slot[0].bus_width)
+			goto fail;
+
+		data->slot[1].bus_width = 0;
+		break;
+	}
 
 	atmel_mci0_pclk.dev = &pdev->dev;
 

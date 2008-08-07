@@ -508,9 +508,10 @@ static void atmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 {
 	struct atmel_mci	*host = mmc_priv(mmc);
 
+	host->sdc_reg &= ~MCI_SDCBUS_MASK;
 	switch (ios->bus_width) {
 	case MMC_BUS_WIDTH_1:
-		host->sdc_reg = 0;
+		host->sdc_reg |= MCI_SDCBUS_1BIT;
 		break;
 	case MMC_BUS_WIDTH_4:
 		host->sdc_reg = MCI_SDCBUS_4BIT;
@@ -1014,9 +1015,11 @@ static irqreturn_t atmci_detect_interrupt(int irq, void *dev_id)
 static int __init atmci_probe(struct platform_device *pdev)
 {
 	struct mci_platform_data	*pdata;
+	struct mci_slot_pdata		*slot;
 	struct atmel_mci *host;
 	struct mmc_host *mmc;
 	struct resource *regs;
+	u32 sdc_reg;
 	int irq;
 	int ret;
 
@@ -1030,6 +1033,17 @@ static int __init atmci_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	/* TODO: Allow using several slots at once */
+	if (pdata->slot[0].bus_width) {
+		sdc_reg = MCI_SDCSEL_SLOT_A;
+		slot = &pdata->slot[0];
+	} else if (pdata->slot[1].bus_width) {
+		sdc_reg = MCI_SDCSEL_SLOT_B;
+		slot = &pdata->slot[1];
+	} else {
+		return -EINVAL;
+	}
+
 	mmc = mmc_alloc_host(sizeof(struct atmel_mci), &pdev->dev);
 	if (!mmc)
 		return -ENOMEM;
@@ -1037,8 +1051,9 @@ static int __init atmci_probe(struct platform_device *pdev)
 	host = mmc_priv(mmc);
 	host->pdev = pdev;
 	host->mmc = mmc;
-	host->detect_pin = pdata->detect_pin;
-	host->wp_pin = pdata->wp_pin;
+	host->detect_pin = slot->detect_pin;
+	host->wp_pin = slot->wp_pin;
+	host->sdc_reg = sdc_reg;
 
 	host->mck = clk_get(&pdev->dev, "mci_clk");
 	if (IS_ERR(host->mck)) {
@@ -1062,7 +1077,8 @@ static int __init atmci_probe(struct platform_device *pdev)
 	mmc->f_min = (host->bus_hz + 511) / 512;
 	mmc->f_max = host->bus_hz / 2;
 	mmc->ocr_avail	= MMC_VDD_32_33 | MMC_VDD_33_34;
-	mmc->caps |= MMC_CAP_4_BIT_DATA;
+	if (slot->bus_width >= 4)
+		mmc->caps |= MMC_CAP_4_BIT_DATA;
 
 	mmc->max_hw_segs = 64;
 	mmc->max_phys_segs = 64;

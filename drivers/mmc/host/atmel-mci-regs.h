@@ -25,8 +25,10 @@
 #define MCI_SDCR		0x000c	/* SD Card / SDIO */
 # define MCI_SDCSEL_SLOT_A	(  0 <<  0)	/* Select SD slot A */
 # define MCI_SDCSEL_SLOT_B	(  1 <<  0)	/* Select SD slot A */
-# define MCI_SDCBUS_1BIT	(  0 <<  7)	/* 1-bit data bus */
-# define MCI_SDCBUS_4BIT	(  1 <<  7)	/* 4-bit data bus */
+# define MCI_SDCSEL_MASK	(  3 <<  0)
+# define MCI_SDCBUS_1BIT	(  0 <<  6)	/* 1-bit data bus */
+# define MCI_SDCBUS_4BIT	(  2 <<  6)	/* 4-bit data bus */
+# define MCI_SDCBUS_MASK	(  3 <<  6)
 #define MCI_ARGR		0x0010	/* Command Argument */
 #define MCI_CMDR		0x0014	/* Command */
 # define MCI_CMDR_CMDNB(x)	((x) <<  0)	/* Command Opcode */
