@@ -1108,9 +1108,11 @@ skip_normal_probe:
 		rcv->instance = acm;
 	}
 	for (i = 0; i < num_rx_buf; i++) {
-		struct acm_rb *buf = &(acm->rb[i]);
+		struct acm_rb *rb = &(acm->rb[i]);
 
-		if (!(buf->base = usb_buffer_alloc(acm->dev, readsize, GFP_KERNEL, &buf->dma))) {
+		rb->base = usb_buffer_alloc(acm->dev, readsize,
+				GFP_KERNEL, &rb->dma);
+		if (!rb->base) {
 			dev_dbg(&intf->dev, "out of memory (read bufs usb_buffer_alloc)\n");
 			goto alloc_fail7;
 		}
@@ -1172,6 +1174,7 @@ skip_countries:
 	acm_set_line(acm, &acm->line);
 
 	usb_driver_claim_interface(&acm_driver, data_interface, acm);
+	usb_set_intfdata(data_interface, acm);
 
 	usb_get_intf(control_interface);
 	tty_register_device(acm_tty_driver, minor, &control_interface->dev);
@@ -1221,11 +1224,11 @@ static void acm_disconnect(struct usb_interface *intf)
 	struct acm *acm = usb_get_intfdata(intf);
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
 
-	mutex_lock(&open_mutex);
-	if (!acm || !acm->dev) {
-		mutex_unlock(&open_mutex);
+	/* sibling interface is already cleaning up */
+	if (!acm)
 		return;
-	}
+
+	mutex_lock(&open_mutex);
 	if (acm->country_codes){
 		device_remove_file(&acm->control->dev,
 				&dev_attr_wCountryCodes);
