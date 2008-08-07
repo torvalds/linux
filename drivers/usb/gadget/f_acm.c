@@ -47,9 +47,7 @@ struct f_acm {
 	u8				ctrl_id, data_id;
 	u8				port_num;
 
-	struct usb_descriptor_header	**fs_function;
 	struct acm_ep_descs		fs;
-	struct usb_descriptor_header	**hs_function;
 	struct acm_ep_descs		hs;
 
 	struct usb_ep			*notify;
