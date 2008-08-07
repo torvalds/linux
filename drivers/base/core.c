@@ -541,6 +541,7 @@ void device_initialize(struct device *dev)
 	spin_lock_init(&dev->devres_lock);
 	INIT_LIST_HEAD(&dev->devres_head);
 	device_init_wakeup(dev, 0);
+	device_pm_init(dev);
 	set_dev_node(dev, -1);
 }
 
@@ -897,9 +898,10 @@ int device_add(struct device *dev)
 	error = bus_add_device(dev);
 	if (error)
 		goto BusError;
-	error = device_pm_add(dev);
+	error = dpm_sysfs_add(dev);
 	if (error)
-		goto PMError;
+		goto DPMError;
+	device_pm_add(dev);
 	kobject_uevent(&dev->kobj, KOBJ_ADD);
 	bus_attach_device(dev);
 	if (parent)
@@ -920,7 +922,7 @@ int device_add(struct device *dev)
  Done:
 	put_device(dev);
 	return error;
- PMError:
+ DPMError:
 	bus_remove_device(dev);
  BusError:
 	if (dev->bus)
@@ -1007,6 +1009,7 @@ void device_del(struct device *dev)
 	struct class_interface *class_intf;
 
 	device_pm_remove(dev);
+	dpm_sysfs_remove(dev);
 	if (parent)
 		klist_del(&dev->knode_parent);
 	if (MAJOR(dev->devt)) {
