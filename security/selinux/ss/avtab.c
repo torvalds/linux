@@ -229,7 +229,7 @@ void avtab_destroy(struct avtab *h)
 
 	for (i = 0; i < h->nslot; i++) {
 		cur = h->htable[i];
-		while (cur != NULL) {
+		while (cur) {
 			temp = cur;
 			cur = cur->next;
 			kmem_cache_free(avtab_node_cachep, temp);

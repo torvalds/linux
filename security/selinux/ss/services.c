@@ -356,7 +356,7 @@ static int context_struct_compute_av(struct context *scontext,
 			avkey.source_type = i + 1;
 			avkey.target_type = j + 1;
 			for (node = avtab_search_node(&policydb.te_avtab, &avkey);
-			     node != NULL;
+			     node;
 			     node = avtab_search_node_next(node, avkey.specified)) {
 				if (node->key.specified == AVTAB_ALLOWED)
 					avd->allowed |= node->datum.data;
@@ -1037,7 +1037,7 @@ static int security_compute_sid(u32 ssid,
 	/* If no permanent rule, also check for enabled conditional rules */
 	if (!avdatum) {
 		node = avtab_search_node(&policydb.te_cond_avtab, &avkey);
-		for (; node != NULL; node = avtab_search_node_next(node, specified)) {
+		for (; node; node = avtab_search_node_next(node, specified)) {
 			if (node->key.specified & AVTAB_ENABLED) {
 				avdatum = &node->datum;
 				break;
@@ -2050,7 +2050,7 @@ int security_set_bools(int len, int *values)
 			policydb.bool_val_to_struct[i]->state = 0;
 	}
 
-	for (cur = policydb.cond_list; cur != NULL; cur = cur->next) {
+	for (cur = policydb.cond_list; cur; cur = cur->next) {
 		rc = evaluate_cond_node(&policydb, cur);
 		if (rc)
 			goto out;
@@ -2102,7 +2102,7 @@ static int security_preserve_bools(struct policydb *p)
 		if (booldatum)
 			booldatum->state = bvalues[i];
 	}
-	for (cur = p->cond_list; cur != NULL; cur = cur->next) {
+	for (cur = p->cond_list; cur; cur = cur->next) {
 		rc = evaluate_cond_node(p, cur);
 		if (rc)
 			goto out;
