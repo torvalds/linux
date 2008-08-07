@@ -1648,7 +1648,7 @@ int btrfs_csum_truncate(struct btrfs_trans_handle *trans,
 /* inode.c */
 
 /* RHEL and EL kernels have a patch that renames PG_checked to FsMisc */
-#ifdef ClearPageFsMisc
+#if defined(ClearPageFsMisc) && !defined(ClearPageChecked)
 #define ClearPageChecked ClearPageFsMisc
 #define SetPageChecked SetPageFsMisc
 #define PageChecked PageFsMisc
