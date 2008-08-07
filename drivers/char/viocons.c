@@ -705,7 +705,7 @@ static int viotty_ioctl(struct tty_struct *tty, struct file *file,
 	case KDSKBLED:
 		return 0;
 	}
-	return ret;
+	return -ENOIOCTLCMD;
 }
 
 /*
