@@ -634,11 +634,6 @@ enum ath9k_power_mode {
 	ATH9K_PM_UNDEFINED
 };
 
-#define HAL_ANTENNA_MIN_MODE  0
-#define HAL_ANTENNA_FIXED_A   1
-#define HAL_ANTENNA_FIXED_B   2
-#define HAL_ANTENNA_MAX_MODE  3
-
 struct ath9k_mib_stats {
 	u32 ackrcv_bad;
 	u32 rts_bad;
@@ -696,7 +691,6 @@ enum phytype {
 	PHY_FH,
 	PHY_OFDM,
 	PHY_HT,
-	PHY_MAX
 };
 #define PHY_CCK PHY_DS
 
