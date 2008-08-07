@@ -111,15 +111,21 @@ void show_regs(struct pt_regs * regs)
 {
 	printk("\n");
 	printk("Pid : %d, Comm: %20s\n", task_pid_nr(current), current->comm);
+	printk("CPU : %d    %s  (%s %.*s)\n",
+	       smp_processor_id(), print_tainted(), init_utsname()->release,
+	       (int)strcspn(init_utsname()->version, " "),
+	       init_utsname()->version);
+
 	print_symbol("PC is at %s\n", instruction_pointer(regs));
+	print_symbol("PR is at %s\n", regs->pr);
+
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
-	printk("TEA : %08x    ", ctrl_inl(MMU_TEA));
+	printk("TEA : %08x\n", ctrl_inl(MMU_TEA));
 #else
-	printk("                  ");
+	printk("\n");
 #endif
-	printk("%s\n", print_tainted());
 
 	printk("R0  : %08lx R1  : %08lx R2  : %08lx R3  : %08lx\n",
 	       regs->regs[0],regs->regs[1],
