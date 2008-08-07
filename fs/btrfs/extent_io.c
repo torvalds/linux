@@ -14,6 +14,7 @@
 #include <linux/pagevec.h>
 #include "extent_io.h"
 #include "extent_map.h"
+#include "compat.h"
 
 /* temporary define until extent_map moves out of btrfs */
 struct kmem_cache *btrfs_cache_create(const char *name, size_t size,
@@ -3055,7 +3056,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		if (!wait) {
-			if (TestSetPageLocked(page))
+			if (!trylock_page(page))
 				goto unlock_exit;
 		} else {
 			lock_page(page);

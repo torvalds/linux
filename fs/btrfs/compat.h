@@ -1,6 +1,9 @@
 #ifndef _COMPAT_H_
 #define _COMPAT_H_
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,26)
+#define trylock_page(page) (!TestSetPageLocked(page))
+#endif
 
 /*
  * Even if AppArmor isn't enabled, it still has different prototypes.
