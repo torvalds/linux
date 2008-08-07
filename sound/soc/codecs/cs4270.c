@@ -450,6 +450,19 @@ static int cs4270_hw_params(struct snd_pcm_substream *substream,
 		return ret;
 	}
 
+	/* Disable automatic volume control.  It's enabled by default, and
+	 * it causes volume change commands to be delayed, sometimes until
+	 * after playback has started.
+	 */
+
+	reg = cs4270_read_reg_cache(codec, CS4270_TRANS);
+	reg &= ~(CS4270_TRANS_SOFT | CS4270_TRANS_ZERO);
+	ret = cs4270_i2c_write(codec, CS4270_TRANS, reg);
+	if (ret < 0) {
+		printk(KERN_ERR "I2C write failed\n");
+		return ret;
+	}
+
 	/* Thaw and power-up the codec */
 
 	ret = snd_soc_write(codec, CS4270_PWRCTL, 0);
