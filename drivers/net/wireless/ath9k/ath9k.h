@@ -679,11 +679,6 @@ struct ath9k_ht_cwm {
 	enum ath9k_ht_extprotspacing ht_extprotspacing;
 };
 
-enum hal_freq_band {
-	HAL_FREQ_BAND_5GHZ = 0,
-	HAL_FREQ_BAND_2GHZ = 1,
-};
-
 enum ath9k_ani_cmd {
 	ATH9K_ANI_PRESENT = 0x1,
 	ATH9K_ANI_NOISE_IMMUNITY_LEVEL = 0x2,

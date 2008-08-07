@@ -465,11 +465,11 @@ static void ath9k_hw_analog_shift_rmw(struct ath_hal *ah,
 }
 
 static u8 ath9k_hw_get_num_ant_config(struct ath_hal_5416 *ahp,
-					    enum hal_freq_band freq_band)
+				      enum ieee80211_band freq_band)
 {
 	struct ar5416_eeprom *eep = &ahp->ah_eeprom;
 	struct modal_eep_header *pModal =
-		&(eep->modalHeader[HAL_FREQ_BAND_2GHZ == freq_band]);
+		&(eep->modalHeader[IEEE80211_BAND_5GHZ == freq_band]);
 	struct base_eep_header *pBase = &eep->baseEepHeader;
 	u8 num_ant_config;
 
@@ -3111,9 +3111,9 @@ static bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 	pCap->reg_cap |= AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND;
 
 	pCap->num_antcfg_5ghz =
-		ath9k_hw_get_num_ant_config(ahp, HAL_FREQ_BAND_5GHZ);
+		ath9k_hw_get_num_ant_config(ahp, IEEE80211_BAND_5GHZ);
 	pCap->num_antcfg_2ghz =
-		ath9k_hw_get_num_ant_config(ahp, HAL_FREQ_BAND_2GHZ);
+		ath9k_hw_get_num_ant_config(ahp, IEEE80211_BAND_2GHZ);
 
 	return true;
 }
