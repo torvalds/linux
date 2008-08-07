@@ -30,11 +30,9 @@
  * doesn't (yet) use these for any kind of i/o overlap or prefetching.
  *
  * Sometimes DataFlash is packaged in MMC-format cards, although the
- * MMC stack can't use SPI (yet), or distinguish between MMC and DataFlash
+ * MMC stack can't (yet?) distinguish between MMC and DataFlash
  * protocols during enumeration.
  */
-
-#define CONFIG_DATAFLASH_WRITE_VERIFY
 
 /* reads can bypass the buffers */
 #define OP_READ_CONTINUOUS	0xE8
@@ -403,7 +401,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		(void) dataflash_waitready(priv->spi);
 
 
-#ifdef	CONFIG_DATAFLASH_WRITE_VERIFY
+#ifdef CONFIG_MTD_DATAFLASH_VERIFY_WRITE
 
 		/* (3) Compare to Buffer1 */
 		addr = pageaddr << priv->page_offset;
@@ -432,7 +430,7 @@ static int dataflash_write(struct mtd_info *mtd, loff_t to, size_t len,
 		} else
 			status = 0;
 
-#endif	/* CONFIG_DATAFLASH_WRITE_VERIFY */
+#endif	/* CONFIG_MTD_DATAFLASH_VERIFY_WRITE */
 
 		remaining = remaining - writelen;
 		pageaddr++;
