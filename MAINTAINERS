@@ -1884,13 +1884,9 @@ W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARDWARE MONITORING
-P:	Mark M. Hoffman
-M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git testing
-T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git release
-S:	Maintained
+S:	Orphaned
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
 S:	Orphaned
@@ -3802,6 +3798,12 @@ P:	Ben Nizette
 M:	bn@niasdigital.com
 S:	Maintained
 
+SOC-CAMERA V4L2 SUBSYSTEM
+P:     Guennadi Liakhovetski
+M:     g.liakhovetski@gmx.de
+L:     video4linux-list@redhat.com
+S:     Maintained
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
@@ -3968,7 +3970,7 @@ M:	lethal@linux-sh.org
 L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/lethal/sh-2.6.git
-S:	Maintained
+S:	Supported
 
 SUN3/3X
 P:	Sam Creasey
@@ -4503,6 +4505,15 @@ P:	Patrick McHardy
 M:	kaber@trash.net
 L:	netdev@vger.kernel.org
 S:	Maintained
+
+VOLTAGE AND CURRENT REGULATOR FRAMEWORK
+P:	Liam Girdwood
+M:	lg@opensource.wolfsonmicro.com
+P:	Mark Brown
+M:	broonie@opensource.wolfsonmicro.com
+W:	http://opensource.wolfsonmicro.com/node/15
+T:	git kernel.org/pub/scm/linux/kernel/git/lrg/voltage-2.6.git
+S:	Supported
 
 VT1211 HARDWARE MONITOR DRIVER
 P:	Juerg Haefliger

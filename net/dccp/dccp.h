@@ -226,7 +226,7 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 
 extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
-extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
+extern int  dccp_retransmit_skb(struct sock *sk);
 
 extern void dccp_send_ack(struct sock *sk);
 extern void dccp_reqsk_send_ack(struct sk_buff *sk, struct request_sock *rsk);

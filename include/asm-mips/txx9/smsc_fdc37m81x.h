@@ -56,7 +56,7 @@
 #define SMSC_FDC37M81X_CONFIG_EXIT   0xaa
 #define SMSC_FDC37M81X_CHIP_ID       0x4d
 
-unsigned long __init smsc_fdc37m81x_init(unsigned long port);
+unsigned long smsc_fdc37m81x_init(unsigned long port);
 
 void smsc_fdc37m81x_config_beg(void);
 

@@ -9,6 +9,7 @@
 #include <linux/mm.h>
 #include <linux/sysctl.h>
 #include <linux/highmem.h>
+#include <linux/mmu_notifier.h>
 #include <linux/nodemask.h>
 #include <linux/pagemap.h>
 #include <linux/mempolicy.h>
@@ -16,9 +17,10 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 #include <linux/sysfs.h>
-
+#include <asm/io.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
+#include <asm/io.h>
 
 #include <linux/hugetlb.h>
 #include "internal.h"
@@ -1281,7 +1283,12 @@ module_exit(hugetlb_exit);
 
 static int __init hugetlb_init(void)
 {
-	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+	/* Some platform decide whether they support huge pages at boot
+	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+	 * there is no such support
+	 */
+	if (HPAGE_SHIFT == 0)
+		return 0;
 
 	if (!size_to_hstate(default_hstate_size)) {
 		default_hstate_size = HPAGE_SIZE;
@@ -1672,6 +1679,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	BUG_ON(start & ~huge_page_mask(h));
 	BUG_ON(end & ~huge_page_mask(h));
 
+	mmu_notifier_invalidate_range_start(mm, start, end);
 	spin_lock(&mm->page_table_lock);
 	for (address = start; address < end; address += sz) {
 		ptep = huge_pte_offset(mm, address);
@@ -1713,6 +1721,7 @@ void __unmap_hugepage_range(struct vm_area_struct *vma, unsigned long start,
 	}
 	spin_unlock(&mm->page_table_lock);
 	flush_tlb_range(vma, start, end);
+	mmu_notifier_invalidate_range_end(mm, start, end);
 	list_for_each_entry_safe(page, tmp, &page_list, lru) {
 		list_del(&page->lru);
 		put_page(page);

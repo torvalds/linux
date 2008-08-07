@@ -33,12 +33,12 @@
 #define IWL_DEBUG(level, fmt, args...) \
 do { if (priv->debug_level & (level)) \
   dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), "%c %s " fmt, \
-	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
+	 in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 
 #define IWL_DEBUG_LIMIT(level, fmt, args...) \
 do { if ((priv->debug_level & (level)) && net_ratelimit()) \
   dev_printk(KERN_ERR, &(priv->hw->wiphy->dev), "%c %s " fmt, \
-	 in_interrupt() ? 'I' : 'U', __FUNCTION__ , ## args); } while (0)
+	 in_interrupt() ? 'I' : 'U', __func__ , ## args); } while (0)
 
 #ifdef CONFIG_IWLWIFI_DEBUGFS
 struct iwl_debugfs {
@@ -68,12 +68,8 @@ void iwl_dbgfs_unregister(struct iwl_priv *priv);
 #endif
 
 #else
-static inline void IWL_DEBUG(int level, const char *fmt, ...)
-{
-}
-static inline void IWL_DEBUG_LIMIT(int level, const char *fmt, ...)
-{
-}
+#define IWL_DEBUG(level, fmt, args...)
+#define IWL_DEBUG_LIMIT(level, fmt, args...)
 #endif				/* CONFIG_IWLWIFI_DEBUG */
 
 

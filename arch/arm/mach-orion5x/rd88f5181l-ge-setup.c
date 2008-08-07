@@ -15,6 +15,7 @@
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/ethtool.h>
 #include <linux/i2c.h>
 #include <asm/mach-types.h>
 #include <asm/gpio.h>
@@ -89,6 +90,8 @@ static struct orion5x_mpp_mode rd88f5181l_ge_mpp_modes[] __initdata = {
 
 static struct mv643xx_eth_platform_data rd88f5181l_ge_eth_data = {
 	.phy_addr	= -1,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
 };
 
 static struct i2c_board_info __initdata rd88f5181l_ge_i2c_rtc = {

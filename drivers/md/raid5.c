@@ -2507,7 +2507,7 @@ static void handle_stripe_expansion(raid5_conf_t *conf, struct stripe_head *sh,
  *
  */
 
-static void handle_stripe5(struct stripe_head *sh)
+static bool handle_stripe5(struct stripe_head *sh)
 {
 	raid5_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks, i;
@@ -2717,10 +2717,11 @@ static void handle_stripe5(struct stripe_head *sh)
 	if (sh->reconstruct_state == reconstruct_state_result) {
 		sh->reconstruct_state = reconstruct_state_idle;
 		clear_bit(STRIPE_EXPANDING, &sh->state);
-		for (i = conf->raid_disks; i--; )
+		for (i = conf->raid_disks; i--; ) {
 			set_bit(R5_Wantwrite, &sh->dev[i].flags);
-			set_bit(R5_LOCKED, &dev->flags);
+			set_bit(R5_LOCKED, &sh->dev[i].flags);
 			s.locked++;
+		}
 	}
 
 	if (s.expanded && test_bit(STRIPE_EXPANDING, &sh->state) &&
@@ -2754,9 +2755,11 @@ static void handle_stripe5(struct stripe_head *sh)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
+
+	return blocked_rdev == NULL;
 }
 
-static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
+static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 {
 	raid6_conf_t *conf = sh->raid_conf;
 	int disks = sh->disks;
@@ -2967,14 +2970,17 @@ static void handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 	ops_run_io(sh, &s);
 
 	return_io(return_bi);
+
+	return blocked_rdev == NULL;
 }
 
-static void handle_stripe(struct stripe_head *sh, struct page *tmp_page)
+/* returns true if the stripe was handled */
+static bool handle_stripe(struct stripe_head *sh, struct page *tmp_page)
 {
 	if (sh->raid_conf->level == 6)
-		handle_stripe6(sh, tmp_page);
+		return handle_stripe6(sh, tmp_page);
 	else
-		handle_stripe5(sh);
+		return handle_stripe5(sh);
 }
 
 
@@ -3692,7 +3698,9 @@ static inline sector_t sync_request(mddev_t *mddev, sector_t sector_nr, int *ski
 	clear_bit(STRIPE_INSYNC, &sh->state);
 	spin_unlock(&sh->lock);
 
-	handle_stripe(sh, NULL);
+	/* wait for any blocked device to be handled */
+	while(unlikely(!handle_stripe(sh, NULL)))
+		;
 	release_stripe(sh);
 
 	return STRIPE_SECTORS;
@@ -3811,10 +3819,8 @@ static void raid5d(mddev_t *mddev)
 
 		sh = __get_priority_stripe(conf);
 
-		if (!sh) {
-			async_tx_issue_pending_all();
+		if (!sh)
 			break;
-		}
 		spin_unlock_irq(&conf->device_lock);
 		
 		handled++;
@@ -3827,6 +3833,7 @@ static void raid5d(mddev_t *mddev)
 
 	spin_unlock_irq(&conf->device_lock);
 
+	async_tx_issue_pending_all();
 	unplug_slaves(mddev);
 
 	pr_debug("--- raid5d inactive\n");

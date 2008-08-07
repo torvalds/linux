@@ -22,9 +22,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("Etoms USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -602,26 +599,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	__u16 vendor;
-	__u16 product;
 
-	vendor = id->idVendor;
-	product = id->idProduct;
-/*	switch (vendor) { */
-/*	case 0x102c:		* Etoms */
-		switch (product) {
-		case 0x6151:
-			sd->sensor = SENSOR_PAS106;	/* Etoms61x151 */
-			break;
-		case 0x6251:
-			sd->sensor = SENSOR_TAS5130CXX;	/* Etoms61x251 */
-			break;
-/*		} */
-/*		break; */
-	}
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 1;
+	sd->sensor = id->driver_info;
 	if (sd->sensor == SENSOR_PAS106) {
 		cam->cam_mode = sif_mode;
 		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
@@ -911,12 +892,11 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
 #ifndef CONFIG_USB_ET61X251
-	{USB_DEVICE(0x102c, 0x6151), DVNM("Qcam Sangha CIF")},
+	{USB_DEVICE(0x102c, 0x6151), .driver_info = SENSOR_PAS106},
 #endif
-	{USB_DEVICE(0x102c, 0x6251), DVNM("Qcam xxxxxx VGA")},
+	{USB_DEVICE(0x102c, 0x6251), .driver_info = SENSOR_TAS5130CXX},
 	{}
 };
 
@@ -942,7 +922,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 

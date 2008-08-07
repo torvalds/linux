@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/ethtool.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
@@ -69,6 +70,8 @@ static struct platform_device rd88f6281_nand_flash = {
 
 static struct mv643xx_eth_platform_data rd88f6281_ge00_data = {
 	.phy_addr	= -1,
+	.speed		= SPEED_1000,
+	.duplex		= DUPLEX_FULL,
 };
 
 static struct mv_sata_platform_data rd88f6281_sata_data = {

@@ -195,8 +195,8 @@ static struct uvc_menu_info power_line_frequency_controls[] = {
 };
 
 static struct uvc_menu_info exposure_auto_controls[] = {
-	{ 1, "Manual Mode" },
 	{ 2, "Auto Mode" },
+	{ 1, "Manual Mode" },
 	{ 4, "Shutter Priority Mode" },
 	{ 8, "Aperture Priority Mode" },
 };
@@ -592,6 +592,7 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	if (ctrl == NULL)
 		return -EINVAL;
 
+	memset(v4l2_ctrl, 0, sizeof *v4l2_ctrl);
 	v4l2_ctrl->id = mapping->id;
 	v4l2_ctrl->type = mapping->v4l2_type;
 	strncpy(v4l2_ctrl->name, mapping->name, sizeof v4l2_ctrl->name);
@@ -608,7 +609,8 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 		v4l2_ctrl->default_value = uvc_get_le_value(data, mapping);
 	}
 
-	if (mapping->v4l2_type == V4L2_CTRL_TYPE_MENU) {
+	switch (mapping->v4l2_type) {
+	case V4L2_CTRL_TYPE_MENU:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = mapping->menu_count - 1;
 		v4l2_ctrl->step = 1;
@@ -622,6 +624,15 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 		}
 
 		return 0;
+
+	case V4L2_CTRL_TYPE_BOOLEAN:
+		v4l2_ctrl->minimum = 0;
+		v4l2_ctrl->maximum = 1;
+		v4l2_ctrl->step = 1;
+		return 0;
+
+	default:
+		break;
 	}
 
 	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {

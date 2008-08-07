@@ -371,6 +371,7 @@ struct kvm_trace_rec {
 #define KVM_CAP_PV_MMU 13
 #define KVM_CAP_MP_STATE 14
 #define KVM_CAP_COALESCED_MMIO 15
+#define KVM_CAP_SYNC_MMU 16  /* Changes to host mmap are reflected in guest */
 
 /*
  * ioctls for VM fds

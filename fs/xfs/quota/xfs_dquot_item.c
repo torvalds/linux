@@ -576,8 +576,8 @@ xfs_qm_qoffend_logitem_committed(
 	 * xfs_trans_delete_ail() drops the AIL lock.
 	 */
 	xfs_trans_delete_ail(qfs->qql_item.li_mountp, (xfs_log_item_t *)qfs);
-	kmem_free(qfs, sizeof(xfs_qoff_logitem_t));
-	kmem_free(qfe, sizeof(xfs_qoff_logitem_t));
+	kmem_free(qfs);
+	kmem_free(qfe);
 	return (xfs_lsn_t)-1;
 }
 

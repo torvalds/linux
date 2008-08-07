@@ -81,4 +81,3 @@ void __init reserve_ibft_region(void)
 	if (ibft_addr)
 		reserve_bootmem(pos, PAGE_ALIGN(len), BOOTMEM_DEFAULT);
 }
-EXPORT_SYMBOL_GPL(reserve_ibft_region);

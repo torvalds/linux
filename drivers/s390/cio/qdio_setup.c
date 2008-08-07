@@ -325,7 +325,7 @@ void qdio_release_memory(struct qdio_irq *irq_ptr)
 			kmem_cache_free(qdio_q_cache, q);
 		}
 	}
-	kfree(irq_ptr->qdr);
+	free_page((unsigned long) irq_ptr->qdr);
 	free_page(irq_ptr->chsc_page);
 	free_page((unsigned long) irq_ptr);
 }
@@ -515,7 +515,7 @@ int __init qdio_setup_init(void)
 	return 0;
 }
 
-void __exit qdio_setup_exit(void)
+void qdio_setup_exit(void)
 {
 	kmem_cache_destroy(qdio_q_cache);
 }

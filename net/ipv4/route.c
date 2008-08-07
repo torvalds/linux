@@ -3216,14 +3216,18 @@ int __init ip_rt_init(void)
 	return rc;
 }
 
+#ifdef CONFIG_SYSCTL
 /*
  * We really need to sanitize the damn ipv4 init order, then all
  * this nonsense will go away.
  */
 void __init ip_static_sysctl_init(void)
 {
+#ifdef CONFIG_SYSCTL
 	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
+#endif
 }
+#endif
 
 EXPORT_SYMBOL(__ip_select_ident);
 EXPORT_SYMBOL(ip_route_input);

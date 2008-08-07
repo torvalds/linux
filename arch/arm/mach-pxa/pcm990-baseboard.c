@@ -22,7 +22,6 @@
 
 #include <linux/irq.h>
 #include <linux/platform_device.h>
-#include <linux/ide.h>
 #include <linux/i2c.h>
 #include <linux/pwm_backlight.h>
 

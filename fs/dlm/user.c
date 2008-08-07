@@ -539,7 +539,7 @@ static ssize_t device_write(struct file *file, const char __user *buf,
 
 	/* do we really need this? can a write happen after a close? */
 	if ((kbuf->cmd == DLM_USER_LOCK || kbuf->cmd == DLM_USER_UNLOCK) &&
-	    test_bit(DLM_PROC_FLAGS_CLOSING, &proc->flags))
+	    (proc && test_bit(DLM_PROC_FLAGS_CLOSING, &proc->flags)))
 		return -EINVAL;
 
 	sigfillset(&allsigs);

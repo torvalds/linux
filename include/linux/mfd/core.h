@@ -1,5 +1,3 @@
-#ifndef MFD_CORE_H
-#define MFD_CORE_H
 /*
  * drivers/mfd/mfd-core.h
  *
@@ -12,6 +10,9 @@
  * published by the Free Software Foundation.
  *
  */
+
+#ifndef MFD_CORE_H
+#define MFD_CORE_H
 
 #include <linux/platform_device.h>
 
@@ -28,7 +29,13 @@ struct mfd_cell {
 	int			(*suspend)(struct platform_device *dev);
 	int			(*resume)(struct platform_device *dev);
 
-	void			*driver_data; /* driver-specific data */
+	/* driver-specific data for MFD-aware "cell" drivers */
+	void			*driver_data;
+
+	/* platform_data can be used to either pass data to "generic"
+	   driver or as a hook to mfd_cell for the "cell" drivers */
+	void			*platform_data;
+	size_t			data_size;
 
 	/*
 	 * This resources can be specified relatievly to the parent device.
@@ -38,18 +45,11 @@ struct mfd_cell {
 	const struct resource	*resources;
 };
 
-static inline struct mfd_cell *
-mfd_get_cell(struct platform_device *pdev)
-{
-	return (struct mfd_cell *)pdev->dev.platform_data;
-}
+extern int mfd_add_devices(struct device *parent, int id,
+			   const struct mfd_cell *cells, int n_devs,
+			   struct resource *mem_base,
+			   int irq_base);
 
-extern int mfd_add_devices(
-		struct platform_device *parent,
-		const struct mfd_cell *cells, int n_devs,
-		struct resource *mem_base,
-		int irq_base);
-
-extern void mfd_remove_devices(struct platform_device *parent);
+extern void mfd_remove_devices(struct device *parent);
 
 #endif

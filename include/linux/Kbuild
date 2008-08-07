@@ -97,6 +97,7 @@ header-y += ioctl.h
 header-y += ip6_tunnel.h
 header-y += ipmi_msgdefs.h
 header-y += ipsec.h
+header-y += ip_vs.h
 header-y += ipx.h
 header-y += irda.h
 header-y += iso_fs.h

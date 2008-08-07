@@ -420,7 +420,7 @@ static int __devinit detect_cru_service(void)
 static int hpwdt_pretimeout(struct notifier_block *nb, unsigned long ulReason,
 			    void *data)
 {
-	static unsigned long rom_pl;
+	unsigned long rom_pl;
 	static int die_nmi_called;
 
 	if (ulReason != DIE_NMI && ulReason != DIE_NMI_IPI)

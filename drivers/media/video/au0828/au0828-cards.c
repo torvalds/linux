@@ -32,6 +32,9 @@ struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_HAUPPAUGE_HVR950Q] = {
 		.name	= "Hauppauge HVR950Q",
 	},
+	[AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL] = {
+		.name	= "Hauppauge HVR950Q rev xxF8",
+	},
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
 	},
@@ -49,6 +52,7 @@ int au0828_tuner_callback(void *priv, int command, int arg)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
 	case AU0828_BOARD_DVICO_FUSIONHDTV7:
 		if (command == 0) {
 			/* Tuner Reset Command from xc5000 */
@@ -110,6 +114,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
 		if (dev->i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xa0);
 		break;
@@ -128,6 +133,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 	switch (dev->board) {
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
+	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
 		/* GPIO's
 		 * 4 - CS5340
 		 * 5 - AU8522 Demodulator
@@ -193,6 +199,12 @@ struct usb_device_id au0828_usb_id_table [] = {
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
 	{ USB_DEVICE(0x0fd9, 0x0008),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q },
+	{ USB_DEVICE(0x2040, 0x7201),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
+	{ USB_DEVICE(0x2040, 0x7211),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
+	{ USB_DEVICE(0x2040, 0x7281),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
 	{ },
 };
 

@@ -65,11 +65,10 @@ static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 	mutex_lock(&idedisk_ref_mutex);
 	idkp = ide_disk_g(disk);
 	if (idkp) {
-		kref_get(&idkp->kref);
-		if (ide_device_get(idkp->drive)) {
-			kref_put(&idkp->kref, ide_disk_release);
+		if (ide_device_get(idkp->drive))
 			idkp = NULL;
-		}
+		else
+			kref_get(&idkp->kref);
 	}
 	mutex_unlock(&idedisk_ref_mutex);
 	return idkp;
@@ -77,9 +76,11 @@ static struct ide_disk_obj *ide_disk_get(struct gendisk *disk)
 
 static void ide_disk_put(struct ide_disk_obj *idkp)
 {
+	ide_drive_t *drive = idkp->drive;
+
 	mutex_lock(&idedisk_ref_mutex);
-	ide_device_put(idkp->drive);
 	kref_put(&idkp->kref, ide_disk_release);
+	ide_device_put(drive);
 	mutex_unlock(&idedisk_ref_mutex);
 }
 

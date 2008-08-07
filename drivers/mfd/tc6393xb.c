@@ -466,8 +466,12 @@ static int __devinit tc6393xb_probe(struct platform_device *dev)
 		tc6393xb_attach_irq(dev);
 
 	tc6393xb_cells[TC6393XB_CELL_NAND].driver_data = tcpd->nand_data;
+	tc6393xb_cells[TC6393XB_CELL_NAND].platform_data =
+		&tc6393xb_cells[TC6393XB_CELL_NAND];
+	tc6393xb_cells[TC6393XB_CELL_NAND].data_size =
+		sizeof(tc6393xb_cells[TC6393XB_CELL_NAND]);
 
-	retval = mfd_add_devices(dev,
+	retval = mfd_add_devices(&dev->dev, dev->id,
 			tc6393xb_cells, ARRAY_SIZE(tc6393xb_cells),
 			iomem, tcpd->irq_base);
 
@@ -501,7 +505,7 @@ static int __devexit tc6393xb_remove(struct platform_device *dev)
 	struct tc6393xb *tc6393xb = platform_get_drvdata(dev);
 	int ret;
 
-	mfd_remove_devices(dev);
+	mfd_remove_devices(&dev->dev);
 
 	if (tc6393xb->irq)
 		tc6393xb_detach_irq(dev);

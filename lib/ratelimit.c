@@ -15,7 +15,6 @@
 #include <linux/module.h>
 
 static DEFINE_SPINLOCK(ratelimit_lock);
-static unsigned long flags;
 
 /*
  * __ratelimit - rate limiting
@@ -26,6 +25,8 @@ static unsigned long flags;
  */
 int __ratelimit(struct ratelimit_state *rs)
 {
+	unsigned long flags;
+
 	if (!rs->interval)
 		return 1;
 

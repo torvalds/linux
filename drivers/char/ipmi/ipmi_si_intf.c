@@ -66,8 +66,8 @@
 #include <linux/ctype.h>
 
 #ifdef CONFIG_PPC_OF
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 #endif
 
 #define PFX "ipmi_si: "

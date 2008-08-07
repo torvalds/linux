@@ -30,11 +30,11 @@ void omfs_make_empty_table(struct buffer_head *bh, int offset)
 {
 	struct omfs_extent *oe = (struct omfs_extent *) &bh->b_data[offset];
 
-	oe->e_next = ~0ULL;
+	oe->e_next = ~cpu_to_be64(0ULL);
 	oe->e_extent_count = cpu_to_be32(1),
 	oe->e_fill = cpu_to_be32(0x22),
-	oe->e_entry.e_cluster = ~0ULL;
-	oe->e_entry.e_blocks = ~0ULL;
+	oe->e_entry.e_cluster = ~cpu_to_be64(0ULL);
+	oe->e_entry.e_blocks = ~cpu_to_be64(0ULL);
 }
 
 int omfs_shrink_inode(struct inode *inode)

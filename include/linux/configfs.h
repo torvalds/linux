@@ -40,6 +40,7 @@
 #include <linux/list.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
+#include <linux/err.h>
 
 #include <asm/atomic.h>
 
@@ -129,8 +130,25 @@ struct configfs_attribute {
 /*
  * Users often need to create attribute structures for their configurable
  * attributes, containing a configfs_attribute member and function pointers
- * for the show() and store() operations on that attribute. They can use
- * this macro (similar to sysfs' __ATTR) to make defining attributes easier.
+ * for the show() and store() operations on that attribute. If they don't
+ * need anything else on the extended attribute structure, they can use
+ * this macro to define it  The argument _item is the name of the
+ * config_item structure.
+ */
+#define CONFIGFS_ATTR_STRUCT(_item)					\
+struct _item##_attribute {						\
+	struct configfs_attribute attr;					\
+	ssize_t (*show)(struct _item *, char *);			\
+	ssize_t (*store)(struct _item *, const char *, size_t);		\
+}
+
+/*
+ * With the extended attribute structure, users can use this macro
+ * (similar to sysfs' __ATTR) to make defining attributes easier.
+ * An example:
+ * #define MYITEM_ATTR(_name, _mode, _show, _store)	\
+ * struct myitem_attribute childless_attr_##_name =	\
+ *         __CONFIGFS_ATTR(_name, _mode, _show, _store)
  */
 #define __CONFIGFS_ATTR(_name, _mode, _show, _store)			\
 {									\
@@ -141,6 +159,52 @@ struct configfs_attribute {
 	},								\
 	.show	= _show,						\
 	.store	= _store,						\
+}
+/* Here is a readonly version, only requiring a show() operation */
+#define __CONFIGFS_ATTR_RO(_name, _show)				\
+{									\
+	.attr	= {							\
+			.ca_name = __stringify(_name),			\
+			.ca_mode = 0444,				\
+			.ca_owner = THIS_MODULE,			\
+	},								\
+	.show	= _show,						\
+}
+
+/*
+ * With these extended attributes, the simple show_attribute() and
+ * store_attribute() operations need to call the show() and store() of the
+ * attributes.  This is a common pattern, so we provide a macro to define
+ * them.  The argument _item is the name of the config_item structure.
+ * This macro expects the attributes to be named "struct <name>_attribute"
+ * and the function to_<name>() to exist;
+ */
+#define CONFIGFS_ATTR_OPS(_item)					\
+static ssize_t _item##_attr_show(struct config_item *item,		\
+				 struct configfs_attribute *attr,	\
+				 char *page)				\
+{									\
+	struct _item *_item = to_##_item(item);				\
+	struct _item##_attribute *_item##_attr =			\
+		container_of(attr, struct _item##_attribute, attr);	\
+	ssize_t ret = 0;						\
+									\
+	if (_item##_attr->show)						\
+		ret = _item##_attr->show(_item, page);			\
+	return ret;							\
+}									\
+static ssize_t _item##_attr_store(struct config_item *item,		\
+				  struct configfs_attribute *attr,	\
+				  const char *page, size_t count)	\
+{									\
+	struct _item *_item = to_##_item(item);				\
+	struct _item##_attribute *_item##_attr =			\
+		container_of(attr, struct _item##_attribute, attr);	\
+	ssize_t ret = -EINVAL;						\
+									\
+	if (_item##_attr->store)					\
+		ret = _item##_attr->store(_item, page, count);		\
+	return ret;							\
 }
 
 /*

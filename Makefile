@@ -1,7 +1,7 @@
 VERSION = 2
 PATCHLEVEL = 6
-SUBLEVEL = 26
-EXTRAVERSION =
+SUBLEVEL = 27
+EXTRAVERSION = -rc2
 NAME = Rotary Wombat
 
 # *DOCUMENTATION*
@@ -206,7 +206,11 @@ ifeq ($(ARCH),x86_64)
 endif
 
 # Where to locate arch specific headers
-hdr-arch       := $(SRCARCH)
+ifeq ($(ARCH),sparc64)
+       hdr-arch  := sparc
+else
+       hdr-arch  := $(SRCARCH)
+endif
 
 KCONFIG_CONFIG	?= .config
 
@@ -925,10 +929,10 @@ ifneq ($(KBUILD_SRC),)
 		echo "  in the '$(srctree)' directory.";\
 		/bin/false; \
 	fi;
-	$(Q)if [ ! -d include2 ]; then mkdir -p include2; fi;
-	$(Q)if [ -e $(srctree)/include/asm-$(SRCARCH)/system.h ]; then  \
+	$(Q)if [ ! -d include2 ]; then                                  \
+	    mkdir -p include2;                                          \
 	    ln -fsn $(srctree)/include/asm-$(SRCARCH) include2/asm;     \
-	    fi
+	fi
 endif
 
 # prepare2 creates a makefile if using a separate output directory
@@ -1488,7 +1492,7 @@ quiet_cmd_cscope-file = FILELST cscope.files
       cmd_cscope-file = (echo \-k; echo \-q; $(all-sources)) > cscope.files
 
 quiet_cmd_cscope = MAKE    cscope.out
-      cmd_cscope = cscope -b
+      cmd_cscope = cscope -b -f cscope.out
 
 cscope: FORCE
 	$(call cmd,cscope-file)
