@@ -587,7 +587,6 @@ ath5k_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	ath5k_stop_hw(sc);
 
 	free_irq(pdev->irq, sc);
-	pci_disable_msi(pdev);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
@@ -616,12 +615,10 @@ ath5k_pci_resume(struct pci_dev *pdev)
 	 */
 	pci_write_config_byte(pdev, 0x41, 0);
 
-	pci_enable_msi(pdev);
-
 	err = request_irq(pdev->irq, ath5k_intr, IRQF_SHARED, "ath", sc);
 	if (err) {
 		ATH5K_ERR(sc, "request_irq failed\n");
-		goto err_msi;
+		goto err_no_irq;
 	}
 
 	err = ath5k_init(sc);
@@ -642,8 +639,7 @@ ath5k_pci_resume(struct pci_dev *pdev)
 	return 0;
 err_irq:
 	free_irq(pdev->irq, sc);
-err_msi:
-	pci_disable_msi(pdev);
+err_no_irq:
 	pci_disable_device(pdev);
 	return err;
 }
