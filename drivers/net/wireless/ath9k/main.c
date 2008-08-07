@@ -1268,14 +1268,14 @@ static int ath_attach(u16 devid,
 		sc->rates[IEEE80211_BAND_2GHZ];
 	sc->sbands[IEEE80211_BAND_2GHZ].band = IEEE80211_BAND_2GHZ;
 
-	if (sc->sc_ah->ah_caps.halHTSupport)
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 		/* Setup HT capabilities for 2.4Ghz*/
 		setup_ht_cap(&sc->sbands[IEEE80211_BAND_2GHZ].ht_info);
 
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&sc->sbands[IEEE80211_BAND_2GHZ];
 
-	if (sc->sc_ah->ah_caps.halWirelessModes & ATH9K_MODE_SEL_11A) {
+	if (sc->sc_ah->ah_caps.wireless_modes & ATH9K_MODE_SEL_11A) {
 		sc->sbands[IEEE80211_BAND_5GHZ].channels =
 			sc->channels[IEEE80211_BAND_5GHZ];
 		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
@@ -1283,7 +1283,7 @@ static int ath_attach(u16 devid,
 		sc->sbands[IEEE80211_BAND_5GHZ].band =
 			IEEE80211_BAND_5GHZ;
 
-		if (sc->sc_ah->ah_caps.halHTSupport)
+		if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 			/* Setup HT capabilities for 5Ghz*/
 			setup_ht_cap(&sc->sbands[IEEE80211_BAND_5GHZ].ht_info);
 

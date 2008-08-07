@@ -87,7 +87,7 @@ static bool ath9k_regd_is_fcc_midband_supported(struct ath_hal *ah)
 {
 	u32 regcap;
 
-	regcap = ah->ah_caps.halRegCap;
+	regcap = ah->ah_caps.reg_cap;
 
 	if (regcap & AR_EEPROM_EEREGCAP_EN_FCC_MIDBAND)
 		return true;
@@ -138,7 +138,7 @@ ath9k_regd_get_wmodes_nreg(struct ath_hal *ah,
 {
 	u32 modesAvail;
 
-	modesAvail = ah->ah_caps.halWirelessModes;
+	modesAvail = ah->ah_caps.wireless_modes;
 
 	if ((modesAvail & ATH9K_MODE_SEL_11G) && (!country->allow11g))
 		modesAvail &= ~ATH9K_MODE_SEL_11G;
@@ -436,7 +436,7 @@ ath9k_regd_add_channel(struct ath_hal *ah,
 		return false;
 	}
 	if ((fband->channelBW == CHANNEL_HALF_BW) &&
-	    !ah->ah_caps.halChanHalfRate) {
+	    !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_CHAN_HALFRATE)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 			"%s: Skipping %u half rate channel\n",
 			__func__, c);
@@ -444,7 +444,7 @@ ath9k_regd_add_channel(struct ath_hal *ah,
 	}
 
 	if ((fband->channelBW == CHANNEL_QUARTER_BW) &&
-	    !ah->ah_caps.halChanQuarterRate) {
+	    !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_CHAN_QUARTERRATE)) {
 		DPRINTF(ah->ah_sc, ATH_DBG_REGULATORY,
 			"%s: Skipping %u quarter rate channel\n",
 			__func__, c);
@@ -529,7 +529,7 @@ ath9k_regd_add_channel(struct ath_hal *ah,
 		if ((c < 2412) || (c > 2462)) {
 			if (rd5GHz.regDmnEnum == MKK1 ||
 			    rd5GHz.regDmnEnum == MKK2) {
-				u32 regcap = ah->ah_caps.halRegCap;
+				u32 regcap = ah->ah_caps.reg_cap;
 				if (!(regcap &
 				      (AR_EEPROM_EEREGCAP_EN_KK_U1_EVEN |
 				       AR_EEPROM_EEREGCAP_EN_KK_U2 |
@@ -594,7 +594,7 @@ static bool ath9k_regd_japan_check(struct ath_hal *ah,
 
 	for (i = 0; i < ARRAY_SIZE(j_bandcheck); i++) {
 		if (j_bandcheck[i].freqbandbit == b) {
-			regcap = ah->ah_caps.halRegCap;
+			regcap = ah->ah_caps.reg_cap;
 			if ((j_bandcheck[i].eepromflagtocheck & regcap) == 0) {
 				skipband = true;
 			} else if ((regcap & AR_EEPROM_EEREGCAP_EN_KK_U2) ||
@@ -726,7 +726,7 @@ ath9k_regd_init_channels(struct ath_hal *ah,
 	}
 
 	if (country == NULL) {
-		modesAvail = ah->ah_caps.halWirelessModes;
+		modesAvail = ah->ah_caps.wireless_modes;
 	} else {
 		modesAvail = ath9k_regd_get_wmodes_nreg(ah, country, &rd5GHz);
 		if (!enableOutdoor)

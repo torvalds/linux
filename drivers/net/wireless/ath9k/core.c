@@ -536,7 +536,7 @@ int ath_chainmask_sel_logic(struct ath_softc *sc, struct ath_node *an)
 	 * sc_chainmask_auto_sel is used for internal global auto-switching
 	 * enabled/disabled setting
 	 */
-	if (sc->sc_ah->ah_caps.halTxChainMask != ATH_CHAINMASK_SEL_3X3) {
+	if (sc->sc_ah->ah_caps.tx_chainmask != ATH_CHAINMASK_SEL_3X3) {
 		cm->cur_tx_mask = sc->sc_tx_chainmask;
 		return cm->cur_tx_mask;
 	}
@@ -580,8 +580,8 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
 	sc->sc_update_chainmask = 1;
 	if (is_ht) {
-		sc->sc_tx_chainmask = sc->sc_ah->ah_caps.halTxChainMask;
-		sc->sc_rx_chainmask = sc->sc_ah->ah_caps.halRxChainMask;
+		sc->sc_tx_chainmask = sc->sc_ah->ah_caps.tx_chainmask;
+		sc->sc_rx_chainmask = sc->sc_ah->ah_caps.rx_chainmask;
 	} else {
 		sc->sc_tx_chainmask = 1;
 		sc->sc_rx_chainmask = 1;
@@ -780,8 +780,8 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	ath_stop(sc);
 
 	/* Initialize chanmask selection */
-	sc->sc_tx_chainmask = ah->ah_caps.halTxChainMask;
-	sc->sc_rx_chainmask = ah->ah_caps.halRxChainMask;
+	sc->sc_tx_chainmask = ah->ah_caps.tx_chainmask;
+	sc->sc_rx_chainmask = ah->ah_caps.rx_chainmask;
 
 	/* Reset SERDES registers */
 	ath9k_hw_configpcipowersave(ah, 0);
@@ -832,10 +832,10 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 		| ATH9K_INT_RXEOL | ATH9K_INT_RXORN
 		| ATH9K_INT_FATAL | ATH9K_INT_GLOBAL;
 
-	if (ah->ah_caps.halGTTSupport)
+	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_GTT)
 		sc->sc_imask |= ATH9K_INT_GTT;
 
-	if (ah->ah_caps.halHTSupport)
+	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)
 		sc->sc_imask |= ATH9K_INT_CST;
 
 	/*
@@ -851,8 +851,9 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 * that does, if not overridden by configuration,
 	 * enable the TIM interrupt when operating as station.
 	 */
-	if (ah->ah_caps.halEnhancedPmSupport && sc->sc_opmode == ATH9K_M_STA &&
-		!sc->sc_config.swBeaconProcess)
+	if ((ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
+	    (sc->sc_opmode == ATH9K_M_STA) &&
+	    !sc->sc_config.swBeaconProcess)
 		sc->sc_imask |= ATH9K_INT_TIM;
 	/*
 	 *  Don't enable interrupts here as we've not yet built our
@@ -1061,7 +1062,8 @@ irqreturn_t ath_isr(int irq, void *dev)
 				ath9k_hw_set_interrupts(ah, sc->sc_imask);
 			}
 			if (status & ATH9K_INT_TIM_TIMER) {
-				if (!ah->ah_caps.halAutoSleepSupport) {
+				if (!(ah->ah_caps.hw_caps &
+				      ATH9K_HW_CAP_AUTOSLEEP)) {
 					/* Clear RxAbort bit so that we can
 					 * receive frames */
 					ath9k_hw_setrxabort(ah, 0);
@@ -1166,10 +1168,10 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	sc->sc_ah = ah;
 
 	/* Get the chipset-specific aggr limit. */
-	sc->sc_rtsaggrlimit = ah->ah_caps.halRtsAggrLimit;
+	sc->sc_rtsaggrlimit = ah->ah_caps.rts_aggr_limit;
 
 	/* Get the hardware key cache size. */
-	sc->sc_keymax = ah->ah_caps.halKeyCacheSize;
+	sc->sc_keymax = ah->ah_caps.keycache_size;
 	if (sc->sc_keymax > ATH_KEYMAX) {
 		DPRINTF(sc, ATH_DBG_KEYCACHE,
 			"%s: Warning, using only %u entries in %u key cache\n",
@@ -1284,7 +1286,7 @@ int ath_init(u16 devid, struct ath_softc *sc)
 		goto bad2;
 	}
 
-	if (ath9k_hw_getcapability(ah, HAL_CAP_CIPHER,
+	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)) {
 		/*
 		 * Whether we should enable h/w TKIP MIC.
@@ -1292,7 +1294,8 @@ int ath_init(u16 devid, struct ath_softc *sc)
 		 * report WMM capable, so it's always safe to turn on
 		 * TKIP MIC in this case.
 		 */
-		ath9k_hw_setcapability(sc->sc_ah, HAL_CAP_TKIP_MIC, 0, 1, NULL);
+		ath9k_hw_setcapability(sc->sc_ah, ATH9K_CAP_TKIP_MIC,
+				       0, 1, NULL);
 	}
 
 	/*
@@ -1301,30 +1304,30 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	 * With split mic keys the number of stations is limited
 	 * to 27 otherwise 59.
 	 */
-	if (ath9k_hw_getcapability(ah, HAL_CAP_CIPHER,
+	if (ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				   ATH9K_CIPHER_TKIP, NULL)
-	    && ath9k_hw_getcapability(ah, HAL_CAP_CIPHER,
+	    && ath9k_hw_getcapability(ah, ATH9K_CAP_CIPHER,
 				      ATH9K_CIPHER_MIC, NULL)
-	    && ath9k_hw_getcapability(ah, HAL_CAP_TKIP_SPLIT,
+	    && ath9k_hw_getcapability(ah, ATH9K_CAP_TKIP_SPLIT,
 				      0, NULL))
 		sc->sc_splitmic = 1;
 
 	/* turn on mcast key search if possible */
-	if (!ath9k_hw_getcapability(ah, HAL_CAP_MCAST_KEYSRCH, 0, NULL))
-		(void)ath9k_hw_setcapability(ah, HAL_CAP_MCAST_KEYSRCH, 1,
+	if (!ath9k_hw_getcapability(ah, ATH9K_CAP_MCAST_KEYSRCH, 0, NULL))
+		(void)ath9k_hw_setcapability(ah, ATH9K_CAP_MCAST_KEYSRCH, 1,
 					     1, NULL);
 
 	sc->sc_config.txpowlimit = ATH_TXPOWER_MAX;
 	sc->sc_config.txpowlimit_override = 0;
 
 	/* 11n Capabilities */
-	if (ah->ah_caps.halHTSupport) {
+	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
 		sc->sc_txaggr = 1;
 		sc->sc_rxaggr = 1;
 	}
 
-	sc->sc_tx_chainmask = ah->ah_caps.halTxChainMask;
-	sc->sc_rx_chainmask = ah->ah_caps.halRxChainMask;
+	sc->sc_tx_chainmask = ah->ah_caps.tx_chainmask;
+	sc->sc_rx_chainmask = ah->ah_caps.rx_chainmask;
 
 	/* Configuration for rx chain detection */
 	sc->sc_rxchaindetect_ref = 0;
@@ -1333,11 +1336,11 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	sc->sc_rxchaindetect_delta5GHz = 30;
 	sc->sc_rxchaindetect_delta2GHz = 30;
 
-	ath9k_hw_setcapability(ah, HAL_CAP_DIVERSITY, 1, true, NULL);
+	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->sc_defant = ath9k_hw_getdefantenna(ah);
 
 	ath9k_hw_getmac(ah, sc->sc_myaddr);
-	if (ah->ah_caps.halBssIdMaskSupport) {
+	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK) {
 		ath9k_hw_getbssidmask(ah, sc->sc_bssidmask);
 		ATH_SET_VAP_BSSID_MASK(sc->sc_bssidmask);
 		ath9k_hw_setbssidmask(ah, sc->sc_bssidmask);
@@ -1555,7 +1558,7 @@ void ath_update_txpow(struct ath_softc *sc)
 	if (sc->sc_curtxpow != sc->sc_config.txpowlimit) {
 		ath9k_hw_set_txpowerlimit(ah, sc->sc_config.txpowlimit);
 		/* read back in case value is clamped */
-		ath9k_hw_getcapability(ah, HAL_CAP_TXPOW, 1, &txpow);
+		ath9k_hw_getcapability(ah, ATH9K_CAP_TXPOW, 1, &txpow);
 		sc->sc_curtxpow = txpow;
 	}
 }
@@ -1757,7 +1760,7 @@ int ath_descdma_setup(struct ath_softc *sc,
 	 * descriptors that cross the 4K page boundary. Assume
 	 * one skipped descriptor per 4K page.
 	 */
-	if (!(sc->sc_ah->ah_caps.hal4kbSplitTransSupport)) {
+	if (!(sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_4KB_SPLITTRANS)) {
 		u32 ndesc_skipped =
 			ATH_DESC_4KB_BOUND_NUM_SKIPPED(dd->dd_desc_len);
 		u32 dma_len;
@@ -1798,7 +1801,8 @@ int ath_descdma_setup(struct ath_softc *sc,
 		bf->bf_desc = ds;
 		bf->bf_daddr = DS2PHYS(dd, ds);
 
-		if (!(sc->sc_ah->ah_caps.hal4kbSplitTransSupport)) {
+		if (!(sc->sc_ah->ah_caps.hw_caps &
+		      ATH9K_HW_CAP_4KB_SPLITTRANS)) {
 			/*
 			 * Skip descriptor addresses which can cause 4KB
 			 * boundary crossing (addr + length) with a 32 dword

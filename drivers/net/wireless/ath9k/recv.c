@@ -478,7 +478,7 @@ static void ath_opmode_init(struct ath_softc *sc)
 	ath9k_hw_setrxfilter(ah, rfilt);
 
 	/* configure bssid mask */
-	if (ah->ah_caps.halBssIdMaskSupport)
+	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_BSSIDMASK)
 		ath9k_hw_setbssidmask(ah, sc->sc_bssidmask);
 
 	/* configure operational mode */
@@ -1018,7 +1018,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 				 PCI_DMA_FROMDEVICE);
 
 		/* XXX: Ah! make me more readable, use a helper */
-		if (ah->ah_caps.halHTSupport) {
+		if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
 			if (ds->ds_rxstat.rs_moreaggr == 0) {
 				rx_status.rssictl[0] =
 					ds->ds_rxstat.rs_rssi_ctl0;

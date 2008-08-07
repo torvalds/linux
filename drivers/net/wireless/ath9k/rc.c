@@ -780,7 +780,7 @@ struct ath_rate_softc *ath_rate_attach(struct ath_hal *ah)
 	ar5416_attach_ratetables(asc);
 
 	/* Save Maximum TX Trigger Level (used for 11n) */
-	tx_triglevel_max = ah->ah_caps.halTxTrigLevelMax;
+	tx_triglevel_max = ah->ah_caps.tx_triglevel_max;
 	/*  return alias for ath_rate_softc * */
 	return asc;
 }

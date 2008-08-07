@@ -147,94 +147,95 @@ struct ath_desc {
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
-enum hal_capability_type {
-	HAL_CAP_CIPHER = 0,
-	HAL_CAP_TKIP_MIC,
-	HAL_CAP_TKIP_SPLIT,
-	HAL_CAP_PHYCOUNTERS,
-	HAL_CAP_DIVERSITY,
-	HAL_CAP_PSPOLL,
-	HAL_CAP_TXPOW,
-	HAL_CAP_PHYDIAG,
-	HAL_CAP_MCAST_KEYSRCH,
-	HAL_CAP_TSF_ADJUST,
-	HAL_CAP_WME_TKIPMIC,
-	HAL_CAP_RFSILENT,
-	HAL_CAP_ANT_CFG_2GHZ,
-	HAL_CAP_ANT_CFG_5GHZ
+enum ath9k_hw_caps {
+	ATH9K_HW_CAP_CHAN_SPREAD		= BIT(0),
+	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(1),
+	ATH9K_HW_CAP_MIC_CKIP                   = BIT(2),
+	ATH9K_HW_CAP_MIC_TKIP                   = BIT(3),
+	ATH9K_HW_CAP_CIPHER_AESCCM              = BIT(4),
+	ATH9K_HW_CAP_CIPHER_CKIP                = BIT(5),
+	ATH9K_HW_CAP_CIPHER_TKIP                = BIT(6),
+	ATH9K_HW_CAP_VEOL                       = BIT(7),
+	ATH9K_HW_CAP_BSSIDMASK                  = BIT(8),
+	ATH9K_HW_CAP_MCAST_KEYSEARCH            = BIT(9),
+	ATH9K_HW_CAP_CHAN_HALFRATE              = BIT(10),
+	ATH9K_HW_CAP_CHAN_QUARTERRATE           = BIT(11),
+	ATH9K_HW_CAP_HT                         = BIT(12),
+	ATH9K_HW_CAP_GTT                        = BIT(13),
+	ATH9K_HW_CAP_FASTCC                     = BIT(14),
+	ATH9K_HW_CAP_RFSILENT                   = BIT(15),
+	ATH9K_HW_CAP_WOW                        = BIT(16),
+	ATH9K_HW_CAP_CST                        = BIT(17),
+	ATH9K_HW_CAP_ENHANCEDPM                 = BIT(18),
+	ATH9K_HW_CAP_AUTOSLEEP                  = BIT(19),
+	ATH9K_HW_CAP_4KB_SPLITTRANS             = BIT(20),
+	ATH9K_HW_CAP_WOW_MATCHPATTERN_EXACT     = BIT(21),
 };
 
-struct hal_capabilities {
-	u32 halChanSpreadSupport:1,
-		halChapTuningSupport:1,
-		halMicAesCcmSupport:1,
-		halMicCkipSupport:1,
-		halMicTkipSupport:1,
-		halCipherAesCcmSupport:1,
-		halCipherCkipSupport:1,
-		halCipherTkipSupport:1,
-		halVEOLSupport:1,
-		halBssIdMaskSupport:1,
-		halMcastKeySrchSupport:1,
-		halTsfAddSupport:1,
-		halChanHalfRate:1,
-		halChanQuarterRate:1,
-		halHTSupport:1,
-		halGTTSupport:1,
-		halFastCCSupport:1,
-		halRfSilentSupport:1,
-		halWowSupport:1,
-		halCSTSupport:1,
-		halEnhancedPmSupport:1,
-		halAutoSleepSupport:1,
-		hal4kbSplitTransSupport:1,
-		halWowMatchPatternExact:1;
-	u32 halWirelessModes;
-	u16 halTotalQueues;
-	u16 halKeyCacheSize;
-	u16 halLow5GhzChan, halHigh5GhzChan;
-	u16 halLow2GhzChan, halHigh2GhzChan;
-	u16 halNumMRRetries;
-	u16 halRtsAggrLimit;
-	u8 halTxChainMask;
-	u8 halRxChainMask;
-	u16 halTxTrigLevelMax;
-	u16 halRegCap;
-	u8 halNumGpioPins;
-	u8 halNumAntCfg2GHz;
-	u8 halNumAntCfg5GHz;
+enum ath9k_capability_type {
+	ATH9K_CAP_CIPHER = 0,
+	ATH9K_CAP_TKIP_MIC,
+	ATH9K_CAP_TKIP_SPLIT,
+	ATH9K_CAP_PHYCOUNTERS,
+	ATH9K_CAP_DIVERSITY,
+	ATH9K_CAP_TXPOW,
+	ATH9K_CAP_PHYDIAG,
+	ATH9K_CAP_MCAST_KEYSRCH,
+	ATH9K_CAP_TSF_ADJUST,
+	ATH9K_CAP_WME_TKIPMIC,
+	ATH9K_CAP_RFSILENT,
+	ATH9K_CAP_ANT_CFG_2GHZ,
+	ATH9K_CAP_ANT_CFG_5GHZ
 };
 
-struct hal_ops_config {
-	int ath_hal_dma_beacon_response_time;
-	int ath_hal_sw_beacon_response_time;
-	int ath_hal_additional_swba_backoff;
-	int ath_hal_6mb_ack;
-	int ath_hal_cwmIgnoreExtCCA;
-	u8 ath_hal_pciePowerSaveEnable;
-	u8 ath_hal_pcieL1SKPEnable;
-	u8 ath_hal_pcieClockReq;
-	u32 ath_hal_pcieWaen;
-	int ath_hal_pciePowerReset;
-	u8 ath_hal_pcieRestore;
-	u8 ath_hal_analogShiftReg;
-	u8 ath_hal_htEnable;
-	u32 ath_hal_ofdmTrigLow;
-	u32 ath_hal_ofdmTrigHigh;
-	u32 ath_hal_cckTrigHigh;
-	u32 ath_hal_cckTrigLow;
-	u32 ath_hal_enableANI;
-	u8 ath_hal_noiseImmunityLvl;
-	u32 ath_hal_ofdmWeakSigDet;
-	u32 ath_hal_cckWeakSigThr;
-	u8 ath_hal_spurImmunityLvl;
-	u8 ath_hal_firStepLvl;
-	int8_t ath_hal_rssiThrHigh;
-	int8_t ath_hal_rssiThrLow;
-	u16 ath_hal_diversityControl;
-	u16 ath_hal_antennaSwitchSwap;
-	int ath_hal_serializeRegMode;
-	int ath_hal_intrMitigation;
+struct ath9k_hw_capabilities {
+	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
+	u32 wireless_modes;
+	u16 total_queues;
+	u16 keycache_size;
+	u16 low_5ghz_chan, high_5ghz_chan;
+	u16 low_2ghz_chan, high_2ghz_chan;
+	u16 num_mr_retries;
+	u16 rts_aggr_limit;
+	u8 tx_chainmask;
+	u8 rx_chainmask;
+	u16 tx_triglevel_max;
+	u16 reg_cap;
+	u8 num_gpio_pins;
+	u8 num_antcfg_2ghz;
+	u8 num_antcfg_5ghz;
+};
+
+struct ath9k_ops_config {
+	int dma_beacon_response_time;
+	int sw_beacon_response_time;
+	int additional_swba_backoff;
+	int ack_6mb;
+	int cwm_ignore_extcca;
+	u8 pcie_powersave_enable;
+	u8 pcie_l1skp_enable;
+	u8 pcie_clock_req;
+	u32 pcie_waen;
+	int pcie_power_reset;
+	u8 pcie_restore;
+	u8 analog_shiftreg;
+	u8 ht_enable;
+	u32 ofdm_trig_low;
+	u32 ofdm_trig_high;
+	u32 cck_trig_high;
+	u32 cck_trig_low;
+	u32 enable_ani;
+	u8 noise_immunity_level;
+	u32 ofdm_weaksignal_det;
+	u32 cck_weaksignal_thr;
+	u8 spur_immunity_level;
+	u8 firstep_level;
+	int8_t rssi_thr_high;
+	int8_t rssi_thr_low;
+	u16 diversity_control;
+	u16 antenna_switch_swap;
+	int serialize_regmode;
+	int intr_mitigation;
 #define SPUR_DISABLE        	0
 #define SPUR_ENABLE_IOCTL   	1
 #define SPUR_ENABLE_EEPROM  	2
@@ -246,8 +247,8 @@ struct hal_ops_config {
 #define AR_BASE_FREQ_5GHZ   	4900
 #define AR_SPUR_FEEQ_BOUND_HT40 19
 #define AR_SPUR_FEEQ_BOUND_HT20 10
-	int ath_hal_spurMode;
-	u16 ath_hal_spurChans[AR_EEPROM_MODAL_SPURS][2];
+	int spurmode;
+	u16 spurchans[AR_EEPROM_MODAL_SPURS][2];
 };
 
 enum ath9k_tx_queue {
@@ -815,8 +816,8 @@ struct ath_hal {
 	u8 ah_decompMask[ATH9K_DECOMP_MASK_SIZE];
 	u32 ah_flags;
 	enum ath9k_opmode ah_opmode;
-	struct hal_ops_config ah_config;
-	struct hal_capabilities ah_caps;
+	struct ath9k_ops_config ah_config;
+	struct ath9k_hw_capabilities ah_caps;
 	int16_t ah_powerLimit;
 	u16 ah_maxPowerLevel;
 	u32 ah_tpScale;
@@ -878,7 +879,7 @@ struct chan_centers {
 };
 
 int ath_hal_getcapability(struct ath_hal *ah,
-			  enum hal_capability_type type,
+			  enum ath9k_capability_type type,
 			  u32 capability,
 			  u32 *result);
 const struct ath9k_rate_table *ath9k_hw_getratetable(struct ath_hal *ah,
@@ -947,11 +948,11 @@ void ath9k_hw_set11nmac2040(struct ath_hal *ah, enum ath9k_ht_macmode mode);
 bool ath9k_hw_phycounters(struct ath_hal *ah);
 bool ath9k_hw_keyreset(struct ath_hal *ah, u16 entry);
 bool ath9k_hw_getcapability(struct ath_hal *ah,
-			    enum hal_capability_type type,
+			    enum ath9k_capability_type type,
 			    u32 capability,
 			    u32 *result);
 bool ath9k_hw_setcapability(struct ath_hal *ah,
-			    enum hal_capability_type type,
+			    enum ath9k_capability_type type,
 			    u32 capability,
 			    u32 setting,
 			    int *status);

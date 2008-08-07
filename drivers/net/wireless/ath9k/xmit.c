@@ -781,7 +781,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	 * let rate series flags determine which rates will actually
 	 * use RTS.
 	 */
-	if (ah->ah_caps.halHTSupport && bf->bf_isdata) {
+	if ((ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) && bf->bf_isdata) {
 		BUG_ON(!an);
 		/*
 		 * 802.11g protection not needed, use our default behavior
@@ -897,7 +897,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	 * For non-HT devices, calculate RTS/CTS duration in software
 	 * and disable multi-rate retry.
 	 */
-	if (flags && !ah->ah_caps.halHTSupport) {
+	if (flags && !(ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT)) {
 		/*
 		 * Compute the transmit duration based on the frame
 		 * size and the size of an ACK frame.  We call into the
