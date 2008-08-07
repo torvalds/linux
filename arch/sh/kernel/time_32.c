@@ -254,6 +254,10 @@ void __init time_init(void)
 	set_normalized_timespec(&wall_to_monotonic,
 				-xtime.tv_sec, -xtime.tv_nsec);
 
+#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
+	local_timer_setup(smp_processor_id());
+#endif
+
 	/*
 	 * Find the timer to use as the system timer, it will be
 	 * initialized for us.
@@ -261,9 +265,6 @@ void __init time_init(void)
 	sys_timer = get_sys_timer();
 	printk(KERN_INFO "Using %s for system timer\n", sys_timer->name);
 
-#ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
-	local_timer_setup(smp_processor_id());
-#endif
 
 	if (sys_timer->ops->read)
 		clocksource_sh.read = sys_timer->ops->read;
