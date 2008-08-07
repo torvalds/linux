@@ -230,13 +230,6 @@ static void sppp_input (struct net_device *dev, struct sk_buff *skb)
 	skb->dev=dev;
 	skb_reset_mac_header(skb);
 
-	if (dev->flags & IFF_RUNNING)
-	{
-		/* Count received bytes, add FCS and one flag */
-		sp->ibytes+= skb->len + 3;
-		sp->ipkts++;
-	}
-
 	if (!pskb_may_pull(skb, PPP_HEADER_LEN)) {
 		/* Too small packet, drop it. */
 		if (sp->pp_flags & PP_DEBUG)
@@ -832,7 +825,6 @@ static void sppp_cp_send (struct sppp *sp, u16 proto, u8 type,
 			sppp_print_bytes ((u8*) (lh+1), len);
 		printk (">\n");
 	}
-	sp->obytes += skb->len;
 	/* Control is high priority so it doesn't get queued behind data */
 	skb->priority=TC_PRIO_CONTROL;
 	skb->dev = dev;
@@ -875,7 +867,6 @@ static void sppp_cisco_send (struct sppp *sp, int type, u32 par1, u32 par2)
 		printk (KERN_WARNING "%s: cisco output: <%xh %xh %xh %xh %xh-%xh>\n",
 			dev->name,  ntohl (ch->type), ch->par1,
 			ch->par2, ch->rel, ch->time0, ch->time1);
-	sp->obytes += skb->len;
 	skb->priority=TC_PRIO_CONTROL;
 	skb->dev = dev;
 	skb_queue_tail(&tx_queue, skb);
