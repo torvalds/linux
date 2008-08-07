@@ -144,11 +144,6 @@ static int acm_wb_is_avail(struct acm *acm)
 	return n;
 }
 
-static inline int acm_wb_is_used(struct acm *acm, int wbn)
-{
-	return acm->wb[wbn].use;
-}
-
 /*
  * Finish write.
  */
@@ -157,7 +152,6 @@ static void acm_write_done(struct acm *acm, struct acm_wb *wb)
 	unsigned long flags;
 
 	spin_lock_irqsave(&acm->write_lock, flags);
-	acm->write_ready = 1;
 	wb->use = 0;
 	acm->transmitting--;
 	spin_unlock_irqrestore(&acm->write_lock, flags);
@@ -190,39 +184,24 @@ static int acm_start_wb(struct acm *acm, struct acm_wb *wb)
 static int acm_write_start(struct acm *acm, int wbn)
 {
 	unsigned long flags;
-	struct acm_wb *wb;
+	struct acm_wb *wb = &acm->wb[wbn];
 	int rc;
 
 	spin_lock_irqsave(&acm->write_lock, flags);
 	if (!acm->dev) {
+		wb->use = 0;
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return -ENODEV;
 	}
 
-	if (!acm->write_ready) {
-		spin_unlock_irqrestore(&acm->write_lock, flags);
-		return 0;	/* A white lie */
-	}
-
-	wb = &acm->wb[wbn];
-	if(acm_wb_is_avail(acm) <= 1)
-		acm->write_ready = 0;
-
 	dbg("%s susp_count: %d", __func__, acm->susp_count);
 	if (acm->susp_count) {
-		acm->old_ready = acm->write_ready;
 		acm->delayed_wb = wb;
-		acm->write_ready = 0;
 		schedule_work(&acm->waker);
 		spin_unlock_irqrestore(&acm->write_lock, flags);
 		return 0;	/* A white lie */
 	}
 	usb_mark_last_busy(acm->dev);
-
-	if (!acm_wb_is_used(acm, wbn)) {
-		spin_unlock_irqrestore(&acm->write_lock, flags);
-		return 0;
-	}
 
 	rc = acm_start_wb(acm, wb);
 	spin_unlock_irqrestore(&acm->write_lock, flags);
@@ -512,7 +491,6 @@ static void acm_softint(struct work_struct *work)
 static void acm_waker(struct work_struct *waker)
 {
 	struct acm *acm = container_of(waker, struct acm, waker);
-	unsigned long flags;
 	int rv;
 
 	rv = usb_autopm_get_interface(acm->control);
@@ -524,9 +502,6 @@ static void acm_waker(struct work_struct *waker)
 		acm_start_wb(acm, acm->delayed_wb);
 		acm->delayed_wb = NULL;
 	}
-	spin_lock_irqsave(&acm->write_lock, flags);
-	acm->write_ready = acm->old_ready;
-	spin_unlock_irqrestore(&acm->write_lock, flags);
 	usb_autopm_put_interface(acm->control);
 }
 
@@ -697,7 +672,7 @@ static int acm_tty_write_room(struct tty_struct *tty)
 	 * Do not let the line discipline to know that we have a reserve,
 	 * or it might get too enthusiastic.
 	 */
-	return (acm->write_ready && acm_wb_is_avail(acm)) ? acm->writesize : 0;
+	return acm_wb_is_avail(acm) ? acm->writesize : 0;
 }
 
 static int acm_tty_chars_in_buffer(struct tty_struct *tty)
@@ -1076,7 +1051,6 @@ skip_normal_probe:
 	spin_lock_init(&acm->write_lock);
 	spin_lock_init(&acm->read_lock);
 	mutex_init(&acm->mutex);
-	acm->write_ready = 1;
 	acm->rx_endpoint = usb_rcvbulkpipe(usb_dev, epread->bEndpointAddress);
 
 	buf = usb_buffer_alloc(usb_dev, ctrlsize, GFP_KERNEL, &acm->ctrl_dma);

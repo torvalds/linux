@@ -106,8 +106,6 @@ struct acm {
 	struct list_head spare_read_bufs;
 	struct list_head filled_read_bufs;
 	int write_used;					/* number of non-empty write buffers */
-	int write_ready;				/* write urb is not running */
-	int old_ready;
 	int processing;
 	int transmitting;
 	spinlock_t write_lock;
