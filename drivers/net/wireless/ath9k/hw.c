@@ -7394,12 +7394,21 @@ ath9k_hw_updatetxtriglevel(struct ath_hal *ah, bool bIncTrigLevel)
 	return newLevel != curLevel;
 }
 
-static bool ath9k_hw_set_txq_props(struct ath_hal *ah,
-				   struct ath9k_tx_queue_info *qi,
-				   const struct ath9k_txq_info *qInfo)
+bool ath9k_hw_set_txq_props(struct ath_hal *ah, int q,
+			    const struct ath9k_tx_queue_info *qinfo)
 {
 	u32 cw;
+	struct ath_hal_5416 *ahp = AH5416(ah);
+	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_tx_queue_info *qi;
 
+	if (q >= pCap->total_queues) {
+		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "%s: invalid queue num %u\n",
+			 __func__, q);
+		return false;
+	}
+
+	qi = &ahp->ah_txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "%s: inactive queue\n",
 			 __func__);
@@ -7408,43 +7417,43 @@ static bool ath9k_hw_set_txq_props(struct ath_hal *ah,
 
 	DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "%s: queue %p\n", __func__, qi);
 
-	qi->tqi_ver = qInfo->tqi_ver;
-	qi->tqi_subtype = qInfo->tqi_subtype;
-	qi->tqi_qflags = qInfo->tqi_qflags;
-	qi->tqi_priority = qInfo->tqi_priority;
-	if (qInfo->tqi_aifs != ATH9K_TXQ_USEDEFAULT)
-		qi->tqi_aifs = min(qInfo->tqi_aifs, 255U);
+	qi->tqi_ver = qinfo->tqi_ver;
+	qi->tqi_subtype = qinfo->tqi_subtype;
+	qi->tqi_qflags = qinfo->tqi_qflags;
+	qi->tqi_priority = qinfo->tqi_priority;
+	if (qinfo->tqi_aifs != ATH9K_TXQ_USEDEFAULT)
+		qi->tqi_aifs = min(qinfo->tqi_aifs, 255U);
 	else
 		qi->tqi_aifs = INIT_AIFS;
-	if (qInfo->tqi_cwmin != ATH9K_TXQ_USEDEFAULT) {
-		cw = min(qInfo->tqi_cwmin, 1024U);
+	if (qinfo->tqi_cwmin != ATH9K_TXQ_USEDEFAULT) {
+		cw = min(qinfo->tqi_cwmin, 1024U);
 		qi->tqi_cwmin = 1;
 		while (qi->tqi_cwmin < cw)
 			qi->tqi_cwmin = (qi->tqi_cwmin << 1) | 1;
 	} else
-		qi->tqi_cwmin = qInfo->tqi_cwmin;
-	if (qInfo->tqi_cwmax != ATH9K_TXQ_USEDEFAULT) {
-		cw = min(qInfo->tqi_cwmax, 1024U);
+		qi->tqi_cwmin = qinfo->tqi_cwmin;
+	if (qinfo->tqi_cwmax != ATH9K_TXQ_USEDEFAULT) {
+		cw = min(qinfo->tqi_cwmax, 1024U);
 		qi->tqi_cwmax = 1;
 		while (qi->tqi_cwmax < cw)
 			qi->tqi_cwmax = (qi->tqi_cwmax << 1) | 1;
 	} else
 		qi->tqi_cwmax = INIT_CWMAX;
 
-	if (qInfo->tqi_shretry != 0)
-		qi->tqi_shretry = min((u32) qInfo->tqi_shretry, 15U);
+	if (qinfo->tqi_shretry != 0)
+		qi->tqi_shretry = min((u32) qinfo->tqi_shretry, 15U);
 	else
 		qi->tqi_shretry = INIT_SH_RETRY;
-	if (qInfo->tqi_lgretry != 0)
-		qi->tqi_lgretry = min((u32) qInfo->tqi_lgretry, 15U);
+	if (qinfo->tqi_lgretry != 0)
+		qi->tqi_lgretry = min((u32) qinfo->tqi_lgretry, 15U);
 	else
 		qi->tqi_lgretry = INIT_LG_RETRY;
-	qi->tqi_cbrPeriod = qInfo->tqi_cbrPeriod;
-	qi->tqi_cbrOverflowLimit = qInfo->tqi_cbrOverflowLimit;
-	qi->tqi_burstTime = qInfo->tqi_burstTime;
-	qi->tqi_readyTime = qInfo->tqi_readyTime;
+	qi->tqi_cbrPeriod = qinfo->tqi_cbrPeriod;
+	qi->tqi_cbrOverflowLimit = qinfo->tqi_cbrOverflowLimit;
+	qi->tqi_burstTime = qinfo->tqi_burstTime;
+	qi->tqi_readyTime = qinfo->tqi_readyTime;
 
-	switch (qInfo->tqi_subtype) {
+	switch (qinfo->tqi_subtype) {
 	case ATH9K_WME_UPSD:
 		if (qi->tqi_type == ATH9K_TX_QUEUE_DATA)
 			qi->tqi_intFlags = ATH9K_TXQ_USE_LOCKOUT_BKOFF_DIS;
@@ -7455,66 +7464,47 @@ static bool ath9k_hw_set_txq_props(struct ath_hal *ah,
 	return true;
 }
 
-bool ath9k_hw_settxqueueprops(struct ath_hal *ah, int q,
-			      const struct ath9k_txq_info *qInfo)
+bool ath9k_hw_get_txq_props(struct ath_hal *ah, int q,
+			    struct ath9k_tx_queue_info *qinfo)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
+	struct ath9k_tx_queue_info *qi;
 
 	if (q >= pCap->total_queues) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "%s: invalid queue num %u\n",
 			 __func__, q);
 		return false;
 	}
-	return ath9k_hw_set_txq_props(ah, &ahp->ah_txq[q], qInfo);
-}
 
-static bool ath9k_hw_get_txq_props(struct ath_hal *ah,
-				   struct ath9k_txq_info *qInfo,
-				   const struct ath9k_tx_queue_info *qi)
-{
+	qi = &ahp->ah_txq[q];
 	if (qi->tqi_type == ATH9K_TX_QUEUE_INACTIVE) {
 		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "%s: inactive queue\n",
 			 __func__);
 		return false;
 	}
 
-	qInfo->tqi_qflags = qi->tqi_qflags;
-	qInfo->tqi_ver = qi->tqi_ver;
-	qInfo->tqi_subtype = qi->tqi_subtype;
-	qInfo->tqi_qflags = qi->tqi_qflags;
-	qInfo->tqi_priority = qi->tqi_priority;
-	qInfo->tqi_aifs = qi->tqi_aifs;
-	qInfo->tqi_cwmin = qi->tqi_cwmin;
-	qInfo->tqi_cwmax = qi->tqi_cwmax;
-	qInfo->tqi_shretry = qi->tqi_shretry;
-	qInfo->tqi_lgretry = qi->tqi_lgretry;
-	qInfo->tqi_cbrPeriod = qi->tqi_cbrPeriod;
-	qInfo->tqi_cbrOverflowLimit = qi->tqi_cbrOverflowLimit;
-	qInfo->tqi_burstTime = qi->tqi_burstTime;
-	qInfo->tqi_readyTime = qi->tqi_readyTime;
+	qinfo->tqi_qflags = qi->tqi_qflags;
+	qinfo->tqi_ver = qi->tqi_ver;
+	qinfo->tqi_subtype = qi->tqi_subtype;
+	qinfo->tqi_qflags = qi->tqi_qflags;
+	qinfo->tqi_priority = qi->tqi_priority;
+	qinfo->tqi_aifs = qi->tqi_aifs;
+	qinfo->tqi_cwmin = qi->tqi_cwmin;
+	qinfo->tqi_cwmax = qi->tqi_cwmax;
+	qinfo->tqi_shretry = qi->tqi_shretry;
+	qinfo->tqi_lgretry = qi->tqi_lgretry;
+	qinfo->tqi_cbrPeriod = qi->tqi_cbrPeriod;
+	qinfo->tqi_cbrOverflowLimit = qi->tqi_cbrOverflowLimit;
+	qinfo->tqi_burstTime = qi->tqi_burstTime;
+	qinfo->tqi_readyTime = qi->tqi_readyTime;
 
 	return true;
 }
 
-bool
-ath9k_hw_gettxqueueprops(struct ath_hal *ah, int q,
-			 struct ath9k_txq_info *qInfo)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-	struct ath9k_hw_capabilities *pCap = &ah->ah_caps;
-
-	if (q >= pCap->total_queues) {
-		DPRINTF(ah->ah_sc, ATH_DBG_QUEUE, "%s: invalid queue num %u\n",
-			 __func__, q);
-		return false;
-	}
-	return ath9k_hw_get_txq_props(ah, qInfo, &ahp->ah_txq[q]);
-}
-
 int
 ath9k_hw_setuptxqueue(struct ath_hal *ah, enum ath9k_tx_queue type,
-		      const struct ath9k_txq_info *qInfo)
+		      const struct ath9k_tx_queue_info *qinfo)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	struct ath9k_tx_queue_info *qi;
@@ -7561,7 +7551,7 @@ ath9k_hw_setuptxqueue(struct ath_hal *ah, enum ath9k_tx_queue type,
 	}
 	memset(qi, 0, sizeof(struct ath9k_tx_queue_info));
 	qi->tqi_type = type;
-	if (qInfo == NULL) {
+	if (qinfo == NULL) {
 		qi->tqi_qflags =
 			TXQ_FLAG_TXOKINT_ENABLE
 			| TXQ_FLAG_TXERRINT_ENABLE
@@ -7573,8 +7563,8 @@ ath9k_hw_setuptxqueue(struct ath_hal *ah, enum ath9k_tx_queue type,
 		qi->tqi_lgretry = INIT_LG_RETRY;
 		qi->tqi_physCompBuf = 0;
 	} else {
-		qi->tqi_physCompBuf = qInfo->tqi_compBuf;
-		(void) ath9k_hw_settxqueueprops(ah, q, qInfo);
+		qi->tqi_physCompBuf = qinfo->tqi_physCompBuf;
+		(void) ath9k_hw_set_txq_props(ah, q, qinfo);
 	}
 
 	return q;

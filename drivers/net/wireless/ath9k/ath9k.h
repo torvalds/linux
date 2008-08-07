@@ -282,23 +282,6 @@ enum ath9k_tx_queue_flags {
 	TXQ_FLAG_FRAG_BURST_BACKOFF_ENABLE = 0x0080,
 };
 
-struct ath9k_txq_info {
-	u32 tqi_ver;
-	enum ath9k_tx_queue_subtype tqi_subtype;
-	enum ath9k_tx_queue_flags tqi_qflags;
-	u32 tqi_priority;
-	u32 tqi_aifs;
-	u32 tqi_cwmin;
-	u32 tqi_cwmax;
-	u16 tqi_shretry;
-	u16 tqi_lgretry;
-	u32 tqi_cbrPeriod;
-	u32 tqi_cbrOverflowLimit;
-	u32 tqi_burstTime;
-	u32 tqi_readyTime;
-	u32 tqi_compBuf;
-};
-
 #define ATH9K_TXQ_USEDEFAULT ((u32) -1)
 
 #define ATH9K_DECOMP_MASK_SIZE     128
@@ -999,10 +982,10 @@ u32 ath9k_regd_get_ctl(struct ath_hal *ah, struct ath9k_channel *chan);
 u32 ath9k_regd_get_antenna_allowed(struct ath_hal *ah,
 				     struct ath9k_channel *chan);
 u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);
-bool ath9k_hw_gettxqueueprops(struct ath_hal *ah, int q,
-			      struct ath9k_txq_info *qInfo);
-bool ath9k_hw_settxqueueprops(struct ath_hal *ah, int q,
-			      const struct ath9k_txq_info *qInfo);
+bool ath9k_hw_get_txq_props(struct ath_hal *ah, int q,
+			    struct ath9k_tx_queue_info *qinfo);
+bool ath9k_hw_set_txq_props(struct ath_hal *ah, int q,
+			    const struct ath9k_tx_queue_info *qinfo);
 struct ath9k_channel *ath9k_regd_check_channel(struct ath_hal *ah,
 					      const struct ath9k_channel *c);
 void ath9k_hw_set11n_txdesc(struct ath_hal *ah, struct ath_desc *ds,
@@ -1053,7 +1036,7 @@ void ath9k_hw_set11n_virtualmorefrag(struct ath_hal *ah,
 bool ath9k_hw_set_txpowerlimit(struct ath_hal *ah, u32 limit);
 bool ath9k_regd_is_public_safety_sku(struct ath_hal *ah);
 int ath9k_hw_setuptxqueue(struct ath_hal *ah, enum ath9k_tx_queue type,
-			  const struct ath9k_txq_info *qInfo);
+			  const struct ath9k_tx_queue_info *qinfo);
 u32 ath9k_hw_numtxpending(struct ath_hal *ah, u32 q);
 const char *ath9k_hw_probe(u16 vendorid, u16 devid);
 bool ath9k_hw_disable(struct ath_hal *ah);

@@ -2209,7 +2209,7 @@ int ath_tx_cleanup(struct ath_softc *sc)
 struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath9k_txq_info qi;
+	struct ath9k_tx_queue_info qi;
 	int qnum;
 
 	memzero(&qi, sizeof(qi));
@@ -2217,7 +2217,7 @@ struct ath_txq *ath_txq_setup(struct ath_softc *sc, int qtype, int subtype)
 	qi.tqi_aifs = ATH9K_TXQ_USEDEFAULT;
 	qi.tqi_cwmin = ATH9K_TXQ_USEDEFAULT;
 	qi.tqi_cwmax = ATH9K_TXQ_USEDEFAULT;
-	qi.tqi_compBuf = 0;
+	qi.tqi_physCompBuf = 0;
 
 	/*
 	 * Enable interrupts only for EOL and DESC conditions.
@@ -2337,11 +2337,12 @@ int ath_tx_get_qnum(struct ath_softc *sc, int qtype, int haltype)
 
 /* Update parameters for a transmit queue */
 
-int ath_txq_update(struct ath_softc *sc, int qnum, struct ath9k_txq_info *qi0)
+int ath_txq_update(struct ath_softc *sc, int qnum,
+		   struct ath9k_tx_queue_info *qinfo)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	int error = 0;
-	struct ath9k_txq_info qi;
+	struct ath9k_tx_queue_info qi;
 
 	if (qnum == sc->sc_bhalq) {
 		/*
@@ -2349,20 +2350,20 @@ int ath_txq_update(struct ath_softc *sc, int qnum, struct ath9k_txq_info *qi0)
 		 * It will be picked up by ath_beaconq_config when
 		 * it's necessary.
 		 */
-		sc->sc_beacon_qi = *qi0;
+		sc->sc_beacon_qi = *qinfo;
 		return 0;
 	}
 
 	ASSERT(sc->sc_txq[qnum].axq_qnum == qnum);
 
-	ath9k_hw_gettxqueueprops(ah, qnum, &qi);
-	qi.tqi_aifs = qi0->tqi_aifs;
-	qi.tqi_cwmin = qi0->tqi_cwmin;
-	qi.tqi_cwmax = qi0->tqi_cwmax;
-	qi.tqi_burstTime = qi0->tqi_burstTime;
-	qi.tqi_readyTime = qi0->tqi_readyTime;
+	ath9k_hw_get_txq_props(ah, qnum, &qi);
+	qi.tqi_aifs = qinfo->tqi_aifs;
+	qi.tqi_cwmin = qinfo->tqi_cwmin;
+	qi.tqi_cwmax = qinfo->tqi_cwmax;
+	qi.tqi_burstTime = qinfo->tqi_burstTime;
+	qi.tqi_readyTime = qinfo->tqi_readyTime;
 
-	if (!ath9k_hw_settxqueueprops(ah, qnum, &qi)) {
+	if (!ath9k_hw_set_txq_props(ah, qnum, &qi)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: unable to update hardware queue %u!\n",
 			__func__, qnum);
@@ -2376,11 +2377,11 @@ int ath_txq_update(struct ath_softc *sc, int qnum, struct ath9k_txq_info *qi0)
 
 int ath_cabq_update(struct ath_softc *sc)
 {
-	struct ath9k_txq_info qi;
+	struct ath9k_tx_queue_info qi;
 	int qnum = sc->sc_cabq->axq_qnum;
 	struct ath_beacon_config conf;
 
-	ath9k_hw_gettxqueueprops(sc->sc_ah, qnum, &qi);
+	ath9k_hw_get_txq_props(sc->sc_ah, qnum, &qi);
 	/*
 	 * Ensure the readytime % is within the bounds.
 	 */

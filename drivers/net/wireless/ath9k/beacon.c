@@ -30,9 +30,9 @@
 static int ath_beaconq_config(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath9k_txq_info qi;
+	struct ath9k_tx_queue_info qi;
 
-	ath9k_hw_gettxqueueprops(ah, sc->sc_bhalq, &qi);
+	ath9k_hw_get_txq_props(ah, sc->sc_bhalq, &qi);
 	if (sc->sc_opmode == ATH9K_M_HOSTAP) {
 		/* Always burst out beacon and CAB traffic. */
 		qi.tqi_aifs = 1;
@@ -45,7 +45,7 @@ static int ath_beaconq_config(struct ath_softc *sc)
 		qi.tqi_cwmax = sc->sc_beacon_qi.tqi_cwmax;
 	}
 
-	if (!ath9k_hw_settxqueueprops(ah, sc->sc_bhalq, &qi)) {
+	if (!ath9k_hw_set_txq_props(ah, sc->sc_bhalq, &qi)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: unable to update h/w beacon queue parameters\n",
 			__func__);
@@ -335,7 +335,7 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc, int if_id)
 
 int ath_beaconq_setup(struct ath_hal *ah)
 {
-	struct ath9k_txq_info qi;
+	struct ath9k_tx_queue_info qi;
 
 	memzero(&qi, sizeof(qi));
 	qi.tqi_aifs = 1;

@@ -700,7 +700,7 @@ static int ath9k_conf_tx(struct ieee80211_hw *hw,
 			 const struct ieee80211_tx_queue_params *params)
 {
 	struct ath_softc *sc = hw->priv;
-	struct ath9k_txq_info qi;
+	struct ath9k_tx_queue_info qi;
 	int ret = 0, qnum;
 
 	if (queue >= WME_NUM_AC)
