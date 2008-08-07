@@ -483,12 +483,12 @@ static inline void cfi_udelay(int us)
 	}
 }
 
-int __xipram qry_present(struct map_info *map, __u32 base,
-				struct cfi_private *cfi);
-int __xipram qry_mode_on(uint32_t base, struct map_info *map,
-				struct cfi_private *cfi);
-void __xipram qry_mode_off(uint32_t base, struct map_info *map,
-				struct cfi_private *cfi);
+int __xipram cfi_qry_present(struct map_info *map, __u32 base,
+			     struct cfi_private *cfi);
+int __xipram cfi_qry_mode_on(uint32_t base, struct map_info *map,
+			     struct cfi_private *cfi);
+void __xipram cfi_qry_mode_off(uint32_t base, struct map_info *map,
+			       struct cfi_private *cfi);
 
 struct cfi_extquery *cfi_read_pri(struct map_info *map, uint16_t adr, uint16_t size,
 			     const char* name);
