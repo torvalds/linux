@@ -6138,7 +6138,8 @@ void md_check_recovery(mddev_t *mddev)
 			/* resync has finished, collect result */
 			md_unregister_thread(mddev->sync_thread);
 			mddev->sync_thread = NULL;
-			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery) &&
+			    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 				/* success...*/
 				/* activate any spares */
 				if (mddev->pers->spare_active(mddev))
@@ -6190,6 +6191,7 @@ void md_check_recovery(mddev_t *mddev)
 		} else if ((spares = remove_and_add_spares(mddev))) {
 			clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 			clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+			clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 			set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		} else if (mddev->recovery_cp < MaxSector) {
 			set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
