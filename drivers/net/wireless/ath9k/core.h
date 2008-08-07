@@ -1004,10 +1004,8 @@ struct ath_softc {
 
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
-	const struct ath9k_rate_table *sc_rates[WIRELESS_MODE_MAX];
 	const struct ath9k_rate_table *sc_currates;
 	u8 sc_rixmap[256];	/* IEEE to h/w rate table ix */
-	u8 sc_minrateix;	/* min h/w rate index */
 	u8 sc_protrix;		/* protection rate index */
 	struct {
 		u32 rateKbps;	/* transfer rate in kbs */

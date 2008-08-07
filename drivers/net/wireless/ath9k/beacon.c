@@ -108,7 +108,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	 * Calculate rate code.
 	 * XXX everything at min xmit rate
 	 */
-	rix = sc->sc_minrateix;
+	rix = 0;
 	rt = sc->sc_currates;
 	rate = rt->info[rix].rateCode;
 	if (sc->sc_flags & ATH_PREAMBLE_SHORT)

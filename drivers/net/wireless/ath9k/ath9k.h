@@ -147,6 +147,19 @@ struct ath_desc {
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
+enum wireless_mode {
+	ATH9K_MODE_11A = 0,
+	ATH9K_MODE_11B = 2,
+	ATH9K_MODE_11G = 3,
+	ATH9K_MODE_11NA_HT20 = 6,
+	ATH9K_MODE_11NG_HT20 = 7,
+	ATH9K_MODE_11NA_HT40PLUS = 8,
+	ATH9K_MODE_11NA_HT40MINUS = 9,
+	ATH9K_MODE_11NG_HT40PLUS = 10,
+	ATH9K_MODE_11NG_HT40MINUS = 11,
+	ATH9K_MODE_MAX
+};
+
 enum ath9k_hw_caps {
 	ATH9K_HW_CAP_CHAN_SPREAD		= BIT(0),
 	ATH9K_HW_CAP_MIC_AESCCM                 = BIT(1),
@@ -190,7 +203,7 @@ enum ath9k_capability_type {
 
 struct ath9k_hw_capabilities {
 	u32 hw_caps; /* ATH9K_HW_CAP_* from ath9k_hw_caps */
-	u32 wireless_modes;
+	DECLARE_BITMAP(wireless_modes, ATH9K_MODE_MAX); /* ATH9K_MODE_* */
 	u16 total_queues;
 	u16 keycache_size;
 	u16 low_5ghz_chan, high_5ghz_chan;
@@ -813,37 +826,6 @@ struct ath_hal {
 #endif
 };
 
-enum wireless_mode {
-	WIRELESS_MODE_11a = 0,
-	WIRELESS_MODE_11b = 2,
-	WIRELESS_MODE_11g = 3,
-	WIRELESS_MODE_11NA_HT20 = 6,
-	WIRELESS_MODE_11NG_HT20 = 7,
-	WIRELESS_MODE_11NA_HT40PLUS = 8,
-	WIRELESS_MODE_11NA_HT40MINUS = 9,
-	WIRELESS_MODE_11NG_HT40PLUS = 10,
-	WIRELESS_MODE_11NG_HT40MINUS = 11,
-	WIRELESS_MODE_MAX
-};
-
-enum {
-	ATH9K_MODE_SEL_11A = 0x00001,
-	ATH9K_MODE_SEL_11B = 0x00002,
-	ATH9K_MODE_SEL_11G = 0x00004,
-	ATH9K_MODE_SEL_11NG_HT20 = 0x00008,
-	ATH9K_MODE_SEL_11NA_HT20 = 0x00010,
-	ATH9K_MODE_SEL_11NG_HT40PLUS = 0x00020,
-	ATH9K_MODE_SEL_11NG_HT40MINUS = 0x00040,
-	ATH9K_MODE_SEL_11NA_HT40PLUS = 0x00080,
-	ATH9K_MODE_SEL_11NA_HT40MINUS = 0x00100,
-	ATH9K_MODE_SEL_2GHZ = (ATH9K_MODE_SEL_11B |
-			       ATH9K_MODE_SEL_11G |
-			       ATH9K_MODE_SEL_11NG_HT20),
-	ATH9K_MODE_SEL_5GHZ = (ATH9K_MODE_SEL_11A |
-			       ATH9K_MODE_SEL_11NA_HT20),
-	ATH9K_MODE_SEL_ALL = 0xffffffff
-};
-
 struct chan_centers {
 	u16 synth_center;
 	u16 ctl_center;
@@ -865,7 +847,7 @@ bool ath9k_regd_init_channels(struct ath_hal *ah,
 			      u32 maxchans, u32 *nchans,
 			      u8 *regclassids,
 			      u32 maxregids, u32 *nregids,
-			      u16 cc, u32 modeSelect,
+			      u16 cc,
 			      bool enableOutdoor,
 			      bool enableExtendedChannels);
 u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);

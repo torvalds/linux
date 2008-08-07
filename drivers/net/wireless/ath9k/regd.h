@@ -117,11 +117,11 @@
 #define isUNII1OddChan(ch) \
 	((ch == 5170) || (ch == 5190) || (ch == 5210) || (ch == 5230))
 
-#define IS_HT40_MODE(_mode)      \
-	(((_mode == ATH9K_MODE_SEL_11NA_HT40PLUS  || \
-	_mode == ATH9K_MODE_SEL_11NG_HT40PLUS    || \
-	_mode == ATH9K_MODE_SEL_11NA_HT40MINUS   || \
-	_mode == ATH9K_MODE_SEL_11NG_HT40MINUS) ? true : false))
+#define IS_HT40_MODE(_mode)					\
+	(((_mode == ATH9K_MODE_11NA_HT40PLUS  ||		\
+	   _mode == ATH9K_MODE_11NG_HT40PLUS    ||		\
+	   _mode == ATH9K_MODE_11NA_HT40MINUS   ||		\
+	   _mode == ATH9K_MODE_11NG_HT40MINUS) ? true : false))
 
 #define CHAN_FLAGS      (CHANNEL_ALL|CHANNEL_HALF|CHANNEL_QUARTER)
 

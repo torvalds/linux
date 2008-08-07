@@ -408,7 +408,7 @@ static int ath_tx_prepare(struct ath_softc *sc,
 		if (txctl->min_rate)
 			rcs[0].rix = ath_rate_findrateix(sc, txctl->min_rate);
 		else
-			rcs[0].rix = sc->sc_minrateix;
+			rcs[0].rix = 0;
 		rcs[0].tries = ATH_MGT_TXMAXTRY;
 	}
 	rix = rcs[0].rix;

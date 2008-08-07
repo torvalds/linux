@@ -225,10 +225,10 @@ static enum wireless_mode ath9k_hw_chan2wmode(struct ath_hal *ah,
 				       const struct ath9k_channel *chan)
 {
 	if (IS_CHAN_CCK(chan))
-		return WIRELESS_MODE_11b;
+		return ATH9K_MODE_11A;
 	if (IS_CHAN_G(chan))
-		return WIRELESS_MODE_11g;
-	return WIRELESS_MODE_11a;
+		return ATH9K_MODE_11G;
+	return ATH9K_MODE_11A;
 }
 
 static bool ath9k_hw_wait(struct ath_hal *ah,
@@ -2416,7 +2416,7 @@ static void ath9k_hw_ani_ofdm_err_trigger(struct ath_hal *ah)
 		return;
 	} else {
 		mode = ath9k_hw_chan2wmode(ah, chan);
-		if (mode == WIRELESS_MODE_11g || mode == WIRELESS_MODE_11b) {
+		if (mode == ATH9K_MODE_11G || mode == ATH9K_MODE_11B) {
 			if (!aniState->ofdmWeakSigDetectOff)
 				ath9k_hw_ani_control(ah,
 				     ATH9K_ANI_OFDM_WEAK_SIGNAL_DETECTION,
@@ -2462,7 +2462,7 @@ static void ath9k_hw_ani_cck_err_trigger(struct ath_hal *ah)
 					     aniState->firstepLevel + 1);
 	} else {
 		mode = ath9k_hw_chan2wmode(ah, chan);
-		if (mode == WIRELESS_MODE_11g || mode == WIRELESS_MODE_11b) {
+		if (mode == ATH9K_MODE_11G || mode == ATH9K_MODE_11B) {
 			if (aniState->firstepLevel > 0)
 				ath9k_hw_ani_control(ah,
 						     ATH9K_ANI_FIRSTEP_LEVEL,
@@ -2970,29 +2970,40 @@ static bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 			 ah->ah_currentRD);
 	}
 
-	pCap->wireless_modes = 0;
 	eeval = ath9k_hw_get_eeprom(ahp, EEP_OP_MODE);
+	bitmap_zero(pCap->wireless_modes, ATH9K_MODE_MAX);
 
 	if (eeval & AR5416_OPFLAGS_11A) {
-		pCap->wireless_modes |= ATH9K_MODE_SEL_11A |
-			((!ah->ah_config.ht_enable
-			  || (eeval & AR5416_OPFLAGS_N_5G_HT20)) ? 0
-			 : (ATH9K_MODE_SEL_11NA_HT20 |
-			    ((eeval & AR5416_OPFLAGS_N_5G_HT40) ? 0
-			     : (ATH9K_MODE_SEL_11NA_HT40PLUS |
-				ATH9K_MODE_SEL_11NA_HT40MINUS))));
+		set_bit(ATH9K_MODE_11A, pCap->wireless_modes);
+		if (ah->ah_config.ht_enable) {
+			if (!(eeval & AR5416_OPFLAGS_N_5G_HT20))
+				set_bit(ATH9K_MODE_11NA_HT20,
+					pCap->wireless_modes);
+			if (!(eeval & AR5416_OPFLAGS_N_5G_HT40)) {
+				set_bit(ATH9K_MODE_11NA_HT40PLUS,
+					pCap->wireless_modes);
+				set_bit(ATH9K_MODE_11NA_HT40MINUS,
+					pCap->wireless_modes);
+			}
+		}
 	}
-	if (eeval & AR5416_OPFLAGS_11G) {
-		pCap->wireless_modes |=
-			ATH9K_MODE_SEL_11B | ATH9K_MODE_SEL_11G |
-			((!ah->ah_config.ht_enable
-			  || (eeval & AR5416_OPFLAGS_N_2G_HT20)) ? 0
-			 : (ATH9K_MODE_SEL_11NG_HT20 |
-			    ((eeval & AR5416_OPFLAGS_N_2G_HT40) ? 0
-			     : (ATH9K_MODE_SEL_11NG_HT40PLUS |
-				ATH9K_MODE_SEL_11NG_HT40MINUS))));
 
+	if (eeval & AR5416_OPFLAGS_11G) {
+		set_bit(ATH9K_MODE_11B, pCap->wireless_modes);
+		set_bit(ATH9K_MODE_11G, pCap->wireless_modes);
+		if (ah->ah_config.ht_enable) {
+			if (!(eeval & AR5416_OPFLAGS_N_2G_HT20))
+				set_bit(ATH9K_MODE_11NG_HT20,
+					pCap->wireless_modes);
+			if (!(eeval & AR5416_OPFLAGS_N_2G_HT40)) {
+				set_bit(ATH9K_MODE_11NG_HT40PLUS,
+					pCap->wireless_modes);
+				set_bit(ATH9K_MODE_11NG_HT40MINUS,
+					pCap->wireless_modes);
+			}
+		}
 	}
+
 	pCap->tx_chainmask = ath9k_hw_get_eeprom(ahp, EEP_TX_MASK);
 	if ((ah->ah_isPciExpress)
 	    || (eeval & AR5416_OPFLAGS_11A)) {
@@ -5213,7 +5224,7 @@ static u32 ath9k_hw_mac_usec(struct ath_hal *ah, u32 clks)
 		return clks /
 		CLOCK_RATE[ath9k_hw_chan2wmode(ah, ah->ah_curchan)];
 	else
-		return clks / CLOCK_RATE[WIRELESS_MODE_11b];
+		return clks / CLOCK_RATE[ATH9K_MODE_11B];
 }
 
 static u32 ath9k_hw_mac_to_usec(struct ath_hal *ah, u32 clks)
@@ -5232,7 +5243,7 @@ static u32 ath9k_hw_mac_clks(struct ath_hal *ah, u32 usecs)
 		return usecs * CLOCK_RATE[ath9k_hw_chan2wmode(ah,
 			ah->ah_curchan)];
 	else
-		return usecs * CLOCK_RATE[WIRELESS_MODE_11b];
+		return usecs * CLOCK_RATE[ATH9K_MODE_11B];
 }
 
 static u32 ath9k_hw_mac_to_clks(struct ath_hal *ah, u32 usecs)
@@ -5924,7 +5935,7 @@ bool ath9k_hw_reset(struct ath_hal *ah, enum ath9k_opmode opmode,
 		REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
 			    AR_GPIO_JTAG_DISABLE);
 
-		if (ah->ah_caps.wireless_modes & ATH9K_MODE_SEL_11A) {
+		if (test_bit(ATH9K_MODE_11A, ah->ah_caps.wireless_modes)) {
 			if (IS_CHAN_5GHZ(chan))
 				ath9k_hw_set_gpio(ah, 9, 0);
 			else
@@ -8238,23 +8249,23 @@ const struct ath9k_rate_table *ath9k_hw_getratetable(struct ath_hal *ah,
 {
 	struct ath9k_rate_table *rt;
 	switch (mode) {
-	case ATH9K_MODE_SEL_11A:
+	case ATH9K_MODE_11A:
 		rt = &ar5416_11a_table;
 		break;
-	case ATH9K_MODE_SEL_11B:
+	case ATH9K_MODE_11B:
 		rt = &ar5416_11b_table;
 		break;
-	case ATH9K_MODE_SEL_11G:
+	case ATH9K_MODE_11G:
 		rt = &ar5416_11g_table;
 		break;
-	case ATH9K_MODE_SEL_11NG_HT20:
-	case ATH9K_MODE_SEL_11NG_HT40PLUS:
-	case ATH9K_MODE_SEL_11NG_HT40MINUS:
+	case ATH9K_MODE_11NG_HT20:
+	case ATH9K_MODE_11NG_HT40PLUS:
+	case ATH9K_MODE_11NG_HT40MINUS:
 		rt = &ar5416_11ng_table;
 		break;
-	case ATH9K_MODE_SEL_11NA_HT20:
-	case ATH9K_MODE_SEL_11NA_HT40PLUS:
-	case ATH9K_MODE_SEL_11NA_HT40MINUS:
+	case ATH9K_MODE_11NA_HT20:
+	case ATH9K_MODE_11NA_HT40PLUS:
+	case ATH9K_MODE_11NA_HT40MINUS:
 		rt = &ar5416_11na_table;
 		break;
 	default:

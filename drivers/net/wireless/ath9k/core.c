@@ -64,7 +64,7 @@ static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 	int i;
 
 	memset(sc->sc_rixmap, 0xff, sizeof(sc->sc_rixmap));
-	rt = sc->sc_rates[mode];
+	rt = ath9k_hw_getratetable(sc->sc_ah, mode);
 	BUG_ON(!rt);
 
 	for (i = 0; i < rt->rateCount; i++)
@@ -96,76 +96,52 @@ static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 	 * 11g, otherwise at 1Mb/s.
 	 * XXX select protection rate index from rate table.
 	 */
-	sc->sc_protrix = (mode == WIRELESS_MODE_11g ? 1 : 0);
-	/* rate index used to send mgt frames */
-	sc->sc_minrateix = 0;
+	sc->sc_protrix = (mode == ATH9K_MODE_11G ? 1 : 0);
 }
 
 /*
- *  Select Rate Table
- *
- *  Based on the wireless mode passed in, the rate table in the ATH object
- *  is set to the mode specific rate table.  This also calls the callback
- *  function to set the rate in the protocol layer object.
-*/
-
-static int ath_rate_setup(struct ath_softc *sc, enum wireless_mode mode)
+ * Set up rate table (legacy rates)
+ */
+static void ath_setup_rates(struct ath_softc *sc, enum ieee80211_band band)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	const struct ath9k_rate_table *rt;
+	const struct ath9k_rate_table *rt = NULL;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *rate;
+	int i, maxrates;
 
-	switch (mode) {
-	case WIRELESS_MODE_11a:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11A);
+	switch (band) {
+	case IEEE80211_BAND_2GHZ:
+		rt = ath9k_hw_getratetable(ah, ATH9K_MODE_11G);
 		break;
-	case WIRELESS_MODE_11b:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11B);
-		break;
-	case WIRELESS_MODE_11g:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11G);
-		break;
-	case WIRELESS_MODE_11NA_HT20:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11NA_HT20);
-		break;
-	case WIRELESS_MODE_11NG_HT20:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11NG_HT20);
-		break;
-	case WIRELESS_MODE_11NA_HT40PLUS:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11NA_HT40PLUS);
-		break;
-	case WIRELESS_MODE_11NA_HT40MINUS:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah,
-				ATH9K_MODE_SEL_11NA_HT40MINUS);
-		break;
-	case WIRELESS_MODE_11NG_HT40PLUS:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah, ATH9K_MODE_SEL_11NG_HT40PLUS);
-		break;
-	case WIRELESS_MODE_11NG_HT40MINUS:
-		sc->sc_rates[mode] =
-			ath9k_hw_getratetable(ah,
-				ATH9K_MODE_SEL_11NG_HT40MINUS);
+	case IEEE80211_BAND_5GHZ:
+		rt = ath9k_hw_getratetable(ah, ATH9K_MODE_11A);
 		break;
 	default:
-		DPRINTF(sc, ATH_DBG_FATAL, "%s: invalid mode %u\n",
-			__func__, mode);
-		return 0;
+		break;
 	}
-	rt = sc->sc_rates[mode];
+
 	if (rt == NULL)
-		return 0;
+		return;
 
-	/* setup rate set in 802.11 protocol layer */
-	ath_setup_rate(sc, mode, NORMAL_RATE, rt);
+	sband = &sc->sbands[band];
+	rate = sc->rates[band];
 
-	return 1;
+	if (rt->rateCount > ATH_RATE_MAX)
+		maxrates = ATH_RATE_MAX;
+	else
+		maxrates = rt->rateCount;
+
+	for (i = 0; i < maxrates; i++) {
+		rate[i].bitrate = rt->info[i].rateKbps / 100;
+		rate[i].hw_value = rt->info[i].rateCode;
+		sband->n_bitrates++;
+		DPRINTF(sc, ATH_DBG_CONFIG,
+			"%s: Rate: %2dMbps, ratecode: %2d\n",
+			__func__,
+			rate[i].bitrate / 10,
+			rate[i].hw_value);
+	}
 }
 
 /*
@@ -191,7 +167,6 @@ static int ath_setup_channels(struct ath_softc *sc)
 				      ATH_REGCLASSIDS_MAX,
 				      &nregclass,
 				      CTRY_DEFAULT,
-				      ATH9K_MODE_SEL_ALL,
 				      false,
 				      1)) {
 		u32 rd = ah->ah_currentRD;
@@ -267,43 +242,26 @@ static int ath_setup_channels(struct ath_softc *sc)
 static enum wireless_mode ath_chan2mode(struct ath9k_channel *chan)
 {
 	if (chan->chanmode == CHANNEL_A)
-		return WIRELESS_MODE_11a;
+		return ATH9K_MODE_11A;
 	else if (chan->chanmode == CHANNEL_G)
-		return WIRELESS_MODE_11g;
+		return ATH9K_MODE_11G;
 	else if (chan->chanmode == CHANNEL_B)
-		return WIRELESS_MODE_11b;
+		return ATH9K_MODE_11B;
 	else if (chan->chanmode == CHANNEL_A_HT20)
-		return WIRELESS_MODE_11NA_HT20;
+		return ATH9K_MODE_11NA_HT20;
 	else if (chan->chanmode == CHANNEL_G_HT20)
-		return WIRELESS_MODE_11NG_HT20;
+		return ATH9K_MODE_11NG_HT20;
 	else if (chan->chanmode == CHANNEL_A_HT40PLUS)
-		return WIRELESS_MODE_11NA_HT40PLUS;
+		return ATH9K_MODE_11NA_HT40PLUS;
 	else if (chan->chanmode == CHANNEL_A_HT40MINUS)
-		return WIRELESS_MODE_11NA_HT40MINUS;
+		return ATH9K_MODE_11NA_HT40MINUS;
 	else if (chan->chanmode == CHANNEL_G_HT40PLUS)
-		return WIRELESS_MODE_11NG_HT40PLUS;
+		return ATH9K_MODE_11NG_HT40PLUS;
 	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
-		return WIRELESS_MODE_11NG_HT40MINUS;
+		return ATH9K_MODE_11NG_HT40MINUS;
 
 	/* NB: should not get here */
-	return WIRELESS_MODE_11b;
-}
-
-/*
- *  Change Channels
- *
- *  Performs the actions to change the channel in the hardware, and set up
- *  the current operating mode for the new channel.
-*/
-
-static void ath_chan_change(struct ath_softc *sc, struct ath9k_channel *chan)
-{
-	enum wireless_mode mode;
-
-	mode = ath_chan2mode(chan);
-
-	ath_rate_setup(sc, mode);
-	ath_setcurmode(sc, mode);
+	return ATH9K_MODE_11B;
 }
 
 /*
@@ -480,7 +438,8 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		 * Change channels and update the h/w rate map
 		 * if we're switching; e.g. 11a to 11b/g.
 		 */
-		ath_chan_change(sc, hchan);
+		ath_setcurmode(sc, ath_chan2mode(hchan));
+
 		ath_update_txpow(sc);	/* update tx power state */
 		/*
 		 * Re-enable interrupts.
@@ -860,7 +819,7 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 *  vap and node data structures, which will be needed as soon
 	 *  as we start receiving.
 	 */
-	ath_chan_change(sc, initial_chan);
+	ath_setcurmode(sc, ath_chan2mode(initial_chan));
 
 	/* XXX: we must make sure h/w is ready and clear invalid flag
 	 * before turning on interrupt. */
@@ -902,7 +861,7 @@ static int ath_reset_end(struct ath_softc *sc, u32 flag)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_chan_change(sc, &sc->sc_curchan);
+	ath_setcurmode(sc, ath_chan2mode(&sc->sc_curchan));
 
 	ath_update_txpow(sc);	/* update tx power state */
 
@@ -1212,14 +1171,13 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	/* default to STA mode */
 	sc->sc_opmode = ATH9K_M_MONITOR;
 
-	/* Setup rate tables for all potential media types. */
-	/* 11g encompasses b,g */
+	/* Setup rate tables */
 
-	ath_rate_setup(sc, WIRELESS_MODE_11a);
-	ath_rate_setup(sc, WIRELESS_MODE_11g);
+	ath_setup_rates(sc, IEEE80211_BAND_2GHZ);
+	ath_setup_rates(sc, IEEE80211_BAND_5GHZ);
 
 	/* NB: setup here so ath_rate_update is happy */
-	ath_setcurmode(sc, WIRELESS_MODE_11a);
+	ath_setcurmode(sc, ATH9K_MODE_11A);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for

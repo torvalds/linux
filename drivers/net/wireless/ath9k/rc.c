@@ -484,37 +484,37 @@ static void ar5416_attach_ratetables(struct ath_rate_softc *sc)
 	/*
 	 * Attach rate tables.
 	 */
-	sc->hw_rate_table[WIRELESS_MODE_11b] = &ar5416_11b_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11a] = &ar5416_11a_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11g] = &ar5416_11g_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11B] = &ar5416_11b_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11A] = &ar5416_11a_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11G] = &ar5416_11g_ratetable;
 
-	sc->hw_rate_table[WIRELESS_MODE_11NA_HT20] = &ar5416_11na_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11NG_HT20] = &ar5416_11ng_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11NA_HT40PLUS] =
+	sc->hw_rate_table[ATH9K_MODE_11NA_HT20] = &ar5416_11na_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NG_HT20] = &ar5416_11ng_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11NA_HT40PLUS] =
 		&ar5416_11na_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11NA_HT40MINUS] =
+	sc->hw_rate_table[ATH9K_MODE_11NA_HT40MINUS] =
 		&ar5416_11na_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11NG_HT40PLUS] =
+	sc->hw_rate_table[ATH9K_MODE_11NG_HT40PLUS] =
 		&ar5416_11ng_ratetable;
-	sc->hw_rate_table[WIRELESS_MODE_11NG_HT40MINUS] =
+	sc->hw_rate_table[ATH9K_MODE_11NG_HT40MINUS] =
 		&ar5416_11ng_ratetable;
 }
 
 static void ar5416_setquarter_ratetable(struct ath_rate_softc *sc)
 {
-	sc->hw_rate_table[WIRELESS_MODE_11a] = &ar5416_11a_ratetable_Quarter;
+	sc->hw_rate_table[ATH9K_MODE_11A] = &ar5416_11a_ratetable_Quarter;
 	return;
 }
 
 static void ar5416_sethalf_ratetable(struct ath_rate_softc *sc)
 {
-	sc->hw_rate_table[WIRELESS_MODE_11a] = &ar5416_11a_ratetable_Half;
+	sc->hw_rate_table[ATH9K_MODE_11A] = &ar5416_11a_ratetable_Half;
 	return;
 }
 
 static void ar5416_setfull_ratetable(struct ath_rate_softc *sc)
 {
-	sc->hw_rate_table[WIRELESS_MODE_11a]   = &ar5416_11a_ratetable;
+	sc->hw_rate_table[ATH9K_MODE_11A] = &ar5416_11a_ratetable;
 	return;
 }
 
@@ -1123,9 +1123,9 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 	 * So, set fourth rate in series to be same as third one for
 	 * above conditions.
 	 */
-	if ((sc->sc_curmode == WIRELESS_MODE_11NG_HT20) ||
-			(sc->sc_curmode == WIRELESS_MODE_11NG_HT40PLUS) ||
-			(sc->sc_curmode == WIRELESS_MODE_11NG_HT40MINUS)) {
+	if ((sc->sc_curmode == ATH9K_MODE_11NG_HT20) ||
+			(sc->sc_curmode == ATH9K_MODE_11NG_HT40PLUS) ||
+			(sc->sc_curmode == ATH9K_MODE_11NG_HT40MINUS)) {
 		u8  dot11rate = rate_table->info[rix].dot11rate;
 		u8 phy = rate_table->info[rix].phy;
 		if (i == 4 &&

@@ -247,7 +247,7 @@ struct ath_rateset {
 /* per-device state */
 struct ath_rate_softc {
 	/* phy tables that contain rate control data */
-	const void *hw_rate_table[WIRELESS_MODE_MAX];
+	const void *hw_rate_table[ATH9K_MODE_MAX];
 	int fixedrix;	/* -1 or index of fixed rate */
 };
 

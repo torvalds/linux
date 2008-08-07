@@ -507,7 +507,13 @@ static int ath9k_config(struct ieee80211_hw *hw,
 	}
 
 	sc->sc_ah->ah_channels[pos].chanmode =
-		(curchan->band == IEEE80211_BAND_2GHZ) ? CHANNEL_G : CHANNEL_A;
+		(curchan->band == IEEE80211_BAND_2GHZ) ?
+		CHANNEL_G : CHANNEL_A;
+
+	if (sc->sc_curaid && hw->conf.ht_conf.ht_supported)
+		sc->sc_ah->ah_channels[pos].chanmode =
+			ath_get_extchanmode(sc, curchan);
+
 	sc->sc_config.txpowlimit = 2 * conf->power_level;
 
 	/* set h/w channel */
@@ -1145,75 +1151,6 @@ enum ath9k_ht_macmode ath_cwm_macmode(struct ath_softc *sc)
 	return sc->sc_ht_info.tx_chan_width;
 }
 
-void ath_setup_rate(struct ath_softc *sc,
-		    enum wireless_mode wMode,
-		    enum RATE_TYPE type,
-		    const struct ath9k_rate_table *rt)
-{
-	int i, maxrates, a = 0, b = 0;
-	struct ieee80211_supported_band *band_2ghz;
-	struct ieee80211_supported_band *band_5ghz;
-	struct ieee80211_rate *rates_2ghz;
-	struct ieee80211_rate *rates_5ghz;
-
-	if ((wMode >= WIRELESS_MODE_MAX) || (type != NORMAL_RATE))
-		return;
-
-	band_2ghz = &sc->sbands[IEEE80211_BAND_2GHZ];
-	band_5ghz = &sc->sbands[IEEE80211_BAND_5GHZ];
-	rates_2ghz = sc->rates[IEEE80211_BAND_2GHZ];
-	rates_5ghz = sc->rates[IEEE80211_BAND_5GHZ];
-
-	if (rt->rateCount > ATH_RATE_MAX)
-		maxrates = ATH_RATE_MAX;
-	else
-		maxrates = rt->rateCount;
-
-	if ((band_2ghz->n_bitrates != 0) && (band_5ghz->n_bitrates != 0)) {
-		DPRINTF(sc, ATH_DBG_CONFIG,
-			"%s: Rates already setup\n", __func__);
-		return;
-	}
-
-	for (i = 0; i < maxrates; i++) {
-		switch (wMode) {
-		case WIRELESS_MODE_11b:
-		case WIRELESS_MODE_11g:
-			rates_2ghz[a].bitrate = rt->info[i].rateKbps / 100;
-			rates_2ghz[a].hw_value = rt->info[i].rateCode;
-			a++;
-			band_2ghz->n_bitrates = a;
-			break;
-		case WIRELESS_MODE_11a:
-			rates_5ghz[b].bitrate = rt->info[i].rateKbps / 100;
-			rates_5ghz[b].hw_value = rt->info[i].rateCode;
-			b++;
-			band_5ghz->n_bitrates = b;
-			break;
-		default:
-			break;
-		}
-	}
-
-	if (band_2ghz->n_bitrates) {
-		for (i = 0; i < band_2ghz->n_bitrates; i++) {
-			DPRINTF(sc, ATH_DBG_CONFIG,
-				"%s: 2GHz Rate: %2dMbps, ratecode: %2d\n",
-				__func__,
-				rates_2ghz[i].bitrate / 10,
-				rates_2ghz[i].hw_value);
-		}
-	} else if (band_5ghz->n_bitrates) {
-		for (i = 0; i < band_5ghz->n_bitrates; i++) {
-			DPRINTF(sc, ATH_DBG_CONFIG,
-				"%s: 5Ghz Rate: %2dMbps, ratecode: %2d\n",
-				__func__,
-				rates_5ghz[i].bitrate / 10,
-				rates_5ghz[i].hw_value);
-		}
-	}
-}
-
 static int ath_detach(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
@@ -1275,7 +1212,7 @@ static int ath_attach(u16 devid,
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] =
 		&sc->sbands[IEEE80211_BAND_2GHZ];
 
-	if (sc->sc_ah->ah_caps.wireless_modes & ATH9K_MODE_SEL_11A) {
+	if (test_bit(ATH9K_MODE_11A, sc->sc_ah->ah_caps.wireless_modes)) {
 		sc->sbands[IEEE80211_BAND_5GHZ].channels =
 			sc->channels[IEEE80211_BAND_5GHZ];
 		sc->sbands[IEEE80211_BAND_5GHZ].bitrates =
