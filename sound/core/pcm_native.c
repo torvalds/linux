@@ -3259,6 +3259,7 @@ static int snd_pcm_fasync(int fd, struct file * file, int on)
 	runtime = substream->runtime;
 
 	err = fasync_helper(fd, file, on, &runtime->fasync);
+out:
 	unlock_kernel();
 	if (err < 0)
 		return err;
