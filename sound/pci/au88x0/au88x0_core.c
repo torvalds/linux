@@ -427,7 +427,7 @@ static void vortex_mixer_init(vortex_t * vortex)
 
 	/* Set clipping ceiling (this may be all wrong). */
 	/*
-	for (x = 0; x > 0x80; x++) {
+	for (x = 0; x < 0x80; x++) {
 		hwwrite(vortex->mmio, VORTEX_MIXER_CLIP + (x << 2), 0x3ffff);
 	}
 	*/
