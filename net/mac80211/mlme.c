@@ -34,6 +34,7 @@
 #include "led.h"
 #include "mesh.h"
 
+#define IEEE80211_ASSOC_SCANS_MAX_TRIES 2
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)
 #define IEEE80211_AUTH_MAX_TRIES 3
 #define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
@@ -596,6 +597,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 {
 	if (deauth)
 		ifsta->auth_tries = 0;
+	ifsta->assoc_scan_tries = 0;
 	ifsta->assoc_tries = 0;
 	ieee80211_set_associated(sdata, ifsta, 0);
 }
@@ -3405,7 +3407,9 @@ static void ieee80211_sta_reset_auth(struct ieee80211_sub_if_data *sdata,
 		ifsta->auth_alg = WLAN_AUTH_OPEN;
 	ifsta->auth_transaction = -1;
 	ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
-	ifsta->auth_tries = ifsta->assoc_tries = 0;
+	ifsta->assoc_scan_tries = 0;
+	ifsta->auth_tries = 0;
+	ifsta->assoc_tries = 0;
 	netif_carrier_off(sdata->dev);
 }
 
@@ -3510,7 +3514,8 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 		ieee80211_sta_reset_auth(sdata, ifsta);
 		return 0;
 	} else {
-		if (ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE) {
+		if (ifsta->assoc_scan_tries < IEEE80211_ASSOC_SCANS_MAX_TRIES) {
+			ifsta->assoc_scan_tries++;
 			if (ifsta->flags & IEEE80211_STA_AUTO_SSID_SEL)
 				ieee80211_sta_start_scan(sdata, NULL, 0);
 			else
