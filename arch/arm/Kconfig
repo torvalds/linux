@@ -156,7 +156,6 @@ config ARCH_MTD_XIP
 	bool
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
-	bool
 	def_bool y
 
 if OPROFILE
