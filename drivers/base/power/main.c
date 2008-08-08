@@ -74,11 +74,9 @@ void device_pm_add(struct device *dev)
 		 kobject_name(&dev->kobj));
 	mutex_lock(&dpm_list_mtx);
 	if (dev->parent) {
-		if (dev->parent->power.status >= DPM_SUSPENDING) {
-			dev_warn(dev, "parent %s is sleeping, will not add\n",
+		if (dev->parent->power.status >= DPM_SUSPENDING)
+			dev_warn(dev, "parent %s should not be sleeping\n",
 				dev->parent->bus_id);
-			WARN_ON(true);
-		}
 	} else if (transition_started) {
 		/*
 		 * We refuse to register parentless devices while a PM
