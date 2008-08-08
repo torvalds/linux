@@ -280,7 +280,7 @@ static inline void tracehook_report_clone(int trace, struct pt_regs *regs,
 					  unsigned long clone_flags,
 					  pid_t pid, struct task_struct *child)
 {
-	if (unlikely(trace)) {
+	if (unlikely(trace) || unlikely(clone_flags & CLONE_PTRACE)) {
 		/*
 		 * The child starts up with an immediate SIGSTOP.
 		 */
