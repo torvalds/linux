@@ -383,11 +383,7 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 	printk(fmt ,##args)
 #endif
 
-#define snd_BUG() do {				\
-	snd_printk(KERN_ERR "BUG?\n");		\
-	dump_stack();				\
-} while (0)
-
+#define snd_BUG()		WARN(1, "BUG?\n")
 #define snd_BUG_ON(cond)	WARN((cond), "BUG? (%s)\n", __stringify(cond))
 
 #else /* !CONFIG_SND_DEBUG */
