@@ -119,17 +119,6 @@ static void __s3c2410wdt_stop(void)
 {
 	unsigned long wtcon;
 
-	spin_lock(&wdt_lock);
-	wtcon = readl(wdt_base + S3C2410_WTCON);
-	wtcon &= ~(S3C2410_WTCON_ENABLE | S3C2410_WTCON_RSTEN);
-	writel(wtcon, wdt_base + S3C2410_WTCON);
-	spin_unlock(&wdt_lock);
-}
-
-static void __s3c2410wdt_stop(void)
-{
-	unsigned long wtcon;
-
 	wtcon = readl(wdt_base + S3C2410_WTCON);
 	wtcon &= ~(S3C2410_WTCON_ENABLE | S3C2410_WTCON_RSTEN);
 	writel(wtcon, wdt_base + S3C2410_WTCON);
@@ -305,8 +294,6 @@ static long s3c2410wdt_ioctl(struct file *file,	unsigned int cmd,
 	int new_margin;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &s3c2410_wdt_ident,
 			sizeof(s3c2410_wdt_ident)) ? -EFAULT : 0;
@@ -325,6 +312,8 @@ static long s3c2410wdt_ioctl(struct file *file,	unsigned int cmd,
 		return put_user(tmr_margin, p);
 	case WDIOC_GETTIMEOUT:
 		return put_user(tmr_margin, p);
+	default:
+		return -ENOTTY;
 	}
 }
 

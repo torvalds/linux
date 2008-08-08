@@ -123,7 +123,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (len > sizeof gspca_dev->usb_buf) {
 		err("reg_r: buffer overflow");
 		return;
@@ -163,7 +163,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (len > sizeof gspca_dev->usb_buf) {
 		err("reg_w: buffer overflow");
 		return;

@@ -41,6 +41,7 @@
 #include <linux/videodev2.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/video_decoder.h>
 #include <linux/mutex.h>
 

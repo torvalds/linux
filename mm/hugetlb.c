@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 #include <linux/sysfs.h>
-#include <asm/io.h>
+
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>

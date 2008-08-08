@@ -187,7 +187,7 @@ static int __init soc_camera_platform_module_init(void)
 
 static void __exit soc_camera_platform_module_exit(void)
 {
-	return platform_driver_unregister(&soc_camera_platform_driver);
+	platform_driver_unregister(&soc_camera_platform_driver);
 }
 
 module_init(soc_camera_platform_module_init);

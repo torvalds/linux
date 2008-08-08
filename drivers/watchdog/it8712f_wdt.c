@@ -221,7 +221,7 @@ static ssize_t it8712f_wdt_write(struct file *file, const char __user *data,
 		expect_close = 0;
 		for (i = 0; i < len; ++i) {
 			char c;
-			if (get_user(c, data+i))
+			if (get_user(c, data + i))
 				return -EFAULT;
 			if (c == 'V')
 				expect_close = 42;
@@ -244,8 +244,6 @@ static long it8712f_wdt_ioctl(struct file *file, unsigned int cmd,
 	int value;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user(argp, &ident, sizeof(ident)))
 			return -EFAULT;
@@ -284,6 +282,8 @@ static long it8712f_wdt_ioctl(struct file *file, unsigned int cmd,
 		if (put_user(margin, p))
 			return -EFAULT;
 		return 0;
+	default:
+		return -ENOTTY;
 	}
 }
 
