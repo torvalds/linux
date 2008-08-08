@@ -934,7 +934,6 @@ request_msi:
 		goto err_out_disable_msi;
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->ahw.linkup = 0;
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
@@ -1134,6 +1133,7 @@ static int netxen_nic_open(struct net_device *netdev)
 	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, netdev->mtu);
 
+	adapter->ahw.linkup = 0;
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
 	napi_enable(&adapter->napi);
@@ -1171,10 +1171,8 @@ static int netxen_nic_close(struct net_device *netdev)
 
 	netxen_release_tx_buffers(adapter);
 
-	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
-		FLUSH_SCHEDULED_WORK();
-		del_timer_sync(&adapter->watchdog_timer);
-	}
+	FLUSH_SCHEDULED_WORK();
+	del_timer_sync(&adapter->watchdog_timer);
 
 	return 0;
 }
@@ -1477,7 +1475,8 @@ void netxen_watchdog_task(struct work_struct *work)
 
 	netxen_nic_handle_phy_intr(adapter);
 
-	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
+	if (netif_running(adapter->netdev))
+		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
 
 static void netxen_tx_timeout(struct net_device *netdev)
