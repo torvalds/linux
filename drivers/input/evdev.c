@@ -647,8 +647,10 @@ static int str_to_user(const char *str, unsigned int maxlen, void __user *p)
 	return copy_to_user(p, str, len) ? -EFAULT : len;
 }
 
+#define OLD_KEY_MAX	0x1ff
 static int handle_eviocgbit(struct input_dev *dev, unsigned int cmd, void __user *p, int compat_mode)
 {
+	static unsigned long keymax_warn_time;
 	unsigned long *bits;
 	int len;
 
@@ -665,9 +667,26 @@ static int handle_eviocgbit(struct input_dev *dev, unsigned int cmd, void __user
 	case EV_SW:  bits = dev->swbit;  len = SW_MAX;  break;
 	default: return -EINVAL;
 	}
+
+	/*
+	 * Work around bugs in userspace programs that like to do
+	 * EVIOCGBIT(EV_KEY, KEY_MAX) and not realize that 'len'
+	 * should be in bytes, not in bits.
+	 */
+	if ((_IOC_NR(cmd) & EV_MAX) == EV_KEY && _IOC_SIZE(cmd) == OLD_KEY_MAX) {
+		len = OLD_KEY_MAX;
+		if (printk_timed_ratelimit(&keymax_warn_time, 10 * 1000))
+			printk(KERN_WARNING
+				"evdev.c(EVIOCGBIT): Suspicious buffer size %d, "
+				"limiting output to %d bytes. See "
+				"http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
+				OLD_KEY_MAX,
+				BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
+	}
+
 	return bits_to_user(bits, len, _IOC_SIZE(cmd), p, compat_mode);
 }
-
+#undef OLD_KEY_MAX
 
 static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 			   void __user *p, int compat_mode)
