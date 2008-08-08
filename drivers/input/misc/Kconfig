@@ -180,6 +180,19 @@ config INPUT_YEALINK
 	  To compile this driver as a module, choose M here: the module will be
 	  called yealink.
 
+config INPUT_CM109
+	tristate "C-Media CM109 USB I/O Controller"
+	depends on EXPERIMENTAL
+	depends on USB_ARCH_HAS_HCD
+	select USB
+	help
+	  Say Y here if you want to enable keyboard and buzzer functions of the
+	  C-Media CM109 usb phones. The audio part is enabled by the generic
+	  usb sound driver, so you might want to enable that as well.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cm109.
+
 config INPUT_UINPUT
 	tristate "User level driver support"
 	help
