@@ -12,9 +12,6 @@
 #ifndef __ASM_ARCH_I2C_H__
 #define __ASM_ARCH_I2C_H__
 
-#include <linux/pm.h>
-#include <linux/platform_device.h>
-
 enum {
 	mstatus_tdi = 0x00000001,
 	mstatus_afi = 0x00000002,

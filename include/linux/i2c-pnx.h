@@ -12,7 +12,9 @@
 #ifndef __I2C_PNX_H__
 #define __I2C_PNX_H__
 
-#include <asm/arch/i2c.h>
+#include <linux/pm.h>
+
+struct platform_device;
 
 struct i2c_pnx_mif {
 	int			ret;		/* Return value */
