@@ -253,7 +253,8 @@ static void vx2_dma_write(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	int offset = pipe->hw_ptr;
 	u32 *addr = (u32 *)(runtime->dma_area + offset);
 
-	snd_assert(count % 4 == 0, return);
+	if (snd_BUG_ON(count % 4))
+		return;
 
 	vx2_setup_pseudo_dma(chip, 1);
 
@@ -291,7 +292,8 @@ static void vx2_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	u32 *addr = (u32 *)(runtime->dma_area + offset);
 	unsigned long port = vx2_reg_addr(chip, VX_DMA);
 
-	snd_assert(count % 4 == 0, return);
+	if (snd_BUG_ON(count % 4))
+		return;
 
 	vx2_setup_pseudo_dma(chip, 0);
 	/* Transfer using pseudo-dma.
@@ -675,7 +677,8 @@ static void vx2_write_akm(struct vx_core *chip, int reg, unsigned int data)
 	   a look up table, as there is no linear matching between the driver codec values
 	   and the real dBu value
 	*/
-	snd_assert(data < sizeof(vx2_akm_gains_lut), return);
+	if (snd_BUG_ON(data >= sizeof(vx2_akm_gains_lut)))
+		return;
 
 	switch (reg) {
 	case XX_CODEC_LEVEL_LEFT_REGISTER:
@@ -823,7 +826,8 @@ static void vx2_set_input_level(struct snd_vx222 *chip)
 		preamp++;	/* raise pre ampli + 18dB */
 		miclevel -= (18 * 2);   /* lower level 18 dB (*2 because of 0.5 dB steps !) */
         }
-	snd_assert(preamp < 4, return);
+	if (snd_BUG_ON(preamp >= 4))
+		return;
 
 	/* set pre-amp level */
 	chip->regSELMIC &= ~MICRO_SELECT_PREAMPLI_MASK;

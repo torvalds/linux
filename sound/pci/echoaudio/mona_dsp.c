@@ -43,7 +43,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	DE_INIT(("init_hw() - Mona\n"));
-	snd_assert((subdevice_id & 0xfff0) == MONA, return -ENODEV);
+	if (snd_BUG_ON((subdevice_id & 0xfff0) != MONA))
+		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
 		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
@@ -79,7 +80,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 		return err;
 
 	err = set_digital_mode(chip, DIGITAL_MODE_SPDIF_RCA);
-	snd_assert(err >= 0, return err);
+	if (err < 0)
+		return err;
 	err = set_professional_spdif(chip, TRUE);
 
 	DE_INIT(("init_hw done\n"));

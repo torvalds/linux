@@ -174,7 +174,8 @@ static int build_afg_tree(struct hda_codec *codec)
 	int i, nodes, err;
 	hda_nid_t nid;
 
-	snd_assert(spec, return -EINVAL);
+	if (snd_BUG_ON(!spec))
+		return -EINVAL;
 
 	spec->def_amp_out_caps = snd_hda_param_read(codec, codec->afg, AC_PAR_AMP_OUT_CAP);
 	spec->def_amp_in_caps = snd_hda_param_read(codec, codec->afg, AC_PAR_AMP_IN_CAP);

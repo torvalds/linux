@@ -860,7 +860,8 @@ static int snd_es1938_capture_copy(struct snd_pcm_substream *substream,
 	struct es1938 *chip = snd_pcm_substream_chip(substream);
 	pos <<= chip->dma1_shift;
 	count <<= chip->dma1_shift;
-	snd_assert(pos + count <= chip->dma1_size, return -EINVAL);
+	if (snd_BUG_ON(pos + count > chip->dma1_size))
+		return -EINVAL;
 	if (pos + count < chip->dma1_size) {
 		if (copy_to_user(dst, runtime->dma_area + pos + 1, count))
 			return -EFAULT;

@@ -1890,8 +1890,8 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 		.dev_free =	snd_ac97_bus_dev_free,
 	};
 
-	snd_assert(card != NULL, return -EINVAL);
-	snd_assert(rbus != NULL, return -EINVAL);
+	if (snd_BUG_ON(!card))
+		return -EINVAL;
 	bus = kzalloc(sizeof(*bus), GFP_KERNEL);
 	if (bus == NULL)
 		return -ENOMEM;
@@ -1906,7 +1906,8 @@ int snd_ac97_bus(struct snd_card *card, int num, struct snd_ac97_bus_ops *ops,
 		snd_ac97_bus_free(bus);
 		return err;
 	}
-	*rbus = bus;
+	if (rbus)
+		*rbus = bus;
 	return 0;
 }
 
@@ -1991,10 +1992,14 @@ int snd_ac97_mixer(struct snd_ac97_bus *bus, struct snd_ac97_template *template,
 		.dev_disconnect =	snd_ac97_dev_disconnect,
 	};
 
-	snd_assert(rac97 != NULL, return -EINVAL);
-	*rac97 = NULL;
-	snd_assert(bus != NULL && template != NULL, return -EINVAL);
-	snd_assert(template->num < 4 && bus->codec[template->num] == NULL, return -EINVAL);
+	if (rac97)
+		*rac97 = NULL;
+	if (snd_BUG_ON(!bus || !template))
+		return -EINVAL;
+	if (snd_BUG_ON(template->num >= 4))
+		return -EINVAL;
+	if (bus->codec[template->num])
+		return -EBUSY;
 
 	card = bus->card;
 	ac97 = kzalloc(sizeof(*ac97), GFP_KERNEL);

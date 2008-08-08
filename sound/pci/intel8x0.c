@@ -2132,8 +2132,8 @@ static int __devinit snd_intel8x0_mixer(struct intel8x0 *chip, int ac97_clock,
 				snd_intel8x0_codec_read_test(chip, codecs);
 				chip->ac97_sdin[codecs] =
 					igetbyte(chip, ICHREG(SDM)) & ICH_LDI_MASK;
-				snd_assert(chip->ac97_sdin[codecs] < 3,
-					   chip->ac97_sdin[codecs] = 0);
+				if (snd_BUG_ON(chip->ac97_sdin[codecs] >= 3))
+					chip->ac97_sdin[codecs] = 0;
 			} else
 				chip->ac97_sdin[codecs] = i;
 			codecs++;

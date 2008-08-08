@@ -2250,7 +2250,8 @@ static int __devinit snd_vt1724_spdif_build_controls(struct snd_ice1712 *ice)
 	int err;
 	struct snd_kcontrol *kctl;
 
-	snd_assert(ice->pcm != NULL, return -EIO);
+	if (snd_BUG_ON(!ice->pcm))
+		return -EIO;
 
 	err = snd_ctl_add(ice->card, snd_ctl_new1(&snd_vt1724_mixer_pro_spdif_route, ice));
 	if (err < 0)

@@ -211,7 +211,8 @@ int snd_hda_get_connections(struct hda_codec *codec, hda_nid_t nid,
 	unsigned int shift, num_elems, mask;
 	hda_nid_t prev_nid;
 
-	snd_assert(conn_list && max_conns > 0, return -EINVAL);
+	if (snd_BUG_ON(!conn_list || max_conns <= 0))
+		return -EINVAL;
 
 	parm = snd_hda_param_read(codec, nid, AC_PAR_CONNLIST_LEN);
 	if (parm & AC_CLIST_LONG) {
@@ -407,8 +408,10 @@ int __devinit snd_hda_bus_new(struct snd_card *card,
 		.dev_free = snd_hda_bus_dev_free,
 	};
 
-	snd_assert(temp, return -EINVAL);
-	snd_assert(temp->ops.command && temp->ops.get_response, return -EINVAL);
+	if (snd_BUG_ON(!temp))
+		return -EINVAL;
+	if (snd_BUG_ON(!temp->ops.command || !temp->ops.get_response))
+		return -EINVAL;
 
 	if (busp)
 		*busp = NULL;
@@ -588,8 +591,10 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	char component[13];
 	int err;
 
-	snd_assert(bus, return -EINVAL);
-	snd_assert(codec_addr <= HDA_MAX_CODEC_ADDRESS, return -EINVAL);
+	if (snd_BUG_ON(!bus))
+		return -EINVAL;
+	if (snd_BUG_ON(codec_addr > HDA_MAX_CODEC_ADDRESS))
+		return -EINVAL;
 
 	if (bus->caddr_tbl[codec_addr]) {
 		snd_printk(KERN_ERR "hda_codec: "
@@ -2236,11 +2241,13 @@ static int __devinit set_pcm_default_values(struct hda_codec *codec,
 	if (info->ops.close == NULL)
 		info->ops.close = hda_pcm_default_open_close;
 	if (info->ops.prepare == NULL) {
-		snd_assert(info->nid, return -EINVAL);
+		if (snd_BUG_ON(!info->nid))
+			return -EINVAL;
 		info->ops.prepare = hda_pcm_default_prepare;
 	}
 	if (info->ops.cleanup == NULL) {
-		snd_assert(info->nid, return -EINVAL);
+		if (snd_BUG_ON(!info->nid))
+			return -EINVAL;
 		info->ops.cleanup = hda_pcm_default_cleanup;
 	}
 	return 0;

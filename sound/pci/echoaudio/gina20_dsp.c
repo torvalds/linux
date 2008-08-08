@@ -38,7 +38,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	DE_INIT(("init_hw() - Gina20\n"));
-	snd_assert((subdevice_id & 0xfff0) == GINA20, return -ENODEV);
+	if (snd_BUG_ON((subdevice_id & 0xfff0) != GINA20))
+		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
 		DE_INIT(("init_hw - could not initialize DSP comm page\n"));
@@ -177,7 +178,8 @@ static int set_input_clock(struct echoaudio *chip, u16 clock)
 /* Set input bus gain (one unit is 0.5dB !) */
 static int set_input_gain(struct echoaudio *chip, u16 input, int gain)
 {
-	snd_assert(input < num_busses_in(chip), return -EINVAL);
+	if (snd_BUG_ON(input >= num_busses_in(chip)))
+		return -EINVAL;
 
 	if (wait_handshake(chip))
 		return -EIO;

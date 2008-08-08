@@ -845,7 +845,7 @@ static void hdspm_set_dds_value(struct hdspm *hdspm, int rate)
 	n = 110100480000000ULL;    /* Value checked for AES32 and MADI */
 	div64_32(&n, rate, &r);
 	/* n should be less than 2^32 for being written to FREQ register */
-	snd_assert((n >> 32) == 0);
+	snd_BUG_ON(n >> 32);
 	hdspm_write(hdspm, HDSPM_freqReg, (u32)n);
 }
 
@@ -2617,8 +2617,8 @@ static int snd_hdspm_get_playback_mixer(struct snd_kcontrol *kcontrol,
 
 	channel = ucontrol->id.index - 1;
 
-	snd_assert(channel >= 0
-		   || channel < HDSPM_MAX_CHANNELS, return -EINVAL);
+	if (snd_BUG_ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
+		return -EINVAL;
 
 	mapped_channel = hdspm->channel_map[channel];
 	if (mapped_channel < 0)
@@ -2652,8 +2652,8 @@ static int snd_hdspm_put_playback_mixer(struct snd_kcontrol *kcontrol,
 
 	channel = ucontrol->id.index - 1;
 
-	snd_assert(channel >= 0
-		   || channel < HDSPM_MAX_CHANNELS, return -EINVAL);
+	if (snd_BUG_ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
+		return -EINVAL;
 
 	mapped_channel = hdspm->channel_map[channel];
 	if (mapped_channel < 0)
@@ -3496,8 +3496,8 @@ static char *hdspm_channel_buffer_location(struct hdspm * hdspm,
 {
 	int mapped_channel;
 
-	snd_assert(channel >= 0
-		   || channel < HDSPM_MAX_CHANNELS, return NULL);
+	if (snd_BUG_ON(channel < 0 || channel >= HDSPM_MAX_CHANNELS))
+		return NULL;
 
 	mapped_channel = hdspm->channel_map[channel];
 	if (mapped_channel < 0)
@@ -3520,14 +3520,15 @@ static int snd_hdspm_playback_copy(struct snd_pcm_substream *substream,
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	snd_assert(pos + count <= HDSPM_CHANNEL_BUFFER_BYTES / 4,
-		   return -EINVAL);
+	if (snd_BUG_ON(pos + count > HDSPM_CHANNEL_BUFFER_BYTES / 4))
+		return -EINVAL;
 
 	channel_buf =
 		hdspm_channel_buffer_location(hdspm, substream->pstr->stream,
 					      channel);
 
-	snd_assert(channel_buf != NULL, return -EIO);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
 
 	return copy_from_user(channel_buf + pos * 4, src, count * 4);
 }
@@ -3539,13 +3540,14 @@ static int snd_hdspm_capture_copy(struct snd_pcm_substream *substream,
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 	char *channel_buf;
 
-	snd_assert(pos + count <= HDSPM_CHANNEL_BUFFER_BYTES / 4,
-		   return -EINVAL);
+	if (snd_BUG_ON(pos + count > HDSPM_CHANNEL_BUFFER_BYTES / 4))
+		return -EINVAL;
 
 	channel_buf =
 		hdspm_channel_buffer_location(hdspm, substream->pstr->stream,
 					      channel);
-	snd_assert(channel_buf != NULL, return -EIO);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
 	return copy_to_user(dst, channel_buf + pos * 4, count * 4);
 }
 
@@ -3559,7 +3561,8 @@ static int snd_hdspm_hw_silence(struct snd_pcm_substream *substream,
 	channel_buf =
 		hdspm_channel_buffer_location(hdspm, substream->pstr->stream,
 					      channel);
-	snd_assert(channel_buf != NULL, return -EIO);
+	if (snd_BUG_ON(!channel_buf))
+		return -EIO;
 	memset(channel_buf + pos * 4, 0, count * 4);
 	return 0;
 }
@@ -3744,7 +3747,8 @@ static int snd_hdspm_channel_info(struct snd_pcm_substream *substream,
 	struct hdspm *hdspm = snd_pcm_substream_chip(substream);
 	int mapped_channel;
 
-	snd_assert(info->channel < HDSPM_MAX_CHANNELS, return -EINVAL);
+	if (snd_BUG_ON(info->channel >= HDSPM_MAX_CHANNELS))
+		return -EINVAL;
 
 	mapped_channel = hdspm->channel_map[info->channel];
 	if (mapped_channel < 0)

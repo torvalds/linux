@@ -1646,7 +1646,8 @@ static int __devinit create_codec_pcm(struct azx *chip, struct hda_codec *codec,
 	if (!cpcm->stream[0].substreams && !cpcm->stream[1].substreams)
 		return 0;
 
-	snd_assert(cpcm->name, return -EINVAL);
+	if (snd_BUG_ON(!cpcm->name))
+		return -EINVAL;
 
 	err = snd_pcm_new(chip->card, cpcm->name, cpcm->device,
 			  cpcm->stream[0].substreams,

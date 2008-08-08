@@ -34,7 +34,8 @@ static int init_hw(struct echoaudio *chip, u16 device_id, u16 subdevice_id)
 	int err;
 
 	DE_INIT(("init_hw() - Darla20\n"));
-	snd_assert((subdevice_id & 0xfff0) == DARLA20, return -ENODEV);
+	if (snd_BUG_ON((subdevice_id & 0xfff0) != DARLA20))
+		return -ENODEV;
 
 	if ((err = init_dsp_comm_page(chip))) {
 		DE_INIT(("init_hw - could not initialize DSP comm page\n"));

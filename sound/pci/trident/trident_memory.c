@@ -196,9 +196,13 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 	int idx, page;
 	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 
-	snd_assert(runtime->dma_bytes > 0 && runtime->dma_bytes <= SNDRV_TRIDENT_MAX_PAGES * SNDRV_TRIDENT_PAGE_SIZE, return NULL);
+	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
+		       runtime->dma_bytes > SNDRV_TRIDENT_MAX_PAGES *
+					SNDRV_TRIDENT_PAGE_SIZE))
+		return NULL;
 	hdr = trident->tlb.memhdr;
-	snd_assert(hdr != NULL, return NULL);
+	if (snd_BUG_ON(!hdr))
+		return NULL;
 
 	
 
@@ -245,9 +249,13 @@ snd_trident_alloc_cont_pages(struct snd_trident *trident,
 	dma_addr_t addr;
 	unsigned long ptr;
 
-	snd_assert(runtime->dma_bytes> 0 && runtime->dma_bytes <= SNDRV_TRIDENT_MAX_PAGES * SNDRV_TRIDENT_PAGE_SIZE, return NULL);
+	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
+		       runtime->dma_bytes > SNDRV_TRIDENT_MAX_PAGES *
+					SNDRV_TRIDENT_PAGE_SIZE))
+		return NULL;
 	hdr = trident->tlb.memhdr;
-	snd_assert(hdr != NULL, return NULL);
+	if (snd_BUG_ON(!hdr))
+		return NULL;
 
 	mutex_lock(&hdr->block_mutex);
 	blk = search_empty(hdr, runtime->dma_bytes);
@@ -279,8 +287,8 @@ struct snd_util_memblk *
 snd_trident_alloc_pages(struct snd_trident *trident,
 			struct snd_pcm_substream *substream)
 {
-	snd_assert(trident != NULL, return NULL);
-	snd_assert(substream != NULL, return NULL);
+	if (snd_BUG_ON(!trident || !substream))
+		return NULL;
 	if (substream->dma_buffer.dev.type == SNDRV_DMA_TYPE_DEV_SG)
 		return snd_trident_alloc_sg_pages(trident, substream);
 	else
@@ -297,8 +305,8 @@ int snd_trident_free_pages(struct snd_trident *trident,
 	struct snd_util_memhdr *hdr;
 	int page;
 
-	snd_assert(trident != NULL, return -EINVAL);
-	snd_assert(blk != NULL, return -EINVAL);
+	if (snd_BUG_ON(!trident || !blk))
+		return -EINVAL;
 
 	hdr = trident->tlb.memhdr;
 	mutex_lock(&hdr->block_mutex);

@@ -2416,7 +2416,8 @@ int __devinit snd_ice1712_spdif_build_controls(struct snd_ice1712 *ice)
 	int err;
 	struct snd_kcontrol *kctl;
 
-	snd_assert(ice->pcm_pro != NULL, return -EIO);
+	if (snd_BUG_ON(!ice->pcm_pro))
+		return -EIO;
 	err = snd_ctl_add(ice->card, kctl = snd_ctl_new1(&snd_ice1712_spdif_default, ice));
 	if (err < 0)
 		return err;

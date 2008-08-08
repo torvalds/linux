@@ -107,7 +107,8 @@ static int search_empty_map_area(struct snd_emu10k1 *emu, int npages, struct lis
 
 	list_for_each (pos, &emu->mapped_link_head) {
 		struct snd_emu10k1_memblk *blk = get_emu10k1_memblk(pos, mapped_link);
-		snd_assert(blk->mapped_page >= 0, continue);
+		if (blk->mapped_page < 0)
+			continue;
 		size = blk->mapped_page - page;
 		if (size == npages) {
 			*nextp = pos;
@@ -300,10 +301,14 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	struct snd_emu10k1_memblk *blk;
 	int page, err, idx;
 
-	snd_assert(emu, return NULL);
-	snd_assert(runtime->dma_bytes > 0 && runtime->dma_bytes < MAXPAGES * EMUPAGESIZE, return NULL);
+	if (snd_BUG_ON(!emu))
+		return NULL;
+	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
+		       runtime->dma_bytes >= MAXPAGES * EMUPAGESIZE))
+		return NULL;
 	hdr = emu->memhdr;
-	snd_assert(hdr, return NULL);
+	if (snd_BUG_ON(!hdr))
+		return NULL;
 
 	mutex_lock(&hdr->block_mutex);
 	blk = search_empty(emu, runtime->dma_bytes);
@@ -353,7 +358,8 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
  */
 int snd_emu10k1_free_pages(struct snd_emu10k1 *emu, struct snd_util_memblk *blk)
 {
-	snd_assert(emu && blk, return -EINVAL);
+	if (snd_BUG_ON(!emu || !blk))
+		return -EINVAL;
 	return snd_emu10k1_synth_free(emu, blk);
 }
 
@@ -498,7 +504,8 @@ static int synth_free_pages(struct snd_emu10k1 *emu, struct snd_emu10k1_memblk *
 static inline void *offset_ptr(struct snd_emu10k1 *emu, int page, int offset)
 {
 	char *ptr;
-	snd_assert(page >= 0 && page < emu->max_cache_pages, return NULL);
+	if (snd_BUG_ON(page < 0 || page >= emu->max_cache_pages))
+		return NULL;
 	ptr = emu->page_ptr_table[page];
 	if (! ptr) {
 		printk(KERN_ERR "emu10k1: access to NULL ptr: page = %d\n", page);
