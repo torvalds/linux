@@ -206,6 +206,9 @@ GPIO
   The core contains support for manipulating the GPIO, see the
   documentation in GPIO.txt in the same directory as this file.
 
+  Newer kernels carry GPIOLIB, and support is being moved towards
+  this with some of the older support in line to be removed.
+
 
 Clock Management
 ----------------
