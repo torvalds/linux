@@ -45,7 +45,7 @@ static unsigned long txx9wdt_alive;
 static int expect_close;
 static struct txx9_tmr_reg __iomem *txx9wdt_reg;
 static struct clk *txx9_imclk;
-static DECLARE_LOCK(txx9_lock);
+static DEFINE_SPINLOCK(txx9_lock);
 
 static void txx9wdt_ping(void)
 {
