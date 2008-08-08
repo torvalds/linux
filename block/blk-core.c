@@ -1885,7 +1885,7 @@ static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
 
-	if (blk_fs_request(rq) || blk_pc_request(rq)) {
+	if (bio_has_data(rq->bio)) {
 		if (__end_that_request_first(rq, error, nr_bytes))
 			return 1;
 
@@ -1943,10 +1943,9 @@ EXPORT_SYMBOL_GPL(blk_end_request);
  **/
 int __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
-	if (blk_fs_request(rq) || blk_pc_request(rq)) {
-		if (__end_that_request_first(rq, error, nr_bytes))
-			return 1;
-	}
+	if (bio_has_data(rq->bio) &&
+	    __end_that_request_first(rq, error, nr_bytes))
+		return 1;
 
 	add_disk_randomness(rq->rq_disk);
 
