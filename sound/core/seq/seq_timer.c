@@ -173,7 +173,8 @@ int snd_seq_timer_set_tempo(struct snd_seq_timer * tmr, int tempo)
 {
 	unsigned long flags;
 
-	snd_assert(tmr, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 	if (tempo <= 0)
 		return -EINVAL;
 	spin_lock_irqsave(&tmr->lock, flags);
@@ -190,7 +191,8 @@ int snd_seq_timer_set_ppq(struct snd_seq_timer * tmr, int ppq)
 {
 	unsigned long flags;
 
-	snd_assert(tmr, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 	if (ppq <= 0)
 		return -EINVAL;
 	spin_lock_irqsave(&tmr->lock, flags);
@@ -214,7 +216,8 @@ int snd_seq_timer_set_position_tick(struct snd_seq_timer *tmr,
 {
 	unsigned long flags;
 
-	snd_assert(tmr, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 
 	spin_lock_irqsave(&tmr->lock, flags);
 	tmr->tick.cur_tick = position;
@@ -229,7 +232,8 @@ int snd_seq_timer_set_position_time(struct snd_seq_timer *tmr,
 {
 	unsigned long flags;
 
-	snd_assert(tmr, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 
 	snd_seq_sanity_real_time(&position);
 	spin_lock_irqsave(&tmr->lock, flags);
@@ -244,7 +248,8 @@ int snd_seq_timer_set_skew(struct snd_seq_timer *tmr, unsigned int skew,
 {
 	unsigned long flags;
 
-	snd_assert(tmr, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 
 	/* FIXME */
 	if (base != SKEW_BASE) {
@@ -265,7 +270,8 @@ int snd_seq_timer_open(struct snd_seq_queue *q)
 	int err;
 
 	tmr = q->timer;
-	snd_assert(tmr != NULL, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 	if (tmr->timeri)
 		return -EBUSY;
 	sprintf(str, "sequencer queue %i", q->queue);
@@ -302,7 +308,8 @@ int snd_seq_timer_close(struct snd_seq_queue *q)
 	struct snd_seq_timer *tmr;
 	
 	tmr = q->timer;
-	snd_assert(tmr != NULL, return -EINVAL);
+	if (snd_BUG_ON(!tmr))
+		return -EINVAL;
 	if (tmr->timeri) {
 		snd_timer_stop(tmr->timeri);
 		snd_timer_close(tmr->timeri);
@@ -328,7 +335,8 @@ static int initialize_timer(struct snd_seq_timer *tmr)
 	unsigned long freq;
 
 	t = tmr->timeri->timer;
-	snd_assert(t, return -EINVAL);
+	if (snd_BUG_ON(!t))
+		return -EINVAL;
 
 	freq = tmr->preferred_resolution;
 	if (!freq)

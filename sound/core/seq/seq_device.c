@@ -187,7 +187,8 @@ int snd_seq_device_new(struct snd_card *card, int device, char *id, int argsize,
 	if (result)
 		*result = NULL;
 
-	snd_assert(id != NULL, return -EINVAL);
+	if (snd_BUG_ON(!id))
+		return -EINVAL;
 
 	ops = find_driver(id, 1);
 	if (ops == NULL)
@@ -232,7 +233,8 @@ static int snd_seq_device_free(struct snd_seq_device *dev)
 {
 	struct ops_list *ops;
 
-	snd_assert(dev != NULL, return -EINVAL);
+	if (snd_BUG_ON(!dev))
+		return -EINVAL;
 
 	ops = find_driver(dev->id, 0);
 	if (ops == NULL)

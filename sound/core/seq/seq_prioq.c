@@ -153,8 +153,8 @@ int snd_seq_prioq_cell_in(struct snd_seq_prioq * f,
 	int count;
 	int prior;
 
-	snd_assert(f, return -EINVAL);
-	snd_assert(cell, return -EINVAL);
+	if (snd_BUG_ON(!f || !cell))
+		return -EINVAL;
 	
 	/* check flags */
 	prior = (cell->event.flags & SNDRV_SEQ_PRIORITY_MASK);

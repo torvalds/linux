@@ -67,18 +67,6 @@ struct snd_mem_list {
 /* id for pre-allocated buffers */
 #define SNDRV_DMA_DEVICE_UNUSED (unsigned int)-1
 
-#ifdef CONFIG_SND_DEBUG
-#define __ASTRING__(x) #x
-#define snd_assert(expr, args...) do {\
-	if (!(expr)) {\
-		printk(KERN_ERR "snd-malloc: BUG? (%s) (called from %p)\n", __ASTRING__(expr), __builtin_return_address(0));\
-		args;\
-	}\
-} while (0)
-#else
-#define snd_assert(expr, args...) /**/
-#endif
-
 /*
  *
  *  Generic memory allocators
@@ -111,8 +99,10 @@ void *snd_malloc_pages(size_t size, gfp_t gfp_flags)
 	int pg;
 	void *res;
 
-	snd_assert(size > 0, return NULL);
-	snd_assert(gfp_flags != 0, return NULL);
+	if (WARN_ON(!size))
+		return NULL;
+	if (WARN_ON(!gfp_flags))
+		return NULL;
 	gfp_flags |= __GFP_COMP;	/* compound page lets parts be mapped */
 	pg = get_order(size);
 	if ((res = (void *) __get_free_pages(gfp_flags, pg)) != NULL)
@@ -152,8 +142,8 @@ static void *snd_malloc_dev_pages(struct device *dev, size_t size, dma_addr_t *d
 	void *res;
 	gfp_t gfp_flags;
 
-	snd_assert(size > 0, return NULL);
-	snd_assert(dma != NULL, return NULL);
+	if (WARN_ON(!dma))
+		return NULL;
 	pg = get_order(size);
 	gfp_flags = GFP_KERNEL
 		| __GFP_COMP	/* compound page lets parts be mapped */
@@ -189,8 +179,8 @@ static void *snd_malloc_sbus_pages(struct device *dev, size_t size,
 	int pg;
 	void *res;
 
-	snd_assert(size > 0, return NULL);
-	snd_assert(dma_addr != NULL, return NULL);
+	if (WARN_ON(!dma_addr))
+		return NULL;
 	pg = get_order(size);
 	res = sbus_alloc_consistent(sdev, PAGE_SIZE * (1 << pg), dma_addr);
 	if (res != NULL)
@@ -236,8 +226,10 @@ static void snd_free_sbus_pages(struct device *dev, size_t size,
 int snd_dma_alloc_pages(int type, struct device *device, size_t size,
 			struct snd_dma_buffer *dmab)
 {
-	snd_assert(size > 0, return -ENXIO);
-	snd_assert(dmab != NULL, return -ENXIO);
+	if (WARN_ON(!size))
+		return -ENXIO;
+	if (WARN_ON(!dmab))
+		return -ENXIO;
 
 	dmab->dev.type = type;
 	dmab->dev.dev = device;
@@ -291,9 +283,6 @@ int snd_dma_alloc_pages_fallback(int type, struct device *device, size_t size,
 				 struct snd_dma_buffer *dmab)
 {
 	int err;
-
-	snd_assert(size > 0, return -ENXIO);
-	snd_assert(dmab != NULL, return -ENXIO);
 
 	while ((err = snd_dma_alloc_pages(type, device, size, dmab)) < 0) {
 		if (err != -ENOMEM)
@@ -353,7 +342,8 @@ size_t snd_dma_get_reserved_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {
 	struct snd_mem_list *mem;
 
-	snd_assert(dmab, return 0);
+	if (WARN_ON(!dmab))
+		return 0;
 
 	mutex_lock(&list_mutex);
 	list_for_each_entry(mem, &mem_list_head, list) {
@@ -387,7 +377,8 @@ int snd_dma_reserve_buf(struct snd_dma_buffer *dmab, unsigned int id)
 {
 	struct snd_mem_list *mem;
 
-	snd_assert(dmab, return -EINVAL);
+	if (WARN_ON(!dmab))
+		return -EINVAL;
 	mem = kmalloc(sizeof(*mem), GFP_KERNEL);
 	if (! mem)
 		return -ENOMEM;

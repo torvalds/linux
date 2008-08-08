@@ -256,7 +256,6 @@ static char *snd_pcm_tstamp_mode_names[] = {
 
 static const char *snd_pcm_stream_name(int stream)
 {
-	snd_assert(stream <= SNDRV_PCM_STREAM_LAST, return NULL);
 	return snd_pcm_stream_names[stream];
 }
 
@@ -272,7 +271,6 @@ static const char *snd_pcm_subformat_name(snd_pcm_subformat_t subformat)
 
 static const char *snd_pcm_tstamp_mode_name(int mode)
 {
-	snd_assert(mode <= SNDRV_PCM_TSTAMP_LAST, return NULL);
 	return snd_pcm_tstamp_mode_names[mode];
 }
 
@@ -706,9 +704,10 @@ int snd_pcm_new(struct snd_card *card, char *id, int device,
 		.dev_disconnect = snd_pcm_dev_disconnect,
 	};
 
-	snd_assert(rpcm != NULL, return -EINVAL);
-	*rpcm = NULL;
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
+	if (rpcm)
+		*rpcm = NULL;
 	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
 	if (pcm == NULL) {
 		snd_printk(KERN_ERR "Cannot allocate PCM\n");
@@ -732,7 +731,8 @@ int snd_pcm_new(struct snd_card *card, char *id, int device,
 		snd_pcm_free(pcm);
 		return err;
 	}
-	*rpcm = pcm;
+	if (rpcm)
+		*rpcm = pcm;
 	return 0;
 }
 
@@ -766,7 +766,8 @@ static int snd_pcm_free(struct snd_pcm *pcm)
 {
 	struct snd_pcm_notify *notify;
 
-	snd_assert(pcm != NULL, return -ENXIO);
+	if (!pcm)
+		return 0;
 	list_for_each_entry(notify, &snd_pcm_notify_list, list) {
 		notify->n_unregister(pcm);
 	}
@@ -797,9 +798,9 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	int prefer_subdevice = -1;
 	size_t size;
 
-	snd_assert(rsubstream != NULL, return -EINVAL);
+	if (snd_BUG_ON(!pcm || !rsubstream))
+		return -ENXIO;
 	*rsubstream = NULL;
-	snd_assert(pcm != NULL, return -ENXIO);
 	pstr = &pcm->streams[stream];
 	if (pstr->substream == NULL || pstr->substream_count == 0)
 		return -ENODEV;
@@ -907,8 +908,9 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
 
+	if (PCM_RUNTIME_CHECK(substream))
+		return;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return);
 	if (runtime->private_free != NULL)
 		runtime->private_free(runtime);
 	snd_free_pages((void*)runtime->status,
@@ -953,7 +955,8 @@ static int snd_pcm_dev_register(struct snd_device *device)
 	struct snd_pcm *pcm = device->device_data;
 	struct device *dev;
 
-	snd_assert(pcm != NULL && device != NULL, return -ENXIO);
+	if (snd_BUG_ON(!pcm || !device))
+		return -ENXIO;
 	mutex_lock(&register_mutex);
 	err = snd_pcm_add(pcm);
 	if (err) {
@@ -1043,10 +1046,11 @@ int snd_pcm_notify(struct snd_pcm_notify *notify, int nfree)
 {
 	struct snd_pcm *pcm;
 
-	snd_assert(notify != NULL &&
-		   notify->n_register != NULL &&
-		   notify->n_unregister != NULL &&
-		   notify->n_disconnect, return -EINVAL);
+	if (snd_BUG_ON(!notify ||
+		       !notify->n_register ||
+		       !notify->n_unregister ||
+		       !notify->n_disconnect))
+		return -EINVAL;
 	mutex_lock(&register_mutex);
 	if (nfree) {
 		list_del(&notify->list);

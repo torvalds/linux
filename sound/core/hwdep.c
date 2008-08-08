@@ -353,9 +353,10 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 		.dev_disconnect = snd_hwdep_dev_disconnect,
 	};
 
-	snd_assert(rhwdep != NULL, return -EINVAL);
-	*rhwdep = NULL;
-	snd_assert(card != NULL, return -ENXIO);
+	if (snd_BUG_ON(!card))
+		return -ENXIO;
+	if (rhwdep)
+		*rhwdep = NULL;
 	hwdep = kzalloc(sizeof(*hwdep), GFP_KERNEL);
 	if (hwdep == NULL) {
 		snd_printk(KERN_ERR "hwdep: cannot allocate\n");
@@ -374,13 +375,15 @@ int snd_hwdep_new(struct snd_card *card, char *id, int device,
 	}
 	init_waitqueue_head(&hwdep->open_wait);
 	mutex_init(&hwdep->open_mutex);
-	*rhwdep = hwdep;
+	if (rhwdep)
+		*rhwdep = hwdep;
 	return 0;
 }
 
 static int snd_hwdep_free(struct snd_hwdep *hwdep)
 {
-	snd_assert(hwdep != NULL, return -ENXIO);
+	if (!hwdep)
+		return 0;
 	if (hwdep->private_free)
 		hwdep->private_free(hwdep);
 	kfree(hwdep);
@@ -440,7 +443,8 @@ static int snd_hwdep_dev_disconnect(struct snd_device *device)
 {
 	struct snd_hwdep *hwdep = device->device_data;
 
-	snd_assert(hwdep != NULL, return -ENXIO);
+	if (snd_BUG_ON(!hwdep))
+		return -ENXIO;
 	mutex_lock(&register_mutex);
 	if (snd_hwdep_search(hwdep->card, hwdep->device) != hwdep) {
 		mutex_unlock(&register_mutex);

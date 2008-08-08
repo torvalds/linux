@@ -50,8 +50,6 @@ static int preallocate_pcm_pages(struct snd_pcm_substream *substream, size_t siz
 	struct snd_dma_buffer *dmab = &substream->dma_buffer;
 	int err;
 
-	snd_assert(size > 0, return -EINVAL);
-
 	/* already reserved? */
 	if (snd_dma_get_reserved_buf(dmab, substream->dma_buf_id) > 0) {
 		if (dmab->bytes >= size)
@@ -342,10 +340,12 @@ int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size)
 	struct snd_pcm_runtime *runtime;
 	struct snd_dma_buffer *dmab = NULL;
 
-	snd_assert(substream->dma_buffer.dev.type != SNDRV_DMA_TYPE_UNKNOWN, return -EINVAL);
-	snd_assert(substream != NULL, return -EINVAL);
+	if (PCM_RUNTIME_CHECK(substream))
+		return -EINVAL;
+	if (snd_BUG_ON(substream->dma_buffer.dev.type ==
+		       SNDRV_DMA_TYPE_UNKNOWN))
+		return -EINVAL;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -EINVAL);
 
 	if (runtime->dma_buffer_p) {
 		/* perphaps, we might free the large DMA memory region
@@ -391,9 +391,9 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime;
 
-	snd_assert(substream != NULL, return -EINVAL);
+	if (PCM_RUNTIME_CHECK(substream))
+		return -EINVAL;
 	runtime = substream->runtime;
-	snd_assert(runtime != NULL, return -EINVAL);
 	if (runtime->dma_area == NULL)
 		return 0;
 	if (runtime->dma_buffer_p != &substream->dma_buffer) {
