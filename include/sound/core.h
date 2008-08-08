@@ -28,6 +28,7 @@
 #include <linux/rwsem.h>		/* struct rw_semaphore */
 #include <linux/pm.h>			/* pm_message_t */
 #include <linux/device.h>
+#include <linux/stringify.h>
 
 /* number of supported soundcards */
 #ifdef CONFIG_SND_DYNAMIC_MINORS
@@ -405,11 +406,14 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 	dump_stack();				\
 } while (0)
 
+#define snd_BUG_ON(cond)	WARN((cond), "BUG? (%s)\n", __stringify(cond))
+
 #else /* !CONFIG_SND_DEBUG */
 
 #define snd_printd(fmt, args...)	/* nothing */
 #define snd_assert(expr, args...)	(void)(expr)
 #define snd_BUG()			/* nothing */
+#define snd_BUG_ON(cond)	({/*(void)(cond);*/ 0;})  /* always false */
 
 #endif /* CONFIG_SND_DEBUG */
 
