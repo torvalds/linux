@@ -86,6 +86,21 @@ static void ohci_stop (struct usb_hcd *hcd);
 static int ohci_restart (struct ohci_hcd *ohci);
 #endif
 
+#ifdef CONFIG_PCI
+static void quirk_amd_pll(int state);
+static void amd_iso_dev_put(void);
+#else
+static inline void quirk_amd_pll(int state)
+{
+	return;
+}
+static inline void amd_iso_dev_put(void)
+{
+	return;
+}
+#endif
+
+
 #include "ohci-hub.c"
 #include "ohci-dbg.c"
 #include "ohci-mem.c"
@@ -886,6 +901,8 @@ static void ohci_stop (struct usb_hcd *hcd)
 
 	if (quirk_zfmicro(ohci))
 		del_timer(&ohci->unlink_watchdog);
+	if (quirk_amdiso(ohci))
+		amd_iso_dev_put();
 
 	remove_debug_files (ohci);
 	ohci_mem_cleanup (ohci);
