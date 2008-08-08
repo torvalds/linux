@@ -119,17 +119,6 @@ static void __s3c2410wdt_stop(void)
 {
 	unsigned long wtcon;
 
-	spin_lock(&wdt_lock);
-	wtcon = readl(wdt_base + S3C2410_WTCON);
-	wtcon &= ~(S3C2410_WTCON_ENABLE | S3C2410_WTCON_RSTEN);
-	writel(wtcon, wdt_base + S3C2410_WTCON);
-	spin_unlock(&wdt_lock);
-}
-
-static void __s3c2410wdt_stop(void)
-{
-	unsigned long wtcon;
-
 	wtcon = readl(wdt_base + S3C2410_WTCON);
 	wtcon &= ~(S3C2410_WTCON_ENABLE | S3C2410_WTCON_RSTEN);
 	writel(wtcon, wdt_base + S3C2410_WTCON);
