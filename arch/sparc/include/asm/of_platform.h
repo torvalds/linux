@@ -13,9 +13,6 @@
  *
  */
 
-/* This is just here during the transition */
-#include <linux/of_platform.h>
-
 extern struct bus_type ebus_bus_type;
 extern struct bus_type sbus_bus_type;
 
