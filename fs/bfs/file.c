@@ -99,7 +99,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 		return -ENOSPC;
 
 	/* The rest has to be protected against itself. */
-	lock_kernel();
+	mutex_lock(&info->bfs_lock);
 
 	/*
 	 * If the last data block for this file is the last allocated
@@ -151,7 +151,7 @@ static int bfs_get_block(struct inode *inode, sector_t block,
 	mark_buffer_dirty(sbh);
 	map_bh(bh_result, sb, phys);
 out:
-	unlock_kernel();
+	mutex_unlock(&info->bfs_lock);
 	return err;
 }
 

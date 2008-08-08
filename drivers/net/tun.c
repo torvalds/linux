@@ -900,7 +900,7 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 		if ((tun->flags & TUN_TYPE_MASK) != TUN_TAP_DEV)
 			return -EINVAL;
 		rtnl_lock();
-		ret = update_filter(&tun->txflt, (void *) __user arg);
+		ret = update_filter(&tun->txflt, (void __user *)arg);
 		rtnl_unlock();
 		return ret;
 

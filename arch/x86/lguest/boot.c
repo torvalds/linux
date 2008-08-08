@@ -991,7 +991,6 @@ __init void lguest_init(void)
 #ifdef CONFIG_X86_LOCAL_APIC
 	/* apic read/write intercepts */
 	pv_apic_ops.apic_write = lguest_apic_write;
-	pv_apic_ops.apic_write_atomic = lguest_apic_write;
 	pv_apic_ops.apic_read = lguest_apic_read;
 #endif
 
@@ -1014,6 +1013,9 @@ __init void lguest_init(void)
 	 * init_pg_tables_end to the end of the kernel. */
 	init_pg_tables_start = __pa(pg0);
 	init_pg_tables_end = __pa(pg0);
+
+	/* As described in head_32.S, we map the first 128M of memory. */
+	max_pfn_mapped = (128*1024*1024) >> PAGE_SHIFT;
 
 	/* Load the %fs segment register (the per-cpu segment register) with
 	 * the normal data segment to get through booting. */

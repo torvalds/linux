@@ -36,6 +36,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
+#include <asm/traps.h>
 
 #include "compat.h"
 #include "atags.h"
@@ -853,6 +854,7 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 #endif
+	early_trap_init();
 }
 
 

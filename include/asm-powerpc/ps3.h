@@ -337,12 +337,18 @@ enum ps3_system_bus_device_type {
 	PS3_DEVICE_TYPE_LPM,
 };
 
+enum ps3_match_sub_id {
+	/* for PS3_MATCH_ID_GRAPHICS */
+	PS3_MATCH_SUB_ID_FB		= 1,
+};
+
 /**
  * struct ps3_system_bus_device - a device on the system bus
  */
 
 struct ps3_system_bus_device {
 	enum ps3_match_id match_id;
+	enum ps3_match_sub_id match_sub_id;
 	enum ps3_system_bus_device_type dev_type;
 
 	u64 bus_id;                       /* SB */
@@ -371,6 +377,7 @@ int ps3_close_hv_device(struct ps3_system_bus_device *dev);
 
 struct ps3_system_bus_driver {
 	enum ps3_match_id match_id;
+	enum ps3_match_sub_id match_sub_id;
 	struct device_driver core;
 	int (*probe)(struct ps3_system_bus_device *);
 	int (*remove)(struct ps3_system_bus_device *);

@@ -347,15 +347,12 @@ necessarily be nonportable.
 Dynamic definition of GPIOs is not currently standard; for example, as
 a side effect of configuring an add-on board with some GPIO expanders.
 
-These calls are purely for kernel space, but a userspace API could be built
-on top of them.
-
 
 GPIO implementor's framework (OPTIONAL)
 =======================================
 As noted earlier, there is an optional implementation framework making it
 easier for platforms to support different kinds of GPIO controller using
-the same programming interface.
+the same programming interface.  This framework is called "gpiolib".
 
 As a debugging aid, if debugfs is available a /sys/kernel/debug/gpio file
 will be found there.  That will list all the controllers registered through
@@ -392,10 +389,20 @@ either NULL or the label associated with that GPIO when it was requested.
 
 Platform Support
 ----------------
-To support this framework, a platform's Kconfig will "select HAVE_GPIO_LIB"
+To support this framework, a platform's Kconfig will "select" either
+ARCH_REQUIRE_GPIOLIB or ARCH_WANT_OPTIONAL_GPIOLIB
 and arrange that its <asm/gpio.h> includes <asm-generic/gpio.h> and defines
 three functions: gpio_get_value(), gpio_set_value(), and gpio_cansleep().
 They may also want to provide a custom value for ARCH_NR_GPIOS.
+
+ARCH_REQUIRE_GPIOLIB means that the gpio-lib code will always get compiled
+into the kernel on that architecture.
+
+ARCH_WANT_OPTIONAL_GPIOLIB means the gpio-lib code defaults to off and the user
+can enable it and build it into the kernel optionally.
+
+If neither of these options are selected, the platform does not support
+GPIOs through GPIO-lib and the code cannot be enabled by the user.
 
 Trivial implementations of those functions can directly use framework
 code, which always dispatches through the gpio_chip:
@@ -439,4 +446,120 @@ becomes available.  That may mean the device should not be registered until
 calls for that GPIO can work.  One way to address such dependencies is for
 such gpio_chip controllers to provide setup() and teardown() callbacks to
 board specific code; those board specific callbacks would register devices
-once all the necessary resources are available.
+once all the necessary resources are available, and remove them later when
+the GPIO controller device becomes unavailable.
+
+
+Sysfs Interface for Userspace (OPTIONAL)
+========================================
+Platforms which use the "gpiolib" implementors framework may choose to
+configure a sysfs user interface to GPIOs.  This is different from the
+debugfs interface, since it provides control over GPIO direction and
+value instead of just showing a gpio state summary.  Plus, it could be
+present on production systems without debugging support.
+
+Given approprate hardware documentation for the system, userspace could
+know for example that GPIO #23 controls the write protect line used to
+protect boot loader segments in flash memory.  System upgrade procedures
+may need to temporarily remove that protection, first importing a GPIO,
+then changing its output state, then updating the code before re-enabling
+the write protection.  In normal use, GPIO #23 would never be touched,
+and the kernel would have no need to know about it.
+
+Again depending on appropriate hardware documentation, on some systems
+userspace GPIO can be used to determine system configuration data that
+standard kernels won't know about.  And for some tasks, simple userspace
+GPIO drivers could be all that the system really needs.
+
+Note that standard kernel drivers exist for common "LEDs and Buttons"
+GPIO tasks:  "leds-gpio" and "gpio_keys", respectively.  Use those
+instead of talking directly to the GPIOs; they integrate with kernel
+frameworks better than your userspace code could.
+
+
+Paths in Sysfs
+--------------
+There are three kinds of entry in /sys/class/gpio:
+
+   -	Control interfaces used to get userspace control over GPIOs;
+
+   -	GPIOs themselves; and
+
+   -	GPIO controllers ("gpio_chip" instances).
+
+That's in addition to standard files including the "device" symlink.
+
+The control interfaces are write-only:
+
+    /sys/class/gpio/
+
+    	"export" ... Userspace may ask the kernel to export control of
+		a GPIO to userspace by writing its number to this file.
+
+		Example:  "echo 19 > export" will create a "gpio19" node
+		for GPIO #19, if that's not requested by kernel code.
+
+    	"unexport" ... Reverses the effect of exporting to userspace.
+
+		Example:  "echo 19 > unexport" will remove a "gpio19"
+		node exported using the "export" file.
+
+GPIO signals have paths like /sys/class/gpio/gpio42/ (for GPIO #42)
+and have the following read/write attributes:
+
+    /sys/class/gpio/gpioN/
+
+	"direction" ... reads as either "in" or "out".  This value may
+		normally be written.  Writing as "out" defaults to
+		initializing the value as low.  To ensure glitch free
+		operation, values "low" and "high" may be written to
+		configure the GPIO as an output with that initial value.
+
+		Note that this attribute *will not exist* if the kernel
+		doesn't support changing the direction of a GPIO, or
+		it was exported by kernel code that didn't explicitly
+		allow userspace to reconfigure this GPIO's direction.
+
+	"value" ... reads as either 0 (low) or 1 (high).  If the GPIO
+		is configured as an output, this value may be written;
+		any nonzero value is treated as high.
+
+GPIO controllers have paths like /sys/class/gpio/chipchip42/ (for the
+controller implementing GPIOs starting at #42) and have the following
+read-only attributes:
+
+    /sys/class/gpio/gpiochipN/
+
+    	"base" ... same as N, the first GPIO managed by this chip
+
+    	"label" ... provided for diagnostics (not always unique)
+
+    	"ngpio" ... how many GPIOs this manges (N to N + ngpio - 1)
+
+Board documentation should in most cases cover what GPIOs are used for
+what purposes.  However, those numbers are not always stable; GPIOs on
+a daughtercard might be different depending on the base board being used,
+or other cards in the stack.  In such cases, you may need to use the
+gpiochip nodes (possibly in conjunction with schematics) to determine
+the correct GPIO number to use for a given signal.
+
+
+Exporting from Kernel code
+--------------------------
+Kernel code can explicitly manage exports of GPIOs which have already been
+requested using gpio_request():
+
+	/* export the GPIO to userspace */
+	int gpio_export(unsigned gpio, bool direction_may_change);
+
+	/* reverse gpio_export() */
+	void gpio_unexport();
+
+After a kernel driver requests a GPIO, it may only be made available in
+the sysfs interface by gpio_export().  The driver can control whether the
+signal direction may change.  This helps drivers prevent userspace code
+from accidentally clobbering important system state.
+
+This explicit exporting can help with debugging (by making some kinds
+of experiments easier), or can provide an always-there interface that's
+suitable for documenting as part of a board support package.

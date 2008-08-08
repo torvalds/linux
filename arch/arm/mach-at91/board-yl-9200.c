@@ -180,7 +180,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return yl9200_nand_partition;
 }
 
-static struct at91_nand_data __initdata yl9200_nand_data = {
+static struct atmel_nand_data __initdata yl9200_nand_data = {
 	.ale		= 6,
 	.cle		= 7,
 	// .det_pin	= ... not connected

@@ -90,6 +90,8 @@
 
 #include <asm/io.h>
 
+#define DRV_NAME "opti621"
+
 #define READ_REG 0	/* index of Read cycle timing register */
 #define WRITE_REG 1	/* index of Write cycle timing register */
 #define CNTRL_REG 3	/* index of Control register */
@@ -200,7 +202,7 @@ static const struct ide_port_ops opti621_port_ops = {
 };
 
 static const struct ide_port_info opti621_chipset __devinitdata = {
-	.name		= "OPTI621/X",
+	.name		= DRV_NAME,
 	.enablebits	= { {0x45, 0x80, 0x00}, {0x40, 0x08, 0x00} },
 	.port_ops	= &opti621_port_ops,
 	.host_flags	= IDE_HFLAG_NO_DMA,
@@ -209,7 +211,7 @@ static const struct ide_port_info opti621_chipset __devinitdata = {
 
 static int __devinit opti621_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &opti621_chipset);
+	return ide_pci_init_one(dev, &opti621_chipset, NULL);
 }
 
 static const struct pci_device_id opti621_pci_tbl[] = {
@@ -223,6 +225,7 @@ static struct pci_driver driver = {
 	.name		= "Opti621_IDE",
 	.id_table	= opti621_pci_tbl,
 	.probe		= opti621_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init opti621_ide_init(void)
@@ -230,7 +233,13 @@ static int __init opti621_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit opti621_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(opti621_ide_init);
+module_exit(opti621_ide_exit);
 
 MODULE_AUTHOR("Jaromir Koutek, Jan Harkes, Mark Lord");
 MODULE_DESCRIPTION("PCI driver module for Opti621 IDE");

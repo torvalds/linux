@@ -143,7 +143,7 @@ static int ohci_hcd_sm501_drv_probe(struct platform_device *pdev)
 		goto err2;
 	}
 
-	hcd = usb_create_hcd(driver, &pdev->dev, pdev->dev.bus_id);
+	hcd = usb_create_hcd(driver, &pdev->dev, dev_name(&pdev->dev));
 	if (!hcd) {
 		retval = -ENOMEM;
 		goto err2;

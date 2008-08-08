@@ -24,9 +24,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("OV519 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -1375,7 +1372,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sif_mode;
 		cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
 	}
-	cam->dev_name = (char *) id->driver_info;
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->colors = sd_ctrls[SD_COLOR].qctrl.default_value;
@@ -2129,21 +2125,20 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x4052), DVNM("Creative Live! VISTA IM")},
-	{USB_DEVICE(0x041e, 0x405f), DVNM("Creative Live! VISTA VF0330")},
-	{USB_DEVICE(0x041e, 0x4060), DVNM("Creative Live! VISTA VF0350")},
-	{USB_DEVICE(0x041e, 0x4061), DVNM("Creative Live! VISTA VF0400")},
-	{USB_DEVICE(0x041e, 0x4064), DVNM("Creative Live! VISTA VF0420")},
-	{USB_DEVICE(0x041e, 0x4068), DVNM("Creative Live! VISTA VF0470")},
-	{USB_DEVICE(0x045e, 0x028c), DVNM("Microsoft xbox cam")},
-	{USB_DEVICE(0x054c, 0x0154), DVNM("Sonny toy4")},
-	{USB_DEVICE(0x054c, 0x0155), DVNM("Sonny toy5")},
-	{USB_DEVICE(0x05a9, 0x0519), DVNM("OmniVision")},
-	{USB_DEVICE(0x05a9, 0x0530), DVNM("OmniVision")},
-	{USB_DEVICE(0x05a9, 0x4519), DVNM("OmniVision")},
-	{USB_DEVICE(0x05a9, 0x8519), DVNM("OmniVision")},
+	{USB_DEVICE(0x041e, 0x4052)},
+	{USB_DEVICE(0x041e, 0x405f)},
+	{USB_DEVICE(0x041e, 0x4060)},
+	{USB_DEVICE(0x041e, 0x4061)},
+	{USB_DEVICE(0x041e, 0x4064)},
+	{USB_DEVICE(0x041e, 0x4068)},
+	{USB_DEVICE(0x045e, 0x028c)},
+	{USB_DEVICE(0x054c, 0x0154)},
+	{USB_DEVICE(0x054c, 0x0155)},
+	{USB_DEVICE(0x05a9, 0x0519)},
+	{USB_DEVICE(0x05a9, 0x0530)},
+	{USB_DEVICE(0x05a9, 0x4519)},
+	{USB_DEVICE(0x05a9, 0x8519)},
 	{}
 };
 #undef DVNAME
@@ -2169,7 +2164,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

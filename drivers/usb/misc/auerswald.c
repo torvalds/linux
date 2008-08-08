@@ -1421,7 +1421,8 @@ ofail:	mutex_unlock(&cp->mutex);
 
 
 /* IOCTL functions */
-static int auerchar_ioctl (struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long auerchar_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	pauerchar_t ccp = (pauerchar_t) file->private_data;
 	int ret = 0;
@@ -1452,7 +1453,7 @@ static int auerchar_ioctl (struct inode *inode, struct file *file, unsigned int 
 		mutex_unlock(&ccp->mutex);
                 return -ENODEV;
 	}
-
+	lock_kernel();
 	switch (cmd) {
 
 	/* return != 0 if Transmitt channel ready to send */
@@ -1547,9 +1548,10 @@ static int auerchar_ioctl (struct inode *inode, struct file *file, unsigned int 
 
 	default:
 		dbg ("IOCTL_AU_UNKNOWN");
-		ret = -ENOIOCTLCMD;
+		ret = -ENOTTY;
 		break;
         }
+        unlock_kernel();
 	/* release the mutexes */
 	mutex_unlock(&cp->mutex);
 	mutex_unlock(&ccp->mutex);
@@ -1860,7 +1862,7 @@ static const struct file_operations auerswald_fops =
 	.llseek =	no_llseek,
 	.read =		auerchar_read,
 	.write =        auerchar_write,
-	.ioctl =	auerchar_ioctl,
+	.unlocked_ioctl = auerchar_ioctl,
 	.open =		auerchar_open,
 	.release =	auerchar_release,
 };

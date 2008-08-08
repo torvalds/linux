@@ -38,6 +38,7 @@ struct isp1760_hcd {
 	unsigned		i_thresh;
 	unsigned long		reset_done;
 	unsigned long		next_statechange;
+	unsigned int		devflags;
 };
 
 static inline struct isp1760_hcd *hcd_to_priv(struct usb_hcd *hcd)
@@ -378,9 +379,31 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	int result;
-	u32 scratch;
+	u32 scratch, hwmode;
+
+	/* Setup HW Mode Control: This assumes a level active-low interrupt */
+	hwmode = HW_DATA_BUS_32BIT;
+
+	if (priv->devflags & ISP1760_FLAG_BUS_WIDTH_16)
+		hwmode &= ~HW_DATA_BUS_32BIT;
+	if (priv->devflags & ISP1760_FLAG_ANALOG_OC)
+		hwmode |= HW_ANA_DIGI_OC;
+	if (priv->devflags & ISP1760_FLAG_DACK_POL_HIGH)
+		hwmode |= HW_DACK_POL_HIGH;
+	if (priv->devflags & ISP1760_FLAG_DREQ_POL_HIGH)
+		hwmode |= HW_DREQ_POL_HIGH;
+
+	/*
+	 * We have to set this first in case we're in 16-bit mode.
+	 * Write it twice to ensure correct upper bits if switching
+	 * to 16-bit mode.
+	 */
+	isp1760_writel(hwmode, hcd->regs + HC_HW_MODE_CTRL);
+	isp1760_writel(hwmode, hcd->regs + HC_HW_MODE_CTRL);
 
 	isp1760_writel(0xdeadbabe, hcd->regs + HC_SCRATCH_REG);
+	/* Change bus pattern */
+	scratch = isp1760_readl(hcd->regs + HC_CHIP_ID_REG);
 	scratch = isp1760_readl(hcd->regs + HC_SCRATCH_REG);
 	if (scratch != 0xdeadbabe) {
 		printk(KERN_ERR "ISP1760: Scratch test failed.\n");
@@ -403,17 +426,29 @@ static int isp1760_hc_setup(struct usb_hcd *hcd)
 
 	/* Step 11 passed */
 
+	isp1760_info(priv, "bus width: %d, oc: %s\n",
+			   (priv->devflags & ISP1760_FLAG_BUS_WIDTH_16) ?
+			   16 : 32, (priv->devflags & ISP1760_FLAG_ANALOG_OC) ?
+			   "analog" : "digital");
+
+	/* ATL reset */
+	isp1760_writel(hwmode | ALL_ATX_RESET, hcd->regs + HC_HW_MODE_CTRL);
+	mdelay(10);
+	isp1760_writel(hwmode, hcd->regs + HC_HW_MODE_CTRL);
+
 	isp1760_writel(INTERRUPT_ENABLE_MASK, hcd->regs + HC_INTERRUPT_REG);
 	isp1760_writel(INTERRUPT_ENABLE_MASK, hcd->regs + HC_INTERRUPT_ENABLE);
 
-	/* ATL reset */
-	scratch = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
-	isp1760_writel(scratch | ALL_ATX_RESET, hcd->regs + HC_HW_MODE_CTRL);
-	mdelay(10);
-	isp1760_writel(scratch, hcd->regs + HC_HW_MODE_CTRL);
-
-	isp1760_writel(PORT1_POWER | PORT1_INIT2, hcd->regs + HC_PORT1_CTRL);
-	mdelay(10);
+	/*
+	 * PORT 1 Control register of the ISP1760 is the OTG control
+	 * register on ISP1761.
+	 */
+	if (!(priv->devflags & ISP1760_FLAG_ISP1761) &&
+	    !(priv->devflags & ISP1760_FLAG_PORT1_DIS)) {
+		isp1760_writel(PORT1_POWER | PORT1_INIT2,
+			       hcd->regs + HC_PORT1_CTRL);
+		mdelay(10);
+	}
 
 	priv->hcs_params = isp1760_readl(hcd->regs + HC_HCSPARAMS);
 
@@ -453,8 +488,7 @@ static int isp1760_run(struct usb_hcd *hcd)
 	hcd->state = HC_STATE_RUNNING;
 	isp1760_enable_interrupts(hcd);
 	temp = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
-	temp |= FINAL_HW_CONFIG;
-	isp1760_writel(temp, hcd->regs + HC_HW_MODE_CTRL);
+	isp1760_writel(temp | HW_GLOBAL_INTR_EN, hcd->regs + HC_HW_MODE_CTRL);
 
 	command = isp1760_readl(hcd->regs + HC_USBCMD);
 	command &= ~(CMD_LRESET|CMD_RESET);
@@ -782,8 +816,8 @@ static void enqueue_one_int_qtd(u32 int_regs, u32 payload,
 	qtd->status |= slot << 16;
 }
 
-void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
-		struct isp1760_qtd *qtd)
+static void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
+				  struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 skip_map, or_map;
@@ -816,8 +850,8 @@ void enqueue_an_ATL_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
 	isp1760_writel(buffstatus, hcd->regs + HC_BUFFER_STATUS_REG);
 }
 
-void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
-		struct isp1760_qtd *qtd)
+static void enqueue_an_INT_packet(struct usb_hcd *hcd, struct isp1760_qh *qh,
+				  struct isp1760_qtd *qtd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
 	u32 skip_map, or_map;
@@ -1592,7 +1626,7 @@ static int isp1760_urb_dequeue(struct usb_hcd *hcd, struct urb *urb,
 	struct inter_packet_info *ints;
 	u32 i;
 	u32 reg_base, or_reg, skip_reg;
-	int flags;
+	unsigned long flags;
 	struct ptd ptd;
 
 	switch (usb_pipetype(urb->pipe)) {
@@ -2061,7 +2095,7 @@ static void isp1760_endpoint_disable(struct usb_hcd *usb_hcd,
 	struct isp1760_hcd *priv = hcd_to_priv(usb_hcd);
 	struct isp1760_qh *qh;
 	struct isp1760_qtd *qtd;
-	u32 flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	qh = ep->hcpriv;
@@ -2112,6 +2146,7 @@ static int isp1760_get_frame(struct usb_hcd *hcd)
 static void isp1760_stop(struct usb_hcd *hcd)
 {
 	struct isp1760_hcd *priv = hcd_to_priv(hcd);
+	u32 temp;
 
 	isp1760_hub_control(hcd, ClearPortFeature, USB_PORT_FEAT_POWER,	1,
 			NULL, 0);
@@ -2120,7 +2155,8 @@ static void isp1760_stop(struct usb_hcd *hcd)
 	spin_lock_irq(&priv->lock);
 	ehci_reset(priv);
 	/* Disable IRQ */
-	isp1760_writel(HW_DATA_BUS_32BIT, hcd->regs + HC_HW_MODE_CTRL);
+	temp = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
+	isp1760_writel(temp &= ~HW_GLOBAL_INTR_EN, hcd->regs + HC_HW_MODE_CTRL);
 	spin_unlock_irq(&priv->lock);
 
 	isp1760_writel(0, hcd->regs + HC_CONFIGFLAG);
@@ -2128,10 +2164,11 @@ static void isp1760_stop(struct usb_hcd *hcd)
 
 static void isp1760_shutdown(struct usb_hcd *hcd)
 {
-	u32 command;
+	u32 command, temp;
 
 	isp1760_stop(hcd);
-	isp1760_writel(HW_DATA_BUS_32BIT, hcd->regs + HC_HW_MODE_CTRL);
+	temp = isp1760_readl(hcd->regs + HC_HW_MODE_CTRL);
+	isp1760_writel(temp &= ~HW_GLOBAL_INTR_EN, hcd->regs + HC_HW_MODE_CTRL);
 
 	command = isp1760_readl(hcd->regs + HC_USBCMD);
 	command &= ~CMD_RUN;
@@ -2183,7 +2220,8 @@ void deinit_kmem_cache(void)
 }
 
 struct usb_hcd *isp1760_register(u64 res_start, u64 res_len, int irq,
-		u64 irqflags, struct device *dev, const char *busname)
+		u64 irqflags, struct device *dev, const char *busname,
+		unsigned int devflags)
 {
 	struct usb_hcd *hcd;
 	struct isp1760_hcd *priv;
@@ -2195,11 +2233,12 @@ struct usb_hcd *isp1760_register(u64 res_start, u64 res_len, int irq,
 	/* prevent usb-core allocating DMA pages */
 	dev->dma_mask = NULL;
 
-	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev->bus_id);
+	hcd = usb_create_hcd(&isp1760_hc_driver, dev, dev_name(dev));
 	if (!hcd)
 		return ERR_PTR(-ENOMEM);
 
 	priv = hcd_to_priv(hcd);
+	priv->devflags = devflags;
 	init_memory(priv);
 	hcd->regs = ioremap(res_start, res_len);
 	if (!hcd->regs) {

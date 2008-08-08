@@ -144,7 +144,7 @@ static unsigned long clk_pxa3xx_hsio_getrate(struct clk *clk)
 	return hsio_clk;
 }
 
-static void clk_pxa3xx_cken_enable(struct clk *clk)
+void clk_pxa3xx_cken_enable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
 
@@ -154,7 +154,7 @@ static void clk_pxa3xx_cken_enable(struct clk *clk)
 		CKENB |= mask;
 }
 
-static void clk_pxa3xx_cken_disable(struct clk *clk)
+void clk_pxa3xx_cken_disable(struct clk *clk)
 {
 	unsigned long mask = 1ul << (clk->cken & 0x1f);
 
@@ -164,7 +164,7 @@ static void clk_pxa3xx_cken_disable(struct clk *clk)
 		CKENB &= ~mask;
 }
 
-static const struct clkops clk_pxa3xx_cken_ops = {
+const struct clkops clk_pxa3xx_cken_ops = {
 	.enable		= clk_pxa3xx_cken_enable,
 	.disable	= clk_pxa3xx_cken_disable,
 };
@@ -196,24 +196,6 @@ static const struct clkops clk_pout_ops = {
 	.disable	= clk_pout_disable,
 };
 
-#define PXA3xx_CKEN(_name, _cken, _rate, _delay, _dev)	\
-	{						\
-		.name	= _name,			\
-		.dev	= _dev,				\
-		.ops	= &clk_pxa3xx_cken_ops,		\
-		.rate	= _rate,			\
-		.cken	= CKEN_##_cken,			\
-		.delay	= _delay,			\
-	}
-
-#define PXA3xx_CK(_name, _cken, _ops, _dev)		\
-	{						\
-		.name	= _name,			\
-		.dev	= _dev,				\
-		.ops	= _ops,				\
-		.cken	= CKEN_##_cken,			\
-	}
-
 static struct clk pxa3xx_clks[] = {
 	{
 		.name           = "CLK_POUT",
@@ -244,7 +226,6 @@ static struct clk pxa3xx_clks[] = {
 
 	PXA3xx_CKEN("MMCCLK", MMC1, 19500000, 0, &pxa_device_mci.dev),
 	PXA3xx_CKEN("MMCCLK", MMC2, 19500000, 0, &pxa3xx_device_mci2.dev),
-	PXA3xx_CKEN("MMCCLK", MMC3, 19500000, 0, &pxa3xx_device_mci3.dev),
 };
 
 #ifdef CONFIG_PM

@@ -6,4 +6,4 @@
 # it under the terms of the GNU General Public License (version 2 only)
 # as published by the Free Software Foundation.
 
-obj-$(CONFIG_VIRTIO) += kvm_virtio.o
+obj-$(CONFIG_S390_GUEST) += kvm_virtio.o

@@ -278,4 +278,4 @@ static int __init hsmc_init(void)
 {
 	return platform_driver_register(&hsmc_driver);
 }
-arch_initcall(hsmc_init);
+core_initcall(hsmc_init);

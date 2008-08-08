@@ -30,6 +30,7 @@
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -40,6 +41,7 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
@@ -227,6 +229,22 @@ static int pxafb_bpp_to_lccr3(struct fb_var_screeninfo *var)
 	case 4:  ret = LCCR3_4BPP; break;
 	case 8:  ret = LCCR3_8BPP; break;
 	case 16: ret = LCCR3_16BPP; break;
+	case 24:
+		switch (var->red.length + var->green.length +
+				var->blue.length + var->transp.length) {
+		case 18: ret = LCCR3_18BPP_P | LCCR3_PDFOR_3; break;
+		case 19: ret = LCCR3_19BPP_P; break;
+		}
+		break;
+	case 32:
+		switch (var->red.length + var->green.length +
+				var->blue.length + var->transp.length) {
+		case 18: ret = LCCR3_18BPP | LCCR3_PDFOR_3; break;
+		case 19: ret = LCCR3_19BPP; break;
+		case 24: ret = LCCR3_24BPP | LCCR3_PDFOR_3; break;
+		case 25: ret = LCCR3_25BPP; break;
+		}
+		break;
 	}
 	return ret;
 }
@@ -345,6 +363,41 @@ static int pxafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 		var->green.offset = 5;  var->green.length = 6;
 		var->blue.offset  = 0;  var->blue.length  = 5;
 		var->transp.offset = var->transp.length = 0;
+	} else if (var->bits_per_pixel > 16) {
+		struct pxafb_mode_info *mode;
+
+		mode = pxafb_getmode(inf, var);
+		if (!mode)
+			return -EINVAL;
+
+		switch (mode->depth) {
+		case 18: /* RGB666 */
+			var->transp.offset = var->transp.length     = 0;
+			var->red.offset	   = 12; var->red.length    = 6;
+			var->green.offset  = 6;  var->green.length  = 6;
+			var->blue.offset   = 0;  var->blue.length   = 6;
+			break;
+		case 19: /* RGBT666 */
+			var->transp.offset = 18; var->transp.length = 1;
+			var->red.offset	   = 12; var->red.length    = 6;
+			var->green.offset  = 6;  var->green.length  = 6;
+			var->blue.offset   = 0;  var->blue.length   = 6;
+			break;
+		case 24: /* RGB888 */
+			var->transp.offset = var->transp.length     = 0;
+			var->red.offset	   = 16; var->red.length    = 8;
+			var->green.offset  = 8;  var->green.length  = 8;
+			var->blue.offset   = 0;  var->blue.length   = 8;
+			break;
+		case 25: /* RGBT888 */
+			var->transp.offset = 24; var->transp.length = 1;
+			var->red.offset	   = 16; var->red.length    = 8;
+			var->green.offset  = 8;  var->green.length  = 8;
+			var->blue.offset   = 0;  var->blue.length   = 8;
+			break;
+		default:
+			return -EINVAL;
+		}
 	} else {
 		var->red.offset = var->green.offset = 0;
 		var->blue.offset = var->transp.offset = 0;
@@ -376,7 +429,7 @@ static int pxafb_set_par(struct fb_info *info)
 	struct pxafb_info *fbi = (struct pxafb_info *)info;
 	struct fb_var_screeninfo *var = &info->var;
 
-	if (var->bits_per_pixel == 16)
+	if (var->bits_per_pixel >= 16)
 		fbi->fb.fix.visual = FB_VISUAL_TRUECOLOR;
 	else if (!fbi->cmap_static)
 		fbi->fb.fix.visual = FB_VISUAL_PSEUDOCOLOR;
@@ -391,7 +444,7 @@ static int pxafb_set_par(struct fb_info *info)
 
 	fbi->fb.fix.line_length = var->xres_virtual *
 				  var->bits_per_pixel / 8;
-	if (var->bits_per_pixel == 16)
+	if (var->bits_per_pixel >= 16)
 		fbi->palette_size = 0;
 	else
 		fbi->palette_size = var->bits_per_pixel == 1 ?
@@ -404,7 +457,7 @@ static int pxafb_set_par(struct fb_info *info)
 	 */
 	pxafb_set_truecolor(fbi->fb.fix.visual == FB_VISUAL_TRUECOLOR);
 
-	if (fbi->fb.var.bits_per_pixel == 16)
+	if (fbi->fb.var.bits_per_pixel >= 16)
 		fb_dealloc_cmap(&fbi->fb.cmap);
 	else
 		fb_alloc_cmap(&fbi->fb.cmap, 1<<fbi->fb.var.bits_per_pixel, 0);
@@ -831,6 +884,8 @@ static int pxafb_activate_var(struct fb_var_screeninfo *var,
 		case 4:
 		case 8:
 		case 16:
+		case 24:
+		case 32:
 			break;
 		default:
 			printk(KERN_ERR "%s: invalid bit depth %d\n",
@@ -968,6 +1023,11 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 
 	for (gpio = 58; ldd_bits; gpio++, ldd_bits--)
 		pxa_gpio_mode(gpio | GPIO_ALT_FN_2_OUT);
+	/* 18 bit interface */
+	if (fbi->fb.var.bits_per_pixel > 16) {
+		pxa_gpio_mode(86 | GPIO_ALT_FN_2_OUT);
+		pxa_gpio_mode(87 | GPIO_ALT_FN_2_OUT);
+	}
 	pxa_gpio_mode(GPIO74_LCD_FCLK_MD);
 	pxa_gpio_mode(GPIO75_LCD_LCLK_MD);
 	pxa_gpio_mode(GPIO76_LCD_PCLK_MD);
@@ -1058,7 +1118,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 {
 	u_int old_state;
 
-	down(&fbi->ctrlr_sem);
+	mutex_lock(&fbi->ctrlr_lock);
 
 	old_state = fbi->state;
 
@@ -1146,7 +1206,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		}
 		break;
 	}
-	up(&fbi->ctrlr_sem);
+	mutex_unlock(&fbi->ctrlr_lock);
 }
 
 /*
@@ -1276,7 +1336,7 @@ static int __devinit pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->dma_buff_phys = fbi->map_dma;
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
-	        pr_debug("pxafb: palette_mem_size = 0x%08lx\n", fbi->palette_size*sizeof(u16));
+	        pr_debug("pxafb: palette_mem_size = 0x%08x\n", fbi->palette_size*sizeof(u16));
 
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
@@ -1399,7 +1459,7 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, pxafb_task);
-	init_MUTEX(&fbi->ctrlr_sem);
+	mutex_init(&fbi->ctrlr_lock);
 	init_completion(&fbi->disable_done);
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 	init_completion(&fbi->command_done);

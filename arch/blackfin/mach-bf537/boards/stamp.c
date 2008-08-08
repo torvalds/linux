@@ -29,9 +29,12 @@
  */
 
 #include <linux/device.h>
+#include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
+#include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/plat-ram.h>
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
@@ -353,6 +356,84 @@ static struct platform_device net2272_bfin_device = {
 	.num_resources = ARRAY_SIZE(net2272_bfin_resources),
 	.resource = net2272_bfin_resources,
 };
+#endif
+
+#if defined(CONFIG_MTD_NAND_PLATFORM) || defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
+#ifdef CONFIG_MTD_PARTITIONS
+const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
+
+static struct mtd_partition bfin_plat_nand_partitions[] = {
+	{
+		.name   = "linux kernel",
+		.size   = 0x400000,
+		.offset = 0,
+	}, {
+		.name   = "file system",
+		.size   = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
+	},
+};
+#endif
+
+#define BFIN_NAND_PLAT_CLE 2
+#define BFIN_NAND_PLAT_ALE 1
+static void bfin_plat_nand_cmd_ctrl(struct mtd_info *mtd, int cmd, unsigned int ctrl)
+{
+	struct nand_chip *this = mtd->priv;
+
+	if (cmd == NAND_CMD_NONE)
+		return;
+
+	if (ctrl & NAND_CLE)
+		writeb(cmd, this->IO_ADDR_W + (1 << BFIN_NAND_PLAT_CLE));
+	else
+		writeb(cmd, this->IO_ADDR_W + (1 << BFIN_NAND_PLAT_ALE));
+}
+
+#define BFIN_NAND_PLAT_READY GPIO_PF3
+static int bfin_plat_nand_dev_ready(struct mtd_info *mtd)
+{
+	return gpio_get_value(BFIN_NAND_PLAT_READY);
+}
+
+static struct platform_nand_data bfin_plat_nand_data = {
+	.chip = {
+		.chip_delay = 30,
+#ifdef CONFIG_MTD_PARTITIONS
+		.part_probe_types = part_probes,
+		.partitions = bfin_plat_nand_partitions,
+		.nr_partitions = ARRAY_SIZE(bfin_plat_nand_partitions),
+#endif
+	},
+	.ctrl = {
+		.cmd_ctrl  = bfin_plat_nand_cmd_ctrl,
+		.dev_ready = bfin_plat_nand_dev_ready,
+	},
+};
+
+#define MAX(x, y) (x > y ? x : y)
+static struct resource bfin_plat_nand_resources = {
+	.start = 0x20212000,
+	.end   = 0x20212000 + (1 << MAX(BFIN_NAND_PLAT_CLE, BFIN_NAND_PLAT_ALE)),
+	.flags = IORESOURCE_IO,
+};
+
+static struct platform_device bfin_async_nand_device = {
+	.name = "gen_nand",
+	.id = -1,
+	.num_resources = 1,
+	.resource = &bfin_plat_nand_resources,
+	.dev = {
+		.platform_data = &bfin_plat_nand_data,
+	},
+};
+
+static void bfin_plat_nand_init(void)
+{
+	gpio_request(BFIN_NAND_PLAT_READY, "bfin_nand_plat");
+}
+#else
+static void bfin_plat_nand_init(void) {}
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
@@ -780,7 +861,7 @@ static struct platform_device bfin_sport1_uart_device = {
 #endif
 
 #if defined(CONFIG_PATA_PLATFORM) || defined(CONFIG_PATA_PLATFORM_MODULE)
-#define PATA_INT	55
+#define PATA_INT	IRQ_PF5
 
 static struct pata_platform_info bfin_pata_platform_data = {
 	.ioport_shift = 1,
@@ -922,6 +1003,10 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 	&bfin_gpios_device,
 
+#if defined(CONFIG_MTD_NAND_PLATFORM) || defined(CONFIG_MTD_NAND_PLATFORM_MODULE)
+	&bfin_async_nand_device,
+#endif
+
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 	&stamp_flash_device,
 #endif
@@ -936,6 +1021,7 @@ static int __init stamp_init(void)
 				ARRAY_SIZE(bfin_i2c_board_info));
 #endif
 
+	bfin_plat_nand_init();
 	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
 

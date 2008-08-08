@@ -181,7 +181,7 @@ void omap1510_fpga_init_irq(void)
 	 */
 	omap_request_gpio(13);
 	omap_set_gpio_direction(13, 1);
-	set_irq_type(OMAP_GPIO_IRQ(13), IRQT_RISING);
+	set_irq_type(OMAP_GPIO_IRQ(13), IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(OMAP1510_INT_FPGA, innovator_fpga_IRQ_demux);
 }
 

@@ -29,22 +29,34 @@
 #include <linux/if_tr.h>
 #endif
 
-static struct list_head *
+static struct ctl_table_set *
 net_ctl_header_lookup(struct ctl_table_root *root, struct nsproxy *namespaces)
 {
-	return &namespaces->net_ns->sysctl_table_headers;
+	return &namespaces->net_ns->sysctls;
+}
+
+static int is_seen(struct ctl_table_set *set)
+{
+	return &current->nsproxy->net_ns->sysctls == set;
+}
+
+/* Return standard mode bits for table entry. */
+static int net_ctl_permissions(struct ctl_table_root *root,
+			       struct nsproxy *nsproxy,
+			       struct ctl_table *table)
+{
+	/* Allow network administrator to have same access as root. */
+	if (capable(CAP_NET_ADMIN)) {
+		int mode = (table->mode >> 6) & 7;
+		return (mode << 6) | (mode << 3) | mode;
+	}
+	return table->mode;
 }
 
 static struct ctl_table_root net_sysctl_root = {
 	.lookup = net_ctl_header_lookup,
+	.permissions = net_ctl_permissions,
 };
-
-static LIST_HEAD(net_sysctl_ro_tables);
-static struct list_head *net_ctl_ro_header_lookup(struct ctl_table_root *root,
-		struct nsproxy *namespaces)
-{
-	return &net_sysctl_ro_tables;
-}
 
 static int net_ctl_ro_header_perms(struct ctl_table_root *root,
 		struct nsproxy *namespaces, struct ctl_table *table)
@@ -56,19 +68,20 @@ static int net_ctl_ro_header_perms(struct ctl_table_root *root,
 }
 
 static struct ctl_table_root net_sysctl_ro_root = {
-	.lookup = net_ctl_ro_header_lookup,
 	.permissions = net_ctl_ro_header_perms,
 };
 
 static int sysctl_net_init(struct net *net)
 {
-	INIT_LIST_HEAD(&net->sysctl_table_headers);
+	setup_sysctl_set(&net->sysctls,
+			 &net_sysctl_ro_root.default_set,
+			 is_seen);
 	return 0;
 }
 
 static void sysctl_net_exit(struct net *net)
 {
-	WARN_ON(!list_empty(&net->sysctl_table_headers));
+	WARN_ON(!list_empty(&net->sysctls.list));
 	return;
 }
 
@@ -84,6 +97,7 @@ static __init int sysctl_init(void)
 	if (ret)
 		goto out;
 	register_sysctl_root(&net_sysctl_root);
+	setup_sysctl_set(&net_sysctl_ro_root.default_set, NULL, NULL);
 	register_sysctl_root(&net_sysctl_ro_root);
 out:
 	return ret;

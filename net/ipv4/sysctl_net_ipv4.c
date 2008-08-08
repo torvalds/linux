@@ -401,13 +401,6 @@ static struct ctl_table ipv4_table[] = {
 		.proc_handler	= &ipv4_local_port_range,
 		.strategy	= &ipv4_sysctl_local_port_range,
 	},
-	{
-		.ctl_name	= NET_IPV4_ROUTE,
-		.procname	= "route",
-		.maxlen		= 0,
-		.mode		= 0555,
-		.child		= ipv4_route_table
-	},
 #ifdef CONFIG_IP_MULTICAST
 	{
 		.ctl_name	= NET_IPV4_IGMP_MAX_MEMBERSHIPS,

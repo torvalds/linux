@@ -1841,7 +1841,7 @@ static struct file_system_type ubifs_fs_type = {
 /*
  * Inode slab cache constructor.
  */
-static void inode_slab_ctor(struct kmem_cache *cachep, void *obj)
+static void inode_slab_ctor(void *obj)
 {
 	struct ubifs_inode *ui = obj;
 	inode_init_once(&ui->vfs_inode);

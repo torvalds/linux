@@ -226,7 +226,7 @@ static void ep93xx_gpio_irq_ack(unsigned int irq)
 	int port = line >> 3;
 	int port_mask = 1 << (line & 7);
 
-	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE) {
+	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH) {
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
 		ep93xx_gpio_update_int_params(port);
 	}
@@ -240,7 +240,7 @@ static void ep93xx_gpio_irq_mask_ack(unsigned int irq)
 	int port = line >> 3;
 	int port_mask = 1 << (line & 7);
 
-	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQT_BOTHEDGE)
+	if ((irq_desc[irq].status & IRQ_TYPE_SENSE_MASK) == IRQ_TYPE_EDGE_BOTH)
 		gpio_int_type2[port] ^= port_mask; /* switch edge direction */
 
 	gpio_int_unmasked[port] &= ~port_mask;
@@ -283,27 +283,27 @@ static int ep93xx_gpio_irq_type(unsigned int irq, unsigned int type)
 	gpio_direction_input(gpio);
 
 	switch (type) {
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		gpio_int_type1[port] |= port_mask;
 		gpio_int_type2[port] |= port_mask;
 		desc->handle_irq = handle_edge_irq;
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		gpio_int_type1[port] |= port_mask;
 		gpio_int_type2[port] &= ~port_mask;
 		desc->handle_irq = handle_edge_irq;
 		break;
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		gpio_int_type1[port] &= ~port_mask;
 		gpio_int_type2[port] |= port_mask;
 		desc->handle_irq = handle_level_irq;
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		gpio_int_type1[port] &= ~port_mask;
 		gpio_int_type2[port] &= ~port_mask;
 		desc->handle_irq = handle_level_irq;
 		break;
-	case IRQT_BOTHEDGE:
+	case IRQ_TYPE_EDGE_BOTH:
 		gpio_int_type1[port] |= port_mask;
 		/* set initial polarity based on current input level */
 		if (gpio_get_value(gpio))
