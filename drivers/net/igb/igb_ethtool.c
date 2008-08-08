@@ -1750,15 +1750,6 @@ static int igb_wol_exclusion(struct igb_adapter *adapter,
 		/* return success for non excluded adapter ports */
 		retval = 0;
 		break;
-	case E1000_DEV_ID_82576_QUAD_COPPER:
-		/* quad port adapters only support WoL on port A */
-		if (!(adapter->flags & IGB_FLAG_QUAD_PORT_A)) {
-			wol->supported = 0;
-			break;
-		}
-		/* return success for non excluded adapter ports */
-		retval = 0;
-		break;
 	default:
 		/* dual port cards only support WoL on port A from now on
 		 * unless it was enabled in the eeprom for port B
