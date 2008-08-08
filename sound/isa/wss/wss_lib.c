@@ -282,7 +282,7 @@ static void snd_wss_debug(struct snd_wss *chip)
 	printk(KERN_DEBUG
 		"CS4231 REGS:      INDEX = 0x%02x  "
 		"                 STATUS = 0x%02x\n",
-					wss_inb(chip, CS4231P(REGSEL),
+					wss_inb(chip, CS4231P(REGSEL)),
 					wss_inb(chip, CS4231P(STATUS)));
 	printk(KERN_DEBUG
 		"  0x00: left input      = 0x%02x  "
