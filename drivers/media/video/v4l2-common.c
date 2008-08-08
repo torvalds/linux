@@ -187,9 +187,10 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char *mpeg_audio_encoding[] = {
-		"Layer I",
-		"Layer II",
-		"Layer III",
+		"MPEG-1 Layer I",
+		"MPEG-1 Layer II",
+		"MPEG-1 Layer III",
+		"MPEG-4 AAC",
 		NULL
 	};
 	static const char *mpeg_audio_l1_bitrate[] = {
@@ -271,6 +272,7 @@ const char **v4l2_ctrl_get_menu(u32 id)
 	static const char *mpeg_video_encoding[] = {
 		"MPEG-1",
 		"MPEG-2",
+		"MPEG-4 AVC",
 		NULL
 	};
 	static const char *mpeg_video_aspect[] = {
@@ -358,7 +360,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	/* MPEG controls */
 	case V4L2_CID_MPEG_CLASS: 		name = "MPEG Encoder Controls"; break;
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ: name = "Audio Sampling Frequency"; break;
-	case V4L2_CID_MPEG_AUDIO_ENCODING: 	name = "Audio Encoding Layer"; break;
+	case V4L2_CID_MPEG_AUDIO_ENCODING: 	name = "Audio Encoding"; break;
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	name = "Audio Layer I Bitrate"; break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	name = "Audio Layer II Bitrate"; break;
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	name = "Audio Layer III Bitrate"; break;
@@ -493,7 +495,7 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_1,
-				V4L2_MPEG_AUDIO_ENCODING_LAYER_3, 1,
+				V4L2_MPEG_AUDIO_ENCODING_AAC, 1,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 		return v4l2_ctrl_query_fill(qctrl,
@@ -535,7 +537,7 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_MPEG_VIDEO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_1,
-				V4L2_MPEG_VIDEO_ENCODING_MPEG_2, 1,
+				V4L2_MPEG_VIDEO_ENCODING_MPEG_4_AVC, 1,
 				V4L2_MPEG_VIDEO_ENCODING_MPEG_2);
 	case V4L2_CID_MPEG_VIDEO_ASPECT:
 		return v4l2_ctrl_query_fill(qctrl,
