@@ -305,8 +305,6 @@ static long s3c2410wdt_ioctl(struct file *file,	unsigned int cmd,
 	int new_margin;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &s3c2410_wdt_ident,
 			sizeof(s3c2410_wdt_ident)) ? -EFAULT : 0;
@@ -325,6 +323,8 @@ static long s3c2410wdt_ioctl(struct file *file,	unsigned int cmd,
 		return put_user(tmr_margin, p);
 	case WDIOC_GETTIMEOUT:
 		return put_user(tmr_margin, p);
+	default:
+		return -ENOTTY;
 	}
 }
 

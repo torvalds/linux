@@ -381,7 +381,7 @@ static ssize_t wdtpci_write(struct file *file, const char __user *buf,
 
 			for (i = 0; i != count; i++) {
 				char c;
-				if (get_user(c, buf+i))
+				if (get_user(c, buf + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_close = 42;
@@ -428,8 +428,6 @@ static long wdtpci_ioctl(struct file *file, unsigned int cmd,
 #endif /* CONFIG_WDT_501_PCI */
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
 		return copy_to_user(argp, &ident, sizeof(ident)) ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
@@ -449,7 +447,9 @@ static long wdtpci_ioctl(struct file *file, unsigned int cmd,
 		/* Fall */
 	case WDIOC_GETTIMEOUT:
 		return put_user(heartbeat, p);
-		}
+	default:
+		return -ENOTTY;
+	}
 }
 
 /**

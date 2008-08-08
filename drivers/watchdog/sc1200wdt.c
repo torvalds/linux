@@ -196,7 +196,6 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 	};
 
 	switch (cmd) {
-
 	case WDIOC_GETSUPPORT:
 		if (copy_to_user(argp, &ident, sizeof ident))
 			return -EFAULT;
@@ -207,24 +206,6 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, p);
-
-	case WDIOC_KEEPALIVE:
-		sc1200wdt_write_data(WDTO, timeout);
-		return 0;
-
-	case WDIOC_SETTIMEOUT:
-		if (get_user(new_timeout, p))
-			return -EFAULT;
-		/* the API states this is given in secs */
-		new_timeout /= 60;
-		if (new_timeout < 0 || new_timeout > MAX_TIMEOUT)
-			return -EINVAL;
-		timeout = new_timeout;
-		sc1200wdt_write_data(WDTO, timeout);
-		/* fall through and return the new timeout */
-
-	case WDIOC_GETTIMEOUT:
-		return put_user(timeout * 60, p);
 
 	case WDIOC_SETOPTIONS:
 	{
@@ -245,6 +226,24 @@ static long sc1200wdt_ioctl(struct file *file, unsigned int cmd,
 
 		return retval;
 	}
+	case WDIOC_KEEPALIVE:
+		sc1200wdt_write_data(WDTO, timeout);
+		return 0;
+
+	case WDIOC_SETTIMEOUT:
+		if (get_user(new_timeout, p))
+			return -EFAULT;
+		/* the API states this is given in secs */
+		new_timeout /= 60;
+		if (new_timeout < 0 || new_timeout > MAX_TIMEOUT)
+			return -EINVAL;
+		timeout = new_timeout;
+		sc1200wdt_write_data(WDTO, timeout);
+		/* fall through and return the new timeout */
+
+	case WDIOC_GETTIMEOUT:
+		return put_user(timeout * 60, p);
+
 	default:
 		return -ENOTTY;
 	}
@@ -280,7 +279,7 @@ static ssize_t sc1200wdt_write(struct file *file, const char __user *data,
 			for (i = 0; i != len; i++) {
 				char c;
 
-				if (get_user(c, data+i))
+				if (get_user(c, data + i))
 					return -EFAULT;
 				if (c == 'V')
 					expect_close = 42;
