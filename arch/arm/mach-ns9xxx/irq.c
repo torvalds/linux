@@ -12,10 +12,9 @@
 #include <linux/kernel_stat.h>
 #include <asm/io.h>
 #include <asm/mach/irq.h>
-#include <asm/mach-types.h>
-#include <asm/arch/regs-sys-common.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/board.h>
+#include <mach/regs-sys-common.h>
+#include <mach/irqs.h>
+#include <mach/board.h>
 
 #include "generic.h"
 

@@ -19,7 +19,7 @@
 #define DC21285_PCI_MEM			0x80000000
 
 #ifndef __ASSEMBLY__
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #define DC21285_IO(x)		((volatile unsigned long *)(ARMCSR_BASE+(x)))
 #else
 #define DC21285_IO(x)		(x)

@@ -6,7 +6,7 @@ typedef unsigned int dmach_t;
 #include <linux/spinlock.h>
 #include <asm/system.h>
 #include <asm/scatterlist.h>
-#include <asm/arch/dma.h>
+#include <mach/dma.h>
 
 /*
  * This is the maximum virtual address which can be DMA'd from.

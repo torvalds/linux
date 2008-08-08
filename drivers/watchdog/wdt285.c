@@ -28,8 +28,8 @@
 #include <linux/interrupt.h>
 #include <linux/uaccess.h>
 #include <linux/irq.h>
+#include <mach/hardware.h>
 
-#include <asm/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/dec21285.h>
 

@@ -20,9 +20,9 @@
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/cpu.h>
 
 #include "atmel_spi.h"
 

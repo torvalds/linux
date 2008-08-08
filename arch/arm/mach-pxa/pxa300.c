@@ -17,9 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/pxa3xx-regs.h>
-#include <asm/arch/mfp-pxa300.h>
+#include <mach/hardware.h>
+#include <mach/pxa3xx-regs.h>
+#include <mach/mfp-pxa300.h>
 
 #include "generic.h"
 #include "devices.h"

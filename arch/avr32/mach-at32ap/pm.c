@@ -14,8 +14,8 @@
 #include <asm/cacheflush.h>
 #include <asm/sysreg.h>
 
-#include <asm/arch/pm.h>
-#include <asm/arch/sram.h>
+#include <mach/pm.h>
+#include <mach/sram.h>
 
 /* FIXME: This is only valid for AP7000 */
 #define SDRAMC_BASE	0xfff03800

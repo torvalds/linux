@@ -14,7 +14,7 @@
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
-#include <asm/arch/smp.h>
+#include <mach/smp.h>
 
 #ifndef CONFIG_SMP
 # error "<asm/smp.h> included in non-SMP build"

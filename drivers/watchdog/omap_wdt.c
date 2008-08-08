@@ -42,9 +42,8 @@
 #include <linux/bitops.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/hardware.h>
-
-#include <asm/arch/prcm.h>
+#include <mach/hardware.h>
+#include <mach/prcm.h>
 
 #include "omap_wdt.h"
 

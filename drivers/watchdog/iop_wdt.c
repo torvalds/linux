@@ -32,7 +32,7 @@
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
 #include <linux/uaccess.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 static unsigned long wdt_status;

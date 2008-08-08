@@ -22,20 +22,6 @@ extern void init_FIQ(void);
 extern int show_fiq_list(struct seq_file *, void *);
 
 /*
- * Obsolete inline function for calling irq descriptor handlers.
- */
-static inline void desc_handle_irq(unsigned int irq, struct irq_desc *desc)
-{
-	desc->handle_irq(irq, desc);
-}
-
-void set_irq_flags(unsigned int irq, unsigned int flags);
-
-#define IRQF_VALID	(1 << 0)
-#define IRQF_PROBE	(1 << 1)
-#define IRQF_NOAUTOEN	(1 << 2)
-
-/*
  * This is for easy migration, but should be changed in the source
  */
 #define do_bad_IRQ(irq,desc)				\
@@ -44,11 +30,5 @@ do {							\
 	handle_bad_irq(irq, desc);			\
 	spin_unlock(&desc->lock);			\
 } while(0)
-
-extern unsigned long irq_err_count;
-static inline void ack_bad_irq(int irq)
-{
-	irq_err_count++;
-}
 
 #endif

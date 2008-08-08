@@ -29,8 +29,7 @@
 #include <linux/watchdog.h>
 #include <linux/timer.h>
 #include <linux/uaccess.h>
-
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #define WDT_VERSION	"0.3"
 #define PFX		"ep93xx_wdt: "

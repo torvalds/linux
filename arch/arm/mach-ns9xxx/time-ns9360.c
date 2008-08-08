@@ -15,10 +15,10 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 
-#include <asm/arch/processor-ns9360.h>
-#include <asm/arch/regs-sys-ns9360.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/system.h>
+#include <mach/processor-ns9360.h>
+#include <mach/regs-sys-ns9360.h>
+#include <mach/irqs.h>
+#include <mach/system.h>
 #include "generic.h"
 
 #define TIMER_CLOCKSOURCE 0

@@ -25,6 +25,6 @@ extern pg_data_t discontig_node_data[];
  */
 #define NODE_MEM_MAP(nid)	(NODE_DATA(nid)->node_mem_map)
 
-#include <asm/arch/memory.h>
+#include <mach/memory.h>
 
 #endif

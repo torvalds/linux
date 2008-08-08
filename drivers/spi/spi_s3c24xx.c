@@ -25,11 +25,11 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c24xx/regs-spi.h>
-#include <asm/arch/spi.h>
+#include <mach/spi.h>
 
 struct s3c24xx_spi {
 	/* bitbang has to be first */

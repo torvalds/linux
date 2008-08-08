@@ -19,7 +19,7 @@
 #define _ADMA_H
 #include <linux/types.h>
 #include <linux/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iop_adma.h>
 
 /* Memory copy units */

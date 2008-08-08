@@ -21,10 +21,10 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 #include "clock.h"
 
 /*forward declaration*/

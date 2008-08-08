@@ -25,7 +25,7 @@
 #ifndef __ASM_ARM_HARDWARE_IOP3XX_GPIO_H
 #define __ASM_ARM_HARDWARE_IOP3XX_GPIO_H
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm-generic/gpio.h>
 
 #define IOP3XX_N_GPIOS	8

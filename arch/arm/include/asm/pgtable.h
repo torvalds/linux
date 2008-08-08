@@ -20,7 +20,7 @@
 #else
 
 #include <asm/memory.h>
-#include <asm/arch/vmalloc.h>
+#include <mach/vmalloc.h>
 #include <asm/pgtable-hwdef.h>
 
 /*

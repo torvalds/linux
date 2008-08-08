@@ -24,8 +24,7 @@
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
-
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #define MODULE_NAME "DAVINCI-WDT: "
 

@@ -21,9 +21,9 @@
 #include <linux/spinlock.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
-#include <asm/hardware.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/iomux-mx3.h>
+#include <mach/hardware.h>
+#include <mach/gpio.h>
+#include <mach/iomux-mx3.h>
 
 /*
  * IOMUX register (base) addresses

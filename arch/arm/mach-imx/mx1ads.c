@@ -16,7 +16,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
@@ -25,8 +25,8 @@
 #include <asm/mach-types.h>
 
 #include <asm/mach/arch.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/imx-uart.h>
+#include <mach/mmc.h>
+#include <mach/imx-uart.h>
 #include <linux/interrupt.h>
 #include "generic.h"
 

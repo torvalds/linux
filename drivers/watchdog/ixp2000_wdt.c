@@ -26,8 +26,7 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/uaccess.h>
-
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 static int nowayout = WATCHDOG_NOWAYOUT;
 static unsigned int heartbeat = 60;	/* (secs) Default is 1 minute */

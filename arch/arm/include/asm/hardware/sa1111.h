@@ -12,7 +12,7 @@
 #ifndef _ASM_ARCH_SA1111
 #define _ASM_ARCH_SA1111
 
-#include <asm/arch/bitfield.h>
+#include <mach/bitfield.h>
 
 /*
  * The SA1111 is always located at virtual 0xf4000000, and is always

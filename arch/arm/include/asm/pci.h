@@ -4,7 +4,7 @@
 #ifdef __KERNEL__
 #include <asm-generic/pci-dma-compat.h>
 
-#include <asm/hardware.h> /* for PCIBIOS_MIN_* */
+#include <mach/hardware.h> /* for PCIBIOS_MIN_* */
 
 #define pcibios_scan_all_fns(a, b)	0
 

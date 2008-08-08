@@ -1,7 +1,7 @@
 #ifndef __ASM_ARM_IRQ_H
 #define __ASM_ARM_IRQ_H
 
-#include <asm/arch/irqs.h>
+#include <mach/irqs.h>
 
 #ifndef irq_canonicalize
 #define irq_canonicalize(i)	(i)
