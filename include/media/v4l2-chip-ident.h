@@ -72,6 +72,10 @@ enum {
 	/* module cs5345: just ident 5345 */
 	V4L2_IDENT_CS5345 = 5345,
 
+	/* module saa6752hs: reserved range 6750-6759 */
+	V4L2_IDENT_SAA6752HS = 6752,
+	V4L2_IDENT_SAA6752HS_AC3 = 6753,
+
 	/* module wm8739: just ident 8739 */
 	V4L2_IDENT_WM8739 = 8739,
 

@@ -1,3 +1,27 @@
+ /*
+    saa6752hs - i2c-driver for the saa6752hs by Philips
+
+    Copyright (C) 2004 Andrew de Quincey
+
+    AC-3 support:
+
+    Copyright (C) 2008 Hans Verkuil <hverkuil@xs4all.nl>
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License vs published by
+    the Free Software Foundation; either version 2 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 675 Mvss Ave, Cambridge, MA 02139, USA.
+  */
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
@@ -10,6 +34,8 @@
 #include <linux/types.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
+#include <media/v4l2-i2c-drv-legacy.h>
 #include <linux/init.h>
 #include <linux/crc32.h>
 
@@ -27,9 +53,6 @@ MODULE_DESCRIPTION("device driver for saa6752hs MPEG2 encoder");
 MODULE_AUTHOR("Andrew de Quincey");
 MODULE_LICENSE("GPL");
 
-static struct i2c_driver driver;
-static struct i2c_client client_template;
-
 enum saa6752hs_videoformat {
 	SAA6752HS_VF_D1 = 0,    /* standard D1 video format: 720x576 */
 	SAA6752HS_VF_2_3_D1 = 1,/* 2/3D1 video format: 480x576 */
@@ -46,7 +69,9 @@ struct saa6752hs_mpeg_params {
 	__u16				ts_pid_pcr;
 
 	/* audio */
-	enum v4l2_mpeg_audio_l2_bitrate au_l2_bitrate;
+	enum v4l2_mpeg_audio_encoding    au_encoding;
+	enum v4l2_mpeg_audio_l2_bitrate  au_l2_bitrate;
+	enum v4l2_mpeg_audio_ac3_bitrate au_ac3_bitrate;
 
 	/* video */
 	enum v4l2_mpeg_video_aspect	vi_aspect;
@@ -70,7 +95,9 @@ static const struct v4l2_format v4l2_format_table[] =
 };
 
 struct saa6752hs_state {
-	struct i2c_client             client;
+	int 			      chip;
+	u32 			      revision;
+	int 			      has_ac3;
 	struct saa6752hs_mpeg_params  params;
 	enum saa6752hs_videoformat    video_format;
 	v4l2_std_id                   standard;
@@ -157,7 +184,9 @@ static struct saa6752hs_mpeg_params param_defaults =
 	.vi_bitrate_peak = 6000,
 	.vi_bitrate_mode = V4L2_MPEG_VIDEO_BITRATE_MODE_VBR,
 
+	.au_encoding     = V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 	.au_l2_bitrate   = V4L2_MPEG_AUDIO_L2_BITRATE_256K,
+	.au_ac3_bitrate  = V4L2_MPEG_AUDIO_AC3_BITRATE_384K,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -230,8 +259,9 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 
 
 static int saa6752hs_set_bitrate(struct i2c_client* client,
-				 struct saa6752hs_mpeg_params* params)
+				 struct saa6752hs_state *h)
 {
+	struct saa6752hs_mpeg_params *params = &h->params;
 	u8 buf[3];
 	int tot_bitrate;
 
@@ -263,11 +293,22 @@ static int saa6752hs_set_bitrate(struct i2c_client* client,
 		tot_bitrate = params->vi_bitrate;
 	}
 
+	/* set the audio encoding */
+	buf[0] = 0x93;
+	if (params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3)
+		buf[1] = 1;
+	else
+		buf[1] = 0;
+	i2c_master_send(client, buf, 2);
+
 	/* set the audio bitrate */
 	buf[0] = 0x94;
-	buf[1] = (V4L2_MPEG_AUDIO_L2_BITRATE_256K == params->au_l2_bitrate) ? 0 : 1;
+	if (params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3)
+		buf[1] = V4L2_MPEG_AUDIO_AC3_BITRATE_384K == params->au_ac3_bitrate;
+	else
+		buf[1] = V4L2_MPEG_AUDIO_L2_BITRATE_384K == params->au_l2_bitrate;
+	tot_bitrate += buf[1] ? 384 : 256;
 	i2c_master_send(client, buf, 2);
-	tot_bitrate += (V4L2_MPEG_AUDIO_L2_BITRATE_256K == params->au_l2_bitrate) ? 256 : 384;
 
 	/* Note: the total max bitrate is determined by adding the video and audio
 	   bitrates together and also adding an extra 768kbit/s to stay on the
@@ -332,7 +373,7 @@ static void saa6752hs_set_subsampling(struct i2c_client* client,
 }
 
 
-static int handle_ctrl(struct saa6752hs_mpeg_params *params,
+static int handle_ctrl(int has_ac3, struct saa6752hs_mpeg_params *params,
 		struct v4l2_ext_control *ctrl, unsigned int cmd)
 {
 	int old = 0, new;
@@ -379,8 +420,9 @@ static int handle_ctrl(struct saa6752hs_mpeg_params *params,
 			params->ts_pid_pcr = new;
 			break;
 		case V4L2_CID_MPEG_AUDIO_ENCODING:
-			old = V4L2_MPEG_AUDIO_ENCODING_LAYER_2;
-			if (set && new != old)
+			old = params->au_encoding;
+			if (set && new != V4L2_MPEG_AUDIO_ENCODING_LAYER_2 &&
+			    (!has_ac3 || new != V4L2_MPEG_AUDIO_ENCODING_AC3))
 				return -ERANGE;
 			new = old;
 			break;
@@ -394,6 +436,19 @@ static int handle_ctrl(struct saa6752hs_mpeg_params *params,
 			else
 				new = V4L2_MPEG_AUDIO_L2_BITRATE_384K;
 			params->au_l2_bitrate = new;
+			break;
+		case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+			if (!has_ac3)
+				return -EINVAL;
+			old = params->au_ac3_bitrate;
+			if (set && new != V4L2_MPEG_AUDIO_AC3_BITRATE_256K &&
+				   new != V4L2_MPEG_AUDIO_AC3_BITRATE_384K)
+				return -ERANGE;
+			if (new <= V4L2_MPEG_AUDIO_AC3_BITRATE_256K)
+				new = V4L2_MPEG_AUDIO_AC3_BITRATE_256K;
+			else
+				new = V4L2_MPEG_AUDIO_AC3_BITRATE_384K;
+			params->au_ac3_bitrate = new;
 			break;
 		case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 			old = V4L2_MPEG_AUDIO_SAMPLING_FREQ_48000;
@@ -448,23 +503,33 @@ static int handle_ctrl(struct saa6752hs_mpeg_params *params,
 	return 0;
 }
 
-static int saa6752hs_qctrl(struct saa6752hs_mpeg_params *params,
+static int saa6752hs_qctrl(struct saa6752hs_state *h,
 		struct v4l2_queryctrl *qctrl)
 {
+	struct saa6752hs_mpeg_params *params = &h->params;
 	int err;
 
 	switch (qctrl->id) {
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
-				V4L2_MPEG_AUDIO_ENCODING_LAYER_2, 1,
-				V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
+				h->has_ac3 ? V4L2_MPEG_AUDIO_ENCODING_AC3 :
+					V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
+				1, V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
 
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_L2_BITRATE_256K,
 				V4L2_MPEG_AUDIO_L2_BITRATE_384K, 1,
 				V4L2_MPEG_AUDIO_L2_BITRATE_256K);
+
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		if (!h->has_ac3)
+			return -EINVAL;
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_256K,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_384K, 1,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_256K);
 
 	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ:
 		return v4l2_ctrl_query_fill(qctrl,
@@ -512,38 +577,50 @@ static int saa6752hs_qctrl(struct saa6752hs_mpeg_params *params,
 	return -EINVAL;
 }
 
-static int saa6752hs_qmenu(struct saa6752hs_mpeg_params *params,
+static int saa6752hs_qmenu(struct saa6752hs_state *h,
 		struct v4l2_querymenu *qmenu)
 {
-	static const char *mpeg_audio_l2_bitrate[] = {
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"",
-		"256 kbps",
-		"",
-		"384 kbps",
-		NULL
+	static const u32 mpeg_audio_encoding[] = {
+		V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
+		V4L2_CTRL_MENU_IDS_END
+	};
+	static const u32 mpeg_audio_ac3_encoding[] = {
+		V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
+		V4L2_MPEG_AUDIO_ENCODING_AC3,
+		V4L2_CTRL_MENU_IDS_END
+	};
+	static u32 mpeg_audio_l2_bitrate[] = {
+		V4L2_MPEG_AUDIO_L2_BITRATE_256K,
+		V4L2_MPEG_AUDIO_L2_BITRATE_384K,
+		V4L2_CTRL_MENU_IDS_END
+	};
+	static u32 mpeg_audio_ac3_bitrate[] = {
+		V4L2_MPEG_AUDIO_AC3_BITRATE_256K,
+		V4L2_MPEG_AUDIO_AC3_BITRATE_384K,
+		V4L2_CTRL_MENU_IDS_END
 	};
 	struct v4l2_queryctrl qctrl;
 	int err;
 
 	qctrl.id = qmenu->id;
-	err = saa6752hs_qctrl(params, &qctrl);
+	err = saa6752hs_qctrl(h, &qctrl);
 	if (err)
 		return err;
-	if (qmenu->id == V4L2_CID_MPEG_AUDIO_L2_BITRATE)
-		return v4l2_ctrl_query_menu(qmenu, &qctrl,
+	switch (qmenu->id) {
+	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
+		return v4l2_ctrl_query_menu_valid_items(qmenu,
 				mpeg_audio_l2_bitrate);
-	return v4l2_ctrl_query_menu(qmenu, &qctrl,
-			v4l2_ctrl_get_menu(qmenu->id));
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		if (!h->has_ac3)
+			return -EINVAL;
+		return v4l2_ctrl_query_menu_valid_items(qmenu,
+				mpeg_audio_ac3_bitrate);
+	case V4L2_CID_MPEG_AUDIO_ENCODING:
+		return v4l2_ctrl_query_menu_valid_items(qmenu,
+			h->has_ac3 ? mpeg_audio_ac3_encoding :
+				mpeg_audio_encoding);
+	}
+	return v4l2_ctrl_query_menu(qmenu, &qctrl, NULL);
 }
 
 static int saa6752hs_init(struct i2c_client* client)
@@ -569,7 +646,7 @@ static int saa6752hs_init(struct i2c_client* client)
 	i2c_master_send(client, buf, 2);
 
 	/* set bitrate */
-	saa6752hs_set_bitrate(client, &h->params);
+	saa6752hs_set_bitrate(client, h);
 
 	/* Set GOP structure {3, 13} */
 	buf[0] = 0x72;
@@ -688,45 +765,6 @@ static int saa6752hs_init(struct i2c_client* client)
 	return 0;
 }
 
-static int saa6752hs_attach(struct i2c_adapter *adap, int addr, int kind)
-{
-	struct saa6752hs_state *h;
-
-
-	if (NULL == (h = kzalloc(sizeof(*h), GFP_KERNEL)))
-		return -ENOMEM;
-	h->client = client_template;
-	h->params = param_defaults;
-	h->client.adapter = adap;
-	h->client.addr = addr;
-
-	/* Assume 625 input lines */
-	h->standard = 0;
-
-	i2c_set_clientdata(&h->client, h);
-	i2c_attach_client(&h->client);
-
-	v4l_info(&h->client,"saa6752hs: chip found @ 0x%x\n", addr<<1);
-	return 0;
-}
-
-static int saa6752hs_probe(struct i2c_adapter *adap)
-{
-	if (adap->class & I2C_CLASS_TV_ANALOG)
-		return i2c_probe(adap, &addr_data, saa6752hs_attach);
-	return 0;
-}
-
-static int saa6752hs_detach(struct i2c_client *client)
-{
-	struct saa6752hs_state *h;
-
-	h = i2c_get_clientdata(client);
-	i2c_detach_client(client);
-	kfree(h);
-	return 0;
-}
-
 static int
 saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 {
@@ -752,7 +790,8 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 			return -EINVAL;
 		params = h->params;
 		for (i = 0; i < ctrls->count; i++) {
-			if ((err = handle_ctrl(&params, ctrls->controls + i, cmd))) {
+			err = handle_ctrl(h->has_ac3, &params, ctrls->controls + i, cmd);
+			if (err) {
 				ctrls->error_idx = i;
 				return err;
 			}
@@ -760,9 +799,9 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 		h->params = params;
 		break;
 	case VIDIOC_QUERYCTRL:
-		return saa6752hs_qctrl(&h->params, arg);
+		return saa6752hs_qctrl(h, arg);
 	case VIDIOC_QUERYMENU:
-		return saa6752hs_qmenu(&h->params, arg);
+		return saa6752hs_qmenu(h, arg);
 	case VIDIOC_G_FMT:
 	{
 	   struct v4l2_format *f = arg;
@@ -785,6 +824,11 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	case VIDIOC_S_STD:
 		h->standard = *((v4l2_std_id *) arg);
 		break;
+
+	case VIDIOC_G_CHIP_IDENT:
+		return v4l2_chip_ident_i2c_client(client,
+				arg, h->chip, h->revision);
+
 	default:
 		/* nothing */
 		break;
@@ -793,36 +837,55 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	return err;
 }
 
-/* ----------------------------------------------------------------------- */
-
-static struct i2c_driver driver = {
-	.driver = {
-		.name   = "saa6752hs",
-	},
-	.id             = I2C_DRIVERID_SAA6752HS,
-	.attach_adapter = saa6752hs_probe,
-	.detach_client  = saa6752hs_detach,
-	.command        = saa6752hs_command,
-};
-
-static struct i2c_client client_template =
+static int saa6752hs_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
 {
-	.name       = "saa6752hs",
-	.driver     = &driver,
-};
+	struct saa6752hs_state *h = kzalloc(sizeof(*h), GFP_KERNEL);
+	u8 addr = 0x13;
+	u8 data[12];
 
-static int __init saa6752hs_init_module(void)
-{
-	return i2c_add_driver(&driver);
+	v4l_info(client, "chip found @ 0x%x (%s)\n",
+			client->addr << 1, client->adapter->name);
+	if (h == NULL)
+		return -ENOMEM;
+
+	i2c_master_send(client, &addr, 1);
+	i2c_master_recv(client, data, sizeof(data));
+	h->chip = V4L2_IDENT_SAA6752HS;
+	h->revision = (data[8] << 8) | data[9];
+	h->has_ac3 = 0;
+	if (h->revision == 0x0206) {
+		h->chip = V4L2_IDENT_SAA6752HS_AC3;
+		h->has_ac3 = 1;
+		v4l_info(client, "support AC-3\n");
+	}
+	h->params = param_defaults;
+	h->standard = 0; /* Assume 625 input lines */
+
+	i2c_set_clientdata(client, h);
+	return 0;
 }
 
-static void __exit saa6752hs_cleanup_module(void)
+static int saa6752hs_remove(struct i2c_client *client)
 {
-	i2c_del_driver(&driver);
+	kfree(i2c_get_clientdata(client));
+	return 0;
 }
 
-module_init(saa6752hs_init_module);
-module_exit(saa6752hs_cleanup_module);
+static const struct i2c_device_id saa6752hs_id[] = {
+	{ "saa6752hs", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, saa6752hs_id);
+
+static struct v4l2_i2c_driver_data v4l2_i2c_data = {
+	.name = "saa6752hs",
+	.driverid = I2C_DRIVERID_SAA6752HS,
+	.command = saa6752hs_command,
+	.probe = saa6752hs_probe,
+	.remove = saa6752hs_remove,
+	.id_table = saa6752hs_id,
+};
 
 /*
  * Overrides for Emacs so that we follow Linus's tabbing style.

@@ -29,6 +29,7 @@
 
 #include <media/saa6752hs.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-chip-ident.h>
 
 /* ------------------------------------------------------------------ */
 
@@ -403,6 +404,25 @@ static int empress_querymenu(struct file *file, void *priv,
 	return saa7134_i2c_call_saa6752(dev, VIDIOC_QUERYMENU, c);
 }
 
+static int empress_g_chip_ident(struct file *file, void *fh,
+	       struct v4l2_chip_ident *chip)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	chip->ident = V4L2_IDENT_NONE;
+	chip->revision = 0;
+	if (dev->mpeg_i2c_client == NULL)
+		return -EINVAL;
+	if (chip->match_type == V4L2_CHIP_MATCH_I2C_DRIVER &&
+	    chip->match_chip == I2C_DRIVERID_SAA6752HS)
+		return saa7134_i2c_call_saa6752(dev, VIDIOC_G_CHIP_IDENT, chip);
+	if (chip->match_type == V4L2_CHIP_MATCH_I2C_ADDR &&
+	    chip->match_chip == dev->mpeg_i2c_client->addr)
+		return saa7134_i2c_call_saa6752(dev, VIDIOC_G_CHIP_IDENT, chip);
+	return -EINVAL;
+}
+
+
 static const struct file_operations ts_fops =
 {
 	.owner	  = THIS_MODULE,
@@ -431,11 +451,11 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_enum_input		= empress_enum_input,
 	.vidioc_g_input			= empress_g_input,
 	.vidioc_s_input			= empress_s_input,
-
 	.vidioc_queryctrl		= empress_queryctrl,
 	.vidioc_querymenu		= empress_querymenu,
 	.vidioc_g_ctrl			= empress_g_ctrl,
 	.vidioc_s_ctrl			= empress_s_ctrl,
+	.vidioc_g_chip_ident 		= empress_g_chip_ident,
 };
 
 /* ----------------------------------------------------------- */

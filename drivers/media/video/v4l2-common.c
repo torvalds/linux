@@ -637,13 +637,17 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 EXPORT_SYMBOL(v4l2_ctrl_query_fill_std);
 
 /* Fill in a struct v4l2_querymenu based on the struct v4l2_queryctrl and
-   the menu. The qctrl pointer may be NULL, in which case it is ignored. */
+   the menu. The qctrl pointer may be NULL, in which case it is ignored.
+   If menu_items is NULL, then the menu items are retrieved using
+   v4l2_ctrl_get_menu. */
 int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qctrl,
 	       const char **menu_items)
 {
 	int i;
 
 	qmenu->reserved = 0;
+	if (menu_items == NULL)
+		menu_items = v4l2_ctrl_get_menu(qmenu->id);
 	if (menu_items == NULL ||
 	    (qctrl && (qmenu->index < qctrl->minimum || qmenu->index > qctrl->maximum)))
 		return -EINVAL;
