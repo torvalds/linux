@@ -362,63 +362,72 @@ const char **v4l2_ctrl_get_menu(u32 id)
 }
 EXPORT_SYMBOL(v4l2_ctrl_get_menu);
 
+/* Return the control name. */
+const char *v4l2_ctrl_get_name(u32 id)
+{
+	switch (id) {
+	/* USER controls */
+	case V4L2_CID_USER_CLASS: 	return "User Controls";
+	case V4L2_CID_AUDIO_VOLUME: 	return "Volume";
+	case V4L2_CID_AUDIO_MUTE: 	return "Mute";
+	case V4L2_CID_AUDIO_BALANCE: 	return "Balance";
+	case V4L2_CID_AUDIO_BASS: 	return "Bass";
+	case V4L2_CID_AUDIO_TREBLE: 	return "Treble";
+	case V4L2_CID_AUDIO_LOUDNESS: 	return "Loudness";
+	case V4L2_CID_BRIGHTNESS: 	return "Brightness";
+	case V4L2_CID_CONTRAST: 	return "Contrast";
+	case V4L2_CID_SATURATION: 	return "Saturation";
+	case V4L2_CID_HUE: 		return "Hue";
+
+	/* MPEG controls */
+	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
+	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ: return "Audio Sampling Frequency";
+	case V4L2_CID_MPEG_AUDIO_ENCODING: 	return "Audio Encoding";
+	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	return "Audio Layer I Bitrate";
+	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	return "Audio Layer II Bitrate";
+	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	return "Audio Layer III Bitrate";
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE: 	return "Audio AC-3 Bitrate";
+	case V4L2_CID_MPEG_AUDIO_MODE: 		return "Audio Stereo Mode";
+	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: return "Audio Stereo Mode Extension";
+	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	return "Audio Emphasis";
+	case V4L2_CID_MPEG_AUDIO_CRC: 		return "Audio CRC";
+	case V4L2_CID_MPEG_AUDIO_MUTE: 		return "Audio Mute";
+	case V4L2_CID_MPEG_VIDEO_ENCODING: 	return "Video Encoding";
+	case V4L2_CID_MPEG_VIDEO_ASPECT: 	return "Video Aspect";
+	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	return "Video B Frames";
+	case V4L2_CID_MPEG_VIDEO_GOP_SIZE: 	return "Video GOP Size";
+	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE: 	return "Video GOP Closure";
+	case V4L2_CID_MPEG_VIDEO_PULLDOWN: 	return "Video Pulldown";
+	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: 	return "Video Bitrate Mode";
+	case V4L2_CID_MPEG_VIDEO_BITRATE: 	return "Video Bitrate";
+	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	return "Video Peak Bitrate";
+	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: return "Video Temporal Decimation";
+	case V4L2_CID_MPEG_VIDEO_MUTE: 		return "Video Mute";
+	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	return "Video Mute YUV";
+	case V4L2_CID_MPEG_STREAM_TYPE: 	return "Stream Type";
+	case V4L2_CID_MPEG_STREAM_PID_PMT: 	return "Stream PMT Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	return "Stream Audio Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_VIDEO: 	return "Stream Video Program ID";
+	case V4L2_CID_MPEG_STREAM_PID_PCR: 	return "Stream PCR Program ID";
+	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO: return "Stream PES Audio ID";
+	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: return "Stream PES Video ID";
+	case V4L2_CID_MPEG_STREAM_VBI_FMT:	return "Stream VBI Format";
+
+	default:
+		return NULL;
+	}
+}
+EXPORT_SYMBOL(v4l2_ctrl_get_name);
+
 /* Fill in a struct v4l2_queryctrl */
 int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 step, s32 def)
 {
-	const char *name;
+	const char *name = v4l2_ctrl_get_name(qctrl->id);
 
 	qctrl->flags = 0;
-	switch (qctrl->id) {
-	/* USER controls */
-	case V4L2_CID_USER_CLASS: 	name = "User Controls"; break;
-	case V4L2_CID_AUDIO_VOLUME: 	name = "Volume"; break;
-	case V4L2_CID_AUDIO_MUTE: 	name = "Mute"; break;
-	case V4L2_CID_AUDIO_BALANCE: 	name = "Balance"; break;
-	case V4L2_CID_AUDIO_BASS: 	name = "Bass"; break;
-	case V4L2_CID_AUDIO_TREBLE: 	name = "Treble"; break;
-	case V4L2_CID_AUDIO_LOUDNESS: 	name = "Loudness"; break;
-	case V4L2_CID_BRIGHTNESS: 	name = "Brightness"; break;
-	case V4L2_CID_CONTRAST: 	name = "Contrast"; break;
-	case V4L2_CID_SATURATION: 	name = "Saturation"; break;
-	case V4L2_CID_HUE: 		name = "Hue"; break;
-
-	/* MPEG controls */
-	case V4L2_CID_MPEG_CLASS: 		name = "MPEG Encoder Controls"; break;
-	case V4L2_CID_MPEG_AUDIO_SAMPLING_FREQ: name = "Audio Sampling Frequency"; break;
-	case V4L2_CID_MPEG_AUDIO_ENCODING: 	name = "Audio Encoding"; break;
-	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	name = "Audio Layer I Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	name = "Audio Layer II Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	name = "Audio Layer III Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE: 	name = "Audio AC-3 Bitrate"; break;
-	case V4L2_CID_MPEG_AUDIO_MODE: 		name = "Audio Stereo Mode"; break;
-	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: name = "Audio Stereo Mode Extension"; break;
-	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	name = "Audio Emphasis"; break;
-	case V4L2_CID_MPEG_AUDIO_CRC: 		name = "Audio CRC"; break;
-	case V4L2_CID_MPEG_AUDIO_MUTE: 		name = "Audio Mute"; break;
-	case V4L2_CID_MPEG_VIDEO_ENCODING: 	name = "Video Encoding"; break;
-	case V4L2_CID_MPEG_VIDEO_ASPECT: 	name = "Video Aspect"; break;
-	case V4L2_CID_MPEG_VIDEO_B_FRAMES: 	name = "Video B Frames"; break;
-	case V4L2_CID_MPEG_VIDEO_GOP_SIZE: 	name = "Video GOP Size"; break;
-	case V4L2_CID_MPEG_VIDEO_GOP_CLOSURE: 	name = "Video GOP Closure"; break;
-	case V4L2_CID_MPEG_VIDEO_PULLDOWN: 	name = "Video Pulldown"; break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_MODE: 	name = "Video Bitrate Mode"; break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE: 	name = "Video Bitrate"; break;
-	case V4L2_CID_MPEG_VIDEO_BITRATE_PEAK: 	name = "Video Peak Bitrate"; break;
-	case V4L2_CID_MPEG_VIDEO_TEMPORAL_DECIMATION: name = "Video Temporal Decimation"; break;
-	case V4L2_CID_MPEG_VIDEO_MUTE: 		name = "Video Mute"; break;
-	case V4L2_CID_MPEG_VIDEO_MUTE_YUV:	name = "Video Mute YUV"; break;
-	case V4L2_CID_MPEG_STREAM_TYPE: 	name = "Stream Type"; break;
-	case V4L2_CID_MPEG_STREAM_PID_PMT: 	name = "Stream PMT Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PID_AUDIO: 	name = "Stream Audio Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PID_VIDEO: 	name = "Stream Video Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PID_PCR: 	name = "Stream PCR Program ID"; break;
-	case V4L2_CID_MPEG_STREAM_PES_ID_AUDIO: name = "Stream PES Audio ID"; break;
-	case V4L2_CID_MPEG_STREAM_PES_ID_VIDEO: name = "Stream PES Video ID"; break;
-	case V4L2_CID_MPEG_STREAM_VBI_FMT:	name = "Stream VBI Format"; break;
-
-	default:
+	if (name == NULL)
 		return -EINVAL;
-	}
+
 	switch (qctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
 	case V4L2_CID_AUDIO_LOUDNESS:
