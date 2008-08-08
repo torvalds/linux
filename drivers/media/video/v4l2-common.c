@@ -187,10 +187,11 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		NULL
 	};
 	static const char *mpeg_audio_encoding[] = {
-		"MPEG-1 Layer I",
-		"MPEG-1 Layer II",
-		"MPEG-1 Layer III",
-		"MPEG-4 AAC",
+		"MPEG-1/2 Layer I",
+		"MPEG-1/2 Layer II",
+		"MPEG-1/2 Layer III",
+		"MPEG-2/4 AAC",
+		"AC-3",
 		NULL
 	};
 	static const char *mpeg_audio_l1_bitrate[] = {
@@ -242,6 +243,28 @@ const char **v4l2_ctrl_get_menu(u32 id)
 		"224 kbps",
 		"256 kbps",
 		"320 kbps",
+		NULL
+	};
+	static const char *mpeg_audio_ac3_bitrate[] = {
+		"32 kbps",
+		"40 kbps",
+		"48 kbps",
+		"56 kbps",
+		"64 kbps",
+		"80 kbps",
+		"96 kbps",
+		"112 kbps",
+		"128 kbps",
+		"160 kbps",
+		"192 kbps",
+		"224 kbps",
+		"256 kbps",
+		"320 kbps",
+		"384 kbps",
+		"448 kbps",
+		"512 kbps",
+		"576 kbps",
+		"640 kbps",
 		NULL
 	};
 	static const char *mpeg_audio_mode[] = {
@@ -313,6 +336,8 @@ const char **v4l2_ctrl_get_menu(u32 id)
 			return mpeg_audio_l2_bitrate;
 		case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
 			return mpeg_audio_l3_bitrate;
+		case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+			return mpeg_audio_ac3_bitrate;
 		case V4L2_CID_MPEG_AUDIO_MODE:
 			return mpeg_audio_mode;
 		case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
@@ -364,6 +389,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	name = "Audio Layer I Bitrate"; break;
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	name = "Audio Layer II Bitrate"; break;
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	name = "Audio Layer III Bitrate"; break;
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE: 	name = "Audio AC-3 Bitrate"; break;
 	case V4L2_CID_MPEG_AUDIO_MODE: 		name = "Audio Stereo Mode"; break;
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: name = "Audio Stereo Mode Extension"; break;
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS: 	name = "Audio Emphasis"; break;
@@ -409,6 +435,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE:
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
 	case V4L2_CID_MPEG_AUDIO_MODE:
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION:
 	case V4L2_CID_MPEG_AUDIO_EMPHASIS:
@@ -495,7 +522,7 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 	case V4L2_CID_MPEG_AUDIO_ENCODING:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_1,
-				V4L2_MPEG_AUDIO_ENCODING_AAC, 1,
+				V4L2_MPEG_AUDIO_ENCODING_AC3, 1,
 				V4L2_MPEG_AUDIO_ENCODING_LAYER_2);
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE:
 		return v4l2_ctrl_query_fill(qctrl,
@@ -512,6 +539,11 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 				V4L2_MPEG_AUDIO_L3_BITRATE_32K,
 				V4L2_MPEG_AUDIO_L3_BITRATE_320K, 1,
 				V4L2_MPEG_AUDIO_L3_BITRATE_192K);
+	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_32K,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_640K, 1,
+				V4L2_MPEG_AUDIO_AC3_BITRATE_384K);
 	case V4L2_CID_MPEG_AUDIO_MODE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_MODE_STEREO,
