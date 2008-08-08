@@ -141,7 +141,7 @@ static void cpa_flush_all(unsigned long cache)
 {
 	BUG_ON(irqs_disabled());
 
-	on_each_cpu(__cpa_flush_all, (void *) cache, 1, 1);
+	on_each_cpu(__cpa_flush_all, (void *) cache, 1);
 }
 
 static void __cpa_flush_range(void *arg)
@@ -162,7 +162,7 @@ static void cpa_flush_range(unsigned long start, int numpages, int cache)
 	BUG_ON(irqs_disabled());
 	WARN_ON(PAGE_ALIGN(start) != start);
 
-	on_each_cpu(__cpa_flush_range, NULL, 1, 1);
+	on_each_cpu(__cpa_flush_range, NULL, 1);
 
 	if (!cache)
 		return;

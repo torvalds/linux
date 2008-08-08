@@ -180,7 +180,7 @@ static void usb_b_out_complete(struct urb *urb)
 				DBG(4,"urb killed status %d", urb->status);
 				return; // Give up
 			default: 
-				WARN("urb status %d",urb->status);
+				WARNING("urb status %d",urb->status);
 				if (b_out->busy == 0) {
 					st5481_usb_pipe_reset(adapter, (bcs->channel+1)*2 | USB_DIR_OUT, NULL, NULL);
 				}
@@ -372,6 +372,6 @@ void st5481_b_l2l1(struct hisax_if *ifc, int pr, void *arg)
 		B_L1L2(bcs, PH_DEACTIVATE | INDICATION, NULL);
 		break;
 	default:
-		WARN("pr %#x\n", pr);
+		WARNING("pr %#x\n", pr);
 	}
 }

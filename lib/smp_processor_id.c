@@ -11,7 +11,6 @@ notrace unsigned int debug_smp_processor_id(void)
 {
 	unsigned long preempt_count = preempt_count();
 	int this_cpu = raw_smp_processor_id();
-	cpumask_t this_mask;
 
 	if (likely(preempt_count))
 		goto out;
@@ -23,9 +22,7 @@ notrace unsigned int debug_smp_processor_id(void)
 	 * Kernel threads bound to a single CPU can safely use
 	 * smp_processor_id():
 	 */
-	this_mask = cpumask_of_cpu(this_cpu);
-
-	if (cpus_equal(current->cpus_allowed, this_mask))
+	if (cpus_equal(current->cpus_allowed, cpumask_of_cpu(this_cpu)))
 		goto out;
 
 	/*

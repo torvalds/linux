@@ -8,6 +8,7 @@ config PPC_PS3
 	select USB_ARCH_HAS_EHCI
 	select USB_EHCI_BIG_ENDIAN_MMIO
 	select MEMORY_HOTPLUG
+	select PPC_PCI_CHOICE
 	help
 	  This option enables support for the Sony PS3 game console
 	  and other platforms using the PS3 hypervisor.  Enabling this

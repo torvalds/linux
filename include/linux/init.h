@@ -170,6 +170,13 @@ extern void (*late_time_init)(void);
 	__attribute__((__section__(".initcall" level ".init"))) = fn
 
 /*
+ * Early initcalls run before initializing SMP.
+ *
+ * Only for built-in code, not modules.
+ */
+#define early_initcall(fn)		__define_initcall("early",fn,early)
+
+/*
  * A "pure" initcall has no dependencies on anything else, and purely
  * initializes variables that couldn't be statically initialized.
  *
@@ -275,13 +282,7 @@ void __init parse_early_param(void);
 
 #define security_initcall(fn)		module_init(fn)
 
-/* These macros create a dummy inline: gcc 2.9x does not count alias
- as usage, hence the `unused function' warning when __init functions
- are declared static. We use the dummy __*_module_inline functions
- both to kill the warning and check the type of the init/cleanup
- function. */
-
-/* Each module must use one module_init(), or one no_module_init */
+/* Each module must use one module_init(). */
 #define module_init(initfn)					\
 	static inline initcall_t __inittest(void)		\
 	{ return initfn; }					\

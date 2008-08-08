@@ -96,7 +96,7 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	for (; count; count -= 16) {
 		cmd.eax = pos;
 		cmd.ecx = pos >> 32;
-		smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1, 1);
+		smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1);
 		if (copy_to_user(tmp, &cmd, 16))
 			return -EFAULT;
 		tmp += 16;
@@ -141,8 +141,8 @@ static __cpuinit int cpuid_device_create(int cpu)
 {
 	struct device *dev;
 
-	dev = device_create(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu),
-			    "cpu%d", cpu);
+	dev = device_create_drvdata(cpuid_class, NULL, MKDEV(CPUID_MAJOR, cpu),
+				    NULL, "cpu%d", cpu);
 	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
 }
 

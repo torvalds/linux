@@ -63,6 +63,7 @@ comment "SCSI support type (disk, tape, CD-ROM)"
 config BLK_DEV_SD
 	tristate "SCSI disk support"
 	depends on SCSI
+	select CRC_T10DIF
 	---help---
 	  If you want to use SCSI hard disks, Fibre Channel disks,
 	  Serial ATA (SATA) or Parallel ATA (PATA) hard disks,
@@ -887,6 +888,25 @@ config SCSI_IBMVSCSIS
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called ibmvstgt.
+
+config SCSI_IBMVFC
+	tristate "IBM Virtual FC support"
+	depends on PPC_PSERIES && SCSI
+	select SCSI_FC_ATTRS
+	help
+	  This is the IBM POWER Virtual FC Client
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ibmvfc.
+
+config SCSI_IBMVFC_TRACE
+	bool "enable driver internal trace"
+	depends on SCSI_IBMVFC
+	default y
+	help
+	  If you say Y here, the driver will trace all commands issued
+	  to the adapter. Performance impact is minimal. Trace can be
+	  dumped using /sys/class/scsi_host/hostXX/trace.
 
 config SCSI_INITIO
 	tristate "Initio 9100U(W) support"
@@ -1738,10 +1758,12 @@ config SCSI_SUNESP
 	select SCSI_SPI_ATTRS
 	help
 	  This is the driver for the Sun ESP SCSI host adapter. The ESP
-	  chipset is present in most SPARC SBUS-based computers.
+	  chipset is present in most SPARC SBUS-based computers and
+	  supports the Emulex family of ESP SCSI chips (esp100, esp100A,
+	  esp236, fas101, fas236) as well as the Qlogic fas366 SCSI chip.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called esp.
+	  module will be called sun_esp.
 
 config ZFCP
 	tristate "FCP host bus adapter driver for IBM eServer zSeries"
@@ -1770,5 +1792,7 @@ config SCSI_SRP
 endif # SCSI_LOWLEVEL
 
 source "drivers/scsi/pcmcia/Kconfig"
+
+source "drivers/scsi/device_handler/Kconfig"
 
 endmenu

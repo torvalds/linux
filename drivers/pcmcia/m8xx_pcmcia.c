@@ -49,6 +49,8 @@
 #include <linux/interrupt.h>
 #include <linux/fsl_devices.h>
 #include <linux/bitops.h>
+#include <linux/of_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/io.h>
 #include <asm/system.h>
@@ -57,8 +59,6 @@
 #include <asm/8xx_immap.h>
 #include <asm/irq.h>
 #include <asm/fs_pd.h>
-#include <asm/of_device.h>
-#include <asm/of_platform.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

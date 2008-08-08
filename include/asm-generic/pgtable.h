@@ -195,7 +195,6 @@ static inline int pmd_none_or_clear_bad(pmd_t *pmd)
 	}
 	return 0;
 }
-#endif /* CONFIG_MMU */
 
 static inline pte_t __ptep_modify_prot_start(struct mm_struct *mm,
 					     unsigned long addr,
@@ -253,6 +252,7 @@ static inline void ptep_modify_prot_commit(struct mm_struct *mm,
 	__ptep_modify_prot_commit(mm, addr, ptep, pte);
 }
 #endif /* __HAVE_ARCH_PTEP_MODIFY_PROT_TRANSACTION */
+#endif /* CONFIG_MMU */
 
 /*
  * A facility to provide lazy MMU batching.  This allows PTE updates and

@@ -69,6 +69,7 @@ struct gianfar_mdio_data {
 #define FSL_GIANFAR_DEV_HAS_VLAN		0x00000020
 #define FSL_GIANFAR_DEV_HAS_EXTENDED_HASH	0x00000040
 #define FSL_GIANFAR_DEV_HAS_PADDING		0x00000080
+#define FSL_GIANFAR_DEV_HAS_MAGIC_PACKET	0x00000100
 
 /* Flags in gianfar_platform_data */
 #define FSL_GIANFAR_BRD_HAS_PHY_INTR	0x00000001 /* set or use a timer */
@@ -124,5 +125,11 @@ struct mpc8xx_pcmcia_ops {
 	void(*hw_ctrl)(int slot, int enable);
 	int(*voltage_set)(int slot, int vcc, int vpp);
 };
+
+/* Returns non-zero if the current suspend operation would
+ * lead to a deep sleep (i.e. power removed from the core,
+ * instead of just the clock).
+ */
+int fsl_deep_sleep(void);
 
 #endif /* _FSL_DEVICE_H_ */

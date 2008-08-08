@@ -446,29 +446,27 @@ static void pio_tx_frame_4byte_queue(struct b43_pio_txpacket *pack,
 }
 
 static int pio_tx_frame(struct b43_pio_txqueue *q,
-			struct sk_buff *skb,
-			struct ieee80211_tx_control *ctl)
+			struct sk_buff *skb)
 {
 	struct b43_pio_txpacket *pack;
 	struct b43_txhdr txhdr;
 	u16 cookie;
 	int err;
 	unsigned int hdrlen;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	B43_WARN_ON(list_empty(&q->packets_list));
 	pack = list_entry(q->packets_list.next,
 			  struct b43_pio_txpacket, list);
-	memset(&pack->txstat, 0, sizeof(pack->txstat));
-	memcpy(&pack->txstat.control, ctl, sizeof(*ctl));
 
 	cookie = generate_cookie(q, pack);
 	hdrlen = b43_txhdr_size(q->dev);
 	err = b43_generate_txhdr(q->dev, (u8 *)&txhdr, skb->data,
-				 skb->len, ctl, cookie);
+				 skb->len, info, cookie);
 	if (err)
 		return err;
 
-	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* Tell the firmware about the cookie of the last
 		 * mcast frame, so it can clear the more-data bit in it. */
 		b43_shm_write16(q->dev, B43_SHM_SHARED,
@@ -492,17 +490,18 @@ static int pio_tx_frame(struct b43_pio_txqueue *q,
 	return 0;
 }
 
-int b43_pio_tx(struct b43_wldev *dev,
-	       struct sk_buff *skb, struct ieee80211_tx_control *ctl)
+int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 {
 	struct b43_pio_txqueue *q;
 	struct ieee80211_hdr *hdr;
 	unsigned long flags;
 	unsigned int hdrlen, total_len;
 	int err = 0;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	hdr = (struct ieee80211_hdr *)skb->data;
-	if (ctl->flags & IEEE80211_TXCTL_SEND_AFTER_DTIM) {
+
+	if (info->flags & IEEE80211_TX_CTL_SEND_AFTER_DTIM) {
 		/* The multicast queue will be sent after the DTIM. */
 		q = dev->pio.tx_queue_mcast;
 		/* Set the frame More-Data bit. Ucode will clear it
@@ -510,7 +509,7 @@ int b43_pio_tx(struct b43_wldev *dev,
 		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 	} else {
 		/* Decide by priority where to put this frame. */
-		q = select_queue_by_priority(dev, ctl->queue);
+		q = select_queue_by_priority(dev, skb_get_queue_mapping(skb));
 	}
 
 	spin_lock_irqsave(&q->lock, flags);
@@ -533,7 +532,7 @@ int b43_pio_tx(struct b43_wldev *dev,
 	if (total_len > (q->buffer_size - q->buffer_used)) {
 		/* Not enough memory on the queue. */
 		err = -EBUSY;
-		ieee80211_stop_queue(dev->wl->hw, ctl->queue);
+		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		q->stopped = 1;
 		goto out_unlock;
 	}
@@ -541,9 +540,9 @@ int b43_pio_tx(struct b43_wldev *dev,
 	/* Assign the queue number to the ring (if not already done before)
 	 * so TX status handling can use it. The mac80211-queue to b43-queue
 	 * mapping is static, so we don't need to store it per frame. */
-	q->queue_prio = ctl->queue;
+	q->queue_prio = skb_get_queue_mapping(skb);
 
-	err = pio_tx_frame(q, skb, ctl);
+	err = pio_tx_frame(q, skb);
 	if (unlikely(err == -ENOKEY)) {
 		/* Drop this packet, as we don't have the encryption key
 		 * anymore and must not transmit it unencrypted. */
@@ -561,7 +560,7 @@ int b43_pio_tx(struct b43_wldev *dev,
 	if (((q->buffer_size - q->buffer_used) < roundup(2 + 2 + 6, 4)) ||
 	    (q->free_packet_slots == 0)) {
 		/* The queue is full. */
-		ieee80211_stop_queue(dev->wl->hw, ctl->queue);
+		ieee80211_stop_queue(dev->wl->hw, skb_get_queue_mapping(skb));
 		q->stopped = 1;
 	}
 
@@ -578,6 +577,7 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 	struct b43_pio_txqueue *q;
 	struct b43_pio_txpacket *pack = NULL;
 	unsigned int total_len;
+	struct ieee80211_tx_info *info;
 
 	q = parse_cookie(dev, status->cookie, &pack);
 	if (unlikely(!q))
@@ -586,15 +586,17 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 
 	spin_lock(&q->lock); /* IRQs are already disabled. */
 
-	b43_fill_txstatus_report(&(pack->txstat), status);
+	info = IEEE80211_SKB_CB(pack->skb);
+	memset(&info->status, 0, sizeof(info->status));
+
+	b43_fill_txstatus_report(info, status);
 
 	total_len = pack->skb->len + b43_txhdr_size(dev);
 	total_len = roundup(total_len, 4);
 	q->buffer_used -= total_len;
 	q->free_packet_slots += 1;
 
-	ieee80211_tx_status_irqsafe(dev->wl->hw, pack->skb,
-				    &(pack->txstat));
+	ieee80211_tx_status_irqsafe(dev->wl->hw, pack->skb);
 	pack->skb = NULL;
 	list_add(&pack->list, &q->packets_list);
 
@@ -611,18 +613,16 @@ void b43_pio_get_tx_stats(struct b43_wldev *dev,
 {
 	const int nr_queues = dev->wl->hw->queues;
 	struct b43_pio_txqueue *q;
-	struct ieee80211_tx_queue_stats_data *data;
 	unsigned long flags;
 	int i;
 
 	for (i = 0; i < nr_queues; i++) {
-		data = &(stats->data[i]);
 		q = select_queue_by_priority(dev, i);
 
 		spin_lock_irqsave(&q->lock, flags);
-		data->len = B43_PIO_MAX_NR_TXPACKETS - q->free_packet_slots;
-		data->limit = B43_PIO_MAX_NR_TXPACKETS;
-		data->count = q->nr_tx_packets;
+		stats[i].len = B43_PIO_MAX_NR_TXPACKETS - q->free_packet_slots;
+		stats[i].limit = B43_PIO_MAX_NR_TXPACKETS;
+		stats[i].count = q->nr_tx_packets;
 		spin_unlock_irqrestore(&q->lock, flags);
 	}
 }

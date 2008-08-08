@@ -120,10 +120,10 @@ acpi_table_print_srat_entry(struct acpi_subtable_header *header)
 			struct acpi_srat_mem_affinity *p =
 			    (struct acpi_srat_mem_affinity *)header;
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					  "SRAT Memory (0x%lx length 0x%lx type 0x%x) in proximity domain %d %s%s\n",
+					  "SRAT Memory (0x%lx length 0x%lx) in proximity domain %d %s%s\n",
 					  (unsigned long)p->base_address,
 					  (unsigned long)p->length,
-					  p->memory_type, p->proximity_domain,
+					  p->proximity_domain,
 					  (p->flags & ACPI_SRAT_MEM_ENABLED)?
 					  "enabled" : "disabled",
 					  (p->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE)?

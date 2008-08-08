@@ -130,7 +130,7 @@ int __init check_nmi_watchdog(void)
 
 #ifdef CONFIG_SMP
 	if (nmi_watchdog == NMI_LOCAL_APIC)
-		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0, 0);
+		smp_call_function(nmi_cpu_busy, (void *)&endflag, 0);
 #endif
 
 	for_each_possible_cpu(cpu)
@@ -263,7 +263,7 @@ late_initcall(init_lapic_nmi_sysfs);
 
 static void __acpi_nmi_enable(void *__unused)
 {
-	apic_write_around(APIC_LVT0, APIC_DM_NMI);
+	apic_write(APIC_LVT0, APIC_DM_NMI);
 }
 
 /*
@@ -272,12 +272,12 @@ static void __acpi_nmi_enable(void *__unused)
 void acpi_nmi_enable(void)
 {
 	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
-		on_each_cpu(__acpi_nmi_enable, NULL, 0, 1);
+		on_each_cpu(__acpi_nmi_enable, NULL, 1);
 }
 
 static void __acpi_nmi_disable(void *__unused)
 {
-	apic_write_around(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
+	apic_write(APIC_LVT0, APIC_DM_NMI | APIC_LVT_MASKED);
 }
 
 /*
@@ -286,7 +286,7 @@ static void __acpi_nmi_disable(void *__unused)
 void acpi_nmi_disable(void)
 {
 	if (atomic_read(&nmi_active) && nmi_watchdog == NMI_IO_APIC)
-		on_each_cpu(__acpi_nmi_disable, NULL, 0, 1);
+		on_each_cpu(__acpi_nmi_disable, NULL, 1);
 }
 
 void setup_apic_nmi_watchdog(void *unused)
@@ -447,6 +447,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 }
 
 #ifdef CONFIG_SYSCTL
+
+static int __init setup_unknown_nmi_panic(char *str)
+{
+	unknown_nmi_panic = 1;
+	return 1;
+}
+__setup("unknown_nmi_panic", setup_unknown_nmi_panic);
 
 static int unknown_nmi_panic_callback(struct pt_regs *regs, int cpu)
 {

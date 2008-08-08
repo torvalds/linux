@@ -59,7 +59,7 @@ struct mdk_rdev_s
 	int		sb_loaded;
 	__u64		sb_events;
 	sector_t	data_offset;	/* start of data in array */
-	sector_t	sb_offset;
+	sector_t 	sb_start;	/* offset of the super block (in 512byte sectors) */
 	int		sb_size;	/* bytes in the superblock */
 	int		preferred_minor;	/* autorun support */
 
@@ -87,6 +87,9 @@ struct mdk_rdev_s
 #define Blocked		8		/* An error occured on an externally
 					 * managed array, don't allow writes
 					 * until it is cleared */
+#define StateChanged	9		/* Faulty or Blocked has changed during
+					 * interrupt, so it needs to be
+					 * notified by the thread */
 	wait_queue_head_t blocked_wait;
 
 	int desc_nr;			/* descriptor index in the superblock */
@@ -125,6 +128,7 @@ struct mddev_s
 #define MD_CHANGE_DEVS	0	/* Some device status has changed */
 #define MD_CHANGE_CLEAN 1	/* transition to or from 'clean' */
 #define MD_CHANGE_PENDING 2	/* superblock update in progress */
+#define MD_NOTIFY_ARRAY_STATE 3	/* atomic context wants to notify userspace */
 
 	int				ro;
 
@@ -147,7 +151,7 @@ struct mddev_s
 	int				raid_disks;
 	int				max_disks;
 	sector_t			size; /* used size of component devices */
-	sector_t			array_size; /* exported array size */
+	sector_t			array_sectors; /* exported array size */
 	__u64				events;
 
 	char				uuid[16];
@@ -188,6 +192,7 @@ struct mddev_s
 	 * NEEDED:   we might need to start a resync/recover
 	 * RUNNING:  a thread is running, or about to be started
 	 * SYNC:     actually doing a resync, not a recovery
+	 * RECOVER:  doing recovery, or need to try it.
 	 * INTR:     resync needs to be aborted for some reason
 	 * DONE:     thread is done and is waiting to be reaped
 	 * REQUEST:  user-space has requested a sync (used with SYNC)
@@ -198,6 +203,7 @@ struct mddev_s
 	 */
 #define	MD_RECOVERY_RUNNING	0
 #define	MD_RECOVERY_SYNC	1
+#define	MD_RECOVERY_RECOVER	2
 #define	MD_RECOVERY_INTR	3
 #define	MD_RECOVERY_DONE	4
 #define	MD_RECOVERY_NEEDED	5
@@ -210,7 +216,8 @@ struct mddev_s
 
 	int				in_sync;	/* know to not need resync */
 	struct mutex			reconfig_mutex;
-	atomic_t			active;
+	atomic_t			active;		/* general refcount */
+	atomic_t			openers;	/* number of active opens */
 
 	int				changed;	/* true if we might need to reread partition info */
 	int				degraded;	/* whether md should consider
@@ -227,6 +234,8 @@ struct mddev_s
 	atomic_t			recovery_active; /* blocks scheduled, but not written */
 	wait_queue_head_t		recovery_wait;
 	sector_t			recovery_cp;
+	sector_t			resync_min;	/* user requested sync
+							 * starts here */
 	sector_t			resync_max;	/* resync should pause
 							 * when it gets here */
 
@@ -330,6 +339,9 @@ static inline char * mdname (mddev_t * mddev)
  */
 #define rdev_for_each(rdev, tmp, mddev)				\
 	rdev_for_each_list(rdev, tmp, (mddev)->disks)
+
+#define rdev_for_each_rcu(rdev, mddev)				\
+	list_for_each_entry_rcu(rdev, &((mddev)->disks), same_set)
 
 typedef struct mdk_thread_s {
 	void			(*run) (mddev_t *mddev);

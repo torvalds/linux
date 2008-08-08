@@ -98,8 +98,8 @@ union acpi_parse_object;
 
 static char *acpi_gbl_mutex_names[ACPI_NUM_MUTEX] = {
 	"ACPI_MTX_Interpreter",
-	"ACPI_MTX_Tables",
 	"ACPI_MTX_Namespace",
+	"ACPI_MTX_Tables",
 	"ACPI_MTX_Events",
 	"ACPI_MTX_Caches",
 	"ACPI_MTX_Memory",
@@ -282,8 +282,8 @@ struct acpi_predefined_names {
 /* Info structure used to convert external<->internal namestrings */
 
 struct acpi_namestring_info {
-	char *external_name;
-	char *next_external_char;
+	const char *external_name;
+	const char *next_external_char;
 	char *internal_name;
 	u32 length;
 	u32 num_segments;

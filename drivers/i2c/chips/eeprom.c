@@ -47,7 +47,6 @@ enum eeprom_nature {
 
 /* Each client has this additional data */
 struct eeprom_data {
-	struct i2c_client client;
 	struct mutex update_lock;
 	u8 valid;			/* bitfield, bit!=0 if slice is valid */
 	unsigned long last_updated[8];	/* In jiffies, 8 slices */
@@ -55,19 +54,6 @@ struct eeprom_data {
 	enum eeprom_nature nature;
 };
 
-
-static int eeprom_attach_adapter(struct i2c_adapter *adapter);
-static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind);
-static int eeprom_detach_client(struct i2c_client *client);
-
-/* This is the driver that will be inserted */
-static struct i2c_driver eeprom_driver = {
-	.driver = {
-		.name	= "eeprom",
-	},
-	.attach_adapter	= eeprom_attach_adapter,
-	.detach_client	= eeprom_detach_client,
-};
 
 static void eeprom_update_client(struct i2c_client *client, u8 slice)
 {
@@ -148,25 +134,17 @@ static struct bin_attribute eeprom_attr = {
 	.read = eeprom_read,
 };
 
-static int eeprom_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int eeprom_detect(struct i2c_client *client, int kind,
+			 struct i2c_board_info *info)
 {
-	if (!(adapter->class & (I2C_CLASS_DDC | I2C_CLASS_SPD)))
-		return 0;
-	return i2c_probe(adapter, &addr_data, eeprom_detect);
-}
-
-/* This function is called by i2c_probe */
-static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client *client;
-	struct eeprom_data *data;
-	int err = 0;
+	struct i2c_adapter *adapter = client->adapter;
 
 	/* EDID EEPROMs are often 24C00 EEPROMs, which answer to all
 	   addresses 0x50-0x57, but we only care about 0x50. So decline
 	   attaching to addresses >= 0x51 on DDC buses */
-	if (!(adapter->class & I2C_CLASS_SPD) && address >= 0x51)
-		goto exit;
+	if (!(adapter->class & I2C_CLASS_SPD) && client->addr >= 0x51)
+		return -ENODEV;
 
 	/* There are four ways we can read the EEPROM data:
 	   (1) I2C block reads (faster, but unsupported by most adapters)
@@ -177,32 +155,33 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	   because all known adapters support one of the first two. */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_WORD_DATA)
 	 && !i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_I2C_BLOCK))
-		goto exit;
+		return -ENODEV;
+
+	strlcpy(info->type, "eeprom", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int eeprom_probe(struct i2c_client *client,
+			const struct i2c_device_id *id)
+{
+	struct i2c_adapter *adapter = client->adapter;
+	struct eeprom_data *data;
+	int err;
 
 	if (!(data = kzalloc(sizeof(struct eeprom_data), GFP_KERNEL))) {
 		err = -ENOMEM;
 		goto exit;
 	}
 
-	client = &data->client;
 	memset(data->data, 0xff, EEPROM_SIZE);
 	i2c_set_clientdata(client, data);
-	client->addr = address;
-	client->adapter = adapter;
-	client->driver = &eeprom_driver;
-
-	/* Fill in the remaining client fields */
-	strlcpy(client->name, "eeprom", I2C_NAME_SIZE);
 	mutex_init(&data->update_lock);
 	data->nature = UNKNOWN;
 
-	/* Tell the I2C layer a new client has arrived */
-	if ((err = i2c_attach_client(client)))
-		goto exit_kfree;
-
 	/* Detect the Vaio nature of EEPROMs.
 	   We use the "PCG-" or "VGN-" prefix as the signature. */
-	if (address == 0x57
+	if (client->addr == 0x57
 	 && i2c_check_functionality(adapter, I2C_FUNC_SMBUS_READ_BYTE_DATA)) {
 		char name[4];
 
@@ -221,32 +200,41 @@ static int eeprom_detect(struct i2c_adapter *adapter, int address, int kind)
 	/* create the sysfs eeprom file */
 	err = sysfs_create_bin_file(&client->dev.kobj, &eeprom_attr);
 	if (err)
-		goto exit_detach;
+		goto exit_kfree;
 
 	return 0;
 
-exit_detach:
-	i2c_detach_client(client);
 exit_kfree:
 	kfree(data);
 exit:
 	return err;
 }
 
-static int eeprom_detach_client(struct i2c_client *client)
+static int eeprom_remove(struct i2c_client *client)
 {
-	int err;
-
 	sysfs_remove_bin_file(&client->dev.kobj, &eeprom_attr);
-
-	err = i2c_detach_client(client);
-	if (err)
-		return err;
-
 	kfree(i2c_get_clientdata(client));
 
 	return 0;
 }
+
+static const struct i2c_device_id eeprom_id[] = {
+	{ "eeprom", 0 },
+	{ }
+};
+
+static struct i2c_driver eeprom_driver = {
+	.driver = {
+		.name	= "eeprom",
+	},
+	.probe		= eeprom_probe,
+	.remove		= eeprom_remove,
+	.id_table	= eeprom_id,
+
+	.class		= I2C_CLASS_DDC | I2C_CLASS_SPD,
+	.detect		= eeprom_detect,
+	.address_data	= &addr_data,
+};
 
 static int __init eeprom_init(void)
 {

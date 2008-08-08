@@ -31,15 +31,14 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
 #include <asm/delay.h>
 #include <asm/dma.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/regs-ssp.h>
-#include <asm/arch/ssp.h>
-#include <asm/arch/pxa2xx_spi.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/regs-ssp.h>
+#include <mach/ssp.h>
+#include <mach/pxa2xx_spi.h>
 
 MODULE_AUTHOR("Stephen Street");
 MODULE_DESCRIPTION("PXA2xx SSP SPI Controller");
@@ -353,7 +352,7 @@ static int map_dma_buffers(struct driver_data *drv_data)
 	drv_data->rx_dma = dma_map_single(dev, drv_data->rx,
 						drv_data->rx_map_len,
 						DMA_FROM_DEVICE);
-	if (dma_mapping_error(drv_data->rx_dma))
+	if (dma_mapping_error(dev, drv_data->rx_dma))
 		return 0;
 
 	/* Stream map the tx buffer */
@@ -361,7 +360,7 @@ static int map_dma_buffers(struct driver_data *drv_data)
 						drv_data->tx_map_len,
 						DMA_TO_DEVICE);
 
-	if (dma_mapping_error(drv_data->tx_dma)) {
+	if (dma_mapping_error(dev, drv_data->tx_dma)) {
 		dma_unmap_single(dev, drv_data->rx_dma,
 					drv_data->rx_map_len, DMA_FROM_DEVICE);
 		return 0;

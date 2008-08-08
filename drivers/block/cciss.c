@@ -1292,8 +1292,6 @@ static void cciss_check_queues(ctlr_info_t *h)
 				h->next_to_run = curr_queue;
 				break;
 			}
-		} else {
-			curr_queue = (curr_queue + 1) % (h->highest_lun + 1);
 		}
 	}
 }

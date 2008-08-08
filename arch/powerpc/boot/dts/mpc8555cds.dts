@@ -40,6 +40,7 @@
 			timebase-frequency = <0>;	//  33 MHz, from uboot
 			bus-frequency = <0>;	// 166 MHz
 			clock-frequency = <0>;	// 825 MHz, from uboot
+			next-level-cache = <&L2>;
 		};
 	};
 
@@ -52,6 +53,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 		ranges = <0x0 0xe0000000 0x100000>;
 		reg = <0xe0000000 0x1000>;	// CCSRBAR 1M
 		bus-frequency = <0>;
@@ -63,7 +65,7 @@
 			interrupts = <18 2>;
 		};
 
-		l2-cache-controller@20000 {
+		L2: l2-cache-controller@20000 {
 			compatible = "fsl,8555-l2-cache-controller";
 			reg = <0x20000 0x1000>;
 			cache-line-size = <32>;	// 32 bytes
@@ -81,6 +83,47 @@
 			interrupts = <43 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
+		};
+
+		dma@21300 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8555-dma", "fsl,eloplus-dma";
+			reg = <0x21300 0x4>;
+			ranges = <0x0 0x21100 0x200>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8555-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x0 0x80>;
+				cell-index = <0>;
+				interrupt-parent = <&mpic>;
+				interrupts = <20 2>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8555-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x80 0x80>;
+				cell-index = <1>;
+				interrupt-parent = <&mpic>;
+				interrupts = <21 2>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8555-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x100 0x80>;
+				cell-index = <2>;
+				interrupt-parent = <&mpic>;
+				interrupts = <22 2>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8555-dma-channel",
+						"fsl,eloplus-dma-channel";
+				reg = <0x180 0x80>;
+				cell-index = <3>;
+				interrupt-parent = <&mpic>;
+				interrupts = <23 2>;
+			};
 		};
 
 		mdio@24520 {
@@ -147,15 +190,24 @@
 			interrupt-parent = <&mpic>;
 		};
 
+		crypto@30000 {
+			compatible = "fsl,sec2.0";
+			reg = <0x30000 0x10000>;
+			interrupts = <45 2>;
+			interrupt-parent = <&mpic>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x7e>;
+			fsl,descriptor-types-mask = <0x01010ebf>;
+		};
+
 		mpic: pic@40000 {
-			clock-frequency = <0>;
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
 			reg = <0x40000 0x40000>;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
-                        big-endian;
 		};
 
 		cpm@919c0 {

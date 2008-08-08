@@ -153,7 +153,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
  * address of current.  R11 points to the exception frame (physical
  * address).  We have to preserve r10.
  */
-_GLOBAL(power_save_6xx_restore)
+_GLOBAL(power_save_ppc32_restore)
 	lwz	r9,_LINK(r11)		/* interrupted in ppc6xx_idle: */
 	stw	r9,_NIP(r11)		/* make it do a blr */
 

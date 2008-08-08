@@ -598,6 +598,7 @@ void __devinit pci_process_bridge_OF_ranges(struct pci_controller *hose,
 			res->start = pci_addr;
 			break;
 		case 2:		/* PCI Memory space */
+		case 3:		/* PCI 64 bits Memory space */
 			printk(KERN_INFO
 			       " MEM 0x%016llx..0x%016llx -> 0x%016llx %s\n",
 			       cpu_addr, cpu_addr + size - 1, pci_addr,

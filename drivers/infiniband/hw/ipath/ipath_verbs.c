@@ -35,6 +35,7 @@
 #include <rdma/ib_user_verbs.h>
 #include <linux/io.h>
 #include <linux/utsname.h>
+#include <linux/rculist.h>
 
 #include "ipath_kernel.h"
 #include "ipath_verbs.h"

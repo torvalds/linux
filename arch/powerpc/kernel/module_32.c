@@ -34,23 +34,6 @@
 #define DEBUGP(fmt , ...)
 #endif
 
-LIST_HEAD(module_bug_list);
-
-void *module_alloc(unsigned long size)
-{
-	if (size == 0)
-		return NULL;
-	return vmalloc(size);
-}
-
-/* Free memory returned from module_alloc */
-void module_free(struct module *mod, void *module_region)
-{
-	vfree(module_region);
-	/* FIXME: If module_region == mod->init_region, trim exception
-           table entries. */
-}
-
 /* Count how many different relocations (different symbol, different
    addend) */
 static unsigned int count_relocs(const Elf32_Rela *rela, unsigned int num)
@@ -324,59 +307,4 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 		}
 	}
 	return 0;
-}
-
-static const Elf_Shdr *find_section(const Elf_Ehdr *hdr,
-				    const Elf_Shdr *sechdrs,
-				    const char *name)
-{
-	char *secstrings;
-	unsigned int i;
-
-	secstrings = (char *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;
-	for (i = 1; i < hdr->e_shnum; i++)
-		if (strcmp(secstrings+sechdrs[i].sh_name, name) == 0)
-			return &sechdrs[i];
-	return NULL;
-}
-
-int module_finalize(const Elf_Ehdr *hdr,
-		    const Elf_Shdr *sechdrs,
-		    struct module *me)
-{
-	const Elf_Shdr *sect;
-	int err;
-
-	err = module_bug_finalize(hdr, sechdrs, me);
-	if (err)		/* never true, currently */
-		return err;
-
-	/* Apply feature fixups */
-	sect = find_section(hdr, sechdrs, "__ftr_fixup");
-	if (sect != NULL)
-		do_feature_fixups(cur_cpu_spec->cpu_features,
-				  (void *)sect->sh_addr,
-				  (void *)sect->sh_addr + sect->sh_size);
-
-	return 0;
-}
-
-void module_arch_cleanup(struct module *mod)
-{
-	module_bug_cleanup(mod);
-}
-
-struct bug_entry *module_find_bug(unsigned long bugaddr)
-{
-	struct mod_arch_specific *mod;
-	unsigned int i;
-	struct bug_entry *bug;
-
-	list_for_each_entry(mod, &module_bug_list, bug_list) {
-		bug = mod->bug_table;
-		for (i = 0; i < mod->num_bugs; ++i, ++bug)
-			if (bugaddr == bug->bug_addr)
-				return bug;
-	}
-	return NULL;
 }

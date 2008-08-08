@@ -46,21 +46,32 @@ static const unsigned short normal_i2c[] = { 0x37, 0x4e, I2C_CLIENT_END };
 
 I2C_CLIENT_INSMOD_1(atxp1);
 
-static int atxp1_attach_adapter(struct i2c_adapter * adapter);
-static int atxp1_detach_client(struct i2c_client * client);
+static int atxp1_probe(struct i2c_client *client,
+		       const struct i2c_device_id *id);
+static int atxp1_remove(struct i2c_client *client);
 static struct atxp1_data * atxp1_update_device(struct device *dev);
-static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind);
+static int atxp1_detect(struct i2c_client *client, int kind,
+			struct i2c_board_info *info);
+
+static const struct i2c_device_id atxp1_id[] = {
+	{ "atxp1", atxp1 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, atxp1_id);
 
 static struct i2c_driver atxp1_driver = {
+	.class		= I2C_CLASS_HWMON,
 	.driver = {
 		.name	= "atxp1",
 	},
-	.attach_adapter = atxp1_attach_adapter,
-	.detach_client	= atxp1_detach_client,
+	.probe		= atxp1_probe,
+	.remove		= atxp1_remove,
+	.id_table	= atxp1_id,
+	.detect		= atxp1_detect,
+	.address_data	= &addr_data,
 };
 
 struct atxp1_data {
-	struct i2c_client client;
 	struct device *hwmon_dev;
 	struct mutex update_lock;
 	unsigned long last_updated;
@@ -263,35 +274,16 @@ static const struct attribute_group atxp1_group = {
 };
 
 
-static int atxp1_attach_adapter(struct i2c_adapter *adapter)
+/* Return 0 if detection is successful, -ENODEV otherwise */
+static int atxp1_detect(struct i2c_client *new_client, int kind,
+			struct i2c_board_info *info)
 {
-	if (!(adapter->class & I2C_CLASS_HWMON))
-		return 0;
-	return i2c_probe(adapter, &addr_data, &atxp1_detect);
-};
+	struct i2c_adapter *adapter = new_client->adapter;
 
-static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
-{
-	struct i2c_client * new_client;
-	struct atxp1_data * data;
-	int err = 0;
 	u8 temp;
 
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA))
-		goto exit;
-
-	if (!(data = kzalloc(sizeof(struct atxp1_data), GFP_KERNEL))) {
-		err = -ENOMEM;
-		goto exit;
-	}
-
-	new_client = &data->client;
-	i2c_set_clientdata(new_client, data);
-
-	new_client->addr = address;
-	new_client->adapter = adapter;
-	new_client->driver = &atxp1_driver;
-	new_client->flags = 0;
+		return -ENODEV;
 
 	/* Detect ATXP1, checking if vendor ID registers are all zero */
 	if (!((i2c_smbus_read_byte_data(new_client, 0x3e) == 0) &&
@@ -305,35 +297,46 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 
 		if (!((i2c_smbus_read_byte_data(new_client, 0x10) == temp) &&
 			 (i2c_smbus_read_byte_data(new_client, 0x11) == temp) ))
-			goto exit_free;
+			return -ENODEV;
+	}
+
+	/* Get VRM */
+	temp = vid_which_vrm();
+
+	if ((temp != 90) && (temp != 91)) {
+		dev_err(&adapter->dev, "atxp1: Not supporting VRM %d.%d\n",
+				temp / 10, temp % 10);
+		return -ENODEV;
+	}
+
+	strlcpy(info->type, "atxp1", I2C_NAME_SIZE);
+
+	return 0;
+}
+
+static int atxp1_probe(struct i2c_client *new_client,
+		       const struct i2c_device_id *id)
+{
+	struct atxp1_data *data;
+	int err;
+
+	data = kzalloc(sizeof(struct atxp1_data), GFP_KERNEL);
+	if (!data) {
+		err = -ENOMEM;
+		goto exit;
 	}
 
 	/* Get VRM */
 	data->vrm = vid_which_vrm();
 
-	if ((data->vrm != 90) && (data->vrm != 91)) {
-		dev_err(&new_client->dev, "Not supporting VRM %d.%d\n",
-				data->vrm / 10, data->vrm % 10);
-		goto exit_free;
-	}
-
-	strncpy(new_client->name, "atxp1", I2C_NAME_SIZE);
-
+	i2c_set_clientdata(new_client, data);
 	data->valid = 0;
 
 	mutex_init(&data->update_lock);
 
-	err = i2c_attach_client(new_client);
-
-	if (err)
-	{
-		dev_err(&new_client->dev, "Attach client error.\n");
-		goto exit_free;
-	}
-
 	/* Register sysfs hooks */
 	if ((err = sysfs_create_group(&new_client->dev.kobj, &atxp1_group)))
-		goto exit_detach;
+		goto exit_free;
 
 	data->hwmon_dev = hwmon_device_register(&new_client->dev);
 	if (IS_ERR(data->hwmon_dev)) {
@@ -348,30 +351,22 @@ static int atxp1_detect(struct i2c_adapter *adapter, int address, int kind)
 
 exit_remove_files:
 	sysfs_remove_group(&new_client->dev.kobj, &atxp1_group);
-exit_detach:
-	i2c_detach_client(new_client);
 exit_free:
 	kfree(data);
 exit:
 	return err;
 };
 
-static int atxp1_detach_client(struct i2c_client * client)
+static int atxp1_remove(struct i2c_client *client)
 {
 	struct atxp1_data * data = i2c_get_clientdata(client);
-	int err;
 
 	hwmon_device_unregister(data->hwmon_dev);
 	sysfs_remove_group(&client->dev.kobj, &atxp1_group);
 
-	err = i2c_detach_client(client);
+	kfree(data);
 
-	if (err)
-		dev_err(&client->dev, "Failed to detach client.\n");
-	else
-		kfree(data);
-
-	return err;
+	return 0;
 };
 
 static int __init atxp1_init(void)

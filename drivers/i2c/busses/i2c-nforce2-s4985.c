@@ -150,6 +150,16 @@ static int __init nforce2_s4985_init(void)
 	int i, error;
 	union i2c_smbus_data ioconfig;
 
+	/* Configure the PCA9556 multiplexer */
+	ioconfig.byte = 0x00; /* All I/O to output mode */
+	error = i2c_smbus_xfer(nforce2_smbus, 0x18, 0, I2C_SMBUS_WRITE, 0x03,
+			       I2C_SMBUS_BYTE_DATA, &ioconfig);
+	if (error) {
+		dev_err(&nforce2_smbus->dev, "PCA9556 configuration failed\n");
+		error = -EIO;
+		goto ERROR0;
+	}
+
 	/* Unregister physical bus */
 	if (!nforce2_smbus)
 		return -ENODEV;
@@ -191,24 +201,13 @@ static int __init nforce2_s4985_init(void)
 	s4985_algo[3].smbus_xfer = nforce2_access_virt3;
 	s4985_algo[4].smbus_xfer = nforce2_access_virt4;
 
-	/* Configure the PCA9556 multiplexer */
-	ioconfig.byte = 0x00; /* All I/O to output mode */
-	error = nforce2_smbus->algo->smbus_xfer(nforce2_smbus, 0x18, 0,
-						I2C_SMBUS_WRITE, 0x03,
-						I2C_SMBUS_BYTE_DATA, &ioconfig);
-	if (error) {
-		dev_err(&nforce2_smbus->dev, "PCA9556 configuration failed\n");
-		error = -EIO;
-		goto ERROR3;
-	}
-
 	/* Register virtual adapters */
 	for (i = 0; i < 5; i++) {
 		error = i2c_add_adapter(s4985_adapter + i);
 		if (error) {
-			dev_err(&nforce2_smbus->dev,
-				"Virtual adapter %d registration "
-				"failed, module not inserted\n", i);
+			printk(KERN_ERR "i2c-nforce2-s4985: "
+			       "Virtual adapter %d registration "
+			       "failed, module not inserted\n", i);
 			for (i--; i >= 0; i--)
 				i2c_del_adapter(s4985_adapter + i);
 			goto ERROR3;
@@ -245,8 +244,8 @@ static void __exit nforce2_s4985_exit(void)
 
 	/* Restore physical bus */
 	if (i2c_add_adapter(nforce2_smbus))
-		dev_err(&nforce2_smbus->dev, "Physical bus restoration "
-			"failed\n");
+		printk(KERN_ERR "i2c-nforce2-s4985: "
+		       "Physical bus restoration failed\n");
 }
 
 MODULE_AUTHOR("Jean Delvare <khali@linux-fr.org>");

@@ -1308,7 +1308,6 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 				dev_info(&adapter->pdev->dev, "link is down\n");
 			adapter->link_speed = SPEED_0;
 			netif_carrier_off(netdev);
-			netif_stop_queue(netdev);
 		}
 		return 0;
 	}
@@ -1358,7 +1357,6 @@ static u32 atl1_check_link(struct atl1_adapter *adapter)
 		if (!netif_carrier_ok(netdev)) {
 			/* Link down -> Up */
 			netif_carrier_on(netdev);
-			netif_wake_queue(netdev);
 		}
 		return 0;
 	}
@@ -1859,7 +1857,8 @@ static u16 atl1_alloc_rx_buffers(struct atl1_adapter *adapter)
 
 		rfd_desc = ATL1_RFD_DESC(rfd_ring, rfd_next_to_use);
 
-		skb = dev_alloc_skb(adapter->rx_buffer_len + NET_IP_ALIGN);
+		skb = netdev_alloc_skb(adapter->netdev,
+				       adapter->rx_buffer_len + NET_IP_ALIGN);
 		if (unlikely(!skb)) {
 			/* Better luck next round */
 			adapter->net_stats.rx_dropped++;
@@ -2626,6 +2625,7 @@ static s32 atl1_up(struct atl1_adapter *adapter)
 	mod_timer(&adapter->watchdog_timer, jiffies);
 	atlx_irq_enable(adapter);
 	atl1_check_link(adapter);
+	netif_start_queue(netdev);
 	return 0;
 
 err_up:

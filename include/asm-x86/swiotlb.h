@@ -35,7 +35,7 @@ extern int swiotlb_map_sg(struct device *hwdev, struct scatterlist *sg,
 			  int nents, int direction);
 extern void swiotlb_unmap_sg(struct device *hwdev, struct scatterlist *sg,
 			     int nents, int direction);
-extern int swiotlb_dma_mapping_error(dma_addr_t dma_addr);
+extern int swiotlb_dma_mapping_error(struct device *hwdev, dma_addr_t dma_addr);
 extern void swiotlb_free_coherent(struct device *hwdev, size_t size,
 				  void *vaddr, dma_addr_t dma_handle);
 extern int swiotlb_dma_supported(struct device *hwdev, u64 mask);
@@ -45,11 +45,13 @@ extern int swiotlb_force;
 
 #ifdef CONFIG_SWIOTLB
 extern int swiotlb;
+extern void pci_swiotlb_init(void);
 #else
 #define swiotlb 0
+static inline void pci_swiotlb_init(void)
+{
+}
 #endif
-
-extern void pci_swiotlb_init(void);
 
 static inline void dma_mark_clean(void *addr, size_t size) {}
 

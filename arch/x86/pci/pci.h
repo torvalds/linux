@@ -28,6 +28,7 @@
 #define PCI_USE__CRS		0x10000
 #define PCI_CHECK_ENABLE_AMD_MMCONF	0x20000
 #define PCI_HAS_IO_ECS		0x40000
+#define PCI_NOASSIGN_ROMS	0x80000
 
 extern unsigned int pci_probe;
 extern unsigned long pirq_table_addr;
@@ -107,7 +108,8 @@ extern void __init dmi_check_skip_isa_align(void);
 /* some common used subsys_initcalls */
 extern int __init pci_acpi_init(void);
 extern int __init pcibios_irq_init(void);
-extern int __init pci_numa_init(void);
+extern int __init pci_visws_init(void);
+extern int __init pci_numaq_init(void);
 extern int __init pcibios_init(void);
 
 /* pci-mmconfig.c */

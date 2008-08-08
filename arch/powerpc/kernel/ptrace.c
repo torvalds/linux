@@ -22,6 +22,7 @@
 #include <linux/errno.h>
 #include <linux/ptrace.h>
 #include <linux/regset.h>
+#include <linux/tracehook.h>
 #include <linux/elf.h>
 #include <linux/user.h>
 #include <linux/security.h>
@@ -215,28 +216,55 @@ static int fpr_get(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   void *kbuf, void __user *ubuf)
 {
+#ifdef CONFIG_VSX
+	double buf[33];
+	int i;
+#endif
 	flush_fp_to_thread(target);
 
+#ifdef CONFIG_VSX
+	/* copy to local buffer then write that out */
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.TS_FPR(i);
+	memcpy(&buf[32], &target->thread.fpscr, sizeof(double));
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
+
+#else
 	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
-		     offsetof(struct thread_struct, fpr[32]));
+		     offsetof(struct thread_struct, TS_FPR(32)));
 
 	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
 				   &target->thread.fpr, 0, -1);
+#endif
 }
 
 static int fpr_set(struct task_struct *target, const struct user_regset *regset,
 		   unsigned int pos, unsigned int count,
 		   const void *kbuf, const void __user *ubuf)
 {
+#ifdef CONFIG_VSX
+	double buf[33];
+	int i;
+#endif
 	flush_fp_to_thread(target);
 
+#ifdef CONFIG_VSX
+	/* copy to local buffer then write that out */
+	i = user_regset_copyin(&pos, &count, &kbuf, &ubuf, buf, 0, -1);
+	if (i)
+		return i;
+	for (i = 0; i < 32 ; i++)
+		target->thread.TS_FPR(i) = buf[i];
+	memcpy(&target->thread.fpscr, &buf[32], sizeof(double));
+	return 0;
+#else
 	BUILD_BUG_ON(offsetof(struct thread_struct, fpscr) !=
-		     offsetof(struct thread_struct, fpr[32]));
+		     offsetof(struct thread_struct, TS_FPR(32)));
 
 	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
 				  &target->thread.fpr, 0, -1);
+#endif
 }
-
 
 #ifdef CONFIG_ALTIVEC
 /*
@@ -323,6 +351,56 @@ static int vr_set(struct task_struct *target, const struct user_regset *regset,
 }
 #endif /* CONFIG_ALTIVEC */
 
+#ifdef CONFIG_VSX
+/*
+ * Currently to set and and get all the vsx state, you need to call
+ * the fp and VMX calls aswell.  This only get/sets the lower 32
+ * 128bit VSX registers.
+ */
+
+static int vsr_active(struct task_struct *target,
+		      const struct user_regset *regset)
+{
+	flush_vsx_to_thread(target);
+	return target->thread.used_vsr ? regset->n : 0;
+}
+
+static int vsr_get(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   void *kbuf, void __user *ubuf)
+{
+	double buf[32];
+	int ret, i;
+
+	flush_vsx_to_thread(target);
+
+	for (i = 0; i < 32 ; i++)
+		buf[i] = target->thread.fpr[i][TS_VSRLOWOFFSET];
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				  buf, 0, 32 * sizeof(double));
+
+	return ret;
+}
+
+static int vsr_set(struct task_struct *target, const struct user_regset *regset,
+		   unsigned int pos, unsigned int count,
+		   const void *kbuf, const void __user *ubuf)
+{
+	double buf[32];
+	int ret,i;
+
+	flush_vsx_to_thread(target);
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				 buf, 0, 32 * sizeof(double));
+	for (i = 0; i < 32 ; i++)
+		target->thread.fpr[i][TS_VSRLOWOFFSET] = buf[i];
+
+
+	return ret;
+}
+#endif /* CONFIG_VSX */
+
 #ifdef CONFIG_SPE
 
 /*
@@ -399,6 +477,9 @@ enum powerpc_regset {
 #ifdef CONFIG_ALTIVEC
 	REGSET_VMX,
 #endif
+#ifdef CONFIG_VSX
+	REGSET_VSX,
+#endif
 #ifdef CONFIG_SPE
 	REGSET_SPE,
 #endif
@@ -420,6 +501,13 @@ static const struct user_regset native_regsets[] = {
 		.core_note_type = NT_PPC_VMX, .n = 34,
 		.size = sizeof(vector128), .align = sizeof(vector128),
 		.active = vr_active, .get = vr_get, .set = vr_set
+	},
+#endif
+#ifdef CONFIG_VSX
+	[REGSET_VSX] = {
+		.core_note_type = NT_PPC_VSX, .n = 32,
+		.size = sizeof(double), .align = sizeof(double),
+		.active = vsr_active, .get = vsr_get, .set = vsr_set
 	},
 #endif
 #ifdef CONFIG_SPE
@@ -616,7 +704,7 @@ void user_enable_single_step(struct task_struct *task)
 
 	if (regs != NULL) {
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
-		task->thread.dbcr0 = DBCR0_IDM | DBCR0_IC;
+		task->thread.dbcr0 |= DBCR0_IDM | DBCR0_IC;
 		regs->msr |= MSR_DE;
 #else
 		regs->msr |= MSR_SE;
@@ -629,9 +717,16 @@ void user_disable_single_step(struct task_struct *task)
 {
 	struct pt_regs *regs = task->thread.regs;
 
+
+#if defined(CONFIG_BOOKE)
+	/* If DAC then do not single step, skip */
+	if (task->thread.dabr)
+		return;
+#endif
+
 	if (regs != NULL) {
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
-		task->thread.dbcr0 = 0;
+		task->thread.dbcr0 &= ~(DBCR0_IC | DBCR0_IDM);
 		regs->msr &= ~MSR_DE;
 #else
 		regs->msr &= ~MSR_SE;
@@ -640,22 +735,76 @@ void user_disable_single_step(struct task_struct *task)
 	clear_tsk_thread_flag(task, TIF_SINGLESTEP);
 }
 
-static int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
+int ptrace_set_debugreg(struct task_struct *task, unsigned long addr,
 			       unsigned long data)
 {
-	/* We only support one DABR and no IABRS at the moment */
+	/* For ppc64 we support one DABR and no IABR's at the moment (ppc64).
+	 *  For embedded processors we support one DAC and no IAC's at the
+	 *  moment.
+	 */
 	if (addr > 0)
 		return -EINVAL;
 
-	/* The bottom 3 bits are flags */
+	/* The bottom 3 bits in dabr are flags */
 	if ((data & ~0x7UL) >= TASK_SIZE)
 		return -EIO;
 
-	/* Ensure translation is on */
+#ifndef CONFIG_BOOKE
+
+	/* For processors using DABR (i.e. 970), the bottom 3 bits are flags.
+	 *  It was assumed, on previous implementations, that 3 bits were
+	 *  passed together with the data address, fitting the design of the
+	 *  DABR register, as follows:
+	 *
+	 *  bit 0: Read flag
+	 *  bit 1: Write flag
+	 *  bit 2: Breakpoint translation
+	 *
+	 *  Thus, we use them here as so.
+	 */
+
+	/* Ensure breakpoint translation bit is set */
 	if (data && !(data & DABR_TRANSLATION))
 		return -EIO;
 
+	/* Move contents to the DABR register */
 	task->thread.dabr = data;
+
+#endif
+#if defined(CONFIG_BOOKE)
+
+	/* As described above, it was assumed 3 bits were passed with the data
+	 *  address, but we will assume only the mode bits will be passed
+	 *  as to not cause alignment restrictions for DAC-based processors.
+	 */
+
+	/* DAC's hold the whole address without any mode flags */
+	task->thread.dabr = data & ~0x3UL;
+
+	if (task->thread.dabr == 0) {
+		task->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W | DBCR0_IDM);
+		task->thread.regs->msr &= ~MSR_DE;
+		return 0;
+	}
+
+	/* Read or Write bits must be set */
+
+	if (!(data & 0x3UL))
+		return -EINVAL;
+
+	/* Set the Internal Debugging flag (IDM bit 1) for the DBCR0
+	   register */
+	task->thread.dbcr0 = DBCR0_IDM;
+
+	/* Check for write and read flags and set DBCR0
+	   accordingly */
+	if (data & 0x1UL)
+		task->thread.dbcr0 |= DBSR_DAC1R;
+	if (data & 0x2UL)
+		task->thread.dbcr0 |= DBSR_DAC1W;
+
+	task->thread.regs->msr |= MSR_DE;
+#endif
 	return 0;
 }
 
@@ -728,7 +877,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			tmp = ptrace_get_reg(child, (int) index);
 		} else {
 			flush_fp_to_thread(child);
-			tmp = ((unsigned long *)child->thread.fpr)[index - PT_FPR0];
+			tmp = ((unsigned long *)child->thread.fpr)
+				[TS_FPRWIDTH * (index - PT_FPR0)];
 		}
 		ret = put_user(tmp,(unsigned long __user *) data);
 		break;
@@ -755,7 +905,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			ret = ptrace_put_reg(child, index, data);
 		} else {
 			flush_fp_to_thread(child);
-			((unsigned long *)child->thread.fpr)[index - PT_FPR0] = data;
+			((unsigned long *)child->thread.fpr)
+				[TS_FPRWIDTH * (index - PT_FPR0)] = data;
 			ret = 0;
 		}
 		break;
@@ -820,6 +971,19 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 						 sizeof(u32)),
 					     (const void __user *) data);
 #endif
+#ifdef CONFIG_VSX
+	case PTRACE_GETVSRREGS:
+		return copy_regset_to_user(child, &user_ppc_native_view,
+					   REGSET_VSX,
+					   0, 32 * sizeof(double),
+					   (void __user *) data);
+
+	case PTRACE_SETVSRREGS:
+		return copy_regset_from_user(child, &user_ppc_native_view,
+					     REGSET_VSX,
+					     0, 32 * sizeof(double),
+					     (const void __user *) data);
+#endif
 #ifdef CONFIG_SPE
 	case PTRACE_GETEVRREGS:
 		/* Get the child spe register state. */
@@ -849,31 +1013,24 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	return ret;
 }
 
-static void do_syscall_trace(void)
+/*
+ * We must return the syscall number to actually look up in the table.
+ * This can be -1L to skip running any syscall at all.
+ */
+long do_syscall_trace_enter(struct pt_regs *regs)
 {
-	/* the 0x80 provides a way for the tracing parent to distinguish
-	   between a syscall stop and SIGTRAP delivery */
-	ptrace_notify(SIGTRAP | ((current->ptrace & PT_TRACESYSGOOD)
-				 ? 0x80 : 0));
+	long ret = 0;
 
-	/*
-	 * this isn't the same as continuing with a signal, but it will do
-	 * for normal use.  strace only continues with a signal if the
-	 * stopping signal is not SIGTRAP.  -brl
-	 */
-	if (current->exit_code) {
-		send_sig(current->exit_code, current, 1);
-		current->exit_code = 0;
-	}
-}
-
-void do_syscall_trace_enter(struct pt_regs *regs)
-{
 	secure_computing(regs->gpr[0]);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE)
-	    && (current->ptrace & PT_PTRACED))
-		do_syscall_trace();
+	if (test_thread_flag(TIF_SYSCALL_TRACE) &&
+	    tracehook_report_syscall_entry(regs))
+		/*
+		 * Tracing decided this syscall should not happen.
+		 * We'll return a bogus call number to get an ENOSYS
+		 * error, but leave the original number in regs->gpr[0].
+		 */
+		ret = -1L;
 
 	if (unlikely(current->audit_context)) {
 #ifdef CONFIG_PPC64
@@ -891,16 +1048,19 @@ void do_syscall_trace_enter(struct pt_regs *regs)
 					    regs->gpr[5] & 0xffffffff,
 					    regs->gpr[6] & 0xffffffff);
 	}
+
+	return ret ?: regs->gpr[0];
 }
 
 void do_syscall_trace_leave(struct pt_regs *regs)
 {
+	int step;
+
 	if (unlikely(current->audit_context))
 		audit_syscall_exit((regs->ccr&0x10000000)?AUDITSC_FAILURE:AUDITSC_SUCCESS,
 				   regs->result);
 
-	if ((test_thread_flag(TIF_SYSCALL_TRACE)
-	     || test_thread_flag(TIF_SINGLESTEP))
-	    && (current->ptrace & PT_PTRACED))
-		do_syscall_trace();
+	step = test_thread_flag(TIF_SINGLESTEP);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }

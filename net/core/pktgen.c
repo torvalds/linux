@@ -1875,7 +1875,7 @@ static int pktgen_device_event(struct notifier_block *unused,
 {
 	struct net_device *dev = ptr;
 
-	if (dev_net(dev) != &init_net)
+	if (!net_eq(dev_net(dev), &init_net))
 		return NOTIFY_DONE;
 
 	/* It is OK that we do not hold the group lock right now,
@@ -2085,15 +2085,19 @@ static inline int f_pick(struct pktgen_dev *pkt_dev)
 		if (pkt_dev->flows[flow].count >= pkt_dev->lflow) {
 			/* reset time */
 			pkt_dev->flows[flow].count = 0;
+			pkt_dev->flows[flow].flags = 0;
 			pkt_dev->curfl += 1;
 			if (pkt_dev->curfl >= pkt_dev->cflows)
 				pkt_dev->curfl = 0; /*reset */
 		}
 	} else {
 		flow = random32() % pkt_dev->cflows;
+		pkt_dev->curfl = flow;
 
-		if (pkt_dev->flows[flow].count > pkt_dev->lflow)
+		if (pkt_dev->flows[flow].count > pkt_dev->lflow) {
 			pkt_dev->flows[flow].count = 0;
+			pkt_dev->flows[flow].flags = 0;
+		}
 	}
 
 	return pkt_dev->curfl;
@@ -2123,6 +2127,24 @@ static void get_ipsec_sa(struct pktgen_dev *pkt_dev, int flow)
 	}
 }
 #endif
+static void set_cur_queue_map(struct pktgen_dev *pkt_dev)
+{
+	if (pkt_dev->queue_map_min < pkt_dev->queue_map_max) {
+		__u16 t;
+		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
+			t = random32() %
+				(pkt_dev->queue_map_max -
+				 pkt_dev->queue_map_min + 1)
+				+ pkt_dev->queue_map_min;
+		} else {
+			t = pkt_dev->cur_queue_map + 1;
+			if (t > pkt_dev->queue_map_max)
+				t = pkt_dev->queue_map_min;
+		}
+		pkt_dev->cur_queue_map = t;
+	}
+}
+
 /* Increment/randomize headers according to flags and current values
  * for IP src/dest, UDP src/dst port, MAC-Addr src/dst
  */
@@ -2144,7 +2166,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 			mc = random32() % pkt_dev->src_mac_count;
 		else {
 			mc = pkt_dev->cur_src_mac_offset++;
-			if (pkt_dev->cur_src_mac_offset >
+			if (pkt_dev->cur_src_mac_offset >=
 			    pkt_dev->src_mac_count)
 				pkt_dev->cur_src_mac_offset = 0;
 		}
@@ -2171,7 +2193,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 
 		else {
 			mc = pkt_dev->cur_dst_mac_offset++;
-			if (pkt_dev->cur_dst_mac_offset >
+			if (pkt_dev->cur_dst_mac_offset >=
 			    pkt_dev->dst_mac_count) {
 				pkt_dev->cur_dst_mac_offset = 0;
 			}
@@ -2325,19 +2347,7 @@ static void mod_cur_headers(struct pktgen_dev *pkt_dev)
 		pkt_dev->cur_pkt_size = t;
 	}
 
-	if (pkt_dev->queue_map_min < pkt_dev->queue_map_max) {
-		__u16 t;
-		if (pkt_dev->flags & F_QUEUE_MAP_RND) {
-			t = random32() %
-				(pkt_dev->queue_map_max - pkt_dev->queue_map_min + 1)
-				+ pkt_dev->queue_map_min;
-		} else {
-			t = pkt_dev->cur_queue_map + 1;
-			if (t > pkt_dev->queue_map_max)
-				t = pkt_dev->queue_map_min;
-		}
-		pkt_dev->cur_queue_map = t;
-	}
+	set_cur_queue_map(pkt_dev);
 
 	pkt_dev->flows[flow].count++;
 }
@@ -2458,7 +2468,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	__be16 *vlan_encapsulated_proto = NULL;  /* packet type ID field (or len) for VLAN tag */
 	__be16 *svlan_tci = NULL;                /* Encapsulates priority and SVLAN ID */
 	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
-
+	u16 queue_map;
 
 	if (pkt_dev->nr_labels)
 		protocol = htons(ETH_P_MPLS_UC);
@@ -2469,6 +2479,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
+	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
 
 	datalen = (odev->hard_header_len + 16) & ~0xf;
@@ -2507,7 +2518,7 @@ static struct sk_buff *fill_packet_ipv4(struct net_device *odev,
 	skb->network_header = skb->tail;
 	skb->transport_header = skb->network_header + sizeof(struct iphdr);
 	skb_put(skb, sizeof(struct iphdr) + sizeof(struct udphdr));
-	skb_set_queue_mapping(skb, pkt_dev->cur_queue_map);
+	skb_set_queue_mapping(skb, queue_map);
 	iph = ip_hdr(skb);
 	udph = udp_hdr(skb);
 
@@ -2797,6 +2808,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	__be16 *vlan_encapsulated_proto = NULL;  /* packet type ID field (or len) for VLAN tag */
 	__be16 *svlan_tci = NULL;                /* Encapsulates priority and SVLAN ID */
 	__be16 *svlan_encapsulated_proto = NULL; /* packet type ID field (or len) for SVLAN tag */
+	u16 queue_map;
 
 	if (pkt_dev->nr_labels)
 		protocol = htons(ETH_P_MPLS_UC);
@@ -2807,6 +2819,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	/* Update any of the values, used when we're incrementing various
 	 * fields.
 	 */
+	queue_map = pkt_dev->cur_queue_map;
 	mod_cur_headers(pkt_dev);
 
 	skb = alloc_skb(pkt_dev->cur_pkt_size + 64 + 16 +
@@ -2844,7 +2857,7 @@ static struct sk_buff *fill_packet_ipv6(struct net_device *odev,
 	skb->network_header = skb->tail;
 	skb->transport_header = skb->network_header + sizeof(struct ipv6hdr);
 	skb_put(skb, sizeof(struct ipv6hdr) + sizeof(struct udphdr));
-	skb_set_queue_mapping(skb, pkt_dev->cur_queue_map);
+	skb_set_queue_mapping(skb, queue_map);
 	iph = ipv6_hdr(skb);
 	udph = udp_hdr(skb);
 
@@ -3263,7 +3276,9 @@ static void pktgen_rem_thread(struct pktgen_thread *t)
 static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 {
 	struct net_device *odev = NULL;
+	struct netdev_queue *txq;
 	__u64 idle_start = 0;
+	u16 queue_map;
 	int ret;
 
 	odev = pkt_dev->odev;
@@ -3285,9 +3300,16 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		}
 	}
 
-	if ((netif_queue_stopped(odev) ||
-	     (pkt_dev->skb &&
-	      netif_subqueue_stopped(odev, pkt_dev->skb))) ||
+	if (!pkt_dev->skb) {
+		set_cur_queue_map(pkt_dev);
+		queue_map = pkt_dev->cur_queue_map;
+	} else {
+		queue_map = skb_get_queue_mapping(pkt_dev->skb);
+	}
+
+	txq = netdev_get_tx_queue(odev, queue_map);
+	if (netif_tx_queue_stopped(txq) ||
+	    netif_tx_queue_frozen(txq) ||
 	    need_resched()) {
 		idle_start = getCurUs();
 
@@ -3303,8 +3325,8 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 
 		pkt_dev->idle_acc += getCurUs() - idle_start;
 
-		if (netif_queue_stopped(odev) ||
-		    netif_subqueue_stopped(odev, pkt_dev->skb)) {
+		if (netif_tx_queue_stopped(txq) ||
+		    netif_tx_queue_frozen(txq)) {
 			pkt_dev->next_tx_us = getCurUs();	/* TODO */
 			pkt_dev->next_tx_ns = 0;
 			goto out;	/* Try the next interface */
@@ -3331,9 +3353,13 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		}
 	}
 
-	netif_tx_lock_bh(odev);
-	if (!netif_queue_stopped(odev) &&
-	    !netif_subqueue_stopped(odev, pkt_dev->skb)) {
+	/* fill_packet() might have changed the queue */
+	queue_map = skb_get_queue_mapping(pkt_dev->skb);
+	txq = netdev_get_tx_queue(odev, queue_map);
+
+	__netif_tx_lock_bh(txq);
+	if (!netif_tx_queue_stopped(txq) &&
+	    !netif_tx_queue_frozen(txq)) {
 
 		atomic_inc(&(pkt_dev->skb->users));
 	      retry_now:
@@ -3377,7 +3403,7 @@ static __inline__ void pktgen_xmit(struct pktgen_dev *pkt_dev)
 		pkt_dev->next_tx_ns = 0;
 	}
 
-	netif_tx_unlock_bh(odev);
+	__netif_tx_unlock_bh(txq);
 
 	/* If pkt_dev->count is zero, then run forever */
 	if ((pkt_dev->count != 0) && (pkt_dev->sofar >= pkt_dev->count)) {

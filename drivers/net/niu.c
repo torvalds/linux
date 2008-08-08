@@ -3236,9 +3236,13 @@ static int release_tx_packet(struct niu *np, struct tx_ring_info *rp, int idx)
 
 static void niu_tx_work(struct niu *np, struct tx_ring_info *rp)
 {
+	struct netdev_queue *txq;
 	u16 pkt_cnt, tmp;
-	int cons;
+	int cons, index;
 	u64 cs;
+
+	index = (rp - np->tx_rings);
+	txq = netdev_get_tx_queue(np->dev, index);
 
 	cs = rp->tx_cs;
 	if (unlikely(!(cs & (TX_CS_MK | TX_CS_MMK))))
@@ -3262,13 +3266,13 @@ static void niu_tx_work(struct niu *np, struct tx_ring_info *rp)
 	smp_mb();
 
 out:
-	if (unlikely(netif_queue_stopped(np->dev) &&
+	if (unlikely(netif_tx_queue_stopped(txq) &&
 		     (niu_tx_avail(rp) > NIU_TX_WAKEUP_THRESH(rp)))) {
-		netif_tx_lock(np->dev);
-		if (netif_queue_stopped(np->dev) &&
+		__netif_tx_lock(txq, smp_processor_id());
+		if (netif_tx_queue_stopped(txq) &&
 		    (niu_tx_avail(rp) > NIU_TX_WAKEUP_THRESH(rp)))
-			netif_wake_queue(np->dev);
-		netif_tx_unlock(np->dev);
+			netif_tx_wake_queue(txq);
+		__netif_tx_unlock(txq);
 	}
 }
 
@@ -4060,6 +4064,8 @@ static int niu_alloc_channels(struct niu *np)
 
 	np->num_rx_rings = parent->rxchan_per_port[port];
 	np->num_tx_rings = parent->txchan_per_port[port];
+
+	np->dev->real_num_tx_queues = np->num_tx_rings;
 
 	np->rx_rings = kzalloc(np->num_rx_rings * sizeof(struct rx_ring_info),
 			       GFP_KERNEL);
@@ -5686,7 +5692,7 @@ static int niu_open(struct net_device *dev)
 		goto out_free_irq;
 	}
 
-	netif_start_queue(dev);
+	netif_tx_start_all_queues(dev);
 
 	if (np->link_config.loopback_mode != LOOPBACK_DISABLED)
 		netif_carrier_on(dev);
@@ -5710,7 +5716,7 @@ static void niu_full_shutdown(struct niu *np, struct net_device *dev)
 	cancel_work_sync(&np->reset_task);
 
 	niu_disable_napi(np);
-	netif_stop_queue(dev);
+	netif_tx_stop_all_queues(dev);
 
 	del_timer_sync(&np->timer);
 
@@ -5971,7 +5977,7 @@ static void niu_netif_start(struct niu *np)
 	 * so long as all callers are assured to have free tx slots
 	 * (such as after niu_init_hw).
 	 */
-	netif_wake_queue(np->dev);
+	netif_tx_wake_all_queues(np->dev);
 
 	niu_enable_napi(np);
 
@@ -6097,15 +6103,11 @@ static u64 niu_compute_tx_flags(struct sk_buff *skb, struct ethhdr *ehdr,
 	return ret;
 }
 
-static struct tx_ring_info *tx_ring_select(struct niu *np, struct sk_buff *skb)
-{
-	return &np->tx_rings[0];
-}
-
 static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct niu *np = netdev_priv(dev);
 	unsigned long align, headroom;
+	struct netdev_queue *txq;
 	struct tx_ring_info *rp;
 	struct tx_pkt_hdr *tp;
 	unsigned int len, nfg;
@@ -6113,10 +6115,12 @@ static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int prod, i, tlen;
 	u64 mapping, mrk;
 
-	rp = tx_ring_select(np, skb);
+	i = skb_get_queue_mapping(skb);
+	rp = &np->tx_rings[i];
+	txq = netdev_get_tx_queue(dev, i);
 
 	if (niu_tx_avail(rp) <= (skb_shinfo(skb)->nr_frags + 1)) {
-		netif_stop_queue(dev);
+		netif_tx_stop_queue(txq);
 		dev_err(np->device, PFX "%s: BUG! Tx ring full when "
 			"queue awake!\n", dev->name);
 		rp->tx_errors++;
@@ -6215,9 +6219,9 @@ static int niu_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	nw64(TX_RING_KICK(rp->tx_channel), rp->wrap_bit | (prod << 3));
 
 	if (unlikely(niu_tx_avail(rp) <= (MAX_SKB_FRAGS + 1))) {
-		netif_stop_queue(dev);
+		netif_tx_stop_queue(txq);
 		if (niu_tx_avail(rp) > NIU_TX_WAKEUP_THRESH(rp))
-			netif_wake_queue(dev);
+			netif_tx_wake_queue(txq);
 	}
 
 	dev->trans_start = jiffies;
@@ -6275,7 +6279,7 @@ static int niu_change_mtu(struct net_device *dev, int new_mtu)
 	spin_unlock_irq(&np->lock);
 
 	if (!err) {
-		netif_start_queue(dev);
+		netif_tx_start_all_queues(dev);
 		if (np->link_config.loopback_mode != LOOPBACK_DISABLED)
 			netif_carrier_on(dev);
 
@@ -6382,6 +6386,162 @@ static int niu_get_eeprom(struct net_device *dev,
 		val = nr64(ESPC_NCR(offset / 4));
 		memcpy(data, &val, len);
 	}
+	return 0;
+}
+
+static int niu_ethflow_to_class(int flow_type, u64 *class)
+{
+	switch (flow_type) {
+	case TCP_V4_FLOW:
+		*class = CLASS_CODE_TCP_IPV4;
+		break;
+	case UDP_V4_FLOW:
+		*class = CLASS_CODE_UDP_IPV4;
+		break;
+	case AH_ESP_V4_FLOW:
+		*class = CLASS_CODE_AH_ESP_IPV4;
+		break;
+	case SCTP_V4_FLOW:
+		*class = CLASS_CODE_SCTP_IPV4;
+		break;
+	case TCP_V6_FLOW:
+		*class = CLASS_CODE_TCP_IPV6;
+		break;
+	case UDP_V6_FLOW:
+		*class = CLASS_CODE_UDP_IPV6;
+		break;
+	case AH_ESP_V6_FLOW:
+		*class = CLASS_CODE_AH_ESP_IPV6;
+		break;
+	case SCTP_V6_FLOW:
+		*class = CLASS_CODE_SCTP_IPV6;
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
+static u64 niu_flowkey_to_ethflow(u64 flow_key)
+{
+	u64 ethflow = 0;
+
+	if (flow_key & FLOW_KEY_PORT)
+		ethflow |= RXH_DEV_PORT;
+	if (flow_key & FLOW_KEY_L2DA)
+		ethflow |= RXH_L2DA;
+	if (flow_key & FLOW_KEY_VLAN)
+		ethflow |= RXH_VLAN;
+	if (flow_key & FLOW_KEY_IPSA)
+		ethflow |= RXH_IP_SRC;
+	if (flow_key & FLOW_KEY_IPDA)
+		ethflow |= RXH_IP_DST;
+	if (flow_key & FLOW_KEY_PROTO)
+		ethflow |= RXH_L3_PROTO;
+	if (flow_key & (FLOW_KEY_L4_BYTE12 << FLOW_KEY_L4_0_SHIFT))
+		ethflow |= RXH_L4_B_0_1;
+	if (flow_key & (FLOW_KEY_L4_BYTE12 << FLOW_KEY_L4_1_SHIFT))
+		ethflow |= RXH_L4_B_2_3;
+
+	return ethflow;
+
+}
+
+static int niu_ethflow_to_flowkey(u64 ethflow, u64 *flow_key)
+{
+	u64 key = 0;
+
+	if (ethflow & RXH_DEV_PORT)
+		key |= FLOW_KEY_PORT;
+	if (ethflow & RXH_L2DA)
+		key |= FLOW_KEY_L2DA;
+	if (ethflow & RXH_VLAN)
+		key |= FLOW_KEY_VLAN;
+	if (ethflow & RXH_IP_SRC)
+		key |= FLOW_KEY_IPSA;
+	if (ethflow & RXH_IP_DST)
+		key |= FLOW_KEY_IPDA;
+	if (ethflow & RXH_L3_PROTO)
+		key |= FLOW_KEY_PROTO;
+	if (ethflow & RXH_L4_B_0_1)
+		key |= (FLOW_KEY_L4_BYTE12 << FLOW_KEY_L4_0_SHIFT);
+	if (ethflow & RXH_L4_B_2_3)
+		key |= (FLOW_KEY_L4_BYTE12 << FLOW_KEY_L4_1_SHIFT);
+
+	*flow_key = key;
+
+	return 1;
+
+}
+
+static int niu_get_hash_opts(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct niu *np = netdev_priv(dev);
+	u64 class;
+
+	cmd->data = 0;
+
+	if (!niu_ethflow_to_class(cmd->flow_type, &class))
+		return -EINVAL;
+
+	if (np->parent->tcam_key[class - CLASS_CODE_USER_PROG1] &
+	    TCAM_KEY_DISC)
+		cmd->data = RXH_DISCARD;
+	else
+
+		cmd->data = niu_flowkey_to_ethflow(np->parent->flow_key[class -
+						      CLASS_CODE_USER_PROG1]);
+	return 0;
+}
+
+static int niu_set_hash_opts(struct net_device *dev, struct ethtool_rxnfc *cmd)
+{
+	struct niu *np = netdev_priv(dev);
+	u64 class;
+	u64 flow_key = 0;
+	unsigned long flags;
+
+	if (!niu_ethflow_to_class(cmd->flow_type, &class))
+		return -EINVAL;
+
+	if (class < CLASS_CODE_USER_PROG1 ||
+	    class > CLASS_CODE_SCTP_IPV6)
+		return -EINVAL;
+
+	if (cmd->data & RXH_DISCARD) {
+		niu_lock_parent(np, flags);
+		flow_key = np->parent->tcam_key[class -
+					       CLASS_CODE_USER_PROG1];
+		flow_key |= TCAM_KEY_DISC;
+		nw64(TCAM_KEY(class - CLASS_CODE_USER_PROG1), flow_key);
+		np->parent->tcam_key[class - CLASS_CODE_USER_PROG1] = flow_key;
+		niu_unlock_parent(np, flags);
+		return 0;
+	} else {
+		/* Discard was set before, but is not set now */
+		if (np->parent->tcam_key[class - CLASS_CODE_USER_PROG1] &
+		    TCAM_KEY_DISC) {
+			niu_lock_parent(np, flags);
+			flow_key = np->parent->tcam_key[class -
+					       CLASS_CODE_USER_PROG1];
+			flow_key &= ~TCAM_KEY_DISC;
+			nw64(TCAM_KEY(class - CLASS_CODE_USER_PROG1),
+			     flow_key);
+			np->parent->tcam_key[class - CLASS_CODE_USER_PROG1] =
+				flow_key;
+			niu_unlock_parent(np, flags);
+		}
+	}
+
+	if (!niu_ethflow_to_flowkey(cmd->data, &flow_key))
+		return -EINVAL;
+
+	niu_lock_parent(np, flags);
+	nw64(FLOW_KEY(class - CLASS_CODE_USER_PROG1), flow_key);
+	np->parent->flow_key[class - CLASS_CODE_USER_PROG1] = flow_key;
+	niu_unlock_parent(np, flags);
+
 	return 0;
 }
 
@@ -6615,6 +6775,8 @@ static const struct ethtool_ops niu_ethtool_ops = {
 	.get_stats_count	= niu_get_stats_count,
 	.get_ethtool_stats	= niu_get_ethtool_stats,
 	.phys_id		= niu_phys_id,
+	.get_rxhash		= niu_get_hash_opts,
+	.set_rxhash		= niu_set_hash_opts,
 };
 
 static int niu_ldg_assign_ldn(struct niu *np, struct niu_parent *parent,
@@ -8374,9 +8536,10 @@ static struct net_device * __devinit niu_alloc_and_init(
 	struct of_device *op, const struct niu_ops *ops,
 	u8 port)
 {
-	struct net_device *dev = alloc_etherdev(sizeof(struct niu));
+	struct net_device *dev;
 	struct niu *np;
 
+	dev = alloc_etherdev_mq(sizeof(struct niu), NIU_NUM_TXCHAN);
 	if (!dev) {
 		dev_err(gen_dev, PFX "Etherdev alloc failed, aborting.\n");
 		return NULL;

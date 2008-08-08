@@ -940,7 +940,6 @@ static int reclaimer(void *ptr)
 	allow_signal(SIGKILL);
 
 	/* Ensure exclusive access to NFSv4 state */
-	lock_kernel();
 	down_write(&clp->cl_sem);
 	/* Are there any NFS mounts out there? */
 	if (list_empty(&clp->cl_superblocks))
@@ -1000,7 +999,6 @@ restart_loop:
 	nfs_delegation_reap_unclaimed(clp);
 out:
 	up_write(&clp->cl_sem);
-	unlock_kernel();
 	if (status == -NFS4ERR_CB_PATH_DOWN)
 		nfs_handle_cb_pathdown(clp);
 	nfs4_clear_recover_bit(clp);

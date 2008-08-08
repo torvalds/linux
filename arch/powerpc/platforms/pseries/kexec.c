@@ -70,4 +70,4 @@ static int __init pseries_kexec_setup(void)
 
 	return 0;
 }
-__initcall(pseries_kexec_setup);
+machine_device_initcall(pseries, pseries_kexec_setup);

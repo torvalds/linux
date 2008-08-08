@@ -6,7 +6,7 @@
  *  Copyright (C) 2004 Freescale Semiconductor, Inc.
  *
  *  2006 (c) MontaVista Software, Inc.
- * 	Vitaly Bordug <vbordug@ru.mvista.com>
+ *	Vitaly Bordug <vbordug@ru.mvista.com>
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2. This program is licensed "as is" without any warranty of any
@@ -28,7 +28,7 @@
 #define SERIAL_CPM_MAJOR	204
 #define SERIAL_CPM_MINOR	46
 
-#define IS_SMC(pinfo) 		(pinfo->flags & FLAG_SMC)
+#define IS_SMC(pinfo)		(pinfo->flags & FLAG_SMC)
 #define IS_DISCARDING(pinfo)	(pinfo->flags & FLAG_DISCARDING)
 #define FLAG_DISCARDING	0x00000004	/* when set, don't discard */
 #define FLAG_SMC	0x00000002
@@ -50,6 +50,15 @@
 
 #define SCC_WAIT_CLOSING 100
 
+#define GPIO_CTS	0
+#define GPIO_RTS	1
+#define GPIO_DCD	2
+#define GPIO_DSR	3
+#define GPIO_DTR	4
+#define GPIO_RI		5
+
+#define NUM_GPIOS	(GPIO_RI+1)
+
 struct uart_cpm_port {
 	struct uart_port	port;
 	u16			rx_nrfifos;
@@ -68,9 +77,10 @@ struct uart_cpm_port {
 	unsigned char		*rx_buf;
 	u32			flags;
 	void			(*set_lineif)(struct uart_cpm_port *);
+	struct clk		*clk;
 	u8			brg;
 	uint			 dp_addr;
-	void 			*mem_addr;
+	void			*mem_addr;
 	dma_addr_t		 dma_addr;
 	u32			mem_size;
 	/* helpers */
@@ -79,14 +89,12 @@ struct uart_cpm_port {
 	/* Keep track of 'odd' SMC2 wirings */
 	int			is_portb;
 	/* wait on close if needed */
-	int 			wait_closing;
+	int			wait_closing;
 	/* value to combine with opcode to form cpm command */
 	u32			command;
+	int			gpios[NUM_GPIOS];
 };
 
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-extern int cpm_uart_port_map[UART_NR];
-#endif
 extern int cpm_uart_nr;
 extern struct uart_cpm_port cpm_uart_ports[UART_NR];
 

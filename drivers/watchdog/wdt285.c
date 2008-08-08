@@ -29,7 +29,7 @@
 
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/dec21285.h>
 

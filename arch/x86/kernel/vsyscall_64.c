@@ -279,7 +279,7 @@ cpu_vsyscall_notifier(struct notifier_block *n, unsigned long action, void *arg)
 {
 	long cpu = (long)arg;
 	if (action == CPU_ONLINE || action == CPU_ONLINE_FROZEN)
-		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 0, 1);
+		smp_call_function_single(cpu, cpu_vsyscall_init, NULL, 1);
 	return NOTIFY_DONE;
 }
 
@@ -302,7 +302,7 @@ static int __init vsyscall_init(void)
 #ifdef CONFIG_SYSCTL
 	register_sysctl_table(kernel_root_table2);
 #endif
-	on_each_cpu(cpu_vsyscall_init, NULL, 0, 1);
+	on_each_cpu(cpu_vsyscall_init, NULL, 1);
 	hotcpu_notifier(cpu_vsyscall_notifier, 0);
 	return 0;
 }

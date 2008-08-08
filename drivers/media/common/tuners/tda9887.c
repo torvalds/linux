@@ -6,7 +6,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
-#include <linux/videodev.h>
+#include <linux/videodev2.h>
 #include <media/v4l2-common.h>
 #include <media/tuner.h>
 #include "tuner-i2c.h"

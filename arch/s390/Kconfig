@@ -289,7 +289,7 @@ config WARN_STACK_SIZE
 	int "Maximum frame size considered safe (128-2048)"
 	range 128 2048
 	depends on WARN_STACK
-	default "256"
+	default "2048"
 	help
 	  This allows you to specify the maximum frame size a function may
 	  have without the compiler complaining about it.
@@ -316,6 +316,9 @@ config ARCH_SELECT_MEMORY_MODEL
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 	depends on SPARSEMEM
+
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	def_bool y
 
 source "mm/Kconfig"
 
@@ -565,6 +568,7 @@ bool "s390 guest support (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTIO
 	select VIRTIO_RING
+	select VIRTIO_CONSOLE
 	help
 	  Select this option if you want to run the kernel under s390 linux
 endmenu

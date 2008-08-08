@@ -48,7 +48,7 @@ IOVA generation is pretty generic. We used the same technique as vmalloc()
 but these are not global address spaces, but separate for each domain.
 Different DMA engines may support different number of domains.
 
-We also allocate gaurd pages with each mapping, so we can attempt to catch
+We also allocate guard pages with each mapping, so we can attempt to catch
 any overflow that might happen.
 
 
@@ -112,4 +112,4 @@ TBD
 
 - For compatibility testing, could use unity map domain for all devices, just
   provide a 1-1 for all useful memory under a single domain for all devices.
-- API for paravirt ops for abstracting functionlity for VMM folks.
+- API for paravirt ops for abstracting functionality for VMM folks.

@@ -61,9 +61,7 @@ struct wireless_dev;
 #define NET_XMIT_DROP		1	/* skb dropped			*/
 #define NET_XMIT_CN		2	/* congestion notification	*/
 #define NET_XMIT_POLICED	3	/* skb is shot by police	*/
-#define NET_XMIT_BYPASS		4	/* packet does not leave via dequeue;
-					   (TC use only - dev_queue_xmit
-					   returns this as NET_XMIT_SUCCESS) */
+#define NET_XMIT_MASK		0xFFFF	/* qdisc flags in net/sch_generic.h */
 
 /* Backlog congestion levels */
 #define NET_RX_SUCCESS		0   /* keep 'em coming, baby */
@@ -117,14 +115,6 @@ struct wireless_dev;
 #endif
 
 #endif  /*  __KERNEL__  */
-
-struct net_device_subqueue
-{
-	/* Give a control state for each queue.  This struct may contain
-	 * per-queue locks in the future.
-	 */
-	unsigned long   state;
-};
 
 /*
  *	Network device statistics. Akin to the 2.0 ether stats but
@@ -281,14 +271,11 @@ struct header_ops {
 
 enum netdev_state_t
 {
-	__LINK_STATE_XOFF=0,
 	__LINK_STATE_START,
 	__LINK_STATE_PRESENT,
-	__LINK_STATE_SCHED,
 	__LINK_STATE_NOCARRIER,
 	__LINK_STATE_LINKWATCH_PENDING,
 	__LINK_STATE_DORMANT,
-	__LINK_STATE_QDISC_RUNNING,
 };
 
 
@@ -448,6 +435,21 @@ static inline void napi_synchronize(const struct napi_struct *n)
 # define napi_synchronize(n)	barrier()
 #endif
 
+enum netdev_queue_state_t
+{
+	__QUEUE_STATE_XOFF,
+	__QUEUE_STATE_FROZEN,
+};
+
+struct netdev_queue {
+	struct net_device	*dev;
+	struct Qdisc		*qdisc;
+	unsigned long		state;
+	spinlock_t		_xmit_lock;
+	int			xmit_lock_owner;
+	struct Qdisc		*qdisc_sleeping;
+} ____cacheline_aligned_in_smp;
+
 /*
  *	The DEVICE structure.
  *	Actually, this whole structure is a big mistake.  It mixes I/O
@@ -516,7 +518,6 @@ struct net_device
 #define NETIF_F_LLTX		4096	/* LockLess TX - deprecated. Please */
 					/* do not use LLTX in new drivers */
 #define NETIF_F_NETNS_LOCAL	8192	/* Does not change network namespaces */
-#define NETIF_F_MULTI_QUEUE	16384	/* Has multiple TX/RX queues */
 #define NETIF_F_LRO		32768	/* large receive offload */
 
 	/* Segmentation offload features */
@@ -536,8 +537,6 @@ struct net_device
 #define NETIF_F_V4_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IP_CSUM)
 #define NETIF_F_V6_CSUM		(NETIF_F_GEN_CSUM | NETIF_F_IPV6_CSUM)
 #define NETIF_F_ALL_CSUM	(NETIF_F_V4_CSUM | NETIF_F_V6_CSUM)
-
-	struct net_device	*next_sched;
 
 	/* Interface index. Unique device identifier	*/
 	int			ifindex;
@@ -594,13 +593,14 @@ struct net_device
 	unsigned char		addr_len;	/* hardware address length	*/
 	unsigned short          dev_id;		/* for shared network cards */
 
+	spinlock_t		addr_list_lock;
 	struct dev_addr_list	*uc_list;	/* Secondary unicast mac addresses */
 	int			uc_count;	/* Number of installed ucasts	*/
 	int			uc_promisc;
 	struct dev_addr_list	*mc_list;	/* Multicast mac addresses	*/
 	int			mc_count;	/* Number of installed mcasts	*/
-	int			promiscuity;
-	int			allmulti;
+	unsigned int		promiscuity;
+	unsigned int		allmulti;
 
 
 	/* Protocol specific pointers */
@@ -624,32 +624,21 @@ struct net_device
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
-	/* ingress path synchronizer */
-	spinlock_t		ingress_lock;
-	struct Qdisc		*qdisc_ingress;
+	struct netdev_queue	rx_queue;
 
-/*
- * Cache line mostly used on queue transmit path (qdisc)
- */
-	/* device queue lock */
-	spinlock_t		queue_lock ____cacheline_aligned_in_smp;
-	struct Qdisc		*qdisc;
-	struct Qdisc		*qdisc_sleeping;
-	struct list_head	qdisc_list;
+	struct netdev_queue	*_tx ____cacheline_aligned_in_smp;
+
+	/* Number of TX queues allocated at alloc_netdev_mq() time  */
+	unsigned int		num_tx_queues;
+
+	/* Number of TX queues currently active in device  */
+	unsigned int		real_num_tx_queues;
+
 	unsigned long		tx_queue_len;	/* Max frames per queue allowed */
-
-	/* Partially transmitted GSO packet. */
-	struct sk_buff		*gso_skb;
-
+	spinlock_t		tx_global_lock;
 /*
  * One part is mostly used on xmit path (device)
  */
-	/* hard_start_xmit synchronizer */
-	spinlock_t		_xmit_lock ____cacheline_aligned_in_smp;
-	/* cpu id of processor entered to hard_start_xmit or -1,
-	   if nobody entered there.
-	 */
-	int			xmit_lock_owner;
 	void			*priv;	/* pointer to private data	*/
 	int			(*hard_start_xmit) (struct sk_buff *skb,
 						    struct net_device *dev);
@@ -728,6 +717,9 @@ struct net_device
 	void                    (*poll_controller)(struct net_device *dev);
 #endif
 
+	u16			(*select_queue)(struct net_device *dev,
+						struct sk_buff *skb);
+
 #ifdef CONFIG_NET_NS
 	/* Network namespace this network device is inside */
 	struct net		*nd_net;
@@ -740,6 +732,8 @@ struct net_device
 	struct net_bridge_port	*br_port;
 	/* macvlan */
 	struct macvlan_port	*macvlan_port;
+	/* GARP */
+	struct garp_port	*garp_port;
 
 	/* class/net/name entry */
 	struct device		dev;
@@ -755,15 +749,30 @@ struct net_device
 	/* for setting kernel sock attribute on TCP connection setup */
 #define GSO_MAX_SIZE		65536
 	unsigned int		gso_max_size;
-
-	/* The TX queue control structures */
-	unsigned int			egress_subqueue_count;
-	struct net_device_subqueue	egress_subqueue[1];
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
 #define	NETDEV_ALIGN		32
 #define	NETDEV_ALIGN_CONST	(NETDEV_ALIGN - 1)
+
+static inline
+struct netdev_queue *netdev_get_tx_queue(const struct net_device *dev,
+					 unsigned int index)
+{
+	return &dev->_tx[index];
+}
+
+static inline void netdev_for_each_tx_queue(struct net_device *dev,
+					    void (*f)(struct net_device *,
+						      struct netdev_queue *,
+						      void *),
+					    void *arg)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		f(dev, &dev->_tx[i], arg);
+}
 
 /*
  * Net namespace inlines
@@ -795,7 +804,9 @@ void dev_net_set(struct net_device *dev, struct net *net)
  */
 static inline void *netdev_priv(const struct net_device *dev)
 {
-	return dev->priv;
+	return (char *)dev + ((sizeof(struct net_device)
+			       + NETDEV_ALIGN_CONST)
+			      & ~NETDEV_ALIGN_CONST);
 }
 
 /* Set the sysfs physical device reference for the network logical device
@@ -828,6 +839,19 @@ static inline void netif_napi_add(struct net_device *dev,
 	napi->poll_owner = -1;
 #endif
 	set_bit(NAPI_STATE_SCHED, &napi->state);
+}
+
+/**
+ *  netif_napi_del - remove a napi context
+ *  @napi: napi context
+ *
+ *  netif_napi_del() removes a napi context from the network device napi list
+ */
+static inline void netif_napi_del(struct napi_struct *napi)
+{
+#ifdef CONFIG_NETPOLL
+	list_del(&napi->dev_list);
+#endif
 }
 
 struct packet_type {
@@ -890,6 +914,7 @@ extern struct net_device	*__dev_get_by_name(struct net *net, const char *name);
 extern int		dev_alloc_name(struct net_device *dev, const char *name);
 extern int		dev_open(struct net_device *dev);
 extern int		dev_close(struct net_device *dev);
+extern void		dev_disable_lro(struct net_device *dev);
 extern int		dev_queue_xmit(struct sk_buff *skb);
 extern int		register_netdevice(struct net_device *dev);
 extern void		unregister_netdevice(struct net_device *dev);
@@ -939,7 +964,7 @@ static inline int unregister_gifconf(unsigned int family)
  */
 struct softnet_data
 {
-	struct net_device	*output_queue;
+	struct Qdisc		*output_queue;
 	struct sk_buff_head	input_pkt_queue;
 	struct list_head	poll_list;
 	struct sk_buff		*completion_queue;
@@ -954,12 +979,25 @@ DECLARE_PER_CPU(struct softnet_data,softnet_data);
 
 #define HAVE_NETIF_QUEUE
 
-extern void __netif_schedule(struct net_device *dev);
+extern void __netif_schedule(struct Qdisc *q);
 
-static inline void netif_schedule(struct net_device *dev)
+static inline void netif_schedule_queue(struct netdev_queue *txq)
 {
-	if (!test_bit(__LINK_STATE_XOFF, &dev->state))
-		__netif_schedule(dev);
+	if (!test_bit(__QUEUE_STATE_XOFF, &txq->state))
+		__netif_schedule(txq->qdisc);
+}
+
+static inline void netif_tx_schedule_all(struct net_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++)
+		netif_schedule_queue(netdev_get_tx_queue(dev, i));
+}
+
+static inline void netif_tx_start_queue(struct netdev_queue *dev_queue)
+{
+	clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
 }
 
 /**
@@ -970,7 +1008,29 @@ static inline void netif_schedule(struct net_device *dev)
  */
 static inline void netif_start_queue(struct net_device *dev)
 {
-	clear_bit(__LINK_STATE_XOFF, &dev->state);
+	netif_tx_start_queue(netdev_get_tx_queue(dev, 0));
+}
+
+static inline void netif_tx_start_all_queues(struct net_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		netif_tx_start_queue(txq);
+	}
+}
+
+static inline void netif_tx_wake_queue(struct netdev_queue *dev_queue)
+{
+#ifdef CONFIG_NETPOLL_TRAP
+	if (netpoll_trap()) {
+		clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
+		return;
+	}
+#endif
+	if (test_and_clear_bit(__QUEUE_STATE_XOFF, &dev_queue->state))
+		__netif_schedule(dev_queue->qdisc);
 }
 
 /**
@@ -982,14 +1042,22 @@ static inline void netif_start_queue(struct net_device *dev)
  */
 static inline void netif_wake_queue(struct net_device *dev)
 {
-#ifdef CONFIG_NETPOLL_TRAP
-	if (netpoll_trap()) {
-		clear_bit(__LINK_STATE_XOFF, &dev->state);
-		return;
+	netif_tx_wake_queue(netdev_get_tx_queue(dev, 0));
+}
+
+static inline void netif_tx_wake_all_queues(struct net_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		netif_tx_wake_queue(txq);
 	}
-#endif
-	if (test_and_clear_bit(__LINK_STATE_XOFF, &dev->state))
-		__netif_schedule(dev);
+}
+
+static inline void netif_tx_stop_queue(struct netdev_queue *dev_queue)
+{
+	set_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
 }
 
 /**
@@ -1001,7 +1069,22 @@ static inline void netif_wake_queue(struct net_device *dev)
  */
 static inline void netif_stop_queue(struct net_device *dev)
 {
-	set_bit(__LINK_STATE_XOFF, &dev->state);
+	netif_tx_stop_queue(netdev_get_tx_queue(dev, 0));
+}
+
+static inline void netif_tx_stop_all_queues(struct net_device *dev)
+{
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+		netif_tx_stop_queue(txq);
+	}
+}
+
+static inline int netif_tx_queue_stopped(const struct netdev_queue *dev_queue)
+{
+	return test_bit(__QUEUE_STATE_XOFF, &dev_queue->state);
 }
 
 /**
@@ -1012,7 +1095,12 @@ static inline void netif_stop_queue(struct net_device *dev)
  */
 static inline int netif_queue_stopped(const struct net_device *dev)
 {
-	return test_bit(__LINK_STATE_XOFF, &dev->state);
+	return netif_tx_queue_stopped(netdev_get_tx_queue(dev, 0));
+}
+
+static inline int netif_tx_queue_frozen(const struct netdev_queue *dev_queue)
+{
+	return test_bit(__QUEUE_STATE_FROZEN, &dev_queue->state);
 }
 
 /**
@@ -1042,9 +1130,8 @@ static inline int netif_running(const struct net_device *dev)
  */
 static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-	clear_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
-#endif
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, queue_index);
+	clear_bit(__QUEUE_STATE_XOFF, &txq->state);
 }
 
 /**
@@ -1056,13 +1143,12 @@ static inline void netif_start_subqueue(struct net_device *dev, u16 queue_index)
  */
 static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, queue_index);
 #ifdef CONFIG_NETPOLL_TRAP
 	if (netpoll_trap())
 		return;
 #endif
-	set_bit(__LINK_STATE_XOFF, &dev->egress_subqueue[queue_index].state);
-#endif
+	set_bit(__QUEUE_STATE_XOFF, &txq->state);
 }
 
 /**
@@ -1075,12 +1161,8 @@ static inline void netif_stop_subqueue(struct net_device *dev, u16 queue_index)
 static inline int __netif_subqueue_stopped(const struct net_device *dev,
 					 u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-	return test_bit(__LINK_STATE_XOFF,
-			&dev->egress_subqueue[queue_index].state);
-#else
-	return 0;
-#endif
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, queue_index);
+	return test_bit(__QUEUE_STATE_XOFF, &txq->state);
 }
 
 static inline int netif_subqueue_stopped(const struct net_device *dev,
@@ -1098,15 +1180,13 @@ static inline int netif_subqueue_stopped(const struct net_device *dev,
  */
 static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
+	struct netdev_queue *txq = netdev_get_tx_queue(dev, queue_index);
 #ifdef CONFIG_NETPOLL_TRAP
 	if (netpoll_trap())
 		return;
 #endif
-	if (test_and_clear_bit(__LINK_STATE_XOFF,
-			       &dev->egress_subqueue[queue_index].state))
-		__netif_schedule(dev);
-#endif
+	if (test_and_clear_bit(__QUEUE_STATE_XOFF, &txq->state))
+		__netif_schedule(txq->qdisc);
 }
 
 /**
@@ -1114,15 +1194,10 @@ static inline void netif_wake_subqueue(struct net_device *dev, u16 queue_index)
  *	@dev: network device
  *
  * Check if device has multiple transmit queues
- * Always falls if NETDEVICE_MULTIQUEUE is not configured
  */
 static inline int netif_is_multiqueue(const struct net_device *dev)
 {
-#ifdef CONFIG_NETDEVICES_MULTIQUEUE
-	return (!!(NETIF_F_MULTI_QUEUE & dev->features));
-#else
-	return 0;
-#endif
+	return (dev->num_tx_queues > 1);
 }
 
 /* Use this variant when it is known for sure that it
@@ -1142,6 +1217,7 @@ extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
+extern void		netif_nit_deliver(struct sk_buff *skb);
 extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct net *net, struct ifreq *);
@@ -1154,7 +1230,8 @@ extern int		dev_set_mtu(struct net_device *, int);
 extern int		dev_set_mac_address(struct net_device *,
 					    struct sockaddr *);
 extern int		dev_hard_start_xmit(struct sk_buff *skb,
-					    struct net_device *dev);
+					    struct net_device *dev,
+					    struct netdev_queue *txq);
 
 extern int		netdev_budget;
 
@@ -1390,6 +1467,38 @@ static inline void netif_rx_complete(struct net_device *dev,
 	local_irq_restore(flags);
 }
 
+static inline void __netif_tx_lock(struct netdev_queue *txq, int cpu)
+{
+	spin_lock(&txq->_xmit_lock);
+	txq->xmit_lock_owner = cpu;
+}
+
+static inline void __netif_tx_lock_bh(struct netdev_queue *txq)
+{
+	spin_lock_bh(&txq->_xmit_lock);
+	txq->xmit_lock_owner = smp_processor_id();
+}
+
+static inline int __netif_tx_trylock(struct netdev_queue *txq)
+{
+	int ok = spin_trylock(&txq->_xmit_lock);
+	if (likely(ok))
+		txq->xmit_lock_owner = smp_processor_id();
+	return ok;
+}
+
+static inline void __netif_tx_unlock(struct netdev_queue *txq)
+{
+	txq->xmit_lock_owner = -1;
+	spin_unlock(&txq->_xmit_lock);
+}
+
+static inline void __netif_tx_unlock_bh(struct netdev_queue *txq)
+{
+	txq->xmit_lock_owner = -1;
+	spin_unlock_bh(&txq->_xmit_lock);
+}
+
 /**
  *	netif_tx_lock - grab network device transmit lock
  *	@dev: network device
@@ -1397,60 +1506,105 @@ static inline void netif_rx_complete(struct net_device *dev,
  *
  * Get network device transmit lock
  */
-static inline void __netif_tx_lock(struct net_device *dev, int cpu)
-{
-	spin_lock(&dev->_xmit_lock);
-	dev->xmit_lock_owner = cpu;
-}
-
 static inline void netif_tx_lock(struct net_device *dev)
 {
-	__netif_tx_lock(dev, smp_processor_id());
+	unsigned int i;
+	int cpu;
+
+	spin_lock(&dev->tx_global_lock);
+	cpu = smp_processor_id();
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		/* We are the only thread of execution doing a
+		 * freeze, but we have to grab the _xmit_lock in
+		 * order to synchronize with threads which are in
+		 * the ->hard_start_xmit() handler and already
+		 * checked the frozen bit.
+		 */
+		__netif_tx_lock(txq, cpu);
+		set_bit(__QUEUE_STATE_FROZEN, &txq->state);
+		__netif_tx_unlock(txq);
+	}
 }
 
 static inline void netif_tx_lock_bh(struct net_device *dev)
 {
-	spin_lock_bh(&dev->_xmit_lock);
-	dev->xmit_lock_owner = smp_processor_id();
-}
-
-static inline int netif_tx_trylock(struct net_device *dev)
-{
-	int ok = spin_trylock(&dev->_xmit_lock);
-	if (likely(ok))
-		dev->xmit_lock_owner = smp_processor_id();
-	return ok;
+	local_bh_disable();
+	netif_tx_lock(dev);
 }
 
 static inline void netif_tx_unlock(struct net_device *dev)
 {
-	dev->xmit_lock_owner = -1;
-	spin_unlock(&dev->_xmit_lock);
+	unsigned int i;
+
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		/* No need to grab the _xmit_lock here.  If the
+		 * queue is not stopped for another reason, we
+		 * force a schedule.
+		 */
+		clear_bit(__QUEUE_STATE_FROZEN, &txq->state);
+		if (!test_bit(__QUEUE_STATE_XOFF, &txq->state))
+			__netif_schedule(txq->qdisc);
+	}
+	spin_unlock(&dev->tx_global_lock);
 }
 
 static inline void netif_tx_unlock_bh(struct net_device *dev)
 {
-	dev->xmit_lock_owner = -1;
-	spin_unlock_bh(&dev->_xmit_lock);
+	netif_tx_unlock(dev);
+	local_bh_enable();
 }
 
-#define HARD_TX_LOCK(dev, cpu) {			\
+#define HARD_TX_LOCK(dev, txq, cpu) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		__netif_tx_lock(dev, cpu);			\
+		__netif_tx_lock(txq, cpu);		\
 	}						\
 }
 
-#define HARD_TX_UNLOCK(dev) {				\
+#define HARD_TX_UNLOCK(dev, txq) {			\
 	if ((dev->features & NETIF_F_LLTX) == 0) {	\
-		netif_tx_unlock(dev);			\
+		__netif_tx_unlock(txq);			\
 	}						\
 }
 
 static inline void netif_tx_disable(struct net_device *dev)
 {
-	netif_tx_lock_bh(dev);
-	netif_stop_queue(dev);
-	netif_tx_unlock_bh(dev);
+	unsigned int i;
+	int cpu;
+
+	local_bh_disable();
+	cpu = smp_processor_id();
+	for (i = 0; i < dev->num_tx_queues; i++) {
+		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
+
+		__netif_tx_lock(txq, cpu);
+		netif_tx_stop_queue(txq);
+		__netif_tx_unlock(txq);
+	}
+	local_bh_enable();
+}
+
+static inline void netif_addr_lock(struct net_device *dev)
+{
+	spin_lock(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_lock_bh(struct net_device *dev)
+{
+	spin_lock_bh(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_unlock(struct net_device *dev)
+{
+	spin_unlock(&dev->addr_list_lock);
+}
+
+static inline void netif_addr_unlock_bh(struct net_device *dev)
+{
+	spin_unlock_bh(&dev->addr_list_lock);
 }
 
 /* These functions live elsewhere (drivers/net/net_init.c, but related) */
@@ -1480,9 +1634,10 @@ extern int 		__dev_addr_delete(struct dev_addr_list **list, int *count, void *ad
 extern int		__dev_addr_add(struct dev_addr_list **list, int *count, void *addr, int alen, int newonly);
 extern int		__dev_addr_sync(struct dev_addr_list **to, int *to_count, struct dev_addr_list **from, int *from_count);
 extern void		__dev_addr_unsync(struct dev_addr_list **to, int *to_count, struct dev_addr_list **from, int *from_count);
-extern void		dev_set_promiscuity(struct net_device *dev, int inc);
-extern void		dev_set_allmulti(struct net_device *dev, int inc);
+extern int		dev_set_promiscuity(struct net_device *dev, int inc);
+extern int		dev_set_allmulti(struct net_device *dev, int inc);
 extern void		netdev_state_change(struct net_device *dev);
+extern void		netdev_bonding_change(struct net_device *dev);
 extern void		netdev_features_change(struct net_device *dev);
 /* Load a device via the kmod */
 extern void		dev_load(struct net *net, const char *name);
@@ -1508,6 +1663,11 @@ extern void *dev_seq_start(struct seq_file *seq, loff_t *pos);
 extern void *dev_seq_next(struct seq_file *seq, void *v, loff_t *pos);
 extern void dev_seq_stop(struct seq_file *seq, void *v);
 #endif
+
+extern int netdev_class_create_file(struct class_attribute *class_attr);
+extern void netdev_class_remove_file(struct class_attribute *class_attr);
+
+extern char *netdev_drivername(struct net_device *dev, char *buffer, int len);
 
 extern void linkwatch_run_queue(void);
 

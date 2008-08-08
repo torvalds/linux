@@ -26,11 +26,7 @@
 #include <asm/cplb.h>
 #include <asm/cplbinit.h>
 
-#ifdef CONFIG_MAX_MEM_SIZE
-# define CPLB_MEM CONFIG_MAX_MEM_SIZE
-#else
-# define CPLB_MEM CONFIG_MEM_SIZE
-#endif
+#define CPLB_MEM CONFIG_MAX_MEM_SIZE
 
 /*
 * Number of required data CPLB switchtable entries

@@ -73,7 +73,7 @@ acpi_rs_stream_option_length(u32 resource_length, u32 minimum_total_length);
 
 static u8 acpi_rs_count_set_bits(u16 bit_field)
 {
-	acpi_native_uint bits_set;
+	u8 bits_set;
 
 	ACPI_FUNCTION_ENTRY();
 
@@ -84,7 +84,7 @@ static u8 acpi_rs_count_set_bits(u16 bit_field)
 		bit_field &= (u16) (bit_field - 1);
 	}
 
-	return ((u8) bits_set);
+	return bits_set;
 }
 
 /*******************************************************************************

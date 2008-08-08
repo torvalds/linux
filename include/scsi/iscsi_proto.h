@@ -22,6 +22,7 @@
 #define ISCSI_PROTO_H
 
 #include <linux/types.h>
+#include <scsi/scsi.h>
 
 #define ISCSI_DRAFT20_VERSION	0x00
 
@@ -156,7 +157,7 @@ struct iscsi_ecdb_ahdr {
 	uint8_t ahstype;
 	uint8_t reserved;
 	/* 4-byte aligned extended CDB spillover */
-	uint8_t ecdb[260 - ISCSI_CDB_SIZE];
+	uint8_t ecdb[SCSI_MAX_VARLEN_CDB_SIZE - ISCSI_CDB_SIZE];
 };
 
 /* SCSI Response Header */

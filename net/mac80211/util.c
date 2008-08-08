@@ -45,38 +45,37 @@ const unsigned char bridge_tunnel_header[] __aligned(2) =
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			enum ieee80211_if_types type)
 {
-	u16 fc;
+	__le16 fc = hdr->frame_control;
 
 	 /* drop ACK/CTS frames and incorrect hdr len (ctrl) */
 	if (len < 16)
 		return NULL;
 
-	fc = le16_to_cpu(hdr->frame_control);
-
-	switch (fc & IEEE80211_FCTL_FTYPE) {
-	case IEEE80211_FTYPE_DATA:
+	if (ieee80211_is_data(fc)) {
 		if (len < 24) /* drop incorrect hdr len (data) */
 			return NULL;
-		switch (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
-		case IEEE80211_FCTL_TODS:
-			return hdr->addr1;
-		case (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
+
+		if (ieee80211_has_a4(fc))
 			return NULL;
-		case IEEE80211_FCTL_FROMDS:
+		if (ieee80211_has_tods(fc))
+			return hdr->addr1;
+		if (ieee80211_has_fromds(fc))
 			return hdr->addr2;
-		case 0:
-			return hdr->addr3;
-		}
-		break;
-	case IEEE80211_FTYPE_MGMT:
+
+		return hdr->addr3;
+	}
+
+	if (ieee80211_is_mgmt(fc)) {
 		if (len < 24) /* drop incorrect hdr len (mgmt) */
 			return NULL;
 		return hdr->addr3;
-	case IEEE80211_FTYPE_CTL:
-		if ((fc & IEEE80211_FCTL_STYPE) == IEEE80211_STYPE_PSPOLL)
+	}
+
+	if (ieee80211_is_ctl(fc)) {
+		if(ieee80211_is_pspoll(fc))
 			return hdr->addr1;
-		else if ((fc & IEEE80211_FCTL_STYPE) ==
-						IEEE80211_STYPE_BACK_REQ) {
+
+		if (ieee80211_is_back_req(fc)) {
 			switch (type) {
 			case IEEE80211_IF_TYPE_STA:
 				return hdr->addr2;
@@ -84,11 +83,9 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 			case IEEE80211_IF_TYPE_VLAN:
 				return hdr->addr1;
 			default:
-				return NULL;
+				break; /* fall through to the return */
 			}
 		}
-		else
-			return NULL;
 	}
 
 	return NULL;
@@ -133,14 +130,46 @@ int ieee80211_get_hdrlen(u16 fc)
 }
 EXPORT_SYMBOL(ieee80211_get_hdrlen);
 
-int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
+unsigned int ieee80211_hdrlen(__le16 fc)
 {
-	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *) skb->data;
-	int hdrlen;
+	unsigned int hdrlen = 24;
+
+	if (ieee80211_is_data(fc)) {
+		if (ieee80211_has_a4(fc))
+			hdrlen = 30;
+		if (ieee80211_is_data_qos(fc))
+			hdrlen += IEEE80211_QOS_CTL_LEN;
+		goto out;
+	}
+
+	if (ieee80211_is_ctl(fc)) {
+		/*
+		 * ACK and CTS are 10 bytes, all others 16. To see how
+		 * to get this condition consider
+		 *   subtype mask:   0b0000000011110000 (0x00F0)
+		 *   ACK subtype:    0b0000000011010000 (0x00D0)
+		 *   CTS subtype:    0b0000000011000000 (0x00C0)
+		 *   bits that matter:         ^^^      (0x00E0)
+		 *   value of those: 0b0000000011000000 (0x00C0)
+		 */
+		if ((fc & cpu_to_le16(0x00E0)) == cpu_to_le16(0x00C0))
+			hdrlen = 10;
+		else
+			hdrlen = 16;
+	}
+out:
+	return hdrlen;
+}
+EXPORT_SYMBOL(ieee80211_hdrlen);
+
+unsigned int ieee80211_get_hdrlen_from_skb(const struct sk_buff *skb)
+{
+	const struct ieee80211_hdr *hdr = (const struct ieee80211_hdr *)skb->data;
+	unsigned int hdrlen;
 
 	if (unlikely(skb->len < 10))
 		return 0;
-	hdrlen = ieee80211_get_hdrlen(le16_to_cpu(hdr->frame_control));
+	hdrlen = ieee80211_hdrlen(hdr->frame_control);
 	if (unlikely(hdrlen > skb->len))
 		return 0;
 	return hdrlen;
@@ -258,7 +287,7 @@ EXPORT_SYMBOL(ieee80211_generic_frame_duration);
 
 __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif, size_t frame_len,
-			      const struct ieee80211_tx_control *frame_txctl)
+			      const struct ieee80211_tx_info *frame_txctl)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
@@ -266,10 +295,13 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	bool short_preamble;
 	int erp;
 	u16 dur;
+	struct ieee80211_supported_band *sband;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = frame_txctl->rts_cts_rate;
+	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 
 	erp = 0;
 	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
@@ -292,7 +324,7 @@ EXPORT_SYMBOL(ieee80211_rts_duration);
 __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    size_t frame_len,
-				    const struct ieee80211_tx_control *frame_txctl)
+				    const struct ieee80211_tx_info *frame_txctl)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
@@ -300,10 +332,13 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	bool short_preamble;
 	int erp;
 	u16 dur;
+	struct ieee80211_supported_band *sband;
+
+	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	short_preamble = sdata->bss_conf.use_short_preamble;
 
-	rate = frame_txctl->rts_cts_rate;
+	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 	erp = 0;
 	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
 		erp = rate->flags & IEEE80211_RATE_ERP_G;
@@ -311,7 +346,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	/* Data frame duration */
 	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate,
 				       erp, short_preamble);
-	if (!(frame_txctl->flags & IEEE80211_TXCTL_NO_ACK)) {
+	if (!(frame_txctl->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		/* ACK duration */
 		dur += ieee80211_frame_duration(local, 10, rate->bitrate,
 						erp, short_preamble);
@@ -325,17 +360,11 @@ void ieee80211_wake_queue(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (test_and_clear_bit(IEEE80211_LINK_STATE_XOFF,
-			       &local->state[queue])) {
-		if (test_bit(IEEE80211_LINK_STATE_PENDING,
-			     &local->state[queue]))
-			tasklet_schedule(&local->tx_pending_tasklet);
-		else
-			if (!ieee80211_qdisc_installed(local->mdev)) {
-				if (queue == 0)
-					netif_wake_queue(local->mdev);
-			} else
-				__netif_schedule(local->mdev);
+	if (test_bit(queue, local->queues_pending)) {
+		set_bit(queue, local->queues_pending_run);
+		tasklet_schedule(&local->tx_pending_tasklet);
+	} else {
+		netif_wake_subqueue(local->mdev, queue);
 	}
 }
 EXPORT_SYMBOL(ieee80211_wake_queue);
@@ -344,29 +373,15 @@ void ieee80211_stop_queue(struct ieee80211_hw *hw, int queue)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 
-	if (!ieee80211_qdisc_installed(local->mdev) && queue == 0)
-		netif_stop_queue(local->mdev);
-	set_bit(IEEE80211_LINK_STATE_XOFF, &local->state[queue]);
+	netif_stop_subqueue(local->mdev, queue);
 }
 EXPORT_SYMBOL(ieee80211_stop_queue);
-
-void ieee80211_start_queues(struct ieee80211_hw *hw)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	int i;
-
-	for (i = 0; i < local->hw.queues; i++)
-		clear_bit(IEEE80211_LINK_STATE_XOFF, &local->state[i]);
-	if (!ieee80211_qdisc_installed(local->mdev))
-		netif_start_queue(local->mdev);
-}
-EXPORT_SYMBOL(ieee80211_start_queues);
 
 void ieee80211_stop_queues(struct ieee80211_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < hw->queues; i++)
+	for (i = 0; i < ieee80211_num_queues(hw); i++)
 		ieee80211_stop_queue(hw, i);
 }
 EXPORT_SYMBOL(ieee80211_stop_queues);
@@ -375,7 +390,7 @@ void ieee80211_wake_queues(struct ieee80211_hw *hw)
 {
 	int i;
 
-	for (i = 0; i < hw->queues; i++)
+	for (i = 0; i < hw->queues + hw->ampdu_queues; i++)
 		ieee80211_wake_queue(hw, i);
 }
 EXPORT_SYMBOL(ieee80211_wake_queues);
@@ -404,8 +419,6 @@ void ieee80211_iterate_active_interfaces(
 		case IEEE80211_IF_TYPE_MESH_POINT:
 			break;
 		}
-		if (sdata->dev == local->mdev)
-			continue;
 		if (netif_running(sdata->dev))
 			iterator(data, sdata->dev->dev_addr,
 				 &sdata->vif);
@@ -439,8 +452,6 @@ void ieee80211_iterate_active_interfaces_atomic(
 		case IEEE80211_IF_TYPE_MESH_POINT:
 			break;
 		}
-		if (sdata->dev == local->mdev)
-			continue;
 		if (netif_running(sdata->dev))
 			iterator(data, sdata->dev->dev_addr,
 				 &sdata->vif);

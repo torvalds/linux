@@ -20,7 +20,7 @@
  *		r2, r3 contains the zero-extended value
  *		lr corrupted
  *
- * No other registers must be altered.  (see include/asm-arm/uaccess.h
+ * No other registers must be altered.  (see <asm/uaccess.h>
  * for specific ASM register usage).
  *
  * Note that ADDR_LIMIT is either 0 or 0xc0000000.

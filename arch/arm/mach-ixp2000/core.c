@@ -29,7 +29,7 @@
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
@@ -39,7 +39,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/gpio.h>
+#include <mach/gpio.h>
 
 static DEFINE_SPINLOCK(ixp2000_slowport_lock);
 static unsigned long ixp2000_slowport_irq_flags;
@@ -329,19 +329,19 @@ static int ixp2000_GPIO_irq_type(unsigned int irq, unsigned int type)
 	/*
 	 * Then, set the proper trigger type.
 	 */
-	if (type & IRQT_FALLING)
+	if (type & IRQ_TYPE_EDGE_FALLING)
 		GPIO_IRQ_falling_edge |= 1 << line;
 	else
 		GPIO_IRQ_falling_edge &= ~(1 << line);
-	if (type & IRQT_RISING)
+	if (type & IRQ_TYPE_EDGE_RISING)
 		GPIO_IRQ_rising_edge |= 1 << line;
 	else
 		GPIO_IRQ_rising_edge &= ~(1 << line);
-	if (type & IRQT_LOW)
+	if (type & IRQ_TYPE_LEVEL_LOW)
 		GPIO_IRQ_level_low |= 1 << line;
 	else
 		GPIO_IRQ_level_low &= ~(1 << line);
-	if (type & IRQT_HIGH)
+	if (type & IRQ_TYPE_LEVEL_HIGH)
 		GPIO_IRQ_level_high |= 1 << line;
 	else
 		GPIO_IRQ_level_high &= ~(1 << line);

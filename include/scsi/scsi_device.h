@@ -134,12 +134,14 @@ struct scsi_device {
 	unsigned no_start_on_add:1;	/* do not issue start on add */
 	unsigned allow_restart:1; /* issue START_UNIT in error handler */
 	unsigned manage_start_stop:1;	/* Let HLD (sd) manage start/stop */
+	unsigned start_stop_pwr_cond:1;	/* Set power cond. in START_STOP_UNIT */
 	unsigned no_uld_attach:1; /* disable connecting to upper level drivers */
 	unsigned select_no_atn:1;
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
-	unsigned last_sector_bug:1;	/* Always read last sector in a 1 sector read */
+	unsigned last_sector_bug:1;	/* do not use multisector accesses on
+					   SD_LAST_BUGGY_SECTORS */
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
 	struct list_head event_list;	/* asserted events */
@@ -161,9 +163,36 @@ struct scsi_device {
 
 	struct execute_work	ew; /* used to get process context on put */
 
+	struct scsi_dh_data	*scsi_dh_data;
 	enum scsi_device_state sdev_state;
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
+
+struct scsi_dh_devlist {
+	char *vendor;
+	char *model;
+};
+
+struct scsi_device_handler {
+	/* Used by the infrastructure */
+	struct list_head list; /* list of scsi_device_handlers */
+
+	/* Filled by the hardware handler */
+	struct module *module;
+	const char *name;
+	const struct scsi_dh_devlist *devlist;
+	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
+	int (*attach)(struct scsi_device *);
+	void (*detach)(struct scsi_device *);
+	int (*activate)(struct scsi_device *);
+	int (*prep_fn)(struct scsi_device *, struct request *);
+};
+
+struct scsi_dh_data {
+	struct scsi_device_handler *scsi_dh;
+	char buf[0];
+};
+
 #define	to_scsi_device(d)	\
 	container_of(d, struct scsi_device, sdev_gendev)
 #define	class_to_sdev(d)	\
@@ -230,7 +259,9 @@ extern struct scsi_device *__scsi_add_device(struct Scsi_Host *,
 		uint, uint, uint, void *hostdata);
 extern int scsi_add_device(struct Scsi_Host *host, uint channel,
 			   uint target, uint lun);
+extern int scsi_register_device_handler(struct scsi_device_handler *scsi_dh);
 extern void scsi_remove_device(struct scsi_device *);
+extern int scsi_unregister_device_handler(struct scsi_device_handler *scsi_dh);
 
 extern int scsi_device_get(struct scsi_device *);
 extern void scsi_device_put(struct scsi_device *);
@@ -391,6 +422,11 @@ static inline int scsi_device_qas(struct scsi_device *sdev)
 static inline int scsi_device_enclosure(struct scsi_device *sdev)
 {
 	return sdev->inquiry[6] & (1<<6);
+}
+
+static inline int scsi_device_protection(struct scsi_device *sdev)
+{
+	return sdev->inquiry[5] & (1<<0);
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

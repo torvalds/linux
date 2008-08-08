@@ -95,20 +95,20 @@ MODULE_DESCRIPTION("3Com 3C359 Velocity XL Token Ring Adapter Driver \n") ;
 static int ringspeed[XL_MAX_ADAPTERS] = {0,} ;
 
 module_param_array(ringspeed, int, NULL, 0);
-MODULE_PARM_DESC(ringspeed,"3c359: Ringspeed selection - 4,16 or 0") ; 
+MODULE_PARM_DESC(ringspeed,"3c359: Ringspeed selection - 4,16 or 0") ;
 
 /* Packet buffer size */
 
 static int pkt_buf_sz[XL_MAX_ADAPTERS] = {0,} ;
  
 module_param_array(pkt_buf_sz, int, NULL, 0) ;
-MODULE_PARM_DESC(pkt_buf_sz,"3c359: Initial buffer size") ; 
+MODULE_PARM_DESC(pkt_buf_sz,"3c359: Initial buffer size") ;
 /* Message Level */
 
-static int message_level[XL_MAX_ADAPTERS] = {0,} ; 
+static int message_level[XL_MAX_ADAPTERS] = {0,} ;
 
 module_param_array(message_level, int, NULL, 0) ;
-MODULE_PARM_DESC(message_level, "3c359: Level of reported messages \n") ; 
+MODULE_PARM_DESC(message_level, "3c359: Level of reported messages") ;
 /* 
  *	This is a real nasty way of doing this, but otherwise you
  *	will be stuck with 1555 lines of hex #'s in the code.
@@ -132,7 +132,6 @@ static void xl_dn_comp(struct net_device *dev);
 static int xl_close(struct net_device *dev);
 static void xl_set_rx_mode(struct net_device *dev);
 static irqreturn_t xl_interrupt(int irq, void *dev_id);
-static struct net_device_stats * xl_get_stats(struct net_device *dev);
 static int xl_set_mac_address(struct net_device *dev, void *addr) ; 
 static void xl_arb_cmd(struct net_device *dev);
 static void xl_asb_cmd(struct net_device *dev) ; 
@@ -343,7 +342,6 @@ static int __devinit xl_probe(struct pci_dev *pdev,
 	dev->stop=&xl_close;
 	dev->do_ioctl=NULL;
 	dev->set_multicast_list=&xl_set_rx_mode;
-	dev->get_stats=&xl_get_stats ;
 	dev->set_mac_address=&xl_set_mac_address ; 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -921,7 +919,7 @@ static void xl_rx(struct net_device *dev)
 					adv_rx_ring(dev) ; 
 				
 				adv_rx_ring(dev) ; /* One more time just for luck :) */ 
-				xl_priv->xl_stats.rx_dropped++ ; 
+				dev->stats.rx_dropped++ ; 
 
 				writel(ACK_INTERRUPT | UPCOMPACK | LATCH_ACK , xl_mmio + MMIO_COMMAND) ; 
 				return ; 				
@@ -957,7 +955,7 @@ static void xl_rx(struct net_device *dev)
 			if (skb==NULL) { /* Still need to fix the rx ring */
 				printk(KERN_WARNING "%s: dev_alloc_skb failed in rx, single buffer \n",dev->name) ; 
 				adv_rx_ring(dev) ; 
-				xl_priv->xl_stats.rx_dropped++ ; 
+				dev->stats.rx_dropped++ ; 
 				writel(ACK_INTERRUPT | UPCOMPACK | LATCH_ACK , xl_mmio + MMIO_COMMAND) ; 
 				return ; 
 			}
@@ -971,8 +969,8 @@ static void xl_rx(struct net_device *dev)
 			xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfragaddr = cpu_to_le32(pci_map_single(xl_priv->pdev,skb->data,xl_priv->pkt_buf_sz, PCI_DMA_FROMDEVICE));
 			xl_priv->xl_rx_ring[xl_priv->rx_ring_tail].upfraglen = cpu_to_le32(xl_priv->pkt_buf_sz) | RXUPLASTFRAG;
 			adv_rx_ring(dev) ; 
-			xl_priv->xl_stats.rx_packets++ ; 
-			xl_priv->xl_stats.rx_bytes += frame_length ; 	
+			dev->stats.rx_packets++ ; 
+			dev->stats.rx_bytes += frame_length ; 	
 
 			netif_rx(skb2) ; 		
 		 } /* if multiple buffers */
@@ -1182,8 +1180,8 @@ static int xl_xmit(struct sk_buff *skb, struct net_device *dev)
 		txd->buffer = cpu_to_le32(pci_map_single(xl_priv->pdev, skb->data, skb->len, PCI_DMA_TODEVICE));
 		txd->buffer_length = cpu_to_le32(skb->len) | TXDNFRAGLAST;
 		xl_priv->tx_ring_skb[tx_head] = skb ; 
-		xl_priv->xl_stats.tx_packets++ ; 
-		xl_priv->xl_stats.tx_bytes += skb->len ;
+		dev->stats.tx_packets++ ; 
+		dev->stats.tx_bytes += skb->len ;
 
 		/* 
 		 * Set the nextptr of the previous descriptor equal to this descriptor, add XL_TX_RING_SIZE -1 
@@ -1462,12 +1460,6 @@ static void xl_srb_bh(struct net_device *dev)
 	} /* switch */
 	return ; 	
 } 
-
-static struct net_device_stats * xl_get_stats(struct net_device *dev)
-{
-	struct xl_private *xl_priv = netdev_priv(dev);
-	return (struct net_device_stats *) &xl_priv->xl_stats; 
-}
 
 static int xl_set_mac_address (struct net_device *dev, void *addr) 
 {

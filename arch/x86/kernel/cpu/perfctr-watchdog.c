@@ -189,7 +189,7 @@ void disable_lapic_nmi_watchdog(void)
 	if (atomic_read(&nmi_active) <= 0)
 		return;
 
-	on_each_cpu(stop_apic_nmi_watchdog, NULL, 0, 1);
+	on_each_cpu(stop_apic_nmi_watchdog, NULL, 1);
 
 	if (wd_ops)
 		wd_ops->unreserve();
@@ -213,7 +213,7 @@ void enable_lapic_nmi_watchdog(void)
 		return;
 	}
 
-	on_each_cpu(setup_apic_nmi_watchdog, NULL, 0, 1);
+	on_each_cpu(setup_apic_nmi_watchdog, NULL, 1);
 	touch_nmi_watchdog();
 }
 
@@ -250,7 +250,7 @@ static void write_watchdog_counter(unsigned int perfctr_msr,
 
 	do_div(count, nmi_hz);
 	if(descr)
-		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsrl(perfctr_msr, 0 - count);
 }
 
@@ -261,7 +261,7 @@ static void write_watchdog_counter32(unsigned int perfctr_msr,
 
 	do_div(count, nmi_hz);
 	if(descr)
-		Dprintk("setting %s to -0x%08Lx\n", descr, count);
+		pr_debug("setting %s to -0x%08Lx\n", descr, count);
 	wrmsr(perfctr_msr, (u32)(-count), 0);
 }
 

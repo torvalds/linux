@@ -1,5 +1,4 @@
 /*
- *  $Id$
  *
  *  Copyright (C) 2005 Mike Isely <isely@pobox.com>
  *
@@ -17,8 +16,8 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
  */
-#ifndef __PVRUSB2_BASE_H
-#define __PVRUSB2_BASE_H
+#ifndef __PVRUSB2_CONTEXT_H
+#define __PVRUSB2_CONTEXT_H
 
 #include <linux/mutex.h>
 #include <linux/usb.h>

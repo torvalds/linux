@@ -15,8 +15,8 @@
 #include <linux/kernel.h>
 #include <linux/io.h>
 
-#include <asm/arch/common.h>
-#include <asm/arch/control.h>
+#include <mach/common.h>
+#include <mach/control.h>
 
 static void __iomem *omap2_ctrl_base;
 

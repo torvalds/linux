@@ -92,16 +92,20 @@ extern void *l1_data_B_sram_alloc(size_t);
 extern void *l1_inst_sram_alloc(size_t);
 extern void *l1_data_sram_alloc(size_t);
 extern void *l1_data_sram_zalloc(size_t);
+extern void *l2_sram_alloc(size_t);
+extern void *l2_sram_zalloc(size_t);
 extern int l1_data_A_sram_free(const void*);
 extern int l1_data_B_sram_free(const void*);
 extern int l1_inst_sram_free(const void*);
 extern int l1_data_sram_free(const void*);
+extern int l2_sram_free(const void *);
 extern int sram_free(const void*);
 
 #define L1_INST_SRAM		0x00000001
 #define L1_DATA_A_SRAM		0x00000002
 #define L1_DATA_B_SRAM		0x00000004
 #define L1_DATA_SRAM		0x00000006
+#define L2_SRAM			0x00000008
 extern void *sram_alloc_with_lsl(size_t, unsigned long);
 extern int sram_free_with_lsl(const void*);
 
@@ -114,7 +118,9 @@ extern struct file_operations dpmc_fops;
 extern unsigned long _ramstart, _ramend, _rambase;
 extern unsigned long memory_start, memory_end, physical_mem_end;
 extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
-    _ebss_l1[], _l1_lma_start[], _sdata_b_l1[], _ebss_b_l1[];
+	_ebss_l1[], _l1_lma_start[], _sdata_b_l1[], _ebss_b_l1[],
+	_stext_l2[], _etext_l2[], _sdata_l2[], _edata_l2[], _sbss_l2[],
+	_ebss_l2[], _l2_lma_start[];
 
 #ifdef CONFIG_MTD_UCLINUX
 extern unsigned long memory_mtd_start, memory_mtd_end, mtd_size;

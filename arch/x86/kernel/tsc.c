@@ -358,6 +358,7 @@ static cycle_t read_tsc(void)
 		ret : clocksource_tsc.cycle_last;
 }
 
+#ifdef CONFIG_X86_64
 static cycle_t __vsyscall_fn vread_tsc(void)
 {
 	cycle_t ret = (cycle_t)vget_cycles();
@@ -365,6 +366,7 @@ static cycle_t __vsyscall_fn vread_tsc(void)
 	return ret >= __vsyscall_gtod_data.clock.cycle_last ?
 		ret : __vsyscall_gtod_data.clock.cycle_last;
 }
+#endif
 
 static struct clocksource clocksource_tsc = {
 	.name                   = "tsc",

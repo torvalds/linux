@@ -50,15 +50,14 @@ obj-$(CONFIG_IBMVIO)		+= vio.o
 obj-$(CONFIG_IBMEBUS)           += ibmebus.o
 obj-$(CONFIG_GENERIC_TBSYNC)	+= smp-tbsync.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
+obj-$(CONFIG_E500)		+= idle_e500.o
 obj-$(CONFIG_6xx)		+= idle_6xx.o l2cr_6xx.o cpu_setup_6xx.o
 obj-$(CONFIG_TAU)		+= tau_6xx.o
 obj-$(CONFIG_HIBERNATION)	+= swsusp.o suspend.o \
 				   swsusp_$(CONFIG_WORD_SIZE).o
 obj64-$(CONFIG_HIBERNATION)	+= swsusp_asm64.o
-obj-$(CONFIG_MODULES)		+= module_$(CONFIG_WORD_SIZE).o
+obj-$(CONFIG_MODULES)		+= module.o module_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_44x)		+= cpu_setup_44x.o
-
-ifeq ($(CONFIG_PPC_MERGE),y)
 
 extra-$(CONFIG_PPC_STD_MMU)	:= head_32.o
 extra-$(CONFIG_PPC64)		:= head_64.o
@@ -73,6 +72,7 @@ obj-y				+= time.o prom.o traps.o setup-common.o \
 				   misc_$(CONFIG_WORD_SIZE).o
 obj-$(CONFIG_PPC32)		+= entry_32.o setup_32.o
 obj-$(CONFIG_PPC64)		+= dma_64.o iommu.o
+obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-$(CONFIG_PPC_MULTIPLATFORM)	+= prom_init.o
 obj-$(CONFIG_MODULES)		+= ppc_ksyms.o
 obj-$(CONFIG_BOOTX_TEXT)	+= btext.o
@@ -98,12 +98,6 @@ ifneq ($(CONFIG_PPC_INDIRECT_IO),y)
 obj-y				+= iomap.o
 endif
 
-else
-# stuff used from here for ARCH=ppc
-smpobj-$(CONFIG_SMP)		+= smp.o
-
-endif
-
 obj-$(CONFIG_PPC64)		+= $(obj64-y)
 
 extra-$(CONFIG_PPC_FPU)		+= fpu.o
@@ -119,9 +113,6 @@ PHONY += systbl_chk
 systbl_chk: $(src)/systbl_chk.sh $(obj)/systbl_chk.i
 	$(call cmd,systbl_chk)
 
-
-ifeq ($(CONFIG_PPC_MERGE),y)
-
 $(obj)/built-in.o:		prom_init_check
 
 quiet_cmd_prom_init_check = CALL    $<
@@ -130,8 +121,5 @@ quiet_cmd_prom_init_check = CALL    $<
 PHONY += prom_init_check
 prom_init_check: $(src)/prom_init_check.sh $(obj)/prom_init.o
 	$(call cmd,prom_init_check)
-
-endif
-
 
 clean-files := vmlinux.lds

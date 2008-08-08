@@ -28,7 +28,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -37,8 +37,8 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
 
 #include "generic.h"
 
@@ -142,7 +142,7 @@ static struct mtd_partition * __init nand_partitions(int size, int *num_partitio
 	return cam60_nand_partition;
 }
 
-static struct at91_nand_data __initdata cam60_nand_data = {
+static struct atmel_nand_data __initdata cam60_nand_data = {
 	.ale		= 21,
 	.cle		= 22,
 	// .det_pin	= ... not there

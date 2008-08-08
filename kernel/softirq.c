@@ -286,7 +286,7 @@ void irq_exit(void)
 #ifdef CONFIG_NO_HZ
 	/* Make sure that timer wheel updates are propagated */
 	if (!in_interrupt() && idle_cpu(smp_processor_id()) && !need_resched())
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(0);
 	rcu_irq_exit();
 #endif
 	preempt_enable_no_resched();
@@ -630,7 +630,7 @@ static struct notifier_block __cpuinitdata cpu_nfb = {
 	.notifier_call = cpu_callback
 };
 
-__init int spawn_ksoftirqd(void)
+static __init int spawn_ksoftirqd(void)
 {
 	void *cpu = (void *)(long)smp_processor_id();
 	int err = cpu_callback(&cpu_nfb, CPU_UP_PREPARE, cpu);
@@ -640,17 +640,18 @@ __init int spawn_ksoftirqd(void)
 	register_cpu_notifier(&cpu_nfb);
 	return 0;
 }
+early_initcall(spawn_ksoftirqd);
 
 #ifdef CONFIG_SMP
 /*
  * Call a function on all processors
  */
-int on_each_cpu(void (*func) (void *info), void *info, int retry, int wait)
+int on_each_cpu(void (*func) (void *info), void *info, int wait)
 {
 	int ret = 0;
 
 	preempt_disable();
-	ret = smp_call_function(func, info, retry, wait);
+	ret = smp_call_function(func, info, wait);
 	local_irq_disable();
 	func(info);
 	local_irq_enable();

@@ -26,7 +26,6 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include "dvb_frontend.h"
-#include "dvb-pll.h"
 #include "au8522.h"
 
 struct au8522_state {

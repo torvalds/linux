@@ -10,7 +10,6 @@
  * Copyright (C) 2007 by Thomas Bogendoerfer
  */
 #include <linux/eisa.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
@@ -18,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/fb.h>
-#include <linux/ide.h>
 #include <linux/pm.h>
 #include <linux/screen_info.h>
 #include <linux/platform_device.h>
@@ -76,10 +74,8 @@ void __init plat_mem_setup(void)
 
 	set_io_port_base(JAZZ_PORT_BASE);
 #ifdef CONFIG_EISA
-	if (mips_machtype == MACH_MIPS_MAGNUM_4000)
-		EISA_bus = 1;
+	EISA_bus = 1;
 #endif
-	isa_slot_offset = 0xe3000000;
 
 	/* request I/O space for devices used on all i[345]86 PCs */
 	for (i = 0; i < ARRAY_SIZE(jazz_io_resources); i++)

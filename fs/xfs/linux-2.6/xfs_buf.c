@@ -310,8 +310,7 @@ _xfs_buf_free_pages(
 	xfs_buf_t	*bp)
 {
 	if (bp->b_pages != bp->b_page_array) {
-		kmem_free(bp->b_pages,
-			  bp->b_page_count * sizeof(struct page *));
+		kmem_free(bp->b_pages);
 	}
 }
 
@@ -1398,7 +1397,7 @@ STATIC void
 xfs_free_bufhash(
 	xfs_buftarg_t		*btp)
 {
-	kmem_free(btp->bt_hash, (1<<btp->bt_hashshift) * sizeof(xfs_bufhash_t));
+	kmem_free(btp->bt_hash);
 	btp->bt_hash = NULL;
 }
 
@@ -1428,13 +1427,10 @@ xfs_unregister_buftarg(
 
 void
 xfs_free_buftarg(
-	xfs_buftarg_t		*btp,
-	int			external)
+	xfs_buftarg_t		*btp)
 {
 	xfs_flush_buftarg(btp, 1);
 	xfs_blkdev_issue_flush(btp);
-	if (external)
-		xfs_blkdev_put(btp->bt_bdev);
 	xfs_free_bufhash(btp);
 	iput(btp->bt_mapping->host);
 
@@ -1444,7 +1440,7 @@ xfs_free_buftarg(
 	xfs_unregister_buftarg(btp);
 	kthread_stop(btp->bt_task);
 
-	kmem_free(btp, sizeof(*btp));
+	kmem_free(btp);
 }
 
 STATIC int
@@ -1575,7 +1571,7 @@ xfs_alloc_buftarg(
 	return btp;
 
 error:
-	kmem_free(btp, sizeof(*btp));
+	kmem_free(btp);
 	return NULL;
 }
 

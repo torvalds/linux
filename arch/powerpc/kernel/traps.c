@@ -967,6 +967,20 @@ void altivec_unavailable_exception(struct pt_regs *regs)
 	die("Unrecoverable VMX/Altivec Unavailable Exception", regs, SIGABRT);
 }
 
+void vsx_unavailable_exception(struct pt_regs *regs)
+{
+	if (user_mode(regs)) {
+		/* A user program has executed an vsx instruction,
+		   but this kernel doesn't support vsx. */
+		_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+		return;
+	}
+
+	printk(KERN_EMERG "Unrecoverable VSX Unavailable Exception "
+			"%lx at %lx\n", regs->trap, regs->nip);
+	die("Unrecoverable VSX Unavailable Exception", regs, SIGABRT);
+}
+
 void performance_monitor_exception(struct pt_regs *regs)
 {
 	perf_irq(regs);
@@ -1030,21 +1044,45 @@ void SoftwareEmulation(struct pt_regs *regs)
 
 #if defined(CONFIG_40x) || defined(CONFIG_BOOKE)
 
-void DebugException(struct pt_regs *regs, unsigned long debug_status)
+void __kprobes DebugException(struct pt_regs *regs, unsigned long debug_status)
 {
 	if (debug_status & DBSR_IC) {	/* instruction completion */
 		regs->msr &= ~MSR_DE;
+
+		/* Disable instruction completion */
+		mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_IC);
+		/* Clear the instruction completion event */
+		mtspr(SPRN_DBSR, DBSR_IC);
+
+		if (notify_die(DIE_SSTEP, "single_step", regs, 5,
+			       5, SIGTRAP) == NOTIFY_STOP) {
+			return;
+		}
+
+		if (debugger_sstep(regs))
+			return;
+
 		if (user_mode(regs)) {
 			current->thread.dbcr0 &= ~DBCR0_IC;
-		} else {
-			/* Disable instruction completion */
-			mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~DBCR0_IC);
-			/* Clear the instruction completion event */
-			mtspr(SPRN_DBSR, DBSR_IC);
-			if (debugger_sstep(regs))
-				return;
 		}
-		_exception(SIGTRAP, regs, TRAP_TRACE, 0);
+
+		_exception(SIGTRAP, regs, TRAP_TRACE, regs->nip);
+	} else if (debug_status & (DBSR_DAC1R | DBSR_DAC1W)) {
+		regs->msr &= ~MSR_DE;
+
+		if (user_mode(regs)) {
+			current->thread.dbcr0 &= ~(DBSR_DAC1R | DBSR_DAC1W |
+								DBCR0_IDM);
+		} else {
+			/* Disable DAC interupts */
+			mtspr(SPRN_DBCR0, mfspr(SPRN_DBCR0) & ~(DBSR_DAC1R |
+						DBSR_DAC1W | DBCR0_IDM));
+
+			/* Clear the DAC event */
+			mtspr(SPRN_DBSR, (DBSR_DAC1R | DBSR_DAC1W));
+		}
+		/* Setup and send the trap to the handler */
+		do_dabr(regs, mfspr(SPRN_DAC1), debug_status);
 	}
 }
 #endif /* CONFIG_4xx || CONFIG_BOOKE */
@@ -1090,6 +1128,21 @@ void altivec_assist_exception(struct pt_regs *regs)
 	}
 }
 #endif /* CONFIG_ALTIVEC */
+
+#ifdef CONFIG_VSX
+void vsx_assist_exception(struct pt_regs *regs)
+{
+	if (!user_mode(regs)) {
+		printk(KERN_EMERG "VSX assist exception in kernel mode"
+		       " at %lx\n", regs->nip);
+		die("Kernel VSX assist exception", regs, SIGILL);
+	}
+
+	flush_vsx_to_thread(current);
+	printk(KERN_INFO "VSX assist not supported at %lx\n", regs->nip);
+	_exception(SIGILL, regs, ILL_ILLOPC, regs->nip);
+}
+#endif /* CONFIG_VSX */
 
 #ifdef CONFIG_FSL_BOOKE
 void CacheLockingException(struct pt_regs *regs, unsigned long address,

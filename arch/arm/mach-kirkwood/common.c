@@ -19,7 +19,7 @@
 #include <asm/timex.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/arch/kirkwood.h>
+#include <mach/kirkwood.h>
 #include <asm/plat-orion/cache-feroceon-l2.h>
 #include <asm/plat-orion/ehci-orion.h>
 #include <asm/plat-orion/orion_nand.h>

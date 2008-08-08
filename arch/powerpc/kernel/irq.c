@@ -77,21 +77,11 @@ static int ppc_spurious_interrupts;
 EXPORT_SYMBOL(__irq_offset_value);
 atomic_t ppc_n_lost_interrupts;
 
-#ifndef CONFIG_PPC_MERGE
-#define NR_MASK_WORDS	((NR_IRQS + 31) / 32)
-unsigned long ppc_cached_irq_mask[NR_MASK_WORDS];
-#endif
-
 #ifdef CONFIG_TAU_INT
 extern int tau_initialized;
 extern int tau_interrupts(int);
 #endif
 #endif /* CONFIG_PPC32 */
-
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
-extern atomic_t ipi_recv;
-extern atomic_t ipi_sent;
-#endif
 
 #ifdef CONFIG_PPC64
 EXPORT_SYMBOL(irq_desc);
@@ -216,21 +206,14 @@ int show_interrupts(struct seq_file *p, void *v)
 skip:
 		spin_unlock_irqrestore(&desc->lock, flags);
 	} else if (i == NR_IRQS) {
-#ifdef CONFIG_PPC32
-#ifdef CONFIG_TAU_INT
+#if defined(CONFIG_PPC32) && defined(CONFIG_TAU_INT)
 		if (tau_initialized){
 			seq_puts(p, "TAU: ");
 			for_each_online_cpu(j)
 				seq_printf(p, "%10u ", tau_interrupts(j));
 			seq_puts(p, "  PowerPC             Thermal Assist (cpu temp)\n");
 		}
-#endif
-#if defined(CONFIG_SMP) && !defined(CONFIG_PPC_MERGE)
-		/* should this be per processor send/receive? */
-		seq_printf(p, "IPI (recv/sent): %10u/%u\n",
-				atomic_read(&ipi_recv), atomic_read(&ipi_sent));
-#endif
-#endif /* CONFIG_PPC32 */
+#endif /* CONFIG_PPC32 && CONFIG_TAU_INT*/
 		seq_printf(p, "BAD: %10u\n", ppc_spurious_interrupts);
 	}
 	return 0;
@@ -356,9 +339,42 @@ void __init init_IRQ(void)
 {
 	if (ppc_md.init_IRQ)
 		ppc_md.init_IRQ();
+
+	exc_lvl_ctx_init();
+
 	irq_ctx_init();
 }
 
+#if defined(CONFIG_BOOKE) || defined(CONFIG_40x)
+struct thread_info   *critirq_ctx[NR_CPUS] __read_mostly;
+struct thread_info    *dbgirq_ctx[NR_CPUS] __read_mostly;
+struct thread_info *mcheckirq_ctx[NR_CPUS] __read_mostly;
+
+void exc_lvl_ctx_init(void)
+{
+	struct thread_info *tp;
+	int i;
+
+	for_each_possible_cpu(i) {
+		memset((void *)critirq_ctx[i], 0, THREAD_SIZE);
+		tp = critirq_ctx[i];
+		tp->cpu = i;
+		tp->preempt_count = 0;
+
+#ifdef CONFIG_BOOKE
+		memset((void *)dbgirq_ctx[i], 0, THREAD_SIZE);
+		tp = dbgirq_ctx[i];
+		tp->cpu = i;
+		tp->preempt_count = 0;
+
+		memset((void *)mcheckirq_ctx[i], 0, THREAD_SIZE);
+		tp = mcheckirq_ctx[i];
+		tp->cpu = i;
+		tp->preempt_count = HARDIRQ_OFFSET;
+#endif
+	}
+}
+#endif
 
 #ifdef CONFIG_IRQSTACKS
 struct thread_info *softirq_ctx[NR_CPUS] __read_mostly;
@@ -421,8 +437,6 @@ void do_softirq(void)
  * IRQ controller and virtual interrupts
  */
 
-#ifdef CONFIG_PPC_MERGE
-
 static LIST_HEAD(irq_hosts);
 static DEFINE_SPINLOCK(irq_big_lock);
 static DEFINE_PER_CPU(unsigned int, irq_radix_reader);
@@ -465,7 +479,7 @@ struct irq_host *irq_alloc_host(struct device_node *of_node,
 	host->revmap_type = revmap_type;
 	host->inval_irq = inval_irq;
 	host->ops = ops;
-	host->of_node = of_node;
+	host->of_node = of_node_get(of_node);
 
 	if (host->ops->match == NULL)
 		host->ops->match = default_irq_host_match;
@@ -1080,8 +1094,6 @@ static int __init irq_debugfs_init(void)
 }
 __initcall(irq_debugfs_init);
 #endif /* CONFIG_VIRQ_DEBUG */
-
-#endif /* CONFIG_PPC_MERGE */
 
 #ifdef CONFIG_PPC64
 static int __init setup_noirqdistrib(char *str)

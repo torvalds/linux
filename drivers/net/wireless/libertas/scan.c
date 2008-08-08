@@ -776,8 +776,9 @@ out:
 #define MAX_CUSTOM_LEN 64
 
 static inline char *lbs_translate_scan(struct lbs_private *priv,
-				       char *start, char *stop,
-				       struct bss_descriptor *bss)
+					    struct iw_request_info *info,
+					    char *start, char *stop,
+					    struct bss_descriptor *bss)
 {
 	struct chan_freq_power *cfp;
 	char *current_val;	/* For rates */
@@ -801,24 +802,24 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 	iwe.cmd = SIOCGIWAP;
 	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
 	memcpy(iwe.u.ap_addr.sa_data, &bss->bssid, ETH_ALEN);
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_ADDR_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_ADDR_LEN);
 
 	/* SSID */
 	iwe.cmd = SIOCGIWESSID;
 	iwe.u.data.flags = 1;
 	iwe.u.data.length = min((uint32_t) bss->ssid_len, (uint32_t) IW_ESSID_MAX_SIZE);
-	start = iwe_stream_add_point(start, stop, &iwe, bss->ssid);
+	start = iwe_stream_add_point(info, start, stop, &iwe, bss->ssid);
 
 	/* Mode */
 	iwe.cmd = SIOCGIWMODE;
 	iwe.u.mode = bss->mode;
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_UINT_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_UINT_LEN);
 
 	/* Frequency */
 	iwe.cmd = SIOCGIWFREQ;
 	iwe.u.freq.m = (long)cfp->freq * 100000;
 	iwe.u.freq.e = 1;
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_FREQ_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_FREQ_LEN);
 
 	/* Add quality statistics */
 	iwe.cmd = IWEVQUAL;
@@ -852,7 +853,7 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 		nf = priv->NF[TYPE_RXPD][TYPE_AVG] / AVG_SCALE;
 		iwe.u.qual.level = CAL_RSSI(snr, nf);
 	}
-	start = iwe_stream_add_event(start, stop, &iwe, IW_EV_QUAL_LEN);
+	start = iwe_stream_add_event(info, start, stop, &iwe, IW_EV_QUAL_LEN);
 
 	/* Add encryption capability */
 	iwe.cmd = SIOCGIWENCODE;
@@ -862,9 +863,9 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 		iwe.u.data.flags = IW_ENCODE_DISABLED;
 	}
 	iwe.u.data.length = 0;
-	start = iwe_stream_add_point(start, stop, &iwe, bss->ssid);
+	start = iwe_stream_add_point(info, start, stop, &iwe, bss->ssid);
 
-	current_val = start + IW_EV_LCP_LEN;
+	current_val = start + iwe_stream_lcp_len(info);
 
 	iwe.cmd = SIOCGIWRATE;
 	iwe.u.bitrate.fixed = 0;
@@ -874,19 +875,19 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 	for (j = 0; bss->rates[j] && (j < sizeof(bss->rates)); j++) {
 		/* Bit rate given in 500 kb/s units */
 		iwe.u.bitrate.value = bss->rates[j] * 500000;
-		current_val = iwe_stream_add_value(start, current_val,
-					 stop, &iwe, IW_EV_PARAM_LEN);
+		current_val = iwe_stream_add_value(info, start, current_val,
+						   stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	if ((bss->mode == IW_MODE_ADHOC) && priv->adhoccreate
 	    && !lbs_ssid_cmp(priv->curbssparams.ssid,
 			     priv->curbssparams.ssid_len,
 			     bss->ssid, bss->ssid_len)) {
 		iwe.u.bitrate.value = 22 * 500000;
-		current_val = iwe_stream_add_value(start, current_val,
+		current_val = iwe_stream_add_value(info, start, current_val,
 						   stop, &iwe, IW_EV_PARAM_LEN);
 	}
 	/* Check if we added any event */
-	if((current_val - start) > IW_EV_LCP_LEN)
+	if ((current_val - start) > iwe_stream_lcp_len(info))
 		start = current_val;
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -895,7 +896,7 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 		memcpy(buf, bss->wpa_ie, bss->wpa_ie_len);
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->wpa_ie_len;
-		start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
 
 	memset(&iwe, 0, sizeof(iwe));
@@ -904,7 +905,7 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 		memcpy(buf, bss->rsn_ie, bss->rsn_ie_len);
 		iwe.cmd = IWEVGENIE;
 		iwe.u.data.length = bss->rsn_ie_len;
-		start = iwe_stream_add_point(start, stop, &iwe, buf);
+		start = iwe_stream_add_point(info, start, stop, &iwe, buf);
 	}
 
 	if (bss->mesh) {
@@ -915,7 +916,8 @@ static inline char *lbs_translate_scan(struct lbs_private *priv,
 		p += snprintf(p, MAX_CUSTOM_LEN, "mesh-type: olpc");
 		iwe.u.data.length = p - custom;
 		if (iwe.u.data.length)
-			start = iwe_stream_add_point(start, stop, &iwe, custom);
+			start = iwe_stream_add_point(info, start, stop,
+						     &iwe, custom);
 	}
 
 out:
@@ -1036,7 +1038,7 @@ int lbs_get_scan(struct net_device *dev, struct iw_request_info *info,
 		}
 
 		/* Translate to WE format this entry */
-		next_ev = lbs_translate_scan(priv, ev, stop, iter_bss);
+		next_ev = lbs_translate_scan(priv, info, ev, stop, iter_bss);
 		if (next_ev == NULL)
 			continue;
 		ev = next_ev;

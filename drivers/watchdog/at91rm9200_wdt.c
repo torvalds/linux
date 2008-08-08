@@ -21,7 +21,7 @@
 #include <linux/types.h>
 #include <linux/watchdog.h>
 #include <asm/uaccess.h>
-#include <asm/arch/at91_st.h>
+#include <mach/at91_st.h>
 
 
 #define WDT_DEFAULT_TIME	5	/* seconds */

@@ -1,36 +1,9 @@
 menu "Platform support"
 
-choice
-	prompt "Machine type"
-	depends on PPC64 || 6xx
-	default PPC_MULTIPLATFORM
-
 config PPC_MULTIPLATFORM
-	bool "Generic desktop/server/laptop"
-	help
-	  Select this option if configuring for an IBM pSeries or
-	  RS/6000 machine, an Apple machine, or a PReP, CHRP,
-	  Maple or Cell-based machine.
-
-config PPC_82xx
-	bool "Freescale 82xx"
-	depends on 6xx
-
-config PPC_83xx
-	bool "Freescale 83xx"
-	depends on 6xx
-	select FSL_SOC
-	select MPC83xx
-	select IPIC
-
-config PPC_86xx
-	bool "Freescale 86xx"
-	depends on 6xx
-	select FSL_SOC
-	select ALTIVEC
-	help
-	  The Freescale E600 SoCs have 74xx cores.
-endchoice
+	bool
+	depends on PPC64 || 6xx
+	default y
 
 config CLASSIC32
 	def_bool y
@@ -280,16 +253,14 @@ config CPM2
 	depends on MPC85xx || 8260
 	select CPM
 	select PPC_LIB_RHEAP
+	select PPC_PCI_CHOICE
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
-
-config PPC_CPM_NEW_BINDING
-	bool
-	depends on CPM1 || CPM2
-	default y
 
 config AXON_RAM
 	tristate "Axon DDR2 memory device driver"
@@ -312,6 +283,7 @@ config FSL_ULI1575
 
 config CPM
 	bool
+	select PPC_CLOCK
 
 config OF_RTC
 	bool

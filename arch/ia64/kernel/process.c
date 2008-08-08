@@ -55,6 +55,10 @@ void (*ia64_mark_idle)(int);
 
 unsigned long boot_option_idle_override = 0;
 EXPORT_SYMBOL(boot_option_idle_override);
+unsigned long idle_halt;
+EXPORT_SYMBOL(idle_halt);
+unsigned long idle_nomwait;
+EXPORT_SYMBOL(idle_nomwait);
 
 void
 ia64_do_show_stack (struct unw_frame_info *info, void *arg)
@@ -286,7 +290,7 @@ void cpu_idle_wait(void)
 {
 	smp_mb();
 	/* kick all the CPUs so that they exit out of pm_idle */
-	smp_call_function(do_nothing, NULL, 0, 1);
+	smp_call_function(do_nothing, NULL, 1);
 }
 EXPORT_SYMBOL_GPL(cpu_idle_wait);
 

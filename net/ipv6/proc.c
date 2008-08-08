@@ -7,8 +7,6 @@
  *		PROC file system.  This is very similar to the IPv4 version,
  *		except it reports the sockets in the INET6 address family.
  *
- * Version:	$Id: proc.c,v 1.17 2002/02/01 22:01:04 davem Exp $
- *
  * Authors:	David S. Miller (davem@caip.rutgers.edu)
  * 		YOSHIFUJI Hideaki <yoshfuji@linux-ipv6.org>
  *
@@ -185,32 +183,7 @@ static int snmp6_seq_show(struct seq_file *seq, void *v)
 
 static int sockstat6_seq_open(struct inode *inode, struct file *file)
 {
-	int err;
-	struct net *net;
-
-	err = -ENXIO;
-	net = get_proc_net(inode);
-	if (net == NULL)
-		goto err_net;
-
-	err = single_open(file, sockstat6_seq_show, net);
-	if (err < 0)
-		goto err_open;
-
-	return 0;
-
-err_open:
-	put_net(net);
-err_net:
-	return err;
-}
-
-static int sockstat6_seq_release(struct inode *inode, struct file *file)
-{
-	struct net *net = ((struct seq_file *)file->private_data)->private;
-
-	put_net(net);
-	return single_release(inode, file);
+	return single_open_net(inode, file, sockstat6_seq_show);
 }
 
 static const struct file_operations sockstat6_seq_fops = {
@@ -218,7 +191,7 @@ static const struct file_operations sockstat6_seq_fops = {
 	.open	 = sockstat6_seq_open,
 	.read	 = seq_read,
 	.llseek	 = seq_lseek,
-	.release = sockstat6_seq_release,
+	.release = single_release_net,
 };
 
 static int snmp6_seq_open(struct inode *inode, struct file *file)
@@ -241,7 +214,7 @@ int snmp6_register_dev(struct inet6_dev *idev)
 	if (!idev || !idev->dev)
 		return -EINVAL;
 
-	if (dev_net(idev->dev) != &init_net)
+	if (!net_eq(dev_net(idev->dev), &init_net))
 		return 0;
 
 	if (!proc_net_devsnmp6)
@@ -313,7 +286,6 @@ proc_net_fail:
 
 void ipv6_misc_proc_exit(void)
 {
-	proc_net_remove(&init_net, "sockstat6");
 	proc_net_remove(&init_net, "dev_snmp6");
 	proc_net_remove(&init_net, "snmp6");
 	unregister_pernet_subsys(&ipv6_proc_ops);

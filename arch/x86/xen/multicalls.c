@@ -76,6 +76,7 @@ void xen_mc_flush(void)
 		if (ret) {
 			printk(KERN_ERR "%d multicall(s) failed: cpu %d\n",
 			       ret, smp_processor_id());
+			dump_stack();
 			for (i = 0; i < b->mcidx; i++) {
 				printk("  call %2d/%d: op=%lu arg=[%lx] result=%ld\n",
 				       i+1, b->mcidx,

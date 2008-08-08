@@ -78,7 +78,7 @@ static struct pci_dev *fake_pci_dev(struct pci_channel *hose,
 }
 
 #define EARLY_PCI_OP(rw, size, type)					\
-int early_##rw##_config_##size(struct pci_channel *hose,		\
+static int early_##rw##_config_##size(struct pci_channel *hose,		\
 	int top_bus, int bus, int devfn, int offset, type value)	\
 {									\
 	return pci_##rw##_config_##size(				\

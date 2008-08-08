@@ -15,6 +15,7 @@
 #include <linux/console.h>
 #include <linux/mv643xx.h>
 #include <linux/platform_device.h>
+#include <linux/of_platform.h>
 
 #include <asm/prom.h>
 
@@ -24,6 +25,11 @@
  * architectures.  Because of that, the drivers do not support the normal
  * PowerPC of_platform_bus_type.  They support platform_bus_type instead.
  */
+
+static struct of_device_id __initdata of_mv64x60_devices[] = {
+	{ .compatible = "marvell,mv64306-devctrl", },
+	{}
+};
 
 /*
  * Create MPSC platform devices
@@ -483,6 +489,10 @@ static int __init mv64x60_device_setup(void)
 					np->full_name, err);
 		of_node_put(np);
 	}
+
+	/* Now add every node that is on the device bus */
+	for_each_compatible_node(np, NULL, "marvell,mv64360")
+		of_platform_bus_probe(np, of_mv64x60_devices, NULL);
 
 	return 0;
 }

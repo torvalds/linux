@@ -47,6 +47,7 @@
 #include <linux/inet.h>
 #include <linux/in6.h>
 #include <net/ipv6.h>
+#include <linux/netdevice.h>
 #include <linux/nfs_xdr.h>
 #include <linux/magic.h>
 #include <linux/parser.h>
@@ -65,7 +66,6 @@
 enum {
 	/* Mount options that take no arguments */
 	Opt_soft, Opt_hard,
-	Opt_intr, Opt_nointr,
 	Opt_posix, Opt_noposix,
 	Opt_cto, Opt_nocto,
 	Opt_ac, Opt_noac,
@@ -92,8 +92,8 @@ enum {
 	Opt_sec, Opt_proto, Opt_mountproto, Opt_mounthost,
 	Opt_addr, Opt_mountaddr, Opt_clientaddr,
 
-	/* Mount options that are ignored */
-	Opt_userspace, Opt_deprecated,
+	/* Special mount options */
+	Opt_userspace, Opt_deprecated, Opt_sloppy,
 
 	Opt_err
 };
@@ -101,10 +101,14 @@ enum {
 static match_table_t nfs_mount_option_tokens = {
 	{ Opt_userspace, "bg" },
 	{ Opt_userspace, "fg" },
+	{ Opt_userspace, "retry=%s" },
+
+	{ Opt_sloppy, "sloppy" },
+
 	{ Opt_soft, "soft" },
 	{ Opt_hard, "hard" },
-	{ Opt_intr, "intr" },
-	{ Opt_nointr, "nointr" },
+	{ Opt_deprecated, "intr" },
+	{ Opt_deprecated, "nointr" },
 	{ Opt_posix, "posix" },
 	{ Opt_noposix, "noposix" },
 	{ Opt_cto, "cto" },
@@ -136,7 +140,6 @@ static match_table_t nfs_mount_option_tokens = {
 	{ Opt_acdirmin, "acdirmin=%u" },
 	{ Opt_acdirmax, "acdirmax=%u" },
 	{ Opt_actimeo, "actimeo=%u" },
-	{ Opt_userspace, "retry=%u" },
 	{ Opt_namelen, "namlen=%u" },
 	{ Opt_mountport, "mountport=%u" },
 	{ Opt_mountvers, "mountvers=%u" },
@@ -207,6 +210,7 @@ static int nfs_xdev_get_sb(struct file_system_type *fs_type,
 		int flags, const char *dev_name, void *raw_data, struct vfsmount *mnt);
 static void nfs_kill_super(struct super_block *);
 static void nfs_put_super(struct super_block *);
+static int nfs_remount(struct super_block *sb, int *flags, char *raw_data);
 
 static struct file_system_type nfs_fs_type = {
 	.owner		= THIS_MODULE,
@@ -234,6 +238,7 @@ static const struct super_operations nfs_sops = {
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_stats	= nfs_show_stats,
+	.remount_fs	= nfs_remount,
 };
 
 #ifdef CONFIG_NFS_V4
@@ -278,6 +283,7 @@ static const struct super_operations nfs4_sops = {
 	.umount_begin	= nfs_umount_begin,
 	.show_options	= nfs_show_options,
 	.show_stats	= nfs_show_stats,
+	.remount_fs	= nfs_remount,
 };
 #endif
 
@@ -368,8 +374,6 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	};
 	int error;
 
-	lock_kernel();
-
 	error = server->nfs_client->rpc_ops->statfs(server, fh, &res);
 	if (error < 0)
 		goto out_err;
@@ -401,12 +405,10 @@ static int nfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 
 	buf->f_namelen = server->namelen;
 
-	unlock_kernel();
 	return 0;
 
  out_err:
 	dprintk("%s: statfs error = %d\n", __func__, -error);
-	unlock_kernel();
 	return error;
 }
 
@@ -514,13 +516,13 @@ static void nfs_show_mount_options(struct seq_file *m, struct nfs_server *nfss,
 	if (nfss->bsize != 0)
 		seq_printf(m, ",bsize=%u", nfss->bsize);
 	seq_printf(m, ",namlen=%u", nfss->namelen);
-	if (nfss->acregmin != 3*HZ || showdefaults)
+	if (nfss->acregmin != NFS_DEF_ACREGMIN*HZ || showdefaults)
 		seq_printf(m, ",acregmin=%u", nfss->acregmin/HZ);
-	if (nfss->acregmax != 60*HZ || showdefaults)
+	if (nfss->acregmax != NFS_DEF_ACREGMAX*HZ || showdefaults)
 		seq_printf(m, ",acregmax=%u", nfss->acregmax/HZ);
-	if (nfss->acdirmin != 30*HZ || showdefaults)
+	if (nfss->acdirmin != NFS_DEF_ACDIRMIN*HZ || showdefaults)
 		seq_printf(m, ",acdirmin=%u", nfss->acdirmin/HZ);
-	if (nfss->acdirmax != 60*HZ || showdefaults)
+	if (nfss->acdirmax != NFS_DEF_ACDIRMAX*HZ || showdefaults)
 		seq_printf(m, ",acdirmax=%u", nfss->acdirmax/HZ);
 	for (nfs_infop = nfs_info; nfs_infop->flag; nfs_infop++) {
 		if (nfss->flags & nfs_infop->flag)
@@ -702,49 +704,233 @@ static int nfs_verify_server_address(struct sockaddr *addr)
 	return 0;
 }
 
-/*
- * Parse string addresses passed in via a mount option,
- * and construct a sockaddr based on the result.
- *
- * If address parsing fails, set the sockaddr's address
- * family to AF_UNSPEC to force nfs_verify_server_address()
- * to punt the mount.
- */
-static void nfs_parse_server_address(char *value,
-				     struct sockaddr *sap,
-				     size_t *len)
+static void nfs_parse_ipv4_address(char *string, size_t str_len,
+				   struct sockaddr *sap, size_t *addr_len)
 {
-	if (strchr(value, ':')) {
-		struct sockaddr_in6 *ap = (struct sockaddr_in6 *)sap;
-		u8 *addr = (u8 *)&ap->sin6_addr.in6_u;
+	struct sockaddr_in *sin = (struct sockaddr_in *)sap;
+	u8 *addr = (u8 *)&sin->sin_addr.s_addr;
 
-		ap->sin6_family = AF_INET6;
-		*len = sizeof(*ap);
-		if (in6_pton(value, -1, addr, '\0', NULL))
-			return;
-	} else {
-		struct sockaddr_in *ap = (struct sockaddr_in *)sap;
-		u8 *addr = (u8 *)&ap->sin_addr.s_addr;
+	if (str_len <= INET_ADDRSTRLEN) {
+		dfprintk(MOUNT, "NFS: parsing IPv4 address %*s\n",
+				(int)str_len, string);
 
-		ap->sin_family = AF_INET;
-		*len = sizeof(*ap);
-		if (in4_pton(value, -1, addr, '\0', NULL))
+		sin->sin_family = AF_INET;
+		*addr_len = sizeof(*sin);
+		if (in4_pton(string, str_len, addr, '\0', NULL))
 			return;
 	}
 
 	sap->sa_family = AF_UNSPEC;
-	*len = 0;
+	*addr_len = 0;
+}
+
+#define IPV6_SCOPE_DELIMITER	'%'
+
+#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
+static void nfs_parse_ipv6_scope_id(const char *string, const size_t str_len,
+				    const char *delim,
+				    struct sockaddr_in6 *sin6)
+{
+	char *p;
+	size_t len;
+
+	if (!(ipv6_addr_type(&sin6->sin6_addr) & IPV6_ADDR_LINKLOCAL))
+		return ;
+	if (*delim != IPV6_SCOPE_DELIMITER)
+		return;
+
+	len = (string + str_len) - delim - 1;
+	p = kstrndup(delim + 1, len, GFP_KERNEL);
+	if (p) {
+		unsigned long scope_id = 0;
+		struct net_device *dev;
+
+		dev = dev_get_by_name(&init_net, p);
+		if (dev != NULL) {
+			scope_id = dev->ifindex;
+			dev_put(dev);
+		} else {
+			/* scope_id is set to zero on error */
+			strict_strtoul(p, 10, &scope_id);
+		}
+
+		kfree(p);
+		sin6->sin6_scope_id = scope_id;
+		dfprintk(MOUNT, "NFS: IPv6 scope ID = %lu\n", scope_id);
+	}
+}
+
+static void nfs_parse_ipv6_address(char *string, size_t str_len,
+				   struct sockaddr *sap, size_t *addr_len)
+{
+	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)sap;
+	u8 *addr = (u8 *)&sin6->sin6_addr.in6_u;
+	const char *delim;
+
+	if (str_len <= INET6_ADDRSTRLEN) {
+		dfprintk(MOUNT, "NFS: parsing IPv6 address %*s\n",
+				(int)str_len, string);
+
+		sin6->sin6_family = AF_INET6;
+		*addr_len = sizeof(*sin6);
+		if (in6_pton(string, str_len, addr, IPV6_SCOPE_DELIMITER, &delim)) {
+			nfs_parse_ipv6_scope_id(string, str_len, delim, sin6);
+			return;
+		}
+	}
+
+	sap->sa_family = AF_UNSPEC;
+	*addr_len = 0;
+}
+#else
+static void nfs_parse_ipv6_address(char *string, size_t str_len,
+				   struct sockaddr *sap, size_t *addr_len)
+{
+	sap->sa_family = AF_UNSPEC;
+	*addr_len = 0;
+}
+#endif
+
+/*
+ * Construct a sockaddr based on the contents of a string that contains
+ * an IP address in presentation format.
+ *
+ * If there is a problem constructing the new sockaddr, set the address
+ * family to AF_UNSPEC.
+ */
+static void nfs_parse_ip_address(char *string, size_t str_len,
+				 struct sockaddr *sap, size_t *addr_len)
+{
+	unsigned int i, colons;
+
+	colons = 0;
+	for (i = 0; i < str_len; i++)
+		if (string[i] == ':')
+			colons++;
+
+	if (colons >= 2)
+		nfs_parse_ipv6_address(string, str_len, sap, addr_len);
+	else
+		nfs_parse_ipv4_address(string, str_len, sap, addr_len);
+}
+
+/*
+ * Sanity check the NFS transport protocol.
+ *
+ */
+static void nfs_validate_transport_protocol(struct nfs_parsed_mount_data *mnt)
+{
+	switch (mnt->nfs_server.protocol) {
+	case XPRT_TRANSPORT_UDP:
+	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_RDMA:
+		break;
+	default:
+		mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
+	}
+}
+
+/*
+ * For text based NFSv2/v3 mounts, the mount protocol transport default
+ * settings should depend upon the specified NFS transport.
+ */
+static void nfs_set_mount_transport_protocol(struct nfs_parsed_mount_data *mnt)
+{
+	nfs_validate_transport_protocol(mnt);
+
+	if (mnt->mount_server.protocol == XPRT_TRANSPORT_UDP ||
+	    mnt->mount_server.protocol == XPRT_TRANSPORT_TCP)
+			return;
+	switch (mnt->nfs_server.protocol) {
+	case XPRT_TRANSPORT_UDP:
+		mnt->mount_server.protocol = XPRT_TRANSPORT_UDP;
+		break;
+	case XPRT_TRANSPORT_TCP:
+	case XPRT_TRANSPORT_RDMA:
+		mnt->mount_server.protocol = XPRT_TRANSPORT_TCP;
+	}
+}
+
+/*
+ * Parse the value of the 'sec=' option.
+ *
+ * The flavor_len setting is for v4 mounts.
+ */
+static int nfs_parse_security_flavors(char *value,
+				      struct nfs_parsed_mount_data *mnt)
+{
+	substring_t args[MAX_OPT_ARGS];
+
+	dfprintk(MOUNT, "NFS: parsing sec=%s option\n", value);
+
+	switch (match_token(value, nfs_secflavor_tokens, args)) {
+	case Opt_sec_none:
+		mnt->auth_flavor_len = 0;
+		mnt->auth_flavors[0] = RPC_AUTH_NULL;
+		break;
+	case Opt_sec_sys:
+		mnt->auth_flavor_len = 0;
+		mnt->auth_flavors[0] = RPC_AUTH_UNIX;
+		break;
+	case Opt_sec_krb5:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
+		break;
+	case Opt_sec_krb5i:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
+		break;
+	case Opt_sec_krb5p:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
+		break;
+	case Opt_sec_lkey:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
+		break;
+	case Opt_sec_lkeyi:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
+		break;
+	case Opt_sec_lkeyp:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
+		break;
+	case Opt_sec_spkm:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
+		break;
+	case Opt_sec_spkmi:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
+		break;
+	case Opt_sec_spkmp:
+		mnt->auth_flavor_len = 1;
+		mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
+		break;
+	default:
+		return 0;
+	}
+
+	return 1;
+}
+
+static void nfs_parse_invalid_value(const char *option)
+{
+	dfprintk(MOUNT, "NFS:   bad value specified for %s option\n", option);
 }
 
 /*
  * Error-check and convert a string of mount options from user space into
- * a data structure
+ * a data structure.  The whole mount string is processed; bad options are
+ * skipped as they are encountered.  If there were no errors, return 1;
+ * otherwise return 0 (zero).
  */
 static int nfs_parse_mount_options(char *raw,
 				   struct nfs_parsed_mount_data *mnt)
 {
 	char *p, *string, *secdata;
-	int rc;
+	int rc, sloppy = 0, errors = 0;
 
 	if (!raw) {
 		dfprintk(MOUNT, "NFS: mount options string was NULL.\n");
@@ -777,14 +963,15 @@ static int nfs_parse_mount_options(char *raw,
 
 		token = match_token(p, nfs_mount_option_tokens, args);
 		switch (token) {
+
+		/*
+		 * boolean options:  foo/nofoo
+		 */
 		case Opt_soft:
 			mnt->flags |= NFS_MOUNT_SOFT;
 			break;
 		case Opt_hard:
 			mnt->flags &= ~NFS_MOUNT_SOFT;
-			break;
-		case Opt_intr:
-		case Opt_nointr:
 			break;
 		case Opt_posix:
 			mnt->flags |= NFS_MOUNT_POSIX;
@@ -819,20 +1006,14 @@ static int nfs_parse_mount_options(char *raw,
 		case Opt_udp:
 			mnt->flags &= ~NFS_MOUNT_TCP;
 			mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
-			mnt->timeo = 7;
-			mnt->retrans = 5;
 			break;
 		case Opt_tcp:
 			mnt->flags |= NFS_MOUNT_TCP;
 			mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-			mnt->timeo = 600;
-			mnt->retrans = 2;
 			break;
 		case Opt_rdma:
 			mnt->flags |= NFS_MOUNT_TCP; /* for side protocols */
 			mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
-			mnt->timeo = 600;
-			mnt->retrans = 2;
 			break;
 		case Opt_acl:
 			mnt->flags &= ~NFS_MOUNT_NOACL;
@@ -853,165 +1034,144 @@ static int nfs_parse_mount_options(char *raw,
 			mnt->flags |= NFS_MOUNT_UNSHARED;
 			break;
 
+		/*
+		 * options that take numeric values
+		 */
 		case Opt_port:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0 || option > 65535)
-				return 0;
-			mnt->nfs_server.port = option;
+			if (match_int(args, &option) ||
+			    option < 0 || option > USHORT_MAX) {
+				errors++;
+				nfs_parse_invalid_value("port");
+			} else
+				mnt->nfs_server.port = option;
 			break;
 		case Opt_rsize:
-			if (match_int(args, &mnt->rsize))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("rsize");
+			} else
+				mnt->rsize = option;
 			break;
 		case Opt_wsize:
-			if (match_int(args, &mnt->wsize))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("wsize");
+			} else
+				mnt->wsize = option;
 			break;
 		case Opt_bsize:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			mnt->bsize = option;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("bsize");
+			} else
+				mnt->bsize = option;
 			break;
 		case Opt_timeo:
-			if (match_int(args, &mnt->timeo))
-				return 0;
+			if (match_int(args, &option) || option <= 0) {
+				errors++;
+				nfs_parse_invalid_value("timeo");
+			} else
+				mnt->timeo = option;
 			break;
 		case Opt_retrans:
-			if (match_int(args, &mnt->retrans))
-				return 0;
+			if (match_int(args, &option) || option <= 0) {
+				errors++;
+				nfs_parse_invalid_value("retrans");
+			} else
+				mnt->retrans = option;
 			break;
 		case Opt_acregmin:
-			if (match_int(args, &mnt->acregmin))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("acregmin");
+			} else
+				mnt->acregmin = option;
 			break;
 		case Opt_acregmax:
-			if (match_int(args, &mnt->acregmax))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("acregmax");
+			} else
+				mnt->acregmax = option;
 			break;
 		case Opt_acdirmin:
-			if (match_int(args, &mnt->acdirmin))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("acdirmin");
+			} else
+				mnt->acdirmin = option;
 			break;
 		case Opt_acdirmax:
-			if (match_int(args, &mnt->acdirmax))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("acdirmax");
+			} else
+				mnt->acdirmax = option;
 			break;
 		case Opt_actimeo:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			mnt->acregmin =
-			mnt->acregmax =
-			mnt->acdirmin =
-			mnt->acdirmax = option;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("actimeo");
+			} else
+				mnt->acregmin = mnt->acregmax =
+				mnt->acdirmin = mnt->acdirmax = option;
 			break;
 		case Opt_namelen:
-			if (match_int(args, &mnt->namlen))
-				return 0;
+			if (match_int(args, &option) || option < 0) {
+				errors++;
+				nfs_parse_invalid_value("namlen");
+			} else
+				mnt->namlen = option;
 			break;
 		case Opt_mountport:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0 || option > 65535)
-				return 0;
-			mnt->mount_server.port = option;
+			if (match_int(args, &option) ||
+			    option < 0 || option > USHORT_MAX) {
+				errors++;
+				nfs_parse_invalid_value("mountport");
+			} else
+				mnt->mount_server.port = option;
 			break;
 		case Opt_mountvers:
-			if (match_int(args, &option))
-				return 0;
-			if (option < 0)
-				return 0;
-			mnt->mount_server.version = option;
+			if (match_int(args, &option) ||
+			    option < NFS_MNT_VERSION ||
+			    option > NFS_MNT3_VERSION) {
+				errors++;
+				nfs_parse_invalid_value("mountvers");
+			} else
+				mnt->mount_server.version = option;
 			break;
 		case Opt_nfsvers:
-			if (match_int(args, &option))
-				return 0;
+			if (match_int(args, &option)) {
+				errors++;
+				nfs_parse_invalid_value("nfsvers");
+				break;
+			}
 			switch (option) {
-			case 2:
+			case NFS2_VERSION:
 				mnt->flags &= ~NFS_MOUNT_VER3;
 				break;
-			case 3:
+			case NFS3_VERSION:
 				mnt->flags |= NFS_MOUNT_VER3;
 				break;
 			default:
-				goto out_unrec_vers;
+				errors++;
+				nfs_parse_invalid_value("nfsvers");
 			}
 			break;
 
+		/*
+		 * options that take text values
+		 */
 		case Opt_sec:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-			token = match_token(string, nfs_secflavor_tokens, args);
+			rc = nfs_parse_security_flavors(string, mnt);
 			kfree(string);
-
-			/*
-			 * The flags setting is for v2/v3.  The flavor_len
-			 * setting is for v4.  v2/v3 also need to know the
-			 * difference between NULL and UNIX.
-			 */
-			switch (token) {
-			case Opt_sec_none:
-				mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 0;
-				mnt->auth_flavors[0] = RPC_AUTH_NULL;
-				break;
-			case Opt_sec_sys:
-				mnt->flags &= ~NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 0;
-				mnt->auth_flavors[0] = RPC_AUTH_UNIX;
-				break;
-			case Opt_sec_krb5:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5;
-				break;
-			case Opt_sec_krb5i:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5I;
-				break;
-			case Opt_sec_krb5p:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_KRB5P;
-				break;
-			case Opt_sec_lkey:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEY;
-				break;
-			case Opt_sec_lkeyi:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYI;
-				break;
-			case Opt_sec_lkeyp:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_LKEYP;
-				break;
-			case Opt_sec_spkm:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKM;
-				break;
-			case Opt_sec_spkmi:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMI;
-				break;
-			case Opt_sec_spkmp:
-				mnt->flags |= NFS_MOUNT_SECFLAVOUR;
-				mnt->auth_flavor_len = 1;
-				mnt->auth_flavors[0] = RPC_AUTH_GSS_SPKMP;
-				break;
-			default:
-				goto out_unrec_sec;
+			if (!rc) {
+				errors++;
+				dfprintk(MOUNT, "NFS:   unrecognized "
+						"security flavor\n");
 			}
 			break;
 		case Opt_proto:
@@ -1026,24 +1186,20 @@ static int nfs_parse_mount_options(char *raw,
 			case Opt_xprt_udp:
 				mnt->flags &= ~NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_UDP;
-				mnt->timeo = 7;
-				mnt->retrans = 5;
 				break;
 			case Opt_xprt_tcp:
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_TCP;
-				mnt->timeo = 600;
-				mnt->retrans = 2;
 				break;
 			case Opt_xprt_rdma:
 				/* vector side protocols to TCP */
 				mnt->flags |= NFS_MOUNT_TCP;
 				mnt->nfs_server.protocol = XPRT_TRANSPORT_RDMA;
-				mnt->timeo = 600;
-				mnt->retrans = 2;
 				break;
 			default:
-				goto out_unrec_xprt;
+				errors++;
+				dfprintk(MOUNT, "NFS:   unrecognized "
+						"transport protocol\n");
 			}
 			break;
 		case Opt_mountproto:
@@ -1063,16 +1219,19 @@ static int nfs_parse_mount_options(char *raw,
 				break;
 			case Opt_xprt_rdma: /* not used for side protocols */
 			default:
-				goto out_unrec_xprt;
+				errors++;
+				dfprintk(MOUNT, "NFS:   unrecognized "
+						"transport protocol\n");
 			}
 			break;
 		case Opt_addr:
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-			nfs_parse_server_address(string, (struct sockaddr *)
-						 &mnt->nfs_server.address,
-						 &mnt->nfs_server.addrlen);
+			nfs_parse_ip_address(string, strlen(string),
+					     (struct sockaddr *)
+						&mnt->nfs_server.address,
+					     &mnt->nfs_server.addrlen);
 			kfree(string);
 			break;
 		case Opt_clientaddr:
@@ -1093,23 +1252,32 @@ static int nfs_parse_mount_options(char *raw,
 			string = match_strdup(args);
 			if (string == NULL)
 				goto out_nomem;
-			nfs_parse_server_address(string, (struct sockaddr *)
-						 &mnt->mount_server.address,
-						 &mnt->mount_server.addrlen);
+			nfs_parse_ip_address(string, strlen(string),
+					     (struct sockaddr *)
+						&mnt->mount_server.address,
+					     &mnt->mount_server.addrlen);
 			kfree(string);
 			break;
 
+		/*
+		 * Special options
+		 */
+		case Opt_sloppy:
+			sloppy = 1;
+			dfprintk(MOUNT, "NFS:   relaxing parsing rules\n");
+			break;
 		case Opt_userspace:
 		case Opt_deprecated:
+			dfprintk(MOUNT, "NFS:   ignoring mount option "
+					"'%s'\n", p);
 			break;
 
 		default:
-			goto out_unknown;
+			errors++;
+			dfprintk(MOUNT, "NFS:   unrecognized mount option "
+					"'%s'\n", p);
 		}
 	}
-
-	nfs_set_port((struct sockaddr *)&mnt->nfs_server.address,
-				mnt->nfs_server.port);
 
 	return 1;
 
@@ -1119,21 +1287,6 @@ out_nomem:
 out_security_failure:
 	free_secdata(secdata);
 	printk(KERN_INFO "NFS: security options invalid: %d\n", rc);
-	return 0;
-out_unrec_vers:
-	printk(KERN_INFO "NFS: unrecognized NFS version number\n");
-	return 0;
-
-out_unrec_xprt:
-	printk(KERN_INFO "NFS: unrecognized transport protocol\n");
-	return 0;
-
-out_unrec_sec:
-	printk(KERN_INFO "NFS: unrecognized security flavor\n");
-	return 0;
-
-out_unknown:
-	printk(KERN_INFO "NFS: unknown mount option: %s\n", p);
 	return 0;
 }
 
@@ -1188,9 +1341,144 @@ static int nfs_try_mount(struct nfs_parsed_mount_data *args,
 	if (status == 0)
 		return 0;
 
-	dfprintk(MOUNT, "NFS: unable to mount server %s, error %d",
+	dfprintk(MOUNT, "NFS: unable to mount server %s, error %d\n",
 			hostname, status);
 	return status;
+}
+
+static int nfs_parse_simple_hostname(const char *dev_name,
+				     char **hostname, size_t maxnamlen,
+				     char **export_path, size_t maxpathlen)
+{
+	size_t len;
+	char *colon, *comma;
+
+	colon = strchr(dev_name, ':');
+	if (colon == NULL)
+		goto out_bad_devname;
+
+	len = colon - dev_name;
+	if (len > maxnamlen)
+		goto out_hostname;
+
+	/* N.B. caller will free nfs_server.hostname in all cases */
+	*hostname = kstrndup(dev_name, len, GFP_KERNEL);
+	if (!*hostname)
+		goto out_nomem;
+
+	/* kill possible hostname list: not supported */
+	comma = strchr(*hostname, ',');
+	if (comma != NULL) {
+		if (comma == *hostname)
+			goto out_bad_devname;
+		*comma = '\0';
+	}
+
+	colon++;
+	len = strlen(colon);
+	if (len > maxpathlen)
+		goto out_path;
+	*export_path = kstrndup(colon, len, GFP_KERNEL);
+	if (!*export_path)
+		goto out_nomem;
+
+	dfprintk(MOUNT, "NFS: MNTPATH: '%s'\n", *export_path);
+	return 0;
+
+out_bad_devname:
+	dfprintk(MOUNT, "NFS: device name not in host:path format\n");
+	return -EINVAL;
+
+out_nomem:
+	dfprintk(MOUNT, "NFS: not enough memory to parse device name\n");
+	return -ENOMEM;
+
+out_hostname:
+	dfprintk(MOUNT, "NFS: server hostname too long\n");
+	return -ENAMETOOLONG;
+
+out_path:
+	dfprintk(MOUNT, "NFS: export pathname too long\n");
+	return -ENAMETOOLONG;
+}
+
+/*
+ * Hostname has square brackets around it because it contains one or
+ * more colons.  We look for the first closing square bracket, and a
+ * colon must follow it.
+ */
+static int nfs_parse_protected_hostname(const char *dev_name,
+					char **hostname, size_t maxnamlen,
+					char **export_path, size_t maxpathlen)
+{
+	size_t len;
+	char *start, *end;
+
+	start = (char *)(dev_name + 1);
+
+	end = strchr(start, ']');
+	if (end == NULL)
+		goto out_bad_devname;
+	if (*(end + 1) != ':')
+		goto out_bad_devname;
+
+	len = end - start;
+	if (len > maxnamlen)
+		goto out_hostname;
+
+	/* N.B. caller will free nfs_server.hostname in all cases */
+	*hostname = kstrndup(start, len, GFP_KERNEL);
+	if (*hostname == NULL)
+		goto out_nomem;
+
+	end += 2;
+	len = strlen(end);
+	if (len > maxpathlen)
+		goto out_path;
+	*export_path = kstrndup(end, len, GFP_KERNEL);
+	if (!*export_path)
+		goto out_nomem;
+
+	return 0;
+
+out_bad_devname:
+	dfprintk(MOUNT, "NFS: device name not in host:path format\n");
+	return -EINVAL;
+
+out_nomem:
+	dfprintk(MOUNT, "NFS: not enough memory to parse device name\n");
+	return -ENOMEM;
+
+out_hostname:
+	dfprintk(MOUNT, "NFS: server hostname too long\n");
+	return -ENAMETOOLONG;
+
+out_path:
+	dfprintk(MOUNT, "NFS: export pathname too long\n");
+	return -ENAMETOOLONG;
+}
+
+/*
+ * Split "dev_name" into "hostname:export_path".
+ *
+ * The leftmost colon demarks the split between the server's hostname
+ * and the export path.  If the hostname starts with a left square
+ * bracket, then it may contain colons.
+ *
+ * Note: caller frees hostname and export path, even on error.
+ */
+static int nfs_parse_devname(const char *dev_name,
+			     char **hostname, size_t maxnamlen,
+			     char **export_path, size_t maxpathlen)
+{
+	if (*dev_name == '[')
+		return nfs_parse_protected_hostname(dev_name,
+						    hostname, maxnamlen,
+						    export_path, maxpathlen);
+
+	return nfs_parse_simple_hostname(dev_name,
+					 hostname, maxnamlen,
+					 export_path, maxpathlen);
 }
 
 /*
@@ -1222,16 +1510,14 @@ static int nfs_validate_mount_data(void *options,
 	args->flags		= (NFS_MOUNT_VER3 | NFS_MOUNT_TCP);
 	args->rsize		= NFS_MAX_FILE_IO_SIZE;
 	args->wsize		= NFS_MAX_FILE_IO_SIZE;
-	args->timeo		= 600;
-	args->retrans		= 2;
-	args->acregmin		= 3;
-	args->acregmax		= 60;
-	args->acdirmin		= 30;
-	args->acdirmax		= 60;
+	args->acregmin		= NFS_DEF_ACREGMIN;
+	args->acregmax		= NFS_DEF_ACREGMAX;
+	args->acdirmin		= NFS_DEF_ACDIRMIN;
+	args->acdirmax		= NFS_DEF_ACDIRMAX;
 	args->mount_server.port	= 0;	/* autobind unless user sets port */
-	args->mount_server.protocol = XPRT_TRANSPORT_UDP;
 	args->nfs_server.port	= 0;	/* autobind unless user sets port */
 	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
+	args->auth_flavors[0]	= RPC_AUTH_UNIX;
 
 	switch (data->version) {
 	case 1:
@@ -1289,7 +1575,9 @@ static int nfs_validate_mount_data(void *options,
 		args->nfs_server.hostname = kstrdup(data->hostname, GFP_KERNEL);
 		args->namlen		= data->namlen;
 		args->bsize		= data->bsize;
-		args->auth_flavors[0]	= data->pseudoflavor;
+
+		if (data->flags & NFS_MOUNT_SECFLAVOUR)
+			args->auth_flavors[0] = data->pseudoflavor;
 		if (!args->nfs_server.hostname)
 			goto out_nomem;
 
@@ -1321,8 +1609,6 @@ static int nfs_validate_mount_data(void *options,
 
 		break;
 	default: {
-		unsigned int len;
-		char *c;
 		int status;
 
 		if (nfs_parse_mount_options((char *)options, args) == 0)
@@ -1332,30 +1618,28 @@ static int nfs_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			goto out_no_address;
 
-		c = strchr(dev_name, ':');
-		if (c == NULL)
-			return -EINVAL;
-		len = c - dev_name;
-		/* N.B. caller will free nfs_server.hostname in all cases */
-		args->nfs_server.hostname = kstrndup(dev_name, len, GFP_KERNEL);
-		if (!args->nfs_server.hostname)
-			goto out_nomem;
+		nfs_set_port((struct sockaddr *)&args->nfs_server.address,
+				args->nfs_server.port);
 
-		c++;
-		if (strlen(c) > NFS_MAXPATHLEN)
-			return -ENAMETOOLONG;
-		args->nfs_server.export_path = c;
+		nfs_set_mount_transport_protocol(args);
 
-		status = nfs_try_mount(args, mntfh);
+		status = nfs_parse_devname(dev_name,
+					   &args->nfs_server.hostname,
+					   PAGE_SIZE,
+					   &args->nfs_server.export_path,
+					   NFS_MAXPATHLEN);
+		if (!status)
+			status = nfs_try_mount(args, mntfh);
+
+		kfree(args->nfs_server.export_path);
+		args->nfs_server.export_path = NULL;
+
 		if (status)
 			return status;
 
 		break;
 		}
 	}
-
-	if (!(args->flags & NFS_MOUNT_SECFLAVOUR))
-		args->auth_flavors[0] = RPC_AUTH_UNIX;
 
 #ifndef CONFIG_NFS_V3
 	if (args->flags & NFS_MOUNT_VER3)
@@ -1394,6 +1678,80 @@ out_no_address:
 out_invalid_fh:
 	dfprintk(MOUNT, "NFS: invalid root filehandle\n");
 	return -EINVAL;
+}
+
+static int
+nfs_compare_remount_data(struct nfs_server *nfss,
+			 struct nfs_parsed_mount_data *data)
+{
+	if (data->flags != nfss->flags ||
+	    data->rsize != nfss->rsize ||
+	    data->wsize != nfss->wsize ||
+	    data->retrans != nfss->client->cl_timeout->to_retries ||
+	    data->auth_flavors[0] != nfss->client->cl_auth->au_flavor ||
+	    data->acregmin != nfss->acregmin / HZ ||
+	    data->acregmax != nfss->acregmax / HZ ||
+	    data->acdirmin != nfss->acdirmin / HZ ||
+	    data->acdirmax != nfss->acdirmax / HZ ||
+	    data->timeo != (10U * nfss->client->cl_timeout->to_initval / HZ) ||
+	    data->nfs_server.addrlen != nfss->nfs_client->cl_addrlen ||
+	    memcmp(&data->nfs_server.address, &nfss->nfs_client->cl_addr,
+		   data->nfs_server.addrlen) != 0)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+nfs_remount(struct super_block *sb, int *flags, char *raw_data)
+{
+	int error;
+	struct nfs_server *nfss = sb->s_fs_info;
+	struct nfs_parsed_mount_data *data;
+	struct nfs_mount_data *options = (struct nfs_mount_data *)raw_data;
+	struct nfs4_mount_data *options4 = (struct nfs4_mount_data *)raw_data;
+	u32 nfsvers = nfss->nfs_client->rpc_ops->version;
+
+	/*
+	 * Userspace mount programs that send binary options generally send
+	 * them populated with default values. We have no way to know which
+	 * ones were explicitly specified. Fall back to legacy behavior and
+	 * just return success.
+	 */
+	if ((nfsvers == 4 && (!options4 || options4->version == 1)) ||
+	    (nfsvers <= 3 && (!options || (options->version >= 1 &&
+					   options->version <= 6))))
+		return 0;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
+
+	/* fill out struct with values from existing mount */
+	data->flags = nfss->flags;
+	data->rsize = nfss->rsize;
+	data->wsize = nfss->wsize;
+	data->retrans = nfss->client->cl_timeout->to_retries;
+	data->auth_flavors[0] = nfss->client->cl_auth->au_flavor;
+	data->acregmin = nfss->acregmin / HZ;
+	data->acregmax = nfss->acregmax / HZ;
+	data->acdirmin = nfss->acdirmin / HZ;
+	data->acdirmax = nfss->acdirmax / HZ;
+	data->timeo = 10U * nfss->client->cl_timeout->to_initval / HZ;
+	data->nfs_server.addrlen = nfss->nfs_client->cl_addrlen;
+	memcpy(&data->nfs_server.address, &nfss->nfs_client->cl_addr,
+		data->nfs_server.addrlen);
+
+	/* overwrite those values with any that were specified */
+	error = nfs_parse_mount_options((char *)options, data);
+	if (error < 0)
+		goto out;
+
+	/* compare new mount options with old ones */
+	error = nfs_compare_remount_data(nfss, data);
+out:
+	kfree(data);
+	return error;
 }
 
 /*
@@ -1811,14 +2169,13 @@ static int nfs4_validate_mount_data(void *options,
 
 	args->rsize		= NFS_MAX_FILE_IO_SIZE;
 	args->wsize		= NFS_MAX_FILE_IO_SIZE;
-	args->timeo		= 600;
-	args->retrans		= 2;
-	args->acregmin		= 3;
-	args->acregmax		= 60;
-	args->acdirmin		= 30;
-	args->acdirmax		= 60;
+	args->acregmin		= NFS_DEF_ACREGMIN;
+	args->acregmax		= NFS_DEF_ACREGMAX;
+	args->acdirmin		= NFS_DEF_ACDIRMIN;
+	args->acdirmax		= NFS_DEF_ACDIRMAX;
 	args->nfs_server.port	= NFS_PORT; /* 2049 unless user set port= */
-	args->nfs_server.protocol = XPRT_TRANSPORT_TCP;
+	args->auth_flavors[0]	= RPC_AUTH_UNIX;
+	args->auth_flavor_len	= 0;
 
 	switch (data->version) {
 	case 1:
@@ -1834,18 +2191,13 @@ static int nfs4_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			goto out_no_address;
 
-		switch (data->auth_flavourlen) {
-		case 0:
-			args->auth_flavors[0] = RPC_AUTH_UNIX;
-			break;
-		case 1:
+		if (data->auth_flavourlen) {
+			if (data->auth_flavourlen > 1)
+				goto out_inval_auth;
 			if (copy_from_user(&args->auth_flavors[0],
 					   data->auth_flavours,
 					   sizeof(args->auth_flavors[0])))
 				return -EFAULT;
-			break;
-		default:
-			goto out_inval_auth;
 		}
 
 		c = strndup_user(data->hostname.data, NFS4_MAXNAMLEN);
@@ -1879,10 +2231,11 @@ static int nfs4_validate_mount_data(void *options,
 		args->acdirmin	= data->acdirmin;
 		args->acdirmax	= data->acdirmax;
 		args->nfs_server.protocol = data->proto;
+		nfs_validate_transport_protocol(args);
 
 		break;
 	default: {
-		unsigned int len;
+		int status;
 
 		if (nfs_parse_mount_options((char *)options, args) == 0)
 			return -EINVAL;
@@ -1891,43 +2244,24 @@ static int nfs4_validate_mount_data(void *options,
 						&args->nfs_server.address))
 			return -EINVAL;
 
-		switch (args->auth_flavor_len) {
-		case 0:
-			args->auth_flavors[0] = RPC_AUTH_UNIX;
-			break;
-		case 1:
-			break;
-		default:
+		nfs_set_port((struct sockaddr *)&args->nfs_server.address,
+				args->nfs_server.port);
+
+		nfs_validate_transport_protocol(args);
+
+		if (args->auth_flavor_len > 1)
 			goto out_inval_auth;
-		}
-
-		/*
-		 * Split "dev_name" into "hostname:mntpath".
-		 */
-		c = strchr(dev_name, ':');
-		if (c == NULL)
-			return -EINVAL;
-		/* while calculating len, pretend ':' is '\0' */
-		len = c - dev_name;
-		if (len > NFS4_MAXNAMLEN)
-			return -ENAMETOOLONG;
-		/* N.B. caller will free nfs_server.hostname in all cases */
-		args->nfs_server.hostname = kstrndup(dev_name, len, GFP_KERNEL);
-		if (!args->nfs_server.hostname)
-			goto out_nomem;
-
-		c++;			/* step over the ':' */
-		len = strlen(c);
-		if (len > NFS4_MAXPATHLEN)
-			return -ENAMETOOLONG;
-		args->nfs_server.export_path = kstrndup(c, len, GFP_KERNEL);
-		if (!args->nfs_server.export_path)
-			goto out_nomem;
-
-		dprintk("NFS: MNTPATH: '%s'\n", args->nfs_server.export_path);
 
 		if (args->client_address == NULL)
 			goto out_no_client_address;
+
+		status = nfs_parse_devname(dev_name,
+					   &args->nfs_server.hostname,
+					   NFS4_MAXNAMLEN,
+					   &args->nfs_server.export_path,
+					   NFS4_MAXPATHLEN);
+		if (status < 0)
+			return status;
 
 		break;
 		}
@@ -1943,10 +2277,6 @@ out_inval_auth:
 	dfprintk(MOUNT, "NFS4: Invalid number of RPC auth flavours %d\n",
 		 data->auth_flavourlen);
 	return -EINVAL;
-
-out_nomem:
-	dfprintk(MOUNT, "NFS4: not enough memory to handle mount options\n");
-	return -ENOMEM;
 
 out_no_address:
 	dfprintk(MOUNT, "NFS4: mount program didn't pass remote address\n");

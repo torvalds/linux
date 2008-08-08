@@ -43,10 +43,11 @@
 
 #define BUILD_IRQ(nr)				\
 	asmlinkage void IRQ_NAME(nr);		\
-	asm("\n.p2align\n"			\
+	asm("\n.text\n.p2align\n"		\
 	    "IRQ" #nr "_interrupt:\n\t"		\
 	    "push $~(" #nr ") ; "		\
-	    "jmp common_interrupt");
+	    "jmp common_interrupt\n"		\
+	    ".previous");
 
 #define BI(x,y) \
 	BUILD_IRQ(x##y)
@@ -198,6 +199,10 @@ void __init native_init_IRQ(void)
 
 	/* IPI for generic function call */
 	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
+
+	/* IPI for generic single function call */
+	alloc_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
+			call_function_single_interrupt);
 
 	/* Low priority IPI to cleanup after moving an irq */
 	set_intr_gate(IRQ_MOVE_CLEANUP_VECTOR, irq_move_cleanup_interrupt);

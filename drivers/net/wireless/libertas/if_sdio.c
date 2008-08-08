@@ -1,7 +1,7 @@
 /*
  *  linux/drivers/net/wireless/libertas/if_sdio.c
  *
- *  Copyright 2007 Pierre Ossman
+ *  Copyright 2007-2008 Pierre Ossman
  *
  * Inspired by if_cs.c, Copyright 2007 Holger Schurig
  *
@@ -266,13 +266,10 @@ static int if_sdio_card_to_host(struct if_sdio_card *card)
 
 	/*
 	 * The transfer must be in one transaction or the firmware
-	 * goes suicidal.
+	 * goes suicidal. There's no way to guarantee that for all
+	 * controllers, but we can at least try.
 	 */
-	chunk = size;
-	if ((chunk > card->func->cur_blksize) || (chunk > 512)) {
-		chunk = (chunk + card->func->cur_blksize - 1) /
-			card->func->cur_blksize * card->func->cur_blksize;
-	}
+	chunk = sdio_align_size(card->func, size);
 
 	ret = sdio_readsb(card->func, card->buffer, card->ioport, chunk);
 	if (ret)
@@ -696,13 +693,10 @@ static int if_sdio_host_to_card(struct lbs_private *priv,
 
 	/*
 	 * The transfer must be in one transaction or the firmware
-	 * goes suicidal.
+	 * goes suicidal. There's no way to guarantee that for all
+	 * controllers, but we can at least try.
 	 */
-	size = nb + 4;
-	if ((size > card->func->cur_blksize) || (size > 512)) {
-		size = (size + card->func->cur_blksize - 1) /
-			card->func->cur_blksize * card->func->cur_blksize;
-	}
+	size = sdio_align_size(card->func, nb + 4);
 
 	packet = kzalloc(sizeof(struct if_sdio_packet) + size,
 			GFP_ATOMIC);

@@ -40,7 +40,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/system.h>
 
 #include "op_counter.h"
@@ -201,7 +201,7 @@ static int em_call_function(int (*fn)(void))
 	data.ret = 0;
 
 	preempt_disable();
-	smp_call_function(em_func, &data, 1, 1);
+	smp_call_function(em_func, &data, 1);
 	em_func(&data);
 	preempt_enable();
 

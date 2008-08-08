@@ -1439,7 +1439,7 @@ static long cmm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		DEBUGP(4, dev, "CMM_ABSENT flag set\n");
 		goto out;
 	}
-	rc = EINVAL;
+	rc = -EINVAL;
 
 	if (_IOC_TYPE(cmd) != CM_IOC_MAGIC) {
 		DEBUGP(4, dev, "ioctype mismatch\n");
@@ -1896,7 +1896,7 @@ static int cm4000_probe(struct pcmcia_device *link)
 		return ret;
 	}
 
-	device_create(cmm_class, NULL, MKDEV(major, i), "cmm%d", i);
+	device_create_drvdata(cmm_class, NULL, MKDEV(major, i), NULL, "cmm%d", i);
 
 	return 0;
 }

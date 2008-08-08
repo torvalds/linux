@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>
+#include <linux/sysctl.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -65,6 +66,8 @@ static void proc_delete_inode(struct inode *inode)
 			module_put(de->owner);
 		de_put(de);
 	}
+	if (PROC_I(inode)->sysctl)
+		sysctl_head_put(PROC_I(inode)->sysctl);
 	clear_inode(inode);
 }
 
@@ -84,6 +87,8 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->fd = 0;
 	ei->op.proc_get_link = NULL;
 	ei->pde = NULL;
+	ei->sysctl = NULL;
+	ei->sysctl_entry = NULL;
 	inode = &ei->vfs_inode;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;
@@ -94,7 +99,7 @@ static void proc_destroy_inode(struct inode *inode)
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 
-static void init_once(struct kmem_cache * cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct proc_inode *ei = (struct proc_inode *) foo;
 
@@ -111,27 +116,25 @@ int __init proc_init_inodecache(void)
 	return 0;
 }
 
-static int proc_remount(struct super_block *sb, int *flags, char *data)
-{
-	*flags |= MS_NODIRATIME;
-	return 0;
-}
-
 static const struct super_operations proc_sops = {
 	.alloc_inode	= proc_alloc_inode,
 	.destroy_inode	= proc_destroy_inode,
 	.drop_inode	= generic_delete_inode,
 	.delete_inode	= proc_delete_inode,
 	.statfs		= simple_statfs,
-	.remount_fs	= proc_remount,
 };
+
+static void __pde_users_dec(struct proc_dir_entry *pde)
+{
+	pde->pde_users--;
+	if (pde->pde_unload_completion && pde->pde_users == 0)
+		complete(pde->pde_unload_completion);
+}
 
 static void pde_users_dec(struct proc_dir_entry *pde)
 {
 	spin_lock(&pde->pde_unload_lock);
-	pde->pde_users--;
-	if (pde->pde_unload_completion && pde->pde_users == 0)
-		complete(pde->pde_unload_completion);
+	__pde_users_dec(pde);
 	spin_unlock(&pde->pde_unload_lock);
 }
 
@@ -318,21 +321,62 @@ static int proc_reg_open(struct inode *inode, struct file *file)
 	struct proc_dir_entry *pde = PDE(inode);
 	int rv = 0;
 	int (*open)(struct inode *, struct file *);
+	int (*release)(struct inode *, struct file *);
+	struct pde_opener *pdeo;
+
+	/*
+	 * What for, you ask? Well, we can have open, rmmod, remove_proc_entry
+	 * sequence. ->release won't be called because ->proc_fops will be
+	 * cleared. Depending on complexity of ->release, consequences vary.
+	 *
+	 * We can't wait for mercy when close will be done for real, it's
+	 * deadlockable: rmmod foo </proc/foo . So, we're going to do ->release
+	 * by hand in remove_proc_entry(). For this, save opener's credentials
+	 * for later.
+	 */
+	pdeo = kmalloc(sizeof(struct pde_opener), GFP_KERNEL);
+	if (!pdeo)
+		return -ENOMEM;
 
 	spin_lock(&pde->pde_unload_lock);
 	if (!pde->proc_fops) {
 		spin_unlock(&pde->pde_unload_lock);
+		kfree(pdeo);
 		return rv;
 	}
 	pde->pde_users++;
 	open = pde->proc_fops->open;
+	release = pde->proc_fops->release;
 	spin_unlock(&pde->pde_unload_lock);
 
 	if (open)
 		rv = open(inode, file);
 
-	pde_users_dec(pde);
+	spin_lock(&pde->pde_unload_lock);
+	if (rv == 0 && release) {
+		/* To know what to release. */
+		pdeo->inode = inode;
+		pdeo->file = file;
+		/* Strictly for "too late" ->release in proc_reg_release(). */
+		pdeo->release = release;
+		list_add(&pdeo->lh, &pde->pde_openers);
+	} else
+		kfree(pdeo);
+	__pde_users_dec(pde);
+	spin_unlock(&pde->pde_unload_lock);
 	return rv;
+}
+
+static struct pde_opener *find_pde_opener(struct proc_dir_entry *pde,
+					struct inode *inode, struct file *file)
+{
+	struct pde_opener *pdeo;
+
+	list_for_each_entry(pdeo, &pde->pde_openers, lh) {
+		if (pdeo->inode == inode && pdeo->file == file)
+			return pdeo;
+	}
+	return NULL;
 }
 
 static int proc_reg_release(struct inode *inode, struct file *file)
@@ -340,14 +384,34 @@ static int proc_reg_release(struct inode *inode, struct file *file)
 	struct proc_dir_entry *pde = PDE(inode);
 	int rv = 0;
 	int (*release)(struct inode *, struct file *);
+	struct pde_opener *pdeo;
 
 	spin_lock(&pde->pde_unload_lock);
+	pdeo = find_pde_opener(pde, inode, file);
 	if (!pde->proc_fops) {
-		spin_unlock(&pde->pde_unload_lock);
+		/*
+		 * Can't simply exit, __fput() will think that everything is OK,
+		 * and move on to freeing struct file. remove_proc_entry() will
+		 * find slacker in opener's list and will try to do non-trivial
+		 * things with struct file. Therefore, remove opener from list.
+		 *
+		 * But if opener is removed from list, who will ->release it?
+		 */
+		if (pdeo) {
+			list_del(&pdeo->lh);
+			spin_unlock(&pde->pde_unload_lock);
+			rv = pdeo->release(inode, file);
+			kfree(pdeo);
+		} else
+			spin_unlock(&pde->pde_unload_lock);
 		return rv;
 	}
 	pde->pde_users++;
 	release = pde->proc_fops->release;
+	if (pdeo) {
+		list_del(&pdeo->lh);
+		kfree(pdeo);
+	}
 	spin_unlock(&pde->pde_unload_lock);
 
 	if (release)

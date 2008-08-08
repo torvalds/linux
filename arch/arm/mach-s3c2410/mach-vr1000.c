@@ -30,19 +30,19 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/bast-map.h>
-#include <asm/arch/vr1000-map.h>
-#include <asm/arch/vr1000-irq.h>
-#include <asm/arch/vr1000-cpld.h>
+#include <mach/bast-map.h>
+#include <mach/vr1000-map.h>
+#include <mach/vr1000-irq.h>
+#include <mach/vr1000-cpld.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/leds-gpio.h>
+#include <mach/regs-gpio.h>
+#include <mach/leds-gpio.h>
 
 #include <asm/plat-s3c24xx/clock.h>
 #include <asm/plat-s3c24xx/devs.h>

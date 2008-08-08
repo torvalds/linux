@@ -184,7 +184,7 @@ firmware_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 	struct device *dev = to_dev(kobj);
 	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
 	struct firmware *fw;
-	ssize_t ret_count = count;
+	ssize_t ret_count;
 
 	mutex_lock(&fw_lock);
 	fw = fw_priv->fw;
@@ -192,14 +192,8 @@ firmware_data_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		ret_count = -ENODEV;
 		goto out;
 	}
-	if (offset > fw->size) {
-		ret_count = 0;
-		goto out;
-	}
-	if (offset + ret_count > fw->size)
-		ret_count = fw->size - offset;
-
-	memcpy(buffer, fw->data + offset, ret_count);
+	ret_count = memory_read_from_buffer(buffer, count, &offset,
+						fw->data, fw->size);
 out:
 	mutex_unlock(&fw_lock);
 	return ret_count;

@@ -130,10 +130,10 @@ parse_unisys_oem (char *oemptr)
 			mip_addr = val;
 			mip = (struct mip_reg *)val;
 			mip_reg = __va(mip);
-			Dprintk("es7000_mipcfg: host_reg = 0x%lx \n",
-				(unsigned long)host_reg);
-			Dprintk("es7000_mipcfg: mip_reg = 0x%lx \n",
-				(unsigned long)mip_reg);
+			pr_debug("es7000_mipcfg: host_reg = 0x%lx \n",
+				 (unsigned long)host_reg);
+			pr_debug("es7000_mipcfg: mip_reg = 0x%lx \n",
+				 (unsigned long)mip_reg);
 			success++;
 			break;
 		case MIP_PSAI_REG:

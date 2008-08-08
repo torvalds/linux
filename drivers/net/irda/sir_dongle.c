@@ -36,7 +36,7 @@ int irda_register_dongle(struct dongle_driver *new)
 	struct dongle_driver *drv;
 
 	IRDA_DEBUG(0, "%s : registering dongle \"%s\" (%d).\n",
-		   __FUNCTION__, new->driver_name, new->type);
+		   __func__, new->driver_name, new->type);
 
 	mutex_lock(&dongle_list_lock);
 	list_for_each(entry, &dongle_list) {

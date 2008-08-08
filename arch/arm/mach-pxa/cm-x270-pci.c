@@ -5,7 +5,7 @@
  *
  * Bits taken from various places.
  *
- * Copyright (C) 2007 Compulab, Ltd.
+ * Copyright (C) 2007, 2008 Compulab, Ltd.
  * Mike Rapoport <mike@compulab.co.il>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -19,16 +19,16 @@
 #include <linux/device.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
+#include <linux/gpio.h>
 
 #include <asm/mach/pci.h>
-#include <asm/arch/cm-x270.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/pxa-regs.h>
 #include <asm/mach-types.h>
 
 #include <asm/hardware/it8152.h>
 
-unsigned long it8152_base_address = CMX270_IT8152_VIRT;
+unsigned long it8152_base_address;
+static int cmx270_it8152_irq_gpio;
 
 /*
  * Only first 64MB of memory can be accessed via PCI.
@@ -42,7 +42,7 @@ void __init cmx270_pci_adjust_zones(int node, unsigned long *zone_size,
 	unsigned int sz = SZ_64M >> PAGE_SHIFT;
 
 	if (machine_is_armcore()) {
-		pr_info("Adjusting zones for CM-x270\n");
+		pr_info("Adjusting zones for CM-X270\n");
 
 		/*
 		 * Only adjust if > 64M on current system
@@ -60,19 +60,20 @@ void __init cmx270_pci_adjust_zones(int node, unsigned long *zone_size,
 static void cmx270_it8152_irq_demux(unsigned int irq, struct irq_desc *desc)
 {
 	/* clear our parent irq */
-	GEDR(GPIO_IT8152_IRQ) = GPIO_bit(GPIO_IT8152_IRQ);
+	GEDR(cmx270_it8152_irq_gpio) = GPIO_bit(cmx270_it8152_irq_gpio);
 
 	it8152_irq_demux(irq, desc);
 }
 
-void __cmx270_pci_init_irq(void)
+void __cmx270_pci_init_irq(int irq_gpio)
 {
 	it8152_init_irq();
-	pxa_gpio_mode(IRQ_TO_GPIO(GPIO_IT8152_IRQ));
-	set_irq_type(IRQ_GPIO(GPIO_IT8152_IRQ), IRQT_RISING);
 
-	set_irq_chained_handler(IRQ_GPIO(GPIO_IT8152_IRQ),
-				cmx270_it8152_irq_demux);
+	cmx270_it8152_irq_gpio = irq_gpio;
+
+	set_irq_type(gpio_to_irq(irq_gpio), IRQ_TYPE_EDGE_RISING);
+
+	set_irq_chained_handler(gpio_to_irq(irq_gpio), cmx270_it8152_irq_demux);
 }
 
 #ifdef CONFIG_PM
@@ -115,8 +116,8 @@ static int __init cmx270_pci_map_irq(struct pci_dev *dev, u8 slot, u8 pin)
 
 	/*
 	  Here comes the ugly part. The routing is baseboard specific,
-	  but defining a platform for each possible base of CM-x270 is
-	  unrealistic. Here we keep mapping for ATXBase and SB-x270.
+	  but defining a platform for each possible base of CM-X270 is
+	  unrealistic. Here we keep mapping for ATXBase and SB-X270.
 	*/
 	/* ATXBASE PCI slot */
 	if (slot == 7)

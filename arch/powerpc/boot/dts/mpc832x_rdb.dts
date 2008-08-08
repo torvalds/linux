@@ -51,6 +51,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 		ranges = <0x0 0xe0000000 0x00100000>;
 		reg = <0xe0000000 0x00000200>;
 		bus-frequency = <0>;
@@ -68,7 +69,7 @@
 			compatible = "fsl-i2c";
 			reg = <0x3000 0x100>;
 			interrupts = <14 0x8>;
-			interrupt-parent = <&pic>;
+			interrupt-parent = <&ipic>;
 			dfsrr;
 		};
 
@@ -79,7 +80,7 @@
 			reg = <0x4500 0x100>;
 			clock-frequency = <0>;
 			interrupts = <9 0x8>;
-			interrupt-parent = <&pic>;
+			interrupt-parent = <&ipic>;
 		};
 
 		serial1: serial@4600 {
@@ -89,24 +90,56 @@
 			reg = <0x4600 0x100>;
 			clock-frequency = <0>;
 			interrupts = <10 0x8>;
-			interrupt-parent = <&pic>;
+			interrupt-parent = <&ipic>;
+		};
+
+		dma@82a8 {
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8323-dma", "fsl,elo-dma";
+			reg = <0x82a8 4>;
+			ranges = <0 0x8100 0x1a8>;
+			interrupt-parent = <&ipic>;
+			interrupts = <71 8>;
+			cell-index = <0>;
+			dma-channel@0 {
+				compatible = "fsl,mpc8323-dma-channel", "fsl,elo-dma-channel";
+				reg = <0 0x80>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+			dma-channel@80 {
+				compatible = "fsl,mpc8323-dma-channel", "fsl,elo-dma-channel";
+				reg = <0x80 0x80>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+			dma-channel@100 {
+				compatible = "fsl,mpc8323-dma-channel", "fsl,elo-dma-channel";
+				reg = <0x100 0x80>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
+			dma-channel@180 {
+				compatible = "fsl,mpc8323-dma-channel", "fsl,elo-dma-channel";
+				reg = <0x180 0x28>;
+				interrupt-parent = <&ipic>;
+				interrupts = <71 8>;
+			};
 		};
 
 		crypto@30000 {
-			device_type = "crypto";
-			model = "SEC2";
-			compatible = "talitos";
-			reg = <0x30000 0x7000>;
+			compatible = "fsl,sec2.2", "fsl,sec2.1", "fsl,sec2.0";
+			reg = <0x30000 0x10000>;
 			interrupts = <11 0x8>;
-			interrupt-parent = <&pic>;
-			/* Rev. 2.2 */
-			num-channels = <1>;
-			channel-fifo-len = <24>;
-			exec-units-mask = <0x0000004c>;
-			descriptor-types-mask = <0x0122003f>;
+			interrupt-parent = <&ipic>;
+			fsl,num-channels = <1>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x4c>;
+			fsl,descriptor-types-mask = <0x0122003f>;
 		};
 
-		pic:pic@700 {
+		ipic:pic@700 {
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <2>;
@@ -240,13 +273,13 @@
 			compatible = "fsl,ucc-mdio";
 
 			phy00:ethernet-phy@00 {
-				interrupt-parent = <&pic>;
+				interrupt-parent = <&ipic>;
 				interrupts = <0>;
 				reg = <0x0>;
 				device_type = "ethernet-phy";
 			};
 			phy04:ethernet-phy@04 {
-				interrupt-parent = <&pic>;
+				interrupt-parent = <&ipic>;
 				interrupts = <0>;
 				reg = <0x4>;
 				device_type = "ethernet-phy";
@@ -261,7 +294,7 @@
 			reg = <0x80 0x80>;
 			big-endian;
 			interrupts = <32 0x8 33 0x8>; //high:32 low:33
-			interrupt-parent = <&pic>;
+			interrupt-parent = <&ipic>;
 		};
 	};
 
@@ -270,21 +303,21 @@
 		interrupt-map-mask = <0xf800 0x0 0x0 0x7>;
 		interrupt-map = <
 				/* IDSEL 0x10 AD16 (USB) */
-				 0x8000 0x0 0x0 0x1 &pic 17 0x8
+				 0x8000 0x0 0x0 0x1 &ipic 17 0x8
 
 				/* IDSEL 0x11 AD17 (Mini1)*/
-				 0x8800 0x0 0x0 0x1 &pic 18 0x8
-				 0x8800 0x0 0x0 0x2 &pic 19 0x8
-				 0x8800 0x0 0x0 0x3 &pic 20 0x8
-				 0x8800 0x0 0x0 0x4 &pic 48 0x8
+				 0x8800 0x0 0x0 0x1 &ipic 18 0x8
+				 0x8800 0x0 0x0 0x2 &ipic 19 0x8
+				 0x8800 0x0 0x0 0x3 &ipic 20 0x8
+				 0x8800 0x0 0x0 0x4 &ipic 48 0x8
 
 				/* IDSEL 0x12 AD18 (PCI/Mini2) */
-				 0x9000 0x0 0x0 0x1 &pic 19 0x8
-				 0x9000 0x0 0x0 0x2 &pic 20 0x8
-				 0x9000 0x0 0x0 0x3 &pic 48 0x8
-				 0x9000 0x0 0x0 0x4 &pic 17 0x8>;
+				 0x9000 0x0 0x0 0x1 &ipic 19 0x8
+				 0x9000 0x0 0x0 0x2 &ipic 20 0x8
+				 0x9000 0x0 0x0 0x3 &ipic 48 0x8
+				 0x9000 0x0 0x0 0x4 &ipic 17 0x8>;
 
-		interrupt-parent = <&pic>;
+		interrupt-parent = <&ipic>;
 		interrupts = <66 0x8>;
 		bus-range = <0x0 0x0>;
 		ranges = <0x42000000 0x0 0x80000000 0x80000000 0x0 0x10000000

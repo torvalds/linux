@@ -654,6 +654,10 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 
 	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
+	/* Clear the device structure in case this adapter is ever going to be
+	   added again */
+	memset(&adap->dev, 0, sizeof(adap->dev));
+
  out_unlock:
 	mutex_unlock(&core_lock);
 	return res;
@@ -718,7 +722,8 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
-	class_for_each_device(&i2c_adapter_class, driver, __attach_adapter);
+	class_for_each_device(&i2c_adapter_class, NULL, driver,
+			      __attach_adapter);
 
 	mutex_unlock(&core_lock);
 	return 0;
@@ -778,7 +783,8 @@ void i2c_del_driver(struct i2c_driver *driver)
 {
 	mutex_lock(&core_lock);
 
-	class_for_each_device(&i2c_adapter_class, driver, __detach_adapter);
+	class_for_each_device(&i2c_adapter_class, NULL, driver,
+			      __detach_adapter);
 
 	driver_unregister(&driver->driver);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);

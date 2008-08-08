@@ -24,6 +24,7 @@
 #include <asm/pgtable.h>
 #include <asm/uv/uv_mmrs.h>
 #include <asm/uv/uv_hub.h>
+#include <asm/uv/bios.h>
 
 DEFINE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 EXPORT_PER_CPU_SYMBOL_GPL(__uv_hub_info);
@@ -39,6 +40,9 @@ EXPORT_SYMBOL_GPL(uv_cpu_to_blade);
 
 short uv_possible_blades;
 EXPORT_SYMBOL_GPL(uv_possible_blades);
+
+unsigned long sn_rtc_cycles_per_second;
+EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 
 /* Start with all IRQs pointing to boot CPU.  IRQ balancing will shift them. */
 
@@ -94,7 +98,7 @@ static void uv_send_IPI_mask(cpumask_t mask, int vector)
 {
 	unsigned int cpu;
 
-	for (cpu = 0; cpu < NR_CPUS; ++cpu)
+	for_each_possible_cpu(cpu)
 		if (cpu_isset(cpu, mask))
 			uv_send_IPI_one(cpu, vector);
 }
@@ -128,7 +132,7 @@ static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
 	 * May as well be the first.
 	 */
 	cpu = first_cpu(cpumask);
-	if ((unsigned)cpu < NR_CPUS)
+	if ((unsigned)cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
@@ -272,6 +276,23 @@ static __init void map_mmioh_high(int max_pnode)
 		map_high("MMIOH", mmioh.s.base, shift, map_uc);
 }
 
+static __init void uv_rtc_init(void)
+{
+	long status, ticks_per_sec, drift;
+
+	status =
+	    x86_bios_freq_base(BIOS_FREQ_BASE_REALTIME_CLOCK, &ticks_per_sec,
+					&drift);
+	if (status != 0 || ticks_per_sec < 100000) {
+		printk(KERN_WARNING
+			"unable to determine platform RTC clock frequency, "
+			"guessing.\n");
+		/* BIOS gives wrong value for clock freq. so guess */
+		sn_rtc_cycles_per_second = 1000000000000UL / 30000UL;
+	} else
+		sn_rtc_cycles_per_second = ticks_per_sec;
+}
+
 static __init void uv_system_init(void)
 {
 	union uvh_si_addr_map_config_u m_n_config;
@@ -325,6 +346,8 @@ static __init void uv_system_init(void)
 	node_id.v = uv_read_local_mmr(UVH_NODE_ID);
 	gnode_upper = (((unsigned long)node_id.s.node_id) &
 		       ~((1 << n_val) - 1)) << m_val;
+
+	uv_rtc_init();
 
 	for_each_present_cpu(cpu) {
 		nid = cpu_to_node(cpu);

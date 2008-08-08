@@ -44,8 +44,8 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
-#include <asm/arch/imx-uart.h>
+#include <mach/hardware.h>
+#include <mach/imx-uart.h>
 
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */
@@ -372,7 +372,7 @@ static irqreturn_t imx_rxint(int irq, void *dev_id)
 {
 	struct imx_port *sport = dev_id;
 	unsigned int rx,flg,ignored = 0;
-	struct tty_struct *tty = sport->port.info->tty;
+	struct tty_struct *tty = sport->port.info->port.tty;
 	unsigned long flags, temp;
 
 	spin_lock_irqsave(&sport->port.lock,flags);

@@ -474,14 +474,14 @@ static void iucv_setmask_mp(void)
 {
 	int cpu;
 
-	preempt_disable();
+	get_online_cpus();
 	for_each_online_cpu(cpu)
 		/* Enable all cpus with a declared buffer. */
 		if (cpu_isset(cpu, iucv_buffer_cpumask) &&
 		    !cpu_isset(cpu, iucv_irq_cpumask))
 			smp_call_function_single(cpu, iucv_allow_cpu,
-						 NULL, 0, 1);
-	preempt_enable();
+						 NULL, 1);
+	put_online_cpus();
 }
 
 /**
@@ -497,8 +497,8 @@ static void iucv_setmask_up(void)
 	/* Disable all cpu but the first in cpu_irq_cpumask. */
 	cpumask = iucv_irq_cpumask;
 	cpu_clear(first_cpu(iucv_irq_cpumask), cpumask);
-	for_each_cpu_mask(cpu, cpumask)
-		smp_call_function_single(cpu, iucv_block_cpu, NULL, 0, 1);
+	for_each_cpu_mask_nr(cpu, cpumask)
+		smp_call_function_single(cpu, iucv_block_cpu, NULL, 1);
 }
 
 /**
@@ -521,16 +521,18 @@ static int iucv_enable(void)
 		goto out;
 	/* Declare per cpu buffers. */
 	rc = -EIO;
-	preempt_disable();
+	get_online_cpus();
 	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
+		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 	preempt_enable();
 	if (cpus_empty(iucv_buffer_cpumask))
 		/* No cpu could declare an iucv buffer. */
 		goto out_path;
+	put_online_cpus();
 	return 0;
 
 out_path:
+	put_online_cpus();
 	kfree(iucv_path_table);
 out:
 	return rc;
@@ -545,7 +547,7 @@ out:
  */
 static void iucv_disable(void)
 {
-	on_each_cpu(iucv_retrieve_cpu, NULL, 0, 1);
+	on_each_cpu(iucv_retrieve_cpu, NULL, 1);
 	kfree(iucv_path_table);
 }
 
@@ -564,8 +566,11 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 			return NOTIFY_BAD;
 		iucv_param[cpu] = kmalloc_node(sizeof(union iucv_param),
 				     GFP_KERNEL|GFP_DMA, cpu_to_node(cpu));
-		if (!iucv_param[cpu])
+		if (!iucv_param[cpu]) {
+			kfree(iucv_irq_data[cpu]);
+			iucv_irq_data[cpu] = NULL;
 			return NOTIFY_BAD;
+		}
 		break;
 	case CPU_UP_CANCELED:
 	case CPU_UP_CANCELED_FROZEN:
@@ -580,7 +585,7 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
-		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 0, 1);
+		smp_call_function_single(cpu, iucv_declare_cpu, NULL, 1);
 		break;
 	case CPU_DOWN_PREPARE:
 	case CPU_DOWN_PREPARE_FROZEN:
@@ -589,16 +594,16 @@ static int __cpuinit iucv_cpu_notify(struct notifier_block *self,
 		if (cpus_empty(cpumask))
 			/* Can't offline last IUCV enabled cpu. */
 			return NOTIFY_BAD;
-		smp_call_function_single(cpu, iucv_retrieve_cpu, NULL, 0, 1);
+		smp_call_function_single(cpu, iucv_retrieve_cpu, NULL, 1);
 		if (cpus_empty(iucv_irq_cpumask))
 			smp_call_function_single(first_cpu(iucv_buffer_cpumask),
-						 iucv_allow_cpu, NULL, 0, 1);
+						 iucv_allow_cpu, NULL, 1);
 		break;
 	}
 	return NOTIFY_OK;
 }
 
-static struct notifier_block __cpuinitdata iucv_cpu_notifier = {
+static struct notifier_block __refdata iucv_cpu_notifier = {
 	.notifier_call = iucv_cpu_notify,
 };
 
@@ -652,7 +657,7 @@ static void iucv_cleanup_queue(void)
 	 * pending interrupts force them to the work queue by calling
 	 * an empty function on all cpus.
 	 */
-	smp_call_function(__iucv_cleanup_queue, NULL, 0, 1);
+	smp_call_function(__iucv_cleanup_queue, NULL, 1);
 	spin_lock_irq(&iucv_queue_lock);
 	list_for_each_entry_safe(p, n, &iucv_task_queue, list) {
 		/* Remove stale work items from the task queue. */

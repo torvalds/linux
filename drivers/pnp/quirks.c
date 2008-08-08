@@ -5,6 +5,8 @@
  *  when building up the resource structure for the first time.
  *
  *  Copyright (c) 2000 Peter Denison <peterd@pnd-pc.demon.co.uk>
+ *  Copyright (C) 2008 Hewlett-Packard Development Company, L.P.
+ *	Bjorn Helgaas <bjorn.helgaas@hp.com>
  *
  *  Heavily based on PCI quirks handling which is
  *
@@ -20,203 +22,207 @@
 #include <linux/kallsyms.h>
 #include "base.h"
 
+static void quirk_awe32_add_ports(struct pnp_dev *dev,
+				  struct pnp_option *option,
+				  unsigned int offset)
+{
+	struct pnp_option *new_option;
+
+	new_option = kmalloc(sizeof(struct pnp_option), GFP_KERNEL);
+	if (!new_option) {
+		dev_err(&dev->dev, "couldn't add ioport region to option set "
+			"%d\n", pnp_option_set(option));
+		return;
+	}
+
+	*new_option = *option;
+	new_option->u.port.min += offset;
+	new_option->u.port.max += offset;
+	list_add(&new_option->list, &option->list);
+
+	dev_info(&dev->dev, "added ioport region %#llx-%#llx to set %d\n",
+		(unsigned long long) new_option->u.port.min,
+		(unsigned long long) new_option->u.port.max,
+		pnp_option_set(option));
+}
+
 static void quirk_awe32_resources(struct pnp_dev *dev)
 {
-	struct pnp_port *port, *port2, *port3;
-	struct pnp_option *res = dev->dependent;
+	struct pnp_option *option;
+	unsigned int set = ~0;
 
 	/*
-	 * Unfortunately the isapnp_add_port_resource is too tightly bound
-	 * into the PnP discovery sequence, and cannot be used. Link in the
-	 * two extra ports (at offset 0x400 and 0x800 from the one given) by
-	 * hand.
+	 * Add two extra ioport regions (at offset 0x400 and 0x800 from the
+	 * one given) to every dependent option set.
 	 */
-	for (; res; res = res->next) {
-		port2 = pnp_alloc(sizeof(struct pnp_port));
-		if (!port2)
-			return;
-		port3 = pnp_alloc(sizeof(struct pnp_port));
-		if (!port3) {
-			kfree(port2);
-			return;
+	list_for_each_entry(option, &dev->options, list) {
+		if (pnp_option_is_dependent(option) &&
+		    pnp_option_set(option) != set) {
+			set = pnp_option_set(option);
+			quirk_awe32_add_ports(dev, option, 0x800);
+			quirk_awe32_add_ports(dev, option, 0x400);
 		}
-		port = res->port;
-		memcpy(port2, port, sizeof(struct pnp_port));
-		memcpy(port3, port, sizeof(struct pnp_port));
-		port->next = port2;
-		port2->next = port3;
-		port2->min += 0x400;
-		port2->max += 0x400;
-		port3->min += 0x800;
-		port3->max += 0x800;
-		dev_info(&dev->dev,
-			"AWE32 quirk - added ioports 0x%lx and 0x%lx\n",
-			(unsigned long)port2->min,
-			(unsigned long)port3->min);
 	}
 }
 
 static void quirk_cmi8330_resources(struct pnp_dev *dev)
 {
-	struct pnp_option *res = dev->dependent;
-	unsigned long tmp;
+	struct pnp_option *option;
+	struct pnp_irq *irq;
+	struct pnp_dma *dma;
 
-	for (; res; res = res->next) {
+	list_for_each_entry(option, &dev->options, list) {
+		if (!pnp_option_is_dependent(option))
+			continue;
 
-		struct pnp_irq *irq;
-		struct pnp_dma *dma;
-
-		for (irq = res->irq; irq; irq = irq->next) {	// Valid irqs are 5, 7, 10
-			tmp = 0x04A0;
-			bitmap_copy(irq->map, &tmp, 16);	// 0000 0100 1010 0000
-		}
-
-		for (dma = res->dma; dma; dma = dma->next)	// Valid 8bit dma channels are 1,3
+		if (option->type == IORESOURCE_IRQ) {
+			irq = &option->u.irq;
+			bitmap_zero(irq->map.bits, PNP_IRQ_NR);
+			__set_bit(5, irq->map.bits);
+			__set_bit(7, irq->map.bits);
+			__set_bit(10, irq->map.bits);
+			dev_info(&dev->dev, "set possible IRQs in "
+				 "option set %d to 5, 7, 10\n",
+				 pnp_option_set(option));
+		} else if (option->type == IORESOURCE_DMA) {
+			dma = &option->u.dma;
 			if ((dma->flags & IORESOURCE_DMA_TYPE_MASK) ==
-			    IORESOURCE_DMA_8BIT)
-				dma->map = 0x000A;
+						IORESOURCE_DMA_8BIT &&
+			    dma->map != 0x0A) {
+				dev_info(&dev->dev, "changing possible "
+					 "DMA channel mask in option set %d "
+					 "from %#02x to 0x0A (1, 3)\n",
+					 pnp_option_set(option), dma->map);
+				dma->map = 0x0A;
+			}
+		}
 	}
-	dev_info(&dev->dev, "CMI8330 quirk - forced possible IRQs to 5, 7, 10 "
-		"and DMA channels to 1, 3\n");
 }
 
 static void quirk_sb16audio_resources(struct pnp_dev *dev)
 {
+	struct pnp_option *option;
+	unsigned int prev_option_flags = ~0, n = 0;
 	struct pnp_port *port;
-	struct pnp_option *res = dev->dependent;
-	int changed = 0;
 
 	/*
-	 * The default range on the mpu port for these devices is 0x388-0x388.
+	 * The default range on the OPL port for these devices is 0x388-0x388.
 	 * Here we increase that range so that two such cards can be
 	 * auto-configured.
 	 */
+	list_for_each_entry(option, &dev->options, list) {
+		if (prev_option_flags != option->flags) {
+			prev_option_flags = option->flags;
+			n = 0;
+		}
 
-	for (; res; res = res->next) {
-		port = res->port;
-		if (!port)
-			continue;
-		port = port->next;
-		if (!port)
-			continue;
-		port = port->next;
-		if (!port)
-			continue;
-		if (port->min != port->max)
-			continue;
-		port->max += 0x70;
-		changed = 1;
+		if (pnp_option_is_dependent(option) &&
+		    option->type == IORESOURCE_IO) {
+			n++;
+			port = &option->u.port;
+			if (n == 3 && port->min == port->max) {
+				port->max += 0x70;
+				dev_info(&dev->dev, "increased option port "
+					 "range from %#llx-%#llx to "
+					 "%#llx-%#llx\n",
+					 (unsigned long long) port->min,
+					 (unsigned long long) port->min,
+					 (unsigned long long) port->min,
+					 (unsigned long long) port->max);
+			}
+		}
 	}
-	if (changed)
-		dev_info(&dev->dev, "SB audio device quirk - increased port range\n");
 }
 
-static struct pnp_option *quirk_isapnp_mpu_options(struct pnp_dev *dev)
+static struct pnp_option *pnp_clone_dependent_set(struct pnp_dev *dev,
+						  unsigned int set)
 {
-	struct pnp_option *head = NULL;
-	struct pnp_option *prev = NULL;
-	struct pnp_option *res;
+	struct pnp_option *tail = NULL, *first_new_option = NULL;
+	struct pnp_option *option, *new_option;
+	unsigned int flags;
 
-	/*
-	 * Build a functional IRQ-less variant of each MPU option.
-	 */
-
-	for (res = dev->dependent; res; res = res->next) {
-		struct pnp_option *curr;
-		struct pnp_port *port;
-		struct pnp_port *copy;
-
-		port = res->port;
-		if (!port || !res->irq)
-			continue;
-
-		copy = pnp_alloc(sizeof *copy);
-		if (!copy)
-			break;
-
-		copy->min = port->min;
-		copy->max = port->max;
-		copy->align = port->align;
-		copy->size = port->size;
-		copy->flags = port->flags;
-
-		curr = pnp_build_option(PNP_RES_PRIORITY_FUNCTIONAL);
-		if (!curr) {
-			kfree(copy);
-			break;
-		}
-		curr->port = copy;
-
-		if (prev)
-			prev->next = curr;
-		else
-			head = curr;
-		prev = curr;
+	list_for_each_entry(option, &dev->options, list) {
+		if (pnp_option_is_dependent(option))
+			tail = option;
 	}
-	if (head)
-		dev_info(&dev->dev, "adding IRQ-less MPU options\n");
+	if (!tail) {
+		dev_err(&dev->dev, "no dependent option sets\n");
+		return NULL;
+	}
 
-	return head;
+	flags = pnp_new_dependent_set(dev, PNP_RES_PRIORITY_FUNCTIONAL);
+	list_for_each_entry(option, &dev->options, list) {
+		if (pnp_option_is_dependent(option) &&
+		    pnp_option_set(option) == set) {
+			new_option = kmalloc(sizeof(struct pnp_option),
+					     GFP_KERNEL);
+			if (!new_option) {
+				dev_err(&dev->dev, "couldn't clone dependent "
+					"set %d\n", set);
+				return NULL;
+			}
+
+			*new_option = *option;
+			new_option->flags = flags;
+			if (!first_new_option)
+				first_new_option = new_option;
+
+			list_add(&new_option->list, &tail->list);
+			tail = new_option;
+		}
+	}
+
+	return first_new_option;
+}
+
+
+static void quirk_add_irq_optional_dependent_sets(struct pnp_dev *dev)
+{
+	struct pnp_option *new_option;
+	unsigned int num_sets, i, set;
+	struct pnp_irq *irq;
+
+	num_sets = dev->num_dependent_sets;
+	for (i = 0; i < num_sets; i++) {
+		new_option = pnp_clone_dependent_set(dev, i);
+		if (!new_option)
+			return;
+
+		set = pnp_option_set(new_option);
+		while (new_option && pnp_option_set(new_option) == set) {
+			if (new_option->type == IORESOURCE_IRQ) {
+				irq = &new_option->u.irq;
+				irq->flags |= IORESOURCE_IRQ_OPTIONAL;
+			}
+			dbg_pnp_show_option(dev, new_option);
+			new_option = list_entry(new_option->list.next,
+						struct pnp_option, list);
+		}
+
+		dev_info(&dev->dev, "added dependent option set %d (same as "
+			 "set %d except IRQ optional)\n", set, i);
+	}
 }
 
 static void quirk_ad1815_mpu_resources(struct pnp_dev *dev)
 {
-	struct pnp_option *res;
-	struct pnp_irq *irq;
+	struct pnp_option *option;
+	struct pnp_irq *irq = NULL;
+	unsigned int independent_irqs = 0;
 
-	/*
-	 * Distribute the independent IRQ over the dependent options
-	 */
-
-	res = dev->independent;
-	if (!res)
-		return;
-
-	irq = res->irq;
-	if (!irq || irq->next)
-		return;
-
-	res = dev->dependent;
-	if (!res)
-		return;
-
-	while (1) {
-		struct pnp_irq *copy;
-
-		copy = pnp_alloc(sizeof *copy);
-		if (!copy)
-			break;
-
-		memcpy(copy->map, irq->map, sizeof copy->map);
-		copy->flags = irq->flags;
-
-		copy->next = res->irq; /* Yes, this is NULL */
-		res->irq = copy;
-
-		if (!res->next)
-			break;
-		res = res->next;
+	list_for_each_entry(option, &dev->options, list) {
+		if (option->type == IORESOURCE_IRQ &&
+		    !pnp_option_is_dependent(option)) {
+			independent_irqs++;
+			irq = &option->u.irq;
+		}
 	}
-	kfree(irq);
 
-	res->next = quirk_isapnp_mpu_options(dev);
-
-	res = dev->independent;
-	res->irq = NULL;
-}
-
-static void quirk_isapnp_mpu_resources(struct pnp_dev *dev)
-{
-	struct pnp_option *res;
-
-	res = dev->dependent;
-	if (!res)
+	if (independent_irqs != 1)
 		return;
 
-	while (res->next)
-		res = res->next;
-
-	res->next = quirk_isapnp_mpu_options(dev);
+	irq->flags |= IORESOURCE_IRQ_OPTIONAL;
+	dev_info(&dev->dev, "made independent IRQ optional\n");
 }
 
 #include <linux/pci.h>
@@ -239,17 +245,18 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 	 */
 	for_each_pci_dev(pdev) {
 		for (i = 0; i < DEVICE_COUNT_RESOURCE; i++) {
-			if (!(pci_resource_flags(pdev, i) & IORESOURCE_MEM) ||
-			    pci_resource_len(pdev, i) == 0)
+			unsigned int type;
+
+			type = pci_resource_flags(pdev, i) &
+					(IORESOURCE_IO | IORESOURCE_MEM);
+			if (!type || pci_resource_len(pdev, i) == 0)
 				continue;
 
 			pci_start = pci_resource_start(pdev, i);
 			pci_end = pci_resource_end(pdev, i);
 			for (j = 0;
-			     (res = pnp_get_resource(dev, IORESOURCE_MEM, j));
-			     j++) {
-				if (res->flags & IORESOURCE_UNSET ||
-				    (res->start == 0 && res->end == 0))
+			     (res = pnp_get_resource(dev, type, j)); j++) {
+				if (res->start == 0 && res->end == 0)
 					continue;
 
 				pnp_start = res->start;
@@ -278,9 +285,10 @@ static void quirk_system_pci_resources(struct pnp_dev *dev)
 				 * the PCI region, and that might prevent a PCI
 				 * driver from requesting its resources.
 				 */
-				dev_warn(&dev->dev, "mem resource "
+				dev_warn(&dev->dev, "%s resource "
 					"(0x%llx-0x%llx) overlaps %s BAR %d "
 					"(0x%llx-0x%llx), disabling\n",
+					pnp_resource_type_name(res),
 					(unsigned long long) pnp_start,
 					(unsigned long long) pnp_end,
 					pci_name(pdev), i,
@@ -312,10 +320,10 @@ static struct pnp_fixup pnp_fixups[] = {
 	{"CTL0043", quirk_sb16audio_resources},
 	{"CTL0044", quirk_sb16audio_resources},
 	{"CTL0045", quirk_sb16audio_resources},
-	/* Add IRQ-less MPU options */
+	/* Add IRQ-optional MPU options */
 	{"ADS7151", quirk_ad1815_mpu_resources},
-	{"ADS7181", quirk_isapnp_mpu_resources},
-	{"AZT0002", quirk_isapnp_mpu_resources},
+	{"ADS7181", quirk_add_irq_optional_dependent_sets},
+	{"AZT0002", quirk_add_irq_optional_dependent_sets},
 	/* PnP resources that might overlap PCI BARs */
 	{"PNP0c01", quirk_system_pci_resources},
 	{"PNP0c02", quirk_system_pci_resources},

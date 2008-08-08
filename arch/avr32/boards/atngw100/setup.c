@@ -19,13 +19,14 @@
 #include <linux/leds.h>
 #include <linux/spi/spi.h>
 
+#include <asm/atmel-mci.h>
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/init.h>
+#include <mach/portmux.h>
 
 /* Oscillator frequencies. These are board-specific */
 unsigned long at32_board_osc_rates[3] = {
@@ -49,6 +50,11 @@ static struct spi_board_info spi0_board_info[] __initdata = {
 		.max_speed_hz	= 10000000,
 		.chip_select	= 0,
 	},
+};
+
+static struct mci_platform_data __initdata mci0_data = {
+	.detect_pin	= GPIO_PIN_PC(25),
+	.wp_pin		= GPIO_PIN_PE(0),
 };
 
 /*
@@ -170,6 +176,7 @@ static int __init atngw100_init(void)
 	set_hw_addr(at32_add_device_eth(1, &eth_data[1]));
 
 	at32_add_device_spi(0, spi0_board_info, ARRAY_SIZE(spi0_board_info));
+	at32_add_device_mci(0, &mci0_data);
 	at32_add_device_usba(0, NULL);
 
 	for (i = 0; i < ARRAY_SIZE(ngw_leds); i++) {

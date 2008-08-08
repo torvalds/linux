@@ -13,11 +13,11 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
 
 
 /* Many OMAP development platforms reuse the same "debug board"; these

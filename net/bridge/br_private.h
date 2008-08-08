@@ -4,8 +4,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_private.h,v 1.7 2001/12/24 00:59:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -17,6 +15,7 @@
 
 #include <linux/netdevice.h>
 #include <linux/if_bridge.h>
+#include <net/route.h>
 
 #define BR_HASH_BITS 8
 #define BR_HASH_SIZE (1 << BR_HASH_BITS)
@@ -90,11 +89,15 @@ struct net_bridge
 	spinlock_t			lock;
 	struct list_head		port_list;
 	struct net_device		*dev;
-	struct net_device_stats		statistics;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
 	struct list_head		age_list;
 	unsigned long			feature_mask;
+#ifdef CONFIG_BRIDGE_NETFILTER
+	struct rtable 			fake_rtable;
+#endif
+	unsigned long			flags;
+#define BR_SET_MAC_ADDR		0x00000001
 
 	/* STP */
 	bridge_id			designated_root;
@@ -198,9 +201,11 @@ extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __us
 #ifdef CONFIG_BRIDGE_NETFILTER
 extern int br_netfilter_init(void);
 extern void br_netfilter_fini(void);
+extern void br_netfilter_rtable_init(struct net_bridge *);
 #else
 #define br_netfilter_init()	(0)
 #define br_netfilter_fini()	do { } while(0)
+#define br_netfilter_rtable_init(x)
 #endif
 
 /* br_stp.c */
@@ -227,8 +232,9 @@ extern void br_stp_set_path_cost(struct net_bridge_port *p,
 extern ssize_t br_show_bridge_id(char *buf, const struct bridge_id *id);
 
 /* br_stp_bpdu.c */
-extern int br_stp_rcv(struct sk_buff *skb, struct net_device *dev,
-		      struct packet_type *pt, struct net_device *orig_dev);
+struct stp_proto;
+extern void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
+		       struct net_device *dev);
 
 /* br_stp_timer.c */
 extern void br_stp_timer_init(struct net_bridge *br);

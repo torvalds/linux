@@ -660,7 +660,10 @@ struct ocfs2_dinode {
 		struct {		/* Info for journal system
 					   inodes */
 			__le32 ij_flags;	/* Mounted, version, etc. */
-			__le32 ij_pad;
+			__le32 ij_recovery_generation; /* Incremented when the
+							  journal is recovered
+							  after an unclean
+							  shutdown */
 		} journal1;
 	} id1;				/* Inode type dependant 1 */
 /*C0*/	union {
@@ -901,7 +904,7 @@ static inline int ocfs2_sprintf_system_inode_name(char *buf, int len,
          * list has a copy per slot.
          */
 	if (type <= OCFS2_LAST_GLOBAL_SYSTEM_INODE)
-		chars = snprintf(buf, len,
+		chars = snprintf(buf, len, "%s",
 				 ocfs2_system_inodes[type].si_name);
 	else
 		chars = snprintf(buf, len,

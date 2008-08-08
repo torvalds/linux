@@ -84,7 +84,7 @@ static const char	hcd_name [] = "ehci_hcd";
 #define EHCI_IAA_MSECS		10		/* arbitrary */
 #define EHCI_IO_JIFFIES		(HZ/10)		/* io watchdog > irq_thresh */
 #define EHCI_ASYNC_JIFFIES	(HZ/20)		/* async idle timeout */
-#define EHCI_SHRINK_JIFFIES	(HZ/200)	/* async qh unlink delay */
+#define EHCI_SHRINK_FRAMES	5		/* async qh unlink delay */
 
 /* Initial IRQ latency:  faster than hw default */
 static int log2_irq_thresh = 0;		// 0 to 6

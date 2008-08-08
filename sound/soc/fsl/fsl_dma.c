@@ -132,12 +132,17 @@ struct fsl_dma_private {
  * Since each link descriptor has a 32-bit byte count field, we set
  * period_bytes_max to the largest 32-bit number.  We also have no maximum
  * number of periods.
+ *
+ * Note that we specify SNDRV_PCM_INFO_JOINT_DUPLEX here, but only because a
+ * limitation in the SSI driver requires the sample rates for playback and
+ * capture to be the same.
  */
 static const struct snd_pcm_hardware fsl_dma_hardware = {
 
 	.info   		= SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_MMAP |
-				  SNDRV_PCM_INFO_MMAP_VALID,
+				  SNDRV_PCM_INFO_MMAP_VALID |
+				  SNDRV_PCM_INFO_JOINT_DUPLEX,
 	.formats		= FSLDMA_PCM_FORMATS,
 	.rates  		= FSLDMA_PCM_RATES,
 	.rate_min       	= 5512,

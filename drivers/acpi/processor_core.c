@@ -118,8 +118,31 @@ static const struct file_operations acpi_processor_info_fops = {
 	.release = single_release,
 };
 
-struct acpi_processor *processors[NR_CPUS];
+DEFINE_PER_CPU(struct acpi_processor *, processors);
 struct acpi_processor_errata errata __read_mostly;
+static int set_no_mwait(const struct dmi_system_id *id)
+{
+	printk(KERN_NOTICE PREFIX "%s detected - "
+		"disable mwait for CPU C-stetes\n", id->ident);
+	idle_nomwait = 1;
+	return 0;
+}
+
+static struct dmi_system_id __cpuinitdata processor_idle_dmi_table[] = {
+	{
+	set_no_mwait, "IFL91 board", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "COMPAL"),
+	DMI_MATCH(DMI_SYS_VENDOR, "ZEPTO"),
+	DMI_MATCH(DMI_PRODUCT_VERSION, "3215W"),
+	DMI_MATCH(DMI_BOARD_NAME, "IFL91") }, NULL},
+	{
+	set_no_mwait, "Extensa 5220", {
+	DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies LTD"),
+	DMI_MATCH(DMI_SYS_VENDOR, "ACER"),
+	DMI_MATCH(DMI_PRODUCT_VERSION, "0100"),
+	DMI_MATCH(DMI_BOARD_NAME, "Columbia") }, NULL},
+	{},
+};
 
 /* --------------------------------------------------------------------------
                                 Errata Handling
@@ -265,7 +288,20 @@ static int acpi_processor_set_pdc(struct acpi_processor *pr)
 
 	if (!pdc_in)
 		return status;
+	if (idle_nomwait) {
+		/*
+		 * If mwait is disabled for CPU C-states, the C2C3_FFH access
+		 * mode will be disabled in the parameter of _PDC object.
+		 * Of course C1_FFH access mode will also be disabled.
+		 */
+		union acpi_object *obj;
+		u32 *buffer = NULL;
 
+		obj = pdc_in->pointer;
+		buffer = (u32 *)(obj->buffer.pointer);
+		buffer[2] &= ~(ACPI_PDC_C_C2C3_FFH | ACPI_PDC_C_C1_FFH);
+
+	}
 	status = acpi_evaluate_object(pr->handle, "_PDC", pdc_in, NULL);
 
 	if (ACPI_FAILURE(status))
@@ -614,14 +650,14 @@ static int acpi_processor_get_info(struct acpi_processor *pr, unsigned has_uid)
 	return 0;
 }
 
-static void *processor_device_array[NR_CPUS];
+static DEFINE_PER_CPU(void *, processor_device_array);
 
 static int __cpuinit acpi_processor_start(struct acpi_device *device)
 {
 	int result = 0;
 	acpi_status status = AE_OK;
 	struct acpi_processor *pr;
-
+	struct sys_device *sysdev;
 
 	pr = acpi_driver_data(device);
 
@@ -638,19 +674,23 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 	 * ACPI id of processors can be reported wrongly by the BIOS.
 	 * Don't trust it blindly
 	 */
-	if (processor_device_array[pr->id] != NULL &&
-	    processor_device_array[pr->id] != device) {
+	if (per_cpu(processor_device_array, pr->id) != NULL &&
+	    per_cpu(processor_device_array, pr->id) != device) {
 		printk(KERN_WARNING "BIOS reported wrong ACPI id "
 			"for the processor\n");
 		return -ENODEV;
 	}
-	processor_device_array[pr->id] = device;
+	per_cpu(processor_device_array, pr->id) = device;
 
-	processors[pr->id] = pr;
+	per_cpu(processors, pr->id) = pr;
 
 	result = acpi_processor_add_fs(device);
 	if (result)
 		goto end;
+
+	sysdev = get_cpu_sysdev(pr->id);
+	if (sysfs_create_link(&device->dev.kobj, &sysdev->kobj, "sysdev"))
+		return -EFAULT;
 
 	status = acpi_install_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
 					     acpi_processor_notify, pr);
@@ -674,9 +714,8 @@ static int __cpuinit acpi_processor_start(struct acpi_device *device)
 		goto end;
 	}
 
-	printk(KERN_INFO PREFIX
-		"%s is registered as cooling_device%d\n",
-		device->dev.bus_id, pr->cdev->id);
+	dev_info(&device->dev, "registered as cooling_device%d\n",
+		 pr->cdev->id);
 
 	result = sysfs_create_link(&device->dev.kobj,
 				   &pr->cdev->device.kobj,
@@ -749,7 +788,7 @@ static int acpi_cpu_soft_notify(struct notifier_block *nfb,
 		unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (unsigned long)hcpu;
-	struct acpi_processor *pr = processors[cpu];
+	struct acpi_processor *pr = per_cpu(processors, cpu);
 
 	if (action == CPU_ONLINE && pr) {
 		acpi_processor_ppc_has_changed(pr);
@@ -810,6 +849,8 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 	status = acpi_remove_notify_handler(pr->handle, ACPI_DEVICE_NOTIFY,
 					    acpi_processor_notify);
 
+	sysfs_remove_link(&device->dev.kobj, "sysdev");
+
 	acpi_processor_remove_fs(device);
 
 	if (pr->cdev) {
@@ -819,8 +860,8 @@ static int acpi_processor_remove(struct acpi_device *device, int type)
 		pr->cdev = NULL;
 	}
 
-	processors[pr->id] = NULL;
-	processor_device_array[pr->id] = NULL;
+	per_cpu(processors, pr->id) = NULL;
+	per_cpu(processor_device_array, pr->id) = NULL;
 	kfree(pr);
 
 	return 0;
@@ -1014,9 +1055,9 @@ static acpi_status acpi_processor_hotadd_init(acpi_handle handle, int *p_cpu)
 
 static int acpi_processor_handle_eject(struct acpi_processor *pr)
 {
-	if (cpu_online(pr->id)) {
-		return (-EINVAL);
-	}
+	if (cpu_online(pr->id))
+		cpu_down(pr->id);
+
 	arch_unregister_cpu(pr->id);
 	acpi_unmap_lsapic(pr->id);
 	return (0);
@@ -1068,8 +1109,6 @@ static int __init acpi_processor_init(void)
 {
 	int result = 0;
 
-
-	memset(&processors, 0, sizeof(processors));
 	memset(&errata, 0, sizeof(errata));
 
 #ifdef CONFIG_SMP
@@ -1083,6 +1122,11 @@ static int __init acpi_processor_init(void)
 		return -ENOMEM;
 	acpi_processor_dir->owner = THIS_MODULE;
 
+	/*
+	 * Check whether the system is DMI table. If yes, OSPM
+	 * should not use mwait for CPU-states.
+	 */
+	dmi_check_system(processor_idle_dmi_table);
 	result = cpuidle_register_driver(&acpi_idle_driver);
 	if (result < 0)
 		goto out_proc;

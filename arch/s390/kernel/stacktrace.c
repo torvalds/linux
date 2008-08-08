@@ -10,6 +10,7 @@
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
 #include <linux/kallsyms.h>
+#include <linux/module.h>
 
 static unsigned long save_context_stack(struct stack_trace *trace,
 					unsigned long sp,

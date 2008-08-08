@@ -107,23 +107,17 @@ struct specialix_board {
 
 struct specialix_port {
 	int			magic;
+	struct tty_port		port;
 	int			baud_base;
 	int			flags;
-	struct tty_struct 	* tty;
-	int			count;
-	int			blocked_open;
 	int			timeout;
-	int			close_delay;
 	unsigned char 		* xmit_buf;
 	int			custom_divisor;
 	int			xmit_head;
 	int			xmit_tail;
 	int			xmit_cnt;
-	wait_queue_head_t	open_wait;
-	wait_queue_head_t	close_wait;
 	short			wakeup_chars;
 	short			break_length;
-	unsigned short		closing_wait;
 	unsigned char		mark_mask;
 	unsigned char		IER;
 	unsigned char		MSVR;

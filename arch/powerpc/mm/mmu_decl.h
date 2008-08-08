@@ -29,7 +29,7 @@ extern void hash_preload(struct mm_struct *mm, unsigned long ea,
 #ifdef CONFIG_PPC32
 extern void mapin_ram(void);
 extern int map_page(unsigned long va, phys_addr_t pa, int flags);
-extern void setbat(int index, unsigned long virt, unsigned long phys,
+extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, int flags);
 extern void settlbcam(int index, unsigned long virt, phys_addr_t phys,
 		      unsigned int size, int flags, unsigned int pid);
@@ -49,8 +49,8 @@ extern unsigned int num_tlbcam_entries;
 extern unsigned long ioremap_bot;
 extern unsigned long __max_low_memory;
 extern phys_addr_t __initial_memory_limit_addr;
-extern unsigned long total_memory;
-extern unsigned long total_lowmem;
+extern phys_addr_t total_memory;
+extern phys_addr_t total_lowmem;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t lowmem_end_addr;
 

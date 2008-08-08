@@ -528,7 +528,7 @@ static const struct ipath_cregs ipath_7220_cregs = {
 
 static char int_type[16] = "auto";
 module_param_string(interrupt_type, int_type, sizeof(int_type), 0444);
-MODULE_PARM_DESC(int_type, " interrupt_type=auto|force_msi|force_intx\n");
+MODULE_PARM_DESC(int_type, " interrupt_type=auto|force_msi|force_intx");
 
 /* packet rate matching delay; chip has support */
 static u8 rate_to_delay[2][2] = {

@@ -5,8 +5,6 @@
  *	Authors:
  *	Lennert Buytenhek		<buytenh@gnu.org>
  *
- *	$Id: br_if.c,v 1.7 2001/12/24 00:59:55 davem Exp $
- *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License
  *	as published by the Free Software Foundation; either version
@@ -204,6 +202,9 @@ static struct net_device *new_bridge_dev(const char *name)
 	br->topology_change = 0;
 	br->topology_change_detected = 0;
 	br->ageing_time = 300 * HZ;
+
+	br_netfilter_rtable_init(br);
+
 	INIT_LIST_HEAD(&br->age_list);
 
 	br_stp_timer_init(br);
@@ -375,6 +376,10 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 	if (IS_ERR(p))
 		return PTR_ERR(p);
 
+	err = dev_set_promiscuity(dev, 1);
+	if (err)
+		goto put_back;
+
 	err = kobject_init_and_add(&p->kobj, &brport_ktype, &(dev->dev.kobj),
 				   SYSFS_BRIDGE_PORT_ATTR);
 	if (err)
@@ -389,7 +394,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev)
 		goto err2;
 
 	rcu_assign_pointer(dev->br_port, p);
-	dev_set_promiscuity(dev, 1);
+	dev_disable_lro(dev);
 
 	list_add_rcu(&p->list, &br->port_list);
 
@@ -413,12 +418,12 @@ err2:
 	br_fdb_delete_by_port(br, p, 1);
 err1:
 	kobject_del(&p->kobj);
-	goto put_back;
 err0:
 	kobject_put(&p->kobj);
-
+	dev_set_promiscuity(dev, -1);
 put_back:
 	dev_put(dev);
+	kfree(p);
 	return err;
 }
 
