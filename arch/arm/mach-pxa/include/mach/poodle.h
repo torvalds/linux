@@ -70,6 +70,12 @@
 #define POODLE_SCOOP_IO_DIR	( POODLE_SCOOP_VPEN | POODLE_SCOOP_HS_OUT )
 #define POODLE_SCOOP_IO_OUT	( 0 )
 
+#define POODLE_LOCOMO_GPIO_AMP_ON      LOCOMO_GPIO(8)
+#define POODLE_LOCOMO_GPIO_MUTE_L      LOCOMO_GPIO(10)
+#define POODLE_LOCOMO_GPIO_MUTE_R      LOCOMO_GPIO(11)
+#define POODLE_LOCOMO_GPIO_232VCC_ON   LOCOMO_GPIO(12)
+#define POODLE_LOCOMO_GPIO_JK_B        LOCOMO_GPIO(13)
+
 extern struct platform_device poodle_locomo_device;
 
 #endif /* __ASM_ARCH_POODLE_H  */
