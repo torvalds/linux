@@ -1017,6 +1017,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		netxen_free_hw_resources(adapter);
+		netxen_release_rx_buffers(adapter);
 		netxen_free_sw_resources(adapter);
 	}
 
@@ -1111,7 +1112,7 @@ static int netxen_nic_open(struct net_device *netdev)
 				  flags, netdev->name, adapter);
 		if (err) {
 			printk(KERN_ERR "request_irq failed with: %d\n", err);
-			goto err_out_free_hw;
+			goto err_out_free_rxbuf;
 		}
 
 		adapter->is_up = NETXEN_ADAPTER_UP_MAGIC;
@@ -1144,7 +1145,8 @@ static int netxen_nic_open(struct net_device *netdev)
 
 err_out_free_irq:
 	free_irq(adapter->irq, adapter);
-err_out_free_hw:
+err_out_free_rxbuf:
+	netxen_release_rx_buffers(adapter);
 	netxen_free_hw_resources(adapter);
 err_out_free_sw:
 	netxen_free_sw_resources(adapter);
