@@ -1490,10 +1490,7 @@ void submit_bio(int rw, struct bio *bio)
 	 * If it's a regular read/write or a barrier with data attached,
 	 * go through the normal accounting stuff before submission.
 	 */
-	if (!bio_empty_barrier(bio)) {
-
-		BIO_BUG_ON(!bio->bi_size);
-		BIO_BUG_ON(!bio->bi_io_vec);
+	if (bio_has_data(bio)) {
 
 		if (rw & WRITE) {
 			count_vm_events(PGPGOUT, count);
