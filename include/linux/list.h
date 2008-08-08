@@ -309,11 +309,11 @@ static inline void list_splice_init(struct list_head *list,
 }
 
 /**
- * list_splice_tail_init - join two lists, each list being a queue, and
- *     reinitialise the emptied list.
+ * list_splice_tail_init - join two lists and reinitialise the emptied list
  * @list: the new list to add.
  * @head: the place to add it in the first list.
  *
+ * Each of the lists is a queue.
  * The list at @list is reinitialised
  */
 static inline void list_splice_tail_init(struct list_head *list,
