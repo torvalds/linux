@@ -990,12 +990,6 @@ static void musb_shutdown(struct platform_device *pdev)
  * We don't currently use dynamic fifo setup capability to do anything
  * more than selecting one of a bunch of predefined configurations.
  */
-#ifdef MUSB_C_DYNFIFO_DEF
-#define	can_dynfifo()	1
-#else
-#define	can_dynfifo()	0
-#endif
-
 #if defined(CONFIG_USB_TUSB6010) || \
 	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
 static ushort __initdata fifo_mode = 4;
@@ -1007,8 +1001,6 @@ static ushort __initdata fifo_mode = 2;
 module_param(fifo_mode, ushort, 0);
 MODULE_PARM_DESC(fifo_mode, "initial endpoint configuration");
 
-
-#define DYN_FIFO_SIZE (1<<(MUSB_C_RAM_BITS+2))
 
 enum fifo_style { FIFO_RXTX, FIFO_TX, FIFO_RX } __attribute__ ((packed));
 enum buf_mode { BUF_SINGLE, BUF_DOUBLE } __attribute__ ((packed));
@@ -1119,11 +1111,12 @@ fifo_setup(struct musb *musb, struct musb_hw_ep  *hw_ep,
 
 	c_size = size - 3;
 	if (cfg->mode == BUF_DOUBLE) {
-		if ((offset + (maxpacket << 1)) > DYN_FIFO_SIZE)
+		if ((offset + (maxpacket << 1)) >
+				(1 << (musb->config->ram_bits + 2)))
 			return -EMSGSIZE;
 		c_size |= MUSB_FIFOSZ_DPB;
 	} else {
-		if ((offset + maxpacket) > DYN_FIFO_SIZE)
+		if ((offset + maxpacket) > (1 << (musb->config->ram_bits + 2)))
 			return -EMSGSIZE;
 	}
 
@@ -1219,13 +1212,13 @@ static int __init ep_config_from_table(struct musb *musb)
 	/* assert(offset > 0) */
 
 	/* NOTE:  for RTL versions >= 1.400 EPINFO and RAMINFO would
-	 * be better than static MUSB_C_NUM_EPS and DYN_FIFO_SIZE...
+	 * be better than static musb->config->num_eps and DYN_FIFO_SIZE...
 	 */
 
 	for (i = 0; i < n; i++) {
 		u8	epn = cfg->hw_ep_num;
 
-		if (epn >= MUSB_C_NUM_EPS) {
+		if (epn >= musb->config->num_eps) {
 			pr_debug("%s: invalid ep %d\n",
 					musb_driver_name, epn);
 			continue;
@@ -1242,8 +1235,8 @@ static int __init ep_config_from_table(struct musb *musb)
 
 	printk(KERN_DEBUG "%s: %d/%d max ep, %d/%d memory\n",
 			musb_driver_name,
-			n + 1, MUSB_C_NUM_EPS * 2 - 1,
-			offset, DYN_FIFO_SIZE);
+			n + 1, musb->config->num_eps * 2 - 1,
+			offset, (1 << (musb->config->ram_bits + 2)));
 
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	if (!musb->bulk_ep) {
@@ -1270,7 +1263,7 @@ static int __init ep_config_from_hw(struct musb *musb)
 
 	/* FIXME pick up ep0 maxpacket size */
 
-	for (epnum = 1; epnum < MUSB_C_NUM_EPS; epnum++) {
+	for (epnum = 1; epnum < musb->config->num_eps; epnum++) {
 		musb_ep_select(mbase, epnum);
 		hw_ep = musb->endpoints + epnum;
 
@@ -1424,14 +1417,14 @@ static int __init musb_core_init(u16 musb_type, struct musb *musb)
 	musb->epmask = 1;
 
 	if (reg & MUSB_CONFIGDATA_DYNFIFO) {
-		if (can_dynfifo())
+		if (musb->config->dyn_fifo)
 			status = ep_config_from_table(musb);
 		else {
 			ERR("reconfigure software for Dynamic FIFOs\n");
 			status = -ENODEV;
 		}
 	} else {
-		if (!can_dynfifo())
+		if (!musb->config->dyn_fifo)
 			status = ep_config_from_hw(musb);
 		else {
 			ERR("reconfigure software for static FIFOs\n");
@@ -1788,7 +1781,8 @@ static void musb_irq_work(struct work_struct *data)
  */
 
 static struct musb *__init
-allocate_instance(struct device *dev, void __iomem *mbase)
+allocate_instance(struct device *dev,
+		struct musb_hdrc_config *config, void __iomem *mbase)
 {
 	struct musb		*musb;
 	struct musb_hw_ep	*ep;
@@ -1820,8 +1814,9 @@ allocate_instance(struct device *dev, void __iomem *mbase)
 	musb->mregs = mbase;
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
+	musb->config = config;
 	for (epnum = 0, ep = musb->endpoints;
-			epnum < MUSB_C_NUM_EPS;
+			epnum < musb->config->num_eps;
 			epnum++, ep++) {
 
 		ep->musb = musb;
@@ -1929,7 +1924,7 @@ bad_config:
 	}
 
 	/* allocate */
-	musb = allocate_instance(dev, ctrl);
+	musb = allocate_instance(dev, plat->config, ctrl);
 	if (!musb)
 		return -ENOMEM;
 
@@ -1987,7 +1982,7 @@ bad_config:
 	musb_generic_disable(musb);
 
 	/* setup musb parts of the core (especially endpoints) */
-	status = musb_core_init(plat->multipoint
+	status = musb_core_init(plat->config->multipoint
 			? MUSB_CONTROLLER_MHDRC
 			: MUSB_CONTROLLER_HDRC, musb);
 	if (status < 0)
