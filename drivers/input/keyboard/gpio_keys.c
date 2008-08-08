@@ -37,9 +37,10 @@ struct gpio_keys_drvdata {
 	struct gpio_button_data data[0];
 };
 
-static void gpio_keys_report_event(struct gpio_keys_button *button,
-				   struct input_dev *input)
+static void gpio_keys_report_event(struct gpio_button_data *bdata)
 {
+	struct gpio_keys_button *button = bdata->button;
+	struct input_dev *input = bdata->input;
 	unsigned int type = button->type ?: EV_KEY;
 	int state = (gpio_get_value(button->gpio) ? 1 : 0) ^ button->active_low;
 
@@ -51,7 +52,7 @@ static void gpio_check_button(unsigned long _data)
 {
 	struct gpio_button_data *data = (struct gpio_button_data *)_data;
 
-	gpio_keys_report_event(data->button, data->input);
+	gpio_keys_report_event(data);
 }
 
 static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
@@ -65,7 +66,7 @@ static irqreturn_t gpio_keys_isr(int irq, void *dev_id)
 		mod_timer(&bdata->timer,
 			jiffies + msecs_to_jiffies(button->debounce_interval));
 	else
-		gpio_keys_report_event(button, bdata->input);
+		gpio_keys_report_event(bdata);
 
 	return IRQ_HANDLED;
 }
