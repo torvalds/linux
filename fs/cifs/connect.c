@@ -151,7 +151,7 @@ cifs_reconnect(struct TCP_Server_Info *server)
 	}
 	list_for_each(tmp, &GlobalTreeConnectionList) {
 		tcon = list_entry(tmp, struct cifsTconInfo, cifsConnectionList);
-		if ((tcon) && (tcon->ses) && (tcon->ses->server == server))
+		if ((tcon->ses) && (tcon->ses->server == server))
 			tcon->tidStatus = CifsNeedReconnect;
 	}
 	read_unlock(&GlobalSMBSeslock);
@@ -173,14 +173,12 @@ cifs_reconnect(struct TCP_Server_Info *server)
 		mid_entry = list_entry(tmp, struct
 					mid_q_entry,
 					qhead);
-		if (mid_entry) {
-			if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
+		if (mid_entry->midState == MID_REQUEST_SUBMITTED) {
 				/* Mark other intransit requests as needing
 				   retry so we do not immediately mark the
 				   session bad again (ie after we reconnect
 				   below) as they timeout too */
-				mid_entry->midState = MID_RETRY_NEEDED;
-			}
+			mid_entry->midState = MID_RETRY_NEEDED;
 		}
 	}
 	spin_unlock(&GlobalMid_Lock);
