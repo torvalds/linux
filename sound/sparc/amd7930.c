@@ -765,7 +765,6 @@ static int __devinit snd_amd7930_pcm(struct snd_amd7930 *amd)
 			       /* playback count */ 1,
 			       /* capture count */  1, &pcm)) < 0)
 		return err;
-	snd_assert(pcm != NULL, return -EINVAL);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_amd7930_playback_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_amd7930_capture_ops);
@@ -788,13 +787,6 @@ static int __devinit snd_amd7930_pcm(struct snd_amd7930 *amd)
 
 static int snd_amd7930_info_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem_info *uinfo)
 {
-	int type = kctl->private_value;
-
-	snd_assert(type == VOLUME_MONITOR ||
-		   type == VOLUME_CAPTURE ||
-		   type == VOLUME_PLAYBACK, return -EINVAL);
-	(void) type;
-
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
 	uinfo->count = 1;
 	uinfo->value.integer.min = 0;
@@ -808,10 +800,6 @@ static int snd_amd7930_get_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem
 	struct snd_amd7930 *amd = snd_kcontrol_chip(kctl);
 	int type = kctl->private_value;
 	int *swval;
-
-	snd_assert(type == VOLUME_MONITOR ||
-		   type == VOLUME_CAPTURE ||
-		   type == VOLUME_PLAYBACK, return -EINVAL);
 
 	switch (type) {
 	case VOLUME_MONITOR:
@@ -837,10 +825,6 @@ static int snd_amd7930_put_volume(struct snd_kcontrol *kctl, struct snd_ctl_elem
 	unsigned long flags;
 	int type = kctl->private_value;
 	int *swval, change;
-
-	snd_assert(type == VOLUME_MONITOR ||
-		   type == VOLUME_CAPTURE ||
-		   type == VOLUME_PLAYBACK, return -EINVAL);
 
 	switch (type) {
 	case VOLUME_MONITOR:
@@ -904,7 +888,8 @@ static int __devinit snd_amd7930_mixer(struct snd_amd7930 *amd)
 	struct snd_card *card;
 	int idx, err;
 
-	snd_assert(amd != NULL && amd->card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!amd || !amd->card))
+		return -EINVAL;
 
 	card = amd->card;
 	strcpy(card->mixername, card->shortname);

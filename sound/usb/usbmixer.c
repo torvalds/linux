@@ -1389,7 +1389,8 @@ static int mixer_ctl_selector_info(struct snd_kcontrol *kcontrol, struct snd_ctl
 	struct usb_mixer_elem_info *cval = kcontrol->private_data;
 	char **itemlist = (char **)kcontrol->private_value;
 
-	snd_assert(itemlist, return -EINVAL);
+	if (snd_BUG_ON(!itemlist))
+		return -EINVAL;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 1;
 	uinfo->value.enumerated.items = cval->max;

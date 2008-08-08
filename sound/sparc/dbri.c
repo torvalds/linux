@@ -2223,7 +2223,6 @@ static int __devinit snd_dbri_pcm(struct snd_card *card)
 			       /* playback count */ 1,
 			       /* capture count */  1, &pcm)) < 0)
 		return err;
-	snd_assert(pcm != NULL, return -EINVAL);
 
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_PLAYBACK, &snd_dbri_ops);
 	snd_pcm_set_ops(pcm, SNDRV_PCM_STREAM_CAPTURE, &snd_dbri_ops);
@@ -2263,9 +2262,10 @@ static int snd_cs4215_get_volume(struct snd_kcontrol *kcontrol,
 {
 	struct snd_dbri *dbri = snd_kcontrol_chip(kcontrol);
 	struct dbri_streaminfo *info;
-	snd_assert(dbri != NULL, return -EINVAL);
+
+	if (snd_BUG_ON(!dbri))
+		return -EINVAL;
 	info = &dbri->stream_info[kcontrol->private_value];
-	snd_assert(info != NULL, return -EINVAL);
 
 	ucontrol->value.integer.value[0] = info->left_gain;
 	ucontrol->value.integer.value[1] = info->right_gain;
@@ -2331,7 +2331,9 @@ static int snd_cs4215_get_single(struct snd_kcontrol *kcontrol,
 	int shift = (kcontrol->private_value >> 8) & 0xff;
 	int mask = (kcontrol->private_value >> 16) & 0xff;
 	int invert = (kcontrol->private_value >> 24) & 1;
-	snd_assert(dbri != NULL, return -EINVAL);
+
+	if (snd_BUG_ON(!dbri))
+		return -EINVAL;
 
 	if (elem < 4)
 		ucontrol->value.integer.value[0] =
@@ -2356,7 +2358,9 @@ static int snd_cs4215_put_single(struct snd_kcontrol *kcontrol,
 	int invert = (kcontrol->private_value >> 24) & 1;
 	int changed = 0;
 	unsigned short val;
-	snd_assert(dbri != NULL, return -EINVAL);
+
+	if (snd_BUG_ON(!dbri))
+		return -EINVAL;
 
 	val = (ucontrol->value.integer.value[0] & mask);
 	if (invert == 1)
@@ -2432,7 +2436,8 @@ static int __devinit snd_dbri_mixer(struct snd_card *card)
 	int idx, err;
 	struct snd_dbri *dbri;
 
-	snd_assert(card != NULL && card->private_data != NULL, return -EINVAL);
+	if (snd_BUG_ON(!card || !card->private_data))
+		return -EINVAL;
 	dbri = card->private_data;
 
 	strcpy(card->mixername, card->shortname);

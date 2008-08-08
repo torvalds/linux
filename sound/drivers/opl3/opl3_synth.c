@@ -92,7 +92,8 @@ int snd_opl3_ioctl(struct snd_hwdep * hw, struct file *file,
 	struct snd_opl3 *opl3 = hw->private_data;
 	void __user *argp = (void __user *)arg;
 
-	snd_assert(opl3 != NULL, return -EINVAL);
+	if (snd_BUG_ON(!opl3))
+		return -EINVAL;
 
 	switch (cmd) {
 		/* get information */

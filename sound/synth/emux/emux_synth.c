@@ -66,12 +66,12 @@ snd_emux_note_on(void *p, int note, int vel, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	snd_assert(port != NULL && chan != NULL, return);
+	if (snd_BUG_ON(!port || !chan))
+		return;
 
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.get_voice != NULL, return);
-	snd_assert(emu->ops.trigger != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.get_voice || !emu->ops.trigger))
+		return;
 
 	key = note; /* remember the original note */
 	nvoices = get_zone(emu, port, &note, vel, chan, table);
@@ -164,11 +164,12 @@ snd_emux_note_off(void *p, int note, int vel, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	snd_assert(port != NULL && chan != NULL, return);
+	if (snd_BUG_ON(!port || !chan))
+		return;
 
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.release != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.release))
+		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (ch = 0; ch < emu->max_voices; ch++) {
@@ -242,11 +243,12 @@ snd_emux_key_press(void *p, int note, int vel, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	snd_assert(port != NULL && chan != NULL, return);
+	if (snd_BUG_ON(!port || !chan))
+		return;
 
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.update != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.update))
+		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (ch = 0; ch < emu->max_voices; ch++) {
@@ -276,8 +278,8 @@ snd_emux_update_channel(struct snd_emux_port *port, struct snd_midi_channel *cha
 		return;
 
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.update != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.update))
+		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (i = 0; i < emu->max_voices; i++) {
@@ -303,8 +305,8 @@ snd_emux_update_port(struct snd_emux_port *port, int update)
 		return;
 
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.update != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.update))
+		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (i = 0; i < emu->max_voices; i++) {
@@ -326,7 +328,8 @@ snd_emux_control(void *p, int type, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	snd_assert(port != NULL && chan != NULL, return);
+	if (snd_BUG_ON(!port || !chan))
+		return;
 
 	switch (type) {
 	case MIDI_CTL_MSB_MAIN_VOLUME:
@@ -400,11 +403,12 @@ snd_emux_terminate_note(void *p, int note, struct snd_midi_channel *chan)
 	struct snd_emux_port *port;
 
 	port = p;
-	snd_assert(port != NULL && chan != NULL, return);
+	if (snd_BUG_ON(!port || !chan))
+		return;
 
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.terminate != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.terminate))
+		return;
 
 	terminate_note1(emu, note, chan, 1);
 }
@@ -451,10 +455,11 @@ snd_emux_sounds_off_all(struct snd_emux_port *port)
 	struct snd_emux_voice *vp;
 	unsigned long flags;
 
-	snd_assert(port != NULL, return);
+	if (snd_BUG_ON(!port))
+		return;
 	emu = port->emu;
-	snd_assert(emu != NULL, return);
-	snd_assert(emu->ops.terminate != NULL, return);
+	if (snd_BUG_ON(!emu || !emu->ops.terminate))
+		return;
 
 	spin_lock_irqsave(&emu->voice_lock, flags);
 	for (i = 0; i < emu->max_voices; i++) {

@@ -431,7 +431,8 @@ int snd_ak4117_build(struct ak4117 *ak4117, struct snd_pcm_substream *cap_substr
 	unsigned int idx;
 	int err;
 
-	snd_assert(cap_substream, return -EINVAL);
+	if (snd_BUG_ON(!cap_substream))
+		return -EINVAL;
 	ak4117->substream = cap_substream;
 	for (idx = 0; idx < AK4117_CONTROLS; idx++) {
 		kctl = snd_ctl_new1(&snd_ak4117_iec958_controls[idx], ak4117);

@@ -106,7 +106,8 @@ static void spu_memset(u32 toi, u32 what, int length)
 {
 	int i;
 	unsigned long flags;
-	snd_assert(length % 4 == 0, return);
+	if (snd_BUG_ON(length % 4))
+		return;
 	for (i = 0; i < length; i++) {
 		if (!(i % 8))
 			spu_write_wait();

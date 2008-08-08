@@ -408,7 +408,8 @@ static void vxp_dma_read(struct vx_core *chip, struct snd_pcm_runtime *runtime,
 	int offset = pipe->hw_ptr;
 	unsigned short *addr = (unsigned short *)(runtime->dma_area + offset);
 
-	snd_assert(count % 2 == 0, return);
+	if (snd_BUG_ON(count % 2))
+		return;
 	vx_setup_pseudo_dma(chip, 0);
 	if (offset + count > pipe->buffer_bytes) {
 		int length = pipe->buffer_bytes - offset;
