@@ -523,6 +523,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return -ENODEV;
 	}
 
+	if (pdev->revision >= NX_P3_A0 && pdev->revision < NX_P3_B1) {
+		printk(KERN_WARNING "NetXen chip revisions between 0x%x-0x%x"
+				"will not be enabled.\n",
+				NX_P3_A0, NX_P3_B1);
+		return -ENODEV;
+	}
+
 	if ((err = pci_enable_device(pdev)))
 		return err;
 

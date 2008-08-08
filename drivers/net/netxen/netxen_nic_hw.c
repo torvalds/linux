@@ -2208,10 +2208,10 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	if (adapter->portnum == 0) {
 		get_brd_name_by_type(board_info->board_type, brd_name);
 
-		printk("NetXen %s Board S/N %s  Chip id 0x%x\n",
-				brd_name, serial_num, board_info->chip_id);
-		printk("NetXen Firmware version %d.%d.%d\n", fw_major,
-				fw_minor, fw_build);
+		printk(KERN_INFO "NetXen %s Board S/N %s  Chip rev 0x%x\n",
+				brd_name, serial_num, adapter->ahw.revision_id);
+		printk(KERN_INFO "NetXen Firmware version %d.%d.%d\n",
+				fw_major, fw_minor, fw_build);
 	}
 
 	if (NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build) <
