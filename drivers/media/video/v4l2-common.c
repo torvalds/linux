@@ -643,6 +643,7 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qc
 {
 	int i;
 
+	qmenu->reserved = 0;
 	if (menu_items == NULL ||
 	    (qctrl && (qmenu->index < qctrl->minimum || qmenu->index > qctrl->maximum)))
 		return -EINVAL;
@@ -650,10 +651,30 @@ int v4l2_ctrl_query_menu(struct v4l2_querymenu *qmenu, struct v4l2_queryctrl *qc
 	if (menu_items[i] == NULL || menu_items[i][0] == '\0')
 		return -EINVAL;
 	snprintf(qmenu->name, sizeof(qmenu->name), menu_items[qmenu->index]);
-	qmenu->reserved = 0;
 	return 0;
 }
 EXPORT_SYMBOL(v4l2_ctrl_query_menu);
+
+/* Fill in a struct v4l2_querymenu based on the specified array of valid
+   menu items (terminated by V4L2_CTRL_MENU_IDS_END).
+   Use this if there are 'holes' in the list of valid menu items. */
+int v4l2_ctrl_query_menu_valid_items(struct v4l2_querymenu *qmenu, const u32 *ids)
+{
+	const char **menu_items = v4l2_ctrl_get_menu(qmenu->id);
+
+	qmenu->reserved = 0;
+	if (menu_items == NULL || ids == NULL)
+		return -EINVAL;
+	while (*ids != V4L2_CTRL_MENU_IDS_END) {
+		if (*ids++ == qmenu->index) {
+			snprintf(qmenu->name, sizeof(qmenu->name),
+				       menu_items[qmenu->index]);
+			return 0;
+		}
+	}
+	return -EINVAL;
+}
+EXPORT_SYMBOL(v4l2_ctrl_query_menu_valid_items);
 
 /* ctrl_classes points to an array of u32 pointers, the last element is
    a NULL pointer. Each u32 array is a 0-terminated array of control IDs.
