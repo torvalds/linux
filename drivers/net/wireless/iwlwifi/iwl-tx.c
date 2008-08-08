@@ -764,20 +764,19 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct iwl_tfd_frame *tfd;
-	u32 *control_flags;
-	int txq_id = skb_get_queue_mapping(skb);
-	struct iwl_tx_queue *txq = NULL;
-	struct iwl_queue *q = NULL;
+	struct iwl_tx_queue *txq;
+	struct iwl_queue *q;
+	struct iwl_cmd *out_cmd;
+	struct iwl_tx_cmd *tx_cmd;
+	int swq_id, txq_id;
 	dma_addr_t phys_addr;
 	dma_addr_t txcmd_phys;
 	dma_addr_t scratch_phys;
-	struct iwl_cmd *out_cmd = NULL;
-	struct iwl_tx_cmd *tx_cmd;
 	u16 len, idx, len_org;
 	u16 seq_number = 0;
-	u8 id, hdr_len, unicast;
-	u8 sta_id;
 	__le16 fc;
+	u8 hdr_len, unicast;
+	u8 sta_id;
 	u8 wait_write_ptr = 0;
 	u8 tid = 0;
 	u8 *qc = NULL;
@@ -802,7 +801,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	}
 
 	unicast = !is_multicast_ether_addr(hdr->addr1);
-	id = 0;
 
 	fc = hdr->frame_control;
 
@@ -840,14 +838,16 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	IWL_DEBUG_TX("station Id %d\n", sta_id);
 
+	swq_id = skb_get_queue_mapping(skb);
+	txq_id = swq_id;
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & 0xf;
-		seq_number = priv->stations[sta_id].tid[tid].seq_number &
-				IEEE80211_SCTL_SEQ;
-		hdr->seq_ctrl = cpu_to_le16(seq_number) |
-			(hdr->seq_ctrl &
-				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG));
+		seq_number = priv->stations[sta_id].tid[tid].seq_number;
+		seq_number &= IEEE80211_SCTL_SEQ;
+		hdr->seq_ctrl = hdr->seq_ctrl &
+				__constant_cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(seq_number);
 		seq_number += 0x10;
 		/* aggregation is on for this <sta,tid> */
 		if (info->flags & IEEE80211_TX_CTL_AMPDU)
@@ -864,7 +864,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	/* Set up first empty TFD within this queue's circular TFD buffer */
 	tfd = &txq->bd[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
-	control_flags = (u32 *) tfd;
 	idx = get_cmd_index(q, q->write_ptr, 0);
 
 	/* Set up driver data for this TFD */
@@ -983,8 +982,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 			iwl_txq_update_write_ptr(priv, txq);
 			spin_unlock_irqrestore(&priv->lock, flags);
 		} else {
-			ieee80211_stop_queue(priv->hw,
-					     skb_get_queue_mapping(skb));
+			ieee80211_stop_queue(priv->hw, swq_id);
 		}
 	}
 
@@ -1013,13 +1011,12 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	struct iwl_tx_queue *txq = &priv->txq[IWL_CMD_QUEUE_NUM];
 	struct iwl_queue *q = &txq->q;
 	struct iwl_tfd_frame *tfd;
-	u32 *control_flags;
 	struct iwl_cmd *out_cmd;
+	dma_addr_t phys_addr;
+	unsigned long flags;
+	int len, ret;
 	u32 idx;
 	u16 fix_size;
-	dma_addr_t phys_addr;
-	int len, ret;
-	unsigned long flags;
 
 	cmd->len = priv->cfg->ops->utils->get_hcmd_size(cmd->id, cmd->len);
 	fix_size = (u16)(cmd->len + sizeof(out_cmd->hdr));
@@ -1045,7 +1042,6 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	tfd = &txq->bd[q->write_ptr];
 	memset(tfd, 0, sizeof(*tfd));
 
-	control_flags = (u32 *) tfd;
 
 	idx = get_cmd_index(q, q->write_ptr, cmd->meta.flags & CMD_SIZE_HUGE);
 	out_cmd = txq->cmd[idx];
