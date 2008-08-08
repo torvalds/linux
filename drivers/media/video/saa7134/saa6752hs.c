@@ -172,6 +172,39 @@ static u8 PMT[] = {
 	0x00, 0x00, 0x00, 0x00 /* CRC32 */
 };
 
+static u8 PMT_AC3[] = {
+	0xc2, /* i2c register */
+	0x01, /* table number for encoder(1) */
+	0x47, /* sync */
+
+	0x40, /* transport_error_indicator(0), payload_unit_start(1), transport_priority(0) */
+	0x10, /* PMT PID (0x0010) */
+	0x10, /* transport_scrambling_control(00), adaptation_field_control(01), continuity_counter(0) */
+
+	0x00, /* PSI pointer to start of table */
+
+	0x02, /* TID (2) */
+	0xb0, 0x1a, /* section_syntax_indicator(1), section_length(26) */
+
+	0x00, 0x01, /* program_number(1) */
+
+	0xc1, /* version_number(0), current_next_indicator(1) */
+
+	0x00, 0x00, /* section_number(0), last_section_number(0) */
+
+	0xe1, 0x04, /* PCR_PID (0x0104) */
+
+	0xf0, 0x00, /* program_info_length(0) */
+
+	0x02, 0xe1, 0x00, 0xf0, 0x00, /* video stream type(2), pid */
+	0x06, 0xe1, 0x03, 0xf0, 0x03, /* audio stream type(6), pid */
+	0x6a, /* AC3 */
+	0x01, /* Descriptor_length(1) */
+	0x00, /* component_type_flag(0), bsid_flag(0), mainid_flag(0), asvc_flag(0), reserved flags(0) */
+
+	0xED, 0xDE, 0x2D, 0xF3 /* CRC32 BE */
+};
+
 static struct saa6752hs_mpeg_params param_defaults =
 {
 	.ts_pid_pmt      = 16,
@@ -186,7 +219,7 @@ static struct saa6752hs_mpeg_params param_defaults =
 
 	.au_encoding     = V4L2_MPEG_AUDIO_ENCODING_LAYER_2,
 	.au_l2_bitrate   = V4L2_MPEG_AUDIO_L2_BITRATE_256K,
-	.au_ac3_bitrate  = V4L2_MPEG_AUDIO_AC3_BITRATE_384K,
+	.au_ac3_bitrate  = V4L2_MPEG_AUDIO_AC3_BITRATE_256K,
 };
 
 /* ---------------------------------------------------------------------- */
@@ -295,10 +328,7 @@ static int saa6752hs_set_bitrate(struct i2c_client* client,
 
 	/* set the audio encoding */
 	buf[0] = 0x93;
-	if (params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3)
-		buf[1] = 1;
-	else
-		buf[1] = 0;
+	buf[1] = (params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3);
 	i2c_master_send(client, buf, 2);
 
 	/* set the audio bitrate */
@@ -627,6 +657,7 @@ static int saa6752hs_init(struct i2c_client* client)
 {
 	unsigned char buf[9], buf2[4];
 	struct saa6752hs_state *h;
+	unsigned size;
 	u32 crc;
 	unsigned char localPAT[256];
 	unsigned char localPMT[256];
@@ -685,7 +716,13 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPAT[sizeof(PAT) - 1] = crc & 0xFF;
 
 	/* compute PMT */
-	memcpy(localPMT, PMT, sizeof(PMT));
+	if (h->params.au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3) {
+		size = sizeof(PMT_AC3);
+		memcpy(localPMT, PMT_AC3, size);
+	} else {
+		size = sizeof(PMT);
+		memcpy(localPMT, PMT, size);
+	}
 	localPMT[3] = 0x40 | ((h->params.ts_pid_pmt >> 8) & 0x0f);
 	localPMT[4] = h->params.ts_pid_pmt & 0xff;
 	localPMT[15] = 0xE0 | ((h->params.ts_pid_pcr >> 8) & 0x0F);
@@ -694,11 +731,11 @@ static int saa6752hs_init(struct i2c_client* client)
 	localPMT[21] = h->params.ts_pid_video & 0xFF;
 	localPMT[25] = 0xE0 | ((h->params.ts_pid_audio >> 8) & 0x0F);
 	localPMT[26] = h->params.ts_pid_audio & 0xFF;
-	crc = crc32_be(~0, &localPMT[7], sizeof(PMT) - 7 - 4);
-	localPMT[sizeof(PMT) - 4] = (crc >> 24) & 0xFF;
-	localPMT[sizeof(PMT) - 3] = (crc >> 16) & 0xFF;
-	localPMT[sizeof(PMT) - 2] = (crc >> 8) & 0xFF;
-	localPMT[sizeof(PMT) - 1] = crc & 0xFF;
+	crc = crc32_be(~0, &localPMT[7], size - 7 - 4);
+	localPMT[size - 4] = (crc >> 24) & 0xFF;
+	localPMT[size - 3] = (crc >> 16) & 0xFF;
+	localPMT[size - 2] = (crc >> 8) & 0xFF;
+	localPMT[size - 1] = crc & 0xFF;
 
 	/* Set Audio PID */
 	buf[0] = 0xC1;
@@ -719,8 +756,8 @@ static int saa6752hs_init(struct i2c_client* client)
 	i2c_master_send(client,buf,3);
 
 	/* Send SI tables */
-	i2c_master_send(client,localPAT,sizeof(PAT));
-	i2c_master_send(client,localPMT,sizeof(PMT));
+	i2c_master_send(client, localPAT, sizeof(PAT));
+	i2c_master_send(client, localPMT, size);
 
 	/* mute then unmute audio. This removes buzzing artefacts */
 	buf[0] = 0xa4;
