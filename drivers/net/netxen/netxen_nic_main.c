@@ -501,6 +501,44 @@ static void netxen_init_msix_entries(struct netxen_adapter *adapter)
 		adapter->msix_entries[i].entry = i;
 }
 
+static int
+netxen_read_mac_addr(struct netxen_adapter *adapter)
+{
+	int i;
+	unsigned char *p;
+	__le64 mac_addr;
+	DECLARE_MAC_BUF(mac);
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (netxen_is_flash_supported(adapter) != 0)
+		return -EIO;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		if (netxen_p3_get_mac_addr(adapter, &mac_addr) != 0)
+			return -EIO;
+	} else {
+		if (netxen_get_flash_mac_addr(adapter, &mac_addr) != 0)
+			return -EIO;
+	}
+
+	p = (unsigned char *)&mac_addr;
+	for (i = 0; i < 6; i++)
+		netdev->dev_addr[i] = *(p + 5 - i);
+
+	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
+
+	/* set station address */
+
+	if (!is_valid_ether_addr(netdev->perm_addr)) {
+		dev_warn(&pdev->dev, "Bad MAC address %s.\n",
+				print_mac(mac, netdev->dev_addr));
+	} else
+		adapter->macaddr_set(adapter, netdev->dev_addr);
+
+	return 0;
+}
+
 /*
  * netxen_nic_probe()
  *
@@ -529,10 +567,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long mem_base, mem_len, db_base, db_len, pci_len0 = 0;
 	int i = 0, err;
 	int first_driver, first_boot;
-	__le64 mac_addr[FLASH_NUM_PORTS + 1];
 	u32 val;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
-	DECLARE_MAC_BUF(mac);
 	struct netxen_legacy_intr_set *legacy_intrp;
 	uint8_t revision_id;
 
@@ -904,28 +940,9 @@ request_msi:
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
 
-	if (netxen_is_flash_supported(adapter) == 0 &&
-			netxen_get_flash_mac_addr(adapter, mac_addr) == 0) {
-		unsigned char *p;
-
-		p = (unsigned char *)&mac_addr[adapter->portnum];
-		netdev->dev_addr[0] = *(p + 5);
-		netdev->dev_addr[1] = *(p + 4);
-		netdev->dev_addr[2] = *(p + 3);
-		netdev->dev_addr[3] = *(p + 2);
-		netdev->dev_addr[4] = *(p + 1);
-		netdev->dev_addr[5] = *(p + 0);
-
-		memcpy(netdev->perm_addr, netdev->dev_addr,
-			netdev->addr_len);
-		if (!is_valid_ether_addr(netdev->perm_addr)) {
-			printk(KERN_ERR "%s: Bad MAC address %s.\n",
-					netxen_nic_driver_name,
-					print_mac(mac, netdev->dev_addr));
-		} else {
-			adapter->macaddr_set(adapter, netdev->dev_addr);
-		}
-	}
+	err = netxen_read_mac_addr(adapter);
+	if (err)
+		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
