@@ -1032,7 +1032,7 @@ static int ipath_7220_bringup_serdes(struct ipath_devdata *dd)
 	ipath_cdbg(VERBOSE, "done: xgxs=%llx from %llx\n",
 		   (unsigned long long)
 		   ipath_read_kreg64(dd, dd->ipath_kregs->kr_xgxsconfig),
-		   prev_val);
+		   (unsigned long long) prev_val);
 
 	guid = be64_to_cpu(dd->ipath_guid);
 
@@ -1042,7 +1042,8 @@ static int ipath_7220_bringup_serdes(struct ipath_devdata *dd)
 		ipath_dbg("No GUID for heartbeat, faking %llx\n",
 			(unsigned long long)guid);
 	} else
-		ipath_cdbg(VERBOSE, "Wrote %llX to HRTBT_GUID\n", guid);
+		ipath_cdbg(VERBOSE, "Wrote %llX to HRTBT_GUID\n",
+			(unsigned long long) guid);
 	ipath_write_kreg(dd, dd->ipath_kregs->kr_hrtbt_guid, guid);
 	return ret;
 }
@@ -2505,7 +2506,7 @@ done:
 	if (dd->ipath_flags & IPATH_IB_AUTONEG_INPROG) {
 		ipath_dbg("Did not get to DDR INIT (%x) after %Lu msecs\n",
 			ipath_ib_state(dd, dd->ipath_lastibcstat),
-			jiffies_to_msecs(jiffies)-startms);
+			(unsigned long long) jiffies_to_msecs(jiffies)-startms);
 		dd->ipath_flags &= ~IPATH_IB_AUTONEG_INPROG;
 		if (dd->ipath_autoneg_tries == IPATH_AUTONEG_TRIES) {
 			dd->ipath_flags |= IPATH_IB_AUTONEG_FAILED;
