@@ -62,7 +62,6 @@
 #define URB_ZERO_PACKET 0
 #endif
 
-static int ignore;
 static int ignore_dga;
 static int ignore_csr;
 static int ignore_sniffer;
@@ -74,7 +73,7 @@ static int reset;
 static int isoc = 2;
 #endif
 
-#define VERSION "2.9"
+#define VERSION "2.10"
 
 static struct usb_driver hci_usb_driver; 
 
@@ -801,7 +800,7 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 			id = match;
 	}
 
-	if (ignore || id->driver_info & HCI_IGNORE)
+	if (id->driver_info & HCI_IGNORE)
 		return -ENODEV;
 
 	if (ignore_dga && id->driver_info & HCI_DIGIANSWER)
@@ -1107,9 +1106,6 @@ static void __exit hci_usb_exit(void)
 
 module_init(hci_usb_init);
 module_exit(hci_usb_exit);
-
-module_param(ignore, bool, 0644);
-MODULE_PARM_DESC(ignore, "Ignore devices from the matching table");
 
 module_param(ignore_dga, bool, 0644);
 MODULE_PARM_DESC(ignore_dga, "Ignore devices with id 08fd:0001");
