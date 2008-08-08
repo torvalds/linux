@@ -63,6 +63,39 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 }
 
 /**
+ * gfs2_make_fs_ro - Turn a Read-Write FS into a Read-Only one
+ * @sdp: the filesystem
+ *
+ * Returns: errno
+ */
+
+static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
+{
+	struct gfs2_holder t_gh;
+	int error;
+
+	gfs2_quota_sync(sdp);
+	gfs2_statfs_sync(sdp);
+
+	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED, GL_NOCACHE,
+				   &t_gh);
+	if (error && !test_bit(SDF_SHUTDOWN, &sdp->sd_flags))
+		return error;
+
+	gfs2_meta_syncfs(sdp);
+	gfs2_log_shutdown(sdp);
+
+	clear_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags);
+
+	if (t_gh.gh_gl)
+		gfs2_glock_dq_uninit(&t_gh);
+
+	gfs2_quota_cleanup(sdp);
+
+	return error;
+}
+
+/**
  * gfs2_put_super - Unmount the filesystem
  * @sb: The VFS superblock
  *
@@ -72,12 +105,6 @@ static void gfs2_put_super(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
 	int error;
-
-	if (!sdp)
-		return;
-
-	if (!strncmp(sb->s_type->name, "gfs2meta", 8))
-		return; /* Nothing to do */
 
 	/*  Unfreeze the filesystem, if we need to  */
 
@@ -101,7 +128,6 @@ static void gfs2_put_super(struct super_block *sb)
 
 	/*  Release stuff  */
 
-	iput(sdp->sd_master_dir);
 	iput(sdp->sd_jindex);
 	iput(sdp->sd_inum_inode);
 	iput(sdp->sd_statfs_inode);
@@ -152,6 +178,7 @@ static void gfs2_write_super(struct super_block *sb)
  *
  * Flushes the log to disk.
  */
+
 static int gfs2_sync_fs(struct super_block *sb, int wait)
 {
 	sb->s_dirt = 0;
@@ -295,6 +322,7 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
  * inode's blocks, or alternatively pass the baton on to another
  * node for later deallocation.
  */
+
 static void gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
@@ -333,6 +361,16 @@ static void gfs2_clear_inode(struct inode *inode)
 	}
 }
 
+static int is_ancestor(const struct dentry *d1, const struct dentry *d2)
+{
+	do {
+		if (d1 == d2)
+			return 1;
+		d1 = d1->d_parent;
+	} while (!IS_ROOT(d1));
+	return 0;
+}
+
 /**
  * gfs2_show_options - Show mount options for /proc/mounts
  * @s: seq_file structure
@@ -346,6 +384,8 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	struct gfs2_sbd *sdp = mnt->mnt_sb->s_fs_info;
 	struct gfs2_args *args = &sdp->sd_args;
 
+	if (is_ancestor(mnt->mnt_root, sdp->sd_master_dir))
+		seq_printf(s, ",meta");
 	if (args->ar_lockproto[0])
 		seq_printf(s, ",lockproto=%s", args->ar_lockproto);
 	if (args->ar_locktable[0])
@@ -414,6 +454,7 @@ static int gfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
  * conversion on the iopen lock, but we can change that later. This
  * is safe, just less efficient.
  */
+
 static void gfs2_delete_inode(struct inode *inode)
 {
 	struct gfs2_sbd *sdp = inode->i_sb->s_fs_info;
@@ -477,8 +518,6 @@ out:
 	truncate_inode_pages(&inode->i_data, 0);
 	clear_inode(inode);
 }
-
-
 
 static struct inode *gfs2_alloc_inode(struct super_block *sb)
 {

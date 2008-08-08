@@ -400,6 +400,7 @@ struct gfs2_args {
 	int ar_quota; /* off/account/on */
 	int ar_suiddir; /* suiddir support */
 	int ar_data; /* ordered/writeback */
+	int ar_meta; /* mount metafs */
 };
 
 struct gfs2_tune {
@@ -461,7 +462,6 @@ struct gfs2_sb_host {
 
 struct gfs2_sbd {
 	struct super_block *sd_vfs;
-	struct super_block *sd_vfs_meta;
 	struct kobject sd_kobj;
 	unsigned long sd_flags;	/* SDF_... */
 	struct gfs2_sb_host sd_sb;
@@ -499,7 +499,9 @@ struct gfs2_sbd {
 
 	/* Inode Stuff */
 
-	struct inode *sd_master_dir;
+	struct dentry *sd_master_dir;
+	struct dentry *sd_root_dir;
+
 	struct inode *sd_jindex;
 	struct inode *sd_inum_inode;
 	struct inode *sd_statfs_inode;
@@ -634,7 +636,6 @@ struct gfs2_sbd {
 	/* Debugging crud */
 
 	unsigned long sd_last_warning;
-	struct vfsmount *sd_gfs2mnt;
 	struct dentry *debugfs_dir;    /* debugfs directory */
 	struct dentry *debugfs_dentry_glocks; /* for debugfs */
 };
