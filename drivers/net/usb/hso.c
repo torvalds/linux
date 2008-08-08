@@ -1467,7 +1467,8 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 		return;
 	}
 	hso_put_activity(serial->parent);
-	tty_wakeup(serial->tty);
+	if (serial->tty)
+		tty_wakeup(serial->tty);
 	hso_kick_transmit(serial);
 
 	D1(" ");
@@ -1538,7 +1539,8 @@ static void ctrl_callback(struct urb *urb)
 			clear_bit(HSO_SERIAL_FLAG_RX_SENT, &serial->flags);
 	} else {
 		hso_put_activity(serial->parent);
-		tty_wakeup(serial->tty);
+		if (serial->tty)
+			tty_wakeup(serial->tty);
 		/* response to a write command */
 		hso_kick_transmit(serial);
 	}
