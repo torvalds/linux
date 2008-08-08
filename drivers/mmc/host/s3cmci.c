@@ -595,8 +595,9 @@ static irqreturn_t s3cmci_irq_cd(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void s3cmci_dma_done_callback(struct s3c2410_dma_chan *dma_ch, void *buf_id,
-			      int size, enum s3c2410_dma_buffresult result)
+static void s3cmci_dma_done_callback(struct s3c2410_dma_chan *dma_ch,
+				     void *buf_id, int size,
+				     enum s3c2410_dma_buffresult result)
 {
 	struct s3cmci_host *host = buf_id;
 	unsigned long iflags;
@@ -740,8 +741,8 @@ request_done:
 	mmc_request_done(host->mmc, mrq);
 }
 
-
-void s3cmci_dma_setup(struct s3cmci_host *host, enum s3c2410_dmasrc source)
+static void s3cmci_dma_setup(struct s3cmci_host *host,
+			     enum s3c2410_dmasrc source)
 {
 	static enum s3c2410_dmasrc last_source = -1;
 	static int setup_ok;
@@ -1206,7 +1207,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	}
 
 	host->base = ioremap(host->mem->start, RESSIZE(host->mem));
-	if (host->base == 0) {
+	if (!host->base) {
 		dev_err(&pdev->dev, "failed to ioremap() io memory region.\n");
 		ret = -EINVAL;
 		goto probe_free_mem_region;
