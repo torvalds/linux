@@ -242,7 +242,7 @@ u32 method_id, const struct acpi_buffer *in, struct acpi_buffer *out)
 	char method[4] = "WM";
 
 	if (!find_guid(guid_string, &wblock))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
@@ -304,7 +304,7 @@ struct acpi_buffer *out)
 		return AE_BAD_PARAMETER;
 
 	if (!find_guid(guid_string, &wblock))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
@@ -314,7 +314,7 @@ struct acpi_buffer *out)
 
 	/* Check GUID is a data block */
 	if (block->flags & (ACPI_WMI_EVENT | ACPI_WMI_METHOD))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	input.count = 1;
 	input.pointer = wq_params;
@@ -385,7 +385,7 @@ const struct acpi_buffer *in)
 		return AE_BAD_DATA;
 
 	if (!find_guid(guid_string, &wblock))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	block = &wblock->gblock;
 	handle = wblock->handle;
@@ -395,7 +395,7 @@ const struct acpi_buffer *in)
 
 	/* Check GUID is a data block */
 	if (block->flags & (ACPI_WMI_EVENT | ACPI_WMI_METHOD))
-		return AE_BAD_ADDRESS;
+		return AE_ERROR;
 
 	input.count = 2;
 	input.pointer = params;
