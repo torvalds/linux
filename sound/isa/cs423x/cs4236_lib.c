@@ -967,7 +967,8 @@ int snd_cs4236_mixer(struct snd_wss *chip)
 	int err;
 	struct snd_kcontrol_new *kcontrol;
 
-	snd_assert(chip != NULL && chip->card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip || !chip->card))
+		return -EINVAL;
 	card = chip->card;
 	strcpy(card->mixername, snd_wss_chip_id(chip));
 

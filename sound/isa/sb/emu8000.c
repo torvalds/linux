@@ -1023,7 +1023,8 @@ snd_emu8000_create_mixer(struct snd_card *card, struct snd_emu8000 *emu)
 {
 	int i, err = 0;
 
-	snd_assert(emu != NULL && card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!emu || !card))
+		return -EINVAL;
 
 	spin_lock_init(&emu->control_lock);
 

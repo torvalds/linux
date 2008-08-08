@@ -675,7 +675,8 @@ static int __devinit snd_miro_mixer(struct snd_miro *miro)
 	unsigned int idx;
 	int err;
 
-	snd_assert(miro != NULL && miro->card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!miro || !miro->card))
+		return -EINVAL;
 
 	card = miro->card;
 

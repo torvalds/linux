@@ -1946,7 +1946,8 @@ static int snd_wss_info_mux(struct snd_kcontrol *kcontrol,
 	char **ptexts = texts;
 	struct snd_wss *chip = snd_kcontrol_chip(kcontrol);
 
-	snd_assert(chip->card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip->card))
+		return -EINVAL;
 	uinfo->type = SNDRV_CTL_ELEM_TYPE_ENUMERATED;
 	uinfo->count = 2;
 	uinfo->value.enumerated.items = 4;
@@ -2262,7 +2263,8 @@ int snd_wss_mixer(struct snd_wss *chip)
 	unsigned int idx;
 	int err;
 
-	snd_assert(chip != NULL && chip->pcm != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip || !chip->pcm))
+		return -EINVAL;
 
 	card = chip->card;
 

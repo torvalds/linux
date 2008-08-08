@@ -669,7 +669,8 @@ static int snd_sb16_capture_close(struct snd_pcm_substream *substream)
 static int snd_sb16_set_dma_mode(struct snd_sb *chip, int what)
 {
 	if (chip->dma8 < 0 || chip->dma16 < 0) {
-		snd_assert(what == 0, return -EINVAL);
+		if (snd_BUG_ON(what))
+			return -EINVAL;
 		return 0;
 	}
 	if (what == 0) {

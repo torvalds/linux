@@ -1009,7 +1009,8 @@ int snd_es1688_mixer(struct snd_es1688 *chip)
 	int err;
 	unsigned char reg, val;
 
-	snd_assert(chip != NULL && chip->card != NULL, return -EINVAL);
+	if (snd_BUG_ON(!chip || !chip->card))
+		return -EINVAL;
 
 	card = chip->card;
 

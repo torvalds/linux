@@ -180,11 +180,11 @@ snd_wavefront_fx_ioctl (struct snd_hwdep *sdev, struct file *file,
 	unsigned short *pd;
 	int err = 0;
 
-	snd_assert(sdev->card != NULL, return -ENODEV);
-	
 	card = sdev->card;
-
-	snd_assert(card->private_data != NULL, return -ENODEV);
+	if (snd_BUG_ON(!card))
+		return -ENODEV;
+	if (snd_BUG_ON(!card->private_data))
+		return -ENODEV;
 
 	acard = card->private_data;
 	dev = &acard->wavefront;

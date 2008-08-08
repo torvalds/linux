@@ -352,8 +352,10 @@ static int snd_gf1_pcm_playback_copy(struct snd_pcm_substream *substream,
 	
 	bpos = samples_to_bytes(runtime, pos) + (voice * (pcmp->dma_size / 2));
 	len = samples_to_bytes(runtime, count);
-	snd_assert(bpos <= pcmp->dma_size, return -EIO);
-	snd_assert(bpos + len <= pcmp->dma_size, return -EIO);
+	if (snd_BUG_ON(bpos > pcmp->dma_size))
+		return -EIO;
+	if (snd_BUG_ON(bpos + len > pcmp->dma_size))
+		return -EIO;
 	if (copy_from_user(runtime->dma_area + bpos, src, len))
 		return -EFAULT;
 	if (snd_gf1_pcm_use_dma && len > 32) {
@@ -381,8 +383,10 @@ static int snd_gf1_pcm_playback_silence(struct snd_pcm_substream *substream,
 	
 	bpos = samples_to_bytes(runtime, pos) + (voice * (pcmp->dma_size / 2));
 	len = samples_to_bytes(runtime, count);
-	snd_assert(bpos <= pcmp->dma_size, return -EIO);
-	snd_assert(bpos + len <= pcmp->dma_size, return -EIO);
+	if (snd_BUG_ON(bpos > pcmp->dma_size))
+		return -EIO;
+	if (snd_BUG_ON(bpos + len > pcmp->dma_size))
+		return -EIO;
 	snd_pcm_format_set_silence(runtime->format, runtime->dma_area + bpos, count);
 	if (snd_gf1_pcm_use_dma && len > 32) {
 		return snd_gf1_pcm_block_change(substream, bpos, pcmp->memory + bpos, len);
