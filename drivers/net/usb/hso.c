@@ -2725,7 +2725,7 @@ static int hso_mux_submit_intr_urb(struct hso_shared_int *shared_int,
 }
 
 /* operations setup of the serial interface */
-static struct tty_operations hso_serial_ops = {
+static const struct tty_operations hso_serial_ops = {
 	.open = hso_serial_open,
 	.close = hso_serial_close,
 	.write = hso_serial_write,
