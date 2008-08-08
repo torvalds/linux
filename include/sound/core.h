@@ -368,8 +368,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 
 #ifdef CONFIG_SND_DEBUG
 
-#define __ASTRING__(x) #x
-
 #ifdef CONFIG_SND_VERBOSE_PRINTK
 /**
  * snd_printd - debug printk
@@ -384,22 +382,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #define snd_printd(fmt, args...) \
 	printk(fmt ,##args)
 #endif
-/**
- * snd_assert - run-time assertion macro
- * @expr: expression
- *
- * This macro checks the expression in run-time and invokes the commands
- * given in the rest arguments if the assertion is failed.
- * When CONFIG_SND_DEBUG is not set, the expression is executed but
- * not checked.
- */
-#define snd_assert(expr, args...) do {					\
-	if (unlikely(!(expr))) {					\
-		snd_printk(KERN_ERR "BUG? (%s)\n", __ASTRING__(expr));	\
-		dump_stack();						\
-		args;							\
-	}								\
-} while (0)
 
 #define snd_BUG() do {				\
 	snd_printk(KERN_ERR "BUG?\n");		\
@@ -411,7 +393,6 @@ void snd_verbose_printd(const char *file, int line, const char *format, ...)
 #else /* !CONFIG_SND_DEBUG */
 
 #define snd_printd(fmt, args...)	/* nothing */
-#define snd_assert(expr, args...)	(void)(expr)
 #define snd_BUG()			/* nothing */
 #define snd_BUG_ON(cond)	({/*(void)(cond);*/ 0;})  /* always false */
 
