@@ -32,7 +32,7 @@
 #include <asm/mach/map.h>
 
 #include <mach/pxa-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa25x.h>
 #include <mach/idp.h>
 #include <mach/pxafb.h>
 #include <mach/bitfield.h>
@@ -45,6 +45,26 @@
  * - add pxa2xx_audio_ops_t device structure
  * - Ethernet interrupt
  */
+
+static unsigned long idp_pin_config[] __initdata = {
+	/* BTUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+	GPIO45_BTUART_RTS,
+
+	/* STUART */
+	GPIO46_STUART_RXD,
+	GPIO47_STUART_TXD,
+
+	/* MMC */
+	GPIO6_MMC_CLK,
+	GPIO8_MMC_CS0,
+
+	/* Ethernet */
+	GPIO33_nCS_5,	/* Ethernet CS */
+	GPIO4_GPIO,	/* Ethernet IRQ */
+};
 
 static struct resource smc91x_resources[] = {
 	[0] = {
@@ -127,23 +147,15 @@ static struct pxafb_mach_info sharp_lm8v31 = {
 	.pxafb_lcd_power = &idp_lcd_power
 };
 
-static int idp_mci_init(struct device *dev, irq_handler_t idp_detect_int, void *data)
-{
-	/* setup GPIO for PXA25x MMC controller	*/
-	pxa_gpio_mode(GPIO6_MMCCLK_MD);
-	pxa_gpio_mode(GPIO8_MMCCS0_MD);
-
-	return 0;
-}
-
 static struct pxamci_platform_data idp_mci_platform_data = {
 	.ocr_mask	= MMC_VDD_32_33|MMC_VDD_33_34,
-	.init 		= idp_mci_init,
 };
 
 static void __init idp_init(void)
 {
 	printk("idp_init()\n");
+
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(idp_pin_config));
 
 	platform_device_register(&smc91x_device);
 	//platform_device_register(&mst_audio_device);
@@ -177,15 +189,6 @@ static void __init idp_map_io(void)
 {
 	pxa_map_io();
 	iotable_init(idp_io_desc, ARRAY_SIZE(idp_io_desc));
-
-	// serial ports 2 & 3
-	pxa_gpio_mode(GPIO42_BTRXD_MD);
-	pxa_gpio_mode(GPIO43_BTTXD_MD);
-	pxa_gpio_mode(GPIO44_BTCTS_MD);
-	pxa_gpio_mode(GPIO45_BTRTS_MD);
-	pxa_gpio_mode(GPIO46_STRXD_MD);
-	pxa_gpio_mode(GPIO47_STTXD_MD);
-
 }
 
 
