@@ -1361,7 +1361,7 @@ iscsi_tgt_dscvr(struct iscsi_transport *transport,
 		return -EINVAL;
 
 	shost = scsi_host_lookup(ev->u.tgt_dscvr.host_no);
-	if (IS_ERR(shost)) {
+	if (!shost) {
 		printk(KERN_ERR "target discovery could not find host no %u\n",
 		       ev->u.tgt_dscvr.host_no);
 		return -ENODEV;
@@ -1387,7 +1387,7 @@ iscsi_set_host_param(struct iscsi_transport *transport,
 		return -ENOSYS;
 
 	shost = scsi_host_lookup(ev->u.set_host_param.host_no);
-	if (IS_ERR(shost)) {
+	if (!shost) {
 		printk(KERN_ERR "set_host_param could not find host no %u\n",
 		       ev->u.set_host_param.host_no);
 		return -ENODEV;
