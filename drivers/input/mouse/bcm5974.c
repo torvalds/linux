@@ -150,6 +150,7 @@ struct bcm5974_config {
 struct bcm5974 {
 	char phys[64];
 	struct usb_device *udev;	/* usb device */
+	struct usb_interface *intf;	/* our interface */
 	struct input_dev *input;	/* input dev */
 	struct bcm5974_config cfg;	/* device configuration */
 	struct mutex pm_mutex;		/* serialize access to open/suspend */
@@ -478,6 +479,10 @@ static int bcm5974_open(struct input_dev *input)
 	struct bcm5974 *dev = input_get_drvdata(input);
 	int error;
 
+	error = usb_autopm_get_interface(dev->intf);
+	if (error)
+		return error;
+
 	mutex_lock(&dev->pm_mutex);
 
 	error = bcm5974_start_traffic(dev);
@@ -485,6 +490,9 @@ static int bcm5974_open(struct input_dev *input)
 		dev->opened = 1;
 
 	mutex_unlock(&dev->pm_mutex);
+
+	if (error)
+		usb_autopm_put_interface(dev->intf);
 
 	return error;
 }
@@ -499,6 +507,8 @@ static void bcm5974_close(struct input_dev *input)
 	dev->opened = 0;
 
 	mutex_unlock(&dev->pm_mutex);
+
+	usb_autopm_put_interface(dev->intf);
 }
 
 static int bcm5974_suspend(struct usb_interface *iface, pm_message_t message)
@@ -551,6 +561,7 @@ static int bcm5974_probe(struct usb_interface *iface,
 	}
 
 	dev->udev = udev;
+	dev->intf = iface;
 	dev->input = input_dev;
 	dev->cfg = *cfg;
 	mutex_init(&dev->pm_mutex);
@@ -652,6 +663,7 @@ static struct usb_driver bcm5974_driver = {
 	.resume			= bcm5974_resume,
 	.reset_resume		= bcm5974_resume,
 	.id_table		= bcm5974_table,
+	.supports_autosuspend	= 1,
 };
 
 static int __init bcm5974_init(void)
