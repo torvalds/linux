@@ -1,5 +1,5 @@
-#ifndef PRISM54USB_H
-#define PRISM54USB_H
+#ifndef P54USB_H
+#define P54USB_H
 
 /*
  * Defines for USB based mac80211 Prism54 driver
@@ -130,4 +130,4 @@ struct p54u_priv {
 	struct sk_buff_head rx_queue;
 };
 
-#endif /* PRISM54USB_H */
+#endif /* P54USB_H */

@@ -322,7 +322,7 @@ static int p54u_read_eeprom(struct ieee80211_hw *dev)
 
 	buf = kmalloc(0x2020, GFP_KERNEL);
 	if (!buf) {
-		printk(KERN_ERR "prism54usb: cannot allocate memory for "
+		printk(KERN_ERR "p54usb: cannot allocate memory for "
 		       "eeprom readback!\n");
 		return -ENOMEM;
 	}
@@ -331,7 +331,7 @@ static int p54u_read_eeprom(struct ieee80211_hw *dev)
 		*((u32 *) buf) = priv->common.rx_start;
 		err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, sizeof(u32));
 		if (err) {
-			printk(KERN_ERR "prism54usb: addr send failed\n");
+			printk(KERN_ERR "p54usb: addr send failed\n");
 			goto fail;
 		}
 	} else {
@@ -341,7 +341,7 @@ static int p54u_read_eeprom(struct ieee80211_hw *dev)
 		reg->val = cpu_to_le32(ISL38XX_DEV_INT_DATA);
 		err = p54u_bulk_msg(priv, P54U_PIPE_DEV, buf, sizeof(*reg));
 		if (err) {
-			printk(KERN_ERR "prism54usb: dev_int send failed\n");
+			printk(KERN_ERR "p54usb: dev_int send failed\n");
 			goto fail;
 		}
 	}
@@ -359,7 +359,7 @@ static int p54u_read_eeprom(struct ieee80211_hw *dev)
 	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf,
 			    EEPROM_READBACK_LEN + priv->common.tx_hdr_len);
 	if (err) {
-		printk(KERN_ERR "prism54usb: eeprom req send failed\n");
+		printk(KERN_ERR "p54usb: eeprom req send failed\n");
 		goto fail;
 	}
 
@@ -369,7 +369,7 @@ static int p54u_read_eeprom(struct ieee80211_hw *dev)
 	if (!err && alen > offset) {
 		p54_parse_eeprom(dev, (u8 *)buf + offset, alen - offset);
 	} else {
-		printk(KERN_ERR "prism54usb: eeprom read failed!\n");
+		printk(KERN_ERR "p54usb: eeprom read failed!\n");
 		err = -EINVAL;
 		goto fail;
 	}
@@ -458,7 +458,7 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 
 		err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, block_size);
 		if (err) {
-			printk(KERN_ERR "prism54usb: firmware upload failed!\n");
+			printk(KERN_ERR "p54usb: firmware upload failed!\n");
 			goto err_upload_failed;
 		}
 
@@ -469,7 +469,7 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	*((__le32 *)buf) = cpu_to_le32(~crc32_le(~0, fw_entry->data, fw_entry->size));
 	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, sizeof(u32));
 	if (err) {
-		printk(KERN_ERR "prism54usb: firmware upload failed!\n");
+		printk(KERN_ERR "p54usb: firmware upload failed!\n");
 		goto err_upload_failed;
 	}
 
@@ -480,13 +480,13 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 			break;
 
 		if (alen > 5 && !memcmp(buf, "ERROR", 5)) {
-			printk(KERN_INFO "prism54usb: firmware upload failed!\n");
+			printk(KERN_INFO "p54usb: firmware upload failed!\n");
 			err = -EINVAL;
 			break;
 		}
 
 		if (time_after(jiffies, timeout)) {
-			printk(KERN_ERR "prism54usb: firmware boot timed out!\n");
+			printk(KERN_ERR "p54usb: firmware boot timed out!\n");
 			err = -ETIMEDOUT;
 			break;
 		}
@@ -498,7 +498,7 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 	buf[1] = '\r';
 	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, 2);
 	if (err) {
-		printk(KERN_ERR "prism54usb: firmware boot failed!\n");
+		printk(KERN_ERR "p54usb: firmware boot failed!\n");
 		goto err_upload_failed;
 	}
 
@@ -660,7 +660,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 
 		err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, block_len);
 		if (err) {
-			printk(KERN_ERR "prism54usb: firmware block upload "
+			printk(KERN_ERR "p54usb: firmware block upload "
 			       "failed\n");
 			goto fail;
 		}
@@ -694,7 +694,7 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 			  0x002C | (unsigned long)&devreg->direct_mem_win);
 		if (!(reg & cpu_to_le32(ISL38XX_DMA_STATUS_DONE)) ||
 		    !(reg & cpu_to_le32(ISL38XX_DMA_STATUS_READY))) {
-			printk(KERN_ERR "prism54usb: firmware DMA transfer "
+			printk(KERN_ERR "p54usb: firmware DMA transfer "
 			       "failed\n");
 			goto fail;
 		}
@@ -802,7 +802,7 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 
 	dev = p54_init_common(sizeof(*priv));
 	if (!dev) {
-		printk(KERN_ERR "prism54usb: ieee80211 alloc failed\n");
+		printk(KERN_ERR "p54usb: ieee80211 alloc failed\n");
 		return -ENOMEM;
 	}
 
@@ -858,7 +858,7 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
 		u8 perm_addr[ETH_ALEN];
 
-		printk(KERN_WARNING "prism54usb: Invalid hwaddr! Using randomly generated MAC addr\n");
+		printk(KERN_WARNING "p54usb: Invalid hwaddr! Using randomly generated MAC addr\n");
 		random_ether_addr(perm_addr);
 		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
 	}
@@ -867,7 +867,7 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "prism54usb: Cannot register netdevice\n");
+		printk(KERN_ERR "p54usb: Cannot register netdevice\n");
 		goto err_free_dev;
 	}
 
@@ -902,7 +902,7 @@ static void __devexit p54u_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver p54u_driver = {
-	.name	= "prism54usb",
+	.name	= "p54usb",
 	.id_table = p54u_table,
 	.probe = p54u_probe,
 	.disconnect = p54u_disconnect,

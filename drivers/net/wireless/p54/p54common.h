@@ -1,5 +1,5 @@
-#ifndef PRISM54COMMON_H
-#define PRISM54COMMON_H
+#ifndef P54COMMON_H
+#define P54COMMON_H
 
 /*
  * Common code specific definitions for mac80211 Prism54 drivers
@@ -250,4 +250,4 @@ struct p54_tx_control_vdcf {
 	__le16 frameburst;
 } __attribute__ ((packed));
 
-#endif /* PRISM54COMMON_H */
+#endif /* P54COMMON_H */

@@ -75,7 +75,7 @@ static int p54p_upload_firmware(struct ieee80211_hw *dev)
 
 	err = request_firmware(&fw_entry, "isl3886", &priv->pdev->dev);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): cannot find firmware "
+		printk(KERN_ERR "%s (p54pci): cannot find firmware "
 		       "(isl3886)\n", pci_name(priv->pdev));
 		return err;
 	}
@@ -150,16 +150,16 @@ static int p54p_read_eeprom(struct ieee80211_hw *dev)
 
 	init_completion(&priv->boot_comp);
 	err = request_irq(priv->pdev->irq, &p54p_simple_interrupt,
-			  IRQF_SHARED, "prism54pci", priv);
+			  IRQF_SHARED, "p54pci", priv);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): failed to register IRQ handler\n",
+		printk(KERN_ERR "%s (p54pci): failed to register IRQ handler\n",
 		       pci_name(priv->pdev));
 		return err;
 	}
 
 	eeprom = kmalloc(0x2010 + EEPROM_READBACK_LEN, GFP_KERNEL);
 	if (!eeprom) {
-		printk(KERN_ERR "%s (prism54pci): no memory for eeprom!\n",
+		printk(KERN_ERR "%s (p54pci): no memory for eeprom!\n",
 		       pci_name(priv->pdev));
 		err = -ENOMEM;
 		goto out;
@@ -177,7 +177,7 @@ static int p54p_read_eeprom(struct ieee80211_hw *dev)
 	P54P_WRITE(dev_int, cpu_to_le32(ISL38XX_DEV_INT_RESET));
 
 	if (!wait_for_completion_interruptible_timeout(&priv->boot_comp, HZ)) {
-		printk(KERN_ERR "%s (prism54pci): Cannot boot firmware!\n",
+		printk(KERN_ERR "%s (p54pci): Cannot boot firmware!\n",
 		       pci_name(priv->pdev));
 		err = -EINVAL;
 		goto out;
@@ -219,7 +219,7 @@ static int p54p_read_eeprom(struct ieee80211_hw *dev)
 	alen = le16_to_cpu(ring_control->rx_mgmt[0].len);
 	if (le32_to_cpu(ring_control->device_idx[2]) != 1 ||
 	    alen < 0x10) {
-		printk(KERN_ERR "%s (prism54pci): Cannot read eeprom!\n",
+		printk(KERN_ERR "%s (p54pci): Cannot read eeprom!\n",
 		       pci_name(priv->pdev));
 		err = -EINVAL;
 		goto out;
@@ -412,7 +412,7 @@ static int p54p_open(struct ieee80211_hw *dev)
 
 	init_completion(&priv->boot_comp);
 	err = request_irq(priv->pdev->irq, &p54p_interrupt,
-			  IRQF_SHARED, "prism54pci", dev);
+			  IRQF_SHARED, "p54pci", dev);
 	if (err) {
 		printk(KERN_ERR "%s: failed to register IRQ handler\n",
 		       wiphy_name(dev->wiphy));
@@ -506,7 +506,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	err = pci_enable_device(pdev);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): Cannot enable new PCI device\n",
+		printk(KERN_ERR "%s (p54pci): Cannot enable new PCI device\n",
 		       pci_name(pdev));
 		return err;
 	}
@@ -514,22 +514,22 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	mem_addr = pci_resource_start(pdev, 0);
 	mem_len = pci_resource_len(pdev, 0);
 	if (mem_len < sizeof(struct p54p_csr)) {
-		printk(KERN_ERR "%s (prism54pci): Too short PCI resources\n",
+		printk(KERN_ERR "%s (p54pci): Too short PCI resources\n",
 		       pci_name(pdev));
 		pci_disable_device(pdev);
 		return err;
 	}
 
-	err = pci_request_regions(pdev, "prism54pci");
+	err = pci_request_regions(pdev, "p54pci");
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): Cannot obtain PCI resources\n",
+		printk(KERN_ERR "%s (p54pci): Cannot obtain PCI resources\n",
 		       pci_name(pdev));
 		return err;
 	}
 
 	if (pci_set_dma_mask(pdev, DMA_32BIT_MASK) ||
 	    pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK)) {
-		printk(KERN_ERR "%s (prism54pci): No suitable DMA available\n",
+		printk(KERN_ERR "%s (p54pci): No suitable DMA available\n",
 		       pci_name(pdev));
 		goto err_free_reg;
 	}
@@ -542,7 +542,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	dev = p54_init_common(sizeof(*priv));
 	if (!dev) {
-		printk(KERN_ERR "%s (prism54pci): ieee80211 alloc failed\n",
+		printk(KERN_ERR "%s (p54pci): ieee80211 alloc failed\n",
 		       pci_name(pdev));
 		err = -ENOMEM;
 		goto err_free_reg;
@@ -556,7 +556,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	priv->map = ioremap(mem_addr, mem_len);
 	if (!priv->map) {
-		printk(KERN_ERR "%s (prism54pci): Cannot map device memory\n",
+		printk(KERN_ERR "%s (p54pci): Cannot map device memory\n",
 		       pci_name(pdev));
 		err = -EINVAL;	// TODO: use a better error code?
 		goto err_free_dev;
@@ -565,7 +565,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 	priv->ring_control = pci_alloc_consistent(pdev, sizeof(*priv->ring_control),
 						  &priv->ring_control_dma);
 	if (!priv->ring_control) {
-		printk(KERN_ERR "%s (prism54pci): Cannot allocate rings\n",
+		printk(KERN_ERR "%s (p54pci): Cannot allocate rings\n",
 		       pci_name(pdev));
 		err = -ENOMEM;
 		goto err_iounmap;
@@ -588,7 +588,7 @@ static int __devinit p54p_probe(struct pci_dev *pdev,
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
-		printk(KERN_ERR "%s (prism54pci): Cannot register netdevice\n",
+		printk(KERN_ERR "%s (p54pci): Cannot register netdevice\n",
 		       pci_name(pdev));
 		goto err_free_common;
 	}
@@ -673,7 +673,7 @@ static int p54p_resume(struct pci_dev *pdev)
 #endif /* CONFIG_PM */
 
 static struct pci_driver p54p_driver = {
-	.name		= "prism54pci",
+	.name		= "p54pci",
 	.id_table	= p54p_table,
 	.probe		= p54p_probe,
 	.remove		= __devexit_p(p54p_remove),
