@@ -94,12 +94,12 @@ int chrp_set_rtc_time(struct rtc_time *tmarg)
 	chrp_cmos_clock_write((save_freq_select|RTC_DIV_RESET2), RTC_FREQ_SELECT);
 
 	if (!(save_control & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BIN_TO_BCD(tm.tm_sec);
-		BIN_TO_BCD(tm.tm_min);
-		BIN_TO_BCD(tm.tm_hour);
-		BIN_TO_BCD(tm.tm_mon);
-		BIN_TO_BCD(tm.tm_mday);
-		BIN_TO_BCD(tm.tm_year);
+		tm.tm_sec = bin2bcd(tm.tm_sec);
+		tm.tm_min = bin2bcd(tm.tm_min);
+		tm.tm_hour = bin2bcd(tm.tm_hour);
+		tm.tm_mon = bin2bcd(tm.tm_mon);
+		tm.tm_mday = bin2bcd(tm.tm_mday);
+		tm.tm_year = bin2bcd(tm.tm_year);
 	}
 	chrp_cmos_clock_write(tm.tm_sec,RTC_SECONDS);
 	chrp_cmos_clock_write(tm.tm_min,RTC_MINUTES);
@@ -136,12 +136,12 @@ void chrp_get_rtc_time(struct rtc_time *tm)
 	} while (sec != chrp_cmos_clock_read(RTC_SECONDS));
 
 	if (!(chrp_cmos_clock_read(RTC_CONTROL) & RTC_DM_BINARY) || RTC_ALWAYS_BCD) {
-		BCD_TO_BIN(sec);
-		BCD_TO_BIN(min);
-		BCD_TO_BIN(hour);
-		BCD_TO_BIN(day);
-		BCD_TO_BIN(mon);
-		BCD_TO_BIN(year);
+		sec = bcd2bin(sec);
+		min = bcd2bin(min);
+		hour = bcd2bin(hour);
+		day = bcd2bin(day);
+		mon = bcd2bin(mon);
+		year = bcd2bin(year);
 	}
 	if (year < 70)
 		year += 100;
