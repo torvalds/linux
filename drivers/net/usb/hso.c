@@ -1103,8 +1103,8 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 	/* reset the rts and dtr */
 	/* do the actual close */
 	serial->open_count--;
+	kref_put(&serial->parent->ref, hso_serial_ref_free);
 	if (serial->open_count <= 0) {
-		kref_put(&serial->parent->ref, hso_serial_ref_free);
 		serial->open_count = 0;
 		if (serial->tty) {
 			serial->tty->driver_data = NULL;
