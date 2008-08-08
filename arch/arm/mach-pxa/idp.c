@@ -184,14 +184,6 @@ static void __init idp_init(void)
 	pxa_set_mci_info(&idp_mci_platform_data);
 }
 
-static void __init idp_init_irq(void)
-{
-
-	pxa25x_init_irq();
-
-	set_irq_type(TOUCH_PANEL_IRQ, TOUCH_PANEL_IRQ_EDGE);
-}
-
 static struct map_desc idp_io_desc[] __initdata = {
   	{
 		.virtual	=  IDP_COREVOLT_VIRT,
@@ -218,7 +210,7 @@ MACHINE_START(PXA_IDP, "Vibren PXA255 IDP")
 	.phys_io	= 0x40000000,
 	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
 	.map_io		= idp_map_io,
-	.init_irq	= idp_init_irq,
+	.init_irq	= pxa25x_init_irq,
 	.timer		= &pxa_timer,
 	.init_machine	= idp_init,
 MACHINE_END
