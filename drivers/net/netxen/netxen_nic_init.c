@@ -1079,10 +1079,12 @@ int netxen_initialize_adapter_offload(struct netxen_adapter *adapter)
 
 void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 {
-	int i;
+	int i = 100;
 
-	if (adapter->dummy_dma.addr) {
-		i = 100;
+	if (!adapter->dummy_dma.addr)
+		return;
+
+	if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
 		do {
 			if (dma_watchdog_shutdown_request(adapter) == 1)
 				break;
@@ -1090,17 +1092,17 @@ void netxen_free_adapter_offload(struct netxen_adapter *adapter)
 			if (dma_watchdog_shutdown_poll_result(adapter) == 1)
 				break;
 		} while (--i);
+	}
 
-		if (i) {
-			pci_free_consistent(adapter->pdev,
-				    NETXEN_HOST_DUMMY_DMA_SIZE,
-				    adapter->dummy_dma.addr,
-				    adapter->dummy_dma.phys_addr);
-			adapter->dummy_dma.addr = NULL;
-		} else {
-			printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
-					adapter->netdev->name);
-		}
+	if (i) {
+		pci_free_consistent(adapter->pdev,
+			    NETXEN_HOST_DUMMY_DMA_SIZE,
+			    adapter->dummy_dma.addr,
+			    adapter->dummy_dma.phys_addr);
+		adapter->dummy_dma.addr = NULL;
+	} else {
+		printk(KERN_ERR "%s: dma_watchdog_shutdown failed\n",
+				adapter->netdev->name);
 	}
 }
 
