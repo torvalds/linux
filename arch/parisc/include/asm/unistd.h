@@ -801,8 +801,14 @@
 #define __NR_timerfd_create	(__NR_Linux + 306)
 #define __NR_timerfd_settime	(__NR_Linux + 307)
 #define __NR_timerfd_gettime	(__NR_Linux + 308)
+#define __NR_signalfd4		(__NR_Linux + 309)
+#define __NR_eventfd2		(__NR_Linux + 310)
+#define __NR_epoll_create1	(__NR_Linux + 311)
+#define __NR_dup3		(__NR_Linux + 312)
+#define __NR_pipe2		(__NR_Linux + 313)
+#define __NR_inotify_init1	(__NR_Linux + 314)
 
-#define __NR_Linux_syscalls	(__NR_timerfd_gettime + 1)
+#define __NR_Linux_syscalls	(__NR_inotify_init1 + 1)
 
 
 #define __IGNORE_select		/* newselect */

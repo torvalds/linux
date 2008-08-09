@@ -407,6 +407,12 @@
 	ENTRY_SAME(timerfd_create)
 	ENTRY_COMP(timerfd_settime)
 	ENTRY_COMP(timerfd_gettime)
+	ENTRY_COMP(signalfd4)
+	ENTRY_SAME(eventfd2)		/* 310 */
+	ENTRY_SAME(epoll_create1)
+	ENTRY_SAME(dup3)
+	ENTRY_SAME(pipe2)
+	ENTRY_SAME(inotify_init1)
 
 	/* Nothing yet */
 
