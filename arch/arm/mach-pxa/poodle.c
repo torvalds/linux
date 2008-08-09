@@ -381,6 +381,13 @@ static void __init poodle_init(void)
   	GPSR1 = 0x00000000;
         GPSR2 = 0x00000000;
 
+	platform_scoop_config = &poodle_pcmcia_config;
+	corgi_ssp_set_machinfo(&poodle_ssp_machinfo);
+
+	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
+	if (ret)
+		pr_warning("poodle: Unable to register LoCoMo device\n");
+
 	set_pxa_fb_parent(&poodle_locomo_device.dev);
 	set_pxa_fb_info(&poodle_fb_info);
 	pxa_gpio_mode(POODLE_GPIO_USB_PULLUP | GPIO_OUT);
@@ -389,14 +396,6 @@ static void __init poodle_init(void)
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
-
-	platform_scoop_config = &poodle_pcmcia_config;
-
-	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
-	if (ret) {
-		printk(KERN_WARNING "poodle: Unable to register LoCoMo device\n");
-	}
-	corgi_ssp_set_machinfo(&poodle_ssp_machinfo);
 }
 
 static void __init fixup_poodle(struct machine_desc *desc,
