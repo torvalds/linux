@@ -324,8 +324,6 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 				adapter->itr = 20000;
 				break;
 			default:
-				e1000_validate_option(&adapter->itr, &opt,
-					adapter);
 				/*
 				 * Save the setting, because the dynamic bits
 				 * change itr.
