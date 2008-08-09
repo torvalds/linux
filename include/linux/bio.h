@@ -188,8 +188,8 @@ struct bio {
 #define bio_failfast(bio)	((bio)->bi_rw & (1 << BIO_RW_FAILFAST))
 #define bio_rw_ahead(bio)	((bio)->bi_rw & (1 << BIO_RW_AHEAD))
 #define bio_rw_meta(bio)	((bio)->bi_rw & (1 << BIO_RW_META))
-#define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio))
 #define bio_discard(bio)	((bio)->bi_rw & (1 << BIO_RW_DISCARD))
+#define bio_empty_barrier(bio)	(bio_barrier(bio) && !bio_has_data(bio) && !bio_discard(bio))
 
 static inline unsigned int bio_cur_sectors(struct bio *bio)
 {

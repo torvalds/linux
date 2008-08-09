@@ -1077,12 +1077,13 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	/*
 	 * REQ_BARRIER implies no merging, but lets make it explicit
 	 */
-	if (unlikely(bio_barrier(bio)))
-		req->cmd_flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
 	if (unlikely(bio_discard(bio))) {
-		req->cmd_flags |= (REQ_SOFTBARRIER | REQ_DISCARD);
+		req->cmd_flags |= REQ_DISCARD;
+		if (bio_barrier(bio))
+			req->cmd_flags |= REQ_SOFTBARRIER;
 		req->q->prepare_discard_fn(req->q, req);
-	}
+	} else if (unlikely(bio_barrier(bio)))
+		req->cmd_flags |= (REQ_HARDBARRIER | REQ_NOMERGE);
 
 	if (bio_sync(bio))
 		req->cmd_flags |= REQ_RW_SYNC;
@@ -1114,7 +1115,8 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 	blk_queue_bounce(q, &bio);
 
 	barrier = bio_barrier(bio);
-	if (unlikely(barrier) && (q->next_ordered == QUEUE_ORDERED_NONE)) {
+	if (unlikely(barrier) && bio_has_data(bio) &&
+	    (q->next_ordered == QUEUE_ORDERED_NONE)) {
 		err = -EOPNOTSUPP;
 		goto end_io;
 	}

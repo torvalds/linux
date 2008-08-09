@@ -372,7 +372,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 			nr_sects = 0;
 		}
 		bio_get(bio);
-		submit_bio(WRITE_DISCARD, bio);
+		submit_bio(DISCARD_BARRIER, bio);
 
 		/* Check if it failed immediately */
 		if (bio_flagged(bio, BIO_EOPNOTSUPP))

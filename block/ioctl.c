@@ -161,7 +161,7 @@ static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
 			bio->bi_size = len << 9;
 			len = 0;
 		}
-		submit_bio(WRITE_DISCARD, bio);
+		submit_bio(DISCARD_NOBARRIER, bio);
 
 		wait_for_completion(&wait);
 
