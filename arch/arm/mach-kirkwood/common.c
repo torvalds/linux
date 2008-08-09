@@ -15,6 +15,7 @@
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
+#include <linux/spi/orion_spi.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
@@ -193,6 +194,37 @@ void __init kirkwood_sata_init(struct mv_sata_platform_data *sata_data)
 	sata_data->dram = &kirkwood_mbus_dram_info;
 	kirkwood_sata.dev.platform_data = sata_data;
 	platform_device_register(&kirkwood_sata);
+}
+
+
+/*****************************************************************************
+ * SPI
+ ****************************************************************************/
+static struct orion_spi_info kirkwood_spi_plat_data = {
+	.tclk		= KIRKWOOD_TCLK,
+};
+
+static struct resource kirkwood_spi_resources[] = {
+	{
+		.start	= SPI_PHYS_BASE,
+		.end	= SPI_PHYS_BASE + SZ_512 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_spi = {
+	.name		= "orion_spi",
+	.id		= 0,
+	.resource	= kirkwood_spi_resources,
+	.dev		= {
+		.platform_data	= &kirkwood_spi_plat_data,
+	},
+	.num_resources	= ARRAY_SIZE(kirkwood_spi_resources),
+};
+
+void __init kirkwood_spi_init()
+{
+	platform_device_register(&kirkwood_spi);
 }
 
 
