@@ -150,8 +150,8 @@ struct bio {
  * bit 3 -- fail fast, don't want low level driver retries
  * bit 4 -- synchronous I/O hint: the block layer will unplug immediately
  */
-#define BIO_RW		0
-#define BIO_RW_AHEAD	1
+#define BIO_RW		0	/* Must match RW in req flags (blkdev.h) */
+#define BIO_RW_AHEAD	1	/* Must match FAILFAST in req flags */
 #define BIO_RW_BARRIER	2
 #define BIO_RW_FAILFAST	3
 #define BIO_RW_SYNC	4

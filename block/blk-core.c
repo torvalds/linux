@@ -624,10 +624,6 @@ blk_alloc_request(struct request_queue *q, int rw, int priv, gfp_t gfp_mask)
 
 	blk_rq_init(q, rq);
 
-	/*
-	 * first three bits are identical in rq->cmd_flags and bio->bi_rw,
-	 * see bio.h and blkdev.h
-	 */
 	rq->cmd_flags = rw | REQ_ALLOCED;
 
 	if (priv) {
@@ -2012,7 +2008,8 @@ EXPORT_SYMBOL_GPL(blk_end_request_callback);
 void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 		     struct bio *bio)
 {
-	/* first two bits are identical in rq->cmd_flags and bio->bi_rw */
+	/* Bit 0 (R/W) is identical in rq->cmd_flags and bio->bi_rw, and
+	   we want BIO_RW_AHEAD (bit 1) to imply REQ_FAILFAST (bit 1). */
 	rq->cmd_flags |= (bio->bi_rw & 3);
 
 	rq->nr_phys_segments = bio_phys_segments(q, bio);

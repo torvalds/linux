@@ -84,7 +84,7 @@ enum {
 };
 
 /*
- * request type modified bits. first three bits match BIO_RW* bits, important
+ * request type modified bits. first two bits match BIO_RW* bits, important
  */
 enum rq_flag_bits {
 	__REQ_RW,		/* not set, read. set, write */
