@@ -8,9 +8,10 @@ Introduction
 
   The Samsung S3C24XX range of ARM9 System-on-Chip CPUs are supported
   by the 's3c2410' architecture of ARM Linux. Currently the S3C2410,
-  S3C2412, S3C2413, S3C2440 and S3C2442 devices are supported.
+  S3C2412, S3C2413, S3C2440, S3C2442 and S3C2443 devices are supported.
 
-  Support for the S3C2400 series is in progress.
+  Support for the S3C2400 and S3C24A0 series are in progress.
+
 
 Configuration
 -------------
@@ -37,6 +38,22 @@ Layout
 
   Register, kernel and platform data definitions are held in the
   arch/arm/mach-s3c2410 directory./include/mach
+
+arch/arm/plat-s3c24xx:
+
+  Files in here are either common to all the s3c24xx family,
+  or are common to only some of them with names to indicate this
+  status. The files that are not common to all are generally named
+  with the initial cpu they support in the series to ensure a short
+  name without any possibility of confusion with newer devices.
+
+  As an example, initially s3c244x would cover s3c2440 and s3c2442, but
+  with the s3c2443 which does not share many of the same drivers in
+  this directory, the name becomes invalid. We stick to s3c2440-<x>
+  to indicate a driver that is s3c2440 and s3c2442 compatible.
+
+  This does mean that to find the status of any given SoC, a number
+  of directories may need to be searched.
 
 
 Machines
@@ -159,6 +176,17 @@ NAND
   For more information see Documentation/arm/Samsung-S3C24XX/NAND.txt
 
 
+SD/MMC
+------
+
+  The SD/MMC hardware pre S3C2443 is supported in the current
+  kernel, the driver is drivers/mmc/host/s3cmci.c and supports
+  1 and 4 bit SD or MMC cards.
+
+  The SDIO behaviour of this driver has not been fully tested. There is no
+  current support for hardware SDIO interrupts.
+
+
 Serial
 ------
 
@@ -177,6 +205,9 @@ GPIO
 
   The core contains support for manipulating the GPIO, see the
   documentation in GPIO.txt in the same directory as this file.
+
+  Newer kernels carry GPIOLIB, and support is being moved towards
+  this with some of the older support in line to be removed.
 
 
 Clock Management
