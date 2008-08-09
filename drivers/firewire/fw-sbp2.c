@@ -1423,7 +1423,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	struct fw_device *device = fw_device(lu->tgt->unit->device.parent);
 	struct sbp2_command_orb *orb;
 	unsigned int max_payload;
-	int retval = SCSI_MLQUEUE_HOST_BUSY;
+	int generation, retval = SCSI_MLQUEUE_HOST_BUSY;
 
 	/*
 	 * Bidirectional commands are not yet implemented, and unknown
@@ -1467,6 +1467,9 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (cmd->sc_data_direction == DMA_FROM_DEVICE)
 		orb->request.misc |= cpu_to_be32(COMMAND_ORB_DIRECTION);
 
+	generation = device->generation;
+	smp_rmb();    /* sbp2_map_scatterlist looks at tgt->address_high */
+
 	if (scsi_sg_count(cmd) && sbp2_map_scatterlist(orb, device, lu) < 0)
 		goto out;
 
@@ -1479,7 +1482,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	if (dma_mapping_error(device->card->device, orb->base.request_bus))
 		goto out;
 
-	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, lu->generation,
+	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, generation,
 		      lu->command_block_agent_address + SBP2_ORB_POINTER);
 	retval = 0;
  out:
