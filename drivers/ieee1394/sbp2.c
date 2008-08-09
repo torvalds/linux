@@ -1533,6 +1533,10 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
 		orb->data_descriptor_lo = cmd->sge_dma;
 
+		dma_sync_single_for_cpu(hi->host->device.parent, cmd->sge_dma,
+					sizeof(cmd->scatter_gather_element),
+					DMA_TO_DEVICE);
+
 		/* loop through and fill out our SBP-2 page tables
 		 * (and split up anything too large) */
 		for (i = 0, sg_count = 0; i < count; i++, sg = sg_next(sg)) {
@@ -1559,6 +1563,11 @@ static void sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 		sbp2util_cpu_to_be32_buffer(sg_element,
 				(sizeof(struct sbp2_unrestricted_page_table)) *
 				sg_count);
+
+		dma_sync_single_for_device(hi->host->device.parent,
+					   cmd->sge_dma,
+					   sizeof(cmd->scatter_gather_element),
+					   DMA_TO_DEVICE);
 	}
 }
 
@@ -1566,12 +1575,14 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 				    struct sbp2_command_info *cmd,
 				    struct scsi_cmnd *SCpnt)
 {
-	struct sbp2_fwhost_info *hi = lu->hi;
+	struct device *dmadev = lu->hi->host->device.parent;
 	struct sbp2_command_orb *orb = &cmd->command_orb;
 	u32 orb_direction;
 	unsigned int scsi_request_bufflen = scsi_bufflen(SCpnt);
 	enum dma_data_direction dma_dir = SCpnt->sc_data_direction;
 
+	dma_sync_single_for_cpu(dmadev, cmd->command_orb_dma,
+				sizeof(struct sbp2_command_orb), DMA_TO_DEVICE);
 	/*
 	 * Set-up our command ORB.
 	 *
@@ -1603,7 +1614,7 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 		orb->data_descriptor_lo = 0x0;
 		orb->misc |= ORB_SET_DIRECTION(1);
 	} else
-		sbp2_prep_command_orb_sg(orb, hi, cmd, scsi_sg_count(SCpnt),
+		sbp2_prep_command_orb_sg(orb, lu->hi, cmd, scsi_sg_count(SCpnt),
 					 scsi_sglist(SCpnt),
 					 orb_direction, dma_dir);
 
@@ -1611,6 +1622,9 @@ static void sbp2_create_command_orb(struct sbp2_lu *lu,
 
 	memset(orb->cdb, 0, sizeof(orb->cdb));
 	memcpy(orb->cdb, SCpnt->cmnd, SCpnt->cmd_len);
+
+	dma_sync_single_for_device(dmadev, cmd->command_orb_dma,
+			sizeof(struct sbp2_command_orb), DMA_TO_DEVICE);
 }
 
 static void sbp2_link_orb_command(struct sbp2_lu *lu,
@@ -1623,14 +1637,6 @@ static void sbp2_link_orb_command(struct sbp2_lu *lu,
 	quadlet_t data[2];
 	size_t length;
 	unsigned long flags;
-
-	dma_sync_single_for_device(hi->host->device.parent,
-				   cmd->command_orb_dma,
-				   sizeof(struct sbp2_command_orb),
-				   DMA_TO_DEVICE);
-	dma_sync_single_for_device(hi->host->device.parent, cmd->sge_dma,
-				   sizeof(cmd->scatter_gather_element),
-				   DMA_TO_DEVICE);
 
 	/* check to see if there are any previous orbs to use */
 	spin_lock_irqsave(&lu->cmd_orb_lock, flags);
@@ -1789,13 +1795,6 @@ static int sbp2_handle_status_write(struct hpsb_host *host, int nodeid,
 	else
 		cmd = sbp2util_find_command_for_orb(lu, sb->ORB_offset_lo);
 	if (cmd) {
-		dma_sync_single_for_cpu(hi->host->device.parent,
-					cmd->command_orb_dma,
-					sizeof(struct sbp2_command_orb),
-					DMA_TO_DEVICE);
-		dma_sync_single_for_cpu(hi->host->device.parent, cmd->sge_dma,
-					sizeof(cmd->scatter_gather_element),
-					DMA_TO_DEVICE);
 		/* Grab SCSI command pointers and check status. */
 		/*
 		 * FIXME: If the src field in the status is 1, the ORB DMA must
@@ -1912,7 +1911,6 @@ done:
 
 static void sbp2scsi_complete_all_commands(struct sbp2_lu *lu, u32 status)
 {
-	struct sbp2_fwhost_info *hi = lu->hi;
 	struct list_head *lh;
 	struct sbp2_command_info *cmd;
 	unsigned long flags;
@@ -1921,13 +1919,6 @@ static void sbp2scsi_complete_all_commands(struct sbp2_lu *lu, u32 status)
 	while (!list_empty(&lu->cmd_orb_inuse)) {
 		lh = lu->cmd_orb_inuse.next;
 		cmd = list_entry(lh, struct sbp2_command_info, list);
-		dma_sync_single_for_cpu(hi->host->device.parent,
-				        cmd->command_orb_dma,
-					sizeof(struct sbp2_command_orb),
-					DMA_TO_DEVICE);
-		dma_sync_single_for_cpu(hi->host->device.parent, cmd->sge_dma,
-					sizeof(cmd->scatter_gather_element),
-					DMA_TO_DEVICE);
 		sbp2util_mark_command_completed(lu, cmd);
 		if (cmd->Current_SCpnt) {
 			cmd->Current_SCpnt->result = status << 16;
@@ -2049,7 +2040,6 @@ static void sbp2scsi_slave_destroy(struct scsi_device *sdev)
 static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 {
 	struct sbp2_lu *lu = (struct sbp2_lu *)SCpnt->device->host->hostdata[0];
-	struct sbp2_fwhost_info *hi = lu->hi;
 	struct sbp2_command_info *cmd;
 	unsigned long flags;
 
@@ -2063,14 +2053,6 @@ static int sbp2scsi_abort(struct scsi_cmnd *SCpnt)
 		spin_lock_irqsave(&lu->cmd_orb_lock, flags);
 		cmd = sbp2util_find_command_for_SCpnt(lu, SCpnt);
 		if (cmd) {
-			dma_sync_single_for_cpu(hi->host->device.parent,
-					cmd->command_orb_dma,
-					sizeof(struct sbp2_command_orb),
-					DMA_TO_DEVICE);
-			dma_sync_single_for_cpu(hi->host->device.parent,
-					cmd->sge_dma,
-					sizeof(cmd->scatter_gather_element),
-					DMA_TO_DEVICE);
 			sbp2util_mark_command_completed(lu, cmd);
 			if (cmd->Current_SCpnt) {
 				cmd->Current_SCpnt->result = DID_ABORT << 16;
