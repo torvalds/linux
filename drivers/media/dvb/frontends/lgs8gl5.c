@@ -92,7 +92,7 @@ lgs8gl5_write_reg(struct lgs8gl5_state *state, u8 reg, u8 data)
 static int
 lgs8gl5_read_reg(struct lgs8gl5_state *state, u8 reg)
 {
-	int ret, j;
+	int ret;
 	u8 b0[] = {reg};
 	u8 b1[] = {0};
 	struct i2c_msg msg[2] = {
@@ -132,7 +132,7 @@ lgs8gl5_update_reg(struct lgs8gl5_state *state, u8 reg, u8 data)
 static int
 lgs8gl5_update_alt_reg(struct lgs8gl5_state *state, u8 reg, u8 data)
 {
-	int ret, j;
+	int ret;
 	u8 b0[] = {reg};
 	u8 b1[] = {0};
 	u8 b2[] = {reg, data};
@@ -173,30 +173,6 @@ lgs8gl5_soft_reset(struct lgs8gl5_state *state)
 	lgs8gl5_write_reg(state, REG_RESET, val & ~REG_RESET_OFF);
 	lgs8gl5_write_reg(state, REG_RESET, val | REG_RESET_OFF);
 	msleep(5);
-}
-
-
-static int
-lgs8gl5_set_inversion(struct lgs8gl5_state *state, int inversion)
-{
-	u8 val;
-
-	dprintk("%s\n", __func__);
-
-	switch (inversion) {
-	case INVERSION_AUTO:
-		return -EOPNOTSUPP;
-	case INVERSION_ON:
-		val = lgs8gl5_read_reg(state, REG_INVERSION);
-		return lgs8gl5_write_reg(state, REG_INVERSION,
-			val | REG_INVERSION_ON);
-	case INVERSION_OFF:
-		val = lgs8gl5_read_reg(state, REG_INVERSION);
-		return lgs8gl5_write_reg(state, REG_INVERSION,
-			val & ~REG_INVERSION_ON);
-	default:
-		return -EINVAL;
-	}
 }
 
 
@@ -297,7 +273,6 @@ lgs8gl5_read_status(struct dvb_frontend *fe, fe_status_t *status)
 static int
 lgs8gl5_read_ber(struct dvb_frontend *fe, u32 *ber)
 {
-	struct lgs8gl5_state *state = fe->demodulator_priv;
 	*ber = 0;
 
 	return 0;
@@ -329,7 +304,6 @@ lgs8gl5_read_snr(struct dvb_frontend *fe, u16 *snr)
 static int
 lgs8gl5_read_ucblocks(struct dvb_frontend *fe, u32 *ucblocks)
 {
-	struct lgs8gl5_state *state = fe->demodulator_priv;
 	*ucblocks = 0;
 
 	return 0;
