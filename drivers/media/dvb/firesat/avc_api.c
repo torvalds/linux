@@ -240,6 +240,12 @@ static void AVCTuner_tuneQPSK(struct firesat *firesat, struct dvb_frontend_param
 	else
 		CmdFrm->operand[12] = (firesat->tone==SEC_TONE_ON)?1:0; // band
 
+	if (firesat->type == FireSAT_DVB_S2) {
+		CmdFrm->operand[13] = 0x1;
+		CmdFrm->operand[14] = 0xFF;
+		CmdFrm->operand[15] = 0xFF;
+	}
+
 	CmdFrm->length = 16;
 }
 
