@@ -386,6 +386,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_MPEG_AUDIO_L1_BITRATE: 	return "Audio Layer I Bitrate";
 	case V4L2_CID_MPEG_AUDIO_L2_BITRATE: 	return "Audio Layer II Bitrate";
 	case V4L2_CID_MPEG_AUDIO_L3_BITRATE: 	return "Audio Layer III Bitrate";
+	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE: 	return "Audio AAC Bitrate";
 	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE: 	return "Audio AC-3 Bitrate";
 	case V4L2_CID_MPEG_AUDIO_MODE: 		return "Audio Stereo Mode";
 	case V4L2_CID_MPEG_AUDIO_MODE_EXTENSION: return "Audio Stereo Mode Extension";
@@ -548,6 +549,8 @@ int v4l2_ctrl_query_fill_std(struct v4l2_queryctrl *qctrl)
 				V4L2_MPEG_AUDIO_L3_BITRATE_32K,
 				V4L2_MPEG_AUDIO_L3_BITRATE_320K, 1,
 				V4L2_MPEG_AUDIO_L3_BITRATE_192K);
+	case V4L2_CID_MPEG_AUDIO_AAC_BITRATE:
+		return v4l2_ctrl_query_fill(qctrl, 0, 6400, 1, 3200000);
 	case V4L2_CID_MPEG_AUDIO_AC3_BITRATE:
 		return v4l2_ctrl_query_fill(qctrl,
 				V4L2_MPEG_AUDIO_AC3_BITRATE_32K,
