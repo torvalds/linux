@@ -61,6 +61,24 @@ static unsigned long e740_pin_config[] __initdata = {
 	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,
 };
 
+static unsigned long e400_pin_config[] __initdata = {
+	/* Chip selects */
+	GPIO15_nCS_1,   /* CS1 - Flash */
+	GPIO80_nCS_4,   /* CS4 - TMIO */
+
+	/* Clocks */
+	GPIO12_32KHz,
+
+	/* BTUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+	GPIO45_GPIO, /* Used by TMIO for #SUSPEND */
+
+	/* wakeup */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,
+};
+
 /* Only e800 has 128MB RAM */
 static void __init eseries_fixup(struct machine_desc *desc,
 	struct tag *tags, char **cmdline, struct meminfo *mi)
@@ -77,6 +95,11 @@ static void __init eseries_fixup(struct machine_desc *desc,
 static void __init e740_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e740_pin_config));
+}
+
+static void __init e400_init(void)
+{
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(e400_pin_config));
 }
 
 /* e-series machine definitions */
@@ -143,6 +166,7 @@ MACHINE_START(E400, "Toshiba e400")
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
+	.init_machine	= e400_init,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif
