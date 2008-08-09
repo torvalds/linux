@@ -183,6 +183,21 @@ EXPORT_SYMBOL(unregister_qdisc);
    (root qdisc, all its children, children of children etc.)
  */
 
+struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
+{
+	struct Qdisc *q;
+
+	if (!(root->flags & TCQ_F_BUILTIN) &&
+	    root->handle == handle)
+		return root;
+
+	list_for_each_entry(q, &root->list, list) {
+		if (q->handle == handle)
+			return q;
+	}
+	return NULL;
+}
+
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	unsigned int i;
@@ -191,16 +206,11 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
 		struct Qdisc *q, *txq_root = txq->qdisc_sleeping;
 
-		if (!(txq_root->flags & TCQ_F_BUILTIN) &&
-		    txq_root->handle == handle)
-			return txq_root;
-
-		list_for_each_entry(q, &txq_root->list, list) {
-			if (q->handle == handle)
-				return q;
-		}
+		q = qdisc_match_from_root(txq_root, handle);
+		if (q)
+			return q;
 	}
-	return NULL;
+	return qdisc_match_from_root(dev->rx_queue.qdisc_sleeping, handle);
 }
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
@@ -908,7 +918,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /* ingress */
-				q = dev->rx_queue.qdisc;
+				q = dev->rx_queue.qdisc_sleeping;
 			}
 		} else {
 			struct netdev_queue *dev_queue;
@@ -978,7 +988,7 @@ replay:
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /*ingress */
-				q = dev->rx_queue.qdisc;
+				q = dev->rx_queue.qdisc_sleeping;
 			}
 		} else {
 			struct netdev_queue *dev_queue;
@@ -1529,11 +1539,11 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	t = 0;
 
 	dev_queue = netdev_get_tx_queue(dev, 0);
-	if (tc_dump_tclass_root(dev_queue->qdisc, skb, tcm, cb, &t, s_t) < 0)
+	if (tc_dump_tclass_root(dev_queue->qdisc_sleeping, skb, tcm, cb, &t, s_t) < 0)
 		goto done;
 
 	dev_queue = &dev->rx_queue;
-	if (tc_dump_tclass_root(dev_queue->qdisc, skb, tcm, cb, &t, s_t) < 0)
+	if (tc_dump_tclass_root(dev_queue->qdisc_sleeping, skb, tcm, cb, &t, s_t) < 0)
 		goto done;
 
 done:
