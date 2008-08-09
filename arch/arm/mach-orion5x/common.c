@@ -382,6 +382,8 @@ static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 			*dev_name = "MV88F5281-D2";
 		} else if (*rev == MV88F5281_REV_D1) {
 			*dev_name = "MV88F5281-D1";
+		} else if (*rev == MV88F5281_REV_D0) {
+			*dev_name = "MV88F5281-D0";
 		} else {
 			*dev_name = "MV88F5281-Rev-Unsupported";
 		}
@@ -416,6 +418,15 @@ void __init orion5x_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_cpu_mbus_bridge();
+
+	/*
+	 * Don't issue "Wait for Interrupt" instruction if we are
+	 * running on D0 5281 silicon.
+	 */
+	if (dev == MV88F5281_DEV_ID && rev == MV88F5281_REV_D0) {
+		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
+		disable_hlt();
+	}
 }
 
 /*

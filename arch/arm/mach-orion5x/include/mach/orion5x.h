@@ -73,6 +73,7 @@
 #define MV88F5182_REV_A2	2
 /* Orion-2 (88F5281) */
 #define MV88F5281_DEV_ID	0x5281
+#define MV88F5281_REV_D0	4
 #define MV88F5281_REV_D1	5
 #define MV88F5281_REV_D2	6
 
