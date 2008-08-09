@@ -100,7 +100,7 @@ struct ieee80211_sta_bss {
 	u64 timestamp;
 	int beacon_int;
 
-	bool probe_resp;
+	unsigned long last_probe_resp;
 	unsigned long last_update;
 
 	/* during assocation, we save an ERP value from a probe response so
@@ -294,12 +294,14 @@ struct mesh_config {
 #define IEEE80211_STA_PRIVACY_INVOKED	BIT(13)
 /* flags for  MLME request*/
 #define IEEE80211_STA_REQ_SCAN 0
-#define IEEE80211_STA_REQ_AUTH 1
-#define IEEE80211_STA_REQ_RUN  2
+#define IEEE80211_STA_REQ_DIRECT_PROBE 1
+#define IEEE80211_STA_REQ_AUTH 2
+#define IEEE80211_STA_REQ_RUN  3
 
 /* flags used for setting mlme state */
 enum ieee80211_sta_mlme_state {
 	IEEE80211_STA_MLME_DISABLED,
+	IEEE80211_STA_MLME_DIRECT_PROBE,
 	IEEE80211_STA_MLME_AUTHENTICATE,
 	IEEE80211_STA_MLME_ASSOCIATE,
 	IEEE80211_STA_MLME_ASSOCIATED,
@@ -362,6 +364,7 @@ struct ieee80211_if_sta {
 	struct sk_buff_head skb_queue;
 
 	int assoc_scan_tries; /* number of scans done pre-association */
+	int direct_probe_tries; /* retries for direct probes */
 	int auth_tries; /* retries for auth req */
 	int assoc_tries; /* retries for assoc req */
 
