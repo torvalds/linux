@@ -816,9 +816,9 @@ static int cxusb_dualdig4_rev2_frontend_attach(struct dvb_usb_adapter *adap)
 	dib7000p_i2c_enumeration(&adap->dev->i2c_adap, 1, 18,
 				 &cxusb_dualdig4_rev2_config);
 
-	if ((adap->fe = dvb_attach(dib7000p_attach,
-				   &adap->dev->i2c_adap, 0x80,
-				   &cxusb_dualdig4_rev2_config)) == NULL)
+	adap->fe = dvb_attach(dib7000p_attach, &adap->dev->i2c_adap, 0x80,
+			      &cxusb_dualdig4_rev2_config);
+	if (adap->fe == NULL)
 		return -EIO;
 
 	return 0;
@@ -855,9 +855,9 @@ static int dib7070_set_param_override(struct dvb_frontend *fe,
 	u16 offset;
 	u8 band = BAND_OF_FREQUENCY(fep->frequency/1000);
 	switch (band) {
-		case BAND_VHF: offset = 950; break;
-		case BAND_UHF:
-		default: offset = 550; break;
+	case BAND_VHF: offset = 950; break;
+	default:
+	case BAND_UHF: offset = 550; break;
 	}
 
 	dib7000p_set_wbd_ref(fe, offset + dib0070_wbd_offset(fe));
@@ -868,7 +868,9 @@ static int dib7070_set_param_override(struct dvb_frontend *fe,
 static int cxusb_dualdig4_rev2_tuner_attach(struct dvb_usb_adapter *adap)
 {
 	struct dib0700_adapter_state *st = adap->priv;
-	struct i2c_adapter *tun_i2c = dib7000p_get_i2c_master(adap->fe, DIBX000_I2C_INTERFACE_TUNER, 1);
+	struct i2c_adapter *tun_i2c =
+		dib7000p_get_i2c_master(adap->fe,
+					DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	if (dvb_attach(dib0070_attach, adap->fe, tun_i2c,
 	    &dib7070p_dib0070_config) == NULL)
@@ -1479,7 +1481,8 @@ static struct dvb_usb_device_properties cxusb_aver_a868r_properties = {
 	}
 };
 
-static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_rev2_properties = {
+static
+struct dvb_usb_device_properties cxusb_bluebird_dualdig4_rev2_properties = {
 	.caps = DVB_USB_IS_AN_I2C_ADAPTER,
 
 	.usb_ctrl         = CYPRESS_FX2,
@@ -1489,10 +1492,10 @@ static struct dvb_usb_device_properties cxusb_bluebird_dualdig4_rev2_properties 
 	.num_adapters = 1,
 	.adapter = {
 		{
-			.streaming_ctrl   = cxusb_streaming_ctrl,
-			.frontend_attach  = cxusb_dualdig4_rev2_frontend_attach,
-			.tuner_attach     = cxusb_dualdig4_rev2_tuner_attach,
-			.size_of_priv     = sizeof(struct dib0700_adapter_state),
+			.streaming_ctrl  = cxusb_streaming_ctrl,
+			.frontend_attach = cxusb_dualdig4_rev2_frontend_attach,
+			.tuner_attach    = cxusb_dualdig4_rev2_tuner_attach,
+			.size_of_priv    = sizeof(struct dib0700_adapter_state),
 			/* parameter for the MPEG2-data transfer */
 			.stream = {
 				.type = USB_BULK,
