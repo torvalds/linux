@@ -10,14 +10,56 @@
  *
  */
 
+#include <linux/kernel.h>
 #include <linux/init.h>
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
+#include <mach/mfp-pxa25x.h>
+#include <mach/hardware.h>
+
 #include "generic.h"
+
+static unsigned long e740_pin_config[] __initdata = {
+	/* Chip selects */
+	GPIO15_nCS_1,   /* CS1 - Flash */
+	GPIO79_nCS_3,   /* CS3 - IMAGEON */
+	GPIO80_nCS_4,   /* CS4 - TMIO */
+
+	/* Clocks */
+	GPIO12_32KHz,
+
+	/* BTUART */
+	GPIO42_BTUART_RXD,
+	GPIO43_BTUART_TXD,
+	GPIO44_BTUART_CTS,
+	GPIO45_GPIO, /* Used by TMIO for #SUSPEND */
+
+	/* PC Card */
+	GPIO8_GPIO,   /* CD0 */
+	GPIO44_GPIO,  /* CD1 */
+	GPIO11_GPIO,  /* IRQ0 */
+	GPIO6_GPIO,   /* IRQ1 */
+	GPIO27_GPIO,  /* RST0 */
+	GPIO24_GPIO,  /* RST1 */
+	GPIO20_GPIO,  /* PWR0 */
+	GPIO23_GPIO,  /* PWR1 */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO52_nPCE_1,
+	GPIO53_nPCE_2,
+	GPIO54_nPSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* wakeup */
+	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,
+};
 
 /* Only e800 has 128MB RAM */
 static void __init eseries_fixup(struct machine_desc *desc,
@@ -30,6 +72,11 @@ static void __init eseries_fixup(struct machine_desc *desc,
 		mi->bank[0].size = (128*1024*1024);
 	else
 		mi->bank[0].size = (64*1024*1024);
+}
+
+static void __init e740_init(void)
+{
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(e740_pin_config));
 }
 
 /* e-series machine definitions */
@@ -69,6 +116,7 @@ MACHINE_START(E740, "Toshiba e740")
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
+	.init_machine	= e740_init,
 	.timer		= &pxa_timer,
 MACHINE_END
 #endif
