@@ -25,7 +25,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/orion5x.h>
-#include <asm/plat-orion/orion_nand.h>
+#include <plat/orion_nand.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -356,6 +356,7 @@ static void __init kurobox_pro_init(void)
 	orion5x_sata_init(&kurobox_pro_sata_data);
 	orion5x_uart0_init();
 	orion5x_uart1_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(KUROBOX_PRO_NOR_BOOT_BASE,
 				   KUROBOX_PRO_NOR_BOOT_SIZE);

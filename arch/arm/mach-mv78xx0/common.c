@@ -18,10 +18,10 @@
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/mv78xx0.h>
-#include <asm/plat-orion/cache-feroceon-l2.h>
-#include <asm/plat-orion/ehci-orion.h>
-#include <asm/plat-orion/orion_nand.h>
-#include <asm/plat-orion/time.h>
+#include <plat/cache-feroceon-l2.h>
+#include <plat/ehci-orion.h>
+#include <plat/orion_nand.h>
+#include <plat/time.h>
 #include "common.h"
 
 

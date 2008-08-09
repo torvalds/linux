@@ -19,7 +19,7 @@
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <mach/hardware.h>
-#include <asm/plat-orion/orion_nand.h>
+#include <plat/orion_nand.h>
 
 #ifdef CONFIG_MTD_CMDLINE_PARTS
 static const char *part_probes[] = { "cmdlinepart", NULL };
