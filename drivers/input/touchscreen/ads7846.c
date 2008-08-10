@@ -461,10 +461,11 @@ static ssize_t ads7846_disable_store(struct device *dev,
 				     const char *buf, size_t count)
 {
 	struct ads7846 *ts = dev_get_drvdata(dev);
-	char *endp;
-	int i;
+	long i;
 
-	i = simple_strtoul(buf, &endp, 10);
+	if (strict_strtoul(buf, 10, &i))
+		return -EINVAL;
+
 	spin_lock_irq(&ts->lock);
 
 	if (i)

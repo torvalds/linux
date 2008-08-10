@@ -89,10 +89,8 @@ static ssize_t trackpoint_set_int_attr(struct psmouse *psmouse, void *data,
 	struct trackpoint_attr_data *attr = data;
 	unsigned char *field = (unsigned char *)((char *)tp + attr->field_offset);
 	unsigned long value;
-	char *rest;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 255)
+	if (strict_strtoul(buf, 10, &value) || value > 255)
 		return -EINVAL;
 
 	*field = value;
@@ -117,10 +115,8 @@ static ssize_t trackpoint_set_bit_attr(struct psmouse *psmouse, void *data,
 	struct trackpoint_attr_data *attr = data;
 	unsigned char *field = (unsigned char *)((char *)tp + attr->field_offset);
 	unsigned long value;
-	char *rest;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest || value > 1)
+	if (strict_strtoul(buf, 10, &value) || value > 1)
 		return -EINVAL;
 
 	if (attr->inverted)

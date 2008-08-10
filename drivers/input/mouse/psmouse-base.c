@@ -1433,10 +1433,8 @@ static ssize_t psmouse_set_int_attr(struct psmouse *psmouse, void *offset, const
 {
 	unsigned int *field = (unsigned int *)((char *)psmouse + (size_t)offset);
 	unsigned long value;
-	char *rest;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest)
+	if (strict_strtoul(buf, 10, &value))
 		return -EINVAL;
 
 	if ((unsigned int)value != value)
@@ -1549,10 +1547,8 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
-	char *rest;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest)
+	if (strict_strtoul(buf, 10, &value))
 		return -EINVAL;
 
 	psmouse->set_rate(psmouse, value);
@@ -1562,10 +1558,8 @@ static ssize_t psmouse_attr_set_rate(struct psmouse *psmouse, void *data, const 
 static ssize_t psmouse_attr_set_resolution(struct psmouse *psmouse, void *data, const char *buf, size_t count)
 {
 	unsigned long value;
-	char *rest;
 
-	value = simple_strtoul(buf, &rest, 10);
-	if (*rest)
+	if (strict_strtoul(buf, 10, &value))
 		return -EINVAL;
 
 	psmouse->set_resolution(psmouse, value);

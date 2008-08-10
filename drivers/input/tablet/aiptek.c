@@ -1202,16 +1202,22 @@ static ssize_t
 store_tabletXtilt(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	int x;
+	long x;
 
-	if (strcmp(buf, "disable") == 0) {
+	if (strict_strtol(buf, 10, &x)) {
+		size_t len = buf[count - 1] == '\n' ? count - 1 : count;
+
+		if (strncmp(buf, "disable", len))
+			return -EINVAL;
+
 		aiptek->newSetting.xTilt = AIPTEK_TILT_DISABLE;
 	} else {
-		x = (int)simple_strtol(buf, NULL, 10);
-		if (x >= AIPTEK_TILT_MIN && x <= AIPTEK_TILT_MAX) {
-			aiptek->newSetting.xTilt = x;
-		}
+		if (x < AIPTEK_TILT_MIN || x > AIPTEK_TILT_MAX)
+			return -EINVAL;
+
+		aiptek->newSetting.xTilt = x;
 	}
+
 	return count;
 }
 
@@ -1238,16 +1244,22 @@ static ssize_t
 store_tabletYtilt(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
-	int y;
+	long y;
 
-	if (strcmp(buf, "disable") == 0) {
+	if (strict_strtol(buf, 10, &y)) {
+		size_t len = buf[count - 1] == '\n' ? count - 1 : count;
+
+		if (strncmp(buf, "disable", len))
+			return -EINVAL;
+
 		aiptek->newSetting.yTilt = AIPTEK_TILT_DISABLE;
 	} else {
-		y = (int)simple_strtol(buf, NULL, 10);
-		if (y >= AIPTEK_TILT_MIN && y <= AIPTEK_TILT_MAX) {
-			aiptek->newSetting.yTilt = y;
-		}
+		if (y < AIPTEK_TILT_MIN || y > AIPTEK_TILT_MAX)
+			return -EINVAL;
+
+		aiptek->newSetting.yTilt = y;
 	}
+
 	return count;
 }
 
@@ -1269,8 +1281,12 @@ static ssize_t
 store_tabletJitterDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	long j;
 
-	aiptek->newSetting.jitterDelay = (int)simple_strtol(buf, NULL, 10);
+	if (strict_strtol(buf, 10, &j))
+		return -EINVAL;
+
+	aiptek->newSetting.jitterDelay = (int)j;
 	return count;
 }
 
@@ -1294,8 +1310,12 @@ static ssize_t
 store_tabletProgrammableDelay(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	long d;
 
-	aiptek->newSetting.programmableDelay = (int)simple_strtol(buf, NULL, 10);
+	if (strict_strtol(buf, 10, &d))
+		return -EINVAL;
+
+	aiptek->newSetting.programmableDelay = (int)d;
 	return count;
 }
 
@@ -1541,8 +1561,11 @@ static ssize_t
 store_tabletWheel(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct aiptek *aiptek = dev_get_drvdata(dev);
+	long w;
 
-	aiptek->newSetting.wheel = (int)simple_strtol(buf, NULL, 10);
+	if (strict_strtol(buf, 10, &w)) return -EINVAL;
+
+	aiptek->newSetting.wheel = (int)w;
 	return count;
 }
 
