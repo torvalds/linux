@@ -170,8 +170,11 @@ void ip_vs_kill_estimator(struct ip_vs_stats *stats)
 		kfree(est);
 		killed++;
 	}
-	if (killed && est_list == NULL)
-		del_timer_sync(&est_timer);
+	while (killed && !est_list && try_to_del_timer_sync(&est_timer) < 0) {
+		write_unlock_bh(&est_lock);
+		cpu_relax();
+		write_lock_bh(&est_lock);
+	}
 	write_unlock_bh(&est_lock);
 }
 
