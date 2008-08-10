@@ -111,31 +111,9 @@ static int act_log_check(struct blk_trace *bt, u32 what, sector_t sector,
  */
 static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ), BLK_TC_ACT(BLK_TC_WRITE) };
 
-/*
- * Bio action bits of interest
- */
-static u32 bio_act[17] __read_mostly = { 
-	[1] = BLK_TC_ACT(BLK_TC_BARRIER),
-	[2] = BLK_TC_ACT(BLK_TC_SYNC),
-	[4] = BLK_TC_ACT(BLK_TC_AHEAD),
-	[8] = BLK_TC_ACT(BLK_TC_META),
-	[16] = BLK_TC_ACT(BLK_TC_DISCARD)
-};
-
-/*
- * More could be added as needed, taking care to increment the decrementer
- * to get correct indexing
- */
-#define trace_barrier_bit(rw)	\
-	(((rw) & (1 << BIO_RW_BARRIER)) >> (BIO_RW_BARRIER - 0))
-#define trace_sync_bit(rw)	\
-	(((rw) & (1 << BIO_RW_SYNC)) >> (BIO_RW_SYNC - 1))
-#define trace_ahead_bit(rw)	\
-	(((rw) & (1 << BIO_RW_AHEAD)) << (2 - BIO_RW_AHEAD))
-#define trace_meta_bit(rw)	\
-	(((rw) & (1 << BIO_RW_META)) >> (BIO_RW_META - 3))
-#define trace_discard_bit(rw)	\
-	(((rw) & (1 << BIO_RW_DISCARD)) >> (BIO_RW_DISCARD - 4))
+/* The ilog2() calls fall out because they're constant */
+#define MASK_TC_BIT(rw, __name) ( (rw & (1 << BIO_RW_ ## __name)) << \
+	  (ilog2(BLK_TC_ ## __name) + BLK_TC_SHIFT - BIO_RW_ ## __name) )
 
 /*
  * The worker for the various blk_add_trace*() types. Fills out a
@@ -155,11 +133,11 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 		return;
 
 	what |= ddir_act[rw & WRITE];
-	what |= bio_act[trace_barrier_bit(rw)];
-	what |= bio_act[trace_sync_bit(rw)];
-	what |= bio_act[trace_ahead_bit(rw)];
-	what |= bio_act[trace_meta_bit(rw)];
-	what |= bio_act[trace_discard_bit(rw)];
+	what |= MASK_TC_BIT(rw, BARRIER);
+	what |= MASK_TC_BIT(rw, SYNC);
+	what |= MASK_TC_BIT(rw, AHEAD);
+	what |= MASK_TC_BIT(rw, META);
+	what |= MASK_TC_BIT(rw, DISCARD);
 
 	pid = tsk->pid;
 	if (unlikely(act_log_check(bt, what, sector, pid)))
