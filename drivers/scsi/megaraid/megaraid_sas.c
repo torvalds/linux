@@ -198,6 +198,9 @@ megasas_clear_intr_xscale(struct megasas_register_set __iomem * regs)
 	 */
 	writel(status, &regs->outbound_intr_status);
 
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_status);
+
 	return 0;
 }
 
@@ -292,6 +295,9 @@ megasas_clear_intr_ppc(struct megasas_register_set __iomem * regs)
 	 * Clear the interrupt by writing back the same value
 	 */
 	writel(status, &regs->outbound_doorbell_clear);
+
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_doorbell_clear);
 
 	return 0;
 }
