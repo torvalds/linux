@@ -2306,7 +2306,7 @@ static struct nf_sockopt_ops ip_vs_sockopts = {
 };
 
 
-int ip_vs_control_init(void)
+int __init ip_vs_control_init(void)
 {
 	int ret;
 	int idx;
