@@ -49,7 +49,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_config_processor *m)
 {
 	int apicid;
 	char *bootup_cpu = "";
