@@ -64,18 +64,6 @@ endif
 
 # Debugging
 
-MUSB_DEBUG:=$(CONFIG_USB_MUSB_LOGLEVEL)
-
-ifeq ("$(strip $(MUSB_DEBUG))","")
-    ifdef CONFIG_USB_DEBUG
-	MUSB_DEBUG:=1
-    else
-	MUSB_DEBUG:=0
-    endif
+ifeq ($(CONFIG_USB_MUSB_DEBUG),y)
+	EXTRA_CFLAGS += -DDEBUG
 endif
-
-ifneq ($(MUSB_DEBUG),0)
-    EXTRA_CFLAGS += -DDEBUG
-endif
-
-EXTRA_CFLAGS += -DMUSB_DEBUG=$(MUSB_DEBUG)

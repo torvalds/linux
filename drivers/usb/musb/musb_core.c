@@ -114,23 +114,14 @@
 
 
 
-#if MUSB_DEBUG > 0
-unsigned debug = MUSB_DEBUG;
-module_param(debug, uint, 0);
-MODULE_PARM_DESC(debug, "initial debug message level");
-
-#define MUSB_VERSION_SUFFIX	"/dbg"
-#endif
+unsigned debug;
+module_param(debug, uint, S_IRUGO | S_IWUSR);
+MODULE_PARM_DESC(debug, "Debug message level. Default = 0");
 
 #define DRIVER_AUTHOR "Mentor Graphics, Texas Instruments, Nokia"
 #define DRIVER_DESC "Inventra Dual-Role USB Controller Driver"
 
-#define MUSB_VERSION_BASE "6.0"
-
-#ifndef MUSB_VERSION_SUFFIX
-#define MUSB_VERSION_SUFFIX	""
-#endif
-#define MUSB_VERSION	MUSB_VERSION_BASE MUSB_VERSION_SUFFIX
+#define MUSB_VERSION "6.0"
 
 #define DRIVER_INFO DRIVER_DESC ", v" MUSB_VERSION
 
