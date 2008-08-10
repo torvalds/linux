@@ -803,6 +803,34 @@ config FIREWIRE_OHCI_REMOTE_DMA
 
 	  If unsure, say N.
 
+config KMEMTRACE
+	bool "Kernel memory tracer (kmemtrace)"
+	depends on RELAY && DEBUG_FS && MARKERS
+	help
+	  kmemtrace provides tracing for slab allocator functions, such as
+	  kmalloc, kfree, kmem_cache_alloc, kmem_cache_free etc.. Collected
+	  data is then fed to the userspace application in order to analyse
+	  allocation hotspots, internal fragmentation and so on, making it
+	  possible to see how well an allocator performs, as well as debug
+	  and profile kernel code.
+
+	  This requires an userspace application to use. See
+	  Documentation/vm/kmemtrace.txt for more information.
+
+	  Saying Y will make the kernel somewhat larger and slower. However,
+	  if you disable kmemtrace at run-time or boot-time, the performance
+	  impact is minimal (depending on the arch the kernel is built for).
+
+	  If unsure, say N.
+
+config KMEMTRACE_DEFAULT_ENABLED
+	bool "Enabled by default at boot"
+	depends on KMEMTRACE
+	help
+	  Say Y here to enable kmemtrace at boot-time by default. Whatever
+	  the choice, the behavior can be overridden by a kernel parameter,
+	  as described in documentation.
+
 menuconfig BUILD_DOCSRC
 	bool "Build targets in Documentation/ tree"
 	depends on HEADERS_CHECK

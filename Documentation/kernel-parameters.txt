@@ -49,6 +49,7 @@ parameter is applicable:
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
+	KMEMTRACE kmemtrace is enabled.
 	LIBATA  Libata driver is enabled
 	LP	Printer support is enabled.
 	LOOP	Loopback device support is enabled.
@@ -1017,6 +1018,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			Note that allocations like PTEs-from-HighMem still
 			use the HighMem zone if it exists, and the Normal
 			zone if it does not.
+
+	kmemtrace.enable=	[KNL,KMEMTRACE] Format: { yes | no }
+				Controls whether kmemtrace is enabled
+				at boot-time.
+
+	kmemtrace.subbufs=n	[KNL,KMEMTRACE] Overrides the number of
+			subbufs kmemtrace's relay channel has. Set this
+			higher than default (KMEMTRACE_N_SUBBUFS in code) if
+			you experience buffer overruns.
 
 	movablecore=nn[KMG]	[KNL,X86-32,IA-64,PPC,X86-64] This parameter
 			is similar to kernelcore except it specifies the
