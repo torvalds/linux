@@ -1589,7 +1589,7 @@ static struct ctl_table vs_vars[] = {
 	{ .ctl_name = 0 }
 };
 
-struct ctl_path net_vs_ctl_path[] = {
+const struct ctl_path net_vs_ctl_path[] = {
 	{ .procname = "net", .ctl_name = CTL_NET, },
 	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
 	{ .procname = "vs", },
