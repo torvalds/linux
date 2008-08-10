@@ -684,8 +684,8 @@ ip_vs_zero_stats(struct ip_vs_stats *stats)
 {
 	spin_lock_bh(&stats->lock);
 	memset(stats, 0, (char *)&stats->lock - (char *)stats);
-	spin_unlock_bh(&stats->lock);
 	ip_vs_zero_estimator(stats);
+	spin_unlock_bh(&stats->lock);
 }
 
 /*
