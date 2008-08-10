@@ -351,11 +351,12 @@ extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_da
 
 
 /**
- * dma_sync_single_for_cpu
+ * dma_sync_single_range_for_cpu
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @handle: DMA address of buffer
- * @size: size of buffer to map
- * @dir: DMA transfer direction
+ * @offset: offset of region to start sync
+ * @size: size of region to sync
+ * @dir: DMA transfer direction (same as passed to dma_map_single)
  *
  * Make physical memory consistent for a single streaming mode DMA
  * translation after a transfer.
@@ -369,24 +370,40 @@ extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_da
  */
 #ifndef CONFIG_DMABOUNCE
 static inline void
+dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t handle,
+			      unsigned long offset, size_t size,
+			      enum dma_data_direction dir)
+{
+	if (!arch_is_coherent())
+		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
+}
+
+static inline void
+dma_sync_single_range_for_device(struct device *dev, dma_addr_t handle,
+				 unsigned long offset, size_t size,
+				 enum dma_data_direction dir)
+{
+	if (!arch_is_coherent())
+		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
+}
+#else
+extern void dma_sync_single_range_for_cpu(struct device *, dma_addr_t, unsigned long, size_t, enum dma_data_direction);
+extern void dma_sync_single_range_for_device(struct device *, dma_addr_t, unsigned long, size_t, enum dma_data_direction);
+#endif
+
+static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle, size_t size,
 			enum dma_data_direction dir)
 {
-	if (!arch_is_coherent())
-		dma_cache_maint(dma_to_virt(dev, handle), size, dir);
+	dma_sync_single_range_for_cpu(dev, handle, 0, size, dir);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t handle, size_t size,
 			   enum dma_data_direction dir)
 {
-	if (!arch_is_coherent())
-		dma_cache_maint(dma_to_virt(dev, handle), size, dir);
+	dma_sync_single_range_for_device(dev, handle, 0, size, dir);
 }
-#else
-extern void dma_sync_single_for_cpu(struct device*, dma_addr_t, size_t, enum dma_data_direction);
-extern void dma_sync_single_for_device(struct device*, dma_addr_t, size_t, enum dma_data_direction);
-#endif
 
 
 /**
