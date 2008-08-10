@@ -1784,7 +1784,9 @@ static const struct file_operations ip_vs_info_fops = {
 
 #endif
 
-struct ip_vs_stats ip_vs_stats;
+struct ip_vs_stats ip_vs_stats = {
+	.lock = __SPIN_LOCK_UNLOCKED(ip_vs_stats.lock),
+};
 
 #ifdef CONFIG_PROC_FS
 static int ip_vs_stats_show(struct seq_file *seq, void *v)
@@ -2333,8 +2335,6 @@ int __init ip_vs_control_init(void)
 		INIT_LIST_HEAD(&ip_vs_rtable[idx]);
 	}
 
-	memset(&ip_vs_stats, 0, sizeof(ip_vs_stats));
-	spin_lock_init(&ip_vs_stats.lock);
 	ip_vs_new_estimator(&ip_vs_stats);
 
 	/* Hook the defense timer */
