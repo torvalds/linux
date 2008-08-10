@@ -15,6 +15,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
+#include <asm/cputype.h>
 #include <asm/io.h>
 
 #include <mach/control.h>

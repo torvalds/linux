@@ -22,7 +22,7 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 
-#include <asm/system.h>
+#include <asm/cputype.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"

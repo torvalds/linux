@@ -62,6 +62,8 @@
 
 #ifndef __ASSEMBLY__
 
+#include <asm/cputype.h>
+
 #ifdef CONFIG_PXA25x
 #define __cpu_is_pxa21x(id)				\
 	({						\

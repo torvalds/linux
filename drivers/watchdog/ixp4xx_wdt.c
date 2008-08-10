@@ -174,10 +174,8 @@ static struct miscdevice ixp4xx_wdt_miscdev = {
 static int __init ixp4xx_wdt_init(void)
 {
 	int ret;
-	unsigned long processor_id;
 
-	asm("mrc p15, 0, %0, cr0, cr0, 0;" : "=r"(processor_id) :);
-	if (!(processor_id & 0xf) && !cpu_is_ixp46x()) {
+	if (!(read_cpuid_id() & 0xf) && !cpu_is_ixp46x()) {
 		printk(KERN_ERR "IXP4XXX Watchdog: Rev. A0 IXP42x CPU detected"
 			" - watchdog disabled\n");
 

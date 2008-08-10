@@ -15,6 +15,7 @@
 #include <linux/mman.h>
 #include <linux/nodemask.h>
 
+#include <asm/cputype.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 #include <asm/sizes.h>

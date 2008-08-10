@@ -27,6 +27,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <mach/hardware.h>
+#include <asm/cputype.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
@@ -49,8 +50,7 @@ static int force_ep80219;
 
 static int is_80219(void)
 {
-	extern int processor_id;
-	return !!((processor_id & 0xffffffe0) == 0x69052e20);
+	return !!((read_cpuid_id() & 0xffffffe0) == 0x69052e20);
 }
 
 static int is_ep80219(void)

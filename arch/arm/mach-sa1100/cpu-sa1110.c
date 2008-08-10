@@ -25,6 +25,7 @@
 #include <linux/init.h>
 
 #include <mach/hardware.h>
+#include <asm/cputype.h>
 #include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/system.h>
