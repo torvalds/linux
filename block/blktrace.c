@@ -114,7 +114,13 @@ static u32 ddir_act[2] __read_mostly = { BLK_TC_ACT(BLK_TC_READ), BLK_TC_ACT(BLK
 /*
  * Bio action bits of interest
  */
-static u32 bio_act[9] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_ACT(BLK_TC_SYNC), 0, BLK_TC_ACT(BLK_TC_AHEAD), 0, 0, 0, BLK_TC_ACT(BLK_TC_META) };
+static u32 bio_act[17] __read_mostly = { 
+	[1] = BLK_TC_ACT(BLK_TC_BARRIER),
+	[2] = BLK_TC_ACT(BLK_TC_SYNC),
+	[4] = BLK_TC_ACT(BLK_TC_AHEAD),
+	[8] = BLK_TC_ACT(BLK_TC_META),
+	[16] = BLK_TC_ACT(BLK_TC_DISCARD)
+};
 
 /*
  * More could be added as needed, taking care to increment the decrementer
@@ -128,6 +134,8 @@ static u32 bio_act[9] __read_mostly = { 0, BLK_TC_ACT(BLK_TC_BARRIER), BLK_TC_AC
 	(((rw) & (1 << BIO_RW_AHEAD)) << (2 - BIO_RW_AHEAD))
 #define trace_meta_bit(rw)	\
 	(((rw) & (1 << BIO_RW_META)) >> (BIO_RW_META - 3))
+#define trace_discard_bit(rw)	\
+	(((rw) & (1 << BIO_RW_DISCARD)) >> (BIO_RW_DISCARD - 4))
 
 /*
  * The worker for the various blk_add_trace*() types. Fills out a
@@ -151,6 +159,7 @@ void __blk_add_trace(struct blk_trace *bt, sector_t sector, int bytes,
 	what |= bio_act[trace_sync_bit(rw)];
 	what |= bio_act[trace_ahead_bit(rw)];
 	what |= bio_act[trace_meta_bit(rw)];
+	what |= bio_act[trace_discard_bit(rw)];
 
 	pid = tsk->pid;
 	if (unlikely(act_log_check(bt, what, sector, pid)))

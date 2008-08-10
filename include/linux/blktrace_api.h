@@ -21,6 +21,7 @@ enum blktrace_cat {
 	BLK_TC_NOTIFY	= 1 << 10,	/* special message */
 	BLK_TC_AHEAD	= 1 << 11,	/* readahead */
 	BLK_TC_META	= 1 << 12,	/* metadata */
+	BLK_TC_DISCARD	= 1 << 13,	/* discard requests */
 
 	BLK_TC_END	= 1 << 15,	/* only 16-bits, reminder */
 };
@@ -194,6 +195,9 @@ static inline void blk_add_trace_rq(struct request_queue *q, struct request *rq,
 
 	if (likely(!bt))
 		return;
+
+	if (blk_discard_rq(rq))
+		rw |= (1 << BIO_RW_DISCARD);
 
 	if (blk_pc_request(rq)) {
 		what |= BLK_TC_ACT(BLK_TC_PC);
