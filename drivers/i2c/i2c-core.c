@@ -813,7 +813,12 @@ static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 int i2c_attach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int res = 0;
+	int res;
+
+	/* Check for address business */
+	res = i2c_check_addr(adapter, client->addr);
+	if (res)
+		return res;
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
