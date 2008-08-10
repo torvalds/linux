@@ -155,6 +155,9 @@ static int __init amd756_s4882_init(void)
 	int i, error;
 	union i2c_smbus_data ioconfig;
 
+	if (!amd756_smbus.dev.parent)
+		return -ENODEV;
+
 	/* Configure the PCA9556 multiplexer */
 	ioconfig.byte = 0x00; /* All I/O to output mode */
 	error = i2c_smbus_xfer(&amd756_smbus, 0x18, 0, I2C_SMBUS_WRITE, 0x03,
@@ -168,11 +171,7 @@ static int __init amd756_s4882_init(void)
 	/* Unregister physical bus */
 	error = i2c_del_adapter(&amd756_smbus);
 	if (error) {
-		if (error == -EINVAL)
-			error = -ENODEV;
-		else
-			dev_err(&amd756_smbus.dev, "Physical bus removal "
-				"failed\n");
+		dev_err(&amd756_smbus.dev, "Physical bus removal failed\n");
 		goto ERROR0;
 	}
 
