@@ -208,7 +208,7 @@ static int __init footbridge_watchdog_init(void)
 								soft_margin);
 
 	if (machine_is_cats())
-		printk(KERN_WARN
+		printk(KERN_WARNING
 		  "Warning: Watchdog reset may not work on this machine.\n");
 	return 0;
 }
