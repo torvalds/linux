@@ -18,6 +18,7 @@
 #include <linux/pagemap.h>
 
 #include <asm/cacheflush.h>
+#include <asm/cachetype.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 

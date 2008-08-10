@@ -32,6 +32,7 @@
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/cacheflush.h>
+#include <asm/cachetype.h>
 #include <asm/tlbflush.h>
 
 #include <asm/mach/arch.h>
