@@ -246,9 +246,9 @@ map_single(struct device *dev, void *ptr, size_t size,
 		}
 
 		dev_dbg(dev,
-			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
-			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
-			buf->safe, (void *) buf->safe_dma_addr);
+			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+			buf->safe, buf->safe_dma_addr);
 
 		if ((dir == DMA_TO_DEVICE) ||
 		    (dir == DMA_BIDIRECTIONAL)) {
@@ -292,9 +292,9 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		BUG_ON(buf->size != size);
 
 		dev_dbg(dev,
-			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
-			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
-			buf->safe, (void *) buf->safe_dma_addr);
+			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+			buf->safe, buf->safe_dma_addr);
 
 		DO_STATS ( device_info->bounce_count++ );
 
@@ -355,9 +355,9 @@ sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 */
 
 		dev_dbg(dev,
-			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
-			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
-			buf->safe, (void *) buf->safe_dma_addr);
+			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+			buf->safe, buf->safe_dma_addr);
 
 		DO_STATS ( device_info->bounce_count++ );
 
