@@ -58,7 +58,6 @@ EXPORT_SYMBOL(acpi_disabled);
 #ifdef	CONFIG_X86_64
 
 #include <asm/proto.h>
-#include <asm/genapic.h>
 
 #else				/* X86 */
 
