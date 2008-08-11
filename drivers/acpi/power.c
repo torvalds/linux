@@ -54,6 +54,14 @@ ACPI_MODULE_NAME("power");
 #define ACPI_POWER_RESOURCE_STATE_OFF	0x00
 #define ACPI_POWER_RESOURCE_STATE_ON	0x01
 #define ACPI_POWER_RESOURCE_STATE_UNKNOWN 0xFF
+
+#ifdef MODULE_PARAM_PREFIX
+#undef MODULE_PARAM_PREFIX
+#endif
+#define MODULE_PARAM_PREFIX "acpi."
+int acpi_power_nocheck;
+module_param_named(power_nocheck, acpi_power_nocheck, bool, 000);
+
 static int acpi_power_add(struct acpi_device *device);
 static int acpi_power_remove(struct acpi_device *device, int type);
 static int acpi_power_resume(struct acpi_device *device);
@@ -228,12 +236,18 @@ static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = acpi_power_get_state(resource->device->handle, &state);
-	if (result)
-		return result;
-	if (state != ACPI_POWER_RESOURCE_STATE_ON)
-		return -ENOEXEC;
-
+	if (!acpi_power_nocheck) {
+		/*
+		 * If acpi_power_nocheck is set, it is unnecessary to check
+		 * the power state after power transition.
+		 */
+		result = acpi_power_get_state(resource->device->handle,
+				&state);
+		if (result)
+			return result;
+		if (state != ACPI_POWER_RESOURCE_STATE_ON)
+			return -ENOEXEC;
+	}
 	/* Update the power resource's _device_ power state */
 	resource->device->power.state = ACPI_STATE_D0;
 
@@ -279,11 +293,17 @@ static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = acpi_power_get_state(handle, &state);
-	if (result)
-		return result;
-	if (state != ACPI_POWER_RESOURCE_STATE_OFF)
-		return -ENOEXEC;
+	if (!acpi_power_nocheck) {
+		/*
+		 * If acpi_power_nocheck is set, it is unnecessary to check
+		 * the power state after power transition.
+		 */
+		result = acpi_power_get_state(handle, &state);
+		if (result)
+			return result;
+		if (state != ACPI_POWER_RESOURCE_STATE_OFF)
+			return -ENOEXEC;
+	}
 
 	/* Update the power resource's _device_ power state */
 	resource->device->power.state = ACPI_STATE_D3;
