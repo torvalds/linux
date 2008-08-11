@@ -191,7 +191,12 @@ struct lock_chain {
 };
 
 #define MAX_LOCKDEP_KEYS_BITS		11
-#define MAX_LOCKDEP_KEYS		(1UL << MAX_LOCKDEP_KEYS_BITS)
+/*
+ * Subtract one because we offset hlock->class_idx by 1 in order
+ * to make 0 mean no class. This avoids overflowing the class_idx
+ * bitfield and hitting the BUG in hlock_class().
+ */
+#define MAX_LOCKDEP_KEYS		((1UL << MAX_LOCKDEP_KEYS_BITS) - 1)
 
 struct held_lock {
 	/*
