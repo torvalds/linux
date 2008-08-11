@@ -224,6 +224,10 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 			.vsync_len = 2,
 			.sync = 0,
 		},
+		.lcd_size_cfg = { /* 7.0 inch */
+			.width = 152,
+			.height = 91,
+		},
 	}
 #endif
 #ifdef CONFIG_SH_MIGOR_QVGA
@@ -244,6 +248,10 @@ static struct sh_mobile_lcdc_info sh_mobile_lcdc_info = {
 			.lower_margin = 17,
 			.vsync_len = 2,
 			.sync = FB_SYNC_HOR_HIGH_ACT,
+		},
+		.lcd_size_cfg = { /* 2.4 inch */
+			.width = 49,
+			.height = 37,
 		},
 		.board_cfg = {
 			.setup_sys = migor_lcd_qvga_setup,
