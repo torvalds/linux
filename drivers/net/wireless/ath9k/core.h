@@ -992,6 +992,7 @@ struct ath_softc {
 	u32 sc_txintrperiod;	/* tx interrupt batching */
 	int sc_haltype2q[ATH9K_WME_AC_VO+1]; /* HAL WME	AC -> h/w qnum */
 	u32 sc_ant_tx[8];	/* recent tx frames/antenna */
+	u16 seq_no; /* TX sequence number */
 
 	/* Beacon */
 	struct ath9k_tx_queue_info sc_beacon_qi;
