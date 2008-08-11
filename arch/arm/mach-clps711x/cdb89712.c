@@ -23,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>

@@ -414,9 +414,7 @@ static int gfar_suspend(struct platform_device *pdev, pm_message_t state)
 		spin_unlock(&priv->rxlock);
 		spin_unlock_irqrestore(&priv->txlock, flags);
 
-#ifdef CONFIG_GFAR_NAPI
 		napi_disable(&priv->napi);
-#endif
 
 		if (magic_packet) {
 			/* Enable interrupt on Magic Packet */
@@ -469,9 +467,7 @@ static int gfar_resume(struct platform_device *pdev)
 
 	netif_device_attach(dev);
 
-#ifdef CONFIG_GFAR_NAPI
 	napi_enable(&priv->napi);
-#endif
 
 	return 0;
 }

@@ -7,7 +7,7 @@ endif
 
 obj-y				+= pic.o setup.o time.o feature.o pci.o \
 				   sleep.o low_i2c.o cache.o pfunc_core.o \
-				   pfunc_base.o
+				   pfunc_base.o udbg_scc.o udbg_adb.o
 obj-$(CONFIG_PMAC_BACKLIGHT)	+= backlight.o
 obj-$(CONFIG_CPU_FREQ_PMAC)	+= cpufreq_32.o
 obj-$(CONFIG_CPU_FREQ_PMAC64)	+= cpufreq_64.o
@@ -19,4 +19,3 @@ obj-$(CONFIG_NVRAM:m=y)		+= nvram.o
 obj-$(CONFIG_PPC64)		+= nvram.o
 obj-$(CONFIG_PPC32)		+= bootx_init.o
 obj-$(CONFIG_SMP)		+= smp.o
-obj-$(CONFIG_PPC_MERGE)		+= udbg_scc.o udbg_adb.o

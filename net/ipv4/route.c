@@ -1502,21 +1502,21 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 				    rth->fl.iif != 0 ||
 				    dst_metric_locked(&rth->u.dst, RTAX_MTU) ||
 				    !net_eq(dev_net(rth->u.dst.dev), net) ||
-				    !rt_is_expired(rth))
+				    rt_is_expired(rth))
 					continue;
 
 				if (new_mtu < 68 || new_mtu >= old_mtu) {
 
 					/* BSD 4.2 compatibility hack :-( */
 					if (mtu == 0 &&
-					    old_mtu >= dst_metric(&rth->u.dst, RTAX_MTU) &&
+					    old_mtu >= dst_mtu(&rth->u.dst) &&
 					    old_mtu >= 68 + (iph->ihl << 2))
 						old_mtu -= iph->ihl << 2;
 
 					mtu = guess_mtu(old_mtu);
 				}
-				if (mtu <= dst_metric(&rth->u.dst, RTAX_MTU)) {
-					if (mtu < dst_metric(&rth->u.dst, RTAX_MTU)) {
+				if (mtu <= dst_mtu(&rth->u.dst)) {
+					if (mtu < dst_mtu(&rth->u.dst)) {
 						dst_confirm(&rth->u.dst);
 						if (mtu < ip_rt_min_pmtu) {
 							mtu = ip_rt_min_pmtu;
@@ -1538,7 +1538,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 
 static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
-	if (dst_metric(dst, RTAX_MTU) > mtu && mtu >= 68 &&
+	if (dst_mtu(dst) > mtu && mtu >= 68 &&
 	    !(dst_metric_locked(dst, RTAX_MTU))) {
 		if (mtu < ip_rt_min_pmtu) {
 			mtu = ip_rt_min_pmtu;
@@ -1667,7 +1667,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 
 	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = sysctl_ip_default_ttl;
-	if (dst_metric(&rt->u.dst, RTAX_MTU) > IP_MAX_MTU)
+	if (dst_mtu(&rt->u.dst) > IP_MAX_MTU)
 		rt->u.dst.metrics[RTAX_MTU-1] = IP_MAX_MTU;
 	if (dst_metric(&rt->u.dst, RTAX_ADVMSS) == 0)
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = max_t(unsigned int, rt->u.dst.dev->mtu - 40,
@@ -2914,7 +2914,7 @@ static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
 	return 0;
 }
 
-ctl_table ipv4_route_table[] = {
+static ctl_table ipv4_route_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_THRESH,
 		.procname	= "gc_thresh",
@@ -3215,6 +3215,17 @@ int __init ip_rt_init(void)
 #endif
 	return rc;
 }
+
+#ifdef CONFIG_SYSCTL
+/*
+ * We really need to sanitize the damn ipv4 init order, then all
+ * this nonsense will go away.
+ */
+void __init ip_static_sysctl_init(void)
+{
+	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
+}
+#endif
 
 EXPORT_SYMBOL(__ip_select_ident);
 EXPORT_SYMBOL(ip_route_input);

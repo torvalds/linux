@@ -27,7 +27,7 @@
 #include <linux/list.h>
 #include <linux/timer.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
@@ -111,7 +111,7 @@ imx_gpio_irq_type(unsigned int _irq, unsigned int type)
 	reg = irq >> 5;
 	bit = 1 << (irq % 32);
 
-	if (type == IRQT_PROBE) {
+	if (type == IRQ_TYPE_PROBE) {
 		/* Don't mess with enabled GPIOs using preconfigured edges or
 		   GPIOs set to alternate function during probe */
 		/* TODO: support probe */
@@ -120,7 +120,7 @@ imx_gpio_irq_type(unsigned int _irq, unsigned int type)
 //                      return 0;
 //              if (GAFR(gpio) & (0x3 << (((gpio) & 0xf)*2)))
 //                      return 0;
-//              type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+//              type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
 	GIUS(reg) |= bit;
@@ -128,19 +128,19 @@ imx_gpio_irq_type(unsigned int _irq, unsigned int type)
 
 	DEBUG_IRQ("setting type of irq %d to ", _irq);
 
-	if (type & __IRQT_RISEDGE) {
+	if (type & IRQ_TYPE_EDGE_RISING) {
 		DEBUG_IRQ("rising edges\n");
 		irq_type = 0x0;
 	}
-	if (type & __IRQT_FALEDGE) {
+	if (type & IRQ_TYPE_EDGE_FALLING) {
 		DEBUG_IRQ("falling edges\n");
 		irq_type = 0x1;
 	}
-	if (type & __IRQT_LOWLVL) {
+	if (type & IRQ_TYPE_LEVEL_LOW) {
 		DEBUG_IRQ("low level\n");
 		irq_type = 0x3;
 	}
-	if (type & __IRQT_HIGHLVL) {
+	if (type & IRQ_TYPE_LEVEL_HIGH) {
 		DEBUG_IRQ("high level\n");
 		irq_type = 0x2;
 	}

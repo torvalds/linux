@@ -259,7 +259,7 @@ static int ipw_write(struct tty_struct *linux_tty,
 	}
 
 	ret = ipwireless_send_packet(tty->hardware, IPW_CHANNEL_RAS,
-			       (unsigned char *) buf, count,
+			       buf, count,
 			       ipw_write_packet_sent_callback, tty);
 	if (ret == -1) {
 		mutex_unlock(&tty->ipw_tty_mutex);

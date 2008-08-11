@@ -27,6 +27,7 @@
 #include <linux/key.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
+#include <linux/mmu_notifier.h>
 #include <linux/fs.h>
 #include <linux/nsproxy.h>
 #include <linux/capability.h>
@@ -37,6 +38,7 @@
 #include <linux/swap.h>
 #include <linux/syscalls.h>
 #include <linux/jiffies.h>
+#include <linux/tracehook.h>
 #include <linux/futex.h>
 #include <linux/task_io_accounting_ops.h>
 #include <linux/rcupdate.h>
@@ -91,6 +93,23 @@ int nr_processes(void)
 # define alloc_task_struct()	kmem_cache_alloc(task_struct_cachep, GFP_KERNEL)
 # define free_task_struct(tsk)	kmem_cache_free(task_struct_cachep, (tsk))
 static struct kmem_cache *task_struct_cachep;
+#endif
+
+#ifndef __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+static inline struct thread_info *alloc_thread_info(struct task_struct *tsk)
+{
+#ifdef CONFIG_DEBUG_STACK_USAGE
+	gfp_t mask = GFP_KERNEL | __GFP_ZERO;
+#else
+	gfp_t mask = GFP_KERNEL;
+#endif
+	return (struct thread_info *)__get_free_pages(mask, THREAD_SIZE_ORDER);
+}
+
+static inline void free_thread_info(struct thread_info *ti)
+{
+	free_pages((unsigned long)ti, THREAD_SIZE_ORDER);
+}
 #endif
 
 /* SLAB cache for signal_struct structures (tsk->signal) */
@@ -383,7 +402,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 	INIT_LIST_HEAD(&mm->mmlist);
 	mm->flags = (current->mm) ? current->mm->flags
 				  : MMF_DUMP_FILTER_DEFAULT;
-	mm->core_waiters = 0;
+	mm->core_state = NULL;
 	mm->nr_ptes = 0;
 	set_mm_counter(mm, file_rss, 0);
 	set_mm_counter(mm, anon_rss, 0);
@@ -396,6 +415,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
+		mmu_notifier_mm_init(mm);
 		return mm;
 	}
 
@@ -428,6 +448,7 @@ void __mmdrop(struct mm_struct *mm)
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
 	destroy_context(mm);
+	mmu_notifier_mm_destroy(mm);
 	free_mm(mm);
 }
 EXPORT_SYMBOL_GPL(__mmdrop);
@@ -457,7 +478,7 @@ EXPORT_SYMBOL_GPL(mmput);
 /**
  * get_task_mm - acquire a reference to the task's mm
  *
- * Returns %NULL if the task has no mm.  Checks PF_BORROWED_MM (meaning
+ * Returns %NULL if the task has no mm.  Checks PF_KTHREAD (meaning
  * this kernel workthread has transiently adopted a user mm with use_mm,
  * to do its AIO) is not set and if so returns a reference to it, after
  * bumping up the use count.  User must release the mm via mmput()
@@ -470,7 +491,7 @@ struct mm_struct *get_task_mm(struct task_struct *task)
 	task_lock(task);
 	mm = task->mm;
 	if (mm) {
-		if (task->flags & PF_BORROWED_MM)
+		if (task->flags & PF_KTHREAD)
 			mm = NULL;
 		else
 			atomic_inc(&mm->mm_users);
@@ -639,13 +660,6 @@ static struct fs_struct *__copy_fs_struct(struct fs_struct *old)
 		path_get(&old->root);
 		fs->pwd = old->pwd;
 		path_get(&old->pwd);
-		if (old->altroot.dentry) {
-			fs->altroot = old->altroot;
-			path_get(&old->altroot);
-		} else {
-			fs->altroot.mnt = NULL;
-			fs->altroot.dentry = NULL;
-		}
 		read_unlock(&old->lock);
 	}
 	return fs;
@@ -795,6 +809,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
 	sig->min_flt = sig->maj_flt = sig->cmin_flt = sig->cmaj_flt = 0;
 	sig->inblock = sig->oublock = sig->cinblock = sig->coublock = 0;
+	task_io_accounting_init(&sig->ioac);
 	sig->sum_sched_runtime = 0;
 	INIT_LIST_HEAD(&sig->cpu_timers[0]);
 	INIT_LIST_HEAD(&sig->cpu_timers[1]);
@@ -842,8 +857,7 @@ static void copy_flags(unsigned long clone_flags, struct task_struct *p)
 
 	new_flags &= ~PF_SUPERPRIV;
 	new_flags |= PF_FORKNOEXEC;
-	if (!(clone_flags & CLONE_PTRACE))
-		p->ptrace = 0;
+	new_flags |= PF_STARTING;
 	p->flags = new_flags;
 	clear_freeze_flag(p);
 }
@@ -884,7 +898,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 					struct pt_regs *regs,
 					unsigned long stack_size,
 					int __user *child_tidptr,
-					struct pid *pid)
+					struct pid *pid,
+					int trace)
 {
 	int retval;
 	struct task_struct *p;
@@ -977,13 +992,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->last_switch_timestamp = 0;
 #endif
 
-#ifdef CONFIG_TASK_XACCT
-	p->rchar = 0;		/* I/O counter: bytes read */
-	p->wchar = 0;		/* I/O counter: bytes written */
-	p->syscr = 0;		/* I/O counter: read syscalls */
-	p->syscw = 0;		/* I/O counter: write syscalls */
-#endif
-	task_io_accounting_init(p);
+	task_io_accounting_init(&p->ioac);
 	acct_clear_integrals(p);
 
 	p->it_virt_expires = cputime_zero;
@@ -1090,6 +1099,12 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (clone_flags & CLONE_THREAD)
 		p->tgid = current->tgid;
 
+	if (current->nsproxy != p->nsproxy) {
+		retval = ns_cgroup_clone(p, pid);
+		if (retval)
+			goto bad_fork_free_pid;
+	}
+
 	p->set_child_tid = (clone_flags & CLONE_CHILD_SETTID) ? child_tidptr : NULL;
 	/*
 	 * Clear TID on mm_release()?
@@ -1134,8 +1149,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	 */
 	p->group_leader = p;
 	INIT_LIST_HEAD(&p->thread_group);
-	INIT_LIST_HEAD(&p->ptrace_entry);
-	INIT_LIST_HEAD(&p->ptraced);
 
 	/* Now that the task is set up, run cgroup callbacks if
 	 * necessary. We need to run them before the task is visible
@@ -1166,7 +1179,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 		p->real_parent = current->real_parent;
 	else
 		p->real_parent = current;
-	p->parent = p->real_parent;
 
 	spin_lock(&current->sighand->siglock);
 
@@ -1208,8 +1220,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 	if (likely(p->pid)) {
 		list_add_tail(&p->sibling, &p->real_parent->children);
-		if (unlikely(p->ptrace & PT_PTRACED))
-			__ptrace_link(p, current->parent);
+		tracehook_finish_clone(p, clone_flags, trace);
 
 		if (thread_group_leader(p)) {
 			if (clone_flags & CLONE_NEWPID)
@@ -1294,27 +1305,11 @@ struct task_struct * __cpuinit fork_idle(int cpu)
 	struct pt_regs regs;
 
 	task = copy_process(CLONE_VM, 0, idle_regs(&regs), 0, NULL,
-				&init_struct_pid);
+			    &init_struct_pid, 0);
 	if (!IS_ERR(task))
 		init_idle(task, cpu);
 
 	return task;
-}
-
-static int fork_traceflag(unsigned clone_flags)
-{
-	if (clone_flags & CLONE_UNTRACED)
-		return 0;
-	else if (clone_flags & CLONE_VFORK) {
-		if (current->ptrace & PT_TRACE_VFORK)
-			return PTRACE_EVENT_VFORK;
-	} else if ((clone_flags & CSIGNAL) != SIGCHLD) {
-		if (current->ptrace & PT_TRACE_CLONE)
-			return PTRACE_EVENT_CLONE;
-	} else if (current->ptrace & PT_TRACE_FORK)
-		return PTRACE_EVENT_FORK;
-
-	return 0;
 }
 
 /*
@@ -1351,14 +1346,14 @@ long do_fork(unsigned long clone_flags,
 		}
 	}
 
-	if (unlikely(current->ptrace)) {
-		trace = fork_traceflag (clone_flags);
-		if (trace)
-			clone_flags |= CLONE_PTRACE;
-	}
+	/*
+	 * When called from kernel_thread, don't do user tracing stuff.
+	 */
+	if (likely(user_mode(regs)))
+		trace = tracehook_prepare_clone(clone_flags);
 
 	p = copy_process(clone_flags, stack_start, regs, stack_size,
-			child_tidptr, NULL);
+			 child_tidptr, NULL, trace);
 	/*
 	 * Do this prior waking up the new thread - the thread pointer
 	 * might get invalid after that point, if the thread exits quickly.
@@ -1376,32 +1371,35 @@ long do_fork(unsigned long clone_flags,
 			init_completion(&vfork);
 		}
 
-		if ((p->ptrace & PT_PTRACED) || (clone_flags & CLONE_STOPPED)) {
+		tracehook_report_clone(trace, regs, clone_flags, nr, p);
+
+		/*
+		 * We set PF_STARTING at creation in case tracing wants to
+		 * use this to distinguish a fully live task from one that
+		 * hasn't gotten to tracehook_report_clone() yet.  Now we
+		 * clear it and set the child going.
+		 */
+		p->flags &= ~PF_STARTING;
+
+		if (unlikely(clone_flags & CLONE_STOPPED)) {
 			/*
 			 * We'll start up with an immediate SIGSTOP.
 			 */
 			sigaddset(&p->pending.signal, SIGSTOP);
 			set_tsk_thread_flag(p, TIF_SIGPENDING);
-		}
-
-		if (!(clone_flags & CLONE_STOPPED))
-			wake_up_new_task(p, clone_flags);
-		else
 			__set_task_state(p, TASK_STOPPED);
-
-		if (unlikely (trace)) {
-			current->ptrace_message = nr;
-			ptrace_notify ((trace << 8) | SIGTRAP);
+		} else {
+			wake_up_new_task(p, clone_flags);
 		}
+
+		tracehook_report_clone_complete(trace, regs,
+						clone_flags, nr, p);
 
 		if (clone_flags & CLONE_VFORK) {
 			freezer_do_not_count();
 			wait_for_completion(&vfork);
 			freezer_count();
-			if (unlikely (current->ptrace & PT_TRACE_VFORK_DONE)) {
-				current->ptrace_message = nr;
-				ptrace_notify ((PTRACE_EVENT_VFORK_DONE << 8) | SIGTRAP);
-			}
+			tracehook_report_vfork_done(p, nr);
 		}
 	} else {
 		nr = PTR_ERR(p);
@@ -1413,7 +1411,7 @@ long do_fork(unsigned long clone_flags,
 #define ARCH_MIN_MMSTRUCT_ALIGN 0
 #endif
 
-static void sighand_ctor(struct kmem_cache *cachep, void *data)
+static void sighand_ctor(void *data)
 {
 	struct sighand_struct *sighand = data;
 

@@ -59,6 +59,7 @@ Table of Contents
       p) Freescale Synchronous Serial Interface
 	  q) USB EHCI controllers
       r) MDIO on GPIOs
+      s) SPI busses
 
   VII - Marvell Discovery mv64[345]6x System Controller chips
     1) The /system-controller node
@@ -277,7 +278,7 @@ it with special cases.
         a 64-bit platform.
 
         d) request and get assigned a platform number (see PLATFORM_*
-        constants in include/asm-powerpc/processor.h
+        constants in arch/powerpc/include/asm/processor.h
 
 32-bit embedded kernels:
 
@@ -339,7 +340,7 @@ the block to RAM before passing it to the kernel.
 ---------
 
    The kernel is entered with r3 pointing to an area of memory that is
-   roughly described in include/asm-powerpc/prom.h by the structure
+   roughly described in arch/powerpc/include/asm/prom.h by the structure
    boot_param_header:
 
 struct boot_param_header {
@@ -707,7 +708,7 @@ device or bus to be described by the device tree.
 In general, the format of an address for a device is defined by the
 parent bus type, based on the #address-cells and #size-cells
 properties.  Note that the parent's parent definitions of #address-cells
-and #size-cells are not inhereted so every node with children must specify
+and #size-cells are not inherited so every node with children must specify
 them.  The kernel requires the root node to have those properties defining
 addresses format for devices directly mapped on the processor bus.
 
@@ -1776,7 +1777,7 @@ platforms are moved over to use the flattened-device-tree model.
 
       Xilinx uartlite devices are simple fixed speed serial ports.
 
-      Requred properties:
+      Required properties:
        - current-speed : Baud rate of uartlite
 
       v) Xilinx hwicap
@@ -1798,7 +1799,7 @@ platforms are moved over to use the flattened-device-tree model.
       Xilinx UART 16550 devices are very similar to the NS16550 but with
       different register spacing and an offset from the base address.
 
-      Requred properties:
+      Required properties:
        - clock-frequency : Frequency of the clock input
        - reg-offset : A value of 3 is required
        - reg-shift : A value of 2 is required
@@ -1883,6 +1884,62 @@ platforms are moved over to use the flattened-device-tree model.
 			 &qe_pio_c 6>;
 	};
 
+    s) SPI (Serial Peripheral Interface) busses
+
+    SPI busses can be described with a node for the SPI master device
+    and a set of child nodes for each SPI slave on the bus.  For this
+    discussion, it is assumed that the system's SPI controller is in
+    SPI master mode.  This binding does not describe SPI controllers
+    in slave mode.
+
+    The SPI master node requires the following properties:
+    - #address-cells  - number of cells required to define a chip select
+			address on the SPI bus.
+    - #size-cells     - should be zero.
+    - compatible      - name of SPI bus controller following generic names
+			recommended practice.
+    No other properties are required in the SPI bus node.  It is assumed
+    that a driver for an SPI bus device will understand that it is an SPI bus.
+    However, the binding does not attempt to define the specific method for
+    assigning chip select numbers.  Since SPI chip select configuration is
+    flexible and non-standardized, it is left out of this binding with the
+    assumption that board specific platform code will be used to manage
+    chip selects.  Individual drivers can define additional properties to
+    support describing the chip select layout.
+
+    SPI slave nodes must be children of the SPI master node and can
+    contain the following properties.
+    - reg             - (required) chip select address of device.
+    - compatible      - (required) name of SPI device following generic names
+			recommended practice
+    - spi-max-frequency - (required) Maximum SPI clocking speed of device in Hz
+    - spi-cpol        - (optional) Empty property indicating device requires
+			inverse clock polarity (CPOL) mode
+    - spi-cpha        - (optional) Empty property indicating device requires
+			shifted clock phase (CPHA) mode
+
+    SPI example for an MPC5200 SPI bus:
+		spi@f00 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
+			reg = <0xf00 0x20>;
+			interrupts = <2 13 0 2 14 0>;
+			interrupt-parent = <&mpc5200_pic>;
+
+			ethernet-switch@0 {
+				compatible = "micrel,ks8995m";
+				spi-max-frequency = <1000000>;
+				reg = <0>;
+			};
+
+			codec@1 {
+				compatible = "ti,tlv320aic26";
+				spi-max-frequency = <100000>;
+				reg = <1>;
+			};
+		};
+
 VII - Marvell Discovery mv64[345]6x System Controller chips
 ===========================================================
 
@@ -1896,7 +1953,7 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 1) The /system-controller node
 
   This node is used to represent the system-controller and must be
-  present when the system uses a system contller chip. The top-level
+  present when the system uses a system controller chip. The top-level
   system-controller node contains information that is global to all
   devices within the system controller chip. The node name begins
   with "system-controller" followed by the unit address, which is

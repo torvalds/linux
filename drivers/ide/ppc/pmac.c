@@ -1086,6 +1086,11 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 	/* Make sure we have sane timings */
 	sanitize_timings(pmif);
 
+	host = ide_host_alloc(&d, hws);
+	if (host == NULL)
+		return -ENOMEM;
+	hwif = host->ports[0];
+
 #ifndef CONFIG_PPC64
 	/* XXX FIXME: Media bay stuff need re-organizing */
 	if (np->parent && np->parent->name
@@ -1119,11 +1124,11 @@ static int __devinit pmac_ide_setup_device(pmac_ide_hwif_t *pmif, hw_regs_t *hw)
 			 pmif->mdev ? "macio" : "PCI", pmif->aapl_bus_id,
 			 pmif->mediabay ? " (mediabay)" : "", hw->irq);
 
-	rc = ide_host_add(&d, hws, &host);
-	if (rc)
+	rc = ide_host_register(host, &d, hws);
+	if (rc) {
+		ide_host_free(host);
 		return rc;
-
-	hwif = host->ports[0];
+	}
 
 	return 0;
 }

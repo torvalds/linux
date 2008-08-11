@@ -280,7 +280,7 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	/*
 	 * Trying to unmap an invalid mapping
 	 */
-	if (dma_mapping_error(dma_addr)) {
+	if (dma_mapping_error(dev, dma_addr)) {
 		dev_err(dev, "Trying to unmap invalid mapping\n");
 		return;
 	}

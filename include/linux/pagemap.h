@@ -12,6 +12,7 @@
 #include <asm/uaccess.h>
 #include <linux/gfp.h>
 #include <linux/bitops.h>
+#include <linux/hardirq.h> /* for in_interrupt() */
 
 /*
  * Bits in mapping->flags.  The lower __GFP_BITS_SHIFT bits are the page
@@ -19,6 +20,7 @@
  */
 #define	AS_EIO		(__GFP_BITS_SHIFT + 0)	/* IO error on async write */
 #define AS_ENOSPC	(__GFP_BITS_SHIFT + 1)	/* ENOSPC on async write */
+#define AS_MM_ALL_LOCKS	(__GFP_BITS_SHIFT + 2)	/* under mm_take_all_locks() */
 
 static inline void mapping_set_error(struct address_space *mapping, int error)
 {
@@ -61,6 +63,121 @@ static inline void mapping_set_gfp_mask(struct address_space *m, gfp_t mask)
 #define page_cache_get(page)		get_page(page)
 #define page_cache_release(page)	put_page(page)
 void release_pages(struct page **pages, int nr, int cold);
+
+/*
+ * speculatively take a reference to a page.
+ * If the page is free (_count == 0), then _count is untouched, and 0
+ * is returned. Otherwise, _count is incremented by 1 and 1 is returned.
+ *
+ * This function must be called inside the same rcu_read_lock() section as has
+ * been used to lookup the page in the pagecache radix-tree (or page table):
+ * this allows allocators to use a synchronize_rcu() to stabilize _count.
+ *
+ * Unless an RCU grace period has passed, the count of all pages coming out
+ * of the allocator must be considered unstable. page_count may return higher
+ * than expected, and put_page must be able to do the right thing when the
+ * page has been finished with, no matter what it is subsequently allocated
+ * for (because put_page is what is used here to drop an invalid speculative
+ * reference).
+ *
+ * This is the interesting part of the lockless pagecache (and lockless
+ * get_user_pages) locking protocol, where the lookup-side (eg. find_get_page)
+ * has the following pattern:
+ * 1. find page in radix tree
+ * 2. conditionally increment refcount
+ * 3. check the page is still in pagecache (if no, goto 1)
+ *
+ * Remove-side that cares about stability of _count (eg. reclaim) has the
+ * following (with tree_lock held for write):
+ * A. atomically check refcount is correct and set it to 0 (atomic_cmpxchg)
+ * B. remove page from pagecache
+ * C. free the page
+ *
+ * There are 2 critical interleavings that matter:
+ * - 2 runs before A: in this case, A sees elevated refcount and bails out
+ * - A runs before 2: in this case, 2 sees zero refcount and retries;
+ *   subsequently, B will complete and 1 will find no page, causing the
+ *   lookup to return NULL.
+ *
+ * It is possible that between 1 and 2, the page is removed then the exact same
+ * page is inserted into the same position in pagecache. That's OK: the
+ * old find_get_page using tree_lock could equally have run before or after
+ * such a re-insertion, depending on order that locks are granted.
+ *
+ * Lookups racing against pagecache insertion isn't a big problem: either 1
+ * will find the page or it will not. Likewise, the old find_get_page could run
+ * either before the insertion or afterwards, depending on timing.
+ */
+static inline int page_cache_get_speculative(struct page *page)
+{
+	VM_BUG_ON(in_interrupt());
+
+#if !defined(CONFIG_SMP) && defined(CONFIG_CLASSIC_RCU)
+# ifdef CONFIG_PREEMPT
+	VM_BUG_ON(!in_atomic());
+# endif
+	/*
+	 * Preempt must be disabled here - we rely on rcu_read_lock doing
+	 * this for us.
+	 *
+	 * Pagecache won't be truncated from interrupt context, so if we have
+	 * found a page in the radix tree here, we have pinned its refcount by
+	 * disabling preempt, and hence no need for the "speculative get" that
+	 * SMP requires.
+	 */
+	VM_BUG_ON(page_count(page) == 0);
+	atomic_inc(&page->_count);
+
+#else
+	if (unlikely(!get_page_unless_zero(page))) {
+		/*
+		 * Either the page has been freed, or will be freed.
+		 * In either case, retry here and the caller should
+		 * do the right thing (see comments above).
+		 */
+		return 0;
+	}
+#endif
+	VM_BUG_ON(PageTail(page));
+
+	return 1;
+}
+
+/*
+ * Same as above, but add instead of inc (could just be merged)
+ */
+static inline int page_cache_add_speculative(struct page *page, int count)
+{
+	VM_BUG_ON(in_interrupt());
+
+#if !defined(CONFIG_SMP) && defined(CONFIG_CLASSIC_RCU)
+# ifdef CONFIG_PREEMPT
+	VM_BUG_ON(!in_atomic());
+# endif
+	VM_BUG_ON(page_count(page) == 0);
+	atomic_add(count, &page->_count);
+
+#else
+	if (unlikely(!atomic_add_unless(&page->_count, count, 0)))
+		return 0;
+#endif
+	VM_BUG_ON(PageCompound(page) && page != compound_head(page));
+
+	return 1;
+}
+
+static inline int page_freeze_refs(struct page *page, int count)
+{
+	return likely(atomic_cmpxchg(&page->_count, count, 0) == count);
+}
+
+static inline void page_unfreeze_refs(struct page *page, int count)
+{
+	VM_BUG_ON(page_count(page) != 0);
+	VM_BUG_ON(count == 0);
+
+	atomic_set(&page->_count, count);
+}
 
 #ifdef CONFIG_NUMA
 extern struct page *__page_cache_alloc(gfp_t gfp);
@@ -133,13 +250,6 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
 	return read_cache_page(mapping, index, filler, data);
 }
 
-int add_to_page_cache(struct page *page, struct address_space *mapping,
-				pgoff_t index, gfp_t gfp_mask);
-int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
-				pgoff_t index, gfp_t gfp_mask);
-extern void remove_from_page_cache(struct page *page);
-extern void __remove_from_page_cache(struct page *page);
-
 /*
  * Return byte-offset into filesystem object for page.
  */
@@ -161,13 +271,28 @@ extern int __lock_page_killable(struct page *page);
 extern void __lock_page_nosync(struct page *page);
 extern void unlock_page(struct page *page);
 
+static inline void set_page_locked(struct page *page)
+{
+	set_bit(PG_locked, &page->flags);
+}
+
+static inline void clear_page_locked(struct page *page)
+{
+	clear_bit(PG_locked, &page->flags);
+}
+
+static inline int trylock_page(struct page *page)
+{
+	return !test_and_set_bit(PG_locked, &page->flags);
+}
+
 /*
  * lock_page may only be called if we have the page's inode pinned.
  */
 static inline void lock_page(struct page *page)
 {
 	might_sleep();
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		__lock_page(page);
 }
 
@@ -179,7 +304,7 @@ static inline void lock_page(struct page *page)
 static inline int lock_page_killable(struct page *page)
 {
 	might_sleep();
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		return __lock_page_killable(page);
 	return 0;
 }
@@ -191,7 +316,7 @@ static inline int lock_page_killable(struct page *page)
 static inline void lock_page_nosync(struct page *page)
 {
 	might_sleep();
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		__lock_page_nosync(page);
 }
 	
@@ -274,6 +399,29 @@ static inline int fault_in_pages_readable(const char __user *uaddr, int size)
 		 	ret = __get_user(c, end);
 	}
 	return ret;
+}
+
+int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+				pgoff_t index, gfp_t gfp_mask);
+int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+				pgoff_t index, gfp_t gfp_mask);
+extern void remove_from_page_cache(struct page *page);
+extern void __remove_from_page_cache(struct page *page);
+
+/*
+ * Like add_to_page_cache_locked, but used to add newly allocated pages:
+ * the page is new, so we can just run set_page_locked() against it.
+ */
+static inline int add_to_page_cache(struct page *page,
+		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
+{
+	int error;
+
+	set_page_locked(page);
+	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
+	if (unlikely(error))
+		clear_page_locked(page);
+	return error;
 }
 
 #endif /* _LINUX_PAGEMAP_H */

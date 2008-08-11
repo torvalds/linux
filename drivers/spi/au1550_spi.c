@@ -334,7 +334,7 @@ static int au1550_spi_dma_rxtmp_alloc(struct au1550_spi *hw, unsigned size)
 	hw->dma_rx_tmpbuf_size = size;
 	hw->dma_rx_tmpbuf_addr = dma_map_single(hw->dev, hw->dma_rx_tmpbuf,
 			size, DMA_FROM_DEVICE);
-	if (dma_mapping_error(hw->dma_rx_tmpbuf_addr)) {
+	if (dma_mapping_error(hw->dev, hw->dma_rx_tmpbuf_addr)) {
 		kfree(hw->dma_rx_tmpbuf);
 		hw->dma_rx_tmpbuf = 0;
 		hw->dma_rx_tmpbuf_size = 0;
@@ -378,7 +378,7 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 			dma_rx_addr = dma_map_single(hw->dev,
 					(void *)t->rx_buf,
 					t->len, DMA_FROM_DEVICE);
-			if (dma_mapping_error(dma_rx_addr))
+			if (dma_mapping_error(hw->dev, dma_rx_addr))
 				dev_err(hw->dev, "rx dma map error\n");
 		}
 	} else {
@@ -401,7 +401,7 @@ static int au1550_spi_dma_txrxb(struct spi_device *spi, struct spi_transfer *t)
 			dma_tx_addr = dma_map_single(hw->dev,
 					(void *)t->tx_buf,
 					t->len, DMA_TO_DEVICE);
-			if (dma_mapping_error(dma_tx_addr))
+			if (dma_mapping_error(hw->dev, dma_tx_addr))
 				dev_err(hw->dev, "tx dma map error\n");
 		}
 	} else {

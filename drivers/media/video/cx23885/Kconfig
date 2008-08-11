@@ -1,9 +1,7 @@
 config VIDEO_CX23885
 	tristate "Conexant cx23885 (2388x successor) support"
 	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT
-	depends on HOTPLUG	# due to FW_LOADER
 	select I2C_ALGOBIT
-	select FW_LOADER
 	select VIDEO_BTCX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM

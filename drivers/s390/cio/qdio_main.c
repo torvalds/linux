@@ -1355,7 +1355,7 @@ int qdio_allocate(struct qdio_initialize *init_data)
 		goto out_rel;
 
 	/* qdr is used in ccw1.cda which is u32 */
-	irq_ptr->qdr = kzalloc(sizeof(struct qdr), GFP_KERNEL | GFP_DMA);
+	irq_ptr->qdr = (struct qdr *) get_zeroed_page(GFP_KERNEL | GFP_DMA);
 	if (!irq_ptr->qdr)
 		goto out_rel;
 	WARN_ON((unsigned long)irq_ptr->qdr & 0xfff);

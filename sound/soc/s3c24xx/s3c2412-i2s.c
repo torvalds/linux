@@ -28,16 +28,16 @@
 #include <sound/pcm_params.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <linux/io.h>
 #include <asm/dma.h>
 
 #include <asm/plat-s3c24xx/regs-s3c2412-iis.h>
 
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/dma.h>
+#include <mach/regs-gpio.h>
+#include <mach/audio.h>
+#include <mach/dma.h>
 
 #include "s3c24xx-pcm.h"
 #include "s3c2412-i2s.h"

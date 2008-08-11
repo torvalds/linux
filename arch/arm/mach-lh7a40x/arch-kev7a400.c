@@ -13,7 +13,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>

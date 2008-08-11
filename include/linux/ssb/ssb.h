@@ -427,9 +427,9 @@ static inline int ssb_dma_mapping_error(struct ssb_device *dev, dma_addr_t addr)
 {
 	switch (dev->bus->bustype) {
 	case SSB_BUSTYPE_PCI:
-		return pci_dma_mapping_error(addr);
+		return pci_dma_mapping_error(dev->bus->host_pci, addr);
 	case SSB_BUSTYPE_SSB:
-		return dma_mapping_error(addr);
+		return dma_mapping_error(dev->dev, addr);
 	default:
 		__ssb_dma_not_implemented(dev);
 	}

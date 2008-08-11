@@ -61,7 +61,7 @@
  * This driver is PXA25x only.  Grab the right register definitions.
  */
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa25x-udc.h>
+#include <mach/pxa25x-udc.h>
 #endif
 
 #include <asm/mach/udc_pxa2xx.h>
@@ -342,7 +342,7 @@ pxa25x_ep_free_request (struct usb_ep *_ep, struct usb_request *_req)
 	struct pxa25x_request	*req;
 
 	req = container_of (_req, struct pxa25x_request, req);
-	WARN_ON (!list_empty (&req->queue));
+	WARN_ON(!list_empty (&req->queue));
 	kfree(req);
 }
 
@@ -1556,7 +1556,7 @@ config_change:
 					 * tell us about config change events,
 					 * so later ones may fail...
 					 */
-					WARN("config change %02x fail %d?\n",
+					WARNING("config change %02x fail %d?\n",
 						u.r.bRequest, i);
 					return;
 					/* TODO experiment:  if has_cfr,
@@ -2330,7 +2330,7 @@ static int pxa25x_udc_suspend(struct platform_device *dev, pm_message_t state)
 	unsigned long flags;
 
 	if (!udc->mach->gpio_pullup && !udc->mach->udc_command)
-		WARN("USB host won't detect disconnect!\n");
+		WARNING("USB host won't detect disconnect!\n");
 	udc->suspended = 1;
 
 	local_irq_save(flags);

@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/udc.h
+/* arch/arm/mach-s3c2410/include/mach/udc.h
  *
  * Copyright (c) 2005 Arnaud Patard <arnaud.patard@rtp-net.org>
  *

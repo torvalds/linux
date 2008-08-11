@@ -116,7 +116,7 @@ static void tcf_police_destroy(struct tcf_police *p)
 			return;
 		}
 	}
-	BUG_TRAP(0);
+	WARN_ON(1);
 }
 
 static const struct nla_policy police_policy[TCA_POLICE_MAX + 1] = {

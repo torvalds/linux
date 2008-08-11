@@ -372,9 +372,6 @@ static ssize_t rt2x00debug_write_##__name(struct file *file,	\
 	if (*offset)						\
 		return 0;					\
 								\
-	if (!capable(CAP_NET_ADMIN))				\
-		return -EPERM;					\
-								\
 	if (intf->offset_##__name >= debug->__name.word_count)	\
 		return -EINVAL;					\
 								\
@@ -454,7 +451,7 @@ static struct dentry *rt2x00debug_create_file_driver(const char *name,
 	data += sprintf(data, "compiled: %s %s\n", __DATE__, __TIME__);
 	blob->size = strlen(blob->data);
 
-	return debugfs_create_blob(name, S_IRUGO, intf->driver_folder, blob);
+	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);
 }
 
 static struct dentry *rt2x00debug_create_file_chipset(const char *name,
@@ -482,7 +479,7 @@ static struct dentry *rt2x00debug_create_file_chipset(const char *name,
 	data += sprintf(data, "rf length: %d\n", debug->rf.word_count);
 	blob->size = strlen(blob->data);
 
-	return debugfs_create_blob(name, S_IRUGO, intf->driver_folder, blob);
+	return debugfs_create_blob(name, S_IRUSR, intf->driver_folder, blob);
 }
 
 void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
@@ -517,7 +514,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	if (IS_ERR(intf->chipset_entry))
 		goto exit;
 
-	intf->dev_flags = debugfs_create_file("dev_flags", S_IRUGO,
+	intf->dev_flags = debugfs_create_file("dev_flags", S_IRUSR,
 					      intf->driver_folder, intf,
 					      &rt2x00debug_fop_dev_flags);
 	if (IS_ERR(intf->dev_flags))
@@ -532,7 +529,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 ({								\
 	(__intf)->__name##_off_entry =				\
 	    debugfs_create_u32(__stringify(__name) "_offset",	\
-			       S_IRUGO | S_IWUSR,		\
+			       S_IRUSR | S_IWUSR,		\
 			       (__intf)->register_folder,	\
 			       &(__intf)->offset_##__name);	\
 	if (IS_ERR((__intf)->__name##_off_entry))		\
@@ -540,7 +537,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 								\
 	(__intf)->__name##_val_entry =				\
 	    debugfs_create_file(__stringify(__name) "_value",	\
-				S_IRUGO | S_IWUSR,		\
+				S_IRUSR | S_IWUSR,		\
 				(__intf)->register_folder,	\
 				(__intf), &rt2x00debug_fop_##__name);\
 	if (IS_ERR((__intf)->__name##_val_entry))		\
@@ -560,7 +557,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 		goto exit;
 
 	intf->queue_frame_dump_entry =
-	    debugfs_create_file("dump", S_IRUGO, intf->queue_folder,
+	    debugfs_create_file("dump", S_IRUSR, intf->queue_folder,
 				intf, &rt2x00debug_fop_queue_dump);
 	if (IS_ERR(intf->queue_frame_dump_entry))
 		goto exit;
@@ -569,7 +566,7 @@ void rt2x00debug_register(struct rt2x00_dev *rt2x00dev)
 	init_waitqueue_head(&intf->frame_dump_waitqueue);
 
 	intf->queue_stats_entry =
-	    debugfs_create_file("queue", S_IRUGO, intf->queue_folder,
+	    debugfs_create_file("queue", S_IRUSR, intf->queue_folder,
 				intf, &rt2x00debug_fop_queue_stats);
 
 	return;

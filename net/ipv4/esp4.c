@@ -575,7 +575,7 @@ static int esp_init_state(struct xfrm_state *x)
 			      crypto_aead_ivsize(aead);
 	if (x->props.mode == XFRM_MODE_TUNNEL)
 		x->props.header_len += sizeof(struct iphdr);
-	else if (x->props.mode == XFRM_MODE_BEET)
+	else if (x->props.mode == XFRM_MODE_BEET && x->sel.family != AF_INET6)
 		x->props.header_len += IPV4_BEET_PHMAXLEN;
 	if (x->encap) {
 		struct xfrm_encap_tmpl *encap = x->encap;
