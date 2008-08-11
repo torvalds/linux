@@ -1372,18 +1372,32 @@ check_deadlock(struct task_struct *curr, struct held_lock *next,
 	       struct lockdep_map *next_instance, int read)
 {
 	struct held_lock *prev;
+	struct held_lock *nest = NULL;
 	int i;
 
 	for (i = 0; i < curr->lockdep_depth; i++) {
 		prev = curr->held_locks + i;
+
+		if (prev->instance == next->nest_lock)
+			nest = prev;
+
 		if (hlock_class(prev) != hlock_class(next))
 			continue;
+
 		/*
 		 * Allow read-after-read recursion of the same
 		 * lock class (i.e. read_lock(lock)+read_lock(lock)):
 		 */
 		if ((read == 2) && prev->read)
 			return 2;
+
+		/*
+		 * We're holding the nest_lock, which serializes this lock's
+		 * nesting behaviour.
+		 */
+		if (nest)
+			return 2;
+
 		return print_deadlock_bug(curr, prev, next);
 	}
 	return 1;
@@ -2507,7 +2521,7 @@ EXPORT_SYMBOL_GPL(lockdep_init_map);
  */
 static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 			  int trylock, int read, int check, int hardirqs_off,
-			  unsigned long ip)
+			  struct lockdep_map *nest_lock, unsigned long ip)
 {
 	struct task_struct *curr = current;
 	struct lock_class *class = NULL;
@@ -2566,6 +2580,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	hlock->class_idx = class - lock_classes + 1;
 	hlock->acquire_ip = ip;
 	hlock->instance = lock;
+	hlock->nest_lock = nest_lock;
 	hlock->trylock = trylock;
 	hlock->read = read;
 	hlock->check = check;
@@ -2717,7 +2732,7 @@ found_it:
 		if (!__lock_acquire(hlock->instance,
 			hlock_class(hlock)->subclass, hlock->trylock,
 				hlock->read, hlock->check, hlock->hardirqs_off,
-				hlock->acquire_ip))
+				hlock->nest_lock, hlock->acquire_ip))
 			return 0;
 	}
 
@@ -2778,7 +2793,7 @@ found_it:
 		if (!__lock_acquire(hlock->instance,
 			hlock_class(hlock)->subclass, hlock->trylock,
 				hlock->read, hlock->check, hlock->hardirqs_off,
-				hlock->acquire_ip))
+				hlock->nest_lock, hlock->acquire_ip))
 			return 0;
 	}
 
@@ -2915,7 +2930,8 @@ EXPORT_SYMBOL_GPL(lock_set_subclass);
  * and also avoid lockdep recursion:
  */
 void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
-			  int trylock, int read, int check, unsigned long ip)
+			  int trylock, int read, int check,
+			  struct lockdep_map *nest_lock, unsigned long ip)
 {
 	unsigned long flags;
 
@@ -2930,7 +2946,7 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 
 	current->lockdep_recursion = 1;
 	__lock_acquire(lock, subclass, trylock, read, check,
-		       irqs_disabled_flags(flags), ip);
+		       irqs_disabled_flags(flags), nest_lock, ip);
 	current->lockdep_recursion = 0;
 	raw_local_irq_restore(flags);
 }
