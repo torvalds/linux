@@ -2174,7 +2174,7 @@ int ath_tx_init(struct ath_softc *sc, int nbufs)
 
 		/* Setup tx descriptors */
 		error = ath_descdma_setup(sc, &sc->sc_txdma, &sc->sc_txbuf,
-			"tx", nbufs * ATH_FRAG_PER_MSDU, 1);
+			"tx", nbufs, 1);
 		if (error != 0) {
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: failed to allocate tx descriptors: %d\n",
