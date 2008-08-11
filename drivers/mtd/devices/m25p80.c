@@ -39,6 +39,7 @@
 #define	OPCODE_PP		0x02	/* Page program (up to 256 bytes) */
 #define	OPCODE_BE_4K 		0x20	/* Erase 4KiB block */
 #define	OPCODE_BE_32K		0x52	/* Erase 32KiB block */
+#define	OPCODE_BE		0xc7	/* Erase whole flash block */
 #define	OPCODE_SE		0xd8	/* Sector erase (usually 64KiB) */
 #define	OPCODE_RDID		0x9f	/* Read JEDEC ID */
 
@@ -161,6 +162,31 @@ static int wait_till_ready(struct m25p *flash)
 	return 1;
 }
 
+/*
+ * Erase the whole flash memory
+ *
+ * Returns 0 if successful, non-zero otherwise.
+ */
+static int erase_block(struct m25p *flash)
+{
+	DEBUG(MTD_DEBUG_LEVEL3, "%s: %s %dKiB\n",
+			flash->spi->dev.bus_id, __func__,
+			flash->mtd.size / 1024);
+
+	/* Wait until finished previous write command. */
+	if (wait_till_ready(flash))
+		return 1;
+
+	/* Send write enable, then erase commands. */
+	write_enable(flash);
+
+	/* Set up command buffer. */
+	flash->command[0] = OPCODE_BE;
+
+	spi_write(flash->spi, flash->command, 1);
+
+	return 0;
+}
 
 /*
  * Erase one sector of flash memory at offset ``offset'' which is any
@@ -229,15 +255,21 @@ static int m25p80_erase(struct mtd_info *mtd, struct erase_info *instr)
 	 */
 
 	/* now erase those sectors */
-	while (len) {
-		if (erase_sector(flash, addr)) {
-			instr->state = MTD_ERASE_FAILED;
-			mutex_unlock(&flash->lock);
-			return -EIO;
-		}
+	if (len == flash->mtd.size && erase_block(flash)) {
+		instr->state = MTD_ERASE_FAILED;
+		mutex_unlock(&flash->lock);
+		return -EIO;
+	} else {
+		while (len) {
+			if (erase_sector(flash, addr)) {
+				instr->state = MTD_ERASE_FAILED;
+				mutex_unlock(&flash->lock);
+				return -EIO;
+			}
 
-		addr += mtd->erasesize;
-		len -= mtd->erasesize;
+			addr += mtd->erasesize;
+			len -= mtd->erasesize;
+		}
 	}
 
 	mutex_unlock(&flash->lock);
