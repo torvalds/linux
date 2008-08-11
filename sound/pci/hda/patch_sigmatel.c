@@ -55,7 +55,8 @@ enum {
 	STAC_9200_DELL_M25,
 	STAC_9200_DELL_M26,
 	STAC_9200_DELL_M27,
-	STAC_9200_GATEWAY,
+	STAC_9200_M4,
+	STAC_9200_M4_2,
 	STAC_9200_PANASONIC,
 	STAC_9200_MODELS
 };
@@ -100,8 +101,6 @@ enum {
 	STAC_M3,
 	STAC_M5,
 	STAC_M6,
-	STAC_MA6,
-	STAC_PA6,
 	STAC_925x_MODELS
 };
 
@@ -1375,7 +1374,16 @@ static unsigned int ref9200_pin_configs[8] = {
 	0x02a19020, 0x01a19021, 0x90100140, 0x01813122,
 };
 
-/* 
+static unsigned int gateway9200_m4_pin_configs[8] = {
+	0x400000fe, 0x404500f4, 0x400100f0, 0x90110010,
+	0x400100f1, 0x02a1902e, 0x500000f2, 0x500000f3,
+};
+static unsigned int gateway9200_m4_2_pin_configs[8] = {
+	0x400000fe, 0x404500f4, 0x400100f0, 0x90110010,
+	0x400100f1, 0x02a1902e, 0x500000f2, 0x500000f3,
+};
+
+/*
     STAC 9200 pin configs for
     102801A8
     102801DE
@@ -1505,6 +1513,8 @@ static unsigned int *stac9200_brd_tbl[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M25] = dell9200_m25_pin_configs,
 	[STAC_9200_DELL_M26] = dell9200_m26_pin_configs,
 	[STAC_9200_DELL_M27] = dell9200_m27_pin_configs,
+	[STAC_9200_M4] = gateway9200_m4_pin_configs,
+	[STAC_9200_M4_2] = gateway9200_m4_2_pin_configs,
 	[STAC_9200_PANASONIC] = ref9200_pin_configs,
 };
 
@@ -1521,7 +1531,8 @@ static const char *stac9200_models[STAC_9200_MODELS] = {
 	[STAC_9200_DELL_M25] = "dell-m25",
 	[STAC_9200_DELL_M26] = "dell-m26",
 	[STAC_9200_DELL_M27] = "dell-m27",
-	[STAC_9200_GATEWAY] = "gateway",
+	[STAC_9200_M4] = "gateway-m4",
+	[STAC_9200_M4_2] = "gateway-m4-2",
 	[STAC_9200_PANASONIC] = "panasonic",
 };
 
@@ -1591,11 +1602,9 @@ static struct snd_pci_quirk stac9200_cfg_tbl[] = {
 	/* Panasonic */
 	SND_PCI_QUIRK(0x10f7, 0x8338, "Panasonic CF-74", STAC_9200_PANASONIC),
 	/* Gateway machines needs EAPD to be set on resume */
-	SND_PCI_QUIRK(0x107b, 0x0205, "Gateway S-7110M", STAC_9200_GATEWAY),
-	SND_PCI_QUIRK(0x107b, 0x0317, "Gateway MT3423, MX341*",
-		      STAC_9200_GATEWAY),
-	SND_PCI_QUIRK(0x107b, 0x0318, "Gateway ML3019, MT3707",
-		      STAC_9200_GATEWAY),
+	SND_PCI_QUIRK(0x107b, 0x0205, "Gateway S-7110M", STAC_9200_M4),
+	SND_PCI_QUIRK(0x107b, 0x0317, "Gateway MT3423, MX341*", STAC_9200_M4_2),
+	SND_PCI_QUIRK(0x107b, 0x0318, "Gateway ML3019, MT3707", STAC_9200_M4_2),
 	/* OQO Mobile */
 	SND_PCI_QUIRK(0x1106, 0x3288, "OQO Model 2", STAC_9200_OQO),
 	{} /* terminator */
@@ -1610,11 +1619,18 @@ static unsigned int stac925xM1_pin_configs[8] = {
 	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
 	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
 };
+
 static unsigned int stac925xM1_2_pin_configs[8] = {
 	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
 	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
 };
+
 static unsigned int stac925xM2_pin_configs[8] = {
+	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
+	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
+};
+
+static unsigned int stac925xM2_2_pin_configs[8] = {
 	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
 	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
 };
@@ -1623,31 +1639,15 @@ static unsigned int stac925xM3_pin_configs[8] = {
 	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
 	0x40a000f0, 0x90100210, 0x400003f1, 0x503303f3,
 };
+
 static unsigned int stac925xM5_pin_configs[8] = {
 	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
 	0x40a000f0, 0x90100210, 0x400003f1, 0x9033032e,
 };
 
-/* Original M6 entry at .ini file */
 static unsigned int stac925xM6_pin_configs[8] = {
 	0x40c003f4, 0x424503f2, 0x400000f3, 0x02a19020,
 	0x40a000f0, 0x90100210, 0x400003f1, 0x90330320,
-};
-
-static unsigned int stac925x_MA6_pin_configs[8] = {
-	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
-	0x90a70320, 0x90100211, 0x400003f1, 0x9033032e,
-};
-
-/* This entry should be M2 */
-static unsigned int stac925x_PA6_pin_configs[8] = {
-	0x40c003f0, 0x424503f2, 0x01813022, 0x02a19021,
-	0x50a103f0, 0x90100211, 0x400003f1, 0x9033032e,
-};
-
-static unsigned int stac925xM2_2_pin_configs[8] = {
-	0x40c003f3, 0x424503f2, 0x04180011, 0x02a19020,
-	0x50a103f0, 0x90100212, 0x400003f1, 0x9033032e,
 };
 
 static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
@@ -1659,8 +1659,6 @@ static unsigned int *stac925x_brd_tbl[STAC_925x_MODELS] = {
 	[STAC_M3] = stac925xM3_pin_configs,
 	[STAC_M5] = stac925xM5_pin_configs,
 	[STAC_M6] = stac925xM6_pin_configs,
-	[STAC_MA6] = stac925x_MA6_pin_configs,
-	[STAC_PA6] = stac925x_PA6_pin_configs,
 };
 
 static const char *stac925x_models[STAC_925x_MODELS] = {
@@ -1672,24 +1670,19 @@ static const char *stac925x_models[STAC_925x_MODELS] = {
 	[STAC_M3] = "m3",
 	[STAC_M5] = "m5",
 	[STAC_M6] = "m6",
-	[STAC_MA6] = "ma6",
-	[STAC_PA6] = "pa6",
 };
 
 static struct snd_pci_quirk stac925x_codec_id_cfg_tbl[] = {
-	SND_PCI_QUIRK(0x107b, 0x0316, "Gateway M255", STAC_REF),
-	SND_PCI_QUIRK(0x107b, 0x0366, "Gateway MP6954", STAC_REF),
-
-	SND_PCI_QUIRK(0x107b, 0x0461, "Gateway NX560XL", STAC_MA6),
-	SND_PCI_QUIRK(0x107b, 0x0681, "Gateway NX860", STAC_PA6),
+	SND_PCI_QUIRK(0x107b, 0x0316, "Gateway M255", STAC_M2),
+	SND_PCI_QUIRK(0x107b, 0x0366, "Gateway MP6954", STAC_M5),
+	SND_PCI_QUIRK(0x107b, 0x0461, "Gateway NX560XL", STAC_M1),
+	SND_PCI_QUIRK(0x107b, 0x0681, "Gateway NX860", STAC_M2),
 	SND_PCI_QUIRK(0x107b, 0x0367, "Gateway MX6453", STAC_M1_2),
-
 	/* Not sure about the brand name for those */
 	SND_PCI_QUIRK(0x107b, 0x0281, "Gateway mobile", STAC_M1),
 	SND_PCI_QUIRK(0x107b, 0x0507, "Gateway mobile", STAC_M3),
 	SND_PCI_QUIRK(0x107b, 0x0281, "Gateway mobile", STAC_M6),
 	SND_PCI_QUIRK(0x107b, 0x0685, "Gateway mobile", STAC_M2_2),
-
 	{} /* terminator */
 };
 
@@ -4399,7 +4392,8 @@ static int patch_stac9200(struct hda_codec *codec)
 	spec->num_adcs = 1;
 	spec->num_pwrs = 0;
 
-	if (spec->board_config == STAC_9200_GATEWAY ||
+	if (spec->board_config == STAC_9200_M4 ||
+	    spec->board_config == STAC_9200_M4_2 ||
 	    spec->board_config == STAC_9200_OQO)
 		spec->init = stac9200_eapd_init;
 	else
