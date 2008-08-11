@@ -190,7 +190,7 @@ struct lock_chain {
 	u64				chain_key;
 };
 
-#define MAX_LOCKDEP_KEYS_BITS		11
+#define MAX_LOCKDEP_KEYS_BITS		13
 /*
  * Subtract one because we offset hlock->class_idx by 1 in order
  * to make 0 mean no class. This avoids overflowing the class_idx
