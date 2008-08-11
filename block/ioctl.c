@@ -111,6 +111,69 @@ static int blkdev_reread_part(struct block_device *bdev)
 	return res;
 }
 
+static void blk_ioc_discard_endio(struct bio *bio, int err)
+{
+	if (err) {
+		if (err == -EOPNOTSUPP)
+			set_bit(BIO_EOPNOTSUPP, &bio->bi_flags);
+		clear_bit(BIO_UPTODATE, &bio->bi_flags);
+	}
+	complete(bio->bi_private);
+}
+
+static int blk_ioctl_discard(struct block_device *bdev, uint64_t start,
+			     uint64_t len)
+{
+	struct request_queue *q = bdev_get_queue(bdev);
+	int ret = 0;
+
+	if (start & 511)
+		return -EINVAL;
+	if (len & 511)
+		return -EINVAL;
+	start >>= 9;
+	len >>= 9;
+
+	if (start + len > (bdev->bd_inode->i_size >> 9))
+		return -EINVAL;
+
+	if (!q->prepare_discard_fn)
+		return -EOPNOTSUPP;
+
+	while (len && !ret) {
+		DECLARE_COMPLETION_ONSTACK(wait);
+		struct bio *bio;
+
+		bio = bio_alloc(GFP_KERNEL, 0);
+		if (!bio)
+			return -ENOMEM;
+
+		bio->bi_end_io = blk_ioc_discard_endio;
+		bio->bi_bdev = bdev;
+		bio->bi_private = &wait;
+		bio->bi_sector = start;
+
+		if (len > q->max_hw_sectors) {
+			bio->bi_size = q->max_hw_sectors << 9;
+			len -= q->max_hw_sectors;
+			start += q->max_hw_sectors;
+		} else {
+			bio->bi_size = len << 9;
+			len = 0;
+		}
+		submit_bio(WRITE_DISCARD, bio);
+
+		wait_for_completion(&wait);
+
+		if (bio_flagged(bio, BIO_EOPNOTSUPP))
+			ret = -EOPNOTSUPP;
+		else if (!bio_flagged(bio, BIO_UPTODATE))
+			ret = -EIO;
+		bio_put(bio);
+	}
+	return ret;
+}
+
 static int put_ushort(unsigned long arg, unsigned short val)
 {
 	return put_user(val, (unsigned short __user *)arg);
@@ -258,6 +321,19 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		set_device_ro(bdev, n);
 		unlock_kernel();
 		return 0;
+
+	case BLKDISCARD: {
+		uint64_t range[2];
+
+		if (!(file->f_mode & FMODE_WRITE))
+			return -EBADF;
+
+		if (copy_from_user(range, (void __user *)arg, sizeof(range)))
+			return -EFAULT;
+
+		return blk_ioctl_discard(bdev, range[0], range[1]);
+	}
+
 	case HDIO_GETGEO: {
 		struct hd_geometry geo;
 

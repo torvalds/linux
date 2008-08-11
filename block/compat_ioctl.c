@@ -788,6 +788,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		return compat_hdio_getgeo(disk, bdev, compat_ptr(arg));
 	case BLKFLSBUF:
 	case BLKROSET:
+	case BLKDISCARD:
 	/*
 	 * the ones below are implemented in blkdev_locked_ioctl,
 	 * but we call blkdev_ioctl, which gets the lock for us
