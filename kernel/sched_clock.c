@@ -42,6 +42,8 @@ unsigned long long __attribute__((weak)) sched_clock(void)
 	return (unsigned long long)jiffies * (NSEC_PER_SEC / HZ);
 }
 
+static __read_mostly int sched_clock_running;
+
 #ifdef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
 
 struct sched_clock_data {
@@ -69,8 +71,6 @@ static inline struct sched_clock_data *cpu_sdc(int cpu)
 {
 	return &per_cpu(sched_clock_data, cpu);
 }
-
-static __read_mostly int sched_clock_running;
 
 void sched_clock_init(void)
 {
@@ -247,6 +247,21 @@ void sched_clock_idle_wakeup_event(u64 delta_ns)
 	touch_softlockup_watchdog();
 }
 EXPORT_SYMBOL_GPL(sched_clock_idle_wakeup_event);
+
+#else /* CONFIG_HAVE_UNSTABLE_SCHED_CLOCK */
+
+void sched_clock_init(void)
+{
+	sched_clock_running = 1;
+}
+
+u64 sched_clock_cpu(int cpu)
+{
+	if (unlikely(!sched_clock_running))
+		return 0;
+
+	return sched_clock();
+}
 
 #endif
 

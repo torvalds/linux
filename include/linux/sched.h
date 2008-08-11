@@ -1551,16 +1551,10 @@ static inline int set_cpus_allowed(struct task_struct *p, cpumask_t new_mask)
 
 extern unsigned long long sched_clock(void);
 
+extern void sched_clock_init(void);
+extern u64 sched_clock_cpu(int cpu);
+
 #ifndef CONFIG_HAVE_UNSTABLE_SCHED_CLOCK
-static inline void sched_clock_init(void)
-{
-}
-
-static inline u64 sched_clock_cpu(int cpu)
-{
-	return sched_clock();
-}
-
 static inline void sched_clock_tick(void)
 {
 }
@@ -1573,8 +1567,6 @@ static inline void sched_clock_idle_wakeup_event(u64 delta_ns)
 {
 }
 #else
-extern void sched_clock_init(void);
-extern u64 sched_clock_cpu(int cpu);
 extern void sched_clock_tick(void);
 extern void sched_clock_idle_sleep_event(void);
 extern void sched_clock_idle_wakeup_event(u64 delta_ns);
