@@ -294,6 +294,7 @@ static inline void record_gp_check_time(struct rcu_ctrlblk *rcp)
 {
 	rcp->gp_check = get_seconds() + 3;
 }
+
 static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 {
 	int cpu;
@@ -303,11 +304,9 @@ static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 
 	spin_lock(&rcp->lock);
 	delta = get_seconds() - rcp->gp_check;
-	if (delta < 2L ||
-	    cpus_empty(rcp->cpumask)) {
+	if (delta < 2L || cpus_empty(rcp->cpumask)) {
 		spin_unlock(&rcp->lock);
 		return;
-	rcp->gp_check = get_seconds() + 30;
 	}
 	spin_unlock(&rcp->lock);
 
@@ -319,6 +318,7 @@ static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 	printk(" (detected by %d, t=%lu/%lu)\n",
 	       smp_processor_id(), get_seconds(), rcp->gp_check);
 }
+
 static void print_cpu_stall(struct rcu_ctrlblk *rcp)
 {
 	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu)\n",
@@ -329,8 +329,8 @@ static void print_cpu_stall(struct rcu_ctrlblk *rcp)
 		rcp->gp_check = get_seconds() + 30;
 	spin_unlock(&rcp->lock);
 }
-static inline void check_cpu_stall(struct rcu_ctrlblk *rcp,
-				   struct rcu_data *rdp)
+
+static void check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
 	long delta;
 
@@ -341,12 +341,11 @@ static inline void check_cpu_stall(struct rcu_ctrlblk *rcp,
 
 		print_cpu_stall(rcp);
 
-	} else if (!cpus_empty(rcp->cpumask) && delta >= 2L) {
-
-		/* They had two seconds to dump stack, so complain. */
-
-		print_other_cpu_stall(rcp);
-
+	} else {
+		if (!cpus_empty(rcp->cpumask) && delta >= 2L) {
+			/* They had two seconds to dump stack, so complain. */
+			print_other_cpu_stall(rcp);
+		}
 	}
 }
 
@@ -355,8 +354,9 @@ static inline void check_cpu_stall(struct rcu_ctrlblk *rcp,
 static inline void record_gp_check_time(struct rcu_ctrlblk *rcp)
 {
 }
-static inline void check_cpu_stall(struct rcu_ctrlblk *rcp,
-				   struct rcu_data *rdp)
+
+static inline void
+check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
 }
 
