@@ -293,7 +293,7 @@ int blkdev_issue_flush(struct block_device *bdev, sector_t *error_sector)
 	bio->bi_end_io = bio_end_empty_barrier;
 	bio->bi_private = &wait;
 	bio->bi_bdev = bdev;
-	submit_bio(1 << BIO_RW_BARRIER, bio);
+	submit_bio(WRITE_BARRIER, bio);
 
 	wait_for_completion(&wait);
 
