@@ -654,6 +654,11 @@ struct hda_codec {
 
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 
+	/* misc flags */
+	unsigned int spdif_status_reset :1; /* needs to toggle SPDIF for each
+					     * status change
+					     * (e.g. Realtek codecs)
+					     */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int power_transition :1; /* power-state in transition */

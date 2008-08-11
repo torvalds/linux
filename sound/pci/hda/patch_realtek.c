@@ -2670,6 +2670,8 @@ static int alc_build_pcms(struct hda_codec *codec)
 			info->stream[SNDRV_PCM_STREAM_CAPTURE] = *(spec->stream_digital_capture);
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid = spec->dig_in_nid;
 		}
+		/* FIXME: do we need this for all Realtek codec models? */
+		codec->spdif_status_reset = 1;
 	}
 
 	/* If the use of more than one ADC is requested for the current
