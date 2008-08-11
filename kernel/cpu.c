@@ -349,6 +349,8 @@ static int __cpuinit _cpu_up(unsigned int cpu, int tasks_frozen)
 		goto out_notify;
 	BUG_ON(!cpu_online(cpu));
 
+	cpu_set(cpu, cpu_active_map);
+
 	/* Now call notifier in preparation. */
 	raw_notifier_call_chain(&cpu_chain, CPU_ONLINE | mod, hcpu);
 
@@ -382,9 +384,6 @@ int __cpuinit cpu_up(unsigned int cpu)
 	}
 
 	err = _cpu_up(cpu, 0);
-
-	if (cpu_online(cpu))
-		cpu_set(cpu, cpu_active_map);
 
 out:
 	cpu_maps_update_done();
