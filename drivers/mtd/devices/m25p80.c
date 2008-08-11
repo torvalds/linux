@@ -134,7 +134,7 @@ static inline int write_enable(struct m25p *flash)
 {
 	u8	code = OPCODE_WREN;
 
-	return spi_write_then_read(flash->spi, &code, 1, NULL, 0);
+	return spi_write(flash->spi, &code, 1);
 }
 
 
