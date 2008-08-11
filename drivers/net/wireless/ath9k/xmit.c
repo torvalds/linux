@@ -357,9 +357,9 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	txctl->flags = ATH9K_TXDESC_CLRDMASK;    /* needed for crypto errors */
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
-		tx_info->flags |= ATH9K_TXDESC_NOACK;
+		txctl->flags |= ATH9K_TXDESC_NOACK;
 	if (tx_info->flags & IEEE80211_TX_CTL_USE_RTS_CTS)
-		tx_info->flags |= ATH9K_TXDESC_RTSENA;
+		txctl->flags |= ATH9K_TXDESC_RTSENA;
 
 	/*
 	 * Setup for rate calculations.
