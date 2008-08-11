@@ -830,8 +830,6 @@ void ath_setdefantenna(void *sc, u32 antenna);
 #define	ATH_DEFAULT_NOISE_FLOOR -95
 #define ATH_REGCLASSIDS_MAX     10
 #define ATH_CABQ_READY_TIME     80  /* % of beacon interval */
-#define ATH_PREAMBLE_SHORT	(1<<0)
-#define ATH_PROTECT_ENABLE	(1<<1)
 #define ATH_MAX_SW_RETRIES      10
 #define ATH_CHAN_MAX            255
 #define IEEE80211_WEP_NKID      4       /* number of key ids */
@@ -892,25 +890,30 @@ struct ath_ht_info {
 	u8 ext_chan_offset;
 };
 
+#define SC_OP_INVALID		BIT(0)
+#define SC_OP_BEACONS		BIT(1)
+#define SC_OP_RXAGGR		BIT(2)
+#define SC_OP_TXAGGR		BIT(3)
+#define SC_OP_CHAINMASK_UPDATE	BIT(4)
+#define SC_OP_FULL_RESET	BIT(5)
+#define SC_OP_PREAMBLE_SHORT	BIT(6)
+#define SC_OP_PROTECT_ENABLE	BIT(7)
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct pci_dev *pdev;
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
-	struct ath_config sc_config;	/* load-time parameters */
+	struct ath_config sc_config;
 	struct ath_hal *sc_ah;
-	struct ath_rate_softc *sc_rc;	/* tx rate control support */
+	struct ath_rate_softc *sc_rc;
 	void __iomem *mem;
 
 	int sc_debug;
 	u32 sc_intrstatus;
+	u32 sc_flags; /* SC_OP_* */
 	unsigned int rx_filter;
-	u8 sc_invalid;			/* being detached */
-	u8 sc_beacons;			/* beacons running */
-	u8 sc_txaggr;			/* enable 11n tx aggregation */
-	u8 sc_rxaggr;			/* enable 11n rx aggregation */
-	u8 sc_update_chainmask;		/* change chain mask */
-	u8 sc_full_reset;		/* force full reset */
+
 	enum wireless_mode sc_curmode;	/* current phy mode */
 	u16 sc_curtxpow;
 	u16 sc_curaid;
@@ -944,7 +947,6 @@ struct ath_softc {
 	u8 sc_rxchaindetect_delta5GHz;
 	u8 sc_rxchaindetect_delta2GHz;
 	u32 sc_rtsaggrlimit;		/* Chipset specific aggr limit */
-	u32 sc_flags;
 #ifdef CONFIG_SLOW_ANT_DIV
 	struct ath_antdiv sc_antdiv;
 #endif

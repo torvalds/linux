@@ -272,8 +272,8 @@ static int ath_stop(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "%s: invalid %u\n",
-		__func__, sc->sc_invalid);
+	DPRINTF(sc, ATH_DBG_CONFIG, "%s: invalid %ld\n",
+		__func__, sc->sc_flags & SC_OP_INVALID);
 
 	/*
 	 * Shutdown the hardware and driver:
@@ -291,10 +291,10 @@ static int ath_stop(struct ath_softc *sc)
 	 * hardware is gone (invalid).
 	 */
 
-	if (!sc->sc_invalid)
+	if (!(sc->sc_flags & SC_OP_INVALID))
 		ath9k_hw_set_interrupts(ah, 0);
 	ath_draintxq(sc, false);
-	if (!sc->sc_invalid) {
+	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		ath_stoprecv(sc);
 		ath9k_hw_phy_disable(ah);
 	} else
@@ -316,7 +316,7 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	bool fastcc = true, stopped;
 	enum ath9k_ht_macmode ht_macmode;
 
-	if (sc->sc_invalid)	/* if the device is invalid or removed */
+	if (sc->sc_flags & SC_OP_INVALID) /* the device is invalid or removed */
 		return -EIO;
 
 	DPRINTF(sc, ATH_DBG_CONFIG,
@@ -332,7 +332,8 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 
 	if (hchan->channel != sc->sc_curchan.channel ||
 	    hchan->channelFlags != sc->sc_curchan.channelFlags ||
-	    sc->sc_update_chainmask || sc->sc_full_reset) {
+	    (sc->sc_flags & SC_OP_CHAINMASK_UPDATE) ||
+	    (sc->sc_flags & SC_OP_FULL_RESET)) {
 		int status;
 		/*
 		 * This is only performed if the channel settings have
@@ -351,7 +352,7 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		 * to flush data frames already in queue because of
 		 * changing channel. */
 
-		if (!stopped || sc->sc_full_reset)
+		if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
 			fastcc = false;
 
 		spin_lock_bh(&sc->sc_resetlock);
@@ -372,8 +373,8 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		spin_unlock_bh(&sc->sc_resetlock);
 
 		sc->sc_curchan = *hchan;
-		sc->sc_update_chainmask = 0;
-		sc->sc_full_reset = 0;
+		sc->sc_flags &= ~SC_OP_CHAINMASK_UPDATE;
+		sc->sc_flags &= ~SC_OP_FULL_RESET;
 
 		/* Re-enable rx framework */
 		if (ath_startrecv(sc) != 0) {
@@ -484,7 +485,7 @@ int ath_chainmask_sel_logic(struct ath_softc *sc, struct ath_node *an)
 
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
-	sc->sc_update_chainmask = 1;
+	sc->sc_flags |= SC_OP_CHAINMASK_UPDATE;
 	if (is_ht) {
 		sc->sc_tx_chainmask = sc->sc_ah->ah_caps.tx_chainmask;
 		sc->sc_rx_chainmask = sc->sc_ah->ah_caps.rx_chainmask;
@@ -553,7 +554,7 @@ int ath_vap_listen(struct ath_softc *sc, int if_id)
 		sc->sc_imask & ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS));
 	sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
 	/* need to reconfigure the beacons when it moves to RUN */
-	sc->sc_beacons = 0;
+	sc->sc_flags &= ~SC_OP_BEACONS;
 
 	return 0;
 }
@@ -773,7 +774,7 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 
 	/* XXX: we must make sure h/w is ready and clear invalid flag
 	 * before turning on interrupt. */
-	sc->sc_invalid = 0;
+	sc->sc_flags &= ~SC_OP_INVALID;
 done:
 	return error;
 }
@@ -816,7 +817,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	ath_update_txpow(sc);
 
-	if (sc->sc_beacons)
+	if (sc->sc_flags & SC_OP_BEACONS)
 		ath_beacon_config(sc, ATH_IF_ID_ANY);	/* restart beacons */
 
 	ath9k_hw_set_interrupts(ah, sc->sc_imask);
@@ -841,7 +842,7 @@ int ath_suspend(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 
 	/* No I/O if device has been surprise removed */
-	if (sc->sc_invalid)
+	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
 	/* Shut off the interrupt before setting sc->sc_invalid to '1' */
@@ -849,7 +850,7 @@ int ath_suspend(struct ath_softc *sc)
 
 	/* XXX: we must make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
-	sc->sc_invalid = 1;
+	sc->sc_flags |= SC_OP_INVALID;
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
@@ -870,7 +871,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	bool sched = false;
 
 	do {
-		if (sc->sc_invalid) {
+		if (sc->sc_flags & SC_OP_INVALID) {
 			/*
 			 * The hardware is not ready/present, don't
 			 * touch anything. Note this can happen early
@@ -1026,7 +1027,7 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	u32 rd;
 
 	/* XXX: hardware will not be ready until ath_open() being called */
-	sc->sc_invalid = 1;
+	sc->sc_flags |= SC_OP_INVALID;
 
 	sc->sc_debug = DBG_DEFAULT;
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: devid 0x%x\n", __func__, devid);
@@ -1210,8 +1211,8 @@ int ath_init(u16 devid, struct ath_softc *sc)
 
 	/* 11n Capabilities */
 	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
-		sc->sc_txaggr = 1;
-		sc->sc_rxaggr = 1;
+		sc->sc_flags |= SC_OP_TXAGGR;
+		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
 	sc->sc_tx_chainmask = ah->ah_caps.tx_chainmask;
@@ -1267,7 +1268,7 @@ void ath_deinit(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s\n", __func__);
 
 	ath_stop(sc);
-	if (!sc->sc_invalid)
+	if (!(sc->sc_flags & SC_OP_INVALID))
 		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 	ath_rate_detach(sc->sc_rc);
 	/* cleanup tx queues */
@@ -1394,9 +1395,9 @@ void ath_newassoc(struct ath_softc *sc,
 	/* if station reassociates, tear down the aggregation state. */
 	if (!isnew) {
 		for (tidno = 0; tidno < WME_NUM_TID; tidno++) {
-			if (sc->sc_txaggr)
+			if (sc->sc_flags & SC_OP_TXAGGR)
 				ath_tx_aggr_teardown(sc, an, tidno);
-			if (sc->sc_rxaggr)
+			if (sc->sc_flags & SC_OP_RXAGGR)
 				ath_rx_aggr_teardown(sc, an, tidno);
 		}
 	}

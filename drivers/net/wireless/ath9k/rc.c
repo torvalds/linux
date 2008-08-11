@@ -1903,7 +1903,7 @@ static void ath_tx_aggr_resp(struct ath_softc *sc,
 	int state;
 	DECLARE_MAC_BUF(mac);
 
-	if (!sc->sc_txaggr)
+	if (!(sc->sc_flags & SC_OP_TXAGGR))
 		return;
 
 	txtid = ATH_AN_2_TID(an, tidno);

@@ -392,7 +392,7 @@ static int ath_tx_prepare(struct ath_softc *sc,
 		 * incremented by the fragmentation routine.
 		 */
 		if (likely(!(txctl->flags & ATH9K_TXDESC_FRAG_IS_ON)) &&
-			txctl->ht && sc->sc_txaggr) {
+		    txctl->ht && (sc->sc_flags & SC_OP_TXAGGR)) {
 			struct ath_atx_tid *tid;
 
 			tid = ATH_AN_2_TID(txctl->an, txctl->tidno);
@@ -422,7 +422,7 @@ static int ath_tx_prepare(struct ath_softc *sc,
 		/*
 		 * XXX not right with fragmentation.
 		 */
-		if (sc->sc_flags & ATH_PREAMBLE_SHORT)
+		if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
 			dur = rt->info[rix].spAckDuration;
 		else
 			dur = rt->info[rix].lpAckDuration;
@@ -438,8 +438,9 @@ static int ath_tx_prepare(struct ath_softc *sc,
 			** Add time for next fragment.
 			*/
 			dur += ath9k_hw_computetxtime(sc->sc_ah, rt,
-					txctl->nextfraglen,
-					rix, sc->sc_flags & ATH_PREAMBLE_SHORT);
+				      txctl->nextfraglen,
+				      rix,
+				      (sc->sc_flags & SC_OP_PREAMBLE_SHORT));
 		}
 
 		if (ieee80211_has_morefrags(fc) ||
@@ -1406,7 +1407,7 @@ static int ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 		/*
 		 * schedule any pending packets if aggregation is enabled
 		 */
-		if (sc->sc_txaggr)
+		if (sc->sc_flags & SC_OP_TXAGGR)
 			ath_txq_schedule(sc, txq);
 		spin_unlock_bh(&txq->axq_lock);
 	}
@@ -1433,7 +1434,7 @@ static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
 
 	/* XXX return value */
-	if (!sc->sc_invalid) {
+	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i)) {
 				ath_tx_stopdma(sc, &sc->sc_txq[i]);
@@ -2024,7 +2025,7 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 	ieee80211_is_pspoll(fc) ?
 		(bf->bf_state.bf_type |= BUF_PSPOLL) :
 		(bf->bf_state.bf_type &= ~BUF_PSPOLL);
-	(sc->sc_flags & ATH_PREAMBLE_SHORT) ?
+	(sc->sc_flags & SC_OP_PREAMBLE_SHORT) ?
 		(bf->bf_state.bf_type |= BUF_SHORT_PREAMBLE) :
 		(bf->bf_state.bf_type &= ~BUF_SHORT_PREAMBLE);
 
@@ -2076,7 +2077,7 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 
 	spin_lock_bh(&txq->axq_lock);
 
-	if (txctl->ht && sc->sc_txaggr) {
+	if (txctl->ht && (sc->sc_flags & SC_OP_TXAGGR)) {
 		struct ath_atx_tid *tid = ATH_AN_2_TID(an, txctl->tidno);
 		if (ath_aggr_query(sc, an, txctl->tidno)) {
 			/*
@@ -2153,7 +2154,7 @@ static void xmit_map_sg(struct ath_softc *sc,
 		tx_status.retries = 0;
 		tx_status.flags = ATH_TX_ERROR;
 
-		if (txctl->ht && sc->sc_txaggr) {
+		if (txctl->ht && (sc->sc_flags & SC_OP_TXAGGR)) {
 			/* Reclaim the seqno. */
 			tid = ATH_AN_2_TID((struct ath_node *)
 				txctl->an, txctl->tidno);
@@ -2505,7 +2506,7 @@ void ath_tx_draintxq(struct ath_softc *sc,
 	}
 
 	/* flush any pending frames if aggregation is enabled */
-	if (sc->sc_txaggr) {
+	if (sc->sc_flags & SC_OP_TXAGGR) {
 		if (!retry_tx) {
 			spin_lock_bh(&txq->axq_lock);
 			ath_txq_drain_pending_buffers(sc, txq,
@@ -2521,7 +2522,7 @@ void ath_draintxq(struct ath_softc *sc, bool retry_tx)
 {
 	/* stop beacon queue. The beacon will be freed when
 	 * we go to INIT state */
-	if (!sc->sc_invalid) {
+	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		(void) ath9k_hw_stoptxdma(sc->sc_ah, sc->sc_bhalq);
 		DPRINTF(sc, ATH_DBG_XMIT, "%s: beacon queue %x\n", __func__,
 			ath9k_hw_gettxbuf(sc->sc_ah, sc->sc_bhalq));
@@ -2548,7 +2549,7 @@ enum ATH_AGGR_CHECK ath_tx_aggr_check(struct ath_softc *sc,
 	struct ath_atx_tid *txtid;
 	DECLARE_MAC_BUF(mac);
 
-	if (!sc->sc_txaggr)
+	if (!(sc->sc_flags & SC_OP_TXAGGR))
 		return AGGR_NOT_REQUIRED;
 
 	/* ADDBA exchange must be completed before sending aggregates */
@@ -2595,7 +2596,7 @@ int ath_tx_aggr_start(struct ath_softc *sc,
 		return -1;
 	}
 
-	if (sc->sc_txaggr) {
+	if (sc->sc_flags & SC_OP_TXAGGR) {
 		txtid = ATH_AN_2_TID(an, tid);
 		txtid->addba_exchangeinprogress = 1;
 		ath_tx_pause_tid(sc, txtid);
@@ -2755,7 +2756,7 @@ void ath_txq_schedule(struct ath_softc *sc, struct ath_txq *txq)
 
 void ath_tx_node_init(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_txaggr) {
+	if (sc->sc_flags & SC_OP_TXAGGR) {
 		struct ath_atx_tid *tid;
 		struct ath_atx_ac *ac;
 		int tidno, acno;
@@ -2867,7 +2868,7 @@ void ath_tx_node_cleanup(struct ath_softc *sc,
 
 void ath_tx_node_free(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_txaggr) {
+	if (sc->sc_flags & SC_OP_TXAGGR) {
 		struct ath_atx_tid *tid;
 		int tidno, i;
 

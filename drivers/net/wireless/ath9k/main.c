@@ -481,7 +481,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	/* Set interrupt mask */
 	sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_imask & ~ATH9K_INT_GLOBAL);
-	sc->sc_beacons = 0;
+	sc->sc_flags &= ~SC_OP_BEACONS;
 
 	error = ath_vap_detach(sc, 0);
 	if (error)
@@ -582,7 +582,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 				print_mac(mac, sc->sc_curbssid), sc->sc_curaid);
 
 			/* need to reconfigure the beacon */
-			sc->sc_beacons = 0;
+			sc->sc_flags &= ~SC_OP_BEACONS ;
 
 			break;
 		default:
@@ -833,7 +833,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		/* Configure the beacon */
 		ath_beacon_config(sc, 0);
-		sc->sc_beacons = 1;
+		sc->sc_flags |= SC_OP_BEACONS;
 
 		/* Reset rssi stats */
 		sc->sc_halstats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
@@ -896,9 +896,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			__func__,
 			bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
-			sc->sc_flags |= ATH_PREAMBLE_SHORT;
+			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
 		else
-			sc->sc_flags &= ~ATH_PREAMBLE_SHORT;
+			sc->sc_flags &= ~SC_OP_PREAMBLE_SHORT;
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -907,9 +907,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot &&
 		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
-			sc->sc_flags |= ATH_PROTECT_ENABLE;
+			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
 		else
-			sc->sc_flags &= ~ATH_PROTECT_ENABLE;
+			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
 	}
 
 	if (changed & BSS_CHANGED_HT) {

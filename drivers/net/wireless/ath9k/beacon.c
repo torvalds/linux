@@ -111,7 +111,7 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	rix = 0;
 	rt = sc->sc_currates;
 	rate = rt->info[rix].rateCode;
-	if (sc->sc_flags & ATH_PREAMBLE_SHORT)
+	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
 		rate |= rt->info[rix].shortPreamble;
 
 	ath9k_hw_set11n_txdesc(ah, ds
@@ -975,5 +975,5 @@ void ath_beacon_sync(struct ath_softc *sc, int if_id)
 	 * beacon frame we just received.
 	 */
 	ath_beacon_config(sc, if_id);
-	sc->sc_beacons = 1;
+	sc->sc_flags |= SC_OP_BEACONS;
 }
