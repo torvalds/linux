@@ -1174,6 +1174,41 @@ struct dentry * d_alloc_anon(struct inode *inode)
 	return res;
 }
 
+/**
+ * d_obtain_alias - find or allocate a dentry for a given inode
+ * @inode: inode to allocate the dentry for
+ *
+ * Obtain a dentry for an inode resulting from NFS filehandle conversion or
+ * similar open by handle operations.  The returned dentry may be anonymous,
+ * or may have a full name (if the inode was already in the cache).
+ *
+ * When called on a directory inode, we must ensure that the inode only ever
+ * has one dentry.  If a dentry is found, that is returned instead of
+ * allocating a new one.
+ *
+ * On successful return, the reference to the inode has been transferred
+ * to the dentry.  If %NULL is returned (indicating kmalloc failure),
+ * the reference on the inode has been released.  To make it easier
+ * to use in export operations a NULL or IS_ERR inode may be passed in
+ * and will be casted to the corresponding NULL or IS_ERR dentry.
+ */
+struct dentry *d_obtain_alias(struct inode *inode)
+{
+	struct dentry *dentry;
+
+	if (!inode)
+		return NULL;
+	if (IS_ERR(inode))
+		return ERR_CAST(inode);
+
+	dentry = d_alloc_anon(inode);
+	if (!dentry) {
+		iput(inode);
+		dentry = ERR_PTR(-ENOMEM);
+	}
+	return dentry;
+}
+EXPORT_SYMBOL_GPL(d_obtain_alias);
 
 /**
  * d_splice_alias - splice a disconnected dentry into the tree if one exists
