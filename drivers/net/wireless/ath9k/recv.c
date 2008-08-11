@@ -1089,7 +1089,7 @@ rx_next:
 			"%s: Reset rx chain mask. "
 			"Do internal reset\n", __func__);
 		ASSERT(flush == 0);
-		ath_internal_reset(sc);
+		ath_reset(sc, false);
 	}
 
 	return 0;

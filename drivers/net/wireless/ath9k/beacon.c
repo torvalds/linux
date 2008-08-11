@@ -719,7 +719,7 @@ void ath_bstuck_process(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DBG_BEACON,
 		"%s: stuck beacon; resetting (bmiss count %u)\n",
 		__func__, sc->sc_bmisscount);
-	ath_internal_reset(sc);
+	ath_reset(sc, false);
 }
 
 /*

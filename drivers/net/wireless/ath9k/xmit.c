@@ -1242,7 +1242,7 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 	}
 
 	if (needreset)
-		ath_internal_reset(sc);
+		ath_reset(sc, false);
 
 	return;
 }

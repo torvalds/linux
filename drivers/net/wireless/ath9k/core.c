@@ -828,29 +828,30 @@ done:
 	return error;
 }
 
-/*
- * Reset the hardware w/o losing operational state.  This is
- * basically a more efficient way of doing ath_stop, ath_init,
- * followed by state transitions to the current 802.11
- * operational state.  Used to recover from errors rx overrun
- * and to reset the hardware when rf gain settings must be reset.
- */
-
-static int ath_reset_start(struct ath_softc *sc, u32 flag)
+int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hal *ah = sc->sc_ah;
+	int status;
+	int error = 0;
+	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
 
 	ath9k_hw_set_interrupts(ah, 0);	/* disable interrupts */
-	ath_draintxq(sc, flag & RESET_RETRY_TXQ);	/* stop xmit side */
-	ath_stoprecv(sc);	/* stop recv side */
-	ath_flushrecv(sc);	/* flush recv queue */
+	ath_draintxq(sc, retry_tx);	/* stop xmit */
+	ath_stoprecv(sc);		/* stop recv */
+	ath_flushrecv(sc);		/* flush recv queue */
 
-	return 0;
-}
-
-static int ath_reset_end(struct ath_softc *sc, u32 flag)
-{
-	struct ath_hal *ah = sc->sc_ah;
+	/* Reset chip */
+	spin_lock_bh(&sc->sc_resetlock);
+	if (!ath9k_hw_reset(ah, sc->sc_opmode, &sc->sc_curchan,
+			   ht_macmode,
+			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
+			   sc->sc_ht_extprotspacing, false, &status)) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"%s: unable to reset hardware; hal status %u\n",
+			__func__, status);
+		error = -EIO;
+	}
+	spin_unlock_bh(&sc->sc_resetlock);
 
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		DPRINTF(sc, ATH_DBG_FATAL,
@@ -863,14 +864,15 @@ static int ath_reset_end(struct ath_softc *sc, u32 flag)
 	 */
 	ath_setcurmode(sc, ath_chan2mode(&sc->sc_curchan));
 
-	ath_update_txpow(sc);	/* update tx power state */
+	ath_update_txpow(sc);
 
 	if (sc->sc_beacons)
 		ath_beacon_config(sc, ATH_IF_ID_ANY);	/* restart beacons */
+
 	ath9k_hw_set_interrupts(ah, sc->sc_imask);
 
 	/* Restart the txq */
-	if (flag & RESET_RETRY_TXQ) {
+	if (retry_tx) {
 		int i;
 		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i)) {
@@ -880,28 +882,6 @@ static int ath_reset_end(struct ath_softc *sc, u32 flag)
 			}
 		}
 	}
-	return 0;
-}
-
-int ath_reset(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	int status;
-	int error = 0;
-	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
-
-	/* NB: indicate channel change so we do a full reset */
-	spin_lock_bh(&sc->sc_resetlock);
-	if (!ath9k_hw_reset(ah, sc->sc_opmode, &sc->sc_curchan,
-			   ht_macmode,
-			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
-			   sc->sc_ht_extprotspacing, false, &status)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: unable to reset hardware; hal status %u\n",
-			__func__, status);
-		error = -EIO;
-	}
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	return error;
 }
@@ -1050,7 +1030,7 @@ static void ath9k_tasklet(unsigned long data)
 
 	if (status & ATH9K_INT_FATAL) {
 		/* need a chip reset */
-		ath_internal_reset(sc);
+		ath_reset(sc, false);
 		return;
 	} else {
 
@@ -1814,13 +1794,6 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 /*************/
 /* Utilities */
 /*************/
-
-void ath_internal_reset(struct ath_softc *sc)
-{
-	ath_reset_start(sc, 0);
-	ath_reset(sc);
-	ath_reset_end(sc, 0);
-}
 
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
 {
