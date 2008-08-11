@@ -1243,7 +1243,6 @@ end_rename:
 
 static struct dentry *udf_get_parent(struct dentry *child)
 {
-	struct dentry *parent;
 	struct inode *inode = NULL;
 	struct dentry dotdot;
 	struct fileIdentDesc cfi;
@@ -1266,13 +1265,7 @@ static struct dentry *udf_get_parent(struct dentry *child)
 		goto out_unlock;
 	unlock_kernel();
 
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
-
-	return parent;
+	return d_obtain_alias(inode);
 out_unlock:
 	unlock_kernel();
 	return ERR_PTR(-EACCES);
@@ -1283,7 +1276,6 @@ static struct dentry *udf_nfs_get_inode(struct super_block *sb, u32 block,
 					u16 partref, __u32 generation)
 {
 	struct inode *inode;
-	struct dentry *result;
 	kernel_lb_addr loc;
 
 	if (block == 0)
@@ -1300,12 +1292,7 @@ static struct dentry *udf_nfs_get_inode(struct super_block *sb, u32 block,
 		iput(inode);
 		return ERR_PTR(-ESTALE);
 	}
-	result = d_alloc_anon(inode);
-	if (!result) {
-		iput(inode);
-		return ERR_PTR(-ENOMEM);
-	}
-	return result;
+	return d_obtain_alias(inode);
 }
 
 static struct dentry *udf_fh_to_dentry(struct super_block *sb,

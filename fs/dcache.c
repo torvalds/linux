@@ -1187,17 +1187,17 @@ struct dentry * d_alloc_anon(struct inode *inode)
  * allocating a new one.
  *
  * On successful return, the reference to the inode has been transferred
- * to the dentry.  If %NULL is returned (indicating kmalloc failure),
- * the reference on the inode has been released.  To make it easier
- * to use in export operations a NULL or IS_ERR inode may be passed in
- * and will be casted to the corresponding NULL or IS_ERR dentry.
+ * to the dentry.  In case of an error the reference on the inode is released.
+ * To make it easier to use in export operations a %NULL or IS_ERR inode may
+ * be passed in and will be the error will be propagate to the return value,
+ * with a %NULL @inode replaced by ERR_PTR(-ESTALE).
  */
 struct dentry *d_obtain_alias(struct inode *inode)
 {
 	struct dentry *dentry;
 
 	if (!inode)
-		return NULL;
+		return ERR_PTR(-ESTALE);
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 

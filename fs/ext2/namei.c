@@ -73,8 +73,6 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, str
 struct dentry *ext2_get_parent(struct dentry *child)
 {
 	unsigned long ino;
-	struct dentry *parent;
-	struct inode *inode;
 	struct dentry dotdot;
 
 	dotdot.d_name.name = "..";
@@ -83,16 +81,7 @@ struct dentry *ext2_get_parent(struct dentry *child)
 	ino = ext2_inode_by_name(child->d_inode, &dotdot);
 	if (!ino)
 		return ERR_PTR(-ENOENT);
-	inode = ext2_iget(child->d_inode->i_sb, ino);
-
-	if (IS_ERR(inode))
-		return ERR_CAST(inode);
-	parent = d_alloc_anon(inode);
-	if (!parent) {
-		iput(inode);
-		parent = ERR_PTR(-ENOMEM);
-	}
-	return parent;
+	return d_obtain_alias(ext2_iget(child->d_inode->i_sb, ino));
 } 
 
 /*
