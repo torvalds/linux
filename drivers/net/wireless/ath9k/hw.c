@@ -85,29 +85,6 @@ static const struct hal_percal_data adc_init_dc_cal = {
 	ath9k_hw_adc_dccal_calibrate
 };
 
-static const struct ath_hal ar5416hal = {
-	AR5416_MAGIC,
-	0,
-	0,
-	NULL,
-	NULL,
-	CTRY_DEFAULT,
-	0,
-	0,
-	0,
-	0,
-	0,
-	{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	},
-};
-
 static struct ath9k_rate_table ar5416_11a_table = {
 	8,
 	{0},
@@ -1196,10 +1173,11 @@ static struct ath_hal_5416 *ath9k_hw_newstate(u16 devid,
 
 	ah = &ahp->ah;
 
-	memcpy(&ahp->ah, &ar5416hal, sizeof(struct ath_hal));
-
 	ah->ah_sc = sc;
 	ah->ah_sh = mem;
+
+	ah->ah_magic = AR5416_MAGIC;
+	ah->ah_countryCode = CTRY_DEFAULT;
 
 	ah->ah_devid = devid;
 	ah->ah_subvendorid = 0;
