@@ -178,14 +178,14 @@ static int anysee_master_xfer(struct i2c_adapter *adap, struct i2c_msg *msg,
 			inc = 1;
 		}
 		if (ret)
-			return ret;
+			break;
 
 		i += inc;
 	}
 
 	mutex_unlock(&d->i2c_mutex);
 
-	return i;
+	return ret ? ret : i;
 }
 
 static u32 anysee_i2c_func(struct i2c_adapter *adapter)
