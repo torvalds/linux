@@ -1542,28 +1542,33 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	int r;
+	struct kvm_lapic_state *lapic = NULL;
 
 	switch (ioctl) {
 	case KVM_GET_LAPIC: {
-		struct kvm_lapic_state lapic;
+		lapic = kzalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
 
-		memset(&lapic, 0, sizeof lapic);
-		r = kvm_vcpu_ioctl_get_lapic(vcpu, &lapic);
+		r = -ENOMEM;
+		if (!lapic)
+			goto out;
+		r = kvm_vcpu_ioctl_get_lapic(vcpu, lapic);
 		if (r)
 			goto out;
 		r = -EFAULT;
-		if (copy_to_user(argp, &lapic, sizeof lapic))
+		if (copy_to_user(argp, lapic, sizeof(struct kvm_lapic_state)))
 			goto out;
 		r = 0;
 		break;
 	}
 	case KVM_SET_LAPIC: {
-		struct kvm_lapic_state lapic;
-
-		r = -EFAULT;
-		if (copy_from_user(&lapic, argp, sizeof lapic))
+		lapic = kmalloc(sizeof(struct kvm_lapic_state), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!lapic)
 			goto out;
-		r = kvm_vcpu_ioctl_set_lapic(vcpu, &lapic);;
+		r = -EFAULT;
+		if (copy_from_user(lapic, argp, sizeof(struct kvm_lapic_state)))
+			goto out;
+		r = kvm_vcpu_ioctl_set_lapic(vcpu, lapic);
 		if (r)
 			goto out;
 		r = 0;
@@ -1661,6 +1666,8 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		r = -EINVAL;
 	}
 out:
+	if (lapic)
+		kfree(lapic);
 	return r;
 }
 
