@@ -1235,17 +1235,23 @@ int svc_rdma_fastreg(struct svcxprt_rdma *xprt,
 
 int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 {
-	struct ib_send_wr *bad_wr;
+	struct ib_send_wr *bad_wr, *n_wr;
+	int wr_count;
+	int i;
 	int ret;
 
 	if (test_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags))
 		return -ENOTCONN;
 
 	BUG_ON(wr->send_flags != IB_SEND_SIGNALED);
+	wr_count = 1;
+	for (n_wr = wr->next; n_wr; n_wr = n_wr->next)
+		wr_count++;
+
 	/* If the SQ is full, wait until an SQ entry is available */
 	while (1) {
 		spin_lock_bh(&xprt->sc_lock);
-		if (xprt->sc_sq_depth == atomic_read(&xprt->sc_sq_count)) {
+		if (xprt->sc_sq_depth < atomic_read(&xprt->sc_sq_count) + wr_count) {
 			spin_unlock_bh(&xprt->sc_lock);
 			atomic_inc(&rdma_stat_sq_starve);
 
@@ -1260,19 +1266,26 @@ int svc_rdma_send(struct svcxprt_rdma *xprt, struct ib_send_wr *wr)
 				return 0;
 			continue;
 		}
-		/* Bumped used SQ WR count and post */
-		svc_xprt_get(&xprt->sc_xprt);
+		/* Take a transport ref for each WR posted */
+		for (i = 0; i < wr_count; i++)
+			svc_xprt_get(&xprt->sc_xprt);
+
+		/* Bump used SQ WR count and post */
+		atomic_add(wr_count, &xprt->sc_sq_count);
 		ret = ib_post_send(xprt->sc_qp, wr, &bad_wr);
-		if (!ret)
-			atomic_inc(&xprt->sc_sq_count);
-		else {
-			svc_xprt_put(&xprt->sc_xprt);
+		if (ret) {
+			set_bit(XPT_CLOSE, &xprt->sc_xprt.xpt_flags);
+			atomic_sub(wr_count, &xprt->sc_sq_count);
+			for (i = 0; i < wr_count; i ++)
+				svc_xprt_put(&xprt->sc_xprt);
 			dprintk("svcrdma: failed to post SQ WR rc=%d, "
 			       "sc_sq_count=%d, sc_sq_depth=%d\n",
 			       ret, atomic_read(&xprt->sc_sq_count),
 			       xprt->sc_sq_depth);
 		}
 		spin_unlock_bh(&xprt->sc_lock);
+		if (ret)
+			wake_up(&xprt->sc_send_wait);
 		break;
 	}
 	return ret;
