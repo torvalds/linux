@@ -994,7 +994,17 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	flush_tlb_all();
 	low_mappings = 1;
 
+#ifdef CONFIG_X86_PC
+	if (def_to_bigsmp && apicid > 8) {
+		printk(KERN_WARNING
+			"More than 8 CPUs detected - skipping them.\n"
+			"Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+		err = -1;
+	} else
+		err = do_boot_cpu(apicid, cpu);
+#else
 	err = do_boot_cpu(apicid, cpu);
+#endif
 
 	zap_low_mappings();
 	low_mappings = 0;
