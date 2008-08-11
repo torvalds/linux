@@ -107,12 +107,10 @@ extern void xfs_initialize_vnode(struct xfs_mount *mp, bhv_vnode_t *vp,
 extern void xfs_flush_inode(struct xfs_inode *);
 extern void xfs_flush_device(struct xfs_inode *);
 
-extern int  xfs_blkdev_get(struct xfs_mount *, const char *,
-				struct block_device **);
-extern void xfs_blkdev_put(struct block_device *);
 extern void xfs_blkdev_issue_flush(struct xfs_buftarg *);
 
 extern const struct export_operations xfs_export_operations;
+extern struct xattr_handler *xfs_xattr_handlers[];
 
 #define XFS_M(sb)		((struct xfs_mount *)((sb)->s_fs_info))
 

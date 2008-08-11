@@ -20,12 +20,14 @@
 
 extern const struct inode_operations xfs_inode_operations;
 extern const struct inode_operations xfs_dir_inode_operations;
+extern const struct inode_operations xfs_dir_ci_inode_operations;
 extern const struct inode_operations xfs_symlink_inode_operations;
 
 extern const struct file_operations xfs_file_operations;
 extern const struct file_operations xfs_dir_file_operations;
 extern const struct file_operations xfs_invis_file_operations;
 
+extern ssize_t xfs_vn_listxattr(struct dentry *, char *data, size_t size);
 
 struct xfs_inode;
 extern void xfs_ichgtime(struct xfs_inode *, int);

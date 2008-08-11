@@ -205,10 +205,9 @@ struct tcf_common *tcf_hash_check(u32 index, struct tc_action *a, int bind,
 {
 	struct tcf_common *p = NULL;
 	if (index && (p = tcf_hash_lookup(index, hinfo)) != NULL) {
-		if (bind) {
+		if (bind)
 			p->tcfc_bindcnt++;
-			p->tcfc_refcnt++;
-		}
+		p->tcfc_refcnt++;
 		a->priv = p;
 	}
 	return p;

@@ -45,14 +45,14 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/bitfield.h>
-#include <asm/arch/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/bitfield.h>
+#include <mach/pxafb.h>
 
 /*
  * Complain if VAR is out of range.

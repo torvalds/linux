@@ -71,10 +71,10 @@ static int set_run(struct super_block *sb, int map,
 		}
 		if (set) {
 			set_bit(bit, sbi->s_imap[map]);
-			set_bit(bit, (long *) bh->b_data);
+			set_bit(bit, (unsigned long *)bh->b_data);
 		} else {
 			clear_bit(bit, sbi->s_imap[map]);
-			clear_bit(bit, (long *) bh->b_data);
+			clear_bit(bit, (unsigned long *)bh->b_data);
 		}
 	}
 	mark_buffer_dirty(bh);
@@ -109,7 +109,7 @@ int omfs_allocate_block(struct super_block *sb, u64 block)
 		if (!bh)
 			goto out;
 
-		set_bit(bit, (long *) bh->b_data);
+		set_bit(bit, (unsigned long *)bh->b_data);
 		mark_buffer_dirty(bh);
 		brelse(bh);
 	}

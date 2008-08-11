@@ -29,6 +29,7 @@
 #include <linux/sched.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <linux/mutex.h>
 
 #include <asm/uaccess.h>
@@ -755,7 +756,6 @@ static const struct file_operations ar_fops = {
 
 static struct video_device ar_template = {
 	.name		= "Colour AR VGA",
-	.type		= VID_TYPE_CAPTURE,
 	.fops		= &ar_fops,
 	.release	= ar_release,
 	.minor		= -1,

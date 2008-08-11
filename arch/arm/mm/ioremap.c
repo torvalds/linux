@@ -259,7 +259,7 @@ remap_area_supersections(unsigned long virt, unsigned long pfn,
  * caller shouldn't need to know that small detail.
  *
  * 'flags' are the extra L_PTE_ flags that you want to specify for this
- * mapping.  See include/asm-arm/proc-armv/pgtable.h for more information.
+ * mapping.  See <asm/pgtable.h> for more information.
  */
 void __iomem *
 __arm_ioremap_pfn(unsigned long pfn, unsigned long offset, size_t size,

@@ -336,20 +336,16 @@ xfs_rename(
 		ASSERT(error != EEXIST);
 		if (error)
 			goto abort_return;
-		xfs_ichgtime(src_ip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
-
-	} else {
-		/*
-		 * We always want to hit the ctime on the source inode.
-		 * We do it in the if clause above for the 'new_parent &&
-		 * src_is_directory' case, and here we get all the other
-		 * cases.  This isn't strictly required by the standards
-		 * since the source inode isn't really being changed,
-		 * but old unix file systems did it and some incremental
-		 * backup programs won't work without it.
-		 */
-		xfs_ichgtime(src_ip, XFS_ICHGTIME_CHG);
 	}
+
+	/*
+	 * We always want to hit the ctime on the source inode.
+	 *
+	 * This isn't strictly required by the standards since the source
+	 * inode isn't really being changed, but old unix file systems did
+	 * it and some incremental backup programs won't work without it.
+	 */
+	xfs_ichgtime(src_ip, XFS_ICHGTIME_CHG);
 
 	/*
 	 * Adjust the link count on src_dp.  This is necessary when

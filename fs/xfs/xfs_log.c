@@ -226,20 +226,24 @@ xlog_grant_sub_space(struct log *log, int bytes)
 static void
 xlog_grant_add_space_write(struct log *log, int bytes)
 {
-	log->l_grant_write_bytes += bytes;
-	if (log->l_grant_write_bytes > log->l_logsize) {
-		log->l_grant_write_bytes -= log->l_logsize;
+	int tmp = log->l_logsize - log->l_grant_write_bytes;
+	if (tmp > bytes)
+		log->l_grant_write_bytes += bytes;
+	else {
 		log->l_grant_write_cycle++;
+		log->l_grant_write_bytes = bytes - tmp;
 	}
 }
 
 static void
 xlog_grant_add_space_reserve(struct log *log, int bytes)
 {
-	log->l_grant_reserve_bytes += bytes;
-	if (log->l_grant_reserve_bytes > log->l_logsize) {
-		log->l_grant_reserve_bytes -= log->l_logsize;
+	int tmp = log->l_logsize - log->l_grant_reserve_bytes;
+	if (tmp > bytes)
+		log->l_grant_reserve_bytes += bytes;
+	else {
 		log->l_grant_reserve_cycle++;
+		log->l_grant_reserve_bytes = bytes - tmp;
 	}
 }
 
@@ -1228,7 +1232,7 @@ xlog_alloc_log(xfs_mount_t	*mp,
 
 	spin_lock_init(&log->l_icloglock);
 	spin_lock_init(&log->l_grant_lock);
-	initnsema(&log->l_flushsema, 0, "ic-flush");
+	sv_init(&log->l_flush_wait, 0, "flush_wait");
 
 	/* log record size must be multiple of BBSIZE; see xlog_rec_header_t */
 	ASSERT((XFS_BUF_SIZE(bp) & BBMASK) == 0);
@@ -1570,10 +1574,9 @@ xlog_dealloc_log(xlog_t *log)
 		}
 #endif
 		next_iclog = iclog->ic_next;
-		kmem_free(iclog, sizeof(xlog_in_core_t));
+		kmem_free(iclog);
 		iclog = next_iclog;
 	}
-	freesema(&log->l_flushsema);
 	spinlock_destroy(&log->l_icloglock);
 	spinlock_destroy(&log->l_grant_lock);
 
@@ -1587,7 +1590,7 @@ xlog_dealloc_log(xlog_t *log)
 	}
 #endif
 	log->l_mp->m_log = NULL;
-	kmem_free(log, sizeof(xlog_t));
+	kmem_free(log);
 }	/* xlog_dealloc_log */
 
 /*
@@ -2097,6 +2100,7 @@ xlog_state_do_callback(
 	int		   funcdidcallbacks; /* flag: function did callbacks */
 	int		   repeats;	/* for issuing console warnings if
 					 * looping too many times */
+	int		   wake = 0;
 
 	spin_lock(&log->l_icloglock);
 	first_iclog = iclog = log->l_iclog;
@@ -2278,15 +2282,13 @@ xlog_state_do_callback(
 	}
 #endif
 
-	flushcnt = 0;
-	if (log->l_iclog->ic_state & (XLOG_STATE_ACTIVE|XLOG_STATE_IOERROR)) {
-		flushcnt = log->l_flushcnt;
-		log->l_flushcnt = 0;
-	}
+	if (log->l_iclog->ic_state & (XLOG_STATE_ACTIVE|XLOG_STATE_IOERROR))
+		wake = 1;
 	spin_unlock(&log->l_icloglock);
-	while (flushcnt--)
-		vsema(&log->l_flushsema);
-}	/* xlog_state_do_callback */
+
+	if (wake)
+		sv_broadcast(&log->l_flush_wait);
+}
 
 
 /*
@@ -2384,16 +2386,15 @@ restart:
 	}
 
 	iclog = log->l_iclog;
-	if (! (iclog->ic_state == XLOG_STATE_ACTIVE)) {
-		log->l_flushcnt++;
-		spin_unlock(&log->l_icloglock);
+	if (iclog->ic_state != XLOG_STATE_ACTIVE) {
 		xlog_trace_iclog(iclog, XLOG_TRACE_SLEEP_FLUSH);
 		XFS_STATS_INC(xs_log_noiclogs);
-		/* Ensure that log writes happen */
-		psema(&log->l_flushsema, PINOD);
+
+		/* Wait for log writes to have flushed */
+		sv_wait(&log->l_flush_wait, 0, &log->l_icloglock, 0);
 		goto restart;
 	}
-	ASSERT(iclog->ic_state == XLOG_STATE_ACTIVE);
+
 	head = &iclog->ic_header;
 
 	atomic_inc(&iclog->ic_refcnt);	/* prevents sync */

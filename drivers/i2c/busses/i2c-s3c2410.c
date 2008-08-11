@@ -35,11 +35,11 @@
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c/regs-iic.h>
 #include <asm/plat-s3c/iic.h>
 

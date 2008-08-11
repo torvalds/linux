@@ -17,7 +17,7 @@
 #include <linux/ata_platform.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/arch/mv78xx0.h>
+#include <mach/mv78xx0.h>
 #include <asm/plat-orion/cache-feroceon-l2.h>
 #include <asm/plat-orion/ehci-orion.h>
 #include <asm/plat-orion/orion_nand.h>

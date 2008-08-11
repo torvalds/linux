@@ -135,9 +135,8 @@ config DVB_CX22702
 
 config DVB_DRX397XD
 	tristate "Micronas DRX3975D/DRX3977D based"
-	depends on DVB_CORE && I2C && HOTPLUG
+	depends on DVB_CORE && I2C
 	default m if DVB_FE_CUSTOMISE
-	select FW_LOADER
 	help
 	  A DVB-T tuner module. Say Y when you want to support this frontend.
 

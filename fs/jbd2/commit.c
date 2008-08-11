@@ -67,7 +67,7 @@ static void release_buffer_page(struct buffer_head *bh)
 		goto nope;
 
 	/* OK, it's a truncated page */
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		goto nope;
 
 	page_cache_get(page);
@@ -262,8 +262,18 @@ static int journal_finish_inode_data_buffers(journal_t *journal,
 		jinode->i_flags |= JI_COMMIT_RUNNING;
 		spin_unlock(&journal->j_list_lock);
 		err = filemap_fdatawait(jinode->i_vfs_inode->i_mapping);
-		if (!ret)
-			ret = err;
+		if (err) {
+			/*
+			 * Because AS_EIO is cleared by
+			 * wait_on_page_writeback_range(), set it again so
+			 * that user process can get -EIO from fsync().
+			 */
+			set_bit(AS_EIO,
+				&jinode->i_vfs_inode->i_mapping->flags);
+
+			if (!ret)
+				ret = err;
+		}
 		spin_lock(&journal->j_list_lock);
 		jinode->i_flags &= ~JI_COMMIT_RUNNING;
 		wake_up_bit(&jinode->i_flags, __JI_COMMIT_RUNNING);
@@ -670,8 +680,14 @@ start_journal_io:
 	 * commit block, which happens below in such setting.
 	 */
 	err = journal_finish_inode_data_buffers(journal, commit_transaction);
-	if (err)
-		jbd2_journal_abort(journal, err);
+	if (err) {
+		char b[BDEVNAME_SIZE];
+
+		printk(KERN_WARNING
+			"JBD2: Detected IO errors while flushing file data "
+			"on %s\n", bdevname(journal->j_fs_dev, b));
+		err = 0;
+	}
 
 	/* Lo and behold: we have just managed to send a transaction to
            the log.  Before we can commit it, wait for the IO so far to

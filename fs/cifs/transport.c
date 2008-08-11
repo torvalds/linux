@@ -265,6 +265,7 @@ smb_send2(struct socket *ssocket, struct kvec *iov, int n_vec,
 	cFYI(1, ("Sending smb:  total_len %d", total_len));
 	dump_smb(smb_buffer, len);
 
+	i = 0;
 	while (total_len) {
 		rc = kernel_sendmsg(ssocket, &smb_msg, &iov[first_vec],
 				    n_vec - first_vec, total_len);

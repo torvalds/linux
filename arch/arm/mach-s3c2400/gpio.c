@@ -25,11 +25,11 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 int s3c2400_gpio_getirq(unsigned int pin)
 {

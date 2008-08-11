@@ -27,10 +27,10 @@
 #include <linux/reboot.h>
 #include <linux/types.h>
 #include <linux/watchdog.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
-#include <asm/io.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 
 #define SBC7240_PREFIX "sbc7240_wdt: "
 
@@ -159,7 +159,7 @@ static int fop_close(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options = WDIOF_KEEPALIVEPING|
 		   WDIOF_SETTIMEOUT|
 		   WDIOF_MAGICCLOSE,
@@ -168,50 +168,50 @@ static struct watchdog_info ident = {
 };
 
 
-static int fop_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg)
+static long fop_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		return copy_to_user
-			((void __user *)arg, &ident, sizeof(ident))
-			 ? -EFAULT : 0;
+		return copy_to_user((void __user *)arg, &ident, sizeof(ident))
+						 ? -EFAULT : 0;
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, (int __user *)arg);
+	case WDIOC_SETOPTIONS:
+	{
+		int options;
+		int retval = -EINVAL;
+
+		if (get_user(options, (int __user *)arg))
+			return -EFAULT;
+
+		if (options & WDIOS_DISABLECARD) {
+			wdt_disable();
+			retval = 0;
+		}
+
+		if (options & WDIOS_ENABLECARD) {
+			wdt_enable();
+			retval = 0;
+		}
+
+		return retval;
+	}
 	case WDIOC_KEEPALIVE:
 		wdt_keepalive();
 		return 0;
-	case WDIOC_SETOPTIONS:{
-			int options;
-			int retval = -EINVAL;
+	case WDIOC_SETTIMEOUT:
+	{
+		int new_timeout;
 
-			if (get_user(options, (int __user *)arg))
-				return -EFAULT;
+		if (get_user(new_timeout, (int __user *)arg))
+			return -EFAULT;
 
-			if (options & WDIOS_DISABLECARD) {
-				wdt_disable();
-				retval = 0;
-			}
+		if (wdt_set_timeout(new_timeout))
+			return -EINVAL;
 
-			if (options & WDIOS_ENABLECARD) {
-				wdt_enable();
-				retval = 0;
-			}
-
-			return retval;
-		}
-	case WDIOC_SETTIMEOUT:{
-			int new_timeout;
-
-			if (get_user(new_timeout, (int __user *)arg))
-				return -EFAULT;
-
-			if (wdt_set_timeout(new_timeout))
-				return -EINVAL;
-
-			/* Fall through */
-		}
+		/* Fall through */
+	}
 	case WDIOC_GETTIMEOUT:
 		return put_user(timeout, (int __user *)arg);
 	default:
@@ -225,7 +225,7 @@ static const struct file_operations wdt_fops = {
 	.write = fop_write,
 	.open = fop_open,
 	.release = fop_close,
-	.ioctl = fop_ioctl,
+	.unlocked_ioctl = fop_ioctl,
 };
 
 static struct miscdevice wdt_miscdev = {

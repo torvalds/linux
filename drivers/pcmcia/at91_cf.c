@@ -18,13 +18,13 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/gpio.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/board.h>
+#include <mach/at91rm9200_mc.h>
 
 
 /*

@@ -1249,7 +1249,7 @@ install_route:
 
 	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = -1;
-	if (!dst_metric(&rt->u.dst, RTAX_MTU))
+	if (!dst_mtu(&rt->u.dst))
 		rt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(dev);
 	if (!dst_metric(&rt->u.dst, RTAX_ADVMSS))
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(net, dst_mtu(&rt->u.dst));

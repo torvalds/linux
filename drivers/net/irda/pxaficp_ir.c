@@ -23,8 +23,8 @@
 #include <net/irda/irda_device.h>
 
 #include <asm/dma.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/irda.h>
+#include <mach/pxa-regs.h>
 
 #define IrSR_RXPL_NEG_IS_ZERO (1<<4)
 #define IrSR_RXPL_POS_IS_ZERO 0x0

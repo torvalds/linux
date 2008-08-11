@@ -33,7 +33,7 @@
 
 #include <video/metronomefb.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 /* register offsets for gpio control */
 #define LED_GPIO_PIN 51
