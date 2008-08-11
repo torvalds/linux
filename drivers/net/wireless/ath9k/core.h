@@ -177,11 +177,6 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht);
 /* Descriptor Management */
 /*************************/
 
-/* Number of descriptors per buffer. The only case where we see skbuff
-chains is due to FF aggregation in the driver. */
-#define	ATH_TXDESC	    1
-/* if there's more fragment for this MSDU */
-#define ATH_BF_MORE_MPDU    1
 #define ATH_TXBUF_RESET(_bf) do {				\
 		(_bf)->bf_status = 0;				\
 		(_bf)->bf_lastbf = NULL;			\
@@ -191,28 +186,29 @@ chains is due to FF aggregation in the driver. */
 			    sizeof(struct ath_buf_state));	\
 	} while (0)
 
+enum buffer_type {
+	BUF_DATA		= BIT(0),
+	BUF_AGGR		= BIT(1),
+	BUF_AMPDU		= BIT(2),
+	BUF_HT			= BIT(3),
+	BUF_RETRY		= BIT(4),
+	BUF_XRETRY		= BIT(5),
+	BUF_SHORT_PREAMBLE	= BIT(6),
+	BUF_BAR			= BIT(7),
+	BUF_PSPOLL		= BIT(8),
+	BUF_AGGR_BURST		= BIT(9),
+	BUF_CALC_AIRTIME	= BIT(10),
+};
+
 struct ath_buf_state {
-	int bfs_nframes;	/* # frames in aggregate */
-	u16 bfs_al;		/* length of aggregate */
-	u16 bfs_frmlen;		/* length of frame */
-	int bfs_seqno;		/* sequence number */
-	int bfs_tidno;		/* tid of this frame */
-	int bfs_retries;	/* current retries */
+	int bfs_nframes;			/* # frames in aggregate */
+	u16 bfs_al;				/* length of aggregate */
+	u16 bfs_frmlen;				/* length of frame */
+	int bfs_seqno;				/* sequence number */
+	int bfs_tidno;				/* tid of this frame */
+	int bfs_retries;			/* current retries */
 	struct ath_rc_series bfs_rcs[4];	/* rate series */
-	u8 bfs_isdata:1;	/* is a data frame/aggregate */
-	u8 bfs_isaggr:1;	/* is an aggregate */
-	u8 bfs_isampdu:1;	/* is an a-mpdu, aggregate or not */
-	u8 bfs_ht:1;		/* is an HT frame */
-	u8 bfs_isretried:1;	/* is retried */
-	u8 bfs_isxretried:1;	/* is excessive retried */
-	u8 bfs_shpreamble:1;	/* is short preamble */
-	u8 bfs_isbar:1;		/* is a BAR */
-	u8 bfs_ispspoll:1;	/* is a PS-Poll */
-	u8 bfs_aggrburst:1;	/* is a aggr burst */
-	u8 bfs_calcairtime:1;	/* requests airtime be calculated
-				when set for tx frame */
-	int bfs_rifsburst_elem;	/* RIFS burst/bar */
-	int bfs_nrifsubframes;	/* # of elements in burst */
+	u32 bf_type;				/* BUF_* (enum buffer_type) */
 	/* key type use to encrypt this frame */
 	enum ath9k_key_type bfs_keytype;
 };
@@ -224,26 +220,22 @@ struct ath_buf_state {
 #define bf_seqno        	bf_state.bfs_seqno
 #define bf_tidno        	bf_state.bfs_tidno
 #define bf_rcs          	bf_state.bfs_rcs
-#define bf_isdata       	bf_state.bfs_isdata
-#define bf_isaggr       	bf_state.bfs_isaggr
-#define bf_isampdu      	bf_state.bfs_isampdu
-#define bf_ht           	bf_state.bfs_ht
-#define bf_isretried    	bf_state.bfs_isretried
-#define bf_isxretried   	bf_state.bfs_isxretried
-#define bf_shpreamble   	bf_state.bfs_shpreamble
-#define bf_rifsburst_elem  	bf_state.bfs_rifsburst_elem
-#define bf_nrifsubframes  	bf_state.bfs_nrifsubframes
 #define bf_keytype      	bf_state.bfs_keytype
-#define bf_isbar        	bf_state.bfs_isbar
-#define bf_ispspoll     	bf_state.bfs_ispspoll
-#define bf_aggrburst    	bf_state.bfs_aggrburst
-#define bf_calcairtime  	bf_state.bfs_calcairtime
+#define bf_isdata(bf)		(bf->bf_state.bf_type & BUF_DATA)
+#define bf_isaggr(bf)		(bf->bf_state.bf_type & BUF_AGGR)
+#define bf_isampdu(bf)		(bf->bf_state.bf_type & BUF_AMPDU)
+#define bf_isht(bf)		(bf->bf_state.bf_type & BUF_HT)
+#define bf_isretried(bf)	(bf->bf_state.bf_type & BUF_RETRY)
+#define bf_isxretried(bf)	(bf->bf_state.bf_type & BUF_XRETRY)
+#define bf_isshpreamble(bf)	(bf->bf_state.bf_type & BUF_SHORT_PREAMBLE)
+#define bf_isbar(bf)		(bf->bf_state.bf_type & BUF_BAR)
+#define bf_ispspoll(bf) 	(bf->bf_state.bf_type & BUF_PSPOLL)
+#define bf_isaggrburst(bf)	(bf->bf_state.bf_type & BUF_AGGR_BURST)
 
 /*
  * Abstraction of a contiguous buffer to transmit/receive.  There is only
  * a single hw descriptor encapsulated here.
  */
-
 struct ath_buf {
 	struct list_head list;
 	struct list_head *last;
