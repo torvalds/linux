@@ -790,19 +790,20 @@ struct ath_hal {
 	u32 ah_magic;
 	u16 ah_devid;
 	u16 ah_subvendorid;
-	struct ath_softc *ah_sc;
-	void __iomem *ah_sh;
-	u16 ah_countryCode;
 	u32 ah_macVersion;
 	u16 ah_macRev;
 	u16 ah_phyRev;
 	u16 ah_analog5GhzRev;
 	u16 ah_analog2GhzRev;
-	u8 ah_decompMask[ATH9K_DECOMP_MASK_SIZE];
-	u32 ah_flags;
+
+	void __iomem *ah_sh;
+	struct ath_softc *ah_sc;
 	enum ath9k_opmode ah_opmode;
 	struct ath9k_ops_config ah_config;
 	struct ath9k_hw_capabilities ah_caps;
+
+	u16 ah_countryCode;
+	u32 ah_flags;
 	int16_t ah_powerLimit;
 	u16 ah_maxPowerLevel;
 	u32 ah_tpScale;
@@ -812,15 +813,16 @@ struct ath_hal {
 	u16 ah_currentRD5G;
 	u16 ah_currentRD2G;
 	char ah_iso[4];
-	enum start_adhoc_option ah_adHocMode;
-	bool ah_commonMode;
+
 	struct ath9k_channel ah_channels[150];
-	u32 ah_nchan;
 	struct ath9k_channel *ah_curchan;
+	u32 ah_nchan;
+
 	u16 ah_rfsilent;
 	bool ah_rfkillEnabled;
 	bool ah_isPciExpress;
 	u16 ah_txTrigLevel;
+
 #ifndef ATH_NF_PER_CHAN
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
 #endif
