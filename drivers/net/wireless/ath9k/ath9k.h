@@ -855,7 +855,7 @@ bool ath9k_regd_init_channels(struct ath_hal *ah,
 u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hal *ah,
 				     enum ath9k_int ints);
-bool ath9k_hw_reset(struct ath_hal *ah, enum ath9k_opmode opmode,
+bool ath9k_hw_reset(struct ath_hal *ah,
 		    struct ath9k_channel *chan,
 		    enum ath9k_ht_macmode macmode,
 		    u8 txchainmask, u8 rxchainmask,

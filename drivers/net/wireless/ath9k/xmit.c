@@ -1047,7 +1047,7 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 				 * when perform internal reset in this routine.
 				 * Only enable reset in STA mode for now.
 				 */
-				if (sc->sc_opmode == ATH9K_M_STA)
+				if (sc->sc_ah->ah_opmode == ATH9K_M_STA)
 					needreset = 1;
 			}
 		} else {
@@ -1454,7 +1454,7 @@ static void ath_drain_txdataq(struct ath_softc *sc, bool retry_tx)
 			"%s: Unable to stop TxDMA. Reset HAL!\n", __func__);
 
 		spin_lock_bh(&sc->sc_resetlock);
-		if (!ath9k_hw_reset(ah, sc->sc_opmode,
+		if (!ath9k_hw_reset(ah,
 			&sc->sc_curchan, ht_macmode,
 			sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 			sc->sc_ht_extprotspacing, true, &status)) {

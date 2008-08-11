@@ -895,15 +895,15 @@ struct ath_ht_info {
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct pci_dev *pdev;
-	void __iomem *mem;
 	struct tasklet_struct intr_tq;
 	struct tasklet_struct bcon_tasklet;
 	struct ath_config sc_config;	/* load-time parameters */
-	int sc_debug;
 	struct ath_hal *sc_ah;
 	struct ath_rate_softc *sc_rc;	/* tx rate control support */
+	void __iomem *mem;
+
+	int sc_debug;
 	u32 sc_intrstatus;
-	enum ath9k_opmode sc_opmode;	/* current operating mode */
 	unsigned int rx_filter;
 	u8 sc_invalid;			/* being detached */
 	u8 sc_beacons;			/* beacons running */

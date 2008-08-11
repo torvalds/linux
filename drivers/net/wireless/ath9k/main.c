@@ -472,7 +472,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	ath_rate_newstate(sc, avp);
 
 	/* Reclaim beacon resources */
-	if (sc->sc_opmode == ATH9K_M_HOSTAP || sc->sc_opmode == ATH9K_M_IBSS) {
+	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP ||
+	    sc->sc_ah->ah_opmode == ATH9K_M_IBSS) {
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->sc_bhalq);
 		ath_beacon_return(sc, avp);
 	}
