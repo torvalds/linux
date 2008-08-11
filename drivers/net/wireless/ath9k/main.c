@@ -1085,8 +1085,16 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 		tx_status->flags &= ~ATH_TX_BAR;
 	}
-	if (tx_status->flags)
-		tx_info->status.excessive_retries = 1;
+
+	if (tx_status->flags & (ATH_TX_ERROR | ATH_TX_XRETRY)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+			/* Frame was not ACKed, but an ACK was expected */
+			tx_info->status.excessive_retries = 1;
+		}
+	} else {
+		/* Frame was ACKed */
+		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+	}
 
 	tx_info->status.retry_count = tx_status->retries;
 
