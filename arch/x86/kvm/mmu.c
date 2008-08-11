@@ -135,13 +135,6 @@ module_param(dbg, bool, 0644);
 #define ACC_USER_MASK    PT_USER_MASK
 #define ACC_ALL          (ACC_EXEC_MASK | ACC_WRITE_MASK | ACC_USER_MASK)
 
-struct kvm_pv_mmu_op_buffer {
-	void *ptr;
-	unsigned len;
-	unsigned processed;
-	char buf[512] __aligned(sizeof(long));
-};
-
 struct kvm_rmap_desc {
 	u64 *shadow_ptes[RMAP_EXT];
 	struct kvm_rmap_desc *more;
@@ -2292,18 +2285,18 @@ int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 		  gpa_t addr, unsigned long *ret)
 {
 	int r;
-	struct kvm_pv_mmu_op_buffer buffer;
+	struct kvm_pv_mmu_op_buffer *buffer = &vcpu->arch.mmu_op_buffer;
 
-	buffer.ptr = buffer.buf;
-	buffer.len = min_t(unsigned long, bytes, sizeof buffer.buf);
-	buffer.processed = 0;
+	buffer->ptr = buffer->buf;
+	buffer->len = min_t(unsigned long, bytes, sizeof buffer->buf);
+	buffer->processed = 0;
 
-	r = kvm_read_guest(vcpu->kvm, addr, buffer.buf, buffer.len);
+	r = kvm_read_guest(vcpu->kvm, addr, buffer->buf, buffer->len);
 	if (r)
 		goto out;
 
-	while (buffer.len) {
-		r = kvm_pv_mmu_op_one(vcpu, &buffer);
+	while (buffer->len) {
+		r = kvm_pv_mmu_op_one(vcpu, buffer);
 		if (r < 0)
 			goto out;
 		if (r == 0)
@@ -2312,7 +2305,7 @@ int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 
 	r = 1;
 out:
-	*ret = buffer.processed;
+	*ret = buffer->processed;
 	return r;
 }
 
