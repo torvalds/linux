@@ -50,10 +50,31 @@ config HTC_PASIC3
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
 
+config MFD_TMIO
+	bool
+	default n
+
+config MFD_T7L66XB
+	bool "Support Toshiba T7L66XB"
+	depends on ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller T7L66XB
+
+config MFD_TC6387XB
+	bool "Support Toshiba TC6387XB"
+	depends on ARM
+	select MFD_CORE
+	select MFD_TMIO
+	help
+	  Support for Toshiba Mobile IO Controller TC6387XB
+
 config MFD_TC6393XB
 	bool "Support Toshiba TC6393XB"
 	depends on GPIOLIB && ARM
 	select MFD_CORE
+	select MFD_TMIO
 	help
 	  Support for Toshiba Mobile IO Controller TC6393XB
 
