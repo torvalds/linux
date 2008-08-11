@@ -301,7 +301,7 @@ handle_t *jbd2_journal_start(journal_t *journal, int nblocks)
 		goto out;
 	}
 
-	map_acquire(&handle->h_lockdep_map);
+	lock_map_acquire(&handle->h_lockdep_map);
 out:
 	return handle;
 }
@@ -1279,7 +1279,7 @@ int jbd2_journal_stop(handle_t *handle)
 		spin_unlock(&journal->j_state_lock);
 	}
 
-	map_release(&handle->h_lockdep_map);
+	lock_map_release(&handle->h_lockdep_map);
 
 	jbd2_free_handle(handle);
 	return err;

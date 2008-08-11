@@ -465,14 +465,14 @@ static inline void print_irqtrace_events(struct task_struct *curr)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # ifdef CONFIG_PROVE_LOCKING
-#  define map_acquire(l)		lock_acquire(l, 0, 0, 0, 2, NULL, _THIS_IP_)
+#  define lock_map_acquire(l)		lock_acquire(l, 0, 0, 0, 2, NULL, _THIS_IP_)
 # else
-#  define map_acquire(l)		lock_acquire(l, 0, 0, 0, 1, NULL, _THIS_IP_)
+#  define lock_map_acquire(l)		lock_acquire(l, 0, 0, 0, 1, NULL, _THIS_IP_)
 # endif
-# define map_release(l)			lock_release(l, 1, _THIS_IP_)
+# define lock_map_release(l)			lock_release(l, 1, _THIS_IP_)
 #else
-# define map_acquire(l)			do { } while (0)
-# define map_release(l)			do { } while (0)
+# define lock_map_acquire(l)			do { } while (0)
+# define lock_map_release(l)			do { } while (0)
 #endif
 
 #endif /* __LINUX_LOCKDEP_H */
