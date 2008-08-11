@@ -46,6 +46,9 @@ struct rcu_ctrlblk {
 	long	cur;		/* Current batch number.                      */
 	long	completed;	/* Number of the last completed batch         */
 	long	pending;	/* Number of the last pending batch           */
+#ifdef CONFIG_DEBUG_RCU_STALL
+	unsigned long gp_check;	/* Time grace period should end, in seconds.  */
+#endif /* #ifdef CONFIG_DEBUG_RCU_STALL */
 
 	int	signaled;
 

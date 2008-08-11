@@ -47,6 +47,7 @@
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/mutex.h>
+#include <linux/time.h>
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
@@ -286,6 +287,81 @@ static void rcu_do_batch(struct rcu_data *rdp)
  *   rcu_check_quiescent_state calls rcu_start_batch(0) to start the next grace
  *   period (if necessary).
  */
+
+#ifdef CONFIG_DEBUG_RCU_STALL
+
+static inline void record_gp_check_time(struct rcu_ctrlblk *rcp)
+{
+	rcp->gp_check = get_seconds() + 3;
+}
+static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	int cpu;
+	long delta;
+
+	/* Only let one CPU complain about others per time interval. */
+
+	spin_lock(&rcp->lock);
+	delta = get_seconds() - rcp->gp_check;
+	if (delta < 2L ||
+	    cpus_empty(rcp->cpumask)) {
+		spin_unlock(&rcp->lock);
+		return;
+	rcp->gp_check = get_seconds() + 30;
+	}
+	spin_unlock(&rcp->lock);
+
+	/* OK, time to rat on our buddy... */
+
+	printk(KERN_ERR "RCU detected CPU stalls:");
+	for_each_cpu_mask(cpu, rcp->cpumask)
+		printk(" %d", cpu);
+	printk(" (detected by %d, t=%lu/%lu)\n",
+	       smp_processor_id(), get_seconds(), rcp->gp_check);
+}
+static void print_cpu_stall(struct rcu_ctrlblk *rcp)
+{
+	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu)\n",
+			smp_processor_id(), get_seconds(), rcp->gp_check);
+	dump_stack();
+	spin_lock(&rcp->lock);
+	if ((long)(get_seconds() - rcp->gp_check) >= 0L)
+		rcp->gp_check = get_seconds() + 30;
+	spin_unlock(&rcp->lock);
+}
+static inline void check_cpu_stall(struct rcu_ctrlblk *rcp,
+				   struct rcu_data *rdp)
+{
+	long delta;
+
+	delta = get_seconds() - rcp->gp_check;
+	if (cpu_isset(smp_processor_id(), rcp->cpumask) && delta >= 0L) {
+
+		/* We haven't checked in, so go dump stack. */
+
+		print_cpu_stall(rcp);
+
+	} else if (!cpus_empty(rcp->cpumask) && delta >= 2L) {
+
+		/* They had two seconds to dump stack, so complain. */
+
+		print_other_cpu_stall(rcp);
+
+	}
+}
+
+#else /* #ifdef CONFIG_DEBUG_RCU_STALL */
+
+static inline void record_gp_check_time(struct rcu_ctrlblk *rcp)
+{
+}
+static inline void check_cpu_stall(struct rcu_ctrlblk *rcp,
+				   struct rcu_data *rdp)
+{
+}
+
+#endif /* #else #ifdef CONFIG_DEBUG_RCU_STALL */
+
 /*
  * Register a new batch of callbacks, and start it up if there is currently no
  * active batch and the batch to be registered has not already occurred.
@@ -296,6 +372,7 @@ static void rcu_start_batch(struct rcu_ctrlblk *rcp)
 	if (rcp->cur != rcp->pending &&
 			rcp->completed == rcp->cur) {
 		rcp->cur++;
+		record_gp_check_time(rcp);
 
 		/*
 		 * Accessing nohz_cpu_mask before incrementing rcp->cur needs a
@@ -489,6 +566,9 @@ static void rcu_process_callbacks(struct softirq_action *unused)
 
 static int __rcu_pending(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
+	/* Check for CPU stalls, if enabled. */
+	check_cpu_stall(rcp, rdp);
+
 	if (rdp->nxtlist) {
 		/*
 		 * This cpu has pending rcu entries and the grace period
