@@ -388,12 +388,6 @@ static int ip_vs_lblc_done_svc(struct ip_vs_service *svc)
 }
 
 
-static int ip_vs_lblc_update_svc(struct ip_vs_service *svc)
-{
-	return 0;
-}
-
-
 static inline struct ip_vs_dest *
 __ip_vs_wlc_schedule(struct ip_vs_service *svc, struct iphdr *iph)
 {
@@ -542,7 +536,6 @@ static struct ip_vs_scheduler ip_vs_lblc_scheduler =
 	.n_list =		LIST_HEAD_INIT(ip_vs_lblc_scheduler.n_list),
 	.init_service =		ip_vs_lblc_init_svc,
 	.done_service =		ip_vs_lblc_done_svc,
-	.update_service =	ip_vs_lblc_update_svc,
 	.schedule =		ip_vs_lblc_schedule,
 };
 

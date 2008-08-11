@@ -869,7 +869,8 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 		svc->num_dests++;
 
 		/* call the update_service function of its scheduler */
-		svc->scheduler->update_service(svc);
+		if (svc->scheduler->update_service)
+			svc->scheduler->update_service(svc);
 
 		write_unlock_bh(&__ip_vs_svc_lock);
 		return 0;
@@ -899,7 +900,8 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 	svc->num_dests++;
 
 	/* call the update_service function of its scheduler */
-	svc->scheduler->update_service(svc);
+	if (svc->scheduler->update_service)
+		svc->scheduler->update_service(svc);
 
 	write_unlock_bh(&__ip_vs_svc_lock);
 
@@ -949,7 +951,8 @@ ip_vs_edit_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 	IP_VS_WAIT_WHILE(atomic_read(&svc->usecnt) > 1);
 
 	/* call the update_service, because server weight may be changed */
-	svc->scheduler->update_service(svc);
+	if (svc->scheduler->update_service)
+		svc->scheduler->update_service(svc);
 
 	write_unlock_bh(&__ip_vs_svc_lock);
 
@@ -1012,12 +1015,12 @@ static void __ip_vs_unlink_dest(struct ip_vs_service *svc,
 	 */
 	list_del(&dest->n_list);
 	svc->num_dests--;
-	if (svcupd) {
-		/*
-		 *  Call the update_service function of its scheduler
-		 */
-		svc->scheduler->update_service(svc);
-	}
+
+	/*
+	 *  Call the update_service function of its scheduler
+	 */
+	if (svcupd && svc->scheduler->update_service)
+			svc->scheduler->update_service(svc);
 }
 
 
