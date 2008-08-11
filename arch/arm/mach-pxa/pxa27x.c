@@ -18,16 +18,17 @@
 #include <linux/platform_device.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/i2c.h>
+#include <mach/irqs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/reset.h>
+#include <mach/ohci.h>
+#include <mach/pm.h>
+#include <mach/dma.h>
+#include <mach/i2c.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -384,6 +385,9 @@ static int __init pxa27x_init(void)
 	int i, ret = 0;
 
 	if (cpu_is_pxa27x()) {
+
+		reset_status = RCSR;
+
 		clks_register(pxa27x_clks, ARRAY_SIZE(pxa27x_clks));
 
 		if ((ret = pxa_init_dma(32)))

@@ -116,7 +116,7 @@ xfs_swapext(
  out_put_file:
 	fput(file);
  out_free_sxp:
-	kmem_free(sxp, sizeof(xfs_swapext_t));
+	kmem_free(sxp);
  out:
 	return error;
 }
@@ -381,6 +381,6 @@ xfs_swap_extents(
 		xfs_iunlock(tip, lock_flags);
 	}
 	if (tempifp != NULL)
-		kmem_free(tempifp, sizeof(xfs_ifork_t));
+		kmem_free(tempifp);
 	return error;
 }

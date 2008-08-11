@@ -63,11 +63,12 @@ static int xen_suspend(void *data)
 	gnttab_resume();
 	xen_mm_unpin_all();
 
-	device_power_up();
+	device_power_up(PMSG_RESUME);
 
 	if (!*cancelled) {
 		xen_irq_resume();
 		xen_console_resume();
+		xen_timer_resume();
 	}
 
 	return 0;
@@ -107,12 +108,13 @@ static void do_suspend(void)
 		goto out;
 	}
 
-	if (!cancelled)
+	if (!cancelled) {
+		xen_arch_resume();
 		xenbus_resume();
-	else
+	} else
 		xenbus_suspend_cancel();
 
-	device_resume();
+	device_resume(PMSG_RESUME);
 
 	/* Make sure timer events get retriggered on all CPUs */
 	clock_was_set();

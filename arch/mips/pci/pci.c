@@ -204,7 +204,7 @@ static int pcibios_enable_resources(struct pci_dev *dev, int mask)
  *  If we set up a device for bus mastering, we need to check the latency
  *  timer as certain crappy BIOSes forget to set it properly.
  */
-unsigned int pcibios_max_latency = 255;
+static unsigned int pcibios_max_latency = 255;
 
 void pcibios_set_master(struct pci_dev *dev)
 {
@@ -328,7 +328,11 @@ EXPORT_SYMBOL(PCIBIOS_MIN_IO);
 EXPORT_SYMBOL(PCIBIOS_MIN_MEM);
 #endif
 
-char *pcibios_setup(char *str)
+char * (*pcibios_plat_setup)(char *str) __devinitdata;
+
+char *__devinit pcibios_setup(char *str)
 {
+	if (pcibios_plat_setup)
+		return pcibios_plat_setup(str);
 	return str;
 }

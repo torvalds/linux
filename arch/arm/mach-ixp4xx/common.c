@@ -29,8 +29,8 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 
-#include <asm/arch/udc.h>
-#include <asm/hardware.h>
+#include <mach/udc.h>
+#include <mach/hardware.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>
@@ -142,23 +142,23 @@ static int ixp4xx_set_irq_type(unsigned int irq, unsigned int type)
 		return -EINVAL;
 
 	switch (type){
-	case IRQT_BOTHEDGE:
+	case IRQ_TYPE_EDGE_BOTH:
 		int_style = IXP4XX_GPIO_STYLE_TRANSITIONAL;
 		irq_type = IXP4XX_IRQ_EDGE;
 		break;
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		int_style = IXP4XX_GPIO_STYLE_RISING_EDGE;
 		irq_type = IXP4XX_IRQ_EDGE;
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		int_style = IXP4XX_GPIO_STYLE_FALLING_EDGE;
 		irq_type = IXP4XX_IRQ_EDGE;
 		break;
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_HIGH;
 		irq_type = IXP4XX_IRQ_LEVEL;
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		int_style = IXP4XX_GPIO_STYLE_ACTIVE_LOW;
 		irq_type = IXP4XX_IRQ_LEVEL;
 		break;

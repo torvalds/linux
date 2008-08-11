@@ -29,12 +29,6 @@
 /*									*/
 /************************************************************************/
 
-/* History...
-
-1.0.0	26/04/99 NPV	Creation.
-
-*/
-
 #ifndef	_rioboard_h		/* If RIOBOARD.H not already defined */
 #define	_rioboard_h    1
 

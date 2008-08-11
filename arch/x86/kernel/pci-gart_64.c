@@ -32,6 +32,7 @@
 #include <asm/mtrr.h>
 #include <asm/pgtable.h>
 #include <asm/proto.h>
+#include <asm/iommu.h>
 #include <asm/gart.h>
 #include <asm/cacheflush.h>
 #include <asm/swiotlb.h>
@@ -65,9 +66,6 @@ static u32 gart_unmapped_entry;
 #define GPTE_ENCODE(x) \
 	(((x) & 0xfffff000) | (((x) >> 32) << 4) | GPTE_VALID | GPTE_COHERENT)
 #define GPTE_DECODE(x) (((x) & 0xfffff000) | (((u64)(x) & 0xff0) << 28))
-
-#define to_pages(addr, size) \
-	(round_up(((addr) & ~PAGE_MASK) + (size), PAGE_SIZE) >> PAGE_SHIFT)
 
 #define EMERGENCY_PAGES 32 /* = 128KB */
 
@@ -197,9 +195,7 @@ static void iommu_full(struct device *dev, size_t size, int dir)
 	 * out. Hopefully no network devices use single mappings that big.
 	 */
 
-	printk(KERN_ERR
-		"PCI-DMA: Out of IOMMU space for %lu bytes at device %s\n",
-		size, dev->bus_id);
+	dev_err(dev, "PCI-DMA: Out of IOMMU space for %lu bytes\n", size);
 
 	if (size > PAGE_SIZE*EMERGENCY_PAGES) {
 		if (dir == PCI_DMA_FROMDEVICE || dir == PCI_DMA_BIDIRECTIONAL)
@@ -242,7 +238,7 @@ nonforced_iommu(struct device *dev, unsigned long addr, size_t size)
 static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 				size_t size, int dir)
 {
-	unsigned long npages = to_pages(phys_mem, size);
+	unsigned long npages = iommu_num_pages(phys_mem, size);
 	unsigned long iommu_page = alloc_iommu(dev, npages);
 	int i;
 
@@ -305,7 +301,7 @@ static void gart_unmap_single(struct device *dev, dma_addr_t dma_addr,
 		return;
 
 	iommu_page = (dma_addr - iommu_bus_base)>>PAGE_SHIFT;
-	npages = to_pages(dma_addr, size);
+	npages = iommu_num_pages(dma_addr, size);
 	for (i = 0; i < npages; i++) {
 		iommu_gatt_base[iommu_page + i] = gart_unmapped_entry;
 		CLEAR_LEAK(iommu_page + i);
@@ -388,7 +384,7 @@ static int __dma_map_cont(struct device *dev, struct scatterlist *start,
 		}
 
 		addr = phys_addr;
-		pages = to_pages(s->offset, s->length);
+		pages = iommu_num_pages(s->offset, s->length);
 		while (pages--) {
 			iommu_gatt_base[iommu_page] = GPTE_ENCODE(addr);
 			SET_LEAK(iommu_page);
@@ -471,7 +467,7 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 
 		seg_size += s->length;
 		need = nextneed;
-		pages += to_pages(s->offset, s->length);
+		pages += iommu_num_pages(s->offset, s->length);
 		ps = s;
 	}
 	if (dma_map_cont(dev, start_sg, i - start, sgmap, pages, need) < 0)
@@ -693,8 +689,7 @@ static __init int init_k8_gatt(struct agp_kern_info *info)
 
 extern int agp_amd64_init(void);
 
-static const struct dma_mapping_ops gart_dma_ops = {
-	.mapping_error			= NULL,
+static struct dma_mapping_ops gart_dma_ops = {
 	.map_single			= gart_map_single,
 	.map_simple			= gart_map_simple,
 	.unmap_single			= gart_unmap_single,

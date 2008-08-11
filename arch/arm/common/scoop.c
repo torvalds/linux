@@ -247,7 +247,7 @@ static int __devinit scoop_probe(struct platform_device *pdev)
 	devptr->gpio.base = -1;
 
 	if (inf->gpio_base != 0) {
-		devptr->gpio.label = pdev->dev.bus_id;
+		devptr->gpio.label = dev_name(&pdev->dev);
 		devptr->gpio.base = inf->gpio_base;
 		devptr->gpio.ngpio = 12; /* PA11 = 0, PA12 = 1, etc. up to PA22 = 11 */
 		devptr->gpio.set = scoop_gpio_set;

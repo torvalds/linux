@@ -23,10 +23,10 @@
 #include <asm/io.h>
 #include <asm/setup.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/init.h>
+#include <mach/portmux.h>
 
 /* Oscillator frequencies. These are board-specific */
 unsigned long at32_board_osc_rates[3] = {

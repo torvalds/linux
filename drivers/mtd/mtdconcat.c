@@ -6,8 +6,6 @@
  * NAND support by Christian Gan <cgan@iders.ca>
  *
  * This code is GPL
- *
- * $Id: mtdconcat.c,v 1.11 2005/11/07 11:14:20 gleixner Exp $
  */
 
 #include <linux/kernel.h>

@@ -5514,22 +5514,6 @@ de4x5_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 	netif_wake_queue(dev);                      /* Unlock the TX ring */
 	break;
 
-    case DE4X5_SET_PROM:             /* Set Promiscuous Mode */
-	if (!capable(CAP_NET_ADMIN)) return -EPERM;
-	omr = inl(DE4X5_OMR);
-	omr |= OMR_PR;
-	outl(omr, DE4X5_OMR);
-	dev->flags |= IFF_PROMISC;
-	break;
-
-    case DE4X5_CLR_PROM:             /* Clear Promiscuous Mode */
-	if (!capable(CAP_NET_ADMIN)) return -EPERM;
-	omr = inl(DE4X5_OMR);
-	omr &= ~OMR_PR;
-	outl(omr, DE4X5_OMR);
-	dev->flags &= ~IFF_PROMISC;
-	break;
-
     case DE4X5_SAY_BOO:              /* Say "Boo!" to the kernel log file */
 	if (!capable(CAP_NET_ADMIN)) return -EPERM;
 	printk("%s: Boo!\n", dev->name);

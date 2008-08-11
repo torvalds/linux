@@ -189,12 +189,20 @@ static int macvlan_open(struct net_device *dev)
 
 	err = dev_unicast_add(lowerdev, dev->dev_addr, ETH_ALEN);
 	if (err < 0)
-		return err;
-	if (dev->flags & IFF_ALLMULTI)
-		dev_set_allmulti(lowerdev, 1);
+		goto out;
+	if (dev->flags & IFF_ALLMULTI) {
+		err = dev_set_allmulti(lowerdev, 1);
+		if (err < 0)
+			goto del_unicast;
+	}
 
 	hlist_add_head_rcu(&vlan->hlist, &port->vlan_hash[dev->dev_addr[5]]);
 	return 0;
+
+del_unicast:
+	dev_unicast_delete(lowerdev, dev->dev_addr, ETH_ALEN);
+out:
+	return err;
 }
 
 static int macvlan_stop(struct net_device *dev)
@@ -268,6 +276,7 @@ static int macvlan_change_mtu(struct net_device *dev, int new_mtu)
  * separate class since they always nest.
  */
 static struct lock_class_key macvlan_netdev_xmit_lock_key;
+static struct lock_class_key macvlan_netdev_addr_lock_key;
 
 #define MACVLAN_FEATURES \
 	(NETIF_F_SG | NETIF_F_ALL_CSUM | NETIF_F_HIGHDMA | NETIF_F_FRAGLIST | \
@@ -276,6 +285,21 @@ static struct lock_class_key macvlan_netdev_xmit_lock_key;
 
 #define MACVLAN_STATE_MASK \
 	((1<<__LINK_STATE_NOCARRIER) | (1<<__LINK_STATE_DORMANT))
+
+static void macvlan_set_lockdep_class_one(struct net_device *dev,
+					  struct netdev_queue *txq,
+					  void *_unused)
+{
+	lockdep_set_class(&txq->_xmit_lock,
+			  &macvlan_netdev_xmit_lock_key);
+}
+
+static void macvlan_set_lockdep_class(struct net_device *dev)
+{
+	lockdep_set_class(&dev->addr_list_lock,
+			  &macvlan_netdev_addr_lock_key);
+	netdev_for_each_tx_queue(dev, macvlan_set_lockdep_class_one, NULL);
+}
 
 static int macvlan_init(struct net_device *dev)
 {
@@ -287,7 +311,8 @@ static int macvlan_init(struct net_device *dev)
 	dev->features 		= lowerdev->features & MACVLAN_FEATURES;
 	dev->iflink		= lowerdev->ifindex;
 
-	lockdep_set_class(&dev->_xmit_lock, &macvlan_netdev_xmit_lock_key);
+	macvlan_set_lockdep_class(dev);
+
 	return 0;
 }
 

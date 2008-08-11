@@ -14,7 +14,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/setup.h>
 
 #include <asm/mach-types.h>
@@ -22,8 +22,8 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
-#include <asm/arch/mcp.h>
-#include <asm/arch/simpad.h>
+#include <mach/mcp.h>
+#include <mach/simpad.h>
 
 #include <linux/serial_core.h>
 #include <linux/ioport.h>

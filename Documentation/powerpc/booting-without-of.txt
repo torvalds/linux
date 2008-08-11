@@ -41,12 +41,25 @@ Table of Contents
   VI - System-on-a-chip devices and nodes
     1) Defining child nodes of an SOC
     2) Representing devices without a current OF specification
-      a) PHY nodes
-      b) Interrupt controllers
-      c) CFI or JEDEC memory-mapped NOR flash
-      d) 4xx/Axon EMAC ethernet nodes
-      e) Xilinx IP cores
-      f) USB EHCI controllers
+      a) MDIO IO device
+      b) Gianfar-compatible ethernet nodes
+      c) PHY nodes
+      d) Interrupt controllers
+      e) I2C
+      f) Freescale SOC USB controllers
+      g) Freescale SOC SEC Security Engines
+      h) Board Control and Status (BCSR)
+      i) Freescale QUICC Engine module (QE)
+      j) CFI or JEDEC memory-mapped NOR flash
+      k) Global Utilities Block
+      l) Freescale Communications Processor Module
+      m) Chipselect/Local Bus
+      n) 4xx/Axon EMAC ethernet nodes
+      o) Xilinx IP cores
+      p) Freescale Synchronous Serial Interface
+	  q) USB EHCI controllers
+      r) MDIO on GPIOs
+      s) SPI busses
 
   VII - Marvell Discovery mv64[345]6x System Controller chips
     1) The /system-controller node
@@ -77,9 +90,11 @@ Table of Contents
     3) OpenPIC Interrupt Controllers
     4) ISA Interrupt Controllers
 
-  VIII - Specifying GPIO information for devices
+  IX - Specifying GPIO information for devices
     1) gpios property
     2) gpio-controller nodes
+
+  X - Specifying device power management information (sleep property)
 
   Appendix A - Sample SOC node for MPC8540
 
@@ -263,7 +278,7 @@ it with special cases.
         a 64-bit platform.
 
         d) request and get assigned a platform number (see PLATFORM_*
-        constants in include/asm-powerpc/processor.h
+        constants in arch/powerpc/include/asm/processor.h
 
 32-bit embedded kernels:
 
@@ -325,7 +340,7 @@ the block to RAM before passing it to the kernel.
 ---------
 
    The kernel is entered with r3 pointing to an area of memory that is
-   roughly described in include/asm-powerpc/prom.h by the structure
+   roughly described in arch/powerpc/include/asm/prom.h by the structure
    boot_param_header:
 
 struct boot_param_header {
@@ -693,7 +708,7 @@ device or bus to be described by the device tree.
 In general, the format of an address for a device is defined by the
 parent bus type, based on the #address-cells and #size-cells
 properties.  Note that the parent's parent definitions of #address-cells
-and #size-cells are not inhereted so every node with children must specify
+and #size-cells are not inherited so every node with children must specify
 them.  The kernel requires the root node to have those properties defining
 addresses format for devices directly mapped on the processor bus.
 
@@ -1762,7 +1777,7 @@ platforms are moved over to use the flattened-device-tree model.
 
       Xilinx uartlite devices are simple fixed speed serial ports.
 
-      Requred properties:
+      Required properties:
        - current-speed : Baud rate of uartlite
 
       v) Xilinx hwicap
@@ -1784,7 +1799,7 @@ platforms are moved over to use the flattened-device-tree model.
       Xilinx UART 16550 devices are very similar to the NS16550 but with
       different register spacing and an offset from the base address.
 
-      Requred properties:
+      Required properties:
        - clock-frequency : Frequency of the clock input
        - reg-offset : A value of 3 is required
        - reg-shift : A value of 2 is required
@@ -1815,6 +1830,116 @@ platforms are moved over to use the flattened-device-tree model.
 		   big-endian;
 	   };
 
+    r) Freescale Display Interface Unit
+
+    The Freescale DIU is a LCD controller, with proper hardware, it can also
+    drive DVI monitors.
+
+    Required properties:
+    - compatible : should be "fsl-diu".
+    - reg : should contain at least address and length of the DIU register
+      set.
+    - Interrupts : one DIU interrupt should be describe here.
+
+    Example (MPC8610HPCD)
+	display@2c000 {
+		compatible = "fsl,diu";
+		reg = <0x2c000 100>;
+		interrupts = <72 2>;
+		interrupt-parent = <&mpic>;
+	};
+
+    s) Freescale on board FPGA
+
+    This is the memory-mapped registers for on board FPGA.
+
+    Required properities:
+    - compatible : should be "fsl,fpga-pixis".
+    - reg : should contain the address and the lenght of the FPPGA register
+      set.
+
+    Example (MPC8610HPCD)
+	board-control@e8000000 {
+		compatible = "fsl,fpga-pixis";
+		reg = <0xe8000000 32>;
+	};
+
+   r) MDIO on GPIOs
+
+   Currently defined compatibles:
+   - virtual,gpio-mdio
+
+   MDC and MDIO lines connected to GPIO controllers are listed in the
+   gpios property as described in section VIII.1 in the following order:
+
+   MDC, MDIO.
+
+   Example:
+
+	mdio {
+		compatible = "virtual,mdio-gpio";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		gpios = <&qe_pio_a 11
+			 &qe_pio_c 6>;
+	};
+
+    s) SPI (Serial Peripheral Interface) busses
+
+    SPI busses can be described with a node for the SPI master device
+    and a set of child nodes for each SPI slave on the bus.  For this
+    discussion, it is assumed that the system's SPI controller is in
+    SPI master mode.  This binding does not describe SPI controllers
+    in slave mode.
+
+    The SPI master node requires the following properties:
+    - #address-cells  - number of cells required to define a chip select
+			address on the SPI bus.
+    - #size-cells     - should be zero.
+    - compatible      - name of SPI bus controller following generic names
+			recommended practice.
+    No other properties are required in the SPI bus node.  It is assumed
+    that a driver for an SPI bus device will understand that it is an SPI bus.
+    However, the binding does not attempt to define the specific method for
+    assigning chip select numbers.  Since SPI chip select configuration is
+    flexible and non-standardized, it is left out of this binding with the
+    assumption that board specific platform code will be used to manage
+    chip selects.  Individual drivers can define additional properties to
+    support describing the chip select layout.
+
+    SPI slave nodes must be children of the SPI master node and can
+    contain the following properties.
+    - reg             - (required) chip select address of device.
+    - compatible      - (required) name of SPI device following generic names
+			recommended practice
+    - spi-max-frequency - (required) Maximum SPI clocking speed of device in Hz
+    - spi-cpol        - (optional) Empty property indicating device requires
+			inverse clock polarity (CPOL) mode
+    - spi-cpha        - (optional) Empty property indicating device requires
+			shifted clock phase (CPHA) mode
+
+    SPI example for an MPC5200 SPI bus:
+		spi@f00 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			compatible = "fsl,mpc5200b-spi","fsl,mpc5200-spi";
+			reg = <0xf00 0x20>;
+			interrupts = <2 13 0 2 14 0>;
+			interrupt-parent = <&mpc5200_pic>;
+
+			ethernet-switch@0 {
+				compatible = "micrel,ks8995m";
+				spi-max-frequency = <1000000>;
+				reg = <0>;
+			};
+
+			codec@1 {
+				compatible = "ti,tlv320aic26";
+				spi-max-frequency = <100000>;
+				reg = <1>;
+			};
+		};
+
 VII - Marvell Discovery mv64[345]6x System Controller chips
 ===========================================================
 
@@ -1828,7 +1953,7 @@ prefixed with the string "marvell,", for Marvell Technology Group Ltd.
 1) The /system-controller node
 
   This node is used to represent the system-controller and must be
-  present when the system uses a system contller chip. The top-level
+  present when the system uses a system controller chip. The top-level
   system-controller node contains information that is global to all
   devices within the system controller chip. The node name begins
   with "system-controller" followed by the unit address, which is
@@ -2422,8 +2547,8 @@ encodings listed below:
 	2 =  high to low edge sensitive type enabled
 	3 =  low to high edge sensitive type enabled
 
-VIII - Specifying GPIO information for devices
-==============================================
+IX - Specifying GPIO information for devices
+============================================
 
 1) gpios property
 -----------------
@@ -2471,116 +2596,151 @@ Example of two SOC GPIO banks defined as gpio-controller nodes:
 		gpio-controller;
 	};
 
+X - Specifying Device Power Management Information (sleep property)
+===================================================================
+
+Devices on SOCs often have mechanisms for placing devices into low-power
+states that are decoupled from the devices' own register blocks.  Sometimes,
+this information is more complicated than a cell-index property can
+reasonably describe.  Thus, each device controlled in such a manner
+may contain a "sleep" property which describes these connections.
+
+The sleep property consists of one or more sleep resources, each of
+which consists of a phandle to a sleep controller, followed by a
+controller-specific sleep specifier of zero or more cells.
+
+The semantics of what type of low power modes are possible are defined
+by the sleep controller.  Some examples of the types of low power modes
+that may be supported are:
+
+ - Dynamic: The device may be disabled or enabled at any time.
+ - System Suspend: The device may request to be disabled or remain
+   awake during system suspend, but will not be disabled until then.
+ - Permanent: The device is disabled permanently (until the next hard
+   reset).
+
+Some devices may share a clock domain with each other, such that they should
+only be suspended when none of the devices are in use.  Where reasonable,
+such nodes should be placed on a virtual bus, where the bus has the sleep
+property.  If the clock domain is shared among devices that cannot be
+reasonably grouped in this manner, then create a virtual sleep controller
+(similar to an interrupt nexus, except that defining a standardized
+sleep-map should wait until its necessity is demonstrated).
+
 Appendix A - Sample SOC node for MPC8540
 ========================================
 
-Note that the #address-cells and #size-cells for the SoC node
-in this example have been explicitly listed; these are likely
-not necessary as they are usually the same as the root node.
-
-	soc8540@e0000000 {
+	soc@e0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		#interrupt-cells = <2>;
+		compatible = "fsl,mpc8540-ccsr", "simple-bus";
 		device_type = "soc";
-		ranges = <00000000 e0000000 00100000>
-		reg = <e0000000 00003000>;
+		ranges = <0x00000000 0xe0000000 0x00100000>
 		bus-frequency = <0>;
-
-		mdio@24520 {
-			reg = <24520 20>;
-			device_type = "mdio";
-			compatible = "gianfar";
-
-			ethernet-phy@0 {
-				linux,phandle = <2452000>
-				interrupt-parent = <40000>;
-				interrupts = <35 1>;
-				reg = <0>;
-				device_type = "ethernet-phy";
-			};
-
-			ethernet-phy@1 {
-				linux,phandle = <2452001>
-				interrupt-parent = <40000>;
-				interrupts = <35 1>;
-				reg = <1>;
-				device_type = "ethernet-phy";
-			};
-
-			ethernet-phy@3 {
-				linux,phandle = <2452002>
-				interrupt-parent = <40000>;
-				interrupts = <35 1>;
-				reg = <3>;
-				device_type = "ethernet-phy";
-			};
-
-		};
+		interrupt-parent = <&pic>;
 
 		ethernet@24000 {
-			#size-cells = <0>;
+			#address-cells = <1>;
+			#size-cells = <1>;
 			device_type = "network";
 			model = "TSEC";
-			compatible = "gianfar";
-			reg = <24000 1000>;
-			mac-address = [ 00 E0 0C 00 73 00 ];
-			interrupts = <d 3 e 3 12 3>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452000>;
+			compatible = "gianfar", "simple-bus";
+			reg = <0x24000 0x1000>;
+			local-mac-address = [ 00 E0 0C 00 73 00 ];
+			interrupts = <29 2 30 2 34 2>;
+			phy-handle = <&phy0>;
+			sleep = <&pmc 00000080>;
+			ranges;
+
+			mdio@24520 {
+				reg = <0x24520 0x20>;
+				compatible = "fsl,gianfar-mdio";
+
+				phy0: ethernet-phy@0 {
+					interrupts = <5 1>;
+					reg = <0>;
+					device_type = "ethernet-phy";
+				};
+
+				phy1: ethernet-phy@1 {
+					interrupts = <5 1>;
+					reg = <1>;
+					device_type = "ethernet-phy";
+				};
+
+				phy3: ethernet-phy@3 {
+					interrupts = <7 1>;
+					reg = <3>;
+					device_type = "ethernet-phy";
+				};
+			};
 		};
 
 		ethernet@25000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			device_type = "network";
 			model = "TSEC";
 			compatible = "gianfar";
-			reg = <25000 1000>;
-			mac-address = [ 00 E0 0C 00 73 01 ];
-			interrupts = <13 3 14 3 18 3>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452001>;
+			reg = <0x25000 0x1000>;
+			local-mac-address = [ 00 E0 0C 00 73 01 ];
+			interrupts = <13 2 14 2 18 2>;
+			phy-handle = <&phy1>;
+			sleep = <&pmc 00000040>;
 		};
 
 		ethernet@26000 {
-			#address-cells = <1>;
-			#size-cells = <0>;
 			device_type = "network";
 			model = "FEC";
 			compatible = "gianfar";
-			reg = <26000 1000>;
-			mac-address = [ 00 E0 0C 00 73 02 ];
-			interrupts = <19 3>;
-			interrupt-parent = <40000>;
-			phy-handle = <2452002>;
+			reg = <0x26000 0x1000>;
+			local-mac-address = [ 00 E0 0C 00 73 02 ];
+			interrupts = <41 2>;
+			phy-handle = <&phy3>;
+			sleep = <&pmc 00000020>;
 		};
 
 		serial@4500 {
-			device_type = "serial";
-			compatible = "ns16550";
-			reg = <4500 100>;
-			clock-frequency = <0>;
-			interrupts = <1a 3>;
-			interrupt-parent = <40000>;
+			#address-cells = <1>;
+			#size-cells = <1>;
+			compatible = "fsl,mpc8540-duart", "simple-bus";
+			sleep = <&pmc 00000002>;
+			ranges;
+
+			serial@4500 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4500 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+			};
+
+			serial@4600 {
+				device_type = "serial";
+				compatible = "ns16550";
+				reg = <0x4600 0x100>;
+				clock-frequency = <0>;
+				interrupts = <42 2>;
+			};
 		};
 
-		pic@40000 {
-			linux,phandle = <40000>;
+		pic: pic@40000 {
 			interrupt-controller;
 			#address-cells = <0>;
-			reg = <40000 40000>;
+			#interrupt-cells = <2>;
+			reg = <0x40000 0x40000>;
 			compatible = "chrp,open-pic";
 			device_type = "open-pic";
 		};
 
 		i2c@3000 {
-			interrupt-parent = <40000>;
-			interrupts = <1b 3>;
-			reg = <3000 18>;
-			device_type = "i2c";
+			interrupts = <43 2>;
+			reg = <0x3000 0x100>;
 			compatible  = "fsl-i2c";
 			dfsrr;
+			sleep = <&pmc 00000004>;
 		};
 
+		pmc: power@e0070 {
+			compatible = "fsl,mpc8540-pmc", "fsl,mpc8548-pmc";
+			reg = <0xe0070 0x20>;
+		};
 	};

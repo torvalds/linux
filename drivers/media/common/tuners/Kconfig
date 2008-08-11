@@ -21,9 +21,8 @@ config MEDIA_TUNER
 	tristate
 	default VIDEO_MEDIA && I2C
 	depends on VIDEO_MEDIA && I2C
-	select FW_LOADER if !MEDIA_TUNER_CUSTOMIZE && HOTPLUG
-	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMIZE && HOTPLUG
-	select MEDIA_TUNER_XC5000 if !MEDIA_TUNER_CUSTOMIZE && HOTPLUG
+	select MEDIA_TUNER_XC2028 if !MEDIA_TUNER_CUSTOMIZE
+	select MEDIA_TUNER_XC5000 if !MEDIA_TUNER_CUSTOMIZE
 	select MEDIA_TUNER_MT20XX if !MEDIA_TUNER_CUSTOMIZE
 	select MEDIA_TUNER_TDA8290 if !MEDIA_TUNER_CUSTOMIZE
 	select MEDIA_TUNER_TEA5761 if !MEDIA_TUNER_CUSTOMIZE
@@ -34,6 +33,7 @@ config MEDIA_TUNER
 menuconfig MEDIA_TUNER_CUSTOMIZE
 	bool "Customize analog and hybrid tuner modules to build"
 	depends on MEDIA_TUNER
+	default n
 	help
 	  This allows the user to deselect tuner drivers unnecessary
 	  for their hardware from the build. Use this option with care
@@ -137,8 +137,6 @@ config MEDIA_TUNER_QT1010
 config MEDIA_TUNER_XC2028
 	tristate "XCeive xc2028/xc3028 tuners"
 	depends on VIDEO_MEDIA && I2C
-	depends on HOTPLUG
-	select FW_LOADER
 	default m if MEDIA_TUNER_CUSTOMIZE
 	help
 	  Say Y here to include support for the xc2028/xc3028 tuners.
@@ -146,8 +144,6 @@ config MEDIA_TUNER_XC2028
 config MEDIA_TUNER_XC5000
 	tristate "Xceive XC5000 silicon tuner"
 	depends on VIDEO_MEDIA && I2C
-	depends on HOTPLUG
-	select FW_LOADER
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon tuner XC5000 from Xceive.
@@ -160,5 +156,12 @@ config MEDIA_TUNER_MXL5005S
 	default m if DVB_FE_CUSTOMISE
 	help
 	  A driver for the silicon tuner MXL5005S from MaxLinear.
+
+config MEDIA_TUNER_MXL5007T
+	tristate "MaxLinear MxL5007T silicon tuner"
+	depends on VIDEO_MEDIA && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  A driver for the silicon tuner MxL5007T from MaxLinear.
 
 endif # MEDIA_TUNER_CUSTOMIZE

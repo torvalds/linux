@@ -26,12 +26,11 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa27x_keypad.h>
+#include <mach/hardware.h>
+#include <mach/pxa27x_keypad.h>
 
 /*
  * Keypad Controller registers
@@ -104,6 +103,8 @@ struct pxa27x_keypad {
 	struct clk *clk;
 	struct input_dev *input_dev;
 	void __iomem *mmio_base;
+
+	int irq;
 
 	/* matrix key code map */
 	unsigned int matrix_keycodes[MAX_MATRIX_KEY_NUM];
@@ -392,6 +393,10 @@ static int pxa27x_keypad_suspend(struct platform_device *pdev, pm_message_t stat
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 
 	clk_disable(keypad->clk);
+
+	if (device_may_wakeup(&pdev->dev))
+		enable_irq_wake(keypad->irq);
+
 	return 0;
 }
 
@@ -399,6 +404,9 @@ static int pxa27x_keypad_resume(struct platform_device *pdev)
 {
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct input_dev *input_dev = keypad->input_dev;
+
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(keypad->irq);
 
 	mutex_lock(&input_dev->mutex);
 
@@ -509,12 +517,16 @@ static int __devinit pxa27x_keypad_probe(struct platform_device *pdev)
 		goto failed_free_dev;
 	}
 
+	keypad->irq = irq;
+
 	/* Register the input device */
 	error = input_register_device(input_dev);
 	if (error) {
 		dev_err(&pdev->dev, "failed to register input device\n");
 		goto failed_free_irq;
 	}
+
+	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
 
@@ -539,7 +551,7 @@ static int __devexit pxa27x_keypad_remove(struct platform_device *pdev)
 	struct pxa27x_keypad *keypad = platform_get_drvdata(pdev);
 	struct resource *res;
 
-	free_irq(platform_get_irq(pdev, 0), pdev);
+	free_irq(keypad->irq, pdev);
 
 	clk_disable(keypad->clk);
 	clk_put(keypad->clk);

@@ -18,19 +18,7 @@
 #include <net/netfilter/nf_conntrack_l3proto.h>
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_expect.h>
-
-#ifdef CONFIG_NF_CT_ACCT
-static unsigned int
-seq_print_counters(struct seq_file *s,
-		   const struct ip_conntrack_counter *counter)
-{
-	return seq_printf(s, "packets=%llu bytes=%llu ",
-			  (unsigned long long)counter->packets,
-			  (unsigned long long)counter->bytes);
-}
-#else
-#define seq_print_counters(x, y)	0
-#endif
+#include <net/netfilter/nf_conntrack_acct.h>
 
 struct ct_iter_state {
 	unsigned int bucket;
@@ -127,7 +115,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			l3proto, l4proto))
 		return -ENOSPC;
 
-	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_ORIGINAL]))
+	if (seq_print_acct(s, ct, IP_CT_DIR_ORIGINAL))
 		return -ENOSPC;
 
 	if (!(test_bit(IPS_SEEN_REPLY_BIT, &ct->status)))
@@ -138,7 +126,7 @@ static int ct_seq_show(struct seq_file *s, void *v)
 			l3proto, l4proto))
 		return -ENOSPC;
 
-	if (seq_print_counters(s, &ct->counters[IP_CT_DIR_REPLY]))
+	if (seq_print_acct(s, ct, IP_CT_DIR_REPLY))
 		return -ENOSPC;
 
 	if (test_bit(IPS_ASSURED_BIT, &ct->status))

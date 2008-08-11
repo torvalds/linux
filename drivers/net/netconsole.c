@@ -53,7 +53,7 @@ MODULE_LICENSE("GPL");
 
 static char config[MAX_PARAM_LENGTH];
 module_param_string(netconsole, config, MAX_PARAM_LENGTH, 0);
-MODULE_PARM_DESC(netconsole, " netconsole=[src-port]@[src-ip]/[dev],[tgt-port]@<tgt-ip>/[tgt-macaddr]\n");
+MODULE_PARM_DESC(netconsole, " netconsole=[src-port]@[src-ip]/[dev],[tgt-port]@<tgt-ip>/[tgt-macaddr]");
 
 #ifndef	MODULE
 static int __init option_setup(char *opt)
@@ -585,9 +585,8 @@ static struct config_item_type netconsole_target_type = {
  * Group operations and type for netconsole_subsys.
  */
 
-static int make_netconsole_target(struct config_group *group,
-				  const char *name,
-				  struct config_item **new_item)
+static struct config_item *make_netconsole_target(struct config_group *group,
+						  const char *name)
 {
 	unsigned long flags;
 	struct netconsole_target *nt;
@@ -599,7 +598,7 @@ static int make_netconsole_target(struct config_group *group,
 	nt = kzalloc(sizeof(*nt), GFP_KERNEL);
 	if (!nt) {
 		printk(KERN_ERR "netconsole: failed to allocate memory\n");
-		return -ENOMEM;
+		return ERR_PTR(-ENOMEM);
 	}
 
 	nt->np.name = "netconsole";
@@ -616,8 +615,7 @@ static int make_netconsole_target(struct config_group *group,
 	list_add(&nt->list, &target_list);
 	spin_unlock_irqrestore(&target_list_lock, flags);
 
-	*new_item = &nt->item;
-	return 0;
+	return &nt->item;
 }
 
 static void drop_netconsole_target(struct config_group *group,

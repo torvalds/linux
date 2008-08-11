@@ -232,7 +232,7 @@ static void *afs_mntpt_follow_link(struct dentry *dentry, struct nameidata *nd)
 	}
 
 	mntget(newmnt);
-	err = do_add_mount(newmnt, nd, MNT_SHRINKABLE, &afs_vfsmounts);
+	err = do_add_mount(newmnt, &nd->path, MNT_SHRINKABLE, &afs_vfsmounts);
 	switch (err) {
 	case 0:
 		path_put(&nd->path);

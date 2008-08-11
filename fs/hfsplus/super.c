@@ -34,7 +34,7 @@ struct inode *hfsplus_iget(struct super_block *sb, unsigned long ino)
 		return inode;
 
 	INIT_LIST_HEAD(&HFSPLUS_I(inode).open_dir_list);
-	init_MUTEX(&HFSPLUS_I(inode).extents_lock);
+	mutex_init(&HFSPLUS_I(inode).extents_lock);
 	HFSPLUS_I(inode).flags = 0;
 	HFSPLUS_I(inode).rsrc_inode = NULL;
 	atomic_set(&HFSPLUS_I(inode).opencnt, 0);
@@ -485,7 +485,7 @@ static struct file_system_type hfsplus_fs_type = {
 	.fs_flags	= FS_REQUIRES_DEV,
 };
 
-static void hfsplus_init_once(struct kmem_cache *cachep, void *p)
+static void hfsplus_init_once(void *p)
 {
 	struct hfsplus_inode_info *i = p;
 

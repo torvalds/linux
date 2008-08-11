@@ -712,25 +712,11 @@ static void usbfs_add_device(struct usb_device *dev)
 
 static void usbfs_remove_device(struct usb_device *dev)
 {
-	struct dev_state *ds;
-	struct siginfo sinfo;
-
 	if (dev->usbfs_dentry) {
 		fs_remove_file (dev->usbfs_dentry);
 		dev->usbfs_dentry = NULL;
 	}
-	while (!list_empty(&dev->filelist)) {
-		ds = list_entry(dev->filelist.next, struct dev_state, list);
-		wake_up_all(&ds->wait);
-		list_del_init(&ds->list);
-		if (ds->discsignr) {
-			sinfo.si_signo = ds->discsignr;
-			sinfo.si_errno = EPIPE;
-			sinfo.si_code = SI_ASYNCIO;
-			sinfo.si_addr = ds->disccontext;
-			kill_pid_info_as_uid(ds->discsignr, &sinfo, ds->disc_pid, ds->disc_uid, ds->disc_euid, ds->secid);
-		}
-	}
+	usb_fs_classdev_common_remove(dev);
 }
 
 static int usbfs_notify(struct notifier_block *self, unsigned long action, void *dev)

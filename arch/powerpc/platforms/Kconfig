@@ -253,16 +253,14 @@ config CPM2
 	depends on MPC85xx || 8260
 	select CPM
 	select PPC_LIB_RHEAP
+	select PPC_PCI_CHOICE
+	select ARCH_REQUIRE_GPIOLIB
+	select GENERIC_GPIO
 	help
 	  The CPM2 (Communications Processor Module) is a coprocessor on
 	  embedded CPUs made by Freescale.  Selecting this option means that
 	  you wish to build a kernel for a machine with a CPM2 coprocessor
 	  on it (826x, 827x, 8560).
-
-config PPC_CPM_NEW_BINDING
-	bool
-	depends on CPM1 || CPM2
-	default y
 
 config AXON_RAM
 	tristate "Axon DDR2 memory device driver"
@@ -285,6 +283,7 @@ config FSL_ULI1575
 
 config CPM
 	bool
+	select PPC_CLOCK
 
 config OF_RTC
 	bool

@@ -24,7 +24,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include <asm/plat-orion/orion_nand.h>
 #include "common.h"
 #include "mpp.h"

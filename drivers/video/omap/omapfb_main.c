@@ -25,11 +25,11 @@
  * 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
  */
 #include <linux/platform_device.h>
+#include <linux/mm.h>
 #include <linux/uaccess.h>
 
-#include <asm/mach-types.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/omapfb.h>
+#include <mach/dma.h>
+#include <mach/omapfb.h>
 
 #define MODULE_NAME	"omapfb"
 

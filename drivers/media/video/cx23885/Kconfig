@@ -1,19 +1,19 @@
 config VIDEO_CX23885
 	tristate "Conexant cx23885 (2388x successor) support"
 	depends on DVB_CORE && VIDEO_DEV && PCI && I2C && INPUT
-	depends on HOTPLUG	# due to FW_LOADER
 	select I2C_ALGOBIT
-	select FW_LOADER
 	select VIDEO_BTCX
 	select VIDEO_TUNER
 	select VIDEO_TVEEPROM
 	select VIDEO_IR
 	select VIDEOBUF_DVB
+	select VIDEOBUF_DMA_SG
 	select VIDEO_CX25840
 	select VIDEO_CX2341X
 	select DVB_DIB7000P if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_MT2131 if !DVB_FE_CUSTOMISE
 	select DVB_S5H1409 if !DVB_FE_CUSTOMISE
+	select DVB_S5H1411 if !DVB_FE_CUSTOMISE
 	select DVB_LGDT330X if !DVB_FE_CUSTOMISE
 	select MEDIA_TUNER_XC2028 if !DVB_FE_CUSTOMIZE
 	select MEDIA_TUNER_TDA8290 if !DVB_FE_CUSTOMIZE

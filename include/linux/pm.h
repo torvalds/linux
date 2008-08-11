@@ -22,78 +22,6 @@
 #define _LINUX_PM_H
 
 #include <linux/list.h>
-#include <asm/atomic.h>
-#include <asm/errno.h>
-
-/*
- * Power management requests... these are passed to pm_send_all() and friends.
- *
- * these functions are old and deprecated, see below.
- */
-typedef int __bitwise pm_request_t;
-
-#define PM_SUSPEND	((__force pm_request_t) 1)	/* enter D1-D3 */
-#define PM_RESUME	((__force pm_request_t) 2)	/* enter D0 */
-
-
-/*
- * Device types... these are passed to pm_register
- */
-typedef int __bitwise pm_dev_t;
-
-#define PM_UNKNOWN_DEV	((__force pm_dev_t) 0)	/* generic */
-#define PM_SYS_DEV	((__force pm_dev_t) 1)	/* system device (fan, KB controller, ...) */
-#define PM_PCI_DEV	((__force pm_dev_t) 2)	/* PCI device */
-#define PM_USB_DEV	((__force pm_dev_t) 3)	/* USB device */
-#define PM_SCSI_DEV	((__force pm_dev_t) 4)	/* SCSI device */
-#define PM_ISA_DEV	((__force pm_dev_t) 5)	/* ISA device */
-#define	PM_MTD_DEV	((__force pm_dev_t) 6)	/* Memory Technology Device */
-
-/*
- * System device hardware ID (PnP) values
- */
-enum
-{
-	PM_SYS_UNKNOWN = 0x00000000, /* generic */
-	PM_SYS_KBC =	 0x41d00303, /* keyboard controller */
-	PM_SYS_COM =	 0x41d00500, /* serial port */
-	PM_SYS_IRDA =	 0x41d00510, /* IRDA controller */
-	PM_SYS_FDC =	 0x41d00700, /* floppy controller */
-	PM_SYS_VGA =	 0x41d00900, /* VGA controller */
-	PM_SYS_PCMCIA =	 0x41d00e00, /* PCMCIA controller */
-};
-
-/*
- * Device identifier
- */
-#define PM_PCI_ID(dev) ((dev)->bus->number << 16 | (dev)->devfn)
-
-/*
- * Request handler callback
- */
-struct pm_dev;
-
-typedef int (*pm_callback)(struct pm_dev *dev, pm_request_t rqst, void *data);
-
-/*
- * Dynamic device information
- */
-struct pm_dev
-{
-	pm_dev_t	 type;
-	unsigned long	 id;
-	pm_callback	 callback;
-	void		*data;
-
-	unsigned long	 flags;
-	unsigned long	 state;
-	unsigned long	 prev_state;
-
-	struct list_head entry;
-};
-
-/* Functions above this comment are list-based old-style power
- * management. Please avoid using them.  */
 
 /*
  * Callbacks for platform drivers to implement.
@@ -317,6 +245,21 @@ struct pm_ext_ops {
  * RECOVER	Creation of a hibernation image or restoration of the main
  *		memory contents from a hibernation image has failed, call
  *		->thaw() and ->complete() for all devices.
+ *
+ * The following PM_EVENT_ messages are defined for internal use by
+ * kernel subsystems.  They are never issued by the PM core.
+ *
+ * USER_SUSPEND		Manual selective suspend was issued by userspace.
+ *
+ * USER_RESUME		Manual selective resume was issued by userspace.
+ *
+ * REMOTE_WAKEUP	Remote-wakeup request was received from the device.
+ *
+ * AUTO_SUSPEND		Automatic (device idle) runtime suspend was
+ *			initiated by the subsystem.
+ *
+ * AUTO_RESUME		Automatic (device needed) runtime resume was
+ *			requested by a driver.
  */
 
 #define PM_EVENT_ON		0x0000
@@ -328,9 +271,18 @@ struct pm_ext_ops {
 #define PM_EVENT_THAW		0x0020
 #define PM_EVENT_RESTORE	0x0040
 #define PM_EVENT_RECOVER	0x0080
+#define PM_EVENT_USER		0x0100
+#define PM_EVENT_REMOTE		0x0200
+#define PM_EVENT_AUTO		0x0400
 
-#define PM_EVENT_SLEEP	(PM_EVENT_SUSPEND | PM_EVENT_HIBERNATE)
+#define PM_EVENT_SLEEP		(PM_EVENT_SUSPEND | PM_EVENT_HIBERNATE)
+#define PM_EVENT_USER_SUSPEND	(PM_EVENT_USER | PM_EVENT_SUSPEND)
+#define PM_EVENT_USER_RESUME	(PM_EVENT_USER | PM_EVENT_RESUME)
+#define PM_EVENT_REMOTE_WAKEUP	(PM_EVENT_REMOTE | PM_EVENT_RESUME)
+#define PM_EVENT_AUTO_SUSPEND	(PM_EVENT_AUTO | PM_EVENT_SUSPEND)
+#define PM_EVENT_AUTO_RESUME	(PM_EVENT_AUTO | PM_EVENT_RESUME)
 
+#define PMSG_ON		((struct pm_message){ .event = PM_EVENT_ON, })
 #define PMSG_FREEZE	((struct pm_message){ .event = PM_EVENT_FREEZE, })
 #define PMSG_QUIESCE	((struct pm_message){ .event = PM_EVENT_QUIESCE, })
 #define PMSG_SUSPEND	((struct pm_message){ .event = PM_EVENT_SUSPEND, })
@@ -339,7 +291,16 @@ struct pm_ext_ops {
 #define PMSG_THAW	((struct pm_message){ .event = PM_EVENT_THAW, })
 #define PMSG_RESTORE	((struct pm_message){ .event = PM_EVENT_RESTORE, })
 #define PMSG_RECOVER	((struct pm_message){ .event = PM_EVENT_RECOVER, })
-#define PMSG_ON		((struct pm_message){ .event = PM_EVENT_ON, })
+#define PMSG_USER_SUSPEND	((struct pm_messge) \
+					{ .event = PM_EVENT_USER_SUSPEND, })
+#define PMSG_USER_RESUME	((struct pm_messge) \
+					{ .event = PM_EVENT_USER_RESUME, })
+#define PMSG_REMOTE_RESUME	((struct pm_messge) \
+					{ .event = PM_EVENT_REMOTE_RESUME, })
+#define PMSG_AUTO_SUSPEND	((struct pm_messge) \
+					{ .event = PM_EVENT_AUTO_SUSPEND, })
+#define PMSG_AUTO_RESUME		((struct pm_messge) \
+					{ .event = PM_EVENT_AUTO_RESUME, })
 
 /**
  * Device power management states

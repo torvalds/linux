@@ -35,7 +35,6 @@
 #include <linux/moduleparam.h>
 #include <net/pkt_sched.h>
 #include <net/net_namespace.h>
-#include <linux/lockdep.h>
 
 #define TX_TIMEOUT  (2*HZ)
 
@@ -70,18 +69,20 @@ static void ri_tasklet(unsigned long dev)
 	struct net_device *_dev = (struct net_device *)dev;
 	struct ifb_private *dp = netdev_priv(_dev);
 	struct net_device_stats *stats = &_dev->stats;
+	struct netdev_queue *txq;
 	struct sk_buff *skb;
 
+	txq = netdev_get_tx_queue(_dev, 0);
 	dp->st_task_enter++;
 	if ((skb = skb_peek(&dp->tq)) == NULL) {
 		dp->st_txq_refl_try++;
-		if (netif_tx_trylock(_dev)) {
+		if (__netif_tx_trylock(txq)) {
 			dp->st_rxq_enter++;
 			while ((skb = skb_dequeue(&dp->rq)) != NULL) {
 				skb_queue_tail(&dp->tq, skb);
 				dp->st_rx2tx_tran++;
 			}
-			netif_tx_unlock(_dev);
+			__netif_tx_unlock(txq);
 		} else {
 			/* reschedule */
 			dp->st_rxq_notenter++;
@@ -116,7 +117,7 @@ static void ri_tasklet(unsigned long dev)
 			BUG();
 	}
 
-	if (netif_tx_trylock(_dev)) {
+	if (__netif_tx_trylock(txq)) {
 		dp->st_rxq_check++;
 		if ((skb = skb_peek(&dp->rq)) == NULL) {
 			dp->tasklet_pending = 0;
@@ -124,10 +125,10 @@ static void ri_tasklet(unsigned long dev)
 				netif_wake_queue(_dev);
 		} else {
 			dp->st_rxq_rsch++;
-			netif_tx_unlock(_dev);
+			__netif_tx_unlock(txq);
 			goto resched;
 		}
-		netif_tx_unlock(_dev);
+		__netif_tx_unlock(txq);
 	} else {
 resched:
 		dp->tasklet_pending = 1;
@@ -228,16 +229,6 @@ static struct rtnl_link_ops ifb_link_ops __read_mostly = {
 module_param(numifbs, int, 0);
 MODULE_PARM_DESC(numifbs, "Number of ifb devices");
 
-/*
- * dev_ifb->queue_lock is usually taken after dev->ingress_lock,
- * reversely to e.g. qdisc_lock_tree(). It should be safe until
- * ifb doesn't take dev->queue_lock with dev_ifb->ingress_lock.
- * But lockdep should know that ifb has different locks from dev.
- */
-static struct lock_class_key ifb_queue_lock_key;
-static struct lock_class_key ifb_ingress_lock_key;
-
-
 static int __init ifb_init_one(int index)
 {
 	struct net_device *dev_ifb;
@@ -257,9 +248,6 @@ static int __init ifb_init_one(int index)
 	err = register_netdevice(dev_ifb);
 	if (err < 0)
 		goto err;
-
-	lockdep_set_class(&dev_ifb->queue_lock, &ifb_queue_lock_key);
-	lockdep_set_class(&dev_ifb->ingress_lock, &ifb_ingress_lock_key);
 
 	return 0;
 

@@ -46,24 +46,14 @@
 #include <linux/kernel.h>
 #include <linux/types.h>
 #include <linux/ioport.h>
-#include <linux/interrupt.h>
-#include <linux/pm.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <asm/io.h>
-#include <asm/processor.h>
 #include <asm/reboot.h>
-#include <asm/time.h>
-#include <asm/txx9tmr.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9/rbtx4927.h>
 #include <asm/txx9/tx4938.h>	/* for TX4937 */
-#ifdef CONFIG_SERIAL_TXX9
-#include <linux/serial_core.h>
-#endif
-
-static int tx4927_ccfg_toeon = 1;
 
 #ifdef CONFIG_PCI
 static void __init tx4927_pci_setup(void)
@@ -110,6 +100,7 @@ static void __init tx4927_pci_setup(void)
 		tx4927_report_pciclk();
 		tx4927_pcic_setup(tx4927_pcicptr, c, extarb);
 	}
+	tx4927_setup_pcierr_irq();
 }
 
 static void __init tx4937_pci_setup(void)
@@ -156,6 +147,7 @@ static void __init tx4937_pci_setup(void)
 		tx4938_report_pciclk();
 		tx4927_pcic_setup(tx4938_pcicptr, c, extarb);
 	}
+	tx4938_setup_pcierr_irq();
 }
 
 static void __init rbtx4927_arch_init(void)
@@ -172,138 +164,63 @@ static void __init rbtx4937_arch_init(void)
 #define rbtx4937_arch_init NULL
 #endif /* CONFIG_PCI */
 
-static void __noreturn wait_forever(void)
-{
-	while (1)
-		if (cpu_wait)
-			(*cpu_wait)();
-}
-
 static void toshiba_rbtx4927_restart(char *command)
 {
-	printk(KERN_NOTICE "System Rebooting...\n");
-
 	/* enable the s/w reset register */
-	writeb(RBTX4927_SW_RESET_ENABLE_SET, RBTX4927_SW_RESET_ENABLE);
+	writeb(1, rbtx4927_softresetlock_addr);
 
 	/* wait for enable to be seen */
-	while ((readb(RBTX4927_SW_RESET_ENABLE) &
-		RBTX4927_SW_RESET_ENABLE_SET) == 0x00);
+	while (!(readb(rbtx4927_softresetlock_addr) & 1))
+		;
 
 	/* do a s/w reset */
-	writeb(RBTX4927_SW_RESET_DO_SET, RBTX4927_SW_RESET_DO);
+	writeb(1, rbtx4927_softreset_addr);
 
-	/* do something passive while waiting for reset */
-	local_irq_disable();
-	wait_forever();
-	/* no return */
+	/* fallback */
+	(*_machine_halt)();
 }
 
-static void toshiba_rbtx4927_halt(void)
-{
-	printk(KERN_NOTICE "System Halted\n");
-	local_irq_disable();
-	wait_forever();
-	/* no return */
-}
-
-static void toshiba_rbtx4927_power_off(void)
-{
-	toshiba_rbtx4927_halt();
-	/* no return */
-}
+static void __init rbtx4927_clock_init(void);
+static void __init rbtx4937_clock_init(void);
 
 static void __init rbtx4927_mem_setup(void)
 {
-	int i;
 	u32 cp0_config;
 	char *argptr;
-
-	/* f/w leaves this on at startup */
-	clear_c0_status(ST0_ERL);
 
 	/* enable caches -- HCP5 does this, pmon does not */
 	cp0_config = read_c0_config();
 	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
 	write_c0_config(cp0_config);
 
-	ioport_resource.end = 0xffffffff;
-	iomem_resource.end = 0xffffffff;
+	if (TX4927_REV_PCODE() == 0x4927) {
+		rbtx4927_clock_init();
+		tx4927_setup();
+	} else {
+		rbtx4937_clock_init();
+		tx4938_setup();
+	}
 
 	_machine_restart = toshiba_rbtx4927_restart;
-	_machine_halt = toshiba_rbtx4927_halt;
-	pm_power_off = toshiba_rbtx4927_power_off;
-
-	for (i = 0; i < TX4927_NR_TMR; i++)
-		txx9_tmr_init(TX4927_TMR_REG(0) & 0xfffffffffULL);
 
 #ifdef CONFIG_PCI
 	txx9_alloc_pci_controller(&txx9_primary_pcic,
 				  RBTX4927_PCIMEM, RBTX4927_PCIMEM_SIZE,
 				  RBTX4927_PCIIO, RBTX4927_PCIIO_SIZE);
+	txx9_board_pcibios_setup = tx4927_pcibios_setup;
 #else
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
 
-	/* CCFG */
-	/* do reset on watchdog */
-	tx4927_ccfg_set(TX4927_CCFG_WR);
-	/* enable Timeout BusError */
-	if (tx4927_ccfg_toeon)
-		tx4927_ccfg_set(TX4927_CCFG_TOE);
-
-#ifdef CONFIG_SERIAL_TXX9
-	{
-		extern int early_serial_txx9_setup(struct uart_port *port);
-		struct uart_port req;
-		for(i = 0; i < 2; i++) {
-			memset(&req, 0, sizeof(req));
-			req.line = i;
-			req.iotype = UPIO_MEM;
-			req.membase = (char *)(0xff1ff300 + i * 0x100);
-			req.mapbase = 0xff1ff300 + i * 0x100;
-			req.irq = TXX9_IRQ_BASE + TX4927_IR_SIO(i);
-			req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-			req.uartclk = 50000000;
-			early_serial_txx9_setup(&req);
-		}
-	}
+	tx4927_sio_init(0, 0);
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "console=") == NULL) {
-                strcat(argptr, " console=ttyS0,38400");
-        }
-#endif
-#endif
-
-#ifdef CONFIG_ROOT_NFS
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "root=") == NULL) {
-                strcat(argptr, " root=/dev/nfs rw");
-        }
-#endif
-
-#ifdef CONFIG_IP_PNP
-        argptr = prom_getcmdline();
-        if (strstr(argptr, "ip=") == NULL) {
-                strcat(argptr, " ip=any");
-        }
+	argptr = prom_getcmdline();
+	if (!strstr(argptr, "console="))
+		strcat(argptr, " console=ttyS0,38400");
 #endif
 }
 
-static void __init rbtx49x7_common_time_init(void)
-{
-	/* change default value to udelay/mdelay take reasonable time */
-	loops_per_jiffy = txx9_cpu_clock / HZ / 2;
-
-	mips_hpt_frequency = txx9_cpu_clock / 2;
-	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_TINTDIS)
-		txx9_clockevent_init(TX4927_TMR_REG(0) & 0xfffffffffULL,
-				     TXX9_IRQ_BASE + 17,
-				     50000000);
-}
-
-static void __init rbtx4927_time_init(void)
+static void __init rbtx4927_clock_init(void)
 {
 	/*
 	 * ASSUMPTION: PCIDIVMODE is configured for PCI 33MHz or 66MHz.
@@ -325,11 +242,9 @@ static void __init rbtx4927_time_init(void)
 	default:
 		txx9_cpu_clock = 200000000;	/* 200MHz */
 	}
-
-	rbtx49x7_common_time_init();
 }
 
-static void __init rbtx4937_time_init(void)
+static void __init rbtx4937_clock_init(void)
 {
 	/*
 	 * ASSUMPTION: PCIDIVMODE is configured for PCI 33MHz or 66MHz.
@@ -357,25 +272,26 @@ static void __init rbtx4937_time_init(void)
 	default:
 		txx9_cpu_clock = 333333333;	/* 333MHz */
 	}
-
-	rbtx49x7_common_time_init();
 }
 
-static int __init toshiba_rbtx4927_rtc_init(void)
+static void __init rbtx4927_time_init(void)
 {
-	static struct resource __initdata res = {
-		.start	= 0x1c010000,
-		.end	= 0x1c010000 + 0x800 - 1,
+	tx4927_time_init(0);
+}
+
+static void __init toshiba_rbtx4927_rtc_init(void)
+{
+	struct resource res = {
+		.start	= RBTX4927_BRAMRTC_BASE - IO_BASE,
+		.end	= RBTX4927_BRAMRTC_BASE - IO_BASE + 0x800 - 1,
 		.flags	= IORESOURCE_MEM,
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("rtc-ds1742", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
+	platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 }
 
-static int __init rbtx4927_ne_init(void)
+static void __init rbtx4927_ne_init(void)
 {
-	static struct resource __initdata res[] = {
+	struct resource res[] = {
 		{
 			.start	= RBTX4927_RTL_8019_BASE,
 			.end	= RBTX4927_RTL_8019_BASE + 0x20 - 1,
@@ -385,36 +301,14 @@ static int __init rbtx4927_ne_init(void)
 			.flags	= IORESOURCE_IRQ,
 		}
 	};
-	struct platform_device *dev =
-		platform_device_register_simple("ne", -1,
-						res, ARRAY_SIZE(res));
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-/* Watchdog support */
-
-static int __init txx9_wdt_init(unsigned long base)
-{
-	struct resource res = {
-		.start	= base,
-		.end	= base + 0x100 - 1,
-		.flags	= IORESOURCE_MEM,
-	};
-	struct platform_device *dev =
-		platform_device_register_simple("txx9wdt", -1, &res, 1);
-	return IS_ERR(dev) ? PTR_ERR(dev) : 0;
-}
-
-static int __init rbtx4927_wdt_init(void)
-{
-	return txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
+	platform_device_register_simple("ne", -1, res, ARRAY_SIZE(res));
 }
 
 static void __init rbtx4927_device_init(void)
 {
 	toshiba_rbtx4927_rtc_init();
 	rbtx4927_ne_init();
-	rbtx4927_wdt_init();
+	tx4927_wdt_init();
 }
 
 struct txx9_board_vec rbtx4927_vec __initdata = {
@@ -434,7 +328,7 @@ struct txx9_board_vec rbtx4937_vec __initdata = {
 	.prom_init = rbtx4927_prom_init,
 	.mem_setup = rbtx4927_mem_setup,
 	.irq_setup = rbtx4927_irq_setup,
-	.time_init = rbtx4937_time_init,
+	.time_init = rbtx4927_time_init,
 	.device_init = rbtx4927_device_init,
 	.arch_init = rbtx4937_arch_init,
 #ifdef CONFIG_PCI

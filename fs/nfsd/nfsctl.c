@@ -12,6 +12,7 @@
 #include <linux/time.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
+#include <linux/namei.h>
 #include <linux/fcntl.h>
 #include <linux/net.h>
 #include <linux/in.h>
@@ -310,9 +311,12 @@ static ssize_t write_getfd(struct file *file, char *buf, size_t size)
 
 static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 {
-	__be32 server_ip;
-	char *fo_path, c;
+	struct sockaddr_in sin = {
+		.sin_family	= AF_INET,
+	};
 	int b1, b2, b3, b4;
+	char c;
+	char *fo_path;
 
 	/* sanity check */
 	if (size == 0)
@@ -326,11 +330,13 @@ static ssize_t failover_unlock_ip(struct file *file, char *buf, size_t size)
 		return -EINVAL;
 
 	/* get ipv4 address */
-	if (sscanf(fo_path, "%u.%u.%u.%u%c", &b1, &b2, &b3, &b4, &c) != 4)
+	if (sscanf(fo_path, NIPQUAD_FMT "%c", &b1, &b2, &b3, &b4, &c) != 4)
 		return -EINVAL;
-	server_ip = htonl((((((b1<<8)|b2)<<8)|b3)<<8)|b4);
+	if (b1 > 255 || b2 > 255 || b3 > 255 || b4 > 255)
+		return -EINVAL;
+	sin.sin_addr.s_addr = htonl((b1 << 24) | (b2 << 16) | (b3 << 8) | b4);
 
-	return nlmsvc_unlock_all_by_ip(server_ip);
+	return nlmsvc_unlock_all_by_ip((struct sockaddr *)&sin);
 }
 
 static ssize_t failover_unlock_fs(struct file *file, char *buf, size_t size)
@@ -450,22 +456,26 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 	int i;
 	int rv;
 	int len;
-    	int npools = nfsd_nrpools();
+	int npools;
 	int *nthreads;
 
+	mutex_lock(&nfsd_mutex);
+	npools = nfsd_nrpools();
 	if (npools == 0) {
 		/*
 		 * NFS is shut down.  The admin can start it by
 		 * writing to the threads file but NOT the pool_threads
 		 * file, sorry.  Report zero threads.
 		 */
+		mutex_unlock(&nfsd_mutex);
 		strcpy(buf, "0\n");
 		return strlen(buf);
 	}
 
 	nthreads = kcalloc(npools, sizeof(int), GFP_KERNEL);
+	rv = -ENOMEM;
 	if (nthreads == NULL)
-		return -ENOMEM;
+		goto out_free;
 
 	if (size > 0) {
 		for (i = 0; i < npools; i++) {
@@ -496,14 +506,16 @@ static ssize_t write_pool_threads(struct file *file, char *buf, size_t size)
 		mesg += len;
 	}
 
+	mutex_unlock(&nfsd_mutex);
 	return (mesg-buf);
 
 out_free:
 	kfree(nthreads);
+	mutex_unlock(&nfsd_mutex);
 	return rv;
 }
 
-static ssize_t write_versions(struct file *file, char *buf, size_t size)
+static ssize_t __write_versions(struct file *file, char *buf, size_t size)
 {
 	/*
 	 * Format:
@@ -566,14 +578,23 @@ static ssize_t write_versions(struct file *file, char *buf, size_t size)
 	return len;
 }
 
-static ssize_t write_ports(struct file *file, char *buf, size_t size)
+static ssize_t write_versions(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_versions(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
+static ssize_t __write_ports(struct file *file, char *buf, size_t size)
 {
 	if (size == 0) {
 		int len = 0;
-		lock_kernel();
+
 		if (nfsd_serv)
 			len = svc_xprt_names(nfsd_serv, buf, 0);
-		unlock_kernel();
 		return len;
 	}
 	/* Either a single 'fd' number is written, in which
@@ -603,9 +624,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 			/* Decrease the count, but don't shutdown the
 			 * the service
 			 */
-			lock_kernel();
 			nfsd_serv->sv_nrthreads--;
-			unlock_kernel();
 		}
 		return err < 0 ? err : 0;
 	}
@@ -614,10 +633,8 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		int len = 0;
 		if (!toclose)
 			return -ENOMEM;
-		lock_kernel();
 		if (nfsd_serv)
 			len = svc_sock_names(buf, nfsd_serv, toclose);
-		unlock_kernel();
 		if (len >= 0)
 			lockd_down();
 		kfree(toclose);
@@ -655,7 +672,6 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 		if (sscanf(&buf[1], "%15s %4d", transport, &port) == 2) {
 			if (port == 0)
 				return -EINVAL;
-			lock_kernel();
 			if (nfsd_serv) {
 				xprt = svc_find_xprt(nfsd_serv, transport,
 						     AF_UNSPEC, port);
@@ -666,12 +682,22 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size)
 				} else
 					err = -ENOTCONN;
 			}
-			unlock_kernel();
 			return err < 0 ? err : 0;
 		}
 	}
 	return -EINVAL;
 }
+
+static ssize_t write_ports(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_ports(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
 
 int nfsd_max_blksize;
 
@@ -691,13 +717,13 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 		if (bsize > NFSSVC_MAXBLKSIZE)
 			bsize = NFSSVC_MAXBLKSIZE;
 		bsize &= ~(1024-1);
-		lock_kernel();
+		mutex_lock(&nfsd_mutex);
 		if (nfsd_serv && nfsd_serv->sv_nrthreads) {
-			unlock_kernel();
+			mutex_unlock(&nfsd_mutex);
 			return -EBUSY;
 		}
 		nfsd_max_blksize = bsize;
-		unlock_kernel();
+		mutex_unlock(&nfsd_mutex);
 	}
 	return sprintf(buf, "%d\n", nfsd_max_blksize);
 }
@@ -705,16 +731,17 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 #ifdef CONFIG_NFSD_V4
 extern time_t nfs4_leasetime(void);
 
-static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
+static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 {
 	/* if size > 10 seconds, call
 	 * nfs4_reset_lease() then write out the new lease (seconds) as reply
 	 */
 	char *mesg = buf;
-	int rv;
+	int rv, lease;
 
 	if (size > 0) {
-		int lease;
+		if (nfsd_serv)
+			return -EBUSY;
 		rv = get_int(&mesg, &lease);
 		if (rv)
 			return rv;
@@ -726,24 +753,52 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 	return strlen(buf);
 }
 
-static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
+static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_leasetime(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
+extern char *nfs4_recoverydir(void);
+
+static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
 {
 	char *mesg = buf;
 	char *recdir;
 	int len, status;
 
-	if (size == 0 || size > PATH_MAX || buf[size-1] != '\n')
-		return -EINVAL;
-	buf[size-1] = 0;
+	if (size > 0) {
+		if (nfsd_serv)
+			return -EBUSY;
+		if (size > PATH_MAX || buf[size-1] != '\n')
+			return -EINVAL;
+		buf[size-1] = 0;
 
-	recdir = mesg;
-	len = qword_get(&mesg, recdir, size);
-	if (len <= 0)
-		return -EINVAL;
+		recdir = mesg;
+		len = qword_get(&mesg, recdir, size);
+		if (len <= 0)
+			return -EINVAL;
 
-	status = nfs4_reset_recoverydir(recdir);
+		status = nfs4_reset_recoverydir(recdir);
+	}
+	sprintf(buf, "%s\n", nfs4_recoverydir());
 	return strlen(buf);
 }
+
+static ssize_t write_recoverydir(struct file *file, char *buf, size_t size)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __write_recoverydir(file, buf, size);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
+}
+
 #endif
 
 /*----------------------------------------------------------------------------*/

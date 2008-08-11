@@ -273,8 +273,6 @@ struct xl_private {
 	struct wait_queue *srb_wait;
 	volatile int asb_queued;   
 
-	struct net_device_stats xl_stats ;
-
 	u16 mac_buffer ; 	
 	u16 xl_lan_status ;
 	u8 xl_ring_speed ;

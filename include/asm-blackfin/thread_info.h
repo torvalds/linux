@@ -42,6 +42,7 @@
 /*
  * Size of kernel stack for each process. This must be a power of 2...
  */
+#define THREAD_SIZE_ORDER	1
 #define THREAD_SIZE		8192	/* 2 pages */
 
 #ifndef __ASSEMBLY__
@@ -94,10 +95,6 @@ static inline struct thread_info *current_thread_info(void)
 	return (struct thread_info *)((long)ti & ~((long)THREAD_SIZE-1));
 }
 
-/* thread information allocation */
-#define alloc_thread_info(tsk) ((struct thread_info *) \
-				__get_free_pages(GFP_KERNEL, 1))
-#define free_thread_info(ti)	free_pages((unsigned long) (ti), 1)
 #endif				/* __ASSEMBLY__ */
 
 /*

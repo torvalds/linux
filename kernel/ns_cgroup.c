@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/cgroup.h>
 #include <linux/fs.h>
+#include <linux/proc_fs.h>
 #include <linux/slab.h>
 #include <linux/nsproxy.h>
 
@@ -24,9 +25,12 @@ static inline struct ns_cgroup *cgroup_to_ns(
 			    struct ns_cgroup, css);
 }
 
-int ns_cgroup_clone(struct task_struct *task)
+int ns_cgroup_clone(struct task_struct *task, struct pid *pid)
 {
-	return cgroup_clone(task, &ns_subsys);
+	char name[PROC_NUMBUF];
+
+	snprintf(name, PROC_NUMBUF, "%d", pid_vnr(pid));
+	return cgroup_clone(task, &ns_subsys, name);
 }
 
 /*

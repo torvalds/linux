@@ -312,9 +312,9 @@ static void put_child_connect_map(struct r8a66597 *r8a66597, int address)
 static void set_pipe_reg_addr(struct r8a66597_pipe *pipe, u8 dma_ch)
 {
 	u16 pipenum = pipe->info.pipenum;
-	unsigned long fifoaddr[] = {D0FIFO, D1FIFO, CFIFO};
-	unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
-	unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
+	const unsigned long fifoaddr[] = {D0FIFO, D1FIFO, CFIFO};
+	const unsigned long fifosel[] = {D0FIFOSEL, D1FIFOSEL, CFIFOSEL};
+	const unsigned long fifoctr[] = {D0FIFOCTR, D1FIFOCTR, CFIFOCTR};
 
 	if (dma_ch > R8A66597_PIPE_NO_DMA)	/* dma fifo not use? */
 		dma_ch = R8A66597_PIPE_NO_DMA;
@@ -863,6 +863,32 @@ static void disable_r8a66597_pipe_all(struct r8a66597 *r8a66597,
 	dev->dma_map = 0;
 }
 
+static u16 get_interval(struct urb *urb, __u8 interval)
+{
+	u16 time = 1;
+	int i;
+
+	if (urb->dev->speed == USB_SPEED_HIGH) {
+		if (interval > IITV)
+			time = IITV;
+		else
+			time = interval ? interval - 1 : 0;
+	} else {
+		if (interval > 128) {
+			time = IITV;
+		} else {
+			/* calculate the nearest value for PIPEPERI */
+			for (i = 0; i < 7; i++) {
+				if ((1 << i) < interval &&
+				    (1 << (i + 1) > interval))
+					time = 1 << i;
+			}
+		}
+	}
+
+	return time;
+}
+
 static unsigned long get_timer_interval(struct urb *urb, __u8 interval)
 {
 	__u8 i;
@@ -901,10 +927,7 @@ static void init_pipe_info(struct r8a66597 *r8a66597, struct urb *urb,
 		info.interval = 0;
 		info.timer_interval = 0;
 	} else {
-		if (ep->bInterval > IITV)
-			info.interval = IITV;
-		else
-			info.interval = ep->bInterval ? ep->bInterval - 1 : 0;
+		info.interval = get_interval(urb, ep->bInterval);
 		info.timer_interval = get_timer_interval(urb, ep->bInterval);
 	}
 	if (ep->bEndpointAddress & USB_ENDPOINT_DIR_MASK)
@@ -2244,6 +2267,7 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	struct r8a66597 *r8a66597;
 	int ret = 0;
 	int i;
+	unsigned long irq_trigger;
 
 	if (pdev->dev.dma_mask) {
 		ret = -EINVAL;
@@ -2302,7 +2326,11 @@ static int __init r8a66597_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&r8a66597->child_device);
 
 	hcd->rsrc_start = res->start;
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	if (irq_sense == INTL)
+		irq_trigger = IRQF_TRIGGER_LOW;
+	else
+		irq_trigger = IRQF_TRIGGER_FALLING;
+	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED | irq_trigger);
 	if (ret != 0) {
 		err("Failed to add hcd");
 		goto clean_up;

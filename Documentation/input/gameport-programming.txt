@@ -1,5 +1,3 @@
-$Id: gameport-programming.txt,v 1.3 2001/04/24 13:51:37 vojtech Exp $
-
 Programming gameport drivers
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

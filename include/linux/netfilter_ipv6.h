@@ -64,10 +64,13 @@ enum nf_ip6_hook_priorities {
 	NF_IP6_PRI_MANGLE = -150,
 	NF_IP6_PRI_NAT_DST = -100,
 	NF_IP6_PRI_FILTER = 0,
+	NF_IP6_PRI_SECURITY = 50,
 	NF_IP6_PRI_NAT_SRC = 100,
 	NF_IP6_PRI_SELINUX_LAST = 225,
 	NF_IP6_PRI_LAST = INT_MAX,
 };
+
+#ifdef  __KERNEL__
 
 #ifdef CONFIG_NETFILTER
 extern int ip6_route_me_harder(struct sk_buff *skb);
@@ -80,5 +83,7 @@ extern void ipv6_netfilter_fini(void);
 static inline int ipv6_netfilter_init(void) { return 0; }
 static inline void ipv6_netfilter_fini(void) { return; }
 #endif /* CONFIG_NETFILTER */
+
+#endif /* __KERNEL__ */
 
 #endif /*__LINUX_IP6_NETFILTER_H*/

@@ -173,6 +173,7 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 extern int pci_probe_only;
-extern unsigned int pcibios_max_latency;
+
+extern char * (*pcibios_plat_setup)(char *str);
 
 #endif /* _ASM_PCI_H */

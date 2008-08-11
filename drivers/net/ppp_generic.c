@@ -363,7 +363,7 @@ static int ppp_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int ppp_release(struct inode *inode, struct file *file)
+static int ppp_release(struct inode *unused, struct file *file)
 {
 	struct ppp_file *pf = file->private_data;
 	struct ppp *ppp;
@@ -547,8 +547,7 @@ static int get_filter(void __user *arg, struct sock_filter **p)
 }
 #endif /* CONFIG_PPP_FILTER */
 
-static int ppp_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg)
+static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct ppp_file *pf = file->private_data;
 	struct ppp *ppp;
@@ -576,23 +575,28 @@ static int ppp_ioctl(struct inode *inode, struct file *file,
 		 * this fd and reopening /dev/ppp.
 		 */
 		err = -EINVAL;
+		lock_kernel();
 		if (pf->kind == INTERFACE) {
 			ppp = PF_TO_PPP(pf);
 			if (file == ppp->owner)
 				ppp_shutdown_interface(ppp);
 		}
-		if (atomic_read(&file->f_count) <= 2) {
-			ppp_release(inode, file);
+		if (atomic_long_read(&file->f_count) <= 2) {
+			ppp_release(NULL, file);
 			err = 0;
 		} else
-			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%d\n",
-			       atomic_read(&file->f_count));
+			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%ld\n",
+			       atomic_long_read(&file->f_count));
+		unlock_kernel();
 		return err;
 	}
 
 	if (pf->kind == CHANNEL) {
-		struct channel *pch = PF_TO_CHANNEL(pf);
+		struct channel *pch;
 		struct ppp_channel *chan;
+
+		lock_kernel();
+		pch = PF_TO_CHANNEL(pf);
 
 		switch (cmd) {
 		case PPPIOCCONNECT:
@@ -613,6 +617,7 @@ static int ppp_ioctl(struct inode *inode, struct file *file,
 				err = chan->ops->ioctl(chan, cmd, arg);
 			up_read(&pch->chan_sem);
 		}
+		unlock_kernel();
 		return err;
 	}
 
@@ -622,6 +627,7 @@ static int ppp_ioctl(struct inode *inode, struct file *file,
 		return -EINVAL;
 	}
 
+	lock_kernel();
 	ppp = PF_TO_PPP(pf);
 	switch (cmd) {
 	case PPPIOCSMRU:
@@ -769,7 +775,7 @@ static int ppp_ioctl(struct inode *inode, struct file *file,
 	default:
 		err = -ENOTTY;
 	}
-
+	unlock_kernel();
 	return err;
 }
 
@@ -781,6 +787,7 @@ static int ppp_unattached_ioctl(struct ppp_file *pf, struct file *file,
 	struct channel *chan;
 	int __user *p = (int __user *)arg;
 
+	lock_kernel();
 	switch (cmd) {
 	case PPPIOCNEWUNIT:
 		/* Create a new ppp unit */
@@ -829,6 +836,7 @@ static int ppp_unattached_ioctl(struct ppp_file *pf, struct file *file,
 	default:
 		err = -ENOTTY;
 	}
+	unlock_kernel();
 	return err;
 }
 
@@ -837,7 +845,7 @@ static const struct file_operations ppp_device_fops = {
 	.read		= ppp_read,
 	.write		= ppp_write,
 	.poll		= ppp_poll,
-	.ioctl		= ppp_ioctl,
+	.unlocked_ioctl	= ppp_ioctl,
 	.open		= ppp_open,
 	.release	= ppp_release
 };
@@ -858,7 +866,8 @@ static int __init ppp_init(void)
 			err = PTR_ERR(ppp_class);
 			goto out_chrdev;
 		}
-		device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), "ppp");
+		device_create_drvdata(ppp_class, NULL, MKDEV(PPP_MAJOR, 0),
+				      NULL, "ppp");
 	}
 
 out:

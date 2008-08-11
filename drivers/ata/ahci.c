@@ -1273,7 +1273,7 @@ static ssize_t ahci_transmit_led_message(struct ata_port *ap, u32 state,
 	void __iomem *mmio = ap->host->iomap[AHCI_PCI_BAR];
 	u32 em_ctl;
 	u32 message[] = {0, 0};
-	unsigned int flags;
+	unsigned long flags;
 	int pmp;
 	struct ahci_em_priv *emp;
 

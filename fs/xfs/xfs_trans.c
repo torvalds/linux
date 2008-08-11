@@ -889,7 +889,7 @@ shut_us_down:
 
 	tp->t_commit_lsn = commit_lsn;
 	if (nvec > XFS_TRANS_LOGVEC_COUNT) {
-		kmem_free(log_vector, nvec * sizeof(xfs_log_iovec_t));
+		kmem_free(log_vector);
 	}
 
 	/*
@@ -1265,7 +1265,7 @@ xfs_trans_committed(
 		ASSERT(!XFS_LIC_ARE_ALL_FREE(licp));
 		xfs_trans_chunk_committed(licp, tp->t_lsn, abortflag);
 		next_licp = licp->lic_next;
-		kmem_free(licp, sizeof(xfs_log_item_chunk_t));
+		kmem_free(licp);
 		licp = next_licp;
 	}
 

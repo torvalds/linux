@@ -196,6 +196,7 @@ static int virtblk_probe(struct virtio_device *vdev)
 	int err;
 	u64 cap;
 	u32 v;
+	u32 blk_size;
 
 	if (index_to_minor(index) >= 1 << MINORBITS)
 		return -ENOSPC;
@@ -290,6 +291,13 @@ static int virtblk_probe(struct virtio_device *vdev)
 	if (!err)
 		blk_queue_max_hw_segments(vblk->disk->queue, v);
 
+	/* Host can optionally specify the block size of the device */
+	err = virtio_config_val(vdev, VIRTIO_BLK_F_BLK_SIZE,
+				offsetof(struct virtio_blk_config, blk_size),
+				&blk_size);
+	if (!err)
+		blk_queue_hardsect_size(vblk->disk->queue, blk_size);
+
 	add_disk(vblk->disk);
 	return 0;
 
@@ -330,7 +338,7 @@ static struct virtio_device_id id_table[] = {
 
 static unsigned int features[] = {
 	VIRTIO_BLK_F_BARRIER, VIRTIO_BLK_F_SEG_MAX, VIRTIO_BLK_F_SIZE_MAX,
-	VIRTIO_BLK_F_GEOMETRY, VIRTIO_BLK_F_RO,
+	VIRTIO_BLK_F_GEOMETRY, VIRTIO_BLK_F_RO, VIRTIO_BLK_F_BLK_SIZE,
 };
 
 static struct virtio_driver virtio_blk = {

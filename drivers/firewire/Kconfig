@@ -16,8 +16,13 @@ config FIREWIRE
 	  enable the new stack.
 
 	  To compile this driver as a module, say M here: the module will be
-	  called firewire-core.  It functionally replaces ieee1394, raw1394,
-	  and video1394.
+	  called firewire-core.
+
+	  This module functionally replaces ieee1394, raw1394, and video1394.
+	  To access it from application programs, you generally need at least
+	  libraw1394 version 2.  IIDC/DCAM applications also need libdc1394
+	  version 2.  No libraries are required to access storage devices
+	  through the firewire-sbp2 driver.
 
 config FIREWIRE_OHCI
 	tristate "OHCI-1394 controllers"

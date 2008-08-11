@@ -153,6 +153,21 @@ static inline u64 max48(const u64 seq1, const u64 seq2)
 	return after48(seq1, seq2) ? seq1 : seq2;
 }
 
+/**
+ * dccp_loss_free  -  Evaluates condition for data loss from RFC 4340, 7.7.1
+ * @s1:	 start sequence number
+ * @s2:  end sequence number
+ * @ndp: NDP count on packet with sequence number @s2
+ * Returns true if the sequence range s1...s2 has no data loss.
+ */
+static inline bool dccp_loss_free(const u64 s1, const u64 s2, const u64 ndp)
+{
+	s64 delta = dccp_delta_seqno(s1, s2);
+
+	WARN_ON(delta < 0);
+	return (u64)delta <= ndp + 1;
+}
+
 enum {
 	DCCP_MIB_NUM = 0,
 	DCCP_MIB_ACTIVEOPENS,			/* ActiveOpens */
@@ -211,10 +226,11 @@ static inline void dccp_csum_outgoing(struct sk_buff *skb)
 
 extern void dccp_v4_send_check(struct sock *sk, int len, struct sk_buff *skb);
 
-extern int  dccp_retransmit_skb(struct sock *sk, struct sk_buff *skb);
+extern int  dccp_retransmit_skb(struct sock *sk);
 
 extern void dccp_send_ack(struct sock *sk);
-extern void dccp_reqsk_send_ack(struct sk_buff *sk, struct request_sock *rsk);
+extern void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+				struct request_sock *rsk);
 
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);
@@ -262,7 +278,7 @@ extern int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 				const struct dccp_hdr *dh, const unsigned len);
 
 extern int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized);
-extern int dccp_destroy_sock(struct sock *sk);
+extern void dccp_destroy_sock(struct sock *sk);
 
 extern void		dccp_close(struct sock *sk, long timeout);
 extern struct sk_buff	*dccp_make_response(struct sock *sk,

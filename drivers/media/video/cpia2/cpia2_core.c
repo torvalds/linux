@@ -32,6 +32,7 @@
 #include "cpia2.h"
 
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/vmalloc.h>
 #include <linux/firmware.h>
 

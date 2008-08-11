@@ -171,8 +171,8 @@ config IA64_SGI_SN2
 	  to select this option.  If in doubt, select ia64 generic support
 	  instead.
 
-config IA64_SGI_UV`
-	bool "SGI-UV`"
+config IA64_SGI_UV
+	bool "SGI-UV"
 	select NUMA
 	select ACPI_NUMA
 	select SWIOTLB
@@ -321,10 +321,10 @@ config SMP
 	  If you don't know what to do here, say N.
 
 config NR_CPUS
-	int "Maximum number of CPUs (2-1024)"
-	range 2 1024
+	int "Maximum number of CPUs (2-4096)"
+	range 2 4096
 	depends on SMP
-	default "1024"
+	default "4096"
 	help
 	  You should set this to the number of CPUs in your system, but
 	  keep in mind that a kernel compiled for, e.g., 2 CPUs will boot but
@@ -540,8 +540,8 @@ config KEXEC
 	  strongly in flux, so no good recommendation can be made.
 
 config CRASH_DUMP
-	  bool "kernel crash dumps (EXPERIMENTAL)"
-	  depends on EXPERIMENTAL && IA64_MCA_RECOVERY && !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
+	  bool "kernel crash dumps"
+	  depends on IA64_MCA_RECOVERY && !IA64_HP_SIM && (!SMP || HOTPLUG_CPU)
 	  help
 	    Generate crash dump after being started by kexec.
 

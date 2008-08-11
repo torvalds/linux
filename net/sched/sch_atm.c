@@ -162,7 +162,7 @@ static void atm_tc_put(struct Qdisc *sch, unsigned long cl)
 	qdisc_destroy(flow->q);
 	tcf_destroy_chain(&flow->filter_list);
 	if (flow->sock) {
-		pr_debug("atm_tc_put: f_count %d\n",
+		pr_debug("atm_tc_put: f_count %ld\n",
 			file_count(flow->sock->file));
 		flow->vcc->pop = flow->old_pop;
 		sockfd_put(flow->sock);
@@ -259,7 +259,7 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 	sock = sockfd_lookup(fd, &error);
 	if (!sock)
 		return error;	/* f_count++ */
-	pr_debug("atm_tc_change: f_count %d\n", file_count(sock->file));
+	pr_debug("atm_tc_change: f_count %ld\n", file_count(sock->file));
 	if (sock->ops->family != PF_ATMSVC && sock->ops->family != PF_ATMPVC) {
 		error = -EPROTOTYPE;
 		goto err_out;
@@ -296,7 +296,8 @@ static int atm_tc_change(struct Qdisc *sch, u32 classid, u32 parent,
 		goto err_out;
 	}
 	flow->filter_list = NULL;
-	flow->q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, classid);
+	flow->q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+				    &pfifo_qdisc_ops, classid);
 	if (!flow->q)
 		flow->q = &noop_qdisc;
 	pr_debug("atm_tc_change: qdisc %p\n", flow->q);
@@ -414,7 +415,7 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
 			kfree_skb(skb);
-			return NET_XMIT_SUCCESS;
+			return NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			kfree_skb(skb);
 			goto drop;
@@ -428,17 +429,19 @@ static int atm_tc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 #endif
 	}
 
-	ret = flow->q->enqueue(skb, flow->q);
+	ret = qdisc_enqueue(skb, flow->q);
 	if (ret != 0) {
 drop: __maybe_unused
-		sch->qstats.drops++;
-		if (flow)
-			flow->qstats.drops++;
+		if (net_xmit_drop_count(ret)) {
+			sch->qstats.drops++;
+			if (flow)
+				flow->qstats.drops++;
+		}
 		return ret;
 	}
-	sch->bstats.bytes += skb->len;
+	sch->bstats.bytes += qdisc_pkt_len(skb);
 	sch->bstats.packets++;
-	flow->bstats.bytes += skb->len;
+	flow->bstats.bytes += qdisc_pkt_len(skb);
 	flow->bstats.packets++;
 	/*
 	 * Okay, this may seem weird. We pretend we've dropped the packet if
@@ -454,7 +457,7 @@ drop: __maybe_unused
 		return 0;
 	}
 	tasklet_schedule(&p->task);
-	return NET_XMIT_BYPASS;
+	return NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 }
 
 /*
@@ -529,7 +532,7 @@ static int atm_tc_requeue(struct sk_buff *skb, struct Qdisc *sch)
 	if (!ret) {
 		sch->q.qlen++;
 		sch->qstats.requeues++;
-	} else {
+	} else if (net_xmit_drop_count(ret)) {
 		sch->qstats.drops++;
 		p->link.qstats.drops++;
 	}
@@ -555,7 +558,8 @@ static int atm_tc_init(struct Qdisc *sch, struct nlattr *opt)
 
 	pr_debug("atm_tc_init(sch %p,[qdisc %p],opt %p)\n", sch, p, opt);
 	p->flows = &p->link;
-	p->link.q = qdisc_create_dflt(sch->dev, &pfifo_qdisc_ops, sch->handle);
+	p->link.q = qdisc_create_dflt(qdisc_dev(sch), sch->dev_queue,
+				      &pfifo_qdisc_ops, sch->handle);
 	if (!p->link.q)
 		p->link.q = &noop_qdisc;
 	pr_debug("atm_tc_init: link (%p) qdisc %p\n", &p->link, p->link.q);

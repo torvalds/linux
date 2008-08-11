@@ -407,6 +407,7 @@ ENTRY(phys_base)
 	/* This must match the first entry in level2_kernel_pgt */
 	.quad   0x0000000000000000
 
+#include "../../x86/xen/xen-head.S"
 	
 	.section .bss, "aw", @nobits
 	.align L1_CACHE_BYTES

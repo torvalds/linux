@@ -135,7 +135,7 @@
  *
  *	Optional:
  *
- * void (*break_ctl)(struct tty_stuct *tty, int state);
+ * int (*break_ctl)(struct tty_stuct *tty, int state);
  *
  * 	This optional routine requests the tty driver to turn on or
  * 	off BREAK status on the RS-232 port.  If state is -1,
@@ -145,6 +145,10 @@
  * 	If this routine is implemented, the high-level tty driver will
  * 	handle the following ioctls: TCSBRK, TCSBRKP, TIOCSBRK,
  * 	TIOCCBRK.
+ *
+ *	If the driver sets TTY_DRIVER_HARDWARE_BREAK then the interface
+ *	will also be called with actual times and the hardware is expected
+ *	to do the delay work itself. 0 and -1 are still used for on/off.
  *
  *	Optional: Required for TCSBRK/BRKP/etc handling.
  *
@@ -192,7 +196,7 @@ struct tty_operations {
 	void (*stop)(struct tty_struct *tty);
 	void (*start)(struct tty_struct *tty);
 	void (*hangup)(struct tty_struct *tty);
-	void (*break_ctl)(struct tty_struct *tty, int state);
+	int (*break_ctl)(struct tty_struct *tty, int state);
 	void (*flush_buffer)(struct tty_struct *tty);
 	void (*set_ldisc)(struct tty_struct *tty);
 	void (*wait_until_sent)(struct tty_struct *tty, int timeout);
@@ -285,12 +289,18 @@ extern struct tty_driver *tty_find_polling_driver(char *name, int *line);
  * TTY_DRIVER_DEVPTS_MEM -- don't use the standard arrays, instead
  *	use dynamic memory keyed through the devpts filesystem.  This
  *	is only applicable to the pty driver.
+ *
+ * TTY_DRIVER_HARDWARE_BREAK -- hardware handles break signals. Pass
+ *	the requested timeout to the caller instead of using a simple
+ *	on/off interface.
+ *
  */
 #define TTY_DRIVER_INSTALLED		0x0001
 #define TTY_DRIVER_RESET_TERMIOS	0x0002
 #define TTY_DRIVER_REAL_RAW		0x0004
 #define TTY_DRIVER_DYNAMIC_DEV		0x0008
 #define TTY_DRIVER_DEVPTS_MEM		0x0010
+#define TTY_DRIVER_HARDWARE_BREAK	0x0020
 
 /* tty driver types */
 #define TTY_DRIVER_TYPE_SYSTEM		0x0001

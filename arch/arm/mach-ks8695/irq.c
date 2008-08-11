@@ -25,14 +25,14 @@
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-irq.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-irq.h>
+#include <mach/regs-gpio.h>
 
 static void ks8695_irq_mask(unsigned int irqno)
 {
@@ -72,21 +72,21 @@ static int ks8695_irq_set_type(unsigned int irqno, unsigned int type)
 	ctrl = __raw_readl(KS8695_GPIO_VA + KS8695_IOPC);
 
 	switch (type) {
-		case IRQT_HIGH:
+		case IRQ_TYPE_LEVEL_HIGH:
 			mode = IOPC_TM_HIGH;
 			level_triggered = 1;
 			break;
-		case IRQT_LOW:
+		case IRQ_TYPE_LEVEL_LOW:
 			mode = IOPC_TM_LOW;
 			level_triggered = 1;
 			break;
-		case IRQT_RISING:
+		case IRQ_TYPE_EDGE_RISING:
 			mode = IOPC_TM_RISING;
 			break;
-		case IRQT_FALLING:
+		case IRQ_TYPE_EDGE_FALLING:
 			mode = IOPC_TM_FALLING;
 			break;
-		case IRQT_BOTHEDGE:
+		case IRQ_TYPE_EDGE_BOTH:
 			mode = IOPC_TM_EDGE;
 			break;
 		default:

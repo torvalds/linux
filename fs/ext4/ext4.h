@@ -1044,7 +1044,6 @@ extern void ext4_mb_update_group_info(struct ext4_group_info *grp,
 
 
 /* inode.c */
-void ext4_da_release_space(struct inode *inode, int used, int to_free);
 int ext4_forget(handle_t *handle, int is_metadata, struct inode *inode,
 		struct buffer_head *bh, ext4_fsblk_t blocknr);
 struct buffer_head *ext4_getblk(handle_t *, struct inode *,

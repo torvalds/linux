@@ -409,7 +409,6 @@ xfs_start_buffer_writeback(
 STATIC void
 xfs_start_page_writeback(
 	struct page		*page,
-	struct writeback_control *wbc,
 	int			clear_dirty,
 	int			buffers)
 {
@@ -676,7 +675,7 @@ xfs_probe_cluster(
 			} else
 				pg_offset = PAGE_CACHE_SIZE;
 
-			if (page->index == tindex && !TestSetPageLocked(page)) {
+			if (page->index == tindex && trylock_page(page)) {
 				pg_len = xfs_probe_page(page, pg_offset, mapped);
 				unlock_page(page);
 			}
@@ -760,7 +759,7 @@ xfs_convert_page(
 
 	if (page->index != tindex)
 		goto fail;
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		goto fail;
 	if (PageWriteback(page))
 		goto fail_unlock_page;
@@ -858,7 +857,7 @@ xfs_convert_page(
 				done = 1;
 			}
 		}
-		xfs_start_page_writeback(page, wbc, !page_dirty, count);
+		xfs_start_page_writeback(page, !page_dirty, count);
 	}
 
 	return done;
@@ -1105,7 +1104,7 @@ xfs_page_state_convert(
 			 * that we are writing into for the first time.
 			 */
 			type = IOMAP_NEW;
-			if (!test_and_set_bit(BH_Lock, &bh->b_state)) {
+			if (trylock_buffer(bh)) {
 				ASSERT(buffer_mapped(bh));
 				if (iomap_valid)
 					all_bh = 1;
@@ -1130,7 +1129,7 @@ xfs_page_state_convert(
 		SetPageUptodate(page);
 
 	if (startio)
-		xfs_start_page_writeback(page, wbc, 1, count);
+		xfs_start_page_writeback(page, 1, count);
 
 	if (ioend && iomap_valid) {
 		offset = (iomap.iomap_offset + iomap.iomap_bsize - 1) >>

@@ -56,9 +56,6 @@ struct of_device *of_find_device_by_node(struct device_node *dp)
 EXPORT_SYMBOL(of_find_device_by_node);
 
 #ifdef CONFIG_PCI
-struct bus_type isa_bus_type;
-EXPORT_SYMBOL(isa_bus_type);
-
 struct bus_type ebus_bus_type;
 EXPORT_SYMBOL(ebus_bus_type);
 #endif
@@ -797,9 +794,9 @@ static struct of_device * __init scan_one_device(struct device_node *dp,
 	op->dev.parent = parent;
 	op->dev.bus = &of_platform_bus_type;
 	if (!parent)
-		strcpy(op->dev.bus_id, "root");
+		dev_set_name(&op->dev, "root");
 	else
-		sprintf(op->dev.bus_id, "%08x", dp->node);
+		dev_set_name(&op->dev, "%08x", dp->node);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",
@@ -841,8 +838,6 @@ static int __init of_bus_driver_init(void)
 
 	err = of_bus_type_init(&of_platform_bus_type, "of");
 #ifdef CONFIG_PCI
-	if (!err)
-		err = of_bus_type_init(&isa_bus_type, "isa");
 	if (!err)
 		err = of_bus_type_init(&ebus_bus_type, "ebus");
 #endif

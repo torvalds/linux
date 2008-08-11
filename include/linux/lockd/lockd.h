@@ -200,10 +200,12 @@ typedef int	  (*nlm_host_match_fn_t)(void *cur, struct nlm_host *ref);
  * Server-side lock handling
  */
 __be32		  nlmsvc_lock(struct svc_rqst *, struct nlm_file *,
-					struct nlm_lock *, int, struct nlm_cookie *);
+			      struct nlm_host *, struct nlm_lock *, int,
+			      struct nlm_cookie *);
 __be32		  nlmsvc_unlock(struct nlm_file *, struct nlm_lock *);
 __be32		  nlmsvc_testlock(struct svc_rqst *, struct nlm_file *,
-			struct nlm_lock *, struct nlm_lock *, struct nlm_cookie *);
+			struct nlm_host *, struct nlm_lock *,
+			struct nlm_lock *, struct nlm_cookie *);
 __be32		  nlmsvc_cancel_blocked(struct nlm_file *, struct nlm_lock *);
 unsigned long	  nlmsvc_retry_blocked(void);
 void		  nlmsvc_traverse_blocks(struct nlm_host *, struct nlm_file *,
@@ -224,7 +226,7 @@ void		  nlmsvc_invalidate_all(void);
  * Cluster failover support
  */
 int           nlmsvc_unlock_all_by_sb(struct super_block *sb);
-int           nlmsvc_unlock_all_by_ip(__be32 server_addr);
+int           nlmsvc_unlock_all_by_ip(struct sockaddr *server_addr);
 
 static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 {
