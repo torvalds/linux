@@ -2935,9 +2935,6 @@ void lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 {
 	unsigned long flags;
 
-	if (unlikely(!lock_stat && !prove_locking))
-		return;
-
 	if (unlikely(current->lockdep_recursion))
 		return;
 
@@ -2957,9 +2954,6 @@ void lock_release(struct lockdep_map *lock, int nested,
 			  unsigned long ip)
 {
 	unsigned long flags;
-
-	if (unlikely(!lock_stat && !prove_locking))
-		return;
 
 	if (unlikely(current->lockdep_recursion))
 		return;
