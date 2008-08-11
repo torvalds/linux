@@ -847,9 +847,9 @@ void ath_rate_newstate(struct ath_softc *sc, struct ath_vap *avp)
 	/* For half and quarter rate channles use different
 	 * rate tables
 	 */
-	if (sc->sc_curchan.channelFlags & CHANNEL_HALF)
+	if (sc->sc_ah->ah_curchan->channelFlags & CHANNEL_HALF)
 		ar5416_sethalf_ratetable(asc);
-	else if (sc->sc_curchan.channelFlags & CHANNEL_QUARTER)
+	else if (sc->sc_ah->ah_curchan->channelFlags & CHANNEL_QUARTER)
 		ar5416_setquarter_ratetable(asc);
 	else /* full rate */
 		ar5416_setfull_ratetable(asc);

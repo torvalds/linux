@@ -322,16 +322,16 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 	DPRINTF(sc, ATH_DBG_CONFIG,
 		"%s: %u (%u MHz) -> %u (%u MHz), cflags:%x\n",
 		__func__,
-		ath9k_hw_mhz2ieee(ah, sc->sc_curchan.channel,
-				  sc->sc_curchan.channelFlags),
-		sc->sc_curchan.channel,
+		ath9k_hw_mhz2ieee(ah, sc->sc_ah->ah_curchan->channel,
+				  sc->sc_ah->ah_curchan->channelFlags),
+		sc->sc_ah->ah_curchan->channel,
 		ath9k_hw_mhz2ieee(ah, hchan->channel, hchan->channelFlags),
 		hchan->channel, hchan->channelFlags);
 
 	ht_macmode = ath_cwm_macmode(sc);
 
-	if (hchan->channel != sc->sc_curchan.channel ||
-	    hchan->channelFlags != sc->sc_curchan.channelFlags ||
+	if (hchan->channel != sc->sc_ah->ah_curchan->channel ||
+	    hchan->channelFlags != sc->sc_ah->ah_curchan->channelFlags ||
 	    (sc->sc_flags & SC_OP_CHAINMASK_UPDATE) ||
 	    (sc->sc_flags & SC_OP_FULL_RESET)) {
 		int status;
@@ -372,7 +372,6 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		}
 		spin_unlock_bh(&sc->sc_resetlock);
 
-		sc->sc_curchan = *hchan;
 		sc->sc_flags &= ~SC_OP_CHAINMASK_UPDATE;
 		sc->sc_flags &= ~SC_OP_FULL_RESET;
 
@@ -702,16 +701,15 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	sc->sc_curchan = *initial_chan;
 
 	spin_lock_bh(&sc->sc_resetlock);
-	if (!ath9k_hw_reset(ah, &sc->sc_curchan, ht_macmode,
+	if (!ath9k_hw_reset(ah, initial_chan, ht_macmode,
 			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 			   sc->sc_ht_extprotspacing, false, &status)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: unable to reset hardware; hal status %u "
 			"(freq %u flags 0x%x)\n", __func__, status,
-			sc->sc_curchan.channel, sc->sc_curchan.channelFlags);
+			initial_chan->channel, initial_chan->channelFlags);
 		error = -EIO;
 		spin_unlock_bh(&sc->sc_resetlock);
 		goto done;
@@ -793,7 +791,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 
 	/* Reset chip */
 	spin_lock_bh(&sc->sc_resetlock);
-	if (!ath9k_hw_reset(ah, &sc->sc_curchan,
+	if (!ath9k_hw_reset(ah, sc->sc_ah->ah_curchan,
 			   ht_macmode,
 			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
 			   sc->sc_ht_extprotspacing, false, &status)) {
@@ -813,7 +811,7 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_setcurmode(sc, ath_chan2mode(&sc->sc_curchan));
+	ath_setcurmode(sc, ath_chan2mode(sc->sc_ah->ah_curchan));
 
 	ath_update_txpow(sc);
 

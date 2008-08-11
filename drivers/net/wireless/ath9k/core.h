@@ -1001,7 +1001,6 @@ struct ath_softc {
 	/* Channel, Band */
 	struct ieee80211_channel channels[IEEE80211_NUM_BANDS][ATH_CHAN_MAX];
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
-	struct ath9k_channel sc_curchan;
 
 	/* Locks */
 	spinlock_t sc_rxflushlock;
