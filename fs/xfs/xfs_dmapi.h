@@ -166,6 +166,6 @@ typedef enum {
 
 #define FILP_DELAY_FLAG(filp) ((filp->f_flags&(O_NDELAY|O_NONBLOCK)) ? \
 			DM_FLAGS_NDELAY : 0)
-#define AT_DELAY_FLAG(f) ((f&ATTR_NONBLOCK) ? DM_FLAGS_NDELAY : 0)
+#define AT_DELAY_FLAG(f) ((f & XFS_ATTR_NONBLOCK) ? DM_FLAGS_NDELAY : 0)
 
 #endif  /* __XFS_DMAPI_H__ */

@@ -515,17 +515,17 @@ static void mlx4_ib_handle_error_cqe(struct mlx4_err_cqe *cqe,
 	wc->vendor_err = cqe->vendor_err_syndrome;
 }
 
-static int mlx4_ib_ipoib_csum_ok(__be32 status, __be16 checksum)
+static int mlx4_ib_ipoib_csum_ok(__be16 status, __be16 checksum)
 {
-	return ((status & cpu_to_be32(MLX4_CQE_IPOIB_STATUS_IPV4	|
-				      MLX4_CQE_IPOIB_STATUS_IPV4F	|
-				      MLX4_CQE_IPOIB_STATUS_IPV4OPT	|
-				      MLX4_CQE_IPOIB_STATUS_IPV6	|
-				      MLX4_CQE_IPOIB_STATUS_IPOK)) ==
-		cpu_to_be32(MLX4_CQE_IPOIB_STATUS_IPV4	|
-			    MLX4_CQE_IPOIB_STATUS_IPOK))		&&
-		(status & cpu_to_be32(MLX4_CQE_IPOIB_STATUS_UDP	|
-				      MLX4_CQE_IPOIB_STATUS_TCP))	&&
+	return ((status & cpu_to_be16(MLX4_CQE_STATUS_IPV4      |
+				      MLX4_CQE_STATUS_IPV4F     |
+				      MLX4_CQE_STATUS_IPV4OPT   |
+				      MLX4_CQE_STATUS_IPV6      |
+				      MLX4_CQE_STATUS_IPOK)) ==
+		cpu_to_be16(MLX4_CQE_STATUS_IPV4        |
+			    MLX4_CQE_STATUS_IPOK))              &&
+		(status & cpu_to_be16(MLX4_CQE_STATUS_UDP       |
+				      MLX4_CQE_STATUS_TCP))     &&
 		checksum == cpu_to_be16(0xffff);
 }
 
@@ -582,17 +582,17 @@ repoll:
 	}
 
 	if (!*cur_qp ||
-	    (be32_to_cpu(cqe->my_qpn) & 0xffffff) != (*cur_qp)->mqp.qpn) {
+	    (be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK) != (*cur_qp)->mqp.qpn) {
 		/*
 		 * We do not have to take the QP table lock here,
 		 * because CQs will be locked while QPs are removed
 		 * from the table.
 		 */
 		mqp = __mlx4_qp_lookup(to_mdev(cq->ibcq.device)->dev,
-				       be32_to_cpu(cqe->my_qpn));
+				       be32_to_cpu(cqe->vlan_my_qpn));
 		if (unlikely(!mqp)) {
 			printk(KERN_WARNING "CQ %06x with entry for unknown QPN %06x\n",
-			       cq->mcq.cqn, be32_to_cpu(cqe->my_qpn) & 0xffffff);
+			       cq->mcq.cqn, be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK);
 			return -EINVAL;
 		}
 
@@ -692,14 +692,13 @@ repoll:
 		}
 
 		wc->slid	   = be16_to_cpu(cqe->rlid);
-		wc->sl		   = cqe->sl >> 4;
+		wc->sl		   = be16_to_cpu(cqe->sl_vid >> 12);
 		g_mlpath_rqpn	   = be32_to_cpu(cqe->g_mlpath_rqpn);
 		wc->src_qp	   = g_mlpath_rqpn & 0xffffff;
 		wc->dlid_path_bits = (g_mlpath_rqpn >> 24) & 0x7f;
 		wc->wc_flags	  |= g_mlpath_rqpn & 0x80000000 ? IB_WC_GRH : 0;
 		wc->pkey_index     = be32_to_cpu(cqe->immed_rss_invalid) & 0x7f;
-		wc->csum_ok	   = mlx4_ib_ipoib_csum_ok(cqe->ipoib_status,
-							   cqe->checksum);
+		wc->csum_ok	   = mlx4_ib_ipoib_csum_ok(cqe->status, cqe->checksum);
 	}
 
 	return 0;
@@ -767,7 +766,7 @@ void __mlx4_ib_cq_clean(struct mlx4_ib_cq *cq, u32 qpn, struct mlx4_ib_srq *srq)
 	 */
 	while ((int) --prod_index - (int) cq->mcq.cons_index >= 0) {
 		cqe = get_cqe(cq, prod_index & cq->ibcq.cqe);
-		if ((be32_to_cpu(cqe->my_qpn) & 0xffffff) == qpn) {
+		if ((be32_to_cpu(cqe->vlan_my_qpn) & MLX4_CQE_QPN_MASK) == qpn) {
 			if (srq && !(cqe->owner_sr_opcode & MLX4_CQE_IS_SEND_MASK))
 				mlx4_ib_free_srq_wqe(srq, be16_to_cpu(cqe->wqe_index));
 			++nfreed;

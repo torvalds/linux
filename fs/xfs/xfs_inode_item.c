@@ -686,7 +686,7 @@ xfs_inode_item_unlock(
 		ASSERT(ip->i_d.di_nextents > 0);
 		ASSERT(iip->ili_format.ilf_fields & XFS_ILOG_DEXT);
 		ASSERT(ip->i_df.if_bytes > 0);
-		kmem_free(iip->ili_extents_buf, ip->i_df.if_bytes);
+		kmem_free(iip->ili_extents_buf);
 		iip->ili_extents_buf = NULL;
 	}
 	if (iip->ili_aextents_buf != NULL) {
@@ -694,7 +694,7 @@ xfs_inode_item_unlock(
 		ASSERT(ip->i_d.di_anextents > 0);
 		ASSERT(iip->ili_format.ilf_fields & XFS_ILOG_AEXT);
 		ASSERT(ip->i_afp->if_bytes > 0);
-		kmem_free(iip->ili_aextents_buf, ip->i_afp->if_bytes);
+		kmem_free(iip->ili_aextents_buf);
 		iip->ili_aextents_buf = NULL;
 	}
 
@@ -957,8 +957,7 @@ xfs_inode_item_destroy(
 {
 #ifdef XFS_TRANS_DEBUG
 	if (ip->i_itemp->ili_root_size != 0) {
-		kmem_free(ip->i_itemp->ili_orig_root,
-			  ip->i_itemp->ili_root_size);
+		kmem_free(ip->i_itemp->ili_orig_root);
 	}
 #endif
 	kmem_zone_free(xfs_ili_zone, ip->i_itemp);

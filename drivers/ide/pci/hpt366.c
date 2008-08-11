@@ -1214,7 +1214,7 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit hpt3xx_cable_detect(ide_hwif_t *hwif)
+static u8 hpt3xx_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev	*dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);

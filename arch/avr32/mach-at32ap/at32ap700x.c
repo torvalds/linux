@@ -20,10 +20,10 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/portmux.h>
-#include <asm/arch/sram.h>
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/portmux.h>
+#include <mach/sram.h>
 
 #include <video/atmel_lcdc.h>
 

@@ -23,8 +23,8 @@
 
 #include <asm/io.h>
 #include <asm/hardware/icst525.h>
-#include <asm/arch/lm.h>
-#include <asm/arch/impd1.h>
+#include <mach/lm.h>
+#include <mach/impd1.h>
 #include <asm/sizes.h>
 
 #include "clock.h"

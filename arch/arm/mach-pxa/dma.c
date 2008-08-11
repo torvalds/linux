@@ -20,10 +20,10 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/dma.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 struct dma_channel {
 	char *name;

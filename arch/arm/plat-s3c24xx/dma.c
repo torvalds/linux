@@ -29,12 +29,12 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/dma.h>
 
 #include <asm/mach/dma.h>
-#include <asm/arch/map.h>
+#include <mach/map.h>
 
 #include <asm/plat-s3c24xx/dma.h>
 

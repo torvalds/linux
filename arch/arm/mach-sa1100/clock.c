@@ -11,7 +11,7 @@
 #include <linux/spinlock.h>
 #include <linux/mutex.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 /*
  * Very simple clock implementation - we only have one clock to

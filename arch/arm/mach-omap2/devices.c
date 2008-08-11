@@ -14,15 +14,15 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/tc.h>
-#include <asm/arch/board.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/gpio.h>
+#include <mach/tc.h>
+#include <mach/board.h>
+#include <mach/mux.h>
+#include <mach/gpio.h>
 
 #if	defined(CONFIG_I2C_OMAP) || defined(CONFIG_I2C_OMAP_MODULE)
 
@@ -142,7 +142,7 @@ static inline void omap_init_sti(void) {}
 
 #if defined(CONFIG_SPI_OMAP24XX)
 
-#include <asm/arch/mcspi.h>
+#include <mach/mcspi.h>
 
 #define OMAP2_MCSPI1_BASE		0x48098000
 #define OMAP2_MCSPI2_BASE		0x4809a000

@@ -24,11 +24,10 @@
 #include <linux/platform_device.h>
 
 #include <asm/irq.h>
-#include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/scoop.h>
 #include <asm/dma.h>
-#include <asm/arch/collie.h>
+#include <mach/collie.h>
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/sharpsl_pm.h>
 

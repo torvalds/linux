@@ -191,6 +191,7 @@ static int ext4_journal_test_restart(handle_t *handle, struct inode *inode)
 void ext4_delete_inode (struct inode * inode)
 {
 	handle_t *handle;
+	int err;
 
 	if (ext4_should_order_data(inode))
 		ext4_begin_ordered_truncate(inode, 0);
@@ -199,8 +200,9 @@ void ext4_delete_inode (struct inode * inode)
 	if (is_bad_inode(inode))
 		goto no_delete;
 
-	handle = start_transaction(inode);
+	handle = ext4_journal_start(inode, blocks_for_truncate(inode)+3);
 	if (IS_ERR(handle)) {
+		ext4_std_error(inode->i_sb, PTR_ERR(handle));
 		/*
 		 * If we're going to skip the normal cleanup, we still need to
 		 * make sure that the in-core orphan linked list is properly
@@ -213,8 +215,34 @@ void ext4_delete_inode (struct inode * inode)
 	if (IS_SYNC(inode))
 		handle->h_sync = 1;
 	inode->i_size = 0;
+	err = ext4_mark_inode_dirty(handle, inode);
+	if (err) {
+		ext4_warning(inode->i_sb, __func__,
+			     "couldn't mark inode dirty (err %d)", err);
+		goto stop_handle;
+	}
 	if (inode->i_blocks)
 		ext4_truncate(inode);
+
+	/*
+	 * ext4_ext_truncate() doesn't reserve any slop when it
+	 * restarts journal transactions; therefore there may not be
+	 * enough credits left in the handle to remove the inode from
+	 * the orphan list and set the dtime field.
+	 */
+	if (handle->h_buffer_credits < 3) {
+		err = ext4_journal_extend(handle, 3);
+		if (err > 0)
+			err = ext4_journal_restart(handle, 3);
+		if (err != 0) {
+			ext4_warning(inode->i_sb, __func__,
+				     "couldn't extend journal (err %d)", err);
+		stop_handle:
+			ext4_journal_stop(handle);
+			goto no_delete;
+		}
+	}
+
 	/*
 	 * Kill off the orphan record which ext4_truncate created.
 	 * AKPM: I think this can be inside the above `if'.
@@ -952,6 +980,67 @@ out:
 	return err;
 }
 
+/*
+ * Calculate the number of metadata blocks need to reserve
+ * to allocate @blocks for non extent file based file
+ */
+static int ext4_indirect_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	int icap = EXT4_ADDR_PER_BLOCK(inode->i_sb);
+	int ind_blks, dind_blks, tind_blks;
+
+	/* number of new indirect blocks needed */
+	ind_blks = (blocks + icap - 1) / icap;
+
+	dind_blks = (ind_blks + icap - 1) / icap;
+
+	tind_blks = 1;
+
+	return ind_blks + dind_blks + tind_blks;
+}
+
+/*
+ * Calculate the number of metadata blocks need to reserve
+ * to allocate given number of blocks
+ */
+static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
+{
+	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
+		return ext4_ext_calc_metadata_amount(inode, blocks);
+
+	return ext4_indirect_calc_metadata_amount(inode, blocks);
+}
+
+static void ext4_da_update_reserve_space(struct inode *inode, int used)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
+	int total, mdb, mdb_free;
+
+	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
+	/* recalculate the number of metablocks still need to be reserved */
+	total = EXT4_I(inode)->i_reserved_data_blocks - used;
+	mdb = ext4_calc_metadata_amount(inode, total);
+
+	/* figure out how many metablocks to release */
+	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
+	mdb_free = EXT4_I(inode)->i_reserved_meta_blocks - mdb;
+
+	/* Account for allocated meta_blocks */
+	mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
+
+	/* update fs free blocks counter for truncate case */
+	percpu_counter_add(&sbi->s_freeblocks_counter, mdb_free);
+
+	/* update per-inode reservations */
+	BUG_ON(used  > EXT4_I(inode)->i_reserved_data_blocks);
+	EXT4_I(inode)->i_reserved_data_blocks -= used;
+
+	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
+	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
+	EXT4_I(inode)->i_allocated_meta_blocks = 0;
+	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
+}
+
 /* Maximum number of blocks we map for direct IO at once. */
 #define DIO_MAX_BLOCKS 4096
 /*
@@ -965,10 +1054,9 @@ out:
 
 
 /*
+ * The ext4_get_blocks_wrap() function try to look up the requested blocks,
+ * and returns if the blocks are already mapped.
  *
- *
- * ext4_ext4 get_block() wrapper function
- * It will do a look up first, and returns if the blocks already mapped.
  * Otherwise it takes the write lock of the i_data_sem and allocate blocks
  * and store the allocated blocks in the result buffer head and mark it
  * mapped.
@@ -1069,7 +1157,7 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 		 * which were deferred till now
 		 */
 		if ((retval > 0) && buffer_delay(bh))
-			ext4_da_release_space(inode, retval, 0);
+			ext4_da_update_reserve_space(inode, retval);
 	}
 
 	up_write((&EXT4_I(inode)->i_data_sem));
@@ -1336,11 +1424,7 @@ static int ext4_ordered_write_end(struct file *file,
 {
 	handle_t *handle = ext4_journal_current_handle();
 	struct inode *inode = mapping->host;
-	unsigned from, to;
 	int ret = 0, ret2;
-
-	from = pos & (PAGE_CACHE_SIZE - 1);
-	to = from + len;
 
 	ret = ext4_jbd2_file_inode(handle, inode);
 
@@ -1437,36 +1521,6 @@ static int ext4_journalled_write_end(struct file *file,
 
 	return ret ? ret : copied;
 }
-/*
- * Calculate the number of metadata blocks need to reserve
- * to allocate @blocks for non extent file based file
- */
-static int ext4_indirect_calc_metadata_amount(struct inode *inode, int blocks)
-{
-	int icap = EXT4_ADDR_PER_BLOCK(inode->i_sb);
-	int ind_blks, dind_blks, tind_blks;
-
-	/* number of new indirect blocks needed */
-	ind_blks = (blocks + icap - 1) / icap;
-
-	dind_blks = (ind_blks + icap - 1) / icap;
-
-	tind_blks = 1;
-
-	return ind_blks + dind_blks + tind_blks;
-}
-
-/*
- * Calculate the number of metadata blocks need to reserve
- * to allocate given number of blocks
- */
-static int ext4_calc_metadata_amount(struct inode *inode, int blocks)
-{
-	if (EXT4_I(inode)->i_flags & EXT4_EXTENTS_FL)
-		return ext4_ext_calc_metadata_amount(inode, blocks);
-
-	return ext4_indirect_calc_metadata_amount(inode, blocks);
-}
 
 static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 {
@@ -1490,7 +1544,6 @@ static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 		return -ENOSPC;
 	}
-
 	/* reduce fs free blocks counter */
 	percpu_counter_sub(&sbi->s_freeblocks_counter, total);
 
@@ -1501,22 +1554,19 @@ static int ext4_da_reserve_space(struct inode *inode, int nrblocks)
 	return 0;       /* success */
 }
 
-void ext4_da_release_space(struct inode *inode, int used, int to_free)
+static void ext4_da_release_space(struct inode *inode, int to_free)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	int total, mdb, mdb_free, release;
 
 	spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 	/* recalculate the number of metablocks still need to be reserved */
-	total = EXT4_I(inode)->i_reserved_data_blocks - used - to_free;
+	total = EXT4_I(inode)->i_reserved_data_blocks - to_free;
 	mdb = ext4_calc_metadata_amount(inode, total);
 
 	/* figure out how many metablocks to release */
 	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
 	mdb_free = EXT4_I(inode)->i_reserved_meta_blocks - mdb;
-
-	/* Account for allocated meta_blocks */
-	mdb_free -= EXT4_I(inode)->i_allocated_meta_blocks;
 
 	release = to_free + mdb_free;
 
@@ -1524,12 +1574,11 @@ void ext4_da_release_space(struct inode *inode, int used, int to_free)
 	percpu_counter_add(&sbi->s_freeblocks_counter, release);
 
 	/* update per-inode reservations */
-	BUG_ON(used + to_free > EXT4_I(inode)->i_reserved_data_blocks);
-	EXT4_I(inode)->i_reserved_data_blocks -= (used + to_free);
+	BUG_ON(to_free > EXT4_I(inode)->i_reserved_data_blocks);
+	EXT4_I(inode)->i_reserved_data_blocks -= to_free;
 
 	BUG_ON(mdb > EXT4_I(inode)->i_reserved_meta_blocks);
 	EXT4_I(inode)->i_reserved_meta_blocks = mdb;
-	EXT4_I(inode)->i_allocated_meta_blocks = 0;
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 }
 
@@ -1551,7 +1600,7 @@ static void ext4_da_page_release_reservation(struct page *page,
 		}
 		curr_off = next_off;
 	} while ((bh = bh->b_this_page) != head);
-	ext4_da_release_space(page->mapping->host, 0, to_release);
+	ext4_da_release_space(page->mapping->host, to_release);
 }
 
 /*
@@ -2280,8 +2329,11 @@ retry:
 	}
 
 	page = __grab_cache_page(mapping, index);
-	if (!page)
-		return -ENOMEM;
+	if (!page) {
+		ext4_journal_stop(handle);
+		ret = -ENOMEM;
+		goto out;
+	}
 	*pagep = page;
 
 	ret = block_write_begin(file, mapping, pos, len, flags, pagep, fsdata,
@@ -3590,6 +3642,16 @@ static int __ext4_get_inode_loc(struct inode *inode,
 	}
 	if (!buffer_uptodate(bh)) {
 		lock_buffer(bh);
+
+		/*
+		 * If the buffer has the write error flag, we have failed
+		 * to write out another inode in the same block.  In this
+		 * case, we don't have to read the block because we may
+		 * read the old inode data successfully.
+		 */
+		if (buffer_write_io_error(bh) && !buffer_uptodate(bh))
+			set_buffer_uptodate(bh);
+
 		if (buffer_uptodate(bh)) {
 			/* someone brought it uptodate while we waited */
 			unlock_buffer(bh);

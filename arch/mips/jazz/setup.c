@@ -10,7 +10,6 @@
  * Copyright (C) 2007 by Thomas Bogendoerfer
  */
 #include <linux/eisa.h>
-#include <linux/hdreg.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/sched.h>
@@ -18,7 +17,6 @@
 #include <linux/mm.h>
 #include <linux/console.h>
 #include <linux/fb.h>
-#include <linux/ide.h>
 #include <linux/pm.h>
 #include <linux/screen_info.h>
 #include <linux/platform_device.h>

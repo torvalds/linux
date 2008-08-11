@@ -68,10 +68,17 @@ static int br_dev_stop(struct net_device *dev)
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
 {
-	if (new_mtu < 68 || new_mtu > br_min_mtu(netdev_priv(dev)))
+	struct net_bridge *br = netdev_priv(dev);
+	if (new_mtu < 68 || new_mtu > br_min_mtu(br))
 		return -EINVAL;
 
 	dev->mtu = new_mtu;
+
+#ifdef CONFIG_BRIDGE_NETFILTER
+	/* remember the MTU in the rtable for PMTU */
+	br->fake_rtable.u.dst.metrics[RTAX_MTU - 1] = new_mtu;
+#endif
+
 	return 0;
 }
 

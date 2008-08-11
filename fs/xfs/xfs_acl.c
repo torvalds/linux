@@ -341,8 +341,7 @@ xfs_acl_iaccess(
 
 	/* If the file has no ACL return -1. */
 	rval = sizeof(xfs_acl_t);
-	if (xfs_attr_fetch(ip, &acl_name, (char *)acl, &rval,
-					ATTR_ROOT | ATTR_KERNACCESS)) {
+	if (xfs_attr_fetch(ip, &acl_name, (char *)acl, &rval, ATTR_ROOT)) {
 		_ACL_FREE(acl);
 		return -1;
 	}
@@ -720,7 +719,7 @@ xfs_acl_setmode(
 	xfs_acl_t	*acl,
 	int		*basicperms)
 {
-	bhv_vattr_t	va;
+	struct iattr	iattr;
 	xfs_acl_entry_t	*ap;
 	xfs_acl_entry_t	*gap = NULL;
 	int		i, nomask = 1;
@@ -734,25 +733,25 @@ xfs_acl_setmode(
 	 * Copy the u::, g::, o::, and m:: bits from the ACL into the
 	 * mode.  The m:: bits take precedence over the g:: bits.
 	 */
-	va.va_mask = XFS_AT_MODE;
-	va.va_mode = xfs_vtoi(vp)->i_d.di_mode;
-	va.va_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
+	iattr.ia_valid = ATTR_MODE;
+	iattr.ia_mode = xfs_vtoi(vp)->i_d.di_mode;
+	iattr.ia_mode &= ~(S_IRWXU|S_IRWXG|S_IRWXO);
 	ap = acl->acl_entry;
 	for (i = 0; i < acl->acl_cnt; ++i) {
 		switch (ap->ae_tag) {
 		case ACL_USER_OBJ:
-			va.va_mode |= ap->ae_perm << 6;
+			iattr.ia_mode |= ap->ae_perm << 6;
 			break;
 		case ACL_GROUP_OBJ:
 			gap = ap;
 			break;
 		case ACL_MASK:	/* more than just standard modes */
 			nomask = 0;
-			va.va_mode |= ap->ae_perm << 3;
+			iattr.ia_mode |= ap->ae_perm << 3;
 			*basicperms = 0;
 			break;
 		case ACL_OTHER:
-			va.va_mode |= ap->ae_perm;
+			iattr.ia_mode |= ap->ae_perm;
 			break;
 		default:	/* more than just standard modes */
 			*basicperms = 0;
@@ -763,9 +762,9 @@ xfs_acl_setmode(
 
 	/* Set the group bits from ACL_GROUP_OBJ if there's no ACL_MASK */
 	if (gap && nomask)
-		va.va_mode |= gap->ae_perm << 3;
+		iattr.ia_mode |= gap->ae_perm << 3;
 
-	return xfs_setattr(xfs_vtoi(vp), &va, 0, sys_cred);
+	return xfs_setattr(xfs_vtoi(vp), &iattr, 0, sys_cred);
 }
 
 /*

@@ -40,10 +40,6 @@ Module Parameters
   (default is 1)
   Use 'init=0' to bypass initializing the chip.
   Try this if your computer crashes when you load the module.
-* reset: int
-  (default is 0)
-  The driver used to reset the chip on load, but does no more. Use
-  'reset=1' to restore the old behavior. Report if you need to do this.
 
 Description
 -----------

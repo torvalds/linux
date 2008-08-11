@@ -19,7 +19,7 @@
 #include <linux/mv643xx_eth.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/loki.h>
+#include <mach/loki.h>
 #include "common.h"
 
 #define LB88RC8480_FLASH_BOOT_CS_BASE	0xf8000000

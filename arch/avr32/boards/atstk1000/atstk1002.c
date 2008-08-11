@@ -23,10 +23,10 @@
 #include <asm/setup.h>
 #include <asm/atmel-mci.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/board.h>
+#include <mach/init.h>
+#include <mach/portmux.h>
 
 #include "atstk1000.h"
 
@@ -49,7 +49,7 @@ unsigned long at32_board_osc_rates[3] = {
  */
 #ifdef CONFIG_BOARD_ATSTK1006
 #include <linux/mtd/partitions.h>
-#include <asm/arch/smc.h>
+#include <mach/smc.h>
 
 static struct smc_timing nand_timing __initdata = {
 	.ncs_read_setup		= 0,

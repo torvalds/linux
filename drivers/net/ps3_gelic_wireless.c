@@ -1024,7 +1024,7 @@ static int gelic_wl_set_encode(struct net_device *netdev,
 	struct gelic_wl_info *wl = port_wl(netdev_priv(netdev));
 	struct iw_point *enc = &data->encoding;
 	__u16 flags;
-	unsigned int irqflag;
+	unsigned long irqflag;
 	int key_index, index_specified;
 	int ret = 0;
 
@@ -1097,7 +1097,7 @@ static int gelic_wl_get_encode(struct net_device *netdev,
 {
 	struct gelic_wl_info *wl = port_wl(netdev_priv(netdev));
 	struct iw_point *enc = &data->encoding;
-	unsigned int irqflag;
+	unsigned long irqflag;
 	unsigned int key_index, index_specified;
 	int ret = 0;
 
@@ -1215,7 +1215,7 @@ static int gelic_wl_set_encodeext(struct net_device *netdev,
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
 	__u16 alg;
 	__u16 flags;
-	unsigned int irqflag;
+	unsigned long irqflag;
 	int key_index;
 	int ret = 0;
 
@@ -1303,7 +1303,7 @@ static int gelic_wl_get_encodeext(struct net_device *netdev,
 	struct gelic_wl_info *wl = port_wl(netdev_priv(netdev));
 	struct iw_point *enc = &data->encoding;
 	struct iw_encode_ext *ext = (struct iw_encode_ext *)extra;
-	unsigned int irqflag;
+	unsigned long irqflag;
 	int key_index;
 	int ret = 0;
 	int max_key_len;
@@ -1426,7 +1426,7 @@ static int gelic_wl_priv_set_psk(struct net_device *net_dev,
 {
 	struct gelic_wl_info *wl = port_wl(netdev_priv(net_dev));
 	unsigned int len;
-	unsigned int irqflag;
+	unsigned long irqflag;
 	int ret = 0;
 
 	pr_debug("%s:<- len=%d\n", __func__, data->data.length);
@@ -1467,7 +1467,7 @@ static int gelic_wl_priv_get_psk(struct net_device *net_dev,
 {
 	struct gelic_wl_info *wl = port_wl(netdev_priv(net_dev));
 	char *p;
-	unsigned int irqflag;
+	unsigned long irqflag;
 	unsigned int i;
 
 	pr_debug("%s:<-\n", __func__);

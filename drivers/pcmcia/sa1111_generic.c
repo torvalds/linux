@@ -14,7 +14,7 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/sa1111.h>
 #include <asm/io.h>
 #include <asm/irq.h>

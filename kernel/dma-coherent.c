@@ -77,15 +77,14 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 {
 	struct dma_coherent_mem *mem = dev->dma_mem;
 	int pos, err;
-	int pages = (size + (device_addr & ~PAGE_MASK) + PAGE_SIZE - 1);
 
-	pages >>= PAGE_SHIFT;
+	size += device_addr & ~PAGE_MASK;
 
 	if (!mem)
 		return ERR_PTR(-EINVAL);
 
 	pos = (device_addr - mem->device_base) >> PAGE_SHIFT;
-	err = bitmap_allocate_region(mem->bitmap, pos, get_order(pages));
+	err = bitmap_allocate_region(mem->bitmap, pos, get_order(size));
 	if (err != 0)
 		return ERR_PTR(err);
 	return mem->virt_base + (pos << PAGE_SHIFT);

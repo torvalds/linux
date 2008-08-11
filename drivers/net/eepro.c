@@ -1283,14 +1283,6 @@ set_multicast_list(struct net_device *dev)
 
 	if (dev->flags&(IFF_ALLMULTI|IFF_PROMISC) || dev->mc_count > 63)
 	{
-		/*
-		 *	We must make the kernel realise we had to move
-		 *	into promisc mode or we start all out war on
-		 *	the cable. If it was a promisc request the
-		 *	flag is already set. If not we assert it.
-		 */
-		dev->flags|=IFF_PROMISC;
-
 		eepro_sw2bank2(ioaddr); /* be CAREFUL, BANK 2 now */
 		mode = inb(ioaddr + REG2);
 		outb(mode | PRMSC_Mode, ioaddr + REG2);

@@ -132,10 +132,10 @@ static long madvise_willneed(struct vm_area_struct * vma,
  * Application no longer needs these pages.  If the pages are dirty,
  * it's OK to just throw them away.  The app will be more careful about
  * data it wants to keep.  Be sure to free swap resources too.  The
- * zap_page_range call sets things up for refill_inactive to actually free
+ * zap_page_range call sets things up for shrink_active_list to actually free
  * these pages later if no one else has touched them in the meantime,
  * although we could add these pages to a global reuse list for
- * refill_inactive to pick up before reclaiming other pages.
+ * shrink_active_list to pick up before reclaiming other pages.
  *
  * NB: This interface discards data rather than pushes it out to swap,
  * as some implementations do.  This has performance implications for

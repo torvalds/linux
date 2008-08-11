@@ -20,7 +20,7 @@
 #include <linux/smp.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/hardware/icst525.h>

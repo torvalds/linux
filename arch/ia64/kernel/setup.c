@@ -314,7 +314,7 @@ static inline void __init setup_crashkernel(unsigned long total, int *n)
  *
  * Setup the reserved memory areas set aside for the boot parameters,
  * initrd, etc.  There are currently %IA64_MAX_RSVD_REGIONS defined,
- * see include/asm-ia64/meminit.h if you need to define more.
+ * see arch/ia64/include/asm/meminit.h if you need to define more.
  */
 void __init
 reserve_memory (void)

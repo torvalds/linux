@@ -23,10 +23,10 @@
 #include <linux/mutex.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
-#include <asm/arch/netx-regs.h>
+#include <mach/hardware.h>
+#include <mach/netx-regs.h>
 
-#include <asm/arch/xc.h>
+#include <mach/xc.h>
 
 static DEFINE_MUTEX(xc_lock);
 

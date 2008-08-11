@@ -16,7 +16,7 @@
 #include <linux/module.h>
 #include <linux/string.h>
 #include <asm/div64.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 
 struct clk {
