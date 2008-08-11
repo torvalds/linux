@@ -128,16 +128,16 @@ acpi_power_get_context(acpi_handle handle,
 	return 0;
 }
 
-static int acpi_power_get_state(struct acpi_power_resource *resource, int *state)
+static int acpi_power_get_state(acpi_handle handle, int *state)
 {
 	acpi_status status = AE_OK;
 	unsigned long sta = 0;
 
 
-	if (!resource || !state)
+	if (!handle || !state)
 		return -EINVAL;
 
-	status = acpi_evaluate_integer(resource->device->handle, "_STA", NULL, &sta);
+	status = acpi_evaluate_integer(handle, "_STA", NULL, &sta);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
@@ -145,7 +145,7 @@ static int acpi_power_get_state(struct acpi_power_resource *resource, int *state
 			      ACPI_POWER_RESOURCE_STATE_OFF;
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Resource [%s] is %s\n",
-			  resource->name, state ? "on" : "off"));
+			  acpi_ut_get_node_name(handle), state ? "on" : "off"));
 
 	return 0;
 }
@@ -153,7 +153,6 @@ static int acpi_power_get_state(struct acpi_power_resource *resource, int *state
 static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 {
 	int result = 0, state1;
-	struct acpi_power_resource *resource = NULL;
 	u32 i = 0;
 
 
@@ -161,12 +160,15 @@ static int acpi_power_get_list_state(struct acpi_handle_list *list, int *state)
 		return -EINVAL;
 
 	/* The state of the list is 'on' IFF all resources are 'on'. */
+	/* */
 
 	for (i = 0; i < list->count; i++) {
-		result = acpi_power_get_context(list->handles[i], &resource);
-		if (result)
-			return result;
-		result = acpi_power_get_state(resource, &state1);
+		/*
+		 * The state of the power resource can be obtained by
+		 * using the ACPI handle. In such case it is unnecessary to
+		 * get the Power resource first and then get its state again.
+		 */
+		result = acpi_power_get_state(list->handles[i], &state1);
 		if (result)
 			return result;
 
@@ -226,7 +228,7 @@ static int acpi_power_on(acpi_handle handle, struct acpi_device *dev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = acpi_power_get_state(resource, &state);
+	result = acpi_power_get_state(resource->device->handle, &state);
 	if (result)
 		return result;
 	if (state != ACPI_POWER_RESOURCE_STATE_ON)
@@ -277,7 +279,7 @@ static int acpi_power_off_device(acpi_handle handle, struct acpi_device *dev)
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
 
-	result = acpi_power_get_state(resource, &state);
+	result = acpi_power_get_state(handle, &state);
 	if (result)
 		return result;
 	if (state != ACPI_POWER_RESOURCE_STATE_OFF)
@@ -555,7 +557,7 @@ static int acpi_power_seq_show(struct seq_file *seq, void *offset)
 	if (!resource)
 		goto end;
 
-	result = acpi_power_get_state(resource, &state);
+	result = acpi_power_get_state(resource->device->handle, &state);
 	if (result)
 		goto end;
 
@@ -668,7 +670,7 @@ static int acpi_power_add(struct acpi_device *device)
 	resource->system_level = acpi_object.power_resource.system_level;
 	resource->order = acpi_object.power_resource.resource_order;
 
-	result = acpi_power_get_state(resource, &state);
+	result = acpi_power_get_state(device->handle, &state);
 	if (result)
 		goto end;
 
@@ -735,7 +737,7 @@ static int acpi_power_resume(struct acpi_device *device)
 
 	resource = (struct acpi_power_resource *)acpi_driver_data(device);
 
-	result = acpi_power_get_state(resource, &state);
+	result = acpi_power_get_state(device->handle, &state);
 	if (result)
 		return result;
 
