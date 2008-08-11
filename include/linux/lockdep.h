@@ -190,6 +190,9 @@ struct lock_chain {
 	u64				chain_key;
 };
 
+#define MAX_LOCKDEP_KEYS_BITS		11
+#define MAX_LOCKDEP_KEYS		(1UL << MAX_LOCKDEP_KEYS_BITS)
+
 struct held_lock {
 	/*
 	 * One-way hash of the dependency chain up to this point. We
@@ -206,14 +209,13 @@ struct held_lock {
 	 * with zero), here we store the previous hash value:
 	 */
 	u64				prev_chain_key;
-	struct lock_class		*class;
 	unsigned long			acquire_ip;
 	struct lockdep_map		*instance;
-
 #ifdef CONFIG_LOCK_STAT
 	u64 				waittime_stamp;
 	u64				holdtime_stamp;
 #endif
+	unsigned int			class_idx:MAX_LOCKDEP_KEYS_BITS;
 	/*
 	 * The lock-stack is unified in that the lock chains of interrupt
 	 * contexts nest ontop of process context chains, but we 'separate'
@@ -227,11 +229,11 @@ struct held_lock {
 	 * The following field is used to detect when we cross into an
 	 * interrupt context:
 	 */
-	int				irq_context;
-	int				trylock;
-	int				read;
-	int				check;
-	int				hardirqs_off;
+	unsigned int irq_context:2; /* bit 0 - soft, bit 1 - hard */
+	unsigned int trylock:1;
+	unsigned int read:2;        /* see lock_acquire() comment */
+	unsigned int check:2;       /* see lock_acquire() comment */
+	unsigned int hardirqs_off:1;
 };
 
 /*
