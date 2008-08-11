@@ -1,0 +1,128 @@
+/*
+ * DVB USB Linux driver for AME DTV-5100 USB2.0 DVB-T
+ *
+ * Copyright (C) 2008  Antoine Jacquet <royale@zerezo.com>
+ * http://royale.zerezo.com/dtv5100/
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ */
+
+#ifndef _DVB_USB_DTV5100_H_
+#define _DVB_USB_DTV5100_H_
+
+#define DVB_USB_LOG_PREFIX "dtv5100"
+#include "dvb-usb.h"
+
+#define DTV5100_USB_TIMEOUT 500
+#define DTV5100_I2C_WRITE 0xc7
+#define DTV5100_I2C_READ  0xc8
+
+#define DRIVER_AUTHOR "Antoine Jacquet, http://royale.zerezo.com/"
+#define DRIVER_DESC "AME DTV-5100 USB2.0 DVB-T"
+
+static struct {
+	u8 request;
+	u8 value;
+	u16 index;
+} dtv5100_init[] = {
+	{ 0x000000c5, 0x00000000, 0x00000001 },
+	{ 0x000000c5, 0x00000001, 0x00000001 },
+	{ 0x000000c0, 0x0000000b, 0x00000050 },
+	{ 0x000000c0, 0x00000044, 0x00000051 },
+	{ 0x000000c0, 0x00000046, 0x00000052 },
+	{ 0x000000c0, 0x00000015, 0x00000053 },
+	{ 0x000000c0, 0x0000000f, 0x00000054 },
+	{ 0x000000c0, 0x00000080, 0x00000055 },
+	{ 0x000000c0, 0x00000001, 0x000000ea },
+	{ 0x000000c0, 0x00000000, 0x000000ea },
+	{ 0x000000c0, 0x00000075, 0x0000005c },
+	{ 0x000000c0, 0x000000a1, 0x0000009c },
+	{ 0x000000c0, 0x00000000, 0x0000008e },
+	{ 0x000000c0, 0x00000000, 0x00000090 },
+	{ 0x000000c0, 0x000000ff, 0x00000091 },
+	{ 0x000000c0, 0x000000ff, 0x00000092 },
+	{ 0x000000c0, 0x00000000, 0x00000093 },
+	{ 0x000000c0, 0x000000ff, 0x00000094 },
+	{ 0x000000c0, 0x00000000, 0x00000058 },
+	{ 0x000000c0, 0x0000003f, 0x00000095 },
+	{ 0x000000c0, 0x0000003f, 0x00000096 },
+	{ 0x000000c0, 0x0000000c, 0x0000005a },
+	{ 0x000000c0, 0x0000002b, 0x00000056 },
+	{ 0x000000c0, 0x00000017, 0x0000005f },
+	{ 0x000000c0, 0x00000040, 0x0000005e },
+	{ 0x000000c0, 0x00000036, 0x00000064 },
+	{ 0x000000c0, 0x00000067, 0x00000065 },
+	{ 0x000000c0, 0x000000e5, 0x00000066 },
+	{ 0x000000c0, 0x00000073, 0x000000cc },
+	{ 0x000000c0, 0x000000cd, 0x0000006c },
+	{ 0x000000c0, 0x0000007e, 0x0000006d },
+	{ 0x000000c0, 0x00000001, 0x00000071 },
+	{ 0x000000c0, 0x00000001, 0x00000070 },
+	/**/
+	{ 0x000000c7, 0x00000080, 0x0000c401 },
+	{ 0x000000c7, 0x0000003f, 0x0000c402 },
+	{ 0x000000c7, 0x00000034, 0x0000c405 },	// 2
+	{ 0x000000c7, 0x00000044, 0x0000c406 },
+	{ 0x000000c7, 0x00000038, 0x0000c407 },	// 4
+	{ 0x000000c7, 0x00000008, 0x0000c408 },
+	{ 0x000000c7, 0x0000001c, 0x0000c409 },	// 6
+	{ 0x000000c7, 0x0000000d, 0x0000c40a },	// 7
+	{ 0x000000c7, 0x00000045, 0x0000c40b },	// 8
+	{ 0x000000c7, 0x000000e1, 0x0000c40c },
+	{ 0x000000c7, 0x00000078, 0x0000c41a },	// 10
+	{ 0x000000c7, 0x00000000, 0x0000c41b },
+	{ 0x000000c7, 0x00000089, 0x0000c41c },
+	{ 0x000000c7, 0x000000fd, 0x0000c411 },	// 13
+	{ 0x000000c7, 0x00000095, 0x0000c412 },	// 14
+	{ 0x000000c7, 0x000000d6, 0x0000c422 },	// 15
+	{ 0x000000c7, 0x00000000, 0x0000c41e },
+	{ 0x000000c7, 0x000000d0, 0x0000c41e },
+	{ 0x000000c8, 0x00000000, 0x0000c422 },
+	{ 0x000000c7, 0x00000000, 0x0000c41e },
+	{ 0x000000c8, 0x00000000, 0x0000c405 },
+	{ 0x000000c8, 0x00000000, 0x0000c422 },
+	{ 0x000000c7, 0x000000d0, 0x0000c423 },
+	{ 0x000000c7, 0x00000000, 0x0000c41e },
+	{ 0x000000c7, 0x000000e0, 0x0000c41e },
+	{ 0x000000c8, 0x00000000, 0x0000c423 },
+	{ 0x000000c8, 0x00000000, 0x0000c423 },
+	{ 0x000000c7, 0x00000000, 0x0000c41e },
+	{ 0x000000c7, 0x000000d0, 0x0000c424 },
+	{ 0x000000c7, 0x00000000, 0x0000c41e },
+	{ 0x000000c7, 0x000000f0, 0x0000c41e },
+	{ 0x000000c8, 0x00000000, 0x0000c424 },
+	{ 0x000000c7, 0x00000000, 0x0000c41e },
+	{ 0x000000c7, 0x0000007f, 0x0000c414 },
+	{ 0x000000c7, 0x0000007f, 0x0000c415 },
+	{ 0x000000c7, 0x00000030, 0x0000c405 },
+	{ 0x000000c7, 0x00000000, 0x0000c406 },
+	{ 0x000000c7, 0x0000001f, 0x0000c415 },
+	{ 0x000000c7, 0x000000ff, 0x0000c416 },
+	{ 0x000000c7, 0x000000ff, 0x0000c418 },
+	{ 0x000000c7, 0x00000051, 0x0000c41f },	// here
+	{ 0x000000c7, 0x00000016, 0x0000c420 },	// here
+	{ 0x000000c7, 0x00000053, 0x0000c421 },
+	{ 0x000000c7, 0x000000c1, 0x0000c425 },	// here
+	{ 0x000000c7, 0x00000014, 0x0000c426 },	// here
+	{ 0x000000c7, 0x00000082, 0x0000c400 },
+	{ 0x000000c7, 0x00000000, 0x0000c402 },
+	{ 0x000000c7, 0x00000000, 0x0000c401 },
+	/**/
+	{ }		/* Terminating entry */
+};
+
+extern struct dvb_frontend* dtv5100_fe_attach(void);
+
+#endif

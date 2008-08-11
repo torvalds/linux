@@ -67,6 +67,9 @@ obj-$(CONFIG_DVB_USB_ANYSEE) += dvb-usb-anysee.o
 dvb-usb-dw2102-objs = dw2102.o
 obj-$(CONFIG_DVB_USB_DW2102) += dvb-usb-dw2102.o
 
+dvb-usb-dtv5100-objs = dtv5100.o dtv5100-fe.o
+obj-$(CONFIG_DVB_USB_DTV5100) += dvb-usb-dtv5100.o
+
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core/ -Idrivers/media/dvb/frontends/
 # due to tuner-xc3028
 EXTRA_CFLAGS += -Idrivers/media/common/tuners

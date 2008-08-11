@@ -264,3 +264,10 @@ config DVB_USB_ANYSEE
 	help
 	  Say Y here to support the Anysee E30, Anysee E30 Plus or
 	  Anysee E30 C Plus DVB USB2.0 receiver.
+
+config DVB_USB_DTV5100
+	tristate "AME DTV-5100 USB2.0 DVB-T support"
+	depends on DVB_USB
+	select MEDIA_TUNER_QT1010 if !DVB_FE_CUSTOMISE
+	help
+	  Say Y here to support the AME DTV-5100 USB2.0 DVB-T receiver.
