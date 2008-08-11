@@ -1126,6 +1126,8 @@ static long kvm_vcpu_ioctl(struct file *filp,
 	struct kvm_vcpu *vcpu = filp->private_data;
 	void __user *argp = (void __user *)arg;
 	int r;
+	struct kvm_fpu *fpu = NULL;
+	struct kvm_sregs *kvm_sregs = NULL;
 
 	if (vcpu->kvm->mm != current->mm)
 		return -EIO;
@@ -1173,25 +1175,28 @@ out_free2:
 		break;
 	}
 	case KVM_GET_SREGS: {
-		struct kvm_sregs kvm_sregs;
-
-		memset(&kvm_sregs, 0, sizeof kvm_sregs);
-		r = kvm_arch_vcpu_ioctl_get_sregs(vcpu, &kvm_sregs);
+		kvm_sregs = kzalloc(sizeof(struct kvm_sregs), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!kvm_sregs)
+			goto out;
+		r = kvm_arch_vcpu_ioctl_get_sregs(vcpu, kvm_sregs);
 		if (r)
 			goto out;
 		r = -EFAULT;
-		if (copy_to_user(argp, &kvm_sregs, sizeof kvm_sregs))
+		if (copy_to_user(argp, kvm_sregs, sizeof(struct kvm_sregs)))
 			goto out;
 		r = 0;
 		break;
 	}
 	case KVM_SET_SREGS: {
-		struct kvm_sregs kvm_sregs;
-
-		r = -EFAULT;
-		if (copy_from_user(&kvm_sregs, argp, sizeof kvm_sregs))
+		kvm_sregs = kmalloc(sizeof(struct kvm_sregs), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!kvm_sregs)
 			goto out;
-		r = kvm_arch_vcpu_ioctl_set_sregs(vcpu, &kvm_sregs);
+		r = -EFAULT;
+		if (copy_from_user(kvm_sregs, argp, sizeof(struct kvm_sregs)))
+			goto out;
+		r = kvm_arch_vcpu_ioctl_set_sregs(vcpu, kvm_sregs);
 		if (r)
 			goto out;
 		r = 0;
@@ -1272,25 +1277,28 @@ out_free2:
 		break;
 	}
 	case KVM_GET_FPU: {
-		struct kvm_fpu fpu;
-
-		memset(&fpu, 0, sizeof fpu);
-		r = kvm_arch_vcpu_ioctl_get_fpu(vcpu, &fpu);
+		fpu = kzalloc(sizeof(struct kvm_fpu), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!fpu)
+			goto out;
+		r = kvm_arch_vcpu_ioctl_get_fpu(vcpu, fpu);
 		if (r)
 			goto out;
 		r = -EFAULT;
-		if (copy_to_user(argp, &fpu, sizeof fpu))
+		if (copy_to_user(argp, fpu, sizeof(struct kvm_fpu)))
 			goto out;
 		r = 0;
 		break;
 	}
 	case KVM_SET_FPU: {
-		struct kvm_fpu fpu;
-
-		r = -EFAULT;
-		if (copy_from_user(&fpu, argp, sizeof fpu))
+		fpu = kmalloc(sizeof(struct kvm_fpu), GFP_KERNEL);
+		r = -ENOMEM;
+		if (!fpu)
 			goto out;
-		r = kvm_arch_vcpu_ioctl_set_fpu(vcpu, &fpu);
+		r = -EFAULT;
+		if (copy_from_user(fpu, argp, sizeof(struct kvm_fpu)))
+			goto out;
+		r = kvm_arch_vcpu_ioctl_set_fpu(vcpu, fpu);
 		if (r)
 			goto out;
 		r = 0;
@@ -1300,6 +1308,8 @@ out_free2:
 		r = kvm_arch_vcpu_ioctl(filp, ioctl, arg);
 	}
 out:
+	kfree(fpu);
+	kfree(kvm_sregs);
 	return r;
 }
 
