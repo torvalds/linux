@@ -914,7 +914,9 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	/* Stash our initial stack pointer into the mm structure */
 	current->mm->start_stack = (unsigned long )sp;
 
-	
+#ifdef FLAT_PLAT_INIT
+	FLAT_PLAT_INIT(regs);
+#endif
 	DBG_FLT("start_thread(regs=0x%x, entry=0x%x, start_stack=0x%x)\n",
 		(int)regs, (int)start_addr, (int)current->mm->start_stack);
 	
