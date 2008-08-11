@@ -33,7 +33,7 @@ struct call_single_queue {
 	spinlock_t lock;
 };
 
-void __cpuinit init_call_single_data(void)
+static int __cpuinit init_call_single_data(void)
 {
 	int i;
 
@@ -43,7 +43,9 @@ void __cpuinit init_call_single_data(void)
 		spin_lock_init(&q->lock);
 		INIT_LIST_HEAD(&q->list);
 	}
+	return 0;
 }
+early_initcall(init_call_single_data);
 
 static void csd_flag_wait(struct call_single_data *data)
 {

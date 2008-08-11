@@ -260,7 +260,7 @@ static void ibmveth_replenish_buffer_pool(struct ibmveth_adapter *adapter, struc
 		dma_addr = dma_map_single(&adapter->vdev->dev, skb->data,
 				pool->buff_size, DMA_FROM_DEVICE);
 
-		if (dma_mapping_error(dma_addr))
+		if (dma_mapping_error(&adapter->vdev->dev, dma_addr))
 			goto failure;
 
 		pool->free_map[free_index] = IBM_VETH_INVALID_MAP;
@@ -294,7 +294,7 @@ failure:
 		pool->consumer_index = pool->size - 1;
 	else
 		pool->consumer_index--;
-	if (!dma_mapping_error(dma_addr))
+	if (!dma_mapping_error(&adapter->vdev->dev, dma_addr))
 		dma_unmap_single(&adapter->vdev->dev,
 		                 pool->dma_addr[index], pool->buff_size,
 		                 DMA_FROM_DEVICE);
@@ -448,11 +448,11 @@ static void ibmveth_rxq_harvest_buffer(struct ibmveth_adapter *adapter)
 static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 {
 	int i;
+	struct device *dev = &adapter->vdev->dev;
 
 	if(adapter->buffer_list_addr != NULL) {
-		if(!dma_mapping_error(adapter->buffer_list_dma)) {
-			dma_unmap_single(&adapter->vdev->dev,
-					adapter->buffer_list_dma, 4096,
+		if (!dma_mapping_error(dev, adapter->buffer_list_dma)) {
+			dma_unmap_single(dev, adapter->buffer_list_dma, 4096,
 					DMA_BIDIRECTIONAL);
 			adapter->buffer_list_dma = DMA_ERROR_CODE;
 		}
@@ -461,9 +461,8 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 	}
 
 	if(adapter->filter_list_addr != NULL) {
-		if(!dma_mapping_error(adapter->filter_list_dma)) {
-			dma_unmap_single(&adapter->vdev->dev,
-					adapter->filter_list_dma, 4096,
+		if (!dma_mapping_error(dev, adapter->filter_list_dma)) {
+			dma_unmap_single(dev, adapter->filter_list_dma, 4096,
 					DMA_BIDIRECTIONAL);
 			adapter->filter_list_dma = DMA_ERROR_CODE;
 		}
@@ -472,8 +471,8 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 	}
 
 	if(adapter->rx_queue.queue_addr != NULL) {
-		if(!dma_mapping_error(adapter->rx_queue.queue_dma)) {
-			dma_unmap_single(&adapter->vdev->dev,
+		if (!dma_mapping_error(dev, adapter->rx_queue.queue_dma)) {
+			dma_unmap_single(dev,
 					adapter->rx_queue.queue_dma,
 					adapter->rx_queue.queue_len,
 					DMA_BIDIRECTIONAL);
@@ -489,7 +488,7 @@ static void ibmveth_cleanup(struct ibmveth_adapter *adapter)
 						 &adapter->rx_buff_pool[i]);
 
 	if (adapter->bounce_buffer != NULL) {
-		if (!dma_mapping_error(adapter->bounce_buffer_dma)) {
+		if (!dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
 			dma_unmap_single(&adapter->vdev->dev,
 					adapter->bounce_buffer_dma,
 					adapter->netdev->mtu + IBMVETH_BUFF_OH,
@@ -535,6 +534,7 @@ static int ibmveth_open(struct net_device *netdev)
 	int rc;
 	union ibmveth_buf_desc rxq_desc;
 	int i;
+	struct device *dev;
 
 	ibmveth_debug_printk("open starting\n");
 
@@ -563,17 +563,19 @@ static int ibmveth_open(struct net_device *netdev)
 		return -ENOMEM;
 	}
 
-	adapter->buffer_list_dma = dma_map_single(&adapter->vdev->dev,
+	dev = &adapter->vdev->dev;
+
+	adapter->buffer_list_dma = dma_map_single(dev,
 			adapter->buffer_list_addr, 4096, DMA_BIDIRECTIONAL);
-	adapter->filter_list_dma = dma_map_single(&adapter->vdev->dev,
+	adapter->filter_list_dma = dma_map_single(dev,
 			adapter->filter_list_addr, 4096, DMA_BIDIRECTIONAL);
-	adapter->rx_queue.queue_dma = dma_map_single(&adapter->vdev->dev,
+	adapter->rx_queue.queue_dma = dma_map_single(dev,
 			adapter->rx_queue.queue_addr,
 			adapter->rx_queue.queue_len, DMA_BIDIRECTIONAL);
 
-	if((dma_mapping_error(adapter->buffer_list_dma) ) ||
-	   (dma_mapping_error(adapter->filter_list_dma)) ||
-	   (dma_mapping_error(adapter->rx_queue.queue_dma))) {
+	if ((dma_mapping_error(dev, adapter->buffer_list_dma)) ||
+	    (dma_mapping_error(dev, adapter->filter_list_dma)) ||
+	    (dma_mapping_error(dev, adapter->rx_queue.queue_dma))) {
 		ibmveth_error_printk("unable to map filter or buffer list pages\n");
 		ibmveth_cleanup(adapter);
 		napi_disable(&adapter->napi);
@@ -645,7 +647,7 @@ static int ibmveth_open(struct net_device *netdev)
 	adapter->bounce_buffer_dma =
 	    dma_map_single(&adapter->vdev->dev, adapter->bounce_buffer,
 			   netdev->mtu + IBMVETH_BUFF_OH, DMA_BIDIRECTIONAL);
-	if (dma_mapping_error(adapter->bounce_buffer_dma)) {
+	if (dma_mapping_error(dev, adapter->bounce_buffer_dma)) {
 		ibmveth_error_printk("unable to map bounce buffer\n");
 		ibmveth_cleanup(adapter);
 		napi_disable(&adapter->napi);
@@ -922,7 +924,7 @@ static int ibmveth_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		buf[1] = 0;
 	}
 
-	if (dma_mapping_error(data_dma_addr)) {
+	if (dma_mapping_error(&adapter->vdev->dev, data_dma_addr)) {
 		if (!firmware_has_feature(FW_FEATURE_CMO))
 			ibmveth_error_printk("tx: unable to map xmit buffer\n");
 		skb_copy_from_linear_data(skb, adapter->bounce_buffer,

@@ -257,7 +257,7 @@ xfs_bulkstat_one(
 		*ubused = error;
 
  out_free:
-	kmem_free(buf, sizeof(*buf));
+	kmem_free(buf);
 	return error;
 }
 
@@ -708,7 +708,7 @@ xfs_bulkstat(
 	/*
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
-	kmem_free(irbuf, irbsize);
+	kmem_free(irbuf);
 	*ubcountp = ubelem;
 	/*
 	 * Found some inodes, return them now and return the error next time.
@@ -914,7 +914,7 @@ xfs_inumbers(
 		}
 		*lastino = XFS_AGINO_TO_INO(mp, agno, agino);
 	}
-	kmem_free(buffer, bcount * sizeof(*buffer));
+	kmem_free(buffer);
 	if (cur)
 		xfs_btree_del_cursor(cur, (error ? XFS_BTREE_ERROR :
 					   XFS_BTREE_NOERROR));

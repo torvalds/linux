@@ -55,12 +55,28 @@
 
 static int dm_read(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
+	void *buf;
+	int err = -ENOMEM;
+
 	devdbg(dev, "dm_read() reg=0x%02x length=%d", reg, length);
-	return usb_control_msg(dev->udev,
-			       usb_rcvctrlpipe(dev->udev, 0),
-			       DM_READ_REGS,
-			       USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			       0, reg, data, length, USB_CTRL_SET_TIMEOUT);
+
+	buf = kmalloc(length, GFP_KERNEL);
+	if (!buf)
+		goto out;
+
+	err = usb_control_msg(dev->udev,
+			      usb_rcvctrlpipe(dev->udev, 0),
+			      DM_READ_REGS,
+			      USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      0, reg, buf, length, USB_CTRL_SET_TIMEOUT);
+	if (err == length)
+		memcpy(data, buf, length);
+	else if (err >= 0)
+		err = -EINVAL;
+	kfree(buf);
+
+ out:
+	return err;
 }
 
 static int dm_read_reg(struct usbnet *dev, u8 reg, u8 *value)
@@ -70,12 +86,28 @@ static int dm_read_reg(struct usbnet *dev, u8 reg, u8 *value)
 
 static int dm_write(struct usbnet *dev, u8 reg, u16 length, void *data)
 {
+	void *buf = NULL;
+	int err = -ENOMEM;
+
 	devdbg(dev, "dm_write() reg=0x%02x, length=%d", reg, length);
-	return usb_control_msg(dev->udev,
-			       usb_sndctrlpipe(dev->udev, 0),
-			       DM_WRITE_REGS,
-			       USB_DIR_OUT | USB_TYPE_VENDOR |USB_RECIP_DEVICE,
-			       0, reg, data, length, USB_CTRL_SET_TIMEOUT);
+
+	if (data) {
+		buf = kmalloc(length, GFP_KERNEL);
+		if (!buf)
+			goto out;
+		memcpy(buf, data, length);
+	}
+
+	err = usb_control_msg(dev->udev,
+			      usb_sndctrlpipe(dev->udev, 0),
+			      DM_WRITE_REGS,
+			      USB_DIR_OUT | USB_TYPE_VENDOR |USB_RECIP_DEVICE,
+			      0, reg, buf, length, USB_CTRL_SET_TIMEOUT);
+	kfree(buf);
+	if (err >= 0 && err < length)
+		err = -EINVAL;
+ out:
+	return err;
 }
 
 static int dm_write_reg(struct usbnet *dev, u8 reg, u8 value)

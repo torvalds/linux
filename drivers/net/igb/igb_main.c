@@ -311,7 +311,7 @@ static void igb_assign_vector(struct igb_adapter *adapter, int rx_queue,
 		array_wr32(E1000_MSIXBM(0), msix_vector, msixbm);
 		break;
 	case e1000_82576:
-		/* Kawela uses a table-based method for assigning vectors.
+		/* The 82576 uses a table-based method for assigning vectors.
 		   Each queue has a single entry in the table to which we write
 		   a vector number along with a "valid" bit.  Sadly, the layout
 		   of the table is somewhat counterintuitive. */
@@ -720,28 +720,6 @@ static void igb_get_hw_control(struct igb_adapter *adapter)
 			ctrl_ext | E1000_CTRL_EXT_DRV_LOAD);
 }
 
-static void igb_init_manageability(struct igb_adapter *adapter)
-{
-	struct e1000_hw *hw = &adapter->hw;
-
-	if (adapter->en_mng_pt) {
-		u32 manc2h = rd32(E1000_MANC2H);
-		u32 manc = rd32(E1000_MANC);
-
-		/* enable receiving management packets to the host */
-		/* this will probably generate destination unreachable messages
-		 * from the host OS, but the packets will be handled on SMBUS */
-		manc |= E1000_MANC_EN_MNG2HOST;
-#define E1000_MNG2HOST_PORT_623 (1 << 5)
-#define E1000_MNG2HOST_PORT_664 (1 << 6)
-		manc2h |= E1000_MNG2HOST_PORT_623;
-		manc2h |= E1000_MNG2HOST_PORT_664;
-		wr32(E1000_MANC2H, manc2h);
-
-		wr32(E1000_MANC, manc);
-	}
-}
-
 /**
  * igb_configure - configure the hardware for RX and TX
  * @adapter: private board structure
@@ -755,7 +733,6 @@ static void igb_configure(struct igb_adapter *adapter)
 	igb_set_multi(netdev);
 
 	igb_restore_vlan(adapter);
-	igb_init_manageability(adapter);
 
 	igb_configure_tx(adapter);
 	igb_setup_rctl(adapter);
@@ -1372,7 +1349,8 @@ static void __devexit igb_remove(struct pci_dev *pdev)
 
 	unregister_netdev(netdev);
 
-	if (!igb_check_reset_block(&adapter->hw))
+	if (adapter->hw.phy.ops.reset_phy &&
+	    !igb_check_reset_block(&adapter->hw))
 		adapter->hw.phy.ops.reset_phy(&adapter->hw);
 
 	igb_remove_device(&adapter->hw);
@@ -4522,8 +4500,6 @@ static void igb_io_resume(struct pci_dev *pdev)
 {
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct igb_adapter *adapter = netdev_priv(netdev);
-
-	igb_init_manageability(adapter);
 
 	if (netif_running(netdev)) {
 		if (igb_up(adapter)) {

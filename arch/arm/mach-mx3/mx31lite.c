@@ -23,15 +23,15 @@
 #include <linux/kernel.h>
 #include <linux/memory.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <asm/arch/common.h>
+#include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <asm/arch/board-mx31lite.h>
+#include <mach/board-mx31lite.h>
 
 /*
  * This file contains the board-specific initialization routines.

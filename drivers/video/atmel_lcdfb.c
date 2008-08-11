@@ -18,9 +18,9 @@
 #include <linux/delay.h>
 #include <linux/backlight.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
+#include <mach/gpio.h>
 
 #include <video/atmel_lcdc.h>
 

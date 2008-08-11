@@ -204,5 +204,6 @@
 #define USB_PID_ASUS_U3000				0x171f
 #define USB_PID_ASUS_U3100				0x173f
 #define USB_PID_YUAN_EC372S				0x1edc
+#define USB_PID_DW2102					0x2102
 
 #endif

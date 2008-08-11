@@ -50,7 +50,7 @@ MODULE_LICENSE("GPL");
 
 static unsigned short normal_i2c[] = { 0x88 >> 1, I2C_CLIENT_END };
 
-int cx25840_debug;
+static int cx25840_debug;
 
 module_param_named(debug,cx25840_debug, int, 0644);
 

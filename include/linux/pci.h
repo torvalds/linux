@@ -124,6 +124,8 @@ enum pci_dev_flags {
 	 * generation too.
 	 */
 	PCI_DEV_FLAGS_MSI_INTX_DISABLE_BUG = (__force pci_dev_flags_t) 1,
+	/* Device configuration is irrevocably lost if disabled into D3 */
+	PCI_DEV_FLAGS_NO_D3 = (__force pci_dev_flags_t) 2,
 };
 
 typedef unsigned short __bitwise pci_bus_flags_t;

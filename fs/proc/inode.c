@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/smp_lock.h>
+#include <linux/sysctl.h>
 
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -65,6 +66,8 @@ static void proc_delete_inode(struct inode *inode)
 			module_put(de->owner);
 		de_put(de);
 	}
+	if (PROC_I(inode)->sysctl)
+		sysctl_head_put(PROC_I(inode)->sysctl);
 	clear_inode(inode);
 }
 
@@ -84,6 +87,8 @@ static struct inode *proc_alloc_inode(struct super_block *sb)
 	ei->fd = 0;
 	ei->op.proc_get_link = NULL;
 	ei->pde = NULL;
+	ei->sysctl = NULL;
+	ei->sysctl_entry = NULL;
 	inode = &ei->vfs_inode;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 	return inode;
@@ -94,7 +99,7 @@ static void proc_destroy_inode(struct inode *inode)
 	kmem_cache_free(proc_inode_cachep, PROC_I(inode));
 }
 
-static void init_once(struct kmem_cache * cachep, void *foo)
+static void init_once(void *foo)
 {
 	struct proc_inode *ei = (struct proc_inode *) foo;
 

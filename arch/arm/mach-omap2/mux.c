@@ -29,8 +29,8 @@
 #include <asm/io.h>
 #include <linux/spinlock.h>
 
-#include <asm/arch/control.h>
-#include <asm/arch/mux.h>
+#include <mach/control.h>
+#include <mach/mux.h>
 
 #ifdef CONFIG_OMAP_MUX
 

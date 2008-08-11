@@ -26,10 +26,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware/scoop.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/akita.h>
-#include <asm/arch/spitz.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/akita.h>
+#include <mach/spitz.h>
 #include "../codecs/wm8750.h"
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"

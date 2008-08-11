@@ -91,6 +91,7 @@ struct sh_mobile_ceu_dev {
 	void __iomem *base;
 	unsigned long video_limit;
 
+	/* lock used to protect videobuf */
 	spinlock_t lock;
 	struct list_head capture;
 	struct videobuf_buffer *active;
@@ -646,7 +647,7 @@ static int __init sh_mobile_ceu_init(void)
 
 static void __exit sh_mobile_ceu_exit(void)
 {
-	return platform_driver_unregister(&sh_mobile_ceu_driver);
+	platform_driver_unregister(&sh_mobile_ceu_driver);
 }
 
 module_init(sh_mobile_ceu_init);

@@ -120,6 +120,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(entry->skb);
+	struct rt2x00_intf *intf = vif_to_intf(tx_info->control.vif);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)entry->skb->data;
 	struct ieee80211_rate *rate =
 	    ieee80211_get_tx_rate(rt2x00dev->hw, tx_info);
@@ -127,6 +128,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	unsigned int data_length;
 	unsigned int duration;
 	unsigned int residual;
+	unsigned long irqflags;
 
 	memset(txdesc, 0, sizeof(*txdesc));
 
@@ -197,6 +199,31 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 		txdesc->ifs = IFS_BACKOFF;
 	} else {
 		txdesc->ifs = IFS_SIFS;
+	}
+
+	/*
+	 * Hardware should insert sequence counter.
+	 * FIXME: We insert a software sequence counter first for
+	 * hardware that doesn't support hardware sequence counting.
+	 *
+	 * This is wrong because beacons are not getting sequence
+	 * numbers assigned properly.
+	 *
+	 * A secondary problem exists for drivers that cannot toggle
+	 * sequence counting per-frame, since those will override the
+	 * sequence counter given by mac80211.
+	 */
+	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		spin_lock_irqsave(&intf->seqlock, irqflags);
+
+		if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
+			intf->seqno += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
+
+		spin_unlock_irqrestore(&intf->seqlock, irqflags);
+
+		__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 	}
 
 	/*
@@ -466,9 +493,12 @@ void rt2x00queue_init_rx(struct rt2x00_dev *rt2x00dev)
 	if (!rt2x00dev->ops->lib->init_rxentry)
 		return;
 
-	for (i = 0; i < queue->limit; i++)
+	for (i = 0; i < queue->limit; i++) {
+		queue->entries[i].flags = 0;
+
 		rt2x00dev->ops->lib->init_rxentry(rt2x00dev,
 						  &queue->entries[i]);
+	}
 }
 
 void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev)
@@ -482,9 +512,12 @@ void rt2x00queue_init_tx(struct rt2x00_dev *rt2x00dev)
 		if (!rt2x00dev->ops->lib->init_txentry)
 			continue;
 
-		for (i = 0; i < queue->limit; i++)
+		for (i = 0; i < queue->limit; i++) {
+			queue->entries[i].flags = 0;
+
 			rt2x00dev->ops->lib->init_txentry(rt2x00dev,
 							  &queue->entries[i]);
+		}
 	}
 }
 

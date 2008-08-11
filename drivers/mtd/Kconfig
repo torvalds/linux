@@ -1,5 +1,3 @@
-# $Id: Kconfig,v 1.11 2005/11/07 11:14:19 gleixner Exp $
-
 menuconfig MTD
 	tristate "Memory Technology Device (MTD) support"
 	depends on HAS_IOMEM

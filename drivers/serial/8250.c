@@ -1885,7 +1885,7 @@ static int serial8250_startup(struct uart_port *port)
 		 * the interrupt is enabled.  Delays are necessary to
 		 * allow register changes to become visible.
 		 */
-		spin_lock(&up->port.lock);
+		spin_lock_irqsave(&up->port.lock, flags);
 		if (up->port.flags & UPF_SHARE_IRQ)
 			disable_irq_nosync(up->port.irq);
 
@@ -1901,7 +1901,7 @@ static int serial8250_startup(struct uart_port *port)
 
 		if (up->port.flags & UPF_SHARE_IRQ)
 			enable_irq(up->port.irq);
-		spin_unlock(&up->port.lock);
+		spin_unlock_irqrestore(&up->port.lock, flags);
 
 		/*
 		 * If the interrupt is not reasserted, setup a timer to

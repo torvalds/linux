@@ -138,8 +138,8 @@ void in_dev_finish_destroy(struct in_device *idev)
 {
 	struct net_device *dev = idev->dev;
 
-	BUG_TRAP(!idev->ifa_list);
-	BUG_TRAP(!idev->mc_list);
+	WARN_ON(idev->ifa_list);
+	WARN_ON(idev->mc_list);
 #ifdef NET_REFCNT_DEBUG
 	printk(KERN_DEBUG "in_dev_finish_destroy: %p=%s\n",
 	       idev, dev ? dev->name : "NIL");
@@ -399,7 +399,7 @@ static int inet_set_ifa(struct net_device *dev, struct in_ifaddr *ifa)
 	}
 	ipv4_devconf_setall(in_dev);
 	if (ifa->ifa_dev != in_dev) {
-		BUG_TRAP(!ifa->ifa_dev);
+		WARN_ON(ifa->ifa_dev);
 		in_dev_hold(in_dev);
 		ifa->ifa_dev = in_dev;
 	}

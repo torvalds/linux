@@ -24,11 +24,10 @@
 #include <linux/platform_device.h>
 #include <linux/clk.h>
 
-#include <asm/mach-types.h>
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h> /* FIXME: for PSSR */
-#include <asm/arch/ohci.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h> /* FIXME: for PSSR */
+#include <mach/ohci.h>
 
 #define PXA_UHC_MAX_PORTNUM    3
 

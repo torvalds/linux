@@ -74,7 +74,7 @@ static enum ata_completion_errors sas_to_ata_err(struct task_status_struct *ts)
 		case SAS_OPEN_TO:
 		case SAS_OPEN_REJECT:
 			SAS_DPRINTK("%s: Saw error %d.  What to do?\n",
-				    __FUNCTION__, ts->stat);
+				    __func__, ts->stat);
 			return AC_ERR_OTHER;
 
 		case SAS_ABORTED_TASK:
@@ -115,7 +115,7 @@ static void sas_ata_task_done(struct sas_task *task)
 	} else if (stat->stat != SAM_STAT_GOOD) {
 		ac = sas_to_ata_err(stat);
 		if (ac) {
-			SAS_DPRINTK("%s: SAS error %x\n", __FUNCTION__,
+			SAS_DPRINTK("%s: SAS error %x\n", __func__,
 				    stat->stat);
 			/* We saw a SAS error. Send a vague error. */
 			qc->err_mask = ac;
@@ -244,20 +244,20 @@ static void sas_ata_phy_reset(struct ata_port *ap)
 		res = i->dft->lldd_I_T_nexus_reset(dev);
 
 	if (res != TMF_RESP_FUNC_COMPLETE)
-		SAS_DPRINTK("%s: Unable to reset I T nexus?\n", __FUNCTION__);
+		SAS_DPRINTK("%s: Unable to reset I T nexus?\n", __func__);
 
 	switch (dev->sata_dev.command_set) {
 		case ATA_COMMAND_SET:
-			SAS_DPRINTK("%s: Found ATA device.\n", __FUNCTION__);
+			SAS_DPRINTK("%s: Found ATA device.\n", __func__);
 			ap->link.device[0].class = ATA_DEV_ATA;
 			break;
 		case ATAPI_COMMAND_SET:
-			SAS_DPRINTK("%s: Found ATAPI device.\n", __FUNCTION__);
+			SAS_DPRINTK("%s: Found ATAPI device.\n", __func__);
 			ap->link.device[0].class = ATA_DEV_ATAPI;
 			break;
 		default:
 			SAS_DPRINTK("%s: Unknown SATA command set: %d.\n",
-				    __FUNCTION__,
+				    __func__,
 				    dev->sata_dev.command_set);
 			ap->link.device[0].class = ATA_DEV_UNKNOWN;
 			break;
@@ -299,7 +299,7 @@ static int sas_ata_scr_write(struct ata_port *ap, unsigned int sc_reg_in,
 {
 	struct domain_device *dev = ap->private_data;
 
-	SAS_DPRINTK("STUB %s\n", __FUNCTION__);
+	SAS_DPRINTK("STUB %s\n", __func__);
 	switch (sc_reg_in) {
 		case SCR_STATUS:
 			dev->sata_dev.sstatus = val;
@@ -324,7 +324,7 @@ static int sas_ata_scr_read(struct ata_port *ap, unsigned int sc_reg_in,
 {
 	struct domain_device *dev = ap->private_data;
 
-	SAS_DPRINTK("STUB %s\n", __FUNCTION__);
+	SAS_DPRINTK("STUB %s\n", __func__);
 	switch (sc_reg_in) {
 		case SCR_STATUS:
 			*val = dev->sata_dev.sstatus;

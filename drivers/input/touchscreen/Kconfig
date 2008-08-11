@@ -205,6 +205,18 @@ config TOUCHSCREEN_TOUCHWIN
 	  To compile this driver as a module, choose M here: the
 	  module will be called touchwin.
 
+config TOUCHSCREEN_ATMEL_TSADCC
+	tristate "Atmel Touchscreen Interface"
+	depends on ARCH_AT91SAM9RL
+	help
+	  Say Y here if you have a 4-wire touchscreen connected to the
+          ADC Controller on your Atmel SoC (such as the AT91SAM9RL).
+
+	  If unsure, say N.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called atmel_tsadcc.
+
 config TOUCHSCREEN_UCB1400
 	tristate "Philips UCB1400 touchscreen"
 	select AC97_BUS

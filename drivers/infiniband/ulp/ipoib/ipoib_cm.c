@@ -337,7 +337,7 @@ static void ipoib_cm_init_rx_wr(struct net_device *dev,
 		sge[i].length = PAGE_SIZE;
 
 	wr->next    = NULL;
-	wr->sg_list = priv->cm.rx_sge;
+	wr->sg_list = sge;
 	wr->num_sge = priv->cm.num_frags;
 }
 

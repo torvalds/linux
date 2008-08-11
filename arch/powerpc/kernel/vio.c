@@ -530,7 +530,7 @@ static dma_addr_t vio_dma_iommu_map_single(struct device *dev, void *vaddr,
 	}
 
 	ret = dma_iommu_ops.map_single(dev, vaddr, size, direction, attrs);
-	if (unlikely(dma_mapping_error(ret))) {
+	if (unlikely(dma_mapping_error(dev, ret))) {
 		vio_cmo_dealloc(viodev, roundup(size, IOMMU_PAGE_SIZE));
 		atomic_inc(&viodev->cmo.allocs_failed);
 	}
@@ -1031,8 +1031,8 @@ void vio_cmo_set_dev_desired(struct vio_dev *viodev, size_t desired) {}
 static int vio_cmo_bus_probe(struct vio_dev *viodev) { return 0; }
 static void vio_cmo_bus_remove(struct vio_dev *viodev) {}
 static void vio_cmo_set_dma_ops(struct vio_dev *viodev) {}
-static void vio_cmo_bus_init() {}
-static void vio_cmo_sysfs_init() { }
+static void vio_cmo_bus_init(void) {}
+static void vio_cmo_sysfs_init(void) { }
 #endif /* CONFIG_PPC_SMLPAR */
 EXPORT_SYMBOL(vio_cmo_entitlement_update);
 EXPORT_SYMBOL(vio_cmo_set_dev_desired);

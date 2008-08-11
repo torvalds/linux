@@ -24,7 +24,7 @@
 #include <asm/leds.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -148,7 +148,7 @@ void __init rd88f5182_pci_preinit(void)
 	pin = RD88F5182_PCI_SLOT0_IRQ_A_PIN;
 	if (gpio_request(pin, "PCI IntA") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "rd88f5182_pci_preinit faield to "
 					"set_irq_type pin %d\n", pin);
@@ -161,7 +161,7 @@ void __init rd88f5182_pci_preinit(void)
 	pin = RD88F5182_PCI_SLOT0_IRQ_B_PIN;
 	if (gpio_request(pin, "PCI IntB") == 0) {
 		if (gpio_direction_input(pin) == 0) {
-			set_irq_type(gpio_to_irq(pin), IRQT_LOW);
+			set_irq_type(gpio_to_irq(pin), IRQ_TYPE_LEVEL_LOW);
 		} else {
 			printk(KERN_ERR "rd88f5182_pci_preinit faield to "
 					"set_irq_type pin %d\n", pin);

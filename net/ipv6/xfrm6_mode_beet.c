@@ -40,16 +40,39 @@ static void xfrm6_beet_make_header(struct sk_buff *skb)
 static int xfrm6_beet_output(struct xfrm_state *x, struct sk_buff *skb)
 {
 	struct ipv6hdr *top_iph;
+	struct ip_beet_phdr *ph;
+	struct iphdr *iphv4;
+	int optlen, hdr_len;
 
-	skb_set_network_header(skb, -x->props.header_len);
+	iphv4 = ip_hdr(skb);
+	hdr_len = 0;
+	optlen = XFRM_MODE_SKB_CB(skb)->optlen;
+	if (unlikely(optlen))
+		hdr_len += IPV4_BEET_PHMAXLEN - (optlen & 4);
+
+	skb_set_network_header(skb, -x->props.header_len - hdr_len);
+	if (x->sel.family != AF_INET6)
+		skb->network_header += IPV4_BEET_PHMAXLEN;
 	skb->mac_header = skb->network_header +
 			  offsetof(struct ipv6hdr, nexthdr);
 	skb->transport_header = skb->network_header + sizeof(*top_iph);
-	__skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl);
+	ph = (struct ip_beet_phdr *)__skb_pull(skb, XFRM_MODE_SKB_CB(skb)->ihl-hdr_len);
 
 	xfrm6_beet_make_header(skb);
 
 	top_iph = ipv6_hdr(skb);
+	if (unlikely(optlen)) {
+
+		BUG_ON(optlen < 0);
+
+		ph->padlen = 4 - (optlen & 4);
+		ph->hdrlen = optlen / 8;
+		ph->nexthdr = top_iph->nexthdr;
+		if (ph->padlen)
+			memset(ph + 1, IPOPT_NOP, ph->padlen);
+
+		top_iph->nexthdr = IPPROTO_BEETPH;
+	}
 
 	ipv6_addr_copy(&top_iph->saddr, (struct in6_addr *)&x->props.saddr);
 	ipv6_addr_copy(&top_iph->daddr, (struct in6_addr *)&x->id.daddr);

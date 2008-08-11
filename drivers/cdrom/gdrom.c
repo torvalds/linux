@@ -39,8 +39,8 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <asm/delay.h>
-#include <asm/mach/dma.h>
-#include <asm/mach/sysasic.h>
+#include <mach/dma.h>
+#include <mach/sysasic.h>
 
 #define GDROM_DEV_NAME "gdrom"
 #define GD_SESSION_OFFSET 150

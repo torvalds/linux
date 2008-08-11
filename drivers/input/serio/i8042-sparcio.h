@@ -41,6 +41,8 @@ static inline void i8042_write_command(int val)
 	writeb(val, kbd_iobase + 0x64UL);
 }
 
+#ifdef CONFIG_PCI
+
 #define OBP_PS2KBD_NAME1	"kb_ps2"
 #define OBP_PS2KBD_NAME2	"keyboard"
 #define OBP_PS2MS_NAME1		"kdmouse"
@@ -101,9 +103,6 @@ static struct of_platform_driver sparc_i8042_driver = {
 
 static int __init i8042_platform_init(void)
 {
-#ifndef CONFIG_PCI
-	return -ENODEV;
-#else
 	struct device_node *root = of_find_node_by_path("/");
 
 	if (!strcmp(root->name, "SUNW,JavaStation-1")) {
@@ -131,17 +130,25 @@ static int __init i8042_platform_init(void)
 	i8042_reset = 1;
 
 	return 0;
-#endif /* CONFIG_PCI */
 }
 
 static inline void i8042_platform_exit(void)
 {
-#ifdef CONFIG_PCI
 	struct device_node *root = of_find_node_by_path("/");
 
 	if (strcmp(root->name, "SUNW,JavaStation-1"))
 		of_unregister_driver(&sparc_i8042_driver);
-#endif
 }
+
+#else /* !CONFIG_PCI */
+static int __init i8042_platform_init(void)
+{
+	return -ENODEV;
+}
+
+static inline void i8042_platform_exit(void)
+{
+}
+#endif /* !CONFIG_PCI */
 
 #endif /* _I8042_SPARCIO_H */
