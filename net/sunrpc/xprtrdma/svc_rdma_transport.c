@@ -1314,10 +1314,14 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	length = svc_rdma_xdr_encode_error(xprt, rmsgp, err, va);
 
 	/* Prepare SGE for local address */
-	atomic_inc(&xprt->sc_dma_used);
 	sge.addr = ib_dma_map_page(xprt->sc_cm_id->device,
 				   p, 0, PAGE_SIZE, DMA_FROM_DEVICE);
-	sge.lkey = xprt->sc_phys_mr->lkey;
+	if (ib_dma_mapping_error(xprt->sc_cm_id->device, sge.addr)) {
+		put_page(p);
+		return;
+	}
+	atomic_inc(&xprt->sc_dma_used);
+	sge.lkey = xprt->sc_dma_lkey;
 	sge.length = length;
 
 	ctxt = svc_rdma_get_context(xprt);
@@ -1338,6 +1342,9 @@ void svc_rdma_send_error(struct svcxprt_rdma *xprt, struct rpcrdma_msg *rmsgp,
 	if (ret) {
 		dprintk("svcrdma: Error %d posting send for protocol error\n",
 			ret);
+		ib_dma_unmap_page(xprt->sc_cm_id->device,
+				  sge.addr, PAGE_SIZE,
+				  DMA_FROM_DEVICE);
 		svc_rdma_put_context(ctxt, 1);
 	}
 }
