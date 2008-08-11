@@ -222,7 +222,7 @@ int pit_has_pending_timer(struct kvm_vcpu *vcpu)
 	return 0;
 }
 
-void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
+static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 {
 	struct kvm_kpit_state *ps = container_of(kian, struct kvm_kpit_state,
 						 irq_ack_notifier);

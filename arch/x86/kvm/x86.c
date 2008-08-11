@@ -104,7 +104,7 @@ struct kvm_stats_debugfs_item debugfs_entries[] = {
 	{ NULL }
 };
 
-struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
+static struct kvm_assigned_dev_kernel *kvm_find_assigned_dev(struct list_head *head,
 						      int assigned_dev_id)
 {
 	struct list_head *ptr;
