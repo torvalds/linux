@@ -174,7 +174,7 @@ out_no_root:
 	cERROR(1, ("cifs_read_super: get root inode failed"));
 	if (inode)
 		iput(inode);
-	
+
 	cifs_umount(sb, cifs_sb);
 
 out_mount_failed:
