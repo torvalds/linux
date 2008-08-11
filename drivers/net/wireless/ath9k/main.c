@@ -624,6 +624,18 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		ath_beacon_sync(sc, 0);
 	}
 
+	if ((conf->changed & IEEE80211_IFCC_BEACON) &&
+	    (vif->type == IEEE80211_IF_TYPE_AP)) {
+		ath9k_hw_stoptxdma(sc->sc_ah, sc->sc_bhalq);
+
+		error = ath_beacon_alloc(sc, 0);
+		if (error != 0)
+			return error;
+
+		ath_beacon_config(sc, 0);
+		sc->sc_flags |= SC_OP_BEACONS;
+	}
+
 	/* Check for WLAN_CAPABILITY_PRIVACY ? */
 	if ((avp->av_opmode != IEEE80211_IF_TYPE_STA)) {
 		for (i = 0; i < IEEE80211_WEP_NKID; i++)
@@ -1050,15 +1062,6 @@ void ath_get_beaconconfig(struct ath_softc *sc,
 	conf->listen_interval = 100;
 	conf->dtim_count = 1;
 	conf->bmiss_timeout = ATH_DEFAULT_BMISS_LIMIT * conf->listen_interval;
-}
-
-int ath_update_beacon(struct ath_softc *sc,
-		      int if_id,
-		      struct ath_beacon_offset *bo,
-		      struct sk_buff *skb,
-		      int mcast)
-{
-	return 0;
 }
 
 void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,

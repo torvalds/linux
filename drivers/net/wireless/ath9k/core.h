@@ -729,11 +729,6 @@ void ath_beacon_sync(struct ath_softc *sc, int if_id);
 void ath_get_beaconconfig(struct ath_softc *sc,
 			  int if_id,
 			  struct ath_beacon_config *conf);
-int ath_update_beacon(struct ath_softc *sc,
-		      int if_id,
-		      struct ath_beacon_offset *bo,
-		      struct sk_buff *skb,
-		      int mcast);
 /********/
 /* VAPs */
 /********/

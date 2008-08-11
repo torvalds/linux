@@ -172,6 +172,7 @@ static void empty_mcastq_into_cabq(struct ath_hal *ah,
 	mcastq->axq_link = NULL;
 }
 
+/* TODO: use ieee80211_get_buffered_bc() to fetch power saved mcast frames */
 /* This is only run at DTIM. We move everything from the vap's mcast queue
  * to the hardware cab queue. Caller must hold the mcastq lock. */
 static void trigger_mcastq(struct ath_hal *ah,
@@ -206,7 +207,6 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	int cabq_depth;
 	int mcastq_depth;
 	int is_beacon_dtim = 0;
-	unsigned int curlen;
 	struct ath_txq *cabq;
 	struct ath_txq *mcastq;
 	avp = sc->sc_vaps[if_id];
@@ -223,32 +223,26 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	}
 	bf = avp->av_bcbuf;
 	skb = (struct sk_buff *) bf->bf_mpdu;
+	if (skb) {
+		pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+				 skb_end_pointer(skb) - skb->head,
+				 PCI_DMA_TODEVICE);
+	}
 
-	/*
-	 * Update dynamic beacon contents.  If this returns
-	 * non-zero then we need to remap the memory because
-	 * the beacon frame changed size (probably because
-	 * of the TIM bitmap).
-	 */
-	curlen = skb->len;
+	skb = ieee80211_beacon_get(sc->hw, avp->av_if_data);
+	bf->bf_mpdu = skb;
+	if (skb == NULL)
+		return NULL;
+	bf->bf_buf_addr = bf->bf_dmacontext =
+		pci_map_single(sc->pdev, skb->data,
+			       skb_end_pointer(skb) - skb->head,
+			       PCI_DMA_TODEVICE);
 
+	/* TODO: convert to use ieee80211_get_buffered_bc() */
 	/* XXX: spin_lock_bh should not be used here, but sparse bitches
 	 * otherwise. We should fix sparse :) */
 	spin_lock_bh(&mcastq->axq_lock);
 	mcastq_depth = avp->av_mcastq.axq_depth;
-
-	if (ath_update_beacon(sc, if_id, &avp->av_boff, skb, mcastq_depth) ==
-	    1) {
-		ath_skb_unmap_single(sc, skb, PCI_DMA_TODEVICE,
-				     get_dma_mem_context(bf, bf_dmacontext));
-		bf->bf_buf_addr = ath_skb_map_single(sc, skb, PCI_DMA_TODEVICE,
-			get_dma_mem_context(bf, bf_dmacontext));
-	} else {
-		pci_dma_sync_single_for_cpu(sc->pdev,
-					    bf->bf_buf_addr,
-					    skb_tailroom(skb),
-					    PCI_DMA_TODEVICE);
-	}
 
 	/*
 	 * if the CABQ traffic from previous DTIM is pending and the current
@@ -262,7 +256,8 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	cabq_depth = cabq->axq_depth;
 	spin_unlock_bh(&cabq->axq_lock);
 
-	is_beacon_dtim = avp->av_boff.bo_tim[4] & 1;
+	if (avp->av_boff.bo_tim)
+		is_beacon_dtim = avp->av_boff.bo_tim[4] & 1;
 
 	if (mcastq_depth && is_beacon_dtim && cabq_depth) {
 		/*
@@ -408,8 +403,9 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	bf = avp->av_bcbuf;
 	if (bf->bf_mpdu != NULL) {
 		skb = (struct sk_buff *)bf->bf_mpdu;
-		ath_skb_unmap_single(sc, skb, PCI_DMA_TODEVICE,
-				     get_dma_mem_context(bf, bf_dmacontext));
+		pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+				 skb_end_pointer(skb) - skb->head,
+				 PCI_DMA_TODEVICE);
 		dev_kfree_skb_any(skb);
 		bf->bf_mpdu = NULL;
 	}
@@ -439,9 +435,8 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 		__le64 val;
 		int intval;
 
-		/* FIXME: Use default value for now: Sujith */
-
-		intval = ATH_DEFAULT_BINTVAL;
+		intval = sc->hw->conf.beacon_int ?
+			sc->hw->conf.beacon_int : ATH_DEFAULT_BINTVAL;
 
 		/*
 		 * The beacon interval is in TU's; the TSF in usecs.
@@ -466,8 +461,10 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 		memcpy(&wh[1], &val, sizeof(val));
 	}
 
-	bf->bf_buf_addr = ath_skb_map_single(sc, skb, PCI_DMA_TODEVICE,
-		get_dma_mem_context(bf, bf_dmacontext));
+	bf->bf_buf_addr = bf->bf_dmacontext =
+		pci_map_single(sc->pdev, skb->data,
+			       skb_end_pointer(skb) - skb->head,
+			       PCI_DMA_TODEVICE);
 	bf->bf_mpdu = skb;
 
 	return 0;
@@ -493,8 +490,9 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
 		bf = avp->av_bcbuf;
 		if (bf->bf_mpdu != NULL) {
 			struct sk_buff *skb = (struct sk_buff *)bf->bf_mpdu;
-			ath_skb_unmap_single(sc, skb, PCI_DMA_TODEVICE,
-				get_dma_mem_context(bf, bf_dmacontext));
+			pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+					 skb_end_pointer(skb) - skb->head,
+					 PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
 		}
@@ -520,8 +518,9 @@ void ath_beacon_free(struct ath_softc *sc)
 	list_for_each_entry(bf, &sc->sc_bbuf, list) {
 		if (bf->bf_mpdu != NULL) {
 			struct sk_buff *skb = (struct sk_buff *) bf->bf_mpdu;
-			ath_skb_unmap_single(sc, skb, PCI_DMA_TODEVICE,
-				get_dma_mem_context(bf, bf_dmacontext));
+			pci_unmap_single(sc->pdev, bf->bf_dmacontext,
+					 skb_end_pointer(skb) - skb->head,
+					 PCI_DMA_TODEVICE);
 			dev_kfree_skb_any(skb);
 			bf->bf_mpdu = NULL;
 		}
@@ -643,8 +642,8 @@ void ath9k_beacon_tasklet(unsigned long data)
 	 * on the tsf to safeguard against missing an swba.
 	 */
 
-	/* FIXME: Use default value for now - Sujith */
-	intval = ATH_DEFAULT_BINTVAL;
+	intval = sc->hw->conf.beacon_int ?
+		sc->hw->conf.beacon_int : ATH_DEFAULT_BINTVAL;
 
 	tsf = ath9k_hw_gettsf64(ah);
 	tsftu = TSF_TO_TU(tsf>>32, tsf);
@@ -760,7 +759,8 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 	 * Protocol stack doesn't support dynamic beacon configuration,
 	 * use default configurations.
 	 */
-	conf.beacon_interval = ATH_DEFAULT_BINTVAL;
+	conf.beacon_interval = sc->hw->conf.beacon_int ?
+		sc->hw->conf.beacon_int : ATH_DEFAULT_BINTVAL;
 	conf.listen_interval = 1;
 	conf.dtim_period = conf.beacon_interval;
 	conf.dtim_count = 1;
