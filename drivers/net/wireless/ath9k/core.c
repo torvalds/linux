@@ -549,9 +549,15 @@ int ath_vap_listen(struct ath_softc *sc, int if_id)
 	 * XXXX
 	 * Disable BMISS interrupt when we're not associated
 	 */
-	ath9k_hw_set_interrupts(ah,
-		sc->sc_imask & ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS));
-	sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
+	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP) {
+		ath9k_hw_set_interrupts(ah, sc->sc_imask & ~ATH9K_INT_BMISS);
+		sc->sc_imask &= ~ATH9K_INT_BMISS;
+	} else {
+		ath9k_hw_set_interrupts(
+			ah,
+			sc->sc_imask & ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS));
+		sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
+	}
 	/* need to reconfigure the beacons when it moves to RUN */
 	sc->sc_flags &= ~SC_OP_BEACONS;
 

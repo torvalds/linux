@@ -426,10 +426,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	case IEEE80211_IF_TYPE_IBSS:
 		ic_opmode = ATH9K_M_IBSS;
 		break;
+	case IEEE80211_IF_TYPE_AP:
+		ic_opmode = ATH9K_M_HOSTAP;
+		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: Only STA and IBSS are supported currently\n",
-			__func__);
+			"%s: Interface type %d not yet supported\n",
+			__func__, conf->type);
 		return -EOPNOTSUPP;
 	}
 
@@ -530,6 +533,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_if_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_hal *ah = sc->sc_ah;
 	struct ath_vap *avp;
 	u32 rfilt = 0;
 	int error, i;
@@ -540,6 +544,17 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		DPRINTF(sc, ATH_DBG_FATAL, "%s: Invalid interface\n",
 			__func__);
 		return -EINVAL;
+	}
+
+	/* TODO: Need to decide which hw opmode to use for multi-interface
+	 * cases */
+	if (vif->type == IEEE80211_IF_TYPE_AP &&
+	    ah->ah_opmode != ATH9K_M_HOSTAP) {
+		ah->ah_opmode = ATH9K_M_HOSTAP;
+		ath9k_hw_setopmode(ah);
+		ath9k_hw_write_associd(ah, sc->sc_myaddr, 0);
+		/* Request full reset to get hw opmode changed properly */
+		sc->sc_flags |= SC_OP_FULL_RESET;
 	}
 
 	if ((conf->changed & IEEE80211_IFCC_BSSID) &&
