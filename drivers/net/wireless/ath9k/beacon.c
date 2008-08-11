@@ -555,7 +555,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 	u32 tsftu;
 	u16 intval;
 
-	if (sc->sc_noreset) {
+	if (sc->sc_flags & SC_OP_NO_RESET) {
 		show_cycles = ath9k_hw_GetMibCycleCountsPct(ah,
 							    &rx_clear,
 							    &rx_frame,
@@ -577,7 +577,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 		 *      (in that layer).
 		 */
 		if (sc->sc_bmisscount < BSTUCK_THRESH) {
-			if (sc->sc_noreset) {
+			if (sc->sc_flags & SC_OP_NO_RESET) {
 				DPRINTF(sc, ATH_DBG_BEACON,
 					"%s: missed %u consecutive beacons\n",
 					__func__, sc->sc_bmisscount);
@@ -605,7 +605,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 					__func__, sc->sc_bmisscount);
 			}
 		} else if (sc->sc_bmisscount >= BSTUCK_THRESH) {
-			if (sc->sc_noreset) {
+			if (sc->sc_flags & SC_OP_NO_RESET) {
 				if (sc->sc_bmisscount == BSTUCK_THRESH) {
 					DPRINTF(sc,
 						ATH_DBG_BEACON,
@@ -624,7 +624,7 @@ void ath9k_beacon_tasklet(unsigned long data)
 		return;
 	}
 	if (sc->sc_bmisscount != 0) {
-		if (sc->sc_noreset) {
+		if (sc->sc_flags & SC_OP_NO_RESET) {
 			DPRINTF(sc,
 				ATH_DBG_BEACON,
 				"%s: resume beacon xmit after %u misses\n",

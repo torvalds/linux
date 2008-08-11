@@ -504,7 +504,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 
 	do {
 		spin_lock_init(&sc->sc_rxflushlock);
-		sc->sc_rxflush = 0;
+		sc->sc_flags &= ~SC_OP_RXFLUSH;
 		spin_lock_init(&sc->sc_rxbuflock);
 
 		/*
@@ -707,11 +707,11 @@ void ath_flushrecv(struct ath_softc *sc)
 	 * progress (see references to sc_rxflush)
 	 */
 	spin_lock_bh(&sc->sc_rxflushlock);
-	sc->sc_rxflush = 1;
+	sc->sc_flags |= SC_OP_RXFLUSH;
 
 	ath_rx_tasklet(sc, 1);
 
-	sc->sc_rxflush = 0;
+	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_unlock_bh(&sc->sc_rxflushlock);
 }
 
@@ -755,7 +755,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 	do {
 		/* If handling rx interrupt and flush is in progress => exit */
-		if (sc->sc_rxflush && (flush == 0))
+		if ((sc->sc_flags & SC_OP_RXFLUSH) && (flush == 0))
 			break;
 
 		spin_lock_bh(&sc->sc_rxbuflock);

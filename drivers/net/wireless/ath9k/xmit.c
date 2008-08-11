@@ -485,12 +485,8 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	if (is_multicast_ether_addr(hdr->addr1)) {
 		antenna = sc->sc_mcastantenna + 1;
 		sc->sc_mcastantenna = (sc->sc_mcastantenna + 1) & 0x1;
-	} else
-		antenna = sc->sc_txantenna;
+	}
 
-#ifdef USE_LEGACY_HAL
-	txctl->antenna = antenna;
-#endif
 	return 0;
 }
 
@@ -743,7 +739,7 @@ static void ath_buf_set_rate(struct ath_softc *sc, struct ath_buf *bf)
 	int i, flags, rtsctsena = 0, dynamic_mimops = 0;
 	u32 ctsduration = 0;
 	u8 rix = 0, cix, ctsrate = 0;
-	u32 aggr_limit_with_rts = sc->sc_rtsaggrlimit;
+	u32 aggr_limit_with_rts = ah->ah_caps.rts_aggr_limit;
 	struct ath_node *an = (struct ath_node *) bf->bf_node;
 
 	/*

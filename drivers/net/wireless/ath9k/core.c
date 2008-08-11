@@ -1055,9 +1055,6 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	}
 	sc->sc_ah = ah;
 
-	/* Get the chipset-specific aggr limit. */
-	sc->sc_rtsaggrlimit = ah->ah_caps.rts_aggr_limit;
-
 	/* Get the hardware key cache size. */
 	sc->sc_keymax = ah->ah_caps.keycache_size;
 	if (sc->sc_keymax > ATH_KEYMAX) {
@@ -1215,13 +1212,6 @@ int ath_init(u16 devid, struct ath_softc *sc)
 
 	sc->sc_tx_chainmask = ah->ah_caps.tx_chainmask;
 	sc->sc_rx_chainmask = ah->ah_caps.rx_chainmask;
-
-	/* Configuration for rx chain detection */
-	sc->sc_rxchaindetect_ref = 0;
-	sc->sc_rxchaindetect_thresh5GHz = 35;
-	sc->sc_rxchaindetect_thresh2GHz = 35;
-	sc->sc_rxchaindetect_delta5GHz = 30;
-	sc->sc_rxchaindetect_delta2GHz = 30;
 
 	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->sc_defant = ath9k_hw_getdefantenna(ah);

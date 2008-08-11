@@ -724,11 +724,8 @@ void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hal *ah);
 int ath_beacon_alloc(struct ath_softc *sc, int if_id);
 void ath_bstuck_process(struct ath_softc *sc);
-void ath_beacon_tasklet(struct ath_softc *sc, int *needmark);
-void ath_beacon_free(struct ath_softc *sc);
 void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp);
 void ath_beacon_sync(struct ath_softc *sc, int if_id);
-void ath_update_beacon_info(struct ath_softc *sc, int avgbrssi);
 void ath_get_beaconconfig(struct ath_softc *sc,
 			  int if_id,
 			  struct ath_beacon_config *conf);
@@ -896,8 +893,10 @@ struct ath_ht_info {
 #define SC_OP_TXAGGR		BIT(3)
 #define SC_OP_CHAINMASK_UPDATE	BIT(4)
 #define SC_OP_FULL_RESET	BIT(5)
-#define SC_OP_PREAMBLE_SHORT	BIT(6)
-#define SC_OP_PROTECT_ENABLE	BIT(7)
+#define SC_OP_NO_RESET		BIT(6)
+#define SC_OP_PREAMBLE_SHORT	BIT(7)
+#define SC_OP_PROTECT_ENABLE	BIT(8)
+#define SC_OP_RXFLUSH		BIT(9)
 
 struct ath_softc {
 	struct ieee80211_hw *hw;
@@ -909,44 +908,39 @@ struct ath_softc {
 	struct ath_rate_softc *sc_rc;
 	void __iomem *mem;
 
+	u8 sc_curbssid[ETH_ALEN];
+	u8 sc_myaddr[ETH_ALEN];
+	u8 sc_bssidmask[ETH_ALEN];
+
 	int sc_debug;
 	u32 sc_intrstatus;
 	u32 sc_flags; /* SC_OP_* */
 	unsigned int rx_filter;
-
-	enum wireless_mode sc_curmode;	/* current phy mode */
 	u16 sc_curtxpow;
 	u16 sc_curaid;
-	u8 sc_curbssid[ETH_ALEN];
-	u8 sc_myaddr[ETH_ALEN];
-	enum PROT_MODE sc_protmode;
-	u8 sc_mcastantenna;
-	u8 sc_txantenna;		/* data tx antenna (fixed or auto) */
-	u8 sc_nbcnvaps;			/* # of vaps sending beacons */
-	u16 sc_nvaps;			/* # of active virtual ap's */
-	struct ath_vap *sc_vaps[ATH_BCBUF];
-	enum ath9k_int sc_imask;
-	u8 sc_bssidmask[ETH_ALEN];
-	u8 sc_defant;			/* current default antenna */
-	u8 sc_rxotherant;		/* rx's on non-default antenna */
 	u16 sc_cachelsz;
 	int sc_slotupdate;		/* slot to next advance fsm */
 	int sc_slottime;
-	u8 sc_noreset;
 	int sc_bslot[ATH_BCBUF];
+	u8 sc_tx_chainmask;
+	u8 sc_rx_chainmask;
+	enum ath9k_int sc_imask;
+	enum wireless_mode sc_curmode;	/* current phy mode */
+	enum PROT_MODE sc_protmode;
+
+	u8 sc_nbcnvaps;			/* # of vaps sending beacons */
+	u16 sc_nvaps;			/* # of active virtual ap's */
+	struct ath_vap *sc_vaps[ATH_BCBUF];
+
+	u8 sc_mcastantenna;
+	u8 sc_defant;			/* current default antenna */
+	u8 sc_rxotherant;		/* rx's on non-default antenna */
+
 	struct ath9k_node_stats sc_halstats; /* station-mode rssi stats */
 	struct list_head node_list;
 	struct ath_ht_info sc_ht_info;
-	int16_t sc_noise_floor;		/* signal noise floor in dBm */
 	enum ath9k_ht_extprotspacing sc_ht_extprotspacing;
-	u8 sc_tx_chainmask;
-	u8 sc_rx_chainmask;
-	u8 sc_rxchaindetect_ref;
-	u8 sc_rxchaindetect_thresh5GHz;
-	u8 sc_rxchaindetect_thresh2GHz;
-	u8 sc_rxchaindetect_delta5GHz;
-	u8 sc_rxchaindetect_delta2GHz;
-	u32 sc_rtsaggrlimit;		/* Chipset specific aggr limit */
+
 #ifdef CONFIG_SLOW_ANT_DIV
 	struct ath_antdiv sc_antdiv;
 #endif
@@ -967,7 +961,6 @@ struct ath_softc {
 	struct ath_descdma sc_rxdma;
 	int sc_rxbufsize;	/* rx size based on mtu */
 	u32 *sc_rxlink;		/* link ptr in last RX desc */
-	u32 sc_rxflush;		/* rx flush in progress */
 	u64 sc_lastrx;		/* tsf of last rx'd frame */
 
 	/* TX */
@@ -977,7 +970,6 @@ struct ath_softc {
 	u32 sc_txqsetup;
 	u32 sc_txintrperiod;	/* tx interrupt batching */
 	int sc_haltype2q[ATH9K_WME_AC_VO+1]; /* HAL WME	AC -> h/w qnum */
-	u32 sc_ant_tx[8];	/* recent tx frames/antenna */
 
 	/* Beacon */
 	struct ath9k_tx_queue_info sc_beacon_qi;
@@ -1016,13 +1008,7 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan);
 int ath_suspend(struct ath_softc *sc);
 irqreturn_t ath_isr(int irq, void *dev);
 int ath_reset(struct ath_softc *sc, bool retry_tx);
-void ath_scan_start(struct ath_softc *sc);
-void ath_scan_end(struct ath_softc *sc);
 int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan);
-void ath_setup_rate(struct ath_softc *sc,
-		    enum wireless_mode wMode,
-		    enum RATE_TYPE type,
-		    const struct ath9k_rate_table *rt);
 
 /*********************/
 /* Utility Functions */
@@ -1041,7 +1027,6 @@ int ath_cabq_update(struct ath_softc *);
 void ath_get_currentCountry(struct ath_softc *sc,
 	struct ath9k_country_entry *ctry);
 u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp);
-u32 ath_chan2flags(struct ieee80211_channel *chan, struct ath_softc *sc);
 dma_addr_t ath_skb_map_single(struct ath_softc *sc,
 			      struct sk_buff *skb,
 			      int direction,
@@ -1050,7 +1035,6 @@ void ath_skb_unmap_single(struct ath_softc *sc,
 			  struct sk_buff *skb,
 			  int direction,
 			  dma_addr_t *pa);
-void ath_mcast_merge(struct ath_softc *sc, u32 mfilt[2]);
 enum ath9k_ht_macmode ath_cwm_macmode(struct ath_softc *sc);
 
 #endif /* CORE_H */
