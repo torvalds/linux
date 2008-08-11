@@ -1726,9 +1726,9 @@ static int __init apic_set_verbosity(char *str)
 		apic_verbosity = APIC_DEBUG;
 	else if (strcmp("verbose", str) == 0)
 		apic_verbosity = APIC_VERBOSE;
-	return 1;
+	return 0;
 }
-__setup("apic=", apic_set_verbosity);
+early_param("apic", apic_set_verbosity);
 
 static int __init lapic_insert_resource(void)
 {
