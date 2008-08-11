@@ -21,9 +21,6 @@
 
 static int ath_outdoor;		/* enable outdoor use */
 
-static const u8 ath_bcast_mac[ETH_ALEN] =
-    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
 static u32 ath_chainmask_sel_up_rssi_thres =
 	ATH_CHAINMASK_SEL_UP_RSSI_THRES;
 static u32 ath_chainmask_sel_down_rssi_thres =
@@ -304,56 +301,6 @@ static int ath_stop(struct ath_softc *sc)
 		sc->sc_rxlink = NULL;
 
 	return 0;
-}
-
-/*
- *  Start Scan
- *
- *  This function is called when starting a channel scan.  It will perform
- *  power save wakeup processing, set the filter for the scan, and get the
- *  chip ready to send broadcast packets out during the scan.
-*/
-
-void ath_scan_start(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	u32 rfilt;
-	u32 now = (u32) jiffies_to_msecs(get_timestamp());
-
-	sc->sc_scanning = 1;
-	rfilt = ath_calcrxfilter(sc);
-	ath9k_hw_setrxfilter(ah, rfilt);
-	ath9k_hw_write_associd(ah, ath_bcast_mac, 0);
-
-	/* Restore previous power management state. */
-
-	DPRINTF(sc, ATH_DBG_CONFIG, "%d.%03d | %s: RX filter 0x%x aid 0\n",
-		now / 1000, now % 1000, __func__, rfilt);
-}
-
-/*
- *  Scan End
- *
- *  This routine is called by the upper layer when the scan is completed.  This
- *  will set the filters back to normal operating mode, set the BSSID to the
- *  correct value, and restore the power save state.
-*/
-
-void ath_scan_end(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	u32 rfilt;
-	u32 now = (u32) jiffies_to_msecs(get_timestamp());
-
-	sc->sc_scanning = 0;
-	/* Request for a full reset due to rx packet filter changes */
-	sc->sc_full_reset = 1;
-	rfilt = ath_calcrxfilter(sc);
-	ath9k_hw_setrxfilter(ah, rfilt);
-	ath9k_hw_write_associd(ah, sc->sc_curbssid, sc->sc_curaid);
-
-	DPRINTF(sc, ATH_DBG_CONFIG, "%d.%03d | %s: RX filter 0x%x aid 0x%x\n",
-		now / 1000, now % 1000, __func__, rfilt, sc->sc_curaid);
 }
 
 /*

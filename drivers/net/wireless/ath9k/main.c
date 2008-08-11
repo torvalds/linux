@@ -549,10 +549,6 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 			/* Update ratectrl about the new state */
 			ath_rate_newstate(sc, avp);
 
-			/* Set rx filter */
-			rfilt = ath_calcrxfilter(sc);
-			ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
-
 			/* Set BSSID */
 			memcpy(sc->sc_curbssid, conf->bssid, ETH_ALEN);
 			sc->sc_curaid = 0;
@@ -636,8 +632,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	FIF_BCN_PRBRESP_PROMISC |		\
 	FIF_FCSFAIL)
 
-/* Accept unicast, bcast and mcast frames */
-
+/* FIXME: sc->sc_full_reset ? */
 static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   unsigned int changed_flags,
 				   unsigned int *total_flags,
@@ -645,16 +640,22 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   struct dev_mc_list *mclist)
 {
 	struct ath_softc *sc = hw->priv;
+	u32 rfilt;
 
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
+	sc->rx_filter = *total_flags;
+	rfilt = ath_calcrxfilter(sc);
+	ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
+
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			ath_scan_start(sc);
-		else
-			ath_scan_end(sc);
+			ath9k_hw_write_associd(sc->sc_ah, ath_bcast_mac, 0);
 	}
+
+	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Set HW RX filter: 0x%x\n",
+		__func__, sc->rx_filter);
 }
 
 static void ath9k_sta_notify(struct ieee80211_hw *hw,

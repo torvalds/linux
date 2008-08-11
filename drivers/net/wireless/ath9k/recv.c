@@ -597,6 +597,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 u32 ath_calcrxfilter(struct ath_softc *sc)
 {
 #define	RX_FILTER_PRESERVE (ATH9K_RX_FILTER_PHYERR | ATH9K_RX_FILTER_PHYRADAR)
+
 	u32 rfilt;
 
 	rfilt = (ath9k_hw_getrxfilter(sc->sc_ah) & RX_FILTER_PRESERVE)
@@ -608,14 +609,17 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/* Can't set HOSTAP into promiscous mode */
-	if (sc->sc_opmode == ATH9K_M_MONITOR) {
+	if (((sc->sc_opmode != ATH9K_M_HOSTAP) &&
+	     (sc->rx_filter & FIF_PROMISC_IN_BSS)) ||
+	    (sc->sc_opmode == ATH9K_M_MONITOR)) {
 		rfilt |= ATH9K_RX_FILTER_PROM;
 		/* ??? To prevent from sending ACK */
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
 	}
 
-	if (sc->sc_opmode == ATH9K_M_STA || sc->sc_opmode == ATH9K_M_IBSS ||
-	    sc->sc_scanning)
+	if (((sc->sc_opmode == ATH9K_M_STA) &&
+	     (sc->rx_filter & FIF_BCN_PRBRESP_PROMISC)) ||
+	    (sc->sc_opmode == ATH9K_M_IBSS))
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
@@ -623,6 +627,7 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 	if (sc->sc_opmode == ATH9K_M_HOSTAP)
 		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
 	return rfilt;
+
 #undef RX_FILTER_PRESERVE
 }
 

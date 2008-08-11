@@ -95,6 +95,8 @@ static inline unsigned long get_timestamp(void)
 	return ((jiffies / HZ) * 1000) + (jiffies % HZ) * (1000 / HZ);
 }
 
+static const u8 ath_bcast_mac[ETH_ALEN] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
+
 /*************/
 /* Debugging */
 /*************/
@@ -919,10 +921,9 @@ struct ath_softc {
 	struct ath_rate_softc *sc_rc;	/* tx rate control support */
 	u32 sc_intrstatus;
 	enum ath9k_opmode sc_opmode;	/* current operating mode */
-
+	unsigned int rx_filter;
 	u8 sc_invalid;			/* being detached */
 	u8 sc_beacons;			/* beacons running */
-	u8 sc_scanning;			/* scanning active */
 	u8 sc_txaggr;			/* enable 11n tx aggregation */
 	u8 sc_rxaggr;			/* enable 11n rx aggregation */
 	u8 sc_update_chainmask;		/* change chain mask */
