@@ -34,7 +34,6 @@
 
 static const char *hfcpci_revision = "2.0";
 
-#define MAX_CARDS	8
 static int HFC_cnt;
 static uint debug;
 
@@ -2076,9 +2075,6 @@ setup_card(struct hfc_pci *card)
 	u_int		i;
 	u_long		flags;
 	char		name[MISDN_MAX_IDLEN];
-
-	if (HFC_cnt >= MAX_CARDS)
-		return -EINVAL; /* maybe better value */
 
 	card->dch.debug = debug;
 	spin_lock_init(&card->lock);
