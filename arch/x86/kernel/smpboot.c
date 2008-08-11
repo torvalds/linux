@@ -1386,17 +1386,3 @@ void __cpu_die(unsigned int cpu)
 	BUG();
 }
 #endif
-
-/*
- * If the BIOS enumerates physical processors before logical,
- * maxcpus=N at enumeration-time can be used to disable HT.
- */
-static int __init parse_maxcpus(char *arg)
-{
-	extern unsigned int maxcpus;
-
-	if (arg)
-		maxcpus = simple_strtoul(arg, NULL, 0);
-	return 0;
-}
-early_param("maxcpus", parse_maxcpus);
