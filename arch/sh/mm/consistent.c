@@ -95,6 +95,29 @@ void dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 }
 EXPORT_SYMBOL(dma_cache_sync);
 
+static int __init memchunk_setup(char *str)
+{
+	return 1; /* accept anything that begins with "memchunk." */
+}
+__setup("memchunk.", memchunk_setup);
+
+static void memchunk_cmdline_override(char *name, unsigned long *sizep)
+{
+	char *p = boot_command_line;
+	int k = strlen(name);
+
+	while ((p = strstr(p, "memchunk."))) {
+		p += 9; /* strlen("memchunk.") */
+		if (!strncmp(name, p, k) && p[k] == '=') {
+			p += k + 1;
+			*sizep = memparse(p, NULL);
+			pr_info("%s: forcing memory chunk size to 0x%08lx\n",
+				name, *sizep);
+			break;
+		}
+	}
+}
+
 int platform_resource_setup_memory(struct platform_device *pdev,
 				   char *name, unsigned long memsize)
 {
@@ -108,6 +131,10 @@ int platform_resource_setup_memory(struct platform_device *pdev,
 			name);
 		return -EINVAL;
 	}
+
+	memchunk_cmdline_override(name, &memsize);
+	if (!memsize)
+		return 0;
 
 	buf = dma_alloc_coherent(NULL, memsize, &dma_handle, GFP_KERNEL);
 	if (!buf) {
