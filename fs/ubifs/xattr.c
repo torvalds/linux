@@ -103,8 +103,8 @@ static int create_xattr(struct ubifs_info *c, struct inode *host,
 	struct inode *inode;
 	struct ubifs_inode *ui, *host_ui = ubifs_inode(host);
 	struct ubifs_budget_req req = { .new_ino = 1, .new_dent = 1,
-				.new_ino_d = size, .dirtied_ino = 1,
-				.dirtied_ino_d = ALIGN(host_ui->data_len, 8)};
+				.new_ino_d = ALIGN(size, 8), .dirtied_ino = 1,
+				.dirtied_ino_d = ALIGN(host_ui->data_len, 8) };
 
 	if (host_ui->xattr_cnt >= MAX_XATTRS_PER_INODE)
 		return -ENOSPC;
@@ -200,7 +200,7 @@ static int change_xattr(struct ubifs_info *c, struct inode *host,
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_budget_req req = { .dirtied_ino = 2,
-				.dirtied_ino_d = size + host_ui->data_len };
+		.dirtied_ino_d = ALIGN(size, 8) + ALIGN(host_ui->data_len, 8) };
 
 	ubifs_assert(ui->data_len == inode->i_size);
 	err = ubifs_budget_space(c, &req);
@@ -497,8 +497,8 @@ static int remove_xattr(struct ubifs_info *c, struct inode *host,
 	int err;
 	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_inode *ui = ubifs_inode(inode);
-	struct ubifs_budget_req req = { .dirtied_ino = 1, .mod_dent = 1,
-					.dirtied_ino_d = host_ui->data_len };
+	struct ubifs_budget_req req = { .dirtied_ino = 2, .mod_dent = 1,
+				.dirtied_ino_d = ALIGN(host_ui->data_len, 8) };
 
 	ubifs_assert(ui->data_len == inode->i_size);
 
