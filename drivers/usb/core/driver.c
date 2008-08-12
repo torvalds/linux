@@ -1630,12 +1630,10 @@ int usb_external_resume_device(struct usb_device *udev)
 	return status;
 }
 
-static int usb_suspend(struct device *dev, pm_message_t message)
+int usb_suspend(struct device *dev, pm_message_t message)
 {
 	struct usb_device	*udev;
 
-	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
-		return 0;
 	udev = to_usb_device(dev);
 
 	/* If udev is already suspended, we can skip this suspend and
@@ -1654,12 +1652,10 @@ static int usb_suspend(struct device *dev, pm_message_t message)
 	return usb_external_suspend_device(udev, message);
 }
 
-static int usb_resume(struct device *dev)
+int usb_resume(struct device *dev)
 {
 	struct usb_device	*udev;
 
-	if (!is_usb_device(dev))	/* Ignore PM for interfaces */
-		return 0;
 	udev = to_usb_device(dev);
 
 	/* If udev->skip_sys_resume is set then udev was already suspended
@@ -1671,17 +1667,10 @@ static int usb_resume(struct device *dev)
 	return usb_external_resume_device(udev);
 }
 
-#else
-
-#define usb_suspend	NULL
-#define usb_resume	NULL
-
 #endif /* CONFIG_PM */
 
 struct bus_type usb_bus_type = {
 	.name =		"usb",
 	.match =	usb_device_match,
 	.uevent =	usb_uevent,
-	.suspend =	usb_suspend,
-	.resume =	usb_resume,
 };

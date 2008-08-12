@@ -219,12 +219,6 @@ static int usb_dev_uevent(struct device *dev, struct kobj_uevent_env *env)
 }
 #endif	/* CONFIG_HOTPLUG */
 
-struct device_type usb_device_type = {
-	.name =		"usb_device",
-	.release =	usb_release_dev,
-	.uevent =	usb_dev_uevent,
-};
-
 #ifdef	CONFIG_PM
 
 static int ksuspend_usb_init(void)
@@ -244,12 +238,79 @@ static void ksuspend_usb_cleanup(void)
 	destroy_workqueue(ksuspend_usb_wq);
 }
 
+/* USB device Power-Management thunks.
+ * There's no need to distinguish here between quiescing a USB device
+ * and powering it down; the generic_suspend() routine takes care of
+ * it by skipping the usb_port_suspend() call for a quiesce.  And for
+ * USB interfaces there's no difference at all.
+ */
+
+static int usb_dev_prepare(struct device *dev)
+{
+	return 0;		/* Implement eventually? */
+}
+
+static void usb_dev_complete(struct device *dev)
+{
+	/* Currently used only for rebinding interfaces */
+	usb_resume(dev);	/* Implement eventually? */
+}
+
+static int usb_dev_suspend(struct device *dev)
+{
+	return usb_suspend(dev, PMSG_SUSPEND);
+}
+
+static int usb_dev_resume(struct device *dev)
+{
+	return usb_resume(dev);
+}
+
+static int usb_dev_freeze(struct device *dev)
+{
+	return usb_suspend(dev, PMSG_FREEZE);
+}
+
+static int usb_dev_thaw(struct device *dev)
+{
+	return usb_resume(dev);
+}
+
+static int usb_dev_poweroff(struct device *dev)
+{
+	return usb_suspend(dev, PMSG_HIBERNATE);
+}
+
+static int usb_dev_restore(struct device *dev)
+{
+	return usb_resume(dev);
+}
+
+static struct pm_ops usb_device_pm_ops = {
+	.prepare =	usb_dev_prepare,
+	.complete =	usb_dev_complete,
+	.suspend =	usb_dev_suspend,
+	.resume =	usb_dev_resume,
+	.freeze =	usb_dev_freeze,
+	.thaw =		usb_dev_thaw,
+	.poweroff =	usb_dev_poweroff,
+	.restore =	usb_dev_restore,
+};
+
 #else
 
 #define ksuspend_usb_init()	0
 #define ksuspend_usb_cleanup()	do {} while (0)
+#define usb_device_pm_ops	(*(struct pm_ops *)0)
 
 #endif	/* CONFIG_PM */
+
+struct device_type usb_device_type = {
+	.name =		"usb_device",
+	.release =	usb_release_dev,
+	.uevent =	usb_dev_uevent,
+	.pm =		&usb_device_pm_ops,
+};
 
 
 /* Returns 1 if @usb_bus is WUSB, 0 otherwise */
