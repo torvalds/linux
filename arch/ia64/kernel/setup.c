@@ -927,16 +927,18 @@ cpu_init (void)
 	if (smp_processor_id() == 0) {
 		cpu_set(0, per_cpu(cpu_sibling_map, 0));
 		cpu_set(0, cpu_core_map[0]);
+	} else {
+		/*
+		 * Set ar.k3 so that assembly code in MCA handler can compute
+		 * physical addresses of per cpu variables with a simple:
+		 *   phys = ar.k3 + &per_cpu_var
+		 * and the alt-dtlb-miss handler can set per-cpu mapping into
+		 * the TLB when needed. head.S already did this for cpu0.
+		 */
+		ia64_set_kr(IA64_KR_PER_CPU_DATA,
+			    ia64_tpa(cpu_data) - (long) __per_cpu_start);
 	}
 #endif
-
-	/*
-	 * We set ar.k3 so that assembly code in MCA handler can compute
-	 * physical addresses of per cpu variables with a simple:
-	 *   phys = ar.k3 + &per_cpu_var
-	 */
-	ia64_set_kr(IA64_KR_PER_CPU_DATA,
-		    ia64_tpa(cpu_data) - (long) __per_cpu_start);
 
 	get_max_cacheline_size();
 

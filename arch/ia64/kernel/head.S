@@ -359,7 +359,31 @@ start_ap:
 	mov ar.rsc=0		// place RSE in enforced lazy mode
 	;;
 	loadrs			// clear the dirty partition
-	mov IA64_KR(PER_CPU_DATA)=r0	// clear physical per-CPU base
+	movl r19=__phys_per_cpu_start
+	mov r18=PERCPU_PAGE_SIZE
+	;;
+#ifndef CONFIG_SMP
+	add r19=r19,r18
+	;;
+#else
+(isAP)	br.few 2f
+	mov r20=r19
+	sub r19=r19,r18
+	;;
+	shr.u r18=r18,3
+1:
+	ld8 r21=[r20],8;;
+	st8[r19]=r21,8
+	adds r18=-1,r18;;
+	cmp4.lt p7,p6=0,r18
+(p7)	br.cond.dptk.few 1b
+2:
+#endif
+	tpa r19=r19
+	;;
+	.pred.rel.mutex isBP,isAP
+(isBP)	mov IA64_KR(PER_CPU_DATA)=r19	// per-CPU base for cpu0
+(isAP)	mov IA64_KR(PER_CPU_DATA)=r0	// clear physical per-CPU base
 	;;
 	mov ar.bspstore=r2	// establish the new RSE stack
 	;;
