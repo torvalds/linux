@@ -107,7 +107,6 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 	b->mask.data = data;
 	b->mask.clock = clock;
 	b->adapter.owner = THIS_MODULE;
-	b->adapter.id = I2C_HW_B_G400;
 	snprintf(b->adapter.name, sizeof(b->adapter.name), name,
 		minfo->fbcon.node);
 	i2c_set_adapdata(&b->adapter, b);
@@ -182,6 +181,17 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 				  MAT_DATA, MAT_CLK, "MAVEN:fb%u", 0);
 		if (err)
 			printk(KERN_INFO "i2c-matroxfb: Could not register Maven i2c bus. Continuing anyway.\n");
+		else {
+			struct i2c_board_info maven_info = {
+				I2C_BOARD_INFO("maven", 0x1b),
+			};
+			unsigned short const addr_list[2] = {
+				0x1b, I2C_CLIENT_END
+			};
+
+			i2c_new_probed_device(&m2info->maven.adapter,
+					      &maven_info, addr_list);
+		}
 	}
 	return m2info;
 fail_ddc1:;
