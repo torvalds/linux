@@ -315,7 +315,8 @@ static void dr_controller_stop(struct fsl_udc *udc)
 	return;
 }
 
-void dr_ep_setup(unsigned char ep_num, unsigned char dir, unsigned char ep_type)
+static void dr_ep_setup(unsigned char ep_num, unsigned char dir,
+			unsigned char ep_type)
 {
 	unsigned int tmp_epctrl = 0;
 
