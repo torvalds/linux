@@ -105,7 +105,7 @@ struct svc_rdma_op_ctxt *svc_rdma_get_context(struct svcxprt_rdma *xprt)
 	return ctxt;
 }
 
-static void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
+void svc_rdma_unmap_dma(struct svc_rdma_op_ctxt *ctxt)
 {
 	struct svcxprt_rdma *xprt = ctxt->xprt;
 	int i;
@@ -343,9 +343,12 @@ static void process_context(struct svcxprt_rdma *xprt,
 		break;
 
 	case IB_WR_RDMA_READ:
+	case IB_WR_RDMA_READ_WITH_INV:
 		if (test_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags)) {
 			struct svc_rdma_op_ctxt *read_hdr = ctxt->read_hdr;
 			BUG_ON(!read_hdr);
+			if (test_bit(RDMACTXT_F_FAST_UNREG, &ctxt->flags))
+				svc_rdma_put_frmr(xprt, ctxt->frmr);
 			spin_lock_bh(&xprt->sc_rq_dto_lock);
 			set_bit(XPT_DATA, &xprt->sc_xprt.xpt_flags);
 			list_add_tail(&read_hdr->dto_q,

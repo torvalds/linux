@@ -116,7 +116,7 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
  *
  * Assumptions:
  * - chunk[0]->position points to pages[0] at an offset of 0
- * - pages[] is not physically or virtually contigous and consists of
+ * - pages[] is not physically or virtually contiguous and consists of
  *   PAGE_SIZE elements.
  *
  * Output:
@@ -125,7 +125,7 @@ static void rdma_build_arg_xdr(struct svc_rqst *rqstp,
  *   chunk in the read list
  *
  */
-static int rdma_rcl_to_sge(struct svcxprt_rdma *xprt,
+static int map_read_chunks(struct svcxprt_rdma *xprt,
 			   struct svc_rqst *rqstp,
 			   struct svc_rdma_op_ctxt *head,
 			   struct rpcrdma_msg *rmsgp,
@@ -211,26 +211,128 @@ static int rdma_rcl_to_sge(struct svcxprt_rdma *xprt,
 	return sge_no;
 }
 
-static void rdma_set_ctxt_sge(struct svcxprt_rdma *xprt,
-			      struct svc_rdma_op_ctxt *ctxt,
-			      struct kvec *vec,
-			      u64 *sgl_offset,
-			      int count)
+/* Map a read-chunk-list to an XDR and fast register the page-list.
+ *
+ * Assumptions:
+ * - chunk[0]	position points to pages[0] at an offset of 0
+ * - pages[]	will be made physically contiguous by creating a one-off memory
+ *		region using the fastreg verb.
+ * - byte_count is # of bytes in read-chunk-list
+ * - ch_count	is # of chunks in read-chunk-list
+ *
+ * Output:
+ * - sge array pointing into pages[] array.
+ * - chunk_sge array specifying sge index and count for each
+ *   chunk in the read list
+ */
+static int fast_reg_read_chunks(struct svcxprt_rdma *xprt,
+				struct svc_rqst *rqstp,
+				struct svc_rdma_op_ctxt *head,
+				struct rpcrdma_msg *rmsgp,
+				struct svc_rdma_req_map *rpl_map,
+				struct svc_rdma_req_map *chl_map,
+				int ch_count,
+				int byte_count)
+{
+	int page_no;
+	int ch_no;
+	u32 offset;
+	struct rpcrdma_read_chunk *ch;
+	struct svc_rdma_fastreg_mr *frmr;
+	int ret = 0;
+
+	frmr = svc_rdma_get_frmr(xprt);
+	if (IS_ERR(frmr))
+		return -ENOMEM;
+
+	head->frmr = frmr;
+	head->arg.head[0] = rqstp->rq_arg.head[0];
+	head->arg.tail[0] = rqstp->rq_arg.tail[0];
+	head->arg.pages = &head->pages[head->count];
+	head->hdr_count = head->count; /* save count of hdr pages */
+	head->arg.page_base = 0;
+	head->arg.page_len = byte_count;
+	head->arg.len = rqstp->rq_arg.len + byte_count;
+	head->arg.buflen = rqstp->rq_arg.buflen + byte_count;
+
+	/* Fast register the page list */
+	frmr->kva = page_address(rqstp->rq_arg.pages[0]);
+	frmr->direction = DMA_FROM_DEVICE;
+	frmr->access_flags = (IB_ACCESS_LOCAL_WRITE|IB_ACCESS_REMOTE_WRITE);
+	frmr->map_len = byte_count;
+	frmr->page_list_len = PAGE_ALIGN(byte_count) >> PAGE_SHIFT;
+	for (page_no = 0; page_no < frmr->page_list_len; page_no++) {
+		frmr->page_list->page_list[page_no] =
+			ib_dma_map_single(xprt->sc_cm_id->device,
+					  page_address(rqstp->rq_arg.pages[page_no]),
+					  PAGE_SIZE, DMA_TO_DEVICE);
+		if (ib_dma_mapping_error(xprt->sc_cm_id->device,
+					 frmr->page_list->page_list[page_no]))
+			goto fatal_err;
+		atomic_inc(&xprt->sc_dma_used);
+		head->arg.pages[page_no] = rqstp->rq_arg.pages[page_no];
+	}
+	head->count += page_no;
+
+	/* rq_respages points one past arg pages */
+	rqstp->rq_respages = &rqstp->rq_arg.pages[page_no];
+
+	/* Create the reply and chunk maps */
+	offset = 0;
+	ch = (struct rpcrdma_read_chunk *)&rmsgp->rm_body.rm_chunks[0];
+	for (ch_no = 0; ch_no < ch_count; ch_no++) {
+		rpl_map->sge[ch_no].iov_base = frmr->kva + offset;
+		rpl_map->sge[ch_no].iov_len = ch->rc_target.rs_length;
+		chl_map->ch[ch_no].count = 1;
+		chl_map->ch[ch_no].start = ch_no;
+		offset += ch->rc_target.rs_length;
+		ch++;
+	}
+
+	ret = svc_rdma_fastreg(xprt, frmr);
+	if (ret)
+		goto fatal_err;
+
+	return ch_no;
+
+ fatal_err:
+	printk("svcrdma: error fast registering xdr for xprt %p", xprt);
+	svc_rdma_put_frmr(xprt, frmr);
+	return -EIO;
+}
+
+static int rdma_set_ctxt_sge(struct svcxprt_rdma *xprt,
+			     struct svc_rdma_op_ctxt *ctxt,
+			     struct svc_rdma_fastreg_mr *frmr,
+			     struct kvec *vec,
+			     u64 *sgl_offset,
+			     int count)
 {
 	int i;
 
 	ctxt->count = count;
 	ctxt->direction = DMA_FROM_DEVICE;
 	for (i = 0; i < count; i++) {
-		atomic_inc(&xprt->sc_dma_used);
-		ctxt->sge[i].addr =
-			ib_dma_map_single(xprt->sc_cm_id->device,
-					  vec[i].iov_base, vec[i].iov_len,
-					  DMA_FROM_DEVICE);
+		ctxt->sge[i].length = 0; /* in case map fails */
+		if (!frmr) {
+			ctxt->sge[i].addr =
+				ib_dma_map_single(xprt->sc_cm_id->device,
+						  vec[i].iov_base,
+						  vec[i].iov_len,
+						  DMA_FROM_DEVICE);
+			if (ib_dma_mapping_error(xprt->sc_cm_id->device,
+						 ctxt->sge[i].addr))
+				return -EINVAL;
+			ctxt->sge[i].lkey = xprt->sc_dma_lkey;
+			atomic_inc(&xprt->sc_dma_used);
+		} else {
+			ctxt->sge[i].addr = (unsigned long)vec[i].iov_base;
+			ctxt->sge[i].lkey = frmr->mr->lkey;
+		}
 		ctxt->sge[i].length = vec[i].iov_len;
-		ctxt->sge[i].lkey = xprt->sc_phys_mr->lkey;
 		*sgl_offset = *sgl_offset + vec[i].iov_len;
 	}
+	return 0;
 }
 
 static int rdma_read_max_sge(struct svcxprt_rdma *xprt, int sge_count)
@@ -278,6 +380,7 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 			 struct svc_rdma_op_ctxt *hdr_ctxt)
 {
 	struct ib_send_wr read_wr;
+	struct ib_send_wr inv_wr;
 	int err = 0;
 	int ch_no;
 	int ch_count;
@@ -301,9 +404,20 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 	svc_rdma_rcl_chunk_counts(ch, &ch_count, &byte_count);
 	if (ch_count > RPCSVC_MAXPAGES)
 		return -EINVAL;
-	sge_count = rdma_rcl_to_sge(xprt, rqstp, hdr_ctxt, rmsgp,
-				    rpl_map, chl_map,
-				    ch_count, byte_count);
+
+	if (!xprt->sc_frmr_pg_list_len)
+		sge_count = map_read_chunks(xprt, rqstp, hdr_ctxt, rmsgp,
+					    rpl_map, chl_map, ch_count,
+					    byte_count);
+	else
+		sge_count = fast_reg_read_chunks(xprt, rqstp, hdr_ctxt, rmsgp,
+						 rpl_map, chl_map, ch_count,
+						 byte_count);
+	if (sge_count < 0) {
+		err = -EIO;
+		goto out;
+	}
+
 	sgl_offset = 0;
 	ch_no = 0;
 
@@ -312,13 +426,16 @@ static int rdma_read_xdr(struct svcxprt_rdma *xprt,
 next_sge:
 		ctxt = svc_rdma_get_context(xprt);
 		ctxt->direction = DMA_FROM_DEVICE;
+		ctxt->frmr = hdr_ctxt->frmr;
+		ctxt->read_hdr = NULL;
 		clear_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
+		clear_bit(RDMACTXT_F_FAST_UNREG, &ctxt->flags);
 
 		/* Prepare READ WR */
 		memset(&read_wr, 0, sizeof read_wr);
-		ctxt->wr_op = IB_WR_RDMA_READ;
 		read_wr.wr_id = (unsigned long)ctxt;
 		read_wr.opcode = IB_WR_RDMA_READ;
+		ctxt->wr_op = read_wr.opcode;
 		read_wr.send_flags = IB_SEND_SIGNALED;
 		read_wr.wr.rdma.rkey = ch->rc_target.rs_handle;
 		read_wr.wr.rdma.remote_addr =
@@ -327,10 +444,15 @@ next_sge:
 		read_wr.sg_list = ctxt->sge;
 		read_wr.num_sge =
 			rdma_read_max_sge(xprt, chl_map->ch[ch_no].count);
-		rdma_set_ctxt_sge(xprt, ctxt,
-				  &rpl_map->sge[chl_map->ch[ch_no].start],
-				  &sgl_offset,
-				  read_wr.num_sge);
+		err = rdma_set_ctxt_sge(xprt, ctxt, hdr_ctxt->frmr,
+					&rpl_map->sge[chl_map->ch[ch_no].start],
+					&sgl_offset,
+					read_wr.num_sge);
+		if (err) {
+			svc_rdma_unmap_dma(ctxt);
+			svc_rdma_put_context(ctxt, 0);
+			goto out;
+		}
 		if (((ch+1)->rc_discrim == 0) &&
 		    (read_wr.num_sge == chl_map->ch[ch_no].count)) {
 			/*
@@ -339,6 +461,29 @@ next_sge:
 			 * the client and the RPC needs to be enqueued.
 			 */
 			set_bit(RDMACTXT_F_LAST_CTXT, &ctxt->flags);
+			if (hdr_ctxt->frmr) {
+				set_bit(RDMACTXT_F_FAST_UNREG, &ctxt->flags);
+				/*
+				 * Invalidate the local MR used to map the data
+				 * sink.
+				 */
+				if (xprt->sc_dev_caps &
+				    SVCRDMA_DEVCAP_READ_W_INV) {
+					read_wr.opcode =
+						IB_WR_RDMA_READ_WITH_INV;
+					ctxt->wr_op = read_wr.opcode;
+					read_wr.ex.invalidate_rkey =
+						ctxt->frmr->mr->lkey;
+				} else {
+					/* Prepare INVALIDATE WR */
+					memset(&inv_wr, 0, sizeof inv_wr);
+					inv_wr.opcode = IB_WR_LOCAL_INV;
+					inv_wr.send_flags = IB_SEND_SIGNALED;
+					inv_wr.ex.invalidate_rkey =
+						hdr_ctxt->frmr->mr->lkey;
+					read_wr.next = &inv_wr;
+				}
+			}
 			ctxt->read_hdr = hdr_ctxt;
 		}
 		/* Post the read */
