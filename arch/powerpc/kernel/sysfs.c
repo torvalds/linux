@@ -641,16 +641,9 @@ static void remove_cache_info(struct sys_device *sysdev)
 	int cpu = sysdev->id;
 
 	cache_desc = per_cpu(cache_desc, cpu);
-	if (cache_desc != NULL) {
-		sysfs_remove_file(&cache_desc->kobj, &cache_size_attr.attr);
-		sysfs_remove_file(&cache_desc->kobj, &cache_line_size_attr.attr);
-		sysfs_remove_file(&cache_desc->kobj, &cache_type_attr.attr);
-		sysfs_remove_file(&cache_desc->kobj, &cache_level_attr.attr);
-		sysfs_remove_file(&cache_desc->kobj, &cache_nr_sets_attr.attr);
-		sysfs_remove_file(&cache_desc->kobj, &cache_assoc_attr.attr);
-
+	if (cache_desc != NULL)
 		kobject_put(&cache_desc->kobj);
-	}
+
 	cache_toplevel = per_cpu(cache_toplevel, cpu);
 	if (cache_toplevel != NULL)
 		kobject_put(cache_toplevel);
