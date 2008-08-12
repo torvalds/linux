@@ -18,6 +18,7 @@
 #include <linux/sched.h>
 #include <linux/pagemap.h>
 #include <linux/writeback.h>
+#include <linux/blkdev.h>
 #include "hash.h"
 #include "crc32c.h"
 #include "ctree.h"
@@ -1716,6 +1717,10 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (refs == 0) {
 		u64 super_used;
 		u64 root_used;
+#ifdef BIO_RW_DISCARD
+		u64 map_length = num_bytes;
+		struct btrfs_multi_bio *multi = NULL;
+#endif
 
 		if (pin) {
 			ret = pin_down_bytes(root, bytenr, num_bytes, 0);
@@ -1743,6 +1748,26 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 		ret = update_block_group(trans, root, bytenr, num_bytes, 0,
 					 mark_free);
 		BUG_ON(ret);
+
+#ifdef BIO_RW_DISCARD
+		/* Tell the block device(s) that the sectors can be discarded */
+		ret = btrfs_map_block(&root->fs_info->mapping_tree, READ,
+				      bytenr, &map_length, &multi, 0);
+		if (!ret) {
+			struct btrfs_bio_stripe *stripe = multi->stripes;
+			int i;
+
+			if (map_length > num_bytes)
+				map_length = num_bytes;
+
+			for (i = 0; i < multi->num_stripes; i++, stripe++) {
+				blkdev_issue_discard(stripe->dev->bdev,
+						     stripe->physical >> 9,
+						     map_length >> 9);
+			}
+			kfree(multi);
+		}
+#endif
 	}
 	btrfs_free_path(path);
 	finish_current_insert(trans, extent_root);
