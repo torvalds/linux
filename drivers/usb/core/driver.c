@@ -926,14 +926,14 @@ static int usb_resume_device(struct usb_device *udev)
 }
 
 /* Caller has locked intf's usb_device's pm mutex */
-static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
+static int usb_suspend_interface(struct usb_device *udev,
+		struct usb_interface *intf, pm_message_t msg)
 {
 	struct usb_driver	*driver;
 	int			status = 0;
 
 	/* with no hardware, USB interfaces only use FREEZE and ON states */
-	if (interface_to_usbdev(intf)->state == USB_STATE_NOTATTACHED ||
-			!is_active(intf))
+	if (udev->state == USB_STATE_NOTATTACHED || !is_active(intf))
 		goto done;
 
 	if (intf->condition == USB_INTERFACE_UNBOUND)	/* This can't happen */
@@ -944,7 +944,7 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 		status = driver->suspend(intf, msg);
 		if (status == 0)
 			mark_quiesced(intf);
-		else if (!interface_to_usbdev(intf)->auto_pm)
+		else if (!udev->auto_pm)
 			dev_err(&intf->dev, "%s error %d\n",
 					"suspend", status);
 	} else {
@@ -961,13 +961,13 @@ static int usb_suspend_interface(struct usb_interface *intf, pm_message_t msg)
 }
 
 /* Caller has locked intf's usb_device's pm_mutex */
-static int usb_resume_interface(struct usb_interface *intf, int reset_resume)
+static int usb_resume_interface(struct usb_device *udev,
+		struct usb_interface *intf, int reset_resume)
 {
 	struct usb_driver	*driver;
 	int			status = 0;
 
-	if (interface_to_usbdev(intf)->state == USB_STATE_NOTATTACHED ||
-			is_active(intf))
+	if (udev->state == USB_STATE_NOTATTACHED || is_active(intf))
 		goto done;
 
 	/* Don't let autoresume interfere with unbinding */
@@ -1151,7 +1151,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	if (udev->actconfig) {
 		for (; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			intf = udev->actconfig->interface[i];
-			status = usb_suspend_interface(intf, msg);
+			status = usb_suspend_interface(udev, intf, msg);
 			if (status != 0)
 				break;
 		}
@@ -1163,7 +1163,7 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	if (status != 0) {
 		while (--i >= 0) {
 			intf = udev->actconfig->interface[i];
-			usb_resume_interface(intf, 0);
+			usb_resume_interface(udev, intf, 0);
 		}
 
 		/* Try another autosuspend when the interfaces aren't busy */
@@ -1276,7 +1276,7 @@ static int usb_resume_both(struct usb_device *udev)
 	if (status == 0 && udev->actconfig) {
 		for (i = 0; i < udev->actconfig->desc.bNumInterfaces; i++) {
 			intf = udev->actconfig->interface[i];
-			usb_resume_interface(intf, udev->reset_resume);
+			usb_resume_interface(udev, intf, udev->reset_resume);
 		}
 	}
 
