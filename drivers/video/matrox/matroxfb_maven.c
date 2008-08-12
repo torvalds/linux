@@ -1266,7 +1266,7 @@ static int maven_detect_client(struct i2c_adapter* adapter, int address, int kin
 ERROR4:;
 	i2c_detach_client(new_client);
 ERROR3:;
-	kfree(new_client);
+	kfree(data);
 ERROR0:;
 	return err;
 }
