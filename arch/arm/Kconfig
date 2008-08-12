@@ -178,6 +178,11 @@ config OPROFILE_MPCORE
 config OPROFILE_ARM11_CORE
 	bool
 
+config OPROFILE_ARMV7
+	def_bool y
+	depends on CPU_V7 && !SMP
+	bool
+
 endif
 
 config VECTORS_BASE
