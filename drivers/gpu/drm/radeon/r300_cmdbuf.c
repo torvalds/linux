@@ -136,6 +136,18 @@ static int r300_emit_cliprects(drm_radeon_private_t *dev_priv,
 		ADVANCE_RING();
 	}
 
+	/* flus cache and wait idle clean after cliprect change */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_DC_FLUSH);
+	ADVANCE_RING();
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	ADVANCE_RING();
+	/* set flush flag */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED;
+
 	return 0;
 }
 
@@ -166,13 +178,13 @@ void r300_init_reg_flags(struct drm_device *dev)
 	ADD_RANGE(0x21DC, 1);
 	ADD_RANGE(R300_VAP_UNKNOWN_221C, 1);
 	ADD_RANGE(R300_VAP_CLIP_X_0, 4);
-	ADD_RANGE(R300_VAP_PVS_WAITIDLE, 1);
+	ADD_RANGE(R300_VAP_PVS_STATE_FLUSH_REG, 1);
 	ADD_RANGE(R300_VAP_UNKNOWN_2288, 1);
 	ADD_RANGE(R300_VAP_OUTPUT_VTX_FMT_0, 2);
 	ADD_RANGE(R300_VAP_PVS_CNTL_1, 3);
 	ADD_RANGE(R300_GB_ENABLE, 1);
 	ADD_RANGE(R300_GB_MSPOS0, 5);
-	ADD_RANGE(R300_TX_CNTL, 1);
+	ADD_RANGE(R300_TX_INVALTAGS, 1);
 	ADD_RANGE(R300_TX_ENABLE, 1);
 	ADD_RANGE(0x4200, 4);
 	ADD_RANGE(0x4214, 1);
@@ -388,15 +400,28 @@ static __inline__ int r300_emit_vpu(drm_radeon_private_t *dev_priv,
 	if (sz * 16 > cmdbuf->bufsz)
 		return -EINVAL;
 
-	BEGIN_RING(5 + sz * 4);
-	/* Wait for VAP to come to senses.. */
-	/* there is no need to emit it multiple times, (only once before VAP is programmed,
-	   but this optimization is for later */
-	OUT_RING_REG(R300_VAP_PVS_WAITIDLE, 0);
+	/* VAP is very sensitive so we purge cache before we program it
+	 * and we also flush its state before & after */
+	BEGIN_RING(6);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_DC_FLUSH);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	OUT_RING(CP_PACKET0(R300_VAP_PVS_STATE_FLUSH_REG, 0));
+	OUT_RING(0);
+	ADVANCE_RING();
+	/* set flush flag */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED;
+
+	BEGIN_RING(3 + sz * 4);
 	OUT_RING_REG(R300_VAP_PVS_UPLOAD_ADDRESS, addr);
 	OUT_RING(CP_PACKET0_TABLE(R300_VAP_PVS_UPLOAD_DATA, sz * 4 - 1));
 	OUT_RING_TABLE((int *)cmdbuf->buf, sz * 4);
+	ADVANCE_RING();
 
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_VAP_PVS_STATE_FLUSH_REG, 0));
+	OUT_RING(0);
 	ADVANCE_RING();
 
 	cmdbuf->buf += sz * 16;
@@ -423,6 +448,15 @@ static __inline__ int r300_emit_clear(drm_radeon_private_t *dev_priv,
 		 (1 << R300_PRIM_NUM_VERTICES_SHIFT));
 	OUT_RING_TABLE((int *)cmdbuf->buf, 8);
 	ADVANCE_RING();
+
+	BEGIN_RING(4);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(R300_RB3D_DC_FLUSH);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	ADVANCE_RING();
+	/* set flush flag */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED;
 
 	cmdbuf->buf += 8 * 4;
 	cmdbuf->bufsz -= 8 * 4;
@@ -613,11 +647,19 @@ static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 	case RADEON_CNTL_BITBLT_MULTI:
 		return r300_emit_bitblt_multi(dev_priv, cmdbuf);
 
-	case RADEON_CP_INDX_BUFFER:	/* DRAW_INDX_2 without INDX_BUFFER seems to lock up the gpu */
+	case RADEON_CP_INDX_BUFFER:
+		/* DRAW_INDX_2 without INDX_BUFFER seems to lock up the gpu */
 		return r300_emit_indx_buffer(dev_priv, cmdbuf);
-	case RADEON_CP_3D_DRAW_IMMD_2:	/* triggers drawing using in-packet vertex data */
-	case RADEON_CP_3D_DRAW_VBUF_2:	/* triggers drawing of vertex buffers setup elsewhere */
-	case RADEON_CP_3D_DRAW_INDX_2:	/* triggers drawing using indices to vertex buffer */
+	case RADEON_CP_3D_DRAW_IMMD_2:
+		/* triggers drawing using in-packet vertex data */
+	case RADEON_CP_3D_DRAW_VBUF_2:
+		/* triggers drawing of vertex buffers setup elsewhere */
+	case RADEON_CP_3D_DRAW_INDX_2:
+		/* triggers drawing using indices to vertex buffer */
+		/* whenever we send vertex we clear flush & purge */
+		dev_priv->track_flush &= ~(RADEON_FLUSH_EMITED |
+					   RADEON_PURGE_EMITED);
+		break;
 	case RADEON_WAIT_FOR_IDLE:
 	case RADEON_CP_NOP:
 		/* these packets are safe */
@@ -713,17 +755,53 @@ static __inline__ int r300_emit_packet3(drm_radeon_private_t *dev_priv,
  */
 static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
 {
+	uint32_t cache_z, cache_3d, cache_2d;
 	RING_LOCALS;
+	
+	cache_z = R300_ZC_FLUSH;
+	cache_2d = R300_RB2D_DC_FLUSH;
+	cache_3d = R300_RB3D_DC_FLUSH;
+	if (!(dev_priv->track_flush & RADEON_PURGE_EMITED)) {
+		/* we can purge, primitive where draw since last purge */
+		cache_z |= R300_ZC_FREE;
+		cache_2d |= R300_RB2D_DC_FREE;
+		cache_3d |= R300_RB3D_DC_FREE;
+	}
 
-	BEGIN_RING(6);
-	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
-	OUT_RING(R300_RB3D_DSTCACHE_UNKNOWN_0A);
+	/* flush & purge zbuffer */
+	BEGIN_RING(2);
 	OUT_RING(CP_PACKET0(R300_ZB_ZCACHE_CTLSTAT, 0));
-	OUT_RING(R300_ZB_ZCACHE_CTLSTAT_ZC_FLUSH_FLUSH_AND_FREE|
-		 R300_ZB_ZCACHE_CTLSTAT_ZC_FREE_FREE);
-	OUT_RING(CP_PACKET3(RADEON_CP_NOP, 0));
-	OUT_RING(0x0);
+	OUT_RING(cache_z);
 	ADVANCE_RING();
+	/* flush & purge 3d */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_RB3D_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(cache_3d);
+	ADVANCE_RING();
+	/* flush & purge texture */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_TX_INVALTAGS, 0));
+	OUT_RING(0);
+	ADVANCE_RING();
+	/* FIXME: is this one really needed ? */
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(R300_RB3D_AARESOLVE_CTL, 0));
+	OUT_RING(0);
+	ADVANCE_RING();
+	BEGIN_RING(2);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_3D_IDLECLEAN);
+	ADVANCE_RING();
+	/* flush & purge 2d through E2 as RB2D will trigger lockup */
+	BEGIN_RING(4);
+	OUT_RING(CP_PACKET0(R300_DSTCACHE_CTLSTAT, 0));
+	OUT_RING(cache_2d);
+	OUT_RING(CP_PACKET0(RADEON_WAIT_UNTIL, 0));
+	OUT_RING(RADEON_WAIT_2D_IDLECLEAN |
+		 RADEON_WAIT_HOST_IDLECLEAN);
+	ADVANCE_RING();
+	/* set flush & purge flags */
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED | RADEON_PURGE_EMITED;
 }
 
 /**
@@ -905,8 +983,7 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 
 	DRM_DEBUG("\n");
 
-	/* See the comment above r300_emit_begin3d for why this call must be here,
-	 * and what the cleanup gotos are for. */
+	/* pacify */
 	r300_pacify(dev_priv);
 
 	if (cmdbuf->nbox <= R300_SIMULTANEOUS_CLIPRECTS) {
