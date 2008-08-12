@@ -71,16 +71,14 @@ fsl_ep0_desc = {
 	.wMaxPacketSize =	USB_MAX_CTRL_PAYLOAD,
 };
 
-static int fsl_udc_suspend(struct platform_device *pdev, pm_message_t state);
-static int fsl_udc_resume(struct platform_device *pdev);
 static void fsl_ep_fifo_flush(struct usb_ep *_ep);
 
 #ifdef CONFIG_PPC32
 #define fsl_readl(addr)		in_le32(addr)
-#define fsl_writel(addr, val32) out_le32(val32, addr)
+#define fsl_writel(val32, addr) out_le32(addr, val32)
 #else
 #define fsl_readl(addr)		readl(addr)
-#define fsl_writel(addr, val32) writel(addr, val32)
+#define fsl_writel(val32, addr) writel(val32, addr)
 #endif
 
 /********************************************************************
