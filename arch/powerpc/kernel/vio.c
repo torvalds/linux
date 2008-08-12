@@ -1113,7 +1113,7 @@ static int vio_bus_probe(struct device *dev)
 				return error;
 		}
 		error = viodrv->probe(viodev, id);
-		if (error)
+		if (error && firmware_has_feature(FW_FEATURE_CMO))
 			vio_cmo_bus_remove(viodev);
 	}
 
