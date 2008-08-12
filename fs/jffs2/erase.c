@@ -68,7 +68,7 @@ static void jffs2_erase_block(struct jffs2_sb_info *c,
 	instr->len = c->sector_size;
 	instr->callback = jffs2_erase_callback;
 	instr->priv = (unsigned long)(&instr[1]);
-	instr->fail_addr = 0xffffffff;
+	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
 	((struct erase_priv_struct *)instr->priv)->jeb = jeb;
 	((struct erase_priv_struct *)instr->priv)->c = c;
@@ -175,7 +175,7 @@ static void jffs2_erase_failed(struct jffs2_sb_info *c, struct jffs2_eraseblock 
 {
 	/* For NAND, if the failure did not occur at the device level for a
 	   specific physical page, don't bother updating the bad block table. */
-	if (jffs2_cleanmarker_oob(c) && (bad_offset != 0xffffffff)) {
+	if (jffs2_cleanmarker_oob(c) && (bad_offset != MTD_FAIL_ADDR_UNKNOWN)) {
 		/* We had a device-level failure to erase.  Let's see if we've
 		   failed too many times. */
 		if (!jffs2_write_nand_badblock(c, jeb, bad_offset)) {

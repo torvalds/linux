@@ -2042,7 +2042,7 @@ int nand_erase_nand(struct mtd_info *mtd, struct erase_info *instr,
 		return -EINVAL;
 	}
 
-	instr->fail_addr = 0xffffffff;
+	instr->fail_addr = MTD_FAIL_ADDR_UNKNOWN;
 
 	/* Grab the lock and see if the device is available */
 	nand_get_device(chip, mtd, FL_ERASING);
