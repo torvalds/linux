@@ -1374,7 +1374,7 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 			   const struct inode *host)
 {
 	int err, len1, len2, aligned_len, aligned_len1, lnum, offs;
-	struct ubifs_inode *host_ui = ubifs_inode(inode);
+	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_ino_node *ino;
 	union ubifs_key key;
 	int sync = IS_DIRSYNC(host);
