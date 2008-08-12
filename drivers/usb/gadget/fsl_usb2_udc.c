@@ -592,7 +592,7 @@ static void fsl_free_request(struct usb_ep *_ep, struct usb_request *_req)
 }
 
 /*-------------------------------------------------------------------------*/
-static int fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
+static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 {
 	int i = ep_index(ep) * 2 + ep_is_in(ep);
 	u32 temp, bitmask, tmp_stat;
@@ -649,7 +649,7 @@ static int fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 		: (1 << (ep_index(ep)));
 	fsl_writel(temp, &dr_regs->endpointprime);
 out:
-	return 0;
+	return;
 }
 
 /* Fill in the dTD structure
@@ -1136,7 +1136,6 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 {
 	struct fsl_req *req = udc->status_req;
 	struct fsl_ep *ep;
-	int status = 0;
 
 	if (direction == EP_DIR_IN)
 		udc->ep0_dir = USB_DIR_IN;
@@ -1154,15 +1153,13 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 	req->dtd_count = 0;
 
 	if (fsl_req_to_dtd(req) == 0)
-		status = fsl_queue_td(ep, req);
+		fsl_queue_td(ep, req);
 	else
 		return -ENOMEM;
 
-	if (status)
-		ERR("Can't queue ep0 status request\n");
 	list_add_tail(&req->queue, &ep->queue);
 
-	return status;
+	return 0;
 }
 
 static void udc_reset_ep_queue(struct fsl_udc *udc, u8 pipe)
@@ -1194,10 +1191,8 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 		u16 index, u16 length)
 {
 	u16 tmp = 0;		/* Status, cpu endian */
-
 	struct fsl_req *req;
 	struct fsl_ep *ep;
-	int status = 0;
 
 	ep = &udc->eps[0];
 
@@ -1236,14 +1231,10 @@ static void ch9getstatus(struct fsl_udc *udc, u8 request_type, u16 value,
 
 	/* prime the data phase */
 	if ((fsl_req_to_dtd(req) == 0))
-		status = fsl_queue_td(ep, req);
+		fsl_queue_td(ep, req);
 	else			/* no mem */
 		goto stall;
 
-	if (status) {
-		ERR("Can't respond to getstatus request\n");
-		goto stall;
-	}
 	list_add_tail(&req->queue, &ep->queue);
 	udc->ep0_state = DATA_STATE_XMIT;
 	return;
