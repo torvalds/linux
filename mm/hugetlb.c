@@ -1949,7 +1949,10 @@ retry:
 	 * the spinlock.
 	 */
 	if (write_access && !(vma->vm_flags & VM_SHARED))
-		vma_needs_reservation(h, vma, address);
+		if (vma_needs_reservation(h, vma, address) < 0) {
+			ret = VM_FAULT_OOM;
+			goto backout_unlocked;
+		}
 
 	spin_lock(&mm->page_table_lock);
 	size = i_size_read(mapping->host) >> huge_page_shift(h);
@@ -1976,6 +1979,7 @@ out:
 
 backout:
 	spin_unlock(&mm->page_table_lock);
+backout_unlocked:
 	unlock_page(page);
 	put_page(page);
 	goto out;
@@ -2004,8 +2008,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	entry = huge_ptep_get(ptep);
 	if (huge_pte_none(entry)) {
 		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
-		mutex_unlock(&hugetlb_instantiation_mutex);
-		return ret;
+		goto out_unlock;
 	}
 
 	ret = 0;
@@ -2019,7 +2022,10 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * consumed.
 	 */
 	if (write_access && !pte_write(entry)) {
-		vma_needs_reservation(h, vma, address);
+		if (vma_needs_reservation(h, vma, address) < 0) {
+			ret = VM_FAULT_OOM;
+			goto out_unlock;
+		}
 
 		if (!(vma->vm_flags & VM_SHARED))
 			pagecache_page = hugetlbfs_pagecache_page(h,
@@ -2039,6 +2045,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 		put_page(pagecache_page);
 	}
 
+out_unlock:
 	mutex_unlock(&hugetlb_instantiation_mutex);
 
 	return ret;
