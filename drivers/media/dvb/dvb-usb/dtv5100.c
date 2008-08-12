@@ -32,7 +32,7 @@ MODULE_PARM_DESC(debug, "set debugging level" DVB_USB_DEBUG_STATUS);
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
 static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
-			  u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
+			   u8 *wbuf, u16 wlen, u8 *rbuf, u16 rlen)
 {
 	u8 request;
 	u8 type;
@@ -44,14 +44,14 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 		/* write { reg }, read { value } */
 		request = (addr == DTV5100_DEMOD_ADDR ? DTV5100_DEMOD_READ :
 							DTV5100_TUNER_READ);
-		type = USB_TYPE_VENDOR|USB_DIR_IN;
+		type = USB_TYPE_VENDOR | USB_DIR_IN;
 		value = 0;
 		break;
 	case 2:
 		/* write { reg, value } */
 		request = (addr == DTV5100_DEMOD_ADDR ? DTV5100_DEMOD_WRITE :
 							DTV5100_TUNER_WRITE);
-		type = USB_TYPE_VENDOR|USB_DIR_OUT;
+		type = USB_TYPE_VENDOR | USB_DIR_OUT;
 		value = wbuf[1];
 		break;
 	default:
@@ -68,7 +68,7 @@ static int dtv5100_i2c_msg(struct dvb_usb_device *d, u8 addr,
 
 /* I2C */
 static int dtv5100_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
-			   int num)
+			    int num)
 {
 	struct dvb_usb_device *d = i2c_get_adapdata(adap);
 	int i;
@@ -116,7 +116,7 @@ static struct zl10353_config dtv5100_zl10353_config = {
 static int dtv5100_frontend_attach(struct dvb_usb_adapter *adap)
 {
 	adap->fe = dvb_attach(zl10353_attach, &dtv5100_zl10353_config,
-		&adap->dev->i2c_adap);
+			      &adap->dev->i2c_adap);
 	if (adap->fe == NULL)
 		return -EIO;
 
@@ -147,11 +147,10 @@ static int dtv5100_probe(struct usb_interface *intf,
 	struct usb_device *udev = interface_to_usbdev(intf);
 
 	/* initialize non qt1010/zl10353 part? */
-	for (i = 0; dtv5100_init[i].request; i++)
-	{
+	for (i = 0; dtv5100_init[i].request; i++) {
 		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				      dtv5100_init[i].request,
-				      USB_TYPE_VENDOR|USB_DIR_OUT,
+				      USB_TYPE_VENDOR | USB_DIR_OUT,
 				      dtv5100_init[i].value,
 				      dtv5100_init[i].index, NULL, 0,
 				      DTV5100_USB_TIMEOUT);
