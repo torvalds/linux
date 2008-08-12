@@ -147,7 +147,6 @@ static inline void get_mmu_context(struct mm_struct *mm)
 static inline int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
 	mm->context.id = NO_CONTEXT;
-	mm->context.vdso_base = 0;
 	return 0;
 }
 
