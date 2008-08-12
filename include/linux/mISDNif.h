@@ -36,8 +36,8 @@
  *              - should be incremented on every checkin
  */
 #define	MISDN_MAJOR_VERSION	1
-#define	MISDN_MINOR_VERSION	0
-#define MISDN_RELEASE		19
+#define	MISDN_MINOR_VERSION	1
+#define MISDN_RELEASE		20
 
 /* primitives for information exchange
  * generell format
@@ -255,16 +255,6 @@ struct sockaddr_mISDN {
 	unsigned char	tei;
 };
 
-/* timer device ioctl */
-#define IMADDTIMER	_IOR('I', 64, int)
-#define IMDELTIMER	_IOR('I', 65, int)
-/* socket ioctls */
-#define	IMGETVERSION	_IOR('I', 66, int)
-#define	IMGETCOUNT	_IOR('I', 67, int)
-#define IMGETDEVINFO	_IOR('I', 68, int)
-#define IMCTRLREQ	_IOR('I', 69, int)
-#define IMCLEAR_L2	_IOR('I', 70, int)
-
 struct mISDNversion {
 	unsigned char	major;
 	unsigned char	minor;
@@ -280,6 +270,23 @@ struct mISDN_devinfo {
 	u_int			nrbchan;
 	char			name[MISDN_MAX_IDLEN];
 };
+
+struct mISDN_devrename {
+	u_int			id;
+	char			name[MISDN_MAX_IDLEN]; /* new name */
+};
+
+/* timer device ioctl */
+#define IMADDTIMER	_IOR('I', 64, int)
+#define IMDELTIMER	_IOR('I', 65, int)
+
+/* socket ioctls */
+#define	IMGETVERSION	_IOR('I', 66, int)
+#define	IMGETCOUNT	_IOR('I', 67, int)
+#define IMGETDEVINFO	_IOR('I', 68, int)
+#define IMCTRLREQ	_IOR('I', 69, int)
+#define IMCLEAR_L2	_IOR('I', 70, int)
+#define IMSETDEVNAME	_IOR('I', 71, struct mISDN_devrename)
 
 static inline int
 test_channelmap(u_int nr, u_char *map)

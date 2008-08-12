@@ -645,6 +645,21 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 		} else
 			err = -ENODEV;
 		break;
+	case IMSETDEVNAME:
+		{
+			struct mISDN_devrename dn;
+			if (copy_from_user(&dn, (void __user *)arg,
+			    sizeof(dn))) {
+				err = -EFAULT;
+				break;
+			}
+			dev = get_mdevice(dn.id);
+			if (dev)
+				strlcpy(dev->name, dn.name, MISDN_MAX_IDLEN);
+			else
+				err = -ENODEV;
+		}
+		break;
 	default:
 		err = -EINVAL;
 	}
