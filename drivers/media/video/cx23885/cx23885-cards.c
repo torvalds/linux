@@ -154,6 +154,10 @@ struct cx23885_board cx23885_boards[] = {
 		.portb		= CX23885_MPEG_DVB,
 		.portc		= CX23885_MPEG_DVB,
 	},
+	[CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H] = {
+		.name		= "Leadtek Winfast PxDVR3200 H",
+		.portc		= CX23885_MPEG_DVB,
+	},
 };
 const unsigned int cx23885_bcount = ARRAY_SIZE(cx23885_boards);
 
@@ -229,6 +233,10 @@ struct cx23885_subid cx23885_subids[] = {
 		.subvendor = 0x18ac,
 		.subdevice = 0xdb78,
 		.card      = CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP,
+	}, {
+		.subvendor = 0x107d,
+		.subdevice = 0x6681,
+		.card      = CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H,
 	},
 };
 const unsigned int cx23885_idcount = ARRAY_SIZE(cx23885_subids);
@@ -348,21 +356,18 @@ int cx23885_tuner_callback(void *priv, int command, int arg)
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 	case CX23885_BOARD_HAUPPAUGE_HVR1500Q:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 		/* Tuner Reset Command */
-		if (command == 0)
-			bitmask = 0x04;
+		bitmask = 0x04;
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_7_DUAL_EXP:
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP:
-		if (command == 0) {
-
-			/* Two identical tuners on two different i2c buses,
-			 * we need to reset the correct gpio. */
-			if (port->nr == 0)
-				bitmask = 0x01;
-			else if (port->nr == 1)
-				bitmask = 0x04;
-		}
+		/* Two identical tuners on two different i2c buses,
+		 * we need to reset the correct gpio. */
+		if (port->nr == 0)
+			bitmask = 0x01;
+		else if (port->nr == 1)
+			bitmask = 0x04;
 		break;
 	}
 
@@ -491,6 +496,19 @@ void cx23885_gpio_setup(struct cx23885_dev *dev)
 		mdelay(20);
 		cx_set(GP0_IO, 0x000f000f);
 		break;
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
+		/* GPIO-2  xc3028 tuner reset */
+
+		/* The following GPIO's are on the internal AVCore (cx25840) */
+		/* GPIO-?  zl10353 demod reset */
+
+		/* Put the parts into reset and back */
+		cx_set(GP0_IO, 0x00040000);
+		mdelay(20);
+		cx_clear(GP0_IO, 0x00000004);
+		mdelay(20);
+		cx_set(GP0_IO, 0x00040004);
+		break;
 	}
 }
 
@@ -578,6 +596,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1200:
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
 	case CX23885_BOARD_HAUPPAUGE_HVR1400:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 	default:
 		ts2->gen_ctrl_val  = 0xc; /* Serial bus + punctured clock */
 		ts2->ts_clk_en_val = 0x1; /* Enable TS_CLK */
@@ -591,6 +610,7 @@ void cx23885_card_setup(struct cx23885_dev *dev)
 	case CX23885_BOARD_HAUPPAUGE_HVR1800:
 	case CX23885_BOARD_HAUPPAUGE_HVR1800lp:
 	case CX23885_BOARD_HAUPPAUGE_HVR1700:
+	case CX23885_BOARD_LEADTEK_WINFAST_PXDVR3200_H:
 		request_module("cx25840");
 		break;
 	}
