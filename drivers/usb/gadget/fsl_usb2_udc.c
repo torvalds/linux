@@ -23,11 +23,8 @@
 #include <linux/ioport.h>
 #include <linux/types.h>
 #include <linux/errno.h>
-#include <linux/delay.h>
-#include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/timer.h>
 #include <linux/list.h>
 #include <linux/interrupt.h>
 #include <linux/proc_fs.h>
@@ -44,11 +41,9 @@
 
 #include <asm/byteorder.h>
 #include <asm/io.h>
-#include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/unaligned.h>
 #include <asm/dma.h>
-#include <asm/cacheflush.h>
 
 #include "fsl_usb2_udc.h"
 
@@ -61,8 +56,8 @@
 static const char driver_name[] = "fsl-usb2-udc";
 static const char driver_desc[] = DRIVER_DESC;
 
-volatile static struct usb_dr_device *dr_regs = NULL;
-volatile static struct usb_sys_interface *usb_sys_regs = NULL;
+static struct usb_dr_device *dr_regs;
+static struct usb_sys_interface *usb_sys_regs;
 
 /* it is initialized in probe()  */
 static struct fsl_udc *udc_controller = NULL;
@@ -560,7 +555,7 @@ static int fsl_ep_disable(struct usb_ep *_ep)
 	/* nuke all pending requests (does flush) */
 	nuke(ep, -ESHUTDOWN);
 
-	ep->desc = 0;
+	ep->desc = NULL;
 	ep->stopped = 1;
 	spin_unlock_irqrestore(&udc->lock, flags);
 
@@ -1565,9 +1560,6 @@ static void port_change_irq(struct fsl_udc *udc)
 {
 	u32 speed;
 
-	if (udc->bus_reset)
-		udc->bus_reset = 0;
-
 	/* Bus resetting is finished */
 	if (!(fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET)) {
 		/* Get the speed */
@@ -1675,8 +1667,6 @@ static void reset_irq(struct fsl_udc *udc)
 
 	if (fsl_readl(&dr_regs->portsc1) & PORTSCX_PORT_RESET) {
 		VDBG("Bus reset");
-		/* Bus is reseting */
-		udc->bus_reset = 1;
 		/* Reset all the queues, include XD, dTD, EP queue
 		 * head and TR Queue */
 		reset_queues(udc);
@@ -1796,7 +1786,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	/* lock is needed but whether should use this lock or another */
 	spin_lock_irqsave(&udc_controller->lock, flags);
 
-	driver->driver.bus = 0;
+	driver->driver.bus = NULL;
 	/* hook up the driver */
 	udc_controller->driver = driver;
 	udc_controller->gadget.dev.driver = &driver->driver;
@@ -1806,8 +1796,8 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	retval = driver->bind(&udc_controller->gadget);
 	if (retval) {
 		VDBG("bind to %s --> %d", driver->driver.name, retval);
-		udc_controller->gadget.dev.driver = 0;
-		udc_controller->driver = 0;
+		udc_controller->gadget.dev.driver = NULL;
+		udc_controller->driver = NULL;
 		goto out;
 	}
 
@@ -1839,7 +1829,7 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 		return -EINVAL;
 
 	if (udc_controller->transceiver)
-		(void)otg_set_peripheral(udc_controller->transceiver, 0);
+		otg_set_peripheral(udc_controller->transceiver, NULL);
 
 	/* stop DR, disable intr */
 	dr_controller_stop(udc_controller);
@@ -1860,8 +1850,8 @@ int usb_gadget_unregister_driver(struct usb_gadget_driver *driver)
 
 	/* unbind gadget and unhook driver. */
 	driver->unbind(&udc_controller->gadget);
-	udc_controller->gadget.dev.driver = 0;
-	udc_controller->driver = 0;
+	udc_controller->gadget.dev.driver = NULL;
+	udc_controller->driver = NULL;
 
 	printk("unregistered gadget driver '%s'\r\n", driver->driver.name);
 	return 0;
