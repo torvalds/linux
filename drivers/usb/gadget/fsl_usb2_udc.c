@@ -2190,7 +2190,6 @@ static int __init struct_udc_setup(struct fsl_udc *udc,
 	udc->usb_state = USB_STATE_POWERED;
 	udc->ep0_dir = 0;
 	udc->remote_wakeup = 0;	/* default to 0 on reset */
-	spin_lock_init(&udc->lock);
 
 	return 0;
 }
@@ -2251,6 +2250,9 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 		ERR("malloc udc failed\n");
 		return -ENOMEM;
 	}
+
+	spin_lock_init(&udc_controller->lock);
+	udc_controller->stopped = 1;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
