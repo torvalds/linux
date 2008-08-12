@@ -225,7 +225,8 @@ encode_cb_recall(struct xdr_stream *xdr, struct nfs4_cb_recall *cb_rec)
 
 	RESERVE_SPACE(12+sizeof(cb_rec->cbr_stateid) + len);
 	WRITE32(OP_CB_RECALL);
-	WRITEMEM(&cb_rec->cbr_stateid, sizeof(stateid_t));
+	WRITE32(cb_rec->cbr_stateid.si_generation);
+	WRITEMEM(&cb_rec->cbr_stateid.si_opaque, sizeof(stateid_opaque_t));
 	WRITE32(cb_rec->cbr_trunc);
 	WRITE32(len);
 	WRITEMEM(cb_rec->cbr_fhval, len);
