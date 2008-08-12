@@ -185,10 +185,6 @@ static int dr_controller_setup(struct fsl_udc *udc)
 	unsigned long timeout;
 #define FSL_UDC_RESET_TIMEOUT 1000
 
-	/* before here, make sure dr_regs has been initialized */
-	if (!udc)
-		return -EINVAL;
-
 	/* Stop and reset the usb controller */
 	tmp = fsl_readl(&dr_regs->usbcmd);
 	tmp &= ~USB_CMD_RUN_STOP;
