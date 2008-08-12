@@ -565,7 +565,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
 		huge_page_order(h));
 	if (page) {
 		if (arch_prepare_hugepage(page)) {
-			__free_pages(page, HUGETLB_PAGE_ORDER);
+			__free_pages(page, huge_page_order(h));
 			return NULL;
 		}
 		prep_new_huge_page(h, page, nid);
@@ -664,6 +664,11 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
 	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
 					__GFP_REPEAT|__GFP_NOWARN,
 					huge_page_order(h));
+
+	if (page && arch_prepare_hugepage(page)) {
+		__free_pages(page, huge_page_order(h));
+		return NULL;
+	}
 
 	spin_lock(&hugetlb_lock);
 	if (page) {
