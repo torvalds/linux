@@ -2149,7 +2149,9 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 		break;
 	case NFS4_OPEN_DELEGATE_READ:
 		RESERVE_SPACE(20 + sizeof(stateid_t));
-		WRITEMEM(&open->op_delegate_stateid, sizeof(stateid_t));
+		WRITE32(open->op_delegate_stateid.si_generation);
+		WRITEMEM(&open->op_delegate_stateid.si_opaque,
+			 sizeof(stateid_opaque_t));
 		WRITE32(open->op_recall);
 
 		/*
@@ -2163,7 +2165,9 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 		break;
 	case NFS4_OPEN_DELEGATE_WRITE:
 		RESERVE_SPACE(32 + sizeof(stateid_t));
-		WRITEMEM(&open->op_delegate_stateid, sizeof(stateid_t));
+		WRITE32(open->op_delegate_stateid.si_generation);
+		WRITEMEM(&open->op_delegate_stateid.si_opaque,
+			 sizeof(stateid_opaque_t));
 		WRITE32(0);
 
 		/*
