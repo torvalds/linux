@@ -106,6 +106,14 @@ static struct spi_board_info afeb9260_spi_devices[] = {
 };
 
 
+/*
+ * MACB Ethernet device
+ */
+static struct at91_eth_data __initdata afeb9260_macb_data = {
+	.phy_irq_pin	= AT91_PIN_PA9,
+	.is_rmii	= 0,
+};
+
 
 /*
  * NAND flash
@@ -174,6 +182,14 @@ static void __init afeb9260_board_init(void)
 			ARRAY_SIZE(afeb9260_spi_devices));
 	/* NAND */
 	at91_add_device_nand(&afeb9260_nand_data);
+	/* Ethernet */
+	at91_add_device_eth(&afeb9260_macb_data);
+
+	/* Standard function's pin assignments are not
+	 * appropriate for us and generic code provide
+	 * no API to configure these pins any other way */
+	at91_set_B_periph(AT91_PIN_PA10, 0);	/* ETX2 */
+	at91_set_B_periph(AT91_PIN_PA11, 0);	/* ETX3 */
 	/* MMC */
 	at91_add_device_mmc(0, &afeb9260_mmc_data);
 	/* I2C */
