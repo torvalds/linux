@@ -105,6 +105,16 @@ static void rfkill_led_trigger(struct rfkill *rfkill,
 #endif /* CONFIG_RFKILL_LEDS */
 }
 
+#ifdef CONFIG_RFKILL_LEDS
+static void rfkill_led_trigger_activate(struct led_classdev *led)
+{
+	struct rfkill *rfkill = container_of(led->trigger,
+			struct rfkill, led_trigger);
+
+	rfkill_led_trigger(rfkill, rfkill->state);
+}
+#endif /* CONFIG_RFKILL_LEDS */
+
 static void notify_rfkill_state_change(struct rfkill *rfkill)
 {
 	blocking_notifier_call_chain(&rfkill_notifier_list,
@@ -589,7 +599,10 @@ static void rfkill_led_trigger_register(struct rfkill *rfkill)
 #ifdef CONFIG_RFKILL_LEDS
 	int error;
 
-	rfkill->led_trigger.name = rfkill->dev.bus_id;
+	if (!rfkill->led_trigger.name)
+		rfkill->led_trigger.name = rfkill->dev.bus_id;
+	if (!rfkill->led_trigger.activate)
+		rfkill->led_trigger.activate = rfkill_led_trigger_activate;
 	error = led_trigger_register(&rfkill->led_trigger);
 	if (error)
 		rfkill->led_trigger.name = NULL;

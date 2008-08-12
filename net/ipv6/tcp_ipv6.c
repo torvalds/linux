@@ -69,7 +69,8 @@
 #include <linux/scatterlist.h>
 
 static void	tcp_v6_send_reset(struct sock *sk, struct sk_buff *skb);
-static void	tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req);
+static void	tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+				      struct request_sock *req);
 
 static int	tcp_v6_do_rcv(struct sock *sk, struct sk_buff *skb);
 
@@ -748,7 +749,7 @@ static int tcp_v6_md5_hash_pseudoheader(struct tcp_md5sig_pool *hp,
 	ipv6_addr_copy(&bp->saddr, saddr);
 	ipv6_addr_copy(&bp->daddr, daddr);
 	bp->protocol = cpu_to_be32(IPPROTO_TCP);
-	bp->len = cpu_to_be16(nbytes);
+	bp->len = cpu_to_be32(nbytes);
 
 	sg_init_one(&sg, bp, sizeof(*bp));
 	return crypto_hash_update(&hp->md5_desc, &sg, sizeof(*bp));
@@ -1094,8 +1095,8 @@ static void tcp_v6_send_ack(struct sk_buff *skb, u32 seq, u32 ack, u32 win, u32 
 		*topt++ = htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16) |
 				(TCPOPT_MD5SIG << 8) | TCPOLEN_MD5SIG);
 		tcp_v6_md5_hash_hdr((__u8 *)topt, key,
-				    &ipv6_hdr(skb)->daddr,
-				    &ipv6_hdr(skb)->saddr, t1);
+				    &ipv6_hdr(skb)->saddr,
+				    &ipv6_hdr(skb)->daddr, t1);
 	}
 #endif
 
@@ -1138,10 +1139,11 @@ static void tcp_v6_timewait_ack(struct sock *sk, struct sk_buff *skb)
 	inet_twsk_put(tw);
 }
 
-static void tcp_v6_reqsk_send_ack(struct sk_buff *skb, struct request_sock *req)
+static void tcp_v6_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
+				  struct request_sock *req)
 {
 	tcp_v6_send_ack(skb, tcp_rsk(req)->snt_isn + 1, tcp_rsk(req)->rcv_isn + 1, req->rcv_wnd, req->ts_recent,
-			tcp_v6_md5_do_lookup(skb->sk, &ipv6_hdr(skb)->daddr));
+			tcp_v6_md5_do_lookup(sk, &ipv6_hdr(skb)->daddr));
 }
 
 

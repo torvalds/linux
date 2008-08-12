@@ -193,10 +193,22 @@ static inline struct Qdisc *qdisc_root(struct Qdisc *qdisc)
 	return qdisc->dev_queue->qdisc;
 }
 
+/* The qdisc root lock is a mechanism by which to top level
+ * of a qdisc tree can be locked from any qdisc node in the
+ * forest.  This allows changing the configuration of some
+ * aspect of the qdisc tree while blocking out asynchronous
+ * qdisc access in the packet processing paths.
+ *
+ * It is only legal to do this when the root will not change
+ * on us.  Otherwise we'll potentially lock the wrong qdisc
+ * root.  This is enforced by holding the RTNL semaphore, which
+ * all users of this lock accessor must do.
+ */
 static inline spinlock_t *qdisc_root_lock(struct Qdisc *qdisc)
 {
 	struct Qdisc *root = qdisc_root(qdisc);
 
+	ASSERT_RTNL();
 	return qdisc_lock(root);
 }
 
@@ -331,6 +343,18 @@ static inline unsigned int qdisc_pkt_len(struct sk_buff *skb)
 	return qdisc_skb_cb(skb)->pkt_len;
 }
 
+/* additional qdisc xmit flags (NET_XMIT_MASK in linux/netdevice.h) */
+enum net_xmit_qdisc_t {
+	__NET_XMIT_STOLEN = 0x00010000,
+	__NET_XMIT_BYPASS = 0x00020000,
+};
+
+#ifdef CONFIG_NET_CLS_ACT
+#define net_xmit_drop_count(e)	((e) & __NET_XMIT_STOLEN ? 0 : 1)
+#else
+#define net_xmit_drop_count(e)	(1)
+#endif
+
 static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 {
 #ifdef CONFIG_NET_SCHED
@@ -343,7 +367,7 @@ static inline int qdisc_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 static inline int qdisc_enqueue_root(struct sk_buff *skb, struct Qdisc *sch)
 {
 	qdisc_skb_cb(skb)->pkt_len = skb->len;
-	return qdisc_enqueue(skb, sch);
+	return qdisc_enqueue(skb, sch) & NET_XMIT_MASK;
 }
 
 static inline int __qdisc_enqueue_tail(struct sk_buff *skb, struct Qdisc *sch,

@@ -3699,6 +3699,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
 		goto abort_with_netdev;
 	}
+	(void)pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
 	if (mgp->cmd == NULL)

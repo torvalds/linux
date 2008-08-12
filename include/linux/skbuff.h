@@ -243,6 +243,7 @@ typedef unsigned char *sk_buff_data_t;
  *	@tc_index: Traffic control index
  *	@tc_verd: traffic control verdict
  *	@ndisc_nodetype: router type (from link layer)
+ *	@do_not_encrypt: set to prevent encryption of this frame
  *	@dma_cookie: a cookie to one of several possible DMA operations
  *		done by skb DMA functions
  *	@secmark: security marking

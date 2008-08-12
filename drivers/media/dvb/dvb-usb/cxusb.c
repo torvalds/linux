@@ -565,7 +565,8 @@ static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 
 static int dvico_bluebird_xc2028_callback(void *ptr, int command, int arg)
 {
-	struct dvb_usb_device *d = ptr;
+	struct dvb_usb_adapter *adap = ptr;
+	struct dvb_usb_device *d = adap->dev;
 
 	switch (command) {
 	case XC2028_TUNER_RESET:
@@ -593,9 +594,9 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 		.callback  = dvico_bluebird_xc2028_callback,
 	};
 	static struct xc2028_ctrl ctl = {
-		.fname       = "xc3028-dvico-au-01.fw",
+		.fname       = "xc3028-v27.fw",
 		.max_len     = 64,
-		.scode_table = XC3028_FE_ZARLINK456,
+		.demod       = XC3028_FE_ZARLINK456,
 	};
 
 	fe = dvb_attach(xc2028_attach, adap->fe, &cfg);

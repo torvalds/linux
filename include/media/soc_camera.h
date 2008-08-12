@@ -14,6 +14,7 @@
 
 #include <linux/videodev2.h>
 #include <media/videobuf-core.h>
+#include <linux/pm.h>
 
 struct soc_camera_device {
 	struct list_head list;
@@ -63,6 +64,8 @@ struct soc_camera_host_ops {
 	struct module *owner;
 	int (*add)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
+	int (*suspend)(struct soc_camera_device *, pm_message_t state);
+	int (*resume)(struct soc_camera_device *);
 	int (*set_fmt_cap)(struct soc_camera_device *, __u32,
 			   struct v4l2_rect *);
 	int (*try_fmt_cap)(struct soc_camera_device *, struct v4l2_format *);
@@ -111,6 +114,8 @@ struct soc_camera_ops {
 	struct module *owner;
 	int (*probe)(struct soc_camera_device *);
 	void (*remove)(struct soc_camera_device *);
+	int (*suspend)(struct soc_camera_device *, pm_message_t state);
+	int (*resume)(struct soc_camera_device *);
 	int (*init)(struct soc_camera_device *);
 	int (*release)(struct soc_camera_device *);
 	int (*start_capture)(struct soc_camera_device *);

@@ -127,7 +127,6 @@ extern void xfs_corruption_error(char *tag, int level, struct xfs_mount *mp,
 
 #if (defined(DEBUG) || defined(INDUCE_IO_ERROR))
 extern int xfs_error_test(int, int *, char *, int, char *, unsigned long);
-extern void xfs_error_test_init(void);
 
 #define	XFS_NUM_INJECT_ERROR				10
 

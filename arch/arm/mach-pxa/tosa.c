@@ -34,16 +34,17 @@
 
 #include <asm/setup.h>
 #include <asm/mach-types.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/tosa_bt.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/irda.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/udc.h>
+#include <mach/tosa_bt.h>
 
 #include <asm/mach/arch.h>
-#include <asm/arch/tosa.h>
+#include <mach/tosa.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>

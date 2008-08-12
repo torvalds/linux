@@ -158,6 +158,7 @@ static int handle_stfl(struct kvm_vcpu *vcpu)
 
 	vcpu->stat.instruction_stfl++;
 	facility_list &= ~(1UL<<24); /* no stfle */
+	facility_list &= ~(1UL<<23); /* no large pages */
 
 	rc = copy_to_guest(vcpu, offsetof(struct _lowcore, stfl_fac_list),
 			   &facility_list, sizeof(facility_list));

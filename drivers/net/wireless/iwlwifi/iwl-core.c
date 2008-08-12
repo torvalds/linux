@@ -383,8 +383,8 @@ void iwl_reset_qos(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_reset_qos);
 
-#define MAX_BIT_RATE_40_MHZ 0x96; /* 150 Mbps */
-#define MAX_BIT_RATE_20_MHZ 0x48; /* 72 Mbps */
+#define MAX_BIT_RATE_40_MHZ 0x96 /* 150 Mbps */
+#define MAX_BIT_RATE_20_MHZ 0x48 /* 72 Mbps */
 static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 			      struct ieee80211_ht_info *ht_info,
 			      enum ieee80211_band band)
@@ -815,7 +815,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 {
 	int ret;
 	struct ieee80211_hw *hw = priv->hw;
-	hw->rate_control_algorithm = "iwl-4965-rs";
+	hw->rate_control_algorithm = "iwl-agn-rs";
 
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
@@ -827,6 +827,7 @@ int iwl_setup_mac(struct iwl_priv *priv)
 		hw->ampdu_queues = priv->cfg->mod_params->num_of_ampdu_queues;
 
 	hw->conf.beacon_int = 100;
+	hw->max_listen_interval = IWL_CONN_MAX_LISTEN_INTERVAL;
 
 	if (priv->bands[IEEE80211_BAND_2GHZ].n_channels)
 		priv->hw->wiphy->bands[IEEE80211_BAND_2GHZ] =

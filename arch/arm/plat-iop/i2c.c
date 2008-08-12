@@ -25,9 +25,8 @@
 #include <asm/setup.h>
 #include <asm/system.h>
 #include <asm/memory.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/iop3xx.h>
-#include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
 #ifdef CONFIG_ARCH_IOP32X

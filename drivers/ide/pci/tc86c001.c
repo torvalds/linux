@@ -131,7 +131,7 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	ide_dma_start(drive);
 }
 
-static u8 __devinit tc86c001_cable_detect(ide_hwif_t *hwif)
+static u8 tc86c001_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long sc_base = pci_resource_start(dev, 5);

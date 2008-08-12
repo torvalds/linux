@@ -189,7 +189,7 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		struct Qdisc *q, *txq_root = txq->qdisc;
+		struct Qdisc *q, *txq_root = txq->qdisc_sleeping;
 
 		if (!(txq_root->flags & TCQ_F_BUILTIN) &&
 		    txq_root->handle == handle)
@@ -792,8 +792,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		if (parent && !(sch->flags & TCQ_F_INGRESS))
-			list_add_tail(&sch->list, &dev_queue->qdisc->list);
+		if ((parent != TC_H_ROOT) && !(sch->flags & TCQ_F_INGRESS))
+			list_add_tail(&sch->list, &dev_queue->qdisc_sleeping->list);
 
 		return sch;
 	}
@@ -1236,11 +1236,11 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 		q_idx = 0;
 
 		dev_queue = netdev_get_tx_queue(dev, 0);
-		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
 		dev_queue = &dev->rx_queue;
-		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
 cont:

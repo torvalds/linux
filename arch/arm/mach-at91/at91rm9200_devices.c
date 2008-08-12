@@ -17,10 +17,10 @@
 #include <linux/platform_device.h>
 #include <linux/i2c-gpio.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91rm9200.h>
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91rm9200.h>
+#include <mach/at91rm9200_mc.h>
 
 #include "generic.h"
 

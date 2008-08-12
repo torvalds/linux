@@ -17,7 +17,7 @@
 #include <linux/mutex.h>
 #include <linux/bootmem.h>
 #include <linux/sysfs.h>
-#include <asm/io.h>
+
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/io.h>
@@ -1283,7 +1283,12 @@ module_exit(hugetlb_exit);
 
 static int __init hugetlb_init(void)
 {
-	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+	/* Some platform decide whether they support huge pages at boot
+	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+	 * there is no such support
+	 */
+	if (HPAGE_SHIFT == 0)
+		return 0;
 
 	if (!size_to_hstate(default_hstate_size)) {
 		default_hstate_size = HPAGE_SIZE;

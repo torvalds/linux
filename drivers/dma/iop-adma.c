@@ -33,7 +33,7 @@
 #include <linux/memory.h>
 #include <linux/ioport.h>
 
-#include <asm/arch/adma.h>
+#include <mach/adma.h>
 
 #define to_iop_adma_chan(chan) container_of(chan, struct iop_adma_chan, common)
 #define to_iop_adma_device(dev) \

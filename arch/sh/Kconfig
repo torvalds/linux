@@ -48,6 +48,9 @@ config GENERIC_HWEIGHT
 config GENERIC_HARDIRQS
 	def_bool y
 
+config GENERIC_HARDIRQS_NO__DO_IRQ
+	def_bool y
+
 config GENERIC_IRQ_PROBE
 	def_bool y
 
@@ -62,6 +65,10 @@ config GENERIC_TIME
 
 config GENERIC_CLOCKEVENTS
 	def_bool n
+
+config GENERIC_LOCKBREAK
+	def_bool y
+	depends on SMP && PREEMPT
 
 config SYS_SUPPORTS_PM
 	bool
@@ -92,9 +99,6 @@ config ARCH_HAS_ILOG2_U64
 	def_bool n
 
 config ARCH_NO_VIRT_TO_BUS
-	def_bool y
-
-config ARCH_SUPPORTS_AOUT
 	def_bool y
 
 config IO_TRAPPED
@@ -482,6 +486,23 @@ config CRASH_DUMP
 	  MEMORY_START.
 
 	  For more details see Documentation/kdump/kdump.txt
+
+config SECCOMP
+	bool "Enable seccomp to safely compute untrusted bytecode"
+	depends on PROC_FS
+	default y
+	help
+	  This kernel feature is useful for number crunching applications
+	  that may need to compute untrusted bytecode during their
+	  execution. By using pipes or other transports made available to
+	  the process as file descriptors supporting the read/write
+	  syscalls, it's possible to isolate those applications in
+	  their own address space using seccomp. Once seccomp is
+	  enabled via prctl, it cannot be disabled and the task is only
+	  allowed to execute a few safe syscalls defined by each seccomp
+	  mode.
+
+	  If unsure, say N.
 
 config SMP
 	bool "Symmetric multi-processing support"

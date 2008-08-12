@@ -19,11 +19,11 @@
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91sam9263.h>
-#include <asm/arch/at91sam9263_matrix.h>
-#include <asm/arch/at91sam9_smc.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91sam9263.h>
+#include <mach/at91sam9263_matrix.h>
+#include <mach/at91sam9_smc.h>
 
 #include "generic.h"
 

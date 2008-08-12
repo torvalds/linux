@@ -29,7 +29,7 @@
 /* Main transmission queue. */
 
 /* Modifications to data participating in scheduling must be protected with
- * qdisc_root_lock(qdisc) spinlock.
+ * qdisc_lock(qdisc) spinlock.
  *
  * The idea is the following:
  * - enqueue, dequeue are serialized via qdisc root lock
@@ -126,7 +126,7 @@ static inline int qdisc_restart(struct Qdisc *q)
 	if (unlikely((skb = dequeue_skb(q)) == NULL))
 		return 0;
 
-	root_lock = qdisc_root_lock(q);
+	root_lock = qdisc_lock(q);
 
 	/* And release qdisc */
 	spin_unlock(root_lock);
@@ -135,7 +135,8 @@ static inline int qdisc_restart(struct Qdisc *q)
 	txq = netdev_get_tx_queue(dev, skb_get_queue_mapping(skb));
 
 	HARD_TX_LOCK(dev, txq, smp_processor_id());
-	if (!netif_subqueue_stopped(dev, skb))
+	if (!netif_tx_queue_stopped(txq) &&
+	    !netif_tx_queue_frozen(txq))
 		ret = dev_hard_start_xmit(skb, dev, txq);
 	HARD_TX_UNLOCK(dev, txq);
 
@@ -162,7 +163,8 @@ static inline int qdisc_restart(struct Qdisc *q)
 		break;
 	}
 
-	if (ret && netif_tx_queue_stopped(txq))
+	if (ret && (netif_tx_queue_stopped(txq) ||
+		    netif_tx_queue_frozen(txq)))
 		ret = 0;
 
 	return ret;
@@ -505,7 +507,7 @@ errout:
 }
 EXPORT_SYMBOL(qdisc_create_dflt);
 
-/* Under qdisc_root_lock(qdisc) and BH! */
+/* Under qdisc_lock(qdisc) and BH! */
 
 void qdisc_reset(struct Qdisc *qdisc)
 {
@@ -541,7 +543,7 @@ static void __qdisc_destroy(struct rcu_head *head)
 	kfree((char *) qdisc - qdisc->padded);
 }
 
-/* Under qdisc_root_lock(qdisc) and BH! */
+/* Under qdisc_lock(qdisc) and BH! */
 
 void qdisc_destroy(struct Qdisc *qdisc)
 {
@@ -657,7 +659,7 @@ static bool some_qdisc_is_running(struct net_device *dev, int lock)
 
 		dev_queue = netdev_get_tx_queue(dev, i);
 		q = dev_queue->qdisc;
-		root_lock = qdisc_root_lock(q);
+		root_lock = qdisc_lock(q);
 
 		if (lock)
 			spin_lock_bh(root_lock);
@@ -733,7 +735,7 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 	struct Qdisc *qdisc_default = _qdisc_default;
 
 	if (qdisc) {
-		spinlock_t *root_lock = qdisc_root_lock(qdisc);
+		spinlock_t *root_lock = qdisc_lock(qdisc);
 
 		dev_queue->qdisc = qdisc_default;
 		dev_queue->qdisc_sleeping = qdisc_default;

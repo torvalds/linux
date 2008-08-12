@@ -14,7 +14,7 @@
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 #include "generic.h"

@@ -12,9 +12,9 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/hardware.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/hardware.h>
 
 #include "devices.h"
 #include "generic.h"

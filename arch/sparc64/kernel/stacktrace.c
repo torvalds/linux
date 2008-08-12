@@ -26,13 +26,15 @@ void save_stack_trace(struct stack_trace *trace)
 
 		/* Bogus frame pointer? */
 		if (fp < (thread_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_base + THREAD_SIZE))
+		    fp > (thread_base + THREAD_SIZE - sizeof(struct sparc_stackf)))
 			break;
 
 		sf = (struct sparc_stackf *) fp;
 		regs = (struct pt_regs *) (sf + 1);
 
-		if ((regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
+		if (((unsigned long)regs <=
+		     (thread_base + THREAD_SIZE - sizeof(*regs))) &&
+		    (regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
 			if (!(regs->tstate & TSTATE_PRIV))
 				break;
 			pc = regs->tpc;

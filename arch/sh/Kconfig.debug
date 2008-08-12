@@ -182,7 +182,7 @@ if SUPERH64
 
 config SH64_PROC_ASIDS
 	bool "Debug: report ASIDs through /proc/asids"
-	depends on PROC_FS
+	depends on PROC_FS && MMU
 
 config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"

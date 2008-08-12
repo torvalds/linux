@@ -203,23 +203,43 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	    !test_bit(DEVICE_STARTED, &rt2x00dev->flags))
 		return -ENODEV;
 
-	/*
-	 * We don't support mixed combinations of sta and ap virtual
-	 * interfaces. We can only add this interface when the rival
-	 * interface count is 0.
-	 */
-	if ((conf->type == IEEE80211_IF_TYPE_AP && rt2x00dev->intf_sta_count) ||
-	    (conf->type != IEEE80211_IF_TYPE_AP && rt2x00dev->intf_ap_count))
-		return -ENOBUFS;
+	switch (conf->type) {
+	case IEEE80211_IF_TYPE_AP:
+		/*
+		 * We don't support mixed combinations of
+		 * sta and ap interfaces.
+		 */
+		if (rt2x00dev->intf_sta_count)
+			return -ENOBUFS;
 
-	/*
-	 * Check if we exceeded the maximum amount of supported interfaces.
-	 */
-	if ((conf->type == IEEE80211_IF_TYPE_AP &&
-	     rt2x00dev->intf_ap_count >= rt2x00dev->ops->max_ap_intf) ||
-	    (conf->type != IEEE80211_IF_TYPE_AP &&
-	     rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf))
-		return -ENOBUFS;
+		/*
+		 * Check if we exceeded the maximum amount
+		 * of supported interfaces.
+		 */
+		if (rt2x00dev->intf_ap_count >= rt2x00dev->ops->max_ap_intf)
+			return -ENOBUFS;
+
+		break;
+	case IEEE80211_IF_TYPE_STA:
+	case IEEE80211_IF_TYPE_IBSS:
+		/*
+		 * We don't support mixed combinations of
+		 * sta and ap interfaces.
+		 */
+		if (rt2x00dev->intf_ap_count)
+			return -ENOBUFS;
+
+		/*
+		 * Check if we exceeded the maximum amount
+		 * of supported interfaces.
+		 */
+		if (rt2x00dev->intf_sta_count >= rt2x00dev->ops->max_sta_intf)
+			return -ENOBUFS;
+
+		break;
+	default:
+		return -EINVAL;
+	}
 
 	/*
 	 * Loop through all beacon queues to find a free
@@ -247,6 +267,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 		rt2x00dev->intf_sta_count++;
 
 	spin_lock_init(&intf->lock);
+	spin_lock_init(&intf->seqlock);
 	intf->beacon = entry;
 
 	if (conf->type == IEEE80211_IF_TYPE_AP)

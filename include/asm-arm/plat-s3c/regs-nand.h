@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/regs-nand.h
+/* arch/arm/mach-s3c2410/include/mach/regs-nand.h
  *
  * Copyright (c) 2004,2005 Simtec Electronics <linux@simtec.co.uk>
  *		      http://www.simtec.co.uk/products/SWLINUX/

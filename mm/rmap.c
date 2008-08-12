@@ -422,7 +422,7 @@ int page_referenced(struct page *page, int is_locked,
 			referenced += page_referenced_anon(page, mem_cont);
 		else if (is_locked)
 			referenced += page_referenced_file(page, mem_cont);
-		else if (TestSetPageLocked(page))
+		else if (!trylock_page(page))
 			referenced++;
 		else {
 			if (page->mapping)

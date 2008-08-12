@@ -119,7 +119,7 @@ static void atiixp_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	spin_unlock_irqrestore(&atiixp_lock, flags);
 }
 
-static u8 __devinit atiixp_cable_detect(ide_hwif_t *hwif)
+static u8 atiixp_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	u8 udma_mode = 0, ch = hwif->channel;

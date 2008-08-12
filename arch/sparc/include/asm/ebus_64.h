@@ -8,9 +8,10 @@
 #ifndef __SPARC64_EBUS_H
 #define __SPARC64_EBUS_H
 
+#include <linux/of_device.h>
+
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 
 struct linux_ebus_child {
 	struct linux_ebus_child		*next;

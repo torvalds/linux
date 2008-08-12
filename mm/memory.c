@@ -993,7 +993,6 @@ unsigned long zap_page_range(struct vm_area_struct *vma, unsigned long address,
 		tlb_finish_mmu(tlb, address, end);
 	return end;
 }
-EXPORT_SYMBOL_GPL(zap_page_range);
 
 /**
  * zap_vma_ptes - remove ptes mapping the vma
@@ -1111,7 +1110,6 @@ no_page_table:
 	}
 	return page;
 }
-EXPORT_SYMBOL_GPL(follow_page);
 
 /* Can we do the FOLL_ANON optimization? */
 static inline int use_zero_page(struct vm_area_struct *vma)
@@ -1791,7 +1789,7 @@ static int do_wp_page(struct mm_struct *mm, struct vm_area_struct *vma,
 	 * not dirty accountable.
 	 */
 	if (PageAnon(old_page)) {
-		if (!TestSetPageLocked(old_page)) {
+		if (trylock_page(old_page)) {
 			reuse = can_share_swap_page(old_page);
 			unlock_page(old_page);
 		}
@@ -2767,16 +2765,26 @@ int make_pages_present(unsigned long addr, unsigned long end)
 
 	vma = find_vma(current->mm, addr);
 	if (!vma)
-		return -1;
+		return -ENOMEM;
 	write = (vma->vm_flags & VM_WRITE) != 0;
 	BUG_ON(addr >= end);
 	BUG_ON(end > vma->vm_end);
 	len = DIV_ROUND_UP(end, PAGE_SIZE) - addr/PAGE_SIZE;
 	ret = get_user_pages(current, current->mm, addr,
 			len, write, 0, NULL, NULL);
-	if (ret < 0)
+	if (ret < 0) {
+		/*
+		   SUS require strange return value to mlock
+		    - invalid addr generate to ENOMEM.
+		    - out of memory should generate EAGAIN.
+		*/
+		if (ret == -EFAULT)
+			ret = -ENOMEM;
+		else if (ret == -ENOMEM)
+			ret = -EAGAIN;
 		return ret;
-	return ret == len ? 0 : -1;
+	}
+	return ret == len ? 0 : -ENOMEM;
 }
 
 #if !defined(__HAVE_ARCH_GATE_AREA)

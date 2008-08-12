@@ -17,8 +17,8 @@
 
 #include <asm/io.h>
 
-#include <asm/arch/control.h>
-#include <asm/arch/cpu.h>
+#include <mach/control.h>
+#include <mach/cpu.h>
 
 #if defined(CONFIG_ARCH_OMAP2420)
 #define TAP_BASE	io_p2v(0x48014000)
