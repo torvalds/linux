@@ -412,6 +412,7 @@ static struct ehca_qp *internal_create_qp(
 	struct ehca_shca *shca = container_of(pd->device, struct ehca_shca,
 					      ib_device);
 	struct ib_ucontext *context = NULL;
+	u32 nr_qes;
 	u64 h_ret;
 	int is_llqp = 0, has_srq = 0;
 	int qp_type, max_send_sge, max_recv_sge, ret;
@@ -715,6 +716,15 @@ static struct ehca_qp *internal_create_qp(
 				 "and pages ret=%i", ret);
 			goto create_qp_exit2;
 		}
+		nr_qes = my_qp->ipz_squeue.queue_length /
+			 my_qp->ipz_squeue.qe_size;
+		my_qp->sq_map = vmalloc(nr_qes *
+					sizeof(struct ehca_qmap_entry));
+		if (!my_qp->sq_map) {
+			ehca_err(pd->device, "Couldn't allocate squeue "
+				 "map ret=%i", ret);
+			goto create_qp_exit3;
+		}
 	}
 
 	if (HAS_RQ(my_qp)) {
@@ -724,7 +734,7 @@ static struct ehca_qp *internal_create_qp(
 		if (ret) {
 			ehca_err(pd->device, "Couldn't initialize rqueue "
 				 "and pages ret=%i", ret);
-			goto create_qp_exit3;
+			goto create_qp_exit4;
 		}
 	}
 
@@ -770,7 +780,7 @@ static struct ehca_qp *internal_create_qp(
 			if (!my_qp->mod_qp_parm) {
 				ehca_err(pd->device,
 					 "Could not alloc mod_qp_parm");
-				goto create_qp_exit4;
+				goto create_qp_exit5;
 			}
 		}
 	}
@@ -780,7 +790,7 @@ static struct ehca_qp *internal_create_qp(
 		h_ret = ehca_define_sqp(shca, my_qp, init_attr);
 		if (h_ret != H_SUCCESS) {
 			ret = ehca2ib_return_code(h_ret);
-			goto create_qp_exit5;
+			goto create_qp_exit6;
 		}
 	}
 
@@ -789,7 +799,7 @@ static struct ehca_qp *internal_create_qp(
 		if (ret) {
 			ehca_err(pd->device,
 				 "Couldn't assign qp to send_cq ret=%i", ret);
-			goto create_qp_exit5;
+			goto create_qp_exit6;
 		}
 	}
 
@@ -815,21 +825,25 @@ static struct ehca_qp *internal_create_qp(
 		if (ib_copy_to_udata(udata, &resp, sizeof resp)) {
 			ehca_err(pd->device, "Copy to udata failed");
 			ret = -EINVAL;
-			goto create_qp_exit6;
+			goto create_qp_exit7;
 		}
 	}
 
 	return my_qp;
 
-create_qp_exit6:
+create_qp_exit7:
 	ehca_cq_unassign_qp(my_qp->send_cq, my_qp->real_qp_num);
 
-create_qp_exit5:
+create_qp_exit6:
 	kfree(my_qp->mod_qp_parm);
 
-create_qp_exit4:
+create_qp_exit5:
 	if (HAS_RQ(my_qp))
 		ipz_queue_dtor(my_pd, &my_qp->ipz_rqueue);
+
+create_qp_exit4:
+	if (HAS_SQ(my_qp))
+		vfree(my_qp->sq_map);
 
 create_qp_exit3:
 	if (HAS_SQ(my_qp))
@@ -1979,8 +1993,10 @@ static int internal_destroy_qp(struct ib_device *dev, struct ehca_qp *my_qp,
 
 	if (HAS_RQ(my_qp))
 		ipz_queue_dtor(my_pd, &my_qp->ipz_rqueue);
-	if (HAS_SQ(my_qp))
+	if (HAS_SQ(my_qp)) {
 		ipz_queue_dtor(my_pd, &my_qp->ipz_squeue);
+		vfree(my_qp->sq_map);
+	}
 	kmem_cache_free(qp_cache, my_qp);
 	atomic_dec(&shca->num_qps);
 	return 0;
