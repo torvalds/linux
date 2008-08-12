@@ -15,6 +15,7 @@
 #include <linux/dmi.h>
 #include <linux/device.h>
 #include <linux/suspend.h>
+#include <linux/reboot.h>
 
 #include <asm/io.h>
 
@@ -23,6 +24,36 @@
 #include "sleep.h"
 
 u8 sleep_states[ACPI_S_STATE_COUNT];
+
+static void acpi_sleep_tts_switch(u32 acpi_state)
+{
+	union acpi_object in_arg = { ACPI_TYPE_INTEGER };
+	struct acpi_object_list arg_list = { 1, &in_arg };
+	acpi_status status = AE_OK;
+
+	in_arg.integer.value = acpi_state;
+	status = acpi_evaluate_object(NULL, "\\_TTS", &arg_list, NULL);
+	if (ACPI_FAILURE(status) && status != AE_NOT_FOUND) {
+		/*
+		 * OS can't evaluate the _TTS object correctly. Some warning
+		 * message will be printed. But it won't break anything.
+		 */
+		printk(KERN_NOTICE "Failure in evaluating _TTS object\n");
+	}
+}
+
+static int tts_notify_reboot(struct notifier_block *this,
+			unsigned long code, void *x)
+{
+	acpi_sleep_tts_switch(ACPI_STATE_S5);
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block tts_notifier = {
+	.notifier_call	= tts_notify_reboot,
+	.next		= NULL,
+	.priority	= 0,
+};
 
 static int acpi_sleep_prepare(u32 acpi_state)
 {
@@ -131,6 +162,7 @@ static void acpi_pm_end(void)
 	 * failing transition to a sleep state.
 	 */
 	acpi_target_sleep_state = ACPI_STATE_S0;
+	acpi_sleep_tts_switch(acpi_target_sleep_state);
 }
 #endif /* CONFIG_PM_SLEEP */
 
@@ -155,6 +187,7 @@ static int acpi_suspend_begin(suspend_state_t pm_state)
 
 	if (sleep_states[acpi_state]) {
 		acpi_target_sleep_state = acpi_state;
+		acpi_sleep_tts_switch(acpi_target_sleep_state);
 	} else {
 		printk(KERN_ERR "ACPI does not support this state: %d\n",
 			pm_state);
@@ -313,6 +346,7 @@ void __init acpi_no_s4_hw_signature(void)
 static int acpi_hibernation_begin(void)
 {
 	acpi_target_sleep_state = ACPI_STATE_S4;
+	acpi_sleep_tts_switch(acpi_target_sleep_state);
 	return 0;
 }
 
@@ -376,7 +410,15 @@ static struct platform_hibernation_ops acpi_hibernation_ops = {
  */
 static int acpi_hibernation_begin_old(void)
 {
-	int error = acpi_sleep_prepare(ACPI_STATE_S4);
+	int error;
+	/*
+	 * The _TTS object should always be evaluated before the _PTS object.
+	 * When the old_suspended_ordering is true, the _PTS object is
+	 * evaluated in the acpi_sleep_prepare.
+	 */
+	acpi_sleep_tts_switch(ACPI_STATE_S4);
+
+	error = acpi_sleep_prepare(ACPI_STATE_S4);
 
 	if (!error)
 		acpi_target_sleep_state = ACPI_STATE_S4;
@@ -596,5 +638,10 @@ int __init acpi_sleep_init(void)
 		pm_power_off = acpi_power_off;
 	}
 	printk(")\n");
+	/*
+	 * Register the tts_notifier to reboot notifier list so that the _TTS
+	 * object can also be evaluated when the system enters S5.
+	 */
+	register_reboot_notifier(&tts_notifier);
 	return 0;
 }
