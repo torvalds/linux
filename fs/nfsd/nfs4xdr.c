@@ -1183,7 +1183,6 @@ nfsd4_decode_compound(struct nfsd4_compoundargs *argp)
  * Header routine to setup seqid operation replay cache
  */
 #define ENCODE_SEQID_OP_HEAD					\
-	__be32 *p;						\
 	__be32 *save;						\
 								\
 	save = resp->p;
@@ -2129,6 +2128,7 @@ nfsd4_encode_link(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_li
 static __be32
 nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_open *open)
 {
+	ENCODE_HEAD;
 	ENCODE_SEQID_OP_HEAD;
 
 	if (nfserr)
