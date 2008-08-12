@@ -2133,7 +2133,7 @@ nfsd4_encode_open(struct nfsd4_compoundres *resp, __be32 nfserr, struct nfsd4_op
 	if (nfserr)
 		goto out;
 
-	RESERVE_SPACE(36 + sizeof(stateid_t));
+	RESERVE_SPACE(40 + sizeof(stateid_t));
 	WRITE32(open->op_stateid.si_generation);
 	WRITEMEM(&open->op_stateid.si_opaque, sizeof(stateid_opaque_t));
 	WRITECINFO(open->op_cinfo);
