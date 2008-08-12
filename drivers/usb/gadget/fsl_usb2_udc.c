@@ -643,6 +643,9 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 			| EP_QUEUE_HEAD_STATUS_HALT));
 	dQH->size_ioc_int_sts &= temp;
 
+	/* Ensure that updates to the QH will occure before priming. */
+	wmb();
+
 	/* Prime endpoint by writing 1 to ENDPTPRIME */
 	temp = ep_is_in(ep)
 		? (1 << (ep_index(ep) + 16))
