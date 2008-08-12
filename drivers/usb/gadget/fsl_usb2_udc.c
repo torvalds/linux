@@ -2244,21 +2244,21 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res) {
-		kfree(udc_controller);
-		return -ENXIO;
+		ret = -ENXIO;
+		goto err_kfree;
 	}
 
 	if (!request_mem_region(res->start, res->end - res->start + 1,
 				driver_name)) {
 		ERR("request mem region for %s failed\n", pdev->name);
-		kfree(udc_controller);
-		return -EBUSY;
+		ret = -EBUSY;
+		goto err_kfree;
 	}
 
 	dr_regs = ioremap(res->start, res->end - res->start + 1);
 	if (!dr_regs) {
 		ret = -ENOMEM;
-		goto err1;
+		goto err_release_mem_region;
 	}
 
 	usb_sys_regs = (struct usb_sys_interface *)
@@ -2269,7 +2269,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	if (!(dccparams & DCCPARAMS_DC)) {
 		ERR("This SOC doesn't support device role\n");
 		ret = -ENODEV;
-		goto err2;
+		goto err_iounmap;
 	}
 	/* Get max device endpoints */
 	/* DEN is bidirectional ep number, max_ep doubles the number */
@@ -2278,7 +2278,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	udc_controller->irq = platform_get_irq(pdev, 0);
 	if (!udc_controller->irq) {
 		ret = -ENODEV;
-		goto err2;
+		goto err_iounmap;
 	}
 
 	ret = request_irq(udc_controller->irq, fsl_udc_irq, IRQF_SHARED,
@@ -2286,14 +2286,14 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	if (ret != 0) {
 		ERR("cannot request irq %d err %d\n",
 				udc_controller->irq, ret);
-		goto err2;
+		goto err_iounmap;
 	}
 
 	/* Initialize the udc structure including QH member and other member */
 	if (struct_udc_setup(udc_controller, pdev)) {
 		ERR("Can't initialize udc data structure\n");
 		ret = -ENOMEM;
-		goto err3;
+		goto err_free_irq;
 	}
 
 	/* initialize usb hw reg except for regs for EP,
@@ -2314,7 +2314,7 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 	udc_controller->gadget.dev.parent = &pdev->dev;
 	ret = device_register(&udc_controller->gadget.dev);
 	if (ret < 0)
-		goto err3;
+		goto err_free_irq;
 
 	/* setup QH and epctrl for ep0 */
 	ep0_setup(udc_controller);
@@ -2344,20 +2344,22 @@ static int __init fsl_udc_probe(struct platform_device *pdev)
 			DTD_ALIGNMENT, UDC_DMA_BOUNDARY);
 	if (udc_controller->td_pool == NULL) {
 		ret = -ENOMEM;
-		goto err4;
+		goto err_unregister;
 	}
 	create_proc_file();
 	return 0;
 
-err4:
+err_unregister:
 	device_unregister(&udc_controller->gadget.dev);
-err3:
+err_free_irq:
 	free_irq(udc_controller->irq, udc_controller);
-err2:
+err_iounmap:
 	iounmap(dr_regs);
-err1:
+err_release_mem_region:
 	release_mem_region(res->start, res->end - res->start + 1);
+err_kfree:
 	kfree(udc_controller);
+	udc_controller = NULL;
 	return ret;
 }
 
