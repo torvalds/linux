@@ -1004,8 +1004,9 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 	enable_irq(host->irq);
 }
 
-static int s3cmci_card_present(struct s3cmci_host *host)
+static int s3cmci_card_present(struct mmc_host *mmc)
 {
+	struct s3cmci_host *host = mmc_priv(mmc);
 	struct s3c24xx_mci_pdata *pdata = host->pdata;
 	int ret;
 
@@ -1024,7 +1025,7 @@ static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->cmd_is_stop = 0;
 	host->mrq = mrq;
 
-	if (s3cmci_card_present(host) == 0) {
+	if (s3cmci_card_present(mmc) == 0) {
 		dbg(host, dbg_err, "%s: no medium present\n", __func__);
 		host->mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
@@ -1139,6 +1140,7 @@ static struct mmc_host_ops s3cmci_ops = {
 	.request	= s3cmci_request,
 	.set_ios	= s3cmci_set_ios,
 	.get_ro		= s3cmci_get_ro,
+	.get_cd		= s3cmci_card_present,
 };
 
 static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
