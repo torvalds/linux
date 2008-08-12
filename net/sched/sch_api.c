@@ -331,7 +331,7 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (!s || tsize != s->tsize || (!tab && tsize > 0))
 		return ERR_PTR(-EINVAL);
 
-	spin_lock(&qdisc_stab_lock);
+	spin_lock_bh(&qdisc_stab_lock);
 
 	list_for_each_entry(stab, &qdisc_stab_list, list) {
 		if (memcmp(&stab->szopts, s, sizeof(*s)))
@@ -339,11 +339,11 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 		if (tsize > 0 && memcmp(stab->data, tab, tsize * sizeof(u16)))
 			continue;
 		stab->refcnt++;
-		spin_unlock(&qdisc_stab_lock);
+		spin_unlock_bh(&qdisc_stab_lock);
 		return stab;
 	}
 
-	spin_unlock(&qdisc_stab_lock);
+	spin_unlock_bh(&qdisc_stab_lock);
 
 	stab = kmalloc(sizeof(*stab) + tsize * sizeof(u16), GFP_KERNEL);
 	if (!stab)
@@ -354,9 +354,9 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (tsize > 0)
 		memcpy(stab->data, tab, tsize * sizeof(u16));
 
-	spin_lock(&qdisc_stab_lock);
+	spin_lock_bh(&qdisc_stab_lock);
 	list_add_tail(&stab->list, &qdisc_stab_list);
-	spin_unlock(&qdisc_stab_lock);
+	spin_unlock_bh(&qdisc_stab_lock);
 
 	return stab;
 }
@@ -366,14 +366,14 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 	if (!tab)
 		return;
 
-	spin_lock(&qdisc_stab_lock);
+	spin_lock_bh(&qdisc_stab_lock);
 
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
 		kfree(tab);
 	}
 
-	spin_unlock(&qdisc_stab_lock);
+	spin_unlock_bh(&qdisc_stab_lock);
 }
 EXPORT_SYMBOL(qdisc_put_stab);
 
