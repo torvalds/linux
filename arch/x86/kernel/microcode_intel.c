@@ -339,8 +339,11 @@ static void apply_microcode(int cpu)
 		return;
 	}
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
-	       "0x%x to 0x%x, date = %08x \n",
-	       cpu_num, uci->rev, val[1], uci->mc.mc_intel->hdr.date);
+	       "0x%x to 0x%x, date = %04x-%02x-%02x \n",
+		cpu_num, uci->rev, val[1],
+		uci->mc.mc_intel->hdr.date & 0xffff,
+		uci->mc.mc_intel->hdr.date >> 24,
+		(uci->mc.mc_intel->hdr.date >> 16) & 0xff);
 	uci->rev = val[1];
 }
 
