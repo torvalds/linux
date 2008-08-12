@@ -383,11 +383,7 @@ static struct usb_serial_driver option_1port_device = {
 	.read_int_callback = option_instat_callback,
 };
 
-#ifdef CONFIG_USB_DEBUG
 static int debug;
-#else
-#define debug 0
-#endif
 
 /* per port private data */
 
@@ -991,8 +987,5 @@ MODULE_DESCRIPTION(DRIVER_DESC);
 MODULE_VERSION(DRIVER_VERSION);
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_USB_DEBUG
 module_param(debug, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "Debug messages");
-#endif
-
