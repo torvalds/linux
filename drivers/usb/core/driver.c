@@ -230,6 +230,13 @@ static int usb_probe_interface(struct device *dev)
 		 */
 		intf->pm_usage_cnt = !(driver->supports_autosuspend);
 
+		/* Carry out a deferred switch to altsetting 0 */
+		if (intf->needs_altsetting0) {
+			usb_set_interface(udev, intf->altsetting[0].
+					desc.bInterfaceNumber, 0);
+			intf->needs_altsetting0 = 0;
+		}
+
 		error = driver->probe(intf, id);
 		if (error) {
 			mark_quiesced(intf);
@@ -266,8 +273,17 @@ static int usb_unbind_interface(struct device *dev)
 
 	driver->disconnect(intf);
 
-	/* reset other interface state */
-	usb_set_interface(udev, intf->altsetting[0].desc.bInterfaceNumber, 0);
+	/* Reset other interface state.
+	 * We cannot do a Set-Interface if the device is suspended or
+	 * if it is prepared for a system sleep (since installing a new
+	 * altsetting means creating new endpoint device entries).
+	 * When either of these happens, defer the Set-Interface.
+	 */
+	if (!error && intf->dev.power.status == DPM_ON)
+		usb_set_interface(udev, intf->altsetting[0].
+				desc.bInterfaceNumber, 0);
+	else
+		intf->needs_altsetting0 = 1;
 	usb_set_intfdata(intf, NULL);
 
 	intf->condition = USB_INTERFACE_UNBOUND;
@@ -975,8 +991,17 @@ static int usb_resume_interface(struct usb_device *udev,
 		goto done;
 
 	/* Can't resume it if it doesn't have a driver. */
-	if (intf->condition == USB_INTERFACE_UNBOUND)
+	if (intf->condition == USB_INTERFACE_UNBOUND) {
+
+		/* Carry out a deferred switch to altsetting 0 */
+		if (intf->needs_altsetting0 &&
+				intf->dev.power.status == DPM_ON) {
+			usb_set_interface(udev, intf->altsetting[0].
+					desc.bInterfaceNumber, 0);
+			intf->needs_altsetting0 = 0;
+		}
 		goto done;
+	}
 
 	/* Don't resume if the interface is marked for rebinding */
 	if (intf->needs_binding)
