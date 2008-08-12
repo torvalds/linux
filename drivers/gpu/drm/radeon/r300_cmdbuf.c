@@ -577,22 +577,23 @@ static __inline__ int r300_emit_bitblt_multi(drm_radeon_private_t *dev_priv,
 	return 0;
 }
 
-static __inline__ int r300_emit_indx_buffer(drm_radeon_private_t *dev_priv,
-					     drm_radeon_kcmd_buffer_t *cmdbuf)
+static __inline__ int r300_emit_draw_indx_2(drm_radeon_private_t *dev_priv,
+					    drm_radeon_kcmd_buffer_t *cmdbuf)
 {
-	u32 *cmd = (u32 *) cmdbuf->buf;
-	int count, ret;
+	u32 *cmd;
+	int count;
+	int expected_count;
 	RING_LOCALS;
 
-	count=(cmd[0]>>16) & 0x3fff;
+	cmd = (u32 *) cmdbuf->buf;
+	count = (cmd[0]>>16) & 0x3fff;
+	expected_count = cmd[1] >> 16;
+	if (!(cmd[1] & R300_VAP_VF_CNTL__INDEX_SIZE_32bit))
+		expected_count = (expected_count+1)/2;
 
-	if ((cmd[1] & 0x8000ffff) != 0x80000810) {
-		DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
-		return -EINVAL;
-	}
-	ret = !radeon_check_offset(dev_priv, cmd[2]);
-	if (ret) {
-		DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+	if (count && count != expected_count) {
+		DRM_ERROR("3D_DRAW_INDX_2: packet size %i, expected %i\n",
+			count, expected_count);
 		return -EINVAL;
 	}
 
@@ -603,6 +604,50 @@ static __inline__ int r300_emit_indx_buffer(drm_radeon_private_t *dev_priv,
 
 	cmdbuf->buf += (count+2)*4;
 	cmdbuf->bufsz -= (count+2)*4;
+
+	if (!count) {
+		drm_r300_cmd_header_t header;
+
+		if (cmdbuf->bufsz < 4*4 + sizeof(header)) {
+			DRM_ERROR("3D_DRAW_INDX_2: expect subsequent INDX_BUFFER, but stream is too short.\n");
+			return -EINVAL;
+		}
+
+		header.u = *(unsigned int *)cmdbuf->buf;
+
+		cmdbuf->buf += sizeof(header);
+		cmdbuf->bufsz -= sizeof(header);
+		cmd = (u32 *) cmdbuf->buf;
+
+		if (header.header.cmd_type != R300_CMD_PACKET3 ||
+		    header.packet3.packet != R300_CMD_PACKET3_RAW ||
+		    cmd[0] != CP_PACKET3(RADEON_CP_INDX_BUFFER, 2)) {
+			DRM_ERROR("3D_DRAW_INDX_2: expect subsequent INDX_BUFFER.\n");
+			return -EINVAL;
+		}
+
+		if ((cmd[1] & 0x8000ffff) != 0x80000810) {
+			DRM_ERROR("Invalid indx_buffer reg address %08X\n", cmd[1]);
+			return -EINVAL;
+		}
+		if (!radeon_check_offset(dev_priv, cmd[2])) {
+			DRM_ERROR("Invalid indx_buffer offset is %08X\n", cmd[2]);
+			return -EINVAL;
+		}
+		if (cmd[3] != expected_count) {
+			DRM_ERROR("INDX_BUFFER: buffer size %i, expected %i\n",
+				cmd[3], expected_count);
+			return -EINVAL;
+		}
+
+		BEGIN_RING(4);
+		OUT_RING(cmd[0]);
+		OUT_RING_TABLE((int *)(cmdbuf->buf + 4), 3);
+		ADVANCE_RING();
+
+		cmdbuf->buf += 4*4;
+		cmdbuf->bufsz -= 4*4;
+	}
 
 	return 0;
 }
@@ -648,18 +693,21 @@ static __inline__ int r300_emit_raw_packet3(drm_radeon_private_t *dev_priv,
 		return r300_emit_bitblt_multi(dev_priv, cmdbuf);
 
 	case RADEON_CP_INDX_BUFFER:
-		/* DRAW_INDX_2 without INDX_BUFFER seems to lock up the gpu */
-		return r300_emit_indx_buffer(dev_priv, cmdbuf);
+		DRM_ERROR("packet3 INDX_BUFFER without preceding 3D_DRAW_INDX_2 is illegal.\n");
+		return -EINVAL;
 	case RADEON_CP_3D_DRAW_IMMD_2:
 		/* triggers drawing using in-packet vertex data */
 	case RADEON_CP_3D_DRAW_VBUF_2:
 		/* triggers drawing of vertex buffers setup elsewhere */
+		dev_priv->track_flush &= ~(RADEON_FLUSH_EMITED |
+					   RADEON_PURGE_EMITED);
+		break;
 	case RADEON_CP_3D_DRAW_INDX_2:
 		/* triggers drawing using indices to vertex buffer */
 		/* whenever we send vertex we clear flush & purge */
 		dev_priv->track_flush &= ~(RADEON_FLUSH_EMITED |
 					   RADEON_PURGE_EMITED);
-		break;
+		return r300_emit_draw_indx_2(dev_priv, cmdbuf);
 	case RADEON_WAIT_FOR_IDLE:
 	case RADEON_CP_NOP:
 		/* these packets are safe */
@@ -757,7 +805,7 @@ static __inline__ void r300_pacify(drm_radeon_private_t *dev_priv)
 {
 	uint32_t cache_z, cache_3d, cache_2d;
 	RING_LOCALS;
-	
+
 	cache_z = R300_ZC_FLUSH;
 	cache_2d = R300_RB2D_DC_FLUSH;
 	cache_3d = R300_RB3D_DC_FLUSH;
