@@ -112,9 +112,9 @@ extern int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags);
 static inline void prefetch(const void *ptr)
 {
 	__asm__ __volatile__(
-		"pld\t%0"
+		"pld\t%a0"
 		:
-		: "o" (*(char *)ptr)
+		: "p" (ptr)
 		: "cc");
 }
 
