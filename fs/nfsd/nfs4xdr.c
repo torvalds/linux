@@ -679,7 +679,9 @@ nfsd4_decode_open(struct nfsd4_compoundargs *argp, struct nfsd4_open *open)
 		break;
 	case NFS4_OPEN_CLAIM_DELEGATE_CUR:
 		READ_BUF(sizeof(stateid_t) + 4);
-		COPYMEM(&open->op_delegate_stateid, sizeof(stateid_t));
+		READ32(open->op_delegate_stateid.si_generation);
+		COPYMEM(&open->op_delegate_stateid.si_opaque,
+			sizeof(stateid_opaque_t));
 		READ32(open->op_fname.len);
 		READ_BUF(open->op_fname.len);
 		SAVEMEM(open->op_fname.data, open->op_fname.len);
