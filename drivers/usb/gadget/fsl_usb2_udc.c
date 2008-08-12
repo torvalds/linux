@@ -1165,16 +1165,12 @@ static int ep0_prime_status(struct fsl_udc *udc, int direction)
 	return status;
 }
 
-static inline int udc_reset_ep_queue(struct fsl_udc *udc, u8 pipe)
+static void udc_reset_ep_queue(struct fsl_udc *udc, u8 pipe)
 {
 	struct fsl_ep *ep = get_ep_by_pipe(udc, pipe);
 
-	if (!ep->name)
-		return 0;
-
-	nuke(ep, -ESHUTDOWN);
-
-	return 0;
+	if (ep->name)
+		nuke(ep, -ESHUTDOWN);
 }
 
 /*
