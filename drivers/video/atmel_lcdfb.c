@@ -242,9 +242,11 @@ static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 {
 	struct fb_info *info = sinfo->info;
 	struct fb_var_screeninfo *var = &info->var;
+	unsigned int smem_len;
 
-	info->fix.smem_len = (var->xres_virtual * var->yres_virtual
-			    * ((var->bits_per_pixel + 7) / 8));
+	smem_len = (var->xres_virtual * var->yres_virtual
+		    * ((var->bits_per_pixel + 7) / 8));
+	info->fix.smem_len = max(smem_len, sinfo->smem_len);
 
 	info->screen_base = dma_alloc_writecombine(info->device, info->fix.smem_len,
 					(dma_addr_t *)&info->fix.smem_start, GFP_KERNEL);
@@ -796,6 +798,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		sinfo->default_monspecs = pdata_sinfo->default_monspecs;
 		sinfo->atmel_lcdfb_power_control = pdata_sinfo->atmel_lcdfb_power_control;
 		sinfo->guard_time = pdata_sinfo->guard_time;
+		sinfo->smem_len = pdata_sinfo->smem_len;
 		sinfo->lcdcon_is_backlight = pdata_sinfo->lcdcon_is_backlight;
 		sinfo->lcd_wiring_mode = pdata_sinfo->lcd_wiring_mode;
 	} else {
