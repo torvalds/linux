@@ -82,24 +82,6 @@ vn_ioerror(
 		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
-
-/*
- * Add a reference to a referenced vnode.
- */
-bhv_vnode_t *
-vn_hold(
-	bhv_vnode_t	*vp)
-{
-	struct inode	*inode;
-
-	XFS_STATS_INC(vn_hold);
-
-	inode = igrab(vp);
-	ASSERT(inode);
-
-	return vp;
-}
-
 #ifdef	XFS_INODE_TRACE
 
 /*

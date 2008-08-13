@@ -18,9 +18,6 @@
 #ifndef __XFS_UTILS_H__
 #define __XFS_UTILS_H__
 
-#define IRELE(ip)	VN_RELE(VFS_I(ip))
-#define IHOLD(ip)	VN_HOLD(VFS_I(ip))
-
 extern int xfs_truncate_file(xfs_mount_t *, xfs_inode_t *);
 extern int xfs_dir_ialloc(xfs_trans_t **, xfs_inode_t *, mode_t, xfs_nlink_t,
 				xfs_dev_t, cred_t *, prid_t, int,

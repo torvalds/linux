@@ -69,22 +69,18 @@ static inline int vn_count(bhv_vnode_t *vp)
 	return atomic_read(&vp->i_count);
 }
 
-/*
- * Vnode reference counting functions (and macros for compatibility).
- */
-extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
+#define IHOLD(ip) \
+do { \
+	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
+	atomic_inc(&(VFS_I(ip)->i_count)); \
+	xfs_itrace_hold((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+} while (0)
 
-#if defined(XFS_INODE_TRACE)
-#define VN_HOLD(vp)		\
-	((void)vn_hold(vp),	\
-	  xfs_itrace_hold(XFS_I(vp), __FILE__, __LINE__, (inst_t *)__return_address))
-#define VN_RELE(vp)		\
-	  (xfs_itrace_rele(XFS_I(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
-	   iput(vp))
-#else
-#define VN_HOLD(vp)		((void)vn_hold(vp))
-#define VN_RELE(vp)		(iput(vp))
-#endif
+#define IRELE(ip) \
+do { \
+	xfs_itrace_rele((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+	iput(VFS_I(ip)); \
+} while (0)
 
 static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 {
