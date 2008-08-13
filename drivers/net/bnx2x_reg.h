@@ -1372,6 +1372,23 @@
    be asserted). */
 #define MISC_REG_DRIVER_CONTROL_16				 0xa5f0
 #define MISC_REG_DRIVER_CONTROL_16_SIZE 			 2
+/* [RW 32] The following driver registers(1...16) represent 16 drivers and
+   32 clients. Each client can be controlled by one driver only. One in each
+   bit represent that this driver control the appropriate client (Ex: bit 5
+   is set means this driver control client number 5). addr1 = set; addr0 =
+   clear; read from both addresses will give the same result = status. write
+   to address 1 will set a request to control all the clients that their
+   appropriate bit (in the write command) is set. if the client is free (the
+   appropriate bit in all the other drivers is clear) one will be written to
+   that driver register; if the client isn't free the bit will remain zero.
+   if the appropriate bit is set (the driver request to gain control on a
+   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
+   interrupt will be asserted). write to address 0 will set a request to
+   free all the clients that their appropriate bit (in the write command) is
+   set. if the appropriate bit is clear (the driver request to free a client
+   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
+   be asserted). */
+#define MISC_REG_DRIVER_CONTROL_7				 0xa3c8
 /* [RW 1] e1hmf for WOL. If clr WOL signal o the PXP will be send on bit 0
    only. */
 #define MISC_REG_E1HMF_MODE					 0xa5f8
