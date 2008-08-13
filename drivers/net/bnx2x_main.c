@@ -1788,11 +1788,11 @@ static void bnx2x_release_phy_lock(struct bnx2x *bp)
 	mutex_unlock(&bp->port.phy_mutex);
 }
 
-int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode)
+int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port)
 {
 	/* The GPIO should be swapped if swap register is set and active */
 	int gpio_port = (REG_RD(bp, NIG_REG_PORT_SWAP) &&
-			 REG_RD(bp, NIG_REG_STRAP_OVERRIDE)) ^ BP_PORT(bp);
+			 REG_RD(bp, NIG_REG_STRAP_OVERRIDE)) ^ port;
 	int gpio_shift = gpio_num +
 			(gpio_port ? MISC_REGISTERS_GPIO_PORT_SHIFT : 0);
 	u32 gpio_mask = (1 << gpio_shift);
@@ -1824,7 +1824,7 @@ int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode)
 		gpio_reg |=  (gpio_mask << MISC_REGISTERS_GPIO_SET_POS);
 		break;
 
-	case MISC_REGISTERS_GPIO_INPUT_HI_Z :
+	case MISC_REGISTERS_GPIO_INPUT_HI_Z:
 		DP(NETIF_MSG_LINK, "Set GPIO %d (shift %d) -> input\n",
 		   gpio_num, gpio_shift);
 		/* set FLOAT */
@@ -2553,12 +2553,12 @@ static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
 		case SHARED_HW_CFG_BOARD_TYPE_BCM957710A1022G:
 			/* Fan failure attention */
 
-			/* The PHY reset is controled by GPIO 1 */
+			/* The PHY reset is controlled by GPIO 1 */
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_1,
-				       MISC_REGISTERS_GPIO_OUTPUT_LOW);
-			/* Low power mode is controled by GPIO 2 */
+				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
+			/* Low power mode is controlled by GPIO 2 */
 			bnx2x_set_gpio(bp, MISC_REGISTERS_GPIO_2,
-				       MISC_REGISTERS_GPIO_OUTPUT_LOW);
+				       MISC_REGISTERS_GPIO_OUTPUT_LOW, port);
 			/* mark the failure */
 			bp->link_params.ext_phy_config &=
 					~PORT_HW_CFG_XGXS_EXT_PHY_TYPE_MASK;
