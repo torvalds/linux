@@ -570,6 +570,13 @@ xfs_btree_init_cursor(
 		cur->bc_private.a.agbp = agbp;
 		cur->bc_private.a.agno = agno;
 		break;
+	case XFS_BTNUM_INO:
+		/*
+		 * Inode allocation btree fields.
+		 */
+		cur->bc_private.a.agbp = agbp;
+		cur->bc_private.a.agno = agno;
+		break;
 	case XFS_BTNUM_BMAP:
 		/*
 		 * Bmap btree fields.
@@ -581,13 +588,6 @@ xfs_btree_init_cursor(
 		cur->bc_private.b.allocated = 0;
 		cur->bc_private.b.flags = 0;
 		cur->bc_private.b.whichfork = whichfork;
-		break;
-	case XFS_BTNUM_INO:
-		/*
-		 * Inode allocation btree fields.
-		 */
-		cur->bc_private.i.agbp = agbp;
-		cur->bc_private.i.agno = agno;
 		break;
 	default:
 		ASSERT(0);
@@ -863,12 +863,12 @@ xfs_btree_readahead_core(
 	case XFS_BTNUM_INO:
 		i = XFS_BUF_TO_INOBT_BLOCK(cur->bc_bufs[lev]);
 		if ((lr & XFS_BTCUR_LEFTRA) && be32_to_cpu(i->bb_leftsib) != NULLAGBLOCK) {
-			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.i.agno,
+			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
 				be32_to_cpu(i->bb_leftsib), 1);
 			rval++;
 		}
 		if ((lr & XFS_BTCUR_RIGHTRA) && be32_to_cpu(i->bb_rightsib) != NULLAGBLOCK) {
-			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.i.agno,
+			xfs_btree_reada_bufs(cur->bc_mp, cur->bc_private.a.agno,
 				be32_to_cpu(i->bb_rightsib), 1);
 			rval++;
 		}
