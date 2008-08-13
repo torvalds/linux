@@ -740,6 +740,7 @@
 #define HC_REG_ATTN_MSG1_ADDR_L 				 0x108020
 #define HC_REG_ATTN_NUM_P0					 0x108038
 #define HC_REG_ATTN_NUM_P1					 0x10803c
+#define HC_REG_COMMAND_REG					 0x108180
 #define HC_REG_CONFIG_0 					 0x108000
 #define HC_REG_CONFIG_1 					 0x108004
 #define HC_REG_FUNC_NUM_P0					 0x1080ac
@@ -5168,59 +5169,73 @@
 #define GRCBASE_MISC_AEU	GRCBASE_MISC
 
 
-/*the offset of the configuration space in the pci core register*/
+/* offset of configuration space in the pci core register */
 #define PCICFG_OFFSET					0x2000
 #define PCICFG_VENDOR_ID_OFFSET 			0x00
 #define PCICFG_DEVICE_ID_OFFSET 			0x02
 #define PCICFG_COMMAND_OFFSET				0x04
+#define PCICFG_COMMAND_IO_SPACE 		(1<<0)
+#define PCICFG_COMMAND_MEM_SPACE		(1<<1)
+#define PCICFG_COMMAND_BUS_MASTER		(1<<2)
+#define PCICFG_COMMAND_SPECIAL_CYCLES		(1<<3)
+#define PCICFG_COMMAND_MWI_CYCLES		(1<<4)
+#define PCICFG_COMMAND_VGA_SNOOP		(1<<5)
+#define PCICFG_COMMAND_PERR_ENA 		(1<<6)
+#define PCICFG_COMMAND_STEPPING 		(1<<7)
+#define PCICFG_COMMAND_SERR_ENA 		(1<<8)
+#define PCICFG_COMMAND_FAST_B2B 		(1<<9)
+#define PCICFG_COMMAND_INT_DISABLE		(1<<10)
+#define PCICFG_COMMAND_RESERVED 		(0x1f<<11)
 #define PCICFG_STATUS_OFFSET				0x06
-#define PCICFG_REVESION_ID				    0x08
+#define PCICFG_REVESION_ID				0x08
 #define PCICFG_CACHE_LINE_SIZE				0x0c
 #define PCICFG_LATENCY_TIMER				0x0d
-#define PCICFG_BAR_1_LOW				    0x10
-#define PCICFG_BAR_1_HIGH				    0x14
-#define PCICFG_BAR_2_LOW				    0x18
-#define PCICFG_BAR_2_HIGH				    0x1c
-#define PCICFG_SUBSYSTEM_VENDOR_ID_OFFSET	0x2c
+#define PCICFG_BAR_1_LOW				0x10
+#define PCICFG_BAR_1_HIGH				0x14
+#define PCICFG_BAR_2_LOW				0x18
+#define PCICFG_BAR_2_HIGH				0x1c
+#define PCICFG_SUBSYSTEM_VENDOR_ID_OFFSET		0x2c
 #define PCICFG_SUBSYSTEM_ID_OFFSET			0x2e
-#define PCICFG_INT_LINE 				    0x3c
-#define PCICFG_INT_PIN					    0x3d
-#define PCICFG_PM_CSR_OFFSET			0x4c
-#define PCICFG_GRC_ADDRESS				    0x78
-#define PCICFG_GRC_DATA 				    0x80
+#define PCICFG_INT_LINE 				0x3c
+#define PCICFG_INT_PIN					0x3d
+#define PCICFG_PM_CAPABILITY				0x48
+#define PCICFG_PM_CAPABILITY_VERSION		(0x3<<16)
+#define PCICFG_PM_CAPABILITY_CLOCK		(1<<19)
+#define PCICFG_PM_CAPABILITY_RESERVED		(1<<20)
+#define PCICFG_PM_CAPABILITY_DSI		(1<<21)
+#define PCICFG_PM_CAPABILITY_AUX_CURRENT	(0x7<<22)
+#define PCICFG_PM_CAPABILITY_D1_SUPPORT 	(1<<25)
+#define PCICFG_PM_CAPABILITY_D2_SUPPORT 	(1<<26)
+#define PCICFG_PM_CAPABILITY_PME_IN_D0		(1<<27)
+#define PCICFG_PM_CAPABILITY_PME_IN_D1		(1<<28)
+#define PCICFG_PM_CAPABILITY_PME_IN_D2		(1<<29)
+#define PCICFG_PM_CAPABILITY_PME_IN_D3_HOT	(1<<30)
+#define PCICFG_PM_CAPABILITY_PME_IN_D3_COLD	(1<<31)
+#define PCICFG_PM_CSR_OFFSET				0x4c
+#define PCICFG_PM_CSR_STATE			(0x3<<0)
+#define PCICFG_PM_CSR_PME_ENABLE		(1<<8)
+#define PCICFG_PM_CSR_PME_STATUS		(1<<15)
+#define PCICFG_GRC_ADDRESS				0x78
+#define PCICFG_GRC_DATA 				0x80
 #define PCICFG_DEVICE_CONTROL				0xb4
 #define PCICFG_LINK_CONTROL				0xbc
 
-#define PCICFG_COMMAND_IO_SPACE 		    (1<<0)
-#define PCICFG_COMMAND_MEM_SPACE		    (1<<1)
-#define PCICFG_COMMAND_BUS_MASTER		    (1<<2)
-#define PCICFG_COMMAND_SPECIAL_CYCLES		    (1<<3)
-#define PCICFG_COMMAND_MWI_CYCLES		    (1<<4)
-#define PCICFG_COMMAND_VGA_SNOOP		    (1<<5)
-#define PCICFG_COMMAND_PERR_ENA 		    (1<<6)
-#define PCICFG_COMMAND_STEPPING 		    (1<<7)
-#define PCICFG_COMMAND_SERR_ENA 		    (1<<8)
-#define PCICFG_COMMAND_FAST_B2B 		    (1<<9)
-#define PCICFG_COMMAND_INT_DISABLE		    (1<<10)
-#define PCICFG_COMMAND_RESERVED 		    (0x1f<<11)
-
-#define PCICFG_PM_CSR_STATE			    (0x3<<0)
-#define PCICFG_PM_CSR_PME_STATUS		    (1<<15)
 
 #define BAR_USTRORM_INTMEM				0x400000
 #define BAR_CSTRORM_INTMEM				0x410000
 #define BAR_XSTRORM_INTMEM				0x420000
 #define BAR_TSTRORM_INTMEM				0x430000
 
+/* for accessing the IGU in case of status block ACK */
 #define BAR_IGU_INTMEM					0x440000
 
 #define BAR_DOORBELL_OFFSET				0x800000
 
 #define BAR_ME_REGISTER 				0x450000
 
-
-#define GRC_CONFIG_2_SIZE_REG		    0x408 /* config_2 offset */
-#define PCI_CONFIG_2_BAR1_SIZE			    (0xfL<<0)
+/* config_2 offset */
+#define GRC_CONFIG_2_SIZE_REG				0x408
+#define PCI_CONFIG_2_BAR1_SIZE			(0xfL<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_DISABLED 	(0L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_64K		(1L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_128K		(2L<<0)
@@ -5237,11 +5252,11 @@
 #define PCI_CONFIG_2_BAR1_SIZE_256M		(13L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_512M		(14L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_1G		(15L<<0)
-#define PCI_CONFIG_2_BAR1_64ENA 		    (1L<<4)
-#define PCI_CONFIG_2_EXP_ROM_RETRY		    (1L<<5)
-#define PCI_CONFIG_2_CFG_CYCLE_RETRY		    (1L<<6)
-#define PCI_CONFIG_2_FIRST_CFG_DONE		    (1L<<7)
-#define PCI_CONFIG_2_EXP_ROM_SIZE		    (0xffL<<8)
+#define PCI_CONFIG_2_BAR1_64ENA 		(1L<<4)
+#define PCI_CONFIG_2_EXP_ROM_RETRY		(1L<<5)
+#define PCI_CONFIG_2_CFG_CYCLE_RETRY		(1L<<6)
+#define PCI_CONFIG_2_FIRST_CFG_DONE		(1L<<7)
+#define PCI_CONFIG_2_EXP_ROM_SIZE		(0xffL<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_DISABLED	(0L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_2K		(1L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_4K		(2L<<8)
@@ -5258,46 +5273,44 @@
 #define PCI_CONFIG_2_EXP_ROM_SIZE_8M		(13L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_16M		(14L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_32M		(15L<<8)
-#define PCI_CONFIG_2_BAR_PREFETCH		    (1L<<16)
-#define PCI_CONFIG_2_RESERVED0			    (0x7fffL<<17)
+#define PCI_CONFIG_2_BAR_PREFETCH		(1L<<16)
+#define PCI_CONFIG_2_RESERVED0			(0x7fffL<<17)
 
 /* config_3 offset */
-#define GRC_CONFIG_3_SIZE_REG				(0x40c)
-#define PCI_CONFIG_3_STICKY_BYTE		    (0xffL<<0)
-#define PCI_CONFIG_3_FORCE_PME			    (1L<<24)
-#define PCI_CONFIG_3_PME_STATUS 		    (1L<<25)
-#define PCI_CONFIG_3_PME_ENABLE 		    (1L<<26)
-#define PCI_CONFIG_3_PM_STATE			    (0x3L<<27)
-#define PCI_CONFIG_3_VAUX_PRESET		    (1L<<30)
-#define PCI_CONFIG_3_PCI_POWER			    (1L<<31)
-
-/* config_2 offset */
-#define GRC_CONFIG_2_SIZE_REG		    0x408
+#define GRC_CONFIG_3_SIZE_REG				0x40c
+#define PCI_CONFIG_3_STICKY_BYTE		(0xffL<<0)
+#define PCI_CONFIG_3_FORCE_PME			(1L<<24)
+#define PCI_CONFIG_3_PME_STATUS 		(1L<<25)
+#define PCI_CONFIG_3_PME_ENABLE 		(1L<<26)
+#define PCI_CONFIG_3_PM_STATE			(0x3L<<27)
+#define PCI_CONFIG_3_VAUX_PRESET		(1L<<30)
+#define PCI_CONFIG_3_PCI_POWER			(1L<<31)
 
 #define GRC_BAR2_CONFIG 				0x4e0
-#define PCI_CONFIG_2_BAR2_SIZE			    (0xfL<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_DISABLED 	    (0L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_64K		    (1L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_128K		    (2L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_256K		    (3L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_512K		    (4L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_1M		    (5L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_2M		    (6L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_4M		    (7L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_8M		    (8L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_16M		    (9L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_32M		    (10L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_64M		    (11L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_128M		    (12L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_256M		    (13L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_512M		    (14L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_1G		    (15L<<0)
-#define PCI_CONFIG_2_BAR2_64ENA 		    (1L<<4)
+#define PCI_CONFIG_2_BAR2_SIZE			(0xfL<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_DISABLED 	(0L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_64K		(1L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_128K		(2L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_256K		(3L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_512K		(4L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_1M		(5L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_2M		(6L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_4M		(7L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_8M		(8L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_16M		(9L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_32M		(10L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_64M		(11L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_128M		(12L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_256M		(13L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_512M		(14L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_1G		(15L<<0)
+#define PCI_CONFIG_2_BAR2_64ENA 		(1L<<4)
 
-#define PCI_PM_DATA_A					(0x410)
-#define PCI_PM_DATA_B					(0x414)
-#define PCI_ID_VAL1					(0x434)
-#define PCI_ID_VAL2					(0x438)
+#define PCI_PM_DATA_A					0x410
+#define PCI_PM_DATA_B					0x414
+#define PCI_ID_VAL1					0x434
+#define PCI_ID_VAL2					0x438
+
 
 #define MDIO_REG_BANK_CL73_IEEEB0			0x0
 #define MDIO_CL73_IEEEB0_CL73_AN_CONTROL		0x0
@@ -5623,5 +5636,14 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_INT_DISABLE 		1
 #define IGU_INT_NOP				2
 #define IGU_INT_NOP2			3
+
+#define COMMAND_REG_INT_ACK	    0x0
+#define COMMAND_REG_PROD_UPD	    0x4
+#define COMMAND_REG_ATTN_BITS_UPD   0x8
+#define COMMAND_REG_ATTN_BITS_SET   0xc
+#define COMMAND_REG_ATTN_BITS_CLR   0x10
+#define COMMAND_REG_COALESCE_NOW    0x14
+#define COMMAND_REG_SIMD_MASK	    0x18
+#define COMMAND_REG_SIMD_NOMASK     0x1c
 
 

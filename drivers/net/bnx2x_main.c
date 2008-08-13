@@ -685,7 +685,8 @@ static void bnx2x_int_disable_sync(struct bnx2x *bp)
 static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 sb_id,
 				u8 storm, u16 index, u8 op, u8 update)
 {
-	u32 igu_addr = (IGU_ADDR_INT_ACK + IGU_FUNC_BASE * BP_FUNC(bp)) * 8;
+	u32 hc_addr = (HC_REG_COMMAND_REG + BP_PORT(bp)*32 +
+		       COMMAND_REG_INT_ACK);
 	struct igu_ack_register igu_ack;
 
 	igu_ack.status_block_index = index;
@@ -695,9 +696,9 @@ static inline void bnx2x_ack_sb(struct bnx2x *bp, u8 sb_id,
 			 (update << IGU_ACK_REGISTER_UPDATE_INDEX_SHIFT) |
 			 (op << IGU_ACK_REGISTER_INTERRUPT_MODE_SHIFT));
 
-	DP(BNX2X_MSG_OFF, "write 0x%08x to IGU addr 0x%x\n",
-	   (*(u32 *)&igu_ack), BAR_IGU_INTMEM + igu_addr);
-	REG_WR(bp, BAR_IGU_INTMEM + igu_addr, (*(u32 *)&igu_ack));
+	DP(BNX2X_MSG_OFF, "write 0x%08x to HC addr 0x%x\n",
+	   (*(u32 *)&igu_ack), hc_addr);
+	REG_WR(bp, hc_addr, (*(u32 *)&igu_ack));
 }
 
 static inline u16 bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
@@ -719,19 +720,13 @@ static inline u16 bnx2x_update_fpsb_idx(struct bnx2x_fastpath *fp)
 
 static u16 bnx2x_ack_int(struct bnx2x *bp)
 {
-	u32 igu_addr = (IGU_ADDR_SIMD_MASK + IGU_FUNC_BASE * BP_FUNC(bp)) * 8;
-	u32 result = REG_RD(bp, BAR_IGU_INTMEM + igu_addr);
+	u32 hc_addr = (HC_REG_COMMAND_REG + BP_PORT(bp)*32 +
+		       COMMAND_REG_SIMD_MASK);
+	u32 result = REG_RD(bp, hc_addr);
 
-	DP(BNX2X_MSG_OFF, "read 0x%08x from IGU addr 0x%x\n",
-	   result, BAR_IGU_INTMEM + igu_addr);
+	DP(BNX2X_MSG_OFF, "read 0x%08x from HC addr 0x%x\n",
+	   result, hc_addr);
 
-#ifdef IGU_DEBUG
-#warning IGU_DEBUG active
-	if (result == 0) {
-		BNX2X_ERR("read %x from IGU\n", result);
-		REG_WR(bp, TM_REG_TIMER_SOFT_RST, 0);
-	}
-#endif
 	return result;
 }
 
@@ -2444,8 +2439,8 @@ static inline u16 bnx2x_update_dsb_idx(struct bnx2x *bp)
 static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 {
 	int port = BP_PORT(bp);
-	int func = BP_FUNC(bp);
-	u32 igu_addr = (IGU_ADDR_ATTN_BITS_SET + IGU_FUNC_BASE * func) * 8;
+	u32 hc_addr = (HC_REG_COMMAND_REG + port*32 +
+		       COMMAND_REG_ATTN_BITS_SET);
 	u32 aeu_addr = port ? MISC_REG_AEU_MASK_ATTN_FUNC_1 :
 			      MISC_REG_AEU_MASK_ATTN_FUNC_0;
 	u32 nig_int_mask_addr = port ? NIG_REG_MASK_INTERRUPT_PORT1 :
@@ -2523,9 +2518,9 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 
 	} /* if hardwired */
 
-	DP(NETIF_MSG_HW, "about to mask 0x%08x at IGU addr 0x%x\n",
-	   asserted, BAR_IGU_INTMEM + igu_addr);
-	REG_WR(bp, BAR_IGU_INTMEM + igu_addr, asserted);
+	DP(NETIF_MSG_HW, "about to mask 0x%08x at HC addr 0x%x\n",
+	   asserted, hc_addr);
+	REG_WR(bp, hc_addr, asserted);
 
 	/* now set back the mask */
 	if (asserted & ATTN_NIG_FOR_FUNC)
@@ -2764,12 +2759,12 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 
 	bnx2x_release_alr(bp);
 
-	reg_addr = (IGU_ADDR_ATTN_BITS_CLR + IGU_FUNC_BASE * BP_FUNC(bp)) * 8;
+	reg_addr = (HC_REG_COMMAND_REG + port*32 + COMMAND_REG_ATTN_BITS_CLR);
 
 	val = ~deasserted;
 	DP(NETIF_MSG_HW, "about to mask 0x%08x at HC addr 0x%x\n",
 	   val, reg_addr);
-	REG_WR(bp, BAR_IGU_INTMEM + reg_addr, val);
+	REG_WR(bp, reg_addr, val);
 
 	if (~bp->attn_state & deasserted)
 		BNX2X_ERR("IGU ERROR\n");
@@ -3998,8 +3993,8 @@ static void bnx2x_zero_sb(struct bnx2x *bp, int sb_id)
 			sizeof(struct cstorm_def_status_block)/4);
 }
 
-static void bnx2x_init_sb(struct bnx2x *bp, int sb_id,
-			  struct host_status_block *sb,	dma_addr_t mapping)
+static void bnx2x_init_sb(struct bnx2x *bp, struct host_status_block *sb,
+			  dma_addr_t mapping, int sb_id)
 {
 	int port = BP_PORT(bp);
 	int func = BP_FUNC(bp);
@@ -4075,7 +4070,6 @@ static void bnx2x_init_def_sb(struct bnx2x *bp,
 					    atten_status_block);
 	def_sb->atten_status_block.status_block_id = sb_id;
 
-	bp->def_att_idx = 0;
 	bp->attn_state = 0;
 
 	reg_offset = (port ? MISC_REG_AEU_ENABLE1_FUNC_1_OUT_0 :
@@ -4109,17 +4103,13 @@ static void bnx2x_init_def_sb(struct bnx2x *bp,
 					    u_def_status_block);
 	def_sb->u_def_status_block.status_block_id = sb_id;
 
-	bp->def_u_idx = 0;
-
 	REG_WR(bp, BAR_USTRORM_INTMEM +
 	       USTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func), U64_LO(section));
 	REG_WR(bp, BAR_USTRORM_INTMEM +
 	       ((USTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func)) + 4),
 	       U64_HI(section));
-	REG_WR8(bp, BAR_USTRORM_INTMEM +  DEF_USB_FUNC_OFF +
+	REG_WR8(bp, BAR_USTRORM_INTMEM + DEF_USB_FUNC_OFF +
 		USTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), func);
-	REG_WR(bp, BAR_USTRORM_INTMEM + USTORM_HC_BTR_OFFSET(func),
-	       BNX2X_BTR);
 
 	for (index = 0; index < HC_USTORM_DEF_SB_NUM_INDICES; index++)
 		REG_WR16(bp, BAR_USTRORM_INTMEM +
@@ -4130,17 +4120,13 @@ static void bnx2x_init_def_sb(struct bnx2x *bp,
 					    c_def_status_block);
 	def_sb->c_def_status_block.status_block_id = sb_id;
 
-	bp->def_c_idx = 0;
-
 	REG_WR(bp, BAR_CSTRORM_INTMEM +
 	       CSTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func), U64_LO(section));
 	REG_WR(bp, BAR_CSTRORM_INTMEM +
 	       ((CSTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func)) + 4),
 	       U64_HI(section));
-	REG_WR8(bp, BAR_CSTRORM_INTMEM +  DEF_CSB_FUNC_OFF +
+	REG_WR8(bp, BAR_CSTRORM_INTMEM + DEF_CSB_FUNC_OFF +
 		CSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), func);
-	REG_WR(bp, BAR_CSTRORM_INTMEM + CSTORM_HC_BTR_OFFSET(func),
-	       BNX2X_BTR);
 
 	for (index = 0; index < HC_CSTORM_DEF_SB_NUM_INDICES; index++)
 		REG_WR16(bp, BAR_CSTRORM_INTMEM +
@@ -4151,17 +4137,13 @@ static void bnx2x_init_def_sb(struct bnx2x *bp,
 					    t_def_status_block);
 	def_sb->t_def_status_block.status_block_id = sb_id;
 
-	bp->def_t_idx = 0;
-
 	REG_WR(bp, BAR_TSTRORM_INTMEM +
 	       TSTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func), U64_LO(section));
 	REG_WR(bp, BAR_TSTRORM_INTMEM +
 	       ((TSTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func)) + 4),
 	       U64_HI(section));
-	REG_WR8(bp, BAR_TSTRORM_INTMEM +  DEF_TSB_FUNC_OFF +
+	REG_WR8(bp, BAR_TSTRORM_INTMEM + DEF_TSB_FUNC_OFF +
 		TSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), func);
-	REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_HC_BTR_OFFSET(func),
-	       BNX2X_BTR);
 
 	for (index = 0; index < HC_TSTORM_DEF_SB_NUM_INDICES; index++)
 		REG_WR16(bp, BAR_TSTRORM_INTMEM +
@@ -4172,17 +4154,13 @@ static void bnx2x_init_def_sb(struct bnx2x *bp,
 					    x_def_status_block);
 	def_sb->x_def_status_block.status_block_id = sb_id;
 
-	bp->def_x_idx = 0;
-
 	REG_WR(bp, BAR_XSTRORM_INTMEM +
 	       XSTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func), U64_LO(section));
 	REG_WR(bp, BAR_XSTRORM_INTMEM +
 	       ((XSTORM_DEF_SB_HOST_SB_ADDR_OFFSET(func)) + 4),
 	       U64_HI(section));
-	REG_WR8(bp, BAR_XSTRORM_INTMEM +  DEF_XSB_FUNC_OFF +
+	REG_WR8(bp, BAR_XSTRORM_INTMEM + DEF_XSB_FUNC_OFF +
 		XSTORM_DEF_SB_HOST_STATUS_BLOCK_OFFSET(func), func);
-	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_HC_BTR_OFFSET(func),
-	       BNX2X_BTR);
 
 	for (index = 0; index < HC_XSTORM_DEF_SB_NUM_INDICES; index++)
 		REG_WR16(bp, BAR_XSTRORM_INTMEM +
@@ -4205,21 +4183,25 @@ static void bnx2x_update_coalesce(struct bnx2x *bp)
 		/* HC_INDEX_U_ETH_RX_CQ_CONS */
 		REG_WR8(bp, BAR_USTRORM_INTMEM +
 			USTORM_SB_HC_TIMEOUT_OFFSET(port, sb_id,
-						   HC_INDEX_U_ETH_RX_CQ_CONS),
+						    U_SB_ETH_RX_CQ_INDEX),
 			bp->rx_ticks/12);
 		REG_WR16(bp, BAR_USTRORM_INTMEM +
 			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
-						   HC_INDEX_U_ETH_RX_CQ_CONS),
+						     U_SB_ETH_RX_CQ_INDEX),
+			 bp->rx_ticks ? 0 : 1);
+		REG_WR16(bp, BAR_USTRORM_INTMEM +
+			 USTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
+						     U_SB_ETH_RX_BD_INDEX),
 			 bp->rx_ticks ? 0 : 1);
 
 		/* HC_INDEX_C_ETH_TX_CQ_CONS */
 		REG_WR8(bp, BAR_CSTRORM_INTMEM +
 			CSTORM_SB_HC_TIMEOUT_OFFSET(port, sb_id,
-						   HC_INDEX_C_ETH_TX_CQ_CONS),
+						    C_SB_ETH_TX_CQ_INDEX),
 			bp->tx_ticks/12);
 		REG_WR16(bp, BAR_CSTRORM_INTMEM +
 			 CSTORM_SB_HC_DISABLE_OFFSET(port, sb_id,
-						   HC_INDEX_C_ETH_TX_CQ_CONS),
+						     C_SB_ETH_TX_CQ_INDEX),
 			 bp->tx_ticks ? 0 : 1);
 	}
 }
@@ -4494,7 +4476,7 @@ static void bnx2x_init_context(struct bnx2x *bp)
 		}
 
 		context->cstorm_st_context.sb_index_number =
-						HC_INDEX_C_ETH_TX_CQ_CONS;
+						C_SB_ETH_TX_CQ_INDEX;
 		context->cstorm_st_context.status_block_id = sb_id;
 
 		context->xstorm_ag_context.cdu_reserved =
@@ -4773,12 +4755,14 @@ static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 		DP(NETIF_MSG_IFUP,
 		   "bnx2x_init_sb(%p,%p) index %d  cl_id %d  sb %d\n",
 		   bp, fp->status_blk, i, FP_CL_ID(fp), FP_SB_ID(fp));
-		bnx2x_init_sb(bp, FP_SB_ID(fp), fp->status_blk,
-			      fp->status_blk_mapping);
+		bnx2x_init_sb(bp, fp->status_blk, fp->status_blk_mapping,
+			      FP_SB_ID(fp));
+		bnx2x_update_fpsb_idx(fp);
 	}
 
-	bnx2x_init_def_sb(bp, bp->def_status_blk,
-			  bp->def_status_blk_mapping, DEF_SB_ID);
+	bnx2x_init_def_sb(bp, bp->def_status_blk, bp->def_status_blk_mapping,
+			  DEF_SB_ID);
+	bnx2x_update_dsb_idx(bp);
 	bnx2x_update_coalesce(bp);
 	bnx2x_init_rx_rings(bp);
 	bnx2x_init_tx_ring(bp);
