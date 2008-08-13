@@ -58,7 +58,7 @@ xfs_buf_trace(
 		bp, id,
 		(void *)(unsigned long)bp->b_flags,
 		(void *)(unsigned long)bp->b_hold.counter,
-		(void *)(unsigned long)bp->b_sema.count.counter,
+		(void *)(unsigned long)bp->b_sema.count,
 		(void *)current,
 		data, ra,
 		(void *)(unsigned long)((bp->b_file_offset>>32) & 0xffffffff),
