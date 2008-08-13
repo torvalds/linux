@@ -3985,10 +3985,10 @@ static void bnx2x_zero_sb(struct bnx2x *bp, int sb_id)
 
 	bnx2x_init_fill(bp, BAR_USTRORM_INTMEM +
 			USTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, sb_id), 0,
-			sizeof(struct ustorm_def_status_block)/4);
+			sizeof(struct ustorm_status_block)/4);
 	bnx2x_init_fill(bp, BAR_CSTRORM_INTMEM +
 			CSTORM_SB_HOST_STATUS_BLOCK_OFFSET(port, sb_id), 0,
-			sizeof(struct cstorm_def_status_block)/4);
+			sizeof(struct cstorm_status_block)/4);
 }
 
 static void bnx2x_init_sb(struct bnx2x *bp, struct host_status_block *sb,
