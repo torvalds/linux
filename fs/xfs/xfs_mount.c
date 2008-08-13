@@ -1315,7 +1315,7 @@ xfs_unmountfs(xfs_mount_t *mp)
 	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0)
 		uuid_table_remove(&mp->m_sb.sb_uuid);
 
-#if defined(DEBUG) || defined(INDUCE_IO_ERROR)
+#if defined(DEBUG)
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_mount_free(mp);
