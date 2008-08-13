@@ -2975,37 +2975,6 @@ static inline long bnx2x_hilo(u32 *hiref)
  * Init service functions
  */
 
-static void bnx2x_storm_stats_init(struct bnx2x *bp)
-{
-	int func = BP_FUNC(bp);
-
-	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_STATS_FLAGS_OFFSET(func), 1);
-	REG_WR(bp, BAR_XSTRORM_INTMEM +
-	       XSTORM_STATS_FLAGS_OFFSET(func) + 4, 0);
-
-	REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_STATS_FLAGS_OFFSET(func), 1);
-	REG_WR(bp, BAR_TSTRORM_INTMEM +
-	       TSTORM_STATS_FLAGS_OFFSET(func) + 4, 0);
-
-	REG_WR(bp, BAR_CSTRORM_INTMEM + CSTORM_STATS_FLAGS_OFFSET(func), 0);
-	REG_WR(bp, BAR_CSTRORM_INTMEM +
-	       CSTORM_STATS_FLAGS_OFFSET(func) + 4, 0);
-
-	REG_WR(bp, BAR_XSTRORM_INTMEM +
-	       XSTORM_ETH_STATS_QUERY_ADDR_OFFSET(func),
-	       U64_LO(bnx2x_sp_mapping(bp, fw_stats)));
-	REG_WR(bp, BAR_XSTRORM_INTMEM +
-	       XSTORM_ETH_STATS_QUERY_ADDR_OFFSET(func) + 4,
-	       U64_HI(bnx2x_sp_mapping(bp, fw_stats)));
-
-	REG_WR(bp, BAR_TSTRORM_INTMEM +
-	       TSTORM_ETH_STATS_QUERY_ADDR_OFFSET(func),
-	       U64_LO(bnx2x_sp_mapping(bp, fw_stats)));
-	REG_WR(bp, BAR_TSTRORM_INTMEM +
-	       TSTORM_ETH_STATS_QUERY_ADDR_OFFSET(func) + 4,
-	       U64_HI(bnx2x_sp_mapping(bp, fw_stats)));
-}
-
 static void bnx2x_storm_stats_post(struct bnx2x *bp)
 {
 	if (!bp->stats_pending) {
@@ -4632,13 +4601,35 @@ static void bnx2x_set_storm_rx_mode(struct bnx2x *bp)
 		bnx2x_set_client_config(bp);
 }
 
-static void bnx2x_init_internal(struct bnx2x *bp)
+static void bnx2x_init_internal_common(struct bnx2x *bp)
+{
+	int i;
+
+	/* Zero this manually as its initialization is
+	   currently missing in the initTool */
+	for (i = 0; i < (USTORM_AGG_DATA_SIZE >> 2); i++)
+		REG_WR(bp, BAR_USTRORM_INTMEM +
+		       USTORM_AGG_DATA_OFFSET + i * 4, 0);
+}
+
+static void bnx2x_init_internal_port(struct bnx2x *bp)
+{
+	int port = BP_PORT(bp);
+
+	REG_WR(bp, BAR_USTRORM_INTMEM + USTORM_HC_BTR_OFFSET(port), BNX2X_BTR);
+	REG_WR(bp, BAR_CSTRORM_INTMEM + CSTORM_HC_BTR_OFFSET(port), BNX2X_BTR);
+	REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_HC_BTR_OFFSET(port), BNX2X_BTR);
+	REG_WR(bp, BAR_XSTRORM_INTMEM + XSTORM_HC_BTR_OFFSET(port), BNX2X_BTR);
+}
+
+static void bnx2x_init_internal_func(struct bnx2x *bp)
 {
 	struct tstorm_eth_function_common_config tstorm_config = {0};
 	struct stats_indication_flags stats_flags = {0};
 	int port = BP_PORT(bp);
 	int func = BP_FUNC(bp);
 	int i;
+	u16 max_agg_size;
 
 	if (is_multi(bp)) {
 		tstorm_config.config_flags = MULTI_FLAGS;
@@ -4650,9 +4641,6 @@ static void bnx2x_init_internal(struct bnx2x *bp)
 	REG_WR(bp, BAR_TSTRORM_INTMEM +
 	       TSTORM_FUNCTION_COMMON_CONFIG_OFFSET(func),
 	       (*(u32 *)&tstorm_config));
-
-/*	DP(NETIF_MSG_IFUP, "tstorm_config: 0x%08x\n",
-	   (*(u32 *)&tstorm_config)); */
 
 	bp->rx_mode = BNX2X_RX_MODE_NONE; /* no rx until link is up */
 	bnx2x_set_storm_rx_mode(bp);
@@ -4716,15 +4704,12 @@ static void bnx2x_init_internal(struct bnx2x *bp)
 			 bp->e1hov);
 	}
 
-	/* Zero this manualy as its initialization is
-	   currently missing in the initTool */
-	for (i = 0; i < USTORM_AGG_DATA_SIZE >> 2; i++)
-		REG_WR(bp, BAR_USTRORM_INTMEM +
-		       USTORM_AGG_DATA_OFFSET + 4*i, 0);
-
+	/* Init CQ ring mapping and aggregation size */
+	max_agg_size = min((u32)(bp->rx_buf_use_size +
+				 8*BCM_PAGE_SIZE*PAGES_PER_SGE),
+			   (u32)0xffff);
 	for_each_queue(bp, i) {
 		struct bnx2x_fastpath *fp = &bp->fp[i];
-		u16 max_agg_size;
 
 		REG_WR(bp, BAR_USTRORM_INTMEM +
 		       USTORM_CQE_PAGE_BASE_OFFSET(port, FP_CL_ID(fp)),
@@ -4733,16 +4718,34 @@ static void bnx2x_init_internal(struct bnx2x *bp)
 		       USTORM_CQE_PAGE_BASE_OFFSET(port, FP_CL_ID(fp)) + 4,
 		       U64_HI(fp->rx_comp_mapping));
 
-		max_agg_size = min((u32)(bp->rx_buf_use_size +
-					 8*BCM_PAGE_SIZE*PAGES_PER_SGE),
-				   (u32)0xffff);
 		REG_WR16(bp, BAR_USTRORM_INTMEM +
 			 USTORM_MAX_AGG_SIZE_OFFSET(port, FP_CL_ID(fp)),
 			 max_agg_size);
 	}
 }
 
-static void bnx2x_nic_init(struct bnx2x *bp)
+static void bnx2x_init_internal(struct bnx2x *bp, u32 load_code)
+{
+	switch (load_code) {
+	case FW_MSG_CODE_DRV_LOAD_COMMON:
+		bnx2x_init_internal_common(bp);
+		/* no break */
+
+	case FW_MSG_CODE_DRV_LOAD_PORT:
+		bnx2x_init_internal_port(bp);
+		/* no break */
+
+	case FW_MSG_CODE_DRV_LOAD_FUNCTION:
+		bnx2x_init_internal_func(bp);
+		break;
+
+	default:
+		BNX2X_ERR("Unknown load_code (0x%x) from MCP\n", load_code);
+		break;
+	}
+}
+
+static void bnx2x_nic_init(struct bnx2x *bp, u32 load_code)
 {
 	int i;
 
@@ -4768,8 +4771,7 @@ static void bnx2x_nic_init(struct bnx2x *bp)
 	bnx2x_init_tx_ring(bp);
 	bnx2x_init_sp_ring(bp);
 	bnx2x_init_context(bp);
-	bnx2x_init_internal(bp);
-	bnx2x_storm_stats_init(bp);
+	bnx2x_init_internal(bp, load_code);
 	bnx2x_init_ind_table(bp);
 	bnx2x_int_enable(bp);
 }
@@ -6325,7 +6327,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	atomic_set(&bp->intr_sem, 0);
 
 	/* Setup NIC internals and enable interrupts */
-	bnx2x_nic_init(bp);
+	bnx2x_nic_init(bp, load_code);
 
 	/* Send LOAD_DONE command to MCP */
 	if (!BP_NOMCP(bp)) {
