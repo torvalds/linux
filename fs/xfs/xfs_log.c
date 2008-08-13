@@ -336,15 +336,12 @@ xfs_log_done(xfs_mount_t	*mp,
 	} else {
 		xlog_trace_loggrant(log, ticket, "xfs_log_done: (permanent)");
 		xlog_regrant_reserve_log_space(log, ticket);
-	}
-
-	/* If this ticket was a permanent reservation and we aren't
-	 * trying to release it, reset the inited flags; so next time
-	 * we write, a start record will be written out.
-	 */
-	if ((ticket->t_flags & XLOG_TIC_PERM_RESERV) &&
-	    (flags & XFS_LOG_REL_PERM_RESERV) == 0)
+		/* If this ticket was a permanent reservation and we aren't
+		 * trying to release it, reset the inited flags; so next time
+		 * we write, a start record will be written out.
+		 */
 		ticket->t_flags |= XLOG_TIC_INITED;
+	}
 
 	return lsn;
 }	/* xfs_log_done */
