@@ -1677,6 +1677,7 @@
 /* [RW 8] init credit counter for port0 in LLH */
 #define NIG_REG_LLH0_XCM_INIT_CREDIT				 0x10554
 #define NIG_REG_LLH0_XCM_MASK					 0x10130
+#define NIG_REG_LLH1_BRB1_DRV_MASK				 0x10248
 /* [RW 1] send to BRB1 if no match on any of RMP rules. */
 #define NIG_REG_LLH1_BRB1_NOT_MCP				 0x102dc
 /* [RW 2] Determine the classification participants. 0: no classification.1:
@@ -4962,6 +4963,7 @@
 #define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
 #define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
+#define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
@@ -4997,6 +4999,7 @@
 #define HW_LOCK_RESOURCE_8072_MDIO				 0
 #define HW_LOCK_RESOURCE_GPIO					 1
 #define HW_LOCK_RESOURCE_SPIO					 2
+#define HW_LOCK_RESOURCE_UNDI					 5
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
 #define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
