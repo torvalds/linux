@@ -755,10 +755,10 @@ static u32 bnx2x_get_emac_base(u32 ext_phy_type, u8 port)
 		emac_base = GRCBASE_EMAC0;
 		break;
 	case PORT_HW_CFG_XGXS_EXT_PHY_TYPE_BCM8073:
-		emac_base = (port) ? GRCBASE_EMAC0: GRCBASE_EMAC1;
+		emac_base = (port) ? GRCBASE_EMAC0 : GRCBASE_EMAC1;
 		break;
 	default:
-		emac_base = (port) ? GRCBASE_EMAC1: GRCBASE_EMAC0;
+		emac_base = (port) ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 		break;
 	}
 	return emac_base;
@@ -3549,7 +3549,7 @@ static void bnx2x_set_xgxs_loopback(struct link_params *params,
 	struct bnx2x *bp = params->bp;
 
 	if (is_10g) {
-		 u32 md_devad;
+		u32 md_devad;
 
 		DP(NETIF_MSG_LINK, "XGXS 10G loopback enable\n");
 
@@ -4505,7 +4505,7 @@ static void bnx2x_sfx7101_sp_sw_reset(struct bnx2x *bp, u8 port, u8 phy_addr)
 }
 #define RESERVED_SIZE 256
 /* max application is 160K bytes - data at end of RAM */
-#define MAX_APP_SIZE 160*1024 - RESERVED_SIZE
+#define MAX_APP_SIZE (160*1024 - RESERVED_SIZE)
 
 /* Header is 14 bytes */
 #define HEADER_SIZE 14

@@ -40,20 +40,20 @@
 #define DP(__mask, __fmt, __args...) do { \
 	if (bp->msglevel & (__mask)) \
 		printk(DP_LEVEL "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-			bp->dev?(bp->dev->name):"?", ##__args); \
+			bp->dev ? (bp->dev->name) : "?", ##__args); \
 	} while (0)
 
 /* errors debug print */
 #define BNX2X_DBG_ERR(__fmt, __args...) do { \
 	if (bp->msglevel & NETIF_MSG_PROBE) \
 		printk(KERN_ERR "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-			bp->dev?(bp->dev->name):"?", ##__args); \
+			bp->dev ? (bp->dev->name) : "?", ##__args); \
 	} while (0)
 
 /* for errors (never masked) */
 #define BNX2X_ERR(__fmt, __args...) do { \
 	printk(KERN_ERR "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-		bp->dev?(bp->dev->name):"?", ##__args); \
+		bp->dev ? (bp->dev->name) : "?", ##__args); \
 	} while (0)
 
 /* before we have a dev->name use dev_info() */

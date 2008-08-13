@@ -1858,14 +1858,14 @@ static int bnx2x_set_spio(struct bnx2x *bp, int spio_num, u32 mode)
 	spio_reg = (REG_RD(bp, MISC_REG_SPIO) & MISC_REGISTERS_SPIO_FLOAT);
 
 	switch (mode) {
-	case MISC_REGISTERS_SPIO_OUTPUT_LOW :
+	case MISC_REGISTERS_SPIO_OUTPUT_LOW:
 		DP(NETIF_MSG_LINK, "Set SPIO %d -> output low\n", spio_num);
 		/* clear FLOAT and set CLR */
 		spio_reg &= ~(spio_mask << MISC_REGISTERS_SPIO_FLOAT_POS);
 		spio_reg |=  (spio_mask << MISC_REGISTERS_SPIO_CLR_POS);
 		break;
 
-	case MISC_REGISTERS_SPIO_OUTPUT_HIGH :
+	case MISC_REGISTERS_SPIO_OUTPUT_HIGH:
 		DP(NETIF_MSG_LINK, "Set SPIO %d -> output high\n", spio_num);
 		/* clear FLOAT and set SET */
 		spio_reg &= ~(spio_mask << MISC_REGISTERS_SPIO_FLOAT_POS);
@@ -2759,7 +2759,7 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 						HW_PRTY_ASSERT_SET_1) ||
 			    (attn.sig[2] & group_mask.sig[2] &
 						HW_PRTY_ASSERT_SET_2))
-			       BNX2X_ERR("FATAL HW block parity attention\n");
+				BNX2X_ERR("FATAL HW block parity attention\n");
 		}
 	}
 
@@ -2904,11 +2904,11 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 			/* underflow */ \
 			d_hi = m_hi - s_hi; \
 			if (d_hi > 0) { \
-			/* we can 'loan' 1 */ \
+				/* we can 'loan' 1 */ \
 				d_hi--; \
 				d_lo = m_lo + (UINT_MAX - s_lo) + 1; \
 			} else { \
-			/* m_hi <= s_hi */ \
+				/* m_hi <= s_hi */ \
 				d_hi = 0; \
 				d_lo = 0; \
 			} \
@@ -2918,7 +2918,7 @@ static irqreturn_t bnx2x_msix_sp_int(int irq, void *dev_instance)
 				d_hi = 0; \
 				d_lo = 0; \
 			} else { \
-			/* m_hi >= s_hi */ \
+				/* m_hi >= s_hi */ \
 				d_hi = m_hi - s_hi; \
 				d_lo = m_lo - s_lo; \
 			} \
@@ -3782,7 +3782,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 			     bp->fp->rx_comp_cons),
 		       le16_to_cpu(*bp->fp->rx_cons_sb), nstats->rx_packets);
 		printk(KERN_DEBUG "  %s (Xoff events %u)  brb drops %u\n",
-		       netif_queue_stopped(bp->dev)? "Xoff" : "Xon",
+		       netif_queue_stopped(bp->dev) ? "Xoff" : "Xon",
 		       estats->driver_xoff, estats->brb_drop_lo);
 		printk(KERN_DEBUG "tstats: checksum_discard %u  "
 			"packets_too_big_discard %u  no_buff_discard %u  "
@@ -9610,7 +9610,7 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	tx_bd->addr_hi = cpu_to_le32(U64_HI(mapping));
 	tx_bd->addr_lo = cpu_to_le32(U64_LO(mapping));
-	nbd = skb_shinfo(skb)->nr_frags + ((pbd == NULL)? 1 : 2);
+	nbd = skb_shinfo(skb)->nr_frags + ((pbd == NULL) ? 1 : 2);
 	tx_bd->nbd = cpu_to_le16(nbd);
 	tx_bd->nbytes = cpu_to_le16(skb_headlen(skb));
 

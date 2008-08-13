@@ -72,26 +72,26 @@
 
 
 struct raw_op {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 raw_data;
 };
 
 struct op_read {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 pad;
 };
 
 struct op_write {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 val;
 };
 
 struct op_string_write {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 #ifdef __LITTLE_ENDIAN
 	u16 data_off;
 	u16 data_len;
@@ -102,8 +102,8 @@ struct op_string_write {
 };
 
 struct op_zero {
-	u32 op		:8;
-	u32 offset	:24;
+	u32 op:8;
+	u32 offset:24;
 	u32 len;
 };
 
