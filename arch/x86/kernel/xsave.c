@@ -82,8 +82,7 @@ int save_i387_xstate(void __user *buf)
 	if (!access_ok(VERIFY_WRITE, buf, sig_xstate_size))
 		return -EACCES;
 
-	BUILD_BUG_ON(sizeof(struct user_i387_struct) !=
-			sizeof(tsk->thread.xstate->fxsave));
+	BUG_ON(sig_xstate_size < xstate_size);
 
 	if ((unsigned long)buf % 64)
 		printk("save_i387_xstate: bad fpstate %p\n", buf);
