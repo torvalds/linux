@@ -1046,7 +1046,7 @@ xfs_ialloc(
 {
 	xfs_ino_t	ino;
 	xfs_inode_t	*ip;
-	bhv_vnode_t	*vp;
+	struct inode	*vp;
 	uint		flags;
 	int		error;
 

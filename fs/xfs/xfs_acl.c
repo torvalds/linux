@@ -37,15 +37,15 @@
 #include <linux/capability.h>
 #include <linux/posix_acl_xattr.h>
 
-STATIC int	xfs_acl_setmode(bhv_vnode_t *, xfs_acl_t *, int *);
+STATIC int	xfs_acl_setmode(struct inode *, xfs_acl_t *, int *);
 STATIC void     xfs_acl_filter_mode(mode_t, xfs_acl_t *);
 STATIC void	xfs_acl_get_endian(xfs_acl_t *);
 STATIC int	xfs_acl_access(uid_t, gid_t, xfs_acl_t *, mode_t, cred_t *);
 STATIC int	xfs_acl_invalid(xfs_acl_t *);
 STATIC void	xfs_acl_sync_mode(mode_t, xfs_acl_t *);
-STATIC void	xfs_acl_get_attr(bhv_vnode_t *, xfs_acl_t *, int, int, int *);
-STATIC void	xfs_acl_set_attr(bhv_vnode_t *, xfs_acl_t *, int, int *);
-STATIC int	xfs_acl_allow_set(bhv_vnode_t *, int);
+STATIC void	xfs_acl_get_attr(struct inode *, xfs_acl_t *, int, int, int *);
+STATIC void	xfs_acl_set_attr(struct inode *, xfs_acl_t *, int, int *);
+STATIC int	xfs_acl_allow_set(struct inode *, int);
 
 kmem_zone_t *xfs_acl_zone;
 
@@ -55,7 +55,7 @@ kmem_zone_t *xfs_acl_zone;
  */
 int
 xfs_acl_vhasacl_access(
-	bhv_vnode_t	*vp)
+	struct inode	*vp)
 {
 	int		error;
 
@@ -68,7 +68,7 @@ xfs_acl_vhasacl_access(
  */
 int
 xfs_acl_vhasacl_default(
-	bhv_vnode_t	*vp)
+	struct inode	*vp)
 {
 	int		error;
 
@@ -207,7 +207,7 @@ posix_acl_xfs_to_xattr(
 
 int
 xfs_acl_vget(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	void		*acl,
 	size_t		size,
 	int		kind)
@@ -249,7 +249,7 @@ out:
 
 int
 xfs_acl_vremove(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	int		kind)
 {
 	int		error;
@@ -268,7 +268,7 @@ xfs_acl_vremove(
 
 int
 xfs_acl_vset(
-	bhv_vnode_t		*vp,
+	struct inode		*vp,
 	void			*acl,
 	size_t			size,
 	int			kind)
@@ -357,7 +357,7 @@ xfs_acl_iaccess(
 
 STATIC int
 xfs_acl_allow_set(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	int		kind)
 {
 	if (vp->i_flags & (S_IMMUTABLE|S_APPEND))
@@ -560,7 +560,7 @@ xfs_acl_get_endian(
  */
 STATIC void
 xfs_acl_get_attr(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	xfs_acl_t	*aclp,
 	int		kind,
 	int		flags,
@@ -584,7 +584,7 @@ xfs_acl_get_attr(
  */
 STATIC void
 xfs_acl_set_attr(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	xfs_acl_t	*aclp,
 	int		kind,
 	int		*error)
@@ -618,7 +618,7 @@ xfs_acl_set_attr(
 
 int
 xfs_acl_vtoacl(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	xfs_acl_t	*access_acl,
 	xfs_acl_t	*default_acl)
 {
@@ -650,7 +650,7 @@ xfs_acl_vtoacl(
  */
 int
 xfs_acl_inherit(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	mode_t		mode,
 	xfs_acl_t	*pdaclp)
 {
@@ -709,7 +709,7 @@ out_error:
  */
 STATIC int
 xfs_acl_setmode(
-	bhv_vnode_t	*vp,
+	struct inode	*vp,
 	xfs_acl_t	*acl,
 	int		*basicperms)
 {

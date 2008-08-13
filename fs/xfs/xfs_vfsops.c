@@ -283,7 +283,7 @@ xfs_sync_inodes(
 	int             *bypassed)
 {
 	xfs_inode_t	*ip = NULL;
-	bhv_vnode_t	*vp = NULL;
+	struct inode	*vp = NULL;
 	int		error;
 	int		last_error;
 	uint64_t	fflag;

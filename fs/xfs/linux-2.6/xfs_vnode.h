@@ -22,8 +22,6 @@ struct file;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 
-typedef struct inode	bhv_vnode_t;
-
 /*
  * Return values for xfs_inactive.  A return value of
  * VN_INACTIVE_NOCACHE implies that the file system behavior
@@ -64,7 +62,7 @@ extern void	vn_iowait(struct xfs_inode *ip);
 extern void	vn_iowake(struct xfs_inode *ip);
 extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
-static inline int vn_count(bhv_vnode_t *vp)
+static inline int vn_count(struct inode *vp)
 {
 	return atomic_read(&vp->i_count);
 }
@@ -82,7 +80,7 @@ do { \
 	iput(VFS_I(ip)); \
 } while (0)
 
-static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
+static inline struct inode *vn_grab(struct inode *vp)
 {
 	return igrab(vp);
 }
@@ -90,7 +88,7 @@ static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 /*
  * Dealing with bad inodes
  */
-static inline int VN_BAD(bhv_vnode_t *vp)
+static inline int VN_BAD(struct inode *vp)
 {
 	return is_bad_inode(vp);
 }
@@ -98,18 +96,18 @@ static inline int VN_BAD(bhv_vnode_t *vp)
 /*
  * Extracting atime values in various formats
  */
-static inline void vn_atime_to_bstime(bhv_vnode_t *vp, xfs_bstime_t *bs_atime)
+static inline void vn_atime_to_bstime(struct inode *vp, xfs_bstime_t *bs_atime)
 {
 	bs_atime->tv_sec = vp->i_atime.tv_sec;
 	bs_atime->tv_nsec = vp->i_atime.tv_nsec;
 }
 
-static inline void vn_atime_to_timespec(bhv_vnode_t *vp, struct timespec *ts)
+static inline void vn_atime_to_timespec(struct inode *vp, struct timespec *ts)
 {
 	*ts = vp->i_atime;
 }
 
-static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
+static inline void vn_atime_to_time_t(struct inode *vp, time_t *tt)
 {
 	*tt = vp->i_atime.tv_sec;
 }
