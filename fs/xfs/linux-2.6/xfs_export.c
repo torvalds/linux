@@ -167,7 +167,7 @@ xfs_fs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	if (!inode)
 		return NULL;
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	result = d_alloc_anon(inode);
 	if (!result) {
 		iput(inode);
@@ -198,7 +198,7 @@ xfs_fs_fh_to_parent(struct super_block *sb, struct fid *fid,
 	if (!inode)
 		return NULL;
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	result = d_alloc_anon(inode);
 	if (!result) {
 		iput(inode);
