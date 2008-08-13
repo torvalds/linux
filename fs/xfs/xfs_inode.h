@@ -87,8 +87,7 @@ typedef struct xfs_ifork {
  * Flags for xfs_ichgtime().
  */
 #define	XFS_ICHGTIME_MOD	0x1	/* data fork modification timestamp */
-#define	XFS_ICHGTIME_ACC	0x2	/* data fork access timestamp */
-#define	XFS_ICHGTIME_CHG	0x4	/* inode field change timestamp */
+#define	XFS_ICHGTIME_CHG	0x2	/* inode field change timestamp */
 
 /*
  * Per-fork incore inode flags.

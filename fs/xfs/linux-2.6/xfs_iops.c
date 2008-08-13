@@ -89,12 +89,6 @@ xfs_mark_inode_dirty_sync(
  * Change the requested timestamp in the given inode.
  * We don't lock across timestamp updates, and we don't log them but
  * we do record the fact that there is dirty information in core.
- *
- * NOTE -- callers MUST combine XFS_ICHGTIME_MOD or XFS_ICHGTIME_CHG
- *		with XFS_ICHGTIME_ACC to be sure that access time
- *		update will take.  Calling first with XFS_ICHGTIME_ACC
- *		and then XFS_ICHGTIME_MOD may fail to modify the access
- *		timestamp if the filesystem is mounted noacctm.
  */
 void
 xfs_ichgtime(
@@ -109,11 +103,6 @@ xfs_ichgtime(
 		inode->i_mtime = tv;
 		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
 		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_ACC) {
-		inode->i_atime = tv;
-		ip->i_d.di_atime.t_sec = (__int32_t)tv.tv_sec;
-		ip->i_d.di_atime.t_nsec = (__int32_t)tv.tv_nsec;
 	}
 	if (flags & XFS_ICHGTIME_CHG) {
 		inode->i_ctime = tv;
@@ -148,12 +137,6 @@ xfs_ichgtime_fast(
 	int		flags)
 {
 	timespec_t	*tvp;
-
-	/*
-	 * Atime updates for read() & friends are handled lazily now, and
-	 * explicit updates must go through xfs_ichgtime()
-	 */
-	ASSERT((flags & XFS_ICHGTIME_ACC) == 0);
 
 	if (flags & XFS_ICHGTIME_MOD) {
 		tvp = &inode->i_mtime;
