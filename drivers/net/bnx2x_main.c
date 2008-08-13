@@ -2450,20 +2450,25 @@ static void bnx2x_attn_int_asserted(struct bnx2x *bp, u32 asserted)
 			      MISC_REG_AEU_MASK_ATTN_FUNC_0;
 	u32 nig_int_mask_addr = port ? NIG_REG_MASK_INTERRUPT_PORT1 :
 				       NIG_REG_MASK_INTERRUPT_PORT0;
+	u32 aeu_mask;
 
-	if (~bp->aeu_mask & (asserted & 0xff))
-		BNX2X_ERR("IGU ERROR\n");
 	if (bp->attn_state & asserted)
 		BNX2X_ERR("IGU ERROR\n");
 
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_PORT0_ATT_MASK + port);
+	aeu_mask = REG_RD(bp, aeu_addr);
+
 	DP(NETIF_MSG_HW, "aeu_mask %x  newly asserted %x\n",
-	   bp->aeu_mask, asserted);
-	bp->aeu_mask &= ~(asserted & 0xff);
-	DP(NETIF_MSG_HW, "after masking: aeu_mask %x\n", bp->aeu_mask);
+	   aeu_mask, asserted);
+	aeu_mask &= ~(asserted & 0xff);
+	DP(NETIF_MSG_HW, "new mask %x\n", aeu_mask);
 
-	REG_WR(bp, aeu_addr, bp->aeu_mask);
+	REG_WR(bp, aeu_addr, aeu_mask);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_PORT0_ATT_MASK + port);
 
+	DP(NETIF_MSG_HW, "attn_state %x\n", bp->attn_state);
 	bp->attn_state |= asserted;
+	DP(NETIF_MSG_HW, "new state %x\n", bp->attn_state);
 
 	if (asserted & ATTN_HARD_WIRED_MASK) {
 		if (asserted & ATTN_NIG_FOR_FUNC) {
@@ -2717,6 +2722,7 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	int index;
 	u32 reg_addr;
 	u32 val;
+	u32 aeu_mask;
 
 	/* need to take HW lock because MCP or other port might also
 	   try to handle this event */
@@ -2761,23 +2767,26 @@ static void bnx2x_attn_int_deasserted(struct bnx2x *bp, u32 deasserted)
 	reg_addr = (IGU_ADDR_ATTN_BITS_CLR + IGU_FUNC_BASE * BP_FUNC(bp)) * 8;
 
 	val = ~deasserted;
-/*	DP(NETIF_MSG_INTR, "write 0x%08x to IGU addr 0x%x\n",
-	   val, BAR_IGU_INTMEM + reg_addr); */
+	DP(NETIF_MSG_HW, "about to mask 0x%08x at HC addr 0x%x\n",
+	   val, reg_addr);
 	REG_WR(bp, BAR_IGU_INTMEM + reg_addr, val);
 
-	if (bp->aeu_mask & (deasserted & 0xff))
-		BNX2X_ERR("IGU BUG!\n");
 	if (~bp->attn_state & deasserted)
-		BNX2X_ERR("IGU BUG!\n");
+		BNX2X_ERR("IGU ERROR\n");
 
 	reg_addr = port ? MISC_REG_AEU_MASK_ATTN_FUNC_1 :
 			  MISC_REG_AEU_MASK_ATTN_FUNC_0;
 
-	DP(NETIF_MSG_HW, "aeu_mask %x\n", bp->aeu_mask);
-	bp->aeu_mask |= (deasserted & 0xff);
+	bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_PORT0_ATT_MASK + port);
+	aeu_mask = REG_RD(bp, reg_addr);
 
-	DP(NETIF_MSG_HW, "new mask %x\n", bp->aeu_mask);
-	REG_WR(bp, reg_addr, bp->aeu_mask);
+	DP(NETIF_MSG_HW, "aeu_mask %x  newly deasserted %x\n",
+	   aeu_mask, deasserted);
+	aeu_mask |= (deasserted & 0xff);
+	DP(NETIF_MSG_HW, "new mask %x\n", aeu_mask);
+
+	REG_WR(bp, reg_addr, aeu_mask);
+	bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_PORT0_ATT_MASK + port);
 
 	DP(NETIF_MSG_HW, "attn_state %x\n", bp->attn_state);
 	bp->attn_state &= ~deasserted;
@@ -4082,9 +4091,6 @@ static void bnx2x_init_def_sb(struct bnx2x *bp,
 		bp->attn_group[index].sig[3] = REG_RD(bp,
 					       reg_offset + 0xc + 0x10*index);
 	}
-
-	bp->aeu_mask = REG_RD(bp, (port ? MISC_REG_AEU_MASK_ATTN_FUNC_1 :
-					  MISC_REG_AEU_MASK_ATTN_FUNC_0));
 
 	reg_offset = (port ? HC_REG_ATTN_MSG1_ADDR_L :
 			     HC_REG_ATTN_MSG0_ADDR_L);

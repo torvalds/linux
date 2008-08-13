@@ -774,7 +774,6 @@ struct bnx2x {
 	u16			def_att_idx;
 	u32			attn_state;
 	struct attn_route	attn_group[MAX_DYNAMIC_ATTN_GRPS];
-	u32			aeu_mask;
 	u32			nig_mask;
 
 	/* slow path ring */
