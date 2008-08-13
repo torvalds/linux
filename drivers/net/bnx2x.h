@@ -386,19 +386,27 @@ struct bnx2x_fastpath {
 #define TPA_TYPE(cqe_fp_flags)		((cqe_fp_flags) & \
 					 (TPA_TYPE_START | TPA_TYPE_END))
 
-#define BNX2X_RX_SUM_OK(cqe) \
-			(!(cqe->fast_path_cqe.status_flags & \
-			 (ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG | \
-			  ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG)))
+#define ETH_RX_ERROR_FALGS		ETH_FAST_PATH_RX_CQE_PHY_DECODE_ERR_FLG
+
+#define BNX2X_IP_CSUM_ERR(cqe) \
+			(!((cqe)->fast_path_cqe.status_flags & \
+			   ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG) && \
+			 ((cqe)->fast_path_cqe.type_error_flags & \
+			  ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG))
+
+#define BNX2X_L4_CSUM_ERR(cqe) \
+			(!((cqe)->fast_path_cqe.status_flags & \
+			   ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG) && \
+			 ((cqe)->fast_path_cqe.type_error_flags & \
+			  ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG))
+
+#define BNX2X_RX_CSUM_OK(cqe) \
+			(!(BNX2X_L4_CSUM_ERR(cqe) || BNX2X_IP_CSUM_ERR(cqe)))
 
 #define BNX2X_RX_SUM_FIX(cqe) \
 			((le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) & \
 			  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) == \
 			 (1 << PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT))
-
-#define ETH_RX_ERROR_FALGS	(ETH_FAST_PATH_RX_CQE_PHY_DECODE_ERR_FLG | \
-				 ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG | \
-				 ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG)
 
 
 #define FP_USB_FUNC_OFF			(2 + 2*HC_USTORM_SB_NUM_INDICES)

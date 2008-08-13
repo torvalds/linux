@@ -1501,7 +1501,6 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 
 			/* is this an error packet? */
 			if (unlikely(cqe_fp_flags & ETH_RX_ERROR_FALGS)) {
-			/* do we sometimes forward error packets anyway? */
 				DP(NETIF_MSG_RX_ERR,
 				   "ERROR  flags %x  rx packet %u\n",
 				   cqe_fp_flags, sw_comp_cons);
@@ -1557,10 +1556,10 @@ reuse_rx:
 			skb->protocol = eth_type_trans(skb, bp->dev);
 
 			skb->ip_summed = CHECKSUM_NONE;
-			if (bp->rx_csum && BNX2X_RX_SUM_OK(cqe))
-				skb->ip_summed = CHECKSUM_UNNECESSARY;
+			if (bp->rx_csum)
+				if (likely(BNX2X_RX_CSUM_OK(cqe)))
+					skb->ip_summed = CHECKSUM_UNNECESSARY;
 
-			/* TBD do we pass bad csum packets in promisc */
 		}
 
 #ifdef BCM_VLAN
