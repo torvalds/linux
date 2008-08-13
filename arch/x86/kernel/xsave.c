@@ -92,6 +92,12 @@ int save_i387_xstate(void __user *buf)
 		return 0;
 	clear_used_math(); /* trigger finit */
 	if (task_thread_info(tsk)->status & TS_USEDFPU) {
+		/*
+	 	 * Start with clearing the user buffer. This will present a
+	 	 * clean context for the bytes not touched by the fxsave/xsave.
+		 */
+		__clear_user(buf, sig_xstate_size);
+
 		if (task_thread_info(tsk)->status & TS_XSAVE)
 			err = xsave_user(buf);
 		else
