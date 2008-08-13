@@ -264,9 +264,9 @@ struct sigcontext {
 #endif /* !__i386__ */
 
 struct _xsave_hdr {
-	u64 xstate_bv;
-	u64 reserved1[2];
-	u64 reserved2[5];
+	__u64 xstate_bv;
+	__u64 reserved1[2];
+	__u64 reserved2[5];
 };
 
 /*
