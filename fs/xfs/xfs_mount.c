@@ -146,13 +146,6 @@ xfs_mount_free(
 	mutex_destroy(&mp->m_growlock);
 	if (mp->m_quotainfo)
 		XFS_QM_DONE(mp);
-
-	if (mp->m_fsname != NULL)
-		kmem_free(mp->m_fsname);
-	if (mp->m_rtname != NULL)
-		kmem_free(mp->m_rtname);
-	if (mp->m_logname != NULL)
-		kmem_free(mp->m_logname);
 }
 
 /*

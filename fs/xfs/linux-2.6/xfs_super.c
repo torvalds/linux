@@ -1201,6 +1201,15 @@ xfssyncd(
 }
 
 STATIC void
+xfs_free_fsname(
+	struct xfs_mount	*mp)
+{
+	kfree(mp->m_fsname);
+	kfree(mp->m_rtname);
+	kfree(mp->m_logname);
+}
+
+STATIC void
 xfs_fs_put_super(
 	struct super_block	*sb)
 {
@@ -1261,6 +1270,7 @@ xfs_fs_put_super(
 	xfs_close_devices(mp);
 	xfs_qmops_put(mp);
 	xfs_dmops_put(mp);
+	xfs_free_fsname(mp);
 	kfree(mp);
 }
 
@@ -1517,6 +1527,8 @@ xfs_start_flags(
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
+	int			error;
+
 	/* Values are in BBs */
 	if ((ap->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
 		/*
@@ -1549,17 +1561,27 @@ xfs_start_flags(
 			ap->logbufsize);
 		return XFS_ERROR(EINVAL);
 	}
+
+	error = ENOMEM;
+
 	mp->m_logbsize = ap->logbufsize;
 	mp->m_fsname_len = strlen(ap->fsname) + 1;
-	mp->m_fsname = kmem_alloc(mp->m_fsname_len, KM_SLEEP);
-	strcpy(mp->m_fsname, ap->fsname);
+
+	mp->m_fsname = kstrdup(ap->fsname, GFP_KERNEL);
+	if (!mp->m_fsname)
+		goto out;
+
 	if (ap->rtname[0]) {
-		mp->m_rtname = kmem_alloc(strlen(ap->rtname) + 1, KM_SLEEP);
-		strcpy(mp->m_rtname, ap->rtname);
+		mp->m_rtname = kstrdup(ap->rtname, GFP_KERNEL);
+		if (!mp->m_rtname)
+			goto out_free_fsname;
+
 	}
+
 	if (ap->logname[0]) {
-		mp->m_logname = kmem_alloc(strlen(ap->logname) + 1, KM_SLEEP);
-		strcpy(mp->m_logname, ap->logname);
+		mp->m_logname = kstrdup(ap->logname, GFP_KERNEL);
+		if (!mp->m_logname)
+			goto out_free_rtname;
 	}
 
 	if (ap->flags & XFSMNT_WSYNC)
@@ -1632,6 +1654,14 @@ xfs_start_flags(
 	if (ap->flags & XFSMNT_DMAPI)
 		mp->m_flags |= XFS_MOUNT_DMAPI;
 	return 0;
+
+
+ out_free_rtname:
+	kfree(mp->m_rtname);
+ out_free_fsname:
+	kfree(mp->m_fsname);
+ out:
+	return error;
 }
 
 /*
@@ -1792,10 +1822,10 @@ xfs_fs_fill_super(
 	 */
 	error = xfs_start_flags(args, mp);
 	if (error)
-		goto out_destroy_counters;
+		goto out_free_fsname;
 	error = xfs_readsb(mp, flags);
 	if (error)
-		goto out_destroy_counters;
+		goto out_free_fsname;
 	error = xfs_finish_flags(args, mp);
 	if (error)
 		goto out_free_sb;
@@ -1857,7 +1887,8 @@ xfs_fs_fill_super(
 	xfs_filestream_unmount(mp);
  out_free_sb:
 	xfs_freesb(mp);
- out_destroy_counters:
+ out_free_fsname:
+	xfs_free_fsname(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
  out_put_qmops:
@@ -1893,7 +1924,7 @@ xfs_fs_fill_super(
 	IRELE(mp->m_rootip);
 
 	xfs_unmountfs(mp);
-	goto out_destroy_counters;
+	goto out_free_fsname;
 }
 
 STATIC int
