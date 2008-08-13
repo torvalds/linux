@@ -160,7 +160,7 @@ void
 xlog_trace_iclog(xlog_in_core_t *iclog, uint state)
 {
 	if (!iclog->ic_trace)
-		iclog->ic_trace = ktrace_alloc(256, KM_SLEEP);
+		iclog->ic_trace = ktrace_alloc(256, KM_NOFS);
 	ktrace_enter(iclog->ic_trace,
 		     (void *)((unsigned long)state),
 		     (void *)((unsigned long)current_pid()),

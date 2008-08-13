@@ -112,7 +112,7 @@ xfs_qm_dqinit(
 		complete(&dqp->q_flush);
 
 #ifdef XFS_DQUOT_TRACE
-		dqp->q_trace = ktrace_alloc(DQUOT_TRACE_SIZE, KM_SLEEP);
+		dqp->q_trace = ktrace_alloc(DQUOT_TRACE_SIZE, KM_NOFS);
 		xfs_dqtrace_entry(dqp, "DQINIT");
 #endif
 	} else {
