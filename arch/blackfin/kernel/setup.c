@@ -131,14 +131,14 @@ void __init bf53x_relocate_l1_mem(void)
 	dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
 			l1_data_a_length, l1_data_b_length);
 
-#ifdef L2_LENGTH
-	l2_length = _ebss_l2 - _stext_l2;
-	if (l2_length > L2_LENGTH)
-		panic("L2 SRAM Overflow\n");
+	if (L2_LENGTH != 0) {
+		l2_length = _ebss_l2 - _stext_l2;
+		if (l2_length > L2_LENGTH)
+			panic("L2 SRAM Overflow\n");
 
-	/* Copy _stext_l2 to _edata_l2 to L2 SRAM */
-	dma_memcpy(_stext_l2, _l2_lma_start, l2_length);
-#endif
+		/* Copy _stext_l2 to _edata_l2 to L2 SRAM */
+		dma_memcpy(_stext_l2, _l2_lma_start, l2_length);
+	}
 }
 
 /* add_memory_region to memmap */

@@ -567,7 +567,7 @@ bool get_instruction(unsigned short *val, unsigned short *address)
 	 * we don't read something in the async space that can hang forever
 	 */
 	if ((addr >= FIXED_CODE_START && (addr + 2) <= physical_mem_end) ||
-#ifdef L2_START
+#if L2_LENGTH != 0
 	    (addr >= L2_START && (addr + 2) <= (L2_START + L2_LENGTH)) ||
 #endif
 	    (addr >= BOOT_ROM_START && (addr + 2) <= (BOOT_ROM_START + BOOT_ROM_LENGTH)) ||
