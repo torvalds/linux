@@ -2210,6 +2210,10 @@ int ata_eh_reset(struct ata_link *link, int classify,
 	 */
 	while (ata_eh_reset_timeouts[max_tries] != ULONG_MAX)
 		max_tries++;
+	if (link->flags & ATA_LFLAG_NO_HRST)
+		hardreset = NULL;
+	if (link->flags & ATA_LFLAG_NO_SRST)
+		softreset = NULL;
 
 	now = jiffies;
 	deadline = ata_deadline(ehc->last_reset, ATA_EH_RESET_COOL_DOWN);
