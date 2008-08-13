@@ -60,8 +60,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION      "1.45.6"
-#define DRV_MODULE_RELDATE      "2008/06/23"
+#define DRV_MODULE_VERSION      "1.45.17"
+#define DRV_MODULE_RELDATE      "2008/08/13"
 #define BNX2X_BC_VER		0x040200
 
 /* Time in jiffies before concluding the transmitter is hung */
