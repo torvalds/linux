@@ -133,45 +133,6 @@ xfs_ichgtime(
 }
 
 /*
- * Variant on the above which avoids querying the system clock
- * in situations where we know the Linux inode timestamps have
- * just been updated (and so we can update our inode cheaply).
- */
-void
-xfs_ichgtime_fast(
-	xfs_inode_t	*ip,
-	struct inode	*inode,
-	int		flags)
-{
-	timespec_t	*tvp;
-
-	if (flags & XFS_ICHGTIME_MOD) {
-		tvp = &inode->i_mtime;
-		ip->i_d.di_mtime.t_sec = (__int32_t)tvp->tv_sec;
-		ip->i_d.di_mtime.t_nsec = (__int32_t)tvp->tv_nsec;
-	}
-	if (flags & XFS_ICHGTIME_CHG) {
-		tvp = &inode->i_ctime;
-		ip->i_d.di_ctime.t_sec = (__int32_t)tvp->tv_sec;
-		ip->i_d.di_ctime.t_nsec = (__int32_t)tvp->tv_nsec;
-	}
-
-	/*
-	 * We update the i_update_core field _after_ changing
-	 * the timestamps in order to coordinate properly with
-	 * xfs_iflush() so that we don't lose timestamp updates.
-	 * This keeps us from having to hold the inode lock
-	 * while doing this.  We use the SYNCHRONIZE macro to
-	 * ensure that the compiler does not reorder the update
-	 * of i_update_core above the timestamp updates above.
-	 */
-	SYNCHRONIZE();
-	ip->i_update_core = 1;
-	if (!(inode->i_state & I_NEW))
-		mark_inode_dirty_sync(inode);
-}
-
-/*
  * Hook in SELinux.  This is not quite correct yet, what we really need
  * here (as we do for default ACLs) is a mechanism by which creation of
  * these attrs can be journalled at inode creation time (along with the

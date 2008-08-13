@@ -26,9 +26,6 @@ extern const struct file_operations xfs_invis_file_operations;
 
 extern ssize_t xfs_vn_listxattr(struct dentry *, char *data, size_t size);
 
-extern void xfs_ichgtime(struct xfs_inode *, int);
-extern void xfs_ichgtime_fast(struct xfs_inode *, struct inode *, int);
-
 extern void xfs_setup_inode(struct xfs_inode *);
 
 #endif /* __XFS_IOPS_H__ */
