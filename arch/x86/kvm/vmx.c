@@ -1732,7 +1732,8 @@ static int init_rmode_tss(struct kvm *kvm)
 	if (r < 0)
 		goto out;
 	data = TSS_BASE_SIZE + TSS_REDIRECTION_SIZE;
-	r = kvm_write_guest_page(kvm, fn++, &data, 0x66, sizeof(u16));
+	r = kvm_write_guest_page(kvm, fn++, &data,
+			TSS_IOPB_BASE_OFFSET, sizeof(u16));
 	if (r < 0)
 		goto out;
 	r = kvm_clear_guest_page(kvm, fn++, 0, PAGE_SIZE);
