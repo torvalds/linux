@@ -300,6 +300,7 @@ static void __init qnap_ts209_init(void)
 	orion5x_i2c_init();
 	orion5x_sata_init(&qnap_ts209_sata_data);
 	orion5x_uart0_init();
+	orion5x_uart1_init();
 	orion5x_xor_init();
 
 	platform_device_register(&qnap_ts209_button_device);
