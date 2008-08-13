@@ -49,6 +49,28 @@ mcount:
 	cmp		%sp, %g3
 	bg,pt		%xcc, 1f
 	 nop
+	lduh		[%g6 + TI_CPU], %g1
+	sethi		%hi(hardirq_stack), %g3
+	or		%g3, %lo(hardirq_stack), %g3
+	sllx		%g1, 3, %g1
+	ldx		[%g3 + %g1], %g7
+	sub		%g7, STACK_BIAS, %g7
+	cmp		%sp, %g7
+	bleu,pt		%xcc, 2f
+	 sethi		%hi(THREAD_SIZE), %g3
+	add		%g7, %g3, %g7
+	cmp		%sp, %g7
+	blu,pn		%xcc, 1f
+2:	 sethi		%hi(softirq_stack), %g3
+	or		%g3, %lo(softirq_stack), %g3
+	ldx		[%g3 + %g1], %g7
+	cmp		%sp, %g7
+	bleu,pt		%xcc, 2f
+	 sethi		%hi(THREAD_SIZE), %g3
+	add		%g7, %g3, %g7
+	cmp		%sp, %g7
+	blu,pn		%xcc, 1f
+	 nop
 	/* If we are already on ovstack, don't hop onto it
 	 * again, we are already trying to output the stack overflow
 	 * message.

@@ -5,6 +5,8 @@
 #include <asm/ptrace.h>
 #include <asm/stacktrace.h>
 
+#include "kstack.h"
+
 void save_stack_trace(struct stack_trace *trace)
 {
 	unsigned long ksp, fp, thread_base;
@@ -24,17 +26,13 @@ void save_stack_trace(struct stack_trace *trace)
 		struct pt_regs *regs;
 		unsigned long pc;
 
-		/* Bogus frame pointer? */
-		if (fp < (thread_base + sizeof(struct thread_info)) ||
-		    fp > (thread_base + THREAD_SIZE - sizeof(struct sparc_stackf)))
+		if (!kstack_valid(tp, fp))
 			break;
 
 		sf = (struct sparc_stackf *) fp;
 		regs = (struct pt_regs *) (sf + 1);
 
-		if (((unsigned long)regs <=
-		     (thread_base + THREAD_SIZE - sizeof(*regs))) &&
-		    (regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
+		if (kstack_is_trap_frame(tp, regs)) {
 			if (!(regs->tstate & TSTATE_PRIV))
 				break;
 			pc = regs->tpc;
