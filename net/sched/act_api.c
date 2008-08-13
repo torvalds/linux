@@ -751,7 +751,7 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	struct nlattr *tb[TCA_ACT_MAX+1];
 	struct nlattr *kind;
 	struct tc_action *a = create_a(0);
-	int err = -EINVAL;
+	int err = -ENOMEM;
 
 	if (a == NULL) {
 		printk("tca_action_flush: couldnt create tc_action\n");
@@ -762,7 +762,7 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	if (!skb) {
 		printk("tca_action_flush: failed skb alloc\n");
 		kfree(a);
-		return -ENOBUFS;
+		return err;
 	}
 
 	b = skb_tail_pointer(skb);
