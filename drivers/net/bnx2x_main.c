@@ -235,17 +235,16 @@ void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 	while (*wb_comp != DMAE_COMP_VAL) {
 		DP(BNX2X_MSG_OFF, "wb_comp 0x%08x\n", *wb_comp);
 
-		/* adjust delay for emulation/FPGA */
-		if (CHIP_REV_IS_SLOW(bp))
-			msleep(100);
-		else
-			udelay(5);
-
 		if (!cnt) {
 			BNX2X_ERR("dmae timeout!\n");
 			break;
 		}
 		cnt--;
+		/* adjust delay for emulation/FPGA */
+		if (CHIP_REV_IS_SLOW(bp))
+			msleep(100);
+		else
+			udelay(5);
 	}
 
 	mutex_unlock(&bp->dmae_mutex);
@@ -308,17 +307,16 @@ void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32)
 
 	while (*wb_comp != DMAE_COMP_VAL) {
 
-		/* adjust delay for emulation/FPGA */
-		if (CHIP_REV_IS_SLOW(bp))
-			msleep(100);
-		else
-			udelay(5);
-
 		if (!cnt) {
 			BNX2X_ERR("dmae timeout!\n");
 			break;
 		}
 		cnt--;
+		/* adjust delay for emulation/FPGA */
+		if (CHIP_REV_IS_SLOW(bp))
+			msleep(100);
+		else
+			udelay(5);
 	}
 	DP(BNX2X_MSG_OFF, "data [0x%08x 0x%08x 0x%08x 0x%08x]\n",
 	   bp->slowpath->wb_data[0], bp->slowpath->wb_data[1],
@@ -3094,12 +3092,12 @@ static int bnx2x_stats_comp(struct bnx2x *bp)
 
 	might_sleep();
 	while (*stats_comp != DMAE_COMP_VAL) {
-		msleep(1);
 		if (!cnt) {
 			BNX2X_ERR("timeout waiting for stats finished\n");
 			break;
 		}
 		cnt--;
+		msleep(1);
 	}
 	return 1;
 }
@@ -6483,7 +6481,6 @@ static int bnx2x_stop_leading(struct bnx2x *bp)
 	   so there is not much to do if this times out
 	 */
 	while (dsb_sp_prod_idx == *bp->dsb_sp_prod) {
-		msleep(1);
 		if (!cnt) {
 			DP(NETIF_MSG_IFDOWN, "timeout waiting for port del "
 			   "dsb_sp_prod 0x%x != dsb_sp_prod_idx 0x%x\n",
