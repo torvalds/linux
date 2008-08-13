@@ -22,13 +22,13 @@
 
 #include <mach/at32ap700x.h>
 #include <mach/board.h>
+#include <mach/hmatrix.h>
 #include <mach/portmux.h>
 #include <mach/sram.h>
 
 #include <video/atmel_lcdc.h>
 
 #include "clock.h"
-#include "hmatrix.h"
 #include "pio.h"
 #include "pm.h"
 
@@ -725,7 +725,7 @@ static struct clk pico_clk = {
  * HMATRIX
  * -------------------------------------------------------------------- */
 
-static struct clk hmatrix_clk = {
+struct clk at32_hmatrix_clk = {
 	.name		= "hmatrix_clk",
 	.parent		= &pbb_clk,
 	.mode		= pbb_clk_mode,
@@ -733,12 +733,6 @@ static struct clk hmatrix_clk = {
 	.index		= 2,
 	.users		= 1,
 };
-#define HMATRIX_BASE	((void __iomem *)0xfff00800)
-
-#define hmatrix_readl(reg)					\
-	__raw_readl((HMATRIX_BASE) + HMATRIX_##reg)
-#define hmatrix_writel(reg,value)				\
-	__raw_writel((value), (HMATRIX_BASE) + HMATRIX_##reg)
 
 /*
  * Set bits in the HMATRIX Special Function Register (SFR) used by the
@@ -748,13 +742,7 @@ static struct clk hmatrix_clk = {
  */
 static inline void set_ebi_sfr_bits(u32 mask)
 {
-	u32 sfr;
-
-	clk_enable(&hmatrix_clk);
-	sfr = hmatrix_readl(SFR4);
-	sfr |= mask;
-	hmatrix_writel(SFR4, sfr);
-	clk_disable(&hmatrix_clk);
+	hmatrix_sfr_set_bits(HMATRIX_SLAVE_EBI, mask);
 }
 
 /* --------------------------------------------------------------------
@@ -1779,7 +1767,7 @@ static int __init at32_init_ide_or_cf(struct platform_device *pdev,
 			return ret;
 
 		select_peripheral(PE(21), PERIPH_A, 0); /* NCS4   -> OE_N  */
-		set_ebi_sfr_bits(HMATRIX_BIT(CS4A));
+		hmatrix_sfr_set_bits(HMATRIX_SLAVE_EBI, HMATRIX_EBI_CF0_ENABLE);
 		break;
 	case 5:
 		ret = platform_device_add_resources(pdev,
@@ -1789,7 +1777,7 @@ static int __init at32_init_ide_or_cf(struct platform_device *pdev,
 			return ret;
 
 		select_peripheral(PE(22), PERIPH_A, 0); /* NCS5   -> OE_N  */
-		set_ebi_sfr_bits(HMATRIX_BIT(CS5A));
+		hmatrix_sfr_set_bits(HMATRIX_SLAVE_EBI, HMATRIX_EBI_CF1_ENABLE);
 		break;
 	default:
 		return -EINVAL;
@@ -1905,7 +1893,7 @@ at32_add_device_nand(unsigned int id, struct atmel_nand_data *data)
 				sizeof(struct atmel_nand_data)))
 		goto fail;
 
-	set_ebi_sfr_bits(HMATRIX_BIT(CS3A));
+	hmatrix_sfr_set_bits(HMATRIX_SLAVE_EBI, HMATRIX_EBI_NAND_ENABLE);
 	if (data->enable_pin)
 		at32_select_gpio(data->enable_pin,
 				AT32_GPIOF_OUTPUT | AT32_GPIOF_HIGH);
@@ -2097,7 +2085,7 @@ struct clk *at32_clock_list[] = {
 	&pbb_clk,
 	&at32_pm_pclk,
 	&at32_intc0_pclk,
-	&hmatrix_clk,
+	&at32_hmatrix_clk,
 	&ebi_clk,
 	&hramc_clk,
 	&sdramc_clk,

@@ -796,6 +796,8 @@ int mem_cgroup_shrink_usage(struct mm_struct *mm, gfp_t gfp_mask)
 
 	if (mem_cgroup_subsys.disabled)
 		return 0;
+	if (!mm)
+		return 0;
 
 	rcu_read_lock();
 	mem = mem_cgroup_from_task(rcu_dereference(mm->owner));
