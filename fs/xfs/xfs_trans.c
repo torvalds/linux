@@ -254,7 +254,7 @@ _xfs_trans_alloc(
 	tp->t_mountp = mp;
 	tp->t_items_free = XFS_LIC_NUM_SLOTS;
 	tp->t_busy_free = XFS_LBC_NUM_SLOTS;
-	XFS_LIC_INIT(&(tp->t_items));
+	xfs_lic_init(&(tp->t_items));
 	XFS_LBC_INIT(&(tp->t_busy));
 	return tp;
 }
@@ -283,7 +283,7 @@ xfs_trans_dup(
 	ntp->t_mountp = tp->t_mountp;
 	ntp->t_items_free = XFS_LIC_NUM_SLOTS;
 	ntp->t_busy_free = XFS_LBC_NUM_SLOTS;
-	XFS_LIC_INIT(&(ntp->t_items));
+	xfs_lic_init(&(ntp->t_items));
 	XFS_LBC_INIT(&(ntp->t_busy));
 
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
@@ -1170,7 +1170,7 @@ xfs_trans_cancel(
 		while (licp != NULL) {
 			lidp = licp->lic_descs;
 			for (i = 0; i < licp->lic_unused; i++, lidp++) {
-				if (XFS_LIC_ISFREE(licp, i)) {
+				if (xfs_lic_isfree(licp, i)) {
 					continue;
 				}
 
@@ -1316,7 +1316,7 @@ xfs_trans_committed(
 	 * Special case the chunk embedded in the transaction.
 	 */
 	licp = &(tp->t_items);
-	if (!(XFS_LIC_ARE_ALL_FREE(licp))) {
+	if (!(xfs_lic_are_all_free(licp))) {
 		xfs_trans_chunk_committed(licp, tp->t_lsn, abortflag);
 	}
 
@@ -1325,7 +1325,7 @@ xfs_trans_committed(
 	 */
 	licp = licp->lic_next;
 	while (licp != NULL) {
-		ASSERT(!XFS_LIC_ARE_ALL_FREE(licp));
+		ASSERT(!xfs_lic_are_all_free(licp));
 		xfs_trans_chunk_committed(licp, tp->t_lsn, abortflag);
 		next_licp = licp->lic_next;
 		kmem_free(licp);
@@ -1388,7 +1388,7 @@ xfs_trans_chunk_committed(
 
 	lidp = licp->lic_descs;
 	for (i = 0; i < licp->lic_unused; i++, lidp++) {
-		if (XFS_LIC_ISFREE(licp, i)) {
+		if (xfs_lic_isfree(licp, i)) {
 			continue;
 		}
 
