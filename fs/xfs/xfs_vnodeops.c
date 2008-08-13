@@ -714,7 +714,7 @@ xfs_fsync(
 		return XFS_ERROR(EIO);
 
 	/* capture size updates in I/O completion before writing the inode. */
-	error = filemap_fdatawait(vn_to_inode(VFS_I(ip))->i_mapping);
+	error = filemap_fdatawait(VFS_I(ip)->i_mapping);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -2917,7 +2917,7 @@ xfs_reclaim(
 		XFS_MOUNT_ILOCK(mp);
 		spin_lock(&ip->i_flags_lock);
 		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		vn_to_inode(vp)->i_private = NULL;
+		vp->i_private = NULL;
 		ip->i_vnode = NULL;
 		spin_unlock(&ip->i_flags_lock);
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);

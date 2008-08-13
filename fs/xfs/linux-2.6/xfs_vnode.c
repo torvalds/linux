@@ -94,7 +94,7 @@ vn_hold(
 
 	XFS_STATS_INC(vn_hold);
 
-	inode = igrab(vn_to_inode(vp));
+	inode = igrab(vp);
 	ASSERT(inode);
 
 	return vp;

@@ -613,10 +613,9 @@ xfs_set_inodeops(
 STATIC_INLINE void
 xfs_revalidate_inode(
 	xfs_mount_t		*mp,
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	xfs_inode_t		*ip)
 {
-	struct inode		*inode = vn_to_inode(vp);
 
 	inode->i_mode	= ip->i_d.di_mode;
 	inode->i_nlink	= ip->i_d.di_nlink;
@@ -665,13 +664,12 @@ xfs_revalidate_inode(
 void
 xfs_initialize_vnode(
 	struct xfs_mount	*mp,
-	bhv_vnode_t		*vp,
+	struct inode		*inode,
 	struct xfs_inode	*ip)
 {
-	struct inode		*inode = vn_to_inode(vp);
 
 	if (!ip->i_vnode) {
-		ip->i_vnode = vp;
+		ip->i_vnode = inode;
 		inode->i_private = ip;
 	}
 
@@ -683,7 +681,7 @@ xfs_initialize_vnode(
 	 * finish our work.
 	 */
 	if (ip->i_d.di_mode != 0 && (inode->i_state & I_NEW)) {
-		xfs_revalidate_inode(mp, vp, ip);
+		xfs_revalidate_inode(mp, inode, ip);
 		xfs_set_inodeops(inode);
 
 		xfs_iflags_clear(ip, XFS_INEW);
@@ -987,7 +985,7 @@ xfs_fs_alloc_inode(
 	vp = kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
 	if (unlikely(!vp))
 		return NULL;
-	return vn_to_inode(vp);
+	return vp;
 }
 
 STATIC void
@@ -1001,7 +999,7 @@ STATIC void
 xfs_fs_inode_init_once(
 	void			*vnode)
 {
-	inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
+	inode_init_once((struct inode *)vnode);
 }
 
 /*

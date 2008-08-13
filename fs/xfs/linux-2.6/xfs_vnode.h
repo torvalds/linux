@@ -25,14 +25,6 @@ struct attrlist_cursor_kern;
 typedef struct inode	bhv_vnode_t;
 
 /*
- * Vnode to Linux inode mapping.
- */
-static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
-{
-	return vnode;
-}
-
-/*
  * Return values for xfs_inactive.  A return value of
  * VN_INACTIVE_NOCACHE implies that the file system behavior
  * has disassociated its state and bhv_desc_t from the vnode.
@@ -74,7 +66,7 @@ extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
 static inline int vn_count(bhv_vnode_t *vp)
 {
-	return atomic_read(&vn_to_inode(vp)->i_count);
+	return atomic_read(&vp->i_count);
 }
 
 /*
@@ -88,15 +80,15 @@ extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
 	  xfs_itrace_hold(XFS_I(vp), __FILE__, __LINE__, (inst_t *)__return_address))
 #define VN_RELE(vp)		\
 	  (xfs_itrace_rele(XFS_I(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
-	   iput(vn_to_inode(vp)))
+	   iput(vp))
 #else
 #define VN_HOLD(vp)		((void)vn_hold(vp))
-#define VN_RELE(vp)		(iput(vn_to_inode(vp)))
+#define VN_RELE(vp)		(iput(vp))
 #endif
 
 static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 {
-	return igrab(vn_to_inode(vp));
+	return igrab(vp);
 }
 
 /*
@@ -104,7 +96,7 @@ static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
  */
 static inline int VN_BAD(bhv_vnode_t *vp)
 {
-	return is_bad_inode(vn_to_inode(vp));
+	return is_bad_inode(vp);
 }
 
 /*
@@ -129,9 +121,9 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 /*
  * Some useful predicates.
  */
-#define VN_MAPPED(vp)	mapping_mapped(vn_to_inode(vp)->i_mapping)
-#define VN_CACHED(vp)	(vn_to_inode(vp)->i_mapping->nrpages)
-#define VN_DIRTY(vp)	mapping_tagged(vn_to_inode(vp)->i_mapping, \
+#define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
+#define VN_CACHED(vp)	(vp->i_mapping->nrpages)
+#define VN_DIRTY(vp)	mapping_tagged(vp->i_mapping, \
 					PAGECACHE_TAG_DIRTY)
 
 
