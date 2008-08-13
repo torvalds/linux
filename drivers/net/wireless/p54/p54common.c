@@ -837,9 +837,20 @@ static int p54_start(struct ieee80211_hw *dev)
 	struct p54_common *priv = dev->priv;
 	int err;
 
+	if (!priv->cached_vdcf) {
+		priv->cached_vdcf = kzalloc(sizeof(struct p54_tx_control_vdcf)+
+			priv->tx_hdr_len + sizeof(struct p54_control_hdr),
+			GFP_KERNEL);
+
+		if (!priv->cached_vdcf)
+			return -ENOMEM;
+	}
+
 	err = priv->open(dev);
 	if (!err)
 		priv->mode = IEEE80211_IF_TYPE_MNTR;
+
+	p54_init_vdcf(dev);
 
 	return err;
 }
@@ -1020,15 +1031,6 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	dev->extra_tx_headroom = sizeof(struct p54_control_hdr) + 4 +
 				 sizeof(struct p54_tx_control_allocdata);
 
-        priv->cached_vdcf = kzalloc(sizeof(struct p54_tx_control_vdcf) +
-              priv->tx_hdr_len + sizeof(struct p54_control_hdr), GFP_KERNEL);
-
-	if (!priv->cached_vdcf) {
-		ieee80211_free_hw(dev);
-		return NULL;
-	}
-
-	p54_init_vdcf(dev);
 	mutex_init(&priv->conf_mutex);
 
 	return dev;
