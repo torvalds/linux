@@ -6897,6 +6897,7 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 {
 	u32 val, val2, val3, val4, id;
+	u16 pmc;
 
 	/* Get the chip revision id and number. */
 	/* chip num:16-31, rev:12-15, metal:4-11, bond_id:0-3 */
@@ -6954,8 +6955,16 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 		BNX2X_ERR("This driver needs bc_ver %X but found %X,"
 			  " please upgrade BC\n", BNX2X_BC_VER, val);
 	}
-	BNX2X_DEV_INFO("%sWoL Capable\n",
-		       (bp->flags & NO_WOL_FLAG)? "Not " : "");
+
+	if (BP_E1HVN(bp) == 0) {
+		pci_read_config_word(bp->pdev, bp->pm_cap + PCI_PM_PMC, &pmc);
+		bp->flags |= (pmc & PCI_PM_CAP_PME_D3cold) ? 0 : NO_WOL_FLAG;
+	} else {
+		/* no WOL capability for E1HVN != 0 */
+		bp->flags |= NO_WOL_FLAG;
+	}
+	BNX2X_DEV_INFO("%sWoL capable\n",
+		       (bp->flags & NO_WOL_FLAG) ? "Not " : "");
 
 	val = SHMEM_RD(bp, dev_info.shared_hw_config.part_num);
 	val2 = SHMEM_RD(bp, dev_info.shared_hw_config.part_num[4]);
