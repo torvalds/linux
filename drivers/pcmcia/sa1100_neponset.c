@@ -9,9 +9,9 @@
 #include <linux/errno.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/arch/neponset.h>
+#include <mach/neponset.h>
 #include <asm/hardware/sa1111.h>
 
 #include "sa1111_generic.h"

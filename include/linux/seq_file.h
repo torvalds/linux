@@ -4,6 +4,8 @@
 #include <linux/types.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
+#include <linux/cpumask.h>
+#include <linux/nodemask.h>
 
 struct seq_operations;
 struct file;
@@ -47,6 +49,16 @@ int seq_path(struct seq_file *, struct path *, char *);
 int seq_dentry(struct seq_file *, struct dentry *, char *);
 int seq_path_root(struct seq_file *m, struct path *path, struct path *root,
 		  char *esc);
+int seq_bitmap(struct seq_file *m, unsigned long *bits, unsigned int nr_bits);
+static inline int seq_cpumask(struct seq_file *m, cpumask_t *mask)
+{
+	return seq_bitmap(m, mask->bits, NR_CPUS);
+}
+
+static inline int seq_nodemask(struct seq_file *m, nodemask_t *mask)
+{
+	return seq_bitmap(m, mask->bits, MAX_NUMNODES);
+}
 
 int single_open(struct file *, int (*)(struct seq_file *, void *), void *);
 int single_release(struct inode *, struct file *);

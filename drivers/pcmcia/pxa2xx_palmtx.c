@@ -16,8 +16,8 @@
 
 #include <asm/mach-types.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/palmtx.h>
+#include <mach/gpio.h>
+#include <mach/palmtx.h>
 
 #include "soc_common.h"
 

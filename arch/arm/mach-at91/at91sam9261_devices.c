@@ -20,11 +20,11 @@
 #include <linux/fb.h>
 #include <video/atmel_lcdc.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/at91sam9261.h>
-#include <asm/arch/at91sam9261_matrix.h>
-#include <asm/arch/at91sam9_smc.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/at91sam9261.h>
+#include <mach/at91sam9261_matrix.h>
+#include <mach/at91sam9_smc.h>
 
 #include "generic.h"
 
@@ -198,7 +198,7 @@ void __init at91_add_device_mmc(short mmc_id, struct at91_mmc_data *data) {}
  *  NAND / SmartMedia
  * -------------------------------------------------------------------- */
 
-#if defined(CONFIG_MTD_NAND_AT91) || defined(CONFIG_MTD_NAND_AT91_MODULE)
+#if defined(CONFIG_MTD_NAND_ATMEL) || defined(CONFIG_MTD_NAND_ATMEL_MODULE)
 static struct atmel_nand_data nand_data;
 
 #define NAND_BASE	AT91_CHIPSELECT_3

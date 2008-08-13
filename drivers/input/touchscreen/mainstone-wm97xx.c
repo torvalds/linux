@@ -33,7 +33,7 @@
 #include <linux/interrupt.h>
 #include <linux/wm97xx.h>
 #include <linux/io.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 #define VERSION		"0.13"
 

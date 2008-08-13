@@ -164,7 +164,7 @@ extern void		xfs_qm_dqprint(xfs_dquot_t *);
 
 extern void		xfs_qm_dqdestroy(xfs_dquot_t *);
 extern int		xfs_qm_dqflush(xfs_dquot_t *, uint);
-extern int		xfs_qm_dqpurge(xfs_dquot_t *, uint);
+extern int		xfs_qm_dqpurge(xfs_dquot_t *);
 extern void		xfs_qm_dqunpin_wait(xfs_dquot_t *);
 extern int		xfs_qm_dqlock_nowait(xfs_dquot_t *);
 extern int		xfs_qm_dqflock_nowait(xfs_dquot_t *);

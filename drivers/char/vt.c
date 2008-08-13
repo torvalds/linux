@@ -916,7 +916,6 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 		ws.ws_col = vc->vc_cols;
 		ws.ws_ypixel = vc->vc_scan_lines;
 
-		mutex_lock(&vc->vc_tty->termios_mutex);
 		spin_lock_irq(&vc->vc_tty->ctrl_lock);
 		if ((ws.ws_row != cws->ws_row || ws.ws_col != cws->ws_col))
 			pgrp = get_pid(vc->vc_tty->pgrp);
@@ -926,7 +925,6 @@ int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines)
 			put_pid(pgrp);
 		}
 		*cws = ws;
-		mutex_unlock(&vc->vc_tty->termios_mutex);
 	}
 
 	if (CON_IS_VISIBLE(vc))

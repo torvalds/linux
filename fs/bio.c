@@ -77,11 +77,8 @@ struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct
 	 */
 
 	bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
-	if (bvl) {
-		struct biovec_slab *bp = bvec_slabs + *idx;
-
-		memset(bvl, 0, bp->nr_vecs * sizeof(struct bio_vec));
-	}
+	if (bvl)
+		memset(bvl, 0, bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
 
 	return bvl;
 }
@@ -149,7 +146,7 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 				goto out;
 			}
 			bio->bi_flags |= idx << BIO_POOL_OFFSET;
-			bio->bi_max_vecs = bvec_slabs[idx].nr_vecs;
+			bio->bi_max_vecs = bvec_nr_vecs(idx);
 		}
 		bio->bi_io_vec = bvl;
 	}

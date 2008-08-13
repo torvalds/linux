@@ -17,9 +17,9 @@
 #include <linux/leds.h>
 #include <asm/hardware/scoop.h>
 #include <asm/mach-types.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/spitz.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/spitz.h>
 
 static void spitzled_amber_set(struct led_classdev *led_cdev,
 			       enum led_brightness value)

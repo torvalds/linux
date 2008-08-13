@@ -25,11 +25,11 @@
 #include <linux/module.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/gpio.h>
+#include <mach/regs-gpio.h>
+#include <mach/gpio.h>
 
 /*
  * Configure a GPIO line for either GPIO function, or its internal

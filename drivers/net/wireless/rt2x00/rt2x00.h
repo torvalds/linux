@@ -108,7 +108,10 @@
 #define SHORT_PIFS		( SIFS + SHORT_SLOT_TIME )
 #define DIFS			( PIFS + SLOT_TIME )
 #define SHORT_DIFS		( SHORT_PIFS + SHORT_SLOT_TIME )
-#define EIFS			( SIFS + (8 * (IEEE80211_HEADER + ACK_SIZE)) )
+#define EIFS			( SIFS + DIFS + \
+				  (8 * (IEEE80211_HEADER + ACK_SIZE)) )
+#define SHORT_EIFS		( SIFS + SHORT_DIFS + \
+				  (8 * (IEEE80211_HEADER + ACK_SIZE)) )
 
 /*
  * Chipset identification
@@ -365,6 +368,12 @@ struct rt2x00_intf {
 #define DELAYED_CONFIG_ERP		0x00000002
 #define DELAYED_LED_ASSOC		0x00000004
 
+	/*
+	 * Software sequence counter, this is only required
+	 * for hardware which doesn't support hardware
+	 * sequence counting.
+	 */
+	spinlock_t seqlock;
 	u16 seqno;
 };
 
@@ -597,6 +606,7 @@ enum rt2x00_flags {
 	DEVICE_STARTED_SUSPEND,
 	DEVICE_ENABLED_RADIO,
 	DEVICE_DISABLED_RADIO_HW,
+	DEVICE_DIRTY_CONFIG,
 
 	/*
 	 * Driver features

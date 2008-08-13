@@ -25,8 +25,8 @@
 #include <linux/init.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/hardware.h>
-#include <asm/arch/autcpu12.h>
+#include <mach/hardware.h>
+#include <mach/autcpu12.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/map.h>
 #include <linux/mtd/partitions.h>

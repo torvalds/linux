@@ -630,7 +630,7 @@ config VIDEO_ZORAN_ZR36060
 	depends on VIDEO_ZORAN
 	help
 	  Say Y to support Zoran boards based on 36060 chips.
-	  This includes Iomega Bus, Pinnacle DC10, Linux media Labs 33
+	  This includes Iomega Buz, Pinnacle DC10, Linux media Labs 33
 	  and 33 R10 and AverMedia 6 boards.
 
 config VIDEO_ZORAN_BUZ

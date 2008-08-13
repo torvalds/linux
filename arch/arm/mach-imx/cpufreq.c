@@ -36,7 +36,7 @@
 #include <linux/err.h>
 #include <asm/system.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include "generic.h"
 

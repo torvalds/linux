@@ -26,8 +26,8 @@
 #include <asm/setup.h>
 #include <asm/sysreg.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/init.h>
+#include <mach/board.h>
+#include <mach/init.h>
 
 extern int root_mountflags;
 

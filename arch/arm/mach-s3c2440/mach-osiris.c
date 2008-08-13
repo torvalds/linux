@@ -25,18 +25,18 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/osiris-map.h>
-#include <asm/arch/osiris-cpld.h>
+#include <mach/osiris-map.h>
+#include <mach/osiris-cpld.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
 
 #include <asm/plat-s3c/regs-serial.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-lcd.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-mem.h>
+#include <mach/regs-lcd.h>
 #include <asm/plat-s3c/nand.h>
 
 #include <linux/mtd/mtd.h>

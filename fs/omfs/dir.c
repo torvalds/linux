@@ -104,7 +104,7 @@ int omfs_make_empty(struct inode *inode, struct super_block *sb)
 
 	oi = (struct omfs_inode *) bh->b_data;
 	oi->i_head.h_self = cpu_to_be64(inode->i_ino);
-	oi->i_sibling = ~0ULL;
+	oi->i_sibling = ~cpu_to_be64(0ULL);
 
 	mark_buffer_dirty(bh);
 	brelse(bh);

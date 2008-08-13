@@ -1756,9 +1756,14 @@ DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_VIA, 0x324e, quirk_via_cx700_pci_parking_c
  */
 static void __devinit quirk_brcm_570x_limit_vpd(struct pci_dev *dev)
 {
-	/*  Only disable the VPD capability for 5706, 5708, and 5709 rev. A */
+	/*
+	 * Only disable the VPD capability for 5706, 5706S, 5708,
+	 * 5708S and 5709 rev. A
+	 */
 	if ((dev->device == PCI_DEVICE_ID_NX2_5706) ||
+	    (dev->device == PCI_DEVICE_ID_NX2_5706S) ||
 	    (dev->device == PCI_DEVICE_ID_NX2_5708) ||
+	    (dev->device == PCI_DEVICE_ID_NX2_5708S) ||
 	    ((dev->device == PCI_DEVICE_ID_NX2_5709) &&
 	     (dev->revision & 0xf0) == 0x0)) {
 		if (dev->vpd)

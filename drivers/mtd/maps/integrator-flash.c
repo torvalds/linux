@@ -37,7 +37,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/mach/flash.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

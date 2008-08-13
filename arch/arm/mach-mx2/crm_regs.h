@@ -20,7 +20,7 @@
 #ifndef __ARCH_ARM_MACH_MX2_CRM_REGS_H__
 #define __ARCH_ARM_MACH_MX2_CRM_REGS_H__
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 
 /* Register offsets */
 #define CCM_CSCR                (IO_ADDRESS(CCM_BASE_ADDR) + 0x0)
