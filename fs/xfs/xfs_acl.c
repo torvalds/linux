@@ -217,7 +217,6 @@ xfs_acl_vget(
 	posix_acl_xattr_header	*ext_acl = acl;
 	int			flags = 0;
 
-	VN_HOLD(vp);
 	if(size) {
 		if (!(_ACL_ALLOC(xfs_acl))) {
 			error = ENOMEM;
@@ -243,7 +242,6 @@ xfs_acl_vget(
 		error = -posix_acl_xfs_to_xattr(xfs_acl, ext_acl, size);
 	}
 out:
-	VN_RELE(vp);
 	if(xfs_acl)
 		_ACL_FREE(xfs_acl);
 	return -error;
@@ -256,7 +254,6 @@ xfs_acl_vremove(
 {
 	int		error;
 
-	VN_HOLD(vp);
 	error = xfs_acl_allow_set(vp, kind);
 	if (!error) {
 		error = xfs_attr_remove(XFS_I(vp),
@@ -266,7 +263,6 @@ xfs_acl_vremove(
 		if (error == ENOATTR)
 			error = 0;	/* 'scool */
 	}
-	VN_RELE(vp);
 	return -error;
 }
 
@@ -298,7 +294,6 @@ xfs_acl_vset(
 		return 0;
 	}
 
-	VN_HOLD(vp);
 	error = xfs_acl_allow_set(vp, kind);
 
 	/* Incoming ACL exists, set file mode based on its value */
@@ -321,7 +316,6 @@ xfs_acl_vset(
 	}
 
 out:
-	VN_RELE(vp);
 	_ACL_FREE(xfs_acl);
 	return -error;
 }
