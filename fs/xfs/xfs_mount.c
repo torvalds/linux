@@ -128,7 +128,7 @@ static const struct {
  * initialized.
  */
 STATIC void
-xfs_mount_free(
+xfs_free_perag(
 	xfs_mount_t	*mp)
 {
 	if (mp->m_perag) {
@@ -139,13 +139,6 @@ xfs_mount_free(
 				kmem_free(mp->m_perag[agno].pagb_list);
 		kmem_free(mp->m_perag);
 	}
-
-	spinlock_destroy(&mp->m_ail_lock);
-	spinlock_destroy(&mp->m_sb_lock);
-	mutex_destroy(&mp->m_ilock);
-	mutex_destroy(&mp->m_growlock);
-	if (mp->m_quotainfo)
-		XFS_QM_DONE(mp);
 }
 
 /*
@@ -922,7 +915,6 @@ xfs_mountfs(
 	__uint64_t	resblks;
 	__int64_t	update_flags = 0LL;
 	uint		quotamount, quotaflags;
-	int		agno;
 	int		uuid_mounted = 0;
 	int		error = 0;
 
@@ -1216,12 +1208,7 @@ xfs_mountfs(
  error3:
 	xfs_log_unmount_dealloc(mp);
  error2:
-	for (agno = 0; agno < sbp->sb_agcount; agno++)
-		if (mp->m_perag[agno].pagb_list)
-			kmem_free(mp->m_perag[agno].pagb_list);
-	kmem_free(mp->m_perag);
-	mp->m_perag = NULL;
-	/* FALLTHROUGH */
+	xfs_free_perag(mp);
  error1:
 	if (uuid_mounted)
 		uuid_table_remove(&mp->m_sb.sb_uuid);
@@ -1307,7 +1294,9 @@ xfs_unmountfs(
 #if defined(DEBUG)
 	xfs_errortag_clearall(mp, 0);
 #endif
-	xfs_mount_free(mp);
+	xfs_free_perag(mp);
+	if (mp->m_quotainfo)
+		XFS_QM_DONE(mp);
 }
 
 STATIC void
