@@ -208,9 +208,6 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		frame = (void __user *)round_down(
 			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
 
-		if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
-			goto give_sigsegv;
-
 		if (save_i387_xstate(fp) < 0)
 			err |= -1; 
 	} else
