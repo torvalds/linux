@@ -97,17 +97,23 @@ xfs_ichgtime(
 {
 	struct inode	*inode = VFS_I(ip);
 	timespec_t	tv;
+	int		sync_it = 0;
 
-	nanotime(&tv);
-	if (flags & XFS_ICHGTIME_MOD) {
+	tv = current_fs_time(inode->i_sb);
+
+	if ((flags & XFS_ICHGTIME_MOD) &&
+	    !timespec_equal(&inode->i_mtime, &tv)) {
 		inode->i_mtime = tv;
 		ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
 		ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
+		sync_it = 1;
 	}
-	if (flags & XFS_ICHGTIME_CHG) {
+	if ((flags & XFS_ICHGTIME_CHG) &&
+	    !timespec_equal(&inode->i_ctime, &tv)) {
 		inode->i_ctime = tv;
 		ip->i_d.di_ctime.t_sec = (__int32_t)tv.tv_sec;
 		ip->i_d.di_ctime.t_nsec = (__int32_t)tv.tv_nsec;
+		sync_it = 1;
 	}
 
 	/*
@@ -119,10 +125,11 @@ xfs_ichgtime(
 	 * ensure that the compiler does not reorder the update
 	 * of i_update_core above the timestamp updates above.
 	 */
-	SYNCHRONIZE();
-	ip->i_update_core = 1;
-	if (!(inode->i_state & I_NEW))
+	if (sync_it) {
+		SYNCHRONIZE();
+		ip->i_update_core = 1;
 		mark_inode_dirty_sync(inode);
+	}
 }
 
 /*
