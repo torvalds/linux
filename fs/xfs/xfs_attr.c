@@ -400,7 +400,9 @@ xfs_attr_set_int(xfs_inode_t *dp, struct xfs_name *name,
 		 * Commit the leaf transformation.  We'll need another (linked)
 		 * transaction to add the new attribute to the leaf.
 		 */
-		if ((error = xfs_attr_rolltrans(&args.trans, dp)))
+
+		error = xfs_trans_roll(&args.trans, dp);
+		if (error)
 			goto out;
 
 	}
@@ -980,7 +982,8 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		 * Commit the current trans (including the inode) and start
 		 * a new one.
 		 */
-		if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+		error = xfs_trans_roll(&args->trans, dp);
+		if (error)
 			return (error);
 
 		/*
@@ -994,7 +997,8 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 	 * Commit the transaction that added the attr name so that
 	 * later routines can manage their own transactions.
 	 */
-	if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+	error = xfs_trans_roll(&args->trans, dp);
+	if (error)
 		return (error);
 
 	/*
@@ -1083,7 +1087,7 @@ xfs_attr_leaf_addname(xfs_da_args_t *args)
 		/*
 		 * Commit the remove and start the next trans in series.
 		 */
-		error = xfs_attr_rolltrans(&args->trans, dp);
+		error = xfs_trans_roll(&args->trans, dp);
 
 	} else if (args->rmtblkno > 0) {
 		/*
@@ -1314,7 +1318,8 @@ restart:
 			 * Commit the node conversion and start the next
 			 * trans in the chain.
 			 */
-			if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+			error = xfs_trans_roll(&args->trans, dp);
+			if (error)
 				goto out;
 
 			goto restart;
@@ -1365,7 +1370,8 @@ restart:
 	 * Commit the leaf addition or btree split and start the next
 	 * trans in the chain.
 	 */
-	if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+	error = xfs_trans_roll(&args->trans, dp);
+	if (error)
 		goto out;
 
 	/*
@@ -1465,7 +1471,8 @@ restart:
 		/*
 		 * Commit and start the next trans in the chain.
 		 */
-		if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+		error = xfs_trans_roll(&args->trans, dp);
+		if (error)
 			goto out;
 
 	} else if (args->rmtblkno > 0) {
@@ -1597,7 +1604,8 @@ xfs_attr_node_removename(xfs_da_args_t *args)
 		/*
 		 * Commit the Btree join operation and start a new trans.
 		 */
-		if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+		error = xfs_trans_roll(&args->trans, dp);
+		if (error)
 			goto out;
 	}
 
@@ -2098,7 +2106,8 @@ xfs_attr_rmtval_set(xfs_da_args_t *args)
 		/*
 		 * Start the next trans in the chain.
 		 */
-		if ((error = xfs_attr_rolltrans(&args->trans, dp)))
+		error = xfs_trans_roll(&args->trans, dp);
+		if (error)
 			return (error);
 	}
 
@@ -2248,7 +2257,8 @@ xfs_attr_rmtval_remove(xfs_da_args_t *args)
 		/*
 		 * Close out trans and start the next one in the chain.
 		 */
-		if ((error = xfs_attr_rolltrans(&args->trans, args->dp)))
+		error = xfs_trans_roll(&args->trans, args->dp);
+		if (error)
 			return (error);
 	}
 	return(0);
