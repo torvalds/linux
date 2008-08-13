@@ -1052,8 +1052,10 @@ xfs_mountfs(
 	 * Allocate and initialize the per-ag data.
 	 */
 	init_rwsem(&mp->m_peraglock);
-	mp->m_perag =
-		kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t), KM_SLEEP);
+	mp->m_perag = kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t),
+				  KM_MAYFAIL);
+	if (!mp->m_perag)
+		goto error1;
 
 	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
 
