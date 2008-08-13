@@ -4252,7 +4252,9 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 static void bnx2x_init_rx_rings(struct bnx2x *bp)
 {
 	int func = BP_FUNC(bp);
-	u16 ring_prod, cqe_ring_prod = 0;
+	int max_agg_queues = CHIP_IS_E1(bp) ? ETH_MAX_AGGREGATION_QUEUES_E1 :
+					      ETH_MAX_AGGREGATION_QUEUES_E1H;
+	u16 ring_prod, cqe_ring_prod;
 	int i, j;
 
 	bp->rx_buf_use_size = bp->dev->mtu;
@@ -4266,9 +4268,9 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 		   bp->dev->mtu + ETH_OVREHEAD);
 
 		for_each_queue(bp, j) {
-			for (i = 0; i < ETH_MAX_AGGREGATION_QUEUES_E1H; i++) {
-				struct bnx2x_fastpath *fp = &bp->fp[j];
+			struct bnx2x_fastpath *fp = &bp->fp[j];
 
+			for (i = 0; i < max_agg_queues; i++) {
 				fp->tpa_pool[i].skb =
 				   netdev_alloc_skb(bp->dev, bp->rx_buf_size);
 				if (!fp->tpa_pool[i].skb) {
@@ -4348,8 +4350,7 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 				BNX2X_ERR("disabling TPA for queue[%d]\n", j);
 				/* Cleanup already allocated elements */
 				bnx2x_free_rx_sge_range(bp, fp, ring_prod);
-				bnx2x_free_tpa_pool(bp, fp,
-					      ETH_MAX_AGGREGATION_QUEUES_E1H);
+				bnx2x_free_tpa_pool(bp, fp, max_agg_queues);
 				fp->disable_tpa = 1;
 				ring_prod = 0;
 				break;
@@ -5772,6 +5773,7 @@ static void bnx2x_free_mem(struct bnx2x *bp)
 			       NUM_RCQ_BD);
 
 		/* SGE ring */
+		BNX2X_FREE(bnx2x_fp(bp, i, rx_page_ring));
 		BNX2X_PCI_FREE(bnx2x_fp(bp, i, rx_sge_ring),
 			       bnx2x_fp(bp, i, rx_sge_mapping),
 			       BCM_PAGE_SIZE * NUM_RX_SGE_PAGES);
@@ -5949,7 +5951,8 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 			dev_kfree_skb(skb);
 		}
 		if (!fp->disable_tpa)
-			bnx2x_free_tpa_pool(bp, fp,
+			bnx2x_free_tpa_pool(bp, fp, CHIP_IS_E1(bp) ?
+					    ETH_MAX_AGGREGATION_QUEUES_E1 :
 					    ETH_MAX_AGGREGATION_QUEUES_E1H);
 	}
 }
