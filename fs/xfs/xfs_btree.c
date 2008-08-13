@@ -46,36 +46,9 @@ kmem_zone_t	*xfs_btree_cur_zone;
 /*
  * Btree magic numbers.
  */
-const __uint32_t xfs_magics[XFS_BTNUM_MAX] =
-{
+const __uint32_t xfs_magics[XFS_BTNUM_MAX] = {
 	XFS_ABTB_MAGIC, XFS_ABTC_MAGIC, XFS_BMAP_MAGIC, XFS_IBT_MAGIC
 };
-
-/*
- * Prototypes for internal routines.
- */
-
-/*
- * Checking routine: return maxrecs for the block.
- */
-STATIC int				/* number of records fitting in block */
-xfs_btree_maxrecs(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	xfs_btree_block_t	*block);/* generic btree block pointer */
-
-/*
- * Internal routines.
- */
-
-/*
- * Retrieve the block pointer from the cursor at the given level.
- * This may be a bmap btree root or from a buffer.
- */
-STATIC xfs_btree_block_t *			/* generic btree block pointer */
-xfs_btree_get_block(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level,	/* level in btree */
-	struct xfs_buf		**bpp);	/* buffer containing the block */
 
 /*
  * Checking routine: return maxrecs for the block.
@@ -457,35 +430,6 @@ xfs_btree_dup_cursor(
 }
 
 /*
- * Change the cursor to point to the first record at the given level.
- * Other levels are unaffected.
- */
-int					/* success=1, failure=0 */
-xfs_btree_firstrec(
-	xfs_btree_cur_t		*cur,	/* btree cursor */
-	int			level)	/* level to change */
-{
-	xfs_btree_block_t	*block;	/* generic btree block pointer */
-	xfs_buf_t		*bp;	/* buffer containing block */
-
-	/*
-	 * Get the block pointer for this level.
-	 */
-	block = xfs_btree_get_block(cur, level, &bp);
-	xfs_btree_check_block(cur, block, level, bp);
-	/*
-	 * It's empty, there is no such record.
-	 */
-	if (!block->bb_h.bb_numrecs)
-		return 0;
-	/*
-	 * Set the ptr value to 1, that's the first record/key.
-	 */
-	cur->bc_ptrs[level] = 1;
-	return 1;
-}
-
-/*
  * Retrieve the block pointer from the cursor at the given level.
  * This may be a bmap btree root or from a buffer.
  */
@@ -668,6 +612,35 @@ xfs_btree_islastblock(
 		return be64_to_cpu(block->bb_u.l.bb_rightsib) == NULLDFSBNO;
 	else
 		return be32_to_cpu(block->bb_u.s.bb_rightsib) == NULLAGBLOCK;
+}
+
+/*
+ * Change the cursor to point to the first record at the given level.
+ * Other levels are unaffected.
+ */
+int					/* success=1, failure=0 */
+xfs_btree_firstrec(
+	xfs_btree_cur_t		*cur,	/* btree cursor */
+	int			level)	/* level to change */
+{
+	xfs_btree_block_t	*block;	/* generic btree block pointer */
+	xfs_buf_t		*bp;	/* buffer containing block */
+
+	/*
+	 * Get the block pointer for this level.
+	 */
+	block = xfs_btree_get_block(cur, level, &bp);
+	xfs_btree_check_block(cur, block, level, bp);
+	/*
+	 * It's empty, there is no such record.
+	 */
+	if (!block->bb_h.bb_numrecs)
+		return 0;
+	/*
+	 * Set the ptr value to 1, that's the first record/key.
+	 */
+	cur->bc_ptrs[level] = 1;
+	return 1;
 }
 
 /*
