@@ -148,7 +148,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 	if (err)
 		goto out_invalid;
 
-	/* Disable readahead */
+	/* Disable read-ahead */
 	inode->i_mapping->backing_dev_info = &c->bdi;
 
 	switch (inode->i_mode & S_IFMT) {
@@ -344,7 +344,7 @@ static void ubifs_delete_inode(struct inode *inode)
 	if (err)
 		/*
 		 * Worst case we have a lost orphan inode wasting space, so a
-		 * simple error message is ok here.
+		 * simple error message is OK here.
 		 */
 		ubifs_err("can't delete inode %lu, error %d",
 			  inode->i_ino, err);
@@ -1683,10 +1683,10 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/*
-	 * UBIFS provids 'backing_dev_info' in order to disable readahead. For
+	 * UBIFS provides 'backing_dev_info' in order to disable read-ahead. For
 	 * UBIFS, I/O is not deferred, it is done immediately in readpage,
 	 * which means the user would have to wait not just for their own I/O
-	 * but the readahead I/O as well i.e. completely pointless.
+	 * but the read-ahead I/O as well i.e. completely pointless.
 	 *
 	 * Read-ahead will be disabled because @c->bdi.ra_pages is 0.
 	 */
