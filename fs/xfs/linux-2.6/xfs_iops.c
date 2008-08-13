@@ -710,7 +710,7 @@ out_error:
 	return error;
 }
 
-const struct inode_operations xfs_inode_operations = {
+static const struct inode_operations xfs_inode_operations = {
 	.permission		= xfs_vn_permission,
 	.truncate		= xfs_vn_truncate,
 	.getattr		= xfs_vn_getattr,
@@ -722,7 +722,7 @@ const struct inode_operations xfs_inode_operations = {
 	.fallocate		= xfs_vn_fallocate,
 };
 
-const struct inode_operations xfs_dir_inode_operations = {
+static const struct inode_operations xfs_dir_inode_operations = {
 	.create			= xfs_vn_create,
 	.lookup			= xfs_vn_lookup,
 	.link			= xfs_vn_link,
@@ -747,7 +747,7 @@ const struct inode_operations xfs_dir_inode_operations = {
 	.listxattr		= xfs_vn_listxattr,
 };
 
-const struct inode_operations xfs_dir_ci_inode_operations = {
+static const struct inode_operations xfs_dir_ci_inode_operations = {
 	.create			= xfs_vn_create,
 	.lookup			= xfs_vn_ci_lookup,
 	.link			= xfs_vn_link,
@@ -772,7 +772,7 @@ const struct inode_operations xfs_dir_ci_inode_operations = {
 	.listxattr		= xfs_vn_listxattr,
 };
 
-const struct inode_operations xfs_symlink_inode_operations = {
+static const struct inode_operations xfs_symlink_inode_operations = {
 	.readlink		= generic_readlink,
 	.follow_link		= xfs_vn_follow_link,
 	.put_link		= xfs_vn_put_link,
@@ -784,3 +784,98 @@ const struct inode_operations xfs_symlink_inode_operations = {
 	.removexattr		= generic_removexattr,
 	.listxattr		= xfs_vn_listxattr,
 };
+
+STATIC void
+xfs_diflags_to_iflags(
+	struct inode		*inode,
+	struct xfs_inode	*ip)
+{
+	if (ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE)
+		inode->i_flags |= S_IMMUTABLE;
+	else
+		inode->i_flags &= ~S_IMMUTABLE;
+	if (ip->i_d.di_flags & XFS_DIFLAG_APPEND)
+		inode->i_flags |= S_APPEND;
+	else
+		inode->i_flags &= ~S_APPEND;
+	if (ip->i_d.di_flags & XFS_DIFLAG_SYNC)
+		inode->i_flags |= S_SYNC;
+	else
+		inode->i_flags &= ~S_SYNC;
+	if (ip->i_d.di_flags & XFS_DIFLAG_NOATIME)
+		inode->i_flags |= S_NOATIME;
+	else
+		inode->i_flags &= ~S_NOATIME;
+}
+
+/*
+ * Initialize the Linux inode, set up the operation vectors and
+ * unlock the inode.
+ *
+ * When reading existing inodes from disk this is called directly
+ * from xfs_iget, when creating a new inode it is called from
+ * xfs_ialloc after setting up the inode.
+ */
+void
+xfs_setup_inode(
+	struct xfs_inode	*ip)
+{
+	struct inode		*inode = ip->i_vnode;
+
+	inode->i_mode	= ip->i_d.di_mode;
+	inode->i_nlink	= ip->i_d.di_nlink;
+	inode->i_uid	= ip->i_d.di_uid;
+	inode->i_gid	= ip->i_d.di_gid;
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFBLK:
+	case S_IFCHR:
+		inode->i_rdev =
+			MKDEV(sysv_major(ip->i_df.if_u2.if_rdev) & 0x1ff,
+			      sysv_minor(ip->i_df.if_u2.if_rdev));
+		break;
+	default:
+		inode->i_rdev = 0;
+		break;
+	}
+
+	inode->i_generation = ip->i_d.di_gen;
+	i_size_write(inode, ip->i_d.di_size);
+	inode->i_atime.tv_sec	= ip->i_d.di_atime.t_sec;
+	inode->i_atime.tv_nsec	= ip->i_d.di_atime.t_nsec;
+	inode->i_mtime.tv_sec	= ip->i_d.di_mtime.t_sec;
+	inode->i_mtime.tv_nsec	= ip->i_d.di_mtime.t_nsec;
+	inode->i_ctime.tv_sec	= ip->i_d.di_ctime.t_sec;
+	inode->i_ctime.tv_nsec	= ip->i_d.di_ctime.t_nsec;
+	xfs_diflags_to_iflags(inode, ip);
+	xfs_iflags_clear(ip, XFS_IMODIFIED);
+
+	switch (inode->i_mode & S_IFMT) {
+	case S_IFREG:
+		inode->i_op = &xfs_inode_operations;
+		inode->i_fop = &xfs_file_operations;
+		inode->i_mapping->a_ops = &xfs_address_space_operations;
+		break;
+	case S_IFDIR:
+		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))
+			inode->i_op = &xfs_dir_ci_inode_operations;
+		else
+			inode->i_op = &xfs_dir_inode_operations;
+		inode->i_fop = &xfs_dir_file_operations;
+		break;
+	case S_IFLNK:
+		inode->i_op = &xfs_symlink_inode_operations;
+		if (!(ip->i_df.if_flags & XFS_IFINLINE))
+			inode->i_mapping->a_ops = &xfs_address_space_operations;
+		break;
+	default:
+		inode->i_op = &xfs_inode_operations;
+		init_special_inode(inode, inode->i_mode, inode->i_rdev);
+		break;
+	}
+
+	xfs_iflags_clear(ip, XFS_INEW);
+	barrier();
+
+	unlock_new_inode(inode);
+}

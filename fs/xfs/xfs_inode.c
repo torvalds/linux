@@ -1046,7 +1046,6 @@ xfs_ialloc(
 {
 	xfs_ino_t	ino;
 	xfs_inode_t	*ip;
-	struct inode	*vp;
 	uint		flags;
 	int		error;
 
@@ -1077,7 +1076,6 @@ xfs_ialloc(
 	}
 	ASSERT(ip != NULL);
 
-	vp = VFS_I(ip);
 	ip->i_d.di_mode = (__uint16_t)mode;
 	ip->i_d.di_onlink = 0;
 	ip->i_d.di_nlink = nlink;
@@ -1220,7 +1218,7 @@ xfs_ialloc(
 	xfs_trans_log_inode(tp, ip, flags);
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
-	xfs_initialize_vnode(tp->t_mountp, vp, ip);
+	xfs_setup_inode(ip);
 
 	*ipp = ip;
 	return 0;

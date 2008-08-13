@@ -288,10 +288,17 @@ finish_inode:
 	*ipp = ip;
 
 	/*
+	 * Set up the Linux with the Linux inode.
+	 */
+	ip->i_vnode = inode;
+	inode->i_private = ip;
+
+	/*
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	xfs_initialize_vnode(mp, inode, ip);
+	if (ip->i_d.di_mode != 0)
+		xfs_setup_inode(ip);
 	return 0;
 }
 
