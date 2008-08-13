@@ -33,7 +33,7 @@
 
 
 /*
- * Dedicated vnode inactive/reclaim sync semaphores.
+ * Dedicated vnode inactive/reclaim sync wait queues.
  * Prime number of hash buckets since address is used as the key.
  */
 #define NVSYNC                  37
