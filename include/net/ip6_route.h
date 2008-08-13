@@ -38,11 +38,6 @@ struct route_info {
 #define RT6_LOOKUP_F_SRCPREF_COA	0x00000020
 
 
-#ifdef CONFIG_IPV6_MULTIPLE_TABLES
-extern struct rt6_info	*ip6_prohibit_entry;
-extern struct rt6_info	*ip6_blk_hole_entry;
-#endif
-
 extern void			ip6_route_input(struct sk_buff *skb);
 
 extern struct dst_entry *	ip6_route_output(struct net *net,
