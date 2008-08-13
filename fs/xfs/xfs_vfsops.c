@@ -128,7 +128,6 @@ xfs_unmount_flush(
 	xfs_inode_t	*rip = mp->m_rootip;
 	xfs_inode_t	*rbmip;
 	xfs_inode_t	*rsumip = NULL;
-	bhv_vnode_t	*rvp = VFS_I(rip);
 	int		error;
 
 	xfs_ilock(rip, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
@@ -167,7 +166,7 @@ xfs_unmount_flush(
 	if (error == EFSCORRUPTED)
 		goto fscorrupt_out2;
 
-	if (vn_count(rvp) != 1 && !relocation) {
+	if (vn_count(VFS_I(rip)) != 1 && !relocation) {
 		xfs_iunlock(rip, XFS_ILOCK_EXCL);
 		return XFS_ERROR(EBUSY);
 	}

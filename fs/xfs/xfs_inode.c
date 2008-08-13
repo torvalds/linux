@@ -1399,7 +1399,6 @@ xfs_itruncate_start(
 	xfs_fsize_t	last_byte;
 	xfs_off_t	toss_start;
 	xfs_mount_t	*mp;
-	bhv_vnode_t	*vp;
 	int		error = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
@@ -1408,7 +1407,6 @@ xfs_itruncate_start(
 	       (flags == XFS_ITRUNC_MAYBE));
 
 	mp = ip->i_mount;
-	vp = VFS_I(ip);
 
 	/* wait for the completion of any pending DIOs */
 	if (new_size < ip->i_size)
@@ -1457,7 +1455,7 @@ xfs_itruncate_start(
 
 #ifdef DEBUG
 	if (new_size == 0) {
-		ASSERT(VN_CACHED(vp) == 0);
+		ASSERT(VN_CACHED(VFS_I(ip)) == 0);
 	}
 #endif
 	return error;
@@ -3465,7 +3463,6 @@ xfs_iflush_all(
 	xfs_mount_t	*mp)
 {
 	xfs_inode_t	*ip;
-	bhv_vnode_t	*vp;
 
  again:
 	XFS_MOUNT_ILOCK(mp);
@@ -3480,14 +3477,13 @@ xfs_iflush_all(
 			continue;
 		}
 
-		vp = VFS_I(ip);
-		if (!vp) {
+		if (!VFS_I(ip)) {
 			XFS_MOUNT_IUNLOCK(mp);
 			xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);
 			goto again;
 		}
 
-		ASSERT(vn_count(vp) == 0);
+		ASSERT(vn_count(VFS_I(ip)) == 0);
 
 		ip = ip->i_mnext;
 	} while (ip != mp->m_inodes);

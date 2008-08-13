@@ -980,12 +980,7 @@ STATIC struct inode *
 xfs_fs_alloc_inode(
 	struct super_block	*sb)
 {
-	bhv_vnode_t		*vp;
-
-	vp = kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
-	if (unlikely(!vp))
-		return NULL;
-	return vp;
+	return kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
 }
 
 STATIC void
