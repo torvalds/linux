@@ -73,7 +73,8 @@ static void keyboard_set_repeat(void)
  */
 static void query_ist(void)
 {
-	/* Some 486 BIOSes apparently crash on this call */
+	/* Some older BIOSes apparently crash on this call, so filter
+	   it from machines too old to have SpeedStep at all. */
 	if (cpu.level < 6)
 		return;
 

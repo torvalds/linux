@@ -22,10 +22,8 @@
 
 #ifdef _SETUP
 # include "boot.h"
-# include "bitops.h"
 #endif
 #include <linux/types.h>
-#include <asm/cpufeature.h>
 #include <asm/processor-flags.h>
 #include <asm/required-features.h>
 #include <asm/msr-index.h>
