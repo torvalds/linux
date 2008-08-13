@@ -308,6 +308,7 @@ static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 		spin_unlock(&rcp->lock);
 		return;
 	}
+	rcp->gp_check = get_seconds() + 30;
 	spin_unlock(&rcp->lock);
 
 	/* OK, time to rat on our buddy... */
