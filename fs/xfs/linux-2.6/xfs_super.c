@@ -994,7 +994,7 @@ STATIC void
 xfs_fs_destroy_inode(
 	struct inode		*inode)
 {
-	kmem_zone_free(xfs_vnode_zone, vn_from_inode(inode));
+	kmem_zone_free(xfs_vnode_zone, inode);
 }
 
 STATIC void

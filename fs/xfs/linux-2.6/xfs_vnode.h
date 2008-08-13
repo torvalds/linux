@@ -27,10 +27,6 @@ typedef struct inode	bhv_vnode_t;
 /*
  * Vnode to Linux inode mapping.
  */
-static inline bhv_vnode_t *vn_from_inode(struct inode *inode)
-{
-	return inode;
-}
 static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
 {
 	return vnode;
@@ -100,8 +96,7 @@ extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
 
 static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
 {
-	struct inode *inode = igrab(vn_to_inode(vp));
-	return inode ? vn_from_inode(inode) : NULL;
+	return igrab(vn_to_inode(vp));
 }
 
 /*
