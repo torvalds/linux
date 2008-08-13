@@ -128,7 +128,6 @@ xfs_swap_extents(
 	xfs_swapext_t	*sxp)
 {
 	xfs_mount_t	*mp;
-	xfs_inode_t	*ips[2];
 	xfs_trans_t	*tp;
 	xfs_bstat_t	*sbp = &sxp->sx_stat;
 	bhv_vnode_t	*vp, *tvp;
@@ -153,16 +152,7 @@ xfs_swap_extents(
 	vp = VFS_I(ip);
 	tvp = VFS_I(tip);
 
-	/* Lock in i_ino order */
-	if (ip->i_ino < tip->i_ino) {
-		ips[0] = ip;
-		ips[1] = tip;
-	} else {
-		ips[0] = tip;
-		ips[1] = ip;
-	}
-
-	xfs_lock_inodes(ips, 2, lock_flags);
+	xfs_lock_two_inodes(ip, tip, lock_flags);
 	locked = 1;
 
 	/* Verify that both files have the same format */
@@ -265,7 +255,7 @@ xfs_swap_extents(
 		locked = 0;
 		goto error0;
 	}
-	xfs_lock_inodes(ips, 2, XFS_ILOCK_EXCL);
+	xfs_lock_two_inodes(ip, tip, XFS_ILOCK_EXCL);
 
 	/*
 	 * Count the number of extended attribute blocks
