@@ -191,6 +191,11 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		  kvm_assigned_dev_interrupt_work_handler);
 
 	if (irqchip_in_kernel(kvm)) {
+		if (!capable(CAP_SYS_RAWIO)) {
+			return -EPERM;
+			goto out;
+		}
+
 		if (assigned_irq->host_irq)
 			match->host_irq = assigned_irq->host_irq;
 		else
