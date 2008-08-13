@@ -1296,8 +1296,6 @@ xfs_unmountfs(
 	xfs_unmountfs_wait(mp); 		/* wait for async bufs */
 	xfs_log_unmount(mp);			/* Done! No more fs ops. */
 
-	xfs_freesb(mp);
-
 	/*
 	 * All inodes from this mount point should be freed.
 	 */
