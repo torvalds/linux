@@ -404,7 +404,7 @@ xfs_sync_inodes(
 			continue;
 		}
 
-		vp = XFS_ITOV_NULL(ip);
+		vp = VFS_I(ip);
 
 		/*
 		 * If the vnode is gone then this is being torn down,

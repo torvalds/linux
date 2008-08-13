@@ -1059,7 +1059,7 @@ again:
 			ip = ip->i_mnext;
 			continue;
 		}
-		vp = XFS_ITOV_NULL(ip);
+		vp = VFS_I(ip);
 		if (!vp) {
 			ASSERT(ip->i_udquot == NULL);
 			ASSERT(ip->i_gdquot == NULL);

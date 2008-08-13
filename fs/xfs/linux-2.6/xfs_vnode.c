@@ -108,7 +108,7 @@ vn_hold(
  */
 static inline int xfs_icount(struct xfs_inode *ip)
 {
-	bhv_vnode_t *vp = XFS_ITOV_NULL(ip);
+	bhv_vnode_t *vp = VFS_I(ip);
 
 	if (vp)
 		return vn_count(vp);

@@ -1077,7 +1077,7 @@ xfs_ialloc(
 	}
 	ASSERT(ip != NULL);
 
-	vp = XFS_ITOV(ip);
+	vp = VFS_I(ip);
 	ip->i_d.di_mode = (__uint16_t)mode;
 	ip->i_d.di_onlink = 0;
 	ip->i_d.di_nlink = nlink;
@@ -3480,7 +3480,7 @@ xfs_iflush_all(
 			continue;
 		}
 
-		vp = XFS_ITOV_NULL(ip);
+		vp = VFS_I(ip);
 		if (!vp) {
 			XFS_MOUNT_IUNLOCK(mp);
 			xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);

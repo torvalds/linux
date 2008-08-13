@@ -2933,7 +2933,7 @@ xfs_finish_reclaim(
 	int		sync_mode)
 {
 	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
-	bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
+	bhv_vnode_t	*vp = VFS_I(ip);
 
 	if (vp && VN_BAD(vp))
 		goto reclaim;
