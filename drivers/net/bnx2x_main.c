@@ -1946,7 +1946,14 @@ static u8 bnx2x_initial_phy_init(struct bnx2x *bp)
 		u8 rc;
 
 		/* Initialize link parameters structure variables */
-		bp->link_params.mtu = bp->dev->mtu;
+		/* It is recommended to turn off RX FC for jumbo frames
+		   for better performance */
+		if (IS_E1HMF(bp))
+			bp->link_params.req_fc_auto_adv = FLOW_CTRL_BOTH;
+		else if (bp->dev->mtu > 5000)
+			bp->link_params.req_fc_auto_adv = FLOW_CTRL_TX;
+		else
+			bp->link_params.req_fc_auto_adv = FLOW_CTRL_BOTH;
 
 		bnx2x_acquire_phy_lock(bp);
 		rc = bnx2x_phy_init(&bp->link_params, &bp->link_vars);

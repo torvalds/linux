@@ -58,11 +58,13 @@ struct link_params {
 
 	u16 req_duplex;
 	u16 req_flow_ctrl;
+	u16 req_fc_auto_adv; /* Should be set to TX / BOTH when
+	req_flow_ctrl is set to AUTO */
 	u16 req_line_speed; /* Also determine AutoNeg */
 
 	/* Device parameters */
 	u8 mac_addr[6];
-	u16 mtu;
+
 
 
 	/* shmem parameters */

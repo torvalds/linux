@@ -4966,6 +4966,7 @@
 #define EMAC_RX_MODE_PROMISCUOUS				 (1L<<8)
 #define EMAC_RX_MTU_SIZE_JUMBO_ENA				 (1L<<31)
 #define EMAC_TX_MODE_EXT_PAUSE_EN				 (1L<<3)
+#define EMAC_TX_MODE_FLOW_EN					 (1L<<4)
 #define MISC_REGISTERS_GPIO_0					 0
 #define MISC_REGISTERS_GPIO_1					 1
 #define MISC_REGISTERS_GPIO_2					 2
@@ -5615,7 +5616,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_LINK_STATUS 	0x8304
 #define MDIO_AN_REG_CL37_CL73		0x8370
 #define MDIO_AN_REG_CL37_AN		0xffe0
-#define MDIO_AN_REG_CL37_FD		0xffe4
+#define MDIO_AN_REG_CL37_FC_LD		0xffe4
+#define MDIO_AN_REG_CL37_FC_LP		0xffe5
 
 
 #define IGU_FUNC_BASE			0x0400
