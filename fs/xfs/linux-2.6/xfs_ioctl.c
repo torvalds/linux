@@ -245,7 +245,7 @@ xfs_vget_fsop_handlereq(
 
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 
-	*inode = XFS_ITOV(ip);
+	*inode = VFS_I(ip);
 	return 0;
 }
 
@@ -927,7 +927,7 @@ STATIC void
 xfs_diflags_to_linux(
 	struct xfs_inode	*ip)
 {
-	struct inode		*inode = XFS_ITOV(ip);
+	struct inode		*inode = VFS_I(ip);
 	unsigned int		xflags = xfs_ip2xflags(ip);
 
 	if (xflags & XFS_XFLAG_IMMUTABLE)

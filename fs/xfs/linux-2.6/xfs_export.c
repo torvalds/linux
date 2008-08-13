@@ -139,7 +139,7 @@ xfs_nfs_get_inode(
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	return ip->i_vnode;
+	return VFS_I(ip);
 }
 
 STATIC struct dentry *
@@ -167,7 +167,7 @@ xfs_fs_fh_to_dentry(struct super_block *sb, struct fid *fid,
 	if (!inode)
 		return NULL;
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	result = d_alloc_anon(inode);
 	if (!result) {
 		iput(inode);
@@ -198,7 +198,7 @@ xfs_fs_fh_to_parent(struct super_block *sb, struct fid *fid,
 	if (!inode)
 		return NULL;
 	if (IS_ERR(inode))
-		return ERR_PTR(PTR_ERR(inode));
+		return ERR_CAST(inode);
 	result = d_alloc_anon(inode);
 	if (!result) {
 		iput(inode);
@@ -219,9 +219,9 @@ xfs_fs_get_parent(
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
-	parent = d_alloc_anon(cip->i_vnode);
+	parent = d_alloc_anon(VFS_I(cip));
 	if (unlikely(!parent)) {
-		iput(cip->i_vnode);
+		iput(VFS_I(cip));
 		return ERR_PTR(-ENOMEM);
 	}
 	return parent;

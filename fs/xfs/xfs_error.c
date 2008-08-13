@@ -58,9 +58,6 @@ xfs_error_trap(int e)
 	}
 	return e;
 }
-#endif
-
-#if (defined(DEBUG) || defined(INDUCE_IO_ERROR))
 
 int	xfs_etest[XFS_NUM_INJECT_ERROR];
 int64_t	xfs_etest_fsid[XFS_NUM_INJECT_ERROR];
@@ -154,7 +151,7 @@ xfs_errortag_clearall(xfs_mount_t *mp, int loud)
 
 	return 0;
 }
-#endif /* DEBUG || INDUCE_IO_ERROR */
+#endif /* DEBUG */
 
 static void
 xfs_fs_vcmn_err(int level, xfs_mount_t *mp, char *fmt, va_list ap)
