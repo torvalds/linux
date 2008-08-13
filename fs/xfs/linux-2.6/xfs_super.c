@@ -1722,7 +1722,7 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_sb;
 
-	error = xfs_mountfs(mp, flags);
+	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
 

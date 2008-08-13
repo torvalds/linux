@@ -588,12 +588,12 @@ error:
  * mp		- ubiquitous xfs mount point structure
  */
 int
-xfs_log_mount_finish(xfs_mount_t *mp, int mfsi_flags)
+xfs_log_mount_finish(xfs_mount_t *mp)
 {
 	int	error;
 
 	if (!(mp->m_flags & XFS_MOUNT_NORECOVERY))
-		error = xlog_recover_finish(mp->m_log, mfsi_flags);
+		error = xlog_recover_finish(mp->m_log);
 	else {
 		error = 0;
 		ASSERT(mp->m_flags & XFS_MOUNT_RDONLY);

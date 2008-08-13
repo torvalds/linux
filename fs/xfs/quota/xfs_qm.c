@@ -310,8 +310,7 @@ xfs_qm_unmount_quotadestroy(
  */
 void
 xfs_qm_mount_quotas(
-	xfs_mount_t	*mp,
-	int		mfsi_flags)
+	xfs_mount_t	*mp)
 {
 	int		error = 0;
 	uint		sbf;
@@ -346,8 +345,7 @@ xfs_qm_mount_quotas(
 	/*
 	 * If any of the quotas are not consistent, do a quotacheck.
 	 */
-	if (XFS_QM_NEED_QUOTACHECK(mp) &&
-	    !(mfsi_flags & XFS_MFSI_NO_QUOTACHECK)) {
+	if (XFS_QM_NEED_QUOTACHECK(mp)) {
 		error = xfs_qm_quotacheck(mp);
 		if (error) {
 			/* Quotacheck failed and disabled quotas. */

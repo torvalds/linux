@@ -468,7 +468,7 @@ extern int	 xlog_find_tail(xlog_t	*log,
 				xfs_daddr_t *head_blk,
 				xfs_daddr_t *tail_blk);
 extern int	 xlog_recover(xlog_t *log);
-extern int	 xlog_recover_finish(xlog_t *log, int mfsi_flags);
+extern int	 xlog_recover_finish(xlog_t *log);
 extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 

@@ -697,11 +697,11 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
  * Update alignment values based on mount options and sb values
  */
 STATIC int
-xfs_update_alignment(xfs_mount_t *mp, int mfsi_flags, __uint64_t *update_flags)
+xfs_update_alignment(xfs_mount_t *mp, __uint64_t *update_flags)
 {
 	xfs_sb_t	*sbp = &(mp->m_sb);
 
-	if (mp->m_dalign && !(mfsi_flags & XFS_MFSI_SECOND)) {
+	if (mp->m_dalign) {
 		/*
 		 * If stripe unit and stripe width are not multiples
 		 * of the fs blocksize turn off alignment.
@@ -857,7 +857,7 @@ xfs_set_inoalignment(xfs_mount_t *mp)
  * Check that the data (and log if separate) are an ok size.
  */
 STATIC int
-xfs_check_sizes(xfs_mount_t *mp, int mfsi_flags)
+xfs_check_sizes(xfs_mount_t *mp)
 {
 	xfs_buf_t	*bp;
 	xfs_daddr_t	d;
@@ -880,8 +880,7 @@ xfs_check_sizes(xfs_mount_t *mp, int mfsi_flags)
 		return error;
 	}
 
-	if (((mfsi_flags & XFS_MFSI_CLIENT) == 0) &&
-	    mp->m_logdev_targp != mp->m_ddev_targp) {
+	if (mp->m_logdev_targp != mp->m_ddev_targp) {
 		d = (xfs_daddr_t)XFS_FSB_TO_BB(mp, mp->m_sb.sb_logblocks);
 		if (XFS_BB_TO_FSB(mp, d) != mp->m_sb.sb_logblocks) {
 			cmn_err(CE_WARN, "XFS: size check 3 failed");
@@ -916,8 +915,7 @@ xfs_check_sizes(xfs_mount_t *mp, int mfsi_flags)
  */
 int
 xfs_mountfs(
-	xfs_mount_t	*mp,
-	int		mfsi_flags)
+	xfs_mount_t	*mp)
 {
 	xfs_sb_t	*sbp = &(mp->m_sb);
 	xfs_inode_t	*rip;
@@ -978,7 +976,7 @@ xfs_mountfs(
 	 * allocator alignment is within an ag, therefore ag has
 	 * to be aligned at stripe boundary.
 	 */
-	error = xfs_update_alignment(mp, mfsi_flags, &update_flags);
+	error = xfs_update_alignment(mp, &update_flags);
 	if (error)
 		goto error1;
 
@@ -997,8 +995,7 @@ xfs_mountfs(
 	 * since a single partition filesystem is identical to a single
 	 * partition volume/filesystem.
 	 */
-	if ((mfsi_flags & XFS_MFSI_SECOND) == 0 &&
-	    (mp->m_flags & XFS_MOUNT_NOUUID) == 0) {
+	if ((mp->m_flags & XFS_MOUNT_NOUUID) == 0) {
 		if (xfs_uuid_mount(mp)) {
 			error = XFS_ERROR(EINVAL);
 			goto error1;
@@ -1026,7 +1023,7 @@ xfs_mountfs(
 	/*
 	 * Check that the data (and log if separate) are an ok size.
 	 */
-	error = xfs_check_sizes(mp, mfsi_flags);
+	error = xfs_check_sizes(mp);
 	if (error)
 		goto error1;
 
@@ -1037,13 +1034,6 @@ xfs_mountfs(
 	if (error) {
 		cmn_err(CE_WARN, "XFS: RT mount failed");
 		goto error1;
-	}
-
-	/*
-	 * For client case we are done now
-	 */
-	if (mfsi_flags & XFS_MFSI_CLIENT) {
-		return 0;
 	}
 
 	/*
@@ -1183,7 +1173,7 @@ xfs_mountfs(
 	 * delayed until after the root and real-time bitmap inodes
 	 * were consistently read in.
 	 */
-	error = xfs_log_mount_finish(mp, mfsi_flags);
+	error = xfs_log_mount_finish(mp);
 	if (error) {
 		cmn_err(CE_WARN, "XFS: log mount finish failed");
 		goto error4;
@@ -1192,7 +1182,7 @@ xfs_mountfs(
 	/*
 	 * Complete the quota initialisation, post-log-replay component.
 	 */
-	error = XFS_QM_MOUNT(mp, quotamount, quotaflags, mfsi_flags);
+	error = XFS_QM_MOUNT(mp, quotamount, quotaflags);
 	if (error)
 		goto error4;
 
