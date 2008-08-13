@@ -838,6 +838,7 @@ xfs_buf_rele(
 		return;
 	}
 
+	ASSERT(atomic_read(&bp->b_hold) > 0);
 	if (atomic_dec_and_lock(&bp->b_hold, &hash->bh_lock)) {
 		if (bp->b_relse) {
 			atomic_inc(&bp->b_hold);
@@ -851,11 +852,6 @@ xfs_buf_rele(
 			spin_unlock(&hash->bh_lock);
 			xfs_buf_free(bp);
 		}
-	} else {
-		/*
-		 * Catch reference count leaks
-		 */
-		ASSERT(atomic_read(&bp->b_hold) >= 0);
 	}
 }
 
