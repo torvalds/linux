@@ -155,7 +155,7 @@ struct sw_rx_page {
 #define NUM_RX_SGE_PAGES		2
 #define RX_SGE_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_sge))
 #define MAX_RX_SGE_CNT			(RX_SGE_CNT - 2)
-/* RX_SGE_CNT is promissed to be a power of 2 */
+/* RX_SGE_CNT is promised to be a power of 2 */
 #define RX_SGE_MASK			(RX_SGE_CNT - 1)
 #define NUM_RX_SGE			(RX_SGE_CNT * NUM_RX_SGE_PAGES)
 #define MAX_RX_SGE			(NUM_RX_SGE - 1)
@@ -317,7 +317,7 @@ struct bnx2x_fastpath {
 #define RCQ_BD(x)			((x) & MAX_RCQ_BD)
 
 
-/* This is needed for determening of last_max */
+/* This is needed for determining of last_max */
 #define SUB_S16(a, b)			(s16)((s16)(a) - (s16)(b))
 
 #define __SGE_MASK_SET_BIT(el, bit) \
@@ -784,7 +784,7 @@ struct bnx2x {
 	u8			stats_pending;
 	u8			set_mac_pending;
 
-	/* End of fileds used in the performance code paths */
+	/* End of fields used in the performance code paths */
 
 	int			panic;
 	int			msglevel;
@@ -1024,10 +1024,10 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 /* resolution of the rate shaping timer - 100 usec */
 #define RS_PERIODIC_TIMEOUT_USEC	100
 /* resolution of fairness algorithm in usecs -
-   coefficient for clauclating the actuall t fair */
+   coefficient for calculating the actual t fair */
 #define T_FAIR_COEF			10000000
 /* number of bytes in single QM arbitration cycle -
-   coeffiecnt for calculating the fairness timer */
+   coefficient for calculating the fairness timer */
 #define QM_ARB_BYTES			40000
 #define FAIR_MEM			2
 

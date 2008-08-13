@@ -143,7 +143,7 @@ u8 bnx2x_cl45_write(struct bnx2x *bp, u8 port, u32 ext_phy_type,
 		  u8 phy_addr, u8 devad, u16 reg, u16 val);
 
 /* Reads the link_status from the shmem,
-   and update the link vars accordinaly */
+   and update the link vars accordingly */
 void bnx2x_link_status_update(struct link_params *input,
 			    struct link_vars *output);
 /* returns string representing the fw_version of the external phy */
@@ -152,7 +152,7 @@ u8 bnx2x_get_ext_phy_fw_version(struct link_params *params, u8 driver_loaded,
 
 /* Set/Unset the led
    Basically, the CLC takes care of the led for the link, but in case one needs
-   to set/unset the led unnatually, set the "mode" to LED_MODE_OPER to
+   to set/unset the led unnaturally, set the "mode" to LED_MODE_OPER to
    blink the led, and LED_MODE_OFF to set the led off.*/
 u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 	       u16 hw_led_mode, u32 chip_id);

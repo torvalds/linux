@@ -1151,8 +1151,8 @@ static inline void bnx2x_init_sge_ring_bit_mask(struct bnx2x_fastpath *fp)
 	memset(fp->sge_mask, 0xff,
 	       (NUM_RX_SGE >> RX_SGE_MASK_ELEM_SHIFT)*sizeof(u64));
 
-	/* Clear the two last indeces in the page to 1:
-	   these are the indeces that correspond to the "next" element,
+	/* Clear the two last indices in the page to 1:
+	   these are the indices that correspond to the "next" element,
 	   hence will never be indicated and should be removed from
 	   the calculations. */
 	bnx2x_clear_sge_mask_next_elems(fp);
@@ -2011,7 +2011,7 @@ static u8 bnx2x_link_test(struct bnx2x *bp)
      sum of vn_min_rates
        or
      0 - if all the min_rates are 0.
-     In the later case fainess algorithm should be deactivated.
+     In the later case fairness algorithm should be deactivated.
      If not all min_rates are zero then those that are zeroes will
      be set to 1.
  */
@@ -2134,7 +2134,7 @@ static void bnx2x_init_vn_minmax(struct bnx2x *bp, int func,
 				FUNC_MF_CFG_MIN_BW_SHIFT) * 100;
 		/* If FAIRNESS is enabled (not all min rates are zeroes) and
 		   if current min rate is zero - set it to 1.
-		   This is a requirment of the algorithm. */
+		   This is a requirement of the algorithm. */
 		if ((vn_min_rate == 0) && wsum)
 			vn_min_rate = DEF_MIN_RATE;
 		vn_max_rate = ((vn_cfg & FUNC_MF_CFG_MAX_BW_MASK) >>
@@ -6562,7 +6562,7 @@ static void bnx2x_reset_port(struct bnx2x *bp)
 	val = REG_RD(bp, BRB1_REG_PORT_NUM_OCC_BLOCKS_0 + port*4);
 	if (val)
 		DP(NETIF_MSG_IFDOWN,
-		   "BRB1 is not empty  %d blooks are occupied\n", val);
+		   "BRB1 is not empty  %d blocks are occupied\n", val);
 
 	/* TODO: Close Doorbell port? */
 }
@@ -6602,7 +6602,7 @@ static void bnx2x_reset_chip(struct bnx2x *bp, u32 reset_code)
 	}
 }
 
-/* msut be called with rtnl_lock */
+/* must be called with rtnl_lock */
 static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 {
 	int port = BP_PORT(bp);
@@ -7455,7 +7455,7 @@ static int __devinit bnx2x_get_hwinfo(struct bnx2x *bp)
 
 	if (BP_NOMCP(bp)) {
 		/* only supposed to happen on emulation/FPGA */
-		BNX2X_ERR("warning rendom MAC workaround active\n");
+		BNX2X_ERR("warning random MAC workaround active\n");
 		random_ether_addr(bp->dev->dev_addr);
 		memcpy(bp->dev->perm_addr, bp->dev->dev_addr, ETH_ALEN);
 	}
@@ -8907,7 +8907,7 @@ static void bnx2x_self_test(struct net_device *dev,
 	if (!netif_running(dev))
 		return;
 
-	/* offline tests are not suppoerted in MF mode */
+	/* offline tests are not supported in MF mode */
 	if (IS_E1HMF(bp))
 		etest->flags &= ~ETH_TEST_FL_OFFLINE;
 
@@ -9216,7 +9216,7 @@ static int bnx2x_set_power_state(struct bnx2x *bp, pci_power_t state)
 				       PCI_PM_CTRL_PME_STATUS));
 
 		if (pmcsr & PCI_PM_CTRL_STATE_MASK)
-		/* delay required during transition out of D3hot */
+			/* delay required during transition out of D3hot */
 			msleep(20);
 		break;
 
@@ -9289,7 +9289,7 @@ poll_panic:
 
 
 /* we split the first BD into headers and data BDs
- * to ease the pain of our fellow micocode engineers
+ * to ease the pain of our fellow microcode engineers
  * we use one mapping for both BDs
  * So far this has only been observed to happen
  * in Other Operating Systems(TM)
@@ -9396,7 +9396,7 @@ static int bnx2x_pkt_req_lin(struct bnx2x *bp, struct sk_buff *skb,
 			/* Check if LSO packet needs to be copied:
 			   3 = 1 (for headers BD) + 2 (for PBD and last BD) */
 			int wnd_size = MAX_FETCH_BD - 3;
-			/* Number of widnows to check */
+			/* Number of windows to check */
 			int num_wnds = skb_shinfo(skb)->nr_frags - wnd_size;
 			int wnd_idx = 0;
 			int frag_idx = 0;
@@ -9498,7 +9498,7 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	   skb->ip_summed, skb->protocol, ipv6_hdr(skb)->nexthdr,
 	   ip_hdr(skb)->protocol, skb_shinfo(skb)->gso_type, xmit_type);
 
-	/* First, check if we need to linearaize the skb
+	/* First, check if we need to linearize the skb
 	   (due to FW restrictions) */
 	if (bnx2x_pkt_req_lin(bp, skb, xmit_type)) {
 		/* Statistics of linearization */

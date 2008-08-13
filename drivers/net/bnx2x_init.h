@@ -208,7 +208,7 @@ static void bnx2x_init_wr_64(struct bnx2x *bp, u32 addr, const u32 *data,
 /*********************************************************
    There are different blobs for each PRAM section.
    In addition, each blob write operation is divided into a few operations
-   in order to decrease the amount of phys. contigious buffer needed.
+   in order to decrease the amount of phys. contiguous buffer needed.
    Thus, when we select a blob the address may be with some offset
    from the beginning of PRAM section.
    The same holds for the INT_TABLE sections.
@@ -336,7 +336,7 @@ static void bnx2x_init_block(struct bnx2x *bp, u32 op_start, u32 op_end)
 		len = op->str_wr.data_len;
 		data = data_base + op->str_wr.data_off;
 
-		/* carefull! it must be in order */
+		/* careful! it must be in order */
 		if (unlikely(op_type > OP_WB)) {
 
 			/* If E1 only */
@@ -740,7 +740,7 @@ static u8 calc_crc8(u32 data, u8 crc)
 	return crc_res;
 }
 
-/* regiesers addresses are not in order
+/* registers addresses are not in order
    so these arrays help simplify the code */
 static const int cm_start[E1H_FUNC_MAX][9] = {
 	{MISC_FUNC0_START, TCM_FUNC0_START, UCM_FUNC0_START, CCM_FUNC0_START,

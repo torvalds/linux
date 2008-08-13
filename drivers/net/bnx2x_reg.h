@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * The registers description starts with the regsister Access type followed
+ * The registers description starts with the register Access type followed
  * by size in bits. For example [RW 32]. The access types are:
  * R  - Read only
  * RC - Clear on read
@@ -49,7 +49,7 @@
 /* [RW 10] Write client 0: Assert pause threshold. */
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_0				 0x60068
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_1				 0x6006c
-/* [R 24] The number of full blocks occpied by port. */
+/* [R 24] The number of full blocks occupied by port. */
 #define BRB1_REG_PORT_NUM_OCC_BLOCKS_0				 0x60094
 /* [RW 1] Reset the design by software. */
 #define BRB1_REG_SOFT_RESET					 0x600dc
@@ -1412,13 +1412,13 @@
 #define MISC_REG_GPIO						 0xa490
 /* [R 28] this field hold the last information that caused reserved
    attention. bits [19:0] - address; [22:20] function; [23] reserved;
-   [27:24] the master thatcaused the attention - according to the following
+   [27:24] the master that caused the attention - according to the following
    encodeing:1 = pxp; 2 = mcp; 3 = usdm; 4 = tsdm; 5 = xsdm; 6 = csdm; 7 =
    dbu; 8 = dmae */
 #define MISC_REG_GRC_RSV_ATTN					 0xa3c0
 /* [R 28] this field hold the last information that caused timeout
    attention. bits [19:0] - address; [22:20] function; [23] reserved;
-   [27:24] the master thatcaused the attention - according to the following
+   [27:24] the master that caused the attention - according to the following
    encodeing:1 = pxp; 2 = mcp; 3 = usdm; 4 = tsdm; 5 = xsdm; 6 = csdm; 7 =
    dbu; 8 = dmae */
 #define MISC_REG_GRC_TIMEOUT_ATTN				 0xa3c4
@@ -2320,7 +2320,7 @@
 /* [RW 3] page size in L2P table for QM module; -4k; -8k; -16k; -32k; -64k;
    -128k */
 #define PXP2_REG_RQ_QM_P_SIZE					 0x120050
-/* [RW 1] 1' indicates that the RBC has finished configurating the PSWRQ */
+/* [RW 1] 1' indicates that the RBC has finished configuring the PSWRQ */
 #define PXP2_REG_RQ_RBC_DONE					 0x1201b0
 /* [RW 3] Max burst size filed for read requests port 0; 000 - 128B;
    001:256B; 010: 512B; 11:1K:100:2K; 01:4K */
@@ -2428,7 +2428,7 @@
 /* [RW 2] 0 - 128B;  - 256B;  - 512B;  - 1024B; when the payload in the
    buffer reaches this number has_payload will be asserted */
 #define PXP2_REG_WR_DMAE_MPS					 0x1205ec
-/* [RW 10] if Number of entries in dmae fifo will be higer than this
+/* [RW 10] if Number of entries in dmae fifo will be higher than this
    threshold then has_payload indication will be asserted; the default value
    should be equal to &gt;  write MBS size! */
 #define PXP2_REG_WR_DMAE_TH					 0x120368
@@ -2449,7 +2449,7 @@
 /* [RW 2] 0 - 128B;  - 256B;  - 512B;  - 1024B; when the payload in the
    buffer reaches this number has_payload will be asserted */
 #define PXP2_REG_WR_TSDM_MPS					 0x1205d4
-/* [RW 10] if Number of entries in usdmdp fifo will be higer than this
+/* [RW 10] if Number of entries in usdmdp fifo will be higher than this
    threshold then has_payload indication will be asserted; the default value
    should be equal to &gt;  write MBS size! */
 #define PXP2_REG_WR_USDMDP_TH					 0x120348
@@ -3316,12 +3316,12 @@
 #define XSEM_XSEM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
 #define CFC_DEBUG1_REG_WRITE_AC 				 (0x1<<4)
 #define CFC_DEBUG1_REG_WRITE_AC_SIZE				 4
-/* [R 1] debug only: This bit indicates wheter indicates that external
+/* [R 1] debug only: This bit indicates whether indicates that external
    buffer was wrapped (oldest data was thrown); Relevant only when
    ~dbg_registers_debug_target=2 (PCI) & ~dbg_registers_full_mode=1 (wrap); */
 #define DBG_REG_WRAP_ON_EXT_BUFFER				 0xc124
 #define DBG_REG_WRAP_ON_EXT_BUFFER_SIZE 			 1
-/* [R 1] debug only: This bit indicates wheter the internal buffer was
+/* [R 1] debug only: This bit indicates whether the internal buffer was
    wrapped (oldest data was thrown) Relevant only when
    ~dbg_registers_debug_target=0 (internal buffer) */
 #define DBG_REG_WRAP_ON_INT_BUFFER				 0xc128
