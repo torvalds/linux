@@ -71,6 +71,7 @@ static int pid[SNDRV_CARDS] = { [0 ... (SNDRV_CARDS-1)] = -1 };
 static int nrpacks = 8;		/* max. number of packets per urb */
 static int async_unlink = 1;
 static int device_setup[SNDRV_CARDS]; /* device parameter for this card*/
+static int ignore_ctl_error;
 
 module_param_array(index, int, NULL, 0444);
 MODULE_PARM_DESC(index, "Index value for the USB audio adapter.");
@@ -88,7 +89,9 @@ module_param(async_unlink, bool, 0444);
 MODULE_PARM_DESC(async_unlink, "Use async unlink mode.");
 module_param_array(device_setup, int, NULL, 0444);
 MODULE_PARM_DESC(device_setup, "Specific device setup (if needed).");
-
+module_param(ignore_ctl_error, bool, 0444);
+MODULE_PARM_DESC(ignore_ctl_error,
+		 "Ignore errors from USB controller for mixer interfaces.");
 
 /*
  * debug the h/w constraints
@@ -3633,7 +3636,7 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	if (err > 0) {
 		/* create normal USB audio interfaces */
 		if (snd_usb_create_streams(chip, ifnum) < 0 ||
-		    snd_usb_create_mixer(chip, ifnum) < 0) {
+		    snd_usb_create_mixer(chip, ifnum, ignore_ctl_error) < 0) {
 			goto __error;
 		}
 	}

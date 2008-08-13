@@ -2014,7 +2014,8 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 	}
 }
 
-int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
+int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
+			 int ignore_error)
 {
 	static struct snd_device_ops dev_ops = {
 		.dev_free = snd_usb_mixer_dev_free
@@ -2029,9 +2030,7 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif)
 		return -ENOMEM;
 	mixer->chip = chip;
 	mixer->ctrlif = ctrlif;
-#ifdef IGNORE_CTL_ERROR
-	mixer->ignore_ctl_error = 1;
-#endif
+	mixer->ignore_ctl_error = ignore_error;
 	mixer->id_elems = kcalloc(256, sizeof(*mixer->id_elems), GFP_KERNEL);
 	if (!mixer->id_elems) {
 		kfree(mixer);

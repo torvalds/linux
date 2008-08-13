@@ -223,7 +223,8 @@ int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
 		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
 		    void *data, __u16 size, int timeout);
 
-int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif);
+int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
+			 int ignore_error);
 void snd_usb_mixer_disconnect(struct list_head *p);
 
 int snd_usb_create_midi_interface(struct snd_usb_audio *chip, struct usb_interface *iface,
