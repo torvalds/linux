@@ -121,16 +121,7 @@
 #define SHMEM_WR(bp, field, val)	REG_WR(bp, SHMEM_ADDR(bp, field), val)
 
 #define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
-#define NIG_WR(reg, val)	REG_WR(bp, reg, val)
-#define EMAC_WR(reg, val)	REG_WR(bp, emac_base + reg, val)
-#define BMAC_WR(reg, val)	REG_WR(bp, GRCBASE_NIG + bmac_addr + reg, val)
-
-
-#define for_each_queue(bp, var)	for (var = 0; var < bp->num_queues; var++)
-
-#define for_each_nondefault_queue(bp, var) \
-				for (var = 1; var < bp->num_queues; var++)
-#define is_multi(bp)		(bp->num_queues > 1)
+#define EMAC_WR(bp, reg, val)		REG_WR(bp, emac_base + reg, val)
 
 
 /* fast path */
@@ -815,9 +806,6 @@ struct bnx2x {
 #define BP_FUNC(bp)			(bp->func)
 #define BP_E1HVN(bp)			(bp->func >> 1)
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
-/* assorted E1HVN */
-#define IS_E1HMF(bp)			(bp->e1hmf != 0)
-#define BP_MAX_QUEUES(bp)		(IS_E1HMF(bp) ? 4 : 16)
 
 	int			pm_cap;
 	int			pcie_cap;
@@ -842,6 +830,7 @@ struct bnx2x {
 	u32			mf_config;
 	u16			e1hov;
 	u8			e1hmf;
+#define IS_E1HMF(bp)			(bp->e1hmf != 0)
 
 	u8			wol;
 
@@ -872,6 +861,7 @@ struct bnx2x {
 #define BNX2X_STATE_ERROR		0xf000
 
 	int			num_queues;
+#define BP_MAX_QUEUES(bp)		(IS_E1HMF(bp) ? 4 : 16)
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -920,6 +910,13 @@ struct bnx2x {
 #define FW_BUF_SIZE			0x8000
 
 };
+
+
+#define for_each_queue(bp, var)	for (var = 0; var < bp->num_queues; var++)
+
+#define for_each_nondefault_queue(bp, var) \
+				for (var = 1; var < bp->num_queues; var++)
+#define is_multi(bp)		(bp->num_queues > 1)
 
 
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);

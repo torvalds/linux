@@ -31,7 +31,7 @@
 
 /********************************************************/
 #define SUPPORT_CL73 0 /* Currently no */
-#define ETH_HLEN 			14
+#define ETH_HLEN			14
 #define ETH_OVREHEAD		(ETH_HLEN + 8)/* 8 for CRC + VLAN*/
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
@@ -40,7 +40,7 @@
 #define BMAC_CONTROL_RX_ENABLE	2
 
 /***********************************************************/
-/*                       Shortcut definitions              */
+/*			Shortcut definitions		   */
 /***********************************************************/
 
 #define NIG_STATUS_XGXS0_LINK10G \
@@ -79,12 +79,12 @@
 
 #define AUTONEG_CL37		SHARED_HW_CFG_AN_ENABLE_CL37
 #define AUTONEG_CL73		SHARED_HW_CFG_AN_ENABLE_CL73
-#define AUTONEG_BAM			SHARED_HW_CFG_AN_ENABLE_BAM
-#define AUTONEG_PARALLEL		\
+#define AUTONEG_BAM 		SHARED_HW_CFG_AN_ENABLE_BAM
+#define AUTONEG_PARALLEL \
 				SHARED_HW_CFG_AN_ENABLE_PARALLEL_DETECTION
-#define AUTONEG_SGMII_FIBER_AUTODET	\
+#define AUTONEG_SGMII_FIBER_AUTODET \
 				SHARED_HW_CFG_AN_EN_SGMII_FIBER_AUTO_DETECT
-#define AUTONEG_REMOTE_PHY		SHARED_HW_CFG_AN_ENABLE_REMOTE_PHY
+#define AUTONEG_REMOTE_PHY	SHARED_HW_CFG_AN_ENABLE_REMOTE_PHY
 
 #define GP_STATUS_PAUSE_RSOLUTION_TXSIDE \
 			MDIO_GP_STATUS_TOP_AN_STATUS1_PAUSE_RSOLUTION_TXSIDE
@@ -201,11 +201,10 @@ static void bnx2x_emac_init(struct link_params *params,
 	/* init emac - use read-modify-write */
 	/* self clear reset */
 	val = REG_RD(bp, emac_base + EMAC_REG_EMAC_MODE);
-	EMAC_WR(EMAC_REG_EMAC_MODE, (val | EMAC_MODE_RESET));
+	EMAC_WR(bp, EMAC_REG_EMAC_MODE, (val | EMAC_MODE_RESET));
 
 	timeout = 200;
-	do
-	{
+	do {
 		val = REG_RD(bp, emac_base + EMAC_REG_EMAC_MODE);
 		DP(NETIF_MSG_LINK, "EMAC reset reg is %u\n", val);
 		if (!timeout) {
@@ -213,18 +212,18 @@ static void bnx2x_emac_init(struct link_params *params,
 			return;
 		}
 		timeout--;
-	}while (val & EMAC_MODE_RESET);
+	} while (val & EMAC_MODE_RESET);
 
 	/* Set mac address */
 	val = ((params->mac_addr[0] << 8) |
 		params->mac_addr[1]);
-	EMAC_WR(EMAC_REG_EMAC_MAC_MATCH, val);
+	EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH, val);
 
 	val = ((params->mac_addr[2] << 24) |
 	       (params->mac_addr[3] << 16) |
 	       (params->mac_addr[4] << 8) |
 		params->mac_addr[5]);
-	EMAC_WR(EMAC_REG_EMAC_MAC_MATCH + 4, val);
+	EMAC_WR(bp, EMAC_REG_EMAC_MAC_MATCH + 4, val);
 }
 
 static u8 bnx2x_emac_enable(struct link_params *params,
@@ -285,7 +284,7 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 	if (CHIP_REV_IS_SLOW(bp)) {
 		/* config GMII mode */
 		val = REG_RD(bp, emac_base + EMAC_REG_EMAC_MODE);
-		EMAC_WR(EMAC_REG_EMAC_MODE,
+		EMAC_WR(bp, EMAC_REG_EMAC_MODE,
 			    (val | EMAC_MODE_PORT_GMII));
 	} else { /* ASIC */
 		/* pause enable/disable */
@@ -309,7 +308,7 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 	/* KEEP_VLAN_TAG, promiscuous */
 	val = REG_RD(bp, emac_base + EMAC_REG_EMAC_RX_MODE);
 	val |= EMAC_RX_MODE_KEEP_VLAN_TAG | EMAC_RX_MODE_PROMISCUOUS;
-	EMAC_WR(EMAC_REG_EMAC_RX_MODE, val);
+	EMAC_WR(bp, EMAC_REG_EMAC_RX_MODE, val);
 
 	/* Set Loopback */
 	val = REG_RD(bp, emac_base + EMAC_REG_EMAC_MODE);
@@ -317,10 +316,10 @@ static u8 bnx2x_emac_enable(struct link_params *params,
 		val |= 0x810;
 	else
 		val &= ~0x810;
-	EMAC_WR(EMAC_REG_EMAC_MODE, val);
+	EMAC_WR(bp, EMAC_REG_EMAC_MODE, val);
 
 	/* enable emac for jumbo packets */
-	EMAC_WR(EMAC_REG_EMAC_RX_MTU_SIZE,
+	EMAC_WR(bp, EMAC_REG_EMAC_RX_MTU_SIZE,
 		(EMAC_RX_MTU_SIZE_JUMBO_ENA |
 		 (ETH_MAX_JUMBO_PACKET_SIZE + ETH_OVREHEAD)));
 
@@ -646,7 +645,7 @@ static void bnx2x_bmac_rx_disable(struct bnx2x *bp, u8 port)
 	u32 bmac_addr = port ? NIG_REG_INGRESS_BMAC1_MEM :
 		NIG_REG_INGRESS_BMAC0_MEM;
 	u32 wb_data[2];
-    u32 nig_bmac_enable = REG_RD(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4);
+	u32 nig_bmac_enable = REG_RD(bp, NIG_REG_BMAC0_REGS_OUT_EN + port*4);
 
 	/* Only if the bmac is out of reset */
 	if (REG_RD(bp, MISC_REG_RESET_REG_2) &
@@ -1036,7 +1035,7 @@ static void bnx2x_set_swap_lanes(struct link_params *params)
 }
 
 static void bnx2x_set_parallel_detection(struct link_params *params,
-				       u8                phy_flags)
+				       u8       	 phy_flags)
 {
 	struct bnx2x *bp = params->bp;
 	u16 control2;
@@ -1489,8 +1488,8 @@ static u8 bnx2x_ext_phy_resove_fc(struct link_params *params,
 {
 	struct bnx2x *bp = params->bp;
 	u8 ext_phy_addr;
-	u16 ld_pause;   /* local */
-	u16 lp_pause;   /* link partner */
+	u16 ld_pause;	/* local */
+	u16 lp_pause;	/* link partner */
 	u16 an_complete; /* AN complete */
 	u16 pause_result;
 	u8 ret = 0;
@@ -1565,8 +1564,8 @@ static void bnx2x_flow_ctrl_resolve(struct link_params *params,
 				  u32 gp_status)
 {
 	struct bnx2x *bp = params->bp;
-	u16 ld_pause;	/* local driver */
-	u16 lp_pause;	/* link partner */
+	u16 ld_pause;   /* local driver */
+	u16 lp_pause;   /* link partner */
 	u16 pause_result;
 
 	vars->flow_ctrl = FLOW_CTRL_NONE;
@@ -1611,6 +1610,7 @@ static u8 bnx2x_link_settings_status(struct link_params *params,
 				      u32 gp_status)
 {
 	struct bnx2x *bp = params->bp;
+
 	u8 rc = 0;
 	vars->link_status = 0;
 
@@ -3303,7 +3303,7 @@ static void bnx2x_link_int_enable(struct link_params *params)
  * link management
  */
 static void bnx2x_link_int_ack(struct link_params *params,
-			     struct link_vars *vars, u16 is_10g)
+			     struct link_vars *vars, u8 is_10g)
 {
 	struct bnx2x *bp = params->bp;
 	u8 port = params->port;
@@ -3781,7 +3781,7 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 			   SHARED_HW_CFG_LED_MAC1);
 
 		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
-		EMAC_WR(EMAC_REG_EMAC_LED, (tmp | EMAC_LED_OVERRIDE));
+		EMAC_WR(bp, EMAC_REG_EMAC_LED, (tmp | EMAC_LED_OVERRIDE));
 		break;
 
 	case LED_MODE_OPER:
@@ -3794,7 +3794,7 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 		REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_ENA_P0 +
 			   port*4, 1);
 		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
-		EMAC_WR(EMAC_REG_EMAC_LED,
+		EMAC_WR(bp, EMAC_REG_EMAC_LED,
 			    (tmp & (~EMAC_LED_OVERRIDE)));
 
 		if (!CHIP_IS_E1H(bp) &&
@@ -3917,7 +3917,7 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 	struct bnx2x *bp = params->bp;
 
 	u32 val;
-	DP(NETIF_MSG_LINK, "Phy Initialization started\n");
+	DP(NETIF_MSG_LINK, "Phy Initialization started \n");
 	DP(NETIF_MSG_LINK, "req_speed = %d, req_flowctrl=%d\n",
 		  params->req_line_speed, params->req_flow_ctrl);
 	vars->link_status = 0;
@@ -3932,6 +3932,7 @@ u8 bnx2x_phy_init(struct link_params *params, struct link_vars *vars)
 		vars->phy_flags = PHY_SERDES_FLAG;
 	else
 		vars->phy_flags = PHY_XGXS_FLAG;
+
 
 	/* disable attentions */
 	bnx2x_bits_dis(bp, NIG_REG_MASK_INTERRUPT_PORT0 + params->port*4,
@@ -4542,7 +4543,7 @@ static u8 bnx2x_sfx7101_flash_download(struct bnx2x *bp, u8 port,
 		size = MAX_APP_SIZE+HEADER_SIZE;
 	}
 	DP(NETIF_MSG_LINK, "File version is %c%c\n", data[0x14e], data[0x14f]);
-	DP(NETIF_MSG_LINK, "                %c%c\n", data[0x150], data[0x151]);
+	DP(NETIF_MSG_LINK, "  	      %c%c\n", data[0x150], data[0x151]);
 	/* Put the DSP in download mode by setting FLASH_CFG[2] to 1
 	   and issuing a reset.*/
 
@@ -4824,7 +4825,7 @@ static u8 bnx2x_sfx7101_flash_download(struct bnx2x *bp, u8 port,
 		      MDIO_PMA_REG_7101_VER2,
 		      &image_revision2);
 
-	if (data[0x14e]	!= (image_revision2&0xFF) ||
+	if (data[0x14e] != (image_revision2&0xFF) ||
 	    data[0x14f] != ((image_revision2&0xFF00)>>8) ||
 	    data[0x150] != (image_revision1&0xFF) ||
 	    data[0x151] != ((image_revision1&0xFF00)>>8)) {
