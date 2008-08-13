@@ -350,15 +350,11 @@ xfs_swap_extents(
 		break;
 	}
 
-	/*
-	 * Increment vnode ref counts since xfs_trans_commit &
-	 * xfs_trans_cancel will both unlock the inodes and
-	 * decrement the associated ref counts.
-	 */
-	VN_HOLD(vp);
-	VN_HOLD(tvp);
 
+	IHOLD(ip);
 	xfs_trans_ijoin(tp, ip, lock_flags);
+
+	IHOLD(tip);
 	xfs_trans_ijoin(tp, tip, lock_flags);
 
 	xfs_trans_log_inode(tp, ip,  ilf_fields);

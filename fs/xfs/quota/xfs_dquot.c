@@ -431,7 +431,7 @@ xfs_qm_dqalloc(
 	 * when it unlocks the inode. Since we want to keep the quota
 	 * inode around, we bump the vnode ref count now.
 	 */
-	VN_HOLD(VFS_I(quotip));
+	IHOLD(quotip);
 
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	nmaps = 1;
