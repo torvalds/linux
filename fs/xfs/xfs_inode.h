@@ -279,7 +279,6 @@ static inline struct inode *VFS_I(struct xfs_inode *ip)
 {
 	return (struct inode *)ip->i_vnode;
 }
-#define	XFS_ITOV(ip)		VFS_I(ip)
 
 /*
  * i_flags helper functions

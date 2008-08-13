@@ -1131,7 +1131,7 @@ void
 xfs_flush_device(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
+	struct inode	*inode = VFS_I(ip);
 
 	igrab(inode);
 	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_device_work);

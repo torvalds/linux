@@ -128,7 +128,7 @@ xfs_unmount_flush(
 	xfs_inode_t	*rip = mp->m_rootip;
 	xfs_inode_t	*rbmip;
 	xfs_inode_t	*rsumip = NULL;
-	bhv_vnode_t	*rvp = XFS_ITOV(rip);
+	bhv_vnode_t	*rvp = VFS_I(rip);
 	int		error;
 
 	xfs_ilock(rip, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
@@ -146,7 +146,7 @@ xfs_unmount_flush(
 		if (error == EFSCORRUPTED)
 			goto fscorrupt_out;
 
-		ASSERT(vn_count(XFS_ITOV(rbmip)) == 1);
+		ASSERT(vn_count(VFS_I(rbmip)) == 1);
 
 		rsumip = mp->m_rsumip;
 		xfs_ilock(rsumip, XFS_ILOCK_EXCL);
@@ -157,7 +157,7 @@ xfs_unmount_flush(
 		if (error == EFSCORRUPTED)
 			goto fscorrupt_out;
 
-		ASSERT(vn_count(XFS_ITOV(rsumip)) == 1);
+		ASSERT(vn_count(VFS_I(rsumip)) == 1);
 	}
 
 	/*
@@ -479,7 +479,7 @@ xfs_sync_inodes(
 			IPOINTER_INSERT(ip, mp);
 			xfs_ilock(ip, lock_flags);
 
-			ASSERT(vp == XFS_ITOV(ip));
+			ASSERT(vp == VFS_I(ip));
 			ASSERT(ip->i_mount == mp);
 
 			vnode_refed = B_TRUE;

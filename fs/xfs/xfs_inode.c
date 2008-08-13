@@ -1408,7 +1408,7 @@ xfs_itruncate_start(
 	       (flags == XFS_ITRUNC_MAYBE));
 
 	mp = ip->i_mount;
-	vp = XFS_ITOV(ip);
+	vp = VFS_I(ip);
 
 	/* wait for the completion of any pending DIOs */
 	if (new_size < ip->i_size)

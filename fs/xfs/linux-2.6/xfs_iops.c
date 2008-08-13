@@ -101,7 +101,7 @@ xfs_ichgtime(
 	xfs_inode_t	*ip,
 	int		flags)
 {
-	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
+	struct inode	*inode = VFS_I(ip);
 	timespec_t	tv;
 
 	nanotime(&tv);

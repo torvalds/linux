@@ -72,7 +72,7 @@ xfs_bulkstat_one_iget(
 	ASSERT(ip != NULL);
 	ASSERT(ip->i_blkno != (xfs_daddr_t)0);
 
-	vp = XFS_ITOV(ip);
+	vp = VFS_I(ip);
 	dic = &ip->i_d;
 
 	/* xfs_iget returns the following without needing

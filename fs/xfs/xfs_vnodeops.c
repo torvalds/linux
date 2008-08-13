@@ -83,7 +83,7 @@ xfs_setattr(
 	cred_t			*credp)
 {
 	xfs_mount_t		*mp = ip->i_mount;
-	struct inode		*inode = XFS_ITOV(ip);
+	struct inode		*inode = VFS_I(ip);
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			code;
@@ -714,7 +714,7 @@ xfs_fsync(
 		return XFS_ERROR(EIO);
 
 	/* capture size updates in I/O completion before writing the inode. */
-	error = filemap_fdatawait(vn_to_inode(XFS_ITOV(ip))->i_mapping);
+	error = filemap_fdatawait(vn_to_inode(VFS_I(ip))->i_mapping);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -1160,7 +1160,7 @@ int
 xfs_release(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	bhv_vnode_t	*vp = VFS_I(ip);
 	xfs_mount_t	*mp = ip->i_mount;
 	int		error;
 
@@ -1227,7 +1227,7 @@ int
 xfs_inactive(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	bhv_vnode_t	*vp = VFS_I(ip);
 	xfs_bmap_free_t	free_list;
 	xfs_fsblock_t	first_block;
 	int		committed;
@@ -2873,7 +2873,7 @@ int
 xfs_reclaim(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
+	bhv_vnode_t	*vp = VFS_I(ip);
 
 	xfs_itrace_entry(ip);
 
@@ -3341,7 +3341,7 @@ xfs_free_file_space(
 	xfs_trans_t		*tp;
 	int			need_iolock = 1;
 
-	vp = XFS_ITOV(ip);
+	vp = VFS_I(ip);
 	mp = ip->i_mount;
 
 	xfs_itrace_entry(ip);

@@ -150,8 +150,8 @@ xfs_swap_extents(
 	}
 
 	sbp = &sxp->sx_stat;
-	vp = XFS_ITOV(ip);
-	tvp = XFS_ITOV(tip);
+	vp = VFS_I(ip);
+	tvp = VFS_I(tip);
 
 	/* Lock in i_ino order */
 	if (ip->i_ino < tip->i_ino) {
