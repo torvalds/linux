@@ -411,10 +411,11 @@ xfs_iput(xfs_inode_t	*ip,
  * Special iput for brand-new inodes that are still locked
  */
 void
-xfs_iput_new(xfs_inode_t	*ip,
-	     uint		lock_flags)
+xfs_iput_new(
+	xfs_inode_t	*ip,
+	uint		lock_flags)
 {
-	struct inode	*inode = ip->i_vnode;
+	struct inode	*inode = VFS_I(ip);
 
 	xfs_itrace_entry(ip);
 

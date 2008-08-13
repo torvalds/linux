@@ -137,7 +137,7 @@ xfs_iozero(
 	struct address_space	*mapping;
 	int			status;
 
-	mapping = ip->i_vnode->i_mapping;
+	mapping = VFS_I(ip)->i_mapping;
 	do {
 		unsigned offset, bytes;
 		void *fsdata;

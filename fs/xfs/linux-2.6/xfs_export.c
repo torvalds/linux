@@ -139,7 +139,7 @@ xfs_nfs_get_inode(
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
-	return ip->i_vnode;
+	return VFS_I(ip);
 }
 
 STATIC struct dentry *
@@ -219,9 +219,9 @@ xfs_fs_get_parent(
 	if (unlikely(error))
 		return ERR_PTR(-error);
 
-	parent = d_alloc_anon(cip->i_vnode);
+	parent = d_alloc_anon(VFS_I(cip));
 	if (unlikely(!parent)) {
-		iput(cip->i_vnode);
+		iput(VFS_I(cip));
 		return ERR_PTR(-ENOMEM);
 	}
 	return parent;

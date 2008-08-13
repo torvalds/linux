@@ -263,6 +263,25 @@ typedef struct xfs_inode {
 #define XFS_ISIZE(ip)	(((ip)->i_d.di_mode & S_IFMT) == S_IFREG) ? \
 				(ip)->i_size : (ip)->i_d.di_size;
 
+/* Convert from vfs inode to xfs inode */
+static inline struct xfs_inode *XFS_I(struct inode *inode)
+{
+	return (struct xfs_inode *)inode->i_private;
+}
+
+static inline struct xfs_inode *xfs_vtoi(bhv_vnode_t *vp)
+{
+	return XFS_I((struct inode *)vp);
+}
+
+/* convert from xfs inode to vfs inode */
+static inline struct inode *VFS_I(struct xfs_inode *ip)
+{
+	return (struct inode *)ip->i_vnode;
+}
+#define	XFS_ITOV(ip)		VFS_I(ip)
+#define	XFS_ITOV_NULL(ip)	VFS_I(ip)
+
 /*
  * i_flags helper functions
  */
@@ -438,9 +457,6 @@ xfs_iflags_test_and_clear(xfs_inode_t *ip, unsigned short flags)
  */
 #define	XFS_ITRUNC_DEFINITE	0x1
 #define	XFS_ITRUNC_MAYBE	0x2
-
-#define	XFS_ITOV(ip)		((ip)->i_vnode)
-#define	XFS_ITOV_NULL(ip)	((ip)->i_vnode)
 
 /*
  * For multiple groups support: if S_ISGID bit is set in the parent

@@ -62,7 +62,7 @@ void
 xfs_synchronize_atime(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = ip->i_vnode;
+	struct inode	*inode = VFS_I(ip);
 
 	if (inode) {
 		ip->i_d.di_atime.t_sec = (__int32_t)inode->i_atime.tv_sec;
@@ -79,7 +79,7 @@ void
 xfs_mark_inode_dirty_sync(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = ip->i_vnode;
+	struct inode	*inode = VFS_I(ip);
 
 	if (inode)
 		mark_inode_dirty_sync(inode);
@@ -299,7 +299,7 @@ xfs_vn_mknod(
 	if (unlikely(error))
 		goto out_free_acl;
 
-	inode = ip->i_vnode;
+	inode = VFS_I(ip);
 
 	error = xfs_init_security(inode, dir);
 	if (unlikely(error))
@@ -366,7 +366,7 @@ xfs_vn_lookup(
 		return NULL;
 	}
 
-	return d_splice_alias(cip->i_vnode, dentry);
+	return d_splice_alias(VFS_I(cip), dentry);
 }
 
 STATIC struct dentry *
@@ -399,12 +399,12 @@ xfs_vn_ci_lookup(
 
 	/* if exact match, just splice and exit */
 	if (!ci_name.name)
-		return d_splice_alias(ip->i_vnode, dentry);
+		return d_splice_alias(VFS_I(ip), dentry);
 
 	/* else case-insensitive match... */
 	dname.name = ci_name.name;
 	dname.len = ci_name.len;
-	dentry = d_add_ci(ip->i_vnode, dentry, &dname);
+	dentry = d_add_ci(VFS_I(ip), dentry, &dname);
 	kmem_free(ci_name.name);
 	return dentry;
 }
@@ -478,7 +478,7 @@ xfs_vn_symlink(
 	if (unlikely(error))
 		goto out;
 
-	inode = cip->i_vnode;
+	inode = VFS_I(cip);
 
 	error = xfs_init_security(inode, dir);
 	if (unlikely(error))

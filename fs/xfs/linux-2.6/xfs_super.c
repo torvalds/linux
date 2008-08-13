@@ -1106,7 +1106,7 @@ void
 xfs_flush_inode(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = ip->i_vnode;
+	struct inode	*inode = VFS_I(ip);
 
 	igrab(inode);
 	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inode_work);
@@ -1825,7 +1825,7 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	root = igrab(mp->m_rootip->i_vnode);
+	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
 		error = ENOENT;
 		goto fail_unmount;
