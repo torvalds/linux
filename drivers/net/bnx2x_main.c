@@ -8272,33 +8272,6 @@ static int bnx2x_set_coalesce(struct net_device *dev,
 	return 0;
 }
 
-static int bnx2x_set_flags(struct net_device *dev, u32 data)
-{
-	struct bnx2x *bp = netdev_priv(dev);
-	int changed = 0;
-	int rc = 0;
-
-	if (data & ETH_FLAG_LRO) {
-		if (!(dev->features & NETIF_F_LRO)) {
-			dev->features |= NETIF_F_LRO;
-			bp->flags |= TPA_ENABLE_FLAG;
-			changed = 1;
-		}
-
-	} else if (dev->features & NETIF_F_LRO) {
-		dev->features &= ~NETIF_F_LRO;
-		bp->flags &= ~TPA_ENABLE_FLAG;
-		changed = 1;
-	}
-
-	if (changed && netif_running(dev)) {
-		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
-		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
-	}
-
-	return rc;
-}
-
 static void bnx2x_get_ringparam(struct net_device *dev,
 				struct ethtool_ringparam *ering)
 {
@@ -8400,6 +8373,34 @@ static int bnx2x_set_pauseparam(struct net_device *dev,
 	return 0;
 }
 
+static int bnx2x_set_flags(struct net_device *dev, u32 data)
+{
+	struct bnx2x *bp = netdev_priv(dev);
+	int changed = 0;
+	int rc = 0;
+
+	/* TPA requires Rx CSUM offloading */
+	if ((data & ETH_FLAG_LRO) && bp->rx_csum) {
+		if (!(dev->features & NETIF_F_LRO)) {
+			dev->features |= NETIF_F_LRO;
+			bp->flags |= TPA_ENABLE_FLAG;
+			changed = 1;
+		}
+
+	} else if (dev->features & NETIF_F_LRO) {
+		dev->features &= ~NETIF_F_LRO;
+		bp->flags &= ~TPA_ENABLE_FLAG;
+		changed = 1;
+	}
+
+	if (changed && netif_running(dev)) {
+		bnx2x_nic_unload(bp, UNLOAD_NORMAL);
+		rc = bnx2x_nic_load(bp, LOAD_NORMAL);
+	}
+
+	return rc;
+}
+
 static u32 bnx2x_get_rx_csum(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -8410,9 +8411,19 @@ static u32 bnx2x_get_rx_csum(struct net_device *dev)
 static int bnx2x_set_rx_csum(struct net_device *dev, u32 data)
 {
 	struct bnx2x *bp = netdev_priv(dev);
+	int rc = 0;
 
 	bp->rx_csum = data;
-	return 0;
+
+	/* Disable TPA, when Rx CSUM is disabled. Otherwise all
+	   TPA'ed packets will be discarded due to wrong TCP CSUM */
+	if (!data) {
+		u32 flags = ethtool_op_get_flags(dev);
+
+		rc = bnx2x_set_flags(dev, (flags & ~ETH_FLAG_LRO));
+	}
+
+	return rc;
 }
 
 static int bnx2x_set_tso(struct net_device *dev, u32 data)
