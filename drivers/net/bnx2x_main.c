@@ -5377,6 +5377,13 @@ static int bnx2x_init_common(struct bnx2x *bp)
 		       ((u32 *)&tmp)[1]);
 	}
 
+	if (!BP_NOMCP(bp)) {
+		bnx2x_acquire_phy_lock(bp);
+		bnx2x_common_init_phy(bp, bp->common.shmem_base);
+		bnx2x_release_phy_lock(bp);
+	} else
+		BNX2X_ERR("Bootcode is missing - can not initialize link\n");
+
 	return 0;
 }
 

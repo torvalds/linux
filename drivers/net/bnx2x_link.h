@@ -55,6 +55,7 @@ struct link_params {
 #define LOOPBACK_BMAC	2
 #define LOOPBACK_XGXS_10	3
 #define LOOPBACK_EXT_PHY	4
+#define LOOPBACK_EXT 	5
 
 	u16 req_duplex;
 	u16 req_flow_ctrl;
@@ -166,5 +167,7 @@ u8 bnx2x_flash_download(struct bnx2x *bp, u8 port, u32 ext_phy_config,
 	otherwise link is down*/
 u8 bnx2x_test_link(struct link_params *input, struct link_vars *vars);
 
+/* One-time initialization for external phy after power up */
+u8 bnx2x_common_init_phy(struct bnx2x *bp, u32 shmem_base);
 
 #endif /* BNX2X_LINK_H */
