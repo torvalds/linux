@@ -588,7 +588,7 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 				struct hda_codec **codecp)
 {
 	struct hda_codec *codec;
-	char component[13];
+	char component[31];
 	int err;
 
 	if (snd_BUG_ON(!bus))
@@ -693,7 +693,7 @@ int __devinit snd_hda_codec_new(struct hda_bus *bus, unsigned int codec_addr,
 	snd_hda_create_hwdep(codec);
 #endif
 
-	sprintf(component, "HDA:%08x", codec->vendor_id);
+	sprintf(component, "HDA:%08x,%08x,%08x", codec->vendor_id, codec->subsystem_id, codec->revision_id);
 	snd_component_add(codec->bus->card, component);
 
 	if (codecp)
