@@ -118,7 +118,6 @@ extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);
 extern void rt6_ifdown(struct net *net, struct net_device *dev);
 extern void rt6_mtu_change(struct net_device *dev, unsigned mtu);
 
-extern rwlock_t rt6_lock;
 
 /*
  *	Store a destination cache entry in a socket
