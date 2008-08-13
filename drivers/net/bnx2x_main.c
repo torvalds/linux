@@ -7763,7 +7763,7 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 			      struct ethtool_drvinfo *info)
 {
 	struct bnx2x *bp = netdev_priv(dev);
-	char phy_fw_ver[PHY_FW_VER_LEN];
+	u8 phy_fw_ver[PHY_FW_VER_LEN];
 
 	strcpy(info->driver, DRV_MODULE_NAME);
 	strcpy(info->version, DRV_MODULE_VERSION);
@@ -7777,11 +7777,11 @@ static void bnx2x_get_drvinfo(struct net_device *dev,
 		bnx2x_release_phy_lock(bp);
 	}
 
-	snprintf(info->fw_version, 32, "%d.%d.%d:%d BC:%x%s%s",
-		 BCM_5710_FW_MAJOR_VERSION, BCM_5710_FW_MINOR_VERSION,
-		 BCM_5710_FW_REVISION_VERSION,
-		 BCM_5710_FW_COMPILE_FLAGS, bp->common.bc_ver,
-		 ((phy_fw_ver[0] != '\0')? " PHY:":""), phy_fw_ver);
+	snprintf(info->fw_version, 32, "BC:%d.%d.%d%s%s",
+		 (bp->common.bc_ver & 0xff0000) >> 16,
+		 (bp->common.bc_ver & 0xff00) >> 8,
+		 (bp->common.bc_ver & 0xff),
+		 ((phy_fw_ver[0] != '\0') ? " PHY:" : ""), phy_fw_ver);
 	strcpy(info->bus_info, pci_name(bp->pdev));
 	info->n_stats = BNX2X_NUM_STATS;
 	info->testinfo_len = BNX2X_NUM_TESTS;
