@@ -3769,6 +3769,8 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 	       u16 hw_led_mode, u32 chip_id)
 {
 	u8 rc = 0;
+	u32 tmp;
+	u32 emac_base = port ? GRCBASE_EMAC1 : GRCBASE_EMAC0;
 	DP(NETIF_MSG_LINK, "bnx2x_set_led: port %x, mode %d\n", port, mode);
 	DP(NETIF_MSG_LINK, "speed 0x%x, hw_led_mode 0x%x\n",
 		 speed, hw_led_mode);
@@ -3777,6 +3779,9 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 		REG_WR(bp, NIG_REG_LED_10G_P0 + port*4, 0);
 		REG_WR(bp, NIG_REG_LED_MODE_P0 + port*4,
 			   SHARED_HW_CFG_LED_MAC1);
+
+		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
+		EMAC_WR(EMAC_REG_EMAC_LED, (tmp | EMAC_LED_OVERRIDE));
 		break;
 
 	case LED_MODE_OPER:
@@ -3788,6 +3793,10 @@ u8 bnx2x_set_led(struct bnx2x *bp, u8 port, u8 mode, u32 speed,
 			   LED_BLINK_RATE_VAL);
 		REG_WR(bp, NIG_REG_LED_CONTROL_BLINK_RATE_ENA_P0 +
 			   port*4, 1);
+		tmp = EMAC_RD(bp, EMAC_REG_EMAC_LED);
+		EMAC_WR(EMAC_REG_EMAC_LED,
+			    (tmp & (~EMAC_LED_OVERRIDE)));
+
 		if (!CHIP_IS_E1H(bp) &&
 		    ((speed == SPEED_2500) ||
 		     (speed == SPEED_1000) ||

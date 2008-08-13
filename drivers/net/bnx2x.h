@@ -120,6 +120,7 @@
 #define SHMEM_RD(bp, field)		REG_RD(bp, SHMEM_ADDR(bp, field))
 #define SHMEM_WR(bp, field, val)	REG_WR(bp, SHMEM_ADDR(bp, field), val)
 
+#define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
 #define NIG_WR(reg, val)	REG_WR(bp, reg, val)
 #define EMAC_WR(reg, val)	REG_WR(bp, emac_base + reg, val)
 #define BMAC_WR(reg, val)	REG_WR(bp, GRCBASE_NIG + bmac_addr + reg, val)
