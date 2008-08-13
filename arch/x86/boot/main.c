@@ -73,6 +73,10 @@ static void keyboard_set_repeat(void)
  */
 static void query_ist(void)
 {
+	/* Some 486 BIOSes apparently crash on this call */
+	if (cpu.level < 6)
+		return;
+
 	asm("int $0x15"
 	    : "=a" (boot_params.ist_info.signature),
 	      "=b" (boot_params.ist_info.command),
