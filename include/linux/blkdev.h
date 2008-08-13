@@ -54,7 +54,6 @@ enum rq_cmd_type_bits {
 	REQ_TYPE_PM_SUSPEND,		/* suspend request */
 	REQ_TYPE_PM_RESUME,		/* resume request */
 	REQ_TYPE_PM_SHUTDOWN,		/* shutdown request */
-	REQ_TYPE_FLUSH,			/* flush request */
 	REQ_TYPE_SPECIAL,		/* driver defined type */
 	REQ_TYPE_LINUX_BLOCK,		/* generic block layer message */
 	/*
@@ -76,11 +75,8 @@ enum rq_cmd_type_bits {
  *
  */
 enum {
-	/*
-	 * just examples for now
-	 */
 	REQ_LB_OP_EJECT	= 0x40,		/* eject request */
-	REQ_LB_OP_FLUSH = 0x41,		/* flush device */
+	REQ_LB_OP_FLUSH = 0x41,		/* flush request */
 	REQ_LB_OP_DISCARD = 0x42,	/* discard sectors */
 };
 
