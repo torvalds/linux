@@ -1250,6 +1250,8 @@ xfs_unmountfs(xfs_mount_t *mp)
 	__uint64_t	resblks;
 	int		error = 0;
 
+	IRELE(mp->m_rootip);
+
 	/*
 	 * We can potentially deadlock here if we have an inode cluster
 	 * that has been freed has it's buffer still pinned in memory because

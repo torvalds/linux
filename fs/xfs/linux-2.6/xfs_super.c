@@ -1131,8 +1131,6 @@ xfs_fs_put_super(
 	error = xfs_unmount_flush(mp, 0);
 	WARN_ON(error);
 
-	IRELE(rip);
-
 	/*
 	 * If we're forcing a shutdown, typically because of a media error,
 	 * we want to make sure we invalidate dirty pages that belong to
@@ -1803,8 +1801,6 @@ xfs_fs_fill_super(
 	XFS_bflush(mp->m_ddev_targp);
 	error = xfs_unmount_flush(mp, 0);
 	WARN_ON(error);
-
-	IRELE(mp->m_rootip);
 
 	xfs_unmountfs(mp);
 	goto out_free_fsname;
