@@ -1727,6 +1727,9 @@
 /* [R 32] Rx statistics : In user packets discarded due to BRB backpressure
    for port0 */
 #define NIG_REG_STAT0_BRB_DISCARD				 0x105f0
+/* [R 32] Rx statistics : In user packets truncated due to BRB backpressure
+   for port0 */
+#define NIG_REG_STAT0_BRB_TRUNCATE				 0x105f8
 /* [WB_R 36] Tx statistics : Number of packets from emac0 or bmac0 that
    between 1024 and 1522 bytes for port0 */
 #define NIG_REG_STAT0_EGRESS_MAC_PKT0				 0x10750

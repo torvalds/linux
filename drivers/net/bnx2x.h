@@ -258,8 +258,7 @@ struct bnx2x_fastpath {
 
 	unsigned long		tx_pkt,
 				rx_pkt,
-				rx_calls,
-				rx_alloc_failed;
+				rx_calls;
 	/* TPA related */
 	struct sw_rx_bd		tpa_pool[ETH_MAX_AGGREGATION_QUEUES_E1H];
 	u8			tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H];
@@ -655,6 +654,8 @@ struct bnx2x_eth_stats {
 
 	u32 brb_drop_hi;
 	u32 brb_drop_lo;
+	u32 brb_truncate_hi;
+	u32 brb_truncate_lo;
 
 	u32 jabber_packets_received;
 
@@ -671,6 +672,9 @@ struct bnx2x_eth_stats {
 	u32 mac_discard;
 
 	u32 driver_xoff;
+	u32 rx_err_discard_pkt;
+	u32 rx_skb_alloc_failed;
+	u32 hw_csum_err;
 };
 
 #define STATS_OFFSET32(stat_name) \
@@ -844,7 +848,6 @@ struct bnx2x {
 	u16			rx_ticks_int;
 	u16			rx_ticks;
 
-	u32			stats_ticks;
 	u32			lin_cnt;
 
 	int			state;
@@ -984,7 +987,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED_SHIFT		16
 
 
-#define BNX2X_NUM_STATS			39
+#define BNX2X_NUM_STATS			42
 #define BNX2X_NUM_TESTS			8
 
 #define BNX2X_MAC_LOOPBACK		0

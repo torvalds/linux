@@ -79,6 +79,9 @@
 #define TSTORM_MAC_FILTER_CONFIG_OFFSET(function) \
 	(IS_E1H_OFFSET? (0x3008 + (function * 0x38)) : (0x1508 + \
 	(function * 0x38)))
+#define TSTORM_PER_COUNTER_ID_STATS_OFFSET(port, stats_counter_id) \
+	(IS_E1H_OFFSET ? (0x2010 + (port * 0x5b0) + (stats_counter_id * \
+	0x50)) : (0x4000 + (port * 0x3f0) + (stats_counter_id * 0x38)))
 #define TSTORM_RX_PRODS_OFFSET(port, client_id) \
 	(IS_E1H_OFFSET? (0x3350 + (port * 0x3e8) + (client_id * 0x28)) : \
 	(0x9c0 + (port * 0x2f8) + (client_id * 0x28)))
@@ -157,6 +160,9 @@
 	(IS_E1H_OFFSET? 0x2ac8 : 0xffffffff)
 #define XSTORM_HC_BTR_OFFSET(port) \
 	(IS_E1H_OFFSET? (0xa144 + (port * 0x30)) : (0x1454 + (port * 0x18)))
+#define XSTORM_PER_COUNTER_ID_STATS_OFFSET(port, stats_counter_id) \
+	(IS_E1H_OFFSET ? (0xc000 + (port * 0x3f0) + (stats_counter_id * \
+	0x38)) : (0x3378 + (port * 0x3f0) + (stats_counter_id * 0x38)))
 #define XSTORM_RATE_SHAPING_PER_VN_VARS_OFFSET(function) \
 	(IS_E1H_OFFSET? (0x2528 + (function * 0x70)) : (0x3c20 + \
 	(function * 0x70)))
