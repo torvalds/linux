@@ -1229,16 +1229,15 @@ xfs_mountfs(
 }
 
 /*
- * xfs_unmountfs
- *
  * This flushes out the inodes,dquots and the superblock, unmounts the
  * log and makes sure that incore structures are freed.
  */
-int
-xfs_unmountfs(xfs_mount_t *mp)
+void
+xfs_unmountfs(
+	struct xfs_mount	*mp)
 {
-	__uint64_t	resblks;
-	int		error = 0;
+	__uint64_t		resblks;
+	int			error;
 
 	IRELE(mp->m_rootip);
 
@@ -1311,7 +1310,6 @@ xfs_unmountfs(xfs_mount_t *mp)
 	xfs_errortag_clearall(mp, 0);
 #endif
 	xfs_mount_free(mp);
-	return 0;
 }
 
 STATIC void
