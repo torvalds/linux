@@ -484,7 +484,7 @@ again:
 		xfs_dqtrace_entry(dqp, "FLUSHALL: DQDIRTY");
 		/* XXX a sentinel would be better */
 		recl = XFS_QI_MPLRECLAIMS(mp);
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			/*
 			 * If we can't grab the flush lock then check
 			 * to see if the dquot has been flushed delayed
@@ -1062,7 +1062,7 @@ xfs_qm_sync(
 
 		/* XXX a sentinel would be better */
 		recl = XFS_QI_MPLRECLAIMS(mp);
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			if (nowait) {
 				xfs_dqunlock(dqp);
 				continue;
@@ -2079,7 +2079,7 @@ xfs_qm_shake_freelist(
 		 * Try to grab the flush lock. If this dquot is in the process of
 		 * getting flushed to disk, we don't want to reclaim it.
 		 */
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			xfs_dqunlock(dqp);
 			dqp = dqp->dq_flnext;
 			continue;
@@ -2257,7 +2257,7 @@ xfs_qm_dqreclaim_one(void)
 		 * Try to grab the flush lock. If this dquot is in the process of
 		 * getting flushed to disk, we don't want to reclaim it.
 		 */
-		if (! xfs_qm_dqflock_nowait(dqp)) {
+		if (!xfs_dqflock_nowait(dqp)) {
 			xfs_dqunlock(dqp);
 			continue;
 		}
