@@ -228,11 +228,12 @@ static int get_1284_register(struct parport *pp, unsigned char reg, unsigned cha
 		ret = rq->urb->status;
 		*val = priv->reg[(reg >= 9) ? 0 : regindex[reg]];
 		if (ret)
-			warn("get_1284_register: usb error %d", ret);
+			printk(KERN_WARNING "get_1284_register: "
+			       "usb error %d\n", ret);
 		kref_put(&rq->ref_count, destroy_async);
 		return ret;
 	}
-	warn("get_1284_register timeout");
+	printk(KERN_WARNING "get_1284_register timeout\n");
 	kill_all_async_requests_priv(priv);
 	return -EIO;
 }
@@ -716,7 +717,7 @@ static int uss720_probe(struct usb_interface *intf,
 	spin_lock_init(&priv->asynclock);
 	INIT_LIST_HEAD(&priv->asynclist);
 	if (!(pp = parport_register_port(0, PARPORT_IRQ_NONE, PARPORT_DMA_NONE, &parport_uss720_ops))) {
-		warn("could not register parport");
+		printk(KERN_WARNING "uss720: could not register parport\n");
 		goto probe_abort;
 	}
 

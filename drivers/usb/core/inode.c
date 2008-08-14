@@ -240,7 +240,9 @@ static void update_sb(struct super_block *sb)
 				update_special(bus);
 				break;
 			default:
-				warn("Unknown node %s mode %x found on remount!\n",bus->d_name.name,bus->d_inode->i_mode);
+				printk(KERN_WARNING "usbfs: Unknown node %s "
+				       "mode %x found on remount!\n",
+				       bus->d_name.name, bus->d_inode->i_mode);
 				break;
 			}
 		}
@@ -259,7 +261,7 @@ static int remount(struct super_block *sb, int *flags, char *data)
 		return 0;
 
 	if (parse_options(sb, data)) {
-		warn("usbfs: mount parameter error:");
+		printk(KERN_WARNING "usbfs: mount parameter error.\n");
 		return -EINVAL;
 	}
 
