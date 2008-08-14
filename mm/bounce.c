@@ -267,7 +267,7 @@ void blk_queue_bounce(struct request_queue *q, struct bio **bio_orig)
 	/*
 	 * Data-less bio, nothing to bounce
 	 */
-	if (bio_empty_barrier(*bio_orig))
+	if (!bio_has_data(*bio_orig))
 		return;
 
 	/*
