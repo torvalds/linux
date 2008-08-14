@@ -29,6 +29,7 @@
  */
 
 #include <linux/blkdev.h>
+#include <linux/bug.h>
 #include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/dma-mapping.h>
@@ -181,9 +182,15 @@ struct sbp2_target {
 #define SBP2_MAX_LOGIN_ORB_TIMEOUT	40000U	/* Timeout in ms */
 #define SBP2_ORB_TIMEOUT		2000U	/* Timeout in ms */
 #define SBP2_ORB_NULL			0x80000000
-#define SBP2_MAX_SG_ELEMENT_LENGTH	0xf000
 #define SBP2_RETRY_LIMIT		0xf		/* 15 retries */
 #define SBP2_CYCLE_LIMIT		(0xc8 << 12)	/* 200 125us cycles */
+
+/*
+ * The default maximum s/g segment size of a FireWire controller is
+ * usually 0x10000, but SBP-2 only allows 0xffff. Since buffers have to
+ * be quadlet-aligned, we set the length limit to 0xffff & ~3.
+ */
+#define SBP2_MAX_SEG_SIZE		0xfffc
 
 /* Unit directory keys */
 #define SBP2_CSR_UNIT_CHARACTERISTICS	0x3a
@@ -1099,6 +1106,10 @@ static int sbp2_probe(struct device *dev)
 	struct Scsi_Host *shost;
 	u32 model, firmware_revision;
 
+	if (dma_get_max_seg_size(device->card->device) > SBP2_MAX_SEG_SIZE)
+		BUG_ON(dma_set_max_seg_size(device->card->device,
+					    SBP2_MAX_SEG_SIZE));
+
 	shost = scsi_host_alloc(&scsi_driver_template, sizeof(*tgt));
 	if (shost == NULL)
 		return -ENOMEM;
@@ -1347,14 +1358,12 @@ static int
 sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 		     struct sbp2_logical_unit *lu)
 {
-	struct scatterlist *sg;
-	int sg_len, l, i, j, count;
-	dma_addr_t sg_addr;
+	struct scatterlist *sg = scsi_sglist(orb->cmd);
+	int i, n;
 
-	sg = scsi_sglist(orb->cmd);
-	count = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
-			   orb->cmd->sc_data_direction);
-	if (count == 0)
+	n = dma_map_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
+		       orb->cmd->sc_data_direction);
+	if (n == 0)
 		goto fail;
 
 	/*
@@ -1364,7 +1373,7 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 	 * as the second generation iPod which doesn't support page
 	 * tables.
 	 */
-	if (count == 1 && sg_dma_len(sg) < SBP2_MAX_SG_ELEMENT_LENGTH) {
+	if (n == 1) {
 		orb->request.data_descriptor.high =
 			cpu_to_be32(lu->tgt->address_high);
 		orb->request.data_descriptor.low  =
@@ -1374,29 +1383,9 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 		return 0;
 	}
 
-	/*
-	 * Convert the scatterlist to an sbp2 page table.  If any
-	 * scatterlist entries are too big for sbp2, we split them as we
-	 * go.  Even if we ask the block I/O layer to not give us sg
-	 * elements larger than 65535 bytes, some IOMMUs may merge sg elements
-	 * during DMA mapping, and Linux currently doesn't prevent this.
-	 */
-	for (i = 0, j = 0; i < count; i++, sg = sg_next(sg)) {
-		sg_len = sg_dma_len(sg);
-		sg_addr = sg_dma_address(sg);
-		while (sg_len) {
-			/* FIXME: This won't get us out of the pinch. */
-			if (unlikely(j >= ARRAY_SIZE(orb->page_table))) {
-				fw_error("page table overflow\n");
-				goto fail_page_table;
-			}
-			l = min(sg_len, SBP2_MAX_SG_ELEMENT_LENGTH);
-			orb->page_table[j].low = cpu_to_be32(sg_addr);
-			orb->page_table[j].high = cpu_to_be32(l << 16);
-			sg_addr += l;
-			sg_len -= l;
-			j++;
-		}
+	for_each_sg(sg, sg, n, i) {
+		orb->page_table[i].high = cpu_to_be32(sg_dma_len(sg) << 16);
+		orb->page_table[i].low = cpu_to_be32(sg_dma_address(sg));
 	}
 
 	orb->page_table_bus =
@@ -1415,13 +1404,13 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 	orb->request.data_descriptor.high = cpu_to_be32(lu->tgt->address_high);
 	orb->request.data_descriptor.low  = cpu_to_be32(orb->page_table_bus);
 	orb->request.misc |= cpu_to_be32(COMMAND_ORB_PAGE_TABLE_PRESENT |
-					 COMMAND_ORB_DATA_SIZE(j));
+					 COMMAND_ORB_DATA_SIZE(n));
 
 	return 0;
 
  fail_page_table:
-	dma_unmap_sg(device->card->device, sg, scsi_sg_count(orb->cmd),
-		     orb->cmd->sc_data_direction);
+	dma_unmap_sg(device->card->device, scsi_sglist(orb->cmd),
+		     scsi_sg_count(orb->cmd), orb->cmd->sc_data_direction);
  fail:
 	return -ENOMEM;
 }
@@ -1541,6 +1530,8 @@ static int sbp2_scsi_slave_configure(struct scsi_device *sdev)
 
 	if (lu->tgt->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
+
+	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
 
 	return 0;
 }
