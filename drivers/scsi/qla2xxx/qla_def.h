@@ -25,7 +25,6 @@
 #include <linux/firmware.h>
 #include <linux/aer.h>
 #include <linux/mutex.h>
-#include <linux/semaphore.h>
 
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
