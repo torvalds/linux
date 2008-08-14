@@ -1777,19 +1777,20 @@ int __init usb_devio_init(void)
 	retval = register_chrdev_region(USB_DEVICE_DEV, USB_DEVICE_MAX,
 					"usb_device");
 	if (retval) {
-		err("unable to register minors for usb_device");
+		printk(KERN_ERR "Unable to register minors for usb_device\n");
 		goto out;
 	}
 	cdev_init(&usb_device_cdev, &usbdev_file_operations);
 	retval = cdev_add(&usb_device_cdev, USB_DEVICE_DEV, USB_DEVICE_MAX);
 	if (retval) {
-		err("unable to get usb_device major %d", USB_DEVICE_MAJOR);
+		printk(KERN_ERR "Unable to get usb_device major %d\n",
+		       USB_DEVICE_MAJOR);
 		goto error_cdev;
 	}
 #ifdef CONFIG_USB_DEVICE_CLASS
 	usb_classdev_class = class_create(THIS_MODULE, "usb_device");
 	if (IS_ERR(usb_classdev_class)) {
-		err("unable to register usb_device class");
+		printk(KERN_ERR "Unable to register usb_device class\n");
 		retval = PTR_ERR(usb_classdev_class);
 		cdev_del(&usb_device_cdev);
 		usb_classdev_class = NULL;

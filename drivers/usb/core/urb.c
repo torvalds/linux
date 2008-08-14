@@ -70,7 +70,7 @@ struct urb *usb_alloc_urb(int iso_packets, gfp_t mem_flags)
 		iso_packets * sizeof(struct usb_iso_packet_descriptor),
 		mem_flags);
 	if (!urb) {
-		err("alloc_urb: kmalloc failed");
+		printk(KERN_ERR "alloc_urb: kmalloc failed\n");
 		return NULL;
 	}
 	usb_init_urb(urb);
@@ -407,7 +407,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 
 	/* fail if submitter gave bogus flags */
 	if (urb->transfer_flags != orig_flags) {
-		err("BOGUS urb flags, %x --> %x",
+		dev_err(&dev->dev, "BOGUS urb flags, %x --> %x\n",
 			orig_flags, urb->transfer_flags);
 		return -EINVAL;
 	}

@@ -180,8 +180,8 @@ static int parse_options(struct super_block *s, char *data)
 			listmode = option & S_IRWXUGO;
 			break;
 		default:
-			err("usbfs: unrecognised mount option \"%s\" "
-			    "or missing value\n", p);
+			printk(KERN_ERR "usbfs: unrecognised mount option "
+			       "\"%s\" or missing value\n", p);
 			return -EINVAL;
 		}
 	}
@@ -601,7 +601,7 @@ static int create_special_files (void)
 	/* create the devices special file */
 	retval = simple_pin_fs(&usb_fs_type, &usbfs_mount, &usbfs_mount_count);
 	if (retval) {
-		err ("Unable to get usbfs mount");
+		printk(KERN_ERR "Unable to get usbfs mount\n");
 		goto exit;
 	}
 
@@ -613,7 +613,7 @@ static int create_special_files (void)
 					       NULL, &usbfs_devices_fops,
 					       listuid, listgid);
 	if (devices_usbfs_dentry == NULL) {
-		err ("Unable to create devices usbfs file");
+		printk(KERN_ERR "Unable to create devices usbfs file\n");
 		retval = -ENODEV;
 		goto error_clean_mounts;
 	}
@@ -665,7 +665,7 @@ static void usbfs_add_bus(struct usb_bus *bus)
 	bus->usbfs_dentry = fs_create_file (name, busmode | S_IFDIR, parent,
 					    bus, NULL, busuid, busgid);
 	if (bus->usbfs_dentry == NULL) {
-		err ("error creating usbfs bus entry");
+		printk(KERN_ERR "Error creating usbfs bus entry\n");
 		return;
 	}
 }
@@ -696,7 +696,7 @@ static void usbfs_add_device(struct usb_device *dev)
 					    &usbdev_file_operations,
 					    devuid, devgid);
 	if (dev->usbfs_dentry == NULL) {
-		err ("error creating usbfs device entry");
+		printk(KERN_ERR "Error creating usbfs device entry\n");
 		return;
 	}
 
