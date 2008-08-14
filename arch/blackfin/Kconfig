@@ -622,6 +622,33 @@ config CPLB_SWITCH_TAB_L1
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
+comment "Speed Optimizations"
+config BFIN_INS_LOWOVERHEAD
+	bool "ins[bwl] low overhead, higher interrupt latency"
+	default y
+	help
+	  Reads on the Blackfin are speculative. In Blackfin terms, this means
+	  they can be interrupted at any time (even after they have been issued
+	  on to the external bus), and re-issued after the interrupt occurs.
+	  For memory - this is not a big deal, since memory does not change if
+	  it sees a read.
+
+	  If a FIFO is sitting on the end of the read, it will see two reads,
+	  when the core only sees one since the FIFO receives both the read
+	  which is cancelled (and not delivered to the core) and the one which
+	  is re-issued (which is delivered to the core).
+
+	  To solve this, interrupts are turned off before reads occur to
+	  I/O space. This option controls which the overhead/latency of
+	  controlling interrupts during this time
+	   "n" turns interrupts off every read
+		(higher overhead, but lower interrupt latency)
+	   "y" turns interrupts off every loop
+		(low overhead, but longer interrupt latency)
+
+	  default behavior is to leave this set to on (type "Y"). If you are experiencing
+	  interrupt latency issues, it is safe and OK to turn this off.
+
 endmenu
 
 
