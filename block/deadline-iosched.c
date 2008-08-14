@@ -258,17 +258,9 @@ static int deadline_dispatch_requests(struct request_queue *q, int force)
 	else
 		rq = dd->next_rq[READ];
 
-	if (rq) {
-		/* we have a "next request" */
-		
-		if (dd->last_sector != rq->sector)
-			/* end the batch on a non sequential request */
-			dd->batching += dd->fifo_batch;
-		
-		if (dd->batching < dd->fifo_batch)
-			/* we are still entitled to batch */
-			goto dispatch_request;
-	}
+	if (rq && dd->batching < dd->fifo_batch)
+		/* we have a next request are still entitled to batch */
+		goto dispatch_request;
 
 	/*
 	 * at this point we are not running a batch. select the appropriate
