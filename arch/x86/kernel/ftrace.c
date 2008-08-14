@@ -112,18 +112,8 @@ notrace int ftrace_update_ftrace_func(ftrace_func_t func)
 
 notrace int ftrace_mcount_set(unsigned long *data)
 {
-	unsigned long ip = (long)(&mcount_call);
-	unsigned long *addr = data;
-	unsigned char old[MCOUNT_INSN_SIZE], *new;
-
-	/*
-	 * Replace the mcount stub with a pointer to the
-	 * ip recorder function.
-	 */
-	memcpy(old, &mcount_call, MCOUNT_INSN_SIZE);
-	new = ftrace_call_replace(ip, *addr);
-	*addr = ftrace_modify_code(ip, old, new);
-
+	/* mcount is initialized as a nop */
+	*data = 0;
 	return 0;
 }
 
