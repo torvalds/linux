@@ -994,17 +994,7 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	flush_tlb_all();
 	low_mappings = 1;
 
-#ifdef CONFIG_X86_PC
-	if (def_to_bigsmp && apicid > 8) {
-		printk(KERN_WARNING
-			"More than 8 CPUs detected - skipping them.\n"
-			"Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
-		err = -1;
-	} else
-		err = do_boot_cpu(apicid, cpu);
-#else
 	err = do_boot_cpu(apicid, cpu);
-#endif
 
 	zap_low_mappings();
 	low_mappings = 0;
@@ -1058,6 +1048,34 @@ static __init void disable_smp(void)
 static int __init smp_sanity_check(unsigned max_cpus)
 {
 	preempt_disable();
+
+#if defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
+	if (def_to_bigsmp && nr_cpu_ids > 8) {
+		unsigned int cpu;
+		unsigned nr;
+
+		printk(KERN_WARNING
+		       "More than 8 CPUs detected - skipping them.\n"
+		       "Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+
+		nr = 0;
+		for_each_present_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_present_map);
+			nr++;
+		}
+
+		nr = 0;
+		for_each_possible_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_possible_map);
+			nr++;
+		}
+
+		nr_cpu_ids = 8;
+	}
+#endif
+
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
 				    "by the BIOS.\n", hard_smp_processor_id());
