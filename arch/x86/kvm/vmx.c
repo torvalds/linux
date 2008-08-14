@@ -2173,7 +2173,7 @@ static void kvm_do_inject_irq(struct kvm_vcpu *vcpu)
 	clear_bit(bit_index, &vcpu->arch.irq_pending[word_index]);
 	if (!vcpu->arch.irq_pending[word_index])
 		clear_bit(word_index, &vcpu->arch.irq_summary);
-	vmx_inject_irq(vcpu, irq);
+	kvm_queue_interrupt(vcpu, irq);
 }
 
 
@@ -2187,12 +2187,11 @@ static void do_interrupt_requests(struct kvm_vcpu *vcpu,
 		 (vmcs_read32(GUEST_INTERRUPTIBILITY_INFO) & 3) == 0);
 
 	if (vcpu->arch.interrupt_window_open &&
-	    vcpu->arch.irq_summary &&
-	    !(vmcs_read32(VM_ENTRY_INTR_INFO_FIELD) & INTR_INFO_VALID_MASK))
-		/*
-		 * If interrupts enabled, and not blocked by sti or mov ss. Good.
-		 */
+	    vcpu->arch.irq_summary && !vcpu->arch.interrupt.pending)
 		kvm_do_inject_irq(vcpu);
+
+	if (vcpu->arch.interrupt_window_open && vcpu->arch.interrupt.pending)
+		vmx_inject_irq(vcpu, vcpu->arch.interrupt.nr);
 
 	cpu_based_vm_exec_control = vmcs_read32(CPU_BASED_VM_EXEC_CONTROL);
 	if (!vcpu->arch.interrupt_window_open &&
