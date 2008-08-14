@@ -21,7 +21,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/kirkwood.h>
+#include <mach/kirkwood.h>
 #include "common.h"
 
 #define RD88F6192_GPIO_USB_VBUS		10

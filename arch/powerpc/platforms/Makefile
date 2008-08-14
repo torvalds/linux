@@ -1,13 +1,7 @@
 
 obj-$(CONFIG_FSL_ULI1575)	+= fsl_uli1575.o
 
-ifeq ($(CONFIG_PPC_MERGE),y)
 obj-$(CONFIG_PPC_PMAC)		+= powermac/
-else
-ifeq ($(CONFIG_PPC64),y)
-obj-$(CONFIG_PPC_PMAC)		+= powermac/
-endif
-endif
 obj-$(CONFIG_PPC_CHRP)		+= chrp/
 obj-$(CONFIG_40x)		+= 40x/
 obj-$(CONFIG_44x)		+= 44x/

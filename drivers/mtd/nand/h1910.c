@@ -24,10 +24,10 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <asm/arch/hardware.h>	/* for CLPS7111_VIRT_BASE */
+#include <mach/hardware.h>	/* for CLPS7111_VIRT_BASE */
 #include <asm/sizes.h>
-#include <asm/arch/h1900-gpio.h>
-#include <asm/arch/ipaq.h>
+#include <mach/h1900-gpio.h>
+#include <mach/ipaq.h>
 
 /*
  * MTD structure for EDB7312 board

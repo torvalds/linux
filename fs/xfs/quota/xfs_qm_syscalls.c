@@ -362,11 +362,11 @@ xfs_qm_scall_quotaoff(
 	 * if we don't need them anymore.
 	 */
 	if ((dqtype & XFS_QMOPT_UQUOTA) && XFS_QI_UQIP(mp)) {
-		XFS_PURGE_INODE(XFS_QI_UQIP(mp));
+		IRELE(XFS_QI_UQIP(mp));
 		XFS_QI_UQIP(mp) = NULL;
 	}
 	if ((dqtype & (XFS_QMOPT_GQUOTA|XFS_QMOPT_PQUOTA)) && XFS_QI_GQIP(mp)) {
-		XFS_PURGE_INODE(XFS_QI_GQIP(mp));
+		IRELE(XFS_QI_GQIP(mp));
 		XFS_QI_GQIP(mp) = NULL;
 	}
 out_error:
@@ -1034,7 +1034,7 @@ xfs_qm_dqrele_all_inodes(
 {
 	xfs_inode_t	*ip, *topino;
 	uint		ireclaims;
-	bhv_vnode_t	*vp;
+	struct inode	*vp;
 	boolean_t	vnode_refd;
 
 	ASSERT(mp->m_quotainfo);
@@ -1059,7 +1059,7 @@ again:
 			ip = ip->i_mnext;
 			continue;
 		}
-		vp = XFS_ITOV_NULL(ip);
+		vp = VFS_I(ip);
 		if (!vp) {
 			ASSERT(ip->i_udquot == NULL);
 			ASSERT(ip->i_gdquot == NULL);
@@ -1449,14 +1449,14 @@ xfs_qm_internalqcheck(
 		for (d = (xfs_dqtest_t *) h1->qh_next; d != NULL; ) {
 			xfs_dqtest_cmp(d);
 			e = (xfs_dqtest_t *) d->HL_NEXT;
-			kmem_free(d, sizeof(xfs_dqtest_t));
+			kmem_free(d);
 			d = e;
 		}
 		h1 = &qmtest_gdqtab[i];
 		for (d = (xfs_dqtest_t *) h1->qh_next; d != NULL; ) {
 			xfs_dqtest_cmp(d);
 			e = (xfs_dqtest_t *) d->HL_NEXT;
-			kmem_free(d, sizeof(xfs_dqtest_t));
+			kmem_free(d);
 			d = e;
 		}
 	}
@@ -1467,8 +1467,8 @@ xfs_qm_internalqcheck(
 	} else {
 		cmn_err(CE_DEBUG, "******** quotacheck successful! ********");
 	}
-	kmem_free(qmtest_udqtab, qmtest_hashmask * sizeof(xfs_dqhash_t));
-	kmem_free(qmtest_gdqtab, qmtest_hashmask * sizeof(xfs_dqhash_t));
+	kmem_free(qmtest_udqtab);
+	kmem_free(qmtest_gdqtab);
 	mutex_unlock(&qcheck_lock);
 	return (qmtest_nfails);
 }

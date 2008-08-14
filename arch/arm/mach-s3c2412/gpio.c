@@ -20,9 +20,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 int s3c2412_gpio_set_sleepcfg(unsigned int pin, unsigned int state)
 {

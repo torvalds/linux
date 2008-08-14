@@ -352,7 +352,7 @@ static int via_cable_override(struct pci_dev *pdev)
 	return 0;
 }
 
-static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
+static u8 via82cxxx_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(pdev);

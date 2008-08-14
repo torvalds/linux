@@ -15,7 +15,7 @@
 
 #include <asm/sysreg.h>
 
-#include <asm/arch/pm.h>
+#include <mach/pm.h>
 
 
 static cycle_t read_cycle_count(void)

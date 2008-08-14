@@ -186,11 +186,13 @@ struct ath5k_srev_name {
 #define AR5K_SREV_RAD_2111	0x20
 #define AR5K_SREV_RAD_5112	0x30
 #define AR5K_SREV_RAD_5112A	0x35
+#define	AR5K_SREV_RAD_5112B	0x36
 #define AR5K_SREV_RAD_2112	0x40
 #define AR5K_SREV_RAD_2112A	0x45
-#define AR5K_SREV_RAD_SC0	0x56	/* Found on 2413/2414 */
-#define AR5K_SREV_RAD_SC1	0x63	/* Found on 5413/5414 */
-#define AR5K_SREV_RAD_SC2	0xa2	/* Found on 2424-5/5424 */
+#define	AR5K_SREV_RAD_2112B	0x46
+#define AR5K_SREV_RAD_SC0	0x50	/* Found on 2413/2414 */
+#define AR5K_SREV_RAD_SC1	0x60	/* Found on 5413/5414 */
+#define AR5K_SREV_RAD_SC2	0xa0	/* Found on 2424-5/5424 */
 #define AR5K_SREV_RAD_5133	0xc0	/* MIMO found on 5418 */
 
 /* IEEE defs */

@@ -83,6 +83,7 @@ static void __init sbc834x_init_IRQ(void)
 static struct __initdata of_device_id sbc834x_ids[] = {
 	{ .type = "soc", },
 	{ .compatible = "soc", },
+	{ .compatible = "simple-bus", },
 	{},
 };
 

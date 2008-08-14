@@ -18,8 +18,8 @@
 
 #include <asm/dma.h>
 
-#include <asm/arch/regs-sdi.h>
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-sdi.h>
+#include <mach/regs-gpio.h>
 
 #include <asm/plat-s3c24xx/mci.h>
 

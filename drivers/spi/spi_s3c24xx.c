@@ -25,11 +25,11 @@
 
 #include <asm/io.h>
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c24xx/regs-spi.h>
-#include <asm/arch/spi.h>
+#include <mach/spi.h>
 
 struct s3c24xx_spi {
 	/* bitbang has to be first */
@@ -236,6 +236,19 @@ static irqreturn_t s3c24xx_spi_irq(int irq, void *dev)
 	return IRQ_HANDLED;
 }
 
+static void s3c24xx_spi_initialsetup(struct s3c24xx_spi *hw)
+{
+	/* for the moment, permanently enable the clock */
+
+	clk_enable(hw->clk);
+
+	/* program defaults into the registers */
+
+	writeb(0xff, hw->regs + S3C2410_SPPRE);
+	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
+	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
+}
+
 static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 {
 	struct s3c2410_spi_info *pdata;
@@ -327,15 +340,7 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 		goto err_no_clk;
 	}
 
-	/* for the moment, permanently enable the clock */
-
-	clk_enable(hw->clk);
-
-	/* program defaults into the registers */
-
-	writeb(0xff, hw->regs + S3C2410_SPPRE);
-	writeb(SPPIN_DEFAULT, hw->regs + S3C2410_SPPIN);
-	writeb(SPCON_DEFAULT, hw->regs + S3C2410_SPCON);
+	s3c24xx_spi_initialsetup(hw);
 
 	/* setup any gpio we can */
 
@@ -415,7 +420,7 @@ static int s3c24xx_spi_resume(struct platform_device *pdev)
 {
 	struct s3c24xx_spi *hw = platform_get_drvdata(pdev);
 
-	clk_enable(hw->clk);
+	s3c24xx_spi_initialsetup(hw);
 	return 0;
 }
 

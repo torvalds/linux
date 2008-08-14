@@ -78,7 +78,7 @@ static int litelink_open(struct sir_dev *dev)
 {
 	struct qos_info *qos = &dev->qos;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Power up dongle */
 	sirdev_set_dtr_rts(dev, TRUE, TRUE);
@@ -95,7 +95,7 @@ static int litelink_open(struct sir_dev *dev)
 
 static int litelink_close(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* Power off dongle */
 	sirdev_set_dtr_rts(dev, FALSE, FALSE);
@@ -113,7 +113,7 @@ static int litelink_change_speed(struct sir_dev *dev, unsigned speed)
 {
         int i;
 
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* dongle already reset by irda-thread - current speed (dongle and
 	 * port) is the default speed (115200 for litelink!)
@@ -156,7 +156,7 @@ static int litelink_change_speed(struct sir_dev *dev, unsigned speed)
  */
 static int litelink_reset(struct sir_dev *dev)
 {
-	IRDA_DEBUG(2, "%s()\n", __FUNCTION__);
+	IRDA_DEBUG(2, "%s()\n", __func__);
 
 	/* probably the power-up can be dropped here, but with only
 	 * 15 usec delay it's not worth the risk unless somebody with

@@ -499,9 +499,10 @@ config USB_SERIAL_SAFE_PADDED
 config USB_SERIAL_SIERRAWIRELESS
 	tristate "USB Sierra Wireless Driver"
 	help
-	  Say M here if you want to use a Sierra Wireless device (if
-	  using an PC 5220 or AC580 please use the Airprime driver
-	  instead).
+	  Say M here if you want to use Sierra Wireless devices.
+
+	  Many deviecs have a feature known as TRU-Install, for those devices
+	  to work properly the USB Storage Sierra feature must be enabled.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called sierra.

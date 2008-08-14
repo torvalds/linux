@@ -13,10 +13,10 @@
  * This file is licenced under the GPL.
  */
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/arch/assabet.h>
-#include <asm/arch/badge4.h>
+#include <mach/assabet.h>
+#include <mach/badge4.h>
 #include <asm/hardware/sa1111.h>
 
 #ifndef CONFIG_SA1111

@@ -19,23 +19,8 @@
 #define __XFS_VNODE_H__
 
 struct file;
-struct bhv_vattr;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
-
-typedef struct inode	bhv_vnode_t;
-
-/*
- * Vnode to Linux inode mapping.
- */
-static inline bhv_vnode_t *vn_from_inode(struct inode *inode)
-{
-	return inode;
-}
-static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
-{
-	return vnode;
-}
 
 /*
  * Return values for xfs_inactive.  A return value of
@@ -66,87 +51,8 @@ static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
 					   Prevent VM access to the pages until
 					   the operation completes. */
 
-/*
- * Vnode attributes.  va_mask indicates those attributes the caller
- * wants to set or extract.
- */
-typedef struct bhv_vattr {
-	int		va_mask;	/* bit-mask of attributes present */
-	mode_t		va_mode;	/* file access mode and type */
-	xfs_nlink_t	va_nlink;	/* number of references to file */
-	uid_t		va_uid;		/* owner user id */
-	gid_t		va_gid;		/* owner group id */
-	xfs_ino_t	va_nodeid;	/* file id */
-	xfs_off_t	va_size;	/* file size in bytes */
-	u_long		va_blocksize;	/* blocksize preferred for i/o */
-	struct timespec	va_atime;	/* time of last access */
-	struct timespec	va_mtime;	/* time of last modification */
-	struct timespec	va_ctime;	/* time file changed */
-	u_int		va_gen;		/* generation number of file */
-	xfs_dev_t	va_rdev;	/* device the special file represents */
-	__int64_t	va_nblocks;	/* number of blocks allocated */
-	u_long		va_xflags;	/* random extended file flags */
-	u_long		va_extsize;	/* file extent size */
-	u_long		va_nextents;	/* number of extents in file */
-	u_long		va_anextents;	/* number of attr extents in file */
-	prid_t		va_projid;	/* project id */
-} bhv_vattr_t;
-
-/*
- * setattr or getattr attributes
- */
-#define XFS_AT_TYPE		0x00000001
-#define XFS_AT_MODE		0x00000002
-#define XFS_AT_UID		0x00000004
-#define XFS_AT_GID		0x00000008
-#define XFS_AT_FSID		0x00000010
-#define XFS_AT_NODEID		0x00000020
-#define XFS_AT_NLINK		0x00000040
-#define XFS_AT_SIZE		0x00000080
-#define XFS_AT_ATIME		0x00000100
-#define XFS_AT_MTIME		0x00000200
-#define XFS_AT_CTIME		0x00000400
-#define XFS_AT_RDEV		0x00000800
-#define XFS_AT_BLKSIZE		0x00001000
-#define XFS_AT_NBLOCKS		0x00002000
-#define XFS_AT_VCODE		0x00004000
-#define XFS_AT_MAC		0x00008000
-#define XFS_AT_UPDATIME		0x00010000
-#define XFS_AT_UPDMTIME		0x00020000
-#define XFS_AT_UPDCTIME		0x00040000
-#define XFS_AT_ACL		0x00080000
-#define XFS_AT_CAP		0x00100000
-#define XFS_AT_INF		0x00200000
-#define XFS_AT_XFLAGS		0x00400000
-#define XFS_AT_EXTSIZE		0x00800000
-#define XFS_AT_NEXTENTS		0x01000000
-#define XFS_AT_ANEXTENTS	0x02000000
-#define XFS_AT_PROJID		0x04000000
-#define XFS_AT_SIZE_NOPERM	0x08000000
-#define XFS_AT_GENCOUNT		0x10000000
-
-#define XFS_AT_ALL	(XFS_AT_TYPE|XFS_AT_MODE|XFS_AT_UID|XFS_AT_GID|\
-		XFS_AT_FSID|XFS_AT_NODEID|XFS_AT_NLINK|XFS_AT_SIZE|\
-		XFS_AT_ATIME|XFS_AT_MTIME|XFS_AT_CTIME|XFS_AT_RDEV|\
-		XFS_AT_BLKSIZE|XFS_AT_NBLOCKS|XFS_AT_VCODE|XFS_AT_MAC|\
-		XFS_AT_ACL|XFS_AT_CAP|XFS_AT_INF|XFS_AT_XFLAGS|XFS_AT_EXTSIZE|\
-		XFS_AT_NEXTENTS|XFS_AT_ANEXTENTS|XFS_AT_PROJID|XFS_AT_GENCOUNT)
-
-#define XFS_AT_STAT	(XFS_AT_TYPE|XFS_AT_MODE|XFS_AT_UID|XFS_AT_GID|\
-		XFS_AT_FSID|XFS_AT_NODEID|XFS_AT_NLINK|XFS_AT_SIZE|\
-		XFS_AT_ATIME|XFS_AT_MTIME|XFS_AT_CTIME|XFS_AT_RDEV|\
-		XFS_AT_BLKSIZE|XFS_AT_NBLOCKS|XFS_AT_PROJID)
-
-#define XFS_AT_TIMES	(XFS_AT_ATIME|XFS_AT_MTIME|XFS_AT_CTIME)
-
-#define XFS_AT_UPDTIMES	(XFS_AT_UPDATIME|XFS_AT_UPDMTIME|XFS_AT_UPDCTIME)
-
-#define XFS_AT_NOSET	(XFS_AT_NLINK|XFS_AT_RDEV|XFS_AT_FSID|XFS_AT_NODEID|\
-		XFS_AT_TYPE|XFS_AT_BLKSIZE|XFS_AT_NBLOCKS|XFS_AT_VCODE|\
-		XFS_AT_NEXTENTS|XFS_AT_ANEXTENTS|XFS_AT_GENCOUNT)
 
 extern void	vn_init(void);
-extern int	vn_revalidate(bhv_vnode_t *);
 
 /*
  * Yeah, these don't take vnode anymore at all, all this should be
@@ -156,57 +62,52 @@ extern void	vn_iowait(struct xfs_inode *ip);
 extern void	vn_iowake(struct xfs_inode *ip);
 extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
-static inline int vn_count(bhv_vnode_t *vp)
+static inline int vn_count(struct inode *vp)
 {
-	return atomic_read(&vn_to_inode(vp)->i_count);
+	return atomic_read(&vp->i_count);
 }
 
-/*
- * Vnode reference counting functions (and macros for compatibility).
- */
-extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
+#define IHOLD(ip) \
+do { \
+	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
+	atomic_inc(&(VFS_I(ip)->i_count)); \
+	xfs_itrace_hold((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+} while (0)
 
-#if defined(XFS_INODE_TRACE)
-#define VN_HOLD(vp)		\
-	((void)vn_hold(vp),	\
-	  xfs_itrace_hold(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address))
-#define VN_RELE(vp)		\
-	  (xfs_itrace_rele(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
-	   iput(vn_to_inode(vp)))
-#else
-#define VN_HOLD(vp)		((void)vn_hold(vp))
-#define VN_RELE(vp)		(iput(vn_to_inode(vp)))
-#endif
+#define IRELE(ip) \
+do { \
+	xfs_itrace_rele((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+	iput(VFS_I(ip)); \
+} while (0)
 
-static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
+static inline struct inode *vn_grab(struct inode *vp)
 {
-	struct inode *inode = igrab(vn_to_inode(vp));
-	return inode ? vn_from_inode(inode) : NULL;
+	return igrab(vp);
 }
 
 /*
  * Dealing with bad inodes
  */
-static inline int VN_BAD(bhv_vnode_t *vp)
+static inline int VN_BAD(struct inode *vp)
 {
-	return is_bad_inode(vn_to_inode(vp));
+	return is_bad_inode(vp);
 }
 
 /*
  * Extracting atime values in various formats
  */
-static inline void vn_atime_to_bstime(bhv_vnode_t *vp, xfs_bstime_t *bs_atime)
+static inline void vn_atime_to_bstime(struct inode *vp, xfs_bstime_t *bs_atime)
 {
 	bs_atime->tv_sec = vp->i_atime.tv_sec;
 	bs_atime->tv_nsec = vp->i_atime.tv_nsec;
 }
 
-static inline void vn_atime_to_timespec(bhv_vnode_t *vp, struct timespec *ts)
+static inline void vn_atime_to_timespec(struct inode *vp, struct timespec *ts)
 {
 	*ts = vp->i_atime;
 }
 
-static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
+static inline void vn_atime_to_time_t(struct inode *vp, time_t *tt)
 {
 	*tt = vp->i_atime.tv_sec;
 }
@@ -214,20 +115,11 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 /*
  * Some useful predicates.
  */
-#define VN_MAPPED(vp)	mapping_mapped(vn_to_inode(vp)->i_mapping)
-#define VN_CACHED(vp)	(vn_to_inode(vp)->i_mapping->nrpages)
-#define VN_DIRTY(vp)	mapping_tagged(vn_to_inode(vp)->i_mapping, \
+#define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
+#define VN_CACHED(vp)	(vp->i_mapping->nrpages)
+#define VN_DIRTY(vp)	mapping_tagged(vp->i_mapping, \
 					PAGECACHE_TAG_DIRTY)
 
-/*
- * Flags to vop_setattr/getattr.
- */
-#define	ATTR_UTIME	0x01	/* non-default utime(2) request */
-#define	ATTR_DMI	0x08	/* invocation from a DMI function */
-#define	ATTR_LAZY	0x80	/* set/get attributes lazily */
-#define	ATTR_NONBLOCK	0x100	/* return EAGAIN if operation would block */
-#define ATTR_NOLOCK	0x200	/* Don't grab any conflicting locks */
-#define ATTR_NOSIZETOK	0x400	/* Don't get the SIZE token */
 
 /*
  * Tracking vnode activity.

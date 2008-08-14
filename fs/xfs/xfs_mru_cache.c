@@ -307,15 +307,18 @@ xfs_mru_cache_init(void)
 	xfs_mru_elem_zone = kmem_zone_init(sizeof(xfs_mru_cache_elem_t),
 	                                 "xfs_mru_cache_elem");
 	if (!xfs_mru_elem_zone)
-		return ENOMEM;
+		goto out;
 
 	xfs_mru_reap_wq = create_singlethread_workqueue("xfs_mru_cache");
-	if (!xfs_mru_reap_wq) {
-		kmem_zone_destroy(xfs_mru_elem_zone);
-		return ENOMEM;
-	}
+	if (!xfs_mru_reap_wq)
+		goto out_destroy_mru_elem_zone;
 
 	return 0;
+
+ out_destroy_mru_elem_zone:
+	kmem_zone_destroy(xfs_mru_elem_zone);
+ out:
+	return -ENOMEM;
 }
 
 void
@@ -382,9 +385,9 @@ xfs_mru_cache_create(
 
 exit:
 	if (err && mru && mru->lists)
-		kmem_free(mru->lists, mru->grp_count * sizeof(*mru->lists));
+		kmem_free(mru->lists);
 	if (err && mru)
-		kmem_free(mru, sizeof(*mru));
+		kmem_free(mru);
 
 	return err;
 }
@@ -424,8 +427,8 @@ xfs_mru_cache_destroy(
 
 	xfs_mru_cache_flush(mru);
 
-	kmem_free(mru->lists, mru->grp_count * sizeof(*mru->lists));
-	kmem_free(mru, sizeof(*mru));
+	kmem_free(mru->lists);
+	kmem_free(mru);
 }
 
 /*
