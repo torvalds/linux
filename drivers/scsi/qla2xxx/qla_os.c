@@ -780,7 +780,8 @@ qla2x00_eh_wait_for_pending_commands(scsi_qla_host_t *ha, unsigned int t,
 		sp = pha->outstanding_cmds[cnt];
 		if (!sp)
 			continue;
-		if (ha->vp_idx != sp->ha->vp_idx)
+
+		if (ha->vp_idx != sp->fcport->ha->vp_idx)
 			continue;
 		match = 0;
 		switch (type) {

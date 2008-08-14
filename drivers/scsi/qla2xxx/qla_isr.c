@@ -879,11 +879,12 @@ qla2x00_handle_sense(srb_t *sp, uint8_t *sense_data, uint32_t sense_len)
 	sp->request_sense_ptr += sense_len;
 	sp->request_sense_length -= sense_len;
 	if (sp->request_sense_length != 0)
-		sp->ha->status_srb = sp;
+		sp->fcport->ha->status_srb = sp;
 
 	DEBUG5(printk("%s(): Check condition Sense data, scsi(%ld:%d:%d:%d) "
-	    "cmd=%p pid=%ld\n", __func__, sp->ha->host_no, cp->device->channel,
-	    cp->device->id, cp->device->lun, cp, cp->serial_number));
+	    "cmd=%p pid=%ld\n", __func__, sp->fcport->ha->host_no,
+	    cp->device->channel, cp->device->id, cp->device->lun, cp,
+	    cp->serial_number));
 	if (sense_len)
 		DEBUG5(qla2x00_dump_buffer(cp->sense_buffer,
 		    CMD_ACTUAL_SNSLEN(cp)));
