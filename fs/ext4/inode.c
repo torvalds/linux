@@ -3494,6 +3494,9 @@ void ext4_truncate(struct inode *inode)
 	 * modify the block allocation tree.
 	 */
 	down_write(&ei->i_data_sem);
+
+	ext4_discard_reservation(inode);
+
 	/*
 	 * The orphan list entry will now protect us from any crash which
 	 * occurs before the truncate completes, so it is now safe to propagate
@@ -3562,8 +3565,6 @@ do_indirects:
 	case EXT4_TIND_BLOCK:
 		;
 	}
-
-	ext4_discard_reservation(inode);
 
 	up_write(&ei->i_data_sem);
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
