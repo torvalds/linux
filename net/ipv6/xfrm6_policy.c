@@ -52,12 +52,14 @@ static struct dst_entry *xfrm6_dst_lookup(int tos, xfrm_address_t *saddr,
 static int xfrm6_get_saddr(xfrm_address_t *saddr, xfrm_address_t *daddr)
 {
 	struct dst_entry *dst;
+	struct net_device *dev;
 
 	dst = xfrm6_dst_lookup(0, NULL, daddr);
 	if (IS_ERR(dst))
 		return -EHOSTUNREACH;
 
-	ipv6_dev_get_saddr(ip6_dst_idev(dst)->dev,
+	dev = ip6_dst_idev(dst)->dev;
+	ipv6_dev_get_saddr(dev_net(dev), dev,
 			   (struct in6_addr *)&daddr->a6, 0,
 			   (struct in6_addr *)&saddr->a6);
 	dst_release(dst);

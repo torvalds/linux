@@ -319,7 +319,8 @@ static void sctp_v6_get_saddr(struct sctp_sock *sk,
 			  __func__, asoc, dst, NIP6(daddr->v6.sin6_addr));
 
 	if (!asoc) {
-		ipv6_dev_get_saddr(dst ? ip6_dst_idev(dst)->dev : NULL,
+		ipv6_dev_get_saddr(sock_net(sctp_opt2sk(sk)),
+				   dst ? ip6_dst_idev(dst)->dev : NULL,
 				   &daddr->v6.sin6_addr,
 				   inet6_sk(&sk->inet.sk)->srcprefs,
 				   &saddr->v6.sin6_addr);
