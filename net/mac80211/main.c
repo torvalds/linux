@@ -187,8 +187,14 @@ static int ieee80211_open(struct net_device *dev)
 	u32 changed = 0;
 	int res;
 	bool need_hw_reconfig = 0;
+	u8 null_addr[ETH_ALEN] = {0};
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+
+	/* fail early if user set an invalid address */
+	if (compare_ether_addr(dev->dev_addr, null_addr) &&
+	    !is_valid_ether_addr(dev->dev_addr))
+		return -EADDRNOTAVAIL;
 
 	/* we hold the RTNL here so can safely walk the list */
 	list_for_each_entry(nsdata, &local->interfaces, list) {
@@ -268,6 +274,36 @@ static int ieee80211_open(struct net_device *dev)
 			goto err_del_bss;
 		need_hw_reconfig = 1;
 		ieee80211_led_radio(local, local->hw.conf.radio_enabled);
+	}
+
+	/*
+	 * Check all interfaces and copy the hopefully now-present
+	 * MAC address to those that have the special null one.
+	 */
+	list_for_each_entry(nsdata, &local->interfaces, list) {
+		struct net_device *ndev = nsdata->dev;
+
+		/*
+		 * No need to check netif_running since we do not allow
+		 * it to start up with this invalid address.
+		 */
+		if (compare_ether_addr(null_addr, ndev->dev_addr) == 0)
+			memcpy(ndev->dev_addr,
+			       local->hw.wiphy->perm_addr,
+			       ETH_ALEN);
+	}
+
+	if (compare_ether_addr(null_addr, local->mdev->dev_addr) == 0)
+		memcpy(local->mdev->dev_addr, local->hw.wiphy->perm_addr,
+		       ETH_ALEN);
+
+	/*
+	 * Validate the MAC address for this device.
+	 */
+	if (!is_valid_ether_addr(dev->dev_addr)) {
+		if (!local->open_count && local->ops->stop)
+			local->ops->stop(local_to_hw(local));
+		return -EADDRNOTAVAIL;
 	}
 
 	switch (sdata->vif.type) {
@@ -975,6 +1011,8 @@ void ieee80211_if_setup(struct net_device *dev)
 	dev->open = ieee80211_open;
 	dev->stop = ieee80211_stop;
 	dev->destructor = free_netdev;
+	/* we will validate the address ourselves in ->open */
+	dev->validate_addr = NULL;
 }
 
 /* everything else */
