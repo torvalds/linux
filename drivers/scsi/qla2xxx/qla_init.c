@@ -3251,6 +3251,7 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 {
 	int rval;
 	uint8_t        status = 0;
+	scsi_qla_host_t *vha;
 
 	if (ha->flags.online) {
 		ha->flags.online = 0;
@@ -3265,6 +3266,8 @@ qla2x00_abort_isp(scsi_qla_host_t *ha)
 		if (atomic_read(&ha->loop_state) != LOOP_DOWN) {
 			atomic_set(&ha->loop_state, LOOP_DOWN);
 			qla2x00_mark_all_devices_lost(ha, 0);
+			list_for_each_entry(vha, &ha->vp_list, vp_list)
+			       qla2x00_mark_all_devices_lost(vha, 0);
 		} else {
 			if (!atomic_read(&ha->loop_down_timer))
 				atomic_set(&ha->loop_down_timer,
