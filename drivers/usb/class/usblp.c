@@ -593,8 +593,9 @@ static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 				err = usblp_hp_channel_change_request(usblp,
 					arg, &newChannel);
 				if (err < 0) {
-					err("usblp%d: error = %d setting "
-						"HP channel",
+					dev_err(&usblp->dev->dev,
+						"usblp%d: error = %d setting "
+						"HP channel\n",
 						usblp->minor, err);
 					retval = -EIO;
 					goto done;
@@ -1345,7 +1346,7 @@ static void usblp_disconnect(struct usb_interface *intf)
 	usb_deregister_dev(intf, &usblp_class);
 
 	if (!usblp || !usblp->dev) {
-		err("bogus disconnect");
+		dev_err(&intf->dev, "bogus disconnect\n");
 		BUG ();
 	}
 
