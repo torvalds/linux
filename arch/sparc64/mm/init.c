@@ -796,6 +796,9 @@ static unsigned long nid_range(unsigned long start, unsigned long end,
 		start += PAGE_SIZE;
 	}
 
+	if (start > end)
+		start = end;
+
 	return start;
 }
 #else
