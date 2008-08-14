@@ -96,9 +96,6 @@ ENTRY(__start)
 	R0 = RETX;
 	[P0] = R0;
 
-	/* Let each Blackfin family do its own thing */
-	call _mach_early_start;
-
 	/* Initialize stack pointer */
 	sp.l = lo(INITIAL_STACK);
 	sp.h = hi(INITIAL_STACK);

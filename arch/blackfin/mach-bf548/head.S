@@ -35,16 +35,6 @@
 #include <asm/mach/mem_init.h>
 #endif
 
-.extern _bf53x_relocate_l1_mem
-
-__INIT
-
-ENTRY(_mach_early_start)
-	rts;
-ENDPROC(_mach_early_start)
-
-__FINIT
-
 .section .l1.text
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 ENTRY(_start_dma_code)

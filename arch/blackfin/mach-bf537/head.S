@@ -35,56 +35,6 @@
 #include <asm/mach/mem_init.h>
 #endif
 
-.extern _bf53x_relocate_l1_mem
-
-__INIT
-
-ENTRY(_mach_early_start)
-	/* Initialise General-Purpose I/O Modules on BF537 */
-	p0.h = hi(BFIN_PORT_MUX);
-	p0.l = lo(BFIN_PORT_MUX);
-	R0 = (PGDE_UART | PFTE_UART)(Z);
-	W[P0] = R0.L; /* Enable both UARTS */
-	SSYNC;
-
-	/* Enable peripheral function of PORTF for UART0 and UART1 */
-	p0.h = hi(PORTF_FER);
-	p0.l = lo(PORTF_FER);
-	R0 = 0x000F(Z);
-	W[P0] = R0.L;
-	SSYNC;
-
-	/* Initialise UART - when booting from u-boot, the UART is not disabled
-	 * so if we dont initalize here, our serial console gets hosed */
-	p0.h = hi(BFIN_UART_LCR);
-	p0.l = lo(BFIN_UART_LCR);
-	r0 = 0x0(Z);
-	w[p0] = r0.L;	/* To enable DLL writes */
-	ssync;
-
-	p0.h = hi(BFIN_UART_DLL);
-	p0.l = lo(BFIN_UART_DLL);
-	r0 = 0x0(Z);
-	w[p0] = r0.L;
-	ssync;
-
-	p0.h = hi(BFIN_UART_DLH);
-	p0.l = lo(BFIN_UART_DLH);
-	r0 = 0x00(Z);
-	w[p0] = r0.L;
-	ssync;
-
-	p0.h = hi(BFIN_UART_GCTL);
-	p0.l = lo(BFIN_UART_GCTL);
-	r0 = 0x0(Z);
-	w[p0] = r0.L;	/* To enable UART clock */
-	ssync;
-
-	rts;
-ENDPROC(_mach_early_start)
-
-__FINIT
-
 .section .l1.text
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 ENTRY(_start_dma_code)
