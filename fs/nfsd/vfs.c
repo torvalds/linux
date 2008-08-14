@@ -83,7 +83,6 @@ struct raparm_hbucket {
 	spinlock_t		pb_lock;
 } ____cacheline_aligned_in_smp;
 
-static struct raparms *		raparml;
 #define RAPARM_HASH_BITS	4
 #define RAPARM_HASH_SIZE	(1<<RAPARM_HASH_BITS)
 #define RAPARM_HASH_MASK	(RAPARM_HASH_SIZE-1)
@@ -1966,11 +1965,20 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 void
 nfsd_racache_shutdown(void)
 {
-	if (!raparml)
-		return;
+	struct raparms *raparm, *last_raparm;
+	unsigned int i;
+
 	dprintk("nfsd: freeing readahead buffers.\n");
-	kfree(raparml);
-	raparml = NULL;
+
+	for (i = 0; i < RAPARM_HASH_SIZE; i++) {
+		raparm = raparm_hash[i].pb_head;
+		while(raparm) {
+			last_raparm = raparm;
+			raparm = raparm->p_next;
+			kfree(last_raparm);
+		}
+		raparm_hash[i].pb_head = NULL;
+	}
 }
 /*
  * Initialize readahead param cache
@@ -1981,35 +1989,38 @@ nfsd_racache_init(int cache_size)
 	int	i;
 	int	j = 0;
 	int	nperbucket;
+	struct raparms **raparm = NULL;
 
 
-	if (raparml)
+	if (raparm_hash[0].pb_head)
 		return 0;
-	if (cache_size < 2*RAPARM_HASH_SIZE)
-		cache_size = 2*RAPARM_HASH_SIZE;
-	raparml = kcalloc(cache_size, sizeof(struct raparms), GFP_KERNEL);
-
-	if (!raparml) {
-		printk(KERN_WARNING
-			"nfsd: Could not allocate memory read-ahead cache.\n");
-		return -ENOMEM;
-	}
+	nperbucket = DIV_ROUND_UP(cache_size, RAPARM_HASH_SIZE);
+	if (nperbucket < 2)
+		nperbucket = 2;
+	cache_size = nperbucket * RAPARM_HASH_SIZE;
 
 	dprintk("nfsd: allocating %d readahead buffers.\n", cache_size);
-	for (i = 0 ; i < RAPARM_HASH_SIZE ; i++) {
-		raparm_hash[i].pb_head = NULL;
+
+	for (i = 0; i < RAPARM_HASH_SIZE; i++) {
 		spin_lock_init(&raparm_hash[i].pb_lock);
-	}
-	nperbucket = DIV_ROUND_UP(cache_size, RAPARM_HASH_SIZE);
-	for (i = 0; i < cache_size - 1; i++) {
-		if (i % nperbucket == 0)
-			raparm_hash[j++].pb_head = raparml + i;
-		if (i % nperbucket < nperbucket-1)
-			raparml[i].p_next = raparml + i + 1;
+
+		raparm = &raparm_hash[i].pb_head;
+		for (j = 0; j < nperbucket; j++) {
+			*raparm = kzalloc(sizeof(struct raparms), GFP_KERNEL);
+			if (!*raparm)
+				goto out_nomem;
+			raparm = &(*raparm)->p_next;
+		}
+		*raparm = NULL;
 	}
 
 	nfsdstats.ra_size = cache_size;
 	return 0;
+
+out_nomem:
+	dprintk("nfsd: kmalloc failed, freeing readahead buffers\n");
+	nfsd_racache_shutdown();
+	return -ENOMEM;
 }
 
 #if defined(CONFIG_NFSD_V2_ACL) || defined(CONFIG_NFSD_V3_ACL)
