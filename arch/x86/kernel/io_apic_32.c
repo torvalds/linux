@@ -51,6 +51,8 @@
 #include <mach_apic.h>
 #include <mach_apicdef.h>
 
+#define __apicdebuginit(type) static type __init
+
 int (*ioapic_renumber_irq)(int ioapic, int irq);
 atomic_t irq_mis_count;
 
@@ -1342,7 +1344,8 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic, unsigned int pin,
 	ioapic_write_entry(apic, pin, entry);
 }
 
-void __init print_IO_APIC(void)
+
+__apicdebuginit(void) print_IO_APIC(void)
 {
 	int apic, i;
 	union IO_APIC_reg_00 reg_00;
@@ -1457,9 +1460,7 @@ void __init print_IO_APIC(void)
 	return;
 }
 
-#if 0
-
-static void print_APIC_bitfield(int base)
+__apicdebuginit(void) print_APIC_bitfield(int base)
 {
 	unsigned int v;
 	int i, j;
@@ -1480,7 +1481,7 @@ static void print_APIC_bitfield(int base)
 	}
 }
 
-void /*__init*/ print_local_APIC(void *dummy)
+__apicdebuginit(void) print_local_APIC(void *dummy)
 {
 	unsigned int v, ver, maxlvt;
 	u64 icr;
@@ -1564,12 +1565,12 @@ void /*__init*/ print_local_APIC(void *dummy)
 	printk("\n");
 }
 
-void print_all_local_APICs(void)
+__apicdebuginit(void) print_all_local_APICs(void)
 {
 	on_each_cpu(print_local_APIC, NULL, 1);
 }
 
-void /*__init*/ print_PIC(void)
+__apicdebuginit(void) print_PIC(void)
 {
 	unsigned int v;
 	unsigned long flags;
@@ -1601,7 +1602,17 @@ void /*__init*/ print_PIC(void)
 	printk(KERN_DEBUG "... PIC ELCR: %04x\n", v);
 }
 
-#endif  /*  0  */
+__apicdebuginit(int) print_all_ICs(void)
+{
+	print_PIC();
+	print_all_local_APICs();
+	print_IO_APIC();
+
+	return 0;
+}
+
+fs_initcall(print_all_ICs);
+
 
 static void __init enable_IO_APIC(void)
 {
@@ -2327,8 +2338,6 @@ void __init setup_IO_APIC(void)
 	setup_IO_APIC_irqs();
 	init_IO_APIC_traps();
 	check_timer();
-	if (!acpi_ioapic)
-		print_IO_APIC();
 }
 
 /*

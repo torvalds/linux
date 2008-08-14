@@ -220,6 +220,11 @@ void __cpuinit enable_NMI_through_LVT0(void)
 
 	/* unmask and set to NMI */
 	v = APIC_DM_NMI;
+
+	/* Level triggered for 82489DX (32bit mode) */
+	if (!lapic_is_integrated())
+		v |= APIC_LVT_LEVEL_TRIGGER;
+
 	apic_write(APIC_LVT0, v);
 }
 
@@ -228,11 +233,14 @@ void __cpuinit enable_NMI_through_LVT0(void)
  */
 int lapic_get_maxlvt(void)
 {
-	unsigned int v, maxlvt;
+	unsigned int v;
 
 	v = apic_read(APIC_LVR);
-	maxlvt = GET_APIC_MAXLVT(v);
-	return maxlvt;
+	/*
+	 * - we always have APIC integrated on 64bit mode
+	 * - 82489DXs do not report # of LVT entries
+	 */
+	return APIC_INTEGRATED(GET_APIC_VERSION(v)) ? GET_APIC_MAXLVT(v) : 2;
 }
 
 /*
