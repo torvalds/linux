@@ -31,9 +31,6 @@
 #define ALIAS_TABLE_ENTRY_SIZE		2
 #define RLOOKUP_TABLE_ENTRY_SIZE	(sizeof(void *))
 
-/* helper macros */
-#define LOW_U32(x) ((x) & ((1ULL << 32)-1))
-
 /* Length of the MMIO region for the AMD IOMMU */
 #define MMIO_REGION_LENGTH       0x4000
 
