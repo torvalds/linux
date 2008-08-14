@@ -3076,6 +3076,7 @@ M:	horms@verge.net.au
 P:	Julian Anastasov
 M:	ja@ssi.bg
 L:	netdev@vger.kernel.org
+L:	lvs-devel@vger.kernel.org
 S:	Maintained
 
 NFS, SUNRPC, AND LOCKD CLIENTS
