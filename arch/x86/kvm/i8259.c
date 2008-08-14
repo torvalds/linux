@@ -195,13 +195,19 @@ int kvm_pic_read_irq(struct kvm *kvm)
 
 void kvm_pic_reset(struct kvm_kpic_state *s)
 {
-	int irq;
+	int irq, irqbase;
 	struct kvm *kvm = s->pics_state->irq_request_opaque;
+	struct kvm_vcpu *vcpu0 = kvm->vcpus[0];
 
-	for (irq = 0; irq < PIC_NUM_PINS; irq++) {
-		if (!(s->imr & (1 << irq)) && (s->irr & (1 << irq) ||
-		    s->isr & (1 << irq)))
-			kvm_notify_acked_irq(kvm, irq);
+	if (s == &s->pics_state->pics[0])
+		irqbase = 0;
+	else
+		irqbase = 8;
+
+	for (irq = 0; irq < PIC_NUM_PINS/2; irq++) {
+		if (vcpu0 && kvm_apic_accept_pic_intr(vcpu0))
+			if (s->irr & (1 << irq) || s->isr & (1 << irq))
+				kvm_notify_acked_irq(kvm, irq+irqbase);
 	}
 	s->last_irr = 0;
 	s->irr = 0;
