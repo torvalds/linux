@@ -22,8 +22,6 @@
 #define ATH_PCI_VERSION "0.1"
 
 #define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR	13
-#define IEEE80211_ACTION_CAT_HT			7
-#define IEEE80211_ACTION_HT_TXCHWIDTH		0
 
 static char *dev_info = "ath9k";
 
@@ -220,11 +218,8 @@ static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 
 static void setup_ht_cap(struct ieee80211_ht_info *ht_info)
 {
-/* Until mac80211 includes these fields */
-
-#define IEEE80211_HT_CAP_DSSSCCK40 0x1000
-#define	IEEE80211_HT_CAP_MAXRXAMPDU_65536 0x3   /* 2 ^ 16 */
-#define	IEEE80211_HT_CAP_MPDUDENSITY_8 0x6     	/* 8 usec */
+#define	ATH9K_HT_CAP_MAXRXAMPDU_65536 0x3	/* 2 ^ 16 */
+#define	ATH9K_HT_CAP_MPDUDENSITY_8 0x6		/* 8 usec */
 
 	ht_info->ht_supported = 1;
 	ht_info->cap = (u16)IEEE80211_HT_CAP_SUP_WIDTH
@@ -232,8 +227,8 @@ static void setup_ht_cap(struct ieee80211_ht_info *ht_info)
 			|(u16)IEEE80211_HT_CAP_SGI_40
 			|(u16)IEEE80211_HT_CAP_DSSSCCK40;
 
-	ht_info->ampdu_factor = IEEE80211_HT_CAP_MAXRXAMPDU_65536;
-	ht_info->ampdu_density = IEEE80211_HT_CAP_MPDUDENSITY_8;
+	ht_info->ampdu_factor = ATH9K_HT_CAP_MAXRXAMPDU_65536;
+	ht_info->ampdu_density = ATH9K_HT_CAP_MPDUDENSITY_8;
 	/* setup supported mcs set */
 	memset(ht_info->supp_mcs_set, 0, 16);
 	ht_info->supp_mcs_set[0] = 0xff;
