@@ -51,6 +51,8 @@ void do_spurious_interrupt_bug(struct pt_regs *, long);
 unsigned long patch_espfix_desc(unsigned long, unsigned long);
 asmlinkage void math_emulate(long);
 
+void do_page_fault(struct pt_regs *regs, unsigned long error_code);
+
 #else /* CONFIG_X86_32 */
 
 asmlinkage void double_fault(void);
@@ -61,6 +63,8 @@ asmlinkage void do_debug(struct pt_regs *, unsigned long);
 asmlinkage void do_coprocessor_error(struct pt_regs *);
 asmlinkage void do_simd_coprocessor_error(struct pt_regs *);
 asmlinkage void do_spurious_interrupt_bug(struct pt_regs *);
+
+asmlinkage void do_page_fault(struct pt_regs *regs, unsigned long error_code);
 
 #endif /* CONFIG_X86_32 */
 #endif /* ASM_X86__TRAPS_H */

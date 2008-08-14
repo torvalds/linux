@@ -9,9 +9,12 @@
 unsigned long long native_sched_clock(void);
 unsigned long native_calibrate_tsc(void);
 
+#ifdef CONFIG_X86_32
 extern int timer_ack;
-extern int no_timer_check;
 extern int recalibrate_cpu_khz(void);
+#endif /* CONFIG_X86_32 */
+
+extern int no_timer_check;
 
 #ifndef CONFIG_PARAVIRT
 #define calibrate_tsc() native_calibrate_tsc()
