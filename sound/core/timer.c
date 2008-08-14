@@ -306,7 +306,7 @@ int snd_timer_close(struct snd_timer_instance *timeri)
 	struct snd_timer *timer = NULL;
 	struct snd_timer_instance *slave, *tmp;
 
-	if (snd_BUG_ON(!timer))
+	if (snd_BUG_ON(!timeri))
 		return -ENXIO;
 
 	/* force to stop the timer */
