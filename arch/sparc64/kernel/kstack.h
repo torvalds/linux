@@ -15,15 +15,16 @@ static inline bool kstack_valid(struct thread_info *tp, unsigned long sp)
 	    sp <= (base + THREAD_SIZE - sizeof(struct sparc_stackf)))
 		return true;
 
-	base = (unsigned long) hardirq_stack[tp->cpu];
-	if (sp >= base &&
-	    sp <= (base + THREAD_SIZE - sizeof(struct sparc_stackf)))
-		return true;
-	base = (unsigned long) softirq_stack[tp->cpu];
-	if (sp >= base &&
-	    sp <= (base + THREAD_SIZE - sizeof(struct sparc_stackf)))
-		return true;
-
+	if (hardirq_stack[tp->cpu]) {
+		base = (unsigned long) hardirq_stack[tp->cpu];
+		if (sp >= base &&
+		    sp <= (base + THREAD_SIZE - sizeof(struct sparc_stackf)))
+			return true;
+		base = (unsigned long) softirq_stack[tp->cpu];
+		if (sp >= base &&
+		    sp <= (base + THREAD_SIZE - sizeof(struct sparc_stackf)))
+			return true;
+	}
 	return false;
 }
 
@@ -37,15 +38,16 @@ static inline bool kstack_is_trap_frame(struct thread_info *tp, struct pt_regs *
 	    addr <= (base + THREAD_SIZE - sizeof(*regs)))
 		goto check_magic;
 
-	base = (unsigned long) hardirq_stack[tp->cpu];
-	if (addr >= base &&
-	    addr <= (base + THREAD_SIZE - sizeof(*regs)))
-		goto check_magic;
-	base = (unsigned long) softirq_stack[tp->cpu];
-	if (addr >= base &&
-	    addr <= (base + THREAD_SIZE - sizeof(*regs)))
-		goto check_magic;
-
+	if (hardirq_stack[tp->cpu]) {
+		base = (unsigned long) hardirq_stack[tp->cpu];
+		if (addr >= base &&
+		    addr <= (base + THREAD_SIZE - sizeof(*regs)))
+			goto check_magic;
+		base = (unsigned long) softirq_stack[tp->cpu];
+		if (addr >= base &&
+		    addr <= (base + THREAD_SIZE - sizeof(*regs)))
+			goto check_magic;
+	}
 	return false;
 
 check_magic:
