@@ -351,7 +351,17 @@ static int mt9m111_setfmt_yuv(struct soc_camera_device *icd)
 static int mt9m111_enable(struct soc_camera_device *icd)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct soc_camera_link *icl = mt9m111->client->dev.platform_data;
 	int ret;
+
+	if (icl->power) {
+		ret = icl->power(&mt9m111->client->dev, 1);
+		if (ret < 0) {
+			dev_err(icd->vdev->parent,
+				"Platform failed to power-on the camera.\n");
+			return ret;
+		}
+	}
 
 	ret = reg_set(RESET, MT9M111_RESET_CHIP_ENABLE);
 	if (!ret)
@@ -362,11 +372,16 @@ static int mt9m111_enable(struct soc_camera_device *icd)
 static int mt9m111_disable(struct soc_camera_device *icd)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
+	struct soc_camera_link *icl = mt9m111->client->dev.platform_data;
 	int ret;
 
 	ret = reg_clear(RESET, MT9M111_RESET_CHIP_ENABLE);
 	if (!ret)
 		mt9m111->powered = 0;
+
+	if (icl->power)
+		icl->power(&mt9m111->client->dev, 0);
+
 	return ret;
 }
 

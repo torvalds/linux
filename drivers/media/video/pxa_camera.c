@@ -629,17 +629,6 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 		pdata->init(pcdev->dev);
 	}
 
-	if (pdata && pdata->power) {
-		dev_dbg(pcdev->dev, "%s: Power on camera\n", __func__);
-		pdata->power(pcdev->dev, 1);
-	}
-
-	if (pdata && pdata->reset) {
-		dev_dbg(pcdev->dev, "%s: Releasing camera reset\n",
-			__func__);
-		pdata->reset(pcdev->dev, 1);
-	}
-
 	CICR0 = 0x3FF;   /* disable all interrupts */
 
 	if (pcdev->platform_flags & PXA_CAMERA_PCLK_EN)
@@ -660,20 +649,7 @@ static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 
 static void pxa_camera_deactivate(struct pxa_camera_dev *pcdev)
 {
-	struct pxacamera_platform_data *board = pcdev->pdata;
-
 	clk_disable(pcdev->clk);
-
-	if (board && board->reset) {
-		dev_dbg(pcdev->dev, "%s: Asserting camera reset\n",
-			__func__);
-		board->reset(pcdev->dev, 0);
-	}
-
-	if (board && board->power) {
-		dev_dbg(pcdev->dev, "%s: Power off camera\n", __func__);
-		board->power(pcdev->dev, 0);
-	}
 }
 
 static irqreturn_t pxa_camera_irq(int irq, void *data)

@@ -117,13 +117,33 @@ static int reg_clear(struct soc_camera_device *icd, const u8 reg,
 
 static int mt9m001_init(struct soc_camera_device *icd)
 {
+	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
+	struct soc_camera_link *icl = mt9m001->client->dev.platform_data;
 	int ret;
 
 	dev_dbg(icd->vdev->parent, "%s\n", __func__);
 
-	ret = reg_write(icd, MT9M001_RESET, 1);
-	if (!ret)
-		ret = reg_write(icd, MT9M001_RESET, 0);
+	if (icl->power) {
+		ret = icl->power(&mt9m001->client->dev, 1);
+		if (ret < 0) {
+			dev_err(icd->vdev->parent,
+				"Platform failed to power-on the camera.\n");
+			return ret;
+		}
+	}
+
+	/* The camera could have been already on, we reset it additionally */
+	if (icl->reset)
+		ret = icl->reset(&mt9m001->client->dev);
+	else
+		ret = -ENODEV;
+
+	if (ret < 0) {
+		/* Either no platform reset, or platform reset failed */
+		ret = reg_write(icd, MT9M001_RESET, 1);
+		if (!ret)
+			ret = reg_write(icd, MT9M001_RESET, 0);
+	}
 	/* Disable chip, synchronous option update */
 	if (!ret)
 		ret = reg_write(icd, MT9M001_OUTPUT_CONTROL, 0);
@@ -133,8 +153,15 @@ static int mt9m001_init(struct soc_camera_device *icd)
 
 static int mt9m001_release(struct soc_camera_device *icd)
 {
+	struct mt9m001 *mt9m001 = container_of(icd, struct mt9m001, icd);
+	struct soc_camera_link *icl = mt9m001->client->dev.platform_data;
+
 	/* Disable the chip */
 	reg_write(icd, MT9M001_OUTPUT_CONTROL, 0);
+
+	if (icl->power)
+		icl->power(&mt9m001->client->dev, 0);
+
 	return 0;
 }
 

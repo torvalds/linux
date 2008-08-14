@@ -134,7 +134,24 @@ static int reg_clear(struct soc_camera_device *icd, const u8 reg,
 static int mt9v022_init(struct soc_camera_device *icd)
 {
 	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	struct soc_camera_link *icl = mt9v022->client->dev.platform_data;
 	int ret;
+
+	if (icl->power) {
+		ret = icl->power(&mt9v022->client->dev, 1);
+		if (ret < 0) {
+			dev_err(icd->vdev->parent,
+				"Platform failed to power-on the camera.\n");
+			return ret;
+		}
+	}
+
+	/*
+	 * The camera could have been already on, we hard-reset it additionally,
+	 * if available. Soft reset is done in video_probe().
+	 */
+	if (icl->reset)
+		icl->reset(&mt9v022->client->dev);
 
 	/* Almost the default mode: master, parallel, simultaneous, and an
 	 * undocumented bit 0x200, which is present in table 7, but not in 8,
@@ -161,7 +178,12 @@ static int mt9v022_init(struct soc_camera_device *icd)
 
 static int mt9v022_release(struct soc_camera_device *icd)
 {
-	/* Nothing? */
+	struct mt9v022 *mt9v022 = container_of(icd, struct mt9v022, icd);
+	struct soc_camera_link *icl = mt9v022->client->dev.platform_data;
+
+	if (icl->power)
+		icl->power(&mt9v022->client->dev, 0);
+
 	return 0;
 }
 
