@@ -551,9 +551,6 @@ void ath_beacon_free(struct ath_softc *sc)
 
 void ath9k_beacon_tasklet(unsigned long data)
 {
-#define TSF_TO_TU(_h,_l) \
-	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
-
 	struct ath_softc *sc = (struct ath_softc *)data;
 	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf = NULL;
@@ -715,7 +712,6 @@ void ath9k_beacon_tasklet(unsigned long data)
 
 		sc->ast_be_xmit += bc;     /* XXX per-vap? */
 	}
-#undef TSF_TO_TU
 }
 
 /*
@@ -751,8 +747,6 @@ void ath_bstuck_process(struct ath_softc *sc)
 
 void ath_beacon_config(struct ath_softc *sc, int if_id)
 {
-#define TSF_TO_TU(_h,_l)					\
-	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 	struct ath_hal *ah = sc->sc_ah;
 	u32 nexttbtt, intval;
 	struct ath_beacon_config conf;
@@ -975,7 +969,6 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 		    (ah->ah_caps.hw_caps & ATH9K_HW_CAP_VEOL))
 			ath_beacon_start_adhoc(sc, 0);
 	}
-#undef TSF_TO_TU
 }
 
 /* Function to collect beacon rssi data and resync beacon if necessary */

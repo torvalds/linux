@@ -18,19 +18,19 @@
 #define PHY_H
 
 bool ath9k_hw_ar9280_set_channel(struct ath_hal *ah,
-					  struct ath9k_channel
-					  *chan);
+				 struct ath9k_channel
+				 *chan);
 bool ath9k_hw_set_channel(struct ath_hal *ah,
-				   struct ath9k_channel *chan);
+			  struct ath9k_channel *chan);
 void ath9k_hw_write_regs(struct ath_hal *ah, u32 modesIndex,
 			 u32 freqIndex, int regWrites);
 bool ath9k_hw_set_rf_regs(struct ath_hal *ah,
-				   struct ath9k_channel *chan,
-				   u16 modesIndex);
+			  struct ath9k_channel *chan,
+			  u16 modesIndex);
 void ath9k_hw_decrease_chain_power(struct ath_hal *ah,
 				   struct ath9k_channel *chan);
 bool ath9k_hw_init_rf(struct ath_hal *ah,
-			       int *status);
+		      int *status);
 
 #define AR_PHY_BASE     0x9800
 #define AR_PHY(_n)      (AR_PHY_BASE + ((_n)<<2))

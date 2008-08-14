@@ -79,6 +79,9 @@ struct ath_node;
 		}				\
 	} while (0)
 
+#define TSF_TO_TU(_h,_l) \
+	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
+
 /* XXX: remove */
 #define memzero(_buf, _len) memset(_buf, 0, _len)
 
@@ -382,10 +385,10 @@ int ath_rx_input(struct ath_softc *sc,
 		 struct sk_buff *skb,
 		 struct ath_recv_status *rx_status,
 		 enum ATH_RX_TYPE *status);
-int ath__rx_indicate(struct ath_softc *sc,
-		    struct sk_buff *skb,
-		    struct ath_recv_status *status,
-		    u16 keyix);
+int _ath_rx_indicate(struct ath_softc *sc,
+		     struct sk_buff *skb,
+		     struct ath_recv_status *status,
+		     u16 keyix);
 int ath_rx_subframe(struct ath_node *an, struct sk_buff *skb,
 		    struct ath_recv_status *status);
 

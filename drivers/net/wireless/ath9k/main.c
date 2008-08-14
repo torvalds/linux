@@ -1099,7 +1099,7 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		ath_node_put(sc, an, ATH9K_BH_STATUS_CHANGE);
 }
 
-int ath__rx_indicate(struct ath_softc *sc,
+int _ath_rx_indicate(struct ath_softc *sc,
 		     struct sk_buff *skb,
 		     struct ath_recv_status *status,
 		     u16 keyix)
@@ -1118,9 +1118,6 @@ int ath__rx_indicate(struct ath_softc *sc,
 		memmove(skb->data + padsize, skb->data, hdrlen);
 		skb_pull(skb, padsize);
 	}
-
-	/* remove FCS before passing up to protocol stack */
-	skb_trim(skb, (skb->len - FCS_LEN));
 
 	/* Prepare rx status */
 	ath9k_rx_prepare(sc, skb, status, &rx_status);
@@ -1364,7 +1361,8 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bad2;
 	}
 
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM;
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);

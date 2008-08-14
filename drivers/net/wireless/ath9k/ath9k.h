@@ -564,8 +564,6 @@ enum ath9k_cipher {
 #define CTL_5GHT40              8
 
 #define AR_EEPROM_MAC(i)        (0x1d+(i))
-#define EEP_SCALE       100
-#define EEP_DELTA       10
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
 #define AR_EEPROM_RFSILENT_GPIO_SEL_S   2
@@ -606,9 +604,6 @@ struct ath9k_country_entry {
 #define REG_CLR_BIT(_a, _r, _f) \
 	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~_f)
 
-#define ATH9K_COMP_BUF_MAX_SIZE   9216
-#define ATH9K_COMP_BUF_ALIGN_SIZE 512
-
 #define ATH9K_TXQ_USE_LOCKOUT_BKOFF_DIS   0x00000001
 
 #define INIT_AIFS       2
@@ -637,7 +632,6 @@ struct ath9k_country_entry {
 				  IEEE80211_WEP_KIDLEN +	\
 				  IEEE80211_WEP_CRCLEN))
 
-#define MAX_REG_ADD_COUNT   129
 #define MAX_RATE_POWER 63
 
 enum ath9k_power_mode {
@@ -706,13 +700,6 @@ enum phytype {
 	PHY_HT,
 };
 #define PHY_CCK PHY_DS
-
-enum start_adhoc_option {
-	START_ADHOC_NO_11A,
-	START_ADHOC_PER_11D,
-	START_ADHOC_IN_11A,
-	START_ADHOC_IN_11B,
-};
 
 enum ath9k_tp_scale {
 	ATH9K_TP_SCALE_MAX = 0,

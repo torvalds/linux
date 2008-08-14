@@ -448,7 +448,7 @@ static int ath_rx_indicate(struct ath_softc *sc,
 	int type;
 
 	/* indicate frame to the stack, which will free the old skb. */
-	type = ath__rx_indicate(sc, skb, status, keyix);
+	type = _ath_rx_indicate(sc, skb, status, keyix);
 
 	/* allocate a new skb and queue it to for H/W processing */
 	nskb = ath_rxbuf_alloc(sc, sc->sc_rxbufsize);
