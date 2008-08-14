@@ -972,15 +972,15 @@ int __init amd_iommu_init(void)
 	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
 		goto free;
 
-	ret = amd_iommu_init_dma_ops();
-	if (ret)
-		goto free;
-
 	ret = sysdev_class_register(&amd_iommu_sysdev_class);
 	if (ret)
 		goto free;
 
 	ret = sysdev_register(&device_amd_iommu);
+	if (ret)
+		goto free;
+
+	ret = amd_iommu_init_dma_ops();
 	if (ret)
 		goto free;
 
