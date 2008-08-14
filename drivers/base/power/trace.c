@@ -194,7 +194,7 @@ static int show_dev_hash(unsigned int value)
 		struct device * dev = to_device(entry);
 		unsigned int hash = hash_string(DEVSEED, dev->bus_id, DEVHASH);
 		if (hash == value) {
-			printk("  hash matches device %s\n", dev->bus_id);
+			dev_info(dev, "hash matches\n");
 			match++;
 		}
 		entry = entry->prev;

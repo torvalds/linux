@@ -205,9 +205,8 @@ static void debug_print_object(struct debug_obj *obj, char *msg)
 
 	if (limit < 5 && obj->descr != descr_test) {
 		limit++;
-		printk(KERN_ERR "ODEBUG: %s %s object type: %s\n", msg,
+		WARN(1, KERN_ERR "ODEBUG: %s %s object type: %s\n", msg,
 		       obj_states[obj->state], obj->descr->name);
-		WARN_ON(1);
 	}
 	debug_objects_warnings++;
 }
@@ -226,15 +225,13 @@ debug_object_fixup(int (*fixup)(void *addr, enum debug_obj_state state),
 
 static void debug_object_is_on_stack(void *addr, int onstack)
 {
-	void *stack = current->stack;
 	int is_on_stack;
 	static int limit;
 
 	if (limit > 4)
 		return;
 
-	is_on_stack = (addr >= stack && addr < (stack + THREAD_SIZE));
-
+	is_on_stack = object_is_on_stack(addr);
 	if (is_on_stack == onstack)
 		return;
 
@@ -735,26 +732,22 @@ check_results(void *addr, enum debug_obj_state state, int fixups, int warnings)
 
 	obj = lookup_object(addr, db);
 	if (!obj && state != ODEBUG_STATE_NONE) {
-		printk(KERN_ERR "ODEBUG: selftest object not found\n");
-		WARN_ON(1);
+		WARN(1, KERN_ERR "ODEBUG: selftest object not found\n");
 		goto out;
 	}
 	if (obj && obj->state != state) {
-		printk(KERN_ERR "ODEBUG: selftest wrong state: %d != %d\n",
+		WARN(1, KERN_ERR "ODEBUG: selftest wrong state: %d != %d\n",
 		       obj->state, state);
-		WARN_ON(1);
 		goto out;
 	}
 	if (fixups != debug_objects_fixups) {
-		printk(KERN_ERR "ODEBUG: selftest fixups failed %d != %d\n",
+		WARN(1, KERN_ERR "ODEBUG: selftest fixups failed %d != %d\n",
 		       fixups, debug_objects_fixups);
-		WARN_ON(1);
 		goto out;
 	}
 	if (warnings != debug_objects_warnings) {
-		printk(KERN_ERR "ODEBUG: selftest warnings failed %d != %d\n",
+		WARN(1, KERN_ERR "ODEBUG: selftest warnings failed %d != %d\n",
 		       warnings, debug_objects_warnings);
-		WARN_ON(1);
 		goto out;
 	}
 	res = 0;

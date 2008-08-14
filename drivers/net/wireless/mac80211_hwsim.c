@@ -364,8 +364,7 @@ static void mac80211_hwsim_free(void)
 			struct mac80211_hwsim_data *data;
 			data = hwsim_radios[i]->priv;
 			ieee80211_unregister_hw(hwsim_radios[i]);
-			if (!IS_ERR(data->dev))
-				device_unregister(data->dev);
+			device_unregister(data->dev);
 			ieee80211_free_hw(hwsim_radios[i]);
 		}
 	}
@@ -437,7 +436,7 @@ static int __init init_mac80211_hwsim(void)
 			       "mac80211_hwsim: device_create_drvdata "
 			       "failed (%ld)\n", PTR_ERR(data->dev));
 			err = -ENOMEM;
-			goto failed;
+			goto failed_drvdata;
 		}
 		data->dev->driver = &mac80211_hwsim_driver;
 
@@ -461,7 +460,7 @@ static int __init init_mac80211_hwsim(void)
 		if (err < 0) {
 			printk(KERN_DEBUG "mac80211_hwsim: "
 			       "ieee80211_register_hw failed (%d)\n", err);
-			goto failed;
+			goto failed_hw;
 		}
 
 		printk(KERN_DEBUG "%s: hwaddr %s registered\n",
@@ -479,9 +478,9 @@ static int __init init_mac80211_hwsim(void)
 	rtnl_lock();
 
 	err = dev_alloc_name(hwsim_mon, hwsim_mon->name);
-	if (err < 0) {
+	if (err < 0)
 		goto failed_mon;
-	}
+
 
 	err = register_netdevice(hwsim_mon);
 	if (err < 0)
@@ -494,7 +493,14 @@ static int __init init_mac80211_hwsim(void)
 failed_mon:
 	rtnl_unlock();
 	free_netdev(hwsim_mon);
+	mac80211_hwsim_free();
+	return err;
 
+failed_hw:
+	device_unregister(data->dev);
+failed_drvdata:
+	ieee80211_free_hw(hw);
+	hwsim_radios[i] = NULL;
 failed:
 	mac80211_hwsim_free();
 	return err;

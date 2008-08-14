@@ -262,7 +262,7 @@ static int __init hpp_probe1(struct net_device *dev, int ioaddr)
 	}
 
 	outw(Perf_Page, ioaddr + HP_PAGING);
-	NS8390_init(dev, 0);
+	NS8390p_init(dev, 0);
 	/* Leave the 8390 and HP chip reset. */
 	outw(inw(ioaddr + HPP_OPTION) & ~EnableIRQ, ioaddr + HPP_OPTION);
 

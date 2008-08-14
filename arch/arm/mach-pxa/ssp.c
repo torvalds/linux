@@ -14,13 +14,6 @@
  *  IO-based SSP applications and allows easy port setup for DMA access.
  *
  *  Author: Liam Girdwood <liam.girdwood@wolfsonmicro.com>
- *
- *  Revision history:
- *   22nd Aug 2003 Initial version.
- *   20th Dec 2004 Added ssp_config for changing port config without
- *                 closing the port.
- *    4th Aug 2005 Added option to disable irq handler registration and
- *                 cleaned up irq and clock detection.
  */
 
 #include <linux/module.h>
@@ -38,10 +31,10 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
-#include <asm/arch/ssp.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/regs-ssp.h>
+#include <mach/hardware.h>
+#include <mach/ssp.h>
+#include <mach/pxa-regs.h>
+#include <mach/regs-ssp.h>
 
 #define TIMEOUT 100000
 
@@ -285,7 +278,7 @@ int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags)
 			goto out_region;
 		dev->irq = ssp->irq;
 	} else
-		dev->irq = 0;
+		dev->irq = NO_IRQ;
 
 	/* turn on SSP port clock */
 	clk_enable(ssp->clk);
@@ -306,7 +299,8 @@ void ssp_exit(struct ssp_dev *dev)
 	struct ssp_device *ssp = dev->ssp;
 
 	ssp_disable(dev);
-	free_irq(dev->irq, dev);
+	if (dev->irq != NO_IRQ)
+		free_irq(dev->irq, dev);
 	clk_disable(ssp->clk);
 	ssp_free(ssp);
 }
@@ -360,6 +354,7 @@ static int __devinit ssp_probe(struct platform_device *pdev, int type)
 		dev_err(&pdev->dev, "failed to allocate memory");
 		return -ENOMEM;
 	}
+	ssp->pdev = pdev;
 
 	ssp->clk = clk_get(&pdev->dev, "SSPCLK");
 	if (IS_ERR(ssp->clk)) {

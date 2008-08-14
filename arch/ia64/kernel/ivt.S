@@ -1243,11 +1243,11 @@ ENTRY(speculation_vector)
 
 	add r17=r17,r18			// now add the offset
 	;;
-	MOV_FROM_IIP(r17)
+	MOV_TO_IIP(r17, r19)
 	dep r16=0,r16,41,2		// clear EI
 	;;
 
-	MOV_FROM_IPSR(p0, r16)
+	MOV_TO_IPSR(p0, r16, r19)
 	;;
 
 	RFI

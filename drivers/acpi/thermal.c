@@ -769,6 +769,47 @@ static void acpi_thermal_run(unsigned long data)
 		acpi_os_execute(OSL_GPE_HANDLER, acpi_thermal_check, (void *)data);
 }
 
+static void acpi_thermal_active_off(void *data)
+{
+	int result = 0;
+	struct acpi_thermal *tz = data;
+	int i = 0;
+	int j = 0;
+	struct acpi_thermal_active *active = NULL;
+
+	if (!tz) {
+		printk(KERN_ERR PREFIX "Invalid (NULL) context\n");
+		return;
+	}
+
+	result = acpi_thermal_get_temperature(tz);
+	if (result)
+		return;
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++) {
+		active = &(tz->trips.active[i]);
+		if (!active || !active->flags.valid)
+			break;
+		if (tz->temperature >= active->temperature) {
+			/*
+			 * If the thermal temperature is greater than the
+			 * active threshod, unnecessary to turn off the
+			 * the active cooling device.
+			 */
+			continue;
+		}
+		/*
+		 * Below Threshold?
+		 * ----------------
+		 * Turn OFF all cooling devices associated with this
+		 * threshold.
+		 */
+		for (j = 0; j < active->devices.count; j++)
+			result = acpi_bus_set_power(active->devices.handles[j],
+						    ACPI_STATE_D3);
+	}
+}
+
 static void acpi_thermal_check(void *data)
 {
 	int result = 0;
@@ -1179,8 +1220,8 @@ static int acpi_thermal_register_thermal_zone(struct acpi_thermal *tz)
 
 	tz->tz_enabled = 1;
 
-	printk(KERN_INFO PREFIX "%s is registered as thermal_zone%d\n",
-			tz->device->dev.bus_id, tz->thermal_zone->id);
+	dev_info(&tz->device->dev, "registered as thermal_zone%d\n",
+		 tz->thermal_zone->id);
 	return 0;
 }
 
@@ -1623,6 +1664,8 @@ static int acpi_thermal_add(struct acpi_device *device)
 		goto unregister_thermal_zone;
 
 	init_timer(&tz->timer);
+
+	acpi_thermal_active_off(tz);
 
 	acpi_thermal_check(tz);
 

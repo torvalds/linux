@@ -17,34 +17,32 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/mfd/htc-egpio.h>
 #include <linux/mfd/htc-pasic3.h>
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/map.h>
 #include <linux/mtd/physmap.h>
 #include <linux/pda_power.h>
 #include <linux/pwm_backlight.h>
 
-#include <asm/gpio.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/magician.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/ohci.h>
+#include <mach/magician.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxafb.h>
+#include <mach/i2c.h>
+#include <mach/mmc.h>
+#include <mach/irda.h>
+#include <mach/ohci.h>
 
 #include "devices.h"
 #include "generic.h"
 
-static unsigned long magician_pin_config[] = {
+static unsigned long magician_pin_config[] __initdata = {
 
 	/* SDRAM and Static Memory I/O Signals */
 	GPIO20_nSDCS_2,
@@ -134,6 +132,7 @@ static unsigned long magician_pin_config[] = {
 static void magician_irda_transceiver_mode(struct device *dev, int mode)
 {
 	gpio_set_value(GPIO83_MAGICIAN_nIR_EN, mode & IR_OFF);
+	pxa2xx_transceiver_mode(dev, mode);
 }
 
 static struct pxaficp_platform_data magician_ficp_info = {
@@ -399,6 +398,7 @@ static struct platform_pwm_backlight_data backlight_data = {
 
 static struct platform_device backlight = {
 	.name = "pwm-backlight",
+	.id   = -1,
 	.dev  = {
 		.parent        = &pxa27x_device_pwm0.dev,
 		.platform_data = &backlight_data,
@@ -511,6 +511,37 @@ static struct platform_device pasic3 = {
  * External power
  */
 
+static int power_supply_init(struct device *dev)
+{
+	int ret;
+
+	ret = gpio_request(EGPIO_MAGICIAN_CABLE_STATE_AC, "CABLE_STATE_AC");
+	if (ret)
+		goto err_cs_ac;
+	ret = gpio_request(EGPIO_MAGICIAN_CABLE_STATE_USB, "CABLE_STATE_USB");
+	if (ret)
+		goto err_cs_usb;
+	ret = gpio_request(EGPIO_MAGICIAN_CHARGE_EN, "CHARGE_EN");
+	if (ret)
+		goto err_chg_en;
+	ret = gpio_request(GPIO30_MAGICIAN_nCHARGE_EN, "nCHARGE_EN");
+	if (!ret)
+		ret = gpio_direction_output(GPIO30_MAGICIAN_nCHARGE_EN, 0);
+	if (ret)
+		goto err_nchg_en;
+
+	return 0;
+
+err_nchg_en:
+	gpio_free(EGPIO_MAGICIAN_CHARGE_EN);
+err_chg_en:
+	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_USB);
+err_cs_usb:
+	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_AC);
+err_cs_ac:
+	return ret;
+}
+
 static int magician_is_ac_online(void)
 {
 	return gpio_get_value(EGPIO_MAGICIAN_CABLE_STATE_AC);
@@ -527,14 +558,24 @@ static void magician_set_charge(int flags)
 	gpio_set_value(EGPIO_MAGICIAN_CHARGE_EN, flags);
 }
 
+static void power_supply_exit(struct device *dev)
+{
+	gpio_free(GPIO30_MAGICIAN_nCHARGE_EN);
+	gpio_free(EGPIO_MAGICIAN_CHARGE_EN);
+	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_USB);
+	gpio_free(EGPIO_MAGICIAN_CABLE_STATE_AC);
+}
+
 static char *magician_supplicants[] = {
 	"ds2760-battery.0", "backup-battery"
 };
 
 static struct pda_power_pdata power_supply_info = {
+	.init            = power_supply_init,
 	.is_ac_online    = magician_is_ac_online,
 	.is_usb_online   = magician_is_usb_online,
 	.set_charge      = magician_set_charge,
+	.exit            = power_supply_exit,
 	.supplied_to     = magician_supplicants,
 	.num_supplicants = ARRAY_SIZE(magician_supplicants),
 };

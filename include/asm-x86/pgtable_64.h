@@ -158,17 +158,17 @@ static inline void native_pgd_clear(pgd_t *pgd)
 
 static inline int pgd_bad(pgd_t pgd)
 {
-	return (pgd_val(pgd) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
+	return (pgd_val(pgd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
 static inline int pud_bad(pud_t pud)
 {
-	return (pud_val(pud) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
+	return (pud_val(pud) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
 static inline int pmd_bad(pmd_t pmd)
 {
-	return (pmd_val(pmd) & ~(PTE_MASK | _PAGE_USER)) != _KERNPG_TABLE;
+	return (pmd_val(pmd) & ~(PTE_PFN_MASK | _PAGE_USER)) != _KERNPG_TABLE;
 }
 
 #define pte_none(x)	(!pte_val((x)))
@@ -193,7 +193,7 @@ static inline int pmd_bad(pmd_t pmd)
  * Level 4 access.
  */
 #define pgd_page_vaddr(pgd)						\
-	((unsigned long)__va((unsigned long)pgd_val((pgd)) & PTE_MASK))
+	((unsigned long)__va((unsigned long)pgd_val((pgd)) & PTE_PFN_MASK))
 #define pgd_page(pgd)		(pfn_to_page(pgd_val((pgd)) >> PAGE_SHIFT))
 #define pgd_present(pgd) (pgd_val(pgd) & _PAGE_PRESENT)
 static inline int pgd_large(pgd_t pgd) { return 0; }
@@ -216,7 +216,7 @@ static inline int pud_large(pud_t pte)
 }
 
 /* PMD  - Level 2 access */
-#define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val((pmd)) & PTE_MASK))
+#define pmd_page_vaddr(pmd) ((unsigned long) __va(pmd_val((pmd)) & PTE_PFN_MASK))
 #define pmd_page(pmd)		(pfn_to_page(pmd_val((pmd)) >> PAGE_SHIFT))
 
 #define pmd_index(address) (((address) >> PMD_SHIFT) & (PTRS_PER_PMD - 1))

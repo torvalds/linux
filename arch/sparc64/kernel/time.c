@@ -33,6 +33,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/clocksource.h>
+#include <linux/of_device.h>
 
 #include <asm/oplib.h>
 #include <asm/mostek.h>
@@ -40,7 +41,6 @@
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/starfire.h>
 #include <asm/smp.h>
 #include <asm/sections.h>
@@ -884,6 +884,16 @@ static struct notifier_block sparc64_cpufreq_notifier_block = {
 	.notifier_call	= sparc64_cpufreq_notifier
 };
 
+static int __init register_sparc64_cpufreq_notifier(void)
+{
+
+	cpufreq_register_notifier(&sparc64_cpufreq_notifier_block,
+				  CPUFREQ_TRANSITION_NOTIFIER);
+	return 0;
+}
+
+core_initcall(register_sparc64_cpufreq_notifier);
+
 #endif /* CONFIG_CPU_FREQ */
 
 static int sparc64_next_event(unsigned long delta,
@@ -1050,11 +1060,6 @@ void __init time_init(void)
 	       sparc64_clockevent.mult, sparc64_clockevent.shift);
 
 	setup_sparc64_timer();
-
-#ifdef CONFIG_CPU_FREQ
-	cpufreq_register_notifier(&sparc64_cpufreq_notifier_block,
-				  CPUFREQ_TRANSITION_NOTIFIER);
-#endif
 }
 
 unsigned long long sched_clock(void)

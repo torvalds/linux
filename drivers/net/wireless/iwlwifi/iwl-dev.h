@@ -36,7 +36,7 @@
 #include <linux/kernel.h>
 #include <net/ieee80211_radiotap.h>
 
-#define DRV_NAME        "iwl4965"
+#define DRV_NAME        "iwlagn"
 #include "iwl-rfkill.h"
 #include "iwl-eeprom.h"
 #include "iwl-4965-hw.h"
@@ -45,6 +45,7 @@
 #include "iwl-debug.h"
 #include "iwl-led.h"
 #include "iwl-power.h"
+#include "iwl-agn-rs.h"
 
 /* configuration for the iwl4965 */
 extern struct iwl_cfg iwl4965_agn_cfg;
@@ -134,8 +135,7 @@ struct iwl_tx_info {
 struct iwl_tx_queue {
 	struct iwl_queue q;
 	struct iwl_tfd_frame *bd;
-	struct iwl_cmd *cmd;
-	dma_addr_t dma_addr_cmd;
+	struct iwl_cmd *cmd[TFD_TX_CMD_SLOTS];
 	struct iwl_tx_info *txb;
 	int need_update;
 	int sched_retry;
@@ -191,7 +191,6 @@ struct iwl4965_clip_group {
 	const s8 clip_powers[IWL_MAX_RATES];
 };
 
-#include "iwl-4965-rs.h"
 
 #define IWL_TX_FIFO_AC0	0
 #define IWL_TX_FIFO_AC1	1
@@ -219,7 +218,7 @@ enum iwl_pwr_src {
 struct iwl_frame {
 	union {
 		struct ieee80211_hdr frame;
-		struct iwl4965_tx_beacon_cmd beacon;
+		struct iwl_tx_beacon_cmd beacon;
 		u8 raw[IEEE80211_FRAME_LEN];
 		u8 cmd[360];
 	} u;
@@ -283,10 +282,9 @@ struct iwl_cmd {
 		u32 val32;
 		struct iwl4965_bt_cmd bt;
 		struct iwl4965_rxon_time_cmd rxon_time;
-		struct iwl4965_powertable_cmd powertable;
+		struct iwl_powertable_cmd powertable;
 		struct iwl_qosparam_cmd qosparam;
 		struct iwl_tx_cmd tx;
-		struct iwl4965_tx_beacon_cmd tx_beacon;
 		struct iwl4965_rxon_assoc_cmd rxon_assoc;
 		struct iwl_rem_sta_cmd rm_sta;
 		u8 *indirect;
@@ -590,6 +588,7 @@ extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
 					const u8 *dest, int left);
 extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
 int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
+extern int iwl4965_set_power(struct iwl_priv *priv, void *cmd);
 
 extern const u8 iwl_bcast_addr[ETH_ALEN];
 
@@ -642,10 +641,6 @@ struct iwl_priv;
  * Forward declare iwl-4965.c functions for iwl-base.c
  */
 extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
-
-int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
-				    enum ieee80211_ampdu_mlme_action action,
-				    const u8 *addr, u16 tid, u16 *ssn);
 int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
 					u8 tid, int txq_id);
 
@@ -812,14 +807,11 @@ struct iwl_chain_noise_data {
 #define EEPROM_SEM_RETRY_LIMIT 1000	/* number of attempts (not time) */
 
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
-
 enum {
 	MEASUREMENT_READY = (1 << 0),
 	MEASUREMENT_ACTIVE = (1 << 1),
 };
 
-#endif
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
 
@@ -844,7 +836,7 @@ struct iwl_priv {
 
 	struct ieee80211_supported_band bands[IEEE80211_NUM_BANDS];
 
-#ifdef CONFIG_IWL4965_SPECTRUM_MEASUREMENT
+#ifdef CONFIG_IWLAGN_SPECTRUM_MEASUREMENT
 	/* spectrum measurement report caching */
 	struct iwl4965_spectrum_notification measure_report;
 	u8 measurement_status;

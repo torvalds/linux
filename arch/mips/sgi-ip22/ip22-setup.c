@@ -20,7 +20,6 @@
 #include <asm/irq.h>
 #include <asm/reboot.h>
 #include <asm/time.h>
-#include <asm/gdb-stub.h>
 #include <asm/io.h>
 #include <asm/traps.h>
 #include <asm/sgialib.h>
@@ -80,30 +79,6 @@ void __init plat_mem_setup(void)
 		prom_flags |= PROM_FLAG_USE_AS_CONSOLE;
 		add_preferred_console("arc", 0, NULL);
 	}
-
-#ifdef CONFIG_KGDB
-	{
-	char *kgdb_ttyd = prom_getcmdline();
-
-	if ((kgdb_ttyd = strstr(kgdb_ttyd, "kgdb=ttyd")) != NULL) {
-		int line;
-		kgdb_ttyd += strlen("kgdb=ttyd");
-		if (*kgdb_ttyd != '1' && *kgdb_ttyd != '2')
-			printk(KERN_INFO "KGDB: Uknown serial line /dev/ttyd%c"
-			       ", falling back to /dev/ttyd1\n", *kgdb_ttyd);
-		line = *kgdb_ttyd == '2' ? 0 : 1;
-		printk(KERN_INFO "KGDB: Using serial line /dev/ttyd%d for "
-		       "session\n", line ? 1 : 2);
-		rs_kgdb_hook(line);
-
-		printk(KERN_INFO "KGDB: Using serial line /dev/ttyd%d for "
-		       "session, please connect your debugger\n", line ? 1:2);
-
-		kgdb_enabled = 1;
-		/* Breakpoints and stuff are in sgi_irq_setup() */
-	}
-	}
-#endif
 
 #if defined(CONFIG_VT) && defined(CONFIG_SGI_NEWPORT_CONSOLE)
 	{

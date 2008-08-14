@@ -27,11 +27,11 @@
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 void s3c2410_gpio_cfgpin(unsigned int pin, unsigned int function)
 {

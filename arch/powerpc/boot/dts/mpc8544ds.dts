@@ -54,6 +54,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
+		compatible = "simple-bus";
 
 		ranges = <0x0 0xe0000000 0x100000>;
 		reg = <0xe0000000 0x1000>;	// CCSRBAR 1M

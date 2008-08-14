@@ -13,7 +13,6 @@
 #include <linux/module.h>
 #include <linux/sched.h>
 #include <linux/stacktrace.h>
-#include <linux/module.h>
 #include <asm/ptrace.h>
 #include <asm/processor.h>
 
@@ -59,6 +58,6 @@ EXPORT_SYMBOL_GPL(save_stack_trace);
 
 void save_stack_trace_tsk(struct task_struct *tsk, struct stack_trace *trace)
 {
-	save_context_stack(trace, tsk->thread.regs->gpr[1], tsk, 0);
+	save_context_stack(trace, tsk->thread.ksp, tsk, 0);
 }
 EXPORT_SYMBOL_GPL(save_stack_trace_tsk);

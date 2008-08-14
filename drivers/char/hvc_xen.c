@@ -100,6 +100,8 @@ static int read_console(uint32_t vtermno, char *buf, int len)
 static struct hv_ops hvc_ops = {
 	.get_chars = read_console,
 	.put_chars = write_console,
+	.notifier_add = notifier_add_irq,
+	.notifier_del = notifier_del_irq,
 };
 
 static int __init xen_init(void)

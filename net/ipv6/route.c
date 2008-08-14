@@ -978,13 +978,12 @@ out:
 	return &rt->u.dst;
 }
 
-int icmp6_dst_gc(int *more)
+int icmp6_dst_gc(void)
 {
 	struct dst_entry *dst, *next, **pprev;
-	int freed;
+	int more = 0;
 
 	next = NULL;
-	freed = 0;
 
 	spin_lock_bh(&icmp6_dst_lock);
 	pprev = &icmp6_dst_gc_list;
@@ -993,16 +992,15 @@ int icmp6_dst_gc(int *more)
 		if (!atomic_read(&dst->__refcnt)) {
 			*pprev = dst->next;
 			dst_free(dst);
-			freed++;
 		} else {
 			pprev = &dst->next;
-			(*more)++;
+			++more;
 		}
 	}
 
 	spin_unlock_bh(&icmp6_dst_lock);
 
-	return freed;
+	return more;
 }
 
 static int ip6_dst_gc(struct dst_ops *ops)
@@ -1251,7 +1249,7 @@ install_route:
 
 	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = -1;
-	if (!dst_metric(&rt->u.dst, RTAX_MTU))
+	if (!dst_mtu(&rt->u.dst))
 		rt->u.dst.metrics[RTAX_MTU-1] = ipv6_get_mtu(dev);
 	if (!dst_metric(&rt->u.dst, RTAX_ADVMSS))
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = ipv6_advmss(net, dst_mtu(&rt->u.dst));

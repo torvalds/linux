@@ -879,7 +879,7 @@ int fb_parse_edid(unsigned char *edid, struct fb_var_screeninfo *var)
 		if (edid_is_timing_block(block)) {
 			var->xres = var->xres_virtual = H_ACTIVE;
 			var->yres = var->yres_virtual = V_ACTIVE;
-			var->height = var->width = -1;
+			var->height = var->width = 0;
 			var->right_margin = H_SYNC_OFFSET;
 			var->left_margin = (H_ACTIVE + H_BLANKING) -
 				(H_ACTIVE + H_SYNC_OFFSET + H_SYNC_WIDTH);

@@ -36,12 +36,12 @@
 #include <linux/pci.h>		/* struct pci_dev */
 #include <linux/proc_fs.h>
 #include <linux/scatterlist.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/vaddrs.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/sbus.h>
 #include <asm/page.h>
 #include <asm/pgalloc.h>

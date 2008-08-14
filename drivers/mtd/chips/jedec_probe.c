@@ -1,7 +1,6 @@
 /*
    Common Flash Interface probe code.
    (C) 2000 Red Hat. GPL'd.
-   $Id: jedec_probe.c,v 1.66 2005/11/07 11:14:23 gleixner Exp $
    See JEDEC (http://www.jedec.org/) standard JESD21C (section 3.5)
    for the standard this probe goes back to.
 
@@ -26,6 +25,7 @@
 /* Manufacturers */
 #define MANUFACTURER_AMD	0x0001
 #define MANUFACTURER_ATMEL	0x001f
+#define MANUFACTURER_EON	0x001c
 #define MANUFACTURER_FUJITSU	0x0004
 #define MANUFACTURER_HYUNDAI	0x00AD
 #define MANUFACTURER_INTEL	0x0089
@@ -37,10 +37,11 @@
 #define MANUFACTURER_ST		0x0020
 #define MANUFACTURER_TOSHIBA	0x0098
 #define MANUFACTURER_WINBOND	0x00da
+#define CONTINUATION_CODE	0x007f
 
 
 /* AMD */
-#define AM29DL800BB	0x22C8
+#define AM29DL800BB	0x22CB
 #define AM29DL800BT	0x224A
 
 #define AM29F800BB	0x2258
@@ -58,6 +59,8 @@
 #define AM29LV040B	0x004F
 #define AM29F032B	0x0041
 #define AM29F002T	0x00B0
+#define AM29SL800DB	0x226B
+#define AM29SL800DT	0x22EA
 
 /* Atmel */
 #define AT49BV512	0x0003
@@ -66,6 +69,10 @@
 #define AT49BV16XT	0x00C2
 #define AT49BV32X	0x00C8
 #define AT49BV32XT	0x00C9
+
+/* Eon */
+#define EN29SL800BB	0x226B
+#define EN29SL800BT	0x22EA
 
 /* Fujitsu */
 #define MBM29F040C	0x00A4
@@ -141,6 +148,8 @@
 #define M50FW080	0x002D
 #define M50FW016	0x002E
 #define M50LPW080       0x002F
+#define M50FLW080A	0x0080
+#define M50FLW080B	0x0081
 
 /* SST */
 #define SST29EE020	0x0010
@@ -191,6 +200,7 @@ enum uaddr {
 	MTD_UADDR_0x0555_0x0AAA,
 	MTD_UADDR_0x5555_0x2AAA,
 	MTD_UADDR_0x0AAA_0x0555,
+	MTD_UADDR_0xAAAA_0x5555,
 	MTD_UADDR_DONT_CARE,		/* Requires an arbitrary address */
 	MTD_UADDR_UNNECESSARY,		/* Does not require any address */
 };
@@ -236,6 +246,11 @@ static const struct unlock_addr  unlock_addrs[] = {
 	[MTD_UADDR_0x0AAA_0x0555] = {
 		.addr1 = 0x0AAA,
 		.addr2 = 0x0555
+	},
+
+	[MTD_UADDR_0xAAAA_0x5555] = {
+		.addr1 = 0xaaaa,
+		.addr2 = 0x5555
 	},
 
 	[MTD_UADDR_DONT_CARE] = {
@@ -522,6 +537,36 @@ static const struct amd_flash_info jedec_table[] = {
 			ERASEINFO(0x04000,1),
 		}
 	}, {
+		.mfr_id		= MANUFACTURER_AMD,
+		.dev_id		= AM29SL800DT,
+		.name		= "AMD AM29SL800DT",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x10000,15),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_AMD,
+		.dev_id		= AM29SL800DB,
+		.name		= "AMD AM29SL800DB",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x04000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x10000,15),
+		}
+	}, {
 		.mfr_id		= MANUFACTURER_ATMEL,
 		.dev_id		= AT49BV512,
 		.name		= "Atmel AT49BV512",
@@ -597,6 +642,36 @@ static const struct amd_flash_info jedec_table[] = {
 		.regions	= {
 			ERASEINFO(0x10000,63),
 			ERASEINFO(0x02000,8)
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_EON,
+		.dev_id		= EN29SL800BT,
+		.name		= "Eon EN29SL800BT",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x10000,15),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x04000,1),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_EON,
+		.dev_id		= EN29SL800BB,
+		.name		= "Eon EN29SL800BB",
+		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_AMD_STD,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x04000,1),
+			ERASEINFO(0x02000,2),
+			ERASEINFO(0x08000,1),
+			ERASEINFO(0x10000,15),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_FUJITSU,
@@ -1392,8 +1467,8 @@ static const struct amd_flash_info jedec_table[] = {
 		.mfr_id		= MANUFACTURER_SST,     /* should be CFI */
 		.dev_id		= SST39LF160,
 		.name		= "SST 39LF160",
-		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
+		.devtypes	= CFI_DEVICETYPE_X16,
+		.uaddr		= MTD_UADDR_0xAAAA_0x5555,
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1405,8 +1480,8 @@ static const struct amd_flash_info jedec_table[] = {
 		.mfr_id		= MANUFACTURER_SST,     /* should be CFI */
 		.dev_id		= SST39VF1601,
 		.name		= "SST 39VF1601",
-		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
+		.devtypes	= CFI_DEVICETYPE_X16,
+		.uaddr		= MTD_UADDR_0xAAAA_0x5555,
 		.dev_size	= SIZE_2MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 2,
@@ -1590,6 +1665,36 @@ static const struct amd_flash_info jedec_table[] = {
 		.nr_regions	= 1,
 		.regions	= {
 			ERASEINFO(0x10000,16),
+		},
+	}, {
+		.mfr_id		= MANUFACTURER_ST,
+		.dev_id		= M50FLW080A,
+		.name		= "ST M50FLW080A",
+		.devtypes	= CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_UNNECESSARY,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_INTEL_EXT,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x10000,13),
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x1000,16),
+		}
+	}, {
+		.mfr_id		= MANUFACTURER_ST,
+		.dev_id		= M50FLW080B,
+		.name		= "ST M50FLW080B",
+		.devtypes	= CFI_DEVICETYPE_X8,
+		.uaddr		= MTD_UADDR_UNNECESSARY,
+		.dev_size	= SIZE_1MiB,
+		.cmd_set	= P_ID_INTEL_EXT,
+		.nr_regions	= 4,
+		.regions	= {
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x1000,16),
+			ERASEINFO(0x10000,13),
+			ERASEINFO(0x1000,16),
 		}
 	}, {
 		.mfr_id		= MANUFACTURER_TOSHIBA,
@@ -1696,9 +1801,21 @@ static inline u32 jedec_read_mfr(struct map_info *map, uint32_t base,
 {
 	map_word result;
 	unsigned long mask;
-	u32 ofs = cfi_build_cmd_addr(0, cfi_interleave(cfi), cfi->device_type);
-	mask = (1 << (cfi->device_type * 8)) -1;
-	result = map_read(map, base + ofs);
+	int bank = 0;
+
+	/* According to JEDEC "Standard Manufacturer's Identification Code"
+	 * (http://www.jedec.org/download/search/jep106W.pdf)
+	 * several first banks can contain 0x7f instead of actual ID
+	 */
+	do {
+		uint32_t ofs = cfi_build_cmd_addr(0 + (bank << 8),
+						  cfi_interleave(cfi),
+						  cfi->device_type);
+		mask = (1 << (cfi->device_type * 8)) - 1;
+		result = map_read(map, base + ofs);
+		bank++;
+	} while ((result.x[0] & mask) == CONTINUATION_CODE);
+
 	return result.x[0] & mask;
 }
 

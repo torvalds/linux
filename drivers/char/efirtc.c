@@ -37,8 +37,8 @@
 #include <linux/rtc.h>
 #include <linux/proc_fs.h>
 #include <linux/efi.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/system.h>
 
 #define EFI_RTC_VERSION		"0.4"
@@ -51,8 +51,8 @@
 
 static DEFINE_SPINLOCK(efi_rtc_lock);
 
-static int efi_rtc_ioctl(struct inode *inode, struct file *file,
-		     unsigned int cmd, unsigned long arg);
+static long efi_rtc_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg);
 
 #define is_leap(year) \
           ((year) % 4 == 0 && ((year) % 100 != 0 || (year) % 400 == 0))
@@ -146,9 +146,8 @@ convert_from_efi_time(efi_time_t *eft, struct rtc_time *wtime)
 	}
 }
 
-static int
-efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
-		     unsigned long arg)
+static long efi_rtc_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 
 	efi_status_t	status;
@@ -175,13 +174,13 @@ efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			return -EINVAL;
 
 		case RTC_RD_TIME:
-
+			lock_kernel();
 			spin_lock_irqsave(&efi_rtc_lock, flags);
 
 			status = efi.get_time(&eft, &cap);
 
 			spin_unlock_irqrestore(&efi_rtc_lock,flags);
-
+			unlock_kernel();
 			if (status != EFI_SUCCESS) {
 				/* should never happen */
 				printk(KERN_ERR "efitime: can't read time\n");
@@ -203,11 +202,13 @@ efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 			convert_to_efi_time(&wtime, &eft);
 
+			lock_kernel();
 			spin_lock_irqsave(&efi_rtc_lock, flags);
 
 			status = efi.set_time(&eft);
 
 			spin_unlock_irqrestore(&efi_rtc_lock,flags);
+			unlock_kernel();
 
 			return status == EFI_SUCCESS ? 0 : -EINVAL;
 
@@ -223,6 +224,7 @@ efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 
 			convert_to_efi_time(&wtime, &eft);
 
+			lock_kernel();
 			spin_lock_irqsave(&efi_rtc_lock, flags);
 			/*
 			 * XXX Fixme:
@@ -233,16 +235,19 @@ efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			status = efi.set_wakeup_time((efi_bool_t)enabled, &eft);
 
 			spin_unlock_irqrestore(&efi_rtc_lock,flags);
+			unlock_kernel();
 
 			return status == EFI_SUCCESS ? 0 : -EINVAL;
 
 		case RTC_WKALM_RD:
 
+			lock_kernel();
 			spin_lock_irqsave(&efi_rtc_lock, flags);
 
 			status = efi.get_wakeup_time((efi_bool_t *)&enabled, (efi_bool_t *)&pending, &eft);
 
 			spin_unlock_irqrestore(&efi_rtc_lock,flags);
+			unlock_kernel();
 
 			if (status != EFI_SUCCESS) return -EINVAL;
 
@@ -256,7 +261,7 @@ efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
 			return copy_to_user(&ewp->time, &wtime,
 					    sizeof(struct rtc_time)) ? -EFAULT : 0;
 	}
-	return -EINVAL;
+	return -ENOTTY;
 }
 
 /*
@@ -265,8 +270,7 @@ efi_rtc_ioctl(struct inode *inode, struct file *file, unsigned int cmd,
  *	up things on a close.
  */
 
-static int
-efi_rtc_open(struct inode *inode, struct file *file)
+static int efi_rtc_open(struct inode *inode, struct file *file)
 {
 	/*
 	 * nothing special to do here
@@ -277,8 +281,7 @@ efi_rtc_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static int
-efi_rtc_close(struct inode *inode, struct file *file)
+static int efi_rtc_close(struct inode *inode, struct file *file)
 {
 	return 0;
 }
@@ -289,13 +292,12 @@ efi_rtc_close(struct inode *inode, struct file *file)
 
 static const struct file_operations efi_rtc_fops = {
 	.owner		= THIS_MODULE,
-	.ioctl		= efi_rtc_ioctl,
+	.unlocked_ioctl	= efi_rtc_ioctl,
 	.open		= efi_rtc_open,
 	.release	= efi_rtc_close,
 };
 
-static struct miscdevice efi_rtc_dev=
-{
+static struct miscdevice efi_rtc_dev= {
 	EFI_RTC_MINOR,
 	"efirtc",
 	&efi_rtc_fops

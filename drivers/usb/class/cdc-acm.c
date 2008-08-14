@@ -732,13 +732,16 @@ static void acm_tty_unthrottle(struct tty_struct *tty)
 	tasklet_schedule(&acm->urb_task);
 }
 
-static void acm_tty_break_ctl(struct tty_struct *tty, int state)
+static int acm_tty_break_ctl(struct tty_struct *tty, int state)
 {
 	struct acm *acm = tty->driver_data;
+	int retval;
 	if (!ACM_READY(acm))
-		return;
-	if (acm_send_break(acm, state ? 0xffff : 0))
+		return -EINVAL;
+	retval = acm_send_break(acm, state ? 0xffff : 0);
+	if (retval < 0)
 		dbg("send break failed");
+	return retval;
 }
 
 static int acm_tty_tiocmget(struct tty_struct *tty, struct file *file)

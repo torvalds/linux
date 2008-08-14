@@ -920,9 +920,6 @@ static int load_flat_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 	
 	start_thread(regs, start_addr, current->mm->start_stack);
 
-	if (current->ptrace & PT_PTRACED)
-		send_sig(SIGTRAP, current, 0);
-
 	return 0;
 }
 

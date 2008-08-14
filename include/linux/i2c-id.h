@@ -39,7 +39,6 @@
 #define I2C_DRIVERID_SAA7111A	 8	/* video input processor	*/
 #define I2C_DRIVERID_SAA7185B	13	/* video encoder		*/
 #define I2C_DRIVERID_SAA7110	22	/* video decoder		*/
-#define I2C_DRIVERID_MGATVO	23	/* Matrox TVOut			*/
 #define I2C_DRIVERID_SAA5249	24	/* SAA5249 and compatibles	*/
 #define I2C_DRIVERID_PCF8583	25	/* real time clock		*/
 #define I2C_DRIVERID_SAB3036	26	/* SAB3036 tuner		*/
@@ -95,7 +94,6 @@
 #define I2C_HW_B_BT848		0x010005 /* BT848 video boards */
 #define I2C_HW_B_VIA		0x010007 /* Via vt82c586b */
 #define I2C_HW_B_HYDRA		0x010008 /* Apple Hydra Mac I/O */
-#define I2C_HW_B_G400		0x010009 /* Matrox G400 */
 #define I2C_HW_B_I810		0x01000a /* Intel I810 */
 #define I2C_HW_B_VOO		0x01000b /* 3dfx Voodoo 3 / Banshee */
 #define I2C_HW_B_SCX200		0x01000e /* Nat'l Semi SCx200 I2C */

@@ -102,7 +102,7 @@ void sigio_handler(int sig, struct uml_pt_regs *regs)
 
 static DEFINE_SPINLOCK(irq_lock);
 
-int activate_fd(int irq, int fd, int type, void *dev_id)
+static int activate_fd(int irq, int fd, int type, void *dev_id)
 {
 	struct pollfd *tmp_pfd;
 	struct irq_fd *new_fd, *irq_fd;
@@ -216,7 +216,7 @@ static int same_irq_and_dev(struct irq_fd *irq, void *d)
 	return ((irq->irq == data->irq) && (irq->id == data->dev));
 }
 
-void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
+static void free_irq_by_irq_and_dev(unsigned int irq, void *dev)
 {
 	struct irq_and_dev data = ((struct irq_and_dev) { .irq  = irq,
 							  .dev  = dev });
@@ -401,37 +401,6 @@ void __init init_IRQ(void)
 		irq_desc[i].chip = &normal_irq_type;
 		enable_irq(i);
 	}
-}
-
-int init_aio_irq(int irq, char *name, irq_handler_t handler)
-{
-	int fds[2], err;
-
-	err = os_pipe(fds, 1, 1);
-	if (err) {
-		printk(KERN_ERR "init_aio_irq - os_pipe failed, err = %d\n",
-		       -err);
-		goto out;
-	}
-
-	err = um_request_irq(irq, fds[0], IRQ_READ, handler,
-			     IRQF_DISABLED | IRQF_SAMPLE_RANDOM, name,
-			     (void *) (long) fds[0]);
-	if (err) {
-		printk(KERN_ERR "init_aio_irq - : um_request_irq failed, "
-		       "err = %d\n",
-		       err);
-		goto out_close;
-	}
-
-	err = fds[1];
-	goto out;
-
- out_close:
-	os_close_file(fds[0]);
-	os_close_file(fds[1]);
- out:
-	return err;
 }
 
 /*

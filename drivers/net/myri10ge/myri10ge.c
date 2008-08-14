@@ -125,7 +125,6 @@ struct myri10ge_cmd {
 
 struct myri10ge_rx_buf {
 	struct mcp_kreq_ether_recv __iomem *lanai;	/* lanai ptr for recv ring */
-	u8 __iomem *wc_fifo;	/* w/c rx dma addr fifo address */
 	struct mcp_kreq_ether_recv *shadow;	/* host shadow of recv ring */
 	struct myri10ge_rx_buffer_state *info;
 	struct page *page;
@@ -140,7 +139,6 @@ struct myri10ge_rx_buf {
 
 struct myri10ge_tx_buf {
 	struct mcp_kreq_ether_send __iomem *lanai;	/* lanai ptr for sendq */
-	u8 __iomem *wc_fifo;	/* w/c send fifo address */
 	struct mcp_kreq_ether_send *req_list;	/* host shadow of sendq */
 	char *req_bytes;
 	struct myri10ge_tx_buffer_state *info;
@@ -331,10 +329,6 @@ module_param(myri10ge_fill_thresh, int, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(myri10ge_fill_thresh, "Number of empty rx slots allowed");
 
 static int myri10ge_reset_recover = 1;
-
-static int myri10ge_wcfifo = 0;
-module_param(myri10ge_wcfifo, int, S_IRUGO);
-MODULE_PARM_DESC(myri10ge_wcfifo, "Enable WC Fifo when WC is enabled");
 
 static int myri10ge_max_slices = 1;
 module_param(myri10ge_max_slices, int, S_IRUGO);
@@ -1218,14 +1212,8 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 		/* copy 8 descriptors to the firmware at a time */
 		if ((idx & 7) == 7) {
-			if (rx->wc_fifo == NULL)
-				myri10ge_submit_8rx(&rx->lanai[idx - 7],
-						    &rx->shadow[idx - 7]);
-			else {
-				mb();
-				myri10ge_pio_copy(rx->wc_fifo,
-						  &rx->shadow[idx - 7], 64);
-			}
+			myri10ge_submit_8rx(&rx->lanai[idx - 7],
+					    &rx->shadow[idx - 7]);
 		}
 	}
 }
@@ -2229,18 +2217,6 @@ static int myri10ge_get_txrx(struct myri10ge_priv *mgp, int slice)
 	ss->rx_big.lanai = (struct mcp_kreq_ether_recv __iomem *)
 	    (mgp->sram + cmd.data0);
 
-	if (myri10ge_wcfifo && mgp->wc_enabled) {
-		ss->tx.wc_fifo = (u8 __iomem *)
-		    mgp->sram + MXGEFW_ETH_SEND_4 + 64 * slice;
-		ss->rx_small.wc_fifo = (u8 __iomem *)
-		    mgp->sram + MXGEFW_ETH_RECV_SMALL + 64 * slice;
-		ss->rx_big.wc_fifo = (u8 __iomem *)
-		    mgp->sram + MXGEFW_ETH_RECV_BIG + 64 * slice;
-	} else {
-		ss->tx.wc_fifo = NULL;
-		ss->rx_small.wc_fifo = NULL;
-		ss->rx_big.wc_fifo = NULL;
-	}
 	return status;
 
 }
@@ -2573,27 +2549,6 @@ myri10ge_submit_req(struct myri10ge_tx_buf *tx, struct mcp_kreq_ether_send *src,
 	mb();
 }
 
-static inline void
-myri10ge_submit_req_wc(struct myri10ge_tx_buf *tx,
-		       struct mcp_kreq_ether_send *src, int cnt)
-{
-	tx->req += cnt;
-	mb();
-	while (cnt >= 4) {
-		myri10ge_pio_copy(tx->wc_fifo, src, 64);
-		mb();
-		src += 4;
-		cnt -= 4;
-	}
-	if (cnt > 0) {
-		/* pad it to 64 bytes.  The src is 64 bytes bigger than it
-		 * needs to be so that we don't overrun it */
-		myri10ge_pio_copy(tx->wc_fifo + MXGEFW_ETH_SEND_OFFSET(cnt),
-				  src, 64);
-		mb();
-	}
-}
-
 /*
  * Transmit a packet.  We need to split the packet so that a single
  * segment does not cross myri10ge->tx_boundary, so this makes segment
@@ -2830,10 +2785,7 @@ again:
 					 MXGEFW_FLAGS_FIRST)));
 	idx = ((count - 1) + tx->req) & tx->mask;
 	tx->info[idx].last = 1;
-	if (tx->wc_fifo == NULL)
-		myri10ge_submit_req(tx, tx->req_list, count);
-	else
-		myri10ge_submit_req_wc(tx, tx->req_list, count);
+	myri10ge_submit_req(tx, tx->req_list, count);
 	tx->pkt_start++;
 	if ((avail - count) < MXGEFW_MAX_SEND_DESC) {
 		tx->stop_queue++;
@@ -3747,6 +3699,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
 		goto abort_with_netdev;
 	}
+	(void)pci_set_consistent_dma_mask(pdev, DMA_64BIT_MASK);
 	mgp->cmd = dma_alloc_coherent(&pdev->dev, sizeof(*mgp->cmd),
 				      &mgp->cmd_bus, GFP_KERNEL);
 	if (mgp->cmd == NULL)
@@ -3768,14 +3721,14 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (mgp->sram_size > mgp->board_span) {
 		dev_err(&pdev->dev, "board span %ld bytes too small\n",
 			mgp->board_span);
-		goto abort_with_wc;
+		goto abort_with_mtrr;
 	}
-	mgp->sram = ioremap(mgp->iomem_base, mgp->board_span);
+	mgp->sram = ioremap_wc(mgp->iomem_base, mgp->board_span);
 	if (mgp->sram == NULL) {
 		dev_err(&pdev->dev, "ioremap failed for %ld bytes at 0x%lx\n",
 			mgp->board_span, mgp->iomem_base);
 		status = -ENXIO;
-		goto abort_with_wc;
+		goto abort_with_mtrr;
 	}
 	memcpy_fromio(mgp->eeprom_strings,
 		      mgp->sram + mgp->sram_size - MYRI10GE_EEPROM_STRINGS_SIZE,
@@ -3876,7 +3829,7 @@ abort_with_firmware:
 abort_with_ioremap:
 	iounmap(mgp->sram);
 
-abort_with_wc:
+abort_with_mtrr:
 #ifdef CONFIG_MTRR
 	if (mgp->mtrr >= 0)
 		mtrr_del(mgp->mtrr, mgp->iomem_base, mgp->board_span);

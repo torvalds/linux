@@ -942,8 +942,7 @@ static int iwcm_init_qp_init_attr(struct iwcm_id_private *cm_id_priv,
 	case IW_CM_STATE_CONN_RECV:
 	case IW_CM_STATE_ESTABLISHED:
 		*qp_attr_mask = IB_QP_STATE | IB_QP_ACCESS_FLAGS;
-		qp_attr->qp_access_flags = IB_ACCESS_LOCAL_WRITE |
-					   IB_ACCESS_REMOTE_WRITE|
+		qp_attr->qp_access_flags = IB_ACCESS_REMOTE_WRITE|
 					   IB_ACCESS_REMOTE_READ;
 		ret = 0;
 		break;

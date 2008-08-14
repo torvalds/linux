@@ -41,22 +41,6 @@ config HCALL_STATS
 	  This option will add a small amount of overhead to all hypervisor
 	  calls.
 
-config DEBUGGER
-	bool "Enable debugger hooks"
-	depends on DEBUG_KERNEL
-	help
-	  Include in-kernel hooks for kernel debuggers. Unless you are
-	  intending to debug the kernel, say N here.
-
-config KGDB
-	bool "Include kgdb kernel debugger"
-	depends on DEBUGGER && (BROKEN || PPC_GEN550 || 4xx)
-	select DEBUG_INFO
-	help
-	  Include in-kernel hooks for kgdb, the Linux kernel source level
-	  debugger.  See <http://kgdb.sourceforge.net/> for more information.
-	  Unless you are intending to debug the kernel, say N here.
-
 config CODE_PATCHING_SELFTEST
 	bool "Run self-tests of the code-patching code."
 	depends on DEBUG_KERNEL
@@ -67,36 +51,9 @@ config FTR_FIXUP_SELFTEST
 	depends on DEBUG_KERNEL
 	default n
 
-choice
-	prompt "Serial Port"
-	depends on KGDB
-	default KGDB_TTYS1
-
-config KGDB_TTYS0
-	bool "ttyS0"
-
-config KGDB_TTYS1
-	bool "ttyS1"
-
-config KGDB_TTYS2
-	bool "ttyS2"
-
-config KGDB_TTYS3
-	bool "ttyS3"
-
-endchoice
-
-config KGDB_CONSOLE
-	bool "Enable serial console thru kgdb port"
-	depends on KGDB && 8xx || CPM2
-	help
-	  If you enable this, all serial console messages will be sent
-	  over the gdb stub.
-	  If unsure, say N.
-
 config XMON
 	bool "Include xmon kernel debugger"
-	depends on DEBUGGER
+	depends on DEBUG_KERNEL
 	help
 	  Include in-kernel hooks for the xmon kernel monitor/debugger.
 	  Unless you are intending to debug the kernel, say N here.
@@ -126,6 +83,11 @@ config XMON_DISASSEMBLY
 	  to say Y here, unless you're building for a memory-constrained
 	  system.
 
+config DEBUGGER
+	bool
+	depends on KGDB || XMON
+	default y
+
 config IRQSTACKS
 	bool "Use separate kernel stacks when processing interrupts"
 	help
@@ -135,7 +97,7 @@ config IRQSTACKS
 
 config VIRQ_DEBUG
 	bool "Expose hardware/virtual IRQ mapping via debugfs"
-	depends on DEBUG_FS && PPC_MERGE
+	depends on DEBUG_FS
 	help
 	  This option will show the mapping relationship between hardware irq
 	  numbers and virtual irq numbers. The mapping is exposed via debugfs

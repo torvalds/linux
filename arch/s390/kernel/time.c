@@ -1100,7 +1100,9 @@ static inline struct etr_aib *etr_aib_from_dev(struct sys_device *dev)
 		return etr_port1_online ? &etr_port1 : NULL;
 }
 
-static ssize_t etr_online_show(struct sys_device *dev, char *buf)
+static ssize_t etr_online_show(struct sys_device *dev,
+				struct sysdev_attribute *attr,
+				char *buf)
 {
 	unsigned int online;
 
@@ -1109,7 +1111,8 @@ static ssize_t etr_online_show(struct sys_device *dev, char *buf)
 }
 
 static ssize_t etr_online_store(struct sys_device *dev,
-			      const char *buf, size_t count)
+				struct sysdev_attribute *attr,
+				const char *buf, size_t count)
 {
 	unsigned int value;
 
@@ -1136,7 +1139,9 @@ static ssize_t etr_online_store(struct sys_device *dev,
 
 static SYSDEV_ATTR(online, 0600, etr_online_show, etr_online_store);
 
-static ssize_t etr_stepping_control_show(struct sys_device *dev, char *buf)
+static ssize_t etr_stepping_control_show(struct sys_device *dev,
+					struct sysdev_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%i\n", (dev == &etr_port0_dev) ?
 		       etr_eacr.e0 : etr_eacr.e1);
@@ -1144,7 +1149,8 @@ static ssize_t etr_stepping_control_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(stepping_control, 0400, etr_stepping_control_show, NULL);
 
-static ssize_t etr_mode_code_show(struct sys_device *dev, char *buf)
+static ssize_t etr_mode_code_show(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	if (!etr_port0_online && !etr_port1_online)
 		/* Status word is not uptodate if both ports are offline. */
@@ -1155,7 +1161,8 @@ static ssize_t etr_mode_code_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(state_code, 0400, etr_mode_code_show, NULL);
 
-static ssize_t etr_untuned_show(struct sys_device *dev, char *buf)
+static ssize_t etr_untuned_show(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1166,7 +1173,8 @@ static ssize_t etr_untuned_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(untuned, 0400, etr_untuned_show, NULL);
 
-static ssize_t etr_network_id_show(struct sys_device *dev, char *buf)
+static ssize_t etr_network_id_show(struct sys_device *dev,
+				struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1177,7 +1185,8 @@ static ssize_t etr_network_id_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(network, 0400, etr_network_id_show, NULL);
 
-static ssize_t etr_id_show(struct sys_device *dev, char *buf)
+static ssize_t etr_id_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1188,7 +1197,8 @@ static ssize_t etr_id_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(id, 0400, etr_id_show, NULL);
 
-static ssize_t etr_port_number_show(struct sys_device *dev, char *buf)
+static ssize_t etr_port_number_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1199,7 +1209,8 @@ static ssize_t etr_port_number_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(port, 0400, etr_port_number_show, NULL);
 
-static ssize_t etr_coupled_show(struct sys_device *dev, char *buf)
+static ssize_t etr_coupled_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1210,7 +1221,8 @@ static ssize_t etr_coupled_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(coupled, 0400, etr_coupled_show, NULL);
 
-static ssize_t etr_local_time_show(struct sys_device *dev, char *buf)
+static ssize_t etr_local_time_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1221,7 +1233,8 @@ static ssize_t etr_local_time_show(struct sys_device *dev, char *buf)
 
 static SYSDEV_ATTR(local_time, 0400, etr_local_time_show, NULL);
 
-static ssize_t etr_utc_offset_show(struct sys_device *dev, char *buf)
+static ssize_t etr_utc_offset_show(struct sys_device *dev,
+			struct sysdev_attribute *attr, char *buf)
 {
 	struct etr_aib *aib = etr_aib_from_dev(dev);
 
@@ -1335,7 +1348,7 @@ early_param("stp", early_parse_stp);
 /*
  * Reset STP attachment.
  */
-static void stp_reset(void)
+static void __init stp_reset(void)
 {
 	int rc;
 

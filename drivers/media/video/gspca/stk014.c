@@ -23,9 +23,6 @@
 #include "gspca.h"
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("Syntek DV4000 (STK014) USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -299,7 +296,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam = &gspca_dev->cam;
 
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x02;
 	gspca_dev->cam.cam_mode = vga_mode;
 	gspca_dev->cam.nmodes = ARRAY_SIZE(vga_mode);
@@ -549,9 +545,8 @@ static const struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x05e1, 0x0893), DVNM("Syntek DV4000")},
+	{USB_DEVICE(0x05e1, 0x0893)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -576,7 +571,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	info("v%s registered", version);
+	info("registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

@@ -519,8 +519,3 @@ int __init sctp_remaddr_proc_init(void)
 
 	return 0;
 }
-
-void sctp_assoc_proc_exit(void)
-{
-	remove_proc_entry("remaddr", proc_net_sctp);
-}

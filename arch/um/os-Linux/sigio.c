@@ -530,7 +530,7 @@ static void tty_close(int master, int slave)
 		printk(UM_KERN_CONT "No, enabling workaround\n");
 }
 
-void __init check_sigio(void)
+static void __init check_sigio(void)
 {
 	if ((access("/dev/ptmx", R_OK) < 0) &&
 	    (access("/dev/ptyp0", R_OK) < 0)) {

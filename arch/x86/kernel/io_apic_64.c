@@ -101,7 +101,7 @@ int timer_through_8259 __initdata;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-DEFINE_SPINLOCK(vector_lock);
+static DEFINE_SPINLOCK(vector_lock);
 
 /*
  * # of IRQ routing registers
@@ -697,6 +697,19 @@ static int pin_2_irq(int idx, int apic, int pin)
 	return irq;
 }
 
+void lock_vector_lock(void)
+{
+	/* Used to the online set of cpus does not change
+	 * during assign_irq_vector.
+	 */
+	spin_lock(&vector_lock);
+}
+
+void unlock_vector_lock(void)
+{
+	spin_unlock(&vector_lock);
+}
+
 static int __assign_irq_vector(int irq, cpumask_t mask)
 {
 	/*
@@ -732,7 +745,7 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 			return 0;
 	}
 
-	for_each_cpu_mask(cpu, mask) {
+	for_each_cpu_mask_nr(cpu, mask) {
 		cpumask_t domain, new_mask;
 		int new_cpu;
 		int vector, offset;
@@ -753,7 +766,7 @@ next:
 			continue;
 		if (vector == IA32_SYSCALL_VECTOR)
 			goto next;
-		for_each_cpu_mask(new_cpu, new_mask)
+		for_each_cpu_mask_nr(new_cpu, new_mask)
 			if (per_cpu(vector_irq, new_cpu)[vector] != -1)
 				goto next;
 		/* Found one! */
@@ -763,7 +776,7 @@ next:
 			cfg->move_in_progress = 1;
 			cfg->old_domain = cfg->domain;
 		}
-		for_each_cpu_mask(new_cpu, new_mask)
+		for_each_cpu_mask_nr(new_cpu, new_mask)
 			per_cpu(vector_irq, new_cpu)[vector] = irq;
 		cfg->vector = vector;
 		cfg->domain = domain;
@@ -795,14 +808,14 @@ static void __clear_irq_vector(int irq)
 
 	vector = cfg->vector;
 	cpus_and(mask, cfg->domain, cpu_online_map);
-	for_each_cpu_mask(cpu, mask)
+	for_each_cpu_mask_nr(cpu, mask)
 		per_cpu(vector_irq, cpu)[vector] = -1;
 
 	cfg->vector = 0;
 	cpus_clear(cfg->domain);
 }
 
-static void __setup_vector_irq(int cpu)
+void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
 	/* This function must be called with vector_lock held */
@@ -824,14 +837,6 @@ static void __setup_vector_irq(int cpu)
 			per_cpu(vector_irq, cpu)[vector] = -1;
 	}
 }
-
-void setup_vector_irq(int cpu)
-{
-	spin_lock(&vector_lock);
-	__setup_vector_irq(smp_processor_id());
-	spin_unlock(&vector_lock);
-}
-
 
 static struct irq_chip ioapic_chip;
 
@@ -1373,12 +1378,10 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 static int ioapic_retrigger_irq(unsigned int irq)
 {
 	struct irq_cfg *cfg = &irq_cfg[irq];
-	cpumask_t mask;
 	unsigned long flags;
 
 	spin_lock_irqsave(&vector_lock, flags);
-	mask = cpumask_of_cpu(first_cpu(cfg->domain));
-	send_IPI_mask(mask, cfg->vector);
+	send_IPI_mask(cpumask_of_cpu(first_cpu(cfg->domain)), cfg->vector);
 	spin_unlock_irqrestore(&vector_lock, flags);
 
 	return 1;

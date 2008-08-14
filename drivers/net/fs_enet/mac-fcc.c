@@ -33,6 +33,7 @@
 #include <linux/fs.h>
 #include <linux/platform_device.h>
 #include <linux/phy.h>
+#include <linux/of_device.h>
 
 #include <asm/immap_cpm2.h>
 #include <asm/mpc8260.h>
@@ -41,10 +42,6 @@
 #include <asm/pgtable.h>
 #include <asm/irq.h>
 #include <asm/uaccess.h>
-
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
-#include <asm/of_device.h>
-#endif
 
 #include "fs_enet.h"
 
@@ -87,7 +84,6 @@ static inline int fcc_cr_cmd(struct fs_enet_private *fep, u32 op)
 
 static int do_pd_setup(struct fs_enet_private *fep)
 {
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	struct of_device *ofdev = to_of_device(fep->dev);
 	struct fs_platform_info *fpi = fep->fpi;
 	int ret = -EINVAL;
@@ -125,65 +121,16 @@ out_fccp:
 	iounmap(fep->fcc.fccp);
 out:
 	return ret;
-#else
-	struct platform_device *pdev = to_platform_device(fep->dev);
-	struct resource *r;
-
-	/* Fill out IRQ field */
-	fep->interrupt = platform_get_irq(pdev, 0);
-	if (fep->interrupt < 0)
-		return -EINVAL;
-
-	/* Attach the memory for the FCC Parameter RAM */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_pram");
-	fep->fcc.ep = ioremap(r->start, r->end - r->start + 1);
-	if (fep->fcc.ep == NULL)
-		return -EINVAL;
-
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "fcc_regs");
-	fep->fcc.fccp = ioremap(r->start, r->end - r->start + 1);
-	if (fep->fcc.fccp == NULL)
-		return -EINVAL;
-
-	if (fep->fpi->fcc_regs_c) {
-		fep->fcc.fcccp = (void __iomem *)fep->fpi->fcc_regs_c;
-	} else {
-		r = platform_get_resource_byname(pdev, IORESOURCE_MEM,
-				"fcc_regs_c");
-		fep->fcc.fcccp = ioremap(r->start,
-				r->end - r->start + 1);
-	}
-
-	if (fep->fcc.fcccp == NULL)
-		return -EINVAL;
-
-	fep->fcc.mem = (void __iomem *)fep->fpi->mem_offset;
-	if (fep->fcc.mem == NULL)
-		return -EINVAL;
-
-	return 0;
-#endif
 }
 
 #define FCC_NAPI_RX_EVENT_MSK	(FCC_ENET_RXF | FCC_ENET_RXB)
 #define FCC_RX_EVENT		(FCC_ENET_RXF)
 #define FCC_TX_EVENT		(FCC_ENET_TXB)
-#define FCC_ERR_EVENT_MSK	(FCC_ENET_TXE | FCC_ENET_BSY)
+#define FCC_ERR_EVENT_MSK	(FCC_ENET_TXE)
 
 static int setup_data(struct net_device *dev)
 {
 	struct fs_enet_private *fep = netdev_priv(dev);
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-	struct fs_platform_info *fpi = fep->fpi;
-
-	fpi->cp_command = (fpi->cp_page << 26) |
-	                  (fpi->cp_block << 21) |
-	                  (12 << 6);
-
-	fep->fcc.idx = fs_get_fcc_index(fpi->fs_no);
-	if ((unsigned int)fep->fcc.idx >= 3)	/* max 3 FCCs */
-		return -EINVAL;
-#endif
 
 	if (do_pd_setup(fep) != 0)
 		return -EINVAL;
@@ -304,9 +251,6 @@ static void restart(struct net_device *dev)
 	fcc_enet_t __iomem *ep = fep->fcc.ep;
 	dma_addr_t rx_bd_base_phys, tx_bd_base_phys;
 	u16 paddrh, paddrm, paddrl;
-#ifndef CONFIG_PPC_CPM_NEW_BINDING
-	u16 mem_addr;
-#endif
 	const unsigned char *mac;
 	int i;
 
@@ -338,19 +282,10 @@ static void restart(struct net_device *dev)
 	 * this area.
 	 */
 
-#ifdef CONFIG_PPC_CPM_NEW_BINDING
 	W16(ep, fen_genfcc.fcc_riptr, fpi->dpram_offset);
 	W16(ep, fen_genfcc.fcc_tiptr, fpi->dpram_offset + 32);
 
 	W16(ep, fen_padptr, fpi->dpram_offset + 64);
-#else
-	mem_addr = (u32) fep->fcc.mem;	/* de-fixup dpram offset */
-
-	W16(ep, fen_genfcc.fcc_riptr, (mem_addr & 0xffff));
-	W16(ep, fen_genfcc.fcc_tiptr, ((mem_addr + 32) & 0xffff));
-
-	W16(ep, fen_padptr, mem_addr + 64);
-#endif
 
 	/* fill with special symbol...  */
 	memset_io(fep->fcc.mem + fpi->dpram_offset + 64, 0x88, 32);

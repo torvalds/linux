@@ -42,7 +42,7 @@
  */
 
 
-#include <asm-powerpc/system.h>
+#include <asm/system.h>
 #include "ehca_classes.h"
 #include "ehca_tools.h"
 #include "ehca_qes.h"
@@ -139,6 +139,7 @@ static void trace_send_wr_ud(const struct ib_send_wr *send_wr)
 static inline int ehca_write_swqe(struct ehca_qp *qp,
 				  struct ehca_wqe *wqe_p,
 				  const struct ib_send_wr *send_wr,
+				  u32 sq_map_idx,
 				  int hidden)
 {
 	u32 idx;
@@ -157,7 +158,11 @@ static inline int ehca_write_swqe(struct ehca_qp *qp,
 	/* clear wqe header until sglist */
 	memset(wqe_p, 0, offsetof(struct ehca_wqe, u.ud_av.sg_list));
 
-	wqe_p->work_request_id = send_wr->wr_id;
+	wqe_p->work_request_id = send_wr->wr_id & ~QMAP_IDX_MASK;
+	wqe_p->work_request_id |= sq_map_idx & QMAP_IDX_MASK;
+
+	qp->sq_map[sq_map_idx].app_wr_id = send_wr->wr_id & QMAP_IDX_MASK;
+	qp->sq_map[sq_map_idx].reported = 0;
 
 	switch (send_wr->opcode) {
 	case IB_WR_SEND:
@@ -381,6 +386,7 @@ static inline int post_one_send(struct ehca_qp *my_qp,
 {
 	struct ehca_wqe *wqe_p;
 	int ret;
+	u32 sq_map_idx;
 	u64 start_offset = my_qp->ipz_squeue.current_q_offset;
 
 	/* get pointer next to free WQE */
@@ -393,8 +399,15 @@ static inline int post_one_send(struct ehca_qp *my_qp,
 			 "qp_num=%x", my_qp->ib_qp.qp_num);
 		return -ENOMEM;
 	}
+
+	/*
+	 * Get the index of the WQE in the send queue. The same index is used
+	 * for writing into the sq_map.
+	 */
+	sq_map_idx = start_offset / my_qp->ipz_squeue.qe_size;
+
 	/* write a SEND WQE into the QUEUE */
-	ret = ehca_write_swqe(my_qp, wqe_p, cur_send_wr, hidden);
+	ret = ehca_write_swqe(my_qp, wqe_p, cur_send_wr, sq_map_idx, hidden);
 	/*
 	 * if something failed,
 	 * reset the free entry pointer to the start value
@@ -589,7 +602,7 @@ static inline int ehca_poll_cq_one(struct ib_cq *cq, struct ib_wc *wc)
 	struct ehca_qp *my_qp;
 	int cqe_count = 0, is_error;
 
-poll_cq_one_read_cqe:
+repoll:
 	cqe = (struct ehca_cqe *)
 		ipz_qeit_get_inc_valid(&my_cq->ipz_queue);
 	if (!cqe) {
@@ -617,7 +630,7 @@ poll_cq_one_read_cqe:
 			ehca_dmp(cqe, 64, "cq_num=%x qp_num=%x",
 				 my_cq->cq_number, cqe->local_qp_number);
 			/* ignore this purged cqe */
-			goto poll_cq_one_read_cqe;
+			goto repoll;
 		}
 		spin_lock_irqsave(&qp->spinlock_s, flags);
 		purgeflag = qp->sqerr_purgeflag;
@@ -636,7 +649,7 @@ poll_cq_one_read_cqe:
 			 * that caused sqe and turn off purge flag
 			 */
 			qp->sqerr_purgeflag = 0;
-			goto poll_cq_one_read_cqe;
+			goto repoll;
 		}
 	}
 
@@ -654,8 +667,34 @@ poll_cq_one_read_cqe:
 			 my_cq, my_cq->cq_number);
 	}
 
-	/* we got a completion! */
-	wc->wr_id = cqe->work_request_id;
+	read_lock(&ehca_qp_idr_lock);
+	my_qp = idr_find(&ehca_qp_idr, cqe->qp_token);
+	read_unlock(&ehca_qp_idr_lock);
+	if (!my_qp)
+		goto repoll;
+	wc->qp = &my_qp->ib_qp;
+
+	if (!(cqe->w_completion_flags & WC_SEND_RECEIVE_BIT)) {
+		struct ehca_qmap_entry *qmap_entry;
+		/*
+		 * We got a send completion and need to restore the original
+		 * wr_id.
+		 */
+		qmap_entry = &my_qp->sq_map[cqe->work_request_id &
+					    QMAP_IDX_MASK];
+
+		if (qmap_entry->reported) {
+			ehca_warn(cq->device, "Double cqe on qp_num=%#x",
+				  my_qp->real_qp_num);
+			/* found a double cqe, discard it and read next one */
+			goto repoll;
+		}
+		wc->wr_id = cqe->work_request_id & ~QMAP_IDX_MASK;
+		wc->wr_id |= qmap_entry->app_wr_id;
+		qmap_entry->reported = 1;
+	} else
+		/* We got a receive completion. */
+		wc->wr_id = cqe->work_request_id;
 
 	/* eval ib_wc_opcode */
 	wc->opcode = ib_wc_opcode[cqe->optype]-1;
@@ -667,7 +706,7 @@ poll_cq_one_read_cqe:
 		ehca_dmp(cqe, 64, "ehca_cq=%p cq_num=%x",
 			 my_cq, my_cq->cq_number);
 		/* update also queue adder to throw away this entry!!! */
-		goto poll_cq_one_exit0;
+		goto repoll;
 	}
 
 	/* eval ib_wc_status */
@@ -677,11 +716,6 @@ poll_cq_one_read_cqe:
 		wc->vendor_err = wc->status;
 	} else
 		wc->status = IB_WC_SUCCESS;
-
-	read_lock(&ehca_qp_idr_lock);
-	my_qp = idr_find(&ehca_qp_idr, cqe->qp_token);
-	wc->qp = &my_qp->ib_qp;
-	read_unlock(&ehca_qp_idr_lock);
 
 	wc->byte_len = cqe->nr_bytes_transferred;
 	wc->pkey_index = cqe->pkey_index;

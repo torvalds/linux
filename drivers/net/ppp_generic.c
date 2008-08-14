@@ -581,12 +581,12 @@ static long ppp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			if (file == ppp->owner)
 				ppp_shutdown_interface(ppp);
 		}
-		if (atomic_read(&file->f_count) <= 2) {
+		if (atomic_long_read(&file->f_count) <= 2) {
 			ppp_release(NULL, file);
 			err = 0;
 		} else
-			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%d\n",
-			       atomic_read(&file->f_count));
+			printk(KERN_DEBUG "PPPIOCDETACH file->f_count=%ld\n",
+			       atomic_long_read(&file->f_count));
 		unlock_kernel();
 		return err;
 	}
@@ -866,7 +866,8 @@ static int __init ppp_init(void)
 			err = PTR_ERR(ppp_class);
 			goto out_chrdev;
 		}
-		device_create(ppp_class, NULL, MKDEV(PPP_MAJOR, 0), "ppp");
+		device_create_drvdata(ppp_class, NULL, MKDEV(PPP_MAJOR, 0),
+				      NULL, "ppp");
 	}
 
 out:

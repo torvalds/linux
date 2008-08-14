@@ -309,12 +309,6 @@ struct pid *find_vpid(int nr)
 }
 EXPORT_SYMBOL_GPL(find_vpid);
 
-struct pid *find_pid(int nr)
-{
-	return find_pid_ns(nr, &init_pid_ns);
-}
-EXPORT_SYMBOL_GPL(find_pid);
-
 /*
  * attach_pid() must be called with the tasklist_lock write-held.
  */
@@ -435,6 +429,7 @@ struct pid *find_get_pid(pid_t nr)
 
 	return pid;
 }
+EXPORT_SYMBOL_GPL(find_get_pid);
 
 pid_t pid_nr_ns(struct pid *pid, struct pid_namespace *ns)
 {
@@ -482,7 +477,7 @@ EXPORT_SYMBOL(task_session_nr_ns);
 /*
  * Used by proc to find the first pid that is greater then or equal to nr.
  *
- * If there is a pid at nr this function is exactly the same as find_pid.
+ * If there is a pid at nr this function is exactly the same as find_pid_ns.
  */
 struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 {
@@ -497,7 +492,6 @@ struct pid *find_ge_pid(int nr, struct pid_namespace *ns)
 
 	return pid;
 }
-EXPORT_SYMBOL_GPL(find_get_pid);
 
 /*
  * The pid hash table is scaled according to the amount of memory in the

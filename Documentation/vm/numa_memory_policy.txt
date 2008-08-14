@@ -58,7 +58,7 @@ most general to most specific:
 	the policy at the time they were allocated.
 
     VMA Policy:  A "VMA" or "Virtual Memory Area" refers to a range of a task's
-    virtual adddress space.  A task may define a specific policy for a range
+    virtual address space.  A task may define a specific policy for a range
     of its virtual address space.   See the MEMORY POLICIES APIS section,
     below, for an overview of the mbind() system call used to set a VMA
     policy.
@@ -353,7 +353,7 @@ follows:
 
    Because of this extra reference counting, and because we must lookup
    shared policies in a tree structure under spinlock, shared policies are
-   more expensive to use in the page allocation path.  This is expecially
+   more expensive to use in the page allocation path.  This is especially
    true for shared policies on shared memory regions shared by tasks running
    on different NUMA nodes.  This extra overhead can be avoided by always
    falling back to task or system default policy for shared memory regions,
