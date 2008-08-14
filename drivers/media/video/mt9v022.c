@@ -141,22 +141,22 @@ static int mt9v022_init(struct soc_camera_device *icd)
 	 * plus snapshot mode to disable scan for now */
 	mt9v022->chip_control |= 0x10;
 	ret = reg_write(icd, MT9V022_CHIP_CONTROL, mt9v022->chip_control);
-	if (ret >= 0)
-		reg_write(icd, MT9V022_READ_MODE, 0x300);
+	if (!ret)
+		ret = reg_write(icd, MT9V022_READ_MODE, 0x300);
 
 	/* All defaults */
-	if (ret >= 0)
+	if (!ret)
 		/* AEC, AGC on */
 		ret = reg_set(icd, MT9V022_AEC_AGC_ENABLE, 0x3);
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_MAX_TOTAL_SHUTTER_WIDTH, 480);
-	if (ret >= 0)
+	if (!ret)
 		/* default - auto */
 		ret = reg_clear(icd, MT9V022_BLACK_LEVEL_CALIB_CTRL, 1);
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_DIGITAL_TEST_PATTERN, 0);
 
-	return ret >= 0 ? 0 : -EIO;
+	return ret;
 }
 
 static int mt9v022_release(struct soc_camera_device *icd)
@@ -352,21 +352,21 @@ static int mt9v022_set_fmt_cap(struct soc_camera_device *icd,
 					rect->height + icd->y_skip_top + 43);
 	}
 	/* Setup frame format: defaults apart from width and height */
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_COLUMN_START, rect->left);
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_ROW_START, rect->top);
-	if (ret >= 0)
+	if (!ret)
 		/* Default 94, Phytec driver says:
 		 * "width + horizontal blank >= 660" */
 		ret = reg_write(icd, MT9V022_HORIZONTAL_BLANKING,
 				rect->width > 660 - 43 ? 43 :
 				660 - rect->width);
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_VERTICAL_BLANKING, 45);
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_WINDOW_WIDTH, rect->width);
-	if (ret >= 0)
+	if (!ret)
 		ret = reg_write(icd, MT9V022_WINDOW_HEIGHT,
 				rect->height + icd->y_skip_top);
 
@@ -717,7 +717,7 @@ static int mt9v022_video_probe(struct soc_camera_device *icd)
 			icd->num_formats = 1;
 	}
 
-	if (ret >= 0)
+	if (!ret)
 		ret = soc_camera_video_start(icd);
 	if (ret < 0)
 		goto eisis;
