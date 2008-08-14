@@ -1422,6 +1422,12 @@ ENTRY(_sys_call_table)
 	.long _sys_semtimedop
 	.long _sys_timerfd_settime
 	.long _sys_timerfd_gettime
+	.long _sys_signalfd4		/* 360 */
+	.long _sys_eventfd2
+	.long _sys_epoll_create1
+	.long _sys_dup3
+	.long _sys_pipe2
+	.long _sys_inotify_init1	/* 365 */
 
 	.rept NR_syscalls-(.-_sys_call_table)/4
 	.long _sys_ni_syscall
