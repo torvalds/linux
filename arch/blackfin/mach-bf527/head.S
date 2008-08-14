@@ -40,15 +40,6 @@
 __INIT
 
 ENTRY(_mach_early_start)
-#if defined(CONFIG_BF527)
-	p0.h = hi(EMAC_SYSTAT);
-	p0.l = lo(EMAC_SYSTAT);
-	R0.h = 0xFFFF; /* Clear EMAC Interrupt Status bits */
-	R0.l = 0xFFFF;
-	[P0] = R0;
-	SSYNC;
-#endif
-
 	/* Initialise UART - when booting from u-boot, the UART is not disabled
 	 * so if we dont initalize here, our serial console gets hosed */
 	p0.h = hi(UART1_LCR);

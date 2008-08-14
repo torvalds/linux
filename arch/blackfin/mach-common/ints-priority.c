@@ -983,6 +983,11 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
+#if defined(CONFIG_BF527) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+	/* Clear EMAC Interrupt Status bits so we can demux it later */
+	bfin_write_EMAC_SYSTAT(-1);
+#endif
+
 #ifdef CONFIG_BF54x
 # ifdef CONFIG_PINTx_REASSIGN
 	pint[0]->assign = CONFIG_PINT0_ASSIGN;
