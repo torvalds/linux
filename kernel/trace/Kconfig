@@ -7,6 +7,9 @@ config HAVE_FTRACE
 config HAVE_DYNAMIC_FTRACE
 	bool
 
+config HAVE_FTRACE_MCOUNT_RECORD
+	bool
+
 config TRACER_MAX_TRACE
 	bool
 
@@ -121,6 +124,11 @@ config DYNAMIC_FTRACE
 	 wakes up once a second and checks to see if any ftrace calls
 	 were made. If so, it runs stop_machine (stops all CPUS)
 	 and modifies the code to jump over the call to ftrace.
+
+config FTRACE_MCOUNT_RECORD
+	def_bool y
+	depends on DYNAMIC_FTRACE
+	depends on HAVE_FTRACE_MCOUNT_RECORD
 
 config FTRACE_SELFTEST
 	bool
