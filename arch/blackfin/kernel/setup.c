@@ -52,6 +52,7 @@ EXPORT_SYMBOL(mtd_size);
 #endif
 
 char __initdata command_line[COMMAND_LINE_SIZE];
+unsigned int __initdata *__retx;
 
 /* boot memmap, for parsing "memmap=" */
 #define BFIN_MEMMAP_MAX		128 /* number of entries in bfin_memmap */
@@ -785,7 +786,11 @@ void __init setup_arch(char **cmdline_p)
 	bfin_write_SWRST(DOUBLE_FAULT);
 
 	if (_bfin_swrst & RESET_DOUBLE)
-		printk(KERN_INFO "Recovering from Double Fault event\n");
+		/*
+		 * don't decode the address, since you don't know if this
+		 * kernel's symbol map is the same as the crashing kernel
+		 */
+		printk(KERN_INFO "Recovering from Double Fault event at %p\n", __retx);
 	else if (_bfin_swrst & RESET_WDOG)
 		printk(KERN_INFO "Recovering from Watchdog event\n");
 	else if (_bfin_swrst & RESET_SOFTWARE)

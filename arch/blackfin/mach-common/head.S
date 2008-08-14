@@ -90,6 +90,12 @@ ENTRY(__start)
 	[p0] = R0;
 	SSYNC;
 
+	/* Save RETX, in case of doublefault */
+	p0.l = ___retx;
+	p0.h = ___retx;
+	R0 = RETX;
+	[P0] = R0;
+
 	/* Let each Blackfin family do its own thing */
 	call _mach_early_start;
 
