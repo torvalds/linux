@@ -189,7 +189,7 @@ struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		struct Qdisc *q, *txq_root = txq->qdisc;
+		struct Qdisc *q, *txq_root = txq->qdisc_sleeping;
 
 		if (!(txq_root->flags & TCQ_F_BUILTIN) &&
 		    txq_root->handle == handle)
@@ -572,44 +572,21 @@ static u32 qdisc_alloc_handle(struct net_device *dev)
 static struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 				     struct Qdisc *qdisc)
 {
+	struct Qdisc *oqdisc = dev_queue->qdisc_sleeping;
 	spinlock_t *root_lock;
-	struct Qdisc *oqdisc;
-	int ingress;
-
-	ingress = 0;
-	if (qdisc && qdisc->flags&TCQ_F_INGRESS)
-		ingress = 1;
-
-	if (ingress) {
-		oqdisc = dev_queue->qdisc;
-	} else {
-		oqdisc = dev_queue->qdisc_sleeping;
-	}
 
 	root_lock = qdisc_root_lock(oqdisc);
 	spin_lock_bh(root_lock);
 
-	if (ingress) {
-		/* Prune old scheduler */
-		if (oqdisc && atomic_read(&oqdisc->refcnt) <= 1) {
-			/* delete */
-			qdisc_reset(oqdisc);
-			dev_queue->qdisc = NULL;
-		} else {  /* new */
-			dev_queue->qdisc = qdisc;
-		}
+	/* Prune old scheduler */
+	if (oqdisc && atomic_read(&oqdisc->refcnt) <= 1)
+		qdisc_reset(oqdisc);
 
-	} else {
-		/* Prune old scheduler */
-		if (oqdisc && atomic_read(&oqdisc->refcnt) <= 1)
-			qdisc_reset(oqdisc);
-
-		/* ... and graft new one */
-		if (qdisc == NULL)
-			qdisc = &noop_qdisc;
-		dev_queue->qdisc_sleeping = qdisc;
-		dev_queue->qdisc = &noop_qdisc;
-	}
+	/* ... and graft new one */
+	if (qdisc == NULL)
+		qdisc = &noop_qdisc;
+	dev_queue->qdisc_sleeping = qdisc;
+	dev_queue->qdisc = &noop_qdisc;
 
 	spin_unlock_bh(root_lock);
 
@@ -678,7 +655,8 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 
 		ingress = 0;
 		num_q = dev->num_tx_queues;
-		if (q && q->flags & TCQ_F_INGRESS) {
+		if ((q && q->flags & TCQ_F_INGRESS) ||
+		    (new && new->flags & TCQ_F_INGRESS)) {
 			num_q = 1;
 			ingress = 1;
 		}
@@ -692,13 +670,10 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 			if (!ingress)
 				dev_queue = netdev_get_tx_queue(dev, i);
 
-			if (ingress) {
-				old = dev_graft_qdisc(dev_queue, q);
-			} else {
-				old = dev_graft_qdisc(dev_queue, new);
-				if (new && i > 0)
-					atomic_inc(&new->refcnt);
-			}
+			old = dev_graft_qdisc(dev_queue, new);
+			if (new && i > 0)
+				atomic_inc(&new->refcnt);
+
 			notify_and_destroy(skb, n, classid, old, new);
 		}
 
@@ -817,8 +792,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		if (parent)
-			list_add_tail(&sch->list, &dev_queue->qdisc->list);
+		if ((parent != TC_H_ROOT) && !(sch->flags & TCQ_F_INGRESS))
+			list_add_tail(&sch->list, &dev_queue->qdisc_sleeping->list);
 
 		return sch;
 	}
@@ -1261,11 +1236,11 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 		q_idx = 0;
 
 		dev_queue = netdev_get_tx_queue(dev, 0);
-		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
 		dev_queue = &dev->rx_queue;
-		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
 cont:

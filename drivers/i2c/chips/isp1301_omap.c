@@ -33,7 +33,7 @@
 #include <linux/workqueue.h>
 
 #include <asm/irq.h>
-#include <asm/arch/usb.h>
+#include <mach/usb.h>
 
 
 #ifndef	DEBUG
@@ -94,7 +94,7 @@ struct isp1301 {
 /* board-specific PM hooks */
 
 #include <asm/gpio.h>
-#include <asm/arch/mux.h>
+#include <mach/mux.h>
 #include <asm/mach-types.h>
 
 

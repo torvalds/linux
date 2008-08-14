@@ -14,7 +14,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/io.h>
-#include <asm/arch/smc.h>
+#include <mach/smc.h>
 
 #include "hsmc.h"
 

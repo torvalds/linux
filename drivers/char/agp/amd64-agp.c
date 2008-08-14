@@ -34,6 +34,7 @@
 
 static struct resource *aperture_resource;
 static int __initdata agp_try_unsupported = 1;
+static int agp_bridges_found;
 
 static void amd64_tlbflush(struct agp_memory *temp)
 {
@@ -293,12 +294,13 @@ static __devinit int fix_northbridge(struct pci_dev *nb, struct pci_dev *agp,
 	 * so let double check that order, and lets trust the AMD NB settings
 	 */
 	if (order >=0 && aper + (32ULL<<(20 + order)) > 0x100000000ULL) {
-		printk(KERN_INFO "Aperture size %u MB is not right, using settings from NB\n",
-				  32 << order);
+		dev_info(&agp->dev, "aperture size %u MB is not right, using settings from NB\n",
+			 32 << order);
 		order = nb_order;
 	}
 
-	printk(KERN_INFO PFX "Aperture from AGP @ %Lx size %u MB\n", aper, 32 << order);
+	dev_info(&agp->dev, "aperture from AGP @ %Lx size %u MB\n",
+		 aper, 32 << order);
 	if (order < 0 || !agp_aperture_valid(aper, (32*1024*1024)<<order))
 		return -1;
 
@@ -319,10 +321,10 @@ static __devinit int cache_nbs (struct pci_dev *pdev, u32 cap_ptr)
 	for (i = 0; i < num_k8_northbridges; i++) {
 		struct pci_dev *dev = k8_northbridges[i];
 		if (fix_northbridge(dev, pdev, cap_ptr) < 0) {
-			printk(KERN_ERR PFX "No usable aperture found.\n");
+			dev_err(&dev->dev, "no usable aperture found\n");
 #ifdef __x86_64__
 			/* should port this to i386 */
-			printk(KERN_ERR PFX "Consider rebooting with iommu=memaper=2 to get a good aperture.\n");
+			dev_err(&dev->dev, "consider rebooting with iommu=memaper=2 to get a good aperture\n");
 #endif
 			return -1;
 		}
@@ -345,14 +347,14 @@ static void __devinit amd8151_init(struct pci_dev *pdev, struct agp_bridge_data 
 	default:   revstring="??"; break;
 	}
 
-	printk (KERN_INFO PFX "Detected AMD 8151 AGP Bridge rev %s\n", revstring);
+	dev_info(&pdev->dev, "AMD 8151 AGP Bridge rev %s\n", revstring);
 
 	/*
 	 * Work around errata.
 	 * Chips before B2 stepping incorrectly reporting v3.5
 	 */
 	if (pdev->revision < 0x13) {
-		printk (KERN_INFO PFX "Correcting AGP revision (reports 3.5, is really 3.0)\n");
+		dev_info(&pdev->dev, "correcting AGP revision (reports 3.5, is really 3.0)\n");
 		bridge->major_version = 3;
 		bridge->minor_version = 0;
 	}
@@ -375,11 +377,11 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 	struct pci_dev *dev1;
 	int i;
 	unsigned size = amd64_fetch_size();
-	printk(KERN_INFO "Setting up ULi AGP.\n");
+
+	dev_info(&pdev->dev, "setting up ULi AGP\n");
 	dev1 = pci_get_slot (pdev->bus,PCI_DEVFN(0,0));
 	if (dev1 == NULL) {
-		printk(KERN_INFO PFX "Detected a ULi chipset, "
-			"but could not fine the secondary device.\n");
+		dev_info(&pdev->dev, "can't find ULi secondary device\n");
 		return -ENODEV;
 	}
 
@@ -388,7 +390,7 @@ static int __devinit uli_agp_init(struct pci_dev *pdev)
 			break;
 
 	if (i == ARRAY_SIZE(uli_sizes)) {
-		printk(KERN_INFO PFX "No ULi size found for %d\n", size);
+		dev_info(&pdev->dev, "no ULi size found for %d\n", size);
 		return -ENODEV;
 	}
 
@@ -433,13 +435,11 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 	int i;
 	unsigned size = amd64_fetch_size();
 
-	printk(KERN_INFO PFX "Setting up Nforce3 AGP.\n");
+	dev_info(&pdev->dev, "setting up Nforce3 AGP\n");
 
 	dev1 = pci_get_slot(pdev->bus, PCI_DEVFN(11, 0));
 	if (dev1 == NULL) {
-		printk(KERN_INFO PFX "agpgart: Detected an NVIDIA "
-			"nForce3 chipset, but could not find "
-			"the secondary device.\n");
+		dev_info(&pdev->dev, "can't find Nforce3 secondary device\n");
 		return -ENODEV;
 	}
 
@@ -448,7 +448,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 			break;
 
 	if (i == ARRAY_SIZE(nforce3_sizes)) {
-		printk(KERN_INFO PFX "No NForce3 size found for %d\n", size);
+		dev_info(&pdev->dev, "no NForce3 size found for %d\n", size);
 		return -ENODEV;
 	}
 
@@ -462,7 +462,7 @@ static int nforce3_agp_init(struct pci_dev *pdev)
 
 	/* if x86-64 aperture base is beyond 4G, exit here */
 	if ( (apbase & 0x7fff) >> (32 - 25) ) {
-		printk(KERN_INFO PFX "aperture base > 4G\n");
+		dev_info(&pdev->dev, "aperture base > 4G\n");
 		return -ENODEV;
 	}
 
@@ -489,6 +489,7 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 {
 	struct agp_bridge_data *bridge;
 	u8 cap_ptr;
+	int err;
 
 	cap_ptr = pci_find_capability(pdev, PCI_CAP_ID_AGP);
 	if (!cap_ptr)
@@ -504,7 +505,8 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 	    pdev->device == PCI_DEVICE_ID_AMD_8151_0) {
 		amd8151_init(pdev, bridge);
 	} else {
-		printk(KERN_INFO PFX "Detected AGP bridge %x\n", pdev->devfn);
+		dev_info(&pdev->dev, "AGP bridge [%04x/%04x]\n",
+			 pdev->vendor, pdev->device);
 	}
 
 	bridge->driver = &amd_8151_driver;
@@ -536,7 +538,12 @@ static int __devinit agp_amd64_probe(struct pci_dev *pdev,
 	}
 
 	pci_set_drvdata(pdev, bridge);
-	return agp_add_bridge(bridge);
+	err = agp_add_bridge(bridge);
+	if (err < 0)
+		return err;
+
+	agp_bridges_found++;
+	return 0;
 }
 
 static void __devexit agp_amd64_remove(struct pci_dev *pdev)
@@ -713,7 +720,11 @@ int __init agp_amd64_init(void)
 
 	if (agp_off)
 		return -EINVAL;
-	if (pci_register_driver(&agp_amd64_pci_driver) < 0) {
+	err = pci_register_driver(&agp_amd64_pci_driver);
+	if (err < 0)
+		return err;
+
+	if (agp_bridges_found == 0) {
 		struct pci_dev *dev;
 		if (!agp_try_unsupported && !agp_try_unsupported_boot) {
 			printk(KERN_INFO PFX "No supported AGP bridge found.\n");

@@ -37,21 +37,6 @@ struct pt_regs {
 	unsigned int magic;
 };
 
-static inline int pt_regs_trap_type(struct pt_regs *regs)
-{
-	return regs->magic & 0x1ff;
-}
-
-static inline bool pt_regs_is_syscall(struct pt_regs *regs)
-{
-	return (regs->tstate & TSTATE_SYSCALL);
-}
-
-static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
-{
-	return (regs->tstate &= ~TSTATE_SYSCALL);
-}
-
 struct pt_regs32 {
 	unsigned int psr;
 	unsigned int pc;
@@ -128,15 +113,30 @@ struct sparc_trapf {
 
 #ifdef __KERNEL__
 
+static inline int pt_regs_trap_type(struct pt_regs *regs)
+{
+	return regs->magic & 0x1ff;
+}
+
+static inline bool pt_regs_is_syscall(struct pt_regs *regs)
+{
+	return (regs->tstate & TSTATE_SYSCALL);
+}
+
+static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
+{
+	return (regs->tstate &= ~TSTATE_SYSCALL);
+}
+
 struct global_reg_snapshot {
 	unsigned long		tstate;
 	unsigned long		tpc;
 	unsigned long		tnpc;
 	unsigned long		o7;
 	unsigned long		i7;
+	unsigned long		rpc;
 	struct thread_info	*thread;
 	unsigned long		pad1;
-	unsigned long		pad2;
 };
 
 #define __ARCH_WANT_COMPAT_SYS_PTRACE
@@ -154,7 +154,6 @@ extern unsigned long profile_pc(struct pt_regs *);
 #define profile_pc(regs) instruction_pointer(regs)
 #endif
 extern void show_regs(struct pt_regs *);
-extern void __show_regs(struct pt_regs *);
 #endif
 
 #else /* __ASSEMBLY__ */
@@ -315,9 +314,9 @@ extern void __show_regs(struct pt_regs *);
 #define GR_SNAP_TNPC	0x10
 #define GR_SNAP_O7	0x18
 #define GR_SNAP_I7	0x20
-#define GR_SNAP_THREAD	0x28
-#define GR_SNAP_PAD1	0x30
-#define GR_SNAP_PAD2	0x38
+#define GR_SNAP_RPC	0x28
+#define GR_SNAP_THREAD	0x30
+#define GR_SNAP_PAD1	0x38
 
 #endif  /*  __KERNEL__  */
 

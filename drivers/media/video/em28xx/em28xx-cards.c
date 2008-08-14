@@ -1015,6 +1015,7 @@ struct em28xx_board em28xx_boards[] = {
 		.valid        = EM28XX_BOARD_NOT_VALIDATED,
 		.vchannels    = 3,
 		.tuner_type   = TUNER_XC2028,
+		.mts_firmware = 1,
 		.decoder      = EM28XX_TVP5150,
 		.input          = { {
 			.type     = EM28XX_VMUX_TELEVISION,

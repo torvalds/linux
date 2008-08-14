@@ -20,7 +20,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/ssp.h>
 
 #define TIMEOUT 100000

@@ -28,9 +28,8 @@
 #include <linux/mm.h>
 #include <linux/uaccess.h>
 
-#include <asm/mach-types.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/omapfb.h>
+#include <mach/dma.h>
+#include <mach/omapfb.h>
 
 #define MODULE_NAME	"omapfb"
 

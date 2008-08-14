@@ -46,6 +46,8 @@ typedef struct xfs_acl {
 #define SGI_ACL_FILE_SIZE	(sizeof(SGI_ACL_FILE)-1)
 #define SGI_ACL_DEFAULT_SIZE	(sizeof(SGI_ACL_DEFAULT)-1)
 
+#define _ACL_TYPE_ACCESS	1
+#define _ACL_TYPE_DEFAULT	2
 
 #ifdef CONFIG_XFS_POSIX_ACL
 
@@ -66,8 +68,6 @@ extern int xfs_acl_vset(bhv_vnode_t *, void *, size_t, int);
 extern int xfs_acl_vget(bhv_vnode_t *, void *, size_t, int);
 extern int xfs_acl_vremove(bhv_vnode_t *, int);
 
-#define _ACL_TYPE_ACCESS	1
-#define _ACL_TYPE_DEFAULT	2
 #define _ACL_PERM_INVALID(perm)	((perm) & ~(ACL_READ|ACL_WRITE|ACL_EXECUTE))
 
 #define _ACL_INHERIT(c,m,d)	(xfs_acl_inherit(c,m,d))

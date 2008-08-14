@@ -3483,7 +3483,7 @@ static void md_safemode_timeout(unsigned long data)
 	if (!atomic_read(&mddev->writes_pending)) {
 		mddev->safemode = 1;
 		if (mddev->external)
-			sysfs_notify(&mddev->kobj, NULL, "array_state");
+			set_bit(MD_NOTIFY_ARRAY_STATE, &mddev->flags);
 	}
 	md_wakeup_thread(mddev->thread);
 }
@@ -5996,7 +5996,8 @@ static int remove_and_add_spares(mddev_t *mddev)
 	if (mddev->degraded) {
 		rdev_for_each(rdev, rtmp, mddev) {
 			if (rdev->raid_disk >= 0 &&
-			    !test_bit(In_sync, &rdev->flags))
+			    !test_bit(In_sync, &rdev->flags) &&
+			    !test_bit(Blocked, &rdev->flags))
 				spares++;
 			if (rdev->raid_disk < 0
 			    && !test_bit(Faulty, &rdev->flags)) {
@@ -6050,6 +6051,9 @@ void md_check_recovery(mddev_t *mddev)
 
 	if (mddev->bitmap)
 		bitmap_daemon_work(mddev->bitmap);
+
+	if (test_and_clear_bit(MD_NOTIFY_ARRAY_STATE, &mddev->flags))
+		sysfs_notify(&mddev->kobj, NULL, "array_state");
 
 	if (mddev->ro)
 		return;

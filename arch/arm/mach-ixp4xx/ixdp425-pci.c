@@ -22,7 +22,7 @@
 
 #include <asm/mach/pci.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 void __init ixdp425_pci_preinit(void)

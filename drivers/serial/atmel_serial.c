@@ -42,11 +42,11 @@
 #include <asm/io.h>
 
 #include <asm/mach/serial_at91.h>
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 #ifdef CONFIG_ARM
-#include <asm/arch/cpu.h>
-#include <asm/arch/gpio.h>
+#include <mach/cpu.h>
+#include <mach/gpio.h>
 #endif
 
 #define PDC_BUFFER_SIZE		512

@@ -1225,6 +1225,8 @@ source "drivers/dma/Kconfig"
 
 source "drivers/dca/Kconfig"
 
+source "drivers/regulator/Kconfig"
+
 source "drivers/uio/Kconfig"
 
 endmenu

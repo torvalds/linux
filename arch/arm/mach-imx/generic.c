@@ -29,13 +29,13 @@
 #include <linux/string.h>
 
 #include <asm/errno.h>
-#include <asm/arch/imxfb.h>
-#include <asm/hardware.h>
-#include <asm/arch/imx-regs.h>
+#include <mach/imxfb.h>
+#include <mach/hardware.h>
+#include <mach/imx-regs.h>
 
 #include <asm/mach/map.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/gpio.h>
+#include <mach/mmc.h>
+#include <mach/gpio.h>
 
 unsigned long imx_gpio_alloc_map[(GPIO_PORT_MAX + 1) * 32 / BITS_PER_LONG];
 
@@ -251,7 +251,6 @@ void __init set_imx_fb_info(struct imxfb_mach_info *hard_imx_fb_info)
 {
 	memcpy(&imx_fb_info,hard_imx_fb_info,sizeof(struct imxfb_mach_info));
 }
-EXPORT_SYMBOL(set_imx_fb_info);
 
 static struct resource imxfb_resources[] = {
 	[0] = {

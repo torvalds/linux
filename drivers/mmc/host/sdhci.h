@@ -206,6 +206,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<11)
 /* Controller provides an incorrect timeout value for transfers */
 #define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
+/* Controller has an issue with buffer bits for small transfers */
+#define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1<<13)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */

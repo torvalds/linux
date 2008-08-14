@@ -24,10 +24,10 @@
 #include <linux/platform_device.h>
 #include <linux/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/arch/board.h>
+#include <mach/board.h>
 #include "generic.h"
 
 static void __init at91eb01_map_io(void)

@@ -14,6 +14,10 @@
 #ifdef CONFIG_DEBUG_MEMORY_INIT
 int __meminitdata mminit_loglevel;
 
+#ifndef SECTIONS_SHIFT
+#define SECTIONS_SHIFT	0
+#endif
+
 /* The zonelists are simply reported, validation is manual. */
 void mminit_verify_zonelist(void)
 {
@@ -74,11 +78,7 @@ void __init mminit_verify_pageflags_layout(void)
 		NR_PAGEFLAGS);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_shifts",
 		"Section %d Node %d Zone %d\n",
-#ifdef SECTIONS_SHIFT
 		SECTIONS_SHIFT,
-#else
-		0,
-#endif
 		NODES_SHIFT,
 		ZONES_SHIFT);
 	mminit_dprintk(MMINIT_TRACE, "pageflags_layout_offsets",

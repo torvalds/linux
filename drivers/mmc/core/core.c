@@ -121,6 +121,7 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 {
 #ifdef CONFIG_MMC_DEBUG
 	unsigned int i, sz;
+	struct scatterlist *sg;
 #endif
 
 	pr_debug("%s: starting CMD%u arg %08x flags %08x\n",
@@ -156,8 +157,8 @@ mmc_start_request(struct mmc_host *host, struct mmc_request *mrq)
 
 #ifdef CONFIG_MMC_DEBUG
 		sz = 0;
-		for (i = 0;i < mrq->data->sg_len;i++)
-			sz += mrq->data->sg[i].length;
+		for_each_sg(mrq->data->sg, sg, mrq->data->sg_len, i)
+			sz += sg->length;
 		BUG_ON(sz != mrq->data->blocks * mrq->data->blksz);
 #endif
 

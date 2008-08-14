@@ -28,9 +28,9 @@
 #include <sound/initval.h>
 #include <sound/soc.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/at91_pmc.h>
-#include <asm/arch/at91_ssc.h>
+#include <mach/hardware.h>
+#include <mach/at91_pmc.h>
+#include <mach/at91_ssc.h>
 
 #include "at91-pcm.h"
 #include "at91-ssc.h"

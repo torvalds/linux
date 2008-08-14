@@ -358,23 +358,68 @@ find_bus_target_lun(int ctlr, int *bus, int *target, int *lun)
 	}
 	return (!found);	
 }
+struct scsi2map {
+	char scsi3addr[8];
+	int bus, target, lun;
+};
 
 static int 
 cciss_scsi_add_entry(int ctlr, int hostno, 
-		unsigned char *scsi3addr, int devtype)
+		unsigned char *scsi3addr, int devtype,
+		struct scsi2map *added, int *nadded)
 {
 	/* assumes hba[ctlr]->scsi_ctlr->lock is held */ 
 	int n = ccissscsi[ctlr].ndevices;
 	struct cciss_scsi_dev_t *sd;
+	int i, bus, target, lun;
+	unsigned char addr1[8], addr2[8];
 
 	if (n >= CCISS_MAX_SCSI_DEVS_PER_HBA) {
 		printk("cciss%d: Too many devices, "
 			"some will be inaccessible.\n", ctlr);
 		return -1;
 	}
+
+	bus = target = -1;
+	lun = 0;
+	/* Is this device a non-zero lun of a multi-lun device */
+	/* byte 4 of the 8-byte LUN addr will contain the logical unit no. */
+	if (scsi3addr[4] != 0) {
+		/* Search through our list and find the device which */
+		/* has the same 8 byte LUN address, excepting byte 4. */
+		/* Assign the same bus and target for this new LUN. */
+		/* Use the logical unit number from the firmware. */
+		memcpy(addr1, scsi3addr, 8);
+		addr1[4] = 0;
+		for (i = 0; i < n; i++) {
+			sd = &ccissscsi[ctlr].dev[i];
+			memcpy(addr2, sd->scsi3addr, 8);
+			addr2[4] = 0;
+			/* differ only in byte 4? */
+			if (memcmp(addr1, addr2, 8) == 0) {
+				bus = sd->bus;
+				target = sd->target;
+				lun = scsi3addr[4];
+				break;
+			}
+		}
+	}
+
 	sd = &ccissscsi[ctlr].dev[n];
-	if (find_bus_target_lun(ctlr, &sd->bus, &sd->target, &sd->lun) != 0)
-		return -1;
+	if (lun == 0) {
+		if (find_bus_target_lun(ctlr,
+			&sd->bus, &sd->target, &sd->lun) != 0)
+			return -1;
+	} else {
+		sd->bus = bus;
+		sd->target = target;
+		sd->lun = lun;
+	}
+	added[*nadded].bus = sd->bus;
+	added[*nadded].target = sd->target;
+	added[*nadded].lun = sd->lun;
+	(*nadded)++;
+
 	memcpy(&sd->scsi3addr[0], scsi3addr, 8);
 	sd->devtype = devtype;
 	ccissscsi[ctlr].ndevices++;
@@ -390,7 +435,8 @@ cciss_scsi_add_entry(int ctlr, int hostno,
 }
 
 static void
-cciss_scsi_remove_entry(int ctlr, int hostno, int entry)
+cciss_scsi_remove_entry(int ctlr, int hostno, int entry,
+	struct scsi2map *removed, int *nremoved)
 {
 	/* assumes hba[ctlr]->scsi_ctlr->lock is held */ 
 	int i;
@@ -398,6 +444,10 @@ cciss_scsi_remove_entry(int ctlr, int hostno, int entry)
 
 	if (entry < 0 || entry >= CCISS_MAX_SCSI_DEVS_PER_HBA) return;
 	sd = ccissscsi[ctlr].dev[entry];
+	removed[*nremoved].bus    = sd.bus;
+	removed[*nremoved].target = sd.target;
+	removed[*nremoved].lun    = sd.lun;
+	(*nremoved)++;
 	for (i=entry;i<ccissscsi[ctlr].ndevices-1;i++)
 		ccissscsi[ctlr].dev[i] = ccissscsi[ctlr].dev[i+1];
 	ccissscsi[ctlr].ndevices--;
@@ -417,6 +467,26 @@ cciss_scsi_remove_entry(int ctlr, int hostno, int entry)
 	(a)[1] == (b)[1] && \
 	(a)[0] == (b)[0])
 
+static void fixup_botched_add(int ctlr, char *scsi3addr)
+{
+	/* called when scsi_add_device fails in order to re-adjust */
+	/* ccissscsi[] to match the mid layer's view. */
+	unsigned long flags;
+	int i, j;
+	CPQ_TAPE_LOCK(ctlr, flags);
+	for (i = 0; i < ccissscsi[ctlr].ndevices; i++) {
+		if (memcmp(scsi3addr,
+				ccissscsi[ctlr].dev[i].scsi3addr, 8) == 0) {
+			for (j = i; j < ccissscsi[ctlr].ndevices-1; j++)
+				ccissscsi[ctlr].dev[j] =
+					ccissscsi[ctlr].dev[j+1];
+			ccissscsi[ctlr].ndevices--;
+			break;
+		}
+	}
+	CPQ_TAPE_UNLOCK(ctlr, flags);
+}
+
 static int
 adjust_cciss_scsi_table(int ctlr, int hostno,
 	struct cciss_scsi_dev_t sd[], int nsds)
@@ -429,13 +499,33 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 	int i,j, found, changes=0;
 	struct cciss_scsi_dev_t *csd;
 	unsigned long flags;
+	struct scsi2map *added, *removed;
+	int nadded, nremoved;
+	struct Scsi_Host *sh = NULL;
+
+	added = kzalloc(sizeof(*added) * CCISS_MAX_SCSI_DEVS_PER_HBA,
+			GFP_KERNEL);
+	removed = kzalloc(sizeof(*removed) * CCISS_MAX_SCSI_DEVS_PER_HBA,
+			GFP_KERNEL);
+
+	if (!added || !removed) {
+		printk(KERN_WARNING "cciss%d: Out of memory in "
+			"adjust_cciss_scsi_table\n", ctlr);
+		goto free_and_out;
+	}
 
 	CPQ_TAPE_LOCK(ctlr, flags);
+
+	if (hostno != -1)  /* if it's not the first time... */
+		sh = ((struct cciss_scsi_adapter_data_t *)
+			hba[ctlr]->scsi_ctlr)->scsi_host;
 
 	/* find any devices in ccissscsi[] that are not in 
 	   sd[] and remove them from ccissscsi[] */
 
 	i = 0;
+	nremoved = 0;
+	nadded = 0;
 	while(i<ccissscsi[ctlr].ndevices) {
 		csd = &ccissscsi[ctlr].dev[i];
 		found=0;
@@ -455,8 +545,9 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 			/* printk("cciss%d: %s device c%db%dt%dl%d removed.\n",
 				ctlr, scsi_device_type(csd->devtype), hostno,
 					csd->bus, csd->target, csd->lun); */
-			cciss_scsi_remove_entry(ctlr, hostno, i);
-			/* note, i not incremented */
+			cciss_scsi_remove_entry(ctlr, hostno, i,
+				removed, &nremoved);
+			/* remove ^^^, hence i not incremented */
 		} 
 		else if (found == 1) { /* device is different kind */
 			changes++;
@@ -464,8 +555,15 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 				"(device type now %s).\n",
 				ctlr, hostno, csd->bus, csd->target, csd->lun,
 					scsi_device_type(csd->devtype));
+			cciss_scsi_remove_entry(ctlr, hostno, i,
+				removed, &nremoved);
+			/* remove ^^^, hence i not incremented */
+			if (cciss_scsi_add_entry(ctlr, hostno,
+				&sd[j].scsi3addr[0], sd[j].devtype,
+				added, &nadded) != 0)
+				/* we just removed one, so add can't fail. */
+					BUG();
 			csd->devtype = sd[j].devtype;
-			i++;	/* so just move along. */
 		} else 		/* device is same as it ever was, */
 			i++;	/* so just move along. */
 	}
@@ -489,7 +587,9 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 		if (!found) {
 			changes++;
 			if (cciss_scsi_add_entry(ctlr, hostno, 
-				&sd[i].scsi3addr[0], sd[i].devtype) != 0)
+
+				&sd[i].scsi3addr[0], sd[i].devtype,
+				added, &nadded) != 0)
 				break;
 		} else if (found == 1) {
 			/* should never happen... */
@@ -501,9 +601,50 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 	}
 	CPQ_TAPE_UNLOCK(ctlr, flags);
 
-	if (!changes) 
-		printk("cciss%d: No device changes detected.\n", ctlr);
+	/* Don't notify scsi mid layer of any changes the first time through */
+	/* (or if there are no changes) scsi_scan_host will do it later the */
+	/* first time through. */
+	if (hostno == -1 || !changes)
+		goto free_and_out;
 
+	/* Notify scsi mid layer of any removed devices */
+	for (i = 0; i < nremoved; i++) {
+		struct scsi_device *sdev =
+			scsi_device_lookup(sh, removed[i].bus,
+				removed[i].target, removed[i].lun);
+		if (sdev != NULL) {
+			scsi_remove_device(sdev);
+			scsi_device_put(sdev);
+		} else {
+			/* We don't expect to get here. */
+			/* future cmds to this device will get selection */
+			/* timeout as if the device was gone. */
+			printk(KERN_WARNING "cciss%d: didn't find "
+				"c%db%dt%dl%d\n for removal.",
+				ctlr, hostno, removed[i].bus,
+				removed[i].target, removed[i].lun);
+		}
+	}
+
+	/* Notify scsi mid layer of any added devices */
+	for (i = 0; i < nadded; i++) {
+		int rc;
+		rc = scsi_add_device(sh, added[i].bus,
+			added[i].target, added[i].lun);
+		if (rc == 0)
+			continue;
+		printk(KERN_WARNING "cciss%d: scsi_add_device "
+			"c%db%dt%dl%d failed, device not added.\n",
+			ctlr, hostno,
+			added[i].bus, added[i].target, added[i].lun);
+		/* now we have to remove it from ccissscsi, */
+		/* since it didn't get added to scsi mid layer */
+		fixup_botched_add(ctlr, added[i].scsi3addr);
+	}
+
+free_and_out:
+	kfree(added);
+	kfree(removed);
 	return 0;
 }
 
@@ -1355,32 +1496,6 @@ cciss_unregister_scsi(int ctlr)
 }
 
 static int 
-cciss_register_scsi(int ctlr)
-{
-	unsigned long flags;
-
-	CPQ_TAPE_LOCK(ctlr, flags);
-
-	/* Since this is really a block driver, the SCSI core may not be 
-	   initialized at init time, in which case, calling scsi_register_host
-	   would hang.  Instead, we do it later, via /proc filesystem
-	   and rc scripts, when we know SCSI core is good to go. */
-
-	/* Only register if SCSI devices are detected. */
-	if (ccissscsi[ctlr].ndevices != 0) {
-		((struct cciss_scsi_adapter_data_t *) 
-			hba[ctlr]->scsi_ctlr)->registered = 1;
-		CPQ_TAPE_UNLOCK(ctlr, flags);
-		return cciss_scsi_detect(ctlr);
-	}
-	CPQ_TAPE_UNLOCK(ctlr, flags);
-	printk(KERN_INFO 
-		"cciss%d: No appropriate SCSI device detected, "
-		"SCSI subsystem not engaged.\n", ctlr);
-	return 0;
-}
-
-static int 
 cciss_engage_scsi(int ctlr)
 {
 	struct cciss_scsi_adapter_data_t *sa;
@@ -1391,15 +1506,15 @@ cciss_engage_scsi(int ctlr)
 	sa = (struct cciss_scsi_adapter_data_t *) hba[ctlr]->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 
-	if (((struct cciss_scsi_adapter_data_t *) 
-		hba[ctlr]->scsi_ctlr)->registered) {
+	if (sa->registered) {
 		printk("cciss%d: SCSI subsystem already engaged.\n", ctlr);
 		spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 		return ENXIO;
 	}
+	sa->registered = 1;
 	spin_unlock_irqrestore(CCISS_LOCK(ctlr), flags);
 	cciss_update_non_disk_devices(ctlr, -1);
-	cciss_register_scsi(ctlr);
+	cciss_scsi_detect(ctlr);
 	return 0;
 }
 
@@ -1493,7 +1608,5 @@ static int  cciss_eh_abort_handler(struct scsi_cmnd *scsicmd)
 /* If no tape support, then these become defined out of existence */
 
 #define cciss_scsi_setup(cntl_num)
-#define cciss_unregister_scsi(ctlr)
-#define cciss_register_scsi(ctlr)
 
 #endif /* CONFIG_CISS_SCSI_TAPE */

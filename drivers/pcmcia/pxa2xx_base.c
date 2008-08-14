@@ -24,12 +24,12 @@
 #include <linux/spinlock.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/ss.h>

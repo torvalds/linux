@@ -371,7 +371,7 @@ __generic_file_splice_read(struct file *in, loff_t *ppos,
 			 * for an in-flight io page
 			 */
 			if (flags & SPLICE_F_NONBLOCK) {
-				if (TestSetPageLocked(page)) {
+				if (!trylock_page(page)) {
 					error = -EAGAIN;
 					break;
 				}

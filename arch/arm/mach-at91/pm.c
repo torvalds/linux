@@ -23,16 +23,15 @@
 #include <asm/atomic.h>
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
-#include <asm/mach-types.h>
 
-#include <asm/arch/at91_pmc.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/cpu.h>
+#include <mach/at91_pmc.h>
+#include <mach/gpio.h>
+#include <mach/cpu.h>
 
 #include "generic.h"
 
 #ifdef CONFIG_ARCH_AT91RM9200
-#include <asm/arch/at91rm9200_mc.h>
+#include <mach/at91rm9200_mc.h>
 
 /*
  * The AT91RM9200 goes into self-refresh mode with this command, and will
@@ -42,7 +41,7 @@
 #define sdram_selfrefresh_disable()	do {} while (0)
 
 #elif defined(CONFIG_ARCH_AT91CAP9)
-#include <asm/arch/at91cap9_ddrsdr.h>
+#include <mach/at91cap9_ddrsdr.h>
 
 static u32 saved_lpr;
 
@@ -59,7 +58,7 @@ static inline void sdram_selfrefresh_enable(void)
 #define sdram_selfrefresh_disable()	at91_sys_write(AT91_DDRSDRC_LPR, saved_lpr)
 
 #else
-#include <asm/arch/at91sam9_sdramc.h>
+#include <mach/at91sam9_sdramc.h>
 
 #ifdef CONFIG_ARCH_AT91SAM9263
 /*
@@ -92,8 +91,8 @@ static inline void sdram_selfrefresh_enable(void)
  */
 #if defined(AT91_SHDWC)
 
-#include <asm/arch/at91_rstc.h>
-#include <asm/arch/at91_shdwc.h>
+#include <mach/at91_rstc.h>
+#include <mach/at91_shdwc.h>
 
 static void __init show_reset_status(void)
 {
