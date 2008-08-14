@@ -62,7 +62,6 @@ extern void _cplb_hdr(void);
 /* Blackfin cache functions */
 extern void bfin_icache_init(void);
 extern void bfin_dcache_init(void);
-extern int read_iloc(void);
 extern int bfin_console_init(void);
 extern asmlinkage void lower_to_irq14(void);
 extern asmlinkage void bfin_return_from_exception(void);
@@ -125,6 +124,11 @@ extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
 
 /* only used when CONFIG_MTD_UCLINUX */
 extern unsigned long memory_mtd_start, memory_mtd_end, mtd_size;
+
+#ifdef CONFIG_BFIN_ICACHE_LOCK
+extern void cache_grab_lock(int way);
+extern void cache_lock(int way);
+#endif
 
 #endif
 

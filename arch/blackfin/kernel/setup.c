@@ -1059,7 +1059,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef CONFIG_BFIN_ICACHE_LOCK
-	switch (read_iloc()) {
+	switch ((bfin_read_IMEM_CONTROL() >> 3) & WAYALL_L) {
 	case WAY0_L:
 		seq_printf(m, "Way0 Locked-Down\n");
 		break;
