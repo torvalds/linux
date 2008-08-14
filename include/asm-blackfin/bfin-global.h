@@ -58,11 +58,9 @@ extern void dump_bfin_trace_buffer(void);
 
 extern int init_arch_irq(void);
 extern void bfin_reset(void);
-extern void _cplb_hdr(void);
 /* Blackfin cache functions */
 extern void bfin_icache_init(void);
 extern void bfin_dcache_init(void);
-extern int bfin_console_init(void);
 extern asmlinkage void lower_to_irq14(void);
 extern asmlinkage void bfin_return_from_exception(void);
 extern void init_exception_vectors(void);
@@ -70,7 +68,6 @@ extern void init_dma(void);
 extern void program_IAR(void);
 extern void evt14_softirq(void);
 extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
-extern void bfin_gpio_interrupt_setup(int irq, int irq_pfx, int type);
 extern int bfin_internal_set_wake(unsigned int irq, unsigned int state);
 
 extern asmlinkage void finish_atomic_sections (struct pt_regs *regs);
@@ -109,12 +106,10 @@ extern void *sram_alloc_with_lsl(size_t, unsigned long);
 extern int sram_free_with_lsl(const void*);
 
 extern const char bfin_board_name[];
-extern unsigned long wall_jiffies;
 
 extern unsigned long bfin_sic_iwr[];
 extern unsigned vr_wakeup;
 extern u16 _bfin_swrst; /* shadow for Software Reset Register (SWRST) */
-extern struct file_operations dpmc_fops;
 extern unsigned long _ramstart, _ramend, _rambase;
 extern unsigned long memory_start, memory_end, physical_mem_end;
 extern char _stext_l1[], _etext_l1[], _sdata_l1[], _edata_l1[], _sbss_l1[],
