@@ -3548,7 +3548,11 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 
 	/* try to load the slice aware rss firmware */
 	old_fw = mgp->fw_name;
-	if (old_fw == myri10ge_fw_aligned)
+	if (myri10ge_fw_name != NULL) {
+		dev_info(&mgp->pdev->dev, "overriding rss firmware to %s\n",
+			 myri10ge_fw_name);
+		mgp->fw_name = myri10ge_fw_name;
+	} else if (old_fw == myri10ge_fw_aligned)
 		mgp->fw_name = myri10ge_fw_rss_aligned;
 	else
 		mgp->fw_name = myri10ge_fw_rss_unaligned;

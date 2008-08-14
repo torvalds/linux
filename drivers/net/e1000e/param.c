@@ -324,14 +324,27 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 				adapter->itr = 20000;
 				break;
 			default:
-				e1000_validate_option(&adapter->itr, &opt,
-					adapter);
 				/*
-				 * save the setting, because the dynamic bits
-				 * change itr. clear the lower two bits
-				 * because they are used as control
+				 * Save the setting, because the dynamic bits
+				 * change itr.
 				 */
-				adapter->itr_setting = adapter->itr & ~3;
+				if (e1000_validate_option(&adapter->itr, &opt,
+							  adapter) &&
+				    (adapter->itr == 3)) {
+					/*
+					 * In case of invalid user value,
+					 * default to conservative mode.
+					 */
+					adapter->itr_setting = adapter->itr;
+					adapter->itr = 20000;
+				} else {
+					/*
+					 * Clear the lower two bits because
+					 * they are used as control.
+					 */
+					adapter->itr_setting =
+						adapter->itr & ~3;
+				}
 				break;
 			}
 		} else {

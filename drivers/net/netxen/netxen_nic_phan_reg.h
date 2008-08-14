@@ -125,6 +125,8 @@
 #define CRB_SW_INT_MASK_2	   NETXEN_NIC_REG(0x1e4)
 #define CRB_SW_INT_MASK_3	   NETXEN_NIC_REG(0x1e8)
 
+#define CRB_MAC_BLOCK_START        NETXEN_CAM_RAM(0x1c0)
+
 /*
  * capabilities register, can be used to selectively enable/disable features
  * for backward compability
