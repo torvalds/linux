@@ -509,6 +509,15 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 		goto out_brelse_bh2;
 	}
 
+	if (sbi->s_bitmap_ino != ~0ULL &&
+	    sbi->s_bitmap_ino > sbi->s_num_blocks) {
+		printk(KERN_ERR "omfs: free space bitmap location is corrupt "
+			"(%llx, total blocks %llx)\n",
+			(unsigned long long) sbi->s_bitmap_ino,
+			(unsigned long long) sbi->s_num_blocks);
+		goto out_brelse_bh2;
+	}
+
 	ret = omfs_get_imap(sb);
 	if (ret)
 		goto out_brelse_bh2;
