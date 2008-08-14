@@ -52,6 +52,8 @@
 #include <asm/irq_regs.h>
 #include <asm/smp.h>
 
+#include "kstack.h"
+
 static void sparc64_yield(int cpu)
 {
 	if (tlb_type != hypervisor)
@@ -235,19 +237,6 @@ void show_regs(struct pt_regs *regs)
 struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 static DEFINE_SPINLOCK(global_reg_snapshot_lock);
 
-static bool kstack_valid(struct thread_info *tp, struct reg_window *rw)
-{
-	unsigned long thread_base, fp;
-
-	thread_base = (unsigned long) tp;
-	fp = (unsigned long) rw;
-
-	if (fp < (thread_base + sizeof(struct thread_info)) ||
-	    fp >= (thread_base + THREAD_SIZE))
-		return false;
-	return true;
-}
-
 static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 			      int this_cpu)
 {
@@ -264,11 +253,11 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 
 		rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);
-		if (kstack_valid(tp, rw)) {
+		if (kstack_valid(tp, (unsigned long) rw)) {
 			global_reg_snapshot[this_cpu].i7 = rw->ins[7];
 			rw = (struct reg_window *)
 				(rw->ins[6] + STACK_BIAS);
-			if (kstack_valid(tp, rw))
+			if (kstack_valid(tp, (unsigned long) rw))
 				global_reg_snapshot[this_cpu].rpc = rw->ins[7];
 		}
 	} else {
@@ -828,7 +817,7 @@ out:
 unsigned long get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
-	unsigned long thread_info_base;
+	struct thread_info *tp;
 	struct reg_window *rw;
         unsigned long ret = 0;
 	int count = 0; 
@@ -837,14 +826,12 @@ unsigned long get_wchan(struct task_struct *task)
             task->state == TASK_RUNNING)
 		goto out;
 
-	thread_info_base = (unsigned long) task_stack_page(task);
+	tp = task_thread_info(task);
 	bias = STACK_BIAS;
 	fp = task_thread_info(task)->ksp + bias;
 
 	do {
-		/* Bogus frame pointer? */
-		if (fp < (thread_info_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_info_base + THREAD_SIZE))
+		if (!kstack_valid(tp, fp))
 			break;
 		rw = (struct reg_window *) fp;
 		pc = rw->ins[7];

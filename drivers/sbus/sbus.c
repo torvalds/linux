@@ -7,13 +7,13 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/of_device.h>
 
 #include <asm/system.h>
 #include <asm/sbus.h>
 #include <asm/dma.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/bpp.h>
 #include <asm/irq.h>
 
