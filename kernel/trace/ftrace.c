@@ -792,47 +792,7 @@ static int ftrace_update_code(void)
 	return 1;
 }
 
-static int ftraced(void *ignore)
-{
-	unsigned long usecs;
-
-	while (!kthread_should_stop()) {
-
-		set_current_state(TASK_INTERRUPTIBLE);
-
-		/* check once a second */
-		schedule_timeout(HZ);
-
-		if (unlikely(ftrace_disabled))
-			continue;
-
-		mutex_lock(&ftrace_sysctl_lock);
-		mutex_lock(&ftraced_lock);
-		if (!ftraced_suspend && !ftraced_stop &&
-		    ftrace_update_code()) {
-			usecs = nsecs_to_usecs(ftrace_update_time);
-			if (ftrace_update_tot_cnt > 100000) {
-				ftrace_update_tot_cnt = 0;
-				pr_info("hm, dftrace overflow: %lu change%s"
-					" (%lu total) in %lu usec%s\n",
-					ftrace_update_cnt,
-					ftrace_update_cnt != 1 ? "s" : "",
-					ftrace_update_tot_cnt,
-					usecs, usecs != 1 ? "s" : "");
-				ftrace_disabled = 1;
-				WARN_ON_ONCE(1);
-			}
-		}
-		mutex_unlock(&ftraced_lock);
-		mutex_unlock(&ftrace_sysctl_lock);
-
-		ftrace_shutdown_replenish();
-	}
-	__set_current_state(TASK_RUNNING);
-	return 0;
-}
-
-static int __init ftrace_dyn_table_alloc(void)
+static int __init ftrace_dyn_table_alloc(unsigned long num_to_init)
 {
 	struct ftrace_page *pg;
 	int cnt;
@@ -859,7 +819,9 @@ static int __init ftrace_dyn_table_alloc(void)
 
 	pg = ftrace_pages = ftrace_pages_start;
 
-	cnt = NR_TO_INIT / ENTRIES_PER_PAGE;
+	cnt = num_to_init / ENTRIES_PER_PAGE;
+	pr_info("ftrace: allocating %ld hash entries in %d pages\n",
+		num_to_init, cnt);
 
 	for (i = 0; i < cnt; i++) {
 		pg->next = (void *)get_zeroed_page(GFP_KERNEL);
@@ -1556,6 +1518,104 @@ static __init int ftrace_init_debugfs(void)
 
 fs_initcall(ftrace_init_debugfs);
 
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+static int ftrace_convert_nops(unsigned long *start,
+			       unsigned long *end)
+{
+	unsigned long *p;
+	unsigned long addr;
+	unsigned long flags;
+
+	p = start;
+	while (p < end) {
+		addr = ftrace_call_adjust(*p++);
+		ftrace_record_ip(addr);
+		ftrace_shutdown_replenish();
+	}
+
+	/* p is ignored */
+	local_irq_save(flags);
+	__ftrace_update_code(p);
+	local_irq_restore(flags);
+
+	return 0;
+}
+
+extern unsigned long __start_mcount_loc[];
+extern unsigned long __stop_mcount_loc[];
+
+void __init ftrace_init(void)
+{
+	unsigned long count, addr, flags;
+	int ret;
+
+	/* Keep the ftrace pointer to the stub */
+	addr = (unsigned long)ftrace_stub;
+
+	local_irq_save(flags);
+	ftrace_dyn_arch_init(&addr);
+	local_irq_restore(flags);
+
+	/* ftrace_dyn_arch_init places the return code in addr */
+	if (addr)
+		goto failed;
+
+	count = __stop_mcount_loc - __start_mcount_loc;
+
+	ret = ftrace_dyn_table_alloc(count);
+	if (ret)
+		goto failed;
+
+	last_ftrace_enabled = ftrace_enabled = 1;
+
+	ret = ftrace_convert_nops(__start_mcount_loc,
+				  __stop_mcount_loc);
+
+	return;
+ failed:
+	ftrace_disabled = 1;
+}
+#else /* CONFIG_FTRACE_MCOUNT_RECORD */
+static int ftraced(void *ignore)
+{
+	unsigned long usecs;
+
+	while (!kthread_should_stop()) {
+
+		set_current_state(TASK_INTERRUPTIBLE);
+
+		/* check once a second */
+		schedule_timeout(HZ);
+
+		if (unlikely(ftrace_disabled))
+			continue;
+
+		mutex_lock(&ftrace_sysctl_lock);
+		mutex_lock(&ftraced_lock);
+		if (!ftraced_suspend && !ftraced_stop &&
+		    ftrace_update_code()) {
+			usecs = nsecs_to_usecs(ftrace_update_time);
+			if (ftrace_update_tot_cnt > 100000) {
+				ftrace_update_tot_cnt = 0;
+				pr_info("hm, dftrace overflow: %lu change%s"
+					" (%lu total) in %lu usec%s\n",
+					ftrace_update_cnt,
+					ftrace_update_cnt != 1 ? "s" : "",
+					ftrace_update_tot_cnt,
+					usecs, usecs != 1 ? "s" : "");
+				ftrace_disabled = 1;
+				WARN_ON_ONCE(1);
+			}
+		}
+		mutex_unlock(&ftraced_lock);
+		mutex_unlock(&ftrace_sysctl_lock);
+
+		ftrace_shutdown_replenish();
+	}
+	__set_current_state(TASK_RUNNING);
+	return 0;
+}
+
 static int __init ftrace_dynamic_init(void)
 {
 	struct task_struct *p;
@@ -1572,7 +1632,7 @@ static int __init ftrace_dynamic_init(void)
 		goto failed;
 	}
 
-	ret = ftrace_dyn_table_alloc();
+	ret = ftrace_dyn_table_alloc(NR_TO_INIT);
 	if (ret)
 		goto failed;
 
@@ -1593,6 +1653,8 @@ static int __init ftrace_dynamic_init(void)
 }
 
 core_initcall(ftrace_dynamic_init);
+#endif /* CONFIG_FTRACE_MCOUNT_RECORD */
+
 #else
 # define ftrace_startup()		do { } while (0)
 # define ftrace_shutdown()		do { } while (0)

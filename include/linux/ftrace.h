@@ -162,4 +162,10 @@ static inline void
 ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
 #endif
 
+#ifdef CONFIG_FTRACE_MCOUNT_RECORD
+extern void ftrace_init(void);
+#else
+static inline void ftrace_init(void) { }
+#endif
+
 #endif /* _LINUX_FTRACE_H */

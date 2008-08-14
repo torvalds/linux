@@ -60,6 +60,7 @@
 #include <linux/sched.h>
 #include <linux/signal.h>
 #include <linux/idr.h>
+#include <linux/ftrace.h>
 
 #include <asm/io.h>
 #include <asm/bugs.h>
@@ -686,6 +687,8 @@ asmlinkage void __init start_kernel(void)
 	check_bugs();
 
 	acpi_early_init(); /* before LAPIC and SMP init */
+
+	ftrace_init();
 
 	/* Do the rest non-__init'ed, we're now alive */
 	rest_init();
