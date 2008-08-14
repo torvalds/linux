@@ -165,6 +165,7 @@ enum {
 	/* Micron CMOS sensor chips: 45000-45099 */
 	V4L2_IDENT_MT9M001C12ST		= 45000,
 	V4L2_IDENT_MT9M001C12STM	= 45005,
+	V4L2_IDENT_MT9M111		= 45007,
 	V4L2_IDENT_MT9V022IX7ATC	= 45010, /* No way to detect "normal" I77ATx */
 	V4L2_IDENT_MT9V022IX7ATM	= 45015, /* and "lead free" IA7ATx chips */
 };
