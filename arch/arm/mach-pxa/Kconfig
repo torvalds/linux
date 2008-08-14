@@ -119,6 +119,15 @@ config MACH_TOSA
 	select PXA25x
 	select PXA_HAVE_BOARD_IRQS
 
+config ARCH_VIPER
+	bool "Arcom/Eurotech VIPER SBC"
+	select PXA25x
+	select ISA
+	select I2C_GPIO
+	select HAVE_PWM
+	select PXA_HAVE_BOARD_IRQS
+	select PXA_HAVE_ISA_IRQS
+
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
 	select PXA25x
