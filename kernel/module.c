@@ -47,6 +47,7 @@
 #include <linux/license.h>
 #include <asm/sections.h>
 #include <linux/tracepoint.h>
+#include <linux/ftrace.h>
 
 #if 0
 #define DEBUGP printk
@@ -1834,6 +1835,7 @@ static noinline struct module *load_module(void __user *umod,
 	unsigned int markersstringsindex;
 	unsigned int tracepointsindex;
 	unsigned int tracepointsstringsindex;
+	unsigned int mcountindex;
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
@@ -2124,6 +2126,9 @@ static noinline struct module *load_module(void __user *umod,
 	tracepointsstringsindex = find_sec(hdr, sechdrs, secstrings,
 					"__tracepoints_strings");
 
+	mcountindex = find_sec(hdr, sechdrs, secstrings,
+			       "__mcount_loc");
+
 	/* Now do relocations. */
 	for (i = 1; i < hdr->e_shnum; i++) {
 		const char *strtab = (char *)sechdrs[strindex].sh_addr;
@@ -2184,6 +2189,12 @@ static noinline struct module *load_module(void __user *umod,
 			mod->tracepoints + mod->num_tracepoints);
 #endif
 	}
+
+	if (mcountindex) {
+		void *mseg = (void *)sechdrs[mcountindex].sh_addr;
+		ftrace_init_module(mseg, mseg + sechdrs[mcountindex].sh_size);
+	}
+
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
 		goto cleanup;

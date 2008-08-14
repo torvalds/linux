@@ -1541,6 +1541,11 @@ static int ftrace_convert_nops(unsigned long *start,
 	return 0;
 }
 
+void ftrace_init_module(unsigned long *start, unsigned long *end)
+{
+	ftrace_convert_nops(start, end);
+}
+
 extern unsigned long __start_mcount_loc[];
 extern unsigned long __stop_mcount_loc[];
 
