@@ -218,7 +218,7 @@ static int __devinit isp1761_pci_probe(struct pci_dev *dev,
 	 * and reading back and checking the contents are same or not
 	 */
 	if (reg_data != 0xFACE) {
-		err("scratch register mismatch %x", reg_data);
+		dev_err(&dev->dev, "scratch register mismatch %x\n", reg_data);
 		goto clean;
 	}
 
