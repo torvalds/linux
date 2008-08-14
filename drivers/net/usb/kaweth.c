@@ -832,7 +832,7 @@ static int kaweth_start_xmit(struct sk_buff *skb, struct net_device *net)
 
 	if((res = usb_submit_urb(kaweth->tx_urb, GFP_ATOMIC)))
 	{
-		warn("kaweth failed tx_urb %d", res);
+		dev_warn(&net->dev, "kaweth failed tx_urb %d\n", res);
 skip:
 		kaweth->stats.tx_errors++;
 
@@ -924,7 +924,7 @@ static void kaweth_tx_timeout(struct net_device *net)
 {
 	struct kaweth_device *kaweth = netdev_priv(net);
 
-	warn("%s: Tx timed out. Resetting.", net->name);
+	dev_warn(&net->dev, "%s: Tx timed out. Resetting.\n", net->name);
 	kaweth->stats.tx_errors++;
 	net->trans_start = jiffies;
 
@@ -1209,7 +1209,7 @@ static void kaweth_disconnect(struct usb_interface *intf)
 
 	usb_set_intfdata(intf, NULL);
 	if (!kaweth) {
-		warn("unregistering non-existant device");
+		dev_warn(&intf->dev, "unregistering non-existant device\n");
 		return;
 	}
 	netdev = kaweth->net;
@@ -1269,7 +1269,7 @@ static int usb_start_wait_urb(struct urb *urb, int timeout, int* actual_length)
 
 	if (!wait_event_timeout(awd.wqh, awd.done, timeout)) {
                 // timeout
-                warn("usb_control/bulk_msg: timeout");
+                dev_warn(&urb->dev->dev, "usb_control/bulk_msg: timeout\n");
                 usb_kill_urb(urb);  // remove urb safely
                 status = -ETIMEDOUT;
         }

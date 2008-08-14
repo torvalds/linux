@@ -506,7 +506,7 @@ static int change_speed(struct stir_cb *stir, unsigned speed)
 			goto found;
 	}
 
-	warn("%s: invalid speed %d", stir->netdev->name, speed);
+	dev_warn(&stir->netdev->dev, "invalid speed %d\n", speed);
 	return -EINVAL;
 
  found:
@@ -598,8 +598,8 @@ static int fifo_txwait(struct stir_cb *stir, int space)
 		err = read_reg(stir, REG_FIFOCTL, stir->fifo_status, 
 				   FIFO_REGS_SIZE);
 		if (unlikely(err != FIFO_REGS_SIZE)) {
-			warn("%s: FIFO register read error: %d", 
-			     stir->netdev->name, err);
+			dev_warn(&stir->netdev->dev,
+				 "FIFO register read error: %d\n", err);
 
 			return err;
 		}
@@ -836,8 +836,8 @@ static void stir_rcv_irq(struct urb *urb)
 
 	/* in case of error, the kernel thread will restart us */
 	if (err) {
-		warn("%s: usb receive submit error: %d",
-			stir->netdev->name, err);
+		dev_warn(&stir->netdev->dev, "usb receive submit error: %d\n",
+			 err);
 		stir->receiving = 0;
 		wake_up_process(stir->thread);
 	}
