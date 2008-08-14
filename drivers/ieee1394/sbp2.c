@@ -656,24 +656,11 @@ static struct sbp2_command_info *sbp2util_allocate_command_orb(
 static void sbp2util_mark_command_completed(struct sbp2_lu *lu,
 					    struct sbp2_command_info *cmd)
 {
-	struct hpsb_host *host = lu->ud->ne->host;
-
-	if (cmd->cmd_dma) {
-		if (cmd->dma_type == CMD_DMA_SINGLE)
-			dma_unmap_single(host->device.parent, cmd->cmd_dma,
-					 cmd->dma_size, cmd->dma_dir);
-		else if (cmd->dma_type == CMD_DMA_PAGE)
-			dma_unmap_page(host->device.parent, cmd->cmd_dma,
-				       cmd->dma_size, cmd->dma_dir);
-		/* XXX: Check for CMD_DMA_NONE bug */
-		cmd->dma_type = CMD_DMA_NONE;
-		cmd->cmd_dma = 0;
-	}
-	if (cmd->sge_buffer) {
-		dma_unmap_sg(host->device.parent, cmd->sge_buffer,
-			     cmd->dma_size, cmd->dma_dir);
-		cmd->sge_buffer = NULL;
-	}
+	if (scsi_sg_count(cmd->Current_SCpnt))
+		dma_unmap_sg(lu->ud->ne->host->device.parent,
+			     scsi_sglist(cmd->Current_SCpnt),
+			     scsi_sg_count(cmd->Current_SCpnt),
+			     cmd->Current_SCpnt->sc_data_direction);
 	list_move_tail(&cmd->list, &lu->cmd_orb_completed);
 }
 
@@ -837,6 +824,10 @@ static struct sbp2_lu *sbp2_alloc_device(struct unit_directory *ud)
 		}
 #endif
 	}
+
+	if (dma_get_max_seg_size(hi->host->device.parent) > SBP2_MAX_SEG_SIZE)
+		BUG_ON(dma_set_max_seg_size(hi->host->device.parent,
+					    SBP2_MAX_SEG_SIZE));
 
 	/* Prevent unloading of the 1394 host */
 	if (!try_module_get(hi->host->driver->owner)) {
@@ -1512,76 +1503,41 @@ static int sbp2_agent_reset(struct sbp2_lu *lu, int wait)
 static int sbp2_prep_command_orb_sg(struct sbp2_command_orb *orb,
 				    struct sbp2_fwhost_info *hi,
 				    struct sbp2_command_info *cmd,
-				    unsigned int scsi_use_sg,
+				    unsigned int sg_count,
 				    struct scatterlist *sg,
 				    u32 orb_direction,
 				    enum dma_data_direction dma_dir)
 {
 	struct device *dmadev = hi->host->device.parent;
+	struct sbp2_unrestricted_page_table *pt;
+	int i, n;
 
-	cmd->dma_dir = dma_dir;
+	n = dma_map_sg(dmadev, sg, sg_count, dma_dir);
+	if (n == 0)
+		return -ENOMEM;
+
 	orb->data_descriptor_hi = ORB_SET_NODE_ID(hi->host->node_id);
 	orb->misc |= ORB_SET_DIRECTION(orb_direction);
 
 	/* special case if only one element (and less than 64KB in size) */
-	if (scsi_use_sg == 1 && sg->length <= SBP2_MAX_SG_ELEMENT_LENGTH) {
-
-		cmd->dma_size = sg->length;
-		cmd->dma_type = CMD_DMA_PAGE;
-		cmd->cmd_dma = dma_map_page(dmadev, sg_page(sg), sg->offset,
-					    cmd->dma_size, cmd->dma_dir);
-		if (dma_mapping_error(dmadev, cmd->cmd_dma)) {
-			cmd->cmd_dma = 0;
-			return -ENOMEM;
-		}
-
-		orb->data_descriptor_lo = cmd->cmd_dma;
-		orb->misc |= ORB_SET_DATA_SIZE(cmd->dma_size);
-
+	if (n == 1) {
+		orb->misc |= ORB_SET_DATA_SIZE(sg_dma_len(sg));
+		orb->data_descriptor_lo = sg_dma_address(sg);
 	} else {
-		struct sbp2_unrestricted_page_table *sg_element =
-						&cmd->scatter_gather_element[0];
-		u32 sg_count, sg_len;
-		dma_addr_t sg_addr;
-		int i, count = dma_map_sg(dmadev, sg, scsi_use_sg, dma_dir);
-
-		cmd->dma_size = scsi_use_sg;
-		cmd->sge_buffer = sg;
-
-		/* use page tables (s/g) */
-		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1);
-		orb->data_descriptor_lo = cmd->sge_dma;
+		pt = &cmd->scatter_gather_element[0];
 
 		dma_sync_single_for_cpu(dmadev, cmd->sge_dma,
 					sizeof(cmd->scatter_gather_element),
 					DMA_TO_DEVICE);
 
-		/* loop through and fill out our SBP-2 page tables
-		 * (and split up anything too large) */
-		for (i = 0, sg_count = 0; i < count; i++, sg = sg_next(sg)) {
-			sg_len = sg_dma_len(sg);
-			sg_addr = sg_dma_address(sg);
-			while (sg_len) {
-				sg_element[sg_count].segment_base_lo = sg_addr;
-				if (sg_len > SBP2_MAX_SG_ELEMENT_LENGTH) {
-					sg_element[sg_count].length_segment_base_hi =
-						PAGE_TABLE_SET_SEGMENT_LENGTH(SBP2_MAX_SG_ELEMENT_LENGTH);
-					sg_addr += SBP2_MAX_SG_ELEMENT_LENGTH;
-					sg_len -= SBP2_MAX_SG_ELEMENT_LENGTH;
-				} else {
-					sg_element[sg_count].length_segment_base_hi =
-						PAGE_TABLE_SET_SEGMENT_LENGTH(sg_len);
-					sg_len = 0;
-				}
-				sg_count++;
-			}
+		for_each_sg(sg, sg, n, i) {
+			pt[i].high = cpu_to_be32(sg_dma_len(sg) << 16);
+			pt[i].low = cpu_to_be32(sg_dma_address(sg));
 		}
 
-		orb->misc |= ORB_SET_DATA_SIZE(sg_count);
-
-		sbp2util_cpu_to_be32_buffer(sg_element,
-				(sizeof(struct sbp2_unrestricted_page_table)) *
-				sg_count);
+		orb->misc |= ORB_SET_PAGE_TABLE_PRESENT(0x1) |
+			     ORB_SET_DATA_SIZE(n);
+		orb->data_descriptor_lo = cmd->sge_dma;
 
 		dma_sync_single_for_device(dmadev, cmd->sge_dma,
 					   sizeof(cmd->scatter_gather_element),
@@ -2048,6 +2004,8 @@ static int sbp2scsi_slave_configure(struct scsi_device *sdev)
 		sdev->start_stop_pwr_cond = 1;
 	if (lu->workarounds & SBP2_WORKAROUND_128K_MAX_TRANS)
 		blk_queue_max_sectors(sdev->request_queue, 128 * 1024 / 512);
+
+	blk_queue_max_segment_size(sdev->request_queue, SBP2_MAX_SEG_SIZE);
 	return 0;
 }
 
