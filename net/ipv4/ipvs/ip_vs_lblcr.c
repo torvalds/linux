@@ -573,7 +573,7 @@ static int ip_vs_lblcr_done_svc(struct ip_vs_service *svc)
 
 
 static inline struct ip_vs_dest *
-__ip_vs_wlc_schedule(struct ip_vs_service *svc, struct iphdr *iph)
+__ip_vs_lblcr_schedule(struct ip_vs_service *svc, struct iphdr *iph)
 {
 	struct ip_vs_dest *dest, *least;
 	int loh, doh;
@@ -673,7 +673,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	tbl = (struct ip_vs_lblcr_table *)svc->sched_data;
 	en = ip_vs_lblcr_get(tbl, iph->daddr);
 	if (en == NULL) {
-		dest = __ip_vs_wlc_schedule(svc, iph);
+		dest = __ip_vs_lblcr_schedule(svc, iph);
 		if (dest == NULL) {
 			IP_VS_DBG(1, "no destination available\n");
 			return NULL;
@@ -687,7 +687,7 @@ ip_vs_lblcr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	} else {
 		dest = ip_vs_dest_set_min(&en->set);
 		if (!dest || is_overloaded(dest, svc)) {
-			dest = __ip_vs_wlc_schedule(svc, iph);
+			dest = __ip_vs_lblcr_schedule(svc, iph);
 			if (dest == NULL) {
 				IP_VS_DBG(1, "no destination available\n");
 				return NULL;
