@@ -1744,8 +1744,6 @@ extern void usb_unregister_notify(struct notifier_block *nb);
 	format "\n" , ## arg)
 #define info(format, arg...) printk(KERN_INFO KBUILD_MODNAME ": " \
 	format "\n" , ## arg)
-#define warn(format, arg...) printk(KERN_WARNING KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
 
 #endif  /* __KERNEL__ */
 
