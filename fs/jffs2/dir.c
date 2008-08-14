@@ -311,7 +311,7 @@ static int jffs2_symlink (struct inode *dir_i, struct dentry *dentry, const char
 	/* FIXME: If you care. We'd need to use frags for the target
 	   if it grows much more than this */
 	if (targetlen > 254)
-		return -EINVAL;
+		return -ENAMETOOLONG;
 
 	ri = jffs2_alloc_raw_inode();
 
