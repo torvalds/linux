@@ -667,6 +667,13 @@ END(stub_rt_sigreturn)
 	SAVE_ARGS
 	leaq -ARGOFFSET(%rsp),%rdi	# arg1 for handler
 	pushq %rbp
+	/*
+	 * Save rbp twice: One is for marking the stack frame, as usual, and the
+	 * other, to fill pt_regs properly. This is because bx comes right
+	 * before the last saved register in that structure, and not bp. If the
+	 * base pointer were in the place bx is today, this would not be needed.
+	 */
+	movq %rbp, -8(%rsp)
 	CFI_ADJUST_CFA_OFFSET	8
 	CFI_REL_OFFSET		rbp, 0
 	movq %rsp,%rbp
