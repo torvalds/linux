@@ -56,17 +56,17 @@ extern void dump_bfin_process(struct pt_regs *regs);
 extern void dump_bfin_mem(struct pt_regs *regs);
 extern void dump_bfin_trace_buffer(void);
 
+/* init functions only */
 extern int init_arch_irq(void);
-extern void bfin_reset(void);
-/* Blackfin cache functions */
 extern void bfin_icache_init(void);
 extern void bfin_dcache_init(void);
+extern void init_exception_vectors(void);
+extern void program_IAR(void);
+
+extern void bfin_reset(void);
 extern asmlinkage void lower_to_irq14(void);
 extern asmlinkage void bfin_return_from_exception(void);
-extern void init_exception_vectors(void);
-extern void init_dma(void);
-extern void program_IAR(void);
-extern void evt14_softirq(void);
+extern asmlinkage void evt14_softirq(void);
 extern asmlinkage void asm_do_IRQ(unsigned int irq, struct pt_regs *regs);
 extern int bfin_internal_set_wake(unsigned int irq, unsigned int state);
 
