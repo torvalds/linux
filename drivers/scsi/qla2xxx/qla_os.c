@@ -1080,9 +1080,7 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *ha, int res)
 		sp = ha->outstanding_cmds[cnt];
 		if (sp) {
 			ha->outstanding_cmds[cnt] = NULL;
-			sp->flags = 0;
 			sp->cmd->result = res;
-			sp->cmd->host_scribble = (unsigned char *)NULL;
 			qla2x00_sp_compl(ha, sp);
 		}
 	}
