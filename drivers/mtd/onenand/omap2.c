@@ -141,8 +141,13 @@ static int omap2_onenand_wait(struct mtd_info *mtd, int state)
 
 		/* Turn interrupts on */
 		syscfg = read_reg(c, ONENAND_REG_SYS_CFG1);
-		syscfg |= ONENAND_SYS_CFG1_IOBE;
-		write_reg(c, syscfg, ONENAND_REG_SYS_CFG1);
+		if (!(syscfg & ONENAND_SYS_CFG1_IOBE)) {
+			syscfg |= ONENAND_SYS_CFG1_IOBE;
+			write_reg(c, syscfg, ONENAND_REG_SYS_CFG1);
+			if (cpu_is_omap34xx())
+				/* Add a delay to let GPIO settle */
+				syscfg = read_reg(c, ONENAND_REG_SYS_CFG1);
+		}
 
 		INIT_COMPLETION(c->irq_done);
 		if (c->gpio_irq) {
