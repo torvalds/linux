@@ -52,9 +52,26 @@
 		reg = <0x00000000 0x10000000>;
 	};
 
-	bcsr@f8000000 {
-		device_type = "board-control";
-		reg = <0xf8000000 0x8000>;
+	localbus@e0005000 {
+		#address-cells = <2>;
+		#size-cells = <1>;
+		compatible = "fsl,mpc8360-localbus", "fsl,pq2pro-localbus",
+			     "simple-bus";
+		reg = <0xe0005000 0xd8>;
+		ranges = <0 0 0xfe000000 0x02000000
+		          1 0 0xf8000000 0x00008000>;
+
+		flash@0,0 {
+			compatible = "cfi-flash";
+			reg = <0 0 0x2000000>;
+			bank-width = <2>;
+			device-width = <1>;
+		};
+
+		bcsr@1,0 {
+			device_type = "board-control";
+			reg = <1 0 0x8000>;
+		};
 	};
 
 	soc8360@e0000000 {
