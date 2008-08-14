@@ -454,11 +454,10 @@ static int ath_rx_indicate(struct ath_softc *sc,
 	nskb = ath_rxbuf_alloc(sc, sc->sc_rxbufsize);
 	if (nskb != NULL) {
 		bf->bf_mpdu = nskb;
-		bf->bf_buf_addr = ath_skb_map_single(sc,
-			nskb,
-			PCI_DMA_FROMDEVICE,
-			/* XXX: Remove get_dma_mem_context() */
-			get_dma_mem_context(bf, bf_dmacontext));
+		bf->bf_buf_addr = pci_map_single(sc->pdev, nskb->data,
+					 skb_end_pointer(nskb) - nskb->head,
+					 PCI_DMA_FROMDEVICE);
+		bf->bf_dmacontext = bf->bf_buf_addr;
 		ATH_RX_CONTEXT(nskb)->ctx_rxbuf = bf;
 
 		/* queue the new wbuf to H/W */
@@ -541,9 +540,10 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 			}
 
 			bf->bf_mpdu = skb;
-			bf->bf_buf_addr =
-				ath_skb_map_single(sc, skb, PCI_DMA_FROMDEVICE,
-				       get_dma_mem_context(bf, bf_dmacontext));
+			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
+					 skb_end_pointer(skb) - skb->head,
+					 PCI_DMA_FROMDEVICE);
+			bf->bf_dmacontext = bf->bf_buf_addr;
 			ATH_RX_CONTEXT(skb)->ctx_rxbuf = bf;
 		}
 		sc->sc_rxlink = NULL;
@@ -1296,28 +1296,4 @@ void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an)
 {
 	ath_rx_node_cleanup(sc, an);
-}
-
-dma_addr_t ath_skb_map_single(struct ath_softc *sc,
-			      struct sk_buff *skb,
-			      int direction,
-			      dma_addr_t *pa)
-{
-	/*
-	 * NB: do NOT use skb->len, which is 0 on initialization.
-	 * Use skb's entire data area instead.
-	 */
-	*pa = pci_map_single(sc->pdev, skb->data,
-		skb_end_pointer(skb) - skb->head, direction);
-	return *pa;
-}
-
-void ath_skb_unmap_single(struct ath_softc *sc,
-			  struct sk_buff *skb,
-			  int direction,
-			  dma_addr_t *pa)
-{
-	/* Unmap skb's entire data area */
-	pci_unmap_single(sc->pdev, *pa,
-		skb_end_pointer(skb) - skb->head, direction);
 }

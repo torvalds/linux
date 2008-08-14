@@ -1023,14 +1023,5 @@ int ath_cabq_update(struct ath_softc *);
 void ath_get_currentCountry(struct ath_softc *sc,
 	struct ath9k_country_entry *ctry);
 u64 ath_extend_tsf(struct ath_softc *sc, u32 rstamp);
-dma_addr_t ath_skb_map_single(struct ath_softc *sc,
-			      struct sk_buff *skb,
-			      int direction,
-			      dma_addr_t *pa);
-void ath_skb_unmap_single(struct ath_softc *sc,
-			  struct sk_buff *skb,
-			  int direction,
-			  dma_addr_t *pa);
-enum ath9k_ht_macmode ath_cwm_macmode(struct ath_softc *sc);
 
 #endif /* CORE_H */

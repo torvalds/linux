@@ -314,7 +314,6 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	bool fastcc = true, stopped;
-	enum ath9k_ht_macmode ht_macmode;
 
 	if (sc->sc_flags & SC_OP_INVALID) /* the device is invalid or removed */
 		return -EIO;
@@ -327,8 +326,6 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		sc->sc_ah->ah_curchan->channel,
 		ath9k_hw_mhz2ieee(ah, hchan->channel, hchan->channelFlags),
 		hchan->channel, hchan->channelFlags);
-
-	ht_macmode = ath_cwm_macmode(sc);
 
 	if (hchan->channel != sc->sc_ah->ah_curchan->channel ||
 	    hchan->channelFlags != sc->sc_ah->ah_curchan->channelFlags ||
@@ -357,10 +354,11 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 
 		spin_lock_bh(&sc->sc_resetlock);
 		if (!ath9k_hw_reset(ah, hchan,
-					ht_macmode, sc->sc_tx_chainmask,
-					sc->sc_rx_chainmask,
-					sc->sc_ht_extprotspacing,
-					fastcc, &status)) {
+				    sc->sc_ht_info.tx_chan_width,
+				    sc->sc_tx_chainmask,
+				    sc->sc_rx_chainmask,
+				    sc->sc_ht_extprotspacing,
+				    fastcc, &status)) {
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: unable to reset channel %u (%uMhz) "
 				"flags 0x%x hal status %u\n", __func__,
@@ -682,7 +680,6 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	struct ath_hal *ah = sc->sc_ah;
 	int status;
 	int error = 0;
-	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: mode %d\n",
 		__func__, sc->sc_ah->ah_opmode);
@@ -709,9 +706,10 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 */
 
 	spin_lock_bh(&sc->sc_resetlock);
-	if (!ath9k_hw_reset(ah, initial_chan, ht_macmode,
-			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
-			   sc->sc_ht_extprotspacing, false, &status)) {
+	if (!ath9k_hw_reset(ah, initial_chan,
+			    sc->sc_ht_info.tx_chan_width,
+			    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
+			    sc->sc_ht_extprotspacing, false, &status)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: unable to reset hardware; hal status %u "
 			"(freq %u flags 0x%x)\n", __func__, status,
@@ -788,7 +786,6 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	struct ath_hal *ah = sc->sc_ah;
 	int status;
 	int error = 0;
-	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
 
 	ath9k_hw_set_interrupts(ah, 0);	/* disable interrupts */
 	ath_draintxq(sc, retry_tx);	/* stop xmit */
@@ -798,9 +795,9 @@ int ath_reset(struct ath_softc *sc, bool retry_tx)
 	/* Reset chip */
 	spin_lock_bh(&sc->sc_resetlock);
 	if (!ath9k_hw_reset(ah, sc->sc_ah->ah_curchan,
-			   ht_macmode,
-			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
-			   sc->sc_ht_extprotspacing, false, &status)) {
+			    sc->sc_ht_info.tx_chan_width,
+			    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
+			    sc->sc_ht_extprotspacing, false, &status)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: unable to reset hardware; hal status %u\n",
 			__func__, status);
