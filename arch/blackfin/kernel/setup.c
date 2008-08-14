@@ -790,7 +790,7 @@ void __init setup_arch(char **cmdline_p)
 		 * don't decode the address, since you don't know if this
 		 * kernel's symbol map is the same as the crashing kernel
 		 */
-		printk(KERN_INFO "Recovering from Double Fault event at %p\n", __retx);
+		printk(KERN_INFO "Recovering from Double Fault event at %pF\n", __retx);
 	else if (_bfin_swrst & RESET_WDOG)
 		printk(KERN_INFO "Recovering from Watchdog event\n");
 	else if (_bfin_swrst & RESET_SOFTWARE)
