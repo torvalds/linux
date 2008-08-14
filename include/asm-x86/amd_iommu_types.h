@@ -69,6 +69,9 @@
 #define MMIO_EVT_TAIL_OFFSET	0x2018
 #define MMIO_STATUS_OFFSET	0x2020
 
+/* MMIO status bits */
+#define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
+
 /* feature control bits */
 #define CONTROL_IOMMU_EN        0x00ULL
 #define CONTROL_HT_TUN_EN       0x01ULL
@@ -89,6 +92,7 @@
 #define CMD_INV_IOMMU_PAGES     0x03
 
 #define CMD_COMPL_WAIT_STORE_MASK	0x01
+#define CMD_COMPL_WAIT_INT_MASK		0x02
 #define CMD_INV_IOMMU_PAGES_SIZE_MASK	0x01
 #define CMD_INV_IOMMU_PAGES_PDE_MASK	0x02
 
