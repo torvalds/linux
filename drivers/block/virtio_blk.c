@@ -84,11 +84,11 @@ static bool do_req(struct request_queue *q, struct virtio_blk *vblk,
 	if (blk_fs_request(vbr->req)) {
 		vbr->out_hdr.type = 0;
 		vbr->out_hdr.sector = vbr->req->sector;
-		vbr->out_hdr.ioprio = vbr->req->ioprio;
+		vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
 	} else if (blk_pc_request(vbr->req)) {
 		vbr->out_hdr.type = VIRTIO_BLK_T_SCSI_CMD;
 		vbr->out_hdr.sector = 0;
-		vbr->out_hdr.ioprio = vbr->req->ioprio;
+		vbr->out_hdr.ioprio = req_get_ioprio(vbr->req);
 	} else {
 		/* We don't put anything else in the queue. */
 		BUG();

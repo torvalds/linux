@@ -232,6 +232,11 @@ struct request {
 	struct request *next_rq;
 };
 
+static inline unsigned short req_get_ioprio(struct request *req)
+{
+	return req->ioprio;
+}
+
 /*
  * State information carried for REQ_TYPE_PM_SUSPEND and REQ_TYPE_PM_RESUME
  * requests. Some step values could eventually be made generic.
