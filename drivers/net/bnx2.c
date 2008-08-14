@@ -3237,10 +3237,10 @@ bnx2_set_rx_mode(struct net_device *dev)
 				  BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG);
 	sort_mode = 1 | BNX2_RPM_SORT_USER0_BC_EN;
 #ifdef BCM_VLAN
-	if (!bp->vlgrp && !(bp->flags & BNX2_FLAG_ASF_ENABLE))
+	if (!bp->vlgrp && (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
 		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
 #else
-	if (!(bp->flags & BNX2_FLAG_ASF_ENABLE))
+	if (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN)
 		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
 #endif
 	if (dev->flags & IFF_PROMISC) {
