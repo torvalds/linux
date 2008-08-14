@@ -46,6 +46,10 @@ config CRYPTO_HASH
 	tristate
 	select CRYPTO_ALGAPI
 
+config CRYPTO_RNG
+	tristate
+	select CRYPTO_ALGAPI
+
 config CRYPTO_MANAGER
 	tristate "Cryptographic algorithm manager"
 	select CRYPTO_AEAD
@@ -688,6 +692,18 @@ config CRYPTO_LZO
 	select LZO_DECOMPRESS
 	help
 	  This is the LZO algorithm.
+
+comment "Random Number Generation"
+
+config CRYPTO_ANSI_CPRNG
+	tristate "Pseudo Random Number Generation for Cryptographic modules"
+	select CRYPTO_AES
+	select CRYPTO_RNG
+	select CRYPTO_FIPS
+	help
+	  This option enables the generic pseudo random number generator
+	  for cryptographic modules.  Uses the Algorithm specified in
+	  ANSI X9.31 A.2.4
 
 source "drivers/crypto/Kconfig"
 

@@ -38,6 +38,7 @@
 #define CRYPTO_ALG_TYPE_DIGEST		0x00000008
 #define CRYPTO_ALG_TYPE_HASH		0x00000009
 #define CRYPTO_ALG_TYPE_AHASH		0x0000000a
+#define CRYPTO_ALG_TYPE_RNG		0x0000000c
 
 #define CRYPTO_ALG_TYPE_HASH_MASK	0x0000000e
 #define CRYPTO_ALG_TYPE_AHASH_MASK	0x0000000c
@@ -113,6 +114,7 @@ struct crypto_aead;
 struct crypto_blkcipher;
 struct crypto_hash;
 struct crypto_ahash;
+struct crypto_rng;
 struct crypto_tfm;
 struct crypto_type;
 struct aead_givcrypt_request;
@@ -298,6 +300,15 @@ struct compress_alg {
 			      unsigned int slen, u8 *dst, unsigned int *dlen);
 };
 
+struct rng_alg {
+	int (*rng_make_random)(struct crypto_rng *tfm, u8 *rdata,
+			       unsigned int dlen);
+	int (*rng_reset)(struct crypto_rng *tfm, u8 *seed, unsigned int slen);
+
+	unsigned int seedsize;
+};
+
+
 #define cra_ablkcipher	cra_u.ablkcipher
 #define cra_aead	cra_u.aead
 #define cra_blkcipher	cra_u.blkcipher
@@ -306,6 +317,7 @@ struct compress_alg {
 #define cra_hash	cra_u.hash
 #define cra_ahash	cra_u.ahash
 #define cra_compress	cra_u.compress
+#define cra_rng		cra_u.rng
 
 struct crypto_alg {
 	struct list_head cra_list;
@@ -333,6 +345,7 @@ struct crypto_alg {
 		struct hash_alg hash;
 		struct ahash_alg ahash;
 		struct compress_alg compress;
+		struct rng_alg rng;
 	} cra_u;
 
 	int (*cra_init)(struct crypto_tfm *tfm);
@@ -438,6 +451,12 @@ struct compress_tfm {
 	                      u8 *dst, unsigned int *dlen);
 };
 
+struct rng_tfm {
+	int (*rng_gen_random)(struct crypto_rng *tfm, u8 *rdata,
+			      unsigned int dlen);
+	int (*rng_reset)(struct crypto_rng *tfm, u8 *seed, unsigned int slen);
+};
+
 #define crt_ablkcipher	crt_u.ablkcipher
 #define crt_aead	crt_u.aead
 #define crt_blkcipher	crt_u.blkcipher
@@ -445,6 +464,7 @@ struct compress_tfm {
 #define crt_hash	crt_u.hash
 #define crt_ahash	crt_u.ahash
 #define crt_compress	crt_u.compress
+#define crt_rng		crt_u.rng
 
 struct crypto_tfm {
 
@@ -458,6 +478,7 @@ struct crypto_tfm {
 		struct hash_tfm hash;
 		struct ahash_tfm ahash;
 		struct compress_tfm compress;
+		struct rng_tfm rng;
 	} crt_u;
 	
 	struct crypto_alg *__crt_alg;
@@ -486,6 +507,10 @@ struct crypto_comp {
 };
 
 struct crypto_hash {
+	struct crypto_tfm base;
+};
+
+struct crypto_rng {
 	struct crypto_tfm base;
 };
 
