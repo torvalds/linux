@@ -41,6 +41,7 @@ config CRYPTO_AEAD
 config CRYPTO_BLKCIPHER
 	tristate
 	select CRYPTO_ALGAPI
+	select CRYPTO_RNG
 
 config CRYPTO_HASH
 	tristate
@@ -125,6 +126,7 @@ config CRYPTO_SEQIV
 	tristate "Sequence Number IV Generator"
 	select CRYPTO_AEAD
 	select CRYPTO_BLKCIPHER
+	select CRYPTO_RNG
 	help
 	  This IV generator generates an IV based on a sequence number by
 	  xoring it with a salt.  This algorithm is mainly useful for CTR
