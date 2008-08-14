@@ -702,13 +702,6 @@ static int nfs_flock(struct file *filp, int cmd, struct file_lock *fl)
 			filp->f_path.dentry->d_name.name,
 			fl->fl_type, fl->fl_flags);
 
-	/*
-	 * No BSD flocks over NFS allowed.
-	 * Note: we could try to fake a POSIX lock request here by
-	 * using ((u32) filp | 0x80000000) or some such as the pid.
-	 * Not sure whether that would be unique, though, or whether
-	 * that would break in other places.
-	 */
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
 
