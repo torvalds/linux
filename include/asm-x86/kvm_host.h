@@ -734,15 +734,6 @@ enum {
 	TASK_SWITCH_GATE = 3,
 };
 
-
-#ifdef CONFIG_64BIT
-# define KVM_EX_ENTRY ".quad"
-# define KVM_EX_PUSH "pushq"
-#else
-# define KVM_EX_ENTRY ".long"
-# define KVM_EX_PUSH "pushl"
-#endif
-
 /*
  * Hardware virtualization extension instructions may fault if a
  * reboot turns off virtualization while processes are running.
@@ -754,11 +745,11 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 	"666: " insn "\n\t" \
 	".pushsection .fixup, \"ax\" \n" \
 	"667: \n\t" \
-	KVM_EX_PUSH " $666b \n\t" \
+	__ASM_SIZE(push) " $666b \n\t"	      \
 	"jmp kvm_handle_fault_on_reboot \n\t" \
 	".popsection \n\t" \
 	".pushsection __ex_table, \"a\" \n\t" \
-	KVM_EX_ENTRY " 666b, 667b \n\t" \
+	_ASM_PTR " 666b, 667b \n\t" \
 	".popsection"
 
 #define KVM_ARCH_WANT_MMU_NOTIFIER
