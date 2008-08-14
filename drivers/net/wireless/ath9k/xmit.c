@@ -499,7 +499,6 @@ static void ath_tx_complete_buf(struct ath_softc *sc,
 {
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ath_xmit_status tx_status;
-	dma_addr_t *pa;
 
 	/*
 	 * Set retry information.
@@ -519,9 +518,8 @@ static void ath_tx_complete_buf(struct ath_softc *sc,
 			tx_status.flags |= ATH_TX_XRETRY;
 	}
 	/* Unmap this frame */
-	pa = get_dma_mem_context(bf, bf_dmacontext);
 	pci_unmap_single(sc->pdev,
-			 *pa,
+			 bf->bf_dmacontext,
 			 skb->len,
 			 PCI_DMA_TODEVICE);
 	/* complete this frame */
@@ -1172,11 +1170,8 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 						tbf->bf_lastfrm->bf_desc);
 
 					/* copy the DMA context */
-					copy_dma_mem_context(
-						get_dma_mem_context(tbf,
-							bf_dmacontext),
-						get_dma_mem_context(bf_last,
-							bf_dmacontext));
+					tbf->bf_dmacontext =
+						bf_last->bf_dmacontext;
 				}
 				list_add_tail(&tbf->list, &bf_head);
 			} else {
@@ -1185,7 +1180,7 @@ static void ath_tx_complete_aggr_rifs(struct ath_softc *sc,
 				 * software retry
 				 */
 				ath9k_hw_cleartxdesc(sc->sc_ah,
-					bf->bf_lastfrm->bf_desc);
+						     bf->bf_lastfrm->bf_desc);
 			}
 
 			/*
@@ -2045,8 +2040,7 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 	/*
 	 * Save the DMA context in the first ath_buf
 	 */
-	copy_dma_mem_context(get_dma_mem_context(bf, bf_dmacontext),
-			     get_dma_mem_context(txctl, dmacontext));
+	bf->bf_dmacontext = txctl->dmacontext;
 
 	/*
 	 * Formulate first tx descriptor with tx controls.
@@ -2127,25 +2121,26 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 
 static void xmit_map_sg(struct ath_softc *sc,
 			struct sk_buff *skb,
-			dma_addr_t *pa,
 			struct ath_tx_control *txctl)
 {
 	struct ath_xmit_status tx_status;
 	struct ath_atx_tid *tid;
 	struct scatterlist sg;
 
-	*pa = pci_map_single(sc->pdev, skb->data, skb->len, PCI_DMA_TODEVICE);
+	txctl->dmacontext = pci_map_single(sc->pdev, skb->data,
+					   skb->len, PCI_DMA_TODEVICE);
 
 	/* setup S/G list */
 	memset(&sg, 0, sizeof(struct scatterlist));
-	sg_dma_address(&sg) = *pa;
+	sg_dma_address(&sg) = txctl->dmacontext;
 	sg_dma_len(&sg) = skb->len;
 
 	if (ath_tx_start_dma(sc, skb, &sg, 1, txctl) != 0) {
 		/*
 		 *  We have to do drop frame here.
 		 */
-		pci_unmap_single(sc->pdev, *pa, skb->len, PCI_DMA_TODEVICE);
+		pci_unmap_single(sc->pdev, txctl->dmacontext,
+				 skb->len, PCI_DMA_TODEVICE);
 
 		tx_status.retries = 0;
 		tx_status.flags = ATH_TX_ERROR;
@@ -2419,9 +2414,7 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb)
 		 * ath_tx_start_dma() will be called either synchronously
 		 * or asynchrounsly once DMA is complete.
 		 */
-		xmit_map_sg(sc, skb,
-			    get_dma_mem_context(&txctl, dmacontext),
-			    &txctl);
+		xmit_map_sg(sc, skb, &txctl);
 	else
 		ath_node_put(sc, txctl.an, ATH9K_BH_STATUS_CHANGE);
 

@@ -114,21 +114,21 @@ static void ath_beacon_setup(struct ath_softc *sc,
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
 		rate |= rt->info[rix].shortPreamble;
 
-	ath9k_hw_set11n_txdesc(ah, ds
-			      , skb->len + FCS_LEN /* frame length */
-			      , ATH9K_PKT_TYPE_BEACON /* Atheros packet type */
-			      , avp->av_btxctl.txpower /* txpower XXX */
-			      , ATH9K_TXKEYIX_INVALID /* no encryption */
-			      , ATH9K_KEY_TYPE_CLEAR /* no encryption */
-			      , flags /* no ack, veol for beacons */
+	ath9k_hw_set11n_txdesc(ah, ds,
+			       skb->len + FCS_LEN, /* frame length */
+			       ATH9K_PKT_TYPE_BEACON, /* Atheros packet type */
+			       avp->av_btxctl.txpower, /* txpower XXX */
+			       ATH9K_TXKEYIX_INVALID, /* no encryption */
+			       ATH9K_KEY_TYPE_CLEAR, /* no encryption */
+			       flags /* no ack, veol for beacons */
 		);
 
 	/* NB: beacon's BufLen must be a multiple of 4 bytes */
-	ath9k_hw_filltxdesc(ah, ds
-			   , roundup(skb->len, 4) /* buffer length */
-			   , true /* first segment */
-			   , true /* last segment */
-			   , ds /* first descriptor */
+	ath9k_hw_filltxdesc(ah, ds,
+			    roundup(skb->len, 4), /* buffer length */
+			    true, /* first segment */
+			    true, /* last segment */
+			    ds /* first descriptor */
 		);
 
 	memzero(series, sizeof(struct ath9k_11n_rate_series) * 4);
@@ -551,7 +551,7 @@ void ath_beacon_free(struct ath_softc *sc)
 
 void ath9k_beacon_tasklet(unsigned long data)
 {
-#define TSF_TO_TU(_h,_l)					\
+#define TSF_TO_TU(_h,_l) \
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
 	struct ath_softc *sc = (struct ath_softc *)data;
@@ -898,19 +898,19 @@ void ath_beacon_config(struct ath_softc *sc, int if_id)
 			"cfp:period %u "
 			"maxdur %u "
 			"next %u "
-			"timoffset %u\n"
-			, __func__
-			, (unsigned long long)tsf, tsftu
-			, bs.bs_intval
-			, bs.bs_nexttbtt
-			, bs.bs_dtimperiod
-			, bs.bs_nextdtim
-			, bs.bs_bmissthreshold
-			, bs.bs_sleepduration
-			, bs.bs_cfpperiod
-			, bs.bs_cfpmaxduration
-			, bs.bs_cfpnext
-			, bs.bs_timoffset
+			"timoffset %u\n",
+			__func__,
+			(unsigned long long)tsf, tsftu,
+			bs.bs_intval,
+			bs.bs_nexttbtt,
+			bs.bs_dtimperiod,
+			bs.bs_nextdtim,
+			bs.bs_bmissthreshold,
+			bs.bs_sleepduration,
+			bs.bs_cfpperiod,
+			bs.bs_cfpmaxduration,
+			bs.bs_cfpnext,
+			bs.bs_timoffset
 			);
 
 		ath9k_hw_set_interrupts(ah, 0);

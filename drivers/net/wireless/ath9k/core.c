@@ -51,10 +51,8 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
  *  Set current operating mode
  *
  *  This function initializes and fills the rate table in the ATH object based
- *  on the operating mode.  The blink rates are also set up here, although
- *  they have been superceeded by the ath_led module.
+ *  on the operating mode.
 */
-
 static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 {
 	const struct ath9k_rate_table *rt;
@@ -232,7 +230,7 @@ static int ath_setup_channels(struct ath_softc *sc)
  *  Determine mode from channel flags
  *
  *  This routine will provide the enumerated WIRELESSS_MODE value based
- *  on the settings of the channel flags.  If ho valid set of flags
+ *  on the settings of the channel flags.  If no valid set of flags
  *  exist, the lowest mode (11b) is selected.
 */
 
@@ -257,7 +255,8 @@ static enum wireless_mode ath_chan2mode(struct ath9k_channel *chan)
 	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
 		return ATH9K_MODE_11NG_HT40MINUS;
 
-	/* NB: should not get here */
+	WARN_ON(1); /* should not get here */
+
 	return ATH9K_MODE_11B;
 }
 
@@ -278,8 +277,6 @@ static int ath_stop(struct ath_softc *sc)
 	/*
 	 * Shutdown the hardware and driver:
 	 *    stop output from above
-	 *    reset 802.11 state machine
-	 *      (sends station deassoc/deauth frames)
 	 *    turn off timers
 	 *    disable interrupts
 	 *    clear transmit machinery
@@ -498,69 +495,6 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 /******************/
 /* VAP management */
 /******************/
-
-/*
- *  VAP in Listen mode
- *
- *  This routine brings the VAP out of the down state into a "listen" state
- *  where it waits for association requests.  This is used in AP and AdHoc
- *  modes.
-*/
-
-int ath_vap_listen(struct ath_softc *sc, int if_id)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_vap *avp;
-	u32 rfilt = 0;
-	DECLARE_MAC_BUF(mac);
-
-	avp = sc->sc_vaps[if_id];
-	if (avp == NULL) {
-		DPRINTF(sc, ATH_DBG_FATAL, "%s: invalid interface id %u\n",
-			__func__, if_id);
-		return -EINVAL;
-	}
-
-#ifdef CONFIG_SLOW_ANT_DIV
-	ath_slow_ant_div_stop(&sc->sc_antdiv);
-#endif
-
-	/* update ratectrl about the new state */
-	ath_rate_newstate(sc, avp);
-
-	rfilt = ath_calcrxfilter(sc);
-	ath9k_hw_setrxfilter(ah, rfilt);
-
-	if (sc->sc_ah->ah_opmode == ATH9K_M_STA ||
-	    sc->sc_ah->ah_opmode == ATH9K_M_IBSS) {
-		memcpy(sc->sc_curbssid, ath_bcast_mac, ETH_ALEN);
-		ath9k_hw_write_associd(ah, sc->sc_curbssid, sc->sc_curaid);
-	} else
-		sc->sc_curaid = 0;
-
-	DPRINTF(sc, ATH_DBG_CONFIG,
-		"%s: RX filter 0x%x bssid %s aid 0x%x\n",
-		__func__, rfilt, print_mac(mac,
-			sc->sc_curbssid), sc->sc_curaid);
-
-	/*
-	 * XXXX
-	 * Disable BMISS interrupt when we're not associated
-	 */
-	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP) {
-		ath9k_hw_set_interrupts(ah, sc->sc_imask & ~ATH9K_INT_BMISS);
-		sc->sc_imask &= ~ATH9K_INT_BMISS;
-	} else {
-		ath9k_hw_set_interrupts(
-			ah,
-			sc->sc_imask & ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS));
-		sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
-	}
-	/* need to reconfigure the beacons when it moves to RUN */
-	sc->sc_flags &= ~SC_OP_BEACONS;
-
-	return 0;
-}
 
 int ath_vap_attach(struct ath_softc *sc,
 		   int if_id,

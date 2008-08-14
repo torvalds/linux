@@ -82,9 +82,6 @@ struct ath_node;
 /* XXX: remove */
 #define memzero(_buf, _len) memset(_buf, 0, _len)
 
-#define get_dma_mem_context(var, field) (&((var)->field))
-#define copy_dma_mem_context(dst, src)  (*dst = *src)
-
 #define ATH9K_BH_STATUS_INTACT		0
 #define ATH9K_BH_STATUS_CHANGE		1
 
@@ -769,8 +766,7 @@ int ath_vap_attach(struct ath_softc *sc,
 		   enum ath9k_opmode opmode);
 int ath_vap_detach(struct ath_softc *sc, int if_id);
 int ath_vap_config(struct ath_softc *sc,
-	int if_id, struct ath_vap_config *if_config);
-int ath_vap_listen(struct ath_softc *sc, int if_id);
+		   int if_id, struct ath_vap_config *if_config);
 
 /*********************/
 /* Antenna diversity */
