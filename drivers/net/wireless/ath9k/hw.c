@@ -7654,8 +7654,7 @@ bool ath9k_hw_resettxqueue(struct ath_hal *ah, u32 q)
 	REG_WRITE(ah, AR_DRETRY_LIMIT(q),
 		  SM(INIT_SSH_RETRY, AR_D_RETRY_LIMIT_STA_SH)
 		  | SM(INIT_SLG_RETRY, AR_D_RETRY_LIMIT_STA_LG)
-		  | SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH)
-		);
+		  | SM(qi->tqi_shretry, AR_D_RETRY_LIMIT_FR_SH));
 
 	REG_WRITE(ah, AR_QMISC(q), AR_Q_MISC_DCU_EARLY_TERM_REQ);
 	REG_WRITE(ah, AR_DMISC(q),
@@ -8300,15 +8299,7 @@ struct ath_hal *ath9k_hw_attach(u16 devid,
 		*error = -ENXIO;
 		break;
 	}
-	if (ah != NULL) {
-		ah->ah_devid = ah->ah_devid;
-		ah->ah_subvendorid = ah->ah_subvendorid;
-		ah->ah_macVersion = ah->ah_macVersion;
-		ah->ah_macRev = ah->ah_macRev;
-		ah->ah_phyRev = ah->ah_phyRev;
-		ah->ah_analog5GhzRev = ah->ah_analog5GhzRev;
-		ah->ah_analog2GhzRev = ah->ah_analog2GhzRev;
-	}
+
 	return ah;
 }
 
