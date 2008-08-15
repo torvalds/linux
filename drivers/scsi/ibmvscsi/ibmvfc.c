@@ -1059,9 +1059,10 @@ static void ibmvfc_get_starget_port_id(struct scsi_target *starget)
 static int ibmvfc_wait_while_resetting(struct ibmvfc_host *vhost)
 {
 	long timeout = wait_event_timeout(vhost->init_wait_q,
-					  (vhost->state == IBMVFC_ACTIVE ||
-					   vhost->state == IBMVFC_HOST_OFFLINE ||
-					   vhost->state == IBMVFC_LINK_DEAD),
+					  ((vhost->state == IBMVFC_ACTIVE ||
+					    vhost->state == IBMVFC_HOST_OFFLINE ||
+					    vhost->state == IBMVFC_LINK_DEAD) &&
+					   vhost->action == IBMVFC_HOST_ACTION_NONE),
 					  (init_timeout * HZ));
 
 	return timeout ? 0 : -EIO;
