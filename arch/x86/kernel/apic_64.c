@@ -45,6 +45,7 @@
 #include <mach_ipi.h>
 #include <mach_apic.h>
 
+/* Disable local APIC timer from the kernel commandline or via dmi quirk */
 static int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
 int disable_apic;
@@ -1583,14 +1584,19 @@ static int __init parse_lapic_timer_c2_ok(char *arg)
 }
 early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
-static __init int setup_noapictimer(char *str)
+static int __init parse_disable_apic_timer(char *arg)
 {
-	if (str[0] != ' ' && str[0] != 0)
-		return 0;
 	disable_apic_timer = 1;
-	return 1;
+	return 0;
 }
-__setup("noapictimer", setup_noapictimer);
+early_param("noapictimer", parse_disable_apic_timer);
+
+static int __init parse_nolapic_timer(char *arg)
+{
+	disable_apic_timer = 1;
+	return 0;
+}
+early_param("nolapic_timer", parse_nolapic_timer);
 
 static __init int setup_apicpmtimer(char *s)
 {

@@ -63,7 +63,7 @@ int disable_apic;
 /* Local APIC timer verification ok */
 static int local_apic_timer_verify_ok;
 /* Disable local APIC timer from the kernel commandline or via dmi quirk */
-static int local_apic_timer_disabled;
+static int disable_apic_timer __cpuinitdata;
 /* Local APIC timer works in C2 */
 int local_apic_timer_c2_ok;
 EXPORT_SYMBOL_GPL(local_apic_timer_c2_ok);
@@ -574,7 +574,7 @@ void __init setup_boot_APIC_clock(void)
 	 * timer as a dummy clock event source on SMP systems, so the
 	 * broadcast mechanism is used. On UP systems simply ignore it.
 	 */
-	if (local_apic_timer_disabled) {
+	if (disable_apic_timer) {
 		/* No broadcast on UP ! */
 		if (num_possible_cpus() > 1) {
 			lapic_clockevent.mult = 1;
@@ -1699,12 +1699,19 @@ static int __init parse_nolapic(char *arg)
 }
 early_param("nolapic", parse_nolapic);
 
-static int __init parse_disable_lapic_timer(char *arg)
+static int __init parse_disable_apic_timer(char *arg)
 {
-	local_apic_timer_disabled = 1;
+	disable_apic_timer = 1;
 	return 0;
 }
-early_param("nolapic_timer", parse_disable_lapic_timer);
+early_param("noapictimer", parse_disable_apic_timer);
+
+static int __init parse_nolapic_timer(char *arg)
+{
+	disable_apic_timer = 1;
+	return 0;
+}
+early_param("nolapic_timer", parse_nolapic_timer);
 
 static int __init parse_lapic_timer_c2_ok(char *arg)
 {
