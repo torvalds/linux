@@ -536,6 +536,7 @@ static int tg3_ape_lock(struct tg3 *tp, int locknum)
 		return 0;
 
 	switch (locknum) {
+		case TG3_APE_LOCK_GRC:
 		case TG3_APE_LOCK_MEM:
 			break;
 		default:
@@ -573,6 +574,7 @@ static void tg3_ape_unlock(struct tg3 *tp, int locknum)
 		return;
 
 	switch (locknum) {
+		case TG3_APE_LOCK_GRC:
 		case TG3_APE_LOCK_MEM:
 			break;
 		default:
@@ -5760,6 +5762,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 
 	tg3_mdio_stop(tp);
 
+	tg3_ape_lock(tp, TG3_APE_LOCK_GRC);
+
 	/* No matching tg3_nvram_unlock() after this because
 	 * chip reset below will undo the nvram lock.
 	 */
@@ -5913,6 +5917,8 @@ static int tg3_chip_reset(struct tg3 *tp)
 	udelay(40);
 
 	tg3_mdio_start(tp);
+
+	tg3_ape_unlock(tp, TG3_APE_LOCK_GRC);
 
 	err = tg3_poll_fw(tp);
 	if (err)
