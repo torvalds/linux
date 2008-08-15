@@ -2393,6 +2393,8 @@ static void analyze_sbs(mddev_t * mddev)
 
 }
 
+static void md_safemode_timeout(unsigned long data);
+
 static ssize_t
 safe_delay_show(mddev_t *mddev, char *page)
 {
@@ -2432,9 +2434,12 @@ safe_delay_store(mddev_t *mddev, const char *cbuf, size_t len)
 	if (msec == 0)
 		mddev->safemode_delay = 0;
 	else {
+		unsigned long old_delay = mddev->safemode_delay;
 		mddev->safemode_delay = (msec*HZ)/1000;
 		if (mddev->safemode_delay == 0)
 			mddev->safemode_delay = 1;
+		if (mddev->safemode_delay < old_delay)
+			md_safemode_timeout((unsigned long)mddev);
 	}
 	return len;
 }
@@ -4634,6 +4639,11 @@ static int update_size(mddev_t *mddev, sector_t num_sectors)
 	 */
 	if (mddev->sync_thread)
 		return -EBUSY;
+	if (mddev->bitmap)
+		/* Sorry, cannot grow a bitmap yet, just remove it,
+		 * grow, and re-add.
+		 */
+		return -EBUSY;
 	rdev_for_each(rdev, tmp, mddev) {
 		sector_t avail;
 		avail = rdev->size * 2;
@@ -5993,7 +6003,7 @@ static int remove_and_add_spares(mddev_t *mddev)
 			}
 		}
 
-	if (mddev->degraded) {
+	if (mddev->degraded && ! mddev->ro) {
 		rdev_for_each(rdev, rtmp, mddev) {
 			if (rdev->raid_disk >= 0 &&
 			    !test_bit(In_sync, &rdev->flags) &&
@@ -6067,6 +6077,8 @@ void md_check_recovery(mddev_t *mddev)
 		flush_signals(current);
 	}
 
+	if (mddev->ro && !test_bit(MD_RECOVERY_NEEDED, &mddev->recovery))
+		return;
 	if ( ! (
 		(mddev->flags && !mddev->external) ||
 		test_bit(MD_RECOVERY_NEEDED, &mddev->recovery) ||
@@ -6079,6 +6091,15 @@ void md_check_recovery(mddev_t *mddev)
 
 	if (mddev_trylock(mddev)) {
 		int spares = 0;
+
+		if (mddev->ro) {
+			/* Only thing we do on a ro array is remove
+			 * failed devices.
+			 */
+			remove_and_add_spares(mddev);
+			clear_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
+			goto unlock;
+		}
 
 		if (!mddev->external) {
 			int did_change = 0;
@@ -6117,7 +6138,8 @@ void md_check_recovery(mddev_t *mddev)
 			/* resync has finished, collect result */
 			md_unregister_thread(mddev->sync_thread);
 			mddev->sync_thread = NULL;
-			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery)) {
+			if (!test_bit(MD_RECOVERY_INTR, &mddev->recovery) &&
+			    !test_bit(MD_RECOVERY_REQUESTED, &mddev->recovery)) {
 				/* success...*/
 				/* activate any spares */
 				if (mddev->pers->spare_active(mddev))
@@ -6169,6 +6191,7 @@ void md_check_recovery(mddev_t *mddev)
 		} else if ((spares = remove_and_add_spares(mddev))) {
 			clear_bit(MD_RECOVERY_SYNC, &mddev->recovery);
 			clear_bit(MD_RECOVERY_CHECK, &mddev->recovery);
+			clear_bit(MD_RECOVERY_REQUESTED, &mddev->recovery);
 			set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
 		} else if (mddev->recovery_cp < MaxSector) {
 			set_bit(MD_RECOVERY_SYNC, &mddev->recovery);
@@ -6232,7 +6255,11 @@ static int md_notify_reboot(struct notifier_block *this,
 
 		for_each_mddev(mddev, tmp)
 			if (mddev_trylock(mddev)) {
-				do_md_stop (mddev, 1, 0);
+				/* Force a switch to readonly even array
+				 * appears to still be in use.  Hence
+				 * the '100'.
+				 */
+				do_md_stop (mddev, 1, 100);
 				mddev_unlock(mddev);
 			}
 		/*
