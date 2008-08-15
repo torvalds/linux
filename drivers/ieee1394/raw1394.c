@@ -34,6 +34,7 @@
 #include <linux/fs.h>
 #include <linux/poll.h>
 #include <linux/module.h>
+#include <linux/mutex.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
@@ -2541,11 +2542,18 @@ static int raw1394_read_cycle_timer(struct file_info *fi, void __user * uaddr)
 static int raw1394_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct file_info *fi = file->private_data;
+	int ret;
+
+	mutex_lock(&fi->state_mutex);
 
 	if (fi->iso_state == RAW1394_ISO_INACTIVE)
-		return -EINVAL;
+		ret = -EINVAL;
+	else
+		ret = dma_region_mmap(&fi->iso_handle->data_buf, file, vma);
 
-	return dma_region_mmap(&fi->iso_handle->data_buf, file, vma);
+	mutex_unlock(&fi->state_mutex);
+
+	return ret;
 }
 
 /* ioctl is only used for rawiso operations */
@@ -2659,10 +2667,12 @@ static long do_raw1394_ioctl(struct file *file, unsigned int cmd,
 static long raw1394_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
+	struct file_info *fi = file->private_data;
 	long ret;
-	lock_kernel();
+
+	mutex_lock(&fi->state_mutex);
 	ret = do_raw1394_ioctl(file, cmd, arg);
-	unlock_kernel();
+	mutex_unlock(&fi->state_mutex);
 	return ret;
 }
 
@@ -2724,7 +2734,7 @@ static long raw1394_compat_ioctl(struct file *file,
 	void __user *argp = (void __user *)arg;
 	long err;
 
-	lock_kernel();
+	mutex_lock(&fi->state_mutex);
 	switch (cmd) {
 	/* These requests have same format as long as 'int' has same size. */
 	case RAW1394_IOC_ISO_RECV_INIT:
@@ -2757,7 +2767,7 @@ static long raw1394_compat_ioctl(struct file *file,
 		err = -EINVAL;
 		break;
 	}
-	unlock_kernel();
+	mutex_unlock(&fi->state_mutex);
 
 	return err;
 }
@@ -2791,6 +2801,7 @@ static int raw1394_open(struct inode *inode, struct file *file)
 	fi->notification = (u8) RAW1394_NOTIFY_ON;	/* busreset notification */
 
 	INIT_LIST_HEAD(&fi->list);
+	mutex_init(&fi->state_mutex);
 	fi->state = opened;
 	INIT_LIST_HEAD(&fi->req_pending);
 	INIT_LIST_HEAD(&fi->req_complete);
