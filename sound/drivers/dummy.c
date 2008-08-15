@@ -354,6 +354,7 @@ static int snd_card_dummy_playback_open(struct snd_pcm_substream *substream)
 	if ((dpcm = new_pcm_stream(substream)) == NULL)
 		return -ENOMEM;
 	runtime->private_data = dpcm;
+	/* makes the infrastructure responsible for freeing dpcm */
 	runtime->private_free = snd_card_dummy_runtime_free;
 	runtime->hw = snd_card_dummy_playback;
 	if (substream->pcm->device & 1) {
@@ -362,10 +363,8 @@ static int snd_card_dummy_playback_open(struct snd_pcm_substream *substream)
 	}
 	if (substream->pcm->device & 2)
 		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP|SNDRV_PCM_INFO_MMAP_VALID);
-	if ((err = add_playback_constraints(runtime)) < 0) {
-		kfree(dpcm);
+	if ((err = add_playback_constraints(runtime)) < 0)
 		return err;
-	}
 
 	return 0;
 }
@@ -379,6 +378,7 @@ static int snd_card_dummy_capture_open(struct snd_pcm_substream *substream)
 	if ((dpcm = new_pcm_stream(substream)) == NULL)
 		return -ENOMEM;
 	runtime->private_data = dpcm;
+	/* makes the infrastructure responsible for freeing dpcm */
 	runtime->private_free = snd_card_dummy_runtime_free;
 	runtime->hw = snd_card_dummy_capture;
 	if (substream->pcm->device == 1) {
@@ -387,10 +387,8 @@ static int snd_card_dummy_capture_open(struct snd_pcm_substream *substream)
 	}
 	if (substream->pcm->device & 2)
 		runtime->hw.info &= ~(SNDRV_PCM_INFO_MMAP|SNDRV_PCM_INFO_MMAP_VALID);
-	if ((err = add_capture_constraints(runtime)) < 0) {
-		kfree(dpcm);
+	if ((err = add_capture_constraints(runtime)) < 0)
 		return err;
-	}
 
 	return 0;
 }
