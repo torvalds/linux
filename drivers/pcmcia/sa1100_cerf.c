@@ -11,10 +11,10 @@
 #include <linux/init.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
-#include <asm/arch/cerf.h>
+#include <mach/cerf.h>
 #include "sa1100_generic.h"
 
 #define CERF_SOCKET	1

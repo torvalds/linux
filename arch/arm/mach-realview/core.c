@@ -29,7 +29,7 @@
 #include <linux/clockchips.h>
 
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>

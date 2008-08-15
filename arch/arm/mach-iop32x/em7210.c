@@ -23,7 +23,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
 #include <linux/i2c.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <asm/mach/arch.h>
@@ -31,7 +31,7 @@
 #include <asm/mach/pci.h>
 #include <asm/mach/time.h>
 #include <asm/mach-types.h>
-#include <asm/arch/time.h>
+#include <mach/time.h>
 
 static void __init em7210_timer_init(void)
 {

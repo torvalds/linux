@@ -21,7 +21,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 static void __iomem *sharpsl_io_base;

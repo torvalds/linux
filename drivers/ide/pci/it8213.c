@@ -141,7 +141,7 @@ static void it8213_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static u8 __devinit it8213_cable_detect(ide_hwif_t *hwif)
+static u8 it8213_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 reg42h = 0;

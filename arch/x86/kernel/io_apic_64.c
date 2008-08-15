@@ -101,7 +101,7 @@ int timer_through_8259 __initdata;
 static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
 
 static DEFINE_SPINLOCK(ioapic_lock);
-DEFINE_SPINLOCK(vector_lock);
+static DEFINE_SPINLOCK(vector_lock);
 
 /*
  * # of IRQ routing registers
@@ -697,6 +697,19 @@ static int pin_2_irq(int idx, int apic, int pin)
 	return irq;
 }
 
+void lock_vector_lock(void)
+{
+	/* Used to the online set of cpus does not change
+	 * during assign_irq_vector.
+	 */
+	spin_lock(&vector_lock);
+}
+
+void unlock_vector_lock(void)
+{
+	spin_unlock(&vector_lock);
+}
+
 static int __assign_irq_vector(int irq, cpumask_t mask)
 {
 	/*
@@ -802,7 +815,7 @@ static void __clear_irq_vector(int irq)
 	cpus_clear(cfg->domain);
 }
 
-static void __setup_vector_irq(int cpu)
+void __setup_vector_irq(int cpu)
 {
 	/* Initialize vector_irq on a new cpu */
 	/* This function must be called with vector_lock held */
@@ -824,14 +837,6 @@ static void __setup_vector_irq(int cpu)
 			per_cpu(vector_irq, cpu)[vector] = -1;
 	}
 }
-
-void setup_vector_irq(int cpu)
-{
-	spin_lock(&vector_lock);
-	__setup_vector_irq(smp_processor_id());
-	spin_unlock(&vector_lock);
-}
-
 
 static struct irq_chip ioapic_chip;
 

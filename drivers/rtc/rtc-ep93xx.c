@@ -12,7 +12,7 @@
 #include <linux/module.h>
 #include <linux/rtc.h>
 #include <linux/platform_device.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #define EP93XX_RTC_REG(x)	(EP93XX_RTC_BASE + (x))
 #define EP93XX_RTC_DATA		EP93XX_RTC_REG(0x0000)

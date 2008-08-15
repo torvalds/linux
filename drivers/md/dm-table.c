@@ -316,29 +316,12 @@ static inline int check_space(struct dm_table *t)
  */
 static int lookup_device(const char *path, dev_t *dev)
 {
-	int r;
-	struct nameidata nd;
-	struct inode *inode;
-
-	if ((r = path_lookup(path, LOOKUP_FOLLOW, &nd)))
-		return r;
-
-	inode = nd.path.dentry->d_inode;
-	if (!inode) {
-		r = -ENOENT;
-		goto out;
-	}
-
-	if (!S_ISBLK(inode->i_mode)) {
-		r = -ENOTBLK;
-		goto out;
-	}
-
-	*dev = inode->i_rdev;
-
- out:
-	path_put(&nd.path);
-	return r;
+	struct block_device *bdev = lookup_bdev(path);
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
+	*dev = bdev->bd_dev;
+	bdput(bdev);
+	return 0;
 }
 
 /*

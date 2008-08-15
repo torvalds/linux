@@ -1103,7 +1103,7 @@ static inline void dbg_ctrl(struct controller *ctrl)
 	dbg("  Power Indicator      : %3s\n", PWR_LED(ctrl)    ? "yes" : "no");
 	dbg("  Hot-Plug Surprise    : %3s\n", HP_SUPR_RM(ctrl) ? "yes" : "no");
 	dbg("  EMI Present          : %3s\n", EMI(ctrl)        ? "yes" : "no");
-	dbg("  Comamnd Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
+	dbg("  Command Completed    : %3s\n", NO_CMD_CMPL(ctrl)? "no" : "yes");
 	pciehp_readw(ctrl, SLOTSTATUS, &reg16);
 	dbg("Slot Status            : 0x%04x\n", reg16);
 	pciehp_readw(ctrl, SLOTCTRL, &reg16);

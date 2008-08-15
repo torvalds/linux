@@ -24,6 +24,8 @@
 #define FX2CMD_MEM_WRITE_DWORD  0x01u
 #define FX2CMD_MEM_READ_DWORD   0x02u
 
+#define FX2CMD_HCW_ZILOG_RESET  0x10u /* 1=reset 0=release */
+
 #define FX2CMD_MEM_READ_64BYTES 0x28u
 
 #define FX2CMD_REG_WRITE        0x04u

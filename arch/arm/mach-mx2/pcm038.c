@@ -21,12 +21,12 @@
 #include <linux/mtd/physmap.h>
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
-#include <asm/arch/common.h>
-#include <asm/hardware.h>
-#include <asm/arch/iomux-mx1-mx2.h>
+#include <mach/common.h>
+#include <mach/hardware.h>
+#include <mach/iomux-mx1-mx2.h>
 #include <asm/mach/time.h>
-#include <asm/arch/imx-uart.h>
-#include <asm/arch/board-pcm038.h>
+#include <mach/imx-uart.h>
+#include <mach/board-pcm038.h>
 
 /*
  * Phytec's phyCORE-i.MX27 comes with 32MiB flash,

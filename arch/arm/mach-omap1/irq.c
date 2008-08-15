@@ -41,11 +41,11 @@
 #include <linux/sched.h>
 #include <linux/interrupt.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/cpu.h>
+#include <mach/gpio.h>
+#include <mach/cpu.h>
 
 #include <asm/io.h>
 

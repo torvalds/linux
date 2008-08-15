@@ -33,7 +33,7 @@ struct request_sock_ops {
 	struct kmem_cache	*slab;
 	int		(*rtx_syn_ack)(struct sock *sk,
 				       struct request_sock *req);
-	void		(*send_ack)(struct sk_buff *skb,
+	void		(*send_ack)(struct sock *sk, struct sk_buff *skb,
 				    struct request_sock *req);
 	void		(*send_reset)(struct sock *sk,
 				      struct sk_buff *skb);

@@ -166,7 +166,8 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
 		do {
 			adapter->pci_write_immediate(adapter,
-					ISR_INT_TARGET_STATUS, 0xffffffff);
+					adapter->legacy_intr.tgt_status_reg,
+					0xffffffff);
 			mask = adapter->pci_read_immediate(adapter,
 					ISR_INT_VECTOR);
 			if (!(mask & 0x80))
@@ -175,7 +176,7 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 		} while (--retries);
 
 		if (!retries) {
-			printk(KERN_NOTICE "%s: Failed to disable interrupt completely\n",
+			printk(KERN_NOTICE "%s: Failed to disable interrupt\n",
 					netxen_nic_driver_name);
 		}
 	} else {
@@ -189,8 +190,6 @@ static void netxen_nic_disable_int(struct netxen_adapter *adapter)
 static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 {
 	u32 mask;
-
-	DPRINTK(1, INFO, "Entered ISR Enable \n");
 
 	if (adapter->intr_scheme != -1 &&
 		adapter->intr_scheme != INTR_SCHEME_PERPORT) {
@@ -213,16 +212,13 @@ static void netxen_nic_enable_int(struct netxen_adapter *adapter)
 
 	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
 		mask = 0xbff;
-		if (adapter->intr_scheme != -1 &&
-			adapter->intr_scheme != INTR_SCHEME_PERPORT) {
+		if (adapter->intr_scheme == INTR_SCHEME_PERPORT)
+			adapter->pci_write_immediate(adapter,
+				adapter->legacy_intr.tgt_mask_reg, mask);
+		else
 			adapter->pci_write_normalize(adapter,
 					CRB_INT_VECTOR, 0);
-		}
-		adapter->pci_write_immediate(adapter,
-				ISR_INT_TARGET_MASK, mask);
 	}
-
-	DPRINTK(1, INFO, "Done with enable Int\n");
 }
 
 static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
@@ -284,6 +280,8 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_10G_CX4_LP:
 	case NETXEN_BRDTYPE_P3_IMEZ:
 	case NETXEN_BRDTYPE_P3_10G_SFP_PLUS:
+	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
+	case NETXEN_BRDTYPE_P3_10G_SFP_CT:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 	case NETXEN_BRDTYPE_P3_10000_BASE_T:
 		adapter->msix_supported = !!use_msi_x;
@@ -301,6 +299,10 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
+		adapter->msix_supported = 0;
+		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
+		break;
+
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 	case NETXEN_BRDTYPE_P2_SB31_2G:
 		adapter->msix_supported = 0;
@@ -700,13 +702,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->status   &= ~NETXEN_NETDEV_STATUS;
 	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
-	if (NX_IS_REVISION_P3(revision_id)) {
+	if (NX_IS_REVISION_P3(revision_id))
 		adapter->max_mc_count = 38;
-		adapter->max_rds_rings = 2;
-	} else {
+	else
 		adapter->max_mc_count = 16;
-		adapter->max_rds_rings = 3;
-	}
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
@@ -779,10 +778,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (adapter->portnum == 0)
 			first_driver = 1;
 	}
-	adapter->crb_addr_cmd_producer = crb_cmd_producer[adapter->portnum];
-	adapter->crb_addr_cmd_consumer = crb_cmd_consumer[adapter->portnum];
-	netxen_nic_update_cmd_producer(adapter, 0);
-	netxen_nic_update_cmd_consumer(adapter, 0);
 
 	if (first_driver) {
 		first_boot = adapter->pci_read_normalize(adapter,
@@ -1053,6 +1048,11 @@ static int netxen_nic_open(struct net_device *netdev)
 			return -EIO;
 		}
 
+		if (adapter->fw_major < 4)
+			adapter->max_rds_rings = 3;
+		else
+			adapter->max_rds_rings = 2;
+
 		err = netxen_alloc_sw_resources(adapter);
 		if (err) {
 			printk(KERN_ERR "%s: Error in setting sw resources\n",
@@ -1074,10 +1074,10 @@ static int netxen_nic_open(struct net_device *netdev)
 				crb_cmd_producer[adapter->portnum];
 			adapter->crb_addr_cmd_consumer =
 				crb_cmd_consumer[adapter->portnum];
-		}
 
-		netxen_nic_update_cmd_producer(adapter, 0);
-		netxen_nic_update_cmd_consumer(adapter, 0);
+			netxen_nic_update_cmd_producer(adapter, 0);
+			netxen_nic_update_cmd_consumer(adapter, 0);
+		}
 
 		for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 			for (ring = 0; ring < adapter->max_rds_rings; ring++)
@@ -1113,9 +1113,7 @@ static int netxen_nic_open(struct net_device *netdev)
 	netxen_nic_set_link_parameters(adapter);
 
 	netdev->set_multicast_list(netdev);
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		nx_fw_cmd_set_mtu(adapter, netdev->mtu);
-	else
+	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, netdev->mtu);
 
 	mod_timer(&adapter->watchdog_timer, jiffies);
@@ -1410,20 +1408,17 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 
 	port = adapter->physical_port;
 
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
-		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
-		linkup = (val >> port) & 1;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE_P3);
+		val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
+		linkup = (val == XG_LINK_UP_P3);
 	} else {
-		if (adapter->fw_major < 4) {
-			val = adapter->pci_read_normalize(adapter,
-					CRB_XG_STATE);
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
+		if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+			linkup = (val >> port) & 1;
+		else {
 			val = (val >> port*8) & 0xff;
 			linkup = (val == XG_LINK_UP);
-		} else {
-			val = adapter->pci_read_normalize(adapter,
-				CRB_XG_STATE_P3);
-			val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
-			linkup = (val == XG_LINK_UP_P3);
 		}
 	}
 
@@ -1535,15 +1530,33 @@ static irqreturn_t netxen_intr(int irq, void *data)
 	struct netxen_adapter *adapter = data;
 	u32 our_int = 0;
 
-	our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
-	/* not our interrupt */
-	if ((our_int & (0x80 << adapter->portnum)) == 0)
+	u32 status = 0;
+
+	status = adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+
+	if (!(status & adapter->legacy_intr.int_vec_bit))
 		return IRQ_NONE;
 
-	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
-		/* claim interrupt */
-		adapter->pci_write_normalize(adapter, CRB_INT_VECTOR,
+	if (adapter->ahw.revision_id >= NX_P3_B1) {
+		/* check interrupt state machine, to be sure */
+		status = adapter->pci_read_immediate(adapter,
+				ISR_INT_STATE_REG);
+		if (!ISR_LEGACY_INT_TRIGGERED(status))
+			return IRQ_NONE;
+
+	} else if (NX_IS_REVISION_P2(adapter->ahw.revision_id)) {
+
+		our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
+		/* not our interrupt */
+		if ((our_int & (0x80 << adapter->portnum)) == 0)
+			return IRQ_NONE;
+
+		if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
+			/* claim interrupt */
+			adapter->pci_write_normalize(adapter,
+				CRB_INT_VECTOR,
 				our_int & ~((u32)(0x80 << adapter->portnum)));
+		}
 	}
 
 	netxen_handle_int(adapter);

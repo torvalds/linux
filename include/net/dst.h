@@ -252,17 +252,7 @@ static inline int dst_output(struct sk_buff *skb)
 /* Input packet from network to transport.  */
 static inline int dst_input(struct sk_buff *skb)
 {
-	int err;
-
-	for (;;) {
-		err = skb->dst->input(skb);
-
-		if (likely(err == 0))
-			return err;
-		/* Oh, Jamal... Seems, I will not forgive you this mess. :-) */
-		if (unlikely(err != NET_XMIT_BYPASS))
-			return err;
-	}
+	return skb->dst->input(skb);
 }
 
 static inline struct dst_entry *dst_check(struct dst_entry *dst, u32 cookie)

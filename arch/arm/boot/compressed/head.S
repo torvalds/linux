@@ -37,7 +37,7 @@
 
 #else
 
-#include <asm/arch/debug-macro.S>
+#include <mach/debug-macro.S>
 
 		.macro	writeb,	ch, rb
 		senduart \ch, \rb

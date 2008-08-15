@@ -151,18 +151,40 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 	},
 };
 
+static unsigned long htab_convert_pte_flags(unsigned long pteflags)
+{
+	unsigned long rflags = pteflags & 0x1fa;
+
+	/* _PAGE_EXEC -> NOEXEC */
+	if ((pteflags & _PAGE_EXEC) == 0)
+		rflags |= HPTE_R_N;
+
+	/* PP bits. PAGE_USER is already PP bit 0x2, so we only
+	 * need to add in 0x1 if it's a read-only user page
+	 */
+	if ((pteflags & _PAGE_USER) && !((pteflags & _PAGE_RW) &&
+					 (pteflags & _PAGE_DIRTY)))
+		rflags |= 1;
+
+	/* Always add C */
+	return rflags | HPTE_R_C;
+}
 
 int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
-		      unsigned long pstart, unsigned long mode,
+		      unsigned long pstart, unsigned long prot,
 		      int psize, int ssize)
 {
 	unsigned long vaddr, paddr;
 	unsigned int step, shift;
-	unsigned long tmp_mode;
 	int ret = 0;
 
 	shift = mmu_psize_defs[psize].shift;
 	step = 1 << shift;
+
+	prot = htab_convert_pte_flags(prot);
+
+	DBG("htab_bolt_mapping(%lx..%lx -> %lx (%lx,%d,%d)\n",
+	    vstart, vend, pstart, prot, psize, ssize);
 
 	for (vaddr = vstart, paddr = pstart; vaddr < vend;
 	     vaddr += step, paddr += step) {
@@ -170,20 +192,12 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		unsigned long vsid = get_kernel_vsid(vaddr, ssize);
 		unsigned long va = hpt_va(vaddr, vsid, ssize);
 
-		tmp_mode = mode;
-		
-		/* Make non-kernel text non-executable */
-		if (!in_kernel_text(vaddr))
-			tmp_mode = mode | HPTE_R_N;
-
 		hash = hpt_hash(va, shift, ssize);
 		hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
 
-		DBG("htab_bolt_mapping: calling %p\n", ppc_md.hpte_insert);
-
 		BUG_ON(!ppc_md.hpte_insert);
-		ret = ppc_md.hpte_insert(hpteg, va, paddr,
-				tmp_mode, HPTE_V_BOLTED, psize, ssize);
+		ret = ppc_md.hpte_insert(hpteg, va, paddr, prot,
+					 HPTE_V_BOLTED, psize, ssize);
 
 		if (ret < 0)
 			break;
@@ -519,9 +533,9 @@ static unsigned long __init htab_get_table_size(void)
 #ifdef CONFIG_MEMORY_HOTPLUG
 void create_section_mapping(unsigned long start, unsigned long end)
 {
-		BUG_ON(htab_bolt_mapping(start, end, __pa(start),
-			_PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX,
-			mmu_linear_psize, mmu_kernel_ssize));
+	BUG_ON(htab_bolt_mapping(start, end, __pa(start),
+				 PAGE_KERNEL, mmu_linear_psize,
+				 mmu_kernel_ssize));
 }
 
 int remove_section_mapping(unsigned long start, unsigned long end)
@@ -570,7 +584,7 @@ void __init htab_initialize(void)
 {
 	unsigned long table;
 	unsigned long pteg_count;
-	unsigned long mode_rw;
+	unsigned long prot, tprot;
 	unsigned long base = 0, size = 0, limit;
 	int i;
 
@@ -628,7 +642,7 @@ void __init htab_initialize(void)
 		mtspr(SPRN_SDR1, _SDR1);
 	}
 
-	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
+	prot = PAGE_KERNEL;
 
 #ifdef CONFIG_DEBUG_PAGEALLOC
 	linear_map_hash_count = lmb_end_of_DRAM() >> PAGE_SHIFT;
@@ -646,8 +660,10 @@ void __init htab_initialize(void)
 	for (i=0; i < lmb.memory.cnt; i++) {
 		base = (unsigned long)__va(lmb.memory.region[i].base);
 		size = lmb.memory.region[i].size;
+		tprot = prot | (in_kernel_text(base) ? _PAGE_EXEC : 0);
 
-		DBG("creating mapping for region: %lx : %lx\n", base, size);
+		DBG("creating mapping for region: %lx..%lx (prot: %x)\n",
+		    base, size, tprot);
 
 #ifdef CONFIG_U3_DART
 		/* Do not map the DART space. Fortunately, it will be aligned
@@ -664,21 +680,21 @@ void __init htab_initialize(void)
 			unsigned long dart_table_end = dart_tablebase + 16 * MB;
 			if (base != dart_tablebase)
 				BUG_ON(htab_bolt_mapping(base, dart_tablebase,
-							__pa(base), mode_rw,
+							__pa(base), tprot,
 							mmu_linear_psize,
 							mmu_kernel_ssize));
 			if ((base + size) > dart_table_end)
 				BUG_ON(htab_bolt_mapping(dart_tablebase+16*MB,
 							base + size,
 							__pa(dart_table_end),
-							 mode_rw,
+							 tprot,
 							 mmu_linear_psize,
 							 mmu_kernel_ssize));
 			continue;
 		}
 #endif /* CONFIG_U3_DART */
 		BUG_ON(htab_bolt_mapping(base, base + size, __pa(base),
-				mode_rw, mmu_linear_psize, mmu_kernel_ssize));
+				tprot, mmu_linear_psize, mmu_kernel_ssize));
        }
 
 	/*
@@ -696,7 +712,7 @@ void __init htab_initialize(void)
 			tce_alloc_start = base + size + 1;
 
 		BUG_ON(htab_bolt_mapping(tce_alloc_start, tce_alloc_end,
-					 __pa(tce_alloc_start), mode_rw,
+					 __pa(tce_alloc_start), prot,
 					 mmu_linear_psize, mmu_kernel_ssize));
 	}
 
@@ -1117,8 +1133,7 @@ static void kernel_map_linear_page(unsigned long vaddr, unsigned long lmi)
 	unsigned long hash, hpteg;
 	unsigned long vsid = get_kernel_vsid(vaddr, mmu_kernel_ssize);
 	unsigned long va = hpt_va(vaddr, vsid, mmu_kernel_ssize);
-	unsigned long mode = _PAGE_ACCESSED | _PAGE_DIRTY |
-		_PAGE_COHERENT | PP_RWXX | HPTE_R_N;
+	unsigned long mode = htab_convert_pte_flags(PAGE_KERNEL);
 	int ret;
 
 	hash = hpt_hash(va, PAGE_SHIFT, mmu_kernel_ssize);

@@ -27,6 +27,7 @@
 #include <linux/key.h>
 #include <linux/binfmts.h>
 #include <linux/mman.h>
+#include <linux/mmu_notifier.h>
 #include <linux/fs.h>
 #include <linux/nsproxy.h>
 #include <linux/capability.h>
@@ -414,6 +415,7 @@ static struct mm_struct * mm_init(struct mm_struct * mm, struct task_struct *p)
 
 	if (likely(!mm_alloc_pgd(mm))) {
 		mm->def_flags = 0;
+		mmu_notifier_mm_init(mm);
 		return mm;
 	}
 
@@ -446,6 +448,7 @@ void __mmdrop(struct mm_struct *mm)
 	BUG_ON(mm == &init_mm);
 	mm_free_pgd(mm);
 	destroy_context(mm);
+	mmu_notifier_mm_destroy(mm);
 	free_mm(mm);
 }
 EXPORT_SYMBOL_GPL(__mmdrop);

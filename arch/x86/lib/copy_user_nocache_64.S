@@ -32,7 +32,7 @@
 	jnz 100b
 102:
 	.section .fixup,"ax"
-103:	addl %r8d,%edx			/* ecx is zerorest also */
+103:	addl %ecx,%edx			/* ecx is zerorest also */
 	jmp copy_user_handle_tail
 	.previous
 
@@ -108,7 +108,6 @@ ENTRY(__copy_user_nocache)
 	jmp 60f
 50:	movl %ecx,%edx
 60:	sfence
-	movl %r8d,%ecx
 	jmp copy_user_handle_tail
 	.previous
 

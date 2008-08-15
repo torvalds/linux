@@ -278,7 +278,7 @@ it with special cases.
         a 64-bit platform.
 
         d) request and get assigned a platform number (see PLATFORM_*
-        constants in include/asm-powerpc/processor.h
+        constants in arch/powerpc/include/asm/processor.h
 
 32-bit embedded kernels:
 
@@ -340,7 +340,7 @@ the block to RAM before passing it to the kernel.
 ---------
 
    The kernel is entered with r3 pointing to an area of memory that is
-   roughly described in include/asm-powerpc/prom.h by the structure
+   roughly described in arch/powerpc/include/asm/prom.h by the structure
    boot_param_header:
 
 struct boot_param_header {

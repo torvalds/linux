@@ -22,7 +22,7 @@
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/palmtx.h>
+#include <mach/palmtx.h>
 
 static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;

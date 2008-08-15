@@ -467,7 +467,9 @@ start_secondary (void *unused)
 {
 	/* Early console may use I/O ports */
 	ia64_set_kr(IA64_KR_IO_BASE, __pa(ia64_iobase));
+#ifndef CONFIG_PRINTK_TIME
 	Dprintk("start_secondary: starting CPU 0x%x\n", hard_smp_processor_id());
+#endif
 	efi_map_pal_code();
 	cpu_init();
 	preempt_disable();

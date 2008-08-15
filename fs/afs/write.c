@@ -404,7 +404,7 @@ static int afs_write_back_from_locked_page(struct afs_writeback *wb,
 			page = pages[loop];
 			if (page->index > wb->last)
 				break;
-			if (TestSetPageLocked(page))
+			if (!trylock_page(page))
 				break;
 			if (!PageDirty(page) ||
 			    page_private(page) != (unsigned long) wb) {

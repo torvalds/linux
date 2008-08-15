@@ -25,9 +25,6 @@
 #define CONEX_CAM 1		/* special JPEG header */
 #include "jpeg.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA USB Conexant Camera Driver");
 MODULE_LICENSE("GPL");
@@ -126,7 +123,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (len > sizeof gspca_dev->usb_buf) {
 		err("reg_r: buffer overflow");
 		return;
@@ -166,7 +163,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 {
 	struct usb_device *dev = gspca_dev->dev;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (len > sizeof gspca_dev->usb_buf) {
 		err("reg_w: buffer overflow");
 		return;
@@ -818,7 +815,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
@@ -1011,9 +1007,8 @@ static struct sd_desc sd_desc = {
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x0572, 0x0041), DVNM("Creative Notebook cx11646")},
+	{USB_DEVICE(0x0572, 0x0041)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -1038,7 +1033,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

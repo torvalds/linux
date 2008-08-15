@@ -21,7 +21,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/kirkwood.h>
+#include <mach/kirkwood.h>
 #include "common.h"
 
 static struct mv643xx_eth_platform_data db88f6281_ge00_data = {

@@ -16,12 +16,12 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/memory.h>
 #include <asm/system.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/lubbock.h>
+#include <mach/pm.h>
+#include <mach/pxa-regs.h>
+#include <mach/lubbock.h>
 #include <asm/mach/time.h>
 
 struct pxa_cpu_pm_fns *pxa_cpu_pm_fns;
