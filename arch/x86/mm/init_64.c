@@ -88,7 +88,11 @@ early_param("gbpages", parse_direct_gbpages_on);
 
 int after_bootmem;
 
-static __init void *spp_getpage(void)
+/*
+ * NOTE: This function is marked __ref because it calls __init function
+ * (alloc_bootmem_pages). It's safe to do it ONLY when after_bootmem == 0.
+ */
+static __ref void *spp_getpage(void)
 {
 	void *ptr;
 
