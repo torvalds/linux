@@ -1457,8 +1457,8 @@ static void ibmvfc_scsi_done(struct ibmvfc_event *evt)
 	struct ibmvfc_cmd *vfc_cmd = &evt->xfer_iu->cmd;
 	struct ibmvfc_fcp_rsp *rsp = &vfc_cmd->rsp;
 	struct scsi_cmnd *cmnd = evt->cmnd;
-	int rsp_len = 0;
-	int sense_len = rsp->fcp_sense_len;
+	u32 rsp_len = 0;
+	u32 sense_len = rsp->fcp_sense_len;
 
 	if (cmnd) {
 		if (vfc_cmd->response_flags & IBMVFC_ADAPTER_RESID_VALID)
@@ -1475,7 +1475,7 @@ static void ibmvfc_scsi_done(struct ibmvfc_event *evt)
 				rsp_len = rsp->fcp_rsp_len;
 			if ((sense_len + rsp_len) > SCSI_SENSE_BUFFERSIZE)
 				sense_len = SCSI_SENSE_BUFFERSIZE - rsp_len;
-			if ((rsp->flags & FCP_SNS_LEN_VALID) && rsp->fcp_sense_len)
+			if ((rsp->flags & FCP_SNS_LEN_VALID) && rsp->fcp_sense_len && rsp_len <= 8)
 				memcpy(cmnd->sense_buffer, rsp->data.sense + rsp_len, sense_len);
 
 			ibmvfc_log_error(evt);
