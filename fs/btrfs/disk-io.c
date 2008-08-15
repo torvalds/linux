@@ -429,7 +429,7 @@ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 	return 0;
 }
 
-static int congested_async(struct btrfs_fs_info *info, int iodone)
+int btrfs_congested_async(struct btrfs_fs_info *info, int iodone)
 {
 	int limit = 256 * info->fs_devices->open_devices;
 
@@ -438,9 +438,6 @@ static int congested_async(struct btrfs_fs_info *info, int iodone)
 	if (atomic_read(&info->nr_async_submits) > limit)
 		return 1;
 
-	limit = 8192 * info->fs_devices->open_devices;
-	if (iodone)
-		limit = (limit * 3) / 2;
 	return atomic_read(&info->nr_async_bios) > limit;
 }
 
@@ -454,7 +451,7 @@ static void run_one_async_submit(struct btrfs_work *work)
 	atomic_dec(&fs_info->nr_async_submits);
 
 	if ((async->bio->bi_rw & (1 << BIO_RW)) &&
-	    !congested_async(fs_info, 1)) {
+	    !btrfs_congested_async(fs_info, 1)) {
 		clear_bdi_congested(&fs_info->bdi, WRITE);
 	}
 	async->submit_bio_hook(async->inode, async->rw, async->bio,
@@ -963,7 +960,7 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 	struct backing_dev_info *bdi;
 
 	if ((bdi_bits & (1 << BDI_write_congested)) &&
-	    congested_async(info, 0))
+	    btrfs_congested_async(info, 0))
 		return 1;
 
 	list_for_each(cur, &info->fs_devices->devices) {
@@ -1844,7 +1841,7 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	struct extent_io_tree *tree;
 	u64 num_dirty;
 	u64 start = 0;
-	unsigned long thresh = 16 * 1024 * 1024;
+	unsigned long thresh = 2 * 1024 * 1024;
 	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 
 	if (current_is_pdflush())
