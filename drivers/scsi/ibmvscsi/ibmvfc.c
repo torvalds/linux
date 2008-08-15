@@ -3602,8 +3602,9 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 			}
 		}
 
-		if (vhost->reinit) {
+		if (vhost->reinit && !ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
 			vhost->reinit = 0;
+			scsi_block_requests(vhost->host);
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY);
 		} else {
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);
