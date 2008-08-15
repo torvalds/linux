@@ -1503,7 +1503,8 @@ int kernel_kexec(void)
 	}
 
  Unlock:
-	xchg(&kexec_lock, 0);
+	if (!xchg(&kexec_lock, 0))
+		BUG();
 
 	return error;
 }
