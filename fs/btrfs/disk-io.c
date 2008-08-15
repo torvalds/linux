@@ -1348,7 +1348,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 * cannot dynamically grow.
 	 */
 	btrfs_init_workers(&fs_info->workers, fs_info->thread_pool_size);
-	btrfs_init_workers(&fs_info->submit_workers, fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->submit_workers,
+			   min_t(u64, fs_devices->num_devices,
+			   fs_info->thread_pool_size));
 
 	/* a higher idle thresh on the submit workers makes it much more
 	 * likely that bios will be send down in a sane order to the
