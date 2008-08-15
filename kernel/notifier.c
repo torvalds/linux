@@ -21,10 +21,6 @@ BLOCKING_NOTIFIER_HEAD(reboot_notifier_list);
 static int notifier_chain_register(struct notifier_block **nl,
 		struct notifier_block *n)
 {
-	if (!kernel_text_address((unsigned long)n->notifier_call)) {
-		WARN(1, "Invalid notifier registered!");
-		return 0;
-	}
 	while ((*nl) != NULL) {
 		if (n->priority > (*nl)->priority)
 			break;
@@ -38,10 +34,6 @@ static int notifier_chain_register(struct notifier_block **nl,
 static int notifier_chain_cond_register(struct notifier_block **nl,
 		struct notifier_block *n)
 {
-	if (!kernel_text_address((unsigned long)n->notifier_call)) {
-		WARN(1, "Invalid notifier registered!");
-		return 0;
-	}
 	while ((*nl) != NULL) {
 		if ((*nl) == n)
 			return 0;
@@ -92,7 +84,7 @@ static int __kprobes notifier_call_chain(struct notifier_block **nl,
 		next_nb = rcu_dereference(nb->next);
 
 #ifdef CONFIG_DEBUG_NOTIFIERS
-		if (!kernel_text_address((unsigned long)nb->notifier_call)) {
+		if (unlikely(!func_ptr_is_kernel_text(nb->notifier_call))) {
 			WARN(1, "Invalid notifier called!");
 			nb = next_nb;
 			continue;

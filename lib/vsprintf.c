@@ -513,7 +513,7 @@ static char *string(char *buf, char *end, char *s, int field_width, int precisio
 	return buf;
 }
 
-static inline void *dereference_function_descriptor(void *ptr)
+void *dereference_function_descriptor(void *ptr)
 {
 #if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
 	void *p;
