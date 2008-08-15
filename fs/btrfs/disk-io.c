@@ -1386,7 +1386,14 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 * devices
 	 */
 	fs_info->submit_workers.idle_thresh = 64;
-	fs_info->workers.idle_thresh = 32;
+
+	/* fs_info->workers is responsible for checksumming file data
+	 * blocks and metadata.  Using a larger idle thresh allows each
+	 * worker thread to operate on things in roughly the order they
+	 * were sent by the writeback daemons, improving overall locality
+	 * of the IO going down the pipe.
+	 */
+	fs_info->workers.idle_thresh = 128;
 
 	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1);
 	btrfs_init_workers(&fs_info->endio_workers, "endio",

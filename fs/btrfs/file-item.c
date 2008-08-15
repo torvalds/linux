@@ -321,6 +321,7 @@ again:
 	file_key.offset = offset;
 	btrfs_set_key_type(&file_key, BTRFS_CSUM_ITEM_KEY);
 
+	mutex_lock(&BTRFS_I(inode)->csum_mutex);
 	item = btrfs_lookup_csum(trans, root, path, objectid, offset, 1);
 	if (!IS_ERR(item)) {
 		leaf = path->nodes[0];
@@ -367,7 +368,7 @@ again:
 	ret = btrfs_search_slot(trans, root, &file_key, path,
 				BTRFS_CRC32_SIZE, 1);
 	if (ret < 0)
-		goto fail;
+		goto fail_unlock;
 	if (ret == 0) {
 		BUG();
 	}
@@ -411,10 +412,10 @@ insert:
 	ret = btrfs_insert_empty_item(trans, root, path, &file_key,
 				      ins_size);
 	if (ret < 0)
-		goto fail;
+		goto fail_unlock;
 	if (ret != 0) {
 		WARN_ON(1);
-		goto fail;
+		goto fail_unlock;
 	}
 csum:
 	leaf = path->nodes[0];
@@ -427,6 +428,8 @@ found:
 	item_end = (struct btrfs_csum_item *)((unsigned char *)item_end +
 				      btrfs_item_size_nr(leaf, path->slots[0]));
 	eb_token = NULL;
+	mutex_unlock(&BTRFS_I(inode)->csum_mutex);
+	cond_resched();
 next_sector:
 
 	if (!eb_token ||
@@ -467,13 +470,18 @@ next_sector:
 		eb_token = NULL;
 	}
 	btrfs_mark_buffer_dirty(path->nodes[0]);
+	cond_resched();
 	if (total_bytes < sums->len) {
 		btrfs_release_path(root, path);
 		goto again;
 	}
-fail:
+out:
 	btrfs_free_path(path);
 	return ret;
+
+fail_unlock:
+	mutex_unlock(&BTRFS_I(inode)->csum_mutex);
+	goto out;
 }
 
 int btrfs_csum_truncate(struct btrfs_trans_handle *trans,

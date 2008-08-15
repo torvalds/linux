@@ -415,10 +415,8 @@ static noinline int add_pending_csums(struct btrfs_trans_handle *trans,
 	btrfs_set_trans_block_group(trans, inode);
 	list_for_each(cur, list) {
 		sum = list_entry(cur, struct btrfs_ordered_sum, list);
-		mutex_lock(&BTRFS_I(inode)->csum_mutex);
 		btrfs_csum_file_blocks(trans, BTRFS_I(inode)->root,
 				       inode, sum);
-		mutex_unlock(&BTRFS_I(inode)->csum_mutex);
 	}
 	return 0;
 }

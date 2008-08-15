@@ -48,6 +48,7 @@ struct btrfs_worker_thread {
 
 	/* number of things on the pending list */
 	atomic_t num_pending;
+
 	unsigned long sequence;
 
 	/* protects the pending list. */
@@ -242,7 +243,7 @@ static struct btrfs_worker_thread *next_worker(struct btrfs_workers *workers)
 	worker = list_entry(next, struct btrfs_worker_thread, worker_list);
 	atomic_inc(&worker->num_pending);
 	worker->sequence++;
-	if (worker->sequence % 4 == 0)
+	if (worker->sequence % workers->idle_thresh == 0)
 		list_move_tail(next, &workers->worker_list);
 	return worker;
 }
