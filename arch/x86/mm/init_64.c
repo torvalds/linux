@@ -60,7 +60,7 @@ static unsigned long dma_reserve __initdata;
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-int direct_gbpages __meminitdata
+int direct_gbpages
 #ifdef CONFIG_DIRECT_GBPAGES
 				= 1
 #endif
@@ -314,6 +314,7 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 {
 	unsigned long pages = 0;
 	unsigned long last_map_addr = end;
+	unsigned long start = address;
 
 	int i = pmd_index(address);
 
@@ -334,6 +335,9 @@ phys_pmd_init(pmd_t *pmd_page, unsigned long address, unsigned long end,
 			if (!pmd_large(*pmd))
 				last_map_addr = phys_pte_update(pmd, address,
 								 end);
+			/* Count entries we're using from level2_ident_pgt */
+			if (start == 0)
+				pages++;
 			continue;
 		}
 

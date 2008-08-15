@@ -55,13 +55,19 @@ static void split_page_count(int level)
 
 int arch_report_meminfo(char *page)
 {
-	int n = sprintf(page, "DirectMap4k:  %8lu\n"
-			"DirectMap2M:  %8lu\n",
-			direct_pages_count[PG_LEVEL_4K],
-			direct_pages_count[PG_LEVEL_2M]);
+	int n = sprintf(page, "DirectMap4k:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_4K] << 2);
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+	n += sprintf(page + n, "DirectMap2M:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_2M] << 11);
+#else
+	n += sprintf(page + n, "DirectMap4M:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_2M] << 12);
+#endif
 #ifdef CONFIG_X86_64
-	n += sprintf(page + n, "DirectMap1G:  %8lu\n",
-		     direct_pages_count[PG_LEVEL_1G]);
+	if (direct_gbpages)
+		n += sprintf(page + n, "DirectMap1G:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_1G] << 20);
 #endif
 	return n;
 }
