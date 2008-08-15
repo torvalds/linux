@@ -79,16 +79,11 @@ struct ieee80211_sta_bss {
 	enum ieee80211_band band;
 	int freq;
 	int signal, noise, qual;
-	u8 *wpa_ie;
-	size_t wpa_ie_len;
-	u8 *rsn_ie;
-	size_t rsn_ie_len;
-	u8 *wmm_ie;
-	size_t wmm_ie_len;
-	u8 *ht_ie;
-	size_t ht_ie_len;
-	u8 *ht_add_ie;
-	size_t ht_add_ie_len;
+	u8 *ies; /* all information elements from the last Beacon or Probe
+		  * Response frames; note Beacon frame is not allowed to
+		  * override values from Probe Response */
+	size_t ies_len;
+	bool wmm_used;
 #ifdef CONFIG_MAC80211_MESH
 	u8 *mesh_id;
 	size_t mesh_id_len;
@@ -773,6 +768,9 @@ struct ieee80211_ra_tid {
 
 /* Parsed Information Elements */
 struct ieee802_11_elems {
+	u8 *ie_start;
+	size_t total_len;
+
 	/* pointers to IEs */
 	u8 *ssid;
 	u8 *supp_rates;
