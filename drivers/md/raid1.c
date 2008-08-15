@@ -1302,9 +1302,6 @@ static void sync_request_write(mddev_t *mddev, r1bio_t *r1_bio)
 					sbio->bi_size = r1_bio->sectors << 9;
 					sbio->bi_idx = 0;
 					sbio->bi_phys_segments = 0;
-					sbio->bi_hw_segments = 0;
-					sbio->bi_hw_front_size = 0;
-					sbio->bi_hw_back_size = 0;
 					sbio->bi_flags &= ~(BIO_POOL_MASK - 1);
 					sbio->bi_flags |= 1 << BIO_UPTODATE;
 					sbio->bi_next = NULL;

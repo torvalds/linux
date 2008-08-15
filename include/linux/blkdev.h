@@ -189,13 +189,6 @@ struct request {
 	 */
 	unsigned short nr_phys_segments;
 
-	/* Number of scatter-gather addr+len pairs after
-	 * physical and DMA remapping hardware coalescing is performed.
-	 * This is the number of scatter-gather entries the driver
-	 * will actually have to deal with after DMA mapping is done.
-	 */
-	unsigned short nr_hw_segments;
-
 	unsigned short ioprio;
 
 	void *special;

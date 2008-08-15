@@ -790,7 +790,6 @@ struct request *elv_next_request(struct request_queue *q)
 			 * device can handle
 			 */
 			rq->nr_phys_segments++;
-			rq->nr_hw_segments++;
 		}
 
 		if (!q->prep_rq_fn)
@@ -813,7 +812,6 @@ struct request *elv_next_request(struct request_queue *q)
 				 * so that we don't add it again
 				 */
 				--rq->nr_phys_segments;
-				--rq->nr_hw_segments;
 			}
 
 			rq = NULL;

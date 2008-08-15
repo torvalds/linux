@@ -41,12 +41,9 @@ void blk_recalc_rq_sectors(struct request *rq, int nsect)
 void blk_recalc_rq_segments(struct request *rq)
 {
 	int nr_phys_segs;
-	int nr_hw_segs;
 	unsigned int phys_size;
-	unsigned int hw_size;
 	struct bio_vec *bv, *bvprv = NULL;
 	int seg_size;
-	int hw_seg_size;
 	int cluster;
 	struct req_iterator iter;
 	int high, highprv = 1;
@@ -56,8 +53,8 @@ void blk_recalc_rq_segments(struct request *rq)
 		return;
 
 	cluster = test_bit(QUEUE_FLAG_CLUSTER, &q->queue_flags);
-	hw_seg_size = seg_size = 0;
-	phys_size = hw_size = nr_phys_segs = nr_hw_segs = 0;
+	seg_size = 0;
+	phys_size = nr_phys_segs = 0;
 	rq_for_each_segment(bv, rq, iter) {
 		/*
 		 * the trick here is making sure that a high page is never
@@ -76,30 +73,17 @@ void blk_recalc_rq_segments(struct request *rq)
 				goto new_segment;
 
 			seg_size += bv->bv_len;
-			hw_seg_size += bv->bv_len;
 			bvprv = bv;
 			continue;
 		}
 new_segment:
-		if (nr_hw_segs == 1 &&
-		    hw_seg_size > rq->bio->bi_hw_front_size)
-			rq->bio->bi_hw_front_size = hw_seg_size;
-		hw_seg_size = bv->bv_len;
-		nr_hw_segs++;
-
 		nr_phys_segs++;
 		bvprv = bv;
 		seg_size = bv->bv_len;
 		highprv = high;
 	}
 
-	if (nr_hw_segs == 1 &&
-	    hw_seg_size > rq->bio->bi_hw_front_size)
-		rq->bio->bi_hw_front_size = hw_seg_size;
-	if (hw_seg_size > rq->biotail->bi_hw_back_size)
-		rq->biotail->bi_hw_back_size = hw_seg_size;
 	rq->nr_phys_segments = nr_phys_segs;
-	rq->nr_hw_segments = nr_hw_segs;
 }
 
 void blk_recount_segments(struct request_queue *q, struct bio *bio)
@@ -112,7 +96,6 @@ void blk_recount_segments(struct request_queue *q, struct bio *bio)
 	blk_recalc_rq_segments(&rq);
 	bio->bi_next = nxt;
 	bio->bi_phys_segments = rq.nr_phys_segments;
-	bio->bi_hw_segments = rq.nr_hw_segments;
 	bio->bi_flags |= (1 << BIO_SEG_VALID);
 }
 EXPORT_SYMBOL(blk_recount_segments);
@@ -255,10 +238,9 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 				    struct request *req,
 				    struct bio *bio)
 {
-	int nr_hw_segs = bio_hw_segments(q, bio);
 	int nr_phys_segs = bio_phys_segments(q, bio);
 
-	if (req->nr_hw_segments + nr_hw_segs > q->max_hw_segments
+	if (req->nr_phys_segments + nr_phys_segs > q->max_hw_segments
 	    || req->nr_phys_segments + nr_phys_segs > q->max_phys_segments) {
 		req->cmd_flags |= REQ_NOMERGE;
 		if (req == q->last_merge)
@@ -270,7 +252,6 @@ static inline int ll_new_hw_segment(struct request_queue *q,
 	 * This will form the start of a new hw segment.  Bump both
 	 * counters.
 	 */
-	req->nr_hw_segments += nr_hw_segs;
 	req->nr_phys_segments += nr_phys_segs;
 	return 1;
 }
@@ -328,7 +309,6 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 				struct request *next)
 {
 	int total_phys_segments;
-	int total_hw_segments;
 
 	/*
 	 * First check if the either of the requests are re-queued
@@ -350,14 +330,11 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 	if (total_phys_segments > q->max_phys_segments)
 		return 0;
 
-	total_hw_segments = req->nr_hw_segments + next->nr_hw_segments;
-
-	if (total_hw_segments > q->max_hw_segments)
+	if (total_phys_segments > q->max_hw_segments)
 		return 0;
 
 	/* Merge is OK... */
 	req->nr_phys_segments = total_phys_segments;
-	req->nr_hw_segments = total_hw_segments;
 	return 1;
 }
 

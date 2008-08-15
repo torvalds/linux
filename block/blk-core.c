@@ -2026,7 +2026,6 @@ void blk_rq_bio_prep(struct request_queue *q, struct request *rq,
 
 	if (bio_has_data(bio)) {
 		rq->nr_phys_segments = bio_phys_segments(q, bio);
-		rq->nr_hw_segments = bio_hw_segments(q, bio);
 		rq->buffer = bio_data(bio);
 	}
 	rq->current_nr_sectors = bio_cur_sectors(bio);

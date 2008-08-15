@@ -77,20 +77,7 @@ struct bio {
 	 */
 	unsigned short		bi_phys_segments;
 
-	/* Number of segments after physical and DMA remapping
-	 * hardware coalescing is performed.
-	 */
-	unsigned short		bi_hw_segments;
-
 	unsigned int		bi_size;	/* residual I/O count */
-
-	/*
-	 * To keep track of the max hw size, we account for the
-	 * sizes of the first and last virtually mergeable segments
-	 * in this bio
-	 */
-	unsigned int		bi_hw_front_size;
-	unsigned int		bi_hw_back_size;
 
 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
 
@@ -113,7 +100,7 @@ struct bio {
 #define BIO_UPTODATE	0	/* ok after I/O completion */
 #define BIO_RW_BLOCK	1	/* RW_AHEAD set, and read/write would block */
 #define BIO_EOF		2	/* out-out-bounds error */
-#define BIO_SEG_VALID	3	/* nr_hw_seg valid */
+#define BIO_SEG_VALID	3	/* bi_phys_segments valid */
 #define BIO_CLONED	4	/* doesn't own data */
 #define BIO_BOUNCED	5	/* bio is a bounce bio */
 #define BIO_USER_MAPPED 6	/* contains user pages */
@@ -324,7 +311,6 @@ extern void bio_free(struct bio *, struct bio_set *);
 extern void bio_endio(struct bio *, int);
 struct request_queue;
 extern int bio_phys_segments(struct request_queue *, struct bio *);
-extern int bio_hw_segments(struct request_queue *, struct bio *);
 
 extern void __bio_clone(struct bio *, struct bio *);
 extern struct bio *bio_clone(struct bio *, gfp_t);
