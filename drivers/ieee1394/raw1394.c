@@ -2268,6 +2268,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 		return -EFAULT;
 	}
 
+	mutex_lock(&fi->state_mutex);
+
 	switch (fi->state) {
 	case opened:
 		retval = state_opened(fi, req);
@@ -2281,6 +2283,8 @@ static ssize_t raw1394_write(struct file *file, const char __user * buffer,
 		retval = state_connected(fi, req);
 		break;
 	}
+
+	mutex_unlock(&fi->state_mutex);
 
 	if (retval < 0) {
 		free_pending_request(req);
