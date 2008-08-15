@@ -123,7 +123,7 @@ struct acpi_processor_errata errata __read_mostly;
 static int set_no_mwait(const struct dmi_system_id *id)
 {
 	printk(KERN_NOTICE PREFIX "%s detected - "
-		"disable mwait for CPU C-stetes\n", id->ident);
+		"disabling mwait for CPU C-states\n", id->ident);
 	idle_nomwait = 1;
 	return 0;
 }
