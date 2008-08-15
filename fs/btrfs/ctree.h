@@ -544,6 +544,7 @@ struct btrfs_fs_info {
 	struct list_head hashers;
 	struct list_head dead_roots;
 	atomic_t nr_async_submits;
+	atomic_t nr_async_bios;
 
 	/*
 	 * this is used by the balancing code to wait for all the pending

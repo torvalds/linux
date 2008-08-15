@@ -429,6 +429,21 @@ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 	return 0;
 }
 
+static int congested_async(struct btrfs_fs_info *info, int iodone)
+{
+	int limit = 256 * info->fs_devices->open_devices;
+
+	if (iodone)
+		limit = (limit * 3) / 2;
+	if (atomic_read(&info->nr_async_submits) > limit)
+		return 1;
+
+	limit = 8192 * info->fs_devices->open_devices;
+	if (iodone)
+		limit = (limit * 3) / 2;
+	return atomic_read(&info->nr_async_bios) > limit;
+}
+
 static void run_one_async_submit(struct btrfs_work *work)
 {
 	struct btrfs_fs_info *fs_info;
@@ -437,6 +452,11 @@ static void run_one_async_submit(struct btrfs_work *work)
 	async = container_of(work, struct  async_submit_bio, work);
 	fs_info = BTRFS_I(async->inode)->root->fs_info;
 	atomic_dec(&fs_info->nr_async_submits);
+
+	if ((async->bio->bi_rw & (1 << BIO_RW)) &&
+	    !congested_async(fs_info, 1)) {
+		clear_bdi_congested(&fs_info->bdi, WRITE);
+	}
 	async->submit_bio_hook(async->inode, async->rw, async->bio,
 			       async->mirror_num);
 	kfree(async);
@@ -938,15 +958,13 @@ static int btrfs_congested_fn(void *congested_data, int bdi_bits)
 {
 	struct btrfs_fs_info *info = (struct btrfs_fs_info *)congested_data;
 	int ret = 0;
-	int limit = 256 * info->fs_devices->open_devices;
 	struct list_head *cur;
 	struct btrfs_device *device;
 	struct backing_dev_info *bdi;
 
 	if ((bdi_bits & (1 << BDI_write_congested)) &&
-	    atomic_read(&info->nr_async_submits) > limit) {
+	    congested_async(info, 0))
 		return 1;
-	}
 
 	list_for_each(cur, &info->fs_devices->devices) {
 		device = list_entry(cur, struct btrfs_device, dev_list);
@@ -1250,6 +1268,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	INIT_LIST_HEAD(&fs_info->space_info);
 	btrfs_mapping_init(&fs_info->mapping_tree);
 	atomic_set(&fs_info->nr_async_submits, 0);
+	atomic_set(&fs_info->nr_async_bios, 0);
 	atomic_set(&fs_info->throttles, 0);
 	atomic_set(&fs_info->throttle_gen, 0);
 	fs_info->sb = sb;

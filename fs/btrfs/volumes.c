@@ -179,7 +179,7 @@ loop:
 		cur = pending;
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
-		atomic_dec(&device->dev_root->fs_info->nr_async_submits);
+		atomic_dec(&device->dev_root->fs_info->nr_async_bios);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
 		bio_get(cur);
@@ -2145,12 +2145,12 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 	}
 
 	/*
-	 * nr_async_sumbits allows us to reliably return congestion to the
+	 * nr_async_bios allows us to reliably return congestion to the
 	 * higher layers.  Otherwise, the async bio makes it appear we have
 	 * made progress against dirty pages when we've really just put it
 	 * on a queue for later
 	 */
-	atomic_inc(&root->fs_info->nr_async_submits);
+	atomic_inc(&root->fs_info->nr_async_bios);
 	WARN_ON(bio->bi_next);
 	bio->bi_next = NULL;
 	bio->bi_rw |= rw;
