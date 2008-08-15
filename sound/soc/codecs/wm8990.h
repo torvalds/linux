@@ -54,6 +54,7 @@
 #define WM8990_SPEAKER_VOLUME                   0x22
 #define WM8990_CLASSD1                          0x23
 #define WM8990_CLASSD3                          0x25
+#define WM8990_CLASSD4                          0x26
 #define WM8990_INPUT_MIXER1                     0x27
 #define WM8990_INPUT_MIXER2                     0x28
 #define WM8990_INPUT_MIXER3                     0x29
@@ -528,8 +529,8 @@
 /*
  * R34 (0x22) - Speaker Volume
  */
-#define WM8990_SPKVOL_MASK                      0x0003  /* SPKVOL - [1:0] */
-#define WM8990_SPKVOL_SHIFT			0
+#define WM8990_SPKATTN_MASK                      0x0003  /* SPKATTN - [1:0] */
+#define WM8990_SPKATTN_SHIFT			 0
 
 /*
  * R35 (0x23) - ClassD1
@@ -544,6 +545,15 @@
 #define WM8990_DCGAIN_SHIFT			3
 #define WM8990_ACGAIN_MASK                      0x0007  /* ACGAIN - [2:0] */
 #define WM8990_ACGAIN_SHIFT			0
+
+/*
+ * R38 (0x26) - ClassD4
+ */
+#define WM8990_SPKZC_MASK                       0x0001  /* SPKZC */
+#define WM8990_SPKZC_SHIFT                           7  /* SPKZC */
+#define WM8990_SPKVOL_MASK                      0x007F  /* SPKVOL - [6:0] */
+#define WM8990_SPKVOL_SHIFT                          0  /* SPKVOL - [6:0] */
+
 /*
  * R39 (0x27) - Input Mixer1
  */
