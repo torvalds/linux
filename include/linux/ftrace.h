@@ -165,10 +165,12 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3) { }
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 extern void ftrace_init(void);
 extern void ftrace_init_module(unsigned long *start, unsigned long *end);
+extern void ftrace_release(void *start, unsigned long size);
 #else
 static inline void ftrace_init(void) { }
 static inline void
 ftrace_init_module(unsigned long *start, unsigned long *end) { }
+static inline void ftrace_release(void *start, unsigned long size) { }
 #endif
 
 #endif /* _LINUX_FTRACE_H */

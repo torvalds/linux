@@ -1431,6 +1431,9 @@ static void free_module(struct module *mod)
 	/* Module unload stuff */
 	module_unload_free(mod);
 
+	/* release any pointers to mcount in this module */
+	ftrace_release(mod->module_core, mod->core_size);
+
 	/* This may be NULL, but that's OK */
 	module_free(mod, mod->module_init);
 	kfree(mod->args);
@@ -1839,6 +1842,7 @@ static noinline struct module *load_module(void __user *umod,
 	struct module *mod;
 	long err = 0;
 	void *percpu = NULL, *ptr = NULL; /* Stops spurious gcc warning */
+	void *mseg;
 	struct exception_table_entry *extable;
 	mm_segment_t old_fs;
 
@@ -2190,10 +2194,9 @@ static noinline struct module *load_module(void __user *umod,
 #endif
 	}
 
-	if (mcountindex) {
-		void *mseg = (void *)sechdrs[mcountindex].sh_addr;
-		ftrace_init_module(mseg, mseg + sechdrs[mcountindex].sh_size);
-	}
+	/* sechdrs[0].sh_size is always zero */
+	mseg = (void *)sechdrs[mcountindex].sh_addr;
+	ftrace_init_module(mseg, mseg + sechdrs[mcountindex].sh_size);
 
 	err = module_finalize(hdr, sechdrs, mod);
 	if (err < 0)
@@ -2264,6 +2267,7 @@ static noinline struct module *load_module(void __user *umod,
  cleanup:
 	kobject_del(&mod->mkobj.kobj);
 	kobject_put(&mod->mkobj.kobj);
+	ftrace_release(mod->module_core, mod->core_size);
  free_unload:
 	module_unload_free(mod);
 	module_free(mod, mod->module_init);

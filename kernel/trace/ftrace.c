@@ -294,11 +294,35 @@ static inline void ftrace_del_hash(struct dyn_ftrace *node)
 
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
-	/* no locking, only called from kstop_machine */
-
 	rec->ip = (unsigned long)ftrace_free_records;
 	ftrace_free_records = rec;
 	rec->flags |= FTRACE_FL_FREE;
+}
+
+void ftrace_release(void *start, unsigned long size)
+{
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+	unsigned long s = (unsigned long)start;
+	unsigned long e = s + size;
+	int i;
+
+	if (!start)
+		return;
+
+	/* No interrupt should call this */
+	spin_lock(&ftrace_lock);
+
+	for (pg = ftrace_pages_start; pg; pg = pg->next) {
+		for (i = 0; i < pg->index; i++) {
+			rec = &pg->records[i];
+
+			if ((rec->ip >= s) && (rec->ip < e))
+				ftrace_free_rec(rec);
+		}
+	}
+	spin_unlock(&ftrace_lock);
+
 }
 
 static struct dyn_ftrace *ftrace_alloc_dyn_node(unsigned long ip)
@@ -1527,7 +1551,9 @@ static int ftrace_convert_nops(unsigned long *start,
 	p = start;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
+		spin_lock(&ftrace_lock);
 		ftrace_record_ip(addr);
+		spin_unlock(&ftrace_lock);
 		ftrace_shutdown_replenish();
 	}
 
@@ -1541,6 +1567,8 @@ static int ftrace_convert_nops(unsigned long *start,
 
 void ftrace_init_module(unsigned long *start, unsigned long *end)
 {
+	if (start == end)
+		return;
 	ftrace_convert_nops(start, end);
 }
 
