@@ -431,7 +431,6 @@ struct mISDN_sock {
 struct mISDNdevice {
 	struct mISDNchannel	D;
 	u_int			id;
-	char			name[MISDN_MAX_IDLEN];
 	u_int			Dprotocols;
 	u_int			Bprotocols;
 	u_int			nrbchan;

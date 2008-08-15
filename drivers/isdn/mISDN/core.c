@@ -82,12 +82,12 @@ mISDN_register_device(struct mISDNdevice *dev, char *name)
 	if (dev->id < 0)
 		return -EBUSY;
 	if (name && name[0])
-		strcpy(dev->name, name);
+		dev_set_name(&dev->dev, "%s", name);
 	else
-		sprintf(dev->name, "mISDN%d", dev->id);
+		dev_set_name(&dev->dev, "mISDN%d", dev->id);
 	if (debug & DEBUG_CORE)
 		printk(KERN_DEBUG "mISDN_register %s %d\n",
-			dev->name, dev->id);
+			dev_name(&dev->dev), dev->id);
 	err = create_stack(dev);
 	if (err)
 		return err;
@@ -104,7 +104,7 @@ mISDN_unregister_device(struct mISDNdevice *dev) {
 
 	if (debug & DEBUG_CORE)
 		printk(KERN_DEBUG "mISDN_unregister %s %d\n",
-			dev->name, dev->id);
+			dev_name(&dev->dev), dev->id);
 	write_lock_irqsave(&device_lock, flags);
 	list_del(&dev->D.list);
 	write_unlock_irqrestore(&device_lock, flags);

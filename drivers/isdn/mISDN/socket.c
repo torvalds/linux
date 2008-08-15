@@ -381,7 +381,7 @@ data_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			memcpy(di.channelmap, dev->channelmap,
 				sizeof(di.channelmap));
 			di.nrbchan = dev->nrbchan;
-			strcpy(di.name, dev->name);
+			strcpy(di.name, dev_name(&dev->dev));
 			if (copy_to_user((void __user *)arg, &di, sizeof(di)))
 				err = -EFAULT;
 		} else
@@ -639,7 +639,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			memcpy(di.channelmap, dev->channelmap,
 				sizeof(di.channelmap));
 			di.nrbchan = dev->nrbchan;
-			strcpy(di.name, dev->name);
+			strcpy(di.name, dev_name(&dev->dev));
 			if (copy_to_user((void __user *)arg, &di, sizeof(di)))
 				err = -EFAULT;
 		} else
@@ -655,7 +655,7 @@ base_sock_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 			}
 			dev = get_mdevice(dn.id);
 			if (dev)
-				strlcpy(dev->name, dn.name, MISDN_MAX_IDLEN);
+				err = device_rename(&dev->dev, dn.name);
 			else
 				err = -ENODEV;
 		}
