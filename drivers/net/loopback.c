@@ -234,9 +234,7 @@ static void loopback_setup(struct net_device *dev)
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;
 	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
-#ifdef LOOPBACK_TSO
 		| NETIF_F_TSO
-#endif
 		| NETIF_F_NO_CSUM
 		| NETIF_F_HIGHDMA
 		| NETIF_F_LLTX
