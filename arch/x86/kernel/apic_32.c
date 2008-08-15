@@ -925,7 +925,7 @@ void __init sync_Arb_IDs(void)
  */
 void __init init_bsp_APIC(void)
 {
-	unsigned long value;
+	unsigned int value;
 
 	/*
 	 * Don't do the setup now if we have a SMP BIOS as the
@@ -946,11 +946,13 @@ void __init init_bsp_APIC(void)
 	value &= ~APIC_VECTOR_MASK;
 	value |= APIC_SPIV_APIC_ENABLED;
 
+#ifdef CONFIG_X86_32
 	/* This bit is reserved on P4/Xeon and should be cleared */
 	if ((boot_cpu_data.x86_vendor == X86_VENDOR_INTEL) &&
 	    (boot_cpu_data.x86 == 15))
 		value &= ~APIC_SPIV_FOCUS_DISABLED;
 	else
+#endif
 		value |= APIC_SPIV_FOCUS_DISABLED;
 	value |= SPURIOUS_APIC_VECTOR;
 	apic_write(APIC_SPIV, value);
