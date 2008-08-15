@@ -536,6 +536,16 @@ config DEBUG_SG
 
 	  If unsure, say N.
 
+config DEBUG_NOTIFIERS
+	bool "Debug notifier call chains"
+	depends on DEBUG_KERNEL
+	help
+	  Enable this to turn on sanity checking for notifier call chains.
+	  This is most useful for kernel developers to make sure that
+	  modules properly unregister themselves from notifier chains.
+	  This is a relatively cheap check but if you care about maximum
+	  performance, say N.
+
 config FRAME_POINTER
 	bool "Compile the kernel with frame pointers"
 	depends on DEBUG_KERNEL && \
