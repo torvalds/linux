@@ -3030,12 +3030,12 @@ static __init void tracer_init_debugfs(void)
 	entry = debugfs_create_file("available_tracers", 0444, d_tracer,
 				    &global_trace, &show_traces_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs 'trace' entry\n");
+		pr_warning("Could not create debugfs 'available_tracers' entry\n");
 
 	entry = debugfs_create_file("current_tracer", 0444, d_tracer,
 				    &global_trace, &set_tracer_fops);
 	if (!entry)
-		pr_warning("Could not create debugfs 'trace' entry\n");
+		pr_warning("Could not create debugfs 'current_tracer' entry\n");
 
 	entry = debugfs_create_file("tracing_max_latency", 0644, d_tracer,
 				    &tracing_max_latency,
@@ -3048,7 +3048,7 @@ static __init void tracer_init_debugfs(void)
 				    &tracing_thresh, &tracing_max_lat_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
-			   "'tracing_threash' entry\n");
+			   "'tracing_thresh' entry\n");
 	entry = debugfs_create_file("README", 0644, d_tracer,
 				    NULL, &tracing_readme_fops);
 	if (!entry)
@@ -3058,13 +3058,13 @@ static __init void tracer_init_debugfs(void)
 				    NULL, &tracing_pipe_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
-			   "'tracing_threash' entry\n");
+			   "'trace_pipe' entry\n");
 
 	entry = debugfs_create_file("trace_entries", 0644, d_tracer,
 				    &global_trace, &tracing_entries_fops);
 	if (!entry)
 		pr_warning("Could not create debugfs "
-			   "'tracing_threash' entry\n");
+			   "'trace_entries' entry\n");
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
