@@ -872,15 +872,13 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 		}
 	} else {
 		rec = &iter->pg->records[iter->idx++];
-		if ((!(iter->flags & FTRACE_ITER_FAILURES) &&
+		if ((rec->flags & FTRACE_FL_FREE) ||
+
+		    (!(iter->flags & FTRACE_ITER_FAILURES) &&
 		     (rec->flags & FTRACE_FL_FAILED)) ||
 
 		    ((iter->flags & FTRACE_ITER_FAILURES) &&
-		     (!(rec->flags & FTRACE_FL_FAILED) ||
-		      (rec->flags & FTRACE_FL_FREE))) ||
-
-		    ((iter->flags & FTRACE_ITER_FILTER) &&
-		     !(rec->flags & FTRACE_FL_FILTER)) ||
+		     !(rec->flags & FTRACE_FL_FAILED)) ||
 
 		    ((iter->flags & FTRACE_ITER_NOTRACE) &&
 		     !(rec->flags & FTRACE_FL_NOTRACE))) {
