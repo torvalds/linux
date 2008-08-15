@@ -4718,7 +4718,7 @@ init_e1_port(struct hfc_multi *hc, struct hm_map *m)
 	} else
 		hc->chan[hc->dslot].jitter = 2; /* default */
 	snprintf(name, MISDN_MAX_IDLEN - 1, "hfc-e1.%d", HFC_cnt + 1);
-	ret = mISDN_register_device(&dch->dev, name);
+	ret = mISDN_register_device(&dch->dev, &hc->pci_dev->dev, name);
 	if (ret)
 		goto free_chan;
 	hc->created[0] = 1;
@@ -4826,9 +4826,9 @@ init_multi_port(struct hfc_multi *hc, int pt)
 		test_and_set_bit(HFC_CFG_DIS_ECHANNEL,
 		    &hc->chan[i + 2].cfg);
 	}
-	snprintf(name, MISDN_MAX_IDLEN - 1, "hfc-%ds.%d/%d",
+	snprintf(name, MISDN_MAX_IDLEN - 1, "hfc-%ds.%d-%d",
 		hc->type, HFC_cnt + 1, pt + 1);
-	ret = mISDN_register_device(&dch->dev, name);
+	ret = mISDN_register_device(&dch->dev, &hc->pci_dev->dev, name);
 	if (ret)
 		goto free_chan;
 	hc->created[pt] = 1;

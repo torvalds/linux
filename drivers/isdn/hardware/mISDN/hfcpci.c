@@ -64,9 +64,6 @@ MODULE_LICENSE("GPL");
 module_param(debug, uint, 0);
 module_param(poll, uint, S_IRUGO | S_IWUSR);
 
-static LIST_HEAD(HFClist);
-static DEFINE_RWLOCK(HFClock);
-
 enum {
 	HFC_CCD_2BD0,
 	HFC_CCD_B000,
@@ -136,7 +133,6 @@ struct hfcPCI_hw {
 
 
 struct hfc_pci {
-	struct list_head	list;
 	u_char			subtype;
 	u_char			chanlimit;
 	u_char			initdone;
@@ -1227,41 +1223,6 @@ hfcpci_int(int intno, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static void
-hfcpci_softirq(void *arg)
-{
-	u_long		flags;
-	struct bchannel	*bch;
-	struct hfc_pci	*hc;
-
-	write_lock_irqsave(&HFClock, flags);
-	list_for_each_entry(hc, &HFClist, list) {
-		if (hc->hw.int_m2 & HFCPCI_IRQ_ENABLE) {
-			spin_lock(&hc->lock);
-			bch = Sel_BCS(hc, hc->hw.bswapped ? 2 : 1);
-			if (bch && bch->state == ISDN_P_B_RAW) { /* B1 rx&tx */
-				main_rec_hfcpci(bch);
-				tx_birq(bch);
-			}
-			bch = Sel_BCS(hc, hc->hw.bswapped ? 1 : 2);
-			if (bch && bch->state == ISDN_P_B_RAW) { /* B2 rx&tx */
-				main_rec_hfcpci(bch);
-				tx_birq(bch);
-			}
-			spin_unlock(&hc->lock);
-		}
-	}
-	write_unlock_irqrestore(&HFClock, flags);
-
-	/* if next event would be in the past ... */
-	if ((s32)(hfc_jiffies + tics - jiffies) <= 0)
-		hfc_jiffies = jiffies + 1;
-	else
-		hfc_jiffies += tics;
-	hfc_tl.expires = hfc_jiffies;
-	add_timer(&hfc_tl);
-}
-
 /*
  * timer callback for D-chan busy resolution. Currently no function
  */
@@ -2131,7 +2092,6 @@ release_card(struct hfc_pci *hc) {
 	mISDN_freebchannel(&hc->bch[1]);
 	mISDN_freebchannel(&hc->bch[0]);
 	mISDN_freedchannel(&hc->dch);
-	list_del(&hc->list);
 	pci_set_drvdata(hc->pdev, NULL);
 	kfree(hc);
 }
@@ -2141,7 +2101,6 @@ setup_card(struct hfc_pci *card)
 {
 	int		err = -EINVAL;
 	u_int		i;
-	u_long		flags;
 	char		name[MISDN_MAX_IDLEN];
 
 	card->dch.debug = debug;
@@ -2169,13 +2128,10 @@ setup_card(struct hfc_pci *card)
 	if (err)
 		goto error;
 	snprintf(name, MISDN_MAX_IDLEN - 1, "hfc-pci.%d", HFC_cnt + 1);
-	err = mISDN_register_device(&card->dch.dev, name);
+	err = mISDN_register_device(&card->dch.dev, &card->pdev->dev, name);
 	if (err)
 		goto error;
 	HFC_cnt++;
-	write_lock_irqsave(&HFClock, flags);
-	list_add_tail(&card->list, &HFClist);
-	write_unlock_irqrestore(&HFClock, flags);
 	printk(KERN_INFO "HFC %d cards installed\n", HFC_cnt);
 	return 0;
 error:
@@ -2311,15 +2267,12 @@ static void __devexit
 hfc_remove_pci(struct pci_dev *pdev)
 {
 	struct hfc_pci	*card = pci_get_drvdata(pdev);
-	u_long		flags;
 
-	if (card) {
-		write_lock_irqsave(&HFClock, flags);
+	if (card)
 		release_card(card);
-		write_unlock_irqrestore(&HFClock, flags);
-	} else
+	else
 		if (debug)
-			printk(KERN_WARNING "%s: drvdata allready removed\n",
+			printk(KERN_WARNING "%s: drvdata already removed\n",
 			    __func__);
 }
 
@@ -2330,6 +2283,46 @@ static struct pci_driver hfc_driver = {
 	.remove = __devexit_p(hfc_remove_pci),
 	.id_table = hfc_ids,
 };
+
+static int
+_hfcpci_softirq(struct device *dev, void *arg)
+{
+	struct hfc_pci  *hc = dev_get_drvdata(dev);
+	struct bchannel *bch;
+	if (hc == NULL)
+		return 0;
+
+	if (hc->hw.int_m2 & HFCPCI_IRQ_ENABLE) {
+		spin_lock(&hc->lock);
+		bch = Sel_BCS(hc, hc->hw.bswapped ? 2 : 1);
+		if (bch && bch->state == ISDN_P_B_RAW) { /* B1 rx&tx */
+			main_rec_hfcpci(bch);
+			tx_birq(bch);
+		}
+		bch = Sel_BCS(hc, hc->hw.bswapped ? 1 : 2);
+		if (bch && bch->state == ISDN_P_B_RAW) { /* B2 rx&tx */
+			main_rec_hfcpci(bch);
+			tx_birq(bch);
+		}
+		spin_unlock(&hc->lock);
+	}
+	return 0;
+}
+
+static void
+hfcpci_softirq(void *arg)
+{
+	(void) driver_for_each_device(&hfc_driver.driver, NULL, arg,
+					_hfcpci_softirq);
+
+	/* if next event would be in the past ... */
+	if ((s32)(hfc_jiffies + tics - jiffies) <= 0)
+		hfc_jiffies = jiffies + 1;
+	else
+		hfc_jiffies += tics;
+	hfc_tl.expires = hfc_jiffies;
+	add_timer(&hfc_tl);
+}
 
 static int __init
 HFC_init(void)
@@ -2375,14 +2368,9 @@ HFC_init(void)
 static void __exit
 HFC_cleanup(void)
 {
-	struct hfc_pci	*card, *next;
-
 	if (timer_pending(&hfc_tl))
 		del_timer(&hfc_tl);
 
-	list_for_each_entry_safe(card, next, &HFClist, list) {
-		release_card(card);
-	}
 	pci_unregister_driver(&hfc_driver);
 }
 

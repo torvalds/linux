@@ -1433,7 +1433,8 @@ init_card(struct l1oip *hc, int pri, int bundle)
 		hc->chan[i + ch].bch = bch;
 		set_channelmap(bch->nr, dch->dev.channelmap);
 	}
-	ret = mISDN_register_device(&dch->dev, hc->name);
+	/* TODO: create a parent device for this driver */
+	ret = mISDN_register_device(&dch->dev, NULL, hc->name);
 	if (ret)
 		return ret;
 	hc->registered = 1;
