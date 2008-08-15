@@ -1720,7 +1720,7 @@ static void ipath_7220_put_tid(struct ipath_devdata *dd, u64 __iomem *tidptr,
 				 "not 2KB aligned!\n", pa);
 			return;
 		}
-		if (pa >= (1UL << IBA7220_TID_SZ_SHIFT)) {
+		if (chippa >= (1UL << IBA7220_TID_SZ_SHIFT)) {
 			ipath_dev_err(dd,
 				      "BUG: Physical page address 0x%lx "
 				      "larger than supported\n", pa);
