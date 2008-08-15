@@ -102,17 +102,17 @@ const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
 #endif
 
 /*
- * We maintain a biased count of active stripes in the bottom 8 bits of
- * bi_phys_segments, and a count of processed stripes in the upper 8 bits
+ * We maintain a biased count of active stripes in the bottom 16 bits of
+ * bi_phys_segments, and a count of processed stripes in the upper 16 bits
  */
 static inline int raid5_bi_phys_segments(struct bio *bio)
 {
-	return bio->bi_phys_segments & 0xff;
+	return bio->bi_phys_segments & 0xffff;
 }
 
 static inline int raid5_bi_hw_segments(struct bio *bio)
 {
-	return (bio->bi_phys_segments >> 8) & 0xff;
+	return (bio->bi_phys_segments >> 16) & 0xffff;
 }
 
 static inline int raid5_dec_bi_phys_segments(struct bio *bio)
@@ -126,13 +126,13 @@ static inline int raid5_dec_bi_hw_segments(struct bio *bio)
 	unsigned short val = raid5_bi_hw_segments(bio);
 
 	--val;
-	bio->bi_phys_segments = (val << 8) | raid5_bi_phys_segments(bio);
+	bio->bi_phys_segments = (val << 16) | raid5_bi_phys_segments(bio);
 	return val;
 }
 
 static inline void raid5_set_bi_hw_segments(struct bio *bio, unsigned int cnt)
 {
-	bio->bi_phys_segments = raid5_bi_phys_segments(bio) || (cnt << 8);
+	bio->bi_phys_segments = raid5_bi_phys_segments(bio) || (cnt << 16);
 }
 
 static inline int raid6_next_disk(int disk, int raid_disks)

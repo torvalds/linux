@@ -75,7 +75,7 @@ struct bio {
 	/* Number of segments in this BIO after
 	 * physical address coalescing is performed.
 	 */
-	unsigned short		bi_phys_segments;
+	unsigned int		bi_phys_segments;
 
 	unsigned int		bi_size;	/* residual I/O count */
 
