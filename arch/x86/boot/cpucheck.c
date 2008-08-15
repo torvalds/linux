@@ -46,12 +46,12 @@ static const u32 req_flags[NCAPINTS] =
 {
 	REQUIRED_MASK0,
 	REQUIRED_MASK1,
-	REQUIRED_MASK2,
-	REQUIRED_MASK3,
+	0, /* REQUIRED_MASK2 not implemented in this file */
+	0, /* REQUIRED_MASK3 not implemented in this file */
 	REQUIRED_MASK4,
-	REQUIRED_MASK5,
+	0, /* REQUIRED_MASK5 not implemented in this file */
 	REQUIRED_MASK6,
-	REQUIRED_MASK7,
+	0, /* REQUIRED_MASK7 not implemented in this file */
 };
 
 #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))
