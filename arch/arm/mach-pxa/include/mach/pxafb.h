@@ -28,6 +28,7 @@
  * bits 10-17 : for AC Bias Pin Frequency
  * bit     18 : for output enable polarity
  * bit     19 : for pixel clock edge
+ * bit     20 : for output pixel format when base is RGBT16
  */
 #define LCD_CONN_TYPE(_x)	((_x) & 0x0f)
 #define LCD_CONN_WIDTH(_x)	(((_x) >> 4) & 0x1f)
@@ -53,10 +54,11 @@
 #define LCD_SMART_PANEL_18BPP	((18 << 4) | LCD_TYPE_SMART_PANEL)
 
 #define LCD_AC_BIAS_FREQ(x)	(((x) & 0xff) << 10)
-#define LCD_BIAS_ACTIVE_HIGH	(0 << 17)
-#define LCD_BIAS_ACTIVE_LOW	(1 << 17)
-#define LCD_PCLK_EDGE_RISE	(0 << 18)
-#define LCD_PCLK_EDGE_FALL	(1 << 18)
+#define LCD_BIAS_ACTIVE_HIGH	(0 << 18)
+#define LCD_BIAS_ACTIVE_LOW	(1 << 18)
+#define LCD_PCLK_EDGE_RISE	(0 << 19)
+#define LCD_PCLK_EDGE_FALL	(1 << 19)
+#define LCD_ALTERNATE_MAPPING	(1 << 20)
 
 /*
  * This structure describes the machine which we are running on.

@@ -1402,6 +1402,8 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 	if (lcd_conn == LCD_MONO_STN_8BPP)
 		fbi->lccr0 |= LCCR0_DPD;
 
+	fbi->lccr0 |= (lcd_conn & LCD_ALTERNATE_MAPPING) ? LCCR0_LDDALT : 0;
+
 	fbi->lccr3 = LCCR3_Acb((inf->lcd_conn >> 10) & 0xff);
 	fbi->lccr3 |= (lcd_conn & LCD_BIAS_ACTIVE_LOW) ? LCCR3_OEP : 0;
 	fbi->lccr3 |= (lcd_conn & LCD_PCLK_EDGE_FALL)  ? LCCR3_PCP : 0;
