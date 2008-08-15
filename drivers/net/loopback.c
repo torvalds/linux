@@ -75,9 +75,6 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_orphan(skb);
 
 	skb->protocol = eth_type_trans(skb,dev);
-#ifndef LOOPBACK_MUST_CHECKSUM
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-#endif
 
 #ifdef LOOPBACK_TSO
 	if (skb_is_gso(skb)) {
