@@ -468,7 +468,7 @@ void hpet_disable(void)
 #define RTC_NUM_INTS		1
 
 static unsigned long hpet_rtc_flags;
-static unsigned long hpet_prev_update_sec;
+static int hpet_prev_update_sec;
 static struct rtc_time hpet_alarm_time;
 static unsigned long hpet_pie_count;
 static unsigned long hpet_t1_cmp;
@@ -575,6 +575,9 @@ int hpet_set_rtc_irq_bit(unsigned long bit_mask)
 
 	hpet_rtc_flags |= bit_mask;
 
+	if ((bit_mask & RTC_UIE) && !(oldbits & RTC_UIE))
+		hpet_prev_update_sec = -1;
+
 	if (!oldbits)
 		hpet_rtc_timer_init();
 
@@ -652,7 +655,7 @@ static void hpet_rtc_timer_reinit(void)
 		if (hpet_rtc_flags & RTC_PIE)
 			hpet_pie_count += lost_ints;
 		if (printk_ratelimit())
-			printk(KERN_WARNING "rtc: lost %d interrupts\n",
+			printk(KERN_WARNING "hpet1: lost %d rtc interrupts\n",
 				lost_ints);
 	}
 }
@@ -670,7 +673,8 @@ irqreturn_t hpet_rtc_interrupt(int irq, void *dev_id)
 
 	if (hpet_rtc_flags & RTC_UIE &&
 	    curr_time.tm_sec != hpet_prev_update_sec) {
-		rtc_int_flag = RTC_UF;
+		if (hpet_prev_update_sec >= 0)
+			rtc_int_flag = RTC_UF;
 		hpet_prev_update_sec = curr_time.tm_sec;
 	}
 

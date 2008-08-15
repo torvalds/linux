@@ -1230,9 +1230,7 @@ static const struct file_operations se401_fops = {
 	.llseek =       no_llseek,
 };
 static struct video_device se401_template = {
-	.owner =	THIS_MODULE,
 	.name =         "se401 USB camera",
-	.type =         VID_TYPE_CAPTURE,
 	.fops =         &se401_fops,
 };
 

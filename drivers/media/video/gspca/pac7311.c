@@ -23,9 +23,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
 MODULE_LICENSE("GPL");
@@ -34,7 +31,9 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
-	int avg_lum;
+	int lum_sum;
+	atomic_t avg_lum;
+	atomic_t do_gain;
 
 	unsigned char brightness;
 	unsigned char contrast;
@@ -266,7 +265,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	reg_w(gspca_dev, 0x3e, 0x20);
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x05;
 	cam->cam_mode = vga_mode;
 	cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -275,6 +273,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
 	sd->autogain = AUTOGAIN_DEF;
+	sd->ag_cnt = -1;
 	return 0;
 }
 
@@ -315,6 +314,18 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->autogain) {
+		sd->lum_sum = 0;
+		sd->ag_cnt = AG_CNT_START;
+	} else {
+		sd->ag_cnt = -1;
+	}
+}
+
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
@@ -324,8 +335,6 @@ static int sd_open(struct gspca_dev *gspca_dev)
 
 static void sd_start(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w_buf(gspca_dev, 0x0002, "\x48\x0a\x40\x08\x00\x00\x08\x00", 8);
 	reg_w_buf(gspca_dev, 0x000a, "\x06\xff\x11\xff\x5a\x30\x90\x4c", 8);
@@ -398,6 +407,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setcontrast(gspca_dev);
 	setbrightness(gspca_dev);
 	setcolors(gspca_dev);
+	setautogain(gspca_dev);
 
 	/* set correct resolution */
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
@@ -435,13 +445,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w(gspca_dev, 0x78, 0x04);
 	reg_w(gspca_dev, 0x78, 0x05);
-
-	if (sd->autogain) {
-		sd->ag_cnt = AG_CNT_START;
-		sd->avg_lum = 0;
-	} else {
-		sd->ag_cnt = -1;
-	}
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -477,13 +480,20 @@ static void sd_close(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
 }
 
-static void setautogain(struct gspca_dev *gspca_dev, int luma)
+static void do_autogain(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+	int luma;
 	int luma_mean = 128;
 	int luma_delta = 20;
 	__u8 spring = 5;
 	int Gbright;
 
+	if (!atomic_read(&sd->do_gain))
+		return;
+	atomic_set(&sd->do_gain, 0);
+
+	luma = atomic_read(&sd->avg_lum);
 	Gbright = reg_r(gspca_dev, 0x02);
 	PDEBUG(D_FRAM, "luma mean %d", luma);
 	if (luma < luma_mean - luma_delta ||
@@ -527,12 +537,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 			/* start of frame */
 			if (sd->ag_cnt >= 0 && p > 28) {
-				sd->avg_lum += data[p - 23];
+				sd->lum_sum += data[p - 23];
 				if (--sd->ag_cnt < 0) {
 					sd->ag_cnt = AG_CNT_START;
-					setautogain(gspca_dev,
-						sd->avg_lum / AG_CNT_START);
-					sd->avg_lum = 0;
+					atomic_set(&sd->avg_lum,
+						sd->lum_sum / AG_CNT_START);
+					sd->lum_sum = 0;
+					atomic_set(&sd->do_gain, 1);
 				}
 			}
 
@@ -681,12 +692,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
-	if (val) {
-		sd->ag_cnt = AG_CNT_START;
-		sd->avg_lum = 0;
-	} else {
-		sd->ag_cnt = -1;
-	}
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
 	return 0;
 }
 
@@ -710,19 +717,18 @@ static struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x093a, 0x2600), DVNM("Typhoon")},
-	{USB_DEVICE(0x093a, 0x2601), DVNM("Philips SPC610NC")},
-	{USB_DEVICE(0x093a, 0x2603), DVNM("PAC7312")},
-	{USB_DEVICE(0x093a, 0x2608), DVNM("Trust WB-3300p")},
-	{USB_DEVICE(0x093a, 0x260e), DVNM("Gigaware VGA PC Camera")},
-			/* and also ', Trust WB-3350p, SIGMA cam 2350' */
-	{USB_DEVICE(0x093a, 0x260f), DVNM("SnakeCam")},
-	{USB_DEVICE(0x093a, 0x2621), DVNM("PAC731x")},
+	{USB_DEVICE(0x093a, 0x2600)},
+	{USB_DEVICE(0x093a, 0x2601)},
+	{USB_DEVICE(0x093a, 0x2603)},
+	{USB_DEVICE(0x093a, 0x2608)},
+	{USB_DEVICE(0x093a, 0x260e)},
+	{USB_DEVICE(0x093a, 0x260f)},
+	{USB_DEVICE(0x093a, 0x2621)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
@@ -747,7 +753,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

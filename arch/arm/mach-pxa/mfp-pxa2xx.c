@@ -18,10 +18,10 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa2xx.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa2xx.h>
 
 #include "generic.h"
 
@@ -38,6 +38,28 @@ struct gpio_desc {
 };
 
 static struct gpio_desc gpio_desc[MFP_PIN_GPIO127 + 1];
+
+static int __mfp_config_lpm(unsigned gpio, unsigned long lpm)
+{
+	unsigned mask = GPIO_bit(gpio);
+
+	/* low power state */
+	switch (lpm) {
+	case MFP_LPM_DRIVE_HIGH:
+		PGSR(gpio) |= mask;
+		break;
+	case MFP_LPM_DRIVE_LOW:
+		PGSR(gpio) &= ~mask;
+		break;
+	case MFP_LPM_INPUT:
+		break;
+	default:
+		pr_warning("%s: invalid low power state for GPIO%d\n",
+				__func__, gpio);
+		return -EINVAL;
+	}
+	return 0;
+}
 
 static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 {
@@ -57,21 +79,8 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	else
 		GPDR(gpio) &= ~mask;
 
-	/* low power state */
-	switch (c & MFP_LPM_STATE_MASK) {
-	case MFP_LPM_DRIVE_HIGH:
-		PGSR(gpio) |= mask;
-		break;
-	case MFP_LPM_DRIVE_LOW:
-		PGSR(gpio) &= ~mask;
-		break;
-	case MFP_LPM_INPUT:
-		break;
-	default:
-		pr_warning("%s: invalid low power state for GPIO%d\n",
-				__func__, gpio);
+	if (__mfp_config_lpm(gpio, c & MFP_LPM_STATE_MASK))
 		return -EINVAL;
-	}
 
 	/* give early warning if MFP_LPM_CAN_WAKEUP is set on the
 	 * configurations of those pins not able to wakeup
@@ -91,6 +100,18 @@ static int __mfp_config_gpio(unsigned gpio, unsigned long c)
 	return 0;
 }
 
+static inline int __mfp_validate(int mfp)
+{
+	int gpio = mfp_to_gpio(mfp);
+
+	if ((mfp > MFP_PIN_GPIO127) || !gpio_desc[gpio].valid) {
+		pr_warning("%s: GPIO%d is invalid pin\n", __func__, gpio);
+		return -1;
+	}
+
+	return gpio;
+}
+
 void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 {
 	unsigned long flags;
@@ -99,13 +120,9 @@ void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 
 	for (i = 0, c = mfp_cfgs; i < num; i++, c++) {
 
-		gpio = mfp_to_gpio(MFP_PIN(*c));
-
-		if (!gpio_desc[gpio].valid) {
-			pr_warning("%s: GPIO%d is invalid pin\n",
-				__func__, gpio);
+		gpio = __mfp_validate(MFP_PIN(*c));
+		if (gpio < 0)
 			continue;
-		}
 
 		local_irq_save(flags);
 
@@ -114,6 +131,20 @@ void pxa2xx_mfp_config(unsigned long *mfp_cfgs, int num)
 
 		local_irq_restore(flags);
 	}
+}
+
+void pxa2xx_mfp_set_lpm(int mfp, unsigned long lpm)
+{
+	unsigned long flags;
+	int gpio;
+
+	gpio = __mfp_validate(mfp);
+	if (gpio < 0)
+		return;
+
+	local_irq_save(flags);
+	__mfp_config_lpm(gpio, lpm);
+	local_irq_restore(flags);
 }
 
 int gpio_set_wake(unsigned int gpio, unsigned int on)

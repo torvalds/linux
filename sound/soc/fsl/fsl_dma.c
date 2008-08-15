@@ -132,12 +132,17 @@ struct fsl_dma_private {
  * Since each link descriptor has a 32-bit byte count field, we set
  * period_bytes_max to the largest 32-bit number.  We also have no maximum
  * number of periods.
+ *
+ * Note that we specify SNDRV_PCM_INFO_JOINT_DUPLEX here, but only because a
+ * limitation in the SSI driver requires the sample rates for playback and
+ * capture to be the same.
  */
 static const struct snd_pcm_hardware fsl_dma_hardware = {
 
 	.info   		= SNDRV_PCM_INFO_INTERLEAVED |
 				  SNDRV_PCM_INFO_MMAP |
-				  SNDRV_PCM_INFO_MMAP_VALID,
+				  SNDRV_PCM_INFO_MMAP_VALID |
+				  SNDRV_PCM_INFO_JOINT_DUPLEX,
 	.formats		= FSLDMA_PCM_FORMATS,
 	.rates  		= FSLDMA_PCM_RATES,
 	.rate_min       	= 5512,
@@ -322,14 +327,75 @@ static int fsl_dma_new(struct snd_card *card, struct snd_soc_dai *dai,
  * fsl_dma_open: open a new substream.
  *
  * Each substream has its own DMA buffer.
+ *
+ * ALSA divides the DMA buffer into N periods.  We create NUM_DMA_LINKS link
+ * descriptors that ping-pong from one period to the next.  For example, if
+ * there are six periods and two link descriptors, this is how they look
+ * before playback starts:
+ *
+ *      	   The last link descriptor
+ *   ____________  points back to the first
+ *  |   	 |
+ *  V   	 |
+ *  ___    ___   |
+ * |   |->|   |->|
+ * |___|  |___|
+ *   |      |
+ *   |      |
+ *   V      V
+ *  _________________________________________
+ * |      |      |      |      |      |      |  The DMA buffer is
+ * |      |      |      |      |      |      |    divided into 6 parts
+ * |______|______|______|______|______|______|
+ *
+ * and here's how they look after the first period is finished playing:
+ *
+ *   ____________
+ *  |   	 |
+ *  V   	 |
+ *  ___    ___   |
+ * |   |->|   |->|
+ * |___|  |___|
+ *   |      |
+ *   |______________
+ *          |       |
+ *          V       V
+ *  _________________________________________
+ * |      |      |      |      |      |      |
+ * |      |      |      |      |      |      |
+ * |______|______|______|______|______|______|
+ *
+ * The first link descriptor now points to the third period.  The DMA
+ * controller is currently playing the second period.  When it finishes, it
+ * will jump back to the first descriptor and play the third period.
+ *
+ * There are four reasons we do this:
+ *
+ * 1. The only way to get the DMA controller to automatically restart the
+ *    transfer when it gets to the end of the buffer is to use chaining
+ *    mode.  Basic direct mode doesn't offer that feature.
+ * 2. We need to receive an interrupt at the end of every period.  The DMA
+ *    controller can generate an interrupt at the end of every link transfer
+ *    (aka segment).  Making each period into a DMA segment will give us the
+ *    interrupts we need.
+ * 3. By creating only two link descriptors, regardless of the number of
+ *    periods, we do not need to reallocate the link descriptors if the
+ *    number of periods changes.
+ * 4. All of the audio data is still stored in a single, contiguous DMA
+ *    buffer, which is what ALSA expects.  We're just dividing it into
+ *    contiguous parts, and creating a link descriptor for each one.
  */
 static int fsl_dma_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct fsl_dma_private *dma_private;
+	struct ccsr_dma_channel __iomem *dma_channel;
 	dma_addr_t ld_buf_phys;
+	u64 temp_link;  	/* Pointer to next link descriptor */
+	u32 mr;
 	unsigned int channel;
 	int ret = 0;
+	unsigned int i;
 
 	/*
 	 * Reject any DMA buffer whose size is not a multiple of the period
@@ -390,135 +456,20 @@ static int fsl_dma_open(struct snd_pcm_substream *substream)
 	snd_soc_set_runtime_hwparams(substream, &fsl_dma_hardware);
 	runtime->private_data = dma_private;
 
-	return 0;
-}
+	/* Program the fixed DMA controller parameters */
 
-/**
- * fsl_dma_hw_params: allocate the DMA buffer and the DMA link descriptors.
- *
- * ALSA divides the DMA buffer into N periods.  We create NUM_DMA_LINKS link
- * descriptors that ping-pong from one period to the next.  For example, if
- * there are six periods and two link descriptors, this is how they look
- * before playback starts:
- *
- *      	   The last link descriptor
- *   ____________  points back to the first
- *  |   	 |
- *  V   	 |
- *  ___    ___   |
- * |   |->|   |->|
- * |___|  |___|
- *   |      |
- *   |      |
- *   V      V
- *  _________________________________________
- * |      |      |      |      |      |      |  The DMA buffer is
- * |      |      |      |      |      |      |    divided into 6 parts
- * |______|______|______|______|______|______|
- *
- * and here's how they look after the first period is finished playing:
- *
- *   ____________
- *  |   	 |
- *  V   	 |
- *  ___    ___   |
- * |   |->|   |->|
- * |___|  |___|
- *   |      |
- *   |______________
- *          |       |
- *          V       V
- *  _________________________________________
- * |      |      |      |      |      |      |
- * |      |      |      |      |      |      |
- * |______|______|______|______|______|______|
- *
- * The first link descriptor now points to the third period.  The DMA
- * controller is currently playing the second period.  When it finishes, it
- * will jump back to the first descriptor and play the third period.
- *
- * There are four reasons we do this:
- *
- * 1. The only way to get the DMA controller to automatically restart the
- *    transfer when it gets to the end of the buffer is to use chaining
- *    mode.  Basic direct mode doesn't offer that feature.
- * 2. We need to receive an interrupt at the end of every period.  The DMA
- *    controller can generate an interrupt at the end of every link transfer
- *    (aka segment).  Making each period into a DMA segment will give us the
- *    interrupts we need.
- * 3. By creating only two link descriptors, regardless of the number of
- *    periods, we do not need to reallocate the link descriptors if the
- *    number of periods changes.
- * 4. All of the audio data is still stored in a single, contiguous DMA
- *    buffer, which is what ALSA expects.  We're just dividing it into
- *    contiguous parts, and creating a link descriptor for each one.
- *
- * Note that due to a quirk of the SSI's STX register, the target address
- * for the DMA operations depends on the sample size.  So we don't program
- * the dest_addr (for playback -- source_addr for capture) fields in the
- * link descriptors here.  We do that in fsl_dma_prepare()
- */
-static int fsl_dma_hw_params(struct snd_pcm_substream *substream,
-	struct snd_pcm_hw_params *hw_params)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct fsl_dma_private *dma_private = runtime->private_data;
-	struct ccsr_dma_channel __iomem *dma_channel = dma_private->dma_channel;
+	dma_channel = dma_private->dma_channel;
 
-	dma_addr_t temp_addr;   /* Pointer to next period */
-	u64 temp_link;  	/* Pointer to next link descriptor */
-	u32 mr; 		/* Temporary variable for MR register */
-
-	unsigned int i;
-
-	/* Get all the parameters we need */
-	size_t buffer_size = params_buffer_bytes(hw_params);
-	size_t period_size = params_period_bytes(hw_params);
-
-	/* Initialize our DMA tracking variables */
-	dma_private->period_size = period_size;
-	dma_private->num_periods = params_periods(hw_params);
-	dma_private->dma_buf_end = dma_private->dma_buf_phys + buffer_size;
-	dma_private->dma_buf_next = dma_private->dma_buf_phys +
-		(NUM_DMA_LINKS * period_size);
-	if (dma_private->dma_buf_next >= dma_private->dma_buf_end)
-		dma_private->dma_buf_next = dma_private->dma_buf_phys;
-
-	/*
-	 * Initialize each link descriptor.
-	 *
-	 * The actual address in STX0 (destination for playback, source for
-	 * capture) is based on the sample size, but we don't know the sample
-	 * size in this function, so we'll have to adjust that later.  See
-	 * comments in fsl_dma_prepare().
-	 *
-	 * The DMA controller does not have a cache, so the CPU does not
-	 * need to tell it to flush its cache.  However, the DMA
-	 * controller does need to tell the CPU to flush its cache.
-	 * That's what the SNOOP bit does.
-	 *
-	 * Also, even though the DMA controller supports 36-bit addressing, for
-	 * simplicity we currently support only 32-bit addresses for the audio
-	 * buffer itself.
-	 */
-	temp_addr = substream->dma_buffer.addr;
 	temp_link = dma_private->ld_buf_phys +
 		sizeof(struct fsl_dma_link_descriptor);
 
 	for (i = 0; i < NUM_DMA_LINKS; i++) {
 		struct fsl_dma_link_descriptor *link = &dma_private->link[i];
 
-		link->count = cpu_to_be32(period_size);
 		link->source_attr = cpu_to_be32(CCSR_DMA_ATR_SNOOP);
 		link->dest_attr = cpu_to_be32(CCSR_DMA_ATR_SNOOP);
 		link->next = cpu_to_be64(temp_link);
 
-		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-			link->source_addr = cpu_to_be32(temp_addr);
-		else
-			link->dest_addr = cpu_to_be32(temp_addr);
-
-		temp_addr += period_size;
 		temp_link += sizeof(struct fsl_dma_link_descriptor);
 	}
 	/* The last link descriptor points to the first */
@@ -544,7 +495,7 @@ static int fsl_dma_hw_params(struct snd_pcm_substream *substream,
 	 * We want External Master Start and External Master Pause enabled,
 	 * because the SSI is controlling the DMA controller.  We want the DMA
 	 * controller to be set up in advance, and then we signal only the SSI
-	 * to start transfering.
+	 * to start transferring.
 	 *
 	 * We want End-Of-Segment Interrupts enabled, because this will generate
 	 * an interrupt at the end of each segment (each link descriptor
@@ -564,6 +515,73 @@ static int fsl_dma_hw_params(struct snd_pcm_substream *substream,
 		CCSR_DMA_MR_DAHE : CCSR_DMA_MR_SAHE;
 
 	out_be32(&dma_channel->mr, mr);
+
+	return 0;
+}
+
+/**
+ * fsl_dma_hw_params: continue initializing the DMA links
+ *
+ * This function obtains hardware parameters about the opened stream and
+ * programs the DMA controller accordingly.
+ *
+ * Note that due to a quirk of the SSI's STX register, the target address
+ * for the DMA operations depends on the sample size.  So we don't program
+ * the dest_addr (for playback -- source_addr for capture) fields in the
+ * link descriptors here.  We do that in fsl_dma_prepare()
+ */
+static int fsl_dma_hw_params(struct snd_pcm_substream *substream,
+	struct snd_pcm_hw_params *hw_params)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	struct fsl_dma_private *dma_private = runtime->private_data;
+
+	dma_addr_t temp_addr;   /* Pointer to next period */
+
+	unsigned int i;
+
+	/* Get all the parameters we need */
+	size_t buffer_size = params_buffer_bytes(hw_params);
+	size_t period_size = params_period_bytes(hw_params);
+
+	/* Initialize our DMA tracking variables */
+	dma_private->period_size = period_size;
+	dma_private->num_periods = params_periods(hw_params);
+	dma_private->dma_buf_end = dma_private->dma_buf_phys + buffer_size;
+	dma_private->dma_buf_next = dma_private->dma_buf_phys +
+		(NUM_DMA_LINKS * period_size);
+	if (dma_private->dma_buf_next >= dma_private->dma_buf_end)
+		dma_private->dma_buf_next = dma_private->dma_buf_phys;
+
+	/*
+	 * The actual address in STX0 (destination for playback, source for
+	 * capture) is based on the sample size, but we don't know the sample
+	 * size in this function, so we'll have to adjust that later.  See
+	 * comments in fsl_dma_prepare().
+	 *
+	 * The DMA controller does not have a cache, so the CPU does not
+	 * need to tell it to flush its cache.  However, the DMA
+	 * controller does need to tell the CPU to flush its cache.
+	 * That's what the SNOOP bit does.
+	 *
+	 * Also, even though the DMA controller supports 36-bit addressing, for
+	 * simplicity we currently support only 32-bit addresses for the audio
+	 * buffer itself.
+	 */
+	temp_addr = substream->dma_buffer.addr;
+
+	for (i = 0; i < NUM_DMA_LINKS; i++) {
+		struct fsl_dma_link_descriptor *link = &dma_private->link[i];
+
+		link->count = cpu_to_be32(period_size);
+
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			link->source_addr = cpu_to_be32(temp_addr);
+		else
+			link->dest_addr = cpu_to_be32(temp_addr);
+
+		temp_addr += period_size;
+	}
 
 	return 0;
 }

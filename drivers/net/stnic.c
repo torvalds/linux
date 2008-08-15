@@ -19,7 +19,7 @@
 
 #include <asm/system.h>
 #include <asm/io.h>
-#include <asm/se.h>
+#include <mach-se/mach/se.h>
 #include <asm/machvec.h>
 #ifdef CONFIG_SH_STANDARD_BIOS
 #include <asm/sh_bios.h>

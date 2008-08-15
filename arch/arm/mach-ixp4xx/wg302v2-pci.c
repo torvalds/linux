@@ -23,14 +23,14 @@
 #include <linux/irq.h>
 
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <asm/mach/pci.h>
 
 void __init wg302v2_pci_preinit(void)
 {
-	set_irq_type(IRQ_IXP4XX_GPIO8, IRQT_LOW);
-	set_irq_type(IRQ_IXP4XX_GPIO9, IRQT_LOW);
+	set_irq_type(IRQ_IXP4XX_GPIO8, IRQ_TYPE_LEVEL_LOW);
+	set_irq_type(IRQ_IXP4XX_GPIO9, IRQ_TYPE_LEVEL_LOW);
 
 	ixp4xx_pci_preinit();
 }

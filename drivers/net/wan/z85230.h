@@ -325,7 +325,6 @@ struct z8530_channel
 
 	void		*private;	/* For our owner */
 	struct net_device	*netdevice;	/* Network layer device */
-	struct net_device_stats stats;	/* Network layer statistics */
 
 	/*
 	 *	Async features
@@ -366,13 +365,13 @@ struct z8530_channel
 	unsigned char		tx_active; /* character is being xmitted */
 	unsigned char		tx_stopped; /* output is suspended */
 
-	spinlock_t		*lock;	  /* Devicr lock */
-};	
+	spinlock_t		*lock;	  /* Device lock */
+};
 
 /*
  *	Each Z853x0 device.
- */	
- 
+ */
+
 struct z8530_dev
 {
 	char *name;	/* Device instance name */
@@ -408,7 +407,6 @@ extern int z8530_sync_txdma_open(struct net_device *, struct z8530_channel *);
 extern int z8530_sync_txdma_close(struct net_device *, struct z8530_channel *);
 extern int z8530_channel_load(struct z8530_channel *, u8 *);
 extern int z8530_queue_xmit(struct z8530_channel *c, struct sk_buff *skb);
-extern struct net_device_stats *z8530_get_stats(struct z8530_channel *c);
 extern void z8530_null_rx(struct z8530_channel *c, struct sk_buff *skb);
 
 

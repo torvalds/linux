@@ -15,6 +15,7 @@
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/init.h>
+#include <linux/rcupdate.h>
 
 #if BITS_PER_LONG == 32
 # define IDR_BITS 5
@@ -51,6 +52,7 @@ struct idr_layer {
 	unsigned long		 bitmap; /* A zero bit means "space here" */
 	struct idr_layer	*ary[1<<IDR_BITS];
 	int			 count;	 /* When zero, we can release it */
+	struct rcu_head		 rcu_head;
 };
 
 struct idr {
@@ -70,6 +72,28 @@ struct idr {
 	.lock		= __SPIN_LOCK_UNLOCKED(name.lock),	\
 }
 #define DEFINE_IDR(name)	struct idr name = IDR_INIT(name)
+
+/* Actions to be taken after a call to _idr_sub_alloc */
+#define IDR_NEED_TO_GROW -2
+#define IDR_NOMORE_SPACE -3
+
+#define _idr_rc_to_errno(rc) ((rc) == -1 ? -EAGAIN : -ENOSPC)
+
+/**
+ * idr synchronization (stolen from radix-tree.h)
+ *
+ * idr_find() is able to be called locklessly, using RCU. The caller must
+ * ensure calls to this function are made within rcu_read_lock() regions.
+ * Other readers (lock-free or otherwise) and modifications may be running
+ * concurrently.
+ *
+ * It is still required that the caller manage the synchronization and
+ * lifetimes of the items. So if RCU lock-free lookups are used, typically
+ * this would mean that the items have their own locks, or are amenable to
+ * lock-free access; and that the items are freed by RCU (or only freed after
+ * having been deleted from the idr tree *and* a synchronize_rcu() grace
+ * period).
+ */
 
 /*
  * This is what we export.

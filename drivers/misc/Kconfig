@@ -77,10 +77,12 @@ config IBM_ASM
 	  for your IBM server.
 
 config PHANTOM
-	tristate "Sensable PHANToM"
+	tristate "Sensable PHANToM (PCI)"
 	depends on PCI
 	help
 	  Say Y here if you want to build a driver for Sensable PHANToM device.
+
+	  This driver is only for PCI PHANToMs.
 
 	  If you choose to build module, its name will be phantom. If unsure,
 	  say N here.
@@ -212,6 +214,18 @@ config TC1100_WMI
 	  This is a driver for the WMI extensions (wireless and bluetooth power
 	  control) of the HP Compaq TC1100 tablet.
 
+config HP_WMI
+       tristate "HP WMI extras"
+       depends on ACPI_WMI
+       depends on INPUT
+       depends on RFKILL
+       help
+         Say Y here if you want to support WMI-based hotkeys on HP laptops and
+	 to read data from WMI such as docking or ambient light sensor state.
+
+         To compile this driver as a module, choose M here: the module will
+         be called hp-wmi.
+
 config MSI_LAPTOP
         tristate "MSI Laptop Extras"
         depends on X86
@@ -279,6 +293,8 @@ config THINKPAD_ACPI
 	select INPUT
 	select NEW_LEDS
 	select LEDS_CLASS
+	select NET
+	select RFKILL
 	---help---
 	  This is a driver for the IBM and Lenovo ThinkPad laptops. It adds
 	  support for Fn-Fx key combinations, Bluetooth control, video
@@ -344,7 +360,7 @@ config THINKPAD_ACPI_VIDEO
 	  If you are not sure, say Y here.
 
 config THINKPAD_ACPI_HOTKEY_POLL
-	bool "Suport NVRAM polling for hot keys"
+	bool "Support NVRAM polling for hot keys"
 	depends on THINKPAD_ACPI
 	default y
 	---help---
@@ -410,9 +426,11 @@ config ENCLOSURE_SERVICES
 
 config SGI_XP
 	tristate "Support communication between SGI SSIs"
-	depends on IA64_GENERIC || IA64_SGI_SN2
+	depends on NET
+	depends on (IA64_GENERIC || IA64_SGI_SN2 || IA64_SGI_UV || X86_64) && SMP
 	select IA64_UNCACHED_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
 	select GENERIC_ALLOCATOR if IA64_GENERIC || IA64_SGI_SN2
+	select SGI_GRU if (IA64_GENERIC || IA64_SGI_UV || X86_64) && SMP
 	---help---
 	  An SGI machine can be divided into multiple Single System
 	  Images which act independently of each other and have
@@ -422,6 +440,7 @@ config SGI_XP
 
 config HP_ILO
 	tristate "Channel interface driver for HP iLO/iLO2 processor"
+	depends on PCI
 	default n
 	help
 	  The channel interface driver allows applications to communicate
@@ -432,5 +451,28 @@ config HP_ILO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called hpilo.
+
+config SGI_GRU
+	tristate "SGI GRU driver"
+	depends on (X86_64 || IA64_SGI_UV || IA64_GENERIC) && SMP
+	default n
+	select MMU_NOTIFIER
+	---help---
+	The GRU is a hardware resource located in the system chipset. The GRU
+	contains memory that can be mmapped into the user address space. This memory is
+	used to communicate with the GRU to perform functions such as load/store,
+	scatter/gather, bcopy, AMOs, etc.  The GRU is directly accessed by user
+	instructions using user virtual addresses. GRU instructions (ex., bcopy) use
+	user virtual addresses for operands.
+
+	If you are not running on a SGI UV system, say N.
+
+config SGI_GRU_DEBUG
+	bool  "SGI GRU driver debug"
+	depends on SGI_GRU
+	default n
+	---help---
+	This option enables addition debugging code for the SGI GRU driver. If
+	you are unsure, say N.
 
 endif # MISC_DEVICES

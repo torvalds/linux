@@ -135,7 +135,8 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 
 	ret = qdisc_enqueue(skb, q->qdisc);
 	if (ret != 0) {
-		sch->qstats.drops++;
+		if (net_xmit_drop_count(ret))
+			sch->qstats.drops++;
 		return ret;
 	}
 

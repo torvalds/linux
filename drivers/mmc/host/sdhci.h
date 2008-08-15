@@ -9,6 +9,8 @@
  * your option) any later version.
  */
 
+#include <linux/scatterlist.h>
+
 /*
  * Controller registers
  */
@@ -204,6 +206,8 @@ struct sdhci_host {
 #define SDHCI_QUIRK_NO_SIMULT_VDD_AND_POWER		(1<<11)
 /* Controller provides an incorrect timeout value for transfers */
 #define SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<12)
+/* Controller has an issue with buffer bits for small transfers */
+#define SDHCI_QUIRK_BROKEN_SMALL_PIO			(1<<13)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
@@ -212,6 +216,7 @@ struct sdhci_host {
 
 	/* Internal data */
 	struct mmc_host		*mmc;		/* MMC structure */
+	u64			dma_mask;	/* custom DMA mask */
 
 #ifdef CONFIG_LEDS_CLASS
 	struct led_classdev	led;		/* LED control */
@@ -238,10 +243,8 @@ struct sdhci_host {
 	struct mmc_data		*data;		/* Current data request */
 	unsigned int		data_early:1;	/* Data finished before cmd */
 
-	struct scatterlist	*cur_sg;	/* We're working on this */
-	int			num_sg;		/* Entries left */
-	int			offset;		/* Offset into current sg */
-	int			remain;		/* Bytes left in current */
+	struct sg_mapping_iter	sg_miter;	/* SG state for PIO */
+	unsigned int		blocks;		/* remaining PIO blocks */
 
 	int			sg_count;	/* Mapped sg entries */
 

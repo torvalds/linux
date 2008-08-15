@@ -16,7 +16,7 @@
 #include <linux/ioport.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 
 #include "generic.h"
@@ -46,17 +46,17 @@ static int sa1100_gpio_type(unsigned int irq, unsigned int type)
 	else
 		mask = GPIO11_27_MASK(irq);
 
-	if (type == IRQT_PROBE) {
+	if (type == IRQ_TYPE_PROBE) {
 		if ((GPIO_IRQ_rising_edge | GPIO_IRQ_falling_edge) & mask)
 			return 0;
-		type = __IRQT_RISEDGE | __IRQT_FALEDGE;
+		type = IRQ_TYPE_EDGE_RISING | IRQ_TYPE_EDGE_FALLING;
 	}
 
-	if (type & __IRQT_RISEDGE) {
+	if (type & IRQ_TYPE_EDGE_RISING) {
 		GPIO_IRQ_rising_edge |= mask;
 	} else
 		GPIO_IRQ_rising_edge &= ~mask;
-	if (type & __IRQT_FALEDGE) {
+	if (type & IRQ_TYPE_EDGE_FALLING) {
 		GPIO_IRQ_falling_edge |= mask;
 	} else
 		GPIO_IRQ_falling_edge &= ~mask;

@@ -41,6 +41,7 @@
 #include <linux/videodev.h>
 #include <linux/usb.h>
 #include <linux/vmalloc.h>
+#include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/firmware.h>
@@ -791,9 +792,7 @@ static const struct file_operations vicam_fops = {
 };
 
 static struct video_device vicam_template = {
-	.owner 		= THIS_MODULE,
 	.name 		= "ViCam-based USB Camera",
-	.type 		= VID_TYPE_CAPTURE,
 	.fops 		= &vicam_fops,
 	.minor 		= -1,
 };

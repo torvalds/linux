@@ -137,6 +137,10 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 	/* Calculate required buffer size based on depth below root */
 
 	size = acpi_ns_get_pathname_length(node);
+	if (!size) {
+		ACPI_ERROR((AE_INFO, "Invalid node failure"));
+		return_PTR(NULL);
+	}
 
 	/* Allocate a buffer to be returned to caller */
 
@@ -229,6 +233,10 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 	/* Determine size required for the caller buffer */
 
 	required_size = acpi_ns_get_pathname_length(node);
+	if (!required_size) {
+		ACPI_ERROR((AE_INFO, "Invalid node failure"));
+		return_ACPI_STATUS(AE_ERROR);
+	}
 
 	/* Validate/Allocate/Clear caller buffer */
 

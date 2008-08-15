@@ -7,6 +7,7 @@
  * Copyright (c) 2001 Patrick Mochel <mochel@osdl.org>
  */
 
+#include <linux/mm.h>
 #include <asm/page.h>
 
 /* References to section boundaries */

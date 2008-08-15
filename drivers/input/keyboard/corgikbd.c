@@ -20,10 +20,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <asm/arch/corgi.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/corgi.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
 #include <asm/hardware/scoop.h>
 
 #define KB_ROWS				8

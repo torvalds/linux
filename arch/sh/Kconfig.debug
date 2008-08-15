@@ -36,7 +36,8 @@ config EARLY_SCIF_CONSOLE_PORT
 	default "0xff804000" if CPU_SUBTYPE_MXG
 	default "0xffc30000" if CPU_SUBTYPE_SHX3
 	default "0xffe00000" if CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7763 || \
-				CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7366
+				CPU_SUBTYPE_SH7722 || CPU_SUBTYPE_SH7366 || \
+				CPU_SUBTYPE_SH7343
 	default "0xffe80000" if CPU_SH4
 	default "0xffea0000" if CPU_SUBTYPE_SH7785
 	default "0xfffe8000" if CPU_SUBTYPE_SH7203
@@ -181,7 +182,7 @@ if SUPERH64
 
 config SH64_PROC_ASIDS
 	bool "Debug: report ASIDs through /proc/asids"
-	depends on PROC_FS
+	depends on PROC_FS && MMU
 
 config SH64_SR_WATCH
 	bool "Debug: set SR.WATCH to enable hardware watchpoints and trace"

@@ -67,7 +67,7 @@ static struct ctl_table net_core_table[] = {
 	{
 		.ctl_name	= NET_CORE_MSG_COST,
 		.procname	= "message_cost",
-		.data		= &net_msg_cost,
+		.data		= &net_ratelimit_state.interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec_jiffies,
@@ -76,7 +76,7 @@ static struct ctl_table net_core_table[] = {
 	{
 		.ctl_name	= NET_CORE_MSG_BURST,
 		.procname	= "message_burst",
-		.data		= &net_msg_burst,
+		.data		= &net_ratelimit_state.burst,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= &proc_dointvec,

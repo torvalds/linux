@@ -38,6 +38,7 @@
 #include <linux/proc_fs.h>
 
 #include <asm/system.h>
+#include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
 /*

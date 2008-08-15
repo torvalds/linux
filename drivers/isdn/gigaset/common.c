@@ -287,7 +287,7 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 	tail = cs->ev_tail;
 	next = (tail + 1) % MAX_EVENTS;
 	if (unlikely(next == cs->ev_head))
-		err("event queue full");
+		dev_err(cs->dev, "event queue full\n");
 	else {
 		event = cs->events + tail;
 		event->type = type;

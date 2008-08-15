@@ -406,6 +406,7 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 	uref_multi = kmalloc(sizeof(struct hiddev_usage_ref_multi), GFP_KERNEL);
 	if (!uref_multi)
 		return -ENOMEM;
+	lock_kernel();
 	uref = &uref_multi->uref;
 	if (cmd == HIDIOCGUSAGES || cmd == HIDIOCSUSAGES) {
 		if (copy_from_user(uref_multi, user_arg,
@@ -501,12 +502,15 @@ static noinline int hiddev_ioctl_usage(struct hiddev *hiddev, unsigned int cmd, 
 		}
 
 goodreturn:
+		unlock_kernel();
 		kfree(uref_multi);
 		return 0;
 fault:
+		unlock_kernel();
 		kfree(uref_multi);
 		return -EFAULT;
 inval:
+		unlock_kernel();
 		kfree(uref_multi);
 		return -EINVAL;
 	}
@@ -540,7 +544,7 @@ static noinline int hiddev_ioctl_string(struct hiddev *hiddev, unsigned int cmd,
 	return len;
 }
 
-static int hiddev_ioctl(struct inode *inode, struct file *file, unsigned int cmd, unsigned long arg)
+static long hiddev_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct hiddev_list *list = file->private_data;
 	struct hiddev *hiddev = list->hiddev;
@@ -555,7 +559,10 @@ static int hiddev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 	struct usbhid_device *usbhid = hid->driver_data;
 	void __user *user_arg = (void __user *)arg;
 	int i;
+	
+	/* Called without BKL by compat methods so no BKL taken */
 
+	/* FIXME: Who or what stop this racing with a disconnect ?? */
 	if (!hiddev->exist)
 		return -EIO;
 
@@ -756,8 +763,7 @@ static int hiddev_ioctl(struct inode *inode, struct file *file, unsigned int cmd
 #ifdef CONFIG_COMPAT
 static long hiddev_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
-	struct inode *inode = file->f_path.dentry->d_inode;
-	return hiddev_ioctl(inode, file, cmd, (unsigned long)compat_ptr(arg));
+	return hiddev_ioctl(file, cmd, (unsigned long)compat_ptr(arg));
 }
 #endif
 
@@ -768,7 +774,7 @@ static const struct file_operations hiddev_fops = {
 	.poll =		hiddev_poll,
 	.open =		hiddev_open,
 	.release =	hiddev_release,
-	.ioctl =	hiddev_ioctl,
+	.unlocked_ioctl =	hiddev_ioctl,
 	.fasync =	hiddev_fasync,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= hiddev_compat_ioctl,

@@ -24,15 +24,17 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 #include <linux/spi/spi.h>
+#include <linux/spi/max7301.h>
 #include <linux/leds.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx_spi.h>
-#include <asm/arch/pcm027.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx_spi.h>
+#include <mach/pcm027.h>
 #include "generic.h"
 
 /*
@@ -108,6 +110,32 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
+/*
+ * SPI host and devices
+ */
+static struct pxa2xx_spi_master pxa_ssp_master_info = {
+	.num_chipselect	= 1,
+};
+
+static struct max7301_platform_data max7301_info = {
+	.base = -1,
+};
+
+/* bus_num must match id in pxa2xx_set_spi_info() call */
+static struct spi_board_info spi_board_info[] __initdata = {
+	{
+		.modalias	= "max7301",
+		.platform_data	= &max7301_info,
+		.max_speed_hz	= 13000000,
+		.bus_num	= 1,
+		.chip_select	= 0,
+		.mode		= SPI_MODE_0,
+	},
+};
+
+/*
+ * NOR flash
+ */
 static struct physmap_flash_data pcm027_flash_data = {
 	.width  = 4,
 };
@@ -190,6 +218,9 @@ static void __init pcm027_init(void)
 #ifdef CONFIG_MACH_PCM990_BASEBOARD
 	pcm990_baseboard_init();
 #endif
+
+	pxa2xx_set_spi_info(1, &pxa_ssp_master_info);
+	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 }
 
 static void __init pcm027_map_io(void)

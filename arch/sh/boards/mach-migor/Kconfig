@@ -1,0 +1,15 @@
+if SH_MIGOR
+
+choice
+	prompt "Migo-R LCD Panel Board Selection"
+	default SH_MIGOR_QVGA
+
+config SH_MIGOR_QVGA
+	bool "QVGA (320x240)"
+
+config SH_MIGOR_RTA_WVGA
+	bool "RTA WVGA (800x480)"
+
+endchoice
+
+endif

@@ -1,7 +1,6 @@
 /*
  * Common code to handle map devices which are simple RAM
  * (C) 2000 Red Hat. GPL'd.
- * $Id: map_ram.c,v 1.22 2005/01/05 18:05:12 dwmw2 Exp $
  */
 
 #include <linux/module.h>

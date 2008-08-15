@@ -215,7 +215,7 @@ xfs_dir2_block_addname(
 	/*
 	 * If this isn't a real add, we're done with the buffer.
 	 */
-	if (args->justcheck)
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK)
 		xfs_da_brelse(tp, bp);
 	/*
 	 * If we don't have space for the new entry & leaf ...
@@ -225,7 +225,7 @@ xfs_dir2_block_addname(
 		 * Not trying to actually do anything, or don't have
 		 * a space reservation: return no-space.
 		 */
-		if (args->justcheck || args->total == 0)
+		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) || args->total == 0)
 			return XFS_ERROR(ENOSPC);
 		/*
 		 * Convert to the next larger format.
@@ -240,7 +240,7 @@ xfs_dir2_block_addname(
 	/*
 	 * Just checking, and it would work, so say so.
 	 */
-	if (args->justcheck)
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK)
 		return 0;
 	needlog = needscan = 0;
 	/*
@@ -610,14 +610,15 @@ xfs_dir2_block_lookup(
 	/*
 	 * Get the offset from the leaf entry, to point to the data.
 	 */
-	dep = (xfs_dir2_data_entry_t *)
-	      ((char *)block + xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
+	dep = (xfs_dir2_data_entry_t *)((char *)block +
+		xfs_dir2_dataptr_to_off(mp, be32_to_cpu(blp[ent].address)));
 	/*
-	 * Fill in inode number, release the block.
+	 * Fill in inode number, CI name if appropriate, release the block.
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
+	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_da_brelse(args->trans, bp);
-	return XFS_ERROR(EEXIST);
+	return XFS_ERROR(error);
 }
 
 /*
@@ -643,6 +644,7 @@ xfs_dir2_block_lookup_int(
 	int			mid;		/* binary search current idx */
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	enum xfs_dacmp		cmp;		/* comparison result */
 
 	dp = args->dp;
 	tp = args->trans;
@@ -673,7 +675,7 @@ xfs_dir2_block_lookup_int(
 		else
 			high = mid - 1;
 		if (low > high) {
-			ASSERT(args->oknoent);
+			ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
 			xfs_da_brelse(tp, bp);
 			return XFS_ERROR(ENOENT);
 		}
@@ -697,20 +699,31 @@ xfs_dir2_block_lookup_int(
 		dep = (xfs_dir2_data_entry_t *)
 			((char *)block + xfs_dir2_dataptr_to_off(mp, addr));
 		/*
-		 * Compare, if it's right give back buffer & entry number.
+		 * Compare name and if it's an exact match, return the index
+		 * and buffer. If it's the first case-insensitive match, store
+		 * the index and buffer and continue looking for an exact match.
 		 */
-		if (dep->namelen == args->namelen &&
-		    dep->name[0] == args->name[0] &&
-		    memcmp(dep->name, args->name, args->namelen) == 0) {
+		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			args->cmpresult = cmp;
 			*bpp = bp;
 			*entno = mid;
-			return 0;
+			if (cmp == XFS_CMP_EXACT)
+				return 0;
 		}
-	} while (++mid < be32_to_cpu(btp->count) && be32_to_cpu(blp[mid].hashval) == hash);
+	} while (++mid < be32_to_cpu(btp->count) &&
+			be32_to_cpu(blp[mid].hashval) == hash);
+
+	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
+	/*
+	 * Here, we can only be doing a lookup (not a rename or replace).
+	 * If a case-insensitive match was found earlier, return success.
+	 */
+	if (args->cmpresult == XFS_CMP_CASE)
+		return 0;
 	/*
 	 * No match, release the buffer and return ENOENT.
 	 */
-	ASSERT(args->oknoent);
 	xfs_da_brelse(tp, bp);
 	return XFS_ERROR(ENOENT);
 }
@@ -1033,6 +1046,7 @@ xfs_dir2_sf_to_block(
 	xfs_dir2_sf_t		*sfp;		/* shortform structure */
 	__be16			*tagp;		/* end of data entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	struct xfs_name		name;
 
 	xfs_dir2_trace_args("sf_to_block", args);
 	dp = args->dp;
@@ -1071,7 +1085,7 @@ xfs_dir2_sf_to_block(
 	 */
 	error = xfs_dir2_grow_inode(args, XFS_DIR2_DATA_SPACE, &blkno);
 	if (error) {
-		kmem_free(buf, buf_len);
+		kmem_free(buf);
 		return error;
 	}
 	/*
@@ -1079,7 +1093,7 @@ xfs_dir2_sf_to_block(
 	 */
 	error = xfs_dir2_data_init(args, blkno, &bp);
 	if (error) {
-		kmem_free(buf, buf_len);
+		kmem_free(buf);
 		return error;
 	}
 	block = bp->data;
@@ -1187,8 +1201,10 @@ xfs_dir2_sf_to_block(
 		tagp = xfs_dir2_data_entry_tag_p(dep);
 		*tagp = cpu_to_be16((char *)dep - (char *)block);
 		xfs_dir2_data_log_entry(tp, bp, dep);
-		blp[2 + i].hashval = cpu_to_be32(xfs_da_hashname(
-					(char *)sfep->name, sfep->namelen));
+		name.name = sfep->name;
+		name.len = sfep->namelen;
+		blp[2 + i].hashval = cpu_to_be32(mp->m_dirnameops->
+							hashname(&name));
 		blp[2 + i].address = cpu_to_be32(xfs_dir2_byte_to_dataptr(mp,
 						 (char *)dep - (char *)block));
 		offset = (int)((char *)(tagp + 1) - (char *)block);
@@ -1198,7 +1214,7 @@ xfs_dir2_sf_to_block(
 			sfep = xfs_dir2_sf_nextentry(sfp, sfep);
 	}
 	/* Done with the temporary buffer */
-	kmem_free(buf, buf_len);
+	kmem_free(buf);
 	/*
 	 * Sort the leaf entries by hash value.
 	 */

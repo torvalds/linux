@@ -24,11 +24,10 @@
 #include <linux/clk.h>
 
 #include <asm/io.h>
-#include <asm/mach-types.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/at91_pmc.h>
-#include <asm/arch/cpu.h>
+#include <mach/hardware.h>
+#include <mach/at91_pmc.h>
+#include <mach/cpu.h>
 
 #include "clock.h"
 

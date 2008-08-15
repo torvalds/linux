@@ -54,7 +54,6 @@
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
 #include <linux/mutex.h>
-#include <linux/kfifo.h>
 #include <linux/workqueue.h>
 #include <linux/cgroup.h>
 
@@ -227,10 +226,6 @@ static struct cpuset top_cpuset = {
  * The task_struct fields mems_allowed and mems_generation may only
  * be accessed in the context of that task, so require no locks.
  *
- * The cpuset_common_file_write handler for operations that modify
- * the cpuset hierarchy holds cgroup_mutex across the entire operation,
- * single threading all such cpuset modifications across the system.
- *
  * The cpuset_common_file_read() handlers only hold callback_mutex across
  * small pieces of code, such as when reading out possibly multi-word
  * cpumasks and nodemasks.
@@ -369,7 +364,7 @@ void cpuset_update_task_memory_state(void)
 		my_cpusets_mem_gen = top_cpuset.mems_generation;
 	} else {
 		rcu_read_lock();
-		my_cpusets_mem_gen = task_cs(current)->mems_generation;
+		my_cpusets_mem_gen = task_cs(tsk)->mems_generation;
 		rcu_read_unlock();
 	}
 
@@ -490,21 +485,51 @@ static int cpusets_overlap(struct cpuset *a, struct cpuset *b)
 static void
 update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
 {
-	if (!dattr)
-		return;
 	if (dattr->relax_domain_level < c->relax_domain_level)
 		dattr->relax_domain_level = c->relax_domain_level;
 	return;
 }
 
+static void
+update_domain_attr_tree(struct sched_domain_attr *dattr, struct cpuset *c)
+{
+	LIST_HEAD(q);
+
+	list_add(&c->stack_list, &q);
+	while (!list_empty(&q)) {
+		struct cpuset *cp;
+		struct cgroup *cont;
+		struct cpuset *child;
+
+		cp = list_first_entry(&q, struct cpuset, stack_list);
+		list_del(q.next);
+
+		if (cpus_empty(cp->cpus_allowed))
+			continue;
+
+		if (is_sched_load_balance(cp))
+			update_domain_attr(dattr, cp);
+
+		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
+			child = cgroup_cs(cont);
+			list_add_tail(&child->stack_list, &q);
+		}
+	}
+}
+
 /*
  * rebuild_sched_domains()
  *
- * If the flag 'sched_load_balance' of any cpuset with non-empty
- * 'cpus' changes, or if the 'cpus' allowed changes in any cpuset
- * which has that flag enabled, or if any cpuset with a non-empty
- * 'cpus' is removed, then call this routine to rebuild the
- * scheduler's dynamic sched domains.
+ * This routine will be called to rebuild the scheduler's dynamic
+ * sched domains:
+ * - if the flag 'sched_load_balance' of any cpuset with non-empty
+ *   'cpus' changes,
+ * - or if the 'cpus' allowed changes in any cpuset which has that
+ *   flag enabled,
+ * - or if the 'sched_relax_domain_level' of any cpuset which has
+ *   that flag enabled and with non-empty 'cpus' changes,
+ * - or if any cpuset with non-empty 'cpus' is removed,
+ * - or if a cpu gets offlined.
  *
  * This routine builds a partial partition of the systems CPUs
  * (the set of non-overlappping cpumask_t's in the array 'part'
@@ -531,7 +556,7 @@ update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
  * So the reverse nesting would risk an ABBA deadlock.
  *
  * The three key local variables below are:
- *    q  - a kfifo queue of cpuset pointers, used to implement a
+ *    q  - a linked-list queue of cpuset pointers, used to implement a
  *	   top-down scan of all cpusets.  This scan loads a pointer
  *	   to each cpuset marked is_sched_load_balance into the
  *	   array 'csa'.  For our purposes, rebuilding the schedulers
@@ -564,9 +589,9 @@ update_domain_attr(struct sched_domain_attr *dattr, struct cpuset *c)
  *	partition_sched_domains().
  */
 
-static void rebuild_sched_domains(void)
+void rebuild_sched_domains(void)
 {
-	struct kfifo *q;	/* queue of cpusets to be scanned */
+	LIST_HEAD(q);		/* queue of cpusets to be scanned*/
 	struct cpuset *cp;	/* scans q */
 	struct cpuset **csa;	/* array of all cpuset ptrs */
 	int csn;		/* how many cpuset ptrs in csa so far */
@@ -576,7 +601,6 @@ static void rebuild_sched_domains(void)
 	int ndoms;		/* number of sched domains in result */
 	int nslot;		/* next empty doms[] cpumask_t slot */
 
-	q = NULL;
 	csa = NULL;
 	doms = NULL;
 	dattr = NULL;
@@ -590,30 +614,42 @@ static void rebuild_sched_domains(void)
 		dattr = kmalloc(sizeof(struct sched_domain_attr), GFP_KERNEL);
 		if (dattr) {
 			*dattr = SD_ATTR_INIT;
-			update_domain_attr(dattr, &top_cpuset);
+			update_domain_attr_tree(dattr, &top_cpuset);
 		}
 		*doms = top_cpuset.cpus_allowed;
 		goto rebuild;
 	}
 
-	q = kfifo_alloc(number_of_cpusets * sizeof(cp), GFP_KERNEL, NULL);
-	if (IS_ERR(q))
-		goto done;
 	csa = kmalloc(number_of_cpusets * sizeof(cp), GFP_KERNEL);
 	if (!csa)
 		goto done;
 	csn = 0;
 
-	cp = &top_cpuset;
-	__kfifo_put(q, (void *)&cp, sizeof(cp));
-	while (__kfifo_get(q, (void *)&cp, sizeof(cp))) {
+	list_add(&top_cpuset.stack_list, &q);
+	while (!list_empty(&q)) {
 		struct cgroup *cont;
 		struct cpuset *child;   /* scans child cpusets of cp */
-		if (is_sched_load_balance(cp))
+
+		cp = list_first_entry(&q, struct cpuset, stack_list);
+		list_del(q.next);
+
+		if (cpus_empty(cp->cpus_allowed))
+			continue;
+
+		/*
+		 * All child cpusets contain a subset of the parent's cpus, so
+		 * just skip them, and then we call update_domain_attr_tree()
+		 * to calc relax_domain_level of the corresponding sched
+		 * domain.
+		 */
+		if (is_sched_load_balance(cp)) {
 			csa[csn++] = cp;
+			continue;
+		}
+
 		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
 			child = cgroup_cs(cont);
-			__kfifo_put(q, (void *)&child, sizeof(cp));
+			list_add_tail(&child->stack_list, &q);
 		}
   	}
 
@@ -680,7 +716,7 @@ restart:
 					cpus_or(*dp, *dp, b->cpus_allowed);
 					b->pn = -1;
 					if (dattr)
-						update_domain_attr(dattr
+						update_domain_attr_tree(dattr
 								   + nslot, b);
 				}
 			}
@@ -696,41 +732,9 @@ rebuild:
 	put_online_cpus();
 
 done:
-	if (q && !IS_ERR(q))
-		kfifo_free(q);
 	kfree(csa);
 	/* Don't kfree(doms) -- partition_sched_domains() does that. */
 	/* Don't kfree(dattr) -- partition_sched_domains() does that. */
-}
-
-static inline int started_after_time(struct task_struct *t1,
-				     struct timespec *time,
-				     struct task_struct *t2)
-{
-	int start_diff = timespec_compare(&t1->start_time, time);
-	if (start_diff > 0) {
-		return 1;
-	} else if (start_diff < 0) {
-		return 0;
-	} else {
-		/*
-		 * Arbitrarily, if two processes started at the same
-		 * time, we'll say that the lower pointer value
-		 * started first. Note that t2 may have exited by now
-		 * so this may not be a valid pointer any longer, but
-		 * that's fine - it still serves to distinguish
-		 * between two tasks started (effectively)
-		 * simultaneously.
-		 */
-		return t1 > t2;
-	}
-}
-
-static inline int started_after(void *p1, void *p2)
-{
-	struct task_struct *t1 = p1;
-	struct task_struct *t2 = p2;
-	return started_after_time(t1, &t2->start_time, t2);
 }
 
 /**
@@ -768,15 +772,49 @@ static void cpuset_change_cpumask(struct task_struct *tsk,
 }
 
 /**
+ * update_tasks_cpumask - Update the cpumasks of tasks in the cpuset.
+ * @cs: the cpuset in which each task's cpus_allowed mask needs to be changed
+ *
+ * Called with cgroup_mutex held
+ *
+ * The cgroup_scan_tasks() function will scan all the tasks in a cgroup,
+ * calling callback functions for each.
+ *
+ * Return 0 if successful, -errno if not.
+ */
+static int update_tasks_cpumask(struct cpuset *cs)
+{
+	struct cgroup_scanner scan;
+	struct ptr_heap heap;
+	int retval;
+
+	/*
+	 * cgroup_scan_tasks() will initialize heap->gt for us.
+	 * heap_init() is still needed here for we should not change
+	 * cs->cpus_allowed when heap_init() fails.
+	 */
+	retval = heap_init(&heap, PAGE_SIZE, GFP_KERNEL, NULL);
+	if (retval)
+		return retval;
+
+	scan.cg = cs->css.cgroup;
+	scan.test_task = cpuset_test_cpumask;
+	scan.process_task = cpuset_change_cpumask;
+	scan.heap = &heap;
+	retval = cgroup_scan_tasks(&scan);
+
+	heap_free(&heap);
+	return retval;
+}
+
+/**
  * update_cpumask - update the cpus_allowed mask of a cpuset and all tasks in it
  * @cs: the cpuset to consider
  * @buf: buffer of cpu numbers written to this cpuset
  */
-static int update_cpumask(struct cpuset *cs, char *buf)
+static int update_cpumask(struct cpuset *cs, const char *buf)
 {
 	struct cpuset trialcs;
-	struct cgroup_scanner scan;
-	struct ptr_heap heap;
 	int retval;
 	int is_load_balanced;
 
@@ -792,7 +830,6 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	 * that parsing.  The validate_change() call ensures that cpusets
 	 * with tasks have cpus.
 	 */
-	buf = strstrip(buf);
 	if (!*buf) {
 		cpus_clear(trialcs.cpus_allowed);
 	} else {
@@ -811,10 +848,6 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	if (cpus_equal(cs->cpus_allowed, trialcs.cpus_allowed))
 		return 0;
 
-	retval = heap_init(&heap, PAGE_SIZE, GFP_KERNEL, &started_after);
-	if (retval)
-		return retval;
-
 	is_load_balanced = is_sched_load_balance(&trialcs);
 
 	mutex_lock(&callback_mutex);
@@ -825,12 +858,9 @@ static int update_cpumask(struct cpuset *cs, char *buf)
 	 * Scan tasks in the cpuset, and update the cpumasks of any
 	 * that need an update.
 	 */
-	scan.cg = cs->css.cgroup;
-	scan.test_task = cpuset_test_cpumask;
-	scan.process_task = cpuset_change_cpumask;
-	scan.heap = &heap;
-	cgroup_scan_tasks(&scan);
-	heap_free(&heap);
+	retval = update_tasks_cpumask(cs);
+	if (retval < 0)
+		return retval;
 
 	if (is_load_balanced)
 		rebuild_sched_domains();
@@ -886,74 +916,25 @@ static void cpuset_migrate_mm(struct mm_struct *mm, const nodemask_t *from,
 	mutex_unlock(&callback_mutex);
 }
 
-/*
- * Handle user request to change the 'mems' memory placement
- * of a cpuset.  Needs to validate the request, update the
- * cpusets mems_allowed and mems_generation, and for each
- * task in the cpuset, rebind any vma mempolicies and if
- * the cpuset is marked 'memory_migrate', migrate the tasks
- * pages to the new memory.
- *
- * Call with cgroup_mutex held.  May take callback_mutex during call.
- * Will take tasklist_lock, scan tasklist for tasks in cpuset cs,
- * lock each such tasks mm->mmap_sem, scan its vma's and rebind
- * their mempolicies to the cpusets new mems_allowed.
- */
-
 static void *cpuset_being_rebound;
 
-static int update_nodemask(struct cpuset *cs, char *buf)
+/**
+ * update_tasks_nodemask - Update the nodemasks of tasks in the cpuset.
+ * @cs: the cpuset in which each task's mems_allowed mask needs to be changed
+ * @oldmem: old mems_allowed of cpuset cs
+ *
+ * Called with cgroup_mutex held
+ * Return 0 if successful, -errno if not.
+ */
+static int update_tasks_nodemask(struct cpuset *cs, const nodemask_t *oldmem)
 {
-	struct cpuset trialcs;
-	nodemask_t oldmem;
 	struct task_struct *p;
 	struct mm_struct **mmarray;
 	int i, n, ntasks;
 	int migrate;
 	int fudge;
-	int retval;
 	struct cgroup_iter it;
-
-	/*
-	 * top_cpuset.mems_allowed tracks node_stats[N_HIGH_MEMORY];
-	 * it's read-only
-	 */
-	if (cs == &top_cpuset)
-		return -EACCES;
-
-	trialcs = *cs;
-
-	/*
-	 * An empty mems_allowed is ok iff there are no tasks in the cpuset.
-	 * Since nodelist_parse() fails on an empty mask, we special case
-	 * that parsing.  The validate_change() call ensures that cpusets
-	 * with tasks have memory.
-	 */
-	buf = strstrip(buf);
-	if (!*buf) {
-		nodes_clear(trialcs.mems_allowed);
-	} else {
-		retval = nodelist_parse(buf, trialcs.mems_allowed);
-		if (retval < 0)
-			goto done;
-
-		if (!nodes_subset(trialcs.mems_allowed,
-				node_states[N_HIGH_MEMORY]))
-			return -EINVAL;
-	}
-	oldmem = cs->mems_allowed;
-	if (nodes_equal(oldmem, trialcs.mems_allowed)) {
-		retval = 0;		/* Too easy - nothing to do */
-		goto done;
-	}
-	retval = validate_change(cs, &trialcs);
-	if (retval < 0)
-		goto done;
-
-	mutex_lock(&callback_mutex);
-	cs->mems_allowed = trialcs.mems_allowed;
-	cs->mems_generation = cpuset_mems_generation++;
-	mutex_unlock(&callback_mutex);
+	int retval;
 
 	cpuset_being_rebound = cs;		/* causes mpol_dup() rebind */
 
@@ -1020,7 +1001,7 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 
 		mpol_rebind_mm(mm, &cs->mems_allowed);
 		if (migrate)
-			cpuset_migrate_mm(mm, &oldmem, &cs->mems_allowed);
+			cpuset_migrate_mm(mm, oldmem, &cs->mems_allowed);
 		mmput(mm);
 	}
 
@@ -1028,6 +1009,70 @@ static int update_nodemask(struct cpuset *cs, char *buf)
 	kfree(mmarray);
 	cpuset_being_rebound = NULL;
 	retval = 0;
+done:
+	return retval;
+}
+
+/*
+ * Handle user request to change the 'mems' memory placement
+ * of a cpuset.  Needs to validate the request, update the
+ * cpusets mems_allowed and mems_generation, and for each
+ * task in the cpuset, rebind any vma mempolicies and if
+ * the cpuset is marked 'memory_migrate', migrate the tasks
+ * pages to the new memory.
+ *
+ * Call with cgroup_mutex held.  May take callback_mutex during call.
+ * Will take tasklist_lock, scan tasklist for tasks in cpuset cs,
+ * lock each such tasks mm->mmap_sem, scan its vma's and rebind
+ * their mempolicies to the cpusets new mems_allowed.
+ */
+static int update_nodemask(struct cpuset *cs, const char *buf)
+{
+	struct cpuset trialcs;
+	nodemask_t oldmem;
+	int retval;
+
+	/*
+	 * top_cpuset.mems_allowed tracks node_stats[N_HIGH_MEMORY];
+	 * it's read-only
+	 */
+	if (cs == &top_cpuset)
+		return -EACCES;
+
+	trialcs = *cs;
+
+	/*
+	 * An empty mems_allowed is ok iff there are no tasks in the cpuset.
+	 * Since nodelist_parse() fails on an empty mask, we special case
+	 * that parsing.  The validate_change() call ensures that cpusets
+	 * with tasks have memory.
+	 */
+	if (!*buf) {
+		nodes_clear(trialcs.mems_allowed);
+	} else {
+		retval = nodelist_parse(buf, trialcs.mems_allowed);
+		if (retval < 0)
+			goto done;
+
+		if (!nodes_subset(trialcs.mems_allowed,
+				node_states[N_HIGH_MEMORY]))
+			return -EINVAL;
+	}
+	oldmem = cs->mems_allowed;
+	if (nodes_equal(oldmem, trialcs.mems_allowed)) {
+		retval = 0;		/* Too easy - nothing to do */
+		goto done;
+	}
+	retval = validate_change(cs, &trialcs);
+	if (retval < 0)
+		goto done;
+
+	mutex_lock(&callback_mutex);
+	cs->mems_allowed = trialcs.mems_allowed;
+	cs->mems_generation = cpuset_mems_generation++;
+	mutex_unlock(&callback_mutex);
+
+	retval = update_tasks_nodemask(cs, &oldmem);
 done:
 	return retval;
 }
@@ -1044,7 +1089,8 @@ static int update_relax_domain_level(struct cpuset *cs, s64 val)
 
 	if (val != cs->relax_domain_level) {
 		cs->relax_domain_level = val;
-		rebuild_sched_domains();
+		if (!cpus_empty(cs->cpus_allowed) && is_sched_load_balance(cs))
+			rebuild_sched_domains();
 	}
 
 	return 0;
@@ -1256,72 +1302,14 @@ typedef enum {
 	FILE_SPREAD_SLAB,
 } cpuset_filetype_t;
 
-static ssize_t cpuset_common_file_write(struct cgroup *cont,
-					struct cftype *cft,
-					struct file *file,
-					const char __user *userbuf,
-					size_t nbytes, loff_t *unused_ppos)
-{
-	struct cpuset *cs = cgroup_cs(cont);
-	cpuset_filetype_t type = cft->private;
-	char *buffer;
-	int retval = 0;
-
-	/* Crude upper limit on largest legitimate cpulist user might write. */
-	if (nbytes > 100U + 6 * max(NR_CPUS, MAX_NUMNODES))
-		return -E2BIG;
-
-	/* +1 for nul-terminator */
-	buffer = kmalloc(nbytes + 1, GFP_KERNEL);
-	if (!buffer)
-		return -ENOMEM;
-
-	if (copy_from_user(buffer, userbuf, nbytes)) {
-		retval = -EFAULT;
-		goto out1;
-	}
-	buffer[nbytes] = 0;	/* nul-terminate */
-
-	cgroup_lock();
-
-	if (cgroup_is_removed(cont)) {
-		retval = -ENODEV;
-		goto out2;
-	}
-
-	switch (type) {
-	case FILE_CPULIST:
-		retval = update_cpumask(cs, buffer);
-		break;
-	case FILE_MEMLIST:
-		retval = update_nodemask(cs, buffer);
-		break;
-	default:
-		retval = -EINVAL;
-		goto out2;
-	}
-
-	if (retval == 0)
-		retval = nbytes;
-out2:
-	cgroup_unlock();
-out1:
-	kfree(buffer);
-	return retval;
-}
-
 static int cpuset_write_u64(struct cgroup *cgrp, struct cftype *cft, u64 val)
 {
 	int retval = 0;
 	struct cpuset *cs = cgroup_cs(cgrp);
 	cpuset_filetype_t type = cft->private;
 
-	cgroup_lock();
-
-	if (cgroup_is_removed(cgrp)) {
-		cgroup_unlock();
+	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
-	}
 
 	switch (type) {
 	case FILE_CPU_EXCLUSIVE:
@@ -1367,15 +1355,38 @@ static int cpuset_write_s64(struct cgroup *cgrp, struct cftype *cft, s64 val)
 	struct cpuset *cs = cgroup_cs(cgrp);
 	cpuset_filetype_t type = cft->private;
 
-	cgroup_lock();
-
-	if (cgroup_is_removed(cgrp)) {
-		cgroup_unlock();
+	if (!cgroup_lock_live_group(cgrp))
 		return -ENODEV;
-	}
+
 	switch (type) {
 	case FILE_SCHED_RELAX_DOMAIN_LEVEL:
 		retval = update_relax_domain_level(cs, val);
+		break;
+	default:
+		retval = -EINVAL;
+		break;
+	}
+	cgroup_unlock();
+	return retval;
+}
+
+/*
+ * Common handling for a write to a "cpus" or "mems" file.
+ */
+static int cpuset_write_resmask(struct cgroup *cgrp, struct cftype *cft,
+				const char *buf)
+{
+	int retval = 0;
+
+	if (!cgroup_lock_live_group(cgrp))
+		return -ENODEV;
+
+	switch (cft->private) {
+	case FILE_CPULIST:
+		retval = update_cpumask(cgroup_cs(cgrp), buf);
+		break;
+	case FILE_MEMLIST:
+		retval = update_nodemask(cgroup_cs(cgrp), buf);
 		break;
 	default:
 		retval = -EINVAL;
@@ -1504,14 +1515,16 @@ static struct cftype files[] = {
 	{
 		.name = "cpus",
 		.read = cpuset_common_file_read,
-		.write = cpuset_common_file_write,
+		.write_string = cpuset_write_resmask,
+		.max_write_len = (100U + 6 * NR_CPUS),
 		.private = FILE_CPULIST,
 	},
 
 	{
 		.name = "mems",
 		.read = cpuset_common_file_read,
-		.write = cpuset_common_file_write,
+		.write_string = cpuset_write_resmask,
+		.max_write_len = (100U + 6 * MAX_NUMNODES),
 		.private = FILE_MEMLIST,
 	},
 
@@ -1792,7 +1805,7 @@ static void move_member_tasks_to_cpuset(struct cpuset *from, struct cpuset *to)
 	scan.scan.heap = NULL;
 	scan.to = to->css.cgroup;
 
-	if (cgroup_scan_tasks((struct cgroup_scanner *)&scan))
+	if (cgroup_scan_tasks(&scan.scan))
 		printk(KERN_ERR "move_member_tasks_to_cpuset: "
 				"cgroup_scan_tasks failed\n");
 }
@@ -1848,28 +1861,28 @@ static void remove_tasks_in_empty_cpuset(struct cpuset *cs)
  */
 static void scan_for_empty_cpusets(const struct cpuset *root)
 {
+	LIST_HEAD(queue);
 	struct cpuset *cp;	/* scans cpusets being updated */
 	struct cpuset *child;	/* scans child cpusets of cp */
-	struct list_head queue;
 	struct cgroup *cont;
-
-	INIT_LIST_HEAD(&queue);
+	nodemask_t oldmems;
 
 	list_add_tail((struct list_head *)&root->stack_list, &queue);
 
 	while (!list_empty(&queue)) {
-		cp = container_of(queue.next, struct cpuset, stack_list);
+		cp = list_first_entry(&queue, struct cpuset, stack_list);
 		list_del(queue.next);
 		list_for_each_entry(cont, &cp->css.cgroup->children, sibling) {
 			child = cgroup_cs(cont);
 			list_add_tail(&child->stack_list, &queue);
 		}
-		cont = cp->css.cgroup;
 
 		/* Continue past cpusets with all cpus, mems online */
 		if (cpus_subset(cp->cpus_allowed, cpu_online_map) &&
 		    nodes_subset(cp->mems_allowed, node_states[N_HIGH_MEMORY]))
 			continue;
+
+		oldmems = cp->mems_allowed;
 
 		/* Remove offline cpus and mems from this cpuset. */
 		mutex_lock(&callback_mutex);
@@ -1882,6 +1895,10 @@ static void scan_for_empty_cpusets(const struct cpuset *root)
 		if (cpus_empty(cp->cpus_allowed) ||
 		     nodes_empty(cp->mems_allowed))
 			remove_tasks_in_empty_cpuset(cp);
+		else {
+			update_tasks_cpumask(cp);
+			update_tasks_nodemask(cp, &oldmems);
+		}
 	}
 }
 
@@ -1974,7 +1991,6 @@ void __init cpuset_init_smp(void)
 }
 
 /**
-
  * cpuset_cpus_allowed - return cpus_allowed mask from a tasks cpuset.
  * @tsk: pointer to task_struct from which to obtain cpuset->cpus_allowed.
  * @pmask: pointer to cpumask_t variable to receive cpus_allowed set.

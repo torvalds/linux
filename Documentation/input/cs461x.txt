@@ -31,7 +31,7 @@ The driver works with ALSA drivers simultaneously. For example, the xracer
 uses joystick as input device and PCM device as sound output in one time.
 There are no sound or input collisions detected. The source code have
 comments about them; but I've found the joystick can be initialized 
-separately of ALSA modules. So, you canm use only one joystick driver
+separately of ALSA modules. So, you can use only one joystick driver
 without ALSA drivers. The ALSA drivers are not needed to compile or
 run this driver.
 
