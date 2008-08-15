@@ -748,6 +748,36 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	return err;
 }
 
+static int tun_get_iff(struct net *net, struct file *file, struct ifreq *ifr)
+{
+	struct tun_struct *tun = file->private_data;
+
+	if (!tun)
+		return -EBADFD;
+
+	DBG(KERN_INFO "%s: tun_get_iff\n", tun->dev->name);
+
+	strcpy(ifr->ifr_name, tun->dev->name);
+
+	ifr->ifr_flags = 0;
+
+	if (ifr->ifr_flags & TUN_TUN_DEV)
+		ifr->ifr_flags |= IFF_TUN;
+	else
+		ifr->ifr_flags |= IFF_TAP;
+
+	if (tun->flags & TUN_NO_PI)
+		ifr->ifr_flags |= IFF_NO_PI;
+
+	if (tun->flags & TUN_ONE_QUEUE)
+		ifr->ifr_flags |= IFF_ONE_QUEUE;
+
+	if (tun->flags & TUN_VNET_HDR)
+		ifr->ifr_flags |= IFF_VNET_HDR;
+
+	return 0;
+}
+
 /* This is like a cut-down ethtool ops, except done via tun fd so no
  * privs required. */
 static int set_offload(struct net_device *dev, unsigned long arg)
@@ -833,6 +863,15 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	DBG(KERN_INFO "%s: tun_chr_ioctl cmd %d\n", tun->dev->name, cmd);
 
 	switch (cmd) {
+	case TUNGETIFF:
+		ret = tun_get_iff(current->nsproxy->net_ns, file, &ifr);
+		if (ret)
+			return ret;
+
+		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+			return -EFAULT;
+		break;
+
 	case TUNSETNOCSUM:
 		/* Disable/Enable checksum */
 		if (arg)
