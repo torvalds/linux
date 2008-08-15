@@ -108,20 +108,6 @@ if ($#ARGV < 6) {
 
 my ($arch, $objdump, $objcopy, $cc, $ld, $nm, $rm, $mv, $inputfile) = @ARGV;
 
-if ($arch eq "i386") {
-  $ld = "ld -m elf_i386";
-  $objdump = "objdump -M i386";
-  $objcopy = "objcopy -O elf32-i386";
-  $cc = "gcc -m32";
-}
-
-if ($arch eq "x86_64") {
-  $ld = "ld -m elf_x86_64";
-  $objdump = "objdump -M x86-64";
-  $objcopy = "objcopy -O elf64-x86-64";
-  $cc = "gcc -m64";
-}
-
 $objdump = "objdump" if ((length $objdump) == 0);
 $objcopy = "objcopy" if ((length $objcopy) == 0);
 $cc = "gcc" if ((length $cc) == 0);
@@ -146,11 +132,25 @@ if ($arch eq "x86_64") {
     $function_regex = "<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount([+-]0x[0-9a-zA-Z]+)?\$";
     $type = ".quad";
+
+    # force flags for this arch
+    $ld .= " -m elf_x86_64";
+    $objdump .= " -M x86-64";
+    $objcopy .= " -O elf64-x86-64";
+    $cc .= " -m64";
+
 } elsif ($arch eq "i386") {
     $section_regex = "Disassembly of section";
     $function_regex = "<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
     $type = ".long";
+
+    # force flags for this arch
+    $ld .= " -m elf_i386";
+    $objdump .= " -M i386";
+    $objcopy .= " -O elf32-i386";
+    $cc .= " -m32";
+
 } else {
     die "Arch $arch is not supported with CONFIG_FTRACE_MCOUNT_RECORD";
 }
