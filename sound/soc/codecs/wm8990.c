@@ -920,7 +920,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"SPKMIX", "SPKMIX Left Mixer PGA Switch", "LOPGA"},
 	{"SPKMIX", "SPKMIX Right Mixer PGA Switch", "ROPGA"},
 	{"SPKMIX", "SPKMIX Right DAC Switch", "Right DAC"},
-	{"SPKMIX", "SPKMIX Left DAC Switch", "Right DAC"},
+	{"SPKMIX", "SPKMIX Left DAC Switch", "Left DAC"},
 
 	/* LONMIX */
 	{"LONMIX", "LONMIX Left Mixer PGA Switch", "LOPGA"},
