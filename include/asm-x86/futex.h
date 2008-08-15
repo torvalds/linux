@@ -25,7 +25,7 @@
 	asm volatile("1:\tmovl	%2, %0\n"			\
 		     "\tmovl\t%0, %3\n"				\
 		     "\t" insn "\n"				\
-		     "2:\tlock; cmpxchgl %3, %2\n"		\
+		     "2:\t" LOCK_PREFIX "cmpxchgl %3, %2\n"	\
 		     "\tjnz\t1b\n"				\
 		     "3:\t.section .fixup,\"ax\"\n"		\
 		     "4:\tmov\t%5, %1\n"			\
@@ -64,7 +64,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 		__futex_atomic_op1("xchgl %0, %2", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ADD:
-		__futex_atomic_op1("lock; xaddl %0, %2", ret, oldval,
+		__futex_atomic_op1(LOCK_PREFIX "xaddl %0, %2", ret, oldval,
 				   uaddr, oparg);
 		break;
 	case FUTEX_OP_OR:
@@ -122,7 +122,7 @@ static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
 	if (!access_ok(VERIFY_WRITE, uaddr, sizeof(int)))
 		return -EFAULT;
 
-	asm volatile("1:\tlock; cmpxchgl %3, %1\n"
+	asm volatile("1:\t" LOCK_PREFIX "cmpxchgl %3, %1\n"
 		     "2:\t.section .fixup, \"ax\"\n"
 		     "3:\tmov     %2, %0\n"
 		     "\tjmp     2b\n"
