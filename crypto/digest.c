@@ -225,7 +225,7 @@ int crypto_init_digest_ops_async(struct crypto_tfm *tfm)
 	struct ahash_tfm  *crt  = &tfm->crt_ahash;
 	struct digest_alg *dalg = &tfm->__crt_alg->cra_digest;
 
-	if (dalg->dia_digestsize > crypto_tfm_alg_blocksize(tfm))
+	if (dalg->dia_digestsize > PAGE_SIZE / 8)
 		return -EINVAL;
 
 	crt->init       = digest_async_init;

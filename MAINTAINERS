@@ -2928,6 +2928,12 @@ M:	jirislaby@gmail.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
+P:     Felipe Balbi
+M:     felipe.balbi@nokia.com
+L:     linux-usb@vger.kernel.org
+S:     Maintained
+
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 P:	Andrew Gallatin
 M:	gallatin@myri.com
@@ -3076,6 +3082,7 @@ M:	horms@verge.net.au
 P:	Julian Anastasov
 M:	ja@ssi.bg
 L:	netdev@vger.kernel.org
+L:	lvs-devel@vger.kernel.org
 S:	Maintained
 
 NFS, SUNRPC, AND LOCKD CLIENTS
@@ -4193,12 +4200,6 @@ USB ACM DRIVER
 P:	Oliver Neukum
 M:	oliver@neukum.name
 L:	linux-usb@vger.kernel.org
-S:	Maintained
-
-USB AUERSWALD DRIVER
-P:	Wolfgang Muees
-M:	wolfgang@iksw-muees.de
-L:      linux-usb@vger.kernel.org
 S:	Maintained
 
 USB BLOCK DRIVER (UB ub)

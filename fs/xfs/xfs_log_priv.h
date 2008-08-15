@@ -241,7 +241,7 @@ typedef struct xlog_res {
 } xlog_res_t;
 
 typedef struct xlog_ticket {
-	sv_t		   t_sema;	 /* sleep on this semaphore      : 20 */
+	sv_t		   t_wait;	 /* ticket wait queue            : 20 */
 	struct xlog_ticket *t_next;	 /*			         :4|8 */
 	struct xlog_ticket *t_prev;	 /*				 :4|8 */
 	xlog_tid_t	   t_tid;	 /* transaction identifier	 : 4  */
@@ -314,7 +314,7 @@ typedef struct xlog_rec_ext_header {
  *	xlog_rec_header_t into the reserved space.
  * - ic_data follows, so a write to disk can start at the beginning of
  *	the iclog.
- * - ic_forcesema is used to implement synchronous forcing of the iclog to disk.
+ * - ic_forcewait is used to implement synchronous forcing of the iclog to disk.
  * - ic_next is the pointer to the next iclog in the ring.
  * - ic_bp is a pointer to the buffer used to write this incore log to disk.
  * - ic_log is a pointer back to the global log structure.
@@ -339,8 +339,8 @@ typedef struct xlog_rec_ext_header {
  * and move everything else out to subsequent cachelines.
  */
 typedef struct xlog_iclog_fields {
-	sv_t			ic_forcesema;
-	sv_t			ic_writesema;
+	sv_t			ic_force_wait;
+	sv_t			ic_write_wait;
 	struct xlog_in_core	*ic_next;
 	struct xlog_in_core	*ic_prev;
 	struct xfs_buf		*ic_bp;
@@ -377,8 +377,8 @@ typedef struct xlog_in_core {
 /*
  * Defines to save our code from this glop.
  */
-#define	ic_forcesema	hic_fields.ic_forcesema
-#define ic_writesema	hic_fields.ic_writesema
+#define	ic_force_wait	hic_fields.ic_force_wait
+#define ic_write_wait	hic_fields.ic_write_wait
 #define	ic_next		hic_fields.ic_next
 #define	ic_prev		hic_fields.ic_prev
 #define	ic_bp		hic_fields.ic_bp
@@ -468,7 +468,7 @@ extern int	 xlog_find_tail(xlog_t	*log,
 				xfs_daddr_t *head_blk,
 				xfs_daddr_t *tail_blk);
 extern int	 xlog_recover(xlog_t *log);
-extern int	 xlog_recover_finish(xlog_t *log, int mfsi_flags);
+extern int	 xlog_recover_finish(xlog_t *log);
 extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 extern void	 xlog_recover_process_iunlinks(xlog_t *log);
 

@@ -480,7 +480,6 @@ xcall_sync_tick:
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 
-#ifdef CONFIG_MAGIC_SYSRQ
 	.globl		xcall_fetch_glob_regs
 xcall_fetch_glob_regs:
 	sethi		%hi(global_reg_snapshot), %g1
@@ -511,7 +510,6 @@ xcall_fetch_glob_regs:
 	membar		#StoreStore
 	stx		%g3, [%g1 + GR_SNAP_THREAD]
 	retry
-#endif /* CONFIG_MAGIC_SYSRQ */
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	.align		32

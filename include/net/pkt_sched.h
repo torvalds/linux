@@ -89,7 +89,10 @@ extern void __qdisc_run(struct Qdisc *q);
 
 static inline void qdisc_run(struct Qdisc *q)
 {
-	if (!test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
+	struct netdev_queue *txq = q->dev_queue;
+
+	if (!netif_tx_queue_stopped(txq) &&
+	    !test_and_set_bit(__QDISC_STATE_RUNNING, &q->state))
 		__qdisc_run(q);
 }
 
