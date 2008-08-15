@@ -60,8 +60,6 @@ unsigned long mp_lapic_addr;
 static int force_enable_local_apic;
 int disable_apic;
 
-/* Local APIC timer verification ok */
-static int local_apic_timer_verify_ok;
 /* Disable local APIC timer from the kernel commandline or via dmi quirk */
 static int disable_apic_timer __cpuinitdata;
 /* Local APIC timer works in C2 */
@@ -301,7 +299,7 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 	unsigned int v;
 
 	/* Lapic used for broadcast ? */
-	if (!local_apic_timer_verify_ok)
+	if (evt->features & CLOCK_EVT_FEAT_DUMMY)
 		return;
 
 	local_irq_save(flags);
@@ -514,7 +512,7 @@ static int __init calibrate_APIC_clock(void)
 		return -1;
 	}
 
-	local_apic_timer_verify_ok = 1;
+	levt->features &= ~CLOCK_EVT_FEAT_DUMMY;
 
 	/* We trust the pm timer based calibration */
 	if (!pm_referenced) {
@@ -548,11 +546,11 @@ static int __init calibrate_APIC_clock(void)
 		if (deltaj >= LAPIC_CAL_LOOPS-2 && deltaj <= LAPIC_CAL_LOOPS+2)
 			apic_printk(APIC_VERBOSE, "... jiffies result ok\n");
 		else
-			local_apic_timer_verify_ok = 0;
+			levt->features |= CLOCK_EVT_FEAT_DUMMY;
 	} else
 		local_irq_enable();
 
-	if (!local_apic_timer_verify_ok) {
+	if (levt->features & CLOCK_EVT_FEAT_DUMMY) {
 		printk(KERN_WARNING
 		       "APIC timer disabled due to verification failure.\n");
 			return -1;
