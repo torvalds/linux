@@ -142,11 +142,15 @@ int __init check_nmi_watchdog(void)
 		if (!per_cpu(wd_enabled, cpu))
 			continue;
 		if (get_nmi_count(cpu) - prev_nmi_count[cpu] <= 5) {
+			printk("\n");
 			printk(KERN_WARNING "WARNING: CPU#%d: NMI "
 				"appears to be stuck (%d->%d)!\n",
 				cpu,
 				prev_nmi_count[cpu],
 				get_nmi_count(cpu));
+			printk(KERN_WARNING "Please report this to "
+			       "linux-kernel@vger.kernel.org and attach "
+			       "the output of 'dmesg' command.\n");
 			per_cpu(wd_enabled, cpu) = 0;
 			atomic_dec(&nmi_active);
 		}
