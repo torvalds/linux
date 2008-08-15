@@ -101,6 +101,40 @@
 const char raid6_empty_zero_page[PAGE_SIZE] __attribute__((aligned(256)));
 #endif
 
+/*
+ * We maintain a biased count of active stripes in the bottom 8 bits of
+ * bi_phys_segments, and a count of processed stripes in the upper 8 bits
+ */
+static inline int raid5_bi_phys_segments(struct bio *bio)
+{
+	return bio->bi_phys_segments & 0xff;
+}
+
+static inline int raid5_bi_hw_segments(struct bio *bio)
+{
+	return (bio->bi_phys_segments >> 8) & 0xff;
+}
+
+static inline int raid5_dec_bi_phys_segments(struct bio *bio)
+{
+	--bio->bi_phys_segments;
+	return raid5_bi_phys_segments(bio);
+}
+
+static inline int raid5_dec_bi_hw_segments(struct bio *bio)
+{
+	unsigned short val = raid5_bi_hw_segments(bio);
+
+	--val;
+	bio->bi_phys_segments = (val << 8) | raid5_bi_phys_segments(bio);
+	return val;
+}
+
+static inline void raid5_set_bi_hw_segments(struct bio *bio, unsigned int cnt)
+{
+	bio->bi_phys_segments = raid5_bi_phys_segments(bio) || (cnt << 8);
+}
+
 static inline int raid6_next_disk(int disk, int raid_disks)
 {
 	disk++;
@@ -507,7 +541,7 @@ static void ops_complete_biofill(void *stripe_head_ref)
 			while (rbi && rbi->bi_sector <
 				dev->sector + STRIPE_SECTORS) {
 				rbi2 = r5_next_bio(rbi, dev->sector);
-				if (--rbi->bi_phys_segments == 0) {
+				if (!raid5_dec_bi_phys_segments(rbi)) {
 					rbi->bi_next = return_bi;
 					return_bi = rbi;
 				}
@@ -1725,7 +1759,7 @@ static int add_stripe_bio(struct stripe_head *sh, struct bio *bi, int dd_idx, in
 	if (*bip)
 		bi->bi_next = *bip;
 	*bip = bi;
-	bi->bi_phys_segments ++;
+	bi->bi_phys_segments++;
 	spin_unlock_irq(&conf->device_lock);
 	spin_unlock(&sh->lock);
 
@@ -1819,7 +1853,7 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 			sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *nextbi = r5_next_bio(bi, sh->dev[i].sector);
 			clear_bit(BIO_UPTODATE, &bi->bi_flags);
-			if (--bi->bi_phys_segments == 0) {
+			if (!raid5_dec_bi_phys_segments(bi)) {
 				md_write_end(conf->mddev);
 				bi->bi_next = *return_bi;
 				*return_bi = bi;
@@ -1834,7 +1868,7 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 		       sh->dev[i].sector + STRIPE_SECTORS) {
 			struct bio *bi2 = r5_next_bio(bi, sh->dev[i].sector);
 			clear_bit(BIO_UPTODATE, &bi->bi_flags);
-			if (--bi->bi_phys_segments == 0) {
+			if (!raid5_dec_bi_phys_segments(bi)) {
 				md_write_end(conf->mddev);
 				bi->bi_next = *return_bi;
 				*return_bi = bi;
@@ -1858,7 +1892,7 @@ handle_failed_stripe(raid5_conf_t *conf, struct stripe_head *sh,
 				struct bio *nextbi =
 					r5_next_bio(bi, sh->dev[i].sector);
 				clear_bit(BIO_UPTODATE, &bi->bi_flags);
-				if (--bi->bi_phys_segments == 0) {
+				if (!raid5_dec_bi_phys_segments(bi)) {
 					bi->bi_next = *return_bi;
 					*return_bi = bi;
 				}
@@ -2033,7 +2067,7 @@ static void handle_stripe_clean_event(raid5_conf_t *conf,
 				while (wbi && wbi->bi_sector <
 					dev->sector + STRIPE_SECTORS) {
 					wbi2 = r5_next_bio(wbi, dev->sector);
-					if (--wbi->bi_phys_segments == 0) {
+					if (!raid5_dec_bi_phys_segments(wbi)) {
 						md_write_end(conf->mddev);
 						wbi->bi_next = *return_bi;
 						*return_bi = wbi;
@@ -2814,7 +2848,7 @@ static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 				copy_data(0, rbi, dev->page, dev->sector);
 				rbi2 = r5_next_bio(rbi, dev->sector);
 				spin_lock_irq(&conf->device_lock);
-				if (--rbi->bi_phys_segments == 0) {
+				if (!raid5_dec_bi_phys_segments(rbi)) {
 					rbi->bi_next = return_bi;
 					return_bi = rbi;
 				}
@@ -3155,8 +3189,11 @@ static struct bio *remove_bio_from_retry(raid5_conf_t *conf)
 	if(bi) {
 		conf->retry_read_aligned_list = bi->bi_next;
 		bi->bi_next = NULL;
+		/*
+		 * this sets the active strip count to 1 and the processed
+		 * strip count to zero (upper 8 bits)
+		 */
 		bi->bi_phys_segments = 1; /* biased count of active stripes */
-		bi->bi_hw_segments = 0; /* count of processed stripes */
 	}
 
 	return bi;
@@ -3206,8 +3243,7 @@ static int bio_fits_rdev(struct bio *bi)
 	if ((bi->bi_size>>9) > q->max_sectors)
 		return 0;
 	blk_recount_segments(q, bi);
-	if (bi->bi_phys_segments > q->max_phys_segments ||
-	    bi->bi_hw_segments > q->max_hw_segments)
+	if (bi->bi_phys_segments > q->max_phys_segments)
 		return 0;
 
 	if (q->merge_bvec_fn)
@@ -3468,7 +3504,7 @@ static int make_request(struct request_queue *q, struct bio * bi)
 			
 	}
 	spin_lock_irq(&conf->device_lock);
-	remaining = --bi->bi_phys_segments;
+	remaining = raid5_dec_bi_phys_segments(bi);
 	spin_unlock_irq(&conf->device_lock);
 	if (remaining == 0) {
 
@@ -3752,7 +3788,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 		     sector += STRIPE_SECTORS,
 		     scnt++) {
 
-		if (scnt < raid_bio->bi_hw_segments)
+		if (scnt < raid5_bi_hw_segments(raid_bio))
 			/* already done this stripe */
 			continue;
 
@@ -3760,7 +3796,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 
 		if (!sh) {
 			/* failed to get a stripe - must wait */
-			raid_bio->bi_hw_segments = scnt;
+			raid5_set_bi_hw_segments(raid_bio, scnt);
 			conf->retry_read_aligned = raid_bio;
 			return handled;
 		}
@@ -3768,7 +3804,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 		set_bit(R5_ReadError, &sh->dev[dd_idx].flags);
 		if (!add_stripe_bio(sh, raid_bio, dd_idx, 0)) {
 			release_stripe(sh);
-			raid_bio->bi_hw_segments = scnt;
+			raid5_set_bi_hw_segments(raid_bio, scnt);
 			conf->retry_read_aligned = raid_bio;
 			return handled;
 		}
@@ -3778,7 +3814,7 @@ static int  retry_aligned_read(raid5_conf_t *conf, struct bio *raid_bio)
 		handled++;
 	}
 	spin_lock_irq(&conf->device_lock);
-	remaining = --raid_bio->bi_phys_segments;
+	remaining = raid5_dec_bi_phys_segments(raid_bio);
 	spin_unlock_irq(&conf->device_lock);
 	if (remaining == 0)
 		bio_endio(raid_bio, 0);
