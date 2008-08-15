@@ -416,6 +416,8 @@ static void pseries_cmo_data(struct seq_file *m)
 	unsigned long cmo_faults = 0;
 	unsigned long cmo_fault_time = 0;
 
+	seq_printf(m, "cmo_enabled=%d\n", firmware_has_feature(FW_FEATURE_CMO));
+
 	if (!firmware_has_feature(FW_FEATURE_CMO))
 		return;
 
@@ -427,6 +429,9 @@ static void pseries_cmo_data(struct seq_file *m)
 	seq_printf(m, "cmo_faults=%lu\n", cmo_faults);
 	seq_printf(m, "cmo_fault_time_usec=%lu\n",
 		   cmo_fault_time / tb_ticks_per_usec);
+	seq_printf(m, "cmo_primary_psp=%d\n", cmo_get_primary_psp());
+	seq_printf(m, "cmo_secondary_psp=%d\n", cmo_get_secondary_psp());
+	seq_printf(m, "cmo_page_size=%lu\n", cmo_get_page_size());
 }
 
 static int pseries_lparcfg_data(struct seq_file *m, void *v)
