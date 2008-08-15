@@ -675,7 +675,7 @@ static int nfs_init_server(struct nfs_server *server,
 	server->nfs_client = clp;
 
 	/* Initialise the client representation from the mount data */
-	server->flags = data->flags & NFS_MOUNT_FLAGMASK;
+	server->flags = data->flags;
 
 	if (data->rsize)
 		server->rsize = nfs_block_size(data->rsize, NULL);
@@ -1072,7 +1072,7 @@ static int nfs4_init_server(struct nfs_server *server,
 		goto error;
 
 	/* Initialise the client representation from the mount data */
-	server->flags = data->flags & NFS_MOUNT_FLAGMASK;
+	server->flags = data->flags;
 	server->caps |= NFS_CAP_ATOMIC_OPEN;
 
 	if (data->rsize)

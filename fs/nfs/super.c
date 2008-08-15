@@ -1550,7 +1550,7 @@ static int nfs_validate_mount_data(void *options,
 		 * Translate to nfs_parsed_mount_data, which nfs_fill_super
 		 * can deal with.
 		 */
-		args->flags		= data->flags;
+		args->flags		= data->flags & NFS_MOUNT_FLAGMASK;
 		args->rsize		= data->rsize;
 		args->wsize		= data->wsize;
 		args->timeo		= data->timeo;
