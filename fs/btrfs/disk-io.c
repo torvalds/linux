@@ -492,11 +492,11 @@ static int __btree_submit_bio_hook(struct inode *inode, int rw, struct bio *bio,
 
 	/*
 	 * when we're called for a write, we're already in the async
-	 * submission context.  Just jump ingo btrfs_map_bio
+	 * submission context.  Just jump into btrfs_map_bio
 	 */
 	if (rw & (1 << BIO_RW)) {
 		return btrfs_map_bio(BTRFS_I(inode)->root, rw, bio,
-				     mirror_num, 0);
+				     mirror_num, 1);
 	}
 
 	/*
@@ -528,6 +528,12 @@ static int btree_writepage(struct page *page, struct writeback_control *wbc)
 {
 	struct extent_io_tree *tree;
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
+
+	if (current->flags & PF_MEMALLOC) {
+		redirty_page_for_writepage(wbc, page);
+		unlock_page(page);
+		return 0;
+	}
 	return extent_write_full_page(tree, page, btree_get_extent, wbc);
 }
 
@@ -1363,8 +1369,9 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 * queue work function gets called at interrupt time, and so it
 	 * cannot dynamically grow.
 	 */
-	btrfs_init_workers(&fs_info->workers, fs_info->thread_pool_size);
-	btrfs_init_workers(&fs_info->submit_workers,
+	btrfs_init_workers(&fs_info->workers, "worker",
+			   fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->submit_workers, "submit",
 			   min_t(u64, fs_devices->num_devices,
 			   fs_info->thread_pool_size));
 
@@ -1374,9 +1381,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	 */
 	fs_info->submit_workers.idle_thresh = 64;
 
-	btrfs_init_workers(&fs_info->fixup_workers, 1);
-	btrfs_init_workers(&fs_info->endio_workers, fs_info->thread_pool_size);
-	btrfs_init_workers(&fs_info->endio_write_workers,
+	btrfs_init_workers(&fs_info->fixup_workers, "fixup", 1);
+	btrfs_init_workers(&fs_info->endio_workers, "endio",
+			   fs_info->thread_pool_size);
+	btrfs_init_workers(&fs_info->endio_write_workers, "endio-write",
 			   fs_info->thread_pool_size);
 
 	/*

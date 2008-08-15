@@ -69,11 +69,14 @@ struct btrfs_workers {
 
 	/* lock for finding the next worker thread to queue on */
 	spinlock_t lock;
+
+	/* extra name for this worker */
+	char *name;
 };
 
 int btrfs_queue_worker(struct btrfs_workers *workers, struct btrfs_work *work);
 int btrfs_start_workers(struct btrfs_workers *workers, int num_workers);
 int btrfs_stop_workers(struct btrfs_workers *workers);
-void btrfs_init_workers(struct btrfs_workers *workers, int max);
+void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max);
 int btrfs_requeue_work(struct btrfs_work *work);
 #endif

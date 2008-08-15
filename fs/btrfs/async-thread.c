@@ -153,7 +153,7 @@ int btrfs_stop_workers(struct btrfs_workers *workers)
 /*
  * simple init on struct btrfs_workers
  */
-void btrfs_init_workers(struct btrfs_workers *workers, int max)
+void btrfs_init_workers(struct btrfs_workers *workers, char *name, int max)
 {
 	workers->num_workers = 0;
 	INIT_LIST_HEAD(&workers->worker_list);
@@ -161,6 +161,7 @@ void btrfs_init_workers(struct btrfs_workers *workers, int max)
 	spin_lock_init(&workers->lock);
 	workers->max_workers = max;
 	workers->idle_thresh = 32;
+	workers->name = name;
 }
 
 /*
@@ -184,7 +185,9 @@ int btrfs_start_workers(struct btrfs_workers *workers, int num_workers)
 		INIT_LIST_HEAD(&worker->worker_list);
 		spin_lock_init(&worker->lock);
 		atomic_set(&worker->num_pending, 0);
-		worker->task = kthread_run(worker_loop, worker, "btrfs");
+		worker->task = kthread_run(worker_loop, worker,
+					   "btrfs-%s-%d", workers->name,
+					   workers->num_workers + i);
 		worker->workers = workers;
 		if (IS_ERR(worker->task)) {
 			kfree(worker);
