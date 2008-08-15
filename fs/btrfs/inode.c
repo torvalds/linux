@@ -1833,6 +1833,7 @@ static int btrfs_init_locked_inode(struct inode *inode, void *p)
 	inode->i_ino = args->ino;
 	BTRFS_I(inode)->root = args->root;
 	BTRFS_I(inode)->delalloc_bytes = 0;
+	inode->i_mapping->writeback_index = 0;
 	BTRFS_I(inode)->disk_i_size = 0;
 	BTRFS_I(inode)->index_cnt = (u64)-1;
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
@@ -2239,6 +2240,7 @@ static struct inode *btrfs_new_inode(struct btrfs_trans_handle *trans,
 	mutex_init(&BTRFS_I(inode)->csum_mutex);
 	mutex_init(&BTRFS_I(inode)->extent_mutex);
 	BTRFS_I(inode)->delalloc_bytes = 0;
+	inode->i_mapping->writeback_index = 0;
 	BTRFS_I(inode)->disk_i_size = 0;
 	BTRFS_I(inode)->root = root;
 
@@ -2486,6 +2488,7 @@ static int btrfs_create(struct inode *dir, struct dentry *dentry,
 		mutex_init(&BTRFS_I(inode)->extent_mutex);
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		BTRFS_I(inode)->disk_i_size = 0;
+		inode->i_mapping->writeback_index = 0;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 		btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	}
@@ -3549,6 +3552,7 @@ static int btrfs_symlink(struct inode *dir, struct dentry *dentry,
 		mutex_init(&BTRFS_I(inode)->extent_mutex);
 		BTRFS_I(inode)->delalloc_bytes = 0;
 		BTRFS_I(inode)->disk_i_size = 0;
+		inode->i_mapping->writeback_index = 0;
 		BTRFS_I(inode)->io_tree.ops = &btrfs_extent_io_ops;
 		btrfs_ordered_inode_tree_init(&BTRFS_I(inode)->ordered_tree);
 	}
