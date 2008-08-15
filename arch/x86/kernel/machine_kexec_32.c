@@ -78,7 +78,7 @@ static void load_segments(void)
 /*
  * A architecture hook called to validate the
  * proposed image and prepare the control pages
- * as needed.  The pages for KEXEC_CONTROL_CODE_SIZE
+ * as needed.  The pages for KEXEC_CONTROL_PAGE_SIZE
  * have been allocated, but the segments have yet
  * been copied into the kernel.
  *

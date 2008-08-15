@@ -77,7 +77,7 @@ int kexec_should_crash(struct task_struct *p)
  *
  * The code for the transition from the current kernel to the
  * the new kernel is placed in the control_code_buffer, whose size
- * is given by KEXEC_CONTROL_CODE_SIZE.  In the best case only a single
+ * is given by KEXEC_CONTROL_PAGE_SIZE.  In the best case only a single
  * page of memory is necessary, but some architectures require more.
  * Because this memory must be identity mapped in the transition from
  * virtual to physical addresses it must live in the range
@@ -242,7 +242,7 @@ static int kimage_normal_alloc(struct kimage **rimage, unsigned long entry,
 	 */
 	result = -ENOMEM;
 	image->control_code_page = kimage_alloc_control_pages(image,
-					   get_order(KEXEC_CONTROL_CODE_SIZE));
+					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
 		printk(KERN_ERR "Could not allocate control_code_buffer\n");
 		goto out;
@@ -317,7 +317,7 @@ static int kimage_crash_alloc(struct kimage **rimage, unsigned long entry,
 	 */
 	result = -ENOMEM;
 	image->control_code_page = kimage_alloc_control_pages(image,
-					   get_order(KEXEC_CONTROL_CODE_SIZE));
+					   get_order(KEXEC_CONTROL_PAGE_SIZE));
 	if (!image->control_code_page) {
 		printk(KERN_ERR "Could not allocate control_code_buffer\n");
 		goto out;

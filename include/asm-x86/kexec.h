@@ -63,7 +63,7 @@
 /* Maximum address we can use for the control code buffer */
 # define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
 
-# define KEXEC_CONTROL_CODE_SIZE	4096
+# define KEXEC_CONTROL_PAGE_SIZE	4096
 
 /* The native architecture */
 # define KEXEC_ARCH KEXEC_ARCH_386
@@ -79,7 +79,7 @@
 # define KEXEC_CONTROL_MEMORY_LIMIT     (0xFFFFFFFFFFUL)
 
 /* Allocate one page for the pdp and the second for the code */
-# define KEXEC_CONTROL_CODE_SIZE  (4096UL + 4096UL)
+# define KEXEC_CONTROL_PAGE_SIZE  (4096UL + 4096UL)
 
 /* The native architecture */
 # define KEXEC_ARCH KEXEC_ARCH_X86_64
