@@ -244,6 +244,9 @@ int lapic_get_maxlvt(void)
 	return APIC_INTEGRATED(GET_APIC_VERSION(v)) ? GET_APIC_MAXLVT(v) : 2;
 }
 
+/* Clock divisor is set to 1 */
+#define APIC_DIVISOR 1
+
 /*
  * This function sets up the local APIC timer, with a timeout of
  * 'clocks' APIC bus clock. During calibration we actually call
@@ -262,6 +265,9 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 	lvtt_value = LOCAL_TIMER_VECTOR;
 	if (!oneshot)
 		lvtt_value |= APIC_LVT_TIMER_PERIODIC;
+	if (!lapic_is_integrated())
+		lvtt_value |= SET_APIC_TIMER_BASE(APIC_TIMER_BASE_DIV);
+
 	if (!irqen)
 		lvtt_value |= APIC_LVT_MASKED;
 
@@ -276,7 +282,7 @@ static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 				| APIC_TDR_DIV_16);
 
 	if (!oneshot)
-		apic_write(APIC_TMICT, clocks);
+		apic_write(APIC_TMICT, clocks / APIC_DIVISOR);
 }
 
 /*
@@ -446,7 +452,7 @@ static int __init calibrate_APIC_clock(void)
 	lapic_clockevent.min_delta_ns =
 		clockevent_delta2ns(0xF, &lapic_clockevent);
 
-	calibration_result = result / HZ;
+	calibration_result = (result * APIC_DIVISOR) / HZ;
 
 	/*
 	 * Do a sanity check on the APIC calibration result
