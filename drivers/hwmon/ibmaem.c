@@ -1,6 +1,6 @@
 /*
- * A hwmon driver for the IBM Active Energy Manager temperature/power sensors
- * and capping functionality.
+ * A hwmon driver for the IBM System Director Active Energy Manager (AEM)
+ * temperature/power/energy sensors and capping functionality.
  * Copyright (C) 2008 IBM
  *
  * Author: Darrick J. Wong <djwong@us.ibm.com>
@@ -1104,7 +1104,7 @@ static void __exit aem_exit(void)
 }
 
 MODULE_AUTHOR("Darrick J. Wong <djwong@us.ibm.com>");
-MODULE_DESCRIPTION("IBM Active Energy Manager power/temp sensor driver");
+MODULE_DESCRIPTION("IBM AEM power/temp/energy sensor driver");
 MODULE_LICENSE("GPL");
 
 module_init(aem_init);
