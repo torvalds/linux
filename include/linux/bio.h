@@ -26,20 +26,7 @@
 
 #ifdef CONFIG_BLOCK
 
-/* Platforms may set this to teach the BIO layer about IOMMU hardware. */
 #include <asm/io.h>
-
-#if defined(BIO_VMERGE_MAX_SIZE) && defined(BIO_VMERGE_BOUNDARY)
-#define BIOVEC_VIRT_START_SIZE(x) (bvec_to_phys(x) & (BIO_VMERGE_BOUNDARY - 1))
-#define BIOVEC_VIRT_OVERSIZE(x)	((x) > BIO_VMERGE_MAX_SIZE)
-#else
-#define BIOVEC_VIRT_START_SIZE(x)	0
-#define BIOVEC_VIRT_OVERSIZE(x)		0
-#endif
-
-#ifndef BIO_VMERGE_BOUNDARY
-#define BIO_VMERGE_BOUNDARY	0
-#endif
 
 #define BIO_DEBUG
 
@@ -240,8 +227,6 @@ static inline void *bio_data(struct bio *bio)
 	((bvec_to_phys((vec1)) + (vec1)->bv_len) == bvec_to_phys((vec2)))
 #endif
 
-#define BIOVEC_VIRT_MERGEABLE(vec1, vec2)	\
-	((((bvec_to_phys((vec1)) + (vec1)->bv_len) | bvec_to_phys((vec2))) & (BIO_VMERGE_BOUNDARY - 1)) == 0)
 #define __BIO_SEG_BOUNDARY(addr1, addr2, mask) \
 	(((addr1) | (mask)) == (((addr2) - 1) | (mask)))
 #define BIOVEC_SEG_BOUNDARY(q, b1, b2) \

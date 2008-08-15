@@ -66,7 +66,7 @@ void blk_recalc_rq_segments(struct request *rq)
 		 */
 		high = page_to_pfn(bv->bv_page) > q->bounce_pfn;
 		if (high || highprv)
-			goto new_hw_segment;
+			goto new_segment;
 		if (cluster) {
 			if (seg_size + bv->bv_len > q->max_segment_size)
 				goto new_segment;
@@ -74,8 +74,6 @@ void blk_recalc_rq_segments(struct request *rq)
 				goto new_segment;
 			if (!BIOVEC_SEG_BOUNDARY(q, bvprv, bv))
 				goto new_segment;
-			if (BIOVEC_VIRT_OVERSIZE(hw_seg_size + bv->bv_len))
-				goto new_hw_segment;
 
 			seg_size += bv->bv_len;
 			hw_seg_size += bv->bv_len;
@@ -83,17 +81,11 @@ void blk_recalc_rq_segments(struct request *rq)
 			continue;
 		}
 new_segment:
-		if (BIOVEC_VIRT_MERGEABLE(bvprv, bv) &&
-		    !BIOVEC_VIRT_OVERSIZE(hw_seg_size + bv->bv_len))
-			hw_seg_size += bv->bv_len;
-		else {
-new_hw_segment:
-			if (nr_hw_segs == 1 &&
-			    hw_seg_size > rq->bio->bi_hw_front_size)
-				rq->bio->bi_hw_front_size = hw_seg_size;
-			hw_seg_size = BIOVEC_VIRT_START_SIZE(bv) + bv->bv_len;
-			nr_hw_segs++;
-		}
+		if (nr_hw_segs == 1 &&
+		    hw_seg_size > rq->bio->bi_hw_front_size)
+			rq->bio->bi_hw_front_size = hw_seg_size;
+		hw_seg_size = bv->bv_len;
+		nr_hw_segs++;
 
 		nr_phys_segs++;
 		bvprv = bv;
@@ -148,23 +140,6 @@ static int blk_phys_contig_segment(struct request_queue *q, struct bio *bio,
 		return 1;
 
 	return 0;
-}
-
-static int blk_hw_contig_segment(struct request_queue *q, struct bio *bio,
-				 struct bio *nxt)
-{
-	if (!bio_flagged(bio, BIO_SEG_VALID))
-		blk_recount_segments(q, bio);
-	if (!bio_flagged(nxt, BIO_SEG_VALID))
-		blk_recount_segments(q, nxt);
-	if (bio_has_data(bio) &&
-	    (!BIOVEC_VIRT_MERGEABLE(__BVEC_END(bio), __BVEC_START(nxt)) ||
-	     BIOVEC_VIRT_OVERSIZE(bio->bi_hw_back_size + nxt->bi_hw_front_size)))
-		return 0;
-	if (bio->bi_hw_back_size + nxt->bi_hw_front_size > q->max_segment_size)
-		return 0;
-
-	return 1;
 }
 
 /*
@@ -304,7 +279,6 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 		     struct bio *bio)
 {
 	unsigned short max_sectors;
-	int len;
 
 	if (unlikely(blk_pc_request(req)))
 		max_sectors = q->max_hw_sectors;
@@ -321,20 +295,6 @@ int ll_back_merge_fn(struct request_queue *q, struct request *req,
 		blk_recount_segments(q, req->biotail);
 	if (!bio_flagged(bio, BIO_SEG_VALID))
 		blk_recount_segments(q, bio);
-	len = req->biotail->bi_hw_back_size + bio->bi_hw_front_size;
-	if (!bio_has_data(bio) || 
-	    (BIOVEC_VIRT_MERGEABLE(__BVEC_END(req->biotail), __BVEC_START(bio))
-	     && !BIOVEC_VIRT_OVERSIZE(len))) {
-		int mergeable =  ll_new_mergeable(q, req, bio);
-
-		if (mergeable) {
-			if (req->nr_hw_segments == 1)
-				req->bio->bi_hw_front_size = len;
-			if (bio->bi_hw_segments == 1)
-				bio->bi_hw_back_size = len;
-		}
-		return mergeable;
-	}
 
 	return ll_new_hw_segment(q, req, bio);
 }
@@ -343,7 +303,6 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 		      struct bio *bio)
 {
 	unsigned short max_sectors;
-	int len;
 
 	if (unlikely(blk_pc_request(req)))
 		max_sectors = q->max_hw_sectors;
@@ -357,24 +316,10 @@ int ll_front_merge_fn(struct request_queue *q, struct request *req,
 			q->last_merge = NULL;
 		return 0;
 	}
-	len = bio->bi_hw_back_size + req->bio->bi_hw_front_size;
 	if (!bio_flagged(bio, BIO_SEG_VALID))
 		blk_recount_segments(q, bio);
 	if (!bio_flagged(req->bio, BIO_SEG_VALID))
 		blk_recount_segments(q, req->bio);
-	if (!bio_has_data(bio) || 
-	    (BIOVEC_VIRT_MERGEABLE(__BVEC_END(bio), __BVEC_START(req->bio)) &&
-	     !BIOVEC_VIRT_OVERSIZE(len))) {
-		int mergeable =  ll_new_mergeable(q, req, bio);
-
-		if (mergeable) {
-			if (bio->bi_hw_segments == 1)
-				bio->bi_hw_front_size = len;
-			if (req->nr_hw_segments == 1)
-				req->biotail->bi_hw_back_size = len;
-		}
-		return mergeable;
-	}
 
 	return ll_new_hw_segment(q, req, bio);
 }
@@ -406,18 +351,6 @@ static int ll_merge_requests_fn(struct request_queue *q, struct request *req,
 		return 0;
 
 	total_hw_segments = req->nr_hw_segments + next->nr_hw_segments;
-	if (blk_hw_contig_segment(q, req->biotail, next->bio)) {
-		int len = req->biotail->bi_hw_back_size +
-				next->bio->bi_hw_front_size;
-		/*
-		 * propagate the combined length to the end of the requests
-		 */
-		if (req->nr_hw_segments == 1)
-			req->bio->bi_hw_front_size = len;
-		if (next->nr_hw_segments == 1)
-			next->biotail->bi_hw_back_size = len;
-		total_hw_segments--;
-	}
 
 	if (total_hw_segments > q->max_hw_segments)
 		return 0;
