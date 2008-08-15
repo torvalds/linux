@@ -358,6 +358,66 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
+/* prepad is the amount to reserve at front.  len is length after that.
+ * linear is a hint as to how much to copy (usually headers). */
+static struct sk_buff *tun_alloc_skb(size_t prepad, size_t len, size_t linear,
+				     gfp_t gfp)
+{
+	struct sk_buff *skb;
+	unsigned int i;
+
+	skb = alloc_skb(prepad + len, gfp|__GFP_NOWARN);
+	if (skb) {
+		skb_reserve(skb, prepad);
+		skb_put(skb, len);
+		return skb;
+	}
+
+	/* Under a page?  Don't bother with paged skb. */
+	if (prepad + len < PAGE_SIZE)
+		return NULL;
+
+	/* Start with a normal skb, and add pages. */
+	skb = alloc_skb(prepad + linear, gfp);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, prepad);
+	skb_put(skb, linear);
+
+	len -= linear;
+
+	for (i = 0; i < MAX_SKB_FRAGS; i++) {
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+
+		f->page = alloc_page(gfp|__GFP_ZERO);
+		if (!f->page)
+			break;
+
+		f->page_offset = 0;
+		f->size = PAGE_SIZE;
+
+		skb->data_len += PAGE_SIZE;
+		skb->len += PAGE_SIZE;
+		skb->truesize += PAGE_SIZE;
+		skb_shinfo(skb)->nr_frags++;
+
+		if (len < PAGE_SIZE) {
+			len = 0;
+			break;
+		}
+		len -= PAGE_SIZE;
+	}
+
+	/* Too large, or alloc fail? */
+	if (unlikely(len)) {
+		kfree_skb(skb);
+		skb = NULL;
+	}
+
+	return skb;
+}
+
 /* Get packet from user space buffer */
 static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv, size_t count)
 {
@@ -391,14 +451,12 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 			return -EINVAL;
 	}
 
-	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
+	if (!(skb = tun_alloc_skb(align, len, gso.hdr_len, GFP_KERNEL))) {
 		tun->dev->stats.rx_dropped++;
 		return -ENOMEM;
 	}
 
-	if (align)
-		skb_reserve(skb, align);
-	if (memcpy_fromiovec(skb_put(skb, len), iv, len)) {
+	if (skb_copy_datagram_from_iovec(skb, 0, iv, len)) {
 		tun->dev->stats.rx_dropped++;
 		kfree_skb(skb);
 		return -EFAULT;
