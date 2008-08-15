@@ -5495,7 +5495,7 @@ static void tg3_ape_send_event(struct tg3 *tp, u32 event)
 		return;
 
 	apedata = tg3_ape_read32(tp, TG3_APE_FW_STATUS);
-	if (apedata != APE_FW_STATUS_READY)
+	if (!(apedata & APE_FW_STATUS_READY))
 		return;
 
 	/* Wait for up to 1 millisecond for APE to service previous event. */
