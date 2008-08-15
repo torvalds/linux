@@ -150,7 +150,7 @@ u32 safe_xapic_wait_icr_idle(void)
 
 void xapic_icr_write(u32 low, u32 id)
 {
-	apic_write(APIC_ICR2, id << 24);
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(id));
 	apic_write(APIC_ICR, low);
 }
 
