@@ -7862,7 +7862,8 @@ static void tg3_timer(unsigned long __opaque)
 	 * resets.
 	 */
 	if (!--tp->asf_counter) {
-		if (tp->tg3_flags & TG3_FLAG_ENABLE_ASF) {
+		if ((tp->tg3_flags & TG3_FLAG_ENABLE_ASF) &&
+		    !(tp->tg3_flags3 & TG3_FLG3_ENABLE_APE)) {
 			u32 val;
 
 			tg3_wait_for_event_ack(tp);
