@@ -136,6 +136,7 @@ static struct ip_vs_scheduler ip_vs_nq_scheduler =
 	.name =			"nq",
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
+	.n_list =		LIST_HEAD_INIT(ip_vs_nq_scheduler.n_list),
 	.init_service =		ip_vs_nq_init_svc,
 	.done_service =		ip_vs_nq_done_svc,
 	.update_service =	ip_vs_nq_update_svc,
@@ -145,7 +146,6 @@ static struct ip_vs_scheduler ip_vs_nq_scheduler =
 
 static int __init ip_vs_nq_init(void)
 {
-	INIT_LIST_HEAD(&ip_vs_nq_scheduler.n_list);
 	return register_ip_vs_scheduler(&ip_vs_nq_scheduler);
 }
 

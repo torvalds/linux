@@ -502,6 +502,12 @@ L:	openezx-devel@lists.openezx.org (subscribers-only)
 W:	http://www.openezx.org/
 S:	Maintained
 
+ARM/FREESCALE IMX / MXC ARM ARCHITECTURE
+P:	Sascha Hauer
+M:	kernel@pengutronix.de
+L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
@@ -586,6 +592,11 @@ ARM/LOGICPD PXA270 MACHINE SUPPORT
 P:	Lennert Buytenhek
 M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
+S:	Maintained
+
+ARM/MAGICIAN MACHINE SUPPORT
+P:	Philipp Zabel
+M:	philipp.zabel@gmail.com
 S:	Maintained
 
 ARM/TOSA MACHINE SUPPORT
@@ -713,6 +724,15 @@ M:	mcgrof@gmail.com
 L:	linux-wireless@vger.kernel.org
 L:	ath5k-devel@lists.ath5k.org
 S:	Maintained
+
+ATHEROS ATH9K WIRELESS DRIVER
+P:	Luis R. Rodriguez
+M:	lrodriguez@atheros.com
+P:	Jouni Malinen
+M:	jmalinen@atheros.com
+L:	linux-wireless@vger.kernel.org
+L:	ath9k-devel@lists.ath9k.org
+S:	Supported
 
 ATI_REMOTE2 DRIVER
 P:	Ville Syrjala
@@ -1043,6 +1063,12 @@ M:	fujita.tomonori@lab.ntt.co.jp
 L:	linux-scsi@vger.kernel.org
 S:	Supported
 
+BT8XXGPIO DRIVER
+P:	Michael Buesch
+M:	mb@bu3sch.de
+W:	http://bu3sch.de/btgpio.php
+S:	Maintained
+
 BTTV VIDEO4LINUX DRIVER
 P:	Mauro Carvalho Chehab
 M:	mchehab@infradead.org
@@ -1223,7 +1249,7 @@ S:	Maintained
 CPU FREQUENCY DRIVERS
 P:	Dave Jones
 M:	davej@codemonkey.org.uk
-L:	cpufreq@lists.linux.org.uk
+L:	cpufreq@vger.kernel.org
 W:	http://www.codemonkey.org.uk/projects/cpufreq/
 T:	git kernel.org/pub/scm/linux/kernel/git/davej/cpufreq.git
 S:	Maintained
@@ -1872,13 +1898,9 @@ W:	http://gigaset307x.sourceforge.net/
 S:	Maintained
 
 HARDWARE MONITORING
-P:	Mark M. Hoffman
-M:	mhoffman@lightlink.com
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git testing
-T:	git lm-sensors.org:/kernel/mhoffman/hwmon-2.6.git release
-S:	Maintained
+S:	Orphaned
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
 S:	Orphaned
@@ -1984,7 +2006,7 @@ P:	Carlos Corbacho
 M:	carlos@strangeworlds.co.uk
 S:	Odd Fixes
 
-HPET:	High Precision Event Timers driver (hpet.c)
+HPET:	High Precision Event Timers driver (drivers/char/hpet.c)
 P:	Clemens Ladisch
 M:	clemens@ladisch.de
 S:	Maintained
@@ -2440,7 +2462,7 @@ L:	kernel-janitors@vger.kernel.org
 W:	http://www.kerneljanitors.org/
 S:	Maintained
 
-KERNEL NFSD
+KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 P:	J. Bruce Fields
 M:	bfields@fieldses.org
 P:	Neil Brown
@@ -2906,6 +2928,12 @@ M:	jirislaby@gmail.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
+P:     Felipe Balbi
+M:     felipe.balbi@nokia.com
+L:     linux-usb@vger.kernel.org
+S:     Maintained
+
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 P:	Andrew Gallatin
 M:	gallatin@myri.com
@@ -2937,8 +2965,6 @@ P:	Faisal Latif
 M:	flatif@neteffect.com
 P:	Chien Tung
 M:	ctung@neteffect.com
-P:	Glenn Streiff
-M:	gstreiff@neteffect.com
 L:	general@lists.openfabrics.org
 W:	http://www.neteffect.com
 S:	Supported
@@ -3056,9 +3082,10 @@ M:	horms@verge.net.au
 P:	Julian Anastasov
 M:	ja@ssi.bg
 L:	netdev@vger.kernel.org
+L:	lvs-devel@vger.kernel.org
 S:	Maintained
 
-NFS CLIENT
+NFS, SUNRPC, AND LOCKD CLIENTS
 P:	Trond Myklebust
 M:	Trond.Myklebust@netapp.com
 L:	linux-nfs@vger.kernel.org
@@ -3118,6 +3145,12 @@ L:	ocfs2-devel@oss.oracle.com (moderated for non-subscribers)
 W:	http://oss.oracle.com/projects/ocfs2/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mfasheh/ocfs2.git
 S:	Supported
+
+OMFS FILESYSTEM
+P:	Bob Copeland
+M:	me@bobcopeland.com
+L:	linux-karma-devel@lists.sourceforge.net
+S:	Maintained
 
 OMNIKEY CARDMAN 4000 DRIVER
 P:	Harald Welte
@@ -3786,6 +3819,12 @@ P:	Ben Nizette
 M:	bn@niasdigital.com
 S:	Maintained
 
+SOC-CAMERA V4L2 SUBSYSTEM
+P:     Guennadi Liakhovetski
+M:     g.liakhovetski@gmx.de
+L:     video4linux-list@redhat.com
+S:     Maintained
+
 SOFTWARE RAID (Multiple Disks) SUPPORT
 P:	Ingo Molnar
 M:	mingo@redhat.com
@@ -3952,7 +3991,7 @@ M:	lethal@linux-sh.org
 L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
 T:	git kernel.org:/pub/scm/linux/kernel/git/lethal/sh-2.6.git
-S:	Maintained
+S:	Supported
 
 SUN3/3X
 P:	Sam Creasey
@@ -4080,12 +4119,6 @@ W:	http://www.prosec.rub.de/tpm/
 L:	tpmdd-devel@lists.sourceforge.net
 S:	Maintained
 
-TRIDENT 4DWAVE/SIS 7018 PCI AUDIO CORE
-P:	Muli Ben-Yehuda
-M:	mulix@mulix.org
-L:	linux-kernel@vger.kernel.org
-S:	Maintained
-
 TRIVIAL PATCHES
 P:	Jesper Juhl
 M:	trivial@kernel.org
@@ -4131,9 +4164,6 @@ W:	http://www.uclinux.org/
 L:	uclinux-dev@uclinux.org  (subscribers-only)
 S:	Maintained
 
-UCLINUX FOR NEC V850
-P:	Miles Bader
-
 UCLINUX FOR RENESAS H8/300
 P:	Yoshinori Sato
 M:	ysato@users.sourceforge.jp
@@ -4170,12 +4200,6 @@ USB ACM DRIVER
 P:	Oliver Neukum
 M:	oliver@neukum.name
 L:	linux-usb@vger.kernel.org
-S:	Maintained
-
-USB AUERSWALD DRIVER
-P:	Wolfgang Muees
-M:	wolfgang@iksw-muees.de
-L:      linux-usb@vger.kernel.org
 S:	Maintained
 
 USB BLOCK DRIVER (UB ub)
@@ -4497,6 +4521,15 @@ M:	kaber@trash.net
 L:	netdev@vger.kernel.org
 S:	Maintained
 
+VOLTAGE AND CURRENT REGULATOR FRAMEWORK
+P:	Liam Girdwood
+M:	lg@opensource.wolfsonmicro.com
+P:	Mark Brown
+M:	broonie@opensource.wolfsonmicro.com
+W:	http://opensource.wolfsonmicro.com/node/15
+T:	git kernel.org/pub/scm/linux/kernel/git/lrg/voltage-2.6.git
+S:	Supported
+
 VT1211 HARDWARE MONITOR DRIVER
 P:	Juerg Haefliger
 M:	juergh@gmail.com
@@ -4649,12 +4682,6 @@ M:	kune@deine-taler.de
 W:	http://zd1211.ath.cx/wiki/DriverRewrite
 L:	linux-wireless@vger.kernel.org
 L:	zd1211-devs@lists.sourceforge.net (subscribers-only)
-S:	Maintained
-
-ZF MACHZ WATCHDOG
-P:	Fernando Fuganti
-M:	fuganti@netbank.com.br
-W:	http://cvs.conectiva.com.br/drivers/ZFL-watchdog/
 S:	Maintained
 
 ZR36067 VIDEO FOR LINUX DRIVER

@@ -137,7 +137,7 @@ xfs_iozero(
 	struct address_space	*mapping;
 	int			status;
 
-	mapping = ip->i_vnode->i_mapping;
+	mapping = VFS_I(ip)->i_mapping;
 	do {
 		unsigned offset, bytes;
 		void *fsdata;
@@ -674,9 +674,7 @@ start:
 	 */
 	if (likely(!(ioflags & IO_INVIS) &&
 		   !mnt_want_write(file->f_path.mnt))) {
-		file_update_time(file);
-		xfs_ichgtime_fast(xip, inode,
-				  XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
+		xfs_ichgtime(xip, XFS_ICHGTIME_MOD | XFS_ICHGTIME_CHG);
 		mnt_drop_write(file->f_path.mnt);
 	}
 
@@ -711,7 +709,7 @@ start:
 	     !capable(CAP_FSETID)) {
 		error = xfs_write_clear_setuid(xip);
 		if (likely(!error))
-			error = -remove_suid(file->f_path.dentry);
+			error = -file_remove_suid(file);
 		if (unlikely(error)) {
 			goto out_unlock_internal;
 		}

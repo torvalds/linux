@@ -1,5 +1,5 @@
-#ifndef __I386_SGI_LITHIUM_H
-#define __I386_SGI_LITHIUM_H
+#ifndef ASM_X86__VISWS__LITHIUM_H
+#define ASM_X86__VISWS__LITHIUM_H
 
 #include <asm/fixmap.h>
 
@@ -49,5 +49,5 @@ static inline unsigned short li_pcib_read16(unsigned long reg)
 	return *((volatile unsigned short *)(LI_PCIB_VADDR+reg));
 }
 
-#endif
+#endif /* ASM_X86__VISWS__LITHIUM_H */
 

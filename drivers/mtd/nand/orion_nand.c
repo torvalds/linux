@@ -18,7 +18,7 @@
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/plat-orion/orion_nand.h>
 
 #ifdef CONFIG_MTD_CMDLINE_PARTS

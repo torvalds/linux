@@ -15,6 +15,8 @@
 #include <linux/ide.h>
 #include <linux/init.h>
 
+#define DRV_NAME "slc90e66"
+
 static DEFINE_SPINLOCK(slc90e66_lock);
 
 static void slc90e66_set_pio_mode(ide_drive_t *drive, const u8 pio)
@@ -114,7 +116,7 @@ static void slc90e66_set_dma_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static u8 __devinit slc90e66_cable_detect(ide_hwif_t *hwif)
+static u8 slc90e66_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 reg47 = 0, mask = hwif->channel ? 0x01 : 0x02;
@@ -132,7 +134,7 @@ static const struct ide_port_ops slc90e66_port_ops = {
 };
 
 static const struct ide_port_info slc90e66_chipset __devinitdata = {
-	.name		= "SLC90E66",
+	.name		= DRV_NAME,
 	.enablebits	= { {0x41, 0x80, 0x80}, {0x43, 0x80, 0x80} },
 	.port_ops	= &slc90e66_port_ops,
 	.host_flags	= IDE_HFLAG_LEGACY_IRQS,
@@ -144,7 +146,7 @@ static const struct ide_port_info slc90e66_chipset __devinitdata = {
 
 static int __devinit slc90e66_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 {
-	return ide_setup_pci_device(dev, &slc90e66_chipset);
+	return ide_pci_init_one(dev, &slc90e66_chipset, NULL);
 }
 
 static const struct pci_device_id slc90e66_pci_tbl[] = {
@@ -157,6 +159,7 @@ static struct pci_driver driver = {
 	.name		= "SLC90e66_IDE",
 	.id_table	= slc90e66_pci_tbl,
 	.probe		= slc90e66_init_one,
+	.remove		= ide_pci_remove,
 };
 
 static int __init slc90e66_ide_init(void)
@@ -164,7 +167,13 @@ static int __init slc90e66_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit slc90e66_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(slc90e66_ide_init);
+module_exit(slc90e66_ide_exit);
 
 MODULE_AUTHOR("Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for SLC90E66 IDE");

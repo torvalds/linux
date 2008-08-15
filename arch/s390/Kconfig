@@ -317,6 +317,9 @@ config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
 	depends on SPARSEMEM
 
+config ARCH_ENABLE_MEMORY_HOTREMOVE
+	def_bool y
+
 source "mm/Kconfig"
 
 comment "I/O subsystem configuration"
@@ -565,6 +568,7 @@ bool "s390 guest support (EXPERIMENTAL)"
 	depends on 64BIT && EXPERIMENTAL
 	select VIRTIO
 	select VIRTIO_RING
+	select VIRTIO_CONSOLE
 	help
 	  Select this option if you want to run the kernel under s390 linux
 endmenu

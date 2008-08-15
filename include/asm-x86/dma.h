@@ -5,8 +5,8 @@
  * and John Boyd, Nov. 1992.
  */
 
-#ifndef _ASM_X86_DMA_H
-#define _ASM_X86_DMA_H
+#ifndef ASM_X86__DMA_H
+#define ASM_X86__DMA_H
 
 #include <linux/spinlock.h>	/* And spinlocks */
 #include <asm/io.h>		/* need byte IO */
@@ -315,4 +315,4 @@ extern int isa_dma_bridge_buggy;
 #define isa_dma_bridge_buggy	(0)
 #endif
 
-#endif /* _ASM_X86_DMA_H */
+#endif /* ASM_X86__DMA_H */

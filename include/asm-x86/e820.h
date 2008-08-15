@@ -1,5 +1,5 @@
-#ifndef __ASM_E820_H
-#define __ASM_E820_H
+#ifndef ASM_X86__E820_H
+#define ASM_X86__E820_H
 #define E820MAP	0x2d0		/* our map */
 #define E820MAX	128		/* number of entries in E820MAP */
 
@@ -64,6 +64,7 @@ struct e820map {
 extern struct e820map e820;
 extern struct e820map e820_saved;
 
+extern unsigned long pci_mem_start;
 extern int e820_any_mapped(u64 start, u64 end, unsigned type);
 extern int e820_all_mapped(u64 start, u64 end, unsigned type);
 extern void e820_add_region(u64 start, u64 size, int type);
@@ -140,4 +141,4 @@ extern char *memory_setup(void);
 #define HIGH_MEMORY	(1024*1024)
 #endif /* __KERNEL__ */
 
-#endif  /* __ASM_E820_H */
+#endif /* ASM_X86__E820_H */

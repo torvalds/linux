@@ -33,6 +33,7 @@
 #include <linux/crypto.h>
 #include <linux/file.h>
 #include <linux/scatterlist.h>
+#include <asm/unaligned.h>
 #include "ecryptfs_kernel.h"
 
 static int
@@ -474,8 +475,8 @@ int ecryptfs_encrypt_page(struct page *page)
 {
 	struct inode *ecryptfs_inode;
 	struct ecryptfs_crypt_stat *crypt_stat;
-	char *enc_extent_virt = NULL;
-	struct page *enc_extent_page;
+	char *enc_extent_virt;
+	struct page *enc_extent_page = NULL;
 	loff_t extent_offset;
 	int rc = 0;
 
@@ -491,14 +492,14 @@ int ecryptfs_encrypt_page(struct page *page)
 			       page->index);
 		goto out;
 	}
-	enc_extent_virt = kmalloc(PAGE_CACHE_SIZE, GFP_USER);
-	if (!enc_extent_virt) {
+	enc_extent_page = alloc_page(GFP_USER);
+	if (!enc_extent_page) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Error allocating memory for "
 				"encrypted extent\n");
 		goto out;
 	}
-	enc_extent_page = virt_to_page(enc_extent_virt);
+	enc_extent_virt = kmap(enc_extent_page);
 	for (extent_offset = 0;
 	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
@@ -526,7 +527,10 @@ int ecryptfs_encrypt_page(struct page *page)
 		}
 	}
 out:
-	kfree(enc_extent_virt);
+	if (enc_extent_page) {
+		kunmap(enc_extent_page);
+		__free_page(enc_extent_page);
+	}
 	return rc;
 }
 
@@ -608,8 +612,8 @@ int ecryptfs_decrypt_page(struct page *page)
 {
 	struct inode *ecryptfs_inode;
 	struct ecryptfs_crypt_stat *crypt_stat;
-	char *enc_extent_virt = NULL;
-	struct page *enc_extent_page;
+	char *enc_extent_virt;
+	struct page *enc_extent_page = NULL;
 	unsigned long extent_offset;
 	int rc = 0;
 
@@ -626,14 +630,14 @@ int ecryptfs_decrypt_page(struct page *page)
 			       page->index);
 		goto out;
 	}
-	enc_extent_virt = kmalloc(PAGE_CACHE_SIZE, GFP_USER);
-	if (!enc_extent_virt) {
+	enc_extent_page = alloc_page(GFP_USER);
+	if (!enc_extent_page) {
 		rc = -ENOMEM;
 		ecryptfs_printk(KERN_ERR, "Error allocating memory for "
 				"encrypted extent\n");
 		goto out;
 	}
-	enc_extent_page = virt_to_page(enc_extent_virt);
+	enc_extent_virt = kmap(enc_extent_page);
 	for (extent_offset = 0;
 	     extent_offset < (PAGE_CACHE_SIZE / crypt_stat->extent_size);
 	     extent_offset++) {
@@ -661,7 +665,10 @@ int ecryptfs_decrypt_page(struct page *page)
 		}
 	}
 out:
-	kfree(enc_extent_virt);
+	if (enc_extent_page) {
+		kunmap(enc_extent_page);
+		__free_page(enc_extent_page);
+	}
 	return rc;
 }
 
@@ -1032,10 +1039,8 @@ static int contains_ecryptfs_marker(char *data)
 {
 	u32 m_1, m_2;
 
-	memcpy(&m_1, data, 4);
-	m_1 = be32_to_cpu(m_1);
-	memcpy(&m_2, (data + 4), 4);
-	m_2 = be32_to_cpu(m_2);
+	m_1 = get_unaligned_be32(data);
+	m_2 = get_unaligned_be32(data + 4);
 	if ((m_1 ^ MAGIC_ECRYPTFS_MARKER) == m_2)
 		return 1;
 	ecryptfs_printk(KERN_DEBUG, "m_1 = [0x%.8x]; m_2 = [0x%.8x]; "
@@ -1073,8 +1078,7 @@ static int ecryptfs_process_flags(struct ecryptfs_crypt_stat *crypt_stat,
 	int i;
 	u32 flags;
 
-	memcpy(&flags, page_virt, 4);
-	flags = be32_to_cpu(flags);
+	flags = get_unaligned_be32(page_virt);
 	for (i = 0; i < ((sizeof(ecryptfs_flag_map)
 			  / sizeof(struct ecryptfs_flag_map_elem))); i++)
 		if (flags & ecryptfs_flag_map[i].file_flag) {
@@ -1100,11 +1104,9 @@ static void write_ecryptfs_marker(char *page_virt, size_t *written)
 
 	get_random_bytes(&m_1, (MAGIC_ECRYPTFS_MARKER_SIZE_BYTES / 2));
 	m_2 = (m_1 ^ MAGIC_ECRYPTFS_MARKER);
-	m_1 = cpu_to_be32(m_1);
-	memcpy(page_virt, &m_1, (MAGIC_ECRYPTFS_MARKER_SIZE_BYTES / 2));
-	m_2 = cpu_to_be32(m_2);
-	memcpy(page_virt + (MAGIC_ECRYPTFS_MARKER_SIZE_BYTES / 2), &m_2,
-	       (MAGIC_ECRYPTFS_MARKER_SIZE_BYTES / 2));
+	put_unaligned_be32(m_1, page_virt);
+	page_virt += (MAGIC_ECRYPTFS_MARKER_SIZE_BYTES / 2);
+	put_unaligned_be32(m_2, page_virt);
 	(*written) = MAGIC_ECRYPTFS_MARKER_SIZE_BYTES;
 }
 
@@ -1121,8 +1123,7 @@ write_ecryptfs_flags(char *page_virt, struct ecryptfs_crypt_stat *crypt_stat,
 			flags |= ecryptfs_flag_map[i].file_flag;
 	/* Version is in top 8 bits of the 32-bit flag vector */
 	flags |= ((((u8)crypt_stat->file_version) << 24) & 0xFF000000);
-	flags = cpu_to_be32(flags);
-	memcpy(page_virt, &flags, 4);
+	put_unaligned_be32(flags, page_virt);
 	(*written) = 4;
 }
 
@@ -1238,11 +1239,9 @@ ecryptfs_write_header_metadata(char *virt,
 	num_header_extents_at_front =
 		(u16)(crypt_stat->num_header_bytes_at_front
 		      / crypt_stat->extent_size);
-	header_extent_size = cpu_to_be32(header_extent_size);
-	memcpy(virt, &header_extent_size, 4);
+	put_unaligned_be32(header_extent_size, virt);
 	virt += 4;
-	num_header_extents_at_front = cpu_to_be16(num_header_extents_at_front);
-	memcpy(virt, &num_header_extents_at_front, 2);
+	put_unaligned_be16(num_header_extents_at_front, virt);
 	(*written) = 6;
 }
 
@@ -1410,15 +1409,13 @@ static int parse_header_metadata(struct ecryptfs_crypt_stat *crypt_stat,
 	u32 header_extent_size;
 	u16 num_header_extents_at_front;
 
-	memcpy(&header_extent_size, virt, sizeof(u32));
-	header_extent_size = be32_to_cpu(header_extent_size);
-	virt += sizeof(u32);
-	memcpy(&num_header_extents_at_front, virt, sizeof(u16));
-	num_header_extents_at_front = be16_to_cpu(num_header_extents_at_front);
+	header_extent_size = get_unaligned_be32(virt);
+	virt += sizeof(__be32);
+	num_header_extents_at_front = get_unaligned_be16(virt);
 	crypt_stat->num_header_bytes_at_front =
 		(((size_t)num_header_extents_at_front
 		  * (size_t)header_extent_size));
-	(*bytes_read) = (sizeof(u32) + sizeof(u16));
+	(*bytes_read) = (sizeof(__be32) + sizeof(__be16));
 	if ((validate_header_size == ECRYPTFS_VALIDATE_HEADER_SIZE)
 	    && (crypt_stat->num_header_bytes_at_front
 		< ECRYPTFS_MINIMUM_HEADER_EXTENT_SIZE)) {

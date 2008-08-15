@@ -231,7 +231,7 @@ static ssize_t iwl_dbgfs_stations_read(struct file *file, char __user *user_buf,
 	DECLARE_MAC_BUF(mac);
 
 	buf = kmalloc(bufsz, GFP_KERNEL);
-	if(!buf)
+	if (!buf)
 		return -ENOMEM;
 
 	pos += scnprintf(buf + pos, bufsz - pos, "num of stations: %d\n\n",
@@ -364,16 +364,19 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 {
 	struct iwl_debugfs *dbgfs;
 	struct dentry *phyd = priv->hw->wiphy->debugfsdir;
+	int ret = 0;
 
 	dbgfs = kzalloc(sizeof(struct iwl_debugfs), GFP_KERNEL);
 	if (!dbgfs) {
+		ret = -ENOMEM;
 		goto err;
 	}
 
 	priv->dbgfs = dbgfs;
 	dbgfs->name = name;
 	dbgfs->dir_drv = debugfs_create_dir(name, phyd);
-	if (!dbgfs->dir_drv || IS_ERR(dbgfs->dir_drv)){
+	if (!dbgfs->dir_drv || IS_ERR(dbgfs->dir_drv)) {
+		ret = -ENOENT;
 		goto err;
 	}
 
@@ -394,7 +397,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 err:
 	IWL_ERROR("Can't open the debugfs directory\n");
 	iwl_dbgfs_unregister(priv);
-	return -ENOENT;
+	return ret;
 }
 EXPORT_SYMBOL(iwl_dbgfs_register);
 
@@ -404,7 +407,7 @@ EXPORT_SYMBOL(iwl_dbgfs_register);
  */
 void iwl_dbgfs_unregister(struct iwl_priv *priv)
 {
-	if (!(priv->dbgfs))
+	if (!priv->dbgfs)
 		return;
 
 	DEBUGFS_REMOVE(priv->dbgfs->dbgfs_data_files.file_eeprom);

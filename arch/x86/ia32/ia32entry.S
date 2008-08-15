@@ -201,7 +201,7 @@ sysexit_from_sys_call:
 	movl RDI-ARGOFFSET(%rsp),%r8d	/* reload 5th syscall arg */
 	.endm
 
-	.macro auditsys_exit exit
+	.macro auditsys_exit exit,ebpsave=RBP
 	testl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),TI_flags(%r10)
 	jnz int_ret_from_sys_call
 	TRACE_IRQS_ON
@@ -214,7 +214,7 @@ sysexit_from_sys_call:
 	call audit_syscall_exit
 	GET_THREAD_INFO(%r10)
 	movl RAX-ARGOFFSET(%rsp),%eax	/* reload syscall return value */
-	movl RBP-ARGOFFSET(%rsp),%ebp	/* reload user register value */
+	movl \ebpsave-ARGOFFSET(%rsp),%ebp /* reload user register value */
 	movl $(_TIF_ALLWORK_MASK & ~_TIF_SYSCALL_AUDIT),%edi
 	cli
 	TRACE_IRQS_OFF
@@ -347,7 +347,7 @@ cstar_auditsys:
 	jmp cstar_dispatch
 
 sysretl_audit:
-	auditsys_exit sysretl_from_sys_call
+	auditsys_exit sysretl_from_sys_call, RCX /* user %ebp in RCX slot */
 #endif
 
 cstar_tracesys:
@@ -826,4 +826,10 @@ ia32_sys_call_table:
 	.quad sys32_fallocate
 	.quad compat_sys_timerfd_settime	/* 325 */
 	.quad compat_sys_timerfd_gettime
+	.quad compat_sys_signalfd4
+	.quad sys_eventfd2
+	.quad sys_epoll_create1
+	.quad sys_dup3			/* 330 */
+	.quad sys_pipe2
+	.quad sys_inotify_init1
 ia32_syscall_end:

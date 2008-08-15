@@ -21,12 +21,11 @@ pc300-y				:= pc300_drv.o
 pc300-$(CONFIG_PC300_MLPPP)	+= pc300_tty.o
 pc300-objs			:= $(pc300-y)
 
-obj-$(CONFIG_HOSTESS_SV11)	+= z85230.o	syncppp.o	hostess_sv11.o
-obj-$(CONFIG_SEALEVEL_4021)	+= z85230.o	syncppp.o	sealevel.o
-obj-$(CONFIG_COSA)		+=		syncppp.o	cosa.o
-obj-$(CONFIG_FARSYNC)		+=		syncppp.o	farsync.o
-obj-$(CONFIG_DSCC4)             +=				dscc4.o
-obj-$(CONFIG_LANMEDIA)		+=		syncppp.o
+obj-$(CONFIG_HOSTESS_SV11)	+= z85230.o	hostess_sv11.o
+obj-$(CONFIG_SEALEVEL_4021)	+= z85230.o	sealevel.o
+obj-$(CONFIG_COSA)		+= cosa.o
+obj-$(CONFIG_FARSYNC)		+= farsync.o
+obj-$(CONFIG_DSCC4)             += dscc4.o
 obj-$(CONFIG_X25_ASY)		+= x25_asy.o
 
 obj-$(CONFIG_LANMEDIA)		+= lmc/

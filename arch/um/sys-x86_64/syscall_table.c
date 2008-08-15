@@ -41,12 +41,12 @@
 #define stub_rt_sigreturn sys_rt_sigreturn
 
 #define __SYSCALL(nr, sym) extern asmlinkage void sym(void) ;
-#undef _ASM_X86_64_UNISTD_H_
+#undef ASM_X86__UNISTD_64_H
 #include <asm-x86/unistd_64.h>
 
 #undef __SYSCALL
 #define __SYSCALL(nr, sym) [ nr ] = sym,
-#undef _ASM_X86_64_UNISTD_H_
+#undef ASM_X86__UNISTD_64_H
 
 typedef void (*sys_call_ptr_t)(void);
 

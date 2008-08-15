@@ -436,7 +436,12 @@ post_reset; the USB core guarantees that this is true of internal
 suspend/resume events as well.
 
 If a driver wants to block all suspend/resume calls during some
-critical section, it can simply acquire udev->pm_mutex.
+critical section, it can simply acquire udev->pm_mutex. Note that
+calls to resume may be triggered indirectly. Block IO due to memory
+allocations can make the vm subsystem resume a device. Thus while
+holding this lock you must not allocate memory with GFP_KERNEL or
+GFP_NOFS.
+
 Alternatively, if the critical section might call some of the
 usb_autopm_* routines, the driver can avoid deadlock by doing:
 

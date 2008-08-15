@@ -2867,7 +2867,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			nesqp->hwqp.qp_id, attr->qp_state, nesqp->ibqp_state,
 			nesqp->iwarp_state, atomic_read(&nesqp->refcount));
 
-	nes_add_ref(&nesqp->ibqp);
 	spin_lock_irqsave(&nesqp->lock, qplockflags);
 
 	nes_debug(NES_DBG_MOD_QP, "QP%u: hw_iwarp_state=0x%X, hw_tcp_state=0x%X,"
@@ -2882,7 +2881,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state > (u32)NES_CQP_QP_IWARP_STATE_IDLE) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return -EINVAL;
 				}
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_IDLE;
@@ -2893,7 +2891,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state>(u32)NES_CQP_QP_IWARP_STATE_IDLE) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return -EINVAL;
 				}
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_IDLE;
@@ -2904,14 +2901,12 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state>(u32)NES_CQP_QP_IWARP_STATE_RTS) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return -EINVAL;
 				}
 				if (nesqp->cm_id == NULL) {
 					nes_debug(NES_DBG_MOD_QP, "QP%u: Failing attempt to move QP to RTS without a CM_ID. \n",
 							nesqp->hwqp.qp_id );
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return -EINVAL;
 				}
 				next_iwarp_state = NES_CQP_QP_IWARP_STATE_RTS;
@@ -2929,7 +2924,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hwqp.qp_id, nesqp->hwqp.sq_head, nesqp->hwqp.sq_tail);
 				if (nesqp->iwarp_state == (u32)NES_CQP_QP_IWARP_STATE_CLOSING) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return 0;
 				} else {
 					if (nesqp->iwarp_state > (u32)NES_CQP_QP_IWARP_STATE_CLOSING) {
@@ -2937,7 +2931,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 								" ignored due to current iWARP state\n",
 								nesqp->hwqp.qp_id);
 						spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-						nes_rem_ref(&nesqp->ibqp);
 						return -EINVAL;
 					}
 					if (nesqp->hw_iwarp_state != NES_AEQE_IWARP_STATE_RTS) {
@@ -2969,7 +2962,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 						nesqp->hwqp.qp_id);
 				if (nesqp->iwarp_state>=(u32)NES_CQP_QP_IWARP_STATE_TERMINATE) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return -EINVAL;
 				}
 				/* next_iwarp_state = (NES_CQP_QP_IWARP_STATE_TERMINATE | 0x02000000); */
@@ -2982,7 +2974,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 			case IB_QPS_RESET:
 				if (nesqp->iwarp_state == (u32)NES_CQP_QP_IWARP_STATE_ERROR) {
 					spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-					nes_rem_ref(&nesqp->ibqp);
 					return -EINVAL;
 				}
 				nes_debug(NES_DBG_MOD_QP, "QP%u: new state = error\n",
@@ -3008,7 +2999,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				break;
 			default:
 				spin_unlock_irqrestore(&nesqp->lock, qplockflags);
-				nes_rem_ref(&nesqp->ibqp);
 				return -EINVAL;
 				break;
 		}
@@ -3088,7 +3078,6 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 							nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 							original_last_aeq, nesqp->last_aeq);
 					/* this one is for the cm_disconnect thread */
-					nes_add_ref(&nesqp->ibqp);
 					spin_lock_irqsave(&nesqp->lock, qplockflags);
 					nesqp->hw_tcp_state = NES_AEQE_TCP_STATE_CLOSED;
 					nesqp->last_aeq = NES_AEQE_AEID_RESET_SENT;
@@ -3097,14 +3086,12 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 				} else {
 					nes_debug(NES_DBG_MOD_QP, "QP%u No fake disconnect, QP refcount=%d\n",
 							nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount));
-					nes_rem_ref(&nesqp->ibqp);
 				}
 			} else {
 				spin_lock_irqsave(&nesqp->lock, qplockflags);
 				if (nesqp->cm_id) {
 					/* These two are for the timer thread */
 					if (atomic_inc_return(&nesqp->close_timer_started) == 1) {
-						nes_add_ref(&nesqp->ibqp);
 						nesqp->cm_id->add_ref(nesqp->cm_id);
 						nes_debug(NES_DBG_MOD_QP, "QP%u Not decrementing QP refcount (%d),"
 								" need ae to finish up, original_last_aeq = 0x%04X."
@@ -3128,14 +3115,12 @@ int nes_modify_qp(struct ib_qp *ibqp, struct ib_qp_attr *attr,
 					" original_last_aeq = 0x%04X. last_aeq = 0x%04X.\n",
 					nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 					original_last_aeq, nesqp->last_aeq);
-			nes_rem_ref(&nesqp->ibqp);
 		}
 	} else {
 		nes_debug(NES_DBG_MOD_QP, "QP%u Decrementing QP refcount (%d), No ae to finish up,"
 				" original_last_aeq = 0x%04X. last_aeq = 0x%04X.\n",
 				nesqp->hwqp.qp_id, atomic_read(&nesqp->refcount),
 				original_last_aeq, nesqp->last_aeq);
-		nes_rem_ref(&nesqp->ibqp);
 	}
 
 	err = 0;

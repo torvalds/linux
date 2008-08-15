@@ -314,6 +314,76 @@ static int pseries_set_xdabr(unsigned long dabr)
 			H_DABRX_KERNEL | H_DABRX_USER);
 }
 
+#define CMO_CHARACTERISTICS_TOKEN 44
+#define CMO_MAXLENGTH 1026
+
+/**
+ * fw_cmo_feature_init - FW_FEATURE_CMO is not stored in ibm,hypertas-functions,
+ * handle that here. (Stolen from parse_system_parameter_string)
+ */
+void pSeries_cmo_feature_init(void)
+{
+	char *ptr, *key, *value, *end;
+	int call_status;
+	int PrPSP = -1;
+	int SecPSP = -1;
+
+	pr_debug(" -> fw_cmo_feature_init()\n");
+	spin_lock(&rtas_data_buf_lock);
+	memset(rtas_data_buf, 0, RTAS_DATA_BUF_SIZE);
+	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+				NULL,
+				CMO_CHARACTERISTICS_TOKEN,
+				__pa(rtas_data_buf),
+				RTAS_DATA_BUF_SIZE);
+
+	if (call_status != 0) {
+		spin_unlock(&rtas_data_buf_lock);
+		pr_debug("CMO not available\n");
+		pr_debug(" <- fw_cmo_feature_init()\n");
+		return;
+	}
+
+	end = rtas_data_buf + CMO_MAXLENGTH - 2;
+	ptr = rtas_data_buf + 2;	/* step over strlen value */
+	key = value = ptr;
+
+	while (*ptr && (ptr <= end)) {
+		/* Separate the key and value by replacing '=' with '\0' and
+		 * point the value at the string after the '='
+		 */
+		if (ptr[0] == '=') {
+			ptr[0] = '\0';
+			value = ptr + 1;
+		} else if (ptr[0] == '\0' || ptr[0] == ',') {
+			/* Terminate the string containing the key/value pair */
+			ptr[0] = '\0';
+
+			if (key == value) {
+				pr_debug("Malformed key/value pair\n");
+				/* Never found a '=', end processing */
+				break;
+			}
+
+			if (0 == strcmp(key, "PrPSP"))
+				PrPSP = simple_strtol(value, NULL, 10);
+			else if (0 == strcmp(key, "SecPSP"))
+				SecPSP = simple_strtol(value, NULL, 10);
+			value = key = ptr + 1;
+		}
+		ptr++;
+	}
+
+	if (PrPSP != -1 || SecPSP != -1) {
+		pr_info("CMO enabled\n");
+		pr_debug("CMO enabled, PrPSP=%d, SecPSP=%d\n", PrPSP, SecPSP);
+		powerpc_firmware_features |= FW_FEATURE_CMO;
+	} else
+		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", PrPSP, SecPSP);
+	spin_unlock(&rtas_data_buf_lock);
+	pr_debug(" <- fw_cmo_feature_init()\n");
+}
+
 /*
  * Early initialization.  Relocation is on but do not reference unbolted pages
  */
@@ -329,6 +399,7 @@ static void __init pSeries_init_early(void)
 	else if (firmware_has_feature(FW_FEATURE_XDABR))
 		ppc_md.set_dabr = pseries_set_xdabr;
 
+	pSeries_cmo_feature_init();
 	iommu_init_early_pSeries();
 
 	pr_debug(" <- pSeries_init_early()\n");

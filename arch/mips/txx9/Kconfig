@@ -1,3 +1,27 @@
+config MACH_TX39XX
+	bool
+	select MACH_TXX9
+	select SYS_HAS_CPU_TX39XX
+
+config MACH_TX49XX
+	bool
+	select MACH_TXX9
+	select CEVT_R4K
+	select CSRC_R4K
+	select IRQ_CPU
+	select SYS_HAS_CPU_TX49XX
+	select SYS_SUPPORTS_64BIT_KERNEL
+
+config MACH_TXX9
+	bool
+	select DMA_NONCOHERENT
+	select SWAP_IO_SPACE
+	select SYS_HAS_EARLY_PRINTK
+	select SYS_SUPPORTS_32BIT_KERNEL
+	select SYS_SUPPORTS_LITTLE_ENDIAN
+	select SYS_SUPPORTS_BIG_ENDIAN
+	select GENERIC_HARDIRQS_NO__DO_IRQ
+
 config TOSHIBA_JMR3927
 	bool "Toshiba JMR-TX3927 board"
 	depends on MACH_TX39XX
@@ -24,68 +48,37 @@ config TOSHIBA_RBTX4938
 config SOC_TX3927
 	bool
 	select CEVT_TXX9
-	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
 	select IRQ_TXX9
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_TX39XX
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GPIO_TXX9
 
 config SOC_TX4927
 	bool
-	select CEVT_R4K
-	select CSRC_R4K
 	select CEVT_TXX9
-	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
-	select IRQ_CPU
 	select IRQ_TXX9
 	select PCI_TX4927
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_TX49XX
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GPIO_TXX9
 
 config SOC_TX4938
 	bool
-	select CEVT_R4K
-	select CSRC_R4K
 	select CEVT_TXX9
-	select DMA_NONCOHERENT
 	select HAS_TXX9_SERIAL
 	select HW_HAS_PCI
-	select IRQ_CPU
 	select IRQ_TXX9
 	select PCI_TX4927
-	select SWAP_IO_SPACE
-	select SYS_HAS_CPU_TX49XX
-	select SYS_SUPPORTS_32BIT_KERNEL
-	select SYS_SUPPORTS_64BIT_KERNEL
-	select SYS_SUPPORTS_LITTLE_ENDIAN
-	select SYS_SUPPORTS_BIG_ENDIAN
-	select SYS_SUPPORTS_KGDB
-	select GENERIC_HARDIRQS_NO__DO_IRQ
 	select GPIO_TXX9
 
 config TOSHIBA_FPCIB0
 	bool "FPCIB0 Backplane Support"
-	depends on PCI && (MACH_TX39XX || MACH_TX49XX)
+	depends on PCI && MACH_TXX9
 	select I8259
 
 config PICMG_PCI_BACKPLANE_DEFAULT
 	bool "Support for PICMG PCI Backplane"
-	depends on PCI && (MACH_TX39XX || MACH_TX49XX)
+	depends on PCI && MACH_TXX9
 	default y if !TOSHIBA_FPCIB0
 
 if TOSHIBA_RBTX4938

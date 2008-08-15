@@ -18,7 +18,7 @@
 #include <asm/memory.h>
 #include <asm/glue.h>
 #include <asm/vfpmacros.h>
-#include <asm/arch/entry-macro.S>
+#include <mach/entry-macro.S>
 #include <asm/thread_notify.h>
 
 #include "entry-header.S"

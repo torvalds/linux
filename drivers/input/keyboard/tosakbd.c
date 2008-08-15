@@ -19,8 +19,8 @@
 #include <linux/delay.h>
 #include <linux/interrupt.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/tosa.h>
+#include <mach/gpio.h>
+#include <mach/tosa.h>
 
 #define KB_ROWMASK(r)		(1 << (r))
 #define SCANCODE(r, c)		(((r)<<4) + (c) + 1)

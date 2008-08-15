@@ -8,8 +8,8 @@
  * Copyright (C) 1998 Ingo Molnar
  */
 
-#ifndef _ASM_FIXMAP_64_H
-#define _ASM_FIXMAP_64_H
+#ifndef ASM_X86__FIXMAP_64_H
+#define ASM_X86__FIXMAP_64_H
 
 #include <linux/kernel.h>
 #include <asm/acpi.h>
@@ -80,4 +80,4 @@ enum fixed_addresses {
 #define FIXADDR_USER_START	((unsigned long)VSYSCALL32_VSYSCALL)
 #define FIXADDR_USER_END	(FIXADDR_USER_START + PAGE_SIZE)
 
-#endif
+#endif /* ASM_X86__FIXMAP_64_H */

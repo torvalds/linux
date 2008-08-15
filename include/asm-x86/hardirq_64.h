@@ -1,5 +1,5 @@
-#ifndef __ASM_HARDIRQ_H
-#define __ASM_HARDIRQ_H
+#ifndef ASM_X86__HARDIRQ_64_H
+#define ASM_X86__HARDIRQ_64_H
 
 #include <linux/threads.h>
 #include <linux/irq.h>
@@ -20,4 +20,4 @@
 
 extern void ack_bad_irq(unsigned int irq);
 
-#endif /* __ASM_HARDIRQ_H */
+#endif /* ASM_X86__HARDIRQ_64_H */

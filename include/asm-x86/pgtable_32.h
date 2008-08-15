@@ -1,5 +1,5 @@
-#ifndef _I386_PGTABLE_H
-#define _I386_PGTABLE_H
+#ifndef ASM_X86__PGTABLE_32_H
+#define ASM_X86__PGTABLE_32_H
 
 
 /*
@@ -31,6 +31,7 @@ static inline void pgtable_cache_init(void) { }
 static inline void check_pgt_cache(void) { }
 void paging_init(void);
 
+extern void set_pmd_pfn(unsigned long, unsigned long, pgprot_t);
 
 /*
  * The Linux x86 paging architecture is 'compile-time dual-mode', it
@@ -186,4 +187,4 @@ do {						\
 #define io_remap_pfn_range(vma, vaddr, pfn, size, prot)	\
 	remap_pfn_range(vma, vaddr, pfn, size, prot)
 
-#endif /* _I386_PGTABLE_H */
+#endif /* ASM_X86__PGTABLE_32_H */

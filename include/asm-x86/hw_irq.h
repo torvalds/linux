@@ -1,5 +1,5 @@
-#ifndef _ASM_HW_IRQ_H
-#define _ASM_HW_IRQ_H
+#ifndef ASM_X86__HW_IRQ_H
+#define ASM_X86__HW_IRQ_H
 
 /*
  * (C) 1992, 1993 Linus Torvalds, (C) 1997 Ingo Molnar
@@ -72,7 +72,9 @@ extern void enable_IO_APIC(void);
 #endif
 
 /* IPI functions */
+#ifdef CONFIG_X86_32
 extern void send_IPI_self(int vector);
+#endif
 extern void send_IPI(int dest, int vector);
 
 /* Statistics */
@@ -92,15 +94,43 @@ extern asmlinkage void qic_reschedule_interrupt(void);
 extern asmlinkage void qic_enable_irq_interrupt(void);
 extern asmlinkage void qic_call_function_interrupt(void);
 
+/* SMP */
+extern void smp_apic_timer_interrupt(struct pt_regs *);
+#ifdef CONFIG_X86_32
+extern void smp_spurious_interrupt(struct pt_regs *);
+extern void smp_error_interrupt(struct pt_regs *);
+#else
+extern asmlinkage void smp_spurious_interrupt(void);
+extern asmlinkage void smp_error_interrupt(void);
+#endif
+#ifdef CONFIG_X86_SMP
+extern void smp_reschedule_interrupt(struct pt_regs *);
+extern void smp_call_function_interrupt(struct pt_regs *);
+extern void smp_call_function_single_interrupt(struct pt_regs *);
+#ifdef CONFIG_X86_32
+extern void smp_invalidate_interrupt(struct pt_regs *);
+#else
+extern asmlinkage void smp_invalidate_interrupt(struct pt_regs *);
+#endif
+#endif
+
 #ifdef CONFIG_X86_32
 extern void (*const interrupt[NR_IRQS])(void);
 #else
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
-extern spinlock_t vector_lock;
 #endif
-extern void setup_vector_irq(int cpu);
+
+#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_X86_64)
+extern void lock_vector_lock(void);
+extern void unlock_vector_lock(void);
+extern void __setup_vector_irq(int cpu);
+#else
+static inline void lock_vector_lock(void) {}
+static inline void unlock_vector_lock(void) {}
+static inline void __setup_vector_irq(int cpu) {}
+#endif
 
 #endif /* !ASSEMBLY_ */
 
-#endif
+#endif /* ASM_X86__HW_IRQ_H */

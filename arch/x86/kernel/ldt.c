@@ -18,6 +18,7 @@
 #include <asm/ldt.h>
 #include <asm/desc.h>
 #include <asm/mmu_context.h>
+#include <asm/syscalls.h>
 
 #ifdef CONFIG_SMP
 static void flush_ldt(void *current_mm)
@@ -62,12 +63,10 @@ static int alloc_ldt(mm_context_t *pc, int mincount, int reload)
 
 	if (reload) {
 #ifdef CONFIG_SMP
-		cpumask_of_cpu_ptr_declare(mask);
-
 		preempt_disable();
 		load_LDT(pc);
-		cpumask_of_cpu_ptr_next(mask, smp_processor_id());
-		if (!cpus_equal(current->mm->cpu_vm_mask, *mask))
+		if (!cpus_equal(current->mm->cpu_vm_mask,
+				cpumask_of_cpu(smp_processor_id())))
 			smp_call_function(flush_ldt, current->mm, 1);
 		preempt_enable();
 #else

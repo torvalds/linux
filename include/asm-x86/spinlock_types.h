@@ -1,5 +1,5 @@
-#ifndef __ASM_SPINLOCK_TYPES_H
-#define __ASM_SPINLOCK_TYPES_H
+#ifndef ASM_X86__SPINLOCK_TYPES_H
+#define ASM_X86__SPINLOCK_TYPES_H
 
 #ifndef __LINUX_SPINLOCK_TYPES_H
 # error "please don't include this file directly"
@@ -17,4 +17,4 @@ typedef struct {
 
 #define __RAW_RW_LOCK_UNLOCKED		{ RW_LOCK_BIAS }
 
-#endif
+#endif /* ASM_X86__SPINLOCK_TYPES_H */

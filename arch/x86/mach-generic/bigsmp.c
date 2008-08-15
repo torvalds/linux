@@ -5,18 +5,17 @@
 #define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <asm/smp.h>
 #include <asm/mpspec.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <linux/kernel.h>
-#include <linux/smp.h>
 #include <linux/init.h>
 #include <linux/dmi.h>
-#include <asm/mach-bigsmp/mach_apic.h>
-#include <asm/mach-bigsmp/mach_apicdef.h>
-#include <asm/mach-bigsmp/mach_ipi.h>
+#include <asm/bigsmp/apicdef.h>
+#include <linux/smp.h>
+#include <asm/bigsmp/apic.h>
+#include <asm/bigsmp/ipi.h>
 #include <asm/mach-default/mach_mpparse.h>
 
 static int dmi_bigsmp; /* can be set by dmi scanners */

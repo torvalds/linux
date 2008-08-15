@@ -64,7 +64,8 @@ static struct resource rb532_dev3_ctl_res[] = {
 
 void set_434_reg(unsigned reg_offs, unsigned bit, unsigned len, unsigned val)
 {
-	unsigned flags, data;
+	unsigned long flags;
+	unsigned data;
 	unsigned i = 0;
 
 	spin_lock_irqsave(&dev3.lock, flags);
@@ -90,7 +91,7 @@ EXPORT_SYMBOL(get_434_reg);
 
 void set_latch_u5(unsigned char or_mask, unsigned char nand_mask)
 {
-	unsigned flags;
+	unsigned long flags;
 
 	spin_lock_irqsave(&dev3.lock, flags);
 

@@ -1747,7 +1747,7 @@ st_map_user_pages(struct scatterlist *sgl, const unsigned int max_pages,
                  */
 		flush_dcache_page(pages[i]);
 		/* ?? Is locking needed? I don't think so */
-		/* if (TestSetPageLocked(pages[i]))
+		/* if (!trylock_page(pages[i]))
 		   goto out_unlock; */
         }
 

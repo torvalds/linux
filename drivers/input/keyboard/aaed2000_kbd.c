@@ -20,8 +20,8 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 
-#include <asm/arch/hardware.h>
-#include <asm/arch/aaed2000.h>
+#include <mach/hardware.h>
+#include <mach/aaed2000.h>
 
 #define KB_ROWS			12
 #define KB_COLS			8

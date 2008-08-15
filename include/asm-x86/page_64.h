@@ -1,5 +1,5 @@
-#ifndef _X86_64_PAGE_H
-#define _X86_64_PAGE_H
+#ifndef ASM_X86__PAGE_64_H
+#define ASM_X86__PAGE_64_H
 
 #define PAGETABLE_LEVELS	4
 
@@ -91,6 +91,7 @@ extern unsigned long init_memory_mapping(unsigned long start,
 					 unsigned long end);
 
 extern void initmem_init(unsigned long start_pfn, unsigned long end_pfn);
+extern void free_initmem(void);
 
 extern void init_extra_mapping_uc(unsigned long phys, unsigned long size);
 extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
@@ -102,4 +103,4 @@ extern void init_extra_mapping_wb(unsigned long phys, unsigned long size);
 #endif
 
 
-#endif /* _X86_64_PAGE_H */
+#endif /* ASM_X86__PAGE_64_H */

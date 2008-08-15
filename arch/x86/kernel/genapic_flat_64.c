@@ -15,9 +15,20 @@
 #include <linux/kernel.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
+#include <linux/hardirq.h>
 #include <asm/smp.h>
 #include <asm/ipi.h>
 #include <asm/genapic.h>
+#include <mach_apicdef.h>
+
+#ifdef CONFIG_ACPI
+#include <acpi/acpi_bus.h>
+#endif
+
+static int __init flat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+	return 1;
+}
 
 static cpumask_t flat_target_cpus(void)
 {
@@ -95,9 +106,33 @@ static void flat_send_IPI_all(int vector)
 		__send_IPI_shortcut(APIC_DEST_ALLINC, vector, APIC_DEST_LOGICAL);
 }
 
+static unsigned int get_apic_id(unsigned long x)
+{
+	unsigned int id;
+
+	id = (((x)>>24) & 0xFFu);
+	return id;
+}
+
+static unsigned long set_apic_id(unsigned int id)
+{
+	unsigned long x;
+
+	x = ((id & 0xFFu)<<24);
+	return x;
+}
+
+static unsigned int read_xapic_id(void)
+{
+	unsigned int id;
+
+	id = get_apic_id(apic_read(APIC_ID));
+	return id;
+}
+
 static int flat_apic_id_registered(void)
 {
-	return physid_isset(GET_APIC_ID(read_apic_id()), phys_cpu_present_map);
+	return physid_isset(read_xapic_id(), phys_cpu_present_map);
 }
 
 static unsigned int flat_cpu_mask_to_apicid(cpumask_t cpumask)
@@ -112,6 +147,7 @@ static unsigned int phys_pkg_id(int index_msb)
 
 struct genapic apic_flat =  {
 	.name = "flat",
+	.acpi_madt_oem_check = flat_acpi_madt_oem_check,
 	.int_delivery_mode = dest_LowestPrio,
 	.int_dest_mode = (APIC_DEST_LOGICAL != 0),
 	.target_cpus = flat_target_cpus,
@@ -121,8 +157,12 @@ struct genapic apic_flat =  {
 	.send_IPI_all = flat_send_IPI_all,
 	.send_IPI_allbutself = flat_send_IPI_allbutself,
 	.send_IPI_mask = flat_send_IPI_mask,
+	.send_IPI_self = apic_send_IPI_self,
 	.cpu_mask_to_apicid = flat_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,
+	.get_apic_id = get_apic_id,
+	.set_apic_id = set_apic_id,
+	.apic_id_mask = (0xFFu<<24),
 };
 
 /*
@@ -130,6 +170,21 @@ struct genapic apic_flat =  {
  * We cannot use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */
+static int __init physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
+{
+#ifdef CONFIG_ACPI
+	/*
+	 * Quirk: some x86_64 machines can only use physical APIC mode
+	 * regardless of how many processors are present (x86_64 ES7000
+	 * is an example).
+	 */
+	if (acpi_gbl_FADT.header.revision > FADT2_REVISION_ID &&
+		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL))
+		return 1;
+#endif
+
+	return 0;
+}
 
 static cpumask_t physflat_target_cpus(void)
 {
@@ -176,6 +231,7 @@ static unsigned int physflat_cpu_mask_to_apicid(cpumask_t cpumask)
 
 struct genapic apic_physflat =  {
 	.name = "physical flat",
+	.acpi_madt_oem_check = physflat_acpi_madt_oem_check,
 	.int_delivery_mode = dest_Fixed,
 	.int_dest_mode = (APIC_DEST_PHYSICAL != 0),
 	.target_cpus = physflat_target_cpus,
@@ -185,6 +241,10 @@ struct genapic apic_physflat =  {
 	.send_IPI_all = physflat_send_IPI_all,
 	.send_IPI_allbutself = physflat_send_IPI_allbutself,
 	.send_IPI_mask = physflat_send_IPI_mask,
+	.send_IPI_self = apic_send_IPI_self,
 	.cpu_mask_to_apicid = physflat_cpu_mask_to_apicid,
 	.phys_pkg_id = phys_pkg_id,
+	.get_apic_id = get_apic_id,
+	.set_apic_id = set_apic_id,
+	.apic_id_mask = (0xFFu<<24),
 };

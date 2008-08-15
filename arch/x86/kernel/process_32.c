@@ -55,6 +55,8 @@
 #include <asm/tlbflush.h>
 #include <asm/cpu.h>
 #include <asm/kdebug.h>
+#include <asm/syscalls.h>
+#include <asm/smp.h>
 
 asmlinkage void ret_from_fork(void) __asm__("ret_from_fork");
 
@@ -128,7 +130,7 @@ void cpu_idle(void)
 
 	/* endless idle loop with no priority at all */
 	while (1) {
-		tick_nohz_stop_sched_tick();
+		tick_nohz_stop_sched_tick(1);
 		while (!need_resched()) {
 
 			check_pgt_cache();

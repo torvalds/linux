@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PAGE_H
-#define _ASM_X86_PAGE_H
+#ifndef ASM_X86__PAGE_H
+#define ASM_X86__PAGE_H
 
 #include <linux/const.h>
 
@@ -32,8 +32,7 @@
 #define HPAGE_MASK		(~(HPAGE_SIZE - 1))
 #define HUGETLB_PAGE_ORDER	(HPAGE_SHIFT - PAGE_SHIFT)
 
-/* to align the pointer to the (next) page boundary */
-#define PAGE_ALIGN(addr)	(((addr)+PAGE_SIZE-1)&PAGE_MASK)
+#define HUGE_MAX_HSTATE 2
 
 #ifndef __ASSEMBLY__
 #include <linux/types.h>
@@ -200,4 +199,4 @@ static inline pteval_t native_pte_flags(pte_t pte)
 #define __HAVE_ARCH_GATE_AREA 1
 
 #endif	/* __KERNEL__ */
-#endif	/* _ASM_X86_PAGE_H */
+#endif /* ASM_X86__PAGE_H */

@@ -39,9 +39,9 @@
 #include <linux/stat.h>
 #include <linux/ioctl.h>
 #include <linux/capability.h>
+#include <linux/uaccess.h>
 #include <linux/smp_lock.h>
 #include <mtd/ubi-user.h>
-#include <asm/uaccess.h>
 #include <asm/div64.h>
 #include "ubi.h"
 
@@ -116,7 +116,7 @@ static int vol_cdev_open(struct inode *inode, struct file *file)
 	else
 		mode = UBI_READONLY;
 
-	dbg_msg("open volume %d, mode %d", vol_id, mode);
+	dbg_gen("open volume %d, mode %d", vol_id, mode);
 
 	desc = ubi_open_volume(ubi_num, vol_id, mode);
 	unlock_kernel();
@@ -132,7 +132,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 	struct ubi_volume_desc *desc = file->private_data;
 	struct ubi_volume *vol = desc->vol;
 
-	dbg_msg("release volume %d, mode %d", vol->vol_id, desc->mode);
+	dbg_gen("release volume %d, mode %d", vol->vol_id, desc->mode);
 
 	if (vol->updating) {
 		ubi_warn("update of volume %d not finished, volume is damaged",
@@ -141,7 +141,7 @@ static int vol_cdev_release(struct inode *inode, struct file *file)
 		vol->updating = 0;
 		vfree(vol->upd_buf);
 	} else if (vol->changing_leb) {
-		dbg_msg("only %lld of %lld bytes received for atomic LEB change"
+		dbg_gen("only %lld of %lld bytes received for atomic LEB change"
 			" for volume %d:%d, cancel", vol->upd_received,
 			vol->upd_bytes, vol->ubi->ubi_num, vol->vol_id);
 		vol->changing_leb = 0;
@@ -183,7 +183,7 @@ static loff_t vol_cdev_llseek(struct file *file, loff_t offset, int origin)
 		return -EINVAL;
 	}
 
-	dbg_msg("seek volume %d, offset %lld, origin %d, new offset %lld",
+	dbg_gen("seek volume %d, offset %lld, origin %d, new offset %lld",
 		vol->vol_id, offset, origin, new_offset);
 
 	file->f_pos = new_offset;
@@ -201,7 +201,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 	void *tbuf;
 	uint64_t tmp;
 
-	dbg_msg("read %zd bytes from offset %lld of volume %d",
+	dbg_gen("read %zd bytes from offset %lld of volume %d",
 		count, *offp, vol->vol_id);
 
 	if (vol->updating) {
@@ -216,7 +216,7 @@ static ssize_t vol_cdev_read(struct file *file, __user char *buf, size_t count,
 		return 0;
 
 	if (vol->corrupted)
-		dbg_msg("read from corrupted volume %d", vol->vol_id);
+		dbg_gen("read from corrupted volume %d", vol->vol_id);
 
 	if (*offp + count > vol->used_bytes)
 		count_save = count = vol->used_bytes - *offp;
@@ -285,7 +285,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	char *tbuf;
 	uint64_t tmp;
 
-	dbg_msg("requested: write %zd bytes to offset %lld of volume %u",
+	dbg_gen("requested: write %zd bytes to offset %lld of volume %u",
 		count, *offp, vol->vol_id);
 
 	if (vol->vol_type == UBI_STATIC_VOLUME)
@@ -295,7 +295,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 	off = do_div(tmp, vol->usable_leb_size);
 	lnum = tmp;
 
-	if (off % ubi->min_io_size) {
+	if (off & (ubi->min_io_size - 1)) {
 		dbg_err("unaligned position");
 		return -EINVAL;
 	}
@@ -304,7 +304,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 		count_save = count = vol->used_bytes - *offp;
 
 	/* We can write only in fractions of the minimum I/O unit */
-	if (count % ubi->min_io_size) {
+	if (count & (ubi->min_io_size - 1)) {
 		dbg_err("unaligned write length");
 		return -EINVAL;
 	}
@@ -352,7 +352,7 @@ static ssize_t vol_cdev_direct_write(struct file *file, const char __user *buf,
 }
 
 #else
-#define vol_cdev_direct_write(file, buf, count, offp) -EPERM
+#define vol_cdev_direct_write(file, buf, count, offp) (-EPERM)
 #endif /* CONFIG_MTD_UBI_DEBUG_USERSPACE_IO */
 
 static ssize_t vol_cdev_write(struct file *file, const char __user *buf,
@@ -437,7 +437,8 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		rsvd_bytes = vol->reserved_pebs * (ubi->leb_size-vol->data_pad);
+		rsvd_bytes = (long long)vol->reserved_pebs *
+					ubi->leb_size-vol->data_pad;
 		if (bytes < 0 || bytes > rsvd_bytes) {
 			err = -EINVAL;
 			break;
@@ -513,7 +514,7 @@ static int vol_cdev_ioctl(struct inode *inode, struct file *file,
 			break;
 		}
 
-		dbg_msg("erase LEB %d:%d", vol->vol_id, lnum);
+		dbg_gen("erase LEB %d:%d", vol->vol_id, lnum);
 		err = ubi_eba_unmap_leb(ubi, vol, lnum);
 		if (err)
 			break;
@@ -564,7 +565,7 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 	if (req->alignment > ubi->leb_size)
 		goto bad;
 
-	n = req->alignment % ubi->min_io_size;
+	n = req->alignment & (ubi->min_io_size - 1);
 	if (req->alignment != 1 && n)
 		goto bad;
 
@@ -572,6 +573,10 @@ static int verify_mkvol_req(const struct ubi_device *ubi,
 		err = -ENAMETOOLONG;
 		goto bad;
 	}
+
+	n = strnlen(req->name, req->name_len + 1);
+	if (n != req->name_len)
+		goto bad;
 
 	return 0;
 
@@ -600,6 +605,166 @@ static int verify_rsvol_req(const struct ubi_device *ubi,
 	return 0;
 }
 
+/**
+ * rename_volumes - rename UBI volumes.
+ * @ubi: UBI device description object
+ * @req: volumes re-name request
+ *
+ * This is a helper function for the volume re-name IOCTL which validates the
+ * the request, opens the volume and calls corresponding volumes management
+ * function. Returns zero in case of success and a negative error code in case
+ * of failure.
+ */
+static int rename_volumes(struct ubi_device *ubi,
+			  struct ubi_rnvol_req *req)
+{
+	int i, n, err;
+	struct list_head rename_list;
+	struct ubi_rename_entry *re, *re1;
+
+	if (req->count < 0 || req->count > UBI_MAX_RNVOL)
+		return -EINVAL;
+
+	if (req->count == 0)
+		return 0;
+
+	/* Validate volume IDs and names in the request */
+	for (i = 0; i < req->count; i++) {
+		if (req->ents[i].vol_id < 0 ||
+		    req->ents[i].vol_id >= ubi->vtbl_slots)
+			return -EINVAL;
+		if (req->ents[i].name_len < 0)
+			return -EINVAL;
+		if (req->ents[i].name_len > UBI_VOL_NAME_MAX)
+			return -ENAMETOOLONG;
+		req->ents[i].name[req->ents[i].name_len] = '\0';
+		n = strlen(req->ents[i].name);
+		if (n != req->ents[i].name_len)
+			err = -EINVAL;
+	}
+
+	/* Make sure volume IDs and names are unique */
+	for (i = 0; i < req->count - 1; i++) {
+		for (n = i + 1; n < req->count; n++) {
+			if (req->ents[i].vol_id == req->ents[n].vol_id) {
+				dbg_err("duplicated volume id %d",
+					req->ents[i].vol_id);
+				return -EINVAL;
+			}
+			if (!strcmp(req->ents[i].name, req->ents[n].name)) {
+				dbg_err("duplicated volume name \"%s\"",
+					req->ents[i].name);
+				return -EINVAL;
+			}
+		}
+	}
+
+	/* Create the re-name list */
+	INIT_LIST_HEAD(&rename_list);
+	for (i = 0; i < req->count; i++) {
+		int vol_id = req->ents[i].vol_id;
+		int name_len = req->ents[i].name_len;
+		const char *name = req->ents[i].name;
+
+		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		if (!re) {
+			err = -ENOMEM;
+			goto out_free;
+		}
+
+		re->desc = ubi_open_volume(ubi->ubi_num, vol_id, UBI_EXCLUSIVE);
+		if (IS_ERR(re->desc)) {
+			err = PTR_ERR(re->desc);
+			dbg_err("cannot open volume %d, error %d", vol_id, err);
+			kfree(re);
+			goto out_free;
+		}
+
+		/* Skip this re-naming if the name does not really change */
+		if (re->desc->vol->name_len == name_len &&
+		    !memcmp(re->desc->vol->name, name, name_len)) {
+			ubi_close_volume(re->desc);
+			kfree(re);
+			continue;
+		}
+
+		re->new_name_len = name_len;
+		memcpy(re->new_name, name, name_len);
+		list_add_tail(&re->list, &rename_list);
+		dbg_msg("will rename volume %d from \"%s\" to \"%s\"",
+			vol_id, re->desc->vol->name, name);
+	}
+
+	if (list_empty(&rename_list))
+		return 0;
+
+	/* Find out the volumes which have to be removed */
+	list_for_each_entry(re, &rename_list, list) {
+		struct ubi_volume_desc *desc;
+		int no_remove_needed = 0;
+
+		/*
+		 * Volume @re->vol_id is going to be re-named to
+		 * @re->new_name, while its current name is @name. If a volume
+		 * with name @re->new_name currently exists, it has to be
+		 * removed, unless it is also re-named in the request (@req).
+		 */
+		list_for_each_entry(re1, &rename_list, list) {
+			if (re->new_name_len == re1->desc->vol->name_len &&
+			    !memcmp(re->new_name, re1->desc->vol->name,
+				    re1->desc->vol->name_len)) {
+				no_remove_needed = 1;
+				break;
+			}
+		}
+
+		if (no_remove_needed)
+			continue;
+
+		/*
+		 * It seems we need to remove volume with name @re->new_name,
+		 * if it exists.
+		 */
+		desc = ubi_open_volume_nm(ubi->ubi_num, re->new_name, UBI_EXCLUSIVE);
+		if (IS_ERR(desc)) {
+			err = PTR_ERR(desc);
+			if (err == -ENODEV)
+				/* Re-naming into a non-existing volume name */
+				continue;
+
+			/* The volume exists but busy, or an error occurred */
+			dbg_err("cannot open volume \"%s\", error %d",
+				re->new_name, err);
+			goto out_free;
+		}
+
+		re = kzalloc(sizeof(struct ubi_rename_entry), GFP_KERNEL);
+		if (!re) {
+			err = -ENOMEM;
+			ubi_close_volume(desc);
+			goto out_free;
+		}
+
+		re->remove = 1;
+		re->desc = desc;
+		list_add(&re->list, &rename_list);
+		dbg_msg("will remove volume %d, name \"%s\"",
+			re->desc->vol->vol_id, re->desc->vol->name);
+	}
+
+	mutex_lock(&ubi->volumes_mutex);
+	err = ubi_rename_volumes(ubi, &rename_list);
+	mutex_unlock(&ubi->volumes_mutex);
+
+out_free:
+	list_for_each_entry_safe(re, re1, &rename_list, list) {
+		ubi_close_volume(re->desc);
+		list_del(&re->list);
+		kfree(re);
+	}
+	return err;
+}
+
 static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 			  unsigned int cmd, unsigned long arg)
 {
@@ -621,18 +786,17 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		struct ubi_mkvol_req req;
 
-		dbg_msg("create volume");
+		dbg_gen("create volume");
 		err = copy_from_user(&req, argp, sizeof(struct ubi_mkvol_req));
 		if (err) {
 			err = -EFAULT;
 			break;
 		}
 
+		req.name[req.name_len] = '\0';
 		err = verify_mkvol_req(ubi, &req);
 		if (err)
 			break;
-
-		req.name[req.name_len] = '\0';
 
 		mutex_lock(&ubi->volumes_mutex);
 		err = ubi_create_volume(ubi, &req);
@@ -652,7 +816,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		int vol_id;
 
-		dbg_msg("remove volume");
+		dbg_gen("remove volume");
 		err = get_user(vol_id, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;
@@ -666,7 +830,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		}
 
 		mutex_lock(&ubi->volumes_mutex);
-		err = ubi_remove_volume(desc);
+		err = ubi_remove_volume(desc, 0);
 		mutex_unlock(&ubi->volumes_mutex);
 
 		/*
@@ -685,7 +849,7 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		uint64_t tmp;
 		struct ubi_rsvol_req req;
 
-		dbg_msg("re-size volume");
+		dbg_gen("re-size volume");
 		err = copy_from_user(&req, argp, sizeof(struct ubi_rsvol_req));
 		if (err) {
 			err = -EFAULT;
@@ -710,6 +874,32 @@ static int ubi_cdev_ioctl(struct inode *inode, struct file *file,
 		err = ubi_resize_volume(desc, pebs);
 		mutex_unlock(&ubi->volumes_mutex);
 		ubi_close_volume(desc);
+		break;
+	}
+
+	/* Re-name volumes command */
+	case UBI_IOCRNVOL:
+	{
+		struct ubi_rnvol_req *req;
+
+		dbg_msg("re-name volumes");
+		req = kmalloc(sizeof(struct ubi_rnvol_req), GFP_KERNEL);
+		if (!req) {
+			err = -ENOMEM;
+			break;
+		};
+
+		err = copy_from_user(req, argp, sizeof(struct ubi_rnvol_req));
+		if (err) {
+			err = -EFAULT;
+			kfree(req);
+			break;
+		}
+
+		mutex_lock(&ubi->mult_mutex);
+		err = rename_volumes(ubi, req);
+		mutex_unlock(&ubi->mult_mutex);
+		kfree(req);
 		break;
 	}
 
@@ -738,7 +928,7 @@ static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
 		struct ubi_attach_req req;
 		struct mtd_info *mtd;
 
-		dbg_msg("attach MTD device");
+		dbg_gen("attach MTD device");
 		err = copy_from_user(&req, argp, sizeof(struct ubi_attach_req));
 		if (err) {
 			err = -EFAULT;
@@ -778,7 +968,7 @@ static int ctrl_cdev_ioctl(struct inode *inode, struct file *file,
 	{
 		int ubi_num;
 
-		dbg_msg("dettach MTD device");
+		dbg_gen("dettach MTD device");
 		err = get_user(ubi_num, (__user int32_t *)argp);
 		if (err) {
 			err = -EFAULT;

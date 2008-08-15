@@ -1,5 +1,5 @@
-#ifndef _ASM_IO_H
-#define _ASM_IO_H
+#ifndef ASM_X86__IO_32_H
+#define ASM_X86__IO_32_H
 
 #include <linux/string.h>
 #include <linux/compiler.h>
@@ -110,6 +110,8 @@ static inline void *phys_to_virt(unsigned long address)
  */
 extern void __iomem *ioremap_nocache(resource_size_t offset, unsigned long size);
 extern void __iomem *ioremap_cache(resource_size_t offset, unsigned long size);
+extern void __iomem *ioremap_prot(resource_size_t offset, unsigned long size,
+				unsigned long prot_val);
 
 /*
  * The default ioremap() behavior is non-cached:
@@ -279,4 +281,4 @@ BUILDIO(b, b, char)
 BUILDIO(w, w, short)
 BUILDIO(l, , int)
 
-#endif
+#endif /* ASM_X86__IO_32_H */

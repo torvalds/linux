@@ -30,6 +30,7 @@
 #include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/mm.h>
 #include <linux/fb.h>
 #include <linux/delay.h>
 #include <linux/init.h>
@@ -40,17 +41,18 @@
 #include <linux/clk.h>
 #include <linux/err.h>
 #include <linux/completion.h>
+#include <linux/mutex.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/bitfield.h>
-#include <asm/arch/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/bitfield.h>
+#include <mach/pxafb.h>
 
 /*
  * Complain if VAR is out of range.
@@ -1116,7 +1118,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 {
 	u_int old_state;
 
-	down(&fbi->ctrlr_sem);
+	mutex_lock(&fbi->ctrlr_lock);
 
 	old_state = fbi->state;
 
@@ -1204,7 +1206,7 @@ static void set_ctrlr_state(struct pxafb_info *fbi, u_int state)
 		}
 		break;
 	}
-	up(&fbi->ctrlr_sem);
+	mutex_unlock(&fbi->ctrlr_lock);
 }
 
 /*
@@ -1334,7 +1336,7 @@ static int __devinit pxafb_map_video_memory(struct pxafb_info *fbi)
 		fbi->dma_buff_phys = fbi->map_dma;
 		fbi->palette_cpu = (u16 *) fbi->dma_buff->palette;
 
-	        pr_debug("pxafb: palette_mem_size = 0x%08lx\n", fbi->palette_size*sizeof(u16));
+	        pr_debug("pxafb: palette_mem_size = 0x%08x\n", fbi->palette_size*sizeof(u16));
 
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 		fbi->smart_cmds = (uint16_t *) fbi->dma_buff->cmd_buff;
@@ -1457,7 +1459,7 @@ static struct pxafb_info * __devinit pxafb_init_fbinfo(struct device *dev)
 
 	init_waitqueue_head(&fbi->ctrlr_wait);
 	INIT_WORK(&fbi->task, pxafb_task);
-	init_MUTEX(&fbi->ctrlr_sem);
+	mutex_init(&fbi->ctrlr_lock);
 	init_completion(&fbi->disable_done);
 #ifdef CONFIG_FB_PXA_SMARTPANEL
 	init_completion(&fbi->command_done);

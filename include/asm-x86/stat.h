@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_STAT_H
-#define _ASM_X86_STAT_H
+#ifndef ASM_X86__STAT_H
+#define ASM_X86__STAT_H
 
 #define STAT_HAVE_NSEC 1
 
@@ -111,4 +111,4 @@ struct __old_kernel_stat {
 #endif
 };
 
-#endif
+#endif /* ASM_X86__STAT_H */

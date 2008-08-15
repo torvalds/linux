@@ -4,20 +4,19 @@
 #define APIC_DEFINITION 1
 #include <linux/threads.h>
 #include <linux/cpumask.h>
-#include <asm/smp.h>
 #include <asm/mpspec.h>
 #include <asm/genapic.h>
 #include <asm/fixmap.h>
 #include <asm/apicdef.h>
 #include <linux/kernel.h>
 #include <linux/string.h>
-#include <linux/smp.h>
 #include <linux/init.h>
-#include <asm/mach-es7000/mach_apicdef.h>
-#include <asm/mach-es7000/mach_apic.h>
-#include <asm/mach-es7000/mach_ipi.h>
-#include <asm/mach-es7000/mach_mpparse.h>
-#include <asm/mach-es7000/mach_wakecpu.h>
+#include <asm/es7000/apicdef.h>
+#include <linux/smp.h>
+#include <asm/es7000/apic.h>
+#include <asm/es7000/ipi.h>
+#include <asm/es7000/mpparse.h>
+#include <asm/es7000/wakecpu.h>
 
 static int probe_es7000(void)
 {

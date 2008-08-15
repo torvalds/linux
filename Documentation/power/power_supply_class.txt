@@ -101,6 +101,10 @@ of charge when battery became full/empty". It also could mean "value of
 charge when battery considered full/empty at given conditions (temperature,
 age)". I.e. these attributes represents real thresholds, not design values.
 
+CHARGE_COUNTER - the current charge counter (in µAh).  This could easily
+be negative; there is no empty or full value.  It is only useful for
+relative, time-based measurements.
+
 ENERGY_FULL, ENERGY_EMPTY - same as above but for energy.
 
 CAPACITY - capacity in percents.

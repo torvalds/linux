@@ -1,5 +1,5 @@
-#ifndef _ASM_NOPS_H
-#define _ASM_NOPS_H 1
+#ifndef ASM_X86__NOPS_H
+#define ASM_X86__NOPS_H
 
 /* Define nops for use with alternative() */
 
@@ -115,4 +115,4 @@
 
 #define ASM_NOP_MAX 8
 
-#endif
+#endif /* ASM_X86__NOPS_H */

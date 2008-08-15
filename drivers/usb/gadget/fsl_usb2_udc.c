@@ -1538,7 +1538,7 @@ static void dtd_complete_irq(struct fsl_udc *udc)
 
 		/* If the ep is configured */
 		if (curr_ep->name == NULL) {
-			WARN("Invalid EP?");
+			WARNING("Invalid EP?");
 			continue;
 		}
 

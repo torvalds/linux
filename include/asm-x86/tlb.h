@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_TLB_H
-#define _ASM_X86_TLB_H
+#ifndef ASM_X86__TLB_H
+#define ASM_X86__TLB_H
 
 #define tlb_start_vma(tlb, vma) do { } while (0)
 #define tlb_end_vma(tlb, vma) do { } while (0)
@@ -8,4 +8,4 @@
 
 #include <asm-generic/tlb.h>
 
-#endif
+#endif /* ASM_X86__TLB_H */

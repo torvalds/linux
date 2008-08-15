@@ -127,7 +127,7 @@ static int __init gayle_init(void)
     unsigned long phys_base, res_start, res_n;
     unsigned long base, ctrlport, irqport;
     ide_ack_intr_t *ack_intr;
-    int a4000, i;
+    int a4000, i, rc;
     hw_regs_t hw[GAYLE_NUM_HWIFS], *hws[] = { NULL, NULL, NULL, NULL };
 
     if (!MACH_IS_AMIGA)
@@ -179,7 +179,11 @@ found:
 	hws[i] = &hw[i];
     }
 
-    return ide_host_add(NULL, hws, NULL);
+    rc = ide_host_add(NULL, hws, NULL);
+    if (rc)
+	release_mem_region(res_start, res_n);
+
+    return rc;
 }
 
 module_init(gayle_init);

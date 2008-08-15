@@ -543,7 +543,7 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	orb->response_bus =
 		dma_map_single(device->card->device, &orb->response,
 			       sizeof(orb->response), DMA_FROM_DEVICE);
-	if (dma_mapping_error(orb->response_bus))
+	if (dma_mapping_error(device->card->device, orb->response_bus))
 		goto fail_mapping_response;
 
 	orb->request.response.high = 0;
@@ -577,7 +577,7 @@ sbp2_send_management_orb(struct sbp2_logical_unit *lu, int node_id,
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof(orb->request), DMA_TO_DEVICE);
-	if (dma_mapping_error(orb->base.request_bus))
+	if (dma_mapping_error(device->card->device, orb->base.request_bus))
 		goto fail_mapping_request;
 
 	sbp2_send_orb(&orb->base, lu, node_id, generation,
@@ -1424,7 +1424,7 @@ sbp2_map_scatterlist(struct sbp2_command_orb *orb, struct fw_device *device,
 	orb->page_table_bus =
 		dma_map_single(device->card->device, orb->page_table,
 			       sizeof(orb->page_table), DMA_TO_DEVICE);
-	if (dma_mapping_error(orb->page_table_bus))
+	if (dma_mapping_error(device->card->device, orb->page_table_bus))
 		goto fail_page_table;
 
 	/*
@@ -1509,7 +1509,7 @@ static int sbp2_scsi_queuecommand(struct scsi_cmnd *cmd, scsi_done_fn_t done)
 	orb->base.request_bus =
 		dma_map_single(device->card->device, &orb->request,
 			       sizeof(orb->request), DMA_TO_DEVICE);
-	if (dma_mapping_error(orb->base.request_bus))
+	if (dma_mapping_error(device->card->device, orb->base.request_bus))
 		goto out;
 
 	sbp2_send_orb(&orb->base, lu, lu->tgt->node_id, lu->generation,

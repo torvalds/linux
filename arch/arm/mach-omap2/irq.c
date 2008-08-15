@@ -13,7 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/irq.h>
 #include <asm/io.h>

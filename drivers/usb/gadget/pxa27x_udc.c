@@ -33,13 +33,13 @@
 #include <linux/irq.h>
 
 #include <asm/byteorder.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include <linux/usb.h>
 #include <linux/usb/ch9.h>
 #include <linux/usb/gadget.h>
-#include <asm/arch/pxa2xx-regs.h> /* FIXME: for PSSR */
-#include <asm/arch/udc.h>
+#include <mach/pxa2xx-regs.h> /* FIXME: for PSSR */
+#include <mach/udc.h>
 
 #include "pxa27x_udc.h"
 

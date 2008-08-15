@@ -942,22 +942,6 @@ config SERIAL_IP22_ZILOG_CONSOLE
 	depends on SERIAL_IP22_ZILOG=y
 	select SERIAL_CORE_CONSOLE
 
-config V850E_UART
-	bool "NEC V850E on-chip UART support"
-	depends on V850E_MA1 || V850E_ME2 || V850E_TEG || V850E2_ANNA || V850E_AS85EP1
-	select SERIAL_CORE
-	default y
-
-config V850E_UARTB
-        bool
-	depends on V850E_UART && V850E_ME2
-	default y
-
-config V850E_UART_CONSOLE
-	bool "Use NEC V850E on-chip UART for console"
-	depends on V850E_UART
-	select SERIAL_CORE_CONSOLE
-
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
 	depends on SUPERH || H8300

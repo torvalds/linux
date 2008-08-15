@@ -11,6 +11,8 @@
 
 #ifdef __KERNEL__
 
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
 #include <asm/processor.h>

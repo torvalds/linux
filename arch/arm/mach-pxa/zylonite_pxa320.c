@@ -17,9 +17,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mfp-pxa320.h>
-#include <asm/arch/zylonite.h>
+#include <mach/gpio.h>
+#include <mach/mfp-pxa320.h>
+#include <mach/zylonite.h>
 
 #include "generic.h"
 

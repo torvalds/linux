@@ -147,7 +147,7 @@ static void dart_flush(struct iommu_table *tbl)
 	}
 }
 
-static void dart_build(struct iommu_table *tbl, long index,
+static int dart_build(struct iommu_table *tbl, long index,
 		       long npages, unsigned long uaddr,
 		       enum dma_data_direction direction,
 		       struct dma_attrs *attrs)
@@ -184,6 +184,7 @@ static void dart_build(struct iommu_table *tbl, long index,
 	} else {
 		dart_dirty = 1;
 	}
+	return 0;
 }
 
 

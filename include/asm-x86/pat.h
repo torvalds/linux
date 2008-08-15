@@ -1,5 +1,5 @@
-#ifndef _ASM_PAT_H
-#define _ASM_PAT_H
+#ifndef ASM_X86__PAT_H
+#define ASM_X86__PAT_H
 
 #include <linux/types.h>
 
@@ -19,4 +19,4 @@ extern int free_memtype(u64 start, u64 end);
 
 extern void pat_disable(char *reason);
 
-#endif
+#endif /* ASM_X86__PAT_H */

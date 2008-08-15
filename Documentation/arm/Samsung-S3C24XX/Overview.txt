@@ -36,7 +36,7 @@ Layout
   in arch/arm/mach-s3c2410 and S3C2440 in arch/arm/mach-s3c2440
 
   Register, kernel and platform data definitions are held in the
-  include/asm-arm/arch-s3c2410 directory.
+  arch/arm/mach-s3c2410 directory./include/mach
 
 
 Machines

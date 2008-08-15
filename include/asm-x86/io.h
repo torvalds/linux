@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_IO_H
-#define _ASM_X86_IO_H
+#ifndef ASM_X86__IO_H
+#define ASM_X86__IO_H
 
 #define ARCH_HAS_IOREMAP_WC
 
@@ -73,6 +73,8 @@ build_mmio_write(__writeq, "q", unsigned long, "r", )
 #define writeq writeq
 #endif
 
+extern int iommu_bio_merge;
+
 #ifdef CONFIG_X86_32
 # include "io_32.h"
 #else
@@ -99,4 +101,4 @@ extern void early_iounmap(void *addr, unsigned long size);
 extern void __iomem *fix_ioremap(unsigned idx, unsigned long phys);
 
 
-#endif /* _ASM_X86_IO_H */
+#endif /* ASM_X86__IO_H */

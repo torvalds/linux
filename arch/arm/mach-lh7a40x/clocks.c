@@ -9,8 +9,8 @@
  */
 
 #include <linux/cpufreq.h>
-#include <asm/hardware.h>
-#include <asm/arch/clocks.h>
+#include <mach/hardware.h>
+#include <mach/clocks.h>
 #include <linux/err.h>
 
 struct module;

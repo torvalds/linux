@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SERIAL_H
-#define _ASM_X86_SERIAL_H
+#ifndef ASM_X86__SERIAL_H
+#define ASM_X86__SERIAL_H
 
 /*
  * This assumes you have a 1.8432 MHz clock for your UART.
@@ -26,4 +26,4 @@
 	{ 0, BASE_BAUD, 0x3E8, 4, STD_COM_FLAGS },	/* ttyS2 */	\
 	{ 0, BASE_BAUD, 0x2E8, 3, STD_COM4_FLAGS },	/* ttyS3 */
 
-#endif /* _ASM_X86_SERIAL_H */
+#endif /* ASM_X86__SERIAL_H */

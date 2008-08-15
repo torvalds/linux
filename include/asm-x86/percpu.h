@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PERCPU_H_
-#define _ASM_X86_PERCPU_H_
+#ifndef ASM_X86__PERCPU_H
+#define ASM_X86__PERCPU_H
 
 #ifdef CONFIG_X86_64
 #include <linux/compiler.h>
@@ -215,4 +215,4 @@ do {							\
 
 #endif	/* !CONFIG_SMP */
 
-#endif /* _ASM_X86_PERCPU_H_ */
+#endif /* ASM_X86__PERCPU_H */

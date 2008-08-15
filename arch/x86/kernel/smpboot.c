@@ -88,7 +88,7 @@ static DEFINE_PER_CPU(struct task_struct *, idle_thread_array);
 #define get_idle_for_cpu(x)      (per_cpu(idle_thread_array, x))
 #define set_idle_for_cpu(x, p)   (per_cpu(idle_thread_array, x) = (p))
 #else
-struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
+static struct task_struct *idle_thread_array[NR_CPUS] __cpuinitdata ;
 #define get_idle_for_cpu(x)      (idle_thread_array[(x)])
 #define set_idle_for_cpu(x, p)   (idle_thread_array[(x)] = (p))
 #endif
@@ -123,13 +123,12 @@ EXPORT_PER_CPU_SYMBOL(cpu_info);
 
 static atomic_t init_deasserted;
 
-static int boot_cpu_logical_apicid;
 
 /* representing cpus for which sibling maps can be computed */
 static cpumask_t cpu_sibling_setup_map;
 
 /* Set if we find a B stepping CPU */
-int __cpuinitdata smp_b_stepping;
+static int __cpuinitdata smp_b_stepping;
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_32)
 
@@ -165,6 +164,8 @@ static void unmap_cpu_to_node(int cpu)
 #endif
 
 #ifdef CONFIG_X86_32
+static int boot_cpu_logical_apicid;
+
 u8 cpu_2_logical_apicid[NR_CPUS] __read_mostly =
 					{ [0 ... NR_CPUS-1] = BAD_APICID };
 
@@ -210,7 +211,7 @@ static void __cpuinit smp_callin(void)
 	/*
 	 * (This works even if the APIC is not enabled.)
 	 */
-	phys_id = GET_APIC_ID(read_apic_id());
+	phys_id = read_apic_id();
 	cpuid = smp_processor_id();
 	if (cpu_isset(cpuid, cpu_callin_map)) {
 		panic("%s: phys CPU#%d, CPU#%d already present??\n", __func__,
@@ -326,12 +327,16 @@ static void __cpuinit start_secondary(void *unused)
 	 * for which cpus receive the IPI. Holding this
 	 * lock helps us to not include this cpu in a currently in progress
 	 * smp_call_function().
+	 *
+	 * We need to hold vector_lock so there the set of online cpus
+	 * does not change while we are assigning vectors to cpus.  Holding
+	 * this lock ensures we don't half assign or remove an irq from a cpu.
 	 */
 	ipi_call_lock_irq();
-#ifdef CONFIG_X86_IO_APIC
-	setup_vector_irq(smp_processor_id());
-#endif
+	lock_vector_lock();
+	__setup_vector_irq(smp_processor_id());
 	cpu_set(smp_processor_id(), cpu_online_map);
+	unlock_vector_lock();
 	ipi_call_unlock_irq();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
@@ -546,8 +551,7 @@ static inline void __inquire_remote_apic(int apicid)
 			printk(KERN_CONT
 			       "a previous APIC delivery may have failed\n");
 
-		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(apicid));
-		apic_write(APIC_ICR, APIC_DM_REMRD | regs[i]);
+		apic_icr_write(APIC_DM_REMRD | regs[i], apicid);
 
 		timeout = 0;
 		do {
@@ -579,11 +583,9 @@ wakeup_secondary_cpu(int logical_apicid, unsigned long start_eip)
 	int maxlvt;
 
 	/* Target chip */
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(logical_apicid));
-
 	/* Boot on the stack */
 	/* Kick the second */
-	apic_write(APIC_ICR, APIC_DM_NMI | APIC_DEST_LOGICAL);
+	apic_icr_write(APIC_DM_NMI | APIC_DEST_LOGICAL, logical_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -636,13 +638,11 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	/*
 	 * Turn INIT on target chip
 	 */
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
-
 	/*
 	 * Send IPI
 	 */
-	apic_write(APIC_ICR,
-		   APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT);
+	apic_icr_write(APIC_INT_LEVELTRIG | APIC_INT_ASSERT | APIC_DM_INIT,
+		       phys_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -652,10 +652,8 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 	pr_debug("Deasserting INIT.\n");
 
 	/* Target chip */
-	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
-
 	/* Send IPI */
-	apic_write(APIC_ICR, APIC_INT_LEVELTRIG | APIC_DM_INIT);
+	apic_icr_write(APIC_INT_LEVELTRIG | APIC_DM_INIT, phys_apicid);
 
 	pr_debug("Waiting for send to finish...\n");
 	send_status = safe_apic_wait_icr_idle();
@@ -698,11 +696,10 @@ wakeup_secondary_cpu(int phys_apicid, unsigned long start_eip)
 		 */
 
 		/* Target chip */
-		apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(phys_apicid));
-
 		/* Boot on the stack */
 		/* Kick the second */
-		apic_write(APIC_ICR, APIC_DM_STARTUP | (start_eip >> 12));
+		apic_icr_write(APIC_DM_STARTUP | (start_eip >> 12),
+			       phys_apicid);
 
 		/*
 		 * Give the other CPU some time to accept the IPI.
@@ -990,7 +987,17 @@ int __cpuinit native_cpu_up(unsigned int cpu)
 	flush_tlb_all();
 	low_mappings = 1;
 
+#ifdef CONFIG_X86_PC
+	if (def_to_bigsmp && apicid > 8) {
+		printk(KERN_WARNING
+			"More than 8 CPUs detected - skipping them.\n"
+			"Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+		err = -1;
+	} else
+		err = do_boot_cpu(apicid, cpu);
+#else
 	err = do_boot_cpu(apicid, cpu);
+#endif
 
 	zap_low_mappings();
 	low_mappings = 0;
@@ -1136,9 +1143,16 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	 * Setup boot CPU information
 	 */
 	smp_store_cpu_info(0); /* Final full version of the data */
+#ifdef CONFIG_X86_32
 	boot_cpu_logical_apicid = logical_smp_processor_id();
+#endif
 	current_thread_info()->cpu = 0;  /* needed? */
 	set_cpu_sibling_map(0);
+
+#ifdef CONFIG_X86_64
+	enable_IR_x2apic();
+	setup_apic_routing();
+#endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");
@@ -1147,9 +1161,9 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	}
 
 	preempt_disable();
-	if (GET_APIC_ID(read_apic_id()) != boot_cpu_physical_apicid) {
+	if (read_apic_id() != boot_cpu_physical_apicid) {
 		panic("Boot APIC ID in local APIC unexpected (%d vs %d)",
-		     GET_APIC_ID(read_apic_id()), boot_cpu_physical_apicid);
+		     read_apic_id(), boot_cpu_physical_apicid);
 		/* Or can we switch back to PIC here? */
 	}
 	preempt_enable();
@@ -1336,7 +1350,9 @@ int __cpu_disable(void)
 	remove_siblinginfo(cpu);
 
 	/* It's now safe to remove this processor from the online map */
+	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
+	unlock_vector_lock();
 	fixup_irqs(cpu_online_map);
 	return 0;
 }

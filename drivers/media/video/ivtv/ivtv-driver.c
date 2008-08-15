@@ -465,9 +465,8 @@ static void ivtv_process_eeprom(struct ivtv *itv)
 	if (itv->options.radio == -1)
 		itv->options.radio = (tv.has_radio != 0);
 	/* only enable newi2c if an IR blaster is present */
-	/* FIXME: for 2.6.20 the test against 2 should be removed */
-	if (itv->options.newi2c == -1 && tv.has_ir != -1 && tv.has_ir != 2) {
-		itv->options.newi2c = (tv.has_ir & 2) ? 1 : 0;
+	if (itv->options.newi2c == -1 && tv.has_ir) {
+		itv->options.newi2c = (tv.has_ir & 4) ? 1 : 0;
 		if (itv->options.newi2c) {
 		    IVTV_INFO("Reopen i2c bus for IR-blaster support\n");
 		    exit_ivtv_i2c(itv);

@@ -29,9 +29,9 @@
 #include <sound/soc-dapm.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <linux/gpio.h>
-#include <asm/arch/mcbsp.h>
+#include <mach/mcbsp.h>
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"

@@ -13,7 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/ata_platform.h>
 #include <linux/mv643xx_eth.h>
-#include <asm/arch/mv78xx0.h>
+#include <mach/mv78xx0.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include "common.h"
