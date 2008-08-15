@@ -19,7 +19,7 @@
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/pci-bridge.h>
-#include <asm-powerpc/mpic.h>
+#include <asm/mpic.h>
 #include <asm/mpc86xx.h>
 #include <asm/cacheflush.h>
 

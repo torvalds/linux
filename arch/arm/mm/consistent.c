@@ -274,6 +274,11 @@ __dma_alloc(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp,
 void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *handle, gfp_t gfp)
 {
+	void *memory;
+
+	if (dma_alloc_from_coherent(dev, size, handle, &memory))
+		return memory;
+
 	if (arch_is_coherent()) {
 		void *virt;
 
@@ -361,6 +366,9 @@ void dma_free_coherent(struct device *dev, size_t size, void *cpu_addr, dma_addr
 	u32 off;
 
 	WARN_ON(irqs_disabled());
+
+	if (dma_release_from_coherent(dev, get_order(size), cpu_addr))
+		return;
 
 	if (arch_is_coherent()) {
 		kfree(cpu_addr);

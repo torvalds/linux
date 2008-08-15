@@ -120,7 +120,7 @@ static char ata_force_param_buf[PAGE_SIZE] __initdata;
 module_param_string(force, ata_force_param_buf, sizeof(ata_force_param_buf), 0);
 MODULE_PARM_DESC(force, "Force ATA configurations including cable type, link speed and transfer mode (see Documentation/kernel-parameters.txt for details)");
 
-int atapi_enabled = 1;
+static int atapi_enabled = 1;
 module_param(atapi_enabled, int, 0444);
 MODULE_PARM_DESC(atapi_enabled, "Enable discovery of ATAPI devices (0=off, 1=on)");
 
@@ -1132,6 +1132,8 @@ void ata_id_string(const u16 *id, unsigned char *s,
 {
 	unsigned int c;
 
+	BUG_ON(len & 1);
+
 	while (len > 0) {
 		c = id[ofs] >> 8;
 		*s = c;
@@ -1164,8 +1166,6 @@ void ata_id_c_string(const u16 *id, unsigned char *s,
 		     unsigned int ofs, unsigned int len)
 {
 	unsigned char *p;
-
-	WARN_ON(!(len & 1));
 
 	ata_id_string(id, s, ofs, len - 1);
 
@@ -1886,6 +1886,23 @@ static u32 ata_pio_mask_no_iordy(const struct ata_device *adev)
 }
 
 /**
+ *	ata_do_dev_read_id		-	default ID read method
+ *	@dev: device
+ *	@tf: proposed taskfile
+ *	@id: data buffer
+ *
+ *	Issue the identify taskfile and hand back the buffer containing
+ *	identify data. For some RAID controllers and for pre ATA devices
+ *	this function is wrapped or replaced by the driver
+ */
+unsigned int ata_do_dev_read_id(struct ata_device *dev,
+					struct ata_taskfile *tf, u16 *id)
+{
+	return ata_exec_internal(dev, tf, NULL, DMA_FROM_DEVICE,
+				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
+}
+
+/**
  *	ata_dev_read_id - Read ID data from the specified device
  *	@dev: target device
  *	@p_class: pointer to class of the target device (may be changed)
@@ -1920,7 +1937,7 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	if (ata_msg_ctl(ap))
 		ata_dev_printk(dev, KERN_DEBUG, "%s: ENTER\n", __func__);
 
- retry:
+retry:
 	ata_tf_init(dev, &tf);
 
 	switch (class) {
@@ -1948,8 +1965,11 @@ int ata_dev_read_id(struct ata_device *dev, unsigned int *p_class,
 	 */
 	tf.flags |= ATA_TFLAG_POLLING;
 
-	err_mask = ata_exec_internal(dev, &tf, NULL, DMA_FROM_DEVICE,
-				     id, sizeof(id[0]) * ATA_ID_WORDS, 0);
+	if (ap->ops->read_id)
+		err_mask = ap->ops->read_id(dev, &tf, id);
+	else
+		err_mask = ata_do_dev_read_id(dev, &tf, id);
+
 	if (err_mask) {
 		if (err_mask & AC_ERR_NODEV_HINT) {
 			ata_dev_printk(dev, KERN_DEBUG,
@@ -2138,6 +2158,16 @@ int ata_dev_configure(struct ata_device *dev)
 	if (dev->horkage & ATA_HORKAGE_DISABLE) {
 		ata_dev_printk(dev, KERN_INFO,
 			       "unsupported device, disabling\n");
+		ata_dev_disable(dev);
+		return 0;
+	}
+
+	if ((!atapi_enabled || (ap->flags & ATA_FLAG_NO_ATAPI)) &&
+	    dev->class == ATA_DEV_ATAPI) {
+		ata_dev_printk(dev, KERN_WARNING,
+			"WARNING: ATAPI is %s, device ignored.\n",
+			atapi_enabled ? "not supported with this driver"
+				      : "disabled");
 		ata_dev_disable(dev);
 		return 0;
 	}
@@ -6088,16 +6118,20 @@ static int __init ata_init(void)
 
 	ata_wq = create_workqueue("ata");
 	if (!ata_wq)
-		return -ENOMEM;
+		goto free_force_tbl;
 
 	ata_aux_wq = create_singlethread_workqueue("ata_aux");
-	if (!ata_aux_wq) {
-		destroy_workqueue(ata_wq);
-		return -ENOMEM;
-	}
+	if (!ata_aux_wq)
+		goto free_wq;
 
 	printk(KERN_DEBUG "libata version " DRV_VERSION " loaded.\n");
 	return 0;
+
+free_wq:
+	destroy_workqueue(ata_wq);
+free_force_tbl:
+	kfree(ata_force_tbl);
+	return -ENOMEM;
 }
 
 static void __exit ata_exit(void)
@@ -6269,6 +6303,7 @@ EXPORT_SYMBOL_GPL(ata_host_resume);
 #endif /* CONFIG_PM */
 EXPORT_SYMBOL_GPL(ata_id_string);
 EXPORT_SYMBOL_GPL(ata_id_c_string);
+EXPORT_SYMBOL_GPL(ata_do_dev_read_id);
 EXPORT_SYMBOL_GPL(ata_scsi_simulate);
 
 EXPORT_SYMBOL_GPL(ata_pio_need_iordy);

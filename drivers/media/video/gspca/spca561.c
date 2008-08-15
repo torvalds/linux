@@ -24,9 +24,6 @@
 
 #include "gspca.h"
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 1, 7)
-static const char version[] = "2.1.7";
-
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
 MODULE_DESCRIPTION("GSPCA/SPCA561 USB Camera Driver");
 MODULE_LICENSE("GPL");
@@ -582,35 +579,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "Bad vendor / product from device");
 		return -EINVAL;
 	}
-	switch (product) {
-	case 0x0928:
-	case 0x0929:
-	case 0x092a:
-	case 0x092b:
-	case 0x092c:
-	case 0x092d:
-	case 0x092e:
-	case 0x092f:
-	case 0x403b:
-		sd->chip_revision = Rev012A;
-		break;
-	default:
-/*	case 0x0561:
-	case 0x0815:			* ?? in spca508.c
-	case 0x401a:
-	case 0x7004:
-	case 0x7e50:
-	case 0xa001:
-	case 0xcdee: */
-		sd->chip_revision = Rev072A;
-		break;
-	}
+
 	cam = &gspca_dev->cam;
 	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x01;
 	gspca_dev->nbalt = 7 + 1;	/* choose alternate 7 first */
 	cam->cam_mode = sif_mode;
 	cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
+
+	sd->chip_revision = id->driver_info;
 	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
 	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
 	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
@@ -667,6 +644,18 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->chip_revision == Rev072A) {
+		if (sd->autogain)
+			sd->ag_cnt = AG_CNT_START;
+		else
+			sd->ag_cnt = -1;
+	}
+}
+
 static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -694,6 +683,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w_val(dev, 0x8500, mode);	/* mode */
 		reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
 		reg_w_val(dev, 0x8112, 0x10 | 0x20);
+		setautogain(gspca_dev);
 		break;
 	default:
 /*	case Rev012A: */
@@ -743,17 +733,23 @@ static void sd_close(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev->dev, 0x8114, 0);
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int expotimes = 0;
-	int pixelclk = 0;
-	int gainG = 0;
+	int expotimes;
+	int pixelclk;
+	int gainG;
 	__u8 R, Gr, Gb, B;
 	int y;
 	__u8 luma_mean = 110;
 	__u8 luma_delta = 20;
 	__u8 spring = 4;
+
+	if (sd->ag_cnt < 0)
+		return;
+	if (--sd->ag_cnt >= 0)
+		return;
+	sd->ag_cnt = AG_CNT_START;
 
 	switch (sd->chip_revision) {
 	case Rev072A:
@@ -818,18 +814,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,		/* isoc packet */
 			int len)		/* iso packet length */
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	switch (data[0]) {
 	case 0:		/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
-		if (sd->ag_cnt >= 0) {
-			if (--sd->ag_cnt < 0) {
-				sd->ag_cnt = AG_CNT_START;
-				setautogain(gspca_dev);
-			}
-		}
 		data += SPCA561_OFFSET_DATA;
 		len -= SPCA561_OFFSET_DATA;
 		if (data[1] & 0x10) {
@@ -967,10 +955,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
-	if (val)
-		sd->ag_cnt = AG_CNT_START;
-	else
-		sd->ag_cnt = -1;
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
 	return 0;
 }
 
@@ -994,26 +980,26 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */
-#define DVNM(name) .driver_info = (kernel_ulong_t) name
 static const __devinitdata struct usb_device_id device_table[] = {
-	{USB_DEVICE(0x041e, 0x401a), DVNM("Creative Webcam Vista (PD1100)")},
-	{USB_DEVICE(0x041e, 0x403b),  DVNM("Creative Webcam Vista (VF0010)")},
-	{USB_DEVICE(0x0458, 0x7004), DVNM("Genius VideoCAM Express V2")},
-	{USB_DEVICE(0x046d, 0x0928), DVNM("Logitech QC Express Etch2")},
-	{USB_DEVICE(0x046d, 0x0929), DVNM("Labtec Webcam Elch2")},
-	{USB_DEVICE(0x046d, 0x092a), DVNM("Logitech QC for Notebook")},
-	{USB_DEVICE(0x046d, 0x092b), DVNM("Labtec Webcam Plus")},
-	{USB_DEVICE(0x046d, 0x092c), DVNM("Logitech QC chat Elch2")},
-	{USB_DEVICE(0x046d, 0x092d), DVNM("Logitech QC Elch2")},
-	{USB_DEVICE(0x046d, 0x092e), DVNM("Logitech QC Elch2")},
-	{USB_DEVICE(0x046d, 0x092f), DVNM("Logitech QC Elch2")},
-	{USB_DEVICE(0x04fc, 0x0561), DVNM("Flexcam 100")},
-	{USB_DEVICE(0x060b, 0xa001), DVNM("Maxell Compact Pc PM3")},
-	{USB_DEVICE(0x10fd, 0x7e50), DVNM("FlyCam Usb 100")},
-	{USB_DEVICE(0xabcd, 0xcdee), DVNM("Petcam")},
+	{USB_DEVICE(0x041e, 0x401a), .driver_info = Rev072A},
+	{USB_DEVICE(0x041e, 0x403b), .driver_info = Rev012A},
+	{USB_DEVICE(0x0458, 0x7004), .driver_info = Rev072A},
+	{USB_DEVICE(0x046d, 0x0928), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x0929), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092a), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092b), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092c), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092d), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092e), .driver_info = Rev012A},
+	{USB_DEVICE(0x046d, 0x092f), .driver_info = Rev012A},
+	{USB_DEVICE(0x04fc, 0x0561), .driver_info = Rev072A},
+	{USB_DEVICE(0x060b, 0xa001), .driver_info = Rev072A},
+	{USB_DEVICE(0x10fd, 0x7e50), .driver_info = Rev072A},
+	{USB_DEVICE(0xabcd, 0xcdee), .driver_info = Rev072A},
 	{}
 };
 
@@ -1039,7 +1025,7 @@ static int __init sd_mod_init(void)
 {
 	if (usb_register(&sd_driver) < 0)
 		return -1;
-	PDEBUG(D_PROBE, "v%s registered", version);
+	PDEBUG(D_PROBE, "registered");
 	return 0;
 }
 static void __exit sd_mod_exit(void)

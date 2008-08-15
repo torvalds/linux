@@ -913,7 +913,8 @@ dasd_vendor_show(struct device *dev, struct device_attribute *attr, char *buf)
 static DEVICE_ATTR(vendor, 0444, dasd_vendor_show, NULL);
 
 #define UID_STRLEN ( /* vendor */ 3 + 1 + /* serial    */ 14 + 1 +\
-		     /* SSID   */ 4 + 1 + /* unit addr */ 2 + 1)
+		     /* SSID   */ 4 + 1 + /* unit addr */ 2 + 1 +\
+		     /* vduit */ 32 + 1)
 
 static ssize_t
 dasd_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -945,8 +946,17 @@ dasd_uid_show(struct device *dev, struct device_attribute *attr, char *buf)
 		sprintf(ua_string, "%02x", uid->real_unit_addr);
 		break;
 	}
-	snprintf(uid_string, sizeof(uid_string), "%s.%s.%04x.%s",
-		 uid->vendor, uid->serial, uid->ssid, ua_string);
+	if (strlen(uid->vduit) > 0)
+		snprintf(uid_string, sizeof(uid_string),
+			 "%s.%s.%04x.%s.%s",
+			 uid->vendor, uid->serial,
+			 uid->ssid, ua_string,
+			 uid->vduit);
+	else
+		snprintf(uid_string, sizeof(uid_string),
+			 "%s.%s.%04x.%s",
+			 uid->vendor, uid->serial,
+			 uid->ssid, ua_string);
 	spin_unlock(&dasd_devmap_lock);
 	return snprintf(buf, PAGE_SIZE, "%s\n", uid_string);
 }

@@ -23,13 +23,14 @@
 #include <linux/suspend.h>
 #include <linux/sysdev.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/dma.h>
+#include <mach/hardware.h>
+#include <mach/irqs.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/reset.h>
+#include <mach/pm.h>
+#include <mach/dma.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -348,6 +349,9 @@ static int __init pxa25x_init(void)
 		clks_register(&pxa25x_hwuart_clk, 1);
 
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+
+		reset_status = RCSR;
+
 		clks_register(pxa25x_clks, ARRAY_SIZE(pxa25x_clks));
 
 		if ((ret = pxa_init_dma(16)))

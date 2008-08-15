@@ -911,10 +911,10 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 		tsk->exit_signal = SIGCHLD;
 
 	signal = tracehook_notify_death(tsk, &cookie, group_dead);
-	if (signal > 0)
+	if (signal >= 0)
 		signal = do_notify_parent(tsk, signal);
 
-	tsk->exit_state = signal < 0 ? EXIT_DEAD : EXIT_ZOMBIE;
+	tsk->exit_state = signal == DEATH_REAP ? EXIT_DEAD : EXIT_ZOMBIE;
 
 	/* mt-exec, de_thread() is waiting for us */
 	if (thread_group_leader(tsk) &&
@@ -927,7 +927,7 @@ static void exit_notify(struct task_struct *tsk, int group_dead)
 	tracehook_report_death(tsk, signal, cookie, group_dead);
 
 	/* If the process is dead, release it - nobody will wait for it */
-	if (signal < 0)
+	if (signal == DEATH_REAP)
 		release_task(tsk);
 }
 

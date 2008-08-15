@@ -22,7 +22,7 @@
 #include <asm/elf.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/page.h>
 #include <asm/domain.h>
 #include <asm/setup.h>

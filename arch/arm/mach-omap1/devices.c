@@ -14,15 +14,14 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
-#include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/tc.h>
-#include <asm/arch/board.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/gpio.h>
+#include <mach/tc.h>
+#include <mach/board.h>
+#include <mach/mux.h>
+#include <mach/gpio.h>
 
 /*-------------------------------------------------------------------------*/
 

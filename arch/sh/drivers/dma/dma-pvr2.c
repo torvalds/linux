@@ -13,8 +13,8 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
-#include <asm/mach/sysasic.h>
-#include <asm/mach/dma.h>
+#include <mach/sysasic.h>
+#include <mach/dma.h>
 #include <asm/dma.h>
 #include <asm/io.h>
 

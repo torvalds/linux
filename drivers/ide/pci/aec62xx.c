@@ -160,7 +160,7 @@ static unsigned int __devinit init_chipset_aec62xx(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit atp86x_cable_detect(ide_hwif_t *hwif)
+static u8 atp86x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 ata66 = 0, mask = hwif->channel ? 0x02 : 0x01;

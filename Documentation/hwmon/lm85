@@ -96,11 +96,6 @@ initial testing of the ADM1027 it was 1.00 degC steps. Analog Devices has
 confirmed this "bug". The ADT7463 is reported to work as described in the
 documentation. The current lm85 driver does not show the offset register.
 
-The ADT7463 has a THERM asserted counter. This counter has a 22.76ms
-resolution and a range of 5.8 seconds. The driver implements a 32-bit
-accumulator of the counter value to extend the range to over a year. The
-counter will stay at it's max value until read.
-
 See the vendor datasheets for more information. There is application note
 from National (AN-1260) with some additional information about the LM85.
 The Analog Devices datasheet is very detailed and describes a procedure for
@@ -206,13 +201,15 @@ Configuration choices:
 
 The National LM85's have two vendor specific configuration
 features. Tach. mode and Spinup Control. For more details on these,
-see the LM85 datasheet or Application Note AN-1260.
+see the LM85 datasheet or Application Note AN-1260. These features
+are not currently supported by the lm85 driver.
 
 The Analog Devices ADM1027 has several vendor specific enhancements.
 The number of pulses-per-rev of the fans can be set, Tach monitoring
 can be optimized for PWM operation, and an offset can be applied to
 the temperatures to compensate for systemic errors in the
-measurements.
+measurements. These features are not currently supported by the lm85
+driver.
 
 In addition to the ADM1027 features, the ADT7463 also has Tmin control
 and THERM asserted counts. Automatic Tmin control acts to adjust the

@@ -215,6 +215,9 @@ static void reschedule_retry(r10bio_t *r10_bio)
 	conf->nr_queued ++;
 	spin_unlock_irqrestore(&conf->device_lock, flags);
 
+	/* wake up frozen array... */
+	wake_up(&conf->wait_barrier);
+
 	md_wakeup_thread(mddev->thread);
 }
 

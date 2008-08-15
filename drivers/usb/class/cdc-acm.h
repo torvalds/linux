@@ -106,8 +106,6 @@ struct acm {
 	struct list_head spare_read_bufs;
 	struct list_head filled_read_bufs;
 	int write_used;					/* number of non-empty write buffers */
-	int write_ready;				/* write urb is not running */
-	int old_ready;
 	int processing;
 	int transmitting;
 	spinlock_t write_lock;
@@ -115,6 +113,7 @@ struct acm {
 	struct usb_cdc_line_coding line;		/* bits, stop, parity */
 	struct work_struct work;			/* work queue entry for line discipline waking up */
 	struct work_struct waker;
+	wait_queue_head_t drain_wait;			/* close processing */
 	struct tasklet_struct urb_task;                 /* rx processing */
 	spinlock_t throttle_lock;			/* synchronize throtteling and read callback */
 	unsigned int ctrlin;				/* input control lines (DCD, DSR, RI, break, overruns) */

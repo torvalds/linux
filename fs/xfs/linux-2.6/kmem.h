@@ -57,8 +57,8 @@ kmem_flags_convert(unsigned int __nocast flags)
 extern void *kmem_alloc(size_t, unsigned int __nocast);
 extern void *kmem_zalloc(size_t, unsigned int __nocast);
 extern void *kmem_zalloc_greedy(size_t *, size_t, size_t, unsigned int __nocast);
-extern void *kmem_realloc(void *, size_t, size_t, unsigned int __nocast);
-extern void  kmem_free(void *, size_t);
+extern void *kmem_realloc(const void *, size_t, size_t, unsigned int __nocast);
+extern void  kmem_free(const void *);
 
 /*
  * Zone interfaces

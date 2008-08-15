@@ -1988,8 +1988,7 @@ setup_hw(struct hfc_pci *hc)
 	printk(KERN_INFO
 		"HFC-PCI: defined at mem %#lx fifo %#lx(%#lx) IRQ %d HZ %d\n",
 		(u_long) hc->hw.pci_io, (u_long) hc->hw.fifos,
-		(u_long) virt_to_bus(hc->hw.fifos),
-		hc->irq, HZ);
+		(u_long) hc->hw.dmahandle, hc->irq, HZ);
 	/* enable memory mapped ports, disable busmaster */
 	pci_write_config_word(hc->pdev, PCI_COMMAND, PCI_ENA_MEMIO);
 	hc->hw.int_m2 = 0;
@@ -2057,7 +2056,7 @@ setup_card(struct hfc_pci *card)
 	card->dch.dev.nrbchan = 2;
 	for (i = 0; i < 2; i++) {
 		card->bch[i].nr = i + 1;
-		test_and_set_bit(i + 1, &card->dch.dev.channelmap[0]);
+		set_channelmap(i + 1, card->dch.dev.channelmap);
 		card->bch[i].debug = debug;
 		mISDN_initbchannel(&card->bch[i], MAX_DATA_MEM);
 		card->bch[i].hw = card;

@@ -239,6 +239,7 @@ typedef struct xfs_fsop_resblks {
 #define XFS_FSOP_GEOM_FLAGS_LOGV2	0x0100	/* log format version 2	*/
 #define XFS_FSOP_GEOM_FLAGS_SECTOR	0x0200	/* sector sizes >1BB	*/
 #define XFS_FSOP_GEOM_FLAGS_ATTR2	0x0400	/* inline attributes rework */
+#define XFS_FSOP_GEOM_FLAGS_DIRV2CI	0x1000	/* ASCII only CI names */
 #define XFS_FSOP_GEOM_FLAGS_LAZYSB	0x4000	/* lazy superblock counters */
 
 
@@ -371,6 +372,9 @@ typedef struct xfs_fsop_attrlist_handlereq {
 
 typedef struct xfs_attr_multiop {
 	__u32		am_opcode;
+#define ATTR_OP_GET	1	/* return the indicated attr's value */
+#define ATTR_OP_SET	2	/* set/create the indicated attr/value pair */
+#define ATTR_OP_REMOVE	3	/* remove the indicated attr */
 	__s32		am_error;
 	void		__user *am_attrname;
 	void		__user *am_attrvalue;

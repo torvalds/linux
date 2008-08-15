@@ -586,10 +586,8 @@ int sctp_packet_transmit(struct sctp_packet *packet)
 	SCTP_DEBUG_PRINTK("***sctp_transmit_packet*** skb len %d\n",
 			  nskb->len);
 
-	if (tp->param_flags & SPP_PMTUD_ENABLE)
-		(*tp->af_specific->sctp_xmit)(nskb, tp, packet->ipfragok);
-	else
-		(*tp->af_specific->sctp_xmit)(nskb, tp, 1);
+	nskb->local_df = packet->ipfragok;
+	(*tp->af_specific->sctp_xmit)(nskb, tp);
 
 out:
 	packet->size = packet->overhead;

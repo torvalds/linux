@@ -41,7 +41,7 @@
 
 
 /* AMD */
-#define AM29DL800BB	0x22C8
+#define AM29DL800BB	0x22CB
 #define AM29DL800BT	0x224A
 
 #define AM29F800BB	0x2258

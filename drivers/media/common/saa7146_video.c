@@ -656,7 +656,7 @@ static int saa7146_pgtable_build(struct saa7146_dev *dev, struct saa7146_buf *bu
 
 		/* if we have a user buffer, the first page may not be
 		   aligned to a page boundary. */
-		pt1->offset = list->offset;
+		pt1->offset = dma->sglist->offset;
 		pt2->offset = pt1->offset+o1;
 		pt3->offset = pt1->offset+o2;
 
@@ -958,21 +958,18 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	case VIDIOC_ENUM_FMT:
 	{
 		struct v4l2_fmtdesc *f = arg;
-		int index;
 
 		switch (f->type) {
 		case V4L2_BUF_TYPE_VIDEO_CAPTURE:
-		case V4L2_BUF_TYPE_VIDEO_OVERLAY: {
-			index = f->index;
-			if (index < 0 || index >= NUM_FORMATS) {
+		case V4L2_BUF_TYPE_VIDEO_OVERLAY:
+			if (f->index >= NUM_FORMATS)
 				return -EINVAL;
-			}
-			memset(f,0,sizeof(*f));
-			f->index = index;
-			strlcpy((char *)f->description,formats[index].name,sizeof(f->description));
-			f->pixelformat = formats[index].pixelformat;
+			strlcpy((char *)f->description, formats[f->index].name,
+					sizeof(f->description));
+			f->pixelformat = formats[f->index].pixelformat;
+			f->flags = 0;
+			memset(f->reserved, 0, sizeof(f->reserved));
 			break;
-		}
 		default:
 			return -EINVAL;
 		}

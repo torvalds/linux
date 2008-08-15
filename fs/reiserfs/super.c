@@ -27,7 +27,6 @@
 #include <linux/mnt_namespace.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
-#include <linux/quotaops.h>
 
 struct file_system_type reiserfs_fs_type;
 
@@ -2076,8 +2075,8 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		return err;
 	/* Quotafile not on the same filesystem? */
 	if (nd.path.mnt->mnt_sb != sb) {
-		path_put(&nd.path);
-		return -EXDEV;
+		err = -EXDEV;
+		goto out;
 	}
 	inode = nd.path.dentry->d_inode;
 	/* We must not pack tails for quota files on reiserfs for quota IO to work */
@@ -2087,8 +2086,8 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 			reiserfs_warning(sb,
 				"reiserfs: Unpacking tail of quota file failed"
 				" (%d). Cannot turn on quotas.", err);
-			path_put(&nd.path);
-			return -EINVAL;
+			err = -EINVAL;
+			goto out;
 		}
 		mark_inode_dirty(inode);
 	}
@@ -2109,13 +2108,15 @@ static int reiserfs_quota_on(struct super_block *sb, int type, int format_id,
 		/* Just start temporary transaction and finish it */
 		err = journal_begin(&th, sb, 1);
 		if (err)
-			return err;
+			goto out;
 		err = journal_end_sync(&th, sb, 1);
 		if (err)
-			return err;
+			goto out;
 	}
+	err = vfs_quota_on_path(sb, type, format_id, &nd.path);
+out:
 	path_put(&nd.path);
-	return vfs_quota_on(sb, type, format_id, path, 0);
+	return err;
 }
 
 /* Read data from quotafile - avoid pagecache and such because we cannot afford

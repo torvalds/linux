@@ -24,6 +24,7 @@
 #include <linux/fs.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
+#include <linux/bug.h>
 
 #if 0
 #define DEBUGP printk
@@ -195,7 +196,7 @@ int module_finalize(const Elf_Ehdr *hdr,
 		    const Elf_Shdr *sechdrs,
 		    struct module *me)
 {
-	return 0;
+	return module_bug_finalize(hdr, sechdrs, me);
 }
 
 /*
@@ -203,4 +204,5 @@ int module_finalize(const Elf_Ehdr *hdr,
  */
 void module_arch_cleanup(struct module *mod)
 {
+	module_bug_cleanup(mod);
 }

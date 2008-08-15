@@ -22,7 +22,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/page.h>
 #include <asm/pgtable.h>
 #include <asm/sizes.h>

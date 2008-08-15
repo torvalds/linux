@@ -18,6 +18,7 @@
 #include <linux/smp.h>
 #include <linux/binfmts.h>	/* do_coredum */
 #include <linux/bitops.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
@@ -513,7 +514,7 @@ static inline void syscall_restart(unsigned long orig_i0, struct pt_regs *regs,
  * want to handle. Thus you cannot kill init even with a SIGKILL even by
  * mistake.
  */
-asmlinkage void do_signal(struct pt_regs * regs, unsigned long orig_i0)
+static void do_signal(struct pt_regs *regs, unsigned long orig_i0)
 {
 	struct k_sigaction ka;
 	int restart_syscall;
@@ -552,6 +553,8 @@ asmlinkage void do_signal(struct pt_regs * regs, unsigned long orig_i0)
 		 */
 		if (test_thread_flag(TIF_RESTORE_SIGMASK))
 			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
 		return;
 	}
 	if (restart_syscall &&
@@ -576,6 +579,17 @@ asmlinkage void do_signal(struct pt_regs * regs, unsigned long orig_i0)
 	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
 		clear_thread_flag(TIF_RESTORE_SIGMASK);
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
+}
+
+void do_notify_resume(struct pt_regs *regs, unsigned long orig_i0,
+		      unsigned long thread_info_flags)
+{
+	if (thread_info_flags & (_TIF_SIGPENDING | _TIF_RESTORE_SIGMASK))
+		do_signal(regs, orig_i0);
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
 	}
 }
 

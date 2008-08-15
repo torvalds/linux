@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation.
  *
- * The registers description starts with the regsister Access type followed
+ * The registers description starts with the register Access type followed
  * by size in bits. For example [RW 32]. The access types are:
  * R  - Read only
  * RC - Clear on read
@@ -49,7 +49,7 @@
 /* [RW 10] Write client 0: Assert pause threshold. */
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_0				 0x60068
 #define BRB1_REG_PAUSE_LOW_THRESHOLD_1				 0x6006c
-/* [R 24] The number of full blocks occpied by port. */
+/* [R 24] The number of full blocks occupied by port. */
 #define BRB1_REG_PORT_NUM_OCC_BLOCKS_0				 0x60094
 /* [RW 1] Reset the design by software. */
 #define BRB1_REG_SOFT_RESET					 0x600dc
@@ -740,6 +740,7 @@
 #define HC_REG_ATTN_MSG1_ADDR_L 				 0x108020
 #define HC_REG_ATTN_NUM_P0					 0x108038
 #define HC_REG_ATTN_NUM_P1					 0x10803c
+#define HC_REG_COMMAND_REG					 0x108180
 #define HC_REG_CONFIG_0 					 0x108000
 #define HC_REG_CONFIG_1 					 0x108004
 #define HC_REG_FUNC_NUM_P0					 0x1080ac
@@ -1372,6 +1373,23 @@
    be asserted). */
 #define MISC_REG_DRIVER_CONTROL_16				 0xa5f0
 #define MISC_REG_DRIVER_CONTROL_16_SIZE 			 2
+/* [RW 32] The following driver registers(1...16) represent 16 drivers and
+   32 clients. Each client can be controlled by one driver only. One in each
+   bit represent that this driver control the appropriate client (Ex: bit 5
+   is set means this driver control client number 5). addr1 = set; addr0 =
+   clear; read from both addresses will give the same result = status. write
+   to address 1 will set a request to control all the clients that their
+   appropriate bit (in the write command) is set. if the client is free (the
+   appropriate bit in all the other drivers is clear) one will be written to
+   that driver register; if the client isn't free the bit will remain zero.
+   if the appropriate bit is set (the driver request to gain control on a
+   client it already controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW
+   interrupt will be asserted). write to address 0 will set a request to
+   free all the clients that their appropriate bit (in the write command) is
+   set. if the appropriate bit is clear (the driver request to free a client
+   it doesn't controls the ~MISC_REGISTERS_INT_STS.GENERIC_SW interrupt will
+   be asserted). */
+#define MISC_REG_DRIVER_CONTROL_7				 0xa3c8
 /* [RW 1] e1hmf for WOL. If clr WOL signal o the PXP will be send on bit 0
    only. */
 #define MISC_REG_E1HMF_MODE					 0xa5f8
@@ -1394,13 +1412,13 @@
 #define MISC_REG_GPIO						 0xa490
 /* [R 28] this field hold the last information that caused reserved
    attention. bits [19:0] - address; [22:20] function; [23] reserved;
-   [27:24] the master thatcaused the attention - according to the following
+   [27:24] the master that caused the attention - according to the following
    encodeing:1 = pxp; 2 = mcp; 3 = usdm; 4 = tsdm; 5 = xsdm; 6 = csdm; 7 =
    dbu; 8 = dmae */
 #define MISC_REG_GRC_RSV_ATTN					 0xa3c0
 /* [R 28] this field hold the last information that caused timeout
    attention. bits [19:0] - address; [22:20] function; [23] reserved;
-   [27:24] the master thatcaused the attention - according to the following
+   [27:24] the master that caused the attention - according to the following
    encodeing:1 = pxp; 2 = mcp; 3 = usdm; 4 = tsdm; 5 = xsdm; 6 = csdm; 7 =
    dbu; 8 = dmae */
 #define MISC_REG_GRC_TIMEOUT_ATTN				 0xa3c4
@@ -1677,6 +1695,7 @@
 /* [RW 8] init credit counter for port0 in LLH */
 #define NIG_REG_LLH0_XCM_INIT_CREDIT				 0x10554
 #define NIG_REG_LLH0_XCM_MASK					 0x10130
+#define NIG_REG_LLH1_BRB1_DRV_MASK				 0x10248
 /* [RW 1] send to BRB1 if no match on any of RMP rules. */
 #define NIG_REG_LLH1_BRB1_NOT_MCP				 0x102dc
 /* [RW 2] Determine the classification participants. 0: no classification.1:
@@ -1727,6 +1746,9 @@
 /* [R 32] Rx statistics : In user packets discarded due to BRB backpressure
    for port0 */
 #define NIG_REG_STAT0_BRB_DISCARD				 0x105f0
+/* [R 32] Rx statistics : In user packets truncated due to BRB backpressure
+   for port0 */
+#define NIG_REG_STAT0_BRB_TRUNCATE				 0x105f8
 /* [WB_R 36] Tx statistics : Number of packets from emac0 or bmac0 that
    between 1024 and 1522 bytes for port0 */
 #define NIG_REG_STAT0_EGRESS_MAC_PKT0				 0x10750
@@ -2298,7 +2320,7 @@
 /* [RW 3] page size in L2P table for QM module; -4k; -8k; -16k; -32k; -64k;
    -128k */
 #define PXP2_REG_RQ_QM_P_SIZE					 0x120050
-/* [RW 1] 1' indicates that the RBC has finished configurating the PSWRQ */
+/* [RW 1] 1' indicates that the RBC has finished configuring the PSWRQ */
 #define PXP2_REG_RQ_RBC_DONE					 0x1201b0
 /* [RW 3] Max burst size filed for read requests port 0; 000 - 128B;
    001:256B; 010: 512B; 11:1K:100:2K; 01:4K */
@@ -2406,7 +2428,7 @@
 /* [RW 2] 0 - 128B;  - 256B;  - 512B;  - 1024B; when the payload in the
    buffer reaches this number has_payload will be asserted */
 #define PXP2_REG_WR_DMAE_MPS					 0x1205ec
-/* [RW 10] if Number of entries in dmae fifo will be higer than this
+/* [RW 10] if Number of entries in dmae fifo will be higher than this
    threshold then has_payload indication will be asserted; the default value
    should be equal to &gt;  write MBS size! */
 #define PXP2_REG_WR_DMAE_TH					 0x120368
@@ -2427,7 +2449,7 @@
 /* [RW 2] 0 - 128B;  - 256B;  - 512B;  - 1024B; when the payload in the
    buffer reaches this number has_payload will be asserted */
 #define PXP2_REG_WR_TSDM_MPS					 0x1205d4
-/* [RW 10] if Number of entries in usdmdp fifo will be higer than this
+/* [RW 10] if Number of entries in usdmdp fifo will be higher than this
    threshold then has_payload indication will be asserted; the default value
    should be equal to &gt;  write MBS size! */
 #define PXP2_REG_WR_USDMDP_TH					 0x120348
@@ -3294,12 +3316,12 @@
 #define XSEM_XSEM_INT_MASK_0_REG_ADDRESS_ERROR_SIZE		 0
 #define CFC_DEBUG1_REG_WRITE_AC 				 (0x1<<4)
 #define CFC_DEBUG1_REG_WRITE_AC_SIZE				 4
-/* [R 1] debug only: This bit indicates wheter indicates that external
+/* [R 1] debug only: This bit indicates whether indicates that external
    buffer was wrapped (oldest data was thrown); Relevant only when
    ~dbg_registers_debug_target=2 (PCI) & ~dbg_registers_full_mode=1 (wrap); */
 #define DBG_REG_WRAP_ON_EXT_BUFFER				 0xc124
 #define DBG_REG_WRAP_ON_EXT_BUFFER_SIZE 			 1
-/* [R 1] debug only: This bit indicates wheter the internal buffer was
+/* [R 1] debug only: This bit indicates whether the internal buffer was
    wrapped (oldest data was thrown) Relevant only when
    ~dbg_registers_debug_target=0 (internal buffer) */
 #define DBG_REG_WRAP_ON_INT_BUFFER				 0xc128
@@ -4944,6 +4966,7 @@
 #define EMAC_RX_MODE_PROMISCUOUS				 (1L<<8)
 #define EMAC_RX_MTU_SIZE_JUMBO_ENA				 (1L<<31)
 #define EMAC_TX_MODE_EXT_PAUSE_EN				 (1L<<3)
+#define EMAC_TX_MODE_FLOW_EN					 (1L<<4)
 #define MISC_REGISTERS_GPIO_0					 0
 #define MISC_REGISTERS_GPIO_1					 1
 #define MISC_REGISTERS_GPIO_2					 2
@@ -4959,6 +4982,7 @@
 #define MISC_REGISTERS_GPIO_PORT_SHIFT				 4
 #define MISC_REGISTERS_GPIO_SET_POS				 8
 #define MISC_REGISTERS_RESET_REG_1_CLEAR			 0x588
+#define MISC_REGISTERS_RESET_REG_1_RST_NIG			 (0x1<<7)
 #define MISC_REGISTERS_RESET_REG_1_SET				 0x584
 #define MISC_REGISTERS_RESET_REG_2_CLEAR			 0x598
 #define MISC_REGISTERS_RESET_REG_2_RST_BMAC0			 (0x1<<0)
@@ -4993,7 +5017,9 @@
 #define HW_LOCK_MAX_RESOURCE_VALUE				 31
 #define HW_LOCK_RESOURCE_8072_MDIO				 0
 #define HW_LOCK_RESOURCE_GPIO					 1
+#define HW_LOCK_RESOURCE_PORT0_ATT_MASK 			 3
 #define HW_LOCK_RESOURCE_SPIO					 2
+#define HW_LOCK_RESOURCE_UNDI					 5
 #define AEU_INPUTS_ATTN_BITS_BRB_PARITY_ERROR		      (1<<18)
 #define AEU_INPUTS_ATTN_BITS_CCM_HW_INTERRUPT		      (1<<31)
 #define AEU_INPUTS_ATTN_BITS_CDU_HW_INTERRUPT		      (1<<9)
@@ -5144,59 +5170,73 @@
 #define GRCBASE_MISC_AEU	GRCBASE_MISC
 
 
-/*the offset of the configuration space in the pci core register*/
+/* offset of configuration space in the pci core register */
 #define PCICFG_OFFSET					0x2000
 #define PCICFG_VENDOR_ID_OFFSET 			0x00
 #define PCICFG_DEVICE_ID_OFFSET 			0x02
 #define PCICFG_COMMAND_OFFSET				0x04
+#define PCICFG_COMMAND_IO_SPACE 		(1<<0)
+#define PCICFG_COMMAND_MEM_SPACE		(1<<1)
+#define PCICFG_COMMAND_BUS_MASTER		(1<<2)
+#define PCICFG_COMMAND_SPECIAL_CYCLES		(1<<3)
+#define PCICFG_COMMAND_MWI_CYCLES		(1<<4)
+#define PCICFG_COMMAND_VGA_SNOOP		(1<<5)
+#define PCICFG_COMMAND_PERR_ENA 		(1<<6)
+#define PCICFG_COMMAND_STEPPING 		(1<<7)
+#define PCICFG_COMMAND_SERR_ENA 		(1<<8)
+#define PCICFG_COMMAND_FAST_B2B 		(1<<9)
+#define PCICFG_COMMAND_INT_DISABLE		(1<<10)
+#define PCICFG_COMMAND_RESERVED 		(0x1f<<11)
 #define PCICFG_STATUS_OFFSET				0x06
-#define PCICFG_REVESION_ID				    0x08
+#define PCICFG_REVESION_ID				0x08
 #define PCICFG_CACHE_LINE_SIZE				0x0c
 #define PCICFG_LATENCY_TIMER				0x0d
-#define PCICFG_BAR_1_LOW				    0x10
-#define PCICFG_BAR_1_HIGH				    0x14
-#define PCICFG_BAR_2_LOW				    0x18
-#define PCICFG_BAR_2_HIGH				    0x1c
-#define PCICFG_SUBSYSTEM_VENDOR_ID_OFFSET	0x2c
+#define PCICFG_BAR_1_LOW				0x10
+#define PCICFG_BAR_1_HIGH				0x14
+#define PCICFG_BAR_2_LOW				0x18
+#define PCICFG_BAR_2_HIGH				0x1c
+#define PCICFG_SUBSYSTEM_VENDOR_ID_OFFSET		0x2c
 #define PCICFG_SUBSYSTEM_ID_OFFSET			0x2e
-#define PCICFG_INT_LINE 				    0x3c
-#define PCICFG_INT_PIN					    0x3d
-#define PCICFG_PM_CSR_OFFSET			0x4c
-#define PCICFG_GRC_ADDRESS				    0x78
-#define PCICFG_GRC_DATA 				    0x80
+#define PCICFG_INT_LINE 				0x3c
+#define PCICFG_INT_PIN					0x3d
+#define PCICFG_PM_CAPABILITY				0x48
+#define PCICFG_PM_CAPABILITY_VERSION		(0x3<<16)
+#define PCICFG_PM_CAPABILITY_CLOCK		(1<<19)
+#define PCICFG_PM_CAPABILITY_RESERVED		(1<<20)
+#define PCICFG_PM_CAPABILITY_DSI		(1<<21)
+#define PCICFG_PM_CAPABILITY_AUX_CURRENT	(0x7<<22)
+#define PCICFG_PM_CAPABILITY_D1_SUPPORT 	(1<<25)
+#define PCICFG_PM_CAPABILITY_D2_SUPPORT 	(1<<26)
+#define PCICFG_PM_CAPABILITY_PME_IN_D0		(1<<27)
+#define PCICFG_PM_CAPABILITY_PME_IN_D1		(1<<28)
+#define PCICFG_PM_CAPABILITY_PME_IN_D2		(1<<29)
+#define PCICFG_PM_CAPABILITY_PME_IN_D3_HOT	(1<<30)
+#define PCICFG_PM_CAPABILITY_PME_IN_D3_COLD	(1<<31)
+#define PCICFG_PM_CSR_OFFSET				0x4c
+#define PCICFG_PM_CSR_STATE			(0x3<<0)
+#define PCICFG_PM_CSR_PME_ENABLE		(1<<8)
+#define PCICFG_PM_CSR_PME_STATUS		(1<<15)
+#define PCICFG_GRC_ADDRESS				0x78
+#define PCICFG_GRC_DATA 				0x80
 #define PCICFG_DEVICE_CONTROL				0xb4
 #define PCICFG_LINK_CONTROL				0xbc
 
-#define PCICFG_COMMAND_IO_SPACE 		    (1<<0)
-#define PCICFG_COMMAND_MEM_SPACE		    (1<<1)
-#define PCICFG_COMMAND_BUS_MASTER		    (1<<2)
-#define PCICFG_COMMAND_SPECIAL_CYCLES		    (1<<3)
-#define PCICFG_COMMAND_MWI_CYCLES		    (1<<4)
-#define PCICFG_COMMAND_VGA_SNOOP		    (1<<5)
-#define PCICFG_COMMAND_PERR_ENA 		    (1<<6)
-#define PCICFG_COMMAND_STEPPING 		    (1<<7)
-#define PCICFG_COMMAND_SERR_ENA 		    (1<<8)
-#define PCICFG_COMMAND_FAST_B2B 		    (1<<9)
-#define PCICFG_COMMAND_INT_DISABLE		    (1<<10)
-#define PCICFG_COMMAND_RESERVED 		    (0x1f<<11)
-
-#define PCICFG_PM_CSR_STATE			    (0x3<<0)
-#define PCICFG_PM_CSR_PME_STATUS		    (1<<15)
 
 #define BAR_USTRORM_INTMEM				0x400000
 #define BAR_CSTRORM_INTMEM				0x410000
 #define BAR_XSTRORM_INTMEM				0x420000
 #define BAR_TSTRORM_INTMEM				0x430000
 
+/* for accessing the IGU in case of status block ACK */
 #define BAR_IGU_INTMEM					0x440000
 
 #define BAR_DOORBELL_OFFSET				0x800000
 
 #define BAR_ME_REGISTER 				0x450000
 
-
-#define GRC_CONFIG_2_SIZE_REG		    0x408 /* config_2 offset */
-#define PCI_CONFIG_2_BAR1_SIZE			    (0xfL<<0)
+/* config_2 offset */
+#define GRC_CONFIG_2_SIZE_REG				0x408
+#define PCI_CONFIG_2_BAR1_SIZE			(0xfL<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_DISABLED 	(0L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_64K		(1L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_128K		(2L<<0)
@@ -5213,11 +5253,11 @@
 #define PCI_CONFIG_2_BAR1_SIZE_256M		(13L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_512M		(14L<<0)
 #define PCI_CONFIG_2_BAR1_SIZE_1G		(15L<<0)
-#define PCI_CONFIG_2_BAR1_64ENA 		    (1L<<4)
-#define PCI_CONFIG_2_EXP_ROM_RETRY		    (1L<<5)
-#define PCI_CONFIG_2_CFG_CYCLE_RETRY		    (1L<<6)
-#define PCI_CONFIG_2_FIRST_CFG_DONE		    (1L<<7)
-#define PCI_CONFIG_2_EXP_ROM_SIZE		    (0xffL<<8)
+#define PCI_CONFIG_2_BAR1_64ENA 		(1L<<4)
+#define PCI_CONFIG_2_EXP_ROM_RETRY		(1L<<5)
+#define PCI_CONFIG_2_CFG_CYCLE_RETRY		(1L<<6)
+#define PCI_CONFIG_2_FIRST_CFG_DONE		(1L<<7)
+#define PCI_CONFIG_2_EXP_ROM_SIZE		(0xffL<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_DISABLED	(0L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_2K		(1L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_4K		(2L<<8)
@@ -5234,46 +5274,44 @@
 #define PCI_CONFIG_2_EXP_ROM_SIZE_8M		(13L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_16M		(14L<<8)
 #define PCI_CONFIG_2_EXP_ROM_SIZE_32M		(15L<<8)
-#define PCI_CONFIG_2_BAR_PREFETCH		    (1L<<16)
-#define PCI_CONFIG_2_RESERVED0			    (0x7fffL<<17)
+#define PCI_CONFIG_2_BAR_PREFETCH		(1L<<16)
+#define PCI_CONFIG_2_RESERVED0			(0x7fffL<<17)
 
 /* config_3 offset */
-#define GRC_CONFIG_3_SIZE_REG				(0x40c)
-#define PCI_CONFIG_3_STICKY_BYTE		    (0xffL<<0)
-#define PCI_CONFIG_3_FORCE_PME			    (1L<<24)
-#define PCI_CONFIG_3_PME_STATUS 		    (1L<<25)
-#define PCI_CONFIG_3_PME_ENABLE 		    (1L<<26)
-#define PCI_CONFIG_3_PM_STATE			    (0x3L<<27)
-#define PCI_CONFIG_3_VAUX_PRESET		    (1L<<30)
-#define PCI_CONFIG_3_PCI_POWER			    (1L<<31)
-
-/* config_2 offset */
-#define GRC_CONFIG_2_SIZE_REG		    0x408
+#define GRC_CONFIG_3_SIZE_REG				0x40c
+#define PCI_CONFIG_3_STICKY_BYTE		(0xffL<<0)
+#define PCI_CONFIG_3_FORCE_PME			(1L<<24)
+#define PCI_CONFIG_3_PME_STATUS 		(1L<<25)
+#define PCI_CONFIG_3_PME_ENABLE 		(1L<<26)
+#define PCI_CONFIG_3_PM_STATE			(0x3L<<27)
+#define PCI_CONFIG_3_VAUX_PRESET		(1L<<30)
+#define PCI_CONFIG_3_PCI_POWER			(1L<<31)
 
 #define GRC_BAR2_CONFIG 				0x4e0
-#define PCI_CONFIG_2_BAR2_SIZE			    (0xfL<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_DISABLED 	    (0L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_64K		    (1L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_128K		    (2L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_256K		    (3L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_512K		    (4L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_1M		    (5L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_2M		    (6L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_4M		    (7L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_8M		    (8L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_16M		    (9L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_32M		    (10L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_64M		    (11L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_128M		    (12L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_256M		    (13L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_512M		    (14L<<0)
-#define PCI_CONFIG_2_BAR2_SIZE_1G		    (15L<<0)
-#define PCI_CONFIG_2_BAR2_64ENA 		    (1L<<4)
+#define PCI_CONFIG_2_BAR2_SIZE			(0xfL<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_DISABLED 	(0L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_64K		(1L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_128K		(2L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_256K		(3L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_512K		(4L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_1M		(5L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_2M		(6L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_4M		(7L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_8M		(8L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_16M		(9L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_32M		(10L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_64M		(11L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_128M		(12L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_256M		(13L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_512M		(14L<<0)
+#define PCI_CONFIG_2_BAR2_SIZE_1G		(15L<<0)
+#define PCI_CONFIG_2_BAR2_64ENA 		(1L<<4)
 
-#define PCI_PM_DATA_A					(0x410)
-#define PCI_PM_DATA_B					(0x414)
-#define PCI_ID_VAL1					(0x434)
-#define PCI_ID_VAL2					(0x438)
+#define PCI_PM_DATA_A					0x410
+#define PCI_PM_DATA_B					0x414
+#define PCI_ID_VAL1					0x434
+#define PCI_ID_VAL2					0x438
+
 
 #define MDIO_REG_BANK_CL73_IEEEB0			0x0
 #define MDIO_CL73_IEEEB0_CL73_AN_CONTROL		0x0
@@ -5522,6 +5560,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_PMA_REG_GEN_CTRL		0xca10
 #define MDIO_PMA_REG_GEN_CTRL_ROM_RESET_INTERNAL_MP	0x0188
 #define MDIO_PMA_REG_GEN_CTRL_ROM_MICRO_RESET		0x018a
+#define MDIO_PMA_REG_M8051_MSGIN_REG	0xca12
+#define MDIO_PMA_REG_M8051_MSGOUT_REG	0xca13
 #define MDIO_PMA_REG_ROM_VER1		0xca19
 #define MDIO_PMA_REG_ROM_VER2		0xca1a
 #define MDIO_PMA_REG_EDC_FFE_MAIN	0xca1b
@@ -5576,7 +5616,8 @@ Theotherbitsarereservedandshouldbezero*/
 #define MDIO_AN_REG_LINK_STATUS 	0x8304
 #define MDIO_AN_REG_CL37_CL73		0x8370
 #define MDIO_AN_REG_CL37_AN		0xffe0
-#define MDIO_AN_REG_CL37_FD		0xffe4
+#define MDIO_AN_REG_CL37_FC_LD		0xffe4
+#define MDIO_AN_REG_CL37_FC_LP		0xffe5
 
 
 #define IGU_FUNC_BASE			0x0400
@@ -5599,5 +5640,14 @@ Theotherbitsarereservedandshouldbezero*/
 #define IGU_INT_DISABLE 		1
 #define IGU_INT_NOP				2
 #define IGU_INT_NOP2			3
+
+#define COMMAND_REG_INT_ACK	    0x0
+#define COMMAND_REG_PROD_UPD	    0x4
+#define COMMAND_REG_ATTN_BITS_UPD   0x8
+#define COMMAND_REG_ATTN_BITS_SET   0xc
+#define COMMAND_REG_ATTN_BITS_CLR   0x10
+#define COMMAND_REG_COALESCE_NOW    0x14
+#define COMMAND_REG_SIMD_MASK	    0x18
+#define COMMAND_REG_SIMD_NOMASK     0x1c
 
 

@@ -1593,7 +1593,7 @@ static int __init m66592_probe(struct platform_device *pdev)
 
 	m66592->gadget.ops = &m66592_gadget_ops;
 	device_initialize(&m66592->gadget.dev);
-	dev_set_name(&m66592->gadget, "gadget");
+	dev_set_name(&m66592->gadget.dev, "gadget");
 	m66592->gadget.is_dualspeed = 1;
 	m66592->gadget.dev.parent = &pdev->dev;
 	m66592->gadget.dev.dma_mask = pdev->dev.dma_mask;

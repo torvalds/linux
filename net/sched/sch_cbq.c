@@ -230,7 +230,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	    (cl = cbq_class_lookup(q, prio)) != NULL)
 		return cl;
 
-	*qerr = NET_XMIT_BYPASS;
+	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	for (;;) {
 		int result = 0;
 		defmap = head->defaults;
@@ -256,7 +256,7 @@ cbq_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 		switch (result) {
 		case TC_ACT_QUEUED:
 		case TC_ACT_STOLEN:
-			*qerr = NET_XMIT_SUCCESS;
+			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return NULL;
 		case TC_ACT_RECLASSIFY:
@@ -377,7 +377,7 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 	q->rx_class = cl;
 #endif
 	if (cl == NULL) {
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -397,9 +397,11 @@ cbq_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		return ret;
 	}
 
-	sch->qstats.drops++;
-	cbq_mark_toplevel(q, cl);
-	cl->qstats.drops++;
+	if (net_xmit_drop_count(ret)) {
+		sch->qstats.drops++;
+		cbq_mark_toplevel(q, cl);
+		cl->qstats.drops++;
+	}
 	return ret;
 }
 
@@ -430,8 +432,10 @@ cbq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 			cbq_activate_class(cl);
 		return 0;
 	}
-	sch->qstats.drops++;
-	cl->qstats.drops++;
+	if (net_xmit_drop_count(ret)) {
+		sch->qstats.drops++;
+		cl->qstats.drops++;
+	}
 	return ret;
 }
 
@@ -664,13 +668,15 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 	q->rx_class = NULL;
 
 	if (cl && (cl = cbq_reclassify(skb, cl)) != NULL) {
+		int ret;
 
 		cbq_mark_toplevel(q, cl);
 
 		q->rx_class = cl;
 		cl->q->__parent = sch;
 
-		if (qdisc_enqueue(skb, cl->q) == 0) {
+		ret = qdisc_enqueue(skb, cl->q);
+		if (ret == NET_XMIT_SUCCESS) {
 			sch->q.qlen++;
 			sch->bstats.packets++;
 			sch->bstats.bytes += qdisc_pkt_len(skb);
@@ -678,7 +684,8 @@ static int cbq_reshape_fail(struct sk_buff *skb, struct Qdisc *child)
 				cbq_activate_class(cl);
 			return 0;
 		}
-		sch->qstats.drops++;
+		if (net_xmit_drop_count(ret))
+			sch->qstats.drops++;
 		return 0;
 	}
 

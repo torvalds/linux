@@ -19,10 +19,10 @@
 #include <linux/slab.h>
 #include <linux/irq.h>
 
-#include <asm/arch/sharpsl.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
+#include <mach/sharpsl.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
 
 
 #define PWR_MODE_ACTIVE		0

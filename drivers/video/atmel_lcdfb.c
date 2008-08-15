@@ -18,9 +18,9 @@
 #include <linux/delay.h>
 #include <linux/backlight.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
-#include <asm/arch/gpio.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
+#include <mach/gpio.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -39,7 +39,9 @@
 #endif
 
 #if defined(CONFIG_ARCH_AT91)
-#define	ATMEL_LCDFB_FBINFO_DEFAULT	FBINFO_DEFAULT
+#define	ATMEL_LCDFB_FBINFO_DEFAULT	(FBINFO_DEFAULT \
+					 | FBINFO_PARTIAL_PAN_OK \
+					 | FBINFO_HWACCEL_YPAN)
 
 static inline void atmel_lcdfb_update_dma2d(struct atmel_lcdfb_info *sinfo,
 					struct fb_var_screeninfo *var)
@@ -177,7 +179,7 @@ static struct fb_fix_screeninfo atmel_lcdfb_fix __initdata = {
 	.type		= FB_TYPE_PACKED_PIXELS,
 	.visual		= FB_VISUAL_TRUECOLOR,
 	.xpanstep	= 0,
-	.ypanstep	= 0,
+	.ypanstep	= 1,
 	.ywrapstep	= 0,
 	.accel		= FB_ACCEL_NONE,
 };
@@ -240,9 +242,11 @@ static int atmel_lcdfb_alloc_video_memory(struct atmel_lcdfb_info *sinfo)
 {
 	struct fb_info *info = sinfo->info;
 	struct fb_var_screeninfo *var = &info->var;
+	unsigned int smem_len;
 
-	info->fix.smem_len = (var->xres_virtual * var->yres_virtual
-			    * ((var->bits_per_pixel + 7) / 8));
+	smem_len = (var->xres_virtual * var->yres_virtual
+		    * ((var->bits_per_pixel + 7) / 8));
+	info->fix.smem_len = max(smem_len, sinfo->smem_len);
 
 	info->screen_base = dma_alloc_writecombine(info->device, info->fix.smem_len,
 					(dma_addr_t *)&info->fix.smem_start, GFP_KERNEL);
@@ -794,6 +798,7 @@ static int __init atmel_lcdfb_probe(struct platform_device *pdev)
 		sinfo->default_monspecs = pdata_sinfo->default_monspecs;
 		sinfo->atmel_lcdfb_power_control = pdata_sinfo->atmel_lcdfb_power_control;
 		sinfo->guard_time = pdata_sinfo->guard_time;
+		sinfo->smem_len = pdata_sinfo->smem_len;
 		sinfo->lcdcon_is_backlight = pdata_sinfo->lcdcon_is_backlight;
 		sinfo->lcd_wiring_mode = pdata_sinfo->lcd_wiring_mode;
 	} else {

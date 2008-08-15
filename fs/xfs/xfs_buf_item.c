@@ -737,7 +737,7 @@ xfs_buf_item_init(
 	bip->bli_format.blf_len = (ushort)BTOBB(XFS_BUF_COUNT(bp));
 	bip->bli_format.blf_map_size = map_size;
 #ifdef XFS_BLI_TRACE
-	bip->bli_trace = ktrace_alloc(XFS_BLI_TRACE_SIZE, KM_SLEEP);
+	bip->bli_trace = ktrace_alloc(XFS_BLI_TRACE_SIZE, KM_NOFS);
 #endif
 
 #ifdef XFS_TRANS_DEBUG
@@ -889,9 +889,9 @@ xfs_buf_item_relse(
 	}
 
 #ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig, XFS_BUF_COUNT(bp));
+	kmem_free(bip->bli_orig);
 	bip->bli_orig = NULL;
-	kmem_free(bip->bli_logged, XFS_BUF_COUNT(bp) / NBBY);
+	kmem_free(bip->bli_logged);
 	bip->bli_logged = NULL;
 #endif /* XFS_TRANS_DEBUG */
 
@@ -1056,7 +1056,7 @@ xfs_buf_iodone_callbacks(
 			   anyway. */
 			XFS_BUF_SET_BRELSE_FUNC(bp,xfs_buf_error_relse);
 			XFS_BUF_DONE(bp);
-			XFS_BUF_V_IODONESEMA(bp);
+			XFS_BUF_FINISH_IOWAIT(bp);
 		}
 		return;
 	}
@@ -1138,9 +1138,9 @@ xfs_buf_iodone(
 	xfs_trans_delete_ail(mp, (xfs_log_item_t *)bip);
 
 #ifdef XFS_TRANS_DEBUG
-	kmem_free(bip->bli_orig, XFS_BUF_COUNT(bp));
+	kmem_free(bip->bli_orig);
 	bip->bli_orig = NULL;
-	kmem_free(bip->bli_logged, XFS_BUF_COUNT(bp) / NBBY);
+	kmem_free(bip->bli_logged);
 	bip->bli_logged = NULL;
 #endif /* XFS_TRANS_DEBUG */
 

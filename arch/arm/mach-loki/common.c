@@ -18,7 +18,7 @@
 #include <asm/timex.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
-#include <asm/arch/loki.h>
+#include <mach/loki.h>
 #include <asm/plat-orion/orion_nand.h>
 #include <asm/plat-orion/time.h>
 #include "common.h"
