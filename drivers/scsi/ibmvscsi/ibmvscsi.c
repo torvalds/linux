@@ -1636,7 +1636,7 @@ static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
 	unsigned long desired_io = max_requests * sizeof(union viosrp_iu);
 
 	/* add io space for sg data */
-	desired_io += (IBMVSCSI_MAX_SECTORS_DEFAULT *
+	desired_io += (IBMVSCSI_MAX_SECTORS_DEFAULT * 512 *
 	                     IBMVSCSI_CMDS_PER_LUN_DEFAULT);
 
 	return desired_io;
