@@ -1677,6 +1677,42 @@ MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
 #define pxafb_setup_options()		(0)
 #endif
 
+#ifdef DEBUG_VAR
+/* Check for various illegal bit-combinations. Currently only
+ * a warning is given. */
+static void __devinit pxafb_check_options(struct device *dev,
+					  struct pxafb_mach_info *inf)
+{
+	if (inf->lcd_conn)
+		return;
+
+	if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
+		dev_warn(dev, "machine LCCR0 setting contains "
+				"illegal bits: %08x\n",
+			inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
+	if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
+		dev_warn(dev, "machine LCCR3 setting contains "
+				"illegal bits: %08x\n",
+			inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
+	if (inf->lccr0 & LCCR0_DPD &&
+	    ((inf->lccr0 & LCCR0_PAS) != LCCR0_Pas ||
+	     (inf->lccr0 & LCCR0_SDS) != LCCR0_Sngl ||
+	     (inf->lccr0 & LCCR0_CMS) != LCCR0_Mono))
+		dev_warn(dev, "Double Pixel Data (DPD) mode is "
+				"only valid in passive mono"
+				" single panel mode\n");
+	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
+	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
+		dev_warn(dev, "Dual panel only valid in passive mode\n");
+	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
+	     (inf->modes->upper_margin || inf->modes->lower_margin))
+		dev_warn(dev, "Upper and lower margins must be 0 in "
+				"passive mode\n");
+}
+#else
+#define pxafb_check_options(...)	do {} while (0)
+#endif
+
 static int __devinit pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
@@ -1696,33 +1732,7 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 	if (ret < 0)
 		goto failed;
 
-#ifdef DEBUG_VAR
-	/* Check for various illegal bit-combinations. Currently only
-	 * a warning is given. */
-
-	if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
-		dev_warn(&dev->dev, "machine LCCR0 setting contains "
-				"illegal bits: %08x\n",
-			inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
-	if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
-		dev_warn(&dev->dev, "machine LCCR3 setting contains "
-				"illegal bits: %08x\n",
-			inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
-	if (inf->lccr0 & LCCR0_DPD &&
-	    ((inf->lccr0 & LCCR0_PAS) != LCCR0_Pas ||
-	     (inf->lccr0 & LCCR0_SDS) != LCCR0_Sngl ||
-	     (inf->lccr0 & LCCR0_CMS) != LCCR0_Mono))
-		dev_warn(&dev->dev, "Double Pixel Data (DPD) mode is "
-				"only valid in passive mono"
-				" single panel mode\n");
-	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
-	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
-		dev_warn(&dev->dev, "Dual panel only valid in passive mode\n");
-	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
-	     (inf->modes->upper_margin || inf->modes->lower_margin))
-		dev_warn(&dev->dev, "Upper and lower margins must be 0 in "
-				"passive mode\n");
-#endif
+	pxafb_check_options(&dev->dev, inf);
 
 	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",
 			inf->modes->xres,
