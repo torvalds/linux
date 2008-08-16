@@ -1031,7 +1031,9 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 	pxa_gpio_mode(GPIO74_LCD_FCLK_MD);
 	pxa_gpio_mode(GPIO75_LCD_LCLK_MD);
 	pxa_gpio_mode(GPIO76_LCD_PCLK_MD);
-	pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
+
+	if ((lccr0 & LCCR0_PAS) == 0)
+		pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
 }
 
 static void pxafb_enable_controller(struct pxafb_info *fbi)
