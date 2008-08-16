@@ -20,7 +20,6 @@
 #include <linux/list.h>
 #include <linux/genhd.h>
 #include <linux/spinlock.h>
-#include <linux/parser.h>
 #include <linux/capability.h>
 #include <linux/bitops.h>
 
@@ -65,8 +64,7 @@ static ssize_t rcf_cmds_show(struct blk_cmd_filter *filter, char *page,
 
 	for (i = 0; i < BLK_SCSI_MAX_CMDS; i++) {
 		if (test_bit(i, okbits)) {
-			sprintf(npage, "%02x", i);
-			npage += 2;
+			npage += sprintf(npage, "0x%02x", i);
 			if (i < BLK_SCSI_MAX_CMDS - 1)
 				sprintf(npage++, " ");
 		}
@@ -92,33 +90,41 @@ static ssize_t rcf_writecmds_show(struct blk_cmd_filter *filter,
 static ssize_t rcf_cmds_store(struct blk_cmd_filter *filter,
 			      const char *page, size_t count, int rw)
 {
-	ssize_t ret = 0;
 	unsigned long okbits[BLK_SCSI_CMD_PER_LONG], *target_okbits;
-	int cmd, status, len;
-	substring_t ss;
+	int cmd, set;
+	char *p, *status;
 
-	memset(&okbits, 0, sizeof(okbits));
-
-	for (len = strlen(page); len > 0; len -= 3) {
-		if (len < 2)
-			break;
-		ss.from = (char *) page + ret;
-		ss.to = (char *) page + ret + 2;
-		ret += 3;
-		status = match_hex(&ss, &cmd);
-		/* either of these cases means invalid input, so do nothing. */
-		if (status || cmd >= BLK_SCSI_MAX_CMDS)
-			return -EINVAL;
-
-		__set_bit(cmd, okbits);
+	if (rw == READ) {
+		memcpy(&okbits, filter->read_ok, sizeof(okbits));
+		target_okbits = filter->read_ok;
+	} else {
+		memcpy(&okbits, filter->write_ok, sizeof(okbits));
+		target_okbits = filter->write_ok;
 	}
 
-	if (rw == READ)
-		target_okbits = filter->read_ok;
-	else
-		target_okbits = filter->write_ok;
+	while ((p = strsep((char **)&page, " ")) != NULL) {
+		set = 1;
 
-	memmove(target_okbits, okbits, sizeof(okbits));
+		if (p[0] == '+') {
+			p++;
+		} else if (p[0] == '-') {
+			set = 0;
+			p++;
+		}
+
+		cmd = simple_strtol(p, &status, 16);
+
+		/* either of these cases means invalid input, so do nothing. */
+		if ((status == p) || cmd >= BLK_SCSI_MAX_CMDS)
+			return -EINVAL;
+
+		if (set)
+			__set_bit(cmd, okbits);
+		else
+			__clear_bit(cmd, okbits);
+	}
+
+	memcpy(target_okbits, okbits, sizeof(okbits));
 	return count;
 }
 
