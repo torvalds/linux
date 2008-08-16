@@ -148,11 +148,16 @@ static int br_set_tx_csum(struct net_device *dev, u32 data)
 }
 
 static struct ethtool_ops br_ethtool_ops = {
-	.get_drvinfo = br_getinfo,
-	.get_link = ethtool_op_get_link,
-	.set_sg = br_set_sg,
-	.set_tx_csum = br_set_tx_csum,
-	.set_tso = br_set_tso,
+	.get_drvinfo    = br_getinfo,
+	.get_link	= ethtool_op_get_link,
+	.get_tx_csum	= ethtool_op_get_tx_csum,
+	.set_tx_csum 	= br_set_tx_csum,
+	.get_sg		= ethtool_op_get_sg,
+	.set_sg		= br_set_sg,
+	.get_tso	= ethtool_op_get_tso,
+	.set_tso	= br_set_tso,
+	.get_ufo	= ethtool_op_get_ufo,
+	.get_flags	= ethtool_op_get_flags,
 };
 
 void br_dev_setup(struct net_device *dev)
