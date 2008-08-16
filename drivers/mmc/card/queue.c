@@ -31,7 +31,7 @@ static int mmc_prep_request(struct request_queue *q, struct request *req)
 	/*
 	 * We only like normal block requests.
 	 */
-	if (!blk_fs_request(req) && !blk_pc_request(req)) {
+	if (!blk_fs_request(req)) {
 		blk_dump_rq_flags(req, "MMC bad request");
 		return BLKPREP_KILL;
 	}
