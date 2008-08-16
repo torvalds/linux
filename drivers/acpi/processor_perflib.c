@@ -71,7 +71,7 @@ static DEFINE_MUTEX(performance_mutex);
  *  1 -> ignore _PPC totally -> forced by user through boot param
  */
 static int ignore_ppc = -1;
-module_param(ignore_ppc, uint, 0644);
+module_param(ignore_ppc, int, 0644);
 MODULE_PARM_DESC(ignore_ppc, "If the frequency of your machine gets wrongly" \
 		 "limited by BIOS, this should help");
 
