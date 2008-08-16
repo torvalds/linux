@@ -844,7 +844,7 @@ static struct node_entry *nodemgr_create_node(octlet_t guid, struct csr1212_csr 
 	ne->host = host;
 	ne->nodeid = nodeid;
 	ne->generation = generation;
-	ne->needs_probe = 1;
+	ne->needs_probe = true;
 
 	ne->guid = guid;
 	ne->guid_vendor_id = (guid >> 40) & 0xffffff;
@@ -1144,7 +1144,7 @@ static void nodemgr_process_root_directory(struct host_info *hi, struct node_ent
 	struct csr1212_keyval *kv, *vendor_name_kv = NULL;
 	u8 last_key_id = 0;
 
-	ne->needs_probe = 0;
+	ne->needs_probe = false;
 
 	csr1212_for_each_dir_entry(ne->csr, kv, ne->csr->root_kv, dentry) {
 		switch (kv->key.id) {
@@ -1295,7 +1295,7 @@ static void nodemgr_update_node(struct node_entry *ne, struct csr1212_csr *csr,
 		nodemgr_update_bus_options(ne);
 
 		/* Mark the node as new, so it gets re-probed */
-		ne->needs_probe = 1;
+		ne->needs_probe = true;
 	} else {
 		/* old cache is valid, so update its generation */
 		struct nodemgr_csr_info *ci = ne->csr->private;
@@ -1566,28 +1566,27 @@ static void nodemgr_probe_ne(struct host_info *hi, struct node_entry *ne, int ge
 struct probe_param {
 	struct host_info *hi;
 	int generation;
+	bool probe_now;
 };
 
-static int __nodemgr_node_probe(struct device *dev, void *data)
+static int node_probe(struct device *dev, void *data)
 {
-	struct probe_param *param = (struct probe_param *)data;
+	struct probe_param *p = data;
 	struct node_entry *ne;
 
 	ne = container_of(dev, struct node_entry, node_dev);
-	if (!ne->needs_probe)
-		nodemgr_probe_ne(param->hi, ne, param->generation);
-	if (ne->needs_probe)
-		nodemgr_probe_ne(param->hi, ne, param->generation);
+	if (ne->needs_probe == p->probe_now)
+		nodemgr_probe_ne(p->hi, ne, p->generation);
 	return 0;
 }
 
 static void nodemgr_node_probe(struct host_info *hi, int generation)
 {
 	struct hpsb_host *host = hi->host;
-	struct probe_param param;
+	struct probe_param p;
 
-	param.hi = hi;
-	param.generation = generation;
+	p.hi = hi;
+	p.generation = generation;
 	/* Do some processing of the nodes we've probed. This pulls them
 	 * into the sysfs layer if needed, and can result in processing of
 	 * unit-directories, or just updating the node and it's
@@ -1597,8 +1596,10 @@ static void nodemgr_node_probe(struct host_info *hi, int generation)
 	 * while probes are time-consuming. (Well, those probes need some
 	 * improvement...) */
 
-	class_for_each_device(&nodemgr_ne_class, NULL, &param,
-			      __nodemgr_node_probe);
+	p.probe_now = false;
+	class_for_each_device(&nodemgr_ne_class, NULL, &p, node_probe);
+	p.probe_now = true;
+	class_for_each_device(&nodemgr_ne_class, NULL, &p, node_probe);
 
 	/* If we had a bus reset while we were scanning the bus, it is
 	 * possible that we did not probe all nodes.  In that case, we
