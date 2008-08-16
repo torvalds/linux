@@ -81,7 +81,7 @@ void clear_ftrace_function(void)
 
 static int __register_ftrace_function(struct ftrace_ops *ops)
 {
-	/* Should never be called by interrupts */
+	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 
 	ops->next = ftrace_list;
@@ -115,6 +115,7 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 	struct ftrace_ops **p;
 	int ret = 0;
 
+	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 
 	/*
@@ -153,6 +154,21 @@ static int __unregister_ftrace_function(struct ftrace_ops *ops)
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
+#ifndef CONFIG_FTRACE_MCOUNT_RECORD
+/*
+ * The hash lock is only needed when the recording of the mcount
+ * callers are dynamic. That is, by the caller themselves and
+ * not recorded via the compilation.
+ */
+static DEFINE_SPINLOCK(ftrace_hash_lock);
+#define ftrace_hash_lock(flags)	  spin_lock_irqsave(ftrace_hash_lock, flags)
+#define ftrace_hash_unlock(flags) spin_lock_irqsave(ftrace_hash_lock, flags)
+#else
+/* This is protected via the ftrace_lock with MCOUNT_RECORD. */
+#define ftrace_hash_lock(flags)   do { (void)flags; } while (0)
+#define ftrace_hash_unlock(flags) do { } while(0)
+#endif
+
 static struct task_struct *ftraced_task;
 
 enum {
@@ -171,7 +187,6 @@ static struct hlist_head ftrace_hash[FTRACE_HASHSIZE];
 
 static DEFINE_PER_CPU(int, ftrace_shutdown_disable_cpu);
 
-static DEFINE_SPINLOCK(ftrace_shutdown_lock);
 static DEFINE_MUTEX(ftraced_lock);
 static DEFINE_MUTEX(ftrace_regex_lock);
 
@@ -310,7 +325,7 @@ void ftrace_release(void *start, unsigned long size)
 	if (ftrace_disabled || !start)
 		return;
 
-	/* No interrupt should call this */
+	/* should not be called from interrupt context */
 	spin_lock(&ftrace_lock);
 
 	for (pg = ftrace_pages_start; pg; pg = pg->next) {
@@ -362,7 +377,6 @@ ftrace_record_ip(unsigned long ip)
 	unsigned long flags;
 	unsigned long key;
 	int resched;
-	int atomic;
 	int cpu;
 
 	if (!ftrace_enabled || ftrace_disabled)
@@ -392,9 +406,7 @@ ftrace_record_ip(unsigned long ip)
 	if (ftrace_ip_in_hash(ip, key))
 		goto out;
 
-	atomic = irqs_disabled();
-
-	spin_lock_irqsave(&ftrace_shutdown_lock, flags);
+	ftrace_hash_lock(flags);
 
 	/* This ip may have hit the hash before the lock */
 	if (ftrace_ip_in_hash(ip, key))
@@ -411,7 +423,7 @@ ftrace_record_ip(unsigned long ip)
 	ftraced_trigger = 1;
 
  out_unlock:
-	spin_unlock_irqrestore(&ftrace_shutdown_lock, flags);
+	ftrace_hash_unlock(flags);
  out:
 	per_cpu(ftrace_shutdown_disable_cpu, cpu)--;
 
@@ -887,6 +899,8 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 	(*pos)++;
 
+	/* should not be called from interrupt context */
+	spin_lock(&ftrace_lock);
  retry:
 	if (iter->idx >= iter->pg->index) {
 		if (iter->pg->next) {
@@ -910,6 +924,7 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 			goto retry;
 		}
 	}
+	spin_unlock(&ftrace_lock);
 
 	iter->pos = *pos;
 
@@ -1023,8 +1038,8 @@ static void ftrace_filter_reset(int enable)
 	unsigned long type = enable ? FTRACE_FL_FILTER : FTRACE_FL_NOTRACE;
 	unsigned i;
 
-	/* keep kstop machine from running */
-	preempt_disable();
+	/* should not be called from interrupt context */
+	spin_lock(&ftrace_lock);
 	if (enable)
 		ftrace_filtered = 0;
 	pg = ftrace_pages_start;
@@ -1037,7 +1052,7 @@ static void ftrace_filter_reset(int enable)
 		}
 		pg = pg->next;
 	}
-	preempt_enable();
+	spin_unlock(&ftrace_lock);
 }
 
 static int
@@ -1149,8 +1164,8 @@ ftrace_match(unsigned char *buff, int len, int enable)
 		}
 	}
 
-	/* keep kstop machine from running */
-	preempt_disable();
+	/* should not be called from interrupt context */
+	spin_lock(&ftrace_lock);
 	if (enable)
 		ftrace_filtered = 1;
 	pg = ftrace_pages_start;
@@ -1187,7 +1202,7 @@ ftrace_match(unsigned char *buff, int len, int enable)
 		}
 		pg = pg->next;
 	}
-	preempt_enable();
+	spin_unlock(&ftrace_lock);
 }
 
 static ssize_t
@@ -1551,6 +1566,7 @@ static int ftrace_convert_nops(unsigned long *start,
 	p = start;
 	while (p < end) {
 		addr = ftrace_call_adjust(*p++);
+		/* should not be called from interrupt context */
 		spin_lock(&ftrace_lock);
 		ftrace_record_ip(addr);
 		spin_unlock(&ftrace_lock);
