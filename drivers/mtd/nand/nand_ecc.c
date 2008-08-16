@@ -4,15 +4,15 @@
  *
  * drivers/mtd/nand/nand_ecc.c
  *
- * Copyright (C) 2008 Koninklijke Philips Electronics NV.
- *                    Author: Frans Meulenbroeks
+ * Copyright © 2008 Koninklijke Philips Electronics NV.
+ *                  Author: Frans Meulenbroeks
  *
  * Completely replaces the previous ECC implementation which was written by:
  *   Steven J. Hill (sjhill@realitydiluted.com)
  *   Thomas Gleixner (tglx@linutronix.de)
  *
  * Information on how this algorithm works and how it was developed
- * can be found in Documentation/nand/ecc.txt
+ * can be found in Documentation/mtd/nand_ecc.txt
  *
  * This file is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -35,7 +35,7 @@
  * e.g. when running the code in a testbed or a benchmark program.
  * When STANDALONE is used, the module related macros are commented out
  * as well as the linux include files.
- * Instead a private definition of mtd_into is given to satisfy the compiler
+ * Instead a private definition of mtd_info is given to satisfy the compiler
  * (the code does not use mtd_info, so the code does not care)
  */
 #ifndef STANDALONE
@@ -44,10 +44,8 @@
 #include <linux/module.h>
 #include <linux/mtd/nand_ecc.h>
 #else
-typedef uint32_t unsigned long
-struct mtd_info {
-	int dummy;
-};
+#include <stdint.h>
+struct mtd_info;
 #define EXPORT_SYMBOL(x)  /* x */
 
 #define MODULE_LICENSE(x)	/* x */
@@ -409,7 +407,7 @@ int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
 	/* repeated if statements are slightly more efficient than switch ... */
 	/* ordered in order of likelihood */
 	if (nr_bits == 0)
-		return (0);	/* no error */
+		return 0;	/* no error */
 	if (nr_bits == 11) {	/* correctable error */
 		/*
 		 * rp15/13/11/9/7/5/3/1 indicate which byte is the faulty byte
@@ -431,10 +429,10 @@ int nand_correct_data(struct mtd_info *mtd, unsigned char *buf,
 		bit_addr = addressbits[b2 >> 2];
 		/* flip the bit */
 		buf[byte_addr] ^= (1 << bit_addr);
-		return (1);
+		return 1;
 	}
 	if (nr_bits == 1)
-		return (1);	/* error in ecc data; no action needed */
+		return 1;	/* error in ecc data; no action needed */
 	return -1;
 }
 EXPORT_SYMBOL(nand_correct_data);
