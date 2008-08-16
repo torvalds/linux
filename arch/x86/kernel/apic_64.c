@@ -111,11 +111,15 @@ static inline int lapic_get_version(void)
 }
 
 /*
- * Check, if the APIC is integrated or a seperate chip
+ * Check, if the APIC is integrated or a separate chip
  */
 static inline int lapic_is_integrated(void)
 {
+#ifdef CONFIG_X86_64
 	return 1;
+#else
+	return APIC_INTEGRATED(lapic_get_version());
+#endif
 }
 
 /*

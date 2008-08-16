@@ -128,7 +128,11 @@ static inline int lapic_get_version(void)
  */
 static inline int lapic_is_integrated(void)
 {
+#ifdef CONFIG_X86_64
+	return 1;
+#else
 	return APIC_INTEGRATED(lapic_get_version());
+#endif
 }
 
 /*
