@@ -293,25 +293,26 @@ void __init printk_all_partitions(void)
 /* iterator */
 static int find_start(struct device *dev, void *data)
 {
-	loff_t k = *(loff_t *)data;
+	loff_t *k = data;
 
 	if (dev->type != &disk_type)
 		return 0;
-	if (!k--)
+	if (!*k)
 		return 1;
+	(*k)--;
 	return 0;
 }
 
 static void *part_start(struct seq_file *part, loff_t *pos)
 {
 	struct device *dev;
-	loff_t n = *pos;
+	loff_t k = *pos;
 
-	if (!n)
+	if (!k)
 		seq_puts(part, "major minor  #blocks  name\n\n");
 
 	mutex_lock(&block_class_lock);
-	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
+	dev = class_find_device(&block_class, NULL, &k, find_start);
 	if (dev)
 		return dev_to_disk(dev);
 	return NULL;
@@ -568,9 +569,10 @@ static struct device_type disk_type = {
 static void *diskstats_start(struct seq_file *part, loff_t *pos)
 {
 	struct device *dev;
+	loff_t k = *pos;
 
 	mutex_lock(&block_class_lock);
-	dev = class_find_device(&block_class, NULL, (void *)pos, find_start);
+	dev = class_find_device(&block_class, NULL, &k, find_start);
 	if (dev)
 		return dev_to_disk(dev);
 	return NULL;
