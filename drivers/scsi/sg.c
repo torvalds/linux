@@ -641,6 +641,7 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 	unsigned char cmnd[MAX_COMMAND_SIZE];
 	int timeout;
 	unsigned long ul_timeout;
+	struct request_queue *q;
 
 	if (count < SZ_SG_IO_HDR)
 		return -EINVAL;
@@ -689,7 +690,9 @@ sg_new_write(Sg_fd *sfp, struct file *file, const char __user *buf,
 		sg_remove_request(sfp, srp);
 		return -EFAULT;
 	}
-	if (read_only && !blk_verify_command(file, cmnd)) {
+	q = sfp->parentdp->device->request_queue;
+	if (read_only && blk_verify_command(&q->cmd_filter, cmnd,
+					    file->f_mode & FMODE_WRITE)) {
 		sg_remove_request(sfp, srp);
 		return -EPERM;
 	}
@@ -793,6 +796,7 @@ sg_ioctl(struct inode *inode, struct file *filp,
 
 	if ((!(sfp = (Sg_fd *) filp->private_data)) || (!(sdp = sfp->parentdp)))
 		return -ENXIO;
+
 	SCSI_LOG_TIMEOUT(3, printk("sg_ioctl: %s, cmd=0x%x\n",
 				   sdp->disk->disk_name, (int) cmd_in));
 	read_only = (O_RDWR != (filp->f_flags & O_ACCMODE));
@@ -1057,11 +1061,14 @@ sg_ioctl(struct inode *inode, struct file *filp,
 			return -ENODEV;
 		if (read_only) {
 			unsigned char opcode = WRITE_6;
+			struct request_queue *q = sdp->device->request_queue;
 			Scsi_Ioctl_Command __user *siocp = p;
 
 			if (copy_from_user(&opcode, siocp->data, 1))
 				return -EFAULT;
-			if (!blk_verify_command(filp, &opcode))
+			if (blk_verify_command(&q->cmd_filter,
+					       &opcode,
+					       filp->f_mode & FMODE_WRITE))
 				return -EPERM;
 		}
 		return sg_scsi_ioctl(filp, sdp->device->request_queue, NULL, p);
