@@ -558,17 +558,6 @@ config SYSCTL_SYSCALL
 
 	  If unsure say Y here.
 
-config SYSCTL_SYSCALL_CHECK
-	bool "Sysctl checks" if EMBEDDED
-	depends on SYSCTL_SYSCALL
-	default y
-	---help---
-	  sys_sysctl uses binary paths that have been found challenging
-	  to properly maintain and use. This enables checks that help
-	  you to keep things correct.
-
-	  If unsure say Y here.
-
 config KALLSYMS
 	 bool "Load all symbols for debugging/ksymoops" if EMBEDDED
 	 default y
