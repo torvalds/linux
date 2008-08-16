@@ -169,9 +169,7 @@ static struct map_desc s3c_iodesc[] __initdata = {
 	IODESC_ENT(UART)
 };
 
-
-static struct cpu_table *
-s3c_lookup_cpu(unsigned long idcode)
+static struct cpu_table * __init s3c_lookup_cpu(unsigned long idcode)
 {
 	struct cpu_table *tab;
 	int count;

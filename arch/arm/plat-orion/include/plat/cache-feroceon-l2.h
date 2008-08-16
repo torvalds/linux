@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/plat-orion/cache-feroceon-l2.h
+ * arch/arm/plat-orion/include/plat/cache-feroceon-l2.h
  *
  * Copyright (C) 2008 Marvell Semiconductor
  *

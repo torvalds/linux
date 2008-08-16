@@ -15,6 +15,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
+#include "proc-macros.S"
 
 /* ARM940T has a 4KB DCache comprising 256 lines of 4 words */
 #define CACHE_DLINESIZE	16
