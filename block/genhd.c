@@ -313,8 +313,10 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 
 	mutex_lock(&block_class_lock);
 	dev = class_find_device(&block_class, NULL, &k, find_start);
-	if (dev)
+	if (dev) {
+		put_device(dev);
 		return dev_to_disk(dev);
+	}
 	return NULL;
 }
 
@@ -331,8 +333,10 @@ static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 	struct device *dev;
 	++*pos;
 	dev = class_find_device(&block_class, &gp->dev, NULL, find_next);
-	if (dev)
+	if (dev) {
+		put_device(dev);
 		return dev_to_disk(dev);
+	}
 	return NULL;
 }
 
@@ -573,8 +577,10 @@ static void *diskstats_start(struct seq_file *part, loff_t *pos)
 
 	mutex_lock(&block_class_lock);
 	dev = class_find_device(&block_class, NULL, &k, find_start);
-	if (dev)
+	if (dev) {
+		put_device(dev);
 		return dev_to_disk(dev);
+	}
 	return NULL;
 }
 
@@ -585,8 +591,10 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 
 	++*pos;
 	dev = class_find_device(&block_class, &gp->dev, NULL, find_next);
-	if (dev)
+	if (dev) {
+		put_device(dev);
 		return dev_to_disk(dev);
+	}
 	return NULL;
 }
 
@@ -714,10 +722,12 @@ dev_t blk_lookup_devt(const char *name, int part)
 	mutex_lock(&block_class_lock);
 	find.name = name;
 	find.part = part;
-	dev = class_find_device(&block_class, NULL, (void *)&find, match_id);
-	if (dev)
+	dev = class_find_device(&block_class, NULL, &find, match_id);
+	if (dev) {
+		put_device(dev);
 		devt = MKDEV(MAJOR(dev->devt),
 			     MINOR(dev->devt) + part);
+	}
 	mutex_unlock(&block_class_lock);
 
 	return devt;
