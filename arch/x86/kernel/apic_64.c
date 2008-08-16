@@ -81,6 +81,9 @@ static void lapic_timer_setup(enum clock_event_mode mode,
 static void lapic_timer_broadcast(cpumask_t mask);
 static void apic_pm_activate(void);
 
+/*
+ * The local apic timer can be used for any function which is CPU local.
+ */
 static struct clock_event_device lapic_clockevent = {
 	.name		= "lapic",
 	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT
@@ -127,6 +130,11 @@ static int modern_apic(void)
 	return lapic_get_version() >= 0x14;
 }
 
+/*
+ * Paravirt kernels also might be using these below ops. So we still
+ * use generic apic_read()/apic_write(), which might be pointing to different
+ * ops in PARAVIRT case.
+ */
 void xapic_wait_icr_idle(void)
 {
 	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
@@ -175,7 +183,6 @@ static struct apic_ops xapic_ops = {
 };
 
 struct apic_ops __read_mostly *apic_ops = &xapic_ops;
-
 EXPORT_SYMBOL_GPL(apic_ops);
 
 static void x2apic_wait_icr_idle(void)
@@ -244,6 +251,10 @@ int lapic_get_maxlvt(void)
 	return APIC_INTEGRATED(GET_APIC_VERSION(v)) ? GET_APIC_MAXLVT(v) : 2;
 }
 
+/*
+ * Local APIC timer
+ */
+
 /* Clock divisor is set to 1 */
 #define APIC_DIVISOR 1
 
@@ -257,7 +268,6 @@ int lapic_get_maxlvt(void)
  * We do reads before writes even if unnecessary, to get around the
  * P5 APIC double write bug.
  */
-
 static void __setup_APIC_LVTT(unsigned int clocks, int oneshot, int irqen)
 {
 	unsigned int lvtt_value, tmp_value;
@@ -474,10 +484,10 @@ static int __init calibrate_APIC_clock(void)
 void __init setup_boot_APIC_clock(void)
 {
 	/*
-	 * The local apic timer can be disabled via the kernel commandline.
-	 * Register the lapic timer as a dummy clock event source on SMP
-	 * systems, so the broadcast mechanism is used. On UP systems simply
-	 * ignore it.
+	 * The local apic timer can be disabled via the kernel
+	 * commandline or from the CPU detection code. Register the lapic
+	 * timer as a dummy clock event source on SMP systems, so the
+	 * broadcast mechanism is used. On UP systems simply ignore it.
 	 */
 	if (disable_apic_timer) {
 		printk(KERN_INFO "Disabling APIC timer\n");
@@ -489,7 +499,9 @@ void __init setup_boot_APIC_clock(void)
 		return;
 	}
 
-	printk(KERN_INFO "Using local APIC timer interrupts.\n");
+	apic_printk(APIC_VERBOSE, "Using local APIC timer interrupts.\n"
+		    "calibrating APIC timer ...\n");
+
 	if (calibrate_APIC_clock()) {
 		/* No broadcast on UP ! */
 		if (num_possible_cpus() > 1)
@@ -508,6 +520,7 @@ void __init setup_boot_APIC_clock(void)
 		printk(KERN_WARNING "APIC timer registered as dummy,"
 			" due to nmi_watchdog=%d!\n", nmi_watchdog);
 
+	/* Setup the lapic or request the broadcast */
 	setup_APIC_timer();
 }
 
@@ -577,6 +590,7 @@ void smp_apic_timer_interrupt(struct pt_regs *regs)
 	irq_enter();
 	local_apic_timer_interrupt();
 	irq_exit();
+
 	set_irq_regs(old_regs);
 }
 
@@ -1248,6 +1262,13 @@ void __init connect_bsp_APIC(void)
 	enable_apic_mode();
 }
 
+/**
+ * disconnect_bsp_APIC - detach the APIC from the interrupt system
+ * @virt_wire_setup:	indicates, whether virtual wire mode is selected
+ *
+ * Virtual wire mode is necessary to deliver legacy interrupts even when the
+ * APIC is disabled.
+ */
 void disconnect_bsp_APIC(int virt_wire_setup)
 {
 	/* Go back to Virtual Wire compatibility mode */
@@ -1347,9 +1368,11 @@ int hard_smp_processor_id(void)
 #ifdef CONFIG_PM
 
 static struct {
-	/* 'active' is true if the local APIC was enabled by us and
-	   not the BIOS; this signifies that we are also responsible
-	   for disabling it before entering apm/acpi suspend */
+	/*
+	 * 'active' is true if the local APIC was enabled by us and
+	 * not the BIOS; this signifies that we are also responsible
+	 * for disabling it before entering apm/acpi suspend
+	 */
 	int active;
 	/* r/w apic fields */
 	unsigned int apic_id;
@@ -1457,6 +1480,11 @@ static int lapic_resume(struct sys_device *dev)
 
 	return 0;
 }
+
+/*
+ * This device has no shutdown method - fully functioning local APICs
+ * are needed on every CPU up until machine_halt/restart/poweroff.
+ */
 
 static struct sysdev_class lapic_sysclass = {
 	.name		= "lapic",
