@@ -174,7 +174,7 @@ u64 xapic_icr_read(void)
 	icr2 = apic_read(APIC_ICR2);
 	icr1 = apic_read(APIC_ICR);
 
-	return (icr1 | ((u64)icr2 << 32));
+	return icr1 | ((u64)icr2 << 32);
 }
 
 static struct apic_ops xapic_ops = {
