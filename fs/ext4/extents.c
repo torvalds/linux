@@ -2819,7 +2819,7 @@ void ext4_ext_truncate(struct inode *inode)
 	down_write(&EXT4_I(inode)->i_data_sem);
 	ext4_ext_invalidate_cache(inode);
 
-	ext4_mb_discard_inode_preallocations(inode);
+	ext4_discard_reservation(inode);
 
 	/*
 	 * TODO: optimization is possible here.
