@@ -307,7 +307,7 @@ void ftrace_release(void *start, unsigned long size)
 	unsigned long e = s + size;
 	int i;
 
-	if (!start)
+	if (ftrace_disabled || !start)
 		return;
 
 	/* No interrupt should call this */
@@ -1567,7 +1567,7 @@ static int ftrace_convert_nops(unsigned long *start,
 
 void ftrace_init_module(unsigned long *start, unsigned long *end)
 {
-	if (start == end)
+	if (ftrace_disabled || start == end)
 		return;
 	ftrace_convert_nops(start, end);
 }
