@@ -320,12 +320,18 @@ static struct crypto_template chainiv_tmpl = {
 	.module = THIS_MODULE,
 };
 
-int __init chainiv_module_init(void)
+static int __init chainiv_module_init(void)
 {
 	return crypto_register_template(&chainiv_tmpl);
 }
 
-void chainiv_module_exit(void)
+static void chainiv_module_exit(void)
 {
 	crypto_unregister_template(&chainiv_tmpl);
 }
+
+module_init(chainiv_module_init);
+module_exit(chainiv_module_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Chain IV Generator");

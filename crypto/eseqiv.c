@@ -248,12 +248,18 @@ static struct crypto_template eseqiv_tmpl = {
 	.module = THIS_MODULE,
 };
 
-int __init eseqiv_module_init(void)
+static int __init eseqiv_module_init(void)
 {
 	return crypto_register_template(&eseqiv_tmpl);
 }
 
-void __exit eseqiv_module_exit(void)
+static void __exit eseqiv_module_exit(void)
 {
 	crypto_unregister_template(&eseqiv_tmpl);
 }
+
+module_init(eseqiv_module_init);
+module_exit(eseqiv_module_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_DESCRIPTION("Encrypted Sequence Number IV Generator");
