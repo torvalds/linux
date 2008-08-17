@@ -439,7 +439,7 @@ static int qla4xxx_queuecommand(struct scsi_cmnd *cmd,
 			cmd->result = DID_NO_CONNECT << 16;
 			goto qc_fail_command;
 		}
-		goto qc_host_busy;
+		return SCSI_MLQUEUE_TARGET_BUSY;
 	}
 
 	if (test_bit(DPC_RESET_HA_INTR, &ha->dpc_flags))
