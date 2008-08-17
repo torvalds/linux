@@ -2892,6 +2892,43 @@ static int handle_nmi_window(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	return 1;
 }
 
+static void handle_invalid_guest_state(struct kvm_vcpu *vcpu,
+				struct kvm_run *kvm_run)
+{
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
+	int err;
+
+	preempt_enable();
+	local_irq_enable();
+
+	while (!guest_state_valid(vcpu)) {
+		err = emulate_instruction(vcpu, kvm_run, 0, 0, 0);
+
+		switch (err) {
+			case EMULATE_DONE:
+				break;
+			case EMULATE_DO_MMIO:
+				kvm_report_emulation_failure(vcpu, "mmio");
+				/* TODO: Handle MMIO */
+				return;
+			default:
+				kvm_report_emulation_failure(vcpu, "emulation failure");
+				return;
+		}
+
+		if (signal_pending(current))
+			break;
+		if (need_resched())
+			schedule();
+	}
+
+	local_irq_disable();
+	preempt_disable();
+
+	/* Guest state should be valid now, no more emulation should be needed */
+	vmx->emulation_required = 0;
+}
+
 /*
  * The exit handlers return 1 if the exit was handled fully and guest execution
  * may resume.  Otherwise they set the kvm_run parameter to indicate what needs
