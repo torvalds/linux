@@ -9,6 +9,9 @@
 #ifndef _ASM_PTRACE_H
 #define _ASM_PTRACE_H
 
+#ifdef CONFIG_64BIT
+#define __ARCH_WANT_COMPAT_SYS_PTRACE
+#endif
 
 /* 0 - 31 are integer registers, 32 - 63 are fp registers.  */
 #define FPR_BASE	32

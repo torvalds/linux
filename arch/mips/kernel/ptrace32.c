@@ -15,6 +15,7 @@
  * binaries.
  */
 #include <linux/compiler.h>
+#include <linux/compat.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
 #include <linux/mm.h>
@@ -46,36 +47,12 @@ int ptrace_setfpregs(struct task_struct *child, __u32 __user *data);
  * Tracing a 32-bit process with a 64-bit strace and vice versa will not
  * work.  I don't know how to fix this.
  */
-asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+			compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	struct task_struct *child;
+	int addr = caddr;
+	int data = cdata;
 	int ret;
-
-#if 0
-	printk("ptrace(r=%d,pid=%d,addr=%08lx,data=%08lx)\n",
-	       (int) request, (int) pid, (unsigned long) addr,
-	       (unsigned long) data);
-#endif
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		ret = ptrace_attach(child);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
 
 	switch (request) {
 	/* when I and D space are separate, these will need to be fixed. */
@@ -214,7 +191,7 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			if (!cpu_has_dsp) {
 				tmp = 0;
 				ret = -EIO;
-				goto out_tsk;
+				goto out;
 			}
 			dregs = __get_dsp_regs(child);
 			tmp = (unsigned long) (dregs[addr - DSP_BASE]);
@@ -224,14 +201,14 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 			if (!cpu_has_dsp) {
 				tmp = 0;
 				ret = -EIO;
-				goto out_tsk;
+				goto out;
 			}
 			tmp = child->thread.dsp.dspcontrol;
 			break;
 		default:
 			tmp = 0;
 			ret = -EIO;
-			goto out_tsk;
+			goto out;
 		}
 		ret = put_user(tmp, (unsigned __user *) (unsigned long) data);
 		break;
@@ -414,10 +391,6 @@ asmlinkage int sys32_ptrace(int request, int pid, int addr, int data)
 		ret = ptrace_request(child, request, addr, data);
 		break;
 	}
-
-out_tsk:
-	put_task_struct(child);
 out:
-	unlock_kernel();
 	return ret;
 }

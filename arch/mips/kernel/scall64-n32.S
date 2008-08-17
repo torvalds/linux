@@ -219,7 +219,7 @@ EXPORT(sysn32_call_table)
 	PTR	compat_sys_getrusage
 	PTR	compat_sys_sysinfo
 	PTR	compat_sys_times
-	PTR	sys32_ptrace
+	PTR	compat_sys_ptrace
 	PTR	sys_getuid			/* 6100 */
 	PTR	sys_syslog
 	PTR	sys_getgid
