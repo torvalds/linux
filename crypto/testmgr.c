@@ -541,8 +541,73 @@ out:
 	return ret;
 }
 
-static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
+static int test_cipher(struct crypto_cipher *tfm, int enc,
 		       struct cipher_testvec *template, unsigned int tcount)
+{
+	const char *algo = crypto_tfm_alg_driver_name(crypto_cipher_tfm(tfm));
+	unsigned int i, j, k;
+	int ret;
+	char *q;
+	const char *e;
+	void *data;
+
+	if (enc == ENCRYPT)
+	        e = "encryption";
+	else
+		e = "decryption";
+
+	j = 0;
+	for (i = 0; i < tcount; i++) {
+		if (template[i].np)
+			continue;
+
+		j++;
+
+		data = xbuf[0];
+		memcpy(data, template[i].input, template[i].ilen);
+
+		crypto_cipher_clear_flags(tfm, ~0);
+		if (template[i].wk)
+			crypto_cipher_set_flags(tfm, CRYPTO_TFM_REQ_WEAK_KEY);
+
+		ret = crypto_cipher_setkey(tfm, template[i].key,
+					   template[i].klen);
+		if (!ret == template[i].fail) {
+			printk(KERN_ERR "alg: cipher: setkey failed "
+			       "on test %d for %s: flags=%x\n", j,
+			       algo, crypto_cipher_get_flags(tfm));
+			goto out;
+		} else if (ret)
+			continue;
+
+		for (k = 0; k < template[i].ilen;
+		     k += crypto_cipher_blocksize(tfm)) {
+			if (enc)
+				crypto_cipher_encrypt_one(tfm, data + k,
+							  data + k);
+			else
+				crypto_cipher_decrypt_one(tfm, data + k,
+							  data + k);
+		}
+
+		q = data;
+		if (memcmp(q, template[i].result, template[i].rlen)) {
+			printk(KERN_ERR "alg: cipher: Test %d failed "
+			       "on %s for %s\n", j, e, algo);
+			hexdump(q, template[i].rlen);
+			ret = -EINVAL;
+			goto out;
+		}
+	}
+
+	ret = 0;
+
+out:
+	return ret;
+}
+
+static int test_skcipher(struct crypto_ablkcipher *tfm, int enc,
+			 struct cipher_testvec *template, unsigned int tcount)
 {
 	const char *algo =
 		crypto_tfm_alg_driver_name(crypto_ablkcipher_tfm(tfm));
@@ -565,8 +630,8 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 
 	req = ablkcipher_request_alloc(tfm, GFP_KERNEL);
 	if (!req) {
-		printk(KERN_ERR "alg: cipher: Failed to allocate request for "
-		       "%s\n", algo);
+		printk(KERN_ERR "alg: skcipher: Failed to allocate request "
+		       "for %s\n", algo);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -595,7 +660,7 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 			ret = crypto_ablkcipher_setkey(tfm, template[i].key,
 						       template[i].klen);
 			if (!ret == template[i].fail) {
-				printk(KERN_ERR "alg: cipher: setkey failed "
+				printk(KERN_ERR "alg: skcipher: setkey failed "
 				       "on test %d for %s: flags=%x\n", j,
 				       algo, crypto_ablkcipher_get_flags(tfm));
 				goto out;
@@ -623,7 +688,7 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 				}
 				/* fall through */
 			default:
-				printk(KERN_ERR "alg: cipher: %s failed on "
+				printk(KERN_ERR "alg: skcipher: %s failed on "
 				       "test %d for %s: ret=%d\n", e, j, algo,
 				       -ret);
 				goto out;
@@ -631,8 +696,8 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 
 			q = data;
 			if (memcmp(q, template[i].result, template[i].rlen)) {
-				printk(KERN_ERR "alg: cipher: Test %d failed "
-				       "on %s for %s\n", j, e, algo);
+				printk(KERN_ERR "alg: skcipher: Test %d "
+				       "failed on %s for %s\n", j, e, algo);
 				hexdump(q, template[i].rlen);
 				ret = -EINVAL;
 				goto out;
@@ -659,7 +724,7 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 			ret = crypto_ablkcipher_setkey(tfm, template[i].key,
 						       template[i].klen);
 			if (!ret == template[i].fail) {
-				printk(KERN_ERR "alg: cipher: setkey failed "
+				printk(KERN_ERR "alg: skcipher: setkey failed "
 				       "on chunk test %d for %s: flags=%x\n",
 				       j, algo,
 				       crypto_ablkcipher_get_flags(tfm));
@@ -710,7 +775,7 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 				}
 				/* fall through */
 			default:
-				printk(KERN_ERR "alg: cipher: %s failed on "
+				printk(KERN_ERR "alg: skcipher: %s failed on "
 				       "chunk test %d for %s: ret=%d\n", e, j,
 				       algo, -ret);
 				goto out;
@@ -724,7 +789,7 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 
 				if (memcmp(q, template[i].result + temp,
 					   template[i].tap[k])) {
-					printk(KERN_ERR "alg: cipher: Chunk "
+					printk(KERN_ERR "alg: skcipher: Chunk "
 					       "test %d failed on %s at page "
 					       "%u for %s\n", j, e, k, algo);
 					hexdump(q, template[i].tap[k]);
@@ -735,7 +800,7 @@ static int test_cipher(struct crypto_ablkcipher *tfm, int enc,
 				for (n = 0; offset_in_page(q + n) && q[n]; n++)
 					;
 				if (n) {
-					printk(KERN_ERR "alg: cipher: "
+					printk(KERN_ERR "alg: skcipher: "
 					       "Result buffer corruption in "
 					       "chunk test %d on %s at page "
 					       "%u for %s: %u bytes:\n", j, e,
@@ -849,10 +914,10 @@ out:
 static int alg_test_cipher(const struct alg_test_desc *desc,
 			   const char *driver, u32 type, u32 mask)
 {
-	struct crypto_ablkcipher *tfm;
+	struct crypto_cipher *tfm;
 	int err = 0;
 
-	tfm = crypto_alloc_ablkcipher(driver, type, mask);
+	tfm = crypto_alloc_cipher(driver, type, mask);
 	if (IS_ERR(tfm)) {
 		printk(KERN_ERR "alg: cipher: Failed to load transform for "
 		       "%s: %ld\n", driver, PTR_ERR(tfm));
@@ -869,6 +934,35 @@ static int alg_test_cipher(const struct alg_test_desc *desc,
 	if (desc->suite.cipher.dec.vecs)
 		err = test_cipher(tfm, DECRYPT, desc->suite.cipher.dec.vecs,
 				  desc->suite.cipher.dec.count);
+
+out:
+	crypto_free_cipher(tfm);
+	return err;
+}
+
+static int alg_test_skcipher(const struct alg_test_desc *desc,
+			     const char *driver, u32 type, u32 mask)
+{
+	struct crypto_ablkcipher *tfm;
+	int err = 0;
+
+	tfm = crypto_alloc_ablkcipher(driver, type, mask);
+	if (IS_ERR(tfm)) {
+		printk(KERN_ERR "alg: skcipher: Failed to load transform for "
+		       "%s: %ld\n", driver, PTR_ERR(tfm));
+		return PTR_ERR(tfm);
+	}
+
+	if (desc->suite.cipher.enc.vecs) {
+		err = test_skcipher(tfm, ENCRYPT, desc->suite.cipher.enc.vecs,
+				    desc->suite.cipher.enc.count);
+		if (err)
+			goto out;
+	}
+
+	if (desc->suite.cipher.dec.vecs)
+		err = test_skcipher(tfm, DECRYPT, desc->suite.cipher.dec.vecs,
+				    desc->suite.cipher.dec.count);
 
 out:
 	crypto_free_ablkcipher(tfm);
@@ -920,7 +1014,7 @@ static int alg_test_hash(const struct alg_test_desc *desc, const char *driver,
 static const struct alg_test_desc alg_test_descs[] = {
 	{
 		.alg = "cbc(aes)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -935,7 +1029,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cbc(anubis)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -950,7 +1044,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cbc(blowfish)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -965,7 +1059,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cbc(camellia)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -980,7 +1074,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cbc(des)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -995,7 +1089,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cbc(des3_ede)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1010,7 +1104,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cbc(twofish)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1049,7 +1143,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "cts(cbc(aes))",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1079,7 +1173,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(aes)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1094,7 +1188,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(anubis)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1109,7 +1203,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(arc4)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1124,7 +1218,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(blowfish)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1139,7 +1233,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(camellia)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1154,7 +1248,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(cast5)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1169,7 +1263,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(cast6)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1184,7 +1278,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(des)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1199,7 +1293,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(des3_ede)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1214,7 +1308,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(khazad)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1229,7 +1323,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(seed)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1244,7 +1338,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(serpent)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1259,7 +1353,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(tea)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1274,7 +1368,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(tnepres)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1289,7 +1383,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(twofish)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1304,7 +1398,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(xeta)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1319,7 +1413,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "ecb(xtea)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1421,7 +1515,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "lrw(aes)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1478,7 +1572,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "pcbc(fcrypt)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1493,7 +1587,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "rfc3686(ctr(aes))",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1544,7 +1638,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "salsa20",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1663,7 +1757,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 		}
 	}, {
 		.alg = "xts(aes)",
-		.test = alg_test_cipher,
+		.test = alg_test_skcipher,
 		.suite = {
 			.cipher = {
 				.enc = {
@@ -1679,7 +1773,7 @@ static const struct alg_test_desc alg_test_descs[] = {
 	}
 };
 
-int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
+static int alg_find_test(const char *alg)
 {
 	int start = 0;
 	int end = ARRAY_SIZE(alg_test_descs);
@@ -1698,10 +1792,38 @@ int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
 			continue;
 		}
 
-		return alg_test_descs[i].test(alg_test_descs + i, driver,
-					      type, mask);
+		return i;
 	}
 
+	return -1;
+}
+
+int alg_test(const char *driver, const char *alg, u32 type, u32 mask)
+{
+	int i;
+
+	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER) {
+		char nalg[CRYPTO_MAX_ALG_NAME];
+
+		if (snprintf(nalg, sizeof(nalg), "ecb(%s)", alg) >=
+		    sizeof(nalg))
+			return -ENAMETOOLONG;
+
+		i = alg_find_test(nalg);
+		if (i < 0)
+			goto notest;
+
+		return alg_test_cipher(alg_test_descs + i, driver, type, mask);
+	}
+
+	i = alg_find_test(alg);
+	if (i < 0)
+		goto notest;
+
+	return alg_test_descs[i].test(alg_test_descs + i, driver,
+				      type, mask);
+
+notest:
 	printk(KERN_INFO "alg: No test for %s (%s)\n", alg, driver);
 	return 0;
 }

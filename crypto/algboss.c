@@ -210,10 +210,7 @@ static int cryptomgr_test(void *data)
 	      CRYPTO_ALG_TYPE_BLKCIPHER_MASK) && !(type & CRYPTO_ALG_GENIV))
 		goto skiptest;
 
-	if ((type & CRYPTO_ALG_TYPE_MASK) == CRYPTO_ALG_TYPE_CIPHER)
-		goto skiptest;
-
-	err = alg_test(param->driver, param->alg, 0, CRYPTO_ALG_TESTED);
+	err = alg_test(param->driver, param->alg, type, CRYPTO_ALG_TESTED);
 
 skiptest:
 	crypto_alg_tested(param->driver, err);
