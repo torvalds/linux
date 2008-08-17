@@ -60,6 +60,7 @@ struct pxa_i2c {
 	u32			icrlog[32];
 
 	void __iomem		*reg_base;
+	unsigned int		reg_shift;
 
 	unsigned long		iobase;
 	unsigned long		iosize;
@@ -68,11 +69,11 @@ struct pxa_i2c {
 	int			use_pio;
 };
 
-#define _IBMR(i2c)	((i2c)->reg_base + 0)
-#define _IDBR(i2c)	((i2c)->reg_base + 8)
-#define _ICR(i2c)	((i2c)->reg_base + 0x10)
-#define _ISR(i2c)	((i2c)->reg_base + 0x18)
-#define _ISAR(i2c)	((i2c)->reg_base + 0x20)
+#define _IBMR(i2c)	((i2c)->reg_base + (0x0 << (i2c)->reg_shift))
+#define _IDBR(i2c)	((i2c)->reg_base + (0x4 << (i2c)->reg_shift))
+#define _ICR(i2c)	((i2c)->reg_base + (0x8 << (i2c)->reg_shift))
+#define _ISR(i2c)	((i2c)->reg_base + (0xc << (i2c)->reg_shift))
+#define _ISAR(i2c)	((i2c)->reg_base + (0x10 << (i2c)->reg_shift))
 
 /*
  * I2C Slave mode address
@@ -993,6 +994,7 @@ static int i2c_pxa_probe(struct platform_device *dev)
 		ret = -EIO;
 		goto eremap;
 	}
+	i2c->reg_shift = (cpu_is_pxa3xx() && (dev->id == 1)) ? 0 : 1;
 
 	i2c->iobase = res->start;
 	i2c->iosize = res_len(res);

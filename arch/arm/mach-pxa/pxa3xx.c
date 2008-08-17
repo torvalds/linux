@@ -203,12 +203,32 @@ static const struct clkops clk_pout_ops = {
 	.disable	= clk_pout_disable,
 };
 
+static void clk_dummy_enable(struct clk *clk)
+{
+}
+
+static void clk_dummy_disable(struct clk *clk)
+{
+}
+
+static const struct clkops clk_dummy_ops = {
+	.enable		= clk_dummy_enable,
+	.disable	= clk_dummy_disable,
+};
+
 static struct clk pxa3xx_clks[] = {
 	{
 		.name           = "CLK_POUT",
 		.ops            = &clk_pout_ops,
 		.rate           = 13000000,
 		.delay          = 70,
+	},
+
+	/* Power I2C clock is always on */
+	{
+		.name		= "I2CCLK",
+		.ops		= &clk_dummy_ops,
+		.dev		= &pxa3xx_device_i2c_power.dev,
 	},
 
 	PXA3xx_CK("LCDCLK",  LCD,    &clk_pxa3xx_hsio_ops, &pxa_device_fb.dev),
@@ -509,6 +529,30 @@ void __init pxa3xx_init_irq(void)
  * device registration specific to PXA3xx.
  */
 
+static struct resource i2c_power_resources[] = {
+	{
+		.start  = 0x40f500c0,
+		.end    = 0x40f500d3,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_PWRI2C,
+		.end	= IRQ_PWRI2C,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device pxa3xx_device_i2c_power = {
+	.name		= "pxa2xx-i2c",
+	.id		= 1,
+	.resource	= i2c_power_resources,
+	.num_resources	= ARRAY_SIZE(i2c_power_resources),
+};
+
+void __init pxa3xx_set_i2c_power_info(struct i2c_pxa_platform_data *info)
+{
+	pxa3xx_device_i2c_power.dev.platform_data = info;
+}
+
 static struct platform_device *devices[] __initdata = {
 /*	&pxa_device_udc,	The UDC driver is PXA25x only */
 	&pxa_device_ffuart,
@@ -522,6 +566,7 @@ static struct platform_device *devices[] __initdata = {
 	&pxa3xx_device_ssp4,
 	&pxa27x_device_pwm0,
 	&pxa27x_device_pwm1,
+	&pxa3xx_device_i2c_power,
 };
 
 static struct sys_device pxa3xx_sysdev[] = {

@@ -349,7 +349,7 @@ struct platform_device pxa27x_device_i2c_power = {
 	.num_resources	= ARRAY_SIZE(i2c_power_resources),
 };
 
-void __init pxa_set_i2c_power_info(struct i2c_pxa_platform_data *info)
+void __init pxa27x_set_i2c_power_info(struct i2c_pxa_platform_data *info)
 {
 	local_irq_disable();
 	PCFR |= PCFR_PI2CEN;
