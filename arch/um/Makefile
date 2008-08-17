@@ -21,14 +21,14 @@ core-y			+= $(ARCH_DIR)/kernel/		\
 # Have to precede the include because the included Makefiles reference them.
 SYMLINK_HEADERS := archparam.h system.h sigcontext.h processor.h ptrace.h \
 	module.h vm-flags.h elf.h host_ldt.h
-SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),include/asm-um/$(header))
+SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),$(ARCH_DIR)/include/asm/$(header))
 
 # XXX: The "os" symlink is only used by arch/um/include/os.h, which includes
 # ../os/include/file.h
 #
 # These are cleaned up during mrproper. Please DO NOT fix it again, this is
 # the Correct Thing(tm) to do!
-ARCH_SYMLINKS = include/asm-um/arch $(ARCH_DIR)/include/shared/sysdep $(ARCH_DIR)/os \
+ARCH_SYMLINKS = $(ARCH_DIR)/include/asm/arch $(ARCH_DIR)/include/shared/sysdep $(ARCH_DIR)/os \
 	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/shared/uml-config.h
 
 MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
@@ -38,6 +38,7 @@ include $(srctree)/$(ARCH_DIR)/Makefile-skas
 ARCH_INCLUDE	:= -I$(ARCH_DIR)/include/shared
 ifneq ($(KBUILD_SRC),)
 ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared
+KBUILD_CPPFLAGS += -I$(ARCH_DIR)/include # for arch symlink
 endif
 SYS_DIR		:= $(ARCH_DIR)/include/shared/sysdep-$(SUBARCH)
 
@@ -145,19 +146,19 @@ archclean:
 $(SYMLINK_HEADERS):
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p $(objtree)/include/asm-um
-	$(Q)ln -fsn $(srctree)/include/asm-um/$(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
+	$(Q)mkdir -p $(objtree)/$(ARCH_DIR)/include/asm
+	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/asm/$(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
 else
 	$(Q)ln -sf $(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
 endif
 
-include/asm-um/arch:
+$(ARCH_DIR)/include/asm/arch:
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p $(objtree)/include/asm-um
+	$(Q)mkdir -p $(objtree)/$(ARCH_DIR)/include/asm
 	$(Q)ln -fsn $(srctree)/include/asm-$(HEADER_ARCH) $@
 else
-	$(Q)ln -fsn ../asm-$(HEADER_ARCH) $@
+	$(Q)ln -fsn ../../../../include/asm-$(HEADER_ARCH) $@
 endif
 
 $(objtree)/$(ARCH_DIR)/include/shared:
@@ -209,6 +210,6 @@ $(ARCH_DIR)/include/shared/user_constants.h: $(ARCH_DIR)/sys-$(SUBARCH)/user-off
 
 $(ARCH_DIR)/include/shared/kern_constants.h: $(objtree)/$(ARCH_DIR)/include/shared
 	@echo '  SYMLINK $@'
-	$(Q)ln -sf ../../../../include/asm-um/asm-offsets.h $@
+	$(Q)ln -sf ../../../../include/asm/asm-offsets.h $@
 
 export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS HEADER_ARCH
