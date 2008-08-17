@@ -2040,6 +2040,7 @@ struct nfshack_dirent {
 struct nfshack_readdir {
 	char		*dirent;
 	size_t		used;
+	int		full;
 };
 
 
@@ -2052,8 +2053,10 @@ static int btrfs_nfshack_filldir(void *__buf, const char *name, int namlen,
 	unsigned int reclen;
 
 	reclen = ALIGN(sizeof(struct nfshack_dirent) + namlen, sizeof(u64));
-	if (buf->used + reclen > PAGE_SIZE)
+	if (buf->used + reclen > PAGE_SIZE) {
+		buf->full = 1;
 		return -EINVAL;
+	}
 
 	de->namlen = namlen;
 	de->offset = offset;
@@ -2080,11 +2083,11 @@ static int btrfs_nfshack_readdir(struct file *file, void *dirent,
 
 	offset = file->f_pos;
 
-	while (1) {
+	do {
 		unsigned int reclen;
 
 		buf.used = 0;
-
+		buf.full = 0;
 		err = btrfs_real_readdir(file, &buf, btrfs_nfshack_filldir);
 		if (err)
 			break;
@@ -2108,7 +2111,7 @@ static int btrfs_nfshack_readdir(struct file *file, void *dirent,
 			size -= reclen;
 			de = (struct nfshack_dirent *)((char *)de + reclen);
 		}
-	}
+	} while (buf.full);
 
  done:
 	free_page((unsigned long)buf.dirent);
