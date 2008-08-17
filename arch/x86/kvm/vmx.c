@@ -1298,7 +1298,9 @@ static void fix_pmode_dataseg(int seg, struct kvm_save_segment *save)
 static void enter_pmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	vmx->emulation_required = 1;
 	vcpu->arch.rmode.active = 0;
 
 	vmcs_writel(GUEST_TR_BASE, vcpu->arch.rmode.tr.base);
@@ -1314,6 +1316,9 @@ static void enter_pmode(struct kvm_vcpu *vcpu)
 			(vmcs_readl(CR4_READ_SHADOW) & X86_CR4_VME));
 
 	update_exception_bitmap(vcpu);
+
+	if (emulate_invalid_guest_state)
+		return;
 
 	fix_pmode_dataseg(VCPU_SREG_ES, &vcpu->arch.rmode.es);
 	fix_pmode_dataseg(VCPU_SREG_DS, &vcpu->arch.rmode.ds);
@@ -1355,7 +1360,9 @@ static void fix_rmode_seg(int seg, struct kvm_save_segment *save)
 static void enter_rmode(struct kvm_vcpu *vcpu)
 {
 	unsigned long flags;
+	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	vmx->emulation_required = 1;
 	vcpu->arch.rmode.active = 1;
 
 	vcpu->arch.rmode.tr.base = vmcs_readl(GUEST_TR_BASE);
@@ -1377,6 +1384,9 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	vmcs_writel(GUEST_CR4, vmcs_readl(GUEST_CR4) | X86_CR4_VME);
 	update_exception_bitmap(vcpu);
 
+	if (emulate_invalid_guest_state)
+		goto continue_rmode;
+
 	vmcs_write16(GUEST_SS_SELECTOR, vmcs_readl(GUEST_SS_BASE) >> 4);
 	vmcs_write32(GUEST_SS_LIMIT, 0xffff);
 	vmcs_write32(GUEST_SS_AR_BYTES, 0xf3);
@@ -1392,6 +1402,7 @@ static void enter_rmode(struct kvm_vcpu *vcpu)
 	fix_rmode_seg(VCPU_SREG_GS, &vcpu->arch.rmode.gs);
 	fix_rmode_seg(VCPU_SREG_FS, &vcpu->arch.rmode.fs);
 
+continue_rmode:
 	kvm_mmu_reset_context(vcpu);
 	init_rmode(vcpu->kvm);
 }
@@ -2317,6 +2328,9 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	ret = 0;
 
+	/* HACK: Don't enable emulation on guest boot/reset */
+	vmx->emulation_required = 0;
+
 out:
 	up_read(&vcpu->kvm->slots_lock);
 	return ret;
@@ -3189,6 +3203,12 @@ static void vmx_vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 	u32 intr_info;
+
+	/* Handle invalid guest state instead of entering VMX */
+	if (vmx->emulation_required && emulate_invalid_guest_state) {
+		handle_invalid_guest_state(vcpu, kvm_run);
+		return;
+	}
 
 	if (test_bit(VCPU_REGS_RSP, (unsigned long *)&vcpu->arch.regs_dirty))
 		vmcs_writel(GUEST_RSP, vcpu->arch.regs[VCPU_REGS_RSP]);
