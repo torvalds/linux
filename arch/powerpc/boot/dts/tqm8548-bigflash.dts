@@ -50,13 +50,14 @@
 		reg = <0x00000000 0x00000000>;	// Filled in by U-Boot
 	};
 
-	soc8548@a0000000 {
+	soc@a0000000 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		device_type = "soc";
 		ranges = <0x0 0xa0000000 0x100000>;
 		reg = <0xa0000000 0x1000>;	// CCSRBAR
 		bus-frequency = <0>;
+		compatible = "fsl,mpc8548-immr", "simple-bus";
 
 		memory-controller@2000 {
 			compatible = "fsl,mpc8548-memory-controller";
@@ -83,6 +84,11 @@
 			interrupts = <43 2>;
 			interrupt-parent = <&mpic>;
 			dfsrr;
+
+			rtc@68 {
+				compatible = "dallas,ds1337";
+				reg = <0x68>;
+			};
 		};
 
 		i2c@3100 {
