@@ -1755,7 +1755,7 @@ static inline int security_ptrace_may_access(struct task_struct *child,
 	return cap_ptrace_may_access(child, mode);
 }
 
-static inline int security_ptrace_traceme(struct task_struct *child)
+static inline int security_ptrace_traceme(struct task_struct *parent)
 {
 	return cap_ptrace_traceme(parent);
 }
