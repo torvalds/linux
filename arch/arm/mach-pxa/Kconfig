@@ -256,6 +256,9 @@ config PCM990_DISPLAY_NONE
 
 endchoice
 
+config MACH_AM200EPD
+	depends on MACH_GUMSTIX_F
+	bool "Enable AM200EPD board support"
 
 config PXA_EZX
 	bool "Motorola EZX Platform"

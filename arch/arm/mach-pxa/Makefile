@@ -22,6 +22,7 @@ obj-$(CONFIG_CPU_PXA930)	+= pxa930.o
 
 # Specific board support
 obj-$(CONFIG_ARCH_GUMSTIX)	+= gumstix.o
+obj-$(CONFIG_MACH_AM200EPD)	+= am200epd.o
 obj-$(CONFIG_ARCH_LUBBOCK)	+= lubbock.o
 obj-$(CONFIG_MACH_LOGICPD_PXA270) += lpd270.o
 obj-$(CONFIG_MACH_MAINSTONE)	+= mainstone.o
