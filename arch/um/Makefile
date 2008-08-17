@@ -28,18 +28,18 @@ SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),include/asm-um/$(header))
 #
 # These are cleaned up during mrproper. Please DO NOT fix it again, this is
 # the Correct Thing(tm) to do!
-ARCH_SYMLINKS = include/asm-um/arch $(ARCH_DIR)/include/sysdep $(ARCH_DIR)/os \
-	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/uml-config.h
+ARCH_SYMLINKS = include/asm-um/arch $(ARCH_DIR)/include/shared/sysdep $(ARCH_DIR)/os \
+	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/shared/uml-config.h
 
-MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/skas
+MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
 
 include $(srctree)/$(ARCH_DIR)/Makefile-skas
 
-ARCH_INCLUDE	:= -I$(ARCH_DIR)/include
+ARCH_INCLUDE	:= -I$(ARCH_DIR)/include/shared
 ifneq ($(KBUILD_SRC),)
-ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include
+ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared
 endif
-SYS_DIR		:= $(ARCH_DIR)/include/sysdep-$(SUBARCH)
+SYS_DIR		:= $(ARCH_DIR)/include/shared/sysdep-$(SUBARCH)
 
 # -Dvmap=kernel_vmap prevents anything from referencing the libpcap.o symbol so
 # named - it's a common symbol in libpcap, so we get a binary which crashes.
@@ -96,11 +96,11 @@ endef
 ifneq ($(KBUILD_SRC),)
 $(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig.$(SUBARCH) $(ARCH_DIR)/Kconfig.arch)
 else
-$(shell cd $(ARCH_DIR) && ln -sf Kconfig.$(SUBARCH) Kconfig.arch)
+$(shell ln -fsn Kconfig.$(SUBARCH) $(ARCH_DIR)/Kconfig.arch)
 endif
 
-archprepare: $(ARCH_SYMLINKS) $(ARCH_DIR)/include/user_constants.h
-prepare: $(ARCH_DIR)/include/kern_constants.h
+archprepare: $(ARCH_SYMLINKS) $(ARCH_DIR)/include/shared/user_constants.h
+prepare: $(ARCH_DIR)/include/shared/kern_constants.h
 
 LINK-$(CONFIG_LD_SCRIPT_STATIC) += -static
 LINK-$(CONFIG_LD_SCRIPT_DYN) += -Wl,-rpath,/lib
@@ -132,9 +132,9 @@ endef
 
 # When cleaning we don't include .config, so we don't include
 # TT or skas makefiles and don't clean skas_ptregs.h.
-CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/uml-config.h \
-	$(ARCH_DIR)/include/user_constants.h \
-	$(ARCH_DIR)/include/kern_constants.h $(ARCH_DIR)/Kconfig.arch
+CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/shared/uml-config.h \
+	$(ARCH_DIR)/include/shared/user_constants.h \
+	$(ARCH_DIR)/include/shared/kern_constants.h $(ARCH_DIR)/Kconfig.arch
 
 MRPROPER_FILES += $(ARCH_SYMLINKS)
 
@@ -148,37 +148,36 @@ ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p $(objtree)/include/asm-um
 	$(Q)ln -fsn $(srctree)/include/asm-um/$(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
 else
-	$(Q)cd $(srctree)/$(dir $@) ; \
-	ln -sf $(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $(notdir $@)
+	$(Q)ln -sf $(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
 endif
 
 include/asm-um/arch:
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p $(objtree)/include/asm-um
-	$(Q)ln -fsn $(srctree)/include/asm-$(HEADER_ARCH) include/asm-um/arch
+	$(Q)ln -fsn $(srctree)/include/asm-$(HEADER_ARCH) $@
 else
-	$(Q)cd $(srctree)/include/asm-um && ln -fsn ../asm-$(HEADER_ARCH) arch
+	$(Q)ln -fsn ../asm-$(HEADER_ARCH) $@
 endif
 
-$(objtree)/$(ARCH_DIR)/include:
+$(objtree)/$(ARCH_DIR)/include/shared:
 	@echo '  MKDIR $@'
 	$(Q)mkdir -p $@
 
-$(ARCH_DIR)/include/sysdep: $(objtree)/$(ARCH_DIR)/include
+$(ARCH_DIR)/include/shared/sysdep: $(objtree)/$(ARCH_DIR)/include/shared
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
-	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/sysdep-$(SUBARCH) $(ARCH_DIR)/include/sysdep
+	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/shared/sysdep-$(SUBARCH) $@
 else
-	$(Q)cd $(ARCH_DIR)/include && ln -fsn sysdep-$(SUBARCH) sysdep
+	$(Q)ln -fsn sysdep-$(SUBARCH) $@
 endif
 
 $(ARCH_DIR)/os:
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
-	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/os-$(OS) $(ARCH_DIR)/os
+	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/os-$(OS) $@
 else
-	$(Q)cd $(ARCH_DIR) && ln -fsn os-$(OS) os
+	$(Q)ln -fsn os-$(OS) $@
 endif
 
 # Generated files
@@ -186,7 +185,7 @@ define filechk_umlconfig
 	sed 's/ CONFIG/ UML_CONFIG/'
 endef
 
-$(ARCH_DIR)/include/uml-config.h : include/linux/autoconf.h
+$(ARCH_DIR)/include/shared/uml-config.h : include/linux/autoconf.h
 	$(call filechk,umlconfig)
 
 $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.s: FORCE
@@ -205,11 +204,11 @@ define filechk_gen-asm-offsets
          echo ""; )
 endef
 
-$(ARCH_DIR)/include/user_constants.h: $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.s
+$(ARCH_DIR)/include/shared/user_constants.h: $(ARCH_DIR)/sys-$(SUBARCH)/user-offsets.s
 	$(call filechk,gen-asm-offsets)
 
-$(ARCH_DIR)/include/kern_constants.h: $(objtree)/$(ARCH_DIR)/include
+$(ARCH_DIR)/include/shared/kern_constants.h: $(objtree)/$(ARCH_DIR)/include/shared
 	@echo '  SYMLINK $@'
-	$(Q)ln -sf ../../../include/asm-um/asm-offsets.h $@
+	$(Q)ln -sf ../../../../include/asm-um/asm-offsets.h $@
 
 export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS HEADER_ARCH
