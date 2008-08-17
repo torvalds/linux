@@ -1721,6 +1721,186 @@ static void vmx_set_gdt(struct kvm_vcpu *vcpu, struct descriptor_table *dt)
 	vmcs_writel(GUEST_GDTR_BASE, dt->base);
 }
 
+static bool rmode_segment_valid(struct kvm_vcpu *vcpu, int seg)
+{
+	struct kvm_segment var;
+	u32 ar;
+
+	vmx_get_segment(vcpu, &var, seg);
+	ar = vmx_segment_access_rights(&var);
+
+	if (var.base != (var.selector << 4))
+		return false;
+	if (var.limit != 0xffff)
+		return false;
+	if (ar != 0xf3)
+		return false;
+
+	return true;
+}
+
+static bool code_segment_valid(struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment cs;
+	unsigned int cs_rpl;
+
+	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
+	cs_rpl = cs.selector & SELECTOR_RPL_MASK;
+
+	if (~cs.type & (AR_TYPE_CODE_MASK|AR_TYPE_ACCESSES_MASK))
+		return false;
+	if (!cs.s)
+		return false;
+	if (!(~cs.type & (AR_TYPE_CODE_MASK|AR_TYPE_WRITEABLE_MASK))) {
+		if (cs.dpl > cs_rpl)
+			return false;
+	} else if (cs.type & AR_TYPE_CODE_MASK) {
+		if (cs.dpl != cs_rpl)
+			return false;
+	}
+	if (!cs.present)
+		return false;
+
+	/* TODO: Add Reserved field check, this'll require a new member in the kvm_segment_field structure */
+	return true;
+}
+
+static bool stack_segment_valid(struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment ss;
+	unsigned int ss_rpl;
+
+	vmx_get_segment(vcpu, &ss, VCPU_SREG_SS);
+	ss_rpl = ss.selector & SELECTOR_RPL_MASK;
+
+	if ((ss.type != 3) || (ss.type != 7))
+		return false;
+	if (!ss.s)
+		return false;
+	if (ss.dpl != ss_rpl) /* DPL != RPL */
+		return false;
+	if (!ss.present)
+		return false;
+
+	return true;
+}
+
+static bool data_segment_valid(struct kvm_vcpu *vcpu, int seg)
+{
+	struct kvm_segment var;
+	unsigned int rpl;
+
+	vmx_get_segment(vcpu, &var, seg);
+	rpl = var.selector & SELECTOR_RPL_MASK;
+
+	if (!var.s)
+		return false;
+	if (!var.present)
+		return false;
+	if (~var.type & (AR_TYPE_CODE_MASK|AR_TYPE_WRITEABLE_MASK)) {
+		if (var.dpl < rpl) /* DPL < RPL */
+			return false;
+	}
+
+	/* TODO: Add other members to kvm_segment_field to allow checking for other access
+	 * rights flags
+	 */
+	return true;
+}
+
+static bool tr_valid(struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment tr;
+
+	vmx_get_segment(vcpu, &tr, VCPU_SREG_TR);
+
+	if (tr.selector & SELECTOR_TI_MASK)	/* TI = 1 */
+		return false;
+	if ((tr.type != 3) || (tr.type != 11)) /* TODO: Check if guest is in IA32e mode */
+		return false;
+	if (!tr.present)
+		return false;
+
+	return true;
+}
+
+static bool ldtr_valid(struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment ldtr;
+
+	vmx_get_segment(vcpu, &ldtr, VCPU_SREG_LDTR);
+
+	if (ldtr.selector & SELECTOR_TI_MASK)	/* TI = 1 */
+		return false;
+	if (ldtr.type != 2)
+		return false;
+	if (!ldtr.present)
+		return false;
+
+	return true;
+}
+
+static bool cs_ss_rpl_check(struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment cs, ss;
+
+	vmx_get_segment(vcpu, &cs, VCPU_SREG_CS);
+	vmx_get_segment(vcpu, &ss, VCPU_SREG_SS);
+
+	return ((cs.selector & SELECTOR_RPL_MASK) ==
+		 (ss.selector & SELECTOR_RPL_MASK));
+}
+
+/*
+ * Check if guest state is valid. Returns true if valid, false if
+ * not.
+ * We assume that registers are always usable
+ */
+static bool guest_state_valid(struct kvm_vcpu *vcpu)
+{
+	/* real mode guest state checks */
+	if (!(vcpu->arch.cr0 & X86_CR0_PE)) {
+		if (!rmode_segment_valid(vcpu, VCPU_SREG_CS))
+			return false;
+		if (!rmode_segment_valid(vcpu, VCPU_SREG_SS))
+			return false;
+		if (!rmode_segment_valid(vcpu, VCPU_SREG_DS))
+			return false;
+		if (!rmode_segment_valid(vcpu, VCPU_SREG_ES))
+			return false;
+		if (!rmode_segment_valid(vcpu, VCPU_SREG_FS))
+			return false;
+		if (!rmode_segment_valid(vcpu, VCPU_SREG_GS))
+			return false;
+	} else {
+	/* protected mode guest state checks */
+		if (!cs_ss_rpl_check(vcpu))
+			return false;
+		if (!code_segment_valid(vcpu))
+			return false;
+		if (!stack_segment_valid(vcpu))
+			return false;
+		if (!data_segment_valid(vcpu, VCPU_SREG_DS))
+			return false;
+		if (!data_segment_valid(vcpu, VCPU_SREG_ES))
+			return false;
+		if (!data_segment_valid(vcpu, VCPU_SREG_FS))
+			return false;
+		if (!data_segment_valid(vcpu, VCPU_SREG_GS))
+			return false;
+		if (!tr_valid(vcpu))
+			return false;
+		if (!ldtr_valid(vcpu))
+			return false;
+	}
+	/* TODO:
+	 * - Add checks on RIP
+	 * - Add checks on RFLAGS
+	 */
+
+	return true;
+}
+
 static int init_rmode_tss(struct kvm *kvm)
 {
 	gfn_t fn = rmode_tss_base(kvm) >> PAGE_SHIFT;
