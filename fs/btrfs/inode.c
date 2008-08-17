@@ -1920,34 +1920,34 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 			return 0;
 		filp->f_pos = 1;
 	}
-
-	key.objectid = inode->i_ino;
-	path = btrfs_alloc_path();
-	path->reada = 2;
-
 	/* special case for .., just use the back ref */
 	if (filp->f_pos == 1) {
 		u64 pino = parent_ino(filp->f_path.dentry);
 		over = filldir(dirent, "..", 2,
 			       2, pino, DT_DIR);
 		if (over)
-			goto nopos;
+			return 0;
 		filp->f_pos = 2;
 	}
 
+	path = btrfs_alloc_path();
+	path->reada = 2;
+
 	btrfs_set_key_type(&key, key_type);
 	key.offset = filp->f_pos;
+	key.objectid = inode->i_ino;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	if (ret < 0)
 		goto err;
 	advance = 0;
-	while(1) {
+
+	while (1) {
 		leaf = path->nodes[0];
 		nritems = btrfs_header_nritems(leaf);
 		slot = path->slots[0];
 		if (advance || slot >= nritems) {
-			if (slot >= nritems -1) {
+			if (slot >= nritems - 1) {
 				ret = btrfs_next_leaf(root, path);
 				if (ret)
 					break;
@@ -1971,19 +1971,23 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 			continue;
 
 		filp->f_pos = found_key.offset;
-		advance = 1;
+
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		di_cur = 0;
 		di_total = btrfs_item_size(leaf, item);
-		while(di_cur < di_total) {
+
+		while (di_cur < di_total) {
 			struct btrfs_key location;
 
 			name_len = btrfs_dir_name_len(leaf, di);
-			if (name_len < 32) {
+			if (name_len <= sizeof(tmp_name)) {
 				name_ptr = tmp_name;
 			} else {
 				name_ptr = kmalloc(name_len, GFP_NOFS);
-				BUG_ON(!name_ptr);
+				if (!name_ptr) {
+					ret = -ENOMEM;
+					goto err;
+				}
 			}
 			read_extent_buffer(leaf, name_ptr,
 					   (unsigned long)(di + 1), name_len);
@@ -1991,8 +1995,7 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 			d_type = btrfs_filetype_table[btrfs_dir_type(leaf, di)];
 			btrfs_dir_item_key_to_cpu(leaf, di, &location);
 			over = filldir(dirent, name_ptr, name_len,
-				       found_key.offset,
-				       location.objectid,
+				       found_key.offset, location.objectid,
 				       d_type);
 
 			if (name_ptr != tmp_name)
@@ -2000,12 +2003,15 @@ static int btrfs_real_readdir(struct file *filp, void *dirent,
 
 			if (over)
 				goto nopos;
+
 			di_len = btrfs_dir_name_len(leaf, di) +
-				btrfs_dir_data_len(leaf, di) +sizeof(*di);
+				 btrfs_dir_data_len(leaf, di) + sizeof(*di);
 			di_cur += di_len;
 			di = (struct btrfs_dir_item *)((char *)di + di_len);
 		}
 	}
+
+	/* Reached end of directory/root. Bump pos past the last item. */
 	if (key_type == BTRFS_DIR_INDEX_KEY)
 		filp->f_pos = INT_LIMIT(typeof(filp->f_pos));
 	else
