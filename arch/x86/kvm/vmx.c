@@ -49,6 +49,9 @@ module_param(flexpriority_enabled, bool, 0);
 static int enable_ept = 1;
 module_param(enable_ept, bool, 0);
 
+static int emulate_invalid_guest_state = 0;
+module_param(emulate_invalid_guest_state, bool, 0);
+
 struct vmcs {
 	u32 revision_id;
 	u32 abort;
@@ -86,6 +89,7 @@ struct vcpu_vmx {
 		} irq;
 	} rmode;
 	int vpid;
+	bool emulation_required;
 };
 
 static inline struct vcpu_vmx *to_vmx(struct kvm_vcpu *vcpu)
