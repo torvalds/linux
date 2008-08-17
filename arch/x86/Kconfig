@@ -951,9 +951,9 @@ config NUMA
 	  local memory controller of the CPU and add some more
 	  NUMA awareness to the kernel.
 
-	  For i386 this is currently highly experimental and should be only
+	  For 32-bit this is currently highly experimental and should be only
 	  used for kernel development. It might also cause boot failures.
-	  For x86_64 this is recommended on all multiprocessor Opteron systems.
+	  For 64-bit this is recommended on all multiprocessor Opteron systems.
 	  If the system is EM64T, you should say N unless your system is
 	  EM64T NUMA.
 
@@ -1263,7 +1263,7 @@ config KEXEC
 	  strongly in flux, so no good recommendation can be made.
 
 config CRASH_DUMP
-	bool "kernel crash dumps (EXPERIMENTAL)"
+	bool "kernel crash dumps"
 	depends on X86_64 || (X86_32 && HIGHMEM)
 	help
 	  Generate crash dump after being started by kexec.

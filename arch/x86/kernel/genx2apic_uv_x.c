@@ -222,7 +222,7 @@ static __init void map_low_mmrs(void)
 
 enum map_type {map_wb, map_uc};
 
-static void map_high(char *id, unsigned long base, int shift, enum map_type map_type)
+static __init void map_high(char *id, unsigned long base, int shift, enum map_type map_type)
 {
 	unsigned long bytes, paddr;
 
