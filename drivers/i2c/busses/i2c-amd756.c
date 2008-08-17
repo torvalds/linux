@@ -332,10 +332,6 @@ static int __devinit amd756_probe(struct pci_dev *pdev,
 	int error;
 	u8 temp;
 	
-	/* driver_data might come from user-space, so check it */
-	if (id->driver_data >= ARRAY_SIZE(chipname))
-		return -EINVAL;
-
 	if (amd756_ioport) {
 		dev_err(&pdev->dev, "Only one device supported "
 		       "(you have a strange motherboard, btw)\n");
