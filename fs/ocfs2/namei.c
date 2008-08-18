@@ -1598,10 +1598,10 @@ static int ocfs2_symlink(struct inode *dir,
 		u32 offset = 0;
 
 		inode->i_op = &ocfs2_symlink_inode_operations;
-		status = ocfs2_do_extend_allocation(osb, inode, &offset, 1, 0,
-						    new_fe_bh,
-						    handle, data_ac, NULL,
-						    NULL);
+		status = ocfs2_add_inode_data(osb, inode, &offset, 1, 0,
+					      new_fe_bh,
+					      handle, data_ac, NULL,
+					      NULL);
 		if (status < 0) {
 			if (status != -ENOSPC && status != -EINTR) {
 				mlog(ML_ERROR,

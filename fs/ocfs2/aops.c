@@ -1255,10 +1255,10 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 		 * any additional semaphores or cluster locks.
 		 */
 		tmp_pos = cpos;
-		ret = ocfs2_do_extend_allocation(OCFS2_SB(inode->i_sb), inode,
-						 &tmp_pos, 1, 0, wc->w_di_bh,
-						 wc->w_handle, data_ac,
-						 meta_ac, NULL);
+		ret = ocfs2_add_inode_data(OCFS2_SB(inode->i_sb), inode,
+					   &tmp_pos, 1, 0, wc->w_di_bh,
+					   wc->w_handle, data_ac,
+					   meta_ac, NULL);
 		/*
 		 * This shouldn't happen because we must have already
 		 * calculated the correct meta data allocation required. The

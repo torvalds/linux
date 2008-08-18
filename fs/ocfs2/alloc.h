@@ -41,6 +41,23 @@ int ocfs2_insert_extent(struct ocfs2_super *osb,
 			u8 flags,
 			struct ocfs2_alloc_context *meta_ac,
 			enum ocfs2_extent_tree_type et_type);
+enum ocfs2_alloc_restarted {
+	RESTART_NONE = 0,
+	RESTART_TRANS,
+	RESTART_META
+};
+int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
+				struct inode *inode,
+				u32 *logical_offset,
+				u32 clusters_to_add,
+				int mark_unwritten,
+				struct buffer_head *root_bh,
+				struct ocfs2_extent_list *root_el,
+				handle_t *handle,
+				struct ocfs2_alloc_context *data_ac,
+				struct ocfs2_alloc_context *meta_ac,
+				enum ocfs2_alloc_restarted *reason_ret,
+				enum ocfs2_extent_tree_type type);
 struct ocfs2_cached_dealloc_ctxt;
 int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *root_bh,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,

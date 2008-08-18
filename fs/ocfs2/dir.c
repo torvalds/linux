@@ -1383,9 +1383,9 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 	if (extend) {
 		u32 offset = OCFS2_I(dir)->ip_clusters;
 
-		status = ocfs2_do_extend_allocation(OCFS2_SB(sb), dir, &offset,
-						    1, 0, parent_fe_bh, handle,
-						    data_ac, meta_ac, NULL);
+		status = ocfs2_add_inode_data(OCFS2_SB(sb), dir, &offset,
+					      1, 0, parent_fe_bh, handle,
+					      data_ac, meta_ac, NULL);
 		BUG_ON(status == -EAGAIN);
 		if (status < 0) {
 			mlog_errno(status);

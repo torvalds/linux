@@ -488,7 +488,7 @@ bail:
 }
 
 /*
- * extend allocation only here.
+ * extend file allocation only here.
  * we'll update all the disk stuff, and oip->alloc_size
  *
  * expect stuff to be locked, a transaction started and enough data /
@@ -497,107 +497,25 @@ bail:
  * Will return -EAGAIN, and a reason if a restart is needed.
  * If passed in, *reason will always be set, even in error.
  */
-int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
-			       struct inode *inode,
-			       u32 *logical_offset,
-			       u32 clusters_to_add,
-			       int mark_unwritten,
-			       struct buffer_head *fe_bh,
-			       handle_t *handle,
-			       struct ocfs2_alloc_context *data_ac,
-			       struct ocfs2_alloc_context *meta_ac,
-			       enum ocfs2_alloc_restarted *reason_ret)
+int ocfs2_add_inode_data(struct ocfs2_super *osb,
+			 struct inode *inode,
+			 u32 *logical_offset,
+			 u32 clusters_to_add,
+			 int mark_unwritten,
+			 struct buffer_head *fe_bh,
+			 handle_t *handle,
+			 struct ocfs2_alloc_context *data_ac,
+			 struct ocfs2_alloc_context *meta_ac,
+			 enum ocfs2_alloc_restarted *reason_ret)
 {
-	int status = 0;
-	int free_extents;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) fe_bh->b_data;
-	enum ocfs2_alloc_restarted reason = RESTART_NONE;
-	u32 bit_off, num_bits;
-	u64 block;
-	u8 flags = 0;
+	struct ocfs2_extent_list *el = &fe->id2.i_list;
 
-	BUG_ON(!clusters_to_add);
-
-	if (mark_unwritten)
-		flags = OCFS2_EXT_UNWRITTEN;
-
-	free_extents = ocfs2_num_free_extents(osb, inode, fe_bh,
-					      OCFS2_DINODE_EXTENT);
-	if (free_extents < 0) {
-		status = free_extents;
-		mlog_errno(status);
-		goto leave;
-	}
-
-	/* there are two cases which could cause us to EAGAIN in the
-	 * we-need-more-metadata case:
-	 * 1) we haven't reserved *any*
-	 * 2) we are so fragmented, we've needed to add metadata too
-	 *    many times. */
-	if (!free_extents && !meta_ac) {
-		mlog(0, "we haven't reserved any metadata!\n");
-		status = -EAGAIN;
-		reason = RESTART_META;
-		goto leave;
-	} else if ((!free_extents)
-		   && (ocfs2_alloc_context_bits_left(meta_ac)
-		       < ocfs2_extend_meta_needed(&fe->id2.i_list))) {
-		mlog(0, "filesystem is really fragmented...\n");
-		status = -EAGAIN;
-		reason = RESTART_META;
-		goto leave;
-	}
-
-	status = __ocfs2_claim_clusters(osb, handle, data_ac, 1,
-					clusters_to_add, &bit_off, &num_bits);
-	if (status < 0) {
-		if (status != -ENOSPC)
-			mlog_errno(status);
-		goto leave;
-	}
-
-	BUG_ON(num_bits > clusters_to_add);
-
-	/* reserve our write early -- insert_extent may update the inode */
-	status = ocfs2_journal_access(handle, inode, fe_bh,
-				      OCFS2_JOURNAL_ACCESS_WRITE);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
-
-	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
-	mlog(0, "Allocating %u clusters at block %u for inode %llu\n",
-	     num_bits, bit_off, (unsigned long long)OCFS2_I(inode)->ip_blkno);
-	status = ocfs2_insert_extent(osb, handle, inode, fe_bh,
-				     *logical_offset, block, num_bits,
-				     flags, meta_ac, OCFS2_DINODE_EXTENT);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
-
-	status = ocfs2_journal_dirty(handle, fe_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
-
-	clusters_to_add -= num_bits;
-	*logical_offset += num_bits;
-
-	if (clusters_to_add) {
-		mlog(0, "need to alloc once more, clusters = %u, wanted = "
-		     "%u\n", fe->i_clusters, clusters_to_add);
-		status = -EAGAIN;
-		reason = RESTART_TRANS;
-	}
-
-leave:
-	mlog_exit(status);
-	if (reason_ret)
-		*reason_ret = reason;
-	return status;
+	return ocfs2_add_clusters_in_btree(osb, inode, logical_offset,
+					   clusters_to_add, mark_unwritten,
+					   fe_bh, el, handle,
+					   data_ac, meta_ac, reason_ret,
+					   OCFS2_DINODE_EXTENT);
 }
 
 static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
@@ -676,16 +594,16 @@ restarted_transaction:
 
 	prev_clusters = OCFS2_I(inode)->ip_clusters;
 
-	status = ocfs2_do_extend_allocation(osb,
-					    inode,
-					    &logical_start,
-					    clusters_to_add,
-					    mark_unwritten,
-					    bh,
-					    handle,
-					    data_ac,
-					    meta_ac,
-					    &why);
+	status = ocfs2_add_inode_data(osb,
+				      inode,
+				      &logical_start,
+				      clusters_to_add,
+				      mark_unwritten,
+				      bh,
+				      handle,
+				      data_ac,
+				      meta_ac,
+				      &why);
 	if ((status < 0) && (status != -EAGAIN)) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
