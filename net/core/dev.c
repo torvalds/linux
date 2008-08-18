@@ -1805,14 +1805,12 @@ gso:
 		spin_lock(root_lock);
 
 		if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
-			spin_unlock(root_lock);
+			kfree_skb(skb);
 			rc = NET_XMIT_DROP;
-			goto out_kfree_skb;
+		} else {
+			rc = qdisc_enqueue_root(skb, q);
+			qdisc_run(q);
 		}
-
-		rc = qdisc_enqueue_root(skb, q);
-		qdisc_run(q);
-
 		spin_unlock(root_lock);
 
 		goto out;
