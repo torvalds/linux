@@ -1279,7 +1279,7 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 		ret = ocfs2_mark_extent_written(inode, wc->w_di_bh,
 						wc->w_handle, cpos, 1, phys,
 						meta_ac, &wc->w_dealloc,
-						OCFS2_DINODE_EXTENT);
+						OCFS2_DINODE_EXTENT, NULL);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1721,7 +1721,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 
 		ret = ocfs2_lock_allocators(inode, wc->w_di_bh, &di->id2.i_list,
 					    clusters_to_alloc, extents_to_split,
-					    &data_ac, &meta_ac);
+					    &data_ac, &meta_ac,
+					    OCFS2_DINODE_EXTENT, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

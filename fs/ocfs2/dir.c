@@ -1305,8 +1305,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * This should never fail as our extent list is empty and all
 	 * related blocks have been journaled already.
 	 */
-	ret = ocfs2_insert_extent(osb, handle, dir, di_bh, 0, blkno, len, 0,
-				  NULL, OCFS2_DINODE_EXTENT);
+	ret = ocfs2_dinode_insert_extent(osb, handle, dir, di_bh, 0, blkno,
+					 len, 0, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -1337,8 +1337,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		}
 		blkno = ocfs2_clusters_to_blocks(dir->i_sb, bit_off);
 
-		ret = ocfs2_insert_extent(osb, handle, dir, di_bh, 1, blkno,
-					  len, 0, NULL, OCFS2_DINODE_EXTENT);
+		ret = ocfs2_dinode_insert_extent(osb, handle, dir, di_bh, 1,
+						 blkno, len, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out_commit;
@@ -1482,7 +1482,8 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
 		num_free_extents = ocfs2_num_free_extents(osb, dir,
 							  parent_fe_bh,
-							  OCFS2_DINODE_EXTENT);
+							  OCFS2_DINODE_EXTENT,
+							  NULL);
 		if (num_free_extents < 0) {
 			status = num_free_extents;
 			mlog_errno(status);

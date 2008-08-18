@@ -551,6 +551,66 @@ static void ocfs2_relative_extent_offsets(struct super_block *sb,
 		*num_clusters = le16_to_cpu(rec->e_leaf_clusters) - coff;
 }
 
+int ocfs2_xattr_get_clusters(struct inode *inode, u32 v_cluster,
+			     u32 *p_cluster, u32 *num_clusters,
+			     struct ocfs2_extent_list *el)
+{
+	int ret = 0, i;
+	struct buffer_head *eb_bh = NULL;
+	struct ocfs2_extent_block *eb;
+	struct ocfs2_extent_rec *rec;
+	u32 coff;
+
+	if (el->l_tree_depth) {
+		ret = ocfs2_find_leaf(inode, el, v_cluster, &eb_bh);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		eb = (struct ocfs2_extent_block *) eb_bh->b_data;
+		el = &eb->h_list;
+
+		if (el->l_tree_depth) {
+			ocfs2_error(inode->i_sb,
+				    "Inode %lu has non zero tree depth in "
+				    "xattr leaf block %llu\n", inode->i_ino,
+				    (unsigned long long)eb_bh->b_blocknr);
+			ret = -EROFS;
+			goto out;
+		}
+	}
+
+	i = ocfs2_search_extent_list(el, v_cluster);
+	if (i == -1) {
+		ret = -EROFS;
+		mlog_errno(ret);
+		goto out;
+	} else {
+		rec = &el->l_recs[i];
+		BUG_ON(v_cluster < le32_to_cpu(rec->e_cpos));
+
+		if (!rec->e_blkno) {
+			ocfs2_error(inode->i_sb, "Inode %lu has bad extent "
+				    "record (%u, %u, 0) in xattr", inode->i_ino,
+				    le32_to_cpu(rec->e_cpos),
+				    ocfs2_rec_clusters(el, rec));
+			ret = -EROFS;
+			goto out;
+		}
+		coff = v_cluster - le32_to_cpu(rec->e_cpos);
+		*p_cluster = ocfs2_blocks_to_clusters(inode->i_sb,
+						    le64_to_cpu(rec->e_blkno));
+		*p_cluster = *p_cluster + coff;
+		if (num_clusters)
+			*num_clusters = ocfs2_rec_clusters(el, rec) - coff;
+	}
+out:
+	if (eb_bh)
+		brelse(eb_bh);
+	return ret;
+}
+
 int ocfs2_get_clusters(struct inode *inode, u32 v_cluster,
 		       u32 *p_cluster, u32 *num_clusters,
 		       unsigned int *extent_flags)

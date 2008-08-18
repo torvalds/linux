@@ -1909,7 +1909,8 @@ int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *root_bh,
 			  struct ocfs2_extent_list *root_el,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,
-			  struct ocfs2_alloc_context **meta_ac)
+			  struct ocfs2_alloc_context **meta_ac,
+			  enum ocfs2_extent_tree_type type, void *private)
 {
 	int ret = 0, num_free_extents;
 	unsigned int max_recs_needed = clusters_to_add + 2 * extents_to_split;
@@ -1922,7 +1923,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *root_bh,
 	BUG_ON(clusters_to_add != 0 && data_ac == NULL);
 
 	num_free_extents = ocfs2_num_free_extents(osb, inode, root_bh,
-						  OCFS2_DINODE_EXTENT);
+						  type, private);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);

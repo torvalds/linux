@@ -515,7 +515,7 @@ int ocfs2_add_inode_data(struct ocfs2_super *osb,
 					   clusters_to_add, mark_unwritten,
 					   fe_bh, el, handle,
 					   data_ac, meta_ac, reason_ret,
-					   OCFS2_DINODE_EXTENT);
+					   OCFS2_DINODE_EXTENT, NULL);
 }
 
 static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
@@ -565,7 +565,7 @@ restart_all:
 	     clusters_to_add);
 	status = ocfs2_lock_allocators(inode, bh, &fe->id2.i_list,
 				       clusters_to_add, 0, &data_ac,
-				       &meta_ac);
+				       &meta_ac, OCFS2_DINODE_EXTENT, NULL);
 	if (status) {
 		mlog_errno(status);
 		goto leave;
@@ -1237,7 +1237,8 @@ static int __ocfs2_remove_inode_range(struct inode *inode,
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	ret = ocfs2_lock_allocators(inode, di_bh, &di->id2.i_list,
-				    0, 1, NULL, &meta_ac);
+				    0, 1, NULL, &meta_ac,
+				    OCFS2_DINODE_EXTENT, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
@@ -1268,7 +1269,7 @@ static int __ocfs2_remove_inode_range(struct inode *inode,
 	}
 
 	ret = ocfs2_remove_extent(inode, di_bh, cpos, len, handle, meta_ac,
-				  dealloc, OCFS2_DINODE_EXTENT);
+				  dealloc, OCFS2_DINODE_EXTENT, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
