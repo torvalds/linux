@@ -755,8 +755,13 @@ struct ocfs2_xattr_header {
 	__le16	xh_count;                       /* contains the count of how
 						   many records are in the
 						   local xattr storage. */
-	__le16	xh_reserved1;
-	__le32	xh_reserved2;
+	__le16	xh_free_start;                  /* current offset for storing
+						   xattr. */
+	__le16	xh_name_value_len;              /* total length of name/value
+						   length in this bucket. */
+	__le16	xh_num_buckets;                 /* bucket nums in one extent
+						   record, only valid in the
+						   first bucket. */
 	__le64  xh_csum;
 	struct ocfs2_xattr_entry xh_entries[0]; /* xattr entry list. */
 };
@@ -792,6 +797,10 @@ struct ocfs2_xattr_tree_root {
 #define OCFS2_XATTR_ROUND	3
 #define OCFS2_XATTR_SIZE(size)	(((size) + OCFS2_XATTR_ROUND) & \
 				~(OCFS2_XATTR_ROUND))
+
+#define OCFS2_XATTR_BUCKET_SIZE			4096
+#define OCFS2_XATTR_MAX_BLOCKS_PER_BUCKET 	(OCFS2_XATTR_BUCKET_SIZE \
+						 / OCFS2_MIN_BLOCKSIZE)
 
 /*
  * On disk structure for xattr block.
@@ -963,6 +972,17 @@ static inline u64 ocfs2_backup_super_blkno(struct super_block *sb, int index)
 	return 0;
 
 }
+
+static inline u16 ocfs2_xattr_recs_per_xb(struct super_block *sb)
+{
+	int size;
+
+	size = sb->s_blocksize -
+		offsetof(struct ocfs2_xattr_block,
+			 xb_attrs.xb_root.xt_list.l_recs);
+
+	return size / sizeof(struct ocfs2_extent_rec);
+}
 #else
 static inline int ocfs2_fast_symlink_chars(int blocksize)
 {
@@ -1045,6 +1065,17 @@ static inline uint64_t ocfs2_backup_super_blkno(int blocksize, int index)
 	}
 
 	return 0;
+}
+
+static inline int ocfs2_xattr_recs_per_xb(int blocksize)
+{
+	int size;
+
+	size = blocksize -
+		offsetof(struct ocfs2_xattr_block,
+			 xb_attrs.xb_root.xt_list.l_recs);
+
+	return size / sizeof(struct ocfs2_extent_rec);
 }
 #endif  /* __KERNEL__ */
 
