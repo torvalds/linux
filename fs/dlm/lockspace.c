@@ -378,6 +378,11 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
+	if (!dlm_user_daemon_available()) {
+		module_put(THIS_MODULE);
+		return -EUNATCH;
+	}
+
 	error = 0;
 
 	spin_lock(&lslist_lock);
@@ -669,7 +674,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
 
 	dlm_device_deregister(ls);
 
-	if (force < 3)
+	if (force < 3 && dlm_user_daemon_available())
 		do_uevent(ls, 0);
 
 	dlm_recoverd_stop(ls);
@@ -789,5 +794,22 @@ int dlm_release_lockspace(void *lockspace, int force)
 	mutex_unlock(&ls_lock);
 
 	return error;
+}
+
+void dlm_stop_lockspaces(void)
+{
+	struct dlm_ls *ls;
+
+ restart:
+	spin_lock(&lslist_lock);
+	list_for_each_entry(ls, &lslist, ls_list) {
+		if (!test_bit(LSFL_RUNNING, &ls->ls_flags))
+			continue;
+		spin_unlock(&lslist_lock);
+		log_error(ls, "no userland control daemon, stopping lockspace");
+		dlm_ls_stop(ls);
+		goto restart;
+	}
+	spin_unlock(&lslist_lock);
 }
 

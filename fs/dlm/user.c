@@ -27,6 +27,8 @@
 
 static const char name_prefix[] = "dlm";
 static const struct file_operations device_fops;
+static atomic_t dlm_monitor_opened;
+static int dlm_monitor_unused = 1;
 
 #ifdef CONFIG_COMPAT
 
@@ -890,6 +892,26 @@ static unsigned int device_poll(struct file *file, poll_table *wait)
 	return 0;
 }
 
+int dlm_user_daemon_available(void)
+{
+	/* dlm_controld hasn't started (or, has started, but not
+	   properly populated configfs) */
+
+	if (!dlm_our_nodeid())
+		return 0;
+
+	/* This is to deal with versions of dlm_controld that don't
+	   know about the monitor device.  We assume that if the
+	   dlm_controld was started (above), but the monitor device
+	   was never opened, that it's an old version.  dlm_controld
+	   should open the monitor device before populating configfs. */
+
+	if (dlm_monitor_unused)
+		return 1;
+
+	return atomic_read(&dlm_monitor_opened) ? 1 : 0;
+}
+
 static int ctl_device_open(struct inode *inode, struct file *file)
 {
 	cycle_kernel_lock();
@@ -899,6 +921,20 @@ static int ctl_device_open(struct inode *inode, struct file *file)
 
 static int ctl_device_close(struct inode *inode, struct file *file)
 {
+	return 0;
+}
+
+static int monitor_device_open(struct inode *inode, struct file *file)
+{
+	atomic_inc(&dlm_monitor_opened);
+	dlm_monitor_unused = 0;
+	return 0;
+}
+
+static int monitor_device_close(struct inode *inode, struct file *file)
+{
+	if (atomic_dec_and_test(&dlm_monitor_opened))
+		dlm_stop_lockspaces();
 	return 0;
 }
 
@@ -925,19 +961,42 @@ static struct miscdevice ctl_device = {
 	.minor = MISC_DYNAMIC_MINOR,
 };
 
+static const struct file_operations monitor_device_fops = {
+	.open    = monitor_device_open,
+	.release = monitor_device_close,
+	.owner   = THIS_MODULE,
+};
+
+static struct miscdevice monitor_device = {
+	.name  = "dlm-monitor",
+	.fops  = &monitor_device_fops,
+	.minor = MISC_DYNAMIC_MINOR,
+};
+
 int __init dlm_user_init(void)
 {
 	int error;
 
-	error = misc_register(&ctl_device);
-	if (error)
-		log_print("misc_register failed for control device");
+	atomic_set(&dlm_monitor_opened, 0);
 
+	error = misc_register(&ctl_device);
+	if (error) {
+		log_print("misc_register failed for control device");
+		goto out;
+	}
+
+	error = misc_register(&monitor_device);
+	if (error) {
+		log_print("misc_register failed for monitor device");
+		misc_deregister(&ctl_device);
+	}
+ out:
 	return error;
 }
 
 void dlm_user_exit(void)
 {
 	misc_deregister(&ctl_device);
+	misc_deregister(&monitor_device);
 }
 
