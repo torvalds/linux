@@ -1480,7 +1480,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 {
 	int cpu;
 	cpumask_t tmp_map;
-	physid_mask_t phys_cpu;
 
 	/*
 	 * Validate version
@@ -1492,9 +1491,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		version = 0x10;
 	}
 	apic_version[apicid] = version;
-
-	phys_cpu = apicid_to_cpu_present(apicid);
-	physids_or(phys_cpu_present_map, phys_cpu_present_map, phys_cpu);
 
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
@@ -1512,17 +1508,19 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	cpus_complement(tmp_map, cpu_present_map);
 	cpu = first_cpu(tmp_map);
 
-	if (apicid == boot_cpu_physical_apicid)
+	physid_set(apicid, phys_cpu_present_map);
+	if (apicid == boot_cpu_physical_apicid) {
 		/*
 		 * x86_bios_cpu_apicid is required to have processors listed
 		 * in same order as logical cpu numbers. Hence the first
 		 * entry is BSP, and so on.
 		 */
 		cpu = 0;
-
+	}
 	if (apicid > max_physical_apicid)
 		max_physical_apicid = apicid;
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
 	 * but we need to work other dependencies like SMP_SUSPEND etc
@@ -1542,7 +1540,9 @@ void __cpuinit generic_processor_info(int apicid, int version)
 			def_to_bigsmp = 1;
 		}
 	}
-#ifdef CONFIG_SMP
+#endif
+
+#if defined(CONFIG_X86_SMP) || defined(CONFIG_X86_64)
 	/* are we being called early in kernel startup? */
 	if (early_per_cpu_ptr(x86_cpu_to_apicid)) {
 		u16 *cpu_to_apicid = early_per_cpu_ptr(x86_cpu_to_apicid);
@@ -1555,6 +1555,7 @@ void __cpuinit generic_processor_info(int apicid, int version)
 		per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
 	}
 #endif
+
 	cpu_set(cpu, cpu_possible_map);
 	cpu_set(cpu, cpu_present_map);
 }
