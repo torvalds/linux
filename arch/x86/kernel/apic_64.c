@@ -1759,7 +1759,7 @@ early_param("nox2apic", setup_nox2apic);
 /*
  * APIC command line parameters
  */
-static __init int setup_disableapic(char *str)
+static int __init setup_disableapic(char *arg)
 {
 	disable_apic = 1;
 	setup_clear_cpu_cap(X86_FEATURE_APIC);
@@ -1768,9 +1768,9 @@ static __init int setup_disableapic(char *str)
 early_param("disableapic", setup_disableapic);
 
 /* same as disableapic, for compatibility */
-static __init int setup_nolapic(char *str)
+static int __init setup_nolapic(char *arg)
 {
-	return setup_disableapic(str);
+	return setup_disableapic(arg);
 }
 early_param("nolapic", setup_nolapic);
 

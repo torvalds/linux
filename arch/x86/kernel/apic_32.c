@@ -1737,13 +1737,20 @@ static int __init parse_lapic(char *arg)
 }
 early_param("lapic", parse_lapic);
 
-static int __init parse_nolapic(char *arg)
+static int __init setup_disableapic(char *arg)
 {
 	disable_apic = 1;
 	setup_clear_cpu_cap(X86_FEATURE_APIC);
 	return 0;
 }
-early_param("nolapic", parse_nolapic);
+early_param("disableapic", setup_disableapic);
+
+/* same as disableapic, for compatibility */
+static int __init setup_nolapic(char *arg)
+{
+	return setup_disableapic(arg);
+}
+early_param("nolapic", setup_nolapic);
 
 static int __init parse_disable_apic_timer(char *arg)
 {
