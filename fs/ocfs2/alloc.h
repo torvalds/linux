@@ -29,6 +29,7 @@
 enum ocfs2_extent_tree_type {
 	OCFS2_DINODE_EXTENT = 0,
 	OCFS2_XATTR_VALUE_EXTENT,
+	OCFS2_XATTR_TREE_EXTENT,
 };
 
 struct ocfs2_alloc_context;
@@ -51,6 +52,15 @@ int ocfs2_xattr_value_insert_extent(struct ocfs2_super *osb,
 				    u8 flags,
 				    struct ocfs2_alloc_context *meta_ac,
 				    void *private);
+int ocfs2_xattr_tree_insert_extent(struct ocfs2_super *osb,
+				   handle_t *handle,
+				   struct inode *inode,
+				   struct buffer_head *root_bh,
+				   u32 cpos,
+				   u64 start_blk,
+				   u32 new_clusters,
+				   u8 flags,
+				   struct ocfs2_alloc_context *meta_ac);
 enum ocfs2_alloc_restarted {
 	RESTART_NONE = 0,
 	RESTART_TRANS,
