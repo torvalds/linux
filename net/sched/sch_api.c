@@ -638,9 +638,9 @@ static void notify_and_destroy(struct sk_buff *skb, struct nlmsghdr *n, u32 clid
 		qdisc_notify(skb, n, clid, old, new);
 
 	if (old) {
-		spin_lock_bh(&old->q.lock);
+		sch_tree_lock(old);
 		qdisc_destroy(old);
-		spin_unlock_bh(&old->q.lock);
+		sch_tree_unlock(old);
 	}
 }
 
