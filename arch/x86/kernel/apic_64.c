@@ -1759,27 +1759,6 @@ early_param("nox2apic", setup_nox2apic);
 /*
  * APIC command line parameters
  */
-static int __init apic_set_verbosity(char *str)
-{
-	if (str == NULL)  {
-		skip_ioapic_setup = 0;
-		ioapic_force = 1;
-		return 0;
-	}
-	if (strcmp("debug", str) == 0)
-		apic_verbosity = APIC_DEBUG;
-	else if (strcmp("verbose", str) == 0)
-		apic_verbosity = APIC_VERBOSE;
-	else {
-		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
-				" use apic=verbose or apic=debug\n", str);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-early_param("apic", apic_set_verbosity);
-
 static __init int setup_disableapic(char *str)
 {
 	disable_apic = 1;
@@ -1823,6 +1802,31 @@ static __init int setup_apicpmtimer(char *s)
 	return 0;
 }
 __setup("apicpmtimer", setup_apicpmtimer);
+
+static int __init apic_set_verbosity(char *arg)
+{
+	if (!arg)  {
+#ifdef CONFIG_X86_64
+		skip_ioapic_setup = 0;
+		ioapic_force = 1;
+		return 0;
+#endif
+		return -EINVAL;
+	}
+
+	if (strcmp("debug", arg) == 0)
+		apic_verbosity = APIC_DEBUG;
+	else if (strcmp("verbose", arg) == 0)
+		apic_verbosity = APIC_VERBOSE;
+	else {
+		printk(KERN_WARNING "APIC Verbosity level %s not recognised"
+			" use apic=verbose or apic=debug\n", arg);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+early_param("apic", apic_set_verbosity);
 
 static int __init lapic_insert_resource(void)
 {
