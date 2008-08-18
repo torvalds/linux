@@ -1348,8 +1348,24 @@ void __init connect_bsp_APIC(void)
  */
 void disconnect_bsp_APIC(int virt_wire_setup)
 {
+#ifdef CONFIG_X86_32
+	if (pic_mode) {
+		/*
+		 * Put the board back into PIC mode (has an effect only on
+		 * certain older boards).  Note that APIC interrupts, including
+		 * IPIs, won't work beyond this point!  The only exception are
+		 * INIT IPIs.
+		 */
+		apic_printk(APIC_VERBOSE, "disabling APIC mode, "
+				"entering PIC mode.\n");
+		outb(0x70, 0x22);
+		outb(0x00, 0x23);
+		return;
+	}
+#endif
+
 	/* Go back to Virtual Wire compatibility mode */
-	unsigned long value;
+	unsigned int value;
 
 	/* For the spurious interrupt use vector F, and enable it */
 	value = apic_read(APIC_SPIV);
@@ -1375,7 +1391,10 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		apic_write(APIC_LVT0, APIC_LVT_MASKED);
 	}
 
-	/* For LVT1 make it edge triggered, active high, nmi and enabled */
+	/*
+	 * For LVT1 make it edge triggered, active high,
+	 * nmi and enabled
+	 */
 	value = apic_read(APIC_LVT1);
 	value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
 			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |

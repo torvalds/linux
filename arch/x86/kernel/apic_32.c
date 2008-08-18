@@ -1420,6 +1420,7 @@ void __init connect_bsp_APIC(void)
  */
 void disconnect_bsp_APIC(int virt_wire_setup)
 {
+#ifdef CONFIG_X86_32
 	if (pic_mode) {
 		/*
 		 * Put the board back into PIC mode (has an effect only on
@@ -1431,47 +1432,48 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 				"entering PIC mode.\n");
 		outb(0x70, 0x22);
 		outb(0x00, 0x23);
-	} else {
-		/* Go back to Virtual Wire compatibility mode */
-		unsigned long value;
+		return;
+	}
+#endif
 
-		/* For the spurious interrupt use vector F, and enable it */
-		value = apic_read(APIC_SPIV);
-		value &= ~APIC_VECTOR_MASK;
-		value |= APIC_SPIV_APIC_ENABLED;
-		value |= 0xf;
-		apic_write(APIC_SPIV, value);
+	/* Go back to Virtual Wire compatibility mode */
+	unsigned int value;
 
-		if (!virt_wire_setup) {
-			/*
-			 * For LVT0 make it edge triggered, active high,
-			 * external and enabled
-			 */
-			value = apic_read(APIC_LVT0);
-			value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
-				APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
-				APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
-			value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
-			value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
-			apic_write(APIC_LVT0, value);
-		} else {
-			/* Disable LVT0 */
-			apic_write(APIC_LVT0, APIC_LVT_MASKED);
-		}
+	/* For the spurious interrupt use vector F, and enable it */
+	value = apic_read(APIC_SPIV);
+	value &= ~APIC_VECTOR_MASK;
+	value |= APIC_SPIV_APIC_ENABLED;
+	value |= 0xf;
+	apic_write(APIC_SPIV, value);
 
+	if (!virt_wire_setup) {
 		/*
-		 * For LVT1 make it edge triggered, active high, nmi and
-		 * enabled
+		 * For LVT0 make it edge triggered, active high,
+		 * external and enabled
 		 */
-		value = apic_read(APIC_LVT1);
-		value &= ~(
-			APIC_MODE_MASK | APIC_SEND_PENDING |
+		value = apic_read(APIC_LVT0);
+		value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
 			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
 			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
 		value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
-		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
-		apic_write(APIC_LVT1, value);
+		value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_EXTINT);
+		apic_write(APIC_LVT0, value);
+	} else {
+		/* Disable LVT0 */
+		apic_write(APIC_LVT0, APIC_LVT_MASKED);
 	}
+
+	/*
+	 * For LVT1 make it edge triggered, active high,
+	 * nmi and enabled
+	 */
+	value = apic_read(APIC_LVT1);
+	value &= ~(APIC_MODE_MASK | APIC_SEND_PENDING |
+			APIC_INPUT_POLARITY | APIC_LVT_REMOTE_IRR |
+			APIC_LVT_LEVEL_TRIGGER | APIC_LVT_MASKED);
+	value |= APIC_LVT_REMOTE_IRR | APIC_SEND_PENDING;
+	value = SET_APIC_DELIVERY_MODE(value, APIC_MODE_NMI);
+	apic_write(APIC_LVT1, value);
 }
 
 void __cpuinit generic_processor_info(int apicid, int version)
