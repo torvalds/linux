@@ -48,7 +48,7 @@ static inline void arch_copy_thread(struct arch_thread *from,
         memcpy(&to->tls_array, &from->tls_array, sizeof(from->tls_array));
 }
 
-#include "asm/arch/user.h"
+#include <asm/user.h>
 
 /* REP NOP (PAUSE) is a good thing to insert into busy-wait loops. */
 static inline void rep_nop(void)

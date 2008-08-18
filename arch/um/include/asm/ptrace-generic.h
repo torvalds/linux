@@ -8,7 +8,7 @@
 
 #ifndef __ASSEMBLY__
 
-#include "asm/arch/ptrace-abi.h"
+#include <asm/ptrace-abi.h>
 #include <asm/user.h>
 #include "sysdep/ptrace.h"
 

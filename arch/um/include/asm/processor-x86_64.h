@@ -40,7 +40,7 @@ static inline void arch_copy_thread(struct arch_thread *from,
 	to->fs = from->fs;
 }
 
-#include "asm/arch/user.h"
+#include <asm/user.h>
 
 #define current_text_addr() \
 	({ void *pc; __asm__("movq $1f,%0\n1:":"=g" (pc)); pc; })
