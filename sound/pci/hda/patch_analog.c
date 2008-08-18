@@ -3917,7 +3917,7 @@ static int patch_ad1884a(struct hda_codec *codec)
 
 
 /*
- * AD1882
+ * AD1882 / AD1882A
  *
  * port-A - front hp-out
  * port-B - front mic-in
@@ -3954,6 +3954,18 @@ static struct hda_input_mux ad1882_capture_source = {
 	},
 };
 
+/* list: 0x11, 0x39, 0x3a, 0x3c, 0x18, 0x1f, 0x12, 0x20 */
+static struct hda_input_mux ad1882a_capture_source = {
+	.num_items = 5,
+	.items = {
+		{ "Front Mic", 0x1 },
+		{ "Mic", 0x4},
+		{ "Line", 0x2 },
+		{ "Digital Mic", 0x06 },
+		{ "Mix", 0x7 },
+	},
+};
+
 static struct snd_kcontrol_new ad1882_base_mixers[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x04, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Surround Playback Volume", 0x03, 0x0, HDA_OUTPUT),
@@ -3963,16 +3975,7 @@ static struct snd_kcontrol_new ad1882_base_mixers[] = {
 	HDA_CODEC_MUTE("Front Playback Switch", 0x12, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME_MONO("Mono Playback Volume", 0x13, 1, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE_MONO("Mono Playback Switch", 0x13, 1, 0x0, HDA_OUTPUT),
-	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
-	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
-	HDA_CODEC_VOLUME("Mic Playback Volume", 0x20, 0x01, HDA_INPUT),
-	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
-	HDA_CODEC_VOLUME("Line Playback Volume", 0x20, 0x04, HDA_INPUT),
-	HDA_CODEC_MUTE("Line Playback Switch", 0x20, 0x04, HDA_INPUT),
-	HDA_CODEC_VOLUME("CD Playback Volume", 0x20, 0x06, HDA_INPUT),
-	HDA_CODEC_MUTE("CD Playback Switch", 0x20, 0x06, HDA_INPUT),
-	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x07, HDA_INPUT),
-	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x07, HDA_INPUT),
+
 	HDA_CODEC_VOLUME("Mic Boost", 0x3c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Front Mic Boost", 0x39, 0x0, HDA_OUTPUT),
 	HDA_CODEC_VOLUME("Line-In Boost", 0x3a, 0x0, HDA_OUTPUT),
@@ -4002,6 +4005,35 @@ static struct snd_kcontrol_new ad1882_base_mixers[] = {
 		.get = ad1983_spdif_route_get,
 		.put = ad1983_spdif_route_put,
 	},
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new ad1882_loopback_mixers[] = {
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x20, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x20, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x20, 0x06, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x20, 0x06, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x07, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x07, HDA_INPUT),
+	{ } /* end */
+};
+
+static struct snd_kcontrol_new ad1882a_loopback_mixers[] = {
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x20, 0x00, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x20, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x20, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x20, 0x01, HDA_INPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x20, 0x06, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x20, 0x06, HDA_INPUT),
+	HDA_CODEC_VOLUME("Beep Playback Volume", 0x20, 0x07, HDA_INPUT),
+	HDA_CODEC_MUTE("Beep Playback Switch", 0x20, 0x07, HDA_INPUT),
+	HDA_CODEC_VOLUME("Digital Mic Boost", 0x1f, 0x0, HDA_INPUT),
 	{ } /* end */
 };
 
@@ -4174,9 +4206,16 @@ static int patch_ad1882(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(ad1882_adc_nids);
 	spec->adc_nids = ad1882_adc_nids;
 	spec->capsrc_nids = ad1882_capsrc_nids;
-	spec->input_mux = &ad1882_capture_source;
-	spec->num_mixers = 1;
+	if (codec->vendor_id == 0x11d1882)
+		spec->input_mux = &ad1882_capture_source;
+	else
+		spec->input_mux = &ad1882a_capture_source;
+	spec->num_mixers = 2;
 	spec->mixers[0] = ad1882_base_mixers;
+	if (codec->vendor_id == 0x11d1882)
+		spec->mixers[1] = ad1882_loopback_mixers;
+	else
+		spec->mixers[1] = ad1882a_loopback_mixers;
 	spec->num_init_verbs = 1;
 	spec->init_verbs[0] = ad1882_init_verbs;
 	spec->spdif_route = 0;
@@ -4193,8 +4232,8 @@ static int patch_ad1882(struct hda_codec *codec)
 	switch (board_config) {
 	default:
 	case AD1882_3STACK:
-		spec->num_mixers = 2;
-		spec->mixers[1] = ad1882_3stack_mixers;
+		spec->num_mixers = 3;
+		spec->mixers[2] = ad1882_3stack_mixers;
 		spec->channel_mode = ad1882_modes;
 		spec->num_channel_mode = ARRAY_SIZE(ad1882_modes);
 		spec->need_dac_fix = 1;
@@ -4202,8 +4241,8 @@ static int patch_ad1882(struct hda_codec *codec)
 		spec->multiout.num_dacs = 1;
 		break;
 	case AD1882_6STACK:
-		spec->num_mixers = 2;
-		spec->mixers[1] = ad1882_6stack_mixers;
+		spec->num_mixers = 3;
+		spec->mixers[2] = ad1882_6stack_mixers;
 		break;
 	}
 	return 0;
@@ -4226,6 +4265,7 @@ struct hda_codec_preset snd_hda_preset_analog[] = {
 	{ .id = 0x11d41986, .name = "AD1986A", .patch = patch_ad1986a },
 	{ .id = 0x11d41988, .name = "AD1988", .patch = patch_ad1988 },
 	{ .id = 0x11d4198b, .name = "AD1988B", .patch = patch_ad1988 },
+	{ .id = 0x11d4882a, .name = "AD1882A", .patch = patch_ad1882 },
 	{ .id = 0x11d4989a, .name = "AD1989A", .patch = patch_ad1988 },
 	{ .id = 0x11d4989b, .name = "AD1989B", .patch = patch_ad1988 },
 	{} /* terminator */

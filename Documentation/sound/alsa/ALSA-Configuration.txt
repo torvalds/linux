@@ -931,7 +931,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  allout	5-jack in back, 2-jack in front, SPDIF out
 	  auto		auto-config reading BIOS (default)
 
-	AD1882
+	AD1882 / AD1882A
 	  3stack	3-stack mode (default)
 	  6stack	6-stack mode
 
