@@ -42,7 +42,7 @@
 
 #define __SYSCALL(nr, sym) extern asmlinkage void sym(void) ;
 #undef ASM_X86__UNISTD_64_H
-#include <asm-x86/unistd_64.h>
+#include "../../x86/include/asm/unistd_64.h"
 
 #undef __SYSCALL
 #define __SYSCALL(nr, sym) [ nr ] = sym,
@@ -64,7 +64,7 @@ extern void sys_ni_syscall(void);
  */
 
 sys_call_ptr_t sys_call_table[] __cacheline_aligned = {
-#include <asm-x86/unistd_64.h>
+#include "../../x86/include/asm/unistd_64.h"
 };
 
 int syscall_table_size = sizeof(sys_call_table);

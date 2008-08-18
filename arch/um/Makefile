@@ -156,9 +156,9 @@ $(ARCH_DIR)/include/asm/arch:
 	@echo '  SYMLINK $@'
 ifneq ($(KBUILD_SRC),)
 	$(Q)mkdir -p $(objtree)/$(ARCH_DIR)/include/asm
-	$(Q)ln -fsn $(srctree)/include/asm-$(HEADER_ARCH) $@
+	$(Q)ln -fsn $(srctree)/arch/$(HEADER_ARCH)/include/asm $@
 else
-	$(Q)ln -fsn ../../../../include/asm-$(HEADER_ARCH) $@
+	$(Q)ln -fsn ../../../$(HEADER_ARCH)/include/asm $@
 endif
 
 $(objtree)/$(ARCH_DIR)/include/shared:
