@@ -503,6 +503,10 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	   on a big-endian or little-endian host */
 	buf->f_fsid.val[0] = be32_to_cpu(fsid[0]) ^ be32_to_cpu(fsid[2]);
 	buf->f_fsid.val[1] = be32_to_cpu(fsid[1]) ^ be32_to_cpu(fsid[3]);
+	/* Mask in the root object ID too, to disambiguate subvols */
+	buf->f_fsid.val[0] ^= BTRFS_I(dentry->d_inode)->root->objectid >> 32;
+	buf->f_fsid.val[1] ^= BTRFS_I(dentry->d_inode)->root->objectid;
+
 	return 0;
 }
 
