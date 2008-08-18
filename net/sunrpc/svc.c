@@ -730,7 +730,7 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 	struct svc_program	*progp;
 	unsigned long		flags;
 	unsigned int		i;
-	int			error = 0, dummy;
+	int			error = 0;
 
 	if (!port)
 		clear_thread_flag(TIF_SIGPENDING);
@@ -751,13 +751,9 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 			if (progp->pg_vers[i]->vs_hidden)
 				continue;
 
-			error = rpcb_register(progp->pg_prog, i, proto, port, &dummy);
+			error = rpcb_register(progp->pg_prog, i, proto, port);
 			if (error < 0)
 				break;
-			if (port && !dummy) {
-				error = -EACCES;
-				break;
-			}
 		}
 	}
 
