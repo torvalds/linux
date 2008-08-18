@@ -368,12 +368,13 @@ struct ocfs2_merge_ctxt {
  */
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
-			   struct ocfs2_dinode *fe)
+			   struct buffer_head *bh)
 {
 	int retval;
 	struct ocfs2_extent_list *el;
 	struct ocfs2_extent_block *eb;
 	struct buffer_head *eb_bh = NULL;
+	struct ocfs2_dinode *fe = (struct ocfs2_dinode *)bh->b_data;
 
 	mlog_entry_void();
 

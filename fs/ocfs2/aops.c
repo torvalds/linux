@@ -1712,8 +1712,9 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		 * ocfs2_lock_allocators(). It greatly over-estimates
 		 * the work to be done.
 		 */
-		ret = ocfs2_lock_allocators(inode, di, clusters_to_alloc,
-					    extents_to_split, &data_ac, &meta_ac);
+		ret = ocfs2_lock_allocators(inode, wc->w_di_bh,
+					    clusters_to_alloc, extents_to_split,
+					    &data_ac, &meta_ac);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

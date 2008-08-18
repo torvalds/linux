@@ -47,7 +47,7 @@ int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
 			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
-			   struct ocfs2_dinode *fe);
+			   struct buffer_head *bh);
 /* how many new metadata chunks would an allocation need at maximum? */
 static inline int ocfs2_extend_meta_needed(struct ocfs2_dinode *fe)
 {

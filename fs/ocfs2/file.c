@@ -521,7 +521,7 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 	if (mark_unwritten)
 		flags = OCFS2_EXT_UNWRITTEN;
 
-	free_extents = ocfs2_num_free_extents(osb, inode, fe);
+	free_extents = ocfs2_num_free_extents(osb, inode, fe_bh);
 	if (free_extents < 0) {
 		status = free_extents;
 		mlog_errno(status);
@@ -609,7 +609,7 @@ leave:
  * File systems which don't support holes call this from
  * ocfs2_extend_allocation().
  */
-int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
+int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *di_bh,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,
 			  struct ocfs2_alloc_context **meta_ac)
@@ -617,6 +617,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 	int ret = 0, num_free_extents;
 	unsigned int max_recs_needed = clusters_to_add + 2 * extents_to_split;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
 	*meta_ac = NULL;
 	if (data_ac)
@@ -629,7 +630,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct ocfs2_dinode *di,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno, (long long)i_size_read(inode),
 	     le32_to_cpu(di->i_clusters), clusters_to_add, extents_to_split);
 
-	num_free_extents = ocfs2_num_free_extents(osb, inode, di);
+	num_free_extents = ocfs2_num_free_extents(osb, inode, di_bh);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);
@@ -724,7 +725,7 @@ static int __ocfs2_extend_allocation(struct inode *inode, u32 logical_start,
 restart_all:
 	BUG_ON(le32_to_cpu(fe->i_clusters) != OCFS2_I(inode)->ip_clusters);
 
-	status = ocfs2_lock_allocators(inode, fe, clusters_to_add, 0, &data_ac,
+	status = ocfs2_lock_allocators(inode, bh, clusters_to_add, 0, &data_ac,
 				       &meta_ac);
 	if (status) {
 		mlog_errno(status);
@@ -1395,7 +1396,7 @@ static int __ocfs2_remove_inode_range(struct inode *inode,
 	struct ocfs2_alloc_context *meta_ac = NULL;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 
-	ret = ocfs2_lock_allocators(inode, di, 0, 1, NULL, &meta_ac);
+	ret = ocfs2_lock_allocators(inode, di_bh, 0, 1, NULL, &meta_ac);
 	if (ret) {
 		mlog_errno(ret);
 		return ret;
