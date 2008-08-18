@@ -153,13 +153,26 @@ enum {
 	ATA_BUSY		= (1 << 7),	/* BSY status bit */
 	ATA_DRDY		= (1 << 6),	/* device ready */
 	ATA_DF			= (1 << 5),	/* device fault */
+	ATA_DSC			= (1 << 4),	/* drive seek complete */
 	ATA_DRQ			= (1 << 3),	/* data request i/o */
+	ATA_CORR		= (1 << 2),	/* corrected data error */
+	ATA_IDX			= (1 << 1),	/* index */
 	ATA_ERR			= (1 << 0),	/* have an error */
 	ATA_SRST		= (1 << 2),	/* software reset */
 	ATA_ICRC		= (1 << 7),	/* interface CRC error */
+	ATA_BBK			= ATA_ICRC,	/* pre-EIDE: block marked bad */
 	ATA_UNC			= (1 << 6),	/* uncorrectable media error */
+	ATA_MC			= (1 << 5),	/* media changed */
 	ATA_IDNF		= (1 << 4),	/* ID not found */
+	ATA_MCR			= (1 << 3),	/* media change requested */
 	ATA_ABORTED		= (1 << 2),	/* command aborted */
+	ATA_TRK0NF		= (1 << 1),	/* track 0 not found */
+	ATA_AMNF		= (1 << 0),	/* address mark not found */
+	ATAPI_LFS		= 0xF0,		/* last failed sense */
+	ATAPI_EOM		= ATA_TRK0NF,	/* end of media */
+	ATAPI_ILI		= ATA_AMNF,	/* illegal length indication */
+	ATAPI_IO		= (1 << 1),
+	ATAPI_COD		= (1 << 0),
 
 	/* ATA command block registers */
 	ATA_REG_DATA		= 0x00,
