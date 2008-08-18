@@ -1006,6 +1006,10 @@ allocate_done:
 
 EXPORT_SYMBOL(usbvideo_AllocateDevice);
 
+static void usbvideo_dummy_release(struct video_device *vfd)
+{
+}
+
 int usbvideo_RegisterVideoDevice(struct uvd *uvd)
 {
 	char tmp1[20], tmp2[20];	/* Buffers for printing */
@@ -1039,7 +1043,8 @@ int usbvideo_RegisterVideoDevice(struct uvd *uvd)
 		return -EINVAL;
 	}
 	uvd->vdev.parent = &uvd->dev->dev;
-	if (video_register_device(&uvd->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	uvd->vdev.release = usbvideo_dummy_release;
+	if (video_register_device(&uvd->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		err("%s: video_register_device failed", __func__);
 		return -EPIPE;
 	}
