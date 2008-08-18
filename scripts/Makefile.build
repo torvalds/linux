@@ -199,7 +199,7 @@ cmd_modversions =							\
 endif
 
 ifdef CONFIG_FTRACE_MCOUNT_RECORD
-cmd_record_mcount = scripts/recordmcount.pl "$(ARCH)" \
+cmd_record_mcount = $(srctree)/scripts/recordmcount.pl "$(ARCH)" \
 	"$(OBJDUMP)" "$(OBJCOPY)" "$(CC)" "$(LD)" "$(NM)" "$(RM)" "$(MV)" "$(@)";
 endif
 
