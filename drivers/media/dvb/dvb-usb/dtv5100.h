@@ -48,6 +48,4 @@ static struct {
 	{ }		/* Terminating entry */
 };
 
-extern struct dvb_frontend* dtv5100_fe_attach(void);
-
 #endif
