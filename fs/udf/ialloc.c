@@ -111,6 +111,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		lvhd->uniqueID = cpu_to_le64(uniqueID);
 		mark_buffer_dirty(sbi->s_lvid_bh);
 	}
+	mutex_unlock(&sbi->s_alloc_mutex);
 	inode->i_mode = mode;
 	inode->i_uid = current->fsuid;
 	if (dir->i_mode & S_ISGID) {
@@ -145,7 +146,6 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	if (!iinfo->i_ext.i_data) {
 		iput(inode);
 		*err = -ENOMEM;
-		mutex_unlock(&sbi->s_alloc_mutex);
 		return NULL;
 	}
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_USE_AD_IN_ICB))
@@ -158,7 +158,6 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 		iinfo->i_crtime = current_fs_time(inode->i_sb);
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
-	mutex_unlock(&sbi->s_alloc_mutex);
 
 	if (DQUOT_ALLOC_INODE(inode)) {
 		DQUOT_DROP(inode);
