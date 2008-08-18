@@ -91,7 +91,8 @@
 					 | OCFS2_FEATURE_INCOMPAT_SPARSE_ALLOC \
 					 | OCFS2_FEATURE_INCOMPAT_INLINE_DATA \
 					 | OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP \
-					 | OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK)
+					 | OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK \
+					 | OCFS2_FEATURE_INCOMPAT_XATTR)
 #define OCFS2_FEATURE_RO_COMPAT_SUPP	OCFS2_FEATURE_RO_COMPAT_UNWRITTEN
 
 /*
@@ -128,10 +129,6 @@
 /* Support for data packed into inode blocks */
 #define OCFS2_FEATURE_INCOMPAT_INLINE_DATA	0x0040
 
-/* Support for the extended slot map */
-#define OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP 0x100
-
-
 /*
  * Support for alternate, userspace cluster stacks.  If set, the superblock
  * field s_cluster_info contains a tag for the alternate stack in use as
@@ -142,6 +139,12 @@
  * all older versions.
  */
 #define OCFS2_FEATURE_INCOMPAT_USERSPACE_STACK	0x0080
+
+/* Support for the extended slot map */
+#define OCFS2_FEATURE_INCOMPAT_EXTENDED_SLOT_MAP 0x100
+
+/* Support for extended attributes */
+#define OCFS2_FEATURE_INCOMPAT_XATTR		0x0200
 
 /*
  * backup superblock flag is used to indicate that this volume
@@ -578,7 +581,11 @@ struct ocfs2_super_block {
 /*A0*/  struct ocfs2_cluster_info s_cluster_info; /* Selected userspace
 						     stack.  Only valid
 						     with INCOMPAT flag. */
-/*B8*/  __le64 s_reserved2[17];		/* Fill out superblock */
+/*B8*/	__le16 s_xattr_inline_size;	/* extended attribute inline size
+					   for this fs*/
+	__le16 s_reserved0;
+	__le32 s_reserved1;
+/*C0*/  __le64 s_reserved2[16];		/* Fill out superblock */
 /*140*/
 
 	/*

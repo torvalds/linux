@@ -564,6 +564,9 @@ ssize_t ocfs2_listxattr(struct dentry *dentry,
 	struct ocfs2_dinode *di = NULL;
 	struct ocfs2_inode_info *oi = OCFS2_I(dentry->d_inode);
 
+	if (!ocfs2_supports_xattr(OCFS2_SB(dentry->d_sb)))
+		return -EOPNOTSUPP;
+
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
 		return ret;
 
@@ -842,6 +845,9 @@ int ocfs2_xattr_get(struct inode *inode,
 	struct ocfs2_xattr_search xbs = {
 		.not_found = -ENODATA,
 	};
+
+	if (!ocfs2_supports_xattr(OCFS2_SB(inode->i_sb)))
+		return -EOPNOTSUPP;
 
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
 		ret = -ENODATA;
@@ -1541,6 +1547,9 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 	handle_t *handle;
 	int ret;
 
+	if (!ocfs2_supports_xattr(OCFS2_SB(inode->i_sb)))
+		return 0;
+
 	if (!(oi->ip_dyn_features & OCFS2_HAS_XATTR_FL))
 		return 0;
 
@@ -1976,6 +1985,9 @@ int ocfs2_xattr_set(struct inode *inode,
 	struct ocfs2_xattr_search xbs = {
 		.not_found = -ENODATA,
 	};
+
+	if (!ocfs2_supports_xattr(OCFS2_SB(inode->i_sb)))
+		return -EOPNOTSUPP;
 
 	ret = ocfs2_inode_lock(inode, &di_bh, 1);
 	if (ret < 0) {

@@ -1437,7 +1437,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->slot_num = OCFS2_INVALID_SLOT;
 
-	osb->s_xattr_inline_size = OCFS2_MIN_XATTR_INLINE_SIZE;
+	osb->s_xattr_inline_size = le16_to_cpu(
+					di->id2.i_super.s_xattr_inline_size);
 
 	osb->local_alloc_state = OCFS2_LA_UNUSED;
 	osb->local_alloc_bh = NULL;
