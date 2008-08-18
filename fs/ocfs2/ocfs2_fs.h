@@ -300,6 +300,12 @@ struct ocfs2_new_group_input {
  */
 #define OCFS2_DEFAULT_LOCAL_ALLOC_SIZE	8
 
+/*
+ * Inline extended attribute size (in bytes)
+ * The value chosen should be aligned to 16 byte boundaries.
+ */
+#define OCFS2_MIN_XATTR_INLINE_SIZE     256
+
 struct ocfs2_system_inode_info {
 	char	*si_name;
 	int	si_iflags;
@@ -622,7 +628,8 @@ struct ocfs2_dinode {
 					   belongs to */
 	__le16 i_suballoc_bit;		/* Bit offset in suballocator
 					   block group */
-/*10*/	__le32 i_reserved0;
+/*10*/	__le16 i_reserved0;
+	__le16 i_xattr_inline_size;
 	__le32 i_clusters;		/* Cluster count */
 	__le32 i_uid;			/* Owner UID */
 	__le32 i_gid;			/* Owning GID */
@@ -641,11 +648,12 @@ struct ocfs2_dinode {
 	__le32 i_atime_nsec;
 	__le32 i_ctime_nsec;
 	__le32 i_mtime_nsec;
-	__le32 i_attr;
+/*70*/	__le32 i_attr;
 	__le16 i_orphaned_slot;		/* Only valid when OCFS2_ORPHANED_FL
 					   was set in i_flags */
 	__le16 i_dyn_features;
-/*70*/	__le64 i_reserved2[8];
+	__le64 i_xattr_loc;
+/*80*/	__le64 i_reserved2[7];
 /*B8*/	union {
 		__le64 i_pad1;		/* Generic way to refer to this
 					   64bit union */
@@ -846,12 +854,44 @@ static inline int ocfs2_max_inline_data(struct super_block *sb)
 		offsetof(struct ocfs2_dinode, id2.i_data.id_data);
 }
 
+static inline int ocfs2_max_inline_data_with_xattr(struct super_block *sb,
+						   struct ocfs2_dinode *di)
+{
+	unsigned int xattrsize = le16_to_cpu(di->i_xattr_inline_size);
+
+	if (le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_XATTR_FL)
+		return sb->s_blocksize -
+			offsetof(struct ocfs2_dinode, id2.i_data.id_data) -
+			xattrsize;
+	else
+		return sb->s_blocksize -
+			offsetof(struct ocfs2_dinode, id2.i_data.id_data);
+}
+
 static inline int ocfs2_extent_recs_per_inode(struct super_block *sb)
 {
 	int size;
 
 	size = sb->s_blocksize -
 		offsetof(struct ocfs2_dinode, id2.i_list.l_recs);
+
+	return size / sizeof(struct ocfs2_extent_rec);
+}
+
+static inline int ocfs2_extent_recs_per_inode_with_xattr(
+						struct super_block *sb,
+						struct ocfs2_dinode *di)
+{
+	int size;
+	unsigned int xattrsize = le16_to_cpu(di->i_xattr_inline_size);
+
+	if (le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_XATTR_FL)
+		size = sb->s_blocksize -
+			offsetof(struct ocfs2_dinode, id2.i_list.l_recs) -
+			xattrsize;
+	else
+		size = sb->s_blocksize -
+			offsetof(struct ocfs2_dinode, id2.i_list.l_recs);
 
 	return size / sizeof(struct ocfs2_extent_rec);
 }

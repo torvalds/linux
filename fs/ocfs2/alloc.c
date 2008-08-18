@@ -6577,20 +6577,29 @@ out:
 	return ret;
 }
 
-static void ocfs2_zero_dinode_id2(struct inode *inode, struct ocfs2_dinode *di)
+static void ocfs2_zero_dinode_id2_with_xattr(struct inode *inode,
+					     struct ocfs2_dinode *di)
 {
 	unsigned int blocksize = 1 << inode->i_sb->s_blocksize_bits;
+	unsigned int xattrsize = le16_to_cpu(di->i_xattr_inline_size);
 
-	memset(&di->id2, 0, blocksize - offsetof(struct ocfs2_dinode, id2));
+	if (le16_to_cpu(di->i_dyn_features) & OCFS2_INLINE_XATTR_FL)
+		memset(&di->id2, 0, blocksize -
+				    offsetof(struct ocfs2_dinode, id2) -
+				    xattrsize);
+	else
+		memset(&di->id2, 0, blocksize -
+				    offsetof(struct ocfs2_dinode, id2));
 }
 
 void ocfs2_dinode_new_extent_list(struct inode *inode,
 				  struct ocfs2_dinode *di)
 {
-	ocfs2_zero_dinode_id2(inode, di);
+	ocfs2_zero_dinode_id2_with_xattr(inode, di);
 	di->id2.i_list.l_tree_depth = 0;
 	di->id2.i_list.l_next_free_rec = 0;
-	di->id2.i_list.l_count = cpu_to_le16(ocfs2_extent_recs_per_inode(inode->i_sb));
+	di->id2.i_list.l_count = cpu_to_le16(
+		ocfs2_extent_recs_per_inode_with_xattr(inode->i_sb, di));
 }
 
 void ocfs2_set_inode_data_inline(struct inode *inode, struct ocfs2_dinode *di)
@@ -6607,9 +6616,10 @@ void ocfs2_set_inode_data_inline(struct inode *inode, struct ocfs2_dinode *di)
 	 * We clear the entire i_data structure here so that all
 	 * fields can be properly initialized.
 	 */
-	ocfs2_zero_dinode_id2(inode, di);
+	ocfs2_zero_dinode_id2_with_xattr(inode, di);
 
-	idata->id_count = cpu_to_le16(ocfs2_max_inline_data(inode->i_sb));
+	idata->id_count = cpu_to_le16(
+			ocfs2_max_inline_data_with_xattr(inode->i_sb, di));
 }
 
 int ocfs2_convert_inline_data_to_extents(struct inode *inode,

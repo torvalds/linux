@@ -245,6 +245,7 @@ struct ocfs2_super
 	int s_sectsize_bits;
 	int s_clustersize;
 	int s_clustersize_bits;
+	unsigned int s_xattr_inline_size;
 
 	atomic_t vol_state;
 	struct mutex recovery_lock;

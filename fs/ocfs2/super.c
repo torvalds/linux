@@ -1424,6 +1424,8 @@ static int ocfs2_initialize_super(struct super_block *sb,
 
 	osb->slot_num = OCFS2_INVALID_SLOT;
 
+	osb->s_xattr_inline_size = OCFS2_MIN_XATTR_INLINE_SIZE;
+
 	osb->local_alloc_state = OCFS2_LA_UNUSED;
 	osb->local_alloc_bh = NULL;
 	INIT_DELAYED_WORK(&osb->la_enable_wq, ocfs2_la_enable_worker);
