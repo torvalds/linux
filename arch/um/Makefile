@@ -19,7 +19,7 @@ core-y			+= $(ARCH_DIR)/kernel/		\
 			   $(ARCH_DIR)/os-$(OS)/
 
 # Have to precede the include because the included Makefiles reference them.
-SYMLINK_HEADERS := archparam.h system.h sigcontext.h processor.h ptrace.h \
+SYMLINK_HEADERS := archparam.h system.h processor.h ptrace.h \
 	module.h vm-flags.h elf.h host_ldt.h
 SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),$(ARCH_DIR)/include/asm/$(header))
 
