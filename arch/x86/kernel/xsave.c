@@ -95,7 +95,9 @@ int save_i387_xstate(void __user *buf)
 	 	 * Start with clearing the user buffer. This will present a
 	 	 * clean context for the bytes not touched by the fxsave/xsave.
 		 */
-		__clear_user(buf, sig_xstate_size);
+		err = __clear_user(buf, sig_xstate_size);
+		if (err)
+			return err;
 
 		if (task_thread_info(tsk)->status & TS_XSAVE)
 			err = xsave_user(buf);
