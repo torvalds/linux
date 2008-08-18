@@ -28,6 +28,8 @@
 
 #define RPCDBG_FACILITY	RPCDBG_SVCDSP
 
+static void svc_unregister(const struct svc_serv *serv);
+
 #define svc_serv_is_pooled(serv)    ((serv)->sv_function)
 
 /*
@@ -417,9 +419,8 @@ __svc_create(struct svc_program *prog, unsigned int bufsize, int npools,
 		spin_lock_init(&pool->sp_lock);
 	}
 
-
 	/* Remove any stale portmap registrations */
-	svc_register(serv, 0, 0);
+	svc_unregister(serv);
 
 	return serv;
 }
@@ -487,8 +488,7 @@ svc_destroy(struct svc_serv *serv)
 	if (svc_serv_is_pooled(serv))
 		svc_pool_map_put();
 
-	/* Unregister service with the portmapper */
-	svc_register(serv, 0, 0);
+	svc_unregister(serv);
 	kfree(serv->sv_pools);
 	kfree(serv);
 }
@@ -728,12 +728,10 @@ int
 svc_register(struct svc_serv *serv, int proto, unsigned short port)
 {
 	struct svc_program	*progp;
-	unsigned long		flags;
 	unsigned int		i;
 	int			error = 0;
 
-	if (!port)
-		clear_thread_flag(TIF_SIGPENDING);
+	BUG_ON(proto == 0 && port == 0);
 
 	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
 		for (i = 0; i < progp->pg_nvers; i++) {
@@ -757,13 +755,53 @@ svc_register(struct svc_serv *serv, int proto, unsigned short port)
 		}
 	}
 
-	if (!port) {
-		spin_lock_irqsave(&current->sighand->siglock, flags);
-		recalc_sigpending();
-		spin_unlock_irqrestore(&current->sighand->siglock, flags);
+	return error;
+}
+
+/*
+ * All transport protocols and ports for this service are removed
+ * from the local rpcbind database if the service is not hidden.
+ *
+ * The result of unregistration is reported via dprintk for those
+ * who want verification of the result, but is otherwise not
+ * important.
+ *
+ * The local rpcbind daemon listens on either only IPv6 or only
+ * IPv4.  The kernel can't tell how it's configured.  However,
+ * AF_INET addresses are mapped to AF_INET6 in IPv6-only config-
+ * urations, so even an unregistration request on AF_INET will
+ * get to a local rpcbind daemon listening only on AF_INET6.  So
+ * we always unregister via AF_INET.
+ *
+ * At this point we don't need rpcbind version 4 for unregis-
+ * tration:  A v2 UNSET request will clear all transports (netids),
+ * addresses, and address families for [program, version].
+ */
+static void svc_unregister(const struct svc_serv *serv)
+{
+	struct svc_program *progp;
+	unsigned long flags;
+	unsigned int i;
+	int error;
+
+	clear_thread_flag(TIF_SIGPENDING);
+
+	for (progp = serv->sv_program; progp; progp = progp->pg_next) {
+		for (i = 0; i < progp->pg_nvers; i++) {
+			if (progp->pg_vers[i] == NULL)
+				continue;
+			if (progp->pg_vers[i]->vs_hidden)
+				continue;
+
+			error = rpcb_register(progp->pg_prog, i, 0, 0);
+			dprintk("svc: svc_unregister(%sv%u), error %d\n",
+					progp->pg_name, i, error);
+		}
 	}
 
-	return error;
+	spin_lock_irqsave(&current->sighand->siglock, flags);
+	recalc_sigpending();
+	spin_unlock_irqrestore(&current->sighand->siglock, flags);
 }
 
 /*
