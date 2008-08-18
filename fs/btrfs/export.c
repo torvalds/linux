@@ -147,7 +147,6 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	struct btrfs_key key;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	u32 nritems;
 	int slot;
 	u64 objectid;
 	int ret;
@@ -156,27 +155,24 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 
 	key.objectid = dir->i_ino;
 	btrfs_set_key_type(&key, BTRFS_INODE_REF_KEY);
-	key.offset = 0;
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	BUG_ON(ret == 0);
-	ret = 0;
+	key.offset = (u64)-1;
 
+	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
 	leaf = path->nodes[0];
 	slot = path->slots[0];
-	nritems = btrfs_header_nritems(leaf);
-	if (slot >= nritems) {
-		ret = btrfs_next_leaf(root, path);
-		if (ret) {
-			btrfs_free_path(path);
-			goto out;
-		}
-		leaf = path->nodes[0];
-		slot = path->slots[0];
+	if (ret < 0 || slot == 0) {
+		btrfs_free_path(path);
+		goto out;
 	}
-
-	btrfs_free_path(path);
+	/* btrfs_search_slot() returns the slot where we'd want to insert
+	   an INODE_REF_KEY for parent inode #0xFFFFFFFFFFFFFFFF. The _real_
+	   one, telling us what the parent inode _actually_ is, will be in
+	   the slot _before_ the one that btrfs_search_slot() returns. */
+	slot--;
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
+	btrfs_free_path(path);
+
 	if (key.objectid != dir->i_ino || key.type != BTRFS_INODE_REF_KEY)
 		goto out;
 
