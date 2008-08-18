@@ -1956,13 +1956,7 @@ long kvm_arch_vm_ioctl(struct file *filp,
 			goto out;
 		if (irqchip_in_kernel(kvm)) {
 			mutex_lock(&kvm->lock);
-			if (irq_event.irq < 16)
-				kvm_pic_set_irq(pic_irqchip(kvm),
-					irq_event.irq,
-					irq_event.level);
-			kvm_ioapic_set_irq(kvm->arch.vioapic,
-					irq_event.irq,
-					irq_event.level);
+			kvm_set_irq(kvm, irq_event.irq, irq_event.level);
 			mutex_unlock(&kvm->lock);
 			r = 0;
 		}

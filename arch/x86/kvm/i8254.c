@@ -596,10 +596,8 @@ void kvm_free_pit(struct kvm *kvm)
 static void __inject_pit_timer_intr(struct kvm *kvm)
 {
 	mutex_lock(&kvm->lock);
-	kvm_ioapic_set_irq(kvm->arch.vioapic, 0, 1);
-	kvm_ioapic_set_irq(kvm->arch.vioapic, 0, 0);
-	kvm_pic_set_irq(pic_irqchip(kvm), 0, 1);
-	kvm_pic_set_irq(pic_irqchip(kvm), 0, 0);
+	kvm_set_irq(kvm, 0, 1);
+	kvm_set_irq(kvm, 0, 0);
 	mutex_unlock(&kvm->lock);
 }
 
