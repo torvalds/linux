@@ -26,28 +26,37 @@
 #ifndef OCFS2_ALLOC_H
 #define OCFS2_ALLOC_H
 
+enum ocfs2_extent_tree_type {
+	OCFS2_DINODE_EXTENT = 0,
+};
+
 struct ocfs2_alloc_context;
 int ocfs2_insert_extent(struct ocfs2_super *osb,
 			handle_t *handle,
 			struct inode *inode,
-			struct buffer_head *fe_bh,
+			struct buffer_head *root_bh,
 			u32 cpos,
 			u64 start_blk,
 			u32 new_clusters,
 			u8 flags,
-			struct ocfs2_alloc_context *meta_ac);
+			struct ocfs2_alloc_context *meta_ac,
+			enum ocfs2_extent_tree_type et_type);
 struct ocfs2_cached_dealloc_ctxt;
-int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *di_bh,
+int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *root_bh,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
 			      struct ocfs2_alloc_context *meta_ac,
-			      struct ocfs2_cached_dealloc_ctxt *dealloc);
-int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
+			      struct ocfs2_cached_dealloc_ctxt *dealloc,
+			      enum ocfs2_extent_tree_type et_type);
+int ocfs2_remove_extent(struct inode *inode, struct buffer_head *root_bh,
 			u32 cpos, u32 len, handle_t *handle,
 			struct ocfs2_alloc_context *meta_ac,
-			struct ocfs2_cached_dealloc_ctxt *dealloc);
+			struct ocfs2_cached_dealloc_ctxt *dealloc,
+			enum ocfs2_extent_tree_type et_type);
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
-			   struct buffer_head *bh);
+			   struct buffer_head *root_bh,
+			   enum ocfs2_extent_tree_type et_type);
+
 /*
  * how many new metadata chunks would an allocation need at maximum?
  *
