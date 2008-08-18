@@ -496,7 +496,7 @@ acpi_ds_build_internal_package_obj(struct acpi_walk_state *walk_state,
 			arg = arg->common.next;
 		}
 
-		ACPI_ERROR((AE_INFO,
+		ACPI_WARNING((AE_INFO,
 			    "Package List length (%X) larger than NumElements count (%X), truncated\n",
 			    i, element_count));
 	} else if (i < element_count) {
