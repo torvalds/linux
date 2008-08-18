@@ -895,8 +895,9 @@ static int __init adu_init(void)
 		goto exit;
 	}
 
-	info("adutux " DRIVER_DESC " " DRIVER_VERSION);
-	info("adutux is an experimental driver. Use at your own risk");
+	printk(KERN_INFO "adutux " DRIVER_DESC " " DRIVER_VERSION "\n");
+	printk(KERN_INFO "adutux is an experimental driver. "
+	       "Use at your own risk\n");
 
 exit:
 	dbg(2," %s : leave, return value %d", __func__, result);

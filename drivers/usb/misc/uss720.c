@@ -801,10 +801,14 @@ static int __init uss720_init(void)
 	if (retval)
 		goto out;
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
-	info("NOTE: this is a special purpose driver to allow nonstandard");
-	info("protocols (eg. bitbang) over USS720 usb to parallel cables");
-	info("If you just want to connect to a printer, use usblp instead");
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
+	printk(KERN_INFO KBUILD_MODNAME ": NOTE: this is a special purpose "
+	       "driver to allow nonstandard\n");
+	printk(KERN_INFO KBUILD_MODNAME ": protocols (eg. bitbang) over "
+	       "USS720 usb to parallel cables\n");
+	printk(KERN_INFO KBUILD_MODNAME ": If you just want to connect to a "
+	       "printer, use usblp instead\n");
 out:
 	return retval;
 }

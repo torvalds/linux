@@ -428,7 +428,8 @@ static int __init usb_cytherm_init(void)
 		return result;
 	}
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 }
 
