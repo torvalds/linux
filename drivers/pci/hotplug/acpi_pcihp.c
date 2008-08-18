@@ -404,10 +404,7 @@ int acpi_get_hp_hw_control_from_firmware(struct pci_dev *dev, u32 flags)
 	 * OSHP within the scope of the hotplug controller and its parents,
 	 * upto the host bridge under which this controller exists.
 	 */
-	while (pdev->bus->self)
-		pdev = pdev->bus->self;
-	handle = acpi_get_pci_rootbridge_handle(pci_domain_nr(pdev->bus),
-			pdev->bus->number);
+	handle = acpi_find_root_bridge_handle(pdev);
 	if (handle) {
 		acpi_get_name(handle, ACPI_FULL_PATHNAME, &string);
 		dbg("Trying to get hotplug control for %s\n",
