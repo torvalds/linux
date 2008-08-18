@@ -834,9 +834,11 @@ static int __init ati_remote_init(void)
 
 	result = usb_register(&ati_remote_driver);
 	if (result)
-		err("usb_register error #%d\n", result);
+		printk(KERN_ERR KBUILD_MODNAME
+		       ": usb_register error #%d\n", result);
 	else
-		info("Registered USB driver " DRIVER_DESC " v. " DRIVER_VERSION);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
 
 	return result;
 }

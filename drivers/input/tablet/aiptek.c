@@ -1844,8 +1844,9 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 		aiptek->curSetting.programmableDelay = speeds[i];
 		(void)aiptek_program_tablet(aiptek);
 		if (aiptek->inputdev->absmax[ABS_X] > 0) {
-			info("input: Aiptek using %d ms programming speed\n",
-			     aiptek->curSetting.programmableDelay);
+			dev_info(&intf->dev,
+				 "Aiptek using %d ms programming speed\n",
+				 aiptek->curSetting.programmableDelay);
 			break;
 		}
 	}
@@ -1853,7 +1854,8 @@ aiptek_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	/* Murphy says that some day someone will have a tablet that fails the
 	   above test. That's you, Frederic Rodrigo */
 	if (i == ARRAY_SIZE(speeds)) {
-		info("input: Aiptek tried all speeds, no sane response");
+		dev_info(&intf->dev,
+			 "Aiptek tried all speeds, no sane response\n");
 		goto fail2;
 	}
 
@@ -1925,8 +1927,9 @@ static int __init aiptek_init(void)
 {
 	int result = usb_register(&aiptek_driver);
 	if (result == 0) {
-		info(DRIVER_VERSION ": " DRIVER_AUTHOR);
-		info(DRIVER_DESC);
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+		       DRIVER_DESC "\n");
+		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_AUTHOR "\n");
 	}
 	return result;
 }
