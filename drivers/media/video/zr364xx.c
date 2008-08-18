@@ -641,25 +641,23 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 
 	DBG("zr364xx_open");
 
+	mutex_lock(&cam->lock);
+
 	cam->skip = 2;
 
-	lock_kernel();
 	err = video_exclusive_open(inode, file);
-	if (err < 0) {
-		unlock_kernel();
-		return err;
-	}
+	if (err < 0)
+		goto out;
 
 	if (!cam->framebuf) {
 		cam->framebuf = vmalloc_32(MAX_FRAME_SIZE * FRAMES);
 		if (!cam->framebuf) {
 			info("vmalloc_32 failed!");
-			unlock_kernel();
-			return -ENOMEM;
+			err = -ENOMEM;
+			goto out;
 		}
 	}
 
-	mutex_lock(&cam->lock);
 	for (i = 0; init[cam->method][i].size != -1; i++) {
 		err =
 		    send_control_msg(udev, 1, init[cam->method][i].value,
@@ -667,9 +665,7 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 				     init[cam->method][i].size);
 		if (err < 0) {
 			info("error during open sequence: %d", i);
-			mutex_unlock(&cam->lock);
-			unlock_kernel();
-			return err;
+			goto out;
 		}
 	}
 
@@ -679,10 +675,11 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 	 * like Ekiga does during its startup, can crash the webcam
 	 */
 	mdelay(100);
+	err = 0;
 
+out:
 	mutex_unlock(&cam->lock);
-	unlock_kernel();
-	return 0;
+	return err;
 }
 
 
