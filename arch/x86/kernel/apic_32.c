@@ -114,6 +114,8 @@ static DEFINE_PER_CPU(struct clock_event_device, lapic_events);
 static int enabled_via_apicbase;
 
 static unsigned long apic_phys;
+unsigned int __cpuinitdata maxcpus = NR_CPUS;
+
 
 /*
  * Get the LAPIC version
@@ -1458,8 +1460,6 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 		apic_write(APIC_LVT1, value);
 	}
 }
-
-unsigned int __cpuinitdata maxcpus = NR_CPUS;
 
 void __cpuinit generic_processor_info(int apicid, int version)
 {
