@@ -1720,7 +1720,8 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 			goto out;
 		}
 
-		credits = ocfs2_calc_extend_credits(inode->i_sb, di,
+		credits = ocfs2_calc_extend_credits(inode->i_sb,
+						    &di->id2.i_list,
 						    clusters_to_alloc);
 
 	}

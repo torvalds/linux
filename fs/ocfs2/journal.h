@@ -340,11 +340,16 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
 #define OCFS2_RENAME_CREDITS (3 * OCFS2_INODE_UPDATE_CREDITS + 3              \
 			     + OCFS2_UNLINK_CREDITS)
 
+/*
+ * Please note that the caller must make sure that root_el is the root
+ * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * the result may be wrong.
+ */
 static inline int ocfs2_calc_extend_credits(struct super_block *sb,
-					    struct ocfs2_dinode *fe,
+					    struct ocfs2_extent_list *root_el,
 					    u32 bits_wanted)
 {
-	int bitmap_blocks, sysfile_bitmap_blocks, dinode_blocks;
+	int bitmap_blocks, sysfile_bitmap_blocks, extent_blocks;
 
 	/* bitmap dinode, group desc. + relinked group. */
 	bitmap_blocks = OCFS2_SUBALLOC_ALLOC;
@@ -355,16 +360,16 @@ static inline int ocfs2_calc_extend_credits(struct super_block *sb,
 	 * however many metadata chunks needed * a remaining suballoc
 	 * alloc. */
 	sysfile_bitmap_blocks = 1 +
-		(OCFS2_SUBALLOC_ALLOC - 1) * ocfs2_extend_meta_needed(fe);
+		(OCFS2_SUBALLOC_ALLOC - 1) * ocfs2_extend_meta_needed(root_el);
 
 	/* this does not include *new* metadata blocks, which are
-	 * accounted for in sysfile_bitmap_blocks. fe +
+	 * accounted for in sysfile_bitmap_blocks. root_el +
 	 * prev. last_eb_blk + blocks along edge of tree.
 	 * calc_symlink_credits passes because we just need 1
 	 * credit for the dinode there. */
-	dinode_blocks = 1 + 1 + le16_to_cpu(fe->id2.i_list.l_tree_depth);
+	extent_blocks = 1 + 1 + le16_to_cpu(root_el->l_tree_depth);
 
-	return bitmap_blocks + sysfile_bitmap_blocks + dinode_blocks;
+	return bitmap_blocks + sysfile_bitmap_blocks + extent_blocks;
 }
 
 static inline int ocfs2_calc_symlink_credits(struct super_block *sb)

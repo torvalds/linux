@@ -59,8 +59,13 @@ static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 	return ac->ac_bits_wanted - ac->ac_bits_given;
 }
 
+/*
+ * Please note that the caller must make sure that root_el is the root
+ * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * the result may be wrong.
+ */
 int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
-			       struct ocfs2_dinode *fe,
+			       struct ocfs2_extent_list *root_el,
 			       struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context **ac);

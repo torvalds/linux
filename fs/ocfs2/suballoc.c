@@ -494,7 +494,7 @@ bail:
 }
 
 int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
-			       struct ocfs2_dinode *fe,
+			       struct ocfs2_extent_list *root_el,
 			       struct ocfs2_alloc_context **ac)
 {
 	int status;
@@ -507,7 +507,7 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	(*ac)->ac_bits_wanted = ocfs2_extend_meta_needed(fe);
+	(*ac)->ac_bits_wanted = ocfs2_extend_meta_needed(root_el);
 	(*ac)->ac_which = OCFS2_AC_USE_META;
 	slot = osb->slot_num;
 	(*ac)->ac_group_search = ocfs2_block_group_search;

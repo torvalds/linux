@@ -48,8 +48,14 @@ int ocfs2_remove_extent(struct inode *inode, struct buffer_head *di_bh,
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
 			   struct buffer_head *bh);
-/* how many new metadata chunks would an allocation need at maximum? */
-static inline int ocfs2_extend_meta_needed(struct ocfs2_dinode *fe)
+/*
+ * how many new metadata chunks would an allocation need at maximum?
+ *
+ * Please note that the caller must make sure that root_el is the root
+ * of extent tree. So for an inode, it should be &fe->id2.i_list. Otherwise
+ * the result may be wrong.
+ */
+static inline int ocfs2_extend_meta_needed(struct ocfs2_extent_list *root_el)
 {
 	/*
 	 * Rather than do all the work of determining how much we need
@@ -59,7 +65,7 @@ static inline int ocfs2_extend_meta_needed(struct ocfs2_dinode *fe)
 	 * new tree_depth==0 extent_block, and one block at the new
 	 * top-of-the tree.
 	 */
-	return le16_to_cpu(fe->id2.i_list.l_tree_depth) + 2;
+	return le16_to_cpu(root_el->l_tree_depth) + 2;
 }
 
 void ocfs2_dinode_new_extent_list(struct inode *inode, struct ocfs2_dinode *di);

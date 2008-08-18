@@ -540,7 +540,7 @@ int ocfs2_do_extend_allocation(struct ocfs2_super *osb,
 		goto leave;
 	} else if ((!free_extents)
 		   && (ocfs2_alloc_context_bits_left(meta_ac)
-		       < ocfs2_extend_meta_needed(fe))) {
+		       < ocfs2_extend_meta_needed(&fe->id2.i_list))) {
 		mlog(0, "filesystem is really fragmented...\n");
 		status = -EAGAIN;
 		reason = RESTART_META;
@@ -652,7 +652,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *di_bh,
 	 */
 	if (!num_free_extents ||
 	    (ocfs2_sparse_alloc(osb) && num_free_extents < max_recs_needed)) {
-		ret = ocfs2_reserve_new_metadata(osb, di, meta_ac);
+		ret = ocfs2_reserve_new_metadata(osb, &di->id2.i_list, meta_ac);
 		if (ret < 0) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);
@@ -732,7 +732,8 @@ restart_all:
 		goto leave;
 	}
 
-	credits = ocfs2_calc_extend_credits(osb->sb, fe, clusters_to_add);
+	credits = ocfs2_calc_extend_credits(osb->sb, &fe->id2.i_list,
+					    clusters_to_add);
 	handle = ocfs2_start_trans(osb, credits);
 	if (IS_ERR(handle)) {
 		status = PTR_ERR(handle);
@@ -790,7 +791,7 @@ restarted_transaction:
 			mlog(0, "restarting transaction.\n");
 			/* TODO: This can be more intelligent. */
 			credits = ocfs2_calc_extend_credits(osb->sb,
-							    fe,
+							    &fe->id2.i_list,
 							    clusters_to_add);
 			status = ocfs2_extend_trans(handle, credits);
 			if (status < 0) {

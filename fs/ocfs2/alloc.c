@@ -4527,7 +4527,8 @@ static int ocfs2_split_tree(struct inode *inode, struct buffer_head *di_bh,
 	} else
 		rightmost_el = path_leaf_el(path);
 
-	credits += path->p_tree_depth + ocfs2_extend_meta_needed(di);
+	credits += path->p_tree_depth +
+		   ocfs2_extend_meta_needed(&di->id2.i_list);
 	ret = ocfs2_extend_trans(handle, credits);
 	if (ret) {
 		mlog_errno(ret);
