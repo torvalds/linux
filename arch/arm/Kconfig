@@ -1005,9 +1005,9 @@ config ATAGS_PROC
 
 endmenu
 
-if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
+menu "CPU Power Management"
 
-menu "CPU Frequency scaling"
+if (ARCH_SA1100 || ARCH_INTEGRATOR || ARCH_OMAP || ARCH_IMX || ARCH_PXA)
 
 source "drivers/cpufreq/Kconfig"
 
@@ -1047,9 +1047,11 @@ config CPU_FREQ_PXA
 	default y
 	select CPU_FREQ_DEFAULT_GOV_USERSPACE
 
-endmenu
-
 endif
+
+source "drivers/cpuidle/Kconfig"
+
+endmenu
 
 menu "Floating point emulation"
 
@@ -1202,6 +1204,8 @@ source "drivers/power/Kconfig"
 
 source "drivers/hwmon/Kconfig"
 
+source "drivers/thermal/Kconfig"
+
 source "drivers/watchdog/Kconfig"
 
 source "drivers/ssb/Kconfig"
@@ -1222,6 +1226,10 @@ source "drivers/usb/Kconfig"
 
 source "drivers/mmc/Kconfig"
 
+source "drivers/memstick/Kconfig"
+
+source "drivers/accessibility/Kconfig"
+
 source "drivers/leds/Kconfig"
 
 source "drivers/rtc/Kconfig"
@@ -1229,6 +1237,8 @@ source "drivers/rtc/Kconfig"
 source "drivers/dma/Kconfig"
 
 source "drivers/dca/Kconfig"
+
+source "drivers/auxdisplay/Kconfig"
 
 source "drivers/regulator/Kconfig"
 
