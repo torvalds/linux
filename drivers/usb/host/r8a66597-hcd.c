@@ -760,10 +760,12 @@ static void enable_r8a66597_pipe_dma(struct r8a66597 *r8a66597,
 			if ((r8a66597->dma_map & (1 << i)) != 0)
 				continue;
 
-			info("address %d, EndpointAddress 0x%02x use DMA FIFO",
-			     usb_pipedevice(urb->pipe),
-			     info->dir_in ? USB_ENDPOINT_DIR_MASK + info->epnum
-					    : info->epnum);
+			dev_info(&dev->udev->dev,
+				 "address %d, EndpointAddress 0x%02x use "
+				 "DMA FIFO\n", usb_pipedevice(urb->pipe),
+				 info->dir_in ?
+				 	USB_ENDPOINT_DIR_MASK + info->epnum
+					: info->epnum);
 
 			r8a66597->dma_map |= 1 << i;
 			dev->dma_map |= 1 << i;
@@ -2387,7 +2389,8 @@ static int __init r8a66597_init(void)
 	if (usb_disabled())
 		return -ENODEV;
 
-	info("driver %s, %s", hcd_name, DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": driver %s, %s\n", hcd_name,
+	       DRIVER_VERSION);
 	return platform_driver_register(&r8a66597_driver);
 }
 module_init(r8a66597_init);

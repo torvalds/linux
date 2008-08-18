@@ -1454,7 +1454,8 @@ static int __init acm_init(void)
 		return retval;
 	}
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	return 0;
 }
