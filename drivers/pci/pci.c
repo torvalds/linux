@@ -1127,6 +1127,27 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, int enable)
 }
 
 /**
+ * pci_wake_from_d3 - enable/disable device to wake up from D3_hot or D3_cold
+ * @dev: PCI device to prepare
+ * @enable: True to enable wake-up event generation; false to disable
+ *
+ * Many drivers want the device to wake up the system from D3_hot or D3_cold
+ * and this function allows them to set that up cleanly - pci_enable_wake()
+ * should not be called twice in a row to enable wake-up due to PCI PM vs ACPI
+ * ordering constraints.
+ *
+ * This function only returns error code if the device is not capable of
+ * generating PME# from both D3_hot and D3_cold, and the platform is unable to
+ * enable wake-up power for it.
+ */
+int pci_wake_from_d3(struct pci_dev *dev, bool enable)
+{
+	return pci_pme_capable(dev, PCI_D3cold) ?
+			pci_enable_wake(dev, PCI_D3cold, enable) :
+			pci_enable_wake(dev, PCI_D3hot, enable);
+}
+
+/**
  * pci_target_state - find an appropriate low power state for a given PCI dev
  * @dev: PCI device
  *
@@ -1942,6 +1963,7 @@ EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_pme_capable);
 EXPORT_SYMBOL(pci_pme_active);
 EXPORT_SYMBOL(pci_enable_wake);
+EXPORT_SYMBOL(pci_wake_from_d3);
 EXPORT_SYMBOL(pci_target_state);
 EXPORT_SYMBOL(pci_prepare_to_sleep);
 EXPORT_SYMBOL(pci_back_from_sleep);
