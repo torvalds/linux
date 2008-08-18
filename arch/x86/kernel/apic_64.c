@@ -1014,6 +1014,15 @@ void __cpuinit setup_local_APIC(void)
 void __cpuinit end_local_APIC_setup(void)
 {
 	lapic_setup_esr();
+
+#ifdef CONFIG_X86_32
+	unsigned int value;
+	/* Disable the local apic timer */
+	value = apic_read(APIC_LVTT);
+	value |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
+	apic_write(APIC_LVTT, value);
+#endif
+
 	setup_apic_nmi_watchdog(NULL);
 	apic_pm_activate();
 }
