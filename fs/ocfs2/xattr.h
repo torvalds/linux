@@ -57,4 +57,12 @@ static inline u16 ocfs2_blocks_per_xattr_bucket(struct super_block *sb)
 {
 	return OCFS2_XATTR_BUCKET_SIZE / (1 << sb->s_blocksize_bits);
 }
+
+static inline u16 ocfs2_xattr_max_xe_in_bucket(struct super_block *sb)
+{
+	u16 len = sb->s_blocksize -
+		 offsetof(struct ocfs2_xattr_header, xh_entries);
+
+	return len / sizeof(struct ocfs2_xattr_entry);
+}
 #endif /* OCFS2_XATTR_H */

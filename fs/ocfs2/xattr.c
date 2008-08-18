@@ -36,6 +36,7 @@
 #include <linux/mount.h>
 #include <linux/writeback.h>
 #include <linux/falloc.h>
+#include <linux/sort.h>
 
 #define MLOG_MASK_PREFIX ML_XATTR
 #include <cluster/masklog.h>
@@ -122,6 +123,13 @@ static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
 					struct ocfs2_xattr_tree_root *xt,
 					char *buffer,
 					size_t buffer_size);
+
+static int ocfs2_xattr_create_index_block(struct inode *inode,
+					  struct ocfs2_xattr_search *xs);
+
+static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
+					     struct ocfs2_xattr_info *xi,
+					     struct ocfs2_xattr_search *xs);
 
 static inline struct xattr_handler *ocfs2_xattr_handler(int name_index)
 {
@@ -1768,6 +1776,52 @@ cleanup:
 }
 
 /*
+ * When all the xattrs are deleted from index btree, the ocfs2_xattr_tree
+ * will be erased and ocfs2_xattr_block will have its ocfs2_xattr_header
+ * re-initialized.
+ */
+static int ocfs2_restore_xattr_block(struct inode *inode,
+				     struct ocfs2_xattr_search *xs)
+{
+	int ret;
+	handle_t *handle;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_xattr_block *xb =
+		(struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
+	struct ocfs2_extent_list *el = &xb->xb_attrs.xb_root.xt_list;
+	u16 xb_flags = le16_to_cpu(xb->xb_flags);
+
+	BUG_ON(!(xb_flags & OCFS2_XATTR_INDEXED) ||
+		le16_to_cpu(el->l_next_free_rec) != 0);
+
+	handle = ocfs2_start_trans(osb, OCFS2_XATTR_BLOCK_UPDATE_CREDITS);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, xs->xattr_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	memset(&xb->xb_attrs, 0, inode->i_sb->s_blocksize -
+	       offsetof(struct ocfs2_xattr_block, xb_attrs));
+
+	xb->xb_flags = cpu_to_le16(xb_flags & ~OCFS2_XATTR_INDEXED);
+
+	ocfs2_journal_dirty(handle, xs->xattr_bh);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+out:
+	return ret;
+}
+
+/*
  * ocfs2_xattr_block_set()
  *
  * Set, replace or remove an extended attribute into external block.
@@ -1862,10 +1916,25 @@ out:
 			ocfs2_free_alloc_context(meta_ac);
 		if (ret < 0)
 			return ret;
+	} else
+		xblk = (struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
+
+	if (!(le16_to_cpu(xblk->xb_flags) & OCFS2_XATTR_INDEXED)) {
+		/* Set extended attribute into external block */
+		ret = ocfs2_xattr_set_entry(inode, xi, xs, OCFS2_HAS_XATTR_FL);
+		if (!ret || ret != -ENOSPC)
+			goto end;
+
+		ret = ocfs2_xattr_create_index_block(inode, xs);
+		if (ret)
+			goto end;
 	}
 
-	/* Set extended attribute into external block */
-	ret = ocfs2_xattr_set_entry(inode, xi, xs, OCFS2_HAS_XATTR_FL);
+	ret = ocfs2_xattr_set_entry_index_block(inode, xi, xs);
+	if (!ret && xblk->xb_attrs.xb_root.xt_list.l_next_free_rec == 0)
+		ret = ocfs2_restore_xattr_block(inode, xs);
+
+end:
 
 	return ret;
 }
@@ -1887,6 +1956,7 @@ int ocfs2_xattr_set(struct inode *inode,
 	struct buffer_head *di_bh = NULL;
 	struct ocfs2_dinode *di;
 	int ret;
+	u16 i, blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 
 	struct ocfs2_xattr_info xi = {
 		.name_index = name_index,
@@ -1985,6 +2055,8 @@ cleanup:
 	ocfs2_inode_unlock(inode, 1);
 	brelse(di_bh);
 	brelse(xbs.xattr_bh);
+	for (i = 0; i < blk_per_bucket; i++)
+		brelse(xbs.bucket.bhs[i]);
 
 	return ret;
 }
@@ -2473,5 +2545,2196 @@ static int ocfs2_xattr_tree_list_index_block(struct inode *inode,
 
 	ret = buffer_size - xl.buffer_size;
 out:
+	return ret;
+}
+
+static int cmp_xe(const void *a, const void *b)
+{
+	const struct ocfs2_xattr_entry *l = a, *r = b;
+	u32 l_hash = le32_to_cpu(l->xe_name_hash);
+	u32 r_hash = le32_to_cpu(r->xe_name_hash);
+
+	if (l_hash > r_hash)
+		return 1;
+	if (l_hash < r_hash)
+		return -1;
+	return 0;
+}
+
+static void swap_xe(void *a, void *b, int size)
+{
+	struct ocfs2_xattr_entry *l = a, *r = b, tmp;
+
+	tmp = *l;
+	memcpy(l, r, sizeof(struct ocfs2_xattr_entry));
+	memcpy(r, &tmp, sizeof(struct ocfs2_xattr_entry));
+}
+
+/*
+ * When the ocfs2_xattr_block is filled up, new bucket will be created
+ * and all the xattr entries will be moved to the new bucket.
+ * Note: we need to sort the entries since they are not saved in order
+ * in the ocfs2_xattr_block.
+ */
+static void ocfs2_cp_xattr_block_to_bucket(struct inode *inode,
+					   struct buffer_head *xb_bh,
+					   struct buffer_head *xh_bh,
+					   struct buffer_head *data_bh)
+{
+	int i, blocksize = inode->i_sb->s_blocksize;
+	u16 offset, size, off_change;
+	struct ocfs2_xattr_entry *xe;
+	struct ocfs2_xattr_block *xb =
+				(struct ocfs2_xattr_block *)xb_bh->b_data;
+	struct ocfs2_xattr_header *xb_xh = &xb->xb_attrs.xb_header;
+	struct ocfs2_xattr_header *xh =
+				(struct ocfs2_xattr_header *)xh_bh->b_data;
+	u16 count = le16_to_cpu(xb_xh->xh_count);
+	char *target = xh_bh->b_data, *src = xb_bh->b_data;
+
+	mlog(0, "cp xattr from block %llu to bucket %llu\n",
+	     (unsigned long long)xb_bh->b_blocknr,
+	     (unsigned long long)xh_bh->b_blocknr);
+
+	memset(xh_bh->b_data, 0, blocksize);
+	if (data_bh)
+		memset(data_bh->b_data, 0, blocksize);
+	/*
+	 * Since the xe_name_offset is based on ocfs2_xattr_header,
+	 * there is a offset change corresponding to the change of
+	 * ocfs2_xattr_header's position.
+	 */
+	off_change = offsetof(struct ocfs2_xattr_block, xb_attrs.xb_header);
+	xe = &xb_xh->xh_entries[count - 1];
+	offset = le16_to_cpu(xe->xe_name_offset) + off_change;
+	size = blocksize - offset;
+
+	/* copy all the names and values. */
+	if (data_bh)
+		target = data_bh->b_data;
+	memcpy(target + offset, src + offset, size);
+
+	/* Init new header now. */
+	xh->xh_count = xb_xh->xh_count;
+	xh->xh_num_buckets = cpu_to_le16(1);
+	xh->xh_name_value_len = cpu_to_le16(size);
+	xh->xh_free_start = cpu_to_le16(OCFS2_XATTR_BUCKET_SIZE - size);
+
+	/* copy all the entries. */
+	target = xh_bh->b_data;
+	offset = offsetof(struct ocfs2_xattr_header, xh_entries);
+	size = count * sizeof(struct ocfs2_xattr_entry);
+	memcpy(target + offset, (char *)xb_xh + offset, size);
+
+	/* Change the xe offset for all the xe because of the move. */
+	off_change = OCFS2_XATTR_BUCKET_SIZE - blocksize +
+		 offsetof(struct ocfs2_xattr_block, xb_attrs.xb_header);
+	for (i = 0; i < count; i++)
+		le16_add_cpu(&xh->xh_entries[i].xe_name_offset, off_change);
+
+	mlog(0, "copy entry: start = %u, size = %u, offset_change = %u\n",
+	     offset, size, off_change);
+
+	sort(target + offset, count, sizeof(struct ocfs2_xattr_entry),
+	     cmp_xe, swap_xe);
+}
+
+/*
+ * After we move xattr from block to index btree, we have to
+ * update ocfs2_xattr_search to the new xe and base.
+ *
+ * When the entry is in xattr block, xattr_bh indicates the storage place.
+ * While if the entry is in index b-tree, "bucket" indicates the
+ * real place of the xattr.
+ */
+static int ocfs2_xattr_update_xattr_search(struct inode *inode,
+					   struct ocfs2_xattr_search *xs,
+					   struct buffer_head *old_bh,
+					   struct buffer_head *new_bh)
+{
+	int ret = 0;
+	char *buf = old_bh->b_data;
+	struct ocfs2_xattr_block *old_xb = (struct ocfs2_xattr_block *)buf;
+	struct ocfs2_xattr_header *old_xh = &old_xb->xb_attrs.xb_header;
+	int i, blocksize = inode->i_sb->s_blocksize;
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	xs->bucket.bhs[0] = new_bh;
+	get_bh(new_bh);
+	xs->bucket.xh = (struct ocfs2_xattr_header *)xs->bucket.bhs[0]->b_data;
+	xs->header = xs->bucket.xh;
+
+	xs->base = new_bh->b_data;
+	xs->end = xs->base + inode->i_sb->s_blocksize;
+
+	if (!xs->not_found) {
+		if (OCFS2_XATTR_BUCKET_SIZE != blocksize) {
+			ret = ocfs2_read_blocks(OCFS2_SB(inode->i_sb),
+					xs->bucket.bhs[0]->b_blocknr + 1,
+					blk_per_bucket - 1, &xs->bucket.bhs[1],
+					OCFS2_BH_CACHED, inode);
+			if (ret) {
+				mlog_errno(ret);
+				return ret;
+			}
+
+			i = xs->here - old_xh->xh_entries;
+			xs->here = &xs->header->xh_entries[i];
+		}
+	}
+
+	return ret;
+}
+
+static int ocfs2_xattr_create_index_block(struct inode *inode,
+					  struct ocfs2_xattr_search *xs)
+{
+	int ret, credits = OCFS2_SUBALLOC_ALLOC;
+	u32 bit_off, len;
+	u64 blkno;
+	handle_t *handle;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_inode_info *oi = OCFS2_I(inode);
+	struct ocfs2_alloc_context *data_ac;
+	struct buffer_head *xh_bh = NULL, *data_bh = NULL;
+	struct buffer_head *xb_bh = xs->xattr_bh;
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)xb_bh->b_data;
+	struct ocfs2_xattr_tree_root *xr;
+	u16 xb_flags = le16_to_cpu(xb->xb_flags);
+	u16 bpb = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	mlog(0, "create xattr index block for %llu\n",
+	     (unsigned long long)xb_bh->b_blocknr);
+
+	BUG_ON(xb_flags & OCFS2_XATTR_INDEXED);
+
+	ret = ocfs2_reserve_clusters(osb, 1, &data_ac);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*
+	 * XXX:
+	 * We can use this lock for now, and maybe move to a dedicated mutex
+	 * if performance becomes a problem later.
+	 */
+	down_write(&oi->ip_alloc_sem);
+
+	/*
+	 * 3 more credits, one for xattr block update, one for the 1st block
+	 * of the new xattr bucket and one for the value/data.
+	 */
+	credits += 3;
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out_sem;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, xb_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off, &len);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	/*
+	 * The bucket may spread in many blocks, and
+	 * we will only touch the 1st block and the last block
+	 * in the whole bucket(one for entry and one for data).
+	 */
+	blkno = ocfs2_clusters_to_blocks(inode->i_sb, bit_off);
+
+	mlog(0, "allocate 1 cluster from %llu to xattr block\n", blkno);
+
+	xh_bh = sb_getblk(inode->i_sb, blkno);
+	if (!xh_bh) {
+		ret = -EIO;
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ocfs2_set_new_buffer_uptodate(inode, xh_bh);
+
+	ret = ocfs2_journal_access(handle, inode, xh_bh,
+				   OCFS2_JOURNAL_ACCESS_CREATE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	if (bpb > 1) {
+		data_bh = sb_getblk(inode->i_sb, blkno + bpb - 1);
+		if (!data_bh) {
+			ret = -EIO;
+			mlog_errno(ret);
+			goto out_commit;
+		}
+
+		ocfs2_set_new_buffer_uptodate(inode, data_bh);
+
+		ret = ocfs2_journal_access(handle, inode, data_bh,
+					   OCFS2_JOURNAL_ACCESS_CREATE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+	}
+
+	ocfs2_cp_xattr_block_to_bucket(inode, xb_bh, xh_bh, data_bh);
+
+	ocfs2_journal_dirty(handle, xh_bh);
+	if (data_bh)
+		ocfs2_journal_dirty(handle, data_bh);
+
+	ocfs2_xattr_update_xattr_search(inode, xs, xb_bh, xh_bh);
+
+	/* Change from ocfs2_xattr_header to ocfs2_xattr_tree_root */
+	memset(&xb->xb_attrs, 0, inode->i_sb->s_blocksize -
+	       offsetof(struct ocfs2_xattr_block, xb_attrs));
+
+	xr = &xb->xb_attrs.xb_root;
+	xr->xt_clusters = cpu_to_le32(1);
+	xr->xt_last_eb_blk = 0;
+	xr->xt_list.l_tree_depth = 0;
+	xr->xt_list.l_count = cpu_to_le16(ocfs2_xattr_recs_per_xb(inode->i_sb));
+	xr->xt_list.l_next_free_rec = cpu_to_le16(1);
+
+	xr->xt_list.l_recs[0].e_cpos = 0;
+	xr->xt_list.l_recs[0].e_blkno = cpu_to_le64(blkno);
+	xr->xt_list.l_recs[0].e_leaf_clusters = cpu_to_le16(1);
+
+	xb->xb_flags = cpu_to_le16(xb_flags | OCFS2_XATTR_INDEXED);
+
+	ret = ocfs2_journal_dirty(handle, xb_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+
+out_sem:
+	up_write(&oi->ip_alloc_sem);
+
+out:
+	if (data_ac)
+		ocfs2_free_alloc_context(data_ac);
+
+	brelse(xh_bh);
+	brelse(data_bh);
+
+	return ret;
+}
+
+static int cmp_xe_offset(const void *a, const void *b)
+{
+	const struct ocfs2_xattr_entry *l = a, *r = b;
+	u32 l_name_offset = le16_to_cpu(l->xe_name_offset);
+	u32 r_name_offset = le16_to_cpu(r->xe_name_offset);
+
+	if (l_name_offset < r_name_offset)
+		return 1;
+	if (l_name_offset > r_name_offset)
+		return -1;
+	return 0;
+}
+
+/*
+ * defrag a xattr bucket if we find that the bucket has some
+ * holes beteen name/value pairs.
+ * We will move all the name/value pairs to the end of the bucket
+ * so that we can spare some space for insertion.
+ */
+static int ocfs2_defrag_xattr_bucket(struct inode *inode,
+				     struct ocfs2_xattr_bucket *bucket)
+{
+	int ret, i;
+	size_t end, offset, len, value_len;
+	struct ocfs2_xattr_header *xh;
+	char *entries, *buf, *bucket_buf = NULL;
+	u64 blkno = bucket->bhs[0]->b_blocknr;
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	u16 xh_free_start;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	size_t blocksize = inode->i_sb->s_blocksize;
+	handle_t *handle;
+	struct buffer_head **bhs;
+	struct ocfs2_xattr_entry *xe;
+
+	bhs = kzalloc(sizeof(struct buffer_head *) * blk_per_bucket,
+			GFP_NOFS);
+	if (!bhs)
+		return -ENOMEM;
+
+	ret = ocfs2_read_blocks(osb, blkno, blk_per_bucket, bhs,
+				OCFS2_BH_CACHED, inode);
+	if (ret)
+		goto out;
+
+	/*
+	 * In order to make the operation more efficient and generic,
+	 * we copy all the blocks into a contiguous memory and do the
+	 * defragment there, so if anything is error, we will not touch
+	 * the real block.
+	 */
+	bucket_buf = kmalloc(OCFS2_XATTR_BUCKET_SIZE, GFP_NOFS);
+	if (!bucket_buf) {
+		ret = -EIO;
+		goto out;
+	}
+
+	buf = bucket_buf;
+	for (i = 0; i < blk_per_bucket; i++, buf += blocksize)
+		memcpy(buf, bhs[i]->b_data, blocksize);
+
+	handle = ocfs2_start_trans((OCFS2_SB(inode->i_sb)), blk_per_bucket);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		ret = ocfs2_journal_access(handle, inode, bhs[i],
+					   OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto commit;
+		}
+	}
+
+	xh = (struct ocfs2_xattr_header *)bucket_buf;
+	entries = (char *)xh->xh_entries;
+	xh_free_start = le16_to_cpu(xh->xh_free_start);
+
+	mlog(0, "adjust xattr bucket in %llu, count = %u, "
+	     "xh_free_start = %u, xh_name_value_len = %u.\n",
+	     blkno, le16_to_cpu(xh->xh_count), xh_free_start,
+	     le16_to_cpu(xh->xh_name_value_len));
+
+	/*
+	 * sort all the entries by their offset.
+	 * the largest will be the first, so that we can
+	 * move them to the end one by one.
+	 */
+	sort(entries, le16_to_cpu(xh->xh_count),
+	     sizeof(struct ocfs2_xattr_entry),
+	     cmp_xe_offset, swap_xe);
+
+	/* Move all name/values to the end of the bucket. */
+	xe = xh->xh_entries;
+	end = OCFS2_XATTR_BUCKET_SIZE;
+	for (i = 0; i < le16_to_cpu(xh->xh_count); i++, xe++) {
+		offset = le16_to_cpu(xe->xe_name_offset);
+		if (ocfs2_xattr_is_local(xe))
+			value_len = OCFS2_XATTR_SIZE(
+					le64_to_cpu(xe->xe_value_size));
+		else
+			value_len = OCFS2_XATTR_ROOT_SIZE;
+		len = OCFS2_XATTR_SIZE(xe->xe_name_len) + value_len;
+
+		/*
+		 * We must make sure that the name/value pair
+		 * exist in the same block. So adjust end to
+		 * the previous block end if needed.
+		 */
+		if (((end - len) / blocksize !=
+			(end - 1) / blocksize))
+			end = end - end % blocksize;
+
+		if (end > offset + len) {
+			memmove(bucket_buf + end - len,
+				bucket_buf + offset, len);
+			xe->xe_name_offset = cpu_to_le16(end - len);
+		}
+
+		mlog_bug_on_msg(end < offset + len, "Defrag check failed for "
+				"bucket %llu\n", (unsigned long long)blkno);
+
+		end -= len;
+	}
+
+	mlog_bug_on_msg(xh_free_start > end, "Defrag check failed for "
+			"bucket %llu\n", (unsigned long long)blkno);
+
+	if (xh_free_start == end)
+		goto commit;
+
+	memset(bucket_buf + xh_free_start, 0, end - xh_free_start);
+	xh->xh_free_start = cpu_to_le16(end);
+
+	/* sort the entries by their name_hash. */
+	sort(entries, le16_to_cpu(xh->xh_count),
+	     sizeof(struct ocfs2_xattr_entry),
+	     cmp_xe, swap_xe);
+
+	buf = bucket_buf;
+	for (i = 0; i < blk_per_bucket; i++, buf += blocksize) {
+		memcpy(bhs[i]->b_data, buf, blocksize);
+		ocfs2_journal_dirty(handle, bhs[i]);
+	}
+
+commit:
+	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+out:
+
+	if (bhs) {
+		for (i = 0; i < blk_per_bucket; i++)
+			brelse(bhs[i]);
+	}
+	kfree(bhs);
+
+	kfree(bucket_buf);
+	return ret;
+}
+
+/*
+ * Move half nums of the xattr bucket in the previous cluster to this new
+ * cluster. We only touch the last cluster of the previous extend record.
+ *
+ * first_bh is the first buffer_head of a series of bucket in the same
+ * extent rec and header_bh is the header of one bucket in this cluster.
+ * They will be updated if we move the data header_bh contains to the new
+ * cluster. first_hash will be set as the 1st xe's name_hash of the new cluster.
+ */
+static int ocfs2_mv_xattr_bucket_cross_cluster(struct inode *inode,
+					       handle_t *handle,
+					       struct buffer_head **first_bh,
+					       struct buffer_head **header_bh,
+					       u64 new_blkno,
+					       u64 prev_blkno,
+					       u32 num_clusters,
+					       u32 *first_hash)
+{
+	int i, ret, credits;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);
+	int num_buckets = ocfs2_xattr_buckets_per_cluster(osb);
+	int blocksize = inode->i_sb->s_blocksize;
+	struct buffer_head *old_bh, *new_bh, *prev_bh, *new_first_bh = NULL;
+	struct ocfs2_xattr_header *new_xh;
+	struct ocfs2_xattr_header *xh =
+			(struct ocfs2_xattr_header *)((*first_bh)->b_data);
+
+	BUG_ON(le16_to_cpu(xh->xh_num_buckets) < num_buckets);
+	BUG_ON(OCFS2_XATTR_BUCKET_SIZE == osb->s_clustersize);
+
+	prev_bh = *first_bh;
+	get_bh(prev_bh);
+	xh = (struct ocfs2_xattr_header *)prev_bh->b_data;
+
+	prev_blkno += (num_clusters - 1) * bpc + bpc / 2;
+
+	mlog(0, "move half of xattrs in cluster %llu to %llu\n",
+	     prev_blkno, new_blkno);
+
+	/*
+	 * We need to update the 1st half of the new cluster and
+	 * 1 more for the update of the 1st bucket of the previous
+	 * extent record.
+	 */
+	credits = bpc / 2 + 1;
+	ret = ocfs2_extend_trans(handle, credits);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, prev_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	for (i = 0; i < bpc / 2; i++, prev_blkno++, new_blkno++) {
+		old_bh = new_bh = NULL;
+		new_bh = sb_getblk(inode->i_sb, new_blkno);
+		if (!new_bh) {
+			ret = -EIO;
+			mlog_errno(ret);
+			goto out;
+		}
+
+		ocfs2_set_new_buffer_uptodate(inode, new_bh);
+
+		ret = ocfs2_journal_access(handle, inode, new_bh,
+					   OCFS2_JOURNAL_ACCESS_CREATE);
+		if (ret < 0) {
+			mlog_errno(ret);
+			brelse(new_bh);
+			goto out;
+		}
+
+		ret = ocfs2_read_block(osb, prev_blkno,
+				       &old_bh, OCFS2_BH_CACHED, inode);
+		if (ret < 0) {
+			mlog_errno(ret);
+			brelse(new_bh);
+			goto out;
+		}
+
+		memcpy(new_bh->b_data, old_bh->b_data, blocksize);
+
+		if (i == 0) {
+			new_xh = (struct ocfs2_xattr_header *)new_bh->b_data;
+			new_xh->xh_num_buckets = cpu_to_le16(num_buckets / 2);
+
+			if (first_hash)
+				*first_hash = le32_to_cpu(
+					new_xh->xh_entries[0].xe_name_hash);
+			new_first_bh = new_bh;
+			get_bh(new_first_bh);
+		}
+
+		ocfs2_journal_dirty(handle, new_bh);
+
+		if (*header_bh == old_bh) {
+			brelse(*header_bh);
+			*header_bh = new_bh;
+			get_bh(*header_bh);
+
+			brelse(*first_bh);
+			*first_bh = new_first_bh;
+			get_bh(*first_bh);
+		}
+		brelse(new_bh);
+		brelse(old_bh);
+	}
+
+	le16_add_cpu(&xh->xh_num_buckets, -(num_buckets / 2));
+
+	ocfs2_journal_dirty(handle, prev_bh);
+out:
+	brelse(prev_bh);
+	brelse(new_first_bh);
+	return ret;
+}
+
+static int ocfs2_read_xattr_bucket(struct inode *inode,
+				   u64 blkno,
+				   struct buffer_head **bhs,
+				   int new)
+{
+	int ret = 0;
+	u16 i, blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	if (!new)
+		return ocfs2_read_blocks(OCFS2_SB(inode->i_sb), blkno,
+					 blk_per_bucket, bhs,
+					 OCFS2_BH_CACHED, inode);
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		bhs[i] = sb_getblk(inode->i_sb, blkno + i);
+		if (bhs[i] == NULL) {
+			ret = -EIO;
+			mlog_errno(ret);
+			break;
+		}
+		ocfs2_set_new_buffer_uptodate(inode, bhs[i]);
+	}
+
+	return ret;
+}
+
+/*
+ * Move half num of the xattrs in old bucket(blk) to new bucket(new_blk).
+ * first_hash will record the 1st hash of the new bucket.
+ */
+static int ocfs2_half_xattr_bucket(struct inode *inode,
+				   handle_t *handle,
+				   u64 blk,
+				   u64 new_blk,
+				   u32 *first_hash,
+				   int new_bucket_head)
+{
+	int ret, i;
+	u16 count, start, len, name_value_len, xe_len, name_offset;
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	struct buffer_head **s_bhs, **t_bhs = NULL;
+	struct ocfs2_xattr_header *xh;
+	struct ocfs2_xattr_entry *xe;
+	int blocksize = inode->i_sb->s_blocksize;
+
+	mlog(0, "move half of xattrs from bucket %llu to %llu\n",
+	     blk, new_blk);
+
+	s_bhs = kcalloc(blk_per_bucket, sizeof(struct buffer_head *), GFP_NOFS);
+	if (!s_bhs)
+		return -ENOMEM;
+
+	ret = ocfs2_read_xattr_bucket(inode, blk, s_bhs, 0);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, s_bhs[0],
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	t_bhs = kcalloc(blk_per_bucket, sizeof(struct buffer_head *), GFP_NOFS);
+	if (!t_bhs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = ocfs2_read_xattr_bucket(inode, new_blk, t_bhs, new_bucket_head);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		ret = ocfs2_journal_access(handle, inode, t_bhs[i],
+					   OCFS2_JOURNAL_ACCESS_CREATE);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	/* copy the whole bucket to the new first. */
+	for (i = 0; i < blk_per_bucket; i++)
+		memcpy(t_bhs[i]->b_data, s_bhs[i]->b_data, blocksize);
+
+	/* update the new bucket. */
+	xh = (struct ocfs2_xattr_header *)t_bhs[0]->b_data;
+	count = le16_to_cpu(xh->xh_count);
+	start = count / 2;
+
+	/*
+	 * Calculate the total name/value len and xh_free_start for
+	 * the old bucket first.
+	 */
+	name_offset = OCFS2_XATTR_BUCKET_SIZE;
+	name_value_len = 0;
+	for (i = 0; i < start; i++) {
+		xe = &xh->xh_entries[i];
+		xe_len = OCFS2_XATTR_SIZE(xe->xe_name_len);
+		if (ocfs2_xattr_is_local(xe))
+			xe_len +=
+			   OCFS2_XATTR_SIZE(le64_to_cpu(xe->xe_value_size));
+		else
+			xe_len += OCFS2_XATTR_ROOT_SIZE;
+		name_value_len += xe_len;
+		if (le16_to_cpu(xe->xe_name_offset) < name_offset)
+			name_offset = le16_to_cpu(xe->xe_name_offset);
+	}
+
+	/*
+	 * Now begin the modification to the new bucket.
+	 *
+	 * In the new bucket, We just move the xattr entry to the beginning
+	 * and don't touch the name/value. So there will be some holes in the
+	 * bucket, and they will be removed when ocfs2_defrag_xattr_bucket is
+	 * called.
+	 */
+	xe = &xh->xh_entries[start];
+	len = sizeof(struct ocfs2_xattr_entry) * (count - start);
+	mlog(0, "mv xattr entry len %d from %d to %d\n", len,
+	     (char *)xe - (char *)xh, (char *)xh->xh_entries - (char *)xh);
+	memmove((char *)xh->xh_entries, (char *)xe, len);
+	xe = &xh->xh_entries[count - start];
+	len = sizeof(struct ocfs2_xattr_entry) * start;
+	memset((char *)xe, 0, len);
+
+	le16_add_cpu(&xh->xh_count, -start);
+	le16_add_cpu(&xh->xh_name_value_len, -name_value_len);
+
+	/* Calculate xh_free_start for the new bucket. */
+	xh->xh_free_start = cpu_to_le16(OCFS2_XATTR_BUCKET_SIZE);
+	for (i = 0; i < le16_to_cpu(xh->xh_count); i++) {
+		xe = &xh->xh_entries[i];
+		xe_len = OCFS2_XATTR_SIZE(xe->xe_name_len);
+		if (ocfs2_xattr_is_local(xe))
+			xe_len +=
+			   OCFS2_XATTR_SIZE(le64_to_cpu(xe->xe_value_size));
+		else
+			xe_len += OCFS2_XATTR_ROOT_SIZE;
+		if (le16_to_cpu(xe->xe_name_offset) <
+		    le16_to_cpu(xh->xh_free_start))
+			xh->xh_free_start = xe->xe_name_offset;
+	}
+
+	/* set xh->xh_num_buckets for the new xh. */
+	if (new_bucket_head)
+		xh->xh_num_buckets = cpu_to_le16(1);
+	else
+		xh->xh_num_buckets = 0;
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		ocfs2_journal_dirty(handle, t_bhs[i]);
+		if (ret)
+			mlog_errno(ret);
+	}
+
+	/* store the first_hash of the new bucket. */
+	if (first_hash)
+		*first_hash = le32_to_cpu(xh->xh_entries[0].xe_name_hash);
+
+	/*
+	 * Now only update the 1st block of the old bucket.
+	 * Please note that the entry has been sorted already above.
+	 */
+	xh = (struct ocfs2_xattr_header *)s_bhs[0]->b_data;
+	memset(&xh->xh_entries[start], 0,
+	       sizeof(struct ocfs2_xattr_entry) * (count - start));
+	xh->xh_count = cpu_to_le16(start);
+	xh->xh_free_start = cpu_to_le16(name_offset);
+	xh->xh_name_value_len = cpu_to_le16(name_value_len);
+
+	ocfs2_journal_dirty(handle, s_bhs[0]);
+	if (ret)
+		mlog_errno(ret);
+
+out:
+	if (s_bhs) {
+		for (i = 0; i < blk_per_bucket; i++)
+			brelse(s_bhs[i]);
+	}
+	kfree(s_bhs);
+
+	if (t_bhs) {
+		for (i = 0; i < blk_per_bucket; i++)
+			brelse(t_bhs[i]);
+	}
+	kfree(t_bhs);
+
+	return ret;
+}
+
+/*
+ * Copy xattr from one bucket to another bucket.
+ *
+ * The caller must make sure that the journal transaction
+ * has enough space for journaling.
+ */
+static int ocfs2_cp_xattr_bucket(struct inode *inode,
+				 handle_t *handle,
+				 u64 s_blkno,
+				 u64 t_blkno,
+				 int t_is_new)
+{
+	int ret, i;
+	int blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	int blocksize = inode->i_sb->s_blocksize;
+	struct buffer_head **s_bhs, **t_bhs = NULL;
+
+	BUG_ON(s_blkno == t_blkno);
+
+	mlog(0, "cp bucket %llu to %llu, target is %d\n",
+	     s_blkno, t_blkno, t_is_new);
+
+	s_bhs = kzalloc(sizeof(struct buffer_head *) * blk_per_bucket,
+			GFP_NOFS);
+	if (!s_bhs)
+		return -ENOMEM;
+
+	ret = ocfs2_read_xattr_bucket(inode, s_blkno, s_bhs, 0);
+	if (ret)
+		goto out;
+
+	t_bhs = kzalloc(sizeof(struct buffer_head *) * blk_per_bucket,
+			GFP_NOFS);
+	if (!t_bhs) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = ocfs2_read_xattr_bucket(inode, t_blkno, t_bhs, t_is_new);
+	if (ret)
+		goto out;
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		ret = ocfs2_journal_access(handle, inode, t_bhs[i],
+					   OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret)
+			goto out;
+	}
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		memcpy(t_bhs[i]->b_data, s_bhs[i]->b_data, blocksize);
+		ocfs2_journal_dirty(handle, t_bhs[i]);
+	}
+
+out:
+	if (s_bhs) {
+		for (i = 0; i < blk_per_bucket; i++)
+			brelse(s_bhs[i]);
+	}
+	kfree(s_bhs);
+
+	if (t_bhs) {
+		for (i = 0; i < blk_per_bucket; i++)
+			brelse(t_bhs[i]);
+	}
+	kfree(t_bhs);
+
+	return ret;
+}
+
+/*
+ * Copy one xattr cluster from src_blk to to_blk.
+ * The to_blk will become the first bucket header of the cluster, so its
+ * xh_num_buckets will be initialized as the bucket num in the cluster.
+ */
+static int ocfs2_cp_xattr_cluster(struct inode *inode,
+				  handle_t *handle,
+				  struct buffer_head *first_bh,
+				  u64 src_blk,
+				  u64 to_blk,
+				  u32 *first_hash)
+{
+	int i, ret, credits;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	int bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);
+	int num_buckets = ocfs2_xattr_buckets_per_cluster(osb);
+	struct buffer_head *bh = NULL;
+	struct ocfs2_xattr_header *xh;
+	u64 to_blk_start = to_blk;
+
+	mlog(0, "cp xattrs from cluster %llu to %llu\n", src_blk, to_blk);
+
+	/*
+	 * We need to update the new cluster and 1 more for the update of
+	 * the 1st bucket of the previous extent rec.
+	 */
+	credits = bpc + 1;
+	ret = ocfs2_extend_trans(handle, credits);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, first_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	for (i = 0; i < num_buckets; i++) {
+		ret = ocfs2_cp_xattr_bucket(inode, handle,
+					    src_blk, to_blk, 1);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		src_blk += ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+		to_blk += ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	}
+
+	/* update the old bucket header. */
+	xh = (struct ocfs2_xattr_header *)first_bh->b_data;
+	le16_add_cpu(&xh->xh_num_buckets, -num_buckets);
+
+	ocfs2_journal_dirty(handle, first_bh);
+
+	/* update the new bucket header. */
+	ret = ocfs2_read_block(osb, to_blk_start, &bh, OCFS2_BH_CACHED, inode);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	xh = (struct ocfs2_xattr_header *)bh->b_data;
+	xh->xh_num_buckets = cpu_to_le16(num_buckets);
+
+	ocfs2_journal_dirty(handle, bh);
+
+	if (first_hash)
+		*first_hash = le32_to_cpu(xh->xh_entries[0].xe_name_hash);
+out:
+	brelse(bh);
+	return ret;
+}
+
+/*
+ * Move half of the xattrs in this cluster to the new cluster.
+ * This function should only be called when bucket size == cluster size.
+ * Otherwise ocfs2_mv_xattr_bucket_cross_cluster should be used instead.
+ */
+static int ocfs2_half_xattr_cluster(struct inode *inode,
+				    handle_t *handle,
+				    u64 prev_blk,
+				    u64 new_blk,
+				    u32 *first_hash)
+{
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	int ret, credits = 2 * blk_per_bucket;
+
+	BUG_ON(OCFS2_XATTR_BUCKET_SIZE < OCFS2_SB(inode->i_sb)->s_clustersize);
+
+	ret = ocfs2_extend_trans(handle, credits);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	/* Move half of the xattr in start_blk to the next bucket. */
+	return  ocfs2_half_xattr_bucket(inode, handle, prev_blk,
+					new_blk, first_hash, 1);
+}
+
+/*
+ * Move some xattrs from the old cluster to the new one since they are not
+ * contiguous in ocfs2 xattr tree.
+ *
+ * new_blk starts a new separate cluster, and we will move some xattrs from
+ * prev_blk to it. v_start will be set as the first name hash value in this
+ * new cluster so that it can be used as e_cpos during tree insertion and
+ * don't collide with our original b-tree operations. first_bh and header_bh
+ * will also be updated since they will be used in ocfs2_extend_xattr_bucket
+ * to extend the insert bucket.
+ *
+ * The problem is how much xattr should we move to the new one and when should
+ * we update first_bh and header_bh?
+ * 1. If cluster size > bucket size, that means the previous cluster has more
+ *    than 1 bucket, so just move half nums of bucket into the new cluster and
+ *    update the first_bh and header_bh if the insert bucket has been moved
+ *    to the new cluster.
+ * 2. If cluster_size == bucket_size:
+ *    a) If the previous extent rec has more than one cluster and the insert
+ *       place isn't in the last cluster, copy the entire last cluster to the
+ *       new one. This time, we don't need to upate the first_bh and header_bh
+ *       since they will not be moved into the new cluster.
+ *    b) Otherwise, move the bottom half of the xattrs in the last cluster into
+ *       the new one. And we set the extend flag to zero if the insert place is
+ *       moved into the new allocated cluster since no extend is needed.
+ */
+static int ocfs2_adjust_xattr_cross_cluster(struct inode *inode,
+					    handle_t *handle,
+					    struct buffer_head **first_bh,
+					    struct buffer_head **header_bh,
+					    u64 new_blk,
+					    u64 prev_blk,
+					    u32 prev_clusters,
+					    u32 *v_start,
+					    int *extend)
+{
+	int ret = 0;
+	int bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);
+
+	mlog(0, "adjust xattrs from cluster %llu len %u to %llu\n",
+	     prev_blk, prev_clusters, new_blk);
+
+	if (ocfs2_xattr_buckets_per_cluster(OCFS2_SB(inode->i_sb)) > 1)
+		ret = ocfs2_mv_xattr_bucket_cross_cluster(inode,
+							  handle,
+							  first_bh,
+							  header_bh,
+							  new_blk,
+							  prev_blk,
+							  prev_clusters,
+							  v_start);
+	else {
+		u64 last_blk = prev_blk + bpc * (prev_clusters - 1);
+
+		if (prev_clusters > 1 && (*header_bh)->b_blocknr != last_blk)
+			ret = ocfs2_cp_xattr_cluster(inode, handle, *first_bh,
+						     last_blk, new_blk,
+						     v_start);
+		else {
+			ret = ocfs2_half_xattr_cluster(inode, handle,
+						       last_blk, new_blk,
+						       v_start);
+
+			if ((*header_bh)->b_blocknr == last_blk && extend)
+				*extend = 0;
+		}
+	}
+
+	return ret;
+}
+
+/*
+ * Add a new cluster for xattr storage.
+ *
+ * If the new cluster is contiguous with the previous one, it will be
+ * appended to the same extent record, and num_clusters will be updated.
+ * If not, we will insert a new extent for it and move some xattrs in
+ * the last cluster into the new allocated one.
+ * We also need to limit the maximum size of a btree leaf, otherwise we'll
+ * lose the benefits of hashing because we'll have to search large leaves.
+ * So now the maximum size is OCFS2_MAX_XATTR_TREE_LEAF_SIZE(or clustersize,
+ * if it's bigger).
+ *
+ * first_bh is the first block of the previous extent rec and header_bh
+ * indicates the bucket we will insert the new xattrs. They will be updated
+ * when the header_bh is moved into the new cluster.
+ */
+static int ocfs2_add_new_xattr_cluster(struct inode *inode,
+				       struct buffer_head *root_bh,
+				       struct buffer_head **first_bh,
+				       struct buffer_head **header_bh,
+				       u32 *num_clusters,
+				       u32 prev_cpos,
+				       u64 prev_blkno,
+				       int *extend)
+{
+	int ret, credits;
+	u16 bpc = ocfs2_clusters_to_blocks(inode->i_sb, 1);
+	u32 prev_clusters = *num_clusters;
+	u32 clusters_to_add = 1, bit_off, num_bits, v_start = 0;
+	u64 block;
+	handle_t *handle = NULL;
+	struct ocfs2_alloc_context *data_ac = NULL;
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)root_bh->b_data;
+	struct ocfs2_xattr_tree_root *xb_root = &xb->xb_attrs.xb_root;
+	struct ocfs2_extent_list *root_el = &xb_root->xt_list;
+	enum ocfs2_extent_tree_type type = OCFS2_XATTR_TREE_EXTENT;
+
+	mlog(0, "Add new xattr cluster for %llu, previous xattr hash = %u, "
+	     "previous xattr blkno = %llu\n",
+	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
+	     prev_cpos, prev_blkno);
+
+	ret = ocfs2_lock_allocators(inode, root_bh, root_el,
+				    clusters_to_add, 0, &data_ac,
+				    &meta_ac, type, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	credits = ocfs2_calc_extend_credits(osb->sb, root_el, clusters_to_add);
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, root_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = __ocfs2_claim_clusters(osb, handle, data_ac, 1,
+				     clusters_to_add, &bit_off, &num_bits);
+	if (ret < 0) {
+		if (ret != -ENOSPC)
+			mlog_errno(ret);
+		goto leave;
+	}
+
+	BUG_ON(num_bits > clusters_to_add);
+
+	block = ocfs2_clusters_to_blocks(osb->sb, bit_off);
+	mlog(0, "Allocating %u clusters at block %u for xattr in inode %llu\n",
+	     num_bits, bit_off, (unsigned long long)OCFS2_I(inode)->ip_blkno);
+
+	if (prev_blkno + prev_clusters * bpc == block &&
+	    (prev_clusters + num_bits) << osb->s_clustersize_bits <=
+	     OCFS2_MAX_XATTR_TREE_LEAF_SIZE) {
+		/*
+		 * If this cluster is contiguous with the old one and
+		 * adding this new cluster, we don't surpass the limit of
+		 * OCFS2_MAX_XATTR_TREE_LEAF_SIZE, cool. We will let it be
+		 * initialized and used like other buckets in the previous
+		 * cluster.
+		 * So add it as a contiguous one. The caller will handle
+		 * its init process.
+		 */
+		v_start = prev_cpos + prev_clusters;
+		*num_clusters = prev_clusters + num_bits;
+		mlog(0, "Add contiguous %u clusters to previous extent rec.\n",
+		     num_bits);
+	} else {
+		ret = ocfs2_adjust_xattr_cross_cluster(inode,
+						       handle,
+						       first_bh,
+						       header_bh,
+						       block,
+						       prev_blkno,
+						       prev_clusters,
+						       &v_start,
+						       extend);
+		if (ret) {
+			mlog_errno(ret);
+			goto leave;
+		}
+	}
+
+	mlog(0, "Insert %u clusters at block %llu for xattr at %u\n",
+	     num_bits, block, v_start);
+	ret = ocfs2_xattr_tree_insert_extent(osb, handle, inode, root_bh,
+					     v_start, block, num_bits,
+					     0, meta_ac);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+	ret = ocfs2_journal_dirty(handle, root_bh);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto leave;
+	}
+
+leave:
+	if (handle)
+		ocfs2_commit_trans(osb, handle);
+	if (data_ac)
+		ocfs2_free_alloc_context(data_ac);
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+
+	return ret;
+}
+
+/*
+ * Extend a new xattr bucket and move xattrs to the end one by one until
+ * We meet with start_bh. Only move half of the xattrs to the bucket after it.
+ */
+static int ocfs2_extend_xattr_bucket(struct inode *inode,
+				     struct buffer_head *first_bh,
+				     struct buffer_head *start_bh,
+				     u32 num_clusters)
+{
+	int ret, credits;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	u64 start_blk = start_bh->b_blocknr, end_blk;
+	u32 num_buckets = num_clusters * ocfs2_xattr_buckets_per_cluster(osb);
+	handle_t *handle;
+	struct ocfs2_xattr_header *first_xh =
+				(struct ocfs2_xattr_header *)first_bh->b_data;
+	u16 bucket = le16_to_cpu(first_xh->xh_num_buckets);
+
+	mlog(0, "extend xattr bucket in %llu, xattr extend rec starting "
+	     "from %llu, len = %u\n", start_blk,
+	     (unsigned long long)first_bh->b_blocknr, num_clusters);
+
+	BUG_ON(bucket >= num_buckets);
+
+	end_blk = first_bh->b_blocknr + (bucket - 1) * blk_per_bucket;
+
+	/*
+	 * We will touch all the buckets after the start_bh(include it).
+	 * Add one more bucket and modify the first_bh.
+	 */
+	credits = end_blk - start_blk + 2 * blk_per_bucket + 1;
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, first_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto commit;
+	}
+
+	while (end_blk != start_blk) {
+		ret = ocfs2_cp_xattr_bucket(inode, handle, end_blk,
+					    end_blk + blk_per_bucket, 0);
+		if (ret)
+			goto commit;
+		end_blk -= blk_per_bucket;
+	}
+
+	/* Move half of the xattr in start_blk to the next bucket. */
+	ret = ocfs2_half_xattr_bucket(inode, handle, start_blk,
+				      start_blk + blk_per_bucket, NULL, 0);
+
+	le16_add_cpu(&first_xh->xh_num_buckets, 1);
+	ocfs2_journal_dirty(handle, first_bh);
+
+commit:
+	ocfs2_commit_trans(osb, handle);
+out:
+	return ret;
+}
+
+/*
+ * Add new xattr bucket in an extent record and adjust the buckets accordingly.
+ * xb_bh is the ocfs2_xattr_block.
+ * We will move all the buckets starting from header_bh to the next place. As
+ * for this one, half num of its xattrs will be moved to the next one.
+ *
+ * We will allocate a new cluster if current cluster is full and adjust
+ * header_bh and first_bh if the insert place is moved to the new cluster.
+ */
+static int ocfs2_add_new_xattr_bucket(struct inode *inode,
+				      struct buffer_head *xb_bh,
+				      struct buffer_head *header_bh)
+{
+	struct ocfs2_xattr_header *first_xh = NULL;
+	struct buffer_head *first_bh = NULL;
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)xb_bh->b_data;
+	struct ocfs2_xattr_tree_root *xb_root = &xb->xb_attrs.xb_root;
+	struct ocfs2_extent_list *el = &xb_root->xt_list;
+	struct ocfs2_xattr_header *xh =
+			(struct ocfs2_xattr_header *)header_bh->b_data;
+	u32 name_hash = le32_to_cpu(xh->xh_entries[0].xe_name_hash);
+	struct super_block *sb = inode->i_sb;
+	struct ocfs2_super *osb = OCFS2_SB(sb);
+	int ret, num_buckets, extend = 1;
+	u64 p_blkno;
+	u32 e_cpos, num_clusters;
+
+	mlog(0, "Add new xattr bucket starting form %llu\n",
+	     (unsigned long long)header_bh->b_blocknr);
+
+	/*
+	 * Add refrence for header_bh here because it may be
+	 * changed in ocfs2_add_new_xattr_cluster and we need
+	 * to free it in the end.
+	 */
+	get_bh(header_bh);
+
+	ret = ocfs2_xattr_get_rec(inode, name_hash, &p_blkno, &e_cpos,
+				  &num_clusters, el);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_read_block(osb, p_blkno,
+			       &first_bh, OCFS2_BH_CACHED, inode);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	num_buckets = ocfs2_xattr_buckets_per_cluster(osb) * num_clusters;
+	first_xh = (struct ocfs2_xattr_header *)first_bh->b_data;
+
+	if (num_buckets == le16_to_cpu(first_xh->xh_num_buckets)) {
+		ret = ocfs2_add_new_xattr_cluster(inode,
+						  xb_bh,
+						  &first_bh,
+						  &header_bh,
+						  &num_clusters,
+						  e_cpos,
+						  p_blkno,
+						  &extend);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	if (extend)
+		ret = ocfs2_extend_xattr_bucket(inode,
+						first_bh,
+						header_bh,
+						num_clusters);
+	if (ret)
+		mlog_errno(ret);
+out:
+	brelse(first_bh);
+	brelse(header_bh);
+	return ret;
+}
+
+static inline char *ocfs2_xattr_bucket_get_val(struct inode *inode,
+					struct ocfs2_xattr_bucket *bucket,
+					int offs)
+{
+	int block_off = offs >> inode->i_sb->s_blocksize_bits;
+
+	offs = offs % inode->i_sb->s_blocksize;
+	return bucket->bhs[block_off]->b_data + offs;
+}
+
+/*
+ * Handle the normal xattr set, including replace, delete and new.
+ * When the bucket is empty, "is_empty" is set and the caller can
+ * free this bucket.
+ *
+ * Note: "local" indicates the real data's locality. So we can't
+ * just its bucket locality by its length.
+ */
+static void ocfs2_xattr_set_entry_normal(struct inode *inode,
+					 struct ocfs2_xattr_info *xi,
+					 struct ocfs2_xattr_search *xs,
+					 u32 name_hash,
+					 int local,
+					 int *is_empty)
+{
+	struct ocfs2_xattr_entry *last, *xe;
+	int name_len = strlen(xi->name);
+	struct ocfs2_xattr_header *xh = xs->header;
+	u16 count = le16_to_cpu(xh->xh_count), start;
+	size_t blocksize = inode->i_sb->s_blocksize;
+	char *val;
+	size_t offs, size, new_size;
+
+	last = &xh->xh_entries[count];
+	if (!xs->not_found) {
+		xe = xs->here;
+		offs = le16_to_cpu(xe->xe_name_offset);
+		if (ocfs2_xattr_is_local(xe))
+			size = OCFS2_XATTR_SIZE(name_len) +
+			OCFS2_XATTR_SIZE(le64_to_cpu(xe->xe_value_size));
+		else
+			size = OCFS2_XATTR_SIZE(name_len) +
+			OCFS2_XATTR_SIZE(OCFS2_XATTR_ROOT_SIZE);
+
+		/*
+		 * If the new value will be stored outside, xi->value has been
+		 * initalized as an empty ocfs2_xattr_value_root, and the same
+		 * goes with xi->value_len, so we can set new_size safely here.
+		 * See ocfs2_xattr_set_in_bucket.
+		 */
+		new_size = OCFS2_XATTR_SIZE(name_len) +
+			   OCFS2_XATTR_SIZE(xi->value_len);
+
+		le16_add_cpu(&xh->xh_name_value_len, -size);
+		if (xi->value) {
+			if (new_size > size)
+				goto set_new_name_value;
+
+			/* Now replace the old value with new one. */
+			if (local)
+				xe->xe_value_size = cpu_to_le64(xi->value_len);
+			else
+				xe->xe_value_size = 0;
+
+			val = ocfs2_xattr_bucket_get_val(inode,
+							 &xs->bucket, offs);
+			memset(val + OCFS2_XATTR_SIZE(name_len), 0,
+			       size - OCFS2_XATTR_SIZE(name_len));
+			if (OCFS2_XATTR_SIZE(xi->value_len) > 0)
+				memcpy(val + OCFS2_XATTR_SIZE(name_len),
+				       xi->value, xi->value_len);
+
+			le16_add_cpu(&xh->xh_name_value_len, new_size);
+			ocfs2_xattr_set_local(xe, local);
+			return;
+		} else {
+			/* Remove the old entry. */
+			last -= 1;
+			memmove(xe, xe + 1,
+				(void *)last - (void *)xe);
+			memset(last, 0, sizeof(struct ocfs2_xattr_entry));
+			le16_add_cpu(&xh->xh_count, -1);
+			if (xh->xh_count == 0 && is_empty)
+				*is_empty = 1;
+			return;
+		}
+	} else {
+		/* find a new entry for insert. */
+		int low = 0, high = count - 1, tmp;
+		struct ocfs2_xattr_entry *tmp_xe;
+
+		while (low <= high) {
+			tmp = (low + high) / 2;
+			tmp_xe = &xh->xh_entries[tmp];
+
+			if (name_hash > le32_to_cpu(tmp_xe->xe_name_hash))
+				low = tmp + 1;
+			else if (name_hash <
+				 le32_to_cpu(tmp_xe->xe_name_hash))
+				high = tmp - 1;
+			else
+				break;
+		}
+
+		xe = &xh->xh_entries[low];
+		if (low != count)
+			memmove(xe + 1, xe, (void *)last - (void *)xe);
+
+		le16_add_cpu(&xh->xh_count, 1);
+		memset(xe, 0, sizeof(struct ocfs2_xattr_entry));
+		xe->xe_name_hash = cpu_to_le32(name_hash);
+		xe->xe_name_len = name_len;
+		ocfs2_xattr_set_type(xe, xi->name_index);
+	}
+
+set_new_name_value:
+	/* Insert the new name+value. */
+	size = OCFS2_XATTR_SIZE(name_len) + OCFS2_XATTR_SIZE(xi->value_len);
+
+	/*
+	 * We must make sure that the name/value pair
+	 * exists in the same block.
+	 */
+	offs = le16_to_cpu(xh->xh_free_start);
+	start = offs - size;
+
+	if (start >> inode->i_sb->s_blocksize_bits !=
+	    (offs - 1) >> inode->i_sb->s_blocksize_bits) {
+		offs = offs - offs % blocksize;
+		xh->xh_free_start = cpu_to_le16(offs);
+	}
+
+	val = ocfs2_xattr_bucket_get_val(inode,
+					 &xs->bucket, offs - size);
+	xe->xe_name_offset = cpu_to_le16(offs - size);
+
+	memset(val, 0, size);
+	memcpy(val, xi->name, name_len);
+	memcpy(val + OCFS2_XATTR_SIZE(name_len), xi->value, xi->value_len);
+
+	xe->xe_value_size = cpu_to_le64(xi->value_len);
+	ocfs2_xattr_set_local(xe, local);
+	xs->here = xe;
+	le16_add_cpu(&xh->xh_free_start, -size);
+	le16_add_cpu(&xh->xh_name_value_len, size);
+
+	return;
+}
+
+static int ocfs2_xattr_bucket_handle_journal(struct inode *inode,
+					     handle_t *handle,
+					     struct ocfs2_xattr_search *xs,
+					     struct buffer_head **bhs,
+					     u16 bh_num)
+{
+	int ret = 0, off, block_off;
+	struct ocfs2_xattr_entry *xe = xs->here;
+
+	/*
+	 * First calculate all the blocks we should journal_access
+	 * and journal_dirty. The first block should always be touched.
+	 */
+	ret = ocfs2_journal_dirty(handle, bhs[0]);
+	if (ret)
+		mlog_errno(ret);
+
+	/* calc the data. */
+	off = le16_to_cpu(xe->xe_name_offset);
+	block_off = off >> inode->i_sb->s_blocksize_bits;
+	ret = ocfs2_journal_dirty(handle, bhs[block_off]);
+	if (ret)
+		mlog_errno(ret);
+
+	return ret;
+}
+
+/*
+ * Set the xattr entry in the specified bucket.
+ * The bucket is indicated by xs->bucket and it should have the enough
+ * space for the xattr insertion.
+ */
+static int ocfs2_xattr_set_entry_in_bucket(struct inode *inode,
+					   struct ocfs2_xattr_info *xi,
+					   struct ocfs2_xattr_search *xs,
+					   u32 name_hash,
+					   int local,
+					   int *bucket_empty)
+{
+	int i, ret;
+	handle_t *handle = NULL;
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+
+	mlog(0, "Set xattr entry len = %d index = %d in bucket %llu\n",
+	     xi->value_len, xi->name_index,
+	     (unsigned long long)xs->bucket.bhs[0]->b_blocknr);
+
+	if (!xs->bucket.bhs[1]) {
+		ret = ocfs2_read_blocks(osb,
+					xs->bucket.bhs[0]->b_blocknr + 1,
+					blk_per_bucket - 1, &xs->bucket.bhs[1],
+					OCFS2_BH_CACHED, inode);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	handle = ocfs2_start_trans(osb, blk_per_bucket);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		handle = NULL;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	for (i = 0; i < blk_per_bucket; i++) {
+		ret = ocfs2_journal_access(handle, inode, xs->bucket.bhs[i],
+					   OCFS2_JOURNAL_ACCESS_WRITE);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	ocfs2_xattr_set_entry_normal(inode, xi, xs, name_hash,
+				     local, bucket_empty);
+
+	/*Only dirty the blocks we have touched in set xattr. */
+	ret = ocfs2_xattr_bucket_handle_journal(inode, handle, xs,
+						xs->bucket.bhs, blk_per_bucket);
+	if (ret)
+		mlog_errno(ret);
+out:
+	ocfs2_commit_trans(osb, handle);
+
+	return ret;
+}
+
+static int ocfs2_xattr_value_update_size(struct inode *inode,
+					 struct buffer_head *xe_bh,
+					 struct ocfs2_xattr_entry *xe,
+					 u64 new_size)
+{
+	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	handle_t *handle = NULL;
+
+	handle = ocfs2_start_trans(osb, 1);
+	if (handle == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, xe_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	xe->xe_value_size = cpu_to_le64(new_size);
+
+	ret = ocfs2_journal_dirty(handle, xe_bh);
+	if (ret < 0)
+		mlog_errno(ret);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+out:
+	return ret;
+}
+
+/*
+ * Truncate the specified xe_off entry in xattr bucket.
+ * bucket is indicated by header_bh and len is the new length.
+ * Both the ocfs2_xattr_value_root and the entry will be updated here.
+ *
+ * Copy the new updated xe and xe_value_root to new_xe and new_xv if needed.
+ */
+static int ocfs2_xattr_bucket_value_truncate(struct inode *inode,
+					     struct buffer_head *header_bh,
+					     int xe_off,
+					     int len)
+{
+	int ret, offset;
+	u64 value_blk;
+	struct buffer_head *value_bh = NULL;
+	struct ocfs2_xattr_value_root *xv;
+	struct ocfs2_xattr_entry *xe;
+	struct ocfs2_xattr_header *xh =
+			(struct ocfs2_xattr_header *)header_bh->b_data;
+	size_t blocksize = inode->i_sb->s_blocksize;
+
+	xe = &xh->xh_entries[xe_off];
+
+	BUG_ON(!xe || ocfs2_xattr_is_local(xe));
+
+	offset = le16_to_cpu(xe->xe_name_offset) +
+		 OCFS2_XATTR_SIZE(xe->xe_name_len);
+
+	value_blk = offset / blocksize;
+
+	/* We don't allow ocfs2_xattr_value to be stored in different block. */
+	BUG_ON(value_blk != (offset + OCFS2_XATTR_ROOT_SIZE - 1) / blocksize);
+	value_blk += header_bh->b_blocknr;
+
+	ret = ocfs2_read_block(OCFS2_SB(inode->i_sb), value_blk,
+			       &value_bh, OCFS2_BH_CACHED, inode);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	xv = (struct ocfs2_xattr_value_root *)
+		(value_bh->b_data + offset % blocksize);
+
+	mlog(0, "truncate %u in xattr bucket %llu to %d bytes.\n",
+	     xe_off, (unsigned long long)header_bh->b_blocknr, len);
+	ret = ocfs2_xattr_value_truncate(inode, value_bh, xv, len);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_xattr_value_update_size(inode, header_bh, xe, len);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+out:
+	brelse(value_bh);
+	return ret;
+}
+
+static int ocfs2_xattr_bucket_value_truncate_xs(struct inode *inode,
+						struct ocfs2_xattr_search *xs,
+						int len)
+{
+	int ret, offset;
+	struct ocfs2_xattr_entry *xe = xs->here;
+	struct ocfs2_xattr_header *xh = (struct ocfs2_xattr_header *)xs->base;
+
+	BUG_ON(!xs->bucket.bhs[0] || !xe || ocfs2_xattr_is_local(xe));
+
+	offset = xe - xh->xh_entries;
+	ret = ocfs2_xattr_bucket_value_truncate(inode, xs->bucket.bhs[0],
+						offset, len);
+	if (ret)
+		mlog_errno(ret);
+
+	return ret;
+}
+
+static int ocfs2_xattr_bucket_set_value_outside(struct inode *inode,
+						struct ocfs2_xattr_search *xs,
+						char *val,
+						int value_len)
+{
+	int offset;
+	struct ocfs2_xattr_value_root *xv;
+	struct ocfs2_xattr_entry *xe = xs->here;
+
+	BUG_ON(!xs->base || !xe || ocfs2_xattr_is_local(xe));
+
+	offset = le16_to_cpu(xe->xe_name_offset) +
+		 OCFS2_XATTR_SIZE(xe->xe_name_len);
+
+	xv = (struct ocfs2_xattr_value_root *)(xs->base + offset);
+
+	return __ocfs2_xattr_set_value_outside(inode, xv, val, value_len);
+}
+
+/*
+ * Remove the xattr bucket pointed by bucket_bh.
+ * All the buckets after it in the same xattr extent rec will be
+ * move forward one by one.
+ */
+static int ocfs2_rm_xattr_bucket(struct inode *inode,
+				 struct buffer_head *first_bh,
+				 struct ocfs2_xattr_bucket *bucket)
+{
+	int ret = 0, credits;
+	struct ocfs2_xattr_header *xh =
+				(struct ocfs2_xattr_header *)first_bh->b_data;
+	u16 bucket_num = le16_to_cpu(xh->xh_num_buckets);
+	u64 end, start = bucket->bhs[0]->b_blocknr;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	handle_t *handle;
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	end = first_bh->b_blocknr + (bucket_num - 1) * blk_per_bucket;
+
+	mlog(0, "rm xattr bucket %llu\n", start);
+	/*
+	 * We need to update the first xattr_header and all the buckets starting
+	 * from start in this xattr rec.
+	 *
+	 * XXX: Should we empty the old last bucket here?
+	 */
+	credits = 1 + end - start;
+	handle = ocfs2_start_trans(osb, credits);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, first_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+
+	while (start < end) {
+		ret = ocfs2_cp_xattr_bucket(inode, handle,
+					    start + blk_per_bucket,
+					    start, 0);
+		if (ret) {
+			mlog_errno(ret);
+			goto out_commit;
+		}
+		start += blk_per_bucket;
+	}
+
+	/* update the first_bh. */
+	xh->xh_num_buckets = cpu_to_le16(bucket_num - 1);
+	ocfs2_journal_dirty(handle, first_bh);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+	return ret;
+}
+
+static int ocfs2_rm_xattr_cluster(struct inode *inode,
+				  struct buffer_head *root_bh,
+				  u64 blkno,
+				  u32 cpos,
+				  u32 len)
+{
+	int ret;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	struct inode *tl_inode = osb->osb_tl_inode;
+	handle_t *handle;
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)root_bh->b_data;
+	struct ocfs2_extent_list *root_el = &xb->xb_attrs.xb_root.xt_list;
+	struct ocfs2_alloc_context *meta_ac = NULL;
+	struct ocfs2_cached_dealloc_ctxt dealloc;
+
+	ocfs2_init_dealloc_ctxt(&dealloc);
+
+	mlog(0, "rm xattr extent rec at %u len = %u, start from %llu\n",
+	     cpos, len, (unsigned long long)blkno);
+
+	ocfs2_remove_xattr_clusters_from_cache(inode, blkno, len);
+
+	ret = ocfs2_lock_allocators(inode, root_bh, root_el,
+				    0, 1, NULL, &meta_ac,
+				    OCFS2_XATTR_TREE_EXTENT, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	mutex_lock(&tl_inode->i_mutex);
+
+	if (ocfs2_truncate_log_needs_flush(osb)) {
+		ret = __ocfs2_flush_truncate_log(osb);
+		if (ret < 0) {
+			mlog_errno(ret);
+			goto out;
+		}
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_REMOVE_EXTENT_CREDITS);
+	if (handle == NULL) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, root_bh,
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ret = ocfs2_remove_extent(inode, root_bh, cpos, len, handle, meta_ac,
+				  &dealloc, OCFS2_XATTR_TREE_EXTENT, NULL);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	le32_add_cpu(&xb->xb_attrs.xb_root.xt_clusters, -len);
+
+	ret = ocfs2_journal_dirty(handle, root_bh);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	ret = ocfs2_truncate_log_append(osb, handle, blkno, len);
+	if (ret)
+		mlog_errno(ret);
+
+out_commit:
+	ocfs2_commit_trans(osb, handle);
+out:
+	ocfs2_schedule_truncate_log_flush(osb, 1);
+
+	mutex_unlock(&tl_inode->i_mutex);
+
+	if (meta_ac)
+		ocfs2_free_alloc_context(meta_ac);
+
+	ocfs2_run_deallocs(osb, &dealloc);
+
+	return ret;
+}
+
+/*
+ * Free the xattr bucket indicated by xs->bucket and if all the buckets
+ * in the clusters is free, free the clusters also.
+ */
+static int ocfs2_xattr_bucket_shrink(struct inode *inode,
+				     struct ocfs2_xattr_info *xi,
+				     struct ocfs2_xattr_search *xs,
+				     u32 name_hash)
+{
+	int ret;
+	u32 e_cpos, num_clusters;
+	u64 p_blkno;
+	struct buffer_head *first_bh = NULL;
+	struct ocfs2_xattr_header *first_xh;
+	struct ocfs2_xattr_block *xb =
+			(struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
+
+	BUG_ON(xs->header->xh_count != 0);
+
+	ret = ocfs2_xattr_get_rec(inode, name_hash, &p_blkno,
+				  &e_cpos, &num_clusters,
+				  &xb->xb_attrs.xb_root.xt_list);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ret = ocfs2_read_block(OCFS2_SB(inode->i_sb), p_blkno,
+			       &first_bh, OCFS2_BH_CACHED, inode);
+	if (ret) {
+		mlog_errno(ret);
+		return ret;
+	}
+
+	ret = ocfs2_rm_xattr_bucket(inode, first_bh, &xs->bucket);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	first_xh = (struct ocfs2_xattr_header *)first_bh->b_data;
+	if (first_xh->xh_num_buckets == 0)
+		ret = ocfs2_rm_xattr_cluster(inode, xs->xattr_bh,
+					     p_blkno, e_cpos,
+					     num_clusters);
+
+out:
+	brelse(first_bh);
+	return ret;
+}
+
+static void ocfs2_xattr_bucket_remove_xs(struct inode *inode,
+					 struct ocfs2_xattr_search *xs)
+{
+	handle_t *handle = NULL;
+	struct ocfs2_xattr_header *xh = xs->bucket.xh;
+	struct ocfs2_xattr_entry *last = &xh->xh_entries[
+						le16_to_cpu(xh->xh_count) - 1];
+	int ret = 0;
+
+	handle = ocfs2_start_trans((OCFS2_SB(inode->i_sb)), 1);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		return;
+	}
+
+	ret = ocfs2_journal_access(handle, inode, xs->bucket.bhs[0],
+				   OCFS2_JOURNAL_ACCESS_WRITE);
+	if (ret) {
+		mlog_errno(ret);
+		goto out_commit;
+	}
+
+	/* Remove the old entry. */
+	memmove(xs->here, xs->here + 1,
+		(void *)last - (void *)xs->here);
+	memset(last, 0, sizeof(struct ocfs2_xattr_entry));
+	le16_add_cpu(&xh->xh_count, -1);
+
+	ret = ocfs2_journal_dirty(handle, xs->bucket.bhs[0]);
+	if (ret < 0)
+		mlog_errno(ret);
+out_commit:
+	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
+}
+
+/*
+ * Set the xattr name/value in the bucket specified in xs.
+ *
+ * As the new value in xi may be stored in the bucket or in an outside cluster,
+ * we divide the whole process into 3 steps:
+ * 1. insert name/value in the bucket(ocfs2_xattr_set_entry_in_bucket)
+ * 2. truncate of the outside cluster(ocfs2_xattr_bucket_value_truncate_xs)
+ * 3. Set the value to the outside cluster(ocfs2_xattr_bucket_set_value_outside)
+ * 4. If the clusters for the new outside value can't be allocated, we need
+ *    to free the xattr we allocated in set.
+ */
+static int ocfs2_xattr_set_in_bucket(struct inode *inode,
+				     struct ocfs2_xattr_info *xi,
+				     struct ocfs2_xattr_search *xs)
+{
+	int ret, local = 1, bucket_empty = 0;
+	size_t value_len;
+	char *val = (char *)xi->value;
+	struct ocfs2_xattr_entry *xe = xs->here;
+	u32 name_hash = ocfs2_xattr_hash_by_name(inode,
+						 xi->name_index, xi->name);
+
+	if (!xs->not_found && !ocfs2_xattr_is_local(xe)) {
+		/*
+		 * We need to truncate the xattr storage first.
+		 *
+		 * If both the old and new value are stored to
+		 * outside block, we only need to truncate
+		 * the storage and then set the value outside.
+		 *
+		 * If the new value should be stored within block,
+		 * we should free all the outside block first and
+		 * the modification to the xattr block will be done
+		 * by following steps.
+		 */
+		if (xi->value_len > OCFS2_XATTR_INLINE_SIZE)
+			value_len = xi->value_len;
+		else
+			value_len = 0;
+
+		ret = ocfs2_xattr_bucket_value_truncate_xs(inode, xs,
+							   value_len);
+		if (ret)
+			goto out;
+
+		if (value_len)
+			goto set_value_outside;
+	}
+
+	value_len = xi->value_len;
+	/* So we have to handle the inside block change now. */
+	if (value_len > OCFS2_XATTR_INLINE_SIZE) {
+		/*
+		 * If the new value will be stored outside of block,
+		 * initalize a new empty value root and insert it first.
+		 */
+		local = 0;
+		xi->value = &def_xv;
+		xi->value_len = OCFS2_XATTR_ROOT_SIZE;
+	}
+
+	ret = ocfs2_xattr_set_entry_in_bucket(inode, xi, xs, name_hash,
+					      local, &bucket_empty);
+	if (ret) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	if (value_len > OCFS2_XATTR_INLINE_SIZE) {
+		/* allocate the space now for the outside block storage. */
+		ret = ocfs2_xattr_bucket_value_truncate_xs(inode, xs,
+							   value_len);
+		if (ret) {
+			mlog_errno(ret);
+
+			if (xs->not_found) {
+				/*
+				 * We can't allocate enough clusters for outside
+				 * storage and we have allocated xattr already,
+				 * so need to remove it.
+				 */
+				ocfs2_xattr_bucket_remove_xs(inode, xs);
+			}
+			goto out;
+		}
+	} else {
+		if (bucket_empty)
+			ret = ocfs2_xattr_bucket_shrink(inode, xi,
+							xs, name_hash);
+		goto out;
+	}
+
+set_value_outside:
+	ret = ocfs2_xattr_bucket_set_value_outside(inode, xs, val, value_len);
+out:
+	return ret;
+}
+
+/* check whether the xattr bucket is filled up with the same hash value. */
+static int ocfs2_check_xattr_bucket_collision(struct inode *inode,
+					      struct ocfs2_xattr_bucket *bucket)
+{
+	struct ocfs2_xattr_header *xh = bucket->xh;
+
+	if (xh->xh_entries[le16_to_cpu(xh->xh_count) - 1].xe_name_hash ==
+	    xh->xh_entries[0].xe_name_hash) {
+		mlog(ML_ERROR, "Too much hash collision in xattr bucket %llu, "
+		     "hash = %u\n",
+		     (unsigned long long)bucket->bhs[0]->b_blocknr,
+		     le32_to_cpu(xh->xh_entries[0].xe_name_hash));
+		return -ENOSPC;
+	}
+
+	return 0;
+}
+
+static int ocfs2_xattr_set_entry_index_block(struct inode *inode,
+					     struct ocfs2_xattr_info *xi,
+					     struct ocfs2_xattr_search *xs)
+{
+	struct ocfs2_xattr_header *xh;
+	struct ocfs2_xattr_entry *xe;
+	u16 count, header_size, xh_free_start;
+	int i, free, max_free, need, old;
+	size_t value_size = 0, name_len = strlen(xi->name);
+	size_t blocksize = inode->i_sb->s_blocksize;
+	int ret, allocation = 0;
+	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
+
+	mlog_entry("Set xattr %s in xattr index block\n", xi->name);
+
+try_again:
+	xh = xs->header;
+	count = le16_to_cpu(xh->xh_count);
+	xh_free_start = le16_to_cpu(xh->xh_free_start);
+	header_size = sizeof(struct ocfs2_xattr_header) +
+			count * sizeof(struct ocfs2_xattr_entry);
+	max_free = OCFS2_XATTR_BUCKET_SIZE -
+		le16_to_cpu(xh->xh_name_value_len) - header_size;
+
+	mlog_bug_on_msg(header_size > blocksize, "bucket %llu has header size "
+			"of %u which exceed block size\n",
+			(unsigned long long)xs->bucket.bhs[0]->b_blocknr,
+			header_size);
+
+	if (xi->value && xi->value_len > OCFS2_XATTR_INLINE_SIZE)
+		value_size = OCFS2_XATTR_ROOT_SIZE;
+	else if (xi->value)
+		value_size = OCFS2_XATTR_SIZE(xi->value_len);
+
+	if (xs->not_found)
+		need = sizeof(struct ocfs2_xattr_entry) +
+			OCFS2_XATTR_SIZE(name_len) + value_size;
+	else {
+		need = value_size + OCFS2_XATTR_SIZE(name_len);
+
+		/*
+		 * We only replace the old value if the new length is smaller
+		 * than the old one. Otherwise we will allocate new space in the
+		 * bucket to store it.
+		 */
+		xe = xs->here;
+		if (ocfs2_xattr_is_local(xe))
+			old = OCFS2_XATTR_SIZE(le64_to_cpu(xe->xe_value_size));
+		else
+			old = OCFS2_XATTR_SIZE(OCFS2_XATTR_ROOT_SIZE);
+
+		if (old >= value_size)
+			need = 0;
+	}
+
+	free = xh_free_start - header_size;
+	/*
+	 * We need to make sure the new name/value pair
+	 * can exist in the same block.
+	 */
+	if (xh_free_start % blocksize < need)
+		free -= xh_free_start % blocksize;
+
+	mlog(0, "xs->not_found = %d, in xattr bucket %llu: free = %d, "
+	     "need = %d, max_free = %d, xh_free_start = %u, xh_name_value_len ="
+	     " %u\n", xs->not_found,
+	     (unsigned long long)xs->bucket.bhs[0]->b_blocknr,
+	     free, need, max_free, le16_to_cpu(xh->xh_free_start),
+	     le16_to_cpu(xh->xh_name_value_len));
+
+	if (free < need || count == ocfs2_xattr_max_xe_in_bucket(inode->i_sb)) {
+		if (need <= max_free &&
+		    count < ocfs2_xattr_max_xe_in_bucket(inode->i_sb)) {
+			/*
+			 * We can create the space by defragment. Since only the
+			 * name/value will be moved, the xe shouldn't be changed
+			 * in xs.
+			 */
+			ret = ocfs2_defrag_xattr_bucket(inode, &xs->bucket);
+			if (ret) {
+				mlog_errno(ret);
+				goto out;
+			}
+
+			xh_free_start = le16_to_cpu(xh->xh_free_start);
+			free = xh_free_start - header_size;
+			if (xh_free_start % blocksize < need)
+				free -= xh_free_start % blocksize;
+
+			if (free >= need)
+				goto xattr_set;
+
+			mlog(0, "Can't get enough space for xattr insert by "
+			     "defragment. Need %u bytes, but we have %d, so "
+			     "allocate new bucket for it.\n", need, free);
+		}
+
+		/*
+		 * We have to add new buckets or clusters and one
+		 * allocation should leave us enough space for insert.
+		 */
+		BUG_ON(allocation);
+
+		/*
+		 * We do not allow for overlapping ranges between buckets. And
+		 * the maximum number of collisions we will allow for then is
+		 * one bucket's worth, so check it here whether we need to
+		 * add a new bucket for the insert.
+		 */
+		ret = ocfs2_check_xattr_bucket_collision(inode, &xs->bucket);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		ret = ocfs2_add_new_xattr_bucket(inode,
+						 xs->xattr_bh,
+						 xs->bucket.bhs[0]);
+		if (ret) {
+			mlog_errno(ret);
+			goto out;
+		}
+
+		for (i = 0; i < blk_per_bucket; i++)
+			brelse(xs->bucket.bhs[i]);
+
+		memset(&xs->bucket, 0, sizeof(xs->bucket));
+
+		ret = ocfs2_xattr_index_block_find(inode, xs->xattr_bh,
+						   xi->name_index,
+						   xi->name, xs);
+		if (ret && ret != -ENODATA)
+			goto out;
+		xs->not_found = ret;
+		allocation = 1;
+		goto try_again;
+	}
+
+xattr_set:
+	ret = ocfs2_xattr_set_in_bucket(inode, xi, xs);
+out:
+	mlog_exit(ret);
 	return ret;
 }
