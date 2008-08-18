@@ -1446,6 +1446,7 @@ static int lapic_resume(struct sys_device *dev)
 		enable_x2apic();
 	else
 #endif
+	{
 		/*
 		 * Make sure the APICBASE points to the right address
 		 *
@@ -1456,6 +1457,7 @@ static int lapic_resume(struct sys_device *dev)
 		l &= ~MSR_IA32_APICBASE_BASE;
 		l |= MSR_IA32_APICBASE_ENABLE | mp_lapic_addr;
 		wrmsr(MSR_IA32_APICBASE, l, h);
+	}
 
 	apic_write(APIC_LVTERR, ERROR_APIC_VECTOR | APIC_LVT_MASKED);
 	apic_write(APIC_ID, apic_pm_state.apic_id);
