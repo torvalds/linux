@@ -1020,11 +1020,13 @@ void __cpuinit end_local_APIC_setup(void)
 	lapic_setup_esr();
 
 #ifdef CONFIG_X86_32
-	unsigned int value;
-	/* Disable the local apic timer */
-	value = apic_read(APIC_LVTT);
-	value |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
-	apic_write(APIC_LVTT, value);
+	{
+		unsigned int value;
+		/* Disable the local apic timer */
+		value = apic_read(APIC_LVTT);
+		value |= (APIC_LVT_MASKED | LOCAL_TIMER_VECTOR);
+		apic_write(APIC_LVTT, value);
+	}
 #endif
 
 	setup_apic_nmi_watchdog(NULL);
@@ -1363,6 +1365,8 @@ void __init connect_bsp_APIC(void)
  */
 void disconnect_bsp_APIC(int virt_wire_setup)
 {
+	unsigned int value;
+
 #ifdef CONFIG_X86_32
 	if (pic_mode) {
 		/*
@@ -1380,7 +1384,6 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 #endif
 
 	/* Go back to Virtual Wire compatibility mode */
-	unsigned int value;
 
 	/* For the spurious interrupt use vector F, and enable it */
 	value = apic_read(APIC_SPIV);
