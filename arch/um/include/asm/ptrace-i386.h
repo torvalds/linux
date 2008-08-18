@@ -10,8 +10,6 @@
 
 #include "linux/compiler.h"
 #include "asm/ptrace-generic.h"
-#include <asm/user.h>
-#include "sysdep/ptrace.h"
 
 #define PT_REGS_EAX(r) UPT_EAX(&(r)->regs)
 #define PT_REGS_EBX(r) UPT_EBX(&(r)->regs)
@@ -34,8 +32,6 @@
 #define PT_REGS_SYSCALL_RET(r) PT_REGS_EAX(r)
 #define PT_FIX_EXEC_STACK(sp) do ; while(0)
 
-/* Cope with a conditional i386 definition. */
-#undef profile_pc
 #define profile_pc(regs) PT_REGS_IP(regs)
 
 #define user_mode(r) UPT_IS_USER(&(r)->regs)
