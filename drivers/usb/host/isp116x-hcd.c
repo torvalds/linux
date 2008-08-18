@@ -1562,11 +1562,12 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct isp116x *isp116x;
-	struct resource *addr, *data;
+	struct resource *addr, *data, *ires;
 	void __iomem *addr_reg;
 	void __iomem *data_reg;
 	int irq;
 	int ret = 0;
+	unsigned long irqflags;
 
 	if (pdev->num_resources < 3) {
 		ret = -ENODEV;
@@ -1575,11 +1576,15 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 
 	data = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	addr = platform_get_resource(pdev, IORESOURCE_MEM, 1);
-	irq = platform_get_irq(pdev, 0);
-	if (!addr || !data || irq < 0) {
+	ires = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
+
+	if (!addr || !data || !ires) {
 		ret = -ENODEV;
 		goto err1;
 	}
+
+	irq = ires->start;
+	irqflags = ires->flags & IRQF_TRIGGER_MASK;
 
 	if (pdev->dev.dma_mask) {
 		DBG("DMA not supported\n");
@@ -1634,7 +1639,7 @@ static int __devinit isp116x_probe(struct platform_device *pdev)
 		goto err6;
 	}
 
-	ret = usb_add_hcd(hcd, irq, IRQF_DISABLED);
+	ret = usb_add_hcd(hcd, irq, irqflags | IRQF_DISABLED);
 	if (ret)
 		goto err6;
 
