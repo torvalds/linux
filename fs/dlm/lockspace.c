@@ -212,19 +212,41 @@ void dlm_lockspace_exit(void)
 	kset_unregister(dlm_kset);
 }
 
-static int dlm_scand(void *data)
+static struct dlm_ls *find_ls_to_scan(void)
 {
 	struct dlm_ls *ls;
 
+	spin_lock(&lslist_lock);
+	list_for_each_entry(ls, &lslist, ls_list) {
+		if (time_after_eq(jiffies, ls->ls_scan_time +
+					    dlm_config.ci_scan_secs * HZ)) {
+			spin_unlock(&lslist_lock);
+			return ls;
+		}
+	}
+	spin_unlock(&lslist_lock);
+	return NULL;
+}
+
+static int dlm_scand(void *data)
+{
+	struct dlm_ls *ls;
+	int timeout_jiffies = dlm_config.ci_scan_secs * HZ;
+
 	while (!kthread_should_stop()) {
-		list_for_each_entry(ls, &lslist, ls_list) {
+		ls = find_ls_to_scan();
+		if (ls) {
 			if (dlm_lock_recovery_try(ls)) {
+				ls->ls_scan_time = jiffies;
 				dlm_scan_rsbs(ls);
 				dlm_scan_timeout(ls);
 				dlm_unlock_recovery(ls);
+			} else {
+				ls->ls_scan_time += HZ;
 			}
+		} else {
+			schedule_timeout_interruptible(timeout_jiffies);
 		}
-		schedule_timeout_interruptible(dlm_config.ci_scan_secs * HZ);
 	}
 	return 0;
 }
@@ -418,6 +440,7 @@ static int new_lockspace(char *name, int namelen, void **lockspace,
 	ls->ls_lvblen = lvblen;
 	ls->ls_count = 0;
 	ls->ls_flags = 0;
+	ls->ls_scan_time = jiffies;
 
 	if (flags & DLM_LSFL_TIMEWARN)
 		set_bit(LSFL_TIMEWARN, &ls->ls_flags);

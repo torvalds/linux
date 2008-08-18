@@ -445,6 +445,7 @@ struct dlm_ls {
 						   the dlm using this ls */
 	int			ls_create_count; /* create/release refcount */
 	unsigned long		ls_flags;	/* LSFL_ */
+	unsigned long		ls_scan_time;
 	struct kobject		ls_kobj;
 
 	struct dlm_rsbtable	*ls_rsbtbl;
