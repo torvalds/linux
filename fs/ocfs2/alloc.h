@@ -32,6 +32,11 @@ enum ocfs2_extent_tree_type {
 	OCFS2_XATTR_TREE_EXTENT,
 };
 
+/*
+ * For xattr tree leaf, we limit the leaf byte size to be 64K.
+ */
+#define OCFS2_MAX_XATTR_TREE_LEAF_SIZE 65536
+
 struct ocfs2_alloc_context;
 int ocfs2_dinode_insert_extent(struct ocfs2_super *osb,
 			       handle_t *handle,

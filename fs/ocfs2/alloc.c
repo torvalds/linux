@@ -79,6 +79,7 @@ struct ocfs2_extent_tree {
 	struct buffer_head *root_bh;
 	struct ocfs2_extent_list *root_el;
 	void *private;
+	unsigned int max_leaf_clusters;
 };
 
 static void ocfs2_dinode_set_last_eb_blk(struct ocfs2_extent_tree *et,
@@ -220,7 +221,8 @@ static struct ocfs2_extent_tree_operations ocfs2_xattr_tree_et_ops = {
 };
 
 static struct ocfs2_extent_tree*
-	 ocfs2_new_extent_tree(struct buffer_head *bh,
+	 ocfs2_new_extent_tree(struct inode *inode,
+			       struct buffer_head *bh,
 			       enum ocfs2_extent_tree_type et_type,
 			       void *private)
 {
@@ -248,6 +250,8 @@ static struct ocfs2_extent_tree*
 			(struct ocfs2_xattr_block *)bh->b_data;
 		et->root_el = &xb->xb_attrs.xb_root.xt_list;
 		et->eops = &ocfs2_xattr_tree_et_ops;
+		et->max_leaf_clusters = ocfs2_clusters_for_bytes(inode->i_sb,
+						OCFS2_MAX_XATTR_TREE_LEAF_SIZE);
 	}
 
 	return et;
@@ -4109,7 +4113,8 @@ out:
 static void ocfs2_figure_contig_type(struct inode *inode,
 				     struct ocfs2_insert_type *insert,
 				     struct ocfs2_extent_list *el,
-				     struct ocfs2_extent_rec *insert_rec)
+				     struct ocfs2_extent_rec *insert_rec,
+				     struct ocfs2_extent_tree *et)
 {
 	int i;
 	enum ocfs2_contig_type contig_type = CONTIG_NONE;
@@ -4125,6 +4130,20 @@ static void ocfs2_figure_contig_type(struct inode *inode,
 		}
 	}
 	insert->ins_contig = contig_type;
+
+	if (insert->ins_contig != CONTIG_NONE) {
+		struct ocfs2_extent_rec *rec =
+				&el->l_recs[insert->ins_contig_index];
+		unsigned int len = le16_to_cpu(rec->e_leaf_clusters) +
+				   le16_to_cpu(insert_rec->e_leaf_clusters);
+
+		/*
+		 * Caller might want us to limit the size of extents, don't
+		 * calculate contiguousness if we might exceed that limit.
+		 */
+		if (et->max_leaf_clusters && len > et->max_leaf_clusters)
+			insert->ins_contig = CONTIG_NONE;
+	}
 }
 
 /*
@@ -4232,7 +4251,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
 		le16_to_cpu(el->l_next_free_rec);
 
 	if (!insert->ins_tree_depth) {
-		ocfs2_figure_contig_type(inode, insert, el, insert_rec);
+		ocfs2_figure_contig_type(inode, insert, el, insert_rec, et);
 		ocfs2_figure_appending_type(insert, el, insert_rec);
 		return 0;
 	}
@@ -4266,7 +4285,7 @@ static int ocfs2_figure_insert_type(struct inode *inode,
          *     into two types of appends: simple record append, or a
          *     rotate inside the tail leaf.
 	 */
-	ocfs2_figure_contig_type(inode, insert, el, insert_rec);
+	ocfs2_figure_contig_type(inode, insert, el, insert_rec, et);
 
 	/*
 	 * The insert code isn't quite ready to deal with all cases of
@@ -4402,7 +4421,7 @@ int ocfs2_dinode_insert_extent(struct ocfs2_super *osb,
 	int status;
 	struct ocfs2_extent_tree *et = NULL;
 
-	et = ocfs2_new_extent_tree(root_bh, OCFS2_DINODE_EXTENT, NULL);
+	et = ocfs2_new_extent_tree(inode, root_bh, OCFS2_DINODE_EXTENT, NULL);
 	if (!et) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -4433,7 +4452,8 @@ int ocfs2_xattr_value_insert_extent(struct ocfs2_super *osb,
 	int status;
 	struct ocfs2_extent_tree *et = NULL;
 
-	et = ocfs2_new_extent_tree(root_bh, OCFS2_XATTR_VALUE_EXTENT, private);
+	et = ocfs2_new_extent_tree(inode, root_bh,
+				   OCFS2_XATTR_VALUE_EXTENT, private);
 	if (!et) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -4463,7 +4483,8 @@ int ocfs2_xattr_tree_insert_extent(struct ocfs2_super *osb,
 	int status;
 	struct ocfs2_extent_tree *et = NULL;
 
-	et = ocfs2_new_extent_tree(root_bh, OCFS2_XATTR_TREE_EXTENT, NULL);
+	et = ocfs2_new_extent_tree(inode, root_bh, OCFS2_XATTR_TREE_EXTENT,
+				   NULL);
 	if (!et) {
 		status = -ENOMEM;
 		mlog_errno(status);
@@ -4879,7 +4900,7 @@ int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *root_bh,
 		goto out;
 	}
 
-	et = ocfs2_new_extent_tree(root_bh, et_type, private);
+	et = ocfs2_new_extent_tree(inode, root_bh, et_type, private);
 	if (!et) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -5177,7 +5198,7 @@ int ocfs2_remove_extent(struct inode *inode, struct buffer_head *root_bh,
 	struct ocfs2_path *path = NULL;
 	struct ocfs2_extent_tree *et = NULL;
 
-	et = ocfs2_new_extent_tree(root_bh, et_type, private);
+	et = ocfs2_new_extent_tree(inode, root_bh, et_type, private);
 	if (!et) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
