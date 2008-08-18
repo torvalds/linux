@@ -1,19 +1,7 @@
 #ifndef __UM_SYSTEM_GENERIC_H
 #define __UM_SYSTEM_GENERIC_H
 
-#include "asm/arch/system.h"
-
-#undef switch_to
-#undef local_irq_save
-#undef local_irq_restore
-#undef local_irq_disable
-#undef local_irq_enable
-#undef local_save_flags
-#undef local_irq_restore
-#undef local_irq_enable
-#undef local_irq_disable
-#undef local_irq_save
-#undef irqs_disabled
+#include "sysdep/system.h"
 
 extern void *switch_to(void *prev, void *next, void *last);
 
