@@ -166,7 +166,7 @@ static int dtv5100_probe(struct usb_interface *intf,
 	return 0;
 }
 
-static struct usb_device_id dtv5100_table [] = {
+static struct usb_device_id dtv5100_table[] = {
 	{ USB_DEVICE(0x06be, 0xa232) },
 	{ }		/* Terminating entry */
 };
