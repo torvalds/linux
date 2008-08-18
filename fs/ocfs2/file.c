@@ -55,6 +55,7 @@
 #include "mmap.h"
 #include "suballoc.h"
 #include "super.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -2070,6 +2071,10 @@ const struct inode_operations ocfs2_file_iops = {
 	.setattr	= ocfs2_setattr,
 	.getattr	= ocfs2_getattr,
 	.permission	= ocfs2_permission,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr	= ocfs2_listxattr,
+	.removexattr	= generic_removexattr,
 	.fallocate	= ocfs2_fallocate,
 	.fiemap		= ocfs2_fiemap,
 };

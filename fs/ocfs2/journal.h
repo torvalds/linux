@@ -283,6 +283,9 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
 /* simple file updates like chmod, etc. */
 #define OCFS2_INODE_UPDATE_CREDITS 1
 
+/* extended attribute block update */
+#define OCFS2_XATTR_BLOCK_UPDATE_CREDITS 1
+
 /* group extend. inode update and last group update. */
 #define OCFS2_GROUP_EXTEND_CREDITS	(OCFS2_INODE_UPDATE_CREDITS + 1)
 
@@ -339,6 +342,13 @@ int                  ocfs2_journal_dirty_data(handle_t *handle,
  * directory + target unlink */
 #define OCFS2_RENAME_CREDITS (3 * OCFS2_INODE_UPDATE_CREDITS + 3              \
 			     + OCFS2_UNLINK_CREDITS)
+
+/* global bitmap dinode, group desc., relinked group,
+ * suballocator dinode, group desc., relinked group,
+ * dinode, xattr block */
+#define OCFS2_XATTR_BLOCK_CREATE_CREDITS (OCFS2_SUBALLOC_ALLOC * 2 + \
+					  + OCFS2_INODE_UPDATE_CREDITS \
+					  + OCFS2_XATTR_BLOCK_UPDATE_CREDITS)
 
 /*
  * Please note that the caller must make sure that root_el is the root

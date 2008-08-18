@@ -570,7 +570,7 @@ struct ocfs2_super_block {
 /*40*/	__le16 s_max_slots;		/* Max number of simultaneous mounts
 					   before tunefs required */
 	__le16 s_tunefs_flag;
-	__le32 s_reserved1;
+	__le32 s_uuid_hash;		/* hash value of uuid */
 	__le64 s_first_cluster_group;	/* Block offset of 1st cluster
 					 * group header */
 /*50*/	__u8  s_label[OCFS2_MAX_VOL_LABEL_LEN];	/* Label for mounting, etc. */
@@ -787,7 +787,11 @@ struct ocfs2_xattr_tree_root {
 /*10*/	struct ocfs2_extent_list xt_list; /* Extent record list */
 };
 
-#define OCFS2_XATTR_INDEXED 0x1
+#define OCFS2_XATTR_INDEXED	0x1
+#define OCFS2_HASH_SHIFT	5
+#define OCFS2_XATTR_ROUND	3
+#define OCFS2_XATTR_SIZE(size)	(((size) + OCFS2_XATTR_ROUND) & \
+				~(OCFS2_XATTR_ROUND))
 
 /*
  * On disk structure for xattr block.

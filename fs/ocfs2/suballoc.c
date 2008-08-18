@@ -493,9 +493,9 @@ bail:
 	return status;
 }
 
-int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
-			       struct ocfs2_extent_list *root_el,
-			       struct ocfs2_alloc_context **ac)
+int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
+				      int blocks,
+				      struct ocfs2_alloc_context **ac)
 {
 	int status;
 	u32 slot;
@@ -507,7 +507,7 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	(*ac)->ac_bits_wanted = ocfs2_extend_meta_needed(root_el);
+	(*ac)->ac_bits_wanted = blocks;
 	(*ac)->ac_which = OCFS2_AC_USE_META;
 	slot = osb->slot_num;
 	(*ac)->ac_group_search = ocfs2_block_group_search;
@@ -530,6 +530,15 @@ bail:
 
 	mlog_exit(status);
 	return status;
+}
+
+int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
+			       struct ocfs2_extent_list *root_el,
+			       struct ocfs2_alloc_context **ac)
+{
+	return ocfs2_reserve_new_metadata_blocks(osb,
+					ocfs2_extend_meta_needed(root_el),
+					ac);
 }
 
 static int ocfs2_steal_inode_from_other_nodes(struct ocfs2_super *osb,

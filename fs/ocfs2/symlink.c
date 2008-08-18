@@ -50,6 +50,7 @@
 #include "inode.h"
 #include "journal.h"
 #include "symlink.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -168,10 +169,18 @@ const struct inode_operations ocfs2_symlink_inode_operations = {
 	.follow_link	= ocfs2_follow_link,
 	.getattr	= ocfs2_getattr,
 	.setattr	= ocfs2_setattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr	= ocfs2_listxattr,
+	.removexattr	= generic_removexattr,
 };
 const struct inode_operations ocfs2_fast_symlink_inode_operations = {
 	.readlink	= ocfs2_readlink,
 	.follow_link	= ocfs2_follow_link,
 	.getattr	= ocfs2_getattr,
 	.setattr	= ocfs2_setattr,
+	.setxattr	= generic_setxattr,
+	.getxattr	= generic_getxattr,
+	.listxattr	= ocfs2_listxattr,
+	.removexattr	= generic_removexattr,
 };

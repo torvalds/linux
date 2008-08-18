@@ -49,6 +49,7 @@
 #include "symlink.h"
 #include "sysfile.h"
 #include "uptodate.h"
+#include "xattr.h"
 
 #include "buffer_head_io.h"
 
@@ -736,6 +737,13 @@ static int ocfs2_wipe_inode(struct inode *inode,
 	 * inode delete underneath us -- this will result in two nodes
 	 * truncating the same file! */
 	status = ocfs2_truncate_for_delete(osb, inode, di_bh);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail_unlock_dir;
+	}
+
+	/*Free extended attribute resources associated with this inode.*/
+	status = ocfs2_xattr_remove(inode, di_bh);
 	if (status < 0) {
 		mlog_errno(status);
 		goto bail_unlock_dir;

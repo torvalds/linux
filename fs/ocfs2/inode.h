@@ -40,6 +40,9 @@ struct ocfs2_inode_info
 	/* protects allocation changes on this inode. */
 	struct rw_semaphore		ip_alloc_sem;
 
+	/* protects extended attribute changes on this inode */
+	struct rw_semaphore		ip_xattr_sem;
+
 	/* These fields are protected by ip_lock */
 	spinlock_t			ip_lock;
 	u32				ip_open_count;

@@ -188,6 +188,7 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_ERRORS_PANIC = 1 << 3, /* Panic on errors */
 	OCFS2_MOUNT_DATA_WRITEBACK = 1 << 4, /* No data ordering */
 	OCFS2_MOUNT_LOCALFLOCKS = 1 << 5, /* No cluster aware user file locks */
+	OCFS2_MOUNT_NOUSERXATTR = 1 << 6, /* No user xattr */
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
@@ -218,6 +219,7 @@ struct ocfs2_super
 	u32 bitmap_cpg;
 	u8 *uuid;
 	char *uuid_str;
+	u32 uuid_hash;
 	u8 *vol_label;
 	u64 first_cluster_group_blkno;
 	u32 fs_generation;

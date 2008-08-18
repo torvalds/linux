@@ -67,6 +67,9 @@ static inline int ocfs2_alloc_context_bits_left(struct ocfs2_alloc_context *ac)
 int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 			       struct ocfs2_extent_list *root_el,
 			       struct ocfs2_alloc_context **ac);
+int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
+				      int blocks,
+				      struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context **ac);
 int ocfs2_reserve_clusters(struct ocfs2_super *osb,
