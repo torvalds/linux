@@ -1752,6 +1752,13 @@ static int __init setup_nolapic(char *arg)
 }
 early_param("nolapic", setup_nolapic);
 
+static int __init parse_lapic_timer_c2_ok(char *arg)
+{
+	local_apic_timer_c2_ok = 1;
+	return 0;
+}
+early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
+
 static int __init parse_disable_apic_timer(char *arg)
 {
 	disable_apic_timer = 1;
@@ -1765,13 +1772,6 @@ static int __init parse_nolapic_timer(char *arg)
 	return 0;
 }
 early_param("nolapic_timer", parse_nolapic_timer);
-
-static int __init parse_lapic_timer_c2_ok(char *arg)
-{
-	local_apic_timer_c2_ok = 1;
-	return 0;
-}
-early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
 static int __init apic_set_verbosity(char *arg)
 {
