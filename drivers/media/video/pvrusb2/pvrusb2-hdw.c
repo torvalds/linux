@@ -1314,8 +1314,7 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		memcpy(fw_ptr, fw_entry->data + fw_done, bcnt);
 		/* Usbsnoop log shows that we must swap bytes... */
 		for (icnt = 0; icnt < bcnt/4 ; icnt++)
-			((u32 *)fw_ptr)[icnt] =
-				___swab32(((u32 *)fw_ptr)[icnt]);
+			((u32 *)fw_ptr)[icnt] = swab32(((u32 *)fw_ptr)[icnt]);
 
 		ret |= usb_bulk_msg(hdw->usb_dev, pipe, fw_ptr,bcnt,
 				    &actual_length, HZ);
