@@ -99,9 +99,11 @@ static inline void tracer_disable(void)
 #endif
 }
 
-/* Ftrace disable/restore without lock. Some synchronization mechanism
+/*
+ * Ftrace disable/restore without lock. Some synchronization mechanism
  * must be used to prevent ftrace_enabled to be changed between
- * disable/restore. */
+ * disable/restore.
+ */
 static inline int __ftrace_enabled_save(void)
 {
 #ifdef CONFIG_FTRACE
