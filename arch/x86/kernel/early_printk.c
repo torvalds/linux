@@ -401,9 +401,9 @@ static int dbgp_control_msg(unsigned devnum, int requesttype, int request,
 	/* Compute the control message */
 	req.bRequestType = requesttype;
 	req.bRequest = request;
-	req.wValue = value;
-	req.wIndex = index;
-	req.wLength = size;
+	req.wValue = cpu_to_le16(value);
+	req.wIndex = cpu_to_le16(index);
+	req.wLength = cpu_to_le16(size);
 
 	pids = DBGP_PID_SET(USB_PID_DATA0, USB_PID_SETUP);
 	addr = DBGP_EPADDR(devnum, 0);
@@ -842,7 +842,7 @@ static int __init early_dbgp_init(char *s)
 	ret = ehci_setup();
 	if (ret < 0) {
 		dbgp_printk("ehci_setup failed\n");
-		ehci_debug = 0;
+		ehci_debug = NULL;
 
 		return -1;
 	}
@@ -989,7 +989,7 @@ static int __init setup_early_printk(char *buf)
 	return 0;
 }
 
-void __init enable_debug_console(char *buf)
+static void __init enable_debug_console(char *buf)
 {
 #ifdef DBGP_DEBUG
 	struct console *old_early_console = NULL;
