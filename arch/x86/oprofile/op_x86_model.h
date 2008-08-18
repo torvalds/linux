@@ -34,8 +34,8 @@ struct pt_regs;
 struct op_x86_model_spec {
 	int (*init)(struct oprofile_operations *ops);
 	void (*exit)(void);
-	unsigned int const num_counters;
-	unsigned int const num_controls;
+	unsigned int num_counters;
+	unsigned int num_controls;
 	void (*fill_in_addresses)(struct op_msrs * const msrs);
 	void (*setup_ctrs)(struct op_msrs const * const msrs);
 	int (*check_ctrs)(struct pt_regs * const regs,
