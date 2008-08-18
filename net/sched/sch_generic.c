@@ -518,13 +518,18 @@ void qdisc_reset(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_reset);
 
-/* this is the rcu callback function to clean up a qdisc when there
- * are no further references to it */
+/* Under qdisc_lock(qdisc) and BH! */
 
-static void __qdisc_destroy(struct rcu_head *head)
+void qdisc_destroy(struct Qdisc *qdisc)
 {
-	struct Qdisc *qdisc = container_of(head, struct Qdisc, q_rcu);
 	const struct Qdisc_ops  *ops = qdisc->ops;
+
+	if (qdisc->flags & TCQ_F_BUILTIN ||
+	    !atomic_dec_and_test(&qdisc->refcnt))
+		return;
+
+	if (qdisc->parent)
+		list_del(&qdisc->list);
 
 #ifdef CONFIG_NET_SCHED
 	qdisc_put_stab(qdisc->stab);
@@ -541,20 +546,6 @@ static void __qdisc_destroy(struct rcu_head *head)
 	kfree_skb(qdisc->gso_skb);
 
 	kfree((char *) qdisc - qdisc->padded);
-}
-
-/* Under qdisc_lock(qdisc) and BH! */
-
-void qdisc_destroy(struct Qdisc *qdisc)
-{
-	if (qdisc->flags & TCQ_F_BUILTIN ||
-	    !atomic_dec_and_test(&qdisc->refcnt))
-		return;
-
-	if (qdisc->parent)
-		list_del(&qdisc->list);
-
-	call_rcu(&qdisc->q_rcu, __qdisc_destroy);
 }
 EXPORT_SYMBOL(qdisc_destroy);
 
