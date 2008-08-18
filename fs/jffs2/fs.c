@@ -207,6 +207,8 @@ int jffs2_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;
 	buf->f_ffree = 0;
 	buf->f_namelen = JFFS2_MAX_NAME_LEN;
+	buf->f_fsid.val[0] = JFFS2_SUPER_MAGIC;
+	buf->f_fsid.val[1] = c->mtd->index;
 
 	spin_lock(&c->erase_completion_lock);
 	avail = c->dirty_size + c->free_size;
