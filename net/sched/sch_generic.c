@@ -653,7 +653,7 @@ static void dev_deactivate_queue(struct net_device *dev,
 	}
 }
 
-static bool some_qdisc_is_busy(struct net_device *dev, int lock)
+static bool some_qdisc_is_busy(struct net_device *dev)
 {
 	unsigned int i;
 
@@ -667,14 +667,12 @@ static bool some_qdisc_is_busy(struct net_device *dev, int lock)
 		q = dev_queue->qdisc_sleeping;
 		root_lock = qdisc_lock(q);
 
-		if (lock)
-			spin_lock_bh(root_lock);
+		spin_lock_bh(root_lock);
 
 		val = (test_bit(__QDISC_STATE_RUNNING, &q->state) ||
 		       test_bit(__QDISC_STATE_SCHED, &q->state));
 
-		if (lock)
-			spin_unlock_bh(root_lock);
+		spin_unlock_bh(root_lock);
 
 		if (val)
 			return true;
@@ -684,8 +682,6 @@ static bool some_qdisc_is_busy(struct net_device *dev, int lock)
 
 void dev_deactivate(struct net_device *dev)
 {
-	bool running;
-
 	netdev_for_each_tx_queue(dev, dev_deactivate_queue, &noop_qdisc);
 	dev_deactivate_queue(dev, &dev->rx_queue, &noop_qdisc);
 
@@ -695,25 +691,8 @@ void dev_deactivate(struct net_device *dev)
 	synchronize_rcu();
 
 	/* Wait for outstanding qdisc_run calls. */
-	do {
-		while (some_qdisc_is_busy(dev, 0))
-			yield();
-
-		/*
-		 * Double-check inside queue lock to ensure that all effects
-		 * of the queue run are visible when we return.
-		 */
-		running = some_qdisc_is_busy(dev, 1);
-
-		/*
-		 * The running flag should never be set at this point because
-		 * we've already set dev->qdisc to noop_qdisc *inside* the same
-		 * pair of spin locks.  That is, if any qdisc_run starts after
-		 * our initial test it should see the noop_qdisc and then
-		 * clear the RUNNING bit before dropping the queue lock.  So
-		 * if it is set here then we've found a bug.
-		 */
-	} while (WARN_ON_ONCE(running));
+	while (some_qdisc_is_busy(dev))
+		yield();
 }
 
 static void dev_init_scheduler_queue(struct net_device *dev,
