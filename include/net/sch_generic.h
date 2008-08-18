@@ -27,6 +27,7 @@ enum qdisc_state_t
 {
 	__QDISC_STATE_RUNNING,
 	__QDISC_STATE_SCHED,
+	__QDISC_STATE_DEACTIVATED,
 };
 
 struct qdisc_size_table {

@@ -597,6 +597,9 @@ static void transition_one_qdisc(struct net_device *dev,
 	struct Qdisc *new_qdisc = dev_queue->qdisc_sleeping;
 	int *need_watchdog_p = _need_watchdog;
 
+	if (!(new_qdisc->flags & TCQ_F_BUILTIN))
+		clear_bit(__QDISC_STATE_DEACTIVATED, &new_qdisc->state);
+
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
 	if (need_watchdog_p && new_qdisc != &noqueue_qdisc)
 		*need_watchdog_p = 1;
@@ -639,6 +642,9 @@ static void dev_deactivate_queue(struct net_device *dev,
 	qdisc = dev_queue->qdisc;
 	if (qdisc) {
 		spin_lock_bh(qdisc_lock(qdisc));
+
+		if (!(qdisc->flags & TCQ_F_BUILTIN))
+			set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
 
 		dev_queue->qdisc = qdisc_default;
 		qdisc_reset(qdisc);

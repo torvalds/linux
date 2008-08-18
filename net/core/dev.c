@@ -1800,6 +1800,12 @@ gso:
 
 		spin_lock(root_lock);
 
+		if (unlikely(test_bit(__QDISC_STATE_DEACTIVATED, &q->state))) {
+			spin_unlock(root_lock);
+			rc = NET_XMIT_DROP;
+			goto out_kfree_skb;
+		}
+
 		rc = qdisc_enqueue_root(skb, q);
 		qdisc_run(q);
 
@@ -2084,7 +2090,8 @@ static int ing_filter(struct sk_buff *skb)
 	q = rxq->qdisc;
 	if (q != &noop_qdisc) {
 		spin_lock(qdisc_lock(q));
-		result = qdisc_enqueue_root(skb, q);
+		if (likely(!test_bit(__QDISC_STATE_DEACTIVATED, &q->state)))
+			result = qdisc_enqueue_root(skb, q);
 		spin_unlock(qdisc_lock(q));
 	}
 
