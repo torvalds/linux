@@ -6,11 +6,11 @@
 #ifndef __UM_ARCHPARAM_I386_H
 #define __UM_ARCHPARAM_I386_H
 
-/********* Nothing for asm-um/hardirq.h **********/
-
-/********* Nothing for asm-um/hw_irq.h **********/
-
-/********* Nothing for asm-um/string.h **********/
+#ifdef CONFIG_X86_PAE
+#define LAST_PKMAP 512
+#else
+#define LAST_PKMAP 1024
+#endif
 
 #endif
 

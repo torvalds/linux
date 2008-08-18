@@ -47,6 +47,7 @@ extern unsigned long end_iomem;
 
 #define VMALLOC_OFFSET	(__va_space)
 #define VMALLOC_START ((end_iomem + VMALLOC_OFFSET) & ~(VMALLOC_OFFSET-1))
+#define PKMAP_BASE ((FIXADDR_START - LAST_PKMAP * PAGE_SIZE) & PMD_MASK)
 #ifdef CONFIG_HIGHMEM
 # define VMALLOC_END	(PKMAP_BASE-2*PAGE_SIZE)
 #else
@@ -354,5 +355,12 @@ extern pte_t *virt_to_pte(struct mm_struct *mm, unsigned long addr);
 #define kern_addr_valid(addr) (1)
 
 #include <asm-generic/pgtable.h>
+
+/* Clear a kernel PTE and flush it from the TLB */
+#define kpte_clear_flush(ptep, vaddr)		\
+do {						\
+	pte_clear(&init_mm, (vaddr), (ptep));	\
+	__flush_tlb_one((vaddr));		\
+} while (0)
 
 #endif
