@@ -62,6 +62,7 @@ enum powerpc_pmc_type {
 	PPC_PMC_DEFAULT = 0,
 	PPC_PMC_IBM = 1,
 	PPC_PMC_PA6T = 2,
+	PPC_PMC_G4 = 3,
 };
 
 struct pt_regs;

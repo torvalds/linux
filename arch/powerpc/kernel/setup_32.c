@@ -209,22 +209,11 @@ EXPORT_SYMBOL(nvram_sync);
 
 #endif /* CONFIG_NVRAM */
 
-static DEFINE_PER_CPU(struct cpu, cpu_devices);
-
 int __init ppc_init(void)
 {
-	int cpu;
-
 	/* clear the progress line */
 	if (ppc_md.progress)
 		ppc_md.progress("             ", 0xffff);
-
-	/* register CPU devices */
-	for_each_possible_cpu(cpu) {
-		struct cpu *c = &per_cpu(cpu_devices, cpu);
-		c->hotpluggable = 1;
-		register_cpu(c, cpu);
-	}
 
 	/* call platform init */
 	if (ppc_md.init != NULL) {
