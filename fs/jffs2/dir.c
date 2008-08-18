@@ -108,9 +108,7 @@ static struct dentry *jffs2_lookup(struct inode *dir_i, struct dentry *target,
 		}
 	}
 
-	d_add(target, inode);
-
-	return NULL;
+	return d_splice_alias(inode, target);
 }
 
 /***********************************************************************/
