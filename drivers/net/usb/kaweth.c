@@ -1016,10 +1016,10 @@ static int kaweth_probe(
 	 */
 
 	if (le16_to_cpu(dev->descriptor.bcdDevice) >> 8) {
-		info("Firmware present in device.");
+		dev_info(&intf->dev, "Firmware present in device.\n");
 	} else {
 		/* Download the firmware */
-		info("Downloading firmware...");
+		dev_info(&intf->dev, "Downloading firmware...\n");
 		kaweth->firmware_buf = (__u8 *)__get_free_page(GFP_KERNEL);
 		if ((result = kaweth_download_firmware(kaweth,
 						      "kaweth/new_code.bin",
@@ -1061,7 +1061,7 @@ static int kaweth_probe(
 		}
 
 		/* Device will now disappear for a moment...  */
-		info("Firmware loaded.  I'll be back...");
+		dev_info(&intf->dev, "Firmware loaded.  I'll be back...\n");
 err_fw:
 		free_page((unsigned long)kaweth->firmware_buf);
 		free_netdev(netdev);
@@ -1075,10 +1075,10 @@ err_fw:
 		goto err_free_netdev;
 	}
 
-	info("Statistics collection: %x", kaweth->configuration.statistics_mask);
-	info("Multicast filter limit: %x", kaweth->configuration.max_multicast_filters & ((1 << 15) - 1));
-	info("MTU: %d", le16_to_cpu(kaweth->configuration.segment_size));
-	info("Read MAC address %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x",
+	dev_info(&intf->dev, "Statistics collection: %x\n", kaweth->configuration.statistics_mask);
+	dev_info(&intf->dev, "Multicast filter limit: %x\n", kaweth->configuration.max_multicast_filters & ((1 << 15) - 1));
+	dev_info(&intf->dev, "MTU: %d\n", le16_to_cpu(kaweth->configuration.segment_size));
+	dev_info(&intf->dev, "Read MAC address %2.2x:%2.2x:%2.2x:%2.2x:%2.2x:%2.2x\n",
 		 (int)kaweth->configuration.hw_addr[0],
 		 (int)kaweth->configuration.hw_addr[1],
 		 (int)kaweth->configuration.hw_addr[2],
@@ -1174,7 +1174,8 @@ err_fw:
 		goto err_intfdata;
 	}
 
-	info("kaweth interface created at %s", kaweth->net->name);
+	dev_info(&intf->dev, "kaweth interface created at %s\n",
+		 kaweth->net->name);
 
 	dbg("Kaweth probe returning.");
 
@@ -1205,7 +1206,7 @@ static void kaweth_disconnect(struct usb_interface *intf)
 	struct kaweth_device *kaweth = usb_get_intfdata(intf);
 	struct net_device *netdev;
 
-	info("Unregistering");
+	dev_info(&intf->dev, "Unregistering\n");
 
 	usb_set_intfdata(intf, NULL);
 	if (!kaweth) {

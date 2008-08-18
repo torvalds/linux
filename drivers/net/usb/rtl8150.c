@@ -538,7 +538,8 @@ static void write_bulk_callback(struct urb *urb)
 	if (!netif_device_present(dev->netdev))
 		return;
 	if (urb->status)
-		info("%s: Tx status %d", dev->netdev->name, urb->status);
+		dev_info(&urb->dev->dev, "%s: Tx status %d\n",
+			 dev->netdev->name, urb->status);
 	dev->netdev->trans_start = jiffies;
 	netif_wake_queue(dev->netdev);
 }
@@ -561,7 +562,8 @@ static void intr_callback(struct urb *urb)
 		return;
 	/* -EPIPE:  should clear the halt */
 	default:
-		info("%s: intr status %d", dev->netdev->name, urb->status);
+		dev_info(&urb->dev->dev, "%s: intr status %d\n",
+			 dev->netdev->name, urb->status);
 		goto resubmit;
 	}
 
@@ -710,12 +712,12 @@ static void rtl8150_set_multicast(struct net_device *netdev)
 	netif_stop_queue(netdev);
 	if (netdev->flags & IFF_PROMISC) {
 		dev->rx_creg |= cpu_to_le16(0x0001);
-		info("%s: promiscuous mode", netdev->name);
+		dev_info(&netdev->dev, "%s: promiscuous mode\n", netdev->name);
 	} else if (netdev->mc_count ||
 		   (netdev->flags & IFF_ALLMULTI)) {
 		dev->rx_creg &= cpu_to_le16(0xfffe);
 		dev->rx_creg |= cpu_to_le16(0x0002);
-		info("%s: allmulti set", netdev->name);
+		dev_info(&netdev->dev, "%s: allmulti set\n", netdev->name);
 	} else {
 		/* ~RX_MULTICAST, ~RX_PROMISCUOUS */
 		dev->rx_creg &= cpu_to_le16(0x00fc);
@@ -947,7 +949,7 @@ static int rtl8150_probe(struct usb_interface *intf,
 		goto out2;
 	}
 
-	info("%s: rtl8150 is detected", netdev->name);
+	dev_info(&intf->dev, "%s: rtl8150 is detected\n", netdev->name);
 
 	return 0;
 
@@ -984,7 +986,8 @@ static void rtl8150_disconnect(struct usb_interface *intf)
 
 static int __init usb_rtl8150_init(void)
 {
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return usb_register(&rtl8150_driver);
 }
 

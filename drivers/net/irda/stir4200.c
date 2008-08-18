@@ -783,8 +783,9 @@ static int stir_transmit_thread(void *arg)
 
 			if (unlikely(receive_start(stir))) {
 				if (net_ratelimit())
-					info("%s: receive usb submit failed",
-					     stir->netdev->name);
+					dev_info(&dev->dev,
+						 "%s: receive usb submit failed\n",
+						 stir->netdev->name);
 				stir->receiving = 0;
 				msleep(10);
 				continue;
@@ -1073,7 +1074,8 @@ static int stir_probe(struct usb_interface *intf,
 	if (ret != 0)
 		goto err_out2;
 
-	info("IrDA: Registered SigmaTel device %s", net->name);
+	dev_info(&intf->dev, "IrDA: Registered SigmaTel device %s\n",
+		 net->name);
 
 	usb_set_intfdata(intf, stir);
 
