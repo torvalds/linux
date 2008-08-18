@@ -117,7 +117,7 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	}
 	if (net_xmit_drop_count(ret))
 		sch->qstats.drops++;
-	return NET_XMIT_DROP;
+	return ret;
 }
 
 
