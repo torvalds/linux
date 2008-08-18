@@ -1114,6 +1114,7 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 	struct svc_sock	*svsk;
 	struct sock	*inet;
 	int		pmap_register = !(flags & SVC_SOCK_ANONYMOUS);
+	int		val;
 
 	dprintk("svc: svc_setup_socket %p\n", sock);
 	if (!(svsk = kzalloc(sizeof(*svsk), GFP_KERNEL))) {
@@ -1145,6 +1146,18 @@ static struct svc_sock *svc_setup_socket(struct svc_serv *serv,
 		svc_udp_init(svsk, serv);
 	else
 		svc_tcp_init(svsk, serv);
+
+	/*
+	 * We start one listener per sv_serv.  We want AF_INET
+	 * requests to be automatically shunted to our AF_INET6
+	 * listener using a mapped IPv4 address.  Make sure
+	 * no-one starts an equivalent IPv4 listener, which
+	 * would steal our incoming connections.
+	 */
+	val = 0;
+	if (serv->sv_family == AF_INET6)
+		kernel_setsockopt(sock, SOL_IPV6, IPV6_V6ONLY,
+					(char *)&val, sizeof(val));
 
 	dprintk("svc: svc_setup_socket created %p (inet %p)\n",
 				svsk, svsk->sk_sk);
