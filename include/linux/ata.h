@@ -222,6 +222,13 @@ enum {
 	ATA_CMD_PMP_WRITE	= 0xE8,
 	ATA_CMD_CONF_OVERLAY	= 0xB1,
 	ATA_CMD_SEC_FREEZE_LOCK	= 0xF5,
+	ATA_CMD_SMART		= 0xB0,
+	ATA_CMD_MEDIA_LOCK	= 0xDE,
+	ATA_CMD_MEDIA_UNLOCK	= 0xDF,
+	/* marked obsolete in the ATA/ATAPI-7 spec */
+	ATA_CMD_RESTORE		= 0x10,
+	/* EXABYTE specific */
+	ATA_EXABYTE_ENABLE_NEST	= 0xF0,
 
 	/* READ_LOG_EXT pages */
 	ATA_LOG_SATA_NCQ	= 0x10,
@@ -262,6 +269,10 @@ enum {
 	SETFEATURES_WC_ON	= 0x02, /* Enable write cache */
 	SETFEATURES_WC_OFF	= 0x82, /* Disable write cache */
 
+	/* Enable/Disable Automatic Acoustic Management */
+	SETFEATURES_AAM_ON	= 0x42,
+	SETFEATURES_AAM_OFF	= 0xC2,
+
 	SETFEATURES_SPINUP	= 0x07, /* Spin-up drive */
 
 	SETFEATURES_SATA_ENABLE = 0x10, /* Enable use of SATA feature */
@@ -283,6 +294,15 @@ enum {
 	ATA_DCO_FREEZE_LOCK	= 0xC1,
 	ATA_DCO_IDENTIFY	= 0xC2,
 	ATA_DCO_SET		= 0xC3,
+
+	/* feature values for SMART */
+	ATA_SMART_ENABLE	= 0xD8,
+	ATA_SMART_READ_VALUES	= 0xD0,
+	ATA_SMART_READ_THRESHOLDS = 0xD1,
+
+	/* password used in LBA Mid / LBA High for executing SMART commands */
+	ATA_SMART_LBAM_PASS	= 0x4F,
+	ATA_SMART_LBAH_PASS	= 0xC2,
 
 	/* ATAPI stuff */
 	ATAPI_PKT_DMA		= (1 << 0),
