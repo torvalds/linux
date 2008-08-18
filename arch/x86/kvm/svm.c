@@ -44,7 +44,7 @@ MODULE_LICENSE("GPL");
 
 #define SVM_FEATURE_NPT  (1 << 0)
 #define SVM_FEATURE_LBRV (1 << 1)
-#define SVM_DEATURE_SVML (1 << 2)
+#define SVM_FEATURE_SVML (1 << 2)
 
 #define DEBUGCTL_RESERVED_BITS (~(0x3fULL))
 
