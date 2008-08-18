@@ -1559,6 +1559,8 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 			chip->position_fix = POS_FIX_POSBUF;
 	}
 
+	if (!bdl_pos_adj[chip->dev_index])
+		return 1; /* no delayed ack */
 	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
 		return 0; /* NG - it's below the period boundary */
 	return 1; /* OK, it's fine */
