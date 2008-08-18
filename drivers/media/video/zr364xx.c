@@ -116,6 +116,7 @@ struct zr364xx_camera {
 	int height;
 	int method;
 	struct mutex lock;
+	int users;
 };
 
 
@@ -643,11 +644,10 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 
 	mutex_lock(&cam->lock);
 
-	cam->skip = 2;
-
-	err = video_exclusive_open(inode, file);
-	if (err < 0)
+	if (cam->users) {
+		err = -EBUSY;
 		goto out;
+	}
 
 	if (!cam->framebuf) {
 		cam->framebuf = vmalloc_32(MAX_FRAME_SIZE * FRAMES);
@@ -669,6 +669,8 @@ static int zr364xx_open(struct inode *inode, struct file *file)
 		}
 	}
 
+	cam->skip = 2;
+	cam->users++;
 	file->private_data = vdev;
 
 	/* Added some delay here, since opening/closing the camera quickly,
@@ -700,6 +702,10 @@ static int zr364xx_release(struct inode *inode, struct file *file)
 	udev = cam->udev;
 
 	mutex_lock(&cam->lock);
+
+	cam->users--;
+	file->private_data = NULL;
+
 	for (i = 0; i < 2; i++) {
 		err =
 		    send_control_msg(udev, 1, init[cam->method][i].value,
@@ -707,21 +713,19 @@ static int zr364xx_release(struct inode *inode, struct file *file)
 				     init[cam->method][i].size);
 		if (err < 0) {
 			info("error during release sequence");
-			mutex_unlock(&cam->lock);
-			return err;
+			goto out;
 		}
 	}
-
-	file->private_data = NULL;
-	video_exclusive_release(inode, file);
 
 	/* Added some delay here, since opening/closing the camera quickly,
 	 * like Ekiga does during its startup, can crash the webcam
 	 */
 	mdelay(100);
+	err = 0;
 
+out:
 	mutex_unlock(&cam->lock);
-	return 0;
+	return err;
 }
 
 
