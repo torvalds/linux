@@ -1154,7 +1154,7 @@ static void ftdi_determine_type(struct usb_serial_port *port)
 		/* Assume its an FT232R  */
 		priv->chip_type = FT232RL;
 	}
-	info("Detected %s", ftdi_chip_name[priv->chip_type]);
+	dev_info(&udev->dev, "Detected %s\n", ftdi_chip_name[priv->chip_type]);
 }
 
 
@@ -1410,7 +1410,8 @@ static int ftdi_jtag_probe(struct usb_serial *serial)
 	dbg("%s", __func__);
 
 	if (interface == udev->actconfig->interface[0]) {
-		info("Ignoring serial port reserved for JTAG");
+		dev_info(&udev->dev,
+			 "Ignoring serial port reserved for JTAG\n");
 		return -ENODEV;
 	}
 
@@ -1428,7 +1429,8 @@ static int ftdi_mtxorb_hack_setup(struct usb_serial *serial)
 
 	if (ep->enabled && ep_desc->wMaxPacketSize == 0) {
 		ep_desc->wMaxPacketSize = cpu_to_le16(0x40);
-		info("Fixing invalid wMaxPacketSize on read pipe");
+		dev_info(&serial->dev->dev,
+			 "Fixing invalid wMaxPacketSize on read pipe\n");
 	}
 
 	return 0;
@@ -2426,7 +2428,8 @@ static int __init ftdi_init(void)
 	if (retval)
 		goto failed_usb_register;
 
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&ftdi_sio_device);

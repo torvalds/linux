@@ -250,8 +250,8 @@ static void safe_read_bulk_callback(struct urb *urb)
 		if (!fcs) {
 			int actual_length = data[length - 2] >> 2;
 			if (actual_length <= (length - 2)) {
-				info("%s - actual: %d", __func__,
-							actual_length);
+				dev_info(&urb->dev->dev, "%s - actual: %d\n",
+					 __func__, actual_length);
 				tty_insert_flip_string(tty,
 							data, actual_length);
 				tty_flip_buffer_push(tty);
@@ -428,14 +428,13 @@ static int __init safe_init(void)
 {
 	int i, retval;
 
-	info(DRIVER_VERSION " " DRIVER_AUTHOR);
-	info(DRIVER_DESC);
-	info("vendor: %x product: %x safe: %d padded: %d\n",
-					vendor, product, safe, padded);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	/* if we have vendor / product parameters patch them into id list */
 	if (vendor || product) {
-		info("vendor: %x product: %x\n", vendor, product);
+		printk(KERN_INFO KBUILD_MODNAME ": vendor: %x product: %x\n",
+		       vendor, product);
 
 		for (i = 0; i < ARRAY_SIZE(id_table); i++) {
 			if (!id_table[i].idVendor && !id_table[i].idProduct) {

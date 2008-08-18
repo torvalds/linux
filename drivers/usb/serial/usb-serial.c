@@ -1160,7 +1160,7 @@ static int __init usb_serial_init(void)
 		goto exit_generic;
 	}
 
-	info(DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_DESC "\n");
 
 	return result;
 
@@ -1237,7 +1237,7 @@ int usb_serial_register(struct usb_serial_driver *driver)
 						retval, driver->description);
 		list_del(&driver->driver_list);
 	} else
-		info("USB Serial support registered for %s",
+		printk(KERN_INFO "USB Serial support registered for %s\n",
 						driver->description);
 
 	return retval;
@@ -1248,7 +1248,8 @@ EXPORT_SYMBOL_GPL(usb_serial_register);
 void usb_serial_deregister(struct usb_serial_driver *device)
 {
 	/* must be called with BKL held */
-	info("USB Serial deregistering driver %s", device->description);
+	printk(KERN_INFO "USB Serial deregistering driver %s\n",
+	       device->description);
 	list_del(&device->driver_list);
 	usb_serial_bus_deregister(device);
 }

@@ -976,7 +976,6 @@ static int __init ipaq_init(void)
 	retval = usb_serial_register(&ipaq_device);
 	if (retval)
 		goto failed_usb_serial_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
 	if (vendor) {
 		ipaq_id_table[0].idVendor = vendor;
 		ipaq_id_table[0].idProduct = product;
@@ -985,6 +984,8 @@ static int __init ipaq_init(void)
 	if (retval)
 		goto failed_usb_register;
 
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&ipaq_device);

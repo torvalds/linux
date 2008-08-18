@@ -1854,7 +1854,8 @@ static int __init digi_init(void)
 	retval = usb_register(&digi_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_VERSION ":" DRIVER_DESC);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&digi_acceleport_4_device);

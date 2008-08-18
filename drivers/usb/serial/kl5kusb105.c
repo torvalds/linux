@@ -183,11 +183,10 @@ static int klsi_105_chg_port_settings(struct usb_serial_port *port,
 			KLSI_TIMEOUT);
 	if (rc < 0)
 		err("Change port settings failed (error = %d)", rc);
-	info("%s - %d byte block, baudrate %x, databits %d, u1 %d, u2 %d",
-	    __func__,
-	    settings->pktlen,
-	    settings->baudrate, settings->databits,
-	    settings->unknown1, settings->unknown2);
+	dev_info(&port->serial->dev->dev,
+		 "%d byte block, baudrate %x, databits %d, u1 %d, u2 %d\n",
+		 settings->pktlen, settings->baudrate, settings->databits,
+		 settings->unknown1, settings->unknown2);
 	return rc;
 } /* klsi_105_chg_port_settings */
 
@@ -215,7 +214,7 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	__u8 status_buf[KLSI_STATUSBUF_LEN] = { -1, -1};
 	__u16 status;
 
-	info("%s - sending SIO Poll request", __func__);
+	dev_info(&port->serial->dev->dev, "sending SIO Poll request\n");
 	rc = usb_control_msg(port->serial->dev,
 			     usb_rcvctrlpipe(port->serial->dev, 0),
 			     KL5KUSB105A_SIO_POLL,
@@ -230,8 +229,8 @@ static int klsi_105_get_line_state(struct usb_serial_port *port,
 	else {
 		status = get_unaligned_le16(status_buf);
 
-		info("%s - read status %x %x", __func__,
-		     status_buf[0], status_buf[1]);
+		dev_info(&port->serial->dev->dev, "read status %x %x",
+			 status_buf[0], status_buf[1]);
 
 		*line_state_p = klsi_105_status2linestate(status);
 	}
@@ -475,8 +474,9 @@ static void klsi_105_close(struct tty_struct *tty,
 	/* FIXME */
 	/* wgg - do I need this? I think so. */
 	usb_kill_urb(port->interrupt_in_urb);
-	info("kl5kusb105 port stats: %ld bytes in, %ld bytes out",
-					priv->bytes_in, priv->bytes_out);
+	dev_info(&port->serial->dev->dev,
+		 "port stats: %ld bytes in, %ld bytes out\n",
+		 priv->bytes_in, priv->bytes_out);
 } /* klsi_105_close */
 
 
@@ -960,7 +960,8 @@ static int __init klsi_105_init(void)
 	if (retval)
 		goto failed_usb_register;
 
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&kl5kusb105d_device);

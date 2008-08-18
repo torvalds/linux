@@ -3253,7 +3253,8 @@ static int __init edgeport_init(void)
 	if (retval)
 		goto failed_usb_register;
 	atomic_set(&CmdUrbs, 0);
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 
 failed_usb_register:

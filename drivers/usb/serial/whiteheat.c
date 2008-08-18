@@ -452,8 +452,9 @@ static int whiteheat_attach(struct usb_serial *serial)
 
 	hw_info = (struct whiteheat_hw_info *)&result[1];
 
-	info("%s: Driver %s: Firmware v%d.%02d", serial->type->description,
-	     DRIVER_VERSION, hw_info->sw_major_rev, hw_info->sw_minor_rev);
+	dev_info(&serial->dev->dev, "%s: Driver %s: Firmware v%d.%02d\n",
+		 serial->type->description, DRIVER_VERSION,
+		 hw_info->sw_major_rev, hw_info->sw_minor_rev);
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
@@ -1556,7 +1557,8 @@ static int __init whiteheat_init(void)
 	retval = usb_register(&whiteheat_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&whiteheat_device);

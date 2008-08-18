@@ -2743,7 +2743,8 @@ static int __init moschip7840_init(void)
 		goto failed_port_device_register;
 
 	dbg("%s\n", "Entring...");
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 
 	/* Register with the usb */
 	retval = usb_register(&io_driver);

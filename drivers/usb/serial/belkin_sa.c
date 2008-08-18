@@ -187,7 +187,7 @@ static int belkin_sa_startup(struct usb_serial *serial)
 	/* see comments at top of file */
 	priv->bad_flow_control =
 		(le16_to_cpu(dev->descriptor.bcdDevice) <= 0x0206) ? 1 : 0;
-	info("bcdDevice: %04x, bfc: %d",
+	dev_info(&dev->dev, "bcdDevice: %04x, bfc: %d\n",
 					le16_to_cpu(dev->descriptor.bcdDevice),
 					priv->bad_flow_control);
 
@@ -577,7 +577,8 @@ static int __init belkin_sa_init(void)
 	retval = usb_register(&belkin_driver);
 	if (retval)
 		goto failed_usb_register;
-	info(DRIVER_DESC " " DRIVER_VERSION);
+	printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"
+	       DRIVER_DESC "\n");
 	return 0;
 failed_usb_register:
 	usb_serial_deregister(&belkin_device);
