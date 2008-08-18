@@ -2282,13 +2282,12 @@ static int ext4_da_writepages_trans_blocks(struct inode *inode)
 static int ext4_da_writepages(struct address_space *mapping,
 			      struct writeback_control *wbc)
 {
-	struct inode *inode = mapping->host;
 	handle_t *handle = NULL;
-	int needed_blocks;
-	int ret = 0;
-	long to_write;
 	loff_t range_start = 0;
-	long pages_skipped = 0;
+	struct inode *inode = mapping->host;
+	int needed_blocks, ret = 0, nr_to_writebump = 0;
+	long to_write, pages_skipped = 0;
+	struct ext4_sb_info *sbi = EXT4_SB(mapping->host->i_sb);
 
 	/*
 	 * No pages to write? This is mainly a kludge to avoid starting
@@ -2297,6 +2296,16 @@ static int ext4_da_writepages(struct address_space *mapping,
 	 */
 	if (!mapping->nrpages || !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
 		return 0;
+	/*
+	 * Make sure nr_to_write is >= sbi->s_mb_stream_request
+	 * This make sure small files blocks are allocated in
+	 * single attempt. This ensure that small files
+	 * get less fragmented.
+	 */
+	if (wbc->nr_to_write < sbi->s_mb_stream_request) {
+		nr_to_writebump = sbi->s_mb_stream_request - wbc->nr_to_write;
+		wbc->nr_to_write = sbi->s_mb_stream_request;
+	}
 
 	if (!wbc->range_cyclic)
 		/*
@@ -2377,7 +2386,7 @@ restart_loop:
 	}
 
 out_writepages:
-	wbc->nr_to_write = to_write;
+	wbc->nr_to_write = to_write - nr_to_writebump;
 	wbc->range_start = range_start;
 	return ret;
 }

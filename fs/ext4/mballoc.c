@@ -3282,6 +3282,35 @@ static void ext4_mb_use_group_pa(struct ext4_allocation_context *ac,
 }
 
 /*
+ * Return the prealloc space that have minimal distance
+ * from the goal block. @cpa is the prealloc
+ * space that is having currently known minimal distance
+ * from the goal block.
+ */
+static struct ext4_prealloc_space *
+ext4_mb_check_group_pa(ext4_fsblk_t goal_block,
+			struct ext4_prealloc_space *pa,
+			struct ext4_prealloc_space *cpa)
+{
+	ext4_fsblk_t cur_distance, new_distance;
+
+	if (cpa == NULL) {
+		atomic_inc(&pa->pa_count);
+		return pa;
+	}
+	cur_distance = abs(goal_block - cpa->pa_pstart);
+	new_distance = abs(goal_block - pa->pa_pstart);
+
+	if (cur_distance < new_distance)
+		return cpa;
+
+	/* drop the previous reference */
+	atomic_dec(&cpa->pa_count);
+	atomic_inc(&pa->pa_count);
+	return pa;
+}
+
+/*
  * search goal blocks in preallocated space
  */
 static noinline_for_stack int
@@ -3290,7 +3319,8 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 	int order, i;
 	struct ext4_inode_info *ei = EXT4_I(ac->ac_inode);
 	struct ext4_locality_group *lg;
-	struct ext4_prealloc_space *pa;
+	struct ext4_prealloc_space *pa, *cpa = NULL;
+	ext4_fsblk_t goal_block;
 
 	/* only data can be preallocated */
 	if (!(ac->ac_flags & EXT4_MB_HINT_DATA))
@@ -3333,6 +3363,13 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 		/* The max size of hash table is PREALLOC_TB_SIZE */
 		order = PREALLOC_TB_SIZE - 1;
 
+	goal_block = ac->ac_g_ex.fe_group * EXT4_BLOCKS_PER_GROUP(ac->ac_sb) +
+		     ac->ac_g_ex.fe_start +
+		     le32_to_cpu(EXT4_SB(ac->ac_sb)->s_es->s_first_data_block);
+	/*
+	 * search for the prealloc space that is having
+	 * minimal distance from the goal block.
+	 */
 	for (i = order; i < PREALLOC_TB_SIZE; i++) {
 		rcu_read_lock();
 		list_for_each_entry_rcu(pa, &lg->lg_prealloc_list[i],
@@ -3340,16 +3377,18 @@ ext4_mb_use_preallocated(struct ext4_allocation_context *ac)
 			spin_lock(&pa->pa_lock);
 			if (pa->pa_deleted == 0 &&
 					pa->pa_free >= ac->ac_o_ex.fe_len) {
-				atomic_inc(&pa->pa_count);
-				ext4_mb_use_group_pa(ac, pa);
-				spin_unlock(&pa->pa_lock);
-				ac->ac_criteria = 20;
-				rcu_read_unlock();
-				return 1;
+
+				cpa = ext4_mb_check_group_pa(goal_block,
+								pa, cpa);
 			}
 			spin_unlock(&pa->pa_lock);
 		}
 		rcu_read_unlock();
+	}
+	if (cpa) {
+		ext4_mb_use_group_pa(ac, cpa);
+		ac->ac_criteria = 20;
+		return 1;
 	}
 	return 0;
 }
