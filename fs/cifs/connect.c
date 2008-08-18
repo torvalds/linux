@@ -3598,19 +3598,21 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 	char ntlm_session_key[CIFS_SESS_KEY_SIZE];
 	bool ntlmv2_flag = false;
 	int first_time = 0;
+	struct TCP_Server_Info *server = pSesInfo->server;
 
 	/* what if server changes its buffer size after dropping the session? */
-	if (pSesInfo->server->maxBuf == 0) /* no need to send on reconnect */ {
+	if (server->maxBuf == 0) /* no need to send on reconnect */ {
 		rc = CIFSSMBNegotiate(xid, pSesInfo);
-		if (rc == -EAGAIN) /* retry only once on 1st time connection */ {
+		if (rc == -EAGAIN) {
+			/* retry only once on 1st time connection */
 			rc = CIFSSMBNegotiate(xid, pSesInfo);
 			if (rc == -EAGAIN)
 				rc = -EHOSTDOWN;
 		}
 		if (rc == 0) {
 			spin_lock(&GlobalMid_Lock);
-			if (pSesInfo->server->tcpStatus != CifsExiting)
-				pSesInfo->server->tcpStatus = CifsGood;
+			if (server->tcpStatus != CifsExiting)
+				server->tcpStatus = CifsGood;
 			else
 				rc = -EHOSTDOWN;
 			spin_unlock(&GlobalMid_Lock);
@@ -3623,23 +3625,22 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 		goto ss_err_exit;
 
 	pSesInfo->flags = 0;
-	pSesInfo->capabilities = pSesInfo->server->capabilities;
+	pSesInfo->capabilities = server->capabilities;
 	if (linuxExtEnabled == 0)
 		pSesInfo->capabilities &= (~CAP_UNIX);
 	/*	pSesInfo->sequence_number = 0;*/
 	cFYI(1, ("Security Mode: 0x%x Capabilities: 0x%x TimeAdjust: %d",
-		 pSesInfo->server->secMode,
-		 pSesInfo->server->capabilities,
-		 pSesInfo->server->timeAdj));
+		 server->secMode, server->capabilities, server->timeAdj));
+
 	if (experimEnabled < 2)
 		rc = CIFS_SessSetup(xid, pSesInfo, first_time, nls_info);
 	else if (extended_security
 			&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
-			&& (pSesInfo->server->secType == NTLMSSP)) {
+			&& (server->secType == NTLMSSP)) {
 		rc = -EOPNOTSUPP;
 	} else if (extended_security
 			&& (pSesInfo->capabilities & CAP_EXTENDED_SECURITY)
-			&& (pSesInfo->server->secType == RawNTLMSSP)) {
+			&& (server->secType == RawNTLMSSP)) {
 		cFYI(1, ("NTLMSSP sesssetup"));
 		rc = CIFSNTLMSSPNegotiateSessSetup(xid, pSesInfo, &ntlmv2_flag,
 						   nls_info);
@@ -3668,12 +3669,12 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 
 			} else {
 				SMBNTencrypt(pSesInfo->password,
-					     pSesInfo->server->cryptKey,
+					     server->cryptKey,
 					     ntlm_session_key);
 
 				if (first_time)
 					cifs_calculate_mac_key(
-					     &pSesInfo->server->mac_signing_key,
+					     &server->mac_signing_key,
 					     ntlm_session_key,
 					     pSesInfo->password);
 			}
@@ -3686,13 +3687,13 @@ int cifs_setup_session(unsigned int xid, struct cifsSesInfo *pSesInfo,
 						      nls_info);
 		}
 	} else { /* old style NTLM 0.12 session setup */
-		SMBNTencrypt(pSesInfo->password, pSesInfo->server->cryptKey,
+		SMBNTencrypt(pSesInfo->password, server->cryptKey,
 			     ntlm_session_key);
 
 		if (first_time)
-			cifs_calculate_mac_key(
-					&pSesInfo->server->mac_signing_key,
-					ntlm_session_key, pSesInfo->password);
+			cifs_calculate_mac_key(&server->mac_signing_key,
+						ntlm_session_key,
+						pSesInfo->password);
 
 		rc = CIFSSessSetup(xid, pSesInfo, ntlm_session_key, nls_info);
 	}
