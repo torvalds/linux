@@ -9,7 +9,7 @@
 
 #include "linux/compiler.h"
 #include "asm/errno.h"
-#include "asm/host_ldt.h"
+#include <sysdep/host_ldt.h>
 
 #define __FRAME_OFFSETS /* Needed to get the R* macros */
 #include "asm/ptrace-generic.h"

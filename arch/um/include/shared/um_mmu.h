@@ -8,7 +8,7 @@
 
 #include "uml-config.h"
 #include "mm_id.h"
-#include "asm/ldt.h"
+#include "ldt.h"
 
 typedef struct mm_context {
 	struct mm_id id;

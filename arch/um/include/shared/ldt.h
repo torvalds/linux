@@ -9,7 +9,7 @@
 #define __ASM_LDT_H
 
 #include <linux/mutex.h>
-#include "asm/host_ldt.h"
+#include <sysdep/host_ldt.h>
 
 extern void ldt_host_info(void);
 
