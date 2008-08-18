@@ -28,7 +28,7 @@ SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),$(ARCH_DIR)/include/asm/$
 #
 # These are cleaned up during mrproper. Please DO NOT fix it again, this is
 # the Correct Thing(tm) to do!
-ARCH_SYMLINKS = $(ARCH_DIR)/include/asm/arch $(ARCH_DIR)/include/shared/sysdep $(ARCH_DIR)/os \
+ARCH_SYMLINKS = $(ARCH_DIR)/include/shared/sysdep $(ARCH_DIR)/os \
 	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/shared/uml-config.h
 
 MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
@@ -38,7 +38,7 @@ include $(srctree)/$(ARCH_DIR)/Makefile-skas
 ARCH_INCLUDE	:= -I$(ARCH_DIR)/include/shared
 ifneq ($(KBUILD_SRC),)
 ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared
-KBUILD_CPPFLAGS += -I$(ARCH_DIR)/include # for arch symlink
+KBUILD_CPPFLAGS	+= -I$(ARCH_DIR)/include # for SYMLINK_HEADERS
 endif
 SYS_DIR		:= $(ARCH_DIR)/include/shared/sysdep-$(SUBARCH)
 
@@ -152,15 +152,6 @@ ifneq ($(KBUILD_SRC),)
 	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/asm/$(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
 else
 	$(Q)ln -sf $(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
-endif
-
-$(ARCH_DIR)/include/asm/arch:
-	@echo '  SYMLINK $@'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p $(objtree)/$(ARCH_DIR)/include/asm
-	$(Q)ln -fsn $(srctree)/arch/$(HEADER_ARCH)/include/asm $@
-else
-	$(Q)ln -fsn ../../../$(HEADER_ARCH)/include/asm $@
 endif
 
 $(objtree)/$(ARCH_DIR)/include/shared:
