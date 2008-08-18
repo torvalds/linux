@@ -66,6 +66,8 @@ include $(srctree)/$(ARCH_DIR)/Makefile-$(SUBARCH)
 #This will adjust *FLAGS accordingly to the platform.
 include $(srctree)/$(ARCH_DIR)/Makefile-os-$(OS)
 
+KBUILD_CPPFLAGS += -I$(srctree)/arch/$(HEADER_ARCH)/include
+
 # -Derrno=kernel_errno - This turns all kernel references to errno into
 # kernel_errno to separate them from the libc errno.  This allows -fno-common
 # in KBUILD_CFLAGS.  Otherwise, it would cause ld to complain about the two different
