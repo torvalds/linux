@@ -72,7 +72,62 @@ static int nommu_map_sg(struct device *hwdev, struct scatterlist *sg,
 	return nents;
 }
 
+static void *
+nommu_alloc_coherent(struct device *hwdev, size_t size,
+		     dma_addr_t *dma_addr, gfp_t gfp)
+{
+	unsigned long dma_mask;
+	int node;
+	struct page *page;
+
+	if (hwdev->dma_mask == NULL)
+		return NULL;
+
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+	gfp |= __GFP_ZERO;
+
+	dma_mask = hwdev->coherent_dma_mask;
+	if (!dma_mask)
+		dma_mask = *(hwdev->dma_mask);
+
+	if (dma_mask < DMA_24BIT_MASK)
+		return NULL;
+
+	node = dev_to_node(hwdev);
+
+#ifdef CONFIG_X86_64
+	if (dma_mask <= DMA_32BIT_MASK)
+		gfp |= GFP_DMA32;
+#endif
+
+	/* No alloc-free penalty for ISA devices */
+	if (dma_mask == DMA_24BIT_MASK)
+		gfp |= GFP_DMA;
+
+again:
+	page = alloc_pages_node(node, gfp, get_order(size));
+	if (!page)
+		return NULL;
+
+	if ((page_to_phys(page) + size > dma_mask) && !(gfp & GFP_DMA)) {
+		free_pages((unsigned long)page_address(page), get_order(size));
+		gfp |= GFP_DMA;
+		goto again;
+	}
+
+	*dma_addr = page_to_phys(page);
+	if (check_addr("alloc_coherent", hwdev, *dma_addr, size)) {
+		flush_write_buffers();
+		return page_address(page);
+	}
+
+	free_pages((unsigned long)page_address(page), get_order(size));
+
+	return NULL;
+}
+
 struct dma_mapping_ops nommu_dma_ops = {
+	.alloc_coherent = nommu_alloc_coherent,
 	.map_single = nommu_map_single,
 	.map_sg = nommu_map_sg,
 	.is_phys = 1,
