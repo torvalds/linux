@@ -519,6 +519,15 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 	return NULL;
 }
 
+/* free a coherent mapping */
+static void
+gart_free_coherent(struct device *dev, size_t size, void *vaddr,
+		   dma_addr_t dma_addr)
+{
+	gart_unmap_single(dev, dma_addr, size, DMA_BIDIRECTIONAL);
+	free_pages((unsigned long)vaddr, get_order(size));
+}
+
 static int no_agp;
 
 static __init unsigned long check_iommu_size(unsigned long aper, u64 aper_size)
@@ -722,6 +731,7 @@ static struct dma_mapping_ops gart_dma_ops = {
 	.map_sg				= gart_map_sg,
 	.unmap_sg			= gart_unmap_sg,
 	.alloc_coherent			= gart_alloc_coherent,
+	.free_coherent			= gart_free_coherent,
 };
 
 void gart_iommu_shutdown(void)
