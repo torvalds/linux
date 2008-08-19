@@ -426,7 +426,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	smp_wmb();
-	__netif_schedule(wd->qdisc);
+	__netif_schedule(qdisc_root(wd->qdisc));
 
 	return HRTIMER_NORESTART;
 }
