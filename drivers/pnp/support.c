@@ -81,11 +81,11 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 	struct resource *res;
 
 	if (list_empty(&dev->resources)) {
-		dev_dbg(&dev->dev, "%s: no current resources\n", desc);
+		pnp_dbg(&dev->dev, "%s: no current resources\n", desc);
 		return;
 	}
 
-	dev_dbg(&dev->dev, "%s: current resources:\n", desc);
+	pnp_dbg(&dev->dev, "%s: current resources:\n", desc);
 	list_for_each_entry(pnp_res, &dev->resources, list) {
 		res = &pnp_res->res;
 		len = 0;
@@ -94,7 +94,7 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 				 pnp_resource_type_name(res));
 
 		if (res->flags & IORESOURCE_DISABLED) {
-			dev_dbg(&dev->dev, "%sdisabled\n", buf);
+			pnp_dbg(&dev->dev, "%sdisabled\n", buf);
 			continue;
 		}
 
@@ -115,7 +115,7 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 					 res->flags);
 			break;
 		}
-		dev_dbg(&dev->dev, "%s\n", buf);
+		pnp_dbg(&dev->dev, "%s\n", buf);
 	}
 }
 
@@ -205,5 +205,5 @@ void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 				 "flags %#x", dma->map, dma->flags);
 		break;
 	}
-	dev_dbg(&dev->dev, "%s\n", buf);
+	pnp_dbg(&dev->dev, "%s\n", buf);
 }

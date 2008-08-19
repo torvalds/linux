@@ -294,7 +294,7 @@ static int pci_dev_uses_irq(struct pnp_dev *pnp, struct pci_dev *pci,
 	u8 progif;
 
 	if (pci->irq == irq) {
-		dev_dbg(&pnp->dev, "  device %s using irq %d\n",
+		pnp_dbg(&pnp->dev, "  device %s using irq %d\n",
 			pci_name(pci), irq);
 		return 1;
 	}
@@ -316,7 +316,7 @@ static int pci_dev_uses_irq(struct pnp_dev *pnp, struct pci_dev *pci,
 		if ((progif & 0x5) != 0x5)
 			if (pci_get_legacy_ide_irq(pci, 0) == irq ||
 			    pci_get_legacy_ide_irq(pci, 1) == irq) {
-				dev_dbg(&pnp->dev, "  legacy IDE device %s "
+				pnp_dbg(&pnp->dev, "  legacy IDE device %s "
 					"using irq %d\n", pci_name(pci), irq);
 				return 1;
 			}
@@ -517,7 +517,7 @@ struct pnp_resource *pnp_add_irq_resource(struct pnp_dev *dev, int irq,
 	res->start = irq;
 	res->end = irq;
 
-	dev_dbg(&dev->dev, "  add irq %d flags %#x\n", irq, flags);
+	pnp_dbg(&dev->dev, "  add irq %d flags %#x\n", irq, flags);
 	return pnp_res;
 }
 
@@ -538,7 +538,7 @@ struct pnp_resource *pnp_add_dma_resource(struct pnp_dev *dev, int dma,
 	res->start = dma;
 	res->end = dma;
 
-	dev_dbg(&dev->dev, "  add dma %d flags %#x\n", dma, flags);
+	pnp_dbg(&dev->dev, "  add dma %d flags %#x\n", dma, flags);
 	return pnp_res;
 }
 
@@ -562,7 +562,7 @@ struct pnp_resource *pnp_add_io_resource(struct pnp_dev *dev,
 	res->start = start;
 	res->end = end;
 
-	dev_dbg(&dev->dev, "  add io  %#llx-%#llx flags %#x\n",
+	pnp_dbg(&dev->dev, "  add io  %#llx-%#llx flags %#x\n",
 		(unsigned long long) start, (unsigned long long) end, flags);
 	return pnp_res;
 }
@@ -587,7 +587,7 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 	res->start = start;
 	res->end = end;
 
-	dev_dbg(&dev->dev, "  add mem %#llx-%#llx flags %#x\n",
+	pnp_dbg(&dev->dev, "  add mem %#llx-%#llx flags %#x\n",
 		(unsigned long long) start, (unsigned long long) end, flags);
 	return pnp_res;
 }

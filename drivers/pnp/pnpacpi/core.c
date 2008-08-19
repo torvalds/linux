@@ -75,7 +75,7 @@ static int __init ispnpidacpi(char *id)
 
 static int pnpacpi_get_resources(struct pnp_dev *dev)
 {
-	dev_dbg(&dev->dev, "get resources\n");
+	pnp_dbg(&dev->dev, "get resources\n");
 	return pnpacpi_parse_allocated_resource(dev);
 }
 
@@ -86,7 +86,7 @@ static int pnpacpi_set_resources(struct pnp_dev *dev)
 	int ret;
 	acpi_status status;
 
-	dev_dbg(&dev->dev, "set resources\n");
+	pnp_dbg(&dev->dev, "set resources\n");
 	ret = pnpacpi_build_resource_template(dev, &buffer);
 	if (ret)
 		return ret;
