@@ -14,8 +14,10 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/param.h>
+#include <linux/ptrace.h>
 #include <linux/mtd/physmap.h>
 #include <asm/reboot.h>
+#include <asm/traps.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
@@ -58,6 +60,26 @@ static void tx4927_machine_restart(char *command)
 	}
 	/* fallback */
 	(*_machine_halt)();
+}
+
+void show_registers(struct pt_regs *regs);
+static int tx4927_be_handler(struct pt_regs *regs, int is_fixup)
+{
+	int data = regs->cp0_cause & 4;
+	console_verbose();
+	pr_err("%cBE exception at %#lx\n", data ? 'D' : 'I', regs->cp0_epc);
+	pr_err("ccfg:%llx, toea:%llx\n",
+	       (unsigned long long)____raw_readq(&tx4927_ccfgptr->ccfg),
+	       (unsigned long long)____raw_readq(&tx4927_ccfgptr->toea));
+#ifdef CONFIG_PCI
+	tx4927_report_pcic_status();
+#endif
+	show_registers(regs);
+	panic("BusError!");
+}
+static void __init tx4927_be_init(void)
+{
+	board_be_handler = tx4927_be_handler;
 }
 
 static struct resource tx4927_sdram_resource[4];
@@ -197,6 +219,7 @@ void __init tx4927_setup(void)
 	__raw_writel(0, &tx4927_pioptr->maskext);
 
 	_machine_restart = tx4927_machine_restart;
+	board_be_init = tx4927_be_init;
 }
 
 void __init tx4927_time_init(unsigned int tmrnr)
