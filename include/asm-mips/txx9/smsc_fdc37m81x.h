@@ -62,6 +62,7 @@ void smsc_fdc37m81x_config_beg(void);
 
 void smsc_fdc37m81x_config_end(void);
 
+u8 smsc_fdc37m81x_config_get(u8 reg);
 void smsc_fdc37m81x_config_set(u8 reg, u8 val);
 
 #endif
