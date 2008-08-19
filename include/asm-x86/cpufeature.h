@@ -72,14 +72,15 @@
 #define X86_FEATURE_UP		(3*32+ 9) /* smp kernel running on up */
 #define X86_FEATURE_FXSAVE_LEAK (3*32+10) /* FXSAVE leaks FOP/FIP/FOP */
 #define X86_FEATURE_ARCH_PERFMON (3*32+11) /* Intel Architectural PerfMon */
-#define X86_FEATURE_PEBS	(3*32+12)  /* Precise-Event Based Sampling */
-#define X86_FEATURE_BTS		(3*32+13)  /* Branch Trace Store */
-#define X86_FEATURE_SYSCALL32	(3*32+14)  /* syscall in ia32 userspace */
-#define X86_FEATURE_SYSENTER32	(3*32+15)  /* sysenter in ia32 userspace */
+#define X86_FEATURE_PEBS	(3*32+12) /* Precise-Event Based Sampling */
+#define X86_FEATURE_BTS		(3*32+13) /* Branch Trace Store */
+#define X86_FEATURE_SYSCALL32	(3*32+14) /* syscall in ia32 userspace */
+#define X86_FEATURE_SYSENTER32	(3*32+15) /* sysenter in ia32 userspace */
 #define X86_FEATURE_REP_GOOD	(3*32+16) /* rep microcode works well on this CPU */
 #define X86_FEATURE_MFENCE_RDTSC (3*32+17) /* Mfence synchronizes RDTSC */
 #define X86_FEATURE_LFENCE_RDTSC (3*32+18) /* Lfence synchronizes RDTSC */
-#define X86_FEATURE_11AP	(3*32+19)  /* Bad local APIC aka 11AP */
+#define X86_FEATURE_11AP	(3*32+19) /* Bad local APIC aka 11AP */
+#define X86_FEATURE_NOPL	(3*32+20) /* The NOPL (0F 1F) instructions */
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
 #define X86_FEATURE_XMM3	(4*32+ 0) /* Streaming SIMD Extensions-3 */
