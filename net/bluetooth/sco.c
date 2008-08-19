@@ -1002,7 +1002,7 @@ module_exit(sco_exit);
 module_param(disable_esco, bool, 0644);
 MODULE_PARM_DESC(disable_esco, "Disable eSCO connection creation");
 
-MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth SCO ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");
