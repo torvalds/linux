@@ -32,11 +32,6 @@ void __init tx3927_setup(void)
 	int i;
 	unsigned int conf;
 
-	/* don't enable - see errata */
-	txx9_ccfg_toeon = 0;
-	if (strstr(prom_getcmdline(), "toeon") != NULL)
-		txx9_ccfg_toeon = 1;
-
 	txx9_reg_res_init(TX3927_REV_PCODE(), TX3927_REG_BASE,
 			  TX3927_REG_SIZE);
 

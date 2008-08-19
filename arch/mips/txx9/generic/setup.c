@@ -68,7 +68,12 @@ unsigned int txx9_master_clock;
 unsigned int txx9_cpu_clock;
 unsigned int txx9_gbus_clock;
 
+#ifdef CONFIG_CPU_TX39XX
+/* don't enable by default - see errata */
+int txx9_ccfg_toeon __initdata;
+#else
 int txx9_ccfg_toeon __initdata = 1;
+#endif
 
 /* Minimum CLK support */
 
@@ -314,6 +319,12 @@ static void __init preprocess_cmdline(void)
 			continue;
 		} else if (strcmp(str, "dcdisable") == 0) {
 			txx9_dc_disable = 1;
+			continue;
+		} else if (strcmp(str, "toeoff") == 0) {
+			txx9_ccfg_toeon = 0;
+			continue;
+		} else if (strcmp(str, "toeon") == 0) {
+			txx9_ccfg_toeon = 1;
 			continue;
 		}
 		if (arcs_cmdline[0])
