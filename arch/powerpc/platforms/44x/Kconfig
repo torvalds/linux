@@ -81,6 +81,7 @@ config CANYONLANDS
 	bool "Canyonlands"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 460EX
 	select PCI
 	select PPC4xx_PCI_EXPRESS

@@ -8,5 +8,4 @@ obj-$(CONFIG_KATMAI)	+= katmai.o
 obj-$(CONFIG_RAINIER)	+= rainier.o
 obj-$(CONFIG_WARP)	+= warp.o
 obj-$(CONFIG_WARP)	+= warp-nand.o
-obj-$(CONFIG_CANYONLANDS) += canyonlands.o
 obj-$(CONFIG_XILINX_VIRTEX_5_FXT) += virtex.o
