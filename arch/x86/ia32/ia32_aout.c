@@ -85,8 +85,10 @@ static void dump_thread32(struct pt_regs *regs, struct user32 *dump)
 	dump->regs.ax = regs->ax;
 	dump->regs.ds = current->thread.ds;
 	dump->regs.es = current->thread.es;
-	asm("movl %%fs,%0" : "=r" (fs)); dump->regs.fs = fs;
-	asm("movl %%gs,%0" : "=r" (gs)); dump->regs.gs = gs;
+	savesegment(fs, fs);
+	dump->regs.fs = fs;
+	savesegment(gs, gs);
+	dump->regs.gs = gs;
 	dump->regs.orig_ax = regs->orig_ax;
 	dump->regs.ip = regs->ip;
 	dump->regs.cs = regs->cs;
@@ -430,8 +432,9 @@ beyond_if:
 	current->mm->start_stack =
 		(unsigned long)create_aout_tables((char __user *)bprm->p, bprm);
 	/* start thread */
-	asm volatile("movl %0,%%fs" :: "r" (0)); \
-	asm volatile("movl %0,%%es; movl %0,%%ds": :"r" (__USER32_DS));
+	loadsegment(fs, 0);
+	loadsegment(ds, __USER32_DS);
+	loadsegment(es, __USER32_DS);
 	load_gs_index(0);
 	(regs)->ip = ex.a_entry;
 	(regs)->sp = current->mm->start_stack;
