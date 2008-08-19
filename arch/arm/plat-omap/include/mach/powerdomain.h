@@ -44,9 +44,16 @@
  */
 #define PWRDM_MAX_MEM_BANKS	4
 
+/*
+ * Maximum number of clockdomains that can be associated with a powerdomain.
+ * CORE powerdomain is probably the worst case.
+ */
+#define PWRDM_MAX_CLKDMS	3
+
 /* XXX A completely arbitrary number. What is reasonable here? */
 #define PWRDM_TRANSITION_BAILOUT 100000
 
+struct clockdomain;
 struct powerdomain;
 
 /* Encodes dependencies between powerdomains - statically defined */
@@ -98,6 +105,9 @@ struct powerdomain {
 	/* Possible memory bank pwrstates when pwrdm is ON */
 	const u8 pwrsts_mem_on[PWRDM_MAX_MEM_BANKS];
 
+	/* Clockdomains in this powerdomain */
+	struct clockdomain *pwrdm_clkdms[PWRDM_MAX_CLKDMS];
+
 	struct list_head node;
 
 };
@@ -110,6 +120,12 @@ int pwrdm_unregister(struct powerdomain *pwrdm);
 struct powerdomain *pwrdm_lookup(const char *name);
 
 int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm));
+
+int pwrdm_add_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm);
+int pwrdm_del_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm);
+int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
+			 int (*fn)(struct powerdomain *pwrdm,
+				   struct clockdomain *clkdm));
 
 int pwrdm_add_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
 int pwrdm_del_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
