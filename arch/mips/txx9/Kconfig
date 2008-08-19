@@ -94,6 +94,8 @@ config TOSHIBA_RBTX4938_MPLEX_NAND
 	bool "NAND"
 config TOSHIBA_RBTX4938_MPLEX_ATA
 	bool "ATA"
+config TOSHIBA_RBTX4938_MPLEX_KEEP
+	bool "Keep firmware settings"
 
 endchoice
 
