@@ -19,7 +19,6 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/init.h>
-#include <linux/kprobes.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
@@ -327,17 +326,6 @@ asmlinkage void __exception do_undefinstr(struct pt_regs *regs)
 	} else {
 		get_user(instr, (u32 __user *)pc);
 	}
-
-#ifdef CONFIG_KPROBES
-	/*
-	 * It is possible to have recursive kprobes, so we can't call
-	 * the kprobe trap handler with the undef_lock held.
-	 */
-	if (instr == KPROBE_BREAKPOINT_INSTRUCTION && !user_mode(regs)) {
-		kprobe_trap_handler(regs, instr);
-		return;
-	}
-#endif
 
 	if (call_undef_hook(regs, instr) == 0)
 		return;
