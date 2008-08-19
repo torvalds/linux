@@ -3264,7 +3264,8 @@ static int ocfs2_half_xattr_bucket(struct inode *inode,
 	xe = &xh->xh_entries[start];
 	len = sizeof(struct ocfs2_xattr_entry) * (count - start);
 	mlog(0, "mv xattr entry len %d from %d to %d\n", len,
-	     (char *)xe - (char *)xh, (char *)xh->xh_entries - (char *)xh);
+	     (int)((char *)xe - (char *)xh),
+	     (int)((char *)xh->xh_entries - (char *)xh));
 	memmove((char *)xh->xh_entries, (char *)xe, len);
 	xe = &xh->xh_entries[count - start];
 	len = sizeof(struct ocfs2_xattr_entry) * start;
@@ -4073,8 +4074,8 @@ static int ocfs2_xattr_set_entry_in_bucket(struct inode *inode,
 	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 
-	mlog(0, "Set xattr entry len = %d index = %d in bucket %llu\n",
-	     xi->value_len, xi->name_index,
+	mlog(0, "Set xattr entry len = %lu index = %d in bucket %llu\n",
+	     (unsigned long)xi->value_len, xi->name_index,
 	     (unsigned long long)xs->bucket.bhs[0]->b_blocknr);
 
 	if (!xs->bucket.bhs[1]) {
