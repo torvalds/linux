@@ -31,8 +31,7 @@ g_midi-objs			:= gmidi.o
 gadgetfs-objs			:= inode.o
 g_file_storage-objs		:= file_storage.o
 g_printer-objs			:= printer.o
-g_cdc-objs			:= cdc2.o u_ether.o f_ecm.o \
-					u_serial.o f_acm.o $(C_UTILS)
+g_cdc-objs			:= cdc2.o
 
 ifeq ($(CONFIG_USB_ETH_RNDIS),y)
 	g_ether-objs		+= f_rndis.o rndis.o
