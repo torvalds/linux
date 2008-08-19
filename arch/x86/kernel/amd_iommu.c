@@ -1038,8 +1038,6 @@ out:
 
 /*
  * The exported free_coherent function for dma_ops.
- * FIXME: fix the generic x86 DMA layer so that it actually calls that
- *        function.
  */
 static void free_coherent(struct device *dev, size_t size,
 			  void *virt_addr, dma_addr_t dma_addr)
