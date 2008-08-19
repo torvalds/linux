@@ -22,6 +22,7 @@
 #include <mach/hardware.h>
 
 #include <mach/pxafb.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -76,6 +77,7 @@ static void __init e400_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e400_pin_config));
 	set_pxa_fb_info(&e400_pxafb_mach_info);
+	pxa_set_udc_info(&e7xx_udc_mach_info);
 }
 
 MACHINE_START(E400, "Toshiba e400")

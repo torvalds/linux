@@ -24,6 +24,7 @@
 
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -151,6 +152,7 @@ static void __init e740_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e740_pin_config));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa_set_udc_info(&e7xx_udc_mach_info);
 }
 
 MACHINE_START(E740, "Toshiba e740")

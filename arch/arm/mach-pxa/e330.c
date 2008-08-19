@@ -19,9 +19,15 @@
 
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
+
+static void __init e330_init(void)
+{
+	pxa_set_udc_info(&e7xx_udc_mach_info);
+}
 
 MACHINE_START(E330, "Toshiba e330")
 	/* Maintainer: Ian Molton (spyro@f2s.com) */
@@ -31,6 +37,7 @@ MACHINE_START(E330, "Toshiba e330")
 	.map_io		= pxa_map_io,
 	.init_irq	= pxa25x_init_irq,
 	.fixup		= eseries_fixup,
+	.init_machine	= e330_init,
 	.timer		= &pxa_timer,
 MACHINE_END
 

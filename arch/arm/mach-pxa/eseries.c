@@ -19,6 +19,8 @@
 
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
+#include <mach/eseries-gpio.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 
@@ -34,4 +36,10 @@ void __init eseries_fixup(struct machine_desc *desc,
 	else
 		mi->bank[0].size = (64*1024*1024);
 }
+
+struct pxa2xx_udc_mach_info e7xx_udc_mach_info = {
+	.gpio_vbus   = GPIO_E7XX_USB_DISC,
+	.gpio_pullup = GPIO_E7XX_USB_PULLUP,
+	.gpio_pullup_inverted = 1
+};
 

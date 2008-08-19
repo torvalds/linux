@@ -24,6 +24,8 @@
 
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
+#include <mach/eseries-gpio.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -150,6 +152,14 @@ static struct platform_device e800_fb_device = {
 	.resource       = e800_fb_resources,
 };
 
+/* --------------------------- UDC definitions --------------------------- */
+
+static struct pxa2xx_udc_mach_info e800_udc_mach_info = {
+	.gpio_vbus   = GPIO_E800_USB_DISC,
+	.gpio_pullup = GPIO_E800_USB_PULLUP,
+	.gpio_pullup_inverted = 1
+};
+
 /* ----------------------------------------------------------------------- */
 
 static struct platform_device *devices[] __initdata = {
@@ -159,6 +169,7 @@ static struct platform_device *devices[] __initdata = {
 static void __init e800_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa_set_udc_info(&e800_udc_mach_info);
 }
 
 MACHINE_START(E800, "Toshiba e800")

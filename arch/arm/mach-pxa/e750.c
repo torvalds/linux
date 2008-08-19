@@ -24,6 +24,7 @@
 
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -108,6 +109,7 @@ static struct platform_device *devices[] __initdata = {
 static void __init e750_init(void)
 {
 	platform_add_devices(devices, ARRAY_SIZE(devices));
+	pxa_set_udc_info(&e7xx_udc_mach_info);
 }
 
 MACHINE_START(E750, "Toshiba e750")
