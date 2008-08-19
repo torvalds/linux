@@ -40,6 +40,7 @@ config TAISHAN
 	bool "Taishan"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 440GX
 	select PCI
 	help
