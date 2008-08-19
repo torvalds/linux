@@ -610,7 +610,7 @@ static struct pci_driver driver = {
 	.name		= "SIS_IDE",
 	.id_table	= sis5513_pci_tbl,
 	.probe		= sis5513_init_one,
-	.remove		= sis5513_remove,
+	.remove		= __devexit_p(sis5513_remove),
 };
 
 static int __init sis5513_ide_init(void)
