@@ -49,6 +49,7 @@ config KATMAI
 	bool "Katmai"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 440SPe
 	select PCI
 	select PPC4xx_PCI_EXPRESS
