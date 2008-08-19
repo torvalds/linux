@@ -119,13 +119,30 @@ int irq_to_gpio(unsigned irq)
 EXPORT_SYMBOL(irq_to_gpio);
 #endif
 
-extern struct txx9_board_vec jmr3927_vec;
-extern struct txx9_board_vec rbtx4927_vec;
-extern struct txx9_board_vec rbtx4937_vec;
-extern struct txx9_board_vec rbtx4938_vec;
+#define BOARD_VEC(board)	extern struct txx9_board_vec board;
+#include <asm/txx9/boards.h>
+#undef BOARD_VEC
 
 struct txx9_board_vec *txx9_board_vec __initdata;
 static char txx9_system_type[32];
+
+static struct txx9_board_vec *board_vecs[] __initdata = {
+#define BOARD_VEC(board)	&board,
+#include <asm/txx9/boards.h>
+#undef BOARD_VEC
+};
+
+static struct txx9_board_vec *__init find_board_byname(const char *name)
+{
+	int i;
+
+	/* search board_vecs table */
+	for (i = 0; i < ARRAY_SIZE(board_vecs); i++) {
+		if (strstr(board_vecs[i]->system, name))
+			return board_vecs[i];
+	}
+	return NULL;
+}
 
 static void __init prom_init_cmdline(void)
 {
@@ -169,9 +186,47 @@ static void __init prom_init_cmdline(void)
 	}
 }
 
-void __init prom_init(void)
+static void __init preprocess_cmdline(void)
 {
-	prom_init_cmdline();
+	char cmdline[CL_SIZE];
+	char *s;
+
+	strcpy(cmdline, arcs_cmdline);
+	s = cmdline;
+	arcs_cmdline[0] = '\0';
+	while (s && *s) {
+		char *str = strsep(&s, " ");
+		if (strncmp(str, "board=", 6) == 0) {
+			txx9_board_vec = find_board_byname(str + 6);
+			continue;
+		} else if (strncmp(str, "masterclk=", 10) == 0) {
+			unsigned long val;
+			if (strict_strtoul(str + 10, 10, &val) == 0)
+				txx9_master_clock = val;
+			continue;
+		}
+		if (arcs_cmdline[0])
+			strcat(arcs_cmdline, " ");
+		strcat(arcs_cmdline, str);
+	}
+}
+
+static void __init select_board(void)
+{
+	const char *envstr;
+
+	/* first, determine by "board=" argument in preprocess_cmdline() */
+	if (txx9_board_vec)
+		return;
+	/* next, determine by "board" envvar */
+	envstr = prom_getenv("board");
+	if (envstr) {
+		txx9_board_vec = find_board_byname(envstr);
+		if (txx9_board_vec)
+			return;
+	}
+
+	/* select "default" board */
 #ifdef CONFIG_CPU_TX39XX
 	txx9_board_vec = &jmr3927_vec;
 #endif
@@ -192,6 +247,13 @@ void __init prom_init(void)
 #endif
 	}
 #endif
+}
+
+void __init prom_init(void)
+{
+	prom_init_cmdline();
+	preprocess_cmdline();
+	select_board();
 
 	strcpy(txx9_system_type, txx9_board_vec->system);
 
