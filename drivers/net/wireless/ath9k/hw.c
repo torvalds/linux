@@ -5017,7 +5017,11 @@ static void ath9k_hw_spur_mitigate(struct ath_hal *ah,
 
 	for (i = 0; i < 123; i++) {
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-			if ((abs(cur_vit_mask - bin)) < 75)
+
+			/* workaround for gcc bug #37014 */
+			volatile int tmp = abs(cur_vit_mask - bin);
+
+			if (tmp < 75)
 				mask_amt = 1;
 			else
 				mask_amt = 0;
