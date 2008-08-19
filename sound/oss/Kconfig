@@ -24,13 +24,6 @@ config SOUND_VWSND
 	  <file:Documentation/sound/oss/vwsnd> for more info on this driver's
 	  capabilities.
 
-config SOUND_HAL2
-	tristate "SGI HAL2 sound (EXPERIMENTAL)"
-	depends on SGI_IP22 && EXPERIMENTAL
-	help
-	  Say Y or M if you have an SGI Indy or Indigo2 system and want to be able to
-	  use its on-board A2 audio system.
-
 config SOUND_AU1550_AC97
 	tristate "Au1550/Au1200 AC97 Sound"
 	depends on SOC_AU1550 || SOC_AU1200
