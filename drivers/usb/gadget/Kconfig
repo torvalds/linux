@@ -576,19 +576,23 @@ config USB_FILE_STORAGE_TEST
 	  normal operation.
 
 config USB_G_SERIAL
-	tristate "Serial Gadget (with CDC ACM support)"
+	tristate "Serial Gadget (with CDC ACM and CDC OBEX support)"
 	help
 	  The Serial Gadget talks to the Linux-USB generic serial driver.
 	  This driver supports a CDC-ACM module option, which can be used
 	  to interoperate with MS-Windows hosts or with the Linux-USB
 	  "cdc-acm" driver.
 
+	  This driver also supports a CDC-OBEX option.  You will need a
+	  user space OBEX server talking to /dev/ttyGS*, since the kernel
+	  itself doesn't implement the OBEX protocol.
+
 	  Say "y" to link the driver statically, or "m" to build a
 	  dynamically linked module called "g_serial".
 
 	  For more information, see Documentation/usb/gadget_serial.txt
 	  which includes instructions and a "driver info file" needed to
-	  make MS-Windows work with this driver.
+	  make MS-Windows work with CDC ACM.
 
 config USB_MIDI_GADGET
 	tristate "MIDI Gadget (EXPERIMENTAL)"
