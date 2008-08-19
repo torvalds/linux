@@ -505,7 +505,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
 		} else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
-	} else if (type == Kerberos) {
+	} else if (type == Kerberos || type == MSKerberos) {
 #ifdef CONFIG_CIFS_UPCALL
 		struct cifs_spnego_msg *msg;
 		spnego_key = cifs_get_spnego_key(ses);

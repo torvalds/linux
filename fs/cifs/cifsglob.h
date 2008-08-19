@@ -80,7 +80,8 @@ enum securityEnum {
 	NTLMv2,			/* Legacy NTLM auth with NTLMv2 hash */
 	RawNTLMSSP,		/* NTLMSSP without SPNEGO */
 	NTLMSSP,		/* NTLMSSP via SPNEGO */
-	Kerberos		/* Kerberos via SPNEGO */
+	Kerberos,		/* Kerberos via SPNEGO */
+	MSKerberos,		/* MS Kerberos via SPNEGO */
 };
 
 enum protocolEnum {
