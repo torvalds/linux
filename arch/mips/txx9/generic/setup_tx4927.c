@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/param.h>
 #include <linux/mtd/physmap.h>
+#include <asm/reboot.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
@@ -23,6 +24,10 @@
 
 static void __init tx4927_wdr_init(void)
 {
+	/* report watchdog reset status */
+	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDRST)
+		pr_warning("Watchdog reset detected at 0x%lx\n",
+			   read_c0_errorepc());
 	/* clear WatchDogReset (W1C) */
 	tx4927_ccfg_set(TX4927_CCFG_WDRST);
 	/* do reset on watchdog */
@@ -32,6 +37,27 @@ static void __init tx4927_wdr_init(void)
 void __init tx4927_wdt_init(void)
 {
 	txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
+}
+
+static void tx4927_machine_restart(char *command)
+{
+	local_irq_disable();
+	pr_emerg("Rebooting (with %s watchdog reset)...\n",
+		 (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDREXEN) ?
+		 "external" : "internal");
+	/* clear watchdog status */
+	tx4927_ccfg_set(TX4927_CCFG_WDRST);	/* W1C */
+	txx9_wdt_now(TX4927_TMR_REG(2) & 0xfffffffffULL);
+	while (!(____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDRST))
+		;
+	mdelay(10);
+	if (____raw_readq(&tx4927_ccfgptr->ccfg) & TX4927_CCFG_WDREXEN) {
+		pr_emerg("Rebooting (with internal watchdog reset)...\n");
+		/* External WDRST failed.  Do internal watchdog reset */
+		tx4927_ccfg_clear(TX4927_CCFG_WDREXEN);
+	}
+	/* fallback */
+	(*_machine_halt)();
 }
 
 static struct resource tx4927_sdram_resource[4];
@@ -169,6 +195,8 @@ void __init tx4927_setup(void)
 	txx9_gpio_init(TX4927_PIO_REG & 0xfffffffffULL, 0, TX4927_NUM_PIO);
 	__raw_writel(0, &tx4927_pioptr->maskcpu);
 	__raw_writel(0, &tx4927_pioptr->maskext);
+
+	_machine_restart = tx4927_machine_restart;
 }
 
 void __init tx4927_time_init(unsigned int tmrnr)

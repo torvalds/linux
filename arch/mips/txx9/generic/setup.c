@@ -29,6 +29,7 @@
 #include <asm/r4kcache.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
+#include <asm/txx9tmr.h>
 #ifdef CONFIG_CPU_TX49XX
 #include <asm/txx9/tx4938.h>
 #endif
@@ -442,6 +443,20 @@ void __init txx9_wdt_init(unsigned long base)
 		.flags	= IORESOURCE_MEM,
 	};
 	platform_device_register_simple("txx9wdt", -1, &res, 1);
+}
+
+void txx9_wdt_now(unsigned long base)
+{
+	struct txx9_tmr_reg __iomem *tmrptr =
+		ioremap(base, sizeof(struct txx9_tmr_reg));
+	/* disable watch dog timer */
+	__raw_writel(TXx9_TMWTMR_WDIS | TXx9_TMWTMR_TWC, &tmrptr->wtmr);
+	__raw_writel(0, &tmrptr->tcr);
+	/* kick watchdog */
+	__raw_writel(TXx9_TMWTMR_TWIE, &tmrptr->wtmr);
+	__raw_writel(1, &tmrptr->cpra); /* immediate */
+	__raw_writel(TXx9_TMTCR_TCE | TXx9_TMTCR_CCDE | TXx9_TMTCR_TMODE_WDOG,
+		     &tmrptr->tcr);
 }
 
 /* SPI support */
