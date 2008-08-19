@@ -165,23 +165,32 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	key.offset = (u64)-1;
 
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0) {
+		/* Error */
+		btrfs_free_path(path);
+		return ERR_PTR(ret);
+	}
 	leaf = path->nodes[0];
 	slot = path->slots[0];
-	if (ret < 0 || slot == 0) {
-		btrfs_free_path(path);
-		goto out;
+	if (ret) {
+		/* btrfs_search_slot() returns the slot where we'd want to
+		   insert a backref for parent inode #0xFFFFFFFFFFFFFFFF.
+		   The _real_ backref, telling us what the parent inode
+		   _actually_ is, will be in the slot _before_ the one
+		   that btrfs_search_slot() returns. */
+		if (!slot) {
+			/* Unless there is _no_ key in the tree before... */
+			btrfs_free_path(path);
+			return ERR_PTR(-EIO);
+		}
+		slot--;
 	}
-	/* btrfs_search_slot() returns the slot where we'd want to insert
-	   an INODE_REF_KEY for parent inode #0xFFFFFFFFFFFFFFFF. The _real_
-	   one, telling us what the parent inode _actually_ is, will be in
-	   the slot _before_ the one that btrfs_search_slot() returns. */
-	slot--;
 
 	btrfs_item_key_to_cpu(leaf, &key, slot);
 	btrfs_free_path(path);
 
 	if (key.objectid != dir->i_ino || key.type != BTRFS_INODE_REF_KEY)
-		goto out;
+		return ERR_PTR(-EINVAL);
 
 	objectid = key.offset;
 
@@ -201,10 +210,6 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 		parent = ERR_PTR(-ENOMEM);
 
 	return parent;
-
-out:
-	btrfs_free_path(path);
-	return ERR_PTR(-EINVAL);
 }
 
 const struct export_operations btrfs_export_ops = {
