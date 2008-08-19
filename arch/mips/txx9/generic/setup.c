@@ -212,6 +212,21 @@ char * __init prom_getcmdline(void)
 	return &(arcs_cmdline[0]);
 }
 
+const char *__init prom_getenv(const char *name)
+{
+	const s32 *str = (const s32 *)fw_arg2;
+
+	if (!str)
+		return NULL;
+	/* YAMON style ("name", "value" pairs) */
+	while (str[0] && str[1]) {
+		if (!strcmp((const char *)(unsigned long)str[0], name))
+			return (const char *)(unsigned long)str[1];
+		str += 2;
+	}
+	return NULL;
+}
+
 static void __noreturn txx9_machine_halt(void)
 {
 	local_irq_disable();
