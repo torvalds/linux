@@ -814,7 +814,7 @@ static int __init xenbus_probe_init(void)
 	DPRINTK("");
 
 	err = -ENODEV;
-	if (!is_running_on_xen())
+	if (!xen_domain())
 		goto out_error;
 
 	/* Register ourselves with the kernel bus subsystem */
@@ -829,7 +829,7 @@ static int __init xenbus_probe_init(void)
 	/*
 	 * Domain0 doesn't have a store_evtchn or store_mfn yet.
 	 */
-	if (is_initial_xendomain()) {
+	if (xen_initial_domain()) {
 		/* dom0 not yet supported */
 	} else {
 		xenstored_ready = 1;
@@ -846,7 +846,7 @@ static int __init xenbus_probe_init(void)
 		goto out_unreg_back;
 	}
 
-	if (!is_initial_xendomain())
+	if (!xen_initial_domain())
 		xenbus_probe(NULL);
 
 	return 0;
@@ -937,7 +937,7 @@ static void wait_for_devices(struct xenbus_driver *xendrv)
 	unsigned long timeout = jiffies + 10*HZ;
 	struct device_driver *drv = xendrv ? &xendrv->driver : NULL;
 
-	if (!ready_to_wait_for_devices || !is_running_on_xen())
+	if (!ready_to_wait_for_devices || !xen_domain())
 		return;
 
 	while (exists_disconnected_device(drv)) {

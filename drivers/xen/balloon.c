@@ -419,7 +419,7 @@ static int __init balloon_init(void)
 	unsigned long pfn;
 	struct page *page;
 
-	if (!is_running_on_xen())
+	if (!xen_pv_domain())
 		return -ENODEV;
 
 	pr_info("xen_balloon: Initialising balloon driver.\n");

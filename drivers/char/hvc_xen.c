@@ -108,8 +108,8 @@ static int __init xen_init(void)
 {
 	struct hvc_struct *hp;
 
-	if (!is_running_on_xen() ||
-	    is_initial_xendomain() ||
+	if (!xen_pv_domain() ||
+	    xen_initial_domain() ||
 	    !xen_start_info->console.domU.evtchn)
 		return -ENODEV;
 
@@ -142,7 +142,7 @@ static void __exit xen_fini(void)
 
 static int xen_cons_init(void)
 {
-	if (!is_running_on_xen())
+	if (!xen_pv_domain())
 		return 0;
 
 	hvc_instantiate(HVC_COOKIE, 0, &hvc_ops);
