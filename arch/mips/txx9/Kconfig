@@ -97,13 +97,6 @@ config TOSHIBA_RBTX4938_MPLEX_ATA
 
 endchoice
 
-config TX4938_NAND_BOOT
-	depends on EXPERIMENTAL && TOSHIBA_RBTX4938_MPLEX_NAND
-	bool "NAND Boot Support (EXPERIMENTAL)"
-	help
-	  This is only for Toshiba RBTX4938 reference board, which has NAND IPL.
-	  Select this option if you need to use NAND boot.
-
 endif
 
 config PCI_TX4927

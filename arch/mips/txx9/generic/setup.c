@@ -127,31 +127,51 @@ extern struct txx9_board_vec rbtx4938_vec;
 struct txx9_board_vec *txx9_board_vec __initdata;
 static char txx9_system_type[32];
 
-void __init prom_init_cmdline(void)
+static void __init prom_init_cmdline(void)
 {
 	int argc = (int)fw_arg0;
-	char **argv = (char **)fw_arg1;
+	int *argv32 = (int *)fw_arg1;
 	int i;			/* Always ignore the "-c" at argv[0] */
-#ifdef CONFIG_64BIT
-	char *fixed_argv[32];
-	for (i = 0; i < argc; i++)
-		fixed_argv[i] = (char *)(long)(*((__s32 *)argv + i));
-	argv = fixed_argv;
-#endif
+	char builtin[CL_SIZE];
 
 	/* ignore all built-in args if any f/w args given */
-	if (argc > 1)
-		*arcs_cmdline = '\0';
+	/*
+	 * But if built-in strings was started with '+', append them
+	 * to command line args.  If built-in was started with '-',
+	 * ignore all f/w args.
+	 */
+	builtin[0] = '\0';
+	if (arcs_cmdline[0] == '+')
+		strcpy(builtin, arcs_cmdline + 1);
+	else if (arcs_cmdline[0] == '-') {
+		strcpy(builtin, arcs_cmdline + 1);
+		argc = 0;
+	} else if (argc <= 1)
+		strcpy(builtin, arcs_cmdline);
+	arcs_cmdline[0] = '\0';
 
 	for (i = 1; i < argc; i++) {
+		char *str = (char *)(long)argv32[i];
 		if (i != 1)
 			strcat(arcs_cmdline, " ");
-		strcat(arcs_cmdline, argv[i]);
+		if (strchr(str, ' ')) {
+			strcat(arcs_cmdline, "\"");
+			strcat(arcs_cmdline, str);
+			strcat(arcs_cmdline, "\"");
+		} else
+			strcat(arcs_cmdline, str);
+	}
+	/* append saved builtin args */
+	if (builtin[0]) {
+		if (arcs_cmdline[0])
+			strcat(arcs_cmdline, " ");
+		strcat(arcs_cmdline, builtin);
 	}
 }
 
 void __init prom_init(void)
 {
+	prom_init_cmdline();
 #ifdef CONFIG_CPU_TX39XX
 	txx9_board_vec = &jmr3927_vec;
 #endif
