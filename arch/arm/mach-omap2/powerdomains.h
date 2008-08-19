@@ -98,6 +98,10 @@ static struct pwrdm_dep gfx_sgx_wkdeps[] = {
 	{ NULL },
 };
 
+
+#include "powerdomains24xx.h"
+
+
 /*
  * OMAP2/3 common powerdomains
  */
@@ -139,6 +143,16 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 
 	&gfx_pwrdm,
 	&wkup_pwrdm,
+
+#ifdef CONFIG_ARCH_OMAP24XX
+	&dsp_pwrdm,
+	&mpu_24xx_pwrdm,
+	&core_24xx_pwrdm,
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+	&mdm_pwrdm,
+#endif
 
 	NULL
 };
