@@ -98,15 +98,27 @@ static struct pwrdm_dep gfx_sgx_wkdeps[] = {
 	{ NULL },
 };
 
+/*
+ * 3430: CM_SLEEPDEP_CAM: MPU
+ * 3430ES1: CM_SLEEPDEP_GFX: MPU
+ * 3430ES2: CM_SLEEPDEP_SGX: MPU
+ */
+static struct pwrdm_dep cam_gfx_sleepdeps[] = {
+	{
+		.pwrdm_name = "mpu_pwrdm",
+		.omap_chip = OMAP_CHIP_INIT(CHIP_IS_OMAP3430)
+	},
+	{ NULL },
+};
+
 
 #include "powerdomains24xx.h"
+#include "powerdomains34xx.h"
 
 
 /*
  * OMAP2/3 common powerdomains
  */
-
-/* XXX add sleepdeps for this powerdomain : 3430 */
 
 /*
  * The GFX powerdomain is not present on 3430ES2, but currently we do not
@@ -118,6 +130,7 @@ static struct powerdomain gfx_pwrdm = {
 	.omap_chip	  = OMAP_CHIP_INIT(CHIP_IS_OMAP24XX |
 					   CHIP_IS_OMAP3430ES1),
 	.wkdep_srcs	  = gfx_sgx_wkdeps,
+	.sleepdep_srcs	  = cam_gfx_sleepdeps,
 	.pwrsts		  = PWRSTS_OFF_RET_ON,
 	.pwrsts_logic_ret = PWRDM_POWER_RET,
 	.banks		  = 1,
@@ -152,6 +165,19 @@ static struct powerdomain *powerdomains_omap[] __initdata = {
 
 #ifdef CONFIG_ARCH_OMAP2430
 	&mdm_pwrdm,
+#endif
+
+#ifdef CONFIG_ARCH_OMAP34XX
+	&iva2_pwrdm,
+	&mpu_34xx_pwrdm,
+	&neon_pwrdm,
+	&core_34xx_pwrdm,
+	&cam_pwrdm,
+	&dss_pwrdm,
+	&per_pwrdm,
+	&emu_pwrdm,
+	&sgx_pwrdm,
+	&usbhost_pwrdm,
 #endif
 
 	NULL
