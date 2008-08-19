@@ -2,6 +2,7 @@ config BAMBOO
 	bool "Bamboo"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 440EP
 	select PCI
 	help
@@ -90,6 +91,7 @@ config YOSEMITE
 	bool "Yosemite"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 440EP
 	select PCI
 	help
