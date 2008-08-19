@@ -706,7 +706,7 @@ static struct scsi_cmnd *scsi_end_request(struct scsi_cmnd *cmd, int error,
 			leftover = req->data_len;
 
 		/* kill remainder if no retrys */
-		if (error && blk_noretry_request(req))
+		if (error && scsi_noretry_cmd(cmd))
 			blk_end_request(req, error, leftover);
 		else {
 			if (requeue) {
