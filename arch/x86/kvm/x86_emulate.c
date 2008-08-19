@@ -269,7 +269,7 @@ static u16 group_table[] = {
 	ByteOp | DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
 	0, 0, 0, 0,
 	[Group3*8] =
-	DstMem | SrcImm | ModRM | SrcImm, 0,
+	DstMem | SrcImm | ModRM, 0,
 	DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
 	0, 0, 0, 0,
 	[Group4*8] =
