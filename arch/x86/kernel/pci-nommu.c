@@ -126,8 +126,15 @@ again:
 	return NULL;
 }
 
+static void nommu_free_coherent(struct device *dev, size_t size, void *vaddr,
+				dma_addr_t dma_addr)
+{
+	free_pages((unsigned long)vaddr, get_order(size));
+}
+
 struct dma_mapping_ops nommu_dma_ops = {
 	.alloc_coherent = nommu_alloc_coherent,
+	.free_coherent = nommu_free_coherent,
 	.map_single = nommu_map_single,
 	.map_sg = nommu_map_sg,
 	.is_phys = 1,
