@@ -8175,8 +8175,8 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		    break;
 	}
 	if (sp->config.multiq) {
-	for (i = 0; i < sp->config.tx_fifo_num; i++)
-		mac_control->fifos[i].multiq = config->multiq;
+		for (i = 0; i < sp->config.tx_fifo_num; i++)
+			mac_control->fifos[i].multiq = config->multiq;
 		DBG_PRINT(ERR_DBG, "%s: Multiqueue support enabled\n",
 			dev->name);
 	} else
