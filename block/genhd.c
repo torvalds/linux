@@ -211,10 +211,11 @@ void unlink_gendisk(struct gendisk *disk)
 
 /**
  * get_gendisk - get partitioning information for a given device
- * @dev: device to get partitioning information for
+ * @devt: device to get partitioning information for
+ * @part: returned partition index
  *
  * This function gets the structure containing partitioning
- * information for the given device @dev.
+ * information for the given device @devt.
  */
 struct gendisk *get_gendisk(dev_t devt, int *part)
 {

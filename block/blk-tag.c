@@ -29,7 +29,7 @@ EXPORT_SYMBOL(blk_queue_find_tag);
  * __blk_free_tags - release a given set of tag maintenance info
  * @bqt:	the tag map to free
  *
- * Tries to free the specified @bqt@.  Returns true if it was
+ * Tries to free the specified @bqt.  Returns true if it was
  * actually freed and false if there are still references using it
  */
 static int __blk_free_tags(struct blk_queue_tag *bqt)
@@ -78,7 +78,7 @@ void __blk_queue_free_tags(struct request_queue *q)
  * blk_free_tags - release a given set of tag maintenance info
  * @bqt:	the tag map to free
  *
- * For externally managed @bqt@ frees the map.  Callers of this
+ * For externally managed @bqt frees the map.  Callers of this
  * function must guarantee to have released all the queues that
  * might have been using this tag map.
  */
@@ -94,7 +94,7 @@ EXPORT_SYMBOL(blk_free_tags);
  * @q:  the request queue for the device
  *
  *  Notes:
- *	This is used to disabled tagged queuing to a device, yet leave
+ *	This is used to disable tagged queuing to a device, yet leave
  *	queue in function.
  **/
 void blk_queue_free_tags(struct request_queue *q)
@@ -271,7 +271,7 @@ EXPORT_SYMBOL(blk_queue_resize_tags);
  * @rq: the request that has completed
  *
  *  Description:
- *    Typically called when end_that_request_first() returns 0, meaning
+ *    Typically called when end_that_request_first() returns %0, meaning
  *    all transfers have been done for a request. It's important to call
  *    this function before end_that_request_last(), as that will put the
  *    request back on the free list thus corrupting the internal tag list.

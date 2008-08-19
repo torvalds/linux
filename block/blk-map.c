@@ -85,17 +85,17 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 }
 
 /**
- * blk_rq_map_user - map user data to a request, for REQ_BLOCK_PC usage
+ * blk_rq_map_user - map user data to a request, for REQ_TYPE_BLOCK_PC usage
  * @q:		request queue where request should be inserted
  * @rq:		request structure to fill
  * @ubuf:	the user buffer
  * @len:	length of user data
  *
  * Description:
- *    Data will be mapped directly for zero copy io, if possible. Otherwise
+ *    Data will be mapped directly for zero copy I/O, if possible. Otherwise
  *    a kernel bounce buffer is used.
  *
- *    A matching blk_rq_unmap_user() must be issued at the end of io, while
+ *    A matching blk_rq_unmap_user() must be issued at the end of I/O, while
  *    still in process context.
  *
  *    Note: The mapped bio may need to be bounced through blk_queue_bounce()
@@ -154,7 +154,7 @@ unmap_rq:
 EXPORT_SYMBOL(blk_rq_map_user);
 
 /**
- * blk_rq_map_user_iov - map user data to a request, for REQ_BLOCK_PC usage
+ * blk_rq_map_user_iov - map user data to a request, for REQ_TYPE_BLOCK_PC usage
  * @q:		request queue where request should be inserted
  * @rq:		request to map data to
  * @iov:	pointer to the iovec
@@ -162,10 +162,10 @@ EXPORT_SYMBOL(blk_rq_map_user);
  * @len:	I/O byte count
  *
  * Description:
- *    Data will be mapped directly for zero copy io, if possible. Otherwise
+ *    Data will be mapped directly for zero copy I/O, if possible. Otherwise
  *    a kernel bounce buffer is used.
  *
- *    A matching blk_rq_unmap_user() must be issued at the end of io, while
+ *    A matching blk_rq_unmap_user() must be issued at the end of I/O, while
  *    still in process context.
  *
  *    Note: The mapped bio may need to be bounced through blk_queue_bounce()
@@ -224,7 +224,7 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
  * Description:
  *    Unmap a rq previously mapped by blk_rq_map_user(). The caller must
  *    supply the original rq->bio from the blk_rq_map_user() return, since
- *    the io completion may have changed rq->bio.
+ *    the I/O completion may have changed rq->bio.
  */
 int blk_rq_unmap_user(struct bio *bio)
 {
@@ -250,7 +250,7 @@ int blk_rq_unmap_user(struct bio *bio)
 EXPORT_SYMBOL(blk_rq_unmap_user);
 
 /**
- * blk_rq_map_kern - map kernel data to a request, for REQ_BLOCK_PC usage
+ * blk_rq_map_kern - map kernel data to a request, for REQ_TYPE_BLOCK_PC usage
  * @q:		request queue where request should be inserted
  * @rq:		request to fill
  * @kbuf:	the kernel buffer

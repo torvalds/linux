@@ -531,7 +531,7 @@ EXPORT_SYMBOL(blk_alloc_queue_node);
  *    request queue; this lock will be taken also from interrupt context, so irq
  *    disabling is needed for it.
  *
- *    Function returns a pointer to the initialized request queue, or NULL if
+ *    Function returns a pointer to the initialized request queue, or %NULL if
  *    it didn't succeed.
  *
  * Note:
@@ -913,7 +913,7 @@ void blk_requeue_request(struct request_queue *q, struct request *rq)
 EXPORT_SYMBOL(blk_requeue_request);
 
 /**
- * blk_insert_request - insert a special request in to a request queue
+ * blk_insert_request - insert a special request into a request queue
  * @q:		request queue where request should be inserted
  * @rq:		request to be inserted
  * @at_head:	insert request at head or tail of queue
@@ -923,8 +923,8 @@ EXPORT_SYMBOL(blk_requeue_request);
  *    Many block devices need to execute commands asynchronously, so they don't
  *    block the whole kernel from preemption during request execution.  This is
  *    accomplished normally by inserting aritficial requests tagged as
- *    REQ_SPECIAL in to the corresponding request queue, and letting them be
- *    scheduled for actual execution by the request queue.
+ *    REQ_TYPE_SPECIAL in to the corresponding request queue, and letting them
+ *    be scheduled for actual execution by the request queue.
  *
  *    We have the option of inserting the head or the tail of the queue.
  *    Typically we use the tail for new ioctls and so forth.  We use the head
@@ -1322,7 +1322,7 @@ static inline int bio_check_eod(struct bio *bio, unsigned int nr_sectors)
 }
 
 /**
- * generic_make_request: hand a buffer to its device driver for I/O
+ * generic_make_request - hand a buffer to its device driver for I/O
  * @bio:  The bio describing the location in memory and on the device.
  *
  * generic_make_request() is used to make I/O requests of block
@@ -1480,13 +1480,13 @@ void generic_make_request(struct bio *bio)
 EXPORT_SYMBOL(generic_make_request);
 
 /**
- * submit_bio: submit a bio to the block device layer for I/O
+ * submit_bio - submit a bio to the block device layer for I/O
  * @rw: whether to %READ or %WRITE, or maybe to %READA (read ahead)
  * @bio: The &struct bio which describes the I/O
  *
  * submit_bio() is very similar in purpose to generic_make_request(), and
  * uses that function to do most of the work. Both are fairly rough
- * interfaces, @bio must be presetup and ready for I/O.
+ * interfaces; @bio must be presetup and ready for I/O.
  *
  */
 void submit_bio(int rw, struct bio *bio)
@@ -1524,7 +1524,7 @@ EXPORT_SYMBOL(submit_bio);
 /**
  * __end_that_request_first - end I/O on a request
  * @req:      the request being processed
- * @error:    0 for success, < 0 for error
+ * @error:    %0 for success, < %0 for error
  * @nr_bytes: number of bytes to complete
  *
  * Description:
@@ -1532,8 +1532,8 @@ EXPORT_SYMBOL(submit_bio);
  *     for the next range of segments (if any) in the cluster.
  *
  * Return:
- *     0 - we are done with this request, call end_that_request_last()
- *     1 - still buffers pending for this request
+ *     %0 - we are done with this request, call end_that_request_last()
+ *     %1 - still buffers pending for this request
  **/
 static int __end_that_request_first(struct request *req, int error,
 				    int nr_bytes)
@@ -1544,7 +1544,7 @@ static int __end_that_request_first(struct request *req, int error,
 	blk_add_trace_rq(req->q, req, BLK_TA_COMPLETE);
 
 	/*
-	 * for a REQ_BLOCK_PC request, we want to carry any eventual
+	 * for a REQ_TYPE_BLOCK_PC request, we want to carry any eventual
 	 * sense key with us all the way through
 	 */
 	if (!blk_pc_request(req))
@@ -1810,11 +1810,11 @@ EXPORT_SYMBOL_GPL(blk_rq_cur_bytes);
 /**
  * end_queued_request - end all I/O on a queued request
  * @rq:		the request being processed
- * @uptodate:	error value or 0/1 uptodate flag
+ * @uptodate:	error value or %0/%1 uptodate flag
  *
  * Description:
  *     Ends all I/O on a request, and removes it from the block layer queues.
- *     Not suitable for normal IO completion, unless the driver still has
+ *     Not suitable for normal I/O completion, unless the driver still has
  *     the request attached to the block layer.
  *
  **/
@@ -1827,7 +1827,7 @@ EXPORT_SYMBOL(end_queued_request);
 /**
  * end_dequeued_request - end all I/O on a dequeued request
  * @rq:		the request being processed
- * @uptodate:	error value or 0/1 uptodate flag
+ * @uptodate:	error value or %0/%1 uptodate flag
  *
  * Description:
  *     Ends all I/O on a request. The request must already have been
@@ -1845,14 +1845,14 @@ EXPORT_SYMBOL(end_dequeued_request);
 /**
  * end_request - end I/O on the current segment of the request
  * @req:	the request being processed
- * @uptodate:	error value or 0/1 uptodate flag
+ * @uptodate:	error value or %0/%1 uptodate flag
  *
  * Description:
  *     Ends I/O on the current segment of a request. If that is the only
  *     remaining segment, the request is also completed and freed.
  *
- *     This is a remnant of how older block drivers handled IO completions.
- *     Modern drivers typically end IO on the full request in one go, unless
+ *     This is a remnant of how older block drivers handled I/O completions.
+ *     Modern drivers typically end I/O on the full request in one go, unless
  *     they have a residual value to account for. For that case this function
  *     isn't really useful, unless the residual just happens to be the
  *     full current segment. In other words, don't use this function in new
@@ -1870,12 +1870,12 @@ EXPORT_SYMBOL(end_request);
 /**
  * blk_end_io - Generic end_io function to complete a request.
  * @rq:           the request being processed
- * @error:        0 for success, < 0 for error
+ * @error:        %0 for success, < %0 for error
  * @nr_bytes:     number of bytes to complete @rq
  * @bidi_bytes:   number of bytes to complete @rq->next_rq
  * @drv_callback: function called between completion of bios in the request
  *                and completion of the request.
- *                If the callback returns non 0, this helper returns without
+ *                If the callback returns non %0, this helper returns without
  *                completion of the request.
  *
  * Description:
@@ -1883,8 +1883,8 @@ EXPORT_SYMBOL(end_request);
  *     If @rq has leftover, sets it up for the next range of segments.
  *
  * Return:
- *     0 - we are done with this request
- *     1 - this request is not freed yet, it still has pending buffers.
+ *     %0 - we are done with this request
+ *     %1 - this request is not freed yet, it still has pending buffers.
  **/
 static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
 		      unsigned int bidi_bytes,
@@ -1919,7 +1919,7 @@ static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
 /**
  * blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
- * @error:    0 for success, < 0 for error
+ * @error:    %0 for success, < %0 for error
  * @nr_bytes: number of bytes to complete
  *
  * Description:
@@ -1927,8 +1927,8 @@ static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
  *     If @rq has leftover, sets it up for the next range of segments.
  *
  * Return:
- *     0 - we are done with this request
- *     1 - still buffers pending for this request
+ *     %0 - we are done with this request
+ *     %1 - still buffers pending for this request
  **/
 int blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
@@ -1939,15 +1939,15 @@ EXPORT_SYMBOL_GPL(blk_end_request);
 /**
  * __blk_end_request - Helper function for drivers to complete the request.
  * @rq:       the request being processed
- * @error:    0 for success, < 0 for error
+ * @error:    %0 for success, < %0 for error
  * @nr_bytes: number of bytes to complete
  *
  * Description:
  *     Must be called with queue lock held unlike blk_end_request().
  *
  * Return:
- *     0 - we are done with this request
- *     1 - still buffers pending for this request
+ *     %0 - we are done with this request
+ *     %1 - still buffers pending for this request
  **/
 int __blk_end_request(struct request *rq, int error, unsigned int nr_bytes)
 {
@@ -1966,7 +1966,7 @@ EXPORT_SYMBOL_GPL(__blk_end_request);
 /**
  * blk_end_bidi_request - Helper function for drivers to complete bidi request.
  * @rq:         the bidi request being processed
- * @error:      0 for success, < 0 for error
+ * @error:      %0 for success, < %0 for error
  * @nr_bytes:   number of bytes to complete @rq
  * @bidi_bytes: number of bytes to complete @rq->next_rq
  *
@@ -1974,8 +1974,8 @@ EXPORT_SYMBOL_GPL(__blk_end_request);
  *     Ends I/O on a number of bytes attached to @rq and @rq->next_rq.
  *
  * Return:
- *     0 - we are done with this request
- *     1 - still buffers pending for this request
+ *     %0 - we are done with this request
+ *     %1 - still buffers pending for this request
  **/
 int blk_end_bidi_request(struct request *rq, int error, unsigned int nr_bytes,
 			 unsigned int bidi_bytes)
@@ -1987,11 +1987,11 @@ EXPORT_SYMBOL_GPL(blk_end_bidi_request);
 /**
  * blk_end_request_callback - Special helper function for tricky drivers
  * @rq:           the request being processed
- * @error:        0 for success, < 0 for error
+ * @error:        %0 for success, < %0 for error
  * @nr_bytes:     number of bytes to complete
  * @drv_callback: function called between completion of bios in the request
  *                and completion of the request.
- *                If the callback returns non 0, this helper returns without
+ *                If the callback returns non %0, this helper returns without
  *                completion of the request.
  *
  * Description:
@@ -2004,10 +2004,10 @@ EXPORT_SYMBOL_GPL(blk_end_bidi_request);
  *     Don't use this interface in other places anymore.
  *
  * Return:
- *     0 - we are done with this request
- *     1 - this request is not freed yet.
- *         this request still has pending buffers or
- *         the driver doesn't want to finish this request yet.
+ *     %0 - we are done with this request
+ *     %1 - this request is not freed yet.
+ *          this request still has pending buffers or
+ *          the driver doesn't want to finish this request yet.
  **/
 int blk_end_request_callback(struct request *rq, int error,
 			     unsigned int nr_bytes,

@@ -144,7 +144,7 @@ EXPORT_SYMBOL(blk_queue_make_request);
  *    Different hardware can have different requirements as to what pages
  *    it can do I/O directly to. A low level driver can call
  *    blk_queue_bounce_limit to have lower memory pages allocated as bounce
- *    buffers for doing I/O to pages residing above @page.
+ *    buffers for doing I/O to pages residing above @dma_addr.
  **/
 void blk_queue_bounce_limit(struct request_queue *q, u64 dma_addr)
 {
@@ -229,7 +229,7 @@ EXPORT_SYMBOL(blk_queue_max_phys_segments);
  * Description:
  *    Enables a low level driver to set an upper limit on the number of
  *    hw data segments in a request.  This would be the largest number of
- *    address/length pairs the host adapter can actually give as once
+ *    address/length pairs the host adapter can actually give at once
  *    to the device.
  **/
 void blk_queue_max_hw_segments(struct request_queue *q,
@@ -410,7 +410,7 @@ EXPORT_SYMBOL(blk_queue_segment_boundary);
  * @mask:  alignment mask
  *
  * description:
- *    set required memory and length aligment for direct dma transactions.
+ *    set required memory and length alignment for direct dma transactions.
  *    this is used when buiding direct io requests for the queue.
  *
  **/
@@ -426,7 +426,7 @@ EXPORT_SYMBOL(blk_queue_dma_alignment);
  * @mask:  alignment mask
  *
  * description:
- *    update required memory and length aligment for direct dma transactions.
+ *    update required memory and length alignment for direct dma transactions.
  *    If the requested alignment is larger than the current alignment, then
  *    the current queue alignment is updated to the new value, otherwise it
  *    is left alone.  The design of this is to allow multiple objects

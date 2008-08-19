@@ -109,8 +109,8 @@ EXPORT_SYMBOL(blk_rq_map_integrity_sg);
 
 /**
  * blk_integrity_compare - Compare integrity profile of two block devices
- * @b1:		Device to compare
- * @b2:		Device to compare
+ * @bd1:	Device to compare
+ * @bd2:	Device to compare
  *
  * Description: Meta-devices like DM and MD need to verify that all
  * sub-devices use the same integrity format before advertising to
