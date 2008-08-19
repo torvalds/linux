@@ -17,11 +17,40 @@
 #include <asm/mach/arch.h>
 #include <asm/mach-types.h>
 
+#include <mach/pxa-regs.h>
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
 
+#include <mach/pxafb.h>
+
 #include "generic.h"
 #include "eseries.h"
+
+/* ------------------------ E400 LCD definitions ------------------------ */
+
+static struct pxafb_mode_info e400_pxafb_mode_info = {
+	.pixclock       = 140703,
+	.xres           = 240,
+	.yres           = 320,
+	.bpp            = 16,
+	.hsync_len      = 4,
+	.left_margin    = 28,
+	.right_margin   = 8,
+	.vsync_len      = 3,
+	.upper_margin   = 5,
+	.lower_margin   = 6,
+	.sync           = 0,
+};
+
+static struct pxafb_mach_info e400_pxafb_mach_info = {
+	.modes          = &e400_pxafb_mode_info,
+	.num_modes      = 1,
+	.lccr0          = LCCR0_Color | LCCR0_Sngl | LCCR0_Act,
+	.lccr3          = 0,
+	.pxafb_backlight_power  = NULL,
+};
+
+/* ------------------------ E400 MFP config ----------------------------- */
 
 static unsigned long e400_pin_config[] __initdata = {
 	/* Chip selects */
@@ -41,9 +70,12 @@ static unsigned long e400_pin_config[] __initdata = {
 	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,
 };
 
+/* ---------------------------------------------------------------------- */
+
 static void __init e400_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e400_pin_config));
+	set_pxa_fb_info(&e400_pxafb_mach_info);
 }
 
 MACHINE_START(E400, "Toshiba e400")

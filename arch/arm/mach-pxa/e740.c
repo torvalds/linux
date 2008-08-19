@@ -12,6 +12,11 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/device.h>
+#include <linux/platform_device.h>
+#include <linux/fb.h>
+
+#include <video/w100fb.h>
 
 #include <asm/setup.h>
 #include <asm/mach/arch.h>
@@ -22,6 +27,80 @@
 
 #include "generic.h"
 #include "eseries.h"
+
+
+/* ------------------------ e740 video support --------------------------- */
+
+static struct w100_gen_regs e740_lcd_regs = {
+	.lcd_format =            0x00008023,
+	.lcdd_cntl1 =            0x0f000000,
+	.lcdd_cntl2 =            0x0003ffff,
+	.genlcd_cntl1 =          0x00ffff03,
+	.genlcd_cntl2 =          0x003c0f03,
+	.genlcd_cntl3 =          0x000143aa,
+};
+
+static struct w100_mode e740_lcd_mode = {
+	.xres            = 240,
+	.yres            = 320,
+	.left_margin     = 20,
+	.right_margin    = 28,
+	.upper_margin    = 9,
+	.lower_margin    = 8,
+	.crtc_ss         = 0x80140013,
+	.crtc_ls         = 0x81150110,
+	.crtc_gs         = 0x80050005,
+	.crtc_vpos_gs    = 0x000a0009,
+	.crtc_rev        = 0x0040010a,
+	.crtc_dclk       = 0xa906000a,
+	.crtc_gclk       = 0x80050108,
+	.crtc_goe        = 0x80050108,
+	.pll_freq        = 57,
+	.pixclk_divider         = 4,
+	.pixclk_divider_rotated = 4,
+	.pixclk_src     = CLK_SRC_XTAL,
+	.sysclk_divider  = 1,
+	.sysclk_src     = CLK_SRC_PLL,
+	.crtc_ps1_active =       0x41060010,
+};
+
+static struct w100_gpio_regs e740_w100_gpio_info = {
+	.init_data1 = 0x21002103,
+	.gpio_dir1  = 0xffffdeff,
+	.gpio_oe1   = 0x03c00643,
+	.init_data2 = 0x003f003f,
+	.gpio_dir2  = 0xffffffff,
+	.gpio_oe2   = 0x000000ff,
+};
+
+static struct w100fb_mach_info e740_fb_info = {
+	.modelist   = &e740_lcd_mode,
+	.num_modes  = 1,
+	.regs       = &e740_lcd_regs,
+	.gpio       = &e740_w100_gpio_info,
+	.xtal_freq = 14318000,
+	.xtal_dbl   = 1,
+};
+
+static struct resource e740_fb_resources[] = {
+	[0] = {
+		.start          = 0x0c000000,
+		.end            = 0x0cffffff,
+		.flags          = IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device e740_fb_device = {
+	.name           = "w100fb",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &e740_fb_info,
+	},
+	.num_resources  = ARRAY_SIZE(e740_fb_resources),
+	.resource       = e740_fb_resources,
+};
+
+/* --------------------------- MFP Pin config -------------------------- */
 
 static unsigned long e740_pin_config[] __initdata = {
 	/* Chip selects */
@@ -62,9 +141,16 @@ static unsigned long e740_pin_config[] __initdata = {
 	GPIO0_GPIO | WAKEUP_ON_EDGE_RISE,
 };
 
+/* ----------------------------------------------------------------------- */
+
+static struct platform_device *devices[] __initdata = {
+	&e740_fb_device,
+};
+
 static void __init e740_init(void)
 {
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e740_pin_config));
+	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
 
 MACHINE_START(E740, "Toshiba e740")
