@@ -59,4 +59,8 @@ static inline void txx9_sio_putchar_init(unsigned long baseaddr)
 }
 #endif
 
+struct physmap_flash_data;
+void txx9_physmap_flash_init(int no, unsigned long addr, unsigned long size,
+			     const struct physmap_flash_data *pdata);
+
 #endif /* __ASM_TXX9_GENERIC_H */

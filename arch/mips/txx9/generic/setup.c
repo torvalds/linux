@@ -22,6 +22,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
+#include <linux/mtd/physmap.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -593,3 +594,43 @@ static unsigned long __swizzle_addr_none(unsigned long port)
 unsigned long (*__swizzle_addr_b)(unsigned long port) = __swizzle_addr_none;
 EXPORT_SYMBOL(__swizzle_addr_b);
 #endif
+
+void __init txx9_physmap_flash_init(int no, unsigned long addr,
+				    unsigned long size,
+				    const struct physmap_flash_data *pdata)
+{
+#if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
+	struct resource res = {
+		.start = addr,
+		.end = addr + size - 1,
+		.flags = IORESOURCE_MEM,
+	};
+	struct platform_device *pdev;
+#ifdef CONFIG_MTD_PARTITIONS
+	static struct mtd_partition parts[2];
+	struct physmap_flash_data pdata_part;
+
+	/* If this area contained boot area, make separate partition */
+	if (pdata->nr_parts == 0 && !pdata->parts &&
+	    addr < 0x1fc00000 && addr + size > 0x1fc00000 &&
+	    !parts[0].name) {
+		parts[0].name = "boot";
+		parts[0].offset = 0x1fc00000 - addr;
+		parts[0].size = addr + size - 0x1fc00000;
+		parts[1].name = "user";
+		parts[1].offset = 0;
+		parts[1].size = 0x1fc00000 - addr;
+		pdata_part = *pdata;
+		pdata_part.nr_parts = ARRAY_SIZE(parts);
+		pdata_part.parts = parts;
+		pdata = &pdata_part;
+	}
+#endif
+	pdev = platform_device_alloc("physmap-flash", no);
+	if (!pdev ||
+	    platform_device_add_resources(pdev, &res, 1) ||
+	    platform_device_add_data(pdev, pdata, sizeof(*pdata)) ||
+	    platform_device_add(pdev))
+		platform_device_put(pdev);
+#endif
+}

@@ -14,6 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/param.h>
+#include <linux/mtd/physmap.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
@@ -268,4 +269,17 @@ void __init tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1)
 		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH0, addr0);
 	if (addr1 && (pcfg & TX4938_PCFG_ETH1_SEL))
 		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH1, addr1);
+}
+
+void __init tx4938_mtd_init(int ch)
+{
+	struct physmap_flash_data pdata = {
+		.width = TX4938_EBUSC_WIDTH(ch) / 8,
+	};
+	unsigned long start = txx9_ce_res[ch].start;
+	unsigned long size = txx9_ce_res[ch].end - start + 1;
+
+	if (!(TX4938_EBUSC_CR(ch) & 0x8))
+		return;	/* disabled */
+	txx9_physmap_flash_init(ch, start, size, &pdata);
 }

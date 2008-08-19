@@ -325,6 +325,7 @@ struct tx3927_ccfg_reg {
 #define TX3927_ROMC_BA(ch)	(tx3927_romcptr->cr[(ch)] & 0xfff00000)
 #define TX3927_ROMC_SIZE(ch)	\
 	(0x00100000 << ((tx3927_romcptr->cr[(ch)] >> 8) & 0xf))
+#define TX3927_ROMC_WIDTH(ch)	(32 >> ((tx3927_romcptr->cr[(ch)] >> 7) & 0x1))
 
 void tx3927_wdt_init(void);
 void tx3927_setup(void);
@@ -335,5 +336,6 @@ void tx3927_pcic_setup(struct pci_controller *channel,
 		       unsigned long sdram_size, int extarb);
 void tx3927_setup_pcierr_irq(void);
 void tx3927_irq_init(void);
+void tx3927_mtd_init(int ch);
 
 #endif /* __ASM_TXX9_TX3927_H */

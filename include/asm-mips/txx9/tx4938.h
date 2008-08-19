@@ -274,6 +274,7 @@ struct tx4938_ccfg_reg {
 #define TX4938_EBUSC_CR(ch)	TX4927_EBUSC_CR(ch)
 #define TX4938_EBUSC_BA(ch)	TX4927_EBUSC_BA(ch)
 #define TX4938_EBUSC_SIZE(ch)	TX4927_EBUSC_SIZE(ch)
+#define TX4938_EBUSC_WIDTH(ch)	TX4927_EBUSC_WIDTH(ch)
 
 #define tx4938_get_mem_size() tx4927_get_mem_size()
 void tx4938_wdt_init(void);
@@ -289,5 +290,6 @@ struct pci_dev;
 int tx4938_pcic1_map_irq(const struct pci_dev *dev, u8 slot);
 void tx4938_setup_pcierr_irq(void);
 void tx4938_irq_init(void);
+void tx4938_mtd_init(int ch);
 
 #endif

@@ -14,6 +14,7 @@
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/param.h>
+#include <linux/mtd/physmap.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
 #include <asm/txx9pio.h>
@@ -186,4 +187,17 @@ void __init tx4927_sio_init(unsigned int sclk, unsigned int cts_mask)
 		txx9_sio_init(TX4927_SIO_REG(i) & 0xfffffffffULL,
 			      TXX9_IRQ_BASE + TX4927_IR_SIO(i),
 			      i, sclk, (1 << i) & cts_mask);
+}
+
+void __init tx4927_mtd_init(int ch)
+{
+	struct physmap_flash_data pdata = {
+		.width = TX4927_EBUSC_WIDTH(ch) / 8,
+	};
+	unsigned long start = txx9_ce_res[ch].start;
+	unsigned long size = txx9_ce_res[ch].end - start + 1;
+
+	if (!(TX4927_EBUSC_CR(ch) & 0x8))
+		return;	/* disabled */
+	txx9_physmap_flash_init(ch, start, size, &pdata);
 }

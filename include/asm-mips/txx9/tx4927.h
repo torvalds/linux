@@ -196,6 +196,8 @@ struct tx4927_ccfg_reg {
 #define TX4927_EBUSC_BA(ch)	((TX4927_EBUSC_CR(ch) >> 48) << 20)
 #define TX4927_EBUSC_SIZE(ch)	\
 	(0x00100000 << ((unsigned long)(TX4927_EBUSC_CR(ch) >> 8) & 0xf))
+#define TX4927_EBUSC_WIDTH(ch)	\
+	(64 >> ((__u32)(TX4927_EBUSC_CR(ch) >> 20) & 0x3))
 
 /* utilities */
 static inline void txx9_clear64(__u64 __iomem *adr, __u64 bits)
@@ -251,5 +253,6 @@ int tx4927_report_pciclk(void);
 int tx4927_pciclk66_setup(void);
 void tx4927_setup_pcierr_irq(void);
 void tx4927_irq_init(void);
+void tx4927_mtd_init(int ch);
 
 #endif /* __ASM_TXX9_TX4927_H */

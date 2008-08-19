@@ -307,11 +307,20 @@ static void __init rbtx4927_ne_init(void)
 	platform_device_register_simple("ne", -1, res, ARRAY_SIZE(res));
 }
 
+static void __init rbtx4927_mtd_init(void)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		tx4927_mtd_init(i);
+}
+
 static void __init rbtx4927_device_init(void)
 {
 	toshiba_rbtx4927_rtc_init();
 	rbtx4927_ne_init();
 	tx4927_wdt_init();
+	rbtx4927_mtd_init();
 }
 
 struct txx9_board_vec rbtx4927_vec __initdata = {

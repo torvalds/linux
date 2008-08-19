@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/param.h>
 #include <linux/io.h>
+#include <linux/mtd/physmap.h>
 #include <asm/mipsregs.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
@@ -120,4 +121,17 @@ void __init tx3927_sio_init(unsigned int sclk, unsigned int cts_mask)
 		txx9_sio_init(TX3927_SIO_REG(i),
 			      TXX9_IRQ_BASE + TX3927_IR_SIO(i),
 			      i, sclk, (1 << i) & cts_mask);
+}
+
+void __init tx3927_mtd_init(int ch)
+{
+	struct physmap_flash_data pdata = {
+		.width = TX3927_ROMC_WIDTH(ch) / 8,
+	};
+	unsigned long start = txx9_ce_res[ch].start;
+	unsigned long size = txx9_ce_res[ch].end - start + 1;
+
+	if (!(tx3927_romcptr->cr[ch] & 0x8))
+		return;	/* disabled */
+	txx9_physmap_flash_init(ch, start, size, &pdata);
 }

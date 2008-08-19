@@ -190,11 +190,20 @@ static void __init jmr3927_rtc_init(void)
 	platform_device_register_simple("rtc-ds1742", -1, &res, 1);
 }
 
+static void __init jmr3927_mtd_init(void)
+{
+	int i;
+
+	for (i = 0; i < 2; i++)
+		tx3927_mtd_init(i);
+}
+
 static void __init jmr3927_device_init(void)
 {
 	__swizzle_addr_b = jmr3927_swizzle_addr_b;
 	jmr3927_rtc_init();
 	tx3927_wdt_init();
+	jmr3927_mtd_init();
 }
 
 struct txx9_board_vec jmr3927_vec __initdata = {

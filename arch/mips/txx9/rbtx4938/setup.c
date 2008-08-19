@@ -15,6 +15,7 @@
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
+#include <linux/mtd/physmap.h>
 
 #include <asm/reboot.h>
 #include <asm/io.h>
@@ -294,6 +295,42 @@ static int __init rbtx4938_spi_init(void)
 	return 0;
 }
 
+static void __init rbtx4938_mtd_init(void)
+{
+	struct physmap_flash_data pdata = {
+		.width = 4,
+	};
+
+	switch (readb(rbtx4938_bdipsw_addr) & 7) {
+	case 0:
+		/* Boot */
+		txx9_physmap_flash_init(0, 0x1fc00000, 0x400000, &pdata);
+		/* System */
+		txx9_physmap_flash_init(1, 0x1e000000, 0x1000000, &pdata);
+		break;
+	case 1:
+		/* System */
+		txx9_physmap_flash_init(0, 0x1f000000, 0x1000000, &pdata);
+		/* Boot */
+		txx9_physmap_flash_init(1, 0x1ec00000, 0x400000, &pdata);
+		break;
+	case 2:
+		/* Ext */
+		txx9_physmap_flash_init(0, 0x1f000000, 0x1000000, &pdata);
+		/* System */
+		txx9_physmap_flash_init(1, 0x1e000000, 0x1000000, &pdata);
+		/* Boot */
+		txx9_physmap_flash_init(2, 0x1dc00000, 0x400000, &pdata);
+		break;
+	case 3:
+		/* Boot */
+		txx9_physmap_flash_init(1, 0x1bc00000, 0x400000, &pdata);
+		/* System */
+		txx9_physmap_flash_init(2, 0x1a000000, 0x1000000, &pdata);
+		break;
+	}
+}
+
 static void __init rbtx4938_arch_init(void)
 {
 	gpiochip_add(&rbtx4938_spi_gpio_chip);
@@ -306,6 +343,7 @@ static void __init rbtx4938_device_init(void)
 	rbtx4938_ethaddr_init();
 	rbtx4938_ne_init();
 	tx4938_wdt_init();
+	rbtx4938_mtd_init();
 }
 
 struct txx9_board_vec rbtx4938_vec __initdata = {
