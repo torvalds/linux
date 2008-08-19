@@ -25,6 +25,7 @@
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
+#include <asm/r4kcache.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #ifdef CONFIG_CPU_TX49XX
@@ -186,6 +187,110 @@ static void __init prom_init_cmdline(void)
 	}
 }
 
+static int txx9_ic_disable __initdata;
+static int txx9_dc_disable __initdata;
+
+#if defined(CONFIG_CPU_TX49XX)
+/* flush all cache on very early stage (before 4k_cache_init) */
+static void __init early_flush_dcache(void)
+{
+	unsigned int conf = read_c0_config();
+	unsigned int dc_size = 1 << (12 + ((conf & CONF_DC) >> 6));
+	unsigned int linesz = 32;
+	unsigned long addr, end;
+
+	end = INDEX_BASE + dc_size / 4;
+	/* 4way, waybit=0 */
+	for (addr = INDEX_BASE; addr < end; addr += linesz) {
+		cache_op(Index_Writeback_Inv_D, addr | 0);
+		cache_op(Index_Writeback_Inv_D, addr | 1);
+		cache_op(Index_Writeback_Inv_D, addr | 2);
+		cache_op(Index_Writeback_Inv_D, addr | 3);
+	}
+}
+
+static void __init txx9_cache_fixup(void)
+{
+	unsigned int conf;
+
+	conf = read_c0_config();
+	/* flush and disable */
+	if (txx9_ic_disable) {
+		conf |= TX49_CONF_IC;
+		write_c0_config(conf);
+	}
+	if (txx9_dc_disable) {
+		early_flush_dcache();
+		conf |= TX49_CONF_DC;
+		write_c0_config(conf);
+	}
+
+	/* enable cache */
+	conf = read_c0_config();
+	if (!txx9_ic_disable)
+		conf &= ~TX49_CONF_IC;
+	if (!txx9_dc_disable)
+		conf &= ~TX49_CONF_DC;
+	write_c0_config(conf);
+
+	if (conf & TX49_CONF_IC)
+		pr_info("TX49XX I-Cache disabled.\n");
+	if (conf & TX49_CONF_DC)
+		pr_info("TX49XX D-Cache disabled.\n");
+}
+#elif defined(CONFIG_CPU_TX39XX)
+/* flush all cache on very early stage (before tx39_cache_init) */
+static void __init early_flush_dcache(void)
+{
+	unsigned int conf = read_c0_config();
+	unsigned int dc_size = 1 << (10 + ((conf & TX39_CONF_DCS_MASK) >>
+					   TX39_CONF_DCS_SHIFT));
+	unsigned int linesz = 16;
+	unsigned long addr, end;
+
+	end = INDEX_BASE + dc_size / 2;
+	/* 2way, waybit=0 */
+	for (addr = INDEX_BASE; addr < end; addr += linesz) {
+		cache_op(Index_Writeback_Inv_D, addr | 0);
+		cache_op(Index_Writeback_Inv_D, addr | 1);
+	}
+}
+
+static void __init txx9_cache_fixup(void)
+{
+	unsigned int conf;
+
+	conf = read_c0_config();
+	/* flush and disable */
+	if (txx9_ic_disable) {
+		conf &= ~TX39_CONF_ICE;
+		write_c0_config(conf);
+	}
+	if (txx9_dc_disable) {
+		early_flush_dcache();
+		conf &= ~TX39_CONF_DCE;
+		write_c0_config(conf);
+	}
+
+	/* enable cache */
+	conf = read_c0_config();
+	if (!txx9_ic_disable)
+		conf |= TX39_CONF_ICE;
+	if (!txx9_dc_disable)
+		conf |= TX39_CONF_DCE;
+	write_c0_config(conf);
+
+	if (!(conf & TX39_CONF_ICE))
+		pr_info("TX39XX I-Cache disabled.\n");
+	if (!(conf & TX39_CONF_DCE))
+		pr_info("TX39XX D-Cache disabled.\n");
+}
+#else
+static inline void txx9_cache_fixup(void)
+{
+}
+#endif
+
 static void __init preprocess_cmdline(void)
 {
 	char cmdline[CL_SIZE];
@@ -204,11 +309,19 @@ static void __init preprocess_cmdline(void)
 			if (strict_strtoul(str + 10, 10, &val) == 0)
 				txx9_master_clock = val;
 			continue;
+		} else if (strcmp(str, "icdisable") == 0) {
+			txx9_ic_disable = 1;
+			continue;
+		} else if (strcmp(str, "dcdisable") == 0) {
+			txx9_dc_disable = 1;
+			continue;
 		}
 		if (arcs_cmdline[0])
 			strcat(arcs_cmdline, " ");
 		strcat(arcs_cmdline, str);
 	}
+
+	txx9_cache_fixup();
 }
 
 static void __init select_board(void)

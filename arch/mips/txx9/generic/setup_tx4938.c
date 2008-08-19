@@ -47,6 +47,7 @@ void __init tx4938_setup(void)
 
 	txx9_reg_res_init(TX4938_REV_PCODE(), TX4938_REG_BASE,
 			  TX4938_REG_SIZE);
+	set_c0_config(TX49_CONF_CWFON);
 
 	/* SDRAMC,EBUSC are configured by PROM */
 	for (i = 0; i < 8; i++) {

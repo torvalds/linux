@@ -186,13 +186,7 @@ static void __init rbtx4937_clock_init(void);
 
 static void __init rbtx4927_mem_setup(void)
 {
-	u32 cp0_config;
 	char *argptr;
-
-	/* enable caches -- HCP5 does this, pmon does not */
-	cp0_config = read_c0_config();
-	cp0_config = cp0_config & ~(TX49_CONF_IC | TX49_CONF_DC);
-	write_c0_config(cp0_config);
 
 	if (TX4927_REV_PCODE() == 0x4927) {
 		rbtx4927_clock_init();

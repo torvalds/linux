@@ -62,7 +62,6 @@ static void __init jmr3927_time_init(void)
 }
 
 #define DO_WRITE_THROUGH
-#define DO_ENABLE_CACHE
 
 static void jmr3927_board_init(void);
 
@@ -77,11 +76,6 @@ static void __init jmr3927_mem_setup(void)
 	/* cache setup */
 	{
 		unsigned int conf;
-#ifdef DO_ENABLE_CACHE
-		int mips_ic_disable = 0, mips_dc_disable = 0;
-#else
-		int mips_ic_disable = 1, mips_dc_disable = 1;
-#endif
 #ifdef DO_WRITE_THROUGH
 		int mips_config_cwfon = 0;
 		int mips_config_wbon = 0;
@@ -91,10 +85,7 @@ static void __init jmr3927_mem_setup(void)
 #endif
 
 		conf = read_c0_conf();
-		conf &= ~(TX39_CONF_ICE | TX39_CONF_DCE |
-			  TX39_CONF_WBON | TX39_CONF_CWFON);
-		conf |= mips_ic_disable ? 0 : TX39_CONF_ICE;
-		conf |= mips_dc_disable ? 0 : TX39_CONF_DCE;
+		conf &= ~(TX39_CONF_WBON | TX39_CONF_CWFON);
 		conf |= mips_config_wbon ? TX39_CONF_WBON : 0;
 		conf |= mips_config_cwfon ? TX39_CONF_CWFON : 0;
 

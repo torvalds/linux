@@ -99,16 +99,14 @@ void __init tx3927_setup(void)
 	txx9_gpio_init(TX3927_PIO_REG, 0, 16);
 
 	conf = read_c0_conf();
-	if (!(conf & TX39_CONF_ICE))
-		printk(KERN_INFO "TX3927 I-Cache disabled.\n");
-	if (!(conf & TX39_CONF_DCE))
-		printk(KERN_INFO "TX3927 D-Cache disabled.\n");
-	else if (!(conf & TX39_CONF_WBON))
-		printk(KERN_INFO "TX3927 D-Cache WriteThrough.\n");
-	else if (!(conf & TX39_CONF_CWFON))
-		printk(KERN_INFO "TX3927 D-Cache WriteBack.\n");
-	else
-		printk(KERN_INFO "TX3927 D-Cache WriteBack (CWF) .\n");
+	if (conf & TX39_CONF_DCE) {
+		if (!(conf & TX39_CONF_WBON))
+			pr_info("TX3927 D-Cache WriteThrough.\n");
+		else if (!(conf & TX39_CONF_CWFON))
+			pr_info("TX3927 D-Cache WriteBack.\n");
+		else
+			pr_info("TX3927 D-Cache WriteBack (CWF) .\n");
+	}
 }
 
 void __init tx3927_time_init(unsigned int evt_tmrnr, unsigned int src_tmrnr)
