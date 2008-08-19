@@ -849,7 +849,7 @@ static int multipath_map(struct dm_target *ti, struct bio *bio,
 	dm_bio_record(&mpio->details, bio);
 
 	map_context->ptr = mpio;
-	bio->bi_rw |= (1 << BIO_RW_FAILFAST);
+	bio->bi_rw |= (1 << BIO_RW_FAILFAST_TRANSPORT);
 	r = map_io(m, bio, mpio, 0);
 	if (r < 0 || r == DM_MAPIO_REQUEUE)
 		mempool_free(mpio, m->mpio_pool);

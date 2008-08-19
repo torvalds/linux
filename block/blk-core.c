@@ -1075,8 +1075,15 @@ void init_request_from_bio(struct request *req, struct bio *bio)
 	/*
 	 * inherit FAILFAST from bio (for read-ahead, and explicit FAILFAST)
 	 */
-	if (bio_rw_ahead(bio) || bio_failfast(bio))
-		req->cmd_flags |= REQ_FAILFAST;
+	if (bio_rw_ahead(bio))
+		req->cmd_flags |= (REQ_FAILFAST_DEV | REQ_FAILFAST_TRANSPORT |
+				   REQ_FAILFAST_DRIVER);
+	if (bio_failfast_dev(bio))
+		req->cmd_flags |= REQ_FAILFAST_DEV;
+	if (bio_failfast_transport(bio))
+		req->cmd_flags |= REQ_FAILFAST_TRANSPORT;
+	if (bio_failfast_driver(bio))
+		req->cmd_flags |= REQ_FAILFAST_DRIVER;
 
 	/*
 	 * REQ_BARRIER implies no merging, but lets make it explicit
