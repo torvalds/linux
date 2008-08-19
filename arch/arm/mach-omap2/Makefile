@@ -4,7 +4,7 @@
 
 # Common support
 obj-y := irq.o id.o io.o memory.o control.o prcm.o clock.o mux.o \
-		devices.o serial.o gpmc.o timer-gp.o
+		devices.o serial.o gpmc.o timer-gp.o powerdomain.o
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
