@@ -415,6 +415,16 @@ out_dqlock:
 	return ret;
 }
 
+static void dquot_destroy(struct dquot *dquot)
+{
+	kmem_cache_free(dquot_cachep, dquot);
+}
+
+static inline void do_destroy_dquot(struct dquot *dquot)
+{
+	dquot->dq_sb->dq_op->destroy_dquot(dquot);
+}
+
 /* Invalidate all dquots on the list. Note that this function is called after
  * quota is disabled and pointers from inodes removed so there cannot be new
  * quota users. There can still be some users of quotas due to inodes being
@@ -463,7 +473,7 @@ restart:
 		remove_dquot_hash(dquot);
 		remove_free_dquot(dquot);
 		remove_inuse(dquot);
-		kmem_cache_free(dquot_cachep, dquot);
+		do_destroy_dquot(dquot);
 	}
 	spin_unlock(&dq_list_lock);
 }
@@ -527,7 +537,7 @@ static void prune_dqcache(int count)
 		remove_dquot_hash(dquot);
 		remove_free_dquot(dquot);
 		remove_inuse(dquot);
-		kmem_cache_free(dquot_cachep, dquot);
+		do_destroy_dquot(dquot);
 		count--;
 		head = free_dquots.prev;
 	}
@@ -625,11 +635,16 @@ we_slept:
 	spin_unlock(&dq_list_lock);
 }
 
+static struct dquot *dquot_alloc(struct super_block *sb, int type)
+{
+	return kmem_cache_zalloc(dquot_cachep, GFP_NOFS);
+}
+
 static struct dquot *get_empty_dquot(struct super_block *sb, int type)
 {
 	struct dquot *dquot;
 
-	dquot = kmem_cache_zalloc(dquot_cachep, GFP_NOFS);
+	dquot = sb->dq_op->alloc_dquot(sb, type);
 	if(!dquot)
 		return NODQUOT;
 
@@ -682,7 +697,7 @@ we_slept:
 		dqstats.lookups++;
 		spin_unlock(&dq_list_lock);
 		if (empty)
-			kmem_cache_free(dquot_cachep, empty);
+			do_destroy_dquot(empty);
 	}
 	/* Wait for dq_lock - after this we know that either dquot_release() is already
 	 * finished or it will be canceled due to dq_count > 1 test */
@@ -1533,7 +1548,9 @@ struct dquot_operations dquot_operations = {
 	.acquire_dquot	= dquot_acquire,
 	.release_dquot	= dquot_release,
 	.mark_dirty	= dquot_mark_dquot_dirty,
-	.write_info	= dquot_commit_info
+	.write_info	= dquot_commit_info,
+	.alloc_dquot	= dquot_alloc,
+	.destroy_dquot	= dquot_destroy,
 };
 
 static inline void set_enable_flags(struct quota_info *dqopt, int type)
