@@ -127,6 +127,13 @@ config XILINX_VIRTEX440_GENERIC_BOARD
 	  Most Virtex 5 designs should use this unless it needs to do some
 	  special configuration at board probe time.
 
+config PPC44x_SIMPLE
+	bool "Simple PowerPC 44x board support"
+	depends on 44x
+	default n
+	help
+	  This option enables the simple PowerPC 44x platform support.
+
 # 44x specific CPU modules, selected based on the board above.
 config 440EP
 	bool
