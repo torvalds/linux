@@ -18,29 +18,31 @@
 #define AT250X0_PAGE_SIZE	8
 
 /* register board information for at25 driver */
-int __init spi_eeprom_register(int chipid)
+int __init spi_eeprom_register(int busid, int chipid, int size)
 {
-	static struct spi_eeprom eeprom = {
-		.name = "at250x0",
-		.byte_len = 128,
-		.page_size = AT250X0_PAGE_SIZE,
-		.flags = EE_ADDR1,
-	};
 	struct spi_board_info info = {
 		.modalias = "at25",
 		.max_speed_hz = 1500000,	/* 1.5Mbps */
-		.bus_num = 0,
+		.bus_num = busid,
 		.chip_select = chipid,
-		.platform_data = &eeprom,
 		/* Mode 0: High-Active, Sample-Then-Shift */
 	};
-
+	struct spi_eeprom *eeprom;
+	eeprom = kzalloc(sizeof(*eeprom), GFP_KERNEL);
+	if (!eeprom)
+		return -ENOMEM;
+	strcpy(eeprom->name, "at250x0");
+	eeprom->byte_len = size;
+	eeprom->page_size = AT250X0_PAGE_SIZE;
+	eeprom->flags = EE_ADDR1;
+	info.platform_data = eeprom;
 	return spi_register_board_info(&info, 1);
 }
 
 /* simple temporary spi driver to provide early access to seeprom. */
 
 static struct read_param {
+	int busid;
 	int chipid;
 	int address;
 	unsigned char *buf;
@@ -57,7 +59,8 @@ static int __init early_seeprom_probe(struct spi_device *spi)
 
 	dev_info(&spi->dev, "spiclk %u KHz.\n",
 		 (spi->max_speed_hz + 500) / 1000);
-	if (read_param->chipid != spi->chip_select)
+	if (read_param->busid != spi->master->bus_num ||
+	    read_param->chipid != spi->chip_select)
 		return -ENODEV;
 	while (len > 0) {
 		/* spi_write_then_read can only work with small chunk */
@@ -80,11 +83,12 @@ static struct spi_driver early_seeprom_driver __initdata = {
 	.probe	= early_seeprom_probe,
 };
 
-int __init spi_eeprom_read(int chipid, int address,
+int __init spi_eeprom_read(int busid, int chipid, int address,
 			   unsigned char *buf, int len)
 {
 	int ret;
 	struct read_param param = {
+		.busid = busid,
 		.chipid = chipid,
 		.address = address,
 		.buf = buf,

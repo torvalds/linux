@@ -111,6 +111,7 @@ static void __init rbtx4938_pci_setup(void)
 #define	SEEPROM2_CS	0	/* IOC */
 #define	SEEPROM3_CS	1	/* IOC */
 #define	SRTC_CS	2	/* IOC */
+#define SPI_BUSNO	0
 
 static int __init rbtx4938_ethaddr_init(void)
 {
@@ -120,7 +121,7 @@ static int __init rbtx4938_ethaddr_init(void)
 	int i;
 
 	/* 0-3: "MAC\0", 4-9:eth0, 10-15:eth1, 16:sum */
-	if (spi_eeprom_read(SEEPROM1_CS, 0, dat, sizeof(dat))) {
+	if (spi_eeprom_read(SPI_BUSNO, SEEPROM1_CS, 0, dat, sizeof(dat))) {
 		printk(KERN_ERR "seeprom: read error.\n");
 		return -ENODEV;
 	} else {
@@ -287,9 +288,9 @@ static int __init rbtx4938_spi_init(void)
 		.mode = SPI_MODE_1 | SPI_CS_HIGH,
 	};
 	spi_register_board_info(&srtc_info, 1);
-	spi_eeprom_register(SEEPROM1_CS);
-	spi_eeprom_register(16 + SEEPROM2_CS);
-	spi_eeprom_register(16 + SEEPROM3_CS);
+	spi_eeprom_register(SPI_BUSNO, SEEPROM1_CS, 128);
+	spi_eeprom_register(SPI_BUSNO, 16 + SEEPROM2_CS, 128);
+	spi_eeprom_register(SPI_BUSNO, 16 + SEEPROM3_CS, 128);
 	gpio_request(16 + SRTC_CS, "rtc-rs5c348");
 	gpio_direction_output(16 + SRTC_CS, 0);
 	gpio_request(SEEPROM1_CS, "seeprom1");
@@ -298,7 +299,7 @@ static int __init rbtx4938_spi_init(void)
 	gpio_direction_output(16 + SEEPROM2_CS, 1);
 	gpio_request(16 + SEEPROM3_CS, "seeprom3");
 	gpio_direction_output(16 + SEEPROM3_CS, 1);
-	tx4938_spi_init(0);
+	tx4938_spi_init(SPI_BUSNO);
 	return 0;
 }
 
