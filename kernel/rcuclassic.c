@@ -86,8 +86,10 @@ static void force_quiescent_state(struct rcu_data *rdp,
 {
 	int cpu;
 	cpumask_t cpumask;
+	unsigned long flags;
+
 	set_need_resched();
-	spin_lock(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	if (unlikely(!rcp->signaled)) {
 		rcp->signaled = 1;
 		/*
@@ -113,7 +115,7 @@ static void force_quiescent_state(struct rcu_data *rdp,
 		for_each_cpu_mask_nr(cpu, cpumask)
 			smp_send_reschedule(cpu);
 	}
-	spin_unlock(&rcp->lock);
+	spin_unlock_irqrestore(&rcp->lock, flags);
 }
 #else
 static inline void force_quiescent_state(struct rcu_data *rdp,
@@ -301,17 +303,18 @@ static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 {
 	int cpu;
 	long delta;
+	unsigned long flags;
 
 	/* Only let one CPU complain about others per time interval. */
 
-	spin_lock(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	delta = get_seconds() - rcp->gp_check;
 	if (delta < 2L || cpus_empty(rcp->cpumask)) {
 		spin_unlock(&rcp->lock);
 		return;
 	}
 	rcp->gp_check = get_seconds() + 30;
-	spin_unlock(&rcp->lock);
+	spin_unlock_irqrestore(&rcp->lock, flags);
 
 	/* OK, time to rat on our buddy... */
 
@@ -324,13 +327,15 @@ static void print_other_cpu_stall(struct rcu_ctrlblk *rcp)
 
 static void print_cpu_stall(struct rcu_ctrlblk *rcp)
 {
+	unsigned long flags;
+
 	printk(KERN_ERR "RCU detected CPU %d stall (t=%lu/%lu)\n",
 			smp_processor_id(), get_seconds(), rcp->gp_check);
 	dump_stack();
-	spin_lock(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	if ((long)(get_seconds() - rcp->gp_check) >= 0L)
 		rcp->gp_check = get_seconds() + 30;
-	spin_unlock(&rcp->lock);
+	spin_unlock_irqrestore(&rcp->lock, flags);
 }
 
 static void check_cpu_stall(struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
@@ -413,6 +418,8 @@ static void cpu_quiet(int cpu, struct rcu_ctrlblk *rcp)
 static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 					struct rcu_data *rdp)
 {
+	unsigned long flags;
+
 	if (rdp->quiescbatch != rcp->cur) {
 		/* start new grace period: */
 		rdp->qs_pending = 1;
@@ -436,7 +443,7 @@ static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 		return;
 	rdp->qs_pending = 0;
 
-	spin_lock(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	/*
 	 * rdp->quiescbatch/rcp->cur and the cpu bitmap can come out of sync
 	 * during cpu startup. Ignore the quiescent state.
@@ -444,7 +451,7 @@ static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 	if (likely(rdp->quiescbatch == rcp->cur))
 		cpu_quiet(rdp->cpu, rcp);
 
-	spin_unlock(&rcp->lock);
+	spin_unlock_irqrestore(&rcp->lock, flags);
 }
 
 
@@ -469,21 +476,22 @@ static void rcu_move_batch(struct rcu_data *this_rdp, struct rcu_head *list,
 static void __rcu_offline_cpu(struct rcu_data *this_rdp,
 				struct rcu_ctrlblk *rcp, struct rcu_data *rdp)
 {
+	unsigned long flags;
+
 	/*
 	 * if the cpu going offline owns the grace period
 	 * we can block indefinitely waiting for it, so flush
 	 * it here
 	 */
-	spin_lock_bh(&rcp->lock);
+	spin_lock_irqsave(&rcp->lock, flags);
 	if (rcp->cur != rcp->completed)
 		cpu_quiet(rdp->cpu, rcp);
 	rcu_move_batch(this_rdp, rdp->donelist, rdp->donetail, rcp->cur + 1);
 	rcu_move_batch(this_rdp, rdp->nxtlist, rdp->nxttail[2], rcp->cur + 1);
-	spin_unlock_bh(&rcp->lock);
+	spin_unlock(&rcp->lock);
 
-	local_irq_disable();
 	this_rdp->qlen += rdp->qlen;
-	local_irq_enable();
+	local_irq_restore(flags);
 }
 
 static void rcu_offline_cpu(int cpu)
@@ -550,12 +558,12 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 
 		if (rcu_batch_after(rdp->batch, rcp->pending)) {
 			/* and start it/schedule start if it's a new batch */
-			spin_lock(&rcp->lock);
+			spin_lock_irqsave(&rcp->lock, flags);
 			if (rcu_batch_after(rdp->batch, rcp->pending)) {
 				rcp->pending = rdp->batch;
 				rcu_start_batch(rcp);
 			}
-			spin_unlock(&rcp->lock);
+			spin_unlock_irqrestore(&rcp->lock, flags);
 		}
 	}
 
