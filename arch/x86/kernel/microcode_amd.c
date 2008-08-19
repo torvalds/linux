@@ -500,13 +500,15 @@ static struct microcode_ops microcode_amd_ops = {
 
 static int __init microcode_amd_module_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(get_cpu());
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
 	equiv_cpu_table = NULL;
-	if (c->x86_vendor == X86_VENDOR_AMD)
-		return microcode_init(&microcode_amd_ops, THIS_MODULE);
-	else
+	if (c->x86_vendor != X86_VENDOR_AMD) {
+		printk(KERN_ERR "microcode: CPU platform is not AMD-capable\n");
 		return -ENODEV;
+	}
+
+	return microcode_init(&microcode_amd_ops, THIS_MODULE);
 }
 
 static void __exit microcode_amd_module_exit(void)

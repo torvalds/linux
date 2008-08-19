@@ -531,12 +531,14 @@ static struct microcode_ops microcode_intel_ops = {
 
 static int __init microcode_intel_module_init(void)
 {
-	struct cpuinfo_x86 *c = &cpu_data(get_cpu());
+	struct cpuinfo_x86 *c = &cpu_data(0);
 
-	if (c->x86_vendor == X86_VENDOR_INTEL)
-		return microcode_init(&microcode_intel_ops, THIS_MODULE);
-	else
+	if (c->x86_vendor != X86_VENDOR_INTEL) {
+                printk(KERN_ERR "microcode: CPU platform is not Intel-capable\n");
 		return -ENODEV;
+	}
+
+	return microcode_init(&microcode_intel_ops, THIS_MODULE);
 }
 
 static void __exit microcode_intel_module_exit(void)
