@@ -36,12 +36,6 @@ config PNP_DEBUG_MESSAGES
 
 if PNP
 
-config PNP_DEBUG
-	bool "PnP Debug Messages"
-	help
-	  Say Y if you want the Plug and Play Layer to print debug messages.
-	  This is useful if you are developing a PnP driver or troubleshooting.
-
 comment "Protocols"
 
 source "drivers/pnp/isapnp/Kconfig"
