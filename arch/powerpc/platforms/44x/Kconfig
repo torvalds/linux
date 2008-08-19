@@ -60,6 +60,7 @@ config RAINIER
 	bool "Rainier"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 440GRX
 	select PCI
 	help
