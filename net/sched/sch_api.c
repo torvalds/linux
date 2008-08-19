@@ -1088,14 +1088,13 @@ create_n_graft:
 	}
 
 graft:
-	if (1) {
-		err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
-		if (err) {
-			if (q)
-				qdisc_destroy(q);
-			return err;
-		}
+	err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
+	if (err) {
+		if (q)
+			qdisc_destroy(q);
+		return err;
 	}
+
 	return 0;
 }
 
