@@ -207,7 +207,7 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	case WLAN_HT_CAP_MIMO_PS_DISABLED:
 		break;
 	default:
-		IWL_WARNING("Invalid MIMO PS mode %d", mimo_ps_mode);
+		IWL_WARNING("Invalid MIMO PS mode %d\n", mimo_ps_mode);
 		break;
 	}
 
@@ -969,7 +969,7 @@ int iwl_get_sta_id(struct iwl_priv *priv, struct ieee80211_hdr *hdr)
 		return priv->hw_params.bcast_sta_id;
 
 	default:
-		IWL_WARNING("Unknown mode of operation: %d", priv->iw_mode);
+		IWL_WARNING("Unknown mode of operation: %d\n", priv->iw_mode);
 		return priv->hw_params.bcast_sta_id;
 	}
 }

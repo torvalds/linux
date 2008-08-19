@@ -1130,7 +1130,7 @@ module_param(isoc, int, 0644);
 MODULE_PARM_DESC(isoc, "Set isochronous transfers for SCO over HCI support");
 #endif
 
-MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth HCI USB driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

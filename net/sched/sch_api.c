@@ -27,6 +27,7 @@
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/hrtimer.h>
+#include <linux/lockdep.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -331,7 +332,7 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (!s || tsize != s->tsize || (!tab && tsize > 0))
 		return ERR_PTR(-EINVAL);
 
-	spin_lock_bh(&qdisc_stab_lock);
+	spin_lock(&qdisc_stab_lock);
 
 	list_for_each_entry(stab, &qdisc_stab_list, list) {
 		if (memcmp(&stab->szopts, s, sizeof(*s)))
@@ -339,11 +340,11 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 		if (tsize > 0 && memcmp(stab->data, tab, tsize * sizeof(u16)))
 			continue;
 		stab->refcnt++;
-		spin_unlock_bh(&qdisc_stab_lock);
+		spin_unlock(&qdisc_stab_lock);
 		return stab;
 	}
 
-	spin_unlock_bh(&qdisc_stab_lock);
+	spin_unlock(&qdisc_stab_lock);
 
 	stab = kmalloc(sizeof(*stab) + tsize * sizeof(u16), GFP_KERNEL);
 	if (!stab)
@@ -354,9 +355,9 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (tsize > 0)
 		memcpy(stab->data, tab, tsize * sizeof(u16));
 
-	spin_lock_bh(&qdisc_stab_lock);
+	spin_lock(&qdisc_stab_lock);
 	list_add_tail(&stab->list, &qdisc_stab_list);
-	spin_unlock_bh(&qdisc_stab_lock);
+	spin_unlock(&qdisc_stab_lock);
 
 	return stab;
 }
@@ -366,14 +367,14 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 	if (!tab)
 		return;
 
-	spin_lock_bh(&qdisc_stab_lock);
+	spin_lock(&qdisc_stab_lock);
 
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
 		kfree(tab);
 	}
 
-	spin_unlock_bh(&qdisc_stab_lock);
+	spin_unlock(&qdisc_stab_lock);
 }
 EXPORT_SYMBOL(qdisc_put_stab);
 
@@ -426,7 +427,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	smp_wmb();
-	__netif_schedule(wd->qdisc);
+	__netif_schedule(qdisc_root(wd->qdisc));
 
 	return HRTIMER_NORESTART;
 }
@@ -637,11 +638,8 @@ static void notify_and_destroy(struct sk_buff *skb, struct nlmsghdr *n, u32 clid
 	if (new || old)
 		qdisc_notify(skb, n, clid, old, new);
 
-	if (old) {
-		spin_lock_bh(&old->q.lock);
+	if (old)
 		qdisc_destroy(old);
-		spin_unlock_bh(&old->q.lock);
-	}
 }
 
 /* Graft qdisc "new" to class "classid" of qdisc "parent" or
@@ -707,6 +705,10 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 	return err;
 }
 
+/* lockdep annotation is needed for ingress; egress gets it only for name */
+static struct lock_class_key qdisc_tx_lock;
+static struct lock_class_key qdisc_rx_lock;
+
 /*
    Allocate and initialize new qdisc.
 
@@ -767,6 +769,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
+		lockdep_set_class(qdisc_lock(sch), &qdisc_rx_lock);
 	} else {
 		if (handle == 0) {
 			handle = qdisc_alloc_handle(dev);
@@ -774,6 +777,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			if (handle == 0)
 				goto err_out3;
 		}
+		lockdep_set_class(qdisc_lock(sch), &qdisc_tx_lock);
 	}
 
 	sch->handle = handle;
@@ -1084,20 +1088,13 @@ create_n_graft:
 	}
 
 graft:
-	if (1) {
-		spinlock_t *root_lock;
-
-		err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
-		if (err) {
-			if (q) {
-				root_lock = qdisc_root_lock(q);
-				spin_lock_bh(root_lock);
-				qdisc_destroy(q);
-				spin_unlock_bh(root_lock);
-			}
-			return err;
-		}
+	err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
+	if (err) {
+		if (q)
+			qdisc_destroy(q);
+		return err;
 	}
+
 	return 0;
 }
 

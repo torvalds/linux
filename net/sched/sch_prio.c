@@ -113,11 +113,11 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	if ((ret = qdisc->ops->requeue(skb, qdisc)) == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
 		sch->qstats.requeues++;
-		return 0;
+		return NET_XMIT_SUCCESS;
 	}
 	if (net_xmit_drop_count(ret))
 		sch->qstats.drops++;
-	return NET_XMIT_DROP;
+	return ret;
 }
 
 

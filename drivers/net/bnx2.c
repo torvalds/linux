@@ -35,8 +35,8 @@
 #include <linux/time.h>
 #include <linux/ethtool.h>
 #include <linux/mii.h>
-#ifdef NETIF_F_HW_VLAN_TX
 #include <linux/if_vlan.h>
+#if defined(CONFIG_VLAN_8021Q) || defined(CONFIG_VLAN_8021Q_MODULE)
 #define BCM_VLAN 1
 #endif
 #include <net/ip.h>
@@ -57,8 +57,8 @@
 
 #define DRV_MODULE_NAME		"bnx2"
 #define PFX DRV_MODULE_NAME	": "
-#define DRV_MODULE_VERSION	"1.7.9"
-#define DRV_MODULE_RELDATE	"July 18, 2008"
+#define DRV_MODULE_VERSION	"1.8.0"
+#define DRV_MODULE_RELDATE	"Aug 14, 2008"
 
 #define RUN_AT(x) (jiffies + (x))
 
@@ -2876,6 +2876,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		struct sw_bd *rx_buf;
 		struct sk_buff *skb;
 		dma_addr_t dma_addr;
+		u16 vtag = 0;
+		int hw_vlan __maybe_unused = 0;
 
 		sw_ring_cons = RX_RING_IDX(sw_cons);
 		sw_ring_prod = RX_RING_IDX(sw_prod);
@@ -2919,7 +2921,7 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		if (len <= bp->rx_copy_thresh) {
 			struct sk_buff *new_skb;
 
-			new_skb = netdev_alloc_skb(bp->dev, len + 2);
+			new_skb = netdev_alloc_skb(bp->dev, len + 6);
 			if (new_skb == NULL) {
 				bnx2_reuse_rx_skb(bp, rxr, skb, sw_ring_cons,
 						  sw_ring_prod);
@@ -2928,9 +2930,9 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 
 			/* aligned copy */
 			skb_copy_from_linear_data_offset(skb,
-							 BNX2_RX_OFFSET - 2,
-				      new_skb->data, len + 2);
-			skb_reserve(new_skb, 2);
+							 BNX2_RX_OFFSET - 6,
+				      new_skb->data, len + 6);
+			skb_reserve(new_skb, 6);
 			skb_put(new_skb, len);
 
 			bnx2_reuse_rx_skb(bp, rxr, skb,
@@ -2940,6 +2942,25 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		} else if (unlikely(bnx2_rx_skb(bp, rxr, skb, len, hdr_len,
 			   dma_addr, (sw_ring_cons << 16) | sw_ring_prod)))
 			goto next_rx;
+
+		if ((status & L2_FHDR_STATUS_L2_VLAN_TAG) &&
+		    !(bp->rx_mode & BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG)) {
+			vtag = rx_hdr->l2_fhdr_vlan_tag;
+#ifdef BCM_VLAN
+			if (bp->vlgrp)
+				hw_vlan = 1;
+			else
+#endif
+			{
+				struct vlan_ethhdr *ve = (struct vlan_ethhdr *)
+					__skb_push(skb, 4);
+
+				memmove(ve, skb->data + 4, ETH_ALEN * 2);
+				ve->h_vlan_proto = htons(ETH_P_8021Q);
+				ve->h_vlan_TCI = htons(vtag);
+				len += 4;
+			}
+		}
 
 		skb->protocol = eth_type_trans(skb, bp->dev);
 
@@ -2962,10 +2983,8 @@ bnx2_rx_int(struct bnx2 *bp, struct bnx2_napi *bnapi, int budget)
 		}
 
 #ifdef BCM_VLAN
-		if ((status & L2_FHDR_STATUS_L2_VLAN_TAG) && bp->vlgrp) {
-			vlan_hwaccel_receive_skb(skb, bp->vlgrp,
-				rx_hdr->l2_fhdr_vlan_tag);
-		}
+		if (hw_vlan)
+			vlan_hwaccel_receive_skb(skb, bp->vlgrp, vtag);
 		else
 #endif
 			netif_receive_skb(skb);
@@ -3237,10 +3256,10 @@ bnx2_set_rx_mode(struct net_device *dev)
 				  BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG);
 	sort_mode = 1 | BNX2_RPM_SORT_USER0_BC_EN;
 #ifdef BCM_VLAN
-	if (!bp->vlgrp && !(bp->flags & BNX2_FLAG_ASF_ENABLE))
+	if (!bp->vlgrp && (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN))
 		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
 #else
-	if (!(bp->flags & BNX2_FLAG_ASF_ENABLE))
+	if (bp->flags & BNX2_FLAG_CAN_KEEP_VLAN)
 		rx_mode |= BNX2_EMAC_RX_MODE_KEEP_VLAN_TAG;
 #endif
 	if (dev->flags & IFF_PROMISC) {
@@ -5963,10 +5982,12 @@ bnx2_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		vlan_tag_flags |= TX_BD_FLAGS_TCP_UDP_CKSUM;
 	}
 
+#ifdef BCM_VLAN
 	if (bp->vlgrp && vlan_tx_tag_present(skb)) {
 		vlan_tag_flags |=
 			(TX_BD_FLAGS_VLAN_TAG | (vlan_tx_tag_get(skb) << 16));
 	}
+#endif
 	if ((mss = skb_shinfo(skb)->gso_size)) {
 		u32 tcp_opt_len, ip_tcp_len;
 		struct iphdr *iph;
