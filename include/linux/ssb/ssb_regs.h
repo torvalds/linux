@@ -316,6 +316,21 @@
 #define SSB_SPROM4_PA1B1		0x1090
 #define SSB_SPROM4_PA1B2		0x1092
 
+/* SPROM Revision 5 (inherits most data from rev 4) */
+#define SSB_SPROM5_BFLLO		0x104A	/* Boardflags (low 16 bits) */
+#define SSB_SPROM5_BFLHI		0x104C  /* Board Flags Hi */
+#define SSB_SPROM5_IL0MAC		0x1052	/* 6 byte MAC address for a/b/g/n */
+#define SSB_SPROM5_CCODE		0x1044	/* Country Code (2 bytes) */
+#define SSB_SPROM5_GPIOA		0x1076	/* Gen. Purpose IO # 0 and 1 */
+#define  SSB_SPROM5_GPIOA_P0		0x00FF	/* Pin 0 */
+#define  SSB_SPROM5_GPIOA_P1		0xFF00	/* Pin 1 */
+#define  SSB_SPROM5_GPIOA_P1_SHIFT	8
+#define SSB_SPROM5_GPIOB		0x1078	/* Gen. Purpose IO # 2 and 3 */
+#define  SSB_SPROM5_GPIOB_P2		0x00FF	/* Pin 2 */
+#define  SSB_SPROM5_GPIOB_P3		0xFF00	/* Pin 3 */
+#define  SSB_SPROM5_GPIOB_P3_SHIFT	8
+
+
 /* Values for SSB_SPROM1_BINF_CCODE */
 enum {
 	SSB_SPROM1CCODE_WORLD = 0,
