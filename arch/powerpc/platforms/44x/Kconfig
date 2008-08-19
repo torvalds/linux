@@ -92,6 +92,17 @@ config CANYONLANDS
 	help
 	  This option enables support for the AMCC PPC460EX evaluation board.
 
+config GLACIER
+	bool "Glacier"
+	depends on 44x
+	default n
+	select PPC44x_SIMPLE
+	select 460EX # Odd since it uses 460GT but the effects are the same
+	select PCI
+	select PPC4xx_PCI_EXPRESS
+	help
+	  This option enables support for the AMCC PPC460GT evaluation board.
+
 config YOSEMITE
 	bool "Yosemite"
 	depends on 44x
