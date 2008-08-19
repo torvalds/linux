@@ -386,7 +386,7 @@ static void ioapic_mmio_write(struct kvm_io_device *this, gpa_t addr, int len,
 		break;
 #ifdef	CONFIG_IA64
 	case IOAPIC_REG_EOI:
-		kvm_ioapic_update_eoi(ioapic->kvm, data);
+		kvm_ioapic_update_eoi(ioapic->kvm, data, IOAPIC_LEVEL_TRIG);
 		break;
 #endif
 
