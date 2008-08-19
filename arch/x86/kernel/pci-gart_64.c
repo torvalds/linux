@@ -276,7 +276,7 @@ gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
 	unsigned long bus;
 
 	if (!dev)
-		dev = &fallback_dev;
+		dev = &x86_dma_fallback_dev;
 
 	if (!need_iommu(dev, paddr, size))
 		return paddr;
@@ -427,7 +427,7 @@ gart_map_sg(struct device *dev, struct scatterlist *sg, int nents, int dir)
 		return 0;
 
 	if (!dev)
-		dev = &fallback_dev;
+		dev = &x86_dma_fallback_dev;
 
 	out = 0;
 	start = 0;

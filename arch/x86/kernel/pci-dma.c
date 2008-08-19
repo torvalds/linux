@@ -41,11 +41,12 @@ EXPORT_SYMBOL(bad_dma_address);
 /* Dummy device used for NULL arguments (normally ISA). Better would
    be probably a smaller DMA mask, but this is bug-to-bug compatible
    to older i386. */
-struct device fallback_dev = {
+struct device x86_dma_fallback_dev = {
 	.bus_id = "fallback device",
 	.coherent_dma_mask = DMA_32BIT_MASK,
-	.dma_mask = &fallback_dev.coherent_dma_mask,
+	.dma_mask = &x86_dma_fallback_dev.coherent_dma_mask,
 };
+EXPORT_SYMBOL(x86_dma_fallback_dev);
 
 int dma_set_mask(struct device *dev, u64 mask)
 {
@@ -240,50 +241,6 @@ int dma_supported(struct device *dev, u64 mask)
 	return 1;
 }
 EXPORT_SYMBOL(dma_supported);
-
-/*
- * Allocate memory for a coherent mapping.
- */
-	void *
-dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
-		   gfp_t gfp)
-{
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
-	void *memory;
-
-	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
-		return memory;
-
-	if (!dev) {
-		dev = &fallback_dev;
-		gfp |= GFP_DMA;
-	}
-
-	if (ops->alloc_coherent)
-		return ops->alloc_coherent(dev, size,
-				dma_handle, gfp);
-	return NULL;
-}
-EXPORT_SYMBOL(dma_alloc_coherent);
-
-/*
- * Unmap coherent memory.
- * The caller must ensure that the device has finished accessing the mapping.
- */
-void dma_free_coherent(struct device *dev, size_t size,
-		       void *vaddr, dma_addr_t bus)
-{
-	struct dma_mapping_ops *ops = get_dma_ops(dev);
-
-	WARN_ON(irqs_disabled());       /* for portability */
-
-	if (dma_release_from_coherent(dev, get_order(size), vaddr))
-		return;
-
-	if (ops->free_coherent)
-		ops->free_coherent(dev, size, vaddr, bus);
-}
-EXPORT_SYMBOL(dma_free_coherent);
 
 static int __init pci_iommu_init(void)
 {
