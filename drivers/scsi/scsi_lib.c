@@ -2105,22 +2105,21 @@ scsi_test_unit_ready(struct scsi_device *sdev, int timeout, int retries,
 	do {
 		result = scsi_execute_req(sdev, cmd, DMA_NONE, NULL, 0, sshdr,
 					  timeout, retries);
-	} while ((driver_byte(result) & DRIVER_SENSE) &&
-		 sshdr && sshdr->sense_key == UNIT_ATTENTION &&
-		 --retries);
+		if (sdev->removable && scsi_sense_valid(sshdr) &&
+		    sshdr->sense_key == UNIT_ATTENTION)
+			sdev->changed = 1;
+	} while (scsi_sense_valid(sshdr) &&
+		 sshdr->sense_key == UNIT_ATTENTION && --retries);
 
 	if (!sshdr)
 		/* could not allocate sense buffer, so can't process it */
 		return result;
 
-	if ((driver_byte(result) & DRIVER_SENSE) && sdev->removable) {
-
-		if ((scsi_sense_valid(sshdr)) &&
-		    ((sshdr->sense_key == UNIT_ATTENTION) ||
-		     (sshdr->sense_key == NOT_READY))) {
-			sdev->changed = 1;
-			result = 0;
-		}
+	if (sdev->removable && scsi_sense_valid(sshdr) &&
+	    (sshdr->sense_key == UNIT_ATTENTION ||
+	     sshdr->sense_key == NOT_READY)) {
+		sdev->changed = 1;
+		result = 0;
 	}
 	if (!sshdr_external)
 		kfree(sshdr);
