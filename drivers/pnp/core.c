@@ -221,3 +221,14 @@ static int __init pnp_init(void)
 }
 
 subsys_initcall(pnp_init);
+
+int pnp_debug;
+
+#if defined(CONFIG_PNP_DEBUG_MESSAGES)
+static int __init pnp_debug_setup(char *__unused)
+{
+	pnp_debug = 1;
+	return 1;
+}
+__setup("pnp.debug", pnp_debug_setup);
+#endif

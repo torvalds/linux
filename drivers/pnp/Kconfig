@@ -20,6 +20,20 @@ menuconfig PNP
 
 	  If unsure, say Y.
 
+config PNP_DEBUG_MESSAGES
+	default y
+	bool "PNP debugging messages"
+	depends on PNP
+	help
+	  Say Y here if you want the PNP layer to be able to produce debugging
+	  messages if needed.  The messages can be enabled at boot-time with
+	  the pnp.debug kernel parameter.
+
+	  This option allows you to save a bit of space if you do not want
+	  the messages to even be built into the kernel.
+
+	  If you have any doubts about this, say Y here.
+
 if PNP
 
 config PNP_DEBUG
