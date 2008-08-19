@@ -128,6 +128,70 @@ done:
 }
 
 /**
+ * usb_function_deactivate - prevent function and gadget enumeration
+ * @function: the function that isn't yet ready to respond
+ *
+ * Blocks response of the gadget driver to host enumeration by
+ * preventing the data line pullup from being activated.  This is
+ * normally called during @bind() processing to change from the
+ * initial "ready to respond" state, or when a required resource
+ * becomes available.
+ *
+ * For example, drivers that serve as a passthrough to a userspace
+ * daemon can block enumeration unless that daemon (such as an OBEX,
+ * MTP, or print server) is ready to handle host requests.
+ *
+ * Not all systems support software control of their USB peripheral
+ * data pullups.
+ *
+ * Returns zero on success, else negative errno.
+ */
+int usb_function_deactivate(struct usb_function *function)
+{
+	struct usb_composite_dev	*cdev = function->config->cdev;
+	int				status = 0;
+
+	spin_lock(&cdev->lock);
+
+	if (cdev->deactivations == 0)
+		status = usb_gadget_disconnect(cdev->gadget);
+	if (status == 0)
+		cdev->deactivations++;
+
+	spin_unlock(&cdev->lock);
+	return status;
+}
+
+/**
+ * usb_function_activate - allow function and gadget enumeration
+ * @function: function on which usb_function_activate() was called
+ *
+ * Reverses effect of usb_function_deactivate().  If no more functions
+ * are delaying their activation, the gadget driver will respond to
+ * host enumeration procedures.
+ *
+ * Returns zero on success, else negative errno.
+ */
+int usb_function_activate(struct usb_function *function)
+{
+	struct usb_composite_dev	*cdev = function->config->cdev;
+	int				status = 0;
+
+	spin_lock(&cdev->lock);
+
+	if (WARN_ON(cdev->deactivations == 0))
+		status = -EINVAL;
+	else {
+		cdev->deactivations--;
+		if (cdev->deactivations == 0)
+			status = usb_gadget_connect(cdev->gadget);
+	}
+
+	spin_unlock(&cdev->lock);
+	return status;
+}
+
+/**
  * usb_interface_id() - allocate an unused interface ID
  * @config: configuration associated with the interface
  * @function: function handling the interface
