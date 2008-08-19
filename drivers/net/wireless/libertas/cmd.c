@@ -614,47 +614,67 @@ static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_cmd_802_11_rf_tx_power(struct cmd_ds_command *cmd,
-				       u16 cmd_action, void *pdata_buf)
+/**
+ *  @brief Get the min, max, and current TX power
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param curlevel  	Current power level in dBm
+ *  @param minlevel  	Minimum supported power level in dBm (optional)
+ *  @param maxlevel  	Maximum supported power level in dBm (optional)
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
+		     s16 *maxlevel)
 {
-
-	struct cmd_ds_802_11_rf_tx_power *prtp = &cmd->params.txp;
+	struct cmd_ds_802_11_rf_tx_power cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	cmd->size =
-	    cpu_to_le16((sizeof(struct cmd_ds_802_11_rf_tx_power)) + S_DS_GEN);
-	cmd->command = cpu_to_le16(CMD_802_11_RF_TX_POWER);
-	prtp->action = cpu_to_le16(cmd_action);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_GET);
 
-	lbs_deb_cmd("RF_TX_POWER_CMD: size:%d cmd:0x%x Act:%d\n",
-		    le16_to_cpu(cmd->size), le16_to_cpu(cmd->command),
-		    le16_to_cpu(prtp->action));
-
-	switch (cmd_action) {
-	case CMD_ACT_TX_POWER_OPT_GET:
-		prtp->action = cpu_to_le16(CMD_ACT_GET);
-		prtp->currentlevel = 0;
-		break;
-
-	case CMD_ACT_TX_POWER_OPT_SET_HIGH:
-		prtp->action = cpu_to_le16(CMD_ACT_SET);
-		prtp->currentlevel = cpu_to_le16(CMD_ACT_TX_POWER_INDEX_HIGH);
-		break;
-
-	case CMD_ACT_TX_POWER_OPT_SET_MID:
-		prtp->action = cpu_to_le16(CMD_ACT_SET);
-		prtp->currentlevel = cpu_to_le16(CMD_ACT_TX_POWER_INDEX_MID);
-		break;
-
-	case CMD_ACT_TX_POWER_OPT_SET_LOW:
-		prtp->action = cpu_to_le16(CMD_ACT_SET);
-		prtp->currentlevel = cpu_to_le16(*((u16 *) pdata_buf));
-		break;
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_TX_POWER, &cmd);
+	if (ret == 0) {
+		*curlevel = le16_to_cpu(cmd.curlevel);
+		if (minlevel)
+			*minlevel = le16_to_cpu(cmd.minlevel);
+		if (maxlevel)
+			*maxlevel = le16_to_cpu(cmd.maxlevel);
 	}
 
 	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+	return ret;
+}
+
+/**
+ *  @brief Set the TX power
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param dbm  	The desired power level in dBm
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_tx_power(struct lbs_private *priv, s16 dbm)
+{
+	struct cmd_ds_802_11_rf_tx_power cmd;
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.curlevel = cpu_to_le16(dbm);
+
+	lbs_deb_cmd("SET_RF_TX_POWER: %d dBm\n", dbm);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_RF_TX_POWER, &cmd);
+
+	lbs_deb_leave(LBS_DEB_CMD);
+	return ret;
 }
 
 static int lbs_cmd_802_11_monitor_mode(struct cmd_ds_command *cmd,
@@ -1418,11 +1438,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_BBP_REG_ACCESS:
 	case CMD_RF_REG_ACCESS:
 		ret = lbs_cmd_reg_access(cmdptr, cmd_action, pdata_buf);
-		break;
-
-	case CMD_802_11_RF_TX_POWER:
-		ret = lbs_cmd_802_11_rf_tx_power(cmdptr,
-						 cmd_action, pdata_buf);
 		break;
 
 	case CMD_802_11_MONITOR_MODE:

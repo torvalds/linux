@@ -435,8 +435,12 @@ struct cmd_ds_802_11_mac_address {
 };
 
 struct cmd_ds_802_11_rf_tx_power {
+	struct cmd_header hdr;
+
 	__le16 action;
-	__le16 currentlevel;
+	__le16 curlevel;
+	s8 maxlevel;
+	s8 minlevel;
 };
 
 struct cmd_ds_802_11_rf_antenna {
@@ -701,7 +705,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_get_stat gstat;
 		struct cmd_ds_802_3_get_stat gstat_8023;
 		struct cmd_ds_802_11_snmp_mib smib;
-		struct cmd_ds_802_11_rf_tx_power txp;
 		struct cmd_ds_802_11_rf_antenna rant;
 		struct cmd_ds_802_11_monitor_mode monitor;
 		struct cmd_ds_802_11_ad_hoc_join adj;

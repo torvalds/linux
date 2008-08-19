@@ -422,26 +422,24 @@ static int lbs_get_txpow(struct net_device *dev,
 {
 	int ret = 0;
 	struct lbs_private *priv = dev->priv;
+	s16 curlevel = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_RF_TX_POWER,
-				    CMD_ACT_TX_POWER_OPT_GET,
-				    CMD_OPTION_WAITFORRSP, 0, NULL);
-
+	ret = lbs_get_tx_power(priv, &curlevel, NULL, NULL);
 	if (ret)
 		goto out;
 
-	lbs_deb_wext("tx power level %d dbm\n", priv->txpowerlevel);
-	vwrq->value = priv->txpowerlevel;
+	lbs_deb_wext("tx power level %d dbm\n", curlevel);
+
+	priv->txpower_cur = curlevel;
+	vwrq->value = curlevel;
 	vwrq->fixed = 1;
 	if (priv->radioon) {
 		vwrq->disabled = 0;
 		vwrq->flags = IW_TXPOW_DBM;
-	} else {
+	} else
 		vwrq->disabled = 1;
-	}
 
 out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -693,22 +691,12 @@ static int lbs_get_range(struct net_device *dev, struct iw_request_info *info,
 
 	range->sensitivity = 0;
 
-	/*
-	 * Setup the supported power level ranges
-	 */
+	/* Setup the supported power level ranges */
 	memset(range->txpower, 0, sizeof(range->txpower));
-	range->txpower[0] = 5;
-	range->txpower[1] = 7;
-	range->txpower[2] = 9;
-	range->txpower[3] = 11;
-	range->txpower[4] = 13;
-	range->txpower[5] = 15;
-	range->txpower[6] = 17;
-	range->txpower[7] = 19;
-
-	range->num_txpower = 8;
-	range->txpower_capa = IW_TXPOW_DBM;
-	range->txpower_capa |= IW_TXPOW_RANGE;
+	range->txpower_capa = IW_TXPOW_DBM | IW_TXPOW_RANGE;
+	range->txpower[0] = priv->txpower_min;
+	range->txpower[1] = priv->txpower_max;
+	range->num_txpower = 2;
 
 	range->event_capa[0] = (IW_EVENT_CAPA_K_0 |
 				IW_EVENT_CAPA_MASK(SIOCGIWAP) |
@@ -1844,39 +1832,46 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 {
 	int ret = 0;
 	struct lbs_private *priv = dev->priv;
-
-	u16 dbm;
+	s16 dbm = (s16) vwrq->value;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	if (vwrq->disabled) {
 		lbs_radio_ioctl(priv, RADIO_OFF);
-		return 0;
+		goto out;
 	}
 
-	priv->preamble = CMD_TYPE_AUTO_PREAMBLE;
+	if (vwrq->fixed == 0) {
+		/* Auto power control */
+		priv->preamble = CMD_TYPE_AUTO_PREAMBLE;
+		dbm = priv->txpower_max;
+	} else {
+		/* Userspace check in iwrange if it should use dBm or mW,
+		 * therefore this should never happen... Jean II */
+		if ((vwrq->flags & IW_TXPOW_TYPE) != IW_TXPOW_DBM) {
+			ret = -EOPNOTSUPP;
+			goto out;
+		}
+
+		/* Validate requested power level against firmware allowed levels */
+		if (priv->txpower_min && (dbm < priv->txpower_min)) {
+			ret = -EINVAL;
+			goto out;
+		}
+
+		if (priv->txpower_max && (dbm > priv->txpower_max)) {
+			ret = -EINVAL;
+			goto out;
+		}
+	}
 
 	lbs_radio_ioctl(priv, RADIO_ON);
 
-	/* Userspace check in iwrange if it should use dBm or mW,
-	 * therefore this should never happen... Jean II */
-	if ((vwrq->flags & IW_TXPOW_TYPE) == IW_TXPOW_MWATT) {
-		return -EOPNOTSUPP;
-	} else
-		dbm = (u16) vwrq->value;
+	lbs_deb_wext("txpower set %d dBm\n", dbm);
 
-	/* auto tx power control */
+	ret = lbs_set_tx_power(priv, dbm);
 
-	if (vwrq->fixed == 0)
-		dbm = 0xffff;
-
-	lbs_deb_wext("txpower set %d dbm\n", dbm);
-
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_RF_TX_POWER,
-				    CMD_ACT_TX_POWER_OPT_SET_LOW,
-				    CMD_OPTION_WAITFORRSP, 0, (void *)&dbm);
-
+out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
