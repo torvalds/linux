@@ -1200,7 +1200,7 @@ int iscsi_queuecommand(struct scsi_cmnd *sc, void (*done)(struct scsi_cmnd *))
 			goto reject;
 		case ISCSI_STATE_RECOVERY_FAILED:
 			reason = FAILURE_SESSION_RECOVERY_TIMEOUT;
-			sc->result = DID_NO_CONNECT << 16;
+			sc->result = DID_TRANSPORT_FAILFAST << 16;
 			break;
 		case ISCSI_STATE_TERMINATE:
 			reason = FAILURE_SESSION_TERMINATE;
@@ -2333,8 +2333,10 @@ static void iscsi_start_session_recovery(struct iscsi_session *session,
 	 * flush queues.
 	 */
 	spin_lock_bh(&session->lock);
-	fail_all_commands(conn, -1,
-			STOP_CONN_RECOVER ? DID_BUS_BUSY : DID_ERROR);
+	if (STOP_CONN_RECOVER)
+		fail_all_commands(conn, -1, DID_TRANSPORT_DISRUPTED);
+	else
+		fail_all_commands(conn, -1, DID_ERROR);
 	flush_control_queues(session, conn);
 	spin_unlock_bh(&session->lock);
 	mutex_unlock(&session->eh_mutex);
