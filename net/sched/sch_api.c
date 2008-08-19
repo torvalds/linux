@@ -638,11 +638,8 @@ static void notify_and_destroy(struct sk_buff *skb, struct nlmsghdr *n, u32 clid
 	if (new || old)
 		qdisc_notify(skb, n, clid, old, new);
 
-	if (old) {
-		sch_tree_lock(old);
+	if (old)
 		qdisc_destroy(old);
-		sch_tree_unlock(old);
-	}
 }
 
 /* Graft qdisc "new" to class "classid" of qdisc "parent" or
@@ -1092,16 +1089,10 @@ create_n_graft:
 
 graft:
 	if (1) {
-		spinlock_t *root_lock;
-
 		err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
 		if (err) {
-			if (q) {
-				root_lock = qdisc_root_lock(q);
-				spin_lock_bh(root_lock);
+			if (q)
 				qdisc_destroy(q);
-				spin_unlock_bh(root_lock);
-			}
 			return err;
 		}
 	}
