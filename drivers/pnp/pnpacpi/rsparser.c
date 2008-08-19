@@ -132,7 +132,8 @@ static void pnpacpi_parse_allocated_irqresource(struct pnp_dev *dev,
 	pnp_add_irq_resource(dev, irq, flags);
 }
 
-static int dma_flags(int type, int bus_master, int transfer)
+static int dma_flags(struct pnp_dev *dev, int type, int bus_master,
+		     int transfer)
 {
 	int flags = 0;
 
@@ -154,7 +155,7 @@ static int dma_flags(int type, int bus_master, int transfer)
 	default:
 		/* Set a default value ? */
 		flags |= IORESOURCE_DMA_COMPATIBLE;
-		pnp_err("Invalid DMA type");
+		dev_err(&dev->dev, "invalid DMA type %d\n", type);
 	}
 	switch (transfer) {
 	case ACPI_TRANSFER_8:
@@ -169,7 +170,7 @@ static int dma_flags(int type, int bus_master, int transfer)
 	default:
 		/* Set a default value ? */
 		flags |= IORESOURCE_DMA_8AND16BIT;
-		pnp_err("Invalid DMA transfer type");
+		dev_err(&dev->dev, "invalid DMA transfer type %d\n", transfer);
 	}
 
 	return flags;
@@ -336,7 +337,7 @@ static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
 	case ACPI_RESOURCE_TYPE_DMA:
 		dma = &res->data.dma;
 		if (dma->channel_count > 0 && dma->channels[0] != (u8) -1)
-			flags = dma_flags(dma->type, dma->bus_master,
+			flags = dma_flags(dev, dma->type, dma->bus_master,
 					  dma->transfer);
 		else
 			flags = IORESOURCE_DISABLED;
@@ -477,7 +478,7 @@ static __init void pnpacpi_parse_dma_option(struct pnp_dev *dev,
 	for (i = 0; i < p->channel_count; i++)
 		map |= 1 << p->channels[i];
 
-	flags = dma_flags(p->type, p->bus_master, p->transfer);
+	flags = dma_flags(dev, p->type, p->bus_master, p->transfer);
 	pnp_register_dma_resource(dev, option_flags, map, flags);
 }
 
@@ -608,8 +609,8 @@ static __init void pnpacpi_parse_address_option(struct pnp_dev *dev,
 	unsigned char flags = 0;
 
 	status = acpi_resource_to_address64(r, p);
-	if (!ACPI_SUCCESS(status)) {
-		pnp_warn("PnPACPI: failed to convert resource type %d",
+	if (ACPI_FAILURE(status)) {
+		dev_warn(&dev->dev, "can't convert resource type %d\n",
 			 r->type);
 		return;
 	}
