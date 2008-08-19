@@ -590,8 +590,6 @@ static int pgd_walk(pgd_t *pgd, int (*func)(struct page *, enum pt_level),
 	pmdidx_limit = 0;
 #endif
 
-	flush |= (*func)(virt_to_page(pgd), PT_PGD);
-
 	for (pgdidx = 0; pgdidx <= pgdidx_limit; pgdidx++) {
 		pud_t *pud;
 
@@ -637,7 +635,11 @@ static int pgd_walk(pgd_t *pgd, int (*func)(struct page *, enum pt_level),
 			}
 		}
 	}
+
 out:
+	/* Do the top level last, so that the callbacks can use it as
+	   a cue to do final things like tlb flushes. */
+	flush |= (*func)(virt_to_page(pgd), PT_PGD);
 
 	return flush;
 }
@@ -691,6 +693,26 @@ static int pin_page(struct page *page, enum pt_level level)
 
 		flush = 0;
 
+		/*
+		 * We need to hold the pagetable lock between the time
+		 * we make the pagetable RO and when we actually pin
+		 * it.  If we don't, then other users may come in and
+		 * attempt to update the pagetable by writing it,
+		 * which will fail because the memory is RO but not
+		 * pinned, so Xen won't do the trap'n'emulate.
+		 *
+		 * If we're using split pte locks, we can't hold the
+		 * entire pagetable's worth of locks during the
+		 * traverse, because we may wrap the preempt count (8
+		 * bits).  The solution is to mark RO and pin each PTE
+		 * page while holding the lock.  This means the number
+		 * of locks we end up holding is never more than a
+		 * batch size (~32 entries, at present).
+		 *
+		 * If we're not using split pte locks, we needn't pin
+		 * the PTE pages independently, because we're
+		 * protected by the overall pagetable lock.
+		 */
 		ptl = NULL;
 		if (level == PT_PTE)
 			ptl = lock_pte(page);
@@ -699,10 +721,9 @@ static int pin_page(struct page *page, enum pt_level level)
 					pfn_pte(pfn, PAGE_KERNEL_RO),
 					level == PT_PGD ? UVMF_TLB_FLUSH : 0);
 
-		if (level == PT_PTE)
+		if (ptl) {
 			xen_do_pin(MMUEXT_PIN_L1_TABLE, pfn);
 
-		if (ptl) {
 			/* Queue a deferred unlock for when this batch
 			   is completed. */
 			xen_mc_callback(do_unlock, ptl);
@@ -796,10 +817,18 @@ static int unpin_page(struct page *page, enum pt_level level)
 		spinlock_t *ptl = NULL;
 		struct multicall_space mcs;
 
+		/*
+		 * Do the converse to pin_page.  If we're using split
+		 * pte locks, we must be holding the lock for while
+		 * the pte page is unpinned but still RO to prevent
+		 * concurrent updates from seeing it in this
+		 * partially-pinned state.
+		 */
 		if (level == PT_PTE) {
 			ptl = lock_pte(page);
 
-			xen_do_pin(MMUEXT_UNPIN_TABLE, pfn);
+			if (ptl)
+				xen_do_pin(MMUEXT_UNPIN_TABLE, pfn);
 		}
 
 		mcs = __xen_mc_entry(0);
@@ -837,7 +866,7 @@ static void xen_pgd_unpin(pgd_t *pgd)
 
 #ifdef CONFIG_X86_PAE
 	/* Need to make sure unshared kernel PMD is unpinned */
-	pin_page(virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])), PT_PMD);
+	unpin_page(virt_to_page(pgd_page(pgd[pgd_index(TASK_SIZE)])), PT_PMD);
 #endif
 
 	pgd_walk(pgd, unpin_page, USER_LIMIT);
