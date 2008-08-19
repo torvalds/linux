@@ -557,6 +557,8 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 		local_irq_enable();
 
 		if (rcu_batch_after(rdp->batch, rcp->pending)) {
+			unsigned long flags;
+
 			/* and start it/schedule start if it's a new batch */
 			spin_lock_irqsave(&rcp->lock, flags);
 			if (rcu_batch_after(rdp->batch, rcp->pending)) {
