@@ -61,7 +61,7 @@ III. Quick usage guide
 ======================
 
 1) Get a kernel that supports kmemtrace and build it accordingly (i.e. enable
-CONFIG_KMEMTRACE and CONFIG_DEFAULT_ENABLED).
+CONFIG_KMEMTRACE and CONFIG_KMEMTRACE_DEFAULT_ENABLED).
 
 2) Get the userspace tool and build it:
 $ git-clone git://repo.or.cz/kmemtrace-user.git		# current repository

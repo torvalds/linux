@@ -63,7 +63,7 @@ Adding new data to the packet (features) is done at the end of the mandatory
 data:
 	Feature size	(2 byte)
 	Feature ID	(1 byte)
-	Feature data	(Feature size - 4 bytes)
+	Feature data	(Feature size - 3 bytes)
 
 
 Users:
