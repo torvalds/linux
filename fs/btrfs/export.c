@@ -71,11 +71,18 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 	struct dentry *result;
 	struct btrfs_key key;
 
+	key.objectid = root_objectid;
+	btrfs_set_key_type(&key, BTRFS_ROOT_ITEM_KEY);
+	key.offset = (u64)-1;
+
+	root = btrfs_read_fs_root_no_name(btrfs_sb(sb)->fs_info, &key);
+	if (IS_ERR(root))
+		return ERR_CAST(root);
+
 	key.objectid = objectid;
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;
 
-	root = btrfs_lookup_fs_root(btrfs_sb(sb)->fs_info, root_objectid);
 	inode = btrfs_iget(sb, &key, root, NULL);
 	if (IS_ERR(inode))
 		return (void *)inode;
@@ -177,6 +184,10 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 		goto out;
 
 	objectid = key.offset;
+
+	/* If we are already at the root of a subvol, return the real root */
+	if (objectid == dir->i_ino)
+		return dget(dir->i_sb->s_root);
 
 	/* Build a new key for the inode item */
 	key.objectid = objectid;
