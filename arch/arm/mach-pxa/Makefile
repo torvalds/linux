@@ -38,10 +38,12 @@ obj-$(CONFIG_MACH_TOSA)		+= tosa.o
 obj-$(CONFIG_MACH_EM_X270)	+= em-x270.o
 obj-$(CONFIG_MACH_MAGICIAN)	+= magician.o
 obj-$(CONFIG_ARCH_PXA_ESERIES)	+= eseries.o eseries_udc.o
-obj-$(CONFIG_MACH_E740)		+= e740_lcd.o
-obj-$(CONFIG_MACH_E750)		+= e750_lcd.o
-obj-$(CONFIG_MACH_E400)		+= e400_lcd.o
-obj-$(CONFIG_MACH_E800)		+= e800_lcd.o
+obj-$(CONFIG_MACH_E330)		+= e330.o
+obj-$(CONFIG_MACH_E350)		+= e350.o
+obj-$(CONFIG_MACH_E740)		+= e740.o e740_lcd.o
+obj-$(CONFIG_MACH_E750)		+= e750.o e750_lcd.o
+obj-$(CONFIG_MACH_E400)		+= e400.o e400_lcd.o
+obj-$(CONFIG_MACH_E800)		+= e800.o e800_lcd.o
 obj-$(CONFIG_MACH_PALMTX)	+= palmtx.o
 
 ifeq ($(CONFIG_MACH_ZYLONITE),y)

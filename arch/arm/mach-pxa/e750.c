@@ -21,17 +21,16 @@
 #include <mach/hardware.h>
 
 #include "generic.h"
+#include "eseries.h"
 
-/* Only e800 has 128MB RAM */
-void __init eseries_fixup(struct machine_desc *desc,
-	struct tag *tags, char **cmdline, struct meminfo *mi)
-{
-	mi->nr_banks=1;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
-	if (machine_is_e800())
-		mi->bank[0].size = (128*1024*1024);
-	else
-		mi->bank[0].size = (64*1024*1024);
-}
+MACHINE_START(E750, "Toshiba e750")
+	/* Maintainer: Ian Molton (spyro@f2s.com) */
+	.phys_io	= 0x40000000,
+	.io_pg_offst	= (io_p2v(0x40000000) >> 18) & 0xfffc,
+	.boot_params	= 0xa0000100,
+	.map_io		= pxa_map_io,
+	.init_irq	= pxa25x_init_irq,
+	.fixup		= eseries_fixup,
+	.timer		= &pxa_timer,
+MACHINE_END
 
