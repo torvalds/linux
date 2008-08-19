@@ -1037,7 +1037,7 @@ void spuctx_switch_state(struct spu_context *ctx,
 		node = spu->node;
 		if (old_state == SPU_UTIL_USER)
 			atomic_dec(&cbe_spu_info[node].busy_spus);
-		if (new_state == SPU_UTIL_USER);
+		if (new_state == SPU_UTIL_USER)
 			atomic_inc(&cbe_spu_info[node].busy_spus);
 	}
 }
