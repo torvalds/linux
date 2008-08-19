@@ -35,13 +35,8 @@
  * This CDC OBEX function support just packages a TTY-ish byte stream.
  * A user mode server will put it into "raw" mode and handle all the
  * relevant protocol details ... this is just a kernel passthrough.
- *
- * REVISIT this driver shouldn't actually activate before that user mode
- * server is ready to respond!  When the "serial gadget" utility code
- * adds open/close notifications, this driver should use them with new
- * (TBS) composite gadget hooks that wrap usb_gadget_disconnect() and
- * usb_gadget_connect() calls with refcounts ... disconnect() when we
- * bind, then connect() when the user server code is ready to respond.
+ * When possible, we prevent gadget enumeration until that server is
+ * ready to handle the commands.
  */
 
 struct obex_ep_descs {
@@ -54,6 +49,7 @@ struct f_obex {
 	u8				ctrl_id;
 	u8				data_id;
 	u8				port_num;
+	u8				can_activate;
 
 	struct obex_ep_descs		fs;
 	struct obex_ep_descs		hs;
@@ -62,6 +58,11 @@ struct f_obex {
 static inline struct f_obex *func_to_obex(struct usb_function *f)
 {
 	return container_of(f, struct f_obex, port.func);
+}
+
+static inline struct f_obex *port_to_obex(struct gserial *p)
+{
+	return container_of(p, struct f_obex, port);
 }
 
 /*-------------------------------------------------------------------------*/
@@ -269,6 +270,38 @@ static void obex_disable(struct usb_function *f)
 
 /*-------------------------------------------------------------------------*/
 
+static void obex_connect(struct gserial *g)
+{
+	struct f_obex		*obex = port_to_obex(g);
+	struct usb_composite_dev *cdev = g->func.config->cdev;
+	int			status;
+
+	if (!obex->can_activate)
+		return;
+
+	status = usb_function_activate(&g->func);
+	if (status)
+		DBG(cdev, "obex ttyGS%d function activate --> %d\n",
+			obex->port_num, status);
+}
+
+static void obex_disconnect(struct gserial *g)
+{
+	struct f_obex		*obex = port_to_obex(g);
+	struct usb_composite_dev *cdev = g->func.config->cdev;
+	int			status;
+
+	if (!obex->can_activate)
+		return;
+
+	status = usb_function_deactivate(&g->func);
+	if (status)
+		DBG(cdev, "obex ttyGS%d function deactivate --> %d\n",
+			obex->port_num, status);
+}
+
+/*-------------------------------------------------------------------------*/
+
 static int __init
 obex_bind(struct usb_configuration *c, struct usb_function *f)
 {
@@ -337,6 +370,17 @@ obex_bind(struct usb_configuration *c, struct usb_function *f)
 		obex->hs.obex_out = usb_find_endpoint(hs_function,
 				f->descriptors, &obex_hs_ep_out_desc);
 	}
+
+	/* Avoid letting this gadget enumerate until the userspace
+	 * OBEX server is active.
+	 */
+	status = usb_function_deactivate(f);
+	if (status < 0)
+		WARNING(cdev, "obex ttyGS%d: can't prevent enumeration, %d\n",
+			obex->port_num, status);
+	else
+		obex->can_activate = true;
+
 
 	DBG(cdev, "obex ttyGS%d: %s speed IN/%s OUT/%s\n",
 			obex->port_num,
@@ -425,6 +469,9 @@ int __init obex_bind_config(struct usb_configuration *c, u8 port_num)
 		return -ENOMEM;
 
 	obex->port_num = port_num;
+
+	obex->port.connect = obex_connect;
+	obex->port.disconnect = obex_disconnect;
 
 	obex->port.func.name = "obex";
 	obex->port.func.strings = obex_strings;
