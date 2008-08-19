@@ -75,7 +75,6 @@ char *pnp_resource_type_name(struct resource *res)
 
 void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 {
-#ifdef DEBUG
 	char buf[128];
 	int len;
 	struct pnp_resource *pnp_res;
@@ -118,7 +117,6 @@ void dbg_pnp_show_resources(struct pnp_dev *dev, char *desc)
 		}
 		dev_dbg(&dev->dev, "%s\n", buf);
 	}
-#endif
 }
 
 char *pnp_option_priority_name(struct pnp_option *option)
@@ -136,7 +134,6 @@ char *pnp_option_priority_name(struct pnp_option *option)
 
 void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 {
-#ifdef DEBUG
 	char buf[128];
 	int len = 0, i;
 	struct pnp_port *port;
@@ -209,5 +206,4 @@ void dbg_pnp_show_option(struct pnp_dev *dev, struct pnp_option *option)
 		break;
 	}
 	dev_dbg(&dev->dev, "%s\n", buf);
-#endif
 }
