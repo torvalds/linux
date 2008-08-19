@@ -546,7 +546,8 @@ int cifs_get_inode_info(struct inode **pinode,
 		if ((inode->i_mode & S_IWUGO) == 0 &&
 		    (attr & ATTR_READONLY) == 0)
 			inode->i_mode |= (S_IWUGO & default_mode);
-			inode->i_mode &= ~S_IFMT;
+
+		inode->i_mode &= ~S_IFMT;
 	}
 	/* clear write bits if ATTR_READONLY is set */
 	if (attr & ATTR_READONLY)
