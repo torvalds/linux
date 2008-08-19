@@ -29,8 +29,7 @@ g_ether-objs			:= ether.o u_ether.o f_subset.o f_ecm.o $(C_UTILS)
 g_serial-objs			:= serial.o
 g_midi-objs			:= gmidi.o
 gadgetfs-objs			:= inode.o
-g_file_storage-objs		:= file_storage.o usbstring.o config.o \
-					epautoconf.o
+g_file_storage-objs		:= file_storage.o
 g_printer-objs			:= printer.o
 g_cdc-objs			:= cdc2.o u_ether.o f_ecm.o \
 					u_serial.o f_acm.o $(C_UTILS)
