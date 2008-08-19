@@ -654,7 +654,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	}
 
 	sch->flags &= ~TCQ_F_THROTTLED;
-	__netif_schedule(sch);
+	__netif_schedule(qdisc_root(sch));
 	return HRTIMER_NORESTART;
 }
 

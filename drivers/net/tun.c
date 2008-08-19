@@ -358,6 +358,66 @@ static unsigned int tun_chr_poll(struct file *file, poll_table * wait)
 	return mask;
 }
 
+/* prepad is the amount to reserve at front.  len is length after that.
+ * linear is a hint as to how much to copy (usually headers). */
+static struct sk_buff *tun_alloc_skb(size_t prepad, size_t len, size_t linear,
+				     gfp_t gfp)
+{
+	struct sk_buff *skb;
+	unsigned int i;
+
+	skb = alloc_skb(prepad + len, gfp|__GFP_NOWARN);
+	if (skb) {
+		skb_reserve(skb, prepad);
+		skb_put(skb, len);
+		return skb;
+	}
+
+	/* Under a page?  Don't bother with paged skb. */
+	if (prepad + len < PAGE_SIZE)
+		return NULL;
+
+	/* Start with a normal skb, and add pages. */
+	skb = alloc_skb(prepad + linear, gfp);
+	if (!skb)
+		return NULL;
+
+	skb_reserve(skb, prepad);
+	skb_put(skb, linear);
+
+	len -= linear;
+
+	for (i = 0; i < MAX_SKB_FRAGS; i++) {
+		skb_frag_t *f = &skb_shinfo(skb)->frags[i];
+
+		f->page = alloc_page(gfp|__GFP_ZERO);
+		if (!f->page)
+			break;
+
+		f->page_offset = 0;
+		f->size = PAGE_SIZE;
+
+		skb->data_len += PAGE_SIZE;
+		skb->len += PAGE_SIZE;
+		skb->truesize += PAGE_SIZE;
+		skb_shinfo(skb)->nr_frags++;
+
+		if (len < PAGE_SIZE) {
+			len = 0;
+			break;
+		}
+		len -= PAGE_SIZE;
+	}
+
+	/* Too large, or alloc fail? */
+	if (unlikely(len)) {
+		kfree_skb(skb);
+		skb = NULL;
+	}
+
+	return skb;
+}
+
 /* Get packet from user space buffer */
 static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv, size_t count)
 {
@@ -391,14 +451,12 @@ static __inline__ ssize_t tun_get_user(struct tun_struct *tun, struct iovec *iv,
 			return -EINVAL;
 	}
 
-	if (!(skb = alloc_skb(len + align, GFP_KERNEL))) {
+	if (!(skb = tun_alloc_skb(align, len, gso.hdr_len, GFP_KERNEL))) {
 		tun->dev->stats.rx_dropped++;
 		return -ENOMEM;
 	}
 
-	if (align)
-		skb_reserve(skb, align);
-	if (memcpy_fromiovec(skb_put(skb, len), iv, len)) {
+	if (skb_copy_datagram_from_iovec(skb, 0, iv, len)) {
 		tun->dev->stats.rx_dropped++;
 		kfree_skb(skb);
 		return -EFAULT;
@@ -748,6 +806,36 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 	return err;
 }
 
+static int tun_get_iff(struct net *net, struct file *file, struct ifreq *ifr)
+{
+	struct tun_struct *tun = file->private_data;
+
+	if (!tun)
+		return -EBADFD;
+
+	DBG(KERN_INFO "%s: tun_get_iff\n", tun->dev->name);
+
+	strcpy(ifr->ifr_name, tun->dev->name);
+
+	ifr->ifr_flags = 0;
+
+	if (ifr->ifr_flags & TUN_TUN_DEV)
+		ifr->ifr_flags |= IFF_TUN;
+	else
+		ifr->ifr_flags |= IFF_TAP;
+
+	if (tun->flags & TUN_NO_PI)
+		ifr->ifr_flags |= IFF_NO_PI;
+
+	if (tun->flags & TUN_ONE_QUEUE)
+		ifr->ifr_flags |= IFF_ONE_QUEUE;
+
+	if (tun->flags & TUN_VNET_HDR)
+		ifr->ifr_flags |= IFF_VNET_HDR;
+
+	return 0;
+}
+
 /* This is like a cut-down ethtool ops, except done via tun fd so no
  * privs required. */
 static int set_offload(struct net_device *dev, unsigned long arg)
@@ -833,6 +921,15 @@ static int tun_chr_ioctl(struct inode *inode, struct file *file,
 	DBG(KERN_INFO "%s: tun_chr_ioctl cmd %d\n", tun->dev->name, cmd);
 
 	switch (cmd) {
+	case TUNGETIFF:
+		ret = tun_get_iff(current->nsproxy->net_ns, file, &ifr);
+		if (ret)
+			return ret;
+
+		if (copy_to_user(argp, &ifr, sizeof(ifr)))
+			return -EFAULT;
+		break;
+
 	case TUNSETNOCSUM:
 		/* Disable/Enable checksum */
 		if (arg)
