@@ -392,8 +392,16 @@ static int ipoib_mcast_join_complete(int status,
 					   &priv->mcast_task, 0);
 		mutex_unlock(&mcast_mutex);
 
-		if (mcast == priv->broadcast)
+		if (mcast == priv->broadcast) {
+			/*
+			 * Take RTNL lock here to avoid racing with
+			 * ipoib_stop() and turning the carrier back
+			 * on while a device is being removed.
+			 */
+			rtnl_lock();
 			netif_carrier_on(dev);
+			rtnl_unlock();
+		}
 
 		return 0;
 	}
