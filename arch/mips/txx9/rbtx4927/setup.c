@@ -48,6 +48,7 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <asm/io.h>
 #include <asm/reboot.h>
 #include <asm/txx9/generic.h>
@@ -211,6 +212,14 @@ static void __init rbtx4927_mem_setup(void)
 #else
 	set_io_port_base(KSEG1 + RBTX4927_ISA_IO_OFFSET);
 #endif
+
+	/* TX4927-SIO DTR on (PIO[15]) */
+	gpio_request(15, "sio-dtr");
+	gpio_direction_output(15, 1);
+	gpio_request(0, "led");
+	gpio_direction_output(0, 1);
+	gpio_request(1, "led");
+	gpio_direction_output(1, 1);
 
 	tx4927_sio_init(0, 0);
 #ifdef CONFIG_SERIAL_TXX9_CONSOLE

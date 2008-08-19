@@ -142,6 +142,11 @@ static void __init toshiba_rbtx4927_irq_ioc_init(void)
 {
 	int i;
 
+	/* mask all IOC interrupts */
+	writeb(0, rbtx4927_imask_addr);
+	/* clear SoftInt interrupts */
+	writeb(0, rbtx4927_softint_addr);
+
 	for (i = RBTX4927_IRQ_IOC;
 	     i < RBTX4927_IRQ_IOC + RBTX4927_NR_IRQ_IOC; i++)
 		set_irq_chip_and_handler(i, &toshiba_rbtx4927_irq_ioc_type,
