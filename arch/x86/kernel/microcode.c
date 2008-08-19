@@ -71,7 +71,7 @@
  *		Thanks to Stuart Swales for pointing out this bug.
  */
 
-/*#define DEBUG pr_debug */
+/* #define DEBUG pr_debug */
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -104,8 +104,7 @@ MODULE_LICENSE("GPL");
 struct microcode_ops *microcode_ops;
 
 /* no concurrent ->write()s are allowed on /dev/cpu/microcode */
-DEFINE_MUTEX(microcode_mutex);
-EXPORT_SYMBOL_GPL(microcode_mutex);
+static DEFINE_MUTEX(microcode_mutex);
 
 struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(ucode_cpu_info);
@@ -234,22 +233,6 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 struct platform_device *microcode_pdev;
 EXPORT_SYMBOL_GPL(microcode_pdev);
 
-static void microcode_init_cpu(int cpu, int resume)
-{
-	cpumask_t old;
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-
-	old = current->cpus_allowed;
-
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-	mutex_lock(&microcode_mutex);
-	microcode_ops->collect_cpu_info(cpu);
-	if (uci->valid && system_state == SYSTEM_RUNNING && !resume)
-		microcode_ops->cpu_request_microcode(cpu);
-	mutex_unlock(&microcode_mutex);
-	set_cpus_allowed_ptr(current, &old);
-}
-
 static ssize_t reload_store(struct sys_device *dev,
 			    struct sysdev_attribute *attr,
 			    const char *buf, size_t sz)
@@ -266,14 +249,15 @@ static ssize_t reload_store(struct sys_device *dev,
 		cpumask_t old = current->cpus_allowed;
 
 		get_online_cpus();
-		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-
-		mutex_lock(&microcode_mutex);
-		if (uci->valid)
-			err = microcode_ops->cpu_request_microcode(cpu);
-		mutex_unlock(&microcode_mutex);
+		if (cpu_online(cpu)) {
+			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+			mutex_lock(&microcode_mutex);
+			if (uci->valid)
+				err = microcode_ops->cpu_request_microcode(cpu);
+			mutex_unlock(&microcode_mutex);
+			set_cpus_allowed_ptr(current, &old);
+		}
 		put_online_cpus();
-		set_cpus_allowed_ptr(current, &old);
 	}
 	if (err)
 		return err;
@@ -285,7 +269,7 @@ static ssize_t version_show(struct sys_device *dev,
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 
-	return sprintf(buf, "0x%x\n", uci->rev);
+	return sprintf(buf, "0x%x\n", uci->cpu_sig.rev);
 }
 
 static ssize_t pf_show(struct sys_device *dev,
@@ -293,7 +277,7 @@ static ssize_t pf_show(struct sys_device *dev,
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + dev->id;
 
-	return sprintf(buf, "0x%x\n", uci->pf);
+	return sprintf(buf, "0x%x\n", uci->cpu_sig.pf);
 }
 
 static SYSDEV_ATTR(reload, 0200, NULL, reload_store);
@@ -312,7 +296,85 @@ static struct attribute_group mc_attr_group = {
 	.name = "microcode",
 };
 
-static int __mc_sysdev_add(struct sys_device *sys_dev, int resume)
+static void microcode_fini_cpu(int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	mutex_lock(&microcode_mutex);
+	microcode_ops->microcode_fini_cpu(cpu);
+	uci->valid = 0;
+	mutex_unlock(&microcode_mutex);
+}
+
+static void collect_cpu_info(int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	memset(uci, 0, sizeof(*uci));
+	if (!microcode_ops->collect_cpu_info(cpu, &uci->cpu_sig))
+		uci->valid = 1;
+}
+
+static void microcode_resume_cpu(int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	struct cpu_signature nsig;
+
+	pr_debug("microcode: CPU%d resumed\n", cpu);
+
+	if (!uci->mc.valid_mc)
+		return;
+
+	/*
+	 * Let's verify that the 'cached' ucode does belong
+	 * to this cpu (a bit of paranoia):
+	 */
+	if (microcode_ops->collect_cpu_info(cpu, &nsig)) {
+		microcode_fini_cpu(cpu);
+		return;
+	}
+
+	if (memcmp(&nsig, &uci->cpu_sig, sizeof(nsig))) {
+		microcode_fini_cpu(cpu);
+		/* Should we look for a new ucode here? */
+		return;
+	}
+
+	microcode_ops->apply_microcode(cpu);
+}
+
+void microcode_update_cpu(int cpu)
+{
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+
+	/* We should bind the task to the CPU */
+	BUG_ON(raw_smp_processor_id() != cpu);
+
+	mutex_lock(&microcode_mutex);
+	/*
+	 * Check if the system resume is in progress (uci->valid != NULL),
+	 * otherwise just request a firmware:
+	 */
+	if (uci->valid) {
+		microcode_resume_cpu(cpu);
+	} else {	
+		collect_cpu_info(cpu);
+		if (uci->valid && system_state == SYSTEM_RUNNING)
+			microcode_ops->cpu_request_microcode(cpu);
+	}
+	mutex_unlock(&microcode_mutex);
+}
+
+static void microcode_init_cpu(int cpu)
+{
+	cpumask_t old = current->cpus_allowed;
+
+	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+	microcode_update_cpu(cpu);
+	set_cpus_allowed_ptr(current, &old);
+}
+
+static int mc_sysdev_add(struct sys_device *sys_dev)
 {
 	int err, cpu = sys_dev->id;
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
@@ -327,14 +389,8 @@ static int __mc_sysdev_add(struct sys_device *sys_dev, int resume)
 	if (err)
 		return err;
 
-	microcode_init_cpu(cpu, resume);
-
+	microcode_init_cpu(cpu);
 	return 0;
-}
-
-static int mc_sysdev_add(struct sys_device *sys_dev)
-{
-	return __mc_sysdev_add(sys_dev, 0);
 }
 
 static int mc_sysdev_remove(struct sys_device *sys_dev)
@@ -345,7 +401,7 @@ static int mc_sysdev_remove(struct sys_device *sys_dev)
 		return 0;
 
 	pr_debug("microcode: CPU%d removed\n", cpu);
-	microcode_ops->microcode_fini_cpu(cpu);
+	microcode_fini_cpu(cpu);
 	sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
 	return 0;
 }
@@ -376,33 +432,26 @@ mc_cpu_callback(struct notifier_block *nb, unsigned long action, void *hcpu)
 
 	sys_dev = get_cpu_sysdev(cpu);
 	switch (action) {
-	case CPU_UP_CANCELED_FROZEN:
-		/* The CPU refused to come up during a system resume */
-		microcode_ops->microcode_fini_cpu(cpu);
-		break;
 	case CPU_ONLINE:
-	case CPU_DOWN_FAILED:
-		mc_sysdev_add(sys_dev);
-		break;
 	case CPU_ONLINE_FROZEN:
-		/* System-wide resume is in progress, try to apply microcode */
-		if (microcode_ops->apply_microcode_check_cpu(cpu)) {
-			/* The application of microcode failed */
-			microcode_ops->microcode_fini_cpu(cpu);
-			__mc_sysdev_add(sys_dev, 1);
-			break;
-		}
+		microcode_init_cpu(cpu);
+	case CPU_DOWN_FAILED:
 	case CPU_DOWN_FAILED_FROZEN:
+		pr_debug("microcode: CPU%d added\n", cpu);
 		if (sysfs_create_group(&sys_dev->kobj, &mc_attr_group))
 			printk(KERN_ERR "microcode: Failed to create the sysfs "
 				"group for CPU%d\n", cpu);
 		break;
 	case CPU_DOWN_PREPARE:
-		mc_sysdev_remove(sys_dev);
-		break;
 	case CPU_DOWN_PREPARE_FROZEN:
 		/* Suspend is in progress, only remove the interface */
 		sysfs_remove_group(&sys_dev->kobj, &mc_attr_group);
+		pr_debug("microcode: CPU%d removed\n", cpu);
+		break;
+	case CPU_DEAD:
+	case CPU_UP_CANCELED_FROZEN:
+		/* The CPU refused to come up during a system resume */
+		microcode_fini_cpu(cpu);
 		break;
 	}
 	return NOTIFY_OK;

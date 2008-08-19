@@ -1,14 +1,18 @@
+#ifndef ASM_X86__MICROCODE_H
+#define ASM_X86__MICROCODE_H
+
 extern int microcode_init(void *opaque, struct module *module);
 extern void microcode_exit(void);
+
+struct cpu_signature;
 
 struct microcode_ops {
 	long (*get_next_ucode)(void **mc, long offset);
 	long (*microcode_get_next_ucode)(void **mc, long offset);
 	int (*get_matching_microcode)(void *mc, int cpu);
-	int (*apply_microcode_check_cpu)(int cpu);
 	int (*microcode_sanity_check)(void *mc);
 	int (*cpu_request_microcode)(int cpu);
-	void (*collect_cpu_info)(int cpu_num);
+	int (*collect_cpu_info)(int cpu_num, struct cpu_signature *csig);
 	void (*apply_microcode)(int cpu);
 	void (*microcode_fini_cpu)(int cpu);
 	void (*clear_patch)(void *data);
@@ -75,13 +79,21 @@ struct microcode_amd {
 	unsigned int mpb[0];
 };
 
-struct ucode_cpu_info {
-	int valid;
+struct cpu_signature {
 	unsigned int sig;
 	unsigned int pf;
 	unsigned int rev;
+};
+
+struct ucode_cpu_info {
+	struct cpu_signature cpu_sig;
+	int valid;
 	union {
 		struct microcode_intel *mc_intel;
 		struct microcode_amd *mc_amd;
+		void *valid_mc;
 	} mc;
 };
+extern struct ucode_cpu_info ucode_cpu_info[];
+
+#endif /* ASM_X86__MICROCODE_H */

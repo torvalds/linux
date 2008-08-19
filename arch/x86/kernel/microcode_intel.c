@@ -122,46 +122,37 @@ MODULE_LICENSE("GPL");
 /* serialize access to the physical write to MSR 0x79 */
 static DEFINE_SPINLOCK(microcode_update_lock);
 
-/* no concurrent ->write()s are allowed on /dev/cpu/microcode */
-extern struct mutex microcode_mutex;
-
-extern struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
-
-static void collect_cpu_info(int cpu_num)
+static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu_num);
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 	unsigned int val[2];
 
-	/* We should bind the task to the CPU */
-	BUG_ON(raw_smp_processor_id() != cpu_num);
-	uci->pf = uci->rev = 0;
-	uci->mc.mc_intel = NULL;
-	uci->valid = 1;
+	memset(csig, 0, sizeof(*csig));
 
 	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
 	    cpu_has(c, X86_FEATURE_IA64)) {
 		printk(KERN_ERR "microcode: CPU%d not a capable Intel "
 			"processor\n", cpu_num);
-		uci->valid = 0;
-		return;
+		return -1;
 	}
 
-	uci->sig = cpuid_eax(0x00000001);
+	csig->sig = cpuid_eax(0x00000001);
 
 	if ((c->x86_model >= 5) || (c->x86 > 6)) {
 		/* get processor flags from MSR 0x17 */
 		rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
-		uci->pf = 1 << ((val[1] >> 18) & 7);
+		csig->pf = 1 << ((val[1] >> 18) & 7);
 	}
 
 	wrmsr(MSR_IA32_UCODE_REV, 0, 0);
 	/* see notes above for revision 1.07.  Apparent chip bug */
 	sync_core();
 	/* get the current revision from MSR 0x8B */
-	rdmsr(MSR_IA32_UCODE_REV, val[0], uci->rev);
+	rdmsr(MSR_IA32_UCODE_REV, val[0], csig->rev);
 	pr_debug("microcode: collect_cpu_info : sig=0x%x, pf=0x%x, rev=0x%x\n",
-			uci->sig, uci->pf, uci->rev);
+			csig->sig, csig->pf, csig->rev);
+
+	return 0;
 }
 
 static inline int microcode_update_match(int cpu_num,
@@ -169,8 +160,8 @@ static inline int microcode_update_match(int cpu_num,
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
 
-	if (!sigmatch(sig, uci->sig, pf, uci->pf)
-		|| mc_header->rev <= uci->rev)
+	if (!sigmatch(sig, uci->cpu_sig.sig, pf, uci->cpu_sig.pf)
+		|| mc_header->rev <= uci->cpu_sig.rev)
 		return 0;
 	return 1;
 }
@@ -289,7 +280,7 @@ static int get_matching_microcode(void *mc, int cpu)
 find:
 	pr_debug("microcode: CPU%d found a matching microcode update with"
 		 " version 0x%x (current=0x%x)\n",
-		 cpu, mc_header->rev, uci->rev);
+		 cpu, mc_header->rev, uci->cpu_sig.rev);
 	new_mc = vmalloc(total_size);
 	if (!new_mc) {
 		printk(KERN_ERR "microcode: error! Can not allocate memory\n");
@@ -335,16 +326,16 @@ static void apply_microcode(int cpu)
 	spin_unlock_irqrestore(&microcode_update_lock, flags);
 	if (val[1] != uci->mc.mc_intel->hdr.rev) {
 		printk(KERN_ERR "microcode: CPU%d update from revision "
-			"0x%x to 0x%x failed\n", cpu_num, uci->rev, val[1]);
+			"0x%x to 0x%x failed\n", cpu_num, uci->cpu_sig.rev, val[1]);
 		return;
 	}
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
 	       "0x%x to 0x%x, date = %04x-%02x-%02x \n",
-		cpu_num, uci->rev, val[1],
+		cpu_num, uci->cpu_sig.rev, val[1],
 		uci->mc.mc_intel->hdr.date & 0xffff,
 		uci->mc.mc_intel->hdr.date >> 24,
 		(uci->mc.mc_intel->hdr.date >> 16) & 0xff);
-	uci->rev = val[1];
+	uci->cpu_sig.rev = val[1];
 }
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
@@ -459,70 +450,18 @@ static int cpu_request_microcode(int cpu)
 	return error;
 }
 
-static int apply_microcode_check_cpu(int cpu)
-{
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	cpumask_t old;
-	unsigned int val[2];
-	int err = 0;
-
-	/* Check if the microcode is available */
-	if (!uci->mc.mc_intel)
-		return 0;
-
-	old = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-
-	/* Check if the microcode we have in memory matches the CPU */
-	if (c->x86_vendor != X86_VENDOR_INTEL || c->x86 < 6 ||
-	    cpu_has(c, X86_FEATURE_IA64) || uci->sig != cpuid_eax(0x00000001))
-		err = -EINVAL;
-
-	if (!err && ((c->x86_model >= 5) || (c->x86 > 6))) {
-		/* get processor flags from MSR 0x17 */
-		rdmsr(MSR_IA32_PLATFORM_ID, val[0], val[1]);
-		if (uci->pf != (1 << ((val[1] >> 18) & 7)))
-			err = -EINVAL;
-	}
-
-	if (!err) {
-		wrmsr(MSR_IA32_UCODE_REV, 0, 0);
-		/* see notes above for revision 1.07.  Apparent chip bug */
-		sync_core();
-		/* get the current revision from MSR 0x8B */
-		rdmsr(MSR_IA32_UCODE_REV, val[0], val[1]);
-		if (uci->rev != val[1])
-			err = -EINVAL;
-	}
-
-	if (!err)
-		apply_microcode(cpu);
-	else
-		printk(KERN_ERR "microcode: Could not apply microcode to CPU%d:"
-			" sig=0x%x, pf=0x%x, rev=0x%x\n",
-			cpu, uci->sig, uci->pf, uci->rev);
-
-	set_cpus_allowed_ptr(current, &old);
-	return err;
-}
-
 static void microcode_fini_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	mutex_lock(&microcode_mutex);
-	uci->valid = 0;
 	vfree(uci->mc.mc_intel);
 	uci->mc.mc_intel = NULL;
-	mutex_unlock(&microcode_mutex);
 }
 
 static struct microcode_ops microcode_intel_ops = {
 	.get_next_ucode                   = get_next_ucode,
 	.get_matching_microcode           = get_matching_microcode,
 	.microcode_sanity_check           = microcode_sanity_check,
-	.apply_microcode_check_cpu        = apply_microcode_check_cpu,
 	.cpu_request_microcode            = cpu_request_microcode,
 	.collect_cpu_info                 = collect_cpu_info,
 	.apply_microcode                  = apply_microcode,

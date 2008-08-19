@@ -59,38 +59,28 @@ MODULE_LICENSE("GPL v2");
 /* serialize access to the physical write */
 static DEFINE_SPINLOCK(microcode_update_lock);
 
-/* no concurrent ->write()s are allowed on /dev/cpu/microcode */
-extern struct mutex (microcode_mutex);
-
 struct equiv_cpu_entry *equiv_cpu_table;
 
-extern struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
-
-static void collect_cpu_info_amd(int cpu)
+static int collect_cpu_info_amd(int cpu, struct cpu_signature *csig)
 {
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	/* We should bind the task to the CPU */
-	BUG_ON(raw_smp_processor_id() != cpu);
-	uci->rev = 0;
-	uci->pf = 0;
-	uci->mc.mc_amd = NULL;
-	uci->valid = 1;
+	memset(csig, 0, sizeof(*csig));
 
 	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 0x10) {
 		printk(KERN_ERR "microcode: CPU%d not a capable AMD processor\n",
 		       cpu);
-		uci->valid = 0;
-		return;
+		return -1;
 	}
 
 	asm volatile("movl %1, %%ecx; rdmsr"
-		     : "=a" (uci->rev)
+		     : "=a" (csig->rev)
 		     : "i" (0x0000008B) : "ecx");
 
 	printk(KERN_INFO "microcode: collect_cpu_info_amd : patch_id=0x%x\n",
-	       uci->rev);
+		csig->rev);
+
+	return 0;
 }
 
 static int get_matching_microcode_amd(void *mc, int cpu)
@@ -119,7 +109,7 @@ static int get_matching_microcode_amd(void *mc, int cpu)
 	if (equiv_cpu_table == NULL) {
 		printk(KERN_INFO "microcode: CPU%d microcode update with "
 		       "version 0x%x (current=0x%x)\n",
-		       cpu, mc_header->patch_id, uci->rev);
+		       cpu, mc_header->patch_id, uci->cpu_sig.rev);
 		goto out;
 	}
 
@@ -185,12 +175,12 @@ static int get_matching_microcode_amd(void *mc, int cpu)
 		pci_dev_put(sb_pci_dev);
 	}
 
-	if (mc_header->patch_id <= uci->rev)
+	if (mc_header->patch_id <= uci->cpu_sig.rev)
 		return 0;
 
 	printk(KERN_INFO "microcode: CPU%d found a matching microcode "
 	       "update with version 0x%x (current=0x%x)\n",
-	       cpu, mc_header->patch_id, uci->rev);
+	       cpu, mc_header->patch_id, uci->cpu_sig.rev);
 
 out:
 	new_mc = vmalloc(UCODE_MAX_SIZE);
@@ -250,9 +240,9 @@ static void apply_microcode_amd(int cpu)
 
 	printk(KERN_INFO "microcode: CPU%d updated from revision "
 	       "0x%x to 0x%x \n",
-	       cpu_num, uci->rev, uci->mc.mc_amd->hdr.patch_id);
+	       cpu_num, uci->cpu_sig.rev, uci->mc.mc_amd->hdr.patch_id);
 
-	uci->rev = rev;
+	uci->cpu_sig.rev = rev;
 }
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
@@ -437,61 +427,18 @@ static int cpu_request_microcode_amd(int cpu)
 	return error;
 }
 
-static int apply_microcode_check_cpu_amd(int cpu)
-{
-	struct cpuinfo_x86 *c = &cpu_data(cpu);
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
-	unsigned int rev;
-	cpumask_t old;
-	int err = 0;
-
-	/* Check if the microcode is available */
-	if (!uci->mc.mc_amd)
-		return 0;
-
-	old = current->cpus_allowed;
-	set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-
-	/* Check if the microcode we have in memory matches the CPU */
-	if (c->x86_vendor != X86_VENDOR_AMD || c->x86 < 16)
-		err = -EINVAL;
-
-	if (!err) {
-		asm volatile("movl %1, %%ecx; rdmsr"
-		     : "=a" (rev)
-		     : "i" (0x0000008B) : "ecx");
-
-		if (uci->rev != rev)
-			err = -EINVAL;
-	}
-
-	if (!err)
-		apply_microcode_amd(cpu);
-	else
-		printk(KERN_ERR "microcode: Could not apply microcode to CPU%d:"
-		       " rev=0x%x\n",
-		       cpu,  uci->rev);
-
-	set_cpus_allowed(current, old);
-	return err;
-}
-
 static void microcode_fini_cpu_amd(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-	mutex_lock(&microcode_mutex);
-	uci->valid = 0;
 	vfree(uci->mc.mc_amd);
 	uci->mc.mc_amd = NULL;
-	mutex_unlock(&microcode_mutex);
 }
 
 static struct microcode_ops microcode_amd_ops = {
 	.get_next_ucode                   = get_next_ucode_amd,
 	.get_matching_microcode           = get_matching_microcode_amd,
 	.microcode_sanity_check           = NULL,
-	.apply_microcode_check_cpu        = apply_microcode_check_cpu_amd,
 	.cpu_request_microcode            = cpu_request_microcode_amd,
 	.collect_cpu_info                 = collect_cpu_info_amd,
 	.apply_microcode                  = apply_microcode_amd,
