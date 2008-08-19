@@ -1021,16 +1021,16 @@ xfs_trans_buf_item_match(
 	bp = NULL;
 	len = BBTOB(len);
 	licp = &tp->t_items;
-	if (!XFS_LIC_ARE_ALL_FREE(licp)) {
+	if (!xfs_lic_are_all_free(licp)) {
 		for (i = 0; i < licp->lic_unused; i++) {
 			/*
 			 * Skip unoccupied slots.
 			 */
-			if (XFS_LIC_ISFREE(licp, i)) {
+			if (xfs_lic_isfree(licp, i)) {
 				continue;
 			}
 
-			lidp = XFS_LIC_SLOT(licp, i);
+			lidp = xfs_lic_slot(licp, i);
 			blip = (xfs_buf_log_item_t *)lidp->lid_item;
 			if (blip->bli_item.li_type != XFS_LI_BUF) {
 				continue;
@@ -1074,7 +1074,7 @@ xfs_trans_buf_item_match_all(
 	bp = NULL;
 	len = BBTOB(len);
 	for (licp = &tp->t_items; licp != NULL; licp = licp->lic_next) {
-		if (XFS_LIC_ARE_ALL_FREE(licp)) {
+		if (xfs_lic_are_all_free(licp)) {
 			ASSERT(licp == &tp->t_items);
 			ASSERT(licp->lic_next == NULL);
 			return NULL;
@@ -1083,11 +1083,11 @@ xfs_trans_buf_item_match_all(
 			/*
 			 * Skip unoccupied slots.
 			 */
-			if (XFS_LIC_ISFREE(licp, i)) {
+			if (xfs_lic_isfree(licp, i)) {
 				continue;
 			}
 
-			lidp = XFS_LIC_SLOT(licp, i);
+			lidp = xfs_lic_slot(licp, i);
 			blip = (xfs_buf_log_item_t *)lidp->lid_item;
 			if (blip->bli_item.li_type != XFS_LI_BUF) {
 				continue;

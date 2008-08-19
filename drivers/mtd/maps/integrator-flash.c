@@ -22,8 +22,6 @@
    This is access code for flashes using ARM's flash partitioning
    standards.
 
-   $Id: integrator-flash.c,v 1.20 2005/11/07 11:14:27 gleixner Exp $
-
 ======================================================================*/
 
 #include <linux/module.h>
@@ -39,7 +37,7 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/mach/flash.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 

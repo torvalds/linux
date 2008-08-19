@@ -18,7 +18,7 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/dma.h>
 
 
@@ -76,7 +76,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
  * 	address of the hardware registers for that channel as the channel
  * 	identifier. This identifier is written to the location pointed by
  * 	@dma_regs. The list of possible values for @device are listed into
- * 	linux/include/asm-arm/arch-sa1100/dma.h as a dma_device_t enum.
+ * 	arch/arm/mach-sa1100/include/mach/dma.h as a dma_device_t enum.
  *
  * 	Note that reading from a port and writing to the same port are
  * 	actually considered as two different streams requiring separate

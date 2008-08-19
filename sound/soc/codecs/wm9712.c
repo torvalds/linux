@@ -427,20 +427,20 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"HPOUTR", NULL, "Headphone PGA"},
 	{"Headphone PGA", NULL, "Right HP Mixer"},
 
-	/* mono hp mixer */
-	{"Mono HP Mixer", NULL, "Left HP Mixer"},
-	{"Mono HP Mixer", NULL, "Right HP Mixer"},
+	/* mono mixer */
+	{"Mono Mixer", NULL, "Left HP Mixer"},
+	{"Mono Mixer", NULL, "Right HP Mixer"},
 
 	/* Out3 Mux */
 	{"Out3 Mux", "Left", "Left HP Mixer"},
 	{"Out3 Mux", "Mono", "Phone Mixer"},
-	{"Out3 Mux", "Left + Right", "Mono HP Mixer"},
+	{"Out3 Mux", "Left + Right", "Mono Mixer"},
 	{"Out 3 PGA", NULL, "Out3 Mux"},
 	{"OUT3", NULL, "Out 3 PGA"},
 
 	/* speaker Mux */
 	{"Speaker Mux", "Speaker Mix", "Speaker Mixer"},
-	{"Speaker Mux", "Headphone Mix", "Mono HP Mixer"},
+	{"Speaker Mux", "Headphone Mix", "Mono Mixer"},
 	{"Speaker PGA", NULL, "Speaker Mux"},
 	{"LOUT2", NULL, "Speaker PGA"},
 	{"ROUT2", NULL, "Speaker PGA"},

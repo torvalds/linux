@@ -8,7 +8,7 @@ not) in a system. This feature will allow you to implement a lock-down
 of USB devices, fully controlled by user space.
 
 As of now, when a USB device is connected it is configured and
-it's interfaces inmediately made available to the users. With this
+its interfaces are immediately made available to the users.  With this
 modification, only if root authorizes the device to be configured will
 then it be possible to use it.
 

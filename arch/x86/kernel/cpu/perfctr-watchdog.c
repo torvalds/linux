@@ -478,7 +478,13 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 		perfctr_msr = MSR_P4_IQ_PERFCTR1;
 		evntsel_msr = MSR_P4_CRU_ESCR0;
 		cccr_msr = MSR_P4_IQ_CCCR1;
-		cccr_val = P4_CCCR_OVF_PMI1 | P4_CCCR_ESCR_SELECT(4);
+
+		/* Pentium 4 D processors don't support P4_CCCR_OVF_PMI1 */
+		if (boot_cpu_data.x86_model == 4 && boot_cpu_data.x86_mask == 4)
+			cccr_val = P4_CCCR_OVF_PMI0;
+		else
+			cccr_val = P4_CCCR_OVF_PMI1;
+		cccr_val |= P4_CCCR_ESCR_SELECT(4);
 	}
 
 	evntsel = P4_ESCR_EVENT_SELECT(0x3F)

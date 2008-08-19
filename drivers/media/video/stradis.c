@@ -43,6 +43,7 @@
 #include <linux/vmalloc.h>
 #include <linux/videodev.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include "saa7146.h"
 #include "saa7146reg.h"
@@ -1918,7 +1919,6 @@ static const struct file_operations saa_fops = {
 /* template for video_device-structure */
 static struct video_device saa_template = {
 	.name = "SAA7146A",
-	.type = VID_TYPE_CAPTURE | VID_TYPE_OVERLAY,
 	.fops = &saa_fops,
 	.minor = -1,
 };

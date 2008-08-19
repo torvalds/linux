@@ -17,7 +17,7 @@
 #include <asm/gpio.h>
 #include <asm/io.h>
 
-#include <asm/arch/portmux.h>
+#include <mach/portmux.h>
 
 #include "pio.h"
 

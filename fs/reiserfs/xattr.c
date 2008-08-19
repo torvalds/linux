@@ -1250,7 +1250,7 @@ static int reiserfs_check_acl(struct inode *inode, int mask)
 	return error;
 }
 
-int reiserfs_permission(struct inode *inode, int mask, struct nameidata *nd)
+int reiserfs_permission(struct inode *inode, int mask)
 {
 	/*
 	 * We don't do permission checks on the internal objects.

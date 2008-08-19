@@ -651,15 +651,17 @@ static int ipaq_open(struct tty_struct *tty,
 	 */
 
 	kfree(port->bulk_in_buffer);
-	port->bulk_in_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
-	if (port->bulk_in_buffer == NULL) {
-		port->bulk_out_buffer = NULL; /* prevent double free */
-		goto enomem;
-	}
-
 	kfree(port->bulk_out_buffer);
+	/* make sure the generic serial code knows */
+	port->bulk_out_buffer = NULL;
+
+	port->bulk_in_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
+	if (port->bulk_in_buffer == NULL)
+		goto enomem;
+
 	port->bulk_out_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
 	if (port->bulk_out_buffer == NULL) {
+		/* the buffer is useless, free it */
 		kfree(port->bulk_in_buffer);
 		port->bulk_in_buffer = NULL;
 		goto enomem;

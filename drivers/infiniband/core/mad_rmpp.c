@@ -133,7 +133,7 @@ static void ack_recv(struct mad_rmpp_recv *rmpp_recv,
 	msg = ib_create_send_mad(&rmpp_recv->agent->agent, recv_wc->wc->src_qp,
 				 recv_wc->wc->pkey_index, 1, hdr_len,
 				 0, GFP_KERNEL);
-	if (!msg)
+	if (IS_ERR(msg))
 		return;
 
 	format_ack(msg, (struct ib_rmpp_mad *) recv_wc->recv_buf.mad, rmpp_recv);

@@ -169,7 +169,8 @@ static int send_write(struct svcxprt_rdma *xprt, struct svc_rqst *rqstp,
 					  (void *)
 					  vec->sge[xdr_sge_no].iov_base + sge_off,
 					  sge_bytes, DMA_TO_DEVICE);
-		if (dma_mapping_error(sge[sge_no].addr))
+		if (dma_mapping_error(xprt->sc_cm_id->device->dma_device,
+					sge[sge_no].addr))
 			goto err;
 		sge_off = 0;
 		sge_no++;

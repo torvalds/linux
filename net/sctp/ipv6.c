@@ -195,8 +195,7 @@ out:
 }
 
 /* Based on tcp_v6_xmit() in tcp_ipv6.c. */
-static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
-			int ipfragok)
+static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport)
 {
 	struct sock *sk = skb->sk;
 	struct ipv6_pinfo *np = inet6_sk(sk);
@@ -231,7 +230,10 @@ static int sctp_v6_xmit(struct sk_buff *skb, struct sctp_transport *transport,
 
 	SCTP_INC_STATS(SCTP_MIB_OUTSCTPPACKS);
 
-	return ip6_xmit(sk, skb, &fl, np->opt, ipfragok);
+	if (!(transport->param_flags & SPP_PMTUD_ENABLE))
+		skb->local_df = 1;
+
+	return ip6_xmit(sk, skb, &fl, np->opt, 0);
 }
 
 /* Returns the dst cache entry for the given source and destination ip

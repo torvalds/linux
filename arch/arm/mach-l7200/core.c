@@ -13,7 +13,7 @@
 #include <asm/types.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/page.h>
 
 #include <asm/mach/arch.h>

@@ -32,6 +32,7 @@
 #include <linux/swap.h>
 #include <linux/string.h>
 #include <linux/init.h>
+#include <linux/pagemap.h>
 #include <linux/highmem.h>
 #include <linux/spinlock.h>
 #include <linux/key.h>
@@ -42,13 +43,13 @@
 #include <linux/module.h>
 #include <linux/namei.h>
 #include <linux/proc_fs.h>
-#include <linux/ptrace.h>
 #include <linux/mount.h>
 #include <linux/security.h>
 #include <linux/syscalls.h>
 #include <linux/tsacct_kern.h>
 #include <linux/cn_proc.h>
 #include <linux/audit.h>
+#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
@@ -106,11 +107,17 @@ static inline void put_binfmt(struct linux_binfmt * fmt)
  */
 asmlinkage long sys_uselib(const char __user * library)
 {
-	struct file * file;
+	struct file *file;
 	struct nameidata nd;
-	int error;
+	char *tmp = getname(library);
+	int error = PTR_ERR(tmp);
 
-	error = __user_path_lookup_open(library, LOOKUP_FOLLOW, &nd, FMODE_READ|FMODE_EXEC);
+	if (!IS_ERR(tmp)) {
+		error = path_lookup_open(AT_FDCWD, tmp,
+					 LOOKUP_FOLLOW, &nd,
+					 FMODE_READ|FMODE_EXEC);
+		putname(tmp);
+	}
 	if (error)
 		goto out;
 
@@ -118,7 +125,11 @@ asmlinkage long sys_uselib(const char __user * library)
 	if (!S_ISREG(nd.path.dentry->d_inode->i_mode))
 		goto exit;
 
-	error = vfs_permission(&nd, MAY_READ | MAY_EXEC);
+	error = -EACCES;
+	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
+		goto exit;
+
+	error = vfs_permission(&nd, MAY_READ | MAY_EXEC | MAY_OPEN);
 	if (error)
 		goto exit;
 
@@ -656,38 +667,43 @@ EXPORT_SYMBOL(setup_arg_pages);
 struct file *open_exec(const char *name)
 {
 	struct nameidata nd;
-	int err;
 	struct file *file;
+	int err;
 
-	err = path_lookup_open(AT_FDCWD, name, LOOKUP_FOLLOW, &nd, FMODE_READ|FMODE_EXEC);
-	file = ERR_PTR(err);
+	err = path_lookup_open(AT_FDCWD, name, LOOKUP_FOLLOW, &nd,
+				FMODE_READ|FMODE_EXEC);
+	if (err)
+		goto out;
 
-	if (!err) {
-		struct inode *inode = nd.path.dentry->d_inode;
-		file = ERR_PTR(-EACCES);
-		if (S_ISREG(inode->i_mode)) {
-			int err = vfs_permission(&nd, MAY_EXEC);
-			file = ERR_PTR(err);
-			if (!err) {
-				file = nameidata_to_filp(&nd,
-							O_RDONLY|O_LARGEFILE);
-				if (!IS_ERR(file)) {
-					err = deny_write_access(file);
-					if (err) {
-						fput(file);
-						file = ERR_PTR(err);
-					}
-				}
-out:
-				return file;
-			}
-		}
-		release_open_intent(&nd);
-		path_put(&nd.path);
+	err = -EACCES;
+	if (!S_ISREG(nd.path.dentry->d_inode->i_mode))
+		goto out_path_put;
+
+	if (nd.path.mnt->mnt_flags & MNT_NOEXEC)
+		goto out_path_put;
+
+	err = vfs_permission(&nd, MAY_EXEC | MAY_OPEN);
+	if (err)
+		goto out_path_put;
+
+	file = nameidata_to_filp(&nd, O_RDONLY|O_LARGEFILE);
+	if (IS_ERR(file))
+		return file;
+
+	err = deny_write_access(file);
+	if (err) {
+		fput(file);
+		goto out;
 	}
-	goto out;
-}
 
+	return file;
+
+ out_path_put:
+	release_open_intent(&nd);
+	path_put(&nd.path);
+ out:
+	return ERR_PTR(err);
+}
 EXPORT_SYMBOL(open_exec);
 
 int kernel_read(struct file *file, unsigned long offset,
@@ -1071,13 +1087,8 @@ EXPORT_SYMBOL(prepare_binprm);
 
 static int unsafe_exec(struct task_struct *p)
 {
-	int unsafe = 0;
-	if (p->ptrace & PT_PTRACED) {
-		if (p->ptrace & PT_PTRACE_CAP)
-			unsafe |= LSM_UNSAFE_PTRACE_CAP;
-		else
-			unsafe |= LSM_UNSAFE_PTRACE;
-	}
+	int unsafe = tracehook_unsafe_exec(p);
+
 	if (atomic_read(&p->fs->count) > 1 ||
 	    atomic_read(&p->files->count) > 1 ||
 	    atomic_read(&p->sighand->count) > 1)
@@ -1214,6 +1225,7 @@ int search_binary_handler(struct linux_binprm *bprm,struct pt_regs *regs)
 			read_unlock(&binfmt_lock);
 			retval = fn(bprm, regs);
 			if (retval >= 0) {
+				tracehook_report_exec(fmt, bprm, regs);
 				put_binfmt(fmt);
 				allow_write_access(bprm->file);
 				if (bprm->file)

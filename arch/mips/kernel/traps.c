@@ -23,6 +23,8 @@
 #include <linux/bootmem.h>
 #include <linux/interrupt.h>
 #include <linux/ptrace.h>
+#include <linux/kgdb.h>
+#include <linux/kdebug.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
@@ -425,6 +427,10 @@ asmlinkage void do_be(struct pt_regs *regs)
 	printk(KERN_ALERT "%s bus error, epc == %0*lx, ra == %0*lx\n",
 	       data ? "Data" : "Instruction",
 	       field, regs->cp0_epc, field, regs->regs[31]);
+	if (notify_die(DIE_OOPS, "bus error", regs, SIGBUS, 0, 0)
+	    == NOTIFY_STOP)
+		return;
+
 	die_if_kernel("Oops", regs);
 	force_sig(SIGBUS, current);
 }
@@ -623,6 +629,9 @@ asmlinkage void do_fpe(struct pt_regs *regs, unsigned long fcr31)
 {
 	siginfo_t info;
 
+	if (notify_die(DIE_FP, "FP exception", regs, SIGFPE, 0, 0)
+	    == NOTIFY_STOP)
+		return;
 	die_if_kernel("FP exception in kernel code", regs);
 
 	if (fcr31 & FPU_CSR_UNI_X) {
@@ -681,6 +690,9 @@ static void do_trap_or_bp(struct pt_regs *regs, unsigned int code,
 {
 	siginfo_t info;
 	char b[40];
+
+	if (notify_die(DIE_TRAP, str, regs, code, 0, 0) == NOTIFY_STOP)
+		return;
 
 	/*
 	 * A short test says that IRIX 5.3 sends SIGTRAP for all trap
@@ -761,6 +773,10 @@ asmlinkage void do_ri(struct pt_regs *regs)
 	unsigned long old_epc = regs->cp0_epc;
 	unsigned int opcode = 0;
 	int status = -1;
+
+	if (notify_die(DIE_RI, "RI Fault", regs, SIGSEGV, 0, 0)
+	    == NOTIFY_STOP)
+		return;
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
 
@@ -1536,6 +1552,11 @@ void __init trap_init(void)
 	extern char except_vec3_generic, except_vec3_r4000;
 	extern char except_vec4;
 	unsigned long i;
+
+#if defined(CONFIG_KGDB)
+	if (kgdb_early_setup)
+		return;	/* Already done */
+#endif
 
 	if (cpu_has_veic || cpu_has_vint)
 		ebase = (unsigned long) alloc_bootmem_low_pages(0x200 + VECTORSPACING*64);

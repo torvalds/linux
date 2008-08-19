@@ -69,8 +69,6 @@ void __init trap_init(void)
 
 unsigned long saved_icplb_fault_addr, saved_dcplb_fault_addr;
 
-int kstack_depth_to_print = 48;
-
 static void decode_address(char *buf, unsigned long address)
 {
 	struct vm_list_struct *vml;
@@ -163,6 +161,9 @@ static void decode_address(char *buf, unsigned long address)
 				if (!in_atomic)
 					mmput(mm);
 
+				if (!strlen(buf))
+					sprintf(buf, "<0x%p> [ %s ] dynamic memory", (void *)address, name);
+
 				goto done;
 			}
 
@@ -173,7 +174,7 @@ static void decode_address(char *buf, unsigned long address)
 	}
 
 	/* we were unable to find this address anywhere */
-	sprintf(buf, "<0x%p> /* unknown address */", (void *)address);
+	sprintf(buf, "<0x%p> /* kernel dynamic memory */", (void *)address);
 
 done:
 	write_unlock_irqrestore(&tasklist_lock, flags);
@@ -494,7 +495,7 @@ asmlinkage void trap_c(struct pt_regs *fp)
 	BUG_ON(sig == 0);
 
 	if (sig != SIGTRAP) {
-		unsigned long stack;
+		unsigned long *stack;
 		dump_bfin_process(fp);
 		dump_bfin_mem(fp);
 		show_regs(fp);
@@ -508,14 +509,23 @@ asmlinkage void trap_c(struct pt_regs *fp)
 		else
 #endif
 			dump_bfin_trace_buffer();
-		show_stack(current, &stack);
+
 		if (oops_in_progress) {
+			/* Dump the current kernel stack */
+			printk(KERN_NOTICE "\n" KERN_NOTICE "Kernel Stack\n");
+			show_stack(current, NULL);
+
 			print_modules();
 #ifndef CONFIG_ACCESS_CHECK
 			printk(KERN_EMERG "Please turn on "
 			       "CONFIG_ACCESS_CHECK\n");
 #endif
 			panic("Kernel exception");
+		} else {
+			/* Dump the user space stack */
+			stack = (unsigned long *)rdusp();
+			printk(KERN_NOTICE "Userspace Stack\n");
+			show_stack(NULL, stack);
 		}
 	}
 
@@ -532,11 +542,114 @@ asmlinkage void trap_c(struct pt_regs *fp)
 
 #define EXPAND_LEN ((1 << CONFIG_DEBUG_BFIN_HWTRACE_EXPAND_LEN) * 256 - 1)
 
+/*
+ * Similar to get_user, do some address checking, then dereference
+ * Return true on sucess, false on bad address
+ */
+bool get_instruction(unsigned short *val, unsigned short *address)
+{
+
+	unsigned long addr;
+
+	addr = (unsigned long)address;
+
+	/* Check for odd addresses */
+	if (addr & 0x1)
+		return false;
+
+	/* Check that things do not wrap around */
+	if (addr > (addr + 2))
+		return false;
+
+	/*
+	 * Since we are in exception context, we need to do a little address checking
+	 * We need to make sure we are only accessing valid memory, and
+	 * we don't read something in the async space that can hang forever
+	 */
+	if ((addr >= FIXED_CODE_START && (addr + 2) <= physical_mem_end) ||
+#if L2_LENGTH != 0
+	    (addr >= L2_START && (addr + 2) <= (L2_START + L2_LENGTH)) ||
+#endif
+	    (addr >= BOOT_ROM_START && (addr + 2) <= (BOOT_ROM_START + BOOT_ROM_LENGTH)) ||
+#if L1_DATA_A_LENGTH != 0
+	    (addr >= L1_DATA_A_START && (addr + 2) <= (L1_DATA_A_START + L1_DATA_A_LENGTH)) ||
+#endif
+#if L1_DATA_B_LENGTH != 0
+	    (addr >= L1_DATA_B_START && (addr + 2) <= (L1_DATA_B_START + L1_DATA_B_LENGTH)) ||
+#endif
+	    (addr >= L1_SCRATCH_START && (addr + 2) <= (L1_SCRATCH_START + L1_SCRATCH_LENGTH)) ||
+	    (!(bfin_read_EBIU_AMBCTL0() & B0RDYEN) &&
+	       addr >= ASYNC_BANK0_BASE && (addr + 2) <= (ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE)) ||
+	    (!(bfin_read_EBIU_AMBCTL0() & B1RDYEN) &&
+	       addr >= ASYNC_BANK1_BASE && (addr + 2) <= (ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE)) ||
+	    (!(bfin_read_EBIU_AMBCTL1() & B2RDYEN) &&
+	       addr >= ASYNC_BANK2_BASE && (addr + 2) <= (ASYNC_BANK2_BASE + ASYNC_BANK1_SIZE)) ||
+	    (!(bfin_read_EBIU_AMBCTL1() & B3RDYEN) &&
+	      addr >= ASYNC_BANK3_BASE && (addr + 2) <= (ASYNC_BANK3_BASE + ASYNC_BANK1_SIZE))) {
+		*val = *address;
+		return true;
+	}
+
+#if L1_CODE_LENGTH != 0
+	if (addr >= L1_CODE_START && (addr + 2) <= (L1_CODE_START + L1_CODE_LENGTH)) {
+		dma_memcpy(val, address, 2);
+		return true;
+	}
+#endif
+
+
+	return false;
+}
+
+/* 
+ * decode the instruction if we are printing out the trace, as it
+ * makes things easier to follow, without running it through objdump
+ * These are the normal instructions which cause change of flow, which
+ * would be at the source of the trace buffer
+ */
+void decode_instruction(unsigned short *address)
+{
+	unsigned short opcode;
+
+	if (get_instruction(&opcode, address)) {
+		if (opcode == 0x0010)
+			printk("RTS");
+		else if (opcode == 0x0011)
+			printk("RTI");
+		else if (opcode == 0x0012)
+			printk("RTX");
+		else if (opcode >= 0x0050 && opcode <= 0x0057)
+			printk("JUMP (P%i)", opcode & 7);
+		else if (opcode >= 0x0060 && opcode <= 0x0067)
+			printk("CALL (P%i)", opcode & 7);
+		else if (opcode >= 0x0070 && opcode <= 0x0077)
+			printk("CALL (PC+P%i)", opcode & 7);
+		else if (opcode >= 0x0080 && opcode <= 0x0087)
+			printk("JUMP (PC+P%i)", opcode & 7);
+		else if ((opcode >= 0x1000 && opcode <= 0x13FF) || (opcode >= 0x1800 && opcode <= 0x1BFF))
+			printk("IF !CC JUMP");
+		else if ((opcode >= 0x1400 && opcode <= 0x17ff) || (opcode >= 0x1c00 && opcode <= 0x1fff))
+			printk("IF CC JUMP");
+		else if (opcode >= 0x2000 && opcode <= 0x2fff)
+			printk("JUMP.S");
+		else if (opcode >= 0xe080 && opcode <= 0xe0ff)
+			printk("LSETUP");
+		else if (opcode >= 0xe200 && opcode <= 0xe2ff)
+			printk("JUMP.L");
+		else if (opcode >= 0xe300 && opcode <= 0xe3ff)
+			printk("CALL pcrel");
+		else
+			printk("0x%04x", opcode);
+	}
+
+}
+
 void dump_bfin_trace_buffer(void)
 {
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int tflags, i = 0;
 	char buf[150];
+	unsigned short *addr;
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
 	int j, index;
 #endif
@@ -545,18 +658,25 @@ void dump_bfin_trace_buffer(void)
 
 	printk(KERN_NOTICE "Hardware Trace:\n");
 
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+	printk(KERN_NOTICE "WARNING: Expanded trace turned on - can not trace exceptions\n");
+#endif
+
 	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
 		for (; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
 			decode_address(buf, (unsigned long)bfin_read_TBUF());
 			printk(KERN_NOTICE "%4i Target : %s\n", i, buf);
-			decode_address(buf, (unsigned long)bfin_read_TBUF());
-			printk(KERN_NOTICE "     Source : %s\n", buf);
+			addr = (unsigned short *)bfin_read_TBUF();
+			decode_address(buf, (unsigned long)addr);
+			printk(KERN_NOTICE "     Source : %s ", buf);
+			decode_instruction(addr);
+			printk("\n");
 		}
 	}
 
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
 	if (trace_buff_offset)
-		index = trace_buff_offset/4 - 1;
+		index = trace_buff_offset / 4;
 	else
 		index = EXPAND_LEN;
 
@@ -568,7 +688,9 @@ void dump_bfin_trace_buffer(void)
 		if (index < 0 )
 			index = EXPAND_LEN;
 		decode_address(buf, software_trace_buff[index]);
-		printk(KERN_NOTICE "     Source : %s\n", buf);
+		printk(KERN_NOTICE "     Source : %s ", buf);
+		decode_instruction((unsigned short *)software_trace_buff[index]);
+		printk("\n");
 		index -= 1;
 		if (index < 0)
 			index = EXPAND_LEN;
@@ -582,59 +704,151 @@ void dump_bfin_trace_buffer(void)
 }
 EXPORT_SYMBOL(dump_bfin_trace_buffer);
 
-static void show_trace(struct task_struct *tsk, unsigned long *sp)
+/*
+ * Checks to see if the address pointed to is either a
+ * 16-bit CALL instruction, or a 32-bit CALL instruction
+ */
+bool is_bfin_call(unsigned short *addr)
 {
-	unsigned long addr;
+	unsigned short opcode = 0, *ins_addr;
+	ins_addr = (unsigned short *)addr;
 
-	printk(KERN_NOTICE "\n" KERN_NOTICE "Call Trace:\n");
+	if (!get_instruction(&opcode, ins_addr))
+		return false;
 
-	while (!kstack_end(sp)) {
-		addr = *sp++;
-		/*
-		 * If the address is either in the text segment of the
-		 * kernel, or in the region which contains vmalloc'ed
-		 * memory, it *may* be the address of a calling
-		 * routine; if so, print it so that someone tracing
-		 * down the cause of the crash will be able to figure
-		 * out the call path that was taken.
-		 */
-		if (kernel_text_address(addr))
-			print_ip_sym(addr);
-	}
+	if ((opcode >= 0x0060 && opcode <= 0x0067) ||
+	    (opcode >= 0x0070 && opcode <= 0x0077))
+		return true;
 
-	printk(KERN_NOTICE "\n");
+	ins_addr--;
+	if (!get_instruction(&opcode, ins_addr))
+		return false;
+
+	if (opcode >= 0xE300 && opcode <= 0xE3FF)
+		return true;
+
+	return false;
+
 }
-
 void show_stack(struct task_struct *task, unsigned long *stack)
 {
-	unsigned long *endstack, addr;
-	int i;
+	unsigned int *addr, *endstack, *fp = 0, *frame;
+	unsigned short *ins_addr;
+	char buf[150];
+	unsigned int i, j, ret_addr, frame_no = 0;
 
-	/* Cannot call dump_bfin_trace_buffer() here as show_stack() is
-	 * called externally in some places in the kernel.
+	/*
+	 * If we have been passed a specific stack, use that one otherwise
+	 *    if we have been passed a task structure, use that, otherwise
+	 *    use the stack of where the variable "stack" exists
 	 */
 
-	if (!stack) {
-		if (task)
+	if (stack == NULL) {
+		if (task) {
+			/* We know this is a kernel stack, so this is the start/end */
 			stack = (unsigned long *)task->thread.ksp;
-		else
+			endstack = (unsigned int *)(((unsigned int)(stack) & ~(THREAD_SIZE - 1)) + THREAD_SIZE);
+		} else {
+			/* print out the existing stack info */
 			stack = (unsigned long *)&stack;
+			endstack = (unsigned int *)PAGE_ALIGN((unsigned int)stack);
+		}
+	} else
+		endstack = (unsigned int *)PAGE_ALIGN((unsigned int)stack);
+
+	decode_address(buf, (unsigned int)stack);
+	printk(KERN_NOTICE "Stack info:\n" KERN_NOTICE " SP: [0x%p] %s\n", stack, buf);
+	addr = (unsigned int *)((unsigned int)stack & ~0x3F);
+
+	/* First thing is to look for a frame pointer */
+	for (addr = (unsigned int *)((unsigned int)stack & ~0xF), i = 0;
+		addr < endstack; addr++, i++) {
+		if (*addr & 0x1)
+			continue;
+		ins_addr = (unsigned short *)*addr;
+		ins_addr--;
+		if (is_bfin_call(ins_addr))
+			fp = addr - 1;
+
+		if (fp) {
+			/* Let's check to see if it is a frame pointer */
+			while (fp >= (addr - 1) && fp < endstack && fp)
+				fp = (unsigned int *)*fp;
+			if (fp == 0 || fp == endstack) {
+				fp = addr - 1;
+				break;
+			}
+			fp = 0;
+		}
+	}
+	if (fp) {
+		frame = fp;
+		printk(" FP: (0x%p)\n", fp);
+	} else
+		frame = 0;
+
+	/*
+	 * Now that we think we know where things are, we
+	 * walk the stack again, this time printing things out
+	 * incase there is no frame pointer, we still look for
+	 * valid return addresses
+	 */
+
+	/* First time print out data, next time, print out symbols */
+	for (j = 0; j <= 1; j++) {
+		if (j)
+			printk(KERN_NOTICE "Return addresses in stack:\n");
+		else
+			printk(KERN_NOTICE " Memory from 0x%08lx to %p", ((long unsigned int)stack & ~0xF), endstack);
+
+		fp = frame;
+		frame_no = 0;
+
+		for (addr = (unsigned int *)((unsigned int)stack & ~0xF), i = 0;
+		     addr <= endstack; addr++, i++) {
+
+			ret_addr = 0;
+			if (!j && i % 8 == 0)
+				printk("\n" KERN_NOTICE "%p:",addr);
+
+			/* if it is an odd address, or zero, just skip it */
+			if (*addr & 0x1 || !*addr)
+				goto print;
+
+			ins_addr = (unsigned short *)*addr;
+
+			/* Go back one instruction, and see if it is a CALL */
+			ins_addr--;
+			ret_addr = is_bfin_call(ins_addr);
+ print:
+			if (!j && stack == (unsigned long *)addr)
+				printk("[%08x]", *addr);
+			else if (ret_addr)
+				if (j) {
+					decode_address(buf, (unsigned int)*addr);
+					if (frame == addr) {
+						printk(KERN_NOTICE "   frame %2i : %s\n", frame_no, buf);
+						continue;
+					}
+					printk(KERN_NOTICE "    address : %s\n", buf);
+				} else
+					printk("<%08x>", *addr);
+			else if (fp == addr) {
+				if (j)
+					frame = addr+1;
+				else
+					printk("(%08x)", *addr);
+
+				fp = (unsigned int *)*addr;
+				frame_no++;
+
+			} else if (!j)
+				printk(" %08x ", *addr);
+		}
+		if (!j)
+			printk("\n");
 	}
 
-	addr = (unsigned long)stack;
-	endstack = (unsigned long *)PAGE_ALIGN(addr);
-
-	printk(KERN_NOTICE "Stack from %08lx:", (unsigned long)stack);
-	for (i = 0; i < kstack_depth_to_print; i++) {
-		if (stack + 1 > endstack)
-			break;
-		if (i % 8 == 0)
-			printk("\n" KERN_NOTICE "       ");
-		printk(" %08lx", *stack++);
-	}
-	printk("\n");
-
-	show_trace(task, stack);
 }
 
 void dump_stack(void)
@@ -715,19 +929,9 @@ void dump_bfin_mem(struct pt_regs *fp)
 		if (!((unsigned long)addr & 0xF))
 			printk("\n" KERN_NOTICE "0x%p: ", addr);
 
-		if (get_user(val, addr)) {
-			if (addr >= (unsigned short *)L1_CODE_START &&
-			    addr < (unsigned short *)(L1_CODE_START + L1_CODE_LENGTH)) {
-				dma_memcpy(&val, addr, sizeof(val));
-				sprintf(buf, "%04x", val);
-			} else if (addr >= (unsigned short *)FIXED_CODE_START &&
-				addr <= (unsigned short *)memory_start) {
-				val = bfin_read16(addr);
-				sprintf(buf, "%04x", val);
-			} else {
+		if (get_instruction(&val, addr)) {
 				val = 0;
 				sprintf(buf, "????");
-			}
 		} else
 			sprintf(buf, "%04x", val);
 

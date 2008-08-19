@@ -18,7 +18,7 @@
 
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/arch/gpmc.h>
+#include <mach/gpmc.h>
 
 #undef DEBUG
 

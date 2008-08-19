@@ -246,9 +246,9 @@ map_single(struct device *dev, void *ptr, size_t size,
 		}
 
 		dev_dbg(dev,
-			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
-			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
-			buf->safe, (void *) buf->safe_dma_addr);
+			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+			buf->safe, buf->safe_dma_addr);
 
 		if ((dir == DMA_TO_DEVICE) ||
 		    (dir == DMA_BIDIRECTIONAL)) {
@@ -280,7 +280,7 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	/*
 	 * Trying to unmap an invalid mapping
 	 */
-	if (dma_mapping_error(dma_addr)) {
+	if (dma_mapping_error(dev, dma_addr)) {
 		dev_err(dev, "Trying to unmap invalid mapping\n");
 		return;
 	}
@@ -292,9 +292,9 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		BUG_ON(buf->size != size);
 
 		dev_dbg(dev,
-			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
-			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
-			buf->safe, (void *) buf->safe_dma_addr);
+			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+			buf->safe, buf->safe_dma_addr);
 
 		DO_STATS ( device_info->bounce_count++ );
 
@@ -321,9 +321,8 @@ unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 	}
 }
 
-static inline void
-sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
-		enum dma_data_direction dir)
+static int sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
+			enum dma_data_direction dir)
 {
 	struct dmabounce_device_info *device_info = dev->archdata.dmabounce;
 	struct safe_buffer *buf = NULL;
@@ -355,9 +354,9 @@ sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 */
 
 		dev_dbg(dev,
-			"%s: unsafe buffer %p (phy=%p) mapped to %p (phy=%p)\n",
-			__func__, buf->ptr, (void *) virt_to_dma(dev, buf->ptr),
-			buf->safe, (void *) buf->safe_dma_addr);
+			"%s: unsafe buffer %p (dma=%#x) mapped to %p (dma=%#x)\n",
+			__func__, buf->ptr, virt_to_dma(dev, buf->ptr),
+			buf->safe, buf->safe_dma_addr);
 
 		DO_STATS ( device_info->bounce_count++ );
 
@@ -383,8 +382,9 @@ sync_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 * No need to sync the safe buffer - it was allocated
 		 * via the coherent allocators.
 		 */
+		return 0;
 	} else {
-		dma_cache_maint(dma_to_virt(dev, dma_addr), size, dir);
+		return 1;
 	}
 }
 
@@ -474,25 +474,29 @@ dma_unmap_sg(struct device *dev, struct scatterlist *sg, int nents,
 	}
 }
 
-void
-dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_addr, size_t size,
-				enum dma_data_direction dir)
+void dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t dma_addr,
+				   unsigned long offset, size_t size,
+				   enum dma_data_direction dir)
 {
-	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
-		__func__, (void *) dma_addr, size, dir);
+	dev_dbg(dev, "%s(dma=%#x,off=%#lx,size=%zx,dir=%x)\n",
+		__func__, dma_addr, offset, size, dir);
 
-	sync_single(dev, dma_addr, size, dir);
+	if (sync_single(dev, dma_addr, offset + size, dir))
+		dma_cache_maint(dma_to_virt(dev, dma_addr) + offset, size, dir);
 }
+EXPORT_SYMBOL(dma_sync_single_range_for_cpu);
 
-void
-dma_sync_single_for_device(struct device *dev, dma_addr_t dma_addr, size_t size,
-				enum dma_data_direction dir)
+void dma_sync_single_range_for_device(struct device *dev, dma_addr_t dma_addr,
+				      unsigned long offset, size_t size,
+				      enum dma_data_direction dir)
 {
-	dev_dbg(dev, "%s(ptr=%p,size=%d,dir=%x)\n",
-		__func__, (void *) dma_addr, size, dir);
+	dev_dbg(dev, "%s(dma=%#x,off=%#lx,size=%zx,dir=%x)\n",
+		__func__, dma_addr, offset, size, dir);
 
-	sync_single(dev, dma_addr, size, dir);
+	if (sync_single(dev, dma_addr, offset + size, dir))
+		dma_cache_maint(dma_to_virt(dev, dma_addr) + offset, size, dir);
 }
+EXPORT_SYMBOL(dma_sync_single_range_for_device);
 
 void
 dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nents,
@@ -644,8 +648,6 @@ EXPORT_SYMBOL(dma_map_single);
 EXPORT_SYMBOL(dma_unmap_single);
 EXPORT_SYMBOL(dma_map_sg);
 EXPORT_SYMBOL(dma_unmap_sg);
-EXPORT_SYMBOL(dma_sync_single_for_cpu);
-EXPORT_SYMBOL(dma_sync_single_for_device);
 EXPORT_SYMBOL(dma_sync_sg_for_cpu);
 EXPORT_SYMBOL(dma_sync_sg_for_device);
 EXPORT_SYMBOL(dmabounce_register_dev);

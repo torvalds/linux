@@ -850,7 +850,7 @@ void igb_update_mc_addr_list_82575(struct e1000_hw *hw,
 	for (; mc_addr_count > 0; mc_addr_count--) {
 		hash_value = igb_hash_mc_addr(hw, mc_addr_list);
 		hw_dbg("Hash value = 0x%03X\n", hash_value);
-		hw->mac.ops.mta_set(hw, hash_value);
+		igb_mta_set(hw, hash_value);
 		mc_addr_list += ETH_ALEN;
 	}
 }
@@ -1136,6 +1136,12 @@ static s32 igb_setup_fiber_serdes_link_82575(struct e1000_hw *hw)
 		       E1000_PCS_LCTL_FORCE_LINK;     /* Force Link */
 		hw_dbg("Configuring Forced Link; PCS_LCTL = 0x%08X\n", reg);
 	}
+
+	if (hw->mac.type == e1000_82576) {
+		reg |= E1000_PCS_LCTL_FORCE_FCTRL;
+		igb_force_mac_fc(hw);
+	}
+
 	wr32(E1000_PCS_LCTL, reg);
 
 	return 0;
@@ -1229,70 +1235,6 @@ static bool igb_sgmii_active_82575(struct e1000_hw *hw)
 
 out:
 	return ret_val;
-}
-
-/**
- *  igb_translate_register_82576 - Translate the proper register offset
- *  @reg: e1000 register to be read
- *
- *  Registers in 82576 are located in different offsets than other adapters
- *  even though they function in the same manner.  This function takes in
- *  the name of the register to read and returns the correct offset for
- *  82576 silicon.
- **/
-u32 igb_translate_register_82576(u32 reg)
-{
-	/*
-	 * Some of the Kawela registers are located at different
-	 * offsets than they are in older adapters.
-	 * Despite the difference in location, the registers
-	 * function in the same manner.
-	 */
-	switch (reg) {
-	case E1000_TDBAL(0):
-		reg = 0x0E000;
-		break;
-	case E1000_TDBAH(0):
-		reg = 0x0E004;
-		break;
-	case E1000_TDLEN(0):
-		reg = 0x0E008;
-		break;
-	case E1000_TDH(0):
-		reg = 0x0E010;
-		break;
-	case E1000_TDT(0):
-		reg = 0x0E018;
-		break;
-	case E1000_TXDCTL(0):
-		reg = 0x0E028;
-		break;
-	case E1000_RDBAL(0):
-		reg = 0x0C000;
-		break;
-	case E1000_RDBAH(0):
-		reg = 0x0C004;
-		break;
-	case E1000_RDLEN(0):
-		reg = 0x0C008;
-		break;
-	case E1000_RDH(0):
-		reg = 0x0C010;
-		break;
-	case E1000_RDT(0):
-		reg = 0x0C018;
-		break;
-	case E1000_RXDCTL(0):
-		reg = 0x0C028;
-		break;
-	case E1000_SRRCTL(0):
-		reg = 0x0C00C;
-		break;
-	default:
-		break;
-	}
-
-	return reg;
 }
 
 /**

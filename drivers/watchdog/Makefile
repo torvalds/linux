@@ -66,7 +66,10 @@ obj-$(CONFIG_IB700_WDT) += ib700wdt.o
 obj-$(CONFIG_IBMASR) += ibmasr.o
 obj-$(CONFIG_WAFER_WDT) += wafer5823wdt.o
 obj-$(CONFIG_I6300ESB_WDT) += i6300esb.o
-obj-$(CONFIG_ITCO_WDT) += iTCO_wdt.o iTCO_vendor_support.o
+obj-$(CONFIG_ITCO_WDT) += iTCO_wdt.o
+ifeq ($(CONFIG_ITCO_VENDOR_SUPPORT),y)
+obj-$(CONFIG_ITCO_WDT) += iTCO_vendor_support.o
+endif
 obj-$(CONFIG_IT8712F_WDT) += it8712f_wdt.o
 obj-$(CONFIG_HP_WATCHDOG) += hpwdt.o
 obj-$(CONFIG_SC1200_WDT) += sc1200wdt.o
@@ -92,7 +95,7 @@ obj-$(CONFIG_SBC_EPX_C3_WATCHDOG) += sbc_epx_c3.o
 
 # MIPS Architecture
 obj-$(CONFIG_INDYDOG) += indydog.o
-obj-$(CONFIG_WDT_MTX1)	+= mtx-1_wdt.o
+obj-$(CONFIG_WDT_MTX1) += mtx-1_wdt.o
 obj-$(CONFIG_WDT_RM9K_GPI) += rm9k_wdt.o
 obj-$(CONFIG_SIBYTE_WDOG) += sb_wdog.o
 obj-$(CONFIG_AR7_WDT) += ar7_wdt.o
@@ -103,7 +106,7 @@ obj-$(CONFIG_TXX9_WDT) += txx9wdt.o
 # POWERPC Architecture
 obj-$(CONFIG_8xx_WDT) += mpc8xx_wdt.o
 obj-$(CONFIG_MPC5200_WDT) += mpc5200_wdt.o
-obj-$(CONFIG_83xx_WDT) += mpc83xx_wdt.o
+obj-$(CONFIG_8xxx_WDT) += mpc8xxx_wdt.o
 obj-$(CONFIG_MV64X60_WDT) += mv64x60_wdt.o
 obj-$(CONFIG_BOOKE_WDT) += booke_wdt.o
 

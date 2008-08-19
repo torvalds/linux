@@ -63,14 +63,24 @@ int cap_settime(struct timespec *ts, struct timezone *tz)
 	return 0;
 }
 
-int cap_ptrace (struct task_struct *parent, struct task_struct *child,
-		unsigned int mode)
+int cap_ptrace_may_access(struct task_struct *child, unsigned int mode)
 {
 	/* Derived from arch/i386/kernel/ptrace.c:sys_ptrace. */
-	if (!cap_issubset(child->cap_permitted, parent->cap_permitted) &&
-	    !__capable(parent, CAP_SYS_PTRACE))
-		return -EPERM;
-	return 0;
+	if (cap_issubset(child->cap_permitted, current->cap_permitted))
+		return 0;
+	if (capable(CAP_SYS_PTRACE))
+		return 0;
+	return -EPERM;
+}
+
+int cap_ptrace_traceme(struct task_struct *parent)
+{
+	/* Derived from arch/i386/kernel/ptrace.c:sys_ptrace. */
+	if (cap_issubset(current->cap_permitted, parent->cap_permitted))
+		return 0;
+	if (has_capability(parent, CAP_SYS_PTRACE))
+		return 0;
+	return -EPERM;
 }
 
 int cap_capget (struct task_struct *target, kernel_cap_t *effective,
@@ -534,7 +544,7 @@ int cap_task_post_setuid (uid_t old_ruid, uid_t old_euid, uid_t old_suid,
 static inline int cap_safe_nice(struct task_struct *p)
 {
 	if (!cap_issubset(p->cap_permitted, current->cap_permitted) &&
-	    !__capable(current, CAP_SYS_NICE))
+	    !capable(CAP_SYS_NICE))
 		return -EPERM;
 	return 0;
 }

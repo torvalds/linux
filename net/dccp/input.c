@@ -413,7 +413,7 @@ static int dccp_rcv_request_sent_state_process(struct sock *sk,
 
 		/* Stop the REQUEST timer */
 		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
-		BUG_TRAP(sk->sk_send_head != NULL);
+		WARN_ON(sk->sk_send_head == NULL);
 		__kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;
 

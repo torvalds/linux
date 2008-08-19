@@ -3,8 +3,11 @@
 
 extern void pci_iommu_shutdown(void);
 extern void no_iommu_init(void);
+extern struct dma_mapping_ops nommu_dma_ops;
 extern int force_iommu, no_iommu;
 extern int iommu_detected;
+
+extern unsigned long iommu_num_pages(unsigned long addr, unsigned long len);
 
 #ifdef CONFIG_GART_IOMMU
 extern int gart_iommu_aperture;

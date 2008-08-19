@@ -51,7 +51,7 @@ extern void setup_mm_for_reboot(char mode);
 
 static volatile int hlt_counter;
 
-#include <asm/arch/system.h>
+#include <mach/system.h>
 
 void disable_hlt(void)
 {

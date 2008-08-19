@@ -19,7 +19,7 @@
 #include <linux/i2c.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <asm/arch/akita.h>
+#include <mach/akita.h>
 
 /* MAX7310 Regiser Map */
 #define MAX7310_INPUT    0x00

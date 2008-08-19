@@ -111,7 +111,7 @@ EXPORT_SYMBOL(copy_user_highpage);
 /*
  * For SH-4, we have our own implementation for ptep_get_and_clear
  */
-inline pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
+pte_t ptep_get_and_clear(struct mm_struct *mm, unsigned long addr, pte_t *ptep)
 {
 	pte_t pte = *ptep;
 

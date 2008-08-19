@@ -135,6 +135,10 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 		obj_pointer = object->package.elements;
 		break;
 
+		/*
+		 * These objects have a possible list of notify handlers.
+		 * Device object also may have a GPE block.
+		 */
 	case ACPI_TYPE_DEVICE:
 
 		if (object->device.gpe_block) {
@@ -142,9 +146,14 @@ static void acpi_ut_delete_internal_obj(union acpi_operand_object *object)
 						       gpe_block);
 		}
 
-		/* Walk the handler list for this device */
+		/*lint -fallthrough */
 
-		handler_desc = object->device.handler;
+	case ACPI_TYPE_PROCESSOR:
+	case ACPI_TYPE_THERMAL:
+
+		/* Walk the notify handler list for this object */
+
+		handler_desc = object->common_notify.handler;
 		while (handler_desc) {
 			next_desc = handler_desc->address_space.next;
 			acpi_ut_remove_reference(handler_desc);

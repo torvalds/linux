@@ -30,7 +30,7 @@
 #include <linux/serial_core.h>
 
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/setup.h>
 
@@ -41,14 +41,14 @@
 #include <asm/mach/map.h>
 #include <asm/mach/serial_sa1100.h>
 
-#include <asm/arch/h3600.h>
+#include <mach/h3600.h>
 
 #if defined (CONFIG_SA1100_H3600) || defined (CONFIG_SA1100_H3100)
-#include <asm/arch/h3600_gpio.h>
+#include <mach/h3600_gpio.h>
 #endif
 
 #ifdef CONFIG_SA1100_H3800
-#include <asm/arch/h3600_asic.h>
+#include <mach/h3600_asic.h>
 #endif
 
 #include "generic.h"
@@ -681,7 +681,7 @@ static struct ipaq_model_ops h3800_model_ops __initdata = {
 
 #define MAX_ASIC_ISR_LOOPS    20
 
-/* The order of these is important - see #include <asm/arch/irqs.h> */
+/* The order of these is important - see #include <mach/irqs.h> */
 static u32 kpio_irq_mask[] = {
 	KPIO_KEY_ALL,
 	KPIO_SPI_INT,
@@ -834,7 +834,7 @@ static void __init h3800_init_irq(void)
 		set_irq_chip(irq, &h3800_gpio_irqchip);
 	}
 #endif
-	set_irq_type(IRQ_GPIO_H3800_ASIC, IRQT_RISING);
+	set_irq_type(IRQ_GPIO_H3800_ASIC, IRQ_TYPE_EDGE_RISING);
 	set_irq_chained_handler(IRQ_GPIO_H3800_ASIC, h3800_IRQ_demux);
 }
 

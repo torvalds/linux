@@ -188,6 +188,9 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 {
 	int i;
 
+	/* XXX: currently broken due to cb/requeue use */
+	return -EPERM;
+
 	/* prepare the filter and save it for the SW queue
 	 * matching the received HW queue */
 
@@ -238,12 +241,14 @@ void ieee80211_ht_agg_queue_remove(struct ieee80211_local *local,
 	} else {
 		struct netdev_queue *txq;
 		spinlock_t *root_lock;
+		struct Qdisc *q;
 
 		txq = netdev_get_tx_queue(local->mdev, agg_queue);
-		root_lock = qdisc_root_lock(txq->qdisc);
+		q = rcu_dereference(txq->qdisc);
+		root_lock = qdisc_lock(q);
 
 		spin_lock_bh(root_lock);
-		qdisc_reset(txq->qdisc);
+		qdisc_reset(q);
 		spin_unlock_bh(root_lock);
 	}
 }

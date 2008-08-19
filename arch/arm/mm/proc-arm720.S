@@ -231,7 +231,7 @@ cpu_arm720_name:
 		.align
 
 /*
- * See linux/include/asm-arm/procinfo.h for a definition of this structure.
+ * See <asm/procinfo.h> for a definition of this structure.
  */
 	
 		.section ".proc.info.init", #alloc, #execinstr

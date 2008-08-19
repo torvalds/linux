@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/regs-watchdog.h
+/* arch/arm/mach-s3c2410/include/mach/regs-watchdog.h
  *
  * Copyright (c) 2003 Simtec Electronics <linux@simtec.co.uk>
  *		      http://www.simtec.co.uk/products/SWLINUX/
@@ -12,7 +12,7 @@
 
 
 #ifndef __ASM_ARCH_REGS_WATCHDOG_H
-#define __ASM_ARCH_REGS_WATCHDOG_H "$Id: watchdog.h,v 1.2 2003/04/29 13:31:09 ben Exp $"
+#define __ASM_ARCH_REGS_WATCHDOG_H
 
 #define S3C_WDOGREG(x) ((x) + S3C_VA_WATCHDOG)
 

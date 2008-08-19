@@ -364,6 +364,11 @@ void netxen_initialize_adapter_ops(struct netxen_adapter *adapter)
 	default:
 		break;
 	}
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		adapter->set_mtu = nx_fw_cmd_set_mtu;
+		adapter->set_promisc = netxen_p3_nic_set_promisc;
+	}
 }
 
 /*
