@@ -938,6 +938,10 @@ int of_node_to_nid(struct device_node *dp)
 	int count, nid;
 	u64 grp;
 
+	/* This is the right thing to do on currently supported
+	 * SUN4U NUMA platforms as well, as the PCI controller does
+	 * not sit behind any particular memory controller.
+	 */
 	if (!mlgroups)
 		return -1;
 
@@ -1206,8 +1210,44 @@ out:
 	return err;
 }
 
+static int __init numa_parse_jbus(void)
+{
+	unsigned long cpu, index;
+
+	/* NUMA node id is encoded in bits 36 and higher, and there is
+	 * a 1-to-1 mapping from CPU ID to NUMA node ID.
+	 */
+	index = 0;
+	for_each_present_cpu(cpu) {
+		numa_cpu_lookup_table[cpu] = index;
+		numa_cpumask_lookup_table[index] = cpumask_of_cpu(cpu);
+		node_masks[index].mask = ~((1UL << 36UL) - 1UL);
+		node_masks[index].val = cpu << 36UL;
+
+		index++;
+	}
+	num_node_masks = index;
+
+	add_node_ranges();
+
+	for (index = 0; index < num_node_masks; index++) {
+		allocate_node_data(index);
+		node_set_online(index);
+	}
+
+	return 0;
+}
+
 static int __init numa_parse_sun4u(void)
 {
+	if (tlb_type == cheetah || tlb_type == cheetah_plus) {
+		unsigned long ver;
+
+		__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+		if ((ver >> 32UL) == __JALAPENO_ID ||
+		    (ver >> 32UL) == __SERRANO_ID)
+			return numa_parse_jbus();
+	}
 	return -1;
 }
 
