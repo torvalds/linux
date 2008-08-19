@@ -31,6 +31,7 @@ config SEQUOIA
 	bool "Sequoia"
 	depends on 44x
 	default n
+	select PPC44x_SIMPLE
 	select 440EPX
 	help
 	  This option enables support for the AMCC PPC440EPX evaluation board.
