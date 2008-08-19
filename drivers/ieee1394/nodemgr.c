@@ -154,9 +154,6 @@ struct host_info {
 
 static int nodemgr_bus_match(struct device * dev, struct device_driver * drv);
 static int nodemgr_uevent(struct device *dev, struct kobj_uevent_env *env);
-static void nodemgr_reactivate_ne(struct node_entry *ne);
-static void nodemgr_remove_ne(struct node_entry *ne);
-static struct node_entry *find_entry_by_guid(u64 guid);
 
 struct bus_type ieee1394_bus_type = {
 	.name		= "ieee1394",
@@ -385,27 +382,6 @@ static ssize_t fw_get_ignore_driver(struct device *dev, struct device_attribute 
 static DEVICE_ATTR(ignore_driver, S_IWUSR | S_IRUGO, fw_get_ignore_driver, fw_set_ignore_driver);
 
 
-static ssize_t fw_set_destroy_node(struct bus_type *bus, const char *buf, size_t count)
-{
-	struct node_entry *ne;
-	u64 guid = (u64)simple_strtoull(buf, NULL, 16);
-
-	ne = find_entry_by_guid(guid);
-
-	if (ne == NULL || !ne->in_limbo)
-		return -EINVAL;
-
-	nodemgr_remove_ne(ne);
-
-	return count;
-}
-static ssize_t fw_get_destroy_node(struct bus_type *bus, char *buf)
-{
-	return sprintf(buf, "You can destroy in_limbo nodes by writing their GUID to this file\n");
-}
-static BUS_ATTR(destroy_node, S_IWUSR | S_IRUGO, fw_get_destroy_node, fw_set_destroy_node);
-
-
 static ssize_t fw_set_rescan(struct bus_type *bus, const char *buf,
 			     size_t count)
 {
@@ -442,7 +418,6 @@ static BUS_ATTR(ignore_drivers, S_IWUSR | S_IRUGO, fw_get_ignore_drivers, fw_set
 
 
 struct bus_attribute *const fw_bus_attrs[] = {
-	&bus_attr_destroy_node,
 	&bus_attr_rescan,
 	&bus_attr_ignore_drivers,
 	NULL
@@ -1300,14 +1275,19 @@ static void nodemgr_update_node(struct node_entry *ne, struct csr1212_csr *csr,
 		csr1212_destroy_csr(csr);
 	}
 
-	if (ne->in_limbo)
-		nodemgr_reactivate_ne(ne);
-
 	/* Mark the node current */
 	ne->generation = generation;
+
+	if (ne->in_limbo) {
+		device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
+		ne->in_limbo = false;
+
+		HPSB_DEBUG("Node reactivated: "
+			   "ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
+			   NODE_BUS_ARGS(ne->host, ne->nodeid),
+			   (unsigned long long)ne->guid);
+	}
 }
-
-
 
 static void nodemgr_node_scan_one(struct hpsb_host *host,
 				  nodeid_t nodeid, int generation)
@@ -1392,75 +1372,14 @@ static void nodemgr_node_scan(struct hpsb_host *host, int generation)
 	}
 }
 
-static int pause_ne(struct device *dev, void *data)
-{
-	struct unit_directory *ud;
-	struct device_driver *drv;
-	struct node_entry *ne = data;
-	int error;
-
-	ud = container_of(dev, struct unit_directory, unit_dev);
-	if (ud->ne == ne) {
-		drv = get_driver(ud->device.driver);
-		if (drv) {
-			error = 1; /* release if suspend is not implemented */
-			if (drv->suspend) {
-				down(&ud->device.sem);
-				error = drv->suspend(&ud->device, PMSG_SUSPEND);
-				up(&ud->device.sem);
-			}
-			if (error)
-				device_release_driver(&ud->device);
-			put_driver(drv);
-		}
-	}
-
-	return 0;
-}
-
 static void nodemgr_pause_ne(struct node_entry *ne)
 {
-	HPSB_DEBUG("Node suspended: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
+	HPSB_DEBUG("Node paused: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
 		   NODE_BUS_ARGS(ne->host, ne->nodeid),
 		   (unsigned long long)ne->guid);
 
-	ne->in_limbo = 1;
+	ne->in_limbo = true;
 	WARN_ON(device_create_file(&ne->device, &dev_attr_ne_in_limbo));
-
-	class_for_each_device(&nodemgr_ud_class, NULL, ne, pause_ne);
-}
-
-static int reactivate_ne(struct device *dev, void *data)
-{
-	struct unit_directory *ud;
-	struct device_driver *drv;
-	struct node_entry *ne = data;
-
-	ud = container_of(dev, struct unit_directory, unit_dev);
-	if (ud->ne == ne) {
-		drv = get_driver(ud->device.driver);
-		if (drv) {
-			if (drv->resume) {
-				down(&ud->device.sem);
-				drv->resume(&ud->device);
-				up(&ud->device.sem);
-			}
-			put_driver(drv);
-		}
-	}
-
-	return 0;
-}
-
-static void nodemgr_reactivate_ne(struct node_entry *ne)
-{
-	ne->in_limbo = 0;
-	device_remove_file(&ne->device, &dev_attr_ne_in_limbo);
-
-	class_for_each_device(&nodemgr_ud_class, NULL, ne, reactivate_ne);
-	HPSB_DEBUG("Node resumed: ID:BUS[" NODE_BUS_FMT "]  GUID[%016Lx]",
-		   NODE_BUS_ARGS(ne->host, ne->nodeid),
-		   (unsigned long long)ne->guid);
 }
 
 static int update_pdrv(struct device *dev, void *data)
@@ -1496,7 +1415,6 @@ static void nodemgr_update_pdrv(struct node_entry *ne)
 {
 	class_for_each_device(&nodemgr_ud_class, NULL, ne, update_pdrv);
 }
-
 
 /* Write the BROADCAST_CHANNEL as per IEEE1394a 8.3.2.3.11 and 8.4.2.3.  This
  * seems like an optional service but in the end it is practically mandatory
@@ -1574,7 +1492,7 @@ static int node_probe(struct device *dev, void *data)
 	return 0;
 }
 
-static void nodemgr_node_probe(struct hpsb_host *host, int generation)
+static int nodemgr_node_probe(struct hpsb_host *host, int generation)
 {
 	struct node_probe_parameter p;
 
@@ -1595,11 +1513,11 @@ static void nodemgr_node_probe(struct hpsb_host *host, int generation)
 	 */
 	p.probe_now = false;
 	if (class_for_each_device(&nodemgr_ne_class, NULL, &p, node_probe) != 0)
-		return;
+		return 0;
 
 	p.probe_now = true;
 	if (class_for_each_device(&nodemgr_ne_class, NULL, &p, node_probe) != 0)
-		return;
+		return 0;
 	/*
 	 * Now let's tell the bus to rescan our devices. This may seem
 	 * like overhead, but the driver-model core will only scan a
@@ -1611,6 +1529,27 @@ static void nodemgr_node_probe(struct hpsb_host *host, int generation)
 	 */
 	if (bus_rescan_devices(&ieee1394_bus_type) != 0)
 		HPSB_DEBUG("bus_rescan_devices had an error");
+
+	return 1;
+}
+
+static int remove_nodes_in_limbo(struct device *dev, void *data)
+{
+	struct node_entry *ne;
+
+	if (dev->bus != &ieee1394_bus_type)
+		return 0;
+
+	ne = container_of(dev, struct node_entry, device);
+	if (ne->in_limbo)
+		nodemgr_remove_ne(ne);
+
+	return 0;
+}
+
+static void nodemgr_remove_nodes_in_limbo(struct hpsb_host *host)
+{
+	device_for_each_child(&host->device, NULL, remove_nodes_in_limbo);
 }
 
 static int nodemgr_send_resume_packet(struct hpsb_host *host)
@@ -1781,10 +1720,24 @@ static int nodemgr_host_thread(void *data)
 
 		/* This actually does the full probe, with sysfs
 		 * registration. */
-		nodemgr_node_probe(host, generation);
+		if (!nodemgr_node_probe(host, generation))
+			continue;
 
 		/* Update some of our sysfs symlinks */
 		nodemgr_update_host_dev_links(host);
+
+		/* Sleep 3 seconds */
+		for (i = 3000/200; i; i--) {
+			msleep_interruptible(200);
+			if (kthread_should_stop())
+				goto exit;
+
+			if (generation != get_hpsb_generation(host))
+				break;
+		}
+		/* Remove nodes which are gone, unless a bus reset happened */
+		if (!i)
+			nodemgr_remove_nodes_in_limbo(host);
 	}
 exit:
 	HPSB_VERBOSE("NodeMgr: Exiting thread");
