@@ -333,6 +333,7 @@ struct pv_lock_ops {
 	int (*spin_is_locked)(struct raw_spinlock *lock);
 	int (*spin_is_contended)(struct raw_spinlock *lock);
 	void (*spin_lock)(struct raw_spinlock *lock);
+	void (*spin_lock_flags)(struct raw_spinlock *lock, unsigned long flags);
 	int (*spin_trylock)(struct raw_spinlock *lock);
 	void (*spin_unlock)(struct raw_spinlock *lock);
 };
@@ -1412,6 +1413,12 @@ static inline int __raw_spin_is_contended(struct raw_spinlock *lock)
 static __always_inline void __raw_spin_lock(struct raw_spinlock *lock)
 {
 	PVOP_VCALL1(pv_lock_ops.spin_lock, lock);
+}
+
+static __always_inline void __raw_spin_lock_flags(struct raw_spinlock *lock,
+						  unsigned long flags)
+{
+	PVOP_VCALL2(pv_lock_ops.spin_lock_flags, lock, flags);
 }
 
 static __always_inline int __raw_spin_trylock(struct raw_spinlock *lock)
