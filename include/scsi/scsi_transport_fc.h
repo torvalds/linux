@@ -679,15 +679,15 @@ fc_remote_port_chkready(struct fc_rport *rport)
 		if (rport->roles & FC_PORT_ROLE_FCP_TARGET)
 			result = 0;
 		else if (rport->flags & FC_RPORT_DEVLOSS_PENDING)
-			result = DID_IMM_RETRY << 16;
+			result = DID_TRANSPORT_DISRUPTED << 16;
 		else
 			result = DID_NO_CONNECT << 16;
 		break;
 	case FC_PORTSTATE_BLOCKED:
 		if (rport->flags & FC_RPORT_FAST_FAIL_TIMEDOUT)
-			result = DID_NO_CONNECT << 16;
+			result = DID_TRANSPORT_FAILFAST << 16;
 		else
-			result = DID_IMM_RETRY << 16;
+			result = DID_TRANSPORT_DISRUPTED << 16;
 		break;
 	default:
 		result = DID_NO_CONNECT << 16;
