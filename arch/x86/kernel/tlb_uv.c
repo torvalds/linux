@@ -17,6 +17,7 @@
 #include <asm/genapic.h>
 #include <asm/idle.h>
 #include <asm/tsc.h>
+#include <asm/irq_vectors.h>
 
 #include <mach_apic.h>
 
@@ -783,7 +784,7 @@ static int __init uv_bau_init(void)
 		uv_init_blade(blade, node, cur_cpu);
 		cur_cpu += uv_blade_nr_possible_cpus(blade);
 	}
-	set_intr_gate(UV_BAU_MESSAGE, uv_bau_message_intr1);
+	alloc_intr_gate(UV_BAU_MESSAGE, uv_bau_message_intr1);
 	uv_enable_timeouts();
 
 	return 0;
