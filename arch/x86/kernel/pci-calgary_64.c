@@ -511,8 +511,22 @@ error:
 	return ret;
 }
 
+static void calgary_free_coherent(struct device *dev, size_t size,
+				  void *vaddr, dma_addr_t dma_handle)
+{
+	unsigned int npages;
+	struct iommu_table *tbl = find_iommu_table(dev);
+
+	size = PAGE_ALIGN(size);
+	npages = size >> PAGE_SHIFT;
+
+	iommu_free(tbl, dma_handle, npages);
+	free_pages((unsigned long)vaddr, get_order(size));
+}
+
 static struct dma_mapping_ops calgary_dma_ops = {
 	.alloc_coherent = calgary_alloc_coherent,
+	.free_coherent = calgary_free_coherent,
 	.map_single = calgary_map_single,
 	.unmap_single = calgary_unmap_single,
 	.map_sg = calgary_map_sg,
