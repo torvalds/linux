@@ -50,12 +50,23 @@
 #define TX4927_SIO_REG(ch)	(TX4927_REG_BASE + 0xf300 + (ch) * 0x100)
 #define TX4927_PIO_REG		(TX4927_REG_BASE + 0xf500)
 
+#define TX4927_IR_ECCERR	0
+#define TX4927_IR_WTOERR	1
+#define TX4927_NUM_IR_INT	6
 #define TX4927_IR_INT(n)	(2 + (n))
+#define TX4927_NUM_IR_SIO	2
 #define TX4927_IR_SIO(n)	(8 + (n))
+#define TX4927_NUM_IR_DMA	4
+#define TX4927_IR_DMA(n)	(10 + (n))
+#define TX4927_IR_PIO		14
+#define TX4927_IR_PDMAC		15
 #define TX4927_IR_PCIC		16
 #define TX4927_NUM_IR_TMR	3
 #define TX4927_IR_TMR(n)	(17 + (n))
 #define TX4927_IR_PCIERR	22
+#define TX4927_IR_PCIPME	23
+#define TX4927_IR_ACLC		24
+#define TX4927_IR_ACLCPME	25
 #define TX4927_NUM_IR	32
 
 #define TX4927_IRC_INT	2	/* IP[2] in Status register */
