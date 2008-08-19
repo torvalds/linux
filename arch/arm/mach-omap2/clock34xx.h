@@ -1189,27 +1189,34 @@ static const struct clksel gfx_l3_clksel[] = {
 	{ .parent = NULL }
 };
 
-static struct clk gfx_l3_fck = {
-	.name		= "gfx_l3_fck",
+/* Virtual parent clock for gfx_l3_ick and gfx_l3_fck */
+static struct clk gfx_l3_ck = {
+	.name		= "gfx_l3_ck",
 	.parent		= &l3_ick,
 	.init		= &omap2_init_clksel_parent,
 	.enable_reg	= OMAP_CM_REGADDR(GFX_MOD, CM_ICLKEN),
 	.enable_bit	= OMAP_EN_GFX_SHIFT,
+	.flags		= CLOCK_IN_OMAP3430ES1,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk gfx_l3_fck = {
+	.name		= "gfx_l3_fck",
+	.parent		= &gfx_l3_ck,
+	.init		= &omap2_init_clksel_parent,
 	.clksel_reg	= OMAP_CM_REGADDR(GFX_MOD, CM_CLKSEL),
 	.clksel_mask	= OMAP_CLKSEL_GFX_MASK,
 	.clksel		= gfx_l3_clksel,
-	.flags		= CLOCK_IN_OMAP3430ES1 | RATE_PROPAGATES,
+	.flags		= CLOCK_IN_OMAP3430ES1 | RATE_PROPAGATES |
+				PARENT_CONTROLS_CLOCK,
 	.clkdm_name	= "gfx_3430es1_clkdm",
 	.recalc		= &omap2_clksel_recalc,
 };
 
 static struct clk gfx_l3_ick = {
 	.name		= "gfx_l3_ick",
-	.parent		= &l3_ick,
-	.init		= &omap2_init_clk_clkdm,
-	.enable_reg	= OMAP_CM_REGADDR(GFX_MOD, CM_ICLKEN),
-	.enable_bit	= OMAP_EN_GFX_SHIFT,
-	.flags		= CLOCK_IN_OMAP3430ES1,
+	.parent		= &gfx_l3_ck,
+	.flags		= CLOCK_IN_OMAP3430ES1 | PARENT_CONTROLS_CLOCK,
 	.clkdm_name	= "gfx_3430es1_clkdm",
 	.recalc		= &followparent_recalc,
 };
@@ -2153,19 +2160,9 @@ static struct clk cam_mclk = {
 	.recalc		= &omap2_clksel_recalc,
 };
 
-static struct clk cam_l3_ick = {
-	.name		= "cam_l3_ick",
-	.parent		= &l3_ick,
-	.init		= &omap2_init_clk_clkdm,
-	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_CAM_MOD, CM_ICLKEN),
-	.enable_bit	= OMAP3430_EN_CAM_SHIFT,
-	.flags		= CLOCK_IN_OMAP343X,
-	.clkdm_name	= "cam_clkdm",
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk cam_l4_ick = {
-	.name		= "cam_l4_ick",
+static struct clk cam_ick = {
+	/* Handles both L3 and L4 clocks */
+	.name		= "cam_ick",
 	.parent		= &l4_ick,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430_CAM_MOD, CM_ICLKEN),
@@ -2199,19 +2196,9 @@ static struct clk usbhost_48m_fck = {
 	.recalc		= &followparent_recalc,
 };
 
-static struct clk usbhost_l3_ick = {
-	.name		= "usbhost_l3_ick",
-	.parent		= &l3_ick,
-	.init		= &omap2_init_clk_clkdm,
-	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_USBHOST_MOD, CM_ICLKEN),
-	.enable_bit	= OMAP3430ES2_EN_USBHOST_SHIFT,
-	.flags		= CLOCK_IN_OMAP3430ES2,
-	.clkdm_name	= "usbhost_clkdm",
-	.recalc		= &followparent_recalc,
-};
-
-static struct clk usbhost_l4_ick = {
-	.name		= "usbhost_l4_ick",
+static struct clk usbhost_ick = {
+	/* Handles both L3 and L4 clocks */
+	.name		= "usbhost_ick",
 	.parent		= &l4_ick,
 	.init		= &omap2_init_clk_clkdm,
 	.enable_reg	= OMAP_CM_REGADDR(OMAP3430ES2_USBHOST_MOD, CM_ICLKEN),
@@ -3093,6 +3080,7 @@ static struct clk *onchip_34xx_clks[] __initdata = {
 	&l3_ick,
 	&l4_ick,
 	&rm_ick,
+	&gfx_l3_ck,
 	&gfx_l3_fck,
 	&gfx_l3_ick,
 	&gfx_cg1_ck,
@@ -3174,12 +3162,10 @@ static struct clk *onchip_34xx_clks[] __initdata = {
 	&dss2_alwon_fck,
 	&dss_ick,
 	&cam_mclk,
-	&cam_l3_ick,
-	&cam_l4_ick,
+	&cam_ick,
 	&usbhost_120m_fck,
 	&usbhost_48m_fck,
-	&usbhost_l3_ick,
-	&usbhost_l4_ick,
+	&usbhost_ick,
 	&usbhost_sar_fck,
 	&usim_fck,
 	&gpt1_fck,
