@@ -2613,6 +2613,7 @@ static int hso_resume(struct usb_interface *iface)
 					"Transmitting lingering data\n");
 				hso_net_start_xmit(hso_net->skb_tx_buf,
 						   hso_net->net);
+				hso_net->skb_tx_buf = NULL;
 			}
 			result = hso_start_net_device(network_table[i]);
 			if (result)
