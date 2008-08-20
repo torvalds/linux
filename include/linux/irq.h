@@ -128,6 +128,7 @@ struct irq_chip {
 };
 
 struct timer_rand_state;
+struct irq_2_iommu;
 /**
  * struct irq_desc - interrupt descriptor
  *
@@ -162,6 +163,9 @@ struct irq_desc {
 	unsigned int            *kstat_irqs;
 #else
 	unsigned int            kstat_irqs[NR_CPUS];
+#endif
+#if defined(CONFIG_INTR_REMAP) && defined(CONFIG_HAVE_SPARSE_IRQ)
+       struct irq_2_iommu      *irq_2_iommu;
 #endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
