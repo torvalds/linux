@@ -72,13 +72,6 @@ int sis_apic_bug = -1;
 static DEFINE_SPINLOCK(ioapic_lock);
 static DEFINE_SPINLOCK(vector_lock);
 
-int first_free_entry;
-/*
- * Rough estimation of how many shared IRQs there are, can
- * be changed anytime.
- */
-int pin_map_size;
-
 /*
  * # of IRQ routing registers
  */
