@@ -2695,15 +2695,13 @@ static __devinit void default_find_bmc(void)
 	for (i = 0; ; i++) {
 		if (!ipmi_defaults[i].port)
 			break;
-
-		info = kzalloc(sizeof(*info), GFP_KERNEL);
-		if (!info)
-			return;
-
 #ifdef CONFIG_PPC_MERGE
 		if (check_legacy_ioport(ipmi_defaults[i].port))
 			continue;
 #endif
+		info = kzalloc(sizeof(*info), GFP_KERNEL);
+		if (!info)
+			return;
 
 		info->addr_source = NULL;
 
