@@ -202,7 +202,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	stack_overflow_check(regs);
 #endif
 
-	if (likely(irq < nr_irqs))
+	if (likely(__irq_to_desc(irq)))
 		generic_handle_irq(irq);
 	else {
 		if (!disable_apic)

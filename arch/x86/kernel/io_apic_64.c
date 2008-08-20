@@ -400,7 +400,6 @@ static inline void io_apic_sync(unsigned int apic)
 	struct irq_cfg *cfg;						\
 	struct irq_pin_list *entry;					\
 									\
-	BUG_ON(irq >= nr_irqs);						\
 	cfg = irq_cfg(irq);						\
 	entry = cfg->irq_2_pin;						\
 	for (;;) {							\
@@ -480,7 +479,6 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 	struct irq_cfg *cfg;
 	struct irq_pin_list *entry;
 
-	BUG_ON(irq >= nr_irqs);
 	cfg = irq_cfg(irq);
 	entry = cfg->irq_2_pin;
 	for (;;) {
@@ -549,7 +547,6 @@ static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 	struct irq_cfg *cfg;
 	struct irq_pin_list *entry;
 
-	BUG_ON(irq >= nr_irqs);
 	/* first time to refer irq_cfg, so with new */
 	cfg = irq_cfg_alloc(irq);
 	entry = cfg->irq_2_pin;
@@ -841,7 +838,6 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 				best_guess = irq;
 		}
 	}
-	BUG_ON(best_guess >= nr_irqs);
 	return best_guess;
 }
 
@@ -973,7 +969,6 @@ static int pin_2_irq(int idx, int apic, int pin)
 			irq += nr_ioapic_registers[i++];
 		irq += pin;
 	}
-	BUG_ON(irq >= nr_irqs);
 	return irq;
 }
 
@@ -1008,7 +1003,6 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 	int cpu;
 	struct irq_cfg *cfg;
 
-	BUG_ON((unsigned)irq >= nr_irqs);
 	cfg = irq_cfg(irq);
 
 	/* Only try and allocate irqs on cpus that are present */
@@ -1082,7 +1076,6 @@ static void __clear_irq_vector(int irq)
 	cpumask_t mask;
 	int cpu, vector;
 
-	BUG_ON((unsigned)irq >= nr_irqs);
 	cfg = irq_cfg(irq);
 	BUG_ON(!cfg->vector);
 
@@ -1924,8 +1917,6 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 		struct irq_desc *desc;
 		struct irq_cfg *cfg;
 		irq = __get_cpu_var(vector_irq)[vector];
-		if (irq >= nr_irqs)
-			continue;
 
 		desc = irq_to_desc(irq);
 		cfg = irq_cfg(irq);

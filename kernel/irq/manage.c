@@ -31,10 +31,10 @@ cpumask_t irq_default_affinity = CPU_MASK_ALL;
  */
 void synchronize_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc = __irq_to_desc(irq);
 	unsigned int status;
 
-	if (irq >= nr_irqs)
+	if (!desc)
 		return;
 
 	do {
@@ -142,10 +142,11 @@ int irq_select_affinity(unsigned int irq)
  */
 void disable_irq_nosync(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 	unsigned long flags;
 
-	if (irq >= nr_irqs)
+	desc = __irq_to_desc(irq);
+	if (!desc)
 		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
@@ -171,9 +172,10 @@ EXPORT_SYMBOL(disable_irq_nosync);
  */
 void disable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 
-	if (irq >= nr_irqs)
+	desc = __irq_to_desc(irq);
+	if (!desc)
 		return;
 
 	disable_irq_nosync(irq);
@@ -213,10 +215,11 @@ static void __enable_irq(struct irq_desc *desc, unsigned int irq)
  */
 void enable_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 	unsigned long flags;
 
-	if (irq >= nr_irqs)
+	desc = __irq_to_desc(irq);
+	if (!desc)
 		return;
 
 	spin_lock_irqsave(&desc->lock, flags);
@@ -290,10 +293,14 @@ EXPORT_SYMBOL(set_irq_wake);
  */
 int can_request_irq(unsigned int irq, unsigned long irqflags)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 	struct irqaction *action;
 
-	if (irq >= nr_irqs || desc->status & IRQ_NOREQUEST)
+	desc = __irq_to_desc(irq);
+	if (!desc)
+		return 0;
+
+	if (desc->status & IRQ_NOREQUEST)
 		return 0;
 
 	action = desc->action;
@@ -352,14 +359,15 @@ int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
  */
 int setup_irq(unsigned int irq, struct irqaction *new)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 	struct irqaction *old, **p;
 	const char *old_name = NULL;
 	unsigned long flags;
 	int shared = 0;
 	int ret;
 
-	if (irq >= nr_irqs)
+	desc = __irq_to_desc(irq);
+	if (!desc)
 		return -EINVAL;
 
 	if (desc->chip == &no_irq_chip)
@@ -518,10 +526,11 @@ void free_irq(unsigned int irq, void *dev_id)
 	unsigned long flags;
 
 	WARN_ON(in_interrupt());
-	if (irq >= nr_irqs)
+
+	desc = __irq_to_desc(irq);
+	if (!desc)
 		return;
 
-	desc = irq_to_desc(irq);
 	spin_lock_irqsave(&desc->lock, flags);
 	p = &desc->action;
 	for (;;) {
@@ -634,9 +643,11 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	 */
 	if ((irqflags & IRQF_SHARED) && !dev_id)
 		return -EINVAL;
-	if (irq >= nr_irqs)
+
+	desc = __irq_to_desc(irq);
+	if (!desc)
 		return -EINVAL;
-	desc = irq_to_desc(irq);
+
 	if (desc->status & IRQ_NOREQUEST)
 		return -EINVAL;
 	if (!handler)
