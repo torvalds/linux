@@ -94,6 +94,43 @@ DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
 static int disable_timer_pin_1 __initdata;
 
+struct irq_cfg {
+	u8 vector;
+};
+
+
+/* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
+static struct irq_cfg irq_cfg_legacy[] __initdata = {
+	[0] = { .vector = FIRST_DEVICE_VECTOR,  },
+};
+
+static void __init init_work(void *data)
+{
+        struct dyn_array *da = data;
+        struct irq_cfg *cfg;
+        int legacy_count;
+        int i;
+
+        cfg = *da->name;
+
+        legacy_count = sizeof(irq_cfg_legacy)/sizeof(irq_cfg_legacy[0]);
+
+	BUG_ON(legacy_count > nr_irqs);
+
+        memcpy(cfg, irq_cfg_legacy, sizeof(irq_cfg_legacy));
+}
+
+static struct irq_cfg *irq_cfgx;
+DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irqs, PAGE_SIZE, init_work);
+
+static struct irq_cfg *irq_cfg(unsigned int irq)
+{
+	if (irq >= nr_irqs)
+		return NULL;
+
+	return &irq_cfgx[irq];
+}
+
 /*
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
@@ -794,22 +831,6 @@ static inline int IO_APIC_irq_trigger(int irq)
 	return 0;
 }
 
-/* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
-static u8 irq_vector_init_first __initdata = FIRST_DEVICE_VECTOR;
-static u8 *irq_vector;
-
-static void __init irq_vector_init_work(void *data)
-{
-	struct dyn_array *da = data;
-
-	u8 *irq_vec;
-
-	irq_vec = *da->name;
-
-	irq_vec[0] = irq_vector_init_first;
-}
-
-DEFINE_DYN_ARRAY(irq_vector, sizeof(u8), nr_irqs, PAGE_SIZE, irq_vector_init_work);
 
 static int __assign_irq_vector(int irq)
 {
@@ -818,8 +839,8 @@ static int __assign_irq_vector(int irq)
 
 	BUG_ON((unsigned)irq >= nr_irqs);
 
-	if (irq_vector[irq] > 0)
-		return irq_vector[irq];
+	if (irq_cfg(irq)->vector > 0)
+		return irq_cfg(irq)->vector;
 
 	vector = current_vector;
 	offset = current_offset;
@@ -836,7 +857,7 @@ next:
 
 	current_vector = vector;
 	current_offset = offset;
-	irq_vector[irq] = vector;
+	irq_cfg(irq)->vector = vector;
 
 	return vector;
 }
@@ -1598,7 +1619,7 @@ static void ack_ioapic_quirk_irq(unsigned int irq)
  * operation to prevent an edge-triggered interrupt escaping meanwhile.
  * The idea is from Manfred Spraul.  --macro
  */
-	i = irq_vector[irq];
+	i = irq_cfg(irq)->vector;
 
 	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
 
@@ -1615,7 +1636,7 @@ static void ack_ioapic_quirk_irq(unsigned int irq)
 
 static int ioapic_retrigger_irq(unsigned int irq)
 {
-	send_IPI_self(irq_vector[irq]);
+	send_IPI_self(irq_cfg(irq)->vector);
 
 	return 1;
 }
@@ -1651,7 +1672,7 @@ static inline void init_IO_APIC_traps(void)
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
 	for (irq = 0; irq < nr_irqs ; irq++) {
-		if (IO_APIC_IRQ(irq) && !irq_vector[irq]) {
+		if (IO_APIC_IRQ(irq) && !irq_cfg(irq)->vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,
 			 * so default to an old-fashioned 8259
@@ -2102,7 +2123,7 @@ int create_irq(void)
 	for (new = (nr_irqs - 1); new >= 0; new--) {
 		if (platform_legacy_irq(new))
 			continue;
-		if (irq_vector[new] != 0)
+		if (irq_cfg(new)->vector != 0)
 			continue;
 		vector = __assign_irq_vector(new);
 		if (likely(vector > 0))
@@ -2125,8 +2146,8 @@ void destroy_irq(unsigned int irq)
 	dynamic_irq_cleanup(irq);
 
 	spin_lock_irqsave(&vector_lock, flags);
-	clear_bit(irq_vector[irq], used_vectors);
-	irq_vector[irq] = 0;
+	clear_bit(irq_cfg(irq)->vector, used_vectors);
+	irq_cfg(irq)->vector = 0;
 	spin_unlock_irqrestore(&vector_lock, flags);
 }
 
