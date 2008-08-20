@@ -582,7 +582,7 @@ static void __init lguest_init_IRQ(void)
 	for (i = 0; i < LGUEST_IRQS; i++) {
 		int vector = FIRST_EXTERNAL_VECTOR + i;
 		if (vector != SYSCALL_VECTOR) {
-			set_intr_gate(vector, interrupt[i]);
+			set_intr_gate(vector, interrupt[vector]);
 			set_irq_chip_and_handler_name(i, &lguest_irq_controller,
 						      handle_level_irq,
 						      "level");

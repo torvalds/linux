@@ -223,20 +223,24 @@ unsigned int do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
-	int overflow, irq = ~regs->orig_ax;
+	int overflow;
+	unsigned vector = ~regs->orig_ax;
 	struct irq_desc *desc;
+	unsigned irq;
 
-	desc = irq_to_desc(irq);
-	if (unlikely(!desc)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
-					__func__, irq);
-		BUG();
-	}
 
 	old_regs = set_irq_regs(regs);
 	irq_enter();
+	irq = __get_cpu_var(vector_irq)[vector];
 
 	overflow = check_stack_overflow();
+
+	desc = irq_to_desc(irq);
+	if (unlikely(!desc)) {
+		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x\n",
+					__func__, irq, vector);
+		BUG();
+	}
 
 	if (!execute_on_irq_stack(overflow, desc, irq)) {
 		if (unlikely(overflow))

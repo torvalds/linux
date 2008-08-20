@@ -19,19 +19,14 @@
 
 /*
  * Reserve the lowest usable priority level 0x20 - 0x2f for triggering
- * cleanup after irq migration on 64 bit.
+ * cleanup after irq migration.
  */
 #define IRQ_MOVE_CLEANUP_VECTOR	FIRST_EXTERNAL_VECTOR
 
 /*
- * Vectors 0x20-0x2f are used for ISA interrupts on 32 bit.
- * Vectors 0x30-0x3f are used for ISA interrupts on 64 bit.
+ * Vectors 0x30-0x3f are used for ISA interrupts.
  */
-#ifdef CONFIG_X86_32
-#define IRQ0_VECTOR		(FIRST_EXTERNAL_VECTOR)
-#else
 #define IRQ0_VECTOR		(FIRST_EXTERNAL_VECTOR + 0x10)
-#endif
 #define IRQ1_VECTOR		(IRQ0_VECTOR + 1)
 #define IRQ2_VECTOR		(IRQ0_VECTOR + 2)
 #define IRQ3_VECTOR		(IRQ0_VECTOR + 3)
@@ -96,11 +91,7 @@
  * start at 0x31(0x41) to spread out vectors evenly between priority
  * levels. (0x80 is the syscall vector)
  */
-#ifdef CONFIG_X86_32
-# define FIRST_DEVICE_VECTOR	0x31
-#else
-# define FIRST_DEVICE_VECTOR	(IRQ15_VECTOR + 2)
-#endif
+#define FIRST_DEVICE_VECTOR	(IRQ15_VECTOR + 2)
 
 #define NR_VECTORS		256
 
