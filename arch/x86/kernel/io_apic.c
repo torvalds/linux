@@ -107,7 +107,9 @@ struct irq_cfg;
 struct irq_pin_list;
 struct irq_cfg {
 	unsigned int irq;
+#ifdef CONFIG_HAVE_SPARSE_IRQ
 	struct irq_cfg *next;
+#endif
 	struct irq_pin_list *irq_2_pin;
 	cpumask_t domain;
 	cpumask_t old_domain;
@@ -137,20 +139,6 @@ static struct irq_cfg irq_cfg_legacy[] __initdata = {
 };
 
 static struct irq_cfg irq_cfg_init = { .irq =  -1U, };
-/* need to be biger than size of irq_cfg_legacy */
-static int nr_irq_cfg = 32;
-
-static int __init parse_nr_irq_cfg(char *arg)
-{
-	if (arg) {
-		nr_irq_cfg = simple_strtoul(arg, NULL, 0);
-		if (nr_irq_cfg < 32)
-			nr_irq_cfg = 32;
-	}
-	return 0;
-}
-
-early_param("nr_irq_cfg", parse_nr_irq_cfg);
 
 static void init_one_irq_cfg(struct irq_cfg *cfg)
 {
@@ -158,7 +146,9 @@ static void init_one_irq_cfg(struct irq_cfg *cfg)
 }
 
 static struct irq_cfg *irq_cfgx;
+#ifdef CONFIG_HAVE_SPARSE_IRQ
 static struct irq_cfg *irq_cfgx_free;
+#endif
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
@@ -174,15 +164,34 @@ static void __init init_work(void *data)
 	for (i = legacy_count; i < *da->nr; i++)
 		init_one_irq_cfg(&cfg[i]);
 
+#ifdef CONFIG_HAVE_SPARSE_IRQ
 	for (i = 1; i < *da->nr; i++)
 		cfg[i-1].next = &cfg[i];
 
 	irq_cfgx_free = &irq_cfgx[legacy_count];
 	irq_cfgx[legacy_count - 1].next = NULL;
+#endif
 }
 
-#define for_each_irq_cfg(cfg)		\
-	for (cfg = irq_cfgx; cfg; cfg = cfg->next)
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+/* need to be biger than size of irq_cfg_legacy */
+static int nr_irq_cfg = 32;
+
+static int __init parse_nr_irq_cfg(char *arg)
+{
+	if (arg) {
+		nr_irq_cfg = simple_strtoul(arg, NULL, 0);
+		if (nr_irq_cfg < 32)
+			nr_irq_cfg = 32;
+	}
+	return 0;
+}
+
+early_param("nr_irq_cfg", parse_nr_irq_cfg);
+
+#define for_each_irq_cfg(irqX, cfg)           \
+        for (cfg = irq_cfgx, irqX = cfg->irq; cfg; cfg = cfg->next, irqX = cfg ? cfg->irq : -1U)
+
 
 DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irq_cfg, PAGE_SIZE, init_work);
 
@@ -273,7 +282,26 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 #endif
 	return cfg;
 }
+#else
 
+#define for_each_irq_cfg(irq, cfg)		\
+	for (irq = 0, cfg = &irq_cfgx[irq]; irq < nr_irqs; irq++, cfg = &irq_cfgx[irq])
+
+DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irqs, PAGE_SIZE, init_work);
+
+struct irq_cfg *irq_cfg(unsigned int irq)
+{
+        if (irq < nr_irqs)
+                return &irq_cfgx[irq];
+
+        return NULL;
+}
+struct irq_cfg *irq_cfg_alloc(unsigned int irq)
+{
+        return irq_cfg(irq);
+}
+
+#endif
 /*
  * This is performance-critical, we want to do it O(1)
  *
@@ -1282,11 +1310,10 @@ void __setup_vector_irq(int cpu)
 	struct irq_cfg *cfg;
 
 	/* Mark the inuse vectors */
-	for_each_irq_cfg(cfg) {
+	for_each_irq_cfg(irq, cfg) {
 		if (!cpu_isset(cpu, cfg->domain))
 			continue;
 		vector = cfg->vector;
-		irq = cfg->irq;
 		per_cpu(vector_irq, cpu)[vector] = irq;
 	}
 	/* Mark the free vectors */
@@ -1563,6 +1590,7 @@ __apicdebuginit(void) print_IO_APIC(void)
 	union IO_APIC_reg_03 reg_03;
 	unsigned long flags;
 	struct irq_cfg *cfg;
+	unsigned int irq;
 
 	if (apic_verbosity == APIC_QUIET)
 		return;
@@ -1651,11 +1679,11 @@ __apicdebuginit(void) print_IO_APIC(void)
 	}
 	}
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
-	for_each_irq_cfg(cfg) {
+	for_each_irq_cfg(irq, cfg) {
 		struct irq_pin_list *entry = cfg->irq_2_pin;
 		if (!entry)
 			continue;
-		printk(KERN_DEBUG "IRQ%d ", cfg->irq);
+		printk(KERN_DEBUG "IRQ%d ", irq);
 		for (;;) {
 			printk("-> %d:%d", entry->apic, entry->pin);
 			if (!entry->next)
@@ -2535,8 +2563,7 @@ static inline void init_IO_APIC_traps(void)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	for_each_irq_cfg(cfg) {
-		irq = cfg->irq;
+	for_each_irq_cfg(irq, cfg) {
 		if (IO_APIC_IRQ(irq) && !cfg->vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,

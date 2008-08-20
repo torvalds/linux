@@ -74,7 +74,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	struct irqaction * action;
 	unsigned long flags;
 	unsigned int entries;
-	struct irq_desc *desc;
+	struct irq_desc *desc = NULL;
 	int tail = 0;
 
 #ifdef CONFIG_HAVE_SPARSE_IRQ
