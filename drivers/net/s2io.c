@@ -3133,7 +3133,7 @@ static void tx_intr_handler(struct fifo_info *fifo_data)
 		if (skb == NULL) {
 			spin_unlock_irqrestore(&fifo_data->tx_lock, flags);
 			DBG_PRINT(ERR_DBG, "%s: Null skb ",
-			__FUNCTION__);
+			__func__);
 			DBG_PRINT(ERR_DBG, "in Tx Free Intr\n");
 			return;
 		}
@@ -3493,7 +3493,7 @@ static void s2io_reset(struct s2io_nic * sp)
 	unsigned long long mem_alloc_cnt, mem_free_cnt, watchdog_cnt;
 
 	DBG_PRINT(INIT_DBG,"%s - Resetting XFrame card %s\n",
-			__FUNCTION__, sp->dev->name);
+			__func__, sp->dev->name);
 
 	/* Back up  the PCI-X CMD reg, dont want to lose MMRBC, OST settings */
 	pci_read_config_word(sp->pdev, PCIX_COMMAND_REGISTER, &(pci_cmd));
@@ -3515,7 +3515,7 @@ static void s2io_reset(struct s2io_nic * sp)
 	}
 
 	if (check_pci_device_id(val16) == (u16)PCI_ANY_ID) {
-		DBG_PRINT(ERR_DBG,"%s SW_Reset failed!\n", __FUNCTION__);
+		DBG_PRINT(ERR_DBG,"%s SW_Reset failed!\n", __func__);
 	}
 
 	pci_write_config_word(sp->pdev, PCIX_COMMAND_REGISTER, pci_cmd);
@@ -3765,7 +3765,7 @@ static void restore_xmsi_data(struct s2io_nic *nic)
 		val64 = (s2BIT(7) | s2BIT(15) | vBIT(msix_index, 26, 6));
 		writeq(val64, &bar0->xmsi_access);
 		if (wait_for_msix_trans(nic, msix_index)) {
-			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
+			DBG_PRINT(ERR_DBG, "failed in %s\n", __func__);
 			continue;
 		}
 	}
@@ -3786,7 +3786,7 @@ static void store_xmsi_data(struct s2io_nic *nic)
 		val64 = (s2BIT(15) | vBIT(msix_index, 26, 6));
 		writeq(val64, &bar0->xmsi_access);
 		if (wait_for_msix_trans(nic, msix_index)) {
-			DBG_PRINT(ERR_DBG, "failed in %s\n", __FUNCTION__);
+			DBG_PRINT(ERR_DBG, "failed in %s\n", __func__);
 			continue;
 		}
 		addr = readq(&bar0->xmsi_address);
@@ -3809,7 +3809,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 			       GFP_KERNEL);
 	if (!nic->entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n", \
-			__FUNCTION__);
+			__func__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		return -ENOMEM;
 	}
@@ -3823,7 +3823,7 @@ static int s2io_enable_msi_x(struct s2io_nic *nic)
 				   GFP_KERNEL);
 	if (!nic->s2io_entries) {
 		DBG_PRINT(INFO_DBG, "%s: Memory allocation failed\n",
-			__FUNCTION__);
+			__func__);
 		nic->mac_control.stats_info->sw_stat.mem_alloc_fail_cnt++;
 		kfree(nic->entries);
 		nic->mac_control.stats_info->sw_stat.mem_freed
@@ -6743,7 +6743,7 @@ static int s2io_change_mtu(struct net_device *dev, int new_mtu)
 		ret = s2io_card_up(sp);
 		if (ret) {
 			DBG_PRINT(ERR_DBG, "%s: Device bring up failed\n",
-				  __FUNCTION__);
+				  __func__);
 			return ret;
 		}
 		s2io_wake_all_tx_queue(sp);
@@ -7527,7 +7527,7 @@ static int rx_osm_handler(struct ring_info *ring_data, struct RxD_t * rxdp)
 					default:
 						DBG_PRINT(ERR_DBG,
 							"%s: Samadhana!!\n",
-							 __FUNCTION__);
+							 __func__);
 						BUG();
 				}
 			}
@@ -7778,7 +7778,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 		return -ENOMEM;
 	}
 	if ((ret = pci_request_regions(pdev, s2io_driver_name))) {
-		DBG_PRINT(ERR_DBG, "%s: Request Regions failed - %x \n", __FUNCTION__, ret);
+		DBG_PRINT(ERR_DBG, "%s: Request Regions failed - %x \n", __func__, ret);
 		pci_disable_device(pdev);
 		return -ENODEV;
 	}
@@ -7995,7 +7995,7 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	if (sp->device_type & XFRAME_II_DEVICE) {
 		mode = s2io_verify_pci_mode(sp);
 		if (mode < 0) {
-			DBG_PRINT(ERR_DBG, "%s: ", __FUNCTION__);
+			DBG_PRINT(ERR_DBG, "%s: ", __func__);
 			DBG_PRINT(ERR_DBG, " Unsupported PCI bus mode\n");
 			ret = -EBADSLT;
 			goto set_swap_failed;
@@ -8301,7 +8301,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 
 	if (!(rxdp->Control_1 & RXD_FRAME_PROTO_TCP)) {
 		DBG_PRINT(INIT_DBG,"%s: Non-TCP frames not supported for LRO\n",
-			  __FUNCTION__);
+			  __func__);
 		return -1;
 	}
 
@@ -8332,7 +8332,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 static int check_for_socket_match(struct lro *lro, struct iphdr *ip,
 				  struct tcphdr *tcp)
 {
-	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
+	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __func__);
 	if ((lro->iph->saddr != ip->saddr) || (lro->iph->daddr != ip->daddr) ||
 	   (lro->tcph->source != tcp->source) || (lro->tcph->dest != tcp->dest))
 		return -1;
@@ -8347,7 +8347,7 @@ static inline int get_l4_pyld_length(struct iphdr *ip, struct tcphdr *tcp)
 static void initiate_new_session(struct lro *lro, u8 *l2h,
 	struct iphdr *ip, struct tcphdr *tcp, u32 tcp_pyld_len, u16 vlan_tag)
 {
-	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
+	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __func__);
 	lro->l2h = l2h;
 	lro->iph = ip;
 	lro->tcph = tcp;
@@ -8377,7 +8377,7 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 	struct tcphdr *tcp = lro->tcph;
 	__sum16 nchk;
 	struct stat_block *statinfo = sp->mac_control.stats_info;
-	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
+	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __func__);
 
 	/* Update L3 header */
 	ip->tot_len = htons(lro->total_len);
@@ -8405,7 +8405,7 @@ static void update_L3L4_header(struct s2io_nic *sp, struct lro *lro)
 static void aggregate_new_rx(struct lro *lro, struct iphdr *ip,
 		struct tcphdr *tcp, u32 l4_pyld)
 {
-	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
+	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __func__);
 	lro->total_len += l4_pyld;
 	lro->frags_len += l4_pyld;
 	lro->tcp_next_seq += l4_pyld;
@@ -8429,7 +8429,7 @@ static int verify_l3_l4_lro_capable(struct lro *l_lro, struct iphdr *ip,
 {
 	u8 *ptr;
 
-	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __FUNCTION__);
+	DBG_PRINT(INFO_DBG,"%s: Been here...\n", __func__);
 
 	if (!tcp_pyld_len) {
 		/* Runt frame or a pure ack */
@@ -8511,7 +8511,7 @@ s2io_club_tcp_session(struct ring_info *ring_data, u8 *buffer, u8 **tcp,
 
 			if ((*lro)->tcp_next_seq != ntohl(tcph->seq)) {
 				DBG_PRINT(INFO_DBG, "%s:Out of order. expected "
-					  "0x%x, actual 0x%x\n", __FUNCTION__,
+					  "0x%x, actual 0x%x\n", __func__,
 					  (*lro)->tcp_next_seq,
 					  ntohl(tcph->seq));
 
@@ -8551,7 +8551,7 @@ s2io_club_tcp_session(struct ring_info *ring_data, u8 *buffer, u8 **tcp,
 
 	if (ret == 0) { /* sessions exceeded */
 		DBG_PRINT(INFO_DBG,"%s:All LRO sessions already in use\n",
-			  __FUNCTION__);
+			  __func__);
 		*lro = NULL;
 		return ret;
 	}
@@ -8573,7 +8573,7 @@ s2io_club_tcp_session(struct ring_info *ring_data, u8 *buffer, u8 **tcp,
 			break;
 		default:
 			DBG_PRINT(ERR_DBG,"%s:Dont know, can't say!!\n",
-				__FUNCTION__);
+				__func__);
 			break;
 	}
 

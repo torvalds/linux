@@ -203,7 +203,7 @@ static irqreturn_t mipsnet_interrupt(int irq, void *dev_id)
 
 out_badirq:
 	printk(KERN_INFO "%s: %s(): irq %d for unknown device\n",
-	       dev->name, __FUNCTION__, irq);
+	       dev->name, __func__, irq);
 	return ret;
 }
 

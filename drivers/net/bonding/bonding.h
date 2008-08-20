@@ -32,7 +32,7 @@
 #ifdef BONDING_DEBUG
 #define dprintk(fmt, args...) \
 	printk(KERN_DEBUG     \
-	       DRV_NAME ": %s() %d: " fmt, __FUNCTION__, __LINE__ , ## args )
+	       DRV_NAME ": %s() %d: " fmt, __func__, __LINE__ , ## args )
 #else
 #define dprintk(fmt, args...)
 #endif /* BONDING_DEBUG */

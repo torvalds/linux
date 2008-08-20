@@ -44,7 +44,7 @@
 #define DPRINTK(nlevel, klevel, fmt, args...) \
 	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
 	printk(KERN_##klevel PFX "%s: %s: " fmt, adapter->netdev->name, \
-		__FUNCTION__ , ## args)))
+		__func__ , ## args)))
 
 /* TX/RX descriptor defines */
 #define IXGBE_DEFAULT_TXD		   1024
