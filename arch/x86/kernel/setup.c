@@ -1074,8 +1074,10 @@ void __init setup_arch(char **cmdline_p)
 		nr_irqs = 32 * nr_cpu_ids + 224;
 	init_cpu_to_node();
 #endif
+#ifdef CONFIG_X86_IO_APIC
 	pin_map_size = nr_irqs * 2;
 	first_free_entry = nr_irqs;
+#endif
 
 	init_apic_mappings();
 	ioapic_init_mappings();
