@@ -40,6 +40,8 @@ unsigned long probe_irq_on(void)
 	 */
 	for (i = nr_irqs-1; i > 0; i--) {
 		desc = irq_to_desc(i);
+		if (!desc)
+			continue;
 
 		spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
@@ -70,6 +72,8 @@ unsigned long probe_irq_on(void)
 	 */
 	for (i = nr_irqs-1; i > 0; i--) {
 		desc = irq_to_desc(i);
+		if (!desc)
+			continue;
 
 		spin_lock_irq(&desc->lock);
 		if (!desc->action && !(desc->status & IRQ_NOPROBE)) {
@@ -93,6 +97,8 @@ unsigned long probe_irq_on(void)
 		unsigned int status;
 
 		desc = irq_to_desc(i);
+		if (!desc)
+			continue;
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 
@@ -134,6 +140,8 @@ unsigned int probe_irq_mask(unsigned long val)
 		struct irq_desc *desc = irq_to_desc(i);
 		unsigned int status;
 
+		if (!desc)
+			continue;
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 
@@ -177,6 +185,8 @@ int probe_irq_off(unsigned long val)
 		struct irq_desc *desc = irq_to_desc(i);
 		unsigned int status;
 
+		if (!desc)
+			continue;
 		spin_lock_irq(&desc->lock);
 		status = desc->status;
 
