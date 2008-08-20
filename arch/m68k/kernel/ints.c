@@ -46,6 +46,8 @@
 #include <asm/q40ints.h>
 #endif
 
+int nr_irqs = NR_IRQS;
+
 extern u32 auto_irqhandler_fixup[];
 extern u32 user_irqhandler_fixup[];
 extern u16 user_irqvec_fixup[];

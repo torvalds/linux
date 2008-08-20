@@ -55,6 +55,9 @@
 #define SMP_NOP2
 #define SMP_NOP3
 #endif /* SMP */
+
+int nr_irqs = NR_IRQS;
+
 unsigned long __raw_local_irq_save(void)
 {
 	unsigned long retval;
