@@ -27,12 +27,15 @@
 #include <linux/sched.h>
 #include <linux/pci.h>
 #include <linux/mc146818rtc.h>
+#include <linux/compiler.h>
 #include <linux/acpi.h>
+#include <linux/module.h>
 #include <linux/sysdev.h>
 #include <linux/msi.h>
 #include <linux/htirq.h>
-#include <linux/dmar.h>
-#include <linux/jiffies.h>
+#include <linux/freezer.h>
+#include <linux/kthread.h>
+#include <linux/jiffies.h>	/* time_after() */
 #ifdef CONFIG_ACPI
 #include <acpi/acpi_bus.h>
 #endif
@@ -46,14 +49,17 @@
 #include <asm/proto.h>
 #include <asm/acpi.h>
 #include <asm/dma.h>
+#include <asm/timer.h>
 #include <asm/i8259.h>
 #include <asm/nmi.h>
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
+#include <asm/setup.h>
 #include <asm/irq_remapping.h>
 
 #include <mach_ipi.h>
 #include <mach_apic.h>
+#include <mach_apicdef.h>
 
 #define __apicdebuginit(type) static type __init
 
@@ -1685,7 +1691,7 @@ void disable_IO_APIC(void)
 	disconnect_bsp_APIC(ioapic_i8259.pin != -1);
 }
 
-static int no_timer_check;
+int no_timer_check __initdata;
 
 static int __init notimercheck(char *s)
 {
