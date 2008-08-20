@@ -595,7 +595,6 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 	struct irq_pin_list *entry;
 	unsigned int apicid_value;
 	cpumask_t tmp;
-	struct irq_desc *desc;
 
 
 	cfg = irq_cfg(irq);
@@ -620,8 +619,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 			break;
 		entry = entry->next;
 	}
-	desc = irq_to_desc(irq);
-	desc->affinity = cpumask;
+	irq_to_desc(irq)->affinity = cpumask;
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -1055,8 +1053,6 @@ static int __assign_irq_vector(int irq)
 	int vector, offset;
 	struct irq_cfg *cfg;
 
-	BUG_ON((unsigned)irq >= nr_irqs);
-
 	cfg = irq_cfg(irq);
 	if (cfg->vector > 0)
 		return cfg->vector;
@@ -1103,7 +1099,12 @@ static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
 	struct irq_desc *desc;
 
-	desc = irq_to_desc(irq);
+	/* first time to use this irq_desc */
+	if (irq < 16)
+		desc = irq_to_desc(irq);
+	else
+		desc = irq_to_desc_alloc(irq);
+
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 	    trigger == IOAPIC_LEVEL) {
 		desc->status |= IRQ_LEVEL;
@@ -2330,16 +2331,19 @@ device_initcall(ioapic_init_sysfs);
 /*
  * Dynamic irq allocate and deallocation
  */
-int create_irq(void)
+unsigned int create_irq_nr(unsigned int irq_want)
 {
 	/* Allocate an unused irq */
-	int irq, new, vector = 0;
+	unsigned int irq, new, vector = 0;
 	unsigned long flags;
 	struct irq_cfg *cfg_new;
 
-	irq = -ENOSPC;
+	/* only can use bus/dev/fn.. when per_cpu vector is used */
+	irq_want = nr_irqs - 1;
+
+	irq = 0;
 	spin_lock_irqsave(&vector_lock, flags);
-	for (new = (nr_irqs - 1); new >= 0; new--) {
+	for (new = (nr_irqs - 1); new > 0; new--) {
 		if (platform_legacy_irq(new))
 			continue;
 		cfg_new = irq_cfg(new);
@@ -2354,11 +2358,16 @@ int create_irq(void)
 	}
 	spin_unlock_irqrestore(&vector_lock, flags);
 
-	if (irq >= 0) {
+	if (irq > 0) {
 		set_intr_gate(vector, interrupt[irq]);
 		dynamic_irq_init(irq);
 	}
 	return irq;
+}
+
+int create_irq(void)
+{
+	return create_irq_nr(nr_irqs - 1);
 }
 
 void destroy_irq(unsigned int irq)
@@ -2415,7 +2424,6 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	unsigned int dest;
 	cpumask_t tmp;
 	int vector;
-	struct irq_desc *desc;
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
@@ -2435,8 +2443,7 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
 
 	write_msi_msg(irq, &msg);
-	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	irq_to_desc(irq)->affinity = mask;
 }
 #endif /* CONFIG_SMP */
 
@@ -2455,13 +2462,31 @@ static struct irq_chip msi_chip = {
 	.retrigger	= ioapic_retrigger_irq,
 };
 
+static unsigned int build_irq_for_pci_dev(struct pci_dev *dev)
+{
+	unsigned int irq;
+
+	irq = dev->bus->number;
+	irq <<= 8;
+	irq |= dev->devfn;
+	irq <<= 12;
+
+	return irq;
+}
+
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
 	struct msi_msg msg;
 	int irq, ret;
-	irq = create_irq();
-	if (irq < 0)
-		return irq;
+
+	unsigned int irq_want;
+
+	irq_want = build_irq_for_pci_dev(dev) + 0x100;
+
+	irq = create_irq_nr(irq_want);
+
+	if (irq == 0)
+		return -1;
 
 	ret = msi_compose_msg(dev, irq, &msg);
 	if (ret < 0) {
@@ -2510,7 +2535,6 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 {
 	unsigned int dest;
 	cpumask_t tmp;
-	struct irq_desc *desc;
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
@@ -2521,8 +2545,7 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 	dest = cpu_mask_to_apicid(mask);
 
 	target_ht_irq(irq, dest);
-	desc = irq_to_desc(irq);
-	desc->affinity = mask;
+	irq_to_desc(irq)->affinity = mask;
 }
 #endif
 

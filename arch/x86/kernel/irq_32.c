@@ -224,9 +224,10 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
 	int overflow, irq = ~regs->orig_ax;
-	struct irq_desc *desc = irq_to_desc(irq);
+	struct irq_desc *desc;
 
-	if (unlikely((unsigned)irq >= nr_irqs)) {
+	desc = irq_to_desc(irq);
+	if (unlikely(!desc)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
 					__func__, irq);
 		BUG();
@@ -263,6 +264,24 @@ int show_interrupts(struct seq_file *p, void *v)
 	int i = *(loff_t *) v, j;
 	struct irqaction * action;
 	unsigned long flags;
+	unsigned int entries;
+	struct irq_desc *desc;
+	int tail = 0;
+
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+	desc = (struct irq_desc *)v;
+	entries = -1U;
+	i = desc->irq;
+	if (!desc->next)
+		tail = 1;
+#else
+	entries = nr_irqs - 1;
+	i = *(loff_t *) v;
+	if (i == nr_irqs)
+		tail = 1;
+	else
+		desc = irq_to_desc(i);
+#endif
 
 	if (i == 0) {
 		seq_printf(p, "           ");
@@ -271,9 +290,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
-	if (i < nr_irqs) {
+	if (i <= entries) {
 		unsigned any_count = 0;
-		struct irq_desc *desc = irq_to_desc(i);
 
 		spin_lock_irqsave(&desc->lock, flags);
 #ifndef CONFIG_SMP
@@ -285,7 +303,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		action = desc->action;
 		if (!action && !any_count)
 			goto skip;
-		seq_printf(p, "%3d: ",i);
+		seq_printf(p, "%#x: ",i);
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else
@@ -304,7 +322,9 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == nr_irqs) {
+	}
+
+	if (tail) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", nmi_count(j));
@@ -396,15 +416,14 @@ void fixup_irqs(cpumask_t map)
 {
 	unsigned int irq;
 	static int warned;
+	struct irq_desc *desc;
 
-	for (irq = 0; irq < nr_irqs; irq++) {
+	for_each_irq_desc(irq, desc) {
 		cpumask_t mask;
-		struct irq_desc *desc;
 
 		if (irq == 2)
 			continue;
 
-		desc = irq_to_desc(irq);
 		cpus_and(mask, desc->affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
