@@ -659,6 +659,22 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 		}
 
 		/*
+		 * Now that the last pte has gone, s390 must transfer dirty
+		 * flag from storage key to struct page.  We can usually skip
+		 * this if the page is anon, so about to be freed; but perhaps
+		 * not if it's in swapcache - there might be another pte slot
+		 * containing the swap entry, but page not yet written to swap.
+		 */
+		if ((!PageAnon(page) || PageSwapCache(page)) &&
+		    page_test_dirty(page)) {
+			page_clear_dirty(page);
+			set_page_dirty(page);
+		}
+
+		mem_cgroup_uncharge_page(page);
+		__dec_zone_page_state(page,
+			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
+		/*
 		 * It would be tidy to reset the PageAnon mapping here,
 		 * but that might overwrite a racing page_add_anon_rmap
 		 * which increments mapcount after us but sets mapping
@@ -667,15 +683,6 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 		 * Leaving it set also helps swapoff to reinstate ptes
 		 * faster for those pages still in swapcache.
 		 */
-		if ((!PageAnon(page) || PageSwapCache(page)) &&
-		    page_test_dirty(page)) {
-			page_clear_dirty(page);
-			set_page_dirty(page);
-		}
-		mem_cgroup_uncharge_page(page);
-
-		__dec_zone_page_state(page,
-				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
 	}
 }
 
