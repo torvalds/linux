@@ -119,17 +119,19 @@ $mv = "mv" if ((length $mv) == 0);
 #print STDERR "running: $P '$arch' '$objdump' '$objcopy' '$cc' '$ld' " .
 #    "'$nm' '$rm' '$mv' '$inputfile'\n";
 
-my %locals;
-my %convert;
+my %locals;		# List of local (static) functions
+my %weak;		# List of weak functions
+my %convert;		# List of local functions used that needs conversion
 
 my $type;
 my $section_regex;	# Find the start of a section
-my $function_regex;	# Find the name of a function (return func name)
+my $function_regex;	# Find the name of a function
+			#    (return offset and func name)
 my $mcount_regex;	# Find the call site to mcount (return offset)
 
 if ($arch eq "x86_64") {
     $section_regex = "Disassembly of section";
-    $function_regex = "<(.*?)>:";
+    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount([+-]0x[0-9a-zA-Z]+)?\$";
     $type = ".quad";
 
@@ -141,7 +143,7 @@ if ($arch eq "x86_64") {
 
 } elsif ($arch eq "i386") {
     $section_regex = "Disassembly of section";
-    $function_regex = "<(.*?)>:";
+    $function_regex = "^([0-9a-fA-F]+)\\s+<(.*?)>:";
     $mcount_regex = "^\\s*([0-9a-fA-F]+):.*\\smcount\$";
     $type = ".long";
 
@@ -158,7 +160,6 @@ if ($arch eq "x86_64") {
 my $text_found = 0;
 my $read_function = 0;
 my $opened = 0;
-my $text = "";
 my $mcount_section = "__mcount_loc";
 
 my $dirname;
@@ -186,45 +187,110 @@ my $mcount_s = $dirname . "/.tmp_mc_" . $prefix . ".s";
 my $mcount_o = $dirname . "/.tmp_mc_" . $prefix . ".o";
 
 #
-# Step 1: find all the local symbols (static functions).
+# Step 1: find all the local (static functions) and weak symbols.
+#        't' is local, 'w/W' is weak (we never use a weak function)
 #
 open (IN, "$nm $inputfile|") || die "error running $nm";
 while (<IN>) {
     if (/^[0-9a-fA-F]+\s+t\s+(\S+)/) {
 	$locals{$1} = 1;
+    } elsif (/^[0-9a-fA-F]+\s+([wW])\s+(\S+)/) {
+	$weak{$2} = $1;
     }
 }
 close(IN);
+
+my @offsets;		# Array of offsets of mcount callers
+my $ref_func;		# reference function to use for offsets
+my $offset = 0;		# offset of ref_func to section beginning
+
+##
+# update_funcs - print out the current mcount callers
+#
+#  Go through the list of offsets to callers and write them to
+#  the output file in a format that can be read by an assembler.
+#
+sub update_funcs
+{
+    return if ($#offsets < 0);
+
+    defined($ref_func) || die "No function to reference";
+
+    # A section only had a weak function, to represent it.
+    # Unfortunately, a weak function may be overwritten by another
+    # function of the same name, making all these offsets incorrect.
+    # To be safe, we simply print a warning and bail.
+    if (defined $weak{$ref_func}) {
+	print STDERR
+	    "$inputfile: WARNING: referencing weak function" .
+	    " $ref_func for mcount\n";
+	return;
+    }
+
+    # is this function static? If so, note this fact.
+    if (defined $locals{$ref_func}) {
+	$convert{$ref_func} = 1;
+    }
+
+    # Loop through all the mcount caller offsets and print a reference
+    # to the caller based from the ref_func.
+    for (my $i=0; $i <= $#offsets; $i++) {
+	if (!$opened) {
+	    open(FILE, ">$mcount_s") || die "can't create $mcount_s\n";
+	    $opened = 1;
+	    print FILE "\t.section $mcount_section,\"a\",\@progbits\n";
+	}
+	printf FILE "\t%s %s + %d\n", $type, $ref_func, $offsets[$i] - $offset;
+    }
+}
 
 #
 # Step 2: find the sections and mcount call sites
 #
 open(IN, "$objdump -dr $inputfile|") || die "error running $objdump";
 
+my $text;
+
 while (<IN>) {
     # is it a section?
     if (/$section_regex/) {
 	$read_function = 1;
+	# print out any recorded offsets
+	update_funcs() if ($text_found);
+
+	# reset all markers and arrays
 	$text_found = 0;
+	undef($ref_func);
+	undef(@offsets);
+
     # section found, now is this a start of a function?
     } elsif ($read_function && /$function_regex/) {
-	$read_function = 0;
 	$text_found = 1;
-	$text = $1;
-	# is this function static? If so, note this fact.
-	if (defined $locals{$text}) {
-	    $convert{$text} = 1;
+	$offset = hex $1;
+	$text = $2;
+
+	# if this is either a local function or a weak function
+	# keep looking for functions that are global that
+	# we can use safely.
+	if (!defined($locals{$text}) && !defined($weak{$text})) {
+	    $ref_func = $text;
+	    $read_function = 0;
+	} else {
+	    # if we already have a function, and this is weak, skip it
+	    if (!defined($ref_func) || !defined($weak{$text})) {
+		$ref_func = $text;
+	    }
 	}
-    # is this a call site to mcount? If so, print the offset from the section
-    } elsif ($text_found && /$mcount_regex/) {
-	if (!$opened) {
-	    open(FILE, ">$mcount_s") || die "can't create $mcount_s\n";
-	    $opened = 1;
-	    print FILE "\t.section $mcount_section,\"a\",\@progbits\n";
-	}
-	print FILE "\t$type $text + 0x$1\n";
+    }
+
+    # is this a call site to mcount? If so, record it to print later
+    if ($text_found && /$mcount_regex/) {
+	$offsets[$#offsets + 1] = hex $1;
     }
 }
+
+# dump out anymore offsets that may have been found
+update_funcs() if ($text_found);
 
 # If we did not find any mcount callers, we are done (do nothing).
 if (!$opened) {
