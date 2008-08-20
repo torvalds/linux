@@ -94,41 +94,172 @@ DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
 static int disable_timer_pin_1 __initdata;
 
+struct irq_cfg;
+
 struct irq_cfg {
+	unsigned int irq;
+	struct irq_cfg *next;
 	u8 vector;
 };
 
 
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
 static struct irq_cfg irq_cfg_legacy[] __initdata = {
-	[0] = { .vector = FIRST_DEVICE_VECTOR,  },
+	[0]  = { .irq =  0, .vector = IRQ0_VECTOR,  },
+	[1]  = { .irq =  1, .vector = IRQ1_VECTOR,  },
+	[2]  = { .irq =  2, .vector = IRQ2_VECTOR,  },
+	[3]  = { .irq =  3, .vector = IRQ3_VECTOR,  },
+	[4]  = { .irq =  4, .vector = IRQ4_VECTOR,  },
+	[5]  = { .irq =  5, .vector = IRQ5_VECTOR,  },
+	[6]  = { .irq =  6, .vector = IRQ6_VECTOR,  },
+	[7]  = { .irq =  7, .vector = IRQ7_VECTOR,  },
+	[8]  = { .irq =  8, .vector = IRQ8_VECTOR,  },
+	[9]  = { .irq =  9, .vector = IRQ9_VECTOR,  },
+	[10] = { .irq = 10, .vector = IRQ10_VECTOR, },
+	[11] = { .irq = 11, .vector = IRQ11_VECTOR, },
+	[12] = { .irq = 12, .vector = IRQ12_VECTOR, },
+	[13] = { .irq = 13, .vector = IRQ13_VECTOR, },
+	[14] = { .irq = 14, .vector = IRQ14_VECTOR, },
+	[15] = { .irq = 15, .vector = IRQ15_VECTOR, },
 };
 
-static void __init init_work(void *data)
+static struct irq_cfg irq_cfg_init = { .irq =  -1U, };
+/* need to be biger than size of irq_cfg_legacy */
+static int nr_irq_cfg = 32;
+
+static int __init parse_nr_irq_cfg(char *arg)
 {
-        struct dyn_array *da = data;
-        struct irq_cfg *cfg;
-        int legacy_count;
-        int i;
+	if (arg) {
+		nr_irq_cfg = simple_strtoul(arg, NULL, 0);
+		if (nr_irq_cfg < 32)
+			nr_irq_cfg = 32;
+	}
+	return 0;
+}
 
-        cfg = *da->name;
+early_param("nr_irq_cfg", parse_nr_irq_cfg);
 
-        legacy_count = sizeof(irq_cfg_legacy)/sizeof(irq_cfg_legacy[0]);
-
-	BUG_ON(legacy_count > nr_irqs);
-
-        memcpy(cfg, irq_cfg_legacy, sizeof(irq_cfg_legacy));
+static void init_one_irq_cfg(struct irq_cfg *cfg)
+{
+	memcpy(cfg, &irq_cfg_init, sizeof(struct irq_cfg));
 }
 
 static struct irq_cfg *irq_cfgx;
-DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irqs, PAGE_SIZE, init_work);
+static struct irq_cfg *irq_cfgx_free;
+static void __init init_work(void *data)
+{
+	struct dyn_array *da = data;
+	struct irq_cfg *cfg;
+	int legacy_count;
+	int i;
+
+	cfg = *da->name;
+
+	memcpy(cfg, irq_cfg_legacy, sizeof(irq_cfg_legacy));
+
+	legacy_count = sizeof(irq_cfg_legacy)/sizeof(irq_cfg_legacy[0]);
+	for (i = legacy_count; i < *da->nr; i++)
+		init_one_irq_cfg(&cfg[i]);
+
+	for (i = 1; i < *da->nr; i++)
+		cfg[i-1].next = &cfg[i];
+
+	irq_cfgx_free = &irq_cfgx[legacy_count];
+	irq_cfgx[legacy_count - 1].next = NULL;
+}
+
+#define for_each_irq_cfg(cfg)           \
+	for (cfg = irq_cfgx; cfg; cfg = cfg->next)
+
+DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irq_cfg, PAGE_SIZE, init_work);
 
 static struct irq_cfg *irq_cfg(unsigned int irq)
 {
-	if (irq >= nr_irqs)
-		return NULL;
+	struct irq_cfg *cfg;
 
-	return &irq_cfgx[irq];
+	cfg = irq_cfgx;
+	while (cfg) {
+		if (cfg->irq == irq)
+			return cfg;
+
+		cfg = cfg->next;
+	}
+
+	return NULL;
+}
+
+static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
+{
+	struct irq_cfg *cfg, *cfg_pri;
+	int i;
+	int count = 0;
+
+	cfg_pri = cfg = irq_cfgx;
+	while (cfg) {
+		if (cfg->irq == irq)
+			return cfg;
+
+		cfg_pri = cfg;
+		cfg = cfg->next;
+		count++;
+	}
+
+	if (!irq_cfgx_free) {
+		unsigned long phys;
+		unsigned long total_bytes;
+		/*
+		 *  we run out of pre-allocate ones, allocate more
+		 */
+		printk(KERN_DEBUG "try to get more irq_cfg %d\n", nr_irq_cfg);
+
+		total_bytes = sizeof(struct irq_cfg) * nr_irq_cfg;
+		if (after_bootmem)
+			cfg = kzalloc(total_bytes, GFP_ATOMIC);
+		else
+			cfg = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
+
+		if (!cfg)
+			panic("please boot with nr_irq_cfg= %d\n", count * 2);
+
+		phys = __pa(cfg);
+		printk(KERN_DEBUG "irq_irq ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
+
+		for (i = 0; i < nr_irq_cfg; i++)
+			init_one_irq_cfg(&cfg[i]);
+
+		for (i = 1; i < nr_irq_cfg; i++)
+			cfg[i-1].next = &cfg[i];
+
+		irq_cfgx_free = cfg;
+	}
+
+	cfg = irq_cfgx_free;
+	irq_cfgx_free = irq_cfgx_free->next;
+	cfg->next = NULL;
+	if (cfg_pri)
+		cfg_pri->next = cfg;
+	else
+		irq_cfgx = cfg;
+	cfg->irq = irq;
+	printk(KERN_DEBUG "found new irq_cfg for irq %d\n", cfg->irq);
+
+#ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
+	{
+		/* dump the results */
+		struct irq_cfg *cfg;
+		unsigned long phys;
+		unsigned long bytes = sizeof(struct irq_cfg);
+
+		printk(KERN_DEBUG "=========================== %d\n", irq);
+		printk(KERN_DEBUG "irq_cfg dump after get that for %d\n", irq);
+		for_each_irq_cfg(cfg) {
+			phys = __pa(cfg);
+			printk(KERN_DEBUG "irq_cfg %d ==> [%#lx - %#lx]\n", cfg->irq, phys, phys + bytes);
+		}
+		printk(KERN_DEBUG "===========================\n");
+	}
+#endif
+	return cfg;
 }
 
 /*
@@ -254,6 +385,7 @@ static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 {
 	struct irq_pin_list *entry = irq_2_pin + irq;
 
+	irq_cfg_alloc(irq);
 	while (entry->next)
 		entry = irq_2_pin + entry->next;
 
@@ -836,11 +968,13 @@ static int __assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, current_offset;
 	int vector, offset;
+	struct irq_cfg *cfg;
 
 	BUG_ON((unsigned)irq >= nr_irqs);
 
-	if (irq_cfg(irq)->vector > 0)
-		return irq_cfg(irq)->vector;
+	cfg = irq_cfg(irq);
+	if (cfg->vector > 0)
+		return cfg->vector;
 
 	vector = current_vector;
 	offset = current_offset;
@@ -857,7 +991,7 @@ next:
 
 	current_vector = vector;
 	current_offset = offset;
-	irq_cfg(irq)->vector = vector;
+	cfg->vector = vector;
 
 	return vector;
 }
@@ -1659,6 +1793,7 @@ static inline void init_IO_APIC_traps(void)
 {
 	int irq;
 	struct irq_desc *desc;
+	struct irq_cfg *cfg;
 
 	/*
 	 * NOTE! The local APIC isn't very good at handling
@@ -1671,8 +1806,9 @@ static inline void init_IO_APIC_traps(void)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	for (irq = 0; irq < nr_irqs ; irq++) {
-		if (IO_APIC_IRQ(irq) && !irq_cfg(irq)->vector) {
+	for_each_irq_cfg(cfg) {
+		irq = cfg->irq;
+		if (IO_APIC_IRQ(irq) && !cfg->vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,
 			 * so default to an old-fashioned 8259
@@ -2117,14 +2253,18 @@ int create_irq(void)
 	/* Allocate an unused irq */
 	int irq, new, vector = 0;
 	unsigned long flags;
+	struct irq_cfg *cfg_new;
 
 	irq = -ENOSPC;
 	spin_lock_irqsave(&vector_lock, flags);
 	for (new = (nr_irqs - 1); new >= 0; new--) {
 		if (platform_legacy_irq(new))
 			continue;
-		if (irq_cfg(new)->vector != 0)
+		cfg_new = irq_cfg(new);
+		if (cfg_new && cfg_new->vector != 0)
 			continue;
+		if (!cfg_new)
+			cfg_new = irq_cfg_alloc(new);
 		vector = __assign_irq_vector(new);
 		if (likely(vector > 0))
 			irq = new;
