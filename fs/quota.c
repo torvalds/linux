@@ -73,7 +73,7 @@ static int generic_quotactl_valid(struct super_block *sb, int type, int cmd, qid
 		case Q_SETQUOTA:
 		case Q_GETQUOTA:
 			/* This is just informative test so we are satisfied without a lock */
-			if (!sb_has_quota_enabled(sb, type))
+			if (!sb_has_quota_active(sb, type))
 				return -ESRCH;
 	}
 
@@ -175,7 +175,7 @@ static void quota_sync_sb(struct super_block *sb, int type)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (type != -1 && cnt != type)
 			continue;
-		if (!sb_has_quota_enabled(sb, cnt))
+		if (!sb_has_quota_active(sb, cnt))
 			continue;
 		mutex_lock_nested(&sb_dqopt(sb)->files[cnt]->i_mutex, I_MUTEX_QUOTA);
 		truncate_inode_pages(&sb_dqopt(sb)->files[cnt]->i_data, 0);
@@ -201,7 +201,7 @@ restart:
 		for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 			if (type != -1 && type != cnt)
 				continue;
-			if (!sb_has_quota_enabled(sb, cnt))
+			if (!sb_has_quota_active(sb, cnt))
 				continue;
 			if (!info_dirty(&sb_dqopt(sb)->info[cnt]) &&
 			    list_empty(&sb_dqopt(sb)->info[cnt].dqi_dirty_list))
@@ -245,7 +245,7 @@ static int do_quotactl(struct super_block *sb, int type, int cmd, qid_t id, void
 			__u32 fmt;
 
 			down_read(&sb_dqopt(sb)->dqptr_sem);
-			if (!sb_has_quota_enabled(sb, type)) {
+			if (!sb_has_quota_active(sb, type)) {
 				up_read(&sb_dqopt(sb)->dqptr_sem);
 				return -ESRCH;
 			}

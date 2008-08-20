@@ -318,12 +318,34 @@ struct quota_format_type {
 	struct quota_format_type *qf_next;
 };
 
-#define DQUOT_USR_ENABLED	0x01		/* User diskquotas enabled */
-#define DQUOT_GRP_ENABLED	0x02		/* Group diskquotas enabled */
-#define DQUOT_USR_SUSPENDED	0x04		/* User diskquotas are off, but
+/* Quota state flags - they actually come in two flavors - for users and groups */
+enum {
+	_DQUOT_USAGE_ENABLED = 0,		/* Track disk usage for users */
+	_DQUOT_LIMITS_ENABLED,			/* Enforce quota limits for users */
+	_DQUOT_SUSPENDED,			/* User diskquotas are off, but
 						 * we have necessary info in
 						 * memory to turn them on */
-#define DQUOT_GRP_SUSPENDED	0x08		/* The same for group quotas */
+	_DQUOT_STATE_FLAGS
+};
+#define DQUOT_USAGE_ENABLED	(1 << _DQUOT_USAGE_ENABLED)
+#define DQUOT_LIMITS_ENABLED	(1 << _DQUOT_LIMITS_ENABLED)
+#define DQUOT_SUSPENDED		(1 << _DQUOT_SUSPENDED)
+#define DQUOT_STATE_FLAGS	(DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED | \
+				 DQUOT_SUSPENDED)
+
+static inline unsigned int dquot_state_flag(unsigned int flags, int type)
+{
+	if (type == USRQUOTA)
+		return flags;
+	return flags << _DQUOT_STATE_FLAGS;
+}
+
+static inline unsigned int dquot_generic_flag(unsigned int flags, int type)
+{
+	if (type == USRQUOTA)
+		return flags;
+	return flags >> _DQUOT_STATE_FLAGS;
+}
 
 struct quota_info {
 	unsigned int flags;			/* Flags for diskquotas on this device */
