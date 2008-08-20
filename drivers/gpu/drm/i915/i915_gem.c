@@ -2443,6 +2443,9 @@ i915_gem_entervt_ioctl(struct drm_device *dev, void *data,
 	BUG_ON(!list_empty(&dev_priv->mm.request_list));
 	dev_priv->mm.suspended = 0;
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_irq_install(dev);
+
 	return 0;
 }
 
@@ -2457,6 +2460,8 @@ i915_gem_leavevt_ioctl(struct drm_device *dev, void *data,
 	if (ret == 0)
 		i915_gem_cleanup_ringbuffer(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	drm_irq_uninstall(dev);
 
 	return 0;
 }

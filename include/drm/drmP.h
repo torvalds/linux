@@ -1134,6 +1134,7 @@ extern void drm_core_reclaim_buffers(struct drm_device *dev,
 extern int drm_control(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 extern irqreturn_t drm_irq_handler(DRM_IRQ_ARGS);
+extern int drm_irq_install(struct drm_device *dev);
 extern int drm_irq_uninstall(struct drm_device *dev);
 extern void drm_driver_irq_preinstall(struct drm_device *dev);
 extern void drm_driver_irq_postinstall(struct drm_device *dev);
