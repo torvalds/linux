@@ -409,40 +409,6 @@ static bool io_apic_level_ack_pending(unsigned int irq)
 	return false;
 }
 
-/*
- * Synchronize the IO-APIC and the CPU by doing
- * a dummy read from the IO-APIC
- */
-static inline void io_apic_sync(unsigned int apic)
-{
-	struct io_apic __iomem *io_apic = io_apic_base(apic);
-	readl(&io_apic->data);
-}
-
-#define __DO_ACTION(R, ACTION, FINAL)					\
-									\
-{									\
-	int pin;							\
-	struct irq_cfg *cfg;						\
-	struct irq_pin_list *entry;					\
-									\
-	cfg = irq_cfg(irq);						\
-	entry = cfg->irq_2_pin;						\
-	for (;;) {							\
-		unsigned int reg;					\
-		if (!entry)						\
-			break;						\
-		pin = entry->pin;					\
-		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
-		reg ACTION;						\
-		io_apic_modify(entry->apic, reg);			\
-		FINAL;							\
-		if (!entry->next)					\
-			break;						\
-		entry = entry->next;					\
-	}								\
-}
-
 union entry_union {
 	struct { u32 w1, w2; };
 	struct IO_APIC_route_entry entry;
@@ -627,6 +593,39 @@ static void __init replace_pin_at_irq(unsigned int irq,
 		add_pin_to_irq(irq, newapic, newpin);
 }
 
+/*
+ * Synchronize the IO-APIC and the CPU by doing
+ * a dummy read from the IO-APIC
+ */
+static inline void io_apic_sync(unsigned int apic)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	readl(&io_apic->data);
+}
+
+#define __DO_ACTION(R, ACTION, FINAL)					\
+									\
+{									\
+	int pin;							\
+	struct irq_cfg *cfg;						\
+	struct irq_pin_list *entry;					\
+									\
+	cfg = irq_cfg(irq);						\
+	entry = cfg->irq_2_pin;						\
+	for (;;) {							\
+		unsigned int reg;					\
+		if (!entry)						\
+			break;						\
+		pin = entry->pin;					\
+		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
+		reg ACTION;						\
+		io_apic_modify(entry->apic, reg);			\
+		FINAL;							\
+		if (!entry->next)					\
+			break;						\
+		entry = entry->next;					\
+	}								\
+}
 
 #define DO_ACTION(name,R,ACTION, FINAL)					\
 									\
