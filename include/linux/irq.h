@@ -315,10 +315,8 @@ extern unsigned int __do_IRQ(unsigned int irq);
  * irqchip-style controller then we call the ->handle_irq() handler,
  * and it calls __do_IRQ() if it's attached to an irqtype-style controller.
  */
-static inline void generic_handle_irq(unsigned int irq)
+static inline void generic_handle_irq_desc(unsigned int irq, struct irq_desc *desc)
 {
-	struct irq_desc *desc = irq_to_desc(irq);
-
 #ifdef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
 	desc->handle_irq(irq, desc);
 #else
@@ -327,6 +325,11 @@ static inline void generic_handle_irq(unsigned int irq)
 	else
 		__do_IRQ(irq);
 #endif
+}
+
+static inline void generic_handle_irq(unsigned int irq)
+{
+	generic_handle_irq_desc(irq, irq_to_desc(irq));
 }
 
 /* Handling of unhandled and spurious interrupts: */

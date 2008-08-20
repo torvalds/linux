@@ -590,6 +590,13 @@ void pre_alloc_dyn_array(void)
 		if (da->init_work)
 			da->init_work(da);
 	}
+#else
+#ifdef CONFIF_GENERIC_HARDIRQS
+	unsigned int i;
+
+	for (i = 0; i < NR_IRQS; i++)
+		irq_desc[i].irq = i;
+#endif
 #endif
 }
 

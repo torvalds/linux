@@ -189,6 +189,7 @@ u64 arch_irq_stat(void)
 asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 {
 	struct pt_regs *old_regs = set_irq_regs(regs);
+	struct irq_desc *desc;
 
 	/* high bit used in ret_from_ code  */
 	unsigned vector = ~regs->orig_ax;
@@ -202,8 +203,9 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	stack_overflow_check(regs);
 #endif
 
-	if (likely(__irq_to_desc(irq)))
-		generic_handle_irq(irq);
+	desc = __irq_to_desc(irq);
+	if (likely(desc))
+		generic_handle_irq_desc(irq, desc);
 	else {
 		if (!disable_apic)
 			ack_APIC_irq();

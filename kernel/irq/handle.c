@@ -197,6 +197,21 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	 *  we run out of pre-allocate ones, allocate more
 	 */
 	printk(KERN_DEBUG "try to get more irq_desc %d\n", nr_irq_desc);
+	{
+		/* double check if some one mess up the list */
+		struct irq_desc *desc;
+		int count = 0;
+
+		desc = &sparse_irqs[0];
+		while (desc) {
+			printk(KERN_DEBUG "found irq_desc for irq %d\n", desc->irq);
+			if (desc->next)
+				printk(KERN_DEBUG "found irq_desc for irq %d and next will be irq %d\n", desc->irq, desc->next->irq);
+			desc = desc->next;
+			count++;
+		}
+		printk(KERN_DEBUG "all preallocted %d\n", count);
+	}
 
 	total_bytes = sizeof(struct irq_desc) * nr_irq_desc;
 	if (after_bootmem)
@@ -221,6 +236,21 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 
 	desc->irq = irq;
 	desc_pri->next = desc;
+	{
+		/* double check if some one mess up the list */
+		struct irq_desc *desc;
+		int count = 0;
+
+		desc = &sparse_irqs[0];
+		while (desc) {
+			printk(KERN_DEBUG "1 found irq_desc for irq %d\n", desc->irq);
+			if (desc->next)
+				printk(KERN_DEBUG "1 found irq_desc for irq %d and next will be irq %d\n", desc->irq, desc->next->irq);
+			desc = desc->next;
+			count++;
+		}
+		printk(KERN_DEBUG "1 all preallocted %d\n", count);
+	}
 
 	return desc;
 }
