@@ -1747,54 +1747,61 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
 }
 
 /*
- * ext4_ext_calc_credits_for_insert:
- * This routine returns max. credits that the extent tree can consume.
- * It should be OK for low-performance paths like ->writepage()
- * To allow many writing processes to fit into a single transaction,
- * the caller should calculate credits under i_data_sem and
- * pass the actual path.
+ * ext4_ext_calc_credits_for_single_extent:
+ * This routine returns max. credits that needed to insert an extent
+ * to the extent tree.
+ * When pass the actual path, the caller should calculate credits
+ * under i_data_sem.
  */
-int ext4_ext_calc_credits_for_insert(struct inode *inode,
+int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int num,
 						struct ext4_ext_path *path)
 {
-	int depth, needed;
-
 	if (path) {
+		int depth = ext_depth(inode);
+		int ret;
+
 		/* probably there is space in leaf? */
-		depth = ext_depth(inode);
 		if (le16_to_cpu(path[depth].p_hdr->eh_entries)
-				< le16_to_cpu(path[depth].p_hdr->eh_max))
-			return 1;
+				< le16_to_cpu(path[depth].p_hdr->eh_max)) {
+
+			/*
+			 *  There are some space in the leaf tree, no
+			 *  need to account for leaf block credit
+			 *
+			 *  bitmaps and block group descriptor blocks
+			 *  and other metadat blocks still need to be
+			 *  accounted.
+			 */
+			/* 1 one bitmap, 1 block group descriptor */
+			ret = 2 + EXT4_META_TRANS_BLOCKS(inode->i_sb);
+		}
 	}
 
-	/*
-	 * given 32-bit logical block (4294967296 blocks), max. tree
-	 * can be 4 levels in depth -- 4 * 340^4 == 53453440000.
-	 * Let's also add one more level for imbalance.
-	 */
-	depth = 5;
+	return ext4_meta_trans_blocks(inode, num, 1);
+}
 
-	/* allocation of new data block(s) */
-	needed = 2;
+/*
+ * How many index/leaf blocks need to change/allocate to modify nrblocks?
+ *
+ * if nrblocks are fit in a single extent (chunk flag is 1), then
+ * in the worse case, each tree level index/leaf need to be changed
+ * if the tree split due to insert a new extent, then the old tree
+ * index/leaf need to be updated too
+ *
+ * If the nrblocks are discontiguous, they could cause
+ * the whole tree split more than once, but this is really rare.
+ */
+int ext4_ext_index_trans_blocks(struct inode *inode, int num, int chunk)
+{
+	int index;
+	int depth = ext_depth(inode);
 
-	/*
-	 * tree can be full, so it would need to grow in depth:
-	 * we need one credit to modify old root, credits for
-	 * new root will be added in split accounting
-	 */
-	needed += 1;
+	if (chunk)
+		index = depth * 2;
+	else
+		index = depth * 3;
 
-	/*
-	 * Index split can happen, we would need:
-	 *    allocate intermediate indexes (bitmap + group)
-	 *  + change two blocks at each level, but root (already included)
-	 */
-	needed += (depth * 2) + (depth * 2);
-
-	/* any allocation modifies superblock */
-	needed += 1;
-
-	return needed;
+	return index;
 }
 
 static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
@@ -1921,9 +1928,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			correct_index = 1;
 			credits += (ext_depth(inode)) + 1;
 		}
-#ifdef CONFIG_QUOTA
 		credits += 2 * EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb);
-#endif
 
 		err = ext4_ext_journal_restart(handle, credits);
 		if (err)
@@ -2856,27 +2861,6 @@ out_stop:
 	inode->i_mtime = inode->i_ctime = ext4_current_time(inode);
 	ext4_mark_inode_dirty(handle, inode);
 	ext4_journal_stop(handle);
-}
-
-/*
- * ext4_ext_writepage_trans_blocks:
- * calculate max number of blocks we could modify
- * in order to allocate new block for an inode
- */
-int ext4_ext_writepage_trans_blocks(struct inode *inode, int num)
-{
-	int needed;
-
-	needed = ext4_ext_calc_credits_for_insert(inode, NULL);
-
-	/* caller wants to allocate num blocks, but note it includes sb */
-	needed = needed * num - (num - 1);
-
-#ifdef CONFIG_QUOTA
-	needed += 2 * EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb);
-#endif
-
-	return needed;
 }
 
 static void ext4_falloc_update_inode(struct inode *inode,
