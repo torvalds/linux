@@ -111,43 +111,43 @@ static void init_one_irq_cfg(struct irq_cfg *cfg)
 	memcpy(cfg, &irq_cfg_init, sizeof(struct irq_cfg));
 }
 
+static struct irq_cfg *irq_cfgx;
+static struct irq_cfg *irq_cfgx_free;
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
 	struct irq_cfg *cfg;
+	int legacy_count;
 	int i;
 
 	cfg = *da->name;
 
 	memcpy(cfg, irq_cfg_legacy, sizeof(irq_cfg_legacy));
 
-	i = sizeof(irq_cfg_legacy)/sizeof(irq_cfg_legacy[0]);
-	for (; i < *da->nr; i++)
+	legacy_count = sizeof(irq_cfg_legacy)/sizeof(irq_cfg_legacy[0]);
+	for (i = legacy_count; i < *da->nr; i++)
 		init_one_irq_cfg(&cfg[i]);
 
 	for (i = 1; i < *da->nr; i++)
 		cfg[i-1].next = &cfg[i];
+
+	irq_cfgx_free = &irq_cfgx[legacy_count];
+	irq_cfgx[legacy_count - 1].next = NULL;
 }
 
 #define for_each_irq_cfg(cfg)		\
-	for (cfg = irq_cfgx; cfg && cfg->irq != -1U; cfg = cfg->next)
+	for (cfg = irq_cfgx; cfg; cfg = cfg->next)
 
-static struct irq_cfg *irq_cfgx;
 DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irq_cfg, PAGE_SIZE, init_work);
 
 static struct irq_cfg *irq_cfg(unsigned int irq)
 {
 	struct irq_cfg *cfg;
 
-	BUG_ON(irq == -1U);
-
-	cfg = &irq_cfgx[0];
+	cfg = irq_cfgx;
 	while (cfg) {
 		if (cfg->irq == irq)
 			return cfg;
-
-		if (cfg->irq == -1U)
-			return NULL;
 
 		cfg = cfg->next;
 	}
@@ -161,44 +161,70 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 	int i;
 	int count = 0;
 
-	BUG_ON(irq == -1U);
-
-	cfg_pri = cfg = &irq_cfgx[0];
+	cfg_pri = cfg = irq_cfgx;
 	while (cfg) {
 		if (cfg->irq == irq)
 			return cfg;
 
-		if (cfg->irq == -1U) {
-			cfg->irq = irq;
-			return cfg;
-		}
 		cfg_pri = cfg;
 		cfg = cfg->next;
 		count++;
 	}
 
-	/*
-	 *  we run out of pre-allocate ones, allocate more
-	 */
-	printk(KERN_DEBUG "try to get more irq_cfg %d\n", nr_irq_cfg);
+	if (!irq_cfgx_free) {
+		unsigned long phys;
+		unsigned long total_bytes;
+		/*
+		 *  we run out of pre-allocate ones, allocate more
+		 */
+		printk(KERN_DEBUG "try to get more irq_cfg %d\n", nr_irq_cfg);
 
-	if (after_bootmem)
-		cfg = kzalloc(sizeof(struct irq_cfg)*nr_irq_cfg, GFP_ATOMIC);
+		total_bytes = sizeof(struct irq_cfg) * nr_irq_cfg;
+		if (after_bootmem)
+			cfg = kzalloc(total_bytes, GFP_ATOMIC);
+		else
+			cfg = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
+
+		if (!cfg)
+			panic("please boot with nr_irq_cfg= %d\n", count * 2);
+
+		phys = __pa(cfg);
+		printk(KERN_DEBUG "irq_irq ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
+
+		for (i = 0; i < nr_irq_cfg; i++)
+			init_one_irq_cfg(&cfg[i]);
+
+		for (i = 1; i < nr_irq_cfg; i++)
+			cfg[i-1].next = &cfg[i];
+
+		irq_cfgx_free = cfg;
+	}
+
+	cfg = irq_cfgx_free;
+	irq_cfgx_free = irq_cfgx_free->next;
+	cfg->next = NULL;
+	if (cfg_pri)
+		cfg_pri->next = cfg;
 	else
-		cfg = __alloc_bootmem_nopanic(sizeof(struct irq_cfg)*nr_irq_cfg, PAGE_SIZE, 0);
-
-	if (!cfg)
-		panic("please boot with nr_irq_cfg= %d\n", count * 2);
-
-	for (i = 0; i < nr_irq_cfg; i++)
-		init_one_irq_cfg(&cfg[i]);
-
-	for (i = 1; i < nr_irq_cfg; i++)
-		cfg[i-1].next = &cfg[i];
-
+		irq_cfgx = cfg;
 	cfg->irq = irq;
-	cfg_pri->next = cfg;
+	printk(KERN_DEBUG "found new irq_cfg for irq %d\n", cfg->irq);
+#ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
+	{
+		/* dump the results */
+		struct irq_cfg *cfg;
+		unsigned long phys;
+		unsigned long bytes = sizeof(struct irq_cfg);
 
+		printk(KERN_DEBUG "=========================== %d\n", irq);
+		printk(KERN_DEBUG "irq_cfg dump after get that for %d\n", irq);
+		for_each_irq_cfg(cfg) {
+			phys = __pa(cfg);
+			printk(KERN_DEBUG "irq_cfg %d ==> [%#lx - %#lx]\n", cfg->irq, phys, phys + bytes);
+		}
+		printk(KERN_DEBUG "===========================\n");
+	}
+#endif
 	return cfg;
 }
 
