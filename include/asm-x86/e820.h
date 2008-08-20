@@ -43,6 +43,7 @@
 #define E820_RESERVED	2
 #define E820_ACPI	3
 #define E820_NVS	4
+#define E820_UNUSABLE	5
 
 /* reserved RAM used by kernel itself */
 #define E820_RESERVED_KERN        128
