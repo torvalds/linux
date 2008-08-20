@@ -957,29 +957,6 @@ void __init mp_register_ioapic(int id, u32 address, u32 gsi_base)
 	nr_ioapics++;
 }
 
-int get_nr_irqs_via_madt(void)
-{
-	int idx;
-	int nr = 0;
-
-	for (idx = 0; idx < nr_ioapics; idx++) {
-		if (mp_ioapic_routing[idx].gsi_end > nr)
-			nr = mp_ioapic_routing[idx].gsi_end;
-	}
-
-	nr++;
-
-	/* double it for hotplug and msi and nmi */
-	nr <<= 1;
-
-	/* something wrong ? */
-	if (nr < 32)
-		nr = 32;
-
-	return nr;
-
-}
-
 static void assign_to_mp_irq(struct mp_config_intsrc *m,
 				    struct mp_config_intsrc *mp_irq)
 {
@@ -1277,8 +1254,6 @@ static int __init acpi_parse_madt_ioapic_entries(void)
 		return count;
 	}
 
-
-	nr_irqs = get_nr_irqs_via_madt();
 
 	count =
 	    acpi_table_parse_madt(ACPI_MADT_TYPE_INTERRUPT_OVERRIDE, acpi_parse_int_src_ovr,
