@@ -327,11 +327,9 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 	s8 gain;
 	u16 loc[3];
 
-	if (out->revision == 3) {			/* rev 3 moved MAC */
+	if (out->revision == 3)			/* rev 3 moved MAC */
 		loc[0] = SSB_SPROM3_IL0MAC;
-		loc[1] = SSB_SPROM3_ET0MAC;
-		loc[2] = SSB_SPROM3_ET1MAC;
-	} else {
+	else {
 		loc[0] = SSB_SPROM1_IL0MAC;
 		loc[1] = SSB_SPROM1_ET0MAC;
 		loc[2] = SSB_SPROM1_ET1MAC;
@@ -340,13 +338,15 @@ static void sprom_extract_r123(struct ssb_sprom *out, const u16 *in)
 		v = in[SPOFF(loc[0]) + i];
 		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
 	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(loc[1]) + i];
-		*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
-	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(loc[2]) + i];
-		*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
+	if (out->revision < 3) { 	/* only rev 1-2 have et0, et1 */
+		for (i = 0; i < 3; i++) {
+			v = in[SPOFF(loc[1]) + i];
+			*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
+		}
+		for (i = 0; i < 3; i++) {
+			v = in[SPOFF(loc[2]) + i];
+			*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
+		}
 	}
 	SPEX(et0phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET0A, 0);
 	SPEX(et1phyaddr, SSB_SPROM1_ETHPHY, SSB_SPROM1_ETHPHY_ET1A,
@@ -409,18 +409,10 @@ static void sprom_extract_r45(struct ssb_sprom *out, const u16 *in)
 		il0mac_offset = SSB_SPROM4_IL0MAC;
 	else
 		il0mac_offset = SSB_SPROM5_IL0MAC;
-	/* extract the equivalent of the r1 variables */
+	/* extract the MAC address */
 	for (i = 0; i < 3; i++) {
 		v = in[SPOFF(il0mac_offset) + i];
 		*(((__be16 *)out->il0mac) + i) = cpu_to_be16(v);
-	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM4_ET0MAC) + i];
-		*(((__be16 *)out->et0mac) + i) = cpu_to_be16(v);
-	}
-	for (i = 0; i < 3; i++) {
-		v = in[SPOFF(SSB_SPROM4_ET1MAC) + i];
-		*(((__be16 *)out->et1mac) + i) = cpu_to_be16(v);
 	}
 	SPEX(et0phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET0A, 0);
 	SPEX(et1phyaddr, SSB_SPROM4_ETHPHY, SSB_SPROM4_ETHPHY_ET1A,
@@ -482,6 +474,8 @@ static int sprom_extract(struct ssb_bus *bus, struct ssb_sprom *out,
 
 	out->revision = in[size - 1] & 0x00FF;
 	ssb_dprintk(KERN_DEBUG PFX "SPROM revision %d detected.\n", out->revision);
+	memset(out->et0mac, 0xFF, 6);		/* preset et0 and et1 mac */
+	memset(out->et1mac, 0xFF, 6);
 	if ((bus->chip_id & 0xFF00) == 0x4400) {
 		/* Workaround: The BCM44XX chip has a stupid revision
 		 * number stored in the SPROM.
