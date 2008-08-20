@@ -318,7 +318,7 @@ sbni_pci_probe( struct net_device  *dev )
 				continue;
 		}
 
-		if( pci_irq_line <= 0  ||  pci_irq_line >= NR_IRQS )
+		if (pci_irq_line <= 0 || pci_irq_line >= nr_irqs)
 			printk( KERN_WARNING "  WARNING: The PCI BIOS assigned "
 				"this PCI card to IRQ %d, which is unlikely "
 				"to work!.\n"
