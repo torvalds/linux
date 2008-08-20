@@ -224,7 +224,7 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	struct pt_regs *old_regs;
 	/* high bit used in ret_from_ code */
 	int overflow, irq = ~regs->orig_ax;
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (unlikely((unsigned)irq >= nr_irqs)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
@@ -273,15 +273,16 @@ int show_interrupts(struct seq_file *p, void *v)
 
 	if (i < nr_irqs) {
 		unsigned any_count = 0;
+		struct irq_desc *desc = irq_to_desc(i);
 
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		spin_lock_irqsave(&desc->lock, flags);
 #ifndef CONFIG_SMP
 		any_count = kstat_irqs(i);
 #else
 		for_each_online_cpu(j)
 			any_count |= kstat_cpu(j).irqs[i];
 #endif
-		action = irq_desc[i].action;
+		action = desc->action;
 		if (!action && !any_count)
 			goto skip;
 		seq_printf(p, "%3d: ",i);
@@ -291,8 +292,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", kstat_cpu(j).irqs[i]);
 #endif
-		seq_printf(p, " %8s", irq_desc[i].chip->name);
-		seq_printf(p, "-%-8s", irq_desc[i].name);
+		seq_printf(p, " %8s", desc->chip->name);
+		seq_printf(p, "-%-8s", desc->name);
 
 		if (action) {
 			seq_printf(p, "  %s", action->name);
@@ -302,7 +303,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		spin_unlock_irqrestore(&desc->lock, flags);
 	} else if (i == nr_irqs) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
@@ -398,17 +399,20 @@ void fixup_irqs(cpumask_t map)
 
 	for (irq = 0; irq < nr_irqs; irq++) {
 		cpumask_t mask;
+		struct irq_desc *desc;
+
 		if (irq == 2)
 			continue;
 
-		cpus_and(mask, irq_desc[irq].affinity, map);
+		desc = irq_to_desc(irq);
+		cpus_and(mask, desc->affinity, map);
 		if (any_online_cpu(mask) == NR_CPUS) {
 			printk("Breaking affinity for irq %i\n", irq);
 			mask = map;
 		}
-		if (irq_desc[irq].chip->set_affinity)
-			irq_desc[irq].chip->set_affinity(irq, mask);
-		else if (irq_desc[irq].action && !(warned++))
+		if (desc->chip->set_affinity)
+			desc->chip->set_affinity(irq, mask);
+		else if (desc->action && !(warned++))
 			printk("Cannot set affinity for irq %i\n", irq);
 	}
 

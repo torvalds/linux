@@ -152,6 +152,10 @@ struct irq_chip {
  * @name:		flow handler name for /proc/interrupts output
  */
 struct irq_desc {
+	unsigned int		irq;
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+	struct irq_desc		*next;
+#endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
 	struct msi_desc		*msi_desc;
@@ -179,9 +183,9 @@ struct irq_desc {
 	const char		*name;
 } ____cacheline_internodealigned_in_smp;
 
-#ifdef CONFIG_HAVE_DYN_ARRAY
-extern struct irq_desc *irq_desc;
-#else
+extern struct irq_desc *irq_to_desc(unsigned int irq);
+#ifndef CONFIG_HAVE_DYN_ARRAY
+/* could be removed if we get rid of all irq_desc reference */
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
 
@@ -249,7 +253,10 @@ extern int no_irq_affinity;
 
 static inline int irq_balancing_disabled(unsigned int irq)
 {
-	return irq_desc[irq].status & IRQ_NO_BALANCING_MASK;
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	return desc->status & IRQ_NO_BALANCING_MASK;
 }
 
 /* Handle irq action chains: */
@@ -281,7 +288,7 @@ extern unsigned int __do_IRQ(unsigned int irq);
  */
 static inline void generic_handle_irq(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 
 #ifdef CONFIG_GENERIC_HARDIRQS_NO__DO_IRQ
 	desc->handle_irq(irq, desc);
@@ -325,7 +332,10 @@ __set_irq_handler(unsigned int irq, irq_flow_handler_t handle, int is_chained,
 static inline void __set_irq_handler_unlocked(int irq,
 					      irq_flow_handler_t handler)
 {
-	irq_desc[irq].handle_irq = handler;
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	desc->handle_irq = handler;
 }
 
 /*
@@ -359,7 +369,7 @@ extern void destroy_irq(unsigned int irq);
 /* Test to see if a driver has successfully requested an irq */
 static inline int irq_has_action(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	return desc->action != NULL;
 }
 
@@ -374,10 +384,10 @@ extern int set_irq_chip_data(unsigned int irq, void *data);
 extern int set_irq_type(unsigned int irq, unsigned int type);
 extern int set_irq_msi(unsigned int irq, struct msi_desc *entry);
 
-#define get_irq_chip(irq)	(irq_desc[irq].chip)
-#define get_irq_chip_data(irq)	(irq_desc[irq].chip_data)
-#define get_irq_data(irq)	(irq_desc[irq].handler_data)
-#define get_irq_msi(irq)	(irq_desc[irq].msi_desc)
+#define get_irq_chip(irq)	(irq_to_desc(irq)->chip)
+#define get_irq_chip_data(irq)	(irq_to_desc(irq)->chip_data)
+#define get_irq_data(irq)	(irq_to_desc(irq)->handler_data)
+#define get_irq_msi(irq)	(irq_to_desc(irq)->msi_desc)
 
 #endif /* CONFIG_GENERIC_HARDIRQS */
 

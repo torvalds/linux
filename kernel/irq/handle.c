@@ -18,6 +18,14 @@
 
 #include "internals.h"
 
+#ifdef CONFIG_TRACE_IRQFLAGS
+
+/*
+ * lockdep: we want to handle all irq_desc locks as a single lock-class:
+ */
+static struct lock_class_key irq_desc_lock_class;
+#endif
+
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
  * @irq:       the interrupt number
@@ -51,7 +59,8 @@ int nr_irqs = NR_IRQS;
 EXPORT_SYMBOL_GPL(nr_irqs);
 
 #ifdef CONFIG_HAVE_DYN_ARRAY
-static struct irq_desc irq_desc_init __initdata = {
+static struct irq_desc irq_desc_init = {
+	.irq = -1U,
 	.status = IRQ_DISABLED,
 	.chip = &no_irq_chip,
 	.handle_irq = handle_bad_irq,
@@ -62,6 +71,27 @@ static struct irq_desc irq_desc_init __initdata = {
 #endif
 };
 
+
+static void init_one_irq_desc(struct irq_desc *desc)
+{
+	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
+#ifdef CONFIG_TRACE_IRQFLAGS
+	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
+#endif
+}
+
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+static int nr_irq_desc = 32;
+
+static int __init parse_nr_irq_desc(char *arg)
+{
+	if (arg)
+		nr_irq_desc = simple_strtoul(arg, NULL, 0);
+	return 0;
+}
+
+early_param("nr_irq_desc", parse_nr_irq_desc);
+
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
@@ -71,11 +101,82 @@ static void __init init_work(void *data)
 	desc = *da->name;
 
 	for (i = 0; i < *da->nr; i++)
-		memcpy(&desc[i], &irq_desc_init, sizeof(struct irq_desc));
+		init_one_irq_desc(&desc[i]);
+
+	for (i = 1; i < *da->nr; i++)
+		desc[i-1].next = &desc[i];
 }
 
-struct irq_desc *irq_desc;
+static struct irq_desc *sparse_irqs;
+DEFINE_DYN_ARRAY(sparse_irqs, sizeof(struct irq_desc), nr_irq_desc, PAGE_SIZE, init_work);
+
+extern int after_bootmem;
+extern void *__alloc_bootmem_nopanic(unsigned long size,
+			     unsigned long align,
+			     unsigned long goal);
+struct irq_desc *irq_to_desc(unsigned int irq)
+{
+	struct irq_desc *desc, *desc_pri;
+	int i;
+	int count = 0;
+
+	BUG_ON(irq == -1U);
+
+	desc_pri = desc = &sparse_irqs[0];
+	while (desc) {
+		if (desc->irq == irq)
+			return desc;
+
+		if (desc->irq == -1U) {
+			desc->irq = irq;
+			return desc;
+		}
+		desc_pri = desc;
+		desc = desc->next;
+		count++;
+	}
+
+	/*
+	 *  we run out of pre-allocate ones, allocate more
+	 */
+	printk(KERN_DEBUG "try to get more irq_desc %d\n", nr_irq_desc);
+
+	if (after_bootmem)
+		desc = kzalloc(sizeof(struct irq_desc)*nr_irq_desc, GFP_ATOMIC);
+	else
+		desc = __alloc_bootmem_nopanic(sizeof(struct irq_desc)*nr_irq_desc, PAGE_SIZE, 0);
+
+	if (!desc)
+		panic("please boot with nr_irq_desc= %d\n", count * 2);
+
+	for (i = 0; i < nr_irq_desc; i++)
+		init_one_irq_desc(&desc[i]);
+
+	for (i = 1; i < nr_irq_desc; i++)
+		desc[i-1].next = &desc[i];
+
+	desc->irq = irq;
+	desc_pri->next = desc;
+
+	return desc;
+}
+#else
+static void __init init_work(void *data)
+{
+	struct dyn_array *da = data;
+	int i;
+	struct  irq_desc *desc;
+
+	desc = *da->name;
+
+	for (i = 0; i < *da->nr; i++)
+		init_one_irq_desc(&desc[i]);
+
+}
+static struct irq_desc *irq_desc;
 DEFINE_DYN_ARRAY(irq_desc, sizeof(struct irq_desc), nr_irqs, PAGE_SIZE, init_work);
+
+#endif
 
 #else
 
@@ -85,12 +186,23 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
 		.chip = &no_irq_chip,
 		.handle_irq = handle_bad_irq,
 		.depth = 1,
-		.lock = __SPIN_LOCK_UNLOCKED(irq_desc->lock),
+		.lock = __SPIN_LOCK_UNLOCKED(sparse_irqs->lock),
 #ifdef CONFIG_SMP
 		.affinity = CPU_MASK_ALL
 #endif
 	}
 };
+
+#endif
+
+#ifndef CONFIG_HAVE_SPARSE_IRQ
+struct irq_desc *irq_to_desc(unsigned int irq)
+{
+	if (irq < nr_irqs)
+		return &irq_desc[irq];
+
+	return NULL;
+}
 #endif
 
 /*
@@ -99,7 +211,10 @@ struct irq_desc irq_desc[NR_IRQS] __cacheline_aligned_in_smp = {
  */
 static void ack_bad(unsigned int irq)
 {
-	print_irq_desc(irq, irq_desc + irq);
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	print_irq_desc(irq, desc);
 	ack_bad_irq(irq);
 }
 
@@ -196,7 +311,7 @@ irqreturn_t handle_IRQ_event(unsigned int irq, struct irqaction *action)
  */
 unsigned int __do_IRQ(unsigned int irq)
 {
-	struct irq_desc *desc = irq_desc + irq;
+	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action;
 	unsigned int status;
 
@@ -287,19 +402,16 @@ out:
 }
 #endif
 
+
 #ifdef CONFIG_TRACE_IRQFLAGS
-
-/*
- * lockdep: we want to handle all irq_desc locks as a single lock-class:
- */
-static struct lock_class_key irq_desc_lock_class;
-
 void early_init_irq_lock_class(void)
 {
+#ifndef CONFIG_HAVE_DYN_ARRAY
 	int i;
 
 	for (i = 0; i < nr_irqs; i++)
 		lockdep_set_class(&irq_desc[i].lock, &irq_desc_lock_class);
-}
-
 #endif
+}
+#endif
+

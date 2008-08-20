@@ -345,6 +345,7 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 	struct irq_pin_list *entry = irq_2_pin + irq;
 	unsigned int apicid_value;
 	cpumask_t tmp;
+	struct irq_desc *desc;
 
 	cpus_and(tmp, cpumask, cpu_online_map);
 	if (cpus_empty(tmp))
@@ -365,7 +366,8 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 			break;
 		entry = irq_2_pin + entry->next;
 	}
-	irq_desc[irq].affinity = cpumask;
+	desc = irq_to_desc(irq);
+	desc->affinity = cpumask;
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 }
 
@@ -475,10 +477,12 @@ static inline void balance_irq(int cpu, int irq)
 static inline void rotate_irqs_among_cpus(unsigned long useful_load_threshold)
 {
 	int i, j;
+	struct irq_desc *desc;
 
 	for_each_online_cpu(i) {
 		for (j = 0; j < nr_irqs; j++) {
-			if (!irq_desc[j].action)
+			desc = irq_to_desc(j);
+			if (!desc->action)
 				continue;
 			/* Is it a significant load ?  */
 			if (IRQ_DELTA(CPU_TO_PACKAGEINDEX(i), j) <
@@ -505,6 +509,7 @@ static void do_irq_balance(void)
 	unsigned long tmp_cpu_irq;
 	unsigned long imbalance = 0;
 	cpumask_t allowed_mask, target_cpu_mask, tmp;
+	struct irq_desc *desc;
 
 	for_each_possible_cpu(i) {
 		int package_index;
@@ -515,7 +520,8 @@ static void do_irq_balance(void)
 		for (j = 0; j < nr_irqs; j++) {
 			unsigned long value_now, delta;
 			/* Is this an active IRQ or balancing disabled ? */
-			if (!irq_desc[j].action || irq_balancing_disabled(j))
+			desc = irq_to_desc(j);
+			if (!desc->action || irq_balancing_disabled(j))
 				continue;
 			if (package_index == i)
 				IRQ_DELTA(package_index, j) = 0;
@@ -609,7 +615,8 @@ tryanotherirq:
 	selected_irq = -1;
 	for (j = 0; j < nr_irqs; j++) {
 		/* Is this an active IRQ? */
-		if (!irq_desc[j].action)
+		desc = irq_to_desc(j);
+		if (!desc->action)
 			continue;
 		if (imbalance <= IRQ_DELTA(max_loaded, j))
 			continue;
@@ -682,10 +689,12 @@ static int balanced_irq(void *unused)
 	int i;
 	unsigned long prev_balance_time = jiffies;
 	long time_remaining = balanced_irq_interval;
+	struct irq_desc *desc;
 
 	/* push everything to CPU 0 to give us a starting point.  */
 	for (i = 0 ; i < nr_irqs ; i++) {
-		irq_desc[i].pending_mask = cpumask_of_cpu(0);
+		desc = irq_to_desc(i);
+		desc->pending_mask = cpumask_of_cpu(0);
 		set_pending_irq(i, cpumask_of_cpu(0));
 	}
 
@@ -1254,13 +1263,16 @@ static struct irq_chip ioapic_chip;
 
 static void ioapic_register_intr(int irq, int vector, unsigned long trigger)
 {
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
 	    trigger == IOAPIC_LEVEL) {
-		irq_desc[irq].status |= IRQ_LEVEL;
+		desc->status |= IRQ_LEVEL;
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_fasteoi_irq, "fasteoi");
 	} else {
-		irq_desc[irq].status &= ~IRQ_LEVEL;
+		desc->status &= ~IRQ_LEVEL;
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_edge_irq, "edge");
 	}
@@ -2027,6 +2039,7 @@ static struct irq_chip ioapic_chip __read_mostly = {
 static inline void init_IO_APIC_traps(void)
 {
 	int irq;
+	struct irq_desc *desc;
 
 	/*
 	 * NOTE! The local APIC isn't very good at handling
@@ -2048,9 +2061,11 @@ static inline void init_IO_APIC_traps(void)
 			 */
 			if (irq < 16)
 				make_8259A_irq(irq);
-			else
+			else {
+				desc = irq_to_desc(irq);
 				/* Strange. Oh, well.. */
-				irq_desc[irq].chip = &no_irq_chip;
+				desc->chip = &no_irq_chip;
+			}
 		}
 	}
 }
@@ -2089,7 +2104,10 @@ static struct irq_chip lapic_chip __read_mostly = {
 
 static void lapic_register_intr(int irq, int vector)
 {
-	irq_desc[irq].status &= ~IRQ_LEVEL;
+	struct irq_desc *desc;
+
+	desc = irq_to_desc(irq);
+	desc->status &= ~IRQ_LEVEL;
 	set_irq_chip_and_handler_name(irq, &lapic_chip, handle_edge_irq,
 				      "edge");
 	set_intr_gate(vector, interrupt[irq]);
@@ -2556,6 +2574,7 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	unsigned int dest;
 	cpumask_t tmp;
 	int vector;
+	struct irq_desc *desc;
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
@@ -2575,7 +2594,8 @@ static void set_msi_irq_affinity(unsigned int irq, cpumask_t mask)
 	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
 
 	write_msi_msg(irq, &msg);
-	irq_desc[irq].affinity = mask;
+	desc = irq_to_desc(irq);
+	desc->affinity = mask;
 }
 #endif /* CONFIG_SMP */
 
@@ -2649,6 +2669,7 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 {
 	unsigned int dest;
 	cpumask_t tmp;
+	struct irq_desc *desc;
 
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
@@ -2659,7 +2680,8 @@ static void set_ht_irq_affinity(unsigned int irq, cpumask_t mask)
 	dest = cpu_mask_to_apicid(mask);
 
 	target_ht_irq(irq, dest);
-	irq_desc[irq].affinity = mask;
+	desc = irq_to_desc(irq);
+	desc->affinity = mask;
 }
 #endif
 

@@ -143,9 +143,11 @@ void __init init_ISA_irqs(void)
 	init_8259A(0);
 
 	for (i = 0; i < nr_irqs; i++) {
-		irq_desc[i].status = IRQ_DISABLED;
-		irq_desc[i].action = NULL;
-		irq_desc[i].depth = 1;
+		struct irq_desc *desc = irq_to_desc(i);
+
+		desc->status = IRQ_DISABLED;
+		desc->action = NULL;
+		desc->depth = 1;
 
 		if (i < 16) {
 			/*
@@ -157,7 +159,7 @@ void __init init_ISA_irqs(void)
 			/*
 			 * 'high' PCI IRQs filled in on demand
 			 */
-			irq_desc[i].chip = &no_irq_chip;
+			desc->chip = &no_irq_chip;
 		}
 	}
 }

@@ -1058,7 +1058,7 @@ static void gpiolib_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 		if (!is_out) {
 			int		irq = gpio_to_irq(gpio);
-			struct irq_desc	*desc = irq_desc + irq;
+			struct irq_desc	*desc = irq_to_desc(irq);
 
 			/* This races with request_irq(), set_irq_type(),
 			 * and set_irq_wake() ... but those are "rare".

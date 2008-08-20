@@ -92,11 +92,12 @@ static int misrouted_irq(int irq)
 	int ok = 0;
 
 	for (i = 1; i < nr_irqs; i++) {
-		struct irq_desc *desc = irq_desc + i;
+		struct irq_desc *desc;
 
 		if (i == irq)	/* Already tried */
 			continue;
 
+		desc = irq_to_desc(i);
 		if (try_one_irq(i, desc))
 			ok = 1;
 	}
@@ -108,7 +109,7 @@ static void poll_spurious_irqs(unsigned long dummy)
 {
 	int i;
 	for (i = 1; i < nr_irqs; i++) {
-		struct irq_desc *desc = irq_desc + i;
+		struct irq_desc *desc = irq_to_desc(i);
 		unsigned int status;
 
 		/* Racy but it doesn't matter */

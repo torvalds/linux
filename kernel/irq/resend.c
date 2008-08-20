@@ -36,7 +36,7 @@ static void resend_irqs(unsigned long arg)
 	while (!bitmap_empty(irqs_resend, nr_irqs)) {
 		irq = find_first_bit(irqs_resend, nr_irqs);
 		clear_bit(irq, irqs_resend);
-		desc = irq_desc + irq;
+		desc = irq_to_desc(irq);
 		local_irq_disable();
 		desc->handle_irq(irq, desc);
 		local_irq_enable();

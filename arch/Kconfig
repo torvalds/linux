@@ -105,3 +105,7 @@ config HAVE_CLK
 
 config HAVE_DYN_ARRAY
 	def_bool n
+
+config HAVE_SPARSE_IRQ
+	def_bool n
+
