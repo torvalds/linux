@@ -1746,6 +1746,7 @@ static void __devexit pm2fb_remove(struct pci_dev *pdev)
 	release_mem_region(fix->mmio_start, fix->mmio_len);
 
 	pci_set_drvdata(pdev, NULL);
+	fb_dealloc_cmap(&info->cmap);
 	kfree(info->pixmap.addr);
 	kfree(info);
 }
