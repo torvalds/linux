@@ -17,6 +17,11 @@
 
 extern int nr_irqs;
 
+#ifndef CONFIG_GENERIC_HARDIRQS
+#define for_each_irq_desc(irq, desc)		\
+	for (irq = 0; irq < nr_irqs; irq++)
+#endif
+
 /*
  * These correspond to the IORESOURCE_IRQ_* defines in
  * linux/ioport.h to select the interrupt line behaviour.  When
