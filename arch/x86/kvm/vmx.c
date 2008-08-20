@@ -2239,6 +2239,7 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	fx_init(&vmx->vcpu);
 
+	seg_setup(VCPU_SREG_CS);
 	/*
 	 * GUEST_CS_BASE should really be 0xffff0000, but VT vm86 mode
 	 * insists on having GUEST_CS_BASE == GUEST_CS_SELECTOR << 4.  Sigh.
@@ -2250,8 +2251,6 @@ static int vmx_vcpu_reset(struct kvm_vcpu *vcpu)
 		vmcs_write16(GUEST_CS_SELECTOR, vmx->vcpu.arch.sipi_vector << 8);
 		vmcs_writel(GUEST_CS_BASE, vmx->vcpu.arch.sipi_vector << 12);
 	}
-	vmcs_write32(GUEST_CS_LIMIT, 0xffff);
-	vmcs_write32(GUEST_CS_AR_BYTES, 0x9b);
 
 	seg_setup(VCPU_SREG_DS);
 	seg_setup(VCPU_SREG_ES);
