@@ -11,6 +11,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/hardirq.h>
+#include <linux/uaccess.h>
 #include <linux/ftrace.h>
 #include <linux/percpu.h>
 #include <linux/init.h>
@@ -60,11 +61,7 @@ notrace int
 ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 		   unsigned char *new_code)
 {
-	unsigned replaced;
-	unsigned old = *(unsigned *)old_code; /* 4 bytes */
-	unsigned new = *(unsigned *)new_code; /* 4 bytes */
-	unsigned char newch = new_code[4];
-	int faulted = 0;
+	unsigned char replaced[MCOUNT_INSN_SIZE];
 
 	/*
 	 * Note: Due to modules and __init, code can
@@ -72,29 +69,20 @@ ftrace_modify_code(unsigned long ip, unsigned char *old_code,
 	 *  as well as code changing.
 	 *
 	 * No real locking needed, this code is run through
-	 * kstop_machine.
+	 * kstop_machine, or before SMP starts.
 	 */
-	asm volatile (
-		"1: lock\n"
-		"   cmpxchg %3, (%2)\n"
-		"   jnz 2f\n"
-		"   movb %b4, 4(%2)\n"
-		"2:\n"
-		".section .fixup, \"ax\"\n"
-		"3:	movl $1, %0\n"
-		"	jmp 2b\n"
-		".previous\n"
-		_ASM_EXTABLE(1b, 3b)
-		: "=r"(faulted), "=a"(replaced)
-		: "r"(ip), "r"(new), "c"(newch),
-		  "0"(faulted), "a"(old)
-		: "memory");
+	if (__copy_from_user(replaced, (char __user *)ip, MCOUNT_INSN_SIZE))
+		return 1;
+
+	if (memcmp(replaced, old_code, MCOUNT_INSN_SIZE) != 0)
+		return 2;
+
+	WARN_ON_ONCE(__copy_to_user((char __user *)ip, new_code,
+				    MCOUNT_INSN_SIZE));
+
 	sync_core();
 
-	if (replaced != old && replaced != new)
-		faulted = 2;
-
-	return faulted;
+	return 0;
 }
 
 notrace int ftrace_update_ftrace_func(ftrace_func_t func)
