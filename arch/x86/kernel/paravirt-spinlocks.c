@@ -23,7 +23,7 @@ struct pv_lock_ops pv_lock_ops = {
 	.spin_unlock = __ticket_spin_unlock,
 #endif
 };
-EXPORT_SYMBOL_GPL(pv_lock_ops);
+EXPORT_SYMBOL(pv_lock_ops);
 
 void __init paravirt_use_bytelocks(void)
 {
