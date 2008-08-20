@@ -363,6 +363,7 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	struct bfin_rtc *rtc;
 	struct device *dev = &pdev->dev;
 	int ret = 0;
+	unsigned long timeout;
 
 	dev_dbg_stamp(dev);
 
@@ -377,6 +378,13 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, IRQF_SHARED, pdev->name, dev);
 	if (unlikely(ret))
 		goto err;
+	/* sometimes the bootloader touched things, but the write complete was not
+	 * enabled, so let's just do a quick timeout here since the IRQ will not fire ...
+	 */
+	timeout = jiffies + HZ;
+	while (bfin_read_RTC_ISTAT() & RTC_ISTAT_WRITE_PENDING)
+		if (time_after(jiffies, timeout))
+			break;
 	bfin_rtc_reset(dev, RTC_ISTAT_WRITE_COMPLETE);
 	bfin_write_RTC_SWCNT(0);
 
