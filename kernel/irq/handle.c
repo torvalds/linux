@@ -112,6 +112,11 @@ static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
 	}
 }
 
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+static struct irq_desc *sparse_irqs_free;
+struct irq_desc *sparse_irqs;
+#endif
+
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
@@ -127,13 +132,16 @@ static void __init init_work(void *data)
 #endif
 	}
 
+	/* init kstat_irqs, nr_cpu_ids is ready already */
+	init_kstat_irqs(desc, *da->nr, nr_cpu_ids);
+
 #ifdef CONFIG_HAVE_SPARSE_IRQ
 	for (i = 1; i < *da->nr; i++)
 		desc[i-1].next = &desc[i];
-#endif
 
-	/* init kstat_irqs, nr_cpu_ids is ready already */
-	init_kstat_irqs(desc, *da->nr, nr_cpu_ids);
+	sparse_irqs_free = sparse_irqs;
+	sparse_irqs = NULL;
+#endif
 }
 
 #ifdef CONFIG_HAVE_SPARSE_IRQ
@@ -148,22 +156,16 @@ static int __init parse_nr_irq_desc(char *arg)
 
 early_param("nr_irq_desc", parse_nr_irq_desc);
 
-struct irq_desc *sparse_irqs;
 DEFINE_DYN_ARRAY(sparse_irqs, sizeof(struct irq_desc), nr_irq_desc, PAGE_SIZE, init_work);
 
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	struct irq_desc *desc;
 
-	BUG_ON(irq == -1U);
-
-	desc = &sparse_irqs[0];
+	desc = sparse_irqs;
 	while (desc) {
 		if (desc->irq == irq)
 			return desc;
-
-		if (desc->irq == -1U)
-			return NULL;
 
 		desc = desc->next;
 	}
@@ -174,21 +176,12 @@ struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 	struct irq_desc *desc, *desc_pri;
 	int i;
 	int count = 0;
-	unsigned long phys;
-	unsigned long total_bytes;
 
-	BUG_ON(irq == -1U);
-
-	desc_pri = desc = &sparse_irqs[0];
+	desc_pri = desc = sparse_irqs;
 	while (desc) {
 		if (desc->irq == irq)
 			return desc;
 
-		if (desc->irq == -1U) {
-			desc->irq = irq;
-			printk(KERN_DEBUG "found new irq_desc for irq %d\n", desc->irq);
-			return desc;
-		}
 		desc_pri = desc;
 		desc = desc->next;
 		count++;
@@ -197,48 +190,62 @@ struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 	/*
 	 *  we run out of pre-allocate ones, allocate more
 	 */
-	printk(KERN_DEBUG "try to get more irq_desc %d\n", nr_irq_desc);
-	{
-		/* double check if some one mess up the list */
-		struct irq_desc *desc;
-		int count = 0;
+	if (!sparse_irqs_free) {
+		unsigned long phys;
+		unsigned long total_bytes;
 
-		desc = &sparse_irqs[0];
-		while (desc) {
-			printk(KERN_DEBUG "found irq_desc for irq %d\n", desc->irq);
-			if (desc->next)
-				printk(KERN_DEBUG "found irq_desc for irq %d and next will be irq %d\n", desc->irq, desc->next->irq);
-			desc = desc->next;
-			count++;
-		}
-		printk(KERN_DEBUG "all preallocted %d\n", count);
+		printk(KERN_DEBUG "try to get more irq_desc %d\n", nr_irq_desc);
+
+		total_bytes = sizeof(struct irq_desc) * nr_irq_desc;
+		if (after_bootmem)
+			desc = kzalloc(total_bytes, GFP_ATOMIC);
+		else
+			desc = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
+
+		if (!desc)
+			panic("please boot with nr_irq_desc= %d\n", count * 2);
+
+		phys = __pa(desc);
+		printk(KERN_DEBUG "irq_desc ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
+
+		for (i = 0; i < nr_irq_desc; i++)
+			init_one_irq_desc(&desc[i]);
+
+		for (i = 1; i < nr_irq_desc; i++)
+			desc[i-1].next = &desc[i];
+
+		/* init kstat_irqs, nr_cpu_ids is ready already */
+		init_kstat_irqs(desc, nr_irq_desc, nr_cpu_ids);
+
+		sparse_irqs_free = desc;
 	}
 
-	total_bytes = sizeof(struct irq_desc) * nr_irq_desc;
-	if (after_bootmem)
-		desc = kzalloc(total_bytes, GFP_ATOMIC);
+	desc = sparse_irqs_free;
+	sparse_irqs_free = sparse_irqs_free->next;
+	desc->next = NULL;
+	if (desc_pri)
+		desc_pri->next = desc;
 	else
-		desc = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
-
-	if (!desc)
-		panic("please boot with nr_irq_desc= %d\n", count * 2);
-
-	phys = __pa(desc);
-	printk(KERN_DEBUG "irq_desc ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
-
-	for (i = 0; i < nr_irq_desc; i++)
-		init_one_irq_desc(&desc[i]);
-
-	for (i = 1; i < nr_irq_desc; i++)
-		desc[i-1].next = &desc[i];
-
-	/* init kstat_irqs, nr_cpu_ids is ready already */
-	init_kstat_irqs(desc, nr_irq_desc, nr_cpu_ids);
-
+		sparse_irqs = desc;
 	desc->irq = irq;
-	desc_pri->next = desc;
-	printk(KERN_DEBUG "1 found new irq_desc for irq %d and pri will be irq %d\n", desc->irq, desc_pri->irq);
+	printk(KERN_DEBUG "found new irq_desc for irq %d\n", desc->irq);
+#ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
+	{
+		/* dump the results */
+		struct irq_desc *desc;
+		unsigned long phys;
+		unsigned long bytes = sizeof(struct irq_desc);
+		unsigned int irqx;
 
+		printk(KERN_DEBUG "=========================== %d\n", irq);
+		printk(KERN_DEBUG "irq_desc dump after get that for %d\n", irq);
+		for_each_irq_desc(irqx, desc) {
+			phys = __pa(desc);
+			printk(KERN_DEBUG "irq_desc %d ==> [%#lx - %#lx]\n", irqx, phys, phys + bytes);
+		}
+		printk(KERN_DEBUG "===========================\n");
+	}
+#endif
 	return desc;
 }
 #else

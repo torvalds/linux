@@ -211,7 +211,7 @@ extern struct irq_desc *irq_desc;
 
 extern struct irq_desc *sparse_irqs;
 #define for_each_irq_desc(irqX, desc)		\
-	for (desc = sparse_irqs, irqX = desc->irq; desc && irqX != -1U; desc = desc->next, irqX = desc ? desc->irq : -1U)
+	for (desc = sparse_irqs, irqX = desc->irq; desc; desc = desc->next, irqX = desc ? desc->irq : -1U)
 
 #endif
 
