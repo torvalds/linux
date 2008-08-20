@@ -95,10 +95,11 @@ DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 static int disable_timer_pin_1 __initdata;
 
 struct irq_cfg;
-
+struct irq_pin_list;
 struct irq_cfg {
 	unsigned int irq;
 	struct irq_cfg *next;
+	struct irq_pin_list *irq_2_pin;
 	u8 vector;
 };
 
@@ -275,11 +276,66 @@ int pin_map_size;
  * between pins and IRQs.
  */
 
-static struct irq_pin_list {
-	int apic, pin, next;
-} *irq_2_pin;
+struct irq_pin_list {
+	int apic, pin;
+	struct irq_pin_list *next;
+};
 
-DEFINE_DYN_ARRAY(irq_2_pin, sizeof(struct irq_pin_list), pin_map_size, 16, NULL);
+static struct irq_pin_list *irq_2_pin_head;
+/* fill one page ? */
+static int nr_irq_2_pin = 0x100;
+static struct irq_pin_list *irq_2_pin_ptr;
+static void __init irq_2_pin_init_work(void *data)
+{
+	struct dyn_array *da = data;
+	struct irq_pin_list *pin;
+	int i;
+
+	pin = *da->name;
+
+	for (i = 1; i < *da->nr; i++)
+		pin[i-1].next = &pin[i];
+
+	irq_2_pin_ptr = &pin[0];
+}
+DEFINE_DYN_ARRAY(irq_2_pin_head, sizeof(struct irq_pin_list), nr_irq_2_pin, PAGE_SIZE, irq_2_pin_init_work);
+
+static struct irq_pin_list *get_one_free_irq_2_pin(void)
+{
+	struct irq_pin_list *pin;
+	int i;
+
+	pin = irq_2_pin_ptr;
+
+	if (pin) {
+		irq_2_pin_ptr = pin->next;
+		pin->next = NULL;
+		return pin;
+	}
+
+	/*
+	 *  we run out of pre-allocate ones, allocate more
+	 */
+	printk(KERN_DEBUG "try to get more irq_2_pin %d\n", nr_irq_2_pin);
+
+	if (after_bootmem)
+		pin = kzalloc(sizeof(struct irq_pin_list)*nr_irq_2_pin,
+				 GFP_ATOMIC);
+	else
+		pin = __alloc_bootmem_nopanic(sizeof(struct irq_pin_list) *
+				nr_irq_2_pin, PAGE_SIZE, 0);
+
+	if (!pin)
+		panic("can not get more irq_2_pin\n");
+
+	for (i = 1; i < nr_irq_2_pin; i++)
+		pin[i-1].next = &pin[i];
+
+	irq_2_pin_ptr = pin->next;
+	pin->next = NULL;
+
+	return pin;
+}
 
 struct io_apic {
 	unsigned int index;
@@ -383,20 +439,34 @@ static void ioapic_mask_entry(int apic, int pin)
  */
 static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 {
-	struct irq_pin_list *entry = irq_2_pin + irq;
+	struct irq_cfg *cfg;
+	struct irq_pin_list *entry;
 
-	irq_cfg_alloc(irq);
-	while (entry->next)
-		entry = irq_2_pin + entry->next;
-
-	if (entry->pin != -1) {
-		entry->next = first_free_entry;
-		entry = irq_2_pin + entry->next;
-		if (++first_free_entry >= pin_map_size)
-			panic("io_apic.c: whoops");
+	/* first time to refer irq_cfg, so with new */
+	cfg = irq_cfg_alloc(irq);
+	entry = cfg->irq_2_pin;
+	if (!entry) {
+		entry = get_one_free_irq_2_pin();
+		cfg->irq_2_pin = entry;
+		entry->apic = apic;
+		entry->pin = pin;
+		printk(KERN_DEBUG " 0 add_pin_to_irq: irq %d --> apic %d pin %d\n", irq, apic, pin);
+		return;
 	}
+
+	while (entry->next) {
+		/* not again, please */
+		if (entry->apic == apic && entry->pin == pin)
+			return;
+
+		entry = entry->next;
+	}
+
+	entry->next = get_one_free_irq_2_pin();
+	entry = entry->next;
 	entry->apic = apic;
 	entry->pin = pin;
+	printk(KERN_DEBUG " x add_pin_to_irq: irq %d --> apic %d pin %d\n", irq, apic, pin);
 }
 
 /*
@@ -406,35 +476,45 @@ static void __init replace_pin_at_irq(unsigned int irq,
 				      int oldapic, int oldpin,
 				      int newapic, int newpin)
 {
-	struct irq_pin_list *entry = irq_2_pin + irq;
+	struct irq_cfg *cfg = irq_cfg(irq);
+	struct irq_pin_list *entry = cfg->irq_2_pin;
+	int replaced = 0;
 
-	while (1) {
+	while (entry) {
 		if (entry->apic == oldapic && entry->pin == oldpin) {
 			entry->apic = newapic;
 			entry->pin = newpin;
-		}
-		if (!entry->next)
+			replaced = 1;
+			/* every one is different, right? */
 			break;
-		entry = irq_2_pin + entry->next;
+		}
+		entry = entry->next;
 	}
+
+	/* why? call replace before add? */
+	if (!replaced)
+		add_pin_to_irq(irq, newapic, newpin);
 }
 
 static void __modify_IO_APIC_irq(unsigned int irq, unsigned long enable, unsigned long disable)
 {
-	struct irq_pin_list *entry = irq_2_pin + irq;
+	struct irq_cfg *cfg;
+	struct irq_pin_list *entry;
 	unsigned int pin, reg;
 
+	cfg = irq_cfg(irq);
+	entry = cfg->irq_2_pin;
 	for (;;) {
-		pin = entry->pin;
-		if (pin == -1)
+		if (!entry)
 			break;
+		pin = entry->pin;
 		reg = io_apic_read(entry->apic, 0x10 + pin*2);
 		reg &= ~disable;
 		reg |= enable;
 		io_apic_modify(entry->apic, 0x10 + pin*2, reg);
 		if (!entry->next)
 			break;
-		entry = irq_2_pin + entry->next;
+		entry = entry->next;
 	}
 }
 
@@ -509,12 +589,17 @@ static void clear_IO_APIC(void)
 #ifdef CONFIG_SMP
 static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 {
+	struct irq_cfg *cfg;
 	unsigned long flags;
 	int pin;
-	struct irq_pin_list *entry = irq_2_pin + irq;
+	struct irq_pin_list *entry;
 	unsigned int apicid_value;
 	cpumask_t tmp;
 	struct irq_desc *desc;
+
+
+	cfg = irq_cfg(irq);
+	entry = cfg->irq_2_pin;
 
 	cpus_and(tmp, cpumask, cpu_online_map);
 	if (cpus_empty(tmp))
@@ -527,13 +612,13 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t cpumask)
 	apicid_value = apicid_value << 24;
 	spin_lock_irqsave(&ioapic_lock, flags);
 	for (;;) {
-		pin = entry->pin;
-		if (pin == -1)
+		if (!entry)
 			break;
+		pin = entry->pin;
 		io_apic_write(entry->apic, 0x10 + 1 + pin*2, apicid_value);
 		if (!entry->next)
 			break;
-		entry = irq_2_pin + entry->next;
+		entry = entry->next;
 	}
 	desc = irq_to_desc(irq);
 	desc->affinity = cpumask;
@@ -1152,6 +1237,7 @@ __apicdebuginit(void) print_IO_APIC(void)
 	union IO_APIC_reg_02 reg_02;
 	union IO_APIC_reg_03 reg_03;
 	unsigned long flags;
+	struct irq_cfg *cfg;
 
 	if (apic_verbosity == APIC_QUIET)
 		return;
@@ -1240,16 +1326,16 @@ __apicdebuginit(void) print_IO_APIC(void)
 	}
 	}
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
-	for (i = 0; i < nr_irqs; i++) {
-		struct irq_pin_list *entry = irq_2_pin + i;
-		if (entry->pin < 0)
+	for_each_irq_cfg(cfg) {
+		struct irq_pin_list *entry = cfg->irq_2_pin;
+		if (!entry)
 			continue;
 		printk(KERN_DEBUG "IRQ%d ", i);
 		for (;;) {
 			printk("-> %d:%d", entry->apic, entry->pin);
 			if (!entry->next)
 				break;
-			entry = irq_2_pin + entry->next;
+			entry = entry->next;
 		}
 		printk("\n");
 	}
@@ -1420,10 +1506,6 @@ static void __init enable_IO_APIC(void)
 	int i, apic;
 	unsigned long flags;
 
-	for (i = 0; i < pin_map_size; i++) {
-		irq_2_pin[i].pin = -1;
-		irq_2_pin[i].next = 0;
-	}
 	if (!pirqs_enabled)
 		for (i = 0; i < MAX_PIRQS; i++)
 			pirq_entries[i] = -1;
