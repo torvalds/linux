@@ -225,6 +225,19 @@ static int ocfs2_sync_fs(struct super_block *sb, int wait)
 	return 0;
 }
 
+static int ocfs2_need_system_inode(struct ocfs2_super *osb, int ino)
+{
+	if (!OCFS2_HAS_RO_COMPAT_FEATURE(osb->sb, OCFS2_FEATURE_RO_COMPAT_USRQUOTA)
+	    && (ino == USER_QUOTA_SYSTEM_INODE
+		|| ino == LOCAL_USER_QUOTA_SYSTEM_INODE))
+		return 0;
+	if (!OCFS2_HAS_RO_COMPAT_FEATURE(osb->sb, OCFS2_FEATURE_RO_COMPAT_GRPQUOTA)
+	    && (ino == GROUP_QUOTA_SYSTEM_INODE
+		|| ino == LOCAL_GROUP_QUOTA_SYSTEM_INODE))
+		return 0;
+	return 1;
+}
+
 static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 {
 	struct inode *new = NULL;
@@ -251,6 +264,8 @@ static int ocfs2_init_global_system_inodes(struct ocfs2_super *osb)
 
 	for (i = OCFS2_FIRST_ONLINE_SYSTEM_INODE;
 	     i <= OCFS2_LAST_GLOBAL_SYSTEM_INODE; i++) {
+		if (!ocfs2_need_system_inode(osb, i))
+			continue;
 		new = ocfs2_get_system_file_inode(osb, i, osb->slot_num);
 		if (!new) {
 			ocfs2_release_system_inodes(osb);
@@ -281,6 +296,8 @@ static int ocfs2_init_local_system_inodes(struct ocfs2_super *osb)
 	for (i = OCFS2_LAST_GLOBAL_SYSTEM_INODE + 1;
 	     i < NUM_SYSTEM_INODES;
 	     i++) {
+		if (!ocfs2_need_system_inode(osb, i))
+			continue;
 		new = ocfs2_get_system_file_inode(osb, i, osb->slot_num);
 		if (!new) {
 			ocfs2_release_system_inodes(osb);
