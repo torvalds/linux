@@ -65,7 +65,11 @@
 
 int ioapic_force;
 
-int sis_apic_bug; /* not actually supported, dummy for compile */
+/*
+ *      Is the SiS APIC rmw bug present ?
+ *      -1 = don't know, 0 = no, 1 = yes
+ */
+int sis_apic_bug = -1;
 
 static DEFINE_SPINLOCK(ioapic_lock);
 static DEFINE_SPINLOCK(vector_lock);
@@ -373,9 +377,11 @@ static inline void io_apic_write(unsigned int apic, unsigned int reg, unsigned i
  * Re-write a value: to be used for read-modify-write
  * cycles where the read already set up the index register.
  */
-static inline void io_apic_modify(unsigned int apic, unsigned int value)
+static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned int value)
 {
 	struct io_apic __iomem *io_apic = io_apic_base(apic);
+        if (sis_apic_bug)
+                writel(reg, &io_apic->index);
 	writel(value, &io_apic->data);
 }
 
@@ -494,7 +500,7 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 		reg = io_apic_read(apic, 0x10 + pin*2);
 		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
 		reg |= vector;
-		io_apic_modify(apic, reg);
+		io_apic_modify(apic, 0x10 + pin*2, reg);
 		if (!entry->next)
 			break;
 		entry = entry->next;
@@ -624,7 +630,7 @@ static inline void io_apic_sync(unsigned int apic)
 		pin = entry->pin;					\
 		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
 		reg ACTION;						\
-		io_apic_modify(entry->apic, reg);			\
+		io_apic_modify(entry->apic, 0x10 + R + pin*2, reg);	\
 		FINAL;							\
 		if (!entry->next)					\
 			break;						\
@@ -2449,6 +2455,20 @@ void __init setup_IO_APIC(void)
 	init_IO_APIC_traps();
 	check_timer();
 }
+
+/*
+ *      Called after all the initialization is done. If we didnt find any
+ *      APIC bugs then we can allow the modify fast path
+ */
+
+static int __init io_apic_bug_finalize(void)
+{
+        if (sis_apic_bug == -1)
+                sis_apic_bug = 0;
+        return 0;
+}
+
+late_initcall(io_apic_bug_finalize);
 
 struct sysfs_ioapic_data {
 	struct sys_device dev;
