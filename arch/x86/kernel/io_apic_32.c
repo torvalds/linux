@@ -123,7 +123,6 @@ struct irq_cfg {
 	u8 move_in_progress : 1;
 };
 
-
 /* irq_cfg is indexed by the sum of all RTEs in all I/O APICs. */
 static struct irq_cfg irq_cfg_legacy[] __initdata = {
 	[0]  = { .irq =  0, .domain = CPU_MASK_ALL, .vector = IRQ0_VECTOR,  },
@@ -391,6 +390,38 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 	writel(value, &io_apic->data);
 }
 
+#ifdef CONFIG_X86_64
+static bool io_apic_level_ack_pending(unsigned int irq)
+{
+	struct irq_pin_list *entry;
+	unsigned long flags;
+	struct irq_cfg *cfg = irq_cfg(irq);
+
+	spin_lock_irqsave(&ioapic_lock, flags);
+	entry = cfg->irq_2_pin;
+	for (;;) {
+		unsigned int reg;
+		int pin;
+
+		if (!entry)
+			break;
+		pin = entry->pin;
+		reg = io_apic_read(entry->apic, 0x10 + pin*2);
+		/* Is the remote IRR bit set? */
+		if (reg & IO_APIC_REDIR_REMOTE_IRR) {
+			spin_unlock_irqrestore(&ioapic_lock, flags);
+			return true;
+		}
+		if (!entry->next)
+			break;
+		entry = entry->next;
+	}
+	spin_unlock_irqrestore(&ioapic_lock, flags);
+
+	return false;
+}
+#endif
+
 union entry_union {
 	struct { u32 w1, w2; };
 	struct IO_APIC_route_entry entry;
@@ -483,17 +514,15 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 	unsigned int dest;
 	cpumask_t tmp;
 
-	cfg = irq_cfg(irq);
-
 	cpus_and(tmp, mask, cpu_online_map);
 	if (cpus_empty(tmp))
 		return;
 
+	cfg = irq_cfg(irq);
 	if (assign_irq_vector(irq, mask))
 		return;
 
 	cpus_and(tmp, cfg->domain, mask);
-
 	dest = cpu_mask_to_apicid(tmp);
 	/*
 	 * Only the high 8 bits are valid.
@@ -572,6 +601,54 @@ static void __init replace_pin_at_irq(unsigned int irq,
 		add_pin_to_irq(irq, newapic, newpin);
 }
 
+#ifdef CONFIG_X86_64
+/*
+ * Synchronize the IO-APIC and the CPU by doing
+ * a dummy read from the IO-APIC
+ */
+static inline void io_apic_sync(unsigned int apic)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	readl(&io_apic->data);
+}
+
+#define __DO_ACTION(R, ACTION, FINAL)					\
+									\
+{									\
+	int pin;							\
+	struct irq_cfg *cfg;						\
+	struct irq_pin_list *entry;					\
+									\
+	cfg = irq_cfg(irq);						\
+	entry = cfg->irq_2_pin;						\
+	for (;;) {							\
+		unsigned int reg;					\
+		if (!entry)						\
+			break;						\
+		pin = entry->pin;					\
+		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
+		reg ACTION;						\
+		io_apic_modify(entry->apic, 0x10 + R + pin*2, reg);	\
+		FINAL;							\
+		if (!entry->next)					\
+			break;						\
+		entry = entry->next;					\
+	}								\
+}
+
+#define DO_ACTION(name,R,ACTION, FINAL)					\
+									\
+	static void name##_IO_APIC_irq (unsigned int irq)		\
+	__DO_ACTION(R, ACTION, FINAL)
+
+/* mask = 1 */
+DO_ACTION(__mask,	0, |= IO_APIC_REDIR_MASKED, io_apic_sync(entry->apic))
+
+/* mask = 0 */
+DO_ACTION(__unmask,	0, &= ~IO_APIC_REDIR_MASKED, )
+
+#else
+
 static void __modify_IO_APIC_irq(unsigned int irq, unsigned long enable, unsigned long disable)
 {
 	struct irq_cfg *cfg;
@@ -619,6 +696,8 @@ static void __unmask_and_level_IO_APIC_irq(unsigned int irq)
 	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_LEVEL_TRIGGER,
 				IO_APIC_REDIR_MASKED);
 }
+
+#endif
 
 static void mask_IO_APIC_irq(unsigned int irq)
 {
@@ -1055,6 +1134,17 @@ void unlock_vector_lock(void)
 
 static int __assign_irq_vector(int irq, cpumask_t mask)
 {
+	/*
+	 * NOTE! The local APIC isn't very good at handling
+	 * multiple interrupts at the same interrupt level.
+	 * As the interrupt level is determined by taking the
+	 * vector number and shifting that right by 4, we
+	 * want to spread these out a bit so that they don't
+	 * all fall in the same interrupt level.
+	 *
+	 * Also, we've got to be careful not to trash gate
+	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
+	 */
         static int current_vector = FIRST_DEVICE_VECTOR, current_offset = 0;
         unsigned int old_vector;
         int cpu;
@@ -1095,9 +1185,13 @@ next:
                 }
                 if (unlikely(current_vector == vector))
                         continue;
-		if (vector == SYSCALL_VECTOR)
+#ifdef CONFIG_X86_64
+                if (vector == IA32_SYSCALL_VECTOR)
                         goto next;
-
+#else
+                if (vector == SYSCALL_VECTOR)
+                        goto next;
+#endif
                 for_each_cpu_mask_nr(new_cpu, new_mask)
                         if (per_cpu(vector_irq, new_cpu)[vector] != -1)
                                 goto next;
@@ -1184,6 +1278,7 @@ static struct irq_chip ioapic_chip;
 #define IOAPIC_EDGE	0
 #define IOAPIC_LEVEL	1
 
+#ifdef CONFIG_X86_32
 static inline int IO_APIC_irq_trigger(int irq)
 {
 	int apic, idx, pin;
@@ -1200,6 +1295,12 @@ static inline int IO_APIC_irq_trigger(int irq)
 	 */
 	return 0;
 }
+#else
+static inline int IO_APIC_irq_trigger(int irq)
+{
+        return 1;
+}
+#endif
 
 static void ioapic_register_intr(int irq, unsigned long trigger)
 {
@@ -1212,15 +1313,18 @@ static void ioapic_register_intr(int irq, unsigned long trigger)
 		desc = irq_to_desc_alloc(irq);
 
 	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
-	    trigger == IOAPIC_LEVEL) {
+	    trigger == IOAPIC_LEVEL)
 		desc->status |= IRQ_LEVEL;
+	else
+		desc->status &= ~IRQ_LEVEL;
+
+	if ((trigger == IOAPIC_AUTO && IO_APIC_irq_trigger(irq)) ||
+	    trigger == IOAPIC_LEVEL)
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_fasteoi_irq, "fasteoi");
-	} else {
-		desc->status &= ~IRQ_LEVEL;
+	else
 		set_irq_chip_and_handler_name(irq, &ioapic_chip,
 					 handle_edge_irq, "edge");
-	}
 }
 
 static int setup_ioapic_entry(int apic, int irq,
@@ -1662,7 +1766,6 @@ static void __init enable_IO_APIC(void)
 			struct IO_APIC_route_entry entry;
 			entry = ioapic_read_entry(apic, pin);
 
-
 			/* If the interrupt line is enabled and in ExtInt mode
 			 * I have found the pin where the i8259 is connected.
 			 */
@@ -2012,6 +2115,60 @@ static void ack_apic_edge(unsigned int irq)
 	ack_APIC_irq();
 }
 
+#ifdef CONFIG_X86_64
+static void ack_apic_level(unsigned int irq)
+{
+        int do_unmask_irq = 0;
+
+        irq_complete_move(irq);
+#ifdef CONFIG_GENERIC_PENDING_IRQ
+        /* If we are moving the irq we need to mask it */
+        if (unlikely(desc->status & IRQ_MOVE_PENDING)) {
+                do_unmask_irq = 1;
+                mask_IO_APIC_irq(irq);
+        }
+#endif
+
+        /*
+         * We must acknowledge the irq before we move it or the acknowledge will
+         * not propagate properly.
+         */
+        ack_APIC_irq();
+
+        /* Now we can move and renable the irq */
+        if (unlikely(do_unmask_irq)) {
+                /* Only migrate the irq if the ack has been received.
+                 *
+                 * On rare occasions the broadcast level triggered ack gets
+                 * delayed going to ioapics, and if we reprogram the
+                 * vector while Remote IRR is still set the irq will never
+                 * fire again.
+                 *
+                 * To prevent this scenario we read the Remote IRR bit
+                 * of the ioapic.  This has two effects.
+                 * - On any sane system the read of the ioapic will
+                 *   flush writes (and acks) going to the ioapic from
+                 *   this cpu.
+                 * - We get to see if the ACK has actually been delivered.
+                 *
+                 * Based on failed experiments of reprogramming the
+                 * ioapic entry from outside of irq context starting
+                 * with masking the ioapic entry and then polling until
+                 * Remote IRR was clear before reprogramming the
+                 * ioapic I don't trust the Remote IRR bit to be
+                 * completey accurate.
+                 *
+                 * However there appears to be no other way to plug
+                 * this race, so if the Remote IRR bit is not
+                 * accurate and is causing problems then it is a hardware bug
+                 * and you can go talk to the chipset vendor about it.
+                 */
+                if (!io_apic_level_ack_pending(irq))
+                        move_masked_irq(irq, desc);
+                unmask_IO_APIC_irq(irq);
+        }
+}
+#else
 atomic_t irq_mis_count;
 static void ack_apic_level(unsigned int irq)
 {
@@ -2053,6 +2210,7 @@ static void ack_apic_level(unsigned int irq)
 		spin_unlock(&ioapic_lock);
 	}
 }
+#endif
 
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name 		= "IO-APIC",
@@ -2224,7 +2382,7 @@ static inline void __init unlock_ExtINT_logic(void)
 }
 
 static int disable_timer_pin_1 __initdata;
-
+/* Actually the next is obsolete, but keep it for paranoid reasons -AK */
 static int __init parse_disable_timer_pin_1(char *arg)
 {
 	disable_timer_pin_1 = 1;
@@ -2244,9 +2402,9 @@ static inline void __init check_timer(void)
 {
 	struct irq_cfg *cfg = irq_cfg(0);
 	int apic1, pin1, apic2, pin2;
-	int no_pin1 = 0;
-	unsigned int ver;
 	unsigned long flags;
+	unsigned int ver;
+	int no_pin1 = 0;
 
 	local_irq_save(flags);
 
@@ -2550,6 +2708,7 @@ unsigned int create_irq_nr(unsigned int irq_want)
 		cfg_new = irq_cfg(new);
 		if (cfg_new && cfg_new->vector != 0)
 			continue;
+		/* check if need to create one */
 		if (!cfg_new)
 			cfg_new = irq_cfg_alloc(new);
 		if (__assign_irq_vector(new, TARGET_CPUS) == 0)
@@ -2719,6 +2878,32 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 
 	return 0;
 }
+
+int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
+{
+        unsigned int irq;
+        int ret, sub_handle;
+        struct msi_desc *desc;
+        unsigned int irq_want;
+
+        irq_want = build_irq_for_pci_dev(dev) + 0x100;
+        sub_handle = 0;
+        list_for_each_entry(desc, &dev->msi_list, list) {
+                irq = create_irq_nr(irq_want--);
+                if (irq == 0)
+                        return -1;
+                ret = setup_msi_irq(dev, desc, irq);
+                if (ret < 0)
+                        goto error;
+                sub_handle++;
+        }
+        return 0;
+
+error:
+        destroy_irq(irq);
+        return ret;
+}
+
 
 void arch_teardown_msi_irq(unsigned int irq)
 {
