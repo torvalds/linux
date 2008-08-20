@@ -276,3 +276,23 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
+
+/*
+ * Set the port number in an address.  Be agnostic about the address
+ * family.
+ */
+static inline void nfs_set_port(struct sockaddr *sap, unsigned short port)
+{
+	switch (sap->sa_family) {
+	case AF_INET: {
+	      struct sockaddr_in *ap = (struct sockaddr_in *)sap;
+	      ap->sin_port = htons(port);
+	      break;
+	}
+	case AF_INET6: {
+	       struct sockaddr_in6 *ap = (struct sockaddr_in6 *)sap;
+	       ap->sin6_port = htons(port);
+	       break;
+	}
+	}
+}
