@@ -1498,7 +1498,6 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 {
 	int found, n, err;
 	struct ubifs_znode *znode;
-	struct ubifs_zbranch zbr;
 
 	dbg_tnc("name '%.*s' key %s", nm->len, nm->name, DBGKEY(key));
 	mutex_lock(&c->tnc_mutex);
@@ -1522,11 +1521,7 @@ static int do_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 		goto out_unlock;
 	}
 
-	zbr = znode->zbranch[n];
-	mutex_unlock(&c->tnc_mutex);
-
-	err = tnc_read_node_nm(c, &zbr, node);
-	return err;
+	err = tnc_read_node_nm(c, &znode->zbranch[n], node);
 
 out_unlock:
 	mutex_unlock(&c->tnc_mutex);
