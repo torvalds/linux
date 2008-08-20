@@ -1067,9 +1067,15 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	prefill_possible_map();
+
 #ifdef CONFIG_X86_64
+	/* need to wait for nr_cpu_ids settle down */
+	if (nr_irqs == NR_IRQS)
+		nr_irqs = 32 * nr_cpu_ids + 224;
 	init_cpu_to_node();
 #endif
+	pin_map_size = nr_irqs * 2;
+	first_free_entry = nr_irqs;
 
 	init_apic_mappings();
 	ioapic_init_mappings();

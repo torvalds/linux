@@ -70,7 +70,7 @@ int timer_through_8259 __initdata;
  */
 int sis_apic_bug = -1;
 
-int first_free_entry = NR_IRQS;
+int first_free_entry;
 /*
  * # of IRQ routing registers
  */
@@ -98,10 +98,7 @@ static int disable_timer_pin_1 __initdata;
  * Rough estimation of how many shared IRQs there are, can
  * be changed anytime.
  */
-#define MAX_PLUS_SHARED_IRQS NR_IRQS
-#define PIN_MAP_SIZE (MAX_PLUS_SHARED_IRQS + NR_IRQS)
-
-int pin_map_size = PIN_MAP_SIZE;
+int pin_map_size;
 
 /*
  * This is performance-critical, we want to do it O(1)
@@ -112,7 +109,9 @@ int pin_map_size = PIN_MAP_SIZE;
 
 static struct irq_pin_list {
 	int apic, pin, next;
-} irq_2_pin[PIN_MAP_SIZE];
+} *irq_2_pin;
+
+DEFINE_DYN_ARRAY(irq_2_pin, sizeof(struct irq_pin_list), pin_map_size, 16, NULL);
 
 struct io_apic {
 	unsigned int index;
@@ -403,9 +402,28 @@ static struct irq_cpu_info {
 
 #define CPU_TO_PACKAGEINDEX(i) (first_cpu(per_cpu(cpu_sibling_map, i)))
 
-static cpumask_t balance_irq_affinity[NR_IRQS] = {
-	[0 ... NR_IRQS-1] = CPU_MASK_ALL
-};
+static cpumask_t balance_irq_affinity_init __initdata = CPU_MASK_ALL;
+
+static cpumask_t *balance_irq_affinity;
+
+
+static void __init irq_affinity_init_work(void *data)
+{
+	struct dyn_array *da = data;
+
+	int i;
+	struct  balance_irq_affinity *affinity;
+
+	affinity = *da->name;
+
+	for (i = 0; i < *da->nr; i++)
+		memcpy(&affinity[i], &balance_irq_affinity_init,
+			 sizeof(struct balance_irq_affinity));
+
+}
+
+DEFINE_DYN_ARRAY(balance_irq_affinity, sizeof(struct balance_irq_affinity), nr_irqs, PAGE_SIZE, irq_affinity_init_work);
+
 
 void set_balance_irq_affinity(unsigned int irq, cpumask_t mask)
 {
@@ -1170,14 +1188,28 @@ static inline int IO_APIC_irq_trigger(int irq)
 }
 
 /* irq_vectors is indexed by the sum of all RTEs in all I/O APICs. */
-static u8 irq_vector[NR_IRQ_VECTORS] __read_mostly = { FIRST_DEVICE_VECTOR , 0 };
+static u8 irq_vector_init_first __initdata = FIRST_DEVICE_VECTOR;
+static u8 *irq_vector;
+
+static void __init irq_vector_init_work(void *data)
+{
+	struct dyn_array *da = data;
+
+	u8 *irq_vec;
+
+	irq_vec = *da->name;
+
+	irq_vec[0] = irq_vector_init_first;
+}
+
+DEFINE_DYN_ARRAY(irq_vector, sizeof(u8), nr_irqs, PAGE_SIZE, irq_vector_init_work);
 
 static int __assign_irq_vector(int irq)
 {
 	static int current_vector = FIRST_DEVICE_VECTOR, current_offset;
 	int vector, offset;
 
-	BUG_ON((unsigned)irq >= NR_IRQ_VECTORS);
+	BUG_ON((unsigned)irq >= nr_irqs);
 
 	if (irq_vector[irq] > 0)
 		return irq_vector[irq];
