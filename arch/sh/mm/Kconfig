@@ -181,10 +181,12 @@ config ENTRY_OFFSET
 choice
 	prompt "HugeTLB page size"
 	depends on HUGETLB_PAGE && (CPU_SH4 || CPU_SH5) && MMU
+	default HUGETLB_PAGE_SIZE_1MB if PAGE_SIZE_64KB
 	default HUGETLB_PAGE_SIZE_64K
 
 config HUGETLB_PAGE_SIZE_64K
 	bool "64kB"
+	depends on !PAGE_SIZE_64KB
 
 config HUGETLB_PAGE_SIZE_256K
 	bool "256kB"
