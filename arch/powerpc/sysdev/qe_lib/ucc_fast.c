@@ -208,6 +208,7 @@ int ucc_fast_init(struct ucc_fast_info * uf_info, struct ucc_fast_private ** ucc
 	uccf->uf_regs = ioremap(uf_info->regs, sizeof(struct ucc_fast));
 	if (uccf->uf_regs == NULL) {
 		printk(KERN_ERR "%s: Cannot map UCC registers\n", __func__);
+		kfree(uccf);
 		return -ENOMEM;
 	}
 
@@ -354,6 +355,9 @@ void ucc_fast_free(struct ucc_fast_private * uccf)
 
 	if (uccf->ucc_fast_rx_virtual_fifo_base_offset)
 		qe_muram_free(uccf->ucc_fast_rx_virtual_fifo_base_offset);
+
+	if (uccf->uf_regs)
+		iounmap(uccf->uf_regs);
 
 	kfree(uccf);
 }
