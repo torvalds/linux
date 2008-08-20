@@ -279,7 +279,7 @@ struct gru_stats_s {
 #if defined CONFIG_IA64
 #define VADDR_HI_BIT		64
 #define GRUREGION(addr)		((addr) >> (VADDR_HI_BIT - 3) & 3)
-#elif defined __x86_64
+#elif defined CONFIG_X86_64
 #define VADDR_HI_BIT		48
 #define GRUREGION(addr)		(0)		/* ZZZ could do better */
 #else

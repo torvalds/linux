@@ -1144,8 +1144,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports autoprobe and multiple cards.
 
-    Power management is _not_ supported.
-
   Module snd-ice1712
   ------------------
 
@@ -1628,8 +1626,6 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     This module supports autoprobe and multiple cards.
 
-    Power management is _not_ supported.
-
   Module snd-pcsp
   -----------------
 
@@ -2081,12 +2077,10 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-virtuoso
   -------------------
 
-    Module for sound cards based on the Asus AV200 chip, i.e.,
-    Xonar D2 and Xonar D2X.
+    Module for sound cards based on the Asus AV100/AV200 chips,
+    i.e., Xonar D1, DX, D2 and D2X.
 
     This module supports autoprobe and multiple cards.
-
-    Power management is _not_ supported.
 
   Module snd-vx222
   ----------------

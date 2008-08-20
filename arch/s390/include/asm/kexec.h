@@ -31,7 +31,7 @@
 #define KEXEC_CONTROL_MEMORY_LIMIT (1UL<<31)
 
 /* Allocate one page for the pdp and the second for the code */
-#define KEXEC_CONTROL_CODE_SIZE 4096
+#define KEXEC_CONTROL_PAGE_SIZE 4096
 
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_S390

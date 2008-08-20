@@ -95,15 +95,17 @@ config USB
 
 source "drivers/usb/core/Kconfig"
 
+source "drivers/usb/mon/Kconfig"
+
 source "drivers/usb/host/Kconfig"
+
+source "drivers/usb/musb/Kconfig"
 
 source "drivers/usb/class/Kconfig"
 
 source "drivers/usb/storage/Kconfig"
 
 source "drivers/usb/image/Kconfig"
-
-source "drivers/usb/mon/Kconfig"
 
 comment "USB port drivers"
 	depends on USB

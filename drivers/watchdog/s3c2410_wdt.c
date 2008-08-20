@@ -157,8 +157,6 @@ static void s3c2410wdt_start(void)
 	writel(wdt_count, wdt_base + S3C2410_WTCNT);
 	writel(wtcon, wdt_base + S3C2410_WTCON);
 	spin_unlock(&wdt_lock);
-
-	return 0;
 }
 
 static int s3c2410wdt_set_heartbeat(int timeout)

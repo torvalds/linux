@@ -290,8 +290,8 @@ void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
 	spin_acquire(&lock->dep_map, subclass, 0, _RET_IP_);
 	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
 }
-
 EXPORT_SYMBOL(_spin_lock_nested);
+
 unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock, int subclass)
 {
 	unsigned long flags;
@@ -311,8 +311,16 @@ unsigned long __lockfunc _spin_lock_irqsave_nested(spinlock_t *lock, int subclas
 #endif
 	return flags;
 }
-
 EXPORT_SYMBOL(_spin_lock_irqsave_nested);
+
+void __lockfunc _spin_lock_nest_lock(spinlock_t *lock,
+				     struct lockdep_map *nest_lock)
+{
+	preempt_disable();
+	spin_acquire_nest(&lock->dep_map, 0, 0, nest_lock, _RET_IP_);
+	LOCK_CONTENDED(lock, _raw_spin_trylock, _raw_spin_lock);
+}
+EXPORT_SYMBOL(_spin_lock_nest_lock);
 
 #endif
 

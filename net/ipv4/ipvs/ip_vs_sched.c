@@ -184,7 +184,7 @@ int register_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 
 	write_lock_bh(&__ip_vs_sched_lock);
 
-	if (scheduler->n_list.next != &scheduler->n_list) {
+	if (!list_empty(&scheduler->n_list)) {
 		write_unlock_bh(&__ip_vs_sched_lock);
 		ip_vs_use_count_dec();
 		IP_VS_ERR("register_ip_vs_scheduler(): [%s] scheduler "
@@ -229,7 +229,7 @@ int unregister_ip_vs_scheduler(struct ip_vs_scheduler *scheduler)
 	}
 
 	write_lock_bh(&__ip_vs_sched_lock);
-	if (scheduler->n_list.next == &scheduler->n_list) {
+	if (list_empty(&scheduler->n_list)) {
 		write_unlock_bh(&__ip_vs_sched_lock);
 		IP_VS_ERR("unregister_ip_vs_scheduler(): [%s] scheduler "
 			  "is not in the list. failed\n", scheduler->name);

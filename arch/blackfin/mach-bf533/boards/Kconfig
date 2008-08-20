@@ -14,6 +14,12 @@ config BFIN533_STAMP
 	help
 	  BF533-STAMP board support.
 
+config BLACKSTAMP
+	bool "BlackStamp"
+	help
+	  Support for the BlackStamp board.  Hardware info available at
+	  http://blackfin.uclinux.org/gf/project/blackstamp/
+
 config BFIN533_BLUETECHNIX_CM
 	bool "Bluetechnix CM-BF533"
 	depends on (BF533)

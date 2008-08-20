@@ -1961,12 +1961,41 @@ static int pktgen_setup_dev(struct pktgen_dev *pkt_dev, const char *ifname)
  */
 static void pktgen_setup_inject(struct pktgen_dev *pkt_dev)
 {
+	int ntxq;
+
 	if (!pkt_dev->odev) {
 		printk(KERN_ERR "pktgen: ERROR: pkt_dev->odev == NULL in "
 		       "setup_inject.\n");
 		sprintf(pkt_dev->result,
 			"ERROR: pkt_dev->odev == NULL in setup_inject.\n");
 		return;
+	}
+
+	/* make sure that we don't pick a non-existing transmit queue */
+	ntxq = pkt_dev->odev->real_num_tx_queues;
+	if (ntxq <= num_online_cpus() && (pkt_dev->flags & F_QUEUE_MAP_CPU)) {
+		printk(KERN_WARNING "pktgen: WARNING: QUEUE_MAP_CPU "
+		       "disabled because CPU count (%d) exceeds number ",
+		       num_online_cpus());
+		printk(KERN_WARNING "pktgen: WARNING: of tx queues "
+		       "(%d) on %s \n", ntxq, pkt_dev->odev->name);
+		pkt_dev->flags &= ~F_QUEUE_MAP_CPU;
+	}
+	if (ntxq <= pkt_dev->queue_map_min) {
+		printk(KERN_WARNING "pktgen: WARNING: Requested "
+		       "queue_map_min (%d) exceeds number of tx\n",
+		       pkt_dev->queue_map_min);
+		printk(KERN_WARNING "pktgen: WARNING: queues (%d) on "
+		       "%s, resetting\n", ntxq, pkt_dev->odev->name);
+		pkt_dev->queue_map_min = ntxq - 1;
+	}
+	if (ntxq <= pkt_dev->queue_map_max) {
+		printk(KERN_WARNING "pktgen: WARNING: Requested "
+		       "queue_map_max (%d) exceeds number of tx\n",
+		       pkt_dev->queue_map_max);
+		printk(KERN_WARNING "pktgen: WARNING: queues (%d) on "
+		       "%s, resetting\n", ntxq, pkt_dev->odev->name);
+		pkt_dev->queue_map_max = ntxq - 1;
 	}
 
 	/* Default to the interface's mac if not explicitly set. */

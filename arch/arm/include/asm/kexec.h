@@ -10,7 +10,7 @@
 /* Maximum address we can use for the control code buffer */
 #define KEXEC_CONTROL_MEMORY_LIMIT (-1UL)
 
-#define KEXEC_CONTROL_CODE_SIZE	4096
+#define KEXEC_CONTROL_PAGE_SIZE	4096
 
 #define KEXEC_ARCH KEXEC_ARCH_ARM
 

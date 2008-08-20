@@ -751,7 +751,7 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	struct nlattr *tb[TCA_ACT_MAX+1];
 	struct nlattr *kind;
 	struct tc_action *a = create_a(0);
-	int err = -EINVAL;
+	int err = -ENOMEM;
 
 	if (a == NULL) {
 		printk("tca_action_flush: couldnt create tc_action\n");
@@ -762,7 +762,7 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	if (!skb) {
 		printk("tca_action_flush: failed skb alloc\n");
 		kfree(a);
-		return -ENOBUFS;
+		return err;
 	}
 
 	b = skb_tail_pointer(skb);
@@ -790,6 +790,8 @@ static int tca_action_flush(struct nlattr *nla, struct nlmsghdr *n, u32 pid)
 	err = a->ops->walk(skb, &dcb, RTM_DELACTION, a);
 	if (err < 0)
 		goto nla_put_failure;
+	if (err == 0)
+		goto noflush_out;
 
 	nla_nest_end(skb, nest);
 
@@ -807,6 +809,7 @@ nla_put_failure:
 nlmsg_failure:
 	module_put(a->ops->owner);
 err_out:
+noflush_out:
 	kfree_skb(skb);
 	kfree(a);
 	return err;
@@ -824,8 +827,10 @@ tca_action_gd(struct nlattr *nla, struct nlmsghdr *n, u32 pid, int event)
 		return ret;
 
 	if (event == RTM_DELACTION && n->nlmsg_flags&NLM_F_ROOT) {
-		if (tb[0] != NULL && tb[1] == NULL)
-			return tca_action_flush(tb[0], n, pid);
+		if (tb[1] != NULL)
+			return tca_action_flush(tb[1], n, pid);
+		else
+			return -EINVAL;
 	}
 
 	for (i = 1; i <= TCA_ACT_MAX_PRIO && tb[i]; i++) {

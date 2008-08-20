@@ -33,7 +33,7 @@
 
 
 /*
- * Dedicated vnode inactive/reclaim sync semaphores.
+ * Dedicated vnode inactive/reclaim sync wait queues.
  * Prime number of hash buckets since address is used as the key.
  */
 #define NVSYNC                  37
@@ -82,24 +82,6 @@ vn_ioerror(
 		xfs_do_force_shutdown(ip->i_mount, SHUTDOWN_DEVICE_REQ, f, l);
 }
 
-
-/*
- * Add a reference to a referenced vnode.
- */
-bhv_vnode_t *
-vn_hold(
-	bhv_vnode_t	*vp)
-{
-	struct inode	*inode;
-
-	XFS_STATS_INC(vn_hold);
-
-	inode = igrab(vn_to_inode(vp));
-	ASSERT(inode);
-
-	return vp;
-}
-
 #ifdef	XFS_INODE_TRACE
 
 /*
@@ -108,7 +90,7 @@ vn_hold(
  */
 static inline int xfs_icount(struct xfs_inode *ip)
 {
-	bhv_vnode_t *vp = XFS_ITOV_NULL(ip);
+	struct inode *vp = VFS_I(ip);
 
 	if (vp)
 		return vn_count(vp);

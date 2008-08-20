@@ -2568,10 +2568,10 @@ static bool handle_stripe5(struct stripe_head *sh)
 		if (dev->written)
 			s.written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
-		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+		if (blocked_rdev == NULL &&
+		    rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
-			break;
 		}
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
@@ -2588,8 +2588,14 @@ static bool handle_stripe5(struct stripe_head *sh)
 	rcu_read_unlock();
 
 	if (unlikely(blocked_rdev)) {
-		set_bit(STRIPE_HANDLE, &sh->state);
-		goto unlock;
+		if (s.syncing || s.expanding || s.expanded ||
+		    s.to_write || s.written) {
+			set_bit(STRIPE_HANDLE, &sh->state);
+			goto unlock;
+		}
+		/* There is nothing for the blocked_rdev to block */
+		rdev_dec_pending(blocked_rdev, conf->mddev);
+		blocked_rdev = NULL;
 	}
 
 	if (s.to_fill && !test_bit(STRIPE_BIOFILL_RUN, &sh->state)) {
@@ -2832,10 +2838,10 @@ static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 		if (dev->written)
 			s.written++;
 		rdev = rcu_dereference(conf->disks[i].rdev);
-		if (rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
+		if (blocked_rdev == NULL &&
+		    rdev && unlikely(test_bit(Blocked, &rdev->flags))) {
 			blocked_rdev = rdev;
 			atomic_inc(&rdev->nr_pending);
-			break;
 		}
 		if (!rdev || !test_bit(In_sync, &rdev->flags)) {
 			/* The ReadError flag will just be confusing now */
@@ -2853,9 +2859,16 @@ static bool handle_stripe6(struct stripe_head *sh, struct page *tmp_page)
 	rcu_read_unlock();
 
 	if (unlikely(blocked_rdev)) {
-		set_bit(STRIPE_HANDLE, &sh->state);
-		goto unlock;
+		if (s.syncing || s.expanding || s.expanded ||
+		    s.to_write || s.written) {
+			set_bit(STRIPE_HANDLE, &sh->state);
+			goto unlock;
+		}
+		/* There is nothing for the blocked_rdev to block */
+		rdev_dec_pending(blocked_rdev, conf->mddev);
+		blocked_rdev = NULL;
 	}
+
 	pr_debug("locked=%d uptodate=%d to_read=%d"
 	       " to_write=%d failed=%d failed_num=%d,%d\n",
 	       s.locked, s.uptodate, s.to_read, s.to_write, s.failed,
@@ -4446,6 +4459,9 @@ static int raid5_check_reshape(mddev_t *mddev)
 		return -EINVAL; /* Cannot shrink array or change level yet */
 	if (mddev->delta_disks == 0)
 		return 0; /* nothing to do */
+	if (mddev->bitmap)
+		/* Cannot grow a bitmap yet */
+		return -EBUSY;
 
 	/* Can only proceed if there are plenty of stripe_heads.
 	 * We need a minimum of one full stripe,, and for sensible progress

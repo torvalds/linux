@@ -12,7 +12,7 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <asm/io.h>
-#include <asm/plat-orion/irq.h>
+#include <plat/irq.h>
 #include "common.h"
 
 void __init loki_init_irq(void)

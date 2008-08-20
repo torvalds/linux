@@ -37,13 +37,21 @@
  * For VRD 10.0 and up, "VRD x.y Design Guide",
  * available at http://developer.intel.com/.
  *
- * AMD NPT 0Fh (Athlon64 & Opteron), AMD Publication 32559,
+ * AMD Athlon 64 and AMD Opteron Processors, AMD Publication 26094,
+ * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/26094.PDF
+ * Table 74. VID Code Voltages
+ * This corresponds to an arbitrary VRM code of 24 in the functions below.
+ * These CPU models (K8 revision <= E) have 5 VID pins. See also:
+ * Revision Guide for AMD Athlon 64 and AMD Opteron Processors, AMD Publication 25759,
+ * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/25759.pdf
+ *
+ * AMD NPT Family 0Fh Processors, AMD Publication 32559,
  * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/32559.pdf
  * Table 71. VID Code Voltages
- * AMD Opteron processors don't follow the Intel specifications.
- * I'm going to "make up" 2.4 as the spec number for the Opterons.
- * No good reason just a mnemonic for the 24x Opteron processor
- * series.
+ * This corresponds to an arbitrary VRM code of 25 in the functions below.
+ * These CPU models (K8 revision >= F) have 6 VID pins. See also:
+ * Revision Guide for AMD NPT Family 0Fh Processors, AMD Publication 33610,
+ * http://www.amd.com/us-en/assets/content_type/white_papers_and_tech_docs/33610.pdf
  *
  * The 17 specification is in fact Intel Mobile Voltage Positioning -
  * (IMVP-II). You can find more information in the datasheet of Max1718
@@ -95,7 +103,12 @@ int vid_from_reg(int val, u8 vrm)
 			return 0;
 		return((1600000 - (val - 2) * 6250 + 500) / 1000);
 
-	case 24:		/* AMD NPT 0Fh (Athlon64 & Opteron) */
+	case 24:		/* Athlon64 & Opteron */
+		val &= 0x1f;
+		if (val == 0x1f)
+			return 0;
+				/* fall through */
+	case 25:		/* AMD NPT 0Fh */
 		val &= 0x3f;
 		return (val < 32) ? 1550 - 25 * val
 			: 775 - (25 * (val - 31)) / 2;
@@ -157,11 +170,16 @@ struct vrm_model {
 
 #ifdef CONFIG_X86
 
-/* the stepping parameter is highest acceptable stepping for current line */
+/*
+ * The stepping parameter is highest acceptable stepping for current line.
+ * The model match must be exact for 4-bit values. For model values 0x10
+ * and above (extended model), all models below the parameter will match.
+ */
 
 static struct vrm_model vrm_models[] = {
 	{X86_VENDOR_AMD, 0x6, ANY, ANY, 90},		/* Athlon Duron etc */
-	{X86_VENDOR_AMD, 0xF, ANY, ANY, 24},		/* Athlon 64, Opteron and above VRM 24 */
+	{X86_VENDOR_AMD, 0xF, 0x3F, ANY, 24},		/* Athlon 64, Opteron */
+	{X86_VENDOR_AMD, 0xF, ANY, ANY, 25},		/* NPT family 0Fh */
 	{X86_VENDOR_INTEL, 0x6, 0x9, ANY, 13},		/* Pentium M (130 nm) */
 	{X86_VENDOR_INTEL, 0x6, 0xB, ANY, 85},		/* Tualatin */
 	{X86_VENDOR_INTEL, 0x6, 0xD, ANY, 13},		/* Pentium M (90 nm) */
@@ -189,6 +207,8 @@ static u8 find_vrm(u8 eff_family, u8 eff_model, u8 eff_stepping, u8 vendor)
 		if (vrm_models[i].vendor==vendor)
 			if ((vrm_models[i].eff_family==eff_family)
 			 && ((vrm_models[i].eff_model==eff_model) ||
+			     (vrm_models[i].eff_model >= 0x10 &&
+			      eff_model <= vrm_models[i].eff_model) ||
 			     (vrm_models[i].eff_model==ANY)) &&
 			     (eff_stepping <= vrm_models[i].eff_stepping))
 				return vrm_models[i].vrm_type;

@@ -15,15 +15,17 @@
 #include <linux/mbus.h>
 #include <linux/mv643xx_eth.h>
 #include <linux/ata_platform.h>
+#include <linux/spi/orion_spi.h>
 #include <asm/page.h>
 #include <asm/timex.h>
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>
 #include <mach/kirkwood.h>
-#include <asm/plat-orion/cache-feroceon-l2.h>
-#include <asm/plat-orion/ehci-orion.h>
-#include <asm/plat-orion/orion_nand.h>
-#include <asm/plat-orion/time.h>
+#include <plat/cache-feroceon-l2.h>
+#include <plat/ehci-orion.h>
+#include <plat/mv_xor.h>
+#include <plat/orion_nand.h>
+#include <plat/time.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -196,6 +198,37 @@ void __init kirkwood_sata_init(struct mv_sata_platform_data *sata_data)
 
 
 /*****************************************************************************
+ * SPI
+ ****************************************************************************/
+static struct orion_spi_info kirkwood_spi_plat_data = {
+	.tclk		= KIRKWOOD_TCLK,
+};
+
+static struct resource kirkwood_spi_resources[] = {
+	{
+		.start	= SPI_PHYS_BASE,
+		.end	= SPI_PHYS_BASE + SZ_512 - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_spi = {
+	.name		= "orion_spi",
+	.id		= 0,
+	.resource	= kirkwood_spi_resources,
+	.dev		= {
+		.platform_data	= &kirkwood_spi_plat_data,
+	},
+	.num_resources	= ARRAY_SIZE(kirkwood_spi_resources),
+};
+
+void __init kirkwood_spi_init()
+{
+	platform_device_register(&kirkwood_spi);
+}
+
+
+/*****************************************************************************
  * UART0
  ****************************************************************************/
 static struct plat_serial8250_port kirkwood_uart0_data[] = {
@@ -280,6 +313,212 @@ static struct platform_device kirkwood_uart1 = {
 void __init kirkwood_uart1_init(void)
 {
 	platform_device_register(&kirkwood_uart1);
+}
+
+
+/*****************************************************************************
+ * XOR
+ ****************************************************************************/
+static struct mv_xor_platform_shared_data kirkwood_xor_shared_data = {
+	.dram		= &kirkwood_mbus_dram_info,
+};
+
+static u64 kirkwood_xor_dmamask = DMA_32BIT_MASK;
+
+
+/*****************************************************************************
+ * XOR0
+ ****************************************************************************/
+static struct resource kirkwood_xor0_shared_resources[] = {
+	{
+		.name	= "xor 0 low",
+		.start	= XOR0_PHYS_BASE,
+		.end	= XOR0_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "xor 0 high",
+		.start	= XOR0_HIGH_PHYS_BASE,
+		.end	= XOR0_HIGH_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_xor0_shared = {
+	.name		= MV_XOR_SHARED_NAME,
+	.id		= 0,
+	.dev		= {
+		.platform_data = &kirkwood_xor_shared_data,
+	},
+	.num_resources	= ARRAY_SIZE(kirkwood_xor0_shared_resources),
+	.resource	= kirkwood_xor0_shared_resources,
+};
+
+static struct resource kirkwood_xor00_resources[] = {
+	[0] = {
+		.start	= IRQ_KIRKWOOD_XOR_00,
+		.end	= IRQ_KIRKWOOD_XOR_00,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data kirkwood_xor00_data = {
+	.shared		= &kirkwood_xor0_shared,
+	.hw_id		= 0,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device kirkwood_xor00_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(kirkwood_xor00_resources),
+	.resource	= kirkwood_xor00_resources,
+	.dev		= {
+		.dma_mask		= &kirkwood_xor_dmamask,
+		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.platform_data		= (void *)&kirkwood_xor00_data,
+	},
+};
+
+static struct resource kirkwood_xor01_resources[] = {
+	[0] = {
+		.start	= IRQ_KIRKWOOD_XOR_01,
+		.end	= IRQ_KIRKWOOD_XOR_01,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data kirkwood_xor01_data = {
+	.shared		= &kirkwood_xor0_shared,
+	.hw_id		= 1,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device kirkwood_xor01_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(kirkwood_xor01_resources),
+	.resource	= kirkwood_xor01_resources,
+	.dev		= {
+		.dma_mask		= &kirkwood_xor_dmamask,
+		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.platform_data		= (void *)&kirkwood_xor01_data,
+	},
+};
+
+void __init kirkwood_xor0_init(void)
+{
+	platform_device_register(&kirkwood_xor0_shared);
+
+	/*
+	 * two engines can't do memset simultaneously, this limitation
+	 * satisfied by removing memset support from one of the engines.
+	 */
+	dma_cap_set(DMA_MEMCPY, kirkwood_xor00_data.cap_mask);
+	dma_cap_set(DMA_XOR, kirkwood_xor00_data.cap_mask);
+	platform_device_register(&kirkwood_xor00_channel);
+
+	dma_cap_set(DMA_MEMCPY, kirkwood_xor01_data.cap_mask);
+	dma_cap_set(DMA_MEMSET, kirkwood_xor01_data.cap_mask);
+	dma_cap_set(DMA_XOR, kirkwood_xor01_data.cap_mask);
+	platform_device_register(&kirkwood_xor01_channel);
+}
+
+
+/*****************************************************************************
+ * XOR1
+ ****************************************************************************/
+static struct resource kirkwood_xor1_shared_resources[] = {
+	{
+		.name	= "xor 1 low",
+		.start	= XOR1_PHYS_BASE,
+		.end	= XOR1_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "xor 1 high",
+		.start	= XOR1_HIGH_PHYS_BASE,
+		.end	= XOR1_HIGH_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device kirkwood_xor1_shared = {
+	.name		= MV_XOR_SHARED_NAME,
+	.id		= 1,
+	.dev		= {
+		.platform_data = &kirkwood_xor_shared_data,
+	},
+	.num_resources	= ARRAY_SIZE(kirkwood_xor1_shared_resources),
+	.resource	= kirkwood_xor1_shared_resources,
+};
+
+static struct resource kirkwood_xor10_resources[] = {
+	[0] = {
+		.start	= IRQ_KIRKWOOD_XOR_10,
+		.end	= IRQ_KIRKWOOD_XOR_10,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data kirkwood_xor10_data = {
+	.shared		= &kirkwood_xor1_shared,
+	.hw_id		= 0,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device kirkwood_xor10_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 2,
+	.num_resources	= ARRAY_SIZE(kirkwood_xor10_resources),
+	.resource	= kirkwood_xor10_resources,
+	.dev		= {
+		.dma_mask		= &kirkwood_xor_dmamask,
+		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.platform_data		= (void *)&kirkwood_xor10_data,
+	},
+};
+
+static struct resource kirkwood_xor11_resources[] = {
+	[0] = {
+		.start	= IRQ_KIRKWOOD_XOR_11,
+		.end	= IRQ_KIRKWOOD_XOR_11,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data kirkwood_xor11_data = {
+	.shared		= &kirkwood_xor1_shared,
+	.hw_id		= 1,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device kirkwood_xor11_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 3,
+	.num_resources	= ARRAY_SIZE(kirkwood_xor11_resources),
+	.resource	= kirkwood_xor11_resources,
+	.dev		= {
+		.dma_mask		= &kirkwood_xor_dmamask,
+		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.platform_data		= (void *)&kirkwood_xor11_data,
+	},
+};
+
+void __init kirkwood_xor1_init(void)
+{
+	platform_device_register(&kirkwood_xor1_shared);
+
+	/*
+	 * two engines can't do memset simultaneously, this limitation
+	 * satisfied by removing memset support from one of the engines.
+	 */
+	dma_cap_set(DMA_MEMCPY, kirkwood_xor10_data.cap_mask);
+	dma_cap_set(DMA_XOR, kirkwood_xor10_data.cap_mask);
+	platform_device_register(&kirkwood_xor10_channel);
+
+	dma_cap_set(DMA_MEMCPY, kirkwood_xor11_data.cap_mask);
+	dma_cap_set(DMA_MEMSET, kirkwood_xor11_data.cap_mask);
+	dma_cap_set(DMA_XOR, kirkwood_xor11_data.cap_mask);
+	platform_device_register(&kirkwood_xor11_channel);
 }
 
 

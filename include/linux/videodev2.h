@@ -55,13 +55,13 @@
  */
 #ifndef __LINUX_VIDEODEV2_H
 #define __LINUX_VIDEODEV2_H
+
 #ifdef __KERNEL__
 #include <linux/time.h>     /* need struct timeval */
-#include <linux/compiler.h> /* need __user */
 #else
-#define __user
 #include <sys/time.h>
 #endif
+#include <linux/compiler.h>
 #include <linux/ioctl.h>
 #include <linux/types.h>
 

@@ -365,7 +365,7 @@ static void __init pci_mmcfg_reject_broken(int early)
 	return;
 
 reject:
-	printk(KERN_ERR "PCI: Not using MMCONFIG.\n");
+	printk(KERN_INFO "PCI: Not using MMCONFIG.\n");
 	pci_mmcfg_arch_free();
 	kfree(pci_mmcfg_config);
 	pci_mmcfg_config = NULL;
