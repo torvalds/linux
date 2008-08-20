@@ -141,6 +141,8 @@ static void init_evtchn_cpu_bindings(void)
 	/* By default all event channels notify CPU#0. */
 	for (i = 0; i < nr_irqs; i++) {
 		struct irq_desc *desc = irq_to_desc(i);
+		if (!desc)
+			continue;
 		desc->affinity = cpumask_of_cpu(0);
 	}
 #endif
