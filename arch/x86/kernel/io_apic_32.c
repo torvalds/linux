@@ -54,24 +54,22 @@
 
 #define __apicdebuginit(type) static type __init
 
-int (*ioapic_renumber_irq)(int ioapic, int irq);
-atomic_t irq_mis_count;
-
-/* Where if anywhere is the i8259 connect in external int mode */
-static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
-
-static DEFINE_SPINLOCK(ioapic_lock);
-static DEFINE_SPINLOCK(vector_lock);
-
-int timer_through_8259 __initdata;
-
 /*
  *	Is the SiS APIC rmw bug present ?
  *	-1 = don't know, 0 = no, 1 = yes
  */
 int sis_apic_bug = -1;
 
+static DEFINE_SPINLOCK(ioapic_lock);
+static DEFINE_SPINLOCK(vector_lock);
+
 int first_free_entry;
+/*
+ * Rough estimation of how many shared IRQs there are, can
+ * be changed anytime.
+ */
+int pin_map_size;
+
 /*
  * # of IRQ routing registers
  */
@@ -93,7 +91,15 @@ int mp_bus_id_to_type[MAX_MP_BUSSES];
 
 DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 
-static int disable_timer_pin_1 __initdata;
+int skip_ioapic_setup;
+
+static int __init parse_noapic(char *arg)
+{
+	/* disable IO-APIC */
+	disable_ioapic_setup();
+	return 0;
+}
+early_param("noapic", parse_noapic);
 
 struct irq_cfg;
 struct irq_pin_list;
@@ -267,13 +273,6 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 #endif
 	return cfg;
 }
-
-static int assign_irq_vector(int irq, cpumask_t mask);
-/*
- * Rough estimation of how many shared IRQs there are, can
- * be changed anytime.
- */
-int pin_map_size;
 
 /*
  * This is performance-critical, we want to do it O(1)
@@ -465,6 +464,9 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 		entry = entry->next;
 	}
 }
+
+static int assign_irq_vector(int irq, cpumask_t mask);
+
 static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 {
 	struct irq_cfg *cfg;
@@ -677,7 +679,6 @@ void send_IPI_self(int vector)
 #define MAX_PIRQS 8
 static int pirq_entries [MAX_PIRQS];
 static int pirqs_enabled;
-int skip_ioapic_setup;
 
 static int __init ioapic_pirq_setup(char *str)
 {
@@ -981,6 +982,7 @@ static inline int irq_trigger(int idx)
 	return MPBIOS_trigger(idx);
 }
 
+int (*ioapic_renumber_irq)(int ioapic, int irq);
 static int pin_2_irq(int idx, int apic, int pin)
 {
 	int irq, i;
@@ -1621,6 +1623,9 @@ __apicdebuginit(int) print_all_ICs(void)
 fs_initcall(print_all_ICs);
 
 
+/* Where if anywhere is the i8259 connect in external int mode */
+static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
+
 static void __init enable_IO_APIC(void)
 {
 	union IO_APIC_reg_01 reg_01;
@@ -1998,6 +2003,7 @@ static void ack_apic_edge(unsigned int irq)
 	ack_APIC_irq();
 }
 
+atomic_t irq_mis_count;
 static void ack_apic_level(unsigned int irq)
 {
 	unsigned long v;
@@ -2207,6 +2213,17 @@ static inline void __init unlock_ExtINT_logic(void)
 
 	ioapic_write_entry(apic, pin, entry0);
 }
+
+static int disable_timer_pin_1 __initdata;
+
+static int __init parse_disable_timer_pin_1(char *arg)
+{
+	disable_timer_pin_1 = 1;
+	return 0;
+}
+early_param("disable_timer_pin_1", parse_disable_timer_pin_1);
+
+int timer_through_8259 __initdata;
 
 /*
  * This code may look a bit paranoid, but it's supposed to cooperate with
@@ -2982,28 +2999,6 @@ void __init setup_ioapic_dest(void)
 	}
 }
 #endif
-
-static int __init parse_disable_timer_pin_1(char *arg)
-{
-	disable_timer_pin_1 = 1;
-	return 0;
-}
-early_param("disable_timer_pin_1", parse_disable_timer_pin_1);
-
-static int __init parse_enable_timer_pin_1(char *arg)
-{
-	disable_timer_pin_1 = -1;
-	return 0;
-}
-early_param("enable_timer_pin_1", parse_enable_timer_pin_1);
-
-static int __init parse_noapic(char *arg)
-{
-	/* disable IO-APIC */
-	disable_ioapic_setup();
-	return 0;
-}
-early_param("noapic", parse_noapic);
 
 void __init ioapic_init_mappings(void)
 {

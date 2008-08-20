@@ -57,6 +57,47 @@
 
 #define __apicdebuginit(type) static type __init
 
+int ioapic_force;
+
+int sis_apic_bug; /* not actually supported, dummy for compile */
+
+static DEFINE_SPINLOCK(ioapic_lock);
+static DEFINE_SPINLOCK(vector_lock);
+
+int first_free_entry;
+/*
+ * Rough estimation of how many shared IRQs there are, can
+ * be changed anytime.
+ */
+int pin_map_size;
+
+/*
+ * # of IRQ routing registers
+ */
+int nr_ioapic_registers[MAX_IO_APICS];
+
+/* I/O APIC entries */
+struct mp_config_ioapic mp_ioapics[MAX_IO_APICS];
+int nr_ioapics;
+
+/* MP IRQ source entries */
+struct mp_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
+
+/* # of MP IRQ source entries */
+int mp_irq_entries;
+
+DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
+
+int skip_ioapic_setup;
+
+static int __init parse_noapic(char *str)
+{
+	disable_ioapic_setup();
+	return 0;
+}
+early_param("noapic", parse_noapic);
+
+
 struct irq_cfg;
 struct irq_pin_list;
 struct irq_cfg {
@@ -227,53 +268,6 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 #endif
 	return cfg;
 }
-
-static int assign_irq_vector(int irq, cpumask_t mask);
-
-int first_system_vector = 0xfe;
-
-char system_vectors[NR_VECTORS] = { [0 ... NR_VECTORS-1] = SYS_VECTOR_FREE};
-
-int sis_apic_bug; /* not actually supported, dummy for compile */
-
-static int no_timer_check;
-
-static int disable_timer_pin_1 __initdata;
-
-int timer_through_8259 __initdata;
-
-/* Where if anywhere is the i8259 connect in external int mode */
-static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
-
-static DEFINE_SPINLOCK(ioapic_lock);
-static DEFINE_SPINLOCK(vector_lock);
-
-/*
- * # of IRQ routing registers
- */
-int nr_ioapic_registers[MAX_IO_APICS];
-
-/* I/O APIC RTE contents at the OS boot up */
-struct IO_APIC_route_entry *early_ioapic_entries[MAX_IO_APICS];
-
-/* I/O APIC entries */
-struct mp_config_ioapic mp_ioapics[MAX_IO_APICS];
-int nr_ioapics;
-
-/* MP IRQ source entries */
-struct mp_config_intsrc mp_irqs[MAX_IRQ_SOURCES];
-
-/* # of MP IRQ source entries */
-int mp_irq_entries;
-
-DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
-
-/*
- * Rough estimation of how many shared IRQs there are, can
- * be changed anytime.
- */
-
-int pin_map_size;
 
 /*
  * This is performance-critical, we want to do it O(1)
@@ -481,12 +475,16 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 
 		apic = entry->apic;
 		pin = entry->pin;
+#ifdef CONFIG_INTR_REMAP
 		/*
 		 * With interrupt-remapping, destination information comes
 		 * from interrupt-remapping table entry.
 		 */
 		if (!irq_remapped(irq))
 			io_apic_write(apic, 0x11 + pin*2, dest);
+#else
+		io_apic_write(apic, 0x11 + pin*2, dest);
+#endif
 		reg = io_apic_read(apic, 0x10 + pin*2);
 		reg &= ~IO_APIC_REDIR_VECTOR_MASK;
 		reg |= vector;
@@ -496,6 +494,8 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 		entry = entry->next;
 	}
 }
+
+static int assign_irq_vector(int irq, cpumask_t mask);
 
 static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
 {
@@ -533,7 +533,6 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
  * shared ISA-space IRQs, so we have to support them. We are super
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
-int first_free_entry;
 static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 {
 	struct irq_cfg *cfg;
@@ -679,6 +678,10 @@ static void clear_IO_APIC (void)
 			clear_IO_APIC_pin(apic, pin);
 }
 
+#ifdef CONFIG_INTR_REMAP
+/* I/O APIC RTE contents at the OS boot up */
+static struct IO_APIC_route_entry *early_ioapic_entries[MAX_IO_APICS];
+
 /*
  * Saves and masks all the unmasked IO-APIC RTE's
  */
@@ -741,25 +744,7 @@ void reinit_intr_remapped_IO_APIC(int intr_remapping)
 	 */
 	restore_IO_APIC_setup();
 }
-
-int skip_ioapic_setup;
-int ioapic_force;
-
-static int __init parse_noapic(char *str)
-{
-	disable_ioapic_setup();
-	return 0;
-}
-early_param("noapic", parse_noapic);
-
-/* Actually the next is obsolete, but keep it for paranoid reasons -AK */
-static int __init disable_timer_pin_setup(char *arg)
-{
-	disable_timer_pin_1 = 1;
-	return 1;
-}
-__setup("disable_timer_pin_1", disable_timer_pin_setup);
-
+#endif
 
 /*
  * Find the IRQ entry number of a certain pin.
@@ -1327,8 +1312,10 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic, unsigned int pin,
 {
 	struct IO_APIC_route_entry entry;
 
+#ifdef CONFIG_INTR_REMAP
 	if (intr_remapping_enabled)
 		return;
+#endif
 
 	memset(&entry, 0, sizeof(entry));
 
@@ -1601,6 +1588,9 @@ __apicdebuginit(int) print_all_ICs(void)
 fs_initcall(print_all_ICs);
 
 
+/* Where if anywhere is the i8259 connect in external int mode */
+static struct { int pin, apic; } ioapic_i8259 = { -1, -1 };
+
 void __init enable_IO_APIC(void)
 {
 	union IO_APIC_reg_01 reg_01;
@@ -1695,6 +1685,15 @@ void disable_IO_APIC(void)
 	disconnect_bsp_APIC(ioapic_i8259.pin != -1);
 }
 
+static int no_timer_check;
+
+static int __init notimercheck(char *s)
+{
+	no_timer_check = 1;
+	return 1;
+}
+__setup("no_timer_check", notimercheck);
+
 /*
  * There is a nasty bug in some older SMP boards, their mptable lies
  * about the timer IRQ. We do the following to work around the situation:
@@ -1707,6 +1706,9 @@ static int __init timer_irq_works(void)
 {
 	unsigned long t1 = jiffies;
 	unsigned long flags;
+
+	if (no_timer_check)
+		return 1;
 
 	local_save_flags(flags);
 	local_irq_enable();
@@ -2239,6 +2241,17 @@ static inline void __init unlock_ExtINT_logic(void)
 	ioapic_write_entry(apic, pin, entry0);
 }
 
+static int disable_timer_pin_1 __initdata;
+/* Actually the next is obsolete, but keep it for paranoid reasons -AK */
+static int __init disable_timer_pin_setup(char *arg)
+{
+	disable_timer_pin_1 = 1;
+	return 0;
+}
+early_param("disable_timer_pin_1", disable_timer_pin_setup);
+
+int timer_through_8259 __initdata;
+
 /*
  * This code may look a bit paranoid, but it's supposed to cooperate with
  * a wide range of boards and BIOS bugs.  Fortunately only the timer IRQ
@@ -2286,8 +2299,10 @@ static inline void __init check_timer(void)
 	 * 8259A.
 	 */
 	if (pin1 == -1) {
+#ifdef CONFIG_INTR_REMAP
 		if (intr_remapping_enabled)
 			panic("BIOS bug: timer not connected to IO-APIC");
+#endif
 		pin1 = pin2;
 		apic1 = apic2;
 		no_pin1 = 1;
@@ -2305,7 +2320,7 @@ static inline void __init check_timer(void)
 			setup_timer_IRQ0_pin(apic1, pin1, cfg->vector);
 		}
 		unmask_IO_APIC_irq(0);
-		if (!no_timer_check && timer_irq_works()) {
+		if (timer_irq_works()) {
 			if (nmi_watchdog == NMI_IO_APIC) {
 				setup_nmi();
 				enable_8259A_irq(0);
@@ -2314,8 +2329,10 @@ static inline void __init check_timer(void)
 				clear_IO_APIC_pin(0, pin1);
 			goto out;
 		}
+#ifdef CONFIG_INTR_REMAP
 		if (intr_remapping_enabled)
 			panic("timer doesn't work through Interrupt-remapped IO-APIC");
+#endif
 		clear_IO_APIC_pin(apic1, pin1);
 		if (!no_pin1)
 			apic_printk(APIC_QUIET, KERN_ERR "..MP-BIOS bug: "
@@ -2390,13 +2407,6 @@ static inline void __init check_timer(void)
 out:
 	local_irq_restore(flags);
 }
-
-static int __init notimercheck(char *s)
-{
-	no_timer_check = 1;
-	return 1;
-}
-__setup("no_timer_check", notimercheck);
 
 /*
  * Traditionally ISA IRQ2 is the cascade IRQ, and is not available
