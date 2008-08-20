@@ -288,7 +288,7 @@ extern struct dyn_array *__per_cpu_dyn_array_start[], *__per_cpu_dyn_array_end[]
 	DEFINE_PER_CPU_DYN_ARRAY_ADDR(nameX, nameX, nrX, alignX, init_workX)
 
 extern void pre_alloc_dyn_array(void);
-extern unsigned long per_cpu_dyn_array_size(void);
+extern unsigned long per_cpu_dyn_array_size(unsigned long *align);
 extern void per_cpu_alloc_dyn_array(int cpu, char *ptr);
 #endif /* __ASSEMBLY__ */
 
