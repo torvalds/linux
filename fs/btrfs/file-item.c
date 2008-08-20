@@ -134,7 +134,6 @@ int btrfs_lookup_file_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-#if 0 /* broken */
 int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 			  struct bio *bio)
 {
@@ -151,6 +150,8 @@ int btrfs_lookup_bio_sums(struct btrfs_root *root, struct inode *inode,
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 
 	path = btrfs_alloc_path();
+	if (bio->bi_size > PAGE_CACHE_SIZE * 8)
+		path->reada = 2;
 
 	WARN_ON(bio->bi_vcnt <= 0);
 
@@ -211,7 +212,6 @@ found:
 	btrfs_free_path(path);
 	return 0;
 }
-#endif
 
 int btrfs_csum_one_bio(struct btrfs_root *root, struct inode *inode,
 		       struct bio *bio)
