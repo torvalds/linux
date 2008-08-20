@@ -1224,7 +1224,7 @@ static int setup_ioapic_entry(int apic, int irq,
 
 	entry->delivery_mode = INT_DELIVERY_MODE;
 	entry->dest_mode = INT_DEST_MODE;
-	entry->dest.logical.logical_dest = destination;
+	entry->dest = destination;
 
 	entry->mask = 0;                                /* enable IRQ */
 	entry->trigger = trigger;
@@ -1336,7 +1336,7 @@ static void __init setup_timer_IRQ0_pin(unsigned int apic, unsigned int pin,
 	 */
 	entry.dest_mode = INT_DEST_MODE;
 	entry.mask = 1;					/* mask IRQ now */
-	entry.dest.logical.logical_dest = cpu_mask_to_apicid(TARGET_CPUS);
+	entry.dest = cpu_mask_to_apicid(TARGET_CPUS);
 	entry.delivery_mode = INT_DELIVERY_MODE;
 	entry.polarity = 0;
 	entry.trigger = 0;
@@ -1425,19 +1425,15 @@ __apicdebuginit(void) print_IO_APIC(void)
 
 	printk(KERN_DEBUG ".... IRQ redirection table:\n");
 
-	printk(KERN_DEBUG " NR Log Phy Mask Trig IRR Pol"
-			  " Stat Dest Deli Vect:   \n");
+	printk(KERN_DEBUG " NR Dst Mask Trig IRR Pol"
+			  " Stat Dmod Deli Vect:   \n");
 
 	for (i = 0; i <= reg_01.bits.entries; i++) {
 		struct IO_APIC_route_entry entry;
 
 		entry = ioapic_read_entry(apic, i);
 
-		printk(KERN_DEBUG " %02x %03X %02X  ",
-			i,
-			entry.dest.logical.logical_dest,
-			entry.dest.physical.physical_dest
-		);
+		printk(KERN_DEBUG " %02x %02X  ", i, entry.dest);
 
 		printk("%1d    %1d    %1d   %1d   %1d    %1d    %1d    %02X\n",
 			entry.mask,
@@ -1717,7 +1713,7 @@ void disable_IO_APIC(void)
 		entry.dest_mode       = 0; /* Physical */
 		entry.delivery_mode   = dest_ExtINT; /* ExtInt */
 		entry.vector          = 0;
-		entry.dest.physical.physical_dest = read_apic_id();
+		entry.dest	      = read_apic_id();
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -2185,7 +2181,7 @@ static inline void __init unlock_ExtINT_logic(void)
 
 	entry1.dest_mode = 0;			/* physical delivery */
 	entry1.mask = 0;			/* unmask IRQ now */
-	entry1.dest.physical.physical_dest = hard_smp_processor_id();
+	entry1.dest = hard_smp_processor_id();
 	entry1.delivery_mode = dest_ExtINT;
 	entry1.polarity = entry0.polarity;
 	entry1.trigger = 0;
