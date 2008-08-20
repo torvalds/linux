@@ -153,6 +153,7 @@ extern void nfs4_clear_inode(struct inode *);
 void nfs_zap_acl_cache(struct inode *inode);
 
 /* super.c */
+void nfs_parse_ip_address(char *, size_t, struct sockaddr *, size_t *);
 extern struct file_system_type nfs_xdev_fs_type;
 #ifdef CONFIG_NFS_V4
 extern struct file_system_type nfs4_xdev_fs_type;
@@ -276,6 +277,7 @@ unsigned int nfs_page_array_len(unsigned int base, size_t len)
 		PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
+#define IPV6_SCOPE_DELIMITER	'%'
 
 /*
  * Set the port number in an address.  Be agnostic about the address

@@ -716,8 +716,6 @@ static void nfs_parse_ipv4_address(char *string, size_t str_len,
 	*addr_len = 0;
 }
 
-#define IPV6_SCOPE_DELIMITER	'%'
-
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 static void nfs_parse_ipv6_scope_id(const char *string, const size_t str_len,
 				    const char *delim,
@@ -790,7 +788,7 @@ static void nfs_parse_ipv6_address(char *string, size_t str_len,
  * If there is a problem constructing the new sockaddr, set the address
  * family to AF_UNSPEC.
  */
-static void nfs_parse_ip_address(char *string, size_t str_len,
+void nfs_parse_ip_address(char *string, size_t str_len,
 				 struct sockaddr *sap, size_t *addr_len)
 {
 	unsigned int i, colons;

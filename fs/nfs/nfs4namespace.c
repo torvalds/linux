@@ -93,50 +93,42 @@ static int nfs4_validate_fspath(const struct vfsmount *mnt_parent,
 	return 0;
 }
 
-/*
- * Check if the string represents a "valid" IPv4 address
- */
-static inline int valid_ipaddr4(const char *buf)
-{
-	int rc, count, in[4];
-
-	rc = sscanf(buf, "%d.%d.%d.%d", &in[0], &in[1], &in[2], &in[3]);
-	if (rc != 4)
-		return -EINVAL;
-	for (count = 0; count < 4; count++) {
-		if (in[count] > 255)
-			return -EINVAL;
-	}
-	return 0;
-}
-
 static struct vfsmount *try_location(struct nfs_clone_mount *mountdata,
 				     char *page, char *page2,
 				     const struct nfs4_fs_location *location)
 {
 	struct vfsmount *mnt = ERR_PTR(-ENOENT);
 	char *mnt_path;
+	int page2len;
 	unsigned int s;
 
 	mnt_path = nfs4_pathname_string(&location->rootpath, page2, PAGE_SIZE);
 	if (IS_ERR(mnt_path))
 		return mnt;
 	mountdata->mnt_path = mnt_path;
+	page2 += strlen(mnt_path) + 1;
+	page2len = PAGE_SIZE - strlen(mnt_path) - 1;
 
 	for (s = 0; s < location->nservers; s++) {
-		struct sockaddr_in addr = {
-			.sin_family	= AF_INET,
-			.sin_port	= htons(NFS_PORT),
-		};
+		const struct nfs4_string *buf = &location->servers[s];
+		struct sockaddr_storage addr;
 
-		if (location->servers[s].len <= 0 ||
-		    valid_ipaddr4(location->servers[s].data) < 0)
+		if (buf->len <= 0 || buf->len >= PAGE_SIZE)
 			continue;
 
-		mountdata->hostname = location->servers[s].data;
-		addr.sin_addr.s_addr = in_aton(mountdata->hostname),
 		mountdata->addr = (struct sockaddr *)&addr;
-		mountdata->addrlen = sizeof(addr);
+
+		if (memchr(buf->data, IPV6_SCOPE_DELIMITER, buf->len))
+			continue;
+		nfs_parse_ip_address(buf->data, buf->len,
+				mountdata->addr, &mountdata->addrlen);
+		if (mountdata->addr->sa_family == AF_UNSPEC)
+			continue;
+		nfs_set_port(mountdata->addr, NFS_PORT);
+
+		strncpy(page2, buf->data, page2len);
+		page2[page2len] = '\0';
+		mountdata->hostname = page2;
 
 		snprintf(page, PAGE_SIZE, "%s:%s",
 				mountdata->hostname,
