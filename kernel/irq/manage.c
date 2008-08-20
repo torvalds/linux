@@ -86,8 +86,6 @@ int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 	if (!desc->chip->set_affinity)
 		return -EINVAL;
 
-	set_balance_irq_affinity(irq, cpumask);
-
 #ifdef CONFIG_GENERIC_PENDING_IRQ
 	if (desc->status & IRQ_MOVE_PCNTXT) {
 		unsigned long flags;
@@ -122,7 +120,6 @@ int irq_select_affinity(unsigned int irq)
 	desc->affinity = mask;
 	desc->chip->set_affinity(irq, mask);
 
-	set_balance_irq_affinity(irq, mask);
 	return 0;
 }
 #endif

@@ -185,7 +185,7 @@ struct irq_desc {
 	cpumask_t		affinity;
 	unsigned int		cpu;
 #endif
-#if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
+#ifdef CONFIG_GENERIC_PENDING_IRQ
 	cpumask_t		pending_mask;
 #endif
 #ifdef CONFIG_PROC_FS
@@ -241,13 +241,13 @@ extern int setup_irq(unsigned int irq, struct irqaction *new);
 
 #ifdef CONFIG_SMP
 
-#if defined(CONFIG_GENERIC_PENDING_IRQ) || defined(CONFIG_IRQBALANCE)
+#ifdef CONFIG_GENERIC_PENDING_IRQ
 
 void set_pending_irq(unsigned int irq, cpumask_t mask);
 void move_native_irq(int irq);
 void move_masked_irq(int irq);
 
-#else /* CONFIG_GENERIC_PENDING_IRQ || CONFIG_IRQBALANCE */
+#else /* CONFIG_GENERIC_PENDING_IRQ */
 
 static inline void move_irq(int irq)
 {
@@ -273,14 +273,6 @@ static inline void set_pending_irq(unsigned int irq, cpumask_t mask)
 #define move_masked_irq(x)
 
 #endif /* CONFIG_SMP */
-
-#ifdef CONFIG_IRQBALANCE
-extern void set_balance_irq_affinity(unsigned int irq, cpumask_t mask);
-#else
-static inline void set_balance_irq_affinity(unsigned int irq, cpumask_t mask)
-{
-}
-#endif
 
 extern int no_irq_affinity;
 
