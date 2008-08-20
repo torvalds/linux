@@ -55,7 +55,8 @@ int i915_wait_ring(struct drm_device * dev, int n, const char *caller)
 		if (ring->space >= n)
 			return 0;
 
-		dev_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+		if (dev_priv->sarea_priv)
+			dev_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
 		if (ring->head != last_head)
 			i = 0;
@@ -128,7 +129,7 @@ void i915_kernel_lost_context(struct drm_device * dev)
 	if (ring->space < 0)
 		ring->space += ring->Size;
 
-	if (ring->head == ring->tail)
+	if (ring->head == ring->tail && dev_priv->sarea_priv)
 		dev_priv->sarea_priv->perf_boxes |= I915_BOX_RING_EMPTY;
 }
 
@@ -433,10 +434,11 @@ static void i915_emit_breadcrumb(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
-	dev_priv->sarea_priv->last_enqueue = ++dev_priv->counter;
-
+	dev_priv->counter++;
 	if (dev_priv->counter > 0x7FFFFFFFUL)
-		dev_priv->sarea_priv->last_enqueue = dev_priv->counter = 1;
+		dev_priv->counter = 0;
+	if (dev_priv->sarea_priv)
+		dev_priv->sarea_priv->last_enqueue = dev_priv->counter;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_STORE_DWORD_INDEX);
@@ -534,6 +536,9 @@ static int i915_dispatch_flip(struct drm_device * dev)
 	drm_i915_private_t *dev_priv = dev->dev_private;
 	RING_LOCALS;
 
+	if (!dev_priv->sarea_priv)
+		return -EINVAL;
+
 	DRM_DEBUG("%s: page=%d pfCurrentPage=%d\n",
 		  __func__,
 		  dev_priv->current_page,
@@ -628,7 +633,8 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	ret = i915_dispatch_batchbuffer(dev, batch);
 	mutex_unlock(&dev->struct_mutex);
 
-	sarea_priv->last_dispatch = (int)hw_status[5];
+	if (sarea_priv)
+		sarea_priv->last_dispatch = (int)hw_status[5];
 	return ret;
 }
 
@@ -663,7 +669,8 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		return ret;
 	}
 
-	sarea_priv->last_dispatch = (int)hw_status[5];
+	if (sarea_priv)
+		sarea_priv->last_dispatch = (int)hw_status[5];
 	return 0;
 }
 

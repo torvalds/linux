@@ -427,7 +427,9 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 		I915_WRITE(IMR, dev_priv->irq_mask_reg);
 	(void) I915_READ(IIR); /* Flush posted writes */
 
-	dev_priv->sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+	if (dev_priv->sarea_priv)
+		dev_priv->sarea_priv->last_dispatch =
+			READ_BREADCRUMB(dev_priv);
 
 	if (iir & I915_USER_INTERRUPT) {
 		dev_priv->mm.irq_gem_seqno = i915_get_gem_seqno(dev);
@@ -456,10 +458,11 @@ static int i915_emit_irq(struct drm_device * dev)
 
 	DRM_DEBUG("\n");
 
-	dev_priv->sarea_priv->last_enqueue = ++dev_priv->counter;
-
+	dev_priv->counter++;
 	if (dev_priv->counter > 0x7FFFFFFFUL)
-		dev_priv->sarea_priv->last_enqueue = dev_priv->counter = 1;
+		dev_priv->counter = 1;
+	if (dev_priv->sarea_priv)
+		dev_priv->sarea_priv->last_enqueue = dev_priv->counter;
 
 	BEGIN_LP_RING(6);
 	OUT_RING(MI_STORE_DWORD_INDEX);
@@ -503,11 +506,15 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 		  READ_BREADCRUMB(dev_priv));
 
 	if (READ_BREADCRUMB(dev_priv) >= irq_nr) {
-		dev_priv->sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+		if (dev_priv->sarea_priv) {
+			dev_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
+		}
 		return 0;
 	}
 
-	dev_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
+	if (dev_priv->sarea_priv)
+		dev_priv->sarea_priv->perf_boxes |= I915_BOX_WAIT;
 
 	i915_user_irq_get(dev);
 	DRM_WAIT_ON(ret, dev_priv->irq_queue, 3 * DRM_HZ,
@@ -519,7 +526,9 @@ static int i915_wait_irq(struct drm_device * dev, int irq_nr)
 			  READ_BREADCRUMB(dev_priv), (int)dev_priv->counter);
 	}
 
-	dev_priv->sarea_priv->last_dispatch = READ_BREADCRUMB(dev_priv);
+	if (dev_priv->sarea_priv)
+		dev_priv->sarea_priv->last_dispatch =
+			READ_BREADCRUMB(dev_priv);
 
 	return ret;
 }
@@ -682,7 +691,7 @@ int i915_vblank_swap(struct drm_device *dev, void *data,
 	struct list_head *list;
 	int ret;
 
-	if (!dev_priv) {
+	if (!dev_priv || !dev_priv->sarea_priv) {
 		DRM_ERROR("%s called with no initialization\n", __func__);
 		return -EINVAL;
 	}
