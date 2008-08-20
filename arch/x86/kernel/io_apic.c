@@ -610,18 +610,7 @@ static void __init replace_pin_at_irq(unsigned int irq,
 		add_pin_to_irq(irq, newapic, newpin);
 }
 
-#ifdef CONFIG_X86_64
-/*
- * Synchronize the IO-APIC and the CPU by doing
- * a dummy read from the IO-APIC
- */
-static inline void io_apic_sync(unsigned int apic)
-{
-	struct io_apic __iomem *io_apic = io_apic_base(apic);
-	readl(&io_apic->data);
-}
-
-#define __DO_ACTION(R, ACTION, FINAL)					\
+#define __DO_ACTION(R, ACTION_ENABLE, ACTION_DISABLE, FINAL)		\
 									\
 {									\
 	int pin;							\
@@ -636,7 +625,8 @@ static inline void io_apic_sync(unsigned int apic)
 			break;						\
 		pin = entry->pin;					\
 		reg = io_apic_read(entry->apic, 0x10 + R + pin*2);	\
-		reg ACTION;						\
+		reg ACTION_DISABLE;					\
+		reg ACTION_ENABLE;					\
 		io_apic_modify(entry->apic, 0x10 + R + pin*2, reg);	\
 		FINAL;							\
 		if (!entry->next)					\
@@ -645,66 +635,38 @@ static inline void io_apic_sync(unsigned int apic)
 	}								\
 }
 
-#define DO_ACTION(name,R,ACTION, FINAL)					\
+#define DO_ACTION(name,R, ACTION_ENABLE, ACTION_DISABLE, FINAL)		\
 									\
 	static void name##_IO_APIC_irq (unsigned int irq)		\
-	__DO_ACTION(R, ACTION, FINAL)
-
-/* mask = 1 */
-DO_ACTION(__mask,	0, |= IO_APIC_REDIR_MASKED, io_apic_sync(entry->apic))
+	__DO_ACTION(R, ACTION_ENABLE, ACTION_DISABLE, FINAL)
 
 /* mask = 0 */
-DO_ACTION(__unmask,	0, &= ~IO_APIC_REDIR_MASKED, )
+DO_ACTION(__unmask,	0, |= 0, &= ~IO_APIC_REDIR_MASKED, )
+
+#ifdef CONFIG_X86_64
+/*
+ * Synchronize the IO-APIC and the CPU by doing
+ * a dummy read from the IO-APIC
+ */
+static inline void io_apic_sync(unsigned int apic)
+{
+	struct io_apic __iomem *io_apic = io_apic_base(apic);
+	readl(&io_apic->data);
+}
+
+/* mask = 1 */
+DO_ACTION(__mask,	0, |= IO_APIC_REDIR_MASKED, &= ~0, io_apic_sync(entry->apic))
 
 #else
 
-static void __modify_IO_APIC_irq(unsigned int irq, unsigned long enable, unsigned long disable)
-{
-	struct irq_cfg *cfg;
-	struct irq_pin_list *entry;
-	unsigned int pin, reg;
-
-	cfg = irq_cfg(irq);
-	entry = cfg->irq_2_pin;
-	for (;;) {
-		if (!entry)
-			break;
-		pin = entry->pin;
-		reg = io_apic_read(entry->apic, 0x10 + pin*2);
-		reg &= ~disable;
-		reg |= enable;
-		io_apic_modify(entry->apic, 0x10 + pin*2, reg);
-		if (!entry->next)
-			break;
-		entry = entry->next;
-	}
-}
-
 /* mask = 1 */
-static void __mask_IO_APIC_irq(unsigned int irq)
-{
-	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_MASKED, 0);
-}
-
-/* mask = 0 */
-static void __unmask_IO_APIC_irq(unsigned int irq)
-{
-	__modify_IO_APIC_irq(irq, 0, IO_APIC_REDIR_MASKED);
-}
+DO_ACTION(__mask,	0, |= IO_APIC_REDIR_MASKED, &= ~0, )
 
 /* mask = 1, trigger = 0 */
-static void __mask_and_edge_IO_APIC_irq(unsigned int irq)
-{
-	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_MASKED,
-				IO_APIC_REDIR_LEVEL_TRIGGER);
-}
+DO_ACTION(__mask_and_edge, 0, |= IO_APIC_REDIR_MASKED, &= ~IO_APIC_REDIR_LEVEL_TRIGGER, )
 
 /* mask = 0, trigger = 1 */
-static void __unmask_and_level_IO_APIC_irq(unsigned int irq)
-{
-	__modify_IO_APIC_irq(irq, IO_APIC_REDIR_LEVEL_TRIGGER,
-				IO_APIC_REDIR_MASKED);
-}
+DO_ACTION(__unmask_and_level, 0, |= IO_APIC_REDIR_LEVEL_TRIGGER, &= ~IO_APIC_REDIR_MASKED, )
 
 #endif
 
