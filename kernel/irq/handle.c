@@ -18,13 +18,10 @@
 
 #include "internals.h"
 
-#ifdef CONFIG_TRACE_IRQFLAGS
-
 /*
  * lockdep: we want to handle all irq_desc locks as a single lock-class:
  */
 static struct lock_class_key irq_desc_lock_class;
-#endif
 
 /**
  * handle_bad_irq - handle spurious and unhandled irqs
@@ -75,9 +72,7 @@ static struct irq_desc irq_desc_init = {
 static void init_one_irq_desc(struct irq_desc *desc)
 {
 	memcpy(desc, &irq_desc_init, sizeof(struct irq_desc));
-#ifdef CONFIG_TRACE_IRQFLAGS
 	lockdep_set_class(&desc->lock, &irq_desc_lock_class);
-#endif
 }
 
 extern int after_bootmem;
