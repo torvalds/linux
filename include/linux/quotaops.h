@@ -26,10 +26,10 @@ int dquot_initialize(struct inode *inode, int type);
 int dquot_drop(struct inode *inode);
 
 int dquot_alloc_space(struct inode *inode, qsize_t number, int prealloc);
-int dquot_alloc_inode(const struct inode *inode, unsigned long number);
+int dquot_alloc_inode(const struct inode *inode, qsize_t number);
 
 int dquot_free_space(struct inode *inode, qsize_t number);
-int dquot_free_inode(const struct inode *inode, unsigned long number);
+int dquot_free_inode(const struct inode *inode, qsize_t number);
 
 int dquot_transfer(struct inode *inode, struct iattr *iattr);
 int dquot_commit(struct dquot *dquot);

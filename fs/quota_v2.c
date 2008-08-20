@@ -26,6 +26,19 @@ typedef char *dqbuf_t;
 #define GETIDINDEX(id, depth) (((id) >> ((V2_DQTREEDEPTH-(depth)-1)*8)) & 0xff)
 #define GETENTRIES(buf) ((struct v2_disk_dqblk *)(((char *)buf)+sizeof(struct v2_disk_dqdbheader)))
 
+#define QUOTABLOCK_BITS 10
+#define QUOTABLOCK_SIZE (1 << QUOTABLOCK_BITS)
+
+static inline qsize_t v2_stoqb(qsize_t space)
+{
+	return (space + QUOTABLOCK_SIZE - 1) >> QUOTABLOCK_BITS;
+}
+
+static inline qsize_t v2_qbtos(qsize_t blocks)
+{
+	return blocks << QUOTABLOCK_BITS;
+}
+
 /* Check whether given file is really vfsv0 quotafile */
 static int v2_check_quota_file(struct super_block *sb, int type)
 {
@@ -104,8 +117,8 @@ static void disk2memdqb(struct mem_dqblk *m, struct v2_disk_dqblk *d)
 	m->dqb_isoftlimit = le32_to_cpu(d->dqb_isoftlimit);
 	m->dqb_curinodes = le32_to_cpu(d->dqb_curinodes);
 	m->dqb_itime = le64_to_cpu(d->dqb_itime);
-	m->dqb_bhardlimit = le32_to_cpu(d->dqb_bhardlimit);
-	m->dqb_bsoftlimit = le32_to_cpu(d->dqb_bsoftlimit);
+	m->dqb_bhardlimit = v2_qbtos(le32_to_cpu(d->dqb_bhardlimit));
+	m->dqb_bsoftlimit = v2_qbtos(le32_to_cpu(d->dqb_bsoftlimit));
 	m->dqb_curspace = le64_to_cpu(d->dqb_curspace);
 	m->dqb_btime = le64_to_cpu(d->dqb_btime);
 }
@@ -116,8 +129,8 @@ static void mem2diskdqb(struct v2_disk_dqblk *d, struct mem_dqblk *m, qid_t id)
 	d->dqb_isoftlimit = cpu_to_le32(m->dqb_isoftlimit);
 	d->dqb_curinodes = cpu_to_le32(m->dqb_curinodes);
 	d->dqb_itime = cpu_to_le64(m->dqb_itime);
-	d->dqb_bhardlimit = cpu_to_le32(m->dqb_bhardlimit);
-	d->dqb_bsoftlimit = cpu_to_le32(m->dqb_bsoftlimit);
+	d->dqb_bhardlimit = cpu_to_le32(v2_qbtos(m->dqb_bhardlimit));
+	d->dqb_bsoftlimit = cpu_to_le32(v2_qbtos(m->dqb_bsoftlimit));
 	d->dqb_curspace = cpu_to_le64(m->dqb_curspace);
 	d->dqb_btime = cpu_to_le64(m->dqb_btime);
 	d->dqb_id = cpu_to_le32(id);

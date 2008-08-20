@@ -39,15 +39,6 @@
 #define __DQUOT_VERSION__	"dquot_6.5.1"
 #define __DQUOT_NUM_VERSION__	6*10000+5*100+1
 
-/* Size of blocks in which are counted size limits */
-#define QUOTABLOCK_BITS 10
-#define QUOTABLOCK_SIZE (1 << QUOTABLOCK_BITS)
-
-/* Conversion routines from and to quota blocks */
-#define qb2kb(x) ((x) << (QUOTABLOCK_BITS-10))
-#define kb2qb(x) ((x) >> (QUOTABLOCK_BITS-10))
-#define toqb(x) (((x) + QUOTABLOCK_SIZE - 1) >> QUOTABLOCK_BITS)
-
 #define MAXQUOTAS 2
 #define USRQUOTA  0		/* element used for user quotas */
 #define GRPQUOTA  1		/* element used for group quotas */
@@ -79,6 +70,11 @@
 #define Q_SETINFO  0x800006	/* set information about quota files */
 #define Q_GETQUOTA 0x800007	/* get user quota structure */
 #define Q_SETQUOTA 0x800008	/* set user quota structure */
+
+/* Size of block in which space limits are passed through the quota
+ * interface */
+#define QIF_DQBLKSIZE_BITS 10
+#define QIF_DQBLKSIZE (1 << QIF_DQBLKSIZE_BITS)
 
 /*
  * Quota structure used for communication with userspace via quotactl
@@ -187,12 +183,12 @@ extern spinlock_t dq_data_lock;
  * Data for one user/group kept in memory
  */
 struct mem_dqblk {
-	__u32 dqb_bhardlimit;	/* absolute limit on disk blks alloc */
-	__u32 dqb_bsoftlimit;	/* preferred limit on disk blks */
+	qsize_t dqb_bhardlimit;	/* absolute limit on disk blks alloc */
+	qsize_t dqb_bsoftlimit;	/* preferred limit on disk blks */
 	qsize_t dqb_curspace;	/* current used space */
-	__u32 dqb_ihardlimit;	/* absolute limit on allocated inodes */
-	__u32 dqb_isoftlimit;	/* preferred inode limit */
-	__u32 dqb_curinodes;	/* current # allocated inodes */
+	qsize_t dqb_ihardlimit;	/* absolute limit on allocated inodes */
+	qsize_t dqb_isoftlimit;	/* preferred inode limit */
+	qsize_t dqb_curinodes;	/* current # allocated inodes */
 	time_t dqb_btime;	/* time limit for excessive disk use */
 	time_t dqb_itime;	/* time limit for excessive inode use */
 };
@@ -287,9 +283,9 @@ struct dquot_operations {
 	int (*initialize) (struct inode *, int);
 	int (*drop) (struct inode *);
 	int (*alloc_space) (struct inode *, qsize_t, int);
-	int (*alloc_inode) (const struct inode *, unsigned long);
+	int (*alloc_inode) (const struct inode *, qsize_t);
 	int (*free_space) (struct inode *, qsize_t);
-	int (*free_inode) (const struct inode *, unsigned long);
+	int (*free_inode) (const struct inode *, qsize_t);
 	int (*transfer) (struct inode *, struct iattr *);
 	int (*write_dquot) (struct dquot *);		/* Ordinary dquot write */
 	struct dquot *(*alloc_dquot)(struct super_block *, int);	/* Allocate memory for new dquot */

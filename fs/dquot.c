@@ -835,7 +835,7 @@ static void drop_dquot_ref(struct super_block *sb, int type)
 	}
 }
 
-static inline void dquot_incr_inodes(struct dquot *dquot, unsigned long number)
+static inline void dquot_incr_inodes(struct dquot *dquot, qsize_t number)
 {
 	dquot->dq_dqb.dqb_curinodes += number;
 }
@@ -845,7 +845,7 @@ static inline void dquot_incr_space(struct dquot *dquot, qsize_t number)
 	dquot->dq_dqb.dqb_curspace += number;
 }
 
-static inline void dquot_decr_inodes(struct dquot *dquot, unsigned long number)
+static inline void dquot_decr_inodes(struct dquot *dquot, qsize_t number)
 {
 	if (dquot->dq_dqb.dqb_curinodes > number)
 		dquot->dq_dqb.dqb_curinodes -= number;
@@ -862,7 +862,7 @@ static inline void dquot_decr_space(struct dquot *dquot, qsize_t number)
 		dquot->dq_dqb.dqb_curspace -= number;
 	else
 		dquot->dq_dqb.dqb_curspace = 0;
-	if (toqb(dquot->dq_dqb.dqb_curspace) <= dquot->dq_dqb.dqb_bsoftlimit)
+	if (dquot->dq_dqb.dqb_curspace <= dquot->dq_dqb.dqb_bsoftlimit)
 		dquot->dq_dqb.dqb_btime = (time_t) 0;
 	clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 }
@@ -1038,7 +1038,7 @@ static inline char ignore_hardlimit(struct dquot *dquot)
 }
 
 /* needs dq_data_lock */
-static int check_idq(struct dquot *dquot, ulong inodes, char *warntype)
+static int check_idq(struct dquot *dquot, qsize_t inodes, char *warntype)
 {
 	*warntype = QUOTA_NL_NOWARN;
 	if (inodes <= 0 || test_bit(DQ_FAKE_B, &dquot->dq_flags))
@@ -1077,7 +1077,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
 		return QUOTA_OK;
 
 	if (dquot->dq_dqb.dqb_bhardlimit &&
-	   toqb(dquot->dq_dqb.dqb_curspace + space) > dquot->dq_dqb.dqb_bhardlimit &&
+	    dquot->dq_dqb.dqb_curspace + space > dquot->dq_dqb.dqb_bhardlimit &&
             !ignore_hardlimit(dquot)) {
 		if (!prealloc)
 			*warntype = QUOTA_NL_BHARDWARN;
@@ -1085,7 +1085,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
 	}
 
 	if (dquot->dq_dqb.dqb_bsoftlimit &&
-	   toqb(dquot->dq_dqb.dqb_curspace + space) > dquot->dq_dqb.dqb_bsoftlimit &&
+	    dquot->dq_dqb.dqb_curspace + space > dquot->dq_dqb.dqb_bsoftlimit &&
 	    dquot->dq_dqb.dqb_btime && get_seconds() >= dquot->dq_dqb.dqb_btime &&
             !ignore_hardlimit(dquot)) {
 		if (!prealloc)
@@ -1094,7 +1094,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
 	}
 
 	if (dquot->dq_dqb.dqb_bsoftlimit &&
-	   toqb(dquot->dq_dqb.dqb_curspace + space) > dquot->dq_dqb.dqb_bsoftlimit &&
+	    dquot->dq_dqb.dqb_curspace + space > dquot->dq_dqb.dqb_bsoftlimit &&
 	    dquot->dq_dqb.dqb_btime == 0) {
 		if (!prealloc) {
 			*warntype = QUOTA_NL_BSOFTWARN;
@@ -1111,7 +1111,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
 	return QUOTA_OK;
 }
 
-static int info_idq_free(struct dquot *dquot, ulong inodes)
+static int info_idq_free(struct dquot *dquot, qsize_t inodes)
 {
 	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) ||
 	    dquot->dq_dqb.dqb_curinodes <= dquot->dq_dqb.dqb_isoftlimit)
@@ -1128,15 +1128,13 @@ static int info_idq_free(struct dquot *dquot, ulong inodes)
 static int info_bdq_free(struct dquot *dquot, qsize_t space)
 {
 	if (test_bit(DQ_FAKE_B, &dquot->dq_flags) ||
-	    toqb(dquot->dq_dqb.dqb_curspace) <= dquot->dq_dqb.dqb_bsoftlimit)
+	    dquot->dq_dqb.dqb_curspace <= dquot->dq_dqb.dqb_bsoftlimit)
 		return QUOTA_NL_NOWARN;
 
-	if (toqb(dquot->dq_dqb.dqb_curspace - space) <=
-	    dquot->dq_dqb.dqb_bsoftlimit)
+	if (dquot->dq_dqb.dqb_curspace - space <= dquot->dq_dqb.dqb_bsoftlimit)
 		return QUOTA_NL_BSOFTBELOW;
-	if (toqb(dquot->dq_dqb.dqb_curspace) >= dquot->dq_dqb.dqb_bhardlimit &&
-	    toqb(dquot->dq_dqb.dqb_curspace - space) <
-						dquot->dq_dqb.dqb_bhardlimit)
+	if (dquot->dq_dqb.dqb_curspace >= dquot->dq_dqb.dqb_bhardlimit &&
+	    dquot->dq_dqb.dqb_curspace - space < dquot->dq_dqb.dqb_bhardlimit)
 		return QUOTA_NL_BHARDBELOW;
 	return QUOTA_NL_NOWARN;
 }
@@ -1279,7 +1277,7 @@ warn_put_all:
 /*
  * This operation can block, but only after everything is updated
  */
-int dquot_alloc_inode(const struct inode *inode, unsigned long number)
+int dquot_alloc_inode(const struct inode *inode, qsize_t number)
 {
 	int cnt, ret = NO_QUOTA;
 	char warntype[MAXQUOTAS];
@@ -1364,7 +1362,7 @@ out_sub:
 /*
  * This operation can block, but only after everything is updated
  */
-int dquot_free_inode(const struct inode *inode, unsigned long number)
+int dquot_free_inode(const struct inode *inode, qsize_t number)
 {
 	unsigned int cnt;
 	char warntype[MAXQUOTAS];
@@ -1883,14 +1881,24 @@ int vfs_dq_quota_on_remount(struct super_block *sb)
 	return ret;
 }
 
+static inline qsize_t qbtos(qsize_t blocks)
+{
+	return blocks << QIF_DQBLKSIZE_BITS;
+}
+
+static inline qsize_t stoqb(qsize_t space)
+{
+	return (space + QIF_DQBLKSIZE - 1) >> QIF_DQBLKSIZE_BITS;
+}
+
 /* Generic routine for getting common part of quota structure */
 static void do_get_dqblk(struct dquot *dquot, struct if_dqblk *di)
 {
 	struct mem_dqblk *dm = &dquot->dq_dqb;
 
 	spin_lock(&dq_data_lock);
-	di->dqb_bhardlimit = dm->dqb_bhardlimit;
-	di->dqb_bsoftlimit = dm->dqb_bsoftlimit;
+	di->dqb_bhardlimit = stoqb(dm->dqb_bhardlimit);
+	di->dqb_bsoftlimit = stoqb(dm->dqb_bsoftlimit);
 	di->dqb_curspace = dm->dqb_curspace;
 	di->dqb_ihardlimit = dm->dqb_ihardlimit;
 	di->dqb_isoftlimit = dm->dqb_isoftlimit;
@@ -1937,8 +1945,8 @@ static int do_set_dqblk(struct dquot *dquot, struct if_dqblk *di)
 		check_blim = 1;
 	}
 	if (di->dqb_valid & QIF_BLIMITS) {
-		dm->dqb_bsoftlimit = di->dqb_bsoftlimit;
-		dm->dqb_bhardlimit = di->dqb_bhardlimit;
+		dm->dqb_bsoftlimit = qbtos(di->dqb_bsoftlimit);
+		dm->dqb_bhardlimit = qbtos(di->dqb_bhardlimit);
 		check_blim = 1;
 	}
 	if (di->dqb_valid & QIF_INODES) {
@@ -1956,7 +1964,7 @@ static int do_set_dqblk(struct dquot *dquot, struct if_dqblk *di)
 		dm->dqb_itime = di->dqb_itime;
 
 	if (check_blim) {
-		if (!dm->dqb_bsoftlimit || toqb(dm->dqb_curspace) < dm->dqb_bsoftlimit) {
+		if (!dm->dqb_bsoftlimit || dm->dqb_curspace < dm->dqb_bsoftlimit) {
 			dm->dqb_btime = 0;
 			clear_bit(DQ_BLKS_B, &dquot->dq_flags);
 		}
