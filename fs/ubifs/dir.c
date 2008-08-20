@@ -587,7 +587,6 @@ static int ubifs_unlink(struct inode *dir, struct dentry *dentry)
 	if (err) {
 		if (err != -ENOSPC)
 			return err;
-		err = 0;
 		budgeted = 0;
 	}
 
