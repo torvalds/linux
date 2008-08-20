@@ -191,7 +191,7 @@ struct irq_desc {
 } ____cacheline_internodealigned_in_smp;
 
 extern struct irq_desc *irq_to_desc(unsigned int irq);
-extern struct irq_desc *__irq_to_desc(unsigned int irq);
+extern struct irq_desc *irq_to_desc_alloc(unsigned int irq);
 
 #ifndef CONFIG_HAVE_SPARSE_IRQ
 

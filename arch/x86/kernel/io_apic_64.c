@@ -1124,7 +1124,12 @@ static void ioapic_register_intr(int irq, unsigned long trigger)
 {
 	struct irq_desc *desc;
 
-	desc = irq_to_desc(irq);
+	/* first time to use this irq_desc */
+	if (irq < 16)
+		desc = irq_to_desc(irq);
+	else
+		desc = irq_to_desc_alloc(irq);
+
 	if (trigger)
 		desc->status |= IRQ_LEVEL;
 	else
@@ -1919,6 +1924,9 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 		irq = __get_cpu_var(vector_irq)[vector];
 
 		desc = irq_to_desc(irq);
+		if (!desc)
+			continue;
+
 		cfg = irq_cfg(irq);
 		spin_lock(&desc->lock);
 		if (!cfg->move_cleanup_count)

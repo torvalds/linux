@@ -31,7 +31,7 @@ cpumask_t irq_default_affinity = CPU_MASK_ALL;
  */
 void synchronize_irq(unsigned int irq)
 {
-	struct irq_desc *desc = __irq_to_desc(irq);
+	struct irq_desc *desc = irq_to_desc(irq);
 	unsigned int status;
 
 	if (!desc)
@@ -145,7 +145,7 @@ void disable_irq_nosync(unsigned int irq)
 	struct irq_desc *desc;
 	unsigned long flags;
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -174,7 +174,7 @@ void disable_irq(unsigned int irq)
 {
 	struct irq_desc *desc;
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -218,7 +218,7 @@ void enable_irq(unsigned int irq)
 	struct irq_desc *desc;
 	unsigned long flags;
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -296,7 +296,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 	struct irq_desc *desc;
 	struct irqaction *action;
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return 0;
 
@@ -366,7 +366,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	int shared = 0;
 	int ret;
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return -EINVAL;
 
@@ -527,7 +527,7 @@ void free_irq(unsigned int irq, void *dev_id)
 
 	WARN_ON(in_interrupt());
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return;
 
@@ -644,7 +644,7 @@ int request_irq(unsigned int irq, irq_handler_t handler,
 	if ((irqflags & IRQF_SHARED) && !dev_id)
 		return -EINVAL;
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (!desc)
 		return -EINVAL;
 

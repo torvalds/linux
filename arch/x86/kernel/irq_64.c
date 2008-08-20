@@ -83,7 +83,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 	if (i < nr_irqs) {
 		unsigned any_count = 0;
-		struct irq_desc *desc = __irq_to_desc(i);
+		struct irq_desc *desc = irq_to_desc(i);
 
 		if (!desc)
 			return 0;
@@ -206,7 +206,7 @@ asmlinkage unsigned int do_IRQ(struct pt_regs *regs)
 	stack_overflow_check(regs);
 #endif
 
-	desc = __irq_to_desc(irq);
+	desc = irq_to_desc(irq);
 	if (likely(desc))
 		generic_handle_irq_desc(irq, desc);
 	else {

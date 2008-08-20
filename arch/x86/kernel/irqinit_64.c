@@ -143,7 +143,8 @@ void __init init_ISA_irqs(void)
 	init_8259A(0);
 
 	for (i = 0; i < 16; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
+		/* first time call this irq_desc */
+		struct irq_desc *desc = irq_to_desc_alloc(i);
 
 		desc->status = IRQ_DISABLED;
 		desc->action = NULL;

@@ -151,7 +151,7 @@ early_param("nr_irq_desc", parse_nr_irq_desc);
 struct irq_desc *sparse_irqs;
 DEFINE_DYN_ARRAY(sparse_irqs, sizeof(struct irq_desc), nr_irq_desc, PAGE_SIZE, init_work);
 
-struct irq_desc *__irq_to_desc(unsigned int irq)
+struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	struct irq_desc *desc;
 
@@ -169,7 +169,7 @@ struct irq_desc *__irq_to_desc(unsigned int irq)
 	}
 	return NULL;
 }
-struct irq_desc *irq_to_desc(unsigned int irq)
+struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 {
 	struct irq_desc *desc, *desc_pri;
 	int i;
@@ -186,6 +186,7 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 
 		if (desc->irq == -1U) {
 			desc->irq = irq;
+			printk(KERN_DEBUG "found new irq_desc for irq %d\n", desc->irq);
 			return desc;
 		}
 		desc_pri = desc;
@@ -236,21 +237,7 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 
 	desc->irq = irq;
 	desc_pri->next = desc;
-	{
-		/* double check if some one mess up the list */
-		struct irq_desc *desc;
-		int count = 0;
-
-		desc = &sparse_irqs[0];
-		while (desc) {
-			printk(KERN_DEBUG "1 found irq_desc for irq %d\n", desc->irq);
-			if (desc->next)
-				printk(KERN_DEBUG "1 found irq_desc for irq %d and next will be irq %d\n", desc->irq, desc->next->irq);
-			desc = desc->next;
-			count++;
-		}
-		printk(KERN_DEBUG "1 all preallocted %d\n", count);
-	}
+	printk(KERN_DEBUG "1 found new irq_desc for irq %d and pri will be irq %d\n", desc->irq, desc_pri->irq);
 
 	return desc;
 }
@@ -285,7 +272,7 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 
 	return NULL;
 }
-struct irq_desc *__irq_to_desc(unsigned int irq)
+struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 {
 	return irq_to_desc(irq);
 }
