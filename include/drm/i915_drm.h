@@ -230,6 +230,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_IRQ_ACTIVE            1
 #define I915_PARAM_ALLOW_BATCHBUFFER     2
 #define I915_PARAM_LAST_DISPATCH         3
+#define I915_PARAM_CHIPSET_ID            4
 #define I915_PARAM_HAS_GEM               5
 
 typedef struct drm_i915_getparam {

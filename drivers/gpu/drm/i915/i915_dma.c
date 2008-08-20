@@ -689,6 +689,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_LAST_DISPATCH:
 		value = READ_BREADCRUMB(dev_priv);
 		break;
+	case I915_PARAM_CHIPSET_ID:
+		value = dev->pci_device;
+		break;
 	case I915_PARAM_HAS_GEM:
 		value = 1;
 		break;
