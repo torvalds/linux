@@ -1,3 +1,4 @@
+#include <linux/interrupt.h>
 #include <linux/dmar.h>
 #include <linux/spinlock.h>
 #include <linux/jiffies.h>
@@ -11,12 +12,19 @@ static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
 static int ir_ioapic_num;
 int intr_remapping_enabled;
 
-static struct {
+struct irq_2_iommu {
 	struct intel_iommu *iommu;
 	u16 irte_index;
 	u16 sub_handle;
 	u8  irte_mask;
-} irq_2_iommu[NR_IRQS];
+};
+
+#ifdef CONFIG_HAVE_DYNA_ARRAY
+static struct irq_2_iommu *irq_2_iommu;
+DEFINE_DYN_ARRAY(irq_2_iommu, sizeof(struct irq_2_iommu), nr_irqs, PAGE_SIZE, NULL);
+#else
+static struct irq_2_iommu irq_2_iommu[NR_IRQS];
+#endif
 
 static DEFINE_SPINLOCK(irq_2_ir_lock);
 
