@@ -1570,18 +1570,20 @@ static inline void reset_enable_flags(struct quota_info *dqopt, int type,
 {
 	switch (type) {
 		case USRQUOTA:
-			dqopt->flags &= ~DQUOT_USR_ENABLED;
 			if (remount)
 				dqopt->flags |= DQUOT_USR_SUSPENDED;
-			else
+			else {
+				dqopt->flags &= ~DQUOT_USR_ENABLED;
 				dqopt->flags &= ~DQUOT_USR_SUSPENDED;
+			}
 			break;
 		case GRPQUOTA:
-			dqopt->flags &= ~DQUOT_GRP_ENABLED;
 			if (remount)
 				dqopt->flags |= DQUOT_GRP_SUSPENDED;
-			else
+			else {
+				dqopt->flags &= ~DQUOT_GRP_ENABLED;
 				dqopt->flags &= ~DQUOT_GRP_SUSPENDED;
+			}
 			break;
 	}
 }

@@ -67,8 +67,10 @@ static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
 static inline int sb_has_quota_enabled(struct super_block *sb, int type)
 {
 	if (type == USRQUOTA)
-		return sb_dqopt(sb)->flags & DQUOT_USR_ENABLED;
-	return sb_dqopt(sb)->flags & DQUOT_GRP_ENABLED;
+		return (sb_dqopt(sb)->flags & DQUOT_USR_ENABLED)
+			&& !(sb_dqopt(sb)->flags & DQUOT_USR_SUSPENDED);
+	return (sb_dqopt(sb)->flags & DQUOT_GRP_ENABLED)
+		&& !(sb_dqopt(sb)->flags & DQUOT_GROUP_SUSPENDED);
 }
 
 static inline int sb_any_quota_enabled(struct super_block *sb)
