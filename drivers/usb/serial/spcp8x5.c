@@ -589,8 +589,8 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 	case 1000000:
 			buf[0] = 0x0b;	break;
 	default:
-		err("spcp825 driver does not support the baudrate "
-		    "requested, using default of 9600.");
+		dev_err(&port->dev, "spcp825 driver does not support the "
+			"baudrate requested, using default of 9600.\n");
 	}
 
 	/* Set Data Length : 00:5bit, 01:6bit, 10:7bit, 11:8bit */
@@ -629,7 +629,8 @@ static void spcp8x5_set_termios(struct tty_struct *tty,
 			    SET_UART_FORMAT_TYPE, SET_UART_FORMAT,
 			    uartdata, 0, NULL, 0, 100);
 	if (i < 0)
-		err("Set UART format %#x failed (error = %d)", uartdata, i);
+		dev_err(&port->dev, "Set UART format %#x failed (error = %d)\n",
+			uartdata, i);
 	dbg("0x21:0x40:0:0  %d\n", i);
 
 	if (cflag & CRTSCTS) {

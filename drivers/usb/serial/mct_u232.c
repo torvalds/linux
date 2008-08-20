@@ -246,7 +246,8 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 				0, 0, &divisor, MCT_U232_SET_BAUD_RATE_SIZE,
 				WDR_TIMEOUT);
 	if (rc < 0)	/*FIXME: What value speed results */
-		err("Set BAUD RATE %d failed (error = %d)", value, rc);
+		dev_err(&port->dev, "Set BAUD RATE %d failed (error = %d)\n",
+			value, rc);
 	else
 		tty_encode_baud_rate(tty, speed, speed);
 	dbg("set_baud_rate: value: 0x%x, divisor: 0x%x", value, divisor);
@@ -274,8 +275,9 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 				0, 0, &zero_byte, MCT_U232_SET_UNKNOWN1_SIZE,
 				WDR_TIMEOUT);
 	if (rc < 0)
-		err("Sending USB device request code %d failed (error = %d)",
-		    MCT_U232_SET_UNKNOWN1_REQUEST, rc);
+		dev_err(&port->dev, "Sending USB device request code %d "
+			"failed (error = %d)\n", MCT_U232_SET_UNKNOWN1_REQUEST,
+			rc);
 
 	if (port && C_CRTSCTS(tty))
 	   cts_enable_byte = 1;
@@ -288,8 +290,8 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 			0, 0, &cts_enable_byte, MCT_U232_SET_CTS_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0)
-		err("Sending USB device request code %d failed (error = %d)",
-					MCT_U232_SET_CTS_REQUEST, rc);
+		dev_err(&port->dev, "Sending USB device request code %d "
+			"failed (error = %d)\n", MCT_U232_SET_CTS_REQUEST, rc);
 
 	return rc;
 } /* mct_u232_set_baud_rate */
@@ -303,7 +305,8 @@ static int mct_u232_set_line_ctrl(struct usb_serial *serial, unsigned char lcr)
 			0, 0, &lcr, MCT_U232_SET_LINE_CTRL_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0)
-		err("Set LINE CTRL 0x%x failed (error = %d)", lcr, rc);
+		dev_err(&serial->dev->dev,
+			"Set LINE CTRL 0x%x failed (error = %d)\n", lcr, rc);
 	dbg("set_line_ctrl: 0x%x", lcr);
 	return rc;
 } /* mct_u232_set_line_ctrl */
@@ -325,7 +328,8 @@ static int mct_u232_set_modem_ctrl(struct usb_serial *serial,
 			0, 0, &mcr, MCT_U232_SET_MODEM_CTRL_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0)
-		err("Set MODEM CTRL 0x%x failed (error = %d)", mcr, rc);
+		dev_err(&serial->dev->dev,
+			"Set MODEM CTRL 0x%x failed (error = %d)\n", mcr, rc);
 	dbg("set_modem_ctrl: state=0x%x ==> mcr=0x%x", control_state, mcr);
 
 	return rc;
@@ -341,7 +345,8 @@ static int mct_u232_get_modem_stat(struct usb_serial *serial,
 			0, 0, msr, MCT_U232_GET_MODEM_STAT_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0) {
-		err("Get MODEM STATus failed (error = %d)", rc);
+		dev_err(&serial->dev->dev,
+			"Get MODEM STATus failed (error = %d)\n", rc);
 		*msr = 0;
 	}
 	dbg("get_modem_stat: 0x%x", *msr);
@@ -470,8 +475,9 @@ static int  mct_u232_open(struct tty_struct *tty,
 	port->read_urb->dev = port->serial->dev;
 	retval = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (retval) {
-		err("usb_submit_urb(read bulk) failed pipe 0x%x err %d",
-		    port->read_urb->pipe, retval);
+		dev_err(&port->dev,
+			"usb_submit_urb(read bulk) failed pipe 0x%x err %d\n",
+			port->read_urb->pipe, retval);
 		goto error;
 	}
 
@@ -479,8 +485,9 @@ static int  mct_u232_open(struct tty_struct *tty,
 	retval = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (retval) {
 		usb_kill_urb(port->read_urb);
-		err(" usb_submit_urb(read int) failed pipe 0x%x err %d",
-		    port->interrupt_in_urb->pipe, retval);
+		dev_err(&port->dev,
+			"usb_submit_urb(read int) failed pipe 0x%x err %d",
+			port->interrupt_in_urb->pipe, retval);
 		goto error;
 	}
 	return 0;
@@ -612,8 +619,9 @@ static void mct_u232_read_int_callback(struct urb *urb)
 exit:
 	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
-		err("%s - usb_submit_urb failed with result %d",
-		     __func__, retval);
+		dev_err(&port->dev,
+			"%s - usb_submit_urb failed with result %d\n",
+			__func__, retval);
 } /* mct_u232_read_int_callback */
 
 static void mct_u232_set_termios(struct tty_struct *tty,
@@ -680,7 +688,8 @@ static void mct_u232_set_termios(struct tty_struct *tty,
 	case CS8:
 		last_lcr |= MCT_U232_DATA_BITS_8; break;
 	default:
-		err("CSIZE was not CS5-CS8, using default of 8");
+		dev_err(&port->dev,
+			"CSIZE was not CS5-CS8, using default of 8\n");
 		last_lcr |= MCT_U232_DATA_BITS_8;
 		break;
 	}

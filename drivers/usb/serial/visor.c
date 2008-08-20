@@ -768,7 +768,7 @@ static int visor_probe(struct usb_serial *serial,
 	dbg("%s", __func__);
 
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
-		err("active config #%d != 1 ??",
+		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}

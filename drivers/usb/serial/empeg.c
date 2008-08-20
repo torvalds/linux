@@ -416,7 +416,7 @@ static int  empeg_startup(struct usb_serial *serial)
 	dbg("%s", __func__);
 
 	if (serial->dev->actconfig->desc.bConfigurationValue != 1) {
-		err("active config #%d != 1 ??",
+		dev_err(&serial->dev->dev, "active config #%d != 1 ??\n",
 			serial->dev->actconfig->desc.bConfigurationValue);
 		return -ENODEV;
 	}
@@ -499,15 +499,15 @@ static int __init empeg_init(void)
 		urb = usb_alloc_urb(0, GFP_KERNEL);
 		write_urb_pool[i] = urb;
 		if (urb == NULL) {
-			err("No more urbs???");
+			printk(KERN_ERR "empeg: No more urbs???\n");
 			continue;
 		}
 
 		urb->transfer_buffer = kmalloc(URB_TRANSFER_BUFFER_SIZE,
 								GFP_KERNEL);
 		if (!urb->transfer_buffer) {
-			err("%s - out of memory for urb buffers.",
-			    __func__);
+			printk(KERN_ERR "empeg: %s - out of memory for urb "
+			       "buffers.", __func__);
 			continue;
 		}
 	}

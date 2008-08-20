@@ -661,7 +661,8 @@ static int digi_write_oob_command(struct usb_serial_port *port,
 	}
 	spin_unlock_irqrestore(&oob_priv->dp_port_lock, flags);
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d", __func__, ret);
+		dev_err(&port->dev, "%s: usb_submit_urb failed, ret=%d\n",
+			__func__, ret);
 	return ret;
 
 }
@@ -743,7 +744,8 @@ static int digi_write_inb_command(struct usb_serial_port *port,
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 	return ret;
 }
@@ -812,7 +814,8 @@ static int digi_set_modem_signals(struct usb_serial_port *port,
 	spin_unlock(&port_priv->dp_port_lock);
 	spin_unlock_irqrestore(&oob_priv->dp_port_lock, flags);
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d", __func__, ret);
+		dev_err(&port->dev, "%s: usb_submit_urb failed, ret=%d\n",
+			__func__, ret);
 	return ret;
 }
 
@@ -907,7 +910,8 @@ static void digi_rx_unthrottle(struct tty_struct *tty)
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 }
 
@@ -1214,7 +1218,8 @@ static int digi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	/* return length of new data written, or error */
 	spin_unlock_irqrestore(&priv->dp_port_lock, flags);
 	if (ret < 0)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 	dbg("digi_write: returning %d", ret);
 	return ret;
@@ -1235,14 +1240,16 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	/* port and serial sanity check */
 	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		err("%s: port or port->private is NULL, status=%d",
-		    __func__, status);
+		dev_err(&port->dev,
+			"%s: port or port->private is NULL, status=%d\n",
+			__func__, status);
 		return;
 	}
 	serial = port->serial;
 	if (serial == NULL || (serial_priv = usb_get_serial_data(serial)) == NULL) {
-		err("%s: serial or serial->private is NULL, status=%d",
-		    __func__, status);
+		dev_err(&port->dev,
+			"%s: serial or serial->private is NULL, status=%d\n",
+			__func__, status);
 		return;
 	}
 
@@ -1284,7 +1291,8 @@ static void digi_write_bulk_callback(struct urb *urb)
 
 	spin_unlock(&priv->dp_port_lock);
 	if (ret)
-		err("%s: usb_submit_urb failed, ret=%d, port=%d",
+		dev_err(&port->dev,
+			"%s: usb_submit_urb failed, ret=%d, port=%d\n",
 			__func__, ret, priv->dp_port_num);
 }
 
@@ -1518,8 +1526,9 @@ static int digi_startup_device(struct usb_serial *serial)
 		port->write_urb->dev = port->serial->dev;
 		ret = usb_submit_urb(port->read_urb, GFP_KERNEL);
 		if (ret != 0) {
-			err("%s: usb_submit_urb failed, ret=%d, port=%d",
-					__func__, ret, i);
+			dev_err(&port->dev,
+				"%s: usb_submit_urb failed, ret=%d, port=%d\n",
+				__func__, ret, i);
 			break;
 		}
 	}
@@ -1618,22 +1627,26 @@ static void digi_read_bulk_callback(struct urb *urb)
 	dbg("digi_read_bulk_callback: TOP");
 
 	/* port sanity check, do not resubmit if port is not valid */
-	if (port == NULL || (priv = usb_get_serial_port_data(port)) == NULL) {
-		err("%s: port or port->private is NULL, status=%d",
-		    __func__, status);
+	if (port == NULL)
+		return;
+	priv = usb_get_serial_port_data(port);
+	if (priv == NULL) {
+		dev_err(&port->dev, "%s: port->private is NULL, status=%d\n",
+			__func__, status);
 		return;
 	}
 	if (port->serial == NULL ||
 		(serial_priv = usb_get_serial_data(port->serial)) == NULL) {
-		err("%s: serial is bad or serial->private is NULL, status=%d",
-			__func__, status);
+		dev_err(&port->dev, "%s: serial is bad or serial->private "
+			"is NULL, status=%d\n", __func__, status);
 		return;
 	}
 
 	/* do not resubmit urb if it has any status error */
 	if (status) {
-		err("%s: nonzero read bulk status: status=%d, port=%d",
-		    __func__, status, priv->dp_port_num);
+		dev_err(&port->dev,
+			"%s: nonzero read bulk status: status=%d, port=%d\n",
+			__func__, status, priv->dp_port_num);
 		return;
 	}
 
@@ -1650,8 +1663,9 @@ static void digi_read_bulk_callback(struct urb *urb)
 	urb->dev = port->serial->dev;
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret != 0) {
-		err("%s: failed resubmitting urb, ret=%d, port=%d",
-		    __func__, ret, priv->dp_port_num);
+		dev_err(&port->dev,
+			"%s: failed resubmitting urb, ret=%d, port=%d\n",
+			__func__, ret, priv->dp_port_num);
 	}
 
 }
@@ -1687,10 +1701,11 @@ static int digi_read_inb_callback(struct urb *urb)
 
 	/* short/multiple packet check */
 	if (urb->actual_length != len + 2) {
-		err("%s: INCOMPLETE OR MULTIPLE PACKET, urb->status=%d, "
-		    "port=%d, opcode=%d, len=%d, actual_length=%d, "
-		    "status=%d", __func__, status, priv->dp_port_num,
-		    opcode, len, urb->actual_length, port_status);
+		dev_err(&port->dev, "%s: INCOMPLETE OR MULTIPLE PACKET, "
+			"urb->status=%d, port=%d, opcode=%d, len=%d, "
+			"actual_length=%d, status=%d\n", __func__, status,
+			priv->dp_port_num, opcode, len, urb->actual_length,
+			port_status);
 		return -1;
 	}
 

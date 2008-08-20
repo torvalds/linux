@@ -404,8 +404,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 			 retval != -ENODEV);
 
 		if (retval != sizeof(feature_buffer)) {
-			err("%s - failed sending serial line settings - %d",
-							__func__, retval);
+			dev_err(&port->dev, "%s - failed sending serial "
+				"line settings - %d\n", __func__, retval);
 			cypress_set_dead(port);
 		} else {
 			spin_lock_irqsave(&priv->lock, flags);
@@ -443,7 +443,8 @@ static int cypress_serial_control(struct tty_struct *tty,
 						&& retval != -ENODEV);
 
 		if (retval != sizeof(feature_buffer)) {
-			err("%s - failed to retrieve serial line settings - %d", __func__, retval);
+			dev_err(&port->dev, "%s - failed to retrieve serial "
+				"line settings - %d\n", __func__, retval);
 			cypress_set_dead(port);
 			return retval;
 		} else {
@@ -476,8 +477,8 @@ static void cypress_set_dead(struct usb_serial_port *port)
 	priv->comm_is_ok = 0;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	err("cypress_m8 suspending failing port %d - interval might be too short",
-	    port->number);
+	dev_err(&port->dev, "cypress_m8 suspending failing port %d - "
+		"interval might be too short\n", port->number);
 }
 
 
@@ -679,7 +680,8 @@ static int cypress_open(struct tty_struct *tty,
 
 	/* setup the port and start reading from the device */
 	if (!port->interrupt_in_urb) {
-		err("%s - interrupt_in_urb is empty!", __func__);
+		dev_err(&port->dev, "%s - interrupt_in_urb is empty!\n",
+			__func__);
 		return -1;
 	}
 
@@ -1107,8 +1109,8 @@ static void cypress_set_termios(struct tty_struct *tty,
 		data_bits = 3;
 		break;
 	default:
-		err("%s - CSIZE was set, but not CS5-CS8",
-				__func__);
+		dev_err(&port->dev, "%s - CSIZE was set, but not CS5-CS8\n",
+			__func__);
 		data_bits = 3;
 	}
 	spin_lock_irqsave(&priv->lock, flags);

@@ -154,8 +154,8 @@ static int omninet_attach(struct usb_serial *serial)
 
 	od = kmalloc(sizeof(struct omninet_data), GFP_KERNEL);
 	if (!od) {
-		err("%s- kmalloc(%Zd) failed.",
-				__func__, sizeof(struct omninet_data));
+		dev_err(&port->dev, "%s- kmalloc(%Zd) failed.\n",
+			__func__, sizeof(struct omninet_data));
 		return -ENOMEM;
 	}
 	usb_set_serial_port_data(port, od);
@@ -183,8 +183,9 @@ static int omninet_open(struct tty_struct *tty,
 			omninet_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
-		err("%s - failed submitting read urb, error %d",
-							__func__, result);
+		dev_err(&port->dev,
+			"%s - failed submitting read urb, error %d\n",
+			__func__, result);
 	return result;
 }
 
@@ -244,8 +245,9 @@ static void omninet_read_bulk_callback(struct urb *urb)
 			omninet_read_bulk_callback, port);
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
-		err("%s - failed resubmitting read urb, error %d",
-						__func__, result);
+		dev_err(&port->dev,
+			"%s - failed resubmitting read urb, error %d\n",
+			__func__, result);
 
 	return;
 }
@@ -298,8 +300,9 @@ static int omninet_write(struct tty_struct *tty, struct usb_serial_port *port,
 	result = usb_submit_urb(wport->write_urb, GFP_ATOMIC);
 	if (result) {
 		wport->write_urb_busy = 0;
-		err("%s - failed submitting write urb, error %d",
-							__func__, result);
+		dev_err(&port->dev,
+			"%s - failed submitting write urb, error %d\n",
+			__func__, result);
 	} else
 		result = count;
 

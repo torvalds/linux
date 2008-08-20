@@ -1327,7 +1327,7 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	priv = kzalloc(sizeof(struct ftdi_private), GFP_KERNEL);
 	if (!priv) {
-		err("%s- kmalloc(%Zd) failed.", __func__,
+		dev_err(&port->dev, "%s- kmalloc(%Zd) failed.\n", __func__,
 					sizeof(struct ftdi_private));
 		return -ENOMEM;
 	}
@@ -1524,8 +1524,9 @@ static int ftdi_open(struct tty_struct *tty,
 			ftdi_read_bulk_callback, port);
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result)
-		err("%s - failed submitting read urb, error %d",
-							__func__, result);
+		dev_err(&port->dev,
+			"%s - failed submitting read urb, error %d\n",
+			__func__, result);
 
 
 	return result;
@@ -1559,7 +1560,7 @@ static void ftdi_close(struct tty_struct *tty,
 				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
 				    0, priv->interface, buf, 0,
 				    WDR_TIMEOUT) < 0) {
-			err("error from flowcontrol urb");
+			dev_err(&port->dev, "error from flowcontrol urb\n");
 		}
 
 		/* drop RTS and DTR */
@@ -1624,14 +1625,15 @@ static int ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	buffer = kmalloc(transfer_size, GFP_ATOMIC);
 	if (!buffer) {
-		err("%s ran out of kernel memory for urb ...", __func__);
+		dev_err(&port->dev,
+			"%s ran out of kernel memory for urb ...\n", __func__);
 		count = -ENOMEM;
 		goto error_no_buffer;
 	}
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb) {
-		err("%s - no more free urbs", __func__);
+		dev_err(&port->dev, "%s - no more free urbs\n", __func__);
 		count = -ENOMEM;
 		goto error_no_urb;
 	}
@@ -1675,8 +1677,9 @@ static int ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 
 	status = usb_submit_urb(urb, GFP_ATOMIC);
 	if (status) {
-		err("%s - failed submitting write urb, error %d",
-							__func__, status);
+		dev_err(&port->dev,
+			"%s - failed submitting write urb, error %d\n",
+			__func__, status);
 		count = status;
 		goto error;
 	} else {
@@ -1783,7 +1786,8 @@ static int ftdi_chars_in_buffer(struct tty_struct *tty)
 	buffered = (int)priv->tx_outstanding_bytes;
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 	if (buffered < 0) {
-		err("%s outstanding tx bytes is negative!", __func__);
+		dev_err(&port->dev, "%s outstanding tx bytes is negative!\n",
+			__func__);
 		buffered = 0;
 	}
 	return buffered;
@@ -1799,11 +1803,12 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 	int status = urb->status;
 
 	if (urb->number_of_packets > 0) {
-		err("%s transfer_buffer_length %d actual_length %d number of packets %d",
-				__func__,
-				urb->transfer_buffer_length,
-				urb->actual_length, urb->number_of_packets);
-		err("%s transfer_flags %x ", __func__, urb->transfer_flags);
+		dev_err(&port->dev, "%s transfer_buffer_length %d "
+			"actual_length %d number of packets %d\n", __func__,
+			urb->transfer_buffer_length,
+			urb->actual_length, urb->number_of_packets);
+		dev_err(&port->dev, "%s transfer_flags %x\n", __func__,
+			urb->transfer_flags);
 	}
 
 	dbg("%s - port %d", __func__, port->number);
@@ -1824,7 +1829,7 @@ static void ftdi_read_bulk_callback(struct urb *urb)
 	}
 
 	if (urb != port->read_urb)
-		err("%s - Not my urb!", __func__);
+		dev_err(&port->dev, "%s - Not my urb!\n", __func__);
 
 	if (status) {
 		/* This will happen at close every time so it is a dbg not an
@@ -1927,7 +1932,8 @@ static void ftdi_process_read(struct work_struct *work)
 
 		length = min(PKTSZ, urb->actual_length-packet_offset)-2;
 		if (length < 0) {
-			err("%s - bad packet length: %d", __func__, length+2);
+			dev_err(&port->dev, "%s - bad packet length: %d\n",
+				__func__, length+2);
 			length = 0;
 		}
 
@@ -2042,8 +2048,9 @@ static void ftdi_process_read(struct work_struct *work)
 
 		result = usb_submit_urb(port->read_urb, GFP_ATOMIC);
 		if (result)
-			err("%s - failed resubmitting read urb, error %d",
-							__func__, result);
+			dev_err(&port->dev,
+				"%s - failed resubmitting read urb, error %d\n",
+				__func__, result);
 	}
 out:
 	tty_kref_put(tty);
@@ -2072,8 +2079,8 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 			FTDI_SIO_SET_DATA_REQUEST_TYPE,
 			urb_value , priv->interface,
 			buf, 0, WDR_TIMEOUT) < 0) {
-		err("%s FAILED to enable/disable break state (state was %d)",
-							__func__, break_state);
+		dev_err(&port->dev, "%s FAILED to enable/disable break state "
+			"(state was %d)\n", __func__, break_state);
 	}
 
 	dbg("%s break state is %d - urb is %d", __func__,
@@ -2145,7 +2152,7 @@ static void ftdi_set_termios(struct tty_struct *tty,
 		case CS7: urb_value |= 7; dbg("Setting CS7"); break;
 		case CS8: urb_value |= 8; dbg("Setting CS8"); break;
 		default:
-			err("CSIZE was set but not CS5-CS8");
+			dev_err(&port->dev, "CSIZE was set but not CS5-CS8\n");
 		}
 	}
 
@@ -2158,7 +2165,8 @@ static void ftdi_set_termios(struct tty_struct *tty,
 			    FTDI_SIO_SET_DATA_REQUEST_TYPE,
 			    urb_value , priv->interface,
 			    buf, 0, WDR_SHORT_TIMEOUT) < 0) {
-		err("%s FAILED to set databits/stopbits/parity", __func__);
+		dev_err(&port->dev, "%s FAILED to set "
+			"databits/stopbits/parity\n", __func__);
 	}
 
 	/* Now do the baudrate */
@@ -2169,14 +2177,17 @@ static void ftdi_set_termios(struct tty_struct *tty,
 				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
 				    0, priv->interface,
 				    buf, 0, WDR_TIMEOUT) < 0) {
-			err("%s error from disable flowcontrol urb", __func__);
+			dev_err(&port->dev,
+				"%s error from disable flowcontrol urb\n",
+				__func__);
 		}
 		/* Drop RTS and DTR */
 		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	} else {
 		/* set the baudrate determined before */
 		if (change_speed(tty, port))
-			err("%s urb failed to set baudrate", __func__);
+			dev_err(&port->dev, "%s urb failed to set baudrate\n",
+				__func__);
 		/* Ensure RTS and DTR are raised when baudrate changed from 0 */
 		if (!old_termios || (old_termios->c_cflag & CBAUD) == B0)
 			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
@@ -2192,7 +2203,8 @@ static void ftdi_set_termios(struct tty_struct *tty,
 				    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
 				    0 , (FTDI_SIO_RTS_CTS_HS | priv->interface),
 				    buf, 0, WDR_TIMEOUT) < 0) {
-			err("urb failed to set to rts/cts flow control");
+			dev_err(&port->dev,
+				"urb failed to set to rts/cts flow control\n");
 		}
 
 	} else {
@@ -2223,7 +2235,8 @@ static void ftdi_set_termios(struct tty_struct *tty,
 					    urb_value , (FTDI_SIO_XON_XOFF_HS
 							 | priv->interface),
 					    buf, 0, WDR_TIMEOUT) < 0) {
-				err("urb failed to set to xon/xoff flow control");
+				dev_err(&port->dev, "urb failed to set to "
+					"xon/xoff flow control\n");
 			}
 		} else {
 			/* else clause to only run if cflag ! CRTSCTS and iflag
@@ -2236,7 +2249,8 @@ static void ftdi_set_termios(struct tty_struct *tty,
 					    FTDI_SIO_SET_FLOW_CTRL_REQUEST_TYPE,
 					    0, priv->interface,
 					    buf, 0, WDR_TIMEOUT) < 0) {
-				err("urb failed to clear flow control");
+				dev_err(&port->dev,
+					"urb failed to clear flow control\n");
 			}
 		}
 
