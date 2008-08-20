@@ -125,6 +125,7 @@ static void adjust_lpt_heap(struct ubifs_info *c, struct ubifs_lpt_heap *heap,
 			}
 		}
 	}
+
 	/* Not greater than parent, so compare to children */
 	while (1) {
 		/* Compare to left child */
@@ -576,7 +577,6 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 	ubifs_assert(!(lprops->free & 7) && !(lprops->dirty & 7));
 
 	spin_lock(&c->space_lock);
-
 	if ((lprops->flags & LPROPS_TAKEN) && lprops->free == c->leb_size)
 		c->lst.taken_empty_lebs -= 1;
 
@@ -637,11 +637,8 @@ const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 		c->lst.taken_empty_lebs += 1;
 
 	change_category(c, lprops);
-
 	c->idx_gc_cnt += idx_gc_cnt;
-
 	spin_unlock(&c->space_lock);
-
 	return lprops;
 }
 
@@ -1262,7 +1259,6 @@ static int scan_check_cb(struct ubifs_info *c,
 	}
 
 	ubifs_scan_destroy(sleb);
-
 	return LPT_SCAN_CONTINUE;
 
 out_print:

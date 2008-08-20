@@ -414,19 +414,21 @@ static int do_budget_space(struct ubifs_info *c)
 	 *    @c->lst.empty_lebs + @c->freeable_cnt + @c->idx_gc_cnt -
 	 *    @c->lst.taken_empty_lebs
 	 *
-	 * @empty_lebs are available because they are empty. @freeable_cnt are
-	 * available because they contain only free and dirty space and the
-	 * index allocation always occurs after wbufs are synch'ed.
-	 * @idx_gc_cnt are available because they are index LEBs that have been
-	 * garbage collected (including trivial GC) and are awaiting the commit
-	 * before they can be unmapped - note that the in-the-gaps method will
-	 * grab these if it needs them. @taken_empty_lebs are empty_lebs that
-	 * have already been allocated for some purpose (also includes those
-	 * LEBs on the @idx_gc list).
+	 * @c->lst.empty_lebs are available because they are empty.
+	 * @c->freeable_cnt are available because they contain only free and
+	 * dirty space, @c->idx_gc_cnt are available because they are index
+	 * LEBs that have been garbage collected and are awaiting the commit
+	 * before they can be used. And the in-the-gaps method will grab these
+	 * if it needs them. @c->lst.taken_empty_lebs are empty LEBs that have
+	 * already been allocated for some purpose.
 	 *
-	 * Note, @taken_empty_lebs may temporarily be higher by one because of
-	 * the way we serialize LEB allocations and budgeting. See a comment in
-	 * 'ubifs_find_free_space()'.
+	 * Note, @c->idx_gc_cnt is included to both @c->lst.empty_lebs (because
+	 * these LEBs are empty) and to @c->lst.taken_empty_lebs (because they
+	 * are taken until after the commit).
+	 *
+	 * Note, @c->lst.taken_empty_lebs may temporarily be higher by one
+	 * because of the way we serialize LEB allocations and budgeting. See a
+	 * comment in 'ubifs_find_free_space()'.
 	 */
 	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
 	       c->lst.taken_empty_lebs;

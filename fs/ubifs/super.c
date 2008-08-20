@@ -1144,19 +1144,21 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (mounted_read_only)
 		ubifs_msg("mounted read-only");
 	x = (long long)c->main_lebs * c->leb_size;
-	ubifs_msg("file system size: %lld bytes (%lld KiB, %lld MiB, %d LEBs)",
-		  x, x >> 10, x >> 20, c->main_lebs);
+	ubifs_msg("file system size:   %lld bytes (%lld KiB, %lld MiB, %d "
+		  "LEBs)", x, x >> 10, x >> 20, c->main_lebs);
 	x = (long long)c->log_lebs * c->leb_size + c->max_bud_bytes;
-	ubifs_msg("journal size: %lld bytes (%lld KiB, %lld MiB, %d LEBs)",
-		  x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
-	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
-	ubifs_msg("media format %d, latest format %d",
+	ubifs_msg("journal size:       %lld bytes (%lld KiB, %lld MiB, %d "
+		  "LEBs)", x, x >> 10, x >> 20, c->log_lebs + c->max_bud_cnt);
+	ubifs_msg("media format:       %d (latest is %d)",
 		  c->fmt_version, UBIFS_FORMAT_VERSION);
+	ubifs_msg("default compressor: %s", ubifs_compr_name(c->default_compr));
+	ubifs_msg("reserved pool size: %llu bytes (%llu KiB)",
+		c->report_rp_size, c->report_rp_size >> 10);
 
 	dbg_msg("compiled on:         " __DATE__ " at " __TIME__);
 	dbg_msg("min. I/O unit size:  %d bytes", c->min_io_size);
 	dbg_msg("LEB size:            %d bytes (%d KiB)",
-		c->leb_size, c->leb_size / 1024);
+		c->leb_size, c->leb_size >> 10);
 	dbg_msg("data journal heads:  %d",
 		c->jhead_cnt - NONDATA_JHEADS_CNT);
 	dbg_msg("UUID:                %02X%02X%02X%02X-%02X%02X"
