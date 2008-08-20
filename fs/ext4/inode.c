@@ -1044,18 +1044,6 @@ static void ext4_da_update_reserve_space(struct inode *inode, int used)
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 }
 
-/* Maximum number of blocks we map for direct IO at once. */
-#define DIO_MAX_BLOCKS 4096
-/*
- * Number of credits we need for writing DIO_MAX_BLOCKS:
- * We need sb + group descriptor + bitmap + inode -> 4
- * For B blocks with A block pointers per block we need:
- * 1 (triple ind.) + (B/A/A + 2) (doubly ind.) + (B/A + 2) (indirect).
- * If we plug in 4096 for B and 256 for A (for 1KB block size), we get 25.
- */
-#define DIO_CREDITS 25
-
-
 /*
  * The ext4_get_blocks_wrap() function try to look up the requested blocks,
  * and returns if the blocks are already mapped.
@@ -1167,19 +1155,23 @@ int ext4_get_blocks_wrap(handle_t *handle, struct inode *inode, sector_t block,
 	return retval;
 }
 
+/* Maximum number of blocks we map for direct IO at once. */
+#define DIO_MAX_BLOCKS 4096
+
 static int ext4_get_block(struct inode *inode, sector_t iblock,
 			struct buffer_head *bh_result, int create)
 {
 	handle_t *handle = ext4_journal_current_handle();
 	int ret = 0, started = 0;
 	unsigned max_blocks = bh_result->b_size >> inode->i_blkbits;
+	int dio_credits;
 
 	if (create && !handle) {
 		/* Direct IO write... */
 		if (max_blocks > DIO_MAX_BLOCKS)
 			max_blocks = DIO_MAX_BLOCKS;
-		handle = ext4_journal_start(inode, DIO_CREDITS +
-			      2 * EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb));
+		dio_credits = ext4_chunk_trans_blocks(inode, max_blocks);
+		handle = ext4_journal_start(inode, dio_credits);
 		if (IS_ERR(handle)) {
 			ret = PTR_ERR(handle);
 			goto out;
@@ -2243,7 +2235,7 @@ static int ext4_da_writepage(struct page *page,
  * for DIO, writepages, and truncate
  */
 #define EXT4_MAX_WRITEBACK_PAGES      DIO_MAX_BLOCKS
-#define EXT4_MAX_WRITEBACK_CREDITS    DIO_CREDITS
+#define EXT4_MAX_WRITEBACK_CREDITS    25
 
 static int ext4_da_writepages(struct address_space *mapping,
 				struct writeback_control *wbc)
@@ -4441,7 +4433,8 @@ int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 
 /*
  * Calulate the total number of credits to reserve to fit
- * the modification of a single pages into a single transaction
+ * the modification of a single pages into a single transaction,
+ * which may include multiple chunks of block allocations.
  *
  * This could be called via ext4_write_begin() or later
  * ext4_da_writepages() in delalyed allocation case.
@@ -4449,11 +4442,6 @@ int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  * In both case it's possible that we could allocating multiple
  * chunks of blocks. We need to consider the worse case, when
  * one new block per extent.
- *
- * For Direct IO and fallocate, the journal credits reservation
- * is based on one single extent allocation, so they could use
- * EXT4_DATA_TRANS_BLOCKS to get the needed credit to log a single
- * chunk of allocation needs.
  */
 int ext4_writepage_trans_blocks(struct inode *inode)
 {
@@ -4467,6 +4455,21 @@ int ext4_writepage_trans_blocks(struct inode *inode)
 		ret += bpp;
 	return ret;
 }
+
+/*
+ * Calculate the journal credits for a chunk of data modification.
+ *
+ * This is called from DIO, fallocate or whoever calling
+ * ext4_get_blocks_wrap() to map/allocate a chunk of contigous disk blocks.
+ *
+ * journal buffers for data blocks are not included here, as DIO
+ * and fallocate do no need to journal data buffers.
+ */
+int ext4_chunk_trans_blocks(struct inode *inode, int nrblocks)
+{
+	return ext4_meta_trans_blocks(inode, nrblocks, 1);
+}
+
 /*
  * The caller must have previously called ext4_reserve_inode_write().
  * Give this, we know that the caller already has write access to iloc->bh.

@@ -1758,7 +1758,7 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int num,
 {
 	if (path) {
 		int depth = ext_depth(inode);
-		int ret;
+		int ret = 0;
 
 		/* probably there is space in leaf? */
 		if (le16_to_cpu(path[depth].p_hdr->eh_entries)
@@ -1777,7 +1777,7 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int num,
 		}
 	}
 
-	return ext4_meta_trans_blocks(inode, num, 1);
+	return ext4_chunk_trans_blocks(inode, num);
 }
 
 /*
@@ -2810,7 +2810,7 @@ void ext4_ext_truncate(struct inode *inode)
 	/*
 	 * probably first extent we're gonna free will be last in block
 	 */
-	err = ext4_writepage_trans_blocks(inode) + 3;
+	err = ext4_writepage_trans_blocks(inode);
 	handle = ext4_journal_start(inode, err);
 	if (IS_ERR(handle))
 		return;
@@ -2923,10 +2923,9 @@ long ext4_fallocate(struct inode *inode, int mode, loff_t offset, loff_t len)
 	max_blocks = (EXT4_BLOCK_ALIGN(len + offset, blkbits) >> blkbits)
 							- block;
 	/*
-	 * credits to insert 1 extent into extent tree + buffers to be able to
-	 * modify 1 super block, 1 block bitmap and 1 group descriptor.
+	 * credits to insert 1 extent into extent tree
 	 */
-	credits = EXT4_DATA_TRANS_BLOCKS(inode->i_sb) + 3;
+	credits = ext4_chunk_trans_blocks(inode, max_blocks);
 	mutex_lock(&inode->i_mutex);
 retry:
 	while (ret >= 0 && ret < max_blocks) {
