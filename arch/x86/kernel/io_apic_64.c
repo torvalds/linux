@@ -63,8 +63,6 @@
 
 #define __apicdebuginit(type) static type __init
 
-int ioapic_force;
-
 /*
  *      Is the SiS APIC rmw bug present ?
  *      -1 = don't know, 0 = no, 1 = yes

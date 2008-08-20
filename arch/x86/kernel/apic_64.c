@@ -1813,7 +1813,6 @@ static int __init apic_set_verbosity(char *arg)
 	if (!arg)  {
 #ifdef CONFIG_X86_64
 		skip_ioapic_setup = 0;
-		ioapic_force = 1;
 		return 0;
 #endif
 		return -EINVAL;
