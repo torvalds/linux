@@ -116,9 +116,6 @@ static inline int sb_any_quota_active(struct super_block *sb)
 	       sb_has_quota_active(sb, GRPQUOTA);
 }
 
-/* For backward compatibility until we remove all users */
-#define sb_any_quota_enabled(sb) sb_any_quota_active(sb)
-
 /*
  * Operations supported for diskquotas.
  */
@@ -266,9 +263,6 @@ static inline int sb_any_quota_active(struct super_block *sb)
 {
 	return 0;
 }
-
-/* For backward compatibility until we remove all users */
-#define sb_any_quota_enabled(sb) sb_any_quota_active(sb)
 
 /*
  * NO-OP when quota not configured.
