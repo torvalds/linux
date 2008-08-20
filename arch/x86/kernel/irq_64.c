@@ -83,7 +83,10 @@ int show_interrupts(struct seq_file *p, void *v)
 
 	if (i < nr_irqs) {
 		unsigned any_count = 0;
-		struct irq_desc *desc = irq_to_desc(i);
+		struct irq_desc *desc = __irq_to_desc(i);
+
+		if (!desc)
+			return 0;
 
 		spin_lock_irqsave(&desc->lock, flags);
 #ifndef CONFIG_SMP
