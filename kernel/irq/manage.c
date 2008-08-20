@@ -478,7 +478,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 	spin_unlock_irqrestore(&desc->lock, flags);
 
 	new->irq = irq;
-	register_irq_proc(irq);
+	register_irq_proc(irq, desc);
 	new->dir = NULL;
 	register_handler_proc(irq, new);
 

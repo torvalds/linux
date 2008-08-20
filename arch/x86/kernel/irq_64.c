@@ -224,17 +224,16 @@ void fixup_irqs(cpumask_t map)
 {
 	unsigned int irq;
 	static int warned;
+	struct irq_desc *desc;
 
-	for (irq = 0; irq < nr_irqs; irq++) {
+	for_each_irq_desc(irq, desc) {
 		cpumask_t mask;
 		int break_affinity = 0;
 		int set_affinity = 1;
-		struct irq_desc *desc;
 
 		if (irq == 2)
 			continue;
 
-		desc = irq_to_desc(irq);
 		/* interrupt's are disabled at this point */
 		spin_lock(&desc->lock);
 

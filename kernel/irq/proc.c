@@ -182,11 +182,10 @@ void register_handler_proc(unsigned int irq, struct irqaction *action)
 
 #define MAX_NAMELEN 10
 
-void register_irq_proc(unsigned int irq)
+void register_irq_proc(unsigned int irq, struct irq_desc *desc)
 {
 	char name [MAX_NAMELEN];
 	struct proc_dir_entry *entry;
-	struct irq_desc *desc = irq_to_desc(irq);
 
 	if (!root_irq_dir || (desc->chip == &no_irq_chip) || desc->dir)
 		return;
@@ -230,7 +229,8 @@ void register_default_affinity_proc(void)
 
 void init_irq_proc(void)
 {
-	int i;
+	unsigned int irq;
+	struct irq_desc *desc;
 
 	/* create /proc/irq */
 	root_irq_dir = proc_mkdir("irq", NULL);
@@ -242,7 +242,7 @@ void init_irq_proc(void)
 	/*
 	 * Create entries for all existing IRQs.
 	 */
-	for (i = 0; i < nr_irqs; i++)
-		register_irq_proc(i);
+	for_each_irq_desc(irq, desc)
+		register_irq_proc(irq, desc);
 }
 

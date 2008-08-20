@@ -202,9 +202,16 @@ extern struct irq_desc irq_desc[NR_IRQS];
 extern struct irq_desc *irq_desc;
 #endif
 
+#ifdef CONFIG_GENERIC_HARDIRQS
+#define for_each_irq_desc(irq, desc)		\
+	for (irq = 0, desc = irq_desc; irq < nr_irqs; irq++, desc = &irq_desc[irq])
+#endif
+
 #else
 
 extern struct irq_desc *sparse_irqs;
+#define for_each_irq_desc(irqX, desc)		\
+	for (desc = sparse_irqs, irqX = desc->irq; desc && irqX != -1U; desc = desc->next, irqX = desc ? desc->irq : -1U)
 
 #endif
 

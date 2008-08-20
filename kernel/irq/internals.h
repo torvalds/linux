@@ -14,11 +14,11 @@ extern int __irq_set_trigger(struct irq_desc *desc, unsigned int irq,
 		unsigned long flags);
 
 #ifdef CONFIG_PROC_FS
-extern void register_irq_proc(unsigned int irq);
+extern void register_irq_proc(unsigned int irq, struct irq_desc *desc);
 extern void register_handler_proc(unsigned int irq, struct irqaction *action);
 extern void unregister_handler_proc(unsigned int irq, struct irqaction *action);
 #else
-static inline void register_irq_proc(unsigned int irq) { }
+static inline void register_irq_proc(unsigned int irq, struct irq_desc *desc) { }
 static inline void register_handler_proc(unsigned int irq,
 					 struct irqaction *action) { }
 static inline void unregister_handler_proc(unsigned int irq,

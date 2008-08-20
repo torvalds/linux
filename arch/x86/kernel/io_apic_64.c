@@ -1871,10 +1871,10 @@ unmask:
 
 static void ir_irq_migration(struct work_struct *work)
 {
-	int irq;
+	unsigned int irq;
+	struct irq_desc *desc;
 
-	for (irq = 0; irq < nr_irqs; irq++) {
-		struct irq_desc *desc = irq_to_desc(irq);
+	for_each_irq_desc(irq, desc) {
 		if (desc->status & IRQ_MOVE_PENDING) {
 			unsigned long flags;
 
