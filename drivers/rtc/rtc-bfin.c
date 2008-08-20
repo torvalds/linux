@@ -371,6 +371,7 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 	if (unlikely(!rtc))
 		return -ENOMEM;
 	platform_set_drvdata(pdev, rtc);
+	device_init_wakeup(dev, 1);
 
 	/* Grab the IRQ and init the hardware */
 	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, IRQF_SHARED, pdev->name, dev);
@@ -385,8 +386,6 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto err_irq;
 	}
-
-	device_init_wakeup(dev, 1);
 
 	return 0;
 
