@@ -14,6 +14,10 @@ PAT allows for different types of memory attributes. The most commonly used
 ones that will be supported at this time are Write-back, Uncached,
 Write-combined and Uncached Minus.
 
+
+PAT APIs
+--------
+
 There are many different APIs in the kernel that allows setting of memory
 attributes at the page level. In order to avoid aliasing, these interfaces
 should be used thoughtfully. Below is a table of interfaces available,
@@ -26,38 +30,38 @@ address range to avoid any aliasing.
 API                    |    RAM   |  ACPI,...  |  Reserved/Holes  |
 -----------------------|----------|------------|------------------|
                        |          |            |                  |
-ioremap                |    --    |    UC      |       UC         |
+ioremap                |    --    |    UC-     |       UC-        |
                        |          |            |                  |
 ioremap_cache          |    --    |    WB      |       WB         |
                        |          |            |                  |
-ioremap_nocache        |    --    |    UC      |       UC         |
+ioremap_nocache        |    --    |    UC-     |       UC-        |
                        |          |            |                  |
 ioremap_wc             |    --    |    --      |       WC         |
                        |          |            |                  |
-set_memory_uc          |    UC    |    --      |       --         |
+set_memory_uc          |    UC-   |    --      |       --         |
  set_memory_wb         |          |            |                  |
                        |          |            |                  |
 set_memory_wc          |    WC    |    --      |       --         |
  set_memory_wb         |          |            |                  |
                        |          |            |                  |
-pci sysfs resource     |    --    |    --      |       UC         |
+pci sysfs resource     |    --    |    --      |       UC-        |
                        |          |            |                  |
 pci sysfs resource_wc  |    --    |    --      |       WC         |
  is IORESOURCE_PREFETCH|          |            |                  |
                        |          |            |                  |
-pci proc               |    --    |    --      |       UC         |
+pci proc               |    --    |    --      |       UC-        |
  !PCIIOC_WRITE_COMBINE |          |            |                  |
                        |          |            |                  |
 pci proc               |    --    |    --      |       WC         |
  PCIIOC_WRITE_COMBINE  |          |            |                  |
                        |          |            |                  |
-/dev/mem               |    --    |    UC      |       UC         |
+/dev/mem               |    --    |  WB/WC/UC- |    WB/WC/UC-     |
  read-write            |          |            |                  |
                        |          |            |                  |
-/dev/mem               |    --    |    UC      |       UC         |
+/dev/mem               |    --    |    UC-     |       UC-        |
  mmap SYNC flag        |          |            |                  |
                        |          |            |                  |
-/dev/mem               |    --    |  WB/WC/UC  |    WB/WC/UC      |
+/dev/mem               |    --    |  WB/WC/UC- |    WB/WC/UC-     |
  mmap !SYNC flag       |          |(from exist-|  (from exist-    |
  and                   |          |  ing alias)|    ing alias)    |
  any alias to this area|          |            |                  |
@@ -68,7 +72,7 @@ pci proc               |    --    |    --      |       WC         |
  and                   |          |            |                  |
  MTRR says WB          |          |            |                  |
                        |          |            |                  |
-/dev/mem               |    --    |    --      |    UC_MINUS      |
+/dev/mem               |    --    |    --      |       UC-        |
  mmap !SYNC flag       |          |            |                  |
  no alias to this area |          |            |                  |
  and                   |          |            |                  |
@@ -97,4 +101,36 @@ Drivers should use ioremap_[uc|wc] to access PCI BARs with [uc|wc] access
 types.
 
 Drivers should use set_memory_[uc|wc] to set access type for RAM ranges.
+
+
+PAT debugging
+-------------
+
+With CONFIG_DEBUG_FS enabled, PAT memtype list can be examined by
+
+# mount -t debugfs debugfs /sys/kernel/debug
+# cat /sys/kernel/debug/x86/pat_memtype_list
+PAT memtype list:
+uncached-minus @ 0x7fadf000-0x7fae0000
+uncached-minus @ 0x7fb19000-0x7fb1a000
+uncached-minus @ 0x7fb1a000-0x7fb1b000
+uncached-minus @ 0x7fb1b000-0x7fb1c000
+uncached-minus @ 0x7fb1c000-0x7fb1d000
+uncached-minus @ 0x7fb1d000-0x7fb1e000
+uncached-minus @ 0x7fb1e000-0x7fb25000
+uncached-minus @ 0x7fb25000-0x7fb26000
+uncached-minus @ 0x7fb26000-0x7fb27000
+uncached-minus @ 0x7fb27000-0x7fb28000
+uncached-minus @ 0x7fb28000-0x7fb2e000
+uncached-minus @ 0x7fb2e000-0x7fb2f000
+uncached-minus @ 0x7fb2f000-0x7fb30000
+uncached-minus @ 0x7fb31000-0x7fb32000
+uncached-minus @ 0x80000000-0x90000000
+
+This list shows physical address ranges and various PAT settings used to
+access those physical address ranges.
+
+Another, more verbose way of getting PAT related debug messages is with
+"debugpat" boot parameter. With this parameter, various debug messages are
+printed to dmesg log.
 
