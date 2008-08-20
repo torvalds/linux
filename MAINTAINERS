@@ -486,7 +486,7 @@ M:	kernel@wantstofly.org
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
 S:	Maintained
 
-ARM/COMPULAB CM-X270/EM-X270 MACHINE SUPPORT
+ARM/COMPULAB CM-X270/EM-X270 and CM-X300 MACHINE SUPPORT
 P:	Mike Rapoport
 M:	mike@compulab.co.il
 L:	linux-arm-kernel@lists.arm.linux.org.uk (subscribers-only)
