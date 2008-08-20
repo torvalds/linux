@@ -2520,17 +2520,21 @@ device_initcall(ioapic_init_sysfs);
 /*
  * Dynamic irq allocate and deallocation
  */
-int create_irq(void)
+unsigned int create_irq_nr(unsigned int irq_want)
 {
 	/* Allocate an unused irq */
-	int irq;
-	int new;
+	unsigned int irq;
+	unsigned int new;
 	unsigned long flags;
 	struct irq_cfg *cfg_new;
 
-	irq = -ENOSPC;
+#ifndef CONFIG_HAVE_SPARSE_IRQ
+	irq_want = nr_irqs - 1;
+#endif
+
+	irq = 0;
 	spin_lock_irqsave(&vector_lock, flags);
-	for (new = (nr_irqs - 1); new >= 0; new--) {
+	for (new = irq_want; new > 0; new--) {
 		if (platform_legacy_irq(new))
 			continue;
 		cfg_new = irq_cfg(new);
@@ -2545,9 +2549,21 @@ int create_irq(void)
 	}
 	spin_unlock_irqrestore(&vector_lock, flags);
 
-	if (irq >= 0) {
+	if (irq > 0) {
 		dynamic_irq_init(irq);
 	}
+	return irq;
+}
+
+int create_irq(void)
+{
+	int irq;
+
+	irq = create_irq_nr(nr_irqs - 1);
+
+	if (irq == 0)
+		irq = -1;
+
 	return irq;
 }
 
@@ -2803,13 +2819,29 @@ static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc, int irq)
 	return 0;
 }
 
+static unsigned int build_irq_for_pci_dev(struct pci_dev *dev)
+{
+	unsigned int irq;
+
+	irq = dev->bus->number;
+	irq <<= 8;
+	irq |= dev->devfn;
+	irq <<= 12;
+
+	return irq;
+}
+
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
-	int irq, ret;
+	unsigned int irq;
+	int ret;
+	unsigned int irq_want;
 
-	irq = create_irq();
-	if (irq < 0)
-		return irq;
+	irq_want = build_irq_for_pci_dev(dev) + 0x100;
+
+	irq = create_irq_nr(irq_want);
+	if (irq == 0)
+		return -1;
 
 #ifdef CONFIG_INTR_REMAP
 	if (!intr_remapping_enabled)
@@ -2836,18 +2868,22 @@ error:
 
 int arch_setup_msi_irqs(struct pci_dev *dev, int nvec, int type)
 {
-	int irq, ret, sub_handle;
+	unsigned int irq;
+	int ret, sub_handle;
 	struct msi_desc *desc;
+	unsigned int irq_want;
+
 #ifdef CONFIG_INTR_REMAP
 	struct intel_iommu *iommu = 0;
 	int index = 0;
 #endif
 
+	irq_want = build_irq_for_pci_dev(dev) + 0x100;
 	sub_handle = 0;
 	list_for_each_entry(desc, &dev->msi_list, list) {
-		irq = create_irq();
-		if (irq < 0)
-			return irq;
+		irq = create_irq_nr(irq_want--);
+		if (irq == 0)
+			return -1;
 #ifdef CONFIG_INTR_REMAP
 		if (!intr_remapping_enabled)
 			goto no_ir;

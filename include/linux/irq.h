@@ -399,6 +399,7 @@ extern void set_irq_noprobe(unsigned int irq);
 extern void set_irq_probe(unsigned int irq);
 
 /* Handle dynamic irq creation and destruction */
+extern unsigned int create_irq_nr(unsigned int irq_want);
 extern int create_irq(void);
 extern void destroy_irq(unsigned int irq);
 

@@ -112,7 +112,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		action = desc->action;
 		if (!action && !any_count)
 			goto skip;
-		seq_printf(p, "%3d: ",i);
+		seq_printf(p, "%#x: ",i);
 #ifndef CONFIG_SMP
 		seq_printf(p, "%10u ", kstat_irqs(i));
 #else

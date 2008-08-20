@@ -589,7 +589,7 @@ static int show_stat(struct seq_file *p, void *v)
 		}
 
 #ifdef CONFIG_HAVE_SPARSE_IRQ
-		seq_printf(p, " %u:%u", j, per_irq_sum);
+		seq_printf(p, " %#x:%u", j, per_irq_sum);
 #else
 		seq_printf(p, " %u", per_irq_sum);
 #endif
