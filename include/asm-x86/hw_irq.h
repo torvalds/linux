@@ -115,7 +115,7 @@ extern asmlinkage void smp_invalidate_interrupt(struct pt_regs *);
 #endif
 
 #ifdef CONFIG_X86_32
-extern void (*const interrupt[NR_IRQS])(void);
+extern void (*const interrupt[NR_VECTORS])(void);
 #endif
 
 typedef int vector_irq_t[NR_VECTORS];
