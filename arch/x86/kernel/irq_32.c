@@ -226,7 +226,7 @@ unsigned int do_IRQ(struct pt_regs *regs)
 	int overflow, irq = ~regs->orig_ax;
 	struct irq_desc *desc = irq_desc + irq;
 
-	if (unlikely((unsigned)irq >= NR_IRQS)) {
+	if (unlikely((unsigned)irq >= nr_irqs)) {
 		printk(KERN_EMERG "%s: cannot handle IRQ %d\n",
 					__func__, irq);
 		BUG();
@@ -271,7 +271,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
-	if (i < NR_IRQS) {
+	if (i < nr_irqs) {
 		unsigned any_count = 0;
 
 		spin_lock_irqsave(&irq_desc[i].lock, flags);
@@ -303,7 +303,7 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
-	} else if (i == NR_IRQS) {
+	} else if (i == nr_irqs) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", nmi_count(j));
@@ -396,7 +396,7 @@ void fixup_irqs(cpumask_t map)
 	unsigned int irq;
 	static int warned;
 
-	for (irq = 0; irq < NR_IRQS; irq++) {
+	for (irq = 0; irq < nr_irqs; irq++) {
 		cpumask_t mask;
 		if (irq == 2)
 			continue;

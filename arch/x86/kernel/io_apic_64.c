@@ -132,6 +132,7 @@ DECLARE_BITMAP(mp_bus_not_pci, MAX_MP_BUSSES);
 #define MAX_PLUS_SHARED_IRQS NR_IRQS
 #define PIN_MAP_SIZE (MAX_PLUS_SHARED_IRQS + NR_IRQS)
 
+int pin_map_size = PIN_MAP_SIZE;
 /*
  * This is performance-critical, we want to do it O(1)
  *
@@ -224,7 +225,7 @@ static inline void io_apic_sync(unsigned int apic)
 	int pin;							\
 	struct irq_pin_list *entry = irq_2_pin + irq;			\
 									\
-	BUG_ON(irq >= NR_IRQS);						\
+	BUG_ON(irq >= nr_irqs);						\
 	for (;;) {							\
 		unsigned int reg;					\
 		pin = entry->pin;					\
@@ -301,7 +302,7 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, u8 vector)
 	int apic, pin;
 	struct irq_pin_list *entry = irq_2_pin + irq;
 
-	BUG_ON(irq >= NR_IRQS);
+	BUG_ON(irq >= nr_irqs);
 	for (;;) {
 		unsigned int reg;
 		apic = entry->apic;
@@ -358,19 +359,19 @@ static void set_ioapic_affinity_irq(unsigned int irq, cpumask_t mask)
  * shared ISA-space IRQs, so we have to support them. We are super
  * fast in the common case, and fast for shared ISA-space IRQs.
  */
+int first_free_entry = NR_IRQS;
 static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 {
-	static int first_free_entry = NR_IRQS;
 	struct irq_pin_list *entry = irq_2_pin + irq;
 
-	BUG_ON(irq >= NR_IRQS);
+	BUG_ON(irq >= nr_irqs);
 	while (entry->next)
 		entry = irq_2_pin + entry->next;
 
 	if (entry->pin != -1) {
 		entry->next = first_free_entry;
 		entry = irq_2_pin + entry->next;
-		if (++first_free_entry >= PIN_MAP_SIZE)
+		if (++first_free_entry >= pin_map_size)
 			panic("io_apic.c: ran out of irq_2_pin entries!");
 	}
 	entry->apic = apic;
@@ -634,7 +635,7 @@ int IO_APIC_get_PCI_irq_vector(int bus, int slot, int pin)
 				best_guess = irq;
 		}
 	}
-	BUG_ON(best_guess >= NR_IRQS);
+	BUG_ON(best_guess >= nr_irqs);
 	return best_guess;
 }
 
@@ -766,7 +767,7 @@ static int pin_2_irq(int idx, int apic, int pin)
 			irq += nr_ioapic_registers[i++];
 		irq += pin;
 	}
-	BUG_ON(irq >= NR_IRQS);
+	BUG_ON(irq >= nr_irqs);
 	return irq;
 }
 
@@ -801,7 +802,7 @@ static int __assign_irq_vector(int irq, cpumask_t mask)
 	int cpu;
 	struct irq_cfg *cfg;
 
-	BUG_ON((unsigned)irq >= NR_IRQS);
+	BUG_ON((unsigned)irq >= nr_irqs);
 	cfg = &irq_cfg[irq];
 
 	/* Only try and allocate irqs on cpus that are present */
@@ -875,7 +876,7 @@ static void __clear_irq_vector(int irq)
 	cpumask_t mask;
 	int cpu, vector;
 
-	BUG_ON((unsigned)irq >= NR_IRQS);
+	BUG_ON((unsigned)irq >= nr_irqs);
 	cfg = &irq_cfg[irq];
 	BUG_ON(!cfg->vector);
 
@@ -895,7 +896,7 @@ void __setup_vector_irq(int cpu)
 	int irq, vector;
 
 	/* Mark the inuse vectors */
-	for (irq = 0; irq < NR_IRQS; ++irq) {
+	for (irq = 0; irq < nr_irqs; ++irq) {
 		if (!cpu_isset(cpu, irq_cfg[irq].domain))
 			continue;
 		vector = irq_cfg[irq].vector;
@@ -1193,7 +1194,7 @@ __apicdebuginit(void) print_IO_APIC(void)
 	}
 	}
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
-	for (i = 0; i < NR_IRQS; i++) {
+	for (i = 0; i < nr_irqs; i++) {
 		struct irq_pin_list *entry = irq_2_pin + i;
 		if (entry->pin < 0)
 			continue;
@@ -1366,7 +1367,7 @@ void __init enable_IO_APIC(void)
 	int i, apic;
 	unsigned long flags;
 
-	for (i = 0; i < PIN_MAP_SIZE; i++) {
+	for (i = 0; i < pin_map_size; i++) {
 		irq_2_pin[i].pin = -1;
 		irq_2_pin[i].next = 0;
 	}
@@ -1658,7 +1659,7 @@ static void ir_irq_migration(struct work_struct *work)
 {
 	int irq;
 
-	for (irq = 0; irq < NR_IRQS; irq++) {
+	for (irq = 0; irq < nr_irqs; irq++) {
 		struct irq_desc *desc = irq_desc + irq;
 		if (desc->status & IRQ_MOVE_PENDING) {
 			unsigned long flags;
@@ -1707,7 +1708,7 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 		struct irq_desc *desc;
 		struct irq_cfg *cfg;
 		irq = __get_cpu_var(vector_irq)[vector];
-		if (irq >= NR_IRQS)
+		if (irq >= nr_irqs)
 			continue;
 
 		desc = irq_desc + irq;
@@ -1865,7 +1866,7 @@ static inline void init_IO_APIC_traps(void)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	for (irq = 0; irq < NR_IRQS ; irq++) {
+	for (irq = 0; irq < nr_irqs ; irq++) {
 		if (IO_APIC_IRQ(irq) && !irq_cfg[irq].vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,
@@ -2279,7 +2280,7 @@ int create_irq(void)
 
 	irq = -ENOSPC;
 	spin_lock_irqsave(&vector_lock, flags);
-	for (new = (NR_IRQS - 1); new >= 0; new--) {
+	for (new = (nr_irqs - 1); new >= 0; new--) {
 		if (platform_legacy_irq(new))
 			continue;
 		if (irq_cfg[new].vector != 0)

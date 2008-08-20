@@ -100,7 +100,7 @@ void __init native_init_IRQ(void)
 	 */
 	for (i = 0; i < (NR_VECTORS - FIRST_EXTERNAL_VECTOR); i++) {
 		int vector = FIRST_EXTERNAL_VECTOR + i;
-		if (i >= NR_IRQS)
+		if (i >= nr_irqs)
 			break;
 		/* SYSCALL_VECTOR was reserved in trap_init. */
 		if (!test_bit(vector, used_vectors))
