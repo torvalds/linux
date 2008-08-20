@@ -96,6 +96,14 @@ static inline void of_node_put(struct device_node *node)
 {
 }
 
+/* These routines are here to provide compatibility with how powerpc
+ * handles IRQ mapping for OF device nodes.  We precompute and permanently
+ * register them in the of_device objects, whereas powerpc computes them
+ * on request.
+ */
+extern int irq_of_parse_and_map(struct device_node *node, int index);
+#define irq_dispose_mapping(irq) do { } while (0)
+
 /*
  * NB:  This is here while we transition from using asm/prom.h
  * to linux/of.h
