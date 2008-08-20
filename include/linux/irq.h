@@ -191,10 +191,23 @@ struct irq_desc {
 } ____cacheline_internodealigned_in_smp;
 
 extern struct irq_desc *irq_to_desc(unsigned int irq);
+extern struct irq_desc *__irq_to_desc(unsigned int irq);
+
+#ifndef CONFIG_HAVE_SPARSE_IRQ
+
 #ifndef CONFIG_HAVE_DYN_ARRAY
 /* could be removed if we get rid of all irq_desc reference */
 extern struct irq_desc irq_desc[NR_IRQS];
+#else
+extern struct irq_desc *irq_desc;
 #endif
+
+#else
+
+extern struct irq_desc *sparse_irqs;
+
+#endif
+
 #define kstat_irqs_this_cpu(DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()])
 

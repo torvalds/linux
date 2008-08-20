@@ -112,7 +112,6 @@ static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
 	}
 }
 
-
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
@@ -149,9 +148,27 @@ static int __init parse_nr_irq_desc(char *arg)
 
 early_param("nr_irq_desc", parse_nr_irq_desc);
 
-static struct irq_desc *sparse_irqs;
+struct irq_desc *sparse_irqs;
 DEFINE_DYN_ARRAY(sparse_irqs, sizeof(struct irq_desc), nr_irq_desc, PAGE_SIZE, init_work);
 
+struct irq_desc *__irq_to_desc(unsigned int irq)
+{
+	struct irq_desc *desc;
+
+	BUG_ON(irq == -1U);
+
+	desc = &sparse_irqs[0];
+	while (desc) {
+		if (desc->irq == irq)
+			return desc;
+
+		if (desc->irq == -1U)
+			return NULL;
+
+		desc = desc->next;
+	}
+	return NULL;
+}
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	struct irq_desc *desc, *desc_pri;
@@ -208,8 +225,7 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	return desc;
 }
 #else
-
-static struct irq_desc *irq_desc;
+struct irq_desc *irq_desc;
 DEFINE_DYN_ARRAY(irq_desc, sizeof(struct irq_desc), nr_irqs, PAGE_SIZE, init_work);
 
 #endif
@@ -238,6 +254,10 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 		return &irq_desc[irq];
 
 	return NULL;
+}
+struct irq_desc *__irq_to_desc(unsigned int irq)
+{
+	return irq_to_desc(irq);
 }
 #endif
 
