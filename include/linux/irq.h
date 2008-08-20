@@ -127,6 +127,7 @@ struct irq_chip {
 	const char	*typename;
 };
 
+struct timer_rand_state;
 /**
  * struct irq_desc - interrupt descriptor
  *
@@ -155,6 +156,7 @@ struct irq_desc {
 	unsigned int		irq;
 #ifdef CONFIG_HAVE_SPARSE_IRQ
 	struct irq_desc		*next;
+	struct timer_rand_state *timer_rand_state;
 #endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
