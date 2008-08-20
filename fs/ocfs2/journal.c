@@ -1418,13 +1418,13 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 {
 	unsigned int node_num;
 	int status, i;
+	u32 gen;
 	struct buffer_head *bh = NULL;
 	struct ocfs2_dinode *di;
 
 	/* This is called with the super block cluster lock, so we
 	 * know that the slot map can't change underneath us. */
 
-	spin_lock(&osb->osb_lock);
 	for (i = 0; i < osb->max_slots; i++) {
 		/* Read journal inode to get the recovery generation */
 		status = ocfs2_read_journal_inode(osb, i, &bh, NULL);
@@ -1433,23 +1433,31 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 			goto bail;
 		}
 		di = (struct ocfs2_dinode *)bh->b_data;
-		osb->slot_recovery_generations[i] =
-					ocfs2_get_recovery_generation(di);
+		gen = ocfs2_get_recovery_generation(di);
 		brelse(bh);
 		bh = NULL;
+
+		spin_lock(&osb->osb_lock);
+		osb->slot_recovery_generations[i] = gen;
 
 		mlog(0, "Slot %u recovery generation is %u\n", i,
 		     osb->slot_recovery_generations[i]);
 
-		if (i == osb->slot_num)
+		if (i == osb->slot_num) {
+			spin_unlock(&osb->osb_lock);
 			continue;
+		}
 
 		status = ocfs2_slot_to_node_num_locked(osb, i, &node_num);
-		if (status == -ENOENT)
+		if (status == -ENOENT) {
+			spin_unlock(&osb->osb_lock);
 			continue;
+		}
 
-		if (__ocfs2_recovery_map_test(osb, node_num))
+		if (__ocfs2_recovery_map_test(osb, node_num)) {
+			spin_unlock(&osb->osb_lock);
 			continue;
+		}
 		spin_unlock(&osb->osb_lock);
 
 		/* Ok, we have a slot occupied by another node which
@@ -1465,10 +1473,7 @@ int ocfs2_mark_dead_nodes(struct ocfs2_super *osb)
 			mlog_errno(status);
 			goto bail;
 		}
-
-		spin_lock(&osb->osb_lock);
 	}
-	spin_unlock(&osb->osb_lock);
 
 	status = 0;
 bail:
