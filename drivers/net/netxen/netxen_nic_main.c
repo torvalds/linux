@@ -241,7 +241,7 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
-		adapter->msix_supported = 0;
+		adapter->msix_supported = !!use_msi_x;
 		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
 		break;
 
