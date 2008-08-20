@@ -397,7 +397,7 @@ static const struct usb_device_id hso_ids[] = {
 	{default_port_device(0x0af0, 0xc031)},	/* Icon-Edge */
 	{icon321_port_device(0x0af0, 0xd013)},	/* Module HSxPA */
 	{icon321_port_device(0x0af0, 0xd031)},	/* Icon-321 */
-	{default_port_device(0x0af0, 0xd033)},	/* Icon-322 */
+	{icon321_port_device(0x0af0, 0xd033)},	/* Icon-322 */
 	{USB_DEVICE(0x0af0, 0x7301)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7361)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7401)},		/* GI 0401 */
