@@ -641,8 +641,9 @@ int btrfs_readpage_io_hook(struct page *page, u64 start, u64 end)
 		if (ret == -ENOENT || ret == -EFBIG)
 			ret = 0;
 		csum = 0;
-		printk("no csum found for inode %lu start %Lu\n", inode->i_ino,
-		       start);
+		if (printk_ratelimit())
+			printk("no csum found for inode %lu start %Lu\n", inode->i_ino,
+			       start);
 		goto out;
 	}
 	read_extent_buffer(path->nodes[0], &csum, (unsigned long)item,
@@ -1653,8 +1654,20 @@ static int btrfs_setattr(struct dentry *dentry, struct iattr *attr)
 		btrfs_truncate_page(inode->i_mapping, inode->i_size);
 
 		hole_size = block_end - hole_start;
-		btrfs_wait_ordered_range(inode, hole_start, hole_size);
-		lock_extent(io_tree, hole_start, block_end - 1, GFP_NOFS);
+		while(1) {
+			struct btrfs_ordered_extent *ordered;
+			btrfs_wait_ordered_range(inode, hole_start, hole_size);
+
+			lock_extent(io_tree, hole_start, block_end - 1, GFP_NOFS);
+			ordered = btrfs_lookup_ordered_extent(inode, hole_start);
+			if (ordered) {
+				unlock_extent(io_tree, hole_start,
+					      block_end - 1, GFP_NOFS);
+				btrfs_put_ordered_extent(ordered);
+			} else {
+				break;
+			}
+		}
 
 		trans = btrfs_start_transaction(root, 1);
 		btrfs_set_trans_block_group(trans, inode);

@@ -207,7 +207,14 @@ int add_extent_mapping(struct extent_map_tree *tree,
 	int ret = 0;
 	struct extent_map *merge = NULL;
 	struct rb_node *rb;
+	struct extent_map *exist;
 
+	exist = lookup_extent_mapping(tree, em->start, em->len);
+	if (exist) {
+		free_extent_map(exist);
+		ret = -EEXIST;
+		goto out;
+	}
 	assert_spin_locked(&tree->lock);
 	rb = tree_insert(&tree->map, em->start, &em->rb_node);
 	if (rb) {
