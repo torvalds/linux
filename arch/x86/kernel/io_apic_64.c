@@ -129,6 +129,9 @@ static void __init init_work(void *data)
 		cfg[i-1].next = &cfg[i];
 }
 
+#define for_each_irq_cfg(cfg)		\
+	for (cfg = irq_cfgx; cfg && cfg->irq != -1U; cfg = cfg->next)
+
 static struct irq_cfg *irq_cfgx;
 DEFINE_DYN_ARRAY(irq_cfgx, sizeof(struct irq_cfg), nr_irq_cfg, PAGE_SIZE, init_work);
 
@@ -1097,20 +1100,18 @@ void __setup_vector_irq(int cpu)
 	/* Initialize vector_irq on a new cpu */
 	/* This function must be called with vector_lock held */
 	int irq, vector;
+	struct irq_cfg *cfg;
 
 	/* Mark the inuse vectors */
-	for (irq = 0; irq < nr_irqs; ++irq) {
-		struct irq_cfg *cfg = irq_cfg(irq);
-
+	for_each_irq_cfg(cfg) {
 		if (!cpu_isset(cpu, cfg->domain))
 			continue;
 		vector = cfg->vector;
+		irq = cfg->irq;
 		per_cpu(vector_irq, cpu)[vector] = irq;
 	}
 	/* Mark the free vectors */
 	for (vector = 0; vector < NR_VECTORS; ++vector) {
-		struct irq_cfg *cfg;
-
 		irq = per_cpu(vector_irq, cpu)[vector];
 		if (irq < 0)
 			continue;
@@ -1340,6 +1341,7 @@ __apicdebuginit(void) print_IO_APIC(void)
 	union IO_APIC_reg_01 reg_01;
 	union IO_APIC_reg_02 reg_02;
 	unsigned long flags;
+	struct irq_cfg *cfg;
 
 	if (apic_verbosity == APIC_QUIET)
 		return;
@@ -1408,12 +1410,11 @@ __apicdebuginit(void) print_IO_APIC(void)
 	}
 	}
 	printk(KERN_DEBUG "IRQ to pin mappings:\n");
-	for (i = 0; i < nr_irqs; i++) {
-		struct irq_cfg *cfg = irq_cfg(i);
+	for_each_irq_cfg(cfg) {
 		struct irq_pin_list *entry = cfg->irq_2_pin;
 		if (!entry)
 			continue;
-		printk(KERN_DEBUG "IRQ%d ", i);
+		printk(KERN_DEBUG "IRQ%d ", cfg->irq);
 		for (;;) {
 			printk("-> %d:%d", entry->apic, entry->pin);
 			if (!entry->next)
@@ -2070,6 +2071,7 @@ static inline void init_IO_APIC_traps(void)
 {
 	int irq;
 	struct irq_desc *desc;
+	struct irq_cfg *cfg;
 
 	/*
 	 * NOTE! The local APIC isn't very good at handling
@@ -2082,10 +2084,8 @@ static inline void init_IO_APIC_traps(void)
 	 * Also, we've got to be careful not to trash gate
 	 * 0x80, because int 0x80 is hm, kind of importantish. ;)
 	 */
-	for (irq = 0; irq < nr_irqs ; irq++) {
-		struct irq_cfg *cfg;
-
-		cfg = irq_cfg(irq);
+	for_each_irq_cfg(cfg) {
+		irq = cfg->irq;
 		if (IO_APIC_IRQ(irq) && !cfg->vector) {
 			/*
 			 * Hmm.. We don't have an entry for this,
