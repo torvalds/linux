@@ -48,6 +48,7 @@ handle_bad_irq(unsigned int irq, struct irq_desc *desc)
  * Controller mappings for all interrupt sources:
  */
 int nr_irqs = NR_IRQS;
+EXPORT_SYMBOL_GPL(nr_irqs);
 
 #ifdef CONFIG_HAVE_DYN_ARRAY
 static struct irq_desc irq_desc_init __initdata = {
