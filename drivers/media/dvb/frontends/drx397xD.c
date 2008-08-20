@@ -235,11 +235,11 @@ exit_rc:
 }
 
 /* Function is not endian safe, use the RD16 wrapper below */
-static int _read16(struct drx397xD_state *s, u32 i2c_adr)
+static int _read16(struct drx397xD_state *s, __le32 i2c_adr)
 {
 	int rc;
 	u8 a[4];
-	u16 v;
+	__le16 v;
 	struct i2c_msg msg[2] = {
 		{
 			.addr = s->config.demod_address,
@@ -249,12 +249,12 @@ static int _read16(struct drx397xD_state *s, u32 i2c_adr)
 		}, {
 			.addr = s->config.demod_address,
 			.flags = I2C_M_RD,
-			.buf = (u8 *) &v,
+			.buf = (u8 *)&v,
 			.len = sizeof(v)
 		}
 	};
 
-	*(u32 *) a = i2c_adr;
+	*(__le32 *) a = i2c_adr;
 
 	rc = i2c_transfer(s->i2c, msg, 2);
 	if (rc != 2)
@@ -264,7 +264,7 @@ static int _read16(struct drx397xD_state *s, u32 i2c_adr)
 }
 
 /* Function is not endian safe, use the WR16.. wrappers below */
-static int _write16(struct drx397xD_state *s, u32 i2c_adr, u16 val)
+static int _write16(struct drx397xD_state *s, __le32 i2c_adr, __le16 val)
 {
 	u8 a[6];
 	int rc;
@@ -275,8 +275,8 @@ static int _write16(struct drx397xD_state *s, u32 i2c_adr, u16 val)
 		.len = sizeof(a)
 	};
 
-	*(u32 *) a = i2c_adr;
-	*(u16 *) &a[4] = val;
+	*(__le32 *)a = i2c_adr;
+	*(__le16 *)&a[4] = val;
 
 	rc = i2c_transfer(s->i2c, &msg, 1);
 	if (rc != 1)

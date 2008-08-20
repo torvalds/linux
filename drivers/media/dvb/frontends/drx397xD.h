@@ -28,7 +28,7 @@
 #define DRX_F_OFFSET	36000000
 
 #define I2C_ADR_C0(x) \
-(	(u32)cpu_to_le32( \
+(	cpu_to_le32( \
 		(u32)( \
 			(((u32)(x) & (u32)0x000000ffUL)      ) | \
 			(((u32)(x) & (u32)0x0000ff00UL) << 16) | \
@@ -38,7 +38,7 @@
 )
 
 #define I2C_ADR_E0(x) \
-(	(u32)cpu_to_le32( \
+(	cpu_to_le32( \
 		(u32)( \
 			(((u32)(x) & (u32)0x000000ffUL)      ) | \
 			(((u32)(x) & (u32)0x0000ff00UL) << 16) | \
