@@ -18,6 +18,7 @@
  */
 #include <linux/types.h>
 #include <linux/proc_fs.h>
+#include <linux/mutex.h>
 #include <asm/atomic.h>
 
 #define OF_ROOT_NODE_ADDR_CELLS_DEFAULT	2
@@ -73,6 +74,7 @@ struct of_irq_controller {
 
 extern struct device_node *of_find_node_by_cpuid(int cpuid);
 extern int of_set_property(struct device_node *node, const char *name, void *val, int len);
+extern struct mutex of_set_property_mutex;
 extern int of_getintprop_default(struct device_node *np,
 				 const char *name,
 				 int def);
