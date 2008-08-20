@@ -150,8 +150,8 @@ static const char addressbits[256] = {
 /**
  * nand_calculate_ecc - [NAND Interface] Calculate 3-byte ECC for 256-byte block
  * @mtd:	MTD block structure (unused)
- * @dat:	raw data
- * @ecc_code:	buffer for ECC
+ * @buf:	input buffer with raw data
+ * @code:	output buffer with ECC
  */
 int nand_calculate_ecc(struct mtd_info *mtd, const unsigned char *buf,
 		       unsigned char *code)
@@ -390,7 +390,7 @@ EXPORT_SYMBOL(nand_calculate_ecc);
 /**
  * nand_correct_data - [NAND Interface] Detect and correct bit error(s)
  * @mtd:	MTD block structure (unused)
- * @dat:	raw data read from the chip
+ * @buf:	raw data read from the chip
  * @read_ecc:	ECC from the chip
  * @calc_ecc:	the ECC calculated from raw data
  *
