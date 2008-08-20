@@ -389,7 +389,6 @@ static inline void io_apic_modify(unsigned int apic, unsigned int reg, unsigned 
 	writel(value, &io_apic->data);
 }
 
-#ifdef CONFIG_X86_64
 static bool io_apic_level_ack_pending(unsigned int irq)
 {
 	struct irq_pin_list *entry;
@@ -419,7 +418,6 @@ static bool io_apic_level_ack_pending(unsigned int irq)
 
 	return false;
 }
-#endif
 
 union entry_union {
 	struct { u32 w1, w2; };
@@ -2398,9 +2396,16 @@ static void ack_apic_edge(unsigned int irq)
 	ack_APIC_irq();
 }
 
-#ifdef CONFIG_X86_64
+#ifdef CONFIG_X86_32
+atomic_t irq_mis_count;
+#endif
+
 static void ack_apic_level(unsigned int irq)
 {
+#ifdef CONFIG_X86_32
+	unsigned long v;
+	int i;
+#endif
 	int do_unmask_irq = 0;
 
 	irq_complete_move(irq);
@@ -2410,6 +2415,31 @@ static void ack_apic_level(unsigned int irq)
 		do_unmask_irq = 1;
 		mask_IO_APIC_irq(irq);
 	}
+#endif
+
+#ifdef CONFIG_X86_32
+	/*
+	* It appears there is an erratum which affects at least version 0x11
+	* of I/O APIC (that's the 82093AA and cores integrated into various
+	* chipsets).  Under certain conditions a level-triggered interrupt is
+	* erroneously delivered as edge-triggered one but the respective IRR
+	* bit gets set nevertheless.  As a result the I/O unit expects an EOI
+	* message but it will never arrive and further interrupts are blocked
+	* from the source.  The exact reason is so far unknown, but the
+	* phenomenon was observed when two consecutive interrupt requests
+	* from a given source get delivered to the same CPU and the source is
+	* temporarily disabled in between.
+	*
+	* A workaround is to simulate an EOI message manually.  We achieve it
+	* by setting the trigger mode to edge and then to level when the edge
+	* trigger mode gets detected in the TMR of a local APIC for a
+	* level-triggered interrupt.  We mask the source for the time of the
+	* operation to prevent an edge-triggered interrupt escaping meanwhile.
+	* The idea is from Manfred Spraul.  --macro
+	*/
+	i = irq_cfg(irq)->vector;
+
+	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
 #endif
 
 	/*
@@ -2450,41 +2480,8 @@ static void ack_apic_level(unsigned int irq)
 			move_masked_irq(irq);
 		unmask_IO_APIC_irq(irq);
 	}
-}
-#else
-atomic_t irq_mis_count;
-static void ack_apic_level(unsigned int irq)
-{
-	unsigned long v;
-	int i;
 
-	irq_complete_move(irq);
-	move_native_irq(irq);
-	/*
-	* It appears there is an erratum which affects at least version 0x11
-	* of I/O APIC (that's the 82093AA and cores integrated into various
-	* chipsets).  Under certain conditions a level-triggered interrupt is
-	* erroneously delivered as edge-triggered one but the respective IRR
-	* bit gets set nevertheless.  As a result the I/O unit expects an EOI
-	* message but it will never arrive and further interrupts are blocked
-	* from the source.  The exact reason is so far unknown, but the
-	* phenomenon was observed when two consecutive interrupt requests
-	* from a given source get delivered to the same CPU and the source is
-	* temporarily disabled in between.
-	*
-	* A workaround is to simulate an EOI message manually.  We achieve it
-	* by setting the trigger mode to edge and then to level when the edge
-	* trigger mode gets detected in the TMR of a local APIC for a
-	* level-triggered interrupt.  We mask the source for the time of the
-	* operation to prevent an edge-triggered interrupt escaping meanwhile.
-	* The idea is from Manfred Spraul.  --macro
-	*/
-	i = irq_cfg(irq)->vector;
-
-	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
-
-	ack_APIC_irq();
-
+#ifdef CONFIG_X86_32
 	if (!(v & (1 << (i & 0x1f)))) {
 		atomic_inc(&irq_mis_count);
 		spin_lock(&ioapic_lock);
@@ -2492,8 +2489,8 @@ static void ack_apic_level(unsigned int irq)
 		__unmask_and_level_IO_APIC_irq(irq);
 		spin_unlock(&ioapic_lock);
 	}
-}
 #endif
+}
 
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name 		= "IO-APIC",
