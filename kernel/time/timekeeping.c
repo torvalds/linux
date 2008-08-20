@@ -75,6 +75,9 @@ static void clocksource_forward_now(void)
 
 	nsec = cyc2ns(clock, cycle_delta);
 	timespec_add_ns(&xtime, nsec);
+
+	nsec = ((s64)cycle_delta * clock->mult_orig) >> clock->shift;
+	clock->raw_time.tv_nsec += nsec;
 }
 
 /**
@@ -183,6 +186,8 @@ static void change_clocksource(void)
 
 	clocksource_forward_now();
 
+	new->raw_time = clock->raw_time;
+
 	clock = new;
 	clock->cycle_last = 0;
 	clock->cycle_last = clocksource_read(new);
@@ -203,6 +208,39 @@ static void change_clocksource(void)
 static inline void clocksource_forward_now(void) { }
 static inline void change_clocksource(void) { }
 #endif
+
+/**
+ * getrawmonotonic - Returns the raw monotonic time in a timespec
+ * @ts:		pointer to the timespec to be set
+ *
+ * Returns the raw monotonic time (completely un-modified by ntp)
+ */
+void getrawmonotonic(struct timespec *ts)
+{
+	unsigned long seq;
+	s64 nsecs;
+	cycle_t cycle_now, cycle_delta;
+
+	do {
+		seq = read_seqbegin(&xtime_lock);
+
+		/* read clocksource: */
+		cycle_now = clocksource_read(clock);
+
+		/* calculate the delta since the last update_wall_time: */
+		cycle_delta = (cycle_now - clock->cycle_last) & clock->mask;
+
+		/* convert to nanoseconds: */
+		nsecs = ((s64)cycle_delta * clock->mult_orig) >> clock->shift;
+
+		*ts = clock->raw_time;
+
+	} while (read_seqretry(&xtime_lock, seq));
+
+	timespec_add_ns(ts, nsecs);
+}
+EXPORT_SYMBOL(getrawmonotonic);
+
 
 /**
  * timekeeping_valid_for_hres - Check if timekeeping is suitable for hres
@@ -464,6 +502,12 @@ void update_wall_time(void)
 			clock->xtime_nsec -= (u64)NSEC_PER_SEC << clock->shift;
 			xtime.tv_sec++;
 			second_overflow();
+		}
+
+		clock->raw_time.tv_nsec += clock->raw_interval;
+		if (clock->raw_time.tv_nsec >= NSEC_PER_SEC) {
+			clock->raw_time.tv_nsec -= NSEC_PER_SEC;
+			clock->raw_time.tv_sec++;
 		}
 
 		/* accumulate error between NTP and clock interval */
