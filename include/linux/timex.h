@@ -141,8 +141,15 @@ struct timex {
 #define ADJ_MICRO		0x1000	/* select microsecond resolution */
 #define ADJ_NANO		0x2000	/* select nanosecond resolution */
 #define ADJ_TICK		0x4000	/* tick value */
+
+#ifdef __KERNEL__
+#define ADJ_ADJTIME		0x8000	/* switch between adjtime/adjtimex modes */
+#define ADJ_OFFSET_SINGLESHOT	0x0001	/* old-fashioned adjtime */
+#define ADJ_OFFSET_READONLY	0x2000	/* read-only adjtime */
+#else
 #define ADJ_OFFSET_SINGLESHOT	0x8001	/* old-fashioned adjtime */
-#define ADJ_OFFSET_SS_READ	0xa001  /* read-only adjtime */
+#define ADJ_OFFSET_SS_READ	0xa001	/* read-only adjtime */
+#endif
 
 /* xntp 3.4 compatibility names */
 #define MOD_OFFSET	ADJ_OFFSET
