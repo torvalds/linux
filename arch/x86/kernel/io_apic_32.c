@@ -1029,23 +1029,6 @@ static int pin_2_irq(int idx, int apic, int pin)
 	return irq;
 }
 
-static inline int IO_APIC_irq_trigger(int irq)
-{
-	int apic, idx, pin;
-
-	for (apic = 0; apic < nr_ioapics; apic++) {
-		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
-			idx = find_irq_entry(apic, pin, mp_INT);
-			if ((idx != -1) && (irq == pin_2_irq(idx, apic, pin)))
-				return irq_trigger(idx);
-		}
-	}
-	/*
-	 * nonexistent IRQs are edge default
-	 */
-	return 0;
-}
-
 void lock_vector_lock(void)
 {
 	/* Used to the online set of cpus does not change
@@ -1189,6 +1172,23 @@ static struct irq_chip ioapic_chip;
 #define IOAPIC_AUTO	-1
 #define IOAPIC_EDGE	0
 #define IOAPIC_LEVEL	1
+
+static inline int IO_APIC_irq_trigger(int irq)
+{
+	int apic, idx, pin;
+
+	for (apic = 0; apic < nr_ioapics; apic++) {
+		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
+			idx = find_irq_entry(apic, pin, mp_INT);
+			if ((idx != -1) && (irq == pin_2_irq(idx, apic, pin)))
+				return irq_trigger(idx);
+		}
+	}
+	/*
+	 * nonexistent IRQs are edge default
+	 */
+	return 0;
+}
 
 static void ioapic_register_intr(int irq, unsigned long trigger)
 {
@@ -1926,55 +1926,6 @@ static unsigned int startup_ioapic_irq(unsigned int irq)
 	return was_pending;
 }
 
-static void irq_complete_move(unsigned int irq);
-static void ack_ioapic_irq(unsigned int irq)
-{
-	irq_complete_move(irq);
-	move_native_irq(irq);
-	ack_APIC_irq();
-}
-
-static void ack_ioapic_quirk_irq(unsigned int irq)
-{
-	unsigned long v;
-	int i;
-
-	irq_complete_move(irq);
-	move_native_irq(irq);
-/*
- * It appears there is an erratum which affects at least version 0x11
- * of I/O APIC (that's the 82093AA and cores integrated into various
- * chipsets).  Under certain conditions a level-triggered interrupt is
- * erroneously delivered as edge-triggered one but the respective IRR
- * bit gets set nevertheless.  As a result the I/O unit expects an EOI
- * message but it will never arrive and further interrupts are blocked
- * from the source.  The exact reason is so far unknown, but the
- * phenomenon was observed when two consecutive interrupt requests
- * from a given source get delivered to the same CPU and the source is
- * temporarily disabled in between.
- *
- * A workaround is to simulate an EOI message manually.  We achieve it
- * by setting the trigger mode to edge and then to level when the edge
- * trigger mode gets detected in the TMR of a local APIC for a
- * level-triggered interrupt.  We mask the source for the time of the
- * operation to prevent an edge-triggered interrupt escaping meanwhile.
- * The idea is from Manfred Spraul.  --macro
- */
-	i = irq_cfg(irq)->vector;
-
-	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
-
-	ack_APIC_irq();
-
-	if (!(v & (1 << (i & 0x1f)))) {
-		atomic_inc(&irq_mis_count);
-		spin_lock(&ioapic_lock);
-		__mask_and_edge_IO_APIC_irq(irq);
-		__unmask_and_level_IO_APIC_irq(irq);
-		spin_unlock(&ioapic_lock);
-	}
-}
-
 static int ioapic_retrigger_irq(unsigned int irq)
 {
 	send_IPI_self(irq_cfg(irq)->vector);
@@ -2040,13 +1991,61 @@ static void irq_complete_move(unsigned int irq)
 static inline void irq_complete_move(unsigned int irq) {}
 #endif
 
+static void ack_apic_edge(unsigned int irq)
+{
+	irq_complete_move(irq);
+	move_native_irq(irq);
+	ack_APIC_irq();
+}
+
+static void ack_apic_level(unsigned int irq)
+{
+	unsigned long v;
+	int i;
+
+	irq_complete_move(irq);
+	move_native_irq(irq);
+/*
+ * It appears there is an erratum which affects at least version 0x11
+ * of I/O APIC (that's the 82093AA and cores integrated into various
+ * chipsets).  Under certain conditions a level-triggered interrupt is
+ * erroneously delivered as edge-triggered one but the respective IRR
+ * bit gets set nevertheless.  As a result the I/O unit expects an EOI
+ * message but it will never arrive and further interrupts are blocked
+ * from the source.  The exact reason is so far unknown, but the
+ * phenomenon was observed when two consecutive interrupt requests
+ * from a given source get delivered to the same CPU and the source is
+ * temporarily disabled in between.
+ *
+ * A workaround is to simulate an EOI message manually.  We achieve it
+ * by setting the trigger mode to edge and then to level when the edge
+ * trigger mode gets detected in the TMR of a local APIC for a
+ * level-triggered interrupt.  We mask the source for the time of the
+ * operation to prevent an edge-triggered interrupt escaping meanwhile.
+ * The idea is from Manfred Spraul.  --macro
+ */
+	i = irq_cfg(irq)->vector;
+
+	v = apic_read(APIC_TMR + ((i & ~0x1f) >> 1));
+
+	ack_APIC_irq();
+
+	if (!(v & (1 << (i & 0x1f)))) {
+		atomic_inc(&irq_mis_count);
+		spin_lock(&ioapic_lock);
+		__mask_and_edge_IO_APIC_irq(irq);
+		__unmask_and_level_IO_APIC_irq(irq);
+		spin_unlock(&ioapic_lock);
+	}
+}
+
 static struct irq_chip ioapic_chip __read_mostly = {
 	.name 		= "IO-APIC",
 	.startup 	= startup_ioapic_irq,
 	.mask	 	= mask_IO_APIC_irq,
 	.unmask	 	= unmask_IO_APIC_irq,
-	.ack 		= ack_ioapic_irq,
-	.eoi 		= ack_ioapic_quirk_irq,
+	.ack 		= ack_apic_edge,
+	.eoi 		= ack_apic_level,
 #ifdef CONFIG_SMP
 	.set_affinity 	= set_ioapic_affinity_irq,
 #endif
@@ -2094,11 +2093,6 @@ static inline void init_IO_APIC_traps(void)
  * The local APIC irq-chip implementation:
  */
 
-static void ack_lapic_irq(unsigned int irq)
-{
-	ack_APIC_irq();
-}
-
 static void mask_lapic_irq(unsigned int irq)
 {
 	unsigned long v;
@@ -2113,6 +2107,11 @@ static void unmask_lapic_irq(unsigned int irq)
 
 	v = apic_read(APIC_LVT0);
 	apic_write(APIC_LVT0, v & ~APIC_LVT_MASKED);
+}
+
+static void ack_lapic_irq(unsigned int irq)
+{
+	ack_APIC_irq();
 }
 
 static struct irq_chip lapic_chip __read_mostly = {
@@ -2636,12 +2635,30 @@ static struct irq_chip msi_chip = {
 	.name		= "PCI-MSI",
 	.unmask		= unmask_msi_irq,
 	.mask		= mask_msi_irq,
-	.ack		= ack_ioapic_irq,
+	.ack		= ack_apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_msi_irq_affinity,
 #endif
 	.retrigger	= ioapic_retrigger_irq,
 };
+
+
+static int setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc, int irq)
+{
+	int ret;
+	struct msi_msg msg;
+
+	ret = msi_compose_msg(dev, irq, &msg);
+	if (ret < 0)
+		return ret;
+
+	set_irq_msi(irq, desc);
+	write_msi_msg(irq, &msg);
+
+	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq, "edge");
+
+	return 0;
+}
 
 static unsigned int build_irq_for_pci_dev(struct pci_dev *dev)
 {
@@ -2657,7 +2674,6 @@ static unsigned int build_irq_for_pci_dev(struct pci_dev *dev)
 
 int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 {
-	struct msi_msg msg;
 	int irq, ret;
 
 	unsigned int irq_want;
@@ -2669,17 +2685,11 @@ int arch_setup_msi_irq(struct pci_dev *dev, struct msi_desc *desc)
 	if (irq == 0)
 		return -1;
 
-	ret = msi_compose_msg(dev, irq, &msg);
+	ret = setup_msi_irq(dev, desc, irq);
 	if (ret < 0) {
 		destroy_irq(irq);
 		return ret;
-	}
-
-	set_irq_msi(irq, desc);
-	write_msi_msg(irq, &msg);
-
-	set_irq_chip_and_handler_name(irq, &msi_chip, handle_edge_irq,
-				      "edge");
+        }
 
 	return 0;
 }
@@ -2738,7 +2748,7 @@ static struct irq_chip ht_irq_chip = {
 	.name		= "PCI-HT",
 	.mask		= mask_ht_irq,
 	.unmask		= unmask_ht_irq,
-	.ack		= ack_ioapic_irq,
+	.ack		= ack_apic_edge,
 #ifdef CONFIG_SMP
 	.set_affinity	= set_ht_irq_affinity,
 #endif
