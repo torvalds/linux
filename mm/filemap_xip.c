@@ -248,15 +248,16 @@ again:
 		int err;
 
 		/* maybe shared writable, allocate new block */
+		mutex_lock(&xip_sparse_mutex);
 		error = mapping->a_ops->get_xip_mem(mapping, vmf->pgoff, 1,
 							&xip_mem, &xip_pfn);
+		mutex_unlock(&xip_sparse_mutex);
 		if (error)
 			return VM_FAULT_SIGBUS;
 		/* unmap sparse mappings at pgoff from all other vmas */
 		__xip_unmap(mapping, vmf->pgoff);
 
 found:
-		printk("%s insert %lx@%lx\n", current->comm, (unsigned long)vmf->virtual_address, xip_pfn);
 		err = vm_insert_mixed(vma, (unsigned long)vmf->virtual_address,
 							xip_pfn);
 		if (err == -ENOMEM)
@@ -340,8 +341,10 @@ __xip_file_write(struct file *filp, const char __user *buf,
 						&xip_mem, &xip_pfn);
 		if (status == -ENODATA) {
 			/* we allocate a new page unmap it */
+			mutex_lock(&xip_sparse_mutex);
 			status = a_ops->get_xip_mem(mapping, index, 1,
 							&xip_mem, &xip_pfn);
+			mutex_unlock(&xip_sparse_mutex);
 			if (!status)
 				/* unmap page at pgoff from all other vmas */
 				__xip_unmap(mapping, index);
