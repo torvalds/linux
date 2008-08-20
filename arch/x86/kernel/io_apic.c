@@ -3802,7 +3802,6 @@ void __init setup_ioapic_dest(void)
 }
 #endif
 
-#ifdef CONFIG_X86_64
 #define IOAPIC_RESOURCE_NAME_SIZE 11
 
 static struct resource *ioapic_resources;
@@ -3838,17 +3837,14 @@ static struct resource * __init ioapic_setup_resources(void)
 
 	return res;
 }
-#endif
 
 void __init ioapic_init_mappings(void)
 {
 	unsigned long ioapic_phys, idx = FIX_IO_APIC_BASE_0;
 	int i;
-#ifdef CONFIG_X86_64
 	struct resource *ioapic_res;
 
 	ioapic_res = ioapic_setup_resources();
-#endif
 	for (i = 0; i < nr_ioapics; i++) {
 		if (smp_found_config) {
 			ioapic_phys = mp_ioapics[i].mp_apicaddr;
@@ -3877,17 +3873,14 @@ fake_ioapic_page:
 			    __fix_to_virt(idx), ioapic_phys);
 		idx++;
 
-#ifdef CONFIG_X86_64
 		if (ioapic_res != NULL) {
 			ioapic_res->start = ioapic_phys;
 			ioapic_res->end = ioapic_phys + (4 * 1024) - 1;
 			ioapic_res++;
 		}
-#endif
 	}
 }
 
-#ifdef CONFIG_X86_64
 static int __init ioapic_insert_resources(void)
 {
 	int i;
@@ -3910,4 +3903,3 @@ static int __init ioapic_insert_resources(void)
 /* Insert the IO APIC resources after PCI initialization has occured to handle
  * IO APICS that are mapped in on a BAR in PCI space. */
 late_initcall(ioapic_insert_resources);
-#endif
