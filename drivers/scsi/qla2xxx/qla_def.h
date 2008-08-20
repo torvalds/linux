@@ -2237,6 +2237,7 @@ typedef struct scsi_qla_host {
 #define REGISTER_FDMI_NEEDED	26
 #define FCPORT_UPDATE_NEEDED	27
 #define VP_DPC_NEEDED		28	/* wake up for VP dpc handling */
+#define UNLOADING		29
 
 	uint32_t	device_flags;
 #define DFLG_LOCAL_DEVICES		BIT_0
