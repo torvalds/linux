@@ -140,7 +140,7 @@ static void __init setup_cpu_pda_map(void)
  */
 void __init setup_per_cpu_areas(void)
 {
-	ssize_t size = PERCPU_ENOUGH_ROOM;
+	ssize_t size, old_size;
 	char *ptr;
 	int cpu;
 
@@ -148,7 +148,8 @@ void __init setup_per_cpu_areas(void)
 	setup_cpu_pda_map();
 
 	/* Copy section for each CPU (we discard the original) */
-	size = PERCPU_ENOUGH_ROOM;
+	old_size = PERCPU_ENOUGH_ROOM;
+	size = old_size + per_cpu_dyn_array_size();
 	printk(KERN_INFO "PERCPU: Allocating %zd bytes of per cpu data\n",
 			  size);
 
@@ -175,6 +176,8 @@ void __init setup_per_cpu_areas(void)
 #endif
 		per_cpu_offset(cpu) = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+
+		per_cpu_alloc_dyn_array(cpu, ptr + old_size);
 
 	}
 

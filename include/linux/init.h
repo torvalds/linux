@@ -255,12 +255,13 @@ struct dyn_array {
 	void (*init_work)(void *);
 };
 extern struct dyn_array *__dyn_array_start[], *__dyn_array_end[];
+extern struct dyn_array *__per_cpu_dyn_array_start[], *__per_cpu_dyn_array_end[];
 
-#define DEFINE_DYN_ARRAY(nameX, sizeX, nrX, alignX, init_workX) \
+#define DEFINE_DYN_ARRAY_ADDR(nameX, addrX, sizeX, nrX, alignX, init_workX) \
 		static struct dyn_array __dyn_array_##nameX __initdata = \
-		{	.name = (void **)&nameX,\
+		{	.name = (void **)&(nameX),\
 			.size = sizeX,\
-			.nr   = &nrX,\
+			.nr   = &(nrX),\
 			.align = alignX,\
 			.init_work = init_workX,\
 		}; \
@@ -268,7 +269,27 @@ extern struct dyn_array *__dyn_array_start[], *__dyn_array_end[];
 		__attribute__((__section__(".dyn_array.init"))) = \
 			&__dyn_array_##nameX
 
+#define DEFINE_DYN_ARRAY(nameX, sizeX, nrX, alignX, init_workX) \
+	DEFINE_DYN_ARRAY_ADDR(nameX, nameX, sizeX, nrX, alignX, init_workX)
+
+#define DEFINE_PER_CPU_DYN_ARRAY_ADDR(nameX, addrX, sizeX, nrX, alignX, init_workX) \
+		static struct dyn_array __per_cpu_dyn_array_##nameX __initdata = \
+		{	.name = (void **)&(addrX),\
+			.size = sizeX,\
+			.nr   = &(nrX),\
+			.align = alignX,\
+			.init_work = init_workX,\
+		}; \
+		static struct dyn_array *__per_cpu_dyn_array_ptr_##nameX __used \
+		__attribute__((__section__(".per_cpu_dyn_array.init"))) = \
+			&__per_cpu_dyn_array_##nameX
+
+#define DEFINE_PER_CPU_DYN_ARRAY(nameX, sizeX, nrX, alignX, init_workX) \
+	DEFINE_PER_CPU_DYN_ARRAY_ADDR(nameX, nameX, nrX, alignX, init_workX)
+
 extern void pre_alloc_dyn_array(void);
+extern unsigned long per_cpu_dyn_array_size(void);
+extern void per_cpu_alloc_dyn_array(int cpu, char *ptr);
 #endif /* __ASSEMBLY__ */
 
 /**

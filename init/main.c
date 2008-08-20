@@ -391,17 +391,19 @@ EXPORT_SYMBOL(__per_cpu_offset);
 
 static void __init setup_per_cpu_areas(void)
 {
-	unsigned long size, i;
+	unsigned long size, i, old_size;
 	char *ptr;
 	unsigned long nr_possible_cpus = num_possible_cpus();
 
 	/* Copy section for each CPU (we discard the original) */
-	size = ALIGN(PERCPU_ENOUGH_ROOM, PAGE_SIZE);
+	old_size = PERCPU_ENOUGH_ROOM;
+	size = ALIGN(old_size + per_cpu_dyn_array_size(), PAGE_SIZE);
 	ptr = alloc_bootmem_pages(size * nr_possible_cpus);
 
 	for_each_possible_cpu(i) {
 		__per_cpu_offset[i] = ptr - __per_cpu_start;
 		memcpy(ptr, __per_cpu_start, __per_cpu_end - __per_cpu_start);
+		per_cpu_alloc_dyn_array(i, ptr + old_size);
 		ptr += size;
 	}
 }
@@ -555,6 +557,63 @@ void pre_alloc_dyn_array(void)
 
 		if (da->init_work)
 			da->init_work(da);
+	}
+#endif
+}
+
+unsigned long per_cpu_dyn_array_size(void)
+{
+	unsigned long total_size = 0;
+#ifdef CONFIG_HAVE_DYN_ARRAY
+	unsigned long size;
+	struct dyn_array **daa;
+
+	for (daa = __per_cpu_dyn_array_start ; daa < __per_cpu_dyn_array_end; daa++) {
+		struct dyn_array *da = *daa;
+
+		size = da->size * (*da->nr);
+		print_fn_descriptor_symbol("per_cpu_dyna_array %s ", da->name);
+		printk(KERN_CONT "size:%#lx nr:%d align:%#lx\n",
+			da->size, *da->nr, da->align);
+		total_size += roundup(size, da->align);
+	}
+	if (total_size)
+		printk(KERN_DEBUG "per_cpu_dyna_array total_size: %#lx\n",
+			 total_size);
+#endif
+	return total_size;
+}
+
+void per_cpu_alloc_dyn_array(int cpu, char *ptr)
+{
+#ifdef CONFIG_HAVE_DYN_ARRAY
+	unsigned long size, phys;
+	struct dyn_array **daa;
+	unsigned long addr;
+	void **array;
+
+	phys = virt_to_phys(ptr);
+
+	for (daa = __per_cpu_dyn_array_start ; daa < __per_cpu_dyn_array_end; daa++) {
+		struct dyn_array *da = *daa;
+
+		size = da->size * (*da->nr);
+		print_fn_descriptor_symbol("per_cpu_dyna_array %s ", da->name);
+		printk(KERN_CONT "size:%#lx nr:%d align:%#lx",
+			da->size, *da->nr, da->align);
+
+		phys = roundup(phys, da->align);
+		addr = (unsigned long)da->name;
+		addr += per_cpu_offset(cpu);
+		array = (void **)addr;
+		*array = phys_to_virt(phys);
+		*da->name = *array; /* so init_work could use it directly */
+		printk(KERN_CONT " %p ==> [%#lx - %#lx]\n", array, phys, phys + size);
+		phys += size;
+
+		if (da->init_work) {
+			da->init_work(da);
+		}
 	}
 #endif
 }

@@ -216,6 +216,12 @@
 		VMLINUX_SYMBOL(__dyn_array_start) = .;			\
 		*(.dyn_array.init)					\
 		VMLINUX_SYMBOL(__dyn_array_end) = .;			\
+	}								\
+	. = ALIGN((align));						\
+	.per_cpu_dyn_array.init : AT(ADDR(.per_cpu_dyn_array.init) - LOAD_OFFSET) {	\
+		VMLINUX_SYMBOL(__per_cpu_dyn_array_start) = .;		\
+		*(.per_cpu_dyn_array.init)				\
+		VMLINUX_SYMBOL(__per_cpu_dyn_array_end) = .;		\
 	}
 #define SECURITY_INIT							\
 	.security_initcall.init : AT(ADDR(.security_initcall.init) - LOAD_OFFSET) { \
