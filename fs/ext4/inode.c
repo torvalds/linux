@@ -1741,6 +1741,13 @@ static void mpage_put_bnr_to_bhs(struct mpage_da_data *mpd, sector_t logical,
 				if (buffer_delay(bh)) {
 					bh->b_blocknr = pblock;
 					clear_buffer_delay(bh);
+					bh->b_bdev = inode->i_sb->s_bdev;
+				} else if (buffer_unwritten(bh)) {
+					bh->b_blocknr = pblock;
+					clear_buffer_unwritten(bh);
+					set_buffer_mapped(bh);
+					set_buffer_new(bh);
+					bh->b_bdev = inode->i_sb->s_bdev;
 				} else if (buffer_mapped(bh))
 					BUG_ON(bh->b_blocknr != pblock);
 
@@ -1814,7 +1821,7 @@ static void mpage_da_map_blocks(struct mpage_da_data *mpd)
 		 * If blocks are delayed marked, we need to
 		 * put actual blocknr and drop delayed bit
 		 */
-		if (buffer_delay(lbh))
+		if (buffer_delay(lbh) || buffer_unwritten(lbh))
 			mpage_put_bnr_to_bhs(mpd, next, &new);
 
 		/* go for the remaining blocks */
@@ -1823,7 +1830,8 @@ static void mpage_da_map_blocks(struct mpage_da_data *mpd)
 	}
 }
 
-#define BH_FLAGS ((1 << BH_Uptodate) | (1 << BH_Mapped) | (1 << BH_Delay))
+#define BH_FLAGS ((1 << BH_Uptodate) | (1 << BH_Mapped) | \
+		(1 << BH_Delay) | (1 << BH_Unwritten))
 
 /*
  * mpage_add_bh_to_extent - try to add one more block to extent of blocks
