@@ -1114,8 +1114,12 @@ next:
                         cfg->move_in_progress = 1;
                         cfg->old_domain = cfg->domain;
                 }
-                for_each_cpu_mask_nr(new_cpu, new_mask)
-                        per_cpu(vector_irq, new_cpu)[vector] = irq;
+		printk(KERN_DEBUG "assign_irq_vector: irq %d vector %#x cpu ", irq, vector);
+		for_each_cpu_mask_nr(new_cpu, new_mask) {
+			per_cpu(vector_irq, new_cpu)[vector] = irq;
+			printk(KERN_CONT " %d ", new_cpu);
+		}
+		printk(KERN_CONT "\n");
                 cfg->vector = vector;
                 cfg->domain = domain;
                 return 0;

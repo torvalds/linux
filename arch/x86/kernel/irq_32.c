@@ -237,8 +237,8 @@ unsigned int do_IRQ(struct pt_regs *regs)
 
 	desc = irq_to_desc(irq);
 	if (unlikely(!desc)) {
-		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x\n",
-					__func__, irq, vector);
+		printk(KERN_EMERG "%s: cannot handle IRQ %d vector %#x cpu %d\n",
+					__func__, irq, vector, smp_processor_id());
 		BUG();
 	}
 
