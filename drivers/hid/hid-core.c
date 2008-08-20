@@ -1113,6 +1113,33 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 }
 EXPORT_SYMBOL_GPL(hid_input_report);
 
+static bool hid_match_one_id(struct hid_device *hdev,
+		const struct hid_device_id *id)
+{
+	return id->bus == hdev->bus &&
+		(id->vendor == HID_ANY_ID || id->vendor == hdev->vendor) &&
+		(id->product == HID_ANY_ID || id->product == hdev->product);
+}
+
+static const struct hid_device_id *hid_match_id(struct hid_device *hdev,
+		const struct hid_device_id *id)
+{
+	for (; id->bus; id++)
+		if (hid_match_one_id(hdev, id))
+			return id;
+
+	return NULL;
+}
+
+static const struct hid_device_id hid_hiddev_list[] = {
+	{ }
+};
+
+static bool hid_hiddev(struct hid_device *hdev)
+{
+	return !!hid_match_id(hdev, hid_hiddev_list);
+}
+
 int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 {
 	static const char *types[] = { "Device", "Pointer", "Mouse", "Device",
@@ -1126,6 +1153,8 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 
 	if (hdev->bus != BUS_USB)
 		connect_mask &= ~HID_CONNECT_HIDDEV;
+	if (hid_hiddev(hdev))
+		connect_mask |= HID_CONNECT_HIDDEV_FORCE;
 
 	if ((connect_mask & HID_CONNECT_HIDINPUT) && !hidinput_connect(hdev,
 				connect_mask & HID_CONNECT_HIDINPUT_FORCE))
@@ -1186,24 +1215,6 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(hid_connect);
-
-static bool hid_match_one_id(struct hid_device *hdev,
-		const struct hid_device_id *id)
-{
-	return id->bus == hdev->bus &&
-		(id->vendor == HID_ANY_ID || id->vendor == hdev->vendor) &&
-		(id->product == HID_ANY_ID || id->product == hdev->product);
-}
-
-static const struct hid_device_id *hid_match_id(struct hid_device *hdev,
-		const struct hid_device_id *id)
-{
-	for (; id->bus; id++)
-		if (hid_match_one_id(hdev, id))
-			return id;
-
-	return NULL;
-}
 
 static const struct hid_device_id hid_blacklist[] = {
 	{ HID_USB_DEVICE(USB_VENDOR_ID_A4TECH, USB_DEVICE_ID_A4TECH_WCP32PU) },
