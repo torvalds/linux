@@ -71,10 +71,10 @@ static int set_run(struct super_block *sb, int map,
 		}
 		if (set) {
 			set_bit(bit, sbi->s_imap[map]);
-			set_bit(bit, (long *) bh->b_data);
+			set_bit(bit, (unsigned long *)bh->b_data);
 		} else {
 			clear_bit(bit, sbi->s_imap[map]);
-			clear_bit(bit, (long *) bh->b_data);
+			clear_bit(bit, (unsigned long *)bh->b_data);
 		}
 	}
 	mark_buffer_dirty(bh);
@@ -92,7 +92,7 @@ int omfs_allocate_block(struct super_block *sb, u64 block)
 	struct buffer_head *bh;
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	int bits_per_entry = 8 * sb->s_blocksize;
-	int map, bit;
+	unsigned int map, bit;
 	int ret = 0;
 	u64 tmp;
 
@@ -109,7 +109,7 @@ int omfs_allocate_block(struct super_block *sb, u64 block)
 		if (!bh)
 			goto out;
 
-		set_bit(bit, (long *) bh->b_data);
+		set_bit(bit, (unsigned long *)bh->b_data);
 		mark_buffer_dirty(bh);
 		brelse(bh);
 	}
@@ -176,7 +176,8 @@ int omfs_clear_range(struct super_block *sb, u64 block, int count)
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	int bits_per_entry = 8 * sb->s_blocksize;
 	u64 tmp;
-	int map, bit, ret;
+	unsigned int map, bit;
+	int ret;
 
 	tmp = block;
 	bit = do_div(tmp, bits_per_entry);

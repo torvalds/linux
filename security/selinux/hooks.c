@@ -998,8 +998,12 @@ static int selinux_sb_show_options(struct seq_file *m, struct super_block *sb)
 	int rc;
 
 	rc = selinux_get_mnt_opts(sb, &opts);
-	if (rc)
+	if (rc) {
+		/* before policy load we may get EINVAL, don't show anything */
+		if (rc == -EINVAL)
+			rc = 0;
 		return rc;
+	}
 
 	selinux_write_opts(m, &opts);
 
@@ -1734,24 +1738,34 @@ static inline u32 file_to_av(struct file *file)
 
 /* Hook functions begin here. */
 
-static int selinux_ptrace(struct task_struct *parent,
-			  struct task_struct *child,
-			  unsigned int mode)
+static int selinux_ptrace_may_access(struct task_struct *child,
+				     unsigned int mode)
 {
 	int rc;
 
-	rc = secondary_ops->ptrace(parent, child, mode);
+	rc = secondary_ops->ptrace_may_access(child, mode);
 	if (rc)
 		return rc;
 
 	if (mode == PTRACE_MODE_READ) {
-		struct task_security_struct *tsec = parent->security;
+		struct task_security_struct *tsec = current->security;
 		struct task_security_struct *csec = child->security;
 		return avc_has_perm(tsec->sid, csec->sid,
 				    SECCLASS_FILE, FILE__READ, NULL);
 	}
 
-	return task_has_perm(parent, child, PROCESS__PTRACE);
+	return task_has_perm(current, child, PROCESS__PTRACE);
+}
+
+static int selinux_ptrace_traceme(struct task_struct *parent)
+{
+	int rc;
+
+	rc = secondary_ops->ptrace_traceme(parent);
+	if (rc)
+		return rc;
+
+	return task_has_perm(parent, current, PROCESS__PTRACE);
 }
 
 static int selinux_capget(struct task_struct *target, kernel_cap_t *effective,
@@ -5342,7 +5356,8 @@ static int selinux_key_getsecurity(struct key *key, char **_buffer)
 static struct security_operations selinux_ops = {
 	.name =				"selinux",
 
-	.ptrace =			selinux_ptrace,
+	.ptrace_may_access =		selinux_ptrace_may_access,
+	.ptrace_traceme =		selinux_ptrace_traceme,
 	.capget =			selinux_capget,
 	.capset_check =			selinux_capset_check,
 	.capset_set =			selinux_capset_set,

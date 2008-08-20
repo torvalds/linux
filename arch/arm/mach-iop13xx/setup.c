@@ -22,7 +22,7 @@
 #include <linux/mtd/physmap.h>
 #endif
 #include <asm/mach/map.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/hardware/iop_adma.h>

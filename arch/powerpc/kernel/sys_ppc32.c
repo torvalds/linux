@@ -52,63 +52,6 @@
 #include <asm/ppc-pci.h>
 #include <asm/syscalls.h>
 
-struct old_linux_dirent32 {
-	u32		d_ino;
-	u32		d_offset;
-	unsigned short	d_namlen;
-	char		d_name[1];
-};
-
-struct readdir_callback32 {
-	struct old_linux_dirent32 __user * dirent;
-	int count;
-};
-
-static int fillonedir(void * __buf, const char * name, int namlen,
-		                  off_t offset, u64 ino, unsigned int d_type)
-{
-	struct readdir_callback32 * buf = (struct readdir_callback32 *) __buf;
-	struct old_linux_dirent32 __user * dirent;
-	ino_t d_ino;
-
-	if (buf->count)
-		return -EINVAL;
-	d_ino = ino;
-	if (sizeof(d_ino) < sizeof(ino) && d_ino != ino)
-		return -EOVERFLOW;
-	buf->count++;
-	dirent = buf->dirent;
-	put_user(d_ino, &dirent->d_ino);
-	put_user(offset, &dirent->d_offset);
-	put_user(namlen, &dirent->d_namlen);
-	copy_to_user(dirent->d_name, name, namlen);
-	put_user(0, dirent->d_name + namlen);
-	return 0;
-}
-
-asmlinkage int old32_readdir(unsigned int fd, struct old_linux_dirent32 __user *dirent, unsigned int count)
-{
-	int error = -EBADF;
-	struct file * file;
-	struct readdir_callback32 buf;
-
-	file = fget(fd);
-	if (!file)
-		goto out;
-
-	buf.count = 0;
-	buf.dirent = dirent;
-
-	error = vfs_readdir(file, (filldir_t)fillonedir, &buf);
-	if (error < 0)
-		goto out_putf;
-	error = buf.count;
-
-out_putf:
-	fput(file);
-out:
-	return error;
-}
 
 asmlinkage long ppc32_select(u32 n, compat_ulong_t __user *inp,
 		compat_ulong_t __user *outp, compat_ulong_t __user *exp,

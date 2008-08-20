@@ -352,7 +352,7 @@ static int via_cable_override(struct pci_dev *pdev)
 	return 0;
 }
 
-static u8 __devinit via82cxxx_cable_detect(ide_hwif_t *hwif)
+static u8 via82cxxx_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *pdev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(pdev);
@@ -491,7 +491,7 @@ static struct pci_driver driver = {
 	.name 		= "VIA_IDE",
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
-	.remove		= via_remove,
+	.remove		= __devexit_p(via_remove),
 };
 
 static int __init via_ide_init(void)

@@ -193,7 +193,7 @@ static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	}
 }
 
-static u8 __devinit pdcnew_cable_detect(ide_hwif_t *hwif)
+static u8 pdcnew_cable_detect(ide_hwif_t *hwif)
 {
 	if (get_indexed_reg(hwif, 0x0b) & 0x04)
 		return ATA_CBL_PATA40;
@@ -566,7 +566,7 @@ static struct pci_driver driver = {
 	.name		= "Promise_IDE",
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
-	.remove		= pdc202new_remove,
+	.remove		= __devexit_p(pdc202new_remove),
 };
 
 static int __init pdc202new_ide_init(void)

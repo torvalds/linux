@@ -22,6 +22,8 @@ int in_lock_functions(unsigned long addr);
 void __lockfunc _spin_lock(spinlock_t *lock)		__acquires(lock);
 void __lockfunc _spin_lock_nested(spinlock_t *lock, int subclass)
 							__acquires(lock);
+void __lockfunc _spin_lock_nest_lock(spinlock_t *lock, struct lockdep_map *map)
+							__acquires(lock);
 void __lockfunc _read_lock(rwlock_t *lock)		__acquires(lock);
 void __lockfunc _write_lock(rwlock_t *lock)		__acquires(lock);
 void __lockfunc _spin_lock_bh(spinlock_t *lock)		__acquires(lock);

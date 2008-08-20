@@ -17,6 +17,7 @@
 #include <linux/types.h>
 #include <linux/interrupt.h>
 #include <linux/sysctl.h>
+#include <linux/list.h>
 
 #include <net/ip_vs.h>
 
@@ -44,28 +45,11 @@
  */
 
 
-struct ip_vs_estimator
-{
-	struct ip_vs_estimator	*next;
-	struct ip_vs_stats	*stats;
+static void estimation_timer(unsigned long arg);
 
-	u32			last_conns;
-	u32			last_inpkts;
-	u32			last_outpkts;
-	u64			last_inbytes;
-	u64			last_outbytes;
-
-	u32			cps;
-	u32			inpps;
-	u32			outpps;
-	u32			inbps;
-	u32			outbps;
-};
-
-
-static struct ip_vs_estimator *est_list = NULL;
-static DEFINE_RWLOCK(est_lock);
-static struct timer_list est_timer;
+static LIST_HEAD(est_list);
+static DEFINE_SPINLOCK(est_lock);
+static DEFINE_TIMER(est_timer, estimation_timer, 0, 0);
 
 static void estimation_timer(unsigned long arg)
 {
@@ -76,9 +60,9 @@ static void estimation_timer(unsigned long arg)
 	u64 n_inbytes, n_outbytes;
 	u32 rate;
 
-	read_lock(&est_lock);
-	for (e = est_list; e; e = e->next) {
-		s = e->stats;
+	spin_lock(&est_lock);
+	list_for_each_entry(e, &est_list, list) {
+		s = container_of(e, struct ip_vs_stats, est);
 
 		spin_lock(&s->lock);
 		n_conns = s->conns;
@@ -114,19 +98,16 @@ static void estimation_timer(unsigned long arg)
 		s->outbps = (e->outbps+0xF)>>5;
 		spin_unlock(&s->lock);
 	}
-	read_unlock(&est_lock);
+	spin_unlock(&est_lock);
 	mod_timer(&est_timer, jiffies + 2*HZ);
 }
 
-int ip_vs_new_estimator(struct ip_vs_stats *stats)
+void ip_vs_new_estimator(struct ip_vs_stats *stats)
 {
-	struct ip_vs_estimator *est;
+	struct ip_vs_estimator *est = &stats->est;
 
-	est = kzalloc(sizeof(*est), GFP_KERNEL);
-	if (est == NULL)
-		return -ENOMEM;
+	INIT_LIST_HEAD(&est->list);
 
-	est->stats = stats;
 	est->last_conns = stats->conns;
 	est->cps = stats->cps<<10;
 
@@ -142,59 +123,40 @@ int ip_vs_new_estimator(struct ip_vs_stats *stats)
 	est->last_outbytes = stats->outbytes;
 	est->outbps = stats->outbps<<5;
 
-	write_lock_bh(&est_lock);
-	est->next = est_list;
-	if (est->next == NULL) {
-		setup_timer(&est_timer, estimation_timer, 0);
-		est_timer.expires = jiffies + 2*HZ;
-		add_timer(&est_timer);
-	}
-	est_list = est;
-	write_unlock_bh(&est_lock);
-	return 0;
+	spin_lock_bh(&est_lock);
+	if (list_empty(&est_list))
+		mod_timer(&est_timer, jiffies + 2 * HZ);
+	list_add(&est->list, &est_list);
+	spin_unlock_bh(&est_lock);
 }
 
 void ip_vs_kill_estimator(struct ip_vs_stats *stats)
 {
-	struct ip_vs_estimator *est, **pest;
-	int killed = 0;
+	struct ip_vs_estimator *est = &stats->est;
 
-	write_lock_bh(&est_lock);
-	pest = &est_list;
-	while ((est=*pest) != NULL) {
-		if (est->stats != stats) {
-			pest = &est->next;
-			continue;
-		}
-		*pest = est->next;
-		kfree(est);
-		killed++;
+	spin_lock_bh(&est_lock);
+	list_del(&est->list);
+	while (list_empty(&est_list) && try_to_del_timer_sync(&est_timer) < 0) {
+		spin_unlock_bh(&est_lock);
+		cpu_relax();
+		spin_lock_bh(&est_lock);
 	}
-	if (killed && est_list == NULL)
-		del_timer_sync(&est_timer);
-	write_unlock_bh(&est_lock);
+	spin_unlock_bh(&est_lock);
 }
 
 void ip_vs_zero_estimator(struct ip_vs_stats *stats)
 {
-	struct ip_vs_estimator *e;
+	struct ip_vs_estimator *est = &stats->est;
 
-	write_lock_bh(&est_lock);
-	for (e = est_list; e; e = e->next) {
-		if (e->stats != stats)
-			continue;
-
-		/* set counters zero */
-		e->last_conns = 0;
-		e->last_inpkts = 0;
-		e->last_outpkts = 0;
-		e->last_inbytes = 0;
-		e->last_outbytes = 0;
-		e->cps = 0;
-		e->inpps = 0;
-		e->outpps = 0;
-		e->inbps = 0;
-		e->outbps = 0;
-	}
-	write_unlock_bh(&est_lock);
+	/* set counters zero, caller must hold the stats->lock lock */
+	est->last_inbytes = 0;
+	est->last_outbytes = 0;
+	est->last_conns = 0;
+	est->last_inpkts = 0;
+	est->last_outpkts = 0;
+	est->cps = 0;
+	est->inpps = 0;
+	est->outpps = 0;
+	est->inbps = 0;
+	est->outbps = 0;
 }

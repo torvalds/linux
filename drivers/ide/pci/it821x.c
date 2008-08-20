@@ -428,7 +428,7 @@ static void it821x_set_dma_mode(ide_drive_t *drive, const u8 speed)
  *	the needed logic onboard.
  */
 
-static u8 __devinit it821x_cable_detect(ide_hwif_t *hwif)
+static u8 it821x_cable_detect(ide_hwif_t *hwif)
 {
 	/* The reference driver also only does disk side */
 	return ATA_CBL_PATA80;
@@ -443,7 +443,7 @@ static u8 __devinit it821x_cable_detect(ide_hwif_t *hwif)
  *	final tuning that is needed, or fixups to work around bugs.
  */
 
-static void __devinit it821x_quirkproc(ide_drive_t *drive)
+static void it821x_quirkproc(ide_drive_t *drive)
 {
 	struct it821x_dev *itdev = ide_get_hwifdata(drive->hwif);
 	struct hd_driveid *id = drive->id;
@@ -686,7 +686,7 @@ static struct pci_driver driver = {
 	.name		= "ITE821x IDE",
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
-	.remove		= it821x_remove,
+	.remove		= __devexit_p(it821x_remove),
 };
 
 static int __init it821x_ide_init(void)

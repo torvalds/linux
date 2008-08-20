@@ -27,9 +27,8 @@
 #include <linux/fs.h>
 #include <linux/ioport.h>
 #include <linux/scx200.h>
-
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #define NAME "scx200_wdt"
 
@@ -47,8 +46,9 @@ module_param(nowayout, int, 0);
 MODULE_PARM_DESC(nowayout, "Disable watchdog shutdown on close");
 
 static u16 wdto_restart;
-static struct semaphore open_semaphore;
 static char expect_close;
+static unsigned long open_lock;
+static DEFINE_SPINLOCK(scx_lock);
 
 /* Bits of the WDCNFG register */
 #define W_ENABLE 0x00fa		/* Enable watchdog */
@@ -59,7 +59,9 @@ static char expect_close;
 
 static void scx200_wdt_ping(void)
 {
+	spin_lock(&scx_lock);
 	outw(wdto_restart, scx200_cb_base + SCx200_WDT_WDTO);
+	spin_unlock(&scx_lock);
 }
 
 static void scx200_wdt_update_margin(void)
@@ -73,9 +75,11 @@ static void scx200_wdt_enable(void)
 	printk(KERN_DEBUG NAME ": enabling watchdog timer, wdto_restart = %d\n",
 	       wdto_restart);
 
+	spin_lock(&scx_lock);
 	outw(0, scx200_cb_base + SCx200_WDT_WDTO);
 	outb(SCx200_WDT_WDSTS_WDOVF, scx200_cb_base + SCx200_WDT_WDSTS);
 	outw(W_ENABLE, scx200_cb_base + SCx200_WDT_WDCNFG);
+	spin_unlock(&scx_lock);
 
 	scx200_wdt_ping();
 }
@@ -84,15 +88,17 @@ static void scx200_wdt_disable(void)
 {
 	printk(KERN_DEBUG NAME ": disabling watchdog timer\n");
 
+	spin_lock(&scx_lock);
 	outw(0, scx200_cb_base + SCx200_WDT_WDTO);
 	outb(SCx200_WDT_WDSTS_WDOVF, scx200_cb_base + SCx200_WDT_WDSTS);
 	outw(W_DISABLE, scx200_cb_base + SCx200_WDT_WDCNFG);
+	spin_unlock(&scx_lock);
 }
 
 static int scx200_wdt_open(struct inode *inode, struct file *file)
 {
 	/* only allow one at a time */
-	if (down_trylock(&open_semaphore))
+	if (test_and_set_bit(0, &open_lock))
 		return -EBUSY;
 	scx200_wdt_enable();
 
@@ -101,13 +107,12 @@ static int scx200_wdt_open(struct inode *inode, struct file *file)
 
 static int scx200_wdt_release(struct inode *inode, struct file *file)
 {
-	if (expect_close != 42) {
+	if (expect_close != 42)
 		printk(KERN_WARNING NAME ": watchdog device closed unexpectedly, will not disable the watchdog timer\n");
-	} else if (!nowayout) {
+	else if (!nowayout)
 		scx200_wdt_disable();
-	}
 	expect_close = 0;
-	up(&open_semaphore);
+	clear_bit(0, &open_lock);
 
 	return 0;
 }
@@ -122,8 +127,7 @@ static int scx200_wdt_notify_sys(struct notifier_block *this,
 	return NOTIFY_DONE;
 }
 
-static struct notifier_block scx200_wdt_notifier =
-{
+static struct notifier_block scx200_wdt_notifier = {
 	.notifier_call = scx200_wdt_notify_sys,
 };
 
@@ -131,8 +135,7 @@ static ssize_t scx200_wdt_write(struct file *file, const char __user *data,
 				     size_t len, loff_t *ppos)
 {
 	/* check for a magic close character */
-	if (len)
-	{
+	if (len) {
 		size_t i;
 
 		scx200_wdt_ping();
@@ -140,7 +143,7 @@ static ssize_t scx200_wdt_write(struct file *file, const char __user *data,
 		expect_close = 0;
 		for (i = 0; i < len; ++i) {
 			char c;
-			if (get_user(c, data+i))
+			if (get_user(c, data + i))
 				return -EFAULT;
 			if (c == 'V')
 				expect_close = 42;
@@ -152,23 +155,21 @@ static ssize_t scx200_wdt_write(struct file *file, const char __user *data,
 	return 0;
 }
 
-static int scx200_wdt_ioctl(struct inode *inode, struct file *file,
-	unsigned int cmd, unsigned long arg)
+static long scx200_wdt_ioctl(struct file *file, unsigned int cmd,
+							unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
 	int __user *p = argp;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.identity = "NatSemi SCx200 Watchdog",
 		.firmware_version = 1,
-		.options = (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING),
+		.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	};
 	int new_margin;
 
 	switch (cmd) {
-	default:
-		return -ENOTTY;
 	case WDIOC_GETSUPPORT:
-		if(copy_to_user(argp, &ident, sizeof(ident)))
+		if (copy_to_user(argp, &ident, sizeof(ident)))
 			return -EFAULT;
 		return 0;
 	case WDIOC_GETSTATUS:
@@ -191,22 +192,24 @@ static int scx200_wdt_ioctl(struct inode *inode, struct file *file,
 		if (put_user(margin, p))
 			return -EFAULT;
 		return 0;
+	default:
+		return -ENOTTY;
 	}
 }
 
 static const struct file_operations scx200_wdt_fops = {
-	.owner	 = THIS_MODULE,
-	.llseek	 = no_llseek,
-	.write   = scx200_wdt_write,
-	.ioctl   = scx200_wdt_ioctl,
-	.open    = scx200_wdt_open,
+	.owner = THIS_MODULE,
+	.llseek = no_llseek,
+	.write = scx200_wdt_write,
+	.unlocked_ioctl = scx200_wdt_ioctl,
+	.open = scx200_wdt_open,
 	.release = scx200_wdt_release,
 };
 
 static struct miscdevice scx200_wdt_miscdev = {
 	.minor = WATCHDOG_MINOR,
-	.name  = "watchdog",
-	.fops  = &scx200_wdt_fops,
+	.name = "watchdog",
+	.fops = &scx200_wdt_fops,
 };
 
 static int __init scx200_wdt_init(void)
@@ -228,8 +231,6 @@ static int __init scx200_wdt_init(void)
 
 	scx200_wdt_update_margin();
 	scx200_wdt_disable();
-
-	sema_init(&open_semaphore, 1);
 
 	r = register_reboot_notifier(&scx200_wdt_notifier);
 	if (r) {
@@ -263,7 +264,7 @@ module_exit(scx200_wdt_cleanup);
 
 /*
     Local variables:
-        compile-command: "make -k -C ../.. SUBDIRS=drivers/char modules"
-        c-basic-offset: 8
+	compile-command: "make -k -C ../.. SUBDIRS=drivers/char modules"
+	c-basic-offset: 8
     End:
 */

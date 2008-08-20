@@ -305,10 +305,10 @@ static void recent_mt_destroy(const struct xt_match *match, void *matchinfo)
 		spin_lock_bh(&recent_lock);
 		list_del(&t->list);
 		spin_unlock_bh(&recent_lock);
-		recent_table_flush(t);
 #ifdef CONFIG_PROC_FS
 		remove_proc_entry(t->name, proc_dir);
 #endif
+		recent_table_flush(t);
 		kfree(t);
 	}
 	mutex_unlock(&recent_mutex);

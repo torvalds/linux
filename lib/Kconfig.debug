@@ -693,6 +693,14 @@ config LATENCYTOP
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
 
+config SYSCTL_SYSCALL_CHECK
+	bool "Sysctl checks"
+	depends on SYSCTL_SYSCALL
+	---help---
+	  sys_sysctl uses binary paths that have been found challenging
+	  to properly maintain and use. This enables checks that help
+	  you to keep things correct.
+
 source kernel/trace/Kconfig
 
 config PROVIDE_OHCI1394_DMA_INIT
@@ -734,6 +742,15 @@ config FIREWIRE_OHCI_REMOTE_DMA
 	  See Documentation/debugging-via-ohci1394.txt for more information.
 
 	  If unsure, say N.
+
+menuconfig BUILD_DOCSRC
+	bool "Build targets in Documentation/ tree"
+	depends on HEADERS_CHECK
+	help
+	  This option attempts to build objects from the source files in the
+	  kernel Documentation/ tree.
+
+	  Say N if you are unsure.
 
 source "samples/Kconfig"
 

@@ -372,8 +372,14 @@
 #define __NR_semtimedop		357
 #define __NR_timerfd_settime	358
 #define __NR_timerfd_gettime	359
+#define __NR_signalfd4		360
+#define __NR_eventfd2		361
+#define __NR_epoll_create1	362
+#define __NR_dup3		363
+#define __NR_pipe2		364
+#define __NR_inotify_init1	365
 
-#define __NR_syscall		360
+#define __NR_syscall		366
 #define NR_syscalls		__NR_syscall
 
 /* Old optional stuff no one actually uses */

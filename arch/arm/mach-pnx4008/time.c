@@ -24,7 +24,7 @@
 #include <linux/irq.h>
 
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/leds.h>
 #include <asm/mach/time.h>

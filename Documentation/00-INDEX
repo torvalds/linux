@@ -89,8 +89,6 @@ cciss.txt
 	- info, major/minor #'s for Compaq's SMART Array Controllers.
 cdrom/
 	- directory with information on the CD-ROM drivers that Linux has.
-cli-sti-removal.txt
-	- cli()/sti() removal guide.
 computone.txt
 	- info on Computone Intelliport II/Plus Multiport Serial Driver.
 connector/

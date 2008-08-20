@@ -447,13 +447,11 @@ static int get_dent_type(int mode)
  * @ino: buffer in which to pack inode node
  * @inode: inode to pack
  * @last: indicates the last node of the group
- * @last_reference: non-zero if this is a deletion inode
  */
 static void pack_inode(struct ubifs_info *c, struct ubifs_ino_node *ino,
-		       const struct inode *inode, int last,
-		       int last_reference)
+		       const struct inode *inode, int last)
 {
-	int data_len = 0;
+	int data_len = 0, last_reference = !inode->i_nlink;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
 	ino->ch.node_type = UBIFS_INO_NODE;
@@ -596,9 +594,9 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 	ubifs_prep_grp_node(c, dent, dlen, 0);
 
 	ino = (void *)dent + aligned_dlen;
-	pack_inode(c, ino, inode, 0, last_reference);
+	pack_inode(c, ino, inode, 0);
 	ino = (void *)ino + aligned_ilen;
-	pack_inode(c, ino, dir, 1, 0);
+	pack_inode(c, ino, dir, 1);
 
 	if (last_reference) {
 		err = ubifs_add_orphan(c, inode->i_ino);
@@ -606,6 +604,7 @@ int ubifs_jnl_update(struct ubifs_info *c, const struct inode *dir,
 			release_head(c, BASEHD);
 			goto out_finish;
 		}
+		ui->del_cmtno = c->cmt_no;
 	}
 
 	err = write_head(c, BASEHD, dent, len, &lnum, &dent_offs, sync);
@@ -750,30 +749,25 @@ out_free:
  * ubifs_jnl_write_inode - flush inode to the journal.
  * @c: UBIFS file-system description object
  * @inode: inode to flush
- * @deletion: inode has been deleted
  *
  * This function writes inode @inode to the journal. If the inode is
  * synchronous, it also synchronizes the write-buffer. Returns zero in case of
  * success and a negative error code in case of failure.
  */
-int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
-			  int deletion)
+int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode)
 {
-	int err, len, lnum, offs, sync = 0;
+	int err, lnum, offs;
 	struct ubifs_ino_node *ino;
 	struct ubifs_inode *ui = ubifs_inode(inode);
+	int sync = 0, len = UBIFS_INO_NODE_SZ, last_reference = !inode->i_nlink;
 
-	dbg_jnl("ino %lu%s", inode->i_ino,
-		deletion ? " (last reference)" : "");
-	if (deletion)
-		ubifs_assert(inode->i_nlink == 0);
+	dbg_jnl("ino %lu, nlink %u", inode->i_ino, inode->i_nlink);
 
-	len = UBIFS_INO_NODE_SZ;
 	/*
 	 * If the inode is being deleted, do not write the attached data. No
 	 * need to synchronize the write-buffer either.
 	 */
-	if (!deletion) {
+	if (!last_reference) {
 		len += ui->data_len;
 		sync = IS_SYNC(inode);
 	}
@@ -786,7 +780,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	pack_inode(c, ino, inode, 1, deletion);
+	pack_inode(c, ino, inode, 1);
 	err = write_head(c, BASEHD, ino, len, &lnum, &offs, sync);
 	if (err)
 		goto out_release;
@@ -795,7 +789,7 @@ int ubifs_jnl_write_inode(struct ubifs_info *c, const struct inode *inode,
 					  inode->i_ino);
 	release_head(c, BASEHD);
 
-	if (deletion) {
+	if (last_reference) {
 		err = ubifs_tnc_remove_ino(c, inode->i_ino);
 		if (err)
 			goto out_ro;
@@ -824,6 +818,65 @@ out_ro:
 	finish_reservation(c);
 out_free:
 	kfree(ino);
+	return err;
+}
+
+/**
+ * ubifs_jnl_delete_inode - delete an inode.
+ * @c: UBIFS file-system description object
+ * @inode: inode to delete
+ *
+ * This function deletes inode @inode which includes removing it from orphans,
+ * deleting it from TNC and, in some cases, writing a deletion inode to the
+ * journal.
+ *
+ * When regular file inodes are unlinked or a directory inode is removed, the
+ * 'ubifs_jnl_update()' function writes a corresponding deletion inode and
+ * direntry to the media, and adds the inode to orphans. After this, when the
+ * last reference to this inode has been dropped, this function is called. In
+ * general, it has to write one more deletion inode to the media, because if
+ * a commit happened between 'ubifs_jnl_update()' and
+ * 'ubifs_jnl_delete_inode()', the deletion inode is not in the journal
+ * anymore, and in fact it might not be on the flash anymore, because it might
+ * have been garbage-collected already. And for optimization reasons UBIFS does
+ * not read the orphan area if it has been unmounted cleanly, so it would have
+ * no indication in the journal that there is a deleted inode which has to be
+ * removed from TNC.
+ *
+ * However, if there was no commit between 'ubifs_jnl_update()' and
+ * 'ubifs_jnl_delete_inode()', then there is no need to write the deletion
+ * inode to the media for the second time. And this is quite a typical case.
+ *
+ * This function returns zero in case of success and a negative error code in
+ * case of failure.
+ */
+int ubifs_jnl_delete_inode(struct ubifs_info *c, const struct inode *inode)
+{
+	int err;
+	struct ubifs_inode *ui = ubifs_inode(inode);
+
+	ubifs_assert(inode->i_nlink == 0);
+
+	if (ui->del_cmtno != c->cmt_no)
+		/* A commit happened for sure */
+		return ubifs_jnl_write_inode(c, inode);
+
+	down_read(&c->commit_sem);
+	/*
+	 * Check commit number again, because the first test has been done
+	 * without @c->commit_sem, so a commit might have happened.
+	 */
+	if (ui->del_cmtno != c->cmt_no) {
+		up_read(&c->commit_sem);
+		return ubifs_jnl_write_inode(c, inode);
+	}
+
+	err = ubifs_tnc_remove_ino(c, inode->i_ino);
+	if (err)
+		ubifs_ro_mode(c, err);
+	else
+		ubifs_delete_orphan(c, inode->i_ino);
+	up_read(&c->commit_sem);
 	return err;
 }
 
@@ -917,16 +970,16 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 
 	p = (void *)dent2 + aligned_dlen2;
 	if (new_inode) {
-		pack_inode(c, p, new_inode, 0, last_reference);
+		pack_inode(c, p, new_inode, 0);
 		p += ALIGN(ilen, 8);
 	}
 
 	if (!move)
-		pack_inode(c, p, old_dir, 1, 0);
+		pack_inode(c, p, old_dir, 1);
 	else {
-		pack_inode(c, p, old_dir, 0, 0);
+		pack_inode(c, p, old_dir, 0);
 		p += ALIGN(plen, 8);
-		pack_inode(c, p, new_dir, 1, 0);
+		pack_inode(c, p, new_dir, 1);
 	}
 
 	if (last_reference) {
@@ -935,6 +988,7 @@ int ubifs_jnl_rename(struct ubifs_info *c, const struct inode *old_dir,
 			release_head(c, BASEHD);
 			goto out_finish;
 		}
+		new_ui->del_cmtno = c->cmt_no;
 	}
 
 	err = write_head(c, BASEHD, dent, len, &lnum, &offs, sync);
@@ -1131,7 +1185,7 @@ int ubifs_jnl_truncate(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	pack_inode(c, ino, inode, 0, 0);
+	pack_inode(c, ino, inode, 0);
 	ubifs_prep_grp_node(c, trun, UBIFS_TRUN_NODE_SZ, dlen ? 0 : 1);
 	if (dlen)
 		ubifs_prep_grp_node(c, dn, dlen, 1);
@@ -1251,9 +1305,9 @@ int ubifs_jnl_delete_xattr(struct ubifs_info *c, const struct inode *host,
 	ubifs_prep_grp_node(c, xent, xlen, 0);
 
 	ino = (void *)xent + aligned_xlen;
-	pack_inode(c, ino, inode, 0, 1);
+	pack_inode(c, ino, inode, 0);
 	ino = (void *)ino + UBIFS_INO_NODE_SZ;
-	pack_inode(c, ino, host, 1, 0);
+	pack_inode(c, ino, host, 1);
 
 	err = write_head(c, BASEHD, xent, len, &lnum, &xent_offs, sync);
 	if (!sync && !err)
@@ -1320,7 +1374,7 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 			   const struct inode *host)
 {
 	int err, len1, len2, aligned_len, aligned_len1, lnum, offs;
-	struct ubifs_inode *host_ui = ubifs_inode(inode);
+	struct ubifs_inode *host_ui = ubifs_inode(host);
 	struct ubifs_ino_node *ino;
 	union ubifs_key key;
 	int sync = IS_DIRSYNC(host);
@@ -1344,8 +1398,8 @@ int ubifs_jnl_change_xattr(struct ubifs_info *c, const struct inode *inode,
 	if (err)
 		goto out_free;
 
-	pack_inode(c, ino, host, 0, 0);
-	pack_inode(c, (void *)ino + aligned_len1, inode, 1, 0);
+	pack_inode(c, ino, host, 0);
+	pack_inode(c, (void *)ino + aligned_len1, inode, 1);
 
 	err = write_head(c, BASEHD, ino, aligned_len, &lnum, &offs, 0);
 	if (!sync && !err) {

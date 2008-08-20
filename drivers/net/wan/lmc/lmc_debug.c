@@ -1,4 +1,3 @@
-
 #include <linux/types.h>
 #include <linux/netdevice.h>
 #include <linux/interrupt.h>
@@ -48,10 +47,10 @@ void lmcConsoleLog(char *type, unsigned char *ucData, int iLen)
 #endif
 
 #ifdef DEBUG
-u_int32_t lmcEventLogIndex = 0;
-u_int32_t lmcEventLogBuf[LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS];
+u32 lmcEventLogIndex;
+u32 lmcEventLogBuf[LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS];
 
-void lmcEventLog (u_int32_t EventNum, u_int32_t arg2, u_int32_t arg3)
+void lmcEventLog(u32 EventNum, u32 arg2, u32 arg3)
 {
   lmcEventLogBuf[lmcEventLogIndex++] = EventNum;
   lmcEventLogBuf[lmcEventLogIndex++] = arg2;

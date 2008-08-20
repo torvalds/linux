@@ -2,7 +2,7 @@
  * Blackfin On-Chip Real Time Clock Driver
  *  Supports BF52[257]/BF53[123]/BF53[467]/BF54[24789]
  *
- * Copyright 2004-2007 Analog Devices Inc.
+ * Copyright 2004-2008 Analog Devices Inc.
  *
  * Enter bugs at http://blackfin.uclinux.org/
  *
@@ -30,6 +30,15 @@
  *
  * Also note that the RTC_ISTAT register does not suffer this penalty; its
  * writes to clear status registers complete immediately.
+ */
+
+/* It may seem odd that there is no SWCNT code in here (which would be exposed
+ * via the periodic interrupt event, or PIE).  Since the Blackfin RTC peripheral
+ * runs in units of seconds (N/HZ) but the Linux framework runs in units of HZ
+ * (2^N HZ), there is no point in keeping code that only provides 1 HZ PIEs.
+ * The same exact behavior can be accomplished by using the update interrupt
+ * event (UIE).  Maybe down the line the RTC peripheral will suck less in which
+ * case we can re-introduce PIE support.
  */
 
 #include <linux/bcd.h>
@@ -144,14 +153,13 @@ static void bfin_rtc_sync_pending(struct device *dev)
  * Initialize the RTC.  Enable pre-scaler to scale RTC clock
  * to 1Hz and clear interrupt/status registers.
  */
-static void bfin_rtc_reset(struct device *dev)
+static void bfin_rtc_reset(struct device *dev, u16 rtc_ictl)
 {
 	struct bfin_rtc *rtc = dev_get_drvdata(dev);
 	dev_dbg_stamp(dev);
 	bfin_rtc_sync_pending(dev);
 	bfin_write_RTC_PREN(0x1);
-	bfin_write_RTC_ICTL(RTC_ISTAT_WRITE_COMPLETE);
-	bfin_write_RTC_SWCNT(0);
+	bfin_write_RTC_ICTL(rtc_ictl);
 	bfin_write_RTC_ALARM(0);
 	bfin_write_RTC_ISTAT(0xFFFF);
 	rtc->rtc_wrote_regs = 0;
@@ -194,14 +202,6 @@ static irqreturn_t bfin_rtc_interrupt(int irq, void *dev_id)
 		}
 	}
 
-	if (rtc_ictl & RTC_ISTAT_STOPWATCH) {
-		if (rtc_istat & RTC_ISTAT_STOPWATCH) {
-			bfin_write_RTC_ISTAT(RTC_ISTAT_STOPWATCH);
-			events |= RTC_PF | RTC_IRQF;
-			bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
-		}
-	}
-
 	if (rtc_ictl & RTC_ISTAT_SEC) {
 		if (rtc_istat & RTC_ISTAT_SEC) {
 			bfin_write_RTC_ISTAT(RTC_ISTAT_SEC);
@@ -226,7 +226,7 @@ static int bfin_rtc_open(struct device *dev)
 
 	ret = request_irq(IRQ_RTC, bfin_rtc_interrupt, IRQF_SHARED, to_platform_device(dev)->name, dev);
 	if (!ret)
-		bfin_rtc_reset(dev);
+		bfin_rtc_reset(dev, RTC_ISTAT_WRITE_COMPLETE);
 
 	return ret;
 }
@@ -234,16 +234,16 @@ static int bfin_rtc_open(struct device *dev)
 static void bfin_rtc_release(struct device *dev)
 {
 	dev_dbg_stamp(dev);
-	bfin_rtc_reset(dev);
+	bfin_rtc_reset(dev, 0);
 	free_irq(IRQ_RTC, dev);
 }
 
-static void bfin_rtc_int_set(struct bfin_rtc *rtc, u16 rtc_int)
+static void bfin_rtc_int_set(u16 rtc_int)
 {
 	bfin_write_RTC_ISTAT(rtc_int);
 	bfin_write_RTC_ICTL(bfin_read_RTC_ICTL() | rtc_int);
 }
-static void bfin_rtc_int_clear(struct bfin_rtc *rtc, u16 rtc_int)
+static void bfin_rtc_int_clear(u16 rtc_int)
 {
 	bfin_write_RTC_ICTL(bfin_read_RTC_ICTL() & rtc_int);
 }
@@ -252,7 +252,7 @@ static void bfin_rtc_int_set_alarm(struct bfin_rtc *rtc)
 	/* Blackfin has different bits for whether the alarm is
 	 * more than 24 hours away.
 	 */
-	bfin_rtc_int_set(rtc, (rtc->rtc_alarm.tm_yday == -1 ? RTC_ISTAT_ALARM : RTC_ISTAT_ALARM_DAY));
+	bfin_rtc_int_set(rtc->rtc_alarm.tm_yday == -1 ? RTC_ISTAT_ALARM : RTC_ISTAT_ALARM_DAY);
 }
 static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long arg)
 {
@@ -264,23 +264,13 @@ static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 	bfin_rtc_sync_pending(dev);
 
 	switch (cmd) {
-	case RTC_PIE_ON:
-		dev_dbg_stamp(dev);
-		bfin_rtc_int_set(rtc, RTC_ISTAT_STOPWATCH);
-		bfin_write_RTC_SWCNT(rtc->rtc_dev->irq_freq);
-		break;
-	case RTC_PIE_OFF:
-		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(rtc, ~RTC_ISTAT_STOPWATCH);
-		break;
-
 	case RTC_UIE_ON:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_set(rtc, RTC_ISTAT_SEC);
+		bfin_rtc_int_set(RTC_ISTAT_SEC);
 		break;
 	case RTC_UIE_OFF:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(rtc, ~RTC_ISTAT_SEC);
+		bfin_rtc_int_clear(~RTC_ISTAT_SEC);
 		break;
 
 	case RTC_AIE_ON:
@@ -289,7 +279,7 @@ static int bfin_rtc_ioctl(struct device *dev, unsigned int cmd, unsigned long ar
 		break;
 	case RTC_AIE_OFF:
 		dev_dbg_stamp(dev);
-		bfin_rtc_int_clear(rtc, ~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
+		bfin_rtc_int_clear(~(RTC_ISTAT_ALARM | RTC_ISTAT_ALARM_DAY));
 		break;
 
 	default:
@@ -371,28 +361,12 @@ static int bfin_rtc_proc(struct device *dev, struct seq_file *seq)
 	seq_printf(seq,
 		"alarm_IRQ\t: %s\n"
 		"wkalarm_IRQ\t: %s\n"
-		"seconds_IRQ\t: %s\n"
-		"periodic_IRQ\t: %s\n",
+		"seconds_IRQ\t: %s\n",
 		yesno(ictl & RTC_ISTAT_ALARM),
 		yesno(ictl & RTC_ISTAT_ALARM_DAY),
-		yesno(ictl & RTC_ISTAT_SEC),
-		yesno(ictl & RTC_ISTAT_STOPWATCH));
+		yesno(ictl & RTC_ISTAT_SEC));
 	return 0;
 #undef yesno
-}
-
-/**
- *	bfin_irq_set_freq - make sure hardware supports requested freq
- *	@dev: pointer to RTC device structure
- *	@freq: requested frequency rate
- *
- *	The Blackfin RTC can only generate periodic events at 1 per
- *	second (1 Hz), so reject any attempt at changing it.
- */
-static int bfin_irq_set_freq(struct device *dev, int freq)
-{
-	dev_dbg_stamp(dev);
-	return -ENOTTY;
 }
 
 static struct rtc_class_ops bfin_rtc_ops = {
@@ -404,7 +378,6 @@ static struct rtc_class_ops bfin_rtc_ops = {
 	.read_alarm    = bfin_rtc_read_alarm,
 	.set_alarm     = bfin_rtc_set_alarm,
 	.proc          = bfin_rtc_proc,
-	.irq_set_freq  = bfin_irq_set_freq,
 };
 
 static int __devinit bfin_rtc_probe(struct platform_device *pdev)
@@ -423,9 +396,13 @@ static int __devinit bfin_rtc_probe(struct platform_device *pdev)
 		ret = PTR_ERR(rtc->rtc_dev);
 		goto err;
 	}
-	rtc->rtc_dev->irq_freq = 1;
+
+	/* see comment at top of file about stopwatch/PIE */
+	bfin_write_RTC_SWCNT(0);
 
 	platform_set_drvdata(pdev, rtc);
+
+	device_init_wakeup(&pdev->dev, 1);
 
 	return 0;
 
@@ -445,6 +422,32 @@ static int __devexit bfin_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int bfin_rtc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	if (device_may_wakeup(&pdev->dev)) {
+		enable_irq_wake(IRQ_RTC);
+		bfin_rtc_sync_pending(&pdev->dev);
+	} else
+		bfin_rtc_int_clear(-1);
+
+	return 0;
+}
+
+static int bfin_rtc_resume(struct platform_device *pdev)
+{
+	if (device_may_wakeup(&pdev->dev))
+		disable_irq_wake(IRQ_RTC);
+	else
+		bfin_write_RTC_ISTAT(-1);
+
+	return 0;
+}
+#else
+# define bfin_rtc_suspend NULL
+# define bfin_rtc_resume  NULL
+#endif
+
 static struct platform_driver bfin_rtc_driver = {
 	.driver		= {
 		.name	= "rtc-bfin",
@@ -452,6 +455,8 @@ static struct platform_driver bfin_rtc_driver = {
 	},
 	.probe		= bfin_rtc_probe,
 	.remove		= __devexit_p(bfin_rtc_remove),
+	.suspend	= bfin_rtc_suspend,
+	.resume		= bfin_rtc_resume,
 };
 
 static int __init bfin_rtc_init(void)

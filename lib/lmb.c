@@ -462,6 +462,8 @@ void __init lmb_enforce_memory_limit(u64 memory_limit)
 	if (lmb.memory.region[0].size < lmb.rmo_size)
 		lmb.rmo_size = lmb.memory.region[0].size;
 
+	memory_limit = lmb_end_of_DRAM();
+
 	/* And truncate any reserves above the limit also. */
 	for (i = 0; i < lmb.reserved.cnt; i++) {
 		p = &lmb.reserved.region[i];

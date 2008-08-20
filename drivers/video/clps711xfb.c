@@ -27,12 +27,12 @@
 #include <linux/proc_fs.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <linux/uaccess.h>
 
 #include <asm/hardware/clps7111.h>
-#include <asm/arch/syspld.h>
+#include <mach/syspld.h>
 
 struct fb_info	*cfb;
 

@@ -187,7 +187,7 @@ config CPU_ARM926T
 		ARCH_AT91SAM9260 || ARCH_AT91SAM9261 || \
 		ARCH_AT91SAM9263 || ARCH_AT91SAM9RL || \
 		ARCH_AT91SAM9G20 || ARCH_AT91CAP9 || \
-		ARCH_NS9XXX || ARCH_DAVINCI
+		ARCH_NS9XXX || ARCH_DAVINCI || ARCH_MX2
 	default y if ARCH_VERSATILE_PB || MACH_VERSATILE_AB || \
 		ARCH_OMAP730 || ARCH_OMAP16XX || \
 		ARCH_PNX4008 || ARCH_NETX || CPU_S3C2412 || \
@@ -742,3 +742,11 @@ config CACHE_L2X0
 	select OUTER_CACHE
 	help
 	  This option enables the L2x0 PrimeCell.
+
+config CACHE_XSC3L2
+	bool "Enable the L2 cache on XScale3"
+	depends on CPU_XSC3
+	default y
+	select OUTER_CACHE
+	help
+	  This option enables the L2 cache on XScale3.

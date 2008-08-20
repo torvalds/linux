@@ -40,9 +40,6 @@
 
 #undef DEBUG
 
-extern void die_if_kernel(char *,struct pt_regs *,long);
-extern void free_initmem(void);
-
 /*
  * BAD_PAGE is the page that is used for page faults when linux
  * is out-of-memory. Older versions of linux just did a
@@ -73,7 +70,7 @@ extern unsigned long memory_end;
  * The parameters are pointers to where to stick the starting and ending
  * addresses of available kernel virtual memory.
  */
-void paging_init(void)
+void __init paging_init(void)
 {
 	/*
 	 * Make sure start_mem is page aligned,  otherwise bootmem and
@@ -122,7 +119,7 @@ void paging_init(void)
 	}
 }
 
-void mem_init(void)
+void __init mem_init(void)
 {
 	int codek = 0, datak = 0, initk = 0;
 	/* DAVIDM look at setup memory map generically with reserved area */
@@ -178,7 +175,7 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 #endif
 
 void
-free_initmem()
+free_initmem(void)
 {
 #ifdef CONFIG_RAMKERNEL
 	unsigned long addr;

@@ -11,7 +11,7 @@
 #ifndef __DMA_SH_H
 #define __DMA_SH_H
 
-#include <asm/cpu/dma.h>
+#include <cpu/dma.h>
 
 /* Definitions for the SuperH DMAC */
 #define REQ_L	0x00000000

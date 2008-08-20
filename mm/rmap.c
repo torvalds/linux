@@ -422,7 +422,7 @@ int page_referenced(struct page *page, int is_locked,
 			referenced += page_referenced_anon(page, mem_cont);
 		else if (is_locked)
 			referenced += page_referenced_file(page, mem_cont);
-		else if (TestSetPageLocked(page))
+		else if (!trylock_page(page))
 			referenced++;
 		else {
 			if (page->mapping)
@@ -667,7 +667,8 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 		 * Leaving it set also helps swapoff to reinstate ptes
 		 * faster for those pages still in swapcache.
 		 */
-		if (page_test_dirty(page)) {
+		if ((!PageAnon(page) || PageSwapCache(page)) &&
+		    page_test_dirty(page)) {
 			page_clear_dirty(page);
 			set_page_dirty(page);
 		}

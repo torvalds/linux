@@ -25,7 +25,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/sizes.h>
 #include <asm/mach-types.h>
 

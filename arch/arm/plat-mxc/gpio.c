@@ -23,7 +23,7 @@
 #include <linux/io.h>
 #include <linux/irq.h>
 #include <linux/gpio.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm-generic/bug.h>
 
 static struct mxc_gpio_port *mxc_gpio_ports;

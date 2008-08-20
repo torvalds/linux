@@ -34,11 +34,11 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/arch/i2c.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/i2c.h>
+#include <mach/pxa-regs.h>
 
 struct pxa_i2c {
 	spinlock_t		lock;

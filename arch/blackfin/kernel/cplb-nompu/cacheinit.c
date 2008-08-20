@@ -25,7 +25,7 @@
 #include <asm/cplbinit.h>
 
 #if defined(CONFIG_BFIN_ICACHE)
-void bfin_icache_init(void)
+void __init bfin_icache_init(void)
 {
 	unsigned long *table = icplb_table;
 	unsigned long ctrl;
@@ -47,7 +47,7 @@ void bfin_icache_init(void)
 #endif
 
 #if defined(CONFIG_BFIN_DCACHE)
-void bfin_dcache_init(void)
+void __init bfin_dcache_init(void)
 {
 	unsigned long *table = dcplb_table;
 	unsigned long ctrl;

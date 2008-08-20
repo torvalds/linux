@@ -216,8 +216,8 @@ int get_sb_pseudo(struct file_system_type *fs_type, char *name,
 
 	s->s_flags = MS_NOUSER;
 	s->s_maxbytes = ~0ULL;
-	s->s_blocksize = 1024;
-	s->s_blocksize_bits = 10;
+	s->s_blocksize = PAGE_SIZE;
+	s->s_blocksize_bits = PAGE_SHIFT;
 	s->s_magic = magic;
 	s->s_op = ops ? ops : &simple_super_operations;
 	s->s_time_gran = 1;
