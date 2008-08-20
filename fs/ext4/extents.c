@@ -1753,7 +1753,7 @@ static int ext4_ext_rm_idx(handle_t *handle, struct inode *inode,
  * When pass the actual path, the caller should calculate credits
  * under i_data_sem.
  */
-int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int num,
+int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int nrblocks,
 						struct ext4_ext_path *path)
 {
 	if (path) {
@@ -1772,12 +1772,12 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int num,
 			 *  and other metadat blocks still need to be
 			 *  accounted.
 			 */
-			/* 1 one bitmap, 1 block group descriptor */
+			/* 1 bitmap, 1 block group descriptor */
 			ret = 2 + EXT4_META_TRANS_BLOCKS(inode->i_sb);
 		}
 	}
 
-	return ext4_chunk_trans_blocks(inode, num);
+	return ext4_chunk_trans_blocks(inode, nrblocks);
 }
 
 /*
@@ -1791,7 +1791,7 @@ int ext4_ext_calc_credits_for_single_extent(struct inode *inode, int num,
  * If the nrblocks are discontiguous, they could cause
  * the whole tree split more than once, but this is really rare.
  */
-int ext4_ext_index_trans_blocks(struct inode *inode, int num, int chunk)
+int ext4_ext_index_trans_blocks(struct inode *inode, int nrblocks, int chunk)
 {
 	int index;
 	int depth = ext_depth(inode);

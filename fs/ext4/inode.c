@@ -1848,29 +1848,53 @@ static void mpage_da_map_blocks(struct mpage_da_data *mpd)
 static void mpage_add_bh_to_extent(struct mpage_da_data *mpd,
 				   sector_t logical, struct buffer_head *bh)
 {
-	struct buffer_head *lbh = &mpd->lbh;
 	sector_t next;
+	size_t b_size = bh->b_size;
+	struct buffer_head *lbh = &mpd->lbh;
+	int nrblocks = lbh->b_size >> mpd->inode->i_blkbits;
 
-	next = lbh->b_blocknr + (lbh->b_size >> mpd->inode->i_blkbits);
-
+	/* check if thereserved journal credits might overflow */
+	if (!(EXT4_I(mpd->inode)->i_flags & EXT4_EXTENTS_FL)) {
+		if (nrblocks >= EXT4_MAX_TRANS_DATA) {
+			/*
+			 * With non-extent format we are limited by the journal
+			 * credit available.  Total credit needed to insert
+			 * nrblocks contiguous blocks is dependent on the
+			 * nrblocks.  So limit nrblocks.
+			 */
+			goto flush_it;
+		} else if ((nrblocks + (b_size >> mpd->inode->i_blkbits)) >
+				EXT4_MAX_TRANS_DATA) {
+			/*
+			 * Adding the new buffer_head would make it cross the
+			 * allowed limit for which we have journal credit
+			 * reserved. So limit the new bh->b_size
+			 */
+			b_size = (EXT4_MAX_TRANS_DATA - nrblocks) <<
+						mpd->inode->i_blkbits;
+			/* we will do mpage_da_submit_io in the next loop */
+		}
+	}
 	/*
 	 * First block in the extent
 	 */
 	if (lbh->b_size == 0) {
 		lbh->b_blocknr = logical;
-		lbh->b_size = bh->b_size;
+		lbh->b_size = b_size;
 		lbh->b_state = bh->b_state & BH_FLAGS;
 		return;
 	}
 
+	next = lbh->b_blocknr + nrblocks;
 	/*
 	 * Can we merge the block to our big extent?
 	 */
 	if (logical == next && (bh->b_state & BH_FLAGS) == lbh->b_state) {
-		lbh->b_size += bh->b_size;
+		lbh->b_size += b_size;
 		return;
 	}
 
+flush_it:
 	/*
 	 * We couldn't merge the block to our extent, so we
 	 * need to flush current  extent and start new one
@@ -2231,17 +2255,29 @@ static int ext4_da_writepage(struct page *page,
 }
 
 /*
- * For now just follow the DIO way to estimate the max credits
- * needed to write out EXT4_MAX_WRITEBACK_PAGES.
- * todo: need to calculate the max credits need for
- * extent based files, currently the DIO credits is based on
- * indirect-blocks mapping way.
- *
- * Probably should have a generic way to calculate credits
- * for DIO, writepages, and truncate
+ * This is called via ext4_da_writepages() to
+ * calulate the total number of credits to reserve to fit
+ * a single extent allocation into a single transaction,
+ * ext4_da_writpeages() will loop calling this before
+ * the block allocation.
  */
-#define EXT4_MAX_WRITEBACK_PAGES      DIO_MAX_BLOCKS
-#define EXT4_MAX_WRITEBACK_CREDITS    25
+
+static int ext4_da_writepages_trans_blocks(struct inode *inode)
+{
+	int max_blocks = EXT4_I(inode)->i_reserved_data_blocks;
+
+	/*
+	 * With non-extent format the journal credit needed to
+	 * insert nrblocks contiguous block is dependent on
+	 * number of contiguous block. So we will limit
+	 * number of contiguous block to a sane value
+	 */
+	if (!(inode->i_flags & EXT4_EXTENTS_FL) &&
+	    (max_blocks > EXT4_MAX_TRANS_DATA))
+		max_blocks = EXT4_MAX_TRANS_DATA;
+
+	return ext4_chunk_trans_blocks(inode, max_blocks);
+}
 
 static int ext4_da_writepages(struct address_space *mapping,
 			      struct writeback_control *wbc)
@@ -2283,7 +2319,7 @@ restart_loop:
 		 * by delalloc
 		 */
 		BUG_ON(ext4_should_journal_data(inode));
-		needed_blocks = EXT4_DATA_TRANS_BLOCKS(inode->i_sb);
+		needed_blocks = ext4_da_writepages_trans_blocks(inode);
 
 		/* start a new transaction*/
 		handle = ext4_journal_start(inode, needed_blocks);
@@ -4461,11 +4497,9 @@ int ext4_meta_trans_blocks(struct inode *inode, int nrblocks, int chunk)
  * the modification of a single pages into a single transaction,
  * which may include multiple chunks of block allocations.
  *
- * This could be called via ext4_write_begin() or later
- * ext4_da_writepages() in delalyed allocation case.
+ * This could be called via ext4_write_begin()
  *
- * In both case it's possible that we could allocating multiple
- * chunks of blocks. We need to consider the worse case, when
+ * We need to consider the worse case, when
  * one new block per extent.
  */
 int ext4_writepage_trans_blocks(struct inode *inode)
