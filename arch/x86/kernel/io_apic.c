@@ -1777,7 +1777,12 @@ __apicdebuginit(void) print_local_APIC(void *dummy)
 
 __apicdebuginit(void) print_all_local_APICs(void)
 {
-	on_each_cpu(print_local_APIC, NULL, 1);
+	int cpu;
+
+	preempt_disable();
+	for_each_online_cpu(cpu)
+		smp_call_function_single(cpu, print_local_APIC, NULL, 1);
+	preempt_enable();
 }
 
 __apicdebuginit(void) print_PIC(void)
