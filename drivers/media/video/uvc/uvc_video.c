@@ -655,7 +655,7 @@ static int uvc_init_video_isoc(struct uvc_video_device *video,
 	if (size > UVC_MAX_FRAME_SIZE)
 		return -EINVAL;
 
-	npackets = (size + psize - 1) / psize;
+	npackets = DIV_ROUND_UP(size, psize);
 	if (npackets > UVC_MAX_ISO_PACKETS)
 		npackets = UVC_MAX_ISO_PACKETS;
 

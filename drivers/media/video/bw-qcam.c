@@ -495,7 +495,7 @@ static void qc_set(struct qcam_device *q)
 		val2 = (((q->port_mode & QC_MODE_MASK) == QC_BIDIR) ? 24 : 8) *
 		    q->transfer_scale;
 	}
-	val = (val + val2 - 1) / val2;
+	val = DIV_ROUND_UP(val, val2);
 	qc_command(q, 0x13);
 	qc_command(q, val);
 
@@ -651,7 +651,7 @@ static long qc_capture(struct qcam_device * q, char __user *buf, unsigned long l
 	transperline = q->width * q->bpp;
 	divisor = (((q->port_mode & QC_MODE_MASK) == QC_BIDIR) ? 24 : 8) *
 	    q->transfer_scale;
-	transperline = (transperline + divisor - 1) / divisor;
+	transperline = DIV_ROUND_UP(transperline, divisor);
 
 	for (i = 0, yield = yieldlines; i < linestotrans; i++)
 	{
