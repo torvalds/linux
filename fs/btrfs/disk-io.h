@@ -73,4 +73,5 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			int rw, struct bio *bio, int mirror_num,
 			extent_submit_bio_hook_t *submit_bio_hook);
 int btrfs_congested_async(struct btrfs_fs_info *info, int iodone);
+unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info);
 #endif

@@ -138,12 +138,18 @@ int run_scheduled_bios(struct btrfs_device *device)
 {
 	struct bio *pending;
 	struct backing_dev_info *bdi;
+	struct btrfs_fs_info *fs_info;
 	struct bio *tail;
 	struct bio *cur;
 	int again = 0;
 	unsigned long num_run = 0;
+	unsigned long limit;
 
 	bdi = device->bdev->bd_inode->i_mapping->backing_dev_info;
+	fs_info = device->dev_root->fs_info;
+	limit = btrfs_async_submit_limit(fs_info);
+	limit = limit * 2 / 3;
+
 loop:
 	spin_lock(&device->io_lock);
 
@@ -179,7 +185,11 @@ loop:
 		cur = pending;
 		pending = pending->bi_next;
 		cur->bi_next = NULL;
-		atomic_dec(&device->dev_root->fs_info->nr_async_bios);
+		atomic_dec(&fs_info->nr_async_bios);
+
+		if (atomic_read(&fs_info->nr_async_bios) < limit &&
+		    waitqueue_active(&fs_info->async_submit_wait))
+			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
 		bio_get(cur);
@@ -2135,6 +2145,7 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 		 int rw, struct bio *bio)
 {
 	int should_queue = 1;
+	unsigned long limit;
 
 	/* don't bother with additional async steps for reads, right now */
 	if (!(rw & (1 << BIO_RW))) {
@@ -2171,6 +2182,11 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 	if (should_queue)
 		btrfs_queue_worker(&root->fs_info->submit_workers,
 				   &device->work);
+
+	limit = btrfs_async_submit_limit(root->fs_info);
+	wait_event_timeout(root->fs_info->async_submit_wait,
+			   (atomic_read(&root->fs_info->nr_async_bios) < limit),
+			   HZ/10);
 	return 0;
 }
 

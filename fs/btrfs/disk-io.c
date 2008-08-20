@@ -429,7 +429,7 @@ int btrfs_bio_wq_end_io(struct btrfs_fs_info *info, struct bio *bio,
 	return 0;
 }
 
-static unsigned long async_submit_limit(struct btrfs_fs_info *info)
+unsigned long btrfs_async_submit_limit(struct btrfs_fs_info *info)
 {
 	unsigned long limit = min_t(unsigned long,
 				    info->workers.max_workers,
@@ -439,7 +439,8 @@ static unsigned long async_submit_limit(struct btrfs_fs_info *info)
 
 int btrfs_congested_async(struct btrfs_fs_info *info, int iodone)
 {
-	return atomic_read(&info->nr_async_bios) > async_submit_limit(info);
+	return atomic_read(&info->nr_async_bios) >
+		btrfs_async_submit_limit(info);
 }
 
 static void run_one_async_submit(struct btrfs_work *work)
@@ -451,12 +452,13 @@ static void run_one_async_submit(struct btrfs_work *work)
 	async = container_of(work, struct  async_submit_bio, work);
 	fs_info = BTRFS_I(async->inode)->root->fs_info;
 
-	limit = async_submit_limit(fs_info);
+	limit = btrfs_async_submit_limit(fs_info);
 	limit = limit * 2 / 3;
 
 	atomic_dec(&fs_info->nr_async_submits);
 
-	if (atomic_read(&fs_info->nr_async_submits) < limit)
+	if (atomic_read(&fs_info->nr_async_submits) < limit &&
+	    waitqueue_active(&fs_info->async_submit_wait))
 		wake_up(&fs_info->async_submit_wait);
 
 	async->submit_bio_hook(async->inode, async->rw, async->bio,
@@ -469,7 +471,7 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 			extent_submit_bio_hook_t *submit_bio_hook)
 {
 	struct async_submit_bio *async;
-	int limit = async_submit_limit(fs_info);
+	int limit = btrfs_async_submit_limit(fs_info);
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
@@ -1863,10 +1865,10 @@ void btrfs_btree_balance_dirty(struct btrfs_root *root, unsigned long nr)
 	struct extent_io_tree *tree;
 	u64 num_dirty;
 	u64 start = 0;
-	unsigned long thresh = 12 * 1024 * 1024;
+	unsigned long thresh = 96 * 1024 * 1024;
 	tree = &BTRFS_I(root->fs_info->btree_inode)->io_tree;
 
-	if (current_is_pdflush())
+	if (current_is_pdflush() || current->flags & PF_MEMALLOC)
 		return;
 
 	num_dirty = count_range_bits(tree, &start, (u64)-1,

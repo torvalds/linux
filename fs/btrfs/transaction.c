@@ -322,8 +322,6 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 		if (ret)
 			break;
 		while(start <= end) {
-			if (btrfs_congested_async(root->fs_info, 0))
-				congestion_wait(WRITE, HZ/10);
 			cond_resched();
 
 			index = start >> PAGE_CACHE_SHIFT;
