@@ -707,14 +707,14 @@ static int __init nbd_init(void)
 
 	BUILD_BUG_ON(sizeof(struct nbd_request) != 28);
 
-	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
-	if (!nbd_dev)
-		return -ENOMEM;
-
 	if (max_part < 0) {
 		printk(KERN_CRIT "nbd: max_part must be >= 0\n");
 		return -EINVAL;
 	}
+
+	nbd_dev = kcalloc(nbds_max, sizeof(*nbd_dev), GFP_KERNEL);
+	if (!nbd_dev)
+		return -ENOMEM;
 
 	part_shift = 0;
 	if (max_part > 0)
@@ -779,6 +779,7 @@ out:
 		blk_cleanup_queue(nbd_dev[i].disk->queue);
 		put_disk(nbd_dev[i].disk);
 	}
+	kfree(nbd_dev);
 	return err;
 }
 
@@ -795,6 +796,7 @@ static void __exit nbd_cleanup(void)
 		}
 	}
 	unregister_blkdev(NBD_MAJOR, "nbd");
+	kfree(nbd_dev);
 	printk(KERN_INFO "nbd: unregistered device at major %d\n", NBD_MAJOR);
 }
 
