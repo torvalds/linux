@@ -403,11 +403,14 @@ static long rtc_dev_ioctl(struct file *file,
 
 #ifdef CONFIG_RTC_INTF_DEV_UIE_EMUL
 	case RTC_UIE_OFF:
+		mutex_unlock(&rtc->ops_lock);
 		clear_uie(rtc);
-		break;
+		return 0;
 
 	case RTC_UIE_ON:
+		mutex_unlock(&rtc->ops_lock);
 		err = set_uie(rtc);
+		return err;
 #endif
 	default:
 		err = -ENOTTY;
