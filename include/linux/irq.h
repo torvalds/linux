@@ -158,6 +158,11 @@ struct irq_desc {
 	struct irq_desc		*next;
 	struct timer_rand_state *timer_rand_state;
 #endif
+#ifdef CONFIG_HAVE_DYN_ARRAY
+	unsigned int            *kstat_irqs;
+#else
+	unsigned int            kstat_irqs[NR_CPUS];
+#endif
 	irq_flow_handler_t	handle_irq;
 	struct irq_chip		*chip;
 	struct msi_desc		*msi_desc;
@@ -190,6 +195,8 @@ extern struct irq_desc *irq_to_desc(unsigned int irq);
 /* could be removed if we get rid of all irq_desc reference */
 extern struct irq_desc irq_desc[NR_IRQS];
 #endif
+#define kstat_irqs_this_cpu(DESC) \
+	((DESC)->kstat_irqs[smp_processor_id()])
 
 /*
  * Migration helpers for obsolete names, they will go away:

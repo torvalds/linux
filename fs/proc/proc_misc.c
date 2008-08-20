@@ -532,7 +532,7 @@ static int show_stat(struct seq_file *p, void *v)
 		steal = cputime64_add(steal, kstat_cpu(i).cpustat.steal);
 		guest = cputime64_add(guest, kstat_cpu(i).cpustat.guest);
 		for (j = 0; j < nr_irqs; j++) {
-			unsigned int temp = kstat_cpu(i).irqs[j];
+			unsigned int temp = kstat_irqs_cpu(j, i);
 			sum += temp;
 			per_irq_sum[j] += temp;
 		}

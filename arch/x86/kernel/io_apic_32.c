@@ -526,7 +526,7 @@ static void do_irq_balance(void)
 			if (package_index == i)
 				IRQ_DELTA(package_index, j) = 0;
 			/* Determine the total count per processor per IRQ */
-			value_now = (unsigned long) kstat_cpu(i).irqs[j];
+			value_now = (unsigned long) kstat_irqs_cpu(j, i);
 
 			/* Determine the activity per processor per IRQ */
 			delta = value_now - LAST_CPU_IRQ(i, j);

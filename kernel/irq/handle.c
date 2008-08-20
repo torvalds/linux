@@ -37,7 +37,7 @@ void
 handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 {
 	print_irq_desc(irq, desc);
-	kstat_this_cpu.irqs[irq]++;
+	kstat_irqs_this_cpu(desc)++;
 	ack_bad_irq(irq);
 }
 
@@ -80,6 +80,63 @@ static void init_one_irq_desc(struct irq_desc *desc)
 #endif
 }
 
+extern int after_bootmem;
+extern void *__alloc_bootmem_nopanic(unsigned long size,
+			     unsigned long align,
+			     unsigned long goal);
+
+static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
+{
+	unsigned long bytes, total_bytes;
+	char *ptr;
+	int i;
+	unsigned long phys;
+
+	/* Compute how many bytes we need per irq and allocate them */
+	bytes = nr * sizeof(unsigned int);
+	total_bytes = bytes * nr_desc;
+	if (after_bootmem)
+		ptr = kzalloc(total_bytes, GFP_ATOMIC);
+	else
+		ptr = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
+
+	if (!ptr)
+		panic(" can not allocate kstat_irqs\n");
+
+	phys = __pa(ptr);
+	printk(KERN_DEBUG "kstat_irqs ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
+
+	for (i = 0; i < nr_desc; i++) {
+		desc[i].kstat_irqs = (unsigned int *)ptr;
+		ptr += bytes;
+	}
+}
+
+
+static void __init init_work(void *data)
+{
+	struct dyn_array *da = data;
+	int i;
+	struct  irq_desc *desc;
+
+	desc = *da->name;
+
+	for (i = 0; i < *da->nr; i++) {
+		init_one_irq_desc(&desc[i]);
+#ifndef CONFIG_HAVE_SPARSE_IRQ
+		desc[i].irq = i;
+#endif
+	}
+
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+	for (i = 1; i < *da->nr; i++)
+		desc[i-1].next = &desc[i];
+#endif
+
+	/* init kstat_irqs, nr_cpu_ids is ready already */
+	init_kstat_irqs(desc, *da->nr, nr_cpu_ids);
+}
+
 #ifdef CONFIG_HAVE_SPARSE_IRQ
 static int nr_irq_desc = 32;
 
@@ -92,33 +149,16 @@ static int __init parse_nr_irq_desc(char *arg)
 
 early_param("nr_irq_desc", parse_nr_irq_desc);
 
-static void __init init_work(void *data)
-{
-	struct dyn_array *da = data;
-	int i;
-	struct  irq_desc *desc;
-
-	desc = *da->name;
-
-	for (i = 0; i < *da->nr; i++)
-		init_one_irq_desc(&desc[i]);
-
-	for (i = 1; i < *da->nr; i++)
-		desc[i-1].next = &desc[i];
-}
-
 static struct irq_desc *sparse_irqs;
 DEFINE_DYN_ARRAY(sparse_irqs, sizeof(struct irq_desc), nr_irq_desc, PAGE_SIZE, init_work);
 
-extern int after_bootmem;
-extern void *__alloc_bootmem_nopanic(unsigned long size,
-			     unsigned long align,
-			     unsigned long goal);
 struct irq_desc *irq_to_desc(unsigned int irq)
 {
 	struct irq_desc *desc, *desc_pri;
 	int i;
 	int count = 0;
+	unsigned long phys;
+	unsigned long total_bytes;
 
 	BUG_ON(irq == -1U);
 
@@ -141,13 +181,17 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	 */
 	printk(KERN_DEBUG "try to get more irq_desc %d\n", nr_irq_desc);
 
+	total_bytes = sizeof(struct irq_desc) * nr_irq_desc;
 	if (after_bootmem)
-		desc = kzalloc(sizeof(struct irq_desc)*nr_irq_desc, GFP_ATOMIC);
+		desc = kzalloc(total_bytes, GFP_ATOMIC);
 	else
-		desc = __alloc_bootmem_nopanic(sizeof(struct irq_desc)*nr_irq_desc, PAGE_SIZE, 0);
+		desc = __alloc_bootmem_nopanic(total_bytes, PAGE_SIZE, 0);
 
 	if (!desc)
 		panic("please boot with nr_irq_desc= %d\n", count * 2);
+
+	phys = __pa(desc);
+	printk(KERN_DEBUG "irq_desc ==> [%#lx - %#lx]\n", phys, phys + total_bytes);
 
 	for (i = 0; i < nr_irq_desc; i++)
 		init_one_irq_desc(&desc[i]);
@@ -155,24 +199,16 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	for (i = 1; i < nr_irq_desc; i++)
 		desc[i-1].next = &desc[i];
 
+	/* init kstat_irqs, nr_cpu_ids is ready already */
+	init_kstat_irqs(desc, nr_irq_desc, nr_cpu_ids);
+
 	desc->irq = irq;
 	desc_pri->next = desc;
 
 	return desc;
 }
 #else
-static void __init init_work(void *data)
-{
-	struct dyn_array *da = data;
-	int i;
-	struct  irq_desc *desc;
 
-	desc = *da->name;
-
-	for (i = 0; i < *da->nr; i++)
-		init_one_irq_desc(&desc[i]);
-
-}
 static struct irq_desc *irq_desc;
 DEFINE_DYN_ARRAY(irq_desc, sizeof(struct irq_desc), nr_irqs, PAGE_SIZE, init_work);
 
@@ -315,7 +351,7 @@ unsigned int __do_IRQ(unsigned int irq)
 	struct irqaction *action;
 	unsigned int status;
 
-	kstat_this_cpu.irqs[irq]++;
+	kstat_irqs_this_cpu(desc)++;
 	if (CHECK_IRQ_PER_CPU(desc->status)) {
 		irqreturn_t action_ret;
 
@@ -414,4 +450,11 @@ void early_init_irq_lock_class(void)
 #endif
 }
 #endif
+
+unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
+{
+	struct irq_desc *desc = irq_to_desc(irq);
+	return desc->kstat_irqs[cpu];
+}
+EXPORT_SYMBOL(kstat_irqs_cpu);
 
