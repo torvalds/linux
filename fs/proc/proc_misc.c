@@ -645,22 +645,42 @@ static const struct file_operations proc_stat_operations = {
  */
 static void *int_seq_start(struct seq_file *f, loff_t *pos)
 {
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+	struct irq_desc *desc;
+	int irq;
+	int count = *pos;
+
+	for_each_irq_desc(irq, desc) {
+		if (count-- == 0)
+			return desc;
+	}
+
+	return NULL;
+#else
 	return (*pos <= nr_irqs) ? pos : NULL;
+#endif
 }
+
 
 static void *int_seq_next(struct seq_file *f, void *v, loff_t *pos)
 {
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+	struct irq_desc *desc;
+
+	desc = ((struct irq_desc *)v)->next;
 	(*pos)++;
-	if (*pos > nr_irqs)
-		return NULL;
-	return pos;
+
+	return desc;
+#else
+	(*pos)++;
+	return (*pos <= nr_irqs) ? pos : NULL;
+#endif
 }
 
 static void int_seq_stop(struct seq_file *f, void *v)
 {
 	/* Nothing to do */
 }
-
 
 static const struct seq_operations int_seq_ops = {
 	.start = int_seq_start,

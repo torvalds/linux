@@ -70,9 +70,27 @@ static inline void stack_overflow_check(struct pt_regs *regs)
 
 int show_interrupts(struct seq_file *p, void *v)
 {
-	int i = *(loff_t *) v, j;
+	int i, j;
 	struct irqaction * action;
 	unsigned long flags;
+	unsigned int entries;
+	struct irq_desc *desc;
+	int tail = 0;
+
+#ifdef CONFIG_HAVE_SPARSE_IRQ
+	desc = (struct irq_desc *)v;
+	entries = -1U;
+	i = desc->irq;
+	if (!desc->next)
+		tail = 1;
+#else
+	entries = nr_irqs - 1;
+	i = *(loff_t *) v;
+	if (i == nr_irqs)
+		tail = 1;
+	else
+		desc = irq_to_desc(i);
+#endif
 
 	if (i == 0) {
 		seq_printf(p, "           ");
@@ -81,12 +99,8 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 	}
 
-	if (i < nr_irqs) {
+	if (i <= entries) {
 		unsigned any_count = 0;
-		struct irq_desc *desc = irq_to_desc(i);
-
-		if (!desc)
-			return 0;
 
 		spin_lock_irqsave(&desc->lock, flags);
 #ifndef CONFIG_SMP
@@ -116,7 +130,9 @@ int show_interrupts(struct seq_file *p, void *v)
 		seq_putc(p, '\n');
 skip:
 		spin_unlock_irqrestore(&desc->lock, flags);
-	} else if (i == nr_irqs) {
+	}
+
+	if (tail) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
 			seq_printf(p, "%10u ", cpu_pda(j)->__nmi_count);
@@ -155,6 +171,7 @@ skip:
 		seq_printf(p, "  Spurious interrupts\n");
 		seq_printf(p, "ERR: %10u\n", atomic_read(&irq_err_count));
 	}
+
 	return 0;
 }
 
