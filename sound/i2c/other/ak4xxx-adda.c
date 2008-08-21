@@ -233,8 +233,8 @@ void snd_akm4xxx_init(struct snd_akm4xxx *ak)
 		0x01, 0x02, /* 1: reset and soft-mute */
 		0x00, 0x06, /* 0: mode3(i2s), disable auto-clock detect,
 			     * disable DZF, sharp roll-off, RSTN#=0 */
-		0x02, 0x0e, /* 2: DA's power up, normal speed, RSTN#=0 */
-		// 0x02, 0x2e, /* quad speed */
+		0x02, 0x4e, /* 2: DA's power up, normal speed, RSTN#=0 */
+		/* 0x02, 0x6e,*/ /* quad speed */
 		0x03, 0x01, /* 3: de-emphasis off */
 		0x04, 0x00, /* 4: LOUT1 volume muted */
 		0x05, 0x00, /* 5: ROUT1 volume muted */

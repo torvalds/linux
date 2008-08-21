@@ -216,6 +216,7 @@ static const struct snd_akm4xxx_dac_channel revo51_dac[] = {
 	AK_DAC("PCM Center Playback Volume", 1),
 	AK_DAC("PCM LFE Playback Volume", 1),
 	AK_DAC("PCM Rear Playback Volume", 2),
+	AK_DAC("PCM Headphone Volume", 2),
 };
 
 static const char *revo51_adc_input_names[] = {
@@ -279,7 +280,7 @@ static struct snd_ak4xxx_private akm_revo_surround_priv __devinitdata = {
 
 static struct snd_akm4xxx akm_revo51 __devinitdata = {
 	.type = SND_AK4358,
-	.num_dacs = 6,
+	.num_dacs = 8,
 	.ops = {
 		.set_rate_val = revo_set_rate_val
 	},
@@ -508,7 +509,7 @@ static int __devinit revo_init(struct snd_ice1712 *ice)
 		ice->gpio.i2s_mclk_changed = revo_i2s_mclk_changed;
 		break;
 	case VT1724_SUBDEVICE_REVOLUTION51:
-		ice->num_total_dacs = 6;
+		ice->num_total_dacs = 8;
 		ice->num_total_adcs = 2;
 		break;
 	case VT1724_SUBDEVICE_AUDIOPHILE192:
