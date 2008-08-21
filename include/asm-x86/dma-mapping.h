@@ -26,9 +26,6 @@ struct dma_mapping_ops {
 				void *vaddr, dma_addr_t dma_handle);
 	dma_addr_t      (*map_single)(struct device *hwdev, phys_addr_t ptr,
 				size_t size, int direction);
-	/* like map_single, but doesn't check the device mask */
-	dma_addr_t      (*map_simple)(struct device *hwdev, phys_addr_t ptr,
-				size_t size, int direction);
 	void            (*unmap_single)(struct device *dev, dma_addr_t addr,
 				size_t size, int direction);
 	void            (*sync_single_for_cpu)(struct device *hwdev,

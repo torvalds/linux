@@ -720,7 +720,6 @@ extern int agp_amd64_init(void);
 
 static struct dma_mapping_ops gart_dma_ops = {
 	.map_single			= gart_map_single,
-	.map_simple			= gart_map_simple,
 	.unmap_single			= gart_unmap_single,
 	.sync_single_for_cpu		= NULL,
 	.sync_single_for_device		= NULL,
