@@ -1914,12 +1914,11 @@ static inline void ocfs2_debug_suballoc_inode(struct ocfs2_dinode *fe)
  * File systems which don't support holes call this from
  * ocfs2_extend_allocation().
  */
-int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *root_bh,
-			  struct ocfs2_extent_list *root_el,
+int ocfs2_lock_allocators(struct inode *inode,
+			  struct ocfs2_extent_tree *et,
 			  u32 clusters_to_add, u32 extents_to_split,
 			  struct ocfs2_alloc_context **data_ac,
-			  struct ocfs2_alloc_context **meta_ac,
-			  enum ocfs2_extent_tree_type type, void *private)
+			  struct ocfs2_alloc_context **meta_ac)
 {
 	int ret = 0, num_free_extents;
 	unsigned int max_recs_needed = clusters_to_add + 2 * extents_to_split;
@@ -1931,8 +1930,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *root_bh,
 
 	BUG_ON(clusters_to_add != 0 && data_ac == NULL);
 
-	num_free_extents = ocfs2_num_free_extents(osb, inode, root_bh,
-						  type, private);
+	num_free_extents = ocfs2_num_free_extents(osb, inode, et);
 	if (num_free_extents < 0) {
 		ret = num_free_extents;
 		mlog_errno(ret);
@@ -1954,7 +1952,7 @@ int ocfs2_lock_allocators(struct inode *inode, struct buffer_head *root_bh,
 	 */
 	if (!num_free_extents ||
 	    (ocfs2_sparse_alloc(osb) && num_free_extents < max_recs_needed)) {
-		ret = ocfs2_reserve_new_metadata(osb, root_el, meta_ac);
+		ret = ocfs2_reserve_new_metadata(osb, et->et_root_el, meta_ac);
 		if (ret < 0) {
 			if (ret != -ENOSPC)
 				mlog_errno(ret);

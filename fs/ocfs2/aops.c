@@ -1242,6 +1242,7 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 	int ret, i, new, should_zero = 0;
 	u64 v_blkno, p_blkno;
 	struct inode *inode = mapping->host;
+	struct ocfs2_extent_tree et;
 
 	new = phys == 0 ? 1 : 0;
 	if (new || unwritten)
@@ -1276,10 +1277,11 @@ static int ocfs2_write_cluster(struct address_space *mapping,
 			goto out;
 		}
 	} else if (unwritten) {
-		ret = ocfs2_mark_extent_written(inode, wc->w_di_bh,
+		ocfs2_get_dinode_extent_tree(&et, inode, wc->w_di_bh);
+		ret = ocfs2_mark_extent_written(inode, &et,
 						wc->w_handle, cpos, 1, phys,
-						meta_ac, &wc->w_dealloc,
-						OCFS2_DINODE_EXTENT, NULL);
+						meta_ac, &wc->w_dealloc);
+		ocfs2_put_extent_tree(&et);
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1666,6 +1668,7 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 	struct ocfs2_alloc_context *data_ac = NULL;
 	struct ocfs2_alloc_context *meta_ac = NULL;
 	handle_t *handle;
+	struct ocfs2_extent_tree et;
 
 	ret = ocfs2_alloc_write_ctxt(&wc, osb, pos, len, di_bh);
 	if (ret) {
@@ -1719,10 +1722,11 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 		     (long long)i_size_read(inode), le32_to_cpu(di->i_clusters),
 		     clusters_to_alloc, extents_to_split);
 
-		ret = ocfs2_lock_allocators(inode, wc->w_di_bh, &di->id2.i_list,
+		ocfs2_get_dinode_extent_tree(&et, inode, wc->w_di_bh);
+		ret = ocfs2_lock_allocators(inode, &et,
 					    clusters_to_alloc, extents_to_split,
-					    &data_ac, &meta_ac,
-					    OCFS2_DINODE_EXTENT, NULL);
+					    &data_ac, &meta_ac);
+		ocfs2_put_extent_tree(&et);
 		if (ret) {
 			mlog_errno(ret);
 			goto out;

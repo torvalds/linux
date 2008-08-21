@@ -26,46 +26,66 @@
 #ifndef OCFS2_ALLOC_H
 #define OCFS2_ALLOC_H
 
-enum ocfs2_extent_tree_type {
-	OCFS2_DINODE_EXTENT = 0,
-	OCFS2_XATTR_VALUE_EXTENT,
-	OCFS2_XATTR_TREE_EXTENT,
-};
 
 /*
  * For xattr tree leaf, we limit the leaf byte size to be 64K.
  */
 #define OCFS2_MAX_XATTR_TREE_LEAF_SIZE 65536
 
+/*
+ * ocfs2_extent_tree and ocfs2_extent_tree_operations are used to abstract
+ * the b-tree operations in ocfs2. Now all the b-tree operations are not
+ * limited to ocfs2_dinode only. Any data which need to allocate clusters
+ * to store can use b-tree. And it only needs to implement its ocfs2_extent_tree
+ * and operation.
+ *
+ * ocfs2_extent_tree becomes the first-class object for extent tree
+ * manipulation.  Callers of the alloc.c code need to fill it via one of
+ * the ocfs2_get_*_extent_tree() operations below.
+ *
+ * ocfs2_extent_tree contains info for the root of the b-tree, it must have a
+ * root ocfs2_extent_list and a root_bh so that they can be used in the b-tree
+ * functions.
+ * ocfs2_extent_tree_operations abstract the normal operations we do for
+ * the root of extent b-tree.
+ */
+struct ocfs2_extent_tree_operations;
+struct ocfs2_extent_tree {
+	struct ocfs2_extent_tree_operations	*et_ops;
+	struct buffer_head			*et_root_bh;
+	struct ocfs2_extent_list		*et_root_el;
+	void					*et_object;
+	unsigned int				et_max_leaf_clusters;
+};
+
+/*
+ * ocfs2_*_get_extent_tree() will fill an ocfs2_extent_tree from the
+ * specified object buffer.  The bh is referenced until
+ * ocfs2_put_extent_tree().
+ */
+void ocfs2_get_dinode_extent_tree(struct ocfs2_extent_tree *et,
+				  struct inode *inode,
+				  struct buffer_head *bh);
+void ocfs2_get_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
+				      struct inode *inode,
+				      struct buffer_head *bh);
+void ocfs2_get_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+				       struct inode *inode,
+				       struct buffer_head *bh,
+				       struct ocfs2_xattr_value_root *xv);
+void ocfs2_put_extent_tree(struct ocfs2_extent_tree *et);
+
 struct ocfs2_alloc_context;
-int ocfs2_dinode_insert_extent(struct ocfs2_super *osb,
-			       handle_t *handle,
-			       struct inode *inode,
-			       struct buffer_head *root_bh,
-			       u32 cpos,
-			       u64 start_blk,
-			       u32 new_clusters,
-			       u8 flags,
-			       struct ocfs2_alloc_context *meta_ac);
-int ocfs2_xattr_value_insert_extent(struct ocfs2_super *osb,
-				    handle_t *handle,
-				    struct inode *inode,
-				    struct buffer_head *root_bh,
-				    u32 cpos,
-				    u64 start_blk,
-				    u32 new_clusters,
-				    u8 flags,
-				    struct ocfs2_alloc_context *meta_ac,
-				    struct ocfs2_xattr_value_root *xv);
-int ocfs2_xattr_tree_insert_extent(struct ocfs2_super *osb,
-				   handle_t *handle,
-				   struct inode *inode,
-				   struct buffer_head *root_bh,
-				   u32 cpos,
-				   u64 start_blk,
-				   u32 new_clusters,
-				   u8 flags,
-				   struct ocfs2_alloc_context *meta_ac);
+int ocfs2_insert_extent(struct ocfs2_super *osb,
+			handle_t *handle,
+			struct inode *inode,
+			struct ocfs2_extent_tree *et,
+			u32 cpos,
+			u64 start_blk,
+			u32 new_clusters,
+			u8 flags,
+			struct ocfs2_alloc_context *meta_ac);
+
 enum ocfs2_alloc_restarted {
 	RESTART_NONE = 0,
 	RESTART_TRANS,
@@ -76,32 +96,25 @@ int ocfs2_add_clusters_in_btree(struct ocfs2_super *osb,
 				u32 *logical_offset,
 				u32 clusters_to_add,
 				int mark_unwritten,
-				struct buffer_head *root_bh,
-				struct ocfs2_extent_list *root_el,
+				struct ocfs2_extent_tree *et,
 				handle_t *handle,
 				struct ocfs2_alloc_context *data_ac,
 				struct ocfs2_alloc_context *meta_ac,
-				enum ocfs2_alloc_restarted *reason_ret,
-				enum ocfs2_extent_tree_type type,
-				void *private);
+				enum ocfs2_alloc_restarted *reason_ret);
 struct ocfs2_cached_dealloc_ctxt;
-int ocfs2_mark_extent_written(struct inode *inode, struct buffer_head *root_bh,
+int ocfs2_mark_extent_written(struct inode *inode,
+			      struct ocfs2_extent_tree *et,
 			      handle_t *handle, u32 cpos, u32 len, u32 phys,
 			      struct ocfs2_alloc_context *meta_ac,
-			      struct ocfs2_cached_dealloc_ctxt *dealloc,
-			      enum ocfs2_extent_tree_type et_type,
-			      void *private);
-int ocfs2_remove_extent(struct inode *inode, struct buffer_head *root_bh,
+			      struct ocfs2_cached_dealloc_ctxt *dealloc);
+int ocfs2_remove_extent(struct inode *inode,
+			struct ocfs2_extent_tree *et,
 			u32 cpos, u32 len, handle_t *handle,
 			struct ocfs2_alloc_context *meta_ac,
-			struct ocfs2_cached_dealloc_ctxt *dealloc,
-			enum ocfs2_extent_tree_type et_type,
-			void *private);
+			struct ocfs2_cached_dealloc_ctxt *dealloc);
 int ocfs2_num_free_extents(struct ocfs2_super *osb,
 			   struct inode *inode,
-			   struct buffer_head *root_bh,
-			   enum ocfs2_extent_tree_type et_type,
-			   void *private);
+			   struct ocfs2_extent_tree *et);
 
 /*
  * how many new metadata chunks would an allocation need at maximum?

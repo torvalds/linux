@@ -1192,6 +1192,9 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	struct buffer_head *dirdata_bh = NULL;
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 	handle_t *handle;
+	struct ocfs2_extent_tree et;
+
+	ocfs2_get_dinode_extent_tree(&et, dir, di_bh);
 
 	alloc = ocfs2_clusters_for_bytes(sb, bytes);
 
@@ -1305,8 +1308,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	 * This should never fail as our extent list is empty and all
 	 * related blocks have been journaled already.
 	 */
-	ret = ocfs2_dinode_insert_extent(osb, handle, dir, di_bh, 0, blkno,
-					 len, 0, NULL);
+	ret = ocfs2_insert_extent(osb, handle, dir, &et, 0, blkno, len,
+				  0, NULL);
 	if (ret) {
 		mlog_errno(ret);
 		goto out_commit;
@@ -1337,8 +1340,8 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		}
 		blkno = ocfs2_clusters_to_blocks(dir->i_sb, bit_off);
 
-		ret = ocfs2_dinode_insert_extent(osb, handle, dir, di_bh, 1,
-						 blkno, len, 0, NULL);
+		ret = ocfs2_insert_extent(osb, handle, dir, &et, 1,
+					  blkno, len, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
 			goto out_commit;
@@ -1360,6 +1363,7 @@ out:
 
 	brelse(dirdata_bh);
 
+	ocfs2_put_extent_tree(&et);
 	return ret;
 }
 
@@ -1437,6 +1441,7 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	struct buffer_head *new_bh = NULL;
 	struct ocfs2_dir_entry * de;
 	struct super_block *sb = osb->sb;
+	struct ocfs2_extent_tree et;
 
 	mlog_entry_void();
 
@@ -1480,10 +1485,9 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	spin_lock(&OCFS2_I(dir)->ip_lock);
 	if (dir_i_size == ocfs2_clusters_to_bytes(sb, OCFS2_I(dir)->ip_clusters)) {
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
-		num_free_extents = ocfs2_num_free_extents(osb, dir,
-							  parent_fe_bh,
-							  OCFS2_DINODE_EXTENT,
-							  NULL);
+		ocfs2_get_dinode_extent_tree(&et, dir, parent_fe_bh);
+		num_free_extents = ocfs2_num_free_extents(osb, dir, &et);
+		ocfs2_put_extent_tree(&et);
 		if (num_free_extents < 0) {
 			status = num_free_extents;
 			mlog_errno(status);
