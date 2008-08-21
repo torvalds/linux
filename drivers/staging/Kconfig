@@ -83,5 +83,7 @@ source "drivers/staging/altpciechdma/Kconfig"
 
 source "drivers/staging/rtl8187se/Kconfig"
 
+source "drivers/staging/rspiusb/Kconfig"
+
 endif # !STAGING_EXCLUDE_BUILD
 endif # STAGING

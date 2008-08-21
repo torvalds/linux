@@ -24,3 +24,4 @@ obj-$(CONFIG_ASUS_OLED)		+= asus_oled/
 obj-$(CONFIG_PANEL)		+= panel/
 obj-$(CONFIG_ALTERA_PCIE_CHDMA)	+= altpciechdma/
 obj-$(CONFIG_RTL8187SE)		+= rtl8187se/
+obj-$(CONFIG_USB_RSPI)		+= rspiusb/
