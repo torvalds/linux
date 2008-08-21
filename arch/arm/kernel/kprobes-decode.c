@@ -488,7 +488,7 @@ static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
 
 	if (!ubit)
 		addr -= reg_count;
-	addr += (!pbit ^ !ubit);
+	addr += (!pbit == !ubit);
 
 	reg_bit_vector = insn & 0xffff;
 	while (reg_bit_vector) {
@@ -503,7 +503,7 @@ static void __kprobes simulate_ldm1stm1(struct kprobe *p, struct pt_regs *regs)
 	if (wbit) {
 		if (!ubit)
 			addr -= reg_count;
-		addr -= (!pbit ^ !ubit);
+		addr -= (!pbit == !ubit);
 		regs->uregs[rn] = (long)addr;
 	}
 }
