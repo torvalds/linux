@@ -39,18 +39,6 @@ struct zfcp_gpn_ft {
 	struct scatterlist sg_resp[ZFCP_GPN_FT_BUFFERS];
 };
 
-static struct zfcp_port *zfcp_get_port_by_did(struct zfcp_adapter *adapter,
-					      u32 d_id)
-{
-	struct zfcp_port *port;
-
-	list_for_each_entry(port, &adapter->port_list_head, list)
-		if ((port->d_id == d_id) &&
-		    !atomic_test_mask(ZFCP_STATUS_COMMON_REMOVE, &port->status))
-			return port;
-	return NULL;
-}
-
 static void _zfcp_fc_incoming_rscn(struct zfcp_fsf_req *fsf_req, u32 range,
 				   struct fcp_rscn_element *elem)
 {
@@ -341,12 +329,13 @@ void zfcp_test_link(struct zfcp_port *port)
 
 	zfcp_port_get(port);
 	retval = zfcp_fc_adisc(port);
-	if (retval == 0 || retval == -EBUSY)
+	if (retval == 0)
 		return;
 
 	/* send of ADISC was not possible */
 	zfcp_port_put(port);
-	zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
+	if (retval != -EBUSY)
+		zfcp_erp_port_forced_reopen(port, 0, 65, NULL);
 }
 
 static int zfcp_scan_get_nameserver(struct zfcp_adapter *adapter)
@@ -503,9 +492,13 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 		       acc->port_id[2];
 
 		/* skip the adapter's port and known remote ports */
-		if (acc->wwpn == fc_host_port_name(adapter->scsi_host) ||
-		     zfcp_get_port_by_did(adapter, d_id))
+		if (acc->wwpn == fc_host_port_name(adapter->scsi_host))
 			continue;
+		port = zfcp_get_port_by_wwpn(adapter, acc->wwpn);
+		if (port) {
+			zfcp_port_get(port);
+			continue;
+		}
 
 		port = zfcp_port_enqueue(adapter, acc->wwpn,
 					 ZFCP_STATUS_PORT_DID_DID |
