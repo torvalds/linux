@@ -47,25 +47,41 @@ static int xen_spin_trylock(struct raw_spinlock *lock)
 static DEFINE_PER_CPU(int, lock_kicker_irq) = -1;
 static DEFINE_PER_CPU(struct xen_spinlock *, lock_spinners);
 
-static inline void spinning_lock(struct xen_spinlock *xl)
+/*
+ * Mark a cpu as interested in a lock.  Returns the CPU's previous
+ * lock of interest, in case we got preempted by an interrupt.
+ */
+static inline struct xen_spinlock *spinning_lock(struct xen_spinlock *xl)
 {
+	struct xen_spinlock *prev;
+
+	prev = __get_cpu_var(lock_spinners);
 	__get_cpu_var(lock_spinners) = xl;
+
 	wmb();			/* set lock of interest before count */
+
 	asm(LOCK_PREFIX " incw %0"
 	    : "+m" (xl->spinners) : : "memory");
+
+	return prev;
 }
 
-static inline void unspinning_lock(struct xen_spinlock *xl)
+/*
+ * Mark a cpu as no longer interested in a lock.  Restores previous
+ * lock of interest (NULL for none).
+ */
+static inline void unspinning_lock(struct xen_spinlock *xl, struct xen_spinlock *prev)
 {
 	asm(LOCK_PREFIX " decw %0"
 	    : "+m" (xl->spinners) : : "memory");
-	wmb();			/* decrement count before clearing lock */
-	__get_cpu_var(lock_spinners) = NULL;
+	wmb();			/* decrement count before restoring lock */
+	__get_cpu_var(lock_spinners) = prev;
 }
 
 static noinline int xen_spin_lock_slow(struct raw_spinlock *lock)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
+	struct xen_spinlock *prev;
 	int irq = __get_cpu_var(lock_kicker_irq);
 	int ret;
 
@@ -74,23 +90,42 @@ static noinline int xen_spin_lock_slow(struct raw_spinlock *lock)
 		return 0;
 
 	/* announce we're spinning */
-	spinning_lock(xl);
+	prev = spinning_lock(xl);
 
-	/* clear pending */
-	xen_clear_irq_pending(irq);
+	do {
+		/* clear pending */
+		xen_clear_irq_pending(irq);
 
-	/* check again make sure it didn't become free while
-	   we weren't looking  */
-	ret = xen_spin_trylock(lock);
-	if (ret)
-		goto out;
+		/* check again make sure it didn't become free while
+		   we weren't looking  */
+		ret = xen_spin_trylock(lock);
+		if (ret) {
+			/*
+			 * If we interrupted another spinlock while it
+			 * was blocking, make sure it doesn't block
+			 * without rechecking the lock.
+			 */
+			if (prev != NULL)
+				xen_set_irq_pending(irq);
+			goto out;
+		}
 
-	/* block until irq becomes pending */
-	xen_poll_irq(irq);
+		/*
+		 * Block until irq becomes pending.  If we're
+		 * interrupted at this point (after the trylock but
+		 * before entering the block), then the nested lock
+		 * handler guarantees that the irq will be left
+		 * pending if there's any chance the lock became free;
+		 * xen_poll_irq() returns immediately if the irq is
+		 * pending.
+		 */
+		xen_poll_irq(irq);
+	} while (!xen_test_irq_pending(irq)); /* check for spurious wakeups */
+
 	kstat_this_cpu.irqs[irq]++;
 
 out:
-	unspinning_lock(xl);
+	unspinning_lock(xl, prev);
 	return ret;
 }
 

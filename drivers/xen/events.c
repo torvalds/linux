@@ -164,6 +164,12 @@ static inline void set_evtchn(int port)
 	sync_set_bit(port, &s->evtchn_pending[0]);
 }
 
+static inline int test_evtchn(int port)
+{
+	struct shared_info *s = HYPERVISOR_shared_info;
+	return sync_test_bit(port, &s->evtchn_pending[0]);
+}
+
 
 /**
  * notify_remote_via_irq - send event to remote end of event channel via irq
@@ -730,6 +736,25 @@ void xen_clear_irq_pending(int irq)
 
 	if (VALID_EVTCHN(evtchn))
 		clear_evtchn(evtchn);
+}
+
+void xen_set_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+
+	if (VALID_EVTCHN(evtchn))
+		set_evtchn(evtchn);
+}
+
+bool xen_test_irq_pending(int irq)
+{
+	int evtchn = evtchn_from_irq(irq);
+	bool ret = false;
+
+	if (VALID_EVTCHN(evtchn))
+		ret = test_evtchn(evtchn);
+
+	return ret;
 }
 
 /* Poll waiting for an irq to become pending.  In the usual case, the
