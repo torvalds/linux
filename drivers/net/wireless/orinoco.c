@@ -275,13 +275,19 @@ static inline void set_port_type(struct orinoco_private *priv)
 #define ORINOCO_MAX_BSS_COUNT	64
 static int orinoco_bss_data_allocate(struct orinoco_private *priv)
 {
-	if (priv->bss_data)
+	if (priv->bss_xbss_data)
 		return 0;
 
-	priv->bss_data =
-	    kzalloc(ORINOCO_MAX_BSS_COUNT * sizeof(struct bss_element),
-		    GFP_KERNEL);
-	if (!priv->bss_data) {
+	if (priv->has_ext_scan)
+		priv->bss_xbss_data = kzalloc(ORINOCO_MAX_BSS_COUNT *
+					      sizeof(struct xbss_element),
+					      GFP_KERNEL);
+	else
+		priv->bss_xbss_data = kzalloc(ORINOCO_MAX_BSS_COUNT *
+					      sizeof(struct bss_element),
+					      GFP_KERNEL);
+
+	if (!priv->bss_xbss_data) {
 		printk(KERN_WARNING "Out of memory allocating beacons");
 		return -ENOMEM;
 	}
@@ -290,18 +296,53 @@ static int orinoco_bss_data_allocate(struct orinoco_private *priv)
 
 static void orinoco_bss_data_free(struct orinoco_private *priv)
 {
-	kfree(priv->bss_data);
-	priv->bss_data = NULL;
+	kfree(priv->bss_xbss_data);
+	priv->bss_xbss_data = NULL;
 }
 
+#define PRIV_BSS	((struct bss_element *)priv->bss_xbss_data)
+#define PRIV_XBSS	((struct xbss_element *)priv->bss_xbss_data)
 static void orinoco_bss_data_init(struct orinoco_private *priv)
 {
 	int i;
 
 	INIT_LIST_HEAD(&priv->bss_free_list);
 	INIT_LIST_HEAD(&priv->bss_list);
-	for (i = 0; i < ORINOCO_MAX_BSS_COUNT; i++)
-		list_add_tail(&priv->bss_data[i].list, &priv->bss_free_list);
+	if (priv->has_ext_scan)
+		for (i = 0; i < ORINOCO_MAX_BSS_COUNT; i++)
+			list_add_tail(&(PRIV_XBSS[i].list),
+				      &priv->bss_free_list);
+	else
+		for (i = 0; i < ORINOCO_MAX_BSS_COUNT; i++)
+			list_add_tail(&(PRIV_BSS[i].list),
+				      &priv->bss_free_list);
+
+}
+
+static inline u8 *orinoco_get_ie(u8 *data, size_t len,
+				 enum ieee80211_mfie eid)
+{
+	u8 *p = data;
+	while ((p + 2) < (data + len)) {
+		if (p[0] == eid)
+			return p;
+		p += p[1] + 2;
+	}
+	return NULL;
+}
+
+#define WPA_OUI_TYPE	"\x00\x50\xF2\x01"
+#define WPA_SELECTOR_LEN 4
+static inline u8 *orinoco_get_wpa_ie(u8 *data, size_t len)
+{
+	u8 *p = data;
+	while ((p + 2 + WPA_SELECTOR_LEN) < (data + len)) {
+		if ((p[0] == MFIE_TYPE_GENERIC) &&
+		    (memcmp(&p[2], WPA_OUI_TYPE, WPA_SELECTOR_LEN) == 0))
+			return p;
+		p += p[1] + 2;
+	}
+	return NULL;
 }
 
 
@@ -1414,18 +1455,72 @@ static void orinoco_send_wevents(struct work_struct *work)
 static inline void orinoco_clear_scan_results(struct orinoco_private *priv,
 					      unsigned long scan_age)
 {
-	struct bss_element *bss;
-	struct bss_element *tmp_bss;
+	if (priv->has_ext_scan) {
+		struct xbss_element *bss;
+		struct xbss_element *tmp_bss;
 
-	/* Blow away current list of scan results */
-	list_for_each_entry_safe(bss, tmp_bss, &priv->bss_list, list) {
-		if (!scan_age ||
-		    time_after(jiffies, bss->last_scanned + scan_age)) {
-			list_move_tail(&bss->list, &priv->bss_free_list);
-			/* Don't blow away ->list, just BSS data */
-			memset(bss, 0, sizeof(bss->bss));
-			bss->last_scanned = 0;
+		/* Blow away current list of scan results */
+		list_for_each_entry_safe(bss, tmp_bss, &priv->bss_list, list) {
+			if (!scan_age ||
+			    time_after(jiffies, bss->last_scanned + scan_age)) {
+				list_move_tail(&bss->list,
+					       &priv->bss_free_list);
+				/* Don't blow away ->list, just BSS data */
+				memset(&bss->bss, 0, sizeof(bss->bss));
+				bss->last_scanned = 0;
+			}
 		}
+	} else {
+		struct bss_element *bss;
+		struct bss_element *tmp_bss;
+
+		/* Blow away current list of scan results */
+		list_for_each_entry_safe(bss, tmp_bss, &priv->bss_list, list) {
+			if (!scan_age ||
+			    time_after(jiffies, bss->last_scanned + scan_age)) {
+				list_move_tail(&bss->list,
+					       &priv->bss_free_list);
+				/* Don't blow away ->list, just BSS data */
+				memset(&bss->bss, 0, sizeof(bss->bss));
+				bss->last_scanned = 0;
+			}
+		}
+	}
+}
+
+static void orinoco_add_ext_scan_result(struct orinoco_private *priv,
+					struct agere_ext_scan_info *atom)
+{
+	struct xbss_element *bss = NULL;
+	int found = 0;
+
+	/* Try to update an existing bss first */
+	list_for_each_entry(bss, &priv->bss_list, list) {
+		if (compare_ether_addr(bss->bss.bssid, atom->bssid))
+			continue;
+		/* ESSID lengths */
+		if (bss->bss.data[1] != atom->data[1])
+			continue;
+		if (memcmp(&bss->bss.data[2], &atom->data[2],
+			   atom->data[1]))
+			continue;
+		found = 1;
+		break;
+	}
+
+	/* Grab a bss off the free list */
+	if (!found && !list_empty(&priv->bss_free_list)) {
+		bss = list_entry(priv->bss_free_list.next,
+				 struct xbss_element, list);
+		list_del(priv->bss_free_list.next);
+
+		list_add_tail(&bss->list, &priv->bss_list);
+	}
+
+	if (bss) {
+		/* Always update the BSS to get latest beacon info */
+		memcpy(&bss->bss, atom, sizeof(bss->bss));
+		bss->last_scanned = jiffies;
 	}
 }
 
@@ -1700,6 +1795,63 @@ static void __orinoco_ev_info(struct net_device *dev, hermes_t *hw)
 		kfree(buf);
 	}
 	break;
+	case HERMES_INQ_CHANNELINFO:
+	{
+		struct agere_ext_scan_info *bss;
+
+		if (!priv->scan_inprogress) {
+			printk(KERN_DEBUG "%s: Got chaninfo without scan, "
+			       "len=%d\n", dev->name, len);
+			break;
+		}
+
+		/* An empty result indicates that the scan is complete */
+		if (len == 0) {
+			union iwreq_data	wrqu;
+
+			/* Scan is no longer in progress */
+			priv->scan_inprogress = 0;
+
+			wrqu.data.length = 0;
+			wrqu.data.flags = 0;
+			wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
+			break;
+		}
+
+		/* Sanity check */
+		else if (len > sizeof(*bss)) {
+			printk(KERN_WARNING
+			       "%s: Ext scan results too large (%d bytes). "
+			       "Truncating results to %zd bytes.\n",
+			       dev->name, len, sizeof(*bss));
+			len = sizeof(*bss);
+		} else if (len < (offsetof(struct agere_ext_scan_info,
+					   data) + 2)) {
+			/* Drop this result now so we don't have to
+			 * keep checking later */
+			printk(KERN_WARNING
+			       "%s: Ext scan results too short (%d bytes)\n",
+			       dev->name, len);
+			break;
+		}
+
+		bss = kmalloc(sizeof(*bss), GFP_ATOMIC);
+		if (bss == NULL)
+			break;
+
+		/* Read scan data */
+		err = hermes_bap_pread(hw, IRQ_BAP, (void *) bss, len,
+				       infofid, sizeof(info));
+		if (err) {
+			kfree(bss);
+			break;
+		}
+
+		orinoco_add_ext_scan_result(priv, bss);
+
+		kfree(bss);
+		break;
+	}
 	case HERMES_INQ_SEC_STAT_AGERE:
 		/* Security status (Agere specific) */
 		/* Ignore this frame for now */
@@ -2557,6 +2709,7 @@ static int determine_firmware(struct net_device *dev)
 	priv->has_wep = 0;
 	priv->has_big_wep = 0;
 	priv->has_alt_txcntl = 0;
+	priv->has_ext_scan = 0;
 	priv->do_fw_download = 0;
 
 	/* Determine capabilities from the firmware version */
@@ -2580,7 +2733,7 @@ static int determine_firmware(struct net_device *dev)
 		priv->do_fw_download = 1;
 		priv->broken_monitor = (firmver >= 0x80000);
 		priv->has_alt_txcntl = (firmver >= 0x90000); /* All 9.x ? */
-
+		priv->has_ext_scan = (firmver >= 0x90000); /* All 9.x ? */
 		/* Tested with Agere firmware :
 		 *	1.16 ; 4.08 ; 4.52 ; 6.04 ; 6.16 ; 7.28 => Jean II
 		 * Tested CableTron firmware : 4.32 => Anton */
@@ -2735,6 +2888,12 @@ static int orinoco_init(struct net_device *dev)
 			printk("40-bit key\n");
 	}
 
+	/* Now we have the firmware capabilities, allocate appropiate
+	 * sized scan buffers */
+	if (orinoco_bss_data_allocate(priv))
+		goto out;
+	orinoco_bss_data_init(priv);
+
 	/* Get the MAC address */
 	err = hermes_read_ltv(hw, USER_BAP, HERMES_RID_CNFOWNMACADDR,
 			      ETH_ALEN, NULL, dev->dev_addr);
@@ -2885,10 +3044,6 @@ struct net_device
 		priv->card = NULL;
 	priv->dev = device;
 
-	if (orinoco_bss_data_allocate(priv))
-		goto err_out_free;
-	orinoco_bss_data_init(priv);
-
 	/* Setup / override net_device fields */
 	dev->init = orinoco_init;
 	dev->hard_start_xmit = orinoco_xmit;
@@ -2924,10 +3079,6 @@ struct net_device
 	priv->last_linkstatus = 0xffff;
 
 	return dev;
-
-err_out_free:
-	free_netdev(dev);
-	return NULL;
 }
 
 void free_orinocodev(struct net_device *dev)
@@ -4375,7 +4526,25 @@ static int orinoco_ioctl_setscan(struct net_device *dev,
 			if (err)
 				break;
 
-			err = hermes_inquire(hw, HERMES_INQ_SCAN);
+			if (priv->has_ext_scan) {
+				/* Clear scan results at the start of
+				 * an extended scan */
+				orinoco_clear_scan_results(priv,
+						msecs_to_jiffies(15000));
+
+				/* TODO: Is this available on older firmware?
+				 *   Can we use it to scan specific channels
+				 *   for IW_SCAN_THIS_FREQ? */
+				err = hermes_write_wordrec(hw, USER_BAP,
+						HERMES_RID_CNFSCANCHANNELS2GHZ,
+						0x7FFF);
+				if (err)
+					goto out;
+
+				err = hermes_inquire(hw,
+						     HERMES_INQ_CHANNELINFO);
+			} else
+				err = hermes_inquire(hw, HERMES_INQ_SCAN);
 			break;
 		}
 	} else
@@ -4541,6 +4710,171 @@ static inline char *orinoco_translate_scan(struct net_device *dev,
 	return current_ev;
 }
 
+static inline char *orinoco_translate_ext_scan(struct net_device *dev,
+					       struct iw_request_info *info,
+					       char *current_ev,
+					       char *end_buf,
+					       struct agere_ext_scan_info *bss,
+					       unsigned int last_scanned)
+{
+	u16			capabilities;
+	u16			channel;
+	struct iw_event		iwe;		/* Temporary buffer */
+	char custom[MAX_CUSTOM_LEN];
+	u8 *ie;
+
+	memset(&iwe, 0, sizeof(iwe));
+
+	/* First entry *MUST* be the AP MAC address */
+	iwe.cmd = SIOCGIWAP;
+	iwe.u.ap_addr.sa_family = ARPHRD_ETHER;
+	memcpy(iwe.u.ap_addr.sa_data, bss->bssid, ETH_ALEN);
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_ADDR_LEN);
+
+	/* Other entries will be displayed in the order we give them */
+
+	/* Add the ESSID */
+	ie = bss->data;
+	iwe.u.data.length = ie[1];
+	if (iwe.u.data.length) {
+		if (iwe.u.data.length > 32)
+			iwe.u.data.length = 32;
+		iwe.cmd = SIOCGIWESSID;
+		iwe.u.data.flags = 1;
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, &ie[2]);
+	}
+
+	/* Add mode */
+	capabilities = le16_to_cpu(bss->capabilities);
+	if (capabilities & (WLAN_CAPABILITY_ESS | WLAN_CAPABILITY_IBSS)) {
+		iwe.cmd = SIOCGIWMODE;
+		if (capabilities & WLAN_CAPABILITY_ESS)
+			iwe.u.mode = IW_MODE_MASTER;
+		else
+			iwe.u.mode = IW_MODE_ADHOC;
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_UINT_LEN);
+	}
+
+	ie = orinoco_get_ie(bss->data, sizeof(bss->data), MFIE_TYPE_DS_SET);
+	channel = ie ? ie[2] : 0;
+	if ((channel >= 1) && (channel <= NUM_CHANNELS)) {
+		/* Add channel and frequency */
+		iwe.cmd = SIOCGIWFREQ;
+		iwe.u.freq.m = channel;
+		iwe.u.freq.e = 0;
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_FREQ_LEN);
+
+		iwe.u.freq.m = channel_frequency[channel-1] * 100000;
+		iwe.u.freq.e = 1;
+		current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+						  &iwe, IW_EV_FREQ_LEN);
+	}
+
+	/* Add quality statistics. level and noise in dB. No link quality */
+	iwe.cmd = IWEVQUAL;
+	iwe.u.qual.updated = IW_QUAL_DBM | IW_QUAL_QUAL_INVALID;
+	iwe.u.qual.level = bss->level - 0x95;
+	iwe.u.qual.noise = bss->noise - 0x95;
+	/* Wireless tools prior to 27.pre22 will show link quality
+	 * anyway, so we provide a reasonable value. */
+	if (iwe.u.qual.level > iwe.u.qual.noise)
+		iwe.u.qual.qual = iwe.u.qual.level - iwe.u.qual.noise;
+	else
+		iwe.u.qual.qual = 0;
+	current_ev = iwe_stream_add_event(info, current_ev, end_buf,
+					  &iwe, IW_EV_QUAL_LEN);
+
+	/* Add encryption capability */
+	iwe.cmd = SIOCGIWENCODE;
+	if (capabilities & WLAN_CAPABILITY_PRIVACY)
+		iwe.u.data.flags = IW_ENCODE_ENABLED | IW_ENCODE_NOKEY;
+	else
+		iwe.u.data.flags = IW_ENCODE_DISABLED;
+	iwe.u.data.length = 0;
+	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+					  &iwe, NULL);
+
+	/* WPA IE */
+	ie = orinoco_get_wpa_ie(bss->data, sizeof(bss->data));
+	if (ie) {
+		iwe.cmd = IWEVGENIE;
+		iwe.u.data.length = ie[1] + 2;
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, ie);
+	}
+
+	/* RSN IE */
+	ie = orinoco_get_ie(bss->data, sizeof(bss->data), MFIE_TYPE_RSN);
+	if (ie) {
+		iwe.cmd = IWEVGENIE;
+		iwe.u.data.length = ie[1] + 2;
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, ie);
+	}
+
+	ie = orinoco_get_ie(bss->data, sizeof(bss->data), MFIE_TYPE_RATES);
+	if (ie) {
+		char *p = current_ev + iwe_stream_lcp_len(info);
+		int i;
+
+		iwe.cmd = SIOCGIWRATE;
+		/* Those two flags are ignored... */
+		iwe.u.bitrate.fixed = iwe.u.bitrate.disabled = 0;
+
+		for (i = 2; i < (ie[1] + 2); i++) {
+			iwe.u.bitrate.value = ((ie[i] & 0x7F) * 500000);
+			p = iwe_stream_add_value(info, current_ev, p, end_buf,
+						 &iwe, IW_EV_PARAM_LEN);
+		}
+		/* Check if we added any event */
+		if (p > (current_ev + iwe_stream_lcp_len(info)))
+			current_ev = p;
+	}
+
+	/* Timestamp */
+	iwe.cmd = IWEVCUSTOM;
+	iwe.u.data.length = snprintf(custom, MAX_CUSTOM_LEN,
+				     "tsf=%016llx",
+				     le64_to_cpu(bss->timestamp));
+	if (iwe.u.data.length)
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, custom);
+
+	/* Beacon interval */
+	iwe.cmd = IWEVCUSTOM;
+	iwe.u.data.length = snprintf(custom, MAX_CUSTOM_LEN,
+				     "bcn_int=%d",
+				     le16_to_cpu(bss->beacon_interval));
+	if (iwe.u.data.length)
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, custom);
+
+	/* Capabilites */
+	iwe.cmd = IWEVCUSTOM;
+	iwe.u.data.length = snprintf(custom, MAX_CUSTOM_LEN,
+				     "capab=0x%04x",
+				     capabilities);
+	if (iwe.u.data.length)
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, custom);
+
+	/* Add EXTRA: Age to display seconds since last beacon/probe response
+	 * for given network. */
+	iwe.cmd = IWEVCUSTOM;
+	iwe.u.data.length = snprintf(custom, MAX_CUSTOM_LEN,
+				     " Last beacon: %dms ago",
+				     jiffies_to_msecs(jiffies - last_scanned));
+	if (iwe.u.data.length)
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, custom);
+
+	return current_ev;
+}
+
 /* Return results of a scan */
 static int orinoco_ioctl_getscan(struct net_device *dev,
 				 struct iw_request_info *info,
@@ -4548,7 +4882,6 @@ static int orinoco_ioctl_getscan(struct net_device *dev,
 				 char *extra)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
-	struct bss_element *bss;
 	int err = 0;
 	unsigned long flags;
 	char *current_ev = extra;
@@ -4568,18 +4901,47 @@ static int orinoco_ioctl_getscan(struct net_device *dev,
 		goto out;
 	}
 
-	list_for_each_entry(bss, &priv->bss_list, list) {
-		/* Translate to WE format this entry */
-		current_ev = orinoco_translate_scan(dev, info, current_ev,
-						    extra + srq->length,
-						    &bss->bss,
-						    bss->last_scanned);
+	if (priv->has_ext_scan) {
+		struct xbss_element *bss;
 
-		/* Check if there is space for one more entry */
-		if ((extra + srq->length - current_ev) <= IW_EV_ADDR_LEN) {
-			/* Ask user space to try again with a bigger buffer */
-			err = -E2BIG;
-			goto out;
+		list_for_each_entry(bss, &priv->bss_list, list) {
+			/* Translate this entry to WE format */
+			current_ev =
+				orinoco_translate_ext_scan(dev, info,
+							   current_ev,
+							   extra + srq->length,
+							   &bss->bss,
+							   bss->last_scanned);
+
+			/* Check if there is space for one more entry */
+			if ((extra + srq->length - current_ev)
+			    <= IW_EV_ADDR_LEN) {
+				/* Ask user space to try again with a
+				 * bigger buffer */
+				err = -E2BIG;
+				goto out;
+			}
+		}
+
+	} else {
+		struct bss_element *bss;
+
+		list_for_each_entry(bss, &priv->bss_list, list) {
+			/* Translate this entry to WE format */
+			current_ev = orinoco_translate_scan(dev, info,
+							    current_ev,
+							    extra + srq->length,
+							    &bss->bss,
+							    bss->last_scanned);
+
+			/* Check if there is space for one more entry */
+			if ((extra + srq->length - current_ev)
+			    <= IW_EV_ADDR_LEN) {
+				/* Ask user space to try again with a
+				 * bigger buffer */
+				err = -E2BIG;
+				goto out;
+			}
 		}
 	}
 

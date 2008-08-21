@@ -303,6 +303,40 @@ union hermes_scan_info {
 	struct symbol_scan_apinfo	s;
 };
 
+/* Extended scan struct for HERMES_INQ_CHANNELINFO.
+ * wl_lkm calls this an ACS scan (Automatic Channel Select).
+ * Keep out of union hermes_scan_info because it is much bigger than
+ * the older scan structures. */
+struct agere_ext_scan_info {
+	__le16	reserved0;
+
+	u8	noise;
+	u8	level;
+	u8	rx_flow;
+	u8	rate;
+	__le16	reserved1[2];
+
+	__le16	frame_control;
+	__le16	dur_id;
+	u8	addr1[ETH_ALEN];
+	u8	addr2[ETH_ALEN];
+	u8	bssid[ETH_ALEN];
+	__le16	sequence;
+	u8	addr4[ETH_ALEN];
+
+	__le16	data_length;
+
+	/* Next 3 fields do not get filled in. */
+	u8	daddr[ETH_ALEN];
+	u8	saddr[ETH_ALEN];
+	__le16	len_type;
+
+	__le64	timestamp;
+	__le16	beacon_interval;
+	__le16	capabilities;
+	u8	data[316];
+} __attribute__ ((packed));
+
 #define HERMES_LINKSTATUS_NOT_CONNECTED   (0x0000)  
 #define HERMES_LINKSTATUS_CONNECTED       (0x0001)
 #define HERMES_LINKSTATUS_DISCONNECTED    (0x0002)

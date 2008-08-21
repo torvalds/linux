@@ -42,6 +42,12 @@ struct bss_element {
 	struct list_head list;
 };
 
+struct xbss_element {
+	struct agere_ext_scan_info bss;
+	unsigned long last_scanned;
+	struct list_head list;
+};
+
 struct orinoco_private {
 	void *card;	/* Pointer to card dependent structure */
 	struct device *dev;
@@ -86,6 +92,7 @@ struct orinoco_private {
 	unsigned int has_sensitivity:1;
 	unsigned int has_hostscan:1;
 	unsigned int has_alt_txcntl:1;
+	unsigned int has_ext_scan:1;
 	unsigned int do_fw_download:1;
 	unsigned int broken_disableport:1;
 	unsigned int broken_monitor:1;
@@ -117,7 +124,7 @@ struct orinoco_private {
 	/* Scanning support */
 	struct list_head bss_list;
 	struct list_head bss_free_list;
-	struct bss_element *bss_data;
+	void *bss_xbss_data;
 
 	int	scan_inprogress;	/* Scan pending... */
 	u32	scan_mode;		/* Type of scan done */
