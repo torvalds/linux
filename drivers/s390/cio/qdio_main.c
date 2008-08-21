@@ -1251,7 +1251,6 @@ no_cleanup:
 
 	qdio_set_state(irq_ptr, QDIO_IRQ_STATE_INACTIVE);
 	mutex_unlock(&irq_ptr->setup_mutex);
-	module_put(THIS_MODULE);
 	if (rc)
 		return rc;
 	return 0;
@@ -1397,9 +1396,6 @@ int qdio_establish(struct qdio_initialize *init_data)
 		return -ENODEV;
 
 	if (cdev->private->state != DEV_STATE_ONLINE)
-		return -EINVAL;
-
-	if (!try_module_get(THIS_MODULE))
 		return -EINVAL;
 
 	mutex_lock(&irq_ptr->setup_mutex);
