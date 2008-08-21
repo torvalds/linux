@@ -1705,6 +1705,7 @@ static const struct agp_bridge_driver intel_generic_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1731,6 +1732,7 @@ static const struct agp_bridge_driver intel_810_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1756,6 +1758,7 @@ static const struct agp_bridge_driver intel_815_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= agp_generic_type_to_mask_type,
 };
 
@@ -1782,6 +1785,7 @@ static const struct agp_bridge_driver intel_830_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i830_chipset_flush,
 };
@@ -1808,6 +1812,7 @@ static const struct agp_bridge_driver intel_820_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1833,6 +1838,7 @@ static const struct agp_bridge_driver intel_830mp_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1858,6 +1864,7 @@ static const struct agp_bridge_driver intel_840_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1883,6 +1890,7 @@ static const struct agp_bridge_driver intel_845_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 	.chipset_flush		= intel_i830_chipset_flush,
 };
@@ -1909,6 +1917,7 @@ static const struct agp_bridge_driver intel_850_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1934,6 +1943,7 @@ static const struct agp_bridge_driver intel_860_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -1960,6 +1970,7 @@ static const struct agp_bridge_driver intel_915_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
@@ -1987,6 +1998,7 @@ static const struct agp_bridge_driver intel_i965_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };
@@ -2013,6 +2025,7 @@ static const struct agp_bridge_driver intel_7505_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type  = agp_generic_type_to_mask_type,
 };
 
@@ -2039,6 +2052,7 @@ static const struct agp_bridge_driver intel_g33_driver = {
 	.agp_alloc_page		= agp_generic_alloc_page,
 	.agp_alloc_pages        = agp_generic_alloc_pages,
 	.agp_destroy_page	= agp_generic_destroy_page,
+	.agp_destroy_pages      = agp_generic_destroy_pages,
 	.agp_type_to_mask_type	= intel_i830_type_to_mask_type,
 	.chipset_flush		= intel_i915_chipset_flush,
 };

@@ -201,14 +201,22 @@ void agp_free_memory(struct agp_memory *curr)
 		return;
 	}
 	if (curr->page_count != 0) {
-		for (i = 0; i < curr->page_count; i++) {
-			curr->memory[i] = (unsigned long)gart_to_virt(curr->memory[i]);
-			curr->bridge->driver->agp_destroy_page((void *)curr->memory[i],
-							       AGP_PAGE_DESTROY_UNMAP);
-		}
-		for (i = 0; i < curr->page_count; i++) {
-			curr->bridge->driver->agp_destroy_page((void *)curr->memory[i],
-							       AGP_PAGE_DESTROY_FREE);
+		if (curr->bridge->driver->agp_destroy_pages) {
+			curr->bridge->driver->agp_destroy_pages(curr);
+		} else {
+
+			for (i = 0; i < curr->page_count; i++) {
+				curr->memory[i] = (unsigned long)gart_to_virt(
+					curr->memory[i]);
+				curr->bridge->driver->agp_destroy_page(
+					(void *)curr->memory[i],
+					AGP_PAGE_DESTROY_UNMAP);
+			}
+			for (i = 0; i < curr->page_count; i++) {
+				curr->bridge->driver->agp_destroy_page(
+					(void *)curr->memory[i],
+					AGP_PAGE_DESTROY_FREE);
+			}
 		}
 	}
 	agp_free_key(curr->key);
@@ -1236,6 +1244,37 @@ void *agp_generic_alloc_page(struct agp_bridge_data *bridge)
 }
 EXPORT_SYMBOL(agp_generic_alloc_page);
 
+void agp_generic_destroy_pages(struct agp_memory *mem)
+{
+	int i;
+	void *addr;
+	struct page *page;
+
+	if (!mem)
+		return;
+
+	for (i = 0; i < mem->page_count; i++)
+		mem->memory[i] = (unsigned long)gart_to_virt(mem->memory[i]);
+
+#ifdef CONFIG_X86
+	set_memory_array_wb(mem->memory, mem->page_count);
+#endif
+
+	for (i = 0; i < mem->page_count; i++) {
+		addr = (void *)mem->memory[i];
+		page = virt_to_page(addr);
+
+#ifndef CONFIG_X86
+		unmap_page_from_agp(page);
+#endif
+
+		put_page(page);
+		free_page((unsigned long)addr);
+		atomic_dec(&agp_bridge->current_memory_agp);
+		mem->memory[i] = 0;
+	}
+}
+EXPORT_SYMBOL(agp_generic_destroy_pages);
 
 void agp_generic_destroy_page(void *addr, int flags)
 {

@@ -118,6 +118,7 @@ struct agp_bridge_driver {
 	void *(*agp_alloc_page)(struct agp_bridge_data *);
 	int (*agp_alloc_pages)(struct agp_bridge_data *, struct agp_memory *, size_t);
 	void (*agp_destroy_page)(void *, int flags);
+	void (*agp_destroy_pages)(struct agp_memory *);
 	int (*agp_type_to_mask_type) (struct agp_bridge_data *, int);
 	void (*chipset_flush)(struct agp_bridge_data *);
 };
@@ -278,6 +279,7 @@ void *agp_generic_alloc_page(struct agp_bridge_data *bridge);
 int agp_generic_alloc_pages(struct agp_bridge_data *agp_bridge,
 			    struct agp_memory *memory, size_t page_count);
 void agp_generic_destroy_page(void *addr, int flags);
+void agp_generic_destroy_pages(struct agp_memory *memory);
 void agp_free_key(int key);
 int agp_num_entries(void);
 u32 agp_collect_device_status(struct agp_bridge_data *bridge, u32 mode, u32 command);
