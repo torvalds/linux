@@ -293,7 +293,9 @@ static __init void uv_rtc_init(void)
 		sn_rtc_cycles_per_second = ticks_per_sec;
 }
 
-static __init void uv_system_init(void)
+static bool uv_system_inited;
+
+void __init uv_system_init(void)
 {
 	union uvh_si_addr_map_config_u m_n_config;
 	union uvh_node_id_u node_id;
@@ -383,6 +385,7 @@ static __init void uv_system_init(void)
 	map_mmr_high(max_pnode);
 	map_config_high(max_pnode);
 	map_mmioh_high(max_pnode);
+	uv_system_inited = true;
 }
 
 /*
@@ -391,8 +394,7 @@ static __init void uv_system_init(void)
  */
 void __cpuinit uv_cpu_init(void)
 {
-	if (!uv_node_to_blade)
-		uv_system_init();
+	BUG_ON(!uv_system_inited);
 
 	uv_blade_info[uv_numa_blade_id()].nr_online_cpus++;
 
