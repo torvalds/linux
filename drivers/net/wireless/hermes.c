@@ -122,6 +122,7 @@ void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing)
 	hw->reg_spacing = reg_spacing;
 	hw->inten = 0x0;
 }
+EXPORT_SYMBOL(hermes_struct_init);
 
 int hermes_init(hermes_t *hw)
 {
@@ -202,6 +203,7 @@ int hermes_init(hermes_t *hw)
  out:
 	return err;
 }
+EXPORT_SYMBOL(hermes_init);
 
 /* Issue a command to the chip, and (busy!) wait for it to
  * complete.
@@ -272,6 +274,7 @@ int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
  out:
 	return err;
 }
+EXPORT_SYMBOL(hermes_docmd_wait);
 
 int hermes_allocate(hermes_t *hw, u16 size, u16 *fid)
 {
@@ -314,7 +317,7 @@ int hermes_allocate(hermes_t *hw, u16 size, u16 *fid)
 	
 	return 0;
 }
-
+EXPORT_SYMBOL(hermes_allocate);
 
 /* Set up a BAP to read a particular chunk of data from card's internal buffer.
  *
@@ -398,6 +401,7 @@ int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
  out:
 	return err;
 }
+EXPORT_SYMBOL(hermes_bap_pread);
 
 /* Write a block of data to the chip's buffer, via the
  * BAP. Synchronization/serialization is the caller's problem.
@@ -423,6 +427,7 @@ int hermes_bap_pwrite(hermes_t *hw, int bap, const void *buf, int len,
  out:	
 	return err;
 }
+EXPORT_SYMBOL(hermes_bap_pwrite);
 
 /* Read a Length-Type-Value record from the card.
  *
@@ -476,6 +481,7 @@ int hermes_read_ltv(hermes_t *hw, int bap, u16 rid, unsigned bufsize,
 
 	return 0;
 }
+EXPORT_SYMBOL(hermes_read_ltv);
 
 int hermes_write_ltv(hermes_t *hw, int bap, u16 rid, 
 		     u16 length, const void *value)
@@ -503,15 +509,6 @@ int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 
 	return err;
 }
-
-EXPORT_SYMBOL(hermes_struct_init);
-EXPORT_SYMBOL(hermes_init);
-EXPORT_SYMBOL(hermes_docmd_wait);
-EXPORT_SYMBOL(hermes_allocate);
-
-EXPORT_SYMBOL(hermes_bap_pread);
-EXPORT_SYMBOL(hermes_bap_pwrite);
-EXPORT_SYMBOL(hermes_read_ltv);
 EXPORT_SYMBOL(hermes_write_ltv);
 
 static int __init init_hermes(void)
