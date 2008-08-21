@@ -166,11 +166,12 @@ spectrum_reset(struct pcmcia_device *link, int idle)
  */
 static int
 spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
-		  const unsigned char *image, int secondary)
+		  const unsigned char *image, const unsigned char *end,
+		  int secondary)
 {
 	int ret;
 	const unsigned char *ptr;
-	const struct dblock *first_block;
+	const unsigned char *first_block;
 
 	/* Plug Data Area (PDA) */
 	__le16 pda[PDA_WORDS];
@@ -178,11 +179,11 @@ spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
 	/* Binary block begins after the 0x1A marker */
 	ptr = image;
 	while (*ptr++ != TEXT_END);
-	first_block = (const struct dblock *) ptr;
+	first_block = ptr;
 
-	/* Read the PDA */
+	/* Read the PDA from EEPROM */
 	if (secondary) {
-		ret = spectrum_read_pda(hw, pda, sizeof(pda));
+		ret = hermes_read_pda(hw, pda, PDA_ADDR, sizeof(pda), 1);
 		if (ret)
 			return ret;
 	}
@@ -193,13 +194,15 @@ spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
 		return ret;
 
 	/* Program the adapter with new firmware */
-	ret = spectrum_load_blocks(hw, first_block);
+	ret = hermes_program(hw, first_block, end);
 	if (ret)
 		return ret;
 
 	/* Write the PDA to the adapter */
 	if (secondary) {
-		ret = spectrum_apply_pda(hw, first_block, pda);
+		size_t len = hermes_blocks_length(first_block);
+		ptr = first_block + len;
+		ret = hermes_apply_pda(hw, ptr, pda);
 		if (ret)
 			return ret;
 	}
@@ -242,7 +245,8 @@ spectrum_dl_firmware(hermes_t *hw, struct pcmcia_device *link)
 	}
 
 	/* Load primary firmware */
-	ret = spectrum_dl_image(hw, link, fw_entry->data, 0);
+	ret = spectrum_dl_image(hw, link, fw_entry->data,
+				fw_entry->data + fw_entry->size, 0);
 	release_firmware(fw_entry);
 	if (ret) {
 		printk(KERN_ERR PFX "Primary firmware download failed\n");
@@ -257,7 +261,8 @@ spectrum_dl_firmware(hermes_t *hw, struct pcmcia_device *link)
 	}
 
 	/* Load secondary firmware */
-	ret = spectrum_dl_image(hw, link, fw_entry->data, 1);
+	ret = spectrum_dl_image(hw, link, fw_entry->data,
+				fw_entry->data + fw_entry->size, 1);
 	release_firmware(fw_entry);
 	if (ret) {
 		printk(KERN_ERR PFX "Secondary firmware download failed\n");

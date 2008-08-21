@@ -27,19 +27,17 @@
 
 #include "hermes.h"
 
-/* Position of PDA in the adapter memory */
-#define EEPROM_ADDR	0x3000
-#define EEPROM_LEN	0x200
-#define PDA_OFFSET	0x100
+int hermes_program(hermes_t *hw, const char *first_block, const char *end);
 
-#define PDA_ADDR	(EEPROM_ADDR + PDA_OFFSET)
-#define PDA_WORDS	((EEPROM_LEN - PDA_OFFSET) / 2)
+int hermes_read_pda(hermes_t *hw,
+		    __le16 *pda,
+		    u32 pda_addr,
+		    u16 pda_len,
+		    int use_eeprom);
+int hermes_apply_pda(hermes_t *hw,
+		     const char *first_pdr,
+		     const __le16 *pda);
 
-struct dblock;
-
-int spectrum_read_pda(hermes_t *hw, __le16 *pda, int pda_len);
-int spectrum_apply_pda(hermes_t *hw, const struct dblock *first_block,
-		       __le16 *pda);
-int spectrum_load_blocks(hermes_t *hw, const struct dblock *first_block);
+size_t hermes_blocks_length(const char *first_block);
 
 #endif /* _HERMES_DLD_H */
