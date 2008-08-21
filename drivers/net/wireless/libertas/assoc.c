@@ -25,7 +25,7 @@ static const u8 bssid_off[ETH_ALEN]  __attribute__ ((aligned (2))) =
  *  @brief Associate to a specific BSS discovered in a scan
  *
  *  @param priv      A pointer to struct lbs_private structure
- *  @param pbssdesc  Pointer to the BSS descriptor to associate with.
+ *  @param assoc_req The association request describing the BSS to associate with
  *
  *  @return          0-success, otherwise fail
  */
@@ -33,29 +33,29 @@ static int lbs_associate(struct lbs_private *priv,
 	struct assoc_request *assoc_req)
 {
 	int ret;
+	u8 preamble = RADIO_PREAMBLE_LONG;
 
 	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	ret = lbs_prepare_and_send_command(priv, CMD_802_11_AUTHENTICATE,
 				    0, CMD_OPTION_WAITFORRSP,
 				    0, assoc_req->bss.bssid);
-
 	if (ret)
-		goto done;
+		goto out;
 
-	/* set preamble to firmware */
+	/* Use short preamble only when both the BSS and firmware support it */
 	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
 	    (assoc_req->bss.capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
-		priv->preamble = CMD_TYPE_SHORT_PREAMBLE;
-	else
-		priv->preamble = CMD_TYPE_LONG_PREAMBLE;
+		preamble = RADIO_PREAMBLE_SHORT;
 
-	lbs_set_radio_control(priv);
+	ret = lbs_set_radio(priv, preamble, 1);
+	if (ret)
+		goto out;
 
 	ret = lbs_prepare_and_send_command(priv, CMD_802_11_ASSOCIATE,
 				    0, CMD_OPTION_WAITFORRSP, 0, assoc_req);
 
-done:
+out:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
@@ -64,8 +64,7 @@ done:
  *  @brief Join an adhoc network found in a previous scan
  *
  *  @param priv         A pointer to struct lbs_private structure
- *  @param pbssdesc     Pointer to a BSS descriptor found in a previous scan
- *                      to attempt to join
+ *  @param assoc_req    The association request describing the BSS to join
  *
  *  @return             0--success, -1--fail
  */
@@ -74,6 +73,9 @@ static int lbs_join_adhoc_network(struct lbs_private *priv,
 {
 	struct bss_descriptor *bss = &assoc_req->bss;
 	int ret = 0;
+	u8 preamble = RADIO_PREAMBLE_LONG;
+
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	lbs_deb_join("current SSID '%s', ssid length %u\n",
 		escape_essid(priv->curbssparams.ssid,
@@ -106,18 +108,16 @@ static int lbs_join_adhoc_network(struct lbs_private *priv,
 		goto out;
 	}
 
-	/* Use shortpreamble only when both creator and card supports
-	   short preamble */
-	if (!(bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) ||
-	    !(priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
-		lbs_deb_join("AdhocJoin: Long preamble\n");
-		priv->preamble = CMD_TYPE_LONG_PREAMBLE;
-	} else {
+	/* Use short preamble only when both the BSS and firmware support it */
+	if ((priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) &&
+	    (bss->capability & WLAN_CAPABILITY_SHORT_PREAMBLE)) {
 		lbs_deb_join("AdhocJoin: Short preamble\n");
-		priv->preamble = CMD_TYPE_SHORT_PREAMBLE;
+		preamble = RADIO_PREAMBLE_SHORT;
 	}
 
-	lbs_set_radio_control(priv);
+	ret = lbs_set_radio(priv, preamble, 1);
+	if (ret)
+		goto out;
 
 	lbs_deb_join("AdhocJoin: channel = %d\n", assoc_req->channel);
 	lbs_deb_join("AdhocJoin: band = %c\n", assoc_req->band);
@@ -129,6 +129,7 @@ static int lbs_join_adhoc_network(struct lbs_private *priv,
 				    OID_802_11_SSID, assoc_req);
 
 out:
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 
@@ -136,25 +137,27 @@ out:
  *  @brief Start an Adhoc Network
  *
  *  @param priv         A pointer to struct lbs_private structure
- *  @param adhocssid    The ssid of the Adhoc Network
+ *  @param assoc_req    The association request describing the BSS to start
  *  @return             0--success, -1--fail
  */
 static int lbs_start_adhoc_network(struct lbs_private *priv,
 	struct assoc_request *assoc_req)
 {
 	int ret = 0;
+	u8 preamble = RADIO_PREAMBLE_LONG;
+
+	lbs_deb_enter(LBS_DEB_ASSOC);
 
 	priv->adhoccreate = 1;
 
 	if (priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE) {
 		lbs_deb_join("AdhocStart: Short preamble\n");
-		priv->preamble = CMD_TYPE_SHORT_PREAMBLE;
-	} else {
-		lbs_deb_join("AdhocStart: Long preamble\n");
-		priv->preamble = CMD_TYPE_LONG_PREAMBLE;
+		preamble = RADIO_PREAMBLE_SHORT;
 	}
 
-	lbs_set_radio_control(priv);
+	ret = lbs_set_radio(priv, preamble, 1);
+	if (ret)
+		goto out;
 
 	lbs_deb_join("AdhocStart: channel = %d\n", assoc_req->channel);
 	lbs_deb_join("AdhocStart: band = %d\n", assoc_req->band);
@@ -162,6 +165,8 @@ static int lbs_start_adhoc_network(struct lbs_private *priv,
 	ret = lbs_prepare_and_send_command(priv, CMD_802_11_AD_HOC_START,
 				    0, CMD_OPTION_WAITFORRSP, 0, assoc_req);
 
+out:
+	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
 }
 

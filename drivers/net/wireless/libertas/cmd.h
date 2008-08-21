@@ -65,4 +65,6 @@ int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
 		     s16 *maxlevel);
 int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
 
+int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
+
 #endif /* _LBS_CMD_H */

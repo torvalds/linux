@@ -120,34 +120,6 @@ static struct chan_freq_power *find_cfp_by_band_and_freq(
 	return cfp;
 }
 
-
-/**
- *  @brief Set Radio On/OFF
- *
- *  @param priv                 A pointer to struct lbs_private structure
- *  @option 			Radio Option
- *  @return 	   		0 --success, otherwise fail
- */
-static int lbs_radio_ioctl(struct lbs_private *priv, u8 option)
-{
-	int ret = 0;
-
-	lbs_deb_enter(LBS_DEB_WEXT);
-
-	if (priv->radioon != option) {
-		lbs_deb_wext("switching radio %s\n", option ? "on" : "off");
-		priv->radioon = option;
-
-		ret = lbs_prepare_and_send_command(priv,
-					    CMD_802_11_RADIO_CONTROL,
-					    CMD_ACT_SET,
-					    CMD_OPTION_WAITFORRSP, 0, NULL);
-	}
-
-	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
-	return ret;
-}
-
 /**
  *  @brief Copy active data rates based on adapter mode and status
  *
@@ -420,26 +392,30 @@ static int lbs_get_txpow(struct net_device *dev,
 			  struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
-	int ret = 0;
 	struct lbs_private *priv = dev->priv;
 	s16 curlevel = 0;
+	int ret = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
+
+	if (!priv->radio_on) {
+		lbs_deb_wext("tx power off\n");
+		vwrq->value = 0;
+		vwrq->disabled = 1;
+		goto out;
+	}
 
 	ret = lbs_get_tx_power(priv, &curlevel, NULL, NULL);
 	if (ret)
 		goto out;
 
 	lbs_deb_wext("tx power level %d dbm\n", curlevel);
-
 	priv->txpower_cur = curlevel;
+
 	vwrq->value = curlevel;
 	vwrq->fixed = 1;
-	if (priv->radioon) {
-		vwrq->disabled = 0;
-		vwrq->flags = IW_TXPOW_DBM;
-	} else
-		vwrq->disabled = 1;
+	vwrq->disabled = 0;
+	vwrq->flags = IW_TXPOW_DBM;
 
 out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
@@ -1839,13 +1815,12 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	if (vwrq->disabled) {
-		lbs_radio_ioctl(priv, RADIO_OFF);
+		lbs_set_radio(priv, RADIO_PREAMBLE_AUTO, 0);
 		goto out;
 	}
 
 	if (vwrq->fixed == 0) {
 		/* Auto power control */
-		priv->preamble = CMD_TYPE_AUTO_PREAMBLE;
 		dbm = priv->txpower_max;
 	} else {
 		/* Userspace check in iwrange if it should use dBm or mW,
@@ -1867,7 +1842,12 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 		}
 	}
 
-	lbs_radio_ioctl(priv, RADIO_ON);
+	/* If the radio was off, turn it on */
+	if (!priv->radio_on) {
+		ret = lbs_set_radio(priv, RADIO_PREAMBLE_AUTO, 1);
+		if (ret)
+			goto out;
+	}
 
 	lbs_deb_wext("txpower set %d dBm\n", dbm);
 
@@ -1924,6 +1904,11 @@ static int lbs_set_essid(struct net_device *dev, struct iw_request_info *info,
 	int in_ssid_len = dwrq->length;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
+
+	if (!priv->radio_on) {
+		ret = -EINVAL;
+		goto out;
+	}
 
 	/* Check the size of the string */
 	if (in_ssid_len > IW_ESSID_MAX_SIZE) {
@@ -2002,6 +1987,11 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
+	if (!priv->radio_on) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	/* Check the size of the string */
 	if (dwrq->length > IW_ESSID_MAX_SIZE) {
 		ret = -E2BIG;
@@ -2042,6 +2032,9 @@ static int lbs_set_wap(struct net_device *dev, struct iw_request_info *info,
 	DECLARE_MAC_BUF(mac);
 
 	lbs_deb_enter(LBS_DEB_WEXT);
+
+	if (!priv->radio_on)
+		return -EINVAL;
 
 	if (awrq->sa_family != ARPHRD_ETHER)
 		return -EINVAL;

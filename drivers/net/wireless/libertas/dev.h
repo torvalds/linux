@@ -293,8 +293,7 @@ struct lbs_private {
 	u16 nextSNRNF;
 	u16 numSNRNF;
 
-	u8 radioon;
-	u32 preamble;
+	u8 radio_on;
 
 	/** data rate stuff */
 	u8 cur_rate;

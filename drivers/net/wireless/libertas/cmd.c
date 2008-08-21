@@ -1289,41 +1289,47 @@ void lbs_complete_command(struct lbs_private *priv, struct cmd_ctrl_node *cmd,
 	priv->cur_cmd = NULL;
 }
 
-int lbs_set_radio_control(struct lbs_private *priv)
+int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on)
 {
-	int ret = 0;
 	struct cmd_ds_802_11_radio_control cmd;
+	int ret = -EINVAL;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
 	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
 	cmd.action = cpu_to_le16(CMD_ACT_SET);
 
-	switch (priv->preamble) {
-	case CMD_TYPE_SHORT_PREAMBLE:
-		cmd.control = cpu_to_le16(SET_SHORT_PREAMBLE);
-		break;
-
-	case CMD_TYPE_LONG_PREAMBLE:
-		cmd.control = cpu_to_le16(SET_LONG_PREAMBLE);
-		break;
-
-	case CMD_TYPE_AUTO_PREAMBLE:
-	default:
-		cmd.control = cpu_to_le16(SET_AUTO_PREAMBLE);
-		break;
+	/* Only v8 and below support setting the preamble */
+	if (priv->fwrelease < 0x09000000) {
+		switch (preamble) {
+		case RADIO_PREAMBLE_SHORT:
+			if (!(priv->capability & WLAN_CAPABILITY_SHORT_PREAMBLE))
+				goto out;
+			/* Fall through */
+		case RADIO_PREAMBLE_AUTO:
+		case RADIO_PREAMBLE_LONG:
+			cmd.control = cpu_to_le16(preamble);
+			break;
+		default:
+			goto out;
+		}
 	}
 
-	if (priv->radioon)
-		cmd.control |= cpu_to_le16(TURN_ON_RF);
-	else
-		cmd.control &= cpu_to_le16(~TURN_ON_RF);
+	if (radio_on)
+		cmd.control |= cpu_to_le16(0x1);
+	else {
+		cmd.control &= cpu_to_le16(~0x1);
+		priv->txpower_cur = 0;
+	}
 
-	lbs_deb_cmd("RADIO_SET: radio %d, preamble %d\n", priv->radioon,
-		    priv->preamble);
+	lbs_deb_cmd("RADIO_CONTROL: radio %s, preamble %d\n",
+		    radio_on ? "ON" : "OFF", preamble);
+
+	priv->radio_on = radio_on;
 
 	ret = lbs_cmd_with_response(priv, CMD_802_11_RADIO_CONTROL, &cmd);
 
+out:
 	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
 	return ret;
 }
