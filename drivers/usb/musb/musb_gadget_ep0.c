@@ -476,6 +476,7 @@ static void ep0_rxstate(struct musb *musb)
 			return;
 		musb->ackpend = 0;
 	}
+	musb_ep_select(musb->mregs, 0);
 	musb_writew(regs, MUSB_CSR0, tmp);
 }
 
@@ -528,6 +529,7 @@ static void ep0_txstate(struct musb *musb)
 	}
 
 	/* send it out, triggering a "txpktrdy cleared" irq */
+	musb_ep_select(musb->mregs, 0);
 	musb_writew(regs, MUSB_CSR0, csr);
 }
 
