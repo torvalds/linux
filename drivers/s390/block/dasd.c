@@ -2333,13 +2333,11 @@ int dasd_generic_notify(struct ccw_device *cdev, int event)
 {
 	struct dasd_device *device;
 	struct dasd_ccw_req *cqr;
-	unsigned long flags;
 	int ret;
 
-	device = dasd_device_from_cdev(cdev);
+	device = dasd_device_from_cdev_locked(cdev);
 	if (IS_ERR(device))
 		return 0;
-	spin_lock_irqsave(get_ccwdev_lock(cdev), flags);
 	ret = 0;
 	switch (event) {
 	case CIO_GONE:
@@ -2369,7 +2367,6 @@ int dasd_generic_notify(struct ccw_device *cdev, int event)
 		ret = 1;
 		break;
 	}
-	spin_unlock_irqrestore(get_ccwdev_lock(cdev), flags);
 	dasd_put_device(device);
 	return ret;
 }

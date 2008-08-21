@@ -337,26 +337,34 @@ int ccw_device_notify(struct ccw_device *cdev, int event)
 		return 0;
 	if (!cdev->online)
 		return 0;
+	CIO_MSG_EVENT(2, "notify called for 0.%x.%04x, event=%d\n",
+		      cdev->private->dev_id.ssid, cdev->private->dev_id.devno,
+		      event);
 	return cdev->drv->notify ? cdev->drv->notify(cdev, event) : 0;
 }
 
-static void
-ccw_device_oper_notify(struct work_struct *work)
+static void cmf_reenable_delayed(struct work_struct *work)
 {
 	struct ccw_device_private *priv;
 	struct ccw_device *cdev;
-	int ret;
 
 	priv = container_of(work, struct ccw_device_private, kick_work);
 	cdev = priv->cdev;
-	ret = ccw_device_notify(cdev, CIO_OPER);
-	if (ret) {
+	cmf_reenable(cdev);
+}
+
+static void ccw_device_oper_notify(struct ccw_device *cdev)
+{
+	if (ccw_device_notify(cdev, CIO_OPER)) {
 		/* Reenable channel measurements, if needed. */
-		cmf_reenable(cdev);
-		wake_up(&cdev->private->wait_q);
-	} else
-		/* Driver doesn't want device back. */
-		ccw_device_do_unreg_rereg(work);
+		PREPARE_WORK(&cdev->private->kick_work, cmf_reenable_delayed);
+		queue_work(ccw_device_work, &cdev->private->kick_work);
+		return;
+	}
+	/* Driver doesn't want device back. */
+	ccw_device_set_notoper(cdev);
+	PREPARE_WORK(&cdev->private->kick_work, ccw_device_do_unreg_rereg);
+	queue_work(ccw_device_work, &cdev->private->kick_work);
 }
 
 /*
@@ -386,8 +394,7 @@ ccw_device_done(struct ccw_device *cdev, int state)
 
 	if (cdev->private->flags.donotify) {
 		cdev->private->flags.donotify = 0;
-		PREPARE_WORK(&cdev->private->kick_work, ccw_device_oper_notify);
-		queue_work(ccw_device_notify_work, &cdev->private->kick_work);
+		ccw_device_oper_notify(cdev);
 	}
 	wake_up(&cdev->private->wait_q);
 
