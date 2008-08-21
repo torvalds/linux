@@ -2,6 +2,7 @@
 #define XEN_OPS_H
 
 #include <linux/init.h>
+#include <linux/clocksource.h>
 #include <linux/irqreturn.h>
 #include <xen/xen-ops.h>
 
@@ -33,6 +34,7 @@ void __init xen_build_dynamic_phys_to_machine(void);
 
 void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
+cycle_t xen_clocksource_read(void);
 void xen_setup_cpu_clockevents(void);
 unsigned long xen_tsc_khz(void);
 void __init xen_time_init(void);
