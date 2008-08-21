@@ -247,6 +247,7 @@ static inline void raise_rcu_softirq(void)
  */
 static void rcu_do_batch(struct rcu_data *rdp)
 {
+	unsigned long flags;
 	struct rcu_head *next, *list;
 	int count = 0;
 
@@ -261,9 +262,9 @@ static void rcu_do_batch(struct rcu_data *rdp)
 	}
 	rdp->donelist = list;
 
-	local_irq_disable();
+	local_irq_save(flags);
 	rdp->qlen -= count;
-	local_irq_enable();
+	local_irq_restore(flags);
 	if (rdp->blimit == INT_MAX && rdp->qlen <= qlowmark)
 		rdp->blimit = blimit;
 
@@ -464,12 +465,14 @@ static void rcu_check_quiescent_state(struct rcu_ctrlblk *rcp,
 static void rcu_move_batch(struct rcu_data *this_rdp, struct rcu_head *list,
 				struct rcu_head **tail, long batch)
 {
+	unsigned long flags;
+
 	if (list) {
-		local_irq_disable();
+		local_irq_save(flags);
 		this_rdp->batch = batch;
 		*this_rdp->nxttail[2] = list;
 		this_rdp->nxttail[2] = tail;
-		local_irq_enable();
+		local_irq_restore(flags);
 	}
 }
 
@@ -521,10 +524,11 @@ static void rcu_offline_cpu(int cpu)
 static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 					struct rcu_data *rdp)
 {
+	unsigned long flags;
 	long completed_snap;
 
 	if (rdp->nxtlist) {
-		local_irq_disable();
+		local_irq_save(flags);
 		completed_snap = ACCESS_ONCE(rcp->completed);
 
 		/*
@@ -554,7 +558,7 @@ static void __rcu_process_callbacks(struct rcu_ctrlblk *rcp,
 			rdp->nxttail[0] = &rdp->nxtlist;
 		}
 
-		local_irq_enable();
+		local_irq_restore(flags);
 
 		if (rcu_batch_after(rdp->batch, rcp->pending)) {
 			unsigned long flags;
