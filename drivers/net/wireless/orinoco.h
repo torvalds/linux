@@ -100,7 +100,7 @@ struct orinoco_private {
 	/* Configuration paramaters */
 	u32 iw_mode;
 	int prefer_port3;
-	u16 wep_on, wep_restrict, tx_key;
+	u16 encode_alg, wep_restrict, tx_key;
 	struct orinoco_key keys[ORINOCO_MAX_KEYS];
 	int bitratemode;
  	char nick[IW_ESSID_MAX_SIZE+1];
