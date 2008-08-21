@@ -1310,7 +1310,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 				  NULL);
 	if (ret) {
 		mlog_errno(ret);
-		goto out;
+		goto out_commit;
 	}
 
 	ret = ocfs2_journal_dirty(handle, di_bh);
@@ -1336,7 +1336,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 					  len, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			goto out_commit;
 		}
 	}
 
