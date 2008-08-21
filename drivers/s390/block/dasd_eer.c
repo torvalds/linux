@@ -16,6 +16,7 @@
 #include <linux/poll.h>
 #include <linux/mutex.h>
 #include <linux/smp_lock.h>
+#include <linux/err.h>
 
 #include <asm/uaccess.h>
 #include <asm/atomic.h>
@@ -457,7 +458,7 @@ int dasd_eer_enable(struct dasd_device *device)
 
 	cqr = dasd_kmalloc_request("ECKD", 1 /* SNSS */,
 				   SNSS_DATA_SIZE, device);
-	if (!cqr)
+	if (IS_ERR(cqr))
 		return -ENOMEM;
 
 	cqr->startdev = device;
