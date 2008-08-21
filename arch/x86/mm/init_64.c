@@ -241,7 +241,7 @@ static unsigned long __initdata table_start;
 static unsigned long __meminitdata table_end;
 static unsigned long __meminitdata table_top;
 
-static __meminit void *alloc_low_page(unsigned long *phys)
+static __ref void *alloc_low_page(unsigned long *phys)
 {
 	unsigned long pfn = table_end++;
 	void *adr;
@@ -262,7 +262,7 @@ static __meminit void *alloc_low_page(unsigned long *phys)
 	return adr;
 }
 
-static __meminit void unmap_low_page(void *adr)
+static __ref void unmap_low_page(void *adr)
 {
 	if (after_bootmem)
 		return;
