@@ -867,11 +867,6 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	int		slack_bytes;
 	__be32		status;
 
-	status = nfserr_resource;
-	cstate = cstate_alloc();
-	if (cstate == NULL)
-		goto out;
-
 	resp->xbuf = &rqstp->rq_res;
 	resp->p = rqstp->rq_res.head[0].iov_base + rqstp->rq_res.head[0].iov_len;
 	resp->tagp = resp->p;
@@ -888,6 +883,11 @@ nfsd4_proc_compound(struct svc_rqst *rqstp,
 	 */
 	status = nfserr_minor_vers_mismatch;
 	if (args->minorversion > NFSD_SUPPORTED_MINOR_VERSION)
+		goto out;
+
+	status = nfserr_resource;
+	cstate = cstate_alloc();
+	if (cstate == NULL)
 		goto out;
 
 	status = nfs_ok;
@@ -957,9 +957,9 @@ encode_op:
 		nfsd4_increment_op_stats(op->opnum);
 	}
 
+	cstate_free(cstate);
 out:
 	nfsd4_release_compoundargs(args);
-	cstate_free(cstate);
 	dprintk("nfsv4 compound returned %d\n", ntohl(status));
 	return status;
 }
