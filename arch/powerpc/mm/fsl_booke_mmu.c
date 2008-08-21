@@ -202,7 +202,7 @@ adjust_total_lowmem(void)
 		cam_max_size = max_lowmem_size;
 
 	/* adjust lowmem size to max_lowmem_size */
-	ram = min(max_lowmem_size, (phys_addr_t)total_lowmem);
+	ram = min(max_lowmem_size, total_lowmem);
 
 	/* Calculate CAM values */
 	__cam0 = 1UL << 2 * (__ilog2(ram) / 2);
@@ -225,7 +225,8 @@ adjust_total_lowmem(void)
 	printk(KERN_INFO "Memory CAM mapping: CAM0=%ldMb, CAM1=%ldMb,"
 			" CAM2=%ldMb residual: %ldMb\n",
 			__cam0 >> 20, __cam1 >> 20, __cam2 >> 20,
-			(total_lowmem - __cam0 - __cam1 - __cam2) >> 20);
+			(long int)((total_lowmem - __cam0 - __cam1 - __cam2)
+				   >> 20));
 	__max_low_memory = __cam0 + __cam1 + __cam2;
 	__initial_memory_limit_addr = memstart_addr + __max_low_memory;
 }
