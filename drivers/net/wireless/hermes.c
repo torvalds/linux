@@ -87,7 +87,8 @@ MODULE_LICENSE("Dual MPL/GPL");
 
    Callable from any context.
 */
-static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0)
+static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0,
+			    u16 param1, u16 param2)
 {
 	int k = CMD_BUSY_TIMEOUT;
 	u16 reg;
@@ -103,8 +104,8 @@ static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0)
 		return -EBUSY;
 	}
 
-	hermes_write_regn(hw, PARAM2, 0);
-	hermes_write_regn(hw, PARAM1, 0);
+	hermes_write_regn(hw, PARAM2, param2);
+	hermes_write_regn(hw, PARAM1, param1);
 	hermes_write_regn(hw, PARAM0, param0);
 	hermes_write_regn(hw, CMD, cmd);
 	
@@ -162,7 +163,7 @@ int hermes_init(hermes_t *hw)
 
 	/* We don't use hermes_docmd_wait here, because the reset wipes
 	   the magic constant in SWSUPPORT0 away, and it gets confused */
-	err = hermes_issue_cmd(hw, HERMES_CMD_INIT, 0);
+	err = hermes_issue_cmd(hw, HERMES_CMD_INIT, 0, 0, 0);
 	if (err)
 		return err;
 
@@ -216,7 +217,7 @@ int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
 	u16 reg;
 	u16 status;
 
-	err = hermes_issue_cmd(hw, cmd, parm0);
+	err = hermes_issue_cmd(hw, cmd, parm0, 0, 0);
 	if (err) {
 		if (! hermes_present(hw)) {
 			if (net_ratelimit())
@@ -497,7 +498,7 @@ int hermes_write_ltv(hermes_t *hw, int bap, u16 rid,
 
 	hermes_write_bytes(hw, dreg, value, count << 1);
 
-	err = hermes_docmd_wait(hw, HERMES_CMD_ACCESS | HERMES_CMD_WRITE, 
+	err = hermes_docmd_wait(hw, HERMES_CMD_ACCESS | HERMES_CMD_WRITE,
 				rid, NULL);
 
 	return err;
