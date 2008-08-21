@@ -291,7 +291,9 @@ static ssize_t lbs_rtap_set(struct device *dev,
 			if (priv->infra_open || priv->mesh_open)
 				return -EBUSY;
 			if (priv->mode == IW_MODE_INFRA)
-				lbs_send_deauthentication(priv);
+				lbs_cmd_80211_deauthenticate(priv,
+							     priv->curbssparams.bssid,
+							     WLAN_REASON_DEAUTH_LEAVING);
 			else if (priv->mode == IW_MODE_ADHOC)
 				lbs_stop_adhoc_network(priv);
 			lbs_add_rtap(priv);

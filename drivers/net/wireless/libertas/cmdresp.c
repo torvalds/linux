@@ -258,11 +258,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_80211_associate(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_DISASSOCIATE):
-	case CMD_RET(CMD_802_11_DEAUTHENTICATE):
-		ret = lbs_ret_80211_disassociate(priv);
-		break;
-
 	case CMD_RET(CMD_802_11_AD_HOC_START):
 	case CMD_RET(CMD_802_11_AD_HOC_JOIN):
 		ret = lbs_ret_80211_ad_hoc_start(priv, resp);

@@ -1029,7 +1029,9 @@ void lbs_association_worker(struct work_struct *work)
 	 */
 	if (priv->mode == IW_MODE_INFRA) {
 		if (should_deauth_infrastructure(priv, assoc_req)) {
-			ret = lbs_send_deauthentication(priv);
+			ret = lbs_cmd_80211_deauthenticate(priv,
+							   priv->curbssparams.bssid,
+							   WLAN_REASON_DEAUTH_LEAVING);
 			if (ret) {
 				lbs_deb_assoc("Deauthentication due to new "
 					"configuration request failed: %d\n",
@@ -1290,18 +1292,6 @@ static void lbs_set_basic_rate_flags(u8 *rates, size_t len)
 }
 
 /**
- *  @brief Send Deauthentication Request
- *
- *  @param priv      A pointer to struct lbs_private structure
- *  @return          0--success, -1--fail
- */
-int lbs_send_deauthentication(struct lbs_private *priv)
-{
-	return lbs_prepare_and_send_command(priv, CMD_802_11_DEAUTHENTICATE,
-				     0, CMD_OPTION_WAITFORRSP, 0, NULL);
-}
-
-/**
  *  @brief This function prepares command of authenticate.
  *
  *  @param priv      A pointer to struct lbs_private structure
@@ -1353,26 +1343,37 @@ out:
 	return ret;
 }
 
-int lbs_cmd_80211_deauthenticate(struct lbs_private *priv,
-				   struct cmd_ds_command *cmd)
+/**
+ *  @brief Deauthenticate from a specific BSS
+ *
+ *  @param priv        A pointer to struct lbs_private structure
+ *  @param bssid       The specific BSS to deauthenticate from
+ *  @param reason      The 802.11 sec. 7.3.1.7 Reason Code for deauthenticating
+ *
+ *  @return            0 on success, error on failure
+ */
+int lbs_cmd_80211_deauthenticate(struct lbs_private *priv, u8 bssid[ETH_ALEN],
+				 u16 reason)
 {
-	struct cmd_ds_802_11_deauthenticate *dauth = &cmd->params.deauth;
+	struct cmd_ds_802_11_deauthenticate cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_JOIN);
 
-	cmd->command = cpu_to_le16(CMD_802_11_DEAUTHENTICATE);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_deauthenticate) +
-			     S_DS_GEN);
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	memcpy(cmd.macaddr, &bssid[0], ETH_ALEN);
+	cmd.reasoncode = cpu_to_le16(reason);
 
-	/* set AP MAC address */
-	memmove(dauth->macaddr, priv->curbssparams.bssid, ETH_ALEN);
+	ret = lbs_cmd_with_response(priv, CMD_802_11_DEAUTHENTICATE, &cmd);
 
-	/* Reason code 3 = Station is leaving */
-#define REASON_CODE_STA_LEAVING 3
-	dauth->reasoncode = cpu_to_le16(REASON_CODE_STA_LEAVING);
+	/* Clean up everything even if there was an error; can't assume that
+	 * we're still authenticated to the AP after trying to deauth.
+	 */
+	lbs_mac_event_disconnected(priv);
 
 	lbs_deb_leave(LBS_DEB_JOIN);
-	return 0;
+	return ret;
 }
 
 int lbs_cmd_80211_associate(struct lbs_private *priv,
@@ -1813,16 +1814,6 @@ int lbs_ret_80211_associate(struct lbs_private *priv,
 done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);
 	return ret;
-}
-
-int lbs_ret_80211_disassociate(struct lbs_private *priv)
-{
-	lbs_deb_enter(LBS_DEB_JOIN);
-
-	lbs_mac_event_disconnected(priv);
-
-	lbs_deb_leave(LBS_DEB_JOIN);
-	return 0;
 }
 
 int lbs_ret_80211_ad_hoc_start(struct lbs_private *priv,

@@ -1413,10 +1413,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
 		break;
 
-	case CMD_802_11_DEAUTHENTICATE:
-		ret = lbs_cmd_80211_deauthenticate(priv, cmdptr);
-		break;
-
 	case CMD_802_11_AD_HOC_START:
 		ret = lbs_cmd_80211_ad_hoc_start(priv, cmdptr, pdata_buf);
 		break;

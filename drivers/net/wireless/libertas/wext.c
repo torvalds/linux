@@ -986,7 +986,9 @@ static int lbs_mesh_set_freq(struct net_device *dev,
 	if (fwrq->m != priv->curbssparams.channel) {
 		lbs_deb_wext("mesh channel change forces eth disconnect\n");
 		if (priv->mode == IW_MODE_INFRA)
-			lbs_send_deauthentication(priv);
+			lbs_cmd_80211_deauthenticate(priv,
+						     priv->curbssparams.bssid,
+						     WLAN_REASON_DEAUTH_LEAVING);
 		else if (priv->mode == IW_MODE_ADHOC)
 			lbs_stop_adhoc_network(priv);
 	}

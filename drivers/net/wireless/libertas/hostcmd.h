@@ -232,7 +232,9 @@ struct cmd_ds_802_11_authenticate {
 };
 
 struct cmd_ds_802_11_deauthenticate {
-	u8 macaddr[6];
+	struct cmd_header hdr;
+
+	u8 macaddr[ETH_ALEN];
 	__le16 reasoncode;
 };
 
@@ -250,11 +252,6 @@ struct cmd_ds_802_11_associate {
 	mrvlietypes_ratesparamset_t ratesParamSet;
 #endif
 } __attribute__ ((packed));
-
-struct cmd_ds_802_11_disassociate {
-	u8 destmacaddr[6];
-	__le16 reasoncode;
-};
 
 struct cmd_ds_802_11_associate_rsp {
 	struct ieeetypes_assocrsp assocRsp;
@@ -697,7 +694,6 @@ struct cmd_ds_command {
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
 		struct cmd_ds_802_11_associate associate;
-		struct cmd_ds_802_11_deauthenticate deauth;
 		struct cmd_ds_802_11_ad_hoc_start ads;
 		struct cmd_ds_802_11_reset reset;
 		struct cmd_ds_802_11_ad_hoc_result result;
@@ -710,7 +706,6 @@ struct cmd_ds_command {
 		struct cmd_ds_802_11_ad_hoc_join adj;
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
-		struct cmd_ds_802_11_disassociate dassociate;
 		struct cmd_ds_mac_reg_access macreg;
 		struct cmd_ds_bbp_reg_access bbpreg;
 		struct cmd_ds_rf_reg_access rfreg;
