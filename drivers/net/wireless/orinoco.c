@@ -722,7 +722,7 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 txfid = priv->txfid;
 	struct ethhdr *eh;
 	int data_off;
-	struct hermes_tx_descriptor desc;
+	int tx_control;
 	unsigned long flags;
 
 	if (! netif_running(dev)) {
@@ -756,21 +756,48 @@ static int orinoco_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	eh = (struct ethhdr *)skb->data;
 
-	memset(&desc, 0, sizeof(desc));
- 	desc.tx_control = cpu_to_le16(HERMES_TXCTRL_TX_OK | HERMES_TXCTRL_TX_EX);
-	err = hermes_bap_pwrite(hw, USER_BAP, &desc, sizeof(desc), txfid, 0);
-	if (err) {
-		if (net_ratelimit())
-			printk(KERN_ERR "%s: Error %d writing Tx descriptor "
-			       "to BAP\n", dev->name, err);
-		goto busy;
-	}
+	tx_control = HERMES_TXCTRL_TX_OK | HERMES_TXCTRL_TX_EX;
 
-	/* Clear the 802.11 header and data length fields - some
-	 * firmwares (e.g. Lucent/Agere 8.xx) appear to get confused
-	 * if this isn't done. */
-	hermes_clear_words(hw, HERMES_DATA0,
-			   HERMES_802_3_OFFSET - HERMES_802_11_OFFSET);
+	if (priv->has_alt_txcntl) {
+		/* WPA enabled firmwares have tx_cntl at the end of
+		 * the 802.11 header.  So write zeroed descriptor and
+		 * 802.11 header at the same time
+		 */
+		char desc[HERMES_802_3_OFFSET];
+		__le16 *txcntl = (__le16 *) &desc[HERMES_TXCNTL2_OFFSET];
+
+		memset(&desc, 0, sizeof(desc));
+
+		*txcntl = cpu_to_le16(tx_control);
+		err = hermes_bap_pwrite(hw, USER_BAP, &desc, sizeof(desc),
+					txfid, 0);
+		if (err) {
+			if (net_ratelimit())
+				printk(KERN_ERR "%s: Error %d writing Tx "
+				       "descriptor to BAP\n", dev->name, err);
+			goto busy;
+		}
+	} else {
+		struct hermes_tx_descriptor desc;
+
+		memset(&desc, 0, sizeof(desc));
+
+		desc.tx_control = cpu_to_le16(tx_control);
+		err = hermes_bap_pwrite(hw, USER_BAP, &desc, sizeof(desc),
+					txfid, 0);
+		if (err) {
+			if (net_ratelimit())
+				printk(KERN_ERR "%s: Error %d writing Tx "
+				       "descriptor to BAP\n", dev->name, err);
+			goto busy;
+		}
+
+		/* Clear the 802.11 header and data length fields - some
+		 * firmwares (e.g. Lucent/Agere 8.xx) appear to get confused
+		 * if this isn't done. */
+		hermes_clear_words(hw, HERMES_DATA0,
+				   HERMES_802_3_OFFSET - HERMES_802_11_OFFSET);
+	}
 
 	/* Encapsulate Ethernet-II frames */
 	if (ntohs(eh->h_proto) > ETH_DATA_LEN) { /* Ethernet-II frame */
@@ -2528,6 +2555,7 @@ static int determine_firmware(struct net_device *dev)
 	priv->has_ibss = 1;
 	priv->has_wep = 0;
 	priv->has_big_wep = 0;
+	priv->has_alt_txcntl = 0;
 	priv->do_fw_download = 0;
 
 	/* Determine capabilities from the firmware version */
@@ -2550,6 +2578,7 @@ static int determine_firmware(struct net_device *dev)
 		priv->has_hostscan = (firmver >= 0x8000a);
 		priv->do_fw_download = 1;
 		priv->broken_monitor = (firmver >= 0x80000);
+		priv->has_alt_txcntl = (firmver >= 0x90000); /* All 9.x ? */
 
 		/* Tested with Agere firmware :
 		 *	1.16 ; 4.08 ; 4.52 ; 6.04 ; 6.16 ; 7.28 => Jean II
