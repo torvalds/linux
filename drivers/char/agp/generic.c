@@ -274,7 +274,6 @@ struct agp_memory *agp_allocate_memory(struct agp_bridge_data *bridge,
 		new->memory[i] = virt_to_gart(addr);
 		new->page_count++;
 	}
-	map_page_into_agp_global_flush();
 	new->bridge = bridge;
 
 	return new;
@@ -1187,8 +1186,7 @@ void *agp_generic_alloc_page(struct agp_bridge_data *bridge)
 	if (page == NULL)
 		return NULL;
 
-	/* agp_allocate_memory will do flush */
-	map_page_into_agp_noflush(page);
+	map_page_into_agp(page);
 
 	get_page(page);
 	atomic_inc(&agp_bridge->current_memory_agp);
