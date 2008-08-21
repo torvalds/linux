@@ -30,6 +30,15 @@ struct orinoco_key {
 	char data[ORINOCO_MAX_KEY_SIZE];
 } __attribute__ ((packed));
 
+#define TKIP_KEYLEN	16
+#define MIC_KEYLEN	8
+
+struct orinoco_tkip_key {
+	u8 tkip[TKIP_KEYLEN];
+	u8 tx_mic[MIC_KEYLEN];
+	u8 rx_mic[MIC_KEYLEN];
+};
+
 typedef enum {
 	FIRMWARE_TYPE_AGERE,
 	FIRMWARE_TYPE_INTERSIL,
@@ -93,6 +102,7 @@ struct orinoco_private {
 	unsigned int has_hostscan:1;
 	unsigned int has_alt_txcntl:1;
 	unsigned int has_ext_scan:1;
+	unsigned int has_wpa:1;
 	unsigned int do_fw_download:1;
 	unsigned int broken_disableport:1;
 	unsigned int broken_monitor:1;
@@ -128,6 +138,16 @@ struct orinoco_private {
 
 	int	scan_inprogress;	/* Scan pending... */
 	u32	scan_mode;		/* Type of scan done */
+
+	/* WPA support */
+	u8 *wpa_ie;
+	int wpa_ie_len;
+
+	struct orinoco_tkip_key tkip_key[ORINOCO_MAX_KEYS];
+
+	unsigned int wpa_enabled:1;
+	unsigned int tkip_cm_active:1;
+	unsigned int key_mgmt:3;
 };
 
 #ifdef ORINOCO_DEBUG
