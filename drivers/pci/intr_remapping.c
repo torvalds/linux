@@ -76,9 +76,10 @@ static struct irq_2_iommu *irq_2_iommu_alloc(unsigned int irq)
 	struct irq_desc *desc;
 	struct irq_2_iommu *irq_iommu;
 
-	desc = irq_to_desc(irq);
-
-	BUG_ON(!desc);
+	/*
+	 * alloc irq desc if not allocated already.
+	 */
+	desc = irq_to_desc_alloc(irq);
 
 	irq_iommu = desc->irq_2_iommu;
 
@@ -255,11 +256,8 @@ int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index, u16 subhandle)
 	struct irq_2_iommu *irq_iommu;
 
 	spin_lock(&irq_2_ir_lock);
-	irq_iommu = valid_irq_2_iommu(irq);
-	if (!irq_iommu) {
-		spin_unlock(&irq_2_ir_lock);
-		return -1;
-	}
+
+	irq_iommu = irq_2_iommu_alloc(irq);
 
 	irq_iommu->iommu = iommu;
 	irq_iommu->irte_index = index;
