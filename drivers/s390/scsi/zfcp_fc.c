@@ -352,7 +352,6 @@ static int zfcp_scan_get_nameserver(struct zfcp_adapter *adapter)
 		if (ret)
 			return ret;
 		zfcp_erp_wait(adapter);
-		zfcp_port_put(adapter->nameserver_port);
 	}
 	return !atomic_test_mask(ZFCP_STATUS_COMMON_UNBLOCKED,
 				  &adapter->nameserver_port->status);
