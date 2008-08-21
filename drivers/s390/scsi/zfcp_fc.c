@@ -475,7 +475,7 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 	struct zfcp_adapter *adapter = ct->port->adapter;
 	struct zfcp_port *port, *tmp;
 	u32 d_id;
-	int ret = 0, x;
+	int ret = 0, x, last = 0;
 
 	if (ct->status)
 		return -EIO;
@@ -492,12 +492,13 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 	down(&zfcp_data.config_sema);
 
 	/* first entry is the header */
-	for (x = 1; x < ZFCP_GPN_FT_MAX_ENTRIES; x++) {
+	for (x = 1; x < ZFCP_GPN_FT_MAX_ENTRIES && !last; x++) {
 		if (x % (ZFCP_GPN_FT_ENTRIES + 1))
 			acc++;
 		else
 			acc = sg_virt(++sg);
 
+		last = acc->control & 0x80;
 		d_id = acc->port_id[0] << 16 | acc->port_id[1] << 8 |
 		       acc->port_id[2];
 
@@ -513,8 +514,6 @@ static int zfcp_scan_eval_gpn_ft(struct zfcp_gpn_ft *gpn_ft)
 			ret = PTR_ERR(port);
 		else
 			zfcp_erp_port_reopen(port, 0, 149, NULL);
-		if (acc->control & 0x80) /* last entry */
-			break;
 	}
 
 	zfcp_erp_wait(adapter);
