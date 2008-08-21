@@ -27,4 +27,6 @@ source "drivers/staging/et131x/Kconfig"
 
 source "drivers/staging/slicoss/Kconfig"
 
+source "drivers/staging/sxg/Kconfig"
+
 endif # STAGING

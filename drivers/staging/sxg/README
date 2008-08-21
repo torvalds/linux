@@ -1,0 +1,13 @@
+This is the rough cut at a driver for the Alacritech SLIC Technology
+Non-Accelerated 10Gbe network driver.
+
+TODO:
+	- lindent the code
+	- remove typedefs
+	- remove wrappers
+	- checkpatch.pl cleanups
+	- new functionality that the card needs
+
+Please send patches to:
+        Greg Kroah-Hartman <gregkh@suse.de>
+for any cleanups that you do to this driver.
