@@ -165,12 +165,11 @@ config USB_TUSB_OMAP_DMA
 	help
 	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.
 
-config	USB_MUSB_LOGLEVEL
+config	USB_MUSB_DEBUG
 	depends on USB_MUSB_HDRC
-	int  'Logging Level (0 - none / 3 - annoying / ... )'
-	default 0
+	bool "Enable debugging messages"
+	default n
 	help
-	  Set the logging level. 0 disables the debugging altogether,
-	  although when USB_DEBUG is set the value is at least 1.
-	  Starting at level 3, per-transfer (urb, usb_request, packet,
-	  or dma transfer) tracing may kick in.
+	  This enables musb debugging. To set the logging level use the debug
+	  module parameter. Starting at level 3, per-transfer (urb, usb_request,
+	  packet, or dma transfer) tracing may kick in.

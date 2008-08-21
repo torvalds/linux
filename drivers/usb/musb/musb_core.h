@@ -485,23 +485,4 @@ extern int musb_platform_get_vbus_status(struct musb *musb);
 extern int __init musb_platform_init(struct musb *musb);
 extern int musb_platform_exit(struct musb *musb);
 
-/*-------------------------- ProcFS definitions ---------------------*/
-
-struct proc_dir_entry;
-
-#if (MUSB_DEBUG > 0) && defined(MUSB_CONFIG_PROC_FS)
-extern struct proc_dir_entry *musb_debug_create(char *name, struct musb *data);
-extern void musb_debug_delete(char *name, struct musb *data);
-
-#else
-static inline struct proc_dir_entry *
-musb_debug_create(char *name, struct musb *data)
-{
-	return NULL;
-}
-static inline void musb_debug_delete(char *name, struct musb *data)
-{
-}
-#endif
-
 #endif	/* __MUSB_CORE_H__ */
