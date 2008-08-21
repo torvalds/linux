@@ -16,7 +16,7 @@ obj-$(CONFIG_WAVELAN)		+= wavelan.o
 obj-$(CONFIG_PCMCIA_NETWAVE)	+= netwave_cs.o
 obj-$(CONFIG_PCMCIA_WAVELAN)	+= wavelan_cs.o
 
-obj-$(CONFIG_HERMES)		+= orinoco.o hermes.o
+obj-$(CONFIG_HERMES)		+= orinoco.o hermes.o hermes_dld.o
 obj-$(CONFIG_PCMCIA_HERMES)	+= orinoco_cs.o
 obj-$(CONFIG_APPLE_AIRPORT)	+= airport.o
 obj-$(CONFIG_PLX_HERMES)	+= orinoco_plx.o
