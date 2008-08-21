@@ -11042,6 +11042,14 @@ static hda_nid_t alc269_adc_nids[1] = {
 	0x08,
 };
 
+static hda_nid_t alc269_capsrc_nids[1] = {
+	0x23,
+};
+
+/* NOTE: ADC2 (0x07) is connected from a recording *MIXER* (0x24),
+ *       not a mux!
+ */
+
 static struct hda_input_mux alc269_eeepc_dmic_capture_source = {
 	.num_items = 2,
 	.items = {
@@ -11424,6 +11432,10 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	spec->init_verbs[spec->num_init_verbs++] = alc269_init_verbs;
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux;
+	/* set default input source */
+	snd_hda_codec_write_cache(codec, alc269_capsrc_nids[0],
+				  0, AC_VERB_SET_CONNECT_SEL,
+				  spec->input_mux->items[0].index);
 
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
@@ -11556,6 +11568,7 @@ static int patch_alc269(struct hda_codec *codec)
 
 	spec->adc_nids = alc269_adc_nids;
 	spec->num_adc_nids = ARRAY_SIZE(alc269_adc_nids);
+	spec->capsrc_nids = alc269_capsrc_nids;
 
 	codec->patch_ops = alc_patch_ops;
 	if (board_config == ALC269_AUTO)
