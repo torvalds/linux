@@ -275,8 +275,10 @@ void ocfs2_populate_inode(struct inode *inode, struct ocfs2_dinode *fe,
 
 	inode->i_nlink = le16_to_cpu(fe->i_links_count);
 
-	if (fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL))
+	if (fe->i_flags & cpu_to_le32(OCFS2_SYSTEM_FL)) {
 		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_SYSTEM_FILE;
+		inode->i_flags |= S_NOQUOTA;
+	}
 
 	if (fe->i_flags & cpu_to_le32(OCFS2_LOCAL_ALLOC_FL)) {
 		OCFS2_I(inode)->ip_flags |= OCFS2_INODE_BITMAP;
