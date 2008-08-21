@@ -146,6 +146,12 @@ static void init_one_irq_cfg(struct irq_cfg *cfg)
 }
 
 static struct irq_cfg *irq_cfgx;
+
+/*
+ * Protect the irq_cfgx_free freelist:
+ */
+static DEFINE_SPINLOCK(irq_cfg_lock);
+
 #ifdef CONFIG_HAVE_SPARSE_IRQ
 static struct irq_cfg *irq_cfgx_free;
 #endif
@@ -213,8 +219,9 @@ static struct irq_cfg *irq_cfg(unsigned int irq)
 static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 {
 	struct irq_cfg *cfg, *cfg_pri;
-	int i;
+	unsigned long flags;
 	int count = 0;
+	int i;
 
 	cfg_pri = cfg = irq_cfgx;
 	while (cfg) {
@@ -226,6 +233,7 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 		count++;
 	}
 
+	spin_lock_irqsave(&irq_cfg_lock, flags);
 	if (!irq_cfgx_free) {
 		unsigned long phys;
 		unsigned long total_bytes;
@@ -263,6 +271,9 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 	else
 		irq_cfgx = cfg;
 	cfg->irq = irq;
+
+	spin_unlock_irqrestore(&irq_cfg_lock, flags);
+
 	printk(KERN_DEBUG "found new irq_cfg for irq %d\n", cfg->irq);
 #ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
 	{

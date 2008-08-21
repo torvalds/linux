@@ -107,6 +107,11 @@ static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
 	}
 }
 
+/*
+ * Protect the sparse_irqs_free freelist:
+ */
+static DEFINE_SPINLOCK(sparse_irq_lock);
+
 #ifdef CONFIG_HAVE_SPARSE_IRQ
 static struct irq_desc *sparse_irqs_free;
 struct irq_desc *sparse_irqs;
@@ -166,11 +171,13 @@ struct irq_desc *irq_to_desc(unsigned int irq)
 	}
 	return NULL;
 }
+
 struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 {
 	struct irq_desc *desc, *desc_pri;
-	int i;
+	unsigned long flags;
 	int count = 0;
+	int i;
 
 	desc_pri = desc = sparse_irqs;
 	while (desc) {
@@ -182,6 +189,7 @@ struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 		count++;
 	}
 
+	spin_lock_irqsave(&sparse_irq_lock, flags);
 	/*
 	 *  we run out of pre-allocate ones, allocate more
 	 */
@@ -223,6 +231,9 @@ struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 	else
 		sparse_irqs = desc;
 	desc->irq = irq;
+
+	spin_unlock_irqrestore(&sparse_irq_lock, flags);
+
 	printk(KERN_DEBUG "found new irq_desc for irq %d\n", desc->irq);
 #ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
 	{
