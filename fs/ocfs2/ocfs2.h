@@ -161,6 +161,7 @@ enum ocfs2_vol_state
 {
 	VOLUME_INIT = 0,
 	VOLUME_MOUNTED,
+	VOLUME_MOUNTED_QUOTAS,
 	VOLUME_DISMOUNTED,
 	VOLUME_DISABLED
 };
@@ -196,6 +197,8 @@ enum ocfs2_mount_options
 	OCFS2_MOUNT_NOUSERXATTR = 1 << 6, /* No user xattr */
 	OCFS2_MOUNT_INODE64 = 1 << 7,	/* Allow inode numbers > 2^32 */
 	OCFS2_MOUNT_POSIX_ACL = 1 << 8,	/* POSIX access control lists */
+	OCFS2_MOUNT_USRQUOTA = 1 << 9, /* We support user quotas */
+	OCFS2_MOUNT_GRPQUOTA = 1 << 10, /* We support group quotas */
 };
 
 #define OCFS2_OSB_SOFT_RO	0x0001
