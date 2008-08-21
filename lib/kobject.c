@@ -223,8 +223,7 @@ static int kobject_set_name_vargs(struct kobject *kobj, const char *fmt,
 		return -ENOMEM;
 
 	/* ewww... some of these buggers have '/' in the name ... */
-	s = strchr(kobj->name, '/');
-	if (s)
+	while ((s = strchr(kobj->name, '/')))
 		s[0] = '!';
 
 	kfree(old_name);
