@@ -947,7 +947,7 @@ int set_memory_array_uc(unsigned long *addr, int addrinarray)
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
 	for (i = 0; i < addrinarray; i++) {
-		if (reserve_memtype(addr[i], addr[i] + PAGE_SIZE,
+		if (reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
 			    _PAGE_CACHE_UC_MINUS, NULL))
 			goto out;
 	}
@@ -956,7 +956,7 @@ int set_memory_array_uc(unsigned long *addr, int addrinarray)
 				    __pgprot(_PAGE_CACHE_UC_MINUS), 1);
 out:
 	while (--i >= 0)
-		free_memtype(addr[i], addr[i] + PAGE_SIZE);
+		free_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE);
 	return -EINVAL;
 }
 EXPORT_SYMBOL(set_memory_array_uc);
@@ -998,7 +998,7 @@ int set_memory_array_wb(unsigned long *addr, int addrinarray)
 {
 	int i;
 	for (i = 0; i < addrinarray; i++)
-		free_memtype(addr[i], addr[i] + PAGE_SIZE);
+		free_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE);
 
 	return change_page_attr_clear(addr, addrinarray,
 				      __pgprot(_PAGE_CACHE_MASK), 1);
