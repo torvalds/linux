@@ -264,6 +264,15 @@ struct agp_memory *agp_allocate_memory(struct agp_bridge_data *bridge,
 	if (new == NULL)
 		return NULL;
 
+	if (bridge->driver->agp_alloc_pages) {
+		if (bridge->driver->agp_alloc_pages(bridge, new, page_count)) {
+			agp_free_memory(new);
+			return NULL;
+		}
+		new->bridge = bridge;
+		return new;
+	}
+
 	for (i = 0; i < page_count; i++) {
 		void *addr = bridge->driver->agp_alloc_page(bridge);
 
@@ -1177,6 +1186,39 @@ EXPORT_SYMBOL(agp_generic_alloc_user);
  * memory.  They also handle incrementing the current_memory_agp value, Which is checked
  * against a maximum value.
  */
+
+int agp_generic_alloc_pages(struct agp_bridge_data *bridge, struct agp_memory *mem, size_t num_pages)
+{
+	struct page * page;
+	int i, ret = -ENOMEM;
+
+	for (i = 0; i < num_pages; i++) {
+		page = alloc_page(GFP_KERNEL | GFP_DMA32);
+		/* agp_free_memory() needs gart address */
+		if (page == NULL)
+			goto out;
+
+#ifndef CONFIG_X86
+		map_page_into_agp(page);
+#endif
+		get_page(page);
+		atomic_inc(&agp_bridge->current_memory_agp);
+
+		/* set_memory_array_uc() needs virtual address */
+		mem->memory[i] = (unsigned long)page_address(page);
+		mem->page_count++;
+	}
+
+#ifdef CONFIG_X86
+	set_memory_array_uc(mem->memory, num_pages);
+#endif
+	ret = 0;
+out:
+	for (i = 0; i < mem->page_count; i++)
+		mem->memory[i] = virt_to_gart((void *)mem->memory[i]);
+	return ret;
+}
+EXPORT_SYMBOL(agp_generic_alloc_pages);
 
 void *agp_generic_alloc_page(struct agp_bridge_data *bridge)
 {
