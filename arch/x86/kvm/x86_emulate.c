@@ -270,7 +270,7 @@ static u16 group_table[] = {
 	0, 0, 0, 0,
 	[Group3*8] =
 	DstMem | SrcImm | ModRM, 0,
-	DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
+	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
 	0, 0, 0, 0,
 	[Group4*8] =
 	ByteOp | DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
