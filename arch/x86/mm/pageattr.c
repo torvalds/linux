@@ -942,21 +942,38 @@ EXPORT_SYMBOL(set_memory_uc);
 
 int set_memory_array_uc(unsigned long *addr, int addrinarray)
 {
+	unsigned long start;
+	unsigned long end;
 	int i;
 	/*
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
 	for (i = 0; i < addrinarray; i++) {
-		if (reserve_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE,
-			    _PAGE_CACHE_UC_MINUS, NULL))
+		start = __pa(addr[i]);
+		for (end = start + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
+			if (end != __pa(addr[i + 1]))
+				break;
+			i++;
+		}
+		if (reserve_memtype(start, end, _PAGE_CACHE_UC_MINUS, NULL))
 			goto out;
 	}
 
 	return change_page_attr_set(addr, addrinarray,
 				    __pgprot(_PAGE_CACHE_UC_MINUS), 1);
 out:
-	while (--i >= 0)
-		free_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE);
+	for (i = 0; i < addrinarray; i++) {
+		unsigned long tmp = __pa(addr[i]);
+
+		if (tmp == start)
+			break;
+		for (end = start + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
+			if (end != __pa(addr[i + 1]))
+				break;
+			i++;
+		}
+		free_memtype(tmp, end);
+	}
 	return -EINVAL;
 }
 EXPORT_SYMBOL(set_memory_array_uc);
@@ -997,9 +1014,18 @@ EXPORT_SYMBOL(set_memory_wb);
 int set_memory_array_wb(unsigned long *addr, int addrinarray)
 {
 	int i;
-	for (i = 0; i < addrinarray; i++)
-		free_memtype(__pa(addr[i]), __pa(addr[i]) + PAGE_SIZE);
 
+	for (i = 0; i < addrinarray; i++) {
+		unsigned long start = __pa(addr[i]);
+		unsigned long end;
+
+		for (end = start + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
+			if (end != __pa(addr[i + 1]))
+				break;
+			i++;
+		}
+		free_memtype(start, end);
+	}
 	return change_page_attr_clear(addr, addrinarray,
 				      __pgprot(_PAGE_CACHE_MASK), 1);
 }
