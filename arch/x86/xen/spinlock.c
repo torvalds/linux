@@ -23,6 +23,7 @@ static struct xen_spinlock_stats
 	u32 taken_slow_nested;
 	u32 taken_slow_pickup;
 	u32 taken_slow_spurious;
+	u32 taken_slow_irqenable;
 
 	u64 released;
 	u32 released_slow;
@@ -167,12 +168,13 @@ static inline void unspinning_lock(struct xen_spinlock *xl, struct xen_spinlock 
 	__get_cpu_var(lock_spinners) = prev;
 }
 
-static noinline int xen_spin_lock_slow(struct raw_spinlock *lock)
+static noinline int xen_spin_lock_slow(struct raw_spinlock *lock, bool irq_enable)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 	struct xen_spinlock *prev;
 	int irq = __get_cpu_var(lock_kicker_irq);
 	int ret;
+	unsigned long flags;
 
 	/* If kicker interrupts not initialized yet, just spin */
 	if (irq == -1)
@@ -180,6 +182,12 @@ static noinline int xen_spin_lock_slow(struct raw_spinlock *lock)
 
 	/* announce we're spinning */
 	prev = spinning_lock(xl);
+
+	flags = __raw_local_save_flags();
+	if (irq_enable) {
+		ADD_STATS(taken_slow_irqenable, 1);
+		raw_local_irq_enable();
+	}
 
 	ADD_STATS(taken_slow, 1);
 	ADD_STATS(taken_slow_nested, prev != NULL);
@@ -220,11 +228,12 @@ static noinline int xen_spin_lock_slow(struct raw_spinlock *lock)
 	kstat_this_cpu.irqs[irq]++;
 
 out:
+	raw_local_irq_restore(flags);
 	unspinning_lock(xl, prev);
 	return ret;
 }
 
-static void xen_spin_lock(struct raw_spinlock *lock)
+static inline void __xen_spin_lock(struct raw_spinlock *lock, bool irq_enable)
 {
 	struct xen_spinlock *xl = (struct xen_spinlock *)lock;
 	unsigned timeout;
@@ -254,9 +263,21 @@ static void xen_spin_lock(struct raw_spinlock *lock)
 		    : "memory");
 
 		spin_time_accum_fast(start_spin_fast);
-	} while (unlikely(oldval != 0 && (TIMEOUT == ~0 || !xen_spin_lock_slow(lock))));
+
+	} while (unlikely(oldval != 0 &&
+			  (TIMEOUT == ~0 || !xen_spin_lock_slow(lock, irq_enable))));
 
 	spin_time_accum(start_spin);
+}
+
+static void xen_spin_lock(struct raw_spinlock *lock)
+{
+	__xen_spin_lock(lock, false);
+}
+
+static void xen_spin_lock_flags(struct raw_spinlock *lock, unsigned long flags)
+{
+	__xen_spin_lock(lock, !raw_irqs_disabled_flags(flags));
 }
 
 static noinline void xen_spin_unlock_slow(struct xen_spinlock *xl)
@@ -323,6 +344,7 @@ void __init xen_init_spinlocks(void)
 	pv_lock_ops.spin_is_locked = xen_spin_is_locked;
 	pv_lock_ops.spin_is_contended = xen_spin_is_contended;
 	pv_lock_ops.spin_lock = xen_spin_lock;
+	pv_lock_ops.spin_lock_flags = xen_spin_lock_flags;
 	pv_lock_ops.spin_trylock = xen_spin_trylock;
 	pv_lock_ops.spin_unlock = xen_spin_unlock;
 }
@@ -353,6 +375,8 @@ static int __init xen_spinlock_debugfs(void)
 			   &spinlock_stats.taken_slow_pickup);
 	debugfs_create_u32("taken_slow_spurious", 0444, d_spin_debug,
 			   &spinlock_stats.taken_slow_spurious);
+	debugfs_create_u32("taken_slow_irqenable", 0444, d_spin_debug,
+			   &spinlock_stats.taken_slow_irqenable);
 
 	debugfs_create_u64("released", 0444, d_spin_debug, &spinlock_stats.released);
 	debugfs_create_u32("released_slow", 0444, d_spin_debug,
