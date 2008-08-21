@@ -446,7 +446,8 @@ static int __init init_mac80211_hwsim(void)
 		SET_IEEE80211_PERM_ADDR(hw, addr);
 
 		hw->channel_change_time = 1;
-		hw->queues = 1;
+		hw->queues = 4;
+		hw->ampdu_queues = 1;
 
 		memcpy(data->channels, hwsim_channels, sizeof(hwsim_channels));
 		memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
@@ -454,6 +455,19 @@ static int __init init_mac80211_hwsim(void)
 		data->band.n_channels = ARRAY_SIZE(hwsim_channels);
 		data->band.bitrates = data->rates;
 		data->band.n_bitrates = ARRAY_SIZE(hwsim_rates);
+		data->band.ht_info.ht_supported = 1;
+		data->band.ht_info.cap = IEEE80211_HT_CAP_SUP_WIDTH |
+			IEEE80211_HT_CAP_GRN_FLD |
+			IEEE80211_HT_CAP_SGI_40 |
+			IEEE80211_HT_CAP_DSSSCCK40;
+		data->band.ht_info.ampdu_factor = 0x3;
+		data->band.ht_info.ampdu_density = 0x6;
+		memset(data->band.ht_info.supp_mcs_set, 0,
+		       sizeof(data->band.ht_info.supp_mcs_set));
+		data->band.ht_info.supp_mcs_set[0] = 0xff;
+		data->band.ht_info.supp_mcs_set[1] = 0xff;
+		data->band.ht_info.supp_mcs_set[12] =
+			IEEE80211_HT_CAP_MCS_TX_DEFINED;
 		hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &data->band;
 
 		err = ieee80211_register_hw(hw);
