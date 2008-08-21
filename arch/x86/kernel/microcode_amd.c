@@ -206,6 +206,7 @@ static void apply_microcode_amd(int cpu)
 	unsigned int rev;
 	int cpu_num = raw_smp_processor_id();
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
+	unsigned long addr;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
@@ -215,10 +216,9 @@ static void apply_microcode_amd(int cpu)
 
 	spin_lock_irqsave(&microcode_update_lock, flags);
 
-	edx = (unsigned int)(((unsigned long)
-			      &(uci->mc.mc_amd->hdr.data_code)) >> 32);
-	eax = (unsigned int)(((unsigned long)
-			      &(uci->mc.mc_amd->hdr.data_code)) & 0xffffffffL);
+	addr = (unsigned long)&uci->mc.mc_amd->hdr.data_code;
+	edx = (unsigned int)(((unsigned long)upper_32_bits(addr)));
+	eax = (unsigned int)(((unsigned long)lower_32_bits(addr)));
 
 	asm volatile("movl %0, %%ecx; wrmsr" :
 		     : "i" (0xc0010020), "a" (eax), "d" (edx) : "ecx");
