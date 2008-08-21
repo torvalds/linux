@@ -189,7 +189,6 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	vortex_t *chip = snd_pcm_substream_chip(substream);
 	stream_t *stream = (stream_t *) (substream->runtime->private_data);
-	struct snd_sg_buf *sgbuf;
 	int err;
 
 	// Alloc buffer memory.
@@ -199,8 +198,6 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 		printk(KERN_ERR "Vortex: pcm page alloc failed!\n");
 		return err;
 	}
-	//sgbuf = (struct snd_sg_buf *) substream->runtime->dma_private;
-	sgbuf = snd_pcm_substream_sgbuf(substream);
 	/*
 	   printk(KERN_INFO "Vortex: periods %d, period_bytes %d, channels = %d\n", params_periods(hw_params),
 	   params_period_bytes(hw_params), params_channels(hw_params));
@@ -226,7 +223,7 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 		stream = substream->runtime->private_data = &chip->dma_adb[dma];
 		stream->substream = substream;
 		/* Setup Buffers. */
-		vortex_adbdma_setbuffers(chip, dma, sgbuf,
+		vortex_adbdma_setbuffers(chip, dma,
 					 params_period_bytes(hw_params),
 					 params_periods(hw_params));
 	}
@@ -240,7 +237,7 @@ snd_vortex_pcm_hw_params(struct snd_pcm_substream *substream,
 		    &chip->dma_wt[substream->number];
 		stream->dma = substream->number;
 		stream->substream = substream;
-		vortex_wtdma_setbuffers(chip, substream->number, sgbuf,
+		vortex_wtdma_setbuffers(chip, substream->number,
 					params_period_bytes(hw_params),
 					params_periods(hw_params));
 	}
@@ -392,13 +389,6 @@ static snd_pcm_uframes_t snd_vortex_pcm_pointer(struct snd_pcm_substream *substr
 	return (bytes_to_frames(substream->runtime, current_ptr));
 }
 
-/* Page callback. */
-/*
-static struct page *snd_pcm_sgbuf_ops_page(struct snd_pcm_substream *substream, unsigned long offset) {
-	
-	
-}
-*/
 /* operators */
 static struct snd_pcm_ops snd_vortex_playback_ops = {
 	.open = snd_vortex_pcm_open,

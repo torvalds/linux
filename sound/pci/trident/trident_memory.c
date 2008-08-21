@@ -194,7 +194,6 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 	struct snd_util_memblk *blk;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int idx, page;
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 
 	if (snd_BUG_ON(runtime->dma_bytes <= 0 ||
 		       runtime->dma_bytes > SNDRV_TRIDENT_MAX_PAGES *
@@ -212,18 +211,14 @@ snd_trident_alloc_sg_pages(struct snd_trident *trident,
 		mutex_unlock(&hdr->block_mutex);
 		return NULL;
 	}
-	if (lastpg(blk) - firstpg(blk) >= sgbuf->pages) {
-		snd_printk(KERN_ERR "page calculation doesn't match: allocated pages = %d, trident = %d/%d\n", sgbuf->pages, firstpg(blk), lastpg(blk));
-		__snd_util_mem_free(hdr, blk);
-		mutex_unlock(&hdr->block_mutex);
-		return NULL;
-	}
 			   
 	/* set TLB entries */
 	idx = 0;
 	for (page = firstpg(blk); page <= lastpg(blk); page++, idx++) {
-		dma_addr_t addr = sgbuf->table[idx].addr;
-		unsigned long ptr = (unsigned long)sgbuf->table[idx].buf;
+		unsigned long ofs = idx << PAGE_SHIFT;
+		dma_addr_t addr = snd_pcm_sgbuf_get_addr(substream, ofs);
+		unsigned long ptr = (unsigned long)
+			snd_pcm_sgbuf_get_ptr(substream, ofs);
 		if (! is_valid_page(addr)) {
 			__snd_util_mem_free(hdr, blk);
 			mutex_unlock(&hdr->block_mutex);

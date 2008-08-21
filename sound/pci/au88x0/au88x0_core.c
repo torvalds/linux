@@ -1097,19 +1097,12 @@ static void vortex_adbdma_setstartbuffer(vortex_t * vortex, int adbdma, int sb)
 
 static void
 vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
-			 struct snd_sg_buf * sgbuf, int psize, int count)
+			 int psize, int count)
 {
 	stream_t *dma = &vortex->dma_adb[adbdma];
 
-	if (sgbuf == NULL) {
-		printk(KERN_INFO "vortex: FATAL: sgbuf is NULL!\n");
-		return;
-	}
-	//printk(KERN_INFO "vortex: page count = %d, tblcount = %d\n", count, sgbuf->tblsize);
-
 	dma->period_bytes = psize;
 	dma->nr_periods = count;
-	dma->sgbuf = sgbuf;
 
 	dma->cfg0 = 0;
 	dma->cfg1 = 0;
@@ -1120,26 +1113,26 @@ vortex_adbdma_setbuffers(vortex_t * vortex, int adbdma,
 		dma->cfg1 |= 0x88000000 | 0x44000000 | 0x30000000 | (psize - 1);
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0xc,
-			snd_sgbuf_get_addr(sgbuf, psize * 3));
+			snd_pcm_sgbuf_get_addr(dma->substream, psize * 3));
 		/* 3 pages */
 	case 3:
 		dma->cfg0 |= 0x12000000;
 		dma->cfg1 |= 0x80000000 | 0x40000000 | ((psize - 1) << 0xc);
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0x8,
-			snd_sgbuf_get_addr(sgbuf, psize * 2));
+			snd_pcm_sgbuf_get_addr(dma->substream, psize * 2));
 		/* 2 pages */
 	case 2:
 		dma->cfg0 |= 0x88000000 | 0x44000000 | 0x10000000 | (psize - 1);
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4) + 0x4,
-			snd_sgbuf_get_addr(sgbuf, psize));
+			snd_pcm_sgbuf_get_addr(dma->substream, psize));
 		/* 1 page */
 	case 1:
 		dma->cfg0 |= 0x80000000 | 0x40000000 | ((psize - 1) << 0xc);
 		hwwrite(vortex->mmio,
 			VORTEX_ADBDMA_BUFBASE + (adbdma << 4),
-			snd_sgbuf_get_addr(sgbuf, 0));
+			snd_pcm_sgbuf_get_addr(dma->substream, 0));
 		break;
 	}
 	//printk("vortex: cfg0 = 0x%x\nvortex: cfg1=0x%x\n", dma->cfg0, dma->cfg1);
@@ -1205,7 +1198,7 @@ static int vortex_adbdma_bufshift(vortex_t * vortex, int adbdma)
 			//hwwrite(vortex->mmio, VORTEX_ADBDMA_BUFBASE+(((adbdma << 2)+pp) << 2), dma->table[p].addr);
 			hwwrite(vortex->mmio,
 				VORTEX_ADBDMA_BUFBASE + (((adbdma << 2) + pp) << 2),
-				snd_sgbuf_get_addr(dma->sgbuf,
+				snd_pcm_sgbuf_get_addr(dma->substream,
 				dma->period_bytes * p));
 			/* Force write thru cache. */
 			hwread(vortex->mmio, VORTEX_ADBDMA_BUFBASE +
@@ -1244,7 +1237,10 @@ static void vortex_adbdma_resetup(vortex_t *vortex, int adbdma) {
 			if (pp >= 4)
 				pp -= 4;
 		}
-		hwwrite(vortex->mmio, VORTEX_ADBDMA_BUFBASE+(((adbdma << 2)+pp) << 2), snd_sgbuf_get_addr(dma->sgbuf, dma->period_bytes * p));
+		hwwrite(vortex->mmio,
+			VORTEX_ADBDMA_BUFBASE + (((adbdma << 2) + pp) << 2),
+			snd_pcm_sgbuf_get_addr(dma->substream,
+					       dma->period_bytes * p));
 		/* Force write thru cache. */
 		hwread(vortex->mmio, VORTEX_ADBDMA_BUFBASE + (((adbdma << 2)+pp) << 2));
 	}
@@ -1367,13 +1363,12 @@ static void vortex_wtdma_setstartbuffer(vortex_t * vortex, int wtdma, int sb)
 
 static void
 vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
-			struct snd_sg_buf * sgbuf, int psize, int count)
+			int psize, int count)
 {
 	stream_t *dma = &vortex->dma_wt[wtdma];
 
 	dma->period_bytes = psize;
 	dma->nr_periods = count;
-	dma->sgbuf = sgbuf;
 
 	dma->cfg0 = 0;
 	dma->cfg1 = 0;
@@ -1383,23 +1378,23 @@ vortex_wtdma_setbuffers(vortex_t * vortex, int wtdma,
 	case 4:
 		dma->cfg1 |= 0x88000000 | 0x44000000 | 0x30000000 | (psize-1);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4) + 0xc,
-			snd_sgbuf_get_addr(sgbuf, psize * 3));
+			snd_pcm_sgbuf_get_addr(dma->substream, psize * 3));
 		/* 3 pages */
 	case 3:
 		dma->cfg0 |= 0x12000000;
 		dma->cfg1 |= 0x80000000 | 0x40000000 | ((psize-1) << 0xc);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4)  + 0x8,
-			snd_sgbuf_get_addr(sgbuf, psize * 2));
+			snd_pcm_sgbuf_get_addr(dma->substream, psize * 2));
 		/* 2 pages */
 	case 2:
 		dma->cfg0 |= 0x88000000 | 0x44000000 | 0x10000000 | (psize-1);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4) + 0x4,
-			snd_sgbuf_get_addr(sgbuf, psize));
+			snd_pcm_sgbuf_get_addr(dma->substream, psize));
 		/* 1 page */
 	case 1:
 		dma->cfg0 |= 0x80000000 | 0x40000000 | ((psize-1) << 0xc);
 		hwwrite(vortex->mmio, VORTEX_WTDMA_BUFBASE + (wtdma << 4),
-			snd_sgbuf_get_addr(sgbuf, 0));
+			snd_pcm_sgbuf_get_addr(dma->substream, 0));
 		break;
 	}
 	hwwrite(vortex->mmio, VORTEX_WTDMA_BUFCFG0 + (wtdma << 3), dma->cfg0);
@@ -1465,7 +1460,8 @@ static int vortex_wtdma_bufshift(vortex_t * vortex, int wtdma)
 			hwwrite(vortex->mmio,
 				VORTEX_WTDMA_BUFBASE +
 				(((wtdma << 2) + pp) << 2),
-				snd_sgbuf_get_addr(dma->sgbuf, dma->period_bytes * p));
+				snd_pcm_sgbuf_get_addr(dma->substream,
+						       dma->period_bytes * p));
 			/* Force write thru cache. */
 			hwread(vortex->mmio, VORTEX_WTDMA_BUFBASE +
 			       (((wtdma << 2) + pp) << 2));

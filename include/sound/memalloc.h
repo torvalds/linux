@@ -65,6 +65,11 @@ struct snd_dma_buffer {
 /*
  * Scatter-Gather generic device pages
  */
+void *snd_malloc_sgbuf_pages(struct device *device,
+			     size_t size, struct snd_dma_buffer *dmab,
+			     size_t *res_size);
+int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab);
+
 struct snd_sg_page {
 	void *buf;
 	dma_addr_t addr;
@@ -95,6 +100,13 @@ static inline dma_addr_t snd_sgbuf_get_addr(struct snd_sg_buf *sgbuf, size_t off
 	return sgbuf->table[offset >> PAGE_SHIFT].addr + offset % PAGE_SIZE;
 }
 
+/*
+ * return the virtual address at the corresponding offset
+ */
+static inline void *snd_sgbuf_get_ptr(struct snd_sg_buf *sgbuf, size_t offset)
+{
+	return sgbuf->table[offset >> PAGE_SHIFT].buf + offset % PAGE_SIZE;
+}
 
 /* allocate/release a buffer */
 int snd_dma_alloc_pages(int type, struct device *dev, size_t size,

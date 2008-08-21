@@ -46,14 +46,6 @@ MODULE_LICENSE("GPL");
 /*
  */
 
-void *snd_malloc_sgbuf_pages(struct device *device,
-                             size_t size, struct snd_dma_buffer *dmab,
-			     size_t *res_size);
-int snd_free_sgbuf_pages(struct snd_dma_buffer *dmab);
-
-/*
- */
-
 static DEFINE_MUTEX(list_mutex);
 static LIST_HEAD(mem_list_head);
 

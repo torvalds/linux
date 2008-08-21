@@ -296,7 +296,6 @@ struct snd_util_memblk *
 snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
-	struct snd_sg_buf *sgbuf = snd_pcm_substream_sgbuf(substream);
 	struct snd_util_memhdr *hdr;
 	struct snd_emu10k1_memblk *blk;
 	int page, err, idx;
@@ -321,16 +320,9 @@ snd_emu10k1_alloc_pages(struct snd_emu10k1 *emu, struct snd_pcm_substream *subst
 	 */
 	idx = 0;
 	for (page = blk->first_page; page <= blk->last_page; page++, idx++) {
+		unsigned long ofs = idx << PAGE_SHIFT;
 		dma_addr_t addr;
-#ifdef CONFIG_SND_DEBUG
-		if (idx >= sgbuf->pages) {
-			printk(KERN_ERR "emu: pages overflow! (%d-%d) for %d\n",
-			       blk->first_page, blk->last_page, sgbuf->pages);
-			mutex_unlock(&hdr->block_mutex);
-			return NULL;
-		}
-#endif
-		addr = sgbuf->table[idx].addr;
+		addr = snd_pcm_sgbuf_get_addr(substream, ofs);
 		if (! is_valid_page(emu, addr)) {
 			printk(KERN_ERR "emu: failure page = %d\n", idx);
 			mutex_unlock(&hdr->block_mutex);
