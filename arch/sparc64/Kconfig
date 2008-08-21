@@ -18,6 +18,7 @@ config SPARC64
 	select HAVE_ARCH_KGDB
 	select USE_GENERIC_SMP_HELPERS if SMP
 	select HAVE_ARCH_TRACEHOOK
+	select ARCH_WANT_OPTIONAL_GPIOLIB
 
 config GENERIC_TIME
 	bool
@@ -30,6 +31,11 @@ config GENERIC_CMOS_UPDATE
 config GENERIC_CLOCKEVENTS
 	bool
 	default y
+
+config GENERIC_GPIO
+	bool
+	help
+	  Generic GPIO API support
 
 config 64BIT
 	def_bool y
