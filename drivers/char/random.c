@@ -236,6 +236,7 @@
 #include <linux/fs.h>
 #include <linux/genhd.h>
 #include <linux/interrupt.h>
+#include <linux/mm.h>
 #include <linux/spinlock.h>
 #include <linux/percpu.h>
 #include <linux/cryptohash.h>
@@ -1570,6 +1571,7 @@ u32 secure_ipv4_port_ephemeral(__be32 saddr, __be32 daddr, __be16 dport)
 
 	return half_md4_transform(hash, keyptr->secret);
 }
+EXPORT_SYMBOL_GPL(secure_ipv4_port_ephemeral);
 
 #if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 u32 secure_ipv6_port_ephemeral(const __be32 *saddr, const __be32 *daddr,

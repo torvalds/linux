@@ -1216,10 +1216,8 @@ CONFIG_DEBUG_MUTEXES=y
 CONFIG_FORCED_INLINING=y
 # CONFIG_RCU_TORTURE_TEST is not set
 CONFIG_CROSSCOMPILE=y
-CONFIG_CMDLINE="console=ttyS1,38400n8 kgdb=ttyS0 root=/dev/nfs ip=bootp"
+CONFIG_CMDLINE="console=ttyS1,38400n8 root=/dev/nfs ip=bootp"
 # CONFIG_DEBUG_STACK_USAGE is not set
-# CONFIG_KGDB is not set
-CONFIG_SYS_SUPPORTS_KGDB=y
 # CONFIG_RUNTIME_DEBUG is not set
 
 #

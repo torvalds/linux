@@ -177,9 +177,10 @@ enum ieee80211_bss_change {
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble
+ * @dtim_period: num of beacons before the next DTIM, for PSM
  * @timestamp: beacon timestamp
  * @beacon_int: beacon interval
- * @assoc_capability: capabbilities taken from assoc resp
+ * @assoc_capability: capabilities taken from assoc resp
  * @assoc_ht: association in HT mode
  * @ht_conf: ht capabilities
  * @ht_bss_conf: ht extended capabilities
@@ -191,6 +192,7 @@ struct ieee80211_bss_conf {
 	/* erp related data */
 	bool use_cts_prot;
 	bool use_short_preamble;
+	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
 	u64 timestamp;
@@ -206,8 +208,6 @@ struct ieee80211_bss_conf {
  * These flags are used with the @flags member of &ieee80211_tx_info.
  *
  * @IEEE80211_TX_CTL_REQ_TX_STATUS: request TX status callback for this frame.
- * @IEEE80211_TX_CTL_DO_NOT_ENCRYPT: send this frame without encryption;
- *	e.g., for EAPOL frame
  * @IEEE80211_TX_CTL_USE_RTS_CTS: use RTS-CTS before sending frame
  * @IEEE80211_TX_CTL_USE_CTS_PROTECT: use CTS protection for the frame (e.g.,
  *	for combined 802.11g / 802.11b networks)
@@ -220,7 +220,6 @@ struct ieee80211_bss_conf {
  * @IEEE80211_TX_CTL_SHORT_PREAMBLE: TBD
  * @IEEE80211_TX_CTL_LONG_RETRY_LIMIT: this frame should be send using the
  *	through set_retry_limit configured long retry value
- * @IEEE80211_TX_CTL_EAPOL_FRAME: internal to mac80211
  * @IEEE80211_TX_CTL_SEND_AFTER_DTIM: send this frame after DTIM beacon
  * @IEEE80211_TX_CTL_AMPDU: this frame should be sent as part of an A-MPDU
  * @IEEE80211_TX_CTL_OFDM_HT: this frame can be sent in HT OFDM rates. number
@@ -253,7 +252,6 @@ struct ieee80211_bss_conf {
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
-	IEEE80211_TX_CTL_DO_NOT_ENCRYPT		= BIT(1),
 	IEEE80211_TX_CTL_USE_RTS_CTS		= BIT(2),
 	IEEE80211_TX_CTL_USE_CTS_PROTECT	= BIT(3),
 	IEEE80211_TX_CTL_NO_ACK			= BIT(4),
@@ -263,7 +261,6 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_FIRST_FRAGMENT		= BIT(8),
 	IEEE80211_TX_CTL_SHORT_PREAMBLE		= BIT(9),
 	IEEE80211_TX_CTL_LONG_RETRY_LIMIT	= BIT(10),
-	IEEE80211_TX_CTL_EAPOL_FRAME		= BIT(11),
 	IEEE80211_TX_CTL_SEND_AFTER_DTIM	= BIT(12),
 	IEEE80211_TX_CTL_AMPDU			= BIT(13),
 	IEEE80211_TX_CTL_OFDM_HT		= BIT(14),
@@ -323,7 +320,6 @@ struct ieee80211_tx_info {
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
 			unsigned long jiffies;
-			int ifindex;
 			u16 aid;
 			s8 rts_cts_rate_idx, alt_retry_rate_idx;
 			u8 retry_limit;
@@ -436,6 +432,7 @@ enum ieee80211_conf_flags {
  * @radio_enabled: when zero, driver is required to switch off the radio.
  *	TODO make a flag
  * @beacon_int: beacon interval (TODO make interface config)
+ * @listen_interval: listen interval in units of beacon interval
  * @flags: configuration flags defined above
  * @power_level: requested transmit power (in dBm)
  * @max_antenna_gain: maximum antenna gain (in dBi)
@@ -450,6 +447,7 @@ struct ieee80211_conf {
 	int radio_enabled;
 
 	int beacon_int;
+	u16 listen_interval;
 	u32 flags;
 	int power_level;
 	int max_antenna_gain;
@@ -710,10 +708,7 @@ enum ieee80211_tkip_key_type {
  *	rely on the host system for such buffering. This option is used
  *	to configure the IEEE 802.11 upper layer to buffer broadcast and
  *	multicast frames when there are power saving stations so that
- *	the driver can fetch them with ieee80211_get_buffered_bc(). Note
- *	that not setting this flag works properly only when the
- *	%IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE is also not set because
- *	otherwise the stack will not know when the DTIM beacon was sent.
+ *	the driver can fetch them with ieee80211_get_buffered_bc().
  *
  * @IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE:
  *	Hardware is not capable of short slot operation on the 2.4 GHz band.
@@ -746,7 +741,6 @@ enum ieee80211_tkip_key_type {
  * 	Measurement, Channel Switch, Quieting, TPC
  */
 enum ieee80211_hw_flags {
-	IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE		= 1<<0,
 	IEEE80211_HW_RX_INCLUDES_FCS			= 1<<1,
 	IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING	= 1<<2,
 	IEEE80211_HW_2GHZ_SHORT_SLOT_INCAPABLE		= 1<<3,
@@ -792,6 +786,9 @@ enum ieee80211_hw_flags {
  * @max_signal: Maximum value for signal (rssi) in RX information, used
  *     only when @IEEE80211_HW_SIGNAL_UNSPEC or @IEEE80211_HW_SIGNAL_DB
  *
+ * @max_listen_interval: max listen interval in units of beacon interval
+ *     that HW supports
+ *
  * @queues: number of available hardware transmit queues for
  *	data packets. WMM/QoS requires at least four, these
  *	queues need to have configurable access parameters.
@@ -819,7 +816,9 @@ struct ieee80211_hw {
 	unsigned int extra_tx_headroom;
 	int channel_change_time;
 	int vif_data_size;
-	u16 queues, ampdu_queues;
+	u16 queues;
+	u16 ampdu_queues;
+	u16 max_listen_interval;
 	s8 max_signal;
 };
 
@@ -1097,10 +1096,8 @@ enum ieee80211_ampdu_mlme_action {
  *	See the section "Frame filtering" for more information.
  *	This callback must be implemented and atomic.
  *
- * @set_tim: Set TIM bit. If the hardware/firmware takes care of beacon
- *	generation (that is, %IEEE80211_HW_HOST_GEN_BEACON_TEMPLATE is set)
- *	mac80211 calls this function when a TIM bit must be set or cleared
- *	for a given AID. Must be atomic.
+ * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
+ * 	must be set or cleared for a given AID. Must be atomic.
  *
  * @set_key: See the section "Hardware crypto acceleration"
  *	This callback can sleep, and is only called between add_interface

@@ -42,8 +42,11 @@
 #define CRB_CMD_CONSUMER_OFFSET     NETXEN_NIC_REG(0x0c)
 #define CRB_PAUSE_ADDR_LO           NETXEN_NIC_REG(0x10)	/* C0 EPG BUG  */
 #define CRB_PAUSE_ADDR_HI           NETXEN_NIC_REG(0x14)
-#define CRB_HOST_CMD_ADDR_HI        NETXEN_NIC_REG(0x18)	/* host add:cmd ring */
-#define CRB_HOST_CMD_ADDR_LO        NETXEN_NIC_REG(0x1c)
+#define NX_CDRP_CRB_OFFSET          NETXEN_NIC_REG(0x18)
+#define NX_ARG1_CRB_OFFSET          NETXEN_NIC_REG(0x1c)
+#define NX_ARG2_CRB_OFFSET          NETXEN_NIC_REG(0x20)
+#define NX_ARG3_CRB_OFFSET          NETXEN_NIC_REG(0x24)
+#define NX_SIGN_CRB_OFFSET          NETXEN_NIC_REG(0x28)
 #define CRB_CMD_INTR_LOOP           NETXEN_NIC_REG(0x20)	/* 4 regs for perf */
 #define CRB_CMD_DMA_LOOP            NETXEN_NIC_REG(0x24)
 #define CRB_RCV_INTR_LOOP           NETXEN_NIC_REG(0x28)
@@ -73,8 +76,8 @@
 #define CRB_RX_LRO_MID_TIMER        NETXEN_NIC_REG(0x88)
 #define CRB_DMA_MAX_RCV_BUFS        NETXEN_NIC_REG(0x8c)
 #define CRB_MAX_DMA_ENTRIES         NETXEN_NIC_REG(0x90)
-#define CRB_XG_STATE                NETXEN_NIC_REG(0x94)	/* XG Link status */
-#define CRB_AGENT_GO                NETXEN_NIC_REG(0x98)	/* NIC pkt gen agent */
+#define CRB_XG_STATE                NETXEN_NIC_REG(0x94) /* XG Link status */
+#define CRB_XG_STATE_P3             NETXEN_NIC_REG(0x98) /* XG PF Link status */
 #define CRB_AGENT_TX_SIZE           NETXEN_NIC_REG(0x9c)
 #define CRB_AGENT_TX_TYPE           NETXEN_NIC_REG(0xa0)
 #define CRB_AGENT_TX_ADDR           NETXEN_NIC_REG(0xa4)
@@ -92,12 +95,14 @@
 #define CRB_HOST_STS_PROD           NETXEN_NIC_REG(0xdc)
 #define CRB_HOST_STS_CONS           NETXEN_NIC_REG(0xe0)
 #define CRB_PEG_CMD_PROD            NETXEN_NIC_REG(0xe4)
-#define CRB_PEG_CMD_CONS            NETXEN_NIC_REG(0xe8)
-#define CRB_HOST_BUFFER_PROD        NETXEN_NIC_REG(0xec)
+#define CRB_PF_LINK_SPEED_1         NETXEN_NIC_REG(0xe8)
+#define CRB_PF_LINK_SPEED_2         NETXEN_NIC_REG(0xec)
 #define CRB_HOST_BUFFER_CONS        NETXEN_NIC_REG(0xf0)
 #define CRB_JUMBO_BUFFER_PROD       NETXEN_NIC_REG(0xf4)
 #define CRB_JUMBO_BUFFER_CONS       NETXEN_NIC_REG(0xf8)
+#define CRB_HOST_DUMMY_BUF          NETXEN_NIC_REG(0xfc)
 
+#define CRB_RCVPEG_STATE            NETXEN_NIC_REG(0x13c)
 #define CRB_CMD_PRODUCER_OFFSET_1   NETXEN_NIC_REG(0x1ac)
 #define CRB_CMD_CONSUMER_OFFSET_1   NETXEN_NIC_REG(0x1b0)
 #define CRB_CMD_PRODUCER_OFFSET_2   NETXEN_NIC_REG(0x1b8)
@@ -119,6 +124,8 @@
 #define CRB_SW_INT_MASK_1	   NETXEN_NIC_REG(0x1e0)
 #define CRB_SW_INT_MASK_2	   NETXEN_NIC_REG(0x1e4)
 #define CRB_SW_INT_MASK_3	   NETXEN_NIC_REG(0x1e8)
+
+#define CRB_MAC_BLOCK_START        NETXEN_CAM_RAM(0x1c0)
 
 /*
  * capabilities register, can be used to selectively enable/disable features
@@ -147,28 +154,14 @@
 #define nx_get_temp_state(x)		((x) & 0xffff)
 #define nx_encode_temp(val, state)	(((val) << 16) | (state))
 
-/* CRB registers per Rcv Descriptor ring */
-struct netxen_rcv_desc_crb {
-	u32 crb_rcv_producer_offset __attribute__ ((aligned(512)));
-	u32 crb_rcv_consumer_offset;
-	u32 crb_globalrcv_ring;
-	u32 crb_rcv_ring_size;
-};
-
 /*
  * CRB registers used by the receive peg logic.
  */
 
 struct netxen_recv_crb {
-	struct netxen_rcv_desc_crb rcv_desc_crb[NUM_RCV_DESC_RINGS];
-	u32 crb_rcvstatus_ring;
-	u32 crb_rcv_status_producer;
-	u32 crb_rcv_status_consumer;
-	u32 crb_rcvpeg_state;
-	u32 crb_status_ring_size;
+	u32 crb_rcv_producer[NUM_RCV_DESC_RINGS];
+	u32 crb_sts_consumer;
 };
-
-extern struct netxen_recv_crb recv_crb_registers[];
 
 /*
  * Temperature control.

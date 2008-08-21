@@ -38,14 +38,14 @@ prio_classify(struct sk_buff *skb, struct Qdisc *sch, int *qerr)
 	struct tcf_result res;
 	int err;
 
-	*qerr = NET_XMIT_BYPASS;
+	*qerr = NET_XMIT_SUCCESS | __NET_XMIT_BYPASS;
 	if (TC_H_MAJ(skb->priority) != sch->handle) {
 		err = tc_classify(skb, q->filter_list, &res);
 #ifdef CONFIG_NET_CLS_ACT
 		switch (err) {
 		case TC_ACT_STOLEN:
 		case TC_ACT_QUEUED:
-			*qerr = NET_XMIT_SUCCESS;
+			*qerr = NET_XMIT_SUCCESS | __NET_XMIT_STOLEN;
 		case TC_ACT_SHOT:
 			return NULL;
 		}
@@ -74,7 +74,7 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 #ifdef CONFIG_NET_CLS_ACT
 	if (qdisc == NULL) {
 
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -88,7 +88,8 @@ prio_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 		sch->q.qlen++;
 		return NET_XMIT_SUCCESS;
 	}
-	sch->qstats.drops++;
+	if (net_xmit_drop_count(ret))
+		sch->qstats.drops++;
 	return ret;
 }
 
@@ -102,7 +103,7 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	qdisc = prio_classify(skb, sch, &ret);
 #ifdef CONFIG_NET_CLS_ACT
 	if (qdisc == NULL) {
-		if (ret == NET_XMIT_BYPASS)
+		if (ret & __NET_XMIT_BYPASS)
 			sch->qstats.drops++;
 		kfree_skb(skb);
 		return ret;
@@ -112,10 +113,11 @@ prio_requeue(struct sk_buff *skb, struct Qdisc* sch)
 	if ((ret = qdisc->ops->requeue(skb, qdisc)) == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
 		sch->qstats.requeues++;
-		return 0;
+		return NET_XMIT_SUCCESS;
 	}
-	sch->qstats.drops++;
-	return NET_XMIT_DROP;
+	if (net_xmit_drop_count(ret))
+		sch->qstats.drops++;
+	return ret;
 }
 
 

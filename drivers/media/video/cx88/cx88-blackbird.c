@@ -33,6 +33,7 @@
 #include <linux/device.h>
 #include <linux/firmware.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 #include <media/cx2341x.h>
 
 #include "cx88.h"
@@ -1174,12 +1175,7 @@ static const struct file_operations mpeg_fops =
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx8802_mpeg_template =
-{
-	.name                 = "cx8802",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES|VID_TYPE_MPEG_ENCODER,
-	.fops                 = &mpeg_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops mpeg_ioctl_ops = {
 	.vidioc_querymenu     = vidioc_querymenu,
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
@@ -1207,6 +1203,13 @@ static struct video_device cx8802_mpeg_template =
 	.vidioc_g_tuner       = vidioc_g_tuner,
 	.vidioc_s_tuner       = vidioc_s_tuner,
 	.vidioc_s_std         = vidioc_s_std,
+};
+
+static struct video_device cx8802_mpeg_template = {
+	.name                 = "cx8802",
+	.fops                 = &mpeg_fops,
+	.ioctl_ops 	      = &mpeg_ioctl_ops,
+	.minor                = -1,
 	.tvnorms              = CX88_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };

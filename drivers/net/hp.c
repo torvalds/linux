@@ -389,7 +389,7 @@ static void __init
 hp_init_card(struct net_device *dev)
 {
 	int irq = dev->irq;
-	NS8390_init(dev, 0);
+	NS8390p_init(dev, 0);
 	outb_p(irqmap[irq&0x0f] | HP_RUN,
 		   dev->base_addr - NIC_OFFSET + HP_CONFIGURE);
 	return;

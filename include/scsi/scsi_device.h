@@ -6,6 +6,7 @@
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
 #include <linux/blkdev.h>
+#include <scsi/scsi.h>
 #include <asm/atomic.h>
 
 struct request_queue;
@@ -140,7 +141,8 @@ struct scsi_device {
 	unsigned fix_capacity:1;	/* READ_CAPACITY is too high by 1 */
 	unsigned guess_capacity:1;	/* READ_CAPACITY might be too high by 1 */
 	unsigned retry_hwerror:1;	/* Retry HARDWARE_ERROR */
-	unsigned last_sector_bug:1;	/* Always read last sector in a 1 sector read */
+	unsigned last_sector_bug:1;	/* do not use multisector accesses on
+					   SD_LAST_BUGGY_SECTORS */
 
 	DECLARE_BITMAP(supported_events, SDEV_EVT_MAXBITS); /* supported events */
 	struct list_head event_list;	/* asserted events */
@@ -167,15 +169,22 @@ struct scsi_device {
 	unsigned long		sdev_data[0];
 } __attribute__((aligned(sizeof(unsigned long))));
 
+struct scsi_dh_devlist {
+	char *vendor;
+	char *model;
+};
+
 struct scsi_device_handler {
 	/* Used by the infrastructure */
 	struct list_head list; /* list of scsi_device_handlers */
-	struct notifier_block nb;
 
 	/* Filled by the hardware handler */
 	struct module *module;
 	const char *name;
+	const struct scsi_dh_devlist *devlist;
 	int (*check_sense)(struct scsi_device *, struct scsi_sense_hdr *);
+	int (*attach)(struct scsi_device *);
+	void (*detach)(struct scsi_device *);
 	int (*activate)(struct scsi_device *);
 	int (*prep_fn)(struct scsi_device *, struct request *);
 };
@@ -414,6 +423,11 @@ static inline int scsi_device_qas(struct scsi_device *sdev)
 static inline int scsi_device_enclosure(struct scsi_device *sdev)
 {
 	return sdev->inquiry[6] & (1<<6);
+}
+
+static inline int scsi_device_protection(struct scsi_device *sdev)
+{
+	return sdev->scsi_level > SCSI_2 && sdev->inquiry[5] & (1<<0);
 }
 
 #define MODULE_ALIAS_SCSI_DEVICE(type) \

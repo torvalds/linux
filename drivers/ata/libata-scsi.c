@@ -2551,36 +2551,6 @@ static struct ata_device *__ata_scsi_find_dev(struct ata_port *ap,
 }
 
 /**
- *	ata_scsi_dev_enabled - determine if device is enabled
- *	@dev: ATA device
- *
- *	Determine if commands should be sent to the specified device.
- *
- *	LOCKING:
- *	spin_lock_irqsave(host lock)
- *
- *	RETURNS:
- *	0 if commands are not allowed / 1 if commands are allowed
- */
-
-static int ata_scsi_dev_enabled(struct ata_device *dev)
-{
-	if (unlikely(!ata_dev_enabled(dev)))
-		return 0;
-
-	if (!atapi_enabled || (dev->link->ap->flags & ATA_FLAG_NO_ATAPI)) {
-		if (unlikely(dev->class == ATA_DEV_ATAPI)) {
-			ata_dev_printk(dev, KERN_WARNING,
-				       "WARNING: ATAPI is %s, device ignored.\n",
-				       atapi_enabled ? "not supported with this driver" : "disabled");
-			return 0;
-		}
-	}
-
-	return 1;
-}
-
-/**
  *	ata_scsi_find_dev - lookup ata_device from scsi_cmnd
  *	@ap: ATA port to which the device is attached
  *	@scsidev: SCSI device from which we derive the ATA device
@@ -2601,7 +2571,7 @@ ata_scsi_find_dev(struct ata_port *ap, const struct scsi_device *scsidev)
 {
 	struct ata_device *dev = __ata_scsi_find_dev(ap, scsidev);
 
-	if (unlikely(!dev || !ata_scsi_dev_enabled(dev)))
+	if (unlikely(!dev || !ata_dev_enabled(dev)))
 		return NULL;
 
 	return dev;
@@ -3622,7 +3592,7 @@ int ata_sas_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *),
 
 	ata_scsi_dump_cdb(ap, cmd);
 
-	if (likely(ata_scsi_dev_enabled(ap->link.device)))
+	if (likely(ata_dev_enabled(ap->link.device)))
 		rc = __ata_scsi_queuecmd(cmd, done, ap->link.device);
 	else {
 		cmd->result = (DID_BAD_TARGET << 16);

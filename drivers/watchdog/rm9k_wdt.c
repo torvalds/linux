@@ -29,10 +29,10 @@
 #include <linux/notifier.h>
 #include <linux/miscdevice.h>
 #include <linux/watchdog.h>
-#include <asm/io.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 #include <asm/atomic.h>
 #include <asm/processor.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
 #include <asm/rm9k-ocd.h>
 
@@ -53,10 +53,12 @@ static void wdt_gpi_stop(void);
 static void wdt_gpi_set_timeout(unsigned int);
 static int wdt_gpi_open(struct inode *, struct file *);
 static int wdt_gpi_release(struct inode *, struct file *);
-static ssize_t wdt_gpi_write(struct file *, const char __user *, size_t, loff_t *);
+static ssize_t wdt_gpi_write(struct file *, const char __user *, size_t,
+								loff_t *);
 static long wdt_gpi_ioctl(struct file *, unsigned int, unsigned long);
 static int wdt_gpi_notify(struct notifier_block *, unsigned long, void *);
-static const struct resource *wdt_gpi_get_resource(struct platform_device *, const char *, unsigned int);
+static const struct resource *wdt_gpi_get_resource(struct platform_device *,
+						const char *, unsigned int);
 static int __init wdt_gpi_probe(struct device *);
 static int __exit wdt_gpi_remove(struct device *);
 
@@ -68,7 +70,7 @@ static int locked;
 
 
 /* These are set from device resources */
-static void __iomem * wd_regs;
+static void __iomem *wd_regs;
 static unsigned int wd_irq, wd_ctr;
 
 
@@ -216,7 +218,8 @@ static int wdt_gpi_release(struct inode *inode, struct file *file)
 		if (expect_close) {
 			wdt_gpi_stop();
 			free_irq(wd_irq, &miscdev);
-			printk(KERN_INFO "%s: watchdog stopped\n", wdt_gpi_name);
+			printk(KERN_INFO "%s: watchdog stopped\n",
+							wdt_gpi_name);
 		} else {
 			printk(KERN_CRIT "%s: unexpected close() -"
 				" watchdog left running\n",
@@ -231,8 +234,8 @@ static int wdt_gpi_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t
-wdt_gpi_write(struct file *f, const char __user *d, size_t s, loff_t *o)
+static ssize_t wdt_gpi_write(struct file *f, const char __user *d, size_t s,
+								loff_t *o)
 {
 	char val;
 
@@ -241,8 +244,7 @@ wdt_gpi_write(struct file *f, const char __user *d, size_t s, loff_t *o)
 	return s ? 1 : 0;
 }
 
-static long
-wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
+static long wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 {
 	long res = -ENOTTY;
 	const long size = _IOC_SIZE(cmd);
@@ -271,7 +273,8 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 	case WDIOC_GETSUPPORT:
 		wdinfo.options = nowayout ?
 			WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING :
-			WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE;
+			WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING |
+			WDIOF_MAGICCLOSE;
 		res = __copy_to_user(argp, &wdinfo, size) ?  -EFAULT : size;
 		break;
 
@@ -322,8 +325,8 @@ wdt_gpi_ioctl(struct file *f, unsigned int cmd, unsigned long arg)
 
 
 /* Shutdown notifier */
-static int
-wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
+static int wdt_gpi_notify(struct notifier_block *this, unsigned long code,
+			  void *unused)
 {
 	if (code == SYS_DOWN || code == SYS_HALT)
 		wdt_gpi_stop();
@@ -333,9 +336,8 @@ wdt_gpi_notify(struct notifier_block *this, unsigned long code, void *unused)
 
 
 /* Init & exit procedures */
-static const struct resource *
-wdt_gpi_get_resource(struct platform_device *pdv, const char *name,
-		      unsigned int type)
+static const struct resource *wdt_gpi_get_resource(struct platform_device *pdv,
+					const char *name, unsigned int type)
 {
 	char buf[80];
 	if (snprintf(buf, sizeof buf, "%s_0", name) >= sizeof buf)

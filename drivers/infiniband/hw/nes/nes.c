@@ -276,6 +276,7 @@ static void nes_cqp_rem_ref_callback(struct nes_device *nesdev, struct nes_cqp_r
 	}
 	nes_free_resource(nesadapter, nesadapter->allocated_qps, nesqp->hwqp.qp_id);
 
+	nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = NULL;
 	kfree(nesqp->allocated_buffer);
 
 }
@@ -289,7 +290,6 @@ void nes_rem_ref(struct ib_qp *ibqp)
 	struct nes_qp *nesqp;
 	struct nes_vnic *nesvnic = to_nesvnic(ibqp->device);
 	struct nes_device *nesdev = nesvnic->nesdev;
-	struct nes_adapter *nesadapter = nesdev->nesadapter;
 	struct nes_hw_cqp_wqe *cqp_wqe;
 	struct nes_cqp_request *cqp_request;
 	u32 opcode;
@@ -303,8 +303,6 @@ void nes_rem_ref(struct ib_qp *ibqp)
 	}
 
 	if (atomic_dec_and_test(&nesqp->refcount)) {
-		nesadapter->qp_table[nesqp->hwqp.qp_id-NES_FIRST_QPN] = NULL;
-
 		/* Destroy the QP */
 		cqp_request = nes_get_cqp_request(nesdev);
 		if (cqp_request == NULL) {

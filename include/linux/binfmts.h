@@ -38,7 +38,7 @@ struct linux_binprm{
 		     misc_bang:1;
 	struct file * file;
 	int e_uid, e_gid;
-	kernel_cap_t cap_inheritable, cap_permitted;
+	kernel_cap_t cap_post_exec_permitted;
 	bool cap_effective;
 	void *security;
 	int argc, envc;

@@ -271,6 +271,8 @@ static inline void __iomem *ioremap_fullcache(unsigned long physaddr, unsigned l
 	return __ioremap(physaddr, size, IOMAP_FULL_CACHING);
 }
 
+#define ioremap_wc ioremap_nocache
+
 extern void iounmap(void volatile __iomem *addr);
 
 static inline void __iomem *ioport_map(unsigned long port, unsigned int nr)

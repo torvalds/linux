@@ -54,16 +54,6 @@ menuconfig IDE
 
 if IDE
 
-config IDE_MAX_HWIFS
-	int "Max IDE interfaces"
-	depends on ALPHA || SUPERH || IA64 || EMBEDDED
-	range 1 10
-	default 4
-	help
-	  This is the maximum number of IDE hardware interfaces that will
-	  be supported by the driver. Make sure it is at least as high as
-	  the number of IDE interfaces in your system.
-
 config BLK_DEV_IDE
 	tristate "Enhanced IDE/MFM/RLL disk/cdrom/tape/floppy support"
 	---help---
@@ -314,7 +304,7 @@ comment "IDE chipset support/bugfixes"
 
 config IDE_GENERIC
 	tristate "generic/default IDE chipset support"
-	depends on ALPHA || X86 || IA64 || M32R || MIPS || PPC32
+	depends on ALPHA || X86 || IA64 || M32R || MIPS
 	help
 	  If unsure, say N.
 
@@ -510,6 +500,7 @@ config BLK_DEV_TRIFLEX
 
 config BLK_DEV_CY82C693
 	tristate "CY82C693 chipset support"
+	depends on ALPHA
 	select IDE_TIMINGS
 	select BLK_DEV_IDEDMA_PCI
 	help
@@ -548,6 +539,7 @@ config BLK_DEV_CS5535
 
 config BLK_DEV_HPT34X
 	tristate "HPT34X chipset support"
+	depends on BROKEN
 	select BLK_DEV_IDEDMA_PCI
 	help
 	  This driver adds up to 4 more EIDE devices sharing a single

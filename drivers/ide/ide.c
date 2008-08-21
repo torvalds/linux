@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1994-1998	    Linus Torvalds & authors (see below)
- *  Copyrifht (C) 2003-2005, 2007   Bartlomiej Zolnierkiewicz
+ *  Copyright (C) 2003-2005, 2007   Bartlomiej Zolnierkiewicz
  */
 
 /*
@@ -101,8 +101,7 @@ void ide_init_port_data(ide_hwif_t *hwif, unsigned int index)
 
 	init_completion(&hwif->gendev_rel_comp);
 
-	default_hwif_iops(hwif);
-	default_hwif_transport(hwif);
+	hwif->tp_ops = &default_tp_ops;
 
 	ide_port_init_devices_data(hwif);
 }
@@ -132,41 +131,6 @@ static void ide_port_init_devices_data(ide_hwif_t *hwif)
 		INIT_LIST_HEAD(&drive->list);
 		init_completion(&drive->gendev_rel_comp);
 	}
-}
-
-void ide_remove_port_from_hwgroup(ide_hwif_t *hwif)
-{
-	ide_hwgroup_t *hwgroup = hwif->hwgroup;
-
-	spin_lock_irq(&ide_lock);
-	/*
-	 * Remove us from the hwgroup, and free
-	 * the hwgroup if we were the only member
-	 */
-	if (hwif->next == hwif) {
-		BUG_ON(hwgroup->hwif != hwif);
-		kfree(hwgroup);
-	} else {
-		/* There is another interface in hwgroup.
-		 * Unlink us, and set hwgroup->drive and ->hwif to
-		 * something sane.
-		 */
-		ide_hwif_t *g = hwgroup->hwif;
-
-		while (g->next != hwif)
-			g = g->next;
-		g->next = hwif->next;
-		if (hwgroup->hwif == hwif) {
-			/* Chose a random hwif for hwgroup->hwif.
-			 * It's guaranteed that there are no drives
-			 * left in the hwgroup.
-			 */
-			BUG_ON(hwgroup->drive != NULL);
-			hwgroup->hwif = g;
-		}
-		BUG_ON(hwgroup->hwif == hwif);
-	}
-	spin_unlock_irq(&ide_lock);
 }
 
 /* Called with ide_lock held. */
@@ -269,15 +233,8 @@ void ide_unregister(ide_hwif_t *hwif)
 	if (hwif->dma_base)
 		ide_release_dma_engine(hwif);
 
-	spin_lock_irq(&ide_lock);
-	/* restore hwif data to pristine status */
-	ide_init_port_data(hwif, hwif->index);
-	spin_unlock_irq(&ide_lock);
-
 	mutex_unlock(&ide_cfg_mtx);
 }
-
-EXPORT_SYMBOL(ide_unregister);
 
 void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 {
@@ -287,8 +244,8 @@ void ide_init_port_hw(ide_hwif_t *hwif, hw_regs_t *hw)
 	hwif->dev = hw->dev;
 	hwif->gendev.parent = hw->parent ? hw->parent : hw->dev;
 	hwif->ack_intr = hw->ack_intr;
+	hwif->config_data = hw->config;
 }
-EXPORT_SYMBOL_GPL(ide_init_port_hw);
 
 /*
  *	Locks for IDE setting functionality
@@ -660,6 +617,53 @@ set_val:
 }
 
 EXPORT_SYMBOL(generic_ide_ioctl);
+
+/**
+ * ide_device_get	-	get an additional reference to a ide_drive_t
+ * @drive:	device to get a reference to
+ *
+ * Gets a reference to the ide_drive_t and increments the use count of the
+ * underlying LLDD module.
+ */
+int ide_device_get(ide_drive_t *drive)
+{
+	struct device *host_dev;
+	struct module *module;
+
+	if (!get_device(&drive->gendev))
+		return -ENXIO;
+
+	host_dev = drive->hwif->host->dev[0];
+	module = host_dev ? host_dev->driver->owner : NULL;
+
+	if (module && !try_module_get(module)) {
+		put_device(&drive->gendev);
+		return -ENXIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ide_device_get);
+
+/**
+ * ide_device_put	-	release a reference to a ide_drive_t
+ * @drive:	device to release a reference on
+ *
+ * Release a reference to the ide_drive_t and decrements the use count of
+ * the underlying LLDD module.
+ */
+void ide_device_put(ide_drive_t *drive)
+{
+#ifdef CONFIG_MODULE_UNLOAD
+	struct device *host_dev = drive->hwif->host->dev[0];
+	struct module *module = host_dev ? host_dev->driver->owner : NULL;
+
+	if (module)
+		module_put(module);
+#endif
+	put_device(&drive->gendev);
+}
+EXPORT_SYMBOL_GPL(ide_device_put);
 
 static int ide_bus_match(struct device *dev, struct device_driver *drv)
 {

@@ -33,6 +33,7 @@
 
 #include "cx23885.h"
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 /* Include V4L1 specific functions. Should be removed soon */
@@ -326,7 +327,7 @@ struct video_device *cx23885_vdev_init(struct cx23885_dev *dev,
 		return NULL;
 	*vfd = *template;
 	vfd->minor   = -1;
-	vfd->dev     = &pci->dev;
+	vfd->parent  = &pci->dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)",
 		 dev->name, type, cx23885_boards[dev->board].name);
@@ -1433,12 +1434,7 @@ static const struct file_operations video_fops = {
 	.llseek        = no_llseek,
 };
 
-static struct video_device cx23885_vbi_template;
-static struct video_device cx23885_video_template = {
-	.name                 = "cx23885-video",
-	.type                 = VID_TYPE_CAPTURE|VID_TYPE_TUNER|VID_TYPE_SCALES,
-	.fops                 = &video_fops,
-	.minor                = -1,
+static const struct v4l2_ioctl_ops video_ioctl_ops = {
 	.vidioc_querycap      = vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap  = vidioc_enum_fmt_vid_cap,
 	.vidioc_g_fmt_vid_cap     = vidioc_g_fmt_vid_cap,
@@ -1471,6 +1467,14 @@ static struct video_device cx23885_video_template = {
 	.vidioc_g_register    = vidioc_g_register,
 	.vidioc_s_register    = vidioc_s_register,
 #endif
+};
+
+static struct video_device cx23885_vbi_template;
+static struct video_device cx23885_video_template = {
+	.name                 = "cx23885-video",
+	.fops                 = &video_fops,
+	.minor                = -1,
+	.ioctl_ops 	      = &video_ioctl_ops,
 	.tvnorms              = CX23885_NORMS,
 	.current_norm         = V4L2_STD_NTSC_M,
 };
@@ -1512,7 +1516,6 @@ int cx23885_video_register(struct cx23885_dev *dev)
 	memcpy(&cx23885_vbi_template, &cx23885_video_template,
 		sizeof(cx23885_vbi_template));
 	strcpy(cx23885_vbi_template.name, "cx23885-vbi");
-	cx23885_vbi_template.type = VID_TYPE_TELETEXT|VID_TYPE_TUNER;
 
 	dev->tvnorm = cx23885_video_template.current_norm;
 

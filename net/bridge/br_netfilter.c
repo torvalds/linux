@@ -101,33 +101,30 @@ static inline __be16 pppoe_proto(const struct sk_buff *skb)
 	 pppoe_proto(skb) == htons(PPP_IPV6) && \
 	 brnf_filter_pppoe_tagged)
 
-/* We need these fake structures to make netfilter happy --
- * lots of places assume that skb->dst != NULL, which isn't
- * all that unreasonable.
- *
+/*
+ * Initialize bogus route table used to keep netfilter happy.
  * Currently, we fill in the PMTU entry because netfilter
  * refragmentation needs it, and the rt_flags entry because
  * ipt_REJECT needs it.  Future netfilter modules might
- * require us to fill additional fields. */
-static struct net_device __fake_net_device = {
-	.hard_header_len	= ETH_HLEN,
-#ifdef CONFIG_NET_NS
-	.nd_net			= &init_net,
-#endif
-};
+ * require us to fill additional fields.
+ */
+void br_netfilter_rtable_init(struct net_bridge *br)
+{
+	struct rtable *rt = &br->fake_rtable;
 
-static struct rtable __fake_rtable = {
-	.u = {
-		.dst = {
-			.__refcnt		= ATOMIC_INIT(1),
-			.dev			= &__fake_net_device,
-			.path			= &__fake_rtable.u.dst,
-			.metrics		= {[RTAX_MTU - 1] = 1500},
-			.flags			= DST_NOXFRM,
-		}
-	},
-	.rt_flags	= 0,
-};
+	atomic_set(&rt->u.dst.__refcnt, 1);
+	rt->u.dst.dev = br->dev;
+	rt->u.dst.path = &rt->u.dst;
+	rt->u.dst.metrics[RTAX_MTU - 1] = 1500;
+	rt->u.dst.flags	= DST_NOXFRM;
+}
+
+static inline struct rtable *bridge_parent_rtable(const struct net_device *dev)
+{
+	struct net_bridge_port *port = rcu_dereference(dev->br_port);
+
+	return port ? &port->br->fake_rtable : NULL;
+}
 
 static inline struct net_device *bridge_parent(const struct net_device *dev)
 {
@@ -226,8 +223,12 @@ static int br_nf_pre_routing_finish_ipv6(struct sk_buff *skb)
 	}
 	nf_bridge->mask ^= BRNF_NF_BRIDGE_PREROUTING;
 
-	skb->rtable = &__fake_rtable;
-	dst_hold(&__fake_rtable.u.dst);
+	skb->rtable = bridge_parent_rtable(nf_bridge->physindev);
+	if (!skb->rtable) {
+		kfree_skb(skb);
+		return 0;
+	}
+	dst_hold(&skb->rtable->u.dst);
 
 	skb->dev = nf_bridge->physindev;
 	nf_bridge_push_encap_header(skb);
@@ -391,8 +392,12 @@ bridged_dnat:
 			skb->pkt_type = PACKET_HOST;
 		}
 	} else {
-		skb->rtable = &__fake_rtable;
-		dst_hold(&__fake_rtable.u.dst);
+		skb->rtable = bridge_parent_rtable(nf_bridge->physindev);
+		if (!skb->rtable) {
+			kfree_skb(skb);
+			return 0;
+		}
+		dst_hold(&skb->rtable->u.dst);
 	}
 
 	skb->dev = nf_bridge->physindev;
@@ -611,8 +616,8 @@ static unsigned int br_nf_local_in(unsigned int hook, struct sk_buff *skb,
 				   const struct net_device *out,
 				   int (*okfn)(struct sk_buff *))
 {
-	if (skb->rtable == &__fake_rtable) {
-		dst_release(&__fake_rtable.u.dst);
+	if (skb->rtable && skb->rtable == bridge_parent_rtable(in)) {
+		dst_release(&skb->rtable->u.dst);
 		skb->rtable = NULL;
 	}
 

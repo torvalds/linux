@@ -169,9 +169,9 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 				pgrp = find_vpid(who);
 			else
 				pgrp = task_pgrp(current);
-			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
+			do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 				error = set_one_prio(p, niceval, error);
-			} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
+			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
 			user = current->user;
@@ -229,11 +229,11 @@ asmlinkage long sys_getpriority(int which, int who)
 				pgrp = find_vpid(who);
 			else
 				pgrp = task_pgrp(current);
-			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
+			do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 				niceval = 20 - task_nice(p);
 				if (niceval > retval)
 					retval = niceval;
-			} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
+			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
 			user = current->user;
@@ -274,7 +274,7 @@ void emergency_restart(void)
 }
 EXPORT_SYMBOL_GPL(emergency_restart);
 
-static void kernel_restart_prepare(char *cmd)
+void kernel_restart_prepare(char *cmd)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;
@@ -300,26 +300,6 @@ void kernel_restart(char *cmd)
 	machine_restart(cmd);
 }
 EXPORT_SYMBOL_GPL(kernel_restart);
-
-/**
- *	kernel_kexec - reboot the system
- *
- *	Move into place and start executing a preloaded standalone
- *	executable.  If nothing was preloaded return an error.
- */
-static void kernel_kexec(void)
-{
-#ifdef CONFIG_KEXEC
-	struct kimage *image;
-	image = xchg(&kexec_image, NULL);
-	if (!image)
-		return;
-	kernel_restart_prepare(NULL);
-	printk(KERN_EMERG "Starting new kernel\n");
-	machine_shutdown();
-	machine_kexec(image);
-#endif
-}
 
 static void kernel_shutdown_prepare(enum system_states state)
 {
@@ -425,10 +405,15 @@ asmlinkage long sys_reboot(int magic1, int magic2, unsigned int cmd, void __user
 		kernel_restart(buffer);
 		break;
 
+#ifdef CONFIG_KEXEC
 	case LINUX_REBOOT_CMD_KEXEC:
-		kernel_kexec();
-		unlock_kernel();
-		return -EINVAL;
+		{
+			int ret;
+			ret = kernel_kexec();
+			unlock_kernel();
+			return ret;
+		}
+#endif
 
 #ifdef CONFIG_HIBERNATION
 	case LINUX_REBOOT_CMD_SW_SUSPEND:
@@ -1343,8 +1328,6 @@ EXPORT_SYMBOL(in_egroup_p);
 
 DECLARE_RWSEM(uts_sem);
 
-EXPORT_SYMBOL(uts_sem);
-
 asmlinkage long sys_newuname(struct new_utsname __user * name)
 {
 	int errno = 0;
@@ -1795,7 +1778,7 @@ int orderly_poweroff(bool force)
 		goto out;
 	}
 
-	info = call_usermodehelper_setup(argv[0], argv, envp);
+	info = call_usermodehelper_setup(argv[0], argv, envp, GFP_ATOMIC);
 	if (info == NULL) {
 		argv_free(argv);
 		goto out;

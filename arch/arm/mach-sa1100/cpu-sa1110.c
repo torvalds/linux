@@ -3,8 +3,6 @@
  *
  *  Copyright (C) 2001 Russell King
  *
- *  $Id: cpu-sa1110.c,v 1.9 2002/07/06 16:53:18 rmk Exp $
- *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
@@ -26,7 +24,7 @@
 #include <linux/delay.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/io.h>
 #include <asm/system.h>

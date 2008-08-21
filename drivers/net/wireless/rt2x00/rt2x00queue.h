@@ -173,10 +173,10 @@ struct rxdone_entry_desc {
  *	frame transmission failed due to excessive retries.
  */
 enum txdone_entry_desc_flags {
-	TXDONE_UNKNOWN = 1 << 0,
-	TXDONE_SUCCESS = 1 << 1,
-	TXDONE_FAILURE = 1 << 2,
-	TXDONE_EXCESSIVE_RETRY = 1 << 3,
+	TXDONE_UNKNOWN,
+	TXDONE_SUCCESS,
+	TXDONE_FAILURE,
+	TXDONE_EXCESSIVE_RETRY,
 };
 
 /**
@@ -199,6 +199,7 @@ struct txdone_entry_desc {
  * @ENTRY_TXD_RTS_FRAME: This frame is a RTS frame.
  * @ENTRY_TXD_CTS_FRAME: This frame is a CTS-to-self frame.
  * @ENTRY_TXD_OFDM_RATE: This frame is send out with an OFDM rate.
+ * @ENTRY_TXD_GENERATE_SEQ: This frame requires sequence counter.
  * @ENTRY_TXD_FIRST_FRAGMENT: This is the first frame.
  * @ENTRY_TXD_MORE_FRAG: This frame is followed by another fragment.
  * @ENTRY_TXD_REQ_TIMESTAMP: Require timestamp to be inserted.
@@ -210,6 +211,7 @@ enum txentry_desc_flags {
 	ENTRY_TXD_RTS_FRAME,
 	ENTRY_TXD_CTS_FRAME,
 	ENTRY_TXD_OFDM_RATE,
+	ENTRY_TXD_GENERATE_SEQ,
 	ENTRY_TXD_FIRST_FRAGMENT,
 	ENTRY_TXD_MORE_FRAG,
 	ENTRY_TXD_REQ_TIMESTAMP,

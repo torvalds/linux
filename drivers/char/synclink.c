@@ -304,7 +304,6 @@ struct mgsl_struct {
 
 	/* generic HDLC device parts */
 	int netcount;
-	int dosyncppp;
 	spinlock_t netlock;
 
 #if SYNCLINK_GENERIC_HDLC
@@ -868,7 +867,6 @@ static int irq[MAX_ISA_DEVICES];
 static int dma[MAX_ISA_DEVICES];
 static int debug_level;
 static int maxframe[MAX_TOTAL_DEVICES];
-static int dosyncppp[MAX_TOTAL_DEVICES];
 static int txdmabufs[MAX_TOTAL_DEVICES];
 static int txholdbufs[MAX_TOTAL_DEVICES];
 	
@@ -879,7 +877,6 @@ module_param_array(irq, int, NULL, 0);
 module_param_array(dma, int, NULL, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
-module_param_array(dosyncppp, int, NULL, 0);
 module_param_array(txdmabufs, int, NULL, 0);
 module_param_array(txholdbufs, int, NULL, 0);
 
@@ -2897,9 +2894,9 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
  *
  * Arguments:		tty		pointer to tty instance data
  *			break_state	-1=set break condition, 0=clear
- * Return Value:	None
+ * Return Value:	error code
  */
-static void mgsl_break(struct tty_struct *tty, int break_state)
+static int mgsl_break(struct tty_struct *tty, int break_state)
 {
 	struct mgsl_struct * info = (struct mgsl_struct *)tty->driver_data;
 	unsigned long flags;
@@ -2909,7 +2906,7 @@ static void mgsl_break(struct tty_struct *tty, int break_state)
 			 __FILE__,__LINE__, info->device_name, break_state);
 			 
 	if (mgsl_paranoia_check(info, tty->name, "mgsl_break"))
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&info->irq_spinlock,flags);
  	if (break_state == -1)
@@ -2917,6 +2914,7 @@ static void mgsl_break(struct tty_struct *tty, int break_state)
 	else 
 		usc_OutReg(info,IOCR,(u16)(usc_InReg(info,IOCR) & ~BIT7));
 	spin_unlock_irqrestore(&info->irq_spinlock,flags);
+	return 0;
 	
 }	/* end of mgsl_break() */
 
@@ -4257,7 +4255,6 @@ static void mgsl_add_device( struct mgsl_struct *info )
 	if (info->line < MAX_TOTAL_DEVICES) {
 		if (maxframe[info->line])
 			info->max_frame_size = maxframe[info->line];
-		info->dosyncppp = dosyncppp[info->line];
 
 		if (txdmabufs[info->line]) {
 			info->num_tx_dma_buffers = txdmabufs[info->line];

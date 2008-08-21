@@ -449,6 +449,7 @@ config SERIAL_CLPS711X_CONSOLE
 config SERIAL_SAMSUNG
 	tristate "Samsung SoC serial support"
 	depends on ARM && PLAT_S3C24XX
+	select SERIAL_CORE
 	help
 	  Support for the on-chip UARTs on the Samsung S3C24XX series CPUs,
 	  providing /dev/ttySAC0, 1 and 2 (note, some machines may not
@@ -940,22 +941,6 @@ config SERIAL_IP22_ZILOG
 config SERIAL_IP22_ZILOG_CONSOLE
 	bool "Console on SGI Zilog8530 serial port"
 	depends on SERIAL_IP22_ZILOG=y
-	select SERIAL_CORE_CONSOLE
-
-config V850E_UART
-	bool "NEC V850E on-chip UART support"
-	depends on V850E_MA1 || V850E_ME2 || V850E_TEG || V850E2_ANNA || V850E_AS85EP1
-	select SERIAL_CORE
-	default y
-
-config V850E_UARTB
-        bool
-	depends on V850E_UART && V850E_ME2
-	default y
-
-config V850E_UART_CONSOLE
-	bool "Use NEC V850E on-chip UART for console"
-	depends on V850E_UART
 	select SERIAL_CORE_CONSOLE
 
 config SERIAL_SH_SCI

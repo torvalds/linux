@@ -989,7 +989,9 @@ int udp_queue_rcv_skb(struct sock * sk, struct sk_buff *skb)
 		    up->encap_rcv != NULL) {
 			int ret;
 
+			bh_unlock_sock(sk);
 			ret = (*up->encap_rcv)(sk, skb);
+			bh_lock_sock(sk);
 			if (ret <= 0) {
 				UDP_INC_STATS_BH(sock_net(sk),
 						 UDP_MIB_INDATAGRAMS,
@@ -1092,7 +1094,7 @@ static int __udp4_lib_mcast_deliver(struct net *net, struct sk_buff *skb,
 			if (skb1) {
 				int ret = 0;
 
-				bh_lock_sock_nested(sk);
+				bh_lock_sock(sk);
 				if (!sock_owned_by_user(sk))
 					ret = udp_queue_rcv_skb(sk, skb1);
 				else
@@ -1194,7 +1196,7 @@ int __udp4_lib_rcv(struct sk_buff *skb, struct hlist_head udptable[],
 
 	if (sk != NULL) {
 		int ret = 0;
-		bh_lock_sock_nested(sk);
+		bh_lock_sock(sk);
 		if (!sock_owned_by_user(sk))
 			ret = udp_queue_rcv_skb(sk, skb);
 		else
@@ -1325,6 +1327,8 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			return -ENOPROTOOPT;
 		if (val != 0 && val < 8) /* Illegal coverage: use default (8) */
 			val = 8;
+		else if (val > USHORT_MAX)
+			val = USHORT_MAX;
 		up->pcslen = val;
 		up->pcflag |= UDPLITE_SEND_CC;
 		break;
@@ -1337,6 +1341,8 @@ int udp_lib_setsockopt(struct sock *sk, int level, int optname,
 			return -ENOPROTOOPT;
 		if (val != 0 && val < 8) /* Avoid silly minimal values.       */
 			val = 8;
+		else if (val > USHORT_MAX)
+			val = USHORT_MAX;
 		up->pcrlen = val;
 		up->pcflag |= UDPLITE_RECV_CC;
 		break;

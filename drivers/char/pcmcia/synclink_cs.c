@@ -232,7 +232,6 @@ typedef struct _mgslpc_info {
 
 	/* SPPP/Cisco HDLC device parts */
 	int netcount;
-	int dosyncppp;
 	spinlock_t netlock;
 
 #if SYNCLINK_GENERIC_HDLC
@@ -459,13 +458,11 @@ static int ttymajor=0;
 
 static int debug_level = 0;
 static int maxframe[MAX_DEVICE_COUNT] = {0,};
-static int dosyncppp[MAX_DEVICE_COUNT] = {1,1,1,1};
 
 module_param(break_on_load, bool, 0);
 module_param(ttymajor, int, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
-module_param_array(dosyncppp, int, NULL, 0);
 
 MODULE_LICENSE("GPL");
 
@@ -2230,7 +2227,7 @@ static int tiocmset(struct tty_struct *tty, struct file *file,
  * Arguments:		tty		pointer to tty instance data
  *			break_state	-1=set break condition, 0=clear
  */
-static void mgslpc_break(struct tty_struct *tty, int break_state)
+static int mgslpc_break(struct tty_struct *tty, int break_state)
 {
 	MGSLPC_INFO * info = (MGSLPC_INFO *)tty->driver_data;
 	unsigned long flags;
@@ -2240,7 +2237,7 @@ static void mgslpc_break(struct tty_struct *tty, int break_state)
 			 __FILE__,__LINE__, info->device_name, break_state);
 
 	if (mgslpc_paranoia_check(info, tty->name, "mgslpc_break"))
-		return;
+		return -EINVAL;
 
 	spin_lock_irqsave(&info->lock,flags);
  	if (break_state == -1)
@@ -2248,6 +2245,7 @@ static void mgslpc_break(struct tty_struct *tty, int break_state)
 	else
 		clear_reg_bits(info, CHA+DAFO, BIT6);
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 0;
 }
 
 /* Service an IOCTL request
@@ -2914,7 +2912,6 @@ static void mgslpc_add_device(MGSLPC_INFO *info)
 	if (info->line < MAX_DEVICE_COUNT) {
 		if (maxframe[info->line])
 			info->max_frame_size = maxframe[info->line];
-		info->dosyncppp = dosyncppp[info->line];
 	}
 
 	mgslpc_device_count++;

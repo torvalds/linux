@@ -72,6 +72,7 @@
 #include <linux/delay.h>
 #include <asm/firmware.h>
 #include <asm/vio.h>
+#include <asm/firmware.h>
 #include <scsi/scsi.h>
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_host.h>
@@ -426,8 +427,10 @@ static int map_sg_data(struct scsi_cmnd *cmd,
 					   SG_ALL * sizeof(struct srp_direct_buf),
 					   &evt_struct->ext_list_token, 0);
 		if (!evt_struct->ext_list) {
-			sdev_printk(KERN_ERR, cmd->device,
-				    "Can't allocate memory for indirect table\n");
+			if (!firmware_has_feature(FW_FEATURE_CMO))
+				sdev_printk(KERN_ERR, cmd->device,
+				            "Can't allocate memory "
+				            "for indirect table\n");
 			return 0;
 		}
 	}
@@ -743,7 +746,9 @@ static int ibmvscsi_queuecommand(struct scsi_cmnd *cmnd,
 	srp_cmd->lun = ((u64) lun) << 48;
 
 	if (!map_data_for_srp_cmd(cmnd, evt_struct, srp_cmd, hostdata->dev)) {
-		sdev_printk(KERN_ERR, cmnd->device, "couldn't convert cmd to srp_cmd\n");
+		if (!firmware_has_feature(FW_FEATURE_CMO))
+			sdev_printk(KERN_ERR, cmnd->device,
+			            "couldn't convert cmd to srp_cmd\n");
 		free_event_struct(&hostdata->pool, evt_struct);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
@@ -854,8 +859,11 @@ static void send_mad_adapter_info(struct ibmvscsi_host_data *hostdata)
 					    sizeof(hostdata->madapter_info),
 					    DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(req->buffer)) {
-		dev_err(hostdata->dev, "Unable to map request_buffer for adapter_info!\n");
+	if (dma_mapping_error(hostdata->dev, req->buffer)) {
+		if (!firmware_has_feature(FW_FEATURE_CMO))
+			dev_err(hostdata->dev,
+			        "Unable to map request_buffer for "
+			        "adapter_info!\n");
 		free_event_struct(&hostdata->pool, evt_struct);
 		return;
 	}
@@ -1399,8 +1407,10 @@ static int ibmvscsi_do_host_config(struct ibmvscsi_host_data *hostdata,
 						    length,
 						    DMA_BIDIRECTIONAL);
 
-	if (dma_mapping_error(host_config->buffer)) {
-		dev_err(hostdata->dev, "dma_mapping error getting host config\n");
+	if (dma_mapping_error(hostdata->dev, host_config->buffer)) {
+		if (!firmware_has_feature(FW_FEATURE_CMO))
+			dev_err(hostdata->dev,
+			        "dma_mapping error getting host config\n");
 		free_event_struct(&hostdata->pool, evt_struct);
 		return -1;
 	}
@@ -1604,13 +1614,33 @@ static struct scsi_host_template driver_template = {
 	.eh_host_reset_handler = ibmvscsi_eh_host_reset_handler,
 	.slave_configure = ibmvscsi_slave_configure,
 	.change_queue_depth = ibmvscsi_change_queue_depth,
-	.cmd_per_lun = 16,
+	.cmd_per_lun = IBMVSCSI_CMDS_PER_LUN_DEFAULT,
 	.can_queue = IBMVSCSI_MAX_REQUESTS_DEFAULT,
 	.this_id = -1,
 	.sg_tablesize = SG_ALL,
 	.use_clustering = ENABLE_CLUSTERING,
 	.shost_attrs = ibmvscsi_attrs,
 };
+
+/**
+ * ibmvscsi_get_desired_dma - Calculate IO memory desired by the driver
+ *
+ * @vdev: struct vio_dev for the device whose desired IO mem is to be returned
+ *
+ * Return value:
+ *	Number of bytes of IO data the driver will need to perform well.
+ */
+static unsigned long ibmvscsi_get_desired_dma(struct vio_dev *vdev)
+{
+	/* iu_storage data allocated in initialize_event_pool */
+	unsigned long desired_io = max_requests * sizeof(union viosrp_iu);
+
+	/* add io space for sg data */
+	desired_io += (IBMVSCSI_MAX_SECTORS_DEFAULT * 512 *
+	                     IBMVSCSI_CMDS_PER_LUN_DEFAULT);
+
+	return desired_io;
+}
 
 /**
  * Called by bus code for each adapter
@@ -1641,7 +1671,7 @@ static int ibmvscsi_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	hostdata->host = host;
 	hostdata->dev = dev;
 	atomic_set(&hostdata->request_limit, -1);
-	hostdata->host->max_sectors = 32 * 8; /* default max I/O 32 pages */
+	hostdata->host->max_sectors = IBMVSCSI_MAX_SECTORS_DEFAULT;
 
 	rc = ibmvscsi_ops->init_crq_queue(&hostdata->queue, hostdata, max_requests);
 	if (rc != 0 && rc != H_RESOURCE) {
@@ -1735,6 +1765,7 @@ static struct vio_driver ibmvscsi_driver = {
 	.id_table = ibmvscsi_device_table,
 	.probe = ibmvscsi_probe,
 	.remove = ibmvscsi_remove,
+	.get_desired_dma = ibmvscsi_get_desired_dma,
 	.driver = {
 		.name = "ibmvscsi",
 		.owner = THIS_MODULE,

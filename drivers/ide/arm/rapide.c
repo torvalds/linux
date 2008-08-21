@@ -32,11 +32,10 @@ static void rapide_setup_ports(hw_regs_t *hw, void __iomem *base,
 static int __devinit
 rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 {
-	ide_hwif_t *hwif;
 	void __iomem *base;
+	struct ide_host *host;
 	int ret;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	hw_regs_t hw;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
 
 	ret = ecard_request_resources(ec);
 	if (ret)
@@ -53,20 +52,11 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 	hw.chipset = ide_generic;
 	hw.dev = &ec->dev;
 
-	hwif = ide_find_port();
-	if (hwif == NULL) {
-		ret = -ENOENT;
+	ret = ide_host_add(&rapide_port_info, hws, &host);
+	if (ret)
 		goto release;
-	}
 
-	ide_init_port_hw(hwif, &hw);
-	default_hwif_mmiops(hwif);
-
-	idx[0] = hwif->index;
-
-	ide_device_add(idx, &rapide_port_info);
-
-	ecard_set_drvdata(ec, hwif);
+	ecard_set_drvdata(ec, host);
 	goto out;
 
  release:
@@ -77,11 +67,11 @@ rapide_probe(struct expansion_card *ec, const struct ecard_id *id)
 
 static void __devexit rapide_remove(struct expansion_card *ec)
 {
-	ide_hwif_t *hwif = ecard_get_drvdata(ec);
+	struct ide_host *host = ecard_get_drvdata(ec);
 
 	ecard_set_drvdata(ec, NULL);
 
-	ide_unregister(hwif);
+	ide_host_remove(host);
 
 	ecard_release_resources(ec);
 }
@@ -105,7 +95,13 @@ static int __init rapide_init(void)
 	return ecard_register_driver(&rapide_driver);
 }
 
+static void __exit rapide_exit(void)
+{
+	ecard_unregister_driver(&rapide_driver);
+}
+
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Yellowstone RAPIDE driver");
 
 module_init(rapide_init);
+module_exit(rapide_exit);

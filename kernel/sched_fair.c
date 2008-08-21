@@ -878,7 +878,6 @@ entity_tick(struct cfs_rq *cfs_rq, struct sched_entity *curr, int queued)
 #ifdef CONFIG_SCHED_HRTICK
 static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 {
-	int requeue = rq->curr == p;
 	struct sched_entity *se = &p->se;
 	struct cfs_rq *cfs_rq = cfs_rq_of(se);
 
@@ -899,10 +898,10 @@ static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 		 * Don't schedule slices shorter than 10000ns, that just
 		 * doesn't make sense. Rely on vruntime for fairness.
 		 */
-		if (!requeue)
-			delta = max(10000LL, delta);
+		if (rq->curr != p)
+			delta = max_t(s64, 10000LL, delta);
 
-		hrtick_start(rq, delta, requeue);
+		hrtick_start(rq, delta);
 	}
 }
 #else /* !CONFIG_SCHED_HRTICK */
@@ -1004,6 +1003,8 @@ static void yield_task_fair(struct rq *rq)
  * not idle and an idle cpu is available.  The span of cpus to
  * search starts with cpus closest then further out as needed,
  * so we always favor a closer, idle cpu.
+ * Domains may include CPUs that are not usable for migration,
+ * hence we need to mask them out (cpu_active_map)
  *
  * Returns the CPU we should wake onto.
  */
@@ -1031,7 +1032,8 @@ static int wake_idle(int cpu, struct task_struct *p)
 		    || ((sd->flags & SD_WAKE_IDLE_FAR)
 			&& !task_hot(p, task_rq(p)->clock, sd))) {
 			cpus_and(tmp, sd->span, p->cpus_allowed);
-			for_each_cpu_mask(i, tmp) {
+			cpus_and(tmp, tmp, cpu_active_map);
+			for_each_cpu_mask_nr(i, tmp) {
 				if (idle_cpu(i)) {
 					if (i != task_cpu(p)) {
 						schedstat_inc(p,
@@ -1440,18 +1442,23 @@ __load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 	struct task_struct *p = NULL;
 	struct sched_entity *se;
 
-	while (next != &cfs_rq->tasks) {
+	if (next == &cfs_rq->tasks)
+		return NULL;
+
+	/* Skip over entities that are not tasks */
+	do {
 		se = list_entry(next, struct sched_entity, group_node);
 		next = next->next;
+	} while (next != &cfs_rq->tasks && !entity_is_task(se));
 
-		/* Skip over entities that are not tasks */
-		if (entity_is_task(se)) {
-			p = task_of(se);
-			break;
-		}
-	}
+	if (next == &cfs_rq->tasks)
+		return NULL;
 
 	cfs_rq->balance_iterator = next;
+
+	if (entity_is_task(se))
+		p = task_of(se);
+
 	return p;
 }
 

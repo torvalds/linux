@@ -188,7 +188,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 			count = I2C_SMBUS_BLOCK_MAX;
 		status = i2c_smbus_read_i2c_block_data(client, offset,
 				count, buf);
-		dev_dbg(&client->dev, "smbus read %zd@%d --> %d\n",
+		dev_dbg(&client->dev, "smbus read %zu@%d --> %d\n",
 				count, offset, status);
 		return (status < 0) ? -EIO : status;
 	}
@@ -214,7 +214,7 @@ static ssize_t at24_eeprom_read(struct at24_data *at24, char *buf,
 	msg[1].len = count;
 
 	status = i2c_transfer(client->adapter, msg, 2);
-	dev_dbg(&client->dev, "i2c read %zd@%d --> %d\n",
+	dev_dbg(&client->dev, "i2c read %zu@%d --> %d\n",
 			count, offset, status);
 
 	if (status == 2)
@@ -334,7 +334,7 @@ static ssize_t at24_eeprom_write(struct at24_data *at24, char *buf,
 			if (status == 1)
 				status = count;
 		}
-		dev_dbg(&client->dev, "write %zd@%d --> %zd (%ld)\n",
+		dev_dbg(&client->dev, "write %zu@%d --> %zd (%ld)\n",
 				count, offset, status, jiffies);
 
 		if (status == count)
@@ -512,7 +512,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 	i2c_set_clientdata(client, at24);
 
-	dev_info(&client->dev, "%Zd byte %s EEPROM %s\n",
+	dev_info(&client->dev, "%zu byte %s EEPROM %s\n",
 		at24->bin.size, client->name,
 		writable ? "(writable)" : "(read-only)");
 	dev_dbg(&client->dev,

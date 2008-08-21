@@ -23,17 +23,16 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/setup.h>
-#include <asm/mach-types.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/arch/irq.h>
+#include <mach/irq.h>
 
 static u8 pnx4008_irq_type[NR_IRQS] = PNX4008_IRQ_TYPES;
 
@@ -56,28 +55,28 @@ static void pnx4008_mask_ack_irq(unsigned int irq)
 static int pnx4008_set_irq_type(unsigned int irq, unsigned int type)
 {
 	switch (type) {
-	case IRQT_RISING:
+	case IRQ_TYPE_EDGE_RISING:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) | INTC_BIT(irq), INTC_ATR(irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) | INTC_BIT(irq), INTC_APR(irq));	/*rising edge */
 		set_irq_handler(irq, handle_edge_irq);
 		break;
-	case IRQT_FALLING:
+	case IRQ_TYPE_EDGE_FALLING:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) | INTC_BIT(irq), INTC_ATR(irq));	/*edge sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) & ~INTC_BIT(irq), INTC_APR(irq));	/*falling edge */
 		set_irq_handler(irq, handle_edge_irq);
 		break;
-	case IRQT_LOW:
+	case IRQ_TYPE_LEVEL_LOW:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) & ~INTC_BIT(irq), INTC_ATR(irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) & ~INTC_BIT(irq), INTC_APR(irq));	/*low level */
 		set_irq_handler(irq, handle_level_irq);
 		break;
-	case IRQT_HIGH:
+	case IRQ_TYPE_LEVEL_HIGH:
 		__raw_writel(__raw_readl(INTC_ATR(irq)) & ~INTC_BIT(irq), INTC_ATR(irq));	/*level sensitive */
 		__raw_writel(__raw_readl(INTC_APR(irq)) | INTC_BIT(irq), INTC_APR(irq));	/* high level */
 		set_irq_handler(irq, handle_level_irq);
 		break;
 
-	/* IRQT_BOTHEDGE is not supported */
+	/* IRQ_TYPE_EDGE_BOTH is not supported */
 	default:
 		printk(KERN_ERR "PNX4008 IRQ: Unsupported irq type %d\n", type);
 		return -1;

@@ -87,27 +87,46 @@ struct inode_smack *new_inode_smack(char *smack)
  */
 
 /**
- * smack_ptrace - Smack approval on ptrace
- * @ptp: parent task pointer
+ * smack_ptrace_may_access - Smack approval on PTRACE_ATTACH
  * @ctp: child task pointer
  *
  * Returns 0 if access is OK, an error code otherwise
  *
  * Do the capability checks, and require read and write.
  */
-static int smack_ptrace(struct task_struct *ptp, struct task_struct *ctp,
-			unsigned int mode)
+static int smack_ptrace_may_access(struct task_struct *ctp, unsigned int mode)
 {
 	int rc;
 
-	rc = cap_ptrace(ptp, ctp, mode);
+	rc = cap_ptrace_may_access(ctp, mode);
 	if (rc != 0)
 		return rc;
 
-	rc = smk_access(ptp->security, ctp->security, MAY_READWRITE);
-	if (rc != 0 && __capable(ptp, CAP_MAC_OVERRIDE))
+	rc = smk_access(current->security, ctp->security, MAY_READWRITE);
+	if (rc != 0 && capable(CAP_MAC_OVERRIDE))
 		return 0;
+	return rc;
+}
 
+/**
+ * smack_ptrace_traceme - Smack approval on PTRACE_TRACEME
+ * @ptp: parent task pointer
+ *
+ * Returns 0 if access is OK, an error code otherwise
+ *
+ * Do the capability checks, and require read and write.
+ */
+static int smack_ptrace_traceme(struct task_struct *ptp)
+{
+	int rc;
+
+	rc = cap_ptrace_traceme(ptp);
+	if (rc != 0)
+		return rc;
+
+	rc = smk_access(ptp->security, current->security, MAY_READWRITE);
+	if (rc != 0 && has_capability(ptp, CAP_MAC_OVERRIDE))
+		return 0;
 	return rc;
 }
 
@@ -522,8 +541,7 @@ static int smack_inode_rename(struct inode *old_inode,
  *
  * Returns 0 if access is permitted, -EACCES otherwise
  */
-static int smack_inode_permission(struct inode *inode, int mask,
-				  struct nameidata *nd)
+static int smack_inode_permission(struct inode *inode, int mask)
 {
 	/*
 	 * No permission to check. Existence test. Yup, it's there.
@@ -924,7 +942,7 @@ static int smack_file_send_sigiotask(struct task_struct *tsk,
 	 */
 	file = container_of(fown, struct file, f_owner);
 	rc = smk_access(file->f_security, tsk->security, MAY_WRITE);
-	if (rc != 0 && __capable(tsk, CAP_MAC_OVERRIDE))
+	if (rc != 0 && has_capability(tsk, CAP_MAC_OVERRIDE))
 		return 0;
 	return rc;
 }
@@ -1165,12 +1183,12 @@ static int smack_task_wait(struct task_struct *p)
 	 * account for the smack labels having gotten to
 	 * be different in the first place.
 	 *
-	 * This breaks the strict subjet/object access
+	 * This breaks the strict subject/object access
 	 * control ideal, taking the object's privilege
 	 * state into account in the decision as well as
 	 * the smack value.
 	 */
-	if (capable(CAP_MAC_OVERRIDE) || __capable(p, CAP_MAC_OVERRIDE))
+	if (capable(CAP_MAC_OVERRIDE) || has_capability(p, CAP_MAC_OVERRIDE))
 		return 0;
 
 	return rc;
@@ -2017,14 +2035,14 @@ static int smack_setprocattr(struct task_struct *p, char *name,
 {
 	char *newsmack;
 
-	if (!__capable(p, CAP_MAC_ADMIN))
-		return -EPERM;
-
 	/*
 	 * Changing another process' Smack value is too dangerous
 	 * and supports no sane use case.
 	 */
 	if (p != current)
+		return -EPERM;
+
+	if (!capable(CAP_MAC_ADMIN))
 		return -EPERM;
 
 	if (value == NULL || size == 0 || size >= SMK_LABELLEN)
@@ -2553,7 +2571,8 @@ static void smack_release_secctx(char *secdata, u32 seclen)
 struct security_operations smack_ops = {
 	.name =				"smack",
 
-	.ptrace = 			smack_ptrace,
+	.ptrace_may_access =		smack_ptrace_may_access,
+	.ptrace_traceme =		smack_ptrace_traceme,
 	.capget = 			cap_capget,
 	.capset_check = 		cap_capset_check,
 	.capset_set = 			cap_capset_set,
@@ -2730,4 +2749,3 @@ static __init int smack_init(void)
  * all processes and objects when they are created.
  */
 security_initcall(smack_init);
-

@@ -52,8 +52,9 @@
 #include <asm/unaligned.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/usb.h>
+#include <mach/dma.h>
+#include <mach/usb.h>
+#include <mach/control.h>
 
 #include "omap_udc.h"
 
@@ -1120,7 +1121,7 @@ static int omap_ep_set_halt(struct usb_ep *_ep, int value)
 			status = -EINVAL;
 		else if (value) {
 			if (ep->udc->ep0_set_config) {
-				WARN("error changing config?\n");
+				WARNING("error changing config?\n");
 				omap_writew(UDC_CLR_CFG, UDC_SYSCON2);
 			}
 			omap_writew(UDC_STALL_CMD, UDC_SYSCON2);
@@ -1764,7 +1765,7 @@ do_stall:
 					u.r.bRequestType, u.r.bRequest, status);
 			if (udc->ep0_set_config) {
 				if (udc->ep0_reset_config)
-					WARN("error resetting config?\n");
+					WARNING("error resetting config?\n");
 				else
 					omap_writew(UDC_CLR_CFG, UDC_SYSCON2);
 			}
@@ -2310,10 +2311,10 @@ static int proc_otg_show(struct seq_file *s)
 	u32		trans;
 	char		*ctrl_name;
 
-	tmp = OTG_REV_REG;
+	tmp = omap_readl(OTG_REV);
 	if (cpu_is_omap24xx()) {
 		ctrl_name = "control_devconf";
-		trans = CONTROL_DEVCONF_REG;
+		trans = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
 	} else {
 		ctrl_name = "tranceiver_ctrl";
 		trans = omap_readw(USB_TRANSCEIVER_CTRL);
@@ -3076,7 +3077,7 @@ static int omap_udc_suspend(struct platform_device *dev, pm_message_t message)
 	 * which would prevent entry to deep sleep...
 	 */
 	if ((devstat & UDC_ATT) != 0 && (devstat & UDC_SUS) == 0) {
-		WARN("session active; suspend requires disconnect\n");
+		WARNING("session active; suspend requires disconnect\n");
 		omap_pullup(&udc->gadget, 0);
 	}
 

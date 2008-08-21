@@ -28,7 +28,7 @@
 #include <linux/init.h>
 #include <asm/assembler.h>
 #include <asm/elf.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/page.h>
@@ -50,11 +50,6 @@
  * The size of the L1 D cache.
  */
 #define CACHESIZE	32768
-
-/*
- * Run with L2 enabled.
- */
-#define L2_CACHE_ENABLE	1
 
 /*
  * This macro is used to wait for a CP15 write and is needed when we
@@ -265,12 +260,9 @@ ENTRY(xsc3_dma_inv_range)
 	tst	r0, #CACHELINESIZE - 1
 	bic	r0, r0, #CACHELINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean L1 D line
-	mcrne	p15, 1, r0, c7, c11, 1		@ clean L2 line
 	tst	r1, #CACHELINESIZE - 1
 	mcrne	p15, 0, r1, c7, c10, 1		@ clean L1 D line
-	mcrne	p15, 1, r1, c7, c11, 1		@ clean L2 line
 1:	mcr	p15, 0, r0, c7, c6, 1		@ invalidate L1 D line
-	mcr	p15, 1, r0, c7, c7, 1		@ invalidate L2 line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
@@ -288,7 +280,6 @@ ENTRY(xsc3_dma_inv_range)
 ENTRY(xsc3_dma_clean_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
-	mcr	p15, 1, r0, c7, c11, 1		@ clean L2 line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
@@ -306,8 +297,6 @@ ENTRY(xsc3_dma_clean_range)
 ENTRY(xsc3_dma_flush_range)
 	bic	r0, r0, #CACHELINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean/invalidate L1 D line
-	mcr	p15, 1, r0, c7, c11, 1		@ clean L2 line
-	mcr	p15, 1, r0, c7, c7, 1		@ invalidate L2 line
 	add	r0, r0, #CACHELINESIZE
 	cmp	r0, r1
 	blo	1b
@@ -347,9 +336,7 @@ ENTRY(cpu_xsc3_switch_mm)
 	mcr	p15, 0, ip, c7, c5, 0		@ invalidate L1 I cache and BTB
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
 	mcr	p15, 0, ip, c7, c5, 4		@ prefetch flush
-#ifdef L2_CACHE_ENABLE
 	orr	r0, r0, #0x18			@ cache the page table in L2
-#endif
 	mcr	p15, 0, r0, c2, c0, 0		@ load page table pointer
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
 	cpwait_ret lr, ip
@@ -378,12 +365,10 @@ ENTRY(cpu_xsc3_set_pte_ext)
 	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
 						@ combined with user -> user r/w
 
-#if L2_CACHE_ENABLE
 	@ If it's cacheable, it needs to be in L2 also.
 	eor	ip, r1, #L_PTE_CACHEABLE
 	tst	ip, #L_PTE_CACHEABLE
 	orreq	r2, r2, #PTE_EXT_TEX(0x5)
-#endif
 
 	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
 	movne	r2, #0				@ no -> fault
@@ -408,9 +393,7 @@ __xsc3_setup:
 	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
 	mcr	p15, 0, ip, c7, c5, 4		@ prefetch flush
 	mcr	p15, 0, ip, c8, c7, 0		@ invalidate I and D TLBs
-#if L2_CACHE_ENABLE
 	orr	r4, r4, #0x18			@ cache the page table in L2
-#endif
 	mcr	p15, 0, r4, c2, c0, 0		@ load page table pointer
 
 	mov	r0, #0				@ don't allow CP access
@@ -418,9 +401,7 @@ __xsc3_setup:
 
 	mrc	p15, 0, r0, c1, c0, 1		@ get auxiliary control reg
 	and	r0, r0, #2			@ preserve bit P bit setting
-#if L2_CACHE_ENABLE
 	orr	r0, r0, #(1 << 10)		@ enable L2 for LLR cache
-#endif
 	mcr	p15, 0, r0, c1, c0, 1		@ set auxiliary control reg
 
 	adr	r5, xsc3_crval
@@ -429,9 +410,6 @@ __xsc3_setup:
 	bic	r0, r0, r5			@ ..V. ..R. .... ..A.
 	orr	r0, r0, r6			@ ..VI Z..S .... .C.M (mmu)
 						@ ...I Z..S .... .... (uc)
-#if L2_CACHE_ENABLE
-	orr 	r0, r0, #0x04000000		@ L2 enable
-#endif
 	mov	pc, lr
 
 	.size	__xsc3_setup, . - __xsc3_setup

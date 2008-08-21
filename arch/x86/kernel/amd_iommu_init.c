@@ -732,7 +732,7 @@ static int __init init_exclusion_range(struct ivmd_header *m)
 		set_device_exclusion_range(m->devid, m);
 		break;
 	case ACPI_IVMD_TYPE_ALL:
-		for (i = 0; i < amd_iommu_last_bdf; ++i)
+		for (i = 0; i <= amd_iommu_last_bdf; ++i)
 			set_device_exclusion_range(i, m);
 		break;
 	case ACPI_IVMD_TYPE_RANGE:
@@ -798,6 +798,21 @@ static int __init init_memory_definitions(struct acpi_table_header *table)
 	}
 
 	return 0;
+}
+
+/*
+ * Init the device table to not allow DMA access for devices and
+ * suppress all page faults
+ */
+static void init_device_table(void)
+{
+	u16 devid;
+
+	for (devid = 0; devid <= amd_iommu_last_bdf; ++devid) {
+		set_dev_entry_bit(devid, DEV_ENTRY_VALID);
+		set_dev_entry_bit(devid, DEV_ENTRY_TRANSLATION);
+		set_dev_entry_bit(devid, DEV_ENTRY_NO_PAGE_FAULT);
+	}
 }
 
 /*
@@ -931,10 +946,13 @@ int __init amd_iommu_init(void)
 	if (amd_iommu_pd_alloc_bitmap == NULL)
 		goto free;
 
+	/* init the device table */
+	init_device_table();
+
 	/*
 	 * let all alias entries point to itself
 	 */
-	for (i = 0; i < amd_iommu_last_bdf; ++i)
+	for (i = 0; i <= amd_iommu_last_bdf; ++i)
 		amd_iommu_alias_table[i] = i;
 
 	/*
@@ -954,15 +972,15 @@ int __init amd_iommu_init(void)
 	if (acpi_table_parse("IVRS", init_memory_definitions) != 0)
 		goto free;
 
-	ret = amd_iommu_init_dma_ops();
-	if (ret)
-		goto free;
-
 	ret = sysdev_class_register(&amd_iommu_sysdev_class);
 	if (ret)
 		goto free;
 
 	ret = sysdev_register(&device_amd_iommu);
+	if (ret)
+		goto free;
+
+	ret = amd_iommu_init_dma_ops();
 	if (ret)
 		goto free;
 

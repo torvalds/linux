@@ -162,7 +162,7 @@ paging_init(void)
 	 * substantially higher than 0, like us (we start at PAGE_OFFSET). This
 	 * saves space in the mem_map page array.
 	 */
-	free_area_init_node(0, &contig_page_data, zones_size, PAGE_OFFSET >> PAGE_SHIFT, 0);
+	free_area_init_node(0, zones_size, PAGE_OFFSET >> PAGE_SHIFT, 0);
 
 	mem_map = contig_page_data.node_mem_map;
 }

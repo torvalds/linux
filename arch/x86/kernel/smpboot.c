@@ -326,12 +326,16 @@ static void __cpuinit start_secondary(void *unused)
 	 * for which cpus receive the IPI. Holding this
 	 * lock helps us to not include this cpu in a currently in progress
 	 * smp_call_function().
+	 *
+	 * We need to hold vector_lock so there the set of online cpus
+	 * does not change while we are assigning vectors to cpus.  Holding
+	 * this lock ensures we don't half assign or remove an irq from a cpu.
 	 */
 	ipi_call_lock_irq();
-#ifdef CONFIG_X86_IO_APIC
-	setup_vector_irq(smp_processor_id());
-#endif
+	lock_vector_lock();
+	__setup_vector_irq(smp_processor_id());
 	cpu_set(smp_processor_id(), cpu_online_map);
+	unlock_vector_lock();
 	ipi_call_unlock_irq();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
@@ -438,7 +442,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 	cpu_set(cpu, cpu_sibling_setup_map);
 
 	if (smp_num_siblings > 1) {
-		for_each_cpu_mask(i, cpu_sibling_setup_map) {
+		for_each_cpu_mask_nr(i, cpu_sibling_setup_map) {
 			if (c->phys_proc_id == cpu_data(i).phys_proc_id &&
 			    c->cpu_core_id == cpu_data(i).cpu_core_id) {
 				cpu_set(i, per_cpu(cpu_sibling_map, cpu));
@@ -461,7 +465,7 @@ void __cpuinit set_cpu_sibling_map(int cpu)
 		return;
 	}
 
-	for_each_cpu_mask(i, cpu_sibling_setup_map) {
+	for_each_cpu_mask_nr(i, cpu_sibling_setup_map) {
 		if (per_cpu(cpu_llc_id, cpu) != BAD_APICID &&
 		    per_cpu(cpu_llc_id, cpu) == per_cpu(cpu_llc_id, i)) {
 			cpu_set(i, c->llc_shared_map);
@@ -752,6 +756,14 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 }
 
 #ifdef CONFIG_X86_64
+
+/* __ref because it's safe to call free_bootmem when after_bootmem == 0. */
+static void __ref free_bootmem_pda(struct x8664_pda *oldpda)
+{
+	if (!after_bootmem)
+		free_bootmem((unsigned long)oldpda, sizeof(*oldpda));
+}
+
 /*
  * Allocate node local memory for the AP pda.
  *
@@ -780,8 +792,7 @@ int __cpuinit get_local_pda(int cpu)
 
 	if (oldpda) {
 		memcpy(newpda, oldpda, size);
-		if (!after_bootmem)
-			free_bootmem((unsigned long)oldpda, size);
+		free_bootmem_pda(oldpda);
 	}
 
 	newpda->in_bootmem = 0;
@@ -1044,6 +1055,34 @@ static __init void disable_smp(void)
 static int __init smp_sanity_check(unsigned max_cpus)
 {
 	preempt_disable();
+
+#if defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
+	if (def_to_bigsmp && nr_cpu_ids > 8) {
+		unsigned int cpu;
+		unsigned nr;
+
+		printk(KERN_WARNING
+		       "More than 8 CPUs detected - skipping them.\n"
+		       "Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+
+		nr = 0;
+		for_each_present_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_present_map);
+			nr++;
+		}
+
+		nr = 0;
+		for_each_possible_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_possible_map);
+			nr++;
+		}
+
+		nr_cpu_ids = 8;
+	}
+#endif
+
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
 				    "by the BIOS.\n", hard_smp_processor_id());
@@ -1219,7 +1258,7 @@ static void remove_siblinginfo(int cpu)
 	int sibling;
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 
-	for_each_cpu_mask(sibling, per_cpu(cpu_core_map, cpu)) {
+	for_each_cpu_mask_nr(sibling, per_cpu(cpu_core_map, cpu)) {
 		cpu_clear(cpu, per_cpu(cpu_core_map, sibling));
 		/*/
 		 * last thread sibling in this cpu core going down
@@ -1228,7 +1267,7 @@ static void remove_siblinginfo(int cpu)
 			cpu_data(sibling).booted_cores--;
 	}
 
-	for_each_cpu_mask(sibling, per_cpu(cpu_sibling_map, cpu))
+	for_each_cpu_mask_nr(sibling, per_cpu(cpu_sibling_map, cpu))
 		cpu_clear(cpu, per_cpu(cpu_sibling_map, sibling));
 	cpus_clear(per_cpu(cpu_sibling_map, cpu));
 	cpus_clear(per_cpu(cpu_core_map, cpu));
@@ -1336,7 +1375,9 @@ int __cpu_disable(void)
 	remove_siblinginfo(cpu);
 
 	/* It's now safe to remove this processor from the online map */
+	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
+	unlock_vector_lock();
 	fixup_irqs(cpu_online_map);
 	return 0;
 }
@@ -1370,17 +1411,3 @@ void __cpu_die(unsigned int cpu)
 	BUG();
 }
 #endif
-
-/*
- * If the BIOS enumerates physical processors before logical,
- * maxcpus=N at enumeration-time can be used to disable HT.
- */
-static int __init parse_maxcpus(char *arg)
-{
-	extern unsigned int maxcpus;
-
-	if (arg)
-		maxcpus = simple_strtoul(arg, NULL, 0);
-	return 0;
-}
-early_param("maxcpus", parse_maxcpus);

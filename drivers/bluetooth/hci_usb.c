@@ -62,7 +62,6 @@
 #define URB_ZERO_PACKET 0
 #endif
 
-static int ignore;
 static int ignore_dga;
 static int ignore_csr;
 static int ignore_sniffer;
@@ -74,7 +73,7 @@ static int reset;
 static int isoc = 2;
 #endif
 
-#define VERSION "2.9"
+#define VERSION "2.10"
 
 static struct usb_driver hci_usb_driver; 
 
@@ -134,6 +133,13 @@ static struct usb_device_id blacklist_ids[] = {
 
 	/* Dell laptop with Broadcom chip */
 	{ USB_DEVICE(0x413c, 0x8126), .driver_info = HCI_RESET | HCI_WRONG_SCO_MTU },
+	/* Dell Wireless 370 */
+	{ USB_DEVICE(0x413c, 0x8156), .driver_info = HCI_RESET | HCI_WRONG_SCO_MTU },
+	/* Dell Wireless 410 */
+	{ USB_DEVICE(0x413c, 0x8152), .driver_info = HCI_RESET | HCI_WRONG_SCO_MTU },
+
+	/* Broadcom 2046 */
+	{ USB_DEVICE(0x0a5c, 0x2151), .driver_info = HCI_RESET },
 
 	/* Microsoft Wireless Transceiver for Bluetooth 2.0 */
 	{ USB_DEVICE(0x045e, 0x009c), .driver_info = HCI_RESET },
@@ -794,7 +800,7 @@ static int hci_usb_probe(struct usb_interface *intf, const struct usb_device_id 
 			id = match;
 	}
 
-	if (ignore || id->driver_info & HCI_IGNORE)
+	if (id->driver_info & HCI_IGNORE)
 		return -ENODEV;
 
 	if (ignore_dga && id->driver_info & HCI_DIGIANSWER)
@@ -1101,9 +1107,6 @@ static void __exit hci_usb_exit(void)
 module_init(hci_usb_init);
 module_exit(hci_usb_exit);
 
-module_param(ignore, bool, 0644);
-MODULE_PARM_DESC(ignore, "Ignore devices from the matching table");
-
 module_param(ignore_dga, bool, 0644);
 MODULE_PARM_DESC(ignore_dga, "Ignore devices with id 08fd:0001");
 
@@ -1127,7 +1130,7 @@ module_param(isoc, int, 0644);
 MODULE_PARM_DESC(isoc, "Set isochronous transfers for SCO over HCI support");
 #endif
 
-MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth HCI USB driver ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

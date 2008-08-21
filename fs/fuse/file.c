@@ -893,7 +893,7 @@ static ssize_t fuse_file_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	if (count == 0)
 		goto out;
 
-	err = remove_suid(file->f_path.dentry);
+	err = file_remove_suid(file);
 	if (err)
 		goto out;
 
@@ -1341,6 +1341,11 @@ static int fuse_setlk(struct file *file, struct file_lock *fl, int flock)
 	pid_t pid = fl->fl_type != F_UNLCK ? current->tgid : 0;
 	int err;
 
+	if (fl->fl_lmops && fl->fl_lmops->fl_grant) {
+		/* NLM needs asynchronous locks, which we don't support yet */
+		return -ENOLCK;
+	}
+
 	/* Unlock on close is handled by the flush method */
 	if (fl->fl_flags & FL_CLOSE)
 		return 0;
@@ -1365,7 +1370,9 @@ static int fuse_file_lock(struct file *file, int cmd, struct file_lock *fl)
 	struct fuse_conn *fc = get_fuse_conn(inode);
 	int err;
 
-	if (cmd == F_GETLK) {
+	if (cmd == F_CANCELLK) {
+		err = 0;
+	} else if (cmd == F_GETLK) {
 		if (fc->no_lock) {
 			posix_test_lock(file, fl);
 			err = 0;
@@ -1373,7 +1380,7 @@ static int fuse_file_lock(struct file *file, int cmd, struct file_lock *fl)
 			err = fuse_getlk(file, fl);
 	} else {
 		if (fc->no_lock)
-			err = posix_lock_file_wait(file, fl);
+			err = posix_lock_file(file, fl, NULL);
 		else
 			err = fuse_setlk(file, fl, 0);
 	}

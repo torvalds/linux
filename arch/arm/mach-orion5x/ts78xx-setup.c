@@ -18,7 +18,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -256,6 +256,7 @@ static void __init ts78xx_init(void)
 	orion5x_sata_init(&ts78xx_sata_data);
 	orion5x_uart0_init();
 	orion5x_uart1_init();
+	orion5x_xor_init();
 
 	orion5x_setup_dev_boot_win(TS78XX_NOR_BOOT_BASE,
 				   TS78XX_NOR_BOOT_SIZE);

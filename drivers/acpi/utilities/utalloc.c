@@ -242,6 +242,12 @@ acpi_ut_initialize_buffer(struct acpi_buffer * buffer,
 {
 	acpi_status status = AE_OK;
 
+	/* Parameter validation */
+
+	if (!buffer || !required_length) {
+		return (AE_BAD_PARAMETER);
+	}
+
 	switch (buffer->length) {
 	case ACPI_NO_BUFFER:
 

@@ -2,8 +2,6 @@
  * Flash memory access on SA11x0 based devices
  *
  * (C) 2000 Nicolas Pitre <nico@cam.org>
- *
- * $Id: sa1100-flash.c,v 1.51 2005/11/07 11:14:28 gleixner Exp $
  */
 #include <linux/module.h>
 #include <linux/types.h>
@@ -20,7 +18,7 @@
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/concat.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/sizes.h>
 #include <asm/mach/flash.h>

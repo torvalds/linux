@@ -30,7 +30,7 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 #include <asm/delay.h>
@@ -39,9 +39,9 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/system-reset.h>
+#include <mach/system-reset.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 #include <asm/plat-s3c/regs-serial.h>
 
 #include <asm/plat-s3c24xx/cpu.h>
@@ -169,9 +169,7 @@ static struct map_desc s3c_iodesc[] __initdata = {
 	IODESC_ENT(UART)
 };
 
-
-static struct cpu_table *
-s3c_lookup_cpu(unsigned long idcode)
+static struct cpu_table * __init s3c_lookup_cpu(unsigned long idcode)
 {
 	struct cpu_table *tab;
 	int count;

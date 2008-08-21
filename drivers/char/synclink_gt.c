@@ -47,7 +47,6 @@
 
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/errno.h>
 #include <linux/signal.h>
 #include <linux/sched.h>
@@ -128,17 +127,14 @@ static int slgt_device_count;
 static int ttymajor;
 static int debug_level;
 static int maxframe[MAX_DEVICES];
-static int dosyncppp[MAX_DEVICES];
 
 module_param(ttymajor, int, 0);
 module_param(debug_level, int, 0);
 module_param_array(maxframe, int, NULL, 0);
-module_param_array(dosyncppp, int, NULL, 0);
 
 MODULE_PARM_DESC(ttymajor, "TTY major device number override: 0=auto assigned");
 MODULE_PARM_DESC(debug_level, "Debug syslog output: 0=disabled, 1 to 5=increasing detail");
 MODULE_PARM_DESC(maxframe, "Maximum frame size used by device (4096 to 65535)");
-MODULE_PARM_DESC(dosyncppp, "Enable synchronous net device, 0=disable 1=enable");
 
 /*
  * tty support and callbacks
@@ -165,7 +161,7 @@ static int  read_proc(char *page, char **start, off_t off, int count,int *eof, v
 static int  chars_in_buffer(struct tty_struct *tty);
 static void throttle(struct tty_struct * tty);
 static void unthrottle(struct tty_struct * tty);
-static void set_break(struct tty_struct *tty, int break_state);
+static int set_break(struct tty_struct *tty, int break_state);
 
 /*
  * generic HDLC support and callbacks
@@ -214,6 +210,7 @@ struct slgt_desc
 	char *buf;          /* virtual  address of data buffer */
     	unsigned int pdesc; /* physical address of this descriptor */
 	dma_addr_t buf_dma_addr;
+	unsigned short buf_count;
 };
 
 #define set_desc_buffer(a,b) (a).pbuf = cpu_to_le32((unsigned int)(b))
@@ -302,7 +299,7 @@ struct slgt_info {
 	u32 idle_mode;
 	u32 max_frame_size;       /* as set by device config */
 
-	unsigned int raw_rx_size;
+	unsigned int rbuf_fill_level;
 	unsigned int if_mode;
 
 	/* device status */
@@ -348,7 +345,6 @@ struct slgt_info {
 	/* SPPP/Cisco HDLC device parts */
 
 	int netcount;
-	int dosyncppp;
 	spinlock_t netlock;
 #if SYNCLINK_GENERIC_HDLC
 	struct net_device *netdev;
@@ -466,6 +462,7 @@ static void tx_start(struct slgt_info *info);
 static void tx_stop(struct slgt_info *info);
 static void tx_set_idle(struct slgt_info *info);
 static unsigned int free_tbuf_count(struct slgt_info *info);
+static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
 static void tdma_start(struct slgt_info *info);
@@ -513,7 +510,7 @@ static int  wait_mgsl_event(struct slgt_info *info, int __user *mask_ptr);
 static int  tiocmget(struct tty_struct *tty, struct file *file);
 static int  tiocmset(struct tty_struct *tty, struct file *file,
 		     unsigned int set, unsigned int clear);
-static void set_break(struct tty_struct *tty, int break_state);
+static int set_break(struct tty_struct *tty, int break_state);
 static int  get_interface(struct slgt_info *info, int __user *if_mode);
 static int  set_interface(struct slgt_info *info, int if_mode);
 static int  set_gpio(struct slgt_info *info, struct gpio_desc __user *gpio);
@@ -849,6 +846,7 @@ static int write(struct tty_struct *tty,
 	int ret = 0;
 	struct slgt_info *info = tty->driver_data;
 	unsigned long flags;
+	unsigned int bufs_needed;
 
 	if (sanity_check(info, tty->name, "write"))
 		goto cleanup;
@@ -865,25 +863,16 @@ static int write(struct tty_struct *tty,
 	if (!count)
 		goto cleanup;
 
-	if (info->params.mode == MGSL_MODE_RAW ||
-	    info->params.mode == MGSL_MODE_MONOSYNC ||
-	    info->params.mode == MGSL_MODE_BISYNC) {
-		unsigned int bufs_needed = (count/DMABUFSIZE);
-		unsigned int bufs_free = free_tbuf_count(info);
-		if (count % DMABUFSIZE)
-			++bufs_needed;
-		if (bufs_needed > bufs_free)
-			goto cleanup;
-	} else {
-		if (info->tx_active)
-			goto cleanup;
-		if (info->tx_count) {
-			/* send accumulated data from send_char() calls */
-			/* as frame and wait before accepting more data. */
-			tx_load(info, info->tx_buf, info->tx_count);
-			goto start;
-		}
+	if (!info->tx_active && info->tx_count) {
+		/* send accumulated data from send_char() */
+		tx_load(info, info->tx_buf, info->tx_count);
+		goto start;
 	}
+	bufs_needed = (count/DMABUFSIZE);
+	if (count % DMABUFSIZE)
+		++bufs_needed;
+	if (bufs_needed > free_tbuf_count(info))
+		goto cleanup;
 
 	ret = info->tx_count = count;
 	tx_load(info, buf, count);
@@ -1396,10 +1385,12 @@ done:
 static int chars_in_buffer(struct tty_struct *tty)
 {
 	struct slgt_info *info = tty->driver_data;
+	int count;
 	if (sanity_check(info, tty->name, "chars_in_buffer"))
 		return 0;
-	DBGINFO(("%s chars_in_buffer()=%d\n", info->device_name, info->tx_count));
-	return info->tx_count;
+	count = tbuf_bytes(info);
+	DBGINFO(("%s chars_in_buffer()=%d\n", info->device_name, count));
+	return count;
 }
 
 /*
@@ -1452,14 +1443,14 @@ static void unthrottle(struct tty_struct * tty)
  * set or clear transmit break condition
  * break_state	-1=set break condition, 0=clear
  */
-static void set_break(struct tty_struct *tty, int break_state)
+static int set_break(struct tty_struct *tty, int break_state)
 {
 	struct slgt_info *info = tty->driver_data;
 	unsigned short value;
 	unsigned long flags;
 
 	if (sanity_check(info, tty->name, "set_break"))
-		return;
+		return -EINVAL;
 	DBGINFO(("%s set_break(%d)\n", info->device_name, break_state));
 
 	spin_lock_irqsave(&info->lock,flags);
@@ -1470,6 +1461,7 @@ static void set_break(struct tty_struct *tty, int break_state)
 		value &= ~BIT6;
 	wr_reg16(info, TCR, value);
 	spin_unlock_irqrestore(&info->lock,flags);
+	return 0;
 }
 
 #if SYNCLINK_GENERIC_HDLC
@@ -2679,8 +2671,31 @@ static int tx_abort(struct slgt_info *info)
 static int rx_enable(struct slgt_info *info, int enable)
 {
  	unsigned long flags;
-	DBGINFO(("%s rx_enable(%d)\n", info->device_name, enable));
+	unsigned int rbuf_fill_level;
+	DBGINFO(("%s rx_enable(%08x)\n", info->device_name, enable));
 	spin_lock_irqsave(&info->lock,flags);
+	/*
+	 * enable[31..16] = receive DMA buffer fill level
+	 * 0 = noop (leave fill level unchanged)
+	 * fill level must be multiple of 4 and <= buffer size
+	 */
+	rbuf_fill_level = ((unsigned int)enable) >> 16;
+	if (rbuf_fill_level) {
+		if ((rbuf_fill_level > DMABUFSIZE) || (rbuf_fill_level % 4)) {
+			spin_unlock_irqrestore(&info->lock, flags);
+			return -EINVAL;
+		}
+		info->rbuf_fill_level = rbuf_fill_level;
+		rx_stop(info); /* restart receiver to use new fill level */
+	}
+
+	/*
+	 * enable[1..0] = receiver enable command
+	 * 0 = disable
+	 * 1 = enable
+	 * 2 = enable or force hunt mode if already enabled
+	 */
+	enable &= 3;
 	if (enable) {
 		if (!info->rx_enabled)
 			rx_start(info);
@@ -3385,7 +3400,6 @@ static void add_device(struct slgt_info *info)
 	if (info->line < MAX_DEVICES) {
 		if (maxframe[info->line])
 			info->max_frame_size = maxframe[info->line];
-		info->dosyncppp = dosyncppp[info->line];
 	}
 
 	slgt_device_count++;
@@ -3447,7 +3461,7 @@ static struct slgt_info *alloc_dev(int adapter_num, int port_num, struct pci_dev
 		info->magic = MGSL_MAGIC;
 		INIT_WORK(&info->task, bh_handler);
 		info->max_frame_size = 4096;
-		info->raw_rx_size = DMABUFSIZE;
+		info->rbuf_fill_level = DMABUFSIZE;
 		info->port.close_delay = 5*HZ/10;
 		info->port.closing_wait = 30*HZ;
 		init_waitqueue_head(&info->status_event_wait_q);
@@ -3934,15 +3948,7 @@ static void tdma_start(struct slgt_info *info)
 
 	/* set 1st descriptor address */
 	wr_reg32(info, TDDAR, info->tbufs[info->tbuf_start].pdesc);
-	switch(info->params.mode) {
-	case MGSL_MODE_RAW:
-	case MGSL_MODE_MONOSYNC:
-	case MGSL_MODE_BISYNC:
-		wr_reg32(info, TDCSR, BIT2 + BIT0); /* IRQ + DMA enable */
-		break;
-	default:
-		wr_reg32(info, TDCSR, BIT0); /* DMA enable */
-	}
+	wr_reg32(info, TDCSR, BIT2 + BIT0); /* IRQ + DMA enable */
 }
 
 static void tx_stop(struct slgt_info *info)
@@ -4145,7 +4151,7 @@ static void sync_mode(struct slgt_info *info)
 	 * 01      enable
 	 * 00      auto-CTS enable
 	 */
-	val = 0;
+	val = BIT2;
 
 	switch(info->params.mode) {
 	case MGSL_MODE_MONOSYNC: val |= BIT14 + BIT13; break;
@@ -4418,6 +4424,8 @@ static void msc_set_vcr(struct slgt_info *info)
 		break;
 	}
 
+	if (info->if_mode & MGSL_INTERFACE_MSB_FIRST)
+		val |= BIT4;
 	if (info->signals & SerialSignal_DTR)
 		val |= BIT3;
 	if (info->signals & SerialSignal_RTS)
@@ -4456,16 +4464,7 @@ static void free_rbufs(struct slgt_info *info, unsigned int i, unsigned int last
 	while(!done) {
 		/* reset current buffer for reuse */
 		info->rbufs[i].status = 0;
-		switch(info->params.mode) {
-		case MGSL_MODE_RAW:
-		case MGSL_MODE_MONOSYNC:
-		case MGSL_MODE_BISYNC:
-			set_desc_count(info->rbufs[i], info->raw_rx_size);
-			break;
-		default:
-			set_desc_count(info->rbufs[i], DMABUFSIZE);
-		}
-
+		set_desc_count(info->rbufs[i], info->rbuf_fill_level);
 		if (i == last)
 			done = 1;
 		if (++i == info->rbuf_count)
@@ -4572,7 +4571,7 @@ check_again:
 
 	DBGBH(("%s rx frame status=%04X size=%d\n",
 		info->device_name, status, framesize));
-	DBGDATA(info, info->rbufs[start].buf, min_t(int, framesize, DMABUFSIZE), "rx");
+	DBGDATA(info, info->rbufs[start].buf, min_t(int, framesize, info->rbuf_fill_level), "rx");
 
 	if (framesize) {
 		if (!(info->params.crc_type & HDLC_CRC_RETURN_EX)) {
@@ -4592,7 +4591,7 @@ check_again:
 			info->icount.rxok++;
 
 			while(copy_count) {
-				int partial_count = min(copy_count, DMABUFSIZE);
+				int partial_count = min_t(int, copy_count, info->rbuf_fill_level);
 				memcpy(p, info->rbufs[i].buf, partial_count);
 				p += partial_count;
 				copy_count -= partial_count;
@@ -4684,6 +4683,56 @@ static unsigned int free_tbuf_count(struct slgt_info *info)
 }
 
 /*
+ * return number of bytes in unsent transmit DMA buffers
+ * and the serial controller tx FIFO
+ */
+static unsigned int tbuf_bytes(struct slgt_info *info)
+{
+	unsigned int total_count = 0;
+	unsigned int i = info->tbuf_current;
+	unsigned int reg_value;
+	unsigned int count;
+	unsigned int active_buf_count = 0;
+
+	/*
+	 * Add descriptor counts for all tx DMA buffers.
+	 * If count is zero (cleared by DMA controller after read),
+	 * the buffer is complete or is actively being read from.
+	 *
+	 * Record buf_count of last buffer with zero count starting
+	 * from current ring position. buf_count is mirror
+	 * copy of count and is not cleared by serial controller.
+	 * If DMA controller is active, that buffer is actively
+	 * being read so add to total.
+	 */
+	do {
+		count = desc_count(info->tbufs[i]);
+		if (count)
+			total_count += count;
+		else if (!total_count)
+			active_buf_count = info->tbufs[i].buf_count;
+		if (++i == info->tbuf_count)
+			i = 0;
+	} while (i != info->tbuf_current);
+
+	/* read tx DMA status register */
+	reg_value = rd_reg32(info, TDCSR);
+
+	/* if tx DMA active, last zero count buffer is in use */
+	if (reg_value & BIT0)
+		total_count += active_buf_count;
+
+	/* add tx FIFO count = reg_value[15..8] */
+	total_count += (reg_value >> 8) & 0xff;
+
+	/* if transmitter active add one byte for shift register */
+	if (info->tx_active)
+		total_count++;
+
+	return total_count;
+}
+
+/*
  * load transmit DMA buffer(s) with data
  */
 static void tx_load(struct slgt_info *info, const char *buf, unsigned int size)
@@ -4721,6 +4770,7 @@ static void tx_load(struct slgt_info *info, const char *buf, unsigned int size)
 			set_desc_eof(*d, 0);
 
 		set_desc_count(*d, count);
+		d->buf_count = count;
 	}
 
 	info->tbuf_current = i;

@@ -98,7 +98,7 @@ static void uv_send_IPI_mask(cpumask_t mask, int vector)
 {
 	unsigned int cpu;
 
-	for (cpu = 0; cpu < NR_CPUS; ++cpu)
+	for_each_possible_cpu(cpu)
 		if (cpu_isset(cpu, mask))
 			uv_send_IPI_one(cpu, vector);
 }
@@ -132,7 +132,7 @@ static unsigned int uv_cpu_mask_to_apicid(cpumask_t cpumask)
 	 * May as well be the first.
 	 */
 	cpu = first_cpu(cpumask);
-	if ((unsigned)cpu < NR_CPUS)
+	if ((unsigned)cpu < nr_cpu_ids)
 		return per_cpu(x86_cpu_to_apicid, cpu);
 	else
 		return BAD_APICID;
@@ -222,7 +222,7 @@ static __init void map_low_mmrs(void)
 
 enum map_type {map_wb, map_uc};
 
-static void map_high(char *id, unsigned long base, int shift, enum map_type map_type)
+static __init void map_high(char *id, unsigned long base, int shift, enum map_type map_type)
 {
 	unsigned long bytes, paddr;
 

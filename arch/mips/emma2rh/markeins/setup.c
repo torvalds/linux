@@ -27,7 +27,6 @@
 #include <linux/types.h>
 #include <linux/initrd.h>
 #include <linux/irq.h>
-#include <linux/ide.h>
 #include <linux/ioport.h>
 #include <linux/param.h>	/* for HZ */
 #include <linux/root_dev.h>
@@ -41,7 +40,6 @@
 #include <asm/bcache.h>
 #include <asm/irq.h>
 #include <asm/reboot.h>
-#include <asm/gdb-stub.h>
 #include <asm/traps.h>
 #include <asm/debug.h>
 

@@ -21,6 +21,8 @@
 #include <linux/init.h>
 #include <linux/ide.h>
 
+#define DRV_NAME "amd74xx"
+
 enum {
 	AMD_IDE_CONFIG		= 0x41,
 	AMD_CABLE_DETECT	= 0x42,
@@ -110,15 +112,13 @@ static void amd_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	amd_set_drive(drive, XFER_PIO_0 + pio);
 }
 
-static void __devinit amd7409_cable_detect(struct pci_dev *dev,
-					   const char *name)
+static void __devinit amd7409_cable_detect(struct pci_dev *dev)
 {
 	/* no host side cable detection */
 	amd_80w = 0x03;
 }
 
-static void __devinit amd7411_cable_detect(struct pci_dev *dev,
-					   const char *name)
+static void __devinit amd7411_cable_detect(struct pci_dev *dev)
 {
 	int i;
 	u32 u = 0;
@@ -129,9 +129,9 @@ static void __devinit amd7411_cable_detect(struct pci_dev *dev,
 	amd_80w = ((t & 0x3) ? 1 : 0) | ((t & 0xc) ? 2 : 0);
 	for (i = 24; i >= 0; i -= 8)
 		if (((u >> i) & 4) && !(amd_80w & (1 << (1 - (i >> 4))))) {
-			printk(KERN_WARNING "%s: BIOS didn't set cable bits "
-					    "correctly. Enabling workaround.\n",
-					    name);
+			printk(KERN_WARNING DRV_NAME " %s: BIOS didn't set "
+				"cable bits correctly. Enabling workaround.\n",
+				pci_name(dev));
 			amd_80w |= (1 << (1 - (i >> 4)));
 		}
 }
@@ -140,8 +140,7 @@ static void __devinit amd7411_cable_detect(struct pci_dev *dev,
  * The initialization callback.  Initialize drive independent registers.
  */
 
-static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
-						   const char *name)
+static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev)
 {
 	u8 t = 0, offset = amd_offset(dev);
 
@@ -154,9 +153,9 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
 		; /* no UDMA > 2 */
 	else if (dev->vendor == PCI_VENDOR_ID_AMD &&
 		 dev->device == PCI_DEVICE_ID_AMD_VIPER_7409)
-		amd7409_cable_detect(dev, name);
+		amd7409_cable_detect(dev);
 	else
-		amd7411_cable_detect(dev, name);
+		amd7411_cable_detect(dev);
 
 /*
  * Take care of prefetch & postwrite.
@@ -173,28 +172,10 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev,
 		t |= 0xf0;
 	pci_write_config_byte(dev, AMD_IDE_CONFIG + offset, t);
 
-/*
- * Determine the system bus clock.
- */
-
-	amd_clock = (ide_pci_clk ? ide_pci_clk : 33) * 1000;
-
-	switch (amd_clock) {
-		case 33000: amd_clock = 33333; break;
-		case 37000: amd_clock = 37500; break;
-		case 41000: amd_clock = 41666; break;
-	}
-
-	if (amd_clock < 20000 || amd_clock > 50000) {
-		printk(KERN_WARNING "%s: User given PCI clock speed impossible (%d), using 33 MHz instead.\n",
-				    name, amd_clock);
-		amd_clock = 33333;
-	}
-
 	return dev->irq;
 }
 
-static u8 __devinit amd_cable_detect(ide_hwif_t *hwif)
+static u8 amd_cable_detect(ide_hwif_t *hwif)
 {
 	if ((amd_80w >> hwif->channel) & 1)
 		return ATA_CBL_PATA80;
@@ -218,14 +199,13 @@ static const struct ide_port_ops amd_port_ops = {
 
 #define IDE_HFLAGS_AMD \
 	(IDE_HFLAG_PIO_NO_BLACKLIST | \
-	 IDE_HFLAG_ABUSE_SET_DMA_MODE | \
 	 IDE_HFLAG_POST_SET_MODE | \
 	 IDE_HFLAG_IO_32BIT | \
 	 IDE_HFLAG_UNMASK_IRQS)
 
-#define DECLARE_AMD_DEV(name_str, swdma, udma)				\
+#define DECLARE_AMD_DEV(swdma, udma)				\
 	{								\
-		.name		= name_str,				\
+		.name		= DRV_NAME,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x40,0x02,0x02}, {0x40,0x01,0x01}},	\
@@ -237,9 +217,9 @@ static const struct ide_port_ops amd_port_ops = {
 		.udma_mask	= udma,					\
 	}
 
-#define DECLARE_NV_DEV(name_str, udma)					\
+#define DECLARE_NV_DEV(udma)					\
 	{								\
-		.name		= name_str,				\
+		.name		= DRV_NAME,				\
 		.init_chipset	= init_chipset_amd74xx,			\
 		.init_hwif	= init_hwif_amd74xx,			\
 		.enablebits	= {{0x50,0x02,0x02}, {0x50,0x01,0x01}},	\
@@ -252,31 +232,15 @@ static const struct ide_port_ops amd_port_ops = {
 	}
 
 static const struct ide_port_info amd74xx_chipsets[] __devinitdata = {
-	/*  0 */ DECLARE_AMD_DEV("AMD7401",	  0x00, ATA_UDMA2),
-	/*  1 */ DECLARE_AMD_DEV("AMD7409", ATA_SWDMA2, ATA_UDMA4),
-	/*  2 */ DECLARE_AMD_DEV("AMD7411", ATA_SWDMA2, ATA_UDMA5),
-	/*  3 */ DECLARE_AMD_DEV("AMD7441", ATA_SWDMA2, ATA_UDMA5),
-	/*  4 */ DECLARE_AMD_DEV("AMD8111", ATA_SWDMA2, ATA_UDMA6),
+	/* 0: AMD7401 */	DECLARE_AMD_DEV(0x00, ATA_UDMA2),
+	/* 1: AMD7409 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA4),
+	/* 2: AMD7411/7441 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA5),
+	/* 3: AMD8111 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA6),
 
-	/*  5 */ DECLARE_NV_DEV("NFORCE",		ATA_UDMA5),
-	/*  6 */ DECLARE_NV_DEV("NFORCE2",		ATA_UDMA6),
-	/*  7 */ DECLARE_NV_DEV("NFORCE2-U400R",	ATA_UDMA6),
-	/*  8 */ DECLARE_NV_DEV("NFORCE2-U400R-SATA",	ATA_UDMA6),
-	/*  9 */ DECLARE_NV_DEV("NFORCE3-150",		ATA_UDMA6),
-	/* 10 */ DECLARE_NV_DEV("NFORCE3-250",		ATA_UDMA6),
-	/* 11 */ DECLARE_NV_DEV("NFORCE3-250-SATA",	ATA_UDMA6),
-	/* 12 */ DECLARE_NV_DEV("NFORCE3-250-SATA2",	ATA_UDMA6),
-	/* 13 */ DECLARE_NV_DEV("NFORCE-CK804",		ATA_UDMA6),
-	/* 14 */ DECLARE_NV_DEV("NFORCE-MCP04",		ATA_UDMA6),
-	/* 15 */ DECLARE_NV_DEV("NFORCE-MCP51",		ATA_UDMA6),
-	/* 16 */ DECLARE_NV_DEV("NFORCE-MCP55",		ATA_UDMA6),
-	/* 17 */ DECLARE_NV_DEV("NFORCE-MCP61",		ATA_UDMA6),
-	/* 18 */ DECLARE_NV_DEV("NFORCE-MCP65",		ATA_UDMA6),
-	/* 19 */ DECLARE_NV_DEV("NFORCE-MCP67",		ATA_UDMA6),
-	/* 20 */ DECLARE_NV_DEV("NFORCE-MCP73",		ATA_UDMA6),
-	/* 21 */ DECLARE_NV_DEV("NFORCE-MCP77",		ATA_UDMA6),
+	/* 4: NFORCE */		DECLARE_NV_DEV(ATA_UDMA5),
+	/* 5: >= NFORCE2 */	DECLARE_NV_DEV(ATA_UDMA6),
 
-	/* 22 */ DECLARE_AMD_DEV("AMD5536", ATA_SWDMA2, ATA_UDMA5),
+	/* 6: AMD5536 */	DECLARE_AMD_DEV(ATA_SWDMA2, ATA_UDMA5),
 };
 
 static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_id *id)
@@ -293,47 +257,64 @@ static int __devinit amd74xx_probe(struct pci_dev *dev, const struct pci_device_
 		if (dev->revision <= 7)
 			d.swdma_mask = 0;
 		d.host_flags |= IDE_HFLAG_CLEAR_SIMPLEX;
-	} else if (idx == 4) {
+	} else if (idx == 3) {
 		if (dev->subsystem_vendor == PCI_VENDOR_ID_AMD &&
 		    dev->subsystem_device == PCI_DEVICE_ID_AMD_SERENADE)
 			d.udma_mask = ATA_UDMA5;
 	}
 
-	printk(KERN_INFO "%s: %s (rev %02x) UDMA%s controller\n",
-			 d.name, pci_name(dev), dev->revision,
-			 amd_dma[fls(d.udma_mask) - 1]);
+	printk(KERN_INFO "%s %s: UDMA%s controller\n",
+		d.name, pci_name(dev), amd_dma[fls(d.udma_mask) - 1]);
 
-	return ide_setup_pci_device(dev, &d);
+	/*
+	* Determine the system bus clock.
+	*/
+	amd_clock = (ide_pci_clk ? ide_pci_clk : 33) * 1000;
+
+	switch (amd_clock) {
+	case 33000: amd_clock = 33333; break;
+	case 37000: amd_clock = 37500; break;
+	case 41000: amd_clock = 41666; break;
+	}
+
+	if (amd_clock < 20000 || amd_clock > 50000) {
+		printk(KERN_WARNING "%s: User given PCI clock speed impossible"
+				    " (%d), using 33 MHz instead.\n",
+				    d.name, amd_clock);
+		amd_clock = 33333;
+	}
+
+	return ide_pci_init_one(dev, &d, NULL);
 }
 
 static const struct pci_device_id amd74xx_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_COBRA_7401),		 0 },
 	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_VIPER_7409),		 1 },
 	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_VIPER_7411),		 2 },
-	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_OPUS_7441),		 3 },
-	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_8111_IDE),		 4 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_IDE),	 5 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE2_IDE),	 6 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE2S_IDE),	 7 },
+	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_OPUS_7441),		 2 },
+	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_8111_IDE),		 3 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_IDE),	 4 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE2_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE2S_IDE),	 5 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE2S_SATA),	 8 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE2S_SATA),	 5 },
 #endif
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3_IDE),	 9 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3S_IDE),	10 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3S_IDE),	 5 },
 #ifdef CONFIG_BLK_DEV_IDE_SATA
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA),	11 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA2),	12 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE3S_SATA2),	 5 },
 #endif
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_IDE),	13 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_IDE),	14 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_IDE),	15 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_IDE),	16 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_IDE),	17 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP65_IDE),	18 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP67_IDE),	19 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP73_IDE),	20 },
-	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP77_IDE),	21 },
-	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_CS5536_IDE),		22 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_CK804_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP04_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP51_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP55_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP61_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP65_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP67_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP73_IDE),	 5 },
+	{ PCI_VDEVICE(NVIDIA,	PCI_DEVICE_ID_NVIDIA_NFORCE_MCP77_IDE),	 5 },
+	{ PCI_VDEVICE(AMD,	PCI_DEVICE_ID_AMD_CS5536_IDE),		 6 },
 	{ 0, },
 };
 MODULE_DEVICE_TABLE(pci, amd74xx_pci_tbl);
@@ -342,6 +323,7 @@ static struct pci_driver driver = {
 	.name		= "AMD_IDE",
 	.id_table	= amd74xx_pci_tbl,
 	.probe		= amd74xx_probe,
+	.remove		= ide_pci_remove,
 };
 
 static int __init amd74xx_ide_init(void)
@@ -349,7 +331,13 @@ static int __init amd74xx_ide_init(void)
 	return ide_pci_register_driver(&driver);
 }
 
+static void __exit amd74xx_ide_exit(void)
+{
+	pci_unregister_driver(&driver);
+}
+
 module_init(amd74xx_ide_init);
+module_exit(amd74xx_ide_exit);
 
 MODULE_AUTHOR("Vojtech Pavlik");
 MODULE_DESCRIPTION("AMD PCI IDE driver");

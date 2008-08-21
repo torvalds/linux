@@ -259,6 +259,8 @@ static inline void *ioremap_nocache(unsigned long offset, unsigned long size)
 	return (void *) (offset | 0x20000000);
 }
 
+#define ioremap_wc ioremap_nocache
+
 static inline void iounmap(void *addr)
 {
 }

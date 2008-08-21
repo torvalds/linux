@@ -34,9 +34,9 @@
 /* How many pages do we try to swap or page in/out together? */
 int page_cluster;
 
-static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs) = { 0, };
-static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs) = { 0, };
-static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs) = { 0, };
+static DEFINE_PER_CPU(struct pagevec, lru_add_pvecs);
+static DEFINE_PER_CPU(struct pagevec, lru_add_active_pvecs);
+static DEFINE_PER_CPU(struct pagevec, lru_rotate_pvecs);
 
 /*
  * This path almost never happens for VM activity - pages are normally
@@ -278,9 +278,10 @@ int lru_add_drain_all(void)
  * Avoid taking zone->lru_lock if possible, but if it is taken, retain it
  * for the remainder of the operation.
  *
- * The locking in this function is against shrink_cache(): we recheck the
- * page count inside the lock to see whether shrink_cache grabbed the page
- * via the LRU.  If it did, give up: shrink_cache will free it.
+ * The locking in this function is against shrink_inactive_list(): we recheck
+ * the page count inside the lock to see whether shrink_inactive_list()
+ * grabbed the page via the LRU.  If it did, give up: shrink_inactive_list()
+ * will free it.
  */
 void release_pages(struct page **pages, int nr, int cold)
 {
@@ -443,7 +444,7 @@ void pagevec_strip(struct pagevec *pvec)
 	for (i = 0; i < pagevec_count(pvec); i++) {
 		struct page *page = pvec->pages[i];
 
-		if (PagePrivate(page) && !TestSetPageLocked(page)) {
+		if (PagePrivate(page) && trylock_page(page)) {
 			if (PagePrivate(page))
 				try_to_release_page(page, 0);
 			unlock_page(page);
@@ -493,7 +494,7 @@ EXPORT_SYMBOL(pagevec_lookup_tag);
  */
 #define ACCT_THRESHOLD	max(16, NR_CPUS * 2)
 
-static DEFINE_PER_CPU(long, committed_space) = 0;
+static DEFINE_PER_CPU(long, committed_space);
 
 void vm_acct_memory(long pages)
 {

@@ -6,6 +6,7 @@
  (c) 2008 Devin Heitmueller <devin.heitmueller@gmail.com>
 	- Fixes for the driver to properly work with HVR-950
 	- Fixes for the driver to properly work with Pinnacle PCTV HD Pro Stick
+	- Fixes for the driver to properly work with AMD ATI TV Wonder HD 600
 
  (c) 2008 Aidan Thornton <makosoft@googlemail.com>
 
@@ -409,8 +410,9 @@ static int dvb_init(struct em28xx *dev)
 	em28xx_set_mode(dev, EM28XX_DIGITAL_MODE);
 	/* init frontend */
 	switch (dev->model) {
-	case EM2880_BOARD_HAUPPAUGE_WINTV_HVR_950:
+	case EM2883_BOARD_HAUPPAUGE_WINTV_HVR_950:
 	case EM2880_BOARD_PINNACLE_PCTV_HD_PRO:
+	case EM2880_BOARD_AMD_ATI_TV_WONDER_HD_600:
 		dvb->frontend = dvb_attach(lgdt330x_attach,
 					   &em2880_lgdt3303_dev,
 					   &dev->i2c_adap);
@@ -441,6 +443,15 @@ static int dvb_init(struct em28xx *dev)
 		}
 		break;
 #endif
+	case EM2880_BOARD_TERRATEC_HYBRID_XS:
+		dvb->frontend = dvb_attach(zl10353_attach,
+						&em28xx_zl10353_with_xc3028,
+						&dev->i2c_adap);
+		if (attach_xc3028(0x61, dev) < 0) {
+			 result = -EINVAL;
+			goto out_free;
+		}
+		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card"
 				" isn't supported yet\n",

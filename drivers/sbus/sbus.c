@@ -7,13 +7,13 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/device.h>
+#include <linux/of_device.h>
 
 #include <asm/system.h>
 #include <asm/sbus.h>
 #include <asm/dma.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/bpp.h>
 #include <asm/irq.h>
 
@@ -78,7 +78,7 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	else
 		sdev->ofdev.dev.parent = &sdev->bus->ofdev.dev;
 	sdev->ofdev.dev.bus = &sbus_bus_type;
-	sprintf(sdev->ofdev.dev.bus_id, "sbus[%08x]", dp->node);
+	dev_set_name(&sdev->ofdev.dev, "sbus[%08x]", dp->node);
 
 	if (of_device_register(&sdev->ofdev) != 0)
 		printk(KERN_DEBUG "sbus: device registration error for %s!\n",
@@ -257,11 +257,11 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 	sbus->ofdev.node = dp;
 	sbus->ofdev.dev.parent = NULL;
 	sbus->ofdev.dev.bus = &sbus_bus_type;
-	sprintf(sbus->ofdev.dev.bus_id, "sbus%d", num_sbus);
+	dev_set_name(&sbus->ofdev.dev, "sbus%d", num_sbus);
 
 	if (of_device_register(&sbus->ofdev) != 0)
 		printk(KERN_DEBUG "sbus: device registration error for %s!\n",
-		       sbus->ofdev.dev.bus_id);
+		       dev_name(&sbus->ofdev.dev));
 
 	dev_dp = dp->child;
 	while (dev_dp) {

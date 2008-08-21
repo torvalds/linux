@@ -262,7 +262,7 @@ ia32_syscall_table:
 	data8 sys_uselib
 	data8 sys_swapon
 	data8 sys_reboot
-	data8 sys32_readdir
+	data8 compat_sys_old_readdir
 	data8 sys32_mmap	  /* 90 */
 	data8 sys32_munmap
 	data8 sys_truncate

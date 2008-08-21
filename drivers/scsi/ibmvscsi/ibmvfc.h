@@ -29,8 +29,8 @@
 #include "viosrp.h"
 
 #define IBMVFC_NAME	"ibmvfc"
-#define IBMVFC_DRIVER_VERSION		"1.0.0"
-#define IBMVFC_DRIVER_DATE		"(July 1, 2008)"
+#define IBMVFC_DRIVER_VERSION		"1.0.2"
+#define IBMVFC_DRIVER_DATE		"(August 14, 2008)"
 
 #define IBMVFC_DEFAULT_TIMEOUT	15
 #define IBMVFC_INIT_TIMEOUT		30
@@ -119,6 +119,7 @@ enum ibmvfc_mad_types {
 	IBMVFC_PROCESS_LOGIN	= 0x0008,
 	IBMVFC_QUERY_TARGET	= 0x0010,
 	IBMVFC_IMPLICIT_LOGOUT	= 0x0040,
+	IBMVFC_PASSTHRU		= 0x0200,
 	IBMVFC_TMF_MAD		= 0x0100,
 };
 
@@ -439,6 +440,37 @@ struct ibmvfc_cmd {
 	struct ibmvfc_fcp_rsp rsp;
 }__attribute__((packed, aligned (8)));
 
+struct ibmvfc_passthru_fc_iu {
+	u32 payload[7];
+#define IBMVFC_ADISC	0x52000000
+	u32 response[7];
+};
+
+struct ibmvfc_passthru_iu {
+	u64 task_tag;
+	u32 cmd_len;
+	u32 rsp_len;
+	u16 status;
+	u16 error;
+	u32 flags;
+#define IBMVFC_FC_ELS		0x01
+	u32 cancel_key;
+	u32 reserved;
+	struct srp_direct_buf cmd;
+	struct srp_direct_buf rsp;
+	u64 correlation;
+	u64 scsi_id;
+	u64 tag;
+	u64 reserved2[2];
+}__attribute__((packed, aligned (8)));
+
+struct ibmvfc_passthru_mad {
+	struct ibmvfc_mad_common common;
+	struct srp_direct_buf cmd_ioba;
+	struct ibmvfc_passthru_iu iu;
+	struct ibmvfc_passthru_fc_iu fc_iu;
+}__attribute__((packed, aligned (8)));
+
 struct ibmvfc_trace_start_entry {
 	u32 xfer_len;
 }__attribute__((packed));
@@ -531,6 +563,7 @@ union ibmvfc_iu {
 	struct ibmvfc_implicit_logout implicit_logout;
 	struct ibmvfc_tmf tmf;
 	struct ibmvfc_cmd cmd;
+	struct ibmvfc_passthru_mad passthru;
 }__attribute__((packed, aligned (8)));
 
 enum ibmvfc_target_action {
@@ -656,6 +689,9 @@ struct ibmvfc_host {
 #define tgt_dbg(t, fmt, ...)			\
 	DBG_CMD(dev_info((t)->vhost->dev, "%lX: " fmt, (t)->scsi_id, ##__VA_ARGS__))
 
+#define tgt_info(t, fmt, ...)		\
+	dev_info((t)->vhost->dev, "%lX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
+
 #define tgt_err(t, fmt, ...)		\
 	dev_err((t)->vhost->dev, "%lX: " fmt, (t)->scsi_id, ##__VA_ARGS__)
 
@@ -668,8 +704,8 @@ struct ibmvfc_host {
 			dev_err((vhost)->dev, ##__VA_ARGS__); \
 	} while (0)
 
-#define ENTER DBG_CMD(printk(KERN_INFO IBMVFC_NAME": Entering %s\n", __FUNCTION__))
-#define LEAVE DBG_CMD(printk(KERN_INFO IBMVFC_NAME": Leaving %s\n", __FUNCTION__))
+#define ENTER DBG_CMD(printk(KERN_INFO IBMVFC_NAME": Entering %s\n", __func__))
+#define LEAVE DBG_CMD(printk(KERN_INFO IBMVFC_NAME": Leaving %s\n", __func__))
 
 #ifdef CONFIG_SCSI_IBMVFC_TRACE
 #define ibmvfc_create_trace_file(kobj, attr) sysfs_create_bin_file(kobj, attr)

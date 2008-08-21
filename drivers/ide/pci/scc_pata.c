@@ -65,7 +65,7 @@
 
 static struct scc_ports {
 	unsigned long ctl, dma;
-	ide_hwif_t *hwif;  /* for removing port from system */
+	struct ide_host *host;	/* for removing port from system */
 } scc_ports[MAX_HWIFS];
 
 /* PIO transfer mode  table */
@@ -126,6 +126,46 @@ static u8 scc_ide_inb(unsigned long port)
 	return (u8)data;
 }
 
+static void scc_exec_command(ide_hwif_t *hwif, u8 cmd)
+{
+	out_be32((void *)hwif->io_ports.command_addr, cmd);
+	eieio();
+	in_be32((void *)(hwif->dma_base + 0x01c));
+	eieio();
+}
+
+static u8 scc_read_status(ide_hwif_t *hwif)
+{
+	return (u8)in_be32((void *)hwif->io_ports.status_addr);
+}
+
+static u8 scc_read_altstatus(ide_hwif_t *hwif)
+{
+	return (u8)in_be32((void *)hwif->io_ports.ctl_addr);
+}
+
+static u8 scc_read_sff_dma_status(ide_hwif_t *hwif)
+{
+	return (u8)in_be32((void *)(hwif->dma_base + 4));
+}
+
+static void scc_set_irq(ide_hwif_t *hwif, int on)
+{
+	u8 ctl = ATA_DEVCTL_OBS;
+
+	if (on == 4) { /* hack for SRST */
+		ctl |= 4;
+		on &= ~4;
+	}
+
+	ctl |= on ? 0 : 2;
+
+	out_be32((void *)hwif->io_ports.ctl_addr, ctl);
+	eieio();
+	in_be32((void *)(hwif->dma_base + 0x01c));
+	eieio();
+}
+
 static void scc_ide_insw(unsigned long port, void *addr, u32 count)
 {
 	u16 *ptr = (u16 *)addr;
@@ -146,14 +186,6 @@ static void scc_ide_insl(unsigned long port, void *addr, u32 count)
 static void scc_ide_outb(u8 addr, unsigned long port)
 {
 	out_be32((void*)port, addr);
-}
-
-static void scc_ide_outbsync(ide_hwif_t *hwif, u8 addr, unsigned long port)
-{
-	out_be32((void*)port, addr);
-	eieio();
-	in_be32((void*)(hwif->dma_base + 0x01c));
-	eieio();
 }
 
 static void
@@ -261,14 +293,14 @@ static void scc_dma_host_set(ide_drive_t *drive, int on)
 {
 	ide_hwif_t *hwif = drive->hwif;
 	u8 unit = (drive->select.b.unit & 0x01);
-	u8 dma_stat = scc_ide_inb(hwif->dma_status);
+	u8 dma_stat = scc_ide_inb(hwif->dma_base + 4);
 
 	if (on)
 		dma_stat |= (1 << (5 + unit));
 	else
 		dma_stat &= ~(1 << (5 + unit));
 
-	scc_ide_outb(dma_stat, hwif->dma_status);
+	scc_ide_outb(dma_stat, hwif->dma_base + 4);
 }
 
 /**
@@ -304,13 +336,13 @@ static int scc_dma_setup(ide_drive_t *drive)
 	out_be32((void __iomem *)(hwif->dma_base + 8), hwif->dmatable_dma);
 
 	/* specify r/w */
-	out_be32((void __iomem *)hwif->dma_command, reading);
+	out_be32((void __iomem *)hwif->dma_base, reading);
 
-	/* read dma_status for INTR & ERROR flags */
-	dma_stat = in_be32((void __iomem *)hwif->dma_status);
+	/* read DMA status for INTR & ERROR flags */
+	dma_stat = in_be32((void __iomem *)(hwif->dma_base + 4));
 
 	/* clear INTR & ERROR flags */
-	out_be32((void __iomem *)hwif->dma_status, dma_stat|6);
+	out_be32((void __iomem *)(hwif->dma_base + 4), dma_stat | 6);
 	drive->waiting_for_dma = 1;
 	return 0;
 }
@@ -318,10 +350,10 @@ static int scc_dma_setup(ide_drive_t *drive)
 static void scc_dma_start(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
-	u8 dma_cmd = scc_ide_inb(hwif->dma_command);
+	u8 dma_cmd = scc_ide_inb(hwif->dma_base);
 
 	/* start DMA */
-	scc_ide_outb(dma_cmd | 1, hwif->dma_command);
+	scc_ide_outb(dma_cmd | 1, hwif->dma_base);
 	hwif->dma = 1;
 	wmb();
 }
@@ -333,13 +365,13 @@ static int __scc_dma_end(ide_drive_t *drive)
 
 	drive->waiting_for_dma = 0;
 	/* get DMA command mode */
-	dma_cmd = scc_ide_inb(hwif->dma_command);
+	dma_cmd = scc_ide_inb(hwif->dma_base);
 	/* stop DMA */
-	scc_ide_outb(dma_cmd & ~1, hwif->dma_command);
+	scc_ide_outb(dma_cmd & ~1, hwif->dma_base);
 	/* get DMA status */
-	dma_stat = scc_ide_inb(hwif->dma_status);
+	dma_stat = scc_ide_inb(hwif->dma_base + 4);
 	/* clear the INTR & ERROR bits */
-	scc_ide_outb(dma_stat | 6, hwif->dma_status);
+	scc_ide_outb(dma_stat | 6, hwif->dma_base + 4);
 	/* purge DMA mappings */
 	ide_destroy_dmatable(drive);
 	/* verify good DMA status */
@@ -359,6 +391,7 @@ static int __scc_dma_end(ide_drive_t *drive)
 static int scc_dma_end(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = HWIF(drive);
+	void __iomem *dma_base = (void __iomem *)hwif->dma_base;
 	unsigned long intsts_port = hwif->dma_base + 0x014;
 	u32 reg;
 	int dma_stat, data_loss = 0;
@@ -397,7 +430,7 @@ static int scc_dma_end(ide_drive_t *drive)
 			printk(KERN_WARNING "%s: SERROR\n", SCC_PATA_NAME);
 			out_be32((void __iomem *)intsts_port, INTSTS_SERROR|INTSTS_BMSINT);
 
-			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
+			out_be32(dma_base, in_be32(dma_base) & ~QCHCD_IOS_SS);
 			continue;
 		}
 
@@ -412,7 +445,7 @@ static int scc_dma_end(ide_drive_t *drive)
 
 			out_be32((void __iomem *)intsts_port, INTSTS_PRERR|INTSTS_BMSINT);
 
-			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
+			out_be32(dma_base, in_be32(dma_base) & ~QCHCD_IOS_SS);
 			continue;
 		}
 
@@ -420,12 +453,12 @@ static int scc_dma_end(ide_drive_t *drive)
 			printk(KERN_WARNING "%s: Response Error\n", SCC_PATA_NAME);
 			out_be32((void __iomem *)intsts_port, INTSTS_RERR|INTSTS_BMSINT);
 
-			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
+			out_be32(dma_base, in_be32(dma_base) & ~QCHCD_IOS_SS);
 			continue;
 		}
 
 		if (reg & INTSTS_ICERR) {
-			out_be32((void __iomem *)hwif->dma_command, in_be32((void __iomem *)hwif->dma_command) & ~QCHCD_IOS_SS);
+			out_be32(dma_base, in_be32(dma_base) & ~QCHCD_IOS_SS);
 
 			printk(KERN_WARNING "%s: Illegal Configuration\n", SCC_PATA_NAME);
 			out_be32((void __iomem *)intsts_port, INTSTS_ICERR|INTSTS_BMSINT);
@@ -553,14 +586,9 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 				    const struct ide_port_info *d)
 {
 	struct scc_ports *ports = pci_get_drvdata(dev);
-	ide_hwif_t *hwif = NULL;
-	hw_regs_t hw;
-	u8 idx[4] = { 0xff, 0xff, 0xff, 0xff };
-	int i;
-
-	hwif = ide_find_port_slot(d);
-	if (hwif == NULL)
-		return -ENOMEM;
+	struct ide_host *host;
+	hw_regs_t hw, *hws[] = { &hw, NULL, NULL, NULL };
+	int i, rc;
 
 	memset(&hw, 0, sizeof(hw));
 	for (i = 0; i <= 8; i++)
@@ -568,11 +596,12 @@ static int scc_ide_setup_pci_device(struct pci_dev *dev,
 	hw.irq = dev->irq;
 	hw.dev = &dev->dev;
 	hw.chipset = ide_pci;
-	ide_init_port_hw(hwif, &hw);
 
-	idx[0] = hwif->index;
+	rc = ide_host_add(d, hws, &host);
+	if (rc)
+		return rc;
 
-	ide_device_add(idx, d);
+	ports->host = host;
 
 	return 0;
 }
@@ -701,6 +730,8 @@ static void scc_tf_read(ide_drive_t *drive, ide_task_t *task)
 	/* be sure we're looking at the low order bits */
 	scc_ide_outb(ATA_DEVCTL_OBS & ~0x80, io_ports->ctl_addr);
 
+	if (task->tf_flags & IDE_TFLAG_IN_FEATURE)
+		tf->feature = scc_ide_inb(io_ports->feature_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_NSECT)
 		tf->nsect  = scc_ide_inb(io_ports->nsect_addr);
 	if (task->tf_flags & IDE_TFLAG_IN_LBAL)
@@ -774,16 +805,6 @@ static void __devinit init_mmio_iops_scc(ide_hwif_t *hwif)
 
 	ide_set_hwifdata(hwif, ports);
 
-	hwif->tf_load = scc_tf_load;
-	hwif->tf_read = scc_tf_read;
-
-	hwif->input_data  = scc_input_data;
-	hwif->output_data = scc_output_data;
-
-	hwif->INB = scc_ide_inb;
-	hwif->OUTB = scc_ide_outb;
-	hwif->OUTBSYNC = scc_ide_outbsync;
-
 	hwif->dma_base = dma_base;
 	hwif->config_data = ports->ctl;
 }
@@ -806,7 +827,7 @@ static void __devinit init_iops_scc(ide_hwif_t *hwif)
 	init_mmio_iops_scc(hwif);
 }
 
-static u8 __devinit scc_cable_detect(ide_hwif_t *hwif)
+static u8 scc_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }
@@ -824,11 +845,6 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 {
 	struct scc_ports *ports = ide_get_hwifdata(hwif);
 
-	ports->hwif = hwif;
-
-	hwif->dma_command = hwif->dma_base;
-	hwif->dma_status = hwif->dma_base + 0x04;
-
 	/* PTERADD */
 	out_be32((void __iomem *)(hwif->dma_base + 0x018), hwif->dmatable_dma);
 
@@ -837,6 +853,21 @@ static void __devinit init_hwif_scc(ide_hwif_t *hwif)
 	else
 		hwif->ultra_mask = ATA_UDMA5; /* 100MHz */
 }
+
+static const struct ide_tp_ops scc_tp_ops = {
+	.exec_command		= scc_exec_command,
+	.read_status		= scc_read_status,
+	.read_altstatus		= scc_read_altstatus,
+	.read_sff_dma_status	= scc_read_sff_dma_status,
+
+	.set_irq		= scc_set_irq,
+
+	.tf_load		= scc_tf_load,
+	.tf_read		= scc_tf_read,
+
+	.input_data		= scc_input_data,
+	.output_data		= scc_output_data,
+};
 
 static const struct ide_port_ops scc_port_ops = {
 	.set_pio_mode		= scc_set_pio_mode,
@@ -861,6 +892,7 @@ static const struct ide_dma_ops scc_dma_ops = {
       .name		= name_str,			\
       .init_iops	= init_iops_scc,		\
       .init_hwif	= init_hwif_scc,		\
+      .tp_ops		= &scc_tp_ops,		\
       .port_ops		= &scc_port_ops,		\
       .dma_ops		= &scc_dma_ops,			\
       .host_flags	= IDE_HFLAG_SINGLE,		\
@@ -895,7 +927,8 @@ static int __devinit scc_init_one(struct pci_dev *dev, const struct pci_device_i
 static void __devexit scc_remove(struct pci_dev *dev)
 {
 	struct scc_ports *ports = pci_get_drvdata(dev);
-	ide_hwif_t *hwif = ports->hwif;
+	struct ide_host *host = ports->host;
+	ide_hwif_t *hwif = host->ports[0];
 
 	if (hwif->dmatable_cpu) {
 		pci_free_consistent(dev, PRD_ENTRIES * PRD_BYTES,
@@ -903,7 +936,7 @@ static void __devexit scc_remove(struct pci_dev *dev)
 		hwif->dmatable_cpu = NULL;
 	}
 
-	ide_unregister(hwif);
+	ide_host_remove(host);
 
 	iounmap((void*)ports->dma);
 	iounmap((void*)ports->ctl);
@@ -921,7 +954,7 @@ static struct pci_driver driver = {
 	.name = "SCC IDE",
 	.id_table = scc_pci_tbl,
 	.probe = scc_init_one,
-	.remove = scc_remove,
+	.remove = __devexit_p(scc_remove),
 };
 
 static int scc_ide_init(void)

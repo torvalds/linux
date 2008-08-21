@@ -677,6 +677,10 @@ static ssize_t n_hdlc_tty_write(struct tty_struct *tty, struct file *file,
 	/* Allocate transmit buffer */
 	/* sleep until transmit buffer available */		
 	while (!(tbuf = n_hdlc_buf_get(&n_hdlc->tx_free_buf_list))) {
+		if (file->f_flags & O_NONBLOCK) {
+			error = -EAGAIN;
+			break;
+		}
 		schedule();
 			
 		n_hdlc = tty2n_hdlc (tty);

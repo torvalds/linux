@@ -31,7 +31,7 @@
 #else
 #define CIFS_PROT   0
 #endif
-#define POSIX_PROT  CIFS_PROT+1
+#define POSIX_PROT  (CIFS_PROT+1)
 #define BAD_PROT 0xFFFF
 
 /* SMB command codes */
@@ -262,7 +262,7 @@
  */
 #define CIFS_NO_HANDLE        0xFFFF
 
-#define NO_CHANGE_64          cpu_to_le64(0xFFFFFFFFFFFFFFFFULL)
+#define NO_CHANGE_64          0xFFFFFFFFFFFFFFFFULL
 #define NO_CHANGE_32          0xFFFFFFFFUL
 
 /* IPC$ in ASCII */
@@ -341,7 +341,7 @@
 #define CREATE_COMPLETE_IF_OPLK 0x00000100	/* should be zero */
 #define CREATE_NO_EA_KNOWLEDGE  0x00000200
 #define CREATE_EIGHT_DOT_THREE  0x00000400	/* doc says this is obsolete
-						 "open for recovery" flag - should
+						 "open for recovery" flag should
 						 be zero in any case */
 #define CREATE_OPEN_FOR_RECOVERY 0x00000400
 #define CREATE_RANDOM_ACCESS	0x00000800
@@ -414,8 +414,8 @@ struct smb_hdr {
 	__u8 WordCount;
 } __attribute__((packed));
 /* given a pointer to an smb_hdr retrieve the value of byte count */
-#define BCC(smb_var) ( *(__u16 *)((char *)smb_var + sizeof(struct smb_hdr) + (2 * smb_var->WordCount)))
-#define BCC_LE(smb_var) ( *(__le16 *)((char *)smb_var + sizeof(struct smb_hdr) + (2 * smb_var->WordCount)))
+#define BCC(smb_var) (*(__u16 *)((char *)smb_var + sizeof(struct smb_hdr) + (2 * smb_var->WordCount)))
+#define BCC_LE(smb_var) (*(__le16 *)((char *)smb_var + sizeof(struct smb_hdr) + (2 * smb_var->WordCount)))
 /* given a pointer to an smb_hdr retrieve the pointer to the byte area */
 #define pByteArea(smb_var) ((unsigned char *)smb_var + sizeof(struct smb_hdr) + (2 * smb_var->WordCount) + 2)
 

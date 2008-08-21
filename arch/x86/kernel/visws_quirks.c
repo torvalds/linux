@@ -184,8 +184,6 @@ static int __init visws_get_smp_config(unsigned int early)
 	return 1;
 }
 
-extern unsigned int __cpuinitdata maxcpus;
-
 /*
  * The Visual Workstation is Intel MP compliant in the hardware
  * sense, but it doesn't have a BIOS(-configuration table).
@@ -244,8 +242,8 @@ static int __init visws_find_smp_config(unsigned int reserve)
 		ncpus = CO_CPU_MAX;
 	}
 
-	if (ncpus > maxcpus)
-		ncpus = maxcpus;
+	if (ncpus > setup_max_cpus)
+		ncpus = setup_max_cpus;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 	smp_found_config = 1;

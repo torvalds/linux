@@ -35,6 +35,27 @@ enum fid_type {
 	FILEID_INO32_GEN_PARENT = 2,
 
 	/*
+	 * 64 bit object ID, 64 bit root object ID,
+	 * 32 bit generation number.
+	 */
+	FILEID_BTRFS_WITHOUT_PARENT = 0x4d,
+
+	/*
+	 * 64 bit object ID, 64 bit root object ID,
+	 * 32 bit generation number,
+	 * 64 bit parent object ID, 32 bit parent generation.
+	 */
+	FILEID_BTRFS_WITH_PARENT = 0x4e,
+
+	/*
+	 * 64 bit object ID, 64 bit root object ID,
+	 * 32 bit generation number,
+	 * 64 bit parent object ID, 32 bit parent generation,
+	 * 64 bit parent root object ID.
+	 */
+	FILEID_BTRFS_WITH_PARENT_ROOT = 0x4f,
+
+	/*
 	 * 32 bit block number, 16 bit partition reference,
 	 * 16 bit unused, 32 bit generation number.
 	 */

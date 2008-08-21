@@ -146,10 +146,8 @@ static inline int attr_col_ec(int shift, struct vc_data *vc,
 	return is_fg ? fg : bg;
 }
 
-#define attr_bgcol_ec(bgshift,vc,info)		\
-	attr_col_ec(bgshift,vc,info,0);
-#define attr_fgcol_ec(fgshift,vc,info)		\
-	attr_col_ec(fgshift,vc,info,1);
+#define attr_bgcol_ec(bgshift, vc, info) attr_col_ec(bgshift, vc, info, 0)
+#define attr_fgcol_ec(fgshift, vc, info) attr_col_ec(fgshift, vc, info, 1)
 
 /* Font */
 #define REFCOUNT(fd)	(((int *)(fd))[-1])

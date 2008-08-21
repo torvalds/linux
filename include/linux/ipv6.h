@@ -123,6 +123,7 @@ struct ipv6hdr {
 	struct	in6_addr	daddr;
 };
 
+#ifdef __KERNEL__
 /*
  * This structure contains configuration options per IPv6 link.
  */
@@ -167,6 +168,7 @@ struct ipv6_devconf {
 	__s32		accept_dad;
 	void		*sysctl;
 };
+#endif
 
 /* index values for the variables in ipv6_devconf */
 enum {

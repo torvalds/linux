@@ -722,7 +722,8 @@ int i2c_register_driver(struct module *owner, struct i2c_driver *driver)
 
 	INIT_LIST_HEAD(&driver->clients);
 	/* Walk the adapters that are already present */
-	class_for_each_device(&i2c_adapter_class, driver, __attach_adapter);
+	class_for_each_device(&i2c_adapter_class, NULL, driver,
+			      __attach_adapter);
 
 	mutex_unlock(&core_lock);
 	return 0;
@@ -782,7 +783,8 @@ void i2c_del_driver(struct i2c_driver *driver)
 {
 	mutex_lock(&core_lock);
 
-	class_for_each_device(&i2c_adapter_class, driver, __detach_adapter);
+	class_for_each_device(&i2c_adapter_class, NULL, driver,
+			      __detach_adapter);
 
 	driver_unregister(&driver->driver);
 	pr_debug("i2c-core: driver [%s] unregistered\n", driver->driver.name);
@@ -811,7 +813,12 @@ static int i2c_check_addr(struct i2c_adapter *adapter, int addr)
 int i2c_attach_client(struct i2c_client *client)
 {
 	struct i2c_adapter *adapter = client->adapter;
-	int res = 0;
+	int res;
+
+	/* Check for address business */
+	res = i2c_check_addr(adapter, client->addr);
+	if (res)
+		return res;
 
 	client->dev.parent = &client->adapter->dev;
 	client->dev.bus = &i2c_bus_type;
@@ -1449,9 +1456,11 @@ i2c_new_probed_device(struct i2c_adapter *adap,
 		if ((addr_list[i] & ~0x07) == 0x30
 		 || (addr_list[i] & ~0x0f) == 0x50
 		 || !i2c_check_functionality(adap, I2C_FUNC_SMBUS_QUICK)) {
+			union i2c_smbus_data data;
+
 			if (i2c_smbus_xfer(adap, addr_list[i], 0,
 					   I2C_SMBUS_READ, 0,
-					   I2C_SMBUS_BYTE, NULL) >= 0)
+					   I2C_SMBUS_BYTE, &data) >= 0)
 				break;
 		} else {
 			if (i2c_smbus_xfer(adap, addr_list[i], 0,

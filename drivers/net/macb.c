@@ -21,8 +21,8 @@
 #include <linux/platform_device.h>
 #include <linux/phy.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
 
 #include "macb.h"
 
@@ -164,9 +164,7 @@ static void macb_handle_link_change(struct net_device *dev)
 	}
 
 	if (phydev->link != bp->link) {
-		if (phydev->link)
-			netif_tx_schedule_all(dev);
-		else {
+		if (!phydev->link) {
 			bp->speed = 0;
 			bp->duplex = -1;
 		}

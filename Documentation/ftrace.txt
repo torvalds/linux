@@ -4,6 +4,7 @@
 Copyright 2008 Red Hat Inc.
    Author:   Steven Rostedt <srostedt@redhat.com>
   License:   The GNU Free Documentation License, Version 1.2
+               (dual licensed under the GPL v2)
 Reviewers:   Elias Oltmanns, Randy Dunlap, Andrew Morton,
 	     John Kacur, and David Teigland.
 

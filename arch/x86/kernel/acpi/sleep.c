@@ -20,7 +20,7 @@ unsigned long acpi_realmode_flags;
 /* address in low memory of the wakeup routine. */
 static unsigned long acpi_realmode;
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_SMP) && defined(CONFIG_64BIT)
 static char temp_stack[10240];
 #endif
 
@@ -86,7 +86,7 @@ int acpi_save_state_mem(void)
 #endif /* !CONFIG_64BIT */
 
 	header->pmode_cr0 = read_cr0();
-	header->pmode_cr4 = read_cr4();
+	header->pmode_cr4 = read_cr4_safe();
 	header->realmode_flags = acpi_realmode_flags;
 	header->real_magic = 0x12345678;
 
@@ -150,6 +150,10 @@ static int __init acpi_sleep_setup(char *str)
 			acpi_realmode_flags |= 2;
 		if (strncmp(str, "s3_beep", 7) == 0)
 			acpi_realmode_flags |= 4;
+#ifdef CONFIG_HIBERNATION
+		if (strncmp(str, "s4_nohwsig", 10) == 0)
+			acpi_no_s4_hw_signature();
+#endif
 		if (strncmp(str, "old_ordering", 12) == 0)
 			acpi_old_suspend_ordering();
 		str = strchr(str, ',');

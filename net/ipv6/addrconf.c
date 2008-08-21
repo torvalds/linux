@@ -153,7 +153,7 @@ static int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 
 static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
 
-struct ipv6_devconf ipv6_devconf __read_mostly = {
+static struct ipv6_devconf ipv6_devconf __read_mostly = {
 	.forwarding		= 0,
 	.hop_limit		= IPV6_DEFAULT_HOPLIMIT,
 	.mtu6			= IPV6_MIN_MTU,
@@ -313,8 +313,10 @@ static void in6_dev_finish_destroy_rcu(struct rcu_head *head)
 void in6_dev_finish_destroy(struct inet6_dev *idev)
 {
 	struct net_device *dev = idev->dev;
-	BUG_TRAP(idev->addr_list==NULL);
-	BUG_TRAP(idev->mc_list==NULL);
+
+	WARN_ON(idev->addr_list != NULL);
+	WARN_ON(idev->mc_list != NULL);
+
 #ifdef NET_REFCNT_DEBUG
 	printk(KERN_DEBUG "in6_dev_finish_destroy: %s\n", dev ? dev->name : "NIL");
 #endif
@@ -517,8 +519,9 @@ static void addrconf_fixup_forwarding(struct ctl_table *table, int *p, int old)
 
 void inet6_ifa_finish_destroy(struct inet6_ifaddr *ifp)
 {
-	BUG_TRAP(ifp->if_next==NULL);
-	BUG_TRAP(ifp->lst_next==NULL);
+	WARN_ON(ifp->if_next != NULL);
+	WARN_ON(ifp->lst_next != NULL);
+
 #ifdef NET_REFCNT_DEBUG
 	printk(KERN_DEBUG "inet6_ifa_finish_destroy\n");
 #endif
@@ -1103,13 +1106,12 @@ out:
 	return ret;
 }
 
-int ipv6_dev_get_saddr(struct net_device *dst_dev,
+int ipv6_dev_get_saddr(struct net *net, struct net_device *dst_dev,
 		       const struct in6_addr *daddr, unsigned int prefs,
 		       struct in6_addr *saddr)
 {
 	struct ipv6_saddr_score scores[2],
 				*score = &scores[0], *hiscore = &scores[1];
-	struct net *net = dev_net(dst_dev);
 	struct ipv6_saddr_dst dst;
 	struct net_device *dev;
 	int dst_type;

@@ -34,6 +34,7 @@
 #include <linux/vmalloc.h>
 #include <linux/videodev2.h>
 #include <media/v4l2-common.h>
+#include <media/v4l2-ioctl.h>
 
 #include "stk-webcam.h"
 
@@ -340,17 +341,19 @@ static int stk_create_sysfs_files(struct video_device *vdev)
 {
 	int ret;
 
-	ret = video_device_create_file(vdev, &dev_attr_brightness);
-	ret += video_device_create_file(vdev, &dev_attr_hflip);
-	ret += video_device_create_file(vdev, &dev_attr_vflip);
+	ret = device_create_file(&vdev->dev, &dev_attr_brightness);
+	ret += device_create_file(&vdev->dev, &dev_attr_hflip);
+	ret += device_create_file(&vdev->dev, &dev_attr_vflip);
+	if (ret)
+		STK_WARNING("Could not create sysfs files\n");
 	return ret;
 }
 
 static void stk_remove_sysfs_files(struct video_device *vdev)
 {
-	video_device_remove_file(vdev, &dev_attr_brightness);
-	video_device_remove_file(vdev, &dev_attr_hflip);
-	video_device_remove_file(vdev, &dev_attr_vflip);
+	device_remove_file(&vdev->dev, &dev_attr_brightness);
+	device_remove_file(&vdev->dev, &dev_attr_hflip);
+	device_remove_file(&vdev->dev, &dev_attr_vflip);
 }
 
 #else
@@ -442,18 +445,19 @@ static void stk_isoc_handler(struct urb *urb)
 				fb->v4lbuf.bytesused = 0;
 				fill = fb->buffer;
 			} else if (fb->v4lbuf.bytesused == dev->frame_size) {
-				list_move_tail(dev->sio_avail.next,
-					&dev->sio_full);
-				wake_up(&dev->wait_frame);
-				if (list_empty(&dev->sio_avail)) {
-					(void) (printk_ratelimit() &&
-					STK_ERROR("No buffer available\n"));
-					goto resubmit;
+				if (list_is_singular(&dev->sio_avail)) {
+					/* Always reuse the last buffer */
+					fb->v4lbuf.bytesused = 0;
+					fill = fb->buffer;
+				} else {
+					list_move_tail(dev->sio_avail.next,
+						&dev->sio_full);
+					wake_up(&dev->wait_frame);
+					fb = list_first_entry(&dev->sio_avail,
+						struct stk_sio_buffer, list);
+					fb->v4lbuf.bytesused = 0;
+					fill = fb->buffer;
 				}
-				fb = list_first_entry(&dev->sio_avail,
-					struct stk_sio_buffer, list);
-				fb->v4lbuf.bytesused = 0;
-				fill = fb->buffer;
 			}
 		} else {
 			framelen -= 4;
@@ -1327,20 +1331,7 @@ static struct file_operations v4l_stk_fops = {
 	.llseek = no_llseek
 };
 
-static void stk_v4l_dev_release(struct video_device *vd)
-{
-}
-
-static struct video_device stk_v4l_data = {
-	.name = "stkwebcam",
-	.type = VFL_TYPE_GRABBER,
-	.type2 = VID_TYPE_CAPTURE,
-	.minor = -1,
-	.tvnorms = V4L2_STD_UNKNOWN,
-	.current_norm = V4L2_STD_UNKNOWN,
-	.fops = &v4l_stk_fops,
-	.release = stk_v4l_dev_release,
-
+static const struct v4l2_ioctl_ops v4l_stk_ioctl_ops = {
 	.vidioc_querycap = stk_vidioc_querycap,
 	.vidioc_enum_fmt_vid_cap = stk_vidioc_enum_fmt_vid_cap,
 	.vidioc_try_fmt_vid_cap = stk_vidioc_try_fmt_vid_cap,
@@ -1362,6 +1353,20 @@ static struct video_device stk_v4l_data = {
 	.vidioc_g_parm = stk_vidioc_g_parm,
 };
 
+static void stk_v4l_dev_release(struct video_device *vd)
+{
+}
+
+static struct video_device stk_v4l_data = {
+	.name = "stkwebcam",
+	.minor = -1,
+	.tvnorms = V4L2_STD_UNKNOWN,
+	.current_norm = V4L2_STD_UNKNOWN,
+	.fops = &v4l_stk_fops,
+	.ioctl_ops = &v4l_stk_ioctl_ops,
+	.release = stk_v4l_dev_release,
+};
+
 
 static int stk_register_video_device(struct stk_camera *dev)
 {
@@ -1369,7 +1374,7 @@ static int stk_register_video_device(struct stk_camera *dev)
 
 	dev->vdev = stk_v4l_data;
 	dev->vdev.debug = debug;
-	dev->vdev.dev = &dev->interface->dev;
+	dev->vdev.parent = &dev->interface->dev;
 	dev->vdev.priv = dev;
 	err = video_register_device(&dev->vdev, VFL_TYPE_GRABBER, -1);
 	if (err)
