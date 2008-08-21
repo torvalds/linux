@@ -112,8 +112,10 @@ ccwgroup_release (struct device *dev)
 	gdev = to_ccwgroupdev(dev);
 
 	for (i = 0; i < gdev->count; i++) {
-		dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
-		put_device(&gdev->cdev[i]->dev);
+		if (gdev->cdev[i]) {
+			dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
+			put_device(&gdev->cdev[i]->dev);
+		}
 	}
 	kfree(gdev);
 }
@@ -221,6 +223,13 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 	atomic_set(&gdev->onoff, 0);
 	mutex_init(&gdev->reg_mutex);
 	mutex_lock(&gdev->reg_mutex);
+	gdev->creator_id = creator_id;
+	gdev->count = num_devices;
+	gdev->dev.bus = &ccwgroup_bus_type;
+	gdev->dev.parent = root;
+	gdev->dev.release = ccwgroup_release;
+	device_initialize(&gdev->dev);
+
 	curr_buf = buf;
 	for (i = 0; i < num_devices && curr_buf; i++) {
 		rc = __get_next_bus_id(&curr_buf, tmp_bus_id);
@@ -258,16 +267,11 @@ int ccwgroup_create_from_string(struct device *root, unsigned int creator_id,
 		rc = -EINVAL;
 		goto error;
 	}
-	gdev->creator_id = creator_id;
-	gdev->count = num_devices;
-	gdev->dev.bus = &ccwgroup_bus_type;
-	gdev->dev.parent = root;
-	gdev->dev.release = ccwgroup_release;
 
 	snprintf (gdev->dev.bus_id, BUS_ID_SIZE, "%s",
 			gdev->cdev[0]->dev.bus_id);
 
-	rc = device_register(&gdev->dev);
+	rc = device_add(&gdev->dev);
 	if (rc)
 		goto error;
 	get_device(&gdev->dev);
