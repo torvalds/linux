@@ -158,6 +158,8 @@ struct orinoco_private {
 	int wpa_ie_len;
 
 	struct orinoco_tkip_key tkip_key[ORINOCO_MAX_KEYS];
+	struct crypto_hash *rx_tfm_mic;
+	struct crypto_hash *tx_tfm_mic;
 
 	unsigned int wpa_enabled:1;
 	unsigned int tkip_cm_active:1;

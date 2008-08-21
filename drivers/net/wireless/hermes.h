@@ -184,12 +184,17 @@
 #define HERMES_RXSTAT_ERR		(0x0003)
 #define	HERMES_RXSTAT_BADCRC		(0x0001)
 #define	HERMES_RXSTAT_UNDECRYPTABLE	(0x0002)
+#define	HERMES_RXSTAT_MIC		(0x0010)	/* Frame contains MIC */
 #define	HERMES_RXSTAT_MACPORT		(0x0700)
 #define HERMES_RXSTAT_PCF		(0x1000)	/* Frame was received in CF period */
+#define	HERMES_RXSTAT_MIC_KEY_ID	(0x1800)	/* MIC key used */
 #define	HERMES_RXSTAT_MSGTYPE		(0xE000)
 #define	HERMES_RXSTAT_1042		(0x2000)	/* RFC-1042 frame */
 #define	HERMES_RXSTAT_TUNNEL		(0x4000)	/* bridge-tunnel encoded frame */
 #define	HERMES_RXSTAT_WMP		(0x6000)	/* Wavelan-II Management Protocol frame */
+
+/* Shift amount for key ID in RXSTAT and TXCTRL */
+#define	HERMES_MIC_KEY_ID_SHIFT		11
 
 struct hermes_tx_descriptor {
 	__le16 status;
@@ -209,6 +214,8 @@ struct hermes_tx_descriptor {
 #define HERMES_TXCTRL_TX_OK		(0x0002)	/* ?? interrupt on Tx complete */
 #define HERMES_TXCTRL_TX_EX		(0x0004)	/* ?? interrupt on Tx exception */
 #define HERMES_TXCTRL_802_11		(0x0008)	/* We supply 802.11 header */
+#define HERMES_TXCTRL_MIC		(0x0010)	/* 802.3 + TKIP */
+#define HERMES_TXCTRL_MIC_KEY_ID	(0x1800)	/* MIC Key ID mask */
 #define HERMES_TXCTRL_ALT_RTRY		(0x0020)
 
 /* Inquiry constants and data types */

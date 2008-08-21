@@ -336,6 +336,8 @@ config HERMES
 	depends on (PPC_PMAC || PCI || PCMCIA) && WLAN_80211
 	select WIRELESS_EXT
 	select FW_LOADER
+	select CRYPTO
+	select CRYPTO_MICHAEL_MIC
 	---help---
 	  A driver for 802.11b wireless cards based on the "Hermes" or
 	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
