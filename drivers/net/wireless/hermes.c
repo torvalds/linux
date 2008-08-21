@@ -116,6 +116,61 @@ static int hermes_issue_cmd(hermes_t *hw, u16 cmd, u16 param0,
  * Function definitions
  */
 
+/* For doing cmds that wipe the magic constant in SWSUPPORT0 */
+int hermes_doicmd_wait(hermes_t *hw, u16 cmd,
+		       u16 parm0, u16 parm1, u16 parm2,
+		       struct hermes_response *resp)
+{
+	int err = 0;
+	int k;
+	u16 status, reg;
+
+	err = hermes_issue_cmd(hw, cmd, parm0, parm1, parm2);
+	if (err)
+		return err;
+
+	reg = hermes_read_regn(hw, EVSTAT);
+	k = CMD_INIT_TIMEOUT;
+	while ((!(reg & HERMES_EV_CMD)) && k) {
+		k--;
+		udelay(10);
+		reg = hermes_read_regn(hw, EVSTAT);
+	}
+
+	hermes_write_regn(hw, SWSUPPORT0, HERMES_MAGIC);
+
+	if (!hermes_present(hw)) {
+		DEBUG(0, "hermes @ 0x%x: Card removed during reset.\n",
+		       hw->iobase);
+		err = -ENODEV;
+		goto out;
+	}
+
+	if (!(reg & HERMES_EV_CMD)) {
+		printk(KERN_ERR "hermes @ %p: "
+		       "Timeout waiting for card to reset (reg=0x%04x)!\n",
+		       hw->iobase, reg);
+		err = -ETIMEDOUT;
+		goto out;
+	}
+
+	status = hermes_read_regn(hw, STATUS);
+	if (resp) {
+		resp->status = status;
+		resp->resp0 = hermes_read_regn(hw, RESP0);
+		resp->resp1 = hermes_read_regn(hw, RESP1);
+		resp->resp2 = hermes_read_regn(hw, RESP2);
+	}
+
+	hermes_write_regn(hw, EVACK, HERMES_EV_CMD);
+
+	if (status & HERMES_STATUS_RESULT)
+		err = -EIO;
+out:
+	return err;
+}
+EXPORT_SYMBOL(hermes_doicmd_wait);
+
 void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing)
 {
 	hw->iobase = address;
@@ -126,7 +181,7 @@ EXPORT_SYMBOL(hermes_struct_init);
 
 int hermes_init(hermes_t *hw)
 {
-	u16 status, reg;
+	u16 reg;
 	int err = 0;
 	int k;
 
@@ -164,43 +219,8 @@ int hermes_init(hermes_t *hw)
 
 	/* We don't use hermes_docmd_wait here, because the reset wipes
 	   the magic constant in SWSUPPORT0 away, and it gets confused */
-	err = hermes_issue_cmd(hw, HERMES_CMD_INIT, 0, 0, 0);
-	if (err)
-		return err;
+	err = hermes_doicmd_wait(hw, HERMES_CMD_INIT, 0, 0, 0, NULL);
 
-	reg = hermes_read_regn(hw, EVSTAT);
-	k = CMD_INIT_TIMEOUT;
-	while ( (! (reg & HERMES_EV_CMD)) && k) {
-		k--;
-		udelay(10);
-		reg = hermes_read_regn(hw, EVSTAT);
-	}
-
-	hermes_write_regn(hw, SWSUPPORT0, HERMES_MAGIC);
-
-	if (! hermes_present(hw)) {
-		DEBUG(0, "hermes @ 0x%x: Card removed during reset.\n",
-		       hw->iobase);
-		err = -ENODEV;
-		goto out;
-	}
-		
-	if (! (reg & HERMES_EV_CMD)) {
-		printk(KERN_ERR "hermes @ %p: " 
-		       "Timeout waiting for card to reset (reg=0x%04x)!\n",
-		       hw->iobase, reg);
-		err = -ETIMEDOUT;
-		goto out;
-	}
-
-	status = hermes_read_regn(hw, STATUS);
-
-	hermes_write_regn(hw, EVACK, HERMES_EV_CMD);
-
-	if (status & HERMES_STATUS_RESULT)
-		err = -EIO;
-
- out:
 	return err;
 }
 EXPORT_SYMBOL(hermes_init);

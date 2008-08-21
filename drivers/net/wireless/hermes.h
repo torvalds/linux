@@ -353,6 +353,9 @@ void hermes_struct_init(hermes_t *hw, void __iomem *address, int reg_spacing);
 int hermes_init(hermes_t *hw);
 int hermes_docmd_wait(hermes_t *hw, u16 cmd, u16 parm0,
 		      struct hermes_response *resp);
+int hermes_doicmd_wait(hermes_t *hw, u16 cmd,
+		       u16 parm0, u16 parm1, u16 parm2,
+		       struct hermes_response *resp);
 int hermes_allocate(hermes_t *hw, u16 size, u16 *fid);
 
 int hermes_bap_pread(hermes_t *hw, int bap, void *buf, int len,
