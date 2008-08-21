@@ -57,8 +57,6 @@ int _set_memory_uc(unsigned long addr, int numpages);
 int _set_memory_wc(unsigned long addr, int numpages);
 int _set_memory_wb(unsigned long addr, int numpages);
 int set_memory_uc(unsigned long addr, int numpages);
-int set_memory_uc_noflush(unsigned long addr, int numpages);
-void set_memory_flush_all(void);
 int set_memory_wc(unsigned long addr, int numpages);
 int set_memory_wb(unsigned long addr, int numpages);
 int set_memory_x(unsigned long addr, int numpages);
@@ -89,7 +87,6 @@ int set_memory_4k(unsigned long addr, int numpages);
  */
 
 int set_pages_uc(struct page *page, int numpages);
-int set_pages_uc_noflush(struct page *page, int numpages);
 int set_pages_wb(struct page *page, int numpages);
 int set_pages_x(struct page *page, int numpages);
 int set_pages_nx(struct page *page, int numpages);
