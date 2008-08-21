@@ -1178,15 +1178,23 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 	struct net_device_stats *stats = &priv->stats;
 	struct iw_statistics *wstats = &priv->wstats;
 	struct sk_buff *skb = NULL;
-	u16 rxfid, status, fc;
+	u16 rxfid, status;
 	int length;
-	struct hermes_rx_descriptor desc;
-	struct ethhdr *hdr;
+	struct hermes_rx_descriptor *desc;
+	struct orinoco_rx_data *rx_data;
 	int err;
+
+	desc = kmalloc(sizeof(*desc), GFP_ATOMIC);
+	if (!desc) {
+		printk(KERN_WARNING
+		       "%s: Can't allocate space for RX descriptor\n",
+		       dev->name);
+		goto update_stats;
+	}
 
 	rxfid = hermes_read_regn(hw, RXFID);
 
-	err = hermes_bap_pread(hw, IRQ_BAP, &desc, sizeof(desc),
+	err = hermes_bap_pread(hw, IRQ_BAP, desc, sizeof(*desc),
 			       rxfid, 0);
 	if (err) {
 		printk(KERN_ERR "%s: error %d reading Rx descriptor. "
@@ -1194,7 +1202,7 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 		goto update_stats;
 	}
 
-	status = le16_to_cpu(desc.status);
+	status = le16_to_cpu(desc->status);
 
 	if (status & HERMES_RXSTAT_BADCRC) {
 		DEBUG(1, "%s: Bad CRC on Rx. Frame dropped.\n",
@@ -1205,8 +1213,8 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 
 	/* Handle frames in monitor mode */
 	if (priv->iw_mode == IW_MODE_MONITOR) {
-		orinoco_rx_monitor(dev, rxfid, &desc);
-		return;
+		orinoco_rx_monitor(dev, rxfid, desc);
+		goto out;
 	}
 
 	if (status & HERMES_RXSTAT_UNDECRYPTABLE) {
@@ -1216,15 +1224,14 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 		goto update_stats;
 	}
 
-	length = le16_to_cpu(desc.data_len);
-	fc = le16_to_cpu(desc.frame_ctl);
+	length = le16_to_cpu(desc->data_len);
 
 	/* Sanity checks */
 	if (length < 3) { /* No for even an 802.2 LLC header */
 		/* At least on Symbol firmware with PCF we get quite a
                    lot of these legitimately - Poll frames with no
                    data. */
-		return;
+		goto out;
 	}
 	if (length > IEEE80211_DATA_LEN) {
 		printk(KERN_WARNING "%s: Oversized frame received (%d bytes)\n",
@@ -1259,6 +1266,43 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 		goto drop;
 	}
 
+	/* Add desc and skb to rx queue */
+	rx_data = kzalloc(sizeof(*rx_data), GFP_ATOMIC);
+	if (!rx_data) {
+		printk(KERN_WARNING "%s: Can't allocate RX packet\n",
+			dev->name);
+		goto drop;
+	}
+	rx_data->desc = desc;
+	rx_data->skb = skb;
+	list_add_tail(&rx_data->list, &priv->rx_list);
+	tasklet_schedule(&priv->rx_tasklet);
+
+	return;
+
+drop:
+	dev_kfree_skb_irq(skb);
+update_stats:
+	stats->rx_errors++;
+	stats->rx_dropped++;
+out:
+	kfree(desc);
+}
+
+static void orinoco_rx(struct net_device *dev,
+		       struct hermes_rx_descriptor *desc,
+		       struct sk_buff *skb)
+{
+	struct orinoco_private *priv = netdev_priv(dev);
+	struct net_device_stats *stats = &priv->stats;
+	u16 status, fc;
+	int length;
+	struct ethhdr *hdr;
+
+	status = le16_to_cpu(desc->status);
+	length = le16_to_cpu(desc->data_len);
+	fc = le16_to_cpu(desc->frame_ctl);
+
 	/* Handle decapsulation
 	 * In most cases, the firmware tell us about SNAP frames.
 	 * For some reason, the SNAP frames sent by LinkSys APs
@@ -1277,11 +1321,11 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 		hdr = (struct ethhdr *)skb_push(skb, ETH_HLEN);
 		hdr->h_proto = htons(length);
 	}
-	memcpy(hdr->h_dest, desc.addr1, ETH_ALEN);
+	memcpy(hdr->h_dest, desc->addr1, ETH_ALEN);
 	if (fc & IEEE80211_FCTL_FROMDS)
-		memcpy(hdr->h_source, desc.addr3, ETH_ALEN);
+		memcpy(hdr->h_source, desc->addr3, ETH_ALEN);
 	else
-		memcpy(hdr->h_source, desc.addr2, ETH_ALEN);
+		memcpy(hdr->h_source, desc->addr2, ETH_ALEN);
 
 	dev->last_rx = jiffies;
 	skb->protocol = eth_type_trans(skb, dev);
@@ -1290,7 +1334,7 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 		skb->pkt_type = PACKET_OTHERHOST;
 	
 	/* Process the wireless stats if needed */
-	orinoco_stat_gather(dev, skb, &desc);
+	orinoco_stat_gather(dev, skb, desc);
 
 	/* Pass the packet to the networking stack */
 	netif_rx(skb);
@@ -1298,12 +1342,27 @@ static void __orinoco_ev_rx(struct net_device *dev, hermes_t *hw)
 	stats->rx_bytes += length;
 
 	return;
+}
 
- drop:	
-	dev_kfree_skb_irq(skb);
- update_stats:
-	stats->rx_errors++;
-	stats->rx_dropped++;
+static void orinoco_rx_isr_tasklet(unsigned long data)
+{
+	struct net_device *dev = (struct net_device *) data;
+	struct orinoco_private *priv = netdev_priv(dev);
+	struct orinoco_rx_data *rx_data, *temp;
+	struct hermes_rx_descriptor *desc;
+	struct sk_buff *skb;
+
+	/* extract desc and skb from queue */
+	list_for_each_entry_safe(rx_data, temp, &priv->rx_list, list) {
+		desc = rx_data->desc;
+		skb = rx_data->skb;
+		list_del(&rx_data->list);
+		kfree(rx_data);
+
+		orinoco_rx(dev, desc, skb);
+
+		kfree(desc);
+	}
 }
 
 /********************************************************************/
@@ -3248,6 +3307,10 @@ struct net_device
 	INIT_WORK(&priv->join_work, orinoco_join_ap);
 	INIT_WORK(&priv->wevent_work, orinoco_send_wevents);
 
+	INIT_LIST_HEAD(&priv->rx_list);
+	tasklet_init(&priv->rx_tasklet, orinoco_rx_isr_tasklet,
+		     (unsigned long) dev);
+
 	netif_carrier_off(dev);
 	priv->last_linkstatus = 0xffff;
 
@@ -3258,6 +3321,10 @@ void free_orinocodev(struct net_device *dev)
 {
 	struct orinoco_private *priv = netdev_priv(dev);
 
+	/* No need to empty priv->rx_list: if the tasklet is scheduled
+	 * when we call tasklet_kill it will run one final time,
+	 * emptying the list */
+	tasklet_kill(&priv->rx_tasklet);
 	priv->wpa_ie_len = 0;
 	kfree(priv->wpa_ie);
 	orinoco_bss_data_free(priv);

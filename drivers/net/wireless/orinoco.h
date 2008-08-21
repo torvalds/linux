@@ -9,6 +9,7 @@
 
 #define DRIVER_VERSION "0.15"
 
+#include <linux/interrupt.h>
 #include <linux/netdevice.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
@@ -57,6 +58,14 @@ struct xbss_element {
 	struct list_head list;
 };
 
+struct hermes_rx_descriptor;
+
+struct orinoco_rx_data {
+	struct hermes_rx_descriptor *desc;
+	struct sk_buff *skb;
+	struct list_head list;
+};
+
 struct orinoco_private {
 	void *card;	/* Pointer to card dependent structure */
 	struct device *dev;
@@ -67,6 +76,11 @@ struct orinoco_private {
 	spinlock_t lock;
 	int hw_unavailable;
 	struct work_struct reset_work;
+
+	/* Interrupt tasklets */
+	struct tasklet_struct rx_tasklet;
+	struct list_head rx_list;
+	struct orinoco_rx_data *rx_data;
 
 	/* driver state */
 	int open;
