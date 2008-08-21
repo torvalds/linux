@@ -653,7 +653,7 @@ int ubifs_gc_start_commit(struct ubifs_info *c)
 	 */
 	while (1) {
 		lp = ubifs_fast_find_freeable(c);
-		if (unlikely(IS_ERR(lp))) {
+		if (IS_ERR(lp)) {
 			err = PTR_ERR(lp);
 			goto out;
 		}
@@ -665,7 +665,7 @@ int ubifs_gc_start_commit(struct ubifs_info *c)
 		if (err)
 			goto out;
 		lp = ubifs_change_lp(c, lp, c->leb_size, 0, lp->flags, 0);
-		if (unlikely(IS_ERR(lp))) {
+		if (IS_ERR(lp)) {
 			err = PTR_ERR(lp);
 			goto out;
 		}
@@ -680,7 +680,7 @@ int ubifs_gc_start_commit(struct ubifs_info *c)
 	/* Record index freeable LEBs for unmapping after commit */
 	while (1) {
 		lp = ubifs_fast_find_frdi_idx(c);
-		if (unlikely(IS_ERR(lp))) {
+		if (IS_ERR(lp)) {
 			err = PTR_ERR(lp);
 			goto out;
 		}
@@ -696,7 +696,7 @@ int ubifs_gc_start_commit(struct ubifs_info *c)
 		/* Don't release the LEB until after the next commit */
 		flags = (lp->flags | LPROPS_TAKEN) ^ LPROPS_INDEX;
 		lp = ubifs_change_lp(c, lp, c->leb_size, 0, flags, 1);
-		if (unlikely(IS_ERR(lp))) {
+		if (IS_ERR(lp)) {
 			err = PTR_ERR(lp);
 			kfree(idx_gc);
 			goto out;

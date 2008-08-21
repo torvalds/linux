@@ -901,11 +901,11 @@ static int get_idx_gc_leb(struct ubifs_info *c)
 	 * it is needed now for this commit.
 	 */
 	lp = ubifs_lpt_lookup_dirty(c, lnum);
-	if (unlikely(IS_ERR(lp)))
+	if (IS_ERR(lp))
 		return PTR_ERR(lp);
 	lp = ubifs_change_lp(c, lp, LPROPS_NC, LPROPS_NC,
 			     lp->flags | LPROPS_INDEX, -1);
-	if (unlikely(IS_ERR(lp)))
+	if (IS_ERR(lp))
 		return PTR_ERR(lp);
 	dbg_find("LEB %d, dirty %d and free %d flags %#x",
 		 lp->lnum, lp->dirty, lp->free, lp->flags);

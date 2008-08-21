@@ -284,7 +284,7 @@ static struct ubifs_znode *dirty_cow_znode(struct ubifs_info *c,
 	}
 
 	zn = copy_znode(c, znode);
-	if (unlikely(IS_ERR(zn)))
+	if (IS_ERR(zn))
 		return zn;
 
 	if (zbr->len) {
@@ -1128,7 +1128,7 @@ static struct ubifs_znode *dirty_cow_bottom_up(struct ubifs_info *c,
 			ubifs_assert(znode == c->zroot.znode);
 			znode = dirty_cow_znode(c, &c->zroot);
 		}
-		if (unlikely(IS_ERR(znode)) || !p)
+		if (IS_ERR(znode) || !p)
 			break;
 		ubifs_assert(path[p - 1] >= 0);
 		ubifs_assert(path[p - 1] < znode->child_cnt);

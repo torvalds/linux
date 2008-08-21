@@ -446,7 +446,7 @@ ssize_t ubifs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		int type;
 
 		xent = ubifs_tnc_next_ent(c, &key, &nm);
-		if (unlikely(IS_ERR(xent))) {
+		if (IS_ERR(xent)) {
 			err = PTR_ERR(xent);
 			break;
 		}
