@@ -40,6 +40,7 @@
  */
 #include <linux/sched.h>
 #include <linux/highmem.h>
+#include <linux/debugfs.h>
 #include <linux/bug.h>
 
 #include <asm/pgtable.h>
@@ -57,6 +58,61 @@
 
 #include "multicalls.h"
 #include "mmu.h"
+#include "debugfs.h"
+
+#define MMU_UPDATE_HISTO	30
+
+#ifdef CONFIG_XEN_DEBUG_FS
+
+static struct {
+	u32 pgd_update;
+	u32 pgd_update_pinned;
+	u32 pgd_update_batched;
+
+	u32 pud_update;
+	u32 pud_update_pinned;
+	u32 pud_update_batched;
+
+	u32 pmd_update;
+	u32 pmd_update_pinned;
+	u32 pmd_update_batched;
+
+	u32 pte_update;
+	u32 pte_update_pinned;
+	u32 pte_update_batched;
+
+	u32 mmu_update;
+	u32 mmu_update_extended;
+	u32 mmu_update_histo[MMU_UPDATE_HISTO];
+
+	u32 prot_commit;
+	u32 prot_commit_batched;
+
+	u32 set_pte_at;
+	u32 set_pte_at_batched;
+	u32 set_pte_at_pinned;
+	u32 set_pte_at_current;
+	u32 set_pte_at_kernel;
+} mmu_stats;
+
+static u8 zero_stats;
+
+static inline void check_zero(void)
+{
+	if (unlikely(zero_stats)) {
+		memset(&mmu_stats, 0, sizeof(mmu_stats));
+		zero_stats = 0;
+	}
+}
+
+#define ADD_STATS(elem, val)			\
+	do { check_zero(); mmu_stats.elem += (val); } while(0)
+
+#else  /* !CONFIG_XEN_DEBUG_FS */
+
+#define ADD_STATS(elem, val)	do { (void)(val); } while(0)
+
+#endif /* CONFIG_XEN_DEBUG_FS */
 
 /*
  * Just beyond the highest usermode address.  STACK_TOP_MAX has a
@@ -243,11 +299,21 @@ static void xen_extend_mmu_update(const struct mmu_update *update)
 
 	mcs = xen_mc_extend_args(__HYPERVISOR_mmu_update, sizeof(*u));
 
-	if (mcs.mc != NULL)
+	if (mcs.mc != NULL) {
+		ADD_STATS(mmu_update_extended, 1);
+		ADD_STATS(mmu_update_histo[mcs.mc->args[1]], -1);
+
 		mcs.mc->args[1]++;
-	else {
+
+		if (mcs.mc->args[1] < MMU_UPDATE_HISTO)
+			ADD_STATS(mmu_update_histo[mcs.mc->args[1]], 1);
+		else
+			ADD_STATS(mmu_update_histo[0], 1);
+	} else {
+		ADD_STATS(mmu_update, 1);
 		mcs = __xen_mc_entry(sizeof(*u));
 		MULTI_mmu_update(mcs.mc, mcs.args, 1, NULL, DOMID_SELF);
+		ADD_STATS(mmu_update_histo[1], 1);
 	}
 
 	u = mcs.args;
@@ -267,6 +333,8 @@ void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 	u.val = pmd_val_ma(val);
 	xen_extend_mmu_update(&u);
 
+	ADD_STATS(pmd_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
+
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
@@ -274,12 +342,16 @@ void xen_set_pmd_hyper(pmd_t *ptr, pmd_t val)
 
 void xen_set_pmd(pmd_t *ptr, pmd_t val)
 {
+	ADD_STATS(pmd_update, 1);
+
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
 		*ptr = val;
 		return;
 	}
+
+	ADD_STATS(pmd_update_pinned, 1);
 
 	xen_set_pmd_hyper(ptr, val);
 }
@@ -300,12 +372,18 @@ void xen_set_pte_at(struct mm_struct *mm, unsigned long addr,
 	if (mm == &init_mm)
 		preempt_disable();
 
+	ADD_STATS(set_pte_at, 1);
+//	ADD_STATS(set_pte_at_pinned, xen_page_pinned(ptep));
+	ADD_STATS(set_pte_at_current, mm == current->mm);
+	ADD_STATS(set_pte_at_kernel, mm == &init_mm);
+
 	if (mm == current->mm || mm == &init_mm) {
 		if (paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU) {
 			struct multicall_space mcs;
 			mcs = xen_mc_entry(0);
 
 			MULTI_update_va_mapping(mcs.mc, addr, pteval, 0);
+			ADD_STATS(set_pte_at_batched, 1);
 			xen_mc_issue(PARAVIRT_LAZY_MMU);
 			goto out;
 		} else
@@ -335,6 +413,9 @@ void xen_ptep_modify_prot_commit(struct mm_struct *mm, unsigned long addr,
 	u.ptr = virt_to_machine(ptep).maddr | MMU_PT_UPDATE_PRESERVE_AD;
 	u.val = pte_val_ma(pte);
 	xen_extend_mmu_update(&u);
+
+	ADD_STATS(prot_commit, 1);
+	ADD_STATS(prot_commit_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
 
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 }
@@ -402,6 +483,8 @@ void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 	u.val = pud_val_ma(val);
 	xen_extend_mmu_update(&u);
 
+	ADD_STATS(pud_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
+
 	xen_mc_issue(PARAVIRT_LAZY_MMU);
 
 	preempt_enable();
@@ -409,6 +492,8 @@ void xen_set_pud_hyper(pud_t *ptr, pud_t val)
 
 void xen_set_pud(pud_t *ptr, pud_t val)
 {
+	ADD_STATS(pud_update, 1);
+
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
@@ -416,11 +501,17 @@ void xen_set_pud(pud_t *ptr, pud_t val)
 		return;
 	}
 
+	ADD_STATS(pud_update_pinned, 1);
+
 	xen_set_pud_hyper(ptr, val);
 }
 
 void xen_set_pte(pte_t *ptep, pte_t pte)
 {
+	ADD_STATS(pte_update, 1);
+//	ADD_STATS(pte_update_pinned, xen_page_pinned(ptep));
+	ADD_STATS(pte_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
+
 #ifdef CONFIG_X86_PAE
 	ptep->pte_high = pte.pte_high;
 	smp_wmb();
@@ -517,6 +608,8 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
 {
 	pgd_t *user_ptr = xen_get_user_pgd(ptr);
 
+	ADD_STATS(pgd_update, 1);
+
 	/* If page is not pinned, we can just update the entry
 	   directly */
 	if (!xen_page_pinned(ptr)) {
@@ -527,6 +620,9 @@ void xen_set_pgd(pgd_t *ptr, pgd_t val)
 		}
 		return;
 	}
+
+	ADD_STATS(pgd_update_pinned, 1);
+	ADD_STATS(pgd_update_batched, paravirt_get_lazy_mode() == PARAVIRT_LAZY_MMU);
 
 	/* If it's pinned, then we can at least batch the kernel and
 	   user updates together. */
@@ -1003,3 +1099,66 @@ void xen_exit_mmap(struct mm_struct *mm)
 
 	spin_unlock(&mm->page_table_lock);
 }
+
+#ifdef CONFIG_XEN_DEBUG_FS
+
+static struct dentry *d_mmu_debug;
+
+static int __init xen_mmu_debugfs(void)
+{
+	struct dentry *d_xen = xen_init_debugfs();
+
+	if (d_xen == NULL)
+		return -ENOMEM;
+
+	d_mmu_debug = debugfs_create_dir("mmu", d_xen);
+
+	debugfs_create_u8("zero_stats", 0644, d_mmu_debug, &zero_stats);
+
+	debugfs_create_u32("pgd_update", 0444, d_mmu_debug, &mmu_stats.pgd_update);
+	debugfs_create_u32("pgd_update_pinned", 0444, d_mmu_debug,
+			   &mmu_stats.pgd_update_pinned);
+	debugfs_create_u32("pgd_update_batched", 0444, d_mmu_debug,
+			   &mmu_stats.pgd_update_pinned);
+
+	debugfs_create_u32("pud_update", 0444, d_mmu_debug, &mmu_stats.pud_update);
+	debugfs_create_u32("pud_update_pinned", 0444, d_mmu_debug,
+			   &mmu_stats.pud_update_pinned);
+	debugfs_create_u32("pud_update_batched", 0444, d_mmu_debug,
+			   &mmu_stats.pud_update_pinned);
+
+	debugfs_create_u32("pmd_update", 0444, d_mmu_debug, &mmu_stats.pmd_update);
+	debugfs_create_u32("pmd_update_pinned", 0444, d_mmu_debug,
+			   &mmu_stats.pmd_update_pinned);
+	debugfs_create_u32("pmd_update_batched", 0444, d_mmu_debug,
+			   &mmu_stats.pmd_update_pinned);
+
+	debugfs_create_u32("pte_update", 0444, d_mmu_debug, &mmu_stats.pte_update);
+//	debugfs_create_u32("pte_update_pinned", 0444, d_mmu_debug,
+//			   &mmu_stats.pte_update_pinned);
+	debugfs_create_u32("pte_update_batched", 0444, d_mmu_debug,
+			   &mmu_stats.pte_update_pinned);
+
+	debugfs_create_u32("mmu_update", 0444, d_mmu_debug, &mmu_stats.mmu_update);
+	debugfs_create_u32("mmu_update_extended", 0444, d_mmu_debug,
+			   &mmu_stats.mmu_update_extended);
+	xen_debugfs_create_u32_array("mmu_update_histo", 0444, d_mmu_debug,
+				     mmu_stats.mmu_update_histo, 20);
+
+	debugfs_create_u32("set_pte_at", 0444, d_mmu_debug, &mmu_stats.set_pte_at);
+	debugfs_create_u32("set_pte_at_batched", 0444, d_mmu_debug,
+			   &mmu_stats.set_pte_at_batched);
+	debugfs_create_u32("set_pte_at_current", 0444, d_mmu_debug,
+			   &mmu_stats.set_pte_at_current);
+	debugfs_create_u32("set_pte_at_kernel", 0444, d_mmu_debug,
+			   &mmu_stats.set_pte_at_kernel);
+
+	debugfs_create_u32("prot_commit", 0444, d_mmu_debug, &mmu_stats.prot_commit);
+	debugfs_create_u32("prot_commit_batched", 0444, d_mmu_debug,
+			   &mmu_stats.prot_commit_batched);
+
+	return 0;
+}
+fs_initcall(xen_mmu_debugfs);
+
+#endif	/* CONFIG_XEN_DEBUG_FS */
