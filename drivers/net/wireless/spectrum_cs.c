@@ -25,7 +25,6 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/firmware.h>
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>
 #include <pcmcia/cistpl.h>
@@ -33,10 +32,6 @@
 #include <pcmcia/ds.h>
 
 #include "orinoco.h"
-#include "hermes_dld.h"
-
-static const char primary_fw_name[] = "symbol_sp24t_prim_fw";
-static const char secondary_fw_name[] = "symbol_sp24t_sec_fw";
 
 /********************************************************************/
 /* Module stuff							    */
@@ -72,25 +67,10 @@ struct orinoco_pccard {
 static int spectrum_cs_config(struct pcmcia_device *link);
 static void spectrum_cs_release(struct pcmcia_device *link);
 
-/********************************************************************/
-/* Firmware downloader						    */
-/********************************************************************/
-
-/* Position of PDA in the adapter memory */
-#define EEPROM_ADDR	0x3000
-#define EEPROM_LEN	0x200
-#define PDA_OFFSET	0x100
-
-#define PDA_ADDR	(EEPROM_ADDR + PDA_OFFSET)
-#define PDA_WORDS	((EEPROM_LEN - PDA_OFFSET) / 2)
-
 /* Constants for the CISREG_CCSR register */
 #define HCR_RUN		0x07	/* run firmware after reset */
 #define HCR_IDLE	0x0E	/* don't run firmware after reset */
 #define HCR_MEM16	0x10	/* memory width bit, should be preserved */
-
-/* End markers */
-#define TEXT_END	0x1A		/* End of text header */
 
 
 #define CS_CHECK(fn, ret) \
@@ -158,119 +138,6 @@ spectrum_reset(struct pcmcia_device *link, int idle)
 	return -ENODEV;
 }
 
-
-/*
- * Process a firmware image - stop the card, load the firmware, reset
- * the card and make sure it responds.  For the secondary firmware take
- * care of the PDA - read it and then write it on top of the firmware.
- */
-static int
-spectrum_dl_image(hermes_t *hw, struct pcmcia_device *link,
-		  const unsigned char *image, const unsigned char *end,
-		  int secondary)
-{
-	int ret;
-	const unsigned char *ptr;
-	const unsigned char *first_block;
-
-	/* Plug Data Area (PDA) */
-	__le16 pda[PDA_WORDS];
-
-	/* Binary block begins after the 0x1A marker */
-	ptr = image;
-	while (*ptr++ != TEXT_END);
-	first_block = ptr;
-
-	/* Read the PDA from EEPROM */
-	if (secondary) {
-		ret = hermes_read_pda(hw, pda, PDA_ADDR, sizeof(pda), 1);
-		if (ret)
-			return ret;
-	}
-
-	/* Stop the firmware, so that it can be safely rewritten */
-	ret = spectrum_reset(link, 1);
-	if (ret)
-		return ret;
-
-	/* Program the adapter with new firmware */
-	ret = hermes_program(hw, first_block, end);
-	if (ret)
-		return ret;
-
-	/* Write the PDA to the adapter */
-	if (secondary) {
-		size_t len = hermes_blocks_length(first_block);
-		ptr = first_block + len;
-		ret = hermes_apply_pda(hw, ptr, pda);
-		if (ret)
-			return ret;
-	}
-
-	/* Run the firmware */
-	ret = spectrum_reset(link, 0);
-	if (ret)
-		return ret;
-
-	/* Reset hermes chip and make sure it responds */
-	ret = hermes_init(hw);
-
-	/* hermes_reset() should return 0 with the secondary firmware */
-	if (secondary && ret != 0)
-		return -ENODEV;
-
-	/* And this should work with any firmware */
-	if (!hermes_present(hw))
-		return -ENODEV;
-
-	return 0;
-}
-
-
-/*
- * Download the firmware into the card, this also does a PCMCIA soft
- * reset on the card, to make sure it's in a sane state.
- */
-static int
-spectrum_dl_firmware(hermes_t *hw, struct pcmcia_device *link)
-{
-	int ret;
-	const struct firmware *fw_entry;
-
-	if (request_firmware(&fw_entry, primary_fw_name,
-			     &handle_to_dev(link)) != 0) {
-		printk(KERN_ERR PFX "Cannot find firmware: %s\n",
-		       primary_fw_name);
-		return -ENOENT;
-	}
-
-	/* Load primary firmware */
-	ret = spectrum_dl_image(hw, link, fw_entry->data,
-				fw_entry->data + fw_entry->size, 0);
-	release_firmware(fw_entry);
-	if (ret) {
-		printk(KERN_ERR PFX "Primary firmware download failed\n");
-		return ret;
-	}
-
-	if (request_firmware(&fw_entry, secondary_fw_name,
-			     &handle_to_dev(link)) != 0) {
-		printk(KERN_ERR PFX "Cannot find firmware: %s\n",
-		       secondary_fw_name);
-		return -ENOENT;
-	}
-
-	/* Load secondary firmware */
-	ret = spectrum_dl_image(hw, link, fw_entry->data,
-				fw_entry->data + fw_entry->size, 1);
-	release_firmware(fw_entry);
-	if (ret) {
-		printk(KERN_ERR PFX "Secondary firmware download failed\n");
-	}
-
-	return ret;
-}
-
 /********************************************************************/
 /* Device methods     						    */
 /********************************************************************/
@@ -280,20 +147,20 @@ spectrum_cs_hard_reset(struct orinoco_private *priv)
 {
 	struct orinoco_pccard *card = priv->card;
 	struct pcmcia_device *link = card->p_dev;
-	int err;
 
-	if (!hermes_present(&priv->hw)) {
-		/* The firmware needs to be reloaded */
-		if (spectrum_dl_firmware(&priv->hw, link) != 0) {
-			printk(KERN_ERR PFX "Firmware download failed\n");
-			err = -ENODEV;
-		}
-	} else {
-		/* Soft reset using COR and HCR */
-		spectrum_reset(link, 0);
-	}
+	/* Soft reset using COR and HCR */
+	spectrum_reset(link, 0);
 
 	return 0;
+}
+
+static int
+spectrum_cs_stop_firmware(struct orinoco_private *priv, int idle)
+{
+	struct orinoco_pccard *card = priv->card;
+	struct pcmcia_device *link = card->p_dev;
+
+	return spectrum_reset(link, idle);
 }
 
 /********************************************************************/
@@ -315,7 +182,9 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	struct orinoco_private *priv;
 	struct orinoco_pccard *card;
 
-	dev = alloc_orinocodev(sizeof(*card), spectrum_cs_hard_reset);
+	dev = alloc_orinocodev(sizeof(*card), &handle_to_dev(link),
+			       spectrum_cs_hard_reset,
+			       spectrum_cs_stop_firmware);
 	if (! dev)
 		return -ENOMEM;
 	priv = netdev_priv(dev);
@@ -517,7 +386,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 	dev->irq = link->irq.AssignedIRQ;
 	card->node.major = card->node.minor = 0;
 
-	/* Reset card and download firmware */
+	/* Reset card */
 	if (spectrum_cs_hard_reset(priv) != 0) {
 		goto failed;
 	}

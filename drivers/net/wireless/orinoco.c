@@ -82,12 +82,14 @@
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/firmware.h>
 #include <linux/if_arp.h>
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <net/ieee80211.h>
 
 #include "hermes_rid.h"
+#include "hermes_dld.h"
 #include "orinoco.h"
 
 /********************************************************************/
@@ -299,6 +301,272 @@ static void orinoco_bss_data_init(struct orinoco_private *priv)
 	INIT_LIST_HEAD(&priv->bss_list);
 	for (i = 0; i < ORINOCO_MAX_BSS_COUNT; i++)
 		list_add_tail(&priv->bss_data[i].list, &priv->bss_free_list);
+}
+
+
+/********************************************************************/
+/* Download functionality                                           */
+/********************************************************************/
+
+struct fw_info {
+	char *pri_fw;
+	char *sta_fw;
+	char *ap_fw;
+	u32 pda_addr;
+	u16 pda_size;
+};
+
+const static struct fw_info orinoco_fw[] = {
+	{ "", "agere_sta_fw.bin", "agere_ap_fw.bin", 0x00390000, 1000 },
+	{ "", "prism_sta_fw.bin", "prism_ap_fw.bin", 0, 1024 },
+	{ "symbol_sp24t_prim_fw", "symbol_sp24t_sec_fw", "", 0x00003100, 0x100 }
+};
+
+/* Structure used to access fields in FW
+ * Make sure LE decoding macros are used
+ */
+struct orinoco_fw_header {
+	char hdr_vers[6];       /* ASCII string for header version */
+	__le16 headersize;      /* Total length of header */
+	__le32 entry_point;     /* NIC entry point */
+	__le32 blocks;          /* Number of blocks to program */
+	__le32 block_offset;    /* Offset of block data from eof header */
+	__le32 pdr_offset;      /* Offset to PDR data from eof header */
+	__le32 pri_offset;      /* Offset to primary plug data */
+	__le32 compat_offset;   /* Offset to compatibility data*/
+	char signature[0];      /* FW signature length headersize-20 */
+} __attribute__ ((packed));
+
+/* Download either STA or AP firmware into the card. */
+static int
+orinoco_dl_firmware(struct orinoco_private *priv,
+		    const struct fw_info *fw,
+		    int ap)
+{
+	/* Plug Data Area (PDA) */
+	__le16 pda[512] = { 0 };
+
+	hermes_t *hw = &priv->hw;
+	const struct firmware *fw_entry;
+	const struct orinoco_fw_header *hdr;
+	const unsigned char *first_block;
+	const unsigned char *end;
+	const char *firmware;
+	struct net_device *dev = priv->ndev;
+	int err;
+
+	if (ap)
+		firmware = fw->ap_fw;
+	else
+		firmware = fw->sta_fw;
+
+	printk(KERN_DEBUG "%s: Attempting to download firmware %s\n",
+	       dev->name, firmware);
+
+	/* Read current plug data */
+	err = hermes_read_pda(hw, pda, fw->pda_addr,
+			      min_t(u16, fw->pda_size, sizeof(pda)), 0);
+	printk(KERN_DEBUG "%s: Read PDA returned %d\n", dev->name, err);
+	if (err)
+		return err;
+
+	err = request_firmware(&fw_entry, firmware, priv->dev);
+	if (err) {
+		printk(KERN_ERR "%s: Cannot find firmware %s\n",
+		       dev->name, firmware);
+		return -ENOENT;
+	}
+
+	hdr = (const struct orinoco_fw_header *) fw_entry->data;
+
+	/* Enable aux port to allow programming */
+	err = hermesi_program_init(hw, le32_to_cpu(hdr->entry_point));
+	printk(KERN_DEBUG "%s: Program init returned %d\n", dev->name, err);
+	if (err != 0)
+		goto abort;
+
+	/* Program data */
+	first_block = (fw_entry->data +
+		       le16_to_cpu(hdr->headersize) +
+		       le32_to_cpu(hdr->block_offset));
+	end = fw_entry->data + fw_entry->size;
+
+	err = hermes_program(hw, first_block, end);
+	printk(KERN_DEBUG "%s: Program returned %d\n", dev->name, err);
+	if (err != 0)
+		goto abort;
+
+	/* Update production data */
+	first_block = (fw_entry->data +
+		       le16_to_cpu(hdr->headersize) +
+		       le32_to_cpu(hdr->pdr_offset));
+
+	err = hermes_apply_pda_with_defaults(hw, first_block, pda);
+	printk(KERN_DEBUG "%s: Apply PDA returned %d\n", dev->name, err);
+	if (err)
+		goto abort;
+
+	/* Tell card we've finished */
+	err = hermesi_program_end(hw);
+	printk(KERN_DEBUG "%s: Program end returned %d\n", dev->name, err);
+	if (err != 0)
+		goto abort;
+
+	/* Check if we're running */
+	printk(KERN_DEBUG "%s: hermes_present returned %d\n",
+	       dev->name, hermes_present(hw));
+
+abort:
+	release_firmware(fw_entry);
+	return err;
+}
+
+/* End markers */
+#define TEXT_END	0x1A		/* End of text header */
+
+/*
+ * Process a firmware image - stop the card, load the firmware, reset
+ * the card and make sure it responds.  For the secondary firmware take
+ * care of the PDA - read it and then write it on top of the firmware.
+ */
+static int
+symbol_dl_image(struct orinoco_private *priv, const struct fw_info *fw,
+		const unsigned char *image, const unsigned char *end,
+		int secondary)
+{
+	hermes_t *hw = &priv->hw;
+	int ret;
+	const unsigned char *ptr;
+	const unsigned char *first_block;
+
+	/* Plug Data Area (PDA) */
+	__le16 pda[256];
+
+	/* Binary block begins after the 0x1A marker */
+	ptr = image;
+	while (*ptr++ != TEXT_END);
+	first_block = ptr;
+
+	/* Read the PDA from EEPROM */
+	if (secondary) {
+		ret = hermes_read_pda(hw, pda, fw->pda_addr, sizeof(pda), 1);
+		if (ret)
+			return ret;
+	}
+
+	/* Stop the firmware, so that it can be safely rewritten */
+	if (priv->stop_fw) {
+		ret = priv->stop_fw(priv, 1);
+		if (ret)
+			return ret;
+	}
+
+	/* Program the adapter with new firmware */
+	ret = hermes_program(hw, first_block, end);
+	if (ret)
+		return ret;
+
+	/* Write the PDA to the adapter */
+	if (secondary) {
+		size_t len = hermes_blocks_length(first_block);
+		ptr = first_block + len;
+		ret = hermes_apply_pda(hw, ptr, pda);
+		if (ret)
+			return ret;
+	}
+
+	/* Run the firmware */
+	if (priv->stop_fw) {
+		ret = priv->stop_fw(priv, 0);
+		if (ret)
+			return ret;
+	}
+
+	/* Reset hermes chip and make sure it responds */
+	ret = hermes_init(hw);
+
+	/* hermes_reset() should return 0 with the secondary firmware */
+	if (secondary && ret != 0)
+		return -ENODEV;
+
+	/* And this should work with any firmware */
+	if (!hermes_present(hw))
+		return -ENODEV;
+
+	return 0;
+}
+
+
+/*
+ * Download the firmware into the card, this also does a PCMCIA soft
+ * reset on the card, to make sure it's in a sane state.
+ */
+static int
+symbol_dl_firmware(struct orinoco_private *priv,
+		   const struct fw_info *fw)
+{
+	struct net_device *dev = priv->ndev;
+	int ret;
+	const struct firmware *fw_entry;
+
+	if (request_firmware(&fw_entry, fw->pri_fw,
+			     priv->dev) != 0) {
+		printk(KERN_ERR "%s: Cannot find firmware: %s\n",
+		       dev->name, fw->pri_fw);
+		return -ENOENT;
+	}
+
+	/* Load primary firmware */
+	ret = symbol_dl_image(priv, fw, fw_entry->data,
+			      fw_entry->data + fw_entry->size, 0);
+	release_firmware(fw_entry);
+	if (ret) {
+		printk(KERN_ERR "%s: Primary firmware download failed\n",
+		       dev->name);
+		return ret;
+	}
+
+	if (request_firmware(&fw_entry, fw->sta_fw,
+			     priv->dev) != 0) {
+		printk(KERN_ERR "%s: Cannot find firmware: %s\n",
+		       dev->name, fw->sta_fw);
+		return -ENOENT;
+	}
+
+	/* Load secondary firmware */
+	ret = symbol_dl_image(priv, fw, fw_entry->data,
+			      fw_entry->data + fw_entry->size, 1);
+	release_firmware(fw_entry);
+	if (ret) {
+		printk(KERN_ERR "%s: Secondary firmware download failed\n",
+		       dev->name);
+	}
+
+	return ret;
+}
+
+static int orinoco_download(struct orinoco_private *priv)
+{
+	int err = 0;
+	/* Reload firmware */
+	switch (priv->firmware_type) {
+	case FIRMWARE_TYPE_AGERE:
+		/* case FIRMWARE_TYPE_INTERSIL: */
+		err = orinoco_dl_firmware(priv,
+					  &orinoco_fw[priv->firmware_type], 0);
+		break;
+
+	case FIRMWARE_TYPE_SYMBOL:
+		err = symbol_dl_firmware(priv,
+					 &orinoco_fw[priv->firmware_type]);
+		break;
+	case FIRMWARE_TYPE_INTERSIL:
+		break;
+	}
+	/* TODO: if we fail we probably need to reinitialise
+	 * the driver */
+
+	return err;
 }
 
 /********************************************************************/
@@ -2043,6 +2311,12 @@ static void orinoco_reset(struct work_struct *work)
 		}
 	}
 
+	if (priv->do_fw_download) {
+		err = orinoco_download(priv);
+		if (err)
+			priv->do_fw_download = 0;
+	}
+
 	err = orinoco_reinit_firmware(dev);
 	if (err) {
 		printk(KERN_ERR "%s: orinoco_reset: Error %d re-initializing firmware\n",
@@ -2254,6 +2528,7 @@ static int determine_firmware(struct net_device *dev)
 	priv->has_ibss = 1;
 	priv->has_wep = 0;
 	priv->has_big_wep = 0;
+	priv->do_fw_download = 0;
 
 	/* Determine capabilities from the firmware version */
 	switch (priv->firmware_type) {
@@ -2273,6 +2548,7 @@ static int determine_firmware(struct net_device *dev)
 		priv->has_pm = (firmver >= 0x40020); /* Don't work in 7.52 ? */
 		priv->ibss_port = 1;
 		priv->has_hostscan = (firmver >= 0x8000a);
+		priv->do_fw_download = 1;
 		priv->broken_monitor = (firmver >= 0x80000);
 
 		/* Tested with Agere firmware :
@@ -2317,6 +2593,21 @@ static int determine_firmware(struct net_device *dev)
 			       firmver >= 0x31000;
 		priv->has_preamble = (firmver >= 0x20000);
 		priv->ibss_port = 4;
+
+		/* Symbol firmware is found on various cards, but
+		 * there has been no attempt to check firmware
+		 * download on non-spectrum_cs based cards.
+		 *
+		 * Given that the Agere firmware download works
+		 * differently, we should avoid doing a firmware
+		 * download with the Symbol algorithm on non-spectrum
+		 * cards.
+		 *
+		 * For now we can identify a spectrum_cs based card
+		 * because it has a firmware reset function.
+		 */
+		priv->do_fw_download = (priv->stop_fw != NULL);
+
  		priv->broken_disableport = (firmver == 0x25013) ||
  					   (firmver >= 0x30000 && firmver <= 0x31000);
 		priv->has_hostscan = (firmver >= 0x31001) ||
@@ -2385,6 +2676,20 @@ static int orinoco_init(struct net_device *dev)
 		printk(KERN_ERR "%s: Incompatible firmware, aborting\n",
 		       dev->name);
 		goto out;
+	}
+
+	if (priv->do_fw_download) {
+		err = orinoco_download(priv);
+		if (err)
+			priv->do_fw_download = 0;
+
+		/* Check firmware version again */
+		err = determine_firmware(dev);
+		if (err != 0) {
+			printk(KERN_ERR "%s: Incompatible firmware, aborting\n",
+			       dev->name);
+			goto out;
+		}
 	}
 
 	if (priv->has_port3)
@@ -2529,8 +2834,11 @@ static int orinoco_init(struct net_device *dev)
 	return err;
 }
 
-struct net_device *alloc_orinocodev(int sizeof_card,
-				    int (*hard_reset)(struct orinoco_private *))
+struct net_device
+*alloc_orinocodev(int sizeof_card,
+		  struct device *device,
+		  int (*hard_reset)(struct orinoco_private *),
+		  int (*stop_fw)(struct orinoco_private *, int))
 {
 	struct net_device *dev;
 	struct orinoco_private *priv;
@@ -2545,6 +2853,7 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 				      + sizeof(struct orinoco_private));
 	else
 		priv->card = NULL;
+	priv->dev = device;
 
 	if (orinoco_bss_data_allocate(priv))
 		goto err_out_free;
@@ -2570,6 +2879,7 @@ struct net_device *alloc_orinocodev(int sizeof_card,
 	dev->open = orinoco_open;
 	dev->stop = orinoco_stop;
 	priv->hard_reset = hard_reset;
+	priv->stop_fw = stop_fw;
 
 	spin_lock_init(&priv->lock);
 	priv->open = 0;

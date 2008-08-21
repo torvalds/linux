@@ -44,7 +44,9 @@ typedef struct {
 
 struct orinoco_private {
 	void *card;	/* Pointer to card dependent structure */
+	struct device *dev;
 	int (*hard_reset)(struct orinoco_private *);
+	int (*stop_fw)(struct orinoco_private *, int);
 
 	/* Synchronisation stuff */
 	spinlock_t lock;
@@ -83,6 +85,7 @@ struct orinoco_private {
 	unsigned int has_preamble:1;
 	unsigned int has_sensitivity:1;
 	unsigned int has_hostscan:1;
+	unsigned int do_fw_download:1;
 	unsigned int broken_disableport:1;
 	unsigned int broken_monitor:1;
 
@@ -130,8 +133,10 @@ extern int orinoco_debug;
 /* Exported prototypes                                              */
 /********************************************************************/
 
-extern struct net_device *alloc_orinocodev(int sizeof_card,
-					   int (*hard_reset)(struct orinoco_private *));
+extern struct net_device *alloc_orinocodev(
+	int sizeof_card, struct device *device,
+	int (*hard_reset)(struct orinoco_private *),
+	int (*stop_fw)(struct orinoco_private *, int));
 extern void free_orinocodev(struct net_device *dev);
 extern int __orinoco_up(struct net_device *dev);
 extern int __orinoco_down(struct net_device *dev);

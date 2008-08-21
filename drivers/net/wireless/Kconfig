@@ -335,6 +335,7 @@ config HERMES
 	tristate "Hermes chipset 802.11b support (Orinoco/Prism2/Symbol)"
 	depends on (PPC_PMAC || PCI || PCMCIA) && WLAN_80211
 	select WIRELESS_EXT
+	select FW_LOADER
 	---help---
 	  A driver for 802.11b wireless cards based on the "Hermes" or
 	  Intersil HFA384x (Prism 2) MAC controller.  This includes the vast
@@ -424,7 +425,6 @@ config PCMCIA_HERMES
 config PCMCIA_SPECTRUM
 	tristate "Symbol Spectrum24 Trilogy PCMCIA card support"
 	depends on PCMCIA && HERMES
-	select FW_LOADER
 	---help---
 
 	  This is a driver for 802.11b cards using RAM-loadable Symbol
