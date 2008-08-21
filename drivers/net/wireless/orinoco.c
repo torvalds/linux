@@ -1443,6 +1443,66 @@ static void orinoco_send_bssid_wevent(struct orinoco_private *priv)
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 }
 
+static void orinoco_send_assocreqie_wevent(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	struct hermes *hw = &priv->hw;
+	union iwreq_data wrqu;
+	int err;
+	u8 buf[88];
+	u8 *ie;
+
+	if (!priv->has_wpa)
+		return;
+
+	err = hermes_read_ltv(hw, IRQ_BAP, HERMES_RID_CURRENT_ASSOC_REQ_INFO,
+			      sizeof(buf), NULL, &buf);
+	if (err != 0)
+		return;
+
+	ie = orinoco_get_wpa_ie(buf, sizeof(buf));
+	if (ie) {
+		int rem = sizeof(buf) - (ie - &buf[0]);
+		wrqu.data.length = ie[1] + 2;
+		if (wrqu.data.length > rem)
+			wrqu.data.length = rem;
+
+		if (wrqu.data.length)
+			/* Send event to user space */
+			wireless_send_event(dev, IWEVASSOCREQIE, &wrqu, ie);
+	}
+}
+
+static void orinoco_send_assocrespie_wevent(struct orinoco_private *priv)
+{
+	struct net_device *dev = priv->ndev;
+	struct hermes *hw = &priv->hw;
+	union iwreq_data wrqu;
+	int err;
+	u8 buf[88]; /* TODO: verify max size or IW_GENERIC_IE_MAX */
+	u8 *ie;
+
+	if (!priv->has_wpa)
+		return;
+
+	err = hermes_read_ltv(hw, IRQ_BAP, HERMES_RID_CURRENT_ASSOC_RESP_INFO,
+			      sizeof(buf), NULL, &buf);
+	if (err != 0)
+		return;
+
+	ie = orinoco_get_wpa_ie(buf, sizeof(buf));
+	if (ie) {
+		int rem = sizeof(buf) - (ie - &buf[0]);
+		wrqu.data.length = ie[1] + 2;
+		if (wrqu.data.length > rem)
+			wrqu.data.length = rem;
+
+		if (wrqu.data.length)
+			/* Send event to user space */
+			wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu, ie);
+	}
+}
+
 static void orinoco_send_wevents(struct work_struct *work)
 {
 	struct orinoco_private *priv =
@@ -1452,6 +1512,8 @@ static void orinoco_send_wevents(struct work_struct *work)
 	if (orinoco_lock(priv, &flags) != 0)
 		return;
 
+	orinoco_send_assocreqie_wevent(priv);
+	orinoco_send_assocrespie_wevent(priv);
 	orinoco_send_bssid_wevent(priv);
 
 	orinoco_unlock(priv, &flags);
