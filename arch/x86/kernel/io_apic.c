@@ -2077,6 +2077,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 
 		reg_00.bits.ID = mp_ioapics[apic].mp_apicid;
 		spin_lock_irqsave(&ioapic_lock, flags);
+		io_apic_write(apic, 0, reg_00.raw);
+		spin_unlock_irqrestore(&ioapic_lock, flags);
 
 		/*
 		 * Sanity check
