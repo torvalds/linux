@@ -40,7 +40,7 @@ extern struct kmem_cache *btrfs_bit_radix_cachep;
 extern struct kmem_cache *btrfs_path_cachep;
 struct btrfs_ordered_sum;
 
-#define BTRFS_MAGIC "_B6RfS_M"
+#define BTRFS_MAGIC "_B7RfS_M"
 
 #define BTRFS_ACL_NOT_CACHED    ((void *)-1)
 
