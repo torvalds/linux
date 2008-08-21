@@ -192,7 +192,7 @@ static int ocfs2_xattr_value_sanity_check(struct inode *inode,
 	return 0;
 }
 
-static struct ocfs2_extent_tree_operations ocfs2_xattr_et_ops = {
+static struct ocfs2_extent_tree_operations ocfs2_xattr_value_et_ops = {
 	.eo_set_last_eb_blk	= ocfs2_xattr_value_set_last_eb_blk,
 	.eo_get_last_eb_blk	= ocfs2_xattr_value_get_last_eb_blk,
 	.eo_update_clusters	= ocfs2_xattr_value_update_clusters,
@@ -256,32 +256,69 @@ static struct ocfs2_extent_tree_operations ocfs2_xattr_tree_et_ops = {
 	.eo_fill_max_leaf_clusters = ocfs2_xattr_tree_fill_max_leaf_clusters,
 };
 
-static void ocfs2_get_extent_tree(struct ocfs2_extent_tree *et,
-				  struct inode *inode,
-				  struct buffer_head *bh,
-				  enum ocfs2_extent_tree_type et_type,
-				  void *obj)
+static void __ocfs2_get_extent_tree(struct ocfs2_extent_tree *et,
+				    struct inode *inode,
+				    struct buffer_head *bh,
+				    void *obj,
+				    enum ocfs2_extent_tree_type et_type,
+				    struct ocfs2_extent_tree_operations *ops)
 {
 	et->et_type = et_type;
+	et->et_ops = ops;
 	get_bh(bh);
 	et->et_root_bh = bh;
 	if (!obj)
 		obj = (void *)bh->b_data;
 	et->et_object = obj;
 
-	if (et_type == OCFS2_DINODE_EXTENT) {
-		et->et_ops = &ocfs2_dinode_et_ops;
-	} else if (et_type == OCFS2_XATTR_VALUE_EXTENT) {
-		et->et_ops = &ocfs2_xattr_et_ops;
-	} else if (et_type == OCFS2_XATTR_TREE_EXTENT) {
-		et->et_ops = &ocfs2_xattr_tree_et_ops;
-	}
-
 	et->et_ops->eo_fill_root_el(et);
 	if (!et->et_ops->eo_fill_max_leaf_clusters)
 		et->et_max_leaf_clusters = 0;
 	else
 		et->et_ops->eo_fill_max_leaf_clusters(inode, et);
+}
+
+static void ocfs2_get_dinode_extent_tree(struct ocfs2_extent_tree *et,
+					 struct inode *inode,
+					 struct buffer_head *bh)
+{
+	__ocfs2_get_extent_tree(et, inode, bh, NULL, OCFS2_DINODE_EXTENT,
+				&ocfs2_dinode_et_ops);
+}
+
+static void ocfs2_get_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
+					     struct inode *inode,
+					     struct buffer_head *bh)
+{
+	__ocfs2_get_extent_tree(et, inode, bh, NULL,
+				OCFS2_XATTR_TREE_EXTENT,
+				&ocfs2_xattr_tree_et_ops);
+}
+
+static void ocfs2_get_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+					     struct inode *inode,
+					     struct buffer_head *bh,
+					     struct ocfs2_xattr_value_root *xv)
+{
+	__ocfs2_get_extent_tree(et, inode, bh, xv,
+				OCFS2_XATTR_VALUE_EXTENT,
+				&ocfs2_xattr_value_et_ops);
+}
+
+static void ocfs2_get_extent_tree(struct ocfs2_extent_tree *et,
+				  struct inode *inode,
+				  struct buffer_head *bh,
+				  enum ocfs2_extent_tree_type et_type,
+				  void *obj)
+{
+	if (et_type == OCFS2_DINODE_EXTENT)
+		ocfs2_get_dinode_extent_tree(et, inode, bh);
+	else if (et_type == OCFS2_XATTR_VALUE_EXTENT)
+		ocfs2_get_xattr_tree_extent_tree(et, inode, bh);
+	else if (et_type == OCFS2_XATTR_TREE_EXTENT)
+		ocfs2_get_xattr_value_extent_tree(et, inode, bh, obj);
+	else
+		BUG();
 }
 
 static void ocfs2_put_extent_tree(struct ocfs2_extent_tree *et)
@@ -4432,8 +4469,7 @@ int ocfs2_dinode_insert_extent(struct ocfs2_super *osb,
 	int status;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_get_extent_tree(&et, inode, root_bh, OCFS2_DINODE_EXTENT,
-			      NULL);
+	ocfs2_get_dinode_extent_tree(&et, inode, root_bh);
 	status = ocfs2_insert_extent(osb, handle, inode, root_bh,
 				     cpos, start_blk, new_clusters,
 				     flags, meta_ac, &et);
@@ -4451,13 +4487,12 @@ int ocfs2_xattr_value_insert_extent(struct ocfs2_super *osb,
 				    u32 new_clusters,
 				    u8 flags,
 				    struct ocfs2_alloc_context *meta_ac,
-				    void *obj)
+				    struct ocfs2_xattr_value_root *xv)
 {
 	int status;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_get_extent_tree(&et, inode, root_bh,
-			      OCFS2_XATTR_VALUE_EXTENT, obj);
+	ocfs2_get_xattr_value_extent_tree(&et, inode, root_bh, xv);
 	status = ocfs2_insert_extent(osb, handle, inode, root_bh,
 				     cpos, start_blk, new_clusters,
 				     flags, meta_ac, &et);
@@ -4479,8 +4514,7 @@ int ocfs2_xattr_tree_insert_extent(struct ocfs2_super *osb,
 	int status;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_get_extent_tree(&et, inode, root_bh, OCFS2_XATTR_TREE_EXTENT,
-			      NULL);
+	ocfs2_get_xattr_tree_extent_tree(&et, inode, root_bh);
 	status = ocfs2_insert_extent(osb, handle, inode, root_bh,
 				     cpos, start_blk, new_clusters,
 				     flags, meta_ac, &et);

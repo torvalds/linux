@@ -56,7 +56,7 @@ int ocfs2_xattr_value_insert_extent(struct ocfs2_super *osb,
 				    u32 new_clusters,
 				    u8 flags,
 				    struct ocfs2_alloc_context *meta_ac,
-				    void *private);
+				    struct ocfs2_xattr_value_root *xv);
 int ocfs2_xattr_tree_insert_extent(struct ocfs2_super *osb,
 				   handle_t *handle,
 				   struct inode *inode,
