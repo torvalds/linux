@@ -271,6 +271,7 @@ claw_probe(struct ccwgroup_device *cgdev)
 	if (!get_device(&cgdev->dev))
 		return -ENODEV;
 	privptr = kzalloc(sizeof(struct claw_privbk), GFP_KERNEL);
+	cgdev->dev.driver_data = privptr;
 	if (privptr == NULL) {
 		probe_error(cgdev);
 		put_device(&cgdev->dev);
@@ -305,7 +306,6 @@ claw_probe(struct ccwgroup_device *cgdev)
 	privptr->p_env->p_priv = privptr;
         cgdev->cdev[0]->handler = claw_irq_handler;
 	cgdev->cdev[1]->handler = claw_irq_handler;
-	cgdev->dev.driver_data = privptr;
 	CLAW_DBF_TEXT(2, setup, "prbext 0");
 
         return 0;
@@ -1960,19 +1960,16 @@ init_ccw_bk(struct net_device *dev)
 static void
 probe_error( struct ccwgroup_device *cgdev)
 {
-  struct claw_privbk *privptr;
+	struct claw_privbk *privptr;
 
 	CLAW_DBF_TEXT(4, trace, "proberr");
-        privptr=(struct claw_privbk *)cgdev->dev.driver_data;
-	if (privptr!=NULL) {
+	privptr = (struct claw_privbk *) cgdev->dev.driver_data;
+	if (privptr != NULL) {
+		cgdev->dev.driver_data = NULL;
 		kfree(privptr->p_env);
-		privptr->p_env=NULL;
-                kfree(privptr->p_mtc_envelope);
-               	privptr->p_mtc_envelope=NULL;
-                kfree(privptr);
-                privptr=NULL;
-        }
-        return;
+		kfree(privptr->p_mtc_envelope);
+		kfree(privptr);
+	}
 }    /*    probe_error    */
 
 /*-------------------------------------------------------------------*
