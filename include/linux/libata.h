@@ -163,6 +163,7 @@ enum {
 	ATA_DEV_NONE		= 9,	/* no device */
 
 	/* struct ata_link flags */
+	ATA_LFLAG_NO_HRST	= (1 << 1), /* avoid hardreset */
 	ATA_LFLAG_NO_SRST	= (1 << 2), /* avoid softreset */
 	ATA_LFLAG_ASSUME_ATA	= (1 << 3), /* assume ATA class */
 	ATA_LFLAG_ASSUME_SEMB	= (1 << 4), /* assume SEMB class */
@@ -646,6 +647,7 @@ struct ata_link {
 
 	unsigned int		flags;		/* ATA_LFLAG_xxx */
 
+	u32			saved_scontrol;	/* SControl on probe */
 	unsigned int		hw_sata_spd_limit;
 	unsigned int		sata_spd_limit;
 	unsigned int		sata_spd;	/* current SATA PHY speed */
@@ -1427,6 +1429,28 @@ static inline unsigned long ata_deadline(unsigned long from_jiffies,
 	return from_jiffies + msecs_to_jiffies(timeout_msecs);
 }
 
+/* Don't open code these in drivers as there are traps. Firstly the range may
+   change in future hardware and specs, secondly 0xFF means 'no DMA' but is
+   > UDMA_0. Dyma ddreigiau */
+
+static inline int ata_using_mwdma(struct ata_device *adev)
+{
+	if (adev->dma_mode >= XFER_MW_DMA_0 && adev->dma_mode <= XFER_MW_DMA_4)
+		return 1;
+	return 0;
+}
+
+static inline int ata_using_udma(struct ata_device *adev)
+{
+	if (adev->dma_mode >= XFER_UDMA_0 && adev->dma_mode <= XFER_UDMA_7)
+		return 1;
+	return 0;
+}
+
+static inline int ata_dma_enabled(struct ata_device *adev)
+{
+	return (adev->dma_mode == 0xFF ? 0 : 1);
+}
 
 /**************************************************************************
  * PMP - drivers/ata/libata-pmp.c
