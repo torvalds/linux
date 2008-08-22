@@ -50,21 +50,62 @@
 #include "buffer_head_io.h"
 
 
+/*
+ * Operations for a specific extent tree type.
+ *
+ * To implement an on-disk btree (extent tree) type in ocfs2, add
+ * an ocfs2_extent_tree_operations structure and the matching
+ * ocfs2_get_<thingy>_extent_tree() function.  That's pretty much it
+ * for the allocation portion of the extent tree.
+ */
 struct ocfs2_extent_tree_operations {
+	/*
+	 * last_eb_blk is the block number of the right most leaf extent
+	 * block.  Most on-disk structures containing an extent tree store
+	 * this value for fast access.  The ->eo_set_last_eb_blk() and
+	 * ->eo_get_last_eb_blk() operations access this value.  They are
+	 *  both required.
+	 */
 	void (*eo_set_last_eb_blk)(struct ocfs2_extent_tree *et,
 				   u64 blkno);
 	u64 (*eo_get_last_eb_blk)(struct ocfs2_extent_tree *et);
+
+	/*
+	 * The on-disk structure usually keeps track of how many total
+	 * clusters are stored in this extent tree.  This function updates
+	 * that value.  new_clusters is the delta, and must be
+	 * added to the total.  Required.
+	 */
 	void (*eo_update_clusters)(struct inode *inode,
 				   struct ocfs2_extent_tree *et,
 				   u32 new_clusters);
+
+	/*
+	 * If ->eo_insert_check() exists, it is called before rec is
+	 * inserted into the extent tree.  It is optional.
+	 */
 	int (*eo_insert_check)(struct inode *inode,
 			       struct ocfs2_extent_tree *et,
 			       struct ocfs2_extent_rec *rec);
 	int (*eo_sanity_check)(struct inode *inode, struct ocfs2_extent_tree *et);
 
-	/* These are internal to ocfs2_extent_tree and don't have
-	 * accessor functions */
+	/*
+	 * --------------------------------------------------------------
+	 * The remaining are internal to ocfs2_extent_tree and don't have
+	 * accessor functions
+	 */
+
+	/*
+	 * ->eo_fill_root_el() takes et->et_object and sets et->et_root_el.
+	 * It is required.
+	 */
 	void (*eo_fill_root_el)(struct ocfs2_extent_tree *et);
+
+	/*
+	 * ->eo_fill_max_leaf_clusters sets et->et_max_leaf_clusters if
+	 * it exists.  If it does not, et->et_max_leaf_clusters is set
+	 * to 0 (unlimited).  Optional.
+	 */
 	void (*eo_fill_max_leaf_clusters)(struct inode *inode,
 					  struct ocfs2_extent_tree *et);
 };
