@@ -867,11 +867,14 @@ dsp_function(struct mISDNchannel *ch,  struct sk_buff *skb)
 		}
 		if (dsp->hdlc) {
 			/* hdlc */
-			spin_lock_irqsave(&dsp_lock, flags);
-			if (dsp->b_active) {
-				skb_queue_tail(&dsp->sendq, skb);
-				schedule_work(&dsp->workq);
+			if (!dsp->b_active) {
+				ret = -EIO;
+				break;
 			}
+			hh->prim = PH_DATA_REQ;
+			spin_lock_irqsave(&dsp_lock, flags);
+			skb_queue_tail(&dsp->sendq, skb);
+			schedule_work(&dsp->workq);
 			spin_unlock_irqrestore(&dsp_lock, flags);
 			return 0;
 		}
