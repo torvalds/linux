@@ -509,7 +509,7 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	CX18_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (s->q_full.length || s->q_io.length)
+	if (s->q_full.buffers || s->q_io.buffers)
 		return POLLIN | POLLRDNORM;
 	if (eof)
 		return POLLHUP;

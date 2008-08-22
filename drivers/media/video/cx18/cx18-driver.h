@@ -217,7 +217,6 @@ struct cx18_buffer {
 struct cx18_queue {
 	struct list_head list;
 	u32 buffers;
-	u32 length;
 	u32 bytesused;
 };
 
