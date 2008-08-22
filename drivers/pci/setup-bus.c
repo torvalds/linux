@@ -539,7 +539,11 @@ static void pci_bus_dump_res(struct pci_bus *bus)
                 if (!res)
                         continue;
 
-		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n", bus->number, i, (res->flags & IORESOURCE_IO)? "io port":"mmio", res->start, res->end);
+		printk(KERN_INFO "bus: %02x index %x %s: [%llx, %llx]\n",
+			bus->number, i,
+			(res->flags & IORESOURCE_IO) ? "io port" : "mmio",
+			(unsigned long long) res->start,
+			(unsigned long long) res->end);
         }
 }
 
