@@ -506,7 +506,7 @@ static int fallible_read_node(struct ubifs_info *c, const union ubifs_key *key,
 		if (keys_cmp(c, key, &node_key) != 0)
 			ret = 0;
 	}
-	if (ret == 0)
+	if (ret == 0 && c->replaying)
 		dbg_mnt("dangling branch LEB %d:%d len %d, key %s",
 			zbr->lnum, zbr->offs, zbr->len, DBGKEY(key));
 	return ret;
@@ -1382,50 +1382,39 @@ static int lookup_level0_dirty(struct ubifs_info *c, const union ubifs_key *key,
 }
 
 /**
- * ubifs_tnc_lookup - look up a file-system node.
+ * maybe_leb_gced - determine if a LEB may have been garbage collected.
  * @c: UBIFS file-system description object
- * @key: node key to lookup
- * @node: the node is returned here
+ * @lnum: LEB number
+ * @gc_seq1: garbage collection sequence number
  *
- * This function look up and reads node with key @key. The caller has to make
- * sure the @node buffer is large enough to fit the node. Returns zero in case
- * of success, %-ENOENT if the node was not found, and a negative error code in
- * case of failure.
+ * This function determines if @lnum may have been garbage collected since
+ * sequence number @gc_seq1. If it may have been then %1 is returned, otherwise
+ * %0 is returned.
  */
-int ubifs_tnc_lookup(struct ubifs_info *c, const union ubifs_key *key,
-		     void *node)
+static int maybe_leb_gced(struct ubifs_info *c, int lnum, int gc_seq1)
 {
-	int found, n, err;
-	struct ubifs_znode *znode;
-	struct ubifs_zbranch zbr, *zt;
+	int gc_seq2, gced_lnum;
 
-	mutex_lock(&c->tnc_mutex);
-	found = ubifs_lookup_level0(c, key, &znode, &n);
-	if (!found) {
-		err = -ENOENT;
-		goto out;
-	} else if (found < 0) {
-		err = found;
-		goto out;
-	}
-	zt = &znode->zbranch[n];
-	if (is_hash_key(c, key)) {
-		/*
-		 * In this case the leaf node cache gets used, so we pass the
-		 * address of the zbranch and keep the mutex locked
-		 */
-		err = tnc_read_node_nm(c, zt, node);
-		goto out;
-	}
-	zbr = znode->zbranch[n];
-	mutex_unlock(&c->tnc_mutex);
-
-	err = ubifs_tnc_read_node(c, &zbr, node);
-	return err;
-
-out:
-	mutex_unlock(&c->tnc_mutex);
-	return err;
+	gced_lnum = c->gced_lnum;
+	smp_rmb();
+	gc_seq2 = c->gc_seq;
+	/* Same seq means no GC */
+	if (gc_seq1 == gc_seq2)
+		return 0;
+	/* Different by more than 1 means we don't know */
+	if (gc_seq1 + 1 != gc_seq2)
+		return 1;
+	/*
+	 * We have seen the sequence number has increased by 1. Now we need to
+	 * be sure we read the right LEB number, so read it again.
+	 */
+	smp_rmb();
+	if (gced_lnum != c->gced_lnum)
+		return 1;
+	/* Finally we can check lnum */
+	if (gced_lnum == lnum)
+		return 1;
+	return 0;
 }
 
 /**
@@ -1436,16 +1425,19 @@ out:
  * @lnum: LEB number is returned here
  * @offs: offset is returned here
  *
- * This function is the same as 'ubifs_tnc_lookup()' but it returns the node
- * location also. See 'ubifs_tnc_lookup()'.
+ * This function look up and reads node with key @key. The caller has to make
+ * sure the @node buffer is large enough to fit the node. Returns zero in case
+ * of success, %-ENOENT if the node was not found, and a negative error code in
+ * case of failure. The node location can be returned in @lnum and @offs.
  */
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,
 		     void *node, int *lnum, int *offs)
 {
-	int found, n, err;
+	int found, n, err, safely = 0, gc_seq1;
 	struct ubifs_znode *znode;
 	struct ubifs_zbranch zbr, *zt;
 
+again:
 	mutex_lock(&c->tnc_mutex);
 	found = ubifs_lookup_level0(c, key, &znode, &n);
 	if (!found) {
@@ -1456,24 +1448,43 @@ int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,
 		goto out;
 	}
 	zt = &znode->zbranch[n];
+	if (lnum) {
+		*lnum = zt->lnum;
+		*offs = zt->offs;
+	}
 	if (is_hash_key(c, key)) {
 		/*
 		 * In this case the leaf node cache gets used, so we pass the
 		 * address of the zbranch and keep the mutex locked
 		 */
-		*lnum = zt->lnum;
-		*offs = zt->offs;
 		err = tnc_read_node_nm(c, zt, node);
 		goto out;
 	}
+	if (safely) {
+		err = ubifs_tnc_read_node(c, zt, node);
+		goto out;
+	}
+	/* Drop the TNC mutex prematurely and race with garbage collection */
 	zbr = znode->zbranch[n];
+	gc_seq1 = c->gc_seq;
 	mutex_unlock(&c->tnc_mutex);
 
-	*lnum = zbr.lnum;
-	*offs = zbr.offs;
+	if (ubifs_get_wbuf(c, zbr.lnum)) {
+		/* We do not GC journal heads */
+		err = ubifs_tnc_read_node(c, &zbr, node);
+		return err;
+	}
 
-	err = ubifs_tnc_read_node(c, &zbr, node);
-	return err;
+	err = fallible_read_node(c, key, &zbr, node);
+	if (maybe_leb_gced(c, zbr.lnum, gc_seq1)) {
+		/*
+		 * The node may have been GC'ed out from under us so try again
+		 * while keeping the TNC mutex locked.
+		 */
+		safely = 1;
+		goto again;
+	}
+	return 0;
 
 out:
 	mutex_unlock(&c->tnc_mutex);

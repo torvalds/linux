@@ -325,4 +325,21 @@ static inline struct timespec ubifs_current_time(struct inode *inode)
 		current_fs_time(inode->i_sb) : CURRENT_TIME_SEC;
 }
 
+/**
+ * ubifs_tnc_lookup - look up a file-system node.
+ * @c: UBIFS file-system description object
+ * @key: node key to lookup
+ * @node: the node is returned here
+ *
+ * This function look up and reads node with key @key. The caller has to make
+ * sure the @node buffer is large enough to fit the node. Returns zero in case
+ * of success, %-ENOENT if the node was not found, and a negative error code in
+ * case of failure.
+ */
+static inline int ubifs_tnc_lookup(struct ubifs_info *c,
+				   const union ubifs_key *key, void *node)
+{
+	return ubifs_tnc_locate(c, key, node, NULL, NULL);
+}
+
 #endif /* __UBIFS_MISC_H__ */

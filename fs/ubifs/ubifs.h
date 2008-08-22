@@ -1028,6 +1028,8 @@ struct ubifs_mount_opts {
  * @sbuf: a buffer of LEB size used by GC and replay for scanning
  * @idx_gc: list of index LEBs that have been garbage collected
  * @idx_gc_cnt: number of elements on the idx_gc list
+ * @gc_seq: incremented for every non-index LEB garbage collected
+ * @gced_lnum: last non-index LEB that was garbage collected
  *
  * @infos_list: links all 'ubifs_info' objects
  * @umount_mutex: serializes shrinker and un-mount
@@ -1257,6 +1259,8 @@ struct ubifs_info {
 	void *sbuf;
 	struct list_head idx_gc;
 	int idx_gc_cnt;
+	volatile int gc_seq;
+	volatile int gced_lnum;
 
 	struct list_head infos_list;
 	struct mutex umount_mutex;
@@ -1451,8 +1455,6 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c);
 /* tnc.c */
 int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 			struct ubifs_znode **zn, int *n);
-int ubifs_tnc_lookup(struct ubifs_info *c, const union ubifs_key *key,
-		     void *node);
 int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 			void *node, const struct qstr *nm);
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,
