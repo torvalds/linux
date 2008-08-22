@@ -1488,13 +1488,13 @@ struct dvb_frontend *drx397xD_attach(const struct drx397xD_config *config,
 	memcpy(&state->config, config, sizeof(struct drx397xD_config));
 
 	/* check if the demod is there */
-	if (RD16(s, 0x2410019) < 0)
+	if (RD16(state, 0x2410019) < 0)
 		goto error;
 
 	/* create dvb_frontend */
 	memcpy(&state->frontend.ops, &drx397x_ops,
 			sizeof(struct dvb_frontend_ops));
-	state->frontend.demodulator_priv = s;
+	state->frontend.demodulator_priv = state;
 
 	return &state->frontend;
 error:
