@@ -90,7 +90,7 @@ DECLARE_PER_CPU(int, cpu_state);
 
 #include <asm/nmi.h>
 /* We halt the CPU with physical CPU hotplug */
-static inline void play_dead(void)
+void native_play_dead(void)
 {
 	idle_task_exit();
 	mb();
@@ -102,7 +102,7 @@ static inline void play_dead(void)
 	wbinvd_halt();
 }
 #else
-static inline void play_dead(void)
+void native_play_dead(void)
 {
 	BUG();
 }

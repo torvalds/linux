@@ -47,11 +47,15 @@ extern struct {
 struct smp_ops {
 	void (*smp_prepare_boot_cpu)(void);
 	void (*smp_prepare_cpus)(unsigned max_cpus);
-	int (*cpu_up)(unsigned cpu);
 	void (*smp_cpus_done)(unsigned max_cpus);
 
 	void (*smp_send_stop)(void);
 	void (*smp_send_reschedule)(int cpu);
+
+	int (*cpu_up)(unsigned cpu);
+	int (*cpu_disable)(void);
+	void (*cpu_die)(unsigned int cpu);
+	void (*play_dead)(void);
 
 	void (*send_call_func_ipi)(cpumask_t mask);
 	void (*send_call_func_single_ipi)(int cpu);
@@ -91,6 +95,21 @@ static inline int __cpu_up(unsigned int cpu)
 	return smp_ops.cpu_up(cpu);
 }
 
+static inline int __cpu_disable(void)
+{
+	return smp_ops.cpu_disable();
+}
+
+static inline void __cpu_die(unsigned int cpu)
+{
+	smp_ops.cpu_die(cpu);
+}
+
+static inline void play_dead(void)
+{
+	smp_ops.play_dead();
+}
+
 static inline void smp_send_reschedule(int cpu)
 {
 	smp_ops.smp_send_reschedule(cpu);
@@ -110,11 +129,12 @@ void native_smp_prepare_boot_cpu(void);
 void native_smp_prepare_cpus(unsigned int max_cpus);
 void native_smp_cpus_done(unsigned int max_cpus);
 int native_cpu_up(unsigned int cpunum);
+int native_cpu_disable(void);
+void native_cpu_die(unsigned int cpu);
+void native_play_dead(void);
+
 void native_send_call_func_ipi(cpumask_t mask);
 void native_send_call_func_single_ipi(int cpu);
-
-extern int __cpu_disable(void);
-extern void __cpu_die(unsigned int cpu);
 
 void smp_store_cpu_info(int id);
 #define cpu_physical_id(cpu)	per_cpu(x86_cpu_to_apicid, cpu)

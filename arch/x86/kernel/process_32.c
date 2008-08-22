@@ -91,7 +91,7 @@ static void cpu_exit_clear(void)
 }
 
 /* We don't actually take CPU down, just spin without interrupts. */
-static inline void play_dead(void)
+void native_play_dead(void)
 {
 	/* This must be done before dead CPU ack */
 	cpu_exit_clear();
@@ -107,7 +107,7 @@ static inline void play_dead(void)
 	wbinvd_halt();
 }
 #else
-static inline void play_dead(void)
+void native_play_dead(void)
 {
 	BUG();
 }
