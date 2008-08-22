@@ -132,6 +132,7 @@ int native_cpu_up(unsigned int cpunum);
 int native_cpu_disable(void);
 void native_cpu_die(unsigned int cpu);
 void native_play_dead(void);
+void play_dead_common(void);
 
 void native_send_call_func_ipi(cpumask_t mask);
 void native_send_call_func_single_ipi(int cpu);

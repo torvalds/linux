@@ -1402,6 +1402,29 @@ void native_cpu_die(unsigned int cpu)
 	}
 	printk(KERN_ERR "CPU %u didn't die...\n", cpu);
 }
+
+void play_dead_common(void)
+{
+	idle_task_exit();
+	reset_lazy_tlbstate();
+	irq_ctx_exit(raw_smp_processor_id());
+
+	mb();
+	/* Ack it */
+	__get_cpu_var(cpu_state) = CPU_DEAD;
+
+	/*
+	 * With physical CPU hotplug, we should halt the cpu
+	 */
+	local_irq_disable();
+}
+
+void native_play_dead(void)
+{
+	play_dead_common();
+	wbinvd_halt();
+}
+
 #else /* ... !CONFIG_HOTPLUG_CPU */
 int native_cpu_disable(void)
 {
@@ -1413,4 +1436,10 @@ void native_cpu_die(unsigned int cpu)
 	/* We said "no" in __cpu_disable */
 	BUG();
 }
+
+void native_play_dead(void)
+{
+	BUG();
+}
+
 #endif

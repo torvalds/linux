@@ -72,38 +72,6 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 	return ((unsigned long *)tsk->thread.sp)[3];
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-#include <asm/nmi.h>
-
-/* We don't actually take CPU down, just spin without interrupts. */
-void native_play_dead(void)
-{
-	int cpu = raw_smp_processor_id();
-
-	idle_task_exit();
-
-	reset_lazy_tlbstate();
-
-	irq_ctx_exit(cpu);
-
-	mb();
-	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
-
-	/*
-	 * With physical CPU hotplug, we should halt the cpu
-	 */
-	local_irq_disable();
-	/* mask all interrupts, flush any and all caches, and halt */
-	wbinvd_halt();
-}
-#else
-void native_play_dead(void)
-{
-	BUG();
-}
-#endif /* CONFIG_HOTPLUG_CPU */
-
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a

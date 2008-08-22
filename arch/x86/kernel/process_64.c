@@ -85,29 +85,6 @@ void exit_idle(void)
 	__exit_idle();
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-DECLARE_PER_CPU(int, cpu_state);
-
-#include <asm/nmi.h>
-/* We halt the CPU with physical CPU hotplug */
-void native_play_dead(void)
-{
-	idle_task_exit();
-	mb();
-	/* Ack it */
-	__get_cpu_var(cpu_state) = CPU_DEAD;
-
-	local_irq_disable();
-	/* mask all interrupts, flush any and all caches, and halt */
-	wbinvd_halt();
-}
-#else
-void native_play_dead(void)
-{
-	BUG();
-}
-#endif /* CONFIG_HOTPLUG_CPU */
-
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a
