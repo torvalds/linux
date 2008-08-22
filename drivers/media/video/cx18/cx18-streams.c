@@ -432,7 +432,6 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	default:
 		return -EINVAL;
 	}
-	s->buffers_stolen = 0;
 
 	/* mute/unmute video */
 	cx18_vapi(cx, CX18_CPU_SET_VIDEO_MUTE, 2,

@@ -259,7 +259,6 @@ struct cx18_stream {
 	/* Buffer Stats */
 	u32 buffers;
 	u32 buf_size;
-	u32 buffers_stolen;
 
 	/* Buffer Queues */
 	struct cx18_queue q_free;	/* free buffers */
