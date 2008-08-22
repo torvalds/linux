@@ -741,7 +741,6 @@ long long ubifs_budg_get_free_space(struct ubifs_info *c)
 
 	available = ubifs_calc_available(c, min_idx_lebs);
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
-	c->min_idx_lebs = min_idx_lebs;
 	spin_unlock(&c->space_lock);
 
 	if (available > outstanding)
