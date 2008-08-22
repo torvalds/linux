@@ -809,7 +809,7 @@ static void vino_free_buffer_with_count(struct vino_framebuffer *fb,
 	dprintk("vino_free_buffer_with_count(): count = %d\n", count);
 
 	for (i = 0; i < count; i++) {
-		ClearPageReserved(virt_to_page(fb->desc_table.virtual[i]));
+		ClearPageReserved(virt_to_page((void *)fb->desc_table.virtual[i]));
 		dma_unmap_single(NULL,
 				 fb->desc_table.dma_cpu[VINO_PAGE_RATIO * i],
 				 PAGE_SIZE, DMA_FROM_DEVICE);
@@ -887,7 +887,7 @@ static int vino_allocate_buffer(struct vino_framebuffer *fb,
 				dma_data_addr + VINO_PAGE_SIZE * j;
 		}
 
-		SetPageReserved(virt_to_page(fb->desc_table.virtual[i]));
+		SetPageReserved(virt_to_page((void *)fb->desc_table.virtual[i]));
 	}
 
 	/* page_count needs to be set anyway, because the descriptor table has
@@ -974,7 +974,7 @@ static int vino_prepare_user_buffer(struct vino_framebuffer *fb,
 				dma_data_addr + VINO_PAGE_SIZE * j;
 		}
 
-		SetPageReserved(virt_to_page(fb->desc_table.virtual[i]));
+		SetPageReserved(virt_to_page((void *)fb->desc_table.virtual[i]));
 	}
 
 	/* page_count needs to be set anyway, because the descriptor table has
