@@ -11,8 +11,6 @@
  * useful topology information for the kernel to make use of.  As a
  * result, all CPUs are treated as if they're single-core and
  * single-threaded.
- *
- * This does not handle HOTPLUG_CPU yet.
  */
 #include <linux/sched.h>
 #include <linux/err.h>
@@ -61,11 +59,12 @@ static irqreturn_t xen_reschedule_interrupt(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static __cpuinit void cpu_bringup_and_idle(void)
+static __cpuinit void cpu_bringup(void)
 {
 	int cpu = smp_processor_id();
 
 	cpu_init();
+	touch_softlockup_watchdog();
 	preempt_disable();
 
 	xen_enable_sysenter();
@@ -86,6 +85,11 @@ static __cpuinit void cpu_bringup_and_idle(void)
 	local_irq_enable();
 
 	wmb();			/* make sure everything is out */
+}
+
+static __cpuinit void cpu_bringup_and_idle(void)
+{
+	cpu_bringup();
 	cpu_idle();
 }
 
@@ -209,8 +213,6 @@ static void __init xen_smp_prepare_cpus(unsigned int max_cpus)
 
 		cpu_set(cpu, cpu_present_map);
 	}
-
-	//init_xenbus_allowed_cpumask();
 }
 
 static __cpuinit int
@@ -278,12 +280,6 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 	struct task_struct *idle = idle_task(cpu);
 	int rc;
 
-#if 0
-	rc = cpu_up_check(cpu);
-	if (rc)
-		return rc;
-#endif
-
 #ifdef CONFIG_X86_64
 	/* Allocate node local memory for AP pdas */
 	WARN_ON(cpu == 0);
@@ -334,6 +330,42 @@ static int __cpuinit xen_cpu_up(unsigned int cpu)
 
 static void xen_smp_cpus_done(unsigned int max_cpus)
 {
+}
+
+int xen_cpu_disable(void)
+{
+	unsigned int cpu = smp_processor_id();
+	if (cpu == 0)
+		return -EBUSY;
+
+	cpu_disable_common();
+
+	load_cr3(swapper_pg_dir);
+	return 0;
+}
+
+void xen_cpu_die(unsigned int cpu)
+{
+	while (HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
+		current->state = TASK_UNINTERRUPTIBLE;
+		schedule_timeout(HZ/10);
+	}
+	unbind_from_irqhandler(per_cpu(resched_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(callfunc_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(debug_irq, cpu), NULL);
+	unbind_from_irqhandler(per_cpu(callfuncsingle_irq, cpu), NULL);
+	xen_uninit_lock_cpu(cpu);
+	xen_teardown_timer(cpu);
+
+	if (num_online_cpus() == 1)
+		alternatives_smp_switch(0);
+}
+
+void xen_play_dead(void)
+{
+	play_dead_common();
+	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
+	cpu_bringup();
 }
 
 static void stop_self(void *v)
@@ -419,8 +451,12 @@ static irqreturn_t xen_call_function_single_interrupt(int irq, void *dev_id)
 static const struct smp_ops xen_smp_ops __initdata = {
 	.smp_prepare_boot_cpu = xen_smp_prepare_boot_cpu,
 	.smp_prepare_cpus = xen_smp_prepare_cpus,
-	.cpu_up = xen_cpu_up,
 	.smp_cpus_done = xen_smp_cpus_done,
+
+	.cpu_up = xen_cpu_up,
+	.cpu_die = xen_cpu_die,
+	.cpu_disable = xen_cpu_disable,
+	.play_dead = xen_play_dead,
 
 	.smp_send_stop = xen_smp_send_stop,
 	.smp_send_reschedule = xen_smp_send_reschedule,

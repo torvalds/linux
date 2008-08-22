@@ -34,6 +34,7 @@ void __init xen_build_dynamic_phys_to_machine(void);
 
 void xen_init_irq_ops(void);
 void xen_setup_timer(int cpu);
+void xen_teardown_timer(int cpu);
 cycle_t xen_clocksource_read(void);
 void xen_setup_cpu_clockevents(void);
 unsigned long xen_tsc_khz(void);
@@ -50,11 +51,16 @@ void xen_mark_init_mm_pinned(void);
 
 void __init xen_setup_vcpu_info_placement(void);
 
+void xen_play_dead(void);
+void xen_cpu_die(unsigned int cpu);
+int xen_cpu_disable(void);
+
 #ifdef CONFIG_SMP
 void xen_smp_init(void);
 
 void __init xen_init_spinlocks(void);
 __cpuinit void xen_init_lock_cpu(int cpu);
+void xen_uninit_lock_cpu(int cpu);
 
 extern cpumask_t xen_cpu_initialized_map;
 #else

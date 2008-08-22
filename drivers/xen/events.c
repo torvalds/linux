@@ -360,6 +360,10 @@ static void unbind_from_irq(unsigned int irq)
 			per_cpu(virq_to_irq, cpu_from_evtchn(evtchn))
 				[index_from_irq(irq)] = -1;
 			break;
+		case IRQT_IPI:
+			per_cpu(ipi_to_irq, cpu_from_evtchn(evtchn))
+				[index_from_irq(irq)] = -1;
+			break;
 		default:
 			break;
 		}

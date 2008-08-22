@@ -450,6 +450,14 @@ void xen_setup_timer(int cpu)
 	setup_runstate_info(cpu);
 }
 
+void xen_teardown_timer(int cpu)
+{
+	struct clock_event_device *evt;
+	BUG_ON(cpu == 0);
+	evt = &per_cpu(xen_clock_events, cpu);
+	unbind_from_irqhandler(evt->irq, NULL);
+}
+
 void xen_setup_cpu_clockevents(void)
 {
 	BUG_ON(preemptible());

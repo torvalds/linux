@@ -357,6 +357,11 @@ void __cpuinit xen_init_lock_cpu(int cpu)
 	printk("cpu %d spinlock event irq %d\n", cpu, irq);
 }
 
+void xen_uninit_lock_cpu(int cpu)
+{
+	unbind_from_irqhandler(per_cpu(lock_kicker_irq, cpu), NULL);
+}
+
 void __init xen_init_spinlocks(void)
 {
 	pv_lock_ops.spin_is_locked = xen_spin_is_locked;
