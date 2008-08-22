@@ -84,7 +84,7 @@ static struct korina_device korina_dev0_data = {
 };
 
 static struct platform_device korina_dev0 = {
-	.id = 0,
+	.id = -1,
 	.name = "korina",
 	.dev.platform_data = &korina_dev0_data,
 	.resource = korina_dev0_res,
@@ -108,7 +108,7 @@ static struct cf_device cf_slot0_data = {
 };
 
 static struct platform_device cf_slot0 = {
-	.id = 0,
+	.id = -1,
 	.name = "pata-rb532-cf",
 	.dev.platform_data = &cf_slot0_data,
 	.resource = cf_slot0_res,
@@ -173,7 +173,7 @@ static struct mtd_partition rb532_partition_info[] = {
 
 static struct platform_device rb532_led = {
 	.name = "rb532-led",
-	.id = 0,
+	.id = -1,
 };
 
 static struct gpio_keys_button rb532_gpio_btn[] = {
