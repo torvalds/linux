@@ -1194,7 +1194,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	handle_t *handle;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_get_dinode_extent_tree(&et, dir, di_bh);
+	ocfs2_init_dinode_extent_tree(&et, dir, di_bh);
 
 	alloc = ocfs2_clusters_for_bytes(sb, bytes);
 
@@ -1363,7 +1363,6 @@ out:
 
 	brelse(dirdata_bh);
 
-	ocfs2_put_extent_tree(&et);
 	return ret;
 }
 
@@ -1485,9 +1484,8 @@ static int ocfs2_extend_dir(struct ocfs2_super *osb,
 	spin_lock(&OCFS2_I(dir)->ip_lock);
 	if (dir_i_size == ocfs2_clusters_to_bytes(sb, OCFS2_I(dir)->ip_clusters)) {
 		spin_unlock(&OCFS2_I(dir)->ip_lock);
-		ocfs2_get_dinode_extent_tree(&et, dir, parent_fe_bh);
+		ocfs2_init_dinode_extent_tree(&et, dir, parent_fe_bh);
 		num_free_extents = ocfs2_num_free_extents(osb, dir, &et);
-		ocfs2_put_extent_tree(&et);
 		if (num_free_extents < 0) {
 			status = num_free_extents;
 			mlog_errno(status);

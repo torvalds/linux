@@ -211,7 +211,7 @@ static int ocfs2_xattr_extend_allocation(struct inode *inode,
 
 	mlog(0, "(clusters_to_add for xattr= %u)\n", clusters_to_add);
 
-	ocfs2_get_xattr_value_extent_tree(&et, inode, xattr_bh, xv);
+	ocfs2_init_xattr_value_extent_tree(&et, inode, xattr_bh, xv);
 
 restart_all:
 
@@ -307,7 +307,6 @@ leave:
 		goto restart_all;
 	}
 
-	ocfs2_put_extent_tree(&et);
 	return status;
 }
 
@@ -325,11 +324,10 @@ static int __ocfs2_remove_xattr_range(struct inode *inode,
 	struct ocfs2_alloc_context *meta_ac = NULL;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_get_xattr_value_extent_tree(&et, inode, root_bh, xv);
+	ocfs2_init_xattr_value_extent_tree(&et, inode, root_bh, xv);
 
 	ret = ocfs2_lock_allocators(inode, &et, 0, 1, NULL, &meta_ac);
 	if (ret) {
-		ocfs2_put_extent_tree(&et);
 		mlog_errno(ret);
 		return ret;
 	}
@@ -385,7 +383,6 @@ out:
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
 
-	ocfs2_put_extent_tree(&et);
 	return ret;
 }
 
@@ -3632,7 +3629,7 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 	     (unsigned long long)OCFS2_I(inode)->ip_blkno,
 	     prev_cpos, prev_blkno);
 
-	ocfs2_get_xattr_tree_extent_tree(&et, inode, root_bh);
+	ocfs2_init_xattr_tree_extent_tree(&et, inode, root_bh);
 
 	ret = ocfs2_lock_allocators(inode, &et, clusters_to_add, 0,
 				    &data_ac, &meta_ac);
@@ -3727,7 +3724,6 @@ leave:
 	if (meta_ac)
 		ocfs2_free_alloc_context(meta_ac);
 
-	ocfs2_put_extent_tree(&et);
 	return ret;
 }
 
@@ -4336,7 +4332,7 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 	struct ocfs2_cached_dealloc_ctxt dealloc;
 	struct ocfs2_extent_tree et;
 
-	ocfs2_get_xattr_tree_extent_tree(&et, inode, root_bh);
+	ocfs2_init_xattr_tree_extent_tree(&et, inode, root_bh);
 
 	ocfs2_init_dealloc_ctxt(&dealloc);
 
@@ -4347,7 +4343,6 @@ static int ocfs2_rm_xattr_cluster(struct inode *inode,
 
 	ret = ocfs2_lock_allocators(inode, &et, 0, 1, NULL, &meta_ac);
 	if (ret) {
-		ocfs2_put_extent_tree(&et);
 		mlog_errno(ret);
 		return ret;
 	}
@@ -4407,7 +4402,6 @@ out:
 
 	ocfs2_run_deallocs(osb, &dealloc);
 
-	ocfs2_put_extent_tree(&et);
 	return ret;
 }
 

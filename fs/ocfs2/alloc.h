@@ -41,7 +41,7 @@
  *
  * ocfs2_extent_tree becomes the first-class object for extent tree
  * manipulation.  Callers of the alloc.c code need to fill it via one of
- * the ocfs2_get_*_extent_tree() operations below.
+ * the ocfs2_init_*_extent_tree() operations below.
  *
  * ocfs2_extent_tree contains info for the root of the b-tree, it must have a
  * root ocfs2_extent_list and a root_bh so that they can be used in the b-tree
@@ -59,21 +59,19 @@ struct ocfs2_extent_tree {
 };
 
 /*
- * ocfs2_*_get_extent_tree() will fill an ocfs2_extent_tree from the
- * specified object buffer.  The bh is referenced until
- * ocfs2_put_extent_tree().
+ * ocfs2_init_*_extent_tree() will fill an ocfs2_extent_tree from the
+ * specified object buffer.
  */
-void ocfs2_get_dinode_extent_tree(struct ocfs2_extent_tree *et,
-				  struct inode *inode,
-				  struct buffer_head *bh);
-void ocfs2_get_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
-				      struct inode *inode,
-				      struct buffer_head *bh);
-void ocfs2_get_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
+				   struct inode *inode,
+				   struct buffer_head *bh);
+void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
 				       struct inode *inode,
-				       struct buffer_head *bh,
-				       struct ocfs2_xattr_value_root *xv);
-void ocfs2_put_extent_tree(struct ocfs2_extent_tree *et);
+				       struct buffer_head *bh);
+void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+					struct inode *inode,
+					struct buffer_head *bh,
+					struct ocfs2_xattr_value_root *xv);
 
 struct ocfs2_alloc_context;
 int ocfs2_insert_extent(struct ocfs2_super *osb,

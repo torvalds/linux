@@ -55,7 +55,7 @@
  *
  * To implement an on-disk btree (extent tree) type in ocfs2, add
  * an ocfs2_extent_tree_operations structure and the matching
- * ocfs2_get_<thingy>_extent_tree() function.  That's pretty much it
+ * ocfs2_init_<thingy>_extent_tree() function.  That's pretty much it
  * for the allocation portion of the extent tree.
  */
 struct ocfs2_extent_tree_operations {
@@ -301,14 +301,13 @@ static struct ocfs2_extent_tree_operations ocfs2_xattr_tree_et_ops = {
 	.eo_fill_max_leaf_clusters = ocfs2_xattr_tree_fill_max_leaf_clusters,
 };
 
-static void __ocfs2_get_extent_tree(struct ocfs2_extent_tree *et,
-				    struct inode *inode,
-				    struct buffer_head *bh,
-				    void *obj,
-				    struct ocfs2_extent_tree_operations *ops)
+static void __ocfs2_init_extent_tree(struct ocfs2_extent_tree *et,
+				     struct inode *inode,
+				     struct buffer_head *bh,
+				     void *obj,
+				     struct ocfs2_extent_tree_operations *ops)
 {
 	et->et_ops = ops;
-	get_bh(bh);
 	et->et_root_bh = bh;
 	if (!obj)
 		obj = (void *)bh->b_data;
@@ -321,33 +320,28 @@ static void __ocfs2_get_extent_tree(struct ocfs2_extent_tree *et,
 		et->et_ops->eo_fill_max_leaf_clusters(inode, et);
 }
 
-void ocfs2_get_dinode_extent_tree(struct ocfs2_extent_tree *et,
-				  struct inode *inode,
-				  struct buffer_head *bh)
+void ocfs2_init_dinode_extent_tree(struct ocfs2_extent_tree *et,
+				   struct inode *inode,
+				   struct buffer_head *bh)
 {
-	__ocfs2_get_extent_tree(et, inode, bh, NULL, &ocfs2_dinode_et_ops);
+	__ocfs2_init_extent_tree(et, inode, bh, NULL, &ocfs2_dinode_et_ops);
 }
 
-void ocfs2_get_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
-				      struct inode *inode,
-				      struct buffer_head *bh)
-{
-	__ocfs2_get_extent_tree(et, inode, bh, NULL,
-				&ocfs2_xattr_tree_et_ops);
-}
-
-void ocfs2_get_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+void ocfs2_init_xattr_tree_extent_tree(struct ocfs2_extent_tree *et,
 				       struct inode *inode,
-				       struct buffer_head *bh,
-				       struct ocfs2_xattr_value_root *xv)
+				       struct buffer_head *bh)
 {
-	__ocfs2_get_extent_tree(et, inode, bh, xv,
-				&ocfs2_xattr_value_et_ops);
+	__ocfs2_init_extent_tree(et, inode, bh, NULL,
+				 &ocfs2_xattr_tree_et_ops);
 }
 
-void ocfs2_put_extent_tree(struct ocfs2_extent_tree *et)
+void ocfs2_init_xattr_value_extent_tree(struct ocfs2_extent_tree *et,
+					struct inode *inode,
+					struct buffer_head *bh,
+					struct ocfs2_xattr_value_root *xv)
 {
-	brelse(et->et_root_bh);
+	__ocfs2_init_extent_tree(et, inode, bh, xv,
+				 &ocfs2_xattr_value_et_ops);
 }
 
 static inline void ocfs2_et_set_last_eb_blk(struct ocfs2_extent_tree *et,
@@ -6791,10 +6785,9 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		 * this proves to be false, we could always re-build
 		 * the in-inode data from our pages.
 		 */
-		ocfs2_get_dinode_extent_tree(&et, inode, di_bh);
+		ocfs2_init_dinode_extent_tree(&et, inode, di_bh);
 		ret = ocfs2_insert_extent(osb, handle, inode, &et,
 					  0, block, 1, 0, NULL);
-		ocfs2_put_extent_tree(&et);
 		if (ret) {
 			mlog_errno(ret);
 			goto out_commit;
