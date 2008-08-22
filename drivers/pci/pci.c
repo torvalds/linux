@@ -1263,25 +1263,25 @@ void pci_pm_init(struct pci_dev *dev)
 	dev->d1_support = false;
 	dev->d2_support = false;
 	if (!pci_no_d1d2(dev)) {
-		if (pmc & PCI_PM_CAP_D1) {
-			dev_printk(KERN_DEBUG, &dev->dev, "supports D1\n");
+		if (pmc & PCI_PM_CAP_D1)
 			dev->d1_support = true;
-		}
-		if (pmc & PCI_PM_CAP_D2) {
-			dev_printk(KERN_DEBUG, &dev->dev, "supports D2\n");
+		if (pmc & PCI_PM_CAP_D2)
 			dev->d2_support = true;
-		}
+
+		if (dev->d1_support || dev->d2_support)
+			dev_printk(KERN_DEBUG, &dev->dev, "supports%s%s\n",
+				   dev->d1_support ? " D1": "",
+				   dev->d2_support ? " D2": "");
 	}
 
 	pmc &= PCI_PM_CAP_PME_MASK;
 	if (pmc) {
-		dev_printk(KERN_INFO, &dev->dev,
-			"PME# supported from%s%s%s%s%s\n",
-			(pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
-			(pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
-			(pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
-			(pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
-			(pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
+		dev_info(&dev->dev, "PME# supported from%s%s%s%s%s\n",
+			 (pmc & PCI_PM_CAP_PME_D0) ? " D0" : "",
+			 (pmc & PCI_PM_CAP_PME_D1) ? " D1" : "",
+			 (pmc & PCI_PM_CAP_PME_D2) ? " D2" : "",
+			 (pmc & PCI_PM_CAP_PME_D3) ? " D3hot" : "",
+			 (pmc & PCI_PM_CAP_PME_D3cold) ? " D3cold" : "");
 		dev->pme_support = pmc >> PCI_PM_CAP_PME_SHIFT;
 		/*
 		 * Make device's PM flags reflect the wake-up capability, but
