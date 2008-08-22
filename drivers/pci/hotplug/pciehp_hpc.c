@@ -223,7 +223,7 @@ static void start_int_poll_timer(struct controller *ctrl, int sec)
 
 static inline int pciehp_request_irq(struct controller *ctrl)
 {
-	int retval, irq = ctrl->pci_dev->irq;
+	int retval, irq = ctrl->pcie->irq;
 
 	/* Install interrupt polling timer. Start with 10 sec delay */
 	if (pciehp_poll_mode) {
@@ -244,7 +244,7 @@ static inline void pciehp_free_irq(struct controller *ctrl)
 	if (pciehp_poll_mode)
 		del_timer_sync(&ctrl->poll_timer);
 	else
-		free_irq(ctrl->pci_dev->irq, ctrl);
+		free_irq(ctrl->pcie->irq, ctrl);
 }
 
 static int pcie_poll_cmd(struct controller *ctrl)
@@ -1114,6 +1114,7 @@ struct controller *pcie_init(struct pcie_device *dev)
 	}
 	INIT_LIST_HEAD(&ctrl->slot_list);
 
+	ctrl->pcie = dev;
 	ctrl->pci_dev = pdev;
 	ctrl->cap_base = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (!ctrl->cap_base) {

@@ -87,6 +87,7 @@ struct controller {
 	int num_slots;			/* Number of slots on ctlr */
 	int slot_num_inc;		/* 1 or -1 */
 	struct pci_dev *pci_dev;
+	struct pcie_device *pcie;	/* PCI Express port service */
 	struct list_head slot_list;
 	struct hpc_ops *hpc_ops;
 	wait_queue_head_t queue;	/* sleep & wake process */
