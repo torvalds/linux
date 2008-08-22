@@ -555,9 +555,11 @@ static int __init early_fill_mp_bus_info(void)
 	return 0;
 }
 
-postcore_initcall(early_fill_mp_bus_info);
+#else  /* !CONFIG_X86_64 */
 
-#endif
+static int __init early_fill_mp_bus_info(void) { return 0; }
+
+#endif /* !CONFIG_X86_64 */
 
 /* common 32/64 bit code */
 
@@ -583,4 +585,15 @@ static int __init enable_pci_io_ecs(void)
 	return 0;
 }
 
-postcore_initcall(enable_pci_io_ecs);
+static int __init amd_postcore_init(void)
+{
+	if (boot_cpu_data.x86_vendor != X86_VENDOR_AMD)
+		return 0;
+
+	early_fill_mp_bus_info();
+	enable_pci_io_ecs();
+
+	return 0;
+}
+
+postcore_initcall(amd_postcore_init);
