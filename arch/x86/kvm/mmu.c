@@ -1240,15 +1240,10 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 		ASSERT(VALID_PAGE(table_addr));
 		table = __va(table_addr);
 
-		if (level == 1) {
+		if (level == 1 || (largepage && level == 2)) {
 			mmu_set_spte(vcpu, &table[index], ACC_ALL, ACC_ALL,
-				     0, write, 1, &pt_write, 0, gfn, pfn, false);
-			return pt_write;
-		}
-
-		if (largepage && level == 2) {
-			mmu_set_spte(vcpu, &table[index], ACC_ALL, ACC_ALL,
-				     0, write, 1, &pt_write, 1, gfn, pfn, false);
+				     0, write, 1, &pt_write, largepage,
+				     gfn, pfn, false);
 			return pt_write;
 		}
 
