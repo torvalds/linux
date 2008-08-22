@@ -17,7 +17,8 @@
 
 #include <linux/genhd.h>
 
-#define IDT434_REG_BASE	((volatile void *) KSEG1ADDR(0x18000000))
+#define REGBASE		0x18000000
+#define IDT434_REG_BASE	((volatile void *) KSEG1ADDR(REGBASE))
 #define DEV0BASE	0x010000
 #define DEV0MASK	0x010004
 #define DEV0C		0x010008

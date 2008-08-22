@@ -47,8 +47,8 @@ struct mpmc_device dev3;
 static struct resource rb532_gpio_reg0_res[] = {
 	{
 		.name 	= "gpio_reg0",
-		.start 	= (u32)(IDT434_REG_BASE + GPIOBASE),
-		.end 	= (u32)(IDT434_REG_BASE + GPIOBASE + sizeof(struct rb532_gpio_reg)),
+		.start 	= REGBASE + GPIOBASE,
+		.end 	= REGBASE + GPIOBASE + sizeof(struct rb532_gpio_reg) - 1,
 		.flags 	= IORESOURCE_MEM,
 	}
 };
@@ -56,8 +56,8 @@ static struct resource rb532_gpio_reg0_res[] = {
 static struct resource rb532_dev3_ctl_res[] = {
 	{
 		.name	= "dev3_ctl",
-		.start	= (u32)(IDT434_REG_BASE + DEV3BASE),
-		.end	= (u32)(IDT434_REG_BASE + DEV3BASE + sizeof(struct dev_reg)),
+		.start	= REGBASE + DEV3BASE,
+		.end	= REGBASE + DEV3BASE + sizeof(struct dev_reg) - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
