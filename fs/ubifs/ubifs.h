@@ -995,6 +995,9 @@ struct ubifs_mount_opts {
  * @max_idx_node_sz: maximum indexing node aligned on 8-bytes boundary
  * @max_inode_sz: maximum possible inode size in bytes
  * @max_znode_sz: size of znode in bytes
+ *
+ * @leb_overhead: how many bytes are wasted in an LEB when it is filled with
+ *                data nodes of maximum size - used in free space reporting
  * @dead_wm: LEB dead space watermark
  * @dark_wm: LEB dark space watermark
  * @block_cnt: count of 4KiB blocks on the FS
@@ -1226,6 +1229,8 @@ struct ubifs_info {
 	int max_idx_node_sz;
 	long long max_inode_sz;
 	int max_znode_sz;
+
+	int leb_overhead;
 	int dead_wm;
 	int dark_wm;
 	int block_cnt;

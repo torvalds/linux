@@ -530,6 +530,12 @@ static int init_constants_early(struct ubifs_info *c)
 	c->dead_wm = ALIGN(MIN_WRITE_SZ, c->min_io_size);
 	c->dark_wm = ALIGN(UBIFS_MAX_NODE_SZ, c->min_io_size);
 
+	/*
+	 * Calculate how many bytes would be wasted at the end of LEB if it was
+	 * fully filled with data nodes of maximum size. This is used in
+	 * calculations when reporting free space.
+	 */
+	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
 	return 0;
 }
 
