@@ -261,20 +261,6 @@ static dma_addr_t dma_map_area(struct device *dev, dma_addr_t phys_mem,
 	return iommu_bus_base + iommu_page*PAGE_SIZE + (phys_mem & ~PAGE_MASK);
 }
 
-static dma_addr_t
-gart_map_simple(struct device *dev, phys_addr_t paddr, size_t size, int dir)
-{
-	dma_addr_t map;
-	unsigned long align_mask;
-
-	align_mask = (1UL << get_order(size)) - 1;
-	map = dma_map_area(dev, paddr, size, dir, align_mask);
-
-	flush_gart();
-
-	return map;
-}
-
 /* Map a single area into the IOMMU */
 static dma_addr_t
 gart_map_single(struct device *dev, phys_addr_t paddr, size_t size, int dir)
@@ -512,12 +498,21 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 		    gfp_t flag)
 {
 	void *vaddr;
+	unsigned long align_mask;
 
 	vaddr = (void *)__get_free_pages(flag | __GFP_ZERO, get_order(size));
 	if (!vaddr)
 		return NULL;
 
-	*dma_addr = gart_map_single(dev, __pa(vaddr), size, DMA_BIDIRECTIONAL);
+	align_mask = (1UL << get_order(size)) - 1;
+
+	if (!dev)
+		dev = &x86_dma_fallback_dev;
+
+	*dma_addr = dma_map_area(dev, __pa(vaddr), size, DMA_BIDIRECTIONAL,
+				 align_mask);
+	flush_gart();
+
 	if (*dma_addr != bad_dma_address)
 		return vaddr;
 
