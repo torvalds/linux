@@ -142,6 +142,11 @@ struct kvm_rmap_desc {
 	struct kvm_rmap_desc *more;
 };
 
+struct kvm_shadow_walk {
+	int (*entry)(struct kvm_shadow_walk *walk, struct kvm_vcpu *vcpu,
+		     gva_t addr, u64 *spte, int level);
+};
+
 static struct kmem_cache *pte_chain_cache;
 static struct kmem_cache *rmap_desc_cache;
 static struct kmem_cache *mmu_page_header_cache;
@@ -933,6 +938,35 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	else
 		nonpaging_prefetch_page(vcpu, sp);
 	return sp;
+}
+
+static int walk_shadow(struct kvm_shadow_walk *walker,
+		       struct kvm_vcpu *vcpu, gva_t addr)
+{
+	hpa_t shadow_addr;
+	int level;
+	int r;
+	u64 *sptep;
+	unsigned index;
+
+	shadow_addr = vcpu->arch.mmu.root_hpa;
+	level = vcpu->arch.mmu.shadow_root_level;
+	if (level == PT32E_ROOT_LEVEL) {
+		shadow_addr = vcpu->arch.mmu.pae_root[(addr >> 30) & 3];
+		shadow_addr &= PT64_BASE_ADDR_MASK;
+		--level;
+	}
+
+	while (level >= PT_PAGE_TABLE_LEVEL) {
+		index = SHADOW_PT_INDEX(addr, level);
+		sptep = ((u64 *)__va(shadow_addr)) + index;
+		r = walker->entry(walker, vcpu, addr, sptep, level);
+		if (r)
+			return r;
+		shadow_addr = *sptep & PT64_BASE_ADDR_MASK;
+		--level;
+	}
+	return 0;
 }
 
 static void kvm_mmu_page_unlink_children(struct kvm *kvm,
