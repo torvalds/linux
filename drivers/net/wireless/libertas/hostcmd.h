@@ -257,11 +257,6 @@ struct cmd_ds_802_11_associate_rsp {
 	struct ieeetypes_assocrsp assocRsp;
 };
 
-struct cmd_ds_802_11_ad_hoc_result {
-	u8 pad[3];
-	u8 bssid[ETH_ALEN];
-};
-
 struct cmd_ds_802_11_set_wep {
 	struct cmd_header hdr;
 
@@ -508,10 +503,12 @@ struct cmd_ds_802_11_rate_adapt_rateset {
 };
 
 struct cmd_ds_802_11_ad_hoc_start {
+	struct cmd_header hdr;
+
 	u8 ssid[IW_ESSID_MAX_SIZE];
 	u8 bsstype;
 	__le16 beaconperiod;
-	u8 dtimperiod;
+	u8 dtimperiod;   /* Reserved on v9 and later */
 	union IEEEtypes_ssparamset ssparamset;
 	union ieeetypes_phyparamset phyparamset;
 	__le16 probedelay;
@@ -520,9 +517,16 @@ struct cmd_ds_802_11_ad_hoc_start {
 	u8 tlv_memory_size_pad[100];
 } __attribute__ ((packed));
 
+struct cmd_ds_802_11_ad_hoc_result {
+	struct cmd_header hdr;
+
+	u8 pad[3];
+	u8 bssid[ETH_ALEN];
+};
+
 struct adhoc_bssdesc {
-	u8 bssid[6];
-	u8 ssid[32];
+	u8 bssid[ETH_ALEN];
+	u8 ssid[IW_ESSID_MAX_SIZE];
 	u8 type;
 	__le16 beaconperiod;
 	u8 dtimperiod;
@@ -540,10 +544,15 @@ struct adhoc_bssdesc {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_ad_hoc_join {
-	struct adhoc_bssdesc bss;
-	__le16 failtimeout;
-	__le16 probedelay;
+	struct cmd_header hdr;
 
+	struct adhoc_bssdesc bss;
+	__le16 failtimeout;   /* Reserved on v9 and later */
+	__le16 probedelay;    /* Reserved on v9 and later */
+} __attribute__ ((packed));
+
+struct cmd_ds_802_11_ad_hoc_stop {
+	struct cmd_header hdr;
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_enable_rsn {
@@ -694,16 +703,13 @@ struct cmd_ds_command {
 	union {
 		struct cmd_ds_802_11_ps_mode psmode;
 		struct cmd_ds_802_11_associate associate;
-		struct cmd_ds_802_11_ad_hoc_start ads;
 		struct cmd_ds_802_11_reset reset;
-		struct cmd_ds_802_11_ad_hoc_result result;
 		struct cmd_ds_802_11_authenticate auth;
 		struct cmd_ds_802_11_get_stat gstat;
 		struct cmd_ds_802_3_get_stat gstat_8023;
 		struct cmd_ds_802_11_snmp_mib smib;
 		struct cmd_ds_802_11_rf_antenna rant;
 		struct cmd_ds_802_11_monitor_mode monitor;
-		struct cmd_ds_802_11_ad_hoc_join adj;
 		struct cmd_ds_802_11_rssi rssi;
 		struct cmd_ds_802_11_rssi_rsp rssirsp;
 		struct cmd_ds_mac_reg_access macreg;

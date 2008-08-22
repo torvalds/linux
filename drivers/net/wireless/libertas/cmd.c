@@ -1419,10 +1419,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
 		break;
 
-	case CMD_802_11_AD_HOC_START:
-		ret = lbs_cmd_80211_ad_hoc_start(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_802_11_RESET:
 		ret = lbs_cmd_802_11_reset(cmdptr, cmd_action);
 		break;
@@ -1447,16 +1443,8 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 				          cmd_action, pdata_buf);
 		break;
 
-	case CMD_802_11_AD_HOC_JOIN:
-		ret = lbs_cmd_80211_ad_hoc_join(priv, cmdptr, pdata_buf);
-		break;
-
 	case CMD_802_11_RSSI:
 		ret = lbs_cmd_802_11_rssi(priv, cmdptr);
-		break;
-
-	case CMD_802_11_AD_HOC_STOP:
-		ret = lbs_cmd_80211_ad_hoc_stop(cmdptr);
 		break;
 
 	case CMD_802_11_SET_AFC:

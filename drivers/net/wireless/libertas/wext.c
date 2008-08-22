@@ -966,7 +966,7 @@ static int lbs_mesh_set_freq(struct net_device *dev,
 						     priv->curbssparams.bssid,
 						     WLAN_REASON_DEAUTH_LEAVING);
 		else if (priv->mode == IW_MODE_ADHOC)
-			lbs_stop_adhoc_network(priv);
+			lbs_adhoc_stop(priv);
 	}
 	lbs_mesh_config(priv, CMD_ACT_MESH_CONFIG_START, fwrq->m);
 	lbs_update_channel(priv);

@@ -295,7 +295,7 @@ static ssize_t lbs_rtap_set(struct device *dev,
 							     priv->curbssparams.bssid,
 							     WLAN_REASON_DEAUTH_LEAVING);
 			else if (priv->mode == IW_MODE_ADHOC)
-				lbs_stop_adhoc_network(priv);
+				lbs_adhoc_stop(priv);
 			lbs_add_rtap(priv);
 		}
 		priv->monitormode = monitor_mode;

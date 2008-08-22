@@ -258,11 +258,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_80211_associate(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_AD_HOC_START):
-	case CMD_RET(CMD_802_11_AD_HOC_JOIN):
-		ret = lbs_ret_80211_ad_hoc_start(priv, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_SNMP_MIB):
 		ret = lbs_ret_802_11_snmp_mib(priv, resp);
 		break;
@@ -283,10 +278,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_RSSI):
 		ret = lbs_ret_802_11_rssi(priv, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_AD_HOC_STOP):
-		ret = lbs_ret_80211_ad_hoc_stop(priv);
 		break;
 
 	case CMD_RET(CMD_802_11D_DOMAIN_INFO):
