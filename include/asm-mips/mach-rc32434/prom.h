@@ -28,14 +28,10 @@
 
 #define PROM_ENTRY(x)		(0xbfc00000 + ((x) * 8))
 
-#define GPIO_INIT_NOBUTTON	""
-#define GPIO_INIT_BUTTON	" 2"
-
 #define SR_NMI			0x00180000
 #define SERIAL_SPEED_ENTRY	0x00000001
 
 #define FREQ_TAG		"HZ="
-#define GPIO_TAG		"gpio="
 #define KMAC_TAG		"kmac="
 #define MEM_TAG			"mem="
 #define BOARD_TAG		"board="
