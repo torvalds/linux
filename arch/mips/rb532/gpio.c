@@ -70,7 +70,7 @@ void set_434_reg(unsigned reg_offs, unsigned bit, unsigned len, unsigned val)
 
 	spin_lock_irqsave(&dev3.lock, flags);
 
-	data = *(volatile unsigned *) (IDT434_REG_BASE + reg_offs);
+	data = readl(IDT434_REG_BASE + reg_offs);
 	for (i = 0; i != len; ++i) {
 		if (val & (1 << i))
 			data |= (1 << (i + bit));
