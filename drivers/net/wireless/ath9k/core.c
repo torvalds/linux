@@ -533,9 +533,6 @@ int ath_vap_attach(struct ath_softc *sc,
 	/* Set the VAP opmode */
 	avp->av_opmode = opmode;
 	avp->av_bslot = -1;
-	INIT_LIST_HEAD(&avp->av_mcastq.axq_q);
-	INIT_LIST_HEAD(&avp->av_mcastq.axq_acq);
-	spin_lock_init(&avp->av_mcastq.axq_lock);
 
 	ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
 
@@ -574,9 +571,6 @@ int ath_vap_detach(struct ath_softc *sc, int if_id)
 	ath_draintxq(sc, false);	/* stop xmit side */
 	ath_stoprecv(sc);	/* stop recv side */
 	ath_flushrecv(sc);	/* flush recv queue */
-
-	/* Reclaim any pending mcast bufs on the vap. */
-	ath_tx_draintxq(sc, &avp->av_mcastq, false);
 
 	kfree(avp);
 	sc->sc_vaps[if_id] = NULL;

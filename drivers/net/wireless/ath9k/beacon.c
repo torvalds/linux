@@ -140,56 +140,6 @@ static void ath_beacon_setup(struct ath_softc *sc,
 		ctsrate, ctsduration, series, 4, 0);
 }
 
-/* Move everything from the vap's mcast queue to the hardware cab queue.
- * Caller must hold mcasq lock and cabq lock
- * XXX MORE_DATA bit?
- */
-static void empty_mcastq_into_cabq(struct ath_hal *ah,
-	struct ath_txq *mcastq, struct ath_txq *cabq)
-{
-	struct ath_buf *bfmcast;
-
-	BUG_ON(list_empty(&mcastq->axq_q));
-
-	bfmcast = list_first_entry(&mcastq->axq_q, struct ath_buf, list);
-
-	/* link the descriptors */
-	if (!cabq->axq_link)
-		ath9k_hw_puttxbuf(ah, cabq->axq_qnum, bfmcast->bf_daddr);
-	else
-		*cabq->axq_link = bfmcast->bf_daddr;
-
-	/* append the private vap mcast list to  the cabq */
-
-	cabq->axq_depth	+= mcastq->axq_depth;
-	cabq->axq_totalqueued += mcastq->axq_totalqueued;
-	cabq->axq_linkbuf = mcastq->axq_linkbuf;
-	cabq->axq_link = mcastq->axq_link;
-	list_splice_tail_init(&mcastq->axq_q, &cabq->axq_q);
-	mcastq->axq_depth = 0;
-	mcastq->axq_totalqueued = 0;
-	mcastq->axq_linkbuf = NULL;
-	mcastq->axq_link = NULL;
-}
-
-/* TODO: use ieee80211_get_buffered_bc() to fetch power saved mcast frames */
-/* This is only run at DTIM. We move everything from the vap's mcast queue
- * to the hardware cab queue. Caller must hold the mcastq lock. */
-static void trigger_mcastq(struct ath_hal *ah,
-	struct ath_txq *mcastq, struct ath_txq *cabq)
-{
-	spin_lock_bh(&cabq->axq_lock);
-
-	if (!list_empty(&mcastq->axq_q))
-		empty_mcastq_into_cabq(ah, mcastq, cabq);
-
-	/* cabq is gated by beacon so it is safe to start here */
-	if (!list_empty(&cabq->axq_q))
-		ath9k_hw_txstart(ah, cabq->axq_qnum);
-
-	spin_unlock_bh(&cabq->axq_lock);
-}
-
 /*
  *  Generate beacon frame and queue cab data for a vap.
  *
@@ -200,19 +150,14 @@ static void trigger_mcastq(struct ath_hal *ah,
 */
 static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 {
-	struct ath_hal *ah = sc->sc_ah;
 	struct ath_buf *bf;
 	struct ath_vap *avp;
 	struct sk_buff *skb;
 	int cabq_depth;
-	int mcastq_depth;
-	int is_beacon_dtim = 0;
 	struct ath_txq *cabq;
-	struct ath_txq *mcastq;
 	struct ieee80211_tx_info *info;
 	avp = sc->sc_vaps[if_id];
 
-	mcastq = &avp->av_mcastq;
 	cabq = sc->sc_cabq;
 
 	ASSERT(avp);
@@ -250,11 +195,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 			       skb_end_pointer(skb) - skb->head,
 			       PCI_DMA_TODEVICE);
 
-	/* TODO: convert to use ieee80211_get_buffered_bc() */
-	/* XXX: spin_lock_bh should not be used here, but sparse bitches
-	 * otherwise. We should fix sparse :) */
-	spin_lock_bh(&mcastq->axq_lock);
-	mcastq_depth = avp->av_mcastq.axq_depth;
+	skb = ieee80211_get_buffered_bc(sc->hw, avp->av_if_data);
 
 	/*
 	 * if the CABQ traffic from previous DTIM is pending and the current
@@ -268,10 +209,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	cabq_depth = cabq->axq_depth;
 	spin_unlock_bh(&cabq->axq_lock);
 
-	if (avp->av_boff.bo_tim)
-		is_beacon_dtim = avp->av_boff.bo_tim[4] & 1;
-
-	if (mcastq_depth && is_beacon_dtim && cabq_depth) {
+	if (skb && cabq_depth) {
 		/*
 		 * Unlock the cabq lock as ath_tx_draintxq acquires
 		 * the lock again which is a common function and that
@@ -291,10 +229,11 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	 * Enable the CAB queue before the beacon queue to
 	 * insure cab frames are triggered by this beacon.
 	 */
-	if (is_beacon_dtim)
-		trigger_mcastq(ah, mcastq, cabq);
+	while (skb) {
+		ath_tx_cabq(sc, skb);
+		skb = ieee80211_get_buffered_bc(sc->hw, avp->av_if_data);
+	}
 
-	spin_unlock_bh(&mcastq->axq_lock);
 	return bf;
 }
 
@@ -426,7 +365,7 @@ int ath_beacon_alloc(struct ath_softc *sc, int if_id)
 	 * NB: the beacon data buffer must be 32-bit aligned;
 	 * we assume the wbuf routines will return us something
 	 * with this alignment (perhaps should assert).
-	 * FIXME: Fill avp->av_boff.bo_tim,avp->av_btxctl.txpower and
+	 * FIXME: Fill avp->av_btxctl.txpower and
 	 * avp->av_btxctl.shortPreamble
 	 */
 	skb = ieee80211_beacon_get(sc->hw, avp->av_if_data);

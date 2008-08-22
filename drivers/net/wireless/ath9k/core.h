@@ -568,6 +568,7 @@ u32 ath_txq_aggr_depth(struct ath_softc *sc, int qnum);
 void ath_notify_txq_status(struct ath_softc *sc, u16 queue_depth);
 void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		     struct ath_xmit_status *tx_status, struct ath_node *an);
+void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb);
 
 /**********************/
 /* Node / Aggregation */
@@ -713,12 +714,6 @@ struct ath_beacon_config {
 	} u; /* last received beacon/probe response timestamp of this BSS. */
 };
 
-/* offsets in a beacon frame for
- * quick acess of beacon content by low-level driver */
-struct ath_beacon_offset {
-	u8 *bo_tim;	/* start of atim/dtim */
-};
-
 void ath9k_beacon_tasklet(unsigned long data);
 void ath_beacon_config(struct ath_softc *sc, int if_id);
 int ath_beaconq_setup(struct ath_hal *ah);
@@ -755,10 +750,8 @@ struct ath_vap {
 	struct ieee80211_vif *av_if_data;
 	enum ath9k_opmode av_opmode;	/* VAP operational mode */
 	struct ath_buf *av_bcbuf;	/* beacon buffer */
-	struct ath_beacon_offset av_boff; /* dynamic update state */
 	struct ath_tx_control av_btxctl;  /* txctl information for beacon */
 	int av_bslot;			/* beacon slot index */
-	struct ath_txq av_mcastq;	/* multicast transmit queue */
 	struct ath_vap_config av_config;/* vap configuration parameters*/
 	struct ath_rate_node *rc_node;
 };

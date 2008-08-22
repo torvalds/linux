@@ -60,79 +60,6 @@ static u32 bits_per_symbol[][2] = {
 #define IS_HT_RATE(_rate)     ((_rate) & 0x80)
 
 /*
- * Insert a chain of ath_buf (descriptors) on a multicast txq
- * but do NOT start tx DMA on this queue.
- * NB: must be called with txq lock held
- */
-
-static void ath_tx_mcastqaddbuf(struct ath_softc *sc,
-				struct ath_txq *txq,
-				struct list_head *head)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
-
-	if (list_empty(head))
-		return;
-
-	/*
-	 * Insert the frame on the outbound list and
-	 * pass it on to the hardware.
-	 */
-	bf = list_first_entry(head, struct ath_buf, list);
-
-	/*
-	 * The CAB queue is started from the SWBA handler since
-	 * frames only go out on DTIM and to avoid possible races.
-	 */
-	ath9k_hw_set_interrupts(ah, 0);
-
-	/*
-	 * If there is anything in the mcastq, we want to set
-	 * the "more data" bit in the last item in the queue to
-	 * indicate that there is "more data". It makes sense to add
-	 * it here since you are *always* going to have
-	 * more data when adding to this queue, no matter where
-	 * you call from.
-	 */
-
-	if (txq->axq_depth) {
-		struct ath_buf *lbf;
-		struct ieee80211_hdr *hdr;
-
-		/*
-		 * Add the "more data flag" to the last frame
-		 */
-
-		lbf = list_entry(txq->axq_q.prev, struct ath_buf, list);
-		hdr = (struct ieee80211_hdr *)
-			((struct sk_buff *)(lbf->bf_mpdu))->data;
-		hdr->frame_control |= cpu_to_le16(IEEE80211_FCTL_MOREDATA);
-	}
-
-	/*
-	 * Now, concat the frame onto the queue
-	 */
-	list_splice_tail_init(head, &txq->axq_q);
-	txq->axq_depth++;
-	txq->axq_totalqueued++;
-	txq->axq_linkbuf = list_entry(txq->axq_q.prev, struct ath_buf, list);
-
-	DPRINTF(sc, ATH_DBG_QUEUE,
-		"%s: txq depth = %d\n", __func__, txq->axq_depth);
-	if (txq->axq_link != NULL) {
-		*txq->axq_link = bf->bf_daddr;
-		DPRINTF(sc, ATH_DBG_XMIT,
-			"%s: link[%u](%p)=%llx (%p)\n",
-			__func__,
-			txq->axq_qnum, txq->axq_link,
-			ito64(bf->bf_daddr), bf->bf_desc);
-	}
-	txq->axq_link = &(bf->bf_lastbf->bf_desc->ds_link);
-	ath9k_hw_set_interrupts(ah, sc->sc_imask);
-}
-
-/*
  * Insert a chain of ath_buf (descriptors) on a txq and
  * assume the descriptors are already chained together by caller.
  * NB: must be called with txq lock held
@@ -277,8 +204,6 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	__le16 fc;
 	u8 *qc;
 
-	memset(txctl, 0, sizeof(struct ath_tx_control));
-
 	txctl->dev = sc;
 	hdr = (struct ieee80211_hdr *)skb->data;
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
@@ -329,12 +254,18 @@ static int ath_tx_prepare(struct ath_softc *sc,
 
 	/* Fill qnum */
 
-	txctl->qnum = ath_get_hal_qnum(skb_get_queue_mapping(skb), sc);
-	txq = &sc->sc_txq[txctl->qnum];
+	if (unlikely(txctl->flags & ATH9K_TXDESC_CAB)) {
+		txctl->qnum = 0;
+		txq = sc->sc_cabq;
+	} else {
+		txctl->qnum = ath_get_hal_qnum(skb_get_queue_mapping(skb), sc);
+		txq = &sc->sc_txq[txctl->qnum];
+	}
 	spin_lock_bh(&txq->axq_lock);
 
 	/* Try to avoid running out of descriptors */
-	if (txq->axq_depth >= (ATH_TXBUF - 20)) {
+	if (txq->axq_depth >= (ATH_TXBUF - 20) &&
+	    !(txctl->flags & ATH9K_TXDESC_CAB)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: TX queue: %d is full, depth: %d\n",
 			__func__,
@@ -354,7 +285,7 @@ static int ath_tx_prepare(struct ath_softc *sc,
 
 	/* Fill flags */
 
-	txctl->flags = ATH9K_TXDESC_CLRDMASK;    /* needed for crypto errors */
+	txctl->flags |= ATH9K_TXDESC_CLRDMASK; /* needed for crypto errors */
 
 	if (tx_info->flags & IEEE80211_TX_CTL_NO_ACK)
 		txctl->flags |= ATH9K_TXDESC_NOACK;
@@ -1982,12 +1913,17 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 	struct list_head bf_head;
 	struct ath_desc *ds;
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_txq *txq = &sc->sc_txq[txctl->qnum];
+	struct ath_txq *txq;
 	struct ath_tx_info_priv *tx_info_priv;
 	struct ath_rc_series *rcs;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	struct ieee80211_tx_info *tx_info =  IEEE80211_SKB_CB(skb);
 	__le16 fc = hdr->frame_control;
+
+	if (unlikely(txctl->flags & ATH9K_TXDESC_CAB))
+		txq = sc->sc_cabq;
+	else
+		txq = &sc->sc_txq[txctl->qnum];
 
 	/* For each sglist entry, allocate an ath_buf for DMA */
 	INIT_LIST_HEAD(&bf_head);
@@ -2093,27 +2029,7 @@ static int ath_tx_start_dma(struct ath_softc *sc,
 			bf->bf_tidno = txctl->tidno;
 		}
 
-		if (is_multicast_ether_addr(hdr->addr1)) {
-			struct ath_vap *avp = sc->sc_vaps[txctl->if_id];
-
-			/*
-			 * When servicing one or more stations in power-save
-			 * mode (or) if there is some mcast data waiting on
-			 * mcast queue (to prevent out of order delivery of
-			 * mcast,bcast packets) multicast frames must be
-			 * buffered until after the beacon. We use the private
-			 * mcast queue for that.
-			 */
-			/* XXX? more bit in 802.11 frame header */
-			spin_lock_bh(&avp->av_mcastq.axq_lock);
-			if (txctl->ps || avp->av_mcastq.axq_depth)
-				ath_tx_mcastqaddbuf(sc,
-					&avp->av_mcastq, &bf_head);
-			else
-				ath_tx_txqaddbuf(sc, txq, &bf_head);
-			spin_unlock_bh(&avp->av_mcastq.axq_lock);
-		} else
-			ath_tx_txqaddbuf(sc, txq, &bf_head);
+		ath_tx_txqaddbuf(sc, txq, &bf_head);
 	}
 	spin_unlock_bh(&txq->axq_lock);
 	return 0;
@@ -2407,6 +2323,7 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb)
 	struct ath_tx_control txctl;
 	int error = 0;
 
+	memset(&txctl, 0, sizeof(struct ath_tx_control));
 	error = ath_tx_prepare(sc, skb, &txctl);
 	if (error == 0)
 		/*
@@ -2871,3 +2788,57 @@ void ath_tx_node_free(struct ath_softc *sc, struct ath_node *an)
 		}
 	}
 }
+
+void ath_tx_cabq(struct ath_softc *sc, struct sk_buff *skb)
+{
+	int hdrlen, padsize;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ath_tx_control txctl;
+
+	/*
+	 * As a temporary workaround, assign seq# here; this will likely need
+	 * to be cleaned up to work better with Beacon transmission and virtual
+	 * BSSes.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			sc->seq_no += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(sc->seq_no);
+	}
+
+	/* Add the padding after the header if this is not already done */
+	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
+	if (hdrlen & 3) {
+		padsize = hdrlen % 4;
+		if (skb_headroom(skb) < padsize) {
+			DPRINTF(sc, ATH_DBG_XMIT, "%s: TX CABQ padding "
+				"failed\n", __func__);
+			dev_kfree_skb_any(skb);
+			return;
+		}
+		skb_push(skb, padsize);
+		memmove(skb->data, skb->data + padsize, hdrlen);
+	}
+
+	DPRINTF(sc, ATH_DBG_XMIT, "%s: transmitting CABQ packet, skb: %p\n",
+		__func__,
+		skb);
+
+	memset(&txctl, 0, sizeof(struct ath_tx_control));
+	txctl.flags = ATH9K_TXDESC_CAB;
+	if (ath_tx_prepare(sc, skb, &txctl) == 0) {
+		/*
+		 * Start DMA mapping.
+		 * ath_tx_start_dma() will be called either synchronously
+		 * or asynchrounsly once DMA is complete.
+		 */
+		xmit_map_sg(sc, skb, &txctl);
+	} else {
+		ath_node_put(sc, txctl.an, ATH9K_BH_STATUS_CHANGE);
+		DPRINTF(sc, ATH_DBG_XMIT, "%s: TX CABQ failed\n", __func__);
+		dev_kfree_skb_any(skb);
+	}
+}
+
