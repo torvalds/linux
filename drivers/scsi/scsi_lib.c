@@ -1251,6 +1251,7 @@ int scsi_prep_state_check(struct scsi_device *sdev, struct request *req)
 			break;
 		case SDEV_QUIESCE:
 		case SDEV_BLOCK:
+		case SDEV_CREATED_BLOCK:
 			/*
 			 * If the devices is blocked we defer normal commands.
 			 */
@@ -2064,10 +2065,13 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 
 	switch (state) {
 	case SDEV_CREATED:
-		/* There are no legal states that come back to
-		 * created.  This is the manually initialised start
-		 * state */
-		goto illegal;
+		switch (oldstate) {
+		case SDEV_CREATED_BLOCK:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
 			
 	case SDEV_RUNNING:
 		switch (oldstate) {
@@ -2105,8 +2109,17 @@ scsi_device_set_state(struct scsi_device *sdev, enum scsi_device_state state)
 
 	case SDEV_BLOCK:
 		switch (oldstate) {
-		case SDEV_CREATED:
 		case SDEV_RUNNING:
+		case SDEV_CREATED_BLOCK:
+			break;
+		default:
+			goto illegal;
+		}
+		break;
+
+	case SDEV_CREATED_BLOCK:
+		switch (oldstate) {
+		case SDEV_CREATED:
 			break;
 		default:
 			goto illegal;
@@ -2394,8 +2407,12 @@ scsi_internal_device_block(struct scsi_device *sdev)
 	int err = 0;
 
 	err = scsi_device_set_state(sdev, SDEV_BLOCK);
-	if (err)
-		return err;
+	if (err) {
+		err = scsi_device_set_state(sdev, SDEV_CREATED_BLOCK);
+
+		if (err)
+			return err;
+	}
 
 	/* 
 	 * The device has transitioned to SDEV_BLOCK.  Stop the
@@ -2438,8 +2455,12 @@ scsi_internal_device_unblock(struct scsi_device *sdev)
 	 * and goose the device queue if successful.  
 	 */
 	err = scsi_device_set_state(sdev, SDEV_RUNNING);
-	if (err)
-		return err;
+	if (err) {
+		err = scsi_device_set_state(sdev, SDEV_CREATED);
+
+		if (err)
+			return err;
+	}
 
 	spin_lock_irqsave(q->queue_lock, flags);
 	blk_start_queue(q);

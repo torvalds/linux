@@ -34,6 +34,7 @@ static const struct {
 	{ SDEV_QUIESCE, "quiesce" },
 	{ SDEV_OFFLINE,	"offline" },
 	{ SDEV_BLOCK,	"blocked" },
+	{ SDEV_CREATED_BLOCK, "created-blocked" },
 };
 
 const char *scsi_device_state_name(enum scsi_device_state state)

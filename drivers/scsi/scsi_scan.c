@@ -730,6 +730,8 @@ static int scsi_probe_lun(struct scsi_device *sdev, unsigned char *inq_result,
 static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 		int *bflags, int async)
 {
+	int ret;
+
 	/*
 	 * XXX do not save the inquiry, since it can change underneath us,
 	 * save just vendor/model/rev.
@@ -885,7 +887,17 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 
 	/* set the device running here so that slave configure
 	 * may do I/O */
-	scsi_device_set_state(sdev, SDEV_RUNNING);
+	ret = scsi_device_set_state(sdev, SDEV_RUNNING);
+	if (ret) {
+		ret = scsi_device_set_state(sdev, SDEV_BLOCK);
+
+		if (ret) {
+			sdev_printk(KERN_ERR, sdev,
+				    "in wrong state %s to complete scan\n",
+				    scsi_device_state_name(sdev->sdev_state));
+			return SCSI_SCAN_NO_RESPONSE;
+		}
+	}
 
 	if (*bflags & BLIST_MS_192_BYTES_FOR_3F)
 		sdev->use_192_bytes_for_3f = 1;
@@ -899,7 +911,7 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 	transport_configure_device(&sdev->sdev_gendev);
 
 	if (sdev->host->hostt->slave_configure) {
-		int ret = sdev->host->hostt->slave_configure(sdev);
+		ret = sdev->host->hostt->slave_configure(sdev);
 		if (ret) {
 			/*
 			 * if LLDD reports slave not present, don't clutter

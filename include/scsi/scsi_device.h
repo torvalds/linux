@@ -42,9 +42,11 @@ enum scsi_device_state {
 				 * originate in the mid-layer) */
 	SDEV_OFFLINE,		/* Device offlined (by error handling or
 				 * user request */
-	SDEV_BLOCK,		/* Device blocked by scsi lld.  No scsi 
-				 * commands from user or midlayer should be issued
-				 * to the scsi lld. */
+	SDEV_BLOCK,		/* Device blocked by scsi lld.  No
+				 * scsi commands from user or midlayer
+				 * should be issued to the scsi
+				 * lld. */
+	SDEV_CREATED_BLOCK,	/* same as above but for created devices */
 };
 
 enum scsi_device_event {
@@ -393,11 +395,13 @@ static inline int scsi_device_online(struct scsi_device *sdev)
 }
 static inline int scsi_device_blocked(struct scsi_device *sdev)
 {
-	return sdev->sdev_state == SDEV_BLOCK;
+	return sdev->sdev_state == SDEV_BLOCK ||
+		sdev->sdev_state == SDEV_CREATED_BLOCK;
 }
 static inline int scsi_device_created(struct scsi_device *sdev)
 {
-	return sdev->sdev_state == SDEV_CREATED;
+	return sdev->sdev_state == SDEV_CREATED ||
+		sdev->sdev_state == SDEV_CREATED_BLOCK;
 }
 
 /* accessor functions for the SCSI parameters */
