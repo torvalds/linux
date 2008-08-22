@@ -178,13 +178,7 @@
 #define NR_IRQS			(IRQ_S1_BVD1_STSCHG + 1)
 #elif defined(CONFIG_SHARP_LOCOMO)
 #define NR_IRQS			(IRQ_LOCOMO_SPI_TEND + 1)
-#elif defined(CONFIG_ARCH_LUBBOCK) || \
-      defined(CONFIG_MACH_LOGICPD_PXA270) || \
-      defined(CONFIG_MACH_TOSA) || \
-      defined(CONFIG_MACH_MAINSTONE) || \
-      defined(CONFIG_MACH_PCM027) || \
-      defined(CONFIG_ARCH_PXA_ESERIES) || \
-      defined(CONFIG_MACH_MAGICIAN)
+#elif defined(CONFIG_PXA_HAVE_BOARD_IRQS)
 #define NR_IRQS			(IRQ_BOARD_END)
 #elif defined(CONFIG_MACH_ZYLONITE)
 #define NR_IRQS			(IRQ_BOARD_START + 32)
