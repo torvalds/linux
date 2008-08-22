@@ -17,6 +17,7 @@
 #include <asm/pgtable-hwdef.h>
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
+#include "proc-macros.S"
 
 /*
  * ARM946E-S is synthesizable to have 0KB to 1MB sized D-Cache,

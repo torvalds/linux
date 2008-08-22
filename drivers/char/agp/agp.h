@@ -150,6 +150,9 @@ struct agp_bridge_data {
 	char minor_version;
 	struct list_head list;
 	u32 apbase_config;
+	/* list of agp_memory mapped to the aperture */
+	struct list_head mapped_list;
+	spinlock_t mapped_lock;
 };
 
 #define KB(x)	((x) * 1024)

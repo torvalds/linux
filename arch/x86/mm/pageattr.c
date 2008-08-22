@@ -59,13 +59,19 @@ static void split_page_count(int level)
 
 int arch_report_meminfo(char *page)
 {
-	int n = sprintf(page, "DirectMap4k:  %8lu\n"
-			"DirectMap2M:  %8lu\n",
-			direct_pages_count[PG_LEVEL_4K],
-			direct_pages_count[PG_LEVEL_2M]);
+	int n = sprintf(page, "DirectMap4k:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_4K] << 2);
+#if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
+	n += sprintf(page + n, "DirectMap2M:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_2M] << 11);
+#else
+	n += sprintf(page + n, "DirectMap4M:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_2M] << 12);
+#endif
 #ifdef CONFIG_X86_64
-	n += sprintf(page + n, "DirectMap1G:  %8lu\n",
-		     direct_pages_count[PG_LEVEL_1G]);
+	if (direct_gbpages)
+		n += sprintf(page + n, "DirectMap1G:  %8lu kB\n",
+			direct_pages_count[PG_LEVEL_1G] << 20);
 #endif
 	return n;
 }
@@ -636,9 +642,8 @@ repeat:
 	if (!pte_val(old_pte)) {
 		if (!primary)
 			return 0;
-		printk(KERN_WARNING "CPA: called for zero pte. "
+		WARN(1, KERN_WARNING "CPA: called for zero pte. "
 		       "vaddr = %lx cpa->vaddr = %lx\n", address,
-		WARN_ON(1);
 		       *cpa->vaddr);
 		return -EINVAL;
 	}
@@ -927,7 +932,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	/*
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
-	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+	if (reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 			    _PAGE_CACHE_UC_MINUS, NULL))
 		return -EINVAL;
 
@@ -967,7 +972,7 @@ int set_memory_wc(unsigned long addr, int numpages)
 	if (!pat_enabled)
 		return set_memory_uc(addr, numpages);
 
-	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+	if (reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 		_PAGE_CACHE_WC, NULL))
 		return -EINVAL;
 
@@ -983,7 +988,7 @@ int _set_memory_wb(unsigned long addr, int numpages)
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
-	free_memtype(addr, addr + numpages * PAGE_SIZE);
+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 
 	return _set_memory_wb(addr, numpages);
 }

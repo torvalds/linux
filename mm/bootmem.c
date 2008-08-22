@@ -473,7 +473,7 @@ find_block:
 				goto find_block;
 			}
 
-		if (bdata->last_end_off &&
+		if (bdata->last_end_off & (PAGE_SIZE - 1) &&
 				PFN_DOWN(bdata->last_end_off) + 1 == sidx)
 			start_off = ALIGN(bdata->last_end_off, align);
 		else

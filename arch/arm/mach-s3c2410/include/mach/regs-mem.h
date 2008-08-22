@@ -11,7 +11,7 @@
 */
 
 #ifndef __ASM_ARM_MEMREGS_H
-#define __ASM_ARM_MEMREGS_H "$Id: regs.h,v 1.8 2003/05/01 15:55:41 ben Exp $"
+#define __ASM_ARM_MEMREGS_H
 
 #ifndef S3C2410_MEMREG
 #define S3C2410_MEMREG(x) (S3C24XX_VA_MEMCTRL + (x))

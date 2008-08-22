@@ -128,10 +128,8 @@ xfs_swap_extents(
 	xfs_swapext_t	*sxp)
 {
 	xfs_mount_t	*mp;
-	xfs_inode_t	*ips[2];
 	xfs_trans_t	*tp;
 	xfs_bstat_t	*sbp = &sxp->sx_stat;
-	bhv_vnode_t	*vp, *tvp;
 	xfs_ifork_t	*tempifp, *ifp, *tifp;
 	int		ilf_fields, tilf_fields;
 	static uint	lock_flags = XFS_ILOCK_EXCL | XFS_IOLOCK_EXCL;
@@ -150,19 +148,8 @@ xfs_swap_extents(
 	}
 
 	sbp = &sxp->sx_stat;
-	vp = XFS_ITOV(ip);
-	tvp = XFS_ITOV(tip);
 
-	/* Lock in i_ino order */
-	if (ip->i_ino < tip->i_ino) {
-		ips[0] = ip;
-		ips[1] = tip;
-	} else {
-		ips[0] = tip;
-		ips[1] = ip;
-	}
-
-	xfs_lock_inodes(ips, 2, lock_flags);
+	xfs_lock_two_inodes(ip, tip, lock_flags);
 	locked = 1;
 
 	/* Verify that both files have the same format */
@@ -184,7 +171,7 @@ xfs_swap_extents(
 		goto error0;
 	}
 
-	if (VN_CACHED(tvp) != 0) {
+	if (VN_CACHED(VFS_I(tip)) != 0) {
 		xfs_inval_cached_trace(tip, 0, -1, 0, -1);
 		error = xfs_flushinval_pages(tip, 0, -1,
 				FI_REMAPF_LOCKED);
@@ -193,7 +180,7 @@ xfs_swap_extents(
 	}
 
 	/* Verify O_DIRECT for ftmp */
-	if (VN_CACHED(tvp) != 0) {
+	if (VN_CACHED(VFS_I(tip)) != 0) {
 		error = XFS_ERROR(EINVAL);
 		goto error0;
 	}
@@ -237,7 +224,7 @@ xfs_swap_extents(
 	 * vop_read (or write in the case of autogrow) they block on the iolock
 	 * until we have switched the extents.
 	 */
-	if (VN_MAPPED(vp)) {
+	if (VN_MAPPED(VFS_I(ip))) {
 		error = XFS_ERROR(EBUSY);
 		goto error0;
 	}
@@ -265,7 +252,7 @@ xfs_swap_extents(
 		locked = 0;
 		goto error0;
 	}
-	xfs_lock_inodes(ips, 2, XFS_ILOCK_EXCL);
+	xfs_lock_two_inodes(ip, tip, XFS_ILOCK_EXCL);
 
 	/*
 	 * Count the number of extended attribute blocks
@@ -350,15 +337,11 @@ xfs_swap_extents(
 		break;
 	}
 
-	/*
-	 * Increment vnode ref counts since xfs_trans_commit &
-	 * xfs_trans_cancel will both unlock the inodes and
-	 * decrement the associated ref counts.
-	 */
-	VN_HOLD(vp);
-	VN_HOLD(tvp);
 
+	IHOLD(ip);
 	xfs_trans_ijoin(tp, ip, lock_flags);
+
+	IHOLD(tip);
 	xfs_trans_ijoin(tp, tip, lock_flags);
 
 	xfs_trans_log_inode(tp, ip,  ilf_fields);

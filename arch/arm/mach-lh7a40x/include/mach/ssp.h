@@ -1,5 +1,4 @@
 /* ssp.h
-     $Id$
 
    written by Marc Singer
    6 Dec 2004

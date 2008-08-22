@@ -347,7 +347,7 @@ struct acpi_buffer *out)
 	strcpy(method, "WQ");
 	strncat(method, block->object_id, 2);
 
-	status = acpi_evaluate_object(handle, method, NULL, out);
+	status = acpi_evaluate_object(handle, method, &input, out);
 
 	/*
 	 * If ACPI_WMI_EXPENSIVE, call the relevant WCxx method, even if

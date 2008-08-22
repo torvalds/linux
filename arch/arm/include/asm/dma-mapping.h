@@ -3,11 +3,48 @@
 
 #ifdef __KERNEL__
 
-#include <linux/mm.h> /* need struct page */
-
+#include <linux/mm_types.h>
 #include <linux/scatterlist.h>
 
 #include <asm-generic/dma-coherent.h>
+#include <asm/memory.h>
+
+/*
+ * page_to_dma/dma_to_virt/virt_to_dma are architecture private functions
+ * used internally by the DMA-mapping API to provide DMA addresses. They
+ * must not be used by drivers.
+ */
+#ifndef __arch_page_to_dma
+static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+{
+	return (dma_addr_t)__virt_to_bus((unsigned long)page_address(page));
+}
+
+static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
+{
+	return (void *)__bus_to_virt(addr);
+}
+
+static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
+{
+	return (dma_addr_t)__virt_to_bus((unsigned long)(addr));
+}
+#else
+static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+{
+	return __arch_page_to_dma(dev, page);
+}
+
+static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
+{
+	return __arch_dma_to_virt(dev, addr);
+}
+
+static inline dma_addr_t virt_to_dma(struct device *dev, void *addr)
+{
+	return __arch_virt_to_dma(dev, addr);
+}
+#endif
 
 /*
  * DMA-consistent mapping functions.  These allocate/free a region of
@@ -169,7 +206,7 @@ dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 	if (!arch_is_coherent())
 		dma_cache_maint(cpu_addr, size, dir);
 
-	return virt_to_dma(dev, (unsigned long)cpu_addr);
+	return virt_to_dma(dev, cpu_addr);
 }
 #else
 extern dma_addr_t dma_map_single(struct device *,void *, size_t, enum dma_data_direction);
@@ -195,7 +232,7 @@ dma_map_page(struct device *dev, struct page *page,
 	     unsigned long offset, size_t size,
 	     enum dma_data_direction dir)
 {
-	return dma_map_single(dev, page_address(page) + offset, size, (int)dir);
+	return dma_map_single(dev, page_address(page) + offset, size, dir);
 }
 
 /**
@@ -241,7 +278,7 @@ static inline void
 dma_unmap_page(struct device *dev, dma_addr_t handle, size_t size,
 	       enum dma_data_direction dir)
 {
-	dma_unmap_single(dev, handle, size, (int)dir);
+	dma_unmap_single(dev, handle, size, dir);
 }
 
 /**
@@ -314,11 +351,12 @@ extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_da
 
 
 /**
- * dma_sync_single_for_cpu
+ * dma_sync_single_range_for_cpu
  * @dev: valid struct device pointer, or NULL for ISA and EISA-like devices
  * @handle: DMA address of buffer
- * @size: size of buffer to map
- * @dir: DMA transfer direction
+ * @offset: offset of region to start sync
+ * @size: size of region to sync
+ * @dir: DMA transfer direction (same as passed to dma_map_single)
  *
  * Make physical memory consistent for a single streaming mode DMA
  * translation after a transfer.
@@ -332,24 +370,40 @@ extern void dma_unmap_sg(struct device *, struct scatterlist *, int, enum dma_da
  */
 #ifndef CONFIG_DMABOUNCE
 static inline void
+dma_sync_single_range_for_cpu(struct device *dev, dma_addr_t handle,
+			      unsigned long offset, size_t size,
+			      enum dma_data_direction dir)
+{
+	if (!arch_is_coherent())
+		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
+}
+
+static inline void
+dma_sync_single_range_for_device(struct device *dev, dma_addr_t handle,
+				 unsigned long offset, size_t size,
+				 enum dma_data_direction dir)
+{
+	if (!arch_is_coherent())
+		dma_cache_maint(dma_to_virt(dev, handle) + offset, size, dir);
+}
+#else
+extern void dma_sync_single_range_for_cpu(struct device *, dma_addr_t, unsigned long, size_t, enum dma_data_direction);
+extern void dma_sync_single_range_for_device(struct device *, dma_addr_t, unsigned long, size_t, enum dma_data_direction);
+#endif
+
+static inline void
 dma_sync_single_for_cpu(struct device *dev, dma_addr_t handle, size_t size,
 			enum dma_data_direction dir)
 {
-	if (!arch_is_coherent())
-		dma_cache_maint((void *)dma_to_virt(dev, handle), size, dir);
+	dma_sync_single_range_for_cpu(dev, handle, 0, size, dir);
 }
 
 static inline void
 dma_sync_single_for_device(struct device *dev, dma_addr_t handle, size_t size,
 			   enum dma_data_direction dir)
 {
-	if (!arch_is_coherent())
-		dma_cache_maint((void *)dma_to_virt(dev, handle), size, dir);
+	dma_sync_single_range_for_device(dev, handle, 0, size, dir);
 }
-#else
-extern void dma_sync_single_for_cpu(struct device*, dma_addr_t, size_t, enum dma_data_direction);
-extern void dma_sync_single_for_device(struct device*, dma_addr_t, size_t, enum dma_data_direction);
-#endif
 
 
 /**

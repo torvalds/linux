@@ -181,7 +181,7 @@ xfs_inobt_delrec(
 		 * then we can get rid of this level.
 		 */
 		if (numrecs == 1 && level > 0) {
-			agbp = cur->bc_private.i.agbp;
+			agbp = cur->bc_private.a.agbp;
 			agi = XFS_BUF_TO_AGI(agbp);
 			/*
 			 * pp is still set to the first pointer in the block.
@@ -194,7 +194,7 @@ xfs_inobt_delrec(
 			 * Free the block.
 			 */
 			if ((error = xfs_free_extent(cur->bc_tp,
-				XFS_AGB_TO_FSB(mp, cur->bc_private.i.agno, bno), 1)))
+				XFS_AGB_TO_FSB(mp, cur->bc_private.a.agno, bno), 1)))
 				return error;
 			xfs_trans_binval(cur->bc_tp, bp);
 			xfs_ialloc_log_agi(cur->bc_tp, agbp,
@@ -379,7 +379,7 @@ xfs_inobt_delrec(
 		rrecs = be16_to_cpu(right->bb_numrecs);
 		rbp = bp;
 		if ((error = xfs_btree_read_bufs(mp, cur->bc_tp,
-				cur->bc_private.i.agno, lbno, 0, &lbp,
+				cur->bc_private.a.agno, lbno, 0, &lbp,
 				XFS_INO_BTREE_REF)))
 			return error;
 		left = XFS_BUF_TO_INOBT_BLOCK(lbp);
@@ -401,7 +401,7 @@ xfs_inobt_delrec(
 		lrecs = be16_to_cpu(left->bb_numrecs);
 		lbp = bp;
 		if ((error = xfs_btree_read_bufs(mp, cur->bc_tp,
-				cur->bc_private.i.agno, rbno, 0, &rbp,
+				cur->bc_private.a.agno, rbno, 0, &rbp,
 				XFS_INO_BTREE_REF)))
 			return error;
 		right = XFS_BUF_TO_INOBT_BLOCK(rbp);
@@ -484,7 +484,7 @@ xfs_inobt_delrec(
 		xfs_buf_t		*rrbp;
 
 		if ((error = xfs_btree_read_bufs(mp, cur->bc_tp,
-				cur->bc_private.i.agno, be32_to_cpu(left->bb_rightsib), 0,
+				cur->bc_private.a.agno, be32_to_cpu(left->bb_rightsib), 0,
 				&rrbp, XFS_INO_BTREE_REF)))
 			return error;
 		rrblock = XFS_BUF_TO_INOBT_BLOCK(rrbp);
@@ -497,7 +497,7 @@ xfs_inobt_delrec(
 	 * Free the deleting block.
 	 */
 	if ((error = xfs_free_extent(cur->bc_tp, XFS_AGB_TO_FSB(mp,
-				     cur->bc_private.i.agno, rbno), 1)))
+				     cur->bc_private.a.agno, rbno), 1)))
 		return error;
 	xfs_trans_binval(cur->bc_tp, rbp);
 	/*
@@ -854,7 +854,7 @@ xfs_inobt_lookup(
 	{
 		xfs_agi_t	*agi;	/* a.g. inode header */
 
-		agi = XFS_BUF_TO_AGI(cur->bc_private.i.agbp);
+		agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
 		agno = be32_to_cpu(agi->agi_seqno);
 		agbno = be32_to_cpu(agi->agi_root);
 	}
@@ -1089,7 +1089,7 @@ xfs_inobt_lshift(
 	 * Set up the left neighbor as "left".
 	 */
 	if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-			cur->bc_private.i.agno, be32_to_cpu(right->bb_leftsib),
+			cur->bc_private.a.agno, be32_to_cpu(right->bb_leftsib),
 			0, &lbp, XFS_INO_BTREE_REF)))
 		return error;
 	left = XFS_BUF_TO_INOBT_BLOCK(lbp);
@@ -1207,10 +1207,10 @@ xfs_inobt_newroot(
 	/*
 	 * Get a block & a buffer.
 	 */
-	agi = XFS_BUF_TO_AGI(cur->bc_private.i.agbp);
+	agi = XFS_BUF_TO_AGI(cur->bc_private.a.agbp);
 	args.tp = cur->bc_tp;
 	args.mp = cur->bc_mp;
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.i.agno,
+	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.a.agno,
 		be32_to_cpu(agi->agi_root));
 	args.mod = args.minleft = args.alignment = args.total = args.wasdel =
 		args.isfl = args.userdata = args.minalignslop = 0;
@@ -1233,7 +1233,7 @@ xfs_inobt_newroot(
 	 */
 	agi->agi_root = cpu_to_be32(args.agbno);
 	be32_add_cpu(&agi->agi_level, 1);
-	xfs_ialloc_log_agi(args.tp, cur->bc_private.i.agbp,
+	xfs_ialloc_log_agi(args.tp, cur->bc_private.a.agbp,
 		XFS_AGI_ROOT | XFS_AGI_LEVEL);
 	/*
 	 * At the previous root level there are now two blocks: the old
@@ -1376,7 +1376,7 @@ xfs_inobt_rshift(
 	 * Set up the right neighbor as "right".
 	 */
 	if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-			cur->bc_private.i.agno, be32_to_cpu(left->bb_rightsib),
+			cur->bc_private.a.agno, be32_to_cpu(left->bb_rightsib),
 			0, &rbp, XFS_INO_BTREE_REF)))
 		return error;
 	right = XFS_BUF_TO_INOBT_BLOCK(rbp);
@@ -1492,7 +1492,7 @@ xfs_inobt_split(
 	 * Allocate the new block.
 	 * If we can't do it, we're toast.  Give up.
 	 */
-	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.i.agno, lbno);
+	args.fsbno = XFS_AGB_TO_FSB(args.mp, cur->bc_private.a.agno, lbno);
 	args.mod = args.minleft = args.alignment = args.total = args.wasdel =
 		args.isfl = args.userdata = args.minalignslop = 0;
 	args.minlen = args.maxlen = args.prod = 1;
@@ -1725,7 +1725,7 @@ xfs_inobt_decrement(
 
 		agbno = be32_to_cpu(*XFS_INOBT_PTR_ADDR(block, cur->bc_ptrs[lev], cur));
 		if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-				cur->bc_private.i.agno, agbno, 0, &bp,
+				cur->bc_private.a.agno, agbno, 0, &bp,
 				XFS_INO_BTREE_REF)))
 			return error;
 		lev--;
@@ -1897,7 +1897,7 @@ xfs_inobt_increment(
 
 		agbno = be32_to_cpu(*XFS_INOBT_PTR_ADDR(block, cur->bc_ptrs[lev], cur));
 		if ((error = xfs_btree_read_bufs(cur->bc_mp, cur->bc_tp,
-				cur->bc_private.i.agno, agbno, 0, &bp,
+				cur->bc_private.a.agno, agbno, 0, &bp,
 				XFS_INO_BTREE_REF)))
 			return error;
 		lev--;
