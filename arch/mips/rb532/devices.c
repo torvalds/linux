@@ -34,20 +34,10 @@
 #include <asm/mach-rc32434/rb.h>
 #include <asm/mach-rc32434/integ.h>
 #include <asm/mach-rc32434/gpio.h>
-
-#define ETH0_DMA_RX_IRQ   	(GROUP1_IRQ_BASE + 0)
-#define ETH0_DMA_TX_IRQ   	(GROUP1_IRQ_BASE + 1)
-#define ETH0_RX_OVR_IRQ   	(GROUP3_IRQ_BASE + 9)
-#define ETH0_TX_UND_IRQ   	(GROUP3_IRQ_BASE + 10)
+#include <asm/mach-rc32434/irq.h>
 
 #define ETH0_RX_DMA_ADDR  (DMA0_BASE_ADDR + 0 * DMA_CHAN_OFFSET)
 #define ETH0_TX_DMA_ADDR  (DMA0_BASE_ADDR + 1 * DMA_CHAN_OFFSET)
-
-/* NAND definitions */
-#define GPIO_RDY (1 << 0x08)
-#define GPIO_WPX (1 << 0x09)
-#define GPIO_ALE (1 << 0x0a)
-#define GPIO_CLE (1 << 0x0b)
 
 static struct resource korina_dev0_res[] = {
 	{
@@ -101,8 +91,6 @@ static struct platform_device korina_dev0 = {
 	.num_resources = ARRAY_SIZE(korina_dev0_res),
 };
 
-#define CF_GPIO_NUM 13
-
 static struct resource cf_slot0_res[] = {
 	{
 		.name = "cf_membase",
@@ -116,7 +104,7 @@ static struct resource cf_slot0_res[] = {
 };
 
 static struct cf_device cf_slot0_data = {
-	.gpio_pin = 13
+	.gpio_pin = CF_GPIO_NUM
 };
 
 static struct platform_device cf_slot0 = {

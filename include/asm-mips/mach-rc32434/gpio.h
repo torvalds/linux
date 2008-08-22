@@ -61,6 +61,15 @@ struct rb532_gpio_reg {
 /* PCI messaging unit */
 #define RC32434_PCI_MSU_GPIO	(1 << 13)
 
+/* NAND GPIO signals */
+#define GPIO_RDY		(1 << 0x08)
+#define GPIO_WPX		(1 << 0x09)
+#define GPIO_ALE		(1 << 0x0a)
+#define GPIO_CLE		(1 << 0x0b)
+
+/* Compact Flash GPIO pin */
+#define CF_GPIO_NUM		13
+
 
 extern void set_434_reg(unsigned reg_offs, unsigned bit, unsigned len, unsigned val);
 extern unsigned get_434_reg(unsigned reg_offs);
