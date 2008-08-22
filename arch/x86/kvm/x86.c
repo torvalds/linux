@@ -3611,7 +3611,7 @@ static int load_segment_descriptor_to_kvm_desct(struct kvm_vcpu *vcpu,
 	return 0;
 }
 
-int kvm_load_realmode_segment(struct kvm_vcpu *vcpu, u16 selector, int seg)
+static int kvm_load_realmode_segment(struct kvm_vcpu *vcpu, u16 selector, int seg)
 {
 	struct kvm_segment segvar = {
 		.base = selector << 4,
