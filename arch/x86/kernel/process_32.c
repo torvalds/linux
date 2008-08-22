@@ -75,26 +75,17 @@ unsigned long thread_saved_pc(struct task_struct *tsk)
 #ifdef CONFIG_HOTPLUG_CPU
 #include <asm/nmi.h>
 
-static void cpu_exit_clear(void)
+/* We don't actually take CPU down, just spin without interrupts. */
+void native_play_dead(void)
 {
 	int cpu = raw_smp_processor_id();
 
 	idle_task_exit();
 
-	cpu_uninit();
+	reset_lazy_tlbstate();
+
 	irq_ctx_exit(cpu);
 
-	cpu_clear(cpu, cpu_callout_map);
-	cpu_clear(cpu, cpu_callin_map);
-
-	numa_remove_cpu(cpu);
-}
-
-/* We don't actually take CPU down, just spin without interrupts. */
-void native_play_dead(void)
-{
-	/* This must be done before dead CPU ack */
-	cpu_exit_clear();
 	mb();
 	/* Ack it */
 	__get_cpu_var(cpu_state) = CPU_DEAD;

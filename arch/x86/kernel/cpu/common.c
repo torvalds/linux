@@ -714,14 +714,10 @@ void __cpuinit cpu_init(void)
 	mxcsr_feature_mask_init();
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
-void __cpuinit cpu_uninit(void)
+void reset_lazy_tlbstate(void)
 {
 	int cpu = raw_smp_processor_id();
-	cpu_clear(cpu, cpu_initialized);
 
-	/* lazy TLB state */
 	per_cpu(cpu_tlbstate, cpu).state = 0;
 	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
 }
-#endif
