@@ -967,7 +967,7 @@ out:
 
 		if (tmp == start)
 			break;
-		for (end = start + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
+		for (end = tmp + PAGE_SIZE; i < addrinarray - 1; end += PAGE_SIZE) {
 			if (end != __pa(addr[i + 1]))
 				break;
 			i++;
