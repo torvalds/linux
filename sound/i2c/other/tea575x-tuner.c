@@ -175,6 +175,23 @@ static void snd_tea575x_release(struct video_device *vfd)
 {
 }
 
+static int snd_tea575x_exclusive_open(struct inode *inode, struct file *file)
+{
+	struct video_device *dev = video_devdata(file);
+	struct snd_tea575x *tea = video_get_drvdata(dev);
+
+	return test_and_set_bit(0, &tea->in_use) ? -EBUSY : 0;
+}
+
+static int snd_tea575x_exclusive_release(struct inode *inode, struct file *file)
+{
+	struct video_device *dev = video_devdata(file);
+	struct snd_tea575x *tea = video_get_drvdata(dev);
+
+	clear_bit(0, &tea->in_use);
+	return 0;
+}
+
 /*
  * initialize all the tea575x chips
  */
@@ -193,9 +210,10 @@ void snd_tea575x_init(struct snd_tea575x *tea)
 	tea->vd.release = snd_tea575x_release;
 	video_set_drvdata(&tea->vd, tea);
 	tea->vd.fops = &tea->fops;
+	tea->in_use = 0;
 	tea->fops.owner = tea->card->module;
-	tea->fops.open = video_exclusive_open;
-	tea->fops.release = video_exclusive_release;
+	tea->fops.open = snd_tea575x_exclusive_open;
+	tea->fops.release = snd_tea575x_exclusive_release;
 	tea->fops.ioctl = snd_tea575x_ioctl;
 	if (video_register_device(&tea->vd, VFL_TYPE_RADIO, tea->dev_nr - 1) < 0) {
 		snd_printk(KERN_ERR "unable to register tea575x tuner\n");
