@@ -149,52 +149,44 @@ static void parport_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
+static int parport_config_check(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		if (epp_mode)
+			p_dev->conf.ConfigIndex |= FORCE_EPP_MODE;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		if (io->nwin == 2) {
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+			return -ENODEV;
+		return 0;
+	}
+	return -ENODEV;
+}
+
 static int parport_config(struct pcmcia_device *link)
 {
     parport_info_t *info = link->priv;
-    tuple_t tuple;
-    u_short buf[128];
-    cisparse_t parse;
-    cistpl_cftable_entry_t *cfg = &parse.cftable_entry;
-    cistpl_cftable_entry_t dflt = { 0 };
     struct parport *p;
     int last_ret, last_fn;
-    
-    DEBUG(0, "parport_config(0x%p)\n", link);
-    
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleOffset = 0; tuple.TupleDataMax = 255;
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    while (1) {
-	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-		pcmcia_parse_tuple(link, &tuple, &parse) != 0)
-	    goto next_entry;
 
-	if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-	    cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-	    link->conf.ConfigIndex = cfg->index;
-	    if (epp_mode)
-		link->conf.ConfigIndex |= FORCE_EPP_MODE;
-	    link->io.BasePort1 = io->win[0].base;
-	    link->io.NumPorts1 = io->win[0].len;
-	    link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	    if (io->nwin == 2) {
-		link->io.BasePort2 = io->win[1].base;
-		link->io.NumPorts2 = io->win[1].len;
-	    }
-	    if (pcmcia_request_io(link, &link->io) != 0)
-		goto next_entry;
-	    /* If we've got this far, we're done */
-	    break;
-	}
-	
-    next_entry:
-	if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-	CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
+    DEBUG(0, "parport_config(0x%p)\n", link);
+
+    last_ret = pcmcia_loop_config(link, parport_config_check, NULL);
+    if (last_ret) {
+	    cs_error(link, RequestIO, last_ret);
+	    goto failed;
     }
-    
+
     CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
     CS_CHECK(RequestConfiguration, pcmcia_request_configuration(link, &link->conf));
 

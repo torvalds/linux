@@ -633,6 +633,70 @@ static void spectrum_cs_detach(struct pcmcia_device *link)
  * device available to the system.
  */
 
+static int spectrum_cs_config_check(struct pcmcia_device *p_dev,
+				    cistpl_cftable_entry_t *cfg,
+				    cistpl_cftable_entry_t *dflt,
+				    unsigned int vcc,
+				    void *priv_data)
+{
+	if (cfg->index == 0)
+		goto next_entry;
+
+	/* Use power settings for Vcc and Vpp if present */
+	/* Note that the CIS values need to be rescaled */
+	if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+		if (vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
+			DEBUG(2, "spectrum_cs_config: Vcc mismatch (vcc = %d, CIS = %d)\n",  vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
+			if (!ignore_cis_vcc)
+				goto next_entry;
+		}
+	} else if (dflt->vcc.present & (1 << CISTPL_POWER_VNOM)) {
+		if (vcc != dflt->vcc.param[CISTPL_POWER_VNOM] / 10000) {
+			DEBUG(2, "spectrum_cs_config: Vcc mismatch (vcc = %d, CIS = %d)\n",  vcc, dflt->vcc.param[CISTPL_POWER_VNOM] / 10000);
+			if (!ignore_cis_vcc)
+				goto next_entry;
+		}
+	}
+
+	if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp =
+			cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+	else if (dflt->vpp1.present & (1 << CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp =
+			dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
+
+	/* Do we need to allocate an interrupt? */
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+
+		/* This reserves IO space but doesn't actually enable it */
+		if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+			goto next_entry;
+	}
+	return 0;
+
+next_entry:
+	pcmcia_disable_device(p_dev);
+	return -ENODEV;
+};
+
 static int
 spectrum_cs_config(struct pcmcia_device *link)
 {
@@ -641,15 +705,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 	struct orinoco_pccard *card = priv->card;
 	hermes_t *hw = &priv->hw;
 	int last_fn, last_ret;
-	u_char buf[64];
-	config_info_t conf;
-	tuple_t tuple;
-	cisparse_t parse;
 	void __iomem *mem;
-
-	/* Look up the current Vcc */
-	CS_CHECK(GetConfigurationInfo,
-		 pcmcia_get_configuration_info(link, &conf));
 
 	/*
 	 * In this loop, we scan the CIS for configuration table
@@ -665,94 +721,14 @@ spectrum_cs_config(struct pcmcia_device *link)
 	 * and most client drivers will only use the CIS to fill in
 	 * implementation-defined details.
 	 */
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	while (1) {
-		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		cistpl_cftable_entry_t dflt = { .index = 0 };
-
-		if ( (pcmcia_get_tuple_data(link, &tuple) != 0)
-		    || (pcmcia_parse_tuple(link, &tuple, &parse) != 0))
-			goto next_entry;
-
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
-			dflt = *cfg;
-		if (cfg->index == 0)
-			goto next_entry;
-		link->conf.ConfigIndex = cfg->index;
-
-		/* Use power settings for Vcc and Vpp if present */
-		/* Note that the CIS values need to be rescaled */
-		if (cfg->vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (conf.Vcc != cfg->vcc.param[CISTPL_POWER_VNOM] / 10000) {
-				DEBUG(2, "spectrum_cs_config: Vcc mismatch (conf.Vcc = %d, CIS = %d)\n",  conf.Vcc, cfg->vcc.param[CISTPL_POWER_VNOM] / 10000);
-				if (!ignore_cis_vcc)
-					goto next_entry;
-			}
-		} else if (dflt.vcc.present & (1 << CISTPL_POWER_VNOM)) {
-			if (conf.Vcc != dflt.vcc.param[CISTPL_POWER_VNOM] / 10000) {
-				DEBUG(2, "spectrum_cs_config: Vcc mismatch (conf.Vcc = %d, CIS = %d)\n",  conf.Vcc, dflt.vcc.param[CISTPL_POWER_VNOM] / 10000);
-				if(!ignore_cis_vcc)
-					goto next_entry;
-			}
-		}
-
-		if (cfg->vpp1.present & (1 << CISTPL_POWER_VNOM))
-			link->conf.Vpp =
-			    cfg->vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		else if (dflt.vpp1.present & (1 << CISTPL_POWER_VNOM))
-			link->conf.Vpp =
-			    dflt.vpp1.param[CISTPL_POWER_VNOM] / 10000;
-		
-		/* Do we need to allocate an interrupt? */
-		link->conf.Attributes |= CONF_ENABLE_IRQ;
-
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io =
-			    (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-			if (!(io->flags & CISTPL_IO_8BIT))
-				link->io.Attributes1 =
-				    IO_DATA_PATH_WIDTH_16;
-			if (!(io->flags & CISTPL_IO_16BIT))
-				link->io.Attributes1 =
-				    IO_DATA_PATH_WIDTH_8;
-			link->io.IOAddrLines =
-			    io->flags & CISTPL_IO_LINES_MASK;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin > 1) {
-				link->io.Attributes2 =
-				    link->io.Attributes1;
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-
-			/* This reserves IO space but doesn't actually enable it */
-			if (pcmcia_request_io(link, &link->io) != 0)
-				goto next_entry;
-		}
-
-
-		/* If we got this far, we're cool! */
-
-		break;
-		
-	next_entry:
-		pcmcia_disable_device(link);
-		last_ret = pcmcia_get_next_tuple(link, &tuple);
-		if (last_ret  == CS_NO_MORE_ITEMS) {
+	last_ret = pcmcia_loop_config(link, spectrum_cs_config_check, NULL);
+	if (last_ret) {
+		if (!ignore_cis_vcc)
 			printk(KERN_ERR PFX "GetNextTuple(): No matching "
 			       "CIS configuration.  Maybe you need the "
 			       "ignore_cis_vcc=1 parameter.\n");
-			goto cs_failed;
-		}
+		cs_error(link, RequestIO, last_ret);
+		goto failed;
 	}
 
 	/*

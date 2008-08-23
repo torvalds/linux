@@ -206,126 +206,123 @@ static void airo_detach(struct pcmcia_device *link)
 #define CS_CHECK(fn, ret) \
 do { last_fn = (fn); if ((last_ret = (ret)) != 0) goto cs_failed; } while (0)
 
+static int airo_cs_config_check(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cfg,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	win_req_t *req = priv_data;
+
+	if (cfg->index == 0)
+		return -ENODEV;
+
+	/* Does this card need audio output? */
+	if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
+		p_dev->conf.Attributes |= CONF_ENABLE_SPKR;
+		p_dev->conf.Status = CCSR_AUDIO_ENA;
+	}
+
+	/* Use power settings for Vcc and Vpp if present */
+	/*  Note that the CIS values need to be rescaled */
+	if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp = cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
+	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
+		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
+
+	/* Do we need to allocate an interrupt? */
+	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
+		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+
+	/* IO window settings */
+	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
+	if ((cfg->io.nwin > 0) || (dflt->io.nwin > 0)) {
+		cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt->io;
+		p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
+		if (!(io->flags & CISTPL_IO_8BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
+		if (!(io->flags & CISTPL_IO_16BIT))
+			p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
+		p_dev->io.BasePort1 = io->win[0].base;
+		p_dev->io.NumPorts1 = io->win[0].len;
+		if (io->nwin > 1) {
+			p_dev->io.Attributes2 = p_dev->io.Attributes1;
+			p_dev->io.BasePort2 = io->win[1].base;
+			p_dev->io.NumPorts2 = io->win[1].len;
+		}
+	}
+
+	/* This reserves IO space but doesn't actually enable it */
+	if (pcmcia_request_io(p_dev, &p_dev->io) != 0)
+		return -ENODEV;
+
+	/*
+	  Now set up a common memory window, if needed.  There is room
+	  in the struct pcmcia_device structure for one memory window handle,
+	  but if the base addresses need to be saved, or if multiple
+	  windows are needed, the info should go in the private data
+	  structure for this device.
+
+	  Note that the memory window base is a physical address, and
+	  needs to be mapped to virtual space with ioremap() before it
+	  is used.
+	*/
+	if ((cfg->mem.nwin > 0) || (dflt->mem.nwin > 0)) {
+		cistpl_mem_t *mem = (cfg->mem.nwin) ? &cfg->mem : &dflt->mem;
+		memreq_t map;
+		req->Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
+		req->Base = mem->win[0].host_addr;
+		req->Size = mem->win[0].len;
+		req->AccessSpeed = 0;
+		if (pcmcia_request_window(&p_dev, req, &p_dev->win) != 0)
+			return -ENODEV;
+		map.Page = 0;
+		map.CardOffset = mem->win[0].card_addr;
+		if (pcmcia_map_mem_page(p_dev->win, &map) != 0)
+			return -ENODEV;
+	}
+	/* If we got this far, we're cool! */
+	return 0;
+}
+
+
 static int airo_config(struct pcmcia_device *link)
 {
-	tuple_t tuple;
-	cisparse_t parse;
 	local_info_t *dev;
+	win_req_t *req;
 	int last_fn, last_ret;
-	u_char buf[64];
-	win_req_t req;
-	memreq_t map;
 
 	dev = link->priv;
 
 	DEBUG(0, "airo_config(0x%p)\n", link);
 
+	req = kzalloc(sizeof(win_req_t), GFP_KERNEL);
+	if (!req)
+		return -ENOMEM;
+
 	/*
-	  In this loop, we scan the CIS for configuration table entries,
-	  each of which describes a valid card configuration, including
-	  voltage, IO window, memory window, and interrupt settings.
-	  
-	  We make no assumptions about the card to be configured: we use
-	  just the information available in the CIS.  In an ideal world,
-	  this would work for any PCMCIA card, but it requires a complete
-	  and accurate CIS.  In practice, a driver usually "knows" most of
-	  these things without consulting the CIS, and most client drivers
-	  will only use the CIS to fill in implementation-defined details.
+	 * In this loop, we scan the CIS for configuration table
+	 * entries, each of which describes a valid card
+	 * configuration, including voltage, IO window, memory window,
+	 * and interrupt settings.
+	 *
+	 * We make no assumptions about the card to be configured: we
+	 * use just the information available in the CIS.  In an ideal
+	 * world, this would work for any PCMCIA card, but it requires
+	 * a complete and accurate CIS.  In practice, a driver usually
+	 * "knows" most of these things without consulting the CIS,
+	 * and most client drivers will only use the CIS to fill in
+	 * implementation-defined details.
+	 */
+	last_ret = pcmcia_loop_config(link, airo_cs_config_check, req);
+	if (last_ret)
+		goto failed;
+
+	/*
+	  Allocate an interrupt line.  Note that this does not assign a
+	  handler to the interrupt, unless the 'Handler' member of the
+	  irq structure is initialized.
 	*/
-	tuple.Attributes = 0;
-	tuple.TupleData = buf;
-	tuple.TupleDataMax = sizeof(buf);
-	tuple.TupleOffset = 0;
-	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-	while (1) {
-		cistpl_cftable_entry_t dflt = { 0 };
-		cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-		if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-				pcmcia_parse_tuple(link, &tuple, &parse) != 0)
-			goto next_entry;
-		
-		if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
-		if (cfg->index == 0) goto next_entry;
-		link->conf.ConfigIndex = cfg->index;
-		
-		/* Does this card need audio output? */
-		if (cfg->flags & CISTPL_CFTABLE_AUDIO) {
-			link->conf.Attributes |= CONF_ENABLE_SPKR;
-			link->conf.Status = CCSR_AUDIO_ENA;
-		}
-		
-		/* Use power settings for Vcc and Vpp if present */
-		/*  Note that the CIS values need to be rescaled */
-		if (cfg->vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp =
-				cfg->vpp1.param[CISTPL_POWER_VNOM]/10000;
-		else if (dflt.vpp1.present & (1<<CISTPL_POWER_VNOM))
-			link->conf.Vpp =
-				dflt.vpp1.param[CISTPL_POWER_VNOM]/10000;
-		
-		/* Do we need to allocate an interrupt? */
-		if (cfg->irq.IRQInfo1 || dflt.irq.IRQInfo1)
-			link->conf.Attributes |= CONF_ENABLE_IRQ;
-		
-		/* IO window settings */
-		link->io.NumPorts1 = link->io.NumPorts2 = 0;
-		if ((cfg->io.nwin > 0) || (dflt.io.nwin > 0)) {
-			cistpl_io_t *io = (cfg->io.nwin) ? &cfg->io : &dflt.io;
-			link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-			if (!(io->flags & CISTPL_IO_8BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-			if (!(io->flags & CISTPL_IO_16BIT))
-				link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
-			link->io.BasePort1 = io->win[0].base;
-			link->io.NumPorts1 = io->win[0].len;
-			if (io->nwin > 1) {
-				link->io.Attributes2 = link->io.Attributes1;
-				link->io.BasePort2 = io->win[1].base;
-				link->io.NumPorts2 = io->win[1].len;
-			}
-		}
-		
-		/* This reserves IO space but doesn't actually enable it */
-		if (pcmcia_request_io(link, &link->io) != 0)
-			goto next_entry;
-		
-		/*
-		  Now set up a common memory window, if needed.  There is room
-		  in the struct pcmcia_device structure for one memory window handle,
-		  but if the base addresses need to be saved, or if multiple
-		  windows are needed, the info should go in the private data
-		  structure for this device.
-		  
-		  Note that the memory window base is a physical address, and
-		  needs to be mapped to virtual space with ioremap() before it
-		  is used.
-		*/
-		if ((cfg->mem.nwin > 0) || (dflt.mem.nwin > 0)) {
-			cistpl_mem_t *mem =
-				(cfg->mem.nwin) ? &cfg->mem : &dflt.mem;
-			req.Attributes = WIN_DATA_WIDTH_16|WIN_MEMORY_TYPE_CM;
-			req.Base = mem->win[0].host_addr;
-			req.Size = mem->win[0].len;
-			req.AccessSpeed = 0;
-			if (pcmcia_request_window(&link, &req, &link->win) != 0)
-				goto next_entry;
-			map.Page = 0; map.CardOffset = mem->win[0].card_addr;
-			if (pcmcia_map_mem_page(link->win, &map) != 0)
-				goto next_entry;
-		}
-		/* If we got this far, we're cool! */
-		break;
-		
-	next_entry:
-		CS_CHECK(GetNextTuple, pcmcia_get_next_tuple(link, &tuple));
-	}
-	
-    /*
-      Allocate an interrupt line.  Note that this does not assign a
-      handler to the interrupt, unless the 'Handler' member of the
-      irq structure is initialized.
-    */
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
 		CS_CHECK(RequestIRQ, pcmcia_request_irq(link, &link->irq));
 	
@@ -362,14 +359,17 @@ static int airo_config(struct pcmcia_device *link)
 		printk(" & 0x%04x-0x%04x", link->io.BasePort2,
 		       link->io.BasePort2+link->io.NumPorts2-1);
 	if (link->win)
-		printk(", mem 0x%06lx-0x%06lx", req.Base,
-		       req.Base+req.Size-1);
+		printk(", mem 0x%06lx-0x%06lx", req->Base,
+		       req->Base+req->Size-1);
 	printk("\n");
+	kfree(req);
 	return 0;
 
  cs_failed:
 	cs_error(link, last_fn, last_ret);
+ failed:
 	airo_release(link);
+	kfree(req);
 	return -ENODEV;
 } /* airo_config */
 

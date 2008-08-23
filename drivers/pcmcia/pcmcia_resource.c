@@ -44,16 +44,17 @@ static u8 pcmcia_used_irq[NR_IRQS];
 #endif
 
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 extern int ds_pc_debug;
 
 #define ds_dbg(skt, lvl, fmt, arg...) do {			\
 	if (ds_pc_debug >= lvl)					\
-		printk(KERN_DEBUG "pcmcia_resource: %s: " fmt,	\
-			cs_socket_name(skt) , ## arg);		\
+		dev_printk(KERN_DEBUG, &skt->dev,		\
+			   "pcmcia_resource: " fmt,		\
+			   ## arg);				\
 } while (0)
 #else
-#define ds_dbg(lvl, fmt, arg...) do { } while (0)
+#define ds_dbg(skt, lvl, fmt, arg...) do { } while (0)
 #endif
 
 
@@ -802,8 +803,10 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	/* Make sure the fact the request type was overridden is passed back */
 	if (type == IRQF_SHARED && !(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
 		req->Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
-		printk(KERN_WARNING "pcmcia: request for exclusive IRQ could not be fulfilled.\n");
-		printk(KERN_WARNING "pcmcia: the driver needs updating to supported shared IRQ lines.\n");
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: "
+			"request for exclusive IRQ could not be fulfilled.\n");
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: the driver "
+			"needs updating to supported shared IRQ lines.\n");
 	}
 	c->irq.Attributes = req->Attributes;
 	s->irq.AssignedIRQ = req->AssignedIRQ = irq;
@@ -909,3 +912,79 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev) {
 		pcmcia_release_window(p_dev->win);
 }
 EXPORT_SYMBOL(pcmcia_disable_device);
+
+
+struct pcmcia_cfg_mem {
+	tuple_t tuple;
+	cisparse_t parse;
+	u8 buf[256];
+	cistpl_cftable_entry_t dflt;
+};
+
+/**
+ * pcmcia_loop_config() - loop over configuration options
+ * @p_dev:	the struct pcmcia_device which we need to loop for.
+ * @conf_check:	function to call for each configuration option.
+ *		It gets passed the struct pcmcia_device, the CIS data
+ *		describing the configuration option, and private data
+ *		being passed to pcmcia_loop_config()
+ * @priv_data:	private data to be passed to the conf_check function.
+ *
+ * pcmcia_loop_config() loops over all configuration options, and calls
+ * the driver-specific conf_check() for each one, checking whether
+ * it is a valid one.
+ */
+int pcmcia_loop_config(struct pcmcia_device *p_dev,
+		       int	(*conf_check)	(struct pcmcia_device *p_dev,
+						 cistpl_cftable_entry_t *cfg,
+						 cistpl_cftable_entry_t *dflt,
+						 unsigned int vcc,
+						 void *priv_data),
+		       void *priv_data)
+{
+	struct pcmcia_cfg_mem *cfg_mem;
+
+	tuple_t *tuple;
+	int ret = -ENODEV;
+	unsigned int vcc;
+
+	cfg_mem = kzalloc(sizeof(struct pcmcia_cfg_mem), GFP_KERNEL);
+	if (cfg_mem == NULL)
+		return -ENOMEM;
+
+	/* get the current Vcc setting */
+	vcc = p_dev->socket->socket.Vcc;
+
+	tuple = &cfg_mem->tuple;
+	tuple->TupleData = cfg_mem->buf;
+	tuple->TupleDataMax = 255;
+	tuple->TupleOffset = 0;
+	tuple->DesiredTuple = CISTPL_CFTABLE_ENTRY;
+	tuple->Attributes = 0;
+
+	ret = pcmcia_get_first_tuple(p_dev, tuple);
+	while (!ret) {
+		cistpl_cftable_entry_t *cfg = &cfg_mem->parse.cftable_entry;
+
+		if (pcmcia_get_tuple_data(p_dev, tuple))
+			goto next_entry;
+
+		if (pcmcia_parse_tuple(p_dev, tuple, &cfg_mem->parse))
+			goto next_entry;
+
+		/* default values */
+		p_dev->conf.ConfigIndex = cfg->index;
+		if (cfg->flags & CISTPL_CFTABLE_DEFAULT)
+			cfg_mem->dflt = *cfg;
+
+		ret = conf_check(p_dev, cfg, &cfg_mem->dflt, vcc, priv_data);
+		if (!ret)
+			break;
+
+next_entry:
+		ret = pcmcia_get_next_tuple(p_dev, tuple);
+	}
+
+	return ret;
+}
+EXPORT_SYMBOL(pcmcia_loop_config);

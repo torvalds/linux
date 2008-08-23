@@ -459,27 +459,36 @@ static int mhz_3288_power(struct pcmcia_device *link)
     return 0;
 }
 
+static int mhz_mfc_config_check(struct pcmcia_device *p_dev,
+				cistpl_cftable_entry_t *cf,
+				cistpl_cftable_entry_t *dflt,
+				unsigned int vcc,
+				void *priv_data)
+{
+	int k;
+	p_dev->io.BasePort2 = cf->io.win[0].base;
+	for (k = 0; k < 0x400; k += 0x10) {
+		if (k & 0x80)
+			continue;
+		p_dev->io.BasePort1 = k ^ 0x300;
+		if (!pcmcia_request_io(p_dev, &p_dev->io))
+			return 0;
+	}
+	return -ENODEV;
+}
+
 static int mhz_mfc_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     struct smc_private *smc = netdev_priv(dev);
     struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    cisparse_t *parse;
-    cistpl_cftable_entry_t *cf;
-    u_char *buf;
     win_req_t req;
     memreq_t mem;
-    int i, k;
+    int i;
 
     cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
     if (!cfg_mem)
         return CS_OUT_OF_RESOURCE;
-
-    tuple = &cfg_mem->tuple;
-    parse = &cfg_mem->parse;
-    cf = &parse->cftable_entry;
-    buf = cfg_mem->buf;
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
@@ -489,27 +498,9 @@ static int mhz_mfc_config(struct pcmcia_device *link)
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
 
-    tuple->Attributes = tuple->TupleOffset = 0;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 255;
-    tuple->DesiredTuple = CISTPL_CFTABLE_ENTRY;
-
-    i = first_tuple(link, tuple, parse);
     /* The Megahertz combo cards have modem-like CIS entries, so
        we have to explicitly try a bunch of port combinations. */
-    while (i == CS_SUCCESS) {
-	link->conf.ConfigIndex = cf->index;
-	link->io.BasePort2 = cf->io.win[0].base;
-	for (k = 0; k < 0x400; k += 0x10) {
-	    if (k & 0x80) continue;
-	    link->io.BasePort1 = k ^ 0x300;
-	    i = pcmcia_request_io(link, &link->io);
-	    if (i == CS_SUCCESS) break;
-	}
-	if (i == CS_SUCCESS) break;
-	i = next_tuple(link, tuple, parse);
-    }
-    if (i != CS_SUCCESS)
+    if (pcmcia_loop_config(link, mhz_mfc_config_check, NULL))
 	goto free_cfg_mem;
     dev->base_addr = link->io.BasePort1;
 
@@ -533,7 +524,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
 free_cfg_mem:
     kfree(cfg_mem);
-    return i;
+    return -ENODEV;
 }
 
 static int mhz_setup(struct pcmcia_device *link)
@@ -660,46 +651,27 @@ static int mot_setup(struct pcmcia_device *link)
 
 /*====================================================================*/
 
+static int smc_configcheck(struct pcmcia_device *p_dev,
+			   cistpl_cftable_entry_t *cf,
+			   cistpl_cftable_entry_t *dflt,
+			   unsigned int vcc,
+			   void *priv_data)
+{
+	p_dev->io.BasePort1 = cf->io.win[0].base;
+	p_dev->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
+	return pcmcia_request_io(p_dev, &p_dev->io);
+}
+
 static int smc_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    struct smc_cfg_mem *cfg_mem;
-    tuple_t *tuple;
-    cisparse_t *parse;
-    cistpl_cftable_entry_t *cf;
-    u_char *buf;
     int i;
 
-    cfg_mem = kmalloc(sizeof(struct smc_cfg_mem), GFP_KERNEL);
-    if (!cfg_mem)
-	return CS_OUT_OF_RESOURCE;
-
-    tuple = &cfg_mem->tuple;
-    parse = &cfg_mem->parse;
-    cf = &parse->cftable_entry;
-    buf = cfg_mem->buf;
-
-    tuple->Attributes = tuple->TupleOffset = 0;
-    tuple->TupleData = (cisdata_t *)buf;
-    tuple->TupleDataMax = 255;
-    tuple->DesiredTuple = CISTPL_CFTABLE_ENTRY;
-
     link->io.NumPorts1 = 16;
-    i = first_tuple(link, tuple, parse);
-    while (i != CS_NO_MORE_ITEMS) {
-	if (i == CS_SUCCESS) {
-	    link->conf.ConfigIndex = cf->index;
-	    link->io.BasePort1 = cf->io.win[0].base;
-	    link->io.IOAddrLines = cf->io.flags & CISTPL_IO_LINES_MASK;
-	    i = pcmcia_request_io(link, &link->io);
-	    if (i == CS_SUCCESS) break;
-	}
-	i = next_tuple(link, tuple, parse);
-    }
-    if (i == CS_SUCCESS)
-	dev->base_addr = link->io.BasePort1;
+    i = pcmcia_loop_config(link, smc_configcheck, NULL);
+    if (!i)
+	    dev->base_addr = link->io.BasePort1;
 
-    kfree(cfg_mem);
     return i;
 }
 

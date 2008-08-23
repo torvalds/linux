@@ -58,7 +58,7 @@ typedef struct user_info_t {
 } user_info_t;
 
 
-#ifdef DEBUG
+#ifdef CONFIG_PCMCIA_DEBUG
 extern int ds_pc_debug;
 
 #define ds_dbg(lvl, fmt, arg...) do {		\

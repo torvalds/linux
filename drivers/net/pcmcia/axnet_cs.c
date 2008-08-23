@@ -284,58 +284,49 @@ static int try_io_port(struct pcmcia_device *link)
     }
 }
 
+static int axnet_configcheck(struct pcmcia_device *p_dev,
+			     cistpl_cftable_entry_t *cfg,
+			     cistpl_cftable_entry_t *dflt,
+			     unsigned int vcc,
+			     void *priv_data)
+{
+	int i;
+	cistpl_io_t *io = &cfg->io;
+
+	if (cfg->index == 0 || cfg->io.nwin == 0)
+		return -ENODEV;
+
+	p_dev->conf.ConfigIndex = 0x05;
+	/* For multifunction cards, by convention, we configure the
+	   network function with window 0, and serial with window 1 */
+	if (io->nwin > 1) {
+		i = (io->win[1].len > io->win[0].len);
+		p_dev->io.BasePort2 = io->win[1-i].base;
+		p_dev->io.NumPorts2 = io->win[1-i].len;
+	} else {
+		i = p_dev->io.NumPorts2 = 0;
+	}
+	p_dev->io.BasePort1 = io->win[i].base;
+	p_dev->io.NumPorts1 = io->win[i].len;
+	p_dev->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
+	if (p_dev->io.NumPorts1 + p_dev->io.NumPorts2 >= 32)
+		return try_io_port(p_dev);
+
+	return -ENODEV;
+}
+
 static int axnet_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
     axnet_dev_t *info = PRIV(dev);
-    tuple_t tuple;
-    cisparse_t parse;
     int i, j, last_ret, last_fn;
-    u_short buf[64];
     DECLARE_MAC_BUF(mac);
 
     DEBUG(0, "axnet_config(0x%p)\n", link);
 
-    tuple.Attributes = 0;
-    tuple.TupleData = (cisdata_t *)buf;
-    tuple.TupleDataMax = sizeof(buf);
-    tuple.TupleOffset = 0;
-
     /* don't trust the CIS on this; Linksys got it wrong */
     link->conf.Present = 0x63;
-
-    tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
-    tuple.Attributes = 0;
-    CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
-    while (last_ret == CS_SUCCESS) {
-	cistpl_cftable_entry_t *cfg = &(parse.cftable_entry);
-	cistpl_io_t *io = &(parse.cftable_entry.io);
-	
-	if (pcmcia_get_tuple_data(link, &tuple) != 0 ||
-		pcmcia_parse_tuple(link, &tuple, &parse) != 0 ||
-		cfg->index == 0 || cfg->io.nwin == 0)
-	    goto next_entry;
-	
-	link->conf.ConfigIndex = 0x05;
-	/* For multifunction cards, by convention, we configure the
-	   network function with window 0, and serial with window 1 */
-	if (io->nwin > 1) {
-	    i = (io->win[1].len > io->win[0].len);
-	    link->io.BasePort2 = io->win[1-i].base;
-	    link->io.NumPorts2 = io->win[1-i].len;
-	} else {
-	    i = link->io.NumPorts2 = 0;
-	}
-	link->io.BasePort1 = io->win[i].base;
-	link->io.NumPorts1 = io->win[i].len;
-	link->io.IOAddrLines = io->flags & CISTPL_IO_LINES_MASK;
-	if (link->io.NumPorts1 + link->io.NumPorts2 >= 32) {
-	    last_ret = try_io_port(link);
-	    if (last_ret == CS_SUCCESS) break;
-	}
-    next_entry:
-	last_ret = pcmcia_get_next_tuple(link, &tuple);
-    }
+    last_ret = pcmcia_loop_config(link, axnet_configcheck, NULL);
     if (last_ret != CS_SUCCESS) {
 	cs_error(link, RequestIO, last_ret);
 	goto failed;

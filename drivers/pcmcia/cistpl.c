@@ -92,7 +92,8 @@ set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flag
 	if (!(s->features & SS_CAP_STATIC_MAP) && (mem->res == NULL)) {
 		mem->res = pcmcia_find_mem_region(0, s->map_size, s->map_size, 0, s);
 		if (mem->res == NULL) {
-			printk(KERN_NOTICE "cs: unable to map card memory!\n");
+			dev_printk(KERN_NOTICE, &s->dev,
+				   "cs: unable to map card memory!\n");
 			return NULL;
 		}
 		s->cis_virt = NULL;

@@ -607,4 +607,12 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
 #define pcmcia_validate_cis(p_dev, info) \
 		pccard_validate_cis(p_dev->socket, p_dev->func, info)
 
+int pcmcia_loop_config(struct pcmcia_device *p_dev,
+		       int	(*conf_check)	(struct pcmcia_device *p_dev,
+						 cistpl_cftable_entry_t *cf,
+						 cistpl_cftable_entry_t *dflt,
+						 unsigned int vcc,
+						 void *priv_data),
+		       void *priv_data);
+
 #endif /* LINUX_CISTPL_H */
