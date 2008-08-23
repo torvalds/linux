@@ -18,28 +18,23 @@ core-y			+= $(ARCH_DIR)/kernel/		\
 			   $(ARCH_DIR)/drivers/		\
 			   $(ARCH_DIR)/os-$(OS)/
 
-# Have to precede the include because the included Makefiles reference them.
-SYMLINK_HEADERS := archparam.h processor.h ptrace.h module.h elf.h
-SYMLINK_HEADERS := $(foreach header,$(SYMLINK_HEADERS),$(ARCH_DIR)/include/asm/$(header))
-
 # XXX: The "os" symlink is only used by arch/um/include/os.h, which includes
 # ../os/include/file.h
 #
 # These are cleaned up during mrproper. Please DO NOT fix it again, this is
 # the Correct Thing(tm) to do!
-ARCH_SYMLINKS = $(ARCH_DIR)/os \
-	$(SYMLINK_HEADERS) $(ARCH_DIR)/include/shared/uml-config.h
+ARCH_SYMLINKS = $(ARCH_DIR)/os $(ARCH_DIR)/include/shared/uml-config.h
 
 MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
 
 include $(srctree)/$(ARCH_DIR)/Makefile-skas
 
-ARCH_INCLUDE	:= -I$(ARCH_DIR)/include/shared
+ARCH_INCLUDE	:= -I$(srctree)/$(ARCH_DIR)/include/shared
+ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/sys-$(SUBARCH)/shared
 ifneq ($(KBUILD_SRC),)
-ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared
-KBUILD_CPPFLAGS	+= -I$(ARCH_DIR)/include # for SYMLINK_HEADERS
+ARCH_INCLUDE	+= -I$(ARCH_DIR)/include/shared # for three generated files
 endif
-ARCH_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/sys-$(SUBARCH) # for sysdep
+KBUILD_CPPFLAGS += -I$(srctree)/$(ARCH_DIR)/sys-$(SUBARCH)
 
 # -Dvmap=kernel_vmap prevents anything from referencing the libpcap.o symbol so
 # named - it's a common symbol in libpcap, so we get a binary which crashes.
@@ -143,15 +138,6 @@ MRPROPER_FILES += $(ARCH_SYMLINKS)
 archclean:
 	@find . \( -name '*.bb' -o -name '*.bbg' -o -name '*.da' \
 		-o -name '*.gcov' \) -type f -print | xargs rm -f
-
-$(SYMLINK_HEADERS):
-	@echo '  SYMLINK $@'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p $(objtree)/$(ARCH_DIR)/include/asm
-	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/include/asm/$(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
-else
-	$(Q)ln -sf $(basename $(notdir $@))-$(SUBARCH)$(suffix $@) $@
-endif
 
 $(objtree)/$(ARCH_DIR)/include/shared:
 	@echo '  MKDIR $@'
