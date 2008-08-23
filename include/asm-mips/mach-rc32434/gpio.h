@@ -15,6 +15,16 @@
 
 #include <linux/types.h>
 
+#define gpio_get_value __gpio_get_value
+#define gpio_set_value __gpio_set_value
+
+#define gpio_cansleep __gpio_cansleep
+
+#define gpio_to_irq(gpio)	IRQ_GPIO(gpio)
+#define irq_to_gpio(irq)	IRQ_TO_GPIO(irq)
+
+#include <asm-generic/gpio.h>
+
 struct rb532_gpio_reg {
 	u32   gpiofunc;   /* GPIO Function Register
 			   * gpiofunc[x]==0 bit = gpio
@@ -62,74 +72,17 @@ struct rb532_gpio_reg {
 #define RC32434_PCI_MSU_GPIO	(1 << 13)
 
 /* NAND GPIO signals */
-#define GPIO_RDY		(1 << 0x08)
-#define GPIO_WPX		(1 << 0x09)
-#define GPIO_ALE		(1 << 0x0a)
-#define GPIO_CLE		(1 << 0x0b)
+#define GPIO_RDY		8
+#define GPIO_WPX	9
+#define GPIO_ALE		10
+#define GPIO_CLE		11
 
 /* Compact Flash GPIO pin */
 #define CF_GPIO_NUM		13
-
 
 extern void set_434_reg(unsigned reg_offs, unsigned bit, unsigned len, unsigned val);
 extern unsigned get_434_reg(unsigned reg_offs);
 extern void set_latch_u5(unsigned char or_mask, unsigned char nand_mask);
 extern unsigned char get_latch_u5(void);
-
-extern int rb532_gpio_get_value(unsigned gpio);
-extern void rb532_gpio_set_value(unsigned gpio, int value);
-extern int rb532_gpio_direction_input(unsigned gpio);
-extern int rb532_gpio_direction_output(unsigned gpio, int value);
-extern void rb532_gpio_set_int_level(unsigned gpio, int value);
-extern int rb532_gpio_get_int_level(unsigned gpio);
-extern void rb532_gpio_set_int_status(unsigned gpio, int value);
-extern int rb532_gpio_get_int_status(unsigned gpio);
-
-
-/* Wrappers for the arch-neutral GPIO API */
-
-static inline int gpio_request(unsigned gpio, const char *label)
-{
-	/* Not yet implemented */
-	return 0;
-}
-
-static inline void gpio_free(unsigned gpio)
-{
-	/* Not yet implemented */
-}
-
-static inline int gpio_direction_input(unsigned gpio)
-{
-	return rb532_gpio_direction_input(gpio);
-}
-
-static inline int gpio_direction_output(unsigned gpio, int value)
-{
-	return rb532_gpio_direction_output(gpio, value);
-}
-
-static inline int gpio_get_value(unsigned gpio)
-{
-	return rb532_gpio_get_value(gpio);
-}
-
-static inline void gpio_set_value(unsigned gpio, int value)
-{
-	rb532_gpio_set_value(gpio, value);
-}
-
-static inline int gpio_to_irq(unsigned gpio)
-{
-	return gpio;
-}
-
-static inline int irq_to_gpio(unsigned irq)
-{
-	return irq;
-}
-
-/* For cansleep */
-#include <asm-generic/gpio.h>
 
 #endif /* _RC32434_GPIO_H_ */
