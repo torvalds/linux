@@ -100,9 +100,8 @@ struct gemtek_pci_card {
 	u8  mute;
 };
 
-static const char rcsid[] = "$Id: radio-gemtek-pci.c,v 1.1 2001/07/23 08:08:16 ted Exp ted $";
-
 static int nr_radio = -1;
+static unsigned long in_use;
 
 static inline u8 gemtek_pci_out( u16 value, u32 port )
 {
@@ -364,10 +363,21 @@ MODULE_DEVICE_TABLE( pci, gemtek_pci_id );
 
 static int mx = 1;
 
+static int gemtek_pci_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
+}
+
+static int gemtek_pci_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &in_use);
+	return 0;
+}
+
 static const struct file_operations gemtek_pci_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = gemtek_pci_exclusive_open,
+	.release        = gemtek_pci_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

@@ -79,7 +79,7 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 #endif
 
 struct typhoon_device {
-	int users;
+	unsigned long in_use;
 	int iobase;
 	int curvol;
 	int muted;
@@ -334,10 +334,21 @@ static struct typhoon_device typhoon_unit =
 	.mutefreq	= CONFIG_RADIO_TYPHOON_MUTEFREQ,
 };
 
+static int typhoon_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &typhoon_unit.in_use) ? -EBUSY : 0;
+}
+
+static int typhoon_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &typhoon_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations typhoon_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = typhoon_exclusive_open,
+	.release        = typhoon_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
@@ -447,8 +458,7 @@ static int __init typhoon_init(void)
 	}
 
 	typhoon_radio.priv = &typhoon_unit;
-	if (video_register_device(&typhoon_radio, VFL_TYPE_RADIO, radio_nr) == -1)
-	{
+	if (video_register_device(&typhoon_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 8);
 		return -EINVAL;
 	}

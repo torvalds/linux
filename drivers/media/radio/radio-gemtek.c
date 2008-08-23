@@ -57,6 +57,7 @@ static int shutdown	= 1;
 static int keepmuted	= 1;
 static int initmute	= 1;
 static int radio_nr	= -1;
+static unsigned long in_use;
 
 module_param(io, int, 0444);
 MODULE_PARM_DESC(io, "Force I/O port for the GemTek Radio card if automatic "
@@ -393,10 +394,21 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 	}
 };
 
+static int gemtek_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
+}
+
+static int gemtek_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &in_use);
+	return 0;
+}
+
 static const struct file_operations gemtek_fops = {
 	.owner		= THIS_MODULE,
-	.open		= video_exclusive_open,
-	.release	= video_exclusive_release,
+	.open		= gemtek_exclusive_open,
+	.release	= gemtek_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

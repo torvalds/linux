@@ -52,6 +52,7 @@ static spinlock_t lock;
 
 struct rt_device
 {
+	unsigned long in_use;
 	int port;
 	unsigned long curfreq;
 	int muted;
@@ -284,10 +285,21 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct rt_device rtrack2_unit;
 
+static int rtrack2_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &rtrack2_unit.in_use) ? -EBUSY : 0;
+}
+
+static int rtrack2_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &rtrack2_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations rtrack2_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = rtrack2_exclusive_open,
+	.release        = rtrack2_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

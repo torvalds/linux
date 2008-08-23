@@ -70,6 +70,7 @@ static struct mutex lock;
 
 struct az_device
 {
+	unsigned long in_use;
 	int curvol;
 	unsigned long curfreq;
 	int stereo;
@@ -342,10 +343,21 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 
 static struct az_device aztech_unit;
 
+static int aztech_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &aztech_unit.in_use) ? -EBUSY : 0;
+}
+
+static int aztech_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &aztech_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations aztech_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = aztech_exclusive_open,
+	.release        = aztech_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

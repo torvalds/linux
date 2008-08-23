@@ -69,6 +69,7 @@ static int io = CONFIG_RADIO_ZOLTRIX_PORT;
 static int radio_nr = -1;
 
 struct zol_device {
+	unsigned long in_use;
 	int port;
 	int curvol;
 	unsigned long curfreq;
@@ -396,11 +397,22 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct zol_device zoltrix_unit;
 
+static int zoltrix_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &zoltrix_unit.in_use) ? -EBUSY : 0;
+}
+
+static int zoltrix_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &zoltrix_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations zoltrix_fops =
 {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = zoltrix_exclusive_open,
+	.release        = zoltrix_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

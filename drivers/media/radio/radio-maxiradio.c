@@ -85,6 +85,7 @@ static const int clk = 1, data = 2, wren = 4, mo_st = 8, power = 16 ;
 static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 
+static unsigned long in_use;
 
 #define FREQ_LO		 50*16000
 #define FREQ_HI		150*16000
@@ -99,10 +100,21 @@ module_param(radio_nr, int, 0);
 #define BITS2FREQ(x)	((x) * FREQ_STEP - FREQ_IF)
 
 
+static int maxiradio_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
+}
+
+static int maxiradio_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &in_use);
+	return 0;
+}
+
 static const struct file_operations maxiradio_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = maxiradio_exclusive_open,
+	.release        = maxiradio_exclusive_release,
 	.ioctl          = video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

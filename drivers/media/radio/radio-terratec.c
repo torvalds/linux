@@ -79,6 +79,7 @@ static spinlock_t lock;
 
 struct tt_device
 {
+	unsigned long in_use;
 	int port;
 	int curvol;
 	unsigned long curfreq;
@@ -356,10 +357,21 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct tt_device terratec_unit;
 
+static int terratec_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &terratec_unit.in_use) ? -EBUSY : 0;
+}
+
+static int terratec_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &terratec_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations terratec_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = terratec_exclusive_open,
+	.release        = terratec_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

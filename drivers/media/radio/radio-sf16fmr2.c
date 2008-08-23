@@ -64,6 +64,7 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 /* this should be static vars for module size */
 struct fmr2_device
 {
+	unsigned long in_use;
 	int port;
 	int curvol; /* 0-15 */
 	int mute;
@@ -400,10 +401,21 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static struct fmr2_device fmr2_unit;
 
+static int fmr2_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &fmr2_unit.in_use) ? -EBUSY : 0;
+}
+
+static int fmr2_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &fmr2_unit.in_use);
+	return 0;
+}
+
 static const struct file_operations fmr2_fops = {
 	.owner          = THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = fmr2_exclusive_open,
+	.release        = fmr2_exclusive_release,
 	.ioctl          = video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

@@ -75,7 +75,21 @@ static struct v4l2_queryctrl radio_qctrl[] = {
 static int radio_nr = -1;
 module_param(radio_nr, int, 0);
 
+static unsigned long in_use;
+
 static int maestro_probe(struct pci_dev *pdev, const struct pci_device_id *ent);
+
+static int maestro_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &in_use) ? -EBUSY : 0;
+}
+
+static int maestro_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &in_use);
+	return 0;
+}
+
 static void maestro_remove(struct pci_dev *pdev);
 
 static struct pci_device_id maestro_r_pci_tbl[] = {
@@ -98,8 +112,8 @@ static struct pci_driver maestro_r_driver = {
 
 static const struct file_operations maestro_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = maestro_exclusive_open,
+	.release        = maestro_exclusive_release,
 	.ioctl		= video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,
