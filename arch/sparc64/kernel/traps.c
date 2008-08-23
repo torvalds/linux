@@ -39,6 +39,7 @@
 #include <asm/prom.h>
 
 #include "entry.h"
+#include "kstack.h"
 
 /* When an irrecoverable trap occurs at tl > 0, the trap entry
  * code logs the trap state registers at every level in the trap
@@ -2115,14 +2116,12 @@ void show_stack(struct task_struct *tsk, unsigned long *_ksp)
 		struct pt_regs *regs;
 		unsigned long pc;
 
-		/* Bogus frame pointer? */
-		if (fp < (thread_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_base + THREAD_SIZE))
+		if (!kstack_valid(tp, fp))
 			break;
 		sf = (struct sparc_stackf *) fp;
 		regs = (struct pt_regs *) (sf + 1);
 
-		if ((regs->magic & ~0x1ff) == PT_REGS_MAGIC) {
+		if (kstack_is_trap_frame(tp, regs)) {
 			if (!(regs->tstate & TSTATE_PRIV))
 				break;
 			pc = regs->tpc;

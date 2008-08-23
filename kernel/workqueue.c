@@ -290,11 +290,11 @@ static void run_workqueue(struct cpu_workqueue_struct *cwq)
 
 		BUG_ON(get_wq_data(work) != cwq);
 		work_clear_pending(work);
-		lock_acquire(&cwq->wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
-		lock_acquire(&lockdep_map, 0, 0, 0, 2, _THIS_IP_);
+		lock_map_acquire(&cwq->wq->lockdep_map);
+		lock_map_acquire(&lockdep_map);
 		f(work);
-		lock_release(&lockdep_map, 1, _THIS_IP_);
-		lock_release(&cwq->wq->lockdep_map, 1, _THIS_IP_);
+		lock_map_release(&lockdep_map);
+		lock_map_release(&cwq->wq->lockdep_map);
 
 		if (unlikely(in_atomic() || lockdep_depth(current) > 0)) {
 			printk(KERN_ERR "BUG: workqueue leaked lock or atomic: "
@@ -413,8 +413,8 @@ void flush_workqueue(struct workqueue_struct *wq)
 	int cpu;
 
 	might_sleep();
-	lock_acquire(&wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
-	lock_release(&wq->lockdep_map, 1, _THIS_IP_);
+	lock_map_acquire(&wq->lockdep_map);
+	lock_map_release(&wq->lockdep_map);
 	for_each_cpu_mask_nr(cpu, *cpu_map)
 		flush_cpu_workqueue(per_cpu_ptr(wq->cpu_wq, cpu));
 }
@@ -441,8 +441,8 @@ int flush_work(struct work_struct *work)
 	if (!cwq)
 		return 0;
 
-	lock_acquire(&cwq->wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
-	lock_release(&cwq->wq->lockdep_map, 1, _THIS_IP_);
+	lock_map_acquire(&cwq->wq->lockdep_map);
+	lock_map_release(&cwq->wq->lockdep_map);
 
 	prev = NULL;
 	spin_lock_irq(&cwq->lock);
@@ -536,8 +536,8 @@ static void wait_on_work(struct work_struct *work)
 
 	might_sleep();
 
-	lock_acquire(&work->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
-	lock_release(&work->lockdep_map, 1, _THIS_IP_);
+	lock_map_acquire(&work->lockdep_map);
+	lock_map_release(&work->lockdep_map);
 
 	cwq = get_wq_data(work);
 	if (!cwq)
@@ -872,8 +872,8 @@ static void cleanup_workqueue_thread(struct cpu_workqueue_struct *cwq)
 	if (cwq->thread == NULL)
 		return;
 
-	lock_acquire(&cwq->wq->lockdep_map, 0, 0, 0, 2, _THIS_IP_);
-	lock_release(&cwq->wq->lockdep_map, 1, _THIS_IP_);
+	lock_map_acquire(&cwq->wq->lockdep_map);
+	lock_map_release(&cwq->wq->lockdep_map);
 
 	flush_cpu_workqueue(cwq);
 	/*

@@ -24,7 +24,7 @@
 
 static struct resource warp_ndfc = {
 	.start = WARP_NAND_FLASH_REG_ADDR,
-	.end   = WARP_NAND_FLASH_REG_ADDR + WARP_NAND_FLASH_REG_SIZE,
+	.end   = WARP_NAND_FLASH_REG_ADDR + WARP_NAND_FLASH_REG_SIZE - 1,
 	.flags = IORESOURCE_MEM,
 };
 

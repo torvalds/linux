@@ -647,7 +647,7 @@ static void dev_deactivate_queue(struct net_device *dev,
 	}
 }
 
-static bool some_qdisc_is_running(struct net_device *dev, int lock)
+static bool some_qdisc_is_busy(struct net_device *dev, int lock)
 {
 	unsigned int i;
 
@@ -658,13 +658,14 @@ static bool some_qdisc_is_running(struct net_device *dev, int lock)
 		int val;
 
 		dev_queue = netdev_get_tx_queue(dev, i);
-		q = dev_queue->qdisc;
+		q = dev_queue->qdisc_sleeping;
 		root_lock = qdisc_lock(q);
 
 		if (lock)
 			spin_lock_bh(root_lock);
 
-		val = test_bit(__QDISC_STATE_RUNNING, &q->state);
+		val = (test_bit(__QDISC_STATE_RUNNING, &q->state) ||
+		       test_bit(__QDISC_STATE_SCHED, &q->state));
 
 		if (lock)
 			spin_unlock_bh(root_lock);
@@ -689,14 +690,14 @@ void dev_deactivate(struct net_device *dev)
 
 	/* Wait for outstanding qdisc_run calls. */
 	do {
-		while (some_qdisc_is_running(dev, 0))
+		while (some_qdisc_is_busy(dev, 0))
 			yield();
 
 		/*
 		 * Double-check inside queue lock to ensure that all effects
 		 * of the queue run are visible when we return.
 		 */
-		running = some_qdisc_is_running(dev, 1);
+		running = some_qdisc_is_busy(dev, 1);
 
 		/*
 		 * The running flag should never be set at this point because

@@ -101,11 +101,18 @@ xfs_qm_dqinit(
 	if (brandnewdquot) {
 		dqp->dq_flnext = dqp->dq_flprev = dqp;
 		mutex_init(&dqp->q_qlock);
-		initnsema(&dqp->q_flock, 1, "fdq");
 		sv_init(&dqp->q_pinwait, SV_DEFAULT, "pdq");
 
+		/*
+		 * Because we want to use a counting completion, complete
+		 * the flush completion once to allow a single access to
+		 * the flush completion without blocking.
+		 */
+		init_completion(&dqp->q_flush);
+		complete(&dqp->q_flush);
+
 #ifdef XFS_DQUOT_TRACE
-		dqp->q_trace = ktrace_alloc(DQUOT_TRACE_SIZE, KM_SLEEP);
+		dqp->q_trace = ktrace_alloc(DQUOT_TRACE_SIZE, KM_NOFS);
 		xfs_dqtrace_entry(dqp, "DQINIT");
 #endif
 	} else {
@@ -150,7 +157,6 @@ xfs_qm_dqdestroy(
 	ASSERT(! XFS_DQ_IS_ON_FREELIST(dqp));
 
 	mutex_destroy(&dqp->q_qlock);
-	freesema(&dqp->q_flock);
 	sv_destroy(&dqp->q_pinwait);
 
 #ifdef XFS_DQUOT_TRACE
@@ -431,7 +437,7 @@ xfs_qm_dqalloc(
 	 * when it unlocks the inode. Since we want to keep the quota
 	 * inode around, we bump the vnode ref count now.
 	 */
-	VN_HOLD(XFS_ITOV(quotip));
+	IHOLD(quotip);
 
 	xfs_trans_ijoin(tp, quotip, XFS_ILOCK_EXCL);
 	nmaps = 1;
@@ -1211,7 +1217,7 @@ xfs_qm_dqflush(
 	int			error;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	ASSERT(XFS_DQ_IS_FLUSH_LOCKED(dqp));
+	ASSERT(!completion_done(&dqp->q_flush));
 	xfs_dqtrace_entry(dqp, "DQFLUSH");
 
 	/*
@@ -1348,34 +1354,18 @@ xfs_qm_dqflush_done(
 	xfs_dqfunlock(dqp);
 }
 
-
-int
-xfs_qm_dqflock_nowait(
-	xfs_dquot_t *dqp)
-{
-	int locked;
-
-	locked = cpsema(&((dqp)->q_flock));
-
-	/* XXX ifdef these out */
-	if (locked)
-		(dqp)->dq_flags |= XFS_DQ_FLOCKED;
-	return (locked);
-}
-
-
 int
 xfs_qm_dqlock_nowait(
 	xfs_dquot_t *dqp)
 {
-	return (mutex_trylock(&((dqp)->q_qlock)));
+	return mutex_trylock(&dqp->q_qlock);
 }
 
 void
 xfs_dqlock(
 	xfs_dquot_t *dqp)
 {
-	mutex_lock(&(dqp->q_qlock));
+	mutex_lock(&dqp->q_qlock);
 }
 
 void
@@ -1468,7 +1458,7 @@ xfs_qm_dqpurge(
 	 * if we're turning off quotas. Basically, we need this flush
 	 * lock, and are willing to block on it.
 	 */
-	if (! xfs_qm_dqflock_nowait(dqp)) {
+	if (!xfs_dqflock_nowait(dqp)) {
 		/*
 		 * Block on the flush lock after nudging dquot buffer,
 		 * if it is incore.

@@ -11,6 +11,10 @@
  * Some are available on 2.4 kernels; several are available, but not
  * yet pushed in the 2.6 mainline tree.
  */
+
+#ifndef __GADGET_CHIPS_H
+#define __GADGET_CHIPS_H
+
 #ifdef CONFIG_USB_GADGET_NET2280
 #define	gadget_is_net2280(g)	!strcmp("net2280", (g)->name)
 #else
@@ -237,3 +241,5 @@ static inline bool gadget_supports_altsettings(struct usb_gadget *gadget)
 	/* Everything else is *presumably* fine ... */
 	return true;
 }
+
+#endif /* __GADGET_CHIPS_H */

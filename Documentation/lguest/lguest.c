@@ -1447,21 +1447,6 @@ static void configure_device(int fd, const char *tapif, u32 ipaddr)
 		err(1, "Bringing interface %s up", tapif);
 }
 
-static void get_mac(int fd, const char *tapif, unsigned char hwaddr[6])
-{
-	struct ifreq ifr;
-
-	memset(&ifr, 0, sizeof(ifr));
-	strcpy(ifr.ifr_name, tapif);
-
-	/* SIOC stands for Socket I/O Control.  G means Get (vs S for Set
-	 * above).  IF means Interface, and HWADDR is hardware address.
-	 * Simple! */
-	if (ioctl(fd, SIOCGIFHWADDR, &ifr) != 0)
-		err(1, "getting hw address for %s", tapif);
-	memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, 6);
-}
-
 static int get_tun_device(char tapif[IFNAMSIZ])
 {
 	struct ifreq ifr;
@@ -1531,11 +1516,8 @@ static void setup_tun_net(char *arg)
 	p = strchr(arg, ':');
 	if (p) {
 		str2mac(p+1, conf.mac);
+		add_feature(dev, VIRTIO_NET_F_MAC);
 		*p = '\0';
-	} else {
-		p = arg + strlen(arg);
-		/* None supplied; query the randomly assigned mac. */
-		get_mac(ipfd, tapif, conf.mac);
 	}
 
 	/* arg is now either an IP address or a bridge name */
@@ -1547,13 +1529,10 @@ static void setup_tun_net(char *arg)
 	/* Set up the tun device. */
 	configure_device(ipfd, tapif, ip);
 
-	/* Tell Guest what MAC address to use. */
-	add_feature(dev, VIRTIO_NET_F_MAC);
 	add_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
 	/* Expect Guest to handle everything except UFO */
 	add_feature(dev, VIRTIO_NET_F_CSUM);
 	add_feature(dev, VIRTIO_NET_F_GUEST_CSUM);
-	add_feature(dev, VIRTIO_NET_F_MAC);
 	add_feature(dev, VIRTIO_NET_F_GUEST_TSO4);
 	add_feature(dev, VIRTIO_NET_F_GUEST_TSO6);
 	add_feature(dev, VIRTIO_NET_F_GUEST_ECN);

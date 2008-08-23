@@ -39,20 +39,6 @@ core-y					+= arch/avr32/mm/
 drivers-$(CONFIG_OPROFILE)		+= arch/avr32/oprofile/
 libs-y					+= arch/avr32/lib/
 
-archincdir-$(CONFIG_PLATFORM_AT32AP)	:= arch-at32ap
-
-include/asm-avr32/.arch: $(wildcard include/config/platform/*.h) include/config/auto.conf
-	@echo '  SYMLINK include/asm-avr32/arch -> include/asm-avr32/$(archincdir-y)'
-ifneq ($(KBUILD_SRC),)
-	$(Q)mkdir -p include/asm-avr32
-	$(Q)ln -fsn $(srctree)/include/asm-avr32/$(archincdir-y) include/asm-avr32/arch
-else
-	$(Q)ln -fsn $(archincdir-y) include/asm-avr32/arch
-endif
-	@touch $@
-
-archprepare: include/asm-avr32/.arch
-
 CLEAN_FILES += include/asm-avr32/.arch include/asm-avr32/arch
 
 BOOT_TARGETS := vmlinux.elf vmlinux.bin uImage uImage.srec

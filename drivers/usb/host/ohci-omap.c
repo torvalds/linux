@@ -225,6 +225,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 			dev_err(hcd->self.controller, "can't find transceiver\n");
 			return -ENODEV;
 		}
+		ohci->start_hnp = start_hnp;
 	}
 #endif
 
@@ -260,7 +261,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 			omap_cfg_reg(W4_USB_HIGHZ);
 		}
 		ohci_writel(ohci, rh, &ohci->regs->roothub.a);
-		distrust_firmware = 0;
+		ohci->flags &= ~OHCI_QUIRK_HUB_POWER;
 	} else if (machine_is_nokia770()) {
 		/* We require a self-powered hub, which should have
 		 * plenty of power. */

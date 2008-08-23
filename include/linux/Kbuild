@@ -356,6 +356,7 @@ unifdef-y += virtio_balloon.h
 unifdef-y += virtio_console.h
 unifdef-y += virtio_pci.h
 unifdef-y += virtio_ring.h
+unifdef-y += virtio_rng.h
 unifdef-y += vt.h
 unifdef-y += wait.h
 unifdef-y += wanrouter.h

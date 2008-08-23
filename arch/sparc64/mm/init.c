@@ -49,6 +49,7 @@
 #include <asm/sstate.h>
 #include <asm/mdesc.h>
 #include <asm/cpudata.h>
+#include <asm/irq.h>
 
 #define MAX_PHYS_ADDRESS	(1UL << 42UL)
 #define KPTE_BITMAP_CHUNK_SZ	(256UL * 1024UL * 1024UL)
@@ -1770,6 +1771,16 @@ void __init paging_init(void)
 
 	if (tlb_type == hypervisor)
 		sun4v_mdesc_init();
+
+	/* Once the OF device tree and MDESC have been setup, we know
+	 * the list of possible cpus.  Therefore we can allocate the
+	 * IRQ stacks.
+	 */
+	for_each_possible_cpu(i) {
+		/* XXX Use node local allocations... XXX */
+		softirq_stack[i] = __va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+		hardirq_stack[i] = __va(lmb_alloc(THREAD_SIZE, THREAD_SIZE));
+	}
 
 	/* Setup bootmem... */
 	last_valid_pfn = end_pfn = bootmem_init(phys_base);

@@ -289,7 +289,6 @@ void tick_nohz_stop_sched_tick(int inidle)
 			ts->tick_stopped = 1;
 			ts->idle_jiffies = last_jiffies;
 			rcu_enter_nohz();
-			sched_clock_tick_stop(cpu);
 		}
 
 		/*
@@ -392,7 +391,6 @@ void tick_nohz_restart_sched_tick(void)
 	select_nohz_load_balancer(0);
 	now = ktime_get();
 	tick_do_update_jiffies64(now);
-	sched_clock_tick_start(cpu);
 	cpu_clear(cpu, nohz_cpu_mask);
 
 	/*

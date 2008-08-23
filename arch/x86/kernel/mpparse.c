@@ -83,7 +83,7 @@ static void __init MP_bus_info(struct mpc_config_bus *m)
 	if (x86_quirks->mpc_oem_bus_info)
 		x86_quirks->mpc_oem_bus_info(m, str);
 	else
-		printk(KERN_INFO "Bus #%d is %s\n", m->mpc_busid, str);
+		apic_printk(APIC_VERBOSE, "Bus #%d is %s\n", m->mpc_busid, str);
 
 #if MAX_MP_BUSSES < 256
 	if (m->mpc_busid >= MAX_MP_BUSSES) {
@@ -154,7 +154,7 @@ static void __init MP_ioapic_info(struct mpc_config_ioapic *m)
 
 static void print_MP_intsrc_info(struct mpc_config_intsrc *m)
 {
-	printk(KERN_CONT "Int: type %d, pol %d, trig %d, bus %02x,"
+	apic_printk(APIC_VERBOSE, "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbus,
@@ -163,7 +163,7 @@ static void print_MP_intsrc_info(struct mpc_config_intsrc *m)
 
 static void __init print_mp_irq_info(struct mp_config_intsrc *mp_irq)
 {
-	printk(KERN_CONT "Int: type %d, pol %d, trig %d, bus %02x,"
+	apic_printk(APIC_VERBOSE, "Int: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC INT %02x\n",
 		mp_irq->mp_irqtype, mp_irq->mp_irqflag & 3,
 		(mp_irq->mp_irqflag >> 2) & 3, mp_irq->mp_srcbus,
@@ -235,7 +235,7 @@ static void __init MP_intsrc_info(struct mpc_config_intsrc *m)
 
 static void __init MP_lintsrc_info(struct mpc_config_lintsrc *m)
 {
-	printk(KERN_INFO "Lint: type %d, pol %d, trig %d, bus %02x,"
+	apic_printk(APIC_VERBOSE, "Lint: type %d, pol %d, trig %d, bus %02x,"
 		" IRQ %02x, APIC ID %x, APIC LINT %02x\n",
 		m->mpc_irqtype, m->mpc_irqflag & 3,
 		(m->mpc_irqflag >> 2) & 3, m->mpc_srcbusid,
@@ -697,7 +697,8 @@ static int __init smp_scan_config(unsigned long base, unsigned long length,
 	unsigned int *bp = phys_to_virt(base);
 	struct intel_mp_floating *mpf;
 
-	printk(KERN_DEBUG "Scan SMP from %p for %ld bytes.\n", bp, length);
+	apic_printk(APIC_VERBOSE, "Scan SMP from %p for %ld bytes.\n",
+			bp, length);
 	BUILD_BUG_ON(sizeof(*mpf) != 16);
 
 	while (length > 0) {

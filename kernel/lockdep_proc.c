@@ -63,34 +63,6 @@ static void l_stop(struct seq_file *m, void *v)
 {
 }
 
-static unsigned long count_forward_deps(struct lock_class *class)
-{
-	struct lock_list *entry;
-	unsigned long ret = 1;
-
-	/*
-	 * Recurse this class's dependency list:
-	 */
-	list_for_each_entry(entry, &class->locks_after, entry)
-		ret += count_forward_deps(entry->class);
-
-	return ret;
-}
-
-static unsigned long count_backward_deps(struct lock_class *class)
-{
-	struct lock_list *entry;
-	unsigned long ret = 1;
-
-	/*
-	 * Recurse this class's dependency list:
-	 */
-	list_for_each_entry(entry, &class->locks_before, entry)
-		ret += count_backward_deps(entry->class);
-
-	return ret;
-}
-
 static void print_name(struct seq_file *m, struct lock_class *class)
 {
 	char str[128];
@@ -124,10 +96,10 @@ static int l_show(struct seq_file *m, void *v)
 #ifdef CONFIG_DEBUG_LOCKDEP
 	seq_printf(m, " OPS:%8ld", class->ops);
 #endif
-	nr_forward_deps = count_forward_deps(class);
+	nr_forward_deps = lockdep_count_forward_deps(class);
 	seq_printf(m, " FD:%5ld", nr_forward_deps);
 
-	nr_backward_deps = count_backward_deps(class);
+	nr_backward_deps = lockdep_count_backward_deps(class);
 	seq_printf(m, " BD:%5ld", nr_backward_deps);
 
 	get_usage_chars(class, &c1, &c2, &c3, &c4);
@@ -229,6 +201,9 @@ static int lc_show(struct seq_file *m, void *v)
 
 	for (i = 0; i < chain->depth; i++) {
 		class = lock_chain_get_class(chain, i);
+		if (!class->key)
+			continue;
+
 		seq_printf(m, "[%p] ", class->key);
 		print_name(m, class);
 		seq_puts(m, "\n");
@@ -350,7 +325,7 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS_READ)
 			nr_hardirq_read_unsafe++;
 
-		sum_forward_deps += count_forward_deps(class);
+		sum_forward_deps += lockdep_count_forward_deps(class);
 	}
 #ifdef CONFIG_DEBUG_LOCKDEP
 	DEBUG_LOCKS_WARN_ON(debug_atomic_read(&nr_unused_locks) != nr_unused);

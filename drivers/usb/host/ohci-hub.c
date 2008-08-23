@@ -483,6 +483,13 @@ ohci_hub_status_data (struct usb_hcd *hcd, char *buf)
 		length++;
 	}
 
+	/* Some broken controllers never turn off RHCS in the interrupt
+	 * status register.  For their sake we won't re-enable RHSC
+	 * interrupts if the flag is already set.
+	 */
+	if (ohci_readl(ohci, &ohci->regs->intrstatus) & OHCI_INTR_RHSC)
+		changed = 1;
+
 	/* look at each port */
 	for (i = 0; i < ohci->num_ports; i++) {
 		u32	status = roothub_portstatus (ohci, i);
@@ -571,8 +578,6 @@ static int ohci_start_port_reset (struct usb_hcd *hcd, unsigned port)
 	ohci_writel(ohci, RH_PS_PRS, &ohci->regs->roothub.portstatus [port]);
 	return 0;
 }
-
-static void start_hnp(struct ohci_hcd *ohci);
 
 #else
 
@@ -760,7 +765,7 @@ static int ohci_hub_control (
 #ifdef	CONFIG_USB_OTG
 			if (hcd->self.otg_port == (wIndex + 1)
 					&& hcd->self.b_hnp_enable)
-				start_hnp(ohci);
+				ohci->start_hnp(ohci);
 			else
 #endif
 			ohci_writel (ohci, RH_PS_PSS,

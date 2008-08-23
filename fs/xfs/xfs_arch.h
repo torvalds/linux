@@ -92,16 +92,6 @@
 	((__u8*)(pointer))[1] = (((value)     ) & 0xff); \
     }
 
-/* define generic INT_ macros */
-
-#define INT_GET(reference,arch) \
-    (((arch) == ARCH_NOCONVERT) \
-	? \
-	    (reference) \
-	: \
-	    INT_SWAP((reference),(reference)) \
-    )
-
 /* does not return a value */
 #define INT_SET(reference,arch,valueref) \
     (__builtin_constant_p(valueref) ? \
@@ -111,64 +101,6 @@
 	    ( ((arch) != ARCH_NOCONVERT) ? (reference) = INT_SWAP((reference),(reference)) : 0 ) \
 	) \
     )
-
-/* does not return a value */
-#define INT_MOD_EXPR(reference,arch,code) \
-    (((arch) == ARCH_NOCONVERT) \
-	? \
-	    (void)((reference) code) \
-	: \
-	    (void)( \
-		(reference) = INT_GET((reference),arch) , \
-		((reference) code), \
-		INT_SET(reference, arch, reference) \
-	    ) \
-    )
-
-/* does not return a value */
-#define INT_MOD(reference,arch,delta) \
-    (void)( \
-	INT_MOD_EXPR(reference,arch,+=(delta)) \
-    )
-
-/*
- * INT_COPY - copy a value between two locations with the
- *	      _same architecture_ but _potentially different sizes_
- *
- *	    if the types of the two parameters are equal or they are
- *		in native architecture, a simple copy is done
- *
- *	    otherwise, architecture conversions are done
- *
- */
-
-/* does not return a value */
-#define INT_COPY(dst,src,arch) \
-    ( \
-	((sizeof(dst) == sizeof(src)) || ((arch) == ARCH_NOCONVERT)) \
-	    ? \
-		(void)((dst) = (src)) \
-	    : \
-		INT_SET(dst, arch, INT_GET(src, arch)) \
-    )
-
-/*
- * INT_XLATE - copy a value in either direction between two locations
- *	       with different architectures
- *
- *		    dir < 0	- copy from memory to buffer (native to arch)
- *		    dir > 0	- copy from buffer to memory (arch to native)
- */
-
-/* does not return a value */
-#define INT_XLATE(buf,mem,dir,arch) {\
-    ASSERT(dir); \
-    if (dir>0) { \
-	(mem)=INT_GET(buf, arch); \
-    } else { \
-	INT_SET(buf, arch, mem); \
-    } \
-}
 
 /*
  * In directories inode numbers are stored as unaligned arrays of unsigned
