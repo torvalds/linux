@@ -963,7 +963,7 @@ static struct ccid_operations ccid3 = {
 };
 
 #ifdef CONFIG_IP_DCCP_CCID3_DEBUG
-module_param(ccid3_debug, bool, 0444);
+module_param(ccid3_debug, bool, 0644);
 MODULE_PARM_DESC(ccid3_debug, "Enable debug messages");
 #endif
 
