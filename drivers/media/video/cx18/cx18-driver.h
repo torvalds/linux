@@ -216,7 +216,7 @@ struct cx18_buffer {
 
 struct cx18_queue {
 	struct list_head list;
-	u32 buffers;
+	atomic_t buffers;
 	u32 bytesused;
 };
 

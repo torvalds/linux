@@ -223,7 +223,7 @@ static struct cx18_buffer *cx18_get_buffer(struct cx18_stream *s, int non_block,
 		prepare_to_wait(&s->waitq, &wait, TASK_INTERRUPTIBLE);
 		/* New buffers might have become available before we were added
 		   to the waitqueue */
-		if (!s->q_full.buffers)
+		if (!atomic_read(&s->q_full.buffers))
 			schedule();
 		finish_wait(&s->waitq, &wait);
 		if (signal_pending(current)) {
@@ -509,7 +509,7 @@ unsigned int cx18_v4l2_enc_poll(struct file *filp, poll_table *wait)
 	CX18_DEBUG_HI_FILE("Encoder poll\n");
 	poll_wait(filp, &s->waitq, wait);
 
-	if (s->q_full.buffers || s->q_io.buffers)
+	if (atomic_read(&s->q_full.buffers) || atomic_read(&s->q_io.buffers))
 		return POLLIN | POLLRDNORM;
 	if (eof)
 		return POLLHUP;
