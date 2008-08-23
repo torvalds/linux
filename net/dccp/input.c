@@ -370,7 +370,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 		goto discard;
 
 	if (dccp_parse_options(sk, NULL, skb))
-		goto discard;
+		return 1;
 
 	if (DCCP_SKB_CB(skb)->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 		dccp_event_ack_recv(sk, skb);
@@ -610,7 +610,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 		 * Step 8: Process options and mark acknowledgeable
 		 */
 		if (dccp_parse_options(sk, NULL, skb))
-			goto discard;
+			return 1;
 
 		if (dcb->dccpd_ack_seq != DCCP_PKT_WITHOUT_ACK_SEQ)
 			dccp_event_ack_recv(sk, skb);
