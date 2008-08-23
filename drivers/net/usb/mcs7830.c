@@ -46,6 +46,10 @@
 
 #define MCS7830_VENDOR_ID	0x9710
 #define MCS7830_PRODUCT_ID	0x7830
+#define MCS7730_PRODUCT_ID	0x7730
+
+#define SITECOM_VENDOR_ID	0x0DF6
+#define LN_030_PRODUCT_ID	0x0021
 
 #define MCS7830_MII_ADVERTISE	(ADVERTISE_PAUSE_CAP | ADVERTISE_100FULL | \
 				 ADVERTISE_100HALF | ADVERTISE_10FULL | \
@@ -491,7 +495,16 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 static const struct driver_info moschip_info = {
-	.description	= "MOSCHIP 7830 usb-NET adapter",
+	.description	= "MOSCHIP 7830/7730 usb-NET adapter",
+	.bind		= mcs7830_bind,
+	.rx_fixup	= mcs7830_rx_fixup,
+	.flags		= FLAG_ETHER,
+	.in		= 1,
+	.out		= 2,
+};
+
+static const struct driver_info sitecom_info = {
+	.description    = "Sitecom LN-30 usb-NET adapter",
 	.bind		= mcs7830_bind,
 	.rx_fixup	= mcs7830_rx_fixup,
 	.flags		= FLAG_ETHER,
@@ -503,6 +516,14 @@ static const struct usb_device_id products[] = {
 	{
 		USB_DEVICE(MCS7830_VENDOR_ID, MCS7830_PRODUCT_ID),
 		.driver_info = (unsigned long) &moschip_info,
+	},
+	{
+		USB_DEVICE(MCS7830_VENDOR_ID, MCS7730_PRODUCT_ID),
+		.driver_info = (unsigned long) &moschip_info,
+	},
+	{
+		USB_DEVICE(SITECOM_VENDOR_ID, LN_030_PRODUCT_ID),
+		.driver_info = (unsigned long) &sitecom_info,
 	},
 	{},
 };
