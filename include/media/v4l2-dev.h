@@ -77,10 +77,6 @@ struct video_device
 	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
 	void *priv;
 #endif
-
-	/* for videodev.c internal usage -- please don't touch */
-	int users;                     /* video_exclusive_{open|close} ... */
-	struct mutex lock;             /* ... helper function uses these   */
 };
 
 /* Class-dev to video-device */
@@ -111,8 +107,6 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 
 /* Obsolete stuff - Still needed for radio devices and obsolete drivers */
 extern struct video_device* video_devdata(struct file*);
-extern int video_exclusive_open(struct inode *inode, struct file *file);
-extern int video_exclusive_release(struct inode *inode, struct file *file);
 #endif
 
 #endif /* _V4L2_DEV_H */

@@ -141,34 +141,6 @@ static int video_open(struct inode *inode, struct file *file)
 	return err;
 }
 
-/*
- * open/release helper functions -- handle exclusive opens
- * Should be removed soon
- */
-int video_exclusive_open(struct inode *inode, struct file *file)
-{
-	struct video_device *vfl = video_devdata(file);
-	int retval = 0;
-
-	mutex_lock(&vfl->lock);
-	if (vfl->users)
-		retval = -EBUSY;
-	else
-		vfl->users++;
-	mutex_unlock(&vfl->lock);
-	return retval;
-}
-EXPORT_SYMBOL(video_exclusive_open);
-
-int video_exclusive_release(struct inode *inode, struct file *file)
-{
-	struct video_device *vfl = video_devdata(file);
-
-	vfl->users--;
-	return 0;
-}
-EXPORT_SYMBOL(video_exclusive_release);
-
 /**
  * get_index - assign stream number based on parent device
  * @vdev: video_device to assign index number to, vdev->dev should be assigned
@@ -319,8 +291,6 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 		printk(KERN_ERR "%s: get_index failed\n", __func__);
 		goto fail_minor;
 	}
-
-	mutex_init(&vfd->lock);
 
 	/* sysfs class */
 	memset(&vfd->dev, 0x00, sizeof(vfd->dev));
