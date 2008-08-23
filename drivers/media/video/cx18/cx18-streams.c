@@ -488,7 +488,14 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	/* begin_capture */
 	if (cx18_vapi(cx, CX18_CPU_CAPTURE_START, 1, s->handle)) {
 		CX18_DEBUG_WARN("Error starting capture!\n");
+		/* Ensure we're really not capturing before releasing MDLs */
+		if (s->type == CX18_ENC_STREAM_TYPE_MPG)
+			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 2, s->handle, 1);
+		else
+			cx18_vapi(cx, CX18_CPU_CAPTURE_STOP, 1, s->handle);
+		cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
 		cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
+		/* FIXME - clean-up DSP0_INT mask, i_flags, s_flags, etc. */
 		return -EINVAL;
 	}
 
@@ -539,6 +546,9 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	if (s->type == CX18_ENC_STREAM_TYPE_MPG && gop_end) {
 		CX18_INFO("ignoring gop_end: not (yet?) supported by the firmware\n");
 	}
+
+	/* Tell the CX23418 it can't use our buffers anymore */
+	cx18_vapi(cx, CX18_CPU_DE_RELEASE_MDL, 1, s->handle);
 
 	if (s->type != CX18_ENC_STREAM_TYPE_TS)
 		atomic_dec(&cx->ana_capturing);
