@@ -446,6 +446,29 @@ static struct ethtool_ops mcs7830_ethtool_ops = {
 	.nway_reset		= usbnet_nway_reset,
 };
 
+static int mcs7830_set_mac_address(struct net_device *netdev, void *p)
+{
+	int ret;
+	struct usbnet *dev = netdev_priv(netdev);
+	struct sockaddr *addr = p;
+
+	if (netif_running(netdev))
+		return -EBUSY;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+
+	ret = mcs7830_set_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN,
+			netdev->dev_addr);
+
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 {
 	struct net_device *net = dev->net;
@@ -459,6 +482,7 @@ static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 	net->ethtool_ops = &mcs7830_ethtool_ops;
 	net->set_multicast_list = mcs7830_set_multicast;
 	mcs7830_set_multicast(net);
+	net->set_mac_address = mcs7830_set_mac_address;
 
 	/* reserve space for the status byte on rx */
 	dev->rx_urb_size = ETH_FRAME_LEN + 1;
