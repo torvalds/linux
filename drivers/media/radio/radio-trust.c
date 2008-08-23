@@ -378,6 +378,7 @@ static struct video_device trust_radio = {
 	.name		= "Trust FM Radio",
 	.fops           = &trust_fops,
 	.ioctl_ops 	= &trust_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init trust_init(void)

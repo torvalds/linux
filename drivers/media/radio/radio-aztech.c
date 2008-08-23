@@ -381,9 +381,10 @@ static const struct v4l2_ioctl_ops aztech_ioctl_ops = {
 };
 
 static struct video_device aztech_radio = {
-	.name		    = "Aztech radio",
-	.fops               = &aztech_fops,
-	.ioctl_ops 	    = &aztech_ioctl_ops,
+	.name		= "Aztech radio",
+	.fops           = &aztech_fops,
+	.ioctl_ops 	= &aztech_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 module_param_named(debug,aztech_radio.debug, int, 0644);

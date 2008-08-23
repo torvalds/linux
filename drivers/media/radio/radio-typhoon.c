@@ -375,6 +375,7 @@ static struct video_device typhoon_radio = {
 	.name		= "Typhoon Radio",
 	.fops           = &typhoon_fops,
 	.ioctl_ops 	= &typhoon_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 #ifdef CONFIG_RADIO_TYPHOON_PROC_FS

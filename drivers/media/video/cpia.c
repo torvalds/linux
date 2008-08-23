@@ -3801,6 +3801,7 @@ static const struct file_operations cpia_fops = {
 static struct video_device cpia_template = {
 	.name		= "CPiA Camera",
 	.fops           = &cpia_fops,
+	.release 	= video_device_release_empty,
 };
 
 /* initialise cam_data structure  */

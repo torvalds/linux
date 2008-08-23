@@ -216,6 +216,7 @@ static const struct file_operations w9966_fops = {
 static struct video_device w9966_template = {
 	.name           = W9966_DRIVERNAME,
 	.fops           = &w9966_fops,
+	.release 	= video_device_release_empty,
 };
 
 /*

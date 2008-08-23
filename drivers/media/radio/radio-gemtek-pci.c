@@ -401,9 +401,10 @@ static const struct v4l2_ioctl_ops gemtek_pci_ioctl_ops = {
 };
 
 static struct video_device vdev_template = {
-	.name          = "Gemtek PCI Radio",
-	.fops          = &gemtek_pci_fops,
-	.ioctl_ops     = &gemtek_pci_ioctl_ops,
+	.name          	= "Gemtek PCI Radio",
+	.fops          	= &gemtek_pci_fops,
+	.ioctl_ops 	= &gemtek_pci_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __devinit gemtek_pci_probe( struct pci_dev *pci_dev, const struct pci_device_id *pci_id )

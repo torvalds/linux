@@ -442,6 +442,7 @@ static struct video_device fmr2_radio = {
 	.name		= "SF16FMR2 radio",
 	.fops		= &fmr2_fops,
 	.ioctl_ops 	= &fmr2_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init fmr2_init(void)

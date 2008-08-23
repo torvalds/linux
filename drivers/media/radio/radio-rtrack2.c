@@ -326,6 +326,7 @@ static struct video_device rtrack2_radio = {
 	.name		= "RadioTrack II radio",
 	.fops           = &rtrack2_fops,
 	.ioctl_ops 	= &rtrack2_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init rtrack2_init(void)

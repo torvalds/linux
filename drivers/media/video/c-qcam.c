@@ -722,6 +722,7 @@ static struct video_device qcam_template=
 {
 	.name		= "Colour QuickCam",
 	.fops           = &qcam_fops,
+	.release 	= video_device_release_empty,
 };
 
 /* Initialize the QuickCam driver control structure. */

@@ -926,6 +926,7 @@ static struct video_device qcam_template=
 {
 	.name		= "Connectix Quickcam",
 	.fops           = &qcam_fops,
+	.release 	= video_device_release_empty,
 };
 
 #define MAX_CAMS 4

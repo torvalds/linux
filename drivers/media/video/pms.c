@@ -915,6 +915,7 @@ static struct video_device pms_template=
 {
 	.name		= "Mediavision PMS",
 	.fops           = &pms_fops,
+	.release 	= video_device_release_empty,
 };
 
 static struct pms_device pms_device;

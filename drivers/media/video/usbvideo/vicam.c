@@ -801,6 +801,7 @@ static struct video_device vicam_template = {
 	.name 		= "ViCam-based USB Camera",
 	.fops 		= &vicam_fops,
 	.minor 		= -1,
+	.release 	= video_device_release_empty,
 };
 
 /* table of devices that work with this driver */

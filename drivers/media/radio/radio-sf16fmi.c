@@ -326,6 +326,7 @@ static struct video_device fmi_radio = {
 	.name		= "SF16FMx radio",
 	.fops           = &fmi_fops,
 	.ioctl_ops 	= &fmi_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 /* ladis: this is my card. does any other types exist? */

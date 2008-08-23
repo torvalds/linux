@@ -708,6 +708,7 @@ static struct video_device saa_template =
 {
 	.name		= IF_NAME,
 	.fops           = &saa_fops,
+	.release 	= video_device_release,
 };
 
 MODULE_LICENSE("GPL");

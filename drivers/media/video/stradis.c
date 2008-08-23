@@ -1925,6 +1925,7 @@ static struct video_device saa_template = {
 	.name = "SAA7146A",
 	.fops = &saa_fops,
 	.minor = -1,
+	.release = video_device_release_empty,
 };
 
 static int __devinit configure_saa7146(struct pci_dev *pdev, int num)

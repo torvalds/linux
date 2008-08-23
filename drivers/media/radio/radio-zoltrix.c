@@ -439,6 +439,7 @@ static struct video_device zoltrix_radio = {
 	.name		= "Zoltrix Radio Plus",
 	.fops           = &zoltrix_fops,
 	.ioctl_ops 	= &zoltrix_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init zoltrix_init(void)

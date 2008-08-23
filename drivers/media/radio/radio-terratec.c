@@ -398,6 +398,7 @@ static struct video_device terratec_radio = {
 	.name		= "TerraTec ActiveRadio",
 	.fops           = &terratec_fops,
 	.ioctl_ops 	= &terratec_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __init terratec_init(void)

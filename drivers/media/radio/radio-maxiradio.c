@@ -402,9 +402,10 @@ static const struct v4l2_ioctl_ops maxiradio_ioctl_ops = {
 };
 
 static struct video_device maxiradio_radio = {
-	.name		    = "Maxi Radio FM2000 radio",
-	.fops               = &maxiradio_fops,
-	.ioctl_ops 	    = &maxiradio_ioctl_ops,
+	.name		= "Maxi Radio FM2000 radio",
+	.fops           = &maxiradio_fops,
+	.ioctl_ops 	= &maxiradio_ioctl_ops,
+	.release	= video_device_release_empty,
 };
 
 static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)

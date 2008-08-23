@@ -388,6 +388,7 @@ static struct video_device maestro_radio = {
 	.name           = "Maestro radio",
 	.fops           = &maestro_fops,
 	.ioctl_ops 	= &maestro_ioctl_ops,
+	.release	= video_device_release,
 };
 
 static int __devinit maestro_probe(struct pci_dev *pdev,
