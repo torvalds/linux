@@ -3442,6 +3442,22 @@ void tcp_parse_options(struct sk_buff *skb, struct tcp_options_received *opt_rx,
 	}
 }
 
+static int tcp_parse_aligned_timestamp(struct tcp_sock *tp, struct tcphdr *th)
+{
+	__be32 *ptr = (__be32 *)(th + 1);
+
+	if (*ptr == htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
+			  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP)) {
+		tp->rx_opt.saw_tstamp = 1;
+		++ptr;
+		tp->rx_opt.rcv_tsval = ntohl(*ptr);
+		++ptr;
+		tp->rx_opt.rcv_tsecr = ntohl(*ptr);
+		return 1;
+	}
+	return 0;
+}
+
 /* Fast parse options. This hopes to only see timestamps.
  * If it is wrong it falls back on tcp_parse_options().
  */
@@ -3453,16 +3469,8 @@ static int tcp_fast_parse_options(struct sk_buff *skb, struct tcphdr *th,
 		return 0;
 	} else if (tp->rx_opt.tstamp_ok &&
 		   th->doff == (sizeof(struct tcphdr)>>2)+(TCPOLEN_TSTAMP_ALIGNED>>2)) {
-		__be32 *ptr = (__be32 *)(th + 1);
-		if (*ptr == htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
-				  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP)) {
-			tp->rx_opt.saw_tstamp = 1;
-			++ptr;
-			tp->rx_opt.rcv_tsval = ntohl(*ptr);
-			++ptr;
-			tp->rx_opt.rcv_tsecr = ntohl(*ptr);
+		if (tcp_parse_aligned_timestamp(tp, th))
 			return 1;
-		}
 	}
 	tcp_parse_options(skb, &tp->rx_opt, 1);
 	return 1;
@@ -4822,18 +4830,9 @@ int tcp_rcv_established(struct sock *sk, struct sk_buff *skb,
 
 		/* Check timestamp */
 		if (tcp_header_len == sizeof(struct tcphdr) + TCPOLEN_TSTAMP_ALIGNED) {
-			__be32 *ptr = (__be32 *)(th + 1);
-
 			/* No? Slow path! */
-			if (*ptr != htonl((TCPOPT_NOP << 24) | (TCPOPT_NOP << 16)
-					  | (TCPOPT_TIMESTAMP << 8) | TCPOLEN_TIMESTAMP))
+			if (!tcp_parse_aligned_timestamp(tp, th))
 				goto slow_path;
-
-			tp->rx_opt.saw_tstamp = 1;
-			++ptr;
-			tp->rx_opt.rcv_tsval = ntohl(*ptr);
-			++ptr;
-			tp->rx_opt.rcv_tsecr = ntohl(*ptr);
 
 			/* If PAWS failed, check it more carefully in slow path */
 			if ((s32)(tp->rx_opt.rcv_tsval - tp->rx_opt.ts_recent) < 0)
