@@ -128,6 +128,9 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	u32 eax, ebx, ecx, edx;
 	int index_msb, core_bits;
 
+	if (cpu_has(c, X86_FEATURE_XTOPOLOGY))
+		return;
+
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
 
