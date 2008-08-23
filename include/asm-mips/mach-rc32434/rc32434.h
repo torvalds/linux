@@ -16,16 +16,4 @@ static inline void rc32434_sync(void)
 	__asm__ volatile ("sync");
 }
 
-static inline void rc32434_sync_udelay(int us)
-{
-	__asm__ volatile ("sync");
-	udelay(us);
-}
-
-static inline void rc32434_sync_delay(int ms)
-{
-	__asm__ volatile ("sync");
-	mdelay(ms);
-}
-
 #endif  /* _ASM_RC32434_RC32434_H_ */
