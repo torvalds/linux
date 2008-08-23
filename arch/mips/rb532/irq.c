@@ -45,7 +45,7 @@
 #include <asm/mipsregs.h>
 #include <asm/system.h>
 
-#include <asm/mach-rc32434/rc32434.h>
+#include <asm/mach-rc32434/irq.h>
 
 struct intr_group {
 	u32 mask;	/* mask of valid bits in pending/mask registers */
