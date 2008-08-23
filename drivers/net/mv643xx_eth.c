@@ -2004,8 +2004,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 	rdl(mp, INT_CAUSE_EXT(mp->port_num));
 
 	err = request_irq(dev->irq, mv643xx_eth_irq,
-			  IRQF_SHARED | IRQF_SAMPLE_RANDOM,
-			  dev->name, dev);
+			  IRQF_SHARED, dev->name, dev);
 	if (err) {
 		dev_printk(KERN_ERR, &dev->dev, "can't assign irq\n");
 		return -EAGAIN;
