@@ -274,7 +274,7 @@ static int vidioc_querycap(struct file *file, void *priv,
 static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -306,7 +306,7 @@ static int vidioc_s_tuner(struct file *file, void *priv,
 static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	radio->curfreq = f->frequency;
 	if (dsbr100_setfreq(radio, radio->curfreq)==-1)
@@ -317,7 +317,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = radio->curfreq;
@@ -342,7 +342,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -355,7 +355,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct dsbr100_device *radio = video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -405,7 +405,7 @@ static int vidioc_s_audio(struct file *file, void *priv,
 
 static int usb_dsbr100_open(struct inode *inode, struct file *file)
 {
-	struct dsbr100_device *radio=video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	lock_kernel();
 	radio->users = 1;
@@ -424,7 +424,7 @@ static int usb_dsbr100_open(struct inode *inode, struct file *file)
 
 static int usb_dsbr100_close(struct inode *inode, struct file *file)
 {
-	struct dsbr100_device *radio=video_get_drvdata(video_devdata(file));
+	struct dsbr100_device *radio = video_drvdata(file);
 
 	if (!radio)
 		return -ENODEV;

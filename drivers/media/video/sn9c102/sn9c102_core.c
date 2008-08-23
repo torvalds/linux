@@ -1746,7 +1746,7 @@ static int sn9c102_open(struct inode* inode, struct file* filp)
 	if (!down_read_trylock(&sn9c102_dev_lock))
 		return -ERESTARTSYS;
 
-	cam = video_get_drvdata(video_devdata(filp));
+	cam = video_drvdata(filp);
 
 	if (wait_for_completion_interruptible(&cam->probe)) {
 		up_read(&sn9c102_dev_lock);
@@ -1843,7 +1843,7 @@ static int sn9c102_release(struct inode* inode, struct file* filp)
 
 	down_write(&sn9c102_dev_lock);
 
-	cam = video_get_drvdata(video_devdata(filp));
+	cam = video_drvdata(filp);
 
 	sn9c102_stop_transfer(cam);
 	sn9c102_release_buffers(cam);
@@ -1863,7 +1863,7 @@ static int sn9c102_release(struct inode* inode, struct file* filp)
 static ssize_t
 sn9c102_read(struct file* filp, char __user * buf, size_t count, loff_t* f_pos)
 {
-	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
+	struct sn9c102_device *cam = video_drvdata(filp);
 	struct sn9c102_frame_t* f, * i;
 	unsigned long lock_flags;
 	long timeout;
@@ -1987,7 +1987,7 @@ exit:
 
 static unsigned int sn9c102_poll(struct file *filp, poll_table *wait)
 {
-	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
+	struct sn9c102_device *cam = video_drvdata(filp);
 	struct sn9c102_frame_t* f;
 	unsigned long lock_flags;
 	unsigned int mask = 0;
@@ -2063,7 +2063,7 @@ static struct vm_operations_struct sn9c102_vm_ops = {
 
 static int sn9c102_mmap(struct file* filp, struct vm_area_struct *vma)
 {
-	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
+	struct sn9c102_device *cam = video_drvdata(filp);
 	unsigned long size = vma->vm_end - vma->vm_start,
 		      start = vma->vm_start;
 	void *pos;
@@ -3075,7 +3075,7 @@ sn9c102_vidioc_s_audio(struct sn9c102_device* cam, void __user * arg)
 static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
 			      unsigned int cmd, void __user * arg)
 {
-	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
+	struct sn9c102_device *cam = video_drvdata(filp);
 
 	switch (cmd) {
 
@@ -3179,7 +3179,7 @@ static int sn9c102_ioctl_v4l2(struct inode* inode, struct file* filp,
 static int sn9c102_ioctl(struct inode* inode, struct file* filp,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct sn9c102_device* cam = video_get_drvdata(video_devdata(filp));
+	struct sn9c102_device *cam = video_drvdata(filp);
 	int err = 0;
 
 	if (mutex_lock_interruptible(&cam->fileop_mutex))

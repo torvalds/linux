@@ -187,16 +187,14 @@ static ssize_t w9966_v4l_read(struct file *file, char __user *buf,
 
 static int w9966_exclusive_open(struct inode *inode, struct file *file)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct w9966_dev *cam = video_get_drvdata(vdev);
+	struct w9966_dev *cam = video_drvdata(file);
 
 	return test_and_set_bit(0, &cam->in_use) ? -EBUSY : 0;
 }
 
 static int w9966_exclusive_release(struct inode *inode, struct file *file)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct w9966_dev *cam = video_get_drvdata(vdev);
+	struct w9966_dev *cam = video_drvdata(file);
 
 	clear_bit(0, &cam->in_use);
 	return 0;
@@ -732,8 +730,7 @@ static int w9966_wReg_i2c(struct w9966_dev* cam, int reg, int data)
 static int w9966_v4l_do_ioctl(struct inode *inode, struct file *file,
 			      unsigned int cmd, void *arg)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct w9966_dev *cam = video_get_drvdata(vdev);
+	struct w9966_dev *cam = video_drvdata(file);
 
 	switch(cmd)
 	{
@@ -891,8 +888,7 @@ static int w9966_v4l_ioctl(struct inode *inode, struct file *file,
 static ssize_t w9966_v4l_read(struct file *file, char  __user *buf,
 			      size_t count, loff_t *ppos)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct w9966_dev *cam = video_get_drvdata(vdev);
+	struct w9966_dev *cam = video_drvdata(file);
 	unsigned char addr = 0xa0;	// ECP, read, CCD-transfer, 00000
 	unsigned char __user *dest = (unsigned char __user *)buf;
 	unsigned long dleft = count;

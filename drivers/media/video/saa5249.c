@@ -319,8 +319,7 @@ static int do_saa5249_ioctl(struct inode *inode, struct file *file,
 			    unsigned int cmd, void *arg)
 {
 	static int virtual_mode = false;
-	struct video_device *vd = video_devdata(file);
-	struct saa5249_device *t = video_get_drvdata(vd);
+	struct saa5249_device *t = video_drvdata(file);
 
 	switch(cmd)
 	{
@@ -618,8 +617,7 @@ static inline unsigned int vtx_fix_command(unsigned int cmd)
 static int saa5249_ioctl(struct inode *inode, struct file *file,
 			 unsigned int cmd, unsigned long arg)
 {
-	struct video_device *vd = video_devdata(file);
-	struct saa5249_device *t = video_get_drvdata(vd);
+	struct saa5249_device *t = video_drvdata(file);
 	int err;
 
 	cmd = vtx_fix_command(cmd);
@@ -631,8 +629,7 @@ static int saa5249_ioctl(struct inode *inode, struct file *file,
 
 static int saa5249_open(struct inode *inode, struct file *file)
 {
-	struct video_device *vd = video_devdata(file);
-	struct saa5249_device *t = video_get_drvdata(vd);
+	struct saa5249_device *t = video_drvdata(file);
 	int pgbuf;
 
 	if (t->client == NULL)
@@ -669,8 +666,7 @@ static int saa5249_open(struct inode *inode, struct file *file)
 
 static int saa5249_release(struct inode *inode, struct file *file)
 {
-	struct video_device *vd = video_devdata(file);
-	struct saa5249_device *t = video_get_drvdata(vd);
+	struct saa5249_device *t = video_drvdata(file);
 
 	i2c_senddata(t, 1, 0x20, -1);		/* Turn off CCT */
 	i2c_senddata(t, 5, 3, 3, -1);		/* Turn off TV-display */

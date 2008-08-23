@@ -4024,8 +4024,7 @@ out:
 
 static int vino_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vino_channel_settings *vcs = video_get_drvdata(dev);
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	int ret = 0;
 	dprintk("open(): channel = %c\n",
 	       (vcs->channel == VINO_CHANNEL_A) ? 'A' : 'B');
@@ -4056,8 +4055,7 @@ static int vino_open(struct inode *inode, struct file *file)
 
 static int vino_close(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vino_channel_settings *vcs = video_get_drvdata(dev);
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	dprintk("close():\n");
 
 	mutex_lock(&vcs->mutex);
@@ -4100,8 +4098,7 @@ static struct vm_operations_struct vino_vm_ops = {
 
 static int vino_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vino_channel_settings *vcs = video_get_drvdata(dev);
+	struct vino_channel_settings *vcs = video_drvdata(file);
 
 	unsigned long start = vma->vm_start;
 	unsigned long size = vma->vm_end - vma->vm_start;
@@ -4206,8 +4203,7 @@ out:
 
 static unsigned int vino_poll(struct file *file, poll_table *pt)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vino_channel_settings *vcs = video_get_drvdata(dev);
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	unsigned int outgoing;
 	unsigned int ret = 0;
 
@@ -4247,8 +4243,7 @@ error:
 static int vino_do_ioctl(struct inode *inode, struct file *file,
 		      unsigned int cmd, void *arg)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vino_channel_settings *vcs = video_get_drvdata(dev);
+	struct vino_channel_settings *vcs = video_drvdata(file);
 
 #ifdef VINO_DEBUG
 	switch (_IOC_TYPE(cmd)) {
@@ -4355,8 +4350,7 @@ static int vino_do_ioctl(struct inode *inode, struct file *file,
 static int vino_ioctl(struct inode *inode, struct file *file,
 		      unsigned int cmd, unsigned long arg)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vino_channel_settings *vcs = video_get_drvdata(dev);
+	struct vino_channel_settings *vcs = video_drvdata(file);
 	int ret;
 
 	if (mutex_lock_interruptible(&vcs->mutex))

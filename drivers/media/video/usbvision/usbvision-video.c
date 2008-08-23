@@ -360,9 +360,7 @@ static void usbvision_remove_sysfs(struct video_device *vdev)
  */
 static int usbvision_v4l2_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode = 0;
 
 	PDEBUG(DBG_IO, "open");
@@ -439,9 +437,7 @@ static int usbvision_v4l2_open(struct inode *inode, struct file *file)
  */
 static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	PDEBUG(DBG_IO, "close");
 	mutex_lock(&usbvision->lock);
@@ -486,9 +482,7 @@ static int usbvision_v4l2_close(struct inode *inode, struct file *file)
 static int vidioc_g_register (struct file *file, void *priv,
 				struct v4l2_register *reg)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode;
 
 	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
@@ -507,9 +501,7 @@ static int vidioc_g_register (struct file *file, void *priv,
 static int vidioc_s_register (struct file *file, void *priv,
 				struct v4l2_register *reg)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode;
 
 	if (!v4l2_chip_match_host(reg->match_type, reg->match_chip))
@@ -528,9 +520,7 @@ static int vidioc_s_register (struct file *file, void *priv,
 static int vidioc_querycap (struct file *file, void  *priv,
 					struct v4l2_capability *vc)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	strlcpy(vc->driver, "USBVision", sizeof(vc->driver));
 	strlcpy(vc->card,
@@ -550,9 +540,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 static int vidioc_enum_input (struct file *file, void *priv,
 				struct v4l2_input *vi)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int chan;
 
 	if ((vi->index >= usbvision->video_inputs) || (vi->index < 0) )
@@ -605,9 +593,7 @@ static int vidioc_enum_input (struct file *file, void *priv,
 
 static int vidioc_g_input (struct file *file, void *priv, unsigned int *input)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	*input = usbvision->ctl_input;
 	return 0;
@@ -615,9 +601,7 @@ static int vidioc_g_input (struct file *file, void *priv, unsigned int *input)
 
 static int vidioc_s_input (struct file *file, void *priv, unsigned int input)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	if ((input >= usbvision->video_inputs) || (input < 0) )
 		return -EINVAL;
@@ -634,9 +618,8 @@ static int vidioc_s_input (struct file *file, void *priv, unsigned int input)
 
 static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
+
 	usbvision->tvnormId=*id;
 
 	mutex_lock(&usbvision->lock);
@@ -652,9 +635,7 @@ static int vidioc_s_std (struct file *file, void *priv, v4l2_std_id *id)
 static int vidioc_g_tuner (struct file *file, void *priv,
 				struct v4l2_tuner *vt)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	if (!usbvision->have_tuner || vt->index)	// Only tuner 0
 		return -EINVAL;
@@ -673,9 +654,7 @@ static int vidioc_g_tuner (struct file *file, void *priv,
 static int vidioc_s_tuner (struct file *file, void *priv,
 				struct v4l2_tuner *vt)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	// Only no or one tuner for now
 	if (!usbvision->have_tuner || vt->index)
@@ -689,9 +668,7 @@ static int vidioc_s_tuner (struct file *file, void *priv,
 static int vidioc_g_frequency (struct file *file, void *priv,
 				struct v4l2_frequency *freq)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	freq->tuner = 0; // Only one tuner
 	if(usbvision->radio) {
@@ -707,9 +684,7 @@ static int vidioc_g_frequency (struct file *file, void *priv,
 static int vidioc_s_frequency (struct file *file, void *priv,
 				struct v4l2_frequency *freq)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	// Only no or one tuner for now
 	if (!usbvision->have_tuner || freq->tuner)
@@ -723,9 +698,7 @@ static int vidioc_s_frequency (struct file *file, void *priv,
 
 static int vidioc_g_audio (struct file *file, void *priv, struct v4l2_audio *a)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	memset(a,0,sizeof(*a));
 	if(usbvision->radio) {
@@ -750,9 +723,7 @@ static int vidioc_s_audio (struct file *file, void *fh,
 static int vidioc_queryctrl (struct file *file, void *priv,
 			    struct v4l2_queryctrl *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int id=ctrl->id;
 
 	memset(ctrl,0,sizeof(*ctrl));
@@ -769,9 +740,7 @@ static int vidioc_queryctrl (struct file *file, void *priv,
 static int vidioc_g_ctrl (struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	call_i2c_clients(usbvision, VIDIOC_G_CTRL, ctrl);
 
 	return 0;
@@ -780,9 +749,7 @@ static int vidioc_g_ctrl (struct file *file, void *priv,
 static int vidioc_s_ctrl (struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	call_i2c_clients(usbvision, VIDIOC_S_CTRL, ctrl);
 
 	return 0;
@@ -791,9 +758,7 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 static int vidioc_reqbufs (struct file *file,
 			   void *priv, struct v4l2_requestbuffers *vr)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int ret;
 
 	RESTRICT_TO_RANGE(vr->count,1,USBVISION_NUMFRAMES);
@@ -821,9 +786,7 @@ static int vidioc_reqbufs (struct file *file,
 static int vidioc_querybuf (struct file *file,
 			    void *priv, struct v4l2_buffer *vb)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	struct usbvision_frame *frame;
 
 	/* FIXME : must control
@@ -859,9 +822,7 @@ static int vidioc_querybuf (struct file *file,
 
 static int vidioc_qbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	struct usbvision_frame *frame;
 	unsigned long lock_flags;
 
@@ -898,9 +859,7 @@ static int vidioc_qbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 
 static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int ret;
 	struct usbvision_frame *f;
 	unsigned long lock_flags;
@@ -941,9 +900,7 @@ static int vidioc_dqbuf (struct file *file, void *priv, struct v4l2_buffer *vb)
 
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int b=V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	usbvision->streaming = Stream_On;
@@ -955,9 +912,7 @@ static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 static int vidioc_streamoff(struct file *file,
 			    void *priv, enum v4l2_buf_type type)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int b=V4L2_BUF_TYPE_VIDEO_CAPTURE;
 
 	if (type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
@@ -990,9 +945,7 @@ static int vidioc_enum_fmt_vid_cap (struct file *file, void  *priv,
 static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 					struct v4l2_format *vf)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	vf->fmt.pix.width = usbvision->curwidth;
 	vf->fmt.pix.height = usbvision->curheight;
 	vf->fmt.pix.pixelformat = usbvision->palette.format;
@@ -1008,9 +961,7 @@ static int vidioc_g_fmt_vid_cap (struct file *file, void *priv,
 static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 			       struct v4l2_format *vf)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int formatIdx;
 
 	/* Find requested format in available ones */
@@ -1038,9 +989,7 @@ static int vidioc_try_fmt_vid_cap (struct file *file, void *priv,
 static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 			       struct v4l2_format *vf)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int ret;
 
 	if( 0 != (ret=vidioc_try_fmt_vid_cap (file, priv, vf)) ) {
@@ -1068,9 +1017,7 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 static ssize_t usbvision_v4l2_read(struct file *file, char __user *buf,
 		      size_t count, loff_t *ppos)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int noblock = file->f_flags & O_NONBLOCK;
 	unsigned long lock_flags;
 
@@ -1179,10 +1126,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
 		start = vma->vm_start;
 	void *pos;
 	u32 i;
-
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 
 	PDEBUG(DBG_MMAP, "mmap");
 
@@ -1239,9 +1183,7 @@ static int usbvision_v4l2_mmap(struct file *file, struct vm_area_struct *vma)
  */
 static int usbvision_radio_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode = 0;
 
 	PDEBUG(DBG_IO, "%s:", __func__);
@@ -1291,9 +1233,7 @@ out:
 
 static int usbvision_radio_close(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct usb_usbvision *usbvision =
-		(struct usb_usbvision *) video_get_drvdata(dev);
+	struct usb_usbvision *usbvision = video_drvdata(file);
 	int errCode = 0;
 
 	PDEBUG(DBG_IO, "");

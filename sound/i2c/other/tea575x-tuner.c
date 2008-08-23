@@ -87,8 +87,7 @@ static void snd_tea575x_set_freq(struct snd_tea575x *tea)
 static int snd_tea575x_ioctl(struct inode *inode, struct file *file,
 			     unsigned int cmd, unsigned long data)
 {
-	struct video_device *dev = video_devdata(file);
-	struct snd_tea575x *tea = video_get_drvdata(dev);
+	struct snd_tea575x *tea = video_drvdata(file);
 	void __user *arg = (void __user *)data;
 	
 	switch(cmd) {
@@ -177,16 +176,14 @@ static void snd_tea575x_release(struct video_device *vfd)
 
 static int snd_tea575x_exclusive_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct snd_tea575x *tea = video_get_drvdata(dev);
+	struct snd_tea575x *tea = video_drvdata(file);
 
 	return test_and_set_bit(0, &tea->in_use) ? -EBUSY : 0;
 }
 
 static int snd_tea575x_exclusive_release(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct snd_tea575x *tea = video_get_drvdata(dev);
+	struct snd_tea575x *tea = video_drvdata(file);
 
 	clear_bit(0, &tea->in_use);
 	return 0;

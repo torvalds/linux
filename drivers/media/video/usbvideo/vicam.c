@@ -472,8 +472,7 @@ vicam_ioctl(struct inode *inode, struct file *file, unsigned int ioctlnr, unsign
 static int
 vicam_open(struct inode *inode, struct file *file)
 {
-	struct video_device *dev = video_devdata(file);
-	struct vicam_camera *cam = video_get_drvdata(dev);
+	struct vicam_camera *cam = video_drvdata(file);
 
 	DBG("open\n");
 

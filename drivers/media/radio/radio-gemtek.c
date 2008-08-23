@@ -459,8 +459,7 @@ static int vidioc_s_tuner(struct file *file, void *priv, struct v4l2_tuner *v)
 static int vidioc_s_frequency(struct file *file, void *priv,
 			      struct v4l2_frequency *f)
 {
-	struct video_device *dev = video_devdata(file);
-	struct gemtek_device *rt = video_get_drvdata(dev);
+	struct gemtek_device *rt = video_drvdata(file);
 
 	gemtek_setfreq(rt, f->frequency);
 
@@ -470,8 +469,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 static int vidioc_g_frequency(struct file *file, void *priv,
 			      struct v4l2_frequency *f)
 {
-	struct video_device *dev = video_devdata(file);
-	struct gemtek_device *rt = video_get_drvdata(dev);
+	struct gemtek_device *rt = video_drvdata(file);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = rt->lastfreq;
@@ -495,8 +493,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 static int vidioc_g_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct gemtek_device *rt = video_get_drvdata(dev);
+	struct gemtek_device *rt = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -515,8 +512,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 static int vidioc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctrl)
 {
-	struct video_device *dev = video_devdata(file);
-	struct gemtek_device *rt = video_get_drvdata(dev);
+	struct gemtek_device *rt = video_drvdata(file);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
