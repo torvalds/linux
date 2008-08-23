@@ -73,6 +73,13 @@ void video_device_release(struct video_device *vfd)
 }
 EXPORT_SYMBOL(video_device_release);
 
+void video_device_release_empty(struct video_device *vfd)
+{
+	/* Do nothing */
+	/* Only valid when the video_device struct is a static. */
+}
+EXPORT_SYMBOL(video_device_release_empty);
+
 static void video_release(struct device *cd)
 {
 	struct video_device *vfd = container_of(cd, struct video_device, dev);

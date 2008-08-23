@@ -91,7 +91,12 @@ void video_unregister_device(struct video_device *);
 /* helper functions to alloc / release struct video_device, the
    later can be used for video_device->release() */
 struct video_device *video_device_alloc(void);
+/* this release function frees the vfd pointer */
 void video_device_release(struct video_device *vfd);
+/* this release function does nothing, use when the video_device is a
+   static global struct. Note that having a static video_device is
+   a dubious construction at best. */
+void video_device_release_empty(struct video_device *vfd);
 
 #ifdef OBSOLETE_DEVDATA /* to be removed soon */
 /* helper functions to access driver private data. */
