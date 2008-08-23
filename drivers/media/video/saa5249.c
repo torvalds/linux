@@ -110,6 +110,7 @@ struct saa5249_device
 	int disp_mode;
 	int virtual_mode;
 	struct i2c_client *client;
+	unsigned long in_use;
 	struct mutex lock;
 };
 
@@ -631,34 +632,27 @@ static int saa5249_ioctl(struct inode *inode, struct file *file,
 static int saa5249_open(struct inode *inode, struct file *file)
 {
 	struct video_device *vd = video_devdata(file);
-	struct saa5249_device *t=vd->priv;
-	int err,pgbuf;
+	struct saa5249_device *t = vd->priv;
+	int pgbuf;
 
-	lock_kernel();
-	err = video_exclusive_open(inode,file);
-	if (err < 0) {
-		unlock_kernel();
-		return err;
-	}
+	if (t->client == NULL)
+		return -ENODEV;
 
-	if (t->client==NULL) {
-		err = -ENODEV;
-		goto fail;
-	}
+	if (test_and_set_bit(0, &t->in_use))
+		return -EBUSY;
 
-	if (i2c_senddata(t, 0, 0, -1) ||		/* Select R11 */
-						/* Turn off parity checks (we do this ourselves) */
+	if (i2c_senddata(t, 0, 0, -1) || /* Select R11 */
+		/* Turn off parity checks (we do this ourselves) */
 		i2c_senddata(t, 1, disp_modes[t->disp_mode][0], 0, -1) ||
-						/* Display TV-picture, no virtual rows */
-		i2c_senddata(t, 4, NUM_DAUS, disp_modes[t->disp_mode][1], disp_modes[t->disp_mode][2], 7, -1)) /* Set display to page 4 */
-
+		/* Display TV-picture, no virtual rows */
+		i2c_senddata(t, 4, NUM_DAUS, disp_modes[t->disp_mode][1], disp_modes[t->disp_mode][2], 7, -1))
+		/* Set display to page 4 */
 	{
-		err = -EIO;
-		goto fail;
+		clear_bit(0, &t->in_use);
+		return -EIO;
 	}
 
-	for (pgbuf = 0; pgbuf < NUM_DAUS; pgbuf++)
-	{
+	for (pgbuf = 0; pgbuf < NUM_DAUS; pgbuf++) {
 		memset(t->vdau[pgbuf].pgbuf, ' ', sizeof(t->vdau[0].pgbuf));
 		memset(t->vdau[pgbuf].sregs, 0, sizeof(t->vdau[0].sregs));
 		memset(t->vdau[pgbuf].laststat, 0, sizeof(t->vdau[0].laststat));
@@ -668,13 +662,7 @@ static int saa5249_open(struct inode *inode, struct file *file)
 		t->is_searching[pgbuf] = false;
 	}
 	t->virtual_mode = false;
-	unlock_kernel();
 	return 0;
-
- fail:
-	video_exclusive_release(inode,file);
-	unlock_kernel();
-	return err;
 }
 
 
@@ -682,10 +670,11 @@ static int saa5249_open(struct inode *inode, struct file *file)
 static int saa5249_release(struct inode *inode, struct file *file)
 {
 	struct video_device *vd = video_devdata(file);
-	struct saa5249_device *t=vd->priv;
+	struct saa5249_device *t = vd->priv;
+
 	i2c_senddata(t, 1, 0x20, -1);		/* Turn off CCT */
 	i2c_senddata(t, 5, 3, 3, -1);		/* Turn off TV-display */
-	video_exclusive_release(inode,file);
+	clear_bit(0, &t->in_use);
 	return 0;
 }
 

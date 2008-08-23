@@ -113,6 +113,7 @@ struct w9966_dev {
 	signed char contrast;
 	signed char color;
 	signed char hue;
+	unsigned long in_use;
 };
 
 /*
@@ -184,10 +185,27 @@ static int w9966_v4l_ioctl(struct inode *inode, struct file *file,
 static ssize_t w9966_v4l_read(struct file *file, char __user *buf,
 			      size_t count, loff_t *ppos);
 
+static int w9966_exclusive_open(struct inode *inode, struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct w9966_dev *cam = vdev->priv;
+
+	return test_and_set_bit(0, &cam->in_use) ? -EBUSY : 0;
+}
+
+static int w9966_exclusive_release(struct inode *inode, struct file *file)
+{
+	struct video_device *vdev = video_devdata(file);
+	struct w9966_dev *cam = vdev->priv;
+
+	clear_bit(0, &cam->in_use);
+	return 0;
+}
+
 static const struct file_operations w9966_fops = {
 	.owner		= THIS_MODULE,
-	.open           = video_exclusive_open,
-	.release        = video_exclusive_release,
+	.open           = w9966_exclusive_open,
+	.release        = w9966_exclusive_release,
 	.ioctl          = w9966_v4l_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= v4l_compat_ioctl32,

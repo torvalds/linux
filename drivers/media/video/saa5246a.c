@@ -61,6 +61,7 @@ struct saa5246a_device
 	u8     pgbuf[NUM_DAUS][VTX_VIRTUALSIZE];
 	int    is_searching[NUM_DAUS];
 	struct i2c_client *client;
+	unsigned long in_use;
 	struct mutex lock;
 };
 
@@ -736,22 +737,14 @@ static int saa5246a_open(struct inode *inode, struct file *file)
 {
 	struct video_device *vd = video_devdata(file);
 	struct saa5246a_device *t = vd->priv;
-	int err;
 
-	lock_kernel();
-	err = video_exclusive_open(inode,file);
-	if (err < 0) {
-		unlock_kernel();
-		return err;
-	}
+	if (t->client == NULL)
+		return -ENODEV;
 
-	if (t->client==NULL) {
-		err = -ENODEV;
-		goto fail;
-	}
+	if (test_and_set_bit(0, &t->in_use))
+		return -EBUSY;
 
 	if (i2c_senddata(t, SAA5246A_REGISTER_R0,
-
 		R0_SELECT_R11 |
 		R0_PLL_TIME_CONSTANT_LONG |
 		R0_ENABLE_nODD_EVEN_OUTPUT |
@@ -777,17 +770,10 @@ static int saa5246a_open(struct inode *inode, struct file *file)
 
 		COMMAND_END))
 	{
-		err = -EIO;
-		goto fail;
+		clear_bit(0, &t->in_use);
+		return -EIO;
 	}
-	unlock_kernel();
-
 	return 0;
-
-fail:
-	video_exclusive_release(inode,file);
-	unlock_kernel();
-	return err;
 }
 
 static int saa5246a_release(struct inode *inode, struct file *file)
@@ -806,7 +792,7 @@ static int saa5246a_release(struct inode *inode, struct file *file)
 		R1_VCS_TO_SCS,
 
 		COMMAND_END);
-	video_exclusive_release(inode,file);
+	clear_bit(0, &t->in_use);
 	return 0;
 }
 

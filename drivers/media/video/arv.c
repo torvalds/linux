@@ -116,6 +116,7 @@ struct ar_device {
 	int width, height;
 	int frame_bytes, line_bytes;
 	wait_queue_head_t wait;
+	unsigned long in_use;
 	struct mutex lock;
 };
 
@@ -742,10 +743,23 @@ void ar_release(struct video_device *vfd)
  * Video4Linux Module functions
  *
  ****************************************************************************/
+static struct ar_device ardev;
+
+static int ar_exclusive_open(struct inode *inode, struct file *file)
+{
+	return test_and_set_bit(0, &ardev.in_use) ? -EBUSY : 0;
+}
+
+static int ar_exclusive_release(struct inode *inode, struct file *file)
+{
+	clear_bit(0, &ardev.in_use);
+	return 0;
+}
+
 static const struct file_operations ar_fops = {
 	.owner		= THIS_MODULE,
-	.open		= video_exclusive_open,
-	.release	= video_exclusive_release,
+	.open		= ar_exclusive_open,
+	.release	= ar_exclusive_release,
 	.read		= ar_read,
 	.ioctl		= ar_ioctl,
 #ifdef CONFIG_COMPAT
@@ -762,7 +776,6 @@ static struct video_device ar_template = {
 };
 
 #define ALIGN4(x)	((((int)(x)) & 0x3) == 0)
-static struct ar_device ardev;
 
 static int __init ar_init(void)
 {
