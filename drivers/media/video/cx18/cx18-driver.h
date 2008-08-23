@@ -236,6 +236,8 @@ struct cx18_dvb {
 struct cx18;	 /* forward reference */
 struct cx18_scb; /* forward reference */
 
+#define CX18_INVALID_TASK_HANDLE 0xffffffff
+
 struct cx18_stream {
 	/* These first four fields are always set, even if the stream
 	   is not actually created. */

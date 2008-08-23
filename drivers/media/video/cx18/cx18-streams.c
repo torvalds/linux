@@ -119,7 +119,7 @@ static void cx18_stream_init(struct cx18 *cx, int type)
 	s->cx = cx;
 	s->type = type;
 	s->name = cx18_stream_info[type].name;
-	s->handle = 0xffffffff;
+	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	s->dma = cx18_stream_info[type].dma;
 	s->buf_size = cx->stream_buf_size[type];
@@ -548,7 +548,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
 
 	cx18_vapi(cx, CX18_DESTROY_TASK, 1, s->handle);
-	s->handle = 0xffffffff;
+	s->handle = CX18_INVALID_TASK_HANDLE;
 
 	if (atomic_read(&cx->tot_capturing) > 0)
 		return 0;
@@ -567,8 +567,8 @@ u32 cx18_find_handle(struct cx18 *cx)
 	for (i = 0; i < CX18_MAX_STREAMS; i++) {
 		struct cx18_stream *s = &cx->streams[i];
 
-		if (s->v4l2dev && s->handle)
+		if (s->v4l2dev && (s->handle != CX18_INVALID_TASK_HANDLE))
 			return s->handle;
 	}
-	return 0;
+	return CX18_INVALID_TASK_HANDLE;
 }
