@@ -4161,6 +4161,18 @@ add_sack:
 	}
 }
 
+static struct sk_buff *tcp_collapse_one(struct sock *sk, struct sk_buff *skb,
+					struct sk_buff_head *list)
+{
+	struct sk_buff *next = skb->next;
+
+	__skb_unlink(skb, list);
+	__kfree_skb(skb);
+	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOLLAPSED);
+
+	return next;
+}
+
 /* Collapse contiguous sequence of skbs head..tail with
  * sequence numbers start..end.
  * Segments with FIN/SYN are not collapsed (only because this
@@ -4178,11 +4190,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 	for (skb = head; skb != tail;) {
 		/* No new bits? It is possible on ofo queue. */
 		if (!before(start, TCP_SKB_CB(skb)->end_seq)) {
-			struct sk_buff *next = skb->next;
-			__skb_unlink(skb, list);
-			__kfree_skb(skb);
-			NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOLLAPSED);
-			skb = next;
+			skb = tcp_collapse_one(sk, skb, list);
 			continue;
 		}
 
@@ -4246,11 +4254,7 @@ tcp_collapse(struct sock *sk, struct sk_buff_head *list,
 				start += size;
 			}
 			if (!before(start, TCP_SKB_CB(skb)->end_seq)) {
-				struct sk_buff *next = skb->next;
-				__skb_unlink(skb, list);
-				__kfree_skb(skb);
-				NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_TCPRCVCOLLAPSED);
-				skb = next;
+				skb = tcp_collapse_one(sk, skb, list);
 				if (skb == tail ||
 				    tcp_hdr(skb)->syn ||
 				    tcp_hdr(skb)->fin)
