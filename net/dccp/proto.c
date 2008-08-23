@@ -309,7 +309,9 @@ int dccp_disconnect(struct sock *sk, int flags)
 		sk->sk_err = ECONNRESET;
 
 	dccp_clear_xmit_timers(sk);
+
 	__skb_queue_purge(&sk->sk_receive_queue);
+	__skb_queue_purge(&sk->sk_write_queue);
 	if (sk->sk_send_head != NULL) {
 		__kfree_skb(sk->sk_send_head);
 		sk->sk_send_head = NULL;
