@@ -270,7 +270,7 @@ static inline void wait_for_vertical_sync(int exp_line)
 static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 {
 	struct video_device *v = video_devdata(file);
-	struct ar_device *ar = v->priv;
+	struct ar_device *ar = video_get_drvdata(v);
 	long ret = ar->frame_bytes;		/* return read bytes */
 	unsigned long arvcr1 = 0;
 	unsigned long flags;
@@ -400,7 +400,7 @@ static int ar_do_ioctl(struct inode *inode, struct file *file,
 		       unsigned int cmd, void *arg)
 {
 	struct video_device *dev = video_devdata(file);
-	struct ar_device *ar = dev->priv;
+	struct ar_device *ar = video_get_drvdata(dev);
 
 	DEBUG(1, "ar_ioctl()\n");
 	switch(cmd) {
@@ -626,7 +626,7 @@ static void ar_interrupt(int irq, void *dev)
  */
 static int ar_initialize(struct video_device *dev)
 {
-	struct ar_device *ar = dev->priv;
+	struct ar_device *ar = video_get_drvdata(dev);
 	unsigned long cr = 0;
 	int i,found=0;
 
@@ -733,7 +733,7 @@ static int ar_initialize(struct video_device *dev)
 
 void ar_release(struct video_device *vfd)
 {
-	struct ar_device *ar = vfd->priv;
+	struct ar_device *ar = video_get_drvdata(vfd);
 	mutex_lock(&ar->lock);
 	video_device_release(vfd);
 }
@@ -815,7 +815,7 @@ static int __init ar_init(void)
 		return -ENOMEM;
 	}
 	memcpy(ar->vdev, &ar_template, sizeof(ar_template));
-	ar->vdev->priv = ar;
+	video_set_drvdata(ar->vdev, ar);
 
 	if (vga) {
 		ar->width 	= AR_WIDTH_VGA;

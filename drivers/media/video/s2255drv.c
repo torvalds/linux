@@ -1800,7 +1800,7 @@ static int s2255_probe_v4l(struct s2255_dev *dev)
 			ret = video_register_device(dev->vdev[i],
 						    VFL_TYPE_GRABBER,
 						    cur_nr + i);
-		dev->vdev[i]->priv = dev;
+		video_set_drvdata(dev->vdev[i], dev);
 
 		if (ret != 0) {
 			dev_err(&dev->udev->dev,

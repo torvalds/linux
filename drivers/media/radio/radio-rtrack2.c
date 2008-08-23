@@ -155,7 +155,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 				struct v4l2_tuner *v)
 {
 	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_get_drvdata(dev);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -175,7 +175,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_get_drvdata(dev);
 
 	rt->curfreq = f->frequency;
 	rt_setfreq(rt, rt->curfreq);
@@ -186,7 +186,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 				struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_get_drvdata(dev);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = rt->curfreq;
@@ -212,7 +212,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_get_drvdata(dev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -232,7 +232,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
-	struct rt_device *rt = dev->priv;
+	struct rt_device *rt = video_get_drvdata(dev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -342,7 +342,7 @@ static int __init rtrack2_init(void)
 		return -EBUSY;
 	}
 
-	rtrack2_radio.priv=&rtrack2_unit;
+	video_set_drvdata(&rtrack2_radio, &rtrack2_unit);
 
 	spin_lock_init(&lock);
 	if (video_register_device(&rtrack2_radio, VFL_TYPE_RADIO, radio_nr) < 0) {

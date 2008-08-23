@@ -473,8 +473,8 @@ static int
 vicam_open(struct inode *inode, struct file *file)
 {
 	struct video_device *dev = video_devdata(file);
-	struct vicam_camera *cam =
-	    (struct vicam_camera *) dev->priv;
+	struct vicam_camera *cam = video_get_drvdata(dev);
+
 	DBG("open\n");
 
 	if (!cam) {
@@ -866,9 +866,8 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 
 	mutex_init(&cam->cam_lock);
 
-	memcpy(&cam->vdev, &vicam_template,
-	       sizeof (vicam_template));
-	cam->vdev.priv = cam;	// sort of a reverse mapping for those functions that get vdev only
+	memcpy(&cam->vdev, &vicam_template, sizeof(vicam_template));
+	video_set_drvdata(&cam->vdev, cam);
 
 	cam->udev = dev;
 	cam->bulkEndpoint = bulkEndpoint;

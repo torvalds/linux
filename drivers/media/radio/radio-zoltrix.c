@@ -247,7 +247,7 @@ static int vidioc_g_tuner(struct file *file, void *priv,
 					struct v4l2_tuner *v)
 {
 	struct video_device *dev = video_devdata(file);
-	struct zol_device *zol = dev->priv;
+	struct zol_device *zol = video_get_drvdata(dev);
 
 	if (v->index > 0)
 		return -EINVAL;
@@ -278,7 +278,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
-	struct zol_device *zol = dev->priv;
+	struct zol_device *zol = video_get_drvdata(dev);
 
 	zol->curfreq = f->frequency;
 	zol_setfreq(zol, zol->curfreq);
@@ -289,7 +289,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
-	struct zol_device *zol = dev->priv;
+	struct zol_device *zol = video_get_drvdata(dev);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = zol->curfreq;
@@ -315,7 +315,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
-	struct zol_device *zol = dev->priv;
+	struct zol_device *zol = video_get_drvdata(dev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -332,7 +332,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 				struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
-	struct zol_device *zol = dev->priv;
+	struct zol_device *zol = video_get_drvdata(dev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -453,7 +453,7 @@ static int __init zoltrix_init(void)
 		return -ENXIO;
 	}
 
-	zoltrix_radio.priv = &zoltrix_unit;
+	video_set_drvdata(&zoltrix_radio, &zoltrix_unit);
 	if (!request_region(io, 2, "zoltrix")) {
 		printk(KERN_ERR "zoltrix: port 0x%x already in use\n", io);
 		return -EBUSY;

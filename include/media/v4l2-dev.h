@@ -69,14 +69,6 @@ struct video_device
 
 	/* ioctl callbacks */
 	const struct v4l2_ioctl_ops *ioctl_ops;
-
-#ifdef OBSOLETE_DEVDATA /* to be removed soon */
-	/* dev->driver_data will be used instead some day.
-	 * Use the video_{get|set}_drvdata() helper functions,
-	 * so the switch over will be transparent for you.
-	 * Or use {pci|usb}_{get|set}_drvdata() directly. */
-	void *priv;
-#endif
 };
 
 /* Class-dev to video-device */
@@ -98,18 +90,18 @@ void video_device_release(struct video_device *vfd);
    a dubious construction at best. */
 void video_device_release_empty(struct video_device *vfd);
 
-#ifdef OBSOLETE_DEVDATA /* to be removed soon */
 /* helper functions to access driver private data. */
 static inline void *video_get_drvdata(struct video_device *dev)
 {
-	return dev->priv;
+	return dev_get_drvdata(&dev->dev);
 }
 
 static inline void video_set_drvdata(struct video_device *dev, void *data)
 {
-	dev->priv = data;
+	dev_set_drvdata(&dev->dev, data);
 }
 
+#ifdef OBSOLETE_DEVDATA /* to be removed soon */
 /* Obsolete stuff - Still needed for radio devices and obsolete drivers */
 extern struct video_device* video_devdata(struct file*);
 #endif

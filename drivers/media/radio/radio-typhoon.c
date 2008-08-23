@@ -224,7 +224,7 @@ static int vidioc_s_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
-	struct typhoon_device *typhoon = dev->priv;
+	struct typhoon_device *typhoon = video_get_drvdata(dev);
 
 	typhoon->curfreq = f->frequency;
 	typhoon_setfreq(typhoon, typhoon->curfreq);
@@ -235,7 +235,7 @@ static int vidioc_g_frequency(struct file *file, void *priv,
 					struct v4l2_frequency *f)
 {
 	struct video_device *dev = video_devdata(file);
-	struct typhoon_device *typhoon = dev->priv;
+	struct typhoon_device *typhoon = video_get_drvdata(dev);
 
 	f->type = V4L2_TUNER_RADIO;
 	f->frequency = typhoon->curfreq;
@@ -262,7 +262,7 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 					struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
-	struct typhoon_device *typhoon = dev->priv;
+	struct typhoon_device *typhoon = video_get_drvdata(dev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -279,7 +279,7 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 					struct v4l2_control *ctrl)
 {
 	struct video_device *dev = video_devdata(file);
-	struct typhoon_device *typhoon = dev->priv;
+	struct typhoon_device *typhoon = video_get_drvdata(dev);
 
 	switch (ctrl->id) {
 	case V4L2_CID_AUDIO_MUTE:
@@ -458,7 +458,7 @@ static int __init typhoon_init(void)
 		return -EBUSY;
 	}
 
-	typhoon_radio.priv = &typhoon_unit;
+	video_set_drvdata(&typhoon_radio, &typhoon_unit);
 	if (video_register_device(&typhoon_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 8);
 		return -EINVAL;
