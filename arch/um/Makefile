@@ -96,9 +96,9 @@ define archhelp
 endef
 
 ifneq ($(KBUILD_SRC),)
-$(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig.$(SUBARCH) $(ARCH_DIR)/Kconfig.arch)
+$(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig.$(HEADER_ARCH) $(ARCH_DIR)/Kconfig.arch)
 else
-$(shell ln -fsn Kconfig.$(SUBARCH) $(ARCH_DIR)/Kconfig.arch)
+$(shell ln -fsn Kconfig.$(HEADER_ARCH) $(ARCH_DIR)/Kconfig.arch)
 endif
 
 archprepare: $(ARCH_SYMLINKS) $(ARCH_DIR)/include/shared/user_constants.h

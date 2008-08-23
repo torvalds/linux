@@ -5,24 +5,25 @@ source "arch/x86/Kconfig.cpu"
 endmenu
 
 config UML_X86
-	bool
-	default y
-
-config X86_32
-	bool
-	default y
-  	select HAVE_AOUT
-
-config RWSEM_XCHGADD_ALGORITHM
 	def_bool y
 
 config 64BIT
 	bool
-	default n
+	default SUBARCH = "x86_64"
+
+config X86_32
+	def_bool !64BIT
+	select HAVE_AOUT
+
+config RWSEM_XCHGADD_ALGORITHM
+	def_bool X86_XADD
+
+config RWSEM_GENERIC_SPINLOCK
+	def_bool !X86_XADD
 
 config 3_LEVEL_PGTABLES
-	bool "Three-level pagetables (EXPERIMENTAL)"
-	default n
+	bool "Three-level pagetables (EXPERIMENTAL)" if !64BIT
+	default 64BIT
 	depends on EXPERIMENTAL
 	help
 	Three-level pagetables will let UML have more than 4G of physical
@@ -33,13 +34,13 @@ config 3_LEVEL_PGTABLES
 	N (on x86-64 it's automatically enabled, instead, as it's safe there).
 
 config ARCH_HAS_SC_SIGNALS
-	bool
-	default y
+	def_bool !64BIT
 
 config ARCH_REUSE_HOST_VSYSCALL_AREA
-	bool
-	default y
+	def_bool !64BIT
+
+config SMP_BROKEN
+	def_bool 64BIT
 
 config GENERIC_HWEIGHT
-	bool
-	default y
+	def_bool y

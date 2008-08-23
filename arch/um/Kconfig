@@ -85,6 +85,10 @@ config STATIC_LINK
 	  Additionally, this option enables using higher memory spaces (up to
 	  2.75G) for UML.
 
+config SUBARCH
+	string
+	option env="SUBARCH"
+
 source "arch/um/Kconfig.arch"
 source "mm/Kconfig"
 source "kernel/time/Kconfig"
