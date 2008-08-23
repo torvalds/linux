@@ -83,14 +83,14 @@ struct video_device
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 
 /* Version 2 functions */
-extern int video_register_device(struct video_device *vfd, int type, int nr);
-int video_register_device_index(struct video_device *vfd, int type, int nr,
+int __must_check video_register_device(struct video_device *vfd, int type, int nr);
+int __must_check video_register_device_index(struct video_device *vfd, int type, int nr,
 					int index);
 void video_unregister_device(struct video_device *);
 
 /* helper functions to alloc / release struct video_device, the
    later can be used for video_device->release() */
-struct video_device *video_device_alloc(void);
+struct video_device * __must_check video_device_alloc(void);
 /* this release function frees the vfd pointer */
 void video_device_release(struct video_device *vfd);
 /* this release function does nothing, use when the video_device is a
