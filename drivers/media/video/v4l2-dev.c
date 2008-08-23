@@ -42,6 +42,7 @@ static ssize_t show_index(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = container_of(cd, struct video_device, dev);
+
 	return sprintf(buf, "%i\n", vfd->index);
 }
 
@@ -49,6 +50,7 @@ static ssize_t show_name(struct device *cd,
 			 struct device_attribute *attr, char *buf)
 {
 	struct video_device *vfd = container_of(cd, struct video_device, dev);
+
 	return sprintf(buf, "%.*s\n", (int)sizeof(vfd->name), vfd->name);
 }
 
@@ -60,10 +62,7 @@ static struct device_attribute video_device_attrs[] = {
 
 struct video_device *video_device_alloc(void)
 {
-	struct video_device *vfd;
-
-	vfd = kzalloc(sizeof(*vfd), GFP_KERNEL);
-	return vfd;
+	return kzalloc(sizeof(struct video_device), GFP_KERNEL);
 }
 EXPORT_SYMBOL(video_device_alloc);
 
@@ -263,7 +262,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 
 	/* pick a minor number */
 	mutex_lock(&videodev_lock);
-	if (nr >= 0  &&  nr < end-base) {
+	if (nr >= 0 && nr < end-base) {
 		/* use the one the driver asked for */
 		i = base + nr;
 		if (NULL != video_device[i]) {
@@ -295,7 +294,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	}
 
 	/* sysfs class */
-	memset(&vfd->dev, 0x00, sizeof(vfd->dev));
+	memset(&vfd->dev, 0, sizeof(vfd->dev));
 	vfd->dev.class = &video_class;
 	vfd->dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
 	if (vfd->parent)
@@ -312,8 +311,8 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 fail_minor:
 	mutex_lock(&videodev_lock);
 	video_device[vfd->minor] = NULL;
-	vfd->minor = -1;
 	mutex_unlock(&videodev_lock);
+	vfd->minor = -1;
 	return ret;
 }
 EXPORT_SYMBOL(video_register_device_index);

@@ -9,16 +9,14 @@
 #ifndef _V4L2_DEV_H
 #define _V4L2_DEV_H
 
-#define OBSOLETE_DEVDATA 1 /* to be removed soon */
-
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/device.h>
 #include <linux/mutex.h>
-#include <linux/compiler.h> /* need __user */
 #include <linux/videodev2.h>
 
 #define VIDEO_MAJOR	81
+
 /* Minor device allocation */
 #define MINOR_VFL_TYPE_GRABBER_MIN   0
 #define MINOR_VFL_TYPE_GRABBER_MAX  63
@@ -71,20 +69,25 @@ struct video_device
 	const struct v4l2_ioctl_ops *ioctl_ops;
 };
 
-/* Class-dev to video-device */
+/* dev to video-device */
 #define to_video_device(cd) container_of(cd, struct video_device, dev)
 
-/* Version 2 functions */
+/* Register and unregister devices. Note that if video_register_device fails,
+   the release() callback of the video_device structure is *not* called, so
+   the caller is responsible for freeing any data. Usually that means that
+   you call video_device_release() on failure. */
 int __must_check video_register_device(struct video_device *vfd, int type, int nr);
-int __must_check video_register_device_index(struct video_device *vfd, int type, int nr,
-					int index);
-void video_unregister_device(struct video_device *);
+int __must_check video_register_device_index(struct video_device *vfd,
+						int type, int nr, int index);
+void video_unregister_device(struct video_device *vfd);
 
-/* helper functions to alloc / release struct video_device, the
-   later can be used for video_device->release() */
+/* helper functions to alloc/release struct video_device, the
+   latter can also be used for video_device->release(). */
 struct video_device * __must_check video_device_alloc(void);
+
 /* this release function frees the vfd pointer */
 void video_device_release(struct video_device *vfd);
+
 /* this release function does nothing, use when the video_device is a
    static global struct. Note that having a static video_device is
    a dubious construction at best. */
@@ -101,9 +104,13 @@ static inline void video_set_drvdata(struct video_device *dev, void *data)
 	dev_set_drvdata(&dev->dev, data);
 }
 
-#ifdef OBSOLETE_DEVDATA /* to be removed soon */
-/* Obsolete stuff - Still needed for radio devices and obsolete drivers */
-extern struct video_device* video_devdata(struct file*);
-#endif
+struct video_device *video_devdata(struct file *file);
+
+/* Combine video_get_drvdata and video_devdata as this is
+   used very often. */
+static inline void *video_drvdata(struct file *file)
+{
+	return video_get_drvdata(video_devdata(file));
+}
 
 #endif /* _V4L2_DEV_H */
