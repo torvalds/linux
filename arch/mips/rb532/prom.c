@@ -37,8 +37,6 @@
 #include <asm/mach-rc32434/ddr.h>
 #include <asm/mach-rc32434/prom.h>
 
-extern void __init setup_serial_port(void);
-
 unsigned int idt_cpu_freq = 132000000;
 EXPORT_SYMBOL(idt_cpu_freq);
 
