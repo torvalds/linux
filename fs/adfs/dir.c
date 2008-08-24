@@ -197,6 +197,7 @@ out:
 
 const struct file_operations adfs_dir_operations = {
 	.read		= generic_read_dir,
+	.llseek		= generic_file_llseek,
 	.readdir	= adfs_readdir,
 	.fsync		= file_fsync,
 };
