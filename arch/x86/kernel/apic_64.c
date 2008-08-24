@@ -24,9 +24,11 @@
 #include <linux/kernel_stat.h>
 #include <linux/sysdev.h>
 #include <linux/ioport.h>
+#include <linux/cpu.h>
 #include <linux/clockchips.h>
 #include <linux/acpi_pmtmr.h>
 #include <linux/module.h>
+#include <linux/dmi.h>
 #include <linux/dmar.h>
 
 #include <asm/atomic.h>
@@ -34,8 +36,10 @@
 #include <asm/mtrr.h>
 #include <asm/mpspec.h>
 #include <asm/desc.h>
+#include <asm/arch_hooks.h>
 #include <asm/hpet.h>
 #include <asm/pgalloc.h>
+#include <asm/i8253.h>
 #include <asm/nmi.h>
 #include <asm/idle.h>
 #include <asm/proto.h>
@@ -43,8 +47,9 @@
 #include <asm/apic.h>
 #include <asm/i8259.h>
 
-#include <mach_ipi.h>
 #include <mach_apic.h>
+#include <mach_apicdef.h>
+#include <mach_ipi.h>
 
 /*
  * Sanity check
