@@ -1162,9 +1162,9 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 	spin_lock_irqsave(&chip->reg_lock, flags);
 
 	/* set CS423x MODE 1 */
-	snd_wss_out(chip, CS4231_MISC_INFO, 0);
+	snd_wss_dout(chip, CS4231_MISC_INFO, 0);
 
-	snd_wss_out(chip, CS4231_RIGHT_INPUT, 0x45); /* 0x55 & ~0x10 */
+	snd_wss_dout(chip, CS4231_RIGHT_INPUT, 0x45); /* 0x55 & ~0x10 */
 	r = snd_wss_in(chip, CS4231_RIGHT_INPUT);
 	if (r != 0x45) {
 		/* RMGE always high on AD1847 */
@@ -1174,7 +1174,7 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 		}
 		hardware = WSS_HW_AD1847;
 	} else {
-		snd_wss_out(chip, CS4231_LEFT_INPUT,  0xaa);
+		snd_wss_dout(chip, CS4231_LEFT_INPUT,  0xaa);
 		r = snd_wss_in(chip, CS4231_LEFT_INPUT);
 		/* L/RMGE always low on AT2320 */
 		if ((r | CS4231_ENABLE_MIC_GAIN) != 0xaa) {
@@ -1199,7 +1199,7 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 	r = snd_wss_in(chip, CS4231_MISC_INFO);
 
 	/* set CS423x MODE 2 */
-	snd_wss_out(chip, CS4231_MISC_INFO, CS4231_MODE2);
+	snd_wss_dout(chip, CS4231_MISC_INFO, CS4231_MODE2);
 	for (i = 0; i < 16; i++) {
 		if (snd_wss_in(chip, i) != snd_wss_in(chip, 16 + i)) {
 			/* we have more than 16 registers: check ID */
@@ -1221,7 +1221,7 @@ static int snd_ad1848_probe(struct snd_wss *chip)
 	else
 		chip->hardware = WSS_HW_AD1848;
 out_mode:
-	snd_wss_out(chip, CS4231_MISC_INFO, 0);
+	snd_wss_dout(chip, CS4231_MISC_INFO, 0);
 out:
 	spin_unlock_irqrestore(&chip->reg_lock, flags);
 	return err;
