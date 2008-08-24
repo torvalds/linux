@@ -1277,7 +1277,7 @@ static void mv643xx_eth_get_ethtool_stats(struct net_device *dev,
 					  struct ethtool_stats *stats,
 					  uint64_t *data)
 {
-	struct mv643xx_eth_private *mp = dev->priv;
+	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int i;
 
 	mib_counters_update(mp);
