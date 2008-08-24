@@ -559,7 +559,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 
 		spin_unlock_irqrestore(&mp->lock, flags);
 
-		dma_unmap_single(NULL, rx_desc->buf_ptr + 2,
+		dma_unmap_single(NULL, rx_desc->buf_ptr,
 				 rx_desc->buf_size, DMA_FROM_DEVICE);
 		rxq->rx_desc_count--;
 		rx++;
