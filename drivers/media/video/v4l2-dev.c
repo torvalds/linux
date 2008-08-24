@@ -226,6 +226,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	int end;
 	int ret;
 	char *name_base;
+	void *priv = video_get_drvdata(vfd);
 
 	/* the release callback MUST be present */
 	BUG_ON(!vfd->release);
@@ -295,6 +296,9 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 
 	/* sysfs class */
 	memset(&vfd->dev, 0, sizeof(vfd->dev));
+	/* The memset above cleared the device's drvdata, so
+	   put back the copy we made earlier. */
+	video_set_drvdata(vfd, priv);
 	vfd->dev.class = &video_class;
 	vfd->dev.devt = MKDEV(VIDEO_MAJOR, vfd->minor);
 	if (vfd->parent)
