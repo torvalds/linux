@@ -57,14 +57,7 @@
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
 static char mv643xx_eth_driver_version[] = "1.3";
 
-#define MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MV643XX_ETH_TX_FAST_REFILL
-
-#ifdef MV643XX_ETH_CHECKSUM_OFFLOAD_TX
-#define MAX_DESCS_PER_SKB	(MAX_SKB_FRAGS + 1)
-#else
-#define MAX_DESCS_PER_SKB	1
-#endif
 
 /*
  * Registers shared between all ports.
@@ -464,7 +457,7 @@ static void __txq_maybe_wake(struct tx_queue *txq)
 	 */
 	BUG_ON(txq->index != mp->txq_primary);
 
-	if (txq->tx_ring_size - txq->tx_desc_count >= MAX_DESCS_PER_SKB)
+	if (txq->tx_ring_size - txq->tx_desc_count >= MAX_SKB_FRAGS + 1)
 		netif_wake_queue(mp->dev);
 }
 
@@ -855,7 +848,7 @@ static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	txq = mp->txq + mp->txq_primary;
 
-	if (txq->tx_ring_size - txq->tx_desc_count < MAX_DESCS_PER_SKB) {
+	if (txq->tx_ring_size - txq->tx_desc_count < MAX_SKB_FRAGS + 1) {
 		spin_unlock_irqrestore(&mp->lock, flags);
 		if (txq->index == mp->txq_primary && net_ratelimit())
 			dev_printk(KERN_ERR, &dev->dev,
@@ -873,7 +866,7 @@ static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		int entries_left;
 
 		entries_left = txq->tx_ring_size - txq->tx_desc_count;
-		if (entries_left < MAX_DESCS_PER_SKB)
+		if (entries_left < MAX_SKB_FRAGS + 1)
 			netif_stop_queue(dev);
 	}
 
@@ -2656,14 +2649,8 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	dev->watchdog_timeo = 2 * HZ;
 	dev->base_addr = 0;
 
-#ifdef MV643XX_ETH_CHECKSUM_OFFLOAD_TX
-	/*
-	 * Zero copy can only work if we use Discovery II memory. Else, we will
-	 * have to map the buffers to ISA memory which is only 16 MB
-	 */
 	dev->features = NETIF_F_SG | NETIF_F_IP_CSUM;
 	dev->vlan_features = NETIF_F_SG | NETIF_F_IP_CSUM;
-#endif
 
 	SET_NETDEV_DEV(dev, &pdev->dev);
 
@@ -2676,12 +2663,6 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 
 	dev_printk(KERN_NOTICE, &dev->dev, "port %d with MAC address %s\n",
 		   mp->port_num, print_mac(mac, dev->dev_addr));
-
-	if (dev->features & NETIF_F_SG)
-		dev_printk(KERN_NOTICE, &dev->dev, "scatter/gather enabled\n");
-
-	if (dev->features & NETIF_F_IP_CSUM)
-		dev_printk(KERN_NOTICE, &dev->dev, "tx checksum offload\n");
 
 	if (mp->tx_desc_sram_size > 0)
 		dev_printk(KERN_NOTICE, &dev->dev, "configured with sram\n");
