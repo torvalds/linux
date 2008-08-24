@@ -208,6 +208,7 @@ static int firesat_probe(struct device *dev)
 		}
 
 		sema_init(&firesat->avc_sem, 1);
+		init_waitqueue_head(&firesat->avc_wait);
 		atomic_set(&firesat->avc_reply_received, 1);
 		sema_init(&firesat->demux_sem, 1);
 		atomic_set(&firesat->reschedule_remotecontrol, 0);

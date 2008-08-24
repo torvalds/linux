@@ -140,6 +140,7 @@ struct firesat {
 	int				ca_time_interval;
 
 	struct semaphore		avc_sem;
+	wait_queue_head_t		avc_wait;
 	atomic_t			avc_reply_received;
 
 	atomic_t			reschedule_remotecontrol;

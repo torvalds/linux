@@ -26,7 +26,7 @@
 
 static unsigned int avc_comm_debug = 0;
 module_param(avc_comm_debug, int, 0644);
-MODULE_PARM_DESC(avc_comm_debug, "debug logging of AV/C communication, default is 0 (no)");
+MODULE_PARM_DESC(avc_comm_debug, "debug logging level [0..2] of AV/C communication, default is 0 (no)");
 
 static int __AVCRegisterRemoteControl(struct firesat*firesat, int internal);
 
@@ -35,22 +35,6 @@ static void avc_free_packet(struct hpsb_packet *packet)
 {
 	hpsb_free_tlabel(packet);
 	hpsb_free_packet(packet);
-}
-
-/*
- * Goofy routine that basically does a down_timeout function.
- * Stolen from sbp2.c
- */
-static int avc_down_timeout(atomic_t *done, int timeout)
-{
-	int i;
-
-	for (i = timeout; (i > 0 && atomic_read(done) == 0); i-= HZ/10) {
-		set_current_state(TASK_INTERRUPTIBLE);
-		if (schedule_timeout(HZ/10))	/* 100ms */
-			return(1);
-	}
-	return ((i > 0) ? 0:1);
 }
 
 static const char* get_ctype_string(__u8 ctype)
@@ -135,96 +119,114 @@ static void log_command_frame(const AVCCmdFrm *CmdFrm)
 {
 	int k;
 	printk(KERN_INFO "AV/C Command Frame:\n");
-	printk("CommandType=%s, Address=%s(0x%02X,0x%02X), opcode=%s(0x%02X), "
-	       "length=%d\n", get_ctype_string(CmdFrm->ctype),
+	printk(KERN_INFO "CommandType=%s, Address=%s(0x%02X,0x%02X), "
+	       "opcode=%s(0x%02X), length=%d\n",
+	       get_ctype_string(CmdFrm->ctype),
 	       get_subunit_address(CmdFrm->suid, CmdFrm->sutyp),
 	       CmdFrm->suid, CmdFrm->sutyp, get_opcode_string(CmdFrm->opcode),
 	       CmdFrm->opcode, CmdFrm->length);
-	for(k = 0; k < CmdFrm->length - 3; k++) {
-		if (k % 5 != 0)
-			printk(", ");
-		else if (k != 0)
-			printk("\n");
-		printk("operand[%d] = %02X", k, CmdFrm->operand[k]);
+	if (avc_comm_debug > 1) {
+		for(k = 0; k < CmdFrm->length - 3; k++) {
+			if (k % 5 != 0)
+				printk(", ");
+			else if (k != 0)
+				printk("\n");
+			printk(KERN_INFO "operand[%d] = %02X", k,
+			       CmdFrm->operand[k]);
+		}
+		printk(KERN_INFO "\n");
 	}
-	printk("\n");
 }
 
 static void log_response_frame(const AVCRspFrm *RspFrm)
 {
 	int k;
 	printk(KERN_INFO "AV/C Response Frame:\n");
-	printk("Response=%s, Address=%s(0x%02X,0x%02X), opcode=%s(0x%02X), "
-	       "length=%d\n", get_resp_string(RspFrm->resp),
+	printk(KERN_INFO "Response=%s, Address=%s(0x%02X,0x%02X), "
+	       "opcode=%s(0x%02X), length=%d\n", get_resp_string(RspFrm->resp),
 	       get_subunit_address(RspFrm->suid, RspFrm->sutyp),
 	       RspFrm->suid, RspFrm->sutyp, get_opcode_string(RspFrm->opcode),
 	       RspFrm->opcode, RspFrm->length);
-	for(k = 0; k < RspFrm->length - 3; k++) {
-		if (k % 5 != 0)
-			printk(", ");
-		else if (k != 0)
-			printk("\n");
-		printk("operand[%d] = %02X", k, RspFrm->operand[k]);
+	if (avc_comm_debug > 1) {
+		for(k = 0; k < RspFrm->length - 3; k++) {
+			if (k % 5 != 0)
+				printk(KERN_INFO ", ");
+			else if (k != 0)
+				printk(KERN_INFO "\n");
+			printk(KERN_INFO "operand[%d] = %02X", k,
+			       RspFrm->operand[k]);
+		}
+		printk(KERN_INFO "\n");
 	}
-	printk("\n");
 }
 
 static int __AVCWrite(struct firesat *firesat, const AVCCmdFrm *CmdFrm,
 		      AVCRspFrm *RspFrm) {
 	struct hpsb_packet *packet;
 	struct node_entry *ne;
+	int num_tries = 0;
+	int packet_ok = 0;
 
 	ne = firesat->nodeentry;
 	if(!ne) {
-		printk("%s: lost node!\n",__func__);
+		printk(KERN_ERR "%s: lost node!\n",__func__);
 		return -EIO;
 	}
 
 	/* need all input data */
 	if(!firesat || !ne || !CmdFrm) {
-		printk("%s: missing input data!\n",__func__);
+		printk(KERN_ERR "%s: missing input data!\n",__func__);
 		return -EINVAL;
 	}
 
-	if (avc_comm_debug == 1) {
+	if (avc_comm_debug > 0) {
 		log_command_frame(CmdFrm);
 	}
 
 	if(RspFrm)
 		atomic_set(&firesat->avc_reply_received, 0);
 
-	packet=hpsb_make_writepacket(ne->host, ne->nodeid,
-				     COMMAND_REGISTER,
-				     (quadlet_t*)CmdFrm,
-				     CmdFrm->length);
-	hpsb_set_packet_complete_task(packet,
-				      (void (*)(void*))avc_free_packet,
-				      packet);
-	hpsb_node_fill_packet(ne, packet);
+	while (packet_ok == 0 && num_tries < 6) {
+		num_tries++;
+		packet_ok = 1;
+		packet = hpsb_make_writepacket(ne->host, ne->nodeid,
+					       COMMAND_REGISTER,
+					       (quadlet_t*)CmdFrm,
+					       CmdFrm->length);
+		hpsb_set_packet_complete_task(packet,
+					      (void (*)(void*))avc_free_packet,
+					      packet);
+		hpsb_node_fill_packet(ne, packet);
 
-	if (hpsb_send_packet(packet) < 0) {
-		avc_free_packet(packet);
-		atomic_set(&firesat->avc_reply_received, 1);
-		printk("%s: send failed!\n",__func__);
-		return -EIO;
-	}
-
-	if(RspFrm) {
-		// AV/C specs say that answers should be send within
-		// 150 ms so let's time out after 200 ms
-		if(avc_down_timeout(&firesat->avc_reply_received,
-				    HZ / 5)) {
-			printk("%s: timeout waiting for avc response\n",
-			       __func__);
+		if (hpsb_send_packet(packet) < 0) {
+			avc_free_packet(packet);
 			atomic_set(&firesat->avc_reply_received, 1);
-			return -ETIMEDOUT;
+			printk(KERN_ERR "%s: send failed!\n",__func__);
+			return -EIO;
 		}
-		memcpy(RspFrm, firesat->respfrm,
-		       firesat->resp_length);
-		RspFrm->length = firesat->resp_length;
-		if (avc_comm_debug == 1) {
-			log_response_frame(RspFrm);
+
+		if(RspFrm) {
+			// AV/C specs say that answers should be send within
+			// 150 ms so let's time out after 200 ms
+			if (wait_event_timeout(firesat->avc_wait,
+					       atomic_read(&firesat->avc_reply_received) == 1,
+					       HZ / 5) == 0) {
+				packet_ok = 0;
+			}
+			else {
+				memcpy(RspFrm, firesat->respfrm,
+				       firesat->resp_length);
+				RspFrm->length = firesat->resp_length;
+				if (avc_comm_debug > 0) {
+					log_response_frame(RspFrm);
+				}
+			}
 		}
+	}
+	if (packet_ok == 0) {
+		printk(KERN_ERR "%s: AV/C response timed out 6 times.\n",
+		       __func__);
+		return -ETIMEDOUT;
 	}
 
 	return 0;
@@ -292,7 +294,8 @@ int AVCRecv(struct firesat *firesat, u8 *data, size_t length) {
 	}
 #endif
 	if(atomic_read(&firesat->avc_reply_received) == 1) {
-		printk("%s: received out-of-order AVC response, ignored\n",__func__);
+		printk(KERN_ERR "%s: received out-of-order AVC response, "
+		       "ignored\n",__func__);
 		return -EINVAL;
 	}
 //	AVCRspFrm *resp=(AVCRspFrm *)data;
@@ -312,6 +315,7 @@ int AVCRecv(struct firesat *firesat, u8 *data, size_t length) {
 	firesat->resp_length=length;
 
 	atomic_set(&firesat->avc_reply_received, 1);
+	wake_up(&firesat->avc_wait);
 
 	return 0;
 }
@@ -740,11 +744,12 @@ int AVCIdentifySubunit(struct firesat *firesat, unsigned char *systemId, int *tr
 		return -EIO;
 
 	if(RspFrm.resp != STABLE && RspFrm.resp != ACCEPTED) {
-		printk("%s: AVCWrite returned error code %d\n",__func__,RspFrm.resp);
+		printk(KERN_ERR "%s: AVCWrite returned error code %d\n",
+		       __func__, RspFrm.resp);
 		return -EINVAL;
 	}
 	if(((RspFrm.operand[3] << 8) + RspFrm.operand[4]) != 8) {
-		printk("%s: Invalid response length\n",__func__);
+		printk(KERN_ERR "%s: Invalid response length\n", __func__);
 		return -EINVAL;
 	}
 	if(systemId)
@@ -777,7 +782,8 @@ int AVCTunerStatus(struct firesat *firesat, ANTENNA_INPUT_INFO *antenna_input_in
 		return -EIO;
 
 	if(RspFrm.resp != STABLE && RspFrm.resp != ACCEPTED) {
-		printk("%s: AVCWrite returned code %d\n",__func__,RspFrm.resp);
+		printk(KERN_ERR "%s: AVCWrite returned code %d\n",
+		       __func__, RspFrm.resp);
 		return -EINVAL;
 	}
 
@@ -788,7 +794,8 @@ int AVCTunerStatus(struct firesat *firesat, ANTENNA_INPUT_INFO *antenna_input_in
 		       sizeof(ANTENNA_INPUT_INFO));
 		return 0;
 	}
-	printk("%s: invalid info returned from AVC\n",__func__);
+	printk(KERN_ERR "%s: invalid tuner status (op=%d,length=%d) returned "
+	       "from AVC\n", __func__, RspFrm.operand[1], length);
 	return -EINVAL;
 }
 
@@ -800,7 +807,8 @@ int AVCLNBControl(struct firesat *firesat, char voltage, char burst,
 	AVCRspFrm RspFrm;
 	int i,j;
 
-	printk(KERN_INFO "%s: voltage = %x, burst = %x, conttone = %x\n",__func__,voltage,burst,conttone);
+	printk(KERN_INFO "%s: voltage = %x, burst = %x, conttone = %x\n",
+	       __func__, voltage, burst, conttone);
 
 	memset(&CmdFrm, 0, sizeof(AVCCmdFrm));
 
@@ -822,11 +830,13 @@ int AVCLNBControl(struct firesat *firesat, char voltage, char burst,
 
 	for(j=0;j<nrdiseq;j++) {
 		int k;
-		printk(KERN_INFO "%s: diseq %d len %x\n",__func__,j,diseqcmd[j].msg_len);
+		printk(KERN_INFO "%s: diseq %d len %x\n",
+		       __func__, j, diseqcmd[j].msg_len);
 		CmdFrm.operand[i++]=diseqcmd[j].msg_len;
 
 		for(k=0;k<diseqcmd[j].msg_len;k++) {
-			printk(KERN_INFO "%s: diseq %d msg[%d] = %x\n",__func__,j,k,diseqcmd[j].msg[k]);
+			printk(KERN_INFO "%s: diseq %d msg[%d] = %x\n",
+			       __func__, j, k, diseqcmd[j].msg[k]);
 			CmdFrm.operand[i++]=diseqcmd[j].msg[k];
 		}
 	}
@@ -847,7 +857,8 @@ int AVCLNBControl(struct firesat *firesat, char voltage, char burst,
 		return -EIO;
 
 	if(RspFrm.resp != ACCEPTED) {
-		printk("%s: AVCWrite returned code %d\n",__func__,RspFrm.resp);
+		printk(KERN_ERR "%s: AVCWrite returned code %d\n",
+		       __func__, RspFrm.resp);
 		return -EINVAL;
 	}
 
@@ -879,7 +890,8 @@ int AVCSubUnitInfo(struct firesat *firesat, char *subunitcount)
 		return -EIO;
 
 	if(RspFrm.resp != STABLE) {
-		printk("%s: AVCWrite returned code %d\n",__func__,RspFrm.resp);
+		printk(KERN_ERR "%s: AVCWrite returned code %d\n",
+		       __func__, RspFrm.resp);
 		return -EINVAL;
 	}
 
@@ -1100,9 +1112,10 @@ int avc_ca_pmt(struct firesat *firesat, char *msg, int length)
 	CmdFrm.opcode = VENDOR;
 
 	if (msg[0] != LIST_MANAGEMENT_ONLY) {
-		printk(KERN_ERR "The only list_manasgement parameter that is "
-		       "supported by the firesat driver is \"only\" (3).");
-		return -EFAULT;
+		printk(KERN_INFO "%s: list_management %d not support. "
+		       "Forcing list_management to \"only\" (3). \n",
+		       __func__, msg[0]);
+		msg[0] = LIST_MANAGEMENT_ONLY;
 	}
 	// We take the cmd_id from the programme level only!
 	list_management = msg[0];
