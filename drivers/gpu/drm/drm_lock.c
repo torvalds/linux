@@ -105,14 +105,19 @@ int drm_lock(struct drm_device *dev, void *data, struct drm_file *file_priv)
 		  ret ? "interrupted" : "has lock");
 	if (ret) return ret;
 
-	sigemptyset(&dev->sigmask);
-	sigaddset(&dev->sigmask, SIGSTOP);
-	sigaddset(&dev->sigmask, SIGTSTP);
-	sigaddset(&dev->sigmask, SIGTTIN);
-	sigaddset(&dev->sigmask, SIGTTOU);
-	dev->sigdata.context = lock->context;
-	dev->sigdata.lock = dev->lock.hw_lock;
-	block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
+	/* don't set the block all signals on the master process for now 
+	 * really probably not the correct answer but lets us debug xkb
+ 	 * xserver for now */
+	if (!file_priv->master) {
+		sigemptyset(&dev->sigmask);
+		sigaddset(&dev->sigmask, SIGSTOP);
+		sigaddset(&dev->sigmask, SIGTSTP);
+		sigaddset(&dev->sigmask, SIGTTIN);
+		sigaddset(&dev->sigmask, SIGTTOU);
+		dev->sigdata.context = lock->context;
+		dev->sigdata.lock = dev->lock.hw_lock;
+		block_all_signals(drm_notifier, &dev->sigdata, &dev->sigmask);
+	}
 
 	if (dev->driver->dma_ready && (lock->flags & _DRM_LOCK_READY))
 		dev->driver->dma_ready(dev);
