@@ -23,6 +23,7 @@
 #define POODLE_GPIO_AC_IN		(1)
 #define POODLE_GPIO_CO			16
 #define POODLE_GPIO_TP_INT		(5)
+#define POODLE_GPIO_TP_CS		(24)
 #define POODLE_GPIO_WAKEUP		(11)	/* change battery */
 #define POODLE_GPIO_GA_INT		(10)
 #define POODLE_GPIO_IR_ON		(22)

@@ -21,6 +21,8 @@
 #include <linux/pm.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -43,6 +45,7 @@
 #include <mach/pxafb.h>
 #include <mach/sharpsl.h>
 #include <mach/ssp.h>
+#include <mach/pxa2xx_spi.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>
@@ -63,9 +66,9 @@ static unsigned long poodle_pin_config[] __initdata = {
 
 	/* SSP1 */
 	GPIO23_SSP1_SCLK,
-	GPIO24_SSP1_SFRM,
 	GPIO25_SSP1_TXD,
 	GPIO26_SSP1_RXD,
+	GPIO24_GPIO,	/* POODLE_GPIO_TP_CS - SFRM as chip select */
 
 	/* I2S */
 	GPIO28_I2S_BITCLK_OUT,
@@ -197,62 +200,55 @@ struct platform_device poodle_locomo_device = {
 
 EXPORT_SYMBOL(poodle_locomo_device);
 
-/*
- * Poodle SSP Device
- */
-
-struct platform_device poodle_ssp_device = {
-	.name		= "corgi-ssp",
-	.id		= -1,
+#if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
+static struct pxa2xx_spi_master poodle_spi_info = {
+	.num_chipselect	= 1,
 };
 
-struct corgissp_machinfo poodle_ssp_machinfo = {
-	.port		= 1,
-	.cs_lcdcon	= -1,
-	.cs_ads7846	= -1,
-	.cs_max1111	= -1,
-	.clk_lcdcon	= 2,
-	.clk_ads7846	= 36,
-	.clk_max1111	= 2,
+static struct ads7846_platform_data poodle_ads7846_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.gpio_pendown		= POODLE_GPIO_TP_INT,
 };
 
+static void ads7846_cs(u32 command)
+{
+	gpio_set_value(POODLE_GPIO_TP_CS, !(command == PXA2XX_CS_ASSERT));
+}
 
-/*
- * Poodle Touch Screen Device
- */
-static struct resource poodlets_resources[] = {
-	[0] = {
-		.start		= POODLE_IRQ_GPIO_TP_INT,
-		.end		= POODLE_IRQ_GPIO_TP_INT,
-		.flags		= IORESOURCE_IRQ,
+static struct pxa2xx_spi_chip poodle_ads7846_chip = {
+	.cs_control		= ads7846_cs,
+};
+
+static struct spi_board_info poodle_spi_devices[] = {
+	{
+		.modalias	= "ads7846",
+		.max_speed_hz	= 10000,
+		.bus_num	= 1,
+		.platform_data	= &poodle_ads7846_info,
+		.controller_data= &poodle_ads7846_chip,
+		.irq		= gpio_to_irq(POODLE_GPIO_TP_INT),
 	},
 };
 
-static unsigned long poodle_get_hsync_invperiod(void)
+static void __init poodle_init_spi(void)
 {
-	return 0;
+	int err;
+
+	err = gpio_request(POODLE_GPIO_TP_CS, "ADS7846_CS");
+	if (err)
+		return;
+
+	gpio_direction_output(POODLE_GPIO_TP_CS, 1);
+
+	pxa2xx_set_spi_info(1, &poodle_spi_info);
+	spi_register_board_info(ARRAY_AND_SIZE(poodle_spi_devices));
 }
-
-static void poodle_null_hsync(void)
-{
-}
-
-static struct corgits_machinfo  poodle_ts_machinfo = {
-	.get_hsync_invperiod	= poodle_get_hsync_invperiod,
-	.put_hsync       	= poodle_null_hsync,
-	.wait_hsync      	= poodle_null_hsync,
-};
-
-static struct platform_device poodle_ts_device = {
-	.name		= "corgi-ts",
-	.dev		= {
-		.platform_data	= &poodle_ts_machinfo,
-	},
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(poodlets_resources),
-	.resource	= poodlets_resources,
-};
-
+#else
+static inline void poodle_init_spi(void) {}
+#endif
 
 /*
  * MMC/SD Device
@@ -419,8 +415,6 @@ static struct pxafb_mach_info poodle_fb_info = {
 static struct platform_device *devices[] __initdata = {
 	&poodle_locomo_device,
 	&poodle_scoop_device,
-	&poodle_ssp_device,
-	&poodle_ts_device,
 };
 
 static void poodle_poweroff(void)
@@ -445,7 +439,6 @@ static void __init poodle_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(poodle_pin_config));
 
 	platform_scoop_config = &poodle_pcmcia_config;
-	corgi_ssp_set_machinfo(&poodle_ssp_machinfo);
 
 	ret = platform_add_devices(devices, ARRAY_SIZE(devices));
 	if (ret)
@@ -457,6 +450,7 @@ static void __init poodle_init(void)
 	pxa_set_mci_info(&poodle_mci_platform_data);
 	pxa_set_ficp_info(&poodle_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
+	poodle_init_spi();
 }
 
 static void __init fixup_poodle(struct machine_desc *desc,
