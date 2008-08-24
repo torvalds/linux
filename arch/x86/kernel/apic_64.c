@@ -244,6 +244,16 @@ void __cpuinit enable_NMI_through_LVT0(void)
 	apic_write(APIC_LVT0, v);
 }
 
+#ifdef CONFIG_X86_32
+/**
+ * get_physical_broadcast - Get number of physical broadcast IDs
+ */
+int get_physical_broadcast(void)
+{
+	return modern_apic() ? 0xff : 0xf;
+}
+#endif
+
 /**
  * lapic_get_maxlvt - get the maximum number of local vector table entries
  */
