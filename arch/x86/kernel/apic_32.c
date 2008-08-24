@@ -50,16 +50,37 @@
 # error SPURIOUS_APIC_VECTOR definition error
 #endif
 
-unsigned long mp_lapic_addr;
-
+#ifdef CONFIG_X86_32
 /*
  * Knob to control our willingness to enable the local APIC.
  *
  * +1=force-enable
  */
 static int force_enable_local_apic;
-int disable_apic;
+/*
+ * APIC command line parameters
+ */
+static int __init parse_lapic(char *arg)
+{
+	force_enable_local_apic = 1;
+	return 0;
+}
+early_param("lapic", parse_lapic);
+#endif
 
+#ifdef CONFIG_X86_64
+static int apic_calibrate_pmtmr __initdata;
+static __init int setup_apicpmtimer(char *s)
+{
+	apic_calibrate_pmtmr = 1;
+	notsc_setup(NULL);
+	return 0;
+}
+__setup("apicpmtimer", setup_apicpmtimer);
+#endif
+
+unsigned long mp_lapic_addr;
+int disable_apic;
 /* Disable local APIC timer from the kernel commandline or via dmi quirk */
 static int disable_apic_timer __cpuinitdata;
 /* Local APIC timer works in C2 */
@@ -1742,15 +1763,6 @@ static void apic_pm_activate(void) { }
 
 #endif	/* CONFIG_PM */
 
-/*
- * APIC command line parameters
- */
-static int __init parse_lapic(char *arg)
-{
-	force_enable_local_apic = 1;
-	return 0;
-}
-early_param("lapic", parse_lapic);
 
 static int __init setup_disableapic(char *arg)
 {
@@ -1787,16 +1799,6 @@ static int __init parse_nolapic_timer(char *arg)
 	return 0;
 }
 early_param("nolapic_timer", parse_nolapic_timer);
-
-#ifdef CONFIG_X86_64
-static __init int setup_apicpmtimer(char *s)
-{
-	apic_calibrate_pmtmr = 1;
-	notsc_setup(NULL);
-	return 0;
-}
-__setup("apicpmtimer", setup_apicpmtimer);
-#endif
 
 static int __init apic_set_verbosity(char *arg)
 {
