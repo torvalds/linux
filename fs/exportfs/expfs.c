@@ -280,13 +280,14 @@ static int get_name(struct vfsmount *mnt, struct dentry *dentry,
 		int old_seq = buffer.sequence;
 
 		error = vfs_readdir(file, filldir_one, &buffer);
+		if (buffer.found) {
+			error = 0;
+			break;
+		}
 
 		if (error < 0)
 			break;
 
-		error = 0;
-		if (buffer.found)
-			break;
 		error = -ENOENT;
 		if (old_seq == buffer.sequence)
 			break;
