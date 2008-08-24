@@ -251,7 +251,7 @@ struct mv643xx_eth_shared_private {
 	/*
 	 * Protects access to SMI_REG, which is shared between ports.
 	 */
-	spinlock_t phy_lock;
+	struct mutex phy_lock;
 
 	/*
 	 * Per-port MBUS window access register value.
@@ -988,11 +988,10 @@ static void smi_reg_read(struct mv643xx_eth_private *mp, unsigned int addr,
 			 unsigned int reg, unsigned int *value)
 {
 	void __iomem *smi_reg = mp->shared_smi->base + SMI_REG;
-	unsigned long flags;
 	int i;
 
 	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
+	mutex_lock(&mp->shared_smi->phy_lock);
 
 	/* wait for the SMI register to become available */
 	for (i = 0; readl(smi_reg) & SMI_BUSY; i++) {
@@ -1016,7 +1015,7 @@ static void smi_reg_read(struct mv643xx_eth_private *mp, unsigned int addr,
 
 	*value = readl(smi_reg) & 0xffff;
 out:
-	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
+	mutex_unlock(&mp->shared_smi->phy_lock);
 }
 
 static void smi_reg_write(struct mv643xx_eth_private *mp,
@@ -1024,11 +1023,10 @@ static void smi_reg_write(struct mv643xx_eth_private *mp,
 			  unsigned int reg, unsigned int value)
 {
 	void __iomem *smi_reg = mp->shared_smi->base + SMI_REG;
-	unsigned long flags;
 	int i;
 
 	/* the SMI register is a shared resource */
-	spin_lock_irqsave(&mp->shared_smi->phy_lock, flags);
+	mutex_lock(&mp->shared_smi->phy_lock);
 
 	/* wait for the SMI register to become available */
 	for (i = 0; readl(smi_reg) & SMI_BUSY; i++) {
@@ -1042,7 +1040,7 @@ static void smi_reg_write(struct mv643xx_eth_private *mp,
 	writel(SMI_OPCODE_WRITE | (reg << 21) |
 		(addr << 16) | (value & 0xffff), smi_reg);
 out:
-	spin_unlock_irqrestore(&mp->shared_smi->phy_lock, flags);
+	mutex_unlock(&mp->shared_smi->phy_lock);
 }
 
 
@@ -1161,9 +1159,7 @@ static int mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int err;
 
-	spin_lock_irq(&mp->lock);
 	err = mii_ethtool_gset(&mp->mii, cmd);
-	spin_unlock_irq(&mp->lock);
 
 	/*
 	 * The MAC does not support 1000baseT_Half.
@@ -1211,18 +1207,13 @@ static int mv643xx_eth_get_settings_phyless(struct net_device *dev, struct ethto
 static int mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	int err;
 
 	/*
 	 * The MAC does not support 1000baseT_Half.
 	 */
 	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
 
-	spin_lock_irq(&mp->lock);
-	err = mii_ethtool_sset(&mp->mii, cmd);
-	spin_unlock_irq(&mp->lock);
-
-	return err;
+	return mii_ethtool_sset(&mp->mii, cmd);
 }
 
 static int mv643xx_eth_set_settings_phyless(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -2324,7 +2315,7 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp->base == NULL)
 		goto out_free;
 
-	spin_lock_init(&msp->phy_lock);
+	mutex_init(&msp->phy_lock);
 
 	/*
 	 * (Re-)program MBUS remapping windows if we are asked to.
