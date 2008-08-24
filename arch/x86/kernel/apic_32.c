@@ -1033,9 +1033,10 @@ static void __cpuinit lapic_setup_esr(void)
  */
 void __cpuinit setup_local_APIC(void)
 {
-	unsigned long value, integrated;
+	unsigned int value;
 	int i, j;
 
+#ifdef CONFIG_X86_32
 	/* Pound the ESR really hard over the head with a big hammer - mbligh */
 	if (esr_disable) {
 		apic_write(APIC_ESR, 0);
@@ -1043,14 +1044,16 @@ void __cpuinit setup_local_APIC(void)
 		apic_write(APIC_ESR, 0);
 		apic_write(APIC_ESR, 0);
 	}
+#endif
 
-	integrated = lapic_is_integrated();
+	preempt_disable();
 
 	/*
 	 * Double-check whether this APIC is really registered.
+	 * This is meaningless in clustered apic mode, so we skip it.
 	 */
 	if (!apic_id_registered())
-		WARN_ON_ONCE(1);
+		BUG();
 
 	/*
 	 * Intel recommends to set DFR, LDR and TPR before enabling
@@ -1096,6 +1099,7 @@ void __cpuinit setup_local_APIC(void)
 	 */
 	value |= APIC_SPIV_APIC_ENABLED;
 
+#ifdef CONFIG_X86_32
 	/*
 	 * Some unknown Intel IO/APIC (or APIC) errata is biting us with
 	 * certain networking cards. If high frequency interrupts are
@@ -1116,8 +1120,13 @@ void __cpuinit setup_local_APIC(void)
 	 * See also the comment in end_level_ioapic_irq().  --macro
 	 */
 
-	/* Enable focus processor (bit==0) */
+	/*
+	 * - enable focus processor (bit==0)
+	 * - 64bit mode always use processor focus
+	 *   so no need to set it
+	 */
 	value &= ~APIC_SPIV_FOCUS_DISABLED;
+#endif
 
 	/*
 	 * Set spurious IRQ vector
@@ -1154,9 +1163,11 @@ void __cpuinit setup_local_APIC(void)
 		value = APIC_DM_NMI;
 	else
 		value = APIC_DM_NMI | APIC_LVT_MASKED;
-	if (!integrated)		/* 82489DX */
+	if (!lapic_is_integrated())		/* 82489DX */
 		value |= APIC_LVT_LEVEL_TRIGGER;
 	apic_write(APIC_LVT1, value);
+
+	preempt_enable();
 }
 
 void __cpuinit end_local_APIC_setup(void)
