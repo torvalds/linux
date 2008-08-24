@@ -25,6 +25,7 @@
 #include <mach/mfp-pxa25x.h>
 #include <mach/hardware.h>
 #include <mach/udc.h>
+#include <mach/irda.h>
 
 #include "generic.h"
 #include "eseries.h"
@@ -118,6 +119,9 @@ static unsigned long e740_pin_config[] __initdata = {
 	GPIO44_BTUART_CTS,
 	GPIO45_GPIO, /* Used by TMIO for #SUSPEND */
 
+	/* IrDA */
+	GPIO38_GPIO | MFP_LPM_DRIVE_HIGH,
+
 	/* PC Card */
 	GPIO8_GPIO,   /* CD0 */
 	GPIO44_GPIO,  /* CD1 */
@@ -153,6 +157,8 @@ static void __init e740_init(void)
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(e740_pin_config));
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_udc_info(&e7xx_udc_mach_info);
+	e7xx_irda_init();
+	pxa_set_ficp_info(&e7xx_ficp_platform_data);
 }
 
 MACHINE_START(E740, "Toshiba e740")
