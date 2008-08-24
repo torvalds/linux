@@ -1474,10 +1474,17 @@ int __init APIC_init_uniprocessor(void)
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
  */
+#ifdef CONFIG_X86_64
+asmlinkage void smp_spurious_interrupt(void)
+#else
 void smp_spurious_interrupt(struct pt_regs *regs)
+#endif
 {
-	unsigned long v;
+	u32 v;
 
+#ifdef CONFIG_X86_64
+	exit_idle();
+#endif
 	irq_enter();
 	/*
 	 * Check if this really is a spurious interrupt and ACK it
@@ -1488,20 +1495,31 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 	if (v & (1 << (SPURIOUS_APIC_VECTOR & 0x1f)))
 		ack_APIC_irq();
 
+#ifdef CONFIG_X86_64
+	add_pda(irq_spurious_count, 1);
+#else
 	/* see sw-dev-man vol 3, chapter 7.4.13.5 */
 	printk(KERN_INFO "spurious APIC interrupt on CPU#%d, "
 	       "should never happen.\n", smp_processor_id());
 	__get_cpu_var(irq_stat).irq_spurious_count++;
+#endif
 	irq_exit();
 }
 
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
+#ifdef CONFIG_X86_64
+asmlinkage void smp_error_interrupt(void)
+#else
 void smp_error_interrupt(struct pt_regs *regs)
+#endif
 {
-	unsigned long v, v1;
+	u32 v, v1;
 
+#ifdef CONFIG_X86_64
+	exit_idle();
+#endif
 	irq_enter();
 	/* First tickle the hardware, only then report what went on. -- REW */
 	v = apic_read(APIC_ESR);
@@ -1520,7 +1538,7 @@ void smp_error_interrupt(struct pt_regs *regs)
 	   6: Received illegal vector
 	   7: Illegal register address
 	*/
-	printk(KERN_DEBUG "APIC error on CPU%d: %02lx(%02lx)\n",
+	printk(KERN_DEBUG "APIC error on CPU%d: %02x(%02x)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
 }
