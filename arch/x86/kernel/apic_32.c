@@ -1355,6 +1355,17 @@ int apic_version[MAX_APICS];
 
 int __init APIC_init_uniprocessor(void)
 {
+#ifdef CONFIG_X86_64
+	if (disable_apic) {
+		printk(KERN_INFO "Apic disabled\n");
+		return -1;
+	}
+	if (!cpu_has_apic) {
+		disable_apic = 1;
+		printk(KERN_INFO "Apic disabled by BIOS\n");
+		return -1;
+	}
+#else
 	if (!smp_found_config && !cpu_has_apic)
 		return -1;
 
@@ -1368,34 +1379,62 @@ int __init APIC_init_uniprocessor(void)
 		clear_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
 		return -1;
 	}
+#endif
 
+#ifdef HAVE_X2APIC
+	enable_IR_x2apic();
+#endif
+#ifdef CONFIG_X86_64
+	setup_apic_routing();
+#endif
 	verify_local_APIC();
-
 	connect_bsp_APIC();
 
+#ifdef CONFIG_X86_64
+	apic_write(APIC_ID, SET_APIC_ID(boot_cpu_physical_apicid));
+#else
 	/*
 	 * Hack: In case of kdump, after a crash, kernel might be booting
 	 * on a cpu with non-zero lapic id. But boot_cpu_physical_apicid
 	 * might be zero if read from MP tables. Get it from LAPIC.
 	 */
-#ifdef CONFIG_CRASH_DUMP
+# ifdef CONFIG_CRASH_DUMP
 	boot_cpu_physical_apicid = read_apic_id();
+# endif
 #endif
 	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
-
 	setup_local_APIC();
+
+#ifdef CONFIG_X86_64
+	/*
+	 * Now enable IO-APICs, actually call clear_IO_APIC
+	 * We need clear_IO_APIC before enabling vector on BP
+	 */
+	if (!skip_ioapic_setup && nr_ioapics)
+		enable_IO_APIC();
+#endif
 
 #ifdef CONFIG_X86_IO_APIC
 	if (!smp_found_config || skip_ioapic_setup || !nr_ioapics)
 #endif
 		localise_nmi_watchdog();
 	end_local_APIC_setup();
+
 #ifdef CONFIG_X86_IO_APIC
-	if (smp_found_config)
-		if (!skip_ioapic_setup && nr_ioapics)
-			setup_IO_APIC();
+	if (smp_found_config && !skip_ioapic_setup && nr_ioapics)
+		setup_IO_APIC();
+# ifdef CONFIG_X86_64
+	else
+		nr_ioapics = 0;
+# endif
 #endif
+
+#ifdef CONFIG_X86_64
+	setup_boot_APIC_clock();
+	check_nmi_watchdog();
+#else
 	setup_boot_clock();
+#endif
 
 	return 0;
 }
