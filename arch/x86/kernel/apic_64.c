@@ -684,7 +684,6 @@ int setup_profiling_timer(unsigned int multiplier)
 	return -EINVAL;
 }
 
-
 /*
  * Local APIC start and shutdown
  */
@@ -1264,6 +1263,7 @@ end:
 }
 #endif /* HAVE_X2APIC */
 
+#ifdef CONFIG_X86_64
 /*
  * Detect and enable local APICs on non-SMP boards.
  * Original code written by Keir Fraser.
@@ -1281,6 +1281,86 @@ static int __init detect_init_APIC(void)
 	boot_cpu_physical_apicid = 0;
 	return 0;
 }
+#else
+/*
+ * Detect and initialize APIC
+ */
+static int __init detect_init_APIC(void)
+{
+	u32 h, l, features;
+
+	/* Disabled by kernel option? */
+	if (disable_apic)
+		return -1;
+
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+		if ((boot_cpu_data.x86 == 6 && boot_cpu_data.x86_model > 1) ||
+		    (boot_cpu_data.x86 == 15))
+			break;
+		goto no_apic;
+	case X86_VENDOR_INTEL:
+		if (boot_cpu_data.x86 == 6 || boot_cpu_data.x86 == 15 ||
+		    (boot_cpu_data.x86 == 5 && cpu_has_apic))
+			break;
+		goto no_apic;
+	default:
+		goto no_apic;
+	}
+
+	if (!cpu_has_apic) {
+		/*
+		 * Over-ride BIOS and try to enable the local APIC only if
+		 * "lapic" specified.
+		 */
+		if (!force_enable_local_apic) {
+			printk(KERN_INFO "Local APIC disabled by BIOS -- "
+			       "you can enable it with \"lapic\"\n");
+			return -1;
+		}
+		/*
+		 * Some BIOSes disable the local APIC in the APIC_BASE
+		 * MSR. This can only be done in software for Intel P6 or later
+		 * and AMD K7 (Model > 1) or later.
+		 */
+		rdmsr(MSR_IA32_APICBASE, l, h);
+		if (!(l & MSR_IA32_APICBASE_ENABLE)) {
+			printk(KERN_INFO
+			       "Local APIC disabled by BIOS -- reenabling.\n");
+			l &= ~MSR_IA32_APICBASE_BASE;
+			l |= MSR_IA32_APICBASE_ENABLE | APIC_DEFAULT_PHYS_BASE;
+			wrmsr(MSR_IA32_APICBASE, l, h);
+			enabled_via_apicbase = 1;
+		}
+	}
+	/*
+	 * The APIC feature bit should now be enabled
+	 * in `cpuid'
+	 */
+	features = cpuid_edx(1);
+	if (!(features & (1 << X86_FEATURE_APIC))) {
+		printk(KERN_WARNING "Could not enable APIC!\n");
+		return -1;
+	}
+	set_cpu_cap(&boot_cpu_data, X86_FEATURE_APIC);
+	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+
+	/* The BIOS may have set up the APIC at some other address */
+	rdmsr(MSR_IA32_APICBASE, l, h);
+	if (l & MSR_IA32_APICBASE_ENABLE)
+		mp_lapic_addr = l & MSR_IA32_APICBASE_BASE;
+
+	printk(KERN_INFO "Found and enabled local APIC!\n");
+
+	apic_pm_activate();
+
+	return 0;
+
+no_apic:
+	printk(KERN_INFO "No local APIC present or hardware disabled\n");
+	return -1;
+}
+#endif
 
 #ifdef CONFIG_X86_64
 void __init early_init_lapic_mapping(void)

@@ -1214,6 +1214,25 @@ void __cpuinit end_local_APIC_setup(void)
 	apic_pm_activate();
 }
 
+#ifdef CONFIG_X86_64
+/*
+ * Detect and enable local APICs on non-SMP boards.
+ * Original code written by Keir Fraser.
+ * On AMD64 we trust the BIOS - if it says no APIC it is likely
+ * not correctly set up (usually the APIC timer won't work etc.)
+ */
+static int __init detect_init_APIC(void)
+{
+	if (!cpu_has_apic) {
+		printk(KERN_INFO "No local APIC present\n");
+		return -1;
+	}
+
+	mp_lapic_addr = APIC_DEFAULT_PHYS_BASE;
+	boot_cpu_physical_apicid = 0;
+	return 0;
+}
+#else
 /*
  * Detect and initialize APIC
  */
@@ -1292,6 +1311,7 @@ no_apic:
 	printk(KERN_INFO "No local APIC present or hardware disabled\n");
 	return -1;
 }
+#endif
 
 #ifdef CONFIG_X86_64
 void __init early_init_lapic_mapping(void)
