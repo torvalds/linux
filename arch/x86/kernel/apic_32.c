@@ -424,6 +424,90 @@ static void __cpuinit setup_APIC_timer(void)
 	clockevents_register_device(levt);
 }
 
+#ifdef CONFIG_X86_64
+/*
+ * In this function we calibrate APIC bus clocks to the external
+ * timer. Unfortunately we cannot use jiffies and the timer irq
+ * to calibrate, since some later bootup code depends on getting
+ * the first irq? Ugh.
+ *
+ * We want to do the calibration only once since we
+ * want to have local timer irqs syncron. CPUs connected
+ * by the same APIC bus have the very same bus frequency.
+ * And we want to have irqs off anyways, no accidental
+ * APIC irq that way.
+ */
+
+#define TICK_COUNT 100000000
+
+static int __init calibrate_APIC_clock(void)
+{
+	unsigned apic, apic_start;
+	unsigned long tsc, tsc_start;
+	int result;
+
+	local_irq_disable();
+
+	/*
+	 * Put whatever arbitrary (but long enough) timeout
+	 * value into the APIC clock, we just want to get the
+	 * counter running for calibration.
+	 *
+	 * No interrupt enable !
+	 */
+	__setup_APIC_LVTT(250000000, 0, 0);
+
+	apic_start = apic_read(APIC_TMCCT);
+#ifdef CONFIG_X86_PM_TIMER
+	if (apic_calibrate_pmtmr && pmtmr_ioport) {
+		pmtimer_wait(5000);  /* 5ms wait */
+		apic = apic_read(APIC_TMCCT);
+		result = (apic_start - apic) * 1000L / 5;
+	} else
+#endif
+	{
+		rdtscll(tsc_start);
+
+		do {
+			apic = apic_read(APIC_TMCCT);
+			rdtscll(tsc);
+		} while ((tsc - tsc_start) < TICK_COUNT &&
+				(apic_start - apic) < TICK_COUNT);
+
+		result = (apic_start - apic) * 1000L * tsc_khz /
+					(tsc - tsc_start);
+	}
+
+	local_irq_enable();
+
+	printk(KERN_DEBUG "APIC timer calibration result %d\n", result);
+
+	printk(KERN_INFO "Detected %d.%03d MHz APIC timer.\n",
+		result / 1000 / 1000, result / 1000 % 1000);
+
+	/* Calculate the scaled math multiplication factor */
+	lapic_clockevent.mult = div_sc(result, NSEC_PER_SEC,
+				       lapic_clockevent.shift);
+	lapic_clockevent.max_delta_ns =
+		clockevent_delta2ns(0x7FFFFF, &lapic_clockevent);
+	lapic_clockevent.min_delta_ns =
+		clockevent_delta2ns(0xF, &lapic_clockevent);
+
+	calibration_result = (result * APIC_DIVISOR) / HZ;
+
+	/*
+	 * Do a sanity check on the APIC calibration result
+	 */
+	if (calibration_result < (1000000 / HZ)) {
+		printk(KERN_WARNING
+			"APIC frequency too slow, disabling apic timer\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+#else
 /*
  * In this functions we calibrate APIC bus clocks to the external timer.
  *
@@ -634,6 +718,8 @@ static int __init calibrate_APIC_clock(void)
 
 	return 0;
 }
+
+#endif
 
 /*
  * Setup the boot APIC
