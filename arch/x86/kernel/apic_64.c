@@ -82,10 +82,23 @@ static __init int setup_apicpmtimer(char *s)
 __setup("apicpmtimer", setup_apicpmtimer);
 #endif
 
-int disable_x2apic;
+#ifdef CONFIG_X86_64
+#define HAVE_X2APIC
+#endif
+
+#ifdef HAVE_X2APIC
 int x2apic;
 /* x2apic enabled before OS handover */
 int x2apic_preenabled;
+int disable_x2apic;
+static __init int setup_nox2apic(char *str)
+{
+	disable_x2apic = 1;
+	setup_clear_cpu_cap(X86_FEATURE_X2APIC);
+	return 0;
+}
+early_param("nox2apic", setup_nox2apic);
+#endif
 
 unsigned long mp_lapic_addr;
 int disable_apic;
@@ -228,6 +241,7 @@ static struct apic_ops xapic_ops = {
 struct apic_ops __read_mostly *apic_ops = &xapic_ops;
 EXPORT_SYMBOL_GPL(apic_ops);
 
+#ifdef HAVE_X2APIC
 static void x2apic_wait_icr_idle(void)
 {
 	/* no need to wait for icr idle in x2apic */
@@ -261,6 +275,7 @@ static struct apic_ops x2apic_ops = {
 	.wait_icr_idle = x2apic_wait_icr_idle,
 	.safe_wait_icr_idle = safe_x2apic_wait_icr_idle,
 };
+#endif
 
 /**
  * enable_NMI_through_LVT0 - enable NMI through local vector table 0
@@ -1125,6 +1140,7 @@ void __cpuinit end_local_APIC_setup(void)
 	apic_pm_activate();
 }
 
+#ifdef HAVE_X2APIC
 void check_x2apic(void)
 {
 	int msr, msr2;
@@ -1243,6 +1259,7 @@ end:
 
 	return;
 }
+#endif /* HAVE_X2APIC */
 
 /*
  * Detect and enable local APICs on non-SMP boards.
@@ -1291,10 +1308,12 @@ void __init early_init_lapic_mapping(void)
  */
 void __init init_apic_mappings(void)
 {
+#ifdef HAVE_X2APIC
 	if (x2apic) {
 		boot_cpu_physical_apicid = read_apic_id();
 		return;
 	}
+#endif
 
 	/*
 	 * If no local APIC can be found then set up a fake all
@@ -1335,8 +1354,9 @@ int __init APIC_init_uniprocessor(void)
 		printk(KERN_INFO "Apic disabled by BIOS\n");
 		return -1;
 	}
-
+#ifdef HAVE_X2APIC
 	enable_IR_x2apic();
+#endif
 	setup_apic_routing();
 
 	verify_local_APIC();
@@ -1672,7 +1692,7 @@ static int lapic_resume(struct sys_device *dev)
 
 	local_irq_save(flags);
 
-#ifdef CONFIG_X86_64
+#ifdef HAVE_X2APIC
 	if (x2apic)
 		enable_x2apic();
 	else
@@ -1835,15 +1855,6 @@ __cpuinit int apic_is_clustered_box(void)
 	 */
 	return (clusters > 2);
 }
-
-static __init int setup_nox2apic(char *str)
-{
-	disable_x2apic = 1;
-	clear_cpu_cap(&boot_cpu_data, X86_FEATURE_X2APIC);
-	return 0;
-}
-early_param("nox2apic", setup_nox2apic);
-
 
 /*
  * APIC command line parameters
