@@ -146,10 +146,10 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 
 	if (priv->fw_var >= 0x300) {
 		/* Firmware supports QoS, use it! */
-		priv->tx_stats[0].limit = 3;
-		priv->tx_stats[1].limit = 4;
-		priv->tx_stats[2].limit = 3;
-		priv->tx_stats[3].limit = 1;
+		priv->tx_stats[4].limit = 3;
+		priv->tx_stats[5].limit = 4;
+		priv->tx_stats[6].limit = 3;
+		priv->tx_stats[7].limit = 1;
 		dev->queues = 4;
 	}
 }
@@ -418,7 +418,7 @@ static void inline p54_wake_free_queues(struct ieee80211_hw *dev)
 	int i;
 
 	for (i = 0; i < dev->queues; i++)
-		if (priv->tx_stats[i].len < priv->tx_stats[i].limit)
+		if (priv->tx_stats[i + 4].len < priv->tx_stats[i + 4].limit)
 			ieee80211_wake_queue(dev, i);
 }
 
@@ -463,7 +463,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			if ((entry_hdr->magic1 & cpu_to_le16(0x4000)) != 0)
 				pad = entry_data->align[0];
 
-			priv->tx_stats[entry_data->hw_queue - 4].len--;
+			priv->tx_stats[entry_data->hw_queue].len--;
 			if (!(info->flags & IEEE80211_TX_CTL_NO_ACK)) {
 				if (!(payload->status & 0x01))
 					info->flags |= IEEE80211_TX_STAT_ACK;
@@ -606,7 +606,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	u8 rate;
 	u8 cts_rate = 0x20;
 
-	current_queue = &priv->tx_stats[skb_get_queue_mapping(skb)];
+	current_queue = &priv->tx_stats[skb_get_queue_mapping(skb) + 4];
 	if (unlikely(current_queue->len > current_queue->limit))
 		return NETDEV_TX_BUSY;
 	current_queue->len++;
@@ -1037,7 +1037,7 @@ static int p54_get_tx_stats(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	memcpy(stats, &priv->tx_stats, sizeof(stats[0]) * dev->queues);
+	memcpy(stats, &priv->tx_stats[4], sizeof(stats[0]) * dev->queues);
 
 	return 0;
 }
@@ -1075,7 +1075,11 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	dev->max_signal = 127;
 
-	priv->tx_stats[0].limit = 5;
+	priv->tx_stats[0].limit = 1;
+	priv->tx_stats[1].limit = 1;
+	priv->tx_stats[2].limit = 1;
+	priv->tx_stats[3].limit = 1;
+	priv->tx_stats[4].limit = 5;
 	dev->queues = 1;
 
 	dev->extra_tx_headroom = sizeof(struct p54_control_hdr) + 4 +

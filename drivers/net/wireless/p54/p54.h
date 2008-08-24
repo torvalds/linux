@@ -66,7 +66,7 @@ struct p54_common {
 	unsigned int tx_hdr_len;
 	void *cached_vdcf;
 	unsigned int fw_var;
-	struct ieee80211_tx_queue_stats tx_stats[4];
+	struct ieee80211_tx_queue_stats tx_stats[8];
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
