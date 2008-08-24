@@ -1600,6 +1600,13 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	cpu_set(cpu, cpu_present_map);
 }
 
+#ifdef CONFIG_X86_64
+int hard_smp_processor_id(void)
+{
+	return read_apic_id();
+}
+#endif
+
 /*
  * Power management
  */
