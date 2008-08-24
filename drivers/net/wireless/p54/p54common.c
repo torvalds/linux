@@ -432,7 +432,9 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct memrecord *range = NULL;
 	u32 freed = 0;
 	u32 last_addr = priv->rx_start;
+	unsigned long flags;
 
+	spin_lock_irqsave(&priv->tx_queue.lock, flags);
 	while (entry != (struct sk_buff *)&priv->tx_queue) {
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(entry);
 		range = (void *)info->driver_data;
@@ -453,6 +455,8 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 
 			last_addr = range->end_addr;
 			__skb_unlink(entry, &priv->tx_queue);
+			spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
+
 			memset(&info->status, 0, sizeof(info->status));
 			entry_hdr = (struct p54_control_hdr *) entry->data;
 			entry_data = (struct p54_tx_control_allocdata *) entry_hdr->data;
@@ -470,12 +474,14 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 			info->status.ack_signal = le16_to_cpu(payload->ack_rssi);
 			skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
 			ieee80211_tx_status_irqsafe(dev, entry);
-			break;
+			goto out;
 		} else
 			last_addr = range->end_addr;
 		entry = entry->next;
 	}
+	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
+out:
 	if (freed >= IEEE80211_MAX_RTS_THRESHOLD + 0x170 +
 	    sizeof(struct p54_control_hdr))
 		p54_wake_free_queues(dev);
