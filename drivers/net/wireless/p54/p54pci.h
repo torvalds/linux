@@ -92,13 +92,17 @@ struct p54p_priv {
 	struct p54_common common;
 	struct pci_dev *pdev;
 	struct p54p_csr __iomem *map;
+	struct tasklet_struct rx_tasklet;
 
 	spinlock_t lock;
 	struct p54p_ring_control *ring_control;
 	dma_addr_t ring_control_dma;
-	u32 rx_idx, tx_idx;
-	struct sk_buff *rx_buf[8];
-	void *tx_buf[32];
+	u32 rx_idx_data, tx_idx_data;
+	u32 rx_idx_mgmt, tx_idx_mgmt;
+	struct sk_buff *rx_buf_data[8];
+	struct sk_buff *rx_buf_mgmt[4];
+	void *tx_buf_data[32];
+	void *tx_buf_mgmt[4];
 	struct completion boot_comp;
 };
 
