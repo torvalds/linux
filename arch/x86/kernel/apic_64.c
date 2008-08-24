@@ -46,6 +46,13 @@
 #include <mach_ipi.h>
 #include <mach_apic.h>
 
+/*
+ * Sanity check
+ */
+#if ((SPURIOUS_APIC_VECTOR & 0x0F) != 0x0F)
+# error SPURIOUS_APIC_VECTOR definition error
+#endif
+
 /* Disable local APIC timer from the kernel commandline or via dmi quirk */
 static int disable_apic_timer __cpuinitdata;
 static int apic_calibrate_pmtmr __initdata;
@@ -938,8 +945,6 @@ void __cpuinit setup_local_APIC(void)
 
 	preempt_disable();
 	value = apic_read(APIC_LVR);
-
-	BUILD_BUG_ON((SPURIOUS_APIC_VECTOR & 0x0f) != 0x0f);
 
 	/*
 	 * Double-check whether this APIC is really registered.
