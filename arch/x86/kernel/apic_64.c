@@ -69,6 +69,9 @@ static int __init parse_lapic(char *arg)
 	return 0;
 }
 early_param("lapic", parse_lapic);
+/* Local APIC was disabled by the BIOS and enabled by the kernel */
+static int enabled_via_apicbase;
+
 #endif
 
 #ifdef CONFIG_X86_64
@@ -1279,6 +1282,7 @@ static int __init detect_init_APIC(void)
 	return 0;
 }
 
+#ifdef CONFIG_X86_64
 void __init early_init_lapic_mapping(void)
 {
 	unsigned long phys_addr;
@@ -1302,6 +1306,7 @@ void __init early_init_lapic_mapping(void)
 	 */
 	boot_cpu_physical_apicid = read_apic_id();
 }
+#endif
 
 /**
  * init_apic_mappings - initialize APIC mappings
@@ -1334,7 +1339,8 @@ void __init init_apic_mappings(void)
 	 * Fetch the APIC ID of the BSP in case we have a
 	 * default configuration (or the MP table is broken).
 	 */
-	boot_cpu_physical_apicid = read_apic_id();
+	if (boot_cpu_physical_apicid == -1U)
+		boot_cpu_physical_apicid = read_apic_id();
 }
 
 /*
@@ -1782,6 +1788,7 @@ static void apic_pm_activate(void) { }
 
 #endif	/* CONFIG_PM */
 
+#ifdef CONFIG_X86_64
 /*
  * apic_is_clustered_box() -- Check if we can expect good TSC
  *
@@ -1857,6 +1864,7 @@ __cpuinit int apic_is_clustered_box(void)
 	 */
 	return (clusters > 2);
 }
+#endif
 
 /*
  * APIC command line parameters
