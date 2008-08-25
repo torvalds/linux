@@ -849,7 +849,7 @@ int set_memory_uc(unsigned long addr, int numpages)
 	/*
 	 * for now UC MINUS. see comments in ioremap_nocache()
 	 */
-	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+	if (reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 			    _PAGE_CACHE_UC_MINUS, NULL))
 		return -EINVAL;
 
@@ -868,7 +868,7 @@ int set_memory_wc(unsigned long addr, int numpages)
 	if (!pat_enabled)
 		return set_memory_uc(addr, numpages);
 
-	if (reserve_memtype(addr, addr + numpages * PAGE_SIZE,
+	if (reserve_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE,
 		_PAGE_CACHE_WC, NULL))
 		return -EINVAL;
 
@@ -884,7 +884,7 @@ int _set_memory_wb(unsigned long addr, int numpages)
 
 int set_memory_wb(unsigned long addr, int numpages)
 {
-	free_memtype(addr, addr + numpages * PAGE_SIZE);
+	free_memtype(__pa(addr), __pa(addr) + numpages * PAGE_SIZE);
 
 	return _set_memory_wb(addr, numpages);
 }
