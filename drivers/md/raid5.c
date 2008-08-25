@@ -3387,7 +3387,7 @@ static int make_request(struct request_queue *q, struct bio * bi)
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
-	int remaining;
+	int cpu, remaining;
 
 	if (unlikely(bio_barrier(bi))) {
 		bio_endio(bi, -EOPNOTSUPP);
@@ -3396,8 +3396,10 @@ static int make_request(struct request_queue *q, struct bio * bi)
 
 	md_write_start(mddev, bi);
 
-	disk_stat_inc(mddev->gendisk, ios[rw]);
-	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bi));
+	cpu = disk_stat_lock();
+	disk_stat_inc(cpu, mddev->gendisk, ios[rw]);
+	disk_stat_add(cpu, mddev->gendisk, sectors[rw], bio_sectors(bi));
+	disk_stat_unlock();
 
 	if (rw == READ &&
 	     mddev->reshape_position == MaxSector &&

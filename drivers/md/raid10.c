@@ -789,6 +789,7 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	mirror_info_t *mirror;
 	r10bio_t *r10_bio;
 	struct bio *read_bio;
+	int cpu;
 	int i;
 	int chunk_sects = conf->chunk_mask + 1;
 	const int rw = bio_data_dir(bio);
@@ -843,8 +844,10 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	 */
 	wait_barrier(conf);
 
-	disk_stat_inc(mddev->gendisk, ios[rw]);
-	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
+	cpu = disk_stat_lock();
+	disk_stat_inc(cpu, mddev->gendisk, ios[rw]);
+	disk_stat_add(cpu, mddev->gendisk, sectors[rw], bio_sectors(bio));
+	disk_stat_unlock();
 
 	r10_bio = mempool_alloc(conf->r10bio_pool, GFP_NOIO);
 

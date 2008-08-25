@@ -377,12 +377,13 @@ static void free_tio(struct mapped_device *md, struct dm_target_io *tio)
 static void start_io_acct(struct dm_io *io)
 {
 	struct mapped_device *md = io->md;
+	int cpu;
 
 	io->start_time = jiffies;
 
-	preempt_disable();
-	disk_round_stats(dm_disk(md));
-	preempt_enable();
+	cpu = disk_stat_lock();
+	disk_round_stats(cpu, dm_disk(md));
+	disk_stat_unlock();
 	dm_disk(md)->in_flight = atomic_inc_return(&md->pending);
 }
 
@@ -391,15 +392,15 @@ static int end_io_acct(struct dm_io *io)
 	struct mapped_device *md = io->md;
 	struct bio *bio = io->bio;
 	unsigned long duration = jiffies - io->start_time;
-	int pending;
+	int pending, cpu;
 	int rw = bio_data_dir(bio);
 
-	preempt_disable();
-	disk_round_stats(dm_disk(md));
-	preempt_enable();
-	dm_disk(md)->in_flight = pending = atomic_dec_return(&md->pending);
+	cpu = disk_stat_lock();
+	disk_round_stats(cpu, dm_disk(md));
+	disk_stat_add(cpu, dm_disk(md), ticks[rw], duration);
+	disk_stat_unlock();
 
-	disk_stat_add(dm_disk(md), ticks[rw], duration);
+	dm_disk(md)->in_flight = pending = atomic_dec_return(&md->pending);
 
 	return !pending;
 }
@@ -885,6 +886,7 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 	int r = -EIO;
 	int rw = bio_data_dir(bio);
 	struct mapped_device *md = q->queuedata;
+	int cpu;
 
 	/*
 	 * There is no use in forwarding any barrier request since we can't
@@ -897,8 +899,10 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 
 	down_read(&md->io_lock);
 
-	disk_stat_inc(dm_disk(md), ios[rw]);
-	disk_stat_add(dm_disk(md), sectors[rw], bio_sectors(bio));
+	cpu = disk_stat_lock();
+	disk_stat_inc(cpu, dm_disk(md), ios[rw]);
+	disk_stat_add(cpu, dm_disk(md), sectors[rw], bio_sectors(bio));
+	disk_stat_unlock();
 
 	/*
 	 * If we're suspended we have to queue

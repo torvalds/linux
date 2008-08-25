@@ -399,14 +399,17 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 	sector_t chunk;
 	sector_t block, rsect;
 	const int rw = bio_data_dir(bio);
+	int cpu;
 
 	if (unlikely(bio_barrier(bio))) {
 		bio_endio(bio, -EOPNOTSUPP);
 		return 0;
 	}
 
-	disk_stat_inc(mddev->gendisk, ios[rw]);
-	disk_stat_add(mddev->gendisk, sectors[rw], bio_sectors(bio));
+	cpu = disk_stat_lock();
+	disk_stat_inc(cpu, mddev->gendisk, ios[rw]);
+	disk_stat_add(cpu, mddev->gendisk, sectors[rw], bio_sectors(bio));
+	disk_stat_unlock();
 
 	chunk_size = mddev->chunk_size >> 10;
 	chunk_sects = mddev->chunk_size >> 9;

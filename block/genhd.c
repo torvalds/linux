@@ -633,10 +633,11 @@ static ssize_t disk_stat_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct gendisk *disk = dev_to_disk(dev);
+	int cpu;
 
-	preempt_disable();
-	disk_round_stats(disk);
-	preempt_enable();
+	cpu = disk_stat_lock();
+	disk_round_stats(cpu, disk);
+	disk_stat_unlock();
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
@@ -749,6 +750,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	struct disk_part_iter piter;
 	struct hd_struct *hd;
 	char buf[BDEVNAME_SIZE];
+	int cpu;
 
 	/*
 	if (&gp->dev.kobj.entry == block_class.devices.next)
@@ -758,9 +760,9 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 				"\n\n");
 	*/
  
-	preempt_disable();
-	disk_round_stats(gp);
-	preempt_enable();
+	cpu = disk_stat_lock();
+	disk_round_stats(cpu, gp);
+	disk_stat_unlock();
 	seq_printf(seqf, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
 		MAJOR(disk_devt(gp)), MINOR(disk_devt(gp)),
 		disk_name(gp, 0, buf),
@@ -777,9 +779,9 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	/* now show all non-0 size partitions of it */
 	disk_part_iter_init(&piter, gp, 0);
 	while ((hd = disk_part_iter_next(&piter))) {
-		preempt_disable();
-		part_round_stats(hd);
-		preempt_enable();
+		cpu = disk_stat_lock();
+		part_round_stats(cpu, hd);
+		disk_stat_unlock();
 		seq_printf(seqf, "%4d %4d %s %lu %lu %llu "
 			   "%u %lu %lu %llu %u %u %u %u\n",
 			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),

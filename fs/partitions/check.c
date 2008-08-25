@@ -219,10 +219,11 @@ static ssize_t part_stat_show(struct device *dev,
 			      struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
+	int cpu;
 
-	preempt_disable();
-	part_round_stats(p);
-	preempt_enable();
+	cpu = disk_stat_lock();
+	part_round_stats(cpu, p);
+	disk_stat_unlock();
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "

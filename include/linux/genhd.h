@@ -209,16 +209,24 @@ extern void disk_part_iter_exit(struct disk_part_iter *piter);
 extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 					     sector_t sector);
 
-/* 
+/*
  * Macros to operate on percpu disk statistics:
  *
- * The __ variants should only be called in critical sections. The full
- * variants disable/enable preemption.
+ * {disk|part|all}_stat_{add|sub|inc|dec}() modify the stat counters
+ * and should be called between disk_stat_lock() and
+ * disk_stat_unlock().
+ *
+ * part_stat_read() can be called at any time.
+ *
+ * part_stat_{add|set_all}() and {init|free}_part_stats are for
+ * internal use only.
  */
-
 #ifdef	CONFIG_SMP
-#define __disk_stat_add(gendiskp, field, addnd) 	\
-	(per_cpu_ptr(gendiskp->dkstats, smp_processor_id())->field += addnd)
+#define disk_stat_lock()	({ rcu_read_lock(); get_cpu(); })
+#define disk_stat_unlock()	do { put_cpu(); rcu_read_unlock(); } while (0)
+
+#define disk_stat_add(cpu, gendiskp, field, addnd)			\
+	(per_cpu_ptr(gendiskp->dkstats, cpu)->field += addnd)
 
 #define disk_stat_read(gendiskp, field)					\
 ({									\
@@ -229,7 +237,8 @@ extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
 	res;								\
 })
 
-static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)	{
+static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)
+{
 	int i;
 
 	for_each_possible_cpu(i)
@@ -237,14 +246,14 @@ static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)	{
 				sizeof(struct disk_stats));
 }		
 
-#define __part_stat_add(part, field, addnd)				\
-	(per_cpu_ptr(part->dkstats, smp_processor_id())->field += addnd)
+#define part_stat_add(cpu, part, field, addnd)				\
+	(per_cpu_ptr(part->dkstats, cpu)->field += addnd)
 
-#define __all_stat_add(gendiskp, part, field, addnd, sector)	\
-({								\
-	if (part)						\
-		__part_stat_add(part, field, addnd);		\
-	__disk_stat_add(gendiskp, field, addnd);		\
+#define all_stat_add(cpu, gendiskp, part, field, addnd, sector)		\
+({									\
+	if (part)							\
+		part_stat_add(cpu, part, field, addnd);			\
+	disk_stat_add(cpu, gendiskp, field, addnd);			\
 })
 
 #define part_stat_read(part, field)					\
@@ -264,10 +273,13 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
 		memset(per_cpu_ptr(part->dkstats, i), value,
 				sizeof(struct disk_stats));
 }
-				
+
 #else /* !CONFIG_SMP */
-#define __disk_stat_add(gendiskp, field, addnd) \
-				(gendiskp->dkstats.field += addnd)
+#define disk_stat_lock()	({ rcu_read_lock(); 0; })
+#define disk_stat_unlock()	rcu_read_unlock()
+
+#define disk_stat_add(cpu, gendiskp, field, addnd)			\
+	(gendiskp->dkstats.field += addnd)
 #define disk_stat_read(gendiskp, field)	(gendiskp->dkstats.field)
 
 static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)
@@ -275,14 +287,14 @@ static inline void disk_stat_set_all(struct gendisk *gendiskp, int value)
 	memset(&gendiskp->dkstats, value, sizeof (struct disk_stats));
 }
 
-#define __part_stat_add(part, field, addnd) \
+#define part_stat_add(cpu, part, field, addnd)				\
 	(part->dkstats.field += addnd)
 
-#define __all_stat_add(gendiskp, part, field, addnd, sector)	\
-({								\
-	if (part)						\
-		part->dkstats.field += addnd;			\
-	__disk_stat_add(gendiskp, field, addnd);		\
+#define all_stat_add(cpu, gendiskp, part, field, addnd, sector)		\
+({									\
+	if (part)							\
+		part_stat_add(cpu, part, field, addnd);			\
+	disk_stat_add(cpu, gendiskp, field, addnd);			\
 })
 
 #define part_stat_read(part, field)	(part->dkstats.field)
@@ -294,63 +306,26 @@ static inline void part_stat_set_all(struct hd_struct *part, int value)
 
 #endif /* CONFIG_SMP */
 
-#define disk_stat_add(gendiskp, field, addnd)			\
-	do {							\
-		preempt_disable();				\
-		__disk_stat_add(gendiskp, field, addnd);	\
-		preempt_enable();				\
-	} while (0)
+#define disk_stat_dec(cpu, gendiskp, field)				\
+	disk_stat_add(cpu, gendiskp, field, -1)
+#define disk_stat_inc(cpu, gendiskp, field)				\
+	disk_stat_add(cpu, gendiskp, field, 1)
+#define disk_stat_sub(cpu, gendiskp, field, subnd)			\
+	disk_stat_add(cpu, gendiskp, field, -subnd)
 
-#define __disk_stat_dec(gendiskp, field) __disk_stat_add(gendiskp, field, -1)
-#define disk_stat_dec(gendiskp, field) disk_stat_add(gendiskp, field, -1)
+#define part_stat_dec(cpu, gendiskp, field)				\
+	part_stat_add(cpu, gendiskp, field, -1)
+#define part_stat_inc(cpu, gendiskp, field)				\
+	part_stat_add(cpu, gendiskp, field, 1)
+#define part_stat_sub(cpu, gendiskp, field, subnd)			\
+	part_stat_add(cpu, gendiskp, field, -subnd)
 
-#define __disk_stat_inc(gendiskp, field) __disk_stat_add(gendiskp, field, 1)
-#define disk_stat_inc(gendiskp, field) disk_stat_add(gendiskp, field, 1)
-
-#define __disk_stat_sub(gendiskp, field, subnd) \
-		__disk_stat_add(gendiskp, field, -subnd)
-#define disk_stat_sub(gendiskp, field, subnd) \
-		disk_stat_add(gendiskp, field, -subnd)
-
-#define part_stat_add(gendiskp, field, addnd)		\
-	do {						\
-		preempt_disable();			\
-		__part_stat_add(gendiskp, field, addnd);\
-		preempt_enable();			\
-	} while (0)
-
-#define __part_stat_dec(gendiskp, field) __part_stat_add(gendiskp, field, -1)
-#define part_stat_dec(gendiskp, field) part_stat_add(gendiskp, field, -1)
-
-#define __part_stat_inc(gendiskp, field) __part_stat_add(gendiskp, field, 1)
-#define part_stat_inc(gendiskp, field) part_stat_add(gendiskp, field, 1)
-
-#define __part_stat_sub(gendiskp, field, subnd) \
-		__part_stat_add(gendiskp, field, -subnd)
-#define part_stat_sub(gendiskp, field, subnd) \
-		part_stat_add(gendiskp, field, -subnd)
-
-#define all_stat_add(gendiskp, part, field, addnd, sector)	\
-	do {							\
-		preempt_disable();				\
-		__all_stat_add(gendiskp, part, field, addnd, sector);	\
-		preempt_enable();				\
-	} while (0)
-
-#define __all_stat_dec(gendiskp, field, sector) \
-		__all_stat_add(gendiskp, field, -1, sector)
-#define all_stat_dec(gendiskp, field, sector) \
-		all_stat_add(gendiskp, field, -1, sector)
-
-#define __all_stat_inc(gendiskp, part, field, sector) \
-		__all_stat_add(gendiskp, part, field, 1, sector)
-#define all_stat_inc(gendiskp, part, field, sector) \
-		all_stat_add(gendiskp, part, field, 1, sector)
-
-#define __all_stat_sub(gendiskp, part, field, subnd, sector) \
-		__all_stat_add(gendiskp, part, field, -subnd, sector)
-#define all_stat_sub(gendiskp, part, field, subnd, sector) \
-		all_stat_add(gendiskp, part, field, -subnd, sector)
+#define all_stat_dec(cpu, gendiskp, field, sector)			\
+	all_stat_add(cpu, gendiskp, field, -1, sector)
+#define all_stat_inc(cpu, gendiskp, part, field, sector)		\
+	all_stat_add(cpu, gendiskp, part, field, 1, sector)
+#define all_stat_sub(cpu, gendiskp, part, field, subnd, sector)		\
+	all_stat_add(cpu, gendiskp, part, field, -subnd, sector)
 
 /* Inlines to alloc and free disk stats in struct gendisk */
 #ifdef  CONFIG_SMP
@@ -401,8 +376,8 @@ static inline void free_part_stats(struct hd_struct *part)
 #endif	/* CONFIG_SMP */
 
 /* drivers/block/ll_rw_blk.c */
-extern void disk_round_stats(struct gendisk *disk);
-extern void part_round_stats(struct hd_struct *part);
+extern void disk_round_stats(int cpu, struct gendisk *disk);
+extern void part_round_stats(int cpu, struct hd_struct *part);
 
 /* drivers/block/genhd.c */
 extern int get_blkdev_list(char *, int);

@@ -756,16 +756,17 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 	unsigned long n_sect = bio->bi_size >> 9;
 	const int rw = bio_data_dir(bio);
 	struct hd_struct *part;
+	int cpu;
 
-	rcu_read_lock();
-
+	cpu = disk_stat_lock();
 	part = disk_map_sector_rcu(disk, sector);
-	all_stat_inc(disk, part, ios[rw], sector);
-	all_stat_add(disk, part, ticks[rw], duration, sector);
-	all_stat_add(disk, part, sectors[rw], n_sect, sector);
-	all_stat_add(disk, part, io_ticks, duration, sector);
 
-	rcu_read_unlock();
+	all_stat_inc(cpu, disk, part, ios[rw], sector);
+	all_stat_add(cpu, disk, part, ticks[rw], duration, sector);
+	all_stat_add(cpu, disk, part, sectors[rw], n_sect, sector);
+	all_stat_add(cpu, disk, part, io_ticks, duration, sector);
+
+	disk_stat_unlock();
 }
 
 void
