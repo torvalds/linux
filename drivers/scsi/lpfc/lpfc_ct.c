@@ -212,7 +212,7 @@ lpfc_alloc_ct_rsp(struct lpfc_hba *phba, int cmdcode, struct ulp_bde64 *bpl,
 		else
 			list_add_tail(&mp->list, &mlist->list);
 
-		bpl->tus.f.bdeFlags = BUFF_USE_RCV;
+		bpl->tus.f.bdeFlags = BUFF_TYPE_BDE_64I;
 		/* build buffer ptr list for IOCB */
 		bpl->addrLow = le32_to_cpu(putPaddrLow(mp->phys) );
 		bpl->addrHigh = le32_to_cpu(putPaddrHigh(mp->phys) );
@@ -283,7 +283,7 @@ lpfc_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	icmd->un.genreq64.bdl.ulpIoTag32 = 0;
 	icmd->un.genreq64.bdl.addrHigh = putPaddrHigh(bmp->phys);
 	icmd->un.genreq64.bdl.addrLow = putPaddrLow(bmp->phys);
-	icmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BDL;
+	icmd->un.genreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
 	icmd->un.genreq64.bdl.bdeSize = (num_entry * sizeof (struct ulp_bde64));
 
 	if (usr_flg)

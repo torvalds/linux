@@ -2312,12 +2312,18 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	}
 
 	/* Allocate memory for SLI-2 structures */
-	phba->slim2p = dma_alloc_coherent(&phba->pcidev->dev, SLI2_SLIM_SIZE,
-					  &phba->slim2p_mapping, GFP_KERNEL);
-	if (!phba->slim2p)
+	phba->slim2p.virt = dma_alloc_coherent(&phba->pcidev->dev,
+					       SLI2_SLIM_SIZE,
+					       &phba->slim2p.phys,
+					       GFP_KERNEL);
+	if (!phba->slim2p.virt)
 		goto out_iounmap;
 
-	memset(phba->slim2p, 0, SLI2_SLIM_SIZE);
+	memset(phba->slim2p.virt, 0, SLI2_SLIM_SIZE);
+	phba->mbox = phba->slim2p.virt;
+	phba->pcb = (phba->slim2p.virt + sizeof(MAILBOX_t));
+	phba->IOCBs = (phba->slim2p.virt + sizeof(MAILBOX_t) +
+		       sizeof(struct _PCB));
 
 	phba->hbqslimp.virt = dma_alloc_coherent(&phba->pcidev->dev,
 						 lpfc_sli_hbq_size(),
@@ -2513,11 +2519,11 @@ out_free_iocbq:
 	}
 	lpfc_mem_free(phba);
 out_free_hbqslimp:
-	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(), phba->hbqslimp.virt,
-			  phba->hbqslimp.phys);
+	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(),
+			  phba->hbqslimp.virt, phba->hbqslimp.phys);
 out_free_slim:
-	dma_free_coherent(&pdev->dev, SLI2_SLIM_SIZE, phba->slim2p,
-							phba->slim2p_mapping);
+	dma_free_coherent(&pdev->dev, SLI2_SLIM_SIZE,
+			  phba->slim2p.virt, phba->slim2p.phys);
 out_iounmap:
 	iounmap(phba->ctrl_regs_memmap_p);
 out_iounmap_slim:
@@ -2599,12 +2605,12 @@ lpfc_pci_remove_one(struct pci_dev *pdev)
 	lpfc_scsi_free(phba);
 	lpfc_mem_free(phba);
 
-	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(), phba->hbqslimp.virt,
-			  phba->hbqslimp.phys);
+	dma_free_coherent(&pdev->dev, lpfc_sli_hbq_size(),
+			  phba->hbqslimp.virt, phba->hbqslimp.phys);
 
 	/* Free resources associated with SLI2 interface */
 	dma_free_coherent(&pdev->dev, SLI2_SLIM_SIZE,
-			  phba->slim2p, phba->slim2p_mapping);
+			  phba->slim2p.virt, phba->slim2p.phys);
 
 	/* unmap adapter SLIM and Control Registers */
 	iounmap(phba->ctrl_regs_memmap_p);

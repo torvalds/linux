@@ -200,7 +200,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 
 	icmd->un.elsreq64.bdl.addrHigh = putPaddrHigh(pbuflist->phys);
 	icmd->un.elsreq64.bdl.addrLow = putPaddrLow(pbuflist->phys);
-	icmd->un.elsreq64.bdl.bdeFlags = BUFF_TYPE_BDL;
+	icmd->un.elsreq64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
 	icmd->un.elsreq64.remoteID = did;	/* DID */
 	if (expectRsp) {
 		icmd->un.elsreq64.bdl.bdeSize = (2 * sizeof(struct ulp_bde64));
@@ -235,7 +235,7 @@ lpfc_prep_els_iocb(struct lpfc_vport *vport, uint8_t expectRsp,
 		bpl->addrLow = le32_to_cpu(putPaddrLow(prsp->phys));
 		bpl->addrHigh = le32_to_cpu(putPaddrHigh(prsp->phys));
 		bpl->tus.f.bdeSize = FCELSSIZE;
-		bpl->tus.f.bdeFlags = BUFF_USE_RCV;
+		bpl->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
 		bpl->tus.w = le32_to_cpu(bpl->tus.w);
 	}
 

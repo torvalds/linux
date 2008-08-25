@@ -1474,24 +1474,18 @@ struct ulp_bde64 {	/* SLI-2 */
 			uint32_t bdeFlags:8;	/* BDE Flags 0 IS A SUPPORTED
 						   VALUE !! */
 #endif
-
-#define BUFF_USE_RSVD       0x01	/* bdeFlags */
-#define BUFF_USE_INTRPT     0x02	/* Not Implemented with LP6000 */
-#define BUFF_USE_CMND       0x04	/* Optional, 1=cmd/rsp 0=data buffer */
-#define BUFF_USE_RCV        0x08	/*  "" "", 1=rcv buffer, 0=xmit
-					    buffer */
-#define BUFF_TYPE_32BIT     0x10	/*  "" "", 1=32 bit addr 0=64 bit
-					    addr */
-#define BUFF_TYPE_SPECIAL   0x20	/* Not Implemented with LP6000  */
-#define BUFF_TYPE_BDL       0x40	/* Optional,  may be set in BDL */
-#define BUFF_TYPE_INVALID   0x80	/*  ""  "" */
+#define BUFF_TYPE_BDE_64    0x00	/* BDE (Host_resident) */
+#define BUFF_TYPE_BDE_IMMED 0x01	/* Immediate Data BDE */
+#define BUFF_TYPE_BDE_64P   0x02	/* BDE (Port-resident) */
+#define BUFF_TYPE_BDE_64I   0x08	/* Input BDE (Host-resident) */
+#define BUFF_TYPE_BDE_64IP  0x0A	/* Input BDE (Port-resident) */
+#define BUFF_TYPE_BLP_64    0x40	/* BLP (Host-resident) */
+#define BUFF_TYPE_BLP_64P   0x42	/* BLP (Port-resident) */
 		} f;
 	} tus;
 	uint32_t addrLow;
 	uint32_t addrHigh;
 };
-#define BDE64_SIZE_WORD 0
-#define BPL64_SIZE_WORD 0x40
 
 typedef struct ULP_BDL {	/* SLI-2 */
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -2715,11 +2709,19 @@ struct sli3_pgp {
 	uint32_t hbq_get[16];
 };
 
-typedef union {
-	struct sli2_desc s2;
-	struct sli3_desc s3;
-	struct sli3_pgp  s3_pgp;
-} SLI_VAR;
+struct sli3_inb_pgp {
+	uint32_t ha_copy;
+	uint32_t counter;
+	struct lpfc_pgp port[MAX_RINGS];
+	uint32_t hbq_get[16];
+};
+
+union sli_var {
+	struct sli2_desc	s2;
+	struct sli3_desc	s3;
+	struct sli3_pgp		s3_pgp;
+	struct sli3_inb_pgp	s3_inb_pgp;
+};
 
 typedef struct {
 #ifdef __BIG_ENDIAN_BITFIELD
@@ -2737,7 +2739,7 @@ typedef struct {
 #endif
 
 	MAILVARIANTS un;
-	SLI_VAR us;
+	union sli_var us;
 } MAILBOX_t;
 
 /*
@@ -3105,6 +3107,27 @@ struct que_xri64cx_ext_fields {
 	struct lpfc_hbq_entry	buff[5];
 };
 
+#define LPFC_EXT_DATA_BDE_COUNT 3
+struct fcp_irw_ext {
+	uint32_t	io_tag64_low;
+	uint32_t	io_tag64_high;
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint8_t		reserved1;
+	uint8_t		reserved2;
+	uint8_t		reserved3;
+	uint8_t		ebde_count;
+#else  /* __LITTLE_ENDIAN */
+	uint8_t		ebde_count;
+	uint8_t		reserved3;
+	uint8_t		reserved2;
+	uint8_t		reserved1;
+#endif
+	uint32_t	reserved4;
+	struct ulp_bde64 rbde;		/* response bde */
+	struct ulp_bde64 dbde[LPFC_EXT_DATA_BDE_COUNT];	/* data BDE or BPL */
+	uint8_t icd[32];		/* immediate command data (32 bytes) */
+};
+
 typedef struct _IOCB {	/* IOCB structure */
 	union {
 		GENERIC_RSP grsp;	/* Generic response */
@@ -3190,7 +3213,7 @@ typedef struct _IOCB {	/* IOCB structure */
 
 		/* words 8-31 used for que_xri_cx iocb */
 		struct que_xri64cx_ext_fields que_xri64cx_ext_words;
-
+		struct fcp_irw_ext fcp_ext;
 		uint32_t sli3Words[24]; /* 96 extra bytes for SLI-3 */
 	} unsli3;
 

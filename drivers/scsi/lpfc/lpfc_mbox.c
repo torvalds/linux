@@ -671,7 +671,7 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 {
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring *pring;
-	PCB_t *pcbp = &phba->slim2p->pcb;
+	PCB_t *pcbp = phba->pcb;
 	dma_addr_t pdma_addr;
 	uint32_t offset;
 	uint32_t iocbCnt = 0;
@@ -700,23 +700,23 @@ lpfc_config_pcb_setup(struct lpfc_hba * phba)
 			continue;
 		}
 		/* Command ring setup for ring */
-		pring->cmdringaddr = (void *) &phba->slim2p->IOCBs[iocbCnt];
+		pring->cmdringaddr = (void *)&phba->IOCBs[iocbCnt];
 		pcbp->rdsc[i].cmdEntries = pring->numCiocb;
 
-		offset = (uint8_t *) &phba->slim2p->IOCBs[iocbCnt] -
-			 (uint8_t *) phba->slim2p;
-		pdma_addr = phba->slim2p_mapping + offset;
+		offset = (uint8_t *) &phba->IOCBs[iocbCnt] -
+			 (uint8_t *) phba->slim2p.virt;
+		pdma_addr = phba->slim2p.phys + offset;
 		pcbp->rdsc[i].cmdAddrHigh = putPaddrHigh(pdma_addr);
 		pcbp->rdsc[i].cmdAddrLow = putPaddrLow(pdma_addr);
 		iocbCnt += pring->numCiocb;
 
 		/* Response ring setup for ring */
-		pring->rspringaddr = (void *) &phba->slim2p->IOCBs[iocbCnt];
+		pring->rspringaddr = (void *) &phba->IOCBs[iocbCnt];
 
 		pcbp->rdsc[i].rspEntries = pring->numRiocb;
-		offset = (uint8_t *)&phba->slim2p->IOCBs[iocbCnt] -
-			 (uint8_t *)phba->slim2p;
-		pdma_addr = phba->slim2p_mapping + offset;
+		offset = (uint8_t *)&phba->IOCBs[iocbCnt] -
+			 (uint8_t *)phba->slim2p.virt;
+		pdma_addr = phba->slim2p.phys + offset;
 		pcbp->rdsc[i].rspAddrHigh = putPaddrHigh(pdma_addr);
 		pcbp->rdsc[i].rspAddrLow = putPaddrLow(pdma_addr);
 		iocbCnt += pring->numRiocb;
@@ -977,8 +977,8 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	mb->un.varCfgPort.pcbLen = sizeof(PCB_t);
 
-	offset = (uint8_t *)&phba->slim2p->pcb - (uint8_t *)phba->slim2p;
-	pdma_addr = phba->slim2p_mapping + offset;
+	offset = (uint8_t *)phba->pcb - (uint8_t *)phba->slim2p.virt;
+	pdma_addr = phba->slim2p.phys + offset;
 	mb->un.varCfgPort.pcbLow = putPaddrLow(pdma_addr);
 	mb->un.varCfgPort.pcbHigh = putPaddrHigh(pdma_addr);
 
@@ -986,12 +986,13 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 
 	if (phba->sli_rev == 3 && phba->vpd.sli3Feat.cerbm) {
 		mb->un.varCfgPort.cerbm = 1; /* Request HBQs */
+		mb->un.varCfgPort.ccrp = 1; /* Command Ring Polling */
+		mb->un.varCfgPort.cinb = 1; /* Interrupt Notification Block */
 		mb->un.varCfgPort.max_hbq = lpfc_sli_hbq_count();
 		if (phba->max_vpi && phba->cfg_enable_npiv &&
 		    phba->vpd.sli3Feat.cmv) {
 			mb->un.varCfgPort.max_vpi = phba->max_vpi;
 			mb->un.varCfgPort.cmv = 1;
-			phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
 		} else
 			mb->un.varCfgPort.max_vpi = phba->max_vpi = 0;
 	} else
@@ -999,16 +1000,15 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	mb->un.varCfgPort.sli_mode = phba->sli_rev;
 
 	/* Now setup pcb */
-	phba->slim2p->pcb.type = TYPE_NATIVE_SLI2;
-	phba->slim2p->pcb.feature = FEATURE_INITIAL_SLI2;
+	phba->pcb->type = TYPE_NATIVE_SLI2;
+	phba->pcb->feature = FEATURE_INITIAL_SLI2;
 
 	/* Setup Mailbox pointers */
-	phba->slim2p->pcb.mailBoxSize = offsetof(MAILBOX_t, us) +
-		sizeof(struct sli2_desc);
-	offset = (uint8_t *)&phba->slim2p->mbx - (uint8_t *)phba->slim2p;
-	pdma_addr = phba->slim2p_mapping + offset;
-	phba->slim2p->pcb.mbAddrHigh = putPaddrHigh(pdma_addr);
-	phba->slim2p->pcb.mbAddrLow = putPaddrLow(pdma_addr);
+	phba->pcb->mailBoxSize = sizeof(MAILBOX_t);
+	offset = (uint8_t *)phba->mbox - (uint8_t *)phba->slim2p.virt;
+	pdma_addr = phba->slim2p.phys + offset;
+	phba->pcb->mbAddrHigh = putPaddrHigh(pdma_addr);
+	phba->pcb->mbAddrLow = putPaddrLow(pdma_addr);
 
 	/*
 	 * Setup Host Group ring pointer.
@@ -1069,13 +1069,13 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	/* mask off BAR0's flag bits 0 - 3 */
-	phba->slim2p->pcb.hgpAddrLow = (bar_low & PCI_BASE_ADDRESS_MEM_MASK) +
-		(void __iomem *) phba->host_gp -
+	phba->pcb->hgpAddrLow = (bar_low & PCI_BASE_ADDRESS_MEM_MASK) +
+		(void __iomem *)phba->host_gp -
 		(void __iomem *)phba->MBslimaddr;
 	if (bar_low & PCI_BASE_ADDRESS_MEM_TYPE_64)
-		phba->slim2p->pcb.hgpAddrHigh = bar_high;
+		phba->pcb->hgpAddrHigh = bar_high;
 	else
-		phba->slim2p->pcb.hgpAddrHigh = 0;
+		phba->pcb->hgpAddrHigh = 0;
 	/* write HGP data to SLIM at the required longword offset */
 	memset(&hgp, 0, sizeof(struct lpfc_hgp));
 
@@ -1085,17 +1085,19 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	/* Setup Port Group ring pointer */
-	if (phba->sli_rev == 3)
-		pgp_offset = (uint8_t *)&phba->slim2p->mbx.us.s3_pgp.port -
-			(uint8_t *)phba->slim2p;
-	else
-		pgp_offset = (uint8_t *)&phba->slim2p->mbx.us.s2.port -
-			(uint8_t *)phba->slim2p;
-
-	pdma_addr = phba->slim2p_mapping + pgp_offset;
-	phba->slim2p->pcb.pgpAddrHigh = putPaddrHigh(pdma_addr);
-	phba->slim2p->pcb.pgpAddrLow = putPaddrLow(pdma_addr);
-	phba->hbq_get = &phba->slim2p->mbx.us.s3_pgp.hbq_get[0];
+	if (phba->sli3_options & LPFC_SLI3_INB_ENABLED) {
+		pgp_offset = offsetof(struct lpfc_sli2_slim,
+				      mbx.us.s3_inb_pgp.port);
+		phba->hbq_get = phba->mbox->us.s3_inb_pgp.hbq_get;
+	} else if (phba->sli_rev == 3) {
+		pgp_offset = offsetof(struct lpfc_sli2_slim,
+				      mbx.us.s3_pgp.port);
+		phba->hbq_get = phba->mbox->us.s3_pgp.hbq_get;
+	} else
+		pgp_offset = offsetof(struct lpfc_sli2_slim, mbx.us.s2.port);
+	pdma_addr = phba->slim2p.phys + pgp_offset;
+	phba->pcb->pgpAddrHigh = putPaddrHigh(pdma_addr);
+	phba->pcb->pgpAddrLow = putPaddrLow(pdma_addr);
 
 	/* Use callback routine to setp rings in the pcb */
 	lpfc_config_pcb_setup(phba);
@@ -1110,8 +1112,7 @@ lpfc_config_port(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	/* Swap PCB if needed */
-	lpfc_sli_pcimem_bcopy(&phba->slim2p->pcb, &phba->slim2p->pcb,
-			      sizeof(PCB_t));
+	lpfc_sli_pcimem_bcopy(phba->pcb, phba->pcb, sizeof(PCB_t));
 }
 
 /**

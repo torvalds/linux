@@ -198,7 +198,9 @@ lpfc_new_scsi_buf(struct lpfc_vport *vport)
 	struct lpfc_scsi_buf *psb;
 	struct ulp_bde64 *bpl;
 	IOCB_t *iocb;
-	dma_addr_t pdma_phys;
+	dma_addr_t pdma_phys_fcp_cmd;
+	dma_addr_t pdma_phys_fcp_rsp;
+	dma_addr_t pdma_phys_bpl;
 	uint16_t iotag;
 
 	psb = kzalloc(sizeof(struct lpfc_scsi_buf), GFP_KERNEL);
@@ -238,40 +240,60 @@ lpfc_new_scsi_buf(struct lpfc_vport *vport)
 
 	/* Initialize local short-hand pointers. */
 	bpl = psb->fcp_bpl;
-	pdma_phys = psb->dma_handle;
+	pdma_phys_fcp_cmd = psb->dma_handle;
+	pdma_phys_fcp_rsp = psb->dma_handle + sizeof(struct fcp_cmnd);
+	pdma_phys_bpl = psb->dma_handle + sizeof(struct fcp_cmnd) +
+			sizeof(struct fcp_rsp);
 
 	/*
 	 * The first two bdes are the FCP_CMD and FCP_RSP.  The balance are sg
 	 * list bdes.  Initialize the first two and leave the rest for
 	 * queuecommand.
 	 */
-	bpl->addrHigh = le32_to_cpu(putPaddrHigh(pdma_phys));
-	bpl->addrLow = le32_to_cpu(putPaddrLow(pdma_phys));
-	bpl->tus.f.bdeSize = sizeof (struct fcp_cmnd);
-	bpl->tus.f.bdeFlags = BUFF_USE_CMND;
-	bpl->tus.w = le32_to_cpu(bpl->tus.w);
-	bpl++;
+	bpl[0].addrHigh = le32_to_cpu(putPaddrHigh(pdma_phys_fcp_cmd));
+	bpl[0].addrLow = le32_to_cpu(putPaddrLow(pdma_phys_fcp_cmd));
+	bpl[0].tus.f.bdeSize = sizeof(struct fcp_cmnd);
+	bpl[0].tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+	bpl[0].tus.w = le32_to_cpu(bpl->tus.w);
 
 	/* Setup the physical region for the FCP RSP */
-	pdma_phys += sizeof (struct fcp_cmnd);
-	bpl->addrHigh = le32_to_cpu(putPaddrHigh(pdma_phys));
-	bpl->addrLow = le32_to_cpu(putPaddrLow(pdma_phys));
-	bpl->tus.f.bdeSize = sizeof (struct fcp_rsp);
-	bpl->tus.f.bdeFlags = (BUFF_USE_CMND | BUFF_USE_RCV);
-	bpl->tus.w = le32_to_cpu(bpl->tus.w);
+	bpl[1].addrHigh = le32_to_cpu(putPaddrHigh(pdma_phys_fcp_rsp));
+	bpl[1].addrLow = le32_to_cpu(putPaddrLow(pdma_phys_fcp_rsp));
+	bpl[1].tus.f.bdeSize = sizeof(struct fcp_rsp);
+	bpl[1].tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+	bpl[1].tus.w = le32_to_cpu(bpl->tus.w);
 
 	/*
 	 * Since the IOCB for the FCP I/O is built into this lpfc_scsi_buf,
 	 * initialize it with all known data now.
 	 */
-	pdma_phys += (sizeof (struct fcp_rsp));
 	iocb = &psb->cur_iocbq.iocb;
 	iocb->un.fcpi64.bdl.ulpIoTag32 = 0;
-	iocb->un.fcpi64.bdl.addrHigh = putPaddrHigh(pdma_phys);
-	iocb->un.fcpi64.bdl.addrLow = putPaddrLow(pdma_phys);
-	iocb->un.fcpi64.bdl.bdeSize = (2 * sizeof (struct ulp_bde64));
-	iocb->un.fcpi64.bdl.bdeFlags = BUFF_TYPE_BDL;
-	iocb->ulpBdeCount = 1;
+	if (phba->sli_rev == 3) {
+		/* fill in immediate fcp command BDE */
+		iocb->un.fcpi64.bdl.bdeFlags = BUFF_TYPE_BDE_IMMED;
+		iocb->un.fcpi64.bdl.bdeSize = sizeof(struct fcp_cmnd);
+		iocb->un.fcpi64.bdl.addrLow = offsetof(IOCB_t,
+						       unsli3.fcp_ext.icd);
+		iocb->un.fcpi64.bdl.addrHigh = 0;
+		iocb->ulpBdeCount = 0;
+		iocb->ulpLe = 0;
+		/* fill in responce BDE */
+		iocb->unsli3.fcp_ext.rbde.tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+		iocb->unsli3.fcp_ext.rbde.tus.f.bdeSize =
+						sizeof(struct fcp_rsp);
+		iocb->unsli3.fcp_ext.rbde.addrLow =
+						putPaddrLow(pdma_phys_fcp_rsp);
+		iocb->unsli3.fcp_ext.rbde.addrHigh =
+						putPaddrHigh(pdma_phys_fcp_rsp);
+	} else {
+		iocb->un.fcpi64.bdl.bdeFlags = BUFF_TYPE_BLP_64;
+		iocb->un.fcpi64.bdl.bdeSize = (2 * sizeof(struct ulp_bde64));
+		iocb->un.fcpi64.bdl.addrLow = putPaddrLow(pdma_phys_bpl);
+		iocb->un.fcpi64.bdl.addrHigh = putPaddrHigh(pdma_phys_bpl);
+		iocb->ulpBdeCount = 1;
+		iocb->ulpLe = 1;
+	}
 	iocb->ulpClass = CLASS3;
 
 	return psb;
@@ -313,8 +335,9 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	struct fcp_cmnd *fcp_cmnd = lpfc_cmd->fcp_cmnd;
 	struct ulp_bde64 *bpl = lpfc_cmd->fcp_bpl;
 	IOCB_t *iocb_cmd = &lpfc_cmd->cur_iocbq.iocb;
+	struct ulp_bde64 *data_bde = iocb_cmd->unsli3.fcp_ext.dbde;
 	dma_addr_t physaddr;
-	uint32_t i, num_bde = 0;
+	uint32_t num_bde = 0;
 	int nseg, datadir = scsi_cmnd->sc_data_direction;
 
 	/*
@@ -352,33 +375,64 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		 * during probe that limits the number of sg elements in any
 		 * single scsi command.  Just run through the seg_cnt and format
 		 * the bde's.
+		 * When using SLI-3 the driver will try to fit all the BDEs into
+		 * the IOCB. If it can't then the BDEs get added to a BPL as it
+		 * does for SLI-2 mode.
 		 */
-		scsi_for_each_sg(scsi_cmnd, sgel, nseg, i) {
+		scsi_for_each_sg(scsi_cmnd, sgel, nseg, num_bde) {
 			physaddr = sg_dma_address(sgel);
-			bpl->addrLow = le32_to_cpu(putPaddrLow(physaddr));
-			bpl->addrHigh = le32_to_cpu(putPaddrHigh(physaddr));
-			bpl->tus.f.bdeSize = sg_dma_len(sgel);
-			if (datadir == DMA_TO_DEVICE)
-				bpl->tus.f.bdeFlags = 0;
-			else
-				bpl->tus.f.bdeFlags = BUFF_USE_RCV;
-			bpl->tus.w = le32_to_cpu(bpl->tus.w);
-			bpl++;
-			num_bde++;
+			if (phba->sli_rev == 3 &&
+			    nseg <= LPFC_EXT_DATA_BDE_COUNT) {
+				data_bde->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+				data_bde->tus.f.bdeSize = sg_dma_len(sgel);
+				data_bde->addrLow = putPaddrLow(physaddr);
+				data_bde->addrHigh = putPaddrHigh(physaddr);
+				data_bde++;
+			} else {
+				bpl->tus.f.bdeFlags = BUFF_TYPE_BDE_64;
+				bpl->tus.f.bdeSize = sg_dma_len(sgel);
+				bpl->tus.w = le32_to_cpu(bpl->tus.w);
+				bpl->addrLow =
+					le32_to_cpu(putPaddrLow(physaddr));
+				bpl->addrHigh =
+					le32_to_cpu(putPaddrHigh(physaddr));
+				bpl++;
+			}
 		}
 	}
 
 	/*
 	 * Finish initializing those IOCB fields that are dependent on the
-	 * scsi_cmnd request_buffer.  Note that the bdeSize is explicitly
-	 * reinitialized since all iocb memory resources are used many times
-	 * for transmit, receive, and continuation bpl's.
+	 * scsi_cmnd request_buffer.  Note that for SLI-2 the bdeSize is
+	 * explicitly reinitialized and for SLI-3 the extended bde count is
+	 * explicitly reinitialized since all iocb memory resources are reused.
 	 */
-	iocb_cmd->un.fcpi64.bdl.bdeSize = (2 * sizeof (struct ulp_bde64));
-	iocb_cmd->un.fcpi64.bdl.bdeSize +=
-		(num_bde * sizeof (struct ulp_bde64));
-	iocb_cmd->ulpBdeCount = 1;
-	iocb_cmd->ulpLe = 1;
+	if (phba->sli_rev == 3) {
+		if (num_bde > LPFC_EXT_DATA_BDE_COUNT) {
+			/*
+			 * The extended IOCB format can only fit 3 BDE or a BPL.
+			 * This I/O has more than 3 BDE so the 1st data bde will
+			 * be a BPL that is filled in here.
+			 */
+			physaddr = lpfc_cmd->dma_handle;
+			data_bde->tus.f.bdeFlags = BUFF_TYPE_BLP_64;
+			data_bde->tus.f.bdeSize = (num_bde *
+						   sizeof(struct ulp_bde64));
+			physaddr += (sizeof(struct fcp_cmnd) +
+				     sizeof(struct fcp_rsp) +
+				     (2 * sizeof(struct ulp_bde64)));
+			data_bde->addrHigh = putPaddrHigh(physaddr);
+			data_bde->addrLow = putPaddrLow(physaddr);
+			/* ebde count includes the responce bde and data bpl */
+			iocb_cmd->unsli3.fcp_ext.ebde_count = 2;
+		} else {
+			/* ebde count includes the responce bde and data bdes */
+			iocb_cmd->unsli3.fcp_ext.ebde_count = (num_bde + 1);
+		}
+	} else {
+		iocb_cmd->un.fcpi64.bdl.bdeSize =
+			((num_bde + 2) * sizeof(struct ulp_bde64));
+	}
 	fcp_cmnd->fcpDl = cpu_to_be32(scsi_bufflen(scsi_cmnd));
 	return 0;
 }
@@ -692,6 +746,24 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	lpfc_release_scsi_buf(phba, lpfc_cmd);
 }
 
+/**
+ * lpfc_fcpcmd_to_iocb - copy the fcp_cmd data into the IOCB.
+ * @data: A pointer to the immediate command data portion of the IOCB.
+ * @fcp_cmnd: The FCP Command that is provided by the SCSI layer.
+ *
+ * The routine copies the entire FCP command from @fcp_cmnd to @data while
+ * byte swapping the data to big endian format for transmission on the wire.
+ **/
+static void
+lpfc_fcpcmd_to_iocb(uint8_t *data, struct fcp_cmnd *fcp_cmnd)
+{
+	int i, j;
+	for (i = 0, j = 0; i < sizeof(struct fcp_cmnd);
+	     i += sizeof(uint32_t), j++) {
+		((uint32_t *)data)[j] = cpu_to_be32(((uint32_t *)fcp_cmnd)[j]);
+	}
+}
+
 static void
 lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		    struct lpfc_nodelist *pnode)
@@ -758,7 +830,8 @@ lpfc_scsi_prep_cmnd(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 		fcp_cmnd->fcpCntl3 = 0;
 		phba->fc4ControlRequests++;
 	}
-
+	if (phba->sli_rev == 3)
+		lpfc_fcpcmd_to_iocb(iocb_cmd->unsli3.fcp_ext.icd, fcp_cmnd);
 	/*
 	 * Finish initializing those IOCB fields that are independent
 	 * of the scsi_cmnd request_buffer
@@ -798,11 +871,13 @@ lpfc_scsi_prep_task_mgmt_cmd(struct lpfc_vport *vport,
 	piocb = &piocbq->iocb;
 
 	fcp_cmnd = lpfc_cmd->fcp_cmnd;
-	int_to_scsilun(lun, &lpfc_cmd->fcp_cmnd->fcp_lun);
+	/* Clear out any old data in the FCP command area */
+	memset(fcp_cmnd, 0, sizeof(struct fcp_cmnd));
+	int_to_scsilun(lun, &fcp_cmnd->fcp_lun);
 	fcp_cmnd->fcpCntl2 = task_mgmt_cmd;
-
+	if (vport->phba->sli_rev == 3)
+		lpfc_fcpcmd_to_iocb(piocb->unsli3.fcp_ext.icd, fcp_cmnd);
 	piocb->ulpCommand = CMD_FCP_ICMND64_CR;
-
 	piocb->ulpContext = ndlp->nlp_rpi;
 	if (ndlp->nlp_fcp_info & NLP_FCP_2_DEVICE) {
 		piocb->ulpFCP2Rcvy = 1;

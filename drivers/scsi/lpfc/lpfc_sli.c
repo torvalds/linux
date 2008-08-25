@@ -406,11 +406,8 @@ lpfc_sli_ringtx_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 static IOCB_t *
 lpfc_sli_next_iocb_slot (struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
-		&phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = &phba->port_gp[pring->ringno];
 	uint32_t  max_cmd_idx = pring->numCiocb;
-
 	if ((pring->next_cmdidx == pring->cmdidx) &&
 	   (++pring->next_cmdidx >= max_cmd_idx))
 		pring->next_cmdidx = 0;
@@ -625,9 +622,11 @@ lpfc_sli_update_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 	/*
 	 * Tell the HBA that there is work to do in this ring.
 	 */
-	wmb();
-	writel(CA_R0ATT << (ringno * 4), phba->CAregaddr);
-	readl(phba->CAregaddr); /* flush */
+	if (!(phba->sli3_options & LPFC_SLI3_CRP_ENABLED)) {
+		wmb();
+		writel(CA_R0ATT << (ringno * 4), phba->CAregaddr);
+		readl(phba->CAregaddr); /* flush */
+	}
 }
 
 /**
@@ -1654,9 +1653,7 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 static void
 lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 {
-	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
-		&phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = &phba->port_gp[pring->ringno];
 	/*
 	 * Ring <ringno> handler: portRspPut <portRspPut> is bigger then
 	 * rsp ring <portRspMax>
@@ -1704,7 +1701,7 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 	IOCB_t *entry = NULL;
 	struct lpfc_iocbq *cmdiocbq = NULL;
 	struct lpfc_iocbq rspiocbq;
-	struct lpfc_pgp *pgp;
+	struct lpfc_pgp *pgp = &phba->port_gp[pring->ringno];
 	uint32_t status;
 	uint32_t portRspPut, portRspMax;
 	int type;
@@ -1713,11 +1710,6 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 	unsigned long iflags;
 
 	pring->stats.iocb_event++;
-
-	pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
-		&phba->slim2p->mbx.us.s2.port[pring->ringno];
-
 
 	/*
 	 * The next available response entry should never exceed the maximum
@@ -1870,9 +1862,7 @@ static int
 lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 				struct lpfc_sli_ring *pring, uint32_t mask)
 {
-	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
-		&phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp = &phba->port_gp[pring->ringno];
 	IOCB_t *irsp = NULL;
 	IOCB_t *entry = NULL;
 	struct lpfc_iocbq *cmdiocbq = NULL;
@@ -2064,9 +2054,7 @@ int
 lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 				struct lpfc_sli_ring *pring, uint32_t mask)
 {
-	struct lpfc_pgp *pgp = (phba->sli_rev == 3) ?
-		&phba->slim2p->mbx.us.s3_pgp.port[pring->ringno] :
-		&phba->slim2p->mbx.us.s2.port[pring->ringno];
+	struct lpfc_pgp *pgp;
 	IOCB_t *entry;
 	IOCB_t *irsp = NULL;
 	struct lpfc_iocbq *rspiocbp = NULL;
@@ -2080,6 +2068,7 @@ lpfc_sli_handle_slow_ring_event(struct lpfc_hba *phba,
 	int rc = 1;
 	unsigned long iflag;
 
+	pgp = &phba->port_gp[pring->ringno];
 	spin_lock_irqsave(&phba->hbalock, iflag);
 	pring->stats.iocb_event++;
 
@@ -2990,13 +2979,15 @@ lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
 		if (rc == -ERESTART) {
 			phba->link_state = LPFC_LINK_UNKNOWN;
 			continue;
-		} else if (rc) {
+		} else if (rc)
 			break;
-		}
-
 		phba->link_state = LPFC_INIT_MBX_CMDS;
 		lpfc_config_port(phba, pmb);
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
+		phba->sli3_options &= ~(LPFC_SLI3_NPIV_ENABLED |
+					LPFC_SLI3_HBQ_ENABLED |
+					LPFC_SLI3_CRP_ENABLED |
+					LPFC_SLI3_INB_ENABLED);
 		if (rc != MBX_SUCCESS) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0442 Adapter failed to init, mbxCmd x%x "
@@ -3006,25 +2997,44 @@ lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
 			phba->sli.sli_flag &= ~LPFC_SLI2_ACTIVE;
 			spin_unlock_irq(&phba->hbalock);
 			rc = -ENXIO;
-		} else {
+		} else
 			done = 1;
-			phba->max_vpi = (phba->max_vpi &&
-					 pmb->mb.un.varCfgPort.gmv) != 0
-				? pmb->mb.un.varCfgPort.max_vpi
-				: 0;
-		}
 	}
-
 	if (!done) {
 		rc = -EINVAL;
 		goto do_prep_failed;
 	}
-
-	if ((pmb->mb.un.varCfgPort.sli_mode == 3) &&
-		(!pmb->mb.un.varCfgPort.cMA)) {
-		rc = -ENXIO;
+	if (pmb->mb.un.varCfgPort.sli_mode == 3) {
+		if (!pmb->mb.un.varCfgPort.cMA) {
+			rc = -ENXIO;
+			goto do_prep_failed;
+		}
+		if (phba->max_vpi && pmb->mb.un.varCfgPort.gmv) {
+			phba->sli3_options |= LPFC_SLI3_NPIV_ENABLED;
+			phba->max_vpi = pmb->mb.un.varCfgPort.max_vpi;
+		} else
+			phba->max_vpi = 0;
+		if (pmb->mb.un.varCfgPort.gerbm)
+			phba->sli3_options |= LPFC_SLI3_HBQ_ENABLED;
+		if (pmb->mb.un.varCfgPort.gcrp)
+			phba->sli3_options |= LPFC_SLI3_CRP_ENABLED;
+		if (pmb->mb.un.varCfgPort.ginb) {
+			phba->sli3_options |= LPFC_SLI3_INB_ENABLED;
+			phba->port_gp = phba->mbox->us.s3_inb_pgp.port;
+			phba->inb_ha_copy = &phba->mbox->us.s3_inb_pgp.ha_copy;
+			phba->inb_counter = &phba->mbox->us.s3_inb_pgp.counter;
+			phba->inb_last_counter =
+					phba->mbox->us.s3_inb_pgp.counter;
+		} else {
+			phba->port_gp = phba->mbox->us.s3_pgp.port;
+			phba->inb_ha_copy = NULL;
+			phba->inb_counter = NULL;
+		}
+	} else {
+		phba->port_gp = phba->mbox->us.s2.port;
+		phba->inb_ha_copy = NULL;
+		phba->inb_counter = NULL;
 	}
-
 do_prep_failed:
 	mempool_free(pmb, phba->mbox_mem_pool);
 	return rc;
@@ -3085,9 +3095,6 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	if (phba->sli_rev == 3) {
 		phba->iocb_cmd_size = SLI3_IOCB_CMD_SIZE;
 		phba->iocb_rsp_size = SLI3_IOCB_RSP_SIZE;
-		phba->sli3_options |= LPFC_SLI3_ENABLED;
-		phba->sli3_options |= LPFC_SLI3_HBQ_ENABLED;
-
 	} else {
 		phba->iocb_cmd_size = SLI2_IOCB_CMD_SIZE;
 		phba->iocb_rsp_size = SLI2_IOCB_RSP_SIZE;
@@ -3255,7 +3262,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 	int i;
 	unsigned long timeout;
 	unsigned long drvr_flag = 0;
-	volatile uint32_t word0, ldata;
+	uint32_t word0, ldata;
 	void __iomem *to_slim;
 	int processing_queue = 0;
 
@@ -3415,12 +3422,11 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 	if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 		/* First copy command data to host SLIM area */
-		lpfc_sli_pcimem_bcopy(mb, &phba->slim2p->mbx, MAILBOX_CMD_SIZE);
+		lpfc_sli_pcimem_bcopy(mb, phba->mbox, MAILBOX_CMD_SIZE);
 	} else {
 		if (mb->mbxCommand == MBX_CONFIG_PORT) {
 			/* copy command data into host mbox for cmpl */
-			lpfc_sli_pcimem_bcopy(mb, &phba->slim2p->mbx,
-					      MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(mb, phba->mbox, MAILBOX_CMD_SIZE);
 		}
 
 		/* First copy mbox command data to HBA SLIM, skip past first
@@ -3430,7 +3436,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 			    MAILBOX_CMD_SIZE - sizeof (uint32_t));
 
 		/* Next copy over first word, with mbxOwner set */
-		ldata = *((volatile uint32_t *)mb);
+		ldata = *((uint32_t *)mb);
 		to_slim = phba->MBslimaddr;
 		writel(ldata, to_slim);
 		readl(to_slim); /* flush */
@@ -3462,7 +3468,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* First read mbox status word */
-			word0 = *((volatile uint32_t *)&phba->slim2p->mbx);
+			word0 = *((uint32_t *)phba->mbox);
 			word0 = le32_to_cpu(word0);
 		} else {
 			/* First read mbox status word */
@@ -3501,12 +3507,11 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 			if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 				/* First copy command data */
-				word0 = *((volatile uint32_t *)
-						&phba->slim2p->mbx);
+				word0 = *((uint32_t *)phba->mbox);
 				word0 = le32_to_cpu(word0);
 				if (mb->mbxCommand == MBX_CONFIG_PORT) {
 					MAILBOX_t *slimmb;
-					volatile uint32_t slimword0;
+					uint32_t slimword0;
 					/* Check real SLIM for any errors */
 					slimword0 = readl(phba->MBslimaddr);
 					slimmb = (MAILBOX_t *) & slimword0;
@@ -3527,8 +3532,7 @@ lpfc_sli_issue_mbox(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmbox, uint32_t flag)
 
 		if (psli->sli_flag & LPFC_SLI2_ACTIVE) {
 			/* copy results back to user */
-			lpfc_sli_pcimem_bcopy(&phba->slim2p->mbx, mb,
-					      MAILBOX_CMD_SIZE);
+			lpfc_sli_pcimem_bcopy(phba->mbox, mb, MAILBOX_CMD_SIZE);
 		} else {
 			/* First copy command data */
 			lpfc_memcpy_from_slim(mb, phba->MBslimaddr,
@@ -5095,7 +5099,16 @@ lpfc_intr_handler(int irq, void *dev_id)
 	 * preserve status) and Link Attention
 	 */
 	spin_lock(&phba->hbalock);
-	ha_copy = readl(phba->HAregaddr);
+	if (phba->sli3_options & LPFC_SLI3_INB_ENABLED &&
+	    (phba->inb_last_counter != *phba->inb_counter)) {
+		phba->inb_last_counter = *phba->inb_counter;
+		ha_copy = le32_to_cpu(*phba->inb_ha_copy);
+	} else
+		ha_copy = readl(phba->HAregaddr);
+	if (unlikely(!ha_copy)) {
+		spin_unlock(&phba->hbalock);
+		return IRQ_NONE;
+	}
 	/* If somebody is waiting to handle an eratt don't process it
 	 * here.  The brdkill function will do this.
 	 */
@@ -5104,9 +5117,6 @@ lpfc_intr_handler(int irq, void *dev_id)
 	writel((ha_copy & ~(HA_LATT | HA_ERATT)), phba->HAregaddr);
 	readl(phba->HAregaddr); /* flush */
 	spin_unlock(&phba->hbalock);
-
-	if (unlikely(!ha_copy))
-		return IRQ_NONE;
 
 	work_ha_copy = ha_copy & phba->work_ha_mask;
 
@@ -5194,7 +5204,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 		    (phba->sli.mbox_active)) {
 			pmb = phba->sli.mbox_active;
 			pmbox = &pmb->mb;
-			mbox = &phba->slim2p->mbx;
+			mbox = phba->mbox;
 			vport = pmb->vport;
 
 			/* First check out the status word */

@@ -407,10 +407,11 @@ struct lpfc_hba {
 	struct lpfc_sli sli;
 	uint32_t sli_rev;		/* SLI2 or SLI3 */
 	uint32_t sli3_options;		/* Mask of enabled SLI3 options */
-#define LPFC_SLI3_ENABLED	 0x01
-#define LPFC_SLI3_HBQ_ENABLED	 0x02
-#define LPFC_SLI3_NPIV_ENABLED	 0x04
-#define LPFC_SLI3_VPORT_TEARDOWN 0x08
+#define LPFC_SLI3_HBQ_ENABLED		0x01
+#define LPFC_SLI3_NPIV_ENABLED		0x02
+#define LPFC_SLI3_VPORT_TEARDOWN	0x04
+#define LPFC_SLI3_CRP_ENABLED		0x08
+#define LPFC_SLI3_INB_ENABLED		0x10
 	uint32_t iocb_cmd_size;
 	uint32_t iocb_rsp_size;
 
@@ -422,10 +423,16 @@ struct lpfc_hba {
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
 #define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
 
-	struct lpfc_sli2_slim *slim2p;
-	struct lpfc_dmabuf hbqslimp;
+	struct lpfc_dmabuf slim2p;
 
-	dma_addr_t slim2p_mapping;
+	MAILBOX_t *mbox;
+	uint32_t *inb_ha_copy;
+	uint32_t *inb_counter;
+	uint32_t inb_last_counter;
+	struct _PCB *pcb;
+	struct _IOCB *IOCBs;
+
+	struct lpfc_dmabuf hbqslimp;
 
 	uint16_t pci_cfg_value;
 
@@ -514,6 +521,7 @@ struct lpfc_hba {
 	void __iomem *HCregaddr;	/* virtual address for host ctl reg */
 
 	struct lpfc_hgp __iomem *host_gp; /* Host side get/put pointers */
+	struct lpfc_pgp   *port_gp;
 	uint32_t __iomem  *hbq_put;     /* Address in SLIM to HBQ put ptrs */
 	uint32_t          *hbq_get;     /* Host mem address of HBQ get ptrs */
 

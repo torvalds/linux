@@ -454,7 +454,7 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 	spin_lock_irq(&phba->hbalock);
 
 	len +=  snprintf(buf+len, size-len, "SLIM Mailbox\n");
-	ptr = (uint32_t *)phba->slim2p;
+	ptr = (uint32_t *)phba->slim2p.virt;
 	i = sizeof(MAILBOX_t);
 	while (i > 0) {
 		len +=  snprintf(buf+len, size-len,
@@ -467,7 +467,7 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 	}
 
 	len +=  snprintf(buf+len, size-len, "SLIM PCB\n");
-	ptr = (uint32_t *)&phba->slim2p->pcb;
+	ptr = (uint32_t *)phba->pcb;
 	i = sizeof(PCB_t);
 	while (i > 0) {
 		len +=  snprintf(buf+len, size-len,
@@ -479,44 +479,16 @@ lpfc_debugfs_dumpHostSlim_data(struct lpfc_hba *phba, char *buf, int size)
 		off += (8 * sizeof(uint32_t));
 	}
 
-	pgpp = (struct lpfc_pgp *)&phba->slim2p->mbx.us.s3_pgp.port;
-	pring = &psli->ring[0];
-	len +=  snprintf(buf+len, size-len,
-		"Ring 0: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
-		"RSP PutInx:%d Max:%d\n",
-		pgpp->cmdGetInx, pring->numCiocb,
-		pring->next_cmdidx, pring->local_getidx, pring->flag,
-		pgpp->rspPutInx, pring->numRiocb);
-	pgpp++;
-
-	pring = &psli->ring[1];
-	len +=  snprintf(buf+len, size-len,
-		"Ring 1: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
-		"RSP PutInx:%d Max:%d\n",
-		pgpp->cmdGetInx, pring->numCiocb,
-		pring->next_cmdidx, pring->local_getidx, pring->flag,
-		pgpp->rspPutInx, pring->numRiocb);
-	pgpp++;
-
-	pring = &psli->ring[2];
-	len +=  snprintf(buf+len, size-len,
-		"Ring 2: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
-		"RSP PutInx:%d Max:%d\n",
-		pgpp->cmdGetInx, pring->numCiocb,
-		pring->next_cmdidx, pring->local_getidx, pring->flag,
-		pgpp->rspPutInx, pring->numRiocb);
-	pgpp++;
-
-	pring = &psli->ring[3];
-	len +=  snprintf(buf+len, size-len,
-		"Ring 3: CMD GetInx:%d (Max:%d Next:%d Local:%d flg:x%x)  "
-		"RSP PutInx:%d Max:%d\n",
-		pgpp->cmdGetInx, pring->numCiocb,
-		pring->next_cmdidx, pring->local_getidx, pring->flag,
-		pgpp->rspPutInx, pring->numRiocb);
-
-
-	ptr = (uint32_t *)&phba->slim2p->mbx.us.s3_pgp.hbq_get;
+	for (i = 0; i < 4; i++) {
+		pgpp = &phba->port_gp[i];
+		pring = &psli->ring[i];
+		len +=  snprintf(buf+len, size-len,
+				 "Ring %d: CMD GetInx:%d (Max:%d Next:%d "
+				 "Local:%d flg:x%x)  RSP PutInx:%d Max:%d\n",
+				 i, pgpp->cmdGetInx, pring->numCiocb,
+				 pring->next_cmdidx, pring->local_getidx,
+				 pring->flag, pgpp->rspPutInx, pring->numRiocb);
+	}
 	word0 = readl(phba->HAregaddr);
 	word1 = readl(phba->CAregaddr);
 	word2 = readl(phba->HSregaddr);
