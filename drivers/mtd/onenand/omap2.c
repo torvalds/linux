@@ -187,16 +187,36 @@ retry:
 			}
 		}
 	} else {
+		int retry_cnt = 0;
+
 		/* Turn interrupts off */
 		syscfg = read_reg(c, ONENAND_REG_SYS_CFG1);
 		syscfg &= ~ONENAND_SYS_CFG1_IOBE;
 		write_reg(c, syscfg, ONENAND_REG_SYS_CFG1);
 
 		timeout = jiffies + msecs_to_jiffies(20);
-		while (time_before(jiffies, timeout)) {
-			intr = read_reg(c, ONENAND_REG_INTERRUPT);
-			if (intr & ONENAND_INT_MASTER)
+		while (1) {
+			if (time_before(jiffies, timeout)) {
+				intr = read_reg(c, ONENAND_REG_INTERRUPT);
+				if (intr & ONENAND_INT_MASTER)
+					break;
+			} else {
+				/* Timeout after 20ms */
+				ctrl = read_reg(c, ONENAND_REG_CTRL_STATUS);
+				if (ctrl & ONENAND_CTRL_ONGO) {
+					/*
+					 * The operation seems to be still going
+					 * so give it some more time.
+					 */
+					retry_cnt += 1;
+					if (retry_cnt < 3) {
+						timeout = jiffies +
+							  msecs_to_jiffies(20);
+						continue;
+					}
+				}
 				break;
+			}
 		}
 	}
 
