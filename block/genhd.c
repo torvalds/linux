@@ -795,34 +795,6 @@ static ssize_t disk_stat_show(struct device *dev,
 		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));
 }
 
-#ifdef CONFIG_FAIL_MAKE_REQUEST
-static ssize_t disk_fail_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	struct gendisk *disk = dev_to_disk(dev);
-
-	return sprintf(buf, "%d\n", disk->flags & GENHD_FL_FAIL ? 1 : 0);
-}
-
-static ssize_t disk_fail_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
-{
-	struct gendisk *disk = dev_to_disk(dev);
-	int i;
-
-	if (count > 0 && sscanf(buf, "%d", &i) > 0) {
-		if (i == 0)
-			disk->flags &= ~GENHD_FL_FAIL;
-		else
-			disk->flags |= GENHD_FL_FAIL;
-	}
-
-	return count;
-}
-
-#endif
-
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
@@ -832,7 +804,7 @@ static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
 static DEVICE_ATTR(stat, S_IRUGO, disk_stat_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
-	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, disk_fail_show, disk_fail_store);
+	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
 #endif
 
 static struct attribute *disk_attrs[] = {

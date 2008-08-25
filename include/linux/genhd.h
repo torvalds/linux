@@ -112,7 +112,6 @@ struct hd_struct {
 #define GENHD_FL_CD				8
 #define GENHD_FL_UP				16
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	32
-#define GENHD_FL_FAIL				64
 
 struct gendisk {
 	/* major, first_minor, minors and ext_minors are input
@@ -596,6 +595,13 @@ extern void blk_unregister_region(dev_t devt, unsigned long range);
 
 extern ssize_t part_size_show(struct device *dev,
 			      struct device_attribute *attr, char *buf);
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+extern ssize_t part_fail_show(struct device *dev,
+			      struct device_attribute *attr, char *buf);
+extern ssize_t part_fail_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf, size_t count);
+#endif /* CONFIG_FAIL_MAKE_REQUEST */
 
 #else /* CONFIG_BLOCK */
 

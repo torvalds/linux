@@ -238,17 +238,17 @@ static ssize_t part_stat_show(struct device *dev,
 }
 
 #ifdef CONFIG_FAIL_MAKE_REQUEST
-static ssize_t part_fail_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+ssize_t part_fail_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 
 	return sprintf(buf, "%d\n", p->make_it_fail);
 }
 
-static ssize_t part_fail_store(struct device *dev,
-			       struct device_attribute *attr,
-			       const char *buf, size_t count)
+ssize_t part_fail_store(struct device *dev,
+			struct device_attribute *attr,
+			const char *buf, size_t count)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	int i;

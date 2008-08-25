@@ -1273,8 +1273,9 @@ __setup("fail_make_request=", setup_fail_make_request);
 
 static int should_fail_request(struct bio *bio)
 {
-	if ((bio->bi_bdev->bd_disk->flags & GENHD_FL_FAIL) ||
-	    bio->bi_bdev->bd_part->make_it_fail)
+	struct hd_struct *part = bio->bi_bdev->bd_part;
+
+	if (part_to_disk(part)->part0.make_it_fail || part->make_it_fail)
 		return should_fail(&fail_make_request, bio->bi_size);
 
 	return 0;
