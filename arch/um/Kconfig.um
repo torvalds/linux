@@ -1,79 +1,3 @@
-config DEFCONFIG_LIST
-	string
-	option defconfig_list
-	default "arch/$ARCH/defconfig"
-
-# UML uses the generic IRQ subsystem
-config GENERIC_HARDIRQS
-	bool
-	default y
-
-config UML
-	bool
-	default y
-
-config MMU
-	bool
-	default y
-
-config NO_IOMEM
-	def_bool y
-
-mainmenu "Linux/Usermode Kernel Configuration"
-
-config ISA
-	bool
-
-config SBUS
-	bool
-
-config PCI
-	bool
-
-config PCMCIA
-	bool
-
-# Yet to do!
-config TRACE_IRQFLAGS_SUPPORT
-	bool
-	default n
-
-config LOCKDEP_SUPPORT
-	bool
-	default y
-
-config STACKTRACE_SUPPORT
-	bool
-	default n
-
-config GENERIC_CALIBRATE_DELAY
-	bool
-	default y
-
-config GENERIC_BUG
-	bool
-	default y
-	depends on BUG
-
-config GENERIC_TIME
-	bool
-	default y
-
-config GENERIC_CLOCKEVENTS
-	bool
-	default y
-
-# Used in kernel/irq/manage.c and include/linux/irq.h
-config IRQ_RELEASE_METHOD
-	bool
-	default y
-
-config HZ
-	int
-	default 100
-
-menu "UML-specific options"
-
 config STATIC_LINK
 	bool "Force a static link"
 	default n
@@ -85,11 +9,6 @@ config STATIC_LINK
 	  Additionally, this option enables using higher memory spaces (up to
 	  2.75G) for UML.
 
-config SUBARCH
-	string
-	option env="SUBARCH"
-
-source "arch/um/Kconfig.arch"
 source "mm/Kconfig"
 source "kernel/time/Kconfig"
 
@@ -228,48 +147,3 @@ config KERNEL_STACK_ORDER
 	  This option determines the size of UML kernel stacks.  They will
 	  be 1 << order pages.  The default is OK unless you're running Valgrind
 	  on UML, in which case, set this to 3.
-
-endmenu
-
-source "init/Kconfig"
-
-source "kernel/Kconfig.freezer"
-
-source "drivers/block/Kconfig"
-
-source "arch/um/Kconfig.char"
-
-source "drivers/base/Kconfig"
-
-source "net/Kconfig"
-
-source "arch/um/Kconfig.net"
-
-source "drivers/net/Kconfig"
-
-source "drivers/connector/Kconfig"
-
-source "fs/Kconfig"
-
-source "security/Kconfig"
-
-source "crypto/Kconfig"
-
-source "lib/Kconfig"
-
-source "drivers/scsi/Kconfig"
-
-source "drivers/md/Kconfig"
-
-if BROKEN
-	source "drivers/mtd/Kconfig"
-endif
-
-source "drivers/leds/Kconfig"
-
-#This is just to shut up some Kconfig warnings, so no prompt.
-config INPUT
-	bool
-	default n
-
-source "arch/um/Kconfig.debug"

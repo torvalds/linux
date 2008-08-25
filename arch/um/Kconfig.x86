@@ -1,3 +1,7 @@
+source "arch/um/Kconfig.common"
+
+menu "UML-specific options"
+
 menu "Host processor type and features"
 
 source "arch/x86/Kconfig.cpu"
@@ -44,3 +48,9 @@ config SMP_BROKEN
 
 config GENERIC_HWEIGHT
 	def_bool y
+
+source "arch/um/Kconfig.um"
+
+endmenu
+
+source "arch/um/Kconfig.rest"

@@ -87,11 +87,7 @@ define archhelp
   echo '		   find in the kernel root.'
 endef
 
-ifneq ($(KBUILD_SRC),)
-$(shell mkdir -p $(ARCH_DIR) && ln -fsn $(srctree)/$(ARCH_DIR)/Kconfig.$(HEADER_ARCH) $(ARCH_DIR)/Kconfig.arch)
-else
-$(shell ln -fsn Kconfig.$(HEADER_ARCH) $(ARCH_DIR)/Kconfig.arch)
-endif
+KBUILD_KCONFIG := arch/um/Kconfig.$(HEADER_ARCH)
 
 archprepare: $(ARCH_SYMLINKS) $(ARCH_DIR)/include/shared/user_constants.h
 prepare: $(ARCH_DIR)/include/shared/kern_constants.h
@@ -128,7 +124,7 @@ endef
 # TT or skas makefiles and don't clean skas_ptregs.h.
 CLEAN_FILES += linux x.i gmon.out $(ARCH_DIR)/include/shared/uml-config.h \
 	$(ARCH_DIR)/include/shared/user_constants.h \
-	$(ARCH_DIR)/include/shared/kern_constants.h $(ARCH_DIR)/Kconfig.arch
+	$(ARCH_DIR)/include/shared/kern_constants.h
 
 MRPROPER_FILES += $(ARCH_SYMLINKS)
 
