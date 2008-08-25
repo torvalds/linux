@@ -6058,6 +6058,44 @@ static int bnx2x_req_irq(struct bnx2x *bp)
 	return rc;
 }
 
+static void bnx2x_napi_enable(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_queue(bp, i)
+		napi_enable(&bnx2x_fp(bp, i, napi));
+}
+
+static void bnx2x_napi_disable(struct bnx2x *bp)
+{
+	int i;
+
+	for_each_queue(bp, i)
+		napi_disable(&bnx2x_fp(bp, i, napi));
+}
+
+static void bnx2x_netif_start(struct bnx2x *bp)
+{
+	if (atomic_dec_and_test(&bp->intr_sem)) {
+		if (netif_running(bp->dev)) {
+			if (bp->state == BNX2X_STATE_OPEN)
+				netif_wake_queue(bp->dev);
+			bnx2x_napi_enable(bp);
+			bnx2x_int_enable(bp);
+		}
+	}
+}
+
+static void bnx2x_netif_stop(struct bnx2x *bp)
+{
+	bnx2x_int_disable_sync(bp);
+	if (netif_running(bp->dev)) {
+		bnx2x_napi_disable(bp);
+		netif_tx_disable(bp->dev);
+		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
+	}
+}
+
 /*
  * Init service functions
  */
@@ -6363,8 +6401,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	/* Enable Rx interrupt handling before sending the ramrod
 	   as it's completed on Rx FP queue */
-	for_each_queue(bp, i)
-		napi_enable(&bnx2x_fp(bp, i, napi));
+	bnx2x_napi_enable(bp);
 
 	/* Enable interrupt handling */
 	atomic_set(&bp->intr_sem, 0);
@@ -6431,8 +6468,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	return 0;
 
 load_netif_stop:
-	for_each_queue(bp, i)
-		napi_disable(&bnx2x_fp(bp, i, napi));
+	bnx2x_napi_disable(bp);
 load_rings_free:
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
@@ -6614,11 +6650,9 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bp->rx_mode = BNX2X_RX_MODE_NONE;
 	bnx2x_set_storm_rx_mode(bp);
 
-	if (netif_running(bp->dev)) {
-		netif_tx_disable(bp->dev);
-		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
-	}
-
+	bnx2x_netif_stop(bp);
+	if (!netif_running(bp->dev))
+		bnx2x_napi_disable(bp);
 	del_timer_sync(&bp->timer);
 	SHMEM_WR(bp, func_mb[BP_FUNC(bp)].drv_pulse_mb,
 		 (DRV_PULSE_ALWAYS_ALIVE | bp->fw_drv_pulse_wr_seq));
@@ -6632,9 +6666,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 		smp_rmb();
 		while (BNX2X_HAS_TX_WORK(fp)) {
 
-			if (!netif_running(bp->dev))
-				bnx2x_tx_int(fp, 1000);
-
+			bnx2x_tx_int(fp, 1000);
 			if (!cnt) {
 				BNX2X_ERR("timeout waiting for queue[%d]\n",
 					  i);
@@ -6650,17 +6682,41 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 			smp_rmb();
 		}
 	}
-
 	/* Give HW time to discard old tx messages */
 	msleep(1);
 
-	for_each_queue(bp, i)
-		napi_disable(&bnx2x_fp(bp, i, napi));
-	/* Disable interrupts after Tx and Rx are disabled on stack level */
-	bnx2x_int_disable_sync(bp);
-
 	/* Release IRQs */
 	bnx2x_free_irq(bp);
+
+	if (CHIP_IS_E1(bp)) {
+		struct mac_configuration_cmd *config =
+						bnx2x_sp(bp, mcast_config);
+
+		bnx2x_set_mac_addr_e1(bp, 0);
+
+		for (i = 0; i < config->hdr.length_6b; i++)
+			CAM_INVALIDATE(config->config_table[i]);
+
+		config->hdr.length_6b = i;
+		if (CHIP_REV_IS_SLOW(bp))
+			config->hdr.offset = BNX2X_MAX_EMUL_MULTI*(1 + port);
+		else
+			config->hdr.offset = BNX2X_MAX_MULTICAST*(1 + port);
+		config->hdr.client_id = BP_CL_ID(bp);
+		config->hdr.reserved1 = 0;
+
+		bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
+			      U64_HI(bnx2x_sp_mapping(bp, mcast_config)),
+			      U64_LO(bnx2x_sp_mapping(bp, mcast_config)), 0);
+
+	} else { /* E1H */
+		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 0);
+
+		bnx2x_set_mac_addr_e1h(bp, 0);
+
+		for (i = 0; i < MC_HASH_SIZE; i++)
+			REG_WR(bp, MC_HASH_OFFSET(bp, i), 0);
+	}
 
 	if (unload_mode == UNLOAD_NORMAL)
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
@@ -6689,37 +6745,6 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 
 	} else
 		reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
-
-	if (CHIP_IS_E1(bp)) {
-		struct mac_configuration_cmd *config =
-						bnx2x_sp(bp, mcast_config);
-
-		bnx2x_set_mac_addr_e1(bp, 0);
-
-		for (i = 0; i < config->hdr.length_6b; i++)
-			CAM_INVALIDATE(config->config_table[i]);
-
-		config->hdr.length_6b = i;
-		if (CHIP_REV_IS_SLOW(bp))
-			config->hdr.offset = BNX2X_MAX_EMUL_MULTI*(1 + port);
-		else
-			config->hdr.offset = BNX2X_MAX_MULTICAST*(1 + port);
-		config->hdr.client_id = BP_CL_ID(bp);
-		config->hdr.reserved1 = 0;
-
-		bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_SET_MAC, 0,
-			      U64_HI(bnx2x_sp_mapping(bp, mcast_config)),
-			      U64_LO(bnx2x_sp_mapping(bp, mcast_config)), 0);
-
-	} else { /* E1H */
-		bnx2x_set_mac_addr_e1h(bp, 0);
-
-		for (i = 0; i < MC_HASH_SIZE; i++)
-			REG_WR(bp, MC_HASH_OFFSET(bp, i), 0);
-	}
-
-	if (CHIP_IS_E1H(bp))
-		REG_WR(bp, NIG_REG_LLH0_FUNC_EN + port*8, 0);
 
 	/* Close multi and leading connections
 	   Completions for ramrods are collected in a synchronous way */
@@ -8619,34 +8644,6 @@ static int bnx2x_test_memory(struct bnx2x *bp)
 
 test_mem_exit:
 	return rc;
-}
-
-static void bnx2x_netif_start(struct bnx2x *bp)
-{
-	int i;
-
-	if (atomic_dec_and_test(&bp->intr_sem)) {
-		if (netif_running(bp->dev)) {
-			bnx2x_int_enable(bp);
-			for_each_queue(bp, i)
-				napi_enable(&bnx2x_fp(bp, i, napi));
-			if (bp->state == BNX2X_STATE_OPEN)
-				netif_wake_queue(bp->dev);
-		}
-	}
-}
-
-static void bnx2x_netif_stop(struct bnx2x *bp)
-{
-	int i;
-
-	if (netif_running(bp->dev)) {
-		netif_tx_disable(bp->dev);
-		bp->dev->trans_start = jiffies;	/* prevent tx timeout */
-		for_each_queue(bp, i)
-			napi_disable(&bnx2x_fp(bp, i, napi));
-	}
-	bnx2x_int_disable_sync(bp);
 }
 
 static void bnx2x_wait_for_link(struct bnx2x *bp, u8 link_up)
