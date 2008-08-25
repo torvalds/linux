@@ -570,3 +570,32 @@ int hpsb_write(struct hpsb_host *host, nodeid_t node, unsigned int generation,
 
 	return retval;
 }
+
+int hpsb_lock(struct hpsb_host *host, nodeid_t node, unsigned int generation,
+	      u64 addr, int extcode, quadlet_t *data, quadlet_t arg)
+{
+	struct hpsb_packet *packet;
+	int retval = 0;
+
+	BUG_ON(in_interrupt());
+
+	packet = hpsb_make_lockpacket(host, node, addr, extcode, data, arg);
+	if (!packet)
+		return -ENOMEM;
+
+	packet->generation = generation;
+	retval = hpsb_send_packet_and_wait(packet);
+	if (retval < 0)
+		goto hpsb_lock_fail;
+
+	retval = hpsb_packet_success(packet);
+
+	if (retval == 0)
+		*data = packet->data[0];
+
+hpsb_lock_fail:
+	hpsb_free_tlabel(packet);
+	hpsb_free_packet(packet);
+
+	return retval;
+}

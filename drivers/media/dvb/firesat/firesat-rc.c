@@ -1,9 +1,26 @@
-#include "firesat.h"
+/*
+ * FireDTV driver (formerly known as FireSAT)
+ *
+ * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
+ *
+ *	This program is free software; you can redistribute it and/or
+ *	modify it under the terms of the GNU General Public License as
+ *	published by the Free Software Foundation; either version 2 of
+ *	the License, or (at your option) any later version.
+ */
+
+#include <linux/bitops.h>
+#include <linux/input.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
+
 #include "firesat-rc.h"
 
-#include <linux/input.h>
+/* fixed table with older keycodes, geared towards MythTV */
+const static u16 oldtable[] = {
 
-static u16 firesat_irtable[] = {
+	/* code from device: 0x4501...0x451f */
+
 	KEY_ESC,
 	KEY_F9,
 	KEY_1,
@@ -35,50 +52,124 @@ static u16 firesat_irtable[] = {
 	KEY_RIGHT,
 	KEY_P,
 	KEY_M,
+
+	/* code from device: 0x4540...0x4542 */
+
 	KEY_R,
 	KEY_V,
 	KEY_C,
-	0
 };
 
-static struct input_dev firesat_idev;
+/* user-modifiable table for a remote as sold in 2008 */
+static u16 keytable[] = {
+
+	/* code from device: 0x0300...0x031f */
+
+	[0x00] = KEY_POWER,
+	[0x01] = KEY_SLEEP,
+	[0x02] = KEY_STOP,
+	[0x03] = KEY_OK,
+	[0x04] = KEY_RIGHT,
+	[0x05] = KEY_1,
+	[0x06] = KEY_2,
+	[0x07] = KEY_3,
+	[0x08] = KEY_LEFT,
+	[0x09] = KEY_4,
+	[0x0a] = KEY_5,
+	[0x0b] = KEY_6,
+	[0x0c] = KEY_UP,
+	[0x0d] = KEY_7,
+	[0x0e] = KEY_8,
+	[0x0f] = KEY_9,
+	[0x10] = KEY_DOWN,
+	[0x11] = KEY_TITLE,	/* "OSD" - fixme */
+	[0x12] = KEY_0,
+	[0x13] = KEY_F20,	/* "16:9" - fixme */
+	[0x14] = KEY_SCREEN,	/* "FULL" - fixme */
+	[0x15] = KEY_MUTE,
+	[0x16] = KEY_SUBTITLE,
+	[0x17] = KEY_RECORD,
+	[0x18] = KEY_TEXT,
+	[0x19] = KEY_AUDIO,
+	[0x1a] = KEY_RED,
+	[0x1b] = KEY_PREVIOUS,
+	[0x1c] = KEY_REWIND,
+	[0x1d] = KEY_PLAYPAUSE,
+	[0x1e] = KEY_NEXT,
+	[0x1f] = KEY_VOLUMEUP,
+
+	/* code from device: 0x0340...0x0354 */
+
+	[0x20] = KEY_CHANNELUP,
+	[0x21] = KEY_F21,	/* "4:3" - fixme */
+	[0x22] = KEY_TV,
+	[0x23] = KEY_DVD,
+	[0x24] = KEY_VCR,
+	[0x25] = KEY_AUX,
+	[0x26] = KEY_GREEN,
+	[0x27] = KEY_YELLOW,
+	[0x28] = KEY_BLUE,
+	[0x29] = KEY_CHANNEL,	/* "CH.LIST" */
+	[0x2a] = KEY_VENDOR,	/* "CI" - fixme */
+	[0x2b] = KEY_VOLUMEDOWN,
+	[0x2c] = KEY_CHANNELDOWN,
+	[0x2d] = KEY_LAST,
+	[0x2e] = KEY_INFO,
+	[0x2f] = KEY_FORWARD,
+	[0x30] = KEY_LIST,
+	[0x31] = KEY_FAVORITES,
+	[0x32] = KEY_MENU,
+	[0x33] = KEY_EPG,
+	[0x34] = KEY_EXIT,
+};
+
+static struct input_dev *idev;
 
 int firesat_register_rc(void)
 {
-	int index;
+	int i, err;
 
-	memset(&firesat_idev, 0, sizeof(firesat_idev));
+	idev = input_allocate_device();
+	if (!idev)
+		return -ENOMEM;
 
-	firesat_idev.evbit[0] = BIT(EV_KEY);
+	idev->name = "FireDTV remote control";
+	idev->evbit[0] = BIT_MASK(EV_KEY);
+	idev->keycode = keytable;
+	idev->keycodesize = sizeof(keytable[0]);
+	idev->keycodemax = ARRAY_SIZE(keytable);
 
-	for (index = 0; firesat_irtable[index] != 0; index++)
-		set_bit(firesat_irtable[index], firesat_idev.keybit);
+	for (i = 0; i < ARRAY_SIZE(keytable); i++)
+		set_bit(keytable[i], idev->keybit);
 
-	return input_register_device(&firesat_idev);
+	err = input_register_device(idev);
+	if (err)
+		input_free_device(idev);
+
+	return err;
 }
 
-int firesat_unregister_rc(void)
+void firesat_unregister_rc(void)
 {
-	input_unregister_device(&firesat_idev);
-	return 0;
+	input_unregister_device(idev);
 }
 
-int firesat_got_remotecontrolcode(u16 code)
+void firesat_handle_rc(unsigned int code)
 {
-	u16 keycode;
-
-	if (code > 0x4500 && code < 0x4520)
-		keycode = firesat_irtable[code - 0x4501];
-	else if (code > 0x453f && code < 0x4543)
-		keycode = firesat_irtable[code - 0x4521];
+	if (code >= 0x0300 && code <= 0x031f)
+		code = keytable[code - 0x0300];
+	else if (code >= 0x0340 && code <= 0x0354)
+		code = keytable[code - 0x0320];
+	else if (code >= 0x4501 && code <= 0x451f)
+		code = oldtable[code - 0x4501];
+	else if (code >= 0x4540 && code <= 0x4542)
+		code = oldtable[code - 0x4521];
 	else {
-		printk(KERN_DEBUG "%s: invalid key code 0x%04x\n", __func__,
-		       code);
-		return -EINVAL;
+		printk(KERN_DEBUG "firedtv: invalid key code 0x%04x "
+		       "from remote control\n", code);
+		return;
 	}
 
-	input_report_key(&firesat_idev, keycode, 1);
-	input_report_key(&firesat_idev, keycode, 0);
-
-	return 0;
+	input_report_key(idev, code, 1);
+	input_report_key(idev, code, 0);
 }

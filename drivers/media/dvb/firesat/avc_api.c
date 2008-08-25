@@ -1,9 +1,9 @@
 /*
- * FireSAT AVC driver
+ * FireDTV driver (formerly known as FireSAT)
  *
- * Copyright (c) 2004 Andreas Monitzer <andy@monitzer.com>
- * Copyright (c) 2008 Ben Backx <ben@bbackx.com>
- * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
+ * Copyright (C) 2008 Ben Backx <ben@bbackx.com>
+ * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -11,13 +11,20 @@
  *	the License, or (at your option) any later version.
  */
 
-#include "firesat.h"
+#include <linux/crc32.h>
+#include <linux/delay.h>
+#include <linux/kernel.h>
+#include <linux/moduleparam.h>
+#include <linux/mutex.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
+#include <asm/atomic.h>
+
 #include <ieee1394_transactions.h>
 #include <nodemgr.h>
-#include <asm/byteorder.h>
-#include <linux/delay.h>
-#include <linux/crc32.h>
+
 #include "avc_api.h"
+#include "firesat.h"
 #include "firesat-rc.h"
 
 #define RESPONSE_REGISTER				0xFFFFF0000D00ULL
@@ -27,8 +34,6 @@
 static unsigned int avc_comm_debug = 0;
 module_param(avc_comm_debug, int, 0644);
 MODULE_PARM_DESC(avc_comm_debug, "debug logging level [0..2] of AV/C communication, default is 0 (no)");
-
-static int __AVCRegisterRemoteControl(struct firesat*firesat, int internal);
 
 /* Frees an allocated packet */
 static void avc_free_packet(struct hpsb_packet *packet)
@@ -232,67 +237,39 @@ static int __AVCWrite(struct firesat *firesat, const AVCCmdFrm *CmdFrm,
 	return 0;
 }
 
-int AVCWrite(struct firesat*firesat, const AVCCmdFrm *CmdFrm, AVCRspFrm *RspFrm) {
+int AVCWrite(struct firesat*firesat, const AVCCmdFrm *CmdFrm, AVCRspFrm *RspFrm)
+{
 	int ret;
-	if(down_interruptible(&firesat->avc_sem))
+
+	if (mutex_lock_interruptible(&firesat->avc_mutex))
 		return -EINTR;
 
 	ret = __AVCWrite(firesat, CmdFrm, RspFrm);
 
-	up(&firesat->avc_sem);
+	mutex_unlock(&firesat->avc_mutex);
 	return ret;
 }
 
-static void do_schedule_remotecontrol(unsigned long ignored);
-DECLARE_TASKLET(schedule_remotecontrol, do_schedule_remotecontrol, 0);
+int AVCRecv(struct firesat *firesat, u8 *data, size_t length)
+{
+	AVCRspFrm *RspFrm = (AVCRspFrm *)data;
 
-static void do_schedule_remotecontrol(unsigned long ignored) {
-	struct firesat *firesat;
-	unsigned long flags;
-
-	spin_lock_irqsave(&firesat_list_lock, flags);
-	list_for_each_entry(firesat,&firesat_list,list) {
-		if(atomic_read(&firesat->reschedule_remotecontrol) == 1) {
-			if(down_trylock(&firesat->avc_sem))
-				tasklet_schedule(&schedule_remotecontrol);
-			else {
-				if(__AVCRegisterRemoteControl(firesat, 1) == 0)
-					atomic_set(&firesat->reschedule_remotecontrol, 0);
-				else
-					tasklet_schedule(&schedule_remotecontrol);
-
-				up(&firesat->avc_sem);
-			}
+	if (length >= 8 &&
+	    RspFrm->operand[0] == SFE_VENDOR_DE_COMPANYID_0 &&
+	    RspFrm->operand[1] == SFE_VENDOR_DE_COMPANYID_1 &&
+	    RspFrm->operand[2] == SFE_VENDOR_DE_COMPANYID_2 &&
+	    RspFrm->operand[3] == SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL) {
+		if (RspFrm->resp == CHANGED) {
+			firesat_handle_rc(RspFrm->operand[4] << 8 |
+					  RspFrm->operand[5]);
+			schedule_work(&firesat->remote_ctrl_work);
+		} else if (RspFrm->resp != INTERIM) {
+			printk(KERN_INFO "firedtv: remote control result = "
+			       "%d\n", RspFrm->resp);
 		}
-	}
-	spin_unlock_irqrestore(&firesat_list_lock, flags);
-}
-
-int AVCRecv(struct firesat *firesat, u8 *data, size_t length) {
-//	printk(KERN_INFO "%s\n",__func__);
-
-	// remote control handling
-
-#if 0
-	AVCRspFrm *RspFrm = (AVCRspFrm*)data;
-
-	if(/*RspFrm->length >= 8 && ###*/
-			((RspFrm->operand[0] == SFE_VENDOR_DE_COMPANYID_0 &&
-			RspFrm->operand[1] == SFE_VENDOR_DE_COMPANYID_1 &&
-			RspFrm->operand[2] == SFE_VENDOR_DE_COMPANYID_2)) &&
-			RspFrm->operand[3] == SFE_VENDOR_OPCODE_REGISTER_REMOTE_CONTROL) {
-		if(RspFrm->resp == CHANGED) {
-//			printk(KERN_INFO "%s: code = %02x %02x\n",__func__,RspFrm->operand[4],RspFrm->operand[5]);
-			firesat_got_remotecontrolcode((((u16)RspFrm->operand[4]) << 8) | ((u16)RspFrm->operand[5]));
-
-			// schedule
-			atomic_set(&firesat->reschedule_remotecontrol, 1);
-			tasklet_schedule(&schedule_remotecontrol);
-		} else if(RspFrm->resp != INTERIM)
-			printk(KERN_INFO "%s: remote control result = %d\n",__func__, RspFrm->resp);
 		return 0;
 	}
-#endif
+
 	if(atomic_read(&firesat->avc_reply_received) == 1) {
 		printk(KERN_ERR "%s: received out-of-order AVC response, "
 		       "ignored\n",__func__);
@@ -718,7 +695,8 @@ int AVCTuner_GetTS(struct firesat *firesat){
 	return 0;
 }
 
-int AVCIdentifySubunit(struct firesat *firesat, unsigned char *systemId, int *transport) {
+int AVCIdentifySubunit(struct firesat *firesat)
+{
 	AVCCmdFrm CmdFrm;
 	AVCRspFrm RspFrm;
 
@@ -752,8 +730,6 @@ int AVCIdentifySubunit(struct firesat *firesat, unsigned char *systemId, int *tr
 		printk(KERN_ERR "%s: Invalid response length\n", __func__);
 		return -EINVAL;
 	}
-	if(systemId)
-		*systemId = RspFrm.operand[7];
 	return 0;
 }
 
@@ -901,7 +877,7 @@ int AVCSubUnitInfo(struct firesat *firesat, char *subunitcount)
 	return 0;
 }
 
-static int __AVCRegisterRemoteControl(struct firesat*firesat, int internal)
+int AVCRegisterRemoteControl(struct firesat *firesat)
 {
 	AVCCmdFrm CmdFrm;
 
@@ -922,19 +898,16 @@ static int __AVCRegisterRemoteControl(struct firesat*firesat, int internal)
 
 	CmdFrm.length = 8;
 
-	if(internal) {
-		if(__AVCWrite(firesat,&CmdFrm,NULL) < 0)
-			return -EIO;
-	} else
-		if(AVCWrite(firesat,&CmdFrm,NULL) < 0)
-			return -EIO;
-
-	return 0;
+	return AVCWrite(firesat, &CmdFrm, NULL);
 }
 
-int AVCRegisterRemoteControl(struct firesat*firesat)
+void avc_remote_ctrl_work(struct work_struct *work)
 {
-	return __AVCRegisterRemoteControl(firesat, 0);
+	struct firesat *firesat =
+			container_of(work, struct firesat, remote_ctrl_work);
+
+	/* Should it be rescheduled in failure cases? */
+	AVCRegisterRemoteControl(firesat);
 }
 
 int AVCTuner_Host2Ca(struct firesat *firesat)

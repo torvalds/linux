@@ -1,8 +1,8 @@
 /*
- * FireSAT DVB driver
+ * FireDTV driver (formerly known as FireSAT)
  *
- * Copyright (c) ?
- * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
+ * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -10,22 +10,26 @@
  *	the License, or (at your option) any later version.
  */
 
-#ifndef __FIRESAT_H
-#define __FIRESAT_H
+#ifndef _FIREDTV_H
+#define _FIREDTV_H
 
-#include "dvb_frontend.h"
-#include "dmxdev.h"
-#include "dvb_demux.h"
-#include "dvb_net.h"
+#include <linux/dvb/dmx.h>
+#include <linux/dvb/frontend.h>
+#include <linux/list.h>
+#include <linux/mutex.h>
+#include <linux/spinlock_types.h>
+#include <linux/types.h>
+#include <linux/wait.h>
+#include <linux/workqueue.h>
+#include <asm/atomic.h>
+
+#include <demux.h>
+#include <dmxdev.h>
+#include <dvb_demux.h>
+#include <dvb_net.h>
+#include <dvbdev.h>
 
 #include <linux/version.h>
-#if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 25)
-#include <linux/semaphore.h>
-#endif
-#include <linux/dvb/frontend.h>
-#include <linux/dvb/dmx.h>
-#include <iso.h>
-
 #if LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 25)
 #define DVB_REGISTER_ADAPTER(x, y, z, w, v) dvb_register_adapter(x, y, z, w, v)
 #else
@@ -116,15 +120,19 @@
 
 
 enum model_type {
-	FireSAT_DVB_S = 1,
-	FireSAT_DVB_C = 2,
-	FireSAT_DVB_T = 3,
-	FireSAT_DVB_S2 = 4
+	FireSAT_UNKNOWN = 0,
+	FireSAT_DVB_S   = 1,
+	FireSAT_DVB_C   = 2,
+	FireSAT_DVB_T   = 3,
+	FireSAT_DVB_S2  = 4,
 };
+
+struct hpsb_host;
+struct hpsb_iso;
+struct node_entry;
 
 struct firesat {
 	struct dvb_demux dvb_demux;
-	char *model_name;
 
 	/* DVB bits */
 	struct dvb_adapter		*adapter;
@@ -139,11 +147,10 @@ struct firesat {
 	int				ca_last_command;
 	int				ca_time_interval;
 
-	struct semaphore		avc_sem;
+	struct mutex			avc_mutex;
 	wait_queue_head_t		avc_wait;
 	atomic_t			avc_reply_received;
-
-	atomic_t			reschedule_remotecontrol;
+	struct work_struct		remote_ctrl_work;
 
 	struct firesat_channel {
 		struct firesat *firesat;
@@ -154,7 +161,7 @@ struct firesat {
 		int pid;
 		int type;	/* 1 - TS, 2 - Filter */
 	} channel[16];
-	struct semaphore		demux_sem;
+	struct mutex			demux_mutex;
 
 	/* needed by avc_api */
 	void *respfrm;
@@ -210,22 +217,23 @@ struct CIPHeader {
 	};
 };
 
+extern const char *firedtv_model_names[];
 extern struct list_head firesat_list;
 extern spinlock_t firesat_list_lock;
 
+struct device;
+
 /* firesat_dvb.c */
-extern int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed);
-extern int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed);
-extern int firesat_dvbdev_init(struct firesat *firesat,
-			       struct device *dev,
-			       struct dvb_frontend *fe);
+int firesat_start_feed(struct dvb_demux_feed *dvbdmxfeed);
+int firesat_stop_feed(struct dvb_demux_feed *dvbdmxfeed);
+int firesat_dvbdev_init(struct firesat *firesat, struct device *dev,
+		struct dvb_frontend *fe);
 
 /* firesat_fe.c */
-extern int firesat_frontend_attach(struct firesat *firesat,
-				   struct dvb_frontend *fe);
+int firesat_frontend_attach(struct firesat *firesat, struct dvb_frontend *fe);
 
 /* firesat_iso.c */
-extern int setup_iso_channel(struct firesat *firesat);
-extern void tear_down_iso_channel(struct firesat *firesat);
+int setup_iso_channel(struct firesat *firesat);
+void tear_down_iso_channel(struct firesat *firesat);
 
-#endif
+#endif /* _FIREDTV_H */

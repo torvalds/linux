@@ -1,9 +1,8 @@
-#ifndef __FIRESAT_LIRC_H
-#define __FIRESAT_LIRC_H
+#ifndef _FIREDTV_RC_H
+#define _FIREDTV_RC_H
 
-extern int firesat_register_rc(void);
-extern int firesat_unregister_rc(void);
-extern int firesat_got_remotecontrolcode(u16 code);
+int firesat_register_rc(void);
+void firesat_unregister_rc(void);
+void firesat_handle_rc(unsigned int code);
 
-#endif
-
+#endif /* _FIREDTV_RC_H */

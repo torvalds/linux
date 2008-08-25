@@ -1,9 +1,9 @@
-#ifndef __FIRESAT_CA_H
-#define __FIRESAT_CA_H
+#ifndef _FIREDTV_CI_H
+#define _FIREDTV_CI_H
 
-#include "firesat.h"
+struct firesat;
 
 int firesat_ca_init(struct firesat *firesat);
 void firesat_ca_release(struct firesat *firesat);
 
-#endif
+#endif /* _FIREDTV_CI_H */

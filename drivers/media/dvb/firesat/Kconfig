@@ -1,11 +1,12 @@
-config DVB_FIRESAT
-	tristate "FireSAT devices"
+config DVB_FIREDTV
+	tristate "FireDTV (FireWire attached DVB receivers)"
 	depends on DVB_CORE && IEEE1394 && INPUT
 	help
-	  Support for external IEEE1394 adapters designed by Digital Everywhere and
-	  produced by El Gato, shipped under the brand name 'FireDTV/FloppyDTV'.
+	  Support for DVB receivers from Digital Everywhere, known as FireDTV
+	  and FloppyDTV, which are connected via IEEE 1394 (FireWire).
 
-	  These devices don't have a MPEG decoder built in, so you need
+	  These devices don't have an MPEG decoder built in, so you need
 	  an external software decoder to watch TV.
 
-	  Say Y if you own such a device and want to use it.
+	  To compile this driver as a module, say M here: the module will be
+	  called firedtv.

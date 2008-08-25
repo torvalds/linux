@@ -1,9 +1,9 @@
 /*
- * FireSAT DVB driver
+ * FireDTV driver (formerly known as FireSAT)
  *
- * Copyright (c) 2004 Andreas Monitzer <andy@monitzer.com>
- * Copyright (c) 2007-2008 Ben Backx <ben@bbackx.com>
- * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
+ * Copyright (C) 2007-2008 Ben Backx <ben@bbackx.com>
+ * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -11,26 +11,34 @@
  *	the License, or (at your option) any later version.
  */
 
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/wait.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/time.h>
+#include <linux/device.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <ieee1394_hotplug.h>
-#include <nodemgr.h>
-#include <highlevel.h>
-#include <ohci1394.h>
-#include <hosts.h>
+#include <linux/kernel.h>
+#include <linux/list.h>
+#include <linux/module.h>
+#include <linux/mutex.h>
+#include <linux/slab.h>
+#include <linux/spinlock.h>
+#include <linux/string.h>
+#include <linux/types.h>
+#include <asm/atomic.h>
+
+#include <dmxdev.h>
+#include <dvb_demux.h>
+#include <dvb_frontend.h>
 #include <dvbdev.h>
 
-#include "firesat.h"
+#include <csr1212.h>
+#include <highlevel.h>
+#include <hosts.h>
+#include <ieee1394_hotplug.h>
+#include <nodemgr.h>
+
 #include "avc_api.h"
 #include "cmp.h"
-#include "firesat-rc.h"
+#include "firesat.h"
 #include "firesat-ci.h"
+#include "firesat-rc.h"
 
 #define FIRESAT_Vendor_ID   0x001287
 
@@ -75,52 +83,6 @@ MODULE_DEVICE_TABLE(ieee1394, firesat_id_table);
 LIST_HEAD(firesat_list);
 spinlock_t firesat_list_lock = SPIN_LOCK_UNLOCKED;
 
-static void firesat_add_host(struct hpsb_host *host);
-static void firesat_remove_host(struct hpsb_host *host);
-static void firesat_host_reset(struct hpsb_host *host);
-
-static void fcp_request(struct hpsb_host *host,
-			int nodeid,
-			int direction,
-			int cts,
-			u8 *data,
-			size_t length);
-
-static struct hpsb_highlevel firesat_highlevel = {
-	.name		= "FireSAT",
-	.add_host	= firesat_add_host,
-	.remove_host	= firesat_remove_host,
-	.host_reset	= firesat_host_reset,
-	.fcp_request	= fcp_request,
-};
-
-static void firesat_add_host (struct hpsb_host *host)
-{
-	struct ti_ohci *ohci = (struct ti_ohci *)host->hostdata;
-
-	/* We only work with the OHCI-1394 driver */
-	if (strcmp(host->driver->name, OHCI1394_DRIVER_NAME))
-		return;
-
-	if (!hpsb_create_hostinfo(&firesat_highlevel, host, 0)) {
-		printk(KERN_ERR "Cannot allocate hostinfo\n");
-		return;
-	}
-
-	hpsb_set_hostinfo(&firesat_highlevel, host, ohci);
-	hpsb_set_hostinfo_key(&firesat_highlevel, host, ohci->host->id);
-}
-
-static void firesat_remove_host (struct hpsb_host *host)
-{
-
-}
-
-static void firesat_host_reset(struct hpsb_host *host)
-{
-    printk(KERN_INFO "FireSAT host_reset (nodeid = 0x%x, hosts active = %d)\n",host->node_id,host->nodes_active);
-}
-
 static void fcp_request(struct hpsb_host *host,
 			int nodeid,
 			int direction,
@@ -156,6 +118,14 @@ static void fcp_request(struct hpsb_host *host,
 	  printk("%s: received invalid fcp request, ignored\n", __func__);
 }
 
+const char *firedtv_model_names[] = {
+	[FireSAT_UNKNOWN] = "unknown type",
+	[FireSAT_DVB_S]   = "FireDTV S/CI",
+	[FireSAT_DVB_C]   = "FireDTV C/CI",
+	[FireSAT_DVB_T]   = "FireDTV T/CI",
+	[FireSAT_DVB_S2]  = "FireDTV S2  ",
+};
+
 static int firesat_probe(struct device *dev)
 {
 	struct unit_directory *ud = container_of(dev, struct unit_directory, device);
@@ -165,6 +135,7 @@ static int firesat_probe(struct device *dev)
 	unsigned char subunitcount = 0xff, subunit;
 	struct firesat **firesats = kmalloc(sizeof (void*) * 2,GFP_KERNEL);
 	int kv_len;
+	int i;
 	char *kv_buf;
 
 	if (!firesats) {
@@ -207,11 +178,11 @@ static int firesat_probe(struct device *dev)
 			return -ENOMEM;
 		}
 
-		sema_init(&firesat->avc_sem, 1);
+		mutex_init(&firesat->avc_mutex);
 		init_waitqueue_head(&firesat->avc_wait);
 		atomic_set(&firesat->avc_reply_received, 1);
-		sema_init(&firesat->demux_sem, 1);
-		atomic_set(&firesat->reschedule_remotecontrol, 0);
+		mutex_init(&firesat->demux_mutex);
+		INIT_WORK(&firesat->remote_ctrl_work, avc_remote_ctrl_work);
 
 		spin_lock_irqsave(&firesat_list_lock, flags);
 		INIT_LIST_HEAD(&firesat->list);
@@ -244,23 +215,13 @@ static int firesat_probe(struct device *dev)
 		while ((kv_buf + kv_len - 1) == '\0') kv_len--;
 		kv_buf[kv_len++] = '\0';
 
-		/* Determining the device model */
-		if (strcmp(kv_buf, "FireDTV S/CI") == 0) {
-			printk(KERN_INFO "%s: found DVB/S\n", __func__);
-			firesat->type = 1;
-		} else if (strcmp(kv_buf, "FireDTV C/CI") == 0) {
-			printk(KERN_INFO "%s: found DVB/C\n", __func__);
-			firesat->type = 2;
-		} else if (strcmp(kv_buf, "FireDTV T/CI") == 0) {
-			printk(KERN_INFO "%s: found DVB/T\n", __func__);
-			firesat->type = 3;
-		} else if (strcmp(kv_buf, "FireDTV S2  ") == 0) {
-			printk(KERN_INFO "%s: found DVB/S2\n", __func__);
-			firesat->type = 4;
-		}
+		for (i = ARRAY_SIZE(firedtv_model_names); --i;)
+			if (strcmp(kv_buf, firedtv_model_names[i]) == 0)
+				break;
+		firesat->type = i;
 		kfree(kv_buf);
 
-		if (AVCIdentifySubunit(firesat, NULL, (int*)&firesat->type)) {
+		if (AVCIdentifySubunit(firesat)) {
 			printk("%s: cannot identify subunit %d\n", __func__, subunit);
 			spin_lock_irqsave(&firesat_list_lock, flags);
 			list_del(&firesat->list);
@@ -270,14 +231,14 @@ static int firesat_probe(struct device *dev)
 		}
 
 // ----
+		/* FIXME: check for error return */
 		firesat_dvbdev_init(firesat, dev, fe);
 // ----
 		firesats[subunit] = firesat;
 	} // loop for all tuners
 
-	//beta ;-) Disable remote control stuff to avoid crashing
-	//if(firesats[0])
-	//	AVCRegisterRemoteControl(firesats[0]);
+	if (firesats[0])
+		AVCRegisterRemoteControl(firesats[0]);
 
     return 0;
 }
@@ -305,6 +266,8 @@ static int firesat_remove(struct device *dev)
 				spin_lock_irqsave(&firesat_list_lock, flags);
 				list_del(&firesats[k]->list);
 				spin_unlock_irqrestore(&firesat_list_lock, flags);
+
+				cancel_work_sync(&firesats[k]->remote_ctrl_work);
 
 				kfree(firesats[k]->fe);
 				kfree(firesats[k]->adapter);
@@ -339,7 +302,7 @@ static int firesat_update(struct unit_directory *ud)
 
 static struct hpsb_protocol_driver firesat_driver = {
 
-	.name		= "FireSAT",
+	.name		= "firedtv",
 	.id_table	= firesat_id_table,
 	.update		= firesat_update,
 
@@ -352,32 +315,41 @@ static struct hpsb_protocol_driver firesat_driver = {
 	},
 };
 
+static struct hpsb_highlevel firesat_highlevel = {
+	.name		= "firedtv",
+	.fcp_request	= fcp_request,
+};
+
 static int __init firesat_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "FireSAT loaded\n");
 	hpsb_register_highlevel(&firesat_highlevel);
 	ret = hpsb_register_protocol(&firesat_driver);
 	if (ret) {
-		printk(KERN_ERR "FireSAT: failed to register protocol\n");
-		hpsb_unregister_highlevel(&firesat_highlevel);
-		return ret;
+		printk(KERN_ERR "firedtv: failed to register protocol\n");
+		goto fail;
 	}
 
-	//Crash in this function, just disable RC for the time being...
-	//Don't forget to uncomment in firesat_exit and firesat_probe when you enable this.
-	/*if((ret=firesat_register_rc()))
-		printk("%s: firesat_register_rc return error code %d (ignored)\n", __func__, ret);*/
+	ret = firesat_register_rc();
+	if (ret) {
+		printk(KERN_ERR "firedtv: failed to register input device\n");
+		goto fail_rc;
+	}
 
 	return 0;
+fail_rc:
+	hpsb_unregister_protocol(&firesat_driver);
+fail:
+	hpsb_unregister_highlevel(&firesat_highlevel);
+	return ret;
 }
 
 static void __exit firesat_exit(void)
 {
+	firesat_unregister_rc();
 	hpsb_unregister_protocol(&firesat_driver);
 	hpsb_unregister_highlevel(&firesat_highlevel);
-	printk(KERN_INFO "FireSAT quit\n");
 }
 
 module_init(firesat_init);
@@ -385,6 +357,6 @@ module_exit(firesat_exit);
 
 MODULE_AUTHOR("Andreas Monitzer <andy@monitzer.com>");
 MODULE_AUTHOR("Ben Backx <ben@bbackx.com>");
-MODULE_DESCRIPTION("FireSAT DVB Driver");
+MODULE_DESCRIPTION("FireDTV DVB Driver");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE("FireSAT DVB");
+MODULE_SUPPORTED_DEVICE("FireDTV DVB");

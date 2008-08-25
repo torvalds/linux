@@ -1,8 +1,8 @@
 /*
- * FireSAT DVB driver
+ * FireDTV driver (formerly known as FireSAT)
  *
- * Copyright (c) ?
- * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
+ * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -10,26 +10,15 @@
  *	the License, or (at your option) any later version.
  */
 
-#include <linux/init.h>
-#include <linux/slab.h>
-#include <linux/wait.h>
-#include <linux/module.h>
-#include <linux/delay.h>
-#include <linux/time.h>
 #include <linux/errno.h>
-#include <linux/interrupt.h>
-#include <ieee1394_hotplug.h>
-#include <nodemgr.h>
-#include <highlevel.h>
-#include <ohci1394.h>
-#include <hosts.h>
-#include <dvbdev.h>
+#include <linux/kernel.h>
+#include <linux/types.h>
 
-#include "firesat.h"
+#include <dvb_frontend.h>
+
 #include "avc_api.h"
 #include "cmp.h"
-#include "firesat-rc.h"
-#include "firesat-ci.h"
+#include "firesat.h"
 
 static int firesat_dvb_init(struct dvb_frontend *fe)
 {
@@ -209,21 +198,17 @@ int firesat_frontend_attach(struct firesat *firesat, struct dvb_frontend *fe)
 {
 	switch (firesat->type) {
 	case FireSAT_DVB_S:
-		firesat->model_name = "FireSAT DVB-S";
 		firesat->frontend_info = &firesat_S_frontend_info;
 		break;
 	case FireSAT_DVB_C:
-		firesat->model_name = "FireSAT DVB-C";
 		firesat->frontend_info = &firesat_C_frontend_info;
 		break;
 	case FireSAT_DVB_T:
-		firesat->model_name = "FireSAT DVB-T";
 		firesat->frontend_info = &firesat_T_frontend_info;
 		break;
 	default:
-		printk("%s: unknown model type 0x%x !\n",
-			__func__, firesat->type);
-		firesat->model_name = "Unknown";
+		printk(KERN_ERR "firedtv: no frontend for model type 0x%x\n",
+		       firesat->type);
 		firesat->frontend_info = NULL;
 	}
 	fe->ops = firesat_ops;
@@ -235,7 +220,7 @@ int firesat_frontend_attach(struct firesat *firesat, struct dvb_frontend *fe)
 
 static struct dvb_frontend_info firesat_S_frontend_info = {
 
-	.name			= "FireSAT DVB-S Frontend",
+	.name			= "FireDTV DVB-S Frontend",
 	.type			= FE_QPSK,
 
 	.frequency_min		= 950000,
@@ -256,7 +241,7 @@ static struct dvb_frontend_info firesat_S_frontend_info = {
 
 static struct dvb_frontend_info firesat_C_frontend_info = {
 
-	.name			= "FireSAT DVB-C Frontend",
+	.name			= "FireDTV DVB-C Frontend",
 	.type			= FE_QAM,
 
 	.frequency_min		= 47000000,
@@ -276,7 +261,7 @@ static struct dvb_frontend_info firesat_C_frontend_info = {
 
 static struct dvb_frontend_info firesat_T_frontend_info = {
 
-	.name			= "FireSAT DVB-T Frontend",
+	.name			= "FireDTV DVB-T Frontend",
 	.type			= FE_OFDM,
 
 	.frequency_min		= 49000000,

@@ -1,7 +1,8 @@
 /*
- * FireSAT DVB driver
+ * FireDTV driver (formerly known as FireSAT)
  *
- * Copyright (c) 2008 Henrik Kurelid <henrik@kurelid.se>
+ * Copyright (C) 2004 Andreas Monitzer <andy@monitzer.com>
+ * Copyright (C) 2008 Henrik Kurelid <henrik@kurelid.se>
  *
  *	This program is free software; you can redistribute it and/or
  *	modify it under the terms of the GNU General Public License as
@@ -9,12 +10,15 @@
  *	the License, or (at your option) any later version.
  */
 
-#include "firesat-ci.h"
-#include "firesat.h"
-#include "avc_api.h"
-
 #include <linux/dvb/ca.h>
+#include <linux/fs.h>
+#include <linux/module.h>
+
 #include <dvbdev.h>
+
+#include "avc_api.h"
+#include "firesat.h"
+#include "firesat-ci.h"
 
 static unsigned int ca_debug = 0;
 module_param(ca_debug, int, 0644);
