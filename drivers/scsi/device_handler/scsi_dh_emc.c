@@ -278,7 +278,6 @@ static struct request *get_req(struct scsi_device *sdev, int cmd,
 		return NULL;
 	}
 
-	memset(rq->cmd, 0, BLK_MAX_CDB);
 	rq->cmd_len = COMMAND_SIZE(cmd);
 	rq->cmd[0] = cmd;
 

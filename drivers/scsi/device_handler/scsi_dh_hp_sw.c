@@ -114,7 +114,6 @@ static int hp_sw_tur(struct scsi_device *sdev, struct hp_sw_dh_data *h)
 	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->cmd_flags |= REQ_FAILFAST;
 	req->cmd_len = COMMAND_SIZE(TEST_UNIT_READY);
-	memset(req->cmd, 0, MAX_COMMAND_SIZE);
 	req->cmd[0] = TEST_UNIT_READY;
 	req->timeout = HP_SW_TIMEOUT;
 	req->sense = h->sense;
@@ -207,7 +206,6 @@ static int hp_sw_start_stop(struct scsi_device *sdev, struct hp_sw_dh_data *h)
 	req->cmd_type = REQ_TYPE_BLOCK_PC;
 	req->cmd_flags |= REQ_FAILFAST;
 	req->cmd_len = COMMAND_SIZE(START_STOP);
-	memset(req->cmd, 0, MAX_COMMAND_SIZE);
 	req->cmd[0] = START_STOP;
 	req->cmd[4] = 1;	/* Start spin cycle */
 	req->timeout = HP_SW_TIMEOUT;
