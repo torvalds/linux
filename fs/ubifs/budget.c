@@ -747,14 +747,24 @@ long long ubifs_reported_space(const struct ubifs_info *c, uint64_t free)
 }
 
 /**
- * ubifs_budg_get_free_space - return amount of free space.
+ * ubifs_get_free_space - return amount of free space.
  * @c: UBIFS file-system description object
  *
- * This function returns amount of free space on the file-system.
+ * This function calculates amount of free space to report to user-space.
+ *
+ * Because UBIFS may introduce substantial overhead (the index, node headers,
+ * alighment, wastage at the end of eraseblocks, etc), it cannot report real
+ * amount of free flash space it has (well, because not all dirty space is
+ * reclamable, UBIFS does not actually know the real amount). If UBIFS did so,
+ * it would bread user expectetion about what free space is. Users seem to
+ * accustomed to assume that if the file-system reports N bytes of free space,
+ * they would be able to fit a file of N bytes to the FS. This almost works for
+ * traditional file-systems, because they have way less overhead than UBIFS.
+ * So, to keep users happy, UBIFS tries to take the overhead into account.
  */
-long long ubifs_budg_get_free_space(struct ubifs_info *c)
+long long ubifs_get_free_space(struct ubifs_info *c)
 {
-	int min_idx_lebs;
+	int min_idx_lebs, rsvd_idx_lebs, lebs;
 	long long available, outstanding, free;
 
 	spin_lock(&c->space_lock);
@@ -771,6 +781,26 @@ long long ubifs_budg_get_free_space(struct ubifs_info *c)
 	}
 
 	available = ubifs_calc_available(c, min_idx_lebs);
+
+	/*
+	 * When reporting free space to user-space, UBIFS guarantees that it is
+	 * possible to write a file of free space size. This means that for
+	 * empty LEBs we may use more precise calculations than
+	 * 'ubifs_calc_available()' is using. Namely, we know that in empty
+	 * LEBs we would waste only @c->leb_overhead bytes, not @c->dark_wm.
+	 * Thus, amend the available space.
+	 *
+	 * Note, the calculations below are similar to what we have in
+	 * 'do_budget_space()', so refer there for comments.
+	 */
+	if (min_idx_lebs > c->lst.idx_lebs)
+		rsvd_idx_lebs = min_idx_lebs - c->lst.idx_lebs;
+	else
+		rsvd_idx_lebs = 0;
+	lebs = c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt -
+	       c->lst.taken_empty_lebs;
+	lebs -= rsvd_idx_lebs;
+	available += lebs * (c->dark_wm - c->leb_overhead);
 	spin_unlock(&c->space_lock);
 
 	if (available > outstanding)

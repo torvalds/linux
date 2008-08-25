@@ -371,7 +371,7 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	struct ubifs_info *c = dentry->d_sb->s_fs_info;
 	unsigned long long free;
 
-	free = ubifs_budg_get_free_space(c);
+	free = ubifs_get_free_space(c);
 	dbg_gen("free space %lld bytes (%lld blocks)",
 		free, free >> UBIFS_BLOCK_SHIFT);
 
@@ -653,11 +653,11 @@ static int init_constants_late(struct ubifs_info *c)
 	 * internally because it does not make much sense for UBIFS, but it is
 	 * necessary to report something for the 'statfs()' call.
 	 *
-	 * Subtract the LEB reserved for GC and the LEB which is reserved for
-	 * deletions.
+	 * Subtract the LEB reserved for GC, the LEB which is reserved for
+	 * deletions, and assume only one journal head is available.
 	 */
-	tmp64 = c->main_lebs - 2;
-	tmp64 *= (uint64_t)c->leb_size - c->dark_wm;
+	tmp64 = c->main_lebs - 2 - c->jhead_cnt + 1;
+	tmp64 *= (uint64_t)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
 
