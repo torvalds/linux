@@ -33,6 +33,12 @@ MODULE_DESCRIPTION("UltraSPARC-III memory controller driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION(DRV_MODULE_VERSION);
 
+static int mc_type;
+#define MC_TYPE_SAFARI		1
+#define MC_TYPE_JBUS		2
+
+static dimm_printer_t us3mc_dimm_printer;
+
 #define CHMCTRL_NDGRPS	2
 #define CHMCTRL_NDIMMS	4
 
@@ -96,7 +102,385 @@ struct chmc {
 	struct chmc_bank_info		logical_banks[CHMCTRL_NBANKS];
 };
 
+#define JBUSMC_REGS_SIZE		8
+
+#define JB_MC_REG1_DIMM2_BANK3		0x8000000000000000
+#define JB_MC_REG1_DIMM1_BANK1		0x4000000000000000
+#define JB_MC_REG1_DIMM2_BANK2		0x2000000000000000
+#define JB_MC_REG1_DIMM1_BANK0		0x1000000000000000
+#define JB_MC_REG1_XOR			0x0000010000000000
+#define JB_MC_REG1_ADDR_GEN_2		0x000000e000000000
+#define JB_MC_REG1_ADDR_GEN_2_SHIFT	37
+#define JB_MC_REG1_ADDR_GEN_1		0x0000001c00000000
+#define JB_MC_REG1_ADDR_GEN_1_SHIFT	34
+#define JB_MC_REG1_INTERLEAVE		0x0000000001800000
+#define JB_MC_REG1_INTERLEAVE_SHIFT	23
+#define JB_MC_REG1_DIMM2_PTYPE		0x0000000000200000
+#define JB_MC_REG1_DIMM2_PTYPE_SHIFT	21
+#define JB_MC_REG1_DIMM1_PTYPE		0x0000000000100000
+#define JB_MC_REG1_DIMM1_PTYPE_SHIFT	20
+
+#define PART_TYPE_X8		0
+#define PART_TYPE_X4		1
+
+#define INTERLEAVE_NONE		0
+#define INTERLEAVE_SAME		1
+#define INTERLEAVE_INTERNAL	2
+#define INTERLEAVE_BOTH		3
+
+#define ADDR_GEN_128MB		0
+#define ADDR_GEN_256MB		1
+#define ADDR_GEN_512MB		2
+#define ADDR_GEN_1GB		3
+
+#define JB_NUM_DIMM_GROUPS	2
+#define JB_NUM_DIMMS_PER_GROUP	2
+#define JB_NUM_DIMMS		(JB_NUM_DIMM_GROUPS * JB_NUM_DIMMS_PER_GROUP)
+
+struct jbusmc_obp_map {
+	unsigned char	dimm_map[18];
+	unsigned char	pin_map[144];
+};
+
+struct jbusmc_obp_mem_layout {
+	/* One max 8-byte string label per DIMM.  Usually
+	 * this matches the label on the motherboard where
+	 * that DIMM resides.
+	 */
+	char		dimm_labels[JB_NUM_DIMMS][DIMM_LABEL_SZ];
+
+	/* If symmetric use map[0], else it is
+	 * asymmetric and map[1] should be used.
+	 */
+	char			symmetric;
+
+	struct jbusmc_obp_map	map;
+
+	char			_pad;
+};
+
+struct jbusmc_dimm_group {
+	struct jbusmc			*controller;
+	int				index;
+	u64				base_addr;
+	u64				size;
+};
+
+struct jbusmc {
+	void __iomem			*regs;
+	u64				mc_reg_1;
+	u32				portid;
+	struct jbusmc_obp_mem_layout	layout;
+	int				layout_len;
+	int				num_dimm_groups;
+	struct jbusmc_dimm_group	dimm_groups[JB_NUM_DIMM_GROUPS];
+	struct list_head		list;
+};
+
+static DEFINE_SPINLOCK(mctrl_list_lock);
 static LIST_HEAD(mctrl_list);
+
+static void mc_list_add(struct list_head *list)
+{
+	spin_lock(&mctrl_list_lock);
+	list_add(list, &mctrl_list);
+	spin_unlock(&mctrl_list_lock);
+}
+
+static void mc_list_del(struct list_head *list)
+{
+	spin_lock(&mctrl_list_lock);
+	list_del_init(list);
+	spin_unlock(&mctrl_list_lock);
+}
+
+#define SYNDROME_MIN	-1
+#define SYNDROME_MAX	144
+
+/* Covert syndrome code into the way the bits are positioned
+ * on the bus.
+ */
+static int syndrome_to_qword_code(int syndrome_code)
+{
+	if (syndrome_code < 128)
+		syndrome_code += 16;
+	else if (syndrome_code < 128 + 9)
+		syndrome_code -= (128 - 7);
+	else if (syndrome_code < (128 + 9 + 3))
+		syndrome_code -= (128 + 9 - 4);
+	else
+		syndrome_code -= (128 + 9 + 3);
+	return syndrome_code;
+}
+
+/* All this magic has to do with how a cache line comes over the wire
+ * on Safari and JBUS.  A 64-bit line comes over in 1 or more quadword
+ * cycles, each of which transmit ECC/MTAG info as well as the actual
+ * data.
+ */
+#define L2_LINE_SIZE		64
+#define L2_LINE_ADDR_MSK	(L2_LINE_SIZE - 1)
+#define QW_PER_LINE		4
+#define QW_BYTES		(L2_LINE_SIZE / QW_PER_LINE)
+#define QW_BITS			144
+#define SAFARI_LAST_BIT		(576 - 1)
+#define JBUS_LAST_BIT		(144 - 1)
+
+static void get_pin_and_dimm_str(int syndrome_code, unsigned long paddr,
+				 int *pin_p, char **dimm_str_p, void *_prop,
+				 int base_dimm_offset)
+{
+	int qword_code = syndrome_to_qword_code(syndrome_code);
+	int cache_line_offset;
+	int offset_inverse;
+	int dimm_map_index;
+	int map_val;
+
+	if (mc_type == MC_TYPE_JBUS) {
+		struct jbusmc_obp_mem_layout *p = _prop;
+
+		/* JBUS */
+		cache_line_offset = qword_code;
+		offset_inverse = (JBUS_LAST_BIT - cache_line_offset);
+		dimm_map_index = offset_inverse / 8;
+		map_val = p->map.dimm_map[dimm_map_index];
+		map_val = ((map_val >> ((7 - (offset_inverse & 7)))) & 1);
+		*dimm_str_p = p->dimm_labels[base_dimm_offset + map_val];
+		*pin_p = p->map.pin_map[cache_line_offset];
+	} else {
+		struct chmc_obp_mem_layout *p = _prop;
+		struct chmc_obp_map *mp;
+		int qword;
+
+		/* Safari */
+		if (p->symmetric)
+			mp = &p->map[0];
+		else
+			mp = &p->map[1];
+
+		qword = (paddr & L2_LINE_ADDR_MSK) / QW_BYTES;
+		cache_line_offset = ((3 - qword) * QW_BITS) + qword_code;
+		offset_inverse = (SAFARI_LAST_BIT - cache_line_offset);
+		dimm_map_index = offset_inverse >> 2;
+		map_val = mp->dimm_map[dimm_map_index];
+		map_val = ((map_val >> ((3 - (offset_inverse & 3)) << 1)) & 0x3);
+		*dimm_str_p = p->dimm_labels[base_dimm_offset + map_val];
+		*pin_p = mp->pin_map[cache_line_offset];
+	}
+}
+
+static struct jbusmc_dimm_group *jbusmc_find_dimm_group(unsigned long phys_addr)
+{
+	struct jbusmc *p;
+
+	list_for_each_entry(p, &mctrl_list, list) {
+		int i;
+
+		for (i = 0; i < p->num_dimm_groups; i++) {
+			struct jbusmc_dimm_group *dp = &p->dimm_groups[i];
+
+			if (phys_addr < dp->base_addr ||
+			    (dp->base_addr + dp->size) <= phys_addr)
+				continue;
+
+			return dp;
+		}
+	}
+	return NULL;
+}
+
+static int jbusmc_print_dimm(int syndrome_code,
+			     unsigned long phys_addr,
+			     char *buf, int buflen)
+{
+	struct jbusmc_obp_mem_layout *prop;
+	struct jbusmc_dimm_group *dp;
+	struct jbusmc *p;
+	int first_dimm;
+
+	dp = jbusmc_find_dimm_group(phys_addr);
+	if (dp == NULL ||
+	    syndrome_code < SYNDROME_MIN ||
+	    syndrome_code > SYNDROME_MAX) {
+		buf[0] = '?';
+		buf[1] = '?';
+		buf[2] = '?';
+		buf[3] = '\0';
+	}
+	p = dp->controller;
+	prop = &p->layout;
+
+	first_dimm = dp->index * JB_NUM_DIMMS_PER_GROUP;
+
+	if (syndrome_code != SYNDROME_MIN) {
+		char *dimm_str;
+		int pin;
+
+		get_pin_and_dimm_str(syndrome_code, phys_addr, &pin,
+				     &dimm_str, prop, first_dimm);
+		sprintf(buf, "%s, pin %3d", dimm_str, pin);
+	} else {
+		int dimm;
+
+		/* Multi-bit error, we just dump out all the
+		 * dimm labels associated with this dimm group.
+		 */
+		for (dimm = 0; dimm < JB_NUM_DIMMS_PER_GROUP; dimm++) {
+			sprintf(buf, "%s ",
+				prop->dimm_labels[first_dimm + dimm]);
+			buf += strlen(buf);
+		}
+	}
+
+	return 0;
+}
+
+static u64 __devinit jbusmc_dimm_group_size(u64 base,
+					    const struct linux_prom64_registers *mem_regs,
+					    int num_mem_regs)
+{
+	u64 max = base + (8UL * 1024 * 1024 * 1024);
+	u64 max_seen = base;
+	int i;
+
+	for (i = 0; i < num_mem_regs; i++) {
+		const struct linux_prom64_registers *ent;
+		u64 this_base;
+		u64 this_end;
+
+		ent = &mem_regs[i];
+		this_base = ent->phys_addr;
+		this_end = this_base + ent->reg_size;
+		if (base < this_base || base >= this_end)
+			continue;
+		if (this_end > max)
+			this_end = max;
+		if (this_end > max_seen)
+			max_seen = this_end;
+	}
+
+	return max_seen - base;
+}
+
+static void __devinit jbusmc_construct_one_dimm_group(struct jbusmc *p,
+						      unsigned long index,
+						      const struct linux_prom64_registers *mem_regs,
+						      int num_mem_regs)
+{
+	struct jbusmc_dimm_group *dp = &p->dimm_groups[index];
+
+	dp->controller = p;
+	dp->index = index;
+
+	dp->base_addr  = (p->portid * (64UL * 1024 * 1024 * 1024));
+	dp->base_addr += (index * (8UL * 1024 * 1024 * 1024));
+	dp->size = jbusmc_dimm_group_size(dp->base_addr, mem_regs, num_mem_regs);
+}
+
+static void __devinit jbusmc_construct_dimm_groups(struct jbusmc *p,
+						   const struct linux_prom64_registers *mem_regs,
+						   int num_mem_regs)
+{
+	if (p->mc_reg_1 & JB_MC_REG1_DIMM1_BANK0) {
+		jbusmc_construct_one_dimm_group(p, 0, mem_regs, num_mem_regs);
+		p->num_dimm_groups++;
+	}
+	if (p->mc_reg_1 & JB_MC_REG1_DIMM2_BANK2) {
+		jbusmc_construct_one_dimm_group(p, 1, mem_regs, num_mem_regs);
+		p->num_dimm_groups++;
+	}
+}
+
+static int __devinit jbusmc_probe(struct of_device *op,
+				  const struct of_device_id *match)
+{
+	const struct linux_prom64_registers *mem_regs;
+	struct device_node *mem_node;
+	int err, len, num_mem_regs;
+	struct jbusmc *p;
+	const u32 *prop;
+	const void *ml;
+
+	err = -ENODEV;
+	mem_node = of_find_node_by_path("/memory");
+	if (!mem_node) {
+		printk(KERN_ERR PFX "Cannot find /memory node.\n");
+		goto out;
+	}
+	mem_regs = of_get_property(mem_node, "reg", &len);
+	if (!mem_regs) {
+		printk(KERN_ERR PFX "Cannot get reg property of /memory node.\n");
+		goto out;
+	}
+	num_mem_regs = len / sizeof(*mem_regs);
+
+	err = -ENOMEM;
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		printk(KERN_ERR PFX "Cannot allocate struct jbusmc.\n");
+		goto out;
+	}
+
+	INIT_LIST_HEAD(&p->list);
+
+	err = -ENODEV;
+	prop = of_get_property(op->node, "portid", &len);
+	if (!prop || len != 4) {
+		printk(KERN_ERR PFX "Cannot find portid.\n");
+		goto out_free;
+	}
+
+	p->portid = *prop;
+
+	prop = of_get_property(op->node, "memory-control-register-1", &len);
+	if (!prop || len != 8) {
+		printk(KERN_ERR PFX "Cannot get memory control register 1.\n");
+		goto out_free;
+	}
+
+	p->mc_reg_1 = ((u64)prop[0] << 32) | (u64) prop[1];
+
+	err = -ENOMEM;
+	p->regs = of_ioremap(&op->resource[0], 0, JBUSMC_REGS_SIZE, "jbusmc");
+	if (!p->regs) {
+		printk(KERN_ERR PFX "Cannot map jbusmc regs.\n");
+		goto out_free;
+	}
+
+	err = -ENODEV;
+	ml = of_get_property(op->node, "memory-layout", &p->layout_len);
+	if (!ml) {
+		printk(KERN_ERR PFX "Cannot get memory layout property.\n");
+		goto out_iounmap;
+	}
+	if (p->layout_len > sizeof(p->layout)) {
+		printk(KERN_ERR PFX "Unexpected memory-layout size %d\n",
+		       p->layout_len);
+		goto out_iounmap;
+	}
+	memcpy(&p->layout, ml, p->layout_len);
+
+	jbusmc_construct_dimm_groups(p, mem_regs, num_mem_regs);
+
+	mc_list_add(&p->list);
+
+	printk(KERN_INFO PFX "UltraSPARC-IIIi memory controller at %s\n",
+	       op->node->full_name);
+
+	dev_set_drvdata(&op->dev, p);
+
+	err = 0;
+
+out:
+	return err;
+
+out_iounmap:
+	of_iounmap(&op->resource[0], p->regs, JBUSMC_REGS_SIZE);
+
+out_free:
+	kfree(p);
+	goto out;
+}
 
 /* Does BANK decode PHYS_ADDR? */
 static int chmc_bank_match(struct chmc_bank_info *bp, unsigned long phys_addr)
@@ -133,16 +517,10 @@ static int chmc_bank_match(struct chmc_bank_info *bp, unsigned long phys_addr)
 /* Given PHYS_ADDR, search memory controller banks for a match. */
 static struct chmc_bank_info *chmc_find_bank(unsigned long phys_addr)
 {
-	struct list_head *mctrl_head = &mctrl_list;
-	struct list_head *mctrl_entry = mctrl_head->next;
+	struct chmc *p;
 
-	for (;;) {
-		struct chmc *p = list_entry(mctrl_entry, struct chmc, list);
+	list_for_each_entry(p, &mctrl_list, list) {
 		int bank_no;
-
-		if (mctrl_entry == mctrl_head)
-			break;
-		mctrl_entry = mctrl_entry->next;
 
 		for (bank_no = 0; bank_no < CHMCTRL_NBANKS; bank_no++) {
 			struct chmc_bank_info *bp;
@@ -157,8 +535,6 @@ static struct chmc_bank_info *chmc_find_bank(unsigned long phys_addr)
 }
 
 /* This is the main purpose of this driver. */
-#define SYNDROME_MIN	-1
-#define SYNDROME_MAX	144
 static int chmc_print_dimm(int syndrome_code,
 			   unsigned long phys_addr,
 			   char *buf, int buflen)
@@ -184,54 +560,12 @@ static int chmc_print_dimm(int syndrome_code,
 	first_dimm *= CHMCTRL_NDIMMS;
 
 	if (syndrome_code != SYNDROME_MIN) {
-		struct chmc_obp_map *map;
-		int qword, where_in_line, where, map_index, map_offset;
-		unsigned int map_val;
+		char *dimm_str;
+		int pin;
 
-		/* Yaay, single bit error so we can figure out
-		 * the exact dimm.
-		 */
-		if (prop->symmetric)
-			map = &prop->map[0];
-		else
-			map = &prop->map[1];
-
-		/* Covert syndrome code into the way the bits are
-		 * positioned on the bus.
-		 */
-		if (syndrome_code < 144 - 16)
-			syndrome_code += 16;
-		else if (syndrome_code < 144)
-			syndrome_code -= (144 - 7);
-		else if (syndrome_code < (144 + 3))
-			syndrome_code -= (144 + 3 - 4);
-		else
-			syndrome_code -= 144 + 3;
-
-		/* All this magic has to do with how a cache line
-		 * comes over the wire on Safari.  A 64-bit line
-		 * comes over in 4 quadword cycles, each of which
-		 * transmit ECC/MTAG info as well as the actual
-		 * data.  144 bits per quadword, 576 total.
-		 */
-#define LINE_SIZE	64
-#define LINE_ADDR_MSK	(LINE_SIZE - 1)
-#define QW_PER_LINE	4
-#define QW_BYTES	(LINE_SIZE / QW_PER_LINE)
-#define QW_BITS		144
-#define LAST_BIT	(576 - 1)
-
-		qword = (phys_addr & LINE_ADDR_MSK) / QW_BYTES;
-		where_in_line = ((3 - qword) * QW_BITS) + syndrome_code;
-		where = (LAST_BIT - where_in_line);
-		map_index = where >> 2;
-		map_offset = where & 0x3;
-		map_val = map->dimm_map[map_index];
-		map_val = ((map_val >> ((3 - map_offset) << 1)) & (2 - 1));
-
-		sprintf(buf, "%s, pin %3d",
-			prop->dimm_labels[first_dimm + map_val],
-			map->pin_map[where_in_line]);
+		get_pin_and_dimm_str(syndrome_code, phys_addr, &pin,
+				     &dimm_str, prop, first_dimm);
+		sprintf(buf, "%s, pin %3d", dimm_str, pin);
 	} else {
 		int dimm;
 
@@ -412,9 +746,8 @@ static int __devinit chmc_probe(struct of_device *op,
 
 	chmc_fetch_decode_regs(p);
 
-	list_add(&p->list, &mctrl_list);
+	mc_list_add(&p->list);
 
-	/* Report the device. */
 	printk(KERN_INFO PFX "UltraSPARC-III memory controller at %s [%s]\n",
 	       dp->full_name,
 	       (p->layout_size ? "ACTIVE" : "INACTIVE"));
@@ -431,63 +764,100 @@ out_free:
 	goto out;
 }
 
-static int __devexit chmc_remove(struct of_device *op)
+static int __devinit us3mc_probe(struct of_device *op,
+				const struct of_device_id *match)
 {
-	struct chmc *p = dev_get_drvdata(&op->dev);
+	if (mc_type == MC_TYPE_SAFARI)
+		return chmc_probe(op, match);
+	else if (mc_type == MC_TYPE_JBUS)
+		return jbusmc_probe(op, match);
+	return -ENODEV;
+}
+
+static void __devexit chmc_destroy(struct of_device *op, struct chmc *p)
+{
+	list_del(&p->list);
+	of_iounmap(&op->resource[0], p->regs, 0x48);
+	kfree(p);
+}
+
+static void __devexit jbusmc_destroy(struct of_device *op, struct jbusmc *p)
+{
+	mc_list_del(&p->list);
+	of_iounmap(&op->resource[0], p->regs, JBUSMC_REGS_SIZE);
+	kfree(p);
+}
+
+static int __devexit us3mc_remove(struct of_device *op)
+{
+	void *p = dev_get_drvdata(&op->dev);
 
 	if (p) {
-		list_del(&p->list);
-		of_iounmap(&op->resource[0], p->regs, 0x48);
-		kfree(p);
+		if (mc_type == MC_TYPE_SAFARI)
+			chmc_destroy(op, p);
+		else if (mc_type == MC_TYPE_JBUS)
+			jbusmc_destroy(op, p);
 	}
 	return 0;
 }
 
-static struct of_device_id chmc_match[] = {
+static struct of_device_id us3mc_match[] = {
 	{
 		.name = "memory-controller",
 	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, chmc_match);
+MODULE_DEVICE_TABLE(of, us3mc_match);
 
-static struct of_platform_driver chmc_driver = {
-	.name		= "chmc",
-	.match_table	= chmc_match,
-	.probe		= chmc_probe,
-	.remove		= __devexit_p(chmc_remove),
+static struct of_platform_driver us3mc_driver = {
+	.name		= "us3mc",
+	.match_table	= us3mc_match,
+	.probe		= us3mc_probe,
+	.remove		= __devexit_p(us3mc_remove),
 };
 
-static inline bool chmc_platform(void)
+static inline bool us3mc_platform(void)
 {
 	if (tlb_type == cheetah || tlb_type == cheetah_plus)
 		return true;
 	return false;
 }
 
-static int __init chmc_init(void)
+static int __init us3mc_init(void)
 {
+	unsigned long ver;
 	int ret;
 
-	if (!chmc_platform())
+	if (!us3mc_platform())
 		return -ENODEV;
 
-	ret = register_dimm_printer(chmc_print_dimm);
+	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+	if ((ver >> 32UL) == __JALAPENO_ID ||
+	    (ver >> 32UL) == __SERRANO_ID) {
+		mc_type = MC_TYPE_JBUS;
+		us3mc_dimm_printer = jbusmc_print_dimm;
+	} else {
+		mc_type = MC_TYPE_SAFARI;
+		us3mc_dimm_printer = chmc_print_dimm;
+	}
+
+	ret = register_dimm_printer(us3mc_dimm_printer);
+
 	if (!ret) {
-		ret = of_register_driver(&chmc_driver, &of_bus_type);
+		ret = of_register_driver(&us3mc_driver, &of_bus_type);
 		if (ret)
-			unregister_dimm_printer(chmc_print_dimm);
+			unregister_dimm_printer(us3mc_dimm_printer);
 	}
 	return ret;
 }
 
-static void __exit chmc_cleanup(void)
+static void __exit us3mc_cleanup(void)
 {
-	if (chmc_platform()) {
-		unregister_dimm_printer(chmc_print_dimm);
-		of_unregister_driver(&chmc_driver);
+	if (us3mc_platform()) {
+		unregister_dimm_printer(us3mc_dimm_printer);
+		of_unregister_driver(&us3mc_driver);
 	}
 }
 
-module_init(chmc_init);
-module_exit(chmc_cleanup);
+module_init(us3mc_init);
+module_exit(us3mc_cleanup);
