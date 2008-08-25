@@ -6824,6 +6824,10 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 		 */
 		bnx2x_acquire_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 		val = REG_RD(bp, DORQ_REG_NORM_CID_OFST);
+		if (val == 0x7)
+			REG_WR(bp, DORQ_REG_NORM_CID_OFST, 0);
+		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
+
 		if (val == 0x7) {
 			u32 reset_code = DRV_MSG_CODE_UNLOAD_REQ_WOL_DIS;
 			/* save our func */
@@ -6901,7 +6905,6 @@ static void __devinit bnx2x_undi_unload(struct bnx2x *bp)
 			       (SHMEM_RD(bp, func_mb[bp->func].drv_mb_header) &
 				DRV_MSG_SEQ_NUMBER_MASK);
 		}
-		bnx2x_release_hw_lock(bp, HW_LOCK_RESOURCE_UNDI);
 	}
 }
 
