@@ -3144,6 +3144,11 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 		goto out;
 	}
 
+	if (authkey->sca_keylength > optlen) {
+		ret = -EINVAL;
+		goto out;
+	}
+
 	asoc = sctp_id2assoc(sk, authkey->sca_assoc_id);
 	if (!asoc && authkey->sca_assoc_id && sctp_style(sk, UDP)) {
 		ret = -EINVAL;
