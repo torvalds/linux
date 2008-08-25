@@ -492,8 +492,8 @@ static struct bio_map_data *bio_alloc_map_data(int nr_segs, int iov_count,
 	return NULL;
 }
 
-static int __bio_copy_iov(struct bio *bio, struct sg_iovec *iov, int iov_count,
-			  int uncopy)
+static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
+			  struct sg_iovec *iov, int iov_count, int uncopy)
 {
 	int ret = 0, i;
 	struct bio_vec *bvec;
@@ -503,7 +503,7 @@ static int __bio_copy_iov(struct bio *bio, struct sg_iovec *iov, int iov_count,
 
 	__bio_for_each_segment(bvec, bio, i, 0) {
 		char *bv_addr = page_address(bvec->bv_page);
-		unsigned int bv_len = bvec->bv_len;
+		unsigned int bv_len = iovecs[i].bv_len;
 
 		while (bv_len && iov_idx < iov_count) {
 			unsigned int bytes;
@@ -555,7 +555,7 @@ int bio_uncopy_user(struct bio *bio)
 	struct bio_map_data *bmd = bio->bi_private;
 	int ret;
 
-	ret = __bio_copy_iov(bio, bmd->sgvecs, bmd->nr_sgvecs, 1);
+	ret = __bio_copy_iov(bio, bmd->iovecs, bmd->sgvecs, bmd->nr_sgvecs, 1);
 
 	bio_free_map_data(bmd);
 	bio_put(bio);
@@ -634,7 +634,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 	 * success
 	 */
 	if (!write_to_vm) {
-		ret = __bio_copy_iov(bio, iov, iov_count, 0);
+		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0);
 		if (ret)
 			goto cleanup;
 	}
