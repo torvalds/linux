@@ -895,6 +895,9 @@ static void handle_console_output(int fd, struct virtqueue *vq, bool timeout)
 	}
 }
 
+/* This is called when we no longer want to hear about Guest changes to a
+ * virtqueue.  This is more efficient in high-traffic cases, but it means we
+ * have to set a timer to check if any more changes have occurred. */
 static void block_vq(struct virtqueue *vq)
 {
 	struct itimerval itm;
@@ -939,6 +942,11 @@ static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
 	if (!timeout && num)
 		block_vq(vq);
 
+	/* We never quite know how long should we wait before we check the
+	 * queue again for more packets.  We start at 500 microseconds, and if
+	 * we get fewer packets than last time, we assume we made the timeout
+	 * too small and increase it by 10 microseconds.  Otherwise, we drop it
+	 * by one microsecond every time.  It seems to work well enough. */
 	if (timeout) {
 		if (num < last_timeout_num)
 			timeout_usec += 10;
