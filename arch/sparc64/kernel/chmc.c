@@ -35,35 +35,35 @@ MODULE_VERSION(DRV_MODULE_VERSION);
 #define CHMCTRL_NDGRPS	2
 #define CHMCTRL_NDIMMS	4
 
-#define DIMMS_PER_MC	(CHMCTRL_NDGRPS * CHMCTRL_NDIMMS)
+#define CHMC_DIMMS_PER_MC	(CHMCTRL_NDGRPS * CHMCTRL_NDIMMS)
 
 /* OBP memory-layout property format. */
-struct obp_map {
+struct chmc_obp_map {
 	unsigned char	dimm_map[144];
 	unsigned char	pin_map[576];
 };
 
 #define DIMM_LABEL_SZ	8
 
-struct obp_mem_layout {
+struct chmc_obp_mem_layout {
 	/* One max 8-byte string label per DIMM.  Usually
 	 * this matches the label on the motherboard where
 	 * that DIMM resides.
 	 */
-	char		dimm_labels[DIMMS_PER_MC][DIMM_LABEL_SZ];
+	char			dimm_labels[CHMC_DIMMS_PER_MC][DIMM_LABEL_SZ];
 
 	/* If symmetric use map[0], else it is
 	 * asymmetric and map[1] should be used.
 	 */
-	char		symmetric;
+	char			symmetric;
 
-	struct obp_map	map[2];
+	struct chmc_obp_map	map[2];
 };
 
 #define CHMCTRL_NBANKS	4
 
-struct bank_info {
-	struct mctrl_info	*mp;
+struct chmc_bank_info {
+	struct chmc		*p;
 	int			bank_id;
 
 	u64			raw_reg;
@@ -77,28 +77,28 @@ struct bank_info {
 	unsigned long		size;
 };
 
-struct mctrl_info {
-	struct list_head	list;
-	int			portid;
+struct chmc {
+	struct list_head		list;
+	int				portid;
 
-	struct obp_mem_layout	layout_prop;
-	int			layout_size;
+	struct chmc_obp_mem_layout	layout_prop;
+	int				layout_size;
 
-	void __iomem		*regs;
+	void __iomem			*regs;
 
-	u64			timing_control1;
-	u64			timing_control2;
-	u64			timing_control3;
-	u64			timing_control4;
-	u64			memaddr_control;
+	u64				timing_control1;
+	u64				timing_control2;
+	u64				timing_control3;
+	u64				timing_control4;
+	u64				memaddr_control;
 
-	struct bank_info	logical_banks[CHMCTRL_NBANKS];
+	struct chmc_bank_info		logical_banks[CHMCTRL_NBANKS];
 };
 
 static LIST_HEAD(mctrl_list);
 
 /* Does BANK decode PHYS_ADDR? */
-static int bank_match(struct bank_info *bp, unsigned long phys_addr)
+static int chmc_bank_match(struct chmc_bank_info *bp, unsigned long phys_addr)
 {
 	unsigned long upper_bits = (phys_addr & PA_UPPER_BITS) >> PA_UPPER_BITS_SHIFT;
 	unsigned long lower_bits = (phys_addr & PA_LOWER_BITS) >> PA_LOWER_BITS_SHIFT;
@@ -130,14 +130,13 @@ static int bank_match(struct bank_info *bp, unsigned long phys_addr)
 }
 
 /* Given PHYS_ADDR, search memory controller banks for a match. */
-static struct bank_info *find_bank(unsigned long phys_addr)
+static struct chmc_bank_info *chmc_find_bank(unsigned long phys_addr)
 {
 	struct list_head *mctrl_head = &mctrl_list;
 	struct list_head *mctrl_entry = mctrl_head->next;
 
 	for (;;) {
-		struct mctrl_info *mp =
-			list_entry(mctrl_entry, struct mctrl_info, list);
+		struct chmc *p = list_entry(mctrl_entry, struct chmc, list);
 		int bank_no;
 
 		if (mctrl_entry == mctrl_head)
@@ -145,10 +144,10 @@ static struct bank_info *find_bank(unsigned long phys_addr)
 		mctrl_entry = mctrl_entry->next;
 
 		for (bank_no = 0; bank_no < CHMCTRL_NBANKS; bank_no++) {
-			struct bank_info *bp;
+			struct chmc_bank_info *bp;
 
-			bp = &mp->logical_banks[bank_no];
-			if (bank_match(bp, phys_addr))
+			bp = &p->logical_banks[bank_no];
+			if (chmc_bank_match(bp, phys_addr))
 				return bp;
 		}
 	}
@@ -163,11 +162,11 @@ int chmc_getunumber(int syndrome_code,
 		    unsigned long phys_addr,
 		    char *buf, int buflen)
 {
-	struct bank_info *bp;
-	struct obp_mem_layout *prop;
+	struct chmc_bank_info *bp;
+	struct chmc_obp_mem_layout *prop;
 	int bank_in_controller, first_dimm;
 
-	bp = find_bank(phys_addr);
+	bp = chmc_find_bank(phys_addr);
 	if (bp == NULL ||
 	    syndrome_code < SYNDROME_MIN ||
 	    syndrome_code > SYNDROME_MAX) {
@@ -178,13 +177,13 @@ int chmc_getunumber(int syndrome_code,
 		return 0;
 	}
 
-	prop = &bp->mp->layout_prop;
+	prop = &bp->p->layout_prop;
 	bank_in_controller = bp->bank_id & (CHMCTRL_NBANKS - 1);
 	first_dimm  = (bank_in_controller & (CHMCTRL_NDGRPS - 1));
 	first_dimm *= CHMCTRL_NDIMMS;
 
 	if (syndrome_code != SYNDROME_MIN) {
-		struct obp_map *map;
+		struct chmc_obp_map *map;
 		int qword, where_in_line, where, map_index, map_offset;
 		unsigned int map_val;
 
@@ -252,7 +251,7 @@ int chmc_getunumber(int syndrome_code,
  * the code is executing, you must use special ASI load/store else
  * you go through the global mapping.
  */
-static u64 read_mcreg(struct mctrl_info *mp, unsigned long offset)
+static u64 chmc_read_mcreg(struct chmc *p, unsigned long offset)
 {
 	unsigned long ret, this_cpu;
 
@@ -260,14 +259,14 @@ static u64 read_mcreg(struct mctrl_info *mp, unsigned long offset)
 
 	this_cpu = real_hard_smp_processor_id();
 
-	if (mp->portid == this_cpu) {
+	if (p->portid == this_cpu) {
 		__asm__ __volatile__("ldxa	[%1] %2, %0"
 				     : "=r" (ret)
 				     : "r" (offset), "i" (ASI_MCU_CTRL_REG));
 	} else {
 		__asm__ __volatile__("ldxa	[%1] %2, %0"
 				     : "=r" (ret)
-				     : "r" (mp->regs + offset),
+				     : "r" (p->regs + offset),
 				       "i" (ASI_PHYS_BYPASS_EC_E));
 	}
 
@@ -277,164 +276,168 @@ static u64 read_mcreg(struct mctrl_info *mp, unsigned long offset)
 }
 
 #if 0 /* currently unused */
-static void write_mcreg(struct mctrl_info *mp, unsigned long offset, u64 val)
+static void chmc_write_mcreg(struct chmc *p, unsigned long offset, u64 val)
 {
-	if (mp->portid == smp_processor_id()) {
+	if (p->portid == smp_processor_id()) {
 		__asm__ __volatile__("stxa	%0, [%1] %2"
 				     : : "r" (val),
 				         "r" (offset), "i" (ASI_MCU_CTRL_REG));
 	} else {
 		__asm__ __volatile__("ldxa	%0, [%1] %2"
 				     : : "r" (val),
-				         "r" (mp->regs + offset),
+				         "r" (p->regs + offset),
 				         "i" (ASI_PHYS_BYPASS_EC_E));
 	}
 }
 #endif
 
-static void interpret_one_decode_reg(struct mctrl_info *mp, int which_bank, u64 val)
+static void chmc_interpret_one_decode_reg(struct chmc *p, int which_bank, u64 val)
 {
-	struct bank_info *p = &mp->logical_banks[which_bank];
+	struct chmc_bank_info *bp = &p->logical_banks[which_bank];
 
-	p->mp = mp;
-	p->bank_id = (CHMCTRL_NBANKS * mp->portid) + which_bank;
-	p->raw_reg = val;
-	p->valid = (val & MEM_DECODE_VALID) >> MEM_DECODE_VALID_SHIFT;
-	p->uk = (val & MEM_DECODE_UK) >> MEM_DECODE_UK_SHIFT;
-	p->um = (val & MEM_DECODE_UM) >> MEM_DECODE_UM_SHIFT;
-	p->lk = (val & MEM_DECODE_LK) >> MEM_DECODE_LK_SHIFT;
-	p->lm = (val & MEM_DECODE_LM) >> MEM_DECODE_LM_SHIFT;
+	bp->p = p;
+	bp->bank_id = (CHMCTRL_NBANKS * p->portid) + which_bank;
+	bp->raw_reg = val;
+	bp->valid = (val & MEM_DECODE_VALID) >> MEM_DECODE_VALID_SHIFT;
+	bp->uk = (val & MEM_DECODE_UK) >> MEM_DECODE_UK_SHIFT;
+	bp->um = (val & MEM_DECODE_UM) >> MEM_DECODE_UM_SHIFT;
+	bp->lk = (val & MEM_DECODE_LK) >> MEM_DECODE_LK_SHIFT;
+	bp->lm = (val & MEM_DECODE_LM) >> MEM_DECODE_LM_SHIFT;
 
-	p->base  =  (p->um);
-	p->base &= ~(p->uk);
-	p->base <<= PA_UPPER_BITS_SHIFT;
+	bp->base  =  (bp->um);
+	bp->base &= ~(bp->uk);
+	bp->base <<= PA_UPPER_BITS_SHIFT;
 
-	switch(p->lk) {
+	switch(bp->lk) {
 	case 0xf:
 	default:
-		p->interleave = 1;
+		bp->interleave = 1;
 		break;
 
 	case 0xe:
-		p->interleave = 2;
+		bp->interleave = 2;
 		break;
 
 	case 0xc:
-		p->interleave = 4;
+		bp->interleave = 4;
 		break;
 
 	case 0x8:
-		p->interleave = 8;
+		bp->interleave = 8;
 		break;
 
 	case 0x0:
-		p->interleave = 16;
+		bp->interleave = 16;
 		break;
 	};
 
 	/* UK[10] is reserved, and UK[11] is not set for the SDRAM
 	 * bank size definition.
 	 */
-	p->size = (((unsigned long)p->uk &
-		    ((1UL << 10UL) - 1UL)) + 1UL) << PA_UPPER_BITS_SHIFT;
-	p->size /= p->interleave;
+	bp->size = (((unsigned long)bp->uk &
+		     ((1UL << 10UL) - 1UL)) + 1UL) << PA_UPPER_BITS_SHIFT;
+	bp->size /= bp->interleave;
 }
 
-static void fetch_decode_regs(struct mctrl_info *mp)
+static void chmc_fetch_decode_regs(struct chmc *p)
 {
-	if (mp->layout_size == 0)
+	if (p->layout_size == 0)
 		return;
 
-	interpret_one_decode_reg(mp, 0,
-				 read_mcreg(mp, CHMCTRL_DECODE1));
-	interpret_one_decode_reg(mp, 1,
-				 read_mcreg(mp, CHMCTRL_DECODE2));
-	interpret_one_decode_reg(mp, 2,
-				 read_mcreg(mp, CHMCTRL_DECODE3));
-	interpret_one_decode_reg(mp, 3,
-				 read_mcreg(mp, CHMCTRL_DECODE4));
+	chmc_interpret_one_decode_reg(p, 0,
+				      chmc_read_mcreg(p, CHMCTRL_DECODE1));
+	chmc_interpret_one_decode_reg(p, 1,
+				      chmc_read_mcreg(p, CHMCTRL_DECODE2));
+	chmc_interpret_one_decode_reg(p, 2,
+				      chmc_read_mcreg(p, CHMCTRL_DECODE3));
+	chmc_interpret_one_decode_reg(p, 3,
+				      chmc_read_mcreg(p, CHMCTRL_DECODE4));
 }
 
 static int __devinit chmc_probe(struct of_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	struct mctrl_info *mp;
 	unsigned long ver;
 	const void *pval;
 	int len, portid;
+	struct chmc *p;
+	int err;
 
+	err = -ENODEV;
 	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
 	if ((ver >> 32UL) == __JALAPENO_ID ||
 	    (ver >> 32UL) == __SERRANO_ID)
-		return -ENODEV;
-
-	mp = kzalloc(sizeof(*mp), GFP_KERNEL);
-	if (!mp)
-		return -ENOMEM;
+		goto out;
 
 	portid = of_getintprop_default(dp, "portid", -1);
 	if (portid == -1)
-		goto fail;
+		goto out;
 
-	mp->portid = portid;
 	pval = of_get_property(dp, "memory-layout", &len);
-	mp->layout_size = len;
+	if (pval && len > sizeof(p->layout_prop)) {
+		printk(KERN_ERR PFX "Unexpected memory-layout property "
+		       "size %d.\n", len);
+		goto out;
+	}
+
+	err = -ENOMEM;
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p) {
+		printk(KERN_ERR PFX "Could not allocate struct chmc.\n");
+		goto out;
+	}
+
+	p->portid = portid;
+	p->layout_size = len;
 	if (!pval)
-		mp->layout_size = 0;
-	else {
-		if (mp->layout_size > sizeof(mp->layout_prop)) {
-			printk(KERN_ERR PFX "Unexpected memory-layout property "
-			       "size %d.\n", mp->layout_size);
-			goto fail;
-		}
-		memcpy(&mp->layout_prop, pval, len);
-	}
+		p->layout_size = 0;
+	else
+		memcpy(&p->layout_prop, pval, len);
 
-	mp->regs = of_ioremap(&op->resource[0], 0, 0x48, "chmc");
-	if (!mp->regs) {
+	p->regs = of_ioremap(&op->resource[0], 0, 0x48, "chmc");
+	if (!p->regs) {
 		printk(KERN_ERR PFX "Could not map registers.\n");
-		goto fail;
+		goto out_free;
 	}
 
-	if (mp->layout_size != 0UL) {
-		mp->timing_control1 = read_mcreg(mp, CHMCTRL_TCTRL1);
-		mp->timing_control2 = read_mcreg(mp, CHMCTRL_TCTRL2);
-		mp->timing_control3 = read_mcreg(mp, CHMCTRL_TCTRL3);
-		mp->timing_control4 = read_mcreg(mp, CHMCTRL_TCTRL4);
-		mp->memaddr_control = read_mcreg(mp, CHMCTRL_MACTRL);
+	if (p->layout_size != 0UL) {
+		p->timing_control1 = chmc_read_mcreg(p, CHMCTRL_TCTRL1);
+		p->timing_control2 = chmc_read_mcreg(p, CHMCTRL_TCTRL2);
+		p->timing_control3 = chmc_read_mcreg(p, CHMCTRL_TCTRL3);
+		p->timing_control4 = chmc_read_mcreg(p, CHMCTRL_TCTRL4);
+		p->memaddr_control = chmc_read_mcreg(p, CHMCTRL_MACTRL);
 	}
 
-	fetch_decode_regs(mp);
+	chmc_fetch_decode_regs(p);
 
-	list_add(&mp->list, &mctrl_list);
+	list_add(&p->list, &mctrl_list);
 
 	/* Report the device. */
 	printk(KERN_INFO PFX "UltraSPARC-III memory controller at %s [%s]\n",
 	       dp->full_name,
-	       (mp->layout_size ? "ACTIVE" : "INACTIVE"));
+	       (p->layout_size ? "ACTIVE" : "INACTIVE"));
 
-	dev_set_drvdata(&op->dev, mp);
+	dev_set_drvdata(&op->dev, p);
 
-	return 0;
+	err = 0;
 
-fail:
-	if (mp) {
-		if (mp->regs != NULL)
-			of_iounmap(&op->resource[0], mp->regs, 0x48);
-		kfree(mp);
-	}
-	return -1;
+out:
+	return err;
+
+out_free:
+	kfree(p);
+	goto out;
 }
 
 static int __devexit chmc_remove(struct of_device *op)
 {
-	struct mctrl_info *mp = dev_get_drvdata(&op->dev);
+	struct chmc *p = dev_get_drvdata(&op->dev);
 
-	if (mp) {
-		list_del(&mp->list);
-		of_iounmap(&op->resource[0], mp->regs, 0x48);
-		kfree(mp);
+	if (p) {
+		list_del(&p->list);
+		of_iounmap(&op->resource[0], p->regs, 0x48);
+		kfree(p);
 	}
 	return 0;
 }
