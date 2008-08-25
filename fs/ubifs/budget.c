@@ -702,6 +702,51 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
 }
 
 /**
+ * ubifs_reported_space - calculate reported free space.
+ * @c: the UBIFS file-system description object
+ * @free: amount of free space
+ *
+ * This function calculates amount of free space which will be reported to
+ * user-space. User-space application tend to expect that if the file-system
+ * (e.g., via the 'statfs()' call) reports that it has N bytes available, they
+ * are able to write a file of size N. UBIFS attaches node headers to each data
+ * node and it has to write indexind nodes as well. This introduces additional
+ * overhead, and UBIFS it has to report sligtly less free space to meet the
+ * above expectetion.
+ *
+ * This function assumes free space is made up of uncompressed data nodes and
+ * full index nodes (one per data node, tripled because we always allow enough
+ * space to write the index thrice).
+ *
+ * Note, the calculation is pessimistic, which means that most of the time
+ * UBIFS reports less space than it actually has.
+ */
+long long ubifs_reported_space(const struct ubifs_info *c, uint64_t free)
+{
+	int divisor, factor;
+
+	/*
+	 * Reported space size is @free * X, where X is UBIFS block size
+	 * divided by UBIFS block size + all overhead one data block
+	 * introduces. The overhead is the node header + indexing overhead.
+	 *
+	 * Indexing overhead is calculations are based on the following
+	 * formula: I = N/(f - 1) + 1, where I - number of indexing nodes, N -
+	 * number of data nodes, f - fanout. Because effective UBIFS fanout is
+	 * twice as less than maximum fanout, we assume that each data node
+	 * introduces 3 * @c->max_idx_node_sz / (@c->fanout/2 - 1) bytes.
+	 * Note, the multiplier 3 is because UBIFS reseves thrice as more space
+	 * for the index.
+	 */
+	factor = UBIFS_BLOCK_SIZE;
+	divisor = UBIFS_MAX_DATA_NODE_SZ;
+	divisor += (c->max_idx_node_sz * 3) / ((c->fanout >> 1) - 1);
+	free *= factor;
+	do_div(free, divisor);
+	return free;
+}
+
+/**
  * ubifs_budg_get_free_space - return amount of free space.
  * @c: UBIFS file-system description object
  *

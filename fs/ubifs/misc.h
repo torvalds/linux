@@ -284,38 +284,6 @@ static inline void *ubifs_idx_key(const struct ubifs_info *c,
 }
 
 /**
- * ubifs_reported_space - calculate reported free space.
- * @c: the UBIFS file-system description object
- * @free: amount of free space
- *
- * This function calculates amount of free space which will be reported to
- * user-space. User-space application tend to expect that if the file-system
- * (e.g., via the 'statfs()' call) reports that it has N bytes available, they
- * are able to write a file of size N. UBIFS attaches node headers to each data
- * node and it has to write indexind nodes as well. This introduces additional
- * overhead, and UBIFS it has to report sligtly less free space to meet the
- * above expectetion.
- *
- * This function assumes free space is made up of uncompressed data nodes and
- * full index nodes (one per data node, doubled because we always allow enough
- * space to write the index twice).
- *
- * Note, the calculation is pessimistic, which means that most of the time
- * UBIFS reports less space than it actually has.
- */
-static inline long long ubifs_reported_space(const struct ubifs_info *c,
-					     uint64_t free)
-{
-	int divisor, factor;
-
-	divisor = UBIFS_MAX_DATA_NODE_SZ + (c->max_idx_node_sz * 3);
-	factor = UBIFS_MAX_DATA_NODE_SZ - UBIFS_DATA_NODE_SZ;
-	do_div(free, divisor);
-
-	return free * factor;
-}
-
-/**
  * ubifs_current_time - round current time to time granularity.
  * @inode: inode
  */
