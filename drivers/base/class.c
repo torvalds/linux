@@ -135,6 +135,20 @@ static void remove_class_attrs(struct class *cls)
 	}
 }
 
+static void klist_class_dev_get(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_class);
+
+	get_device(dev);
+}
+
+static void klist_class_dev_put(struct klist_node *n)
+{
+	struct device *dev = container_of(n, struct device, knode_class);
+
+	put_device(dev);
+}
+
 int __class_register(struct class *cls, struct lock_class_key *key)
 {
 	struct class_private *cp;
@@ -145,7 +159,7 @@ int __class_register(struct class *cls, struct lock_class_key *key)
 	cp = kzalloc(sizeof(*cp), GFP_KERNEL);
 	if (!cp)
 		return -ENOMEM;
-	INIT_LIST_HEAD(&cp->class_devices);
+	klist_init(&cp->class_devices, klist_class_dev_get, klist_class_dev_put);
 	INIT_LIST_HEAD(&cp->class_interfaces);
 	kset_init(&cp->class_dirs);
 	__mutex_init(&cp->class_mutex, "struct class mutex", key);
@@ -269,6 +283,71 @@ char *make_class_name(const char *name, struct kobject *kobj)
 #endif
 
 /**
+ * class_dev_iter_init - initialize class device iterator
+ * @iter: class iterator to initialize
+ * @class: the class we wanna iterate over
+ * @start: the device to start iterating from, if any
+ * @type: device_type of the devices to iterate over, NULL for all
+ *
+ * Initialize class iterator @iter such that it iterates over devices
+ * of @class.  If @start is set, the list iteration will start there,
+ * otherwise if it is NULL, the iteration starts at the beginning of
+ * the list.
+ */
+void class_dev_iter_init(struct class_dev_iter *iter, struct class *class,
+			 struct device *start, const struct device_type *type)
+{
+	struct klist_node *start_knode = NULL;
+
+	if (start)
+		start_knode = &start->knode_class;
+	klist_iter_init_node(&class->p->class_devices, &iter->ki, start_knode);
+	iter->type = type;
+}
+EXPORT_SYMBOL_GPL(class_dev_iter_init);
+
+/**
+ * class_dev_iter_next - iterate to the next device
+ * @iter: class iterator to proceed
+ *
+ * Proceed @iter to the next device and return it.  Returns NULL if
+ * iteration is complete.
+ *
+ * The returned device is referenced and won't be released till
+ * iterator is proceed to the next device or exited.  The caller is
+ * free to do whatever it wants to do with the device including
+ * calling back into class code.
+ */
+struct device *class_dev_iter_next(struct class_dev_iter *iter)
+{
+	struct klist_node *knode;
+	struct device *dev;
+
+	while (1) {
+		knode = klist_next(&iter->ki);
+		if (!knode)
+			return NULL;
+		dev = container_of(knode, struct device, knode_class);
+		if (!iter->type || iter->type == dev->type)
+			return dev;
+	}
+}
+EXPORT_SYMBOL_GPL(class_dev_iter_next);
+
+/**
+ * class_dev_iter_exit - finish iteration
+ * @iter: class iterator to finish
+ *
+ * Finish an iteration.  Always call this function after iteration is
+ * complete whether the iteration ran till the end or not.
+ */
+void class_dev_iter_exit(struct class_dev_iter *iter)
+{
+	klist_iter_exit(&iter->ki);
+}
+EXPORT_SYMBOL_GPL(class_dev_iter_exit);
+
+/**
  * class_for_each_device - device iterator
  * @class: the class we're iterating
  * @start: the device to start with in the list, if any.
@@ -283,13 +362,13 @@ char *make_class_name(const char *name, struct kobject *kobj)
  * We check the return of @fn each time. If it returns anything
  * other than 0, we break out and return that value.
  *
- * Note, we hold class->class_mutex in this function, so it can not be
- * re-acquired in @fn, otherwise it will self-deadlocking. For
- * example, calls to add or remove class members would be verboten.
+ * @fn is allowed to do anything including calling back into class
+ * code.  There's no locking restriction.
  */
 int class_for_each_device(struct class *class, struct device *start,
 			  void *data, int (*fn)(struct device *, void *))
 {
+	struct class_dev_iter iter;
 	struct device *dev;
 	int error = 0;
 
@@ -301,20 +380,13 @@ int class_for_each_device(struct class *class, struct device *start,
 		return -EINVAL;
 	}
 
-	mutex_lock(&class->p->class_mutex);
-	list_for_each_entry(dev, &class->p->class_devices, node) {
-		if (start) {
-			if (start == dev)
-				start = NULL;
-			continue;
-		}
-		dev = get_device(dev);
+	class_dev_iter_init(&iter, class, start, NULL);
+	while ((dev = class_dev_iter_next(&iter))) {
 		error = fn(dev, data);
-		put_device(dev);
 		if (error)
 			break;
 	}
-	mutex_unlock(&class->p->class_mutex);
+	class_dev_iter_exit(&iter);
 
 	return error;
 }
@@ -337,16 +409,15 @@ EXPORT_SYMBOL_GPL(class_for_each_device);
  *
  * Note, you will need to drop the reference with put_device() after use.
  *
- * We hold class->class_mutex in this function, so it can not be
- * re-acquired in @match, otherwise it will self-deadlocking. For
- * example, calls to add or remove class members would be verboten.
+ * @fn is allowed to do anything including calling back into class
+ * code.  There's no locking restriction.
  */
 struct device *class_find_device(struct class *class, struct device *start,
 				 void *data,
 				 int (*match)(struct device *, void *))
 {
+	struct class_dev_iter iter;
 	struct device *dev;
-	int found = 0;
 
 	if (!class)
 		return NULL;
@@ -356,29 +427,23 @@ struct device *class_find_device(struct class *class, struct device *start,
 		return NULL;
 	}
 
-	mutex_lock(&class->p->class_mutex);
-	list_for_each_entry(dev, &class->p->class_devices, node) {
-		if (start) {
-			if (start == dev)
-				start = NULL;
-			continue;
-		}
-		dev = get_device(dev);
+	class_dev_iter_init(&iter, class, start, NULL);
+	while ((dev = class_dev_iter_next(&iter))) {
 		if (match(dev, data)) {
-			found = 1;
+			get_device(dev);
 			break;
-		} else
-			put_device(dev);
+		}
 	}
-	mutex_unlock(&class->p->class_mutex);
+	class_dev_iter_exit(&iter);
 
-	return found ? dev : NULL;
+	return dev;
 }
 EXPORT_SYMBOL_GPL(class_find_device);
 
 int class_interface_register(struct class_interface *class_intf)
 {
 	struct class *parent;
+	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!class_intf || !class_intf->class)
@@ -391,8 +456,10 @@ int class_interface_register(struct class_interface *class_intf)
 	mutex_lock(&parent->p->class_mutex);
 	list_add_tail(&class_intf->node, &parent->p->class_interfaces);
 	if (class_intf->add_dev) {
-		list_for_each_entry(dev, &parent->p->class_devices, node)
+		class_dev_iter_init(&iter, parent, NULL, NULL);
+		while ((dev = class_dev_iter_next(&iter)))
 			class_intf->add_dev(dev, class_intf);
+		class_dev_iter_exit(&iter);
 	}
 	mutex_unlock(&parent->p->class_mutex);
 
@@ -402,6 +469,7 @@ int class_interface_register(struct class_interface *class_intf)
 void class_interface_unregister(struct class_interface *class_intf)
 {
 	struct class *parent = class_intf->class;
+	struct class_dev_iter iter;
 	struct device *dev;
 
 	if (!parent)
@@ -410,8 +478,10 @@ void class_interface_unregister(struct class_interface *class_intf)
 	mutex_lock(&parent->p->class_mutex);
 	list_del_init(&class_intf->node);
 	if (class_intf->remove_dev) {
-		list_for_each_entry(dev, &parent->p->class_devices, node)
+		class_dev_iter_init(&iter, parent, NULL, NULL);
+		while ((dev = class_dev_iter_next(&iter)))
 			class_intf->remove_dev(dev, class_intf);
+		class_dev_iter_exit(&iter);
 	}
 	mutex_unlock(&parent->p->class_mutex);
 
