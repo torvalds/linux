@@ -310,7 +310,7 @@ int blk_register_queue(struct gendisk *disk)
 	if (!q->request_fn)
 		return 0;
 
-	ret = kobject_add(&q->kobj, kobject_get(&disk->dev.kobj),
+	ret = kobject_add(&q->kobj, kobject_get(&disk_to_dev(disk)->kobj),
 			  "%s", "queue");
 	if (ret < 0)
 		return ret;
@@ -339,6 +339,6 @@ void blk_unregister_queue(struct gendisk *disk)
 
 		kobject_uevent(&q->kobj, KOBJ_REMOVE);
 		kobject_del(&q->kobj);
-		kobject_put(&disk->dev.kobj);
+		kobject_put(&disk_to_dev(disk)->kobj);
 	}
 }

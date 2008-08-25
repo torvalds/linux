@@ -1465,9 +1465,9 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 		goto fail;
 
 	if (rdev->bdev->bd_part)
-		ko = &rdev->bdev->bd_part->dev.kobj;
+		ko = &part_to_dev(rdev->bdev->bd_part)->kobj;
 	else
-		ko = &rdev->bdev->bd_disk->dev.kobj;
+		ko = &disk_to_dev(rdev->bdev->bd_disk)->kobj;
 	if ((err = sysfs_create_link(&rdev->kobj, ko, "block"))) {
 		kobject_del(&rdev->kobj);
 		goto fail;
@@ -3470,8 +3470,8 @@ static struct kobject *md_probe(dev_t dev, int *part, void *data)
 	disk->queue = mddev->queue;
 	add_disk(disk);
 	mddev->gendisk = disk;
-	error = kobject_init_and_add(&mddev->kobj, &md_ktype, &disk->dev.kobj,
-				     "%s", "md");
+	error = kobject_init_and_add(&mddev->kobj, &md_ktype,
+				     &disk_to_dev(disk)->kobj, "%s", "md");
 	mutex_unlock(&disks_mutex);
 	if (error)
 		printk(KERN_WARNING "md: cannot register %s/md - name in use\n",
@@ -3761,7 +3761,7 @@ static int do_md_run(mddev_t * mddev)
 	sysfs_notify(&mddev->kobj, NULL, "array_state");
 	sysfs_notify(&mddev->kobj, NULL, "sync_action");
 	sysfs_notify(&mddev->kobj, NULL, "degraded");
-	kobject_uevent(&mddev->gendisk->dev.kobj, KOBJ_CHANGE);
+	kobject_uevent(&disk_to_dev(mddev->gendisk)->kobj, KOBJ_CHANGE);
 	return 0;
 }
 

@@ -109,12 +109,12 @@ static const struct attribute_group attr_group = {
 static int
 aoedisk_add_sysfs(struct aoedev *d)
 {
-	return sysfs_create_group(&d->gd->dev.kobj, &attr_group);
+	return sysfs_create_group(&disk_to_dev(d->gd)->kobj, &attr_group);
 }
 void
 aoedisk_rm_sysfs(struct aoedev *d)
 {
-	sysfs_remove_group(&d->gd->dev.kobj, &attr_group);
+	sysfs_remove_group(&disk_to_dev(d->gd)->kobj, &attr_group);
 }
 
 static int

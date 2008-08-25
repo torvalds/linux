@@ -331,7 +331,8 @@ int blk_integrity_register(struct gendisk *disk, struct blk_integrity *template)
 			return -1;
 
 		if (kobject_init_and_add(&bi->kobj, &integrity_ktype,
-					 &disk->dev.kobj, "%s", "integrity")) {
+					 &disk_to_dev(disk)->kobj,
+					 "%s", "integrity")) {
 			kmem_cache_free(integrity_cachep, bi);
 			return -1;
 		}
@@ -375,7 +376,7 @@ void blk_integrity_unregister(struct gendisk *disk)
 
 	kobject_uevent(&bi->kobj, KOBJ_REMOVE);
 	kobject_del(&bi->kobj);
-	kobject_put(&disk->dev.kobj);
+	kobject_put(&disk_to_dev(disk)->kobj);
 	kmem_cache_free(integrity_cachep, bi);
 }
 EXPORT_SYMBOL(blk_integrity_unregister);

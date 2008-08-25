@@ -59,7 +59,7 @@ struct hd_struct *disk_get_part(struct gendisk *disk, int partno)
 	rcu_read_lock();
 	part = rcu_dereference(disk->__part[partno - 1]);
 	if (part)
-		get_device(&part->dev);
+		get_device(part_to_dev(part));
 	rcu_read_unlock();
 
 	return part;
@@ -130,7 +130,7 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 		if (!(piter->flags & DISK_PITER_INCL_EMPTY) && !part->nr_sects)
 			continue;
 
-		get_device(&part->dev);
+		get_device(part_to_dev(part));
 		piter->part = part;
 		piter->idx += inc;
 		break;
@@ -435,7 +435,7 @@ static struct kobject *exact_match(dev_t devt, int *partno, void *data)
 {
 	struct gendisk *p = data;
 
-	return &p->dev.kobj;
+	return &disk_to_dev(p)->kobj;
 }
 
 static int exact_lock(dev_t devt, void *data)
@@ -460,7 +460,7 @@ void add_disk(struct gendisk *disk)
 	int retval;
 
 	disk->flags |= GENHD_FL_UP;
-	disk->dev.devt = MKDEV(disk->major, disk->first_minor);
+	disk_to_dev(disk)->devt = MKDEV(disk->major, disk->first_minor);
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
 			    exact_match, exact_lock, disk);
 	register_disk(disk);
@@ -468,7 +468,8 @@ void add_disk(struct gendisk *disk)
 
 	bdi = &disk->queue->backing_dev_info;
 	bdi_register_dev(bdi, disk_devt(disk));
-	retval = sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
+	retval = sysfs_create_link(&disk_to_dev(disk)->kobj, &bdi->dev->kobj,
+				   "bdi");
 	WARN_ON(retval);
 }
 
@@ -477,7 +478,7 @@ EXPORT_SYMBOL(del_gendisk);	/* in partitions/check.c */
 
 void unlink_gendisk(struct gendisk *disk)
 {
-	sysfs_remove_link(&disk->dev.kobj, "bdi");
+	sysfs_remove_link(&disk_to_dev(disk)->kobj, "bdi");
 	bdi_unregister(&disk->queue->backing_dev_info);
 	blk_unregister_queue(disk);
 	blk_unregister_region(disk_devt(disk), disk->minors);
@@ -903,7 +904,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	int cpu;
 
 	/*
-	if (&gp->dev.kobj.entry == block_class.devices.next)
+	if (&disk_to_dev(gp)->kobj.entry == block_class.devices.next)
 		seq_puts(seqf,	"major minor name"
 				"     rio rmerge rsect ruse wio wmerge "
 				"wsect wuse running use aveq"
@@ -972,7 +973,7 @@ static void media_change_notify_thread(struct work_struct *work)
 	 * set enviroment vars to indicate which event this is for
 	 * so that user space will know to go check the media status.
 	 */
-	kobject_uevent_env(&gd->dev.kobj, KOBJ_CHANGE, envp);
+	kobject_uevent_env(&disk_to_dev(gd)->kobj, KOBJ_CHANGE, envp);
 	put_device(gd->driverfs_dev);
 }
 
@@ -1062,9 +1063,9 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 		disk->minors = minors;
 		disk->ext_minors = ext_minors;
 		rand_initialize_disk(disk);
-		disk->dev.class = &block_class;
-		disk->dev.type = &disk_type;
-		device_initialize(&disk->dev);
+		disk_to_dev(disk)->class = &block_class;
+		disk_to_dev(disk)->type = &disk_type;
+		device_initialize(disk_to_dev(disk));
 		INIT_WORK(&disk->async_notify,
 			media_change_notify_thread);
 	}
@@ -1086,7 +1087,7 @@ struct kobject *get_disk(struct gendisk *disk)
 	owner = disk->fops->owner;
 	if (owner && !try_module_get(owner))
 		return NULL;
-	kobj = kobject_get(&disk->dev.kobj);
+	kobj = kobject_get(&disk_to_dev(disk)->kobj);
 	if (kobj == NULL) {
 		module_put(owner);
 		return NULL;
@@ -1100,7 +1101,7 @@ EXPORT_SYMBOL(get_disk);
 void put_disk(struct gendisk *disk)
 {
 	if (disk)
-		kobject_put(&disk->dev.kobj);
+		kobject_put(&disk_to_dev(disk)->kobj);
 }
 
 EXPORT_SYMBOL(put_disk);

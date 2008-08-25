@@ -543,9 +543,9 @@ EXPORT_SYMBOL(bd_release);
 static struct kobject *bdev_get_kobj(struct block_device *bdev)
 {
 	if (bdev->bd_contains != bdev)
-		return kobject_get(&bdev->bd_part->dev.kobj);
+		return kobject_get(&part_to_dev(bdev->bd_part)->kobj);
 	else
-		return kobject_get(&bdev->bd_disk->dev.kobj);
+		return kobject_get(&disk_to_dev(bdev->bd_disk)->kobj);
 }
 
 static struct kobject *bdev_get_holder(struct block_device *bdev)

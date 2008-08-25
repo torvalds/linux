@@ -15,9 +15,11 @@
 
 #ifdef CONFIG_BLOCK
 
-#define kobj_to_dev(k) container_of(k, struct device, kobj)
-#define dev_to_disk(device) container_of(device, struct gendisk, dev)
-#define dev_to_part(device) container_of(device, struct hd_struct, dev)
+#define kobj_to_dev(k)		container_of((k), struct device, kobj)
+#define dev_to_disk(device)	container_of((device), struct gendisk, __dev)
+#define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
+#define disk_to_dev(disk)	(&((disk)->__dev))
+#define part_to_dev(part)	(&((part)->__dev))
 
 extern struct device_type part_type;
 extern struct kobject *block_depr;
@@ -88,7 +90,7 @@ struct disk_stats {
 struct hd_struct {
 	sector_t start_sect;
 	sector_t nr_sects;
-	struct device dev;
+	struct device __dev;
 	struct kobject *holder_dir;
 	int policy, partno;
 #ifdef CONFIG_FAIL_MAKE_REQUEST
@@ -139,7 +141,7 @@ struct gendisk {
 
 	int flags;
 	struct device *driverfs_dev;  // FIXME: remove
-	struct device dev;
+	struct device __dev;
 	struct kobject *holder_dir;
 	struct kobject *slave_dir;
 
@@ -163,7 +165,7 @@ struct gendisk {
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
 {
 	if (likely(part))
-		return dev_to_disk((part)->dev.parent);
+		return dev_to_disk(part_to_dev(part)->parent);
 	return NULL;
 }
 
@@ -174,12 +176,12 @@ static inline int disk_max_parts(struct gendisk *disk)
 
 static inline dev_t disk_devt(struct gendisk *disk)
 {
-	return disk->dev.devt;
+	return disk_to_dev(disk)->devt;
 }
 
 static inline dev_t part_devt(struct hd_struct *part)
 {
-	return part->dev.devt;
+	return part_to_dev(part)->devt;
 }
 
 extern struct hd_struct *disk_get_part(struct gendisk *disk, int partno);
@@ -187,7 +189,7 @@ extern struct hd_struct *disk_get_part(struct gendisk *disk, int partno);
 static inline void disk_put_part(struct hd_struct *part)
 {
 	if (likely(part))
-		put_device(&part->dev);
+		put_device(part_to_dev(part));
 }
 
 /*
