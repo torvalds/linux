@@ -6341,7 +6341,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_init_hw(bp, load_code);
 	if (rc) {
 		BNX2X_ERR("HW init failed, aborting\n");
-		goto load_error;
+		goto load_int_disable;
 	}
 
 	/* Setup NIC internals and enable interrupts */
@@ -6353,7 +6353,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		if (!load_code) {
 			BNX2X_ERR("MCP response failure, aborting\n");
 			rc = -EBUSY;
-			goto load_int_disable;
+			goto load_rings_free;
 		}
 	}
 
@@ -6372,7 +6372,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_setup_leading(bp);
 	if (rc) {
 		BNX2X_ERR("Setup leading failed!\n");
-		goto load_stop_netif;
+		goto load_netif_stop;
 	}
 
 	if (CHIP_IS_E1H(bp))
@@ -6385,7 +6385,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		for_each_nondefault_queue(bp, i) {
 			rc = bnx2x_setup_multi(bp, i);
 			if (rc)
-				goto load_stop_netif;
+				goto load_netif_stop;
 		}
 
 	if (CHIP_IS_E1(bp))
@@ -6430,20 +6430,18 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	return 0;
 
-load_stop_netif:
+load_netif_stop:
 	for_each_queue(bp, i)
 		napi_disable(&bnx2x_fp(bp, i, napi));
-
-load_int_disable:
-	bnx2x_int_disable_sync(bp);
-
-	/* Release IRQs */
-	bnx2x_free_irq(bp);
-
+load_rings_free:
 	/* Free SKBs, SGEs, TPA pool and driver internals */
 	bnx2x_free_skbs(bp);
 	for_each_queue(bp, i)
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
+load_int_disable:
+	bnx2x_int_disable_sync(bp);
+	/* Release IRQs */
+	bnx2x_free_irq(bp);
 load_error:
 	bnx2x_free_mem(bp);
 
