@@ -243,7 +243,7 @@ int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 		int lebs, rsvd_idx_lebs = 0;
 
 		spin_lock(&c->space_lock);
-		lebs = c->lst.empty_lebs;
+		lebs = c->lst.empty_lebs + c->idx_gc_cnt;
 		lebs += c->freeable_cnt - c->lst.taken_empty_lebs;
 
 		/*
