@@ -300,15 +300,6 @@ struct device_type part_type = {
 	.release	= part_release,
 };
 
-static inline void partition_sysfs_add_subdir(struct hd_struct *p)
-{
-	struct kobject *k;
-
-	k = kobject_get(&p->dev.kobj);
-	p->holder_dir = kobject_create_and_add("holders", k);
-	kobject_put(k);
-}
-
 static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
 {
 	struct kobject *k;
@@ -347,13 +338,16 @@ int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, 
 	struct hd_struct *p;
 	int err;
 
+	if (disk->part[part - 1])
+		return -EBUSY;
+
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
 	if (!p)
 		return -ENOMEM;
 
 	if (!init_part_stats(p)) {
 		err = -ENOMEM;
-		goto out0;
+		goto out_free;
 	}
 	p->start_sect = start;
 	p->nr_sects = len;
@@ -372,20 +366,27 @@ int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, 
 	p->dev.class = &block_class;
 	p->dev.type = &part_type;
 	p->dev.parent = &disk->dev;
-	disk->part[part-1] = p;
 
 	/* delay uevent until 'holders' subdir is created */
 	p->dev.uevent_suppress = 1;
 	err = device_add(&p->dev);
 	if (err)
-		goto out1;
-	partition_sysfs_add_subdir(p);
+		goto out_put;
+
+	err = -ENOMEM;
+	p->holder_dir = kobject_create_and_add("holders", &p->dev.kobj);
+	if (!p->holder_dir)
+		goto out_del;
+
 	p->dev.uevent_suppress = 0;
 	if (flags & ADDPART_FLAG_WHOLEDISK) {
 		err = device_create_file(&p->dev, &dev_attr_whole_disk);
 		if (err)
-			goto out2;
+			goto out_del;
 	}
+
+	/* everything is up and running, commence */
+	disk->part[part - 1] = p;
 
 	/* suppress uevent if the disk supresses it */
 	if (!disk->dev.uevent_suppress)
@@ -393,13 +394,14 @@ int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, 
 
 	return 0;
 
-out2:
-	device_del(&p->dev);
-out1:
-	put_device(&p->dev);
-	free_part_stats(p);
-out0:
+out_free:
 	kfree(p);
+	return err;
+out_del:
+	kobject_put(p->holder_dir);
+	device_del(&p->dev);
+out_put:
+	put_device(&p->dev);
 	return err;
 }
 
