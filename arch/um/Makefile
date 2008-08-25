@@ -18,12 +18,9 @@ core-y			+= $(ARCH_DIR)/kernel/		\
 			   $(ARCH_DIR)/drivers/		\
 			   $(ARCH_DIR)/os-$(OS)/
 
-# XXX: The "os" symlink is only used by arch/um/include/os.h, which includes
-# ../os/include/file.h
-#
 # These are cleaned up during mrproper. Please DO NOT fix it again, this is
 # the Correct Thing(tm) to do!
-ARCH_SYMLINKS = $(ARCH_DIR)/os $(ARCH_DIR)/include/shared/uml-config.h
+ARCH_SYMLINKS = $(ARCH_DIR)/include/shared/uml-config.h
 
 MODE_INCLUDE	+= -I$(srctree)/$(ARCH_DIR)/include/shared/skas
 
@@ -143,14 +140,6 @@ $(objtree)/$(ARCH_DIR)/include/shared:
 	@echo '  MKDIR $@'
 	$(Q)mkdir -p $@
 
-$(ARCH_DIR)/os:
-	@echo '  SYMLINK $@'
-ifneq ($(KBUILD_SRC),)
-	$(Q)ln -fsn $(srctree)/$(ARCH_DIR)/os-$(OS) $@
-else
-	$(Q)ln -fsn os-$(OS) $@
-endif
-
 # Generated files
 define filechk_umlconfig
 	sed 's/ CONFIG/ UML_CONFIG/'
@@ -182,4 +171,4 @@ $(ARCH_DIR)/include/shared/kern_constants.h: $(objtree)/$(ARCH_DIR)/include/shar
 	@echo '  SYMLINK $@'
 	$(Q)ln -sf ../../../../include/asm/asm-offsets.h $@
 
-export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS HEADER_ARCH
+export SUBARCH USER_CFLAGS CFLAGS_NO_HARDENING OS HEADER_ARCH DEV_NULL_PATH

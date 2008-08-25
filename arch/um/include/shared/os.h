@@ -11,7 +11,6 @@
 #include "longjmp.h"
 #include "mm_id.h"
 #include "sysdep/tls.h"
-#include "../../os/include/file.h"
 
 #define CATCH_EINTR(expr) while ((errno = 0, ((expr) < 0)) && (errno == EINTR))
 
