@@ -471,6 +471,12 @@ cleanup_sense_final:
 	return err;
 }
 
+static int gdrom_audio_ioctl(struct cdrom_device_info *cdi, unsigned int cmd,
+			     void *arg)
+{
+	return -EINVAL;
+}
+
 static struct cdrom_device_ops gdrom_ops = {
 	.open			= gdrom_open,
 	.release		= gdrom_release,
@@ -478,6 +484,7 @@ static struct cdrom_device_ops gdrom_ops = {
 	.media_changed		= gdrom_mediachanged,
 	.get_last_session	= gdrom_get_last_session,
 	.reset			= gdrom_hardreset,
+	.audio_ioctl		= gdrom_audio_ioctl,
 	.capability		= CDC_MULTI_SESSION | CDC_MEDIA_CHANGED |
 				  CDC_RESET | CDC_DRIVE_STATUS | CDC_CD_R,
 	.n_minors		= 1,

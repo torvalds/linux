@@ -280,7 +280,7 @@ replay:
 		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
 			spin_lock_bh(root_lock);
 			*back = tp->next;
-			spin_lock_bh(root_lock);
+			spin_unlock_bh(root_lock);
 
 			tfilter_notify(skb, n, tp, fh, RTM_DELTFILTER);
 			tcf_destroy(tp);

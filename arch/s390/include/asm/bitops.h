@@ -709,7 +709,7 @@ static inline int find_next_zero_bit (const unsigned long * addr,
 		 * __ffz_word returns __BITOPS_WORDSIZE
 		 * if no zero bit is present in the word.
 		 */
-		set = __ffz_word(0, *p >> bit) + bit;
+		set = __ffz_word(bit, *p >> bit);
 		if (set >= size)
 			return size + offset;
 		if (set < __BITOPS_WORDSIZE)
@@ -824,7 +824,7 @@ static inline int ext2_find_next_zero_bit(void *vaddr, unsigned long size,
 		 * s390 version of ffz returns __BITOPS_WORDSIZE
 		 * if no zero bit is present in the word.
 		 */
-		set = ffz(__load_ulong_le(p, 0) >> bit) + bit;
+		set = __ffz_word(bit, __load_ulong_le(p, 0) >> bit);
 		if (set >= size)
 			return size + offset;
 		if (set < __BITOPS_WORDSIZE)
@@ -865,7 +865,7 @@ static inline int ext2_find_next_bit(void *vaddr, unsigned long size,
 		 * s390 version of ffz returns __BITOPS_WORDSIZE
 		 * if no zero bit is present in the word.
 		 */
-		set = ffs(__load_ulong_le(p, 0) >> bit) + bit;
+		set = __ffs_word(0, __load_ulong_le(p, 0) & (~0UL << bit));
 		if (set >= size)
 			return size + offset;
 		if (set < __BITOPS_WORDSIZE)

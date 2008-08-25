@@ -90,7 +90,9 @@ static struct clk common_clks[] = {
 };
 
 static struct clk pxa310_clks[] = {
+#ifdef CONFIG_CPU_PXA310
 	PXA3xx_CKEN("MMCCLK", MMC3, 19500000, 0, &pxa3xx_device_mci3.dev),
+#endif
 };
 
 static int __init pxa300_init(void)
