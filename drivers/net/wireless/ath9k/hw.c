@@ -2800,31 +2800,10 @@ static void ath9k_hw_gpio_cfg_output_mux(struct ath_hal *ah,
 	}
 }
 
-static bool ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
-				enum ath9k_gpio_output_mux_type
-				halSignalType)
+void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
+			 u32 ah_signal_type)
 {
-	u32 ah_signal_type;
 	u32 gpio_shift;
-
-	static u32 MuxSignalConversionTable[] = {
-
-		AR_GPIO_OUTPUT_MUX_AS_OUTPUT,
-
-		AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED,
-
-		AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED,
-
-		AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED,
-
-		AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED,
-	};
-
-	if ((halSignalType >= 0)
-	    && (halSignalType < ARRAY_SIZE(MuxSignalConversionTable)))
-		ah_signal_type = MuxSignalConversionTable[halSignalType];
-	else
-		return false;
 
 	ath9k_hw_gpio_cfg_output_mux(ah, gpio, ah_signal_type);
 
@@ -2834,16 +2813,12 @@ static bool ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
 		AR_GPIO_OE_OUT,
 		(AR_GPIO_OE_OUT_DRV_ALL << gpio_shift),
 		(AR_GPIO_OE_OUT_DRV << gpio_shift));
-
-	return true;
 }
 
-static bool ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio,
-			      u32 val)
+void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val)
 {
 	REG_RMW(ah, AR_GPIO_IN_OUT, ((val & 1) << gpio),
 		AR_GPIO_BIT(gpio));
-	return true;
 }
 
 static u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio)
@@ -5923,7 +5898,7 @@ bool ath9k_hw_reset(struct ath_hal *ah,
 			else
 				ath9k_hw_set_gpio(ah, 9, 1);
 		}
-		ath9k_hw_cfg_output(ah, 9, ATH9K_GPIO_OUTPUT_MUX_AS_OUTPUT);
+		ath9k_hw_cfg_output(ah, 9, AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	}
 
 	ecode = ath9k_hw_process_ini(ah, chan, macmode);

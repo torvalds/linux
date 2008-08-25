@@ -757,14 +757,11 @@ struct ath9k_node_stats {
 
 #define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
 
-enum ath9k_gpio_output_mux_type {
-	ATH9K_GPIO_OUTPUT_MUX_AS_OUTPUT,
-	ATH9K_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED,
-	ATH9K_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED,
-	ATH9K_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED,
-	ATH9K_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED,
-	ATH9K_GPIO_OUTPUT_MUX_NUM_ENTRIES
-};
+#define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
+#define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
+#define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
+#define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
+#define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
 
 enum {
 	ATH9K_RESET_POWER_ON,
@@ -1008,4 +1005,7 @@ void ath9k_hw_get_channel_centers(struct ath_hal *ah,
 bool ath9k_get_channel_edges(struct ath_hal *ah,
 			     u16 flags, u16 *low,
 			     u16 *high);
+void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
+			u32 ah_signal_type);
+void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 value);
 #endif

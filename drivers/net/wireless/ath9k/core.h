@@ -39,6 +39,7 @@
 #include <linux/scatterlist.h>
 #include <asm/page.h>
 #include <net/mac80211.h>
+#include <linux/leds.h>
 
 #include "ath9k.h"
 #include "rc.h"
@@ -803,6 +804,27 @@ void ath_slow_ant_div(struct ath_antdiv *antdiv,
 void ath_setdefantenna(void *sc, u32 antenna);
 
 /********************/
+/*   LED Control    */
+/********************/
+
+#define ATH_LED_PIN	1
+
+enum ath_led_type {
+	ATH_LED_RADIO,
+	ATH_LED_ASSOC,
+	ATH_LED_TX,
+	ATH_LED_RX
+};
+
+struct ath_led {
+	struct ath_softc *sc;
+	struct led_classdev led_cdev;
+	enum ath_led_type led_type;
+	char name[32];
+	bool registered;
+};
+
+/********************/
 /* Main driver core */
 /********************/
 
@@ -884,6 +906,7 @@ struct ath_ht_info {
 #define SC_OP_PREAMBLE_SHORT	BIT(7)
 #define SC_OP_PROTECT_ENABLE	BIT(8)
 #define SC_OP_RXFLUSH		BIT(9)
+#define SC_OP_LED_ASSOCIATED	BIT(10)
 
 struct ath_softc {
 	struct ieee80211_hw *hw;
@@ -988,6 +1011,12 @@ struct ath_softc {
 	spinlock_t sc_txbuflock;
 	spinlock_t sc_resetlock;
 	spinlock_t node_lock;
+
+	/* LEDs */
+	struct ath_led radio_led;
+	struct ath_led assoc_led;
+	struct ath_led tx_led;
+	struct ath_led rx_led;
 };
 
 int ath_init(u16 devid, struct ath_softc *sc);
