@@ -211,14 +211,8 @@ static const struct ubifs_lprops *scan_for_dirty(struct ubifs_info *c,
  * dirty index heap, and it falls-back to LPT scanning if the heaps are empty
  * or do not have an LEB which satisfies the @min_space criteria.
  *
- * Note:
- *   o LEBs which have less than dead watermark of dirty space are never picked
- *   by this function;
- *
- * Returns zero and the LEB properties of
- * found dirty LEB in case of success, %-ENOSPC if no dirty LEB was found and a
- * negative error code in case of other failures. The returned LEB is marked as
- * "taken".
+ * Note, LEBs which have less than dead watermark of free + dirty space are
+ * never picked by this function.
  *
  * The additional @pick_free argument controls if this function has to return a
  * free or freeable LEB if one is present. For example, GC must to set it to %1,
@@ -231,6 +225,10 @@ static const struct ubifs_lprops *scan_for_dirty(struct ubifs_info *c,
  *
  * In addition @pick_free is set to %2 by the recovery process in order to
  * recover gc_lnum in which case an index LEB must not be returned.
+ *
+ * This function returns zero and the LEB properties of found dirty LEB in case
+ * of success, %-ENOSPC if no dirty LEB was found and a negative error code in
+ * case of other failures. The returned LEB is marked as "taken".
  */
 int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 			 int min_space, int pick_free)
@@ -317,7 +315,7 @@ int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 		lp = idx_lp;
 
 	if (lp) {
-		ubifs_assert(lp->dirty >= c->dead_wm);
+		ubifs_assert(lp->free + lp->dirty >= c->dead_wm);
 		goto found;
 	}
 
