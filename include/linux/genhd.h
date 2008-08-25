@@ -591,6 +591,9 @@ extern void blk_register_region(dev_t devt, unsigned long range,
 			void *data);
 extern void blk_unregister_region(dev_t devt, unsigned long range);
 
+extern ssize_t part_size_show(struct device *dev,
+			      struct device_attribute *attr, char *buf);
+
 #else /* CONFIG_BLOCK */
 
 static inline void printk_all_partitions(void) { }

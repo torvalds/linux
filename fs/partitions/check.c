@@ -208,8 +208,8 @@ static ssize_t part_start_show(struct device *dev,
 	return sprintf(buf, "%llu\n",(unsigned long long)p->start_sect);
 }
 
-static ssize_t part_size_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+ssize_t part_size_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	return sprintf(buf, "%llu\n",(unsigned long long)p->nr_sects);
