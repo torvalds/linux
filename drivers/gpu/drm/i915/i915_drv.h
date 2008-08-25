@@ -364,7 +364,7 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
 #define IS_I965GM(dev) ((dev)->pci_device == 0x2A02)
 
-#define IS_IGD_GM(dev) ((dev)->pci_device == 0x2A42)
+#define IS_GM45(dev) ((dev)->pci_device == 0x2A42)
 
 #define IS_G4X(dev) ((dev)->pci_device == 0x2E02 || \
 		     (dev)->pci_device == 0x2E12 || \
@@ -378,9 +378,9 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev))
 
 #define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
-			IS_I945GM(dev) || IS_I965GM(dev) || IS_IGD_GM(dev))
+			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev))
 
-#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_IGD_GM(dev) || IS_G4X(dev))
+#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev))
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

@@ -292,7 +292,7 @@ int i915_save_state(struct drm_device *dev)
 	dev_priv->saveDSPBSIZE = I915_READ(DSPBSIZE);
 	dev_priv->saveDSPBPOS = I915_READ(DSPBPOS);
 	dev_priv->saveDSPBADDR = I915_READ(DSPBADDR);
-	if (IS_I965GM(dev) || IS_IGD_GM(dev)) {
+	if (IS_I965GM(dev) || IS_GM45(dev)) {
 		dev_priv->saveDSPBSURF = I915_READ(DSPBSURF);
 		dev_priv->saveDSPBTILEOFF = I915_READ(DSPBTILEOFF);
 	}
