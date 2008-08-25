@@ -304,9 +304,9 @@ bail:
 	return status;
 }
 
-static int ocfs2_simple_size_update(struct inode *inode,
-				    struct buffer_head *di_bh,
-				    u64 new_i_size)
+int ocfs2_simple_size_update(struct inode *inode,
+			     struct buffer_head *di_bh,
+			     u64 new_i_size)
 {
 	int ret;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);

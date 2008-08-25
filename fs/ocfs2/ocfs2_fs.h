@@ -883,6 +883,109 @@ static inline int ocfs2_xattr_get_type(struct ocfs2_xattr_entry *xe)
 	return xe->xe_type & OCFS2_XATTR_TYPE_MASK;
 }
 
+/*
+ *  On disk structures for global quota file
+ */
+
+/* Magic numbers and known versions for global quota files */
+#define OCFS2_GLOBAL_QMAGICS {\
+	0x0cf52470, /* USRQUOTA */ \
+	0x0cf52471  /* GRPQUOTA */ \
+}
+
+#define OCFS2_GLOBAL_QVERSIONS {\
+	0, \
+	0, \
+}
+
+
+/* Each block of each quota file has a certain fixed number of bytes reserved
+ * for OCFS2 internal use at its end. OCFS2 can use it for things like
+ * checksums, etc. */
+#define OCFS2_QBLK_RESERVED_SPACE 8
+
+/* Generic header of all quota files */
+struct ocfs2_disk_dqheader {
+	__le32 dqh_magic;	/* Magic number identifying file */
+	__le32 dqh_version;	/* Quota format version */
+};
+
+#define OCFS2_GLOBAL_INFO_OFF (sizeof(struct ocfs2_disk_dqheader))
+
+/* Information header of global quota file (immediately follows the generic
+ * header) */
+struct ocfs2_global_disk_dqinfo {
+/*00*/	__le32 dqi_bgrace;	/* Grace time for space softlimit excess */
+	__le32 dqi_igrace;	/* Grace time for inode softlimit excess */
+	__le32 dqi_syncms;	/* Time after which we sync local changes to
+				 * global quota file */
+	__le32 dqi_blocks;	/* Number of blocks in quota file */
+/*10*/	__le32 dqi_free_blk;	/* First free block in quota file */
+	__le32 dqi_free_entry;	/* First block with free dquot entry in quota
+				 * file */
+};
+
+/* Structure with global user / group information. We reserve some space
+ * for future use. */
+struct ocfs2_global_disk_dqblk {
+/*00*/	__le32 dqb_id;          /* ID the structure belongs to */
+	__le32 dqb_use_count;   /* Number of nodes having reference to this structure */
+	__le64 dqb_ihardlimit;  /* absolute limit on allocated inodes */
+/*10*/	__le64 dqb_isoftlimit;  /* preferred inode limit */
+	__le64 dqb_curinodes;   /* current # allocated inodes */
+/*20*/	__le64 dqb_bhardlimit;  /* absolute limit on disk space */
+	__le64 dqb_bsoftlimit;  /* preferred limit on disk space */
+/*30*/	__le64 dqb_curspace;    /* current space occupied */
+	__le64 dqb_btime;       /* time limit for excessive disk use */
+/*40*/	__le64 dqb_itime;       /* time limit for excessive inode use */
+	__le64 dqb_pad1;
+/*50*/	__le64 dqb_pad2;
+};
+
+/*
+ *  On-disk structures for local quota file
+ */
+
+/* Magic numbers and known versions for local quota files */
+#define OCFS2_LOCAL_QMAGICS {\
+	0x0cf524c0, /* USRQUOTA */ \
+	0x0cf524c1  /* GRPQUOTA */ \
+}
+
+#define OCFS2_LOCAL_QVERSIONS {\
+	0, \
+	0, \
+}
+
+/* Quota flags in dqinfo header */
+#define OLQF_CLEAN	0x0001	/* Quota file is empty (this should be after\
+				 * quota has been cleanly turned off) */
+
+#define OCFS2_LOCAL_INFO_OFF (sizeof(struct ocfs2_disk_dqheader))
+
+/* Information header of local quota file (immediately follows the generic
+ * header) */
+struct ocfs2_local_disk_dqinfo {
+	__le32 dqi_flags;	/* Flags for quota file */
+	__le32 dqi_chunks;	/* Number of chunks of quota structures
+				 * with a bitmap */
+	__le32 dqi_blocks;	/* Number of blocks allocated for quota file */
+};
+
+/* Header of one chunk of a quota file */
+struct ocfs2_local_disk_chunk {
+	__le32 dqc_free;	/* Number of free entries in the bitmap */
+	u8 dqc_bitmap[0];	/* Bitmap of entries in the corresponding
+				 * chunk of quota file */
+};
+
+/* One entry in local quota file */
+struct ocfs2_local_disk_dqblk {
+/*00*/	__le64 dqb_id;		/* id this quota applies to */
+	__le64 dqb_spacemod;	/* Change in the amount of used space */
+/*10*/	__le64 dqb_inodemod;	/* Change in the amount of used inodes */
+};
+
 #ifdef __KERNEL__
 static inline int ocfs2_fast_symlink_chars(struct super_block *sb)
 {

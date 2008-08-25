@@ -65,10 +65,13 @@
 #include "uptodate.h"
 #include "ver.h"
 #include "xattr.h"
+#include "quota.h"
 
 #include "buffer_head_io.h"
 
 static struct kmem_cache *ocfs2_inode_cachep = NULL;
+struct kmem_cache *ocfs2_dquot_cachep;
+struct kmem_cache *ocfs2_qf_chunk_cachep;
 
 /* OCFS2 needs to schedule several differnt types of work which
  * require cluster locking, disk I/O, recovery waits, etc. Since these
@@ -137,6 +140,8 @@ static const struct super_operations ocfs2_sops = {
 	.put_super	= ocfs2_put_super,
 	.remount_fs	= ocfs2_remount,
 	.show_options   = ocfs2_show_options,
+	.quota_read	= ocfs2_quota_read,
+	.quota_write	= ocfs2_quota_write,
 };
 
 enum {
@@ -1104,6 +1109,7 @@ static int __init ocfs2_init(void)
 
 	ocfs2_set_locking_protocol();
 
+	status = register_quota_format(&ocfs2_quota_format);
 leave:
 	if (status < 0) {
 		ocfs2_free_mem_caches();
@@ -1126,6 +1132,8 @@ static void __exit ocfs2_exit(void)
 		flush_workqueue(ocfs2_wq);
 		destroy_workqueue(ocfs2_wq);
 	}
+
+	unregister_quota_format(&ocfs2_quota_format);
 
 	debugfs_remove(ocfs2_debugfs_root);
 
@@ -1242,8 +1250,27 @@ static int ocfs2_initialize_mem_caches(void)
 				       (SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
 						SLAB_MEM_SPREAD),
 				       ocfs2_inode_init_once);
-	if (!ocfs2_inode_cachep)
+	ocfs2_dquot_cachep = kmem_cache_create("ocfs2_dquot_cache",
+					sizeof(struct ocfs2_dquot),
+					0,
+					(SLAB_HWCACHE_ALIGN|SLAB_RECLAIM_ACCOUNT|
+						SLAB_MEM_SPREAD),
+					NULL);
+	ocfs2_qf_chunk_cachep = kmem_cache_create("ocfs2_qf_chunk_cache",
+					sizeof(struct ocfs2_quota_chunk),
+					0,
+					(SLAB_RECLAIM_ACCOUNT|SLAB_MEM_SPREAD),
+					NULL);
+	if (!ocfs2_inode_cachep || !ocfs2_dquot_cachep ||
+	    !ocfs2_qf_chunk_cachep) {
+		if (ocfs2_inode_cachep)
+			kmem_cache_destroy(ocfs2_inode_cachep);
+		if (ocfs2_dquot_cachep)
+			kmem_cache_destroy(ocfs2_dquot_cachep);
+		if (ocfs2_qf_chunk_cachep)
+			kmem_cache_destroy(ocfs2_qf_chunk_cachep);
 		return -ENOMEM;
+	}
 
 	return 0;
 }
@@ -1252,8 +1279,15 @@ static void ocfs2_free_mem_caches(void)
 {
 	if (ocfs2_inode_cachep)
 		kmem_cache_destroy(ocfs2_inode_cachep);
-
 	ocfs2_inode_cachep = NULL;
+
+	if (ocfs2_dquot_cachep)
+		kmem_cache_destroy(ocfs2_dquot_cachep);
+	ocfs2_dquot_cachep = NULL;
+
+	if (ocfs2_qf_chunk_cachep)
+		kmem_cache_destroy(ocfs2_qf_chunk_cachep);
+	ocfs2_qf_chunk_cachep = NULL;
 }
 
 static int ocfs2_get_sector(struct super_block *sb,

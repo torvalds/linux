@@ -32,6 +32,7 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/time.h>
+#include <linux/quotaops.h>
 
 #define MLOG_MASK_PREFIX ML_DLM_GLUE
 #include <cluster/masklog.h>
@@ -51,6 +52,7 @@
 #include "slot_map.h"
 #include "super.h"
 #include "uptodate.h"
+#include "quota.h"
 
 #include "buffer_head_io.h"
 
@@ -68,6 +70,7 @@ struct ocfs2_mask_waiter {
 static struct ocfs2_super *ocfs2_get_dentry_osb(struct ocfs2_lock_res *lockres);
 static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres);
 static struct ocfs2_super *ocfs2_get_file_osb(struct ocfs2_lock_res *lockres);
+static struct ocfs2_super *ocfs2_get_qinfo_osb(struct ocfs2_lock_res *lockres);
 
 /*
  * Return value from ->downconvert_worker functions.
@@ -102,6 +105,7 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 static void ocfs2_dentry_post_unlock(struct ocfs2_super *osb,
 				     struct ocfs2_lock_res *lockres);
 
+static void ocfs2_set_qinfo_lvb(struct ocfs2_lock_res *lockres);
 
 #define mlog_meta_lvb(__level, __lockres) ocfs2_dump_meta_lvb_info(__level, __PRETTY_FUNCTION__, __LINE__, __lockres)
 
@@ -258,6 +262,12 @@ static struct ocfs2_lock_res_ops ocfs2_flock_lops = {
 	.flags		= 0,
 };
 
+static struct ocfs2_lock_res_ops ocfs2_qinfo_lops = {
+	.set_lvb	= ocfs2_set_qinfo_lvb,
+	.get_osb	= ocfs2_get_qinfo_osb,
+	.flags		= LOCK_TYPE_REQUIRES_REFRESH | LOCK_TYPE_USES_LVB,
+};
+
 static inline int ocfs2_is_inode_lock(struct ocfs2_lock_res *lockres)
 {
 	return lockres->l_type == OCFS2_LOCK_TYPE_META ||
@@ -277,6 +287,13 @@ static inline struct ocfs2_dentry_lock *ocfs2_lock_res_dl(struct ocfs2_lock_res 
 	BUG_ON(lockres->l_type != OCFS2_LOCK_TYPE_DENTRY);
 
 	return (struct ocfs2_dentry_lock *)lockres->l_priv;
+}
+
+static inline struct ocfs2_mem_dqinfo *ocfs2_lock_res_qinfo(struct ocfs2_lock_res *lockres)
+{
+	BUG_ON(lockres->l_type != OCFS2_LOCK_TYPE_QINFO);
+
+	return (struct ocfs2_mem_dqinfo *)lockres->l_priv;
 }
 
 static inline struct ocfs2_super *ocfs2_get_lockres_osb(struct ocfs2_lock_res *lockres)
@@ -507,6 +524,13 @@ static struct ocfs2_super *ocfs2_get_inode_osb(struct ocfs2_lock_res *lockres)
 	return OCFS2_SB(inode->i_sb);
 }
 
+static struct ocfs2_super *ocfs2_get_qinfo_osb(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_mem_dqinfo *info = lockres->l_priv;
+
+	return OCFS2_SB(info->dqi_gi.dqi_sb);
+}
+
 static struct ocfs2_super *ocfs2_get_file_osb(struct ocfs2_lock_res *lockres)
 {
 	struct ocfs2_file_private *fp = lockres->l_priv;
@@ -607,6 +631,17 @@ void ocfs2_file_lock_res_init(struct ocfs2_lock_res *lockres,
 				   OCFS2_LOCK_TYPE_FLOCK, &ocfs2_flock_lops,
 				   fp);
 	lockres->l_flags |= OCFS2_LOCK_NOCACHE;
+}
+
+void ocfs2_qinfo_lock_res_init(struct ocfs2_lock_res *lockres,
+			       struct ocfs2_mem_dqinfo *info)
+{
+	ocfs2_lock_res_init_once(lockres);
+	ocfs2_build_lock_name(OCFS2_LOCK_TYPE_QINFO, info->dqi_gi.dqi_type,
+			      0, lockres->l_name);
+	ocfs2_lock_res_init_common(OCFS2_SB(info->dqi_gi.dqi_sb), lockres,
+				   OCFS2_LOCK_TYPE_QINFO, &ocfs2_qinfo_lops,
+				   info);
 }
 
 void ocfs2_lock_res_free(struct ocfs2_lock_res *res)
@@ -3443,6 +3478,117 @@ static int ocfs2_dentry_convert_worker(struct ocfs2_lock_res *lockres,
 		return UNBLOCK_STOP_POST;
 
 	return UNBLOCK_CONTINUE_POST;
+}
+
+static void ocfs2_set_qinfo_lvb(struct ocfs2_lock_res *lockres)
+{
+	struct ocfs2_qinfo_lvb *lvb;
+	struct ocfs2_mem_dqinfo *oinfo = ocfs2_lock_res_qinfo(lockres);
+	struct mem_dqinfo *info = sb_dqinfo(oinfo->dqi_gi.dqi_sb,
+					    oinfo->dqi_gi.dqi_type);
+
+	mlog_entry_void();
+
+	lvb = (struct ocfs2_qinfo_lvb *)ocfs2_dlm_lvb(&lockres->l_lksb);
+	lvb->lvb_version = OCFS2_QINFO_LVB_VERSION;
+	lvb->lvb_bgrace = cpu_to_be32(info->dqi_bgrace);
+	lvb->lvb_igrace = cpu_to_be32(info->dqi_igrace);
+	lvb->lvb_syncms = cpu_to_be32(oinfo->dqi_syncms);
+	lvb->lvb_blocks = cpu_to_be32(oinfo->dqi_gi.dqi_blocks);
+	lvb->lvb_free_blk = cpu_to_be32(oinfo->dqi_gi.dqi_free_blk);
+	lvb->lvb_free_entry = cpu_to_be32(oinfo->dqi_gi.dqi_free_entry);
+
+	mlog_exit_void();
+}
+
+void ocfs2_qinfo_unlock(struct ocfs2_mem_dqinfo *oinfo, int ex)
+{
+	struct ocfs2_lock_res *lockres = &oinfo->dqi_gqlock;
+	struct ocfs2_super *osb = OCFS2_SB(oinfo->dqi_gi.dqi_sb);
+	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+
+	mlog_entry_void();
+	if (!ocfs2_is_hard_readonly(osb) && !ocfs2_mount_local(osb))
+		ocfs2_cluster_unlock(osb, lockres, level);
+	mlog_exit_void();
+}
+
+static int ocfs2_refresh_qinfo(struct ocfs2_mem_dqinfo *oinfo)
+{
+	struct mem_dqinfo *info = sb_dqinfo(oinfo->dqi_gi.dqi_sb,
+					    oinfo->dqi_gi.dqi_type);
+	struct ocfs2_lock_res *lockres = &oinfo->dqi_gqlock;
+	struct ocfs2_qinfo_lvb *lvb = ocfs2_dlm_lvb(&lockres->l_lksb);
+	struct buffer_head *bh;
+	struct ocfs2_global_disk_dqinfo *gdinfo;
+	int status = 0;
+
+	if (lvb->lvb_version == OCFS2_QINFO_LVB_VERSION) {
+		info->dqi_bgrace = be32_to_cpu(lvb->lvb_bgrace);
+		info->dqi_igrace = be32_to_cpu(lvb->lvb_igrace);
+		oinfo->dqi_syncms = be32_to_cpu(lvb->lvb_syncms);
+		oinfo->dqi_gi.dqi_blocks = be32_to_cpu(lvb->lvb_blocks);
+		oinfo->dqi_gi.dqi_free_blk = be32_to_cpu(lvb->lvb_free_blk);
+		oinfo->dqi_gi.dqi_free_entry =
+					be32_to_cpu(lvb->lvb_free_entry);
+	} else {
+		bh = ocfs2_read_quota_block(oinfo->dqi_gqinode, 0, &status);
+		if (!bh) {
+			mlog_errno(status);
+			goto bail;
+		}
+		gdinfo = (struct ocfs2_global_disk_dqinfo *)
+					(bh->b_data + OCFS2_GLOBAL_INFO_OFF);
+		info->dqi_bgrace = le32_to_cpu(gdinfo->dqi_bgrace);
+		info->dqi_igrace = le32_to_cpu(gdinfo->dqi_igrace);
+		oinfo->dqi_syncms = le32_to_cpu(gdinfo->dqi_syncms);
+		oinfo->dqi_gi.dqi_blocks = le32_to_cpu(gdinfo->dqi_blocks);
+		oinfo->dqi_gi.dqi_free_blk = le32_to_cpu(gdinfo->dqi_free_blk);
+		oinfo->dqi_gi.dqi_free_entry =
+					le32_to_cpu(gdinfo->dqi_free_entry);
+		brelse(bh);
+		ocfs2_track_lock_refresh(lockres);
+	}
+
+bail:
+	return status;
+}
+
+/* Lock quota info, this function expects at least shared lock on the quota file
+ * so that we can safely refresh quota info from disk. */
+int ocfs2_qinfo_lock(struct ocfs2_mem_dqinfo *oinfo, int ex)
+{
+	struct ocfs2_lock_res *lockres = &oinfo->dqi_gqlock;
+	struct ocfs2_super *osb = OCFS2_SB(oinfo->dqi_gi.dqi_sb);
+	int level = ex ? DLM_LOCK_EX : DLM_LOCK_PR;
+	int status = 0;
+
+	mlog_entry_void();
+
+	/* On RO devices, locking really isn't needed... */
+	if (ocfs2_is_hard_readonly(osb)) {
+		if (ex)
+			status = -EROFS;
+		goto bail;
+	}
+	if (ocfs2_mount_local(osb))
+		goto bail;
+
+	status = ocfs2_cluster_lock(osb, lockres, level, 0, 0);
+	if (status < 0) {
+		mlog_errno(status);
+		goto bail;
+	}
+	if (!ocfs2_should_refresh_lock_res(lockres))
+		goto bail;
+	/* OK, we have the lock but we need to refresh the quota info */
+	status = ocfs2_refresh_qinfo(oinfo);
+	if (status)
+		ocfs2_qinfo_unlock(oinfo, ex);
+	ocfs2_complete_lock_res_refresh(lockres, status);
+bail:
+	mlog_exit(status);
+	return status;
 }
 
 /*
