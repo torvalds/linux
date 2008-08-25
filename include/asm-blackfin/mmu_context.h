@@ -173,8 +173,10 @@ static inline void protect_page(struct mm_struct *mm, unsigned long addr,
 
 static inline void update_protections(struct mm_struct *mm)
 {
-	flush_switched_cplbs();
-	set_mask_dcplbs(mm->context.page_rwx_mask);
+	if (mm->context.page_rwx_mask == current_rwx_mask) {
+		flush_switched_cplbs();
+		set_mask_dcplbs(mm->context.page_rwx_mask);
+	}
 }
 #endif
 
