@@ -674,6 +674,11 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 		sta->supp_rates[local->oper_channel->band] = rates;
 	}
 
+	if (params->ht_capa) {
+		ieee80211_ht_cap_ie_to_ht_info(params->ht_capa,
+					       &sta->ht_info);
+	}
+
 	if (ieee80211_vif_is_mesh(&sdata->vif) && params->plink_action) {
 		switch (params->plink_action) {
 		case PLINK_ACTION_OPEN:

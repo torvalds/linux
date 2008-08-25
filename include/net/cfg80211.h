@@ -152,6 +152,7 @@ struct station_parameters {
 	u16 aid;
 	u8 supported_rates_len;
 	u8 plink_action;
+	struct ieee80211_ht_cap *ht_capa;
 };
 
 /**

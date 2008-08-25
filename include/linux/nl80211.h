@@ -207,6 +207,9 @@ enum nl80211_commands {
  * @NL80211_ATTR_BSS_SHORT_SLOT_TIME: whether short slot time enabled
  *	(u8, 0 or 1)
  *
+ * @NL80211_ATTR_HT_CAPABILITY: HT Capability information element (from
+ *	association request when used with NL80211_CMD_NEW_STATION)
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -254,16 +257,25 @@ enum nl80211_attrs {
 	NL80211_ATTR_BSS_SHORT_PREAMBLE,
 	NL80211_ATTR_BSS_SHORT_SLOT_TIME,
 
+	NL80211_ATTR_HT_CAPABILITY,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
 	NL80211_ATTR_MAX = __NL80211_ATTR_AFTER_LAST - 1
 };
 
+/*
+ * Allow user space programs to use #ifdef on new attributes by defining them
+ * here
+ */
+#define NL80211_ATTR_HT_CAPABILITY NL80211_ATTR_HT_CAPABILITY
+
 #define NL80211_MAX_SUPP_RATES			32
 #define NL80211_TKIP_DATA_OFFSET_ENCR_KEY	0
 #define NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY	16
 #define NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY	24
+#define NL80211_HT_CAPABILITY_LEN		26
 
 /**
  * enum nl80211_iftype - (virtual) interface types

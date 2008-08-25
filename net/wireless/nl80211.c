@@ -91,6 +91,9 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_BSS_CTS_PROT] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_SHORT_PREAMBLE] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_SHORT_SLOT_TIME] = { .type = NLA_U8 },
+
+	[NL80211_ATTR_HT_CAPABILITY] = { .type = NLA_BINARY,
+					 .len = NL80211_HT_CAPABILITY_LEN },
 };
 
 /* message building helper */
@@ -1129,6 +1132,10 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.listen_interval =
 		    nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 
+	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
+		params.ht_capa =
+			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
+
 	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
 				&params.station_flags))
 		return -EINVAL;
@@ -1192,6 +1199,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 	params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
+		params.ht_capa =
+			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 
 	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
 				&params.station_flags))
