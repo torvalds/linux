@@ -28,22 +28,6 @@
 
 #include "pci_impl.h"
 
-#ifndef CONFIG_PCI
-/* A "nop" PCI implementation. */
-asmlinkage int sys_pciconfig_read(unsigned long bus, unsigned long dfn,
-				  unsigned long off, unsigned long len,
-				  unsigned char *buf)
-{
-	return 0;
-}
-asmlinkage int sys_pciconfig_write(unsigned long bus, unsigned long dfn,
-				   unsigned long off, unsigned long len,
-				   unsigned char *buf)
-{
-	return 0;
-}
-#else
-
 /* List of all PCI controllers found in the system. */
 struct pci_pbm_info *pci_pbm_root = NULL;
 
@@ -1215,5 +1199,3 @@ void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 	*start = rp->start - offset;
 	*end = rp->end - offset;
 }
-
-#endif /* !(CONFIG_PCI) */

@@ -10,13 +10,13 @@ extra-y		:= head.o init_task.o vmlinux.lds
 obj-y		:= process.o setup.o cpu.o idprom.o \
 		   traps.o auxio.o una_asm.o sysfs.o iommu.o \
 		   irq.o ptrace.o time.o sys_sparc.o signal.o \
-		   unaligned.o central.o pci.o starfire.o \
+		   unaligned.o central.o starfire.o \
 		   power.o sbus.o sparc64_ksyms.o \
 		   visemul.o prom.o of_device.o hvapi.o sstate.o mdesc.o
 
 obj-$(CONFIG_DYNAMIC_FTRACE) += ftrace.o
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
-obj-$(CONFIG_PCI)	 += ebus.o pci_common.o \
+obj-$(CONFIG_PCI)	 += ebus.o pci.o pci_common.o \
 			    pci_psycho.o pci_sabre.o pci_schizo.o \
 			    pci_sun4v.o pci_sun4v_asm.o pci_fire.o
 obj-$(CONFIG_PCI_MSI)	+= pci_msi.o
