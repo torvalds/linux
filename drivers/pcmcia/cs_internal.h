@@ -50,6 +50,30 @@ struct cis_cache_entry {
 	unsigned char		cache[0];
 };
 
+struct pccard_resource_ops {
+	int	(*validate_mem)		(struct pcmcia_socket *s);
+	int	(*adjust_io_region)	(struct resource *res,
+					 unsigned long r_start,
+					 unsigned long r_end,
+					 struct pcmcia_socket *s);
+	struct resource* (*find_io)	(unsigned long base, int num,
+					 unsigned long align,
+					 struct pcmcia_socket *s);
+	struct resource* (*find_mem)	(unsigned long base, unsigned long num,
+					 unsigned long align, int low,
+					 struct pcmcia_socket *s);
+	int	(*add_io)		(struct pcmcia_socket *s,
+					 unsigned int action,
+					 unsigned long r_start,
+					 unsigned long r_end);
+	int	(*add_mem)		(struct pcmcia_socket *s,
+					 unsigned int action,
+					 unsigned long r_start,
+					 unsigned long r_end);
+	int	(*init)			(struct pcmcia_socket *s);
+	void	(*exit)			(struct pcmcia_socket *s);
+};
+
 /* Flags in config state */
 #define CONFIG_LOCKED		0x01
 #define CONFIG_IRQ_REQ		0x02
@@ -144,12 +168,15 @@ struct pcmcia_callback{
 /* cs.c */
 extern struct rw_semaphore pcmcia_socket_list_rwsem;
 extern struct list_head pcmcia_socket_list;
+extern struct class pcmcia_socket_class;
+
 int pcmcia_get_window(struct pcmcia_socket *s,
 		      window_handle_t *handle,
 		      int idx,
 		      win_req_t *req);
 int pccard_reset_card(struct pcmcia_socket *skt);
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
+struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr);
 
 /* cistpl.c */
 int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr,
