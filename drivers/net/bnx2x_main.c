@@ -4606,6 +4606,17 @@ static void bnx2x_init_internal_common(struct bnx2x *bp)
 {
 	int i;
 
+	if (bp->flags & TPA_ENABLE_FLAG) {
+		struct tstorm_eth_tpa_exist tpa = {0};
+
+		tpa.tpa_exist = 1;
+
+		REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_TPA_EXIST_OFFSET,
+		       ((u32 *)&tpa)[0]);
+		REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_TPA_EXIST_OFFSET + 4,
+		       ((u32 *)&tpa)[1]);
+	}
+
 	/* Zero this manually as its initialization is
 	   currently missing in the initTool */
 	for (i = 0; i < (USTORM_AGG_DATA_SIZE >> 2); i++)
@@ -5364,17 +5375,6 @@ static int bnx2x_init_common(struct bnx2x *bp)
 	REG_RD(bp, PXP2_REG_PXP2_INT_STS_CLR_0);
 
 	enable_blocks_attention(bp);
-
-	if (bp->flags & TPA_ENABLE_FLAG) {
-		struct tstorm_eth_tpa_exist tmp = {0};
-
-		tmp.tpa_exist = 1;
-
-		REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_TPA_EXIST_OFFSET,
-		       ((u32 *)&tmp)[0]);
-		REG_WR(bp, BAR_TSTRORM_INTMEM + TSTORM_TPA_EXIST_OFFSET + 4,
-		       ((u32 *)&tmp)[1]);
-	}
 
 	if (!BP_NOMCP(bp)) {
 		bnx2x_acquire_phy_lock(bp);
