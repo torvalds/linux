@@ -548,7 +548,7 @@ static int __dev_status(struct mapped_device *md, struct dm_ioctl *param)
 	 */
 	param->open_count = dm_open_count(md);
 
-	if (disk->policy)
+	if (get_disk_ro(disk))
 		param->flags |= DM_READONLY_FLAG;
 
 	param->event_nr = dm_get_event_nr(md);

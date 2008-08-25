@@ -375,7 +375,7 @@ int add_partition(struct gendisk *disk, int partno,
 	p->start_sect = start;
 	p->nr_sects = len;
 	p->partno = partno;
-	p->policy = disk->policy;
+	p->policy = get_disk_ro(disk);
 
 	dname = dev_name(ddev);
 	if (isdigit(dname[strlen(dname) - 1]))

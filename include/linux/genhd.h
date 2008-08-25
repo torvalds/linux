@@ -145,7 +145,6 @@ struct gendisk {
 	struct kobject *slave_dir;
 
 	struct timer_rand_state *random;
-	int policy;
 
 	atomic_t sync_io;		/* RAID */
 	unsigned long stamp;
@@ -402,6 +401,11 @@ extern struct block_device *bdget_disk(struct gendisk *disk, int partno);
 
 extern void set_device_ro(struct block_device *bdev, int flag);
 extern void set_disk_ro(struct gendisk *disk, int flag);
+
+static inline int get_disk_ro(struct gendisk *disk)
+{
+	return disk->part0.policy;
+}
 
 /* drivers/char/random.c */
 extern void add_disk_randomness(struct gendisk *disk);

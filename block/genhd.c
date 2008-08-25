@@ -757,7 +757,7 @@ static ssize_t disk_ro_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", disk->policy ? 1 : 0);
+	return sprintf(buf, "%d\n", get_disk_ro(disk) ? 1 : 0);
 }
 
 static ssize_t disk_capability_show(struct device *dev,
@@ -1090,10 +1090,7 @@ EXPORT_SYMBOL(put_disk);
 
 void set_device_ro(struct block_device *bdev, int flag)
 {
-	if (bdev->bd_contains != bdev)
-		bdev->bd_part->policy = flag;
-	else
-		bdev->bd_disk->policy = flag;
+	bdev->bd_part->policy = flag;
 }
 
 EXPORT_SYMBOL(set_device_ro);
@@ -1103,8 +1100,8 @@ void set_disk_ro(struct gendisk *disk, int flag)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 
-	disk->policy = flag;
-	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
+	disk_part_iter_init(&piter, disk,
+			    DISK_PITER_INCL_EMPTY | DISK_PITER_INCL_PART0);
 	while ((part = disk_part_iter_next(&piter)))
 		part->policy = flag;
 	disk_part_iter_exit(&piter);
@@ -1116,10 +1113,7 @@ int bdev_read_only(struct block_device *bdev)
 {
 	if (!bdev)
 		return 0;
-	else if (bdev->bd_contains != bdev)
-		return bdev->bd_part->policy;
-	else
-		return bdev->bd_disk->policy;
+	return bdev->bd_part->policy;
 }
 
 EXPORT_SYMBOL(bdev_read_only);
