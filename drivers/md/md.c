@@ -5546,8 +5546,8 @@ static int is_mddev_idle(mddev_t *mddev)
 	rcu_read_lock();
 	rdev_for_each_rcu(rdev, mddev) {
 		struct gendisk *disk = rdev->bdev->bd_contains->bd_disk;
-		curr_events = disk_stat_read(disk, sectors[0]) + 
-				disk_stat_read(disk, sectors[1]) - 
+		curr_events = part_stat_read(&disk->part0, sectors[0]) +
+				part_stat_read(&disk->part0, sectors[1]) -
 				atomic_read(&disk->sync_io);
 		/* sync IO will cause sync_io to increase before the disk_stats
 		 * as sync_io is counted when a request starts, and

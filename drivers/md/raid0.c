@@ -406,10 +406,11 @@ static int raid0_make_request (struct request_queue *q, struct bio *bio)
 		return 0;
 	}
 
-	cpu = disk_stat_lock();
-	disk_stat_inc(cpu, mddev->gendisk, ios[rw]);
-	disk_stat_add(cpu, mddev->gendisk, sectors[rw], bio_sectors(bio));
-	disk_stat_unlock();
+	cpu = part_stat_lock();
+	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
+	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
+		      bio_sectors(bio));
+	part_stat_unlock();
 
 	chunk_size = mddev->chunk_size >> 10;
 	chunk_sects = mddev->chunk_size >> 9;

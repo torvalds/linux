@@ -176,7 +176,7 @@ EXPORT_SYMBOL_GPL(disk_part_iter_exit);
  * while preemption is disabled.
  *
  * RETURNS:
- * Found partition on success, NULL if there's no matching partition.
+ * Found partition on success, part0 is returned if no partition matches
  */
 struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 {
@@ -189,7 +189,7 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 		    sector < part->start_sect + part->nr_sects)
 			return part;
 	}
-	return NULL;
+	return &disk->part0;
 }
 EXPORT_SYMBOL_GPL(disk_map_sector_rcu);
 
@@ -580,24 +580,24 @@ void __init printk_all_partitions(void)
 		 * numbers in hex - the same format as the root=
 		 * option takes.
 		 */
-		printk("%s %10llu %s",
-		       bdevt_str(disk_devt(disk), devt_buf),
-		       (unsigned long long)get_capacity(disk) >> 1,
-		       disk_name(disk, 0, name_buf));
-		if (disk->driverfs_dev != NULL &&
-		    disk->driverfs_dev->driver != NULL)
-			printk(" driver: %s\n",
-			       disk->driverfs_dev->driver->name);
-		else
-			printk(" (driver?)\n");
+		disk_part_iter_init(&piter, disk, DISK_PITER_INCL_PART0);
+		while ((part = disk_part_iter_next(&piter))) {
+			bool is_part0 = part == &disk->part0;
 
-		/* now show the partitions */
-		disk_part_iter_init(&piter, disk, 0);
-		while ((part = disk_part_iter_next(&piter)))
-			printk("  %s %10llu %s\n",
+			printk("%s%s %10llu %s", is_part0 ? "" : "  ",
 			       bdevt_str(part_devt(part), devt_buf),
 			       (unsigned long long)part->nr_sects >> 1,
 			       disk_name(disk, part->partno, name_buf));
+			if (is_part0) {
+				if (disk->driverfs_dev != NULL &&
+				    disk->driverfs_dev->driver != NULL)
+					printk(" driver: %s\n",
+					      disk->driverfs_dev->driver->name);
+				else
+					printk(" (driver?)\n");
+			} else
+				printk("\n");
+		}
 		disk_part_iter_exit(&piter);
 	}
 	class_dev_iter_exit(&iter);
@@ -674,12 +674,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 		return 0;
 
 	/* show the full disk and all non-0 size partitions of it */
-	seq_printf(seqf, "%4d  %7d %10llu %s\n",
-		MAJOR(disk_devt(sgp)), MINOR(disk_devt(sgp)),
-		(unsigned long long)get_capacity(sgp) >> 1,
-		disk_name(sgp, 0, buf));
-
-	disk_part_iter_init(&piter, sgp, 0);
+	disk_part_iter_init(&piter, sgp, DISK_PITER_INCL_PART0);
 	while ((part = disk_part_iter_next(&piter)))
 		seq_printf(seqf, "%4d  %7d %10llu %s\n",
 			   MAJOR(part_devt(part)), MINOR(part_devt(part)),
@@ -768,40 +763,13 @@ static ssize_t disk_capability_show(struct device *dev,
 	return sprintf(buf, "%x\n", disk->flags);
 }
 
-static ssize_t disk_stat_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
-{
-	struct gendisk *disk = dev_to_disk(dev);
-	int cpu;
-
-	cpu = disk_stat_lock();
-	disk_round_stats(cpu, disk);
-	disk_stat_unlock();
-	return sprintf(buf,
-		"%8lu %8lu %8llu %8u "
-		"%8lu %8lu %8llu %8u "
-		"%8u %8u %8u"
-		"\n",
-		disk_stat_read(disk, ios[READ]),
-		disk_stat_read(disk, merges[READ]),
-		(unsigned long long)disk_stat_read(disk, sectors[READ]),
-		jiffies_to_msecs(disk_stat_read(disk, ticks[READ])),
-		disk_stat_read(disk, ios[WRITE]),
-		disk_stat_read(disk, merges[WRITE]),
-		(unsigned long long)disk_stat_read(disk, sectors[WRITE]),
-		jiffies_to_msecs(disk_stat_read(disk, ticks[WRITE])),
-		disk->in_flight,
-		jiffies_to_msecs(disk_stat_read(disk, io_ticks)),
-		jiffies_to_msecs(disk_stat_read(disk, time_in_queue)));
-}
-
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
 static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
 static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, part_size_show, NULL);
 static DEVICE_ATTR(capability, S_IRUGO, disk_capability_show, NULL);
-static DEVICE_ATTR(stat, S_IRUGO, disk_stat_show, NULL);
+static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
@@ -836,7 +804,7 @@ static void disk_release(struct device *dev)
 
 	kfree(disk->random);
 	kfree(disk->__part);
-	free_disk_stats(disk);
+	free_part_stats(&disk->part0);
 	kfree(disk);
 }
 struct class block_class = {
@@ -873,28 +841,11 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 				"\n\n");
 	*/
  
-	cpu = disk_stat_lock();
-	disk_round_stats(cpu, gp);
-	disk_stat_unlock();
-	seq_printf(seqf, "%4d %7d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
-		MAJOR(disk_devt(gp)), MINOR(disk_devt(gp)),
-		disk_name(gp, 0, buf),
-		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
-		(unsigned long long)disk_stat_read(gp, sectors[0]),
-		jiffies_to_msecs(disk_stat_read(gp, ticks[0])),
-		disk_stat_read(gp, ios[1]), disk_stat_read(gp, merges[1]),
-		(unsigned long long)disk_stat_read(gp, sectors[1]),
-		jiffies_to_msecs(disk_stat_read(gp, ticks[1])),
-		gp->in_flight,
-		jiffies_to_msecs(disk_stat_read(gp, io_ticks)),
-		jiffies_to_msecs(disk_stat_read(gp, time_in_queue)));
-
-	/* now show all non-0 size partitions of it */
-	disk_part_iter_init(&piter, gp, 0);
+	disk_part_iter_init(&piter, gp, DISK_PITER_INCL_PART0);
 	while ((hd = disk_part_iter_next(&piter))) {
-		cpu = disk_stat_lock();
+		cpu = part_stat_lock();
 		part_round_stats(cpu, hd);
-		disk_stat_unlock();
+		part_stat_unlock();
 		seq_printf(seqf, "%4d %7d %s %lu %lu %llu "
 			   "%u %lu %lu %llu %u %u %u %u\n",
 			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),
@@ -1000,7 +951,7 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 		int tot_minors = minors + ext_minors;
 		int size = tot_minors * sizeof(struct hd_struct *);
 
-		if (!init_disk_stats(disk)) {
+		if (!init_part_stats(&disk->part0)) {
 			kfree(disk);
 			return NULL;
 		}
@@ -1008,7 +959,7 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 		disk->__part = kmalloc_node(size, GFP_KERNEL | __GFP_ZERO,
 					    node_id);
 		if (!disk->__part) {
-			free_disk_stats(disk);
+				free_part_stats(&disk->part0);
 			kfree(disk);
 			return NULL;
 		}

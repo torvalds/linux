@@ -61,21 +61,17 @@ static void drive_stat_acct(struct request *rq, int new_io)
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	cpu = disk_stat_lock();
+	cpu = part_stat_lock();
 	part = disk_map_sector_rcu(rq->rq_disk, rq->sector);
 
 	if (!new_io)
-		all_stat_inc(cpu, rq->rq_disk, part, merges[rw], rq->sector);
+		part_stat_inc(cpu, part, merges[rw]);
 	else {
-		disk_round_stats(cpu, rq->rq_disk);
-		rq->rq_disk->in_flight++;
-		if (part) {
-			part_round_stats(cpu, part);
-			part->in_flight++;
-		}
+		part_round_stats(cpu, part);
+		part_inc_in_flight(part);
 	}
 
-	disk_stat_unlock();
+	part_stat_unlock();
 }
 
 void blk_queue_congestion_threshold(struct request_queue *q)
@@ -983,8 +979,22 @@ static inline void add_request(struct request_queue *q, struct request *req)
 	__elv_add_request(q, req, ELEVATOR_INSERT_SORT, 0);
 }
 
-/*
- * disk_round_stats()	- Round off the performance stats on a struct
+static void part_round_stats_single(int cpu, struct hd_struct *part,
+				    unsigned long now)
+{
+	if (now == part->stamp)
+		return;
+
+	if (part->in_flight) {
+		__part_stat_add(cpu, part, time_in_queue,
+				part->in_flight * (now - part->stamp));
+		__part_stat_add(cpu, part, io_ticks, (now - part->stamp));
+	}
+	part->stamp = now;
+}
+
+/**
+ * part_round_stats()	- Round off the performance stats on a struct
  * disk_stats.
  *
  * The average IO queue length and utilisation statistics are maintained
@@ -998,36 +1008,15 @@ static inline void add_request(struct request_queue *q, struct request *req)
  * /proc/diskstats.  This accounts immediately for all queue usage up to
  * the current jiffies and restarts the counters again.
  */
-void disk_round_stats(int cpu, struct gendisk *disk)
-{
-	unsigned long now = jiffies;
-
-	if (now == disk->stamp)
-		return;
-
-	if (disk->in_flight) {
-		disk_stat_add(cpu, disk, time_in_queue,
-			      disk->in_flight * (now - disk->stamp));
-		disk_stat_add(cpu, disk, io_ticks, (now - disk->stamp));
-	}
-	disk->stamp = now;
-}
-EXPORT_SYMBOL_GPL(disk_round_stats);
-
 void part_round_stats(int cpu, struct hd_struct *part)
 {
 	unsigned long now = jiffies;
 
-	if (now == part->stamp)
-		return;
-
-	if (part->in_flight) {
-		part_stat_add(cpu, part, time_in_queue,
-			      part->in_flight * (now - part->stamp));
-		part_stat_add(cpu, part, io_ticks, (now - part->stamp));
-	}
-	part->stamp = now;
+	if (part->partno)
+		part_round_stats_single(cpu, &part_to_disk(part)->part0, now);
+	part_round_stats_single(cpu, part, now);
 }
+EXPORT_SYMBOL_GPL(part_round_stats);
 
 /*
  * queue lock must be held
@@ -1567,11 +1556,10 @@ static int __end_that_request_first(struct request *req, int error,
 		struct hd_struct *part;
 		int cpu;
 
-		cpu = disk_stat_lock();
+		cpu = part_stat_lock();
 		part = disk_map_sector_rcu(req->rq_disk, req->sector);
-		all_stat_add(cpu, req->rq_disk, part, sectors[rw],
-			     nr_bytes >> 9, req->sector);
-		disk_stat_unlock();
+		part_stat_add(cpu, part, sectors[rw], nr_bytes >> 9);
+		part_stat_unlock();
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -1758,19 +1746,15 @@ static void end_that_request_last(struct request *req, int error)
 		struct hd_struct *part;
 		int cpu;
 
-		cpu = disk_stat_lock();
+		cpu = part_stat_lock();
 		part = disk_map_sector_rcu(disk, req->sector);
 
-		all_stat_inc(cpu, disk, part, ios[rw], req->sector);
-		all_stat_add(cpu, disk, part, ticks[rw], duration, req->sector);
-		disk_round_stats(cpu, disk);
-		disk->in_flight--;
-		if (part) {
-			part_round_stats(cpu, part);
-			part->in_flight--;
-		}
+		part_stat_inc(cpu, part, ios[rw]);
+		part_stat_add(cpu, part, ticks[rw], duration);
+		part_round_stats(cpu, part);
+		part_dec_in_flight(part);
 
-		disk_stat_unlock();
+		part_stat_unlock();
 	}
 
 	if (req->end_io)

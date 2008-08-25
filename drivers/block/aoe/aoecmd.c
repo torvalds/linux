@@ -758,15 +758,15 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 	struct hd_struct *part;
 	int cpu;
 
-	cpu = disk_stat_lock();
+	cpu = part_stat_lock();
 	part = disk_map_sector_rcu(disk, sector);
 
-	all_stat_inc(cpu, disk, part, ios[rw], sector);
-	all_stat_add(cpu, disk, part, ticks[rw], duration, sector);
-	all_stat_add(cpu, disk, part, sectors[rw], n_sect, sector);
-	all_stat_add(cpu, disk, part, io_ticks, duration, sector);
+	part_stat_inc(cpu, part, ios[rw]);
+	part_stat_add(cpu, part, ticks[rw], duration);
+	part_stat_add(cpu, part, sectors[rw], n_sect);
+	part_stat_add(cpu, part, io_ticks, duration);
 
-	disk_stat_unlock();
+	part_stat_unlock();
 }
 
 void

@@ -3396,10 +3396,11 @@ static int make_request(struct request_queue *q, struct bio * bi)
 
 	md_write_start(mddev, bi);
 
-	cpu = disk_stat_lock();
-	disk_stat_inc(cpu, mddev->gendisk, ios[rw]);
-	disk_stat_add(cpu, mddev->gendisk, sectors[rw], bio_sectors(bi));
-	disk_stat_unlock();
+	cpu = part_stat_lock();
+	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
+	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
+		      bio_sectors(bi));
+	part_stat_unlock();
 
 	if (rw == READ &&
 	     mddev->reshape_position == MaxSector &&

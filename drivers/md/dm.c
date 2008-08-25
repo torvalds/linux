@@ -381,10 +381,10 @@ static void start_io_acct(struct dm_io *io)
 
 	io->start_time = jiffies;
 
-	cpu = disk_stat_lock();
-	disk_round_stats(cpu, dm_disk(md));
-	disk_stat_unlock();
-	dm_disk(md)->in_flight = atomic_inc_return(&md->pending);
+	cpu = part_stat_lock();
+	part_round_stats(cpu, &dm_disk(md)->part0);
+	part_stat_unlock();
+	dm_disk(md)->part0.in_flight = atomic_inc_return(&md->pending);
 }
 
 static int end_io_acct(struct dm_io *io)
@@ -395,12 +395,13 @@ static int end_io_acct(struct dm_io *io)
 	int pending, cpu;
 	int rw = bio_data_dir(bio);
 
-	cpu = disk_stat_lock();
-	disk_round_stats(cpu, dm_disk(md));
-	disk_stat_add(cpu, dm_disk(md), ticks[rw], duration);
-	disk_stat_unlock();
+	cpu = part_stat_lock();
+	part_round_stats(cpu, &dm_disk(md)->part0);
+	part_stat_add(cpu, &dm_disk(md)->part0, ticks[rw], duration);
+	part_stat_unlock();
 
-	dm_disk(md)->in_flight = pending = atomic_dec_return(&md->pending);
+	dm_disk(md)->part0.in_flight = pending =
+		atomic_dec_return(&md->pending);
 
 	return !pending;
 }
@@ -899,10 +900,10 @@ static int dm_request(struct request_queue *q, struct bio *bio)
 
 	down_read(&md->io_lock);
 
-	cpu = disk_stat_lock();
-	disk_stat_inc(cpu, dm_disk(md), ios[rw]);
-	disk_stat_add(cpu, dm_disk(md), sectors[rw], bio_sectors(bio));
-	disk_stat_unlock();
+	cpu = part_stat_lock();
+	part_stat_inc(cpu, &dm_disk(md)->part0, ios[rw]);
+	part_stat_add(cpu, &dm_disk(md)->part0, sectors[rw], bio_sectors(bio));
+	part_stat_unlock();
 
 	/*
 	 * If we're suspended we have to queue

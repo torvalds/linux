@@ -210,15 +210,15 @@ ssize_t part_size_show(struct device *dev,
 	return sprintf(buf, "%llu\n",(unsigned long long)p->nr_sects);
 }
 
-static ssize_t part_stat_show(struct device *dev,
-			      struct device_attribute *attr, char *buf)
+ssize_t part_stat_show(struct device *dev,
+		       struct device_attribute *attr, char *buf)
 {
 	struct hd_struct *p = dev_to_part(dev);
 	int cpu;
 
-	cpu = disk_stat_lock();
+	cpu = part_stat_lock();
 	part_round_stats(cpu, p);
-	disk_stat_unlock();
+	part_stat_unlock();
 	return sprintf(buf,
 		"%8lu %8lu %8llu %8u "
 		"%8lu %8lu %8llu %8u "
@@ -575,8 +575,8 @@ void del_gendisk(struct gendisk *disk)
 	set_capacity(disk, 0);
 	disk->flags &= ~GENHD_FL_UP;
 	unlink_gendisk(disk);
-	disk_stat_set_all(disk, 0);
-	disk->stamp = 0;
+	part_stat_set_all(&disk->part0, 0);
+	disk->part0.stamp = 0;
 
 	kobject_put(disk->part0.holder_dir);
 	kobject_put(disk->slave_dir);

@@ -390,17 +390,13 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 		struct hd_struct *part;
 		int cpu;
 
-		cpu = disk_stat_lock();
+		cpu = part_stat_lock();
 		part = disk_map_sector_rcu(req->rq_disk, req->sector);
 
-		disk_round_stats(cpu, req->rq_disk);
-		req->rq_disk->in_flight--;
-		if (part) {
-			part_round_stats(cpu, part);
-			part->in_flight--;
-		}
+		part_round_stats(cpu, part);
+		part_dec_in_flight(part);
 
-		disk_stat_unlock();
+		part_stat_unlock();
 	}
 
 	req->ioprio = ioprio_best(req->ioprio, next->ioprio);
