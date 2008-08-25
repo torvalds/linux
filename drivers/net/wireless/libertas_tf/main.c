@@ -477,9 +477,9 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 {
 	struct ieee80211_rx_status stats;
 	struct rxpd *prxpd;
-	bool is_qos, is_4addr, is_amsdu, need_padding;
+	int need_padding;
 	unsigned int flags;
-	u16 fc, fc_le;
+	struct ieee80211_hdr *hdr;
 
 	prxpd = (struct rxpd *) skb->data;
 
@@ -497,19 +497,15 @@ int lbtf_rx(struct lbtf_private *priv, struct sk_buff *skb)
 	stats.rate_idx = prxpd->rx_rate;
 	skb_pull(skb, sizeof(struct rxpd));
 
-	fc_le = *((__le16 *) skb->data);
-	fc = le16_to_cpu(fc_le);
+	hdr = (struct ieee80211_hdr *)skb->data;
 	flags = le32_to_cpu(*(__le32 *)(skb->data + 4));
 
-	is_qos = ((fc & IEEE80211_FCTL_FTYPE) == IEEE80211_FTYPE_DATA) &&
-		 (fc & IEEE80211_STYPE_QOS_DATA);
-	is_4addr = (fc & (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) ==
-		   (IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS);
-	is_amsdu =  ((fc & 0x8C) == 0x88) &&
-		    (*(skb->data + ieee80211_hdrlen(fc_le) - QOS_CONTROL_LEN)
-		     & IEEE80211_QOS_CONTROL_A_MSDU_PRESENT);
+	need_padding = ieee80211_is_data_qos(hdr->frame_control);
+	need_padding ^= ieee80211_has_a4(hdr->frame_control);
+	need_padding ^= ieee80211_is_data_qos(hdr->frame_control) &&
+			(*ieee80211_get_qos_ctl(hdr) &
+			 IEEE80211_QOS_CONTROL_A_MSDU_PRESENT);
 
-	need_padding = is_qos ^ is_4addr ^ is_amsdu;
 	if (need_padding) {
 		memmove(skb->data + 2, skb->data, skb->len);
 		skb_reserve(skb, 2);
