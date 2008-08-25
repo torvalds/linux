@@ -9250,6 +9250,7 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 						 napi);
 	struct bnx2x *bp = fp->bp;
 	int work_done = 0;
+	u16 rx_cons_sb;
 
 #ifdef BNX2X_STOP_ON_ERROR
 	if (unlikely(bp->panic))
@@ -9265,10 +9266,16 @@ static int bnx2x_poll(struct napi_struct *napi, int budget)
 	if (BNX2X_HAS_TX_WORK(fp))
 		bnx2x_tx_int(fp, budget);
 
+	rx_cons_sb = le16_to_cpu(*fp->rx_cons_sb);
+	if ((rx_cons_sb & MAX_RCQ_DESC_CNT) == MAX_RCQ_DESC_CNT)
+		rx_cons_sb++;
 	if (BNX2X_HAS_RX_WORK(fp))
 		work_done = bnx2x_rx_int(fp, budget);
 
 	rmb(); /* BNX2X_HAS_WORK() reads the status block */
+	rx_cons_sb = le16_to_cpu(*fp->rx_cons_sb);
+	if ((rx_cons_sb & MAX_RCQ_DESC_CNT) == MAX_RCQ_DESC_CNT)
+		rx_cons_sb++;
 
 	/* must not complete if we consumed full budget */
 	if ((work_done < budget) && !BNX2X_HAS_WORK(fp)) {
