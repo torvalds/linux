@@ -302,18 +302,6 @@ long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs)
 	int subtract_lebs;
 	long long available;
 
-	/*
-	 * Force the amount available to the total size reported if the used
-	 * space is zero.
-	 */
-	if (c->lst.total_used <= UBIFS_INO_NODE_SZ &&
-	    c->budg_data_growth + c->budg_dd_growth == 0) {
-		/* Do the same calculation as for c->block_cnt */
-		available = c->main_lebs - 2;
-		available *= c->leb_size - c->dark_wm;
-		return available;
-	}
-
 	available = c->main_bytes - c->lst.total_used;
 
 	/*
@@ -739,8 +727,18 @@ long long ubifs_budg_get_free_space(struct ubifs_info *c)
 		return 0;
 	}
 
-	available = ubifs_calc_available(c, min_idx_lebs);
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
+
+	/*
+	 * Force the amount available to the total size reported if the used
+	 * space is zero.
+	 */
+	if (c->lst.total_used <= UBIFS_INO_NODE_SZ && !outstanding) {
+		spin_unlock(&c->space_lock);
+		return (long long)c->block_cnt << UBIFS_BLOCK_SHIFT;
+	}
+
+	available = ubifs_calc_available(c, min_idx_lebs);
 	spin_unlock(&c->space_lock);
 
 	if (available > outstanding)
