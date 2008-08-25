@@ -113,6 +113,21 @@ struct hd_struct {
 #define GENHD_FL_UP				16
 #define GENHD_FL_SUPPRESS_PARTITION_INFO	32
 
+#define BLK_SCSI_MAX_CMDS	(256)
+#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
+
+struct blk_scsi_cmd_filter {
+	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
+	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
+	struct kobject kobj;
+};
+
+struct disk_part_tbl {
+	struct rcu_head rcu_head;
+	int len;
+	struct hd_struct *part[];
+};
+
 struct gendisk {
 	/* major, first_minor, minors and ext_minors are input
 	 * parameters only, don't use directly.  Use disk_devt() and
@@ -131,7 +146,7 @@ struct gendisk {
 	 * non-critical accesses use RCU.  Always access through
 	 * helpers.
 	 */
-	struct hd_struct **__part;
+	struct disk_part_tbl *part_tbl;
 	struct hd_struct part0;
 
 	struct block_device_operations *fops;
@@ -149,6 +164,7 @@ struct gendisk {
 #ifdef  CONFIG_BLK_DEV_INTEGRITY
 	struct blk_integrity *integrity;
 #endif
+	int node_id;
 };
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
@@ -503,6 +519,7 @@ extern void blk_free_devt(dev_t devt);
 extern dev_t blk_lookup_devt(const char *name, int partno);
 extern char *disk_name (struct gendisk *hd, int partno, char *buf);
 
+extern int disk_expand_part_tbl(struct gendisk *disk, int target);
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
 extern int __must_check add_partition(struct gendisk *, int, sector_t, sector_t, int);
 extern void delete_partition(struct gendisk *, int);

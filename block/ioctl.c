@@ -30,7 +30,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	if (bdev != bdev->bd_contains)
 		return -EINVAL;
 	partno = p.pno;
-	if (partno <= 0 || partno >= disk_max_parts(disk))
+	if (partno <= 0)
 		return -EINVAL;
 	switch (a.op) {
 		case BLKPG_ADD_PARTITION:

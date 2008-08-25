@@ -312,14 +312,18 @@ static void delete_partition_rcu_cb(struct rcu_head *head)
 
 void delete_partition(struct gendisk *disk, int partno)
 {
+	struct disk_part_tbl *ptbl = disk->part_tbl;
 	struct hd_struct *part;
 
-	part = disk->__part[partno];
+	if (partno >= ptbl->len)
+		return;
+
+	part = ptbl->part[partno];
 	if (!part)
 		return;
 
 	blk_free_devt(part_devt(part));
-	rcu_assign_pointer(disk->__part[partno], NULL);
+	rcu_assign_pointer(ptbl->part[partno], NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
 
@@ -341,10 +345,16 @@ int add_partition(struct gendisk *disk, int partno,
 	dev_t devt = MKDEV(0, 0);
 	struct device *ddev = disk_to_dev(disk);
 	struct device *pdev;
+	struct disk_part_tbl *ptbl;
 	const char *dname;
 	int err;
 
-	if (disk->__part[partno])
+	err = disk_expand_part_tbl(disk, partno);
+	if (err)
+		return err;
+	ptbl = disk->part_tbl;
+
+	if (ptbl->part[partno])
 		return -EBUSY;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -398,7 +408,7 @@ int add_partition(struct gendisk *disk, int partno,
 
 	/* everything is up and running, commence */
 	INIT_RCU_HEAD(&p->rcu_head);
-	rcu_assign_pointer(disk->__part[partno], p);
+	rcu_assign_pointer(ptbl->part[partno], p);
 
 	/* suppress uevent if the disk supresses it */
 	if (!ddev->uevent_suppress)
@@ -487,7 +497,7 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	struct disk_part_iter piter;
 	struct hd_struct *part;
 	struct parsed_partitions *state;
-	int p, res;
+	int p, highest, res;
 
 	if (bdev->bd_part_count)
 		return -EBUSY;
@@ -511,6 +521,17 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	/* tell userspace that the media / partition table may have changed */
 	kobject_uevent(&disk_to_dev(disk)->kobj, KOBJ_CHANGE);
 
+	/* Detect the highest partition number and preallocate
+	 * disk->part_tbl.  This is an optimization and not strictly
+	 * necessary.
+	 */
+	for (p = 1, highest = 0; p < state->limit; p++)
+		if (state->parts[p].size)
+			highest = p;
+
+	disk_expand_part_tbl(disk, highest);
+
+	/* add partitions */
 	for (p = 1; p < state->limit; p++) {
 		sector_t size = state->parts[p].size;
 		sector_t from = state->parts[p].from;

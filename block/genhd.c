@@ -52,14 +52,21 @@ static struct device_type disk_type;
  */
 struct hd_struct *disk_get_part(struct gendisk *disk, int partno)
 {
-	struct hd_struct *part;
+	struct hd_struct *part = NULL;
+	struct disk_part_tbl *ptbl;
 
-	if (unlikely(partno < 0 || partno >= disk_max_parts(disk)))
+	if (unlikely(partno < 0))
 		return NULL;
+
 	rcu_read_lock();
-	part = rcu_dereference(disk->__part[partno]);
-	if (part)
-		get_device(part_to_dev(part));
+
+	ptbl = rcu_dereference(disk->part_tbl);
+	if (likely(partno < ptbl->len)) {
+		part = rcu_dereference(ptbl->part[partno]);
+		if (part)
+			get_device(part_to_dev(part));
+	}
+
 	rcu_read_unlock();
 
 	return part;
@@ -80,17 +87,24 @@ EXPORT_SYMBOL_GPL(disk_get_part);
 void disk_part_iter_init(struct disk_part_iter *piter, struct gendisk *disk,
 			  unsigned int flags)
 {
+	struct disk_part_tbl *ptbl;
+
+	rcu_read_lock();
+	ptbl = rcu_dereference(disk->part_tbl);
+
 	piter->disk = disk;
 	piter->part = NULL;
 
 	if (flags & DISK_PITER_REVERSE)
-		piter->idx = disk_max_parts(piter->disk) - 1;
+		piter->idx = ptbl->len - 1;
 	else if (flags & DISK_PITER_INCL_PART0)
 		piter->idx = 0;
 	else
 		piter->idx = 1;
 
 	piter->flags = flags;
+
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(disk_part_iter_init);
 
@@ -105,13 +119,16 @@ EXPORT_SYMBOL_GPL(disk_part_iter_init);
  */
 struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 {
+	struct disk_part_tbl *ptbl;
 	int inc, end;
 
 	/* put the last partition */
 	disk_put_part(piter->part);
 	piter->part = NULL;
 
+	/* get part_tbl */
 	rcu_read_lock();
+	ptbl = rcu_dereference(piter->disk->part_tbl);
 
 	/* determine iteration parameters */
 	if (piter->flags & DISK_PITER_REVERSE) {
@@ -122,14 +139,14 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 			end = 0;
 	} else {
 		inc = 1;
-		end = disk_max_parts(piter->disk);
+		end = ptbl->len;
 	}
 
 	/* iterate to the next partition */
 	for (; piter->idx != end; piter->idx += inc) {
 		struct hd_struct *part;
 
-		part = rcu_dereference(piter->disk->__part[piter->idx]);
+		part = rcu_dereference(ptbl->part[piter->idx]);
 		if (!part)
 			continue;
 		if (!(piter->flags & DISK_PITER_INCL_EMPTY) && !part->nr_sects)
@@ -180,10 +197,13 @@ EXPORT_SYMBOL_GPL(disk_part_iter_exit);
  */
 struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 {
+	struct disk_part_tbl *ptbl;
 	int i;
 
-	for (i = 1; i < disk_max_parts(disk); i++) {
-		struct hd_struct *part = rcu_dereference(disk->__part[i]);
+	ptbl = rcu_dereference(disk->part_tbl);
+
+	for (i = 1; i < ptbl->len; i++) {
+		struct hd_struct *part = rcu_dereference(ptbl->part[i]);
 
 		if (part && part->start_sect <= sector &&
 		    sector < part->start_sect + part->nr_sects)
@@ -798,12 +818,86 @@ static struct attribute_group *disk_attr_groups[] = {
 	NULL
 };
 
+static void disk_free_ptbl_rcu_cb(struct rcu_head *head)
+{
+	struct disk_part_tbl *ptbl =
+		container_of(head, struct disk_part_tbl, rcu_head);
+
+	kfree(ptbl);
+}
+
+/**
+ * disk_replace_part_tbl - replace disk->part_tbl in RCU-safe way
+ * @disk: disk to replace part_tbl for
+ * @new_ptbl: new part_tbl to install
+ *
+ * Replace disk->part_tbl with @new_ptbl in RCU-safe way.  The
+ * original ptbl is freed using RCU callback.
+ *
+ * LOCKING:
+ * Matching bd_mutx locked.
+ */
+static void disk_replace_part_tbl(struct gendisk *disk,
+				  struct disk_part_tbl *new_ptbl)
+{
+	struct disk_part_tbl *old_ptbl = disk->part_tbl;
+
+	rcu_assign_pointer(disk->part_tbl, new_ptbl);
+	if (old_ptbl)
+		call_rcu(&old_ptbl->rcu_head, disk_free_ptbl_rcu_cb);
+}
+
+/**
+ * disk_expand_part_tbl - expand disk->part_tbl
+ * @disk: disk to expand part_tbl for
+ * @partno: expand such that this partno can fit in
+ *
+ * Expand disk->part_tbl such that @partno can fit in.  disk->part_tbl
+ * uses RCU to allow unlocked dereferencing for stats and other stuff.
+ *
+ * LOCKING:
+ * Matching bd_mutex locked, might sleep.
+ *
+ * RETURNS:
+ * 0 on success, -errno on failure.
+ */
+int disk_expand_part_tbl(struct gendisk *disk, int partno)
+{
+	struct disk_part_tbl *old_ptbl = disk->part_tbl;
+	struct disk_part_tbl *new_ptbl;
+	int len = old_ptbl ? old_ptbl->len : 0;
+	int target = partno + 1;
+	size_t size;
+	int i;
+
+	/* disk_max_parts() is zero during initialization, ignore if so */
+	if (disk_max_parts(disk) && target > disk_max_parts(disk))
+		return -EINVAL;
+
+	if (target <= len)
+		return 0;
+
+	size = sizeof(*new_ptbl) + target * sizeof(new_ptbl->part[0]);
+	new_ptbl = kzalloc_node(size, GFP_KERNEL, disk->node_id);
+	if (!new_ptbl)
+		return -ENOMEM;
+
+	INIT_RCU_HEAD(&new_ptbl->rcu_head);
+	new_ptbl->len = target;
+
+	for (i = 0; i < len; i++)
+		rcu_assign_pointer(new_ptbl->part[i], old_ptbl->part[i]);
+
+	disk_replace_part_tbl(disk, new_ptbl);
+	return 0;
+}
+
 static void disk_release(struct device *dev)
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
 	kfree(disk->random);
-	kfree(disk->__part);
+	disk_replace_part_tbl(disk, NULL);
 	free_part_stats(&disk->part0);
 	kfree(disk);
 }
@@ -948,22 +1042,16 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 	disk = kmalloc_node(sizeof(struct gendisk),
 				GFP_KERNEL | __GFP_ZERO, node_id);
 	if (disk) {
-		int tot_minors = minors + ext_minors;
-		int size = tot_minors * sizeof(struct hd_struct *);
-
 		if (!init_part_stats(&disk->part0)) {
 			kfree(disk);
 			return NULL;
 		}
-
-		disk->__part = kmalloc_node(size, GFP_KERNEL | __GFP_ZERO,
-					    node_id);
-		if (!disk->__part) {
-				free_part_stats(&disk->part0);
+		if (disk_expand_part_tbl(disk, 0)) {
+			free_part_stats(&disk->part0);
 			kfree(disk);
 			return NULL;
 		}
-		disk->__part[0] = &disk->part0;
+		disk->part_tbl->part[0] = &disk->part0;
 
 		disk->minors = minors;
 		disk->ext_minors = ext_minors;
@@ -973,6 +1061,7 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 		device_initialize(disk_to_dev(disk));
 		INIT_WORK(&disk->async_notify,
 			media_change_notify_thread);
+		disk->node_id = node_id;
 	}
 	return disk;
 }
