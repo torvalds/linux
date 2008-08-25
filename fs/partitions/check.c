@@ -333,6 +333,7 @@ void delete_partition(struct gendisk *disk, int partno)
 	if (!part)
 		return;
 
+	blk_free_devt(part_devt(part));
 	rcu_assign_pointer(disk->__part[partno-1], NULL);
 	kobject_put(part->holder_dir);
 	device_del(&part->dev);
@@ -352,6 +353,7 @@ int add_partition(struct gendisk *disk, int partno,
 		  sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
+	dev_t devt = MKDEV(0, 0);
 	int err;
 
 	if (disk->__part[partno - 1])
@@ -378,10 +380,14 @@ int add_partition(struct gendisk *disk, int partno,
 			 "%s%d", disk->dev.bus_id, partno);
 
 	device_initialize(&p->dev);
-	p->dev.devt = MKDEV(disk->major, disk->first_minor + partno);
 	p->dev.class = &block_class;
 	p->dev.type = &part_type;
 	p->dev.parent = &disk->dev;
+
+	err = blk_alloc_devt(p, &devt);
+	if (err)
+		goto out_put;
+	p->dev.devt = devt;
 
 	/* delay uevent until 'holders' subdir is created */
 	p->dev.uevent_suppress = 1;
@@ -419,6 +425,7 @@ out_del:
 	device_del(&p->dev);
 out_put:
 	put_device(&p->dev);
+	blk_free_devt(devt);
 	return err;
 }
 

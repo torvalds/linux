@@ -16,6 +16,7 @@
 #include <linux/kobj_map.h>
 #include <linux/buffer_head.h>
 #include <linux/mutex.h>
+#include <linux/idr.h>
 
 #include "blk.h"
 
@@ -23,6 +24,15 @@ static DEFINE_MUTEX(block_class_lock);
 #ifndef CONFIG_SYSFS_DEPRECATED
 struct kobject *block_depr;
 #endif
+
+/* for extended dynamic devt allocation, currently only one major is used */
+#define MAX_EXT_DEVT		(1 << MINORBITS)
+
+/* For extended devt allocation.  ext_devt_mutex prevents look up
+ * results from going away underneath its user.
+ */
+static DEFINE_MUTEX(ext_devt_mutex);
+static DEFINE_IDR(ext_devt_idr);
 
 static struct device_type disk_type;
 
@@ -288,6 +298,74 @@ EXPORT_SYMBOL(unregister_blkdev);
 
 static struct kobj_map *bdev_map;
 
+/**
+ * blk_alloc_devt - allocate a dev_t for a partition
+ * @part: partition to allocate dev_t for
+ * @gfp_mask: memory allocation flag
+ * @devt: out parameter for resulting dev_t
+ *
+ * Allocate a dev_t for block device.
+ *
+ * RETURNS:
+ * 0 on success, allocated dev_t is returned in *@devt.  -errno on
+ * failure.
+ *
+ * CONTEXT:
+ * Might sleep.
+ */
+int blk_alloc_devt(struct hd_struct *part, dev_t *devt)
+{
+	struct gendisk *disk = part_to_disk(part);
+	int idx, rc;
+
+	/* in consecutive minor range? */
+	if (part->partno < disk->minors) {
+		*devt = MKDEV(disk->major, disk->first_minor + part->partno);
+		return 0;
+	}
+
+	/* allocate ext devt */
+	do {
+		if (!idr_pre_get(&ext_devt_idr, GFP_KERNEL))
+			return -ENOMEM;
+		rc = idr_get_new(&ext_devt_idr, part, &idx);
+	} while (rc == -EAGAIN);
+
+	if (rc)
+		return rc;
+
+	if (idx > MAX_EXT_DEVT) {
+		idr_remove(&ext_devt_idr, idx);
+		return -EBUSY;
+	}
+
+	*devt = MKDEV(BLOCK_EXT_MAJOR, idx);
+	return 0;
+}
+
+/**
+ * blk_free_devt - free a dev_t
+ * @devt: dev_t to free
+ *
+ * Free @devt which was allocated using blk_alloc_devt().
+ *
+ * CONTEXT:
+ * Might sleep.
+ */
+void blk_free_devt(dev_t devt)
+{
+	might_sleep();
+
+	if (devt == MKDEV(0, 0))
+		return;
+
+	if (MAJOR(devt) == BLOCK_EXT_MAJOR) {
+		mutex_lock(&ext_devt_mutex);
+		idr_remove(&ext_devt_idr, MINOR(devt));
+		mutex_unlock(&ext_devt_mutex);
+	}
+}
+
 /*
  * Register device numbers dev..(dev+range-1)
  * range must be nonzero
@@ -371,10 +449,27 @@ void unlink_gendisk(struct gendisk *disk)
  */
 struct gendisk *get_gendisk(dev_t devt, int *partno)
 {
-	struct kobject *kobj = kobj_lookup(bdev_map, devt, partno);
-	struct device *dev = kobj_to_dev(kobj);
+	struct gendisk *disk = NULL;
 
-	return  kobj ? dev_to_disk(dev) : NULL;
+	if (MAJOR(devt) != BLOCK_EXT_MAJOR) {
+		struct kobject *kobj;
+
+		kobj = kobj_lookup(bdev_map, devt, partno);
+		if (kobj)
+			disk = dev_to_disk(kobj_to_dev(kobj));
+	} else {
+		struct hd_struct *part;
+
+		mutex_lock(&ext_devt_mutex);
+		part = idr_find(&ext_devt_idr, MINOR(devt));
+		if (part && get_disk(part_to_disk(part))) {
+			*partno = part->partno;
+			disk = part_to_disk(part);
+		}
+		mutex_unlock(&ext_devt_mutex);
+	}
+
+	return disk;
 }
 
 /**
@@ -878,17 +973,29 @@ struct gendisk *alloc_disk(int minors)
 
 struct gendisk *alloc_disk_node(int minors, int node_id)
 {
+	return alloc_disk_ext_node(minors, 0, node_id);
+}
+
+struct gendisk *alloc_disk_ext(int minors, int ext_minors)
+{
+	return alloc_disk_ext_node(minors, ext_minors, -1);
+}
+
+struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
+{
 	struct gendisk *disk;
 
 	disk = kmalloc_node(sizeof(struct gendisk),
 				GFP_KERNEL | __GFP_ZERO, node_id);
 	if (disk) {
+		int tot_minors = minors + ext_minors;
+
 		if (!init_disk_stats(disk)) {
 			kfree(disk);
 			return NULL;
 		}
-		if (minors > 1) {
-			int size = (minors - 1) * sizeof(struct hd_struct *);
+		if (tot_minors > 1) {
+			int size = (tot_minors - 1) * sizeof(struct hd_struct *);
 			disk->__part = kmalloc_node(size,
 				GFP_KERNEL | __GFP_ZERO, node_id);
 			if (!disk->__part) {
@@ -898,6 +1005,7 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 			}
 		}
 		disk->minors = minors;
+		disk->ext_minors = ext_minors;
 		rand_initialize_disk(disk);
 		disk->dev.class = &block_class;
 		disk->dev.type = &disk_type;
@@ -910,6 +1018,8 @@ struct gendisk *alloc_disk_node(int minors, int node_id)
 
 EXPORT_SYMBOL(alloc_disk);
 EXPORT_SYMBOL(alloc_disk_node);
+EXPORT_SYMBOL(alloc_disk_ext);
+EXPORT_SYMBOL(alloc_disk_ext_node);
 
 struct kobject *get_disk(struct gendisk *disk)
 {

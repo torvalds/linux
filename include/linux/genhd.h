@@ -113,13 +113,15 @@ struct hd_struct {
 #define GENHD_FL_FAIL				64
 
 struct gendisk {
-	/* major, first_minor and minors are input parameters only,
-	 * don't use directly.  Use disk_devt() and disk_max_parts().
+	/* major, first_minor, minors and ext_minors are input
+	 * parameters only, don't use directly.  Use disk_devt() and
+	 * disk_max_parts().
 	 */
 	int major;			/* major number of driver */
 	int first_minor;
 	int minors;                     /* maximum number of minors, =1 for
                                          * disks that can't be partitioned. */
+	int ext_minors;			/* number of extended dynamic minors */
 
 	char disk_name[32];		/* name of major driver */
 
@@ -167,7 +169,7 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 
 static inline int disk_max_parts(struct gendisk *disk)
 {
-	return disk->minors - 1;
+	return disk->minors + disk->ext_minors - 1;
 }
 
 static inline dev_t disk_devt(struct gendisk *disk)
@@ -554,6 +556,8 @@ struct unixware_disklabel {
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
 
+extern int blk_alloc_devt(struct hd_struct *part, dev_t *devt);
+extern void blk_free_devt(dev_t devt);
 extern dev_t blk_lookup_devt(const char *name, int partno);
 extern char *disk_name (struct gendisk *hd, int partno, char *buf);
 
@@ -564,6 +568,9 @@ extern void printk_all_partitions(void);
 
 extern struct gendisk *alloc_disk_node(int minors, int node_id);
 extern struct gendisk *alloc_disk(int minors);
+extern struct gendisk *alloc_disk_ext_node(int minors, int ext_minrs,
+					   int node_id);
+extern struct gendisk *alloc_disk_ext(int minors, int ext_minors);
 extern struct kobject *get_disk(struct gendisk *disk);
 extern void put_disk(struct gendisk *disk);
 extern void blk_register_region(dev_t devt, unsigned long range,
