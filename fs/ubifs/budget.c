@@ -709,24 +709,11 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
  */
 long long ubifs_budg_get_free_space(struct ubifs_info *c)
 {
-	int min_idx_lebs, rsvd_idx_lebs;
+	int min_idx_lebs;
 	long long available, outstanding, free;
 
-	/* Do exactly the same calculations as in 'do_budget_space()' */
 	spin_lock(&c->space_lock);
 	min_idx_lebs = ubifs_calc_min_idx_lebs(c);
-
-	if (min_idx_lebs > c->lst.idx_lebs)
-		rsvd_idx_lebs = min_idx_lebs - c->lst.idx_lebs;
-	else
-		rsvd_idx_lebs = 0;
-
-	if (rsvd_idx_lebs > c->lst.empty_lebs + c->freeable_cnt + c->idx_gc_cnt
-				- c->lst.taken_empty_lebs) {
-		spin_unlock(&c->space_lock);
-		return 0;
-	}
-
 	outstanding = c->budg_data_growth + c->budg_dd_growth;
 
 	/*
