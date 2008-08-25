@@ -311,6 +311,7 @@ config ARCH_IOP13XX
 	select PLAT_IOP
 	select PCI
 	select ARCH_SUPPORTS_MSI
+	select VMSPLIT_1G
 	help
 	  Support for Intel's IOP13XX (XScale) family of processors.
 
@@ -738,6 +739,29 @@ config SMP
 	  <http://www.linuxdoc.org/docs.html#howto>.
 
 	  If you don't know what to do here, say N.
+
+choice
+	prompt "Memory split"
+	default VMSPLIT_3G
+	help
+	  Select the desired split between kernel and user memory.
+
+	  If you are not absolutely sure what you are doing, leave this
+	  option alone!
+
+	config VMSPLIT_3G
+		bool "3G/1G user/kernel split"
+	config VMSPLIT_2G
+		bool "2G/2G user/kernel split"
+	config VMSPLIT_1G
+		bool "1G/3G user/kernel split"
+endchoice
+
+config PAGE_OFFSET
+	hex
+	default 0x40000000 if VMSPLIT_1G
+	default 0x80000000 if VMSPLIT_2G
+	default 0xC0000000
 
 config NR_CPUS
 	int "Maximum number of CPUs (2-32)"

@@ -7,9 +7,6 @@
  * Physical DRAM offset.
  */
 #define PHYS_OFFSET	UL(0x00000000)
-#define TASK_SIZE  	UL(0x3f000000)
-#define PAGE_OFFSET	UL(0x40000000)
-#define TASK_UNMAPPED_BASE ((TASK_SIZE + 0x01000000) / 3)
 
 #ifndef __ASSEMBLY__
 
