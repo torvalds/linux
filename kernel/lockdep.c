@@ -3029,7 +3029,7 @@ found_it:
 
 	stats = get_lock_stats(hlock_class(hlock));
 	if (point < ARRAY_SIZE(stats->contention_point))
-		stats->contention_point[i]++;
+		stats->contention_point[point]++;
 	if (lock->cpu != smp_processor_id())
 		stats->bounces[bounce_contended + !!hlock->read]++;
 	put_lock_stats(stats);
