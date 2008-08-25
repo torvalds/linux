@@ -35,7 +35,6 @@
 #include <pcmcia/ss.h>
 #include <pcmcia/cistpl.h>
 
-#include "cs_internal.h"
 #include "soc_common.h"
 #include "pxa2xx_base.h"
 
