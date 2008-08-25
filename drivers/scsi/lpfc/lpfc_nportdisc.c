@@ -1003,20 +1003,8 @@ lpfc_rcv_plogi_adisc_issue(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag &= ~NLP_NPR_2B_DISC;
 			spin_unlock_irq(shost->host_lock);
-
-			if (vport->num_disc_nodes) {
+			if (vport->num_disc_nodes)
 				lpfc_more_adisc(vport);
-				if ((vport->num_disc_nodes == 0) &&
-				    (vport->fc_npr_cnt))
-					lpfc_els_disc_plogi(vport);
-				if (vport->num_disc_nodes == 0) {
-					spin_lock_irq(shost->host_lock);
-					vport->fc_flag &= ~FC_NDISC_ACTIVE;
-					spin_unlock_irq(shost->host_lock);
-					lpfc_can_disctmo(vport);
-					lpfc_end_rscn(vport);
-				}
-			}
 		}
 		return ndlp->nlp_state;
 	}

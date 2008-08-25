@@ -1556,6 +1556,83 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 }
 
 /**
+ * lpfc_rscn_disc: Perform rscn discovery for a vport.
+ * @vport: pointer to a host virtual N_Port data structure.
+ *
+ * This routine performs Registration State Change Notification (RSCN)
+ * discovery for a @vport. If the @vport's node port recovery count is not
+ * zero, it will invoke the lpfc_els_disc_plogi() to perform PLOGI for all
+ * the nodes that need recovery. If none of the PLOGI were needed through
+ * the lpfc_els_disc_plogi() routine, the lpfc_end_rscn() routine shall be
+ * invoked to check and handle possible more RSCN came in during the period
+ * of processing the current ones.
+ **/
+static void
+lpfc_rscn_disc(struct lpfc_vport *vport)
+{
+	lpfc_can_disctmo(vport);
+
+	/* RSCN discovery */
+	/* go thru NPR nodes and issue ELS PLOGIs */
+	if (vport->fc_npr_cnt)
+		if (lpfc_els_disc_plogi(vport))
+			return;
+
+	lpfc_end_rscn(vport);
+}
+
+/**
+ * lpfc_adisc_done: Complete the adisc phase of discovery.
+ * @vport: pointer to lpfc_vport hba data structure that finished all ADISCs.
+ *
+ * This function is called when the final ADISC is completed during discovery.
+ * This function handles clearing link attention or issuing reg_vpi depending
+ * on whether npiv is enabled. This function also kicks off the PLOGI phase of
+ * discovery.
+ * This function is called with no locks held.
+ **/
+static void
+lpfc_adisc_done(struct lpfc_vport *vport)
+{
+	struct Scsi_Host   *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_hba   *phba = vport->phba;
+
+	/*
+	 * For NPIV, cmpl_reg_vpi will set port_state to READY,
+	 * and continue discovery.
+	 */
+	if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
+	    !(vport->fc_flag & FC_RSCN_MODE)) {
+		lpfc_issue_reg_vpi(phba, vport);
+		return;
+	}
+	/*
+	* For SLI2, we need to set port_state to READY
+	* and continue discovery.
+	*/
+	if (vport->port_state < LPFC_VPORT_READY) {
+		/* If we get here, there is nothing to ADISC */
+		if (vport->port_type == LPFC_PHYSICAL_PORT)
+			lpfc_issue_clear_la(phba, vport);
+		if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
+			vport->num_disc_nodes = 0;
+			/* go thru NPR list, issue ELS PLOGIs */
+			if (vport->fc_npr_cnt)
+				lpfc_els_disc_plogi(vport);
+			if (!vport->num_disc_nodes) {
+				spin_lock_irq(shost->host_lock);
+				vport->fc_flag &= ~FC_NDISC_ACTIVE;
+				spin_unlock_irq(shost->host_lock);
+				lpfc_can_disctmo(vport);
+				lpfc_end_rscn(vport);
+			}
+		}
+		vport->port_state = LPFC_VPORT_READY;
+	} else
+		lpfc_rscn_disc(vport);
+}
+
+/**
  * lpfc_more_adisc: Issue more adisc as needed.
  * @vport: pointer to a host virtual N_Port data structure.
  *
@@ -1583,33 +1660,9 @@ lpfc_more_adisc(struct lpfc_vport *vport)
 		/* go thru NPR nodes and issue any remaining ELS ADISCs */
 		sentadisc = lpfc_els_disc_adisc(vport);
 	}
+	if (!vport->num_disc_nodes)
+		lpfc_adisc_done(vport);
 	return;
-}
-
-/**
- * lpfc_rscn_disc: Perform rscn discovery for a vport.
- * @vport: pointer to a host virtual N_Port data structure.
- *
- * This routine performs Registration State Change Notification (RSCN)
- * discovery for a @vport. If the @vport's node port recovery count is not
- * zero, it will invoke the lpfc_els_disc_plogi() to perform PLOGI for all
- * the nodes that need recovery. If none of the PLOGI were needed through
- * the lpfc_els_disc_plogi() routine, the lpfc_end_rscn() routine shall be
- * invoked to check and handle possible more RSCN came in during the period
- * of processing the current ones.
- **/
-static void
-lpfc_rscn_disc(struct lpfc_vport *vport)
-{
-	lpfc_can_disctmo(vport);
-
-	/* RSCN discovery */
-	/* go thru NPR nodes and issue ELS PLOGIs */
-	if (vport->fc_npr_cnt)
-		if (lpfc_els_disc_plogi(vport))
-			return;
-
-	lpfc_end_rscn(vport);
 }
 
 /**
@@ -1692,52 +1745,9 @@ lpfc_cmpl_els_adisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_disc_state_machine(vport, ndlp, cmdiocb,
 					NLP_EVT_CMPL_ADISC);
 
-	if (disc && vport->num_disc_nodes) {
-		/* Check to see if there are more ADISCs to be sent */
+	/* Check to see if there are more ADISCs to be sent */
+	if (disc && vport->num_disc_nodes)
 		lpfc_more_adisc(vport);
-
-		/* Check to see if we are done with ADISC authentication */
-		if (vport->num_disc_nodes == 0) {
-			/* If we get here, there is nothing left to ADISC */
-			/*
-			 * For NPIV, cmpl_reg_vpi will set port_state to READY,
-			 * and continue discovery.
-			 */
-			if ((phba->sli3_options & LPFC_SLI3_NPIV_ENABLED) &&
-			   !(vport->fc_flag & FC_RSCN_MODE)) {
-				lpfc_issue_reg_vpi(phba, vport);
-				goto out;
-			}
-			/*
-			 * For SLI2, we need to set port_state to READY
-			 * and continue discovery.
-			 */
-			if (vport->port_state < LPFC_VPORT_READY) {
-				/* If we get here, there is nothing to ADISC */
-				if (vport->port_type == LPFC_PHYSICAL_PORT)
-					lpfc_issue_clear_la(phba, vport);
-
-				if (!(vport->fc_flag & FC_ABORT_DISCOVERY)) {
-					vport->num_disc_nodes = 0;
-					/* go thru NPR list, issue ELS PLOGIs */
-					if (vport->fc_npr_cnt)
-						lpfc_els_disc_plogi(vport);
-
-					if (!vport->num_disc_nodes) {
-						spin_lock_irq(shost->host_lock);
-						vport->fc_flag &=
-							~FC_NDISC_ACTIVE;
-						spin_unlock_irq(
-							shost->host_lock);
-						lpfc_can_disctmo(vport);
-					}
-				}
-				vport->port_state = LPFC_VPORT_READY;
-			} else {
-				lpfc_rscn_disc(vport);
-			}
-		}
-	}
 out:
 	lpfc_els_free_iocb(phba, cmdiocb);
 	return;
@@ -2258,19 +2268,16 @@ lpfc_cancel_retry_delay_tmo(struct lpfc_vport *vport, struct lpfc_nodelist *nlp)
 			if (vport->port_state < LPFC_VPORT_READY) {
 				/* Check if there are more ADISCs to be sent */
 				lpfc_more_adisc(vport);
-				if ((vport->num_disc_nodes == 0) &&
-				    (vport->fc_npr_cnt))
-					lpfc_els_disc_plogi(vport);
 			} else {
 				/* Check if there are more PLOGIs to be sent */
 				lpfc_more_plogi(vport);
-			}
-			if (vport->num_disc_nodes == 0) {
-				spin_lock_irq(shost->host_lock);
-				vport->fc_flag &= ~FC_NDISC_ACTIVE;
-				spin_unlock_irq(shost->host_lock);
-				lpfc_can_disctmo(vport);
-				lpfc_end_rscn(vport);
+				if (vport->num_disc_nodes == 0) {
+					spin_lock_irq(shost->host_lock);
+					vport->fc_flag &= ~FC_NDISC_ACTIVE;
+					spin_unlock_irq(shost->host_lock);
+					lpfc_can_disctmo(vport);
+					lpfc_end_rscn(vport);
+				}
 			}
 		}
 	}
@@ -4480,14 +4487,9 @@ lpfc_els_rcv_rps(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 	struct ls_rjt stat;
 
 	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
-	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
-		stat.un.b.lsRjtRsvd0 = 0;
-		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
-		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
-		stat.un.b.vendorUnique = 0;
-		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
-			NULL);
-	}
+	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE))
+		/* reject the unsolicited RPS request and done with it */
+		goto reject_out;
 
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;
 	lp = (uint32_t *) pcmd->virt;
@@ -4520,6 +4522,9 @@ lpfc_els_rcv_rps(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 			mempool_free(mbox, phba->mbox_mem_pool);
 		}
 	}
+
+reject_out:
+	/* issue rejection response */
 	stat.un.b.lsRjtRsvd0 = 0;
 	stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 	stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
@@ -4629,12 +4634,15 @@ lpfc_els_rcv_rpl(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	if ((ndlp->nlp_state != NLP_STE_UNMAPPED_NODE) &&
 	    (ndlp->nlp_state != NLP_STE_MAPPED_NODE)) {
+		/* issue rejection response */
 		stat.un.b.lsRjtRsvd0 = 0;
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_CANT_GIVE_DATA;
 		stat.un.b.vendorUnique = 0;
 		lpfc_els_rsp_reject(vport, stat.un.lsRjtError, cmdiocb, ndlp,
 			NULL);
+		/* rejected the unsolicited RPL request and done with it */
+		return 0;
 	}
 
 	pcmd = (struct lpfc_dmabuf *) cmdiocb->context2;

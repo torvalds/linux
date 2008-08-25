@@ -1580,14 +1580,6 @@ lpfc_cleanup(struct lpfc_vport *vport)
 		lpfc_disc_state_machine(vport, ndlp, NULL,
 					     NLP_EVT_DEVICE_RM);
 
-		/* nlp_type zero is not defined, nlp_flag zero also not defined,
-		 * nlp_state is unused, this happens when
-		 * an initiator has logged
-		 * into us so cleanup this ndlp.
-		 */
-		if ((ndlp->nlp_type == 0) && (ndlp->nlp_flag == 0) &&
-			(ndlp->nlp_state == 0))
-			lpfc_nlp_put(ndlp);
 	}
 
 	/* At this point, ALL ndlp's should be gone
