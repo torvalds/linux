@@ -1464,10 +1464,7 @@ static int bind_rdev_to_array(mdk_rdev_t * rdev, mddev_t * mddev)
 	if ((err = kobject_add(&rdev->kobj, &mddev->kobj, "dev-%s", b)))
 		goto fail;
 
-	if (rdev->bdev->bd_part)
-		ko = &part_to_dev(rdev->bdev->bd_part)->kobj;
-	else
-		ko = &disk_to_dev(rdev->bdev->bd_disk)->kobj;
+	ko = &part_to_dev(rdev->bdev->bd_part)->kobj;
 	if ((err = sysfs_create_link(&rdev->kobj, ko, "block"))) {
 		kobject_del(&rdev->kobj);
 		goto fail;
