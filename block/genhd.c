@@ -568,7 +568,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 {
 	struct gendisk *gp = v;
 	char buf[BDEVNAME_SIZE];
-	int n = 0;
+	int n;
 
 	/*
 	if (&gp->dev.kobj.entry == block_class.devices.next)
@@ -582,7 +582,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 	disk_round_stats(gp);
 	preempt_enable();
 	seq_printf(s, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
-		gp->major, n + gp->first_minor, disk_name(gp, n, buf),
+		gp->major, gp->first_minor, disk_name(gp, 0, buf),
 		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
 		(unsigned long long)disk_stat_read(gp, sectors[0]),
 		jiffies_to_msecs(disk_stat_read(gp, ticks[0])),

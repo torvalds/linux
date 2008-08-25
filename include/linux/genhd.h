@@ -116,7 +116,7 @@ struct gendisk {
 	int minors;                     /* maximum number of minors, =1 for
                                          * disks that can't be partitioned. */
 	char disk_name[32];		/* name of major driver */
-	struct hd_struct **part;	/* [indexed by minor] */
+	struct hd_struct **part;	/* [indexed by minor - 1] */
 	struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;
@@ -145,14 +145,21 @@ struct gendisk {
 #endif
 };
 
+static inline struct gendisk *part_to_disk(struct hd_struct *part)
+{
+	if (likely(part))
+		return dev_to_disk((part)->dev.parent);
+	return NULL;
+}
+
 /* 
  * Macros to operate on percpu disk statistics:
  *
  * The __ variants should only be called in critical sections. The full
  * variants disable/enable preemption.
  */
-static inline struct hd_struct *get_part(struct gendisk *gendiskp,
-					 sector_t sector)
+static inline struct hd_struct *disk_map_sector(struct gendisk *gendiskp,
+						sector_t sector)
 {
 	struct hd_struct *part;
 	int i;

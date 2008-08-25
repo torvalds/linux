@@ -60,7 +60,7 @@ static void drive_stat_acct(struct request *rq, int new_io)
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	part = get_part(rq->rq_disk, rq->sector);
+	part = disk_map_sector(rq->rq_disk, rq->sector);
 	if (!new_io)
 		__all_stat_inc(rq->rq_disk, part, merges[rw], rq->sector);
 	else {
@@ -1557,7 +1557,8 @@ static int __end_that_request_first(struct request *req, int error,
 	}
 
 	if (blk_fs_request(req) && req->rq_disk) {
-		struct hd_struct *part = get_part(req->rq_disk, req->sector);
+		struct hd_struct *part =
+			disk_map_sector(req->rq_disk, req->sector);
 		const int rw = rq_data_dir(req);
 
 		all_stat_add(req->rq_disk, part, sectors[rw],
@@ -1745,7 +1746,7 @@ static void end_that_request_last(struct request *req, int error)
 	if (disk && blk_fs_request(req) && req != &req->q->bar_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
-		struct hd_struct *part = get_part(disk, req->sector);
+		struct hd_struct *part = disk_map_sector(disk, req->sector);
 
 		__all_stat_inc(disk, part, ios[rw], req->sector);
 		__all_stat_add(disk, part, ticks[rw], duration, req->sector);
