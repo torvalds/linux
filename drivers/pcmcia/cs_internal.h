@@ -177,4 +177,44 @@ struct resource *pcmcia_find_mem_region(u_long base,
 					int low,
 					struct pcmcia_socket *s);
 
+/*
+ * Stuff internal to module "pcmcia".
+ */
+/* ds.c */
+extern struct bus_type pcmcia_bus_type;
+
+/* pcmcia_resource.c */
+extern int pcmcia_release_configuration(struct pcmcia_device *p_dev);
+
+#ifdef CONFIG_PCMCIA_IOCTL
+/* ds.c */
+extern spinlock_t pcmcia_dev_list_lock;
+
+extern struct pcmcia_device *pcmcia_get_dev(struct pcmcia_device *p_dev);
+extern void pcmcia_put_dev(struct pcmcia_device *p_dev);
+
+struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s,
+					unsigned int function);
+
+/* pcmcia_ioctl.c */
+extern void __init pcmcia_setup_ioctl(void);
+extern void __exit pcmcia_cleanup_ioctl(void);
+extern void handle_event(struct pcmcia_socket *s, event_t event);
+extern int handle_request(struct pcmcia_socket *s, event_t event);
+
+#else /* CONFIG_PCMCIA_IOCTL */
+
+static inline void __init pcmcia_setup_ioctl(void) { return; }
+static inline void __exit pcmcia_cleanup_ioctl(void) { return; }
+static inline void handle_event(struct pcmcia_socket *s, event_t event)
+{
+	return;
+}
+static inline int handle_request(struct pcmcia_socket *s, event_t event)
+{
+	return 0;
+}
+
+#endif /* CONFIG_PCMCIA_IOCTL */
+
 #endif /* _LINUX_CS_INTERNAL_H */

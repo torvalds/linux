@@ -29,7 +29,6 @@
 #include <pcmcia/ds.h>
 
 #include "cs_internal.h"
-#include "ds_internal.h"
 
 
 /* Access speed for IO windows */
