@@ -141,7 +141,6 @@ struct gendisk {
 
 	int flags;
 	struct device *driverfs_dev;  // FIXME: remove
-	struct kobject *holder_dir;
 	struct kobject *slave_dir;
 
 	struct timer_rand_state *random;

@@ -305,16 +305,6 @@ struct device_type part_type = {
 	.release	= part_release,
 };
 
-static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
-{
-	struct kobject *k;
-
-	k = kobject_get(&disk_to_dev(disk)->kobj);
-	disk->holder_dir = kobject_create_and_add("holders", k);
-	disk->slave_dir = kobject_create_and_add("slaves", k);
-	kobject_put(k);
-}
-
 static void delete_partition_rcu_cb(struct rcu_head *head)
 {
 	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
@@ -464,7 +454,8 @@ void register_disk(struct gendisk *disk)
 		return;
 	}
 #endif
-	disk_sysfs_add_subdirs(disk);
+	disk->part0.holder_dir = kobject_create_and_add("holders", &ddev->kobj);
+	disk->slave_dir = kobject_create_and_add("slaves", &ddev->kobj);
 
 	/* No minors to use for partitions */
 	if (!disk_partitionable(disk))
@@ -592,7 +583,7 @@ void del_gendisk(struct gendisk *disk)
 	disk_stat_set_all(disk, 0);
 	disk->stamp = 0;
 
-	kobject_put(disk->holder_dir);
+	kobject_put(disk->part0.holder_dir);
 	kobject_put(disk->slave_dir);
 	disk->driverfs_dev = NULL;
 #ifndef CONFIG_SYSFS_DEPRECATED

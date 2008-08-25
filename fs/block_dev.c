@@ -548,14 +548,6 @@ static struct kobject *bdev_get_kobj(struct block_device *bdev)
 		return kobject_get(&disk_to_dev(bdev->bd_disk)->kobj);
 }
 
-static struct kobject *bdev_get_holder(struct block_device *bdev)
-{
-	if (bdev->bd_contains != bdev)
-		return kobject_get(bdev->bd_part->holder_dir);
-	else
-		return kobject_get(bdev->bd_disk->holder_dir);
-}
-
 static int add_symlink(struct kobject *from, struct kobject *to)
 {
 	if (!from || !to)
@@ -608,7 +600,7 @@ static int bd_holder_grab_dirs(struct block_device *bdev,
 	if (!bo->sdev)
 		goto fail_put_hdev;
 
-	bo->hdir = bdev_get_holder(bdev);
+	bo->hdir = kobject_get(bdev->bd_part->holder_dir);
 	if (!bo->hdir)
 		goto fail_put_sdev;
 
