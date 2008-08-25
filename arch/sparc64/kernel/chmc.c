@@ -1,6 +1,6 @@
-/* memctrlr.c: Driver for UltraSPARC-III memory controller.
+/* chmc.c: Driver for UltraSPARC-III memory controller.
  *
- * Copyright (C) 2001, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2001, 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/module.h>
@@ -13,12 +13,24 @@
 #include <linux/smp.h>
 #include <linux/errno.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include <asm/spitfire.h>
 #include <asm/chmctrl.h>
 #include <asm/cpudata.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
+#include <asm/head.h>
 #include <asm/io.h>
+
+#define DRV_MODULE_NAME		"chmc"
+#define PFX DRV_MODULE_NAME	": "
+#define DRV_MODULE_VERSION	"0.2"
+
+MODULE_AUTHOR("David S. Miller (davem@davemloft.net)");
+MODULE_DESCRIPTION("UltraSPARC-III memory controller driver");
+MODULE_LICENSE("GPL");
+MODULE_VERSION(DRV_MODULE_VERSION);
 
 #define CHMCTRL_NDGRPS	2
 #define CHMCTRL_NDIMMS	4
@@ -343,16 +355,25 @@ static void fetch_decode_regs(struct mctrl_info *mp)
 				 read_mcreg(mp, CHMCTRL_DECODE4));
 }
 
-static int init_one_mctrl(struct device_node *dp)
+static int __devinit chmc_probe(struct of_device *op,
+				const struct of_device_id *match)
 {
-	struct mctrl_info *mp = kzalloc(sizeof(*mp), GFP_KERNEL);
-	int portid = of_getintprop_default(dp, "portid", -1);
-	const struct linux_prom64_registers *regs;
+	struct device_node *dp = op->node;
+	struct mctrl_info *mp;
+	unsigned long ver;
 	const void *pval;
-	int len;
+	int len, portid;
 
+	__asm__ ("rdpr %%ver, %0" : "=r" (ver));
+	if ((ver >> 32UL) == __JALAPENO_ID ||
+	    (ver >> 32UL) == __SERRANO_ID)
+		return -ENODEV;
+
+	mp = kzalloc(sizeof(*mp), GFP_KERNEL);
 	if (!mp)
-		return -1;
+		return -ENOMEM;
+
+	portid = of_getintprop_default(dp, "portid", -1);
 	if (portid == -1)
 		goto fail;
 
@@ -362,18 +383,19 @@ static int init_one_mctrl(struct device_node *dp)
 	if (!pval)
 		mp->layout_size = 0;
 	else {
-		if (mp->layout_size > sizeof(mp->layout_prop))
+		if (mp->layout_size > sizeof(mp->layout_prop)) {
+			printk(KERN_ERR PFX "Unexpected memory-layout property "
+			       "size %d.\n", mp->layout_size);
 			goto fail;
+		}
 		memcpy(&mp->layout_prop, pval, len);
 	}
 
-	regs = of_get_property(dp, "reg", NULL);
-	if (!regs || regs->reg_size != 0x48)
+	mp->regs = of_ioremap(&op->resource[0], 0, 0x48, "chmc");
+	if (!mp->regs) {
+		printk(KERN_ERR PFX "Could not map registers.\n");
 		goto fail;
-
-	mp->regs = ioremap(regs->phys_addr, regs->reg_size);
-	if (mp->regs == NULL)
-		goto fail;
+	}
 
 	if (mp->layout_size != 0UL) {
 		mp->timing_control1 = read_mcreg(mp, CHMCTRL_TCTRL1);
@@ -388,54 +410,69 @@ static int init_one_mctrl(struct device_node *dp)
 	list_add(&mp->list, &mctrl_list);
 
 	/* Report the device. */
-	printk(KERN_INFO "%s: US3 memory controller at %p [%s]\n",
+	printk(KERN_INFO PFX "UltraSPARC-III memory controller at %s [%s]\n",
 	       dp->full_name,
-	       mp->regs, (mp->layout_size ? "ACTIVE" : "INACTIVE"));
+	       (mp->layout_size ? "ACTIVE" : "INACTIVE"));
+
+	dev_set_drvdata(&op->dev, mp);
 
 	return 0;
 
 fail:
 	if (mp) {
 		if (mp->regs != NULL)
-			iounmap(mp->regs);
+			of_iounmap(&op->resource[0], mp->regs, 0x48);
 		kfree(mp);
 	}
 	return -1;
 }
 
+static int __devexit chmc_remove(struct of_device *op)
+{
+	struct mctrl_info *mp = dev_get_drvdata(&op->dev);
+
+	if (mp) {
+		list_del(&mp->list);
+		of_iounmap(&op->resource[0], mp->regs, 0x48);
+		kfree(mp);
+	}
+	return 0;
+}
+
+static struct of_device_id chmc_match[] = {
+	{
+		.name = "memory-controller",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, chmc_match);
+
+static struct of_platform_driver chmc_driver = {
+	.name		= "chmc",
+	.match_table	= chmc_match,
+	.probe		= chmc_probe,
+	.remove		= __devexit_p(chmc_remove),
+};
+
+static inline bool chmc_platform(void)
+{
+	if (tlb_type == cheetah || tlb_type == cheetah_plus)
+		return true;
+	return false;
+}
+
 static int __init chmc_init(void)
 {
-	struct device_node *dp;
-
-	/* This driver is only for cheetah platforms. */
-	if (tlb_type != cheetah && tlb_type != cheetah_plus)
+	if (!chmc_platform())
 		return -ENODEV;
 
-	for_each_node_by_name(dp, "memory-controller")
-		init_one_mctrl(dp);
-
-	for_each_node_by_name(dp, "mc-us3")
-		init_one_mctrl(dp);
-
-	return 0;
+	return of_register_driver(&chmc_driver, &of_bus_type);
 }
 
 static void __exit chmc_cleanup(void)
 {
-	struct list_head *head = &mctrl_list;
-	struct list_head *tmp = head->next;
-
-	for (;;) {
-		struct mctrl_info *p =
-			list_entry(tmp, struct mctrl_info, list);
-		if (tmp == head)
-			break;
-		tmp = tmp->next;
-
-		list_del(&p->list);
-		iounmap(p->regs);
-		kfree(p);
-	}
+	if (chmc_platform())
+		of_unregister_driver(&chmc_driver);
 }
 
 module_init(chmc_init);
