@@ -335,7 +335,7 @@ static int _sram_free(const void *addr,
 		plast->size += pavail->size;
 		kmem_cache_free(sram_piece_cache, pavail);
 	} else {
-		pavail->next = plast;
+		pavail->next = plast->next;
 		plast->next = pavail;
 		plast = pavail;
 	}
