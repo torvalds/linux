@@ -791,6 +791,13 @@ config SENSORS_W83627EHF
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83627ehf.
 
+config SENSORS_ULTRA45
+	tristate "Sun Ultra45 PIC16F747"
+	depends on SPARC64
+	help
+	  This driver provides support for the Ultra45 workstation environmental
+	  sensors.
+
 config SENSORS_HDAPS
 	tristate "IBM Hard Drive Active Protection System (hdaps)"
 	depends on INPUT && X86
