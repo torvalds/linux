@@ -621,6 +621,13 @@ static struct snd_kcontrol_new snd_pmac_screamer_mixers_imac[] __initdata = {
 	AWACS_SWITCH("CD Capture Switch", 0, SHIFT_MUX_CD, 0),
 };
 
+static struct snd_kcontrol_new snd_pmac_screamer_mixers_g4agp[] __initdata = {
+	AWACS_VOLUME("Line out Playback Volume", 2, 6, 1),
+	AWACS_VOLUME("Master Playback Volume", 5, 6, 1),
+	AWACS_SWITCH("CD Capture Switch", 0, SHIFT_MUX_CD, 0),
+	AWACS_SWITCH("Line Capture Switch", 0, SHIFT_MUX_MIC, 0),
+};
+
 static struct snd_kcontrol_new snd_pmac_awacs_mixers_pmac7500[] __initdata = {
 	AWACS_VOLUME("Line out Playback Volume", 2, 6, 1),
 	AWACS_SWITCH("CD Capture Switch", 0, SHIFT_MUX_CD, 0),
@@ -768,6 +775,7 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 #define IS_IMAC (machine_is_compatible("PowerMac2,1") \
 		|| machine_is_compatible("PowerMac2,2") \
 		|| machine_is_compatible("PowerMac4,1"))
+#define IS_G4AGP (machine_is_compatible("PowerMac3,1"))
 
 static int imac;
 
@@ -850,6 +858,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 {
 	int pm7500 = IS_PM7500;
 	int beige = IS_BEIGE;
+	int g4agp = IS_G4AGP;
 	int err, vol;
 
 	imac = IS_IMAC;
@@ -939,7 +948,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 				snd_pmac_awacs_mixers);
 	if (err < 0)
 		return err;
-	if (beige)
+	if (beige || g4agp)
 		;
 	else if (chip->model == PMAC_SCREAMER)
 		err = build_mixers(chip, ARRAY_SIZE(snd_pmac_screamer_mixers2),
@@ -961,13 +970,17 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 		err = build_mixers(chip,
 				   ARRAY_SIZE(snd_pmac_screamer_mixers_imac),
 				   snd_pmac_screamer_mixers_imac);
+	else if (g4agp)
+		err = build_mixers(chip,
+				   ARRAY_SIZE(snd_pmac_screamer_mixers_g4agp),
+				   snd_pmac_screamer_mixers_g4agp);
 	else
 		err = build_mixers(chip,
 				   ARRAY_SIZE(snd_pmac_awacs_mixers_pmac),
 				   snd_pmac_awacs_mixers_pmac);
 	if (err < 0)
 		return err;
-	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac)
+	chip->master_sw_ctl = snd_ctl_new1((pm7500 || imac || g4agp)
 			? &snd_pmac_awacs_master_sw_imac
 			: &snd_pmac_awacs_master_sw, chip);
 	err = snd_ctl_add(chip->card, chip->master_sw_ctl);
@@ -1012,7 +1025,7 @@ snd_pmac_awacs_init(struct snd_pmac *chip)
 			return err;
 	}
 
-	if (beige)
+	if (beige || g4agp)
 		err = build_mixers(chip,
 				ARRAY_SIZE(snd_pmac_screamer_mic_boost_beige),
 				snd_pmac_screamer_mic_boost_beige);
