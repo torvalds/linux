@@ -366,6 +366,18 @@ void blk_free_devt(dev_t devt)
 	}
 }
 
+static char *bdevt_str(dev_t devt, char *buf)
+{
+	if (MAJOR(devt) <= 0xff && MINOR(devt) <= 0xff) {
+		char tbuf[BDEVT_SIZE];
+		snprintf(tbuf, BDEVT_SIZE, "%02x%02x", MAJOR(devt), MINOR(devt));
+		snprintf(buf, BDEVT_SIZE, "%-9s", tbuf);
+	} else
+		snprintf(buf, BDEVT_SIZE, "%03x:%05x", MAJOR(devt), MINOR(devt));
+
+	return buf;
+}
+
 /*
  * Register device numbers dev..(dev+range-1)
  * range must be nonzero
@@ -521,7 +533,8 @@ void __init printk_all_partitions(void)
 		struct gendisk *disk = dev_to_disk(dev);
 		struct disk_part_iter piter;
 		struct hd_struct *part;
-		char buf[BDEVNAME_SIZE];
+		char name_buf[BDEVNAME_SIZE];
+		char devt_buf[BDEVT_SIZE];
 
 		/*
 		 * Don't show empty devices or things that have been
@@ -536,10 +549,10 @@ void __init printk_all_partitions(void)
 		 * numbers in hex - the same format as the root=
 		 * option takes.
 		 */
-		printk("%02x%02x %10llu %s",
-		       MAJOR(disk_devt(disk)), MINOR(disk_devt(disk)),
+		printk("%s %10llu %s",
+		       bdevt_str(disk_devt(disk), devt_buf),
 		       (unsigned long long)get_capacity(disk) >> 1,
-		       disk_name(disk, 0, buf));
+		       disk_name(disk, 0, name_buf));
 		if (disk->driverfs_dev != NULL &&
 		    disk->driverfs_dev->driver != NULL)
 			printk(" driver: %s\n",
@@ -550,10 +563,10 @@ void __init printk_all_partitions(void)
 		/* now show the partitions */
 		disk_part_iter_init(&piter, disk, 0);
 		while ((part = disk_part_iter_next(&piter)))
-			printk("  %02x%02x %10llu %s\n",
-			       MAJOR(part_devt(part)), MINOR(part_devt(part)),
+			printk("  %s %10llu %s\n",
+			       bdevt_str(part_devt(part), devt_buf),
 			       (unsigned long long)part->nr_sects >> 1,
-			       disk_name(disk, part->partno, buf));
+			       disk_name(disk, part->partno, name_buf));
 		disk_part_iter_exit(&piter);
 	}
 	class_dev_iter_exit(&iter);
@@ -630,14 +643,14 @@ static int show_partition(struct seq_file *seqf, void *v)
 		return 0;
 
 	/* show the full disk and all non-0 size partitions of it */
-	seq_printf(seqf, "%4d  %4d %10llu %s\n",
+	seq_printf(seqf, "%4d  %7d %10llu %s\n",
 		MAJOR(disk_devt(sgp)), MINOR(disk_devt(sgp)),
 		(unsigned long long)get_capacity(sgp) >> 1,
 		disk_name(sgp, 0, buf));
 
 	disk_part_iter_init(&piter, sgp, 0);
 	while ((part = disk_part_iter_next(&piter)))
-		seq_printf(seqf, "%4d  %4d %10llu %s\n",
+		seq_printf(seqf, "%4d  %7d %10llu %s\n",
 			   MAJOR(part_devt(part)), MINOR(part_devt(part)),
 			   (unsigned long long)part->nr_sects >> 1,
 			   disk_name(sgp, part->partno, buf));
@@ -689,6 +702,14 @@ static ssize_t disk_range_show(struct device *dev,
 	struct gendisk *disk = dev_to_disk(dev);
 
 	return sprintf(buf, "%d\n", disk->minors);
+}
+
+static ssize_t disk_ext_range_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+
+	return sprintf(buf, "%d\n", disk_max_parts(disk) + 1);
 }
 
 static ssize_t disk_removable_show(struct device *dev,
@@ -780,6 +801,7 @@ static ssize_t disk_fail_store(struct device *dev,
 #endif
 
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);
+static DEVICE_ATTR(ext_range, S_IRUGO, disk_ext_range_show, NULL);
 static DEVICE_ATTR(removable, S_IRUGO, disk_removable_show, NULL);
 static DEVICE_ATTR(ro, S_IRUGO, disk_ro_show, NULL);
 static DEVICE_ATTR(size, S_IRUGO, disk_size_show, NULL);
@@ -792,6 +814,7 @@ static struct device_attribute dev_attr_fail =
 
 static struct attribute *disk_attrs[] = {
 	&dev_attr_range.attr,
+	&dev_attr_ext_range.attr,
 	&dev_attr_removable.attr,
 	&dev_attr_ro.attr,
 	&dev_attr_size.attr,
@@ -858,7 +881,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	cpu = disk_stat_lock();
 	disk_round_stats(cpu, gp);
 	disk_stat_unlock();
-	seq_printf(seqf, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
+	seq_printf(seqf, "%4d %7d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
 		MAJOR(disk_devt(gp)), MINOR(disk_devt(gp)),
 		disk_name(gp, 0, buf),
 		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
@@ -877,7 +900,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		cpu = disk_stat_lock();
 		part_round_stats(cpu, hd);
 		disk_stat_unlock();
-		seq_printf(seqf, "%4d %4d %s %lu %lu %llu "
+		seq_printf(seqf, "%4d %7d %s %lu %lu %llu "
 			   "%u %lu %lu %llu %u %u %u %u\n",
 			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),
 			   disk_name(gp, hd->partno, buf),
