@@ -49,6 +49,9 @@ struct lpfc_sli2_slim;
 #define LPFC_HB_MBOX_INTERVAL   5	/* Heart beat interval in seconds. */
 #define LPFC_HB_MBOX_TIMEOUT    30	/* Heart beat timeout  in seconds. */
 
+/* Error Attention event polling interval */
+#define LPFC_ERATT_POLL_INTERVAL	5 /* EATT poll interval in seconds */
+
 /* Define macros for 64 bit support */
 #define putPaddrLow(addr)    ((uint32_t) (0xffffffff & (u64)(addr)))
 #define putPaddrHigh(addr)   ((uint32_t) (0xffffffff & (((u64)(addr))>>32)))
@@ -59,6 +62,9 @@ struct lpfc_sli2_slim;
 #define FC_MAX_ADPTMSG		64
 
 #define MAX_HBAEVT	32
+
+/* Number of MSI-X vectors the driver uses */
+#define LPFC_MSIX_VECTORS	2
 
 /* lpfc wait event data ready flag */
 #define LPFC_DATA_READY		(1<<0)
@@ -423,12 +429,16 @@ struct lpfc_hba {
 #define LS_NPIV_FAB_SUPPORTED 0x2	/* Fabric supports NPIV */
 #define LS_IGNORE_ERATT       0x4	/* intr handler should ignore ERATT */
 
+	uint32_t hba_flag;	/* hba generic flags */
+#define HBA_ERATT_HANDLED	0x1 /* This flag is set when eratt handled */
+
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
 	uint32_t *inb_ha_copy;
 	uint32_t *inb_counter;
 	uint32_t inb_last_counter;
+	uint32_t ha_copy;
 	struct _PCB *pcb;
 	struct _IOCB *IOCBs;
 
@@ -544,6 +554,7 @@ struct lpfc_hba {
 	uint8_t soft_wwn_enable;
 
 	struct timer_list fcp_poll_timer;
+	struct timer_list eratt_poll;
 
 	/*
 	 * stat  counters
@@ -573,7 +584,7 @@ struct lpfc_hba {
 
 	struct fc_host_statistics link_stats;
 	enum intr_type_t intr_type;
-	struct msix_entry msix_entries[1];
+	struct msix_entry msix_entries[LPFC_MSIX_VECTORS];
 
 	struct list_head port_list;
 	struct lpfc_vport *pport;	/* physical lpfc_vport pointer */
@@ -657,6 +668,28 @@ lpfc_worker_wake_up(struct lpfc_hba *phba)
 
 	/* Wake up worker thread */
 	wake_up(&phba->work_waitq);
+	return;
+}
+
+static inline void
+lpfc_sli_read_hs(struct lpfc_hba *phba)
+{
+	/*
+	 * There was a link/board error. Read the status register to retrieve
+	 * the error event and process it.
+	 */
+	phba->sli.slistat.err_attn_event++;
+
+	/* Save status info */
+	phba->work_hs = readl(phba->HSregaddr);
+	phba->work_status[0] = readl(phba->MBslimaddr + 0xa8);
+	phba->work_status[1] = readl(phba->MBslimaddr + 0xac);
+
+	/* Clear chip Host Attention error bit */
+	writel(HA_ERATT, phba->HAregaddr);
+	readl(phba->HAregaddr); /* flush */
+	phba->pport->stopped = 1;
+
 	return;
 }
 

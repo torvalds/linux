@@ -1203,6 +1203,18 @@ typedef struct {		/* FireFly BIU registers */
 #define HA_RXATT       0x00000008	/* Bit  3 */
 #define HA_RXMASK      0x0000000f
 
+#define HA_R0_CLR_MSK	(HA_R0RE_REQ | HA_R0CE_RSP | HA_R0ATT)
+#define HA_R1_CLR_MSK	(HA_R1RE_REQ | HA_R1CE_RSP | HA_R1ATT)
+#define HA_R2_CLR_MSK	(HA_R2RE_REQ | HA_R2CE_RSP | HA_R2ATT)
+#define HA_R3_CLR_MSK	(HA_R3RE_REQ | HA_R3CE_RSP | HA_R3ATT)
+
+#define HA_R0_POS	3
+#define HA_R1_POS	7
+#define HA_R2_POS	11
+#define HA_R3_POS	15
+#define HA_LE_POS	29
+#define HA_MB_POS	30
+#define HA_ER_POS	31
 /* Chip Attention Register */
 
 #define CA_REG_OFFSET  4	/* Byte offset from register base address */
@@ -1240,7 +1252,7 @@ typedef struct {		/* FireFly BIU registers */
 
 /* Host Control Register */
 
-#define HC_REG_OFFSET  12	/* Word offset from register base address */
+#define HC_REG_OFFSET  12	/* Byte offset from register base address */
 
 #define HC_MBINT_ENA   0x00000001	/* Bit  0 */
 #define HC_R0INT_ENA   0x00000002	/* Bit  1 */
@@ -1252,6 +1264,19 @@ typedef struct {		/* FireFly BIU registers */
 #define HC_INITFF      0x08000000	/* Bit 27 */
 #define HC_LAINT_ENA   0x20000000	/* Bit 29 */
 #define HC_ERINT_ENA   0x80000000	/* Bit 31 */
+
+/* Message Signaled Interrupt eXtension (MSI-X) message identifiers */
+#define MSIX_DFLT_ID	0
+#define MSIX_RNG0_ID	0
+#define MSIX_RNG1_ID	1
+#define MSIX_RNG2_ID	2
+#define MSIX_RNG3_ID	3
+
+#define MSIX_LINK_ID	4
+#define MSIX_MBOX_ID	5
+
+#define MSIX_SPARE0_ID	6
+#define MSIX_SPARE1_ID	7
 
 /* Mailbox Commands */
 #define MBX_SHUTDOWN        0x00	/* terminate testing */
@@ -1290,6 +1315,7 @@ typedef struct {		/* FireFly BIU registers */
 #define MBX_KILL_BOARD      0x24
 #define MBX_CONFIG_FARP     0x25
 #define MBX_BEACON          0x2A
+#define MBX_CONFIG_MSI      0x30
 #define MBX_HEARTBEAT       0x31
 #define MBX_WRITE_VPARMS    0x32
 #define MBX_ASYNCEVT_ENABLE 0x33
@@ -2599,6 +2625,40 @@ typedef struct {
 
 } CONFIG_PORT_VAR;
 
+/* Structure for MB Command CONFIG_MSI (0x30) */
+struct config_msi_var {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t dfltMsgNum:8;	/* Default message number            */
+	uint32_t rsvd1:11;	/* Reserved                          */
+	uint32_t NID:5;		/* Number of secondary attention IDs */
+	uint32_t rsvd2:5;	/* Reserved                          */
+	uint32_t dfltPresent:1;	/* Default message number present    */
+	uint32_t addFlag:1;	/* Add association flag              */
+	uint32_t reportFlag:1;	/* Report association flag           */
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
+	uint32_t reportFlag:1;	/* Report association flag           */
+	uint32_t addFlag:1;	/* Add association flag              */
+	uint32_t dfltPresent:1;	/* Default message number present    */
+	uint32_t rsvd2:5;	/* Reserved                          */
+	uint32_t NID:5;		/* Number of secondary attention IDs */
+	uint32_t rsvd1:11;	/* Reserved                          */
+	uint32_t dfltMsgNum:8;	/* Default message number            */
+#endif
+	uint32_t attentionConditions[2];
+	uint8_t  attentionId[16];
+	uint8_t  messageNumberByHA[64];
+	uint8_t  messageNumberByID[16];
+	uint32_t autoClearHA[2];
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t rsvd3:16;
+	uint32_t autoClearID:16;
+#else	/*  __LITTLE_ENDIAN_BITFIELD */
+	uint32_t autoClearID:16;
+	uint32_t rsvd3:16;
+#endif
+	uint32_t rsvd4;
+};
+
 /* SLI-2 Port Control Block */
 
 /* SLIM POINTER */
@@ -2722,6 +2782,7 @@ typedef union {
 	REG_VPI_VAR varRegVpi;		/* cmd = 0x96 (REG_VPI) */
 	UNREG_VPI_VAR varUnregVpi;	/* cmd = 0x97 (UNREG_VPI) */
 	ASYNCEVT_ENABLE_VAR varCfgAsyncEvent; /*cmd = x33 (CONFIG_ASYNC) */
+	struct config_msi_var varCfgMSI;/* cmd = x30 (CONFIG_MSI)     */
 } MAILVARIANTS;
 
 /*

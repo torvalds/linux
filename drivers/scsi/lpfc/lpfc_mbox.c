@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2007 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2008 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -269,6 +269,84 @@ lpfc_config_link(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmb)
 	mb->mbxCommand = MBX_CONFIG_LINK;
 	mb->mbxOwner = OWN_HOST;
 	return;
+}
+
+/**
+ * lpfc_config_msi: Prepare a mailbox command for configuring msi-x.
+ * @phba: pointer to lpfc hba data structure.
+ * @pmb: pointer to the driver internal queue element for mailbox command.
+ *
+ * The configure MSI-X mailbox command is used to configure the HBA's SLI-3
+ * MSI-X multi-message interrupt vector association to interrupt attention
+ * conditions.
+ *
+ * Return codes
+ *    0 - Success
+ *    -EINVAL - Failure
+ **/
+int
+lpfc_config_msi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
+{
+	MAILBOX_t *mb = &pmb->mb;
+	uint32_t attentionConditions[2];
+
+	/* Sanity check */
+	if (phba->cfg_use_msi != 2) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0475 Not configured for supporting MSI-X "
+				"cfg_use_msi: 0x%x\n", phba->cfg_use_msi);
+		return -EINVAL;
+	}
+
+	if (phba->sli_rev < 3) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0476 HBA not supporting SLI-3 or later "
+				"SLI Revision: 0x%x\n", phba->sli_rev);
+		return -EINVAL;
+	}
+
+	/* Clear mailbox command fields */
+	memset(pmb, 0, sizeof(LPFC_MBOXQ_t));
+
+	/*
+	 * SLI-3, Message Signaled Interrupt Fearure.
+	 */
+
+	/* Multi-message attention configuration */
+	attentionConditions[0] = (HA_R0ATT | HA_R1ATT | HA_R2ATT | HA_ERATT |
+				  HA_LATT | HA_MBATT);
+	attentionConditions[1] = 0;
+
+	mb->un.varCfgMSI.attentionConditions[0] = attentionConditions[0];
+	mb->un.varCfgMSI.attentionConditions[1] = attentionConditions[1];
+
+	/*
+	 * Set up message number to HA bit association
+	 */
+#ifdef __BIG_ENDIAN_BITFIELD
+	/* RA0 (FCP Ring) */
+	mb->un.varCfgMSI.messageNumberByHA[HA_R0_POS] = 1;
+	/* RA1 (Other Protocol Extra Ring) */
+	mb->un.varCfgMSI.messageNumberByHA[HA_R1_POS] = 1;
+#else   /*  __LITTLE_ENDIAN_BITFIELD */
+	/* RA0 (FCP Ring) */
+	mb->un.varCfgMSI.messageNumberByHA[HA_R0_POS^3] = 1;
+	/* RA1 (Other Protocol Extra Ring) */
+	mb->un.varCfgMSI.messageNumberByHA[HA_R1_POS^3] = 1;
+#endif
+	/* Multi-message interrupt autoclear configuration*/
+	mb->un.varCfgMSI.autoClearHA[0] = attentionConditions[0];
+	mb->un.varCfgMSI.autoClearHA[1] = attentionConditions[1];
+
+	/* For now, HBA autoclear does not work reliably, disable it */
+	mb->un.varCfgMSI.autoClearHA[0] = 0;
+	mb->un.varCfgMSI.autoClearHA[1] = 0;
+
+	/* Set command and owner bit */
+	mb->mbxCommand = MBX_CONFIG_MSI;
+	mb->mbxOwner = OWN_HOST;
+
+	return 0;
 }
 
 /**

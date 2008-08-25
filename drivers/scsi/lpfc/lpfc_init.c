@@ -389,6 +389,29 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	if (phba->sli_rev != 3)
 		lpfc_post_rcv_buf(phba);
 
+	/*
+	 * Configure HBA MSI-X attention conditions to messages if MSI-X mode
+	 */
+	if (phba->intr_type == MSIX) {
+		rc = lpfc_config_msi(phba, pmb);
+		if (rc) {
+			mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
+		if (rc != MBX_SUCCESS) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+					"0352 Config MSI mailbox command "
+					"failed, mbxCmd x%x, mbxStatus x%x\n",
+					pmb->mb.mbxCommand, pmb->mb.mbxStatus);
+			mempool_free(pmb, phba->mbox_mem_pool);
+			return -EIO;
+		}
+	}
+
+	/* Initialize ERATT handling flag */
+	phba->hba_flag &= ~HBA_ERATT_HANDLED;
+
 	/* Enable appropriate host interrupts */
 	spin_lock_irq(&phba->hbalock);
 	status = readl(phba->HCregaddr);
@@ -404,20 +427,21 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	if ((phba->cfg_poll & ENABLE_FCP_RING_POLLING) &&
 	    (phba->cfg_poll & DISABLE_FCP_RING_INT))
-		status &= ~(HC_R0INT_ENA << LPFC_FCP_RING);
+		status &= ~(HC_R0INT_ENA);
 
 	writel(status, phba->HCregaddr);
 	readl(phba->HCregaddr); /* flush */
 	spin_unlock_irq(&phba->hbalock);
 
-	/*
-	 * Setup the ring 0 (els)  timeout handler
-	 */
-	timeout = phba->fc_ratov << 1;
+	/* Set up ring-0 (ELS) timer */
+	timeout = phba->fc_ratov * 2;
 	mod_timer(&vport->els_tmofunc, jiffies + HZ * timeout);
+	/* Set up heart beat (HB) timer */
 	mod_timer(&phba->hb_tmofunc, jiffies + HZ * LPFC_HB_MBOX_INTERVAL);
 	phba->hb_outstanding = 0;
 	phba->last_completion_time = jiffies;
+	/* Set up error attention (ERATT) polling timer */
+	mod_timer(&phba->eratt_poll, jiffies + HZ * LPFC_ERATT_POLL_INTERVAL);
 
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -581,12 +605,15 @@ lpfc_hb_timeout(unsigned long ptr)
 	unsigned long iflag;
 
 	phba = (struct lpfc_hba *)ptr;
+
+	/* Check for heart beat timeout conditions */
 	spin_lock_irqsave(&phba->pport->work_port_lock, iflag);
 	tmo_posted = phba->pport->work_port_events & WORKER_HB_TMO;
 	if (!tmo_posted)
 		phba->pport->work_port_events |= WORKER_HB_TMO;
 	spin_unlock_irqrestore(&phba->pport->work_port_lock, iflag);
 
+	/* Tell the worker thread there is work to do */
 	if (!tmo_posted)
 		lpfc_worker_wake_up(phba);
 	return;
@@ -617,6 +644,7 @@ lpfc_hb_mbox_cmpl(struct lpfc_hba * phba, LPFC_MBOXQ_t * pmboxq)
 	phba->hb_outstanding = 0;
 	spin_unlock_irqrestore(&phba->hbalock, drvr_flag);
 
+	/* Check and reset heart-beat timer is necessary */
 	mempool_free(pmboxq, phba->mbox_mem_pool);
 	if (!(phba->pport->fc_flag & FC_OFFLINE_MODE) &&
 		!(phba->link_state == LPFC_HBA_ERROR) &&
@@ -856,8 +884,8 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 
 	} else {
 		/* The if clause above forces this code path when the status
-		 * failure is a value other than FFER6.  Do not call the offline
-		 *  twice. This is the adapter hardware error path.
+		 * failure is a value other than FFER6. Do not call the offline
+		 * twice. This is the adapter hardware error path.
 		 */
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0457 Adapter Hardware Error "
@@ -873,6 +901,7 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 
 		lpfc_offline_eratt(phba);
 	}
+	return;
 }
 
 /**
@@ -1656,6 +1685,7 @@ lpfc_stop_phba_timers(struct lpfc_hba *phba)
 	del_timer_sync(&phba->fabric_block_timer);
 	phba->hb_outstanding = 0;
 	del_timer_sync(&phba->hb_tmofunc);
+	del_timer_sync(&phba->eratt_poll);
 	return;
 }
 
@@ -2172,30 +2202,97 @@ void lpfc_host_attrib_init(struct Scsi_Host *shost)
 static int
 lpfc_enable_msix(struct lpfc_hba *phba)
 {
-	int error;
+	int rc, i;
+	LPFC_MBOXQ_t *pmb;
 
-	phba->msix_entries[0].entry = 0;
-	phba->msix_entries[0].vector = 0;
+	/* Set up MSI-X multi-message vectors */
+	for (i = 0; i < LPFC_MSIX_VECTORS; i++)
+		phba->msix_entries[i].entry = i;
 
-	error = pci_enable_msix(phba->pcidev, phba->msix_entries,
+	/* Configure MSI-X capability structure */
+	rc = pci_enable_msix(phba->pcidev, phba->msix_entries,
 				ARRAY_SIZE(phba->msix_entries));
-	if (error) {
+	if (rc) {
 		lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 				"0420 Enable MSI-X failed (%d), continuing "
-				"with MSI\n", error);
-		pci_disable_msix(phba->pcidev);
-		return error;
+				"with MSI\n", rc);
+		goto msi_fail_out;
+	} else
+		for (i = 0; i < LPFC_MSIX_VECTORS; i++)
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"0477 MSI-X entry[%d]: vector=x%x "
+					"message=%d\n", i,
+					phba->msix_entries[i].vector,
+					phba->msix_entries[i].entry);
+	/*
+	 * Assign MSI-X vectors to interrupt handlers
+	 */
+
+	/* vector-0 is associated to slow-path handler */
+	rc = request_irq(phba->msix_entries[0].vector, &lpfc_sp_intr_handler,
+			 IRQF_SHARED, LPFC_SP_DRIVER_HANDLER_NAME, phba);
+	if (rc) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0421 MSI-X slow-path request_irq failed "
+				"(%d), continuing with MSI\n", rc);
+		goto msi_fail_out;
 	}
 
-	error =	request_irq(phba->msix_entries[0].vector, lpfc_intr_handler, 0,
-			    LPFC_DRIVER_NAME, phba);
-	if (error) {
+	/* vector-1 is associated to fast-path handler */
+	rc = request_irq(phba->msix_entries[1].vector, &lpfc_fp_intr_handler,
+			 IRQF_SHARED, LPFC_FP_DRIVER_HANDLER_NAME, phba);
+
+	if (rc) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0421 MSI-X request_irq failed (%d), "
-				"continuing with MSI\n", error);
-		pci_disable_msix(phba->pcidev);
+				"0429 MSI-X fast-path request_irq failed "
+				"(%d), continuing with MSI\n", rc);
+		goto irq_fail_out;
 	}
-	return error;
+
+	/*
+	 * Configure HBA MSI-X attention conditions to messages
+	 */
+	pmb = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+
+	if (!pmb) {
+		rc = -ENOMEM;
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0474 Unable to allocate memory for issuing "
+				"MBOX_CONFIG_MSI command\n");
+		goto mem_fail_out;
+	}
+	rc = lpfc_config_msi(phba, pmb);
+	if (rc)
+		goto mbx_fail_out;
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_POLL);
+	if (rc != MBX_SUCCESS) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"0351 Config MSI mailbox command failed, "
+				"mbxCmd x%x, mbxStatus x%x\n",
+				pmb->mb.mbxCommand, pmb->mb.mbxStatus);
+		goto mbx_fail_out;
+	}
+
+	/* Free memory allocated for mailbox command */
+	mempool_free(pmb, phba->mbox_mem_pool);
+	return rc;
+
+mbx_fail_out:
+	/* Free memory allocated for mailbox command */
+	mempool_free(pmb, phba->mbox_mem_pool);
+
+mem_fail_out:
+	/* free the irq already requested */
+	free_irq(phba->msix_entries[1].vector, phba);
+
+irq_fail_out:
+	/* free the irq already requested */
+	free_irq(phba->msix_entries[0].vector, phba);
+
+msi_fail_out:
+	/* Unconfigure MSI-X capability structure */
+	pci_disable_msix(phba->pcidev);
+	return rc;
 }
 
 /**
@@ -2208,7 +2305,12 @@ lpfc_enable_msix(struct lpfc_hba *phba)
 static void
 lpfc_disable_msix(struct lpfc_hba *phba)
 {
-	free_irq(phba->msix_entries[0].vector, phba);
+	int i;
+
+	/* Free up MSI-X multi-message vectors */
+	for (i = 0; i < LPFC_MSIX_VECTORS; i++)
+		free_irq(phba->msix_entries[i].vector, phba);
+	/* Disable MSI-X */
 	pci_disable_msix(phba->pcidev);
 }
 
@@ -2288,6 +2390,9 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	init_timer(&phba->fabric_block_timer);
 	phba->fabric_block_timer.function = lpfc_fabric_block_timeout;
 	phba->fabric_block_timer.data = (unsigned long) phba;
+	init_timer(&phba->eratt_poll);
+	phba->eratt_poll.function = lpfc_poll_eratt;
+	phba->eratt_poll.data = (unsigned long) phba;
 
 	pci_set_master(pdev);
 	pci_try_set_mwi(pdev);
@@ -2307,7 +2412,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bar2map_len        = pci_resource_len(phba->pcidev, 2);
 
 	/* Map HBA SLIM to a kernel virtual address. */
-	phba->slim_memmap_p      = ioremap(phba->pci_bar0_map, bar0map_len);
+	phba->slim_memmap_p = ioremap(phba->pci_bar0_map, bar0map_len);
 	if (!phba->slim_memmap_p) {
 		error = -ENODEV;
 		dev_printk(KERN_ERR, &pdev->dev,
@@ -2405,7 +2510,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	phba->fc_arbtov = FF_DEF_ARBTOV;
 
 	INIT_LIST_HEAD(&phba->work_list);
-	phba->work_ha_mask = (HA_ERATT|HA_MBATT|HA_LATT);
+	phba->work_ha_mask = (HA_ERATT | HA_MBATT | HA_LATT);
 	phba->work_ha_mask |= (HA_RXMASK << (LPFC_ELS_RING * 4));
 
 	/* Initialize the wait queue head for the kernel thread */
@@ -2440,21 +2545,42 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	pci_set_drvdata(pdev, shost);
 	phba->intr_type = NONE;
 
+	phba->MBslimaddr = phba->slim_memmap_p;
+	phba->HAregaddr = phba->ctrl_regs_memmap_p + HA_REG_OFFSET;
+	phba->CAregaddr = phba->ctrl_regs_memmap_p + CA_REG_OFFSET;
+	phba->HSregaddr = phba->ctrl_regs_memmap_p + HS_REG_OFFSET;
+	phba->HCregaddr = phba->ctrl_regs_memmap_p + HC_REG_OFFSET;
+
+	/* Configure and enable interrupt */
 	if (phba->cfg_use_msi == 2) {
-		error = lpfc_enable_msix(phba);
-		if (!error)
-			phba->intr_type = MSIX;
+		/* Need to issue conf_port mbox cmd before conf_msi mbox cmd */
+		error = lpfc_sli_config_port(phba, 3);
+		if (error)
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0427 Firmware not capable of SLI 3 mode.\n");
+		else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0426 Firmware capable of SLI 3 mode.\n");
+			/* Now, try to enable MSI-X interrupt mode */
+			error = lpfc_enable_msix(phba);
+			if (!error) {
+				phba->intr_type = MSIX;
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"0430 enable MSI-X mode.\n");
+			}
+		}
 	}
 
 	/* Fallback to MSI if MSI-X initialization failed */
 	if (phba->cfg_use_msi >= 1 && phba->intr_type == NONE) {
 		retval = pci_enable_msi(phba->pcidev);
-		if (!retval)
+		if (!retval) {
 			phba->intr_type = MSI;
-		else
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"0452 Enable MSI failed, continuing "
-					"with IRQ\n");
+					"0473 enable MSI mode.\n");
+		} else
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"0452 enable IRQ mode.\n");
 	}
 
 	/* MSI-X is the only case the doesn't need to call request_irq */
@@ -2470,18 +2596,16 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 			phba->intr_type = INTx;
 	}
 
-	phba->MBslimaddr = phba->slim_memmap_p;
-	phba->HAregaddr = phba->ctrl_regs_memmap_p + HA_REG_OFFSET;
-	phba->CAregaddr = phba->ctrl_regs_memmap_p + CA_REG_OFFSET;
-	phba->HSregaddr = phba->ctrl_regs_memmap_p + HS_REG_OFFSET;
-	phba->HCregaddr = phba->ctrl_regs_memmap_p + HC_REG_OFFSET;
-
 	if (lpfc_alloc_sysfs_attr(vport)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1476 Failed to allocate sysfs attr\n");
 		error = -ENOMEM;
 		goto out_free_irq;
 	}
 
 	if (lpfc_sli_hba_setup(phba)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"1477 Failed to set up hba\n");
 		error = -ENODEV;
 		goto out_remove_device;
 	}
@@ -2500,6 +2624,8 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		spin_unlock_irq(shost->host_lock);
 	}
 
+	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+			"0428 Perform SCSI scan\n");
 	scsi_scan_host(shost);
 
 	return 0;
@@ -2732,20 +2858,34 @@ static pci_ers_result_t lpfc_io_slot_reset(struct pci_dev *pdev)
 	/* Enable configured interrupt method */
 	phba->intr_type = NONE;
 	if (phba->cfg_use_msi == 2) {
-		error = lpfc_enable_msix(phba);
-		if (!error)
-			phba->intr_type = MSIX;
+		/* Need to issue conf_port mbox cmd before conf_msi mbox cmd */
+		error = lpfc_sli_config_port(phba, 3);
+		if (error)
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0478 Firmware not capable of SLI 3 mode.\n");
+		else {
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+				"0479 Firmware capable of SLI 3 mode.\n");
+			/* Now, try to enable MSI-X interrupt mode */
+			error = lpfc_enable_msix(phba);
+			if (!error) {
+				phba->intr_type = MSIX;
+				lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+						"0480 enable MSI-X mode.\n");
+			}
+		}
 	}
 
 	/* Fallback to MSI if MSI-X initialization failed */
 	if (phba->cfg_use_msi >= 1 && phba->intr_type == NONE) {
 		retval = pci_enable_msi(phba->pcidev);
-		if (!retval)
+		if (!retval) {
 			phba->intr_type = MSI;
-		else
 			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
-					"0470 Enable MSI failed, continuing "
-					"with IRQ\n");
+					"0481 enable MSI mode.\n");
+		} else
+			lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+					"0470 enable IRQ mode.\n");
 	}
 
 	/* MSI-X is the only case the doesn't need to call request_irq */

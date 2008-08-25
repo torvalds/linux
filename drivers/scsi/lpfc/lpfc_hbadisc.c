@@ -369,6 +369,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	if (ha_copy & HA_ERATT)
+		/* Handle the error attention event */
 		lpfc_handle_eratt(phba);
 
 	if (ha_copy & HA_MBATT)
@@ -376,6 +377,7 @@ lpfc_work_done(struct lpfc_hba *phba)
 
 	if (ha_copy & HA_LATT)
 		lpfc_handle_latt(phba);
+
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
 		for(i = 0; i <= phba->max_vpi; i++) {

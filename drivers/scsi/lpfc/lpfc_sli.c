@@ -1699,6 +1699,36 @@ lpfc_sli_rsp_pointers_error(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 }
 
 /**
+ * lpfc_poll_eratt: Error attention polling timer timeout handler.
+ * @ptr: Pointer to address of HBA context object.
+ *
+ * This function is invoked by the Error Attention polling timer when the
+ * timer times out. It will check the SLI Error Attention register for
+ * possible attention events. If so, it will post an Error Attention event
+ * and wake up worker thread to process it. Otherwise, it will set up the
+ * Error Attention polling timer for the next poll.
+ **/
+void lpfc_poll_eratt(unsigned long ptr)
+{
+	struct lpfc_hba *phba;
+	uint32_t eratt = 0;
+
+	phba = (struct lpfc_hba *)ptr;
+
+	/* Check chip HA register for error event */
+	eratt = lpfc_sli_check_eratt(phba);
+
+	if (eratt)
+		/* Tell the worker thread there is work to do */
+		lpfc_worker_wake_up(phba);
+	else
+		/* Restart the timer for next eratt poll */
+		mod_timer(&phba->eratt_poll, jiffies +
+					HZ * LPFC_ERATT_POLL_INTERVAL);
+	return;
+}
+
+/**
  * lpfc_sli_poll_fcp_ring: Handle FCP ring completion in polling mode.
  * @phba: Pointer to HBA context object.
  *
@@ -3011,7 +3041,7 @@ lpfc_sli_hbq_setup(struct lpfc_hba *phba)
 }
 
 /**
- * lpfc_do_config_port: Issue config port mailbox command.
+ * lpfc_sli_config_port: Issue config port mailbox command.
  * @phba: Pointer to HBA context object.
  * @sli_mode: sli mode - 2/3
  *
@@ -3023,8 +3053,8 @@ lpfc_sli_hbq_setup(struct lpfc_hba *phba)
  * The function returns 0 if successful, else returns negative error
  * code.
  **/
-static int
-lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
+int
+lpfc_sli_config_port(struct lpfc_hba *phba, int sli_mode)
 {
 	LPFC_MBOXQ_t *pmb;
 	uint32_t resetcount = 0, rc = 0, done = 0;
@@ -3165,13 +3195,14 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 		break;
 	}
 
-	rc = lpfc_do_config_port(phba, mode);
+	rc = lpfc_sli_config_port(phba, mode);
+
 	if (rc && lpfc_sli_mode == 3)
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT | LOG_VPORT,
 				"1820 Unable to select SLI-3.  "
 				"Not supported by adapter.\n");
 	if (rc && mode != 2)
-		rc = lpfc_do_config_port(phba, 2);
+		rc = lpfc_sli_config_port(phba, 2);
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
 
@@ -3192,8 +3223,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 	if (rc)
 		goto lpfc_sli_hba_setup_error;
 
-				/* Init HBQs */
-
+	/* Init HBQs */
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		rc = lpfc_sli_hbq_setup(phba);
 		if (rc)
@@ -5128,28 +5158,73 @@ lpfc_sli_flush_mbox_queue(struct lpfc_hba * phba)
 }
 
 /**
- * lpfc_intr_handler: The interrupt handler of lpfc driver.
+ * lpfc_sli_check_eratt: check error attention events
+ * @phba: Pointer to HBA context.
+ *
+ * This function is called form timer soft interrupt context to check HBA's
+ * error attention register bit for error attention events.
+ *
+ * This fucntion returns 1 when there is Error Attention in the Host Attention
+ * Register and returns 0 otherwise.
+ **/
+int
+lpfc_sli_check_eratt(struct lpfc_hba *phba)
+{
+	uint32_t ha_copy;
+
+	/* If somebody is waiting to handle an eratt, don't process it
+	 * here. The brdkill function will do this.
+	 */
+	if (phba->link_flag & LS_IGNORE_ERATT)
+		return 0;
+
+	/* Check if interrupt handler handles this ERATT */
+	spin_lock_irq(&phba->hbalock);
+	if (phba->hba_flag & HBA_ERATT_HANDLED) {
+		/* Interrupt handler has handled ERATT */
+		spin_unlock_irq(&phba->hbalock);
+		return 0;
+	}
+
+	/* Read chip Host Attention (HA) register */
+	ha_copy = readl(phba->HAregaddr);
+	if (ha_copy & HA_ERATT) {
+		/* Read host status register to retrieve error event */
+		lpfc_sli_read_hs(phba);
+		/* Set the driver HA work bitmap */
+		phba->work_ha |= HA_ERATT;
+		/* Indicate polling handles this ERATT */
+		phba->hba_flag |= HBA_ERATT_HANDLED;
+		spin_unlock_irq(&phba->hbalock);
+		return 1;
+	}
+	spin_unlock_irq(&phba->hbalock);
+	return 0;
+}
+
+/**
+ * lpfc_sp_intr_handler: The slow-path interrupt handler of lpfc driver.
  * @irq: Interrupt number.
  * @dev_id: The device context pointer.
  *
- * This function is called from the PCI layer when there is
- * an event in the HBA which requires driver attention. When
- * the PCI slot is in error recovery or the HBA is undergoing
- * initialization the interrupt handler will not process the
- * interrupt.
- * The error attention, link attention and els ring attention
- * events are handled by the worker thread. The interrupt
- * handler signals the worker thread and returns for these
- * events.
- * The SCSI ring event and mailbox events are handled in the
- * interrupt context.
- * This function is called without any lock held. It gets the
- * hbalock to access and update SLI data structures.
- * This function returns IRQ_HANDLED when interrupt is handled
- * else it returns IRQ_NONE.
+ * This function is directly called from the PCI layer as an interrupt
+ * service routine when the device is enabled with MSI-X multi-message
+ * interrupt mode and there are slow-path events in the HBA. However,
+ * when the device is enabled with either MSI or Pin-IRQ interrupt mode,
+ * this function is called as part of the device-level interrupt handler.
+ * When the PCI slot is in error recovery or the HBA is undergoing
+ * initialization, the interrupt handler will not process the interrupt.
+ * The link attention and ELS ring attention events are handled by the
+ * worker thread. The interrupt handler signals the worker thread and
+ * and returns for these events. This function is called without any
+ * lock held. It gets the hbalock to access and update SLI data
+ * structures.
+ *
+ * This function returns IRQ_HANDLED when interrupt is handled else it
+ * returns IRQ_NONE.
  **/
 irqreturn_t
-lpfc_intr_handler(int irq, void *dev_id)
+lpfc_sp_intr_handler(int irq, void *dev_id)
 {
 	struct lpfc_hba  *phba;
 	uint32_t ha_copy;
@@ -5168,54 +5243,52 @@ lpfc_intr_handler(int irq, void *dev_id)
 	 * Get the driver's phba structure from the dev_id and
 	 * assume the HBA is not interrupting.
 	 */
-	phba = (struct lpfc_hba *) dev_id;
+	phba = (struct lpfc_hba *)dev_id;
 
 	if (unlikely(!phba))
 		return IRQ_NONE;
 
-	/* If the pci channel is offline, ignore all the interrupts. */
-	if (unlikely(pci_channel_offline(phba->pcidev)))
-		return IRQ_NONE;
-
-	phba->sli.slistat.sli_intr++;
-
 	/*
-	 * Call the HBA to see if it is interrupting.  If not, don't claim
-	 * the interrupt
+	 * Stuff needs to be attented to when this function is invoked as an
+	 * individual interrupt handler in MSI-X multi-message interrupt mode
 	 */
-
-	/* Ignore all interrupts during initialization. */
-	if (unlikely(phba->link_state < LPFC_LINK_DOWN))
-		return IRQ_NONE;
-
-	/*
-	 * Read host attention register to determine interrupt source
-	 * Clear Attention Sources, except Error Attention (to
-	 * preserve status) and Link Attention
-	 */
-	spin_lock(&phba->hbalock);
-	if (phba->sli3_options & LPFC_SLI3_INB_ENABLED &&
-	    (phba->inb_last_counter != *phba->inb_counter)) {
-		phba->inb_last_counter = *phba->inb_counter;
-		ha_copy = le32_to_cpu(*phba->inb_ha_copy);
-	} else
+	if (phba->intr_type == MSIX) {
+		/* If the pci channel is offline, ignore all the interrupts */
+		if (unlikely(pci_channel_offline(phba->pcidev)))
+			return IRQ_NONE;
+		/* Update device-level interrupt statistics */
+		phba->sli.slistat.sli_intr++;
+		/* Ignore all interrupts during initialization. */
+		if (unlikely(phba->link_state < LPFC_LINK_DOWN))
+			return IRQ_NONE;
+		/* Need to read HA REG for slow-path events */
+		spin_lock(&phba->hbalock);
 		ha_copy = readl(phba->HAregaddr);
-	if (unlikely(!ha_copy)) {
+		/* If somebody is waiting to handle an eratt don't process it
+		 * here. The brdkill function will do this.
+		 */
+		if (phba->link_flag & LS_IGNORE_ERATT)
+			ha_copy &= ~HA_ERATT;
+		/* Check the need for handling ERATT in interrupt handler */
+		if (ha_copy & HA_ERATT) {
+			if (phba->hba_flag & HBA_ERATT_HANDLED)
+				/* ERATT polling has handled ERATT */
+				ha_copy &= ~HA_ERATT;
+			else
+				/* Indicate interrupt handler handles ERATT */
+				phba->hba_flag |= HBA_ERATT_HANDLED;
+		}
+		/* Clear up only attention source related to slow-path */
+		writel((ha_copy & (HA_MBATT | HA_R2_CLR_MSK)),
+			phba->HAregaddr);
+		readl(phba->HAregaddr); /* flush */
 		spin_unlock(&phba->hbalock);
-		return IRQ_NONE;
-	}
-	/* If somebody is waiting to handle an eratt don't process it
-	 * here.  The brdkill function will do this.
-	 */
-	if (phba->link_flag & LS_IGNORE_ERATT)
-		ha_copy &= ~HA_ERATT;
-	writel((ha_copy & ~(HA_LATT | HA_ERATT)), phba->HAregaddr);
-	readl(phba->HAregaddr); /* flush */
-	spin_unlock(&phba->hbalock);
+	} else
+		ha_copy = phba->ha_copy;
 
 	work_ha_copy = ha_copy & phba->work_ha_mask;
 
-	if (unlikely(work_ha_copy)) {
+	if (work_ha_copy) {
 		if (work_ha_copy & HA_LATT) {
 			if (phba->sli.sli_flag & LPFC_PROCESS_LA) {
 				/*
@@ -5234,7 +5307,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 				work_ha_copy &= ~HA_LATT;
 		}
 
-		if (work_ha_copy & ~(HA_ERATT|HA_MBATT|HA_LATT)) {
+		if (work_ha_copy & ~(HA_ERATT | HA_MBATT | HA_LATT)) {
 			/*
 			 * Turn off Slow Rings interrupts, LPFC_ELS_RING is
 			 * the only slow ring.
@@ -5275,28 +5348,10 @@ lpfc_intr_handler(int irq, void *dev_id)
 				spin_unlock(&phba->hbalock);
 			}
 		}
-
-		if (work_ha_copy & HA_ERATT) {
-			/*
-			 * There was a link/board error.  Read the
-			 * status register to retrieve the error event
-			 * and process it.
-			 */
-			phba->sli.slistat.err_attn_event++;
-			/* Save status info */
-			phba->work_hs = readl(phba->HSregaddr);
-			phba->work_status[0] = readl(phba->MBslimaddr + 0xa8);
-			phba->work_status[1] = readl(phba->MBslimaddr + 0xac);
-
-			/* Clear Chip error bit */
-			writel(HA_ERATT, phba->HAregaddr);
-			readl(phba->HAregaddr); /* flush */
-			phba->pport->stopped = 1;
-		}
-
 		spin_lock(&phba->hbalock);
-		if ((work_ha_copy & HA_MBATT) &&
-		    (phba->sli.mbox_active)) {
+		if (work_ha_copy & HA_ERATT)
+			lpfc_sli_read_hs(phba);
+		if ((work_ha_copy & HA_MBATT) && (phba->sli.mbox_active)) {
 			pmb = phba->sli.mbox_active;
 			pmbox = &pmb->mb;
 			mbox = phba->mbox;
@@ -5379,6 +5434,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 			}
 		} else
 			spin_unlock(&phba->hbalock);
+
 		if ((work_ha_copy & HA_MBATT) &&
 		    (phba->sli.mbox_active == NULL)) {
 send_current_mbox:
@@ -5398,15 +5454,74 @@ send_current_mbox:
 		spin_unlock(&phba->hbalock);
 		lpfc_worker_wake_up(phba);
 	}
+	return IRQ_HANDLED;
 
-	ha_copy &= ~(phba->work_ha_mask);
+} /* lpfc_sp_intr_handler */
+
+/**
+ * lpfc_fp_intr_handler: The fast-path interrupt handler of lpfc driver.
+ * @irq: Interrupt number.
+ * @dev_id: The device context pointer.
+ *
+ * This function is directly called from the PCI layer as an interrupt
+ * service routine when the device is enabled with MSI-X multi-message
+ * interrupt mode and there is a fast-path FCP IOCB ring event in the
+ * HBA. However, when the device is enabled with either MSI or Pin-IRQ
+ * interrupt mode, this function is called as part of the device-level
+ * interrupt handler. When the PCI slot is in error recovery or the HBA
+ * is undergoing initialization, the interrupt handler will not process
+ * the interrupt. The SCSI FCP fast-path ring event are handled in the
+ * intrrupt context. This function is called without any lock held. It
+ * gets the hbalock to access and update SLI data structures.
+ *
+ * This function returns IRQ_HANDLED when interrupt is handled else it
+ * returns IRQ_NONE.
+ **/
+irqreturn_t
+lpfc_fp_intr_handler(int irq, void *dev_id)
+{
+	struct lpfc_hba  *phba;
+	uint32_t ha_copy;
+	unsigned long status;
+
+	/* Get the driver's phba structure from the dev_id and
+	 * assume the HBA is not interrupting.
+	 */
+	phba = (struct lpfc_hba *) dev_id;
+
+	if (unlikely(!phba))
+		return IRQ_NONE;
 
 	/*
-	 * Process all events on FCP ring.  Take the optimized path for
-	 * FCP IO.  Any other IO is slow path and is handled by
-	 * the worker thread.
+	 * Stuff needs to be attented to when this function is invoked as an
+	 * individual interrupt handler in MSI-X multi-message interrupt mode
 	 */
-	status = (ha_copy & (HA_RXMASK  << (4*LPFC_FCP_RING)));
+	if (phba->intr_type == MSIX) {
+		/* If pci channel is offline, ignore all the interrupts */
+		if (unlikely(pci_channel_offline(phba->pcidev)))
+			return IRQ_NONE;
+		/* Update device-level interrupt statistics */
+		phba->sli.slistat.sli_intr++;
+		/* Ignore all interrupts during initialization. */
+		if (unlikely(phba->link_state < LPFC_LINK_DOWN))
+			return IRQ_NONE;
+		/* Need to read HA REG for FCP ring and other ring events */
+		ha_copy = readl(phba->HAregaddr);
+		/* Clear up only attention source related to fast-path */
+		spin_lock(&phba->hbalock);
+		writel((ha_copy & (HA_R0_CLR_MSK | HA_R1_CLR_MSK)),
+			phba->HAregaddr);
+		readl(phba->HAregaddr); /* flush */
+		spin_unlock(&phba->hbalock);
+	} else
+		ha_copy = phba->ha_copy;
+
+	/*
+	 * Process all events on FCP ring. Take the optimized path for FCP IO.
+	 */
+	ha_copy &= ~(phba->work_ha_mask);
+
+	status = (ha_copy & (HA_RXMASK << (4*LPFC_FCP_RING)));
 	status >>= (4*LPFC_FCP_RING);
 	if (status & HA_RXMASK)
 		lpfc_sli_handle_fast_ring_event(phba,
@@ -5415,11 +5530,10 @@ send_current_mbox:
 
 	if (phba->cfg_multi_ring_support == 2) {
 		/*
-		 * Process all events on extra ring.  Take the optimized path
-		 * for extra ring IO.  Any other IO is slow path and is handled
-		 * by the worker thread.
+		 * Process all events on extra ring. Take the optimized path
+		 * for extra ring IO.
 		 */
-		status = (ha_copy & (HA_RXMASK  << (4*LPFC_EXTRA_RING)));
+		status = (ha_copy & (HA_RXMASK << (4*LPFC_EXTRA_RING)));
 		status >>= (4*LPFC_EXTRA_RING);
 		if (status & HA_RXMASK) {
 			lpfc_sli_handle_fast_ring_event(phba,
@@ -5428,5 +5542,106 @@ send_current_mbox:
 		}
 	}
 	return IRQ_HANDLED;
+}  /* lpfc_fp_intr_handler */
 
-} /* lpfc_intr_handler */
+/**
+ * lpfc_intr_handler: The device-level interrupt handler of lpfc driver.
+ * @irq: Interrupt number.
+ * @dev_id: The device context pointer.
+ *
+ * This function is the device-level interrupt handler called from the PCI
+ * layer when either MSI or Pin-IRQ interrupt mode is enabled and there is
+ * an event in the HBA which requires driver attention. This function
+ * invokes the slow-path interrupt attention handling function and fast-path
+ * interrupt attention handling function in turn to process the relevant
+ * HBA attention events. This function is called without any lock held. It
+ * gets the hbalock to access and update SLI data structures.
+ *
+ * This function returns IRQ_HANDLED when interrupt is handled, else it
+ * returns IRQ_NONE.
+ **/
+irqreturn_t
+lpfc_intr_handler(int irq, void *dev_id)
+{
+	struct lpfc_hba  *phba;
+	irqreturn_t sp_irq_rc, fp_irq_rc;
+	unsigned long status1, status2;
+
+	/*
+	 * Get the driver's phba structure from the dev_id and
+	 * assume the HBA is not interrupting.
+	 */
+	phba = (struct lpfc_hba *) dev_id;
+
+	if (unlikely(!phba))
+		return IRQ_NONE;
+
+	/* If the pci channel is offline, ignore all the interrupts. */
+	if (unlikely(pci_channel_offline(phba->pcidev)))
+		return IRQ_NONE;
+
+	/* Update device level interrupt statistics */
+	phba->sli.slistat.sli_intr++;
+
+	/* Ignore all interrupts during initialization. */
+	if (unlikely(phba->link_state < LPFC_LINK_DOWN))
+		return IRQ_NONE;
+
+	spin_lock(&phba->hbalock);
+	phba->ha_copy = readl(phba->HAregaddr);
+	if (unlikely(!phba->ha_copy)) {
+		spin_unlock(&phba->hbalock);
+		return IRQ_NONE;
+	} else if (phba->ha_copy & HA_ERATT) {
+		if (phba->hba_flag & HBA_ERATT_HANDLED)
+			/* ERATT polling has handled ERATT */
+			phba->ha_copy &= ~HA_ERATT;
+		else
+			/* Indicate interrupt handler handles ERATT */
+			phba->hba_flag |= HBA_ERATT_HANDLED;
+	}
+
+	/* Clear attention sources except link and error attentions */
+	writel((phba->ha_copy & ~(HA_LATT | HA_ERATT)), phba->HAregaddr);
+	readl(phba->HAregaddr); /* flush */
+	spin_unlock(&phba->hbalock);
+
+	/*
+	 * Invokes slow-path host attention interrupt handling as appropriate.
+	 */
+
+	/* status of events with mailbox and link attention */
+	status1 = phba->ha_copy & (HA_MBATT | HA_LATT | HA_ERATT);
+
+	/* status of events with ELS ring */
+	status2 = (phba->ha_copy & (HA_RXMASK  << (4*LPFC_ELS_RING)));
+	status2 >>= (4*LPFC_ELS_RING);
+
+	if (status1 || (status2 & HA_RXMASK))
+		sp_irq_rc = lpfc_sp_intr_handler(irq, dev_id);
+	else
+		sp_irq_rc = IRQ_NONE;
+
+	/*
+	 * Invoke fast-path host attention interrupt handling as appropriate.
+	 */
+
+	/* status of events with FCP ring */
+	status1 = (phba->ha_copy & (HA_RXMASK << (4*LPFC_FCP_RING)));
+	status1 >>= (4*LPFC_FCP_RING);
+
+	/* status of events with extra ring */
+	if (phba->cfg_multi_ring_support == 2) {
+		status2 = (phba->ha_copy & (HA_RXMASK << (4*LPFC_EXTRA_RING)));
+		status2 >>= (4*LPFC_EXTRA_RING);
+	} else
+		status2 = 0;
+
+	if ((status1 & HA_RXMASK) || (status2 & HA_RXMASK))
+		fp_irq_rc = lpfc_fp_intr_handler(irq, dev_id);
+	else
+		fp_irq_rc = IRQ_NONE;
+
+	/* Return device-level interrupt handling status */
+	return (sp_irq_rc == IRQ_HANDLED) ? sp_irq_rc : fp_irq_rc;
+}  /* lpfc_intr_handler */
