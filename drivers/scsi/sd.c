@@ -86,6 +86,10 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_DISK);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_MOD);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 
+#define SD_PARTS	64
+#define SD_MINORS	16
+#define SD_EXT_MINORS	(SD_PARTS - SD_MINORS)
+
 static int  sd_revalidate_disk(struct gendisk *);
 static int  sd_probe(struct device *);
 static int  sd_remove(struct device *);
@@ -1801,7 +1805,7 @@ static int sd_probe(struct device *dev)
 	if (!sdkp)
 		goto out;
 
-	gd = alloc_disk(16);
+	gd = alloc_disk_ext(SD_MINORS, SD_EXT_MINORS);
 	if (!gd)
 		goto out_free;
 
@@ -1845,7 +1849,8 @@ static int sd_probe(struct device *dev)
 
 	gd->major = sd_major((index & 0xf0) >> 4);
 	gd->first_minor = ((index & 0xf) << 4) | (index & 0xfff00);
-	gd->minors = 16;
+	gd->minors = SD_MINORS;
+	gd->ext_minors = SD_EXT_MINORS;
 	gd->fops = &sd_fops;
 
 	if (index < 26) {
