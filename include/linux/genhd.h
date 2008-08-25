@@ -59,6 +59,7 @@ enum {
 };
 
 #define DISK_MAX_PARTS			256
+#define DISK_NAME_LEN			32
 
 #include <linux/major.h>
 #include <linux/device.h>
@@ -140,7 +141,7 @@ struct gendisk {
 	int minors;                     /* maximum number of minors, =1 for
                                          * disks that can't be partitioned. */
 
-	char disk_name[32];		/* name of major driver */
+	char disk_name[DISK_NAME_LEN];	/* name of major driver */
 
 	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other

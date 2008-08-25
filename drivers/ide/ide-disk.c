@@ -44,7 +44,7 @@
 #if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
 #define IDE_DISK_MINORS		(1 << PARTN_BITS)
 #else
-#define IDE_DISK_MINORS		1
+#define IDE_DISK_MINORS		0
 #endif
 
 struct ide_disk_obj {

@@ -478,14 +478,37 @@ static int exact_lock(dev_t devt, void *data)
  *
  * This function registers the partitioning information in @disk
  * with the kernel.
+ *
+ * FIXME: error handling
  */
 void add_disk(struct gendisk *disk)
 {
 	struct backing_dev_info *bdi;
+	dev_t devt;
 	int retval;
 
+	/* minors == 0 indicates to use ext devt from part0 and should
+	 * be accompanied with EXT_DEVT flag.  Make sure all
+	 * parameters make sense.
+	 */
+	WARN_ON(disk->minors && !(disk->major || disk->first_minor));
+	WARN_ON(!disk->minors && !(disk->flags & GENHD_FL_EXT_DEVT));
+
 	disk->flags |= GENHD_FL_UP;
-	disk_to_dev(disk)->devt = MKDEV(disk->major, disk->first_minor);
+
+	retval = blk_alloc_devt(&disk->part0, &devt);
+	if (retval) {
+		WARN_ON(1);
+		return;
+	}
+	disk_to_dev(disk)->devt = devt;
+
+	/* ->major and ->first_minor aren't supposed to be
+	 * dereferenced from here on, but set them just in case.
+	 */
+	disk->major = MAJOR(devt);
+	disk->first_minor = MINOR(devt);
+
 	blk_register_region(disk_devt(disk), disk->minors, NULL,
 			    exact_match, exact_lock, disk);
 	register_disk(disk);
