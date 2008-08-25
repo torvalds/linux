@@ -1024,18 +1024,9 @@ struct gendisk *alloc_disk(int minors)
 {
 	return alloc_disk_node(minors, -1);
 }
+EXPORT_SYMBOL(alloc_disk);
 
 struct gendisk *alloc_disk_node(int minors, int node_id)
-{
-	return alloc_disk_ext_node(minors, 0, node_id);
-}
-
-struct gendisk *alloc_disk_ext(int minors, int ext_minors)
-{
-	return alloc_disk_ext_node(minors, ext_minors, -1);
-}
-
-struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 {
 	struct gendisk *disk;
 
@@ -1054,7 +1045,6 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 		disk->part_tbl->part[0] = &disk->part0;
 
 		disk->minors = minors;
-		disk->ext_minors = ext_minors;
 		rand_initialize_disk(disk);
 		disk_to_dev(disk)->class = &block_class;
 		disk_to_dev(disk)->type = &disk_type;
@@ -1065,11 +1055,7 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 	}
 	return disk;
 }
-
-EXPORT_SYMBOL(alloc_disk);
 EXPORT_SYMBOL(alloc_disk_node);
-EXPORT_SYMBOL(alloc_disk_ext);
-EXPORT_SYMBOL(alloc_disk_ext_node);
 
 struct kobject *get_disk(struct gendisk *disk)
 {
