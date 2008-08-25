@@ -627,9 +627,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			cmd->result = ScsiResult(DID_BUS_BUSY, 0);
 			break;
 		case IOSTAT_LOCAL_REJECT:
-			if (lpfc_cmd->result == RJT_UNAVAIL_PERM ||
+			if (lpfc_cmd->result == IOERR_INVALID_RPI ||
 			    lpfc_cmd->result == IOERR_NO_RESOURCES ||
-			    lpfc_cmd->result == RJT_LOGIN_REQUIRED) {
+			    lpfc_cmd->result == IOERR_ABORT_REQUESTED) {
 				cmd->result = ScsiResult(DID_REQUEUE, 0);
 				break;
 			} /* else: fall through */
@@ -1318,7 +1318,7 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
 	int match;
-	int ret = SUCCESS, status, i;
+	int ret = SUCCESS, status = SUCCESS, i;
 	int cnt;
 	struct lpfc_scsi_buf * lpfc_cmd;
 	unsigned long later;

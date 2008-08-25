@@ -473,7 +473,7 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 */
 		list_for_each_entry_safe(np, next_np,
 					&vport->fc_nodes, nlp_listp) {
-			if (!NLP_CHK_NODE_ACT(ndlp))
+			if (!NLP_CHK_NODE_ACT(np))
 				continue;
 			if ((np->nlp_state != NLP_STE_NPR_NODE) ||
 				   !(np->nlp_flag & NLP_NPR_ADISC))
@@ -2585,7 +2585,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			  (stat.un.b.lsRjtRsnCodeExp == LSEXP_INVALID_NPORT_ID))
 			  ) {
 				lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-						 "0123 FDISC Failed (x%x). "
+						 "0122 FDISC Failed (x%x). "
 						 "Fabric Detected Bad WWN\n",
 						 stat.un.lsRjtError);
 				lpfc_vport_set_state(vport,
@@ -3966,7 +3966,7 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		if (rscn_id == hba_id) {
 			/* ALL NPortIDs in RSCN are on HBA */
 			lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
-					 "0214 Ignore RSCN "
+					 "0219 Ignore RSCN "
 					 "Data: x%x x%x x%x x%x\n",
 					 vport->fc_flag, payload_len,
 					 *lp, vport->fc_rscn_id_cnt);
@@ -5165,8 +5165,6 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	}
 
 	phba->fc_stat.elsRcvFrame++;
-	if (elsiocb->context1)
-		lpfc_nlp_put(elsiocb->context1);
 
 	elsiocb->context1 = lpfc_nlp_get(ndlp);
 	elsiocb->vport = vport;
@@ -5376,6 +5374,8 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			NULL);
 	}
 
+	lpfc_nlp_put(elsiocb->context1);
+	elsiocb->context1 = NULL;
 	return;
 
 dropit:
@@ -5440,6 +5440,7 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	struct lpfc_dmabuf *bdeBuf1 = elsiocb->context2;
 	struct lpfc_dmabuf *bdeBuf2 = elsiocb->context3;
 
+	elsiocb->context1 = NULL;
 	elsiocb->context2 = NULL;
 	elsiocb->context3 = NULL;
 
@@ -5487,8 +5488,6 @@ lpfc_els_unsol_event(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	 * The different unsolicited event handlers would tell us
 	 * if they are done with "mp" by setting context2 to NULL.
 	 */
-	lpfc_nlp_put(elsiocb->context1);
-	elsiocb->context1 = NULL;
 	if (elsiocb->context2) {
 		lpfc_in_buf_free(phba, (struct lpfc_dmabuf *)elsiocb->context2);
 		elsiocb->context2 = NULL;
@@ -5750,54 +5749,56 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			goto out;
 		/* FDISC failed */
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_ELS,
-				 "0124 FDISC failed. (%d/%d)\n",
+				 "0126 FDISC failed. (%d/%d)\n",
 				 irsp->ulpStatus, irsp->un.ulpWord[4]);
+		goto fdisc_failed;
+	}
 		if (vport->fc_vport->vport_state == FC_VPORT_INITIALIZING)
 			lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		lpfc_nlp_put(ndlp);
 		/* giving up on FDISC. Cancel discovery timer */
 		lpfc_can_disctmo(vport);
-	} else {
-		spin_lock_irq(shost->host_lock);
-		vport->fc_flag |= FC_FABRIC;
-		if (vport->phba->fc_topology == TOPOLOGY_LOOP)
-			vport->fc_flag |=  FC_PUBLIC_LOOP;
-		spin_unlock_irq(shost->host_lock);
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag |= FC_FABRIC;
+	if (vport->phba->fc_topology == TOPOLOGY_LOOP)
+		vport->fc_flag |=  FC_PUBLIC_LOOP;
+	spin_unlock_irq(shost->host_lock);
 
-		vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
-		lpfc_vport_set_state(vport, FC_VPORT_ACTIVE);
-		if ((vport->fc_prevDID != vport->fc_myDID) &&
-			!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
-			/* If our NportID changed, we need to ensure all
-			 * remaining NPORTs get unreg_login'ed so we can
-			 * issue unreg_vpi.
-			 */
-			list_for_each_entry_safe(np, next_np,
-				&vport->fc_nodes, nlp_listp) {
-				if (!NLP_CHK_NODE_ACT(ndlp) ||
-				    (np->nlp_state != NLP_STE_NPR_NODE) ||
-				    !(np->nlp_flag & NLP_NPR_ADISC))
-					continue;
-				spin_lock_irq(shost->host_lock);
-				np->nlp_flag &= ~NLP_NPR_ADISC;
-				spin_unlock_irq(shost->host_lock);
-				lpfc_unreg_rpi(vport, np);
-			}
-			lpfc_mbx_unreg_vpi(vport);
+	vport->fc_myDID = irsp->un.ulpWord[4] & Mask_DID;
+	lpfc_vport_set_state(vport, FC_VPORT_ACTIVE);
+	if ((vport->fc_prevDID != vport->fc_myDID) &&
+		!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) {
+		/* If our NportID changed, we need to ensure all
+		 * remaining NPORTs get unreg_login'ed so we can
+		 * issue unreg_vpi.
+		 */
+		list_for_each_entry_safe(np, next_np,
+			&vport->fc_nodes, nlp_listp) {
+			if (!NLP_CHK_NODE_ACT(ndlp) ||
+			    (np->nlp_state != NLP_STE_NPR_NODE) ||
+			    !(np->nlp_flag & NLP_NPR_ADISC))
+				continue;
 			spin_lock_irq(shost->host_lock);
-			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			np->nlp_flag &= ~NLP_NPR_ADISC;
 			spin_unlock_irq(shost->host_lock);
+			lpfc_unreg_rpi(vport, np);
 		}
-
-		if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
-			lpfc_register_new_vport(phba, vport, ndlp);
-		else
-			lpfc_do_scr_ns_plogi(phba, vport);
-
-		/* Unconditionaly kick off releasing fabric node for vports */
-		lpfc_nlp_put(ndlp);
+		lpfc_mbx_unreg_vpi(vport);
+		spin_lock_irq(shost->host_lock);
+		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+		spin_unlock_irq(shost->host_lock);
 	}
 
+	if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
+		lpfc_register_new_vport(phba, vport, ndlp);
+	else
+		lpfc_do_scr_ns_plogi(phba, vport);
+	goto out;
+fdisc_failed:
+	lpfc_vport_set_state(vport, FC_VPORT_FAILED);
+	/* Cancel discovery timer */
+	lpfc_can_disctmo(vport);
+	lpfc_nlp_put(ndlp);
 out:
 	lpfc_els_free_iocb(phba, cmdiocb);
 }

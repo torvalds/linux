@@ -207,8 +207,16 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		return;
 	}
 
-	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE)
+	if (ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_DISCOVERY,
+				 "0284 Devloss timeout Ignored on "
+				 "WWPN %x:%x:%x:%x:%x:%x:%x:%x "
+				 "NPort x%x\n",
+				 *name, *(name+1), *(name+2), *(name+3),
+				 *(name+4), *(name+5), *(name+6), *(name+7),
+				 ndlp->nlp_DID);
 		return;
+	}
 
 	if (ndlp->nlp_type & NLP_FABRIC) {
 		/* We will clean up these Nodes in linkup */
@@ -1169,7 +1177,7 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		scsi_host_put(shost);
 }
 
-void
+int
 lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 {
 	struct lpfc_hba  *phba = vport->phba;
@@ -1178,7 +1186,7 @@ lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox)
-		return;
+		return 1;
 
 	lpfc_unreg_vpi(phba, vport->vpi, mbox);
 	mbox->vport = vport;
@@ -1189,7 +1197,9 @@ lpfc_mbx_unreg_vpi(struct lpfc_vport *vport)
 				 "1800 Could not issue unreg_vpi\n");
 		mempool_free(mbox, phba->mbox_mem_pool);
 		vport->unreg_vpi_cmpl = VPORT_ERROR;
+		return rc;
 	}
+	return 0;
 }
 
 static void
@@ -2778,7 +2788,7 @@ restart_disc:
 
 	default:
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,
-				 "0229 Unexpected discovery timeout, "
+				 "0273 Unexpected discovery timeout, "
 				 "vport State x%x\n", vport->port_state);
 		break;
 	}

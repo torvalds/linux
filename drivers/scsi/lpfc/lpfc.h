@@ -499,7 +499,7 @@ struct lpfc_hba {
 
 	wait_queue_head_t    work_waitq;
 	struct task_struct   *worker_thread;
-	long data_flags;
+	unsigned long data_flags;
 
 	uint32_t hbq_in_use;		/* HBQs in use flag */
 	struct list_head hbqbuf_in_list;  /* in-fly hbq buffer list */

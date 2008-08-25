@@ -844,48 +844,58 @@ struct lpfc_hbq_init *lpfc_hbq_defs[] = {
  * @hbqno: HBQ number.
  * @count: Number of HBQ buffers to be posted.
  *
- * This function is called with no lock held to post more
- * hbq buffers to the given HBQ. The function returns 0
- * when successful and returns 1 other wise.
+ * This function is called with no lock held to post more hbq buffers to the
+ * given HBQ. The function returns the number of HBQ buffers successfully
+ * posted.
  **/
 static int
 lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
 {
-	uint32_t i, start, end;
+	uint32_t i, posted = 0;
 	unsigned long flags;
 	struct hbq_dmabuf *hbq_buffer;
-
+	LIST_HEAD(hbq_buf_list);
 	if (!phba->hbqs[hbqno].hbq_alloc_buffer)
 		return 0;
 
-	start = phba->hbqs[hbqno].buffer_count;
-	end = count + start;
-	if (end > lpfc_hbq_defs[hbqno]->entry_count)
-		end = lpfc_hbq_defs[hbqno]->entry_count;
-
+	if ((phba->hbqs[hbqno].buffer_count + count) >
+	    lpfc_hbq_defs[hbqno]->entry_count)
+		count = lpfc_hbq_defs[hbqno]->entry_count -
+					phba->hbqs[hbqno].buffer_count;
+	if (!count)
+		return 0;
+	/* Allocate HBQ entries */
+	for (i = 0; i < count; i++) {
+		hbq_buffer = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
+		if (!hbq_buffer)
+			break;
+		list_add_tail(&hbq_buffer->dbuf.list, &hbq_buf_list);
+	}
 	/* Check whether HBQ is still in use */
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (!phba->hbq_in_use)
-		goto out;
-
-	/* Populate HBQ entries */
-	for (i = start; i < end; i++) {
-		hbq_buffer = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
-		if (!hbq_buffer)
-			goto err;
-		hbq_buffer->tag = (i | (hbqno << 16));
-		if (lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer))
+		goto err;
+	while (!list_empty(&hbq_buf_list)) {
+		list_remove_head(&hbq_buf_list, hbq_buffer, struct hbq_dmabuf,
+				 dbuf.list);
+		hbq_buffer->tag = (phba->hbqs[hbqno].buffer_count |
+				      (hbqno << 16));
+		if (lpfc_sli_hbq_to_firmware(phba, hbqno, hbq_buffer)) {
 			phba->hbqs[hbqno].buffer_count++;
-		else
+			posted++;
+		} else
 			(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
 	}
-
- out:
 	spin_unlock_irqrestore(&phba->hbalock, flags);
+	return posted;
+err:
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	while (!list_empty(&hbq_buf_list)) {
+		list_remove_head(&hbq_buf_list, hbq_buffer, struct hbq_dmabuf,
+				 dbuf.list);
+		(phba->hbqs[hbqno].hbq_free_buffer)(phba, hbq_buffer);
+	}
 	return 0;
- err:
-	spin_unlock_irqrestore(&phba->hbalock, flags);
-	return 1;
 }
 
 /**
@@ -894,8 +904,8 @@ lpfc_sli_hbqbuf_fill_hbqs(struct lpfc_hba *phba, uint32_t hbqno, uint32_t count)
  * @qno: HBQ number.
  *
  * This function posts more buffers to the HBQ. This function
- * is called with no lock held. The function returns 0 when
- * successful and returns 1 otherwise.
+ * is called with no lock held. The function returns the number of HBQ entries
+ * successfully allocated.
  **/
 int
 lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *phba, uint32_t qno)
@@ -911,7 +921,7 @@ lpfc_sli_hbqbuf_add_hbqs(struct lpfc_hba *phba, uint32_t qno)
  *
  * This function is called from SLI initialization code path with
  * no lock held to post initial HBQ buffers to firmware. The
- * function returns 0 when successful and returns 1 otherwise.
+ * function returns the number of HBQ entries successfully allocated.
  **/
 static int
 lpfc_sli_hbqbuf_init_hbqs(struct lpfc_hba *phba, uint32_t qno)
@@ -1253,7 +1263,9 @@ lpfc_sli_handle_mb_event(struct lpfc_hba *phba)
  * This function is called from unsolicited event handler code path to get the
  * HBQ buffer associated with an unsolicited iocb. This function is called with
  * no lock held. It returns the buffer associated with the given tag and posts
- * another buffer to the firmware.
+ * another buffer to the firmware. Note that the new buffer must be allocated
+ * before taking the hbalock and that the hba lock must be held until it is
+ * finished with the hbq entry swap.
  **/
 static struct lpfc_dmabuf *
 lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
@@ -1264,22 +1276,28 @@ lpfc_sli_replace_hbqbuff(struct lpfc_hba *phba, uint32_t tag)
 	dma_addr_t phys;	/* mapped address */
 	unsigned long flags;
 
+	hbqno = tag >> 16;
+	new_hbq_entry = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
 	/* Check whether HBQ is still in use */
 	spin_lock_irqsave(&phba->hbalock, flags);
 	if (!phba->hbq_in_use) {
+		if (new_hbq_entry)
+			(phba->hbqs[hbqno].hbq_free_buffer)(phba,
+							    new_hbq_entry);
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return NULL;
 	}
 
 	hbq_entry = lpfc_sli_hbqbuf_find(phba, tag);
 	if (hbq_entry == NULL) {
+		if (new_hbq_entry)
+			(phba->hbqs[hbqno].hbq_free_buffer)(phba,
+							    new_hbq_entry);
 		spin_unlock_irqrestore(&phba->hbalock, flags);
 		return NULL;
 	}
 	list_del(&hbq_entry->dbuf.list);
 
-	hbqno = tag >> 16;
-	new_hbq_entry = (phba->hbqs[hbqno].hbq_alloc_buffer)(phba);
 	if (new_hbq_entry == NULL) {
 		list_add_tail(&hbq_entry->dbuf.list, &phba->hbqbuf_in_list);
 		spin_unlock_irqrestore(&phba->hbalock, flags);
@@ -1748,8 +1766,8 @@ void lpfc_sli_poll_fcp_ring(struct lpfc_hba *phba)
 					irsp->un.ulpWord[3],
 					irsp->un.ulpWord[4],
 					irsp->un.ulpWord[5],
-					*(((uint32_t *) irsp) + 6),
-					*(((uint32_t *) irsp) + 7));
+					*(uint32_t *)&irsp->un1,
+					*((uint32_t *)&irsp->un1 + 1));
 		}
 
 		switch (type) {
@@ -1935,8 +1953,8 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 					irsp->un.ulpWord[3],
 					irsp->un.ulpWord[4],
 					irsp->un.ulpWord[5],
-					*(((uint32_t *) irsp) + 6),
-					*(((uint32_t *) irsp) + 7));
+					*(uint32_t *)&irsp->un1,
+					*((uint32_t *)&irsp->un1 + 1));
 		}
 
 		switch (type) {
@@ -2921,10 +2939,8 @@ lpfc_sli_hbq_setup(struct lpfc_hba *phba)
 	mempool_free(pmb, phba->mbox_mem_pool);
 
 	/* Initially populate or replenish the HBQs */
-	for (hbqno = 0; hbqno < hbq_count; ++hbqno) {
-		if (lpfc_sli_hbqbuf_init_hbqs(phba, hbqno))
-			return -ENOMEM;
-	}
+	for (hbqno = 0; hbqno < hbq_count; ++hbqno)
+		lpfc_sli_hbqbuf_init_hbqs(phba, hbqno);
 	return 0;
 }
 
@@ -3034,6 +3050,7 @@ lpfc_do_config_port(struct lpfc_hba *phba, int sli_mode)
 		phba->port_gp = phba->mbox->us.s2.port;
 		phba->inb_ha_copy = NULL;
 		phba->inb_counter = NULL;
+		phba->max_vpi = 0;
 	}
 do_prep_failed:
 	mempool_free(pmb, phba->mbox_mem_pool);
@@ -4335,7 +4352,7 @@ lpfc_sli_ring_taggedbuf_get(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	spin_unlock_irq(&phba->hbalock);
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0410 Cannot find virtual addr for buffer tag on "
+			"0402 Cannot find virtual addr for buffer tag on "
 			"ring %d Data x%lx x%p x%p x%x\n",
 			pring->ringno, (unsigned long) tag,
 			slp->next, slp->prev, pring->postbufq_cnt);
@@ -4482,7 +4499,7 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 	/* ELS cmd tag <ulpIoTag> completes */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
-			"0133 Ignoring ELS cmd tag x%x completion Data: "
+			"0139 Ignoring ELS cmd tag x%x completion Data: "
 			"x%x x%x x%x\n",
 			irsp->ulpIoTag, irsp->ulpStatus,
 			irsp->un.ulpWord[4], irsp->ulpTimeout);
@@ -4568,6 +4585,8 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 iabt->un.acxri.abortIoTag, abtsiocbp->iotag);
 	retval = __lpfc_sli_issue_iocb(phba, pring, abtsiocbp, 0);
 
+	if (retval)
+		__lpfc_sli_release_iocbq(phba, abtsiocbp);
 abort_iotag_exit:
 	/*
 	 * Caller to this routine should check for IOCB_ERROR
@@ -4899,7 +4918,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 		}
 	} else {
 		lpfc_printf_log(phba, KERN_INFO, LOG_SLI,
-				":0332 IOCB wait issue failed, Data x%x\n",
+				"0332 IOCB wait issue failed, Data x%x\n",
 				retval);
 		retval = IOCB_ERROR;
 	}
@@ -5271,7 +5290,7 @@ lpfc_intr_handler(int irq, void *dev_id)
 							lpfc_printf_log(phba,
 							KERN_ERR,
 							LOG_MBOX | LOG_SLI,
-							"0306 rc should have"
+							"0350 rc should have"
 							"been MBX_BUSY");
 						goto send_current_mbox;
 					}

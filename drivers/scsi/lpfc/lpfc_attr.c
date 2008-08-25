@@ -1302,7 +1302,7 @@ lpfc_##attr##_init(struct lpfc_vport *vport, int val) \
 		return 0;\
 	}\
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			 "0449 lpfc_"#attr" attribute cannot be set to %d, "\
+			 "0423 lpfc_"#attr" attribute cannot be set to %d, "\
 			 "allowed range is ["#minval", "#maxval"]\n", val); \
 	vport->cfg_##attr = default;\
 	return -EINVAL;\
@@ -1334,7 +1334,7 @@ lpfc_##attr##_set(struct lpfc_vport *vport, int val) \
 		return 0;\
 	}\
 	lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT, \
-			 "0450 lpfc_"#attr" attribute cannot be set to %d, "\
+			 "0424 lpfc_"#attr" attribute cannot be set to %d, "\
 			 "allowed range is ["#minval", "#maxval"]\n", val); \
 	return -EINVAL;\
 }
@@ -1803,7 +1803,7 @@ lpfc_nodev_tmo_init(struct lpfc_vport *vport, int val)
 		vport->cfg_nodev_tmo = vport->cfg_devloss_tmo;
 		if (val != LPFC_DEF_DEVLOSS_TMO)
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-					 "0402 Ignoring nodev_tmo module "
+					 "0407 Ignoring nodev_tmo module "
 					 "parameter because devloss_tmo is "
 					 "set.\n");
 		return 0;
@@ -2030,7 +2030,7 @@ lpfc_restrict_login_init(struct lpfc_vport *vport, int val)
 {
 	if (val < 0 || val > 1) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0449 lpfc_restrict_login attribute cannot "
+				 "0422 lpfc_restrict_login attribute cannot "
 				 "be set to %d, allowed range is [0, 1]\n",
 				 val);
 		vport->cfg_restrict_login = 1;
@@ -2065,7 +2065,7 @@ lpfc_restrict_login_set(struct lpfc_vport *vport, int val)
 {
 	if (val < 0 || val > 1) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_INIT,
-				 "0450 lpfc_restrict_login attribute cannot "
+				 "0425 lpfc_restrict_login attribute cannot "
 				 "be set to %d, allowed range is [0, 1]\n",
 				 val);
 		vport->cfg_restrict_login = 1;
@@ -2249,7 +2249,7 @@ lpfc_link_speed_init(struct lpfc_hba *phba, int val)
 		return 0;
 	}
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-			"0454 lpfc_link_speed attribute cannot "
+			"0405 lpfc_link_speed attribute cannot "
 			"be set to %d, allowed values are "
 			"["LPFC_LINK_SPEED_STRING"]\n", val);
 	phba->cfg_link_speed = 0;
@@ -2787,17 +2787,15 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		/* If HBA encountered an error attention, allow only DUMP
 		 * or RESTART mailbox commands until the HBA is restarted.
 		 */
-		if ((phba->pport->stopped) &&
-			(phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_DUMP_MEMORY &&
-			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_RESTART &&
-			 phba->sysfs_mbox.mbox->mb.mbxCommand !=
-				MBX_WRITE_VPARMS)) {
-			sysfs_mbox_idle(phba);
-			spin_unlock_irq(&phba->hbalock);
-			return -EPERM;
-		}
+		if (phba->pport->stopped &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_DUMP_MEMORY &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_RESTART &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_WRITE_VPARMS &&
+		    phba->sysfs_mbox.mbox->mb.mbxCommand != MBX_WRITE_WWN)
+			lpfc_printf_log(phba, KERN_WARNING, LOG_MBOX,
+					"1259 mbox: Issued mailbox cmd "
+					"0x%x while in stopped state.\n",
+					phba->sysfs_mbox.mbox->mb.mbxCommand);
 
 		phba->sysfs_mbox.mbox->vport = vport;
 

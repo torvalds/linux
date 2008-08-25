@@ -183,12 +183,9 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 						sizeof (phba->RandomData));
 
 	/* Get adapter VPD information */
-	pmb->context2 = kmalloc(DMP_RSP_SIZE, GFP_KERNEL);
-	if (!pmb->context2)
-		goto out_free_mbox;
 	lpfc_vpd_data = kmalloc(DMP_VPD_SIZE, GFP_KERNEL);
 	if (!lpfc_vpd_data)
-		goto out_free_context2;
+		goto out_free_mbox;
 
 	do {
 		lpfc_dump_mem(phba, pmb, offset);
@@ -203,15 +200,14 @@ lpfc_config_port_prep(struct lpfc_hba *phba)
 		}
 		if (mb->un.varDmp.word_cnt > DMP_VPD_SIZE - offset)
 			mb->un.varDmp.word_cnt = DMP_VPD_SIZE - offset;
-		lpfc_sli_pcimem_bcopy(pmb->context2, lpfc_vpd_data + offset,
+		lpfc_sli_pcimem_bcopy(((uint8_t *)mb) + DMP_RSP_OFFSET,
+				      lpfc_vpd_data + offset,
 				      mb->un.varDmp.word_cnt);
 		offset += mb->un.varDmp.word_cnt;
 	} while (mb->un.varDmp.word_cnt && offset < DMP_VPD_SIZE);
 	lpfc_parse_vpd(phba, lpfc_vpd_data, offset);
 
 	kfree(lpfc_vpd_data);
-out_free_context2:
-	kfree(pmb->context2);
 out_free_mbox:
 	mempool_free(pmb, phba->mbox_mem_pool);
 	return 0;
@@ -425,9 +421,8 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	lpfc_init_link(phba, pmb, phba->cfg_topology, phba->cfg_link_speed);
 	pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	pmb->vport = vport;
-	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 	lpfc_set_loopback_flag(phba);
+	rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 	if (rc != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"0454 Adapter failed to init, mbxCmd x%x "
@@ -462,7 +457,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				rc);
 		mempool_free(pmb, phba->mbox_mem_pool);
 	}
-	return (0);
+	return 0;
 }
 
 /**
@@ -841,7 +836,7 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 		temp_event_data.data = (uint32_t)temperature;
 
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0459 Adapter maximum temperature exceeded "
+				"0406 Adapter maximum temperature exceeded "
 				"(%ld), taking this port offline "
 				"Data: x%x x%x x%x\n",
 				temperature, phba->work_hs,
@@ -1595,7 +1590,7 @@ lpfc_cleanup(struct lpfc_vport *vport)
 						&vport->fc_nodes, nlp_listp) {
 				lpfc_printf_vlog(ndlp->vport, KERN_ERR,
 						LOG_NODE,
-						"0282: did:x%x ndlp:x%p "
+						"0282 did:x%x ndlp:x%p "
 						"usgmap:x%x refcnt:%d\n",
 						ndlp->nlp_DID, (void *)ndlp,
 						ndlp->nlp_usg_map,
@@ -2320,10 +2315,10 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_iounmap;
 
 	memset(phba->slim2p.virt, 0, SLI2_SLIM_SIZE);
-	phba->mbox = phba->slim2p.virt;
-	phba->pcb = (phba->slim2p.virt + sizeof(MAILBOX_t));
-	phba->IOCBs = (phba->slim2p.virt + sizeof(MAILBOX_t) +
-		       sizeof(struct _PCB));
+	phba->mbox = phba->slim2p.virt + offsetof(struct lpfc_sli2_slim, mbx);
+	phba->pcb = (phba->slim2p.virt + offsetof(struct lpfc_sli2_slim, pcb));
+	phba->IOCBs = (phba->slim2p.virt +
+		       offsetof(struct lpfc_sli2_slim, IOCBs));
 
 	phba->hbqslimp.virt = dma_alloc_coherent(&phba->pcidev->dev,
 						 lpfc_sli_hbq_size(),
@@ -2889,7 +2884,8 @@ lpfc_init(void)
 	error = pci_register_driver(&lpfc_driver);
 	if (error) {
 		fc_release_transport(lpfc_transport_template);
-		fc_release_transport(lpfc_vport_transport_template);
+		if (lpfc_enable_npiv)
+			fc_release_transport(lpfc_vport_transport_template);
 	}
 
 	return error;

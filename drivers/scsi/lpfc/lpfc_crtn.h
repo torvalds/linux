@@ -269,7 +269,7 @@ void lpfc_dev_loss_tmo_callbk(struct fc_rport *rport);
 
 struct lpfc_vport *lpfc_create_port(struct lpfc_hba *, int, struct device *);
 int  lpfc_vport_disable(struct fc_vport *fc_vport, bool disable);
-void lpfc_mbx_unreg_vpi(struct lpfc_vport *);
+int lpfc_mbx_unreg_vpi(struct lpfc_vport *);
 void destroy_port(struct lpfc_vport *);
 int lpfc_get_instance(void);
 void lpfc_host_attrib_init(struct Scsi_Host *);

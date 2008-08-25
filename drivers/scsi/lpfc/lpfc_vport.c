@@ -577,8 +577,12 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 	 * initiated after we've disposed of all other resources associated
 	 * with the port.
 	 */
-	if (!scsi_host_get(shost) || !scsi_host_get(shost))
+	if (!scsi_host_get(shost))
 		return VPORT_INVAL;
+	if (!scsi_host_get(shost)) {
+		scsi_host_put(shost);
+		return VPORT_INVAL;
+	}
 	spin_lock_irq(&phba->hbalock);
 	vport->load_flag |= FC_UNLOADING;
 	spin_unlock_irq(&phba->hbalock);
@@ -668,6 +672,8 @@ lpfc_vport_delete(struct fc_vport *fc_vport)
 		}
 		vport->unreg_vpi_cmpl = VPORT_INVAL;
 		timeout = msecs_to_jiffies(phba->fc_ratov * 2000);
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+			goto skip_logo;
 		if (!lpfc_issue_els_npiv_logo(vport, ndlp))
 			while (vport->unreg_vpi_cmpl == VPORT_INVAL && timeout)
 				timeout = schedule_timeout(timeout);
@@ -689,8 +695,10 @@ skip_logo:
 		 * Completion of unreg_vpi (lpfc_mbx_cmpl_unreg_vpi)
 		 * does the scsi_host_put() to release the vport.
 		 */
-		lpfc_mbx_unreg_vpi(vport);
-	}
+		if (lpfc_mbx_unreg_vpi(vport))
+			scsi_host_put(shost);
+	} else
+		scsi_host_put(shost);
 
 	lpfc_free_vpi(phba, vport->vpi);
 	vport->work_port_events = 0;
