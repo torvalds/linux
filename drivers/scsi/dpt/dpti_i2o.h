@@ -21,7 +21,6 @@
 
 #include <linux/i2o-dev.h>
 
-#include <linux/version.h>
 #include <linux/notifier.h>
 #include <asm/atomic.h>
 

@@ -45,7 +45,7 @@ static struct platform_device vpu_device = {
 };
 
 static struct uio_info veu0_platform_data = {
-	.name = "VEU",
+	.name = "VEU2H",
 	.version = "0",
 	.irq = 54,
 };
@@ -73,7 +73,7 @@ static struct platform_device veu0_device = {
 };
 
 static struct uio_info veu1_platform_data = {
-	.name = "VEU",
+	.name = "VEU2H",
 	.version = "0",
 	.irq = 27,
 };

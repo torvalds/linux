@@ -551,7 +551,7 @@ static int eth_poll(struct napi_struct *napi, int budget)
 		if ((skb = netdev_alloc_skb(dev, RX_BUFF_SIZE))) {
 			phys = dma_map_single(&dev->dev, skb->data,
 					      RX_BUFF_SIZE, DMA_FROM_DEVICE);
-			if (dma_mapping_error(phys)) {
+			if (dma_mapping_error(&dev->dev, phys)) {
 				dev_kfree_skb(skb);
 				skb = NULL;
 			}
@@ -698,7 +698,7 @@ static int eth_xmit(struct sk_buff *skb, struct net_device *dev)
 #endif
 
 	phys = dma_map_single(&dev->dev, mem, bytes, DMA_TO_DEVICE);
-	if (dma_mapping_error(phys)) {
+	if (dma_mapping_error(&dev->dev, phys)) {
 #ifdef __ARMEB__
 		dev_kfree_skb(skb);
 #else
@@ -883,7 +883,7 @@ static int init_queues(struct port *port)
 		desc->buf_len = MAX_MRU;
 		desc->data = dma_map_single(&port->netdev->dev, data,
 					    RX_BUFF_SIZE, DMA_FROM_DEVICE);
-		if (dma_mapping_error(desc->data)) {
+		if (dma_mapping_error(&port->netdev->dev, desc->data)) {
 			free_buffer(buff);
 			return -EIO;
 		}

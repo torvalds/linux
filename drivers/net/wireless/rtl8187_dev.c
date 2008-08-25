@@ -40,6 +40,7 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0846, 0x6a00), .driver_info = DEVICE_RTL8187},
+	{USB_DEVICE(0x0846, 0x4260), .driver_info = DEVICE_RTL8187B},
 	/* HP */
 	{USB_DEVICE(0x03f0, 0xca02), .driver_info = DEVICE_RTL8187},
 	/* Sitecom */
