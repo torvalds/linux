@@ -1659,11 +1659,7 @@ int __init APIC_init_uniprocessor(void)
 /*
  * This interrupt should _never_ happen with our APIC/SMP architecture
  */
-#ifdef CONFIG_X86_64
-asmlinkage void smp_spurious_interrupt(void)
-#else
 void smp_spurious_interrupt(struct pt_regs *regs)
-#endif
 {
 	u32 v;
 
@@ -1694,11 +1690,7 @@ void smp_spurious_interrupt(struct pt_regs *regs)
 /*
  * This interrupt should never happen with our APIC/SMP architecture
  */
-#ifdef CONFIG_X86_64
-asmlinkage void smp_error_interrupt(void)
-#else
 void smp_error_interrupt(struct pt_regs *regs)
-#endif
 {
 	u32 v, v1;
 
