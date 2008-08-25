@@ -1823,7 +1823,9 @@ dsp_cmx_transmit(struct dsp *dsp, struct sk_buff *skb)
 		/* write to the space we have left */
 		ww = (ww - 1) & CMX_BUFF_MASK; /* end one byte prior tx_R */
 		if (dsp_debug & DEBUG_DSP_CLOCK)
-			printk(KERN_DEBUG "%s: TX overflow\n", __func__);
+			printk(KERN_DEBUG "%s: TX overflow space=%d skb->len="
+			    "%d, w=0x%04x, ww=0x%04x\n", __func__, space,
+			    skb->len, w, ww);
 	} else
 		/* write until all byte are copied */
 		ww = (w + skb->len) & CMX_BUFF_MASK;
