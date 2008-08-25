@@ -101,8 +101,10 @@ static inline void of_node_put(struct device_node *node)
  * register them in the of_device objects, whereas powerpc computes them
  * on request.
  */
-extern int irq_of_parse_and_map(struct device_node *node, int index);
-#define irq_dispose_mapping(irq) do { } while (0)
+extern unsigned int irq_of_parse_and_map(struct device_node *node, int index);
+static inline void irq_dispose_mapping(unsigned int virq)
+{
+}
 
 /*
  * NB:  This is here while we transition from using asm/prom.h
