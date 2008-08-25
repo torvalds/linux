@@ -6,7 +6,6 @@
 #ifndef __SYSDEP_I386_PTRACE_H
 #define __SYSDEP_I386_PTRACE_H
 
-#include "uml-config.h"
 #include "user_constants.h"
 #include "sysdep/faultinfo.h"
 

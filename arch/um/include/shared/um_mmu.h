@@ -6,7 +6,6 @@
 #ifndef __ARCH_UM_MMU_H
 #define __ARCH_UM_MMU_H
 
-#include "uml-config.h"
 #include "mm_id.h"
 #include "ldt.h"
 

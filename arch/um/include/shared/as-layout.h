@@ -6,7 +6,6 @@
 #ifndef __START_H__
 #define __START_H__
 
-#include "uml-config.h"
 #include "kern_constants.h"
 
 /*
