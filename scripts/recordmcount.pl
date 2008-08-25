@@ -187,6 +187,36 @@ my $mcount_s = $dirname . "/.tmp_mc_" . $prefix . ".s";
 my $mcount_o = $dirname . "/.tmp_mc_" . $prefix . ".o";
 
 #
+# --globalize-symbols came out in 2.17, we must test the version
+# of objcopy, and if it is less than 2.17, then we can not
+# record local functions.
+my $use_locals = 01;
+my $local_warn_once = 0;
+my $found_version = 0;
+
+open (IN, "$objcopy --version |") || die "error running $objcopy";
+while (<IN>) {
+    if (/objcopy.*\s(\d+)\.(\d+)/) {
+	my $major = $1;
+	my $minor = $2;
+
+	$found_version = 1;
+	if ($major < 2 ||
+	    ($major == 2 && $minor < 17)) {
+	    $use_locals = 0;
+	}
+	last;
+    }
+}
+close (IN);
+
+if (!$found_version) {
+    print STDERR "WARNING: could not find objcopy version.\n" .
+	"\tDisabling local function references.\n";
+}
+
+
+#
 # Step 1: find all the local (static functions) and weak symbols.
 #        't' is local, 'w/W' is weak (we never use a weak function)
 #
@@ -229,6 +259,17 @@ sub update_funcs
 
     # is this function static? If so, note this fact.
     if (defined $locals{$ref_func}) {
+
+	# only use locals if objcopy supports globalize-symbols
+	if (!$use_locals) {
+	    print STDERR
+		"$inputfile: WARNING: referencing local function " .
+		"$ref_func for mcount\n" .
+		"\tConsider upgrading objcopy to support the globalize-" .
+		"symbols option.\n"
+		if (!$local_warn_once++);
+	    return;
+	}
 	$convert{$ref_func} = 1;
     }
 
