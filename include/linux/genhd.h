@@ -138,7 +138,6 @@ struct gendisk {
 	struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;
-	sector_t capacity;
 
 	int flags;
 	struct device *driverfs_dev;  // FIXME: remove
@@ -411,11 +410,11 @@ static inline sector_t get_start_sect(struct block_device *bdev)
 }
 static inline sector_t get_capacity(struct gendisk *disk)
 {
-	return disk->capacity;
+	return disk->part0.nr_sects;
 }
 static inline void set_capacity(struct gendisk *disk, sector_t size)
 {
-	disk->capacity = size;
+	disk->part0.nr_sects = size;
 }
 
 #ifdef CONFIG_SOLARIS_X86_PARTITION

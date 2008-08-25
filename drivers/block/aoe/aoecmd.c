@@ -645,7 +645,7 @@ aoecmd_sleepwork(struct work_struct *work)
 		unsigned long flags;
 		u64 ssize;
 
-		ssize = d->gd->capacity;
+		ssize = get_capacity(d->gd);
 		bd = bdget_disk(d->gd, 0);
 
 		if (bd) {
@@ -707,7 +707,7 @@ ataid_complete(struct aoedev *d, struct aoetgt *t, unsigned char *id)
 	if (d->flags & (DEVFL_GDALLOC|DEVFL_NEWSIZE))
 		return;
 	if (d->gd != NULL) {
-		d->gd->capacity = ssize;
+		set_capacity(d->gd, ssize);
 		d->flags |= DEVFL_NEWSIZE;
 	} else
 		d->flags |= DEVFL_GDALLOC;
