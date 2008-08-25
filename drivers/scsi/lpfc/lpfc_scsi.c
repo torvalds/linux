@@ -183,6 +183,35 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 	atomic_set(&phba->num_cmd_success, 0);
 }
 
+/**
+ * lpfc_scsi_dev_block: set all scsi hosts to block state.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function walks vport list and set each SCSI host to block state
+ * by invoking fc_remote_port_delete() routine. This function is invoked
+ * with EEH when device's PCI slot has been permanently disabled.
+ **/
+void
+lpfc_scsi_dev_block(struct lpfc_hba *phba)
+{
+	struct lpfc_vport **vports;
+	struct Scsi_Host  *shost;
+	struct scsi_device *sdev;
+	struct fc_rport *rport;
+	int i;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports != NULL)
+		for (i = 0; i <= phba->max_vpi && vports[i] != NULL; i++) {
+			shost = lpfc_shost_from_vport(vports[i]);
+			shost_for_each_device(sdev, shost) {
+				rport = starget_to_rport(scsi_target(sdev));
+				fc_remote_port_delete(rport);
+			}
+		}
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
 /*
  * This routine allocates a scsi buffer, which contains all the necessary
  * information needed to initiate a SCSI I/O.  The non-DMAable buffer region

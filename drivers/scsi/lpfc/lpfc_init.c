@@ -2661,8 +2661,15 @@ static pci_ers_result_t lpfc_io_error_detected(struct pci_dev *pdev,
 	struct lpfc_sli *psli = &phba->sli;
 	struct lpfc_sli_ring  *pring;
 
-	if (state == pci_channel_io_perm_failure)
+	if (state == pci_channel_io_perm_failure) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"0472 PCI channel I/O permanent failure\n");
+		/* Block all SCSI devices' I/Os on the host */
+		lpfc_scsi_dev_block(phba);
+		/* Clean up all driver's outstanding SCSI I/Os */
+		lpfc_sli_flush_fcp_rings(phba);
 		return PCI_ERS_RESULT_DISCONNECT;
+	}
 
 	pci_disable_device(pdev);
 	/*

@@ -199,6 +199,7 @@ int lpfc_sli_issue_iocb(struct lpfc_hba *, struct lpfc_sli_ring *,
 			struct lpfc_iocbq *, uint32_t);
 void lpfc_sli_pcimem_bcopy(void *, void *, uint32_t);
 void lpfc_sli_abort_iocb_ring(struct lpfc_hba *, struct lpfc_sli_ring *);
+void lpfc_sli_flush_fcp_rings(struct lpfc_hba *);
 int lpfc_sli_ringpostbuf_put(struct lpfc_hba *, struct lpfc_sli_ring *,
 			     struct lpfc_dmabuf *);
 struct lpfc_dmabuf *lpfc_sli_ringpostbuf_get(struct lpfc_hba *,
@@ -290,6 +291,7 @@ void lpfc_unblock_fabric_iocbs(struct lpfc_hba *);
 void lpfc_adjust_queue_depth(struct lpfc_hba *);
 void lpfc_ramp_down_queue_handler(struct lpfc_hba *);
 void lpfc_ramp_up_queue_handler(struct lpfc_hba *);
+void lpfc_scsi_dev_block(struct lpfc_hba *);
 
 #define ScsiResult(host_code, scsi_code) (((host_code) << 16) | scsi_code)
 #define HBA_EVENT_RSCN                   5

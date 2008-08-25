@@ -237,8 +237,6 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		lpfc_sli_abort_iocb(vport, &phba->sli.ring[phba->sli.fcp_ring],
 				    ndlp->nlp_sid, 0, LPFC_CTX_TGT);
 	}
-	if (vport->load_flag & FC_UNLOADING)
-		warn_on = 0;
 
 	if (warn_on) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_DISCOVERY,

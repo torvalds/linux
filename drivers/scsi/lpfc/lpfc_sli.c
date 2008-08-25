@@ -2377,6 +2377,70 @@ lpfc_sli_abort_iocb_ring(struct lpfc_hba *phba, struct lpfc_sli_ring *pring)
 }
 
 /**
+ * lpfc_sli_flush_fcp_rings: flush all iocbs in the fcp ring.
+ * @phba: Pointer to HBA context object.
+ *
+ * This function flushes all iocbs in the fcp ring and frees all the iocb
+ * objects in txq and txcmplq. This function will not issue abort iocbs
+ * for all the iocb commands in txcmplq, they will just be returned with
+ * IOERR_SLI_DOWN. This function is invoked with EEH when device's PCI
+ * slot has been permanently disabled.
+ **/
+void
+lpfc_sli_flush_fcp_rings(struct lpfc_hba *phba)
+{
+	LIST_HEAD(txq);
+	LIST_HEAD(txcmplq);
+	struct lpfc_iocbq *iocb;
+	IOCB_t *cmd = NULL;
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring  *pring;
+
+	/* Currently, only one fcp ring */
+	pring = &psli->ring[psli->fcp_ring];
+
+	spin_lock_irq(&phba->hbalock);
+	/* Retrieve everything on txq */
+	list_splice_init(&pring->txq, &txq);
+	pring->txq_cnt = 0;
+
+	/* Retrieve everything on the txcmplq */
+	list_splice_init(&pring->txcmplq, &txcmplq);
+	pring->txcmplq_cnt = 0;
+	spin_unlock_irq(&phba->hbalock);
+
+	/* Flush the txq */
+	while (!list_empty(&txq)) {
+		iocb = list_get_first(&txq, struct lpfc_iocbq, list);
+		cmd = &iocb->iocb;
+		list_del_init(&iocb->list);
+
+		if (!iocb->iocb_cmpl)
+			lpfc_sli_release_iocbq(phba, iocb);
+		else {
+			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
+			(iocb->iocb_cmpl) (phba, iocb, iocb);
+		}
+	}
+
+	/* Flush the txcmpq */
+	while (!list_empty(&txcmplq)) {
+		iocb = list_get_first(&txcmplq, struct lpfc_iocbq, list);
+		cmd = &iocb->iocb;
+		list_del_init(&iocb->list);
+
+		if (!iocb->iocb_cmpl)
+			lpfc_sli_release_iocbq(phba, iocb);
+		else {
+			cmd->ulpStatus = IOSTAT_LOCAL_REJECT;
+			cmd->un.ulpWord[4] = IOERR_SLI_DOWN;
+			(iocb->iocb_cmpl) (phba, iocb, iocb);
+		}
+	}
+}
+
+/**
  * lpfc_sli_brdready: Check for host status bits.
  * @phba: Pointer to HBA context object.
  * @mask: Bit mask to be checked.
