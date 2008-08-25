@@ -68,8 +68,6 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 		case BLKPG_DEL_PARTITION:
 			if (!disk->part[part-1])
 				return -ENXIO;
-			if (disk->part[part - 1]->nr_sects == 0)
-				return -ENXIO;
 			bdevp = bdget_disk(disk, part);
 			if (!bdevp)
 				return -ENOMEM;

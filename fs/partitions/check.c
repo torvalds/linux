@@ -325,8 +325,6 @@ void delete_partition(struct gendisk *disk, int part)
 
 	if (!p)
 		return;
-	if (!p->nr_sects)
-		return;
 	disk->part[part-1] = NULL;
 	p->start_sect = 0;
 	p->nr_sects = 0;
