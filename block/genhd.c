@@ -299,6 +299,38 @@ EXPORT_SYMBOL(unregister_blkdev);
 static struct kobj_map *bdev_map;
 
 /**
+ * blk_mangle_minor - scatter minor numbers apart
+ * @minor: minor number to mangle
+ *
+ * Scatter consecutively allocated @minor number apart if MANGLE_DEVT
+ * is enabled.  Mangling twice gives the original value.
+ *
+ * RETURNS:
+ * Mangled value.
+ *
+ * CONTEXT:
+ * Don't care.
+ */
+static int blk_mangle_minor(int minor)
+{
+#ifdef CONFIG_DEBUG_BLOCK_EXT_DEVT
+	int i;
+
+	for (i = 0; i < MINORBITS / 2; i++) {
+		int low = minor & (1 << i);
+		int high = minor & (1 << (MINORBITS - 1 - i));
+		int distance = MINORBITS - 1 - 2 * i;
+
+		minor ^= low | high;	/* clear both bits */
+		low <<= distance;	/* swap the positions */
+		high >>= distance;
+		minor |= low | high;	/* and set */
+	}
+#endif
+	return minor;
+}
+
+/**
  * blk_alloc_devt - allocate a dev_t for a partition
  * @part: partition to allocate dev_t for
  * @gfp_mask: memory allocation flag
@@ -339,7 +371,7 @@ int blk_alloc_devt(struct hd_struct *part, dev_t *devt)
 		return -EBUSY;
 	}
 
-	*devt = MKDEV(BLOCK_EXT_MAJOR, idx);
+	*devt = MKDEV(BLOCK_EXT_MAJOR, blk_mangle_minor(idx));
 	return 0;
 }
 
@@ -361,7 +393,7 @@ void blk_free_devt(dev_t devt)
 
 	if (MAJOR(devt) == BLOCK_EXT_MAJOR) {
 		mutex_lock(&ext_devt_mutex);
-		idr_remove(&ext_devt_idr, MINOR(devt));
+		idr_remove(&ext_devt_idr, blk_mangle_minor(MINOR(devt)));
 		mutex_unlock(&ext_devt_mutex);
 	}
 }
@@ -473,7 +505,7 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 		struct hd_struct *part;
 
 		mutex_lock(&ext_devt_mutex);
-		part = idr_find(&ext_devt_idr, MINOR(devt));
+		part = idr_find(&ext_devt_idr, blk_mangle_minor(MINOR(devt)));
 		if (part && get_disk(part_to_disk(part))) {
 			*partno = part->partno;
 			disk = part_to_disk(part);

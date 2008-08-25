@@ -87,7 +87,13 @@ MODULE_ALIAS_SCSI_DEVICE(TYPE_MOD);
 MODULE_ALIAS_SCSI_DEVICE(TYPE_RBC);
 
 #define SD_PARTS	64
+
+#if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
 #define SD_MINORS	16
+#else
+#define SD_MINORS	1
+#endif
+
 #define SD_EXT_MINORS	(SD_PARTS - SD_MINORS)
 
 static int  sd_revalidate_disk(struct gendisk *);

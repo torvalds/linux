@@ -42,7 +42,13 @@
 #include <asm/div64.h>
 
 #define IDE_DISK_PARTS		(1 << PARTN_BITS)
+
+#if !defined(CONFIG_DEBUG_BLOCK_EXT_DEVT)
 #define IDE_DISK_MINORS		IDE_DISK_PARTS
+#else
+#define IDE_DISK_MINORS		1
+#endif
+
 #define IDE_DISK_EXT_MINORS	(IDE_DISK_PARTS - IDE_DISK_MINORS)
 
 struct ide_disk_obj {
