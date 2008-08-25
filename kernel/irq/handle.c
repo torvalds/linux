@@ -34,7 +34,11 @@ void
 handle_bad_irq(unsigned int irq, struct irq_desc *desc)
 {
 	print_irq_desc(irq, desc);
+#ifdef CONFIG_HAVE_DYN_ARRAY
 	kstat_irqs_this_cpu(desc)++;
+#else
+	kstat_irqs_this_cpu(irq)++;
+#endif
 	ack_bad_irq(irq);
 }
 
@@ -401,7 +405,11 @@ unsigned int __do_IRQ(unsigned int irq)
 	struct irqaction *action;
 	unsigned int status;
 
+#ifdef CONFIG_HAVE_DYN_ARRAY
 	kstat_irqs_this_cpu(desc)++;
+#else
+	kstat_irqs_this_cpu(irq)++;
+#endif
 	if (CHECK_IRQ_PER_CPU(desc->status)) {
 		irqreturn_t action_ret;
 
@@ -501,10 +509,12 @@ void early_init_irq_lock_class(void)
 }
 #endif
 
+#ifdef CONFIG_HAVE_DYN_ARRAY
 unsigned int kstat_irqs_cpu(unsigned int irq, int cpu)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	return desc->kstat_irqs[cpu];
 }
+#endif
 EXPORT_SYMBOL(kstat_irqs_cpu);
 

@@ -161,8 +161,6 @@ struct irq_desc {
 #endif
 #ifdef CONFIG_HAVE_DYN_ARRAY
 	unsigned int            *kstat_irqs;
-#else
-	unsigned int            kstat_irqs[NR_CPUS];
 #endif
 #if defined(CONFIG_INTR_REMAP) && defined(CONFIG_HAVE_SPARSE_IRQ)
        struct irq_2_iommu      *irq_2_iommu;
@@ -219,8 +217,10 @@ extern struct irq_desc *sparse_irqs;
 
 #endif
 
+#ifdef CONFIG_HAVE_DYN_ARRAY
 #define kstat_irqs_this_cpu(DESC) \
 	((DESC)->kstat_irqs[smp_processor_id()])
+#endif
 
 /*
  * Migration helpers for obsolete names, they will go away:
