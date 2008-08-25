@@ -191,6 +191,17 @@ config US2E_FREQ
 
 	  If in doubt, say N.
 
+config US3_MC
+	tristate "UltraSPARC-III Memory Controller driver"
+	default y
+	help
+	  This adds a driver for the UltraSPARC-III memory controller.
+	  Loading this driver allows exact mnemonic strings to be
+	  printed in the event of a memory error, so that the faulty DIMM
+	  on the motherboard can be matched to the error.
+
+	  If in doubt, say Y, as this information can be very useful.
+
 # Global things across all Sun machines.
 config GENERIC_LOCKBREAK
 	bool

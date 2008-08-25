@@ -166,6 +166,7 @@ int register_dimm_printer(dimm_printer_t func)
 
 	return ret;
 }
+EXPORT_SYMBOL_GPL(register_dimm_printer);
 
 void unregister_dimm_printer(dimm_printer_t func)
 {
@@ -176,7 +177,7 @@ void unregister_dimm_printer(dimm_printer_t func)
 		dimm_handler = NULL;
 	spin_unlock_irqrestore(&dimm_handler_lock, flags);
 }
-
+EXPORT_SYMBOL_GPL(unregister_dimm_printer);
 
 void spitfire_insn_access_exception(struct pt_regs *regs, unsigned long sfsr, unsigned long sfar)
 {

@@ -299,3 +299,5 @@ EXPORT_SYMBOL(xor_niagara_2);
 EXPORT_SYMBOL(xor_niagara_3);
 EXPORT_SYMBOL(xor_niagara_4);
 EXPORT_SYMBOL(xor_niagara_5);
+
+EXPORT_SYMBOL_GPL(real_hard_smp_processor_id);
