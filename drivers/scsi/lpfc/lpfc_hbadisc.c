@@ -1013,14 +1013,10 @@ out:
 }
 
 static void
-lpfc_mbx_issue_link_down(struct lpfc_hba *phba)
+lpfc_enable_la(struct lpfc_hba *phba)
 {
 	uint32_t control;
 	struct lpfc_sli *psli = &phba->sli;
-
-	lpfc_linkdown(phba);
-
-	/* turn on Link Attention interrupts - no CLEAR_LA needed */
 	spin_lock_irq(&phba->hbalock);
 	psli->sli_flag |= LPFC_PROCESS_LA;
 	control = readl(phba->HCregaddr);
@@ -1029,6 +1025,15 @@ lpfc_mbx_issue_link_down(struct lpfc_hba *phba)
 	readl(phba->HCregaddr); /* flush */
 	spin_unlock_irq(&phba->hbalock);
 }
+
+static void
+lpfc_mbx_issue_link_down(struct lpfc_hba *phba)
+{
+	lpfc_linkdown(phba);
+	lpfc_enable_la(phba);
+	/* turn on Link Attention interrupts - no CLEAR_LA needed */
+}
+
 
 /*
  * This routine handles processing a READ_LA mailbox
@@ -1077,8 +1082,12 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	}
 
 	phba->fc_eventTag = la->eventTag;
+	if (la->mm)
+		phba->sli.sli_flag |= LPFC_MENLO_MAINT;
+	else
+		phba->sli.sli_flag &= ~LPFC_MENLO_MAINT;
 
-	if (la->attType == AT_LINK_UP) {
+	if (la->attType == AT_LINK_UP && (!la->mm)) {
 		phba->fc_stat.LinkUp++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -1090,13 +1099,15 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		} else {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 					"1303 Link Up Event x%x received "
-					"Data: x%x x%x x%x x%x\n",
+					"Data: x%x x%x x%x x%x x%x x%x %d\n",
 					la->eventTag, phba->fc_eventTag,
 					la->granted_AL_PA, la->UlnkSpeed,
-					phba->alpa_map[0]);
+					phba->alpa_map[0],
+					la->mm, la->fa,
+					phba->wait_4_mlo_maint_flg);
 		}
 		lpfc_mbx_process_link_up(phba, la);
-	} else {
+	} else if (la->attType == AT_LINK_DOWN) {
 		phba->fc_stat.LinkDown++;
 		if (phba->link_flag & LS_LOOPBACK_MODE) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
@@ -1109,11 +1120,46 @@ lpfc_mbx_cmpl_read_la(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		else {
 			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
 				"1305 Link Down Event x%x received "
+				"Data: x%x x%x x%x x%x x%x\n",
+				la->eventTag, phba->fc_eventTag,
+				phba->pport->port_state, vport->fc_flag,
+				la->mm, la->fa);
+		}
+		lpfc_mbx_issue_link_down(phba);
+	}
+	if (la->mm && la->attType == AT_LINK_UP) {
+		if (phba->link_state != LPFC_LINK_DOWN) {
+			phba->fc_stat.LinkDown++;
+			lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+				"1312 Link Down Event x%x received "
 				"Data: x%x x%x x%x\n",
 				la->eventTag, phba->fc_eventTag,
 				phba->pport->port_state, vport->fc_flag);
+			lpfc_mbx_issue_link_down(phba);
+		} else
+			lpfc_enable_la(phba);
+
+		lpfc_printf_log(phba, KERN_ERR, LOG_LINK_EVENT,
+				"1310 Menlo Maint Mode Link up Event x%x rcvd "
+				"Data: x%x x%x x%x\n",
+				la->eventTag, phba->fc_eventTag,
+				phba->pport->port_state, vport->fc_flag);
+		/*
+		 * The cmnd that triggered this will be waiting for this
+		 * signal.
+		 */
+		/* WAKEUP for MENLO_SET_MODE or MENLO_RESET command. */
+		if (phba->wait_4_mlo_maint_flg) {
+			phba->wait_4_mlo_maint_flg = 0;
+			wake_up_interruptible(&phba->wait_4_mlo_m_q);
 		}
-		lpfc_mbx_issue_link_down(phba);
+	}
+
+	if (la->fa) {
+		if (la->mm)
+			lpfc_issue_clear_la(phba, vport);
+		lpfc_printf_log(phba, KERN_INFO, LOG_LINK_EVENT,
+				"1311 fa %d\n", la->fa);
 	}
 
 lpfc_mbx_cmpl_read_la_free_mbuf:

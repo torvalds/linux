@@ -1050,6 +1050,8 @@ lpfc_sli_chk_mbx_command(uint8_t mbxCommand)
 	case MBX_REG_VPI:
 	case MBX_UNREG_VPI:
 	case MBX_HEARTBEAT:
+	case MBX_PORT_CAPABILITIES:
+	case MBX_PORT_IOV_CONTROL:
 		ret = mbxCommand;
 		break;
 	default:
@@ -3697,6 +3699,16 @@ __lpfc_sli_issue_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		 * can be issued if the link is not up.
 		 */
 		switch (piocb->iocb.ulpCommand) {
+		case CMD_GEN_REQUEST64_CR:
+		case CMD_GEN_REQUEST64_CX:
+			if (!(phba->sli.sli_flag & LPFC_MENLO_MAINT) ||
+				(piocb->iocb.un.genreq64.w5.hcsw.Rctl !=
+					FC_FCP_CMND) ||
+				(piocb->iocb.un.genreq64.w5.hcsw.Type !=
+					MENLO_TRANSPORT_TYPE))
+
+				goto iocb_busy;
+			break;
 		case CMD_QUE_RING_BUF_CN:
 		case CMD_QUE_RING_BUF64_CN:
 			/*

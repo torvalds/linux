@@ -211,6 +211,25 @@ lpfc_programtype_show(struct device *dev, struct device_attribute *attr,
 }
 
 /**
+ * lpfc_mlomgmt_show: Return the Menlo Maintenance sli flag.
+ * @dev: class converted to a Scsi_host structure.
+ * @attr: device attribute, not used.
+ * @buf: on return contains the Menlo Maintenance sli flag.
+ *
+ * Returns: size of formatted string.
+ **/
+static ssize_t
+lpfc_mlomgmt_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct Scsi_Host  *shost = class_to_shost(dev);
+	struct lpfc_vport *vport = (struct lpfc_vport *)shost->hostdata;
+	struct lpfc_hba   *phba = vport->phba;
+
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		(phba->sli.sli_flag & LPFC_MENLO_MAINT));
+}
+
+/**
  * lpfc_vportnum_show: Return the port number in ascii of the hba.
  * @dev: class converted to a Scsi_host structure.
  * @attr: device attribute, not used.
@@ -352,8 +371,10 @@ lpfc_link_state_show(struct device *dev, struct device_attribute *attr,
 					"Unknown\n");
 			break;
 		}
-
-		if (phba->fc_topology == TOPOLOGY_LOOP) {
+		if (phba->sli.sli_flag & LPFC_MENLO_MAINT)
+			len += snprintf(buf + len, PAGE_SIZE-len,
+					"   Menlo Maint Mode\n");
+		else if (phba->fc_topology == TOPOLOGY_LOOP) {
 			if (vport->fc_flag & FC_PUBLIC_LOOP)
 				len += snprintf(buf + len, PAGE_SIZE-len,
 						"   Public Loop\n");
@@ -1476,6 +1497,7 @@ static DEVICE_ATTR(option_rom_version, S_IRUGO,
 		   lpfc_option_rom_version_show, NULL);
 static DEVICE_ATTR(num_discovered_ports, S_IRUGO,
 		   lpfc_num_discovered_ports_show, NULL);
+static DEVICE_ATTR(menlo_mgmt_mode, S_IRUGO, lpfc_mlomgmt_show, NULL);
 static DEVICE_ATTR(nport_evt_cnt, S_IRUGO, lpfc_nport_evt_cnt_show, NULL);
 static DEVICE_ATTR(lpfc_drvr_version, S_IRUGO, lpfc_drvr_version_show, NULL);
 static DEVICE_ATTR(board_mode, S_IRUGO | S_IWUSR,
@@ -2395,6 +2417,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_option_rom_version,
 	&dev_attr_link_state,
 	&dev_attr_num_discovered_ports,
+	&dev_attr_menlo_mgmt_mode,
 	&dev_attr_lpfc_drvr_version,
 	&dev_attr_lpfc_temp_sensor,
 	&dev_attr_lpfc_log_verbose,
@@ -2763,6 +2786,8 @@ sysfs_mbox_read(struct kobject *kobj, struct bin_attribute *bin_attr,
 		case MBX_DEL_LD_ENTRY:
 		case MBX_SET_VARIABLE:
 		case MBX_WRITE_WWN:
+		case MBX_PORT_CAPABILITIES:
+		case MBX_PORT_IOV_CONTROL:
 			break;
 		case MBX_READ_SPARM64:
 		case MBX_READ_LA:
@@ -2867,7 +2892,7 @@ static struct bin_attribute sysfs_mbox_attr = {
 };
 
 /**
- * lpfc_alloc_sysfs_attr: Creates the sysfs, ctlreg, menlo and mbox entries.
+ * lpfc_alloc_sysfs_attr: Creates the ctlreg and mbox entries.
  * @vport: address of lpfc vport structure.
  *
  * Return codes:
@@ -2898,7 +2923,7 @@ out:
 }
 
 /**
- * lpfc_free_sysfs_attr: Removes the sysfs, ctlreg, menlo and mbox entries.
+ * lpfc_free_sysfs_attr: Removes the ctlreg and mbox entries.
  * @vport: address of lpfc vport structure.
  **/
 void

@@ -1130,6 +1130,7 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	lpfc_vpd_t *vp;
 	uint16_t dev_id = phba->pcidev->device;
 	int max_speed;
+	int GE = 0;
 	struct {
 		char * name;
 		int    max_speed;
@@ -1261,6 +1262,19 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	case PCI_DEVICE_ID_SAT_S:
 		m = (typeof(m)){"LPe12000-S", max_speed, "PCIe"};
 		break;
+	case PCI_DEVICE_ID_HORNET:
+		m = (typeof(m)){"LP21000", max_speed, "PCIe"};
+		GE = 1;
+		break;
+	case PCI_DEVICE_ID_PROTEUS_VF:
+		m = (typeof(m)) {"LPev12000", max_speed, "PCIe IOV"};
+		break;
+	case PCI_DEVICE_ID_PROTEUS_PF:
+		m = (typeof(m)) {"LPev12000", max_speed, "PCIe IOV"};
+		break;
+	case PCI_DEVICE_ID_PROTEUS_S:
+		m = (typeof(m)) {"LPemv12002-S", max_speed, "PCIe IOV"};
+		break;
 	default:
 		m = (typeof(m)){ NULL };
 		break;
@@ -1270,8 +1284,11 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 		snprintf(mdp, 79,"%s", m.name);
 	if (descp && descp[0] == '\0')
 		snprintf(descp, 255,
-			 "Emulex %s %dGb %s Fibre Channel Adapter",
-			 m.name, m.max_speed, m.bus);
+			"Emulex %s %d%s %s %s",
+			m.name, m.max_speed,
+			(GE) ? "GE" : "Gb",
+			m.bus,
+			(GE) ? "FCoE Adapter" : "Fibre Channel Adapter");
 }
 
 /**
@@ -2248,6 +2265,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 		goto out_free_phba;
 
 	INIT_LIST_HEAD(&phba->port_list);
+	init_waitqueue_head(&phba->wait_4_mlo_m_q);
 	/*
 	 * Get all the module params for configuring this host and then
 	 * establish the host.
@@ -2796,6 +2814,8 @@ static struct pci_device_id lpfc_id_table[] = {
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR,
 		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_HORNET,
+		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR_SCSP,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_ZEPHYR_DCSP,
@@ -2825,6 +2845,12 @@ static struct pci_device_id lpfc_id_table[] = {
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_SCSP,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_SAT_S,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PROTEUS_VF,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PROTEUS_PF,
+		PCI_ANY_ID, PCI_ANY_ID, },
+	{PCI_VENDOR_ID_EMULEX, PCI_DEVICE_ID_PROTEUS_S,
 		PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0 }
 };

@@ -613,6 +613,7 @@ struct lpfc_hba {
 	unsigned long last_completion_time;
 	struct timer_list hb_tmofunc;
 	uint8_t hb_outstanding;
+	enum hba_temp_state over_temp_state;
 	/* ndlp reference management */
 	spinlock_t ndlp_lock;
 	/*
@@ -621,7 +622,8 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
-	enum hba_temp_state over_temp_state;
+	int wait_4_mlo_maint_flg;
+	wait_queue_head_t wait_4_mlo_m_q;
 };
 
 static inline struct Scsi_Host *
