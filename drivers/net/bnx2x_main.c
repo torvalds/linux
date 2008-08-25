@@ -1717,8 +1717,8 @@ static int bnx2x_acquire_hw_lock(struct bnx2x *bp, u32 resource)
 		return -EEXIST;
 	}
 
-	/* Try for 1 second every 5ms */
-	for (cnt = 0; cnt < 200; cnt++) {
+	/* Try for 5 second every 5ms */
+	for (cnt = 0; cnt < 1000; cnt++) {
 		/* Try to acquire the lock */
 		REG_WR(bp, hw_lock_control_reg + 4, resource_bit);
 		lock_status = REG_RD(bp, hw_lock_control_reg);
