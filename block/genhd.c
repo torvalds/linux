@@ -236,7 +236,7 @@ static int printk_partition(struct device *dev, void *data)
 	int n;
 
 	if (dev->type != &disk_type)
-		goto exit;
+		return 0;
 
 	sgp = dev_to_disk(dev);
 	/*
@@ -244,7 +244,7 @@ static int printk_partition(struct device *dev, void *data)
 	 */
 	if (get_capacity(sgp) == 0 ||
 	    (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO))
-		goto exit;
+		return 0;
 
 	/*
 	 * Note, unlike /proc/partitions, I am showing the numbers in
@@ -264,15 +264,15 @@ static int printk_partition(struct device *dev, void *data)
 	/* now show the partitions */
 	for (n = 0; n < sgp->minors - 1; ++n) {
 		if (sgp->part[n] == NULL)
-			goto exit;
+			continue;
 		if (sgp->part[n]->nr_sects == 0)
-			goto exit;
+			continue;
 		printk("  %02x%02x %10llu %s\n",
 			sgp->major, n + 1 + sgp->first_minor,
 			(unsigned long long)sgp->part[n]->nr_sects >> 1,
 			disk_name(sgp, n + 1, buf));
 	}
-exit:
+
 	return 0;
 }
 
