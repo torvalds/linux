@@ -983,7 +983,7 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-#if defined(CONFIG_BF527) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
 	/* Clear EMAC Interrupt Status bits so we can demux it later */
 	bfin_write_EMAC_SYSTAT(-1);
 #endif
