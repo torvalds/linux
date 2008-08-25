@@ -22,6 +22,7 @@
 #include <asm/prom.h>
 #include <asm/head.h>
 #include <asm/io.h>
+#include <asm/memctrl.h>
 
 #define DRV_MODULE_NAME		"chmc"
 #define PFX DRV_MODULE_NAME	": "
@@ -158,9 +159,9 @@ static struct chmc_bank_info *chmc_find_bank(unsigned long phys_addr)
 /* This is the main purpose of this driver. */
 #define SYNDROME_MIN	-1
 #define SYNDROME_MAX	144
-int chmc_getunumber(int syndrome_code,
-		    unsigned long phys_addr,
-		    char *buf, int buflen)
+static int chmc_print_dimm(int syndrome_code,
+			   unsigned long phys_addr,
+			   char *buf, int buflen)
 {
 	struct chmc_bank_info *bp;
 	struct chmc_obp_mem_layout *prop;
@@ -466,16 +467,26 @@ static inline bool chmc_platform(void)
 
 static int __init chmc_init(void)
 {
+	int ret;
+
 	if (!chmc_platform())
 		return -ENODEV;
 
-	return of_register_driver(&chmc_driver, &of_bus_type);
+	ret = register_dimm_printer(chmc_print_dimm);
+	if (!ret) {
+		ret = of_register_driver(&chmc_driver, &of_bus_type);
+		if (ret)
+			unregister_dimm_printer(chmc_print_dimm);
+	}
+	return ret;
 }
 
 static void __exit chmc_cleanup(void)
 {
-	if (chmc_platform())
+	if (chmc_platform()) {
+		unregister_dimm_printer(chmc_print_dimm);
 		of_unregister_driver(&chmc_driver);
+	}
 }
 
 module_init(chmc_init);
