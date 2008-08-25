@@ -716,3 +716,73 @@ int usb_wait_anchor_empty_timeout(struct usb_anchor *anchor,
 				  msecs_to_jiffies(timeout));
 }
 EXPORT_SYMBOL_GPL(usb_wait_anchor_empty_timeout);
+
+/**
+ * usb_get_from_anchor - get an anchor's oldest urb
+ * @anchor: the anchor whose urb you want
+ *
+ * this will take the oldest urb from an anchor,
+ * unanchor and return it
+ */
+struct urb *usb_get_from_anchor(struct usb_anchor *anchor)
+{
+	struct urb *victim;
+	unsigned long flags;
+
+	spin_lock_irqsave(&anchor->lock, flags);
+	if (!list_empty(&anchor->urb_list)) {
+		victim = list_entry(anchor->urb_list.next, struct urb,
+				    anchor_list);
+		usb_get_urb(victim);
+		spin_unlock_irqrestore(&anchor->lock, flags);
+		usb_unanchor_urb(victim);
+	} else {
+		spin_unlock_irqrestore(&anchor->lock, flags);
+		victim = NULL;
+	}
+
+	return victim;
+}
+
+EXPORT_SYMBOL_GPL(usb_get_from_anchor);
+
+/**
+ * usb_scuttle_anchored_urbs - unanchor all an anchor's urbs
+ * @anchor: the anchor whose urbs you want to unanchor
+ *
+ * use this to get rid of all an anchor's urbs
+ */
+void usb_scuttle_anchored_urbs(struct usb_anchor *anchor)
+{
+	struct urb *victim;
+	unsigned long flags;
+
+	spin_lock_irqsave(&anchor->lock, flags);
+	while (!list_empty(&anchor->urb_list)) {
+		victim = list_entry(anchor->urb_list.prev, struct urb,
+				    anchor_list);
+		usb_get_urb(victim);
+		spin_unlock_irqrestore(&anchor->lock, flags);
+		/* this may free the URB */
+		usb_unanchor_urb(victim);
+		usb_put_urb(victim);
+		spin_lock_irqsave(&anchor->lock, flags);
+	}
+	spin_unlock_irqrestore(&anchor->lock, flags);
+}
+
+EXPORT_SYMBOL_GPL(usb_scuttle_anchored_urbs);
+
+/**
+ * usb_anchor_empty - is an anchor empty
+ * @anchor: the anchor you want to query
+ *
+ * returns 1 if the anchor has no urbs associated with it
+ */
+int usb_anchor_empty(struct usb_anchor *anchor)
+{
+	return list_empty(&anchor->urb_list);
+}
+
+EXPORT_SYMBOL_GPL(usb_anchor_empty);
+
