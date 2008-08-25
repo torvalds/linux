@@ -6492,7 +6492,7 @@ static int bnx2x_stop_multi(struct bnx2x *bp, int index)
 
 	/* halt the connection */
 	bp->fp[index].state = BNX2X_FP_STATE_HALTING;
-	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_HALT, index, 0, 0, 0);
+	bnx2x_sp_post(bp, RAMROD_CMD_ID_ETH_HALT, index, 0, index, 0);
 
 	/* Wait for completion */
 	rc = bnx2x_wait_ramrod(bp, BNX2X_FP_STATE_HALTED, index,
@@ -9492,8 +9492,7 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	fp_index = (smp_processor_id() % bp->num_queues);
 	fp = &bp->fp[fp_index];
 
-	if (unlikely(bnx2x_tx_avail(bp->fp) <
-					(skb_shinfo(skb)->nr_frags + 3))) {
+	if (unlikely(bnx2x_tx_avail(fp) < (skb_shinfo(skb)->nr_frags + 3))) {
 		bp->eth_stats.driver_xoff++,
 		netif_stop_queue(dev);
 		BNX2X_ERR("BUG! Tx ring full when queue awake!\n");
@@ -9556,7 +9555,6 @@ static int bnx2x_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		tx_bd->vlan = cpu_to_le16(pkt_prod);
 
 	if (xmit_type) {
-
 		/* turn on parsing and get a BD */
 		bd_prod = TX_BD(NEXT_TX_IDX(bd_prod));
 		pbd = (void *)&fp->tx_desc_ring[bd_prod];
