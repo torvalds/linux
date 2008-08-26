@@ -825,10 +825,6 @@ struct ath_hal_5416 {
 #define COEF_SCALE_S                24
 #define HT40_CHANNEL_CENTER_SHIFT   10
 
-#define ar5416CheckOpMode(_opmode)					\
-	((_opmode == ATH9K_M_STA) || (_opmode == ATH9K_M_IBSS) ||	\
-	 (_opmode == ATH9K_M_HOSTAP) || (_opmode == ATH9K_M_MONITOR))
-
 #define AR5416_EEPROM_MAGIC_OFFSET  0x0
 
 #define AR5416_EEPROM_S             2

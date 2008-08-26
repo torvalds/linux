@@ -628,11 +628,6 @@ struct ath9k_country_entry {
 				 (IEEE80211_WEP_IVLEN +		\
 				  IEEE80211_WEP_KIDLEN +	\
 				  IEEE80211_WEP_CRCLEN))
-#define IEEE80211_MAX_LEN       (2300 + FCS_LEN +		\
-				 (IEEE80211_WEP_IVLEN +		\
-				  IEEE80211_WEP_KIDLEN +	\
-				  IEEE80211_WEP_CRCLEN))
-
 #define MAX_RATE_POWER 63
 
 enum ath9k_power_mode {

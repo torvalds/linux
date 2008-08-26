@@ -454,31 +454,6 @@ void ath_beacon_return(struct ath_softc *sc, struct ath_vap *avp)
 }
 
 /*
- *  Reclaim beacon resources and return buffer to the pool.
- *
- *  This function will free any wbuf frames that are still attached to the
- *  beacon buffers in the ATH object.  Note that this does not de-allocate
- *  any wbuf objects that are in the transmit queue and have not yet returned
- *  to the ATH object.
-*/
-
-void ath_beacon_free(struct ath_softc *sc)
-{
-	struct ath_buf *bf;
-
-	list_for_each_entry(bf, &sc->sc_bbuf, list) {
-		if (bf->bf_mpdu != NULL) {
-			struct sk_buff *skb = (struct sk_buff *) bf->bf_mpdu;
-			pci_unmap_single(sc->pdev, bf->bf_dmacontext,
-					 skb_end_pointer(skb) - skb->head,
-					 PCI_DMA_TODEVICE);
-			dev_kfree_skb_any(skb);
-			bf->bf_mpdu = NULL;
-		}
-	}
-}
-
-/*
  * Tasklet for Sending Beacons
  *
  * Transmit one or more beacon frames at SWBA.  Dynamic updates to the frame

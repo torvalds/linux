@@ -1167,11 +1167,6 @@ int ath_rx_subframe(struct ath_node *an,
 	return 0;
 }
 
-enum ath9k_ht_macmode ath_cwm_macmode(struct ath_softc *sc)
-{
-	return sc->sc_ht_info.tx_chan_width;
-}
-
 /********************************/
 /*	 LED functions		*/
 /********************************/
