@@ -210,6 +210,7 @@ enum {
 	ALC883_LENOVO_101E_2ch,
 	ALC883_LENOVO_NB0763,
 	ALC888_LENOVO_MS7195_DIG,
+	ALC888_LENOVO_SKY,
 	ALC883_HAIER_W66,
 	ALC888_3ST_HP,
 	ALC888_6ST_DELL,
@@ -217,6 +218,8 @@ enum {
 	ALC883_CLEVO_M720,
 	ALC883_FUJITSU_PI2515,
 	ALC883_3ST_6ch_INTEL,
+	ALC888_ASUS_M90V,
+	ALC888_ASUS_EEE1601,
 	ALC883_AUTO,
 	ALC883_MODEL_LAST,
 };
@@ -6808,6 +6811,23 @@ static struct hda_input_mux alc883_fujitsu_pi2515_capture_source = {
 	},
 };
 
+static struct hda_input_mux alc883_lenovo_sky_capture_source = {
+	.num_items = 3,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Front Mic", 0x1 },
+		{ "Line", 0x4 },
+	},
+};
+
+static struct hda_input_mux alc883_asus_eee1601_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Mic", 0x0 },
+		{ "Line", 0x2 },
+	},
+};
+
 #define alc883_mux_enum_info alc_mux_enum_info
 #define alc883_mux_enum_get alc_mux_enum_get
 /* ALC883 has the ALC882-type input selection */
@@ -7122,13 +7142,11 @@ static struct snd_kcontrol_new alc883_3ST_6ch_mixer[] = {
 	HDA_CODEC_MUTE("PC Speaker Playback Switch", 0x0b, 0x05, HDA_INPUT),
 	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
 	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
-	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
-	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		/* .name = "Capture Source", */
 		.name = "Input Source",
-		.count = 2,
+		.count = 1,
 		.info = alc883_mux_enum_info,
 		.get = alc883_mux_enum_get,
 		.put = alc883_mux_enum_put,
@@ -7373,6 +7391,87 @@ static struct snd_kcontrol_new alc883_acer_aspire_mixer[] = {
 	{ } /* end */
 };
 
+static struct snd_kcontrol_new alc888_lenovo_sky_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Surround Playback Volume", 0x0e, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Surround Playback Switch", 0x0e, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME_MONO("Center Playback Volume",
+						0x0d, 1, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME_MONO("LFE Playback Volume", 0x0d, 2, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE_MONO("Center Playback Switch", 0x0d, 1, 2, HDA_INPUT),
+	HDA_BIND_MUTE_MONO("LFE Playback Switch", 0x0d, 2, 2, HDA_INPUT),
+	HDA_CODEC_VOLUME("Side Playback Volume", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Side Playback Switch", 0x0f, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x1b, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("iSpeaker Playback Switch", 0x1a, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Playback Volume", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Front Mic Boost", 0x19, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Front Mic Playback Switch", 0x0b, 0x1, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x08, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME_IDX("Capture Volume", 1, 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE_IDX("Capture Switch", 1, 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 2,
+		.info = alc883_mux_enum_info,
+		.get = alc883_mux_enum_get,
+		.put = alc883_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct hda_bind_ctls alc883_bind_cap_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x08, 3, 0, HDA_INPUT),
+		HDA_COMPOSE_AMP_VAL(0x09, 3, 0, HDA_INPUT),
+		0
+	},
+};
+
+static struct hda_bind_ctls alc883_bind_cap_switch = {
+	.ops = &snd_hda_bind_sw,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x08, 3, 0, HDA_INPUT),
+		HDA_COMPOSE_AMP_VAL(0x09, 3, 0, HDA_INPUT),
+		0
+	},
+};
+
+static struct snd_kcontrol_new alc883_asus_eee1601_mixer[] = {
+	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_BIND_MUTE("Front Playback Switch", 0x0c, 2, HDA_INPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Line Playback Volume", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_MUTE("Line Playback Switch", 0x0b, 0x02, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Mic Boost", 0x18, 0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_BIND_VOL("Capture Volume", &alc883_bind_cap_vol),
+	HDA_BIND_SW("Capture Switch", &alc883_bind_cap_switch),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc883_mux_enum_info,
+		.get = alc883_mux_enum_get,
+		.put = alc883_mux_enum_put,
+	},
+	{ } /* end */
+};
+
 static struct snd_kcontrol_new alc883_chmode_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
@@ -7386,7 +7485,7 @@ static struct snd_kcontrol_new alc883_chmode_mixer[] = {
 
 static struct hda_verb alc883_init_verbs[] = {
 	/* ADC1: mute amp left and right */
-	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x08, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
 	{0x08, AC_VERB_SET_CONNECT_SEL, 0x00},
 	/* ADC2: mute amp left and right */
 	{0x09, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
@@ -7451,14 +7550,14 @@ static struct hda_verb alc883_init_verbs[] = {
 	/* Mixer elements: 0x18, 19, 1a, 1b, 1c, 1d, 14, 15, 16, 17, 0b */
 	/* Input mixer2 */
 	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	/* Input mixer3 */
 	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(2)},
-	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(4)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(2)},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(4)},
 	{ }
 };
 
@@ -7605,6 +7704,18 @@ static struct hda_verb alc883_haier_w66_verbs[] = {
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{ } /* end */
+};
+
+static struct hda_verb alc888_lenovo_sky_verbs[] = {
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0c, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{0x0d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0e, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x1a, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x1a, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
 	{ } /* end */
 };
 
@@ -7904,6 +8015,50 @@ static void alc888_6st_dell_unsol_event(struct hda_codec *codec,
 	}
 }
 
+static void alc888_lenovo_sky_front_automute(struct hda_codec *codec)
+{
+	unsigned int mute;
+	unsigned int present;
+
+	snd_hda_codec_read(codec, 0x1b, 0, AC_VERB_SET_PIN_SENSE, 0);
+	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0);
+	present = (present & 0x80000000) != 0;
+	if (present) {
+		/* mute internal speaker */
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+		snd_hda_codec_amp_stereo(codec, 0x16, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+		snd_hda_codec_amp_stereo(codec, 0x17, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+		snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, HDA_AMP_MUTE);
+	} else {
+		/* unmute internal speaker if necessary */
+		mute = snd_hda_codec_amp_read(codec, 0x1b, 0, HDA_OUTPUT, 0);
+		snd_hda_codec_amp_stereo(codec, 0x14, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+		snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+		snd_hda_codec_amp_stereo(codec, 0x16, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+		snd_hda_codec_amp_stereo(codec, 0x17, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+		snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
+					 HDA_AMP_MUTE, mute);
+	}
+}
+
+static void alc883_lenovo_sky_unsol_event(struct hda_codec *codec,
+					     unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc888_lenovo_sky_front_automute(codec);
+}
+
 /*
  * generic initialization of ADC, input mixers and output mixers
  */
@@ -7988,6 +8143,105 @@ static struct snd_kcontrol_new alc883_capture_mixer[] = {
 	{ } /* end */
 };
 
+static struct hda_verb alc888_asus_m90v_verbs[] = {
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	/* enable unsolicited event */
+	{0x1b, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_MIC_EVENT | AC_USRSP_EN},
+	{ } /* end */
+};
+
+static void alc883_nb_mic_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x18, 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_write(codec, 0x23, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    0x7000 | (0x00 << 8) | (present ? 0 : 0x80));
+	snd_hda_codec_write(codec, 0x23, 0, AC_VERB_SET_AMP_GAIN_MUTE,
+			    0x7000 | (0x01 << 8) | (present ? 0x80 : 0));
+}
+
+static void alc883_M90V_speaker_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x1b, 0,
+				     AC_VERB_GET_PIN_SENSE, 0)
+		& AC_PINSENSE_PRESENCE;
+	bits = present ? 0 : PIN_OUT;
+	snd_hda_codec_write(codec, 0x14, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+	snd_hda_codec_write(codec, 0x15, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+	snd_hda_codec_write(codec, 0x16, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+}
+
+static void alc883_mode2_unsol_event(struct hda_codec *codec,
+					   unsigned int res)
+{
+	switch (res >> 26) {
+	case ALC880_HP_EVENT:
+		alc883_M90V_speaker_automute(codec);
+		break;
+	case ALC880_MIC_EVENT:
+		alc883_nb_mic_automute(codec);
+		break;
+	}
+}
+
+static void alc883_mode2_inithook(struct hda_codec *codec)
+{
+	alc883_M90V_speaker_automute(codec);
+	alc883_nb_mic_automute(codec);
+}
+
+static struct hda_verb alc888_asus_eee1601_verbs[] = {
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x22, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x23, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_MUTE(1)},
+	{0x20, AC_VERB_SET_COEF_INDEX, 0x0b},
+	{0x20, AC_VERB_SET_PROC_COEF,  0x0838},
+	/* enable unsolicited event */
+	{0x14, AC_VERB_SET_UNSOLICITED_ENABLE, ALC880_HP_EVENT | AC_USRSP_EN},
+	{ } /* end */
+};
+
+static void alc883_eee1601_speaker_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x14, 0,
+				     AC_VERB_GET_PIN_SENSE, 0)
+		& AC_PINSENSE_PRESENCE;
+	bits = present ? 0 : PIN_OUT;
+	snd_hda_codec_write(codec, 0x1b, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+}
+
+static void alc883_eee1601_unsol_event(struct hda_codec *codec,
+					   unsigned int res)
+{
+	switch (res >> 26) {
+	case ALC880_HP_EVENT:
+		alc883_eee1601_speaker_automute(codec);
+		break;
+	}
+}
+
+static void alc883_eee1601_inithook(struct hda_codec *codec)
+{
+	alc883_eee1601_speaker_automute(codec);
+}
+
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 #define alc883_loopbacks	alc880_loopbacks
 #endif
@@ -8017,6 +8271,7 @@ static const char *alc883_models[ALC883_MODEL_LAST] = {
 	[ALC883_LENOVO_101E_2ch] = "lenovo-101e",
 	[ALC883_LENOVO_NB0763]	= "lenovo-nb0763",
 	[ALC888_LENOVO_MS7195_DIG] = "lenovo-ms7195-dig",
+	[ALC888_LENOVO_SKY] = "lenovo-sky",
 	[ALC883_HAIER_W66] 	= "haier-w66",
 	[ALC888_3ST_HP]		= "3stack-hp",
 	[ALC888_6ST_DELL]	= "6stack-dell",
@@ -8040,10 +8295,13 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x2a60, "HP Lucknow", ALC888_3ST_HP),
 	SND_PCI_QUIRK(0x103c, 0x2a61, "HP Nettle", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1043, 0x8249, "Asus M2A-VM HDMI", ALC883_3ST_6ch_DIG),
+	SND_PCI_QUIRK(0x1043, 0x8317, "Asus M90V", ALC888_ASUS_M90V),
+	SND_PCI_QUIRK(0x1043, 0x835f, "Asus Eee 1601", ALC888_ASUS_EEE1601),
 	SND_PCI_QUIRK(0x105b, 0x0ce8, "Foxconn P35AX-S", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x105b, 0x6668, "Foxconn", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1071, 0x8253, "Mitac 8252d", ALC883_MITAC),
 	SND_PCI_QUIRK(0x1071, 0x8258, "Evesham Voyaeger", ALC883_LAPTOP_EAPD),
+	SND_PCI_QUIRK(0x10f1, 0x2350, "TYAN-S2350", ALC888_6ST_DELL),
 	SND_PCI_QUIRK(0x108e, 0x534d, NULL, ALC883_3ST_6ch),
 	SND_PCI_QUIRK(0x1458, 0xa002, "MSI", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1462, 0x0349, "MSI", ALC883_TARGA_2ch_DIG),
@@ -8079,6 +8337,7 @@ static struct snd_pci_quirk alc883_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x17aa, 0x2085, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x3bfc, "Lenovo NB0763", ALC883_LENOVO_NB0763),
 	SND_PCI_QUIRK(0x17aa, 0x3bfd, "Lenovo NB0763", ALC883_LENOVO_NB0763),
+	SND_PCI_QUIRK(0x17aa, 0x101d, "Lenovo Sky", ALC888_LENOVO_SKY),
 	SND_PCI_QUIRK(0x17c0, 0x4071, "MEDION MD2", ALC883_MEDION_MD2),
 	SND_PCI_QUIRK(0x17f2, 0x5000, "Albatron KI690-AM2", ALC883_6ST_DIG),
 	SND_PCI_QUIRK(0x1991, 0x5625, "Haier W66", ALC883_HAIER_W66),
@@ -8334,6 +8593,49 @@ static struct alc_config_preset alc883_presets[] = {
 		.input_mux = &alc883_fujitsu_pi2515_capture_source,
 		.unsol_event = alc883_2ch_fujitsu_pi2515_unsol_event,
 		.init_hook = alc883_2ch_fujitsu_pi2515_automute,
+	},
+	[ALC888_LENOVO_SKY] = {
+		.mixers = { alc888_lenovo_sky_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc888_lenovo_sky_verbs},
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.dig_out_nid = ALC883_DIGOUT_NID,
+		.num_adc_nids = ARRAY_SIZE(alc883_adc_nids),
+		.adc_nids = alc883_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc883_sixstack_modes),
+		.channel_mode = alc883_sixstack_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc883_lenovo_sky_capture_source,
+		.unsol_event = alc883_lenovo_sky_unsol_event,
+		.init_hook = alc888_lenovo_sky_front_automute,
+	},
+	[ALC888_ASUS_M90V] = {
+		.mixers = { alc883_3ST_6ch_mixer, alc883_chmode_mixer },
+		.init_verbs = { alc883_init_verbs, alc888_asus_m90v_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.dig_out_nid = ALC883_DIGOUT_NID,
+		.dig_in_nid = ALC883_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_6ch_modes),
+		.channel_mode = alc883_3ST_6ch_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc883_fujitsu_pi2515_capture_source,
+		.unsol_event = alc883_mode2_unsol_event,
+		.init_hook = alc883_mode2_inithook,
+	},
+	[ALC888_ASUS_EEE1601] = {
+		.mixers = { alc883_asus_eee1601_mixer },
+		.init_verbs = { alc883_init_verbs, alc888_asus_eee1601_verbs },
+		.num_dacs = ARRAY_SIZE(alc883_dac_nids),
+		.dac_nids = alc883_dac_nids,
+		.dig_out_nid = ALC883_DIGOUT_NID,
+		.dig_in_nid = ALC883_DIGIN_NID,
+		.num_channel_mode = ARRAY_SIZE(alc883_3ST_2ch_modes),
+		.channel_mode = alc883_3ST_2ch_modes,
+		.need_dac_fix = 1,
+		.input_mux = &alc883_asus_eee1601_capture_source,
+		.unsol_event = alc883_eee1601_unsol_event,
+		.init_hook = alc883_eee1601_inithook,
 	},
 };
 
