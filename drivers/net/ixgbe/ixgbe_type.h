@@ -1049,9 +1049,12 @@ union ixgbe_adv_rx_desc {
 	} read;
 	struct {
 		struct {
-			struct {
-				__le16 pkt_info; /* RSS type, Packet type */
-				__le16 hdr_info; /* Split Header, header len */
+			union {
+				__le32 data;
+				struct {
+					__le16 pkt_info; /* RSS type, Packet type */
+					__le16 hdr_info; /* Split Header, header len */
+				} hs_rss;
 			} lo_dword;
 			union {
 				__le32 rss; /* RSS Hash */

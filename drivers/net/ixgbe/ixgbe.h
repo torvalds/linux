@@ -166,6 +166,7 @@ struct ixgbe_ring {
 
 	char name[IFNAMSIZ + 5];
 	u16 work_limit;                /* max work per interrupt */
+	u16 rx_buf_len;
 };
 
 #define RING_F_VMDQ 1
@@ -228,7 +229,6 @@ struct ixgbe_adapter {
 	struct timer_list watchdog_timer;
 	struct vlan_group *vlgrp;
 	u16 bd_number;
-	u16 rx_buf_len;
 	struct work_struct reset_task;
 	struct ixgbe_q_vector q_vector[MAX_MSIX_Q_VECTORS];
 	char name[MAX_MSIX_COUNT][IFNAMSIZ + 5];
