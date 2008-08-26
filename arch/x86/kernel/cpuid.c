@@ -89,7 +89,8 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 	struct cpuid_regs cmd;
 	int cpu = iminor(file->f_path.dentry->d_inode);
 	u64 pos = *ppos;
-	int err;
+	ssize_t bytes = 0;
+	int err = 0;
 
 	if (count % 16)
 		return -EINVAL;	/* Invalid chunk size */
@@ -99,14 +100,17 @@ static ssize_t cpuid_read(struct file *file, char __user *buf,
 		cmd.ecx = pos >> 32;
 		err = smp_call_function_single(cpu, cpuid_smp_cpuid, &cmd, 1);
 		if (err)
-			return err;
-		if (copy_to_user(tmp, &cmd, 16))
-			return -EFAULT;
+			break;
+		if (copy_to_user(tmp, &cmd, 16)) {
+			err = -EFAULT;
+			break;
+		}
 		tmp += 16;
+		bytes += 16;
 		*ppos = ++pos;
 	}
 
-	return tmp - buf;
+	return bytes ? bytes : err;
 }
 
 static int cpuid_open(struct inode *inode, struct file *file)
