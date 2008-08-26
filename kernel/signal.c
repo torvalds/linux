@@ -1338,6 +1338,7 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	struct siginfo info;
 	unsigned long flags;
 	struct sighand_struct *psig;
+	int ret = sig;
 
 	BUG_ON(sig == -1);
 
@@ -1402,7 +1403,7 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 		 * is implementation-defined: we do (if you don't want
 		 * it, just use SIG_IGN instead).
 		 */
-		tsk->exit_signal = -1;
+		ret = tsk->exit_signal = -1;
 		if (psig->action[SIGCHLD-1].sa.sa_handler == SIG_IGN)
 			sig = -1;
 	}
@@ -1411,7 +1412,7 @@ int do_notify_parent(struct task_struct *tsk, int sig)
 	__wake_up_parent(tsk, tsk->parent);
 	spin_unlock_irqrestore(&psig->siglock, flags);
 
-	return sig;
+	return ret;
 }
 
 static void do_notify_parent_cldstop(struct task_struct *tsk, int why)

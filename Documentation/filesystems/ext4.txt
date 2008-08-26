@@ -26,6 +26,12 @@ Mailing list: linux-ext4@vger.kernel.org
 
     git://git.kernel.org/pub/scm/fs/ext2/e2fsprogs.git
 
+  - Note that it is highly important to install the mke2fs.conf file
+    that comes with the e2fsprogs 1.41.x sources in /etc/mke2fs.conf. If
+    you have edited the /etc/mke2fs.conf file installed on your system,
+    you will need to merge your changes with the version from e2fsprogs
+    1.41.x.
+
   - Create a new filesystem using the ext4dev filesystem type:
 
     	# mke2fs -t ext4dev /dev/hda1

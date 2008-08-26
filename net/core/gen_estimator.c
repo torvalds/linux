@@ -99,7 +99,7 @@ struct gen_estimator_head
 
 static struct gen_estimator_head elist[EST_MAX_INTERVAL+1];
 
-/* Protects against NULL dereference and RCU write-side */
+/* Protects against NULL dereference */
 static DEFINE_RWLOCK(est_lock);
 
 static void est_timer(unsigned long arg)
@@ -185,7 +185,6 @@ int gen_new_estimator(struct gnet_stats_basic *bstats,
 	est->last_packets = bstats->packets;
 	est->avpps = rate_est->pps<<10;
 
-	write_lock_bh(&est_lock);
 	if (!elist[idx].timer.function) {
 		INIT_LIST_HEAD(&elist[idx].list);
 		setup_timer(&elist[idx].timer, est_timer, idx);
@@ -195,7 +194,6 @@ int gen_new_estimator(struct gnet_stats_basic *bstats,
 		mod_timer(&elist[idx].timer, jiffies + ((HZ/4) << idx));
 
 	list_add_rcu(&est->list, &elist[idx].list);
-	write_unlock_bh(&est_lock);
 	return 0;
 }
 
@@ -214,6 +212,7 @@ static void __gen_kill_estimator(struct rcu_head *head)
  * Removes the rate estimator specified by &bstats and &rate_est
  * and deletes the timer.
  *
+ * NOTE: Called under rtnl_mutex
  */
 void gen_kill_estimator(struct gnet_stats_basic *bstats,
 	struct gnet_stats_rate_est *rate_est)
@@ -227,17 +226,17 @@ void gen_kill_estimator(struct gnet_stats_basic *bstats,
 		if (!elist[idx].timer.function)
 			continue;
 
-		write_lock_bh(&est_lock);
 		list_for_each_entry_safe(e, n, &elist[idx].list, list) {
 			if (e->rate_est != rate_est || e->bstats != bstats)
 				continue;
 
+			write_lock_bh(&est_lock);
 			e->bstats = NULL;
+			write_unlock_bh(&est_lock);
 
 			list_del_rcu(&e->list);
 			call_rcu(&e->e_rcu, __gen_kill_estimator);
 		}
-		write_unlock_bh(&est_lock);
 	}
 }
 

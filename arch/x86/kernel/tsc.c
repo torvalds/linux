@@ -314,7 +314,7 @@ static int time_cpufreq_notifier(struct notifier_block *nb, unsigned long val,
 			mark_tsc_unstable("cpufreq changes");
 	}
 
-	set_cyc2ns_scale(tsc_khz_ref, freq->cpu);
+	set_cyc2ns_scale(tsc_khz, freq->cpu);
 
 	return 0;
 }
