@@ -1,13 +1,13 @@
 /*
- * include/asm-arm/plat-orion/orion_nand.h
+ * arch/arm/plat-orion/include/plat/orion_nand.h
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_PLAT_ORION_ORION_NAND_H
-#define __ASM_PLAT_ORION_ORION_NAND_H
+#ifndef __PLAT_ORION_NAND_H
+#define __PLAT_ORION_NAND_H
 
 /*
  * Device bus NAND private data

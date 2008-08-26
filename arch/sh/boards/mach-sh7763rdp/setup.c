@@ -15,8 +15,11 @@
 #include <linux/interrupt.h>
 #include <linux/input.h>
 #include <linux/mtd/physmap.h>
-#include <asm/io.h>
+#include <linux/fb.h>
+#include <linux/io.h>
 #include <asm/sh7763rdp.h>
+#include <asm/sh_eth.h>
+#include <asm/sh7760fb.h>
 
 /* NOR Flash */
 static struct mtd_partition sh7763rdp_nor_flash_partitions[] = {
@@ -60,8 +63,85 @@ static struct platform_device sh7763rdp_nor_flash_device = {
 	},
 };
 
+/* SH-Ether */
+static struct resource sh_eth_resources[] = {
+	{
+		.start  = 0xFEE00800,   /* use eth1 */
+		.end    = 0xFEE00F7C - 1,
+		.flags  = IORESOURCE_MEM,
+	}, {
+		.start  = 58,   /* irq number */
+		.end    = 58,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct sh_eth_plat_data sh7763_eth_pdata = {
+	.phy = 1,
+	.edmac_endian = EDMAC_LITTLE_ENDIAN,
+};
+
+static struct platform_device sh7763rdp_eth_device = {
+	.name       = "sh-eth",
+	.resource   = sh_eth_resources,
+	.num_resources  = ARRAY_SIZE(sh_eth_resources),
+	.dev        = {
+		.platform_data = &sh7763_eth_pdata,
+	},
+};
+
+/* SH7763 LCDC */
+static struct resource sh7763rdp_fb_resources[] = {
+	{
+		.start  = 0xFFE80000,
+		.end    = 0xFFE80442 - 1,
+		.flags  = IORESOURCE_MEM,
+	},
+};
+
+static struct fb_videomode sh7763fb_videomode = {
+	.refresh = 60,
+	.name = "VGA Monitor",
+	.xres = 640,
+	.yres = 480,
+	.pixclock = 10000,
+	.left_margin = 80,
+	.right_margin = 24,
+	.upper_margin = 30,
+	.lower_margin = 1,
+	.hsync_len = 96,
+	.vsync_len = 1,
+	.sync = 0,
+	.vmode = FB_VMODE_NONINTERLACED,
+	.flag = FBINFO_FLAG_DEFAULT,
+};
+
+static struct sh7760fb_platdata sh7763fb_def_pdata = {
+	.def_mode = &sh7763fb_videomode,
+	.ldmtr = (LDMTR_TFT_COLOR_16|LDMTR_MCNT),
+	.lddfr = LDDFR_16BPP_RGB565,
+	.ldpmmr = 0x0000,
+	.ldpspr = 0xFFFF,
+	.ldaclnr = 0x0001,
+	.ldickr = 0x1102,
+	.rotate = 0,
+	.novsync = 0,
+	.blank = NULL,
+};
+
+static struct platform_device sh7763rdp_fb_device = {
+	.name		= "sh7760-lcdc",
+	.resource	= sh7763rdp_fb_resources,
+	.num_resources = ARRAY_SIZE(sh7763rdp_fb_resources),
+	.dev = {
+		.platform_data = &sh7763fb_def_pdata,
+	},
+};
+
 static struct platform_device *sh7763rdp_devices[] __initdata = {
 	&sh7763rdp_nor_flash_device,
+	&sh7763rdp_eth_device,
+	&sh7763rdp_fb_device,
 };
 
 static int __init sh7763rdp_devices_setup(void)
@@ -69,7 +149,7 @@ static int __init sh7763rdp_devices_setup(void)
 	return platform_add_devices(sh7763rdp_devices,
 				    ARRAY_SIZE(sh7763rdp_devices));
 }
-__initcall(sh7763rdp_devices_setup);
+device_initcall(sh7763rdp_devices_setup);
 
 static void __init sh7763rdp_setup(char **cmdline_p)
 {

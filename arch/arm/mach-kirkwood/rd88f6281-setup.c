@@ -23,7 +23,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
 #include <mach/kirkwood.h>
-#include <asm/plat-orion/orion_nand.h>
+#include <plat/orion_nand.h>
 #include "common.h"
 
 static struct mtd_partition rd88f6281_nand_parts[] = {

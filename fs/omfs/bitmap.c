@@ -92,7 +92,7 @@ int omfs_allocate_block(struct super_block *sb, u64 block)
 	struct buffer_head *bh;
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	int bits_per_entry = 8 * sb->s_blocksize;
-	int map, bit;
+	unsigned int map, bit;
 	int ret = 0;
 	u64 tmp;
 
@@ -176,7 +176,8 @@ int omfs_clear_range(struct super_block *sb, u64 block, int count)
 	struct omfs_sb_info *sbi = OMFS_SB(sb);
 	int bits_per_entry = 8 * sb->s_blocksize;
 	u64 tmp;
-	int map, bit, ret;
+	unsigned int map, bit;
+	int ret;
 
 	tmp = block;
 	bit = do_div(tmp, bits_per_entry);

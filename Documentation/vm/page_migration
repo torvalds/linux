@@ -18,10 +18,11 @@ migrate_pages function call takes two sets of nodes and moves pages of a
 process that are located on the from nodes to the destination nodes.
 Page migration functions are provided by the numactl package by Andi Kleen
 (a version later than 0.9.3 is required. Get it from
-ftp://ftp.suse.com/pub/people/ak). numactl provided libnuma which
-provides an interface similar to other numa functionality for page migration.
-cat /proc/<pid>/numa_maps allows an easy review of where the pages of
-a process are located. See also the numa_maps manpage in the numactl package.
+ftp://oss.sgi.com/www/projects/libnuma/download/). numactl provides libnuma
+which provides an interface similar to other numa functionality for page
+migration.  cat /proc/<pid>/numa_maps allows an easy review of where the
+pages of a process are located. See also the numa_maps documentation in the
+proc(5) man page.
 
 Manual migration is useful if for example the scheduler has relocated
 a process to a processor on a distant node. A batch scheduler or an

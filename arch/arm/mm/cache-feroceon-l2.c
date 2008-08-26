@@ -14,7 +14,7 @@
 
 #include <linux/init.h>
 #include <asm/cacheflush.h>
-#include <asm/plat-orion/cache-feroceon-l2.h>
+#include <plat/cache-feroceon-l2.h>
 
 
 /*

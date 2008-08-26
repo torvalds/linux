@@ -298,7 +298,7 @@ static void __disable_runtime(struct rq *rq)
 			struct rt_rq *iter = sched_rt_period_rt_rq(rt_b, i);
 			s64 diff;
 
-			if (iter == rt_rq)
+			if (iter == rt_rq || iter->rt_runtime == RUNTIME_INF)
 				continue;
 
 			spin_lock(&iter->rt_runtime_lock);

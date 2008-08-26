@@ -263,8 +263,8 @@ int ubifs_calc_min_idx_lebs(struct ubifs_info *c)
 
 	idx_size = c->old_idx_sz + c->budg_idx_growth + c->budg_uncommitted_idx;
 
-	/* And make sure we have twice the index size of space reserved */
-	idx_size <<= 1;
+	/* And make sure we have thrice the index size of space reserved */
+	idx_size = idx_size + (idx_size << 1);
 
 	/*
 	 * We do not maintain 'old_idx_size' as 'old_idx_lebs'/'old_idx_bytes'
@@ -388,11 +388,11 @@ static int can_use_rp(struct ubifs_info *c)
  * This function makes sure UBIFS has enough free eraseblocks for index growth
  * and data.
  *
- * When budgeting index space, UBIFS reserves twice as more LEBs as the index
+ * When budgeting index space, UBIFS reserves thrice as many LEBs as the index
  * would take if it was consolidated and written to the flash. This guarantees
  * that the "in-the-gaps" commit method always succeeds and UBIFS will always
  * be able to commit dirty index. So this function basically adds amount of
- * budgeted index space to the size of the current index, multiplies this by 2,
+ * budgeted index space to the size of the current index, multiplies this by 3,
  * and makes sure this does not exceed the amount of free eraseblocks.
  *
  * Notes about @c->min_idx_lebs and @c->lst.idx_lebs variables:
@@ -543,8 +543,16 @@ int ubifs_budget_space(struct ubifs_info *c, struct ubifs_budget_req *req)
 	int err, idx_growth, data_growth, dd_growth;
 	struct retries_info ri;
 
+	ubifs_assert(req->new_page <= 1);
+	ubifs_assert(req->dirtied_page <= 1);
+	ubifs_assert(req->new_dent <= 1);
+	ubifs_assert(req->mod_dent <= 1);
+	ubifs_assert(req->new_ino <= 1);
+	ubifs_assert(req->new_ino_d <= UBIFS_MAX_INO_DATA);
 	ubifs_assert(req->dirtied_ino <= 4);
 	ubifs_assert(req->dirtied_ino_d <= UBIFS_MAX_INO_DATA * 4);
+	ubifs_assert(!(req->new_ino_d & 7));
+	ubifs_assert(!(req->dirtied_ino_d & 7));
 
 	data_growth = calc_data_growth(c, req);
 	dd_growth = calc_dd_growth(c, req);
@@ -618,8 +626,16 @@ again:
  */
 void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req)
 {
+	ubifs_assert(req->new_page <= 1);
+	ubifs_assert(req->dirtied_page <= 1);
+	ubifs_assert(req->new_dent <= 1);
+	ubifs_assert(req->mod_dent <= 1);
+	ubifs_assert(req->new_ino <= 1);
+	ubifs_assert(req->new_ino_d <= UBIFS_MAX_INO_DATA);
 	ubifs_assert(req->dirtied_ino <= 4);
 	ubifs_assert(req->dirtied_ino_d <= UBIFS_MAX_INO_DATA * 4);
+	ubifs_assert(!(req->new_ino_d & 7));
+	ubifs_assert(!(req->dirtied_ino_d & 7));
 	if (!req->recalculate) {
 		ubifs_assert(req->idx_growth >= 0);
 		ubifs_assert(req->data_growth >= 0);
@@ -647,7 +663,11 @@ void ubifs_release_budget(struct ubifs_info *c, struct ubifs_budget_req *req)
 
 	ubifs_assert(c->budg_idx_growth >= 0);
 	ubifs_assert(c->budg_data_growth >= 0);
+	ubifs_assert(c->budg_dd_growth >= 0);
 	ubifs_assert(c->min_idx_lebs < c->main_lebs);
+	ubifs_assert(!(c->budg_idx_growth & 7));
+	ubifs_assert(!(c->budg_data_growth & 7));
+	ubifs_assert(!(c->budg_dd_growth & 7));
 	spin_unlock(&c->space_lock);
 }
 
@@ -686,9 +706,10 @@ void ubifs_convert_page_budget(struct ubifs_info *c)
 void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
 				      struct ubifs_inode *ui)
 {
-	struct ubifs_budget_req req = {.dd_growth = c->inode_budget,
-				       .dirtied_ino_d = ui->data_len};
+	struct ubifs_budget_req req;
 
+	memset(&req, 0, sizeof(struct ubifs_budget_req));
+	req.dd_growth = c->inode_budget + ALIGN(ui->data_len, 8);
 	ubifs_release_budget(c, &req);
 }
 

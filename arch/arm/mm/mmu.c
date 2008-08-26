@@ -568,6 +568,55 @@ void __init iotable_init(struct map_desc *io_desc, int nr)
 		create_mapping(io_desc + i);
 }
 
+static int __init check_membank_valid(struct membank *mb)
+{
+	/*
+	 * Check whether this memory region has non-zero size.
+	 */
+	if (mb->size == 0)
+		return 0;
+
+	/*
+	 * Check whether this memory region would entirely overlap
+	 * the vmalloc area.
+	 */
+	if (phys_to_virt(mb->start) >= VMALLOC_MIN) {
+		printk(KERN_NOTICE "Ignoring RAM at %.8lx-%.8lx "
+			"(vmalloc region overlap).\n",
+			mb->start, mb->start + mb->size - 1);
+		return 0;
+	}
+
+	/*
+	 * Check whether this memory region would partially overlap
+	 * the vmalloc area.
+	 */
+	if (phys_to_virt(mb->start + mb->size) < phys_to_virt(mb->start) ||
+	    phys_to_virt(mb->start + mb->size) > VMALLOC_MIN) {
+		unsigned long newsize = VMALLOC_MIN - phys_to_virt(mb->start);
+
+		printk(KERN_NOTICE "Truncating RAM at %.8lx-%.8lx "
+			"to -%.8lx (vmalloc region overlap).\n",
+			mb->start, mb->start + mb->size - 1,
+			mb->start + newsize - 1);
+		mb->size = newsize;
+	}
+
+	return 1;
+}
+
+static void __init sanity_check_meminfo(struct meminfo *mi)
+{
+	int i;
+	int j;
+
+	for (i = 0, j = 0; i < mi->nr_banks; i++) {
+		if (check_membank_valid(&mi->bank[i]))
+			mi->bank[j++] = mi->bank[i];
+	}
+	mi->nr_banks = j;
+}
+
 static inline void prepare_page_table(struct meminfo *mi)
 {
 	unsigned long addr;
@@ -753,6 +802,7 @@ void __init paging_init(struct meminfo *mi, struct machine_desc *mdesc)
 	void *zero_page;
 
 	build_mem_type_table();
+	sanity_check_meminfo(mi);
 	prepare_page_table(mi);
 	bootmem_init(mi);
 	devicemaps_init(mdesc);

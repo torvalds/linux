@@ -587,6 +587,9 @@ acpi_rs_get_pci_routing_table_length(union acpi_operand_object *package_object,
 			} else {
 				temp_size_needed +=
 				    acpi_ns_get_pathname_length((*sub_object_list)->reference.node);
+				if (!temp_size_needed) {
+					return_ACPI_STATUS(AE_BAD_PARAMETER);
+				}
 			}
 		} else {
 			/*
