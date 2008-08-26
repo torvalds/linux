@@ -462,6 +462,12 @@ struct saa7134_mpeg_ops {
 	void                       (*signal_change)(struct saa7134_dev *dev);
 };
 
+enum saa7134_ts_status {
+	SAA7134_TS_STOPPED,
+	SAA7134_TS_BUFF_DONE,
+	SAA7134_TS_STARTED,
+};
+
 /* global device status */
 struct saa7134_dev {
 	struct list_head           devlist;
@@ -555,6 +561,8 @@ struct saa7134_dev {
 	/* SAA7134_MPEG_* */
 	struct saa7134_ts          ts;
 	struct saa7134_dmaqueue    ts_q;
+	enum saa7134_ts_status 	   ts_state;
+	unsigned int 		   buff_cnt;
 	struct saa7134_mpeg_ops    *mops;
 	struct i2c_client 	   *mpeg_i2c_client;
 
