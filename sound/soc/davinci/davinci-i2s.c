@@ -256,7 +256,7 @@ static int davinci_i2s_hw_params(struct snd_pcm_substream *substream,
 		mcbsp_word_length = DAVINCI_MCBSP_WORD_32;
 		break;
 	default:
-		printk(KERN_WARNING "davinci-i2s: unsupported PCM format");
+		printk(KERN_WARNING "davinci-i2s: unsupported PCM format\n");
 		return -EINVAL;
 	}
 

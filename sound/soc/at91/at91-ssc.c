@@ -408,7 +408,7 @@ static int at91_ssc_hw_params(struct snd_pcm_substream *substream,
 		dma_params->pdc_xfer_size = 4;
 		break;
 	default:
-		printk(KERN_WARNING "at91-ssc: unsupported PCM format");
+		printk(KERN_WARNING "at91-ssc: unsupported PCM format\n");
 		return -EINVAL;
 	}
 
