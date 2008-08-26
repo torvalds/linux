@@ -102,6 +102,7 @@ enum {
 	ALC262_ULTRA,
 	ALC262_LENOVO_3000,
 	ALC262_NEC,
+	ALC262_TOSHIBA_S06,
 	ALC262_AUTO,
 	ALC262_MODEL_LAST /* last tag */
 };
@@ -8539,6 +8540,13 @@ static int patch_alc883(struct hda_codec *codec)
 #define alc262_modes		alc260_modes
 #define alc262_capture_source	alc882_capture_source
 
+static hda_nid_t alc262_dmic_adc_nids[1] = {
+	/* ADC0 */
+	0x09
+};
+
+static hda_nid_t alc262_dmic_capsrc_nids[1] = { 0x22 };
+
 static struct snd_kcontrol_new alc262_base_mixer[] = {
 	HDA_CODEC_VOLUME("Front Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
 	HDA_CODEC_MUTE("Front Playback Switch", 0x14, 0x0, HDA_OUTPUT),
@@ -8945,6 +8953,12 @@ static struct hda_verb alc262_init_verbs[] = {
 	{ }
 };
 
+static struct hda_verb alc262_eapd_verbs[] = {
+	{0x14, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{0x15, AC_VERB_SET_EAPD_BTLENABLE, 2},
+	{ }
+};
+
 static struct hda_verb alc262_hippo_unsol_verbs[] = {
 	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
@@ -8970,6 +8984,91 @@ static struct hda_verb alc262_sony_unsol_verbs[] = {
 	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{}
 };
+
+static struct hda_input_mux alc262_dmic_capture_source = {
+	.num_items = 2,
+	.items = {
+		{ "Int DMic", 0x9 },
+		{ "Mic", 0x0 },
+	},
+};
+
+static struct snd_kcontrol_new alc262_toshiba_s06_mixer[] = {
+	HDA_CODEC_VOLUME("Speaker Playback Volume", 0x0c, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x14, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x15, 0x0, HDA_OUTPUT),
+	HDA_CODEC_VOLUME("Mic Playback Volume", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Mic Playback Switch", 0x0b, 0x0, HDA_INPUT),
+	HDA_CODEC_VOLUME("Capture Volume", 0x09, 0x0, HDA_INPUT),
+	HDA_CODEC_MUTE("Capture Switch", 0x09, 0x0, HDA_INPUT),
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		/* The multiple "Capture Source" controls confuse alsamixer
+		 * So call somewhat different..
+		 */
+		/* .name = "Capture Source", */
+		.name = "Input Source",
+		.count = 1,
+		.info = alc_mux_enum_info,
+		.get = alc_mux_enum_get,
+		.put = alc_mux_enum_put,
+	},
+	{ } /* end */
+};
+
+static struct hda_verb alc262_toshiba_s06_verbs[] = {
+	{0x12, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
+	{0x14, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x00},
+	{0x22, AC_VERB_SET_CONNECT_SEL, 0x09},
+	{0x18, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x24},
+	{0x18, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_MIC_EVENT},
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{}
+};
+
+static void alc262_dmic_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+
+	present = snd_hda_codec_read(codec, 0x18, 0,
+					AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_write(codec, 0x22, 0,
+				AC_VERB_SET_CONNECT_SEL, present ? 0x0 : 0x09);
+}
+
+/* toggle speaker-output according to the hp-jack state */
+static void alc262_toshiba_s06_speaker_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	unsigned char bits;
+
+	present = snd_hda_codec_read(codec, 0x15, 0,
+					AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	bits = present ? 0 : PIN_OUT;
+	snd_hda_codec_write(codec, 0x14, 0,
+					AC_VERB_SET_PIN_WIDGET_CONTROL, bits);
+}
+
+
+
+/* unsolicited event for HP jack sensing */
+static void alc262_toshiba_s06_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc262_toshiba_s06_speaker_automute(codec);
+	if ((res >> 26) == ALC880_MIC_EVENT)
+		alc262_dmic_automute(codec);
+
+}
+
+static void alc262_toshiba_s06_init_hook(struct hda_codec *codec)
+{
+	alc262_toshiba_s06_speaker_automute(codec);
+	alc262_dmic_automute(codec);
+}
 
 /* mute/unmute internal speaker according to the hp jack and mute state */
 static void alc262_hippo_automute(struct hda_codec *codec)
@@ -9889,6 +9988,7 @@ static struct snd_pci_quirk alc262_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x104d, 0x9015, "Sony 0x9015", ALC262_SONY_ASSAMD),
 	SND_PCI_QUIRK(0x1179, 0x0001, "Toshiba dynabook SS RX1",
 		      ALC262_SONY_ASSAMD),
+	SND_PCI_QUIRK(0x1179, 0x0268, "Toshiba S06", ALC262_TOSHIBA_S06),
 	SND_PCI_QUIRK(0x10cf, 0x1397, "Fujitsu", ALC262_FUJITSU),
 	SND_PCI_QUIRK(0x10cf, 0x142d, "Fujitsu Lifebook E8410", ALC262_FUJITSU),
 	SND_PCI_QUIRK(0x144d, 0xc032, "Samsung Q1 Ultra", ALC262_ULTRA),
@@ -10079,6 +10179,21 @@ static struct alc_config_preset alc262_presets[] = {
 		.num_channel_mode = ARRAY_SIZE(alc262_modes),
 		.channel_mode = alc262_modes,
 		.input_mux = &alc262_capture_source,
+	},
+	[ALC262_TOSHIBA_S06] = {
+		.mixers = { alc262_toshiba_s06_mixer },
+		.init_verbs = { alc262_init_verbs, alc262_toshiba_s06_verbs,
+							alc262_eapd_verbs },
+		.num_dacs = ARRAY_SIZE(alc262_dac_nids),
+		.capsrc_nids = alc262_dmic_capsrc_nids,
+		.dac_nids = alc262_dac_nids,
+		.adc_nids = alc262_dmic_adc_nids, /* ADC0 */
+		.dig_out_nid = ALC262_DIGOUT_NID,
+		.num_channel_mode = ARRAY_SIZE(alc262_modes),
+		.channel_mode = alc262_modes,
+		.input_mux = &alc262_dmic_capture_source,
+		.unsol_event = alc262_toshiba_s06_unsol_event,
+		.init_hook = alc262_toshiba_s06_init_hook,
 	},
 };
 
