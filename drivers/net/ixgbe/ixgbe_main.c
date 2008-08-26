@@ -420,14 +420,12 @@ static void ixgbe_receive_skb(struct ixgbe_adapter *adapter,
  * @skb: skb currently being received and modified
  **/
 static inline void ixgbe_rx_checksum(struct ixgbe_adapter *adapter,
-					 u32 status_err,
-					 struct sk_buff *skb)
+                                     u32 status_err, struct sk_buff *skb)
 {
 	skb->ip_summed = CHECKSUM_NONE;
 
-	/* Ignore Checksum bit is set, or rx csum disabled */
-	if ((status_err & IXGBE_RXD_STAT_IXSM) ||
-	    !(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
+	/* Rx csum disabled */
+	if (!(adapter->flags & IXGBE_FLAG_RX_CSUM_ENABLED))
 		return;
 
 	/* if IP and error */
