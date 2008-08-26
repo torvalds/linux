@@ -970,7 +970,6 @@ struct ath_softc {
 	struct ath_descdma sc_rxdma;
 	int sc_rxbufsize;	/* rx size based on mtu */
 	u32 *sc_rxlink;		/* link ptr in last RX desc */
-	u64 sc_lastrx;		/* tsf of last rx'd frame */
 
 	/* TX */
 	struct list_head sc_txbuf;

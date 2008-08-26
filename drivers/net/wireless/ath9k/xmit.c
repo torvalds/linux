@@ -2309,8 +2309,7 @@ int ath_tx_start(struct ath_softc *sc, struct sk_buff *skb)
 
 void ath_tx_tasklet(struct ath_softc *sc)
 {
-	u64 tsf = ath9k_hw_gettsf64(sc->sc_ah);
-	int i, nacked = 0;
+	int i;
 	u32 qcumask = ((1 << ATH9K_NUM_TX_QUEUES) - 1);
 
 	ath9k_hw_gettxintrtxqs(sc->sc_ah, &qcumask);
@@ -2320,10 +2319,8 @@ void ath_tx_tasklet(struct ath_softc *sc)
 	 */
 	for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i) && (qcumask & (1 << i)))
-			nacked += ath_tx_processq(sc, &sc->sc_txq[i]);
+			ath_tx_processq(sc, &sc->sc_txq[i]);
 	}
-	if (nacked)
-		sc->sc_lastrx = tsf;
 }
 
 void ath_tx_draintxq(struct ath_softc *sc,
