@@ -2412,10 +2412,10 @@ static void set_params(struct mv643xx_eth_private *mp,
 	else
 		uc_addr_get(mp, dev->dev_addr);
 
-	if (pd->phy_addr == -1) {
+	if (pd->phy_addr == MV643XX_ETH_PHY_NONE) {
 		mp->phy_addr = -1;
 	} else {
-		if (pd->force_phy_addr || pd->phy_addr) {
+		if (pd->phy_addr != MV643XX_ETH_PHY_ADDR_DEFAULT) {
 			mp->phy_addr = pd->phy_addr & 0x3f;
 			phy_addr_set(mp, mp->phy_addr);
 		} else {

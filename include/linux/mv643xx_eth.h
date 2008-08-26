@@ -21,6 +21,10 @@ struct mv643xx_eth_shared_platform_data {
 	unsigned int		t_clk;
 };
 
+#define MV643XX_ETH_PHY_ADDR_DEFAULT	0
+#define MV643XX_ETH_PHY_ADDR(x)		(0x80 | (x))
+#define MV643XX_ETH_PHY_NONE		0xff
+
 struct mv643xx_eth_platform_data {
 	/*
 	 * Pointer back to our parent instance, and our port number.
@@ -31,7 +35,6 @@ struct mv643xx_eth_platform_data {
 	/*
 	 * Whether a PHY is present, and if yes, at which address.
 	 */
-	int			force_phy_addr;
 	int			phy_addr;
 
 	/*
