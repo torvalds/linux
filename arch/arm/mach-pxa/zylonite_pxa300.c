@@ -215,7 +215,7 @@ static struct pca953x_platform_data gpio_exp[] = {
 	},
 };
 
-struct i2c_board_info zylonite_i2c_board_info[] = {
+static struct i2c_board_info zylonite_i2c_board_info[] = {
 	{
 		.type		= "pca9539",
 		.addr		= 0x74,
