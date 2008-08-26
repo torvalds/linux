@@ -53,6 +53,7 @@ txx9_reg_res_init(unsigned int pcode, unsigned long base, unsigned long size)
 		txx9_ce_res[i].name = txx9_ce_res_name[i];
 	}
 
+	txx9_pcode = pcode;
 	sprintf(txx9_pcode_str, "TX%x", pcode);
 	if (base) {
 		txx9_reg_res.start = base & 0xfffffffffULL;
