@@ -1227,11 +1227,11 @@ static void nonpaging_new_cr3(struct kvm_vcpu *vcpu)
 }
 
 static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
-			   int largepage, gfn_t gfn, pfn_t pfn,
-			   int level)
+			int largepage, gfn_t gfn, pfn_t pfn)
 {
 	hpa_t table_addr = vcpu->arch.mmu.root_hpa;
 	int pt_write = 0;
+	int level = vcpu->arch.mmu.shadow_root_level;
 
 	for (; ; level--) {
 		u32 index = PT64_INDEX(v, level);
@@ -1299,8 +1299,7 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	if (mmu_notifier_retry(vcpu, mmu_seq))
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
-	r = __direct_map(vcpu, v, write, largepage, gfn, pfn,
-			 PT32E_ROOT_LEVEL);
+	r = __direct_map(vcpu, v, write, largepage, gfn, pfn);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 
@@ -1455,7 +1454,7 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 		goto out_unlock;
 	kvm_mmu_free_some_pages(vcpu);
 	r = __direct_map(vcpu, gpa, error_code & PFERR_WRITE_MASK,
-			 largepage, gfn, pfn, kvm_x86_ops->get_tdp_level());
+			 largepage, gfn, pfn);
 	spin_unlock(&vcpu->kvm->mmu_lock);
 
 	return r;
