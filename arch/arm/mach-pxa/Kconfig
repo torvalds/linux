@@ -211,6 +211,11 @@ config MACH_ARMCORE
 	select PXA27x
 	select IWMMXT
 
+config MACH_CM_X300
+	bool "CompuLab CM-X300 modules"
+	select PXA3xx
+	select CPU_PXA300
+
 config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
