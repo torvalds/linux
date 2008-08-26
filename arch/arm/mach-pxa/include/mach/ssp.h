@@ -20,6 +20,7 @@
 #define __ASM_ARCH_SSP_H
 
 #include <linux/list.h>
+#include <linux/io.h>
 
 enum pxa_ssp_type {
 	SSP_UNDEFINED = 0,
@@ -77,6 +78,29 @@ void ssp_restore_state(struct ssp_dev *dev, struct ssp_state *ssp);
 int ssp_init(struct ssp_dev *dev, u32 port, u32 init_flags);
 int ssp_config(struct ssp_dev *dev, u32 mode, u32 flags, u32 psp_flags, u32 speed);
 void ssp_exit(struct ssp_dev *dev);
+
+/**
+ * ssp_write_reg - Write to a SSP register
+ *
+ * @dev: SSP device to access
+ * @reg: Register to write to
+ * @val: Value to be written.
+ */
+static inline void ssp_write_reg(struct ssp_device *dev, u32 reg, u32 val)
+{
+	__raw_writel(val, dev->mmio_base + reg);
+}
+
+/**
+ * ssp_read_reg - Read from a SSP register
+ *
+ * @dev: SSP device to access
+ * @reg: Register to read from
+ */
+static inline u32 ssp_read_reg(struct ssp_device *dev, u32 reg)
+{
+	return __raw_readl(dev->mmio_base + reg);
+}
 
 struct ssp_device *ssp_request(int port, const char *label);
 void ssp_free(struct ssp_device *);
