@@ -1930,6 +1930,16 @@ config CIFS_WEAK_PW_HASH
 
 	  If unsure, say N.
 
+config CIFS_UPCALL
+	  bool "Kerberos/SPNEGO advanced session setup"
+	  depends on CIFS && KEYS
+	  help
+	    Enables an upcall mechanism for CIFS which accesses
+	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
+	    Kerberos tickets which are needed to mount to certain secure servers
+	    (for which more secure Kerberos authentication is required). If
+	    unsure, say N.
+
 config CIFS_XATTR
         bool "CIFS extended attributes"
         depends on CIFS
@@ -1981,16 +1991,6 @@ config CIFS_EXPERIMENTAL
 	    setting a value of 1 to the pseudo-file /proc/fs/cifs/Experimental
 	    (which is disabled by default). See the file fs/cifs/README 
 	    for more details.  If unsure, say N.
-
-config CIFS_UPCALL
-	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
-	  depends on CIFS && KEYS
-	  help
-	    Enables an upcall mechanism for CIFS which accesses
-	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
-	    Kerberos tickets which are needed to mount to certain secure servers
-	    (for which more secure Kerberos authentication is required). If
-	    unsure, say N.
 
 config CIFS_DFS_UPCALL
 	  bool "DFS feature support (EXPERIMENTAL)"
