@@ -39,7 +39,7 @@ struct pwm_device {
 	unsigned char		 pwm_id;
 };
 
-#define pwm_dbg(_pwm, msg...) dev_info(&(_pwm)->pdev->dev, msg)
+#define pwm_dbg(_pwm, msg...) dev_dbg(&(_pwm)->pdev->dev, msg)
 
 static struct clk *clk_scaler[2];
 
