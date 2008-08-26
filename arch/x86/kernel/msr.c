@@ -79,8 +79,11 @@ static ssize_t msr_read(struct file *file, char __user *buf,
 
 	for (; count; count -= 8) {
 		err = rdmsr_safe_on_cpu(cpu, reg, &data[0], &data[1]);
-		if (err)
-			return -EIO;
+		if (err) {
+			if (err == -EFAULT) /* Fix idiotic error code */
+				err = -EIO;
+			return err;
+		}
 		if (copy_to_user(tmp, &data, 8))
 			return -EFAULT;
 		tmp += 2;
@@ -105,8 +108,11 @@ static ssize_t msr_write(struct file *file, const char __user *buf,
 		if (copy_from_user(&data, tmp, 8))
 			return -EFAULT;
 		err = wrmsr_safe_on_cpu(cpu, reg, data[0], data[1]);
-		if (err)
-			return -EIO;
+		if (err) {
+			if (err == -EFAULT) /* Fix idiotic error code */
+				err = -EIO;
+			return err;
+		}
 		tmp += 2;
 	}
 
