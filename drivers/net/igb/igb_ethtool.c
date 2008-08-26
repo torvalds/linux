@@ -373,13 +373,17 @@ static void igb_get_regs(struct net_device *netdev,
 	regs_buff[12] = rd32(E1000_EECD);
 
 	/* Interrupt */
-	regs_buff[13] = rd32(E1000_EICR);
+	/* Reading EICS for EICR because they read the
+	 * same but EICS does not clear on read */
+	regs_buff[13] = rd32(E1000_EICS);
 	regs_buff[14] = rd32(E1000_EICS);
 	regs_buff[15] = rd32(E1000_EIMS);
 	regs_buff[16] = rd32(E1000_EIMC);
 	regs_buff[17] = rd32(E1000_EIAC);
 	regs_buff[18] = rd32(E1000_EIAM);
-	regs_buff[19] = rd32(E1000_ICR);
+	/* Reading ICS for ICR because they read the
+	 * same but ICS does not clear on read */
+	regs_buff[19] = rd32(E1000_ICS);
 	regs_buff[20] = rd32(E1000_ICS);
 	regs_buff[21] = rd32(E1000_IMS);
 	regs_buff[22] = rd32(E1000_IMC);
