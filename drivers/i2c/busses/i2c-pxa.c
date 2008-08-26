@@ -909,12 +909,6 @@ static int i2c_pxa_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num
 	struct pxa_i2c *i2c = adap->algo_data;
 	int ret, i;
 
-	/* If the I2C controller is disabled we need to reset it (probably due
- 	   to a suspend/resume destroying state). We do this here as we can then
- 	   avoid worrying about resuming the controller before its users. */
-	if (!(readl(_ICR(i2c)) & ICR_IUE))
-		i2c_pxa_reset(i2c);
-
 	for (i = adap->retries; i >= 0; i--) {
 		ret = i2c_pxa_do_xfer(i2c, msgs, num);
 		if (ret != I2C_RETRY)
@@ -1085,9 +1079,33 @@ static int __exit i2c_pxa_remove(struct platform_device *dev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
+static int i2c_pxa_suspend_late(struct platform_device *dev, pm_message_t state)
+{
+	struct pxa_i2c *i2c = platform_get_drvdata(dev);
+	clk_disable(i2c->clk);
+	return 0;
+}
+
+static int i2c_pxa_resume_early(struct platform_device *dev)
+{
+	struct pxa_i2c *i2c = platform_get_drvdata(dev);
+
+	clk_enable(i2c->clk);
+	i2c_pxa_reset(i2c);
+
+	return 0;
+}
+#else
+#define i2c_pxa_suspend_late NULL
+#define i2c_pxa_resume_early NULL
+#endif
+
 static struct platform_driver i2c_pxa_driver = {
 	.probe		= i2c_pxa_probe,
 	.remove		= __exit_p(i2c_pxa_remove),
+	.suspend_late	= i2c_pxa_suspend_late,
+	.resume_early	= i2c_pxa_resume_early,
 	.driver		= {
 		.name	= "pxa2xx-i2c",
 		.owner	= THIS_MODULE,
