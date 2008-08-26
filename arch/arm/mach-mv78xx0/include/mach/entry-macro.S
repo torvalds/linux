@@ -26,14 +26,22 @@
 	ldr	\tmp, [\base, #IRQ_MASK_LOW_OFF]
 	mov	\irqnr, #31
 	ands	\irqstat, \irqstat, \tmp
+	bne	1001f
 
 	@ if no low interrupts set, check high interrupts
-	ldreq	\irqstat, [\base, #IRQ_CAUSE_HIGH_OFF]
-	ldreq	\tmp, [\base, #IRQ_MASK_HIGH_OFF]
-	moveq	\irqnr, #63
-	andeqs	\irqstat, \irqstat, \tmp
+	ldr	\irqstat, [\base, #IRQ_CAUSE_HIGH_OFF]
+	ldr	\tmp, [\base, #IRQ_MASK_HIGH_OFF]
+	mov	\irqnr, #63
+	ands	\irqstat, \irqstat, \tmp
+	bne	1001f
+
+	@ if no high interrupts set, check error interrupts
+	ldr	\irqstat, [\base, #IRQ_CAUSE_ERR_OFF]
+	ldr	\tmp, [\base, #IRQ_MASK_ERR_OFF]
+	mov	\irqnr, #95
+	ands	\irqstat, \irqstat, \tmp
 
 	@ find first active interrupt source
-	clzne	\irqstat, \irqstat
+1001:	clzne	\irqstat, \irqstat
 	subne	\irqnr, \irqnr, \irqstat
 	.endm

@@ -285,6 +285,11 @@ static struct resource mv78xx0_ge00_shared_resources[] = {
 		.start	= GE00_PHYS_BASE + 0x2000,
 		.end	= GE00_PHYS_BASE + 0x3fff,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "ge err irq",
+		.start	= IRQ_MV78XX0_GE_ERR,
+		.end	= IRQ_MV78XX0_GE_ERR,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -294,7 +299,7 @@ static struct platform_device mv78xx0_ge00_shared = {
 	.dev		= {
 		.platform_data	= &mv78xx0_ge00_shared_data,
 	},
-	.num_resources	= 1,
+	.num_resources	= ARRAY_SIZE(mv78xx0_ge00_shared_resources),
 	.resource	= mv78xx0_ge00_shared_resources,
 };
 
