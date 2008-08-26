@@ -34,8 +34,7 @@
 #include <linux/delay.h>
 #include <linux/blktrace_api.h>
 #include <linux/hash.h>
-
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
