@@ -39,7 +39,7 @@ static inline struct s3c24xx_gpio_chip *to_s3c_chip(struct gpio_chip *gpc)
  * drivers themsevles.
  */
 
-int s3c24xx_gpiolib_input(struct gpio_chip *chip, unsigned offset)
+static int s3c24xx_gpiolib_input(struct gpio_chip *chip, unsigned offset)
 {
 	struct s3c24xx_gpio_chip *ourchip = to_s3c_chip(chip);
 	void __iomem *base = ourchip->base;
@@ -58,7 +58,7 @@ int s3c24xx_gpiolib_input(struct gpio_chip *chip, unsigned offset)
 	return 0;
 }
 
-int s3c24xx_gpiolib_output(struct gpio_chip *chip,
+static int s3c24xx_gpiolib_output(struct gpio_chip *chip,
 				  unsigned offset, int value)
 {
 	struct s3c24xx_gpio_chip *ourchip = to_s3c_chip(chip);
@@ -86,7 +86,8 @@ int s3c24xx_gpiolib_output(struct gpio_chip *chip,
 	return 0;
 }
 
-void s3c24xx_gpiolib_set(struct gpio_chip *chip, unsigned offset, int value)
+static void s3c24xx_gpiolib_set(struct gpio_chip *chip,
+				unsigned offset, int value)
 {
 	struct s3c24xx_gpio_chip *ourchip = to_s3c_chip(chip);
 	void __iomem *base = ourchip->base;
@@ -104,7 +105,7 @@ void s3c24xx_gpiolib_set(struct gpio_chip *chip, unsigned offset, int value)
 	local_irq_restore(flags);
 }
 
-int s3c24xx_gpiolib_get(struct gpio_chip *chip, unsigned offset)
+static int s3c24xx_gpiolib_get(struct gpio_chip *chip, unsigned offset)
 {
 	struct s3c24xx_gpio_chip *ourchip = to_s3c_chip(chip);
 	unsigned long val;
@@ -150,8 +151,7 @@ static int s3c24xx_gpiolib_banka_output(struct gpio_chip *chip,
 	return 0;
 }
 
-
-struct s3c24xx_gpio_chip gpios[] = {
+static struct s3c24xx_gpio_chip gpios[] = {
 	[0] = {
 		.base	= S3C24XX_GPIO_BASE(S3C2410_GPA0),
 		.chip	= {
