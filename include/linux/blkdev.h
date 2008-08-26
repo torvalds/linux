@@ -817,8 +817,6 @@ extern void blk_put_queue(struct request_queue *);
 /*
  * tag stuff
  */
-#define blk_queue_tag_depth(q)		((q)->queue_tags->busy)
-#define blk_queue_tag_queue(q)		((q)->queue_tags->busy < (q)->queue_tags->max_depth)
 #define blk_rq_tagged(rq)		((rq)->cmd_flags & REQ_QUEUED)
 extern int blk_queue_start_tag(struct request_queue *, struct request *);
 extern struct request *blk_queue_find_tag(struct request_queue *, int);
