@@ -154,6 +154,10 @@ static struct resource orion5x_eth_shared_resources[] = {
 		.start	= ORION5X_ETH_PHYS_BASE + 0x2000,
 		.end	= ORION5X_ETH_PHYS_BASE + 0x3fff,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.start	= IRQ_ORION5X_ETH_ERR,
+		.end	= IRQ_ORION5X_ETH_ERR,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -163,7 +167,7 @@ static struct platform_device orion5x_eth_shared = {
 	.dev		= {
 		.platform_data	= &orion5x_eth_shared_data,
 	},
-	.num_resources	= 1,
+	.num_resources	= ARRAY_SIZE(orion5x_eth_shared_resources),
 	.resource	= orion5x_eth_shared_resources,
 };
 
