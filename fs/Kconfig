@@ -1984,7 +1984,7 @@ config CIFS_EXPERIMENTAL
 
 config CIFS_UPCALL
 	  bool "Kerberos/SPNEGO advanced session setup (EXPERIMENTAL)"
-	  depends on KEYS
+	  depends on CIFS && KEYS
 	  help
 	    Enables an upcall mechanism for CIFS which accesses
 	    userspace helper utilities to provide SPNEGO packaged (RFC 4178)
