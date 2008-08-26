@@ -72,6 +72,7 @@ enum {
 enum {
 	ALC260_BASIC,
 	ALC260_HP,
+	ALC260_HP_DC7600,
 	ALC260_HP_3013,
 	ALC260_FUJITSU_S702X,
 	ALC260_ACER,
@@ -4130,6 +4131,33 @@ static struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
 	{ } /* end */
 };
 
+static struct hda_bind_ctls alc260_dc7600_bind_master_vol = {
+	.ops = &snd_hda_bind_vol,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x08, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x09, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x0a, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
+
+static struct hda_bind_ctls alc260_dc7600_bind_switch = {
+	.ops = &snd_hda_bind_sw,
+	.values = {
+		HDA_COMPOSE_AMP_VAL(0x11, 3, 0, HDA_OUTPUT),
+		HDA_COMPOSE_AMP_VAL(0x15, 3, 0, HDA_OUTPUT),
+		0
+	},
+};
+
+static struct snd_kcontrol_new alc260_hp_dc7600_mixer[] = {
+	HDA_BIND_VOL("Master Playback Volume", &alc260_dc7600_bind_master_vol),
+	HDA_BIND_SW("LineOut Playback Switch", &alc260_dc7600_bind_switch),
+	HDA_CODEC_MUTE("Speaker Playback Switch", 0x0f, 0x0, HDA_OUTPUT),
+	HDA_CODEC_MUTE("Headphone Playback Switch", 0x10, 0x0, HDA_OUTPUT),
+	{ } /* end */
+};
+
 static struct hda_verb alc260_hp_3013_unsol_verbs[] = {
 	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
 	{},
@@ -4153,7 +4181,30 @@ static void alc260_hp_3013_unsol_event(struct hda_codec *codec,
 		alc260_hp_3013_automute(codec);
 }
 
-/* Fujitsu S702x series laptops.  ALC260 pin usage: Mic/Line jack = 0x12, 
+static void alc260_hp_3012_automute(struct hda_codec *codec)
+{
+	unsigned int present, bits;
+
+	present = snd_hda_codec_read(codec, 0x10, 0,
+			AC_VERB_GET_PIN_SENSE, 0) & AC_PINSENSE_PRESENCE;
+
+	bits = present ? 0 : PIN_OUT;
+	snd_hda_codec_write(codec, 0x0f, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+	snd_hda_codec_write(codec, 0x11, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+	snd_hda_codec_write(codec, 0x15, 0, AC_VERB_SET_PIN_WIDGET_CONTROL,
+			    bits);
+}
+
+static void alc260_hp_3012_unsol_event(struct hda_codec *codec,
+				       unsigned int res)
+{
+	if ((res >> 26) == ALC880_HP_EVENT)
+		alc260_hp_3012_automute(codec);
+}
+
+/* Fujitsu S702x series laptops.  ALC260 pin usage: Mic/Line jack = 0x12,
  * HP jack = 0x14, CD audio =  0x16, internal speaker = 0x10.
  */
 static struct snd_kcontrol_new alc260_fujitsu_mixer[] = {
@@ -4681,6 +4732,20 @@ static void alc260_replacer_672v_unsol_event(struct hda_codec *codec,
                 alc260_replacer_672v_automute(codec);
 }
 
+static struct hda_verb alc260_hp_dc7600_verbs[] = {
+	{0x05, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
+	{0x0f, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x10, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
+	{0x11, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
+	{0x13, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80},
+	{0x10, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x11, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{0x15, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | ALC880_HP_EVENT},
+	{}
+};
+
 /* Test configuration for debugging, modelled after the ALC880 test
  * configuration.
  */
@@ -5178,7 +5243,7 @@ static struct snd_pci_quirk alc260_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x103c, 0x280a, "HP d5750", ALC260_HP_3013),
 	SND_PCI_QUIRK(0x103c, 0x3010, "HP", ALC260_HP_3013),
 	SND_PCI_QUIRK(0x103c, 0x3011, "HP", ALC260_HP_3013),
-	SND_PCI_QUIRK(0x103c, 0x3012, "HP", ALC260_HP_3013),
+	SND_PCI_QUIRK(0x103c, 0x3012, "HP", ALC260_HP_DC7600),
 	SND_PCI_QUIRK(0x103c, 0x3013, "HP", ALC260_HP_3013),
 	SND_PCI_QUIRK(0x103c, 0x3014, "HP", ALC260_HP),
 	SND_PCI_QUIRK(0x103c, 0x3015, "HP", ALC260_HP),
@@ -5223,6 +5288,22 @@ static struct alc_config_preset alc260_presets[] = {
 		.input_mux = &alc260_capture_source,
 		.unsol_event = alc260_hp_unsol_event,
 		.init_hook = alc260_hp_automute,
+	},
+	[ALC260_HP_DC7600] = {
+		.mixers = { alc260_hp_dc7600_mixer,
+			    alc260_input_mixer,
+			    alc260_capture_alt_mixer },
+		.init_verbs = { alc260_init_verbs,
+				alc260_hp_dc7600_verbs },
+		.num_dacs = ARRAY_SIZE(alc260_dac_nids),
+		.dac_nids = alc260_dac_nids,
+		.num_adc_nids = ARRAY_SIZE(alc260_hp_adc_nids),
+		.adc_nids = alc260_hp_adc_nids,
+		.num_channel_mode = ARRAY_SIZE(alc260_modes),
+		.channel_mode = alc260_modes,
+		.input_mux = &alc260_capture_source,
+		.unsol_event = alc260_hp_3012_unsol_event,
+		.init_hook = alc260_hp_3012_automute,
 	},
 	[ALC260_HP_3013] = {
 		.mixers = { alc260_hp_3013_mixer,
