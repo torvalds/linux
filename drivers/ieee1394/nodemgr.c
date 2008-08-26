@@ -971,6 +971,9 @@ static struct unit_directory *nodemgr_process_unit_directory
 	ud->ud_kv = ud_kv;
 	ud->id = (*id)++;
 
+	/* inherit vendor_id from root directory if none exists in unit dir */
+	ud->vendor_id = ne->vendor_id;
+
 	csr1212_for_each_dir_entry(ne->csr, kv, ud_kv, dentry) {
 		switch (kv->key.id) {
 		case CSR1212_KV_ID_VENDOR:
