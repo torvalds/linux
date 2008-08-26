@@ -48,7 +48,7 @@
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
 #include <linux/workqueue.h>
-#include <linux/mii.h>
+#include <linux/phy.h>
 #include <linux/mv643xx_eth.h>
 #include <asm/io.h>
 #include <asm/types.h>
@@ -248,9 +248,9 @@ struct mv643xx_eth_shared_private {
 	struct mv643xx_eth_shared_private *smi;
 
 	/*
-	 * Protects access to SMI_REG, which is shared between ports.
+	 * Provides access to local SMI interface.
 	 */
-	struct mutex phy_lock;
+	struct mii_bus smi_bus;
 
 	/*
 	 * If we have access to the error interrupt pin (which is
@@ -354,14 +354,13 @@ struct mv643xx_eth_private {
 
 	struct net_device *dev;
 
-	int phy_addr;
+	struct phy_device *phy;
 
 	struct timer_list mib_counters_timer;
 	spinlock_t mib_counters_lock;
 	struct mib_counters mib_counters;
 
 	struct work_struct tx_timeout_task;
-	struct mii_if_info mii;
 
 	struct napi_struct napi;
 	u8 work_link;
@@ -1076,62 +1075,50 @@ static int smi_wait_ready(struct mv643xx_eth_shared_private *msp)
 	return 0;
 }
 
-static int smi_reg_read(struct mv643xx_eth_private *mp,
-			unsigned int addr, unsigned int reg)
+static int smi_bus_read(struct mii_bus *bus, int addr, int reg)
 {
-	struct mv643xx_eth_shared_private *msp = mp->shared->smi;
+	struct mv643xx_eth_shared_private *msp = bus->priv;
 	void __iomem *smi_reg = msp->base + SMI_REG;
 	int ret;
 
-	mutex_lock(&msp->phy_lock);
-
 	if (smi_wait_ready(msp)) {
-		printk("%s: SMI bus busy timeout\n", mp->dev->name);
-		ret = -ETIMEDOUT;
-		goto out;
+		printk("mv643xx_eth: SMI bus busy timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	writel(SMI_OPCODE_READ | (reg << 21) | (addr << 16), smi_reg);
 
 	if (smi_wait_ready(msp)) {
-		printk("%s: SMI bus busy timeout\n", mp->dev->name);
-		ret = -ETIMEDOUT;
-		goto out;
+		printk("mv643xx_eth: SMI bus busy timeout\n");
+		return -ETIMEDOUT;
 	}
 
 	ret = readl(smi_reg);
 	if (!(ret & SMI_READ_VALID)) {
-		printk("%s: SMI bus read not valid\n", mp->dev->name);
-		ret = -ENODEV;
-		goto out;
+		printk("mv643xx_eth: SMI bus read not valid\n");
+		return -ENODEV;
 	}
 
-	ret &= 0xffff;
-
-out:
-	mutex_unlock(&msp->phy_lock);
-
-	return ret;
+	return ret & 0xffff;
 }
 
-static int smi_reg_write(struct mv643xx_eth_private *mp, unsigned int addr,
-			 unsigned int reg, unsigned int value)
+static int smi_bus_write(struct mii_bus *bus, int addr, int reg, u16 val)
 {
-	struct mv643xx_eth_shared_private *msp = mp->shared->smi;
+	struct mv643xx_eth_shared_private *msp = bus->priv;
 	void __iomem *smi_reg = msp->base + SMI_REG;
 
-	mutex_lock(&msp->phy_lock);
-
 	if (smi_wait_ready(msp)) {
-		printk("%s: SMI bus busy timeout\n", mp->dev->name);
-		mutex_unlock(&msp->phy_lock);
+		printk("mv643xx_eth: SMI bus busy timeout\n");
 		return -ETIMEDOUT;
 	}
 
 	writel(SMI_OPCODE_WRITE | (reg << 21) |
-		(addr << 16) | (value & 0xffff), smi_reg);
+		(addr << 16) | (val & 0xffff), smi_reg);
 
-	mutex_unlock(&msp->phy_lock);
+	if (smi_wait_ready(msp)) {
+		printk("mv643xx_eth: SMI bus busy timeout\n");
+		return -ETIMEDOUT;
+	}
 
 	return 0;
 }
@@ -1287,7 +1274,9 @@ static int mv643xx_eth_get_settings(struct net_device *dev, struct ethtool_cmd *
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 	int err;
 
-	err = mii_ethtool_gset(&mp->mii, cmd);
+	err = phy_read_status(mp->phy);
+	if (err == 0)
+		err = phy_ethtool_gset(mp->phy, cmd);
 
 	/*
 	 * The MAC does not support 1000baseT_Half.
@@ -1341,7 +1330,7 @@ static int mv643xx_eth_set_settings(struct net_device *dev, struct ethtool_cmd *
 	 */
 	cmd->advertising &= ~ADVERTISED_1000baseT_Half;
 
-	return mii_ethtool_sset(&mp->mii, cmd);
+	return phy_ethtool_sset(mp->phy, cmd);
 }
 
 static int mv643xx_eth_set_settings_phyless(struct net_device *dev, struct ethtool_cmd *cmd)
@@ -1363,7 +1352,7 @@ static int mv643xx_eth_nway_reset(struct net_device *dev)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
-	return mii_nway_restart(&mp->mii);
+	return genphy_restart_aneg(mp->phy);
 }
 
 static int mv643xx_eth_nway_reset_phyless(struct net_device *dev)
@@ -1373,14 +1362,7 @@ static int mv643xx_eth_nway_reset_phyless(struct net_device *dev)
 
 static u32 mv643xx_eth_get_link(struct net_device *dev)
 {
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-
-	return mii_link_ok(&mp->mii);
-}
-
-static u32 mv643xx_eth_get_link_phyless(struct net_device *dev)
-{
-	return 1;
+	return !!netif_carrier_ok(dev);
 }
 
 static void mv643xx_eth_get_strings(struct net_device *dev,
@@ -1448,7 +1430,7 @@ static const struct ethtool_ops mv643xx_eth_ethtool_ops_phyless = {
 	.set_settings		= mv643xx_eth_set_settings_phyless,
 	.get_drvinfo		= mv643xx_eth_get_drvinfo,
 	.nway_reset		= mv643xx_eth_nway_reset_phyless,
-	.get_link		= mv643xx_eth_get_link_phyless,
+	.get_link		= mv643xx_eth_get_link,
 	.set_sg			= ethtool_op_set_sg,
 	.get_strings		= mv643xx_eth_get_strings,
 	.get_ethtool_stats	= mv643xx_eth_get_ethtool_stats,
@@ -1941,16 +1923,16 @@ static void phy_reset(struct mv643xx_eth_private *mp)
 {
 	int data;
 
-	data = smi_reg_read(mp, mp->phy_addr, MII_BMCR);
+	data = phy_read(mp->phy, MII_BMCR);
 	if (data < 0)
 		return;
 
 	data |= BMCR_RESET;
-	if (smi_reg_write(mp, mp->phy_addr, MII_BMCR, data) < 0)
+	if (phy_write(mp->phy, MII_BMCR, data) < 0)
 		return;
 
 	do {
-		data = smi_reg_read(mp, mp->phy_addr, MII_BMCR);
+		data = phy_read(mp->phy, MII_BMCR);
 	} while (data >= 0 && data & BMCR_RESET);
 }
 
@@ -1962,7 +1944,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	/*
 	 * Perform PHY reset, if there is a PHY.
 	 */
-	if (mp->phy_addr != -1) {
+	if (mp->phy != NULL) {
 		struct ethtool_cmd cmd;
 
 		mv643xx_eth_get_settings(mp->dev, &cmd);
@@ -1979,7 +1961,7 @@ static void port_start(struct mv643xx_eth_private *mp)
 	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
 
 	pscr |= DO_NOT_FORCE_LINK_FAIL;
-	if (mp->phy_addr == -1)
+	if (mp->phy == NULL)
 		pscr |= FORCE_LINK_PASS;
 	wrl(mp, PORT_SERIAL_CONTROL(mp->port_num), pscr);
 
@@ -2188,8 +2170,8 @@ static int mv643xx_eth_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 {
 	struct mv643xx_eth_private *mp = netdev_priv(dev);
 
-	if (mp->phy_addr != -1)
-		return generic_mii_ioctl(&mp->mii, if_mii(ifr), cmd, NULL);
+	if (mp->phy != NULL)
+		return phy_mii_ioctl(mp->phy, if_mii(ifr), cmd);
 
 	return -EOPNOTSUPP;
 }
@@ -2258,18 +2240,6 @@ static void mv643xx_eth_netpoll(struct net_device *dev)
 	wrl(mp, INT_MASK(mp->port_num), INT_TX_END | INT_RX | INT_EXT);
 }
 #endif
-
-static int mv643xx_eth_mdio_read(struct net_device *dev, int addr, int reg)
-{
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	return smi_reg_read(mp, addr, reg);
-}
-
-static void mv643xx_eth_mdio_write(struct net_device *dev, int addr, int reg, int val)
-{
-	struct mv643xx_eth_private *mp = netdev_priv(dev);
-	smi_reg_write(mp, addr, reg, val);
-}
 
 
 /* platform glue ************************************************************/
@@ -2365,11 +2335,23 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp->base == NULL)
 		goto out_free;
 
-	msp->smi = msp;
-	if (pd != NULL && pd->shared_smi != NULL)
+	/*
+	 * Set up and register SMI bus.
+	 */
+	if (pd == NULL || pd->shared_smi == NULL) {
+		msp->smi_bus.priv = msp;
+		msp->smi_bus.name = "mv643xx_eth smi";
+		msp->smi_bus.read = smi_bus_read;
+		msp->smi_bus.write = smi_bus_write,
+		snprintf(msp->smi_bus.id, MII_BUS_ID_SIZE, "%d", pdev->id);
+		msp->smi_bus.dev = &pdev->dev;
+		msp->smi_bus.phy_mask = 0xffffffff;
+		if (mdiobus_register(&msp->smi_bus) < 0)
+			goto out_unmap;
+		msp->smi = msp;
+	} else {
 		msp->smi = platform_get_drvdata(pd->shared_smi);
-
-	mutex_init(&msp->phy_lock);
+	}
 
 	msp->err_interrupt = NO_IRQ;
 	init_waitqueue_head(&msp->smi_busy_wait);
@@ -2405,6 +2387,8 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 
 	return 0;
 
+out_unmap:
+	iounmap(msp->base);
 out_free:
 	kfree(msp);
 out:
@@ -2414,7 +2398,10 @@ out:
 static int mv643xx_eth_shared_remove(struct platform_device *pdev)
 {
 	struct mv643xx_eth_shared_private *msp = platform_get_drvdata(pdev);
+	struct mv643xx_eth_shared_platform_data *pd = pdev->dev.platform_data;
 
+	if (pd == NULL || pd->shared_smi == NULL)
+		mdiobus_unregister(&msp->smi_bus);
 	if (msp->err_interrupt != NO_IRQ)
 		free_irq(msp->err_interrupt, msp);
 	iounmap(msp->base);
@@ -2462,17 +2449,6 @@ static void set_params(struct mv643xx_eth_private *mp,
 	else
 		uc_addr_get(mp, dev->dev_addr);
 
-	if (pd->phy_addr == MV643XX_ETH_PHY_NONE) {
-		mp->phy_addr = -1;
-	} else {
-		if (pd->phy_addr != MV643XX_ETH_PHY_ADDR_DEFAULT) {
-			mp->phy_addr = pd->phy_addr & 0x3f;
-			phy_addr_set(mp, mp->phy_addr);
-		} else {
-			mp->phy_addr = phy_addr_get(mp);
-		}
-	}
-
 	mp->default_rx_ring_size = DEFAULT_RX_QUEUE_SIZE;
 	if (pd->rx_queue_size)
 		mp->default_rx_ring_size = pd->rx_queue_size;
@@ -2490,76 +2466,60 @@ static void set_params(struct mv643xx_eth_private *mp,
 	mp->txq_count = pd->tx_queue_count ? : 1;
 }
 
-static int phy_detect(struct mv643xx_eth_private *mp)
+static struct phy_device *phy_scan(struct mv643xx_eth_private *mp,
+				   int phy_addr)
 {
-	int data;
-	int data2;
+	struct mii_bus *bus = &mp->shared->smi->smi_bus;
+	struct phy_device *phydev;
+	int start;
+	int num;
+	int i;
 
-	data = smi_reg_read(mp, mp->phy_addr, MII_BMCR);
-	if (data < 0)
-		return -ENODEV;
+	if (phy_addr == MV643XX_ETH_PHY_ADDR_DEFAULT) {
+		start = phy_addr_get(mp) & 0x1f;
+		num = 32;
+	} else {
+		start = phy_addr & 0x1f;
+		num = 1;
+	}
 
-	if (smi_reg_write(mp, mp->phy_addr, MII_BMCR, data ^ BMCR_ANENABLE) < 0)
-		return -ENODEV;
+	phydev = NULL;
+	for (i = 0; i < num; i++) {
+		int addr = (start + i) & 0x1f;
 
-	data2 = smi_reg_read(mp, mp->phy_addr, MII_BMCR);
-	if (data2 < 0)
-		return -ENODEV;
+		if (bus->phy_map[addr] == NULL)
+			mdiobus_scan(bus, addr);
 
-	if (((data ^ data2) & BMCR_ANENABLE) == 0)
-		return -ENODEV;
+		if (phydev == NULL) {
+			phydev = bus->phy_map[addr];
+			if (phydev != NULL)
+				phy_addr_set(mp, addr);
+		}
+	}
 
-	smi_reg_write(mp, mp->phy_addr, MII_BMCR, data);
-
-	return 0;
+	return phydev;
 }
 
-static int phy_init(struct mv643xx_eth_private *mp,
-		    struct mv643xx_eth_platform_data *pd)
+static void phy_init(struct mv643xx_eth_private *mp, int speed, int duplex)
 {
-	struct ethtool_cmd cmd;
-	int err;
+	struct phy_device *phy = mp->phy;
 
-	err = phy_detect(mp);
-	if (err) {
-		dev_printk(KERN_INFO, &mp->dev->dev,
-			   "no PHY detected at addr %d\n", mp->phy_addr);
-		return err;
-	}
 	phy_reset(mp);
 
-	mp->mii.phy_id = mp->phy_addr;
-	mp->mii.phy_id_mask = 0x3f;
-	mp->mii.reg_num_mask = 0x1f;
-	mp->mii.dev = mp->dev;
-	mp->mii.mdio_read = mv643xx_eth_mdio_read;
-	mp->mii.mdio_write = mv643xx_eth_mdio_write;
+	phy_attach(mp->dev, phy->dev.bus_id, 0, PHY_INTERFACE_MODE_GMII);
 
-	mp->mii.supports_gmii = mii_check_gmii_support(&mp->mii);
-
-	memset(&cmd, 0, sizeof(cmd));
-
-	cmd.port = PORT_MII;
-	cmd.transceiver = XCVR_INTERNAL;
-	cmd.phy_address = mp->phy_addr;
-	if (pd->speed == 0) {
-		cmd.autoneg = AUTONEG_ENABLE;
-		cmd.speed = SPEED_100;
-		cmd.advertising = ADVERTISED_10baseT_Half  |
-				  ADVERTISED_10baseT_Full  |
-				  ADVERTISED_100baseT_Half |
-				  ADVERTISED_100baseT_Full;
-		if (mp->mii.supports_gmii)
-			cmd.advertising |= ADVERTISED_1000baseT_Full;
+	if (speed == 0) {
+		phy->autoneg = AUTONEG_ENABLE;
+		phy->speed = 0;
+		phy->duplex = 0;
+		phy->advertising = phy->supported | ADVERTISED_Autoneg;
 	} else {
-		cmd.autoneg = AUTONEG_DISABLE;
-		cmd.speed = pd->speed;
-		cmd.duplex = pd->duplex;
+		phy->autoneg = AUTONEG_DISABLE;
+		phy->advertising = 0;
+		phy->speed = speed;
+		phy->duplex = duplex;
 	}
-
-	mv643xx_eth_set_settings(mp->dev, &cmd);
-
-	return 0;
+	phy_start_aneg(phy);
 }
 
 static void init_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
@@ -2573,7 +2533,7 @@ static void init_pscr(struct mv643xx_eth_private *mp, int speed, int duplex)
 	}
 
 	pscr = MAX_RX_PACKET_9700BYTE | SERIAL_PORT_CONTROL_RESERVED;
-	if (mp->phy_addr == -1) {
+	if (mp->phy == NULL) {
 		pscr |= DISABLE_AUTO_NEG_SPEED_GMII;
 		if (speed == SPEED_1000)
 			pscr |= SET_GMII_SPEED_TO_1000;
@@ -2627,18 +2587,16 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 	set_params(mp, pd);
 	dev->real_num_tx_queues = mp->txq_count;
 
-	mib_counters_clear(mp);
-	INIT_WORK(&mp->tx_timeout_task, tx_timeout_task);
+	if (pd->phy_addr != MV643XX_ETH_PHY_NONE)
+		mp->phy = phy_scan(mp, pd->phy_addr);
 
-	if (mp->phy_addr != -1) {
-		err = phy_init(mp, pd);
-		if (err)
-			goto out;
-
+	if (mp->phy != NULL) {
+		phy_init(mp, pd->speed, pd->duplex);
 		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops);
 	} else {
 		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops_phyless);
 	}
+
 	init_pscr(mp, pd->speed, pd->duplex);
 
 
@@ -2711,6 +2669,8 @@ static int mv643xx_eth_remove(struct platform_device *pdev)
 	struct mv643xx_eth_private *mp = platform_get_drvdata(pdev);
 
 	unregister_netdev(mp->dev);
+	if (mp->phy != NULL)
+		phy_detach(mp->phy);
 	flush_scheduled_work();
 	free_netdev(mp->dev);
 
