@@ -108,6 +108,11 @@ static struct resource kirkwood_ge00_shared_resources[] = {
 		.start	= GE00_PHYS_BASE + 0x2000,
 		.end	= GE00_PHYS_BASE + 0x3fff,
 		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "ge00 err irq",
+		.start	= IRQ_KIRKWOOD_GE00_ERR,
+		.end	= IRQ_KIRKWOOD_GE00_ERR,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
@@ -117,7 +122,7 @@ static struct platform_device kirkwood_ge00_shared = {
 	.dev		= {
 		.platform_data	= &kirkwood_ge00_shared_data,
 	},
-	.num_resources	= 1,
+	.num_resources	= ARRAY_SIZE(kirkwood_ge00_shared_resources),
 	.resource	= kirkwood_ge00_shared_resources,
 };
 
