@@ -400,6 +400,8 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	}
 
 	req->ioprio = ioprio_best(req->ioprio, next->ioprio);
+	if (blk_rq_cpu_valid(next))
+		req->cpu = next->cpu;
 
 	__blk_put_request(q, next);
 	return 1;

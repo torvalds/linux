@@ -1134,6 +1134,8 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		req->biotail = bio;
 		req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 		req->ioprio = ioprio_best(req->ioprio, prio);
+		if (!blk_rq_cpu_valid(req))
+			req->cpu = bio->bi_comp_cpu;
 		drive_stat_acct(req, 0);
 		if (!attempt_back_merge(q, req))
 			elv_merged_request(q, req, el_ret);
@@ -1161,6 +1163,8 @@ static int __make_request(struct request_queue *q, struct bio *bio)
 		req->sector = req->hard_sector = bio->bi_sector;
 		req->nr_sectors = req->hard_nr_sectors += nr_sectors;
 		req->ioprio = ioprio_best(req->ioprio, prio);
+		if (!blk_rq_cpu_valid(req))
+			req->cpu = bio->bi_comp_cpu;
 		drive_stat_acct(req, 0);
 		if (!attempt_front_merge(q, req))
 			elv_merged_request(q, req, el_ret);

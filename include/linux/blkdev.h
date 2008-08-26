@@ -545,6 +545,7 @@ enum {
 #define blk_pm_request(rq)	\
 	(blk_pm_suspend_request(rq) || blk_pm_resume_request(rq))
 
+#define blk_rq_cpu_valid(rq)	((rq)->cpu != -1)
 #define blk_sorted_rq(rq)	((rq)->cmd_flags & REQ_SORTED)
 #define blk_barrier_rq(rq)	((rq)->cmd_flags & REQ_HARDBARRIER)
 #define blk_fua_rq(rq)		((rq)->cmd_flags & REQ_FUA)
