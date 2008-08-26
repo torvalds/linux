@@ -391,6 +391,7 @@ void __cpuinit tx39_cache_init(void)
 		flush_cache_range = tx39_flush_cache_range;
 		flush_cache_page = tx39_flush_cache_page;
 		flush_icache_range = tx39_flush_icache_range;
+		local_flush_icache_range = tx39_flush_icache_range;
 
 		flush_cache_sigtramp = tx39_flush_cache_sigtramp;
 		local_flush_data_cache_page = local_tx39_flush_data_cache_page;
