@@ -402,11 +402,15 @@ static ssize_t rfkill_state_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	unsigned int state = simple_strtoul(buf, NULL, 0);
+	unsigned long state;
 	int error;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
+
+	error = strict_strtoul(buf, 0, &state);
+	if (error)
+		return error;
 
 	/* RFKILL_STATE_HARD_BLOCKED is illegal here... */
 	if (state != RFKILL_STATE_UNBLOCKED &&
@@ -435,7 +439,8 @@ static ssize_t rfkill_claim_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	bool claim = !!simple_strtoul(buf, NULL, 0);
+	unsigned long claim_tmp;
+	bool claim;
 	int error;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -443,6 +448,11 @@ static ssize_t rfkill_claim_store(struct device *dev,
 
 	if (rfkill->user_claim_unsupported)
 		return -EOPNOTSUPP;
+
+	error = strict_strtoul(buf, 0, &claim_tmp);
+	if (error)
+		return error;
+	claim = !!claim_tmp;
 
 	/*
 	 * Take the global lock to make sure the kernel is not in
