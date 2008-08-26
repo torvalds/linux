@@ -516,6 +516,15 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		}
 
 		msg = spnego_key->payload.data;
+		/* check version field to make sure that cifs.upcall is
+		   sending us a response in an expected form */
+		if (msg->version != CIFS_SPNEGO_UPCALL_VERSION) {
+			cERROR(1, ("incorrect version of cifs.upcall (expected"
+				   " %d but got %d)",
+				   CIFS_SPNEGO_UPCALL_VERSION, msg->version));
+			rc = -EKEYREJECTED;
+			goto ssetup_exit;
+		}
 		/* bail out if key is too long */
 		if (msg->sesskey_len >
 		    sizeof(ses->server->mac_signing_key.data.krb5)) {
