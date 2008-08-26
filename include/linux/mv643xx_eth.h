@@ -49,10 +49,10 @@ struct mv643xx_eth_platform_data {
 	int			duplex;
 
 	/*
-	 * Which RX/TX queues to use.
+	 * How many RX/TX queues to use.
 	 */
-	int			rx_queue_mask;
-	int			tx_queue_mask;
+	int			rx_queue_count;
+	int			tx_queue_count;
 
 	/*
 	 * Override default RX/TX queue sizes if nonzero.
