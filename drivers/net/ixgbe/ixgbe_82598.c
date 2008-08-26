@@ -36,6 +36,8 @@
 #define IXGBE_82598_MAX_TX_QUEUES 32
 #define IXGBE_82598_MAX_RX_QUEUES 64
 #define IXGBE_82598_RAR_ENTRIES   16
+#define IXGBE_82598_MC_TBL_SIZE  128
+#define IXGBE_82598_VFT_TBL_SIZE 128
 
 static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw);
 static s32 ixgbe_get_link_settings_82598(struct ixgbe_hw *hw, u32 *speed,
@@ -60,7 +62,9 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
 {
 	hw->mac.num_rx_queues = IXGBE_82598_MAX_RX_QUEUES;
 	hw->mac.num_tx_queues = IXGBE_82598_MAX_TX_QUEUES;
-	hw->mac.num_rx_addrs = IXGBE_82598_RAR_ENTRIES;
+	hw->mac.mcft_size = IXGBE_82598_MC_TBL_SIZE;
+	hw->mac.vft_size = IXGBE_82598_VFT_TBL_SIZE;
+	hw->mac.num_rar_entries = IXGBE_82598_RAR_ENTRIES;
 
 	/* PHY ops are filled in by default properly for Fiber only */
 	if (hw->mac.ops.get_media_type(hw) == ixgbe_media_type_copper) {

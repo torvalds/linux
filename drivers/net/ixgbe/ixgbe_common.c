@@ -661,7 +661,7 @@ s32 ixgbe_set_rar(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vind,
 static s32 ixgbe_init_rx_addrs(struct ixgbe_hw *hw)
 {
 	u32 i;
-	u32 rar_entries = hw->mac.num_rx_addrs;
+	u32 rar_entries = hw->mac.num_rar_entries;
 
 	/*
 	 * If the current mac address is valid, assume it is a software override
@@ -705,9 +705,110 @@ static s32 ixgbe_init_rx_addrs(struct ixgbe_hw *hw)
 	IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL, hw->mac.mc_filter_type);
 
 	hw_dbg(hw, " Clearing MTA\n");
-	for (i = 0; i < IXGBE_MC_TBL_SIZE; i++)
+	for (i = 0; i < hw->mac.mcft_size; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(i), 0);
 
+	return 0;
+}
+
+/**
+ *  ixgbe_add_uc_addr - Adds a secondary unicast address.
+ *  @hw: pointer to hardware structure
+ *  @addr: new address
+ *
+ *  Adds it to unused receive address register or goes into promiscuous mode.
+ **/
+void ixgbe_add_uc_addr(struct ixgbe_hw *hw, u8 *addr)
+{
+	u32 rar_entries = hw->mac.num_rar_entries;
+	u32 rar;
+
+	hw_dbg(hw, " UC Addr = %.2X %.2X %.2X %.2X %.2X %.2X\n",
+	          addr[0], addr[1], addr[2], addr[3], addr[4], addr[5]);
+
+	/*
+	 * Place this address in the RAR if there is room,
+	 * else put the controller into promiscuous mode
+	 */
+	if (hw->addr_ctrl.rar_used_count < rar_entries) {
+		rar = hw->addr_ctrl.rar_used_count -
+		      hw->addr_ctrl.mc_addr_in_rar_count;
+		ixgbe_set_rar(hw, rar, addr, 0, IXGBE_RAH_AV);
+		hw_dbg(hw, "Added a secondary address to RAR[%d]\n", rar);
+		hw->addr_ctrl.rar_used_count++;
+	} else {
+		hw->addr_ctrl.overflow_promisc++;
+	}
+
+	hw_dbg(hw, "ixgbe_add_uc_addr Complete\n");
+}
+
+/**
+ *  ixgbe_update_uc_addr_list - Updates MAC list of secondary addresses
+ *  @hw: pointer to hardware structure
+ *  @addr_list: the list of new addresses
+ *  @addr_count: number of addresses
+ *  @next: iterator function to walk the address list
+ *
+ *  The given list replaces any existing list.  Clears the secondary addrs from
+ *  receive address registers.  Uses unused receive address registers for the
+ *  first secondary addresses, and falls back to promiscuous mode as needed.
+ *
+ *  Drivers using secondary unicast addresses must set user_set_promisc when
+ *  manually putting the device into promiscuous mode.
+ **/
+s32 ixgbe_update_uc_addr_list(struct ixgbe_hw *hw, u8 *addr_list,
+                              u32 addr_count, ixgbe_mc_addr_itr next)
+{
+	u8 *addr;
+	u32 i;
+	u32 old_promisc_setting = hw->addr_ctrl.overflow_promisc;
+	u32 uc_addr_in_use;
+	u32 fctrl;
+	u32 vmdq;
+
+	/*
+	 * Clear accounting of old secondary address list,
+	 * don't count RAR[0]
+	 */
+	uc_addr_in_use = hw->addr_ctrl.rar_used_count -
+	                 hw->addr_ctrl.mc_addr_in_rar_count - 1;
+	hw->addr_ctrl.rar_used_count -= uc_addr_in_use;
+	hw->addr_ctrl.overflow_promisc = 0;
+
+	/* Zero out the other receive addresses */
+	hw_dbg(hw, "Clearing RAR[1-%d]\n", uc_addr_in_use);
+	for (i = 1; i <= uc_addr_in_use; i++) {
+		IXGBE_WRITE_REG(hw, IXGBE_RAL(i), 0);
+		IXGBE_WRITE_REG(hw, IXGBE_RAH(i), 0);
+	}
+
+	/* Add the new addresses */
+	for (i = 0; i < addr_count; i++) {
+		hw_dbg(hw, " Adding the secondary addresses:\n");
+		addr = next(hw, &addr_list, &vmdq);
+		ixgbe_add_uc_addr(hw, addr);
+	}
+
+	if (hw->addr_ctrl.overflow_promisc) {
+		/* enable promisc if not already in overflow or set by user */
+		if (!old_promisc_setting && !hw->addr_ctrl.user_set_promisc) {
+			hw_dbg(hw, " Entering address overflow promisc mode\n");
+			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+			fctrl |= IXGBE_FCTRL_UPE;
+			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+		}
+	} else {
+		/* only disable if set by overflow, not by user */
+		if (old_promisc_setting && !hw->addr_ctrl.user_set_promisc) {
+			hw_dbg(hw, " Leaving address overflow promisc mode\n");
+			fctrl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+			fctrl &= ~IXGBE_FCTRL_UPE;
+			IXGBE_WRITE_REG(hw, IXGBE_FCTRL, fctrl);
+		}
+	}
+
+	hw_dbg(hw, "ixgbe_update_uc_addr_list Complete\n");
 	return 0;
 }
 
@@ -794,7 +895,7 @@ static void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
  **/
 static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
 {
-	u32 rar_entries = hw->mac.num_rx_addrs;
+	u32 rar_entries = hw->mac.num_rar_entries;
 
 	hw_dbg(hw, " MC Addr =%.2X %.2X %.2X %.2X %.2X %.2X\n",
 		  mc_addr[0], mc_addr[1], mc_addr[2],
@@ -823,7 +924,7 @@ static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
  *  @hw: pointer to hardware structure
  *  @mc_addr_list: the list of new multicast addresses
  *  @mc_addr_count: number of addresses
- *  @pad: number of bytes between addresses in the list
+ *  @next: iterator function to walk the multicast address list
  *
  *  The given list replaces any existing list. Clears the MC addrs from receive
  *  address registers and the multicast table. Uses unsed receive address
@@ -831,10 +932,11 @@ static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
  *  multicast table.
  **/
 s32 ixgbe_update_mc_addr_list(struct ixgbe_hw *hw, u8 *mc_addr_list,
-			      u32 mc_addr_count, u32 pad)
+			      u32 mc_addr_count, ixgbe_mc_addr_itr next)
 {
 	u32 i;
-	u32 rar_entries = hw->mac.num_rx_addrs;
+	u32 rar_entries = hw->mac.num_rar_entries;
+	u32 vmdq;
 
 	/*
 	 * Set the new number of MC addresses that we are being requested to
@@ -854,14 +956,13 @@ s32 ixgbe_update_mc_addr_list(struct ixgbe_hw *hw, u8 *mc_addr_list,
 
 	/* Clear the MTA */
 	hw_dbg(hw, " Clearing MTA\n");
-	for (i = 0; i < IXGBE_MC_TBL_SIZE; i++)
+	for (i = 0; i < hw->mac.mcft_size; i++)
 		IXGBE_WRITE_REG(hw, IXGBE_MTA(i), 0);
 
 	/* Add the new addresses */
 	for (i = 0; i < mc_addr_count; i++) {
 		hw_dbg(hw, " Adding the multicast addresses:\n");
-		ixgbe_add_mc_addr(hw, mc_addr_list +
-				  (i * (IXGBE_ETH_LENGTH_OF_ADDRESS + pad)));
+		ixgbe_add_mc_addr(hw, next(hw, &mc_addr_list, &vmdq));
 	}
 
 	/* Enable mta */
@@ -884,11 +985,11 @@ static s32 ixgbe_clear_vfta(struct ixgbe_hw *hw)
 	u32 offset;
 	u32 vlanbyte;
 
-	for (offset = 0; offset < IXGBE_VLAN_FILTER_TBL_SIZE; offset++)
+	for (offset = 0; offset < hw->mac.vft_size; offset++)
 		IXGBE_WRITE_REG(hw, IXGBE_VFTA(offset), 0);
 
 	for (vlanbyte = 0; vlanbyte < 4; vlanbyte++)
-		for (offset = 0; offset < IXGBE_VLAN_FILTER_TBL_SIZE; offset++)
+		for (offset = 0; offset < hw->mac.vft_size; offset++)
 			IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vlanbyte, offset),
 					0);
 

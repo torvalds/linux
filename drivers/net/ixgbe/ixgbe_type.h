@@ -822,10 +822,6 @@
 #define IXGBE_RAH_VIND_SHIFT    18
 #define IXGBE_RAH_AV            0x80000000
 
-/* Filters */
-#define IXGBE_MC_TBL_SIZE       128  /* Multicast Filter Table (4096 bits) */
-#define IXGBE_VLAN_FILTER_TBL_SIZE 128  /* VLAN Filter Table (4096 bits) */
-
 /* Header split receive */
 #define IXGBE_RFCTL_ISCSI_DIS       0x00000001
 #define IXGBE_RFCTL_ISCSI_DWC_MASK  0x0000003E
@@ -1167,6 +1163,8 @@ struct ixgbe_addr_filter_info {
 	u32 rar_used_count;
 	u32 mc_addr_in_rar_count;
 	u32 mta_in_use;
+	u32 overflow_promisc;
+	bool user_set_promisc;
 };
 
 /* Flow control parameters */
@@ -1242,6 +1240,10 @@ struct ixgbe_hw_stats {
 /* forward declaration */
 struct ixgbe_hw;
 
+/* iterator type for walking multicast address lists */
+typedef u8* (*ixgbe_mc_addr_itr) (struct ixgbe_hw *hw, u8 **mc_addr_ptr,
+                                  u32 *vmdq);
+
 struct ixgbe_mac_operations {
 	s32 (*reset)(struct ixgbe_hw *);
 	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
@@ -1263,9 +1265,11 @@ struct ixgbe_mac_info {
 	u8				addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
 	u8				perm_addr[IXGBE_ETH_LENGTH_OF_ADDRESS];
 	s32				mc_filter_type;
+	u32				mcft_size;
+	u32				vft_size;
+	u32				num_rar_entries;
 	u32				num_rx_queues;
 	u32				num_tx_queues;
-	u32				num_rx_addrs;
 	u32				link_attach_type;
 	u32				link_mode_select;
 	bool				link_settings_loaded;
