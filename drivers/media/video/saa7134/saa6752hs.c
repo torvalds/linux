@@ -653,7 +653,7 @@ static int saa6752hs_qmenu(struct saa6752hs_state *h,
 	return v4l2_ctrl_query_menu(qmenu, &qctrl, NULL);
 }
 
-static int saa6752hs_init(struct i2c_client* client)
+static int saa6752hs_init(struct i2c_client *client, u32 leading_null_bytes)
 {
 	unsigned char buf[9], buf2[4];
 	struct saa6752hs_state *h;
@@ -704,6 +704,12 @@ static int saa6752hs_init(struct i2c_client* client)
 	buf[0] = 0xB0;
 	buf[1] = 0x05;
 	i2c_master_send(client,buf,2);
+
+	/* Set leading null byte for TS */
+	buf[0] = 0xF6;
+	buf[1] = (leading_null_bytes >> 8) & 0xff;
+	buf[2] = leading_null_bytes & 0xff;
+	i2c_master_send(client, buf, 3);
 
 	/* compute PAT */
 	memcpy(localPAT, PAT, sizeof(PAT));
@@ -812,14 +818,13 @@ saa6752hs_command(struct i2c_client *client, unsigned int cmd, void *arg)
 	int i;
 
 	switch (cmd) {
+	case VIDIOC_INT_INIT:
+		/* apply settings and start encoder */
+		saa6752hs_init(client, *(u32 *)arg);
+		break;
 	case VIDIOC_S_EXT_CTRLS:
 		if (ctrls->ctrl_class != V4L2_CTRL_CLASS_MPEG)
 			return -EINVAL;
-		if (ctrls->count == 0) {
-			/* apply settings and start encoder */
-			saa6752hs_init(client);
-			break;
-		}
 		/* fall through */
 	case VIDIOC_TRY_EXT_CTRLS:
 	case VIDIOC_G_EXT_CTRLS:

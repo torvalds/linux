@@ -64,10 +64,19 @@ static void ts_reset_encoder(struct saa7134_dev* dev)
 
 static int ts_init_encoder(struct saa7134_dev* dev)
 {
-	struct v4l2_ext_controls ctrls = { V4L2_CTRL_CLASS_MPEG, 0 };
+	u32 leading_null_bytes = 0;
 
+	/* If more cards start to need this, then this
+	   should probably be added to the card definitions. */
+	switch (dev->board) {
+	case SAA7134_BOARD_BEHOLD_M6:
+	case SAA7134_BOARD_BEHOLD_M63:
+	case SAA7134_BOARD_BEHOLD_M6_EXTRA:
+		leading_null_bytes = 1;
+		break;
+	}
 	ts_reset_encoder(dev);
-	saa7134_i2c_call_clients(dev, VIDIOC_S_EXT_CTRLS, &ctrls);
+	saa7134_i2c_call_clients(dev, VIDIOC_INT_INIT, &leading_null_bytes);
 	dev->empress_started = 1;
 	return 0;
 }
