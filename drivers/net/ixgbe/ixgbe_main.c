@@ -2446,8 +2446,12 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->tx_eitr = 1;
 
 	/* default flow control settings */
-	hw->fc.original_type = ixgbe_fc_full;
-	hw->fc.type = ixgbe_fc_full;
+	hw->fc.original_type = ixgbe_fc_none;
+	hw->fc.type = ixgbe_fc_none;
+	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
+	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
+	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
+	hw->fc.send_xon = true;
 
 	/* select 10G link by default */
 	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_10G_LINK_NO_AN;
@@ -3586,13 +3590,6 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, ixgbe_reset_task);
-
-	/* initialize default flow control settings */
-	hw->fc.original_type = ixgbe_fc_full;
-	hw->fc.type = ixgbe_fc_full;
-	hw->fc.high_water = IXGBE_DEFAULT_FCRTH;
-	hw->fc.low_water = IXGBE_DEFAULT_FCRTL;
-	hw->fc.pause_time = IXGBE_DEFAULT_FCPAUSE;
 
 	err = ixgbe_init_interrupt_scheme(adapter);
 	if (err)

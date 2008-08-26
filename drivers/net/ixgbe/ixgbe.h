@@ -69,12 +69,12 @@
 
 /* flow control */
 #define IXGBE_DEFAULT_FCRTL		0x10000
-#define IXGBE_MIN_FCRTL			      0
+#define IXGBE_MIN_FCRTL			   0x40
 #define IXGBE_MAX_FCRTL			0x7FF80
 #define IXGBE_DEFAULT_FCRTH		0x20000
-#define IXGBE_MIN_FCRTH			      0
+#define IXGBE_MIN_FCRTH			  0x600
 #define IXGBE_MAX_FCRTH			0x7FFF0
-#define IXGBE_DEFAULT_FCPAUSE		 0x6800  /* may be too long */
+#define IXGBE_DEFAULT_FCPAUSE		 0xFFFF
 #define IXGBE_MIN_FCPAUSE		      0
 #define IXGBE_MAX_FCPAUSE		 0xFFFF
 

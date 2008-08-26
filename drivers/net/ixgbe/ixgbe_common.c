@@ -1065,6 +1065,13 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	rmcs_reg &= ~(IXGBE_RMCS_TFCE_PRIORITY | IXGBE_RMCS_TFCE_802_3X);
 
 	/*
+	 * 10 gig parts do not have a word in the EEPROM to determine the
+	 * default flow control setting, so we explicitly set it to full.
+	 */
+	if (hw->fc.type == ixgbe_fc_default)
+		hw->fc.type = ixgbe_fc_full;
+
+	/*
 	 * We want to save off the original Flow Control configuration just in
 	 * case we get disconnected and then reconnected into a different hub
 	 * or switch with different Flow Control capabilities.
@@ -1115,6 +1122,16 @@ s32 ixgbe_setup_fc(struct ixgbe_hw *hw, s32 packetbuf_num)
 	/* Enable 802.3x based flow control settings. */
 	IXGBE_WRITE_REG(hw, IXGBE_FCTRL, frctl_reg);
 	IXGBE_WRITE_REG(hw, IXGBE_RMCS, rmcs_reg);
+
+	/*
+	 * Check for invalid software configuration, zeros are completely
+	 * invalid for all parameters used past this point, and if we enable
+	 * flow control with zero water marks, we blast flow control packets.
+	 */
+	if (!hw->fc.low_water || !hw->fc.high_water || !hw->fc.pause_time) {
+		hw_dbg(hw, "Flow control structure initialized incorrectly\n");
+		return IXGBE_ERR_INVALID_LINK_SETTINGS;
+	}
 
 	/*
 	 * We need to set up the Receive Threshold high and low water
