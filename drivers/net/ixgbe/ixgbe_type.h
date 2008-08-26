@@ -1007,15 +1007,15 @@ struct ixgbe_legacy_tx_desc {
 		__le32 data;
 		struct {
 			__le16 length;    /* Data buffer length */
-			u8 cso; /* Checksum offset */
-			u8 cmd; /* Descriptor control */
+			u8 cso;           /* Checksum offset */
+			u8 cmd;           /* Descriptor control */
 		} flags;
 	} lower;
 	union {
 		__le32 data;
 		struct {
 			u8 status;     /* Descriptor status */
-			u8 css; /* Checksum start */
+			u8 css;        /* Checksum start */
 			__le16 vlan;
 		} fields;
 	} upper;
@@ -1039,9 +1039,9 @@ union ixgbe_adv_tx_desc {
 struct ixgbe_legacy_rx_desc {
 	__le64 buffer_addr; /* Address of the descriptor's data buffer */
 	__le16 length;      /* Length of data DMAed into data buffer */
-	u16 csum;        /* Packet checksum */
-	u8 status;       /* Descriptor status */
-	u8 errors;       /* Descriptor Errors */
+	__le16 csum;        /* Packet checksum */
+	u8 status;          /* Descriptor status */
+	u8 errors;          /* Descriptor Errors */
 	__le16 vlan;
 };
 
@@ -1061,7 +1061,7 @@ union ixgbe_adv_rx_desc {
 				__le32 rss; /* RSS Hash */
 				struct {
 					__le16 ip_id; /* IP id */
-					u16 csum; /* Packet Checksum */
+					__le16 csum; /* Packet Checksum */
 				} csum_ip;
 			} hi_dword;
 		} lower;
