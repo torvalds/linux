@@ -248,6 +248,11 @@ struct mv643xx_eth_shared_private {
 	void __iomem *base;
 
 	/*
+	 * Points at the right SMI instance to use.
+	 */
+	struct mv643xx_eth_shared_private *smi;
+
+	/*
 	 * Protects access to SMI_REG, which is shared between ports.
 	 */
 	struct mutex phy_lock;
@@ -345,7 +350,6 @@ struct mv643xx_eth_private {
 
 	struct net_device *dev;
 
-	struct mv643xx_eth_shared_private *shared_smi;
 	int phy_addr;
 
 	spinlock_t lock;
@@ -1015,7 +1019,7 @@ static int smi_wait_ready(struct mv643xx_eth_shared_private *msp)
 static int smi_reg_read(struct mv643xx_eth_private *mp,
 			unsigned int addr, unsigned int reg)
 {
-	struct mv643xx_eth_shared_private *msp = mp->shared_smi;
+	struct mv643xx_eth_shared_private *msp = mp->shared->smi;
 	void __iomem *smi_reg = msp->base + SMI_REG;
 	int ret;
 
@@ -1053,7 +1057,7 @@ out:
 static int smi_reg_write(struct mv643xx_eth_private *mp, unsigned int addr,
 			 unsigned int reg, unsigned int value)
 {
-	struct mv643xx_eth_shared_private *msp = mp->shared_smi;
+	struct mv643xx_eth_shared_private *msp = mp->shared->smi;
 	void __iomem *smi_reg = msp->base + SMI_REG;
 
 	mutex_lock(&msp->phy_lock);
@@ -2311,6 +2315,10 @@ static int mv643xx_eth_shared_probe(struct platform_device *pdev)
 	if (msp->base == NULL)
 		goto out_free;
 
+	msp->smi = msp;
+	if (pd != NULL && pd->shared_smi != NULL)
+		msp->smi = platform_get_drvdata(pd->shared_smi);
+
 	mutex_init(&msp->phy_lock);
 
 	msp->err_interrupt = NO_IRQ;
@@ -2405,13 +2413,8 @@ static void set_params(struct mv643xx_eth_private *mp,
 		uc_addr_get(mp, dev->dev_addr);
 
 	if (pd->phy_addr == -1) {
-		mp->shared_smi = NULL;
 		mp->phy_addr = -1;
 	} else {
-		mp->shared_smi = mp->shared;
-		if (pd->shared_smi != NULL)
-			mp->shared_smi = platform_get_drvdata(pd->shared_smi);
-
 		if (pd->force_phy_addr || pd->phy_addr) {
 			mp->phy_addr = pd->phy_addr & 0x3f;
 			phy_addr_set(mp, mp->phy_addr);

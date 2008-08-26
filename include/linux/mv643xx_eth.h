@@ -17,6 +17,7 @@
 
 struct mv643xx_eth_shared_platform_data {
 	struct mbus_dram_target_info	*dram;
+	struct platform_device	*shared_smi;
 	unsigned int		t_clk;
 };
 
@@ -30,7 +31,6 @@ struct mv643xx_eth_platform_data {
 	/*
 	 * Whether a PHY is present, and if yes, at which address.
 	 */
-	struct platform_device	*shared_smi;
 	int			force_phy_addr;
 	int			phy_addr;
 
