@@ -34,13 +34,18 @@
 #define IOPERM        (IOUPTE_CACHE | IOUPTE_WRITE | IOUPTE_VALID)
 #define MKIOPTE(phys) __iopte((((phys)>>4) & IOUPTE_PAGE) | IOPERM)
 
-void __init
-iounit_init(int sbi_node, int io_node, struct sbus_bus *sbus)
+void __init iounit_init(struct sbus_bus *sbus)
 {
-	iopte_t *xpt, *xptend;
+	struct device_node *dp = sbus->ofdev.node;
 	struct iounit_struct *iounit;
-	struct linux_prom_registers iommu_promregs[PROMREG_MAX];
-	struct resource r;
+	iopte_t *xpt, *xptend;
+	struct of_device *op;
+
+	op = of_find_device_by_node(dp);
+	if (!op) {
+		prom_printf("SUN4D: Cannot find SBI of_device.\n");
+		prom_halt();
+	}
 
 	iounit = kzalloc(sizeof(struct iounit_struct), GFP_ATOMIC);
 	if (!iounit) {
@@ -55,18 +60,14 @@ iounit_init(int sbi_node, int io_node, struct sbus_bus *sbus)
 	iounit->rotor[1] = IOUNIT_BMAP2_START;
 	iounit->rotor[2] = IOUNIT_BMAPM_START;
 
-	xpt = NULL;
-	if(prom_getproperty(sbi_node, "reg", (void *) iommu_promregs,
-			    sizeof(iommu_promregs)) != -1) {
-		prom_apply_generic_ranges(io_node, 0, iommu_promregs, 3);
-		memset(&r, 0, sizeof(r));
-		r.flags = iommu_promregs[2].which_io;
-		r.start = iommu_promregs[2].phys_addr;
-		xpt = (iopte_t *) sbus_ioremap(&r, 0, PAGE_SIZE * 16, "XPT");
+	xpt = of_ioremap(&op->resource[2], 0, PAGE_SIZE * 16, "XPT");
+	if (!xpt) {
+		prom_printf("SUN4D: Cannot map External Page Table.");
+		prom_halt();
 	}
-	if(!xpt) panic("Cannot map External Page Table.");
 	
 	sbus->ofdev.dev.archdata.iommu = iounit;
+	op->dev.archdata.iommu = iounit;
 	iounit->page_table = xpt;
 	spin_lock_init(&iounit->lock);
 	

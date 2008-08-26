@@ -59,4 +59,6 @@ extern __u32 iounit_map_dma_init(struct sbus_bus *, int);
 #define iounit_map_dma_finish(sbus, addr, len) mmu_release_scsi_one(addr, len, sbus)
 extern __u32 iounit_map_dma_page(__u32, void *, struct sbus_bus *);
 
+extern void iounit_init(struct sbus_bus *sbus);
+
 #endif /* !(_SPARC_IO_UNIT_H) */

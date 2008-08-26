@@ -46,6 +46,8 @@
 #include <asm/page.h>
 #include <asm/pgalloc.h>
 #include <asm/dma.h>
+#include <asm/iommu.h>
+#include <asm/io-unit.h>
 
 #define mmu_inval_dma_area(p, l)	/* Anton pulled it out for 2.4.0-xx */
 
@@ -515,18 +517,11 @@ void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 
 	if (sparc_cpu_model != sun4d &&
 	    parent != NULL &&
-	    !strcmp(parent->name, "iommu")) {
-		extern void iommu_init(int iommu_node, struct sbus_bus *sbus);
+	    !strcmp(parent->name, "iommu"))
+		iommu_init(parent, sbus);
 
-		iommu_init(parent->node, sbus);
-	}
-
-	if (sparc_cpu_model == sun4d) {
-		extern void iounit_init(int sbi_node, int iounit_node,
-					struct sbus_bus *sbus);
-
-		iounit_init(dp->node, parent->node, sbus);
-	}
+	if (sparc_cpu_model == sun4d)
+		iounit_init(sbus);
 #endif
 }
 
