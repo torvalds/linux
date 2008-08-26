@@ -1141,14 +1141,14 @@ static void ath_rc_ratefind(struct ath_softc *sc,
 /*
  * Return the Tx rate series.
  */
-void ath_rate_findrate(struct ath_softc *sc,
-		       struct ath_rate_node *ath_rc_priv,
-		       int num_tries,
-		       int num_rates,
-		       unsigned int rcflag,
-		       struct ath_rc_series series[],
-		       int *is_probe,
-		       int is_retry)
+static void ath_rate_findrate(struct ath_softc *sc,
+			      struct ath_rate_node *ath_rc_priv,
+			      int num_tries,
+			      int num_rates,
+			      unsigned int rcflag,
+			      struct ath_rc_series series[],
+			      int *is_probe,
+			      int is_retry)
 {
 	struct ath_vap *avp = ath_rc_priv->avp;
 
@@ -1942,7 +1942,7 @@ static void ath_get_rate(void *priv, struct net_device *dev,
 	struct ath_rate_node *ath_rc_priv;
 	struct ath_node *an;
 	struct ieee80211_tx_info *tx_info = IEEE80211_SKB_CB(skb);
-	int is_probe, chk, ret;
+	int is_probe = FALSE, chk, ret;
 	s8 lowest_idx;
 	__le16 fc = hdr->frame_control;
 	u8 *qc, tid;
