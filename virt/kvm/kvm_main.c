@@ -734,7 +734,7 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 		return page_to_pfn(bad_page);
 	}
 
-	npages = get_user_pages(current, current->mm, addr, 1, 1, 1, page,
+	npages = get_user_pages(current, current->mm, addr, 1, 1, 0, page,
 				NULL);
 
 	if (unlikely(npages != 1)) {
