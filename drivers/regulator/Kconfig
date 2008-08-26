@@ -72,4 +72,12 @@ config REGULATOR_WM8400
 	  This driver provides support for the voltage regulators of the
 	  WM8400 AudioPlus PMIC.
 
+config REGULATOR_DA903X
+	tristate "Support regulators on Dialog Semiconductor DA9030/DA9034 PMIC"
+	depends on PMIC_DA903X
+	select REGULATOR
+	help
+	  Say y here to support the BUCKs and LDOs regulators found on
+	  Dialog Semiconductor DA9030/DA9034 PMIC.
+
 endmenu
