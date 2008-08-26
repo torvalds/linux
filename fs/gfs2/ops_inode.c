@@ -589,6 +589,54 @@ static int gfs2_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	return 0;
 }
 
+/*
+ * gfs2_ok_to_move - check if it's ok to move a directory to another directory
+ * @this: move this
+ * @to: to here
+ *
+ * Follow @to back to the root and make sure we don't encounter @this
+ * Assumes we already hold the rename lock.
+ *
+ * Returns: errno
+ */
+
+static int gfs2_ok_to_move(struct gfs2_inode *this, struct gfs2_inode *to)
+{
+	struct inode *dir = &to->i_inode;
+	struct super_block *sb = dir->i_sb;
+	struct inode *tmp;
+	struct qstr dotdot;
+	int error = 0;
+
+	gfs2_str2qstr(&dotdot, "..");
+
+	igrab(dir);
+
+	for (;;) {
+		if (dir == &this->i_inode) {
+			error = -EINVAL;
+			break;
+		}
+		if (dir == sb->s_root->d_inode) {
+			error = 0;
+			break;
+		}
+
+		tmp = gfs2_lookupi(dir, &dotdot, 1);
+		if (IS_ERR(tmp)) {
+			error = PTR_ERR(tmp);
+			break;
+		}
+
+		iput(dir);
+		dir = tmp;
+	}
+
+	iput(dir);
+
+	return error;
+}
+
 /**
  * gfs2_rename - Rename a file
  * @odir: Parent directory of old file name
@@ -607,7 +655,7 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 	struct gfs2_inode *ip = GFS2_I(odentry->d_inode);
 	struct gfs2_inode *nip = NULL;
 	struct gfs2_sbd *sdp = GFS2_SB(odir);
-	struct gfs2_holder ghs[5], r_gh;
+	struct gfs2_holder ghs[5], r_gh = { .gh_gl = NULL, };
 	struct gfs2_rgrpd *nrgd;
 	unsigned int num_gh;
 	int dir_rename = 0;
@@ -621,19 +669,20 @@ static int gfs2_rename(struct inode *odir, struct dentry *odentry,
 			return 0;
 	}
 
-	/* Make sure we aren't trying to move a dirctory into it's subdir */
 
-	if (S_ISDIR(ip->i_inode.i_mode) && odip != ndip) {
-		dir_rename = 1;
-
-		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE, 0,
-					   &r_gh);
+	if (odip != ndip) {
+		error = gfs2_glock_nq_init(sdp->sd_rename_gl, LM_ST_EXCLUSIVE,
+					   0, &r_gh);
 		if (error)
 			goto out;
 
-		error = gfs2_ok_to_move(ip, ndip);
-		if (error)
-			goto out_gunlock_r;
+		if (S_ISDIR(ip->i_inode.i_mode)) {
+			dir_rename = 1;
+			/* don't move a dirctory into it's subdir */
+			error = gfs2_ok_to_move(ip, ndip);
+			if (error)
+				goto out_gunlock_r;
+		}
 	}
 
 	num_gh = 1;
@@ -829,7 +878,7 @@ out_gunlock:
 		gfs2_holder_uninit(ghs + x);
 	}
 out_gunlock_r:
-	if (dir_rename)
+	if (r_gh.gh_gl)
 		gfs2_glock_dq_uninit(&r_gh);
 out:
 	return error;
