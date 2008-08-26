@@ -4296,7 +4296,7 @@ int kvm_arch_set_memory_region(struct kvm *kvm,
 			userspace_addr = do_mmap(NULL, 0,
 						 npages * PAGE_SIZE,
 						 PROT_READ | PROT_WRITE,
-						 MAP_SHARED | MAP_ANONYMOUS,
+						 MAP_PRIVATE | MAP_ANONYMOUS,
 						 0);
 			up_write(&current->mm->mmap_sem);
 
