@@ -286,6 +286,11 @@ enum {
 #define INTEL_SCH_HDA_DEVC      0x78
 #define INTEL_SCH_HDA_DEVC_NOSNOOP       (0x1<<11)
 
+/* Define IN stream 0 FIFO size offset in VIA controller */
+#define VIA_IN_STREAM0_FIFO_SIZE_OFFSET	0x90
+/* Define VIA HD Audio Device ID*/
+#define VIA_HDAC_DEVICE_ID		0x3288
+
 
 /*
  */
@@ -317,6 +322,12 @@ struct azx_dev {
 	unsigned int running :1;
 	unsigned int irq_pending :1;
 	unsigned int irq_ignore :1;
+	/*
+	 * For VIA:
+	 *  A flag to ensure DMA position is 0
+	 *  when link position is not greater than FIFO size
+	 */
+	unsigned int insufficient :1;
 };
 
 /* CORB/RIRB */
@@ -379,6 +390,7 @@ struct azx {
 	unsigned int polling_mode :1;
 	unsigned int msi :1;
 	unsigned int irq_pending_warned :1;
+	unsigned int via_dmapos_patch :1; /* enable DMA-position fix for VIA */
 
 	/* for debugging */
 	unsigned int last_cmd;	/* last issued command (to sync) */
@@ -818,6 +830,11 @@ static void azx_int_clear(struct azx *chip)
 /* start a stream */
 static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 {
+	/*
+	 * Before stream start, initialize parameter
+	 */
+	azx_dev->insufficient = 1;
+
 	/* enable SIE */
 	azx_writeb(chip, INTCTL,
 		   azx_readb(chip, INTCTL) | (1 << azx_dev->index));
@@ -1148,7 +1165,8 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
 
 	/* enable the position buffer */
 	if (chip->position_fix == POS_FIX_POSBUF ||
-	    chip->position_fix == POS_FIX_AUTO) {
+	    chip->position_fix == POS_FIX_AUTO ||
+	    chip->via_dmapos_patch) {
 		if (!(azx_readl(chip, DPLBASE) & ICH6_DPLBASE_ENABLE))
 			azx_writel(chip, DPLBASE,
 				(u32)chip->posbuf.addr | ICH6_DPLBASE_ENABLE);
@@ -1504,13 +1522,71 @@ static int azx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	return 0;
 }
 
+/* get the current DMA position with correction on VIA chips */
+static unsigned int azx_via_get_position(struct azx *chip,
+					 struct azx_dev *azx_dev)
+{
+	unsigned int link_pos, mini_pos, bound_pos;
+	unsigned int mod_link_pos, mod_dma_pos, mod_mini_pos;
+	unsigned int fifo_size;
+
+	link_pos = azx_sd_readl(azx_dev, SD_LPIB);
+	if (azx_dev->index >= 4) {
+		/* Playback, no problem using link position */
+		return link_pos;
+	}
+
+	/* Capture */
+	/* For new chipset,
+	 * use mod to get the DMA position just like old chipset
+	 */
+	mod_dma_pos = le32_to_cpu(*azx_dev->posbuf);
+	mod_dma_pos %= azx_dev->period_bytes;
+
+	/* azx_dev->fifo_size can't get FIFO size of in stream.
+	 * Get from base address + offset.
+	 */
+	fifo_size = readw(chip->remap_addr + VIA_IN_STREAM0_FIFO_SIZE_OFFSET);
+
+	if (azx_dev->insufficient) {
+		/* Link position never gather than FIFO size */
+		if (link_pos <= fifo_size)
+			return 0;
+
+		azx_dev->insufficient = 0;
+	}
+
+	if (link_pos <= fifo_size)
+		mini_pos = azx_dev->bufsize + link_pos - fifo_size;
+	else
+		mini_pos = link_pos - fifo_size;
+
+	/* Find nearest previous boudary */
+	mod_mini_pos = mini_pos % azx_dev->period_bytes;
+	mod_link_pos = link_pos % azx_dev->period_bytes;
+	if (mod_link_pos >= fifo_size)
+		bound_pos = link_pos - mod_link_pos;
+	else if (mod_dma_pos >= mod_mini_pos)
+		bound_pos = mini_pos - mod_mini_pos;
+	else {
+		bound_pos = mini_pos - mod_mini_pos + azx_dev->period_bytes;
+		if (bound_pos >= azx_dev->bufsize)
+			bound_pos = 0;
+	}
+
+	/* Calculate real DMA position we want */
+	return bound_pos + mod_dma_pos;
+}
+
 static unsigned int azx_get_position(struct azx *chip,
 				     struct azx_dev *azx_dev)
 {
 	unsigned int pos;
 
-	if (chip->position_fix == POS_FIX_POSBUF ||
-	    chip->position_fix == POS_FIX_AUTO) {
+	if (chip->via_dmapos_patch)
+		pos = azx_via_get_position(chip, azx_dev);
+	else if (chip->position_fix == POS_FIX_POSBUF ||
+		 chip->position_fix == POS_FIX_AUTO) {
 		/* use the position buffer */
 		pos = le32_to_cpu(*azx_dev->posbuf);
 	} else {
@@ -1945,6 +2021,15 @@ static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 static int __devinit check_position_fix(struct azx *chip, int fix)
 {
 	const struct snd_pci_quirk *q;
+
+	/* Check VIA HD Audio Controller exist */
+	if (chip->pci->vendor == PCI_VENDOR_ID_VIA &&
+	    chip->pci->device == VIA_HDAC_DEVICE_ID) {
+		chip->via_dmapos_patch = 1;
+		/* Use link position directly, avoid any transfer problem. */
+		return POS_FIX_LPIB;
+	}
+	chip->via_dmapos_patch = 0;
 
 	if (fix == POS_FIX_AUTO) {
 		q = snd_pci_quirk_lookup(chip->pci, position_fix_list);
