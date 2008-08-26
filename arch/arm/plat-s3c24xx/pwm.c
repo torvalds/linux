@@ -19,6 +19,7 @@
 #include <linux/io.h>
 #include <linux/pwm.h>
 
+#include <asm/plat-s3c24xx/devs.h>
 #include <asm/plat-s3c/regs-timer.h>
 
 struct pwm_device {
@@ -168,7 +169,7 @@ void pwm_disable(struct pwm_device *pwm)
 
 EXPORT_SYMBOL(pwm_disable);
 
-unsigned long pwm_calc_tin(struct pwm_device *pwm, unsigned long freq)
+static unsigned long pwm_calc_tin(struct pwm_device *pwm, unsigned long freq)
 {
 	unsigned long tin_parent_rate;
 	unsigned int div;
