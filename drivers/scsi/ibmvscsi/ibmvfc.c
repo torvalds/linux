@@ -556,11 +556,12 @@ static void ibmvfc_link_down(struct ibmvfc_host *vhost,
 /**
  * ibmvfc_init_host - Start host initialization
  * @vhost:		ibmvfc host struct
+ * @relogin:	is this a re-login?
  *
  * Return value:
  *	nothing
  **/
-static void ibmvfc_init_host(struct ibmvfc_host *vhost)
+static void ibmvfc_init_host(struct ibmvfc_host *vhost, int relogin)
 {
 	struct ibmvfc_target *tgt;
 
@@ -574,6 +575,11 @@ static void ibmvfc_init_host(struct ibmvfc_host *vhost)
 	}
 
 	if (!ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
+		if (!relogin) {
+			memset(vhost->async_crq.msgs, 0, PAGE_SIZE);
+			vhost->async_crq.cur = 0;
+		}
+
 		list_for_each_entry(tgt, &vhost->targets, queue)
 			tgt->need_login = 1;
 		scsi_block_requests(vhost->host);
@@ -1059,9 +1065,10 @@ static void ibmvfc_get_starget_port_id(struct scsi_target *starget)
 static int ibmvfc_wait_while_resetting(struct ibmvfc_host *vhost)
 {
 	long timeout = wait_event_timeout(vhost->init_wait_q,
-					  (vhost->state == IBMVFC_ACTIVE ||
-					   vhost->state == IBMVFC_HOST_OFFLINE ||
-					   vhost->state == IBMVFC_LINK_DEAD),
+					  ((vhost->state == IBMVFC_ACTIVE ||
+					    vhost->state == IBMVFC_HOST_OFFLINE ||
+					    vhost->state == IBMVFC_LINK_DEAD) &&
+					   vhost->action == IBMVFC_HOST_ACTION_NONE),
 					  (init_timeout * HZ));
 
 	return timeout ? 0 : -EIO;
@@ -1450,8 +1457,8 @@ static void ibmvfc_scsi_done(struct ibmvfc_event *evt)
 	struct ibmvfc_cmd *vfc_cmd = &evt->xfer_iu->cmd;
 	struct ibmvfc_fcp_rsp *rsp = &vfc_cmd->rsp;
 	struct scsi_cmnd *cmnd = evt->cmnd;
-	int rsp_len = 0;
-	int sense_len = rsp->fcp_sense_len;
+	u32 rsp_len = 0;
+	u32 sense_len = rsp->fcp_sense_len;
 
 	if (cmnd) {
 		if (vfc_cmd->response_flags & IBMVFC_ADAPTER_RESID_VALID)
@@ -1468,7 +1475,7 @@ static void ibmvfc_scsi_done(struct ibmvfc_event *evt)
 				rsp_len = rsp->fcp_rsp_len;
 			if ((sense_len + rsp_len) > SCSI_SENSE_BUFFERSIZE)
 				sense_len = SCSI_SENSE_BUFFERSIZE - rsp_len;
-			if ((rsp->flags & FCP_SNS_LEN_VALID) && rsp->fcp_sense_len)
+			if ((rsp->flags & FCP_SNS_LEN_VALID) && rsp->fcp_sense_len && rsp_len <= 8)
 				memcpy(cmnd->sense_buffer, rsp->data.sense + rsp_len, sense_len);
 
 			ibmvfc_log_error(evt);
@@ -2077,17 +2084,18 @@ static void ibmvfc_handle_async(struct ibmvfc_async_crq *crq,
 {
 	const char *desc = ibmvfc_get_ae_desc(crq->event);
 
-	ibmvfc_log(vhost, 3, "%s event received\n", desc);
+	ibmvfc_log(vhost, 3, "%s event received. scsi_id: %lx, wwpn: %lx,"
+		   " node_name: %lx\n", desc, crq->scsi_id, crq->wwpn, crq->node_name);
 
 	switch (crq->event) {
 	case IBMVFC_AE_LINK_UP:
 	case IBMVFC_AE_RESUME:
 		vhost->events_to_log |= IBMVFC_AE_LINKUP;
-		ibmvfc_init_host(vhost);
+		ibmvfc_init_host(vhost, 1);
 		break;
 	case IBMVFC_AE_SCN_FABRIC:
 		vhost->events_to_log |= IBMVFC_AE_RSCN;
-		ibmvfc_init_host(vhost);
+		ibmvfc_init_host(vhost, 1);
 		break;
 	case IBMVFC_AE_SCN_NPORT:
 	case IBMVFC_AE_SCN_GROUP:
@@ -2133,13 +2141,13 @@ static void ibmvfc_handle_crq(struct ibmvfc_crq *crq, struct ibmvfc_host *vhost)
 			/* Send back a response */
 			rc = ibmvfc_send_crq_init_complete(vhost);
 			if (rc == 0)
-				ibmvfc_init_host(vhost);
+				ibmvfc_init_host(vhost, 0);
 			else
 				dev_err(vhost->dev, "Unable to send init rsp. rc=%ld\n", rc);
 			break;
 		case IBMVFC_CRQ_INIT_COMPLETE:
 			dev_info(vhost->dev, "Partner initialization complete\n");
-			ibmvfc_init_host(vhost);
+			ibmvfc_init_host(vhost, 0);
 			break;
 		default:
 			dev_err(vhost->dev, "Unknown crq message type: %d\n", crq->format);
@@ -3357,8 +3365,6 @@ static void ibmvfc_npiv_login(struct ibmvfc_host *vhost)
 	mad->buffer.va = vhost->login_buf_dma;
 	mad->buffer.len = sizeof(*vhost->login_buf);
 
-	memset(vhost->async_crq.msgs, 0, PAGE_SIZE);
-	vhost->async_crq.cur = 0;
 	ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_INIT_WAIT);
 
 	if (!ibmvfc_send_event(evt, vhost, default_timeout))
@@ -3601,8 +3607,9 @@ static void ibmvfc_do_work(struct ibmvfc_host *vhost)
 			}
 		}
 
-		if (vhost->reinit) {
+		if (vhost->reinit && !ibmvfc_set_host_state(vhost, IBMVFC_INITIALIZING)) {
 			vhost->reinit = 0;
+			scsi_block_requests(vhost->host);
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_QUERY);
 		} else {
 			ibmvfc_set_host_action(vhost, IBMVFC_HOST_ACTION_NONE);

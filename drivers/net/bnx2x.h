@@ -271,7 +271,7 @@ struct bnx2x_fastpath {
 			 (fp->tx_pkt_prod != fp->tx_pkt_cons))
 
 #define BNX2X_HAS_RX_WORK(fp) \
-			(fp->rx_comp_cons != le16_to_cpu(*fp->rx_cons_sb))
+			(fp->rx_comp_cons != rx_cons_sb)
 
 #define BNX2X_HAS_WORK(fp)	(BNX2X_HAS_RX_WORK(fp) || BNX2X_HAS_TX_WORK(fp))
 

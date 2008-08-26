@@ -140,6 +140,10 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.vsync_len = 1,
 			.sync = 0, /* hsync and vsync are active low */
 		},
+		.lcd_size_cfg = { /* 7.0 inch */
+			.width = 152,
+			.height = 91,
+		},
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,
 		},

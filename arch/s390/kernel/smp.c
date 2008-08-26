@@ -610,7 +610,6 @@ static void __init smp_create_idle(unsigned int cpu)
 	if (IS_ERR(p))
 		panic("failed fork for CPU %u: %li", cpu, PTR_ERR(p));
 	current_set[cpu] = p;
-	spin_lock_init(&(&per_cpu(s390_idle, cpu))->lock);
 }
 
 static int __cpuinit smp_alloc_lowcore(int cpu)
@@ -845,7 +844,6 @@ void __init smp_prepare_boot_cpu(void)
 	current_set[0] = current;
 	smp_cpu_state[0] = CPU_STATE_CONFIGURED;
 	smp_cpu_polarization[0] = POLARIZATION_UNKNWN;
-	spin_lock_init(&(&__get_cpu_var(s390_idle))->lock);
 }
 
 void __init smp_cpus_done(unsigned int max_cpus)
