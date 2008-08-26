@@ -80,7 +80,7 @@ static struct pci_device_id ixgbe_pci_tbl[] = {
 };
 MODULE_DEVICE_TABLE(pci, ixgbe_pci_tbl);
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 static int ixgbe_notify_dca(struct notifier_block *, unsigned long event,
 			    void *p);
 static struct notifier_block dca_notifier = {
@@ -309,7 +309,7 @@ done_cleaning:
 	return (total_packets ? true : false);
 }
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 				struct ixgbe_ring *rx_ring)
 {
@@ -320,7 +320,7 @@ static void ixgbe_update_rx_dca(struct ixgbe_adapter *adapter,
 	if (rx_ring->cpu != cpu) {
 		rxctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_DCA_RXCTRL(q));
 		rxctrl &= ~IXGBE_DCA_RXCTRL_CPUID_MASK;
-		rxctrl |= dca_get_tag(cpu);
+		rxctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
 		rxctrl |= IXGBE_DCA_RXCTRL_DESC_DCA_EN;
 		rxctrl |= IXGBE_DCA_RXCTRL_HEAD_DCA_EN;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_RXCTRL(q), rxctrl);
@@ -339,7 +339,7 @@ static void ixgbe_update_tx_dca(struct ixgbe_adapter *adapter,
 	if (tx_ring->cpu != cpu) {
 		txctrl = IXGBE_READ_REG(&adapter->hw, IXGBE_DCA_TXCTRL(q));
 		txctrl &= ~IXGBE_DCA_TXCTRL_CPUID_MASK;
-		txctrl |= dca_get_tag(cpu);
+		txctrl |= dca3_get_tag(&adapter->pdev->dev, cpu);
 		txctrl |= IXGBE_DCA_TXCTRL_DESC_DCA_EN;
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_TXCTRL(q), txctrl);
 		tx_ring->cpu = cpu;
@@ -372,11 +372,14 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 
 	switch (event) {
 	case DCA_PROVIDER_ADD:
-		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
+		/* if we're already enabled, don't do it again */
+		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
+			break;
 		/* Always use CB2 mode, difference is masked
 		 * in the CB driver. */
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
 		if (dca_add_requester(dev) == 0) {
+			adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
 			ixgbe_setup_dca(adapter);
 			break;
 		}
@@ -393,7 +396,7 @@ static int __ixgbe_notify_dca(struct device *dev, void *data)
 	return 0;
 }
 
-#endif /* CONFIG_DCA */
+#endif /* CONFIG_DCA or CONFIG_DCA_MODULE */
 /**
  * ixgbe_receive_skb - Send a completed packet up the stack
  * @adapter: board private structure
@@ -931,7 +934,7 @@ static irqreturn_t ixgbe_msix_clean_tx(int irq, void *data)
 	r_idx = find_first_bit(q_vector->txr_idx, adapter->num_tx_queues);
 	for (i = 0; i < q_vector->txr_count; i++) {
 		tx_ring = &(adapter->tx_ring[r_idx]);
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 		if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 			ixgbe_update_tx_dca(adapter, tx_ring);
 #endif
@@ -996,7 +999,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 
 	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
 	rx_ring = &(adapter->rx_ring[r_idx]);
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED)
 		ixgbe_update_rx_dca(adapter, rx_ring);
 #endif
@@ -2054,11 +2057,28 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
 
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
+	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
+		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
+		dca_remove_requester(&adapter->pdev->dev);
+	}
+
+#endif
 	if (!pci_channel_offline(adapter->pdev))
 		ixgbe_reset(adapter);
 	ixgbe_clean_all_tx_rings(adapter);
 	ixgbe_clean_all_rx_rings(adapter);
 
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
+	/* since we reset the hardware DCA settings were cleared */
+	if (dca_add_requester(&adapter->pdev->dev) == 0) {
+		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
+		/* always use CB2 mode, difference is masked
+		 * in the CB driver */
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_DCA_CTRL, 2);
+		ixgbe_setup_dca(adapter);
+	}
+#endif
 }
 
 static int ixgbe_suspend(struct pci_dev *pdev, pm_message_t state)
@@ -2113,7 +2133,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	struct ixgbe_adapter *adapter = q_vector->adapter;
 	int tx_cleaned = 0, work_done = 0;
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 		ixgbe_update_tx_dca(adapter, adapter->tx_ring);
 		ixgbe_update_rx_dca(adapter, adapter->rx_ring);
@@ -3677,7 +3697,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	if (err)
 		goto err_register;
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 	if (dca_add_requester(&pdev->dev) == 0) {
 		adapter->flags |= IXGBE_FLAG_DCA_ENABLED;
 		/* always use CB2 mode, difference is masked
@@ -3727,7 +3747,7 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 
 	flush_scheduled_work();
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 	if (adapter->flags & IXGBE_FLAG_DCA_ENABLED) {
 		adapter->flags &= ~IXGBE_FLAG_DCA_ENABLED;
 		dca_remove_requester(&pdev->dev);
@@ -3860,7 +3880,7 @@ static int __init ixgbe_init_module(void)
 
 	printk(KERN_INFO "%s: %s\n", ixgbe_driver_name, ixgbe_copyright);
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 	dca_register_notify(&dca_notifier);
 
 #endif
@@ -3877,13 +3897,13 @@ module_init(ixgbe_init_module);
  **/
 static void __exit ixgbe_exit_module(void)
 {
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 	dca_unregister_notify(&dca_notifier);
 #endif
 	pci_unregister_driver(&ixgbe_driver);
 }
 
-#ifdef CONFIG_DCA
+#if defined(CONFIG_DCA) || defined (CONFIG_DCA_MODULE)
 static int ixgbe_notify_dca(struct notifier_block *nb, unsigned long event,
 			    void *p)
 {
@@ -3894,7 +3914,7 @@ static int ixgbe_notify_dca(struct notifier_block *nb, unsigned long event,
 
 	return ret_val ? NOTIFY_BAD : NOTIFY_DONE;
 }
-#endif /* CONFIG_DCA */
+#endif /* CONFIG_DCA or CONFIG_DCA_MODULE */
 
 module_exit(ixgbe_exit_module);
 
