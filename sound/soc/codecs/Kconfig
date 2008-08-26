@@ -10,6 +10,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8750
 	select SND_SOC_WM8753
 	select SND_SOC_WM8900
+	select SND_SOC_WM8903
 	select SND_SOC_WM8990
 	select SND_SOC_CS4270
 	select SND_SOC_TLV320AIC26
@@ -52,6 +53,9 @@ config SND_SOC_WM8753
 	tristate
 
 config SND_SOC_WM8900
+	tristate
+
+config SND_SOC_WM8903
 	tristate
 
 config SND_SOC_WM8990
