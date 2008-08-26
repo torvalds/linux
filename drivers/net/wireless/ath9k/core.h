@@ -516,7 +516,6 @@ struct ath_tx_control {
 	u32 keyix;
 	int min_rate;
 	int mcast_rate;
-	u16 nextfraglen;
 	struct ath_softc *dev;
 	dma_addr_t dmacontext;
 };

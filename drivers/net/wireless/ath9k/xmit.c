@@ -227,7 +227,6 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	}
 
 	txctl->if_id = 0;
-	txctl->nextfraglen = 0;
 	txctl->frmlen = skb->len + FCS_LEN - (hdrlen & 3);
 	txctl->txpower = MAX_RATE_POWER; /* FIXME */
 
@@ -344,51 +343,18 @@ static int ath_tx_prepare(struct ath_softc *sc,
 	}
 	rix = rcs[0].rix;
 
-	/*
-	 * Calculate duration.  This logically belongs in the 802.11
-	 * layer but it lacks sufficient information to calculate it.
-	 */
-	if ((txctl->flags & ATH9K_TXDESC_NOACK) == 0 && !ieee80211_is_ctl(fc)) {
-		u16 dur;
+	if (ieee80211_has_morefrags(fc) ||
+	    (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)) {
 		/*
-		 * XXX not right with fragmentation.
-		 */
-		if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-			dur = rt->info[rix].spAckDuration;
-		else
-			dur = rt->info[rix].lpAckDuration;
-
-		if (le16_to_cpu(hdr->frame_control) &
-				IEEE80211_FCTL_MOREFRAGS) {
-			dur += dur;  /* Add additional 'SIFS + ACK' */
-
-			/*
-			** Compute size of next fragment in order to compute
-			** durations needed to update NAV.
-			** The last fragment uses the ACK duration only.
-			** Add time for next fragment.
-			*/
-			dur += ath9k_hw_computetxtime(sc->sc_ah, rt,
-				      txctl->nextfraglen,
-				      rix,
-				      (sc->sc_flags & SC_OP_PREAMBLE_SHORT));
-		}
-
-		if (ieee80211_has_morefrags(fc) ||
-		     (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)) {
-			/*
-			**  Force hardware to use computed duration for next
-			**  fragment by disabling multi-rate retry, which
-			**  updates duration based on the multi-rate
-			**  duration table.
-			*/
-			rcs[1].tries = rcs[2].tries = rcs[3].tries = 0;
-			rcs[1].rix = rcs[2].rix = rcs[3].rix = 0;
-			/* reset tries but keep rate index */
-			rcs[0].tries = ATH_TXMAXTRY;
-		}
-
-		hdr->duration_id = cpu_to_le16(dur);
+		**  Force hardware to use computed duration for next
+		**  fragment by disabling multi-rate retry, which
+		**  updates duration based on the multi-rate
+		**  duration table.
+		*/
+		rcs[1].tries = rcs[2].tries = rcs[3].tries = 0;
+		rcs[1].rix = rcs[2].rix = rcs[3].rix = 0;
+		/* reset tries but keep rate index */
+		rcs[0].tries = ATH_TXMAXTRY;
 	}
 
 	/*
