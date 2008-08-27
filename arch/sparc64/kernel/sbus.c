@@ -52,12 +52,22 @@
 #define STRBUF_TAG_VALID	0x02UL
 
 /* Enable 64-bit DVMA mode for the given device. */
-void sbus_set_sbus64(struct sbus_dev *sdev, int bursts)
+void sbus_set_sbus64(struct device *dev, int bursts)
 {
-	struct iommu *iommu = sdev->ofdev.dev.archdata.iommu;
-	int slot = sdev->slot;
+	struct iommu *iommu = dev->archdata.iommu;
+	struct of_device *op = to_of_device(dev);
+	const struct linux_prom_registers *regs;
 	unsigned long cfg_reg;
+	int slot;
 	u64 val;
+
+	regs = of_get_property(op->node, "reg", NULL);
+	if (!regs) {
+		printk(KERN_ERR "sbus_set_sbus64: Cannot find regs for %s\n",
+		       op->node->full_name);
+		return;
+	}
+	slot = regs->which_io;
 
 	cfg_reg = iommu->write_complete_reg;
 	switch (slot) {

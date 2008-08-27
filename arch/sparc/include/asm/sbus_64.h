@@ -94,10 +94,6 @@ extern struct sbus_bus *sbus_root;
 	for ((bus) = sbus_root; (bus); (bus) = (bus)->next) \
 		for ((device) = (bus)->devices; (device); (device) = (device)->next)
 
-/* Driver DVMA interfaces. */
-#define sbus_can_dma_64bit(sdev)	(1)
-#define sbus_can_burst64(sdev)		(1)
-extern void sbus_set_sbus64(struct sbus_dev *, int);
 extern void sbus_fill_device_irq(struct sbus_dev *);
 
 extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);

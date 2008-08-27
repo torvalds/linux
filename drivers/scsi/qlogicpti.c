@@ -158,7 +158,7 @@ static inline void set_sbus_cfg1(struct qlogicpti *qpti)
 	 * is a nop and the chip ends up using the smallest burst
 	 * size. -DaveM
 	 */
-	if (sbus_can_burst64(qpti->sdev) && (bursts & DMA_BURST64)) {
+	if (sbus_can_burst64() && (bursts & DMA_BURST64)) {
 		val = (SBUS_CFG1_BENAB | SBUS_CFG1_B64);
 	} else
 #endif

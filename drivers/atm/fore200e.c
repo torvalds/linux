@@ -819,8 +819,8 @@ fore200e_sba_map(struct fore200e* fore200e)
     /* get the supported DVMA burst sizes */
     bursts = prom_getintdefault(sbus_dev->bus->prom_node, "burst-sizes", 0x00);
 
-    if (sbus_can_dma_64bit(sbus_dev))
-	sbus_set_sbus64(sbus_dev, bursts);
+    if (sbus_can_dma_64bit())
+	sbus_set_sbus64(&sbus_dev->ofdev.dev, bursts);
 
     fore200e->state = FORE200E_STATE_MAP;
     return 0;

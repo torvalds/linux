@@ -265,15 +265,17 @@ static void sbus_esp_reset_dma(struct esp *esp)
 {
 	int can_do_burst16, can_do_burst32, can_do_burst64;
 	int can_do_sbus64, lim;
+	struct sbus_dev *sdev;
 	u32 val;
 
 	can_do_burst16 = (esp->bursts & DMA_BURST16) != 0;
 	can_do_burst32 = (esp->bursts & DMA_BURST32) != 0;
 	can_do_burst64 = 0;
 	can_do_sbus64 = 0;
-	if (sbus_can_dma_64bit(esp->dev))
+	sdev = esp->dev;
+	if (sbus_can_dma_64bit())
 		can_do_sbus64 = 1;
-	if (sbus_can_burst64(esp->sdev))
+	if (sbus_can_burst64())
 		can_do_burst64 = (esp->bursts & DMA_BURST64) != 0;
 
 	/* Put the DVMA into a known state. */
@@ -300,7 +302,7 @@ static void sbus_esp_reset_dma(struct esp *esp)
 
 		if (can_do_sbus64) {
 			esp->prev_hme_dmacsr |= DMA_SCSI_SBUS64;
-			sbus_set_sbus64(esp->dev, esp->bursts);
+			sbus_set_sbus64(&sdev->ofdev.dev, esp->bursts);
 		}
 
 		lim = 1000;

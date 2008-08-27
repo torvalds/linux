@@ -1575,7 +1575,7 @@ static int happy_meal_init(struct happy_meal *hp)
 	if ((hp->happy_bursts & DMA_BURST64) &&
 	    ((hp->happy_flags & HFLAG_PCI) != 0
 #ifdef CONFIG_SBUS
-	     || sbus_can_burst64(hp->happy_dev)
+	     || sbus_can_burst64()
 #endif
 	     || 0)) {
 		u32 gcfg = GREG_CFG_BURST64;
@@ -1585,11 +1585,13 @@ static int happy_meal_init(struct happy_meal *hp)
 		 * do not.  -DaveM
 		 */
 #ifdef CONFIG_SBUS
-		if ((hp->happy_flags & HFLAG_PCI) == 0 &&
-		    sbus_can_dma_64bit(hp->happy_dev)) {
-			sbus_set_sbus64(hp->happy_dev,
-					hp->happy_bursts);
-			gcfg |= GREG_CFG_64BIT;
+		if ((hp->happy_flags & HFLAG_PCI) == 0) {
+			struct sbus_dev *sdev = hp->happy_dev;
+			if (sbus_can_dma_64bit()) {
+				sbus_set_sbus64(&sdev->ofdev.dev,
+						hp->happy_bursts);
+				gcfg |= GREG_CFG_64BIT;
+			}
 		}
 #endif
 

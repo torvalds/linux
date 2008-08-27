@@ -495,6 +495,17 @@ extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 #define sbus_iounmap(__addr, __size)	\
 	release_region((unsigned long)(__addr), (__size))
 
+static inline int sbus_can_dma_64bit(void)
+{
+	return 1;
+}
+static inline int sbus_can_burst64(void)
+{
+	return 1;
+}
+struct device;
+extern void sbus_set_sbus64(struct device *, int);
+
 /*
  * Convert a physical pointer to a virtual kernel pointer for /dev/mem
  * access

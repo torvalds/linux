@@ -1050,7 +1050,7 @@ static int __devinit myri_ether_init(struct sbus_dev *sdev)
 	mp->myri_bursts = prom_getintdefault(mp->myri_sdev->bus->prom_node,
 					     "burst-sizes", 0x00);
 
-	if (!sbus_can_burst64(sdev))
+	if (!sbus_can_burst64())
 		mp->myri_bursts &= ~(DMA_BURST64);
 
 	DET(("MYRI bursts %02x\n", mp->myri_bursts));

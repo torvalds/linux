@@ -722,7 +722,7 @@ static inline void qec_init_once(struct sunqec *qecp, struct sbus_dev *qsdev)
 {
 	u8 bsizes = qecp->qec_bursts;
 
-	if (sbus_can_burst64(qsdev) && (bsizes & DMA_BURST64)) {
+	if (sbus_can_burst64() && (bsizes & DMA_BURST64)) {
 		sbus_writel(GLOB_CTRL_B64, qecp->gregs + GLOB_CTRL);
 	} else if (bsizes & DMA_BURST32) {
 		sbus_writel(GLOB_CTRL_B32, qecp->gregs + GLOB_CTRL);

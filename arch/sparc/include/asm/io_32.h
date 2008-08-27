@@ -308,6 +308,17 @@ extern void sbus_iounmap(volatile void __iomem *vaddr, unsigned long size);
 #define RTC_PORT(x)   (rtc_port + (x))
 #define RTC_ALWAYS_BCD  0
 
+static inline int sbus_can_dma_64bit(void)
+{
+	return 0; /* actually, sparc_cpu_model==sun4d */
+}
+static inline int sbus_can_burst64(void)
+{
+	return 0; /* actually, sparc_cpu_model==sun4d */
+}
+struct device;
+extern void sbus_set_sbus64(struct device *, int);
+
 #endif
 
 #define __ARCH_HAS_NO_PAGE_ZERO_MAPPED		1

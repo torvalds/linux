@@ -250,7 +250,7 @@ static void _sparc_free_io(struct resource *res)
 
 #ifdef CONFIG_SBUS
 
-void sbus_set_sbus64(struct sbus_dev *sdev, int x)
+void sbus_set_sbus64(struct device *dev, int x)
 {
 	printk("sbus_set_sbus64: unsupported\n");
 }
