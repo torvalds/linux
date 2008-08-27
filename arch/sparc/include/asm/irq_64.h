@@ -56,7 +56,6 @@ extern unsigned int sun4u_build_msi(u32 portid, unsigned int *virt_irq_p,
 				    unsigned long imap_base,
 				    unsigned long iclr_base);
 extern void sun4u_destroy_msi(unsigned int virt_irq);
-extern unsigned int sbus_build_irq(void *sbus, unsigned int ino);
 
 extern unsigned char virt_irq_alloc(unsigned int dev_handle,
 				    unsigned int dev_ino);

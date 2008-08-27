@@ -55,25 +55,12 @@ static pgprot_t dvma_prot;		/* Consistent mapping pte flags */
 #define IOPERM        (IOPTE_CACHE | IOPTE_WRITE | IOPTE_VALID)
 #define MKIOPTE(pfn, perm) (((((pfn)<<8) & IOPTE_PAGE) | (perm)) & ~IOPTE_WAZ)
 
-void __init iommu_init(struct device_node *parent, struct sbus_bus *sbus)
+static void __init sbus_iommu_init(struct of_device *op)
 {
-	struct of_device *parent_op, *op;
 	struct iommu_struct *iommu;
 	unsigned int impl, vers;
 	unsigned long *bitmap;
 	unsigned long tmp;
-
-	parent_op = of_find_device_by_node(parent);
-	if (!parent_op) {
-		prom_printf("Unable to find IOMMU of_device\n");
-		prom_halt();
-	}
-
-	op = of_find_device_by_node(sbus->ofdev.node);
-	if (!op) {
-		prom_printf("Unable to find SBUS of_device\n");
-		prom_halt();
-	}
 
 	iommu = kmalloc(sizeof(struct iommu_struct), GFP_ATOMIC);
 	if (!iommu) {
@@ -81,7 +68,7 @@ void __init iommu_init(struct device_node *parent, struct sbus_bus *sbus)
 		prom_halt();
 	}
 
-	iommu->regs = of_ioremap(&parent_op->resource[0], 0, PAGE_SIZE * 3,
+	iommu->regs = of_ioremap(&op->resource[0], 0, PAGE_SIZE * 3,
 				 "iommu_regs");
 	if (!iommu->regs) {
 		prom_printf("Cannot map IOMMU registers\n");
@@ -132,13 +119,28 @@ void __init iommu_init(struct device_node *parent, struct sbus_bus *sbus)
 	else
 		iommu->usemap.num_colors = 1;
 
-	printk("IOMMU: impl %d vers %d table 0x%p[%d B] map [%d b]\n",
-	    impl, vers, iommu->page_table,
-	    (int)(IOMMU_NPTES*sizeof(iopte_t)), (int)IOMMU_NPTES);
+	printk(KERN_INFO "IOMMU: impl %d vers %d table 0x%p[%d B] map [%d b]\n",
+	       impl, vers, iommu->page_table,
+	       (int)(IOMMU_NPTES*sizeof(iopte_t)), (int)IOMMU_NPTES);
 
-	sbus->ofdev.dev.archdata.iommu = iommu;
 	op->dev.archdata.iommu = iommu;
 }
+
+static int __init iommu_init(void)
+{
+	struct device_node *dp;
+
+	for_each_node_by_name(dp, "iommu") {
+		struct of_device *op = of_find_device_by_node(dp);
+
+		sbus_iommu_init(op);
+		of_propagate_archdata(op);
+	}
+
+	return 0;
+}
+
+subsys_initcall(iommu_init);
 
 /* This begs to be btfixup-ed by srmmu. */
 /* Flush the iotlb entries to ram. */

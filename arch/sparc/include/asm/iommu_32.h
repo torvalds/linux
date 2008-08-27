@@ -118,6 +118,4 @@ static inline void iommu_invalidate_page(struct iommu_regs *regs, unsigned long 
 	regs->pageflush = (ba & PAGE_MASK);
 }
 
-extern void iommu_init(struct device_node *dp, struct sbus_bus *sbus);
-
 #endif /* !(_SPARC_IOMMU_H) */

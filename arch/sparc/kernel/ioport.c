@@ -377,22 +377,6 @@ void sbus_dma_sync_single_for_device(struct device *dev, dma_addr_t ba, size_t s
 {
 }
 
-/* Support code for sbus_init().  */
-void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
-{
-#ifndef CONFIG_SUN4
-	struct device_node *parent = dp->parent;
-
-	if (sparc_cpu_model != sun4d &&
-	    parent != NULL &&
-	    !strcmp(parent->name, "iommu"))
-		iommu_init(parent, sbus);
-
-	if (sparc_cpu_model == sun4d)
-		iounit_init(sbus);
-#endif
-}
-
 static int __init sparc_register_ioport(void)
 {
 	register_proc_sparc_ioport();
@@ -402,13 +386,6 @@ static int __init sparc_register_ioport(void)
 
 arch_initcall(sparc_register_ioport);
 
-void __init sbus_arch_postinit(void)
-{
-	if (sparc_cpu_model == sun4d) {
-		extern void sun4d_init_sbi_irq(void);
-		sun4d_init_sbi_irq();
-	}
-}
 #endif /* CONFIG_SBUS */
 
 #ifdef CONFIG_PCI

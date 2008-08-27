@@ -34,18 +34,10 @@
 #define IOPERM        (IOUPTE_CACHE | IOUPTE_WRITE | IOUPTE_VALID)
 #define MKIOPTE(phys) __iopte((((phys)>>4) & IOUPTE_PAGE) | IOPERM)
 
-void __init iounit_init(struct sbus_bus *sbus)
+static void __init iounit_iommu_init(struct of_device *op)
 {
-	struct device_node *dp = sbus->ofdev.node;
 	struct iounit_struct *iounit;
 	iopte_t *xpt, *xptend;
-	struct of_device *op;
-
-	op = of_find_device_by_node(dp);
-	if (!op) {
-		prom_printf("SUN4D: Cannot find SBI of_device.\n");
-		prom_halt();
-	}
 
 	iounit = kzalloc(sizeof(struct iounit_struct), GFP_ATOMIC);
 	if (!iounit) {
@@ -66,7 +58,6 @@ void __init iounit_init(struct sbus_bus *sbus)
 		prom_halt();
 	}
 	
-	sbus->ofdev.dev.archdata.iommu = iounit;
 	op->dev.archdata.iommu = iounit;
 	iounit->page_table = xpt;
 	spin_lock_init(&iounit->lock);
@@ -75,6 +66,25 @@ void __init iounit_init(struct sbus_bus *sbus)
 	     xpt < xptend;)
 	     	iopte_val(*xpt++) = 0;
 }
+
+static int __init iounit_init(void)
+{
+	extern void sun4d_init_sbi_irq(void);
+	struct device_node *dp;
+
+	for_each_node_by_name(dp, "sbi") {
+		struct of_device *op = of_find_device_by_node(dp);
+
+		iounit_iommu_init(op);
+		of_propagate_archdata(op);
+	}
+
+	sun4d_init_sbi_irq();
+
+	return 0;
+}
+
+subsys_initcall(iounit_init);
 
 /* One has to hold iounit->lock to call this */
 static unsigned long iounit_get_area(struct iounit_struct *iounit, unsigned long vaddr, int size)
