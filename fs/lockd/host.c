@@ -220,10 +220,12 @@ struct nlm_host *nlmclnt_lookup_host(const struct sockaddr_in *sin,
 				     const char *hostname,
 				     unsigned int hostname_len)
 {
-	struct sockaddr_in ssin = {0};
+	const struct sockaddr_in source = {
+		.sin_family	= AF_UNSPEC,
+	};
 
 	return nlm_lookup_host(0, sin, proto, version,
-			       hostname, hostname_len, &ssin);
+			       hostname, hostname_len, &source);
 }
 
 /*
@@ -233,12 +235,14 @@ struct nlm_host *
 nlmsvc_lookup_host(struct svc_rqst *rqstp,
 			const char *hostname, unsigned int hostname_len)
 {
-	struct sockaddr_in ssin = {0};
+	const struct sockaddr_in source = {
+		.sin_family	= AF_INET,
+		.sin_addr	= rqstp->rq_daddr.addr,
+	};
 
-	ssin.sin_addr = rqstp->rq_daddr.addr;
 	return nlm_lookup_host(1, svc_addr_in(rqstp),
 			       rqstp->rq_prot, rqstp->rq_vers,
-			       hostname, hostname_len, &ssin);
+			       hostname, hostname_len, &source);
 }
 
 /*
