@@ -38,7 +38,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa25x.h>
 #include <mach/i2c.h>
 #include <mach/irda.h>
 #include <mach/mmc.h>
@@ -53,6 +53,61 @@
 #include "devices.h"
 #include "sharpsl.h"
 
+static unsigned long corgi_pin_config[] __initdata = {
+	/* Static Memory I/O */
+	GPIO78_nCS_2,	/* w100fb */
+	GPIO80_nCS_4,	/* scoop */
+
+	/* SSP1 */
+	GPIO23_SSP1_SCLK,
+	GPIO25_SSP1_TXD,
+	GPIO26_SSP1_RXD,
+	GPIO24_GPIO,	/* CORGI_GPIO_ADS7846_CS - SFRM as chip select */
+
+	/* I2S */
+	GPIO28_I2S_BITCLK_OUT,
+	GPIO29_I2S_SDATA_IN,
+	GPIO30_I2S_SDATA_OUT,
+	GPIO31_I2S_SYNC,
+	GPIO32_I2S_SYSCLK,
+
+	/* Infra-Red */
+	GPIO47_FICP_TXD,
+	GPIO46_FICP_RXD,
+
+	/* FFUART */
+	GPIO40_FFUART_DTR,
+	GPIO41_FFUART_RTS,
+	GPIO39_FFUART_TXD,
+	GPIO37_FFUART_DSR,
+	GPIO34_FFUART_RXD,
+	GPIO35_FFUART_CTS,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO52_nPCE_1,
+	GPIO53_nPCE_2,
+	GPIO54_nPSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* MMC */
+	GPIO6_MMC_CLK,
+	GPIO8_MMC_CS0,
+
+	/* GPIO */
+	GPIO9_GPIO,	/* CORGI_GPIO_nSD_DETECT */
+	GPIO7_GPIO,	/* CORGI_GPIO_nSD_WP */
+	GPIO33_GPIO,	/* CORGI_GPIO_SD_PWR */
+	GPIO22_GPIO,	/* CORGI_GPIO_IR_ON */
+	GPIO44_GPIO,	/* CORGI_GPIO_HSYNC */
+
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+};
 
 /*
  * Corgi SCOOP Device
@@ -80,27 +135,6 @@ struct platform_device corgiscoop_device = {
 	.resource	= corgi_scoop_resources,
 };
 
-static void corgi_pcmcia_init(void)
-{
-	/* Setup default state of GPIO outputs
-	   before we enable them as outputs. */
-	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) | GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO52_nPCE_1) |
-		GPIO_bit(GPIO53_nPCE_2);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-	pxa_gpio_mode(GPIO52_nPCE_1_MD);
-	pxa_gpio_mode(GPIO53_nPCE_2_MD);
-	pxa_gpio_mode(GPIO54_pSKTSEL_MD);
-}
-
 static struct scoop_pcmcia_dev corgi_pcmcia_scoop[] = {
 {
 	.dev        = &corgiscoop_device.dev,
@@ -113,7 +147,6 @@ static struct scoop_pcmcia_dev corgi_pcmcia_scoop[] = {
 static struct scoop_pcmcia_config corgi_pcmcia_config = {
 	.devs         = &corgi_pcmcia_scoop[0],
 	.num_devs     = 1,
-	.pcmcia_init  = corgi_pcmcia_init,
 };
 
 EXPORT_SYMBOL(corgiscoop_device);
@@ -412,10 +445,6 @@ static int corgi_mci_init(struct device *dev, irq_handler_t corgi_detect_int, vo
 {
 	int err;
 
-	/* setup GPIO for PXA25x MMC controller	*/
-	pxa_gpio_mode(GPIO6_MMCCLK_MD);
-	pxa_gpio_mode(GPIO8_MMCCS0_MD);
-
 	err = gpio_request(CORGI_GPIO_nSD_DETECT, "nSD_DETECT");
 	if (err)
 		goto err_out;
@@ -558,20 +587,12 @@ static void __init corgi_init(void)
 	pm_power_off = corgi_poweroff;
 	arm_pm_restart = corgi_restart;
 
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x0158C000;
-	PGSR1 = 0x00FF0080;
-	PGSR2 = 0x0001C004;
 	/* Stop 3.6MHz and drive HIGH to PCMCIA and CS */
 	PCFR |= PCFR_OPDE;
 
-	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(corgi_pin_config));
 
-	pxa_gpio_mode(CORGI_GPIO_IR_ON | GPIO_OUT);
-	pxa_gpio_mode(CORGI_GPIO_HSYNC | GPIO_IN);
+	corgi_ssp_set_machinfo(&corgi_ssp_machinfo);
 
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
