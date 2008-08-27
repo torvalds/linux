@@ -10,7 +10,7 @@
  * are Copyright (C) 1999 David A. Hinds.  All Rights Reserved.
  *
  * (C) 1999		David A. Hinds
- * (C) 2003 - 2004	Dominik Brodowski
+ * (C) 2003 - 2008	Dominik Brodowski
  */
 
 #ifndef _LINUX_DS_H
@@ -23,138 +23,21 @@
 #include <pcmcia/cs_types.h>
 #include <pcmcia/device_id.h>
 
-typedef struct tuple_parse_t {
-    tuple_t		tuple;
-    cisdata_t		data[255];
-    cisparse_t		parse;
-} tuple_parse_t;
-
-typedef struct win_info_t {
-    window_handle_t	handle;
-    win_req_t		window;
-    memreq_t		map;
-} win_info_t;
-    
-typedef struct bind_info_t {
-    dev_info_t		dev_info;
-    u_char		function;
-    struct pcmcia_device *instance;
-    char		name[DEV_NAME_LEN];
-    u_short		major, minor;
-    void		*next;
-} bind_info_t;
-
-typedef struct mtd_info_t {
-    dev_info_t		dev_info;
-    u_int		Attributes;
-    u_int		CardOffset;
-} mtd_info_t;
-
-typedef struct region_info_t {
-    u_int		Attributes;
-    u_int		CardOffset;
-    u_int		RegionSize;
-    u_int		AccessSpeed;
-    u_int		BlockSize;
-    u_int		PartMultiple;
-    u_char		JedecMfr, JedecInfo;
-    memory_handle_t	next;
-} region_info_t;
-#define REGION_TYPE		0x0001
-#define REGION_TYPE_CM		0x0000
-#define REGION_TYPE_AM		0x0001
-#define REGION_PREFETCH		0x0008
-#define REGION_CACHEABLE	0x0010
-#define REGION_BAR_MASK		0xe000
-#define REGION_BAR_SHIFT	13
-
-/* For ReplaceCIS */
-typedef struct cisdump_t {
-    u_int	Length;
-    cisdata_t	Data[CISTPL_MAX_CIS_SIZE];
-} cisdump_t;
-
-/* for GetConfigurationInfo */
-typedef struct config_info_t {
-    u_char	Function;
-    u_int	Attributes;
-    u_int	Vcc, Vpp1, Vpp2;
-    u_int	IntType;
-    u_int	ConfigBase;
-    u_char	Status, Pin, Copy, Option, ExtStatus;
-    u_int	Present;
-    u_int	CardValues;
-    u_int	AssignedIRQ;
-    u_int	IRQAttributes;
-    ioaddr_t	BasePort1;
-    ioaddr_t	NumPorts1;
-    u_int	Attributes1;
-    ioaddr_t	BasePort2;
-    ioaddr_t	NumPorts2;
-    u_int	Attributes2;
-    u_int	IOAddrLines;
-} config_info_t;
-
-typedef union ds_ioctl_arg_t {
-    adjust_t		adjust;
-    config_info_t	config;
-    tuple_t		tuple;
-    tuple_parse_t	tuple_parse;
-    client_req_t	client_req;
-    cs_status_t		status;
-    conf_reg_t		conf_reg;
-    cisinfo_t		cisinfo;
-    region_info_t	region;
-    bind_info_t		bind_info;
-    mtd_info_t		mtd_info;
-    win_info_t		win_info;
-    cisdump_t		cisdump;
-} ds_ioctl_arg_t;
-
-#define DS_ADJUST_RESOURCE_INFO		_IOWR('d', 2, adjust_t)
-#define DS_GET_CONFIGURATION_INFO	_IOWR('d', 3, config_info_t)
-#define DS_GET_FIRST_TUPLE		_IOWR('d', 4, tuple_t)
-#define DS_GET_NEXT_TUPLE		_IOWR('d', 5, tuple_t)
-#define DS_GET_TUPLE_DATA		_IOWR('d', 6, tuple_parse_t)
-#define DS_PARSE_TUPLE			_IOWR('d', 7, tuple_parse_t)
-#define DS_RESET_CARD			_IO  ('d', 8)
-#define DS_GET_STATUS			_IOWR('d', 9, cs_status_t)
-#define DS_ACCESS_CONFIGURATION_REGISTER _IOWR('d', 10, conf_reg_t)
-#define DS_VALIDATE_CIS			_IOR ('d', 11, cisinfo_t)
-#define DS_SUSPEND_CARD			_IO  ('d', 12)
-#define DS_RESUME_CARD			_IO  ('d', 13)
-#define DS_EJECT_CARD			_IO  ('d', 14)
-#define DS_INSERT_CARD			_IO  ('d', 15)
-#define DS_GET_FIRST_REGION		_IOWR('d', 16, region_info_t)
-#define DS_GET_NEXT_REGION		_IOWR('d', 17, region_info_t)
-#define DS_REPLACE_CIS			_IOWR('d', 18, cisdump_t)
-#define DS_GET_FIRST_WINDOW		_IOR ('d', 19, win_info_t)
-#define DS_GET_NEXT_WINDOW		_IOWR('d', 20, win_info_t)
-#define DS_GET_MEM_PAGE			_IOWR('d', 21, win_info_t)
-
-#define DS_BIND_REQUEST			_IOWR('d', 60, bind_info_t)
-#define DS_GET_DEVICE_INFO		_IOWR('d', 61, bind_info_t) 
-#define DS_GET_NEXT_DEVICE		_IOWR('d', 62, bind_info_t) 
-#define DS_UNBIND_REQUEST		_IOW ('d', 63, bind_info_t)
-#define DS_BIND_MTD			_IOWR('d', 64, mtd_info_t)
-
-/* used in userspace only */
-#define CS_IN_USE			0x1e
-
 #ifdef __KERNEL__
 #include <linux/device.h>
 #include <pcmcia/ss.h>
 
-typedef struct dev_node_t {
-    char		dev_name[DEV_NAME_LEN];
-    u_short		major, minor;
-    struct dev_node_t	*next;
-} dev_node_t;
-
-
+/*
+ * PCMCIA device drivers (16-bit cards only; 32-bit cards require CardBus
+ * a.k.a. PCI drivers
+ */
 struct pcmcia_socket;
+struct pcmcia_device;
 struct config_t;
 
+/* dynamic device IDs for PCMCIA device drivers. See
+ * Documentation/pcmcia/driver.txt for details.
+*/
 struct pcmcia_dynids {
 	spinlock_t		lock;
 	struct list_head	list;
@@ -177,6 +60,14 @@ struct pcmcia_driver {
 int pcmcia_register_driver(struct pcmcia_driver *driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver);
 
+/* Some drivers use dev_node_t to store char or block device information.
+ * Don't use this in new drivers, though.
+ */
+typedef struct dev_node_t {
+	char			dev_name[DEV_NAME_LEN];
+	u_short			major, minor;
+	struct dev_node_t	*next;
+} dev_node_t;
 
 struct pcmcia_device {
 	/* the socket and the device_no [for multifunction devices]
@@ -246,9 +137,14 @@ struct pcmcia_device {
 #define to_pcmcia_dev(n) container_of(n, struct pcmcia_device, dev)
 #define to_pcmcia_drv(n) container_of(n, struct pcmcia_driver, drv)
 
+/* deprecated -- don't use! */
 #define handle_to_dev(handle) (handle->dev)
 
-/* error reporting */
+
+/* (deprecated) error reporting by PCMCIA devices. Use dev_printk()
+ * or dev_dbg() directly in the driver, without referring to pcmcia_error_func()
+ * and/or pcmcia_error_ret() for those functions will go away soon.
+ */
 
 const char *pcmcia_error_func(int func);
 const char *pcmcia_error_ret(int ret);
@@ -263,4 +159,181 @@ const char *pcmcia_error_ret(int ret);
 
 
 #endif /* __KERNEL__ */
+
+
+
+/* Below, there are only definitions which are used by
+ * - the PCMCIA ioctl
+ * - deprecated PCMCIA userspace tools only
+ *
+ * here be dragons ... here be dragons ... here be dragons ... here be drag
+ */
+
+#if defined(CONFIG_PCMCIA_IOCTL) || !defined(__KERNEL__)
+
+/* for AdjustResourceInfo */
+typedef struct adjust_t {
+	u_int			Action;
+	u_int			Resource;
+	u_int			Attributes;
+	union {
+		struct memory {
+			u_long		Base;
+			u_long		Size;
+		} memory;
+		struct io {
+			ioaddr_t	BasePort;
+			ioaddr_t	NumPorts;
+			u_int		IOAddrLines;
+		} io;
+		struct irq {
+			u_int		IRQ;
+		} irq;
+	} resource;
+} adjust_t;
+
+/* Action field */
+#define REMOVE_MANAGED_RESOURCE		1
+#define ADD_MANAGED_RESOURCE		2
+#define GET_FIRST_MANAGED_RESOURCE	3
+#define GET_NEXT_MANAGED_RESOURCE	4
+/* Resource field */
+#define RES_MEMORY_RANGE		1
+#define RES_IO_RANGE			2
+#define RES_IRQ				3
+/* Attribute field */
+#define RES_IRQ_TYPE			0x03
+#define RES_IRQ_TYPE_EXCLUSIVE		0
+#define RES_IRQ_TYPE_TIME		1
+#define RES_IRQ_TYPE_DYNAMIC		2
+#define RES_IRQ_CSC			0x04
+#define RES_SHARED			0x08
+#define RES_RESERVED			0x10
+#define RES_ALLOCATED			0x20
+#define RES_REMOVED			0x40
+
+
+typedef struct tuple_parse_t {
+	tuple_t			tuple;
+	cisdata_t		data[255];
+	cisparse_t		parse;
+} tuple_parse_t;
+
+typedef struct win_info_t {
+	window_handle_t		handle;
+	win_req_t		window;
+	memreq_t		map;
+} win_info_t;
+
+typedef struct bind_info_t {
+	dev_info_t		dev_info;
+	u_char			function;
+	struct pcmcia_device	*instance;
+	char			name[DEV_NAME_LEN];
+	u_short			major, minor;
+	void			*next;
+} bind_info_t;
+
+typedef struct mtd_info_t {
+	dev_info_t     		dev_info;
+	u_int			Attributes;
+	u_int			CardOffset;
+} mtd_info_t;
+
+typedef struct region_info_t {
+	u_int			Attributes;
+	u_int			CardOffset;
+	u_int			RegionSize;
+	u_int			AccessSpeed;
+	u_int			BlockSize;
+	u_int			PartMultiple;
+	u_char			JedecMfr, JedecInfo;
+	memory_handle_t		next;
+} region_info_t;
+
+#define REGION_TYPE		0x0001
+#define REGION_TYPE_CM		0x0000
+#define REGION_TYPE_AM		0x0001
+#define REGION_PREFETCH		0x0008
+#define REGION_CACHEABLE	0x0010
+#define REGION_BAR_MASK		0xe000
+#define REGION_BAR_SHIFT	13
+
+/* For ReplaceCIS */
+typedef struct cisdump_t {
+	u_int			Length;
+	cisdata_t		Data[CISTPL_MAX_CIS_SIZE];
+} cisdump_t;
+
+/* for GetConfigurationInfo */
+typedef struct config_info_t {
+	u_char			Function;
+	u_int			Attributes;
+	u_int			Vcc, Vpp1, Vpp2;
+	u_int			IntType;
+	u_int			ConfigBase;
+	u_char			Status, Pin, Copy, Option, ExtStatus;
+	u_int			Present;
+	u_int			CardValues;
+	u_int			AssignedIRQ;
+	u_int			IRQAttributes;
+	ioaddr_t		BasePort1;
+	ioaddr_t		NumPorts1;
+	u_int			Attributes1;
+	ioaddr_t		BasePort2;
+	ioaddr_t		NumPorts2;
+	u_int			Attributes2;
+	u_int			IOAddrLines;
+} config_info_t;
+
+typedef union ds_ioctl_arg_t {
+	adjust_t		adjust;
+	config_info_t		config;
+	tuple_t			tuple;
+	tuple_parse_t		tuple_parse;
+	client_req_t		client_req;
+	cs_status_t		status;
+	conf_reg_t		conf_reg;
+	cisinfo_t		cisinfo;
+	region_info_t		region;
+	bind_info_t		bind_info;
+	mtd_info_t		mtd_info;
+	win_info_t		win_info;
+	cisdump_t		cisdump;
+} ds_ioctl_arg_t;
+
+#define DS_ADJUST_RESOURCE_INFO			_IOWR('d',  2, adjust_t)
+#define DS_GET_CONFIGURATION_INFO		_IOWR('d',  3, config_info_t)
+#define DS_GET_FIRST_TUPLE			_IOWR('d',  4, tuple_t)
+#define DS_GET_NEXT_TUPLE			_IOWR('d',  5, tuple_t)
+#define DS_GET_TUPLE_DATA			_IOWR('d',  6, tuple_parse_t)
+#define DS_PARSE_TUPLE				_IOWR('d',  7, tuple_parse_t)
+#define DS_RESET_CARD				_IO  ('d',  8)
+#define DS_GET_STATUS				_IOWR('d',  9, cs_status_t)
+#define DS_ACCESS_CONFIGURATION_REGISTER	_IOWR('d', 10, conf_reg_t)
+#define DS_VALIDATE_CIS				_IOR ('d', 11, cisinfo_t)
+#define DS_SUSPEND_CARD				_IO  ('d', 12)
+#define DS_RESUME_CARD				_IO  ('d', 13)
+#define DS_EJECT_CARD				_IO  ('d', 14)
+#define DS_INSERT_CARD				_IO  ('d', 15)
+#define DS_GET_FIRST_REGION			_IOWR('d', 16, region_info_t)
+#define DS_GET_NEXT_REGION			_IOWR('d', 17, region_info_t)
+#define DS_REPLACE_CIS				_IOWR('d', 18, cisdump_t)
+#define DS_GET_FIRST_WINDOW			_IOR ('d', 19, win_info_t)
+#define DS_GET_NEXT_WINDOW			_IOWR('d', 20, win_info_t)
+#define DS_GET_MEM_PAGE				_IOWR('d', 21, win_info_t)
+
+#define DS_BIND_REQUEST				_IOWR('d', 60, bind_info_t)
+#define DS_GET_DEVICE_INFO			_IOWR('d', 61, bind_info_t)
+#define DS_GET_NEXT_DEVICE			_IOWR('d', 62, bind_info_t)
+#define DS_UNBIND_REQUEST			_IOW ('d', 63, bind_info_t)
+#define DS_BIND_MTD				_IOWR('d', 64, mtd_info_t)
+
+
+/* used in userspace only */
+#define CS_IN_USE			0x1e
+
+
+#endif /* !defined(__KERNEL__) || defined(CONFIG_PCMCIA_IOCTL) */
+
 #endif /* _LINUX_DS_H */

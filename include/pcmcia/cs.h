@@ -28,45 +28,10 @@ typedef struct conf_reg_t {
 #define CS_WRITE	2
 
 /* for AdjustResourceInfo */
-typedef struct adjust_t {
-    u_int	Action;
-    u_int	Resource;
-    u_int	Attributes;
-    union {
-	struct memory {
-	    u_long	Base;
-	    u_long	Size;
-	} memory;
-	struct io {
-	    ioaddr_t	BasePort;
-	    ioaddr_t	NumPorts;
-	    u_int	IOAddrLines;
-	} io;
-	struct irq {
-	    u_int	IRQ;
-	} irq;
-    } resource;
-} adjust_t;
-
 /* Action field */
 #define REMOVE_MANAGED_RESOURCE		1
 #define ADD_MANAGED_RESOURCE		2
-#define GET_FIRST_MANAGED_RESOURCE	3
-#define GET_NEXT_MANAGED_RESOURCE	4
-/* Resource field */
-#define RES_MEMORY_RANGE		1
-#define RES_IO_RANGE			2
-#define RES_IRQ				3
-/* Attribute field */
-#define RES_IRQ_TYPE			0x03
-#define RES_IRQ_TYPE_EXCLUSIVE		0
-#define RES_IRQ_TYPE_TIME		1
-#define RES_IRQ_TYPE_DYNAMIC		2
-#define RES_IRQ_CSC			0x04
-#define RES_SHARED			0x08
-#define RES_RESERVED			0x10
-#define RES_ALLOCATED			0x20
-#define RES_REMOVED			0x40
+
 
 typedef struct event_callback_args_t {
 	struct pcmcia_device	*client_handle;
