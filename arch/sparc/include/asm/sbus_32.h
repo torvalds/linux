@@ -51,17 +51,6 @@ struct sbus_dev {
 	int prom_node;
 	char prom_name[64];
 	int slot;
-
-	struct resource resource[PROMREG_MAX];
-
-	struct linux_prom_registers reg_addrs[PROMREG_MAX];
-	int num_registers;
-
-	struct linux_prom_ranges device_ranges[PROMREG_MAX];
-	int num_device_ranges;
-
-	unsigned int irqs[4];
-	int num_irqs;
 };
 #define to_sbus_device(d) container_of(d, struct sbus_dev, ofdev.dev)
 
@@ -73,9 +62,6 @@ struct sbus_bus {
 	int			prom_node;	/* PROM device tree node for this SBus */
 	char			prom_name[64];  /* Usually "sbus" or "sbi" */
 	int			clock_freq;
-
-	struct linux_prom_ranges sbus_ranges[PROMREG_MAX];
-	int num_sbus_ranges;
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
@@ -103,7 +89,6 @@ sbus_is_slave(struct sbus_dev *dev)
 void prom_adjust_ranges(struct linux_prom_ranges *, int,
 			struct linux_prom_ranges *, int);
 
-extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);
 extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);
 extern int sbus_arch_preinit(void);
 extern void sbus_arch_postinit(void);

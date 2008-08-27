@@ -51,37 +51,10 @@ static void __init fill_sbus_device_iommu(struct sbus_dev *sdev)
 static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sdev)
 {
 	struct dev_archdata *sd;
-	unsigned long base;
-	const void *pval;
-	int len, err;
+	int err;
 
 	sdev->prom_node = dp->node;
 	strcpy(sdev->prom_name, dp->name);
-
-	pval = of_get_property(dp, "reg", &len);
-	sdev->num_registers = 0;
-	if (pval) {
-		memcpy(sdev->reg_addrs, pval, len);
-
-		sdev->num_registers =
-			len / sizeof(struct linux_prom_registers);
-
-		base = (unsigned long) sdev->reg_addrs[0].phys_addr;
-
-		/* Compute the slot number. */
-		if (base >= SUN_SBUS_BVADDR && sparc_cpu_model == sun4m)
-			sdev->slot = sbus_dev_slot(base);
-		else
-			sdev->slot = sdev->reg_addrs[0].which_io;
-	}
-
-	pval = of_get_property(dp, "ranges", &len);
-	sdev->num_device_ranges = 0;
-	if (pval) {
-		memcpy(sdev->device_ranges, pval, len);
-		sdev->num_device_ranges =
-			len / sizeof(struct linux_prom_ranges);
-	}
 
 	sd = &sdev->ofdev.dev.archdata;
 	sd->prom_node = dp;
@@ -103,97 +76,6 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	err = sysfs_create_file(&sdev->ofdev.dev.kobj, &dev_attr_obppath.attr);
 
 	fill_sbus_device_iommu(sdev);
-}
-
-static void __init sbus_bus_ranges_init(struct device_node *dp, struct sbus_bus *sbus)
-{
-	const void *pval;
-	int len;
-
-	pval = of_get_property(dp, "ranges", &len);
-	sbus->num_sbus_ranges = 0;
-	if (pval) {
-		memcpy(sbus->sbus_ranges, pval, len);
-		sbus->num_sbus_ranges =
-			len / sizeof(struct linux_prom_ranges);
-
-		sbus_arch_bus_ranges_init(dp->parent, sbus);
-	}
-}
-
-static void __init __apply_ranges_to_regs(struct linux_prom_ranges *ranges,
-					  int num_ranges,
-					  struct linux_prom_registers *regs,
-					  int num_regs)
-{
-	if (num_ranges) {
-		int regnum;
-
-		for (regnum = 0; regnum < num_regs; regnum++) {
-			int rngnum;
-
-			for (rngnum = 0; rngnum < num_ranges; rngnum++) {
-				if (regs[regnum].which_io == ranges[rngnum].ot_child_space)
-					break;
-			}
-			if (rngnum == num_ranges) {
-				/* We used to flag this as an error.  Actually
-				 * some devices do not report the regs as we expect.
-				 * For example, see SUNW,pln device.  In that case
-				 * the reg property is in a format internal to that
-				 * node, ie. it is not in the SBUS register space
-				 * per se. -DaveM
-				 */
-				return;
-			}
-			regs[regnum].which_io = ranges[rngnum].ot_parent_space;
-			regs[regnum].phys_addr -= ranges[rngnum].ot_child_base;
-			regs[regnum].phys_addr += ranges[rngnum].ot_parent_base;
-		}
-	}
-}
-
-static void __init __fixup_regs_sdev(struct sbus_dev *sdev)
-{
-	if (sdev->num_registers != 0) {
-		struct sbus_dev *parent = sdev->parent;
-		int i;
-
-		while (parent != NULL) {
-			__apply_ranges_to_regs(parent->device_ranges,
-					       parent->num_device_ranges,
-					       sdev->reg_addrs,
-					       sdev->num_registers);
-
-			parent = parent->parent;
-		}
-
-		__apply_ranges_to_regs(sdev->bus->sbus_ranges,
-				       sdev->bus->num_sbus_ranges,
-				       sdev->reg_addrs,
-				       sdev->num_registers);
-
-		for (i = 0; i < sdev->num_registers; i++) {
-			struct resource *res = &sdev->resource[i];
-
-			res->start = sdev->reg_addrs[i].phys_addr;
-			res->end = (res->start +
-				    (unsigned long)sdev->reg_addrs[i].reg_size - 1UL);
-			res->flags = IORESOURCE_IO |
-				(sdev->reg_addrs[i].which_io & 0xff);
-		}
-	}
-}
-
-static void __init sbus_fixup_all_regs(struct sbus_dev *first_sdev)
-{
-	struct sbus_dev *sdev;
-
-	for (sdev = first_sdev; sdev; sdev = sdev->next) {
-		if (sdev->child)
-			sbus_fixup_all_regs(sdev->child);
-		__fixup_regs_sdev(sdev);
-	}
 }
 
 /* We preserve the "probe order" of these bus and device lists to give
@@ -263,8 +145,6 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 
 	strcpy(sbus->prom_name, dp->name);
 
-	sbus_bus_ranges_init(dp, sbus);
-
 	sbus->ofdev.node = dp;
 	sbus->ofdev.dev.parent = NULL;
 	sbus->ofdev.dev.bus = &sbus_bus_type;
@@ -295,8 +175,6 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 		}
 		dev_dp = dev_dp->sibling;
 	}
-
-	sbus_fixup_all_regs(sbus->devices);
 }
 
 static int __init sbus_init(void)

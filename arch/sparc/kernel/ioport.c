@@ -394,33 +394,6 @@ void sbus_dma_sync_single_for_device(struct device *dev, dma_addr_t ba, size_t s
 }
 
 /* Support code for sbus_init().  */
-/*
- * XXX This functions appears to be a distorted version of
- * prom_sbus_ranges_init(), with all sun4d stuff cut away.
- * Ask DaveM what is going on here, how is sun4d supposed to work... XXX
- */
-/* added back sun4d patch from Thomas Bogendoerfer - should be OK (crn) */
-void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
-{
-	int parent_node = pn->node;
-
-	if (sparc_cpu_model == sun4d) {
-		struct linux_prom_ranges iounit_ranges[PROMREG_MAX];
-		int num_iounit_ranges, len;
-
-		len = prom_getproperty(parent_node, "ranges",
-				       (char *) iounit_ranges,
-				       sizeof (iounit_ranges));
-		if (len != -1) {
-			num_iounit_ranges =
-				(len / sizeof(struct linux_prom_ranges));
-			prom_adjust_ranges(sbus->sbus_ranges,
-					   sbus->num_sbus_ranges,
-					   iounit_ranges, num_iounit_ranges);
-		}
-	}
-}
-
 void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 {
 #ifndef CONFIG_SUN4

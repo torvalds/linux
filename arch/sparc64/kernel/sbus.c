@@ -650,10 +650,6 @@ fatal_memory_error:
 	prom_printf("sbus_iommu_init: Fatal memory allocation error.\n");
 }
 
-void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
-{
-}
-
 void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 {
 	sbus_iommu_init(dp->node, sbus);
