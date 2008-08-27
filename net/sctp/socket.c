@@ -3144,7 +3144,7 @@ static int sctp_setsockopt_auth_key(struct sock *sk,
 		goto out;
 	}
 
-	if (authkey->sca_keylength > optlen) {
+	if (authkey->sca_keylength > optlen - sizeof(struct sctp_authkey)) {
 		ret = -EINVAL;
 		goto out;
 	}
