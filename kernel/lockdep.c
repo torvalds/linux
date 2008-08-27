@@ -875,11 +875,11 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	if (!entry)
 		return 0;
 
-	entry->class = this;
-	entry->distance = distance;
 	if (!save_trace(&entry->trace))
 		return 0;
 
+	entry->class = this;
+	entry->distance = distance;
 	/*
 	 * Since we never remove from the dependency list, the list can
 	 * be walked lockless by other CPUs, it's only allocation
