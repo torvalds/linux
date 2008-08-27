@@ -131,7 +131,7 @@ static int msr_open(struct inode *inode, struct file *file)
 		ret = -EIO;	/* MSR not supported */
 out:
 	unlock_kernel();
-	return 0;
+	return ret;
 }
 
 /*

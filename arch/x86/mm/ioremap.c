@@ -170,7 +170,7 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
 
-	retval = reserve_memtype(phys_addr, phys_addr + size,
+	retval = reserve_memtype(phys_addr, (u64)phys_addr + size,
 						prot_val, &new_prot_val);
 	if (retval) {
 		pr_debug("Warning: reserve_memtype returned %d\n", retval);

@@ -526,10 +526,9 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	    !atomic_dec_and_test(&qdisc->refcnt))
 		return;
 
-	if (qdisc->parent)
-		list_del(&qdisc->list);
-
 #ifdef CONFIG_NET_SCHED
+	qdisc_list_del(qdisc);
+
 	qdisc_put_stab(qdisc->stab);
 #endif
 	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);

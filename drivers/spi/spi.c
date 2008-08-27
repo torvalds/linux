@@ -226,10 +226,11 @@ EXPORT_SYMBOL_GPL(spi_alloc_device);
  * Companion function to spi_alloc_device.  Devices allocated with
  * spi_alloc_device can be added onto the spi bus with this function.
  *
- * Returns 0 on success; non-zero on failure
+ * Returns 0 on success; negative errno on failure
  */
 int spi_add_device(struct spi_device *spi)
 {
+	static DEFINE_MUTEX(spi_add_lock);
 	struct device *dev = spi->master->dev.parent;
 	int status;
 
@@ -246,26 +247,43 @@ int spi_add_device(struct spi_device *spi)
 			"%s.%u", spi->master->dev.bus_id,
 			spi->chip_select);
 
-	/* drivers may modify this initial i/o setup */
+
+	/* We need to make sure there's no other device with this
+	 * chipselect **BEFORE** we call setup(), else we'll trash
+	 * its configuration.  Lock against concurrent add() calls.
+	 */
+	mutex_lock(&spi_add_lock);
+
+	if (bus_find_device_by_name(&spi_bus_type, NULL, spi->dev.bus_id)
+			!= NULL) {
+		dev_err(dev, "chipselect %d already in use\n",
+				spi->chip_select);
+		status = -EBUSY;
+		goto done;
+	}
+
+	/* Drivers may modify this initial i/o setup, but will
+	 * normally rely on the device being setup.  Devices
+	 * using SPI_CS_HIGH can't coexist well otherwise...
+	 */
 	status = spi->master->setup(spi);
 	if (status < 0) {
 		dev_err(dev, "can't %s %s, status %d\n",
 				"setup", spi->dev.bus_id, status);
-		return status;
+		goto done;
 	}
 
-	/* driver core catches callers that misbehave by defining
-	 * devices that already exist.
-	 */
+	/* Device may be bound to an active driver when this returns */
 	status = device_add(&spi->dev);
-	if (status < 0) {
+	if (status < 0)
 		dev_err(dev, "can't %s %s, status %d\n",
 				"add", spi->dev.bus_id, status);
-		return status;
-	}
+	else
+		dev_dbg(dev, "registered child %s\n", spi->dev.bus_id);
 
-	dev_dbg(dev, "registered child %s\n", spi->dev.bus_id);
-	return 0;
+done:
+	mutex_unlock(&spi_add_lock);
+	return status;
 }
 EXPORT_SYMBOL_GPL(spi_add_device);
 

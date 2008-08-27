@@ -66,7 +66,7 @@ static struct sram_piece free_l1_data_B_sram_head, used_l1_data_B_sram_head;
 static struct sram_piece free_l1_inst_sram_head, used_l1_inst_sram_head;
 #endif
 
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 static struct sram_piece free_l2_sram_head, used_l2_sram_head;
 #endif
 
@@ -175,7 +175,7 @@ static void __init l1_inst_sram_init(void)
 
 static void __init l2_sram_init(void)
 {
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	free_l2_sram_head.next =
 		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 	if (!free_l2_sram_head.next) {
@@ -367,7 +367,7 @@ int sram_free(const void *addr)
 		 && addr < (void *)(L1_DATA_B_START + L1_DATA_B_LENGTH))
 		return l1_data_B_sram_free(addr);
 #endif
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	else if (addr >= (void *)L2_START
 		 && addr < (void *)(L2_START + L2_LENGTH))
 		return l2_sram_free(addr);
@@ -604,7 +604,7 @@ int l1sram_free(const void *addr)
 
 void *l2_sram_alloc(size_t size)
 {
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	unsigned flags;
 	void *addr;
 
@@ -640,7 +640,7 @@ EXPORT_SYMBOL(l2_sram_zalloc);
 
 int l2_sram_free(const void *addr)
 {
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	unsigned flags;
 	int ret;
 
@@ -779,7 +779,7 @@ static int sram_proc_read(char *buf, char **start, off_t offset, int count,
 			&free_l1_inst_sram_head, &used_l1_inst_sram_head))
 		goto not_done;
 #endif
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	if (_sram_proc_read(buf, &len, count, "L2",
 			&free_l2_sram_head, &used_l2_sram_head))
 		goto not_done;

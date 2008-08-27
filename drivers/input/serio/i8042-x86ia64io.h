@@ -394,6 +394,13 @@ static struct dmi_system_id __initdata i8042_dmi_dritek_table[] = {
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2490"),
 		},
 	},
+	{
+		.ident = "Acer TravelMate 4280",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 4280"),
+		},
+	},
 	{ }
 };
 

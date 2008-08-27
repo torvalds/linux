@@ -832,7 +832,7 @@ static struct pci_driver driver = {
 	.name		= "SiI_IDE",
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
-	.remove		= siimage_remove,
+	.remove		= __devexit_p(siimage_remove),
 };
 
 static int __init siimage_ide_init(void)

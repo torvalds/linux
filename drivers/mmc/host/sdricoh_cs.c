@@ -29,7 +29,6 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/scatterlist.h>
-#include <linux/version.h>
 
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cs.h>

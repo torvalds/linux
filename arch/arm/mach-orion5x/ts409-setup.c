@@ -3,6 +3,9 @@
  *
  * Maintainer: Sylver Bruneau <sylver.bruneau@gmail.com>
  *
+ * Copyright (C) 2008  Sylver Bruneau <sylver.bruneau@gmail.com>
+ * Copyright (C) 2008  Martin Michlmayr <tbm@cyrius.com>
+ *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License
  * as published by the Free Software Foundation; either version
@@ -16,6 +19,7 @@
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/leds.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
 #include <linux/i2c.h>
@@ -162,16 +166,59 @@ static struct i2c_board_info __initdata qnap_ts409_i2c_rtc = {
 	I2C_BOARD_INFO("s35390a", 0x30),
 };
 
+/*****************************************************************************
+ * LEDs attached to GPIO
+ ****************************************************************************/
+
+static struct gpio_led ts409_led_pins[] = {
+	{
+		.name		= "ts409:red:sata1",
+		.gpio		= 4,
+		.active_low	= 1,
+	}, {
+		.name		= "ts409:red:sata2",
+		.gpio		= 5,
+		.active_low	= 1,
+	}, {
+		.name		= "ts409:red:sata3",
+		.gpio		= 6,
+		.active_low	= 1,
+	}, {
+		.name		= "ts409:red:sata4",
+		.gpio		= 7,
+		.active_low	= 1,
+	},
+};
+
+static struct gpio_led_platform_data ts409_led_data = {
+	.leds		= ts409_led_pins,
+	.num_leds	= ARRAY_SIZE(ts409_led_pins),
+};
+
+static struct platform_device ts409_leds = {
+	.name	= "leds-gpio",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &ts409_led_data,
+	},
+};
+
 /****************************************************************************
  * GPIO Attached Keys
  *     Power button is attached to the PIC microcontroller
  ****************************************************************************/
 
+#define QNAP_TS409_GPIO_KEY_RESET	14
 #define QNAP_TS409_GPIO_KEY_MEDIA	15
 
 static struct gpio_keys_button qnap_ts409_buttons[] = {
 	{
 		.code		= KEY_RESTART,
+		.gpio		= QNAP_TS409_GPIO_KEY_RESET,
+		.desc		= "Reset Button",
+		.active_low	= 1,
+	}, {
+		.code		= KEY_COPY,
 		.gpio		= QNAP_TS409_GPIO_KEY_MEDIA,
 		.desc		= "USB Copy Button",
 		.active_low	= 1,
@@ -255,6 +302,7 @@ static void __init qnap_ts409_init(void)
 	if (qnap_ts409_i2c_rtc.irq == 0)
 		pr_warning("qnap_ts409_init: failed to get RTC IRQ\n");
 	i2c_register_board_info(0, &qnap_ts409_i2c_rtc, 1);
+	platform_device_register(&ts409_leds);
 
 	/* register tsx09 specific power-off method */
 	pm_power_off = qnap_tsx09_power_off;

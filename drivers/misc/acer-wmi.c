@@ -803,11 +803,30 @@ static acpi_status get_u32(u32 *value, u32 cap)
 
 static acpi_status set_u32(u32 value, u32 cap)
 {
+	acpi_status status;
+
 	if (interface->capability & cap) {
 		switch (interface->type) {
 		case ACER_AMW0:
 			return AMW0_set_u32(value, cap, interface);
 		case ACER_AMW0_V2:
+			if (cap == ACER_CAP_MAILLED)
+				return AMW0_set_u32(value, cap, interface);
+
+			/*
+			 * On some models, some WMID methods don't toggle
+			 * properly. For those cases, we want to run the AMW0
+			 * method afterwards to be certain we've really toggled
+			 * the device state.
+			 */
+			if (cap == ACER_CAP_WIRELESS ||
+				cap == ACER_CAP_BLUETOOTH) {
+				status = WMID_set_u32(value, cap, interface);
+				if (ACPI_FAILURE(status))
+					return status;
+
+				return AMW0_set_u32(value, cap, interface);
+			}
 		case ACER_WMID:
 			return WMID_set_u32(value, cap, interface);
 		default:

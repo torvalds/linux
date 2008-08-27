@@ -199,19 +199,53 @@ struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
 	return NULL;
 }
 
+/*
+ * This lock is needed until some qdiscs stop calling qdisc_tree_decrease_qlen()
+ * without rtnl_lock(); currently hfsc_dequeue(), netem_dequeue(), tbf_dequeue()
+ */
+static DEFINE_SPINLOCK(qdisc_list_lock);
+
+static void qdisc_list_add(struct Qdisc *q)
+{
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		spin_lock_bh(&qdisc_list_lock);
+		list_add_tail(&q->list, &qdisc_root_sleeping(q)->list);
+		spin_unlock_bh(&qdisc_list_lock);
+	}
+}
+
+void qdisc_list_del(struct Qdisc *q)
+{
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		spin_lock_bh(&qdisc_list_lock);
+		list_del(&q->list);
+		spin_unlock_bh(&qdisc_list_lock);
+	}
+}
+EXPORT_SYMBOL(qdisc_list_del);
+
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	unsigned int i;
+	struct Qdisc *q;
+
+	spin_lock_bh(&qdisc_list_lock);
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		struct Qdisc *q, *txq_root = txq->qdisc_sleeping;
+		struct Qdisc *txq_root = txq->qdisc_sleeping;
 
 		q = qdisc_match_from_root(txq_root, handle);
 		if (q)
-			return q;
+			goto unlock;
 	}
-	return qdisc_match_from_root(dev->rx_queue.qdisc_sleeping, handle);
+
+	q = qdisc_match_from_root(dev->rx_queue.qdisc_sleeping, handle);
+
+unlock:
+	spin_unlock_bh(&qdisc_list_lock);
+
+	return q;
 }
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
@@ -332,7 +366,7 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (!s || tsize != s->tsize || (!tab && tsize > 0))
 		return ERR_PTR(-EINVAL);
 
-	spin_lock_bh(&qdisc_stab_lock);
+	spin_lock(&qdisc_stab_lock);
 
 	list_for_each_entry(stab, &qdisc_stab_list, list) {
 		if (memcmp(&stab->szopts, s, sizeof(*s)))
@@ -340,11 +374,11 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 		if (tsize > 0 && memcmp(stab->data, tab, tsize * sizeof(u16)))
 			continue;
 		stab->refcnt++;
-		spin_unlock_bh(&qdisc_stab_lock);
+		spin_unlock(&qdisc_stab_lock);
 		return stab;
 	}
 
-	spin_unlock_bh(&qdisc_stab_lock);
+	spin_unlock(&qdisc_stab_lock);
 
 	stab = kmalloc(sizeof(*stab) + tsize * sizeof(u16), GFP_KERNEL);
 	if (!stab)
@@ -355,9 +389,9 @@ static struct qdisc_size_table *qdisc_get_stab(struct nlattr *opt)
 	if (tsize > 0)
 		memcpy(stab->data, tab, tsize * sizeof(u16));
 
-	spin_lock_bh(&qdisc_stab_lock);
+	spin_lock(&qdisc_stab_lock);
 	list_add_tail(&stab->list, &qdisc_stab_list);
-	spin_unlock_bh(&qdisc_stab_lock);
+	spin_unlock(&qdisc_stab_lock);
 
 	return stab;
 }
@@ -367,14 +401,14 @@ void qdisc_put_stab(struct qdisc_size_table *tab)
 	if (!tab)
 		return;
 
-	spin_lock_bh(&qdisc_stab_lock);
+	spin_lock(&qdisc_stab_lock);
 
 	if (--tab->refcnt == 0) {
 		list_del(&tab->list);
 		kfree(tab);
 	}
 
-	spin_unlock_bh(&qdisc_stab_lock);
+	spin_unlock(&qdisc_stab_lock);
 }
 EXPORT_SYMBOL(qdisc_put_stab);
 
@@ -443,6 +477,10 @@ EXPORT_SYMBOL(qdisc_watchdog_init);
 void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 {
 	ktime_t time;
+
+	if (test_bit(__QDISC_STATE_DEACTIVATED,
+		     &qdisc_root_sleeping(wd->qdisc)->state))
+		return;
 
 	wd->qdisc->flags |= TCQ_F_THROTTLED;
 	time = ktime_set(0, 0);
@@ -806,8 +844,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		if ((parent != TC_H_ROOT) && !(sch->flags & TCQ_F_INGRESS))
-			list_add_tail(&sch->list, &dev_queue->qdisc_sleeping->list);
+
+		qdisc_list_add(sch);
 
 		return sch;
 	}

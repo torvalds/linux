@@ -1,17 +1,19 @@
 /*
- * include/asm-arm/plat-orion/time.h
- *
- * Marvell Orion SoC time handling.
+ * arch/arm/plat-orion/include/plat/ehci-orion.h
  *
  * This file is licensed under the terms of the GNU General Public
  * License version 2.  This program is licensed "as is" without any
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_PLAT_ORION_TIME_H
-#define __ASM_PLAT_ORION_TIME_H
+#ifndef __PLAT_EHCI_ORION_H
+#define __PLAT_EHCI_ORION_H
 
-void orion_time_init(unsigned int irq, unsigned int tclk);
+#include <linux/mbus.h>
+
+struct orion_ehci_data {
+	struct mbus_dram_target_info	*dram;
+};
 
 
 #endif

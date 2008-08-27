@@ -193,6 +193,11 @@ static inline struct Qdisc *qdisc_root(struct Qdisc *qdisc)
 	return qdisc->dev_queue->qdisc;
 }
 
+static inline struct Qdisc *qdisc_root_sleeping(struct Qdisc *qdisc)
+{
+	return qdisc->dev_queue->qdisc_sleeping;
+}
+
 /* The qdisc root lock is a mechanism by which to top level
  * of a qdisc tree can be locked from any qdisc node in the
  * forest.  This allows changing the configuration of some

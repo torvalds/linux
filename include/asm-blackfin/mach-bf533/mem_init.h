@@ -47,7 +47,7 @@
 #define SDRAM_tRCD      TRCD_2
 #define SDRAM_tWR       TWR_2
 #endif
-#if (CONFIG_SCLK_HZ > 8955223) && (CONFIG_SCLK_HZ <= 104477612)
+#if (CONFIG_SCLK_HZ > 89552239) && (CONFIG_SCLK_HZ <= 104477612)
 #define SDRAM_tRP       TRP_2
 #define SDRAM_tRP_num   2
 #define SDRAM_tRAS      TRAS_5

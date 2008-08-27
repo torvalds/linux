@@ -1990,7 +1990,9 @@ static void net_tx_action(struct softirq_action *h)
 				qdisc_run(q);
 				spin_unlock(root_lock);
 			} else {
-				__netif_reschedule(q);
+				if (!test_bit(__QDISC_STATE_DEACTIVATED,
+					      &q->state))
+					__netif_reschedule(q);
 			}
 		}
 	}

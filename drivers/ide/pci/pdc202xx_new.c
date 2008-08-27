@@ -566,7 +566,7 @@ static struct pci_driver driver = {
 	.name		= "Promise_IDE",
 	.id_table	= pdc202new_pci_tbl,
 	.probe		= pdc202new_init_one,
-	.remove		= pdc202new_remove,
+	.remove		= __devexit_p(pdc202new_remove),
 };
 
 static int __init pdc202new_ide_init(void)

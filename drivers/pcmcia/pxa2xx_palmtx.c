@@ -23,12 +23,57 @@
 
 static int palmtx_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->irq = IRQ_GPIO(GPIO_NR_PALMTX_PCMCIA_READY);
+	int ret;
+
+	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_POWER1, "PCMCIA PWR1");
+	if (ret)
+		goto err1;
+	ret = gpio_direction_output(GPIO_NR_PALMTX_PCMCIA_POWER1, 0);
+	if (ret)
+		goto err2;
+
+	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_POWER2, "PCMCIA PWR2");
+	if (ret)
+		goto err2;
+	ret = gpio_direction_output(GPIO_NR_PALMTX_PCMCIA_POWER2, 0);
+	if (ret)
+		goto err3;
+
+	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_RESET, "PCMCIA RST");
+	if (ret)
+		goto err3;
+	ret = gpio_direction_output(GPIO_NR_PALMTX_PCMCIA_RESET, 1);
+	if (ret)
+		goto err4;
+
+	ret = gpio_request(GPIO_NR_PALMTX_PCMCIA_READY, "PCMCIA RDY");
+	if (ret)
+		goto err4;
+	ret = gpio_direction_input(GPIO_NR_PALMTX_PCMCIA_READY);
+	if (ret)
+		goto err5;
+
+	skt->irq = gpio_to_irq(GPIO_NR_PALMTX_PCMCIA_READY);
 	return 0;
+
+err5:
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_READY);
+err4:
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_RESET);
+err3:
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER2);
+err2:
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER1);
+err1:
+	return ret;
 }
 
 static void palmtx_pcmcia_hw_shutdown(struct soc_pcmcia_socket *skt)
 {
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_READY);
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_RESET);
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER2);
+	gpio_free(GPIO_NR_PALMTX_PCMCIA_POWER1);
 }
 
 static void palmtx_pcmcia_socket_state(struct soc_pcmcia_socket *skt,
@@ -109,7 +154,7 @@ static void __exit palmtx_pcmcia_exit(void)
 	platform_device_unregister(palmtx_pcmcia_device);
 }
 
-fs_initcall(palmtx_pcmcia_init);
+module_init(palmtx_pcmcia_init);
 module_exit(palmtx_pcmcia_exit);
 
 MODULE_AUTHOR("Marek Vasut <marek.vasut@gmail.com>");

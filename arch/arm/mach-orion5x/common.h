@@ -32,6 +32,7 @@ void orion5x_i2c_init(void);
 void orion5x_sata_init(struct mv_sata_platform_data *sata_data);
 void orion5x_uart0_init(void);
 void orion5x_uart1_init(void);
+void orion5x_xor_init(void);
 
 /*
  * PCIe/PCI functions.

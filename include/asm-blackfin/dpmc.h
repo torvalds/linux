@@ -11,7 +11,6 @@
 #ifndef __ASSEMBLY__
 
 void sleep_mode(u32 sic_iwr0, u32 sic_iwr1, u32 sic_iwr2);
-void deep_sleep(u32 sic_iwr0, u32 sic_iwr1, u32 sic_iwr2);
 void hibernate_mode(u32 sic_iwr0, u32 sic_iwr1, u32 sic_iwr2);
 void sleep_deeper(u32 sic_iwr0, u32 sic_iwr1, u32 sic_iwr2);
 void do_hibernate(int wakeup);
