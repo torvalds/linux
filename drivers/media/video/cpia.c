@@ -3202,7 +3202,7 @@ static int cpia_open(struct inode *inode, struct file *file)
 
 	/* Set ownership of /proc/cpia/videoX to current user */
 	if(cam->proc_entry)
-		cam->proc_entry->uid = current->uid;
+		cam->proc_entry->uid = current_uid();
 
 	/* set mark for loading first frame uncompressed */
 	cam->first_frame = 1;
