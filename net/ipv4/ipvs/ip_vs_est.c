@@ -124,8 +124,6 @@ void ip_vs_new_estimator(struct ip_vs_stats *stats)
 	est->outbps = stats->outbps<<5;
 
 	spin_lock_bh(&est_lock);
-	if (list_empty(&est_list))
-		mod_timer(&est_timer, jiffies + 2 * HZ);
 	list_add(&est->list, &est_list);
 	spin_unlock_bh(&est_lock);
 }
@@ -136,11 +134,6 @@ void ip_vs_kill_estimator(struct ip_vs_stats *stats)
 
 	spin_lock_bh(&est_lock);
 	list_del(&est->list);
-	while (list_empty(&est_list) && try_to_del_timer_sync(&est_timer) < 0) {
-		spin_unlock_bh(&est_lock);
-		cpu_relax();
-		spin_lock_bh(&est_lock);
-	}
 	spin_unlock_bh(&est_lock);
 }
 
@@ -159,4 +152,15 @@ void ip_vs_zero_estimator(struct ip_vs_stats *stats)
 	est->outpps = 0;
 	est->inbps = 0;
 	est->outbps = 0;
+}
+
+int __init ip_vs_estimator_init(void)
+{
+	mod_timer(&est_timer, jiffies + 2 * HZ);
+	return 0;
+}
+
+void ip_vs_estimator_cleanup(void)
+{
+	del_timer_sync(&est_timer);
 }

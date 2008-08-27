@@ -71,14 +71,20 @@ config	IP_VS_PROTO_UDP
 	  This option enables support for load balancing UDP transport
 	  protocol. Say Y if unsure.
 
+config	IP_VS_PROTO_AH_ESP
+	bool
+	depends on UNDEFINED
+
 config	IP_VS_PROTO_ESP
 	bool "ESP load balancing support"
+	select IP_VS_PROTO_AH_ESP
 	---help---
 	  This option enables support for load balancing ESP (Encapsulation
 	  Security Payload) transport protocol. Say Y if unsure.
 
 config	IP_VS_PROTO_AH
 	bool "AH load balancing support"
+	select IP_VS_PROTO_AH_ESP
 	---help---
 	  This option enables support for load balancing AH (Authentication
 	  Header) transport protocol. Say Y if unsure.

@@ -1070,10 +1070,12 @@ static int __init ip_vs_init(void)
 {
 	int ret;
 
+	ip_vs_estimator_init();
+
 	ret = ip_vs_control_init();
 	if (ret < 0) {
 		IP_VS_ERR("can't setup control.\n");
-		goto cleanup_nothing;
+		goto cleanup_estimator;
 	}
 
 	ip_vs_protocol_init();
@@ -1106,7 +1108,8 @@ static int __init ip_vs_init(void)
   cleanup_protocol:
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
-  cleanup_nothing:
+  cleanup_estimator:
+	ip_vs_estimator_cleanup();
 	return ret;
 }
 
@@ -1117,6 +1120,7 @@ static void __exit ip_vs_cleanup(void)
 	ip_vs_app_cleanup();
 	ip_vs_protocol_cleanup();
 	ip_vs_control_cleanup();
+	ip_vs_estimator_cleanup();
 	IP_VS_INFO("ipvs unloaded.\n");
 }
 

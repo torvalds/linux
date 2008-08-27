@@ -32,12 +32,6 @@ static int ip_vs_rr_init_svc(struct ip_vs_service *svc)
 }
 
 
-static int ip_vs_rr_done_svc(struct ip_vs_service *svc)
-{
-	return 0;
-}
-
-
 static int ip_vs_rr_update_svc(struct ip_vs_service *svc)
 {
 	svc->sched_data = &svc->destinations;
@@ -96,7 +90,6 @@ static struct ip_vs_scheduler ip_vs_rr_scheduler = {
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_rr_scheduler.n_list),
 	.init_service =		ip_vs_rr_init_svc,
-	.done_service =		ip_vs_rr_done_svc,
 	.update_service =	ip_vs_rr_update_svc,
 	.schedule =		ip_vs_rr_schedule,
 };

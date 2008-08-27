@@ -6,8 +6,7 @@
 ip_vs_proto-objs-y :=
 ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_TCP) += ip_vs_proto_tcp.o
 ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_UDP) += ip_vs_proto_udp.o
-ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_ESP) += ip_vs_proto_esp.o
-ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_AH) += ip_vs_proto_ah.o
+ip_vs_proto-objs-$(CONFIG_IP_VS_PROTO_AH_ESP) += ip_vs_proto_ah_esp.o
 
 ip_vs-objs :=	ip_vs_conn.o ip_vs_core.o ip_vs_ctl.o ip_vs_sched.o	   \
 		ip_vs_xmit.o ip_vs_app.o ip_vs_sync.o	   		   \
