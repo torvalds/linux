@@ -3121,9 +3121,9 @@ static struct ctl_table empty[1];
 static struct ctl_table ipv4_skeleton[] =
 {
 	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE,
-	  .child = ipv4_route_table},
+	  .mode = 0555, .child = ipv4_route_table},
 	{ .procname = "neigh", .ctl_name = NET_IPV4_NEIGH,
-	  .child = empty},
+	  .mode = 0555, .child = empty},
 	{ }
 };
 
