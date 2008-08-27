@@ -1784,9 +1784,9 @@ static unsigned int sbus_dma_addr(struct cs4231_dma_control *dma_cont)
 
 static void sbus_dma_preallocate(struct snd_cs4231 *chip, struct snd_pcm *pcm)
 {
-	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_SBUS,
-					snd_dma_sbus_data(chip->dev_u.sdev),
-					64 * 1024, 128 * 1024);
+	snd_pcm_lib_preallocate_pages_for_all(pcm, SNDRV_DMA_TYPE_DEV,
+					      &chip->dev_u.sdev->ofdev.dev,
+					      64 * 1024, 128 * 1024);
 }
 
 /*
