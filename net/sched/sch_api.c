@@ -624,7 +624,7 @@ static struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 	struct Qdisc *oqdisc = dev_queue->qdisc_sleeping;
 	spinlock_t *root_lock;
 
-	root_lock = qdisc_root_lock(oqdisc);
+	root_lock = qdisc_lock(oqdisc);
 	spin_lock_bh(root_lock);
 
 	/* Prune old scheduler */
@@ -635,7 +635,7 @@ static struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 	if (qdisc == NULL)
 		qdisc = &noop_qdisc;
 	dev_queue->qdisc_sleeping = qdisc;
-	dev_queue->qdisc = &noop_qdisc;
+	rcu_assign_pointer(dev_queue->qdisc, &noop_qdisc);
 
 	spin_unlock_bh(root_lock);
 
@@ -830,9 +830,16 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			sch->stab = stab;
 		}
 		if (tca[TCA_RATE]) {
+			spinlock_t *root_lock;
+
+			if ((sch->parent != TC_H_ROOT) &&
+			    !(sch->flags & TCQ_F_INGRESS))
+				root_lock = qdisc_root_sleeping_lock(sch);
+			else
+				root_lock = qdisc_lock(sch);
+
 			err = gen_new_estimator(&sch->bstats, &sch->rate_est,
-						qdisc_root_lock(sch),
-						tca[TCA_RATE]);
+						root_lock, tca[TCA_RATE]);
 			if (err) {
 				/*
 				 * Any broken qdiscs that would require
@@ -884,7 +891,8 @@ static int qdisc_change(struct Qdisc *sch, struct nlattr **tca)
 
 	if (tca[TCA_RATE])
 		gen_replace_estimator(&sch->bstats, &sch->rate_est,
-				      qdisc_root_lock(sch), tca[TCA_RATE]);
+				      qdisc_root_sleeping_lock(sch),
+				      tca[TCA_RATE]);
 	return 0;
 }
 
