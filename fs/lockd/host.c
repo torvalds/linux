@@ -40,6 +40,18 @@ static struct nsm_handle *	nsm_find(const struct sockaddr_in *sin,
 					 const char *hostname,
 					 unsigned int hostname_len);
 
+static void nlm_clear_port(struct sockaddr *sap)
+{
+	switch (sap->sa_family) {
+	case AF_INET:
+		((struct sockaddr_in *)sap)->sin_port = 0;
+		break;
+	case AF_INET6:
+		((struct sockaddr_in6 *)sap)->sin6_port = 0;
+		break;
+	}
+}
+
 static void nlm_display_address(const struct sockaddr *sap,
 				char *buf, const size_t len)
 {
@@ -154,7 +166,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 	}
 	host->h_name	   = nsm->sm_name;
 	host->h_addr       = *sin;
-	host->h_addr.sin_port = 0;	/* ouch! */
+	nlm_clear_port((struct sockaddr *)&host->h_addr);
 	host->h_saddr	   = *ssin;
 	host->h_version    = version;
 	host->h_proto      = proto;
