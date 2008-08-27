@@ -20,7 +20,6 @@
 #include <asm/io.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/bpp.h>
 
 struct linux_ebus *ebus_chain = NULL;
 

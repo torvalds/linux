@@ -30,14 +30,6 @@ config OBP_FLASH
 	  The OpenBoot PROM on Ultra systems is flashable. If you want to be
 	  able to upgrade the OBP firmware, say Y here.
 
-config SUN_BPP
-	tristate "Bidirectional parallel port support (OBSOLETE)"
-	depends on EXPERIMENTAL
-	help
-	  Say Y here to support Sun's obsolete variant of IEEE1284
-	  bidirectional parallel port protocol as /dev/bppX.  Can be built on
-	  x86 machines.
-
 config SUN_VIDEOPIX
 	tristate "Videopix Frame Grabber (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && (BROKEN || !64BIT)

@@ -22,7 +22,6 @@ header-y += unistd_64.h
 
 header-y += apc.h
 header-y += asi.h
-header-y += bpp.h
 header-y += display7seg.h
 header-y += envctrl.h
 header-y += fbio.h

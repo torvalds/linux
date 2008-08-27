@@ -21,7 +21,6 @@
 #include <asm/ebus.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
-#include <asm/bpp.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
