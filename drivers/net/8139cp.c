@@ -127,7 +127,6 @@ MODULE_PARM_DESC (multicast_filter_limit, "8139cp: maximum number of filtered mu
 	  (CP)->tx_tail - (CP)->tx_head - 1)
 
 #define PKT_BUF_SZ		1536	/* Size of each temporary Rx buffer.*/
-#define RX_OFFSET		2
 #define CP_INTERNAL_PHY		32
 
 /* The following settings are log_2(bytes)-4:  0 == 16 bytes .. 6==1024, 7==end of packet. */
@@ -552,14 +551,14 @@ rx_status_loop:
 			printk(KERN_DEBUG "%s: rx slot %d status 0x%x len %d\n",
 			       dev->name, rx_tail, status, len);
 
-		buflen = cp->rx_buf_sz + RX_OFFSET;
-		new_skb = dev_alloc_skb (buflen);
+		buflen = cp->rx_buf_sz + NET_IP_ALIGN;
+		new_skb = netdev_alloc_skb(dev, buflen);
 		if (!new_skb) {
 			dev->stats.rx_dropped++;
 			goto rx_next;
 		}
 
-		skb_reserve(new_skb, RX_OFFSET);
+		skb_reserve(new_skb, NET_IP_ALIGN);
 
 		dma_unmap_single(&cp->pdev->dev, mapping,
 				 buflen, PCI_DMA_FROMDEVICE);
@@ -1051,19 +1050,20 @@ static void cp_init_hw (struct cp_private *cp)
 	cpw8_f(Cfg9346, Cfg9346_Lock);
 }
 
-static int cp_refill_rx (struct cp_private *cp)
+static int cp_refill_rx(struct cp_private *cp)
 {
+	struct net_device *dev = cp->dev;
 	unsigned i;
 
 	for (i = 0; i < CP_RX_RING_SIZE; i++) {
 		struct sk_buff *skb;
 		dma_addr_t mapping;
 
-		skb = dev_alloc_skb(cp->rx_buf_sz + RX_OFFSET);
+		skb = netdev_alloc_skb(dev, cp->rx_buf_sz + NET_IP_ALIGN);
 		if (!skb)
 			goto err_out;
 
-		skb_reserve(skb, RX_OFFSET);
+		skb_reserve(skb, NET_IP_ALIGN);
 
 		mapping = dma_map_single(&cp->pdev->dev, skb->data,
 					 cp->rx_buf_sz, PCI_DMA_FROMDEVICE);
