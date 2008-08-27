@@ -11,6 +11,7 @@
 #include <linux/suspend.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
+#include <asm/xcr.h>
 
 static struct saved_context saved_context;
 
@@ -123,6 +124,12 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	 */
 	if (boot_cpu_has(X86_FEATURE_SEP))
 		enable_sep_cpu();
+
+	/*
+	 * restore XCR0 for xsave capable cpu's.
+	 */
+	if (cpu_has_xsave)
+		xsetbv(XCR_XFEATURE_ENABLED_MASK, pcntxt_mask);
 
 	fix_processor_context();
 	do_fpu_end();
