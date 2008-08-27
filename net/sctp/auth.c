@@ -786,6 +786,9 @@ int sctp_auth_ep_set_hmacs(struct sctp_endpoint *ep,
 	for (i = 0; i < hmacs->shmac_num_idents; i++) {
 		id = hmacs->shmac_idents[i];
 
+		if (id > SCTP_AUTH_HMAC_ID_MAX)
+			return -EOPNOTSUPP;
+
 		if (SCTP_AUTH_HMAC_ID_SHA1 == id)
 			has_sha1 = 1;
 
