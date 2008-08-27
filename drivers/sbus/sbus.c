@@ -153,9 +153,6 @@ static int __init sbus_init(void)
 	const char *sbus_name = "sbus";
 	int num_sbus = 0;
 
-	if (sbus_arch_preinit())
-		return 0;
-
 	if (sparc_cpu_model == sun4d)
 		sbus_name = "sbi";
 

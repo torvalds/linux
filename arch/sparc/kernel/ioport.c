@@ -393,20 +393,14 @@ void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 #endif
 }
 
-int __init sbus_arch_preinit(void)
+static int __init sparc_register_ioport(void)
 {
 	register_proc_sparc_ioport();
 
-#ifdef CONFIG_SUN4
-	{
-		extern void sun4_dvma_init(void);
-		sun4_dvma_init();
-	}
-	return 1;
-#else
 	return 0;
-#endif
 }
+
+arch_initcall(sparc_register_ioport);
 
 void __init sbus_arch_postinit(void)
 {

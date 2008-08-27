@@ -655,11 +655,6 @@ void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 	sbus_iommu_init(dp->node, sbus);
 }
 
-int __init sbus_arch_preinit(void)
-{
-	return 0;
-}
-
 void __init sbus_arch_postinit(void)
 {
 	extern void firetruck_init(void);
