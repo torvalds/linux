@@ -66,19 +66,6 @@ struct sbus_bus {
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
-extern struct sbus_bus *sbus_root;
-
-/* Device probing routines could find these handy */
-#define for_each_sbus(bus) \
-        for((bus) = sbus_root; (bus); (bus)=(bus)->next)
-
-#define for_each_sbusdev(device, bus) \
-        for((device) = (bus)->devices; (device); (device)=(device)->next)
-
-#define for_all_sbusdev(device, bus) \
-	for ((bus) = sbus_root; (bus); (bus) = (bus)->next) \
-		for ((device) = (bus)->devices; (device); (device) = (device)->next)
-
 extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);
 extern int sbus_arch_preinit(void);
 extern void sbus_arch_postinit(void);

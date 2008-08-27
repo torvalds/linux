@@ -28,8 +28,6 @@ show_sbusobppath_attr(struct device * dev, struct device_attribute * attr, char 
 
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH, show_sbusobppath_attr, NULL);
 
-struct sbus_bus *sbus_root;
-
 static void __init fill_sbus_device_iommu(struct sbus_dev *sdev)
 {
 	struct of_device *op = of_find_device_by_node(sdev->ofdev.node);
@@ -78,17 +76,6 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	fill_sbus_device_iommu(sdev);
 }
 
-/* We preserve the "probe order" of these bus and device lists to give
- * the same ordering as the old code.
- */
-static void __init sbus_insert(struct sbus_bus *sbus, struct sbus_bus **root)
-{
-	while (*root)
-		root = &(*root)->next;
-	*root = sbus;
-	sbus->next = NULL;
-}
-
 static void __init sdev_insert(struct sbus_dev *sdev, struct sbus_dev **root)
 {
 	while (*root)
@@ -128,7 +115,6 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 	if (!sbus)
 		return;
 
-	sbus_insert(sbus, &sbus_root);
 	sbus->prom_node = dp->node;
 
 	sbus_setup_iommu(sbus, dp);

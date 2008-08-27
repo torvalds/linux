@@ -160,7 +160,6 @@ EXPORT_SYMBOL(auxio_set_led);
 EXPORT_SYMBOL(auxio_set_lte);
 #endif
 #ifdef CONFIG_SBUS
-EXPORT_SYMBOL(sbus_root);
 EXPORT_SYMBOL(sbus_set_sbus64);
 #endif
 EXPORT_SYMBOL(outsb);

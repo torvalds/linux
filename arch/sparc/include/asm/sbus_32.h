@@ -65,25 +65,12 @@ struct sbus_bus {
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
-extern struct sbus_bus *sbus_root;
-
 static inline int
 sbus_is_slave(struct sbus_dev *dev)
 {
 	/* XXX Have to write this for sun4c's */
 	return 0;
 }
-
-/* Device probing routines could find these handy */
-#define for_each_sbus(bus) \
-        for((bus) = sbus_root; (bus); (bus)=(bus)->next)
-
-#define for_each_sbusdev(device, bus) \
-        for((device) = (bus)->devices; (device); (device)=(device)->next)
-
-#define for_all_sbusdev(device, bus) \
-	for ((bus) = sbus_root; (bus); (bus) = (bus)->next) \
-		for ((device) = (bus)->devices; (device); (device) = (device)->next)
 
 /* These yield IOMMU mappings in consistent mode. */
 void prom_adjust_ranges(struct linux_prom_ranges *, int,
