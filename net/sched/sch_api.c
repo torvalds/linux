@@ -624,7 +624,7 @@ static struct Qdisc *dev_graft_qdisc(struct netdev_queue *dev_queue,
 	struct Qdisc *oqdisc = dev_queue->qdisc_sleeping;
 	spinlock_t *root_lock;
 
-	root_lock = qdisc_root_lock(oqdisc);
+	root_lock = qdisc_lock(oqdisc);
 	spin_lock_bh(root_lock);
 
 	/* Prune old scheduler */
