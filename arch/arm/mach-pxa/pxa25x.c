@@ -234,9 +234,6 @@ static void pxa25x_cpu_pm_save(unsigned long *sleep_save)
 
 static void pxa25x_cpu_pm_restore(unsigned long *sleep_save)
 {
-	/* ensure not to come back here if it wasn't intended */
-	PSPR = 0;
-
 	/* restore registers */
 	RESTORE(GAFR0_L); RESTORE(GAFR0_U);
 	RESTORE(GAFR1_L); RESTORE(GAFR1_U);
@@ -256,11 +253,22 @@ static void pxa25x_cpu_pm_enter(suspend_state_t state)
 
 	switch (state) {
 	case PM_SUSPEND_MEM:
-		/* set resume return address */
-		PSPR = virt_to_phys(pxa_cpu_resume);
 		pxa25x_cpu_suspend(PWRMODE_SLEEP);
 		break;
 	}
+}
+
+static int pxa25x_cpu_pm_prepare(void)
+{
+	/* set resume return address */
+	PSPR = virt_to_phys(pxa_cpu_resume);
+	return 0;
+}
+
+static void pxa25x_cpu_pm_finish(void)
+{
+	/* ensure not to come back here if it wasn't intended */
+	PSPR = 0;
 }
 
 static struct pxa_cpu_pm_fns pxa25x_cpu_pm_fns = {
@@ -269,6 +277,8 @@ static struct pxa_cpu_pm_fns pxa25x_cpu_pm_fns = {
 	.save		= pxa25x_cpu_pm_save,
 	.restore	= pxa25x_cpu_pm_restore,
 	.enter		= pxa25x_cpu_pm_enter,
+	.prepare	= pxa25x_cpu_pm_prepare,
+	.finish		= pxa25x_cpu_pm_finish,
 };
 
 static void __init pxa25x_init_pm(void)
