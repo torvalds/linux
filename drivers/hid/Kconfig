@@ -78,7 +78,7 @@ config HID_COMPAT
 	support of module loading through aliases and also old
 	module-init-tools which can't handle hid bus, choose Y here. Otherwise
 	say N. If you say N and your userspace is old enough, the only
-	functionality you loose is modules autoloading.
+	functionality you lose is modules autoloading.
 
 	If unsure, say Y.
 
