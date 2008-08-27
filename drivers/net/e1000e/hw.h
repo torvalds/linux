@@ -65,7 +65,11 @@ enum e1e_registers {
 	E1000_ICS      = 0x000C8, /* Interrupt Cause Set - WO */
 	E1000_IMS      = 0x000D0, /* Interrupt Mask Set - RW */
 	E1000_IMC      = 0x000D8, /* Interrupt Mask Clear - WO */
+	E1000_EIAC_82574 = 0x000DC, /* Ext. Interrupt Auto Clear - RW */
 	E1000_IAM      = 0x000E0, /* Interrupt Acknowledge Auto Mask */
+	E1000_IVAR     = 0x000E4, /* Interrupt Vector Allocation - RW */
+	E1000_EITR_82574_BASE = 0x000E8, /* Interrupt Throttling - RW */
+#define E1000_EITR_82574(_n) (E1000_EITR_82574_BASE + (_n << 2))
 	E1000_RCTL     = 0x00100, /* Rx Control - RW */
 	E1000_FCTTV    = 0x00170, /* Flow Control Transmit Timer Value - RW */
 	E1000_TXCW     = 0x00178, /* Tx Configuration Word - RW */
@@ -332,6 +336,7 @@ enum e1e_registers {
 #define E1000_DEV_ID_82573E			0x108B
 #define E1000_DEV_ID_82573E_IAMT		0x108C
 #define E1000_DEV_ID_82573L			0x109A
+#define E1000_DEV_ID_82574L			0x10D3
 
 #define E1000_DEV_ID_80003ES2LAN_COPPER_DPT	0x1096
 #define E1000_DEV_ID_80003ES2LAN_SERDES_DPT	0x1098
@@ -360,12 +365,15 @@ enum e1e_registers {
 #define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
 #define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
 
+#define E1000_REVISION_4 4
+
 #define E1000_FUNC_1 1
 
 enum e1000_mac_type {
 	e1000_82571,
 	e1000_82572,
 	e1000_82573,
+	e1000_82574,
 	e1000_80003es2lan,
 	e1000_ich8lan,
 	e1000_ich9lan,
@@ -700,8 +708,7 @@ struct e1000_host_mng_command_info {
 
 /* Function pointers and static data for the MAC. */
 struct e1000_mac_operations {
-	u32			mng_mode_enab;
-
+	bool (*check_mng_mode)(struct e1000_hw *);
 	s32  (*check_for_link)(struct e1000_hw *);
 	s32  (*cleanup_led)(struct e1000_hw *);
 	void (*clear_hw_cntrs)(struct e1000_hw *);

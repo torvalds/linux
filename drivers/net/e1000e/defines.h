@@ -71,9 +71,11 @@
 #define E1000_CTRL_EXT_RO_DIS    0x00020000 /* Relaxed Ordering disable */
 #define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
 #define E1000_CTRL_EXT_LINK_MODE_PCIE_SERDES  0x00C00000
+#define E1000_CTRL_EXT_EIAME          0x01000000
 #define E1000_CTRL_EXT_DRV_LOAD       0x10000000 /* Driver loaded bit for FW */
 #define E1000_CTRL_EXT_IAME           0x08000000 /* Interrupt acknowledge Auto-mask */
 #define E1000_CTRL_EXT_INT_TIMER_CLR  0x20000000 /* Clear Interrupt timers after IMS clear */
+#define E1000_CTRL_EXT_PBA_CLR        0x80000000 /* PBA Clear */
 
 /* Receive Descriptor bit definitions */
 #define E1000_RXD_STAT_DD       0x01    /* Descriptor Done */
@@ -299,6 +301,7 @@
 #define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
 
 /* Header split receive */
+#define E1000_RFCTL_ACK_DIS             0x00001000
 #define E1000_RFCTL_EXTEN               0x00008000
 #define E1000_RFCTL_IPV6_EX_DIS         0x00010000
 #define E1000_RFCTL_NEW_IPV6_EXT_DIS    0x00020000
@@ -363,6 +366,11 @@
 #define E1000_ICR_RXDMT0        0x00000010 /* Rx desc min. threshold (0) */
 #define E1000_ICR_RXT0          0x00000080 /* Rx timer intr (ring 0) */
 #define E1000_ICR_INT_ASSERTED  0x80000000 /* If this bit asserted, the driver should claim the interrupt */
+#define E1000_ICR_RXQ0          0x00100000 /* Rx Queue 0 Interrupt */
+#define E1000_ICR_RXQ1          0x00200000 /* Rx Queue 1 Interrupt */
+#define E1000_ICR_TXQ0          0x00400000 /* Tx Queue 0 Interrupt */
+#define E1000_ICR_TXQ1          0x00800000 /* Tx Queue 1 Interrupt */
+#define E1000_ICR_OTHER         0x01000000 /* Other Interrupts */
 
 /*
  * This defines the bits that are set in the Interrupt Mask
@@ -386,6 +394,11 @@
 #define E1000_IMS_RXSEQ     E1000_ICR_RXSEQ     /* Rx sequence error */
 #define E1000_IMS_RXDMT0    E1000_ICR_RXDMT0    /* Rx desc min. threshold */
 #define E1000_IMS_RXT0      E1000_ICR_RXT0      /* Rx timer intr */
+#define E1000_IMS_RXQ0      E1000_ICR_RXQ0      /* Rx Queue 0 Interrupt */
+#define E1000_IMS_RXQ1      E1000_ICR_RXQ1      /* Rx Queue 1 Interrupt */
+#define E1000_IMS_TXQ0      E1000_ICR_TXQ0      /* Tx Queue 0 Interrupt */
+#define E1000_IMS_TXQ1      E1000_ICR_TXQ1      /* Tx Queue 1 Interrupt */
+#define E1000_IMS_OTHER     E1000_ICR_OTHER     /* Other Interrupts */
 
 /* Interrupt Cause Set */
 #define E1000_ICS_LSC       E1000_ICR_LSC       /* Link Status Change */

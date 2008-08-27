@@ -422,6 +422,22 @@ static void e1000_release_swflag_ich8lan(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_check_mng_mode_ich8lan - Checks management mode
+ *  @hw: pointer to the HW structure
+ *
+ *  This checks if the adapter has manageability enabled.
+ *  This is a function pointer entry point only called by read/write
+ *  routines for the PHY and NVM parts.
+ **/
+static bool e1000_check_mng_mode_ich8lan(struct e1000_hw *hw)
+{
+	u32 fwsm = er32(FWSM);
+
+	return (fwsm & E1000_FWSM_MODE_MASK) ==
+		(E1000_ICH_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT);
+}
+
+/**
  *  e1000_check_reset_block_ich8lan - Check if PHY reset is blocked
  *  @hw: pointer to the HW structure
  *
@@ -2400,7 +2416,7 @@ static void e1000_clear_hw_cntrs_ich8lan(struct e1000_hw *hw)
 }
 
 static struct e1000_mac_operations ich8_mac_ops = {
-	.mng_mode_enab		= E1000_ICH_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT,
+	.check_mng_mode		= e1000_check_mng_mode_ich8lan,
 	.check_for_link		= e1000e_check_for_copper_link,
 	.cleanup_led		= e1000_cleanup_led_ich8lan,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_ich8lan,

@@ -1247,7 +1247,7 @@ static void e1000_clear_hw_cntrs_80003es2lan(struct e1000_hw *hw)
 }
 
 static struct e1000_mac_operations es2_mac_ops = {
-	.mng_mode_enab		= E1000_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT,
+	.check_mng_mode		= e1000e_check_mng_mode_generic,
 	/* check_for_link dependent on media type */
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_80003es2lan,

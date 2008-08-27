@@ -114,6 +114,15 @@ E1000_PARAM(InterruptThrottleRate, "Interrupt Throttling Rate");
 #define DEFAULT_ITR 3
 #define MAX_ITR 100000
 #define MIN_ITR 100
+/* IntMode (Interrupt Mode)
+ *
+ * Valid Range: 0 - 2
+ *
+ * Default Value: 2 (MSI-X)
+ */
+E1000_PARAM(IntMode, "Interrupt Mode");
+#define MAX_INTMODE	2
+#define MIN_INTMODE	0
 
 /*
  * Enable Smart Power Down of the PHY
@@ -350,6 +359,24 @@ void __devinit e1000e_check_options(struct e1000_adapter *adapter)
 		} else {
 			adapter->itr_setting = opt.def;
 			adapter->itr = 20000;
+		}
+	}
+	{ /* Interrupt Mode */
+		struct e1000_option opt = {
+			.type = range_option,
+			.name = "Interrupt Mode",
+			.err  = "defaulting to 2 (MSI-X)",
+			.def  = E1000E_INT_MODE_MSIX,
+			.arg  = { .r = { .min = MIN_INTMODE,
+					 .max = MAX_INTMODE } }
+		};
+
+		if (num_IntMode > bd) {
+			unsigned int int_mode = IntMode[bd];
+			e1000_validate_option(&int_mode, &opt, adapter);
+			adapter->int_mode = int_mode;
+		} else {
+			adapter->int_mode = opt.def;
 		}
 	}
 	{ /* Smart Power Down */

@@ -476,7 +476,9 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 	if (ret_val)
 		return ret_val;
 
-	if ((phy->type == e1000_phy_m88) && (phy->revision < 4)) {
+	if ((phy->type == e1000_phy_m88) &&
+	    (phy->revision < E1000_REVISION_4) &&
+	    (phy->id != BME1000_E_PHY_ID_R2)) {
 		/*
 		 * Force TX_CLK in the Extended PHY Specific Control Register
 		 * to 25MHz clock.
@@ -500,6 +502,18 @@ s32 e1000e_copper_link_setup_m88(struct e1000_hw *hw)
 				     M88E1000_EPSCR_SLAVE_DOWNSHIFT_1X);
 		}
 		ret_val = e1e_wphy(hw, M88E1000_EXT_PHY_SPEC_CTRL, phy_data);
+		if (ret_val)
+			return ret_val;
+	}
+
+	if ((phy->type == e1000_phy_bm) && (phy->id == BME1000_E_PHY_ID_R2)) {
+		/* Set PHY page 0, register 29 to 0x0003 */
+		ret_val = e1e_wphy(hw, 29, 0x0003);
+		if (ret_val)
+			return ret_val;
+
+		/* Set PHY page 0, register 30 to 0x0000 */
+		ret_val = e1e_wphy(hw, 30, 0x0000);
 		if (ret_val)
 			return ret_val;
 	}
@@ -2050,6 +2064,99 @@ s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data)
 	hw->phy.ops.release_phy(hw);
 
 out:
+	return ret_val;
+}
+
+/**
+ *  e1000e_read_phy_reg_bm2 - Read BM PHY register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to be read
+ *  @data: pointer to the read data
+ *
+ *  Acquires semaphore, if necessary, then reads the PHY register at offset
+ *  and storing the retrieved information in data.  Release any acquired
+ *  semaphores before exiting.
+ **/
+s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data)
+{
+	s32 ret_val;
+	u16 page = (u16)(offset >> IGP_PAGE_SHIFT);
+
+	/* Page 800 works differently than the rest so it has its own func */
+	if (page == BM_WUC_PAGE) {
+		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, data,
+							 true);
+		return ret_val;
+	}
+
+	ret_val = hw->phy.ops.acquire_phy(hw);
+	if (ret_val)
+		return ret_val;
+
+	hw->phy.addr = 1;
+
+	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+
+		/* Page is shifted left, PHY expects (page x 32) */
+		ret_val = e1000e_write_phy_reg_mdic(hw, BM_PHY_PAGE_SELECT,
+						    page);
+
+		if (ret_val) {
+			hw->phy.ops.release_phy(hw);
+			return ret_val;
+		}
+	}
+
+	ret_val = e1000e_read_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					   data);
+	hw->phy.ops.release_phy(hw);
+
+	return ret_val;
+}
+
+/**
+ *  e1000e_write_phy_reg_bm2 - Write BM PHY register
+ *  @hw: pointer to the HW structure
+ *  @offset: register offset to write to
+ *  @data: data to write at register offset
+ *
+ *  Acquires semaphore, if necessary, then writes the data to PHY register
+ *  at the offset.  Release any acquired semaphores before exiting.
+ **/
+s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data)
+{
+	s32 ret_val;
+	u16 page = (u16)(offset >> IGP_PAGE_SHIFT);
+
+	/* Page 800 works differently than the rest so it has its own func */
+	if (page == BM_WUC_PAGE) {
+		ret_val = e1000_access_phy_wakeup_reg_bm(hw, offset, &data,
+							 false);
+		return ret_val;
+	}
+
+	ret_val = hw->phy.ops.acquire_phy(hw);
+	if (ret_val)
+		return ret_val;
+
+	hw->phy.addr = 1;
+
+	if (offset > MAX_PHY_MULTI_PAGE_REG) {
+		/* Page is shifted left, PHY expects (page x 32) */
+		ret_val = e1000e_write_phy_reg_mdic(hw, BM_PHY_PAGE_SELECT,
+						    page);
+
+		if (ret_val) {
+			hw->phy.ops.release_phy(hw);
+			return ret_val;
+		}
+	}
+
+	ret_val = e1000e_write_phy_reg_mdic(hw, MAX_PHY_REG_ADDRESS & offset,
+					    data);
+
+	hw->phy.ops.release_phy(hw);
+
 	return ret_val;
 }
 

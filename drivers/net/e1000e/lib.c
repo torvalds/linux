@@ -2222,17 +2222,18 @@ static s32 e1000_mng_enable_host_if(struct e1000_hw *hw)
 }
 
 /**
- *  e1000e_check_mng_mode - check management mode
+ *  e1000e_check_mng_mode_generic - check management mode
  *  @hw: pointer to the HW structure
  *
  *  Reads the firmware semaphore register and returns true (>0) if
  *  manageability is enabled, else false (0).
  **/
-bool e1000e_check_mng_mode(struct e1000_hw *hw)
+bool e1000e_check_mng_mode_generic(struct e1000_hw *hw)
 {
 	u32 fwsm = er32(FWSM);
 
-	return (fwsm & E1000_FWSM_MODE_MASK) == hw->mac.ops.mng_mode_enab;
+	return (fwsm & E1000_FWSM_MODE_MASK) ==
+		(E1000_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT);
 }
 
 /**

@@ -62,6 +62,11 @@ struct e1000_info;
 	e_printk(KERN_NOTICE, adapter, format, ## arg)
 
 
+/* Interrupt modes, as used by the IntMode paramter */
+#define E1000E_INT_MODE_LEGACY		0
+#define E1000E_INT_MODE_MSI		1
+#define E1000E_INT_MODE_MSIX		2
+
 /* Tx/Rx descriptor defines */
 #define E1000_DEFAULT_TXD		256
 #define E1000_MAX_TXD			4096
@@ -95,6 +100,7 @@ enum e1000_boards {
 	board_82571,
 	board_82572,
 	board_82573,
+	board_82574,
 	board_80003es2lan,
 	board_ich8lan,
 	board_ich9lan,
@@ -146,6 +152,12 @@ struct e1000_ring {
 
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
+
+	char name[IFNAMSIZ + 5];
+	u32 ims_val;
+	u32 itr_val;
+	u16 itr_register;
+	int set_itr;
 
 	struct sk_buff *rx_skb_top;
 
@@ -275,6 +287,9 @@ struct e1000_adapter {
 	u32 test_icr;
 
 	u32 msg_enable;
+	struct msix_entry *msix_entries;
+	int int_mode;
+	u32 eiac_mask;
 
 	u32 eeprom_wol;
 	u32 wol;
@@ -307,6 +322,7 @@ struct e1000_info {
 #define FLAG_HAS_SWSM_ON_LOAD             (1 << 6)
 #define FLAG_HAS_JUMBO_FRAMES             (1 << 7)
 #define FLAG_IS_ICH                       (1 << 9)
+#define FLAG_HAS_MSIX                     (1 << 10)
 #define FLAG_HAS_SMART_POWER_DOWN         (1 << 11)
 #define FLAG_IS_QUAD_PORT_A               (1 << 12)
 #define FLAG_IS_QUAD_PORT                 (1 << 13)
@@ -365,6 +381,8 @@ extern int e1000e_setup_tx_resources(struct e1000_adapter *adapter);
 extern void e1000e_free_rx_resources(struct e1000_adapter *adapter);
 extern void e1000e_free_tx_resources(struct e1000_adapter *adapter);
 extern void e1000e_update_stats(struct e1000_adapter *adapter);
+extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
+extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
 
 extern unsigned int copybreak;
 
@@ -373,6 +391,7 @@ extern char *e1000e_get_hw_dev_name(struct e1000_hw *hw);
 extern struct e1000_info e1000_82571_info;
 extern struct e1000_info e1000_82572_info;
 extern struct e1000_info e1000_82573_info;
+extern struct e1000_info e1000_82574_info;
 extern struct e1000_info e1000_ich8_info;
 extern struct e1000_info e1000_ich9_info;
 extern struct e1000_info e1000_ich10_info;
@@ -453,6 +472,8 @@ extern enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id);
 extern s32 e1000e_determine_phy_address(struct e1000_hw *hw);
 extern s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data);
 extern s32 e1000e_read_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 *data);
+extern s32 e1000e_read_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 *data);
+extern s32 e1000e_write_phy_reg_bm2(struct e1000_hw *hw, u32 offset, u16 data);
 extern void e1000e_phy_force_speed_duplex_setup(struct e1000_hw *hw, u16 *phy_ctrl);
 extern s32 e1000e_write_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 data);
 extern s32 e1000e_read_kmrn_reg(struct e1000_hw *hw, u32 offset, u16 *data);
@@ -523,7 +544,12 @@ static inline s32 e1000_get_phy_info(struct e1000_hw *hw)
 	return hw->phy.ops.get_phy_info(hw);
 }
 
-extern bool e1000e_check_mng_mode(struct e1000_hw *hw);
+static inline s32 e1000e_check_mng_mode(struct e1000_hw *hw)
+{
+	return hw->mac.ops.check_mng_mode(hw);
+}
+
+extern bool e1000e_check_mng_mode_generic(struct e1000_hw *hw);
 extern bool e1000e_enable_tx_pkt_filtering(struct e1000_hw *hw);
 extern s32 e1000e_mng_write_dhcp_info(struct e1000_hw *hw, u8 *buffer, u16 length);
 
