@@ -262,12 +262,6 @@ sub update_funcs
 
 	# only use locals if objcopy supports globalize-symbols
 	if (!$use_locals) {
-	    print STDERR
-		"$inputfile: WARNING: referencing local function " .
-		"$ref_func for mcount\n" .
-		"\tConsider upgrading objcopy to support the globalize-" .
-		"symbols option.\n"
-		if (!$local_warn_once++);
 	    return;
 	}
 	$convert{$ref_func} = 1;
