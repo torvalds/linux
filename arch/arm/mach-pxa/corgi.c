@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
+#include <linux/gpio.h>
 #include <linux/backlight.h>
 #include <video/w100fb.h>
 
@@ -414,17 +415,43 @@ static int corgi_mci_init(struct device *dev, irq_handler_t corgi_detect_int, vo
 	/* setup GPIO for PXA25x MMC controller	*/
 	pxa_gpio_mode(GPIO6_MMCCLK_MD);
 	pxa_gpio_mode(GPIO8_MMCCS0_MD);
-	pxa_gpio_mode(CORGI_GPIO_nSD_DETECT | GPIO_IN);
-	pxa_gpio_mode(CORGI_GPIO_SD_PWR | GPIO_OUT);
+
+	err = gpio_request(CORGI_GPIO_nSD_DETECT, "nSD_DETECT");
+	if (err)
+		goto err_out;
+
+	err = gpio_request(CORGI_GPIO_nSD_WP, "nSD_WP");
+	if (err)
+		goto err_free_1;
+
+	err = gpio_request(CORGI_GPIO_SD_PWR, "SD_PWR");
+	if (err)
+		goto err_free_2;
+
+	gpio_direction_input(CORGI_GPIO_nSD_DETECT);
+	gpio_direction_input(CORGI_GPIO_nSD_WP);
+	gpio_direction_output(CORGI_GPIO_SD_PWR, 0);
 
 	corgi_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(CORGI_IRQ_GPIO_nSD_DETECT, corgi_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
-			  "MMC card detect", data);
-	if (err)
-		printk(KERN_ERR "corgi_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+				IRQF_DISABLED | IRQF_TRIGGER_RISING |
+				IRQF_TRIGGER_FALLING,
+				"MMC card detect", data);
+	if (err) {
+		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
+				__func__);
+		goto err_free_3;
+	}
+	return 0;
 
+err_free_3:
+	gpio_free(CORGI_GPIO_SD_PWR);
+err_free_2:
+	gpio_free(CORGI_GPIO_nSD_WP);
+err_free_1:
+	gpio_free(CORGI_GPIO_nSD_DETECT);
+err_out:
 	return err;
 }
 
@@ -432,20 +459,20 @@ static void corgi_mci_setpower(struct device *dev, unsigned int vdd)
 {
 	struct pxamci_platform_data* p_d = dev->platform_data;
 
-	if (( 1 << vdd) & p_d->ocr_mask)
-		GPSR1 = GPIO_bit(CORGI_GPIO_SD_PWR);
-	else
-		GPCR1 = GPIO_bit(CORGI_GPIO_SD_PWR);
+	gpio_set_value(CORGI_GPIO_SD_PWR, ((1 << vdd) & p_d->ocr_mask));
 }
 
 static int corgi_mci_get_ro(struct device *dev)
 {
-	return GPLR(CORGI_GPIO_nSD_WP) & GPIO_bit(CORGI_GPIO_nSD_WP);
+	return gpio_get_value(CORGI_GPIO_nSD_WP);
 }
 
 static void corgi_mci_exit(struct device *dev, void *data)
 {
 	free_irq(CORGI_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(CORGI_GPIO_SD_PWR);
+	gpio_free(CORGI_GPIO_nSD_WP);
+	gpio_free(CORGI_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data corgi_mci_platform_data = {
@@ -462,16 +489,32 @@ static struct pxamci_platform_data corgi_mci_platform_data = {
  */
 static void corgi_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF)
-		GPSR(CORGI_GPIO_IR_ON) = GPIO_bit(CORGI_GPIO_IR_ON);
-	else
-		GPCR(CORGI_GPIO_IR_ON) = GPIO_bit(CORGI_GPIO_IR_ON);
+	gpio_set_value(CORGI_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 
+static int corgi_irda_startup(struct device *dev)
+{
+	int err;
+
+	err = gpio_request(CORGI_GPIO_IR_ON, "IR_ON");
+	if (err)
+		return err;
+
+	gpio_direction_output(CORGI_GPIO_IR_ON, 1);
+	return 0;
+}
+
+static void corgi_irda_shutdown(struct device *dev)
+{
+	gpio_free(CORGI_GPIO_IR_ON);
+}
+
 static struct pxaficp_platform_data corgi_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = corgi_irda_transceiver_mode,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.transceiver_mode	= corgi_irda_transceiver_mode,
+	.startup		= corgi_irda_startup,
+	.shutdown		= corgi_irda_shutdown,
 };
 
 
