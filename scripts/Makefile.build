@@ -199,8 +199,9 @@ cmd_modversions =							\
 endif
 
 ifdef CONFIG_FTRACE_MCOUNT_RECORD
-cmd_record_mcount = $(srctree)/scripts/recordmcount.pl "$(ARCH)" \
-	"$(OBJDUMP)" "$(OBJCOPY)" "$(CC)" "$(LD)" "$(NM)" "$(RM)" "$(MV)" "$(@)";
+cmd_record_mcount = perl $(srctree)/scripts/recordmcount.pl \
+	"$(ARCH)" "$(OBJDUMP)" "$(OBJCOPY)" "$(CC)" "$(LD)" "$(NM)" "$(RM)" \
+	"$(MV)" "$(@)";
 endif
 
 define rule_cc_o_c
