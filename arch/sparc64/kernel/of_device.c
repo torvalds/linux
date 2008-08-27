@@ -66,6 +66,28 @@ unsigned int irq_of_parse_and_map(struct device_node *node, int index)
 }
 EXPORT_SYMBOL(irq_of_parse_and_map);
 
+/* Take the archdata values for IOMMU, STC, and HOSTDATA found in
+ * BUS and propagate to all child of_device objects.
+ */
+void of_propagate_archdata(struct of_device *bus)
+{
+	struct dev_archdata *bus_sd = &bus->dev.archdata;
+	struct device_node *bus_dp = bus->node;
+	struct device_node *dp;
+
+	for (dp = bus_dp->child; dp; dp = dp->sibling) {
+		struct of_device *op = of_find_device_by_node(dp);
+
+		op->dev.archdata.iommu = bus_sd->iommu;
+		op->dev.archdata.stc = bus_sd->stc;
+		op->dev.archdata.host_controller = bus_sd->host_controller;
+		op->dev.archdata.numa_node = bus_sd->numa_node;
+
+		if (dp->child)
+			of_propagate_archdata(op);
+	}
+}
+
 #ifdef CONFIG_PCI
 struct bus_type ebus_bus_type;
 EXPORT_SYMBOL(ebus_bus_type);

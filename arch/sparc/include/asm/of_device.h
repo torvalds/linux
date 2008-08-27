@@ -30,6 +30,8 @@ struct of_device
 extern void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
 extern void of_iounmap(struct resource *res, void __iomem *base, unsigned long size);
 
+extern void of_propagate_archdata(struct of_device *bus);
+
 /* This is just here during the transition */
 #include <linux/of_platform.h>
 
