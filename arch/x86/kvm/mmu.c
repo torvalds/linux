@@ -2111,6 +2111,7 @@ void kvm_mmu_slot_remove_write_access(struct kvm *kvm, int slot)
 			if (pt[i] & PT_WRITABLE_MASK)
 				pt[i] &= ~PT_WRITABLE_MASK;
 	}
+	kvm_flush_remote_tlbs(kvm);
 	spin_unlock(&kvm->mmu_lock);
 }
 
