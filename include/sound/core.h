@@ -42,9 +42,6 @@
 #ifdef CONFIG_PCI
 struct pci_dev;
 #endif
-#ifdef CONFIG_SBUS
-struct sbus_dev;
-#endif
 
 /* device allocation stuff */
 
