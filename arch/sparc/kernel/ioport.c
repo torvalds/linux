@@ -143,15 +143,6 @@ void iounmap(volatile void __iomem *virtual)
 	}
 }
 
-/*
- */
-void __iomem *sbus_ioremap(struct resource *phyres, unsigned long offset,
-    unsigned long size, char *name)
-{
-	return _sparc_alloc_io(phyres->flags & 0xF,
-	    phyres->start + offset, size, name);
-}
-
 void __iomem *of_ioremap(struct resource *res, unsigned long offset,
 			 unsigned long size, char *name)
 {
@@ -166,13 +157,6 @@ void of_iounmap(struct resource *res, void __iomem *base, unsigned long size)
 	iounmap(base);
 }
 EXPORT_SYMBOL(of_iounmap);
-
-/*
- */
-void sbus_iounmap(volatile void __iomem *addr, unsigned long size)
-{
-	iounmap(addr);
-}
 
 /*
  * Meat of mapping

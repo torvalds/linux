@@ -293,14 +293,6 @@ extern void __iomem *pci_iomap(struct pci_dev *dev, int bar, unsigned long max);
 extern void pci_iounmap(struct pci_dev *dev, void __iomem *);
 
 /*
- * Bus number may be in res->flags... somewhere.
- */
-extern void __iomem *sbus_ioremap(struct resource *res, unsigned long offset,
-    unsigned long size, char *name);
-extern void sbus_iounmap(volatile void __iomem *vaddr, unsigned long size);
-
-
-/*
  * At the moment, we do not use CMOS_READ anywhere outside of rtc.c,
  * so rtc_port is static in it. This should not change unless a new
  * hardware pops up.

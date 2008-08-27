@@ -154,8 +154,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
 
 #ifdef CONFIG_SBUS
 EXPORT_SYMBOL(sbus_set_sbus64);
-EXPORT_SYMBOL(sbus_iounmap);
-EXPORT_SYMBOL(sbus_ioremap);
 #endif
 #ifdef CONFIG_PCI
 EXPORT_SYMBOL(ebus_chain);
