@@ -40,6 +40,7 @@
 #define RADEON_FIFO_DEBUG	0
 
 static int radeon_do_cleanup_cp(struct drm_device * dev);
+static void radeon_do_cp_start(drm_radeon_private_t * dev_priv);
 
 static u32 R500_READ_MCIND(drm_radeon_private_t *dev_priv, int addr)
 {
@@ -198,23 +199,8 @@ static int radeon_do_pixcache_flush(drm_radeon_private_t * dev_priv)
 			DRM_UDELAY(1);
 		}
 	} else {
-		/* 3D */
-		tmp = RADEON_READ(R300_RB3D_DSTCACHE_CTLSTAT);
-		tmp |= RADEON_RB3D_DC_FLUSH_ALL;
-		RADEON_WRITE(R300_RB3D_DSTCACHE_CTLSTAT, tmp);
-
-		/* 2D */
-		tmp = RADEON_READ(R300_DSTCACHE_CTLSTAT);
-		tmp |= RADEON_RB3D_DC_FLUSH_ALL;
-		RADEON_WRITE(R300_DSTCACHE_CTLSTAT, tmp);
-
-		for (i = 0; i < dev_priv->usec_timeout; i++) {
-			if (!(RADEON_READ(R300_DSTCACHE_CTLSTAT)
-			  & RADEON_RB3D_DC_BUSY)) {
-				return 0;
-			}
-			DRM_UDELAY(1);
-		}
+		/* don't flush or purge cache here or lockup */
+		return 0;
 	}
 
 #if RADEON_FIFO_DEBUG
@@ -237,6 +223,9 @@ static int radeon_do_wait_for_fifo(drm_radeon_private_t * dev_priv, int entries)
 			return 0;
 		DRM_UDELAY(1);
 	}
+	DRM_INFO("wait for fifo failed status : 0x%08X 0x%08X\n",
+		 RADEON_READ(RADEON_RBBM_STATUS),
+		 RADEON_READ(R300_VAP_CNTL_STATUS));
 
 #if RADEON_FIFO_DEBUG
 	DRM_ERROR("failed!\n");
@@ -263,6 +252,9 @@ static int radeon_do_wait_for_idle(drm_radeon_private_t * dev_priv)
 		}
 		DRM_UDELAY(1);
 	}
+	DRM_INFO("wait idle failed status : 0x%08X 0x%08X\n",
+		 RADEON_READ(RADEON_RBBM_STATUS),
+		 RADEON_READ(R300_VAP_CNTL_STATUS));
 
 #if RADEON_FIFO_DEBUG
 	DRM_ERROR("failed!\n");
@@ -443,14 +435,20 @@ static void radeon_do_cp_start(drm_radeon_private_t * dev_priv)
 
 	dev_priv->cp_running = 1;
 
-	BEGIN_RING(6);
-
+	BEGIN_RING(8);
+	/* isync can only be written through cp on r5xx write it here */
+	OUT_RING(CP_PACKET0(RADEON_ISYNC_CNTL, 0));
+	OUT_RING(RADEON_ISYNC_ANY2D_IDLE3D |
+		 RADEON_ISYNC_ANY3D_IDLE2D |
+		 RADEON_ISYNC_WAIT_IDLEGUI |
+		 RADEON_ISYNC_CPSCRATCH_IDLEGUI);
 	RADEON_PURGE_CACHE();
 	RADEON_PURGE_ZCACHE();
 	RADEON_WAIT_UNTIL_IDLE();
-
 	ADVANCE_RING();
 	COMMIT_RING();
+
+	dev_priv->track_flush |= RADEON_FLUSH_EMITED | RADEON_PURGE_EMITED;
 }
 
 /* Reset the Command Processor.  This will not flush any pending
