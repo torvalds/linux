@@ -2211,14 +2211,14 @@ static struct hso_device *hso_create_bulk_serial_device(
 				     USB_DIR_IN);
 	if (!serial->in_endp) {
 		dev_err(&interface->dev, "Failed to find BULK IN ep\n");
-		goto exit;
+		goto exit2;
 	}
 
 	if (!
 	    (serial->out_endp =
 	     hso_get_ep(interface, USB_ENDPOINT_XFER_BULK, USB_DIR_OUT))) {
 		dev_err(&interface->dev, "Failed to find BULK IN ep\n");
-		goto exit;
+		goto exit2;
 	}
 
 	serial->write_data = hso_std_serial_write_data;
@@ -2231,9 +2231,10 @@ static struct hso_device *hso_create_bulk_serial_device(
 
 	/* done, return it */
 	return hso_dev;
+
+exit2:
+	hso_serial_common_free(serial);
 exit:
-	if (hso_dev && serial)
-		hso_serial_common_free(serial);
 	kfree(serial);
 	hso_free_device(hso_dev);
 	return NULL;
