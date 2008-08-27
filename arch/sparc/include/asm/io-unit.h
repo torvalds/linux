@@ -55,8 +55,4 @@ struct iounit_struct {
 #define IOUNIT_BMAPM_START	IOUNIT_BMAP2_END
 #define IOUNIT_BMAPM_END	((IOUNIT_DMA_SIZE - IOUNIT_DVMA_SIZE) >> PAGE_SHIFT)
 
-extern __u32 iounit_map_dma_init(struct sbus_bus *, int);
-#define iounit_map_dma_finish(sbus, addr, len) mmu_release_scsi_one(addr, len, sbus)
-extern __u32 iounit_map_dma_page(__u32, void *, struct sbus_bus *);
-
 #endif /* !(_SPARC_IO_UNIT_H) */
