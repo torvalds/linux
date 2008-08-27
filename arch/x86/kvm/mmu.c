@@ -1283,6 +1283,7 @@ static int direct_map_entry(struct kvm_shadow_walk *_walk,
 		mmu_set_spte(vcpu, sptep, ACC_ALL, ACC_ALL,
 			     0, walk->write, 1, &walk->pt_write,
 			     walk->largepage, gfn, walk->pfn, false);
+		++vcpu->stat.pf_fixed;
 		return 1;
 	}
 
