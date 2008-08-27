@@ -1192,7 +1192,7 @@ static void mmu_set_spte(struct kvm_vcpu *vcpu, u64 *shadow_pte,
 	 */
 	spte = shadow_base_present_pte | shadow_dirty_mask;
 	if (!speculative)
-		pte_access |= PT_ACCESSED_MASK;
+		spte |= shadow_accessed_mask;
 	if (!dirty)
 		pte_access &= ~ACC_WRITE_MASK;
 	if (pte_access & ACC_EXEC_MASK)
