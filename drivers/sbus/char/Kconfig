@@ -30,15 +30,6 @@ config OBP_FLASH
 	  The OpenBoot PROM on Ultra systems is flashable. If you want to be
 	  able to upgrade the OBP firmware, say Y here.
 
-config SUN_VIDEOPIX
-	tristate "Videopix Frame Grabber (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && (BROKEN || !64BIT)
-	help
-	  Say Y here to support the Videopix Frame Grabber from Sun
-	  Microsystems, commonly found on SPARCstations.  This card, which is
-	  based on the Phillips SAA9051, can handle NTSC and PAL/SECAM and
-	  SVIDEO signals.
-
 config TADPOLE_TS102_UCTRL
 	tristate "Tadpole TS102 Microcontroller support (EXPERIMENTAL)"
 	depends on EXPERIMENTAL && SPARC32

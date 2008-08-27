@@ -40,5 +40,4 @@ header-y += reg_64.h
 header-y += traps.h
 header-y += uctx.h
 header-y += utrap.h
-header-y += vfc_ioctls.h
 header-y += watchdog.h
