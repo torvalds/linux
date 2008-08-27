@@ -61,6 +61,9 @@ struct nlm_host {
 	struct list_head	h_granted;	/* Locks in GRANTED state */
 	struct list_head	h_reclaim;	/* Locks in RECLAIM state */
 	struct nsm_handle *	h_nsmhandle;	/* NSM status handle */
+
+	char			h_addrbuf[48],	/* address eyecatchers */
+				h_saddrbuf[48];
 };
 
 struct nsm_handle {
@@ -70,6 +73,7 @@ struct nsm_handle {
 	struct sockaddr_in	sm_addr;
 	unsigned int		sm_monitored : 1,
 				sm_sticky : 1;	/* don't unmonitor */
+	char			sm_addrbuf[48];	/* address eyecatcher */
 };
 
 /*
