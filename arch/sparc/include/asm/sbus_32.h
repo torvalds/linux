@@ -30,9 +30,6 @@ struct sbus_dev {
 	struct sbus_dev		*next;
 	struct sbus_dev		*child;
 	struct sbus_dev		*parent;
-	int prom_node;
-	char prom_name[64];
-	int slot;
 };
 #define to_sbus_device(d) container_of(d, struct sbus_dev, ofdev.dev)
 
@@ -41,9 +38,6 @@ struct sbus_bus {
 	struct of_device	ofdev;
 	struct sbus_dev		*devices;	/* Link to devices on this SBus */
 	struct sbus_bus		*next;		/* next SBus, if more than one SBus */
-	int			prom_node;	/* PROM device tree node for this SBus */
-	char			prom_name[64];  /* Usually "sbus" or "sbi" */
-	int			clock_freq;
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 

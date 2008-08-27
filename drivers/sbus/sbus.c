@@ -51,9 +51,6 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 	struct dev_archdata *sd;
 	int err;
 
-	sdev->prom_node = dp->node;
-	strcpy(sdev->prom_name, dp->name);
-
 	sd = &sdev->ofdev.dev.archdata;
 	sd->prom_node = dp;
 	sd->op = &sdev->ofdev;
@@ -107,29 +104,16 @@ static void __init walk_children(struct device_node *dp, struct sbus_dev *parent
 
 static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 {
-	struct sbus_bus *sbus;
-	unsigned int sbus_clock;
 	struct device_node *dev_dp;
+	struct sbus_bus *sbus;
 
 	sbus = kzalloc(sizeof(struct sbus_bus), GFP_ATOMIC);
 	if (!sbus)
 		return;
 
-	sbus->prom_node = dp->node;
-
 	sbus_setup_iommu(sbus, dp);
 
 	printk("sbus%d: ", num_sbus);
-
-	sbus_clock = of_getintprop_default(dp, "clock-frequency",
-					   (25*1000*1000));
-	sbus->clock_freq = sbus_clock;
-
-	printk("Clock %d.%d MHz\n", (int) ((sbus_clock/1000)/1000),
-	       (int) (((sbus_clock/1000)%1000 != 0) ? 
-		      (((sbus_clock/1000)%1000) + 1000) : 0));
-
-	strcpy(sbus->prom_name, dp->name);
 
 	sbus->ofdev.node = dp;
 	sbus->ofdev.dev.parent = NULL;
