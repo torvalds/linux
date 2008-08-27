@@ -5239,6 +5239,7 @@ static const char *alc260_models[ALC260_MODEL_LAST] = {
 	[ALC260_BASIC]		= "basic",
 	[ALC260_HP]		= "hp",
 	[ALC260_HP_3013]	= "hp-3013",
+	[ALC260_HP_DC7600]	= "hp-dc7600",
 	[ALC260_FUJITSU_S702X]	= "fujitsu",
 	[ALC260_ACER]		= "acer",
 	[ALC260_WILL]		= "will",
@@ -10261,6 +10262,7 @@ static const char *alc262_models[ALC262_MODEL_LAST] = {
 	[ALC262_BENQ_ED8]	= "benq",
 	[ALC262_BENQ_T31]	= "benq-t31",
 	[ALC262_SONY_ASSAMD]	= "sony-assamd",
+	[ALC262_TOSHIBA_S06]	= "toshiba-s06",
 	[ALC262_ULTRA]		= "ultra",
 	[ALC262_LENOVO_3000]	= "lenovo-3000",
 	[ALC262_NEC]		= "nec",
@@ -12151,8 +12153,9 @@ static void alc269_auto_init(struct hda_codec *codec)
  */
 static const char *alc269_models[ALC269_MODEL_LAST] = {
 	[ALC269_BASIC]			= "basic",
-	[ALC269_QUANTA_FL1]		= "Quanta",
-	[ALC269_ASUS_EEEPC_P901]	= "Asus_Epc_Dmic"
+	[ALC269_QUANTA_FL1]		= "quanta",
+	[ALC269_ASUS_EEEPC_P703]	= "eeepc-p703",
+	[ALC269_ASUS_EEEPC_P901]	= "eeepc-p901"
 };
 
 static struct snd_pci_quirk alc269_cfg_tbl[] = {
