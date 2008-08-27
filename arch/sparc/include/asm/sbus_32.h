@@ -41,13 +41,6 @@ struct sbus_bus {
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
-static inline int
-sbus_is_slave(struct sbus_dev *dev)
-{
-	/* XXX Have to write this for sun4c's */
-	return 0;
-}
-
 /* These yield IOMMU mappings in consistent mode. */
 void prom_adjust_ranges(struct linux_prom_ranges *, int,
 			struct linux_prom_ranges *, int);
