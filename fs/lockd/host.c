@@ -103,16 +103,19 @@ static struct nlm_host *nlm_lookup_host(int server,
 		nlm_get_host(host);
 		goto out;
 	}
+
+	/*
+	 * The host wasn't in our hash table.  If we don't
+	 * have an NSM handle for it yet, create one.
+	 */
 	if (nsm)
 		atomic_inc(&nsm->sm_count);
-
-	host = NULL;
-
-	/* Sadly, the host isn't in our hash table yet. See if
-	 * we have an NSM handle for it. If not, create one.
-	 */
-	if (!nsm && !(nsm = nsm_find(sin, hostname, hostname_len)))
-		goto out;
+	else {
+		host = NULL;
+		nsm = nsm_find(sin, hostname, hostname_len);
+		if (!nsm)
+			goto out;
+	}
 
 	host = kzalloc(sizeof(*host), GFP_KERNEL);
 	if (!host) {
