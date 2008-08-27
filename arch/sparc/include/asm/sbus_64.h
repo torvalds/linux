@@ -94,11 +94,8 @@ extern struct sbus_bus *sbus_root;
 	for ((bus) = sbus_root; (bus); (bus) = (bus)->next) \
 		for ((device) = (bus)->devices; (device); (device) = (device)->next)
 
-extern void sbus_fill_device_irq(struct sbus_dev *);
-
 extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);
 extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);
-extern void sbus_setup_arch_props(struct sbus_bus *, struct device_node *);
 extern int sbus_arch_preinit(void);
 extern void sbus_arch_postinit(void);
 

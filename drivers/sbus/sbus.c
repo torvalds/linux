@@ -83,8 +83,6 @@ static void __init fill_sbus_device(struct device_node *dp, struct sbus_dev *sde
 			len / sizeof(struct linux_prom_ranges);
 	}
 
-	sbus_fill_device_irq(sdev);
-
 	sd = &sdev->ofdev.dev.archdata;
 	sd->prom_node = dp;
 	sd->op = &sdev->ofdev;
@@ -264,8 +262,6 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 		      (((sbus_clock/1000)%1000) + 1000) : 0));
 
 	strcpy(sbus->prom_name, dp->name);
-
-	sbus_setup_arch_props(sbus, dp);
 
 	sbus_bus_ranges_init(dp, sbus);
 

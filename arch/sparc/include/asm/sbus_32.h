@@ -76,9 +76,6 @@ struct sbus_bus {
 
 	struct linux_prom_ranges sbus_ranges[PROMREG_MAX];
 	int num_sbus_ranges;
-
-	int devid;
-	int board;
 };
 #define to_sbus(d) container_of(d, struct sbus_bus, ofdev.dev)
 
@@ -102,26 +99,12 @@ sbus_is_slave(struct sbus_dev *dev)
 	for ((bus) = sbus_root; (bus); (bus) = (bus)->next) \
 		for ((device) = (bus)->devices; (device); (device) = (device)->next)
 
-extern void sbus_fill_device_irq(struct sbus_dev *);
-
 /* These yield IOMMU mappings in consistent mode. */
 void prom_adjust_ranges(struct linux_prom_ranges *, int,
 			struct linux_prom_ranges *, int);
 
-/* Eric Brower (ebrower@usa.net)
- * Translate SBus interrupt levels to ino values--
- * this is used when converting sbus "interrupts" OBP
- * node values to "intr" node values, and is platform
- * dependent.  If only we could call OBP with
- * "sbus-intr>cpu (sbint -- ino)" from kernel...
- * See .../drivers/sbus/sbus.c for details.
- */
-BTFIXUPDEF_CALL(unsigned int, sbint_to_irq, struct sbus_dev *sdev, unsigned int)
-#define sbint_to_irq(sdev, sbint) BTFIXUP_CALL(sbint_to_irq)(sdev, sbint)
-
 extern void sbus_arch_bus_ranges_init(struct device_node *, struct sbus_bus *);
 extern void sbus_setup_iommu(struct sbus_bus *, struct device_node *);
-extern void sbus_setup_arch_props(struct sbus_bus *, struct device_node *);
 extern int sbus_arch_preinit(void);
 extern void sbus_arch_postinit(void);
 

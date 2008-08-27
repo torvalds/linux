@@ -650,26 +650,6 @@ fatal_memory_error:
 	prom_printf("sbus_iommu_init: Fatal memory allocation error.\n");
 }
 
-void sbus_fill_device_irq(struct sbus_dev *sdev)
-{
-	struct device_node *dp = of_find_node_by_phandle(sdev->prom_node);
-	const struct linux_prom_irqs *irqs;
-
-	irqs = of_get_property(dp, "interrupts", NULL);
-	if (!irqs) {
-		sdev->irqs[0] = 0;
-		sdev->num_irqs = 0;
-	} else {
-		unsigned int pri = irqs[0].pri;
-
-		sdev->num_irqs = 1;
-		if (pri < 0x20)
-			pri += sdev->slot * 8;
-
-		sdev->irqs[0] =	sbus_build_irq(sdev->bus, pri);
-	}
-}
-
 void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *sbus)
 {
 }
@@ -677,10 +657,6 @@ void __init sbus_arch_bus_ranges_init(struct device_node *pn, struct sbus_bus *s
 void __init sbus_setup_iommu(struct sbus_bus *sbus, struct device_node *dp)
 {
 	sbus_iommu_init(dp->node, sbus);
-}
-
-void __init sbus_setup_arch_props(struct sbus_bus *sbus, struct device_node *dp)
-{
 }
 
 int __init sbus_arch_preinit(void)

@@ -66,18 +66,6 @@ static struct resource sun4c_intr_eb = { "sun4c_intr" };
  */
 unsigned char *interrupt_enable = NULL;
 
-static int sun4c_pil_map[] = { 0, 1, 2, 3, 5, 7, 8, 9 };
-
-static unsigned int sun4c_sbint_to_irq(struct sbus_dev *sdev,
-				       unsigned int sbint)
-{
-	if (sbint >= sizeof(sun4c_pil_map)) {
-		printk(KERN_ERR "%s: bogus SBINT %d\n", sdev->prom_name, sbint);
-		BUG();
-	}
-	return sun4c_pil_map[sbint];
-}
-
 static void sun4c_disable_irq(unsigned int irq_nr)
 {
 	unsigned long flags;
@@ -243,7 +231,6 @@ void __init sun4c_init_IRQ(void)
 	if (!interrupt_enable)
 		panic("Cannot map interrupt_enable");
 
-	BTFIXUPSET_CALL(sbint_to_irq, sun4c_sbint_to_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(enable_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, sun4c_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(enable_pil_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);

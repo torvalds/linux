@@ -152,18 +152,6 @@ static unsigned long irq_mask[] = {
 	SUN4M_INT_SBUS(6)				  /* 14 irq 13 */
 };
 
-static int sun4m_pil_map[] = { 0, 2, 3, 5, 7, 9, 11, 13 };
-
-static unsigned int sun4m_sbint_to_irq(struct sbus_dev *sdev,
-				       unsigned int sbint)
-{
-	if (sbint >= sizeof(sun4m_pil_map)) {
-		printk(KERN_ERR "%s: bogus SBINT %d\n", sdev->prom_name, sbint);
-		BUG();
-	}
-	return sun4m_pil_map[sbint] | 0x30;
-}
-
 static unsigned long sun4m_get_irqmask(unsigned int irq)
 {
 	unsigned long mask;
@@ -447,7 +435,6 @@ void __init sun4m_init_IRQ(void)
 				&sun4m_interrupts->undirected_target;
 		sun4m_interrupts->undirected_target = 0;
 	}
-	BTFIXUPSET_CALL(sbint_to_irq, sun4m_sbint_to_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(enable_irq, sun4m_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, sun4m_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(enable_pil_irq, sun4m_enable_pil_irq, BTFIXUPCALL_NORM);
