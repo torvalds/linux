@@ -394,8 +394,6 @@ void sbus_free_consistent(struct device *dev, long n, void *p, u32 ba)
  */
 dma_addr_t sbus_map_single(struct device *dev, void *va, size_t len, int direction)
 {
-	struct sbus_dev *sdev = to_sbus_device(dev);
-
 	/* XXX why are some lengths signed, others unsigned? */
 	if (len <= 0) {
 		return 0;
@@ -404,20 +402,17 @@ dma_addr_t sbus_map_single(struct device *dev, void *va, size_t len, int directi
 	if (len > 256*1024) {			/* __get_free_pages() limit */
 		return 0;
 	}
-	return mmu_get_scsi_one(va, len, sdev->bus);
+	return mmu_get_scsi_one(dev, va, len);
 }
 
 void sbus_unmap_single(struct device *dev, dma_addr_t ba, size_t n, int direction)
 {
-	struct sbus_dev *sdev = to_sbus_device(dev);
-	mmu_release_scsi_one(ba, n, sdev->bus);
+	mmu_release_scsi_one(dev, ba, n);
 }
 
 int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n, int direction)
 {
-	struct sbus_dev *sdev = to_sbus_device(dev);
-
-	mmu_get_scsi_sgl(sg, n, sdev->bus);
+	mmu_get_scsi_sgl(dev, sg, n);
 
 	/*
 	 * XXX sparc64 can return a partial length here. sun4c should do this
@@ -428,9 +423,7 @@ int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n, int direction
 
 void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n, int direction)
 {
-	struct sbus_dev *sdev = to_sbus_device(dev);
-
-	mmu_release_scsi_sgl(sg, n, sdev->bus);
+	mmu_release_scsi_sgl(dev, sg, n);
 }
 
 /*
@@ -438,7 +431,6 @@ void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n, int direct
 void sbus_dma_sync_single_for_cpu(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
 #if 0
-	struct sbus_dev *sdev = to_sbus_device(dev);
 	unsigned long va;
 	struct resource *res;
 
@@ -459,7 +451,6 @@ void sbus_dma_sync_single_for_cpu(struct device *dev, dma_addr_t ba, size_t size
 void sbus_dma_sync_single_for_device(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
 #if 0
-	struct sbus_dev *sdev = to_sbus_device(dev);
 	unsigned long va;
 	struct resource *res;
 

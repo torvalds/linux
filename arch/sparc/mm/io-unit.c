@@ -125,10 +125,10 @@ nexti:	scan = find_next_zero_bit(iounit->bmap, limit, scan);
 	return vaddr;
 }
 
-static __u32 iounit_get_scsi_one(char *vaddr, unsigned long len, struct sbus_bus *sbus)
+static __u32 iounit_get_scsi_one(struct device *dev, char *vaddr, unsigned long len)
 {
+	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long ret, flags;
-	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 	
 	spin_lock_irqsave(&iounit->lock, flags);
 	ret = iounit_get_area(iounit, (unsigned long)vaddr, len);
@@ -136,10 +136,10 @@ static __u32 iounit_get_scsi_one(char *vaddr, unsigned long len, struct sbus_bus
 	return ret;
 }
 
-static void iounit_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *sbus)
+static void iounit_get_scsi_sgl(struct device *dev, struct scatterlist *sg, int sz)
 {
+	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long flags;
-	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 
 	/* FIXME: Cache some resolved pages - often several sg entries are to the same page */
 	spin_lock_irqsave(&iounit->lock, flags);
@@ -152,10 +152,10 @@ static void iounit_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus 
 	spin_unlock_irqrestore(&iounit->lock, flags);
 }
 
-static void iounit_release_scsi_one(__u32 vaddr, unsigned long len, struct sbus_bus *sbus)
+static void iounit_release_scsi_one(struct device *dev, __u32 vaddr, unsigned long len)
 {
+	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long flags;
-	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 	
 	spin_lock_irqsave(&iounit->lock, flags);
 	len = ((vaddr & ~PAGE_MASK) + len + (PAGE_SIZE-1)) >> PAGE_SHIFT;
@@ -166,11 +166,11 @@ static void iounit_release_scsi_one(__u32 vaddr, unsigned long len, struct sbus_
 	spin_unlock_irqrestore(&iounit->lock, flags);
 }
 
-static void iounit_release_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *sbus)
+static void iounit_release_scsi_sgl(struct device *dev, struct scatterlist *sg, int sz)
 {
+	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long flags;
 	unsigned long vaddr, len;
-	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
 
 	spin_lock_irqsave(&iounit->lock, flags);
 	while (sz != 0) {

@@ -100,16 +100,20 @@ BTFIXUPDEF_CALL(void,   mmu_unlockarea, char *, unsigned long)
 #define mmu_lockarea(vaddr,len) BTFIXUP_CALL(mmu_lockarea)(vaddr,len)
 #define mmu_unlockarea(vaddr,len) BTFIXUP_CALL(mmu_unlockarea)(vaddr,len)
 
-/* These are implementations for sbus_map_sg/sbus_unmap_sg... collapse later */
-BTFIXUPDEF_CALL(__u32, mmu_get_scsi_one, char *, unsigned long, struct sbus_bus *sbus)
-BTFIXUPDEF_CALL(void,  mmu_get_scsi_sgl, struct scatterlist *, int, struct sbus_bus *sbus)
-BTFIXUPDEF_CALL(void,  mmu_release_scsi_one, __u32, unsigned long, struct sbus_bus *sbus)
-BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct scatterlist *, int, struct sbus_bus *sbus)
+struct page;
+struct device;
+struct scatterlist;
 
-#define mmu_get_scsi_one(vaddr,len,sbus) BTFIXUP_CALL(mmu_get_scsi_one)(vaddr,len,sbus)
-#define mmu_get_scsi_sgl(sg,sz,sbus) BTFIXUP_CALL(mmu_get_scsi_sgl)(sg,sz,sbus)
-#define mmu_release_scsi_one(vaddr,len,sbus) BTFIXUP_CALL(mmu_release_scsi_one)(vaddr,len,sbus)
-#define mmu_release_scsi_sgl(sg,sz,sbus) BTFIXUP_CALL(mmu_release_scsi_sgl)(sg,sz,sbus)
+/* These are implementations for sbus_map_sg/sbus_unmap_sg... collapse later */
+BTFIXUPDEF_CALL(__u32, mmu_get_scsi_one, struct device *, char *, unsigned long)
+BTFIXUPDEF_CALL(void,  mmu_get_scsi_sgl, struct device *, struct scatterlist *, int)
+BTFIXUPDEF_CALL(void,  mmu_release_scsi_one, struct device *, __u32, unsigned long)
+BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct device *, struct scatterlist *, int)
+
+#define mmu_get_scsi_one(dev,vaddr,len) BTFIXUP_CALL(mmu_get_scsi_one)(dev,vaddr,len)
+#define mmu_get_scsi_sgl(dev,sg,sz) BTFIXUP_CALL(mmu_get_scsi_sgl)(dev,sg,sz)
+#define mmu_release_scsi_one(dev,vaddr,len) BTFIXUP_CALL(mmu_release_scsi_one)(dev,vaddr,len)
+#define mmu_release_scsi_sgl(dev,sg,sz) BTFIXUP_CALL(mmu_release_scsi_sgl)(dev,sg,sz)
 
 /*
  * mmu_map/unmap are provided by iommu/iounit; Invalid to call on IIep.
