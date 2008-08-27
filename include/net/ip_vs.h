@@ -683,6 +683,8 @@ extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
 /*
  *      IPVS rate estimator prototypes (from ip_vs_est.c)
  */
+extern int ip_vs_estimator_init(void);
+extern void ip_vs_estimator_cleanup(void);
 extern void ip_vs_new_estimator(struct ip_vs_stats *stats);
 extern void ip_vs_kill_estimator(struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);
