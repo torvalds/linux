@@ -98,6 +98,7 @@ enum e1000_boards {
 	board_80003es2lan,
 	board_ich8lan,
 	board_ich9lan,
+	board_ich10lan,
 };
 
 struct e1000_queue_stats {
@@ -374,6 +375,7 @@ extern struct e1000_info e1000_82572_info;
 extern struct e1000_info e1000_82573_info;
 extern struct e1000_info e1000_ich8_info;
 extern struct e1000_info e1000_ich9_info;
+extern struct e1000_info e1000_ich10_info;
 extern struct e1000_info e1000_es2_info;
 
 extern s32 e1000e_read_pba_num(struct e1000_hw *hw, u32 *pba_num);
@@ -446,6 +448,7 @@ extern s32 e1000e_get_cable_length_m88(struct e1000_hw *hw);
 extern s32 e1000e_get_phy_info_m88(struct e1000_hw *hw);
 extern s32 e1000e_read_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 *data);
 extern s32 e1000e_write_phy_reg_m88(struct e1000_hw *hw, u32 offset, u16 data);
+extern s32 e1000e_phy_init_script_igp3(struct e1000_hw *hw);
 extern enum e1000_phy_type e1000e_get_phy_type_from_id(u32 phy_id);
 extern s32 e1000e_determine_phy_address(struct e1000_hw *hw);
 extern s32 e1000e_write_phy_reg_bm(struct e1000_hw *hw, u32 offset, u16 data);

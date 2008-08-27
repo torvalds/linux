@@ -43,7 +43,8 @@
  * 82567LM-2 Gigabit Network Connection
  * 82567LF-2 Gigabit Network Connection
  * 82567V-2 Gigabit Network Connection
- * 82562GT-3 10/100 Network Connection
+ * 82567LF-3 Gigabit Network Connection
+ * 82567LM-3 Gigabit Network Connection
  * 82567LM-4 Gigabit Network Connection
  */
 
@@ -158,12 +159,15 @@ static s32 e1000_check_polarity_ife_ich8lan(struct e1000_hw *hw);
 static s32 e1000_erase_flash_bank_ich8lan(struct e1000_hw *hw, u32 bank);
 static s32 e1000_retry_write_flash_byte_ich8lan(struct e1000_hw *hw,
 						u32 offset, u8 byte);
+static s32 e1000_read_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
+					 u8 *data);
 static s32 e1000_read_flash_word_ich8lan(struct e1000_hw *hw, u32 offset,
 					 u16 *data);
 static s32 e1000_read_flash_data_ich8lan(struct e1000_hw *hw, u32 offset,
 					 u8 size, u16 *data);
 static s32 e1000_setup_copper_link_ich8lan(struct e1000_hw *hw);
 static s32 e1000_kmrn_lock_loss_workaround_ich8lan(struct e1000_hw *hw);
+static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -898,6 +902,56 @@ static s32 e1000_set_d3_lplu_state_ich8lan(struct e1000_hw *hw, bool active)
 }
 
 /**
+ *  e1000_valid_nvm_bank_detect_ich8lan - finds out the valid bank 0 or 1
+ *  @hw: pointer to the HW structure
+ *  @bank:  pointer to the variable that returns the active bank
+ *
+ *  Reads signature byte from the NVM using the flash access registers.
+ **/
+static s32 e1000_valid_nvm_bank_detect_ich8lan(struct e1000_hw *hw, u32 *bank)
+{
+	struct e1000_nvm_info *nvm = &hw->nvm;
+	/* flash bank size is in words */
+	u32 bank1_offset = nvm->flash_bank_size * sizeof(u16);
+	u32 act_offset = E1000_ICH_NVM_SIG_WORD * 2 + 1;
+	u8 bank_high_byte = 0;
+
+	if (hw->mac.type != e1000_ich10lan) {
+		if (er32(EECD) & E1000_EECD_SEC1VAL)
+			*bank = 1;
+		else
+			*bank = 0;
+	} else {
+		/*
+		 * Make sure the signature for bank 0 is valid,
+		 * if not check for bank1
+		 */
+		e1000_read_flash_byte_ich8lan(hw, act_offset, &bank_high_byte);
+		if ((bank_high_byte & 0xC0) == 0x80) {
+			*bank = 0;
+		} else {
+			/*
+			 * find if segment 1 is valid by verifying
+			 * bit 15:14 = 10b in word 0x13
+			 */
+			e1000_read_flash_byte_ich8lan(hw,
+						      act_offset + bank1_offset,
+						      &bank_high_byte);
+
+			/* bank1 has a valid signature equivalent to SEC1V */
+			if ((bank_high_byte & 0xC0) == 0x80) {
+				*bank = 1;
+			} else {
+				hw_dbg(hw, "ERROR: EEPROM not present\n");
+				return -E1000_ERR_NVM;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/**
  *  e1000_read_nvm_ich8lan - Read word(s) from the NVM
  *  @hw: pointer to the HW structure
  *  @offset: The offset (in bytes) of the word(s) to read.
@@ -913,6 +967,7 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
 	u32 act_offset;
 	s32 ret_val;
+	u32 bank = 0;
 	u16 i, word;
 
 	if ((offset >= nvm->word_size) || (words > nvm->word_size - offset) ||
@@ -925,10 +980,11 @@ static s32 e1000_read_nvm_ich8lan(struct e1000_hw *hw, u16 offset, u16 words,
 	if (ret_val)
 		return ret_val;
 
-	/* Start with the bank offset, then add the relative offset. */
-	act_offset = (er32(EECD) & E1000_EECD_SEC1VAL)
-		     ? nvm->flash_bank_size
-		     : 0;
+	ret_val = e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
+	if (ret_val)
+		return ret_val;
+
+	act_offset = (bank) ? nvm->flash_bank_size : 0;
 	act_offset += offset;
 
 	for (i = 0; i < words; i++) {
@@ -1076,6 +1132,29 @@ static s32 e1000_read_flash_word_ich8lan(struct e1000_hw *hw, u32 offset,
 }
 
 /**
+ *  e1000_read_flash_byte_ich8lan - Read byte from flash
+ *  @hw: pointer to the HW structure
+ *  @offset: The offset of the byte to read.
+ *  @data: Pointer to a byte to store the value read.
+ *
+ *  Reads a single byte from the NVM using the flash access registers.
+ **/
+static s32 e1000_read_flash_byte_ich8lan(struct e1000_hw *hw, u32 offset,
+					 u8 *data)
+{
+	s32 ret_val;
+	u16 word = 0;
+
+	ret_val = e1000_read_flash_data_ich8lan(hw, offset, 1, &word);
+	if (ret_val)
+		return ret_val;
+
+	*data = (u8)word;
+
+	return 0;
+}
+
+/**
  *  e1000_read_flash_data_ich8lan - Read byte or word from NVM
  *  @hw: pointer to the HW structure
  *  @offset: The offset (in bytes) of the byte or word to read.
@@ -1206,7 +1285,7 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 {
 	struct e1000_nvm_info *nvm = &hw->nvm;
 	struct e1000_dev_spec_ich8lan *dev_spec = &hw->dev_spec.ich8lan;
-	u32 i, act_offset, new_bank_offset, old_bank_offset;
+	u32 i, act_offset, new_bank_offset, old_bank_offset, bank;
 	s32 ret_val;
 	u16 data;
 
@@ -1226,7 +1305,11 @@ static s32 e1000_update_nvm_checksum_ich8lan(struct e1000_hw *hw)
 	 * write to bank 0 etc.  We also need to erase the segment that
 	 * is going to be written
 	 */
-	if (!(er32(EECD) & E1000_EECD_SEC1VAL)) {
+	ret_val =  e1000_valid_nvm_bank_detect_ich8lan(hw, &bank);
+	if (ret_val)
+		return ret_val;
+
+	if (bank == 0) {
 		new_bank_offset = nvm->flash_bank_size;
 		old_bank_offset = 0;
 		e1000_erase_flash_bank_ich8lan(hw, 1);
@@ -2190,13 +2273,14 @@ void e1000e_gig_downshift_workaround_ich8lan(struct e1000_hw *hw)
  *  'LPLU Enabled' and 'Gig Disable' to force link speed negotiation
  *  to a lower speed.
  *
- *  Should only be called for ICH9 devices.
+ *  Should only be called for ICH9 and ICH10 devices.
  **/
 void e1000e_disable_gig_wol_ich8lan(struct e1000_hw *hw)
 {
 	u32 phy_ctrl;
 
-	if (hw->mac.type == e1000_ich9lan) {
+	if ((hw->mac.type == e1000_ich10lan) ||
+	    (hw->mac.type == e1000_ich9lan)) {
 		phy_ctrl = er32(PHY_CTRL);
 		phy_ctrl |= E1000_PHY_CTRL_D0A_LPLU |
 		            E1000_PHY_CTRL_GBE_DISABLE;
@@ -2254,6 +2338,39 @@ static s32 e1000_led_off_ich8lan(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_get_cfg_done_ich8lan - Read config done bit
+ *  @hw: pointer to the HW structure
+ *
+ *  Read the management control register for the config done bit for
+ *  completion status.  NOTE: silicon which is EEPROM-less will fail trying
+ *  to read the config done bit, so an error is *ONLY* logged and returns
+ *  E1000_SUCCESS.  If we were to return with error, EEPROM-less silicon
+ *  would not be able to be reset or change link.
+ **/
+static s32 e1000_get_cfg_done_ich8lan(struct e1000_hw *hw)
+{
+	u32 bank = 0;
+
+	e1000e_get_cfg_done(hw);
+
+	/* If EEPROM is not marked present, init the IGP 3 PHY manually */
+	if (hw->mac.type != e1000_ich10lan) {
+		if (((er32(EECD) & E1000_EECD_PRES) == 0) &&
+		    (hw->phy.type == e1000_phy_igp_3)) {
+			e1000e_phy_init_script_igp3(hw);
+		}
+	} else {
+		if (e1000_valid_nvm_bank_detect_ich8lan(hw, &bank)) {
+			/* Maybe we should do a basic PHY config */
+			hw_dbg(hw, "EEPROM not present\n");
+			return -E1000_ERR_CONFIG;
+		}
+	}
+
+	return 0;
+}
+
+/**
  *  e1000_clear_hw_cntrs_ich8lan - Clear statistical counters
  *  @hw: pointer to the HW structure
  *
@@ -2303,7 +2420,7 @@ static struct e1000_phy_operations ich8_phy_ops = {
 	.check_reset_block	= e1000_check_reset_block_ich8lan,
 	.commit_phy		= NULL,
 	.force_speed_duplex	= e1000_phy_force_speed_duplex_ich8lan,
-	.get_cfg_done		= e1000e_get_cfg_done,
+	.get_cfg_done		= e1000_get_cfg_done_ich8lan,
 	.get_cable_length	= e1000e_get_cable_length_igp_2,
 	.get_phy_info		= e1000_get_phy_info_ich8lan,
 	.read_phy_reg		= e1000e_read_phy_reg_igp,
@@ -2358,3 +2475,20 @@ struct e1000_info e1000_ich9_info = {
 	.nvm_ops		= &ich8_nvm_ops,
 };
 
+struct e1000_info e1000_ich10_info = {
+	.mac			= e1000_ich10lan,
+	.flags			= FLAG_HAS_JUMBO_FRAMES
+				  | FLAG_IS_ICH
+				  | FLAG_HAS_WOL
+				  | FLAG_RX_CSUM_ENABLED
+				  | FLAG_HAS_CTRLEXT_ON_LOAD
+				  | FLAG_HAS_AMT
+				  | FLAG_HAS_ERT
+				  | FLAG_HAS_FLASH
+				  | FLAG_APME_IN_WUC,
+	.pba			= 10,
+	.get_variants		= e1000_get_variants_ich8lan,
+	.mac_ops		= &ich8_mac_ops,
+	.phy_ops		= &ich8_phy_ops,
+	.nvm_ops		= &ich8_nvm_ops,
+};

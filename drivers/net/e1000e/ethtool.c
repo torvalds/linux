@@ -781,6 +781,7 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	case e1000_82573:
 	case e1000_ich8lan:
 	case e1000_ich9lan:
+	case e1000_ich10lan:
 		toggle = 0x7FFFF033;
 		break;
 	default:
@@ -833,7 +834,9 @@ static int e1000_reg_test(struct e1000_adapter *adapter, u64 *data)
 	REG_PATTERN_TEST(E1000_TIDV, 0x0000FFFF, 0x0000FFFF);
 	for (i = 0; i < mac->rar_entry_count; i++)
 		REG_PATTERN_TEST_ARRAY(E1000_RA, ((i << 1) + 1),
-				       0x8003FFFF, 0xFFFFFFFF);
+				       ((mac->type == e1000_ich10lan) ?
+					   0x8007FFFF : 0x8003FFFF),
+				       0xFFFFFFFF);
 
 	for (i = 0; i < mac->mta_reg_count; i++)
 		REG_PATTERN_TEST_ARRAY(E1000_MTA, i, 0xFFFFFFFF, 0xFFFFFFFF);
@@ -905,11 +908,22 @@ static int e1000_intr_test(struct e1000_adapter *adapter, u64 *data)
 
 	/* Test each interrupt */
 	for (i = 0; i < 10; i++) {
-		if ((adapter->flags & FLAG_IS_ICH) && (i == 8))
-			continue;
-
 		/* Interrupt to test */
 		mask = 1 << i;
+
+		if (adapter->flags & FLAG_IS_ICH) {
+			switch (mask) {
+			case E1000_ICR_RXSEQ:
+				continue;
+			case 0x00000100:
+				if (adapter->hw.mac.type == e1000_ich8lan ||
+				    adapter->hw.mac.type == e1000_ich9lan)
+					continue;
+				break;
+			default:
+				break;
+			}
+		}
 
 		if (!shared_int) {
 			/*

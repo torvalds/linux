@@ -505,6 +505,7 @@
 #define NWAY_LPAR_ASM_DIR        0x0800 /* LP Asymmetric Pause Direction bit */
 
 /* Autoneg Expansion Register */
+#define NWAY_ER_LP_NWAY_CAPS     0x0001 /* LP has Auto Neg Capability */
 
 /* 1000BASE-T Control Register */
 #define CR_1000T_HD_CAPS         0x0100 /* Advertise 1000T HD capability */
@@ -540,6 +541,7 @@
 #define E1000_EECD_DO        0x00000008 /* NVM Data Out */
 #define E1000_EECD_REQ       0x00000040 /* NVM Access Request */
 #define E1000_EECD_GNT       0x00000080 /* NVM Access Grant */
+#define E1000_EECD_PRES      0x00000100 /* NVM Present */
 #define E1000_EECD_SIZE      0x00000200 /* NVM Size (0=64 word 1=256 word) */
 /* NVM Addressing bits based on type (0-small, 1-large) */
 #define E1000_EECD_ADDR_BITS 0x00000400

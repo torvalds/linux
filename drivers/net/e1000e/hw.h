@@ -357,6 +357,8 @@ enum e1e_registers {
 #define E1000_DEV_ID_ICH10_R_BM_LM		0x10CC
 #define E1000_DEV_ID_ICH10_R_BM_LF		0x10CD
 #define E1000_DEV_ID_ICH10_R_BM_V		0x10CE
+#define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
+#define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
 
 #define E1000_FUNC_1 1
 
@@ -367,6 +369,7 @@ enum e1000_mac_type {
 	e1000_80003es2lan,
 	e1000_ich8lan,
 	e1000_ich9lan,
+	e1000_ich10lan,
 };
 
 enum e1000_media_type {
