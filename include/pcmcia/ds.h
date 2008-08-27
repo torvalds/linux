@@ -171,6 +171,14 @@ const char *pcmcia_error_ret(int ret);
 
 #if defined(CONFIG_PCMCIA_IOCTL) || !defined(__KERNEL__)
 
+#if defined(__arm__) || defined(__mips__) || defined(__avr32__) || \
+	defined(__bfin__)
+/* This (ioaddr_t) is exposed to userspace & hence cannot be changed. */
+typedef u_int   ioaddr_t;
+#else
+typedef u_short	ioaddr_t;
+#endif
+
 /* for AdjustResourceInfo */
 typedef struct adjust_t {
 	u_int			Action;

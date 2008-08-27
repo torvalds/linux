@@ -112,7 +112,8 @@ static struct platform_device platform_dev = {
 	.num_resources		= ARRAY_SIZE(resources),
 };
 
-static int sl811_hc_init(struct device *parent, ioaddr_t base_addr, int irq)
+static int sl811_hc_init(struct device *parent, resource_size_t base_addr,
+			 int irq)
 {
 	if (platform_dev.dev.parent)
 		return -EBUSY;

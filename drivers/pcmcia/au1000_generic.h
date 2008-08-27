@@ -116,7 +116,7 @@ struct au1000_pcmcia_socket {
 	struct resource		res_attr;
 
 	void *                 	virt_io;
-	ioaddr_t              	phys_io;
+	unsigned int		phys_io;
 	unsigned int           	phys_attr;
 	unsigned int           	phys_mem;
 	unsigned short        	speed_io, speed_attr, speed_mem;
