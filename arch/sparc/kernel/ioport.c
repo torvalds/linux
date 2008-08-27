@@ -383,7 +383,7 @@ void sbus_free_consistent(struct device *dev, long n, void *p, u32 ba)
 	kfree(res);
 
 	/* mmu_inval_dma_area(va, n); */ /* it's consistent, isn't it */
-	pgv = mmu_translate_dvma(ba);
+	pgv = virt_to_page(p);
 	mmu_unmap_dma_area(ba, n);
 
 	__free_pages(pgv, get_order(n));
@@ -428,46 +428,12 @@ void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n, int direct
 	mmu_release_scsi_sgl(dev, sg, n);
 }
 
-/*
- */
 void sbus_dma_sync_single_for_cpu(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
-#if 0
-	unsigned long va;
-	struct resource *res;
-
-	/* We do not need the resource, just print a message if invalid. */
-	res = _sparc_find_resource(&_sparc_dvma, ba);
-	if (res == NULL)
-		panic("sbus_dma_sync_single: 0x%x\n", ba);
-
-	va = page_address(mmu_translate_dvma(ba)); /* XXX higmem */
-	/*
-	 * XXX This bogosity will be fixed with the iommu rewrite coming soon
-	 * to a kernel near you. - Anton
-	 */
-	/* mmu_inval_dma_area(va, (size + PAGE_SIZE-1) & PAGE_MASK); */
-#endif
 }
 
 void sbus_dma_sync_single_for_device(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
-#if 0
-	unsigned long va;
-	struct resource *res;
-
-	/* We do not need the resource, just print a message if invalid. */
-	res = _sparc_find_resource(&_sparc_dvma, ba);
-	if (res == NULL)
-		panic("sbus_dma_sync_single: 0x%x\n", ba);
-
-	va = page_address(mmu_translate_dvma(ba)); /* XXX higmem */
-	/*
-	 * XXX This bogosity will be fixed with the iommu rewrite coming soon
-	 * to a kernel near you. - Anton
-	 */
-	/* mmu_inval_dma_area(va, (size + PAGE_SIZE-1) & PAGE_MASK); */
-#endif
 }
 
 /* Support code for sbus_init().  */
