@@ -21,24 +21,6 @@
  * you can get a SBus 'slot' number and an offset within that slot.
  */
 
-/* The base address at which to calculate device OBIO addresses. */
-#define SUN_SBUS_BVADDR        0xf8000000
-#define SBUS_OFF_MASK          0x01ffffff
-
-/* These routines are used to calculate device address from slot
- * numbers + offsets, and vice versa.
- */
-
-static inline unsigned long sbus_devaddr(int slotnum, unsigned long offset)
-{
-  return (unsigned long) (SUN_SBUS_BVADDR+((slotnum)<<25)+(offset));
-}
-
-static inline int sbus_dev_slot(unsigned long dev_addr)
-{
-  return (int) (((dev_addr)-SUN_SBUS_BVADDR)>>25);
-}
-
 struct sbus_bus;
 
 /* Linux SBUS device tables */
