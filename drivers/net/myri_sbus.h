@@ -288,7 +288,7 @@ struct myri_eth {
 	struct myri_eeprom		eeprom;		/* Local copy of EEPROM.      */
 	unsigned int			reg_size;	/* Size of register space.    */
 	unsigned int			shmem_base;	/* Offset to shared ram.      */
-	struct sbus_dev			*myri_sdev;	/* Our SBUS device struct.    */
+	struct of_device		*myri_op;	/* Our OF device struct.    */
 };
 
 /* We use this to acquire receive skb's that we can DMA directly into. */
