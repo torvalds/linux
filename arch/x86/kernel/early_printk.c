@@ -989,22 +989,4 @@ static int __init setup_early_printk(char *buf)
 	return 0;
 }
 
-static void __init enable_debug_console(char *buf)
-{
-#ifdef DBGP_DEBUG
-	struct console *old_early_console = NULL;
-
-	if (early_console_initialized && early_console) {
-		old_early_console = early_console;
-		unregister_console(early_console);
-		early_console_initialized = 0;
-	}
-
-	setup_early_printk(buf);
-
-	if (early_console == old_early_console && old_early_console)
-		register_console(old_early_console);
-#endif
-}
-
 early_param("earlyprintk", setup_early_printk);
