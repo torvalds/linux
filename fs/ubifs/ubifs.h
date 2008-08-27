@@ -1586,12 +1586,10 @@ int ubifs_lpt_post_commit(struct ubifs_info *c);
 void ubifs_lpt_free(struct ubifs_info *c, int wr_only);
 
 /* lprops.c */
-void ubifs_get_lprops(struct ubifs_info *c);
 const struct ubifs_lprops *ubifs_change_lp(struct ubifs_info *c,
 					   const struct ubifs_lprops *lp,
 					   int free, int dirty, int flags,
 					   int idx_gc_cnt);
-void ubifs_release_lprops(struct ubifs_info *c);
 void ubifs_get_lp_stats(struct ubifs_info *c, struct ubifs_lp_stats *stats);
 void ubifs_add_to_cat(struct ubifs_info *c, struct ubifs_lprops *lprops,
 		      int cat);
