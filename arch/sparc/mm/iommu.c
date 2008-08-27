@@ -421,15 +421,6 @@ static void iommu_unmap_dma_area(unsigned long busa, int len)
 	iommu_invalidate(iommu->regs);
 	bit_map_clear(&iommu->usemap, ioptex, len >> PAGE_SHIFT);
 }
-
-static struct page *iommu_translate_dvma(unsigned long busa)
-{
-	struct iommu_struct *iommu = sbus_root->ofdev.dev.archdata.iommu;
-	iopte_t *iopte = iommu->page_table;
-
-	iopte += ((busa - iommu->start) >> PAGE_SHIFT);
-	return pfn_to_page((iopte_val(*iopte) & IOPTE_PAGE) >> (PAGE_SHIFT-4));
-}
 #endif
 
 static char *iommu_lockarea(char *vaddr, unsigned long len)
@@ -465,7 +456,6 @@ void __init ld_mmu_iommu(void)
 #ifdef CONFIG_SBUS
 	BTFIXUPSET_CALL(mmu_map_dma_area, iommu_map_dma_area, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mmu_unmap_dma_area, iommu_unmap_dma_area, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_translate_dvma, iommu_translate_dvma, BTFIXUPCALL_NORM);
 #endif
 
 	if (viking_mxcc_present || srmmu_modtype == HyperSparc) {

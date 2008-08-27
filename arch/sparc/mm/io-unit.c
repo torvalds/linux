@@ -233,19 +233,6 @@ static void iounit_unmap_dma_area(unsigned long addr, int len)
 {
 	/* XXX Somebody please fill this in */
 }
-
-/* XXX We do not pass sbus device here, bad. */
-static struct page *iounit_translate_dvma(unsigned long addr)
-{
-	struct sbus_bus *sbus = sbus_root;	/* They are all the same */
-	struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
-	int i;
-	iopte_t *iopte;
-
-	i = ((addr - IOUNIT_DMA_BASE) >> PAGE_SHIFT);
-	iopte = (iopte_t *)(iounit->page_table + i);
-	return pfn_to_page(iopte_val(*iopte) >> (PAGE_SHIFT-4)); /* XXX sun4d guru, help */
-}
 #endif
 
 static char *iounit_lockarea(char *vaddr, unsigned long len)
@@ -272,7 +259,6 @@ void __init ld_mmu_iounit(void)
 #ifdef CONFIG_SBUS
 	BTFIXUPSET_CALL(mmu_map_dma_area, iounit_map_dma_area, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(mmu_unmap_dma_area, iounit_unmap_dma_area, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(mmu_translate_dvma, iounit_translate_dvma, BTFIXUPCALL_NORM);
 #endif
 }
 

@@ -132,12 +132,10 @@ BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct device *, struct scatterlist
  * to a separate mapping function for CPU visible mappings.
  */
 BTFIXUPDEF_CALL(int,  mmu_map_dma_area, dma_addr_t *, unsigned long, unsigned long, int len)
-BTFIXUPDEF_CALL(struct page *, mmu_translate_dvma, unsigned long busa)
 BTFIXUPDEF_CALL(void,  mmu_unmap_dma_area, unsigned long busa, int len)
 
 #define mmu_map_dma_area(pba,va,a,len) BTFIXUP_CALL(mmu_map_dma_area)(pba,va,a,len)
 #define mmu_unmap_dma_area(ba,len) BTFIXUP_CALL(mmu_unmap_dma_area)(ba,len)
-#define mmu_translate_dvma(ba)     BTFIXUP_CALL(mmu_translate_dvma)(ba)
 #endif
 
 #endif /* !(_ASM_SPARC_DMA_H) */
