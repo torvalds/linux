@@ -19,6 +19,8 @@
 #include <linux/smp.h>
 #include <linux/spinlock.h>
 #include <linux/seq_file.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -34,7 +36,6 @@
 #include <asm/io.h>
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
-#include <asm/sbus.h>
 #include <asm/sbi.h>
 #include <asm/cacheflush.h>
 #include <asm/irq_regs.h>
@@ -475,7 +476,7 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 	r.start = CSR_BASE(0)+BW_TIMER_LIMIT;
 #endif
 	r.flags = 0xf;
-	sun4d_timers = (struct sun4d_timer_regs *) sbus_ioremap(&r, 0,
+	sun4d_timers = (struct sun4d_timer_regs *) of_ioremap(&r, 0,
 	    PAGE_SIZE, "user timer");
 
 	sun4d_timers->l10_timer_limit =  (((1000000/HZ) + 1) << 10);

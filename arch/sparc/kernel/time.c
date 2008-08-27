@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/profile.h>
+#include <linux/of.h>
 #include <linux/of_device.h>
 
 #include <asm/oplib.h>
@@ -260,7 +261,7 @@ static inline void sun4_clock_probe(void)
 	if( idprom->id_machtype == (SM_SUN4 | SM_4_330) ) {
 		sp_clock_typ = MSTK48T02;
 		r.start = sun4_clock_physaddr;
-		mstk48t02_regs = sbus_ioremap(&r, 0,
+		mstk48t02_regs = of_ioremap(&r, 0,
 				       sizeof(struct mostek48t02), NULL);
 		mstk48t08_regs = NULL;  /* To catch weirdness */
 		intersil_clock = NULL;  /* just in case */
@@ -274,7 +275,7 @@ static inline void sun4_clock_probe(void)
 		sp_clock_typ = INTERSIL;
 		r.start = sun4_clock_physaddr;
 		intersil_clock = (struct intersil *) 
-		    sbus_ioremap(&r, 0, sizeof(*intersil_clock), "intersil");
+		    of_ioremap(&r, 0, sizeof(*intersil_clock), "intersil");
 		mstk48t02_regs = 0;  /* just be sure */
 		mstk48t08_regs = NULL;  /* ditto */
 		/* initialise the clock */

@@ -20,6 +20,8 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/ptrace.h>
 #include <asm/processor.h>
@@ -35,7 +37,6 @@
 #include <asm/smp.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sbus.h>
 #include <asm/cacheflush.h>
 
 #include "irq.h"
@@ -327,13 +328,13 @@ static void __init sun4m_init_timers(irq_handler_t counter_fn)
 	/* Map the per-cpu Counter registers. */
 	r.flags = cnt_regs[0].which_io;
 	r.start = cnt_regs[0].phys_addr;
-	sun4m_timers = (struct sun4m_timer_regs *) sbus_ioremap(&r, 0,
+	sun4m_timers = (struct sun4m_timer_regs *) of_ioremap(&r, 0,
 	    PAGE_SIZE*SUN4M_NCPUS, "sun4m_cpu_cnt");
 	/* Map the system Counter register. */
 	/* XXX Here we expect consequent calls to yeld adjusent maps. */
 	r.flags = cnt_regs[4].which_io;
 	r.start = cnt_regs[4].phys_addr;
-	sbus_ioremap(&r, 0, cnt_regs[4].reg_size, "sun4m_sys_cnt");
+	of_ioremap(&r, 0, cnt_regs[4].reg_size, "sun4m_sys_cnt");
 
 	sun4m_timers->l10_timer_limit =  (((1000000/HZ) + 1) << 10);
 	master_l10_counter = &sun4m_timers->l10_cur_count;
@@ -411,13 +412,13 @@ void __init sun4m_init_IRQ(void)
 	/* Map the interrupt registers for all possible cpus. */
 	r.flags = int_regs[0].which_io;
 	r.start = int_regs[0].phys_addr;
-	sun4m_interrupts = (struct sun4m_intregs *) sbus_ioremap(&r, 0,
+	sun4m_interrupts = (struct sun4m_intregs *) of_ioremap(&r, 0,
 	    PAGE_SIZE*SUN4M_NCPUS, "interrupts_percpu");
 
 	/* Map the system interrupt control registers. */
 	r.flags = int_regs[4].which_io;
 	r.start = int_regs[4].phys_addr;
-	sbus_ioremap(&r, 0, int_regs[4].reg_size, "interrupts_system");
+	of_ioremap(&r, 0, int_regs[4].reg_size, "interrupts_system");
 
 	sun4m_interrupts->set = ~SUN4M_INT_MASKALL;
 	for (i = 0; !cpu_find_by_instance(i, NULL, &mid); i++)

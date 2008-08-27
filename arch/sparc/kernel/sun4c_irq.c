@@ -18,6 +18,8 @@
 #include <linux/interrupt.h>
 #include <linux/slab.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 #include "irq.h"
 
 #include <asm/ptrace.h>
@@ -34,7 +36,6 @@
 #include <asm/sun4paddr.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>
-#include <asm/sbus.h>
 
 #if 0
 static struct resource sun4c_timer_eb = { "sun4c_timer" };
@@ -224,7 +225,7 @@ void __init sun4c_init_IRQ(void)
 			memset(&phyres, 0, sizeof(struct resource));
 			phyres.flags = int_regs[0].which_io;
 			phyres.start = int_regs[0].phys_addr;
-			interrupt_enable = (char *) sbus_ioremap(&phyres, 0,
+			interrupt_enable = (char *) of_ioremap(&phyres, 0,
 			    int_regs[0].reg_size, "sun4c_intr");
 		}
 	}
