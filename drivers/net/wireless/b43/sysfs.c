@@ -29,7 +29,7 @@
 #include "b43.h"
 #include "sysfs.h"
 #include "main.h"
-#include "phy.h"
+#include "phy_common.h"
 
 #define GENERIC_FILESIZE	64
 
@@ -59,7 +59,12 @@ static ssize_t b43_attr_interfmode_show(struct device *dev,
 
 	mutex_lock(&wldev->wl->mutex);
 
-	switch (wldev->phy.interfmode) {
+	if (wldev->phy.type != B43_PHYTYPE_G) {
+		mutex_unlock(&wldev->wl->mutex);
+		return -ENOSYS;
+	}
+
+	switch (wldev->phy.g->interfmode) {
 	case B43_INTERFMODE_NONE:
 		count =
 		    snprintf(buf, PAGE_SIZE,
@@ -117,11 +122,15 @@ static ssize_t b43_attr_interfmode_store(struct device *dev,
 	mutex_lock(&wldev->wl->mutex);
 	spin_lock_irqsave(&wldev->wl->irq_lock, flags);
 
-	err = b43_radio_set_interference_mitigation(wldev, mode);
-	if (err) {
-		b43err(wldev->wl, "Interference Mitigation not "
-		       "supported by device\n");
-	}
+	if (wldev->phy.ops->interf_mitigation) {
+		err = wldev->phy.ops->interf_mitigation(wldev, mode);
+		if (err) {
+			b43err(wldev->wl, "Interference Mitigation not "
+			       "supported by device\n");
+		}
+	} else
+		err = -ENOSYS;
+
 	mmiowb();
 	spin_unlock_irqrestore(&wldev->wl->irq_lock, flags);
 	mutex_unlock(&wldev->wl->mutex);

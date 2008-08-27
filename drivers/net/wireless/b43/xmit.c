@@ -28,7 +28,7 @@
 */
 
 #include "xmit.h"
-#include "phy.h"
+#include "phy_common.h"
 #include "dma.h"
 #include "pio.h"
 
@@ -431,6 +431,7 @@ static s8 b43_rssi_postprocess(struct b43_wldev *dev,
 			       int adjust_2053, int adjust_2050)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	s32 tmp;
 
 	switch (phy->radio_ver) {
@@ -450,7 +451,8 @@ static s8 b43_rssi_postprocess(struct b43_wldev *dev,
 			    boardflags_lo & B43_BFL_RSSI) {
 				if (in_rssi > 63)
 					in_rssi = 63;
-				tmp = phy->nrssi_lt[in_rssi];
+				B43_WARN_ON(phy->type != B43_PHYTYPE_G);
+				tmp = gphy->nrssi_lt[in_rssi];
 				tmp = 31 - tmp;
 				tmp *= -131;
 				tmp /= 128;

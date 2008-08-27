@@ -1,7 +1,9 @@
 #ifndef B43_LO_H_
 #define B43_LO_H_
 
-#include "phy.h"
+/* G-PHY Local Oscillator */
+
+#include "phy_g.h"
 
 struct b43_wldev;
 
