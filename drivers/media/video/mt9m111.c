@@ -755,7 +755,7 @@ static int mt9m111_set_control(struct soc_camera_device *icd,
 	return ret;
 }
 
-int mt9m111_restore_state(struct soc_camera_device *icd)
+static int mt9m111_restore_state(struct soc_camera_device *icd)
 {
 	struct mt9m111 *mt9m111 = container_of(icd, struct mt9m111, icd);
 
