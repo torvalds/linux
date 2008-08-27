@@ -44,6 +44,7 @@
  * 82567LF-2 Gigabit Network Connection
  * 82567V-2 Gigabit Network Connection
  * 82562GT-3 10/100 Network Connection
+ * 82567LM-4 Gigabit Network Connection
  */
 
 #include <linux/netdevice.h>
