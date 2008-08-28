@@ -2145,7 +2145,6 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 		 int rw, struct bio *bio)
 {
 	int should_queue = 1;
-	unsigned long limit;
 
 	/* don't bother with additional async steps for reads, right now */
 	if (!(rw & (1 << BIO_RW))) {
@@ -2182,11 +2181,6 @@ int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
 	if (should_queue)
 		btrfs_queue_worker(&root->fs_info->submit_workers,
 				   &device->work);
-
-	limit = btrfs_async_submit_limit(root->fs_info);
-	wait_event_timeout(root->fs_info->async_submit_wait,
-			   (atomic_read(&root->fs_info->nr_async_bios) < limit),
-			   HZ/10);
 	return 0;
 }
 

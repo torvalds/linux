@@ -487,9 +487,15 @@ int btrfs_wq_submit_bio(struct btrfs_fs_info *fs_info, struct inode *inode,
 	atomic_inc(&fs_info->nr_async_submits);
 	btrfs_queue_worker(&fs_info->workers, &async->work);
 
-	wait_event_timeout(fs_info->async_submit_wait,
+	if (atomic_read(&fs_info->nr_async_submits) > limit) {
+		wait_event_timeout(fs_info->async_submit_wait,
 			   (atomic_read(&fs_info->nr_async_submits) < limit),
 			   HZ/10);
+
+		wait_event_timeout(fs_info->async_submit_wait,
+			   (atomic_read(&fs_info->nr_async_bios) < limit),
+			   HZ/10);
+	}
 	return 0;
 }
 
