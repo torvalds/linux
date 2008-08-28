@@ -995,48 +995,13 @@ static void bio_copy_kern_endio(struct bio *bio, int err)
 struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 			  gfp_t gfp_mask, int reading)
 {
-	unsigned long kaddr = (unsigned long)data;
-	unsigned long end = (kaddr + len + PAGE_SIZE - 1) >> PAGE_SHIFT;
-	unsigned long start = kaddr >> PAGE_SHIFT;
-	const int nr_pages = end - start;
 	struct bio *bio;
 	struct bio_vec *bvec;
-	struct bio_map_data *bmd;
-	int i, ret;
-	struct sg_iovec iov;
+	int i;
 
-	iov.iov_base = data;
-	iov.iov_len = len;
-
-	bmd = bio_alloc_map_data(nr_pages, 1, gfp_mask);
-	if (!bmd)
-		return ERR_PTR(-ENOMEM);
-
-	ret = -ENOMEM;
-	bio = bio_alloc(gfp_mask, nr_pages);
-	if (!bio)
-		goto out_bmd;
-
-	while (len) {
-		struct page *page;
-		unsigned int bytes = PAGE_SIZE;
-
-		if (bytes > len)
-			bytes = len;
-
-		page = alloc_page(q->bounce_gfp | gfp_mask);
-		if (!page) {
-			ret = -ENOMEM;
-			goto cleanup;
-		}
-
-		if (bio_add_pc_page(q, bio, page, bytes, 0) < bytes) {
-			ret = -EINVAL;
-			goto cleanup;
-		}
-
-		len -= bytes;
-	}
+	bio = bio_copy_user(q, NULL, (unsigned long)data, len, 1, gfp_mask);
+	if (IS_ERR(bio))
+		return bio;
 
 	if (!reading) {
 		void *p = data;
@@ -1049,20 +1014,9 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 		}
 	}
 
-	bio->bi_private = bmd;
 	bio->bi_end_io = bio_copy_kern_endio;
 
-	bio_set_map_data(bmd, bio, &iov, 1, 1);
 	return bio;
-cleanup:
-	bio_for_each_segment(bvec, bio, i)
-		__free_page(bvec->bv_page);
-
-	bio_put(bio);
-out_bmd:
-	bio_free_map_data(bmd);
-
-	return ERR_PTR(ret);
 }
 
 /*
