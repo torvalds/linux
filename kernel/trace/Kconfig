@@ -106,6 +106,15 @@ config CONTEXT_SWITCH_TRACER
 	  This tracer gets called from the context switch and records
 	  all switching of tasks.
 
+config STACK_TRACER
+	bool "Trace max stack"
+	depends on HAVE_FTRACE
+	select FTRACE
+	select STACKTRACE
+	help
+	  This tracer records the max stack of the kernel, and displays
+	  it in debugfs/tracing/stack_trace
+
 config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
 	depends on FTRACE
