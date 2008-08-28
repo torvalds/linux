@@ -131,11 +131,11 @@ BTFIXUPDEF_CALL(void,  mmu_release_scsi_sgl, struct device *, struct scatterlist
  * know if we are mapping RAM or I/O, so it has to be an additional argument
  * to a separate mapping function for CPU visible mappings.
  */
-BTFIXUPDEF_CALL(int,  mmu_map_dma_area, dma_addr_t *, unsigned long, unsigned long, int len)
-BTFIXUPDEF_CALL(void,  mmu_unmap_dma_area, unsigned long busa, int len)
+BTFIXUPDEF_CALL(int, mmu_map_dma_area, struct device *, dma_addr_t *, unsigned long, unsigned long, int len)
+BTFIXUPDEF_CALL(void, mmu_unmap_dma_area, struct device *, unsigned long busa, int len)
 
-#define mmu_map_dma_area(pba,va,a,len) BTFIXUP_CALL(mmu_map_dma_area)(pba,va,a,len)
-#define mmu_unmap_dma_area(ba,len) BTFIXUP_CALL(mmu_unmap_dma_area)(ba,len)
+#define mmu_map_dma_area(dev,pba,va,a,len) BTFIXUP_CALL(mmu_map_dma_area)(dev,pba,va,a,len)
+#define mmu_unmap_dma_area(dev,ba,len) BTFIXUP_CALL(mmu_unmap_dma_area)(dev,ba,len)
 #endif
 
 #endif /* !(_ASM_SPARC_DMA_H) */

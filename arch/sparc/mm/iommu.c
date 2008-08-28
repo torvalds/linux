@@ -334,11 +334,11 @@ static void iommu_release_scsi_sgl(struct device *dev, struct scatterlist *sg, i
 }
 
 #ifdef CONFIG_SBUS
-static int iommu_map_dma_area(dma_addr_t *pba, unsigned long va,
-    unsigned long addr, int len)
+static int iommu_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long va,
+			      unsigned long addr, int len)
 {
+	struct iommu_struct *iommu = dev->archdata.iommu;
 	unsigned long page, end;
-	struct iommu_struct *iommu = sbus_root->ofdev.dev.archdata.iommu;
 	iopte_t *iopte = iommu->page_table;
 	iopte_t *first;
 	int ioptex;
@@ -401,9 +401,9 @@ static int iommu_map_dma_area(dma_addr_t *pba, unsigned long va,
 	return 0;
 }
 
-static void iommu_unmap_dma_area(unsigned long busa, int len)
+static void iommu_unmap_dma_area(struct device *dev, unsigned long busa, int len)
 {
-	struct iommu_struct *iommu = sbus_root->ofdev.dev.archdata.iommu;
+	struct iommu_struct *iommu = dev->archdata.iommu;
 	iopte_t *iopte = iommu->page_table;
 	unsigned long end;
 	int ioptex = (busa - iommu->start) >> PAGE_SHIFT;

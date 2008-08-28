@@ -532,8 +532,8 @@ static inline void sun4c_init_ss2_cache_bug(void)
 }
 
 /* Addr is always aligned on a page boundary for us already. */
-static int sun4c_map_dma_area(dma_addr_t *pba, unsigned long va,
-    unsigned long addr, int len)
+static int sun4c_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long va,
+			      unsigned long addr, int len)
 {
 	unsigned long page, end;
 
@@ -555,7 +555,7 @@ static int sun4c_map_dma_area(dma_addr_t *pba, unsigned long va,
 	return 0;
 }
 
-static void sun4c_unmap_dma_area(unsigned long busa, int len)
+static void sun4c_unmap_dma_area(struct device *dev, unsigned long busa, int len)
 {
 	/* Fortunately for us, bus_addr == uncached_virt in sun4c. */
 	/* XXX Implement this */

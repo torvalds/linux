@@ -186,12 +186,12 @@ static void iounit_release_scsi_sgl(struct device *dev, struct scatterlist *sg, 
 }
 
 #ifdef CONFIG_SBUS
-static int iounit_map_dma_area(dma_addr_t *pba, unsigned long va, __u32 addr, int len)
+static int iounit_map_dma_area(struct device *dev, dma_addr_t *pba, unsigned long va, __u32 addr, int len)
 {
+	struct iounit_struct *iounit = dev->archdata.iommu;
 	unsigned long page, end;
 	pgprot_t dvma_prot;
 	iopte_t *iopte;
-	struct sbus_bus *sbus;
 
 	*pba = addr;
 
@@ -213,12 +213,8 @@ static int iounit_map_dma_area(dma_addr_t *pba, unsigned long va, __u32 addr, in
 			
 			i = ((addr - IOUNIT_DMA_BASE) >> PAGE_SHIFT);
 
-			for_each_sbus(sbus) {
-				struct iounit_struct *iounit = sbus->ofdev.dev.archdata.iommu;
-
-				iopte = (iopte_t *)(iounit->page_table + i);
-				*iopte = MKIOPTE(__pa(page));
-			}
+			iopte = (iopte_t *)(iounit->page_table + i);
+			*iopte = MKIOPTE(__pa(page));
 		}
 		addr += PAGE_SIZE;
 		va += PAGE_SIZE;
@@ -229,7 +225,7 @@ static int iounit_map_dma_area(dma_addr_t *pba, unsigned long va, __u32 addr, in
 	return 0;
 }
 
-static void iounit_unmap_dma_area(unsigned long addr, int len)
+static void iounit_unmap_dma_area(struct device *dev, unsigned long addr, int len)
 {
 	/* XXX Somebody please fill this in */
 }

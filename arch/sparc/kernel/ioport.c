@@ -339,7 +339,7 @@ void *sbus_alloc_consistent(struct device *dev, long len, u32 *dma_addrp)
 	 * XXX That's where sdev would be used. Currently we load
 	 * all iommu tables with the same translations.
 	 */
-	if (mmu_map_dma_area(dma_addrp, va, res->start, len_total) != 0)
+	if (mmu_map_dma_area(dev, dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
 	res->name = op->node->name;
@@ -384,7 +384,7 @@ void sbus_free_consistent(struct device *dev, long n, void *p, u32 ba)
 
 	/* mmu_inval_dma_area(va, n); */ /* it's consistent, isn't it */
 	pgv = virt_to_page(p);
-	mmu_unmap_dma_area(ba, n);
+	mmu_unmap_dma_area(dev, ba, n);
 
 	__free_pages(pgv, get_order(n));
 }
