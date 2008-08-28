@@ -51,35 +51,6 @@ struct xattr_handler *btrfs_xattr_handlers[] = {
 };
 
 /*
- * @param name - the xattr name
- * @return - the xattr_handler for the xattr, NULL if its not found
- *
- * use this with listxattr where we don't already know the type of xattr we
- * have
- */
-static struct xattr_handler *find_btrfs_xattr_handler(struct extent_buffer *l,
-						      unsigned long name_ptr,
-						      u16 name_len)
-{
-	struct xattr_handler *handler = NULL;
-	int i = 0;
-
-	for (handler = btrfs_xattr_handlers[i]; handler != NULL; i++,
-	     handler = btrfs_xattr_handlers[i]) {
-		u16 prefix_len = strlen(handler->prefix);
-
-		if (name_len < prefix_len)
-			continue;
-
-		if (memcmp_extent_buffer(l, handler->prefix, name_ptr,
-					 prefix_len) == 0)
-			break;
-	}
-
-	return handler;
-}
-
-/*
  * @param name_index - the index for the xattr handler
  * @return the xattr_handler if we found it, NULL otherwise
  *
@@ -116,19 +87,6 @@ static inline char *get_name(const char *name, int name_index)
 	ret[prefix_len + strlen(name)] = '\0';
 
 	return ret;
-}
-
-size_t btrfs_xattr_generic_list(struct inode *inode, char *list,
-				size_t list_size, const char *name,
-				size_t name_len)
-{
-	if (list && (name_len+1) <= list_size) {
-		memcpy(list, name, name_len);
-		list[name_len] = '\0';
-	} else
-		return -ERANGE;
-
-	return name_len+1;
 }
 
 ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
@@ -278,11 +236,10 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	struct btrfs_item *item;
 	struct extent_buffer *leaf;
 	struct btrfs_dir_item *di;
-	struct xattr_handler *handler;
 	int ret = 0, slot, advance;
-	size_t total_size = 0, size_left = size, written;
+	size_t total_size = 0, size_left = size;
 	unsigned long name_ptr;
-	char *name;
+	size_t name_len;
 	u32 nritems;
 
 	/*
@@ -344,37 +301,24 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 
-		total_size += btrfs_dir_name_len(leaf, di)+1;
+		name_len = btrfs_dir_name_len(leaf, di);
+		total_size += name_len + 1;
 
 		/* we are just looking for how big our buffer needs to be */
 		if (!size)
 			continue;
 
-		/* find our handler for this xattr */
-		name_ptr = (unsigned long)(di + 1);
-		handler = find_btrfs_xattr_handler(leaf, name_ptr,
-						   btrfs_dir_name_len(leaf, di));
-		if (!handler) {
-			printk(KERN_ERR "btrfs: unsupported xattr found\n");
-			continue;
-		}
-
-		name = kmalloc(btrfs_dir_name_len(leaf, di), GFP_KERNEL);
-		read_extent_buffer(leaf, name, name_ptr,
-				   btrfs_dir_name_len(leaf, di));
-
-		/* call the list function associated with this xattr */
-		written = handler->list(inode, buffer, size_left, name,
-					btrfs_dir_name_len(leaf, di));
-		kfree(name);
-
-		if (written < 0) {
+		if (!buffer || (name_len + 1) > size_left) {
 			ret = -ERANGE;
 			break;
 		}
 
-		size_left -= written;
-		buffer += written;
+		name_ptr = (unsigned long)(di + 1);
+		read_extent_buffer(leaf, buffer, name_ptr, name_len);
+		buffer[name_len] = '\0';
+
+		size_left -= name_len + 1;
+		buffer += name_len + 1;
 	}
 	ret = total_size;
 
@@ -412,28 +356,24 @@ BTRFS_XATTR_SETGET_FUNCS(trusted, BTRFS_XATTR_INDEX_TRUSTED);
 
 struct xattr_handler btrfs_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
-	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_security_get,
 	.set	= btrfs_xattr_security_set,
 };
 
 struct xattr_handler btrfs_xattr_system_handler = {
 	.prefix = XATTR_SYSTEM_PREFIX,
-	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_system_get,
 	.set	= btrfs_xattr_system_set,
 };
 
 struct xattr_handler btrfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_user_get,
 	.set	= btrfs_xattr_user_set,
 };
 
 struct xattr_handler btrfs_xattr_trusted_handler = {
 	.prefix = XATTR_TRUSTED_PREFIX,
-	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_trusted_get,
 	.set	= btrfs_xattr_trusted_set,
 };

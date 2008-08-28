@@ -47,12 +47,4 @@ ssize_t btrfs_xattr_get(struct inode *inode, int name_index, const char *name,
 int btrfs_xattr_set(struct inode *inode, int name_index, const char *name,
 			const void *value, size_t size, int flags);
 
-/*
- * the only reason this is public is for acl.c.  There may be a point where
- * acl.c doesn't need it, and if thats the case we need to remove it and make
- * it static in xattr.c
- */
-size_t btrfs_xattr_generic_list(struct inode *inode, char *list,
-				size_t list_size, const char *name,
-				size_t name_len);
 #endif /* __XATTR__ */

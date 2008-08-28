@@ -320,14 +320,12 @@ int btrfs_acl_chmod(struct inode *inode)
 
 struct xattr_handler btrfs_xattr_acl_default_handler = {
 	.prefix = POSIX_ACL_XATTR_DEFAULT,
-	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_acl_default_get,
 	.set	= btrfs_xattr_acl_default_set,
 };
 
 struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.prefix = POSIX_ACL_XATTR_ACCESS,
-	.list	= btrfs_xattr_generic_list,
 	.get	= btrfs_xattr_acl_access_get,
 	.set	= btrfs_xattr_acl_access_set,
 };
