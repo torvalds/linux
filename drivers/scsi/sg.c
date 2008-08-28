@@ -1656,11 +1656,9 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	sg_io_hdr_t *hp = &srp->header;
 	int dxfer_len = (int) hp->dxfer_len;
 	int dxfer_dir = hp->dxfer_direction;
-	unsigned long uaddr = (unsigned long)hp->dxferp;
 	Sg_scatter_hold *req_schp = &srp->data;
 	Sg_scatter_hold *rsv_schp = &sfp->reserve;
 	struct request_queue *q = sfp->parentdp->device->request_queue;
-	unsigned long alignment = queue_dma_alignment(q) | q->dma_pad_mask;
 	struct rq_map_data map_data;
 
 	SCSI_LOG_TIMEOUT(4, printk("sg_start_req: dxfer_len=%d\n", dxfer_len));
@@ -1676,7 +1674,7 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	if (sg_allow_dio && (hp->flags & SG_FLAG_DIRECT_IO) &&
 	    (dxfer_dir != SG_DXFER_UNKNOWN) && (0 == hp->iovec_count) &&
 	    (!sfp->parentdp->device->host->unchecked_isa_dma) &&
-	    !(uaddr & alignment) && !(dxfer_len & alignment))
+	    blk_rq_aligned(q, hp->dxferp, dxfer_len))
 		return sg_build_direct(srp, sfp, dxfer_len);
 #endif
 	if ((!sg_res_in_use(sfp)) && (dxfer_len <= rsv_schp->bufflen))
