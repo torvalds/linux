@@ -300,11 +300,10 @@ void __init sbus_fill_device_irq(struct sbus_dev *sdev)
  * Allocate a chunk of memory suitable for DMA.
  * Typically devices use them for control blocks.
  * CPU may access them without any explicit flushing.
- *
- * XXX Some clever people know that sdev is not used and supply NULL. Watch.
  */
-void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
+void *sbus_alloc_consistent(struct device *dev, long len, u32 *dma_addrp)
 {
+	struct of_device *op = to_of_device(dev);
 	unsigned long len_total = (len + PAGE_SIZE-1) & PAGE_MASK;
 	unsigned long va;
 	struct resource *res;
@@ -341,10 +340,7 @@ void *sbus_alloc_consistent(struct sbus_dev *sdev, long len, u32 *dma_addrp)
 	if (mmu_map_dma_area(dma_addrp, va, res->start, len_total) != 0)
 		goto err_noiommu;
 
-	/* Set the resource name, if known. */
-	if (sdev) {
-		res->name = sdev->prom_name;
-	}
+	res->name = op->node->name;
 
 	return (void *)(unsigned long)res->start;
 
@@ -358,7 +354,7 @@ err_nopages:
 	return NULL;
 }
 
-void sbus_free_consistent(struct sbus_dev *sdev, long n, void *p, u32 ba)
+void sbus_free_consistent(struct device *dev, long n, void *p, u32 ba)
 {
 	struct resource *res;
 	struct page *pgv;
@@ -396,8 +392,10 @@ void sbus_free_consistent(struct sbus_dev *sdev, long n, void *p, u32 ba)
  * CPU view of this memory may be inconsistent with
  * a device view and explicit flushing is necessary.
  */
-dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *va, size_t len, int direction)
+dma_addr_t sbus_map_single(struct device *dev, void *va, size_t len, int direction)
 {
+	struct sbus_dev *sdev = to_sbus_device(dev);
+
 	/* XXX why are some lengths signed, others unsigned? */
 	if (len <= 0) {
 		return 0;
@@ -409,13 +407,16 @@ dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *va, size_t len, int dire
 	return mmu_get_scsi_one(va, len, sdev->bus);
 }
 
-void sbus_unmap_single(struct sbus_dev *sdev, dma_addr_t ba, size_t n, int direction)
+void sbus_unmap_single(struct device *dev, dma_addr_t ba, size_t n, int direction)
 {
+	struct sbus_dev *sdev = to_sbus_device(dev);
 	mmu_release_scsi_one(ba, n, sdev->bus);
 }
 
-int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
+int sbus_map_sg(struct device *dev, struct scatterlist *sg, int n, int direction)
 {
+	struct sbus_dev *sdev = to_sbus_device(dev);
+
 	mmu_get_scsi_sgl(sg, n, sdev->bus);
 
 	/*
@@ -425,16 +426,19 @@ int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direct
 	return n;
 }
 
-void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
+void sbus_unmap_sg(struct device *dev, struct scatterlist *sg, int n, int direction)
 {
+	struct sbus_dev *sdev = to_sbus_device(dev);
+
 	mmu_release_scsi_sgl(sg, n, sdev->bus);
 }
 
 /*
  */
-void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev, dma_addr_t ba, size_t size, int direction)
+void sbus_dma_sync_single_for_cpu(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
 #if 0
+	struct sbus_dev *sdev = to_sbus_device(dev);
 	unsigned long va;
 	struct resource *res;
 
@@ -452,9 +456,10 @@ void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev, dma_addr_t ba, size_t s
 #endif
 }
 
-void sbus_dma_sync_single_for_device(struct sbus_dev *sdev, dma_addr_t ba, size_t size, int direction)
+void sbus_dma_sync_single_for_device(struct device *dev, dma_addr_t ba, size_t size, int direction)
 {
 #if 0
+	struct sbus_dev *sdev = to_sbus_device(dev);
 	unsigned long va;
 	struct resource *res;
 
@@ -470,16 +475,6 @@ void sbus_dma_sync_single_for_device(struct sbus_dev *sdev, dma_addr_t ba, size_
 	 */
 	/* mmu_inval_dma_area(va, (size + PAGE_SIZE-1) & PAGE_MASK); */
 #endif
-}
-
-void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
-{
-	printk("sbus_dma_sync_sg_for_cpu: not implemented yet\n");
-}
-
-void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev, struct scatterlist *sg, int n, int direction)
-{
-	printk("sbus_dma_sync_sg_for_device: not implemented yet\n");
 }
 
 /* Support code for sbus_init().  */

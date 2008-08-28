@@ -109,8 +109,8 @@ extern void sbus_set_sbus64(struct sbus_dev *, int);
 extern void sbus_fill_device_irq(struct sbus_dev *);
 
 /* These yield IOMMU mappings in consistent mode. */
-extern void *sbus_alloc_consistent(struct sbus_dev *, long, u32 *dma_addrp);
-extern void sbus_free_consistent(struct sbus_dev *, long, void *, u32);
+extern void *sbus_alloc_consistent(struct device *, long, u32 *dma_addrp);
+extern void sbus_free_consistent(struct device *, long, void *, u32);
 void prom_adjust_ranges(struct linux_prom_ranges *, int,
 			struct linux_prom_ranges *, int);
 
@@ -120,18 +120,14 @@ void prom_adjust_ranges(struct linux_prom_ranges *, int,
 #define	SBUS_DMA_NONE		DMA_NONE
 
 /* All the rest use streaming mode mappings. */
-extern dma_addr_t sbus_map_single(struct sbus_dev *, void *, size_t, int);
-extern void sbus_unmap_single(struct sbus_dev *, dma_addr_t, size_t, int);
-extern int sbus_map_sg(struct sbus_dev *, struct scatterlist *, int, int);
-extern void sbus_unmap_sg(struct sbus_dev *, struct scatterlist *, int, int);
+extern dma_addr_t sbus_map_single(struct device *, void *, size_t, int);
+extern void sbus_unmap_single(struct device *, dma_addr_t, size_t, int);
+extern int sbus_map_sg(struct device *, struct scatterlist *, int, int);
+extern void sbus_unmap_sg(struct device *, struct scatterlist *, int, int);
 
 /* Finally, allow explicit synchronization of streamable mappings. */
-extern void sbus_dma_sync_single_for_cpu(struct sbus_dev *, dma_addr_t, size_t, int);
-#define sbus_dma_sync_single sbus_dma_sync_single_for_cpu
-extern void sbus_dma_sync_single_for_device(struct sbus_dev *, dma_addr_t, size_t, int);
-extern void sbus_dma_sync_sg_for_cpu(struct sbus_dev *, struct scatterlist *, int, int);
-#define sbus_dma_sync_sg sbus_dma_sync_sg_for_cpu
-extern void sbus_dma_sync_sg_for_device(struct sbus_dev *, struct scatterlist *, int, int);
+extern void sbus_dma_sync_single_for_cpu(struct device *, dma_addr_t, size_t, int);
+extern void sbus_dma_sync_single_for_device(struct device *, dma_addr_t, size_t, int);
 
 /* Eric Brower (ebrower@usa.net)
  * Translate SBus interrupt levels to ino values--

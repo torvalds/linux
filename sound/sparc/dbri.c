@@ -2097,7 +2097,8 @@ static int snd_dbri_hw_params(struct snd_pcm_substream *substream,
 		else
 			direction = SBUS_DMA_FROMDEVICE;
 
-		info->dvma_buffer = sbus_map_single(dbri->sdev,
+		info->dvma_buffer =
+			sbus_map_single(&dbri->sdev->ofdev.dev,
 					runtime->dma_area,
 					params_buffer_bytes(hw_params),
 					direction);
@@ -2125,7 +2126,7 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 		else
 			direction = SBUS_DMA_FROMDEVICE;
 
-		sbus_unmap_single(dbri->sdev, info->dvma_buffer,
+		sbus_unmap_single(&dbri->sdev->ofdev.dev, info->dvma_buffer,
 				  substream->runtime->buffer_size, direction);
 		info->dvma_buffer = 0;
 	}
@@ -2524,7 +2525,8 @@ static int __devinit snd_dbri_create(struct snd_card *card,
 	dbri->sdev = sdev;
 	dbri->irq = irq;
 
-	dbri->dma = sbus_alloc_consistent(sdev, sizeof(struct dbri_dma),
+	dbri->dma = sbus_alloc_consistent(&sdev->ofdev.dev,
+					  sizeof(struct dbri_dma),
 					  &dbri->dma_dvma);
 	memset((void *)dbri->dma, 0, sizeof(struct dbri_dma));
 
@@ -2537,7 +2539,7 @@ static int __devinit snd_dbri_create(struct snd_card *card,
 				  dbri->regs_size, "DBRI Registers");
 	if (!dbri->regs) {
 		printk(KERN_ERR "DBRI: could not allocate registers\n");
-		sbus_free_consistent(sdev, sizeof(struct dbri_dma),
+		sbus_free_consistent(&sdev->ofdev.dev, sizeof(struct dbri_dma),
 				     (void *)dbri->dma, dbri->dma_dvma);
 		return -EIO;
 	}
@@ -2547,7 +2549,7 @@ static int __devinit snd_dbri_create(struct snd_card *card,
 	if (err) {
 		printk(KERN_ERR "DBRI: Can't get irq %d\n", dbri->irq);
 		sbus_iounmap(dbri->regs, dbri->regs_size);
-		sbus_free_consistent(sdev, sizeof(struct dbri_dma),
+		sbus_free_consistent(&sdev->ofdev.dev, sizeof(struct dbri_dma),
 				     (void *)dbri->dma, dbri->dma_dvma);
 		return err;
 	}
@@ -2575,7 +2577,8 @@ static void snd_dbri_free(struct snd_dbri *dbri)
 		sbus_iounmap(dbri->regs, dbri->regs_size);
 
 	if (dbri->dma)
-		sbus_free_consistent(dbri->sdev, sizeof(struct dbri_dma),
+		sbus_free_consistent(&dbri->sdev->ofdev.dev,
+				     sizeof(struct dbri_dma),
 				     (void *)dbri->dma, dbri->dma_dvma);
 }
 

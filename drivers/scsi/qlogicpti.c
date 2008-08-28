@@ -788,7 +788,7 @@ static int __devinit qpti_map_queues(struct qlogicpti *qpti)
 	struct sbus_dev *sdev = qpti->sdev;
 
 #define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
-	qpti->res_cpu = sbus_alloc_consistent(sdev,
+	qpti->res_cpu = sbus_alloc_consistent(&sdev->ofdev.dev,
 					      QSIZE(RES_QUEUE_LEN),
 					      &qpti->res_dvma);
 	if (qpti->res_cpu == NULL ||
@@ -797,12 +797,12 @@ static int __devinit qpti_map_queues(struct qlogicpti *qpti)
 		return -1;
 	}
 
-	qpti->req_cpu = sbus_alloc_consistent(sdev,
+	qpti->req_cpu = sbus_alloc_consistent(&sdev->ofdev.dev,
 					      QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
 					      &qpti->req_dvma);
 	if (qpti->req_cpu == NULL ||
 	    qpti->req_dvma == 0) {
-		sbus_free_consistent(sdev, QSIZE(RES_QUEUE_LEN),
+		sbus_free_consistent(&sdev->ofdev.dev, QSIZE(RES_QUEUE_LEN),
 				     qpti->res_cpu, qpti->res_dvma);
 		printk("QPTI: Cannot map request queue.\n");
 		return -1;
@@ -875,8 +875,9 @@ static inline int load_cmd(struct scsi_cmnd *Cmnd, struct Command_Entry *cmd,
 		int sg_count;
 
 		sg = scsi_sglist(Cmnd);
-		sg_count = sbus_map_sg(qpti->sdev, sg, scsi_sg_count(Cmnd),
-		                                      Cmnd->sc_data_direction);
+		sg_count = sbus_map_sg(&qpti->sdev->ofdev.dev, sg,
+				       scsi_sg_count(Cmnd),
+				       Cmnd->sc_data_direction);
 
 		ds = cmd->dataseg;
 		cmd->segment_cnt = sg_count;
@@ -1151,7 +1152,7 @@ static struct scsi_cmnd *qlogicpti_intr_handler(struct qlogicpti *qpti)
 			Cmnd->result = DID_ERROR << 16;
 
 		if (scsi_bufflen(Cmnd))
-			sbus_unmap_sg(qpti->sdev,
+			sbus_unmap_sg(&qpti->sdev->ofdev.dev,
 				      scsi_sglist(Cmnd), scsi_sg_count(Cmnd),
 				      Cmnd->sc_data_direction);
 
@@ -1356,10 +1357,10 @@ static int __devinit qpti_sbus_probe(struct of_device *dev, const struct of_devi
 
 fail_unmap_queues:
 #define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
-	sbus_free_consistent(qpti->sdev,
+	sbus_free_consistent(&qpti->sdev->ofdev.dev,
 			     QSIZE(RES_QUEUE_LEN),
 			     qpti->res_cpu, qpti->res_dvma);
-	sbus_free_consistent(qpti->sdev,
+	sbus_free_consistent(&qpti->sdev->ofdev.dev,
 			     QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
 			     qpti->req_cpu, qpti->req_dvma);
 #undef QSIZE
@@ -1394,10 +1395,10 @@ static int __devexit qpti_sbus_remove(struct of_device *dev)
 	free_irq(qpti->irq, qpti);
 
 #define QSIZE(entries)	(((entries) + 1) * QUEUE_ENTRY_LEN)
-	sbus_free_consistent(qpti->sdev,
+	sbus_free_consistent(&qpti->sdev->ofdev.dev,
 			     QSIZE(RES_QUEUE_LEN),
 			     qpti->res_cpu, qpti->res_dvma);
-	sbus_free_consistent(qpti->sdev,
+	sbus_free_consistent(&qpti->sdev->ofdev.dev,
 			     QSIZE(QLOGICPTI_REQ_QUEUE_LEN),
 			     qpti->req_cpu, qpti->req_dvma);
 #undef QSIZE

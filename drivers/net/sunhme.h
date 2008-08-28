@@ -413,6 +413,7 @@ struct happy_meal {
 
 	/* This is either a sbus_dev or a pci_dev. */
 	void			  *happy_dev;
+	void			  *dma_dev;
 
 	spinlock_t		  happy_lock;
 

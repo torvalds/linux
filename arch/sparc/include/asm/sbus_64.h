@@ -100,17 +100,16 @@ extern struct sbus_bus *sbus_root;
 extern void sbus_set_sbus64(struct sbus_dev *, int);
 extern void sbus_fill_device_irq(struct sbus_dev *);
 
-static inline void *sbus_alloc_consistent(struct sbus_dev *sdev , size_t size,
+static inline void *sbus_alloc_consistent(struct device *dev , size_t size,
 					  dma_addr_t *dma_handle)
 {
-	return dma_alloc_coherent(&sdev->ofdev.dev, size,
-				  dma_handle, GFP_ATOMIC);
+	return dma_alloc_coherent(dev, size, dma_handle, GFP_ATOMIC);
 }
 
-static inline void sbus_free_consistent(struct sbus_dev *sdev, size_t size,
+static inline void sbus_free_consistent(struct device *dev, size_t size,
 					void *vaddr, dma_addr_t dma_handle)
 {
-	return dma_free_coherent(&sdev->ofdev.dev, size, vaddr, dma_handle);
+	return dma_free_coherent(dev, size, vaddr, dma_handle);
 }
 
 #define SBUS_DMA_BIDIRECTIONAL	DMA_BIDIRECTIONAL
@@ -119,64 +118,47 @@ static inline void sbus_free_consistent(struct sbus_dev *sdev, size_t size,
 #define	SBUS_DMA_NONE		DMA_NONE
 
 /* All the rest use streaming mode mappings. */
-static inline dma_addr_t sbus_map_single(struct sbus_dev *sdev, void *ptr,
+static inline dma_addr_t sbus_map_single(struct device *dev, void *ptr,
 					 size_t size, int direction)
 {
-	return dma_map_single(&sdev->ofdev.dev, ptr, size,
+	return dma_map_single(dev, ptr, size,
 			      (enum dma_data_direction) direction);
 }
 
-static inline void sbus_unmap_single(struct sbus_dev *sdev,
+static inline void sbus_unmap_single(struct device *dev,
 				     dma_addr_t dma_addr, size_t size,
 				     int direction)
 {
-	dma_unmap_single(&sdev->ofdev.dev, dma_addr, size,
+	dma_unmap_single(dev, dma_addr, size,
 			 (enum dma_data_direction) direction);
 }
 
-static inline int sbus_map_sg(struct sbus_dev *sdev, struct scatterlist *sg,
+static inline int sbus_map_sg(struct device *dev, struct scatterlist *sg,
 			      int nents, int direction)
 {
-	return dma_map_sg(&sdev->ofdev.dev, sg, nents,
+	return dma_map_sg(dev, sg, nents,
 			  (enum dma_data_direction) direction);
 }
 
-static inline void sbus_unmap_sg(struct sbus_dev *sdev, struct scatterlist *sg,
+static inline void sbus_unmap_sg(struct device *dev, struct scatterlist *sg,
 				 int nents, int direction)
 {
-	dma_unmap_sg(&sdev->ofdev.dev, sg, nents,
+	dma_unmap_sg(dev, sg, nents,
 		     (enum dma_data_direction) direction);
 }
 
 /* Finally, allow explicit synchronization of streamable mappings. */
-static inline void sbus_dma_sync_single_for_cpu(struct sbus_dev *sdev,
+static inline void sbus_dma_sync_single_for_cpu(struct device *dev,
 						dma_addr_t dma_handle,
 						size_t size, int direction)
 {
-	dma_sync_single_for_cpu(&sdev->ofdev.dev, dma_handle, size,
+	dma_sync_single_for_cpu(dev, dma_handle, size,
 				(enum dma_data_direction) direction);
 }
-#define sbus_dma_sync_single sbus_dma_sync_single_for_cpu
 
-static inline void sbus_dma_sync_single_for_device(struct sbus_dev *sdev,
+static inline void sbus_dma_sync_single_for_device(struct device *dev,
 						   dma_addr_t dma_handle,
 						   size_t size, int direction)
-{
-	/* No flushing needed to sync cpu writes to the device.  */
-}
-
-static inline void sbus_dma_sync_sg_for_cpu(struct sbus_dev *sdev,
-					    struct scatterlist *sg,
-					    int nents, int direction)
-{
-	dma_sync_sg_for_cpu(&sdev->ofdev.dev, sg, nents,
-			    (enum dma_data_direction) direction);
-}
-#define sbus_dma_sync_sg sbus_dma_sync_sg_for_cpu
-
-static inline void sbus_dma_sync_sg_for_device(struct sbus_dev *sdev,
-					       struct scatterlist *sg,
-					       int nents, int direction)
 {
 	/* No flushing needed to sync cpu writes to the device.  */
 }

@@ -239,7 +239,7 @@ static void bigmac_init_rings(struct bigmac *bp, int from_irq)
 		skb_reserve(skb, 34);
 
 		bb->be_rxd[i].rx_addr =
-			sbus_map_single(bp->bigmac_sdev, skb->data,
+			sbus_map_single(&bp->bigmac_sdev->ofdev.dev, skb->data,
 					RX_BUF_ALLOC_SIZE - 34,
 					SBUS_DMA_FROMDEVICE);
 		bb->be_rxd[i].rx_flags =
@@ -776,7 +776,7 @@ static void bigmac_tx(struct bigmac *bp)
 		skb = bp->tx_skbs[elem];
 		bp->enet_stats.tx_packets++;
 		bp->enet_stats.tx_bytes += skb->len;
-		sbus_unmap_single(bp->bigmac_sdev,
+		sbus_unmap_single(&bp->bigmac_sdev->ofdev.dev,
 				  this->tx_addr, skb->len,
 				  SBUS_DMA_TODEVICE);
 
@@ -831,7 +831,7 @@ static void bigmac_rx(struct bigmac *bp)
 				drops++;
 				goto drop_it;
 			}
-			sbus_unmap_single(bp->bigmac_sdev,
+			sbus_unmap_single(&bp->bigmac_sdev->ofdev.dev,
 					  this->rx_addr,
 					  RX_BUF_ALLOC_SIZE - 34,
 					  SBUS_DMA_FROMDEVICE);
@@ -839,10 +839,11 @@ static void bigmac_rx(struct bigmac *bp)
 			new_skb->dev = bp->dev;
 			skb_put(new_skb, ETH_FRAME_LEN);
 			skb_reserve(new_skb, 34);
-			this->rx_addr = sbus_map_single(bp->bigmac_sdev,
-							new_skb->data,
-							RX_BUF_ALLOC_SIZE - 34,
-							SBUS_DMA_FROMDEVICE);
+			this->rx_addr =
+				sbus_map_single(&bp->bigmac_sdev->ofdev.dev,
+						new_skb->data,
+						RX_BUF_ALLOC_SIZE - 34,
+						SBUS_DMA_FROMDEVICE);
 			this->rx_flags =
 				(RXD_OWN | ((RX_BUF_ALLOC_SIZE - 34) & RXD_LENGTH));
 
@@ -857,11 +858,11 @@ static void bigmac_rx(struct bigmac *bp)
 			}
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
-			sbus_dma_sync_single_for_cpu(bp->bigmac_sdev,
+			sbus_dma_sync_single_for_cpu(&bp->bigmac_sdev->ofdev.dev,
 						     this->rx_addr, len,
 						     SBUS_DMA_FROMDEVICE);
 			skb_copy_to_linear_data(copy_skb, (unsigned char *)skb->data, len);
-			sbus_dma_sync_single_for_device(bp->bigmac_sdev,
+			sbus_dma_sync_single_for_device(&bp->bigmac_sdev->ofdev.dev,
 							this->rx_addr, len,
 							SBUS_DMA_FROMDEVICE);
 
@@ -959,7 +960,8 @@ static int bigmac_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u32 mapping;
 
 	len = skb->len;
-	mapping = sbus_map_single(bp->bigmac_sdev, skb->data, len, SBUS_DMA_TODEVICE);
+	mapping = sbus_map_single(&bp->bigmac_sdev->ofdev.dev, skb->data,
+				  len, SBUS_DMA_TODEVICE);
 
 	/* Avoid a race... */
 	spin_lock_irq(&bp->lock);
@@ -1183,7 +1185,7 @@ static int __devinit bigmac_ether_init(struct sbus_dev *qec_sdev)
 	bigmac_stop(bp);
 
 	/* Allocate transmit/receive descriptor DVMA block. */
-	bp->bmac_block = sbus_alloc_consistent(bp->bigmac_sdev,
+	bp->bmac_block = sbus_alloc_consistent(&bp->bigmac_sdev->ofdev.dev,
 					       PAGE_SIZE,
 					       &bp->bblock_dvma);
 	if (bp->bmac_block == NULL || bp->bblock_dvma == 0) {
@@ -1245,7 +1247,7 @@ fail_and_cleanup:
 		sbus_iounmap(bp->tregs, TCVR_REG_SIZE);
 
 	if (bp->bmac_block)
-		sbus_free_consistent(bp->bigmac_sdev,
+		sbus_free_consistent(&bp->bigmac_sdev->ofdev.dev,
 				     PAGE_SIZE,
 				     bp->bmac_block,
 				     bp->bblock_dvma);
@@ -1280,7 +1282,7 @@ static int __devexit bigmac_sbus_remove(struct of_device *dev)
 	sbus_iounmap(bp->creg, CREG_REG_SIZE);
 	sbus_iounmap(bp->bregs, BMAC_REG_SIZE);
 	sbus_iounmap(bp->tregs, TCVR_REG_SIZE);
-	sbus_free_consistent(bp->bigmac_sdev,
+	sbus_free_consistent(&bp->bigmac_sdev->ofdev.dev,
 			     PAGE_SIZE,
 			     bp->bmac_block,
 			     bp->bblock_dvma);

@@ -251,13 +251,13 @@ static u32 pci_hme_read_desc32(hme32 *p)
 #define hme_read_desc32(__hp, __p) \
 	((__hp)->read_desc32(__p))
 #define hme_dma_map(__hp, __ptr, __size, __dir) \
-	((__hp)->dma_map((__hp)->happy_dev, (__ptr), (__size), (__dir)))
+	((__hp)->dma_map((__hp)->dma_dev, (__ptr), (__size), (__dir)))
 #define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	((__hp)->dma_unmap((__hp)->happy_dev, (__addr), (__size), (__dir)))
+	((__hp)->dma_unmap((__hp)->dma_dev, (__addr), (__size), (__dir)))
 #define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	((__hp)->dma_sync_for_cpu((__hp)->happy_dev, (__addr), (__size), (__dir)))
+	((__hp)->dma_sync_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir)))
 #define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	((__hp)->dma_sync_for_device((__hp)->happy_dev, (__addr), (__size), (__dir)))
+	((__hp)->dma_sync_for_device((__hp)->dma_dev, (__addr), (__size), (__dir)))
 #else
 #ifdef CONFIG_SBUS
 /* SBUS only compilation */
@@ -277,13 +277,13 @@ do {	(__txd)->tx_addr = (__force hme32)(u32)(__addr); \
 } while(0)
 #define hme_read_desc32(__hp, __p)	((__force u32)(hme32)*(__p))
 #define hme_dma_map(__hp, __ptr, __size, __dir) \
-	sbus_map_single((__hp)->happy_dev, (__ptr), (__size), (__dir))
+	sbus_map_single((__hp)->dma_dev, (__ptr), (__size), (__dir))
 #define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	sbus_unmap_single((__hp)->happy_dev, (__addr), (__size), (__dir))
+	sbus_unmap_single((__hp)->dma_dev, (__addr), (__size), (__dir))
 #define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	sbus_dma_sync_single_for_cpu((__hp)->happy_dev, (__addr), (__size), (__dir))
+	sbus_dma_sync_single_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir))
 #define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	sbus_dma_sync_single_for_device((__hp)->happy_dev, (__addr), (__size), (__dir))
+	sbus_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
 #else
 /* PCI only compilation */
 #define hme_write32(__hp, __reg, __val) \
@@ -305,13 +305,13 @@ static inline u32 hme_read_desc32(struct happy_meal *hp, hme32 *p)
 	return le32_to_cpup((__le32 *)p);
 }
 #define hme_dma_map(__hp, __ptr, __size, __dir) \
-	pci_map_single((__hp)->happy_dev, (__ptr), (__size), (__dir))
+	pci_map_single((__hp)->dma_dev, (__ptr), (__size), (__dir))
 #define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	pci_unmap_single((__hp)->happy_dev, (__addr), (__size), (__dir))
+	pci_unmap_single((__hp)->dma_dev, (__addr), (__size), (__dir))
 #define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	pci_dma_sync_single_for_cpu((__hp)->happy_dev, (__addr), (__size), (__dir))
+	pci_dma_sync_single_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir))
 #define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	pci_dma_sync_single_for_device((__hp)->happy_dev, (__addr), (__size), (__dir))
+	pci_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
 #endif
 #endif
 
@@ -2716,6 +2716,7 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	hp = dev->priv;
 
 	hp->happy_dev = sdev;
+	hp->dma_dev = &sdev->ofdev.dev;
 
 	spin_lock_init(&hp->happy_lock);
 
@@ -2785,7 +2786,7 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	hp->happy_bursts = of_getintprop_default(sdev->bus->ofdev.node,
 						 "burst-sizes", 0x00);
 
-	hp->happy_block = sbus_alloc_consistent(hp->happy_dev,
+	hp->happy_block = sbus_alloc_consistent(hp->dma_dev,
 						PAGE_SIZE,
 						&hp->hblock_dvma);
 	err = -ENOMEM;
@@ -2860,7 +2861,7 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	return 0;
 
 err_out_free_consistent:
-	sbus_free_consistent(hp->happy_dev,
+	sbus_free_consistent(hp->dma_dev,
 			     PAGE_SIZE,
 			     hp->happy_block,
 			     hp->hblock_dvma);
@@ -3035,6 +3036,7 @@ static int __devinit happy_meal_pci_probe(struct pci_dev *pdev,
 	memset(hp, 0, sizeof(*hp));
 
 	hp->happy_dev = pdev;
+	hp->dma_dev = pdev;
 
 	spin_lock_init(&hp->happy_lock);
 
@@ -3231,12 +3233,12 @@ static void __devexit happy_meal_pci_remove(struct pci_dev *pdev)
 
 	unregister_netdev(net_dev);
 
-	pci_free_consistent(hp->happy_dev,
+	pci_free_consistent(hp->dma_dev,
 			    PAGE_SIZE,
 			    hp->happy_block,
 			    hp->hblock_dvma);
 	iounmap(hp->gregs);
-	pci_release_regions(hp->happy_dev);
+	pci_release_regions(hp->dma_dev);
 
 	free_netdev(net_dev);
 
@@ -3306,7 +3308,7 @@ static int __devexit hme_sbus_remove(struct of_device *dev)
 	sbus_iounmap(hp->erxregs, ERX_REG_SIZE);
 	sbus_iounmap(hp->bigmacregs, BMAC_REG_SIZE);
 	sbus_iounmap(hp->tcvregs, TCVR_REG_SIZE);
-	sbus_free_consistent(hp->happy_dev,
+	sbus_free_consistent(hp->dma_dev,
 			     PAGE_SIZE,
 			     hp->happy_block,
 			     hp->hblock_dvma);

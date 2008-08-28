@@ -1283,7 +1283,7 @@ static void lance_free_hwresources(struct lance_private *lp)
 		sbus_iounmap(lp->init_block_iomem,
 			     sizeof(struct lance_init_block));
 	} else if (lp->init_block_mem) {
-		sbus_free_consistent(lp->sdev,
+		sbus_free_consistent(&lp->sdev->ofdev.dev,
 				     sizeof(struct lance_init_block),
 				     lp->init_block_mem,
 				     lp->init_block_dvma);
@@ -1384,7 +1384,8 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 		lp->tx = lance_tx_pio;
 	} else {
 		lp->init_block_mem =
-			sbus_alloc_consistent(sdev, sizeof(struct lance_init_block),
+			sbus_alloc_consistent(&sdev->ofdev.dev,
+					      sizeof(struct lance_init_block),
 					      &lp->init_block_dvma);
 		if (!lp->init_block_mem || lp->init_block_dvma == 0) {
 			printk(KERN_ERR "SunLance: Cannot allocate consistent DMA memory.\n");

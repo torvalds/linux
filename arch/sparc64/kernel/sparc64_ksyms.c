@@ -170,8 +170,6 @@ EXPORT_SYMBOL(sbus_map_sg);
 EXPORT_SYMBOL(sbus_unmap_sg);
 EXPORT_SYMBOL(sbus_dma_sync_single_for_cpu);
 EXPORT_SYMBOL(sbus_dma_sync_single_for_device);
-EXPORT_SYMBOL(sbus_dma_sync_sg_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_sg_for_device);
 #endif
 EXPORT_SYMBOL(outsb);
 EXPORT_SYMBOL(outsw);
