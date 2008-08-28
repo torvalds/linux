@@ -57,6 +57,7 @@
 #endif /* SMP */
 
 int nr_irqs = NR_IRQS;
+EXPORT_SYMBOL(nr_irqs);
 
 unsigned long __raw_local_irq_save(void)
 {

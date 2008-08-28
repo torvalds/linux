@@ -47,6 +47,7 @@
 #endif
 
 int nr_irqs = NR_IRQS;
+EXPORT_SYMBOL(nr_irqs);
 
 extern u32 auto_irqhandler_fixup[];
 extern u32 user_irqhandler_fixup[];
