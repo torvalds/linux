@@ -282,6 +282,8 @@ static struct rtable *rt_cache_get_first(struct seq_file *seq)
 	struct rtable *r = NULL;
 
 	for (st->bucket = rt_hash_mask; st->bucket >= 0; --st->bucket) {
+		if (!rt_hash_table[st->bucket].chain)
+			continue;
 		rcu_read_lock_bh();
 		r = rcu_dereference(rt_hash_table[st->bucket].chain);
 		while (r) {
@@ -299,11 +301,14 @@ static struct rtable *__rt_cache_get_next(struct seq_file *seq,
 					  struct rtable *r)
 {
 	struct rt_cache_iter_state *st = seq->private;
+
 	r = r->u.dst.rt_next;
 	while (!r) {
 		rcu_read_unlock_bh();
-		if (--st->bucket < 0)
-			break;
+		do {
+			if (--st->bucket < 0)
+				return NULL;
+		} while (!rt_hash_table[st->bucket].chain);
 		rcu_read_lock_bh();
 		r = rt_hash_table[st->bucket].chain;
 	}
@@ -2840,7 +2845,9 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 	if (s_h < 0)
 		s_h = 0;
 	s_idx = idx = cb->args[1];
-	for (h = s_h; h <= rt_hash_mask; h++) {
+	for (h = s_h; h <= rt_hash_mask; h++, s_idx = 0) {
+		if (!rt_hash_table[h].chain)
+			continue;
 		rcu_read_lock_bh();
 		for (rt = rcu_dereference(rt_hash_table[h].chain), idx = 0; rt;
 		     rt = rcu_dereference(rt->u.dst.rt_next), idx++) {
@@ -2859,7 +2866,6 @@ int ip_rt_dump(struct sk_buff *skb,  struct netlink_callback *cb)
 			dst_release(xchg(&skb->dst, NULL));
 		}
 		rcu_read_unlock_bh();
-		s_idx = 0;
 	}
 
 done:
