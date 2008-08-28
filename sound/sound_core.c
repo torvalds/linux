@@ -1,5 +1,61 @@
 /*
- *	Sound core handling. Breaks out sound functions to submodules
+ *	Sound core.  This file is composed of two parts.  sound_class
+ *	which is common to both OSS and ALSA and OSS sound core which
+ *	is used OSS or emulation of it.
+ */
+
+/*
+ * First, the common part.
+ */
+#include <linux/module.h>
+#include <linux/device.h>
+#include <linux/err.h>
+
+#ifdef CONFIG_SOUND_OSS_CORE
+static int __init init_oss_soundcore(void);
+static void __exit cleanup_oss_soundcore(void);
+#else
+static inline int init_oss_soundcore(void)	{ return 0; }
+static inline void cleanup_oss_soundcore(void)	{ }
+#endif
+
+struct class *sound_class;
+EXPORT_SYMBOL(sound_class);
+
+MODULE_DESCRIPTION("Core sound module");
+MODULE_AUTHOR("Alan Cox");
+MODULE_LICENSE("GPL");
+
+static int __init init_soundcore(void)
+{
+	int rc;
+
+	rc = init_oss_soundcore();
+	if (rc)
+		return rc;
+
+	sound_class = class_create(THIS_MODULE, "sound");
+	if (IS_ERR(sound_class)) {
+		cleanup_oss_soundcore();
+		return PTR_ERR(sound_class);
+	}
+
+	return 0;
+}
+
+static void __exit cleanup_soundcore(void)
+{
+	cleanup_oss_soundcore();
+	class_destroy(sound_class);
+}
+
+module_init(init_soundcore);
+module_exit(cleanup_soundcore);
+
+
+#ifdef CONFIG_SOUND_OSS_CORE
+/*
+ *	OSS sound core handling. Breaks out sound functions to submodules
  *	
  *	Author:		Alan Cox <alan.cox@linux.org>
  *
@@ -34,20 +90,16 @@
  *	locking at some point in 2.3.x.
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/smp_lock.h>
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/fs.h>
 #include <linux/sound.h>
 #include <linux/major.h>
 #include <linux/kmod.h>
-#include <linux/device.h>
 
 #define SOUND_STEP 16
-
 
 struct sound_unit
 {
@@ -63,9 +115,6 @@ extern int msnd_classic_init(void);
 #ifdef CONFIG_SOUND_MSNDPIN
 extern int msnd_pinnacle_init(void);
 #endif
-
-struct class *sound_class;
-EXPORT_SYMBOL(sound_class);
 
 /*
  *	Low level list operator. Scan the ordered list, find a hole and
@@ -523,31 +572,23 @@ int soundcore_open(struct inode *inode, struct file *file)
 	return -ENODEV;
 }
 
-MODULE_DESCRIPTION("Core sound module");
-MODULE_AUTHOR("Alan Cox");
-MODULE_LICENSE("GPL");
 MODULE_ALIAS_CHARDEV_MAJOR(SOUND_MAJOR);
 
-static void __exit cleanup_soundcore(void)
+static void __exit cleanup_oss_soundcore(void)
 {
 	/* We have nothing to really do here - we know the lists must be
 	   empty */
 	unregister_chrdev(SOUND_MAJOR, "sound");
-	class_destroy(sound_class);
 }
 
-static int __init init_soundcore(void)
+static int __init init_oss_soundcore(void)
 {
 	if (register_chrdev(SOUND_MAJOR, "sound", &soundcore_fops)==-1) {
 		printk(KERN_ERR "soundcore: sound device already in use.\n");
 		return -EBUSY;
 	}
-	sound_class = class_create(THIS_MODULE, "sound");
-	if (IS_ERR(sound_class))
-		return PTR_ERR(sound_class);
 
 	return 0;
 }
 
-module_init(init_soundcore);
-module_exit(cleanup_soundcore);
+#endif /* CONFIG_SOUND_OSS_CORE */

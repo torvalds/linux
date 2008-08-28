@@ -44,6 +44,7 @@ config SND_SEQ_DUMMY
 	  will be called snd-seq-dummy.
 
 config SND_OSSEMUL
+	select SOUND_OSS_CORE
 	bool
 
 config SND_MIXER_OSS
