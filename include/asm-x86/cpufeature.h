@@ -20,7 +20,7 @@
 #define X86_FEATURE_DE		(0*32+ 2) /* Debugging Extensions */
 #define X86_FEATURE_PSE		(0*32+ 3) /* Page Size Extensions */
 #define X86_FEATURE_TSC		(0*32+ 4) /* Time Stamp Counter */
-#define X86_FEATURE_MSR		(0*32+ 5) /* Model-Specific Registers, RDMSR, WRMSR */
+#define X86_FEATURE_MSR		(0*32+ 5) /* Model-Specific Registers */
 #define X86_FEATURE_PAE		(0*32+ 6) /* Physical Address Extensions */
 #define X86_FEATURE_MCE		(0*32+ 7) /* Machine Check Architecture */
 #define X86_FEATURE_CX8		(0*32+ 8) /* CMPXCHG8 instruction */
@@ -29,11 +29,12 @@
 #define X86_FEATURE_MTRR	(0*32+12) /* Memory Type Range Registers */
 #define X86_FEATURE_PGE		(0*32+13) /* Page Global Enable */
 #define X86_FEATURE_MCA		(0*32+14) /* Machine Check Architecture */
-#define X86_FEATURE_CMOV	(0*32+15) /* CMOV instruction (FCMOVCC and FCOMI too if FPU present) */
+#define X86_FEATURE_CMOV	(0*32+15) /* CMOV instructions */
+					  /* (plus FCMOVcc, FCOMI with FPU) */
 #define X86_FEATURE_PAT		(0*32+16) /* Page Attribute Table */
 #define X86_FEATURE_PSE36	(0*32+17) /* 36-bit PSEs */
 #define X86_FEATURE_PN		(0*32+18) /* Processor serial number */
-#define X86_FEATURE_CLFLSH	(0*32+19) /* "clflush" Supports the CLFLUSH instruction */
+#define X86_FEATURE_CLFLSH	(0*32+19) /* "clflush" CLFLUSH instruction */
 #define X86_FEATURE_DS		(0*32+21) /* "dts" Debug Store */
 #define X86_FEATURE_ACPI	(0*32+22) /* ACPI via MSR */
 #define X86_FEATURE_MMX		(0*32+23) /* Multimedia Extensions */
@@ -83,7 +84,7 @@
 #define X86_FEATURE_BTS		(3*32+13) /* Branch Trace Store */
 #define X86_FEATURE_SYSCALL32	(3*32+14) /* "" syscall in ia32 userspace */
 #define X86_FEATURE_SYSENTER32	(3*32+15) /* "" sysenter in ia32 userspace */
-#define X86_FEATURE_REP_GOOD	(3*32+16) /* rep microcode works well on this CPU */
+#define X86_FEATURE_REP_GOOD	(3*32+16) /* rep microcode works well */
 #define X86_FEATURE_MFENCE_RDTSC (3*32+17) /* "" Mfence synchronizes RDTSC */
 #define X86_FEATURE_LFENCE_RDTSC (3*32+18) /* "" Lfence synchronizes RDTSC */
 #define X86_FEATURE_11AP	(3*32+19) /* "" Bad local APIC aka 11AP */
@@ -181,7 +182,7 @@ extern const char * const x86_power_flags[32];
 } while (0)
 #define setup_force_cpu_cap(bit) do { \
 	set_cpu_cap(&boot_cpu_data, bit);	\
-	clear_bit(bit, (unsigned long *)cleared_cpu_caps); 	\
+	clear_bit(bit, (unsigned long *)cleared_cpu_caps);	\
 } while (0)
 
 #define cpu_has_fpu		boot_cpu_has(X86_FEATURE_FPU)
