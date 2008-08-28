@@ -37,6 +37,14 @@ int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
 /*
+ * Since MCOUNT_ADDR may point to mcount itself, we do not want
+ * to get it confused by reading a reference in the code as we
+ * are parsing on objcopy output of text. Use a variable for
+ * it instead.
+ */
+static unsigned long mcount_addr = MCOUNT_ADDR;
+
+/*
  * ftrace_disabled is set when an anomaly is discovered.
  * ftrace_disabled is much stronger than ftrace_enabled.
  */
@@ -577,7 +585,7 @@ ftrace_code_disable(struct dyn_ftrace *rec)
 	ip = rec->ip;
 
 	nop = ftrace_nop_replace();
-	call = ftrace_call_replace(ip, MCOUNT_ADDR);
+	call = ftrace_call_replace(ip, mcount_addr);
 
 	failed = ftrace_modify_code(ip, call, nop);
 	if (failed) {
