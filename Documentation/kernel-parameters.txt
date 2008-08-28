@@ -463,12 +463,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			Range: 0 - 8192
 			Default: 64
 
-	disable_8254_timer
-	enable_8254_timer
-			[IA32/X86_64] Disable/Enable interrupt 0 timer routing
-			over the 8254 in addition to over the IO-APIC. The
-			kernel tries to set a sensible default.
-
 	hpet=		[X86-32,HPET] option to control HPET usage
 			Format: { enable (default) | disable | force }
 			disable: disable HPET and use PIT instead
