@@ -5226,8 +5226,12 @@ static int selinux_setprocattr(struct task_struct *p,
 
 		if (sid == 0)
 			return -EINVAL;
-
-		/* Only allow single threaded processes to change context */
+		/*
+		 * SELinux allows to change context in the following case only.
+		 *  - Single threaded processes.
+		 *  - Multi threaded processes intend to change its context into
+		 *    more restricted domain (defined by TYPEBOUNDS statement).
+		 */
 		if (atomic_read(&p->mm->mm_users) != 1) {
 			struct task_struct *g, *t;
 			struct mm_struct *mm = p->mm;
@@ -5235,11 +5239,16 @@ static int selinux_setprocattr(struct task_struct *p,
 			do_each_thread(g, t) {
 				if (t->mm == mm && t != p) {
 					read_unlock(&tasklist_lock);
-					return -EPERM;
+					error = security_bounded_transition(tsec->sid, sid);
+					if (!error)
+						goto boundary_ok;
+
+					return error;
 				}
 			} while_each_thread(g, t);
 			read_unlock(&tasklist_lock);
 		}
+boundary_ok:
 
 		/* Check permissions for the transition. */
 		error = avc_has_perm(tsec->sid, sid, SECCLASS_PROCESS,

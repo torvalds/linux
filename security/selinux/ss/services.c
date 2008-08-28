@@ -88,6 +88,11 @@ static u32 latest_granting;
 static int context_struct_to_string(struct context *context, char **scontext,
 				    u32 *scontext_len);
 
+static int context_struct_compute_av(struct context *scontext,
+				     struct context *tcontext,
+				     u16 tclass,
+				     u32 requested,
+				     struct av_decision *avd);
 /*
  * Return the boolean value of a constraint expression
  * when it is applied to the specified source and target
@@ -274,6 +279,100 @@ mls_ops:
 }
 
 /*
+ * security_boundary_permission - drops violated permissions
+ * on boundary constraint.
+ */
+static void type_attribute_bounds_av(struct context *scontext,
+				     struct context *tcontext,
+				     u16 tclass,
+				     u32 requested,
+				     struct av_decision *avd)
+{
+	struct context lo_scontext;
+	struct context lo_tcontext;
+	struct av_decision lo_avd;
+	struct type_datum *source
+		= policydb.type_val_to_struct[scontext->type - 1];
+	struct type_datum *target
+		= policydb.type_val_to_struct[tcontext->type - 1];
+	u32 masked = 0;
+
+	if (source->bounds) {
+		memset(&lo_avd, 0, sizeof(lo_avd));
+
+		memcpy(&lo_scontext, scontext, sizeof(lo_scontext));
+		lo_scontext.type = source->bounds;
+
+		context_struct_compute_av(&lo_scontext,
+					  tcontext,
+					  tclass,
+					  requested,
+					  &lo_avd);
+		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
+			return;		/* no masked permission */
+		masked = ~lo_avd.allowed & avd->allowed;
+	}
+
+	if (target->bounds) {
+		memset(&lo_avd, 0, sizeof(lo_avd));
+
+		memcpy(&lo_tcontext, tcontext, sizeof(lo_tcontext));
+		lo_tcontext.type = target->bounds;
+
+		context_struct_compute_av(scontext,
+					  &lo_tcontext,
+					  tclass,
+					  requested,
+					  &lo_avd);
+		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
+			return;		/* no masked permission */
+		masked = ~lo_avd.allowed & avd->allowed;
+	}
+
+	if (source->bounds && target->bounds) {
+		memset(&lo_avd, 0, sizeof(lo_avd));
+		/*
+		 * lo_scontext and lo_tcontext are already
+		 * set up.
+		 */
+
+		context_struct_compute_av(&lo_scontext,
+					  &lo_tcontext,
+					  tclass,
+					  requested,
+					  &lo_avd);
+		if ((lo_avd.allowed & avd->allowed) == avd->allowed)
+			return;		/* no masked permission */
+		masked = ~lo_avd.allowed & avd->allowed;
+	}
+
+	if (masked) {
+		struct audit_buffer *ab;
+		char *stype_name
+			= policydb.p_type_val_to_name[source->value - 1];
+		char *ttype_name
+			= policydb.p_type_val_to_name[target->value - 1];
+		char *tclass_name
+			= policydb.p_class_val_to_name[tclass - 1];
+
+		/* mask violated permissions */
+		avd->allowed &= ~masked;
+
+		/* notice to userspace via audit message */
+		ab = audit_log_start(current->audit_context,
+				     GFP_ATOMIC, AUDIT_SELINUX_ERR);
+		if (!ab)
+			return;
+
+		audit_log_format(ab, "av boundary violation: "
+				 "source=%s target=%s tclass=%s",
+				 stype_name, ttype_name, tclass_name);
+		avc_dump_av(ab, tclass, masked);
+		audit_log_end(ab);
+	}
+}
+
+/*
  * Compute access vectors based on a context structure pair for
  * the permissions in a particular class.
  */
@@ -403,6 +502,14 @@ static int context_struct_compute_av(struct context *scontext,
 			avd->allowed = (avd->allowed) & ~(PROCESS__TRANSITION |
 							PROCESS__DYNTRANSITION);
 	}
+
+	/*
+	 * If the given source and target types have boundary
+	 * constraint, lazy checks have to mask any violated
+	 * permission and notice it to userspace via audit.
+	 */
+	type_attribute_bounds_av(scontext, tcontext,
+				 tclass, requested, avd);
 
 	return 0;
 
@@ -548,6 +655,69 @@ out:
 	read_unlock(&policy_rwlock);
 	return rc;
 }
+
+/*
+ * security_bounded_transition - check whether the given
+ * transition is directed to bounded, or not.
+ * It returns 0, if @newsid is bounded by @oldsid.
+ * Otherwise, it returns error code.
+ *
+ * @oldsid : current security identifier
+ * @newsid : destinated security identifier
+ */
+int security_bounded_transition(u32 old_sid, u32 new_sid)
+{
+	struct context *old_context, *new_context;
+	struct type_datum *type;
+	int index;
+	int rc = -EINVAL;
+
+	read_lock(&policy_rwlock);
+
+	old_context = sidtab_search(&sidtab, old_sid);
+	if (!old_context) {
+		printk(KERN_ERR "SELinux: %s: unrecognized SID %u\n",
+		       __func__, old_sid);
+		goto out;
+	}
+
+	new_context = sidtab_search(&sidtab, new_sid);
+	if (!new_context) {
+		printk(KERN_ERR "SELinux: %s: unrecognized SID %u\n",
+		       __func__, new_sid);
+		goto out;
+	}
+
+	/* type/domain unchaned */
+	if (old_context->type == new_context->type) {
+		rc = 0;
+		goto out;
+	}
+
+	index = new_context->type;
+	while (true) {
+		type = policydb.type_val_to_struct[index - 1];
+		BUG_ON(!type);
+
+		/* not bounded anymore */
+		if (!type->bounds) {
+			rc = -EPERM;
+			break;
+		}
+
+		/* @newsid is bounded by @oldsid */
+		if (type->bounds == old_context->type) {
+			rc = 0;
+			break;
+		}
+		index = type->bounds;
+	}
+out:
+	read_unlock(&policy_rwlock);
+
+	return rc;
+}
+
 
 /**
  * security_compute_av - Compute access vector decisions.
@@ -794,7 +964,7 @@ static int string_to_context_struct(struct policydb *pol,
 	*p++ = 0;
 
 	typdatum = hashtab_search(pol->p_types.table, scontextp);
-	if (!typdatum)
+	if (!typdatum || typdatum->attribute)
 		goto out;
 
 	ctx->type = typdatum->value;
