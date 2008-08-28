@@ -782,11 +782,15 @@ skip_listen_ht:
 		struct sock *sk;
 		struct hlist_node *node;
 
+		num = 0;
+
+		if (hlist_empty(&head->chain) && hlist_empty(&head->twchain))
+			continue;
+
 		if (i > s_i)
 			s_num = 0;
 
 		read_lock_bh(lock);
-		num = 0;
 		sk_for_each(sk, node, &head->chain) {
 			struct inet_sock *inet = inet_sk(sk);
 
