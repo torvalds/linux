@@ -680,7 +680,7 @@ fore200e_sba_dma_map(struct fore200e* fore200e, void* virt_addr, int size, int d
 {
     struct sbus_dev *sdev = fore200e->bus_dev;
     struct device *dev = &sdev->ofdev.dev;
-    u32 dma_addr = sbus_map_single(dev, virt_addr, size, direction);
+    u32 dma_addr = dma_map_single(dev, virt_addr, size, direction);
 
     DPRINTK(3, "SBUS DVMA mapping: virt_addr = 0x%p, size = %d, direction = %d --> dma_addr = 0x%08x\n",
 	    virt_addr, size, direction, dma_addr);
@@ -698,7 +698,7 @@ fore200e_sba_dma_unmap(struct fore200e* fore200e, u32 dma_addr, int size, int di
     DPRINTK(3, "SBUS DVMA unmapping: dma_addr = 0x%08x, size = %d, direction = %d,\n",
 	    dma_addr, size, direction);
 
-    sbus_unmap_single(dev, dma_addr, size, direction);
+    dma_unmap_single(dev, dma_addr, size, direction);
 }
 
 
@@ -710,7 +710,7 @@ fore200e_sba_dma_sync_for_cpu(struct fore200e* fore200e, u32 dma_addr, int size,
 
     DPRINTK(3, "SBUS DVMA sync: dma_addr = 0x%08x, size = %d, direction = %d\n", dma_addr, size, direction);
     
-    sbus_dma_sync_single_for_cpu(dev, dma_addr, size, direction);
+    dma_sync_single_for_cpu(dev, dma_addr, size, direction);
 }
 
 static void
@@ -721,7 +721,7 @@ fore200e_sba_dma_sync_for_device(struct fore200e* fore200e, u32 dma_addr, int si
 
     DPRINTK(3, "SBUS DVMA sync: dma_addr = 0x%08x, size = %d, direction = %d\n", dma_addr, size, direction);
 
-    sbus_dma_sync_single_for_device(dev, dma_addr, size, direction);
+    dma_sync_single_for_device(dev, dma_addr, size, direction);
 }
 
 
@@ -738,8 +738,8 @@ fore200e_sba_dma_chunk_alloc(struct fore200e* fore200e, struct chunk* chunk,
     chunk->alloc_size = chunk->align_size = size * nbr;
 
     /* returned chunks are page-aligned */
-    chunk->alloc_addr = sbus_alloc_consistent(dev, chunk->alloc_size,
-					      &chunk->dma_addr);
+    chunk->alloc_addr = dma_alloc_coherent(dev, chunk->alloc_size,
+					   &chunk->dma_addr, GFP_ATOMIC);
 
     if ((chunk->alloc_addr == NULL) || (chunk->dma_addr == 0))
 	return -ENOMEM;
@@ -758,8 +758,8 @@ fore200e_sba_dma_chunk_free(struct fore200e* fore200e, struct chunk* chunk)
     struct sbus_dev *sdev = (struct sbus_dev *) fore200e->bus_dev;
     struct device *dev = &sdev->ofdev.dev;
 
-    sbus_free_consistent(dev, chunk->alloc_size,
-			 chunk->alloc_addr, chunk->dma_addr);
+    dma_free_coherent(dev, chunk->alloc_size,
+		      chunk->alloc_addr, chunk->dma_addr);
 }
 
 

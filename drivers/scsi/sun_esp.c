@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/init.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/irq.h>
 #include <asm/io.h>
@@ -101,8 +102,9 @@ static int __devinit esp_sbus_map_command_block(struct esp *esp)
 {
 	struct sbus_dev *sdev = esp->dev;
 
-	esp->command_block = sbus_alloc_consistent(&sdev->ofdev.dev, 16,
-						   &esp->command_block_dma);
+	esp->command_block = dma_alloc_coherent(&sdev->ofdev.dev, 16,
+						&esp->command_block_dma,
+						GFP_ATOMIC);
 	if (!esp->command_block)
 		return -ENOMEM;
 	return 0;
@@ -225,7 +227,7 @@ static dma_addr_t sbus_esp_map_single(struct esp *esp, void *buf,
 {
 	struct sbus_dev *sdev = esp->dev;
 
-	return sbus_map_single(&sdev->ofdev.dev, buf, sz, dir);
+	return dma_map_single(&sdev->ofdev.dev, buf, sz, dir);
 }
 
 static int sbus_esp_map_sg(struct esp *esp, struct scatterlist *sg,
@@ -233,7 +235,7 @@ static int sbus_esp_map_sg(struct esp *esp, struct scatterlist *sg,
 {
 	struct sbus_dev *sdev = esp->dev;
 
-	return sbus_map_sg(&sdev->ofdev.dev, sg, num_sg, dir);
+	return dma_map_sg(&sdev->ofdev.dev, sg, num_sg, dir);
 }
 
 static void sbus_esp_unmap_single(struct esp *esp, dma_addr_t addr,
@@ -241,7 +243,7 @@ static void sbus_esp_unmap_single(struct esp *esp, dma_addr_t addr,
 {
 	struct sbus_dev *sdev = esp->dev;
 
-	sbus_unmap_single(&sdev->ofdev.dev, addr, sz, dir);
+	dma_unmap_single(&sdev->ofdev.dev, addr, sz, dir);
 }
 
 static void sbus_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
@@ -249,7 +251,7 @@ static void sbus_esp_unmap_sg(struct esp *esp, struct scatterlist *sg,
 {
 	struct sbus_dev *sdev = esp->dev;
 
-	sbus_unmap_sg(&sdev->ofdev.dev, sg, num_sg, dir);
+	dma_unmap_sg(&sdev->ofdev.dev, sg, num_sg, dir);
 }
 
 static int sbus_esp_irq_pending(struct esp *esp)
@@ -558,9 +560,9 @@ static int __devinit esp_sbus_probe_one(struct device *dev,
 fail_free_irq:
 	free_irq(host->irq, esp);
 fail_unmap_command_block:
-	sbus_free_consistent(&esp_dev->ofdev.dev, 16,
-			     esp->command_block,
-			     esp->command_block_dma);
+	dma_free_coherent(&esp_dev->ofdev.dev, 16,
+			  esp->command_block,
+			  esp->command_block_dma);
 fail_unmap_regs:
 	sbus_iounmap(esp->regs, SBUS_ESP_REG_SIZE);
 fail_unlink:
@@ -609,9 +611,9 @@ static int __devexit esp_sbus_remove(struct of_device *dev)
 	dma_write32(val & ~DMA_INT_ENAB, DMA_CSR);
 
 	free_irq(irq, esp);
-	sbus_free_consistent(&sdev->ofdev.dev, 16,
-			     esp->command_block,
-			     esp->command_block_dma);
+	dma_free_coherent(&sdev->ofdev.dev, 16,
+			  esp->command_block,
+			  esp->command_block_dma);
 	sbus_iounmap(esp->regs, SBUS_ESP_REG_SIZE);
 	of_iounmap(&dma_of->resource[0], esp->dma_regs,
 		   resource_size(&dma_of->resource[0]));

@@ -24,6 +24,7 @@
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -879,12 +880,12 @@ static int __devinit qec_ether_init(struct sbus_dev *sdev)
 		goto fail;
 	}
 
-	qe->qe_block = sbus_alloc_consistent(&qe->qe_sdev->ofdev.dev,
-					     PAGE_SIZE,
-					     &qe->qblock_dvma);
-	qe->buffers = sbus_alloc_consistent(&qe->qe_sdev->ofdev.dev,
-					    sizeof(struct sunqe_buffers),
-					    &qe->buffers_dvma);
+	qe->qe_block = dma_alloc_coherent(&qe->qe_sdev->ofdev.dev,
+					  PAGE_SIZE,
+					  &qe->qblock_dvma, GFP_ATOMIC);
+	qe->buffers = dma_alloc_coherent(&qe->qe_sdev->ofdev.dev,
+					 sizeof(struct sunqe_buffers),
+					 &qe->buffers_dvma, GFP_ATOMIC);
 	if (qe->qe_block == NULL || qe->qblock_dvma == 0 ||
 	    qe->buffers == NULL || qe->buffers_dvma == 0)
 		goto fail;
@@ -926,15 +927,15 @@ fail:
 	if (qe->mregs)
 		sbus_iounmap(qe->mregs, MREGS_REG_SIZE);
 	if (qe->qe_block)
-		sbus_free_consistent(&qe->qe_sdev->ofdev.dev,
-				     PAGE_SIZE,
-				     qe->qe_block,
-				     qe->qblock_dvma);
+		dma_free_coherent(&qe->qe_sdev->ofdev.dev,
+				  PAGE_SIZE,
+				  qe->qe_block,
+				  qe->qblock_dvma);
 	if (qe->buffers)
-		sbus_free_consistent(&qe->qe_sdev->ofdev.dev,
-				     sizeof(struct sunqe_buffers),
-				     qe->buffers,
-				     qe->buffers_dvma);
+		dma_free_coherent(&qe->qe_sdev->ofdev.dev,
+				  sizeof(struct sunqe_buffers),
+				  qe->buffers,
+				  qe->buffers_dvma);
 
 	free_netdev(dev);
 
@@ -957,14 +958,14 @@ static int __devexit qec_sbus_remove(struct of_device *dev)
 
 	sbus_iounmap(qp->qcregs, CREG_REG_SIZE);
 	sbus_iounmap(qp->mregs, MREGS_REG_SIZE);
-	sbus_free_consistent(&qp->qe_sdev->ofdev.dev,
-			     PAGE_SIZE,
-			     qp->qe_block,
-			     qp->qblock_dvma);
-	sbus_free_consistent(&qp->qe_sdev->ofdev.dev,
-			     sizeof(struct sunqe_buffers),
-			     qp->buffers,
-			     qp->buffers_dvma);
+	dma_free_coherent(&qp->qe_sdev->ofdev.dev,
+			  PAGE_SIZE,
+			  qp->qe_block,
+			  qp->qblock_dvma);
+	dma_free_coherent(&qp->qe_sdev->ofdev.dev,
+			  sizeof(struct sunqe_buffers),
+			  qp->buffers,
+			  qp->buffers_dvma);
 
 	free_netdev(net_dev);
 

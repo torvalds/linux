@@ -91,6 +91,7 @@ static char lancestr[] = "LANCE";
 #include <linux/skbuff.h>
 #include <linux/ethtool.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -1283,10 +1284,10 @@ static void lance_free_hwresources(struct lance_private *lp)
 		sbus_iounmap(lp->init_block_iomem,
 			     sizeof(struct lance_init_block));
 	} else if (lp->init_block_mem) {
-		sbus_free_consistent(&lp->sdev->ofdev.dev,
-				     sizeof(struct lance_init_block),
-				     lp->init_block_mem,
-				     lp->init_block_dvma);
+		dma_free_coherent(&lp->sdev->ofdev.dev,
+				  sizeof(struct lance_init_block),
+				  lp->init_block_mem,
+				  lp->init_block_dvma);
 	}
 }
 
@@ -1384,9 +1385,9 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 		lp->tx = lance_tx_pio;
 	} else {
 		lp->init_block_mem =
-			sbus_alloc_consistent(&sdev->ofdev.dev,
-					      sizeof(struct lance_init_block),
-					      &lp->init_block_dvma);
+			dma_alloc_coherent(&sdev->ofdev.dev,
+					   sizeof(struct lance_init_block),
+					   &lp->init_block_dvma, GFP_ATOMIC);
 		if (!lp->init_block_mem || lp->init_block_dvma == 0) {
 			printk(KERN_ERR "SunLance: Cannot allocate consistent DMA memory.\n");
 			goto fail;

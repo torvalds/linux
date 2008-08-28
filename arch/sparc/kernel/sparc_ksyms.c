@@ -155,14 +155,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
 #ifdef CONFIG_SBUS
 EXPORT_SYMBOL(sbus_root);
 EXPORT_SYMBOL(sbus_set_sbus64);
-EXPORT_SYMBOL(sbus_alloc_consistent);
-EXPORT_SYMBOL(sbus_free_consistent);
-EXPORT_SYMBOL(sbus_map_single);
-EXPORT_SYMBOL(sbus_unmap_single);
-EXPORT_SYMBOL(sbus_map_sg);
-EXPORT_SYMBOL(sbus_unmap_sg);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_device);
 EXPORT_SYMBOL(sbus_iounmap);
 EXPORT_SYMBOL(sbus_ioremap);
 #endif

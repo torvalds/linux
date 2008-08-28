@@ -34,6 +34,7 @@
 #include <linux/skbuff.h>
 #include <linux/mm.h>
 #include <linux/bitops.h>
+#include <linux/dma-mapping.h>
 
 #include <asm/system.h>
 #include <asm/io.h>
@@ -277,13 +278,13 @@ do {	(__txd)->tx_addr = (__force hme32)(u32)(__addr); \
 } while(0)
 #define hme_read_desc32(__hp, __p)	((__force u32)(hme32)*(__p))
 #define hme_dma_map(__hp, __ptr, __size, __dir) \
-	sbus_map_single((__hp)->dma_dev, (__ptr), (__size), (__dir))
+	dma_map_single((__hp)->dma_dev, (__ptr), (__size), (__dir))
 #define hme_dma_unmap(__hp, __addr, __size, __dir) \
-	sbus_unmap_single((__hp)->dma_dev, (__addr), (__size), (__dir))
+	dma_unmap_single((__hp)->dma_dev, (__addr), (__size), (__dir))
 #define hme_dma_sync_for_cpu(__hp, __addr, __size, __dir) \
-	sbus_dma_sync_single_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir))
+	dma_dma_sync_single_for_cpu((__hp)->dma_dev, (__addr), (__size), (__dir))
 #define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
-	sbus_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
+	dma_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
 #else
 /* PCI only compilation */
 #define hme_write32(__hp, __reg, __val) \
@@ -313,25 +314,6 @@ static inline u32 hme_read_desc32(struct happy_meal *hp, hme32 *p)
 #define hme_dma_sync_for_device(__hp, __addr, __size, __dir) \
 	pci_dma_sync_single_for_device((__hp)->dma_dev, (__addr), (__size), (__dir))
 #endif
-#endif
-
-
-#ifdef SBUS_DMA_BIDIRECTIONAL
-#	define DMA_BIDIRECTIONAL	SBUS_DMA_BIDIRECTIONAL
-#else
-#	define DMA_BIDIRECTIONAL	0
-#endif
-
-#ifdef SBUS_DMA_FROMDEVICE
-#	define DMA_FROMDEVICE		SBUS_DMA_FROMDEVICE
-#else
-#	define DMA_TODEVICE		1
-#endif
-
-#ifdef SBUS_DMA_TODEVICE
-#	define DMA_TODEVICE		SBUS_DMA_TODEVICE
-#else
-#	define DMA_FROMDEVICE		2
 #endif
 
 
@@ -1224,7 +1206,7 @@ static void happy_meal_clean_rings(struct happy_meal *hp)
 
 			rxd = &hp->happy_block->happy_meal_rxd[i];
 			dma_addr = hme_read_desc32(hp, &rxd->rx_addr);
-			hme_dma_unmap(hp, dma_addr, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE);
+			hme_dma_unmap(hp, dma_addr, RX_BUF_ALLOC_SIZE, DMA_FROM_DEVICE);
 			dev_kfree_skb_any(skb);
 			hp->rx_skbs[i] = NULL;
 		}
@@ -1245,7 +1227,7 @@ static void happy_meal_clean_rings(struct happy_meal *hp)
 				hme_dma_unmap(hp, dma_addr,
 					      (hme_read_desc32(hp, &txd->tx_flags)
 					       & TXFLAG_SIZE),
-					      DMA_TODEVICE);
+					      DMA_TO_DEVICE);
 
 				if (frag != skb_shinfo(skb)->nr_frags)
 					i++;
@@ -1287,7 +1269,7 @@ static void happy_meal_init_rings(struct happy_meal *hp)
 		skb_put(skb, (ETH_FRAME_LEN + RX_OFFSET + 4));
 		hme_write_rxd(hp, &hb->happy_meal_rxd[i],
 			      (RXFLAG_OWN | ((RX_BUF_ALLOC_SIZE - RX_OFFSET) << 16)),
-			      hme_dma_map(hp, skb->data, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE));
+			      hme_dma_map(hp, skb->data, RX_BUF_ALLOC_SIZE, DMA_FROM_DEVICE));
 		skb_reserve(skb, RX_OFFSET);
 	}
 
@@ -1966,7 +1948,7 @@ static void happy_meal_tx(struct happy_meal *hp)
 			dma_len = hme_read_desc32(hp, &this->tx_flags);
 
 			dma_len &= TXFLAG_SIZE;
-			hme_dma_unmap(hp, dma_addr, dma_len, DMA_TODEVICE);
+			hme_dma_unmap(hp, dma_addr, dma_len, DMA_TO_DEVICE);
 
 			elem = NEXT_TX(elem);
 			this = &txbase[elem];
@@ -2044,13 +2026,13 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 				drops++;
 				goto drop_it;
 			}
-			hme_dma_unmap(hp, dma_addr, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE);
+			hme_dma_unmap(hp, dma_addr, RX_BUF_ALLOC_SIZE, DMA_FROM_DEVICE);
 			hp->rx_skbs[elem] = new_skb;
 			new_skb->dev = dev;
 			skb_put(new_skb, (ETH_FRAME_LEN + RX_OFFSET + 4));
 			hme_write_rxd(hp, this,
 				      (RXFLAG_OWN|((RX_BUF_ALLOC_SIZE-RX_OFFSET)<<16)),
-				      hme_dma_map(hp, new_skb->data, RX_BUF_ALLOC_SIZE, DMA_FROMDEVICE));
+				      hme_dma_map(hp, new_skb->data, RX_BUF_ALLOC_SIZE, DMA_FROM_DEVICE));
 			skb_reserve(new_skb, RX_OFFSET);
 
 			/* Trim the original skb for the netif. */
@@ -2065,9 +2047,9 @@ static void happy_meal_rx(struct happy_meal *hp, struct net_device *dev)
 
 			skb_reserve(copy_skb, 2);
 			skb_put(copy_skb, len);
-			hme_dma_sync_for_cpu(hp, dma_addr, len, DMA_FROMDEVICE);
+			hme_dma_sync_for_cpu(hp, dma_addr, len, DMA_FROM_DEVICE);
 			skb_copy_from_linear_data(skb, copy_skb->data, len);
-			hme_dma_sync_for_device(hp, dma_addr, len, DMA_FROMDEVICE);
+			hme_dma_sync_for_device(hp, dma_addr, len, DMA_FROM_DEVICE);
 
 			/* Reuse original ring buffer. */
 			hme_write_rxd(hp, this,
@@ -2300,7 +2282,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		u32 mapping, len;
 
 		len = skb->len;
-		mapping = hme_dma_map(hp, skb->data, len, DMA_TODEVICE);
+		mapping = hme_dma_map(hp, skb->data, len, DMA_TO_DEVICE);
 		tx_flags |= (TXFLAG_SOP | TXFLAG_EOP);
 		hme_write_txd(hp, &hp->happy_block->happy_meal_txd[entry],
 			      (tx_flags | (len & TXFLAG_SIZE)),
@@ -2314,7 +2296,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		 * Otherwise we could race with the device.
 		 */
 		first_len = skb_headlen(skb);
-		first_mapping = hme_dma_map(hp, skb->data, first_len, DMA_TODEVICE);
+		first_mapping = hme_dma_map(hp, skb->data, first_len, DMA_TO_DEVICE);
 		entry = NEXT_TX(entry);
 
 		for (frag = 0; frag < skb_shinfo(skb)->nr_frags; frag++) {
@@ -2325,7 +2307,7 @@ static int happy_meal_start_xmit(struct sk_buff *skb, struct net_device *dev)
 			mapping = hme_dma_map(hp,
 					      ((void *) page_address(this_frag->page) +
 					       this_frag->page_offset),
-					      len, DMA_TODEVICE);
+					      len, DMA_TO_DEVICE);
 			this_txflags = tx_flags;
 			if (frag == skb_shinfo(skb)->nr_frags - 1)
 				this_txflags |= TXFLAG_EOP;
@@ -2786,9 +2768,10 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	hp->happy_bursts = of_getintprop_default(sdev->bus->ofdev.node,
 						 "burst-sizes", 0x00);
 
-	hp->happy_block = sbus_alloc_consistent(hp->dma_dev,
-						PAGE_SIZE,
-						&hp->hblock_dvma);
+	hp->happy_block = dma_alloc_coherent(hp->dma_dev,
+					     PAGE_SIZE,
+					     &hp->hblock_dvma,
+					     GFP_ATOMIC);
 	err = -ENOMEM;
 	if (!hp->happy_block) {
 		printk(KERN_ERR "happymeal: Cannot allocate descriptors.\n");
@@ -2824,12 +2807,12 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	hp->read_desc32 = sbus_hme_read_desc32;
 	hp->write_txd = sbus_hme_write_txd;
 	hp->write_rxd = sbus_hme_write_rxd;
-	hp->dma_map = (u32 (*)(void *, void *, long, int))sbus_map_single;
-	hp->dma_unmap = (void (*)(void *, u32, long, int))sbus_unmap_single;
+	hp->dma_map = (u32 (*)(void *, void *, long, int))dma_map_single;
+	hp->dma_unmap = (void (*)(void *, u32, long, int))dma_unmap_single;
 	hp->dma_sync_for_cpu = (void (*)(void *, u32, long, int))
-		sbus_dma_sync_single_for_cpu;
+		dma_sync_single_for_cpu;
 	hp->dma_sync_for_device = (void (*)(void *, u32, long, int))
-		sbus_dma_sync_single_for_device;
+		dma_sync_single_for_device;
 	hp->read32 = sbus_hme_read32;
 	hp->write32 = sbus_hme_write32;
 #endif
@@ -2844,7 +2827,7 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 	if (register_netdev(hp->dev)) {
 		printk(KERN_ERR "happymeal: Cannot register net device, "
 		       "aborting.\n");
-		goto err_out_free_consistent;
+		goto err_out_free_coherent;
 	}
 
 	dev_set_drvdata(&sdev->ofdev.dev, hp);
@@ -2860,11 +2843,11 @@ static int __devinit happy_meal_sbus_probe_one(struct sbus_dev *sdev, int is_qfe
 
 	return 0;
 
-err_out_free_consistent:
-	sbus_free_consistent(hp->dma_dev,
-			     PAGE_SIZE,
-			     hp->happy_block,
-			     hp->hblock_dvma);
+err_out_free_coherent:
+	dma_free_coherent(hp->dma_dev,
+			  PAGE_SIZE,
+			  hp->happy_block,
+			  hp->hblock_dvma);
 
 err_out_iounmap:
 	if (hp->gregs)
@@ -3308,10 +3291,10 @@ static int __devexit hme_sbus_remove(struct of_device *dev)
 	sbus_iounmap(hp->erxregs, ERX_REG_SIZE);
 	sbus_iounmap(hp->bigmacregs, BMAC_REG_SIZE);
 	sbus_iounmap(hp->tcvregs, TCVR_REG_SIZE);
-	sbus_free_consistent(hp->dma_dev,
-			     PAGE_SIZE,
-			     hp->happy_block,
-			     hp->hblock_dvma);
+	dma_free_coherent(hp->dma_dev,
+			  PAGE_SIZE,
+			  hp->happy_block,
+			  hp->hblock_dvma);
 
 	free_netdev(net_dev);
 

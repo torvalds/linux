@@ -162,14 +162,6 @@ EXPORT_SYMBOL(auxio_set_lte);
 #ifdef CONFIG_SBUS
 EXPORT_SYMBOL(sbus_root);
 EXPORT_SYMBOL(sbus_set_sbus64);
-EXPORT_SYMBOL(sbus_alloc_consistent);
-EXPORT_SYMBOL(sbus_free_consistent);
-EXPORT_SYMBOL(sbus_map_single);
-EXPORT_SYMBOL(sbus_unmap_single);
-EXPORT_SYMBOL(sbus_map_sg);
-EXPORT_SYMBOL(sbus_unmap_sg);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_cpu);
-EXPORT_SYMBOL(sbus_dma_sync_single_for_device);
 #endif
 EXPORT_SYMBOL(outsb);
 EXPORT_SYMBOL(outsw);

@@ -57,6 +57,7 @@
 #include <linux/delay.h>
 #include <linux/irq.h>
 #include <linux/io.h>
+#include <linux/dma-mapping.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -2093,15 +2094,15 @@ static int snd_dbri_hw_params(struct snd_pcm_substream *substream,
 	 */
 	if (info->dvma_buffer == 0) {
 		if (DBRI_STREAMNO(substream) == DBRI_PLAY)
-			direction = SBUS_DMA_TODEVICE;
+			direction = DMA_TO_DEVICE;
 		else
-			direction = SBUS_DMA_FROMDEVICE;
+			direction = DMA_FROM_DEVICE;
 
 		info->dvma_buffer =
-			sbus_map_single(&dbri->sdev->ofdev.dev,
-					runtime->dma_area,
-					params_buffer_bytes(hw_params),
-					direction);
+			dma_map_single(&dbri->sdev->ofdev.dev,
+				       runtime->dma_area,
+				       params_buffer_bytes(hw_params),
+				       direction);
 	}
 
 	direction = params_buffer_bytes(hw_params);
@@ -2122,12 +2123,12 @@ static int snd_dbri_hw_free(struct snd_pcm_substream *substream)
 	 */
 	if (info->dvma_buffer) {
 		if (DBRI_STREAMNO(substream) == DBRI_PLAY)
-			direction = SBUS_DMA_TODEVICE;
+			direction = DMA_TO_DEVICE;
 		else
-			direction = SBUS_DMA_FROMDEVICE;
+			direction = DMA_FROM_DEVICE;
 
-		sbus_unmap_single(&dbri->sdev->ofdev.dev, info->dvma_buffer,
-				  substream->runtime->buffer_size, direction);
+		dma_unmap_single(&dbri->sdev->ofdev.dev, info->dvma_buffer,
+				 substream->runtime->buffer_size, direction);
 		info->dvma_buffer = 0;
 	}
 	if (info->pipe != -1) {
@@ -2525,9 +2526,9 @@ static int __devinit snd_dbri_create(struct snd_card *card,
 	dbri->sdev = sdev;
 	dbri->irq = irq;
 
-	dbri->dma = sbus_alloc_consistent(&sdev->ofdev.dev,
-					  sizeof(struct dbri_dma),
-					  &dbri->dma_dvma);
+	dbri->dma = dma_alloc_coherent(&sdev->ofdev.dev,
+				       sizeof(struct dbri_dma),
+				       &dbri->dma_dvma, GFP_ATOMIC);
 	memset((void *)dbri->dma, 0, sizeof(struct dbri_dma));
 
 	dprintk(D_GEN, "DMA Cmd Block 0x%p (0x%08x)\n",
@@ -2539,8 +2540,8 @@ static int __devinit snd_dbri_create(struct snd_card *card,
 				  dbri->regs_size, "DBRI Registers");
 	if (!dbri->regs) {
 		printk(KERN_ERR "DBRI: could not allocate registers\n");
-		sbus_free_consistent(&sdev->ofdev.dev, sizeof(struct dbri_dma),
-				     (void *)dbri->dma, dbri->dma_dvma);
+		dma_free_coherent(&sdev->ofdev.dev, sizeof(struct dbri_dma),
+				  (void *)dbri->dma, dbri->dma_dvma);
 		return -EIO;
 	}
 
@@ -2549,8 +2550,8 @@ static int __devinit snd_dbri_create(struct snd_card *card,
 	if (err) {
 		printk(KERN_ERR "DBRI: Can't get irq %d\n", dbri->irq);
 		sbus_iounmap(dbri->regs, dbri->regs_size);
-		sbus_free_consistent(&sdev->ofdev.dev, sizeof(struct dbri_dma),
-				     (void *)dbri->dma, dbri->dma_dvma);
+		dma_free_coherent(&sdev->ofdev.dev, sizeof(struct dbri_dma),
+				  (void *)dbri->dma, dbri->dma_dvma);
 		return err;
 	}
 
@@ -2577,9 +2578,9 @@ static void snd_dbri_free(struct snd_dbri *dbri)
 		sbus_iounmap(dbri->regs, dbri->regs_size);
 
 	if (dbri->dma)
-		sbus_free_consistent(&dbri->sdev->ofdev.dev,
-				     sizeof(struct dbri_dma),
-				     (void *)dbri->dma, dbri->dma_dvma);
+		dma_free_coherent(&dbri->sdev->ofdev.dev,
+				  sizeof(struct dbri_dma),
+				  (void *)dbri->dma, dbri->dma_dvma);
 }
 
 static int __devinit dbri_probe(struct of_device *of_dev,
