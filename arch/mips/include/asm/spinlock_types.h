@@ -6,7 +6,12 @@
 #endif
 
 typedef struct {
-	volatile unsigned int lock;
+	/*
+	 * bits  0..13: serving_now
+	 * bits 14    : junk data
+	 * bits 15..28: ticket
+	 */
+	unsigned int lock;
 } raw_spinlock_t;
 
 #define __RAW_SPIN_LOCK_UNLOCKED	{ 0 }
