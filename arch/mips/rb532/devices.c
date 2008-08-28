@@ -49,8 +49,6 @@
 #define GPIO_ALE (1 << 0x0a)
 #define GPIO_CLE (1 << 0x0b)
 
-extern char *board_type;
-
 static struct resource korina_dev0_res[] = {
 	{
 		.name = "korina_regs",
@@ -265,14 +263,6 @@ static void __init parse_mac_addr(char *macstr)
 }
 
 
-/* DEVICE CONTROLLER 1 */
-#define CFG_DC_DEV1 	((void *)0xb8010010)
-#define CFG_DC_DEV2 	((void *)0xb8010020)
-#define CFG_DC_DEVBASE    0x0
-#define CFG_DC_DEVMASK    0x4
-#define CFG_DC_DEVC       0x8
-#define CFG_DC_DEVTC      0xC
-
 /* NAND definitions */
 #define NAND_CHIP_DELAY	25
 
@@ -301,16 +291,16 @@ static void __init rb532_nand_setup(void)
 static int __init plat_setup_devices(void)
 {
 	/* Look for the CF card reader */
-	if (!readl(CFG_DC_DEV1 + CFG_DC_DEVMASK))
+	if (!readl(IDT434_REG_BASE + DEV1MASK))
 		rb532_devs[1] = NULL;
 	else {
 		cf_slot0_res[0].start =
-		    readl(CFG_DC_DEV1 + CFG_DC_DEVBASE);
+		    readl(IDT434_REG_BASE + DEV1BASE);
 		cf_slot0_res[0].end = cf_slot0_res[0].start + 0x1000;
 	}
 
 	/* Read the NAND resources from the device controller */
-	nand_slot0_res[0].start = readl(CFG_DC_DEV2 + CFG_DC_DEVBASE);
+	nand_slot0_res[0].start = readl(IDT434_REG_BASE + DEV2BASE);
 	nand_slot0_res[0].end = nand_slot0_res[0].start + 0x1000;
 
 	/* Initialise the NAND device */
