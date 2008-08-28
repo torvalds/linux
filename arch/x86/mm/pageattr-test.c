@@ -32,7 +32,7 @@ enum {
 	GPS			= (1<<30)
 };
 
-#define PAGE_TESTBIT	__pgprot(_PAGE_UNUSED1)
+#define PAGE_CPA_TEST	__pgprot(_PAGE_CPA_TEST)
 
 static int pte_testbit(pte_t pte)
 {
@@ -174,7 +174,7 @@ static int pageattr_test(void)
 		}
 
 		test_addr = addr[i];
-		err = change_page_attr_set(&test_addr, len[i], PAGE_TESTBIT, 0);
+		err = change_page_attr_set(&test_addr, len[i], PAGE_CPA_TEST, 0);
 		if (err < 0) {
 			printk(KERN_ERR "CPA %d failed %d\n", i, err);
 			failed++;
@@ -207,7 +207,7 @@ static int pageattr_test(void)
 			continue;
 		}
 		test_addr = addr[i];
-		err = change_page_attr_clear(&test_addr, len[i], PAGE_TESTBIT, 0);
+		err = change_page_attr_clear(&test_addr, len[i], PAGE_CPA_TEST, 0);
 		if (err < 0) {
 			printk(KERN_ERR "CPA reverting failed: %d\n", err);
 			failed++;
