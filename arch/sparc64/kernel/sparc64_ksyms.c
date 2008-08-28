@@ -44,7 +44,6 @@
 #include <asm/pgalloc.h>
 #include <asm/cacheflush.h>
 #ifdef CONFIG_SBUS
-#include <asm/sbus.h>
 #include <asm/dma.h>
 #endif
 #ifdef CONFIG_PCI

@@ -9,7 +9,6 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <asm/mbus.h>
-#include <asm/sbus.h>
 
 static char shouldnothappen[] __initdata = "SUN4 kernel can only run on SUN4\n";
 

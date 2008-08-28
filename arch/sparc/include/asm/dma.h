@@ -91,8 +91,6 @@ extern int isa_dma_bridge_buggy;
 
 #ifdef CONFIG_SPARC32
 
-#include <asm/sbus.h>
-
 /* Routines for data transfer buffers. */
 BTFIXUPDEF_CALL(char *, mmu_lockarea, char *, unsigned long)
 BTFIXUPDEF_CALL(void,   mmu_unlockarea, char *, unsigned long)

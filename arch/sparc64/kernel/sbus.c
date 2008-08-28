@@ -11,15 +11,17 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/page.h>
-#include <asm/sbus.h>
 #include <asm/io.h>
 #include <asm/upa.h>
 #include <asm/cache.h>
 #include <asm/dma.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
+#include <asm/oplib.h>
 #include <asm/starfire.h>
 
 #include "iommu_common.h"

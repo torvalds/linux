@@ -13,10 +13,11 @@
 #include <linux/slab.h>
 #include <linux/highmem.h>	/* pte_offset_map => kmap_atomic */
 #include <linux/scatterlist.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/pgalloc.h>
 #include <asm/pgtable.h>
-#include <asm/sbus.h>
 #include <asm/io.h>
 #include <asm/mxcc.h>
 #include <asm/mbus.h>

@@ -43,7 +43,6 @@
 #include <asm/uaccess.h>
 #include <asm/checksum.h>
 #ifdef CONFIG_SBUS
-#include <asm/sbus.h>
 #include <asm/dma.h>
 #endif
 #ifdef CONFIG_PCI
