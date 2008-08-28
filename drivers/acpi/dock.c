@@ -738,7 +738,8 @@ static void dock_notify(acpi_handle handle, u32 event, void *data)
 		/* Fall back */
 	case ACPI_NOTIFY_EJECT_REQUEST:
 		begin_undock(ds);
-		if (immediate_undock || surprise_removal)
+		if ((immediate_undock && !(ds->flags & DOCK_IS_ATA))
+		   || surprise_removal)
 			handle_eject_request(ds, event);
 		else
 			dock_event(ds, event, UNDOCK_EVENT);
