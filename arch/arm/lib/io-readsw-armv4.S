@@ -128,3 +128,4 @@ ENTRY(__raw_readsw)
    _BE_ONLY_(	movne	ip, ip, lsr #24		)
 		strneb	ip, [r1]
 		ldmfd	sp!, {r4, pc}
+ENDPROC(__raw_readsw)

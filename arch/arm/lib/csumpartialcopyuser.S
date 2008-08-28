@@ -82,6 +82,7 @@
  */
 
 #define FN_ENTRY	ENTRY(csum_partial_copy_from_user)
+#define FN_EXIT		ENDPROC(csum_partial_copy_from_user)
 
 #include "csumpartialcopygeneric.S"
 

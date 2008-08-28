@@ -421,6 +421,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		add	r1, r1, #1048576
 		str	r1, [r0]
 		mov	pc, lr
+ENDPROC(__setup_mmu)
 
 __armv4_mmu_cache_on:
 		mov	r12, lr

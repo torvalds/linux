@@ -44,6 +44,7 @@ USER(		strnebt	r2, [r0], #1)
 USER(		strnebt	r2, [r0], #1)
 		mov	r0, #0
 		ldmfd	sp!, {r1, pc}
+ENDPROC(__clear_user)
 
 		.section .fixup,"ax"
 		.align	0

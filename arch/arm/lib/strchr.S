@@ -24,3 +24,4 @@ ENTRY(strchr)
 		movne	r0, #0
 		subeq	r0, r0, #1
 		mov	pc, lr
+ENDPROC(strchr)

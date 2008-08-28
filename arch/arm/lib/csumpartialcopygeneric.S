@@ -329,3 +329,4 @@ FN_ENTRY
 		adcs	sum, sum, r4, push #24
 		mov	r5, r4, get_byte_1
 		b	.Lexit
+FN_EXIT

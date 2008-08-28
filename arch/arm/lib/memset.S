@@ -124,3 +124,4 @@ ENTRY(memset)
 	tst	r2, #1
 	strneb	r1, [r0], #1
 	mov	pc, lr
+ENDPROC(memset)

@@ -66,6 +66,7 @@ finished:
 	mcr	p15, 2, r10, c0, c0, 0		@ select current cache level in cssr
 	isb
 	mov	pc, lr
+ENDPROC(v7_flush_dcache_all)
 
 /*
  *	v7_flush_cache_all()
@@ -85,6 +86,7 @@ ENTRY(v7_flush_kern_cache_all)
 	mcr	p15, 0, r0, c7, c5, 0		@ I+BTB cache invalidate
 	ldmfd	sp!, {r4-r5, r7, r9-r11, lr}
 	mov	pc, lr
+ENDPROC(v7_flush_kern_cache_all)
 
 /*
  *	v7_flush_cache_all()
@@ -110,6 +112,8 @@ ENTRY(v7_flush_user_cache_all)
  */
 ENTRY(v7_flush_user_cache_range)
 	mov	pc, lr
+ENDPROC(v7_flush_user_cache_all)
+ENDPROC(v7_flush_user_cache_range)
 
 /*
  *	v7_coherent_kern_range(start,end)
@@ -155,6 +159,8 @@ ENTRY(v7_coherent_user_range)
 	dsb
 	isb
 	mov	pc, lr
+ENDPROC(v7_coherent_kern_range)
+ENDPROC(v7_coherent_user_range)
 
 /*
  *	v7_flush_kern_dcache_page(kaddr)
@@ -174,6 +180,7 @@ ENTRY(v7_flush_kern_dcache_page)
 	blo	1b
 	dsb
 	mov	pc, lr
+ENDPROC(v7_flush_kern_dcache_page)
 
 /*
  *	v7_dma_inv_range(start,end)
@@ -202,6 +209,7 @@ ENTRY(v7_dma_inv_range)
 	blo	1b
 	dsb
 	mov	pc, lr
+ENDPROC(v7_dma_inv_range)
 
 /*
  *	v7_dma_clean_range(start,end)
@@ -219,6 +227,7 @@ ENTRY(v7_dma_clean_range)
 	blo	1b
 	dsb
 	mov	pc, lr
+ENDPROC(v7_dma_clean_range)
 
 /*
  *	v7_dma_flush_range(start,end)
@@ -236,6 +245,7 @@ ENTRY(v7_dma_flush_range)
 	blo	1b
 	dsb
 	mov	pc, lr
+ENDPROC(v7_dma_flush_range)
 
 	__INITDATA
 

@@ -25,9 +25,11 @@
 
 ENTRY(cpu_v7_proc_init)
 	mov	pc, lr
+ENDPROC(cpu_v7_proc_init)
 
 ENTRY(cpu_v7_proc_fin)
 	mov	pc, lr
+ENDPROC(cpu_v7_proc_fin)
 
 /*
  *	cpu_v7_reset(loc)
@@ -43,6 +45,7 @@ ENTRY(cpu_v7_proc_fin)
 	.align	5
 ENTRY(cpu_v7_reset)
 	mov	pc, r0
+ENDPROC(cpu_v7_reset)
 
 /*
  *	cpu_v7_do_idle()
@@ -54,6 +57,7 @@ ENTRY(cpu_v7_reset)
 ENTRY(cpu_v7_do_idle)
 	.long	0xe320f003			@ ARM V7 WFI instruction
 	mov	pc, lr
+ENDPROC(cpu_v7_do_idle)
 
 ENTRY(cpu_v7_dcache_clean_area)
 #ifndef TLB_CAN_READ_FROM_L1_CACHE
@@ -65,6 +69,7 @@ ENTRY(cpu_v7_dcache_clean_area)
 	dsb
 #endif
 	mov	pc, lr
+ENDPROC(cpu_v7_dcache_clean_area)
 
 /*
  *	cpu_v7_switch_mm(pgd_phys, tsk)
@@ -89,6 +94,7 @@ ENTRY(cpu_v7_switch_mm)
 	isb
 #endif
 	mov	pc, lr
+ENDPROC(cpu_v7_switch_mm)
 
 /*
  *	cpu_v7_set_pte_ext(ptep, pte)
@@ -141,6 +147,7 @@ ENTRY(cpu_v7_set_pte_ext)
 	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #endif
 	mov	pc, lr
+ENDPROC(cpu_v7_set_pte_ext)
 
 cpu_v7_name:
 	.ascii	"ARMv7 Processor"
@@ -188,6 +195,7 @@ __v7_setup:
 	bic	r0, r0, r5			@ clear bits them
 	orr	r0, r0, r6			@ set them
 	mov	pc, lr				@ return to head.S:__ret
+ENDPROC(__v7_setup)
 
 	/*
 	 *         V X F   I D LR

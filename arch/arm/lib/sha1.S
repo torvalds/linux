@@ -185,6 +185,8 @@ ENTRY(sha_transform)
 
 	ldmfd	sp!, {r4 - r8, pc}
 
+ENDPROC(sha_transform)
+
 .L_sha_K:
 	.word	0x5a827999, 0x6ed9eba1, 0x8f1bbcdc, 0xca62c1d6
 
@@ -204,3 +206,4 @@ ENTRY(sha_init)
 	stmia	r0, {r1, r2, r3, ip, lr}
 	ldr	pc, [sp], #4
 
+ENDPROC(sha_init)
