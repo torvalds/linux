@@ -27,91 +27,20 @@
 #include "xattr.h"
 #include "disk-io.h"
 
-static struct xattr_handler *btrfs_xattr_handler_map[] = {
-	[BTRFS_XATTR_INDEX_USER]		= &btrfs_xattr_user_handler,
-#ifdef CONFIG_FS_POSIX_ACL
-	[BTRFS_XATTR_INDEX_POSIX_ACL_ACCESS]	= &btrfs_xattr_acl_access_handler,
-	[BTRFS_XATTR_INDEX_POSIX_ACL_DEFAULT]	= &btrfs_xattr_acl_default_handler,
-#endif
-	[BTRFS_XATTR_INDEX_TRUSTED]		= &btrfs_xattr_trusted_handler,
-	[BTRFS_XATTR_INDEX_SECURITY]		= &btrfs_xattr_security_handler,
-	[BTRFS_XATTR_INDEX_SYSTEM]		= &btrfs_xattr_system_handler,
-};
 
-struct xattr_handler *btrfs_xattr_handlers[] = {
-	&btrfs_xattr_user_handler,
-#ifdef CONFIG_FS_POSIX_ACL
-	&btrfs_xattr_acl_access_handler,
-	&btrfs_xattr_acl_default_handler,
-#endif
-	&btrfs_xattr_trusted_handler,
-	&btrfs_xattr_security_handler,
-	&btrfs_xattr_system_handler,
-	NULL,
-};
-
-/*
- * @param name_index - the index for the xattr handler
- * @return the xattr_handler if we found it, NULL otherwise
- *
- * use this if we know the type of the xattr already
- */
-static struct xattr_handler *btrfs_xattr_handler(int name_index)
-{
-	struct xattr_handler *handler = NULL;
-
-	if (name_index >= 0 &&
-	    name_index < ARRAY_SIZE(btrfs_xattr_handler_map))
-		handler = btrfs_xattr_handler_map[name_index];
-
-	return handler;
-}
-
-static inline char *get_name(const char *name, int name_index)
-{
-	char *ret = NULL;
-	struct xattr_handler *handler = btrfs_xattr_handler(name_index);
-	int prefix_len;
-
-	if (!handler)
-		return ret;
-
-	prefix_len = strlen(handler->prefix);
-
-	ret = kmalloc(strlen(name) + prefix_len + 1, GFP_KERNEL);
-	if (!ret)
-		return ret;
-
-	memcpy(ret, handler->prefix, prefix_len);
-	memcpy(ret+prefix_len, name, strlen(name));
-	ret[prefix_len + strlen(name)] = '\0';
-
-	return ret;
-}
-
-ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
-			const char *attr_name, void *buffer, size_t size)
+ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
+				void *buffer, size_t size)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path;
 	struct extent_buffer *leaf;
-	struct xattr_handler *handler = btrfs_xattr_handler(name_index);
 	int ret = 0;
 	unsigned long data_ptr;
-	char *name;
-
-	if (!handler)
-		return -EOPNOTSUPP;
-	name = get_name(attr_name, name_index);
-	if (!name)
-		return -ENOMEM;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		kfree(name);
+	if (!path)
 		return -ENOMEM;
-	}
 
 	/* lookup the xattr by name */
 	di = btrfs_lookup_xattr(NULL, root, path, inode->i_ino, name,
@@ -140,33 +69,22 @@ ssize_t btrfs_xattr_get(struct inode *inode, int name_index,
 	ret = btrfs_dir_data_len(leaf, di);
 
 out:
-	kfree(name);
 	btrfs_free_path(path);
 	return ret;
 }
 
-int btrfs_xattr_set(struct inode *inode, int name_index,
-		    const char *attr_name, const void *value, size_t size,
-		    int flags)
+int __btrfs_setxattr(struct inode *inode, const char *name,
+			    const void *value, size_t size, int flags)
 {
 	struct btrfs_dir_item *di;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_trans_handle *trans;
 	struct btrfs_path *path;
-	struct xattr_handler *handler = btrfs_xattr_handler(name_index);
-	char *name;
 	int ret = 0, mod = 0;
-	if (!handler)
-		return -EOPNOTSUPP;
-	name = get_name(attr_name, name_index);
-	if (!name)
-		return -ENOMEM;
 
 	path = btrfs_alloc_path();
-	if (!path) {
-		kfree(name);
+	if (!path)
 		return -ENOMEM;
-	}
 
 	trans = btrfs_start_transaction(root, 1);
 	btrfs_set_trans_block_group(trans, inode);
@@ -221,9 +139,7 @@ out:
 	}
 
 	btrfs_end_transaction(trans, root);
-	kfree(name);
 	btrfs_free_path(path);
-
 	return ret;
 }
 
@@ -329,51 +245,77 @@ err:
 }
 
 /*
- * Handler functions
+ * List of handlers for synthetic system.* attributes.  All real ondisk
+ * attributes are handled directly.
  */
-#define BTRFS_XATTR_SETGET_FUNCS(name, index)				\
-static int btrfs_xattr_##name##_get(struct inode *inode,		\
-				    const char *name, void *value,	\
-				    size_t size)			\
-{									\
-	if (*name == '\0')						\
-		return -EINVAL;						\
-	return btrfs_xattr_get(inode, index, name, value, size);	\
-}									\
-static int btrfs_xattr_##name##_set(struct inode *inode,		\
-				    const char *name, const void *value,\
-				    size_t size, int flags)		\
-{									\
-	if (*name == '\0')						\
-		return -EINVAL;						\
-	return btrfs_xattr_set(inode, index, name, value, size, flags);	\
+struct xattr_handler *btrfs_xattr_handlers[] = {
+#ifdef CONFIG_FS_POSIX_ACL
+	&btrfs_xattr_acl_access_handler,
+	&btrfs_xattr_acl_default_handler,
+#endif
+	NULL,
+};
+
+/*
+ * Check if the attribute is in a supported namespace.
+ *
+ * This applied after the check for the synthetic attributes in the system
+ * namespace.
+ */
+static bool btrfs_is_valid_xattr(const char *name)
+{
+	return !strncmp(name, XATTR_SECURITY_PREFIX, XATTR_SECURITY_PREFIX_LEN) ||
+	       !strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN) ||
+	       !strncmp(name, XATTR_TRUSTED_PREFIX, XATTR_TRUSTED_PREFIX_LEN) ||
+	       !strncmp(name, XATTR_USER_PREFIX, XATTR_USER_PREFIX_LEN);
 }
 
-BTRFS_XATTR_SETGET_FUNCS(security, BTRFS_XATTR_INDEX_SECURITY);
-BTRFS_XATTR_SETGET_FUNCS(system, BTRFS_XATTR_INDEX_SYSTEM);
-BTRFS_XATTR_SETGET_FUNCS(user, BTRFS_XATTR_INDEX_USER);
-BTRFS_XATTR_SETGET_FUNCS(trusted, BTRFS_XATTR_INDEX_TRUSTED);
+ssize_t btrfs_getxattr(struct dentry *dentry, const char *name,
+		       void *buffer, size_t size)
+{
+	/*
+	 * If this is a request for a synthetic attribute in the system.*
+	 * namespace use the generic infrastructure to resolve a handler
+	 * for it via sb->s_xattr.
+	 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return generic_getxattr(dentry, name, buffer, size);
 
-struct xattr_handler btrfs_xattr_security_handler = {
-	.prefix = XATTR_SECURITY_PREFIX,
-	.get	= btrfs_xattr_security_get,
-	.set	= btrfs_xattr_security_set,
-};
+	if (!btrfs_is_valid_xattr(name))
+		return -EOPNOTSUPP;
+	return __btrfs_getxattr(dentry->d_inode, name, buffer, size);
+}
 
-struct xattr_handler btrfs_xattr_system_handler = {
-	.prefix = XATTR_SYSTEM_PREFIX,
-	.get	= btrfs_xattr_system_get,
-	.set	= btrfs_xattr_system_set,
-};
+int btrfs_setxattr(struct dentry *dentry, const char *name, const void *value,
+		   size_t size, int flags)
+{
+	/*
+	 * If this is a request for a synthetic attribute in the system.*
+	 * namespace use the generic infrastructure to resolve a handler
+	 * for it via sb->s_xattr.
+	 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return generic_setxattr(dentry, name, value, size, flags);
 
-struct xattr_handler btrfs_xattr_user_handler = {
-	.prefix	= XATTR_USER_PREFIX,
-	.get	= btrfs_xattr_user_get,
-	.set	= btrfs_xattr_user_set,
-};
+	if (!btrfs_is_valid_xattr(name))
+		return -EOPNOTSUPP;
 
-struct xattr_handler btrfs_xattr_trusted_handler = {
-	.prefix = XATTR_TRUSTED_PREFIX,
-	.get	= btrfs_xattr_trusted_get,
-	.set	= btrfs_xattr_trusted_set,
-};
+	if (size == 0)
+		value = "";  /* empty EA, do not remove */
+	return __btrfs_setxattr(dentry->d_inode, name, value, size, flags);
+}
+
+int btrfs_removexattr(struct dentry *dentry, const char *name)
+{
+	/*
+	 * If this is a request for a synthetic attribute in the system.*
+	 * namespace use the generic infrastructure to resolve a handler
+	 * for it via sb->s_xattr.
+	 */
+	if (!strncmp(name, XATTR_SYSTEM_PREFIX, XATTR_SYSTEM_PREFIX_LEN))
+		return generic_removexattr(dentry, name);
+
+	if (!btrfs_is_valid_xattr(name))
+		return -EOPNOTSUPP;
+	return __btrfs_setxattr(dentry->d_inode, name, NULL, 0, XATTR_REPLACE);
+}

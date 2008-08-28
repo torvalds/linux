@@ -45,6 +45,7 @@
 #include "print-tree.h"
 #include "volumes.h"
 #include "ordered-data.h"
+#include "xattr.h"
 
 struct btrfs_iget_args {
 	u64 ino;
@@ -3667,10 +3668,10 @@ static struct inode_operations btrfs_dir_inode_operations = {
 	.symlink	= btrfs_symlink,
 	.setattr	= btrfs_setattr,
 	.mknod		= btrfs_mknod,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
+	.setxattr	= btrfs_setxattr,
+	.getxattr	= btrfs_getxattr,
 	.listxattr	= btrfs_listxattr,
-	.removexattr	= generic_removexattr,
+	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
 };
 static struct inode_operations btrfs_dir_ro_inode_operations = {
@@ -3728,20 +3729,20 @@ static struct inode_operations btrfs_file_inode_operations = {
 	.truncate	= btrfs_truncate,
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
+	.setxattr	= btrfs_setxattr,
+	.getxattr	= btrfs_getxattr,
 	.listxattr      = btrfs_listxattr,
-	.removexattr	= generic_removexattr,
+	.removexattr	= btrfs_removexattr,
 	.permission	= btrfs_permission,
 };
 static struct inode_operations btrfs_special_inode_operations = {
 	.getattr	= btrfs_getattr,
 	.setattr	= btrfs_setattr,
 	.permission	= btrfs_permission,
-	.setxattr	= generic_setxattr,
-	.getxattr	= generic_getxattr,
+	.setxattr	= btrfs_setxattr,
+	.getxattr	= btrfs_getxattr,
 	.listxattr	= btrfs_listxattr,
-	.removexattr	= generic_removexattr,
+	.removexattr	= btrfs_removexattr,
 };
 static struct inode_operations btrfs_symlink_inode_operations = {
 	.readlink	= generic_readlink,

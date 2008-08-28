@@ -20,31 +20,20 @@
 #define __XATTR__
 
 #include <linux/xattr.h>
-#include "ctree.h"
 
-/* Name indexes */
-enum {
-	BTRFS_XATTR_INDEX_USER,
-	BTRFS_XATTR_INDEX_POSIX_ACL_ACCESS,
-	BTRFS_XATTR_INDEX_POSIX_ACL_DEFAULT,
-	BTRFS_XATTR_INDEX_TRUSTED,
-	BTRFS_XATTR_INDEX_SECURITY,
-	BTRFS_XATTR_INDEX_SYSTEM,
-	BTRFS_XATTR_INDEX_END,
-};
-
-extern struct xattr_handler btrfs_xattr_user_handler;
-extern struct xattr_handler btrfs_xattr_trusted_handler;
 extern struct xattr_handler btrfs_xattr_acl_access_handler;
 extern struct xattr_handler btrfs_xattr_acl_default_handler;
-extern struct xattr_handler btrfs_xattr_security_handler;
-extern struct xattr_handler btrfs_xattr_system_handler;
-
 extern struct xattr_handler *btrfs_xattr_handlers[];
 
-ssize_t btrfs_xattr_get(struct inode *inode, int name_index, const char *name,
-			void *buffer, size_t size);
-int btrfs_xattr_set(struct inode *inode, int name_index, const char *name,
-			const void *value, size_t size, int flags);
+extern ssize_t __btrfs_getxattr(struct inode *inode, const char *name,
+		void *buffer, size_t size);
+extern int __btrfs_setxattr(struct inode *inode, const char *name,
+		const void *value, size_t size, int flags);
+
+extern ssize_t btrfs_getxattr(struct dentry *dentry, const char *name,
+		void *buffer, size_t size);
+extern int btrfs_setxattr(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags);
+extern int btrfs_removexattr(struct dentry *dentry, const char *name);
 
 #endif /* __XATTR__ */

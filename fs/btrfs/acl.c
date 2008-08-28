@@ -42,17 +42,18 @@ static void btrfs_update_cached_acl(struct inode *inode,
 
 static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 {
-	int size, name_index;
+	int size;
+	const char *name;
 	char *value = NULL;
 	struct posix_acl *acl = NULL, **p_acl;
 
 	switch (type) {
 	case ACL_TYPE_ACCESS:
-		name_index = BTRFS_XATTR_INDEX_POSIX_ACL_ACCESS;
+		name = POSIX_ACL_XATTR_ACCESS;
 		p_acl = &BTRFS_I(inode)->i_acl;
 		break;
 	case ACL_TYPE_DEFAULT:
-		name_index = BTRFS_XATTR_INDEX_POSIX_ACL_DEFAULT;
+		name = POSIX_ACL_XATTR_DEFAULT;
 		p_acl = &BTRFS_I(inode)->i_default_acl;
 		break;
 	default:
@@ -68,12 +69,12 @@ static struct posix_acl *btrfs_get_acl(struct inode *inode, int type)
 		return acl;
 
 
-	size = btrfs_xattr_get(inode, name_index, "", NULL, 0);
+	size = __btrfs_getxattr(inode, name, "", 0);
 	if (size > 0) {
 		value = kzalloc(size, GFP_NOFS);
 		if (!value)
 			return ERR_PTR(-ENOMEM);
-		size = btrfs_xattr_get(inode, name_index, "", value, size);
+		size = __btrfs_getxattr(inode, name, value, size);
 		if (size > 0) {
 			acl = posix_acl_from_xattr(value, size);
 			btrfs_update_cached_acl(inode, p_acl, acl);
@@ -110,7 +111,8 @@ static int btrfs_xattr_get_acl(struct inode *inode, int type,
  */
 static int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 {
-	int ret, name_index = 0, size = 0;
+	int ret, size = 0;
+	const char *name;
 	struct posix_acl **p_acl;
 	char *value = NULL;
 	mode_t mode;
@@ -130,13 +132,13 @@ static int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			return ret;
 		ret = 0;
 		inode->i_mode = mode;
-		name_index = BTRFS_XATTR_INDEX_POSIX_ACL_ACCESS;
+		name = POSIX_ACL_XATTR_ACCESS;
 		p_acl = &BTRFS_I(inode)->i_acl;
 		break;
 	case ACL_TYPE_DEFAULT:
 		if (!S_ISDIR(inode->i_mode))
 			return acl ? -EINVAL : 0;
-		name_index = BTRFS_XATTR_INDEX_POSIX_ACL_DEFAULT;
+		name = POSIX_ACL_XATTR_DEFAULT;
 		p_acl = &BTRFS_I(inode)->i_default_acl;
 		break;
 	default:
@@ -156,7 +158,7 @@ static int btrfs_set_acl(struct inode *inode, struct posix_acl *acl, int type)
 			goto out;
 	}
 
-	ret = btrfs_xattr_set(inode, name_index, "", value, size, 0);
+	ret = __btrfs_setxattr(inode, name, value, size, 0);
 
 out:
 	if (value)
