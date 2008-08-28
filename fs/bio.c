@@ -439,16 +439,19 @@ int bio_add_page(struct bio *bio, struct page *page, unsigned int len,
 
 struct bio_map_data {
 	struct bio_vec *iovecs;
-	int nr_sgvecs;
 	struct sg_iovec *sgvecs;
+	int nr_sgvecs;
+	int is_our_pages;
 };
 
 static void bio_set_map_data(struct bio_map_data *bmd, struct bio *bio,
-			     struct sg_iovec *iov, int iov_count)
+			     struct sg_iovec *iov, int iov_count,
+			     int is_our_pages)
 {
 	memcpy(bmd->iovecs, bio->bi_io_vec, sizeof(struct bio_vec) * bio->bi_vcnt);
 	memcpy(bmd->sgvecs, iov, sizeof(struct sg_iovec) * iov_count);
 	bmd->nr_sgvecs = iov_count;
+	bmd->is_our_pages = is_our_pages;
 	bio->bi_private = bmd;
 }
 
@@ -483,7 +486,8 @@ static struct bio_map_data *bio_alloc_map_data(int nr_segs, int iov_count,
 }
 
 static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
-			  struct sg_iovec *iov, int iov_count, int uncopy)
+			  struct sg_iovec *iov, int iov_count, int uncopy,
+			  int do_free_page)
 {
 	int ret = 0, i;
 	struct bio_vec *bvec;
@@ -526,7 +530,7 @@ static int __bio_copy_iov(struct bio *bio, struct bio_vec *iovecs,
 			}
 		}
 
-		if (uncopy)
+		if (do_free_page)
 			__free_page(bvec->bv_page);
 	}
 
@@ -545,7 +549,8 @@ int bio_uncopy_user(struct bio *bio)
 	struct bio_map_data *bmd = bio->bi_private;
 	int ret;
 
-	ret = __bio_copy_iov(bio, bmd->iovecs, bmd->sgvecs, bmd->nr_sgvecs, 1);
+	ret = __bio_copy_iov(bio, bmd->iovecs, bmd->sgvecs, bmd->nr_sgvecs, 1,
+			     bmd->is_our_pages);
 
 	bio_free_map_data(bmd);
 	bio_put(bio);
@@ -555,6 +560,7 @@ int bio_uncopy_user(struct bio *bio)
 /**
  *	bio_copy_user_iov	-	copy user data to bio
  *	@q: destination block queue
+ *	@map_data: pointer to the rq_map_data holding pages (if necessary)
  *	@iov:	the iovec.
  *	@iov_count: number of elements in the iovec
  *	@write_to_vm: bool indicating writing to pages or not
@@ -564,8 +570,10 @@ int bio_uncopy_user(struct bio *bio)
  *	to/from kernel pages as necessary. Must be paired with
  *	call bio_uncopy_user() on io completion.
  */
-struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
-			      int iov_count, int write_to_vm, gfp_t gfp_mask)
+struct bio *bio_copy_user_iov(struct request_queue *q,
+			      struct rq_map_data *map_data,
+			      struct sg_iovec *iov, int iov_count,
+			      int write_to_vm, gfp_t gfp_mask)
 {
 	struct bio_map_data *bmd;
 	struct bio_vec *bvec;
@@ -600,13 +608,26 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 	bio->bi_rw |= (!write_to_vm << BIO_RW);
 
 	ret = 0;
+	i = 0;
 	while (len) {
-		unsigned int bytes = PAGE_SIZE;
+		unsigned int bytes;
+
+		if (map_data)
+			bytes = 1U << (PAGE_SHIFT + map_data->page_order);
+		else
+			bytes = PAGE_SIZE;
 
 		if (bytes > len)
 			bytes = len;
 
-		page = alloc_page(q->bounce_gfp | gfp_mask);
+		if (map_data) {
+			if (i == map_data->nr_entries) {
+				ret = -ENOMEM;
+				break;
+			}
+			page = map_data->pages[i++];
+		} else
+			page = alloc_page(q->bounce_gfp | gfp_mask);
 		if (!page) {
 			ret = -ENOMEM;
 			break;
@@ -625,16 +646,17 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 	 * success
 	 */
 	if (!write_to_vm) {
-		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0);
+		ret = __bio_copy_iov(bio, bio->bi_io_vec, iov, iov_count, 0, 0);
 		if (ret)
 			goto cleanup;
 	}
 
-	bio_set_map_data(bmd, bio, iov, iov_count);
+	bio_set_map_data(bmd, bio, iov, iov_count, map_data ? 0 : 1);
 	return bio;
 cleanup:
-	bio_for_each_segment(bvec, bio, i)
-		__free_page(bvec->bv_page);
+	if (!map_data)
+		bio_for_each_segment(bvec, bio, i)
+			__free_page(bvec->bv_page);
 
 	bio_put(bio);
 out_bmd:
@@ -645,6 +667,7 @@ out_bmd:
 /**
  *	bio_copy_user	-	copy user data to bio
  *	@q: destination block queue
+ *	@map_data: pointer to the rq_map_data holding pages (if necessary)
  *	@uaddr: start of user address
  *	@len: length in bytes
  *	@write_to_vm: bool indicating writing to pages or not
@@ -654,15 +677,16 @@ out_bmd:
  *	to/from kernel pages as necessary. Must be paired with
  *	call bio_uncopy_user() on io completion.
  */
-struct bio *bio_copy_user(struct request_queue *q, unsigned long uaddr,
-			  unsigned int len, int write_to_vm, gfp_t gfp_mask)
+struct bio *bio_copy_user(struct request_queue *q, struct rq_map_data *map_data,
+			  unsigned long uaddr, unsigned int len,
+			  int write_to_vm, gfp_t gfp_mask)
 {
 	struct sg_iovec iov;
 
 	iov.iov_base = (void __user *)uaddr;
 	iov.iov_len = len;
 
-	return bio_copy_user_iov(q, &iov, 1, write_to_vm, gfp_mask);
+	return bio_copy_user_iov(q, map_data, &iov, 1, write_to_vm, gfp_mask);
 }
 
 static struct bio *__bio_map_user_iov(struct request_queue *q,
@@ -1028,7 +1052,7 @@ struct bio *bio_copy_kern(struct request_queue *q, void *data, unsigned int len,
 	bio->bi_private = bmd;
 	bio->bi_end_io = bio_copy_kern_endio;
 
-	bio_set_map_data(bmd, bio, &iov, 1);
+	bio_set_map_data(bmd, bio, &iov, 1, 1);
 	return bio;
 cleanup:
 	bio_for_each_segment(bvec, bio, i)

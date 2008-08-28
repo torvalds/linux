@@ -327,6 +327,7 @@ extern int bio_get_nr_vecs(struct block_device *);
 extern struct bio *bio_map_user(struct request_queue *, struct block_device *,
 				unsigned long, unsigned int, int, gfp_t);
 struct sg_iovec;
+struct rq_map_data;
 extern struct bio *bio_map_user_iov(struct request_queue *,
 				    struct block_device *,
 				    struct sg_iovec *, int, int, gfp_t);
@@ -337,9 +338,10 @@ extern struct bio *bio_copy_kern(struct request_queue *, void *, unsigned int,
 				 gfp_t, int);
 extern void bio_set_pages_dirty(struct bio *bio);
 extern void bio_check_pages_dirty(struct bio *bio);
-extern struct bio *bio_copy_user(struct request_queue *, unsigned long,
-				 unsigned int, int, gfp_t);
-extern struct bio *bio_copy_user_iov(struct request_queue *, struct sg_iovec *,
+extern struct bio *bio_copy_user(struct request_queue *, struct rq_map_data *,
+				 unsigned long, unsigned int, int, gfp_t);
+extern struct bio *bio_copy_user_iov(struct request_queue *,
+				     struct rq_map_data *, struct sg_iovec *,
 				     int, int, gfp_t);
 extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
