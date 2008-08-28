@@ -86,6 +86,7 @@ struct corgi_lcd {
 	struct lcd_device	*lcd_dev;
 	struct backlight_device	*bl_dev;
 
+	int	limit_mask;
 	int	intensity;
 	int	power;
 	int	mode;
@@ -96,6 +97,11 @@ struct corgi_lcd {
 };
 
 static int corgi_ssp_lcdtg_send(struct corgi_lcd *lcd, int reg, uint8_t val);
+
+static struct corgi_lcd *the_corgi_lcd;
+static unsigned long corgibl_flags;
+#define CORGIBL_SUSPENDED     0x01
+#define CORGIBL_BATTLOW       0x02
 
 /*
  * This is only a psuedo I2C interface. We can't use the standard kernel
@@ -413,8 +419,24 @@ static int corgi_bl_update_status(struct backlight_device *bd)
 	if (bd->props.fb_blank != FB_BLANK_UNBLANK)
 		intensity = 0;
 
+	if (corgibl_flags & CORGIBL_SUSPENDED)
+		intensity = 0;
+	if (corgibl_flags & CORGIBL_BATTLOW)
+		intensity &= lcd->limit_mask;
+
 	return corgi_bl_set_intensity(lcd, intensity);
 }
+
+void corgibl_limit_intensity(int limit)
+{
+	if (limit)
+		corgibl_flags |= CORGIBL_BATTLOW;
+	else
+		corgibl_flags &= ~CORGIBL_BATTLOW;
+
+	backlight_update_status(the_corgi_lcd->bl_dev);
+}
+EXPORT_SYMBOL(corgibl_limit_intensity);
 
 static struct backlight_ops corgi_bl_ops = {
 	.get_brightness	= corgi_bl_get_intensity,
@@ -426,6 +448,7 @@ static int corgi_lcd_suspend(struct spi_device *spi, pm_message_t state)
 {
 	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
 
+	corgibl_flags |= CORGIBL_SUSPENDED;
 	corgi_bl_set_intensity(lcd, 0);
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
 	return 0;
@@ -435,6 +458,7 @@ static int corgi_lcd_resume(struct spi_device *spi)
 {
 	struct corgi_lcd *lcd = dev_get_drvdata(&spi->dev);
 
+	corgibl_flags &= ~CORGIBL_SUSPENDED;
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
 	backlight_update_status(lcd->bl_dev);
 	return 0;
@@ -488,6 +512,9 @@ static int __devinit corgi_lcd_probe(struct spi_device *spi)
 	dev_set_drvdata(&spi->dev, lcd);
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_UNBLANK);
 	backlight_update_status(lcd->bl_dev);
+
+	lcd->limit_mask = pdata->limit_mask;
+	the_corgi_lcd = lcd;
 	return 0;
 
 err_unregister_lcd:
