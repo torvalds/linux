@@ -1021,7 +1021,7 @@ static int pf_interception(struct vcpu_svm *svm, struct kvm_run *kvm_run)
 	if (npt_enabled)
 		svm_flush_tlb(&svm->vcpu);
 
-	if (event_injection)
+	if (!npt_enabled && event_injection)
 		kvm_mmu_unprotect_page_virt(&svm->vcpu, fault_address);
 	return kvm_mmu_page_fault(&svm->vcpu, fault_address, error_code);
 }
