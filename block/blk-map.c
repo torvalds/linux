@@ -45,7 +45,6 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 			     unsigned int len, gfp_t gfp_mask)
 {
 	unsigned long uaddr;
-	unsigned int alignment;
 	struct bio *bio, *orig_bio;
 	int reading, ret;
 
@@ -56,8 +55,7 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	 * direct dma. else, set up kernel bounce buffers
 	 */
 	uaddr = (unsigned long) ubuf;
-	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
-	if (!(uaddr & alignment) && !(len & alignment) && !map_data)
+	if (blk_rq_aligned(q, ubuf, len) && !map_data)
 		bio = bio_map_user(q, NULL, uaddr, len, reading, gfp_mask);
 	else
 		bio = bio_copy_user(q, map_data, uaddr, len, reading, gfp_mask);
@@ -274,8 +272,6 @@ EXPORT_SYMBOL(blk_rq_unmap_user);
 int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 		    unsigned int len, gfp_t gfp_mask)
 {
-	unsigned long kaddr;
-	unsigned int alignment;
 	int reading = rq_data_dir(rq) == READ;
 	int do_copy = 0;
 	struct bio *bio;
@@ -285,11 +281,7 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	if (!len || !kbuf)
 		return -EINVAL;
 
-	kaddr = (unsigned long)kbuf;
-	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
-	do_copy = ((kaddr & alignment) || (len & alignment) ||
-		   object_is_on_stack(kbuf));
-
+	do_copy = !blk_rq_aligned(q, kbuf, len) || object_is_on_stack(kbuf);
 	if (do_copy)
 		bio = bio_copy_kern(q, kbuf, len, gfp_mask, reading);
 	else
