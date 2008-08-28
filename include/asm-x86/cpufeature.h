@@ -91,6 +91,8 @@
 
 /* Intel-defined CPU features, CPUID level 0x00000001 (ecx), word 4 */
 #define X86_FEATURE_XMM3	(4*32+ 0) /* "pni" SSE-3 */
+#define X86_FEATURE_PCLMULQDQ	(4*32+ 1) /* PCLMULQDQ instruction */
+#define X86_FEATURE_DTES64	(4*32+ 2) /* 64-bit Debug Store */
 #define X86_FEATURE_MWAIT	(4*32+ 3) /* "monitor" Monitor/Mwait support */
 #define X86_FEATURE_DSCPL	(4*32+ 4) /* "ds_cpl" CPL Qual. Debug Store */
 #define X86_FEATURE_VMX		(4*32+ 5) /* Hardware virtualization */
@@ -99,11 +101,18 @@
 #define X86_FEATURE_TM2		(4*32+ 8) /* Thermal Monitor 2 */
 #define X86_FEATURE_SSSE3	(4*32+ 9) /* Supplemental SSE-3 */
 #define X86_FEATURE_CID		(4*32+10) /* Context ID */
+#define X86_FEATURE_FMA		(4*32+12) /* Fused multiply-add */
 #define X86_FEATURE_CX16	(4*32+13) /* CMPXCHG16B */
 #define X86_FEATURE_XTPR	(4*32+14) /* Send Task Priority Messages */
+#define X86_FEATURE_PDCM	(4*32+15) /* Performance Capabilities */
 #define X86_FEATURE_DCA		(4*32+18) /* Direct Cache Access */
 #define X86_FEATURE_XMM4_1	(4*32+19) /* "sse4_1" SSE-4.1 */
 #define X86_FEATURE_XMM4_2	(4*32+20) /* "sse4_2" SSE-4.2 */
+#define X86_FEATURE_X2APIC	(4*32+21) /* x2APIC */
+#define X86_FEATURE_AES		(4*32+25) /* AES instructions */
+#define X86_FEATURE_XSAVE	(4*32+26) /* XSAVE/XRSTOR/XSETBV/XGETBV */
+#define X86_FEATURE_OSXSAVE	(4*32+27) /* "" XSAVE enabled in the OS */
+#define X86_FEATURE_AVX		(4*32+28) /* Advanced Vector Extensions */
 
 /* VIA/Cyrix/Centaur-defined CPU features, CPUID level 0xC0000001, word 5 */
 #define X86_FEATURE_XSTORE	(5*32+ 2) /* "rng" RNG present (xstore) */
@@ -213,7 +222,10 @@ extern const char * const x86_power_flags[32];
 #define cpu_has_gbpages		boot_cpu_has(X86_FEATURE_GBPAGES)
 #define cpu_has_arch_perfmon	boot_cpu_has(X86_FEATURE_ARCH_PERFMON)
 #define cpu_has_pat		boot_cpu_has(X86_FEATURE_PAT)
+#define cpu_has_xmm4_1		boot_cpu_has(X86_FEATURE_XMM4_1)
 #define cpu_has_xmm4_2		boot_cpu_has(X86_FEATURE_XMM4_2)
+#define cpu_has_x2apic		boot_cpu_has(X86_FEATURE_X2APIC)
+#define cpu_has_xsave		boot_cpu_has(X86_FEATURE_XSAVE)
 
 #if defined(CONFIG_X86_INVLPG) || defined(CONFIG_X86_64)
 # define cpu_has_invlpg		1
