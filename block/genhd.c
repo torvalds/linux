@@ -578,7 +578,7 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
  * RETURNS:
  * Resulting block_device on success, NULL on failure.
  */
-extern struct block_device *bdget_disk(struct gendisk *disk, int partno)
+struct block_device *bdget_disk(struct gendisk *disk, int partno)
 {
 	struct hd_struct *part;
 	struct block_device *bdev = NULL;
@@ -654,7 +654,7 @@ static void *disk_seqf_start(struct seq_file *seqf, loff_t *pos)
 	struct class_dev_iter *iter;
 	struct device *dev;
 
-	iter = kmalloc(GFP_KERNEL, sizeof(*iter));
+	iter = kmalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter)
 		return ERR_PTR(-ENOMEM);
 
