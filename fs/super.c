@@ -682,7 +682,7 @@ void emergency_remount(void)
  * filesystems which don't use real block-devices.  -- jrs
  */
 
-static struct idr unnamed_dev_idr;
+static DEFINE_IDR(unnamed_dev_idr);
 static DEFINE_SPINLOCK(unnamed_dev_lock);/* protects the above */
 
 int set_anon_super(struct super_block *s, void *data)
@@ -725,11 +725,6 @@ void kill_anon_super(struct super_block *sb)
 }
 
 EXPORT_SYMBOL(kill_anon_super);
-
-void __init unnamed_dev_init(void)
-{
-	idr_init(&unnamed_dev_idr);
-}
 
 void kill_litter_super(struct super_block *sb)
 {
