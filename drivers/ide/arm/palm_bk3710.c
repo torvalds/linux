@@ -309,7 +309,7 @@ static void __devinit palm_bk3710_chipinit(void __iomem *base)
 	palm_bk3710_setpiomode(base, NULL, 1, 600, 0);
 }
 
-static u8 __devinit palm_bk3710_cable_detect(ide_hwif_t *hwif)
+static u8 palm_bk3710_cable_detect(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }

@@ -26,10 +26,10 @@
 
 #include <asm/irq.h>
 #include <linux/mutex.h>
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/audio.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/audio.h>
 
 #include "pxa2xx-pcm.h"
 

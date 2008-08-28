@@ -113,7 +113,7 @@ void br_netfilter_rtable_init(struct net_bridge *br)
 	struct rtable *rt = &br->fake_rtable;
 
 	atomic_set(&rt->u.dst.__refcnt, 1);
-	rt->u.dst.dev = &br->dev;
+	rt->u.dst.dev = br->dev;
 	rt->u.dst.path = &rt->u.dst;
 	rt->u.dst.metrics[RTAX_MTU - 1] = 1500;
 	rt->u.dst.flags	= DST_NOXFRM;

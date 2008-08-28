@@ -29,7 +29,7 @@
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach-types.h>
@@ -339,7 +339,7 @@ acornfb_setcolreg(u_int regno, u_int red, u_int green, u_int blue,
 #endif
 
 #ifdef HAS_VIDC20
-#include <asm/arch/acornfb.h>
+#include <mach/acornfb.h>
 
 #define MAX_SIZE	2*1024*1024
 

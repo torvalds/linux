@@ -16,7 +16,7 @@
 #include <linux/gpio.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 #include "soc_common.h"
 

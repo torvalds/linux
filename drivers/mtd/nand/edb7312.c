@@ -23,7 +23,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <asm/io.h>
-#include <asm/arch/hardware.h>	/* for CLPS7111_VIRT_BASE */
+#include <mach/hardware.h>	/* for CLPS7111_VIRT_BASE */
 #include <asm/sizes.h>
 #include <asm/hardware/clps7111.h>
 

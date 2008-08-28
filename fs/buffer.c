@@ -1720,7 +1720,7 @@ static int __block_write_full_page(struct inode *inode, struct page *page,
 		 */
 		if (wbc->sync_mode != WB_SYNC_NONE || !wbc->nonblocking) {
 			lock_buffer(bh);
-		} else if (test_set_buffer_locked(bh)) {
+		} else if (!trylock_buffer(bh)) {
 			redirty_page_for_writepage(wbc, page);
 			continue;
 		}
@@ -2926,14 +2926,17 @@ int submit_bh(int rw, struct buffer_head * bh)
 	BUG_ON(!buffer_mapped(bh));
 	BUG_ON(!bh->b_end_io);
 
-	if (buffer_ordered(bh) && (rw == WRITE))
-		rw = WRITE_BARRIER;
+	/*
+	 * Mask in barrier bit for a write (could be either a WRITE or a
+	 * WRITE_SYNC
+	 */
+	if (buffer_ordered(bh) && (rw & WRITE))
+		rw |= WRITE_BARRIER;
 
 	/*
-	 * Only clear out a write error when rewriting, should this
-	 * include WRITE_SYNC as well?
+	 * Only clear out a write error when rewriting
 	 */
-	if (test_set_buffer_req(bh) && (rw == WRITE || rw == WRITE_BARRIER))
+	if (test_set_buffer_req(bh) && (rw & WRITE))
 		clear_buffer_write_io_error(bh);
 
 	/*
@@ -3000,7 +3003,7 @@ void ll_rw_block(int rw, int nr, struct buffer_head *bhs[])
 
 		if (rw == SWRITE || rw == SWRITE_SYNC)
 			lock_buffer(bh);
-		else if (test_set_buffer_locked(bh))
+		else if (!trylock_buffer(bh))
 			continue;
 
 		if (rw == WRITE || rw == SWRITE || rw == SWRITE_SYNC) {

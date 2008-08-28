@@ -9,8 +9,8 @@
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
 
 #include "leds.h"
 

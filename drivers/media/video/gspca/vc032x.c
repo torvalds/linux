@@ -88,12 +88,12 @@ static struct ctrl sd_ctrls[] = {
 
 static struct v4l2_pix_format vc0321_mode[] = {
 	{320, 240, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 2,
+		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_YUV420, V4L2_FIELD_NONE,
-		.bytesperline = 640 * 2,
+		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},

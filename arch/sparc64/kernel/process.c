@@ -52,7 +52,7 @@
 #include <asm/irq_regs.h>
 #include <asm/smp.h>
 
-/* #define VERBOSE_SHOWREGS */
+#include "kstack.h"
 
 static void sparc64_yield(int cpu)
 {
@@ -213,22 +213,8 @@ static void show_regwindow(struct pt_regs *regs)
 		printk("I7: <%pS>\n", (void *) rwk->ins[7]);
 }
 
-#ifdef CONFIG_SMP
-static DEFINE_SPINLOCK(regdump_lock);
-#endif
-
-void __show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
-#ifdef CONFIG_SMP
-	unsigned long flags;
-
-	/* Protect against xcall ipis which might lead to livelock on the lock */
-	__asm__ __volatile__("rdpr      %%pstate, %0\n\t"
-			     "wrpr      %0, %1, %%pstate"
-			     : "=r" (flags)
-			     : "i" (PSTATE_IE));
-	spin_lock(&regdump_lock);
-#endif
 	printk("TSTATE: %016lx TPC: %016lx TNPC: %016lx Y: %08x    %s\n", regs->tstate,
 	       regs->tpc, regs->tnpc, regs->y, print_tainted());
 	printk("TPC: <%pS>\n", (void *) regs->tpc);
@@ -246,61 +232,8 @@ void __show_regs(struct pt_regs * regs)
 	       regs->u_regs[15]);
 	printk("RPC: <%pS>\n", (void *) regs->u_regs[15]);
 	show_regwindow(regs);
-#ifdef CONFIG_SMP
-	spin_unlock(&regdump_lock);
-	__asm__ __volatile__("wrpr	%0, 0, %%pstate"
-			     : : "r" (flags));
-#endif
 }
 
-#ifdef VERBOSE_SHOWREGS
-static void idump_from_user (unsigned int *pc)
-{
-	int i;
-	int code;
-	
-	if((((unsigned long) pc) & 3))
-		return;
-	
-	pc -= 3;
-	for(i = -3; i < 6; i++) {
-		get_user(code, pc);
-		printk("%c%08x%c",i?' ':'<',code,i?' ':'>');
-		pc++;
-	}
-	printk("\n");
-}
-#endif
-
-void show_regs(struct pt_regs *regs)
-{
-#ifdef VERBOSE_SHOWREGS
-	extern long etrap, etraptl1;
-#endif
-	__show_regs(regs);
-#if 0
-#ifdef CONFIG_SMP
-	{
-		extern void smp_report_regs(void);
-
-		smp_report_regs();
-	}
-#endif
-#endif
-
-#ifdef VERBOSE_SHOWREGS	
-	if (regs->tpc >= &etrap && regs->tpc < &etraptl1 &&
-	    regs->u_regs[14] >= (long)current - PAGE_SIZE &&
-	    regs->u_regs[14] < (long)current + 6 * PAGE_SIZE) {
-		printk ("*********parent**********\n");
-		__show_regs((struct pt_regs *)(regs->u_regs[14] + PTREGS_OFF));
-		idump_from_user(((struct pt_regs *)(regs->u_regs[14] + PTREGS_OFF))->tpc);
-		printk ("*********endpar**********\n");
-	}
-#endif
-}
-
-#ifdef CONFIG_MAGIC_SYSRQ
 struct global_reg_snapshot global_reg_snapshot[NR_CPUS];
 static DEFINE_SPINLOCK(global_reg_snapshot_lock);
 
@@ -315,14 +248,22 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 	global_reg_snapshot[this_cpu].o7 = regs->u_regs[UREG_I7];
 
 	if (regs->tstate & TSTATE_PRIV) {
+		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw;
 
 		rw = (struct reg_window *)
 			(regs->u_regs[UREG_FP] + STACK_BIAS);
-		global_reg_snapshot[this_cpu].i7 = rw->ins[6];
-	} else
+		if (kstack_valid(tp, (unsigned long) rw)) {
+			global_reg_snapshot[this_cpu].i7 = rw->ins[7];
+			rw = (struct reg_window *)
+				(rw->ins[6] + STACK_BIAS);
+			if (kstack_valid(tp, (unsigned long) rw))
+				global_reg_snapshot[this_cpu].rpc = rw->ins[7];
+		}
+	} else {
 		global_reg_snapshot[this_cpu].i7 = 0;
-
+		global_reg_snapshot[this_cpu].rpc = 0;
+	}
 	global_reg_snapshot[this_cpu].thread = tp;
 }
 
@@ -341,7 +282,7 @@ static void __global_reg_poll(struct global_reg_snapshot *gp)
 	}
 }
 
-static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+void __trigger_all_cpu_backtrace(void)
 {
 	struct thread_info *tp = current_thread_info();
 	struct pt_regs *regs = get_irq_regs();
@@ -375,19 +316,27 @@ static void sysrq_handle_globreg(int key, struct tty_struct *tty)
 		       ((tp && tp->task) ? tp->task->pid : -1));
 
 		if (gp->tstate & TSTATE_PRIV) {
-			printk("             TPC[%pS] O7[%pS] I7[%pS]\n",
+			printk("             TPC[%pS] O7[%pS] I7[%pS] RPC[%pS]\n",
 			       (void *) gp->tpc,
 			       (void *) gp->o7,
-			       (void *) gp->i7);
+			       (void *) gp->i7,
+			       (void *) gp->rpc);
 		} else {
-			printk("             TPC[%lx] O7[%lx] I7[%lx]\n",
-			       gp->tpc, gp->o7, gp->i7);
+			printk("             TPC[%lx] O7[%lx] I7[%lx] RPC[%lx]\n",
+			       gp->tpc, gp->o7, gp->i7, gp->rpc);
 		}
 	}
 
 	memset(global_reg_snapshot, 0, sizeof(global_reg_snapshot));
 
 	spin_unlock_irqrestore(&global_reg_snapshot_lock, flags);
+}
+
+#ifdef CONFIG_MAGIC_SYSRQ
+
+static void sysrq_handle_globreg(int key, struct tty_struct *tty)
+{
+	__trigger_all_cpu_backtrace();
 }
 
 static struct sysrq_key_op sparc_globalreg_op = {
@@ -868,7 +817,7 @@ out:
 unsigned long get_wchan(struct task_struct *task)
 {
 	unsigned long pc, fp, bias = 0;
-	unsigned long thread_info_base;
+	struct thread_info *tp;
 	struct reg_window *rw;
         unsigned long ret = 0;
 	int count = 0; 
@@ -877,14 +826,12 @@ unsigned long get_wchan(struct task_struct *task)
             task->state == TASK_RUNNING)
 		goto out;
 
-	thread_info_base = (unsigned long) task_stack_page(task);
+	tp = task_thread_info(task);
 	bias = STACK_BIAS;
 	fp = task_thread_info(task)->ksp + bias;
 
 	do {
-		/* Bogus frame pointer? */
-		if (fp < (thread_info_base + sizeof(struct thread_info)) ||
-		    fp >= (thread_info_base + THREAD_SIZE))
+		if (!kstack_valid(tp, fp))
 			break;
 		rw = (struct reg_window *) fp;
 		pc = rw->ins[7];

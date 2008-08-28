@@ -14,8 +14,8 @@
 #include <linux/module.h>
 
 #include <asm/mach-types.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxafb.h>
 
 static struct pxafb_mode_info e400_pxafb_mode_info = {
 	.pixclock       = 140703,

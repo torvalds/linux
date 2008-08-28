@@ -2223,272 +2223,217 @@ static int bond_slave_info_query(struct net_device *bond_dev, struct ifslave *in
 
 /*-------------------------------- Monitoring -------------------------------*/
 
-/*
- * if !have_locks, return nonzero if a failover is necessary.  if
- * have_locks, do whatever failover activities are needed.
- *
- * This is to separate the inspection and failover steps for locking
- * purposes; failover requires rtnl, but acquiring it for every
- * inspection is undesirable, so a wrapper first does inspection, and
- * the acquires the necessary locks and calls again to perform
- * failover if needed.  Since all locks are dropped, a complete
- * restart is needed between calls.
- */
-static int __bond_mii_monitor(struct bonding *bond, int have_locks)
+
+static int bond_miimon_inspect(struct bonding *bond)
 {
-	struct slave *slave, *oldcurrent;
-	int do_failover = 0;
-	int i;
-
-	if (bond->slave_cnt == 0)
-		goto out;
-
-	/* we will try to read the link status of each of our slaves, and
-	 * set their IFF_RUNNING flag appropriately. For each slave not
-	 * supporting MII status, we won't do anything so that a user-space
-	 * program could monitor the link itself if needed.
-	 */
-
-	read_lock(&bond->curr_slave_lock);
-	oldcurrent = bond->curr_active_slave;
-	read_unlock(&bond->curr_slave_lock);
+	struct slave *slave;
+	int i, link_state, commit = 0;
 
 	bond_for_each_slave(bond, slave, i) {
-		struct net_device *slave_dev = slave->dev;
-		int link_state;
-		u16 old_speed = slave->speed;
-		u8 old_duplex = slave->duplex;
+		slave->new_link = BOND_LINK_NOCHANGE;
 
-		link_state = bond_check_dev_link(bond, slave_dev, 0);
+		link_state = bond_check_dev_link(bond, slave->dev, 0);
 
 		switch (slave->link) {
-		case BOND_LINK_UP:	/* the link was up */
-			if (link_state == BMSR_LSTATUS) {
-				if (!oldcurrent) {
-					if (!have_locks)
-						return 1;
-					do_failover = 1;
-				}
-				break;
-			} else { /* link going down */
-				slave->link  = BOND_LINK_FAIL;
-				slave->delay = bond->params.downdelay;
+		case BOND_LINK_UP:
+			if (link_state)
+				continue;
 
-				if (slave->link_failure_count < UINT_MAX) {
-					slave->link_failure_count++;
-				}
-
-				if (bond->params.downdelay) {
-					printk(KERN_INFO DRV_NAME
-					       ": %s: link status down for %s "
-					       "interface %s, disabling it in "
-					       "%d ms.\n",
-					       bond->dev->name,
-					       IS_UP(slave_dev)
-					       ? ((bond->params.mode == BOND_MODE_ACTIVEBACKUP)
-						  ? ((slave == oldcurrent)
-						     ? "active " : "backup ")
-						  : "")
-					       : "idle ",
-					       slave_dev->name,
-					       bond->params.downdelay * bond->params.miimon);
-				}
+			slave->link = BOND_LINK_FAIL;
+			slave->delay = bond->params.downdelay;
+			if (slave->delay) {
+				printk(KERN_INFO DRV_NAME
+				       ": %s: link status down for %s"
+				       "interface %s, disabling it in %d ms.\n",
+				       bond->dev->name,
+				       (bond->params.mode ==
+					BOND_MODE_ACTIVEBACKUP) ?
+				       ((slave->state == BOND_STATE_ACTIVE) ?
+					"active " : "backup ") : "",
+				       slave->dev->name,
+				       bond->params.downdelay * bond->params.miimon);
 			}
-			/* no break ! fall through the BOND_LINK_FAIL test to
-			   ensure proper action to be taken
-			*/
-		case BOND_LINK_FAIL:	/* the link has just gone down */
-			if (link_state != BMSR_LSTATUS) {
-				/* link stays down */
-				if (slave->delay <= 0) {
-					if (!have_locks)
-						return 1;
-
-					/* link down for too long time */
-					slave->link = BOND_LINK_DOWN;
-
-					/* in active/backup mode, we must
-					 * completely disable this interface
-					 */
-					if ((bond->params.mode == BOND_MODE_ACTIVEBACKUP) ||
-					    (bond->params.mode == BOND_MODE_8023AD)) {
-						bond_set_slave_inactive_flags(slave);
-					}
-
-					printk(KERN_INFO DRV_NAME
-					       ": %s: link status definitely "
-					       "down for interface %s, "
-					       "disabling it\n",
-					       bond->dev->name,
-					       slave_dev->name);
-
-					/* notify ad that the link status has changed */
-					if (bond->params.mode == BOND_MODE_8023AD) {
-						bond_3ad_handle_link_change(slave, BOND_LINK_DOWN);
-					}
-
-					if ((bond->params.mode == BOND_MODE_TLB) ||
-					    (bond->params.mode == BOND_MODE_ALB)) {
-						bond_alb_handle_link_change(bond, slave, BOND_LINK_DOWN);
-					}
-
-					if (slave == oldcurrent) {
-						do_failover = 1;
-					}
-				} else {
-					slave->delay--;
-				}
-			} else {
-				/* link up again */
-				slave->link  = BOND_LINK_UP;
+			/*FALLTHRU*/
+		case BOND_LINK_FAIL:
+			if (link_state) {
+				/*
+				 * recovered before downdelay expired
+				 */
+				slave->link = BOND_LINK_UP;
 				slave->jiffies = jiffies;
 				printk(KERN_INFO DRV_NAME
 				       ": %s: link status up again after %d "
 				       "ms for interface %s.\n",
 				       bond->dev->name,
-				       (bond->params.downdelay - slave->delay) * bond->params.miimon,
-				       slave_dev->name);
+				       (bond->params.downdelay - slave->delay) *
+				       bond->params.miimon,
+				       slave->dev->name);
+				continue;
 			}
+
+			if (slave->delay <= 0) {
+				slave->new_link = BOND_LINK_DOWN;
+				commit++;
+				continue;
+			}
+
+			slave->delay--;
 			break;
-		case BOND_LINK_DOWN:	/* the link was down */
-			if (link_state != BMSR_LSTATUS) {
-				/* the link stays down, nothing more to do */
-				break;
-			} else {	/* link going up */
-				slave->link  = BOND_LINK_BACK;
-				slave->delay = bond->params.updelay;
 
-				if (bond->params.updelay) {
-					/* if updelay == 0, no need to
-					   advertise about a 0 ms delay */
-					printk(KERN_INFO DRV_NAME
-					       ": %s: link status up for "
-					       "interface %s, enabling it "
-					       "in %d ms.\n",
-					       bond->dev->name,
-					       slave_dev->name,
-					       bond->params.updelay * bond->params.miimon);
-				}
+		case BOND_LINK_DOWN:
+			if (!link_state)
+				continue;
+
+			slave->link = BOND_LINK_BACK;
+			slave->delay = bond->params.updelay;
+
+			if (slave->delay) {
+				printk(KERN_INFO DRV_NAME
+				       ": %s: link status up for "
+				       "interface %s, enabling it in %d ms.\n",
+				       bond->dev->name, slave->dev->name,
+				       bond->params.updelay *
+				       bond->params.miimon);
 			}
-			/* no break ! fall through the BOND_LINK_BACK state in
-			   case there's something to do.
-			*/
-		case BOND_LINK_BACK:	/* the link has just come back */
-			if (link_state != BMSR_LSTATUS) {
-				/* link down again */
-				slave->link  = BOND_LINK_DOWN;
-
+			/*FALLTHRU*/
+		case BOND_LINK_BACK:
+			if (!link_state) {
+				slave->link = BOND_LINK_DOWN;
 				printk(KERN_INFO DRV_NAME
 				       ": %s: link status down again after %d "
 				       "ms for interface %s.\n",
 				       bond->dev->name,
-				       (bond->params.updelay - slave->delay) * bond->params.miimon,
-				       slave_dev->name);
-			} else {
-				/* link stays up */
-				if (slave->delay == 0) {
-					if (!have_locks)
-						return 1;
+				       (bond->params.updelay - slave->delay) *
+				       bond->params.miimon,
+				       slave->dev->name);
 
-					/* now the link has been up for long time enough */
-					slave->link = BOND_LINK_UP;
-					slave->jiffies = jiffies;
-
-					if (bond->params.mode == BOND_MODE_8023AD) {
-						/* prevent it from being the active one */
-						slave->state = BOND_STATE_BACKUP;
-					} else if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
-						/* make it immediately active */
-						slave->state = BOND_STATE_ACTIVE;
-					} else if (slave != bond->primary_slave) {
-						/* prevent it from being the active one */
-						slave->state = BOND_STATE_BACKUP;
-					}
-
-					printk(KERN_INFO DRV_NAME
-					       ": %s: link status definitely "
-					       "up for interface %s.\n",
-					       bond->dev->name,
-					       slave_dev->name);
-
-					/* notify ad that the link status has changed */
-					if (bond->params.mode == BOND_MODE_8023AD) {
-						bond_3ad_handle_link_change(slave, BOND_LINK_UP);
-					}
-
-					if ((bond->params.mode == BOND_MODE_TLB) ||
-					    (bond->params.mode == BOND_MODE_ALB)) {
-						bond_alb_handle_link_change(bond, slave, BOND_LINK_UP);
-					}
-
-					if ((!oldcurrent) ||
-					    (slave == bond->primary_slave)) {
-						do_failover = 1;
-					}
-				} else {
-					slave->delay--;
-				}
+				continue;
 			}
+
+			if (slave->delay <= 0) {
+				slave->new_link = BOND_LINK_UP;
+				commit++;
+				continue;
+			}
+
+			slave->delay--;
 			break;
+		}
+	}
+
+	return commit;
+}
+
+static void bond_miimon_commit(struct bonding *bond)
+{
+	struct slave *slave;
+	int i;
+
+	bond_for_each_slave(bond, slave, i) {
+		switch (slave->new_link) {
+		case BOND_LINK_NOCHANGE:
+			continue;
+
+		case BOND_LINK_UP:
+			slave->link = BOND_LINK_UP;
+			slave->jiffies = jiffies;
+
+			if (bond->params.mode == BOND_MODE_8023AD) {
+				/* prevent it from being the active one */
+				slave->state = BOND_STATE_BACKUP;
+			} else if (bond->params.mode != BOND_MODE_ACTIVEBACKUP) {
+				/* make it immediately active */
+				slave->state = BOND_STATE_ACTIVE;
+			} else if (slave != bond->primary_slave) {
+				/* prevent it from being the active one */
+				slave->state = BOND_STATE_BACKUP;
+			}
+
+			printk(KERN_INFO DRV_NAME
+			       ": %s: link status definitely "
+			       "up for interface %s.\n",
+			       bond->dev->name, slave->dev->name);
+
+			/* notify ad that the link status has changed */
+			if (bond->params.mode == BOND_MODE_8023AD)
+				bond_3ad_handle_link_change(slave, BOND_LINK_UP);
+
+			if ((bond->params.mode == BOND_MODE_TLB) ||
+			    (bond->params.mode == BOND_MODE_ALB))
+				bond_alb_handle_link_change(bond, slave,
+							    BOND_LINK_UP);
+
+			if (!bond->curr_active_slave ||
+			    (slave == bond->primary_slave))
+				goto do_failover;
+
+			continue;
+
+		case BOND_LINK_DOWN:
+			slave->link = BOND_LINK_DOWN;
+
+			if (bond->params.mode == BOND_MODE_ACTIVEBACKUP ||
+			    bond->params.mode == BOND_MODE_8023AD)
+				bond_set_slave_inactive_flags(slave);
+
+			printk(KERN_INFO DRV_NAME
+			       ": %s: link status definitely down for "
+			       "interface %s, disabling it\n",
+			       bond->dev->name, slave->dev->name);
+
+			if (bond->params.mode == BOND_MODE_8023AD)
+				bond_3ad_handle_link_change(slave,
+							    BOND_LINK_DOWN);
+
+			if (bond->params.mode == BOND_MODE_TLB ||
+			    bond->params.mode == BOND_MODE_ALB)
+				bond_alb_handle_link_change(bond, slave,
+							    BOND_LINK_DOWN);
+
+			if (slave == bond->curr_active_slave)
+				goto do_failover;
+
+			continue;
+
 		default:
-			/* Should not happen */
 			printk(KERN_ERR DRV_NAME
-			       ": %s: Error: %s Illegal value (link=%d)\n",
-			       bond->dev->name,
-			       slave->dev->name,
-			       slave->link);
-			goto out;
-		} /* end of switch (slave->link) */
+			       ": %s: invalid new link %d on slave %s\n",
+			       bond->dev->name, slave->new_link,
+			       slave->dev->name);
+			slave->new_link = BOND_LINK_NOCHANGE;
 
-		bond_update_speed_duplex(slave);
-
-		if (bond->params.mode == BOND_MODE_8023AD) {
-			if (old_speed != slave->speed) {
-				bond_3ad_adapter_speed_changed(slave);
-			}
-
-			if (old_duplex != slave->duplex) {
-				bond_3ad_adapter_duplex_changed(slave);
-			}
+			continue;
 		}
 
-	} /* end of for */
-
-	if (do_failover) {
+do_failover:
 		ASSERT_RTNL();
-
 		write_lock_bh(&bond->curr_slave_lock);
-
 		bond_select_active_slave(bond);
-
 		write_unlock_bh(&bond->curr_slave_lock);
+	}
 
-	} else
-		bond_set_carrier(bond);
-
-out:
-	return 0;
+	bond_set_carrier(bond);
 }
 
 /*
  * bond_mii_monitor
  *
  * Really a wrapper that splits the mii monitor into two phases: an
- * inspection, then (if inspection indicates something needs to be
- * done) an acquisition of appropriate locks followed by another pass
- * to implement whatever link state changes are indicated.
+ * inspection, then (if inspection indicates something needs to be done)
+ * an acquisition of appropriate locks followed by a commit phase to
+ * implement whatever link state changes are indicated.
  */
 void bond_mii_monitor(struct work_struct *work)
 {
 	struct bonding *bond = container_of(work, struct bonding,
 					    mii_work.work);
-	unsigned long delay;
 
 	read_lock(&bond->lock);
-	if (bond->kill_timers) {
-		read_unlock(&bond->lock);
-		return;
-	}
+	if (bond->kill_timers)
+		goto out;
+
+	if (bond->slave_cnt == 0)
+		goto re_arm;
 
 	if (bond->send_grat_arp) {
 		read_lock(&bond->curr_slave_lock);
@@ -2496,19 +2441,24 @@ void bond_mii_monitor(struct work_struct *work)
 		read_unlock(&bond->curr_slave_lock);
 	}
 
-	if (__bond_mii_monitor(bond, 0)) {
+	if (bond_miimon_inspect(bond)) {
 		read_unlock(&bond->lock);
 		rtnl_lock();
 		read_lock(&bond->lock);
-		__bond_mii_monitor(bond, 1);
+
+		bond_miimon_commit(bond);
+
 		read_unlock(&bond->lock);
 		rtnl_unlock();	/* might sleep, hold no other locks */
 		read_lock(&bond->lock);
 	}
 
-	delay = msecs_to_jiffies(bond->params.miimon);
+re_arm:
+	if (bond->params.miimon)
+		queue_delayed_work(bond->wq, &bond->mii_work,
+				   msecs_to_jiffies(bond->params.miimon));
+out:
 	read_unlock(&bond->lock);
-	queue_delayed_work(bond->wq, &bond->mii_work, delay);
 }
 
 static __be32 bond_glean_dev_ip(struct net_device *dev)

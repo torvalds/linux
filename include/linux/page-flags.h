@@ -163,7 +163,7 @@ static inline int Page##uname(struct page *page) 			\
 
 struct page;	/* forward declaration */
 
-PAGEFLAG(Locked, locked) TESTSCFLAG(Locked, locked)
+TESTPAGEFLAG(Locked, locked)
 PAGEFLAG(Error, error)
 PAGEFLAG(Referenced, referenced) TESTCLEARFLAG(Referenced, referenced)
 PAGEFLAG(Dirty, dirty) TESTSCFLAG(Dirty, dirty) __CLEARPAGEFLAG(Dirty, dirty)

@@ -73,9 +73,9 @@
 #include <asm/gpio.h>
 
 #include <asm/mach/mmc.h>
-#include <asm/arch/board.h>
-#include <asm/arch/cpu.h>
-#include <asm/arch/at91_mci.h>
+#include <mach/board.h>
+#include <mach/cpu.h>
+#include <mach/at91_mci.h>
 
 #define DRIVER_NAME "at91_mci"
 

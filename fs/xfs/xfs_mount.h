@@ -114,7 +114,7 @@ struct xfs_dqtrxops;
 struct xfs_quotainfo;
 
 typedef int	(*xfs_qminit_t)(struct xfs_mount *, uint *, uint *);
-typedef int	(*xfs_qmmount_t)(struct xfs_mount *, uint, uint, int);
+typedef int	(*xfs_qmmount_t)(struct xfs_mount *, uint, uint);
 typedef int	(*xfs_qmunmount_t)(struct xfs_mount *);
 typedef void	(*xfs_qmdone_t)(struct xfs_mount *);
 typedef void	(*xfs_dqrele_t)(struct xfs_dquot *);
@@ -158,8 +158,8 @@ typedef struct xfs_qmops {
 
 #define XFS_QM_INIT(mp, mnt, fl) \
 	(*(mp)->m_qm_ops->xfs_qminit)(mp, mnt, fl)
-#define XFS_QM_MOUNT(mp, mnt, fl, mfsi_flags) \
-	(*(mp)->m_qm_ops->xfs_qmmount)(mp, mnt, fl, mfsi_flags)
+#define XFS_QM_MOUNT(mp, mnt, fl) \
+	(*(mp)->m_qm_ops->xfs_qmmount)(mp, mnt, fl)
 #define XFS_QM_UNMOUNT(mp) \
 	(*(mp)->m_qm_ops->xfs_qmunmount)(mp)
 #define XFS_QM_DONE(mp) \
@@ -442,13 +442,6 @@ void xfs_do_force_shutdown(struct xfs_mount *mp, int flags, char *fname,
 /*
  * Flags for xfs_mountfs
  */
-#define XFS_MFSI_SECOND		0x01	/* Secondary mount -- skip stuff */
-#define XFS_MFSI_CLIENT		0x02	/* Is a client -- skip lots of stuff */
-/*	XFS_MFSI_RRINODES	*/
-#define XFS_MFSI_NOUNLINK	0x08	/* Skip unlinked inode processing in */
-					/* log recovery */
-#define XFS_MFSI_NO_QUOTACHECK	0x10	/* Skip quotacheck processing */
-/*	XFS_MFSI_CONVERT_SUNIT	*/
 #define XFS_MFSI_QUIET		0x40	/* Be silent if mount errors found */
 
 #define XFS_DADDR_TO_AGNO(mp,d)         xfs_daddr_to_agno(mp,d)
@@ -517,10 +510,10 @@ typedef struct xfs_mod_sb {
 
 extern void	xfs_mod_sb(xfs_trans_t *, __int64_t);
 extern int	xfs_log_sbcount(xfs_mount_t *, uint);
-extern int	xfs_mountfs(xfs_mount_t *mp, int);
+extern int	xfs_mountfs(xfs_mount_t *mp);
 extern void	xfs_mountfs_check_barriers(xfs_mount_t *mp);
 
-extern int	xfs_unmountfs(xfs_mount_t *);
+extern void	xfs_unmountfs(xfs_mount_t *);
 extern int	xfs_unmountfs_writesb(xfs_mount_t *);
 extern int	xfs_unmount_flush(xfs_mount_t *, int);
 extern int	xfs_mod_incore_sb(xfs_mount_t *, xfs_sb_field_t, int64_t, int);

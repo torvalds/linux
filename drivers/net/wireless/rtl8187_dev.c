@@ -31,6 +31,8 @@ MODULE_DESCRIPTION("RTL8187/RTL8187B USB wireless driver");
 MODULE_LICENSE("GPL");
 
 static struct usb_device_id rtl8187_table[] __devinitdata = {
+	/* Asus */
+	{USB_DEVICE(0x0b05, 0x171d), .driver_info = DEVICE_RTL8187},
 	/* Realtek */
 	{USB_DEVICE(0x0bda, 0x8187), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0bda, 0x8189), .driver_info = DEVICE_RTL8187B},
@@ -38,6 +40,7 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Netgear */
 	{USB_DEVICE(0x0846, 0x6100), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0846, 0x6a00), .driver_info = DEVICE_RTL8187},
+	{USB_DEVICE(0x0846, 0x4260), .driver_info = DEVICE_RTL8187B},
 	/* HP */
 	{USB_DEVICE(0x03f0, 0xca02), .driver_info = DEVICE_RTL8187},
 	/* Sitecom */
@@ -726,6 +729,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	if (ret)
 		return ret;
 
+	mutex_lock(&priv->conf_mutex);
 	if (priv->is_rtl8187b) {
 		reg = RTL818X_RX_CONF_MGMT |
 		      RTL818X_RX_CONF_DATA |
@@ -747,6 +751,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 				  (7 << 0  /* long retry limit */) |
 				  (7 << 21 /* MAX TX DMA */));
 		rtl8187_init_urbs(dev);
+		mutex_unlock(&priv->conf_mutex);
 		return 0;
 	}
 
@@ -790,6 +795,7 @@ static int rtl8187_start(struct ieee80211_hw *dev)
 	reg |= RTL818X_CMD_TX_ENABLE;
 	reg |= RTL818X_CMD_RX_ENABLE;
 	rtl818x_iowrite8(priv, &priv->map->CMD, reg);
+	mutex_unlock(&priv->conf_mutex);
 
 	return 0;
 }
@@ -801,6 +807,7 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 	struct sk_buff *skb;
 	u32 reg;
 
+	mutex_lock(&priv->conf_mutex);
 	rtl818x_iowrite16(priv, &priv->map->INT_MASK, 0);
 
 	reg = rtl818x_ioread8(priv, &priv->map->CMD);
@@ -820,7 +827,7 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 		usb_kill_urb(info->urb);
 		kfree_skb(skb);
 	}
-	return;
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int rtl8187_add_interface(struct ieee80211_hw *dev,
@@ -840,6 +847,7 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
+	mutex_lock(&priv->conf_mutex);
 	priv->vif = conf->vif;
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
@@ -848,6 +856,7 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 				 ((u8 *)conf->mac_addr)[i]);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -855,8 +864,10 @@ static void rtl8187_remove_interface(struct ieee80211_hw *dev,
 				     struct ieee80211_if_init_conf *conf)
 {
 	struct rtl8187_priv *priv = dev->priv;
+	mutex_lock(&priv->conf_mutex);
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	priv->vif = NULL;
+	mutex_unlock(&priv->conf_mutex);
 }
 
 static int rtl8187_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -864,6 +875,7 @@ static int rtl8187_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	struct rtl8187_priv *priv = dev->priv;
 	u32 reg;
 
+	mutex_lock(&priv->conf_mutex);
 	reg = rtl818x_ioread32(priv, &priv->map->TX_CONF);
 	/* Enable TX loopback on MAC level to avoid TX during channel
 	 * changes, as this has be seen to causes problems and the
@@ -896,6 +908,7 @@ static int rtl8187_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	rtl818x_iowrite16(priv, &priv->map->ATIMTR_INTERVAL, 100);
 	rtl818x_iowrite16(priv, &priv->map->BEACON_INTERVAL, 100);
 	rtl818x_iowrite16(priv, &priv->map->BEACON_INTERVAL_TIME, 100);
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -907,6 +920,7 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev,
 	int i;
 	u8 reg;
 
+	mutex_lock(&priv->conf_mutex);
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->BSSID[i], conf->bssid[i]);
 
@@ -920,6 +934,7 @@ static int rtl8187_config_interface(struct ieee80211_hw *dev,
 		rtl818x_iowrite8(priv, &priv->map->MSR, reg);
 	}
 
+	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
@@ -1187,6 +1202,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		printk(KERN_ERR "rtl8187: Cannot register device\n");
 		goto err_free_dev;
 	}
+	mutex_init(&priv->conf_mutex);
 
 	printk(KERN_INFO "%s: hwaddr %s, %s V%d + %s\n",
 	       wiphy_name(dev->wiphy), print_mac(mac, dev->wiphy->perm_addr),

@@ -19,7 +19,7 @@
 #include <linux/clockchips.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/leds.h>
 #include <asm/irq.h>

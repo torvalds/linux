@@ -133,7 +133,7 @@ error.  Given an arbitrary address, the routine
 pci_get_device_by_addr() will find the pci device associated
 with that address (if any).
 
-The default include/asm-powerpc/io.h macros readb(), inb(), insb(),
+The default arch/powerpc/include/asm/io.h macros readb(), inb(), insb(),
 etc. include a check to see if the i/o read returned all-0xff's.
 If so, these make a call to eeh_dn_check_failure(), which in turn
 asks the firmware if the all-ff's value is the sign of a true EEH

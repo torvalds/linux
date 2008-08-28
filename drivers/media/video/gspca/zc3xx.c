@@ -6469,7 +6469,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		NULL, Tgradient_1, Tgradient_2,
 		Tgradient_3, Tgradient_4, Tgradient_5, Tgradient_6
 	};
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	__u8 v[16];
 #endif
 
@@ -6487,7 +6487,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		else if (g <= 0)
 			g = 1;
 		reg_w(dev, g, 0x0120 + i);	/* gamma */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 		if (gspca_debug & D_CONF)
 			v[i] = g;
 #endif
@@ -6507,7 +6507,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 				g = 1;
 		}
 		reg_w(dev, g, 0x0130 + i);	/* gradient */
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 		if (gspca_debug & D_CONF)
 			v[i] = g;
 #endif

@@ -245,10 +245,13 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_AP:
 		sdata->bss = &sdata->u.ap;
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
+		/* mesh ifaces must set allmulti to forward mcast traffic */
+		atomic_inc(&local->iff_allmultis);
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_MNTR:
 	case IEEE80211_IF_TYPE_IBSS:
-	case IEEE80211_IF_TYPE_MESH_POINT:
 		/* no special treatment */
 		break;
 	case IEEE80211_IF_TYPE_INVALID:
@@ -495,6 +498,9 @@ static int ieee80211_stop(struct net_device *dev)
 		netif_addr_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
+		/* allmulti is always set on mesh ifaces */
+		atomic_dec(&local->iff_allmultis);
+		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
@@ -1688,6 +1694,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	if (local->hw.conf.beacon_int < 10)
 		local->hw.conf.beacon_int = 100;
+
+	if (local->hw.max_listen_interval == 0)
+		local->hw.max_listen_interval = 1;
+
+	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 
 	local->wstats_flags |= local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
 						  IEEE80211_HW_SIGNAL_DB |

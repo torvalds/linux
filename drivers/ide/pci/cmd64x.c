@@ -354,7 +354,7 @@ static unsigned int __devinit init_chipset_cmd64x(struct pci_dev *dev)
 	return 0;
 }
 
-static u8 __devinit cmd64x_cable_detect(ide_hwif_t *hwif)
+static u8 cmd64x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev  *dev	= to_pci_dev(hwif->dev);
 	u8 bmidecsr = 0, mask	= hwif->channel ? 0x02 : 0x01;

@@ -29,12 +29,11 @@
 #include <linux/mii.h>
 
 #include <asm/io.h>
-#include <asm/hardware.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/netx-regs.h>
-#include <asm/arch/pfifo.h>
-#include <asm/arch/xc.h>
-#include <asm/arch/eth.h>
+#include <mach/hardware.h>
+#include <mach/netx-regs.h>
+#include <mach/pfifo.h>
+#include <mach/xc.h>
+#include <mach/eth.h>
 
 /* XC Fifo Offsets */
 #define EMPTY_PTR_FIFO(xcno)    (0 + ((xcno) << 3))	/* Index of the empty pointer FIFO */

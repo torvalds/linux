@@ -90,4 +90,11 @@ static inline unsigned long get_softint(void)
 	return retval;
 }
 
+void __trigger_all_cpu_backtrace(void);
+#define trigger_all_cpu_backtrace() __trigger_all_cpu_backtrace()
+
+extern void *hardirq_stack[NR_CPUS];
+extern void *softirq_stack[NR_CPUS];
+#define __ARCH_HAS_DO_SOFTIRQ
+
 #endif

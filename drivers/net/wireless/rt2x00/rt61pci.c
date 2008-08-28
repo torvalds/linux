@@ -1004,6 +1004,11 @@ static int rt61pci_load_firmware(struct rt2x00_dev *rt2x00dev, const void *data,
 	}
 
 	/*
+	 * Hardware needs another millisecond before it is ready.
+	 */
+	msleep(1);
+
+	/*
 	 * Reset MAC and BBP registers.
 	 */
 	reg = 0;

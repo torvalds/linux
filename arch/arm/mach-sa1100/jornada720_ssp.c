@@ -20,9 +20,9 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/hardware/ssp.h>
-#include <asm/arch/jornada720.h>
+#include <mach/jornada720.h>
 
 static DEFINE_SPINLOCK(jornada_ssp_lock);
 static unsigned long jornada_ssp_flags;

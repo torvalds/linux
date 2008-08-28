@@ -24,7 +24,6 @@
 
 #include <linux/crc32.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/dma-mapping.h>
@@ -273,86 +272,6 @@ static void sky2_power_aux(struct sky2_hw *hw)
 		sky2_write8(hw, B0_POWER_CTRL,
 			    (PC_VAUX_ENA | PC_VCC_ENA |
 			     PC_VAUX_ON | PC_VCC_OFF));
-}
-
-static void sky2_power_state(struct sky2_hw *hw, pci_power_t state)
-{
-	u16 power_control = sky2_pci_read16(hw, hw->pm_cap + PCI_PM_CTRL);
-	int pex = pci_find_capability(hw->pdev, PCI_CAP_ID_EXP);
-	u32 reg;
-
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_ON);
-
-	switch (state) {
-	case PCI_D0:
-		break;
-
-	case PCI_D1:
-		power_control |= 1;
-		break;
-
-	case PCI_D2:
-		power_control |= 2;
-		break;
-
-	case PCI_D3hot:
-	case PCI_D3cold:
-		power_control |= 3;
-		if (hw->flags & SKY2_HW_ADV_POWER_CTL) {
-			/* additional power saving measurements */
-			reg = sky2_pci_read32(hw, PCI_DEV_REG4);
-
-			/* set gating core clock for LTSSM in L1 state */
-			reg |= P_PEX_LTSSM_STAT(P_PEX_LTSSM_L1_STAT) |
-				/* auto clock gated scheme controlled by CLKREQ */
-				P_ASPM_A1_MODE_SELECT |
-				/* enable Gate Root Core Clock */
-				P_CLK_GATE_ROOT_COR_ENA;
-
-			if (pex && (hw->flags & SKY2_HW_CLK_POWER)) {
-				/* enable Clock Power Management (CLKREQ) */
-				u16 ctrl = sky2_pci_read16(hw, pex + PCI_EXP_DEVCTL);
-
-				ctrl |= PCI_EXP_DEVCTL_AUX_PME;
-				sky2_pci_write16(hw, pex + PCI_EXP_DEVCTL, ctrl);
-			} else
-				/* force CLKREQ Enable in Our4 (A1b only) */
-				reg |= P_ASPM_FORCE_CLKREQ_ENA;
-
-			/* set Mask Register for Release/Gate Clock */
-			sky2_pci_write32(hw, PCI_DEV_REG5,
-					 P_REL_PCIE_EXIT_L1_ST | P_GAT_PCIE_ENTER_L1_ST |
-					 P_REL_PCIE_RX_EX_IDLE | P_GAT_PCIE_RX_EL_IDLE |
-					 P_REL_GPHY_LINK_UP | P_GAT_GPHY_LINK_DOWN);
-		} else
-			sky2_write8(hw, B28_Y2_ASF_STAT_CMD, Y2_ASF_CLK_HALT);
-
-		/* put CPU into reset state */
-		sky2_write8(hw,  B28_Y2_ASF_STAT_CMD, HCU_CCSR_ASF_RESET);
-		if (hw->chip_id == CHIP_ID_YUKON_SUPR && hw->chip_rev == CHIP_REV_YU_SU_A0)
-			/* put CPU into halt state */
-			sky2_write8(hw, B28_Y2_ASF_STAT_CMD, HCU_CCSR_ASF_HALTED);
-
-		if (pex && !(hw->flags & SKY2_HW_RAM_BUFFER)) {
-			reg = sky2_pci_read32(hw, PCI_DEV_REG1);
-			/* force to PCIe L1 */
-			reg |= PCI_FORCE_PEX_L1;
-			sky2_pci_write32(hw, PCI_DEV_REG1, reg);
-		}
-		break;
-
-	default:
-		dev_warn(&hw->pdev->dev, PFX "Invalid power state (%d) ",
-		       state);
-		return;
-	}
-
-	power_control |= PCI_PM_CTRL_PME_ENABLE;
-	/* Finally, set the new power state. */
-	sky2_pci_write32(hw, hw->pm_cap + PCI_PM_CTRL, power_control);
-
-	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
-	sky2_pci_read32(hw, B0_CTST);
 }
 
 static void sky2_gmac_reset(struct sky2_hw *hw, unsigned port)
@@ -709,6 +628,11 @@ static void sky2_phy_power_up(struct sky2_hw *hw, unsigned port)
 	sky2_pci_write32(hw, PCI_DEV_REG1, reg1);
 	sky2_write8(hw, B2_TST_CTRL1, TST_CFG_WRITE_OFF);
 	sky2_pci_read32(hw, PCI_DEV_REG1);
+
+	if (hw->chip_id == CHIP_ID_YUKON_FE)
+		gm_phy_write(hw, port, PHY_MARV_CTRL, PHY_CT_ANE);
+	else if (hw->flags & SKY2_HW_ADV_POWER_CTL)
+		sky2_write8(hw, SK_REG(port, GPHY_CTRL), GPC_RST_CLR);
 }
 
 static void sky2_phy_power_down(struct sky2_hw *hw, unsigned port)
@@ -741,11 +665,16 @@ static void sky2_phy_power_down(struct sky2_hw *hw, unsigned port)
 
 	if (hw->chip_id != CHIP_ID_YUKON_EC) {
 		if (hw->chip_id == CHIP_ID_YUKON_EC_U) {
-			ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
+			/* select page 2 to access MAC control register */
+			gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 2);
 
+			ctrl = gm_phy_read(hw, port, PHY_MARV_PHY_CTRL);
 			/* enable Power Down */
 			ctrl |= PHY_M_PC_POW_D_ENA;
 			gm_phy_write(hw, port, PHY_MARV_PHY_CTRL, ctrl);
+
+			/* set page register back to 0 */
+			gm_phy_write(hw, port, PHY_MARV_EXT_ADR, 0);
 		}
 
 		/* set IEEE compatible Power Down Mode (dev. #4.99) */
@@ -2855,10 +2784,6 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 		hw->flags = SKY2_HW_GIGABIT
 			| SKY2_HW_NEWER_PHY
 			| SKY2_HW_ADV_POWER_CTL;
-
-		/* check for Rev. A1 dev 4200 */
-		if (sky2_read16(hw, Q_ADDR(Q_XA1, Q_WM)) == 0)
-			hw->flags |= SKY2_HW_CLK_POWER;
 		break;
 
 	case CHIP_ID_YUKON_EX:
@@ -2913,12 +2838,6 @@ static int __devinit sky2_init(struct sky2_hw *hw)
 	hw->pmd_type = sky2_read8(hw, B2_PMD_TYP);
 	if (hw->pmd_type == 'L' || hw->pmd_type == 'S' || hw->pmd_type == 'P')
 		hw->flags |= SKY2_HW_FIBRE_PHY;
-
-	hw->pm_cap = pci_find_capability(hw->pdev, PCI_CAP_ID_PM);
-	if (hw->pm_cap == 0) {
-		dev_err(&hw->pdev->dev, "cannot find PowerManagement capability\n");
-		return -EIO;
-	}
 
 	hw->ports = 1;
 	t8 = sky2_read8(hw, B2_Y2_HW_RES);
@@ -4512,7 +4431,7 @@ static int sky2_suspend(struct pci_dev *pdev, pm_message_t state)
 
 	pci_save_state(pdev);
 	pci_enable_wake(pdev, pci_choose_state(pdev, state), wol);
-	sky2_power_state(hw, pci_choose_state(pdev, state));
+	pci_set_power_state(pdev, pci_choose_state(pdev, state));
 
 	return 0;
 }
@@ -4525,7 +4444,9 @@ static int sky2_resume(struct pci_dev *pdev)
 	if (!hw)
 		return 0;
 
-	sky2_power_state(hw, PCI_D0);
+	err = pci_set_power_state(pdev, PCI_D0);
+	if (err)
+		goto out;
 
 	err = pci_restore_state(pdev);
 	if (err)
@@ -4595,7 +4516,7 @@ static void sky2_shutdown(struct pci_dev *pdev)
 	pci_enable_wake(pdev, PCI_D3cold, wol);
 
 	pci_disable_device(pdev);
-	sky2_power_state(hw, PCI_D3hot);
+	pci_set_power_state(pdev, PCI_D3hot);
 }
 
 static struct pci_driver sky2_driver = {

@@ -524,8 +524,7 @@ static inline void sctp_ssn_skip(struct sctp_stream *stream, __u16 id,
  */
 struct sctp_af {
 	int		(*sctp_xmit)	(struct sk_buff *skb,
-					 struct sctp_transport *,
-					 int ipfragok);
+					 struct sctp_transport *);
 	int		(*setsockopt)	(struct sock *sk,
 					 int level,
 					 int optname,

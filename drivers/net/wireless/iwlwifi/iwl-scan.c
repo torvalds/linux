@@ -202,6 +202,7 @@ static int iwl_send_scan_abort(struct iwl_priv *priv)
 		clear_bit(STATUS_SCAN_HW, &priv->status);
 	}
 
+	priv->alloc_rxb_skb--;
 	dev_kfree_skb_any(cmd.meta.u.skb);
 
 	return ret;

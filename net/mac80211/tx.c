@@ -1060,13 +1060,14 @@ static int ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 			  struct ieee80211_tx_data *tx)
 {
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_tx_info *info;
 	int ret, i;
 
-	if (netif_subqueue_stopped(local->mdev, skb))
-		return IEEE80211_TX_AGAIN;
-
 	if (skb) {
+		if (netif_subqueue_stopped(local->mdev, skb))
+			return IEEE80211_TX_AGAIN;
+		info =  IEEE80211_SKB_CB(skb);
+
 		ieee80211_dump_frame(wiphy_name(local->hw.wiphy),
 				     "TX to low-level driver", skb);
 		ret = local->ops->tx(local_to_hw(local), skb);
@@ -1215,6 +1216,7 @@ retry:
 
 		if (ret == IEEE80211_TX_FRAG_AGAIN)
 			skb = NULL;
+
 		set_bit(queue, local->queues_pending);
 		smp_mb();
 		/*
@@ -1299,6 +1301,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct net_device *odev = NULL;
 	struct ieee80211_sub_if_data *osdata;
 	int headroom;
@@ -1325,6 +1328,20 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 	info->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
 
 	osdata = IEEE80211_DEV_TO_SUB_IF(odev);
+
+	if (ieee80211_vif_is_mesh(&osdata->vif) &&
+	    ieee80211_is_data(hdr->frame_control)) {
+		if (ieee80211_is_data(hdr->frame_control)) {
+			if (is_multicast_ether_addr(hdr->addr3))
+				memcpy(hdr->addr1, hdr->addr3, ETH_ALEN);
+			else
+				if (mesh_nexthop_lookup(skb, odev))
+					return  0;
+			if (memcmp(odev->dev_addr, hdr->addr4, ETH_ALEN) != 0)
+				IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.sta,
+							     fwded_frames);
+		}
+	}
 
 	may_encrypt = !skb->do_not_encrypt;
 
@@ -1470,30 +1487,17 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	case IEEE80211_IF_TYPE_MESH_POINT:
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS | IEEE80211_FCTL_TODS);
 		/* RA TA DA SA */
-		if (is_multicast_ether_addr(skb->data))
-			memcpy(hdr.addr1, skb->data, ETH_ALEN);
-		else if (mesh_nexthop_lookup(hdr.addr1, skb, dev))
-				return 0;
+		memset(hdr.addr1, 0, ETH_ALEN);
 		memcpy(hdr.addr2, dev->dev_addr, ETH_ALEN);
 		memcpy(hdr.addr3, skb->data, ETH_ALEN);
 		memcpy(hdr.addr4, skb->data + ETH_ALEN, ETH_ALEN);
-		if (skb->pkt_type == PACKET_OTHERHOST) {
-			/* Forwarded frame, keep mesh ttl and seqnum */
-			struct ieee80211s_hdr *prev_meshhdr;
-			prev_meshhdr = ((struct ieee80211s_hdr *)skb->cb);
-			meshhdrlen = ieee80211_get_mesh_hdrlen(prev_meshhdr);
-			memcpy(&mesh_hdr, prev_meshhdr, meshhdrlen);
-			sdata->u.sta.mshstats.fwded_frames++;
-		} else {
-			if (!sdata->u.sta.mshcfg.dot11MeshTTL) {
-				/* Do not send frames with mesh_ttl == 0 */
-				sdata->u.sta.mshstats.dropped_frames_ttl++;
-				ret = 0;
-				goto fail;
-			}
-			meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr,
-							       sdata);
+		if (!sdata->u.sta.mshcfg.dot11MeshTTL) {
+			/* Do not send frames with mesh_ttl == 0 */
+			sdata->u.sta.mshstats.dropped_frames_ttl++;
+			ret = 0;
+			goto fail;
 		}
+		meshhdrlen = ieee80211_new_mesh_header(&mesh_hdr, sdata);
 		hdrlen = 30;
 		break;
 #endif
@@ -1541,7 +1545,8 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	 * Drop unicast frames to unauthorised stations unless they are
 	 * EAPOL frames from the local station.
 	 */
-	if (unlikely(!is_multicast_ether_addr(hdr.addr1) &&
+	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
+		unlikely(!is_multicast_ether_addr(hdr.addr1) &&
 		      !(sta_flags & WLAN_STA_AUTHORIZED) &&
 		      !(ethertype == ETH_P_PAE &&
 		       compare_ether_addr(dev->dev_addr,
@@ -1708,13 +1713,18 @@ void ieee80211_tx_pending(unsigned long data)
 	netif_tx_lock_bh(dev);
 	for (i = 0; i < ieee80211_num_regular_queues(&local->hw); i++) {
 		/* Check that this queue is ok */
-		if (__netif_subqueue_stopped(local->mdev, i))
+		if (__netif_subqueue_stopped(local->mdev, i) &&
+		    !test_bit(i, local->queues_pending_run))
 			continue;
 
 		if (!test_bit(i, local->queues_pending)) {
+			clear_bit(i, local->queues_pending_run);
 			ieee80211_wake_queue(&local->hw, i);
 			continue;
 		}
+
+		clear_bit(i, local->queues_pending_run);
+		netif_start_subqueue(local->mdev, i);
 
 		store = &local->pending_packet[i];
 		tx.extra_frag = store->extra_frag;

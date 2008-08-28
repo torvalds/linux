@@ -23,17 +23,16 @@
 #include <linux/ioport.h>
 #include <linux/device.h>
 #include <linux/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/setup.h>
-#include <asm/mach-types.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/map.h>
-#include <asm/arch/irq.h>
+#include <mach/irq.h>
 
 static u8 pnx4008_irq_type[NR_IRQS] = PNX4008_IRQ_TYPES;
 

@@ -26,9 +26,9 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/map.h>
-#include <asm/arch/bast-map.h>
-#include <asm/arch/bast-cpld.h>
+#include <mach/map.h>
+#include <mach/bast-map.h>
+#include <mach/bast-cpld.h>
 
 
 static void simtec_nor_vpp(struct map_info *map, int vpp)

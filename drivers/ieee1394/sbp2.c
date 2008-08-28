@@ -731,15 +731,26 @@ static int sbp2_update(struct unit_directory *ud)
 {
 	struct sbp2_lu *lu = ud->device.driver_data;
 
-	if (sbp2_reconnect_device(lu)) {
-		/* Reconnect has failed. Perhaps we didn't reconnect fast
-		 * enough. Try a regular login, but first log out just in
-		 * case of any weirdness. */
+	if (sbp2_reconnect_device(lu) != 0) {
+		/*
+		 * Reconnect failed.  If another bus reset happened,
+		 * let nodemgr proceed and call sbp2_update again later
+		 * (or sbp2_remove if this node went away).
+		 */
+		if (!hpsb_node_entry_valid(lu->ne))
+			return 0;
+		/*
+		 * Or the target rejected the reconnect because we weren't
+		 * fast enough.  Try a regular login, but first log out
+		 * just in case of any weirdness.
+		 */
 		sbp2_logout_device(lu);
 
-		if (sbp2_login_device(lu)) {
-			/* Login failed too, just fail, and the backend
-			 * will call our sbp2_remove for us */
+		if (sbp2_login_device(lu) != 0) {
+			if (!hpsb_node_entry_valid(lu->ne))
+				return 0;
+
+			/* Maybe another initiator won the login. */
 			SBP2_ERR("Failed to reconnect to sbp2 device!");
 			return -EBUSY;
 		}

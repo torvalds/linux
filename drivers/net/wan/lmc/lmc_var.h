@@ -1,8 +1,6 @@
 #ifndef _LMC_VAR_H_
 #define _LMC_VAR_H_
 
-/* $Id: lmc_var.h,v 1.17 2000/04/06 12:16:47 asj Exp $ */
-
  /*
   * Copyright (c) 1997-2000 LAN Media Corporation (LMC)
   * All rights reserved.  www.lanmedia.com
@@ -19,23 +17,6 @@
 
 #include <linux/timer.h>
 
-#ifndef __KERNEL__
-typedef signed char s8;
-typedef unsigned char u8;
-
-typedef signed short s16;
-typedef unsigned short u16;
-
-typedef signed int s32;
-typedef unsigned int u32;
-
-typedef signed long long s64;
-typedef unsigned long long u64;
-
-#define BITS_PER_LONG 32 
-
-#endif
-
 /*
  * basic definitions used in lmc include files
  */
@@ -45,9 +26,6 @@ typedef struct lmc___media lmc_media_t;
 typedef struct lmc___ctl lmc_ctl_t;
 
 #define lmc_csrptr_t    unsigned long
-#define u_int16_t	u16
-#define u_int8_t	u8
-#define tulip_uint32_t	u32
 
 #define LMC_REG_RANGE 0x80
 
@@ -122,45 +100,45 @@ struct lmc_regfile_t {
  *  used to define bits in the second tulip_desc_t field (length)
  *  for the transmit descriptor -baz */
 
-#define LMC_TDES_FIRST_BUFFER_SIZE       ((u_int32_t)(0x000007FF))
-#define LMC_TDES_SECOND_BUFFER_SIZE      ((u_int32_t)(0x003FF800))
-#define LMC_TDES_HASH_FILTERING          ((u_int32_t)(0x00400000))
-#define LMC_TDES_DISABLE_PADDING         ((u_int32_t)(0x00800000))
-#define LMC_TDES_SECOND_ADDR_CHAINED     ((u_int32_t)(0x01000000))
-#define LMC_TDES_END_OF_RING             ((u_int32_t)(0x02000000))
-#define LMC_TDES_ADD_CRC_DISABLE         ((u_int32_t)(0x04000000))
-#define LMC_TDES_SETUP_PACKET            ((u_int32_t)(0x08000000))
-#define LMC_TDES_INVERSE_FILTERING       ((u_int32_t)(0x10000000))
-#define LMC_TDES_FIRST_SEGMENT           ((u_int32_t)(0x20000000))
-#define LMC_TDES_LAST_SEGMENT            ((u_int32_t)(0x40000000))
-#define LMC_TDES_INTERRUPT_ON_COMPLETION ((u_int32_t)(0x80000000))
+#define LMC_TDES_FIRST_BUFFER_SIZE       ((u32)(0x000007FF))
+#define LMC_TDES_SECOND_BUFFER_SIZE      ((u32)(0x003FF800))
+#define LMC_TDES_HASH_FILTERING          ((u32)(0x00400000))
+#define LMC_TDES_DISABLE_PADDING         ((u32)(0x00800000))
+#define LMC_TDES_SECOND_ADDR_CHAINED     ((u32)(0x01000000))
+#define LMC_TDES_END_OF_RING             ((u32)(0x02000000))
+#define LMC_TDES_ADD_CRC_DISABLE         ((u32)(0x04000000))
+#define LMC_TDES_SETUP_PACKET            ((u32)(0x08000000))
+#define LMC_TDES_INVERSE_FILTERING       ((u32)(0x10000000))
+#define LMC_TDES_FIRST_SEGMENT           ((u32)(0x20000000))
+#define LMC_TDES_LAST_SEGMENT            ((u32)(0x40000000))
+#define LMC_TDES_INTERRUPT_ON_COMPLETION ((u32)(0x80000000))
 
 #define TDES_SECOND_BUFFER_SIZE_BIT_NUMBER  11
 #define TDES_COLLISION_COUNT_BIT_NUMBER     3
 
 /* Constants for the RCV descriptor RDES */
 
-#define LMC_RDES_OVERFLOW             ((u_int32_t)(0x00000001))
-#define LMC_RDES_CRC_ERROR            ((u_int32_t)(0x00000002))
-#define LMC_RDES_DRIBBLING_BIT            ((u_int32_t)(0x00000004))
-#define LMC_RDES_REPORT_ON_MII_ERR    ((u_int32_t)(0x00000008))
-#define LMC_RDES_RCV_WATCHDOG_TIMEOUT ((u_int32_t)(0x00000010))
-#define LMC_RDES_FRAME_TYPE           ((u_int32_t)(0x00000020))
-#define LMC_RDES_COLLISION_SEEN       ((u_int32_t)(0x00000040))
-#define LMC_RDES_FRAME_TOO_LONG       ((u_int32_t)(0x00000080))
-#define LMC_RDES_LAST_DESCRIPTOR      ((u_int32_t)(0x00000100))
-#define LMC_RDES_FIRST_DESCRIPTOR     ((u_int32_t)(0x00000200))
-#define LMC_RDES_MULTICAST_FRAME      ((u_int32_t)(0x00000400))
-#define LMC_RDES_RUNT_FRAME           ((u_int32_t)(0x00000800))
-#define LMC_RDES_DATA_TYPE            ((u_int32_t)(0x00003000))
-#define LMC_RDES_LENGTH_ERROR         ((u_int32_t)(0x00004000))
-#define LMC_RDES_ERROR_SUMMARY        ((u_int32_t)(0x00008000))
-#define LMC_RDES_FRAME_LENGTH         ((u_int32_t)(0x3FFF0000))
-#define LMC_RDES_OWN_BIT              ((u_int32_t)(0x80000000))
+#define LMC_RDES_OVERFLOW             ((u32)(0x00000001))
+#define LMC_RDES_CRC_ERROR            ((u32)(0x00000002))
+#define LMC_RDES_DRIBBLING_BIT        ((u32)(0x00000004))
+#define LMC_RDES_REPORT_ON_MII_ERR    ((u32)(0x00000008))
+#define LMC_RDES_RCV_WATCHDOG_TIMEOUT ((u32)(0x00000010))
+#define LMC_RDES_FRAME_TYPE           ((u32)(0x00000020))
+#define LMC_RDES_COLLISION_SEEN       ((u32)(0x00000040))
+#define LMC_RDES_FRAME_TOO_LONG       ((u32)(0x00000080))
+#define LMC_RDES_LAST_DESCRIPTOR      ((u32)(0x00000100))
+#define LMC_RDES_FIRST_DESCRIPTOR     ((u32)(0x00000200))
+#define LMC_RDES_MULTICAST_FRAME      ((u32)(0x00000400))
+#define LMC_RDES_RUNT_FRAME           ((u32)(0x00000800))
+#define LMC_RDES_DATA_TYPE            ((u32)(0x00003000))
+#define LMC_RDES_LENGTH_ERROR         ((u32)(0x00004000))
+#define LMC_RDES_ERROR_SUMMARY        ((u32)(0x00008000))
+#define LMC_RDES_FRAME_LENGTH         ((u32)(0x3FFF0000))
+#define LMC_RDES_OWN_BIT              ((u32)(0x80000000))
 
 #define RDES_FRAME_LENGTH_BIT_NUMBER       16
 
-#define LMC_RDES_ERROR_MASK ( (u_int32_t)( \
+#define LMC_RDES_ERROR_MASK ( (u32)( \
 	  LMC_RDES_OVERFLOW \
 	| LMC_RDES_DRIBBLING_BIT \
 	| LMC_RDES_REPORT_ON_MII_ERR \
@@ -172,32 +150,32 @@ struct lmc_regfile_t {
  */
 
 typedef struct {
-	u_int32_t	n;
-	u_int32_t	m;
-	u_int32_t	v;
-	u_int32_t	x;
-	u_int32_t	r;
-	u_int32_t	f;
-	u_int32_t	exact;
+	u32	n;
+	u32	m;
+	u32	v;
+	u32	x;
+	u32	r;
+	u32	f;
+	u32	exact;
 } lmc_av9110_t;
 
 /*
  * Common structure passed to the ioctl code.
  */
 struct lmc___ctl {
-	u_int32_t	cardtype;
-	u_int32_t	clock_source;		/* HSSI, T1 */
-	u_int32_t	clock_rate;		/* T1 */
-	u_int32_t	crc_length;
-	u_int32_t	cable_length;		/* DS3 */
-	u_int32_t	scrambler_onoff;	/* DS3 */
-	u_int32_t	cable_type;		/* T1 */
-	u_int32_t	keepalive_onoff;	/* protocol */
-	u_int32_t	ticks;			/* ticks/sec */
+	u32	cardtype;
+	u32	clock_source;		/* HSSI, T1 */
+	u32	clock_rate;		/* T1 */
+	u32	crc_length;
+	u32	cable_length;		/* DS3 */
+	u32	scrambler_onoff;	/* DS3 */
+	u32	cable_type;		/* T1 */
+	u32	keepalive_onoff;	/* protocol */
+	u32	ticks;			/* ticks/sec */
 	union {
 		lmc_av9110_t	ssi;
 	} cardspec;
-	u_int32_t       circuit_type;   /* T1 or E1 */
+	u32       circuit_type;   /* T1 or E1 */
 };
 
 
@@ -244,108 +222,69 @@ struct lmc___media {
 
 #define STATCHECK     0xBEEFCAFE
 
-/*  Included in this structure are first
- *   - standard net_device_stats
- *   - some other counters used for debug and driver performance
- *  evaluation -baz
- */
-struct lmc_statistics
+struct lmc_extra_statistics
 {
-        unsigned long     rx_packets;             /* total packets received       */
-        unsigned long     tx_packets;             /* total packets transmitted    */
-	unsigned long     rx_bytes;
-        unsigned long     tx_bytes;
-        
-        unsigned long     rx_errors;              /* bad packets received         */
-        unsigned long     tx_errors;              /* packet transmit problems     */
-        unsigned long     rx_dropped;             /* no space in linux buffers    */
-        unsigned long     tx_dropped;             /* no space available in linux  */
-        unsigned long     multicast;              /* multicast packets received   */
-        unsigned long     collisions;
+	u32       version_size;
+	u32       lmc_cardtype;
 
-        /* detailed rx_errors: */
-        unsigned long     rx_length_errors;
-        unsigned long     rx_over_errors;         /* receiver ring buff overflow  */
-        unsigned long     rx_crc_errors;          /* recved pkt with crc error    */
-        unsigned long     rx_frame_errors;        /* recv'd frame alignment error */
-        unsigned long     rx_fifo_errors;         /* recv'r fifo overrun          */
-        unsigned long     rx_missed_errors;       /* receiver missed packet       */
+	u32       tx_ProcTimeout;
+	u32       tx_IntTimeout;
+	u32       tx_NoCompleteCnt;
+	u32       tx_MaxXmtsB4Int;
+	u32       tx_TimeoutCnt;
+	u32       tx_OutOfSyncPtr;
+	u32       tx_tbusy0;
+	u32       tx_tbusy1;
+	u32       tx_tbusy_calls;
+	u32       resetCount;
+	u32       lmc_txfull;
+	u32       tbusy;
+	u32       dirtyTx;
+	u32       lmc_next_tx;
+	u32       otherTypeCnt;
+	u32       lastType;
+	u32       lastTypeOK;
+	u32       txLoopCnt;
+	u32       usedXmtDescripCnt;
+	u32       txIndexCnt;
+	u32       rxIntLoopCnt;
 
-        /* detailed tx_errors */
-        unsigned long     tx_aborted_errors;
-        unsigned long     tx_carrier_errors;
-        unsigned long     tx_fifo_errors;
-        unsigned long     tx_heartbeat_errors;
-        unsigned long     tx_window_errors;
+	u32       rx_SmallPktCnt;
+	u32       rx_BadPktSurgeCnt;
+	u32       rx_BuffAllocErr;
+	u32       tx_lossOfClockCnt;
 
-        /* for cslip etc */
-        unsigned long rx_compressed;
-        unsigned long tx_compressed;
+	/* T1 error counters */
+	u32       framingBitErrorCount;
+	u32       lineCodeViolationCount;
 
-        /* -------------------------------------
-         * Custom stats & counters follow -baz */
-        u_int32_t       version_size;
-        u_int32_t       lmc_cardtype;
+	u32       lossOfFrameCount;
+	u32       changeOfFrameAlignmentCount;
+	u32       severelyErroredFrameCount;
 
-        u_int32_t       tx_ProcTimeout;
-        u_int32_t       tx_IntTimeout;
-        u_int32_t       tx_NoCompleteCnt;
-        u_int32_t       tx_MaxXmtsB4Int;
-        u_int32_t       tx_TimeoutCnt;
-        u_int32_t       tx_OutOfSyncPtr;
-        u_int32_t       tx_tbusy0;
-        u_int32_t       tx_tbusy1;
-        u_int32_t       tx_tbusy_calls;
-        u_int32_t       resetCount;
-        u_int32_t       lmc_txfull;
-        u_int32_t       tbusy;
-        u_int32_t       dirtyTx;
-        u_int32_t       lmc_next_tx;
-        u_int32_t       otherTypeCnt;
-        u_int32_t       lastType;
-        u_int32_t       lastTypeOK;
-        u_int32_t       txLoopCnt;
-        u_int32_t       usedXmtDescripCnt;
-        u_int32_t       txIndexCnt;
-        u_int32_t       rxIntLoopCnt;
-
-        u_int32_t       rx_SmallPktCnt;
-        u_int32_t       rx_BadPktSurgeCnt;
-        u_int32_t       rx_BuffAllocErr;
-        u_int32_t       tx_lossOfClockCnt;
-
-        /* T1 error counters */
-        u_int32_t       framingBitErrorCount;
-        u_int32_t       lineCodeViolationCount;
-
-        u_int32_t       lossOfFrameCount;
-        u_int32_t       changeOfFrameAlignmentCount;
-        u_int32_t       severelyErroredFrameCount;
-
-        u_int32_t       check;
+	u32       check;
 };
 
-
 typedef struct lmc_xinfo {
-        u_int32_t       Magic0;                         /* BEEFCAFE */
+	u32       Magic0;                         /* BEEFCAFE */
 
-        u_int32_t       PciCardType;
-        u_int32_t       PciSlotNumber;          /* PCI slot number       */
+	u32       PciCardType;
+	u32       PciSlotNumber;          /* PCI slot number       */
 
-        u_int16_t       DriverMajorVersion;
-        u_int16_t       DriverMinorVersion;
-        u_int16_t       DriverSubVersion;
+	u16	       DriverMajorVersion;
+	u16	       DriverMinorVersion;
+	u16	       DriverSubVersion;
 
-        u_int16_t       XilinxRevisionNumber;
-        u_int16_t       MaxFrameSize;
+	u16	       XilinxRevisionNumber;
+	u16	       MaxFrameSize;
 
-        u_int16_t       t1_alarm1_status;
-        u_int16_t       t1_alarm2_status;
+	u16     	  t1_alarm1_status;
+	u16       	t1_alarm2_status;
 
-        int                     link_status;
-        u_int32_t       mii_reg16;
+	int             link_status;
+	u32       mii_reg16;
 
-        u_int32_t       Magic1;                         /* DEADBEEF */
+	u32       Magic1;                         /* DEADBEEF */
 } LMC_XINFO;
 
 
@@ -353,23 +292,22 @@ typedef struct lmc_xinfo {
  * forward decl
  */
 struct lmc___softc {
-        void *if_ptr;   /* General purpose pointer (used by SPPP) */
 	char                   *name;
 	u8			board_idx;
-	struct lmc_statistics   stats;
-	struct net_device          *lmc_device;
+	struct lmc_extra_statistics extra_stats;
+	struct net_device      *lmc_device;
 
 	int                     hang, rxdesc, bad_packet, some_counter;
-	u_int32_t               txgo;
+	u32  	         	txgo;
 	struct lmc_regfile_t	lmc_csrs;
-	volatile u_int32_t	lmc_txtick;
-	volatile u_int32_t	lmc_rxtick;
-	u_int32_t		lmc_flags;
-	u_int32_t		lmc_intrmask;	/* our copy of csr_intr */
-	u_int32_t		lmc_cmdmode;	/* our copy of csr_cmdmode */
-	u_int32_t		lmc_busmode;	/* our copy of csr_busmode */
-	u_int32_t		lmc_gpio_io;	/* state of in/out settings */
-	u_int32_t		lmc_gpio;	/* state of outputs */
+	volatile u32		lmc_txtick;
+	volatile u32		lmc_rxtick;
+	u32			lmc_flags;
+	u32			lmc_intrmask;	/* our copy of csr_intr */
+	u32			lmc_cmdmode;	/* our copy of csr_cmdmode */
+	u32			lmc_busmode;	/* our copy of csr_busmode */
+	u32			lmc_gpio_io;	/* state of in/out settings */
+	u32			lmc_gpio;	/* state of outputs */
 	struct sk_buff*		lmc_txq[LMC_TXDESCS];
 	struct sk_buff*		lmc_rxq[LMC_RXDESCS];
 	volatile
@@ -381,42 +319,41 @@ struct lmc___softc {
 	unsigned int		lmc_taint_tx, lmc_taint_rx;
 	int			lmc_tx_start, lmc_txfull;
 	int			lmc_txbusy;
-	u_int16_t		lmc_miireg16;
+	u16			lmc_miireg16;
 	int			lmc_ok;
 	int			last_link_status;
 	int			lmc_cardtype;
-	u_int32_t               last_frameerr;
+	u32               	last_frameerr;
 	lmc_media_t	       *lmc_media;
 	struct timer_list	timer;
 	lmc_ctl_t		ictl;
-	u_int32_t		TxDescriptControlInit;  
+	u32			TxDescriptControlInit;
 
 	int                     tx_TimeoutInd; /* additional driver state */
 	int                     tx_TimeoutDisplay;
 	unsigned int		lastlmc_taint_tx;
 	int                     lasttx_packets;
-	u_int32_t		tx_clockState;
-	u_int32_t		lmc_crcSize;
-	LMC_XINFO		lmc_xinfo; 
+	u32			tx_clockState;
+	u32			lmc_crcSize;
+	LMC_XINFO		lmc_xinfo;
 	char                    lmc_yel, lmc_blue, lmc_red; /* for T1 and DS3 */
-        char                    lmc_timing; /* for HSSI and SSI */
-        int                     got_irq;
+	char                    lmc_timing; /* for HSSI and SSI */
+	int                     got_irq;
 
-        char                    last_led_err[4];
+	char                    last_led_err[4];
 
-        u32                     last_int;
-        u32                     num_int;
+	u32                     last_int;
+	u32                     num_int;
 
 	spinlock_t              lmc_lock;
-        u_int16_t               if_type;       /* PPP or NET */
-        struct ppp_device       *pd;
+	u16			if_type;       /* HDLC/PPP or NET */
 
-        /* Failure cases */
-        u8                       failed_ring;
-        u8                       failed_recv_alloc;
+	/* Failure cases */
+	u8			failed_ring;
+	u8			failed_recv_alloc;
 
-        /* Structure check */
-        u32                     check;
+	/* Structure check */
+	u32                     check;
 };
 
 #define LMC_PCI_TIME 1
@@ -512,8 +449,8 @@ struct lmc___softc {
   | TULIP_STS_TXUNDERFLOW\
   | TULIP_STS_RXSTOPPED )
 
-#define DESC_OWNED_BY_SYSTEM   ((u_int32_t)(0x00000000))
-#define DESC_OWNED_BY_DC21X4   ((u_int32_t)(0x80000000))
+#define DESC_OWNED_BY_SYSTEM   ((u32)(0x00000000))
+#define DESC_OWNED_BY_DC21X4   ((u32)(0x80000000))
 
 #ifndef TULIP_CMD_RECEIVEALL
 #define TULIP_CMD_RECEIVEALL 0x40000000L
@@ -525,46 +462,9 @@ struct lmc___softc {
 #define LMC_ADAP_SSI            4
 #define LMC_ADAP_T1             5
 
-#define HDLC_HDR_LEN  4
-#define HDLC_ADDR_LEN 1
-#define HDLC_SLARP    0x8035
 #define LMC_MTU 1500
-#define SLARP_LINECHECK 2
 
 #define LMC_CRC_LEN_16 2  /* 16-bit CRC */
 #define LMC_CRC_LEN_32 4
-
-#ifdef LMC_HDLC
-/* definition of an hdlc header. */
-struct hdlc_hdr
-{
-	u8  address;
-	u8  control;
-	u16 type;
-};
-
-/* definition of a slarp header. */
-struct slarp
-{
-	long code;
-	union sl
-	{
-		struct
-		{
-			ulong address;
-			ulong mask;
-			ushort unused;
-		} add;
-		struct
-		{
-			ulong mysequence;
-			ulong yoursequence;
-			ushort reliability;
-			ulong time;
-		} chk;
-	} t;
-};
-#endif /* LMC_HDLC */
-
 
 #endif /* _LMC_VAR_H_ */

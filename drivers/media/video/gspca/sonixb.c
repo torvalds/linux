@@ -408,7 +408,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		  const __u8 *buffer,
 		  int len)
 {
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (len > sizeof gspca_dev->usb_buf) {
 		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
 		return;

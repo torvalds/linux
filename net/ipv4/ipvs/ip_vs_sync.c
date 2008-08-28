@@ -904,9 +904,9 @@ int stop_sync_thread(int state)
 		 * progress of stopping the master sync daemon.
 		 */
 
-		spin_lock(&ip_vs_sync_lock);
+		spin_lock_bh(&ip_vs_sync_lock);
 		ip_vs_sync_state &= ~IP_VS_STATE_MASTER;
-		spin_unlock(&ip_vs_sync_lock);
+		spin_unlock_bh(&ip_vs_sync_lock);
 		kthread_stop(sync_master_thread);
 		sync_master_thread = NULL;
 	} else if (state == IP_VS_STATE_BACKUP) {

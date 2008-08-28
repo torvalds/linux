@@ -17,11 +17,11 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/cpu.h>
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/dsp_common.h>
+#include <mach/dma.h>
+#include <mach/mux.h>
+#include <mach/cpu.h>
+#include <mach/mcbsp.h>
+#include <mach/dsp_common.h>
 
 #define DPS_RSTCT2_PER_EN	(1 << 0)
 #define DSP_RSTCT2_WD_PER_EN	(1 << 1)

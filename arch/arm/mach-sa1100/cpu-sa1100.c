@@ -88,7 +88,7 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
 #include "generic.h"
 

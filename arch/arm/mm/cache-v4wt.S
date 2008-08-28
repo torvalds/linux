@@ -13,7 +13,7 @@
  */
 #include <linux/linkage.h>
 #include <linux/init.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/page.h>
 #include "proc-macros.S"
 

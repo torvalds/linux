@@ -31,7 +31,6 @@
 ******************************************************************************/
 
 #include "ipw2200.h"
-#include <linux/version.h>
 
 
 #ifndef KBUILD_EXTMOD
@@ -305,9 +304,10 @@ static inline void ipw_write_reg32(struct ipw_priv *a, u32 b, u32 c)
 #define _ipw_write8(ipw, ofs, val) writeb((val), (ipw)->hw_base + (ofs))
 
 /* 8-bit direct write (for low 4K of SRAM/regs), with debug wrapper */
-#define ipw_write8(ipw, ofs, val) \
+#define ipw_write8(ipw, ofs, val) do { \
  IPW_DEBUG_IO("%s %d: write_direct8(0x%08X, 0x%08X)\n", __FILE__, __LINE__, (u32)(ofs), (u32)(val)); \
- _ipw_write8(ipw, ofs, val)
+ _ipw_write8(ipw, ofs, val); \
+ } while (0)
 
 /* 16-bit direct write (low 4K) */
 #define _ipw_write16(ipw, ofs, val) writew((val), (ipw)->hw_base + (ofs))

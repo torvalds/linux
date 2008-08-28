@@ -680,7 +680,7 @@ static int alua_prep_fn(struct scsi_device *sdev, struct request *req)
 
 }
 
-const struct scsi_dh_devlist alua_dev_list[] = {
+static const struct scsi_dh_devlist alua_dev_list[] = {
 	{"HP", "MSA VOLUME" },
 	{"HP", "HSV101" },
 	{"HP", "HSV111" },

@@ -131,7 +131,7 @@ static void tc86c001_dma_start(ide_drive_t *drive)
 	ide_dma_start(drive);
 }
 
-static u8 __devinit tc86c001_cable_detect(ide_hwif_t *hwif)
+static u8 tc86c001_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	unsigned long sc_base = pci_resource_start(dev, 5);
@@ -249,7 +249,7 @@ static struct pci_driver driver = {
 	.name		= "TC86C001",
 	.id_table	= tc86c001_pci_tbl,
 	.probe		= tc86c001_init_one,
-	.remove		= tc86c001_remove,
+	.remove		= __devexit_p(tc86c001_remove),
 };
 
 static int __init tc86c001_ide_init(void)

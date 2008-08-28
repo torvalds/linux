@@ -272,7 +272,7 @@ static unsigned int __devinit init_chipset_svwks(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit ata66_svwks_svwks(ide_hwif_t *hwif)
+static u8 ata66_svwks_svwks(ide_hwif_t *hwif)
 {
 	return ATA_CBL_PATA80;
 }
@@ -284,7 +284,7 @@ static u8 __devinit ata66_svwks_svwks(ide_hwif_t *hwif)
  * Bit 14 clear = primary IDE channel does not have 80-pin cable.
  * Bit 14 set   = primary IDE channel has 80-pin cable.
  */
-static u8 __devinit ata66_svwks_dell(ide_hwif_t *hwif)
+static u8 ata66_svwks_dell(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -303,7 +303,7 @@ static u8 __devinit ata66_svwks_dell(ide_hwif_t *hwif)
  *
  * WARNING: this only works on Alpine hardware!
  */
-static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
+static u8 ata66_svwks_cobalt(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 
@@ -315,7 +315,7 @@ static u8 __devinit ata66_svwks_cobalt(ide_hwif_t *hwif)
 	return ATA_CBL_PATA40;
 }
 
-static u8 __devinit svwks_cable_detect(ide_hwif_t *hwif)
+static u8 svwks_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 

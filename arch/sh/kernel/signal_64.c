@@ -22,6 +22,7 @@
 #include <linux/ptrace.h>
 #include <linux/unistd.h>
 #include <linux/stddef.h>
+#include <linux/tracehook.h>
 #include <asm/ucontext.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
@@ -42,7 +43,84 @@
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
 
-asmlinkage int do_signal(struct pt_regs *regs, sigset_t *oldset);
+/*
+ * Note that 'init' is a special process: it doesn't get signals it doesn't
+ * want to handle. Thus you cannot kill init even with a SIGKILL even by
+ * mistake.
+ *
+ * Note that we go through the signals twice: once to check the signals that
+ * the kernel can handle, and then we build all the user-level signal handling
+ * stack-frames in one go after that.
+ */
+static int do_signal(struct pt_regs *regs, sigset_t *oldset)
+{
+	siginfo_t info;
+	int signr;
+	struct k_sigaction ka;
+
+	/*
+	 * We want the common case to go fast, which
+	 * is why we may in certain cases get here from
+	 * kernel mode. Just return without doing anything
+	 * if so.
+	 */
+	if (!user_mode(regs))
+		return 1;
+
+	if (try_to_freeze())
+		goto no_signal;
+
+	if (test_thread_flag(TIF_RESTORE_SIGMASK))
+		oldset = &current->saved_sigmask;
+	else if (!oldset)
+		oldset = &current->blocked;
+
+	signr = get_signal_to_deliver(&info, &ka, regs, 0);
+
+	if (signr > 0) {
+		/* Whee!  Actually deliver the signal.  */
+		handle_signal(signr, &info, &ka, oldset, regs);
+
+		/*
+		 * If a signal was successfully delivered, the saved sigmask
+		 * is in its frame, and we can clear the TIF_RESTORE_SIGMASK
+		 * flag.
+		 */
+		if (test_thread_flag(TIF_RESTORE_SIGMASK))
+			clear_thread_flag(TIF_RESTORE_SIGMASK);
+
+		tracehook_signal_handler(signr, &info, &ka, regs, 0);
+		return 1;
+	}
+
+no_signal:
+	/* Did we come from a system call? */
+	if (regs->syscall_nr >= 0) {
+		/* Restart the system call - no handlers present */
+		switch (regs->regs[REG_RET]) {
+		case -ERESTARTNOHAND:
+		case -ERESTARTSYS:
+		case -ERESTARTNOINTR:
+			/* Decode Syscall # */
+			regs->regs[REG_RET] = regs->syscall_nr;
+			regs->pc -= 4;
+			break;
+
+		case -ERESTART_RESTARTBLOCK:
+			regs->regs[REG_RET] = __NR_restart_syscall;
+			regs->pc -= 4;
+			break;
+		}
+	}
+
+	/* No signal to deliver -- put the saved sigmask back */
+	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
+		clear_thread_flag(TIF_RESTORE_SIGMASK);
+		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
+	}
+
+	return 0;
+}
 
 /*
  * Atomically swap in the new signal mask, and wait for a signal.
@@ -643,14 +721,13 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		switch (regs->regs[REG_RET]) {
 			case -ERESTART_RESTARTBLOCK:
 			case -ERESTARTNOHAND:
+			no_system_call_restart:
 				regs->regs[REG_RET] = -EINTR;
 				break;
 
 			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART)) {
-					regs->regs[REG_RET] = -EINTR;
-					break;
-				}
+				if (!(ka->sa.sa_flags & SA_RESTART))
+					goto no_system_call_restart;
 			/* fallthrough */
 			case -ERESTARTNOINTR:
 				/* Decode syscall # */
@@ -673,80 +750,13 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 	spin_unlock_irq(&current->sighand->siglock);
 }
 
-/*
- * Note that 'init' is a special process: it doesn't get signals it doesn't
- * want to handle. Thus you cannot kill init even with a SIGKILL even by
- * mistake.
- *
- * Note that we go through the signals twice: once to check the signals that
- * the kernel can handle, and then we build all the user-level signal handling
- * stack-frames in one go after that.
- */
-int do_signal(struct pt_regs *regs, sigset_t *oldset)
+asmlinkage void do_notify_resume(struct pt_regs *regs, unsigned long thread_info_flags)
 {
-	siginfo_t info;
-	int signr;
-	struct k_sigaction ka;
+	if (thread_info_flags & _TIF_SIGPENDING)
+		do_signal(regs, 0);
 
-	/*
-	 * We want the common case to go fast, which
-	 * is why we may in certain cases get here from
-	 * kernel mode. Just return without doing anything
-	 * if so.
-	 */
-	if (!user_mode(regs))
-		return 1;
-
-	if (try_to_freeze())
-		goto no_signal;
-
-	if (test_thread_flag(TIF_RESTORE_SIGMASK))
-		oldset = &current->saved_sigmask;
-	else if (!oldset)
-		oldset = &current->blocked;
-
-	signr = get_signal_to_deliver(&info, &ka, regs, 0);
-
-	if (signr > 0) {
-		/* Whee!  Actually deliver the signal.  */
-		handle_signal(signr, &info, &ka, oldset, regs);
-
-		/*
-		 * If a signal was successfully delivered, the saved sigmask
-		 * is in its frame, and we can clear the TIF_RESTORE_SIGMASK
-		 * flag.
-		 */
-		if (test_thread_flag(TIF_RESTORE_SIGMASK))
-			clear_thread_flag(TIF_RESTORE_SIGMASK);
-
-		return 1;
+	if (thread_info_flags & _TIF_NOTIFY_RESUME) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
 	}
-
-no_signal:
-	/* Did we come from a system call? */
-	if (regs->syscall_nr >= 0) {
-		/* Restart the system call - no handlers present */
-		switch (regs->regs[REG_RET]) {
-		case -ERESTARTNOHAND:
-		case -ERESTARTSYS:
-		case -ERESTARTNOINTR:
-			/* Decode Syscall # */
-			regs->regs[REG_RET] = regs->syscall_nr;
-			regs->pc -= 4;
-			break;
-
-		case -ERESTART_RESTARTBLOCK:
-			regs->regs[REG_RET] = __NR_restart_syscall;
-			regs->pc -= 4;
-			break;
-		}
-	}
-
-	/* No signal to deliver -- put the saved sigmask back */
-	if (test_thread_flag(TIF_RESTORE_SIGMASK)) {
-		clear_thread_flag(TIF_RESTORE_SIGMASK);
-		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
-	}
-
-	return 0;
 }

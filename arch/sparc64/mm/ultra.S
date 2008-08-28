@@ -480,42 +480,6 @@ xcall_sync_tick:
 	b		rtrap_xcall
 	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 
-	/* NOTE: This is SPECIAL!!  We do etrap/rtrap however
-	 *       we choose to deal with the "BH's run with
-	 *       %pil==15" problem (described in asm/pil.h)
-	 *       by just invoking rtrap directly past where
-	 *       BH's are checked for.
-	 *
-	 *       We do it like this because we do not want %pil==15
-	 *       lockups to prevent regs being reported.
-	 */
-	.globl		xcall_report_regs
-xcall_report_regs:
-
-661:	rdpr		%pstate, %g2
-	wrpr		%g2, PSTATE_IG | PSTATE_AG, %pstate
-	.section	.sun4v_2insn_patch, "ax"
-	.word		661b
-	nop
-	nop
-	.previous
-
-	rdpr		%pil, %g2
-	wrpr		%g0, 15, %pil
-	sethi		%hi(109f), %g7
-	b,pt		%xcc, etrap_irq
-109:	 or		%g7, %lo(109b), %g7
-#ifdef CONFIG_TRACE_IRQFLAGS
-	call		trace_hardirqs_off
-	 nop
-#endif
-	call		__show_regs
-	 add		%sp, PTREGS_OFF, %o0
-	/* Has to be a non-v9 branch due to the large distance. */
-	b		rtrap_xcall
-	 ldx		[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
-
-#ifdef CONFIG_MAGIC_SYSRQ
 	.globl		xcall_fetch_glob_regs
 xcall_fetch_glob_regs:
 	sethi		%hi(global_reg_snapshot), %g1
@@ -531,6 +495,13 @@ xcall_fetch_glob_regs:
 	stx		%g7, [%g1 + GR_SNAP_TNPC]
 	stx		%o7, [%g1 + GR_SNAP_O7]
 	stx		%i7, [%g1 + GR_SNAP_I7]
+	/* Don't try this at home kids... */
+	rdpr		%cwp, %g2
+	sub		%g2, 1, %g7
+	wrpr		%g7, %cwp
+	mov		%i7, %g7
+	wrpr		%g2, %cwp
+	stx		%g7, [%g1 + GR_SNAP_RPC]
 	sethi		%hi(trap_block), %g7
 	or		%g7, %lo(trap_block), %g7
 	sllx		%g2, TRAP_BLOCK_SZ_SHIFT, %g2
@@ -539,7 +510,6 @@ xcall_fetch_glob_regs:
 	membar		#StoreStore
 	stx		%g3, [%g1 + GR_SNAP_THREAD]
 	retry
-#endif /* CONFIG_MAGIC_SYSRQ */
 
 #ifdef DCACHE_ALIASING_POSSIBLE
 	.align		32

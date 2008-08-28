@@ -177,11 +177,11 @@
 #include <linux/dma-mapping.h>
 #include <linux/mutex.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach-types.h>
-#include <asm/arch/assabet.h>
-#include <asm/arch/shannon.h>
+#include <mach/assabet.h>
+#include <mach/shannon.h>
 
 /*
  * debugging?

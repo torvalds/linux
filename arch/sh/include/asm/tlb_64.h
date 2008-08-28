@@ -21,11 +21,9 @@
 #ifndef __ASSEMBLY__
 
 /**
- * for_each_dtlb_entry
+ * for_each_dtlb_entry - Iterate over free (non-wired) DTLB entries
  *
  * @tlb:	TLB entry
- *
- * Iterate over free (non-wired) DTLB entries
  */
 #define for_each_dtlb_entry(tlb)		\
 	for (tlb  = cpu_data->dtlb.first;	\
@@ -33,11 +31,9 @@
 	     tlb += cpu_data->dtlb.step)
 
 /**
- * for_each_itlb_entry
+ * for_each_itlb_entry - Iterate over free (non-wired) ITLB entries
  *
  * @tlb:	TLB entry
- *
- * Iterate over free (non-wired) ITLB entries
  */
 #define for_each_itlb_entry(tlb)		\
 	for (tlb  = cpu_data->itlb.first;	\
@@ -45,11 +41,9 @@
 	     tlb += cpu_data->itlb.step)
 
 /**
- * __flush_tlb_slot
+ * __flush_tlb_slot - Flushes TLB slot @slot.
  *
  * @slot:	Address of TLB slot.
- *
- * Flushes TLB slot @slot.
  */
 static inline void __flush_tlb_slot(unsigned long long slot)
 {

@@ -36,8 +36,8 @@
 #include <linux/videodev2.h>
 
 #include <asm/dma.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/camera.h>
+#include <mach/pxa-regs.h>
+#include <mach/camera.h>
 
 #define PXA_CAM_VERSION_CODE KERNEL_VERSION(0, 0, 5)
 #define PXA_CAM_DRV_NAME "pxa27x-camera"
@@ -128,6 +128,8 @@ struct pxa_camera_dev {
 
 	struct pxa_buffer	*active;
 	struct pxa_dma_desc	*sg_tail[3];
+
+	u32			save_cicr[5];
 };
 
 static const char *pxa_cam_driver_description = "PXA_Camera";
@@ -997,10 +999,64 @@ static int pxa_camera_querycap(struct soc_camera_host *ici,
 	return 0;
 }
 
+static int pxa_camera_suspend(struct soc_camera_device *icd, pm_message_t state)
+{
+	struct soc_camera_host *ici =
+		to_soc_camera_host(icd->dev.parent);
+	struct pxa_camera_dev *pcdev = ici->priv;
+	int i = 0, ret = 0;
+
+	pcdev->save_cicr[i++] = CICR0;
+	pcdev->save_cicr[i++] = CICR1;
+	pcdev->save_cicr[i++] = CICR2;
+	pcdev->save_cicr[i++] = CICR3;
+	pcdev->save_cicr[i++] = CICR4;
+
+	if ((pcdev->icd) && (pcdev->icd->ops->suspend))
+		ret = pcdev->icd->ops->suspend(pcdev->icd, state);
+
+	return ret;
+}
+
+static int pxa_camera_resume(struct soc_camera_device *icd)
+{
+	struct soc_camera_host *ici =
+		to_soc_camera_host(icd->dev.parent);
+	struct pxa_camera_dev *pcdev = ici->priv;
+	int i = 0, ret = 0;
+
+	DRCMR68 = pcdev->dma_chans[0] | DRCMR_MAPVLD;
+	DRCMR69 = pcdev->dma_chans[1] | DRCMR_MAPVLD;
+	DRCMR70 = pcdev->dma_chans[2] | DRCMR_MAPVLD;
+
+	CICR0 = pcdev->save_cicr[i++] & ~CICR0_ENB;
+	CICR1 = pcdev->save_cicr[i++];
+	CICR2 = pcdev->save_cicr[i++];
+	CICR3 = pcdev->save_cicr[i++];
+	CICR4 = pcdev->save_cicr[i++];
+
+	if ((pcdev->icd) && (pcdev->icd->ops->resume))
+		ret = pcdev->icd->ops->resume(pcdev->icd);
+
+	/* Restart frame capture if active buffer exists */
+	if (!ret && pcdev->active) {
+		/* Reset the FIFOs */
+		CIFR |= CIFR_RESET_F;
+		/* Enable End-Of-Frame Interrupt */
+		CICR0 &= ~CICR0_EOFM;
+		/* Restart the Capture Interface */
+		CICR0 |= CICR0_ENB;
+	}
+
+	return ret;
+}
+
 static struct soc_camera_host_ops pxa_soc_camera_host_ops = {
 	.owner		= THIS_MODULE,
 	.add		= pxa_camera_add_device,
 	.remove		= pxa_camera_remove_device,
+	.suspend	= pxa_camera_suspend,
+	.resume		= pxa_camera_resume,
 	.set_fmt_cap	= pxa_camera_set_fmt_cap,
 	.try_fmt_cap	= pxa_camera_try_fmt_cap,
 	.init_videobuf	= pxa_camera_init_videobuf,
@@ -1198,7 +1254,7 @@ static int __devinit pxa_camera_init(void)
 
 static void __exit pxa_camera_exit(void)
 {
-	return platform_driver_unregister(&pxa_camera_driver);
+	platform_driver_unregister(&pxa_camera_driver);
 }
 
 module_init(pxa_camera_init);

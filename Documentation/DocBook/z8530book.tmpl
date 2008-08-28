@@ -69,12 +69,6 @@
 	device to be used as both a tty interface and as a synchronous 
 	controller is a project for Linux post the 2.4 release
   </para>
-  <para>
-	The support code handles most common card configurations and
-	supports running both Cisco HDLC and Synchronous PPP. With extra
-	glue the frame relay and X.25 protocols can also be used with this
-	driver.
-  </para>
   </chapter>
   
   <chapter id="Driver_Modes">
@@ -179,35 +173,27 @@
   <para>
 	If you wish to use the network interface facilities of the driver,
 	then you need to attach a network device to each channel that is
-	present and in use. In addition to use the SyncPPP and Cisco HDLC
+	present and in use. In addition to use the generic HDLC
 	you need to follow some additional plumbing rules. They may seem 
 	complex but a look at the example hostess_sv11 driver should
 	reassure you.
   </para>
   <para>
 	The network device used for each channel should be pointed to by
-	the netdevice field of each channel. The dev-&gt; priv field of the
+	the netdevice field of each channel. The hdlc-&gt; priv field of the
 	network device points to your private data - you will need to be
-	able to find your ppp device from this. In addition to use the
-	sync ppp layer the private data must start with a void * pointer
-	to the syncppp structures.
+	able to find your private data from this.
   </para>
   <para>
 	The way most drivers approach this particular problem is to
 	create a structure holding the Z8530 device definition and
-	put that and the syncppp pointer into the private field of
-	the network device. The network device fields of the channels
-	then point back to the network devices. The ppp_device can also
-	be put in the private structure conveniently.
+	put that into the private field of the network device. The
+	network device fields of the channels then point back to the
+	network devices.
   </para>
   <para>
-	If you wish to use the synchronous ppp then you need to attach
-	the syncppp layer to the network device. You should do this before
-	you register the network device. The
-	<function>sppp_attach</function> requires that the first void *
-	pointer in your private data is pointing to an empty struct
-	ppp_device. The function fills in the initial data for the
-	ppp/hdlc layer.
+	If you wish to use the generic HDLC then you need to register
+	the HDLC device.
   </para>
   <para>
 	Before you register your network device you will also need to
@@ -314,10 +300,10 @@
 	buffer in sk_buff format and queues it for transmission. The
 	caller must provide the entire packet with the exception of the
 	bitstuffing and CRC. This is normally done by the caller via
-	the syncppp interface layer. It returns 0 if the buffer has been 
-        queued and non zero values  for queue full. If the function accepts 
-	the buffer it becomes property of the Z8530 layer and the caller 
-	should not free it. 
+	the generic HDLC interface layer. It returns 0 if the buffer has been
+	queued and non zero values for queue full. If the function accepts
+	the buffer it becomes property of the Z8530 layer and the caller
+	should not free it.
   </para>
   <para>
 	The function <function>z8530_get_stats</function> returns a pointer

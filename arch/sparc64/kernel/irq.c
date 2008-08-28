@@ -682,10 +682,32 @@ void ack_bad_irq(unsigned int virt_irq)
 	       ino, virt_irq);
 }
 
+void *hardirq_stack[NR_CPUS];
+void *softirq_stack[NR_CPUS];
+
+static __attribute__((always_inline)) void *set_hardirq_stack(void)
+{
+	void *orig_sp, *sp = hardirq_stack[smp_processor_id()];
+
+	__asm__ __volatile__("mov %%sp, %0" : "=r" (orig_sp));
+	if (orig_sp < sp ||
+	    orig_sp > (sp + THREAD_SIZE)) {
+		sp += THREAD_SIZE - 192 - STACK_BIAS;
+		__asm__ __volatile__("mov %0, %%sp" : : "r" (sp));
+	}
+
+	return orig_sp;
+}
+static __attribute__((always_inline)) void restore_hardirq_stack(void *orig_sp)
+{
+	__asm__ __volatile__("mov %0, %%sp" : : "r" (orig_sp));
+}
+
 void handler_irq(int irq, struct pt_regs *regs)
 {
 	unsigned long pstate, bucket_pa;
 	struct pt_regs *old_regs;
+	void *orig_sp;
 
 	clear_softint(1 << irq);
 
@@ -703,6 +725,8 @@ void handler_irq(int irq, struct pt_regs *regs)
 			       "i" (PSTATE_IE)
 			     : "memory");
 
+	orig_sp = set_hardirq_stack();
+
 	while (bucket_pa) {
 		struct irq_desc *desc;
 		unsigned long next_pa;
@@ -719,8 +743,36 @@ void handler_irq(int irq, struct pt_regs *regs)
 		bucket_pa = next_pa;
 	}
 
+	restore_hardirq_stack(orig_sp);
+
 	irq_exit();
 	set_irq_regs(old_regs);
+}
+
+void do_softirq(void)
+{
+	unsigned long flags;
+
+	if (in_interrupt())
+		return;
+
+	local_irq_save(flags);
+
+	if (local_softirq_pending()) {
+		void *orig_sp, *sp = softirq_stack[smp_processor_id()];
+
+		sp += THREAD_SIZE - 192 - STACK_BIAS;
+
+		__asm__ __volatile__("mov %%sp, %0\n\t"
+				     "mov %1, %%sp"
+				     : "=&r" (orig_sp)
+				     : "r" (sp));
+		__do_softirq();
+		__asm__ __volatile__("mov %0, %%sp"
+				     : : "r" (orig_sp));
+	}
+
+	local_irq_restore(flags);
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
@@ -915,12 +967,18 @@ static void __init sun4v_init_mondo_queues(void)
 		alloc_one_mondo(&tb->nonresum_mondo_pa, tb->nonresum_qmask);
 		alloc_one_kbuf(&tb->nonresum_kernel_buf_pa,
 			       tb->nonresum_qmask);
+	}
+}
+
+static void __init init_send_mondo_info(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		struct trap_per_cpu *tb = &trap_block[cpu];
 
 		init_cpu_send_mondo_info(tb);
 	}
-
-	/* Load up the boot cpu's entries.  */
-	sun4v_register_mondo_queues(hard_smp_processor_id());
 }
 
 static struct irqaction timer_irq_action = {
@@ -948,6 +1006,13 @@ void __init init_IRQ(void)
 
 	if (tlb_type == hypervisor)
 		sun4v_init_mondo_queues();
+
+	init_send_mondo_info();
+
+	if (tlb_type == hypervisor) {
+		/* Load up the boot cpu's entries.  */
+		sun4v_register_mondo_queues(hard_smp_processor_id());
+	}
 
 	/* We need to clear any IRQ's pending in the soft interrupt
 	 * registers, a spurious one could be left around from the

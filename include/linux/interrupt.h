@@ -223,35 +223,6 @@ static inline int disable_irq_wake(unsigned int irq)
 #define or_softirq_pending(x)  (local_softirq_pending() |= (x))
 #endif
 
-/*
- * Temporary defines for UP kernels, until all code gets fixed.
- */
-#ifndef CONFIG_SMP
-static inline void __deprecated cli(void)
-{
-	local_irq_disable();
-}
-static inline void __deprecated sti(void)
-{
-	local_irq_enable();
-}
-static inline void __deprecated save_flags(unsigned long *x)
-{
-	local_save_flags(*x);
-}
-#define save_flags(x) save_flags(&x)
-static inline void __deprecated restore_flags(unsigned long x)
-{
-	local_irq_restore(x);
-}
-
-static inline void __deprecated save_and_cli(unsigned long *x)
-{
-	local_irq_save(*x);
-}
-#define save_and_cli(x)	save_and_cli(&x)
-#endif /* CONFIG_SMP */
-
 /* Some architectures might implement lazy enabling/disabling of
  * interrupts. In some cases, such as stop_machine, we might want
  * to ensure that after a local_irq_disable(), interrupts have

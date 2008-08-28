@@ -36,8 +36,8 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
-#include <asm/arch/at32ap700x.h>
-#include <asm/arch/portmux.h>
+#include <mach/at32ap700x.h>
+#include <mach/portmux.h>
 
 #include "../codecs/wm8510.h"
 #include "at32-pcm.h"

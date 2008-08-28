@@ -98,9 +98,17 @@ extern void (*const interrupt[NR_IRQS])(void);
 #else
 typedef int vector_irq_t[NR_VECTORS];
 DECLARE_PER_CPU(vector_irq_t, vector_irq);
-extern spinlock_t vector_lock;
 #endif
-extern void setup_vector_irq(int cpu);
+
+#if defined(CONFIG_X86_IO_APIC) && defined(CONFIG_X86_64)
+extern void lock_vector_lock(void);
+extern void unlock_vector_lock(void);
+extern void __setup_vector_irq(int cpu);
+#else
+static inline void lock_vector_lock(void) {}
+static inline void unlock_vector_lock(void) {}
+static inline void __setup_vector_irq(int cpu) {}
+#endif
 
 #endif /* !ASSEMBLY_ */
 

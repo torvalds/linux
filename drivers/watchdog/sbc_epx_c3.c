@@ -25,8 +25,8 @@
 #include <linux/reboot.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
-#include <asm/uaccess.h>
-#include <asm/io.h>
+#include <linux/uaccess.h>
+#include <linux/io.h>
 
 #define PFX "epx_c3: "
 static int epx_c3_alive;
@@ -100,12 +100,12 @@ static ssize_t epx_c3_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static int epx_c3_ioctl(struct inode *inode, struct file *file,
-			unsigned int cmd, unsigned long arg)
+static long epx_c3_ioctl(struct file *file, unsigned int cmd,
+						unsigned long arg)
 {
 	int options, retval = -EINVAL;
 	int __user *argp = (void __user *)arg;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options		= WDIOF_KEEPALIVEPING |
 					  WDIOF_MAGICCLOSE,
 		.firmware_version	= 0,
@@ -120,11 +120,6 @@ static int epx_c3_ioctl(struct inode *inode, struct file *file,
 	case WDIOC_GETSTATUS:
 	case WDIOC_GETBOOTSTATUS:
 		return put_user(0, argp);
-	case WDIOC_KEEPALIVE:
-		epx_c3_pet();
-		return 0;
-	case WDIOC_GETTIMEOUT:
-		return put_user(WATCHDOG_TIMEOUT, argp);
 	case WDIOC_SETOPTIONS:
 		if (get_user(options, argp))
 			return -EFAULT;
@@ -140,6 +135,11 @@ static int epx_c3_ioctl(struct inode *inode, struct file *file,
 		}
 
 		return retval;
+	case WDIOC_KEEPALIVE:
+		epx_c3_pet();
+		return 0;
+	case WDIOC_GETTIMEOUT:
+		return put_user(WATCHDOG_TIMEOUT, argp);
 	default:
 		return -ENOTTY;
 	}
@@ -158,7 +158,7 @@ static const struct file_operations epx_c3_fops = {
 	.owner		= THIS_MODULE,
 	.llseek		= no_llseek,
 	.write		= epx_c3_write,
-	.ioctl		= epx_c3_ioctl,
+	.unlocked_ioctl	= epx_c3_ioctl,
 	.open		= epx_c3_open,
 	.release	= epx_c3_release,
 };

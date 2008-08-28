@@ -24,7 +24,7 @@
  * requirement that the application has is cleaned up when closes the file
  * pointer or exits the pm_qos_object will get an opportunity to clean up.
  *
- * mark gross mgross@linux.intel.com
+ * Mark Gross <mgross@linux.intel.com>
  */
 
 #include <linux/pm_qos_params.h>
@@ -211,8 +211,8 @@ EXPORT_SYMBOL_GPL(pm_qos_requirement);
  * @value: defines the qos request
  *
  * This function inserts a new entry in the pm_qos_class list of requested qos
- * performance charactoistics.  It recomputes the agregate QoS expectations for
- * the pm_qos_class of parrameters.
+ * performance characteristics.  It recomputes the aggregate QoS expectations
+ * for the pm_qos_class of parameters.
  */
 int pm_qos_add_requirement(int pm_qos_class, char *name, s32 value)
 {
@@ -250,10 +250,10 @@ EXPORT_SYMBOL_GPL(pm_qos_add_requirement);
  * @name: identifies the request
  * @value: defines the qos request
  *
- * Updates an existing qos requierement for the pm_qos_class of parameters along
+ * Updates an existing qos requirement for the pm_qos_class of parameters along
  * with updating the target pm_qos_class value.
  *
- * If the named request isn't in the lest then no change is made.
+ * If the named request isn't in the list then no change is made.
  */
 int pm_qos_update_requirement(int pm_qos_class, char *name, s32 new_value)
 {
@@ -287,7 +287,7 @@ EXPORT_SYMBOL_GPL(pm_qos_update_requirement);
  * @pm_qos_class: identifies which list of qos request to us
  * @name: identifies the request
  *
- * Will remove named qos request from pm_qos_class list of parrameters and
+ * Will remove named qos request from pm_qos_class list of parameters and
  * recompute the current target value for the pm_qos_class.
  */
 void pm_qos_remove_requirement(int pm_qos_class, char *name)
@@ -319,7 +319,7 @@ EXPORT_SYMBOL_GPL(pm_qos_remove_requirement);
  * @notifier: notifier block managed by caller.
  *
  * will register the notifier into a notification chain that gets called
- * uppon changes to the pm_qos_class target value.
+ * upon changes to the pm_qos_class target value.
  */
  int pm_qos_add_notifier(int pm_qos_class, struct notifier_block *notifier)
 {
@@ -338,7 +338,7 @@ EXPORT_SYMBOL_GPL(pm_qos_add_notifier);
  * @notifier: notifier block to be removed.
  *
  * will remove the notifier from the notification chain that gets called
- * uppon changes to the pm_qos_class target value.
+ * upon changes to the pm_qos_class target value.
  */
 int pm_qos_remove_notifier(int pm_qos_class, struct notifier_block *notifier)
 {

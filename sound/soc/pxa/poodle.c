@@ -26,10 +26,10 @@
 
 #include <asm/mach-types.h>
 #include <asm/hardware/locomo.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/poodle.h>
-#include <asm/arch/audio.h>
+#include <mach/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/poodle.h>
+#include <mach/audio.h>
 
 #include "../codecs/wm8731.h"
 #include "pxa2xx-pcm.h"

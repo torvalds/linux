@@ -26,11 +26,11 @@
 #include <linux/mtd/partitions.h>
 #include <linux/timer.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
-#include <asm/arch/collie.h>
+#include <mach/collie.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
@@ -40,7 +40,7 @@
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
 #include <asm/hardware/locomo.h>
-#include <asm/arch/mcp.h>
+#include <mach/mcp.h>
 
 #include "generic.h"
 

@@ -139,6 +139,8 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 	for (c = 0; c < 2; c++) {
 
 		cur_reg = regs[c];
+
+		/* Save previous value */
 		init_val = ath5k_hw_reg_read(ah, cur_reg);
 
 		for (i = 0; i < 256; i++) {
@@ -170,6 +172,10 @@ static int ath5k_hw_post(struct ath5k_hw *ah)
 			var_pattern = 0x003b080f;
 			ath5k_hw_reg_write(ah, var_pattern, cur_reg);
 		}
+
+		/* Restore previous value */
+		ath5k_hw_reg_write(ah, init_val, cur_reg);
+
 	}
 
 	return 0;
@@ -287,67 +293,42 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	/* Identify the radio chip*/
 	if (ah->ah_version == AR5K_AR5210) {
 		ah->ah_radio = AR5K_RF5110;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
-		ah->ah_radio = AR5K_RF5111;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
-
-		ah->ah_radio = AR5K_RF5112;
-
-		if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112A) {
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
-		} else {
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-		}
-
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
-		ah->ah_radio = AR5K_RF2413;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
-		ah->ah_radio = AR5K_RF5413;
-		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
-
-		/* AR5424 */
-		if (srev >= AR5K_SREV_VER_AR5424) {
-			ah->ah_radio = AR5K_RF5413;
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5424;
-		/* AR2424 */
-		} else {
-			ah->ah_radio = AR5K_RF2413; /* For testing */
-			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112A;
-		}
-
 	/*
-	 * Register returns 0x4 for radio revision
+	 * Register returns 0x0/0x04 for radio revision
 	 * so ath5k_hw_radio_revision doesn't parse the value
 	 * correctly. For now we are based on mac's srev to
 	 * identify RF2425 radio.
 	 */
 	} else if (srev == AR5K_SREV_VER_AR2425) {
 		ah->ah_radio = AR5K_RF2425;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2425;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5112) {
+		ah->ah_radio = AR5K_RF5111;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5111;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC0) {
+		ah->ah_radio = AR5K_RF5112;
 		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5112;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC1) {
+		ah->ah_radio = AR5K_RF2413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_SC2) {
+		ah->ah_radio = AR5K_RF5413;
+		ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
+	} else if (ah->ah_radio_5ghz_revision < AR5K_SREV_RAD_5133) {
+		/* AR5424 */
+		if (srev >= AR5K_SREV_VER_AR5424) {
+			ah->ah_radio = AR5K_RF5413;
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF5413;
+		/* AR2424 */
+		} else {
+			ah->ah_radio = AR5K_RF2413; /* For testing */
+			ah->ah_phy_spending = AR5K_PHY_SPENDING_RF2413;
+		}
 	}
-
 	ah->ah_phy = AR5K_PHY(0);
 
 	/*
-	 * Identify AR5212-based PCI-E cards
-	 * And write some initial settings.
-	 *
-	 * (doing a "strings" on ndis driver
-	 * -ar5211.sys- reveals the following
-	 * pci-e related functions:
-	 *
-	 * pcieClockReq
-	 * pcieRxErrNotify
-	 * pcieL1SKPEnable
-	 * pcieAspm
-	 * pcieDisableAspmOnRfWake
-	 * pciePowerSaveEnable
-	 *
-	 * I guess these point to ClockReq but
-	 * i'm not sure.)
+	 * Write PCI-E power save settings
 	 */
 	if ((ah->ah_version == AR5K_AR5212) && (pdev->is_pcie)) {
 		ath5k_hw_reg_write(ah, 0x9248fc00, 0x4080);
@@ -369,10 +350,15 @@ struct ath5k_hw *ath5k_hw_attach(struct ath5k_softc *sc, u8 mac_version)
 	if (ret)
 		goto err_free;
 
+	/* Write AR5K_PCICFG_UNK on 2112B and later chips */
+	if (ah->ah_radio_5ghz_revision > AR5K_SREV_RAD_2112B ||
+	srev > AR5K_SREV_VER_AR2413) {
+		ath5k_hw_reg_write(ah, AR5K_PCICFG_UNK, AR5K_PCICFG);
+	}
+
 	/*
 	 * Get card capabilities, values, ...
 	 */
-
 	ret = ath5k_eeprom_init(ah);
 	if (ret) {
 		ATH5K_ERR(sc, "unable to init EEPROM\n");
@@ -843,27 +829,41 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		 * Write some more initial register settings
 		 */
 		if (ah->ah_version == AR5K_AR5212) {
-			ath5k_hw_reg_write(ah, 0x0002a002, AR5K_PHY(11));
+			ath5k_hw_reg_write(ah, 0x0002a002, 0x982c);
 
 			if (channel->hw_value == CHANNEL_G)
 				if (ah->ah_mac_srev < AR5K_SREV_VER_AR2413)
 					ath5k_hw_reg_write(ah, 0x00f80d80,
-						AR5K_PHY(83));
+								0x994c);
 				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2424)
 					ath5k_hw_reg_write(ah, 0x00380140,
-						AR5K_PHY(83));
+								0x994c);
 				else if (ah->ah_mac_srev < AR5K_SREV_VER_AR2425)
 					ath5k_hw_reg_write(ah, 0x00fc0ec0,
-						AR5K_PHY(83));
+								0x994c);
 				else /* 2425 */
 					ath5k_hw_reg_write(ah, 0x00fc0fc0,
-						AR5K_PHY(83));
+								0x994c);
 			else
-				ath5k_hw_reg_write(ah, 0x00000000,
-					AR5K_PHY(83));
+				ath5k_hw_reg_write(ah, 0x00000000, 0x994c);
 
-			ath5k_hw_reg_write(ah, 0x000009b5, 0xa228);
-			ath5k_hw_reg_write(ah, 0x0000000f, 0x8060);
+			/* Some bits are disabled here, we know nothing about
+			 * register 0xa228 yet, most of the times this ends up
+			 * with a value 0x9b5 -haven't seen any dump with
+			 * a different value- */
+			/* Got this from decompiling binary HAL */
+			data = ath5k_hw_reg_read(ah, 0xa228);
+			data &= 0xfffffdff;
+			ath5k_hw_reg_write(ah, data, 0xa228);
+
+			data = ath5k_hw_reg_read(ah, 0xa228);
+			data &= 0xfffe03ff;
+			ath5k_hw_reg_write(ah, data, 0xa228);
+			data = 0;
+
+			/* Just write 0x9b5 ? */
+			/* ath5k_hw_reg_write(ah, 0x000009b5, 0xa228); */
+			ath5k_hw_reg_write(ah, 0x0000000f, AR5K_SEQ_MASK);
 			ath5k_hw_reg_write(ah, 0x00000000, 0xa254);
 			ath5k_hw_reg_write(ah, 0x0000000e, AR5K_PHY_SCAL);
 		}
@@ -879,6 +879,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			else
 				data = 0xffb80d20;
 			ath5k_hw_reg_write(ah, data, AR5K_PHY_FRAME_CTL);
+			data = 0;
 		}
 
 		/*
@@ -898,7 +899,6 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 		/*
 		 * Write RF registers
-		 * TODO:Does this work on 5211 (5111) ?
 		 */
 		ret = ath5k_hw_rfregs(ah, channel, mode);
 		if (ret)
@@ -935,7 +935,7 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			return ret;
 
 		/* Set antenna mode */
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x44),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_ANT_CTL,
 			ah->ah_antenna[ee_mode][0], 0xfffffc06);
 
 		/*
@@ -965,15 +965,15 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 
 		ath5k_hw_reg_write(ah,
 			AR5K_PHY_NF_SVAL(ee->ee_noise_floor_thr[ee_mode]),
-			AR5K_PHY(0x5a));
+			AR5K_PHY_NFTHRES);
 
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x11),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_SETTLING,
 			(ee->ee_switch_settling[ee_mode] << 7) & 0x3f80,
 			0xffffc07f);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x12),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_GAIN,
 			(ee->ee_ant_tx_rx[ee_mode] << 12) & 0x3f000,
 			0xfffc0fff);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x14),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_DESIRED_SIZE,
 			(ee->ee_adc_desired_size[ee_mode] & 0x00ff) |
 			((ee->ee_pga_desired_size[ee_mode] << 8) & 0xff00),
 			0xffff0000);
@@ -982,13 +982,13 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 			(ee->ee_tx_end2xpa_disable[ee_mode] << 24) |
 			(ee->ee_tx_end2xpa_disable[ee_mode] << 16) |
 			(ee->ee_tx_frm2xpa_enable[ee_mode] << 8) |
-			(ee->ee_tx_frm2xpa_enable[ee_mode]), AR5K_PHY(0x0d));
+			(ee->ee_tx_frm2xpa_enable[ee_mode]), AR5K_PHY_RF_CTL4);
 
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x0a),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_RF_CTL3,
 			ee->ee_tx_end2xlna_enable[ee_mode] << 8, 0xffff00ff);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x19),
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_NF,
 			(ee->ee_thr_62[ee_mode] << 12) & 0x7f000, 0xfff80fff);
-		AR5K_REG_MASKED_BITS(ah, AR5K_PHY(0x49), 4, 0xffffff01);
+		AR5K_REG_MASKED_BITS(ah, AR5K_PHY_OFDM_SELFCORR, 4, 0xffffff01);
 
 		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,
 		    AR5K_PHY_IQ_CORR_ENABLE |
@@ -1063,7 +1063,8 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 	ath5k_hw_reg_write(ah, AR5K_PHY_ACT_ENABLE, AR5K_PHY_ACT);
 
 	/*
-	 * 5111/5112 Specific
+	 * On 5211+ read activation -> rx delay
+	 * and use it.
 	 */
 	if (ah->ah_version != AR5K_AR5210) {
 		data = ath5k_hw_reg_read(ah, AR5K_PHY_RX_DELAY) &
@@ -1071,32 +1072,45 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		data = (channel->hw_value & CHANNEL_CCK) ?
 			((data << 2) / 22) : (data / 10);
 
-		udelay(100 + data);
+		udelay(100 + (2 * data));
+		data = 0;
 	} else {
 		mdelay(1);
 	}
 
 	/*
-	 * Enable calibration and wait until completion
+	 * Perform ADC test (?)
+	 */
+	data = ath5k_hw_reg_read(ah, AR5K_PHY_TST1);
+	ath5k_hw_reg_write(ah, AR5K_PHY_TST1_TXHOLD, AR5K_PHY_TST1);
+	for (i = 0; i <= 20; i++) {
+		if (!(ath5k_hw_reg_read(ah, AR5K_PHY_ADC_TEST) & 0x10))
+			break;
+		udelay(200);
+	}
+	ath5k_hw_reg_write(ah, data, AR5K_PHY_TST1);
+	data = 0;
+
+	/*
+	 * Start automatic gain calibration
+	 *
+	 * During AGC calibration RX path is re-routed to
+	 * a signal detector so we don't receive anything.
+	 *
+	 * This method is used to calibrate some static offsets
+	 * used together with on-the fly I/Q calibration (the
+	 * one performed via ath5k_hw_phy_calibrate), that doesn't
+	 * interrupt rx path.
+	 *
+	 * If we are in a noisy environment AGC calibration may time
+	 * out.
 	 */
 	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_AGCCTL,
 				AR5K_PHY_AGCCTL_CAL);
 
-	if (ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
-			AR5K_PHY_AGCCTL_CAL, 0, false)) {
-		ATH5K_ERR(ah->ah_sc, "calibration timeout (%uMHz)\n",
-			channel->center_freq);
-		return -EAGAIN;
-	}
-
-	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
-	if (ret)
-		return ret;
-
+	/* At the same time start I/Q calibration for QAM constellation
+	 * -no need for CCK- */
 	ah->ah_calibration = false;
-
-	/* A and G modes can use QAM modulation which requires enabling
-	 * I and Q calibration. Don't bother in B mode. */
 	if (!(mode == AR5K_MODE_11B)) {
 		ah->ah_calibration = true;
 		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ,
@@ -1104,6 +1118,30 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,
 				AR5K_PHY_IQ_RUN);
 	}
+
+	/* Wait for gain calibration to finish (we check for I/Q calibration
+	 * during ath5k_phy_calibrate) */
+	if (ath5k_hw_register_timeout(ah, AR5K_PHY_AGCCTL,
+			AR5K_PHY_AGCCTL_CAL, 0, false)) {
+		ATH5K_ERR(ah->ah_sc, "gain calibration timeout (%uMHz)\n",
+			channel->center_freq);
+		return -EAGAIN;
+	}
+
+	/*
+	 * Start noise floor calibration
+	 *
+	 * If we run NF calibration before AGC, it always times out.
+	 * Binary HAL starts NF and AGC calibration at the same time
+	 * and only waits for AGC to finish. I believe that's wrong because
+	 * during NF calibration, rx path is also routed to a detector, so if
+	 * it doesn't finish we won't have RX.
+	 *
+	 * XXX: Find an interval that's OK for all cards...
+	 */
+	ret = ath5k_hw_noise_floor_calibration(ah, channel->center_freq);
+	if (ret)
+		return ret;
 
 	/*
 	 * Reset queues and start beacon timers at the end of the reset routine
@@ -1154,6 +1192,12 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
 		ath5k_hw_reg_write(ah, AR5K_PHY_SCLOCK_32MHZ, AR5K_PHY_SCLOCK);
 		ath5k_hw_reg_write(ah, AR5K_PHY_SDELAY_32MHZ, AR5K_PHY_SDELAY);
 		ath5k_hw_reg_write(ah, ah->ah_phy_spending, AR5K_PHY_SPENDING);
+
+		data = ath5k_hw_reg_read(ah, AR5K_USEC_5211) & 0xffffc07f ;
+		data |= (ah->ah_phy_spending == AR5K_PHY_SPENDING_18) ?
+						0x00000f80 : 0x00001380 ;
+		ath5k_hw_reg_write(ah, data, AR5K_USEC_5211);
+		data = 0;
 	}
 
 	if (ah->ah_version == AR5K_AR5212) {
@@ -1226,7 +1270,7 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		bool set_chip, u16 sleep_duration)
 {
 	unsigned int i;
-	u32 staid;
+	u32 staid, data;
 
 	ATH5K_TRACE(ah->ah_sc);
 	staid = ath5k_hw_reg_read(ah, AR5K_STA_ID1);
@@ -1238,7 +1282,8 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 	case AR5K_PM_NETWORK_SLEEP:
 		if (set_chip)
 			ath5k_hw_reg_write(ah,
-				AR5K_SLEEP_CTL_SLE | sleep_duration,
+				AR5K_SLEEP_CTL_SLE_ALLOW |
+				sleep_duration,
 				AR5K_SLEEP_CTL);
 
 		staid |= AR5K_STA_ID1_PWR_SV;
@@ -1253,13 +1298,24 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 		break;
 
 	case AR5K_PM_AWAKE:
+
+		staid &= ~AR5K_STA_ID1_PWR_SV;
+
 		if (!set_chip)
 			goto commit;
 
-		ath5k_hw_reg_write(ah, AR5K_SLEEP_CTL_SLE_WAKE,
-				AR5K_SLEEP_CTL);
+		/* Preserve sleep duration */
+		data = ath5k_hw_reg_read(ah, AR5K_SLEEP_CTL);
+		if( data & 0xffc00000 ){
+			data = 0;
+		} else {
+			data = data & 0xfffcffff;
+		}
 
-		for (i = 5000; i > 0; i--) {
+		ath5k_hw_reg_write(ah, data, AR5K_SLEEP_CTL);
+		udelay(15);
+
+		for (i = 50; i > 0; i--) {
 			/* Check if the chip did wake up */
 			if ((ath5k_hw_reg_read(ah, AR5K_PCICFG) &
 					AR5K_PCICFG_SPWR_DN) == 0)
@@ -1267,15 +1323,13 @@ int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode,
 
 			/* Wait a bit and retry */
 			udelay(200);
-			ath5k_hw_reg_write(ah, AR5K_SLEEP_CTL_SLE_WAKE,
-				AR5K_SLEEP_CTL);
+			ath5k_hw_reg_write(ah, data, AR5K_SLEEP_CTL);
 		}
 
 		/* Fail if the chip didn't wake up */
 		if (i <= 0)
 			return -EIO;
 
-		staid &= ~AR5K_STA_ID1_PWR_SV;
 		break;
 
 	default:
@@ -1304,6 +1358,7 @@ void ath5k_hw_start_rx(struct ath5k_hw *ah)
 {
 	ATH5K_TRACE(ah->ah_sc);
 	ath5k_hw_reg_write(ah, AR5K_CR_RXE, AR5K_CR);
+	ath5k_hw_reg_read(ah, AR5K_CR);
 }
 
 /*
@@ -1390,6 +1445,7 @@ int ath5k_hw_tx_start(struct ath5k_hw *ah, unsigned int queue)
 		}
 		/* Start queue */
 		ath5k_hw_reg_write(ah, tx_queue, AR5K_CR);
+		ath5k_hw_reg_read(ah, AR5K_CR);
 	} else {
 		/* Return if queue is disabled */
 		if (AR5K_REG_READ_Q(ah, AR5K_QCU_TXD, queue))
@@ -1687,6 +1743,7 @@ enum ath5k_int ath5k_hw_set_intr(struct ath5k_hw *ah, enum ath5k_int new_mask)
 	 * (they will be re-enabled afterwards).
 	 */
 	ath5k_hw_reg_write(ah, AR5K_IER_DISABLE, AR5K_IER);
+	ath5k_hw_reg_read(ah, AR5K_IER);
 
 	old_mask = ah->ah_imr;
 
@@ -3363,11 +3420,13 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			AR5K_INIT_PROTO_TIME_CNTRL_TURBO :
 			AR5K_INIT_PROTO_TIME_CNTRL, AR5K_IFS1);
-		/* Set PHY register 0x9844 (??) */
+		/* Set AR5K_PHY_SETTLING */
 		ath5k_hw_reg_write(ah, ah->ah_turbo ?
-			(ath5k_hw_reg_read(ah, AR5K_PHY(17)) & ~0x7F) | 0x38 :
-			(ath5k_hw_reg_read(ah, AR5K_PHY(17)) & ~0x7F) | 0x1C,
-			AR5K_PHY(17));
+			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
+			| 0x38 :
+			(ath5k_hw_reg_read(ah, AR5K_PHY_SETTLING) & ~0x7F)
+			| 0x1C,
+			AR5K_PHY_SETTLING);
 		/* Set Frame Control Register */
 		ath5k_hw_reg_write(ah, ah->ah_turbo ?
 			(AR5K_PHY_FRAME_CTL_INI | AR5K_PHY_TURBO_MODE |
@@ -3488,7 +3547,7 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 			if (tq->tqi_flags & AR5K_TXQ_FLAG_RDYTIME_EXP_POLICY_ENABLE)
 				AR5K_REG_ENABLE_BITS(ah,
 					AR5K_QUEUE_MISC(queue),
-					AR5K_QCU_MISC_TXE);
+					AR5K_QCU_MISC_RDY_VEOL_POLICY);
 		}
 
 		if (tq->tqi_flags & AR5K_TXQ_FLAG_BACKOFF_DISABLE)

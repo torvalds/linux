@@ -15,10 +15,9 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
-#include <asm/mach-types.h>
-#include <asm/arch/corgi.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/corgi.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
 #include <asm/hardware/scoop.h>
 
 static void corgiled_amber_set(struct led_classdev *led_cdev,

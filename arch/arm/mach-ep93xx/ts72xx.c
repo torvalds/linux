@@ -20,7 +20,7 @@
 #include <linux/platform_device.h>
 #include <linux/m48t86.h>
 #include <asm/io.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

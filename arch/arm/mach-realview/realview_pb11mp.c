@@ -24,7 +24,7 @@
 #include <linux/sysdev.h>
 #include <linux/amba/bus.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/leds.h>
@@ -39,8 +39,8 @@
 #include <asm/mach/mmc.h>
 #include <asm/mach/time.h>
 
-#include <asm/arch/board-pb11mp.h>
-#include <asm/arch/irqs.h>
+#include <mach/board-pb11mp.h>
+#include <mach/irqs.h>
 
 #include "core.h"
 #include "clock.h"

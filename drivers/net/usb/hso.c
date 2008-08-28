@@ -102,8 +102,12 @@
 
 #define MAX_RX_URBS			2
 
-#define get_serial_by_tty(x)	\
-	(x ? (struct hso_serial *)x->driver_data : NULL)
+static inline struct hso_serial *get_serial_by_tty(struct tty_struct *tty)
+{
+	if (tty)
+		return tty->driver_data;
+	return NULL;
+}
 
 /*****************************************************************************/
 /* Debugging functions                                                       */
@@ -294,24 +298,25 @@ static int hso_get_activity(struct hso_device *hso_dev);
 
 /* #define DEBUG */
 
-#define dev2net(x) (x->port_data.dev_net)
-#define dev2ser(x) (x->port_data.dev_serial)
+static inline struct hso_net *dev2net(struct hso_device *hso_dev)
+{
+	return hso_dev->port_data.dev_net;
+}
+
+static inline struct hso_serial *dev2ser(struct hso_device *hso_dev)
+{
+	return hso_dev->port_data.dev_serial;
+}
 
 /* Debugging functions */
 #ifdef DEBUG
 static void dbg_dump(int line_count, const char *func_name, unsigned char *buf,
 		     unsigned int len)
 {
-	u8 i = 0;
+	static char name[255];
 
-	printk(KERN_DEBUG "[%d:%s]: len %d", line_count, func_name, len);
-
-	for (i = 0; i < len; i++) {
-		if (!(i % 16))
-			printk("\n    0x%03x:  ", i);
-		printk("%02x ", (unsigned char)buf[i]);
-	}
-	printk("\n");
+	sprintf(name, "hso[%d:%s]", line_count, func_name);
+	print_hex_dump_bytes(name, DUMP_PREFIX_NONE, buf, len);
 }
 
 #define DUMP(buf_, len_)	\
@@ -528,13 +533,12 @@ static struct hso_serial *get_serial_by_shared_int_and_type(
 
 static struct hso_serial *get_serial_by_index(unsigned index)
 {
-	struct hso_serial *serial;
+	struct hso_serial *serial = NULL;
 	unsigned long flags;
 
-	if (!serial_table[index])
-		return NULL;
 	spin_lock_irqsave(&serial_table_lock, flags);
-	serial = dev2ser(serial_table[index]);
+	if (serial_table[index])
+		serial = dev2ser(serial_table[index]);
 	spin_unlock_irqrestore(&serial_table_lock, flags);
 
 	return serial;
@@ -561,6 +565,7 @@ static int get_free_serial_index(void)
 static void set_serial_by_index(unsigned index, struct hso_serial *serial)
 {
 	unsigned long flags;
+
 	spin_lock_irqsave(&serial_table_lock, flags);
 	if (serial)
 		serial_table[index] = serial->parent;
@@ -569,7 +574,7 @@ static void set_serial_by_index(unsigned index, struct hso_serial *serial)
 	spin_unlock_irqrestore(&serial_table_lock, flags);
 }
 
-/* log a meaningfull explanation of an USB status */
+/* log a meaningful explanation of an USB status */
 static void log_usb_status(int status, const char *function)
 {
 	char *explanation;
@@ -1103,8 +1108,8 @@ static void hso_serial_close(struct tty_struct *tty, struct file *filp)
 	/* reset the rts and dtr */
 	/* do the actual close */
 	serial->open_count--;
+	kref_put(&serial->parent->ref, hso_serial_ref_free);
 	if (serial->open_count <= 0) {
-		kref_put(&serial->parent->ref, hso_serial_ref_free);
 		serial->open_count = 0;
 		if (serial->tty) {
 			serial->tty->driver_data = NULL;
@@ -1467,7 +1472,8 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 		return;
 	}
 	hso_put_activity(serial->parent);
-	tty_wakeup(serial->tty);
+	if (serial->tty)
+		tty_wakeup(serial->tty);
 	hso_kick_transmit(serial);
 
 	D1(" ");
@@ -1538,7 +1544,8 @@ static void ctrl_callback(struct urb *urb)
 			clear_bit(HSO_SERIAL_FLAG_RX_SENT, &serial->flags);
 	} else {
 		hso_put_activity(serial->parent);
-		tty_wakeup(serial->tty);
+		if (serial->tty)
+			tty_wakeup(serial->tty);
 		/* response to a write command */
 		hso_kick_transmit(serial);
 	}
@@ -2652,7 +2659,7 @@ static void hso_free_interface(struct usb_interface *interface)
 			hso_stop_net_device(network_table[i]);
 			cancel_work_sync(&network_table[i]->async_put_intf);
 			cancel_work_sync(&network_table[i]->async_get_intf);
-			if(rfk)
+			if (rfk)
 				rfkill_unregister(rfk);
 			hso_free_net_device(network_table[i]);
 		}
@@ -2723,7 +2730,7 @@ static int hso_mux_submit_intr_urb(struct hso_shared_int *shared_int,
 }
 
 /* operations setup of the serial interface */
-static struct tty_operations hso_serial_ops = {
+static const struct tty_operations hso_serial_ops = {
 	.open = hso_serial_open,
 	.close = hso_serial_close,
 	.write = hso_serial_write,

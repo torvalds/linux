@@ -18,10 +18,10 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/arch/irqs.h>
-#include <asm/arch/gpio.h>
+#include <mach/irqs.h>
+#include <mach/gpio.h>
 #include <asm/mach/irq.h>
 
 #include <asm/io.h>

@@ -30,6 +30,8 @@
 #include <linux/netdevice.h>
 #include <linux/phy.h>
 
+#include <asm/sh_eth.h>
+
 #define CARDNAME	"sh-eth"
 #define TX_TIMEOUT	(5*HZ)
 #define TX_RING_SIZE	64	/* Tx ring size */
@@ -143,10 +145,11 @@
 
 #else /* CONFIG_CPU_SUBTYPE_SH7763 */
 # define RX_OFFSET 2	/* skb offset */
+#ifndef CONFIG_CPU_SUBTYPE_SH7619
 /* Chip base address */
 # define SH_TSU_ADDR  0xA7000804
 # define ARSTR		  0xA7000800
-
+#endif
 /* Chip Registers */
 /* E-DMAC */
 # define EDMR	0x0000
@@ -384,7 +387,11 @@ enum FCFTR_BIT {
 	FCFTR_RFD1 = 0x00000002, FCFTR_RFD0 = 0x00000001,
 };
 #define FIFO_F_D_RFF	(FCFTR_RFF2|FCFTR_RFF1|FCFTR_RFF0)
+#ifndef CONFIG_CPU_SUBTYPE_SH7619
 #define FIFO_F_D_RFD	(FCFTR_RFD2|FCFTR_RFD1|FCFTR_RFD0)
+#else
+#define FIFO_F_D_RFD	(FCFTR_RFD0)
+#endif
 
 /* Transfer descriptor bit */
 enum TD_STS_BIT {
@@ -414,8 +421,10 @@ enum FELIC_MODE_BIT {
 #ifdef CONFIG_CPU_SUBTYPE_SH7763
 #define ECMR_CHG_DM	(ECMR_TRCCM | ECMR_RZPF | ECMR_ZPF |\
 			ECMR_PFR | ECMR_RXF | ECMR_TXF | ECMR_MCT)
+#elif CONFIG_CPU_SUBTYPE_SH7619
+#define ECMR_CHG_DM	(ECMR_ZPF | ECMR_PFR | ECMR_RXF | ECMR_TXF)
 #else
-#define ECMR_CHG_DM	(ECMR_ZPF | ECMR_PFR ECMR_RXF | ECMR_TXF | ECMR_MCT)
+#define ECMR_CHG_DM	(ECMR_ZPF | ECMR_PFR | ECMR_RXF | ECMR_TXF | ECMR_MCT)
 #endif
 
 /* ECSR */
@@ -485,7 +494,11 @@ enum RPADIR_BIT {
 
 /* FDR */
 enum FIFO_SIZE_BIT {
+#ifndef CONFIG_CPU_SUBTYPE_SH7619
 	FIFO_SIZE_T = 0x00000700, FIFO_SIZE_R = 0x00000007,
+#else
+	FIFO_SIZE_T = 0x00000100, FIFO_SIZE_R = 0x00000001,
+#endif
 };
 enum phy_offsets {
 	PHY_CTRL = 0, PHY_STAT = 1, PHY_IDT1 = 2, PHY_IDT2 = 3,
@@ -601,7 +614,7 @@ struct sh_eth_txdesc {
 #endif
 	u32 addr;		/* TD2 */
 	u32 pad1;		/* padding data */
-};
+} __attribute__((aligned(2), packed));
 
 /*
  * The sh ether Rx buffer descriptors.
@@ -618,7 +631,7 @@ struct sh_eth_rxdesc {
 #endif
 	u32 addr;		/* RD2 */
 	u32 pad0;		/* padding data */
-};
+} __attribute__((aligned(2), packed));
 
 struct sh_eth_private {
 	dma_addr_t rx_desc_dma;
@@ -633,6 +646,7 @@ struct sh_eth_private {
 	u32 cur_rx, dirty_rx;	/* Producer/consumer ring indices */
 	u32 cur_tx, dirty_tx;
 	u32 rx_buf_sz;		/* Based on MTU+slack. */
+	int edmac_endian;
 	/* MII transceiver section. */
 	u32 phy_id;					/* PHY ID */
 	struct mii_bus *mii_bus;	/* MDIO bus control */

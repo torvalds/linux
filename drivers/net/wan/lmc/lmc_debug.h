@@ -38,15 +38,15 @@
 
 
 #ifdef DEBUG
-extern u_int32_t lmcEventLogIndex;
-extern u_int32_t lmcEventLogBuf[LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS];
+extern u32 lmcEventLogIndex;
+extern u32 lmcEventLogBuf[LMC_EVENTLOGSIZE * LMC_EVENTLOGARGS];
 #define LMC_EVENT_LOG(x, y, z) lmcEventLog((x), (y), (z))
 #else
 #define LMC_EVENT_LOG(x,y,z)
 #endif /* end ifdef _DBG_EVENTLOG */
 
 void lmcConsoleLog(char *type, unsigned char *ucData, int iLen);
-void lmcEventLog (u_int32_t EventNum, u_int32_t arg2, u_int32_t arg3);
+void lmcEventLog(u32 EventNum, u32 arg2, u32 arg3);
 void lmc_trace(struct net_device *dev, char *msg);
 
 #endif

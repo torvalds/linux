@@ -365,6 +365,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			no delay (0).
 			Format: integer
 
+	bootmem_debug	[KNL] Enable bootmem allocator debug messages.
+
 	bttv.card=	[HW,V4L] bttv (bt848 + bt878 based grabber cards)
 	bttv.radio=	Most important insmod options are available as
 			kernel args too.
@@ -1071,6 +1073,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			  allowed.
 
 			* [no]ncq: Turn on or off NCQ.
+
+			* nohrst, nosrst, norst: suppress hard, soft
+                          and both resets.
 
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.

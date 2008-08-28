@@ -21,10 +21,10 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/cpu.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/clock.h>
-#include <asm/arch/sram.h>
+#include <mach/cpu.h>
+#include <mach/usb.h>
+#include <mach/clock.h>
+#include <mach/sram.h>
 
 #include "clock.h"
 

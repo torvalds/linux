@@ -639,7 +639,7 @@ static int is_dev_seagate_sata(ide_drive_t *drive)
  *	that can occur before we know what drives are present.
  */
 
-static void __devinit sil_quirkproc(ide_drive_t *drive)
+static void sil_quirkproc(ide_drive_t *drive)
 {
 	ide_hwif_t *hwif = drive->hwif;
 
@@ -679,7 +679,7 @@ static void __devinit init_iops_siimage(ide_hwif_t *hwif)
  *	Check for the presence of an ATA66 capable cable on the interface.
  */
 
-static u8 __devinit sil_cable_detect(ide_hwif_t *hwif)
+static u8 sil_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	unsigned long addr	= siimage_selreg(hwif, 0);
@@ -832,7 +832,7 @@ static struct pci_driver driver = {
 	.name		= "SiI_IDE",
 	.id_table	= siimage_pci_tbl,
 	.probe		= siimage_init_one,
-	.remove		= siimage_remove,
+	.remove		= __devexit_p(siimage_remove),
 };
 
 static int __init siimage_ide_init(void)

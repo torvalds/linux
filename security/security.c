@@ -127,10 +127,14 @@ int register_security(struct security_operations *ops)
 
 /* Security operations */
 
-int security_ptrace(struct task_struct *parent, struct task_struct *child,
-		    unsigned int mode)
+int security_ptrace_may_access(struct task_struct *child, unsigned int mode)
 {
-	return security_ops->ptrace(parent, child, mode);
+	return security_ops->ptrace_may_access(child, mode);
+}
+
+int security_ptrace_traceme(struct task_struct *parent)
+{
+	return security_ops->ptrace_traceme(parent);
 }
 
 int security_capget(struct task_struct *target,

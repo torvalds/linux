@@ -31,7 +31,7 @@
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 #include <asm/mach/pci.h>
@@ -41,7 +41,7 @@
 #include <asm/mach/flash.h>
 #include <asm/mach/arch.h>
 
-#include <asm/arch/gpio.h>
+#include <mach/gpio.h>
 
 
 /*************************************************************************

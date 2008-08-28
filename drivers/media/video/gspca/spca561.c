@@ -644,6 +644,18 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 	}
 }
 
+static void setautogain(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->chip_revision == Rev072A) {
+		if (sd->autogain)
+			sd->ag_cnt = AG_CNT_START;
+		else
+			sd->ag_cnt = -1;
+	}
+}
+
 static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -671,6 +683,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w_val(dev, 0x8500, mode);	/* mode */
 		reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
 		reg_w_val(dev, 0x8112, 0x10 | 0x20);
+		setautogain(gspca_dev);
 		break;
 	default:
 /*	case Rev012A: */
@@ -720,17 +733,23 @@ static void sd_close(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev->dev, 0x8114, 0);
 }
 
-static void setautogain(struct gspca_dev *gspca_dev)
+static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int expotimes = 0;
-	int pixelclk = 0;
-	int gainG = 0;
+	int expotimes;
+	int pixelclk;
+	int gainG;
 	__u8 R, Gr, Gb, B;
 	int y;
 	__u8 luma_mean = 110;
 	__u8 luma_delta = 20;
 	__u8 spring = 4;
+
+	if (sd->ag_cnt < 0)
+		return;
+	if (--sd->ag_cnt >= 0)
+		return;
+	sd->ag_cnt = AG_CNT_START;
 
 	switch (sd->chip_revision) {
 	case Rev072A:
@@ -795,18 +814,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			__u8 *data,		/* isoc packet */
 			int len)		/* iso packet length */
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-
 	switch (data[0]) {
 	case 0:		/* start of frame */
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
 					data, 0);
-		if (sd->ag_cnt >= 0) {
-			if (--sd->ag_cnt < 0) {
-				sd->ag_cnt = AG_CNT_START;
-				setautogain(gspca_dev);
-			}
-		}
 		data += SPCA561_OFFSET_DATA;
 		len -= SPCA561_OFFSET_DATA;
 		if (data[1] & 0x10) {
@@ -944,10 +955,8 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
-	if (val)
-		sd->ag_cnt = AG_CNT_START;
-	else
-		sd->ag_cnt = -1;
+	if (gspca_dev->streaming)
+		setautogain(gspca_dev);
 	return 0;
 }
 
@@ -971,6 +980,7 @@ static const struct sd_desc sd_desc = {
 	.stop0 = sd_stop0,
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
+	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */

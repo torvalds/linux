@@ -10,7 +10,7 @@
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
-#include <asm/arch/pm.h>
+#include <mach/pm.h>
 
 #include "pm.h"
 #include "sdramc.h"

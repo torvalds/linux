@@ -20,9 +20,9 @@
 #include <linux/spi/spi.h>
 
 #include <asm/io.h>
-#include <asm/arch/board.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/cpu.h>
+#include <mach/board.h>
+#include <mach/gpio.h>
+#include <mach/cpu.h>
 
 #include "atmel_spi.h"
 
@@ -184,7 +184,8 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 {
 	struct atmel_spi	*as = spi_master_get_devdata(master);
 	struct spi_transfer	*xfer;
-	u32			len, remaining, total;
+	u32			len, remaining;
+	u32			ieval;
 	dma_addr_t		tx_dma, rx_dma;
 
 	if (!as->current_transfer)
@@ -197,6 +198,8 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 		xfer = NULL;
 
 	if (xfer) {
+		spi_writel(as, PTCR, SPI_BIT(RXTDIS) | SPI_BIT(TXTDIS));
+
 		len = xfer->len;
 		atmel_spi_next_xfer_data(master, xfer, &tx_dma, &rx_dma, &len);
 		remaining = xfer->len - len;
@@ -234,6 +237,8 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 	as->next_transfer = xfer;
 
 	if (xfer) {
+		u32	total;
+
 		total = len;
 		atmel_spi_next_xfer_data(master, xfer, &tx_dma, &rx_dma, &len);
 		as->next_remaining_bytes = total - len;
@@ -250,9 +255,11 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 			"  next xfer %p: len %u tx %p/%08x rx %p/%08x\n",
 			xfer, xfer->len, xfer->tx_buf, xfer->tx_dma,
 			xfer->rx_buf, xfer->rx_dma);
+		ieval = SPI_BIT(ENDRX) | SPI_BIT(OVRES);
 	} else {
 		spi_writel(as, RNCR, 0);
 		spi_writel(as, TNCR, 0);
+		ieval = SPI_BIT(RXBUFF) | SPI_BIT(ENDRX) | SPI_BIT(OVRES);
 	}
 
 	/* REVISIT: We're waiting for ENDRX before we start the next
@@ -265,7 +272,7 @@ static void atmel_spi_next_xfer(struct spi_master *master,
 	 *
 	 * It should be doable, though. Just not now...
 	 */
-	spi_writel(as, IER, SPI_BIT(ENDRX) | SPI_BIT(OVRES));
+	spi_writel(as, IER, ieval);
 	spi_writel(as, PTCR, SPI_BIT(TXTEN) | SPI_BIT(RXTEN));
 }
 
@@ -396,7 +403,7 @@ atmel_spi_interrupt(int irq, void *dev_id)
 
 		ret = IRQ_HANDLED;
 
-		spi_writel(as, IDR, (SPI_BIT(ENDTX) | SPI_BIT(ENDRX)
+		spi_writel(as, IDR, (SPI_BIT(RXBUFF) | SPI_BIT(ENDRX)
 				     | SPI_BIT(OVRES)));
 
 		/*
@@ -418,7 +425,7 @@ atmel_spi_interrupt(int irq, void *dev_id)
 		if (xfer->delay_usecs)
 			udelay(xfer->delay_usecs);
 
-		dev_warn(master->dev.parent, "fifo overrun (%u/%u remaining)\n",
+		dev_warn(master->dev.parent, "overrun (%u/%u remaining)\n",
 			 spi_readl(as, TCR), spi_readl(as, RCR));
 
 		/*
@@ -442,7 +449,7 @@ atmel_spi_interrupt(int irq, void *dev_id)
 		spi_readl(as, SR);
 
 		atmel_spi_msg_done(master, as, msg, -EIO, 0);
-	} else if (pending & SPI_BIT(ENDRX)) {
+	} else if (pending & (SPI_BIT(RXBUFF) | SPI_BIT(ENDRX))) {
 		ret = IRQ_HANDLED;
 
 		spi_writel(as, IDR, pending);

@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 
 static int video_nr = -1;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
 EXPORT_SYMBOL(gspca_debug);
 
@@ -677,7 +677,7 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (gspca_debug & D_CONF)
 		PDEBUG_MODE("try fmt cap", fmt->fmt.pix.pixelformat, w, h);
 #endif
@@ -785,7 +785,7 @@ static int dev_open(struct inode *inode, struct file *file)
 	}
 	gspca_dev->users++;
 	file->private_data = gspca_dev;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
 		gspca_dev->vdev.debug |= 3;
@@ -904,7 +904,7 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 		if (ctrl->id != ctrls->qctrl.id)
 			continue;
 		if (ctrl->value < ctrls->qctrl.minimum
-		    && ctrl->value > ctrls->qctrl.maximum)
+		    || ctrl->value > ctrls->qctrl.maximum)
 			return -ERANGE;
 		PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
@@ -1080,7 +1080,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (ret < 0)
 			goto out;
 	}
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (gspca_debug & D_STREAM) {
 		PDEBUG_MODE("stream on OK",
 			gspca_dev->pixfmt,
@@ -1913,7 +1913,7 @@ static void __exit gspca_exit(void)
 module_init(gspca_init);
 module_exit(gspca_exit);
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		"Debug (bit) 0x01:error 0x02:probe 0x04:config"

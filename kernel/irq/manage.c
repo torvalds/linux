@@ -323,7 +323,8 @@ static int __irq_set_trigger(struct irq_chip *chip, unsigned int irq,
 	ret = chip->set_type(irq, flags & IRQF_TRIGGER_MASK);
 
 	if (ret)
-		pr_err("setting flow type for irq %u failed (%pF)\n",
+		pr_err("setting trigger mode %d for irq %u failed (%pF)\n",
+				(int)(flags & IRQF_TRIGGER_MASK),
 				irq, chip->set_type);
 
 	return ret;

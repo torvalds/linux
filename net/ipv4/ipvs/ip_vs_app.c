@@ -608,7 +608,7 @@ int ip_vs_skb_replace(struct sk_buff *skb, gfp_t pri,
 }
 
 
-int ip_vs_app_init(void)
+int __init ip_vs_app_init(void)
 {
 	/* we will replace it with proc_net_ipvs_create() soon */
 	proc_net_fops_create(&init_net, "ip_vs_app", 0, &ip_vs_app_fops);

@@ -128,6 +128,7 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	unsigned int data_length;
 	unsigned int duration;
 	unsigned int residual;
+	unsigned long irqflags;
 
 	memset(txdesc, 0, sizeof(*txdesc));
 
@@ -213,14 +214,14 @@ static void rt2x00queue_create_tx_descriptor(struct queue_entry *entry,
 	 * sequence counter given by mac80211.
 	 */
 	if (tx_info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
-		spin_lock(&intf->lock);
+		spin_lock_irqsave(&intf->seqlock, irqflags);
 
 		if (test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags))
 			intf->seqno += 0x10;
 		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
 		hdr->seq_ctrl |= cpu_to_le16(intf->seqno);
 
-		spin_unlock(&intf->lock);
+		spin_unlock_irqrestore(&intf->seqlock, irqflags);
 
 		__set_bit(ENTRY_TXD_GENERATE_SEQ, &txdesc->flags);
 	}

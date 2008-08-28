@@ -22,12 +22,12 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 
-#include <asm/arch/board.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/fpga.h>
+#include <mach/board.h>
+#include <mach/mux.h>
+#include <mach/gpio.h>
+#include <mach/fpga.h>
 #ifdef CONFIG_PM
-#include <asm/arch/pm.h>
+#include <mach/pm.h>
 #endif
 
 static struct clk * uart1_ck;

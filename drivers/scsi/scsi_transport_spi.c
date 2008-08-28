@@ -366,12 +366,14 @@ spi_transport_rd_attr(rti, "%d\n");
 spi_transport_rd_attr(pcomp_en, "%d\n");
 spi_transport_rd_attr(hold_mcs, "%d\n");
 
-/* we only care about the first child device so we return 1 */
+/* we only care about the first child device that's a real SCSI device
+ * so we return 1 to terminate the iteration when we find it */
 static int child_iter(struct device *dev, void *data)
 {
-	struct scsi_device *sdev = to_scsi_device(dev);
+	if (!scsi_is_sdev_device(dev))
+		return 0;
 
-	spi_dv_device(sdev);
+	spi_dv_device(to_scsi_device(dev));
 	return 1;
 }
 

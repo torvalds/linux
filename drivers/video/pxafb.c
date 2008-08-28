@@ -45,14 +45,14 @@
 #include <linux/kthread.h>
 #include <linux/freezer.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/bitfield.h>
-#include <asm/arch/pxafb.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/bitfield.h>
+#include <mach/pxafb.h>
 
 /*
  * Complain if VAR is out of range.
@@ -1031,7 +1031,9 @@ static void pxafb_setup_gpio(struct pxafb_info *fbi)
 	pxa_gpio_mode(GPIO74_LCD_FCLK_MD);
 	pxa_gpio_mode(GPIO75_LCD_LCLK_MD);
 	pxa_gpio_mode(GPIO76_LCD_PCLK_MD);
-	pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
+
+	if ((lccr0 & LCCR0_PAS) == 0)
+		pxa_gpio_mode(GPIO77_LCD_ACBIAS_MD);
 }
 
 static void pxafb_enable_controller(struct pxafb_info *fbi)
@@ -1400,6 +1402,8 @@ static void pxafb_decode_mach_info(struct pxafb_info *fbi,
 	if (lcd_conn == LCD_MONO_STN_8BPP)
 		fbi->lccr0 |= LCCR0_DPD;
 
+	fbi->lccr0 |= (lcd_conn & LCD_ALTERNATE_MAPPING) ? LCCR0_LDDALT : 0;
+
 	fbi->lccr3 = LCCR3_Acb((inf->lcd_conn >> 10) & 0xff);
 	fbi->lccr3 |= (lcd_conn & LCD_BIAS_ACTIVE_LOW) ? LCCR3_OEP : 0;
 	fbi->lccr3 |= (lcd_conn & LCD_PCLK_EDGE_FALL)  ? LCCR3_PCP : 0;
@@ -1673,6 +1677,42 @@ MODULE_PARM_DESC(options, "LCD parameters (see Documentation/fb/pxafb.txt)");
 #define pxafb_setup_options()		(0)
 #endif
 
+#ifdef DEBUG_VAR
+/* Check for various illegal bit-combinations. Currently only
+ * a warning is given. */
+static void __devinit pxafb_check_options(struct device *dev,
+					  struct pxafb_mach_info *inf)
+{
+	if (inf->lcd_conn)
+		return;
+
+	if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
+		dev_warn(dev, "machine LCCR0 setting contains "
+				"illegal bits: %08x\n",
+			inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
+	if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
+		dev_warn(dev, "machine LCCR3 setting contains "
+				"illegal bits: %08x\n",
+			inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
+	if (inf->lccr0 & LCCR0_DPD &&
+	    ((inf->lccr0 & LCCR0_PAS) != LCCR0_Pas ||
+	     (inf->lccr0 & LCCR0_SDS) != LCCR0_Sngl ||
+	     (inf->lccr0 & LCCR0_CMS) != LCCR0_Mono))
+		dev_warn(dev, "Double Pixel Data (DPD) mode is "
+				"only valid in passive mono"
+				" single panel mode\n");
+	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
+	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
+		dev_warn(dev, "Dual panel only valid in passive mode\n");
+	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
+	     (inf->modes->upper_margin || inf->modes->lower_margin))
+		dev_warn(dev, "Upper and lower margins must be 0 in "
+				"passive mode\n");
+}
+#else
+#define pxafb_check_options(...)	do {} while (0)
+#endif
+
 static int __devinit pxafb_probe(struct platform_device *dev)
 {
 	struct pxafb_info *fbi;
@@ -1692,33 +1732,7 @@ static int __devinit pxafb_probe(struct platform_device *dev)
 	if (ret < 0)
 		goto failed;
 
-#ifdef DEBUG_VAR
-	/* Check for various illegal bit-combinations. Currently only
-	 * a warning is given. */
-
-	if (inf->lccr0 & LCCR0_INVALID_CONFIG_MASK)
-		dev_warn(&dev->dev, "machine LCCR0 setting contains "
-				"illegal bits: %08x\n",
-			inf->lccr0 & LCCR0_INVALID_CONFIG_MASK);
-	if (inf->lccr3 & LCCR3_INVALID_CONFIG_MASK)
-		dev_warn(&dev->dev, "machine LCCR3 setting contains "
-				"illegal bits: %08x\n",
-			inf->lccr3 & LCCR3_INVALID_CONFIG_MASK);
-	if (inf->lccr0 & LCCR0_DPD &&
-	    ((inf->lccr0 & LCCR0_PAS) != LCCR0_Pas ||
-	     (inf->lccr0 & LCCR0_SDS) != LCCR0_Sngl ||
-	     (inf->lccr0 & LCCR0_CMS) != LCCR0_Mono))
-		dev_warn(&dev->dev, "Double Pixel Data (DPD) mode is "
-				"only valid in passive mono"
-				" single panel mode\n");
-	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Act &&
-	    (inf->lccr0 & LCCR0_SDS) == LCCR0_Dual)
-		dev_warn(&dev->dev, "Dual panel only valid in passive mode\n");
-	if ((inf->lccr0 & LCCR0_PAS) == LCCR0_Pas &&
-	     (inf->modes->upper_margin || inf->modes->lower_margin))
-		dev_warn(&dev->dev, "Upper and lower margins must be 0 in "
-				"passive mode\n");
-#endif
+	pxafb_check_options(&dev->dev, inf);
 
 	dev_dbg(&dev->dev, "got a %dx%dx%d LCD\n",
 			inf->modes->xres,

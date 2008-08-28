@@ -1454,8 +1454,6 @@ void disconnect_bsp_APIC(int virt_wire_setup)
 	}
 }
 
-unsigned int __cpuinitdata maxcpus = NR_CPUS;
-
 void __cpuinit generic_processor_info(int apicid, int version)
 {
 	int cpu;
@@ -1479,12 +1477,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	if (num_processors >= NR_CPUS) {
 		printk(KERN_WARNING "WARNING: NR_CPUS limit of %i reached."
 			"  Processor ignored.\n", NR_CPUS);
-		return;
-	}
-
-	if (num_processors >= maxcpus) {
-		printk(KERN_WARNING "WARNING: maxcpus limit of %i reached."
-			" Processor ignored.\n", maxcpus);
 		return;
 	}
 
@@ -1720,15 +1712,19 @@ static int __init parse_lapic_timer_c2_ok(char *arg)
 }
 early_param("lapic_timer_c2_ok", parse_lapic_timer_c2_ok);
 
-static int __init apic_set_verbosity(char *str)
+static int __init apic_set_verbosity(char *arg)
 {
-	if (strcmp("debug", str) == 0)
+	if (!arg)
+		return -EINVAL;
+
+	if (strcmp(arg, "debug") == 0)
 		apic_verbosity = APIC_DEBUG;
-	else if (strcmp("verbose", str) == 0)
+	else if (strcmp(arg, "verbose") == 0)
 		apic_verbosity = APIC_VERBOSE;
-	return 1;
+
+	return 0;
 }
-__setup("apic=", apic_set_verbosity);
+early_param("apic", apic_set_verbosity);
 
 static int __init lapic_insert_resource(void)
 {

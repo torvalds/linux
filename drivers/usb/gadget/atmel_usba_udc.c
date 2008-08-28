@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 
 #include <asm/gpio.h>
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 #include "atmel_usba_udc.h"
 
@@ -334,7 +334,7 @@ static void toggle_bias(int is_on)
 
 #elif defined(CONFIG_ARCH_AT91)
 
-#include <asm/arch/at91_pmc.h>
+#include <mach/at91_pmc.h>
 
 static void toggle_bias(int is_on)
 {

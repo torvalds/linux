@@ -34,81 +34,6 @@
 #include <asm/cache.h>
 
 .text
-.align 2
-ENTRY(_cache_invalidate)
-
-	/*
-	 * Icache or DcacheA or DcacheB Invalidation
-	 * or any combination thereof
-	 * R0 has bits
-	 * CPLB_ENABLE_ICACHE_P,CPLB_ENABLE_DCACHE_P,CPLB_ENABLE_DCACHE2_P
-	 * set as required
-	 */
-	[--SP] = R7;
-
-	R7 = R0;
-	CC = BITTST(R7,CPLB_ENABLE_ICACHE_P);
-	IF !CC JUMP .Lno_icache;
-	[--SP] = RETS;
-	CALL _icache_invalidate;
-	RETS = [SP++];
-.Lno_icache:
-	CC = BITTST(R7,CPLB_ENABLE_DCACHE_P);
-	IF !CC JUMP .Lno_dcache_a;
-	R0 = 0;         /* specifies bank A */
-	[--SP] = RETS;
-	CALL _dcache_invalidate;
-	RETS = [SP++];
-.Lno_dcache_a:
-	CC = BITTST(R7,CPLB_ENABLE_DCACHE2_P);
-	IF !CC JUMP .Lno_dcache_b;
-	R0 = 0;
-	BITSET(R0, 23);		/* specifies bank B */
-	[--SP] = RETS;
-	CALL  _dcache_invalidate;
-	RETS = [SP++];
-.Lno_dcache_b:
-	R7 = [SP++];
-	RTS;
-ENDPROC(_cache_invalidate)
-
-/* Invalidate the Entire Instruction cache by
- * disabling IMC bit
- */
-ENTRY(_icache_invalidate)
-ENTRY(_invalidate_entire_icache)
-	[--SP] = ( R7:5);
-
-	P0.L = LO(IMEM_CONTROL);
-	P0.H = HI(IMEM_CONTROL);
-	R7 = [P0];
-
-	/* Clear the IMC bit , All valid bits in the instruction
-	 * cache are set to the invalid state
-	 */
-	BITCLR(R7,IMC_P);
-	CLI R6;
-	SSYNC;		/* SSYNC required before invalidating cache. */
-	.align 8;
-	[P0] = R7;
-	SSYNC;
-	STI R6;
-
-	/* Configures the instruction cache agian */
-	R6 = (IMC | ENICPLB);
-	R7 = R7 | R6;
-
-	CLI R6;
-	SSYNC;		/* SSYNC required before writing to IMEM_CONTROL. */
-	.align 8;
-	[P0] = R7;
-	SSYNC;
-	STI R6;
-
-	( R7:5) = [SP++];
-	RTS;
-ENDPROC(_invalidate_entire_icache)
-ENDPROC(_icache_invalidate)
 
 /*
  * blackfin_cache_flush_range(start, end)
@@ -189,46 +114,6 @@ ENTRY(_blackfin_dcache_invalidate_range)
 	SSYNC(R3);
 	RTS;
 ENDPROC(_blackfin_dcache_invalidate_range)
-
-/* Invalidate the Entire Data cache by
- * clearing DMC[1:0] bits
- */
-ENTRY(_invalidate_entire_dcache)
-ENTRY(_dcache_invalidate)
-	[--SP] = ( R7:6);
-
-	P0.L = LO(DMEM_CONTROL);
-	P0.H = HI(DMEM_CONTROL);
-	R7 = [P0];
-
-	/* Clear the DMC[1:0] bits, All valid bits in the data
-	 * cache are set to the invalid state
-	 */
-	BITCLR(R7,DMC0_P);
-	BITCLR(R7,DMC1_P);
-	CLI R6;
-	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
-	.align 8;
-	[P0] = R7;
-	SSYNC;
-	STI R6;
-
-	/* Configures the data cache again */
-
-	R6 = DMEM_CNTR;
-	R7 = R7 | R6;
-
-	CLI R6;
-	SSYNC;		/* SSYNC required before writing to DMEM_CONTROL. */
-	.align 8;
-	[P0] = R7;
-	SSYNC;
-	STI R6;
-
-	( R7:6) = [SP++];
-	RTS;
-ENDPROC(_dcache_invalidate)
-ENDPROC(_invalidate_entire_dcache)
 
 ENTRY(_blackfin_dcache_flush_range)
 	R2 = -L1_CACHE_BYTES;

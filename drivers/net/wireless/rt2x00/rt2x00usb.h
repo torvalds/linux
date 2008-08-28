@@ -185,7 +185,7 @@ int rt2x00usb_vendor_req_buff_lock(struct rt2x00_dev *rt2x00dev,
  */
 int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 					const u8 request, const u8 requesttype,
-					const u16 offset, void *buffer,
+					const u16 offset, const void *buffer,
 					const u16 buffer_length,
 					const int timeout);
 

@@ -124,7 +124,7 @@ EXPORT_SYMBOL_GPL(rt2x00usb_vendor_request_buff);
 
 int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 					const u8 request, const u8 requesttype,
-					const u16 offset, void *buffer,
+					const u16 offset, const void *buffer,
 					const u16 buffer_length,
 					const int timeout)
 {
@@ -134,7 +134,7 @@ int rt2x00usb_vendor_request_large_buff(struct rt2x00_dev *rt2x00dev,
 
 	mutex_lock(&rt2x00dev->usb_cache_mutex);
 
-	tb  = buffer;
+	tb  = (char *)buffer;
 	off = offset;
 	len = buffer_length;
 	while (len && !status) {
@@ -181,6 +181,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	 * (Only indirectly by looking at the failed TX counters
 	 * in the register).
 	 */
+	txdesc.flags = 0;
 	if (!urb->status)
 		__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
 	else

@@ -25,24 +25,9 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/types.h>
-#include <linux/initrd.h>
-#include <linux/irq.h>
-#include <linux/ide.h>
-#include <linux/ioport.h>
-#include <linux/param.h>	/* for HZ */
-#include <linux/root_dev.h>
-#include <linux/serial.h>
-#include <linux/serial_core.h>
 
-#include <asm/cpu.h>
-#include <asm/bootinfo.h>
-#include <asm/addrspace.h>
 #include <asm/time.h>
-#include <asm/bcache.h>
-#include <asm/irq.h>
 #include <asm/reboot.h>
-#include <asm/traps.h>
-#include <asm/debug.h>
 
 #include <asm/emma2rh/emma2rh.h>
 

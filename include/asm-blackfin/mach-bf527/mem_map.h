@@ -89,6 +89,11 @@
 #define BFIN_DSUPBANKS	0
 #endif				/*CONFIG_BFIN_DCACHE */
 
+/* Level 2 Memory - none */
+
+#define L2_START	0
+#define L2_LENGTH	0
+
 /* Scratch Pad Memory */
 
 #define L1_SCRATCH_START	0xFFB00000

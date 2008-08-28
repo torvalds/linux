@@ -1329,7 +1329,7 @@ static struct page *get_any_partial(struct kmem_cache *s, gfp_t flags)
 		n = get_node(s, zone_to_nid(zone));
 
 		if (n && cpuset_zone_allowed_hardwall(zone, flags) &&
-				n->nr_partial > MIN_PARTIAL) {
+				n->nr_partial > n->min_partial) {
 			page = get_partial_node(n);
 			if (page)
 				return page;
@@ -1381,7 +1381,7 @@ static void unfreeze_slab(struct kmem_cache *s, struct page *page, int tail)
 		slab_unlock(page);
 	} else {
 		stat(c, DEACTIVATE_EMPTY);
-		if (n->nr_partial < MIN_PARTIAL) {
+		if (n->nr_partial < n->min_partial) {
 			/*
 			 * Adding an empty slab to the partial slabs in order
 			 * to avoid page allocator overhead. This slab needs
@@ -1913,9 +1913,21 @@ static void init_kmem_cache_cpu(struct kmem_cache *s,
 #endif
 }
 
-static void init_kmem_cache_node(struct kmem_cache_node *n)
+static void
+init_kmem_cache_node(struct kmem_cache_node *n, struct kmem_cache *s)
 {
 	n->nr_partial = 0;
+
+	/*
+	 * The larger the object size is, the more pages we want on the partial
+	 * list to avoid pounding the page allocator excessively.
+	 */
+	n->min_partial = ilog2(s->size);
+	if (n->min_partial < MIN_PARTIAL)
+		n->min_partial = MIN_PARTIAL;
+	else if (n->min_partial > MAX_PARTIAL)
+		n->min_partial = MAX_PARTIAL;
+
 	spin_lock_init(&n->list_lock);
 	INIT_LIST_HEAD(&n->partial);
 #ifdef CONFIG_SLUB_DEBUG
@@ -2087,7 +2099,7 @@ static struct kmem_cache_node *early_kmem_cache_node_alloc(gfp_t gfpflags,
 	init_object(kmalloc_caches, n, 1);
 	init_tracking(kmalloc_caches, n);
 #endif
-	init_kmem_cache_node(n);
+	init_kmem_cache_node(n, kmalloc_caches);
 	inc_slabs_node(kmalloc_caches, node, page->objects);
 
 	/*
@@ -2144,7 +2156,7 @@ static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
 
 		}
 		s->node[node] = n;
-		init_kmem_cache_node(n);
+		init_kmem_cache_node(n, s);
 	}
 	return 1;
 }
@@ -2155,7 +2167,7 @@ static void free_kmem_cache_nodes(struct kmem_cache *s)
 
 static int init_kmem_cache_nodes(struct kmem_cache *s, gfp_t gfpflags)
 {
-	init_kmem_cache_node(&s->local_node);
+	init_kmem_cache_node(&s->local_node, s);
 	return 1;
 }
 #endif
@@ -2300,7 +2312,7 @@ static int kmem_cache_open(struct kmem_cache *s, gfp_t gfpflags,
 
 	s->refcount = 1;
 #ifdef CONFIG_NUMA
-	s->remote_node_defrag_ratio = 100;
+	s->remote_node_defrag_ratio = 1000;
 #endif
 	if (!init_kmem_cache_nodes(s, gfpflags & ~SLUB_DMA))
 		goto error;
@@ -2715,7 +2727,6 @@ size_t ksize(const void *object)
 	 */
 	return s->size;
 }
-EXPORT_SYMBOL(ksize);
 
 void kfree(const void *x)
 {
@@ -2890,7 +2901,7 @@ static int slab_mem_going_online_callback(void *arg)
 			ret = -ENOMEM;
 			goto out;
 		}
-		init_kmem_cache_node(n);
+		init_kmem_cache_node(n, s);
 		s->node[nid] = n;
 	}
 out:
@@ -4047,7 +4058,7 @@ static ssize_t remote_node_defrag_ratio_store(struct kmem_cache *s,
 	if (err)
 		return err;
 
-	if (ratio < 100)
+	if (ratio <= 100)
 		s->remote_node_defrag_ratio = ratio * 10;
 
 	return length;

@@ -29,7 +29,7 @@
 /* Main transmission queue. */
 
 /* Modifications to data participating in scheduling must be protected with
- * qdisc_root_lock(qdisc) spinlock.
+ * qdisc_lock(qdisc) spinlock.
  *
  * The idea is the following:
  * - enqueue, dequeue are serialized via qdisc root lock
@@ -126,7 +126,7 @@ static inline int qdisc_restart(struct Qdisc *q)
 	if (unlikely((skb = dequeue_skb(q)) == NULL))
 		return 0;
 
-	root_lock = qdisc_root_lock(q);
+	root_lock = qdisc_lock(q);
 
 	/* And release qdisc */
 	spin_unlock(root_lock);
@@ -507,7 +507,7 @@ errout:
 }
 EXPORT_SYMBOL(qdisc_create_dflt);
 
-/* Under qdisc_root_lock(qdisc) and BH! */
+/* Under qdisc_lock(qdisc) and BH! */
 
 void qdisc_reset(struct Qdisc *qdisc)
 {
@@ -518,15 +518,17 @@ void qdisc_reset(struct Qdisc *qdisc)
 }
 EXPORT_SYMBOL(qdisc_reset);
 
-/* this is the rcu callback function to clean up a qdisc when there
- * are no further references to it */
-
-static void __qdisc_destroy(struct rcu_head *head)
+void qdisc_destroy(struct Qdisc *qdisc)
 {
-	struct Qdisc *qdisc = container_of(head, struct Qdisc, q_rcu);
 	const struct Qdisc_ops  *ops = qdisc->ops;
 
+	if (qdisc->flags & TCQ_F_BUILTIN ||
+	    !atomic_dec_and_test(&qdisc->refcnt))
+		return;
+
 #ifdef CONFIG_NET_SCHED
+	qdisc_list_del(qdisc);
+
 	qdisc_put_stab(qdisc->stab);
 #endif
 	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
@@ -541,20 +543,6 @@ static void __qdisc_destroy(struct rcu_head *head)
 	kfree_skb(qdisc->gso_skb);
 
 	kfree((char *) qdisc - qdisc->padded);
-}
-
-/* Under qdisc_root_lock(qdisc) and BH! */
-
-void qdisc_destroy(struct Qdisc *qdisc)
-{
-	if (qdisc->flags & TCQ_F_BUILTIN ||
-	    !atomic_dec_and_test(&qdisc->refcnt))
-		return;
-
-	if (qdisc->parent)
-		list_del(&qdisc->list);
-
-	call_rcu(&qdisc->q_rcu, __qdisc_destroy);
 }
 EXPORT_SYMBOL(qdisc_destroy);
 
@@ -596,6 +584,9 @@ static void transition_one_qdisc(struct net_device *dev,
 {
 	struct Qdisc *new_qdisc = dev_queue->qdisc_sleeping;
 	int *need_watchdog_p = _need_watchdog;
+
+	if (!(new_qdisc->flags & TCQ_F_BUILTIN))
+		clear_bit(__QDISC_STATE_DEACTIVATED, &new_qdisc->state);
 
 	rcu_assign_pointer(dev_queue->qdisc, new_qdisc);
 	if (need_watchdog_p && new_qdisc != &noqueue_qdisc)
@@ -640,6 +631,9 @@ static void dev_deactivate_queue(struct net_device *dev,
 	if (qdisc) {
 		spin_lock_bh(qdisc_lock(qdisc));
 
+		if (!(qdisc->flags & TCQ_F_BUILTIN))
+			set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
+
 		dev_queue->qdisc = qdisc_default;
 		qdisc_reset(qdisc);
 
@@ -647,7 +641,7 @@ static void dev_deactivate_queue(struct net_device *dev,
 	}
 }
 
-static bool some_qdisc_is_running(struct net_device *dev, int lock)
+static bool some_qdisc_is_busy(struct net_device *dev)
 {
 	unsigned int i;
 
@@ -658,16 +652,15 @@ static bool some_qdisc_is_running(struct net_device *dev, int lock)
 		int val;
 
 		dev_queue = netdev_get_tx_queue(dev, i);
-		q = dev_queue->qdisc;
-		root_lock = qdisc_root_lock(q);
+		q = dev_queue->qdisc_sleeping;
+		root_lock = qdisc_lock(q);
 
-		if (lock)
-			spin_lock_bh(root_lock);
+		spin_lock_bh(root_lock);
 
-		val = test_bit(__QDISC_STATE_RUNNING, &q->state);
+		val = (test_bit(__QDISC_STATE_RUNNING, &q->state) ||
+		       test_bit(__QDISC_STATE_SCHED, &q->state));
 
-		if (lock)
-			spin_unlock_bh(root_lock);
+		spin_unlock_bh(root_lock);
 
 		if (val)
 			return true;
@@ -677,8 +670,6 @@ static bool some_qdisc_is_running(struct net_device *dev, int lock)
 
 void dev_deactivate(struct net_device *dev)
 {
-	bool running;
-
 	netdev_for_each_tx_queue(dev, dev_deactivate_queue, &noop_qdisc);
 	dev_deactivate_queue(dev, &dev->rx_queue, &noop_qdisc);
 
@@ -688,25 +679,8 @@ void dev_deactivate(struct net_device *dev)
 	synchronize_rcu();
 
 	/* Wait for outstanding qdisc_run calls. */
-	do {
-		while (some_qdisc_is_running(dev, 0))
-			yield();
-
-		/*
-		 * Double-check inside queue lock to ensure that all effects
-		 * of the queue run are visible when we return.
-		 */
-		running = some_qdisc_is_running(dev, 1);
-
-		/*
-		 * The running flag should never be set at this point because
-		 * we've already set dev->qdisc to noop_qdisc *inside* the same
-		 * pair of spin locks.  That is, if any qdisc_run starts after
-		 * our initial test it should see the noop_qdisc and then
-		 * clear the RUNNING bit before dropping the queue lock.  So
-		 * if it is set here then we've found a bug.
-		 */
-	} while (WARN_ON_ONCE(running));
+	while (some_qdisc_is_busy(dev))
+		yield();
 }
 
 static void dev_init_scheduler_queue(struct net_device *dev,
@@ -735,14 +709,10 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 	struct Qdisc *qdisc_default = _qdisc_default;
 
 	if (qdisc) {
-		spinlock_t *root_lock = qdisc_root_lock(qdisc);
-
 		dev_queue->qdisc = qdisc_default;
 		dev_queue->qdisc_sleeping = qdisc_default;
 
-		spin_lock_bh(root_lock);
 		qdisc_destroy(qdisc);
-		spin_unlock_bh(root_lock);
 	}
 }
 

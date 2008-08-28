@@ -17,7 +17,6 @@
 #include <linux/mtd/physmap.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
-#include <linux/delay.h>
 #include <linux/smc911x.h>
 #include <media/soc_camera_platform.h>
 #include <media/sh_mobile_ceu.h>
@@ -140,6 +139,10 @@ static struct sh_mobile_lcdc_info lcdc_info = {
 			.lower_margin = 80,
 			.vsync_len = 1,
 			.sync = 0, /* hsync and vsync are active low */
+		},
+		.lcd_size_cfg = { /* 7.0 inch */
+			.width = 152,
+			.height = 91,
 		},
 		.board_cfg = {
 			.display_on = ap320_wvga_power_on,

@@ -243,6 +243,9 @@ static inline int open_arg(int flags, int mask)
 
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
+	if (unlikely(!ctx))
+		return 0;
+
 	unsigned n = ctx->major;
 	switch (audit_classify_syscall(ctx->arch, n)) {
 	case 0:	/* native */
@@ -284,6 +287,10 @@ static int audit_match_filetype(struct audit_context *ctx, int which)
 {
 	unsigned index = which & ~S_IFMT;
 	mode_t mode = which & S_IFMT;
+
+	if (unlikely(!ctx))
+		return 0;
+
 	if (index >= ctx->name_count)
 		return 0;
 	if (ctx->names[index].ino == -1)

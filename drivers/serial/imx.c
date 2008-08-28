@@ -44,8 +44,8 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
-#include <asm/arch/imx-uart.h>
+#include <mach/hardware.h>
+#include <mach/imx-uart.h>
 
 /* Register definitions */
 #define URXD0 0x0  /* Receiver Register */

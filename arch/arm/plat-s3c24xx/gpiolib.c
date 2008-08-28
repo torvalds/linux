@@ -19,10 +19,10 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 struct s3c24xx_gpio_chip {
 	struct gpio_chip	chip;

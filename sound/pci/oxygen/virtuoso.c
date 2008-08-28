@@ -36,15 +36,15 @@
  */
 
 /*
- * Xonar DX
- * --------
+ * Xonar D1/DX
+ * -----------
  *
  * CMI8788:
  *
  * I²C <-> CS4398 (front)
  *     <-> CS4362A (surround, center/LFE, back)
  *
- * GPI 0 <- external power present
+ * GPI 0 <- external power present (DX only)
  *
  * GPIO 0 -> enable output to speakers
  * GPIO 1 -> enable front panel I/O
@@ -96,6 +96,7 @@ MODULE_PARM_DESC(enable, "enable card");
 enum {
 	MODEL_D2,
 	MODEL_D2X,
+	MODEL_D1,
 	MODEL_DX,
 };
 
@@ -103,6 +104,7 @@ static struct pci_device_id xonar_ids[] __devinitdata = {
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8269), .driver_data = MODEL_D2 },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x8275), .driver_data = MODEL_DX },
 	{ OXYGEN_PCI_SUBID(0x1043, 0x82b7), .driver_data = MODEL_D2X },
+	{ OXYGEN_PCI_SUBID(0x1043, 0x834f), .driver_data = MODEL_D1 },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, xonar_ids);
@@ -313,15 +315,12 @@ static void cs43xx_init(struct oxygen *chip)
 	cs4362a_write(chip, 0x01, CS4362A_CPEN);
 }
 
-static void xonar_dx_init(struct oxygen *chip)
+static void xonar_d1_init(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
 
 	data->anti_pop_delay = 800;
 	data->output_enable_bit = GPIO_DX_OUTPUT_ENABLE;
-	data->ext_power_reg = OXYGEN_GPI_DATA;
-	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
-	data->ext_power_bit = GPI_DX_EXT_POWER;
 	data->cs4398_fm = CS4398_FM_SINGLE | CS4398_DEM_NONE | CS4398_DIF_LJUST;
 	data->cs4362a_fm = CS4362A_FM_SINGLE |
 		CS4362A_ATAPI_B_R | CS4362A_ATAPI_A_L;
@@ -345,6 +344,16 @@ static void xonar_dx_init(struct oxygen *chip)
 	snd_component_add(chip->card, "CS5361");
 }
 
+static void xonar_dx_init(struct oxygen *chip)
+{
+	struct xonar_data *data = chip->model_data;
+
+	data->ext_power_reg = OXYGEN_GPI_DATA;
+	data->ext_power_int_reg = OXYGEN_GPI_INTERRUPT_MASK;
+	data->ext_power_bit = GPI_DX_EXT_POWER;
+	xonar_d1_init(chip);
+}
+
 static void xonar_cleanup(struct oxygen *chip)
 {
 	struct xonar_data *data = chip->model_data;
@@ -352,7 +361,7 @@ static void xonar_cleanup(struct oxygen *chip)
 	oxygen_clear_bits16(chip, OXYGEN_GPIO_DATA, data->output_enable_bit);
 }
 
-static void xonar_dx_cleanup(struct oxygen *chip)
+static void xonar_d1_cleanup(struct oxygen *chip)
 {
 	xonar_cleanup(chip);
 	cs4362a_write(chip, 0x01, CS4362A_PDN | CS4362A_CPEN);
@@ -365,7 +374,7 @@ static void xonar_d2_resume(struct oxygen *chip)
 	xonar_enable_output(chip);
 }
 
-static void xonar_dx_resume(struct oxygen *chip)
+static void xonar_d1_resume(struct oxygen *chip)
 {
 	cs43xx_init(chip);
 	xonar_enable_output(chip);
@@ -513,7 +522,7 @@ static const struct snd_kcontrol_new front_panel_switch = {
 	.put = front_panel_put,
 };
 
-static void xonar_dx_ac97_switch(struct oxygen *chip,
+static void xonar_d1_ac97_switch(struct oxygen *chip,
 				 unsigned int reg, unsigned int mute)
 {
 	if (reg == AC97_LINE) {
@@ -536,7 +545,7 @@ static int xonar_d2_control_filter(struct snd_kcontrol_new *template)
 	return 0;
 }
 
-static int xonar_dx_control_filter(struct snd_kcontrol_new *template)
+static int xonar_d1_control_filter(struct snd_kcontrol_new *template)
 {
 	if (!strncmp(template->name, "CD Capture ", 11))
 		return 1; /* no CD input */
@@ -548,7 +557,7 @@ static int xonar_mixer_init(struct oxygen *chip)
 	return snd_ctl_add(chip->card, snd_ctl_new1(&alt_switch, chip));
 }
 
-static int xonar_dx_mixer_init(struct oxygen *chip)
+static int xonar_d1_mixer_init(struct oxygen *chip)
 {
 	return snd_ctl_add(chip->card, snd_ctl_new1(&front_panel_switch, chip));
 }
@@ -615,23 +624,51 @@ static const struct oxygen_model xonar_models[] = {
 		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
 	},
+	[MODEL_D1] = {
+		.shortname = "Xonar D1",
+		.longname = "Asus Virtuoso 100",
+		.chip = "AV200",
+		.owner = THIS_MODULE,
+		.init = xonar_d1_init,
+		.control_filter = xonar_d1_control_filter,
+		.mixer_init = xonar_d1_mixer_init,
+		.cleanup = xonar_d1_cleanup,
+		.suspend = xonar_d1_cleanup,
+		.resume = xonar_d1_resume,
+		.set_dac_params = set_cs43xx_params,
+		.set_adc_params = set_cs53x1_params,
+		.update_dac_volume = update_cs43xx_volume,
+		.update_dac_mute = update_cs43xx_mute,
+		.ac97_switch = xonar_d1_ac97_switch,
+		.dac_tlv = cs4362a_db_scale,
+		.model_data_size = sizeof(struct xonar_data),
+		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |
+			       PLAYBACK_1_TO_SPDIF |
+			       CAPTURE_0_FROM_I2S_2,
+		.dac_channels = 8,
+		.dac_volume_min = 0,
+		.dac_volume_max = 127,
+		.function_flags = OXYGEN_FUNCTION_2WIRE,
+		.dac_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+		.adc_i2s_format = OXYGEN_I2S_FORMAT_LJUST,
+	},
 	[MODEL_DX] = {
 		.shortname = "Xonar DX",
 		.longname = "Asus Virtuoso 100",
 		.chip = "AV200",
 		.owner = THIS_MODULE,
 		.init = xonar_dx_init,
-		.control_filter = xonar_dx_control_filter,
-		.mixer_init = xonar_dx_mixer_init,
-		.cleanup = xonar_dx_cleanup,
-		.suspend = xonar_dx_cleanup,
-		.resume = xonar_dx_resume,
+		.control_filter = xonar_d1_control_filter,
+		.mixer_init = xonar_d1_mixer_init,
+		.cleanup = xonar_d1_cleanup,
+		.suspend = xonar_d1_cleanup,
+		.resume = xonar_d1_resume,
 		.set_dac_params = set_cs43xx_params,
 		.set_adc_params = set_cs53x1_params,
 		.update_dac_volume = update_cs43xx_volume,
 		.update_dac_mute = update_cs43xx_mute,
 		.gpio_changed = xonar_gpio_changed,
-		.ac97_switch = xonar_dx_ac97_switch,
+		.ac97_switch = xonar_d1_ac97_switch,
 		.dac_tlv = cs4362a_db_scale,
 		.model_data_size = sizeof(struct xonar_data),
 		.pcm_dev_cfg = PLAYBACK_0_TO_I2S |

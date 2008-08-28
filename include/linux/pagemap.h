@@ -250,29 +250,6 @@ static inline struct page *read_mapping_page(struct address_space *mapping,
 	return read_cache_page(mapping, index, filler, data);
 }
 
-int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
-				pgoff_t index, gfp_t gfp_mask);
-int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
-				pgoff_t index, gfp_t gfp_mask);
-extern void remove_from_page_cache(struct page *page);
-extern void __remove_from_page_cache(struct page *page);
-
-/*
- * Like add_to_page_cache_locked, but used to add newly allocated pages:
- * the page is new, so we can just run SetPageLocked() against it.
- */
-static inline int add_to_page_cache(struct page *page,
-		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
-{
-	int error;
-
-	SetPageLocked(page);
-	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
-	if (unlikely(error))
-		ClearPageLocked(page);
-	return error;
-}
-
 /*
  * Return byte-offset into filesystem object for page.
  */
@@ -294,13 +271,28 @@ extern int __lock_page_killable(struct page *page);
 extern void __lock_page_nosync(struct page *page);
 extern void unlock_page(struct page *page);
 
+static inline void set_page_locked(struct page *page)
+{
+	set_bit(PG_locked, &page->flags);
+}
+
+static inline void clear_page_locked(struct page *page)
+{
+	clear_bit(PG_locked, &page->flags);
+}
+
+static inline int trylock_page(struct page *page)
+{
+	return !test_and_set_bit(PG_locked, &page->flags);
+}
+
 /*
  * lock_page may only be called if we have the page's inode pinned.
  */
 static inline void lock_page(struct page *page)
 {
 	might_sleep();
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		__lock_page(page);
 }
 
@@ -312,7 +304,7 @@ static inline void lock_page(struct page *page)
 static inline int lock_page_killable(struct page *page)
 {
 	might_sleep();
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		return __lock_page_killable(page);
 	return 0;
 }
@@ -324,7 +316,7 @@ static inline int lock_page_killable(struct page *page)
 static inline void lock_page_nosync(struct page *page)
 {
 	might_sleep();
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		__lock_page_nosync(page);
 }
 	
@@ -407,6 +399,29 @@ static inline int fault_in_pages_readable(const char __user *uaddr, int size)
 		 	ret = __get_user(c, end);
 	}
 	return ret;
+}
+
+int add_to_page_cache_locked(struct page *page, struct address_space *mapping,
+				pgoff_t index, gfp_t gfp_mask);
+int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+				pgoff_t index, gfp_t gfp_mask);
+extern void remove_from_page_cache(struct page *page);
+extern void __remove_from_page_cache(struct page *page);
+
+/*
+ * Like add_to_page_cache_locked, but used to add newly allocated pages:
+ * the page is new, so we can just run set_page_locked() against it.
+ */
+static inline int add_to_page_cache(struct page *page,
+		struct address_space *mapping, pgoff_t offset, gfp_t gfp_mask)
+{
+	int error;
+
+	set_page_locked(page);
+	error = add_to_page_cache_locked(page, mapping, offset, gfp_mask);
+	if (unlikely(error))
+		clear_page_locked(page);
+	return error;
 }
 
 #endif /* _LINUX_PAGEMAP_H */

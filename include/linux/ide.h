@@ -219,18 +219,7 @@ static inline int __ide_default_irq(unsigned long base)
 #include <asm-generic/ide_iops.h>
 #endif
 
-#ifndef MAX_HWIFS
-#if defined(CONFIG_BLACKFIN) || defined(CONFIG_H8300) || defined(CONFIG_XTENSA)
-# define MAX_HWIFS	1
-#else
-# define MAX_HWIFS	10
-#endif
-#endif
-
-#if !defined(MAX_HWIFS) || defined(CONFIG_EMBEDDED)
-#undef MAX_HWIFS
-#define MAX_HWIFS	CONFIG_IDE_MAX_HWIFS
-#endif
+#define MAX_HWIFS	10
 
 /* Currently only m68k, apus and m8xx need it */
 #ifndef IDE_ARCH_ACK_INTR
@@ -509,24 +498,33 @@ struct ide_tp_ops {
 
 extern const struct ide_tp_ops default_tp_ops;
 
+/**
+ * struct ide_port_ops - IDE port operations
+ *
+ * @init_dev:		host specific initialization of a device
+ * @set_pio_mode:	routine to program host for PIO mode
+ * @set_dma_mode:	routine to program host for DMA mode
+ * @selectproc:		tweaks hardware to select drive
+ * @reset_poll:		chipset polling based on hba specifics
+ * @pre_reset:		chipset specific changes to default for device-hba resets
+ * @resetproc:		routine to reset controller after a disk reset
+ * @maskproc:		special host masking for drive selection
+ * @quirkproc:		check host's drive quirk list
+ *
+ * @mdma_filter:	filter MDMA modes
+ * @udma_filter:	filter UDMA modes
+ *
+ * @cable_detect:	detect cable type
+ */
 struct ide_port_ops {
-	/* host specific initialization of a device */
 	void	(*init_dev)(ide_drive_t *);
-	/* routine to program host for PIO mode */
 	void	(*set_pio_mode)(ide_drive_t *, const u8);
-	/* routine to program host for DMA mode */
 	void	(*set_dma_mode)(ide_drive_t *, const u8);
-	/* tweaks hardware to select drive */
 	void	(*selectproc)(ide_drive_t *);
-	/* chipset polling based on hba specifics */
 	int	(*reset_poll)(ide_drive_t *);
-	/* chipset specific changes to default for device-hba resets */
 	void	(*pre_reset)(ide_drive_t *);
-	/* routine to reset controller after a disk reset */
 	void	(*resetproc)(ide_drive_t *);
-	/* special host masking for drive selection */
 	void	(*maskproc)(ide_drive_t *, int);
-	/* check host's drive quirk list */
 	void	(*quirkproc)(ide_drive_t *);
 
 	u8	(*mdma_filter)(ide_drive_t *);

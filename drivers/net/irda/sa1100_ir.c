@@ -37,7 +37,7 @@
 
 #include <asm/irq.h>
 #include <asm/dma.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach/irda.h>
 
 static int power_level = 3;

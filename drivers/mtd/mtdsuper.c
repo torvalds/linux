@@ -125,8 +125,11 @@ int get_sb_mtd(struct file_system_type *fs_type, int flags,
 	       int (*fill_super)(struct super_block *, void *, int),
 	       struct vfsmount *mnt)
 {
+#ifdef CONFIG_BLOCK
 	struct block_device *bdev;
-	int mtdnr, ret;
+	int ret, major;
+#endif
+	int mtdnr;
 
 	if (!dev_name)
 		return -EINVAL;
@@ -178,6 +181,7 @@ int get_sb_mtd(struct file_system_type *fs_type, int flags,
 		}
 	}
 
+#ifdef CONFIG_BLOCK
 	/* try the old way - the hack where we allowed users to mount
 	 * /dev/mtdblock$(n) but didn't actually _use_ the blockdev
 	 */
@@ -190,22 +194,25 @@ int get_sb_mtd(struct file_system_type *fs_type, int flags,
 	DEBUG(1, "MTDSB: lookup_bdev() returned 0\n");
 
 	ret = -EINVAL;
-	if (MAJOR(bdev->bd_dev) != MTD_BLOCK_MAJOR)
-		goto not_an_MTD_device;
 
+	major = MAJOR(bdev->bd_dev);
 	mtdnr = MINOR(bdev->bd_dev);
 	bdput(bdev);
+
+	if (major != MTD_BLOCK_MAJOR)
+		goto not_an_MTD_device;
 
 	return get_sb_mtd_nr(fs_type, flags, dev_name, data, mtdnr, fill_super,
 			     mnt);
 
 not_an_MTD_device:
+#endif /* CONFIG_BLOCK */
+
 	if (!(flags & MS_SILENT))
 		printk(KERN_NOTICE
 		       "MTD: Attempt to mount non-MTD device \"%s\"\n",
 		       dev_name);
-	bdput(bdev);
-	return ret;
+	return -EINVAL;
 }
 
 EXPORT_SYMBOL_GPL(get_sb_mtd);

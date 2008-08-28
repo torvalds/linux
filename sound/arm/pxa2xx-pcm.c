@@ -21,8 +21,8 @@
 #include <sound/pcm_params.h>
 
 #include <asm/dma.h>
-#include <asm/hardware.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
 
 #include "pxa2xx-pcm.h"
 

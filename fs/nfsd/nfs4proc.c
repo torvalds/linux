@@ -851,7 +851,7 @@ struct nfsd4_operation {
 
 static struct nfsd4_operation nfsd4_ops[];
 
-static inline char *nfsd4_op_name(unsigned opnum);
+static const char *nfsd4_op_name(unsigned opnum);
 
 /*
  * COMPOUND call.
@@ -1116,8 +1116,7 @@ static struct nfsd4_operation nfsd4_ops[OP_RELEASE_LOCKOWNER+1] = {
 	},
 };
 
-static inline char *
-nfsd4_op_name(unsigned opnum)
+static const char *nfsd4_op_name(unsigned opnum)
 {
 	if (opnum < ARRAY_SIZE(nfsd4_ops))
 		return nfsd4_ops[opnum].op_name;

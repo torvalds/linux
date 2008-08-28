@@ -226,6 +226,7 @@ sonixj		0c45:6130	Sonix Pccam
 sonixj		0c45:6138	Sn9c120 Mo4000
 sonixj		0c45:613b	Surfer SN-206
 sonixj		0c45:613c	Sonix Pccam168
+sonixj		0c45:6143	Sonix Pccam168
 sunplus		0d64:0303	Sunplus FashionCam DXG
 etoms		102c:6151	Qcam Sangha CIF
 etoms		102c:6251	Qcam xxxxxx VGA

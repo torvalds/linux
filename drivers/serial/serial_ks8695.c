@@ -26,8 +26,8 @@
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-uart.h>
-#include <asm/arch/regs-irq.h>
+#include <mach/regs-uart.h>
+#include <mach/regs-irq.h>
 
 #if defined(CONFIG_SERIAL_KS8695_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

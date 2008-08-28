@@ -19,8 +19,8 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 
-#include <asm/hardware.h>
-#include <asm/arch/jornada720.h>
+#include <mach/hardware.h>
+#include <mach/jornada720.h>
 
 MODULE_AUTHOR("Kristoffer Ericson <kristoffer.ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 710/720/728 touchscreen driver");

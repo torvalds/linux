@@ -20,7 +20,6 @@
  *  the file called "COPYING".
  */
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>
@@ -33,6 +32,29 @@
 #include <linux/io.h>
 
 #include "sh_eth.h"
+
+/* CPU <-> EDMAC endian convert */
+static inline __u32 cpu_to_edmac(struct sh_eth_private *mdp, u32 x)
+{
+	switch (mdp->edmac_endian) {
+	case EDMAC_LITTLE_ENDIAN:
+		return cpu_to_le32(x);
+	case EDMAC_BIG_ENDIAN:
+		return cpu_to_be32(x);
+	}
+	return x;
+}
+
+static inline __u32 edmac_to_cpu(struct sh_eth_private *mdp, u32 x)
+{
+	switch (mdp->edmac_endian) {
+	case EDMAC_LITTLE_ENDIAN:
+		return le32_to_cpu(x);
+	case EDMAC_BIG_ENDIAN:
+		return be32_to_cpu(x);
+	}
+	return x;
+}
 
 /*
  * Program the hardware MAC address from dev->dev_addr.
@@ -240,7 +262,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		/* RX descriptor */
 		rxdesc = &mdp->rx_ring[i];
 		rxdesc->addr = (u32)skb->data & ~0x3UL;
-		rxdesc->status = cpu_to_le32(RD_RACT | RD_RFP);
+		rxdesc->status = cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 
 		/* The size of the buffer is 16 byte boundary. */
 		rxdesc->buffer_length = (mdp->rx_buf_sz + 16) & ~0x0F;
@@ -262,7 +284,7 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	mdp->dirty_rx = (u32) (i - RX_RING_SIZE);
 
 	/* Mark the last entry as wrapping the ring. */
-	rxdesc->status |= cpu_to_le32(RD_RDEL);
+	rxdesc->status |= cpu_to_edmac(mdp, RD_RDEL);
 
 	memset(mdp->tx_ring, 0, tx_ringsize);
 
@@ -270,10 +292,10 @@ static void sh_eth_ring_format(struct net_device *ndev)
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		mdp->tx_skbuff[i] = NULL;
 		txdesc = &mdp->tx_ring[i];
-		txdesc->status = cpu_to_le32(TD_TFP);
+		txdesc->status = cpu_to_edmac(mdp, TD_TFP);
 		txdesc->buffer_length = 0;
 		if (i == 0) {
-			/* Rx descriptor address set */
+			/* Tx descriptor address set */
 			ctrl_outl((u32)txdesc, ioaddr + TDLAR);
 #if defined(CONFIG_CPU_SUBTYPE_SH7763)
 			ctrl_outl((u32)txdesc, ioaddr + TDFAR);
@@ -281,13 +303,13 @@ static void sh_eth_ring_format(struct net_device *ndev)
 		}
 	}
 
-	/* Rx descriptor address set */
+	/* Tx descriptor address set */
 #if defined(CONFIG_CPU_SUBTYPE_SH7763)
 	ctrl_outl((u32)txdesc, ioaddr + TDFXR);
 	ctrl_outl(0x1, ioaddr + TDFFR);
 #endif
 
-	txdesc->status |= cpu_to_le32(TD_TDLE);
+	txdesc->status |= cpu_to_edmac(mdp, TD_TDLE);
 }
 
 /* Get skb and descriptor buffer */
@@ -455,7 +477,7 @@ static int sh_eth_txfree(struct net_device *ndev)
 	for (; mdp->cur_tx - mdp->dirty_tx > 0; mdp->dirty_tx++) {
 		entry = mdp->dirty_tx % TX_RING_SIZE;
 		txdesc = &mdp->tx_ring[entry];
-		if (txdesc->status & cpu_to_le32(TD_TACT))
+		if (txdesc->status & cpu_to_edmac(mdp, TD_TACT))
 			break;
 		/* Free the original skb. */
 		if (mdp->tx_skbuff[entry]) {
@@ -463,9 +485,9 @@ static int sh_eth_txfree(struct net_device *ndev)
 			mdp->tx_skbuff[entry] = NULL;
 			freeNum++;
 		}
-		txdesc->status = cpu_to_le32(TD_TFP);
+		txdesc->status = cpu_to_edmac(mdp, TD_TFP);
 		if (entry >= TX_RING_SIZE - 1)
-			txdesc->status |= cpu_to_le32(TD_TDLE);
+			txdesc->status |= cpu_to_edmac(mdp, TD_TDLE);
 
 		mdp->stats.tx_packets++;
 		mdp->stats.tx_bytes += txdesc->buffer_length;
@@ -486,8 +508,8 @@ static int sh_eth_rx(struct net_device *ndev)
 	u32 desc_status, reserve = 0;
 
 	rxdesc = &mdp->rx_ring[entry];
-	while (!(rxdesc->status & cpu_to_le32(RD_RACT))) {
-		desc_status = le32_to_cpu(rxdesc->status);
+	while (!(rxdesc->status & cpu_to_edmac(mdp, RD_RACT))) {
+		desc_status = edmac_to_cpu(mdp, rxdesc->status);
 		pkt_len = rxdesc->frame_length;
 
 		if (--boguscnt < 0)
@@ -522,7 +544,7 @@ static int sh_eth_rx(struct net_device *ndev)
 			mdp->stats.rx_packets++;
 			mdp->stats.rx_bytes += pkt_len;
 		}
-		rxdesc->status |= cpu_to_le32(RD_RACT);
+		rxdesc->status |= cpu_to_edmac(mdp, RD_RACT);
 		entry = (++mdp->cur_rx) % RX_RING_SIZE;
 	}
 
@@ -552,10 +574,10 @@ static int sh_eth_rx(struct net_device *ndev)
 		}
 		if (entry >= RX_RING_SIZE - 1)
 			rxdesc->status |=
-				cpu_to_le32(RD_RACT | RD_RFP | RD_RDEL);
+				cpu_to_edmac(mdp, RD_RACT | RD_RFP | RD_RDEL);
 		else
 			rxdesc->status |=
-				cpu_to_le32(RD_RACT | RD_RFP);
+				cpu_to_edmac(mdp, RD_RACT | RD_RFP);
 	}
 
 	/* Restart Rx engine if stopped. */
@@ -931,9 +953,9 @@ static int sh_eth_start_xmit(struct sk_buff *skb, struct net_device *ndev)
 		txdesc->buffer_length = skb->len;
 
 	if (entry >= TX_RING_SIZE - 1)
-		txdesc->status |= cpu_to_le32(TD_TACT | TD_TDLE);
+		txdesc->status |= cpu_to_edmac(mdp, TD_TACT | TD_TDLE);
 	else
-		txdesc->status |= cpu_to_le32(TD_TACT);
+		txdesc->status |= cpu_to_edmac(mdp, TD_TACT);
 
 	mdp->cur_tx++;
 
@@ -1159,6 +1181,7 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	struct resource *res;
 	struct net_device *ndev = NULL;
 	struct sh_eth_private *mdp;
+	struct sh_eth_plat_data *pd;
 
 	/* get base addr */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -1196,8 +1219,11 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	mdp = netdev_priv(ndev);
 	spin_lock_init(&mdp->lock);
 
+	pd = (struct sh_eth_plat_data *)(pdev->dev.platform_data);
 	/* get PHY ID */
-	mdp->phy_id = (int)pdev->dev.platform_data;
+	mdp->phy_id = pd->phy;
+	/* EDMAC endian */
+	mdp->edmac_endian = pd->edmac_endian;
 
 	/* set function */
 	ndev->open = sh_eth_open;
@@ -1217,12 +1243,16 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 
 	/* First device only init */
 	if (!devno) {
+#if defined(ARSTR)
 		/* reset device */
 		ctrl_outl(ARSTR_ARSTR, ARSTR);
 		mdelay(1);
+#endif
 
+#if defined(SH_TSU_ADDR)
 		/* TSU init (Init only)*/
 		sh_eth_tsu_init(SH_TSU_ADDR);
+#endif
 	}
 
 	/* network device register */
@@ -1240,8 +1270,8 @@ static int sh_eth_drv_probe(struct platform_device *pdev)
 	       ndev->name, CARDNAME, (u32) ndev->base_addr);
 
 	for (i = 0; i < 5; i++)
-		printk(KERN_INFO "%02X:", ndev->dev_addr[i]);
-	printk(KERN_INFO "%02X, IRQ %d.\n", ndev->dev_addr[i], ndev->irq);
+		printk("%02X:", ndev->dev_addr[i]);
+	printk("%02X, IRQ %d.\n", ndev->dev_addr[i], ndev->irq);
 
 	platform_set_drvdata(pdev, ndev);
 

@@ -19,15 +19,6 @@ Who:	Pavel Machek <pavel@suse.cz>
 
 ---------------------------
 
-What:	old NCR53C9x driver
-When:	October 2007
-Why:	Replaced by the much better esp_scsi driver.  Actual low-level
-	driver can be ported over almost trivially.
-Who:	David Miller <davem@davemloft.net>
-	Christoph Hellwig <hch@lst.de>
-
----------------------------
-
 What:	Video4Linux API 1 ioctls and video_decoder.h from Video devices.
 When:	December 2008
 Files:	include/linux/video_decoder.h include/linux/videodev.h
@@ -202,19 +193,6 @@ Why:  Some halt(8) implementations synchronize caches for and spin
       This is to give userspace tools the time to get updated and will
       be removed after userspace is reasonably updated.
 Who:  Tejun Heo <htejun@gmail.com>
-
----------------------------
-
-What: The arch/ppc and include/asm-ppc directories
-When: Jun 2008
-Why:  The arch/powerpc tree is the merged architecture for ppc32 and ppc64
-      platforms.  Currently there are efforts underway to port the remaining
-      arch/ppc platforms to the merged tree.  New submissions to the arch/ppc
-      tree have been frozen with the 2.6.22 kernel release and that tree will
-      remain in bug-fix only mode until its scheduled removal.  Platforms
-      that are not ported by June 2008 will be removed due to the lack of an
-      interested maintainer.
-Who:  linuxppc-dev@ozlabs.org
 
 ---------------------------
 

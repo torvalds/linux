@@ -31,12 +31,12 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 
-#include <asm/arch/control.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/board.h>
+#include <mach/control.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/board.h>
 
 #ifdef CONFIG_ARCH_OMAP1
 

@@ -642,8 +642,30 @@ The statistics for the number of total SMBs and oplock breaks are different in
 that they represent all for that share, not just those for which the server
 returned success.
 	
-Also note that "cat /proc/fs/cifs/DebugData" will display information about 
+Also note that "cat /proc/fs/cifs/DebugData" will display information about
 the active sessions and the shares that are mounted.
-Enabling Kerberos (extended security) works when CONFIG_CIFS_EXPERIMENTAL is
-on but requires a user space helper (from the Samba project). NTLM and NTLMv2 and
-LANMAN support do not require this helper.
+
+Enabling Kerberos (extended security) works but requires version 1.2 or later
+of the helper program cifs.upcall to be present and to be configured in the
+/etc/request-key.conf file.  The cifs.upcall helper program is from the Samba
+project(http://www.samba.org). NTLM and NTLMv2 and LANMAN support do not
+require this helper. Note that NTLMv2 security (which does not require the
+cifs.upcall helper program), instead of using Kerberos, is sufficient for
+some use cases.
+
+Enabling DFS support (used to access shares transparently in an MS-DFS
+global name space) requires that CONFIG_CIFS_EXPERIMENTAL be enabled.  In
+addition, DFS support for target shares which are specified as UNC
+names which begin with host names (rather than IP addresses) requires
+a user space helper (such as cifs.upcall) to be present in order to
+translate host names to ip address, and the user space helper must also
+be configured in the file /etc/request-key.conf
+
+To use cifs Kerberos and DFS support, the Linux keyutils package should be
+installed and something like the following lines should be added to the
+/etc/request-key.conf file:
+
+create cifs.spnego * * /usr/local/sbin/cifs.upcall %k
+create dns_resolver * * /usr/local/sbin/cifs.upcall %k
+
+

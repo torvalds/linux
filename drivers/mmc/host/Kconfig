@@ -174,3 +174,9 @@ config MMC_SDRICOH_CS
 	  To compile this driver as a module, choose M here: the
 	  module will be called sdricoh_cs.
 
+config MMC_TMIO
+	tristate "Toshiba Mobile IO Controller (TMIO) MMC/SD function support"
+	depends on MFD_TMIO
+	help
+	  This provides support for the SD/MMC cell found in TC6393XB,
+	  T7L66XB and also ipaq ASIC3

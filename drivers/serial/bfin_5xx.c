@@ -817,7 +817,7 @@ static void bfin_serial_set_ldisc(struct uart_port *port)
 	if (line >= port->info->port.tty->driver->num)
 		return;
 
-	switch (port->info->port.tty->ldisc.num) {
+	switch (port->info->port.tty->termios->c_line) {
 	case N_IRDA:
 		val = UART_GET_GCTL(&bfin_serial_ports[line]);
 		val |= (IREN | RPOLC);

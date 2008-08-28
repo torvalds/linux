@@ -1509,14 +1509,14 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 
 					/* BSD 4.2 compatibility hack :-( */
 					if (mtu == 0 &&
-					    old_mtu >= dst_metric(&rth->u.dst, RTAX_MTU) &&
+					    old_mtu >= dst_mtu(&rth->u.dst) &&
 					    old_mtu >= 68 + (iph->ihl << 2))
 						old_mtu -= iph->ihl << 2;
 
 					mtu = guess_mtu(old_mtu);
 				}
-				if (mtu <= dst_metric(&rth->u.dst, RTAX_MTU)) {
-					if (mtu < dst_metric(&rth->u.dst, RTAX_MTU)) {
+				if (mtu <= dst_mtu(&rth->u.dst)) {
+					if (mtu < dst_mtu(&rth->u.dst)) {
 						dst_confirm(&rth->u.dst);
 						if (mtu < ip_rt_min_pmtu) {
 							mtu = ip_rt_min_pmtu;
@@ -1538,7 +1538,7 @@ unsigned short ip_rt_frag_needed(struct net *net, struct iphdr *iph,
 
 static void ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu)
 {
-	if (dst_metric(dst, RTAX_MTU) > mtu && mtu >= 68 &&
+	if (dst_mtu(dst) > mtu && mtu >= 68 &&
 	    !(dst_metric_locked(dst, RTAX_MTU))) {
 		if (mtu < ip_rt_min_pmtu) {
 			mtu = ip_rt_min_pmtu;
@@ -1667,7 +1667,7 @@ static void rt_set_nexthop(struct rtable *rt, struct fib_result *res, u32 itag)
 
 	if (dst_metric(&rt->u.dst, RTAX_HOPLIMIT) == 0)
 		rt->u.dst.metrics[RTAX_HOPLIMIT-1] = sysctl_ip_default_ttl;
-	if (dst_metric(&rt->u.dst, RTAX_MTU) > IP_MAX_MTU)
+	if (dst_mtu(&rt->u.dst) > IP_MAX_MTU)
 		rt->u.dst.metrics[RTAX_MTU-1] = IP_MAX_MTU;
 	if (dst_metric(&rt->u.dst, RTAX_ADVMSS) == 0)
 		rt->u.dst.metrics[RTAX_ADVMSS-1] = max_t(unsigned int, rt->u.dst.dev->mtu - 40,
@@ -2914,6 +2914,68 @@ static int ipv4_sysctl_rtcache_flush_strategy(ctl_table *table,
 	return 0;
 }
 
+static void rt_secret_reschedule(int old)
+{
+	struct net *net;
+	int new = ip_rt_secret_interval;
+	int diff = new - old;
+
+	if (!diff)
+		return;
+
+	rtnl_lock();
+	for_each_net(net) {
+		int deleted = del_timer_sync(&net->ipv4.rt_secret_timer);
+
+		if (!new)
+			continue;
+
+		if (deleted) {
+			long time = net->ipv4.rt_secret_timer.expires - jiffies;
+
+			if (time <= 0 || (time += diff) <= 0)
+				time = 0;
+
+			net->ipv4.rt_secret_timer.expires = time;
+		} else
+			net->ipv4.rt_secret_timer.expires = new;
+
+		net->ipv4.rt_secret_timer.expires += jiffies;
+		add_timer(&net->ipv4.rt_secret_timer);
+	}
+	rtnl_unlock();
+}
+
+static int ipv4_sysctl_rt_secret_interval(ctl_table *ctl, int write,
+					  struct file *filp,
+					  void __user *buffer, size_t *lenp,
+					  loff_t *ppos)
+{
+	int old = ip_rt_secret_interval;
+	int ret = proc_dointvec_jiffies(ctl, write, filp, buffer, lenp, ppos);
+
+	rt_secret_reschedule(old);
+
+	return ret;
+}
+
+static int ipv4_sysctl_rt_secret_interval_strategy(ctl_table *table,
+						   int __user *name,
+						   int nlen,
+						   void __user *oldval,
+						   size_t __user *oldlenp,
+						   void __user *newval,
+						   size_t newlen)
+{
+	int old = ip_rt_secret_interval;
+	int ret = sysctl_jiffies(table, name, nlen, oldval, oldlenp, newval,
+				 newlen);
+
+	rt_secret_reschedule(old);
+
+	return ret;
+}
+
 static ctl_table ipv4_route_table[] = {
 	{
 		.ctl_name	= NET_IPV4_ROUTE_GC_THRESH,
@@ -3048,19 +3110,28 @@ static ctl_table ipv4_route_table[] = {
 		.data		= &ip_rt_secret_interval,
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
-		.proc_handler	= &proc_dointvec_jiffies,
-		.strategy	= &sysctl_jiffies,
+		.proc_handler	= &ipv4_sysctl_rt_secret_interval,
+		.strategy	= &ipv4_sysctl_rt_secret_interval_strategy,
 	},
 	{ .ctl_name = 0 }
 };
 
-static __net_initdata struct ctl_path ipv4_route_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
-	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE, },
-	{ },
+static struct ctl_table empty[1];
+
+static struct ctl_table ipv4_skeleton[] =
+{
+	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE,
+	  .child = ipv4_route_table},
+	{ .procname = "neigh", .ctl_name = NET_IPV4_NEIGH,
+	  .child = empty},
+	{ }
 };
 
+static __net_initdata struct ctl_path ipv4_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ },
+};
 
 static struct ctl_table ipv4_route_flush_table[] = {
 	{
@@ -3072,6 +3143,13 @@ static struct ctl_table ipv4_route_flush_table[] = {
 		.strategy	= &ipv4_sysctl_rtcache_flush_strategy,
 	},
 	{ .ctl_name = 0 },
+};
+
+static __net_initdata struct ctl_path ipv4_route_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE, },
+	{ },
 };
 
 static __net_init int sysctl_route_net_init(struct net *net)
@@ -3126,10 +3204,12 @@ static __net_init int rt_secret_timer_init(struct net *net)
 	net->ipv4.rt_secret_timer.data = (unsigned long)net;
 	init_timer_deferrable(&net->ipv4.rt_secret_timer);
 
-	net->ipv4.rt_secret_timer.expires =
-		jiffies + net_random() % ip_rt_secret_interval +
-		ip_rt_secret_interval;
-	add_timer(&net->ipv4.rt_secret_timer);
+	if (ip_rt_secret_interval) {
+		net->ipv4.rt_secret_timer.expires =
+			jiffies + net_random() % ip_rt_secret_interval +
+			ip_rt_secret_interval;
+		add_timer(&net->ipv4.rt_secret_timer);
+	}
 	return 0;
 }
 
@@ -3223,9 +3303,7 @@ int __init ip_rt_init(void)
  */
 void __init ip_static_sysctl_init(void)
 {
-#ifdef CONFIG_SYSCTL
-	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
-#endif
+	register_sysctl_paths(ipv4_path, ipv4_skeleton);
 }
 #endif
 

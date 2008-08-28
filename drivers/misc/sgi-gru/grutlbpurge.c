@@ -34,7 +34,6 @@
 #include <linux/hugetlb.h>
 #include <linux/delay.h>
 #include <linux/timex.h>
-#include <linux/delay.h>
 #include <linux/srcu.h>
 #include <asm/processor.h>
 #include "gru.h"

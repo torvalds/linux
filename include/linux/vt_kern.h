@@ -35,7 +35,6 @@ extern int fg_console, last_console, want_console;
 int vc_allocate(unsigned int console);
 int vc_cons_allocated(unsigned int console);
 int vc_resize(struct vc_data *vc, unsigned int cols, unsigned int lines);
-int vc_lock_resize(struct vc_data *vc, unsigned int cols, unsigned int lines);
 void vc_deallocate(unsigned int console);
 void reset_palette(struct vc_data *vc);
 void do_blank_screen(int entering_gfx);
@@ -86,6 +85,7 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc);
 #define con_copy_unimap(d, s) (0)
 #define con_get_unimap(vc, ct, uct, list) (-EINVAL)
 #define con_free_unimap(vc) do { ; } while (0)
+#define con_protect_unimap(vc, rdonly) do { ; } while (0)
 
 #define vc_translate(vc, c) (c)
 #endif

@@ -26,7 +26,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -710,10 +709,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 		return;
 	}
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
-		iwl3945_pass_packet_to_mac80211(priv, rxb, &rx_status);
-		return;
-	}
+
 
 	/* Convert 3945's rssi indicator to dBm */
 	rx_status.signal = rx_stats->rssi - IWL_RSSI_OFFSET;
@@ -775,6 +771,11 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 		priv->last_rx_noise = rx_status.noise;
 	}
 
+	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
+		iwl3945_pass_packet_to_mac80211(priv, rxb, &rx_status);
+		return;
+	}
+
 	switch (le16_to_cpu(header->frame_control) & IEEE80211_FCTL_FTYPE) {
 	case IEEE80211_FTYPE_MGMT:
 		switch (le16_to_cpu(header->frame_control) &
@@ -793,8 +794,7 @@ static void iwl3945_rx_reply_rx(struct iwl3945_priv *priv,
 					struct ieee80211_mgmt *mgmt =
 					    (struct ieee80211_mgmt *)header;
 					__le32 *pos;
-					pos =
-					    (__le32 *) & mgmt->u.beacon.
+					pos = (__le32 *)&mgmt->u.beacon.
 					    timestamp;
 					priv->timestamp0 = le32_to_cpu(pos[0]);
 					priv->timestamp1 = le32_to_cpu(pos[1]);
@@ -1507,7 +1507,7 @@ static int iwl3945_hw_reg_adjust_power_by_temp(int new_reading, int old_reading)
  */
 static inline int iwl3945_hw_reg_temp_out_of_range(int temperature)
 {
-	return (((temperature < -260) || (temperature > 25)) ? 1 : 0);
+	return ((temperature < -260) || (temperature > 25)) ? 1 : 0;
 }
 
 int iwl3945_hw_get_temperature(struct iwl3945_priv *priv)
@@ -2628,7 +2628,7 @@ unsigned int iwl3945_hw_get_beacon_cmd(struct iwl3945_priv *priv,
 	tx_beacon_cmd->tx.supp_rates[1] =
 		(IWL_CCK_BASIC_RATES_MASK & 0xF);
 
-	return (sizeof(struct iwl3945_tx_beacon_cmd) + frame_size);
+	return sizeof(struct iwl3945_tx_beacon_cmd) + frame_size;
 }
 
 void iwl3945_hw_rx_handler_setup(struct iwl3945_priv *priv)

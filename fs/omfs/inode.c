@@ -232,8 +232,7 @@ struct inode *omfs_iget(struct super_block *sb, ino_t ino)
 		inode->i_mode = S_IFDIR | (S_IRWXUGO & ~sbi->s_dmask);
 		inode->i_op = &omfs_dir_inops;
 		inode->i_fop = &omfs_dir_operations;
-		inode->i_size = be32_to_cpu(oi->i_head.h_body_size) +
-			sizeof(struct omfs_header);
+		inode->i_size = sbi->s_sys_blocksize;
 		inc_nlink(inode);
 		break;
 	case OMFS_FILE:
@@ -492,7 +491,8 @@ static int omfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (sbi->s_num_blocks != be64_to_cpu(omfs_rb->r_num_blocks)) {
 		printk(KERN_ERR "omfs: block count discrepancy between "
 			"super and root blocks (%llx, %llx)\n",
-			sbi->s_num_blocks, be64_to_cpu(omfs_rb->r_num_blocks));
+			(unsigned long long)sbi->s_num_blocks,
+			(unsigned long long)be64_to_cpu(omfs_rb->r_num_blocks));
 		goto out_brelse_bh2;
 	}
 

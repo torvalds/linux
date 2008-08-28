@@ -1998,13 +1998,6 @@ __orinoco_set_multicast_list(struct net_device *dev)
 		else
 			priv->mc_count = mc_count;
 	}
-
-	/* Since we can set the promiscuous flag when it wasn't asked
-	   for, make sure the net_device knows about it. */
-	if (priv->promiscuous)
-		dev->flags |= IFF_PROMISC;
-	else
-		dev->flags &= ~IFF_PROMISC;
 }
 
 /* This must be called from user context, without locks held - use

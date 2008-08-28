@@ -21,9 +21,9 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/lmb.h>
+#include <linux/of_device.h>
 
 #include <asm/prom.h>
-#include <asm/of_device.h>
 #include <asm/oplib.h>
 #include <asm/irq.h>
 #include <asm/asi.h>

@@ -175,7 +175,7 @@ static unsigned int __devinit init_chipset_amd74xx(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit amd_cable_detect(ide_hwif_t *hwif)
+static u8 amd_cable_detect(ide_hwif_t *hwif)
 {
 	if ((amd_80w >> hwif->channel) & 1)
 		return ATA_CBL_PATA80;

@@ -17,10 +17,10 @@
 #include <linux/io.h>
 #include <linux/platform_device.h>
 
-#include <asm/arch/dma.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/cpu.h>
-#include <asm/arch/mcbsp.h>
+#include <mach/dma.h>
+#include <mach/mux.h>
+#include <mach/cpu.h>
+#include <mach/mcbsp.h>
 
 struct mcbsp_internal_clk {
 	struct clk clk;

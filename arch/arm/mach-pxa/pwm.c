@@ -20,7 +20,7 @@
 #include <linux/pwm.h>
 
 #include <asm/div64.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 /* PWM registers and bits definitions */
 #define PWMCR		(0x00)

@@ -21,7 +21,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 #include <asm/system.h>

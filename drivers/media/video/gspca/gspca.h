@@ -9,7 +9,10 @@
 #include <media/v4l2-common.h>
 #include <linux/mutex.h>
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+/* compilation option */
+#define GSPCA_DEBUG 1
+
+#ifdef GSPCA_DEBUG
 /* GSPCA our debug messages */
 extern int gspca_debug;
 #define PDEBUG(level, fmt, args...) \

@@ -27,6 +27,7 @@
 #include <linux/kmod.h>
 #include <linux/list.h>
 #include <linux/hrtimer.h>
+#include <linux/lockdep.h>
 
 #include <net/net_namespace.h>
 #include <net/sock.h>
@@ -183,24 +184,68 @@ EXPORT_SYMBOL(unregister_qdisc);
    (root qdisc, all its children, children of children etc.)
  */
 
+struct Qdisc *qdisc_match_from_root(struct Qdisc *root, u32 handle)
+{
+	struct Qdisc *q;
+
+	if (!(root->flags & TCQ_F_BUILTIN) &&
+	    root->handle == handle)
+		return root;
+
+	list_for_each_entry(q, &root->list, list) {
+		if (q->handle == handle)
+			return q;
+	}
+	return NULL;
+}
+
+/*
+ * This lock is needed until some qdiscs stop calling qdisc_tree_decrease_qlen()
+ * without rtnl_lock(); currently hfsc_dequeue(), netem_dequeue(), tbf_dequeue()
+ */
+static DEFINE_SPINLOCK(qdisc_list_lock);
+
+static void qdisc_list_add(struct Qdisc *q)
+{
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		spin_lock_bh(&qdisc_list_lock);
+		list_add_tail(&q->list, &qdisc_root_sleeping(q)->list);
+		spin_unlock_bh(&qdisc_list_lock);
+	}
+}
+
+void qdisc_list_del(struct Qdisc *q)
+{
+	if ((q->parent != TC_H_ROOT) && !(q->flags & TCQ_F_INGRESS)) {
+		spin_lock_bh(&qdisc_list_lock);
+		list_del(&q->list);
+		spin_unlock_bh(&qdisc_list_lock);
+	}
+}
+EXPORT_SYMBOL(qdisc_list_del);
+
 struct Qdisc *qdisc_lookup(struct net_device *dev, u32 handle)
 {
 	unsigned int i;
+	struct Qdisc *q;
+
+	spin_lock_bh(&qdisc_list_lock);
 
 	for (i = 0; i < dev->num_tx_queues; i++) {
 		struct netdev_queue *txq = netdev_get_tx_queue(dev, i);
-		struct Qdisc *q, *txq_root = txq->qdisc;
+		struct Qdisc *txq_root = txq->qdisc_sleeping;
 
-		if (!(txq_root->flags & TCQ_F_BUILTIN) &&
-		    txq_root->handle == handle)
-			return txq_root;
-
-		list_for_each_entry(q, &txq_root->list, list) {
-			if (q->handle == handle)
-				return q;
-		}
+		q = qdisc_match_from_root(txq_root, handle);
+		if (q)
+			goto unlock;
 	}
-	return NULL;
+
+	q = qdisc_match_from_root(dev->rx_queue.qdisc_sleeping, handle);
+
+unlock:
+	spin_unlock_bh(&qdisc_list_lock);
+
+	return q;
 }
 
 static struct Qdisc *qdisc_leaf(struct Qdisc *p, u32 classid)
@@ -416,7 +461,7 @@ static enum hrtimer_restart qdisc_watchdog(struct hrtimer *timer)
 
 	wd->qdisc->flags &= ~TCQ_F_THROTTLED;
 	smp_wmb();
-	__netif_schedule(wd->qdisc);
+	__netif_schedule(qdisc_root(wd->qdisc));
 
 	return HRTIMER_NORESTART;
 }
@@ -432,6 +477,10 @@ EXPORT_SYMBOL(qdisc_watchdog_init);
 void qdisc_watchdog_schedule(struct qdisc_watchdog *wd, psched_time_t expires)
 {
 	ktime_t time;
+
+	if (test_bit(__QDISC_STATE_DEACTIVATED,
+		     &qdisc_root_sleeping(wd->qdisc)->state))
+		return;
 
 	wd->qdisc->flags |= TCQ_F_THROTTLED;
 	time = ktime_set(0, 0);
@@ -627,11 +676,8 @@ static void notify_and_destroy(struct sk_buff *skb, struct nlmsghdr *n, u32 clid
 	if (new || old)
 		qdisc_notify(skb, n, clid, old, new);
 
-	if (old) {
-		spin_lock_bh(&old->q.lock);
+	if (old)
 		qdisc_destroy(old);
-		spin_unlock_bh(&old->q.lock);
-	}
 }
 
 /* Graft qdisc "new" to class "classid" of qdisc "parent" or
@@ -697,6 +743,10 @@ static int qdisc_graft(struct net_device *dev, struct Qdisc *parent,
 	return err;
 }
 
+/* lockdep annotation is needed for ingress; egress gets it only for name */
+static struct lock_class_key qdisc_tx_lock;
+static struct lock_class_key qdisc_rx_lock;
+
 /*
    Allocate and initialize new qdisc.
 
@@ -757,6 +807,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 	if (handle == TC_H_INGRESS) {
 		sch->flags |= TCQ_F_INGRESS;
 		handle = TC_H_MAKE(TC_H_INGRESS, 0);
+		lockdep_set_class(qdisc_lock(sch), &qdisc_rx_lock);
 	} else {
 		if (handle == 0) {
 			handle = qdisc_alloc_handle(dev);
@@ -764,6 +815,7 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 			if (handle == 0)
 				goto err_out3;
 		}
+		lockdep_set_class(qdisc_lock(sch), &qdisc_tx_lock);
 	}
 
 	sch->handle = handle;
@@ -792,8 +844,8 @@ qdisc_create(struct net_device *dev, struct netdev_queue *dev_queue,
 				goto err_out3;
 			}
 		}
-		if (parent && !(sch->flags & TCQ_F_INGRESS))
-			list_add_tail(&sch->list, &dev_queue->qdisc->list);
+
+		qdisc_list_add(sch);
 
 		return sch;
 	}
@@ -908,7 +960,7 @@ static int tc_get_qdisc(struct sk_buff *skb, struct nlmsghdr *n, void *arg)
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /* ingress */
-				q = dev->rx_queue.qdisc;
+				q = dev->rx_queue.qdisc_sleeping;
 			}
 		} else {
 			struct netdev_queue *dev_queue;
@@ -978,7 +1030,7 @@ replay:
 					return -ENOENT;
 				q = qdisc_leaf(p, clid);
 			} else { /*ingress */
-				q = dev->rx_queue.qdisc;
+				q = dev->rx_queue.qdisc_sleeping;
 			}
 		} else {
 			struct netdev_queue *dev_queue;
@@ -1074,20 +1126,13 @@ create_n_graft:
 	}
 
 graft:
-	if (1) {
-		spinlock_t *root_lock;
-
-		err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
-		if (err) {
-			if (q) {
-				root_lock = qdisc_root_lock(q);
-				spin_lock_bh(root_lock);
-				qdisc_destroy(q);
-				spin_unlock_bh(root_lock);
-			}
-			return err;
-		}
+	err = qdisc_graft(dev, p, skb, n, clid, q, NULL);
+	if (err) {
+		if (q)
+			qdisc_destroy(q);
+		return err;
 	}
+
 	return 0;
 }
 
@@ -1236,11 +1281,11 @@ static int tc_dump_qdisc(struct sk_buff *skb, struct netlink_callback *cb)
 		q_idx = 0;
 
 		dev_queue = netdev_get_tx_queue(dev, 0);
-		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
 		dev_queue = &dev->rx_queue;
-		if (tc_dump_qdisc_root(dev_queue->qdisc, skb, cb, &q_idx, s_q_idx) < 0)
+		if (tc_dump_qdisc_root(dev_queue->qdisc_sleeping, skb, cb, &q_idx, s_q_idx) < 0)
 			goto done;
 
 cont:
@@ -1529,11 +1574,11 @@ static int tc_dump_tclass(struct sk_buff *skb, struct netlink_callback *cb)
 	t = 0;
 
 	dev_queue = netdev_get_tx_queue(dev, 0);
-	if (tc_dump_tclass_root(dev_queue->qdisc, skb, tcm, cb, &t, s_t) < 0)
+	if (tc_dump_tclass_root(dev_queue->qdisc_sleeping, skb, tcm, cb, &t, s_t) < 0)
 		goto done;
 
 	dev_queue = &dev->rx_queue;
-	if (tc_dump_tclass_root(dev_queue->qdisc, skb, tcm, cb, &t, s_t) < 0)
+	if (tc_dump_tclass_root(dev_queue->qdisc_sleeping, skb, tcm, cb, &t, s_t) < 0)
 		goto done;
 
 done:

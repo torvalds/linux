@@ -944,6 +944,10 @@ static void relay_file_read_consume(struct rchan_buf *buf,
 	size_t n_subbufs = buf->chan->n_subbufs;
 	size_t read_subbuf;
 
+	if (buf->subbufs_produced == buf->subbufs_consumed &&
+	    buf->offset == buf->bytes_consumed)
+		return;
+
 	if (buf->bytes_consumed + bytes_consumed > subbuf_size) {
 		relay_subbufs_consumed(buf->chan, buf->cpu, 1);
 		buf->bytes_consumed = 0;
@@ -975,6 +979,8 @@ static int relay_file_read_avail(struct rchan_buf *buf, size_t read_pos)
 
 	relay_file_read_consume(buf, read_pos, 0);
 
+	consumed = buf->subbufs_consumed;
+
 	if (unlikely(buf->offset > subbuf_size)) {
 		if (produced == consumed)
 			return 0;
@@ -993,8 +999,12 @@ static int relay_file_read_avail(struct rchan_buf *buf, size_t read_pos)
 	if (consumed > produced)
 		produced += n_subbufs * subbuf_size;
 
-	if (consumed == produced)
+	if (consumed == produced) {
+		if (buf->offset == subbuf_size &&
+		    buf->subbufs_produced > buf->subbufs_consumed)
+			return 1;
 		return 0;
+	}
 
 	return 1;
 }

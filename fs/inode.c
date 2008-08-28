@@ -166,6 +166,7 @@ static struct inode *alloc_inode(struct super_block *sb)
 		mapping_set_gfp_mask(mapping, GFP_HIGHUSER_PAGECACHE);
 		mapping->assoc_mapping = NULL;
 		mapping->backing_dev_info = &default_backing_dev_info;
+		mapping->writeback_index = 0;
 
 		/*
 		 * If the block_device provides a backing_dev_info for client

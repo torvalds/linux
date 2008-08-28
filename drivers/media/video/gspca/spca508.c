@@ -63,23 +63,23 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format sif_mode[] = {
-	{160, 120, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 160 * 3,
+	{160, 120, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 3},
-	{176, 144, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 176 * 3,
+	{176, 144, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
-	{320, 240, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 3,
+	{320, 240, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
-	{352, 288, V4L2_PIX_FMT_YUYV, V4L2_FIELD_NONE,
-		.bytesperline = 352 * 3,
+	{352, 288, V4L2_PIX_FMT_SPCA508, V4L2_FIELD_NONE,
+		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
@@ -1583,7 +1583,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	default:
 		data += 1;
 		len -= 1;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 				data, len);
 		break;
 	}

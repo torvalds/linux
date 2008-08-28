@@ -44,7 +44,7 @@ struct s_elan_multiplier {
  * It is important that the frequencies
  * are listed in ascending order here!
  */
-struct s_elan_multiplier elan_multiplier[] = {
+static struct s_elan_multiplier elan_multiplier[] = {
 	{1000,	0x02,	0x18},
 	{2000,	0x02,	0x10},
 	{4000,	0x02,	0x08},

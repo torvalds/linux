@@ -18,9 +18,9 @@
 #include <linux/miscdevice.h>
 #include <linux/notifier.h>
 #include <linux/watchdog.h>
+#include <linux/uaccess.h>
 
 #include <asm/reg_booke.h>
-#include <asm/uaccess.h>
 #include <asm/system.h>
 
 /* If the kernel parameter wdt=1, the watchdog will be enabled at boot.
@@ -32,7 +32,7 @@
  */
 
 #ifdef	CONFIG_FSL_BOOKE
-#define WDT_PERIOD_DEFAULT 63	/* Ex. wdt_period=28 bus=333Mhz , reset=~40sec */
+#define WDT_PERIOD_DEFAULT 63	/* Ex. wdt_period=28 bus=333Mhz,reset=~40sec */
 #else
 #define WDT_PERIOD_DEFAULT 3	/* Refer to the PPC40x and PPC4xx manuals */
 #endif				/* for timing information */
@@ -82,16 +82,15 @@ static struct watchdog_info ident = {
 	.identity = "PowerPC Book-E Watchdog",
 };
 
-static int booke_wdt_ioctl(struct inode *inode, struct file *file,
-			    unsigned int cmd, unsigned long arg)
+static long booke_wdt_ioctl(struct file *file,
+				unsigned int cmd, unsigned long arg)
 {
 	u32 tmp = 0;
 	u32 __user *p = (u32 __user *)arg;
 
 	switch (cmd) {
 	case WDIOC_GETSUPPORT:
-		if (copy_to_user((struct watchdog_info __user *)arg, &ident,
-				sizeof(struct watchdog_info)))
+		if (copy_to_user(arg, &ident, sizeof(struct watchdog_info)))
 			return -EFAULT;
 	case WDIOC_GETSTATUS:
 		return put_user(ident.options, p);
@@ -100,16 +99,6 @@ static int booke_wdt_ioctl(struct inode *inode, struct file *file,
 		tmp = mfspr(SPRN_TSR) & TSR_WRS(3);
 		/* returns 1 if last reset was caused by the WDT */
 		return (tmp ? 1 : 0);
-	case WDIOC_KEEPALIVE:
-		booke_wdt_ping();
-		return 0;
-	case WDIOC_SETTIMEOUT:
-		if (get_user(booke_wdt_period, p))
-			return -EFAULT;
-		mtspr(SPRN_TCR, (mfspr(SPRN_TCR)&~WDTP(0))|WDTP(booke_wdt_period));
-		return 0;
-	case WDIOC_GETTIMEOUT:
-		return put_user(booke_wdt_period, p);
 	case WDIOC_SETOPTIONS:
 		if (get_user(tmp, p))
 			return -EINVAL;
@@ -119,6 +108,17 @@ static int booke_wdt_ioctl(struct inode *inode, struct file *file,
 		} else
 			return -EINVAL;
 		return 0;
+	case WDIOC_KEEPALIVE:
+		booke_wdt_ping();
+		return 0;
+	case WDIOC_SETTIMEOUT:
+		if (get_user(booke_wdt_period, p))
+			return -EFAULT;
+		mtspr(SPRN_TCR, (mfspr(SPRN_TCR) & ~WDTP(0)) |
+						WDTP(booke_wdt_period));
+		return 0;
+	case WDIOC_GETTIMEOUT:
+		return put_user(booke_wdt_period, p);
 	default:
 		return -ENOTTY;
 	}
@@ -132,8 +132,9 @@ static int booke_wdt_open(struct inode *inode, struct file *file)
 	if (booke_wdt_enabled == 0) {
 		booke_wdt_enabled = 1;
 		on_each_cpu(__booke_wdt_enable, NULL, 0);
-		printk(KERN_INFO "PowerPC Book-E Watchdog Timer Enabled "
-				"(wdt_period=%d)\n", booke_wdt_period);
+		printk(KERN_INFO
+		      "PowerPC Book-E Watchdog Timer Enabled (wdt_period=%d)\n",
+				booke_wdt_period);
 	}
 	spin_unlock(&booke_wdt_lock);
 
@@ -144,7 +145,7 @@ static const struct file_operations booke_wdt_fops = {
 	.owner = THIS_MODULE,
 	.llseek = no_llseek,
 	.write = booke_wdt_write,
-	.ioctl = booke_wdt_ioctl,
+	.unlocked_ioctl = booke_wdt_ioctl,
 	.open = booke_wdt_open,
 };
 
@@ -175,8 +176,9 @@ static int __init booke_wdt_init(void)
 
 	spin_lock(&booke_wdt_lock);
 	if (booke_wdt_enabled == 1) {
-		printk(KERN_INFO "PowerPC Book-E Watchdog Timer Enabled "
-				"(wdt_period=%d)\n", booke_wdt_period);
+		printk(KERN_INFO
+		      "PowerPC Book-E Watchdog Timer Enabled (wdt_period=%d)\n",
+				booke_wdt_period);
 		on_each_cpu(__booke_wdt_enable, NULL, 0);
 	}
 	spin_unlock(&booke_wdt_lock);

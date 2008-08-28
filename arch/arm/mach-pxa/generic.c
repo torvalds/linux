@@ -20,14 +20,24 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
+#include <mach/reset.h>
 
 #include "generic.h"
+
+void clear_reset_status(unsigned int mask)
+{
+	if (cpu_is_pxa2xx())
+		pxa2xx_clear_reset_status(mask);
+
+	if (cpu_is_pxa3xx())
+		pxa3xx_clear_reset_status(mask);
+}
 
 /*
  * Get the clock frequency as reflected by CCCR and the turbo flag.

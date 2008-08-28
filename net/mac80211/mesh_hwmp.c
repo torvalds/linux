@@ -758,29 +758,30 @@ enddiscovery:
 /**
  * ieee80211s_lookup_nexthop - put the appropriate next hop on a mesh frame
  *
- * @next_hop: output argument for next hop address
- * @skb: frame to be sent
+ * @skb: 802.11 frame to be sent
  * @dev: network device the frame will be sent through
+ * @fwd_frame: true if this frame was originally from a different host
  *
  * Returns: 0 if the next hop was found. Nonzero otherwise. If no next hop is
  * found, the function will start a path discovery and queue the frame so it is
  * sent when the path is resolved. This means the caller must not free the skb
  * in this case.
  */
-int mesh_nexthop_lookup(u8 *next_hop, struct sk_buff *skb,
-		struct net_device *dev)
+int mesh_nexthop_lookup(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct sk_buff *skb_to_free = NULL;
 	struct mesh_path *mpath;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+	u8 *dst_addr = hdr->addr3;
 	int err = 0;
 
 	rcu_read_lock();
-	mpath = mesh_path_lookup(skb->data, dev);
+	mpath = mesh_path_lookup(dst_addr, dev);
 
 	if (!mpath) {
-		mesh_path_add(skb->data, dev);
-		mpath = mesh_path_lookup(skb->data, dev);
+		mesh_path_add(dst_addr, dev);
+		mpath = mesh_path_lookup(dst_addr, dev);
 		if (!mpath) {
 			dev_kfree_skb(skb);
 			sdata->u.sta.mshstats.dropped_frames_no_route++;
@@ -792,13 +793,13 @@ int mesh_nexthop_lookup(u8 *next_hop, struct sk_buff *skb,
 	if (mpath->flags & MESH_PATH_ACTIVE) {
 		if (time_after(jiffies, mpath->exp_time -
 			msecs_to_jiffies(sdata->u.sta.mshcfg.path_refresh_time))
-				&& skb->pkt_type != PACKET_OTHERHOST
+				&& !memcmp(dev->dev_addr, hdr->addr4, ETH_ALEN)
 				&& !(mpath->flags & MESH_PATH_RESOLVING)
 				&& !(mpath->flags & MESH_PATH_FIXED)) {
 			mesh_queue_preq(mpath,
 					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		}
-		memcpy(next_hop, mpath->next_hop->addr,
+		memcpy(hdr->addr1, mpath->next_hop->addr,
 				ETH_ALEN);
 	} else {
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {

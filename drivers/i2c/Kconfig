@@ -38,6 +38,20 @@ config I2C_CHARDEV
 	  This support is also available as a module.  If so, the module 
 	  will be called i2c-dev.
 
+config I2C_HELPER_AUTO
+	bool "Autoselect pertinent helper modules"
+	default y
+	help
+	  Some I2C bus drivers require so-called "I2C algorithm" modules
+	  to work. These are basically software-only abstractions of generic
+	  I2C interfaces. This option will autoselect them so that you don't
+	  have to care.
+
+	  Unselect this only if you need to enable additional helper
+	  modules, for example for use with external I2C bus drivers.
+
+	  In doubt, say Y.
+
 source drivers/i2c/algos/Kconfig
 source drivers/i2c/busses/Kconfig
 source drivers/i2c/chips/Kconfig

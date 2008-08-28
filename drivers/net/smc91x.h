@@ -187,7 +187,7 @@ static inline void SMC_outw(u16 val, void __iomem *ioaddr, int reg)
 
 #elif defined(CONFIG_SA1100_ASSABET)
 
-#include <asm/arch/neponset.h>
+#include <mach/neponset.h>
 
 /* We can only do 8-bit reads and writes in the static memory space. */
 #define SMC_CAN_USE_8BIT	1
@@ -339,7 +339,7 @@ SMC_outw(u16 val, void __iomem *ioaddr, int reg)
  * IOBARRIER on entry to their ISR.
  */
 
-#include <asm/arch/constants.h>	/* IOBARRIER_VIRT */
+#include <mach/constants.h>	/* IOBARRIER_VIRT */
 
 #define SMC_CAN_USE_8BIT	0
 #define SMC_CAN_USE_16BIT	1
@@ -525,7 +525,7 @@ struct smc_local {
  */
 #include <linux/dma-mapping.h>
 #include <asm/dma.h>
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 
 #ifdef SMC_insl
 #undef SMC_insl
