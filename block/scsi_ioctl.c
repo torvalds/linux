@@ -315,10 +315,11 @@ static int sg_io(struct file *file, struct request_queue *q,
 		}
 
 		ret = blk_rq_map_user_iov(q, rq, iov, hdr->iovec_count,
-					  hdr->dxfer_len);
+					  hdr->dxfer_len, GFP_KERNEL);
 		kfree(iov);
 	} else if (hdr->dxfer_len)
-		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len);
+		ret = blk_rq_map_user(q, rq, hdr->dxferp, hdr->dxfer_len,
+				      GFP_KERNEL);
 
 	if (ret)
 		goto out;

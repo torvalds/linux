@@ -558,13 +558,14 @@ int bio_uncopy_user(struct bio *bio)
  *	@iov:	the iovec.
  *	@iov_count: number of elements in the iovec
  *	@write_to_vm: bool indicating writing to pages or not
+ *	@gfp_mask: memory allocation flags
  *
  *	Prepares and returns a bio for indirect user io, bouncing data
  *	to/from kernel pages as necessary. Must be paired with
  *	call bio_uncopy_user() on io completion.
  */
 struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
-			      int iov_count, int write_to_vm)
+			      int iov_count, int write_to_vm, gfp_t gfp_mask)
 {
 	struct bio_map_data *bmd;
 	struct bio_vec *bvec;
@@ -587,12 +588,12 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 		len += iov[i].iov_len;
 	}
 
-	bmd = bio_alloc_map_data(nr_pages, iov_count, GFP_KERNEL);
+	bmd = bio_alloc_map_data(nr_pages, iov_count, gfp_mask);
 	if (!bmd)
 		return ERR_PTR(-ENOMEM);
 
 	ret = -ENOMEM;
-	bio = bio_alloc(GFP_KERNEL, nr_pages);
+	bio = bio_alloc(gfp_mask, nr_pages);
 	if (!bio)
 		goto out_bmd;
 
@@ -605,7 +606,7 @@ struct bio *bio_copy_user_iov(struct request_queue *q, struct sg_iovec *iov,
 		if (bytes > len)
 			bytes = len;
 
-		page = alloc_page(q->bounce_gfp | GFP_KERNEL);
+		page = alloc_page(q->bounce_gfp | gfp_mask);
 		if (!page) {
 			ret = -ENOMEM;
 			break;
@@ -647,26 +648,27 @@ out_bmd:
  *	@uaddr: start of user address
  *	@len: length in bytes
  *	@write_to_vm: bool indicating writing to pages or not
+ *	@gfp_mask: memory allocation flags
  *
  *	Prepares and returns a bio for indirect user io, bouncing data
  *	to/from kernel pages as necessary. Must be paired with
  *	call bio_uncopy_user() on io completion.
  */
 struct bio *bio_copy_user(struct request_queue *q, unsigned long uaddr,
-			  unsigned int len, int write_to_vm)
+			  unsigned int len, int write_to_vm, gfp_t gfp_mask)
 {
 	struct sg_iovec iov;
 
 	iov.iov_base = (void __user *)uaddr;
 	iov.iov_len = len;
 
-	return bio_copy_user_iov(q, &iov, 1, write_to_vm);
+	return bio_copy_user_iov(q, &iov, 1, write_to_vm, gfp_mask);
 }
 
 static struct bio *__bio_map_user_iov(struct request_queue *q,
 				      struct block_device *bdev,
 				      struct sg_iovec *iov, int iov_count,
-				      int write_to_vm)
+				      int write_to_vm, gfp_t gfp_mask)
 {
 	int i, j;
 	int nr_pages = 0;
@@ -692,12 +694,12 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
 	if (!nr_pages)
 		return ERR_PTR(-EINVAL);
 
-	bio = bio_alloc(GFP_KERNEL, nr_pages);
+	bio = bio_alloc(gfp_mask, nr_pages);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
 
 	ret = -ENOMEM;
-	pages = kcalloc(nr_pages, sizeof(struct page *), GFP_KERNEL);
+	pages = kcalloc(nr_pages, sizeof(struct page *), gfp_mask);
 	if (!pages)
 		goto out;
 
@@ -776,19 +778,21 @@ static struct bio *__bio_map_user_iov(struct request_queue *q,
  *	@uaddr: start of user address
  *	@len: length in bytes
  *	@write_to_vm: bool indicating writing to pages or not
+ *	@gfp_mask: memory allocation flags
  *
  *	Map the user space address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
 struct bio *bio_map_user(struct request_queue *q, struct block_device *bdev,
-			 unsigned long uaddr, unsigned int len, int write_to_vm)
+			 unsigned long uaddr, unsigned int len, int write_to_vm,
+			 gfp_t gfp_mask)
 {
 	struct sg_iovec iov;
 
 	iov.iov_base = (void __user *)uaddr;
 	iov.iov_len = len;
 
-	return bio_map_user_iov(q, bdev, &iov, 1, write_to_vm);
+	return bio_map_user_iov(q, bdev, &iov, 1, write_to_vm, gfp_mask);
 }
 
 /**
@@ -798,18 +802,19 @@ struct bio *bio_map_user(struct request_queue *q, struct block_device *bdev,
  *	@iov:	the iovec.
  *	@iov_count: number of elements in the iovec
  *	@write_to_vm: bool indicating writing to pages or not
+ *	@gfp_mask: memory allocation flags
  *
  *	Map the user space address into a bio suitable for io to a block
  *	device. Returns an error pointer in case of error.
  */
 struct bio *bio_map_user_iov(struct request_queue *q, struct block_device *bdev,
 			     struct sg_iovec *iov, int iov_count,
-			     int write_to_vm)
+			     int write_to_vm, gfp_t gfp_mask)
 {
 	struct bio *bio;
 
-	bio = __bio_map_user_iov(q, bdev, iov, iov_count, write_to_vm);
-
+	bio = __bio_map_user_iov(q, bdev, iov, iov_count, write_to_vm,
+				 gfp_mask);
 	if (IS_ERR(bio))
 		return bio;
 

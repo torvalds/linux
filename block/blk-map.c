@@ -41,7 +41,8 @@ static int __blk_rq_unmap_user(struct bio *bio)
 }
 
 static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
-			     void __user *ubuf, unsigned int len)
+			     void __user *ubuf, unsigned int len,
+			     gfp_t gfp_mask)
 {
 	unsigned long uaddr;
 	unsigned int alignment;
@@ -57,9 +58,9 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 	uaddr = (unsigned long) ubuf;
 	alignment = queue_dma_alignment(q) | q->dma_pad_mask;
 	if (!(uaddr & alignment) && !(len & alignment))
-		bio = bio_map_user(q, NULL, uaddr, len, reading);
+		bio = bio_map_user(q, NULL, uaddr, len, reading, gfp_mask);
 	else
-		bio = bio_copy_user(q, uaddr, len, reading);
+		bio = bio_copy_user(q, uaddr, len, reading, gfp_mask);
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
@@ -90,6 +91,7 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
  * @rq:		request structure to fill
  * @ubuf:	the user buffer
  * @len:	length of user data
+ * @gfp_mask:	memory allocation flags
  *
  * Description:
  *    Data will be mapped directly for zero copy I/O, if possible. Otherwise
@@ -105,7 +107,7 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
  *    unmapping.
  */
 int blk_rq_map_user(struct request_queue *q, struct request *rq,
-		    void __user *ubuf, unsigned long len)
+		    void __user *ubuf, unsigned long len, gfp_t gfp_mask)
 {
 	unsigned long bytes_read = 0;
 	struct bio *bio = NULL;
@@ -132,7 +134,7 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 		if (end - start > BIO_MAX_PAGES)
 			map_len -= PAGE_SIZE;
 
-		ret = __blk_rq_map_user(q, rq, ubuf, map_len);
+		ret = __blk_rq_map_user(q, rq, ubuf, map_len, gfp_mask);
 		if (ret < 0)
 			goto unmap_rq;
 		if (!bio)
@@ -160,6 +162,7 @@ EXPORT_SYMBOL(blk_rq_map_user);
  * @iov:	pointer to the iovec
  * @iov_count:	number of elements in the iovec
  * @len:	I/O byte count
+ * @gfp_mask:	memory allocation flags
  *
  * Description:
  *    Data will be mapped directly for zero copy I/O, if possible. Otherwise
@@ -175,7 +178,8 @@ EXPORT_SYMBOL(blk_rq_map_user);
  *    unmapping.
  */
 int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
-			struct sg_iovec *iov, int iov_count, unsigned int len)
+			struct sg_iovec *iov, int iov_count, unsigned int len,
+			gfp_t gfp_mask)
 {
 	struct bio *bio;
 	int i, read = rq_data_dir(rq) == READ;
@@ -194,9 +198,9 @@ int blk_rq_map_user_iov(struct request_queue *q, struct request *rq,
 	}
 
 	if (unaligned || (q->dma_pad_mask & len))
-		bio = bio_copy_user_iov(q, iov, iov_count, read);
+		bio = bio_copy_user_iov(q, iov, iov_count, read, gfp_mask);
 	else
-		bio = bio_map_user_iov(q, NULL, iov, iov_count, read);
+		bio = bio_map_user_iov(q, NULL, iov, iov_count, read, gfp_mask);
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
