@@ -748,6 +748,20 @@ static void dock_notify(acpi_handle handle, u32 event, void *data)
 	}
 }
 
+struct dock_data {
+	acpi_handle handle;
+	unsigned long event;
+	struct dock_station *ds;
+};
+
+static void acpi_dock_deferred_cb(void *context)
+{
+	struct dock_data *data = (struct dock_data *)context;
+
+	dock_notify(data->handle, data->event, data->ds);
+	kfree(data);
+}
+
 static int acpi_dock_notifier_call(struct notifier_block *this,
 	unsigned long event, void *data)
 {
@@ -759,7 +773,16 @@ static int acpi_dock_notifier_call(struct notifier_block *this,
 		return 0;
 	list_for_each_entry(dock_station, &dock_stations, sibiling) {
 		if (dock_station->handle == handle) {
-			dock_notify(handle, event, dock_station);
+			struct dock_data *dock_data;
+
+			dock_data = kmalloc(sizeof(*dock_data), GFP_KERNEL);
+			if (!dock_data)
+				return 0;
+			dock_data->handle = handle;
+			dock_data->event = event;
+			dock_data->ds = dock_station;
+			acpi_os_hotplug_execute(acpi_dock_deferred_cb,
+				dock_data);
 			return 0 ;
 		}
 	}
