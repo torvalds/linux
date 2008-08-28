@@ -248,7 +248,7 @@ struct lance_private {
 	int		rx_new, tx_new;
 	int		rx_old, tx_old;
 
-	struct sbus_dma *ledma;	/* If set this points to ledma	*/
+	struct of_device *ledma;	/* If set this points to ledma	*/
 	char		tpe;		/* cable-selection is TPE	*/
 	char		auto_select;	/* cable-selection by carrier	*/
 	char		burst_sizes;	/* ledma SBus burst sizes	*/
@@ -1273,6 +1273,12 @@ static void lance_free_hwresources(struct lance_private *lp)
 {
 	if (lp->lregs)
 		sbus_iounmap(lp->lregs, LANCE_REG_SIZE);
+	if (lp->dregs) {
+		struct of_device *ledma = lp->ledma;
+
+		of_iounmap(&ledma->resource[0], lp->dregs,
+			   resource_size(&ledma->resource[0]));
+	}
 	if (lp->init_block_iomem) {
 		sbus_iounmap(lp->init_block_iomem,
 			     sizeof(struct lance_init_block));
@@ -1309,7 +1315,7 @@ static const struct ethtool_ops sparc_lance_ethtool_ops = {
 };
 
 static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
-					   struct sbus_dma *ledma,
+					   struct of_device *ledma,
 					   struct sbus_dev *lebuffer)
 {
 	static unsigned version_printed;
@@ -1343,6 +1349,18 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 	if (!lp->lregs) {
 		printk(KERN_ERR "SunLance: Cannot map registers.\n");
 		goto fail;
+	}
+
+	lp->ledma = ledma;
+	if (lp->ledma) {
+		lp->dregs = of_ioremap(&ledma->resource[0], 0,
+				       resource_size(&ledma->resource[0]),
+				       "ledma");
+		if (!lp->dregs) {
+			printk(KERN_ERR "SunLance: Cannot map "
+			       "ledma registers.\n");
+			goto fail;
+		}
 	}
 
 	lp->sdev = sdev;
@@ -1383,11 +1401,10 @@ static int __devinit sparc_lance_probe_one(struct sbus_dev *sdev,
 						      LE_C3_BCON));
 
 	lp->name = lancestr;
-	lp->ledma = ledma;
 
 	lp->burst_sizes = 0;
 	if (lp->ledma) {
-		struct device_node *ledma_dp = ledma->sdev->ofdev.node;
+		struct device_node *ledma_dp = ledma->node;
 		const char *prop;
 		unsigned int sbmask;
 		u32 csr;
@@ -1434,8 +1451,6 @@ no_link_test:
 			lp->auto_select = 0;
 			lp->tpe = 1;
 		}
-
-		lp->dregs = ledma->regs;
 
 		/* Reset ledma */
 		csr = sbus_readl(lp->dregs + DMA_CSR);
@@ -1486,18 +1501,6 @@ fail:
 	return -ENODEV;
 }
 
-/* On 4m, find the associated dma for the lance chip */
-static struct sbus_dma * __devinit find_ledma(struct sbus_dev *sdev)
-{
-	struct sbus_dma *p;
-
-	for_each_dvma(p) {
-		if (p->sdev == sdev)
-			return p;
-	}
-	return NULL;
-}
-
 #ifdef CONFIG_SUN4
 
 #include <asm/sun4paddr.h>
@@ -1541,13 +1544,13 @@ static int __devinit sunlance_sbus_probe(struct of_device *dev, const struct of_
 	int err;
 
 	if (sdev->parent) {
-		struct of_device *parent = &sdev->parent->ofdev;
+		struct device_node *parent_node = sdev->parent->ofdev.node;
+		struct of_device *parent;
 
-		if (!strcmp(parent->node->name, "ledma")) {
-			struct sbus_dma *ledma = find_ledma(to_sbus_device(&parent->dev));
-
-			err = sparc_lance_probe_one(sdev, ledma, NULL);
-		} else if (!strcmp(parent->node->name, "lebuffer")) {
+		parent = of_find_device_by_node(parent_node);
+		if (parent && !strcmp(parent->node->name, "ledma")) {
+			err = sparc_lance_probe_one(sdev, parent, NULL);
+		} else if (parent && !strcmp(parent->node->name, "lebuffer")) {
 			err = sparc_lance_probe_one(sdev, NULL, to_sbus_device(&parent->dev));
 		} else
 			err = sparc_lance_probe_one(sdev, NULL, NULL);

@@ -3,7 +3,7 @@
 #
 
 ifneq ($(ARCH),m68k)
-obj-y    := sbus.o dvma.o
+obj-y    := sbus.o
 endif
 
 obj-$(CONFIG_SBUSCHAR) += char/

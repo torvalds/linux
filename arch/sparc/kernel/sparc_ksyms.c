@@ -154,7 +154,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
 
 #ifdef CONFIG_SBUS
 EXPORT_SYMBOL(sbus_root);
-EXPORT_SYMBOL(dma_chain);
 EXPORT_SYMBOL(sbus_set_sbus64);
 EXPORT_SYMBOL(sbus_alloc_consistent);
 EXPORT_SYMBOL(sbus_free_consistent);

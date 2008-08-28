@@ -1,6 +1,6 @@
 /* sun_esp.c: ESP front-end for Sparc SBUS systems.
  *
- * Copyright (C) 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -30,39 +30,48 @@
 #define dma_write32(VAL, REG) \
 	sbus_writel((VAL), esp->dma_regs + (REG))
 
-static int __devinit esp_sbus_find_dma(struct esp *esp, struct sbus_dev *dma_sdev)
+/* DVMA chip revisions */
+enum dvma_rev {
+	dvmarev0,
+	dvmaesc1,
+	dvmarev1,
+	dvmarev2,
+	dvmarev3,
+	dvmarevplus,
+	dvmahme
+};
+
+static int __devinit esp_sbus_setup_dma(struct esp *esp,
+					struct of_device *dma_of)
 {
-	struct sbus_dev *sdev = esp->dev;
-	struct sbus_dma *dma;
+	esp->dma = dma_of;
 
-	if (dma_sdev != NULL) {
-		for_each_dvma(dma) {
-			if (dma->sdev == dma_sdev)
-				break;
-		}
-	} else {
-		for_each_dvma(dma) {
-			if (dma->sdev == NULL)
-				break;
+	esp->dma_regs = of_ioremap(&dma_of->resource[0], 0,
+				   resource_size(&dma_of->resource[0]),
+				   "espdma");
+	if (!esp->dma_regs)
+		return -ENOMEM;
 
-			/* If bus + slot are the same and it has the
-			 * correct OBP name, it's ours.
-			 */
-			if (sdev->bus == dma->sdev->bus &&
-			    sdev->slot == dma->sdev->slot &&
-			    (!strcmp(dma->sdev->prom_name, "dma") ||
-			     !strcmp(dma->sdev->prom_name, "espdma")))
-				break;
-		}
+	switch (dma_read32(DMA_CSR) & DMA_DEVICE_ID) {
+	case DMA_VERS0:
+		esp->dmarev = dvmarev0;
+		break;
+	case DMA_ESCV1:
+		esp->dmarev = dvmaesc1;
+		break;
+	case DMA_VERS1:
+		esp->dmarev = dvmarev1;
+		break;
+	case DMA_VERS2:
+		esp->dmarev = dvmarev2;
+		break;
+	case DMA_VERHME:
+		esp->dmarev = dvmahme;
+		break;
+	case DMA_VERSPLUS:
+		esp->dmarev = dvmarevplus;
+		break;
 	}
-
-	if (dma == NULL) {
-		printk(KERN_ERR PFX "[%s] Cannot find dma.\n",
-		       sdev->ofdev.node->full_name);
-		return -ENODEV;
-	}
-	esp->dma = dma;
-	esp->dma_regs = dma->regs;
 
 	return 0;
 
@@ -165,19 +174,18 @@ static void __devinit esp_get_clock_params(struct esp *esp)
 	esp->cfreq = fmhz;
 }
 
-static void __devinit esp_get_bursts(struct esp *esp, struct sbus_dev *dma)
+static void __devinit esp_get_bursts(struct esp *esp, struct of_device *dma_of)
 {
+	struct device_node *dma_dp = dma_of->node;
 	struct sbus_dev *sdev = esp->dev;
-	struct device_node *dp = sdev->ofdev.node;
-	u8 bursts;
+	struct device_node *dp;
+	u8 bursts, val;
 
+	dp = sdev->ofdev.node;
 	bursts = of_getintprop_default(dp, "burst-sizes", 0xff);
-	if (dma) {
-		struct device_node *dma_dp = dma->ofdev.node;
-		u8 val = of_getintprop_default(dma_dp, "burst-sizes", 0xff);
-		if (val != 0xff)
-			bursts &= val;
-	}
+	val = of_getintprop_default(dma_dp, "burst-sizes", 0xff);
+	if (val != 0xff)
+		bursts &= val;
 
 	if (sdev->bus) {
 		u8 val = of_getintprop_default(sdev->bus->ofdev.node,
@@ -194,7 +202,7 @@ static void __devinit esp_get_bursts(struct esp *esp, struct sbus_dev *dma)
 	esp->bursts = bursts;
 }
 
-static void __devinit esp_sbus_get_props(struct esp *esp, struct sbus_dev *espdma)
+static void __devinit esp_sbus_get_props(struct esp *esp, struct of_device *espdma)
 {
 	esp_get_scsi_id(esp);
 	esp_get_differential(esp);
@@ -259,12 +267,12 @@ static void sbus_esp_reset_dma(struct esp *esp)
 		can_do_burst64 = (esp->bursts & DMA_BURST64) != 0;
 
 	/* Put the DVMA into a known state. */
-	if (esp->dma->revision != dvmahme) {
+	if (esp->dmarev != dvmahme) {
 		val = dma_read32(DMA_CSR);
 		dma_write32(val | DMA_RST_SCSI, DMA_CSR);
 		dma_write32(val & ~DMA_RST_SCSI, DMA_CSR);
 	}
-	switch (esp->dma->revision) {
+	switch (esp->dmarev) {
 	case dvmahme:
 		dma_write32(DMA_RESET_FAS366, DMA_CSR);
 		dma_write32(DMA_RST_SCSI, DMA_CSR);
@@ -346,14 +354,14 @@ static void sbus_esp_dma_drain(struct esp *esp)
 	u32 csr;
 	int lim;
 
-	if (esp->dma->revision == dvmahme)
+	if (esp->dmarev == dvmahme)
 		return;
 
 	csr = dma_read32(DMA_CSR);
 	if (!(csr & DMA_FIFO_ISDRAIN))
 		return;
 
-	if (esp->dma->revision != dvmarev3 && esp->dma->revision != dvmaesc1)
+	if (esp->dmarev != dvmarev3 && esp->dmarev != dvmaesc1)
 		dma_write32(csr | DMA_FIFO_STDRAIN, DMA_CSR);
 
 	lim = 1000;
@@ -369,7 +377,7 @@ static void sbus_esp_dma_drain(struct esp *esp)
 
 static void sbus_esp_dma_invalidate(struct esp *esp)
 {
-	if (esp->dma->revision == dvmahme) {
+	if (esp->dmarev == dvmahme) {
 		dma_write32(DMA_RST_SCSI, DMA_CSR);
 
 		esp->prev_hme_dmacsr = ((esp->prev_hme_dmacsr |
@@ -440,7 +448,7 @@ static void sbus_esp_send_dma_cmd(struct esp *esp, u32 addr, u32 esp_count,
 		else
 			csr &= ~DMA_ST_WRITE;
 		dma_write32(csr, DMA_CSR);
-		if (esp->dma->revision == dvmaesc1) {
+		if (esp->dmarev == dvmaesc1) {
 			u32 end = PAGE_ALIGN(addr + dma_count + 16U);
 			dma_write32(end - addr, DMA_COUNT);
 		}
@@ -478,7 +486,7 @@ static const struct esp_driver_ops sbus_esp_ops = {
 
 static int __devinit esp_sbus_probe_one(struct device *dev,
 					struct sbus_dev *esp_dev,
-					struct sbus_dev *espdma,
+					struct of_device *espdma,
 					struct sbus_bus *sbus,
 					int hme)
 {
@@ -503,7 +511,7 @@ static int __devinit esp_sbus_probe_one(struct device *dev,
 	if (hme)
 		esp->flags |= ESP_FLAG_WIDE_CAPABLE;
 
-	err = esp_sbus_find_dma(esp, espdma);
+	err = esp_sbus_setup_dma(esp, espdma);
 	if (err < 0)
 		goto fail_unlink;
 
@@ -525,7 +533,7 @@ static int __devinit esp_sbus_probe_one(struct device *dev,
 	 * come up with the reset bit set, so make sure that
 	 * is clear first.
 	 */
-	if (esp->dma->revision == dvmaesc1) {
+	if (esp->dmarev == dvmaesc1) {
 		u32 val = dma_read32(DMA_CSR);
 
 		dma_write32(val & ~DMA_RST_SCSI, DMA_CSR);
@@ -556,26 +564,32 @@ fail:
 static int __devinit esp_sbus_probe(struct of_device *dev, const struct of_device_id *match)
 {
 	struct sbus_dev *sdev = to_sbus_device(&dev->dev);
+	struct device_node *dma_node = NULL;
 	struct device_node *dp = dev->node;
-	struct sbus_dev *dma_sdev = NULL;
+	struct of_device *dma_of = NULL;
 	int hme = 0;
 
 	if (dp->parent &&
 	    (!strcmp(dp->parent->name, "espdma") ||
 	     !strcmp(dp->parent->name, "dma")))
-		dma_sdev = sdev->parent;
+		dma_node = dp->parent;
 	else if (!strcmp(dp->name, "SUNW,fas")) {
-		dma_sdev = sdev;
+		dma_node = sdev->ofdev.node;
 		hme = 1;
 	}
+	if (dma_node)
+		dma_of = of_find_device_by_node(dma_node);
+	if (!dma_of)
+		return -ENODEV;
 
-	return esp_sbus_probe_one(&dev->dev, sdev, dma_sdev,
+	return esp_sbus_probe_one(&dev->dev, sdev, dma_of,
 				  sdev->bus, hme);
 }
 
 static int __devexit esp_sbus_remove(struct of_device *dev)
 {
 	struct esp *esp = dev_get_drvdata(&dev->dev);
+	struct of_device *dma_of = esp->dma;
 	unsigned int irq = esp->host->irq;
 	u32 val;
 
@@ -590,6 +604,8 @@ static int __devexit esp_sbus_remove(struct of_device *dev)
 			     esp->command_block,
 			     esp->command_block_dma);
 	sbus_iounmap(esp->regs, SBUS_ESP_REG_SIZE);
+	of_iounmap(&dma_of->resource[0], esp->dma_regs,
+		   resource_size(&dma_of->resource[0]));
 
 	scsi_host_put(esp->host);
 

@@ -285,8 +285,6 @@ static void __init build_one_sbus(struct device_node *dp, int num_sbus)
 	}
 
 	sbus_fixup_all_regs(sbus->devices);
-
-	dvma_init(sbus);
 }
 
 static int __init sbus_init(void)
