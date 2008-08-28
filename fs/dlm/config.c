@@ -14,6 +14,9 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/configfs.h>
+#include <linux/in.h>
+#include <linux/in6.h>
+#include <net/ipv6.h>
 #include <net/sock.h>
 
 #include "config.h"
@@ -776,6 +779,33 @@ static void put_space(struct dlm_space *sp)
 	config_item_put(&sp->group.cg_item);
 }
 
+static int addr_compare(struct sockaddr_storage *x, struct sockaddr_storage *y)
+{
+	switch (x->ss_family) {
+	case AF_INET: {
+		struct sockaddr_in *sinx = (struct sockaddr_in *)x;
+		struct sockaddr_in *siny = (struct sockaddr_in *)y;
+		if (sinx->sin_addr.s_addr != siny->sin_addr.s_addr)
+			return 0;
+		if (sinx->sin_port != siny->sin_port)
+			return 0;
+		break;
+	}
+	case AF_INET6: {
+		struct sockaddr_in6 *sinx = (struct sockaddr_in6 *)x;
+		struct sockaddr_in6 *siny = (struct sockaddr_in6 *)y;
+		if (!ipv6_addr_equal(&sinx->sin6_addr, &siny->sin6_addr))
+			return 0;
+		if (sinx->sin6_port != siny->sin6_port)
+			return 0;
+		break;
+	}
+	default:
+		return 0;
+	}
+	return 1;
+}
+
 static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 {
 	struct config_item *i;
@@ -797,8 +827,7 @@ static struct dlm_comm *get_comm(int nodeid, struct sockaddr_storage *addr)
 			config_item_get(i);
 			break;
 		} else {
-			if (!cm->addr_count ||
-			    memcmp(cm->addr[0], addr, sizeof(*addr)))
+			if (!cm->addr_count || !addr_compare(cm->addr[0], addr))
 				continue;
 			found = 1;
 			config_item_get(i);
