@@ -27,6 +27,8 @@
 #include "btrfs_inode.h"
 #include "xattr.h"
 
+#ifdef CONFIG_FS_POSIX_ACL
+
 static void btrfs_update_cached_acl(struct inode *inode,
 				    struct posix_acl **p_acl,
 				    struct posix_acl *acl)
@@ -329,3 +331,22 @@ struct xattr_handler btrfs_xattr_acl_access_handler = {
 	.get	= btrfs_xattr_acl_access_get,
 	.set	= btrfs_xattr_acl_access_set,
 };
+
+#else /* CONFIG_FS_POSIX_ACL */
+
+int btrfs_acl_chmod(struct inode *inode)
+{
+	return 0;
+}
+
+int btrfs_init_acl(struct inode *inode, struct inode *dir)
+{
+	return 0;
+}
+
+int btrfs_check_acl(struct inode *inode, int mask)
+{
+	return 0;
+}
+
+#endif /* CONFIG_FS_POSIX_ACL */
