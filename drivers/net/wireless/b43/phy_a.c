@@ -505,8 +505,14 @@ static void b43_aphy_op_set_rx_antenna(struct b43_wldev *dev, int antenna)
 	b43_hf_write(dev, hf);
 }
 
-static void b43_aphy_op_xmitpower(struct b43_wldev *dev)
+static void b43_aphy_op_adjust_txpower(struct b43_wldev *dev)
 {//TODO
+}
+
+static enum b43_txpwr_result b43_aphy_op_recalc_txpower(struct b43_wldev *dev,
+							bool ignore_tssi)
+{//TODO
+	return B43_TXPWR_RES_DONE;
 }
 
 static void b43_aphy_op_pwork_15sec(struct b43_wldev *dev)
@@ -530,7 +536,8 @@ const struct b43_phy_operations b43_phyops_a = {
 	.switch_channel		= b43_aphy_op_switch_channel,
 	.get_default_chan	= b43_aphy_op_get_default_chan,
 	.set_rx_antenna		= b43_aphy_op_set_rx_antenna,
-	.xmitpower		= b43_aphy_op_xmitpower,
+	.recalc_txpower		= b43_aphy_op_recalc_txpower,
+	.adjust_txpower		= b43_aphy_op_adjust_txpower,
 	.pwork_15sec		= b43_aphy_op_pwork_15sec,
 	.pwork_60sec		= b43_aphy_op_pwork_60sec,
 };

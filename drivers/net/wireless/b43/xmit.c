@@ -680,6 +680,8 @@ void b43_handle_txstatus(struct b43_wldev *dev,
 		b43_pio_handle_txstatus(dev, status);
 	else
 		b43_dma_handle_txstatus(dev, status);
+
+	b43_phy_txpower_check(dev, 0);
 }
 
 /* Fill out the mac80211 TXstatus report based on the b43-specific

@@ -34,8 +34,14 @@ void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
 {//TODO
 }
 
-void b43_nphy_xmitpower(struct b43_wldev *dev)
+static void b43_nphy_op_adjust_txpower(struct b43_wldev *dev)
 {//TODO
+}
+
+static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
+							bool ignore_tssi)
+{//TODO
+	return B43_TXPWR_RES_DONE;
 }
 
 static void b43_chantab_radio_upload(struct b43_wldev *dev,
@@ -602,10 +608,6 @@ static unsigned int b43_nphy_op_get_default_chan(struct b43_wldev *dev)
 	return 36;
 }
 
-static void b43_nphy_op_xmitpower(struct b43_wldev *dev)
-{//TODO
-}
-
 const struct b43_phy_operations b43_phyops_n = {
 	.allocate		= b43_nphy_op_allocate,
 	.init			= b43_nphy_op_init,
@@ -617,5 +619,6 @@ const struct b43_phy_operations b43_phyops_n = {
 	.software_rfkill	= b43_nphy_op_software_rfkill,
 	.switch_channel		= b43_nphy_op_switch_channel,
 	.get_default_chan	= b43_nphy_op_get_default_chan,
-	.xmitpower		= b43_nphy_op_xmitpower,
+	.recalc_txpower		= b43_nphy_op_recalc_txpower,
+	.adjust_txpower		= b43_nphy_op_adjust_txpower,
 };

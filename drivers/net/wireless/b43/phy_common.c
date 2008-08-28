@@ -274,3 +274,94 @@ void b43_software_rfkill(struct b43_wldev *dev, enum rfkill_state state)
 	phy->ops->software_rfkill(dev, state);
 	phy->radio_on = (state == RFKILL_STATE_UNBLOCKED);
 }
+
+/**
+ * b43_phy_txpower_adjust_work - TX power workqueue.
+ *
+ * Workqueue for updating the TX power parameters in hardware.
+ */
+void b43_phy_txpower_adjust_work(struct work_struct *work)
+{
+	struct b43_wl *wl = container_of(work, struct b43_wl,
+					 txpower_adjust_work);
+	struct b43_wldev *dev;
+
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+
+	if (likely(dev && (b43_status(dev) >= B43_STAT_STARTED)))
+		dev->phy.ops->adjust_txpower(dev);
+
+	mutex_unlock(&wl->mutex);
+}
+
+/* Called with wl->irq_lock locked */
+void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags)
+{
+	struct b43_phy *phy = &dev->phy;
+	unsigned long now = jiffies;
+	enum b43_txpwr_result result;
+
+	if (!(flags & B43_TXPWR_IGNORE_TIME)) {
+		/* Check if it's time for a TXpower check. */
+		if (time_before(now, phy->next_txpwr_check_time))
+			return; /* Not yet */
+	}
+	/* The next check will be needed in two seconds, or later. */
+	phy->next_txpwr_check_time = round_jiffies(now + (HZ * 2));
+
+	if ((dev->dev->bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM) &&
+	    (dev->dev->bus->boardinfo.type == SSB_BOARD_BU4306))
+		return; /* No software txpower adjustment needed */
+
+	result = phy->ops->recalc_txpower(dev, !!(flags & B43_TXPWR_IGNORE_TSSI));
+	if (result == B43_TXPWR_RES_DONE)
+		return; /* We are done. */
+	B43_WARN_ON(result != B43_TXPWR_RES_NEED_ADJUST);
+	B43_WARN_ON(phy->ops->adjust_txpower == NULL);
+
+	/* We must adjust the transmission power in hardware.
+	 * Schedule b43_phy_txpower_adjust_work(). */
+	queue_work(dev->wl->hw->workqueue, &dev->wl->txpower_adjust_work);
+}
+
+int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
+{
+	const bool is_ofdm = (shm_offset != B43_SHM_SH_TSSI_CCK);
+	unsigned int a, b, c, d;
+	unsigned int average;
+	u32 tmp;
+
+	tmp = b43_shm_read32(dev, B43_SHM_SHARED, shm_offset);
+	a = tmp & 0xFF;
+	b = (tmp >> 8) & 0xFF;
+	c = (tmp >> 16) & 0xFF;
+	d = (tmp >> 24) & 0xFF;
+	if (a == 0 || a == B43_TSSI_MAX ||
+	    b == 0 || b == B43_TSSI_MAX ||
+	    c == 0 || c == B43_TSSI_MAX ||
+	    d == 0 || d == B43_TSSI_MAX)
+		return -ENOENT;
+	/* The values are OK. Clear them. */
+	tmp = B43_TSSI_MAX | (B43_TSSI_MAX << 8) |
+	      (B43_TSSI_MAX << 16) | (B43_TSSI_MAX << 24);
+	b43_shm_write32(dev, B43_SHM_SHARED, shm_offset, tmp);
+
+	if (is_ofdm) {
+		a = (a + 32) & 0x3F;
+		b = (b + 32) & 0x3F;
+		c = (c + 32) & 0x3F;
+		d = (d + 32) & 0x3F;
+	}
+
+	/* Get the average of the values with 0.5 added to each value. */
+	average = (a + b + c + d + 2) / 4;
+	if (is_ofdm) {
+		/* Adjust for CCK-boost */
+		if (b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_HOSTFLO)
+		    & B43_HF_CCKBOOST)
+			average = (average >= 13) ? (average - 13) : 0;
+	}
+
+	return average;
+}

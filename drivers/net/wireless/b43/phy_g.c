@@ -2659,6 +2659,7 @@ static int b43_gphy_op_allocate(struct b43_wldev *dev)
 	/* OFDM-table address caching. */
 	gphy->ofdmtab_addr_direction = B43_OFDMTAB_DIRECTION_UNKNOWN;
 
+	gphy->average_tssi = 0xFF;
 
 	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
 	if (!lo) {
@@ -3011,113 +3012,20 @@ static void b43_put_attenuation_into_ranges(struct b43_wldev *dev,
 	*_bbatt = clamp_val(bbatt, bb_min, bb_max);
 }
 
-static void b43_gphy_op_xmitpower(struct b43_wldev *dev)
+static void b43_gphy_op_adjust_txpower(struct b43_wldev *dev)
 {
-	struct ssb_bus *bus = dev->dev->bus;
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
-	u16 tmp;
-	s8 v0, v1, v2, v3;
-	s8 average;
-	int max_pwr;
-	int desired_pwr, estimated_pwr, pwr_adjust;
-	int rfatt_delta, bbatt_delta;
 	int rfatt, bbatt;
 	u8 tx_control;
 
-	if (gphy->cur_idle_tssi == 0)
-		return;
-	if ((bus->boardinfo.vendor == SSB_BOARDVENDOR_BCM) &&
-	    (bus->boardinfo.type == SSB_BOARD_BU4306))
-		return;
-
-	tmp = b43_shm_read16(dev, B43_SHM_SHARED, 0x0058);
-	v0 = (s8) (tmp & 0x00FF);
-	v1 = (s8) ((tmp & 0xFF00) >> 8);
-	tmp = b43_shm_read16(dev, B43_SHM_SHARED, 0x005A);
-	v2 = (s8) (tmp & 0x00FF);
-	v3 = (s8) ((tmp & 0xFF00) >> 8);
-	tmp = 0;
-
-	if (v0 == 0x7F || v1 == 0x7F || v2 == 0x7F
-	    || v3 == 0x7F) {
-		tmp = b43_shm_read16(dev, B43_SHM_SHARED, 0x0070);
-		v0 = (s8) (tmp & 0x00FF);
-		v1 = (s8) ((tmp & 0xFF00) >> 8);
-		tmp = b43_shm_read16(dev, B43_SHM_SHARED, 0x0072);
-		v2 = (s8) (tmp & 0x00FF);
-		v3 = (s8) ((tmp & 0xFF00) >> 8);
-		if (v0 == 0x7F || v1 == 0x7F || v2 == 0x7F
-		    || v3 == 0x7F)
-			return;
-		v0 = (v0 + 0x20) & 0x3F;
-		v1 = (v1 + 0x20) & 0x3F;
-		v2 = (v2 + 0x20) & 0x3F;
-		v3 = (v3 + 0x20) & 0x3F;
-		tmp = 1;
-	}
-	b43_shm_clear_tssi(dev);
-
-	average = (v0 + v1 + v2 + v3 + 2) / 4;
-
-	if (tmp && (b43_shm_read16(dev, B43_SHM_SHARED, 0x005E) & 0x8))
-		average -= 13;
-
-	estimated_pwr = b43_gphy_estimate_power_out(dev, average);
-
-	max_pwr = dev->dev->bus->sprom.maxpwr_bg;
-	if ((dev->dev->bus->sprom.boardflags_lo
-	    & B43_BFL_PACTRL) && (phy->type == B43_PHYTYPE_G))
-		max_pwr -= 0x3;
-	if (unlikely(max_pwr <= 0)) {
-		b43warn(dev->wl,
-			"Invalid max-TX-power value in SPROM.\n");
-		max_pwr = 60;	/* fake it */
-		dev->dev->bus->sprom.maxpwr_bg = max_pwr;
-	}
-
-	/*TODO:
-	   max_pwr = min(REG - dev->dev->bus->sprom.antennagain_bgphy - 0x6, max_pwr)
-	   where REG is the max power as per the regulatory domain
-	 */
-
-	/* Get desired power (in Q5.2) */
-	desired_pwr = INT_TO_Q52(phy->power_level);
-	/* And limit it. max_pwr already is Q5.2 */
-	desired_pwr = clamp_val(desired_pwr, 0, max_pwr);
-	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
-		b43dbg(dev->wl,
-		       "Current TX power output: " Q52_FMT
-		       " dBm, " "Desired TX power output: "
-		       Q52_FMT " dBm\n", Q52_ARG(estimated_pwr),
-		       Q52_ARG(desired_pwr));
-	}
-
-	/* Calculate the adjustment delta. */
-	pwr_adjust = desired_pwr - estimated_pwr;
-
-	/* RF attenuation delta. */
-	rfatt_delta = ((pwr_adjust + 7) / 8);
-	/* Lower attenuation => Bigger power output. Negate it. */
-	rfatt_delta = -rfatt_delta;
-
-	/* Baseband attenuation delta. */
-	bbatt_delta = pwr_adjust / 2;
-	/* Lower attenuation => Bigger power output. Negate it. */
-	bbatt_delta = -bbatt_delta;
-	/* RF att affects power level 4 times as much as
-	 * Baseband attennuation. Subtract it. */
-	bbatt_delta -= 4 * rfatt_delta;
-
-	/* So do we finally need to adjust something? */
-	if ((rfatt_delta == 0) && (bbatt_delta == 0))
-		return;
+	spin_lock_irq(&dev->wl->irq_lock);
 
 	/* Calculate the new attenuation values. */
 	bbatt = gphy->bbatt.att;
-	bbatt += bbatt_delta;
+	bbatt += gphy->bbatt_delta;
 	rfatt = gphy->rfatt.att;
-	rfatt += rfatt_delta;
+	rfatt += gphy->rfatt_delta;
 
 	b43_put_attenuation_into_ranges(dev, &bbatt, &rfatt);
 	tx_control = gphy->tx_control;
@@ -3152,6 +3060,14 @@ static void b43_gphy_op_xmitpower(struct b43_wldev *dev)
 	gphy->rfatt.att = rfatt;
 	gphy->bbatt.att = bbatt;
 
+	/* We drop the lock early, so we can sleep during hardware
+	 * adjustment. Possible races with op_recalc_txpower are harmless,
+	 * as we will be called once again in case we raced. */
+	spin_unlock_irq(&dev->wl->irq_lock);
+
+	if (b43_debug(dev, B43_DBG_XMITPOWER))
+		b43dbg(dev->wl, "Adjusting TX power\n");
+
 	/* Adjust the hardware */
 	b43_phy_lock(dev);
 	b43_radio_lock(dev);
@@ -3159,6 +3075,111 @@ static void b43_gphy_op_xmitpower(struct b43_wldev *dev)
 			  gphy->tx_control);
 	b43_radio_unlock(dev);
 	b43_phy_unlock(dev);
+}
+
+static enum b43_txpwr_result b43_gphy_op_recalc_txpower(struct b43_wldev *dev,
+							bool ignore_tssi)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
+	unsigned int average_tssi;
+	int cck_result, ofdm_result;
+	int estimated_pwr, desired_pwr, pwr_adjust;
+	int rfatt_delta, bbatt_delta;
+	unsigned int max_pwr;
+
+	/* First get the average TSSI */
+	cck_result = b43_phy_shm_tssi_read(dev, B43_SHM_SH_TSSI_CCK);
+	ofdm_result = b43_phy_shm_tssi_read(dev, B43_SHM_SH_TSSI_OFDM_G);
+	if ((cck_result < 0) && (ofdm_result < 0)) {
+		/* No TSSI information available */
+		if (!ignore_tssi)
+			goto no_adjustment_needed;
+		cck_result = 0;
+		ofdm_result = 0;
+	}
+	if (cck_result < 0)
+		average_tssi = ofdm_result;
+	else if (ofdm_result < 0)
+		average_tssi = cck_result;
+	else
+		average_tssi = (cck_result + ofdm_result) / 2;
+	/* Merge the average with the stored value. */
+	if (likely(gphy->average_tssi != 0xFF))
+		average_tssi = (average_tssi + gphy->average_tssi) / 2;
+	gphy->average_tssi = average_tssi;
+	B43_WARN_ON(average_tssi >= B43_TSSI_MAX);
+
+	/* Estimate the TX power emission based on the TSSI */
+	estimated_pwr = b43_gphy_estimate_power_out(dev, average_tssi);
+
+	B43_WARN_ON(phy->type != B43_PHYTYPE_G);
+	max_pwr = dev->dev->bus->sprom.maxpwr_bg;
+	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_PACTRL)
+		max_pwr -= 3; /* minus 0.75 */
+	if (unlikely(max_pwr >= INT_TO_Q52(30/*dBm*/))) {
+		b43warn(dev->wl,
+			"Invalid max-TX-power value in SPROM.\n");
+		max_pwr = INT_TO_Q52(20); /* fake it */
+		dev->dev->bus->sprom.maxpwr_bg = max_pwr;
+	}
+
+	/* Get desired power (in Q5.2) */
+	if (phy->desired_txpower < 0)
+		desired_pwr = INT_TO_Q52(0);
+	else
+		desired_pwr = INT_TO_Q52(phy->desired_txpower);
+	/* And limit it. max_pwr already is Q5.2 */
+	desired_pwr = clamp_val(desired_pwr, 0, max_pwr);
+	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
+		b43dbg(dev->wl,
+		       "[TX power]  current = " Q52_FMT
+		       " dBm,  desired = " Q52_FMT
+		       " dBm,  max = " Q52_FMT "\n",
+		       Q52_ARG(estimated_pwr),
+		       Q52_ARG(desired_pwr),
+		       Q52_ARG(max_pwr));
+	}
+
+	/* Calculate the adjustment delta. */
+	pwr_adjust = desired_pwr - estimated_pwr;
+	if (pwr_adjust == 0)
+		goto no_adjustment_needed;
+
+	/* RF attenuation delta. */
+	rfatt_delta = ((pwr_adjust + 7) / 8);
+	/* Lower attenuation => Bigger power output. Negate it. */
+	rfatt_delta = -rfatt_delta;
+
+	/* Baseband attenuation delta. */
+	bbatt_delta = pwr_adjust / 2;
+	/* Lower attenuation => Bigger power output. Negate it. */
+	bbatt_delta = -bbatt_delta;
+	/* RF att affects power level 4 times as much as
+	 * Baseband attennuation. Subtract it. */
+	bbatt_delta -= 4 * rfatt_delta;
+
+	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
+		int dbm = pwr_adjust < 0 ? -pwr_adjust : pwr_adjust;
+		b43dbg(dev->wl,
+		       "[TX power deltas]  %s" Q52_FMT " dBm   =>   "
+		       "bbatt-delta = %d,  rfatt-delta = %d\n",
+		       (pwr_adjust < 0 ? "-" : ""), Q52_ARG(dbm),
+		       bbatt_delta, rfatt_delta);
+	}
+	/* So do we finally need to adjust something in hardware? */
+	if ((rfatt_delta == 0) && (bbatt_delta == 0))
+		goto no_adjustment_needed;
+
+	/* Save the deltas for later when we adjust the power. */
+	gphy->bbatt_delta = bbatt_delta;
+	gphy->rfatt_delta = rfatt_delta;
+
+	/* We need to adjust the TX power on the device. */
+	return B43_TXPWR_RES_NEED_ADJUST;
+
+no_adjustment_needed:
+	return B43_TXPWR_RES_DONE;
 }
 
 static void b43_gphy_op_pwork_15sec(struct b43_wldev *dev)
@@ -3223,7 +3244,8 @@ const struct b43_phy_operations b43_phyops_g = {
 	.get_default_chan	= b43_gphy_op_get_default_chan,
 	.set_rx_antenna		= b43_gphy_op_set_rx_antenna,
 	.interf_mitigation	= b43_gphy_op_interf_mitigation,
-	.xmitpower		= b43_gphy_op_xmitpower,
+	.recalc_txpower		= b43_gphy_op_recalc_txpower,
+	.adjust_txpower		= b43_gphy_op_adjust_txpower,
 	.pwork_15sec		= b43_gphy_op_pwork_15sec,
 	.pwork_60sec		= b43_gphy_op_pwork_60sec,
 };

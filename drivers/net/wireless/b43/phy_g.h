@@ -115,7 +115,6 @@ struct b43_txpower_lo_control;
 
 struct b43_phy_g {
 	bool initialised;
-	bool dyn_tssi_tbl;	/* tssi2dbm is kmalloc()ed. */
 
 	/* ACI (adjacent channel interference) flags. */
 	bool aci_enable;
@@ -135,12 +134,26 @@ struct b43_phy_g {
 	u16 minlowsig[2];
 	u16 minlowsigpos[2];
 
-	/* TSSI to dBm table in use */
+	/* Pointer to the table used to convert a
+	 * TSSI value to dBm-Q5.2 */
 	const s8 *tssi2dbm;
+	/* tssi2dbm is kmalloc()ed. Only used for free()ing. */
+	bool dyn_tssi_tbl;
 	/* Target idle TSSI */
 	int tgt_idle_tssi;
 	/* Current idle TSSI */
 	int cur_idle_tssi;
+	/* The current average TSSI.
+	 * Needs irq_lock, as it's updated in the IRQ path. */
+	u8 average_tssi;
+	/* Current TX power level attenuation control values */
+	struct b43_bbatt bbatt;
+	struct b43_rfatt rfatt;
+	u8 tx_control;		/* B43_TXCTL_XXX */
+	/* The calculated attenuation deltas that are used later
+	 * when adjusting the actual power output. */
+	int bbatt_delta;
+	int rfatt_delta;
 
 	/* LocalOscillator control values. */
 	struct b43_txpower_lo_control *lo_control;
@@ -150,11 +163,6 @@ struct b43_phy_g {
 	s16 lna_lod_gain;	/* LNA lod */
 	s16 lna_gain;		/* LNA */
 	s16 pga_gain;		/* PGA */
-
-	/* Current TX power level attenuation control values */
-	struct b43_bbatt bbatt;
-	struct b43_rfatt rfatt;
-	u8 tx_control;		/* B43_TXCTL_XXX */
 
 	/* Current Interference Mitigation mode */
 	int interfmode;

@@ -61,6 +61,17 @@ enum {
 };
 
 /**
+ * enum b43_txpwr_result - Return value for the recalc_txpower PHY op.
+ *
+ * @B43_TXPWR_RES_NEED_ADJUST:	Values changed. Hardware adjustment is needed.
+ * @B43_TXPWR_RES_DONE:		No more work to do. Everything is done.
+ */
+enum b43_txpwr_result {
+	B43_TXPWR_RES_NEED_ADJUST,
+	B43_TXPWR_RES_DONE,
+};
+
+/**
  * struct b43_phy_operations - Function pointers for PHY ops.
  *
  * @prepare:		Prepare the PHY. This is called before @init.
@@ -96,8 +107,23 @@ enum {
  * @interf_mitigation:	Switch the Interference Mitigation mode.
  * 			Can be NULL, if not supported.
  *
- * @xmitpower:		FIXME REMOVEME
+ * @recalc_txpower:	Recalculate the transmission power parameters.
+ * 			This callback has to recalculate the TX power settings,
+ * 			but does not need to write them to the hardware, yet.
+ * 			Returns enum b43_txpwr_result to indicate whether the hardware
+ * 			needs to be adjusted.
+ * 			If B43_TXPWR_NEED_ADJUST is returned, @adjust_txpower
+ * 			will be called later.
+ * 			If the parameter "ignore_tssi" is true, the TSSI values should
+ * 			be ignored and a recalculation of the power settings should be
+ * 			done even if the TSSI values did not change.
+ * 			This callback is called with wl->irq_lock held and must not sleep.
  * 			Must not be NULL.
+ * @adjust_txpower:	Write the previously calculated TX power settings
+ * 			(from @recalc_txpower) to the hardware.
+ * 			This function may sleep.
+ * 			Can be NULL, if (and ONLY if) @recalc_txpower _always_
+ * 			returns B43_TXPWR_RES_DONE.
  *
  * @pwork_15sec:	Periodic work. Called every 15 seconds.
  * 			Can be NULL, if not required.
@@ -127,7 +153,9 @@ struct b43_phy_operations {
 				 enum b43_interference_mitigation new_mode);
 
 	/* Transmission power adjustment */
-	void (*xmitpower)(struct b43_wldev *dev);
+	enum b43_txpwr_result (*recalc_txpower)(struct b43_wldev *dev,
+						bool ignore_tssi);
+	void (*adjust_txpower)(struct b43_wldev *dev);
 
 	/* Misc */
 	void (*pwork_15sec)(struct b43_wldev *dev);
@@ -183,10 +211,14 @@ struct b43_phy {
 
 	/* Desired TX power level (in dBm).
 	 * This is set by the user and adjusted in b43_phy_xmitpower(). */
-	u8 power_level;
+	int desired_txpower;
 
 	/* Hardware Power Control enabled? */
 	bool hardware_power_control;
+
+	/* The time (in absolute jiffies) when the next TX power output
+	 * check is needed. */
+	unsigned long next_txpwr_check_time;
 
 	/* current channel */
 	unsigned int channel;
@@ -308,5 +340,42 @@ int b43_switch_channel(struct b43_wldev *dev, unsigned int new_channel);
  * b43_software_rfkill - Turn the radio ON or OFF in software.
  */
 void b43_software_rfkill(struct b43_wldev *dev, enum rfkill_state state);
+
+/**
+ * b43_phy_txpower_check - Check TX power output.
+ *
+ * Compare the current TX power output to the desired power emission
+ * and schedule an adjustment in case it mismatches.
+ * Requires wl->irq_lock locked.
+ *
+ * @flags:	OR'ed enum b43_phy_txpower_check_flags flags.
+ * 		See the docs below.
+ */
+void b43_phy_txpower_check(struct b43_wldev *dev, unsigned int flags);
+/**
+ * enum b43_phy_txpower_check_flags - Flags for b43_phy_txpower_check()
+ *
+ * @B43_TXPWR_IGNORE_TIME: Ignore the schedule time and force-redo
+ *                         the check now.
+ * @B43_TXPWR_IGNORE_TSSI: Redo the recalculation, even if the average
+ *                         TSSI did not change.
+ */
+enum b43_phy_txpower_check_flags {
+	B43_TXPWR_IGNORE_TIME		= (1 << 0),
+	B43_TXPWR_IGNORE_TSSI		= (1 << 1),
+};
+
+struct work_struct;
+void b43_phy_txpower_adjust_work(struct work_struct *work);
+
+/**
+ * b43_phy_shm_tssi_read - Read the average of the last 4 TSSI from SHM.
+ *
+ * @shm_offset:		The SHM address to read the values from.
+ *
+ * Returns the average of the 4 TSSI values, or a negative error code.
+ */
+int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
+
 
 #endif /* LINUX_B43_PHY_COMMON_H_ */

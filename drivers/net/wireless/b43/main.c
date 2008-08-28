@@ -2805,6 +2805,9 @@ static void b43_periodic_every60sec(struct b43_wldev *dev)
 
 	if (ops->pwork_60sec)
 		ops->pwork_60sec(dev);
+
+	/* Force check the TX power emission now. */
+	b43_phy_txpower_check(dev, B43_TXPWR_IGNORE_TIME);
 }
 
 static void b43_periodic_every30sec(struct b43_wldev *dev)
@@ -2834,8 +2837,6 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 
 	if (phy->ops->pwork_15sec)
 		phy->ops->pwork_15sec(dev);
-
-	phy->ops->xmitpower(dev);
 
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 	wmb();
@@ -3382,10 +3383,13 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 
 	/* Adjust the desired TX power level. */
 	if (conf->power_level != 0) {
-		if (conf->power_level != phy->power_level) {
-			phy->power_level = conf->power_level;
-			phy->ops->xmitpower(dev);
+		spin_lock_irqsave(&wl->irq_lock, flags);
+		if (conf->power_level != phy->desired_txpower) {
+			phy->desired_txpower = conf->power_level;
+			b43_phy_txpower_check(dev, B43_TXPWR_IGNORE_TIME |
+						   B43_TXPWR_IGNORE_TSSI);
 		}
+		spin_unlock_irqrestore(&wl->irq_lock, flags);
 	}
 
 	/* Antennas for RX and management frame TX. */
@@ -3785,6 +3789,7 @@ static void setup_struct_phy_for_init(struct b43_wldev *dev,
 				      struct b43_phy *phy)
 {
 	phy->hardware_power_control = !!modparam_hwpctl;
+	phy->next_txpwr_check_time = jiffies;
 	/* PHY TX errors counter. */
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 }
@@ -4204,6 +4209,8 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 		b43_wireless_core_stop(dev);
 	b43_wireless_core_exit(dev);
 	mutex_unlock(&wl->mutex);
+
+	cancel_work_sync(&(wl->txpower_adjust_work));
 }
 
 static int b43_op_set_retry_limit(struct ieee80211_hw *hw,
@@ -4581,6 +4588,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	INIT_LIST_HEAD(&wl->devlist);
 	INIT_WORK(&wl->qos_update_work, b43_qos_update_work);
 	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
+	INIT_WORK(&wl->txpower_adjust_work, b43_phy_txpower_adjust_work);
 
 	ssb_set_devtypedata(dev, wl);
 	b43info(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);
