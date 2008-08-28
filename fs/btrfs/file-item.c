@@ -325,6 +325,7 @@ again:
 	item = btrfs_lookup_csum(trans, root, path, objectid, offset, 1);
 	if (!IS_ERR(item)) {
 		leaf = path->nodes[0];
+		ret = 0;
 		goto found;
 	}
 	ret = PTR_ERR(item);
