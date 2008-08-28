@@ -97,7 +97,7 @@
 #define X86_FEATURE_MWAIT	(4*32+ 3) /* "monitor" Monitor/Mwait support */
 #define X86_FEATURE_DSCPL	(4*32+ 4) /* "ds_cpl" CPL Qual. Debug Store */
 #define X86_FEATURE_VMX		(4*32+ 5) /* Hardware virtualization */
-#define X86_FEATURE_SMX		(4*32+ 6) /* "Safer" mode */
+#define X86_FEATURE_SMX		(4*32+ 6) /* Safer mode */
 #define X86_FEATURE_EST		(4*32+ 7) /* Enhanced SpeedStep */
 #define X86_FEATURE_TM2		(4*32+ 8) /* Thermal Monitor 2 */
 #define X86_FEATURE_SSSE3	(4*32+ 9) /* Supplemental SSE-3 */
