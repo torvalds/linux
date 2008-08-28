@@ -105,14 +105,11 @@ static char mv643xx_eth_driver_version[] = "1.3";
 #define INT_CAUSE(p)			(0x0460 + ((p) << 10))
 #define  INT_TX_END_0			0x00080000
 #define  INT_TX_END			0x07f80000
-#define  INT_RX				0x0007fbfc
+#define  INT_RX				0x000003fc
 #define  INT_EXT			0x00000002
 #define INT_CAUSE_EXT(p)		(0x0464 + ((p) << 10))
-#define  INT_EXT_LINK			0x00100000
-#define  INT_EXT_PHY			0x00010000
-#define  INT_EXT_TX_ERROR_0		0x00000100
-#define  INT_EXT_TX_0			0x00000001
-#define  INT_EXT_TX			0x0000ffff
+#define  INT_EXT_LINK_PHY		0x00110000
+#define  INT_EXT_TX			0x000000ff
 #define INT_MASK(p)			(0x0468 + ((p) << 10))
 #define INT_MASK_EXT(p)			(0x046c + ((p) << 10))
 #define TX_FIFO_URGENT_THRESHOLD(p)	(0x0474 + ((p) << 10))
@@ -1815,11 +1812,11 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	int_cause_ext = 0;
 	if (int_cause & INT_EXT) {
 		int_cause_ext = rdl(mp, INT_CAUSE_EXT(mp->port_num))
-				& (INT_EXT_LINK | INT_EXT_PHY | INT_EXT_TX);
+				& (INT_EXT_LINK_PHY | INT_EXT_TX);
 		wrl(mp, INT_CAUSE_EXT(mp->port_num), ~int_cause_ext);
 	}
 
-	if (int_cause_ext & (INT_EXT_PHY | INT_EXT_LINK))
+	if (int_cause_ext & INT_EXT_LINK_PHY)
 		handle_link_event(mp);
 
 	/*
@@ -2059,9 +2056,7 @@ static int mv643xx_eth_open(struct net_device *dev)
 	set_rx_coal(mp, 0);
 	set_tx_coal(mp, 0);
 
-	wrl(mp, INT_MASK_EXT(mp->port_num),
-	    INT_EXT_LINK | INT_EXT_PHY | INT_EXT_TX);
-
+	wrl(mp, INT_MASK_EXT(mp->port_num), INT_EXT_LINK_PHY | INT_EXT_TX);
 	wrl(mp, INT_MASK(mp->port_num), INT_TX_END | INT_RX | INT_EXT);
 
 	return 0;
