@@ -49,7 +49,7 @@ static int __init mpf_checksum(unsigned char *mp, int len)
 	return sum & 0xFF;
 }
 
-static void __cpuinit MP_processor_info(struct mpc_config_processor *m)
+static void __init MP_processor_info(struct mpc_config_processor *m)
 {
 	int apicid;
 	char *bootup_cpu = "";
@@ -484,7 +484,7 @@ static void __init construct_default_ioirq_mptable(int mpc_default_type)
 }
 
 
-static void construct_ioapic_table(int mpc_default_type)
+static void __init construct_ioapic_table(int mpc_default_type)
 {
 	struct mpc_config_ioapic ioapic;
 	struct mpc_config_bus bus;
@@ -529,7 +529,7 @@ static void construct_ioapic_table(int mpc_default_type)
 	construct_default_ioirq_mptable(mpc_default_type);
 }
 #else
-static inline void construct_ioapic_table(int mpc_default_type) { }
+static inline void __init construct_ioapic_table(int mpc_default_type) { }
 #endif
 
 static inline void __init construct_default_ISA_mptable(int mpc_default_type)

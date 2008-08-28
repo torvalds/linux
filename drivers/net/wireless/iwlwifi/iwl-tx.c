@@ -493,7 +493,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
 	/* Alloc keep-warm buffer */
 	ret = iwl_kw_alloc(priv);
 	if (ret) {
-		IWL_ERROR("Keep Warm allocation failed");
+		IWL_ERROR("Keep Warm allocation failed\n");
 		goto error_kw;
 	}
 	spin_lock_irqsave(&priv->lock, flags);
@@ -1463,7 +1463,7 @@ void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 	u16 ba_resp_scd_ssn = le16_to_cpu(ba_resp->scd_ssn);
 
 	if (scd_flow >= priv->hw_params.max_txq_num) {
-		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues");
+		IWL_ERROR("BUG_ON scd_flow is bigger than number of queues\n");
 		return;
 	}
 

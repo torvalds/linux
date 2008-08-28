@@ -384,6 +384,10 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 	 * get minor, add to list
 	 */
 	down_write(&dcssblk_devices_sem);
+	if (dcssblk_get_segment_by_name(local_buf)) {
+		rc = -EEXIST;
+		goto release_gd;
+	}
 	rc = dcssblk_assign_free_minor(dev_info);
 	if (rc) {
 		up_write(&dcssblk_devices_sem);

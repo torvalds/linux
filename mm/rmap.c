@@ -224,10 +224,14 @@ unsigned long page_address_in_vma(struct page *page, struct vm_area_struct *vma)
 /*
  * Check that @page is mapped at @address into @mm.
  *
+ * If @sync is false, page_check_address may perform a racy check to avoid
+ * the page table lock when the pte is not present (helpful when reclaiming
+ * highly shared pages).
+ *
  * On success returns with pte mapped and locked.
  */
 pte_t *page_check_address(struct page *page, struct mm_struct *mm,
-			  unsigned long address, spinlock_t **ptlp)
+			  unsigned long address, spinlock_t **ptlp, int sync)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -249,7 +253,7 @@ pte_t *page_check_address(struct page *page, struct mm_struct *mm,
 
 	pte = pte_offset_map(pmd, address);
 	/* Make a quick check before getting the lock */
-	if (!pte_present(*pte)) {
+	if (!sync && !pte_present(*pte)) {
 		pte_unmap(pte);
 		return NULL;
 	}
@@ -281,7 +285,7 @@ static int page_referenced_one(struct page *page,
 	if (address == -EFAULT)
 		goto out;
 
-	pte = page_check_address(page, mm, address, &ptl);
+	pte = page_check_address(page, mm, address, &ptl, 0);
 	if (!pte)
 		goto out;
 
@@ -450,7 +454,7 @@ static int page_mkclean_one(struct page *page, struct vm_area_struct *vma)
 	if (address == -EFAULT)
 		goto out;
 
-	pte = page_check_address(page, mm, address, &ptl);
+	pte = page_check_address(page, mm, address, &ptl, 1);
 	if (!pte)
 		goto out;
 
@@ -659,6 +663,22 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 		}
 
 		/*
+		 * Now that the last pte has gone, s390 must transfer dirty
+		 * flag from storage key to struct page.  We can usually skip
+		 * this if the page is anon, so about to be freed; but perhaps
+		 * not if it's in swapcache - there might be another pte slot
+		 * containing the swap entry, but page not yet written to swap.
+		 */
+		if ((!PageAnon(page) || PageSwapCache(page)) &&
+		    page_test_dirty(page)) {
+			page_clear_dirty(page);
+			set_page_dirty(page);
+		}
+
+		mem_cgroup_uncharge_page(page);
+		__dec_zone_page_state(page,
+			PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
+		/*
 		 * It would be tidy to reset the PageAnon mapping here,
 		 * but that might overwrite a racing page_add_anon_rmap
 		 * which increments mapcount after us but sets mapping
@@ -667,15 +687,6 @@ void page_remove_rmap(struct page *page, struct vm_area_struct *vma)
 		 * Leaving it set also helps swapoff to reinstate ptes
 		 * faster for those pages still in swapcache.
 		 */
-		if ((!PageAnon(page) || PageSwapCache(page)) &&
-		    page_test_dirty(page)) {
-			page_clear_dirty(page);
-			set_page_dirty(page);
-		}
-		mem_cgroup_uncharge_page(page);
-
-		__dec_zone_page_state(page,
-				PageAnon(page) ? NR_ANON_PAGES : NR_FILE_MAPPED);
 	}
 }
 
@@ -697,7 +708,7 @@ static int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 	if (address == -EFAULT)
 		goto out;
 
-	pte = page_check_address(page, mm, address, &ptl);
+	pte = page_check_address(page, mm, address, &ptl, 0);
 	if (!pte)
 		goto out;
 

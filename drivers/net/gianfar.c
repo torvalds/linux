@@ -134,9 +134,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int l
 static void gfar_vlan_rx_register(struct net_device *netdev,
 		                struct vlan_group *grp);
 void gfar_halt(struct net_device *dev);
-#ifdef CONFIG_PM
 static void gfar_halt_nodisable(struct net_device *dev);
-#endif
 void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
 static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
@@ -631,7 +629,6 @@ static void init_registers(struct net_device *dev)
 }
 
 
-#ifdef CONFIG_PM
 /* Halt the receive and transmit queues */
 static void gfar_halt_nodisable(struct net_device *dev)
 {
@@ -657,7 +654,6 @@ static void gfar_halt_nodisable(struct net_device *dev)
 			cpu_relax();
 	}
 }
-#endif
 
 /* Halt the receive and transmit queues */
 void gfar_halt(struct net_device *dev)
@@ -665,6 +661,8 @@ void gfar_halt(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->regs;
 	u32 tempval;
+
+	gfar_halt_nodisable(dev);
 
 	/* Disable Rx and Tx */
 	tempval = gfar_read(&regs->maccfg1);

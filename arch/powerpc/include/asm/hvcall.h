@@ -291,6 +291,28 @@ struct hvcall_mpp_data {
 };
 
 int h_get_mpp(struct hvcall_mpp_data *);
+
+#ifdef CONFIG_PPC_PSERIES
+extern int CMO_PrPSP;
+extern int CMO_SecPSP;
+extern unsigned long CMO_PageSize;
+
+static inline int cmo_get_primary_psp(void)
+{
+	return CMO_PrPSP;
+}
+
+static inline int cmo_get_secondary_psp(void)
+{
+	return CMO_SecPSP;
+}
+
+static inline unsigned long cmo_get_page_size(void)
+{
+	return CMO_PageSize;
+}
+#endif /* CONFIG_PPC_PSERIES */
+
 #endif /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_HVCALL_H */

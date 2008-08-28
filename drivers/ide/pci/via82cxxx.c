@@ -491,7 +491,7 @@ static struct pci_driver driver = {
 	.name 		= "VIA_IDE",
 	.id_table 	= via_pci_tbl,
 	.probe 		= via_init_one,
-	.remove		= via_remove,
+	.remove		= __devexit_p(via_remove),
 };
 
 static int __init via_ide_init(void)

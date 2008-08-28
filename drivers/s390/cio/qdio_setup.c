@@ -165,7 +165,7 @@ static void setup_queues(struct qdio_irq *irq_ptr,
 	void **output_sbal_array = qdio_init->output_sbal_addr_array;
 	int i;
 
-	sprintf(dbf_text, "qfqs%4x", qdio_init->cdev->private->schid.sch_no);
+	sprintf(dbf_text, "qset%4x", qdio_init->cdev->private->schid.sch_no);
 	QDIO_DBF_TEXT0(0, setup, dbf_text);
 
 	for_each_input_queue(irq_ptr, q, i) {
@@ -285,7 +285,7 @@ void qdio_setup_ssqd_info(struct qdio_irq *irq_ptr)
 	rc = __get_ssqd_info(irq_ptr);
 	if (rc) {
 		QDIO_DBF_TEXT2(0, setup, "ssqdasig");
-		sprintf(dbf_text, "schno%x", irq_ptr->schid.sch_no);
+		sprintf(dbf_text, "schn%4x", irq_ptr->schid.sch_no);
 		QDIO_DBF_TEXT2(0, setup, dbf_text);
 		sprintf(dbf_text, "rc:%d", rc);
 		QDIO_DBF_TEXT2(0, setup, dbf_text);
@@ -447,7 +447,7 @@ void qdio_print_subchannel_info(struct qdio_irq *irq_ptr,
 {
 	char s[80];
 
-	sprintf(s, "%s ", cdev->dev.bus_id);
+	sprintf(s, "%s sc:%x ", cdev->dev.bus_id, irq_ptr->schid.sch_no);
 
 	switch (irq_ptr->qib.qfmt) {
 	case QDIO_QETH_QFMT:

@@ -269,8 +269,8 @@ static int xps2_setup(struct device *dev, struct resource *regs_res,
 	 * we have the PS2 in a good state */
 	out_be32(drvdata->base_address + XPS2_SRST_OFFSET, XPS2_SRST_RESET);
 
-	dev_info(dev, "Xilinx PS2 at 0x%08X mapped to 0x%08X, irq=%d\n",
-		drvdata->phys_addr, (u32)drvdata->base_address, drvdata->irq);
+	dev_info(dev, "Xilinx PS2 at 0x%08X mapped to 0x%p, irq=%d\n",
+		drvdata->phys_addr, drvdata->base_address, drvdata->irq);
 
 	serio = &drvdata->serio;
 	serio->id.type = SERIO_8042;

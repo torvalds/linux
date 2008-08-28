@@ -78,62 +78,6 @@ ENTRY(_hibernate_mode)
 	jump .Lforever;
 ENDPROC(_hibernate_mode)
 
-ENTRY(_deep_sleep)
-	[--SP] = ( R7:0, P5:0 );
-	[--SP] =  RETS;
-
-	CLI R4;
-
-	R0 = IWR_ENABLE(0);
-	R1 = IWR_DISABLE_ALL;
-	R2 = IWR_DISABLE_ALL;
-
-	call _set_sic_iwr;
-
-	call _set_dram_srfs;
-
-	/* Clear all the interrupts,bits sticky */
-	R0 = 0xFFFF (Z);
-	call _set_rtc_istat
-
-	P0.H = hi(PLL_CTL);
-	P0.L = lo(PLL_CTL);
-	R0 = W[P0](z);
-	BITSET (R0, 5);
-	W[P0] = R0.L;
-
-	call _test_pll_locked;
-
-	SSYNC;
-	IDLE;
-
-	call _unset_dram_srfs;
-
-	call _test_pll_locked;
-
-	R0 = IWR_ENABLE(0);
-	R1 = IWR_DISABLE_ALL;
-	R2 = IWR_DISABLE_ALL;
-
-	call _set_sic_iwr;
-
-	P0.H = hi(PLL_CTL);
-	P0.L = lo(PLL_CTL);
-	R0 = w[p0](z);
-	BITCLR (R0, 3);
-	BITCLR (R0, 5);
-	BITCLR (R0, 8);
-	w[p0] = R0;
-	IDLE;
-	call _test_pll_locked;
-
-	STI R4;
-
-	RETS = [SP++];
-	( R7:0, P5:0 ) = [SP++];
-	RTS;
-ENDPROC(_deep_sleep)
-
 ENTRY(_sleep_deeper)
 	[--SP] = ( R7:0, P5:0 );
 	[--SP] =  RETS;

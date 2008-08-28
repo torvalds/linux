@@ -13,6 +13,21 @@ Introduction
   data-sheet/users manual to find out the complete list.
 
 
+GPIOLIB
+-------
+
+  With the event of the GPIOLIB in drivers/gpio, support for some
+  of the GPIO functions such as reading and writing a pin will
+  be removed in favour of this common access method.
+
+  Once all the extant drivers have been converted, the functions
+  listed below will be removed (they may be marked as __deprecated
+  in the near future).
+
+  - s3c2410_gpio_getpin
+  - s3c2410_gpio_setpin
+
+
 Headers
 -------
 

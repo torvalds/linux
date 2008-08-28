@@ -319,12 +319,12 @@ static struct platform_device bfin_atapi_device = {
 #if defined(CONFIG_MTD_NAND_BF5XX) || defined(CONFIG_MTD_NAND_BF5XX_MODULE)
 static struct mtd_partition partition_info[] = {
 	{
-		.name = "Linux Kernel",
+		.name = "linux kernel(nand)",
 		.offset = 0,
 		.size = 4 * SIZE_1M,
 	},
 	{
-		.name = "File System",
+		.name = "file system(nand)",
 		.offset = 4 * SIZE_1M,
 		.size = (256 - 4) * SIZE_1M,
 	},
@@ -377,12 +377,12 @@ static struct platform_device bf54x_sdh_device = {
 /* SPI flash chip (m25p16) */
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "linux kernel",
+		.name = "linux kernel(spi)",
 		.size = 0x1c0000,
 		.offset = 0x40000
 	}

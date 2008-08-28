@@ -57,6 +57,15 @@ static ssize_t devspec_show(struct device *dev,
 	return sprintf(buf, "%s\n", ofdev->node->full_name);
 }
 
+static ssize_t name_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct of_device *ofdev;
+
+	ofdev = to_of_device(dev);
+	return sprintf(buf, "%s\n", ofdev->node->name);
+}
+
 static ssize_t modalias_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -71,6 +80,7 @@ static ssize_t modalias_show(struct device *dev,
 
 struct device_attribute of_platform_device_attrs[] = {
 	__ATTR_RO(devspec),
+	__ATTR_RO(name),
 	__ATTR_RO(modalias),
 	__ATTR_NULL
 };

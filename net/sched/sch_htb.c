@@ -577,7 +577,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			sch->qstats.drops++;
 			cl->qstats.drops++;
 		}
-		return NET_XMIT_DROP;
+		return ret;
 	} else {
 		cl->bstats.packets +=
 			skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
@@ -623,7 +623,7 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 			sch->qstats.drops++;
 			cl->qstats.drops++;
 		}
-		return NET_XMIT_DROP;
+		return ret;
 	} else
 		htb_activate(q, cl);
 

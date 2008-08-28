@@ -228,10 +228,10 @@ enum {
 /* Minimum number of orphan area logical eraseblocks */
 #define UBIFS_MIN_ORPH_LEBS 1
 /*
- * Minimum number of main area logical eraseblocks (buds, 2 for the index, 1
+ * Minimum number of main area logical eraseblocks (buds, 3 for the index, 1
  * for GC, 1 for deletions, and at least 1 for committed data).
  */
-#define UBIFS_MIN_MAIN_LEBS (UBIFS_MIN_BUD_LEBS + 5)
+#define UBIFS_MIN_MAIN_LEBS (UBIFS_MIN_BUD_LEBS + 6)
 
 /* Minimum number of logical eraseblocks */
 #define UBIFS_MIN_LEB_CNT (UBIFS_SB_LEBS + UBIFS_MST_LEBS + \
