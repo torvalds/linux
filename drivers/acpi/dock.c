@@ -75,7 +75,7 @@ struct dock_dependent_device {
 	struct list_head list;
 	struct list_head hotplug_list;
 	acpi_handle handle;
-	acpi_notify_handler handler;
+	struct acpi_dock_ops *ops;
 	void *context;
 };
 
@@ -385,8 +385,8 @@ static void hotplug_dock_devices(struct dock_station *ds, u32 event)
 	 * First call driver specific hotplug functions
 	 */
 	list_for_each_entry(dd, &ds->hotplug_devices, hotplug_list) {
-		if (dd->handler)
-			dd->handler(dd->handle, event, dd->context);
+		if (dd->ops && dd->ops->handler)
+			dd->ops->handler(dd->handle, event, dd->context);
 	}
 
 	/*
@@ -409,6 +409,7 @@ static void dock_event(struct dock_station *ds, u32 event, int num)
 	struct device *dev = &ds->dock_device->dev;
 	char event_string[13];
 	char *envp[] = { event_string, NULL };
+	struct dock_dependent_device *dd;
 
 	if (num == UNDOCK_EVENT)
 		sprintf(event_string, "EVENT=undock");
@@ -419,7 +420,14 @@ static void dock_event(struct dock_station *ds, u32 event, int num)
 	 * Indicate that the status of the dock station has
 	 * changed.
 	 */
-	kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
+	if (num == DOCK_EVENT)
+		kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
+
+	list_for_each_entry(dd, &ds->hotplug_devices, hotplug_list)
+		if (dd->ops && dd->ops->uevent)
+			dd->ops->uevent(dd->handle, event, dd->context);
+	if (num != DOCK_EVENT)
+		kobject_uevent_env(&dev->kobj, KOBJ_CHANGE, envp);
 }
 
 /**
@@ -588,7 +596,7 @@ EXPORT_SYMBOL_GPL(unregister_dock_notifier);
 /**
  * register_hotplug_dock_device - register a hotplug function
  * @handle: the handle of the device
- * @handler: the acpi_notifier_handler to call after docking
+ * @ops: handlers to call after docking
  * @context: device specific data
  *
  * If a driver would like to perform a hotplug operation after a dock
@@ -596,7 +604,7 @@ EXPORT_SYMBOL_GPL(unregister_dock_notifier);
  * the dock driver after _DCK is executed.
  */
 int
-register_hotplug_dock_device(acpi_handle handle, acpi_notify_handler handler,
+register_hotplug_dock_device(acpi_handle handle, struct acpi_dock_ops *ops,
 			     void *context)
 {
 	struct dock_dependent_device *dd;
@@ -612,7 +620,7 @@ register_hotplug_dock_device(acpi_handle handle, acpi_notify_handler handler,
 	list_for_each_entry(dock_station, &dock_stations, sibiling) {
 		dd = find_dock_dependent_device(dock_station, handle);
 		if (dd) {
-			dd->handler = handler;
+			dd->ops = ops;
 			dd->context = context;
 			dock_add_hotplug_device(dock_station, dd);
 			return 0;

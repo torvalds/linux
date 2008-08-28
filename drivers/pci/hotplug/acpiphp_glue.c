@@ -169,7 +169,9 @@ static int post_dock_fixups(struct notifier_block *nb, unsigned long val,
 }
 
 
-
+static struct acpi_dock_ops acpiphp_dock_ops = {
+	.handler = handle_hotplug_event_func,
+};
 
 /* callback routine to register each ACPI PCI slot object */
 static acpi_status
@@ -285,7 +287,7 @@ register_slot(acpi_handle handle, u32 lvl, void *context, void **rv)
 		 */
 		newfunc->flags &= ~FUNC_HAS_EJ0;
 		if (register_hotplug_dock_device(handle,
-			handle_hotplug_event_func, newfunc))
+			&acpiphp_dock_ops, newfunc))
 			dbg("failed to register dock device\n");
 
 		/* we need to be notified when dock events happen
