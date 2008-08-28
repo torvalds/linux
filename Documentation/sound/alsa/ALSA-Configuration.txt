@@ -832,6 +832,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	  hippo_1	Hippo (Benq) with jack detection
 	  sony-assamd	Sony ASSAMD
 	  toshiba-s06	Toshiba S06
+	  toshiba-rx1	Toshiba RX1
 	  ultra		Samsung Q1 Ultra Vista model
 	  lenovo-3000	Lenovo 3000 y410
 	  nec		NEC Versa S9100
