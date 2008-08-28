@@ -1271,13 +1271,15 @@ static inline const char *e820_type_to_string(int e820_type)
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
+struct resource __initdata *e820_res;
 void __init e820_reserve_resources(void)
 {
 	int i;
-	struct resource *res;
 	u64 end;
+	struct resource *res;
 
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
+	e820_res = res;
 	for (i = 0; i < e820.nr_map; i++) {
 		end = e820.map[i].addr + e820.map[i].size - 1;
 #ifndef CONFIG_RESOURCES_64BIT
@@ -1291,7 +1293,8 @@ void __init e820_reserve_resources(void)
 		res->end = end;
 
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		insert_resource(&iomem_resource, res);
+		if (e820.map[i].type != E820_RESERVED || res->start < (1ULL<<20))
+			insert_resource(&iomem_resource, res);
 		res++;
 	}
 
@@ -1300,6 +1303,19 @@ void __init e820_reserve_resources(void)
 		firmware_map_add_early(entry->addr,
 			entry->addr + entry->size - 1,
 			e820_type_to_string(entry->type));
+	}
+}
+
+void __init e820_reserve_resources_late(void)
+{
+	int i;
+	struct resource *res;
+
+	res = e820_res;
+	for (i = 0; i < e820.nr_map; i++) {
+		if (e820.map[i].type == E820_RESERVED && res->start >= (1ULL<<20))
+			insert_resource(&iomem_resource, res);
+		res++;
 	}
 }
 
