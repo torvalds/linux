@@ -232,11 +232,12 @@ void b43_set_txpower_g(struct b43_wldev *dev,
 	if (unlikely(tx_bias == 0xFF))
 		tx_bias = 0;
 
-	/* Save the values for later */
+	/* Save the values for later. Use memmove, because it's valid
+	 * to pass &gphy->rfatt as rfatt pointer argument. Same for bbatt. */
 	gphy->tx_control = tx_control;
-	memcpy(&gphy->rfatt, rfatt, sizeof(*rfatt));
+	memmove(&gphy->rfatt, rfatt, sizeof(*rfatt));
 	gphy->rfatt.with_padmix = !!(tx_control & B43_TXCTL_TXMIX);
-	memcpy(&gphy->bbatt, bbatt, sizeof(*bbatt));
+	memmove(&gphy->bbatt, bbatt, sizeof(*bbatt));
 
 	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
 		b43dbg(dev->wl, "Tuning TX-power to bbatt(%u), "
