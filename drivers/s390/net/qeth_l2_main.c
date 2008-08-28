@@ -177,9 +177,10 @@ static int qeth_l2_send_delgroupmac(struct qeth_card *card, __u8 *mac)
 					  qeth_l2_send_delgroupmac_cb);
 }
 
-static void qeth_l2_add_mc(struct qeth_card *card, __u8 *mac)
+static void qeth_l2_add_mc(struct qeth_card *card, __u8 *mac, int vmac)
 {
 	struct qeth_mc_mac *mc;
+	int rc;
 
 	mc = kmalloc(sizeof(struct qeth_mc_mac), GFP_ATOMIC);
 
@@ -188,8 +189,16 @@ static void qeth_l2_add_mc(struct qeth_card *card, __u8 *mac)
 
 	memcpy(mc->mc_addr, mac, OSA_ADDR_LEN);
 	mc->mc_addrlen = OSA_ADDR_LEN;
+	mc->is_vmac = vmac;
 
-	if (!qeth_l2_send_setgroupmac(card, mac))
+	if (vmac) {
+		rc = qeth_l2_send_setdelmac(card, mac, IPA_CMD_SETVMAC,
+					NULL);
+	} else {
+		rc = qeth_l2_send_setgroupmac(card, mac);
+	}
+
+	if (!rc)
 		list_add_tail(&mc->list, &card->mc_list);
 	else
 		kfree(mc);
@@ -201,7 +210,11 @@ static void qeth_l2_del_all_mc(struct qeth_card *card)
 
 	spin_lock_bh(&card->mclock);
 	list_for_each_entry_safe(mc, tmp, &card->mc_list, list) {
-		qeth_l2_send_delgroupmac(card, mc->mc_addr);
+		if (mc->is_vmac)
+			qeth_l2_send_setdelmac(card, mc->mc_addr,
+					IPA_CMD_DELVMAC, NULL);
+		else
+			qeth_l2_send_delgroupmac(card, mc->mc_addr);
 		list_del(&mc->list);
 		kfree(mc);
 	}
@@ -590,7 +603,7 @@ static int qeth_l2_set_mac_address(struct net_device *dev, void *p)
 static void qeth_l2_set_multicast_list(struct net_device *dev)
 {
 	struct qeth_card *card = dev->ml_priv;
-	struct dev_mc_list *dm;
+	struct dev_addr_list *dm;
 
 	if (card->info.type == QETH_CARD_TYPE_OSN)
 		return ;
@@ -599,7 +612,11 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 	qeth_l2_del_all_mc(card);
 	spin_lock_bh(&card->mclock);
 	for (dm = dev->mc_list; dm; dm = dm->next)
-		qeth_l2_add_mc(card, dm->dmi_addr);
+		qeth_l2_add_mc(card, dm->da_addr, 0);
+
+	for (dm = dev->uc_list; dm; dm = dm->next)
+		qeth_l2_add_mc(card, dm->da_addr, 1);
+
 	spin_unlock_bh(&card->mclock);
 	if (!qeth_adp_supported(card, IPA_SETADP_SET_PROMISC_MODE))
 		return;

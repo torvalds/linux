@@ -1839,7 +1839,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      qdisc_root_lock(sch),
+					      qdisc_root_sleeping_lock(sch),
 					      tca[TCA_RATE]);
 		return 0;
 	}
@@ -1930,7 +1930,7 @@ cbq_change_class(struct Qdisc *sch, u32 classid, u32 parentid, struct nlattr **t
 
 	if (tca[TCA_RATE])
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  qdisc_root_lock(sch), tca[TCA_RATE]);
+				  qdisc_root_sleeping_lock(sch), tca[TCA_RATE]);
 
 	*arg = (unsigned long)cl;
 	return 0;
