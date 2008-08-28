@@ -93,11 +93,6 @@ struct bus_type ebus_bus_type;
 EXPORT_SYMBOL(ebus_bus_type);
 #endif
 
-#ifdef CONFIG_SBUS
-struct bus_type sbus_bus_type;
-EXPORT_SYMBOL(sbus_bus_type);
-#endif
-
 struct bus_type of_platform_bus_type;
 EXPORT_SYMBOL(of_platform_bus_type);
 
@@ -873,10 +868,6 @@ static int __init of_bus_driver_init(void)
 #ifdef CONFIG_PCI
 	if (!err)
 		err = of_bus_type_init(&ebus_bus_type, "ebus");
-#endif
-#ifdef CONFIG_SBUS
-	if (!err)
-		err = of_bus_type_init(&sbus_bus_type, "sbus");
 #endif
 
 	if (!err)
