@@ -32,7 +32,7 @@ config OBP_FLASH
 
 config TADPOLE_TS102_UCTRL
 	tristate "Tadpole TS102 Microcontroller support (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && SPARC32
+	depends on EXPERIMENTAL
 	help
 	  Say Y here to directly support the TS102 Microcontroller interface
 	  on the Tadpole Sparcbook 3.  This device handles power-management
