@@ -1190,8 +1190,8 @@ int i2c_probe(struct i2c_adapter *adapter,
 		 && address_data->normal_i2c[0] == I2C_CLIENT_END)
 			return 0;
 
-		dev_warn(&adapter->dev, "SMBus Quick command not supported, "
-			 "can't probe for chips\n");
+		dev_dbg(&adapter->dev, "SMBus Quick command not supported, "
+			"can't probe for chips\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1352,6 +1352,10 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		}
 	}
 
+	/* Stop here if the classes do not match */
+	if (!(adapter->class & driver->class))
+		goto exit_free;
+
 	/* Stop here if we can't use SMBUS_QUICK */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_QUICK)) {
 		if (address_data->probe[0] == I2C_CLIENT_END
@@ -1363,10 +1367,6 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		err = -EOPNOTSUPP;
 		goto exit_free;
 	}
-
-	/* Stop here if the classes do not match */
-	if (!(adapter->class & driver->class))
-		goto exit_free;
 
 	/* Probe entries are done second, and are not affected by ignore
 	   entries either */
