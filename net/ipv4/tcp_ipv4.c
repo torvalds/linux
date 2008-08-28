@@ -1946,6 +1946,12 @@ static void *listening_get_idx(struct seq_file *seq, loff_t *pos)
 	return rc;
 }
 
+static inline int empty_bucket(struct tcp_iter_state *st)
+{
+	return hlist_empty(&tcp_hashinfo.ehash[st->bucket].chain) &&
+		hlist_empty(&tcp_hashinfo.ehash[st->bucket].twchain);
+}
+
 static void *established_get_first(struct seq_file *seq)
 {
 	struct tcp_iter_state* st = seq->private;
@@ -1957,6 +1963,10 @@ static void *established_get_first(struct seq_file *seq)
 		struct hlist_node *node;
 		struct inet_timewait_sock *tw;
 		rwlock_t *lock = inet_ehash_lockp(&tcp_hashinfo, st->bucket);
+
+		/* Lockless fast path for the common case of empty buckets */
+		if (empty_bucket(st))
+			continue;
 
 		read_lock_bh(lock);
 		sk_for_each(sk, node, &tcp_hashinfo.ehash[st->bucket].chain) {
@@ -2008,13 +2018,15 @@ get_tw:
 		read_unlock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
 		st->state = TCP_SEQ_STATE_ESTABLISHED;
 
-		if (++st->bucket < tcp_hashinfo.ehash_size) {
-			read_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
-			sk = sk_head(&tcp_hashinfo.ehash[st->bucket].chain);
-		} else {
-			cur = NULL;
-			goto out;
-		}
+		/* Look for next non empty bucket */
+		while (++st->bucket < tcp_hashinfo.ehash_size &&
+				empty_bucket(st))
+			;
+		if (st->bucket >= tcp_hashinfo.ehash_size)
+			return NULL;
+
+		read_lock_bh(inet_ehash_lockp(&tcp_hashinfo, st->bucket));
+		sk = sk_head(&tcp_hashinfo.ehash[st->bucket].chain);
 	} else
 		sk = sk_next(sk);
 
