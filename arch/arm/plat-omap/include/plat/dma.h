@@ -633,6 +633,11 @@ extern void omap_set_dma_dst_endian_type(int lch, enum end_type etype);
 extern void omap_set_dma_src_endian_type(int lch, enum end_type etype);
 extern int omap_get_dma_index(int lch, int *ei, int *fi);
 
+void omap_dma_global_context_save(void);
+void omap_dma_global_context_restore(void);
+
+extern void omap_dma_disable_irq(int lch);
+
 /* Chaining APIs */
 #ifndef CONFIG_ARCH_OMAP1
 extern int omap_request_dma_chain(int dev_id, const char *dev_name,
