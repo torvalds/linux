@@ -49,6 +49,8 @@
 #include <asm/iommu.h>
 #include <asm/io-unit.h>
 
+#include "dma.h"
+
 #define mmu_inval_dma_area(p, l)	/* Anton pulled it out for 2.4.0-xx */
 
 static struct resource *_sparc_find_resource(struct resource *r,
