@@ -472,8 +472,9 @@ static void snprint_time(char *buf, size_t bufsiz, s64 nr)
 {
 	unsigned long rem;
 
+	nr += 5; /* for display rounding */
 	rem = do_div(nr, 1000); /* XXX: do_div_signed */
-	snprintf(buf, bufsiz, "%lld.%02d", (long long)nr, ((int)rem+5)/10);
+	snprintf(buf, bufsiz, "%lld.%02d", (long long)nr, (int)rem/10);
 }
 
 static void seq_time(struct seq_file *m, s64 time)
