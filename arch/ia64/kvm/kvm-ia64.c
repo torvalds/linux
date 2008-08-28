@@ -179,6 +179,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	switch (ext) {
 	case KVM_CAP_IRQCHIP:
 	case KVM_CAP_USER_MEMORY:
+	case KVM_CAP_MP_STATE:
 
 		r = 1;
 		break;
@@ -1789,11 +1790,43 @@ int kvm_arch_vcpu_runnable(struct kvm_vcpu *vcpu)
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL;
+	vcpu_load(vcpu);
+	mp_state->mp_state = vcpu->arch.mp_state;
+	vcpu_put(vcpu);
+	return 0;
+}
+
+static int vcpu_reset(struct kvm_vcpu *vcpu)
+{
+	int r;
+	long psr;
+	local_irq_save(psr);
+	r = kvm_insert_vmm_mapping(vcpu);
+	if (r)
+		goto fail;
+
+	vcpu->arch.launched = 0;
+	kvm_arch_vcpu_uninit(vcpu);
+	r = kvm_arch_vcpu_init(vcpu);
+	if (r)
+		goto fail;
+
+	kvm_purge_vmm_mapping(vcpu);
+	r = 0;
+fail:
+	local_irq_restore(psr);
+	return r;
 }
 
 int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 				    struct kvm_mp_state *mp_state)
 {
-	return -EINVAL;
+	int r = 0;
+
+	vcpu_load(vcpu);
+	vcpu->arch.mp_state = mp_state->mp_state;
+	if (vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)
+		r = vcpu_reset(vcpu);
+	vcpu_put(vcpu);
+	return r;
 }
