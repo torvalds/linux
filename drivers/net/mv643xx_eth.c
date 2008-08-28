@@ -631,11 +631,9 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 		for (i = 0; i < mp->txq_count; i++)
 			txq_reclaim(mp->txq + i, 0);
 
-		if (netif_carrier_ok(mp->dev)) {
-			spin_lock_irq(&mp->lock);
-			__txq_maybe_wake(mp->txq);
-			spin_unlock_irq(&mp->lock);
-		}
+		spin_lock_irq(&mp->lock);
+		__txq_maybe_wake(mp->txq);
+		spin_unlock_irq(&mp->lock);
 	}
 #endif
 
@@ -1765,7 +1763,6 @@ static void handle_link_event(struct mv643xx_eth_private *mp)
 			printk(KERN_INFO "%s: link down\n", dev->name);
 
 			netif_carrier_off(dev);
-			netif_stop_queue(dev);
 
 			for (i = 0; i < mp->txq_count; i++) {
 				struct tx_queue *txq = mp->txq + i;
@@ -1799,10 +1796,8 @@ static void handle_link_event(struct mv643xx_eth_private *mp)
 			 speed, duplex ? "full" : "half",
 			 fc ? "en" : "dis");
 
-	if (!netif_carrier_ok(dev)) {
+	if (!netif_carrier_ok(dev))
 		netif_carrier_on(dev);
-		netif_wake_queue(dev);
-	}
 }
 
 static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
@@ -1851,11 +1846,9 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 		 * Enough space again in the primary TX queue for a
 		 * full packet?
 		 */
-		if (netif_carrier_ok(dev)) {
-			spin_lock(&mp->lock);
-			__txq_maybe_wake(mp->txq);
-			spin_unlock(&mp->lock);
-		}
+		spin_lock(&mp->lock);
+		__txq_maybe_wake(mp->txq);
+		spin_unlock(&mp->lock);
 	}
 
 	/*
@@ -2060,7 +2053,6 @@ static int mv643xx_eth_open(struct net_device *dev)
 	}
 
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 
 	port_start(mp);
 
@@ -2123,7 +2115,6 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	del_timer_sync(&mp->rx_oom);
 
 	netif_carrier_off(dev);
-	netif_stop_queue(dev);
 
 	free_irq(dev->irq, dev);
 
@@ -2184,11 +2175,9 @@ static void tx_timeout_task(struct work_struct *ugly)
 	mp = container_of(ugly, struct mv643xx_eth_private, tx_timeout_task);
 	if (netif_running(mp->dev)) {
 		netif_stop_queue(mp->dev);
-
 		port_reset(mp);
 		port_start(mp);
-
-		__txq_maybe_wake(mp->txq);
+		netif_wake_queue(mp->dev);
 	}
 }
 
