@@ -38,6 +38,7 @@
 #include <linux/bitops.h>
 #include <linux/platform_device.h>
 #include <linux/jiffies.h>
+#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -67,7 +68,9 @@ static int dapm_status = 1;
 module_param(dapm_status, int, 0);
 MODULE_PARM_DESC(dapm_status, "enable DPM sysfs entries");
 
-static unsigned int pop_time;
+static struct dentry *asoc_debugfs;
+
+static u32 pop_time;
 
 static void pop_wait(void)
 {
@@ -817,51 +820,35 @@ static ssize_t dapm_widget_show(struct device *dev,
 
 static DEVICE_ATTR(dapm_widget, 0444, dapm_widget_show, NULL);
 
-/* pop/click delay times */
-static ssize_t dapm_pop_time_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", pop_time);
-}
-
-static ssize_t dapm_pop_time_store(struct device *dev,
-				   struct device_attribute *attr,
-				   const char *buf, size_t count)
-
-{
-	unsigned long val;
-
-	if (strict_strtoul(buf, 10, &val) >= 0)
-		pop_time = val;
-	else
-		printk(KERN_ERR "Unable to parse pop_time setting\n");
-
-	return count;
-}
-
-static DEVICE_ATTR(dapm_pop_time, 0744, dapm_pop_time_show,
-		   dapm_pop_time_store);
-
 int snd_soc_dapm_sys_add(struct device *dev)
 {
 	int ret = 0;
 
-	if (dapm_status) {
-		ret = device_create_file(dev, &dev_attr_dapm_widget);
+	if (!dapm_status)
+		return 0;
 
-		if (ret == 0)
-			ret = device_create_file(dev, &dev_attr_dapm_pop_time);
-	}
+	ret = device_create_file(dev, &dev_attr_dapm_widget);
+	if (ret != 0)
+		return ret;
 
-	return ret;
+	asoc_debugfs = debugfs_create_dir("asoc", NULL);
+	if (!IS_ERR(asoc_debugfs))
+		debugfs_create_u32("dapm_pop_time", 0744, asoc_debugfs,
+				   &pop_time);
+	else
+		asoc_debugfs = NULL;
+
+	return 0;
 }
 
 static void snd_soc_dapm_sys_remove(struct device *dev)
 {
 	if (dapm_status) {
-		device_remove_file(dev, &dev_attr_dapm_pop_time);
 		device_remove_file(dev, &dev_attr_dapm_widget);
 	}
+
+	if (asoc_debugfs)
+		debugfs_remove_recursive(asoc_debugfs);
 }
 
 /* free all dapm widgets and resources */
