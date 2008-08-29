@@ -511,9 +511,9 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 		return -EIO;
 	}
 
-	/* Check for bus mastering */
+	/* Enable bus mastering and memory mapped IO for the CX23418 */
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
-	cmd |= PCI_COMMAND_IO | PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
+	cmd |= PCI_COMMAND_MEMORY | PCI_COMMAND_MASTER;
 	pci_write_config_word(dev, PCI_COMMAND, cmd);
 
 	pci_read_config_byte(dev, PCI_CLASS_REVISION, &cx->card_rev);
@@ -525,11 +525,6 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *dev,
 		pci_write_config_byte(dev, PCI_LATENCY_TIMER, 64);
 		pci_read_config_byte(dev, PCI_LATENCY_TIMER, &pci_latency);
 	}
-	/* This config space value relates to DMA latencies. The
-	   default value 0x8080 is too low however and will lead
-	   to DMA errors. 0xffff is the max value which solves
-	   these problems. */
-	pci_write_config_dword(dev, 0x40, 0xffff);
 
 	CX18_DEBUG_INFO("cx%d (rev %d) at %02x:%02x.%x, "
 		   "irq: %d, latency: %d, memory: 0x%lx\n",
