@@ -924,7 +924,7 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 				    const struct pxa3xx_nand_platform_data *pdata)
 {
 	const struct pxa3xx_nand_flash *f;
-	uint32_t id;
+	uint32_t id = -1;
 	int i;
 
 	for (i = 0; i<pdata->num_flash; ++i) {
@@ -956,6 +956,9 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 	}
 #endif
 
+	dev_warn(&info->pdev->dev,
+		 "failed to detect configured nand flash; found %04x instead of\n",
+		 id);
 	return -ENODEV;
 }
 
