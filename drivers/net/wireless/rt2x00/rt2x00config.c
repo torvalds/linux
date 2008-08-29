@@ -121,7 +121,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	 * Antenna setup changes require the RX to be disabled,
 	 * else the changes will be ignored by the device.
 	 */
-	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_OFF_LINK);
 
 	/*
@@ -136,7 +136,7 @@ void rt2x00lib_config_antenna(struct rt2x00_dev *rt2x00dev,
 	rt2x00dev->link.ant.active.rx = libconf.ant.rx;
 	rt2x00dev->link.ant.active.tx = libconf.ant.tx;
 
-	if (test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		rt2x00lib_toggle_rx(rt2x00dev, STATE_RADIO_RX_ON_LINK);
 }
 

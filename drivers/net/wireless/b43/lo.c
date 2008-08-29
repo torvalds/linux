@@ -29,7 +29,7 @@
 
 #include "b43.h"
 #include "lo.h"
-#include "phy.h"
+#include "phy_g.h"
 #include "main.h"
 
 #include <linux/delay.h>
@@ -174,7 +174,8 @@ static u16 lo_txctl_register_table(struct b43_wldev *dev,
 static void lo_measure_txctl_values(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
-	struct b43_txpower_lo_control *lo = phy->lo_control;
+	struct b43_phy_g *gphy = phy->g;
+	struct b43_txpower_lo_control *lo = gphy->lo_control;
 	u16 reg, mask;
 	u16 trsw_rx, pga;
 	u16 radio_pctl_reg;
@@ -195,7 +196,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 		int lb_gain;	/* Loopback gain (in dB) */
 
 		trsw_rx = 0;
-		lb_gain = phy->max_lb_gain / 2;
+		lb_gain = gphy->max_lb_gain / 2;
 		if (lb_gain > 10) {
 			radio_pctl_reg = 0;
 			pga = abs(10 - lb_gain) / 6;
@@ -226,7 +227,7 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 	}
 	b43_radio_write16(dev, 0x43, (b43_radio_read16(dev, 0x43)
 				      & 0xFFF0) | radio_pctl_reg);
-	b43_phy_set_baseband_attenuation(dev, 2);
+	b43_gphy_set_baseband_attenuation(dev, 2);
 
 	reg = lo_txctl_register_table(dev, &mask, NULL);
 	mask = ~mask;
@@ -277,7 +278,8 @@ static void lo_measure_txctl_values(struct b43_wldev *dev)
 static void lo_read_power_vector(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
-	struct b43_txpower_lo_control *lo = phy->lo_control;
+	struct b43_phy_g *gphy = phy->g;
+	struct b43_txpower_lo_control *lo = gphy->lo_control;
 	int i;
 	u64 tmp;
 	u64 power_vector = 0;
@@ -298,6 +300,7 @@ static void lo_measure_gain_values(struct b43_wldev *dev,
 				   s16 max_rx_gain, int use_trsw_rx)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	u16 tmp;
 
 	if (max_rx_gain < 0)
@@ -308,7 +311,7 @@ static void lo_measure_gain_values(struct b43_wldev *dev,
 		int trsw_rx_gain;
 
 		if (use_trsw_rx) {
-			trsw_rx_gain = phy->trsw_rx_gain / 2;
+			trsw_rx_gain = gphy->trsw_rx_gain / 2;
 			if (max_rx_gain >= trsw_rx_gain) {
 				trsw_rx_gain = max_rx_gain - trsw_rx_gain;
 				trsw_rx = 0x20;
@@ -316,38 +319,38 @@ static void lo_measure_gain_values(struct b43_wldev *dev,
 		} else
 			trsw_rx_gain = max_rx_gain;
 		if (trsw_rx_gain < 9) {
-			phy->lna_lod_gain = 0;
+			gphy->lna_lod_gain = 0;
 		} else {
-			phy->lna_lod_gain = 1;
+			gphy->lna_lod_gain = 1;
 			trsw_rx_gain -= 8;
 		}
 		trsw_rx_gain = clamp_val(trsw_rx_gain, 0, 0x2D);
-		phy->pga_gain = trsw_rx_gain / 3;
-		if (phy->pga_gain >= 5) {
-			phy->pga_gain -= 5;
-			phy->lna_gain = 2;
+		gphy->pga_gain = trsw_rx_gain / 3;
+		if (gphy->pga_gain >= 5) {
+			gphy->pga_gain -= 5;
+			gphy->lna_gain = 2;
 		} else
-			phy->lna_gain = 0;
+			gphy->lna_gain = 0;
 	} else {
-		phy->lna_gain = 0;
-		phy->trsw_rx_gain = 0x20;
+		gphy->lna_gain = 0;
+		gphy->trsw_rx_gain = 0x20;
 		if (max_rx_gain >= 0x14) {
-			phy->lna_lod_gain = 1;
-			phy->pga_gain = 2;
+			gphy->lna_lod_gain = 1;
+			gphy->pga_gain = 2;
 		} else if (max_rx_gain >= 0x12) {
-			phy->lna_lod_gain = 1;
-			phy->pga_gain = 1;
+			gphy->lna_lod_gain = 1;
+			gphy->pga_gain = 1;
 		} else if (max_rx_gain >= 0xF) {
-			phy->lna_lod_gain = 1;
-			phy->pga_gain = 0;
+			gphy->lna_lod_gain = 1;
+			gphy->pga_gain = 0;
 		} else {
-			phy->lna_lod_gain = 0;
-			phy->pga_gain = 0;
+			gphy->lna_lod_gain = 0;
+			gphy->pga_gain = 0;
 		}
 	}
 
 	tmp = b43_radio_read16(dev, 0x7A);
-	if (phy->lna_lod_gain == 0)
+	if (gphy->lna_lod_gain == 0)
 		tmp &= ~0x0008;
 	else
 		tmp |= 0x0008;
@@ -392,10 +395,11 @@ static void lo_measure_setup(struct b43_wldev *dev,
 {
 	struct ssb_sprom *sprom = &dev->dev->bus->sprom;
 	struct b43_phy *phy = &dev->phy;
-	struct b43_txpower_lo_control *lo = phy->lo_control;
+	struct b43_phy_g *gphy = phy->g;
+	struct b43_txpower_lo_control *lo = gphy->lo_control;
 	u16 tmp;
 
-	if (b43_has_hardware_pctl(phy)) {
+	if (b43_has_hardware_pctl(dev)) {
 		sav->phy_lo_mask = b43_phy_read(dev, B43_PHY_LO_MASK);
 		sav->phy_extg_01 = b43_phy_read(dev, B43_PHY_EXTG(0x01));
 		sav->phy_dacctl_hwpctl = b43_phy_read(dev, B43_PHY_DACCTL);
@@ -496,7 +500,7 @@ static void lo_measure_setup(struct b43_wldev *dev,
 		b43_phy_write(dev, B43_PHY_CCK(0x2B), 0x0802);
 	if (phy->rev >= 2)
 		b43_dummy_transmission(dev);
-	b43_radio_selectchannel(dev, 6, 0);
+	b43_gphy_channel_switch(dev, 6, 0);
 	b43_radio_read16(dev, 0x51);	/* dummy read */
 	if (phy->type == B43_PHYTYPE_G)
 		b43_phy_write(dev, B43_PHY_CCK(0x2F), 0);
@@ -520,18 +524,19 @@ static void lo_measure_restore(struct b43_wldev *dev,
 			       struct lo_g_saved_values *sav)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	u16 tmp;
 
 	if (phy->rev >= 2) {
 		b43_phy_write(dev, B43_PHY_PGACTL, 0xE300);
-		tmp = (phy->pga_gain << 8);
+		tmp = (gphy->pga_gain << 8);
 		b43_phy_write(dev, B43_PHY_RFOVERVAL, tmp | 0xA0);
 		udelay(5);
 		b43_phy_write(dev, B43_PHY_RFOVERVAL, tmp | 0xA2);
 		udelay(2);
 		b43_phy_write(dev, B43_PHY_RFOVERVAL, tmp | 0xA3);
 	} else {
-		tmp = (phy->pga_gain | 0xEFA0);
+		tmp = (gphy->pga_gain | 0xEFA0);
 		b43_phy_write(dev, B43_PHY_PGACTL, tmp);
 	}
 	if (phy->type == B43_PHYTYPE_G) {
@@ -572,7 +577,7 @@ static void lo_measure_restore(struct b43_wldev *dev,
 		b43_phy_write(dev, B43_PHY_CCK(0x3E), sav->phy_cck_3E);
 		b43_phy_write(dev, B43_PHY_CRS0, sav->phy_crs0);
 	}
-	if (b43_has_hardware_pctl(phy)) {
+	if (b43_has_hardware_pctl(dev)) {
 		tmp = (sav->phy_lo_mask & 0xBFFF);
 		b43_phy_write(dev, B43_PHY_LO_MASK, tmp);
 		b43_phy_write(dev, B43_PHY_EXTG(0x01), sav->phy_extg_01);
@@ -580,7 +585,7 @@ static void lo_measure_restore(struct b43_wldev *dev,
 		b43_phy_write(dev, B43_PHY_CCK(0x14), sav->phy_cck_14);
 		b43_phy_write(dev, B43_PHY_HPWR_TSSICTL, sav->phy_hpwr_tssictl);
 	}
-	b43_radio_selectchannel(dev, sav->old_channel, 1);
+	b43_gphy_channel_switch(dev, sav->old_channel, 1);
 }
 
 struct b43_lo_g_statemachine {
@@ -597,6 +602,7 @@ static int lo_probe_possible_loctls(struct b43_wldev *dev,
 				    struct b43_lo_g_statemachine *d)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	struct b43_loctl test_loctl;
 	struct b43_loctl orig_loctl;
 	struct b43_loctl prev_loctl = {
@@ -646,9 +652,9 @@ static int lo_probe_possible_loctls(struct b43_wldev *dev,
 		     test_loctl.q != prev_loctl.q) &&
 		    (abs(test_loctl.i) <= 16 && abs(test_loctl.q) <= 16)) {
 			b43_lo_write(dev, &test_loctl);
-			feedth = lo_measure_feedthrough(dev, phy->lna_gain,
-							phy->pga_gain,
-							phy->trsw_rx_gain);
+			feedth = lo_measure_feedthrough(dev, gphy->lna_gain,
+							gphy->pga_gain,
+							gphy->trsw_rx_gain);
 			if (feedth < d->lowest_feedth) {
 				memcpy(probe_loctl, &test_loctl,
 				       sizeof(struct b43_loctl));
@@ -677,6 +683,7 @@ static void lo_probe_loctls_statemachine(struct b43_wldev *dev,
 					 int *max_rx_gain)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	struct b43_lo_g_statemachine d;
 	u16 feedth;
 	int found_lower;
@@ -693,17 +700,17 @@ static void lo_probe_loctls_statemachine(struct b43_wldev *dev,
 		max_repeat = 4;
 	do {
 		b43_lo_write(dev, &d.min_loctl);
-		feedth = lo_measure_feedthrough(dev, phy->lna_gain,
-						phy->pga_gain,
-						phy->trsw_rx_gain);
+		feedth = lo_measure_feedthrough(dev, gphy->lna_gain,
+						gphy->pga_gain,
+						gphy->trsw_rx_gain);
 		if (feedth < 0x258) {
 			if (feedth >= 0x12C)
 				*max_rx_gain += 6;
 			else
 				*max_rx_gain += 3;
-			feedth = lo_measure_feedthrough(dev, phy->lna_gain,
-							phy->pga_gain,
-							phy->trsw_rx_gain);
+			feedth = lo_measure_feedthrough(dev, gphy->lna_gain,
+							gphy->pga_gain,
+							gphy->trsw_rx_gain);
 		}
 		d.lowest_feedth = feedth;
 
@@ -752,6 +759,7 @@ struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
 					       const struct b43_rfatt *rfatt)
 {
 	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
 	struct b43_loctl loctl = {
 		.i = 0,
 		.q = 0,
@@ -782,11 +790,11 @@ struct b43_lo_calib * b43_calibrate_lo_setting(struct b43_wldev *dev,
 	if (rfatt->with_padmix)
 		max_rx_gain -= pad_mix_gain;
 	if (has_loopback_gain(phy))
-		max_rx_gain += phy->max_lb_gain;
+		max_rx_gain += gphy->max_lb_gain;
 	lo_measure_gain_values(dev, max_rx_gain,
 			       has_loopback_gain(phy));
 
-	b43_phy_set_baseband_attenuation(dev, bbatt->att);
+	b43_gphy_set_baseband_attenuation(dev, bbatt->att);
 	lo_probe_loctls_statemachine(dev, &loctl, &max_rx_gain);
 
 	lo_measure_restore(dev, &saved_regs);
@@ -820,7 +828,7 @@ struct b43_lo_calib * b43_get_calib_lo_settings(struct b43_wldev *dev,
 						const struct b43_bbatt *bbatt,
 						const struct b43_rfatt *rfatt)
 {
-	struct b43_txpower_lo_control *lo = dev->phy.lo_control;
+	struct b43_txpower_lo_control *lo = dev->phy.g->lo_control;
 	struct b43_lo_calib *c;
 
 	c = b43_find_lo_calib(lo, bbatt, rfatt);
@@ -839,7 +847,8 @@ struct b43_lo_calib * b43_get_calib_lo_settings(struct b43_wldev *dev,
 void b43_gphy_dc_lt_init(struct b43_wldev *dev, bool update_all)
 {
 	struct b43_phy *phy = &dev->phy;
-	struct b43_txpower_lo_control *lo = phy->lo_control;
+	struct b43_phy_g *gphy = phy->g;
+	struct b43_txpower_lo_control *lo = gphy->lo_control;
 	int i;
 	int rf_offset, bb_offset;
 	const struct b43_rfatt *rfatt;
@@ -917,14 +926,14 @@ static inline void b43_lo_fixup_rfatt(struct b43_rfatt *rf)
 
 void b43_lo_g_adjust(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = dev->phy.g;
 	struct b43_lo_calib *cal;
 	struct b43_rfatt rf;
 
-	memcpy(&rf, &phy->rfatt, sizeof(rf));
+	memcpy(&rf, &gphy->rfatt, sizeof(rf));
 	b43_lo_fixup_rfatt(&rf);
 
-	cal = b43_get_calib_lo_settings(dev, &phy->bbatt, &rf);
+	cal = b43_get_calib_lo_settings(dev, &gphy->bbatt, &rf);
 	if (!cal)
 		return;
 	b43_lo_write(dev, &cal->ctl);
@@ -952,7 +961,8 @@ void b43_lo_g_adjust_to(struct b43_wldev *dev,
 void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
-	struct b43_txpower_lo_control *lo = phy->lo_control;
+	struct b43_phy_g *gphy = phy->g;
+	struct b43_txpower_lo_control *lo = gphy->lo_control;
 	unsigned long now;
 	unsigned long expire;
 	struct b43_lo_calib *cal, *tmp;
@@ -962,7 +972,7 @@ void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 	if (!lo)
 		return;
 	now = jiffies;
-	hwpctl = b43_has_hardware_pctl(phy);
+	hwpctl = b43_has_hardware_pctl(dev);
 
 	if (hwpctl) {
 		/* Read the power vector and update it, if needed. */
@@ -983,8 +993,8 @@ void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 		if (!time_before(cal->calib_time, expire))
 			continue;
 		/* This item expired. */
-		if (b43_compare_bbatt(&cal->bbatt, &phy->bbatt) &&
-		    b43_compare_rfatt(&cal->rfatt, &phy->rfatt)) {
+		if (b43_compare_bbatt(&cal->bbatt, &gphy->bbatt) &&
+		    b43_compare_rfatt(&cal->rfatt, &gphy->rfatt)) {
 			B43_WARN_ON(current_item_expired);
 			current_item_expired = 1;
 		}
@@ -1002,7 +1012,7 @@ void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 		/* Recalibrate currently used LO setting. */
 		if (b43_debug(dev, B43_DBG_LO))
 			b43dbg(dev->wl, "LO: Recalibrating current LO setting\n");
-		cal = b43_calibrate_lo_setting(dev, &phy->bbatt, &phy->rfatt);
+		cal = b43_calibrate_lo_setting(dev, &gphy->bbatt, &gphy->rfatt);
 		if (cal) {
 			list_add(&cal->list, &lo->calib_list);
 			b43_lo_write(dev, &cal->ctl);
@@ -1013,7 +1023,7 @@ void b43_lo_g_maintanance_work(struct b43_wldev *dev)
 
 void b43_lo_g_cleanup(struct b43_wldev *dev)
 {
-	struct b43_txpower_lo_control *lo = dev->phy.lo_control;
+	struct b43_txpower_lo_control *lo = dev->phy.g->lo_control;
 	struct b43_lo_calib *cal, *tmp;
 
 	if (!lo)
@@ -1027,9 +1037,7 @@ void b43_lo_g_cleanup(struct b43_wldev *dev)
 /* LO Initialization */
 void b43_lo_g_init(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
-
-	if (b43_has_hardware_pctl(phy)) {
+	if (b43_has_hardware_pctl(dev)) {
 		lo_read_power_vector(dev);
 		b43_gphy_dc_lt_init(dev, 1);
 	}

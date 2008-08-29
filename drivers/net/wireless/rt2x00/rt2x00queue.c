@@ -100,8 +100,21 @@ void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 
-	skbdesc->skb_dma = dma_map_single(rt2x00dev->dev, skb->data, skb->len,
-					  DMA_TO_DEVICE);
+	/*
+	 * If device has requested headroom, we should make sure that
+	 * is also mapped to the DMA so it can be used for transfering
+	 * additional descriptor information to the hardware.
+	 */
+	skb_push(skb, rt2x00dev->hw->extra_tx_headroom);
+
+	skbdesc->skb_dma =
+	    dma_map_single(rt2x00dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
+
+	/*
+	 * Restore data pointer to original location again.
+	 */
+	skb_pull(skb, rt2x00dev->hw->extra_tx_headroom);
+
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
@@ -117,7 +130,12 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	}
 
 	if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
+		/*
+		 * Add headroom to the skb length, it has been removed
+		 * by the driver, but it was actually mapped to DMA.
+		 */
+		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma,
+				 skb->len + rt2x00dev->hw->extra_tx_headroom,
 				 DMA_TO_DEVICE);
 		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_TX;
 	}
@@ -356,7 +374,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	if (unlikely(rt2x00queue_full(queue)))
 		return -EINVAL;
 
-	if (__test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
+	if (test_and_set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags)) {
 		ERROR(queue->rt2x00dev,
 		      "Arrived at non-free entry in the non-full queue %d.\n"
 		      "Please file bug report to %s.\n",
@@ -396,7 +414,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	 * the frame to mac80211 because the skb->cb has now been tainted.
 	 */
 	if (unlikely(queue->rt2x00dev->ops->lib->write_tx_data(entry))) {
-		__clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		clear_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		dev_kfree_skb_any(entry->skb);
 		entry->skb = NULL;
 		return 0;
@@ -405,7 +423,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb)
 	if (test_bit(DRIVER_REQUIRE_DMA, &queue->rt2x00dev->flags))
 		rt2x00queue_map_txskb(queue->rt2x00dev, skb);
 
-	__set_bit(ENTRY_DATA_PENDING, &entry->flags);
+	set_bit(ENTRY_DATA_PENDING, &entry->flags);
 
 	rt2x00queue_index_inc(queue, Q_INDEX);
 	rt2x00queue_write_tx_descriptor(entry, &txdesc);
@@ -718,6 +736,7 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 
 	queue->rt2x00dev = rt2x00dev;
 	queue->qid = qid;
+	queue->txop = 0;
 	queue->aifs = 2;
 	queue->cw_min = 5;
 	queue->cw_max = 10;

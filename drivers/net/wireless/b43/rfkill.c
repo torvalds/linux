@@ -24,6 +24,7 @@
 
 #include "rfkill.h"
 #include "b43.h"
+#include "phy_common.h"
 
 #include <linux/kmod.h>
 
@@ -114,11 +115,11 @@ static int b43_rfkill_soft_toggle(void *data, enum rfkill_state state)
 			goto out_unlock;
 		}
 		if (!dev->phy.radio_on)
-			b43_radio_turn_on(dev);
+			b43_software_rfkill(dev, state);
 		break;
 	case RFKILL_STATE_SOFT_BLOCKED:
 		if (dev->phy.radio_on)
-			b43_radio_turn_off(dev, 0);
+			b43_software_rfkill(dev, state);
 		break;
 	default:
 		b43warn(wl, "Received unexpected rfkill state %d.\n", state);

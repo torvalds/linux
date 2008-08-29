@@ -144,6 +144,7 @@ struct ath_desc {
 #define ATH9K_TXDESC_EXT_AND_CTL	0x0080
 #define ATH9K_TXDESC_VMF		0x0100
 #define ATH9K_TXDESC_FRAG_IS_ON 	0x0200
+#define ATH9K_TXDESC_CAB		0x0400
 
 #define ATH9K_RXDESC_INTREQ		0x0020
 
@@ -564,8 +565,6 @@ enum ath9k_cipher {
 #define CTL_5GHT40              8
 
 #define AR_EEPROM_MAC(i)        (0x1d+(i))
-#define EEP_SCALE       100
-#define EEP_DELTA       10
 
 #define AR_EEPROM_RFSILENT_GPIO_SEL     0x001c
 #define AR_EEPROM_RFSILENT_GPIO_SEL_S   2
@@ -606,9 +605,6 @@ struct ath9k_country_entry {
 #define REG_CLR_BIT(_a, _r, _f) \
 	REG_WRITE(_a, _r, REG_READ(_a, _r) & ~_f)
 
-#define ATH9K_COMP_BUF_MAX_SIZE   9216
-#define ATH9K_COMP_BUF_ALIGN_SIZE 512
-
 #define ATH9K_TXQ_USE_LOCKOUT_BKOFF_DIS   0x00000001
 
 #define INIT_AIFS       2
@@ -632,12 +628,6 @@ struct ath9k_country_entry {
 				 (IEEE80211_WEP_IVLEN +		\
 				  IEEE80211_WEP_KIDLEN +	\
 				  IEEE80211_WEP_CRCLEN))
-#define IEEE80211_MAX_LEN       (2300 + FCS_LEN +		\
-				 (IEEE80211_WEP_IVLEN +		\
-				  IEEE80211_WEP_KIDLEN +	\
-				  IEEE80211_WEP_CRCLEN))
-
-#define MAX_REG_ADD_COUNT   129
 #define MAX_RATE_POWER 63
 
 enum ath9k_power_mode {
@@ -707,13 +697,6 @@ enum phytype {
 };
 #define PHY_CCK PHY_DS
 
-enum start_adhoc_option {
-	START_ADHOC_NO_11A,
-	START_ADHOC_PER_11D,
-	START_ADHOC_IN_11A,
-	START_ADHOC_IN_11B,
-};
-
 enum ath9k_tp_scale {
 	ATH9K_TP_SCALE_MAX = 0,
 	ATH9K_TP_SCALE_50,
@@ -769,14 +752,11 @@ struct ath9k_node_stats {
 
 #define ATH9K_RSSI_EP_MULTIPLIER  (1<<7)
 
-enum ath9k_gpio_output_mux_type {
-	ATH9K_GPIO_OUTPUT_MUX_AS_OUTPUT,
-	ATH9K_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED,
-	ATH9K_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED,
-	ATH9K_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED,
-	ATH9K_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED,
-	ATH9K_GPIO_OUTPUT_MUX_NUM_ENTRIES
-};
+#define AR_GPIO_OUTPUT_MUX_AS_OUTPUT             0
+#define AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED 1
+#define AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED     2
+#define AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED    5
+#define AR_GPIO_OUTPUT_MUX_AS_MAC_POWER_LED      6
 
 enum {
 	ATH9K_RESET_POWER_ON,
@@ -790,19 +770,20 @@ struct ath_hal {
 	u32 ah_magic;
 	u16 ah_devid;
 	u16 ah_subvendorid;
-	struct ath_softc *ah_sc;
-	void __iomem *ah_sh;
-	u16 ah_countryCode;
 	u32 ah_macVersion;
 	u16 ah_macRev;
 	u16 ah_phyRev;
 	u16 ah_analog5GhzRev;
 	u16 ah_analog2GhzRev;
-	u8 ah_decompMask[ATH9K_DECOMP_MASK_SIZE];
-	u32 ah_flags;
+
+	void __iomem *ah_sh;
+	struct ath_softc *ah_sc;
 	enum ath9k_opmode ah_opmode;
 	struct ath9k_ops_config ah_config;
 	struct ath9k_hw_capabilities ah_caps;
+
+	u16 ah_countryCode;
+	u32 ah_flags;
 	int16_t ah_powerLimit;
 	u16 ah_maxPowerLevel;
 	u32 ah_tpScale;
@@ -812,15 +793,16 @@ struct ath_hal {
 	u16 ah_currentRD5G;
 	u16 ah_currentRD2G;
 	char ah_iso[4];
-	enum start_adhoc_option ah_adHocMode;
-	bool ah_commonMode;
+
 	struct ath9k_channel ah_channels[150];
-	u32 ah_nchan;
 	struct ath9k_channel *ah_curchan;
+	u32 ah_nchan;
+
 	u16 ah_rfsilent;
 	bool ah_rfkillEnabled;
 	bool ah_isPciExpress;
 	u16 ah_txTrigLevel;
+
 #ifndef ATH_NF_PER_CHAN
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
 #endif
@@ -853,7 +835,7 @@ bool ath9k_regd_init_channels(struct ath_hal *ah,
 u32 ath9k_hw_mhz2ieee(struct ath_hal *ah, u32 freq, u32 flags);
 enum ath9k_int ath9k_hw_set_interrupts(struct ath_hal *ah,
 				     enum ath9k_int ints);
-bool ath9k_hw_reset(struct ath_hal *ah, enum ath9k_opmode opmode,
+bool ath9k_hw_reset(struct ath_hal *ah,
 		    struct ath9k_channel *chan,
 		    enum ath9k_ht_macmode macmode,
 		    u8 txchainmask, u8 rxchainmask,
@@ -1018,4 +1000,7 @@ void ath9k_hw_get_channel_centers(struct ath_hal *ah,
 bool ath9k_get_channel_edges(struct ath_hal *ah,
 			     u16 flags, u16 *low,
 			     u16 *high);
+void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
+			u32 ah_signal_type);
+void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 value);
 #endif

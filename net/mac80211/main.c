@@ -598,7 +598,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct sta_info *sta;
 	struct ieee80211_sub_if_data *sdata;
-	u16 start_seq_num = 0;
+	u16 start_seq_num;
 	u8 *state;
 	int ret;
 	DECLARE_MAC_BUF(mac);
@@ -677,6 +677,9 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 	/* Ok, the Addba frame hasn't been sent yet, but if the driver calls the
 	 * call back right away, it must see that the flow has begun */
 	*state |= HT_ADDBA_REQUESTED_MSK;
+
+	/* This is slightly racy because the queue isn't stopped */
+	start_seq_num = sta->tid_seq[tid];
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_TX_START,

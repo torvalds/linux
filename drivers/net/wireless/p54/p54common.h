@@ -89,6 +89,16 @@ struct pda_pa_curve_data_sample_rev1 {
 	u8 data_qpsk;
 	u8 data_16qam;
 	u8 data_64qam;
+} __attribute__ ((packed));
+
+struct p54_pa_curve_data_sample {
+	u8 rf_power;
+	u8 pa_detector;
+	u8 data_barker;
+	u8 data_bpsk;
+	u8 data_qpsk;
+	u8 data_16qam;
+	u8 data_64qam;
 	u8 padding;
 } __attribute__ ((packed));
 
@@ -212,8 +222,8 @@ struct p54_tx_control_filter {
 } __attribute__ ((packed));
 
 struct p54_tx_control_channel {
-	__le16 magic1;
-	__le16 magic2;
+	__le16 flags;
+	__le16 dwell;
 	u8 padding1[20];
 	struct pda_iq_autocal_entry iq_autocal;
 	u8 pa_points_per_curve;
@@ -222,8 +232,13 @@ struct p54_tx_control_channel {
 	u8 val_qpsk;
 	u8 val_16qam;
 	u8 val_64qam;
-	struct pda_pa_curve_data_sample_rev1 curve_data[0];
-	/* additional padding/data after curve_data */
+	struct pda_pa_curve_data_sample_rev1 curve_data[8];
+	u8 dup_bpsk;
+	u8 dup_qpsk;
+	u8 dup_16qam;
+	u8 dup_64qam;
+	__le16 rssical_mul;
+	__le16 rssical_add;
 } __attribute__ ((packed));
 
 struct p54_tx_control_led {

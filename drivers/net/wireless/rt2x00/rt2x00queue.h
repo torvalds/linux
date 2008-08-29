@@ -140,13 +140,14 @@ static inline struct skb_frame_desc* get_skb_frame_desc(struct sk_buff *skb)
 /**
  * enum rxdone_entry_desc_flags: Flags for &struct rxdone_entry_desc
  *
- * @RXDONE_SIGNAL_PLCP: Does the signal field contain the plcp value,
- *	or does it contain the bitrate itself.
+ * @RXDONE_SIGNAL_PLCP: Signal field contains the plcp value.
+ * @RXDONE_SIGNAL_BITRATE: Signal field contains the bitrate value.
  * @RXDONE_MY_BSS: Does this frame originate from device's BSS.
  */
 enum rxdone_entry_desc_flags {
 	RXDONE_SIGNAL_PLCP = 1 << 0,
-	RXDONE_MY_BSS = 1 << 1,
+	RXDONE_SIGNAL_BITRATE = 1 << 1,
+	RXDONE_MY_BSS = 1 << 2,
 };
 
 /**
@@ -368,6 +369,7 @@ enum queue_index {
  * @length: Number of frames in queue.
  * @index: Index pointers to entry positions in the queue,
  *	use &enum queue_index to get a specific index field.
+ * @txop: maximum burst time.
  * @aifs: The aifs value for outgoing frames (field ignored in RX queue).
  * @cw_min: The cw min value for outgoing frames (field ignored in RX queue).
  * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
@@ -387,6 +389,7 @@ struct data_queue {
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
 
+	unsigned short txop;
 	unsigned short aifs;
 	unsigned short cw_min;
 	unsigned short cw_max;

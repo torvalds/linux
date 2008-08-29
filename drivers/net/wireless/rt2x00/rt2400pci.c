@@ -1241,7 +1241,7 @@ static irqreturn_t rt2400pci_interrupt(int irq, void *dev_instance)
 	if (!reg)
 		return IRQ_NONE;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
 	/*

@@ -158,12 +158,14 @@ struct ieee80211_low_level_stats {
  *	also implies a change in the AID.
  * @BSS_CHANGED_ERP_CTS_PROT: CTS protection changed
  * @BSS_CHANGED_ERP_PREAMBLE: preamble changed
+ * @BSS_CHANGED_ERP_SLOT: slot timing changed
  * @BSS_CHANGED_HT: 802.11n parameters changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
 	BSS_CHANGED_ERP_CTS_PROT	= 1<<1,
 	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
+	BSS_CHANGED_ERP_SLOT		= 1<<3,
 	BSS_CHANGED_HT                  = 1<<4,
 };
 
@@ -177,6 +179,7 @@ enum ieee80211_bss_change {
  * @aid: association ID number, valid only when @assoc is true
  * @use_cts_prot: use CTS protection
  * @use_short_preamble: use 802.11b short preamble
+ * @use_short_slot: use short slot time (only relevant for ERP)
  * @dtim_period: num of beacons before the next DTIM, for PSM
  * @timestamp: beacon timestamp
  * @beacon_int: beacon interval
@@ -192,6 +195,7 @@ struct ieee80211_bss_conf {
 	/* erp related data */
 	bool use_cts_prot;
 	bool use_short_preamble;
+	bool use_short_slot;
 	u8 dtim_period;
 	u16 beacon_int;
 	u16 assoc_capability;
@@ -420,6 +424,11 @@ struct ieee80211_rx_status {
  * @IEEE80211_CONF_PS: Enable 802.11 power save mode
  */
 enum ieee80211_conf_flags {
+	/*
+	 * TODO: IEEE80211_CONF_SHORT_SLOT_TIME will be removed once drivers
+	 * have been converted to use bss_info_changed() for slot time
+	 * configuration
+	 */
 	IEEE80211_CONF_SHORT_SLOT_TIME	= (1<<0),
 	IEEE80211_CONF_RADIOTAP		= (1<<1),
 	IEEE80211_CONF_SUPPORT_HT_MODE	= (1<<2),

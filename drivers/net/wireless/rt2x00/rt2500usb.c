@@ -1114,8 +1114,7 @@ static void rt2500usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_NEW_SEQ,
 			   test_bit(ENTRY_TXD_FIRST_FRAGMENT, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_IFS, txdesc->ifs);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT,
-			   skb->len - skbdesc->desc_len);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skb->len);
 	rt2x00_set_field32(&word, TXD_W0_CIPHER, CIPHER_NONE);
 	rt2x00_desc_write(txd, 0, word);
 }
@@ -1280,6 +1279,8 @@ static void rt2500usb_fill_rxdone(struct queue_entry *entry,
 
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
+	else
+		rxdesc->dev_flags |= RXDONE_SIGNAL_BITRATE;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
@@ -1297,7 +1298,7 @@ static void rt2500usb_beacondone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
 		return;
 
 	/*

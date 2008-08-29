@@ -291,9 +291,11 @@ static ssize_t lbs_rtap_set(struct device *dev,
 			if (priv->infra_open || priv->mesh_open)
 				return -EBUSY;
 			if (priv->mode == IW_MODE_INFRA)
-				lbs_send_deauthentication(priv);
+				lbs_cmd_80211_deauthenticate(priv,
+							     priv->curbssparams.bssid,
+							     WLAN_REASON_DEAUTH_LEAVING);
 			else if (priv->mode == IW_MODE_ADHOC)
-				lbs_stop_adhoc_network(priv);
+				lbs_adhoc_stop(priv);
 			lbs_add_rtap(priv);
 		}
 		priv->monitormode = monitor_mode;
@@ -956,16 +958,23 @@ EXPORT_SYMBOL_GPL(lbs_resume);
 static int lbs_setup_firmware(struct lbs_private *priv)
 {
 	int ret = -1;
+	s16 curlevel = 0, minlevel = 0, maxlevel = 0;
 
 	lbs_deb_enter(LBS_DEB_FW);
 
-	/*
-	 * Read MAC address from HW
-	 */
+	/* Read MAC address from firmware */
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 	ret = lbs_update_hw_spec(priv);
 	if (ret)
 		goto done;
+
+	/* Read power levels if available */
+	ret = lbs_get_tx_power(priv, &curlevel, &minlevel, &maxlevel);
+	if (ret == 0) {
+		priv->txpower_cur = curlevel;
+		priv->txpower_min = minlevel;
+		priv->txpower_max = maxlevel;
+	}
 
 	lbs_set_mac_control(priv);
 done:
@@ -1042,7 +1051,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	priv->mode = IW_MODE_INFRA;
 	priv->curbssparams.channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
-	priv->radioon = RADIO_ON;
+	priv->radio_on = 1;
 	priv->enablehwauto = 1;
 	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 	priv->psmode = LBS802_11POWERMODECAM;

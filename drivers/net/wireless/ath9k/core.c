@@ -21,9 +21,6 @@
 
 static int ath_outdoor;		/* enable outdoor use */
 
-static const u8 ath_bcast_mac[ETH_ALEN] =
-    { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
-
 static u32 ath_chainmask_sel_up_rssi_thres =
 	ATH_CHAINMASK_SEL_UP_RSSI_THRES;
 static u32 ath_chainmask_sel_down_rssi_thres =
@@ -54,10 +51,8 @@ static void bus_read_cachesize(struct ath_softc *sc, int *csz)
  *  Set current operating mode
  *
  *  This function initializes and fills the rate table in the ATH object based
- *  on the operating mode.  The blink rates are also set up here, although
- *  they have been superceeded by the ath_led module.
+ *  on the operating mode.
 */
-
 static void ath_setcurmode(struct ath_softc *sc, enum wireless_mode mode)
 {
 	const struct ath9k_rate_table *rt;
@@ -235,7 +230,7 @@ static int ath_setup_channels(struct ath_softc *sc)
  *  Determine mode from channel flags
  *
  *  This routine will provide the enumerated WIRELESSS_MODE value based
- *  on the settings of the channel flags.  If ho valid set of flags
+ *  on the settings of the channel flags.  If no valid set of flags
  *  exist, the lowest mode (11b) is selected.
 */
 
@@ -260,7 +255,8 @@ static enum wireless_mode ath_chan2mode(struct ath9k_channel *chan)
 	else if (chan->chanmode == CHANNEL_G_HT40MINUS)
 		return ATH9K_MODE_11NG_HT40MINUS;
 
-	/* NB: should not get here */
+	WARN_ON(1); /* should not get here */
+
 	return ATH9K_MODE_11B;
 }
 
@@ -275,14 +271,12 @@ static int ath_stop(struct ath_softc *sc)
 {
 	struct ath_hal *ah = sc->sc_ah;
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "%s: invalid %u\n",
-		__func__, sc->sc_invalid);
+	DPRINTF(sc, ATH_DBG_CONFIG, "%s: invalid %ld\n",
+		__func__, sc->sc_flags & SC_OP_INVALID);
 
 	/*
 	 * Shutdown the hardware and driver:
 	 *    stop output from above
-	 *    reset 802.11 state machine
-	 *      (sends station deassoc/deauth frames)
 	 *    turn off timers
 	 *    disable interrupts
 	 *    clear transmit machinery
@@ -294,66 +288,16 @@ static int ath_stop(struct ath_softc *sc)
 	 * hardware is gone (invalid).
 	 */
 
-	if (!sc->sc_invalid)
+	if (!(sc->sc_flags & SC_OP_INVALID))
 		ath9k_hw_set_interrupts(ah, 0);
 	ath_draintxq(sc, false);
-	if (!sc->sc_invalid) {
+	if (!(sc->sc_flags & SC_OP_INVALID)) {
 		ath_stoprecv(sc);
 		ath9k_hw_phy_disable(ah);
 	} else
 		sc->sc_rxlink = NULL;
 
 	return 0;
-}
-
-/*
- *  Start Scan
- *
- *  This function is called when starting a channel scan.  It will perform
- *  power save wakeup processing, set the filter for the scan, and get the
- *  chip ready to send broadcast packets out during the scan.
-*/
-
-void ath_scan_start(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	u32 rfilt;
-	u32 now = (u32) jiffies_to_msecs(get_timestamp());
-
-	sc->sc_scanning = 1;
-	rfilt = ath_calcrxfilter(sc);
-	ath9k_hw_setrxfilter(ah, rfilt);
-	ath9k_hw_write_associd(ah, ath_bcast_mac, 0);
-
-	/* Restore previous power management state. */
-
-	DPRINTF(sc, ATH_DBG_CONFIG, "%d.%03d | %s: RX filter 0x%x aid 0\n",
-		now / 1000, now % 1000, __func__, rfilt);
-}
-
-/*
- *  Scan End
- *
- *  This routine is called by the upper layer when the scan is completed.  This
- *  will set the filters back to normal operating mode, set the BSSID to the
- *  correct value, and restore the power save state.
-*/
-
-void ath_scan_end(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	u32 rfilt;
-	u32 now = (u32) jiffies_to_msecs(get_timestamp());
-
-	sc->sc_scanning = 0;
-	/* Request for a full reset due to rx packet filter changes */
-	sc->sc_full_reset = 1;
-	rfilt = ath_calcrxfilter(sc);
-	ath9k_hw_setrxfilter(ah, rfilt);
-	ath9k_hw_write_associd(ah, sc->sc_curbssid, sc->sc_curaid);
-
-	DPRINTF(sc, ATH_DBG_CONFIG, "%d.%03d | %s: RX filter 0x%x aid 0x%x\n",
-		now / 1000, now % 1000, __func__, rfilt, sc->sc_curaid);
 }
 
 /*
@@ -367,25 +311,23 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 {
 	struct ath_hal *ah = sc->sc_ah;
 	bool fastcc = true, stopped;
-	enum ath9k_ht_macmode ht_macmode;
 
-	if (sc->sc_invalid)	/* if the device is invalid or removed */
+	if (sc->sc_flags & SC_OP_INVALID) /* the device is invalid or removed */
 		return -EIO;
 
 	DPRINTF(sc, ATH_DBG_CONFIG,
 		"%s: %u (%u MHz) -> %u (%u MHz), cflags:%x\n",
 		__func__,
-		ath9k_hw_mhz2ieee(ah, sc->sc_curchan.channel,
-				  sc->sc_curchan.channelFlags),
-		sc->sc_curchan.channel,
+		ath9k_hw_mhz2ieee(ah, sc->sc_ah->ah_curchan->channel,
+				  sc->sc_ah->ah_curchan->channelFlags),
+		sc->sc_ah->ah_curchan->channel,
 		ath9k_hw_mhz2ieee(ah, hchan->channel, hchan->channelFlags),
 		hchan->channel, hchan->channelFlags);
 
-	ht_macmode = ath_cwm_macmode(sc);
-
-	if (hchan->channel != sc->sc_curchan.channel ||
-	    hchan->channelFlags != sc->sc_curchan.channelFlags ||
-	    sc->sc_update_chainmask || sc->sc_full_reset) {
+	if (hchan->channel != sc->sc_ah->ah_curchan->channel ||
+	    hchan->channelFlags != sc->sc_ah->ah_curchan->channelFlags ||
+	    (sc->sc_flags & SC_OP_CHAINMASK_UPDATE) ||
+	    (sc->sc_flags & SC_OP_FULL_RESET)) {
 		int status;
 		/*
 		 * This is only performed if the channel settings have
@@ -404,15 +346,16 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		 * to flush data frames already in queue because of
 		 * changing channel. */
 
-		if (!stopped || sc->sc_full_reset)
+		if (!stopped || (sc->sc_flags & SC_OP_FULL_RESET))
 			fastcc = false;
 
 		spin_lock_bh(&sc->sc_resetlock);
-		if (!ath9k_hw_reset(ah, sc->sc_opmode, hchan,
-					ht_macmode, sc->sc_tx_chainmask,
-					sc->sc_rx_chainmask,
-					sc->sc_ht_extprotspacing,
-					fastcc, &status)) {
+		if (!ath9k_hw_reset(ah, hchan,
+				    sc->sc_ht_info.tx_chan_width,
+				    sc->sc_tx_chainmask,
+				    sc->sc_rx_chainmask,
+				    sc->sc_ht_extprotspacing,
+				    fastcc, &status)) {
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: unable to reset channel %u (%uMhz) "
 				"flags 0x%x hal status %u\n", __func__,
@@ -424,9 +367,8 @@ int ath_set_channel(struct ath_softc *sc, struct ath9k_channel *hchan)
 		}
 		spin_unlock_bh(&sc->sc_resetlock);
 
-		sc->sc_curchan = *hchan;
-		sc->sc_update_chainmask = 0;
-		sc->sc_full_reset = 0;
+		sc->sc_flags &= ~SC_OP_CHAINMASK_UPDATE;
+		sc->sc_flags &= ~SC_OP_FULL_RESET;
 
 		/* Re-enable rx framework */
 		if (ath_startrecv(sc) != 0) {
@@ -537,7 +479,7 @@ int ath_chainmask_sel_logic(struct ath_softc *sc, struct ath_node *an)
 
 void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 {
-	sc->sc_update_chainmask = 1;
+	sc->sc_flags |= SC_OP_CHAINMASK_UPDATE;
 	if (is_ht) {
 		sc->sc_tx_chainmask = sc->sc_ah->ah_caps.tx_chainmask;
 		sc->sc_rx_chainmask = sc->sc_ah->ah_caps.rx_chainmask;
@@ -553,62 +495,6 @@ void ath_update_chainmask(struct ath_softc *sc, int is_ht)
 /******************/
 /* VAP management */
 /******************/
-
-/*
- *  VAP in Listen mode
- *
- *  This routine brings the VAP out of the down state into a "listen" state
- *  where it waits for association requests.  This is used in AP and AdHoc
- *  modes.
-*/
-
-int ath_vap_listen(struct ath_softc *sc, int if_id)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_vap *avp;
-	u32 rfilt = 0;
-	DECLARE_MAC_BUF(mac);
-
-	avp = sc->sc_vaps[if_id];
-	if (avp == NULL) {
-		DPRINTF(sc, ATH_DBG_FATAL, "%s: invalid interface id %u\n",
-			__func__, if_id);
-		return -EINVAL;
-	}
-
-#ifdef CONFIG_SLOW_ANT_DIV
-	ath_slow_ant_div_stop(&sc->sc_antdiv);
-#endif
-
-	/* update ratectrl about the new state */
-	ath_rate_newstate(sc, avp);
-
-	rfilt = ath_calcrxfilter(sc);
-	ath9k_hw_setrxfilter(ah, rfilt);
-
-	if (sc->sc_opmode == ATH9K_M_STA || sc->sc_opmode == ATH9K_M_IBSS) {
-		memcpy(sc->sc_curbssid, ath_bcast_mac, ETH_ALEN);
-		ath9k_hw_write_associd(ah, sc->sc_curbssid, sc->sc_curaid);
-	} else
-		sc->sc_curaid = 0;
-
-	DPRINTF(sc, ATH_DBG_CONFIG,
-		"%s: RX filter 0x%x bssid %s aid 0x%x\n",
-		__func__, rfilt, print_mac(mac,
-			sc->sc_curbssid), sc->sc_curaid);
-
-	/*
-	 * XXXX
-	 * Disable BMISS interrupt when we're not associated
-	 */
-	ath9k_hw_set_interrupts(ah,
-		sc->sc_imask & ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS));
-	sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
-	/* need to reconfigure the beacons when it moves to RUN */
-	sc->sc_beacons = 0;
-
-	return 0;
-}
 
 int ath_vap_attach(struct ath_softc *sc,
 		   int if_id,
@@ -647,16 +533,13 @@ int ath_vap_attach(struct ath_softc *sc,
 	/* Set the VAP opmode */
 	avp->av_opmode = opmode;
 	avp->av_bslot = -1;
-	INIT_LIST_HEAD(&avp->av_mcastq.axq_q);
-	INIT_LIST_HEAD(&avp->av_mcastq.axq_acq);
-	spin_lock_init(&avp->av_mcastq.axq_lock);
 
 	ath9k_hw_set_tsfadjust(sc->sc_ah, 1);
 
 	sc->sc_vaps[if_id] = avp;
 	sc->sc_nvaps++;
 	/* Set the device opmode */
-	sc->sc_opmode = opmode;
+	sc->sc_ah->ah_opmode = opmode;
 
 	/* default VAP configuration */
 	avp->av_config.av_fixed_rateset = IEEE80211_FIXED_RATE_NONE;
@@ -688,9 +571,6 @@ int ath_vap_detach(struct ath_softc *sc, int if_id)
 	ath_draintxq(sc, false);	/* stop xmit side */
 	ath_stoprecv(sc);	/* stop recv side */
 	ath_flushrecv(sc);	/* flush recv queue */
-
-	/* Reclaim any pending mcast bufs on the vap. */
-	ath_tx_draintxq(sc, &avp->av_mcastq, false);
 
 	kfree(avp);
 	sc->sc_vaps[if_id] = NULL;
@@ -728,9 +608,9 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	struct ath_hal *ah = sc->sc_ah;
 	int status;
 	int error = 0;
-	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
 
-	DPRINTF(sc, ATH_DBG_CONFIG, "%s: mode %d\n", __func__, sc->sc_opmode);
+	DPRINTF(sc, ATH_DBG_CONFIG, "%s: mode %d\n",
+		__func__, sc->sc_ah->ah_opmode);
 
 	/*
 	 * Stop anything previously setup.  This is safe
@@ -752,16 +632,16 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 * be followed by initialization of the appropriate bits
 	 * and then setup of the interrupt mask.
 	 */
-	sc->sc_curchan = *initial_chan;
 
 	spin_lock_bh(&sc->sc_resetlock);
-	if (!ath9k_hw_reset(ah, sc->sc_opmode, &sc->sc_curchan, ht_macmode,
-			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
-			   sc->sc_ht_extprotspacing, false, &status)) {
+	if (!ath9k_hw_reset(ah, initial_chan,
+			    sc->sc_ht_info.tx_chan_width,
+			    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
+			    sc->sc_ht_extprotspacing, false, &status)) {
 		DPRINTF(sc, ATH_DBG_FATAL,
 			"%s: unable to reset hardware; hal status %u "
 			"(freq %u flags 0x%x)\n", __func__, status,
-			sc->sc_curchan.channel, sc->sc_curchan.channelFlags);
+			initial_chan->channel, initial_chan->channelFlags);
 		error = -EIO;
 		spin_unlock_bh(&sc->sc_resetlock);
 		goto done;
@@ -802,7 +682,8 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 * Note we only do this (at the moment) for station mode.
 	 */
 	if (ath9k_hw_phycounters(ah) &&
-	    ((sc->sc_opmode == ATH9K_M_STA) || (sc->sc_opmode == ATH9K_M_IBSS)))
+	    ((sc->sc_ah->ah_opmode == ATH9K_M_STA) ||
+	     (sc->sc_ah->ah_opmode == ATH9K_M_IBSS)))
 		sc->sc_imask |= ATH9K_INT_MIB;
 	/*
 	 * Some hardware processes the TIM IE and fires an
@@ -811,7 +692,7 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 	 * enable the TIM interrupt when operating as station.
 	 */
 	if ((ah->ah_caps.hw_caps & ATH9K_HW_CAP_ENHANCEDPM) &&
-	    (sc->sc_opmode == ATH9K_M_STA) &&
+	    (sc->sc_ah->ah_opmode == ATH9K_M_STA) &&
 	    !sc->sc_config.swBeaconProcess)
 		sc->sc_imask |= ATH9K_INT_TIM;
 	/*
@@ -823,34 +704,34 @@ int ath_open(struct ath_softc *sc, struct ath9k_channel *initial_chan)
 
 	/* XXX: we must make sure h/w is ready and clear invalid flag
 	 * before turning on interrupt. */
-	sc->sc_invalid = 0;
+	sc->sc_flags &= ~SC_OP_INVALID;
 done:
 	return error;
 }
 
-/*
- * Reset the hardware w/o losing operational state.  This is
- * basically a more efficient way of doing ath_stop, ath_init,
- * followed by state transitions to the current 802.11
- * operational state.  Used to recover from errors rx overrun
- * and to reset the hardware when rf gain settings must be reset.
- */
-
-static int ath_reset_start(struct ath_softc *sc, u32 flag)
+int ath_reset(struct ath_softc *sc, bool retry_tx)
 {
 	struct ath_hal *ah = sc->sc_ah;
+	int status;
+	int error = 0;
 
 	ath9k_hw_set_interrupts(ah, 0);	/* disable interrupts */
-	ath_draintxq(sc, flag & RESET_RETRY_TXQ);	/* stop xmit side */
-	ath_stoprecv(sc);	/* stop recv side */
-	ath_flushrecv(sc);	/* flush recv queue */
+	ath_draintxq(sc, retry_tx);	/* stop xmit */
+	ath_stoprecv(sc);		/* stop recv */
+	ath_flushrecv(sc);		/* flush recv queue */
 
-	return 0;
-}
-
-static int ath_reset_end(struct ath_softc *sc, u32 flag)
-{
-	struct ath_hal *ah = sc->sc_ah;
+	/* Reset chip */
+	spin_lock_bh(&sc->sc_resetlock);
+	if (!ath9k_hw_reset(ah, sc->sc_ah->ah_curchan,
+			    sc->sc_ht_info.tx_chan_width,
+			    sc->sc_tx_chainmask, sc->sc_rx_chainmask,
+			    sc->sc_ht_extprotspacing, false, &status)) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"%s: unable to reset hardware; hal status %u\n",
+			__func__, status);
+		error = -EIO;
+	}
+	spin_unlock_bh(&sc->sc_resetlock);
 
 	if (ath_startrecv(sc) != 0)	/* restart recv */
 		DPRINTF(sc, ATH_DBG_FATAL,
@@ -861,16 +742,17 @@ static int ath_reset_end(struct ath_softc *sc, u32 flag)
 	 * that changes the channel so update any state that
 	 * might change as a result.
 	 */
-	ath_setcurmode(sc, ath_chan2mode(&sc->sc_curchan));
+	ath_setcurmode(sc, ath_chan2mode(sc->sc_ah->ah_curchan));
 
-	ath_update_txpow(sc);	/* update tx power state */
+	ath_update_txpow(sc);
 
-	if (sc->sc_beacons)
+	if (sc->sc_flags & SC_OP_BEACONS)
 		ath_beacon_config(sc, ATH_IF_ID_ANY);	/* restart beacons */
+
 	ath9k_hw_set_interrupts(ah, sc->sc_imask);
 
 	/* Restart the txq */
-	if (flag & RESET_RETRY_TXQ) {
+	if (retry_tx) {
 		int i;
 		for (i = 0; i < ATH9K_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i)) {
@@ -880,28 +762,6 @@ static int ath_reset_end(struct ath_softc *sc, u32 flag)
 			}
 		}
 	}
-	return 0;
-}
-
-int ath_reset(struct ath_softc *sc)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	int status;
-	int error = 0;
-	enum ath9k_ht_macmode ht_macmode = ath_cwm_macmode(sc);
-
-	/* NB: indicate channel change so we do a full reset */
-	spin_lock_bh(&sc->sc_resetlock);
-	if (!ath9k_hw_reset(ah, sc->sc_opmode, &sc->sc_curchan,
-			   ht_macmode,
-			   sc->sc_tx_chainmask, sc->sc_rx_chainmask,
-			   sc->sc_ht_extprotspacing, false, &status)) {
-		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: unable to reset hardware; hal status %u\n",
-			__func__, status);
-		error = -EIO;
-	}
-	spin_unlock_bh(&sc->sc_resetlock);
 
 	return error;
 }
@@ -911,7 +771,7 @@ int ath_suspend(struct ath_softc *sc)
 	struct ath_hal *ah = sc->sc_ah;
 
 	/* No I/O if device has been surprise removed */
-	if (sc->sc_invalid)
+	if (sc->sc_flags & SC_OP_INVALID)
 		return -EIO;
 
 	/* Shut off the interrupt before setting sc->sc_invalid to '1' */
@@ -919,7 +779,7 @@ int ath_suspend(struct ath_softc *sc)
 
 	/* XXX: we must make sure h/w will not generate any interrupt
 	 * before setting the invalid flag. */
-	sc->sc_invalid = 1;
+	sc->sc_flags |= SC_OP_INVALID;
 
 	/* disable HAL and put h/w to sleep */
 	ath9k_hw_disable(sc->sc_ah);
@@ -940,7 +800,7 @@ irqreturn_t ath_isr(int irq, void *dev)
 	bool sched = false;
 
 	do {
-		if (sc->sc_invalid) {
+		if (sc->sc_flags & SC_OP_INVALID) {
 			/*
 			 * The hardware is not ready/present, don't
 			 * touch anything. Note this can happen early
@@ -1050,7 +910,7 @@ static void ath9k_tasklet(unsigned long data)
 
 	if (status & ATH9K_INT_FATAL) {
 		/* need a chip reset */
-		ath_internal_reset(sc);
+		ath_reset(sc, false);
 		return;
 	} else {
 
@@ -1093,10 +953,9 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	int status;
 	int error = 0, i;
 	int csz = 0;
-	u32 rd;
 
 	/* XXX: hardware will not be ready until ath_open() being called */
-	sc->sc_invalid = 1;
+	sc->sc_flags |= SC_OP_INVALID;
 
 	sc->sc_debug = DBG_DEFAULT;
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: devid 0x%x\n", __func__, devid);
@@ -1125,9 +984,6 @@ int ath_init(u16 devid, struct ath_softc *sc)
 		goto bad;
 	}
 	sc->sc_ah = ah;
-
-	/* Get the chipset-specific aggr limit. */
-	sc->sc_rtsaggrlimit = ah->ah_caps.rts_aggr_limit;
 
 	/* Get the hardware key cache size. */
 	sc->sc_keymax = ah->ah_caps.keycache_size;
@@ -1162,14 +1018,12 @@ int ath_init(u16 devid, struct ath_softc *sc)
 	 * is resposible for filtering this list based on settings
 	 * like the phy mode.
 	 */
-	rd = ah->ah_currentRD;
-
 	error = ath_setup_channels(sc);
 	if (error)
 		goto bad;
 
 	/* default to STA mode */
-	sc->sc_opmode = ATH9K_M_MONITOR;
+	sc->sc_ah->ah_opmode = ATH9K_M_MONITOR;
 
 	/* Setup rate tables */
 
@@ -1240,7 +1094,7 @@ int ath_init(u16 devid, struct ath_softc *sc)
 
 	sc->sc_rc = ath_rate_attach(ah);
 	if (sc->sc_rc == NULL) {
-		error = EIO;
+		error = -EIO;
 		goto bad2;
 	}
 
@@ -1280,19 +1134,12 @@ int ath_init(u16 devid, struct ath_softc *sc)
 
 	/* 11n Capabilities */
 	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_HT) {
-		sc->sc_txaggr = 1;
-		sc->sc_rxaggr = 1;
+		sc->sc_flags |= SC_OP_TXAGGR;
+		sc->sc_flags |= SC_OP_RXAGGR;
 	}
 
 	sc->sc_tx_chainmask = ah->ah_caps.tx_chainmask;
 	sc->sc_rx_chainmask = ah->ah_caps.rx_chainmask;
-
-	/* Configuration for rx chain detection */
-	sc->sc_rxchaindetect_ref = 0;
-	sc->sc_rxchaindetect_thresh5GHz = 35;
-	sc->sc_rxchaindetect_thresh2GHz = 35;
-	sc->sc_rxchaindetect_delta5GHz = 30;
-	sc->sc_rxchaindetect_delta2GHz = 30;
 
 	ath9k_hw_setcapability(ah, ATH9K_CAP_DIVERSITY, 1, true, NULL);
 	sc->sc_defant = ath9k_hw_getdefantenna(ah);
@@ -1337,7 +1184,7 @@ void ath_deinit(struct ath_softc *sc)
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s\n", __func__);
 
 	ath_stop(sc);
-	if (!sc->sc_invalid)
+	if (!(sc->sc_flags & SC_OP_INVALID))
 		ath9k_hw_setpower(sc->sc_ah, ATH9K_PM_AWAKE);
 	ath_rate_detach(sc->sc_rc);
 	/* cleanup tx queues */
@@ -1464,9 +1311,9 @@ void ath_newassoc(struct ath_softc *sc,
 	/* if station reassociates, tear down the aggregation state. */
 	if (!isnew) {
 		for (tidno = 0; tidno < WME_NUM_TID; tidno++) {
-			if (sc->sc_txaggr)
+			if (sc->sc_flags & SC_OP_TXAGGR)
 				ath_tx_aggr_teardown(sc, an, tidno);
-			if (sc->sc_rxaggr)
+			if (sc->sc_flags & SC_OP_RXAGGR)
 				ath_rx_aggr_teardown(sc, an, tidno);
 		}
 	}
@@ -1814,13 +1661,6 @@ void ath_descdma_cleanup(struct ath_softc *sc,
 /*************/
 /* Utilities */
 /*************/
-
-void ath_internal_reset(struct ath_softc *sc)
-{
-	ath_reset_start(sc, 0);
-	ath_reset(sc);
-	ath_reset_end(sc, 0);
-}
 
 int ath_get_hal_qnum(u16 queue, struct ath_softc *sc)
 {

@@ -61,4 +61,10 @@ int lbs_cmd_802_11_enable_rsn(struct lbs_private *priv, uint16_t cmd_action,
 int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
 				struct assoc_request *assoc);
 
+int lbs_get_tx_power(struct lbs_private *priv, s16 *curlevel, s16 *minlevel,
+		     s16 *maxlevel);
+int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
+
+int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
+
 #endif /* _LBS_CMD_H */

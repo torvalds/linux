@@ -1316,6 +1316,8 @@ static void rt2500pci_fill_rxdone(struct queue_entry *entry,
 
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
+	else
+		rxdesc->dev_flags |= RXDONE_SIGNAL_BITRATE;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 }
@@ -1377,7 +1379,7 @@ static irqreturn_t rt2500pci_interrupt(int irq, void *dev_instance)
 	if (!reg)
 		return IRQ_NONE;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags))
 		return IRQ_HANDLED;
 
 	/*

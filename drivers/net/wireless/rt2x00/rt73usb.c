@@ -1277,16 +1277,6 @@ static int rt73usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt73usb_register_write(rt2x00dev, PHY_CSR6, 0x00080606);
 	rt73usb_register_write(rt2x00dev, PHY_CSR7, 0x00000408);
 
-	rt73usb_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR0_AC0_TX_OP, 0);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR0_AC1_TX_OP, 0);
-	rt73usb_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
-
-	rt73usb_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR1_AC2_TX_OP, 192);
-	rt2x00_set_field32(&reg, AC_TXOP_CSR1_AC3_TX_OP, 48);
-	rt73usb_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
-
 	rt73usb_register_read(rt2x00dev, MAC_CSR9, &reg);
 	rt2x00_set_field32(&reg, MAC_CSR9_CW_SELECT, 0);
 	rt73usb_register_write(rt2x00dev, MAC_CSR9, reg);
@@ -1566,8 +1556,7 @@ static void rt73usb_write_tx_desc(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&word, TXD_W0_KEY_TABLE,
 			   test_bit(ENTRY_TXD_ENCRYPT_PAIRWISE, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_KEY_INDEX, txdesc->key_idx);
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT,
-			   skb->len - skbdesc->desc_len);
+	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, skb->len);
 	rt2x00_set_field32(&word, TXD_W0_BURST2,
 			   test_bit(ENTRY_TXD_BURST, &txdesc->flags));
 	rt2x00_set_field32(&word, TXD_W0_CIPHER_ALG, txdesc->cipher);
@@ -1776,6 +1765,8 @@ static void rt73usb_fill_rxdone(struct queue_entry *entry,
 
 	if (rt2x00_get_field32(word0, RXD_W0_OFDM))
 		rxdesc->dev_flags |= RXDONE_SIGNAL_PLCP;
+	else
+		rxdesc->dev_flags |= RXDONE_SIGNAL_BITRATE;
 	if (rt2x00_get_field32(word0, RXD_W0_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
@@ -2246,6 +2237,63 @@ static int rt73usb_set_retry_limit(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int rt73usb_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
+			   const struct ieee80211_tx_queue_params *params)
+{
+	struct rt2x00_dev *rt2x00dev = hw->priv;
+	struct data_queue *queue;
+	struct rt2x00_field32 field;
+	int retval;
+	u32 reg;
+
+	/*
+	 * First pass the configuration through rt2x00lib, that will
+	 * update the queue settings and validate the input. After that
+	 * we are free to update the registers based on the value
+	 * in the queue parameter.
+	 */
+	retval = rt2x00mac_conf_tx(hw, queue_idx, params);
+	if (retval)
+		return retval;
+
+	queue = rt2x00queue_get_queue(rt2x00dev, queue_idx);
+
+	/* Update WMM TXOP register */
+	if (queue_idx < 2) {
+		field.bit_offset = queue_idx * 16;
+		field.bit_mask = 0xffff << field.bit_offset;
+
+		rt73usb_register_read(rt2x00dev, AC_TXOP_CSR0, &reg);
+		rt2x00_set_field32(&reg, field, queue->txop);
+		rt73usb_register_write(rt2x00dev, AC_TXOP_CSR0, reg);
+	} else if (queue_idx < 4) {
+		field.bit_offset = (queue_idx - 2) * 16;
+		field.bit_mask = 0xffff << field.bit_offset;
+
+		rt73usb_register_read(rt2x00dev, AC_TXOP_CSR1, &reg);
+		rt2x00_set_field32(&reg, field, queue->txop);
+		rt73usb_register_write(rt2x00dev, AC_TXOP_CSR1, reg);
+	}
+
+	/* Update WMM registers */
+	field.bit_offset = queue_idx * 4;
+	field.bit_mask = 0xf << field.bit_offset;
+
+	rt73usb_register_read(rt2x00dev, AIFSN_CSR, &reg);
+	rt2x00_set_field32(&reg, field, queue->aifs);
+	rt73usb_register_write(rt2x00dev, AIFSN_CSR, reg);
+
+	rt73usb_register_read(rt2x00dev, CWMIN_CSR, &reg);
+	rt2x00_set_field32(&reg, field, queue->cw_min);
+	rt73usb_register_write(rt2x00dev, CWMIN_CSR, reg);
+
+	rt73usb_register_read(rt2x00dev, CWMAX_CSR, &reg);
+	rt2x00_set_field32(&reg, field, queue->cw_max);
+	rt73usb_register_write(rt2x00dev, CWMAX_CSR, reg);
+
+	return 0;
+}
+
 #if 0
 /*
  * Mac80211 demands get_tsf must be atomic.
@@ -2283,7 +2331,7 @@ static const struct ieee80211_ops rt73usb_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.set_retry_limit	= rt73usb_set_retry_limit,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
-	.conf_tx		= rt2x00mac_conf_tx,
+	.conf_tx		= rt73usb_conf_tx,
 	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt73usb_get_tsf,
 };

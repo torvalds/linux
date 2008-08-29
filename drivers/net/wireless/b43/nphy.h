@@ -1,7 +1,7 @@
 #ifndef B43_NPHY_H_
 #define B43_NPHY_H_
 
-#include "phy.h"
+#include "phy_common.h"
 
 
 /* N-PHY registers. */
@@ -919,54 +919,14 @@
 
 struct b43_wldev;
 
+struct b43_phy_n {
+	bool initialised;
 
-#ifdef CONFIG_B43_NPHY
-/* N-PHY support enabled */
-
-int b43_phy_initn(struct b43_wldev *dev);
-
-void b43_nphy_radio_turn_on(struct b43_wldev *dev);
-void b43_nphy_radio_turn_off(struct b43_wldev *dev);
-
-int b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel);
-
-void b43_nphy_xmitpower(struct b43_wldev *dev);
-void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna);
+	//TODO lots of missing stuff
+};
 
 
-#else /* CONFIG_B43_NPHY */
-/* N-PHY support disabled */
+struct b43_phy_operations;
+extern const struct b43_phy_operations b43_phyops_n;
 
-
-static inline
-int b43_phy_initn(struct b43_wldev *dev)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline
-void b43_nphy_radio_turn_on(struct b43_wldev *dev)
-{
-}
-static inline
-void b43_nphy_radio_turn_off(struct b43_wldev *dev)
-{
-}
-
-static inline
-int b43_nphy_selectchannel(struct b43_wldev *dev, u8 channel)
-{
-	return -ENOSYS;
-}
-
-static inline
-void b43_nphy_xmitpower(struct b43_wldev *dev)
-{
-}
-static inline
-void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
-{
-}
-
-#endif /* CONFIG_B43_NPHY */
 #endif /* B43_NPHY_H_ */

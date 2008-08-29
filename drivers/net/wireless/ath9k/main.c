@@ -22,8 +22,6 @@
 #define ATH_PCI_VERSION "0.1"
 
 #define IEEE80211_HTCAP_MAXRXAMPDU_FACTOR	13
-#define IEEE80211_ACTION_CAT_HT			7
-#define IEEE80211_ACTION_HT_TXCHWIDTH		0
 
 static char *dev_info = "ath9k";
 
@@ -212,21 +210,16 @@ static int ath_key_config(struct ath_softc *sc,
 
 static void ath_key_delete(struct ath_softc *sc, struct ieee80211_key_conf *key)
 {
-#define ATH_MAX_NUM_KEYS 4
 	int freeslot;
 
-	freeslot = (key->keyidx >= ATH_MAX_NUM_KEYS) ? 1 : 0;
+	freeslot = (key->keyidx >= 4) ? 1 : 0;
 	ath_key_reset(sc, key->keyidx, freeslot);
-#undef ATH_MAX_NUM_KEYS
 }
 
 static void setup_ht_cap(struct ieee80211_ht_info *ht_info)
 {
-/* Until mac80211 includes these fields */
-
-#define IEEE80211_HT_CAP_DSSSCCK40 0x1000
-#define	IEEE80211_HT_CAP_MAXRXAMPDU_65536 0x3   /* 2 ^ 16 */
-#define	IEEE80211_HT_CAP_MPDUDENSITY_8 0x6     	/* 8 usec */
+#define	ATH9K_HT_CAP_MAXRXAMPDU_65536 0x3	/* 2 ^ 16 */
+#define	ATH9K_HT_CAP_MPDUDENSITY_8 0x6		/* 8 usec */
 
 	ht_info->ht_supported = 1;
 	ht_info->cap = (u16)IEEE80211_HT_CAP_SUP_WIDTH
@@ -234,8 +227,8 @@ static void setup_ht_cap(struct ieee80211_ht_info *ht_info)
 			|(u16)IEEE80211_HT_CAP_SGI_40
 			|(u16)IEEE80211_HT_CAP_DSSSCCK40;
 
-	ht_info->ampdu_factor = IEEE80211_HT_CAP_MAXRXAMPDU_65536;
-	ht_info->ampdu_density = IEEE80211_HT_CAP_MPDUDENSITY_8;
+	ht_info->ampdu_factor = ATH9K_HT_CAP_MAXRXAMPDU_65536;
+	ht_info->ampdu_density = ATH9K_HT_CAP_MPDUDENSITY_8;
 	/* setup supported mcs set */
 	memset(ht_info->supp_mcs_set, 0, 16);
 	ht_info->supp_mcs_set[0] = 0xff;
@@ -368,6 +361,20 @@ static int ath9k_tx(struct ieee80211_hw *hw,
 {
 	struct ath_softc *sc = hw->priv;
 	int hdrlen, padsize;
+	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
+
+	/*
+	 * As a temporary workaround, assign seq# here; this will likely need
+	 * to be cleaned up to work better with Beacon transmission and virtual
+	 * BSSes.
+	 */
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		if (info->flags & IEEE80211_TX_CTL_FIRST_FRAGMENT)
+			sc->seq_no += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(sc->seq_no);
+	}
 
 	/* Add the padding after the header if this is not already done */
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
@@ -426,10 +433,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 	case IEEE80211_IF_TYPE_IBSS:
 		ic_opmode = ATH9K_M_IBSS;
 		break;
+	case IEEE80211_IF_TYPE_AP:
+		ic_opmode = ATH9K_M_HOSTAP;
+		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,
-			"%s: Only STA and IBSS are supported currently\n",
-			__func__);
+			"%s: Interface type %d not yet supported\n",
+			__func__, conf->type);
 		return -EOPNOTSUPP;
 	}
 
@@ -472,7 +482,8 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	ath_rate_newstate(sc, avp);
 
 	/* Reclaim beacon resources */
-	if (sc->sc_opmode == ATH9K_M_HOSTAP || sc->sc_opmode == ATH9K_M_IBSS) {
+	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP ||
+	    sc->sc_ah->ah_opmode == ATH9K_M_IBSS) {
 		ath9k_hw_stoptxdma(sc->sc_ah, sc->sc_bhalq);
 		ath_beacon_return(sc, avp);
 	}
@@ -480,7 +491,7 @@ static void ath9k_remove_interface(struct ieee80211_hw *hw,
 	/* Set interrupt mask */
 	sc->sc_imask &= ~(ATH9K_INT_SWBA | ATH9K_INT_BMISS);
 	ath9k_hw_set_interrupts(sc->sc_ah, sc->sc_imask & ~ATH9K_INT_GLOBAL);
-	sc->sc_beacons = 0;
+	sc->sc_flags &= ~SC_OP_BEACONS;
 
 	error = ath_vap_detach(sc, 0);
 	if (error)
@@ -529,6 +540,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 				  struct ieee80211_if_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
+	struct ath_hal *ah = sc->sc_ah;
 	struct ath_vap *avp;
 	u32 rfilt = 0;
 	int error, i;
@@ -541,6 +553,17 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		return -EINVAL;
 	}
 
+	/* TODO: Need to decide which hw opmode to use for multi-interface
+	 * cases */
+	if (vif->type == IEEE80211_IF_TYPE_AP &&
+	    ah->ah_opmode != ATH9K_M_HOSTAP) {
+		ah->ah_opmode = ATH9K_M_HOSTAP;
+		ath9k_hw_setopmode(ah);
+		ath9k_hw_write_associd(ah, sc->sc_myaddr, 0);
+		/* Request full reset to get hw opmode changed properly */
+		sc->sc_flags |= SC_OP_FULL_RESET;
+	}
+
 	if ((conf->changed & IEEE80211_IFCC_BSSID) &&
 	    !is_zero_ether_addr(conf->bssid)) {
 		switch (vif->type) {
@@ -548,10 +571,6 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 		case IEEE80211_IF_TYPE_IBSS:
 			/* Update ratectrl about the new state */
 			ath_rate_newstate(sc, avp);
-
-			/* Set rx filter */
-			rfilt = ath_calcrxfilter(sc);
-			ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
 
 			/* Set BSSID */
 			memcpy(sc->sc_curbssid, conf->bssid, ETH_ALEN);
@@ -585,7 +604,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 				print_mac(mac, sc->sc_curbssid), sc->sc_curaid);
 
 			/* need to reconfigure the beacon */
-			sc->sc_beacons = 0;
+			sc->sc_flags &= ~SC_OP_BEACONS ;
 
 			break;
 		default:
@@ -594,7 +613,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	}
 
 	if ((conf->changed & IEEE80211_IFCC_BEACON) &&
-	    (vif->type == IEEE80211_IF_TYPE_IBSS)) {
+	    ((vif->type == IEEE80211_IF_TYPE_IBSS) ||
+	     (vif->type == IEEE80211_IF_TYPE_AP))) {
 		/*
 		 * Allocate and setup the beacon frame.
 		 *
@@ -636,8 +656,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	FIF_BCN_PRBRESP_PROMISC |		\
 	FIF_FCSFAIL)
 
-/* Accept unicast, bcast and mcast frames */
-
+/* FIXME: sc->sc_full_reset ? */
 static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   unsigned int changed_flags,
 				   unsigned int *total_flags,
@@ -645,16 +664,22 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 				   struct dev_mc_list *mclist)
 {
 	struct ath_softc *sc = hw->priv;
+	u32 rfilt;
 
 	changed_flags &= SUPPORTED_FILTERS;
 	*total_flags &= SUPPORTED_FILTERS;
 
+	sc->rx_filter = *total_flags;
+	rfilt = ath_calcrxfilter(sc);
+	ath9k_hw_setrxfilter(sc->sc_ah, rfilt);
+
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			ath_scan_start(sc);
-		else
-			ath_scan_end(sc);
+			ath9k_hw_write_associd(sc->sc_ah, ath_bcast_mac, 0);
 	}
+
+	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Set HW RX filter: 0x%x\n",
+		__func__, sc->rx_filter);
 }
 
 static void ath9k_sta_notify(struct ieee80211_hw *hw,
@@ -831,7 +856,7 @@ static void ath9k_bss_assoc_info(struct ath_softc *sc,
 
 		/* Configure the beacon */
 		ath_beacon_config(sc, 0);
-		sc->sc_beacons = 1;
+		sc->sc_flags |= SC_OP_BEACONS;
 
 		/* Reset rssi stats */
 		sc->sc_halstats.ns_avgbrssi = ATH_RSSI_DUMMY_MARKER;
@@ -894,9 +919,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			__func__,
 			bss_conf->use_short_preamble);
 		if (bss_conf->use_short_preamble)
-			sc->sc_flags |= ATH_PREAMBLE_SHORT;
+			sc->sc_flags |= SC_OP_PREAMBLE_SHORT;
 		else
-			sc->sc_flags &= ~ATH_PREAMBLE_SHORT;
+			sc->sc_flags &= ~SC_OP_PREAMBLE_SHORT;
 	}
 
 	if (changed & BSS_CHANGED_ERP_CTS_PROT) {
@@ -905,9 +930,9 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 			bss_conf->use_cts_prot);
 		if (bss_conf->use_cts_prot &&
 		    hw->conf.channel->band != IEEE80211_BAND_5GHZ)
-			sc->sc_flags |= ATH_PROTECT_ENABLE;
+			sc->sc_flags |= SC_OP_PROTECT_ENABLE;
 		else
-			sc->sc_flags &= ~ATH_PROTECT_ENABLE;
+			sc->sc_flags &= ~SC_OP_PROTECT_ENABLE;
 	}
 
 	if (changed & BSS_CHANGED_HT) {
@@ -1035,15 +1060,6 @@ void ath_get_beaconconfig(struct ath_softc *sc,
 	conf->bmiss_timeout = ATH_DEFAULT_BMISS_LIMIT * conf->listen_interval;
 }
 
-int ath_update_beacon(struct ath_softc *sc,
-		      int if_id,
-		      struct ath_beacon_offset *bo,
-		      struct sk_buff *skb,
-		      int mcast)
-{
-	return 0;
-}
-
 void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		     struct ath_xmit_status *tx_status, struct ath_node *an)
 {
@@ -1065,8 +1081,16 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 		tx_status->flags &= ~ATH_TX_BAR;
 	}
-	if (tx_status->flags)
-		tx_info->status.excessive_retries = 1;
+
+	if (tx_status->flags & (ATH_TX_ERROR | ATH_TX_XRETRY)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+			/* Frame was not ACKed, but an ACK was expected */
+			tx_info->status.excessive_retries = 1;
+		}
+	} else {
+		/* Frame was ACKed */
+		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+	}
 
 	tx_info->status.retry_count = tx_status->retries;
 
@@ -1075,7 +1099,7 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		ath_node_put(sc, an, ATH9K_BH_STATUS_CHANGE);
 }
 
-int ath__rx_indicate(struct ath_softc *sc,
+int _ath_rx_indicate(struct ath_softc *sc,
 		     struct sk_buff *skb,
 		     struct ath_recv_status *status,
 		     u16 keyix)
@@ -1094,9 +1118,6 @@ int ath__rx_indicate(struct ath_softc *sc,
 		memmove(skb->data + padsize, skb->data, hdrlen);
 		skb_pull(skb, padsize);
 	}
-
-	/* remove FCS before passing up to protocol stack */
-	skb_trim(skb, (skb->len - FCS_LEN));
 
 	/* Prepare rx status */
 	ath9k_rx_prepare(sc, skb, status, &rx_status);
@@ -1146,9 +1167,119 @@ int ath_rx_subframe(struct ath_node *an,
 	return 0;
 }
 
-enum ath9k_ht_macmode ath_cwm_macmode(struct ath_softc *sc)
+/********************************/
+/*	 LED functions		*/
+/********************************/
+
+static void ath_led_brightness(struct led_classdev *led_cdev,
+			       enum led_brightness brightness)
 {
-	return sc->sc_ht_info.tx_chan_width;
+	struct ath_led *led = container_of(led_cdev, struct ath_led, led_cdev);
+	struct ath_softc *sc = led->sc;
+
+	switch (brightness) {
+	case LED_OFF:
+		if (led->led_type == ATH_LED_ASSOC ||
+		    led->led_type == ATH_LED_RADIO)
+			sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
+		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN,
+				(led->led_type == ATH_LED_RADIO) ? 1 :
+				!!(sc->sc_flags & SC_OP_LED_ASSOCIATED));
+		break;
+	case LED_FULL:
+		if (led->led_type == ATH_LED_ASSOC)
+			sc->sc_flags |= SC_OP_LED_ASSOCIATED;
+		ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 0);
+		break;
+	default:
+		break;
+	}
+}
+
+static int ath_register_led(struct ath_softc *sc, struct ath_led *led,
+			    char *trigger)
+{
+	int ret;
+
+	led->sc = sc;
+	led->led_cdev.name = led->name;
+	led->led_cdev.default_trigger = trigger;
+	led->led_cdev.brightness_set = ath_led_brightness;
+
+	ret = led_classdev_register(wiphy_dev(sc->hw->wiphy), &led->led_cdev);
+	if (ret)
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"Failed to register led:%s", led->name);
+	else
+		led->registered = 1;
+	return ret;
+}
+
+static void ath_unregister_led(struct ath_led *led)
+{
+	if (led->registered) {
+		led_classdev_unregister(&led->led_cdev);
+		led->registered = 0;
+	}
+}
+
+static void ath_deinit_leds(struct ath_softc *sc)
+{
+	ath_unregister_led(&sc->assoc_led);
+	sc->sc_flags &= ~SC_OP_LED_ASSOCIATED;
+	ath_unregister_led(&sc->tx_led);
+	ath_unregister_led(&sc->rx_led);
+	ath_unregister_led(&sc->radio_led);
+	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+}
+
+static void ath_init_leds(struct ath_softc *sc)
+{
+	char *trigger;
+	int ret;
+
+	/* Configure gpio 1 for output */
+	ath9k_hw_cfg_output(sc->sc_ah, ATH_LED_PIN,
+			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+	/* LED off, active low */
+	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+
+	trigger = ieee80211_get_radio_led_name(sc->hw);
+	snprintf(sc->radio_led.name, sizeof(sc->radio_led.name),
+		"ath9k-%s:radio", wiphy_name(sc->hw->wiphy));
+	ret = ath_register_led(sc, &sc->radio_led, trigger);
+	sc->radio_led.led_type = ATH_LED_RADIO;
+	if (ret)
+		goto fail;
+
+	trigger = ieee80211_get_assoc_led_name(sc->hw);
+	snprintf(sc->assoc_led.name, sizeof(sc->assoc_led.name),
+		"ath9k-%s:assoc", wiphy_name(sc->hw->wiphy));
+	ret = ath_register_led(sc, &sc->assoc_led, trigger);
+	sc->assoc_led.led_type = ATH_LED_ASSOC;
+	if (ret)
+		goto fail;
+
+	trigger = ieee80211_get_tx_led_name(sc->hw);
+	snprintf(sc->tx_led.name, sizeof(sc->tx_led.name),
+		"ath9k-%s:tx", wiphy_name(sc->hw->wiphy));
+	ret = ath_register_led(sc, &sc->tx_led, trigger);
+	sc->tx_led.led_type = ATH_LED_TX;
+	if (ret)
+		goto fail;
+
+	trigger = ieee80211_get_rx_led_name(sc->hw);
+	snprintf(sc->rx_led.name, sizeof(sc->rx_led.name),
+		"ath9k-%s:rx", wiphy_name(sc->hw->wiphy));
+	ret = ath_register_led(sc, &sc->rx_led, trigger);
+	sc->rx_led.led_type = ATH_LED_RX;
+	if (ret)
+		goto fail;
+
+	return;
+
+fail:
+	ath_deinit_leds(sc);
 }
 
 static int ath_detach(struct ath_softc *sc)
@@ -1156,6 +1287,9 @@ static int ath_detach(struct ath_softc *sc)
 	struct ieee80211_hw *hw = sc->hw;
 
 	DPRINTF(sc, ATH_DBG_CONFIG, "%s: Detach ATH hw\n", __func__);
+
+	/* Deinit LED control */
+	ath_deinit_leds(sc);
 
 	/* Unregister hw */
 
@@ -1250,18 +1384,21 @@ static int ath_attach(u16 devid,
 		goto bad;
 	}
 
+	/* Initialize LED control */
+	ath_init_leds(sc);
+
 	/* initialize tx/rx engine */
 
 	error = ath_tx_init(sc, ATH_TXBUF);
 	if (error != 0)
-		goto bad1;
+		goto detach;
 
 	error = ath_rx_init(sc, ATH_RXBUF);
 	if (error != 0)
-		goto bad1;
+		goto detach;
 
 	return 0;
-bad1:
+detach:
 	ath_detach(sc);
 bad:
 	return error;
@@ -1340,7 +1477,9 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		goto bad2;
 	}
 
-	hw->flags = IEEE80211_HW_SIGNAL_DBM |
+	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
+		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
+		IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM;
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
@@ -1404,6 +1543,10 @@ static void ath_pci_remove(struct pci_dev *pdev)
 
 static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 {
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath_softc *sc = hw->priv;
+
+	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, 3);
@@ -1413,6 +1556,8 @@ static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 
 static int ath_pci_resume(struct pci_dev *pdev)
 {
+	struct ieee80211_hw *hw = pci_get_drvdata(pdev);
+	struct ath_softc *sc = hw->priv;
 	u32 val;
 	int err;
 
@@ -1428,6 +1573,11 @@ static int ath_pci_resume(struct pci_dev *pdev)
 	pci_read_config_dword(pdev, 0x40, &val);
 	if ((val & 0x0000ff00) != 0)
 		pci_write_config_dword(pdev, 0x40, val & 0xffff00ff);
+
+	/* Enable LED */
+	ath9k_hw_cfg_output(sc->sc_ah, ATH_LED_PIN,
+			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
 
 	return 0;
 }

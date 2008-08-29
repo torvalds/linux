@@ -37,7 +37,7 @@ MODULE_DESCRIPTION("RF switch support");
 MODULE_LICENSE("GPL");
 
 static LIST_HEAD(rfkill_list);	/* list of registered rf switches */
-static DEFINE_MUTEX(rfkill_mutex);
+static DEFINE_MUTEX(rfkill_global_mutex);
 
 static unsigned int rfkill_default_state = RFKILL_STATE_UNBLOCKED;
 module_param_named(default_state, rfkill_default_state, uint, 0444);
@@ -76,6 +76,7 @@ static BLOCKING_NOTIFIER_HEAD(rfkill_notifier_list);
  */
 int register_rfkill_notifier(struct notifier_block *nb)
 {
+	BUG_ON(!nb);
 	return blocking_notifier_chain_register(&rfkill_notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(register_rfkill_notifier);
@@ -91,6 +92,7 @@ EXPORT_SYMBOL_GPL(register_rfkill_notifier);
  */
 int unregister_rfkill_notifier(struct notifier_block *nb)
 {
+	BUG_ON(!nb);
 	return blocking_notifier_chain_unregister(&rfkill_notifier_list, nb);
 }
 EXPORT_SYMBOL_GPL(unregister_rfkill_notifier);
@@ -202,6 +204,9 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 		 * RFKILL_STATE_HARD_BLOCKED */
 		break;
 	default:
+		WARN(1, KERN_WARNING
+			"rfkill: illegal state %d passed as parameter "
+			"to rfkill_toggle_radio\n", state);
 		return -EINVAL;
 	}
 
@@ -229,14 +234,18 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
  * unless a specific switch is claimed by userspace (in which case,
  * that switch is left alone) or suspended.
  *
- * Caller must have acquired rfkill_mutex.
+ * Caller must have acquired rfkill_global_mutex.
  */
 static void __rfkill_switch_all(const enum rfkill_type type,
 				const enum rfkill_state state)
 {
 	struct rfkill *rfkill;
 
-	if (unlikely(state >= RFKILL_STATE_MAX))
+	if (WARN((state >= RFKILL_STATE_MAX || type >= RFKILL_TYPE_MAX),
+			KERN_WARNING
+			"rfkill: illegal state %d or type %d "
+			"passed as parameter to __rfkill_switch_all\n",
+			state, type))
 		return;
 
 	rfkill_global_states[type].current_state = state;
@@ -254,14 +263,14 @@ static void __rfkill_switch_all(const enum rfkill_type type,
  * @type: type of interfaces to be affected
  * @state: the new state
  *
- * Acquires rfkill_mutex and calls __rfkill_switch_all(@type, @state).
+ * Acquires rfkill_global_mutex and calls __rfkill_switch_all(@type, @state).
  * Please refer to __rfkill_switch_all() for details.
  */
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 {
-	mutex_lock(&rfkill_mutex);
+	mutex_lock(&rfkill_global_mutex);
 	__rfkill_switch_all(type, state);
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL(rfkill_switch_all);
 
@@ -269,7 +278,7 @@ EXPORT_SYMBOL(rfkill_switch_all);
  * rfkill_epo - emergency power off all transmitters
  *
  * This kicks all non-suspended rfkill devices to RFKILL_STATE_SOFT_BLOCKED,
- * ignoring everything in its path but rfkill_mutex and rfkill->mutex.
+ * ignoring everything in its path but rfkill_global_mutex and rfkill->mutex.
  *
  * The global state before the EPO is saved and can be restored later
  * using rfkill_restore_states().
@@ -279,7 +288,8 @@ void rfkill_epo(void)
 	struct rfkill *rfkill;
 	int i;
 
-	mutex_lock(&rfkill_mutex);
+	mutex_lock(&rfkill_global_mutex);
+
 	list_for_each_entry(rfkill, &rfkill_list, node) {
 		mutex_lock(&rfkill->mutex);
 		rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
@@ -291,7 +301,7 @@ void rfkill_epo(void)
 		rfkill_global_states[i].current_state =
 				RFKILL_STATE_SOFT_BLOCKED;
 	}
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL_GPL(rfkill_epo);
 
@@ -306,10 +316,11 @@ void rfkill_restore_states(void)
 {
 	int i;
 
-	mutex_lock(&rfkill_mutex);
+	mutex_lock(&rfkill_global_mutex);
+
 	for (i = 0; i < RFKILL_TYPE_MAX; i++)
 		__rfkill_switch_all(i, rfkill_global_states[i].default_state);
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 }
 EXPORT_SYMBOL_GPL(rfkill_restore_states);
 
@@ -334,7 +345,11 @@ int rfkill_force_state(struct rfkill *rfkill, enum rfkill_state state)
 {
 	enum rfkill_state oldstate;
 
-	if (unlikely(state >= RFKILL_STATE_MAX))
+	BUG_ON(!rfkill);
+	if (WARN((state >= RFKILL_STATE_MAX),
+			KERN_WARNING
+			"rfkill: illegal state %d passed as parameter "
+			"to rfkill_force_state\n", state))
 		return -EINVAL;
 
 	mutex_lock(&rfkill->mutex);
@@ -402,11 +417,15 @@ static ssize_t rfkill_state_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	unsigned int state = simple_strtoul(buf, NULL, 0);
+	unsigned long state;
 	int error;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
+
+	error = strict_strtoul(buf, 0, &state);
+	if (error)
+		return error;
 
 	/* RFKILL_STATE_HARD_BLOCKED is illegal here... */
 	if (state != RFKILL_STATE_UNBLOCKED &&
@@ -427,7 +446,7 @@ static ssize_t rfkill_claim_show(struct device *dev,
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 
-	return sprintf(buf, "%d", rfkill->user_claim);
+	return sprintf(buf, "%d\n", rfkill->user_claim);
 }
 
 static ssize_t rfkill_claim_store(struct device *dev,
@@ -435,7 +454,8 @@ static ssize_t rfkill_claim_store(struct device *dev,
 				  const char *buf, size_t count)
 {
 	struct rfkill *rfkill = to_rfkill(dev);
-	bool claim = !!simple_strtoul(buf, NULL, 0);
+	unsigned long claim_tmp;
+	bool claim;
 	int error;
 
 	if (!capable(CAP_NET_ADMIN))
@@ -444,11 +464,16 @@ static ssize_t rfkill_claim_store(struct device *dev,
 	if (rfkill->user_claim_unsupported)
 		return -EOPNOTSUPP;
 
+	error = strict_strtoul(buf, 0, &claim_tmp);
+	if (error)
+		return error;
+	claim = !!claim_tmp;
+
 	/*
 	 * Take the global lock to make sure the kernel is not in
 	 * the middle of rfkill_switch_all
 	 */
-	error = mutex_lock_interruptible(&rfkill_mutex);
+	error = mutex_lock_interruptible(&rfkill_global_mutex);
 	if (error)
 		return error;
 
@@ -463,7 +488,7 @@ static ssize_t rfkill_claim_store(struct device *dev,
 		rfkill->user_claim = claim;
 	}
 
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 
 	return error ? error : count;
 }
@@ -583,10 +608,10 @@ static int rfkill_check_duplicity(const struct rfkill *rfkill)
 	memset(seen, 0, sizeof(seen));
 
 	list_for_each_entry(p, &rfkill_list, node) {
-		if (p == rfkill) {
-			WARN_ON(1);
+		if (WARN((p == rfkill), KERN_WARNING
+				"rfkill: illegal attempt to register "
+				"an already registered rfkill struct\n"))
 			return -EEXIST;
-		}
 		set_bit(p->type, seen);
 	}
 
@@ -598,7 +623,7 @@ static int rfkill_add_switch(struct rfkill *rfkill)
 {
 	int error;
 
-	mutex_lock(&rfkill_mutex);
+	mutex_lock(&rfkill_global_mutex);
 
 	error = rfkill_check_duplicity(rfkill);
 	if (error < 0)
@@ -619,16 +644,16 @@ static int rfkill_add_switch(struct rfkill *rfkill)
 
 	error = 0;
 unlock_out:
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 
 	return error;
 }
 
 static void rfkill_remove_switch(struct rfkill *rfkill)
 {
-	mutex_lock(&rfkill_mutex);
+	mutex_lock(&rfkill_global_mutex);
 	list_del_init(&rfkill->node);
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 
 	mutex_lock(&rfkill->mutex);
 	rfkill_toggle_radio(rfkill, RFKILL_STATE_SOFT_BLOCKED, 1);
@@ -653,6 +678,12 @@ struct rfkill * __must_check rfkill_allocate(struct device *parent,
 {
 	struct rfkill *rfkill;
 	struct device *dev;
+
+	if (WARN((type >= RFKILL_TYPE_MAX),
+			KERN_WARNING
+			"rfkill: illegal type %d passed as parameter "
+			"to rfkill_allocate\n", type))
+		return NULL;
 
 	rfkill = kzalloc(sizeof(struct rfkill), GFP_KERNEL);
 	if (!rfkill)
@@ -726,11 +757,12 @@ int __must_check rfkill_register(struct rfkill *rfkill)
 	struct device *dev = &rfkill->dev;
 	int error;
 
-	if (!rfkill->toggle_radio)
-		return -EINVAL;
-	if (rfkill->type >= RFKILL_TYPE_MAX)
-		return -EINVAL;
-	if (rfkill->state >= RFKILL_STATE_MAX)
+	if (WARN((!rfkill || !rfkill->toggle_radio ||
+			rfkill->type >= RFKILL_TYPE_MAX ||
+			rfkill->state >= RFKILL_STATE_MAX),
+			KERN_WARNING
+			"rfkill: attempt to register a "
+			"badly initialized rfkill struct\n"))
 		return -EINVAL;
 
 	snprintf(dev->bus_id, sizeof(dev->bus_id),
@@ -765,6 +797,7 @@ EXPORT_SYMBOL(rfkill_register);
  */
 void rfkill_unregister(struct rfkill *rfkill)
 {
+	BUG_ON(!rfkill);
 	device_del(&rfkill->dev);
 	rfkill_remove_switch(rfkill);
 	rfkill_led_trigger_unregister(rfkill);
@@ -801,12 +834,15 @@ int rfkill_set_default(enum rfkill_type type, enum rfkill_state state)
 {
 	int error;
 
-	if (type >= RFKILL_TYPE_MAX ||
-	    (state != RFKILL_STATE_SOFT_BLOCKED &&
-	     state != RFKILL_STATE_UNBLOCKED))
+	if (WARN((type >= RFKILL_TYPE_MAX ||
+			(state != RFKILL_STATE_SOFT_BLOCKED &&
+			 state != RFKILL_STATE_UNBLOCKED)),
+			KERN_WARNING
+			"rfkill: illegal state %d or type %d passed as "
+			"parameter to rfkill_set_default\n", state, type))
 		return -EINVAL;
 
-	mutex_lock(&rfkill_mutex);
+	mutex_lock(&rfkill_global_mutex);
 
 	if (!test_and_set_bit(type, rfkill_states_lockdflt)) {
 		rfkill_global_states[type].default_state = state;
@@ -814,7 +850,7 @@ int rfkill_set_default(enum rfkill_type type, enum rfkill_state state)
 	} else
 		error = -EPERM;
 
-	mutex_unlock(&rfkill_mutex);
+	mutex_unlock(&rfkill_global_mutex);
 	return error;
 }
 EXPORT_SYMBOL_GPL(rfkill_set_default);

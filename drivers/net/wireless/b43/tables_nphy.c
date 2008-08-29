@@ -24,7 +24,7 @@
 
 #include "b43.h"
 #include "tables_nphy.h"
-#include "phy.h"
+#include "phy_common.h"
 #include "nphy.h"
 
 

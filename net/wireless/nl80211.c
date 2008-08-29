@@ -87,6 +87,13 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_MESH_ID] = { .type = NLA_BINARY,
 				.len = IEEE80211_MAX_MESH_ID_LEN },
 	[NL80211_ATTR_MPATH_NEXT_HOP] = { .type = NLA_U32 },
+
+	[NL80211_ATTR_BSS_CTS_PROT] = { .type = NLA_U8 },
+	[NL80211_ATTR_BSS_SHORT_PREAMBLE] = { .type = NLA_U8 },
+	[NL80211_ATTR_BSS_SHORT_SLOT_TIME] = { .type = NLA_U8 },
+
+	[NL80211_ATTR_HT_CAPABILITY] = { .type = NLA_BINARY,
+					 .len = NL80211_HT_CAPABILITY_LEN },
 };
 
 /* message building helper */
@@ -1125,6 +1132,10 @@ static int nl80211_set_station(struct sk_buff *skb, struct genl_info *info)
 		params.listen_interval =
 		    nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 
+	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
+		params.ht_capa =
+			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
+
 	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
 				&params.station_flags))
 		return -EINVAL;
@@ -1188,6 +1199,9 @@ static int nl80211_new_station(struct sk_buff *skb, struct genl_info *info)
 	params.listen_interval =
 		nla_get_u16(info->attrs[NL80211_ATTR_STA_LISTEN_INTERVAL]);
 	params.aid = nla_get_u16(info->attrs[NL80211_ATTR_STA_AID]);
+	if (info->attrs[NL80211_ATTR_HT_CAPABILITY])
+		params.ht_capa =
+			nla_data(info->attrs[NL80211_ATTR_HT_CAPABILITY]);
 
 	if (parse_station_flags(info->attrs[NL80211_ATTR_STA_FLAGS],
 				&params.station_flags))
@@ -1525,6 +1539,48 @@ static int nl80211_del_mpath(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
+{
+	struct cfg80211_registered_device *drv;
+	int err;
+	struct net_device *dev;
+	struct bss_parameters params;
+
+	memset(&params, 0, sizeof(params));
+	/* default to not changing parameters */
+	params.use_cts_prot = -1;
+	params.use_short_preamble = -1;
+	params.use_short_slot_time = -1;
+
+	if (info->attrs[NL80211_ATTR_BSS_CTS_PROT])
+		params.use_cts_prot =
+		    nla_get_u8(info->attrs[NL80211_ATTR_BSS_CTS_PROT]);
+	if (info->attrs[NL80211_ATTR_BSS_SHORT_PREAMBLE])
+		params.use_short_preamble =
+		    nla_get_u8(info->attrs[NL80211_ATTR_BSS_SHORT_PREAMBLE]);
+	if (info->attrs[NL80211_ATTR_BSS_SHORT_SLOT_TIME])
+		params.use_short_slot_time =
+		    nla_get_u8(info->attrs[NL80211_ATTR_BSS_SHORT_SLOT_TIME]);
+
+	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
+	if (err)
+		return err;
+
+	if (!drv->ops->change_bss) {
+		err = -EOPNOTSUPP;
+		goto out;
+	}
+
+	rtnl_lock();
+	err = drv->ops->change_bss(&drv->wiphy, dev, &params);
+	rtnl_unlock();
+
+ out:
+	cfg80211_put_dev(drv);
+	dev_put(dev);
+	return err;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -1653,6 +1709,12 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_DEL_MPATH,
 		.doit = nl80211_del_mpath,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_BSS,
+		.doit = nl80211_set_bss,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

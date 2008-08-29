@@ -188,21 +188,6 @@ static int lbs_ret_802_11_snmp_mib(struct lbs_private *priv,
 	return 0;
 }
 
-static int lbs_ret_802_11_rf_tx_power(struct lbs_private *priv,
-				       struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_rf_tx_power *rtp = &resp->params.txp;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	priv->txpowerlevel = le16_to_cpu(rtp->currentlevel);
-
-	lbs_deb_cmd("TX power currently %d\n", priv->txpowerlevel);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
@@ -273,22 +258,8 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_80211_associate(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_DISASSOCIATE):
-	case CMD_RET(CMD_802_11_DEAUTHENTICATE):
-		ret = lbs_ret_80211_disassociate(priv);
-		break;
-
-	case CMD_RET(CMD_802_11_AD_HOC_START):
-	case CMD_RET(CMD_802_11_AD_HOC_JOIN):
-		ret = lbs_ret_80211_ad_hoc_start(priv, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_SNMP_MIB):
 		ret = lbs_ret_802_11_snmp_mib(priv, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_RF_TX_POWER):
-		ret = lbs_ret_802_11_rf_tx_power(priv, resp);
 		break;
 
 	case CMD_RET(CMD_802_11_SET_AFC):
@@ -307,10 +278,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 	case CMD_RET(CMD_802_11_RSSI):
 		ret = lbs_ret_802_11_rssi(priv, resp);
-		break;
-
-	case CMD_RET(CMD_802_11_AD_HOC_STOP):
-		ret = lbs_ret_80211_ad_hoc_stop(priv);
 		break;
 
 	case CMD_RET(CMD_802_11D_DOMAIN_INFO):

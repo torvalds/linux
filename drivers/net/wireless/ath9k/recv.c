@@ -184,7 +184,7 @@ static int ath_ampdu_input(struct ath_softc *sc,
 		tid = qc[0] & 0xf;
 	}
 
-	if (sc->sc_opmode == ATH9K_M_STA) {
+	if (sc->sc_ah->ah_opmode == ATH9K_M_STA) {
 		/* Drop the frame not belonging to me. */
 		if (memcmp(hdr->addr1, sc->sc_myaddr, ETH_ALEN)) {
 			dev_kfree_skb(skb);
@@ -448,17 +448,16 @@ static int ath_rx_indicate(struct ath_softc *sc,
 	int type;
 
 	/* indicate frame to the stack, which will free the old skb. */
-	type = ath__rx_indicate(sc, skb, status, keyix);
+	type = _ath_rx_indicate(sc, skb, status, keyix);
 
 	/* allocate a new skb and queue it to for H/W processing */
 	nskb = ath_rxbuf_alloc(sc, sc->sc_rxbufsize);
 	if (nskb != NULL) {
 		bf->bf_mpdu = nskb;
-		bf->bf_buf_addr = ath_skb_map_single(sc,
-			nskb,
-			PCI_DMA_FROMDEVICE,
-			/* XXX: Remove get_dma_mem_context() */
-			get_dma_mem_context(bf, bf_dmacontext));
+		bf->bf_buf_addr = pci_map_single(sc->pdev, nskb->data,
+					 skb_end_pointer(nskb) - nskb->head,
+					 PCI_DMA_FROMDEVICE);
+		bf->bf_dmacontext = bf->bf_buf_addr;
 		ATH_RX_CONTEXT(nskb)->ctx_rxbuf = bf;
 
 		/* queue the new wbuf to H/W */
@@ -504,7 +503,7 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 
 	do {
 		spin_lock_init(&sc->sc_rxflushlock);
-		sc->sc_rxflush = 0;
+		sc->sc_flags &= ~SC_OP_RXFLUSH;
 		spin_lock_init(&sc->sc_rxbuflock);
 
 		/*
@@ -541,9 +540,10 @@ int ath_rx_init(struct ath_softc *sc, int nbufs)
 			}
 
 			bf->bf_mpdu = skb;
-			bf->bf_buf_addr =
-				ath_skb_map_single(sc, skb, PCI_DMA_FROMDEVICE,
-				       get_dma_mem_context(bf, bf_dmacontext));
+			bf->bf_buf_addr = pci_map_single(sc->pdev, skb->data,
+					 skb_end_pointer(skb) - skb->head,
+					 PCI_DMA_FROMDEVICE);
+			bf->bf_dmacontext = bf->bf_buf_addr;
 			ATH_RX_CONTEXT(skb)->ctx_rxbuf = bf;
 		}
 		sc->sc_rxlink = NULL;
@@ -597,6 +597,7 @@ void ath_rx_cleanup(struct ath_softc *sc)
 u32 ath_calcrxfilter(struct ath_softc *sc)
 {
 #define	RX_FILTER_PRESERVE (ATH9K_RX_FILTER_PHYERR | ATH9K_RX_FILTER_PHYRADAR)
+
 	u32 rfilt;
 
 	rfilt = (ath9k_hw_getrxfilter(sc->sc_ah) & RX_FILTER_PRESERVE)
@@ -604,25 +605,29 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		| ATH9K_RX_FILTER_MCAST;
 
 	/* If not a STA, enable processing of Probe Requests */
-	if (sc->sc_opmode != ATH9K_M_STA)
+	if (sc->sc_ah->ah_opmode != ATH9K_M_STA)
 		rfilt |= ATH9K_RX_FILTER_PROBEREQ;
 
 	/* Can't set HOSTAP into promiscous mode */
-	if (sc->sc_opmode == ATH9K_M_MONITOR) {
+	if (((sc->sc_ah->ah_opmode != ATH9K_M_HOSTAP) &&
+	     (sc->rx_filter & FIF_PROMISC_IN_BSS)) ||
+	    (sc->sc_ah->ah_opmode == ATH9K_M_MONITOR)) {
 		rfilt |= ATH9K_RX_FILTER_PROM;
 		/* ??? To prevent from sending ACK */
 		rfilt &= ~ATH9K_RX_FILTER_UCAST;
 	}
 
-	if (sc->sc_opmode == ATH9K_M_STA || sc->sc_opmode == ATH9K_M_IBSS ||
-	    sc->sc_scanning)
+	if (((sc->sc_ah->ah_opmode == ATH9K_M_STA) &&
+	     (sc->rx_filter & FIF_BCN_PRBRESP_PROMISC)) ||
+	    (sc->sc_ah->ah_opmode == ATH9K_M_IBSS))
 		rfilt |= ATH9K_RX_FILTER_BEACON;
 
 	/* If in HOSTAP mode, want to enable reception of PSPOLL frames
 	   & beacon frames */
-	if (sc->sc_opmode == ATH9K_M_HOSTAP)
+	if (sc->sc_ah->ah_opmode == ATH9K_M_HOSTAP)
 		rfilt |= (ATH9K_RX_FILTER_BEACON | ATH9K_RX_FILTER_PSPOLL);
 	return rfilt;
+
 #undef RX_FILTER_PRESERVE
 }
 
@@ -702,11 +707,11 @@ void ath_flushrecv(struct ath_softc *sc)
 	 * progress (see references to sc_rxflush)
 	 */
 	spin_lock_bh(&sc->sc_rxflushlock);
-	sc->sc_rxflush = 1;
+	sc->sc_flags |= SC_OP_RXFLUSH;
 
 	ath_rx_tasklet(sc, 1);
 
-	sc->sc_rxflush = 0;
+	sc->sc_flags &= ~SC_OP_RXFLUSH;
 	spin_unlock_bh(&sc->sc_rxflushlock);
 }
 
@@ -719,7 +724,7 @@ int ath_rx_input(struct ath_softc *sc,
 		 struct ath_recv_status *rx_status,
 		 enum ATH_RX_TYPE *status)
 {
-	if (is_ampdu && sc->sc_rxaggr) {
+	if (is_ampdu && (sc->sc_flags & SC_OP_RXAGGR)) {
 		*status = ATH_RX_CONSUMED;
 		return ath_ampdu_input(sc, an, skb, rx_status);
 	} else {
@@ -750,7 +755,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 
 	do {
 		/* If handling rx interrupt and flush is in progress => exit */
-		if (sc->sc_rxflush && (flush == 0))
+		if ((sc->sc_flags & SC_OP_RXFLUSH) && (flush == 0))
 			break;
 
 		spin_lock_bh(&sc->sc_rxbuflock);
@@ -900,7 +905,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			 * Enable this if you want to see
 			 * error frames in Monitor mode.
 			 */
-			if (sc->sc_opmode != ATH9K_M_MONITOR)
+			if (sc->sc_ah->ah_opmode != ATH9K_M_MONITOR)
 				goto rx_next;
 #endif
 			/* fall thru for monitor mode handling... */
@@ -945,7 +950,7 @@ int ath_rx_tasklet(struct ath_softc *sc, int flush)
 			 * decryption and MIC failures. For monitor mode,
 			 * we also ignore the CRC error.
 			 */
-			if (sc->sc_opmode == ATH9K_M_MONITOR) {
+			if (sc->sc_ah->ah_opmode == ATH9K_M_MONITOR) {
 				if (ds->ds_rxstat.rs_status &
 				    ~(ATH9K_RXERR_DECRYPT | ATH9K_RXERR_MIC |
 					ATH9K_RXERR_CRC))
@@ -1089,7 +1094,7 @@ rx_next:
 			"%s: Reset rx chain mask. "
 			"Do internal reset\n", __func__);
 		ASSERT(flush == 0);
-		ath_internal_reset(sc);
+		ath_reset(sc, false);
 	}
 
 	return 0;
@@ -1127,7 +1132,7 @@ int ath_rx_aggr_start(struct ath_softc *sc,
 	rxtid = &an->an_aggr.rx.tid[tid];
 
 	spin_lock_bh(&rxtid->tidlock);
-	if (sc->sc_rxaggr) {
+	if (sc->sc_flags & SC_OP_RXAGGR) {
 		/* Allow aggregation reception
 		 * Adjust rx BA window size. Peer might indicate a
 		 * zero buffer size for a _dont_care_ condition.
@@ -1227,7 +1232,7 @@ void ath_rx_aggr_teardown(struct ath_softc *sc,
 
 void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_rxaggr) {
+	if (sc->sc_flags & SC_OP_RXAGGR) {
 		struct ath_arx_tid *rxtid;
 		int tidno;
 
@@ -1259,7 +1264,7 @@ void ath_rx_node_init(struct ath_softc *sc, struct ath_node *an)
 
 void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 {
-	if (sc->sc_rxaggr) {
+	if (sc->sc_flags & SC_OP_RXAGGR) {
 		struct ath_arx_tid *rxtid;
 		int tidno, i;
 
@@ -1291,28 +1296,4 @@ void ath_rx_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 void ath_rx_node_free(struct ath_softc *sc, struct ath_node *an)
 {
 	ath_rx_node_cleanup(sc, an);
-}
-
-dma_addr_t ath_skb_map_single(struct ath_softc *sc,
-			      struct sk_buff *skb,
-			      int direction,
-			      dma_addr_t *pa)
-{
-	/*
-	 * NB: do NOT use skb->len, which is 0 on initialization.
-	 * Use skb's entire data area instead.
-	 */
-	*pa = pci_map_single(sc->pdev, skb->data,
-		skb_end_pointer(skb) - skb->head, direction);
-	return *pa;
-}
-
-void ath_skb_unmap_single(struct ath_softc *sc,
-			  struct sk_buff *skb,
-			  int direction,
-			  dma_addr_t *pa)
-{
-	/* Unmap skb's entire data area */
-	pci_unmap_single(sc->pdev, *pa,
-		skb_end_pointer(skb) - skb->head, direction);
 }

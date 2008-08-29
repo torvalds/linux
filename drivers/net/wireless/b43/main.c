@@ -44,7 +44,8 @@
 #include "b43.h"
 #include "main.h"
 #include "debugfs.h"
-#include "phy.h"
+#include "phy_common.h"
+#include "phy_g.h"
 #include "nphy.h"
 #include "dma.h"
 #include "pio.h"
@@ -1174,6 +1175,8 @@ static void b43_calculate_link_quality(struct b43_wldev *dev)
 {
 	/* Top half of Link Quality calculation. */
 
+	if (dev->phy.type != B43_PHYTYPE_G)
+		return;
 	if (dev->noisecalc.calculation_running)
 		return;
 	dev->noisecalc.calculation_running = 1;
@@ -1184,13 +1187,16 @@ static void b43_calculate_link_quality(struct b43_wldev *dev)
 
 static void handle_irq_noise(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *phy = dev->phy.g;
 	u16 tmp;
 	u8 noise[4];
 	u8 i, j;
 	s32 average;
 
 	/* Bottom half of Link Quality calculation. */
+
+	if (dev->phy.type != B43_PHYTYPE_G)
+		return;
 
 	/* Possible race condition: It might be possible that the user
 	 * changed to a different channel in the meantime since we
@@ -2688,9 +2694,7 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 /* This is the opposite of b43_chip_init() */
 static void b43_chip_exit(struct b43_wldev *dev)
 {
-	b43_radio_turn_off(dev, 1);
 	b43_gpio_cleanup(dev);
-	b43_lo_g_cleanup(dev);
 	/* firmware is released later */
 }
 
@@ -2700,7 +2704,7 @@ static void b43_chip_exit(struct b43_wldev *dev)
 static int b43_chip_init(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
-	int err, tmp;
+	int err;
 	u32 value32, macctl;
 	u16 value16;
 
@@ -2725,19 +2729,19 @@ static int b43_chip_init(struct b43_wldev *dev)
 	err = b43_upload_initvals(dev);
 	if (err)
 		goto err_gpio_clean;
-	b43_radio_turn_on(dev);
 
 	b43_write16(dev, 0x03E6, 0x0000);
 	err = b43_phy_init(dev);
 	if (err)
-		goto err_radio_off;
+		goto err_gpio_clean;
 
-	/* Select initial Interference Mitigation. */
-	tmp = phy->interfmode;
-	phy->interfmode = B43_INTERFMODE_NONE;
-	b43_radio_set_interference_mitigation(dev, tmp);
+	/* Disable Interference Mitigation. */
+	if (phy->ops->interf_mitigation)
+		phy->ops->interf_mitigation(dev, B43_INTERFMODE_NONE);
 
-	b43_set_rx_antenna(dev, B43_ANTENNA_DEFAULT);
+	/* Select the antennae */
+	if (phy->ops->set_rx_antenna)
+		phy->ops->set_rx_antenna(dev, B43_ANTENNA_DEFAULT);
 	b43_mgmtframe_txantenna(dev, B43_ANTENNA_DEFAULT);
 
 	if (phy->type == B43_PHYTYPE_B) {
@@ -2790,8 +2794,6 @@ static int b43_chip_init(struct b43_wldev *dev)
 out:
 	return err;
 
-err_radio_off:
-	b43_radio_turn_off(dev, 1);
 err_gpio_clean:
 	b43_gpio_cleanup(dev);
 	return err;
@@ -2799,25 +2801,13 @@ err_gpio_clean:
 
 static void b43_periodic_every60sec(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
+	const struct b43_phy_operations *ops = dev->phy.ops;
 
-	if (phy->type != B43_PHYTYPE_G)
-		return;
-	if (dev->dev->bus->sprom.boardflags_lo & B43_BFL_RSSI) {
-		b43_mac_suspend(dev);
-		b43_calc_nrssi_slope(dev);
-		if ((phy->radio_ver == 0x2050) && (phy->radio_rev == 8)) {
-			u8 old_chan = phy->channel;
+	if (ops->pwork_60sec)
+		ops->pwork_60sec(dev);
 
-			/* VCO Calibration */
-			if (old_chan >= 8)
-				b43_radio_selectchannel(dev, 1, 0);
-			else
-				b43_radio_selectchannel(dev, 13, 0);
-			b43_radio_selectchannel(dev, old_chan, 0);
-		}
-		b43_mac_enable(dev);
-	}
+	/* Force check the TX power emission now. */
+	b43_phy_txpower_check(dev, B43_TXPWR_IGNORE_TIME);
 }
 
 static void b43_periodic_every30sec(struct b43_wldev *dev)
@@ -2845,32 +2835,8 @@ static void b43_periodic_every15sec(struct b43_wldev *dev)
 		}
 	}
 
-	if (phy->type == B43_PHYTYPE_G) {
-		//TODO: update_aci_moving_average
-		if (phy->aci_enable && phy->aci_wlan_automatic) {
-			b43_mac_suspend(dev);
-			if (!phy->aci_enable && 1 /*TODO: not scanning? */ ) {
-				if (0 /*TODO: bunch of conditions */ ) {
-					b43_radio_set_interference_mitigation
-					    (dev, B43_INTERFMODE_MANUALWLAN);
-				}
-			} else if (1 /*TODO*/) {
-				/*
-				   if ((aci_average > 1000) && !(b43_radio_aci_scan(dev))) {
-				   b43_radio_set_interference_mitigation(dev,
-				   B43_INTERFMODE_NONE);
-				   }
-				 */
-			}
-			b43_mac_enable(dev);
-		} else if (phy->interfmode == B43_INTERFMODE_NONWLAN &&
-			   phy->rev == 1) {
-			//TODO: implement rev1 workaround
-		}
-	}
-	b43_phy_xmitpower(dev);	//FIXME: unless scanning?
-	b43_lo_g_maintanance_work(dev);
-	//TODO for APHY (temperature?)
+	if (phy->ops->pwork_15sec)
+		phy->ops->pwork_15sec(dev);
 
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
 	wmb();
@@ -3401,7 +3367,7 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 	/* Switch to the requested channel.
 	 * The firmware takes care of races with the TX handler. */
 	if (conf->channel->hw_value != phy->channel)
-		b43_radio_selectchannel(dev, conf->channel->hw_value, 0);
+		b43_switch_channel(dev, conf->channel->hw_value);
 
 	/* Enable/Disable ShortSlot timing. */
 	if ((!!(conf->flags & IEEE80211_CONF_SHORT_SLOT_TIME)) !=
@@ -3417,17 +3383,21 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 
 	/* Adjust the desired TX power level. */
 	if (conf->power_level != 0) {
-		if (conf->power_level != phy->power_level) {
-			phy->power_level = conf->power_level;
-			b43_phy_xmitpower(dev);
+		spin_lock_irqsave(&wl->irq_lock, flags);
+		if (conf->power_level != phy->desired_txpower) {
+			phy->desired_txpower = conf->power_level;
+			b43_phy_txpower_check(dev, B43_TXPWR_IGNORE_TIME |
+						   B43_TXPWR_IGNORE_TSSI);
 		}
+		spin_unlock_irqrestore(&wl->irq_lock, flags);
 	}
 
 	/* Antennas for RX and management frame TX. */
 	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_tx);
 	b43_mgmtframe_txantenna(dev, antenna);
 	antenna = b43_antenna_from_ieee80211(dev, conf->antenna_sel_rx);
-	b43_set_rx_antenna(dev, antenna);
+	if (phy->ops->set_rx_antenna)
+		phy->ops->set_rx_antenna(dev, antenna);
 
 	/* Update templates for AP/mesh mode. */
 	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
@@ -3436,7 +3406,7 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 
 	if (!!conf->radio_enabled != phy->radio_on) {
 		if (conf->radio_enabled) {
-			b43_radio_turn_on(dev);
+			b43_software_rfkill(dev, RFKILL_STATE_UNBLOCKED);
 			b43info(dev->wl, "Radio turned on by software\n");
 			if (!dev->radio_hw_enable) {
 				b43info(dev->wl, "The hardware RF-kill button "
@@ -3444,7 +3414,7 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 					"Press the button to turn it on.\n");
 			}
 		} else {
-			b43_radio_turn_off(dev, 0);
+			b43_software_rfkill(dev, RFKILL_STATE_SOFT_BLOCKED);
 			b43info(dev->wl, "Radio turned off by software\n");
 		}
 	}
@@ -3818,48 +3788,10 @@ static int b43_phy_versioning(struct b43_wldev *dev)
 static void setup_struct_phy_for_init(struct b43_wldev *dev,
 				      struct b43_phy *phy)
 {
-	struct b43_txpower_lo_control *lo;
-	int i;
-
-	memset(phy->minlowsig, 0xFF, sizeof(phy->minlowsig));
-	memset(phy->minlowsigpos, 0, sizeof(phy->minlowsigpos));
-
-	phy->aci_enable = 0;
-	phy->aci_wlan_automatic = 0;
-	phy->aci_hw_rssi = 0;
-
-	phy->radio_off_context.valid = 0;
-
-	lo = phy->lo_control;
-	if (lo) {
-		memset(lo, 0, sizeof(*(phy->lo_control)));
-		lo->tx_bias = 0xFF;
-		INIT_LIST_HEAD(&lo->calib_list);
-	}
-	phy->max_lb_gain = 0;
-	phy->trsw_rx_gain = 0;
-	phy->txpwr_offset = 0;
-
-	/* NRSSI */
-	phy->nrssislope = 0;
-	for (i = 0; i < ARRAY_SIZE(phy->nrssi); i++)
-		phy->nrssi[i] = -1000;
-	for (i = 0; i < ARRAY_SIZE(phy->nrssi_lt); i++)
-		phy->nrssi_lt[i] = i;
-
-	phy->lofcal = 0xFFFF;
-	phy->initval = 0xFFFF;
-
-	phy->interfmode = B43_INTERFMODE_NONE;
-	phy->channel = 0xFF;
-
 	phy->hardware_power_control = !!modparam_hwpctl;
-
+	phy->next_txpwr_check_time = jiffies;
 	/* PHY TX errors counter. */
 	atomic_set(&phy->txerr_cnt, B43_PHY_TX_BADNESS_LIMIT);
-
-	/* OFDM-table address caching. */
-	phy->ofdmtab_addr_direction = B43_OFDMTAB_DIRECTION_UNKNOWN;
 }
 
 static void setup_struct_wldev_for_init(struct b43_wldev *dev)
@@ -3995,7 +3927,6 @@ static void b43_set_pretbtt(struct b43_wldev *dev)
 /* Locking: wl->mutex */
 static void b43_wireless_core_exit(struct b43_wldev *dev)
 {
-	struct b43_phy *phy = &dev->phy;
 	u32 macctl;
 
 	B43_WARN_ON(b43_status(dev) > B43_STAT_INITIALIZED);
@@ -4016,16 +3947,12 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	b43_dma_free(dev);
 	b43_pio_free(dev);
 	b43_chip_exit(dev);
-	b43_radio_turn_off(dev, 1);
 	b43_switch_analog(dev, 0);
-	if (phy->dyn_tssi_tbl)
-		kfree(phy->tssi2dbm);
-	kfree(phy->lo_control);
-	phy->lo_control = NULL;
 	if (dev->wl->current_beacon) {
 		dev_kfree_skb_any(dev->wl->current_beacon);
 		dev->wl->current_beacon = NULL;
 	}
+	b43_phy_exit(dev);
 
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(dev->dev->bus);
@@ -4052,29 +3979,24 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 		b43_wireless_core_reset(dev, tmp);
 	}
 
-	if ((phy->type == B43_PHYTYPE_B) || (phy->type == B43_PHYTYPE_G)) {
-		phy->lo_control =
-		    kzalloc(sizeof(*(phy->lo_control)), GFP_KERNEL);
-		if (!phy->lo_control) {
-			err = -ENOMEM;
-			goto err_busdown;
-		}
-	}
 	setup_struct_wldev_for_init(dev);
-
-	err = b43_phy_init_tssi2dbm_table(dev);
+	err = b43_phy_operations_setup(dev);
 	if (err)
-		goto err_kfree_lo_control;
+		goto err_busdown;
 
 	/* Enable IRQ routing to this device. */
 	ssb_pcicore_dev_irqvecs_enable(&bus->pcicore, dev->dev);
 
 	b43_imcfglo_timeouts_workaround(dev);
 	b43_bluetooth_coext_disable(dev);
-	b43_phy_early_init(dev);
+	if (phy->ops->prepare) {
+		err = phy->ops->prepare(dev);
+		if (err)
+			goto err_phy_exit;
+	}
 	err = b43_chip_init(dev);
 	if (err)
-		goto err_kfree_tssitbl;
+		goto err_phy_exit;
 	b43_shm_write16(dev, B43_SHM_SHARED,
 			B43_SHM_SH_WLCOREREV, dev->dev->id.revision);
 	hf = b43_hf_read(dev);
@@ -4140,15 +4062,11 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 out:
 	return err;
 
-      err_chip_exit:
+err_chip_exit:
 	b43_chip_exit(dev);
-      err_kfree_tssitbl:
-	if (phy->dyn_tssi_tbl)
-		kfree(phy->tssi2dbm);
-      err_kfree_lo_control:
-	kfree(phy->lo_control);
-	phy->lo_control = NULL;
-      err_busdown:
+err_phy_exit:
+	b43_phy_exit(dev);
+err_busdown:
 	ssb_bus_may_powerdown(bus);
 	B43_WARN_ON(b43_status(dev) != B43_STAT_UNINIT);
 	return err;
@@ -4291,6 +4209,8 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 		b43_wireless_core_stop(dev);
 	b43_wireless_core_exit(dev);
 	mutex_unlock(&wl->mutex);
+
+	cancel_work_sync(&(wl->txpower_adjust_work));
 }
 
 static int b43_op_set_retry_limit(struct ieee80211_hw *hw,
@@ -4511,7 +4431,6 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43_chip_reset);
 
-	b43_radio_turn_off(dev, 1);
 	b43_switch_analog(dev, 0);
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(bus);
@@ -4669,6 +4588,7 @@ static int b43_wireless_init(struct ssb_device *dev)
 	INIT_LIST_HEAD(&wl->devlist);
 	INIT_WORK(&wl->qos_update_work, b43_qos_update_work);
 	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
+	INIT_WORK(&wl->txpower_adjust_work, b43_phy_txpower_adjust_work);
 
 	ssb_set_devtypedata(dev, wl);
 	b43info(wl, "Broadcom %04X WLAN found\n", dev->bus->chip_id);

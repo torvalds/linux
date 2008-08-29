@@ -152,6 +152,7 @@ struct station_parameters {
 	u16 aid;
 	u8 supported_rates_len;
 	u8 plink_action;
+	struct ieee80211_ht_cap *ht_capa;
 };
 
 /**
@@ -268,6 +269,23 @@ struct mpath_info {
 	u8 flags;
 };
 
+/**
+ * struct bss_parameters - BSS parameters
+ *
+ * Used to change BSS parameters (mainly for AP mode).
+ *
+ * @use_cts_prot: Whether to use CTS protection
+ *	(0 = no, 1 = yes, -1 = do not change)
+ * @use_short_preamble: Whether the use of short preambles is allowed
+ *	(0 = no, 1 = yes, -1 = do not change)
+ * @use_short_slot_time: Whether the use of short slot time is allowed
+ *	(0 = no, 1 = yes, -1 = do not change)
+ */
+struct bss_parameters {
+	int use_cts_prot;
+	int use_short_preamble;
+	int use_short_slot_time;
+};
 
 /* from net/wireless.h */
 struct wiphy;
@@ -318,6 +336,8 @@ struct wiphy;
  * @change_station: Modify a given station.
  *
  * @set_mesh_cfg: set mesh parameters (by now, just mesh id)
+ *
+ * @change_bss: Modify parameters for a given BSS.
  */
 struct cfg80211_ops {
 	int	(*add_virtual_intf)(struct wiphy *wiphy, char *name,
@@ -370,6 +390,9 @@ struct cfg80211_ops {
 	int	(*dump_mpath)(struct wiphy *wiphy, struct net_device *dev,
 			       int idx, u8 *dst, u8 *next_hop,
 			       struct mpath_info *pinfo);
+
+	int	(*change_bss)(struct wiphy *wiphy, struct net_device *dev,
+			      struct bss_parameters *params);
 };
 
 #endif /* __NET_CFG80211_H */
