@@ -23,6 +23,7 @@ config SPARC64
 	select RTC_DRV_M48T59
 	select RTC_DRV_CMOS
 	select RTC_DRV_BQ4802
+	select RTC_DRV_SUN4V
 
 config GENERIC_TIME
 	bool

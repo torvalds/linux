@@ -424,48 +424,6 @@ static int starfire_set_time(u32 val)
 	return 0;
 }
 
-static u32 hypervisor_get_time(void)
-{
-	unsigned long ret, time;
-	int retries = 10000;
-
-retry:
-	ret = sun4v_tod_get(&time);
-	if (ret == HV_EOK)
-		return time;
-	if (ret == HV_EWOULDBLOCK) {
-		if (--retries > 0) {
-			udelay(100);
-			goto retry;
-		}
-		printk(KERN_WARNING "SUN4V: tod_get() timed out.\n");
-		return 0;
-	}
-	printk(KERN_WARNING "SUN4V: tod_get() not supported.\n");
-	return 0;
-}
-
-static int hypervisor_set_time(u32 secs)
-{
-	unsigned long ret;
-	int retries = 10000;
-
-retry:
-	ret = sun4v_tod_set(secs);
-	if (ret == HV_EOK)
-		return 0;
-	if (ret == HV_EWOULDBLOCK) {
-		if (--retries > 0) {
-			udelay(100);
-			goto retry;
-		}
-		printk(KERN_WARNING "SUN4V: tod_set() timed out.\n");
-		return -EAGAIN;
-	}
-	printk(KERN_WARNING "SUN4V: tod_set() not supported.\n");
-	return -EOPNOTSUPP;
-}
-
 unsigned long cmos_regs;
 EXPORT_SYMBOL(cmos_regs);
 
@@ -644,6 +602,11 @@ static struct of_platform_driver mostek_driver = {
 	},
 };
 
+static struct platform_device rtc_sun4v_device = {
+	.name		= "rtc-sun4v",
+	.id		= -1,
+};
+
 static int __init clock_init(void)
 {
 	if (this_is_starfire) {
@@ -653,13 +616,8 @@ static int __init clock_init(void)
 		                        -xtime.tv_sec, -xtime.tv_nsec);
 		return 0;
 	}
-	if (tlb_type == hypervisor) {
-		xtime.tv_sec = hypervisor_get_time();
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-		set_normalized_timespec(&wall_to_monotonic,
-		                        -xtime.tv_sec, -xtime.tv_nsec);
-		return 0;
-	}
+	if (tlb_type == hypervisor)
+		return platform_device_register(&rtc_sun4v_device);
 
 	(void) of_register_driver(&rtc_driver, &of_platform_bus_type);
 	(void) of_register_driver(&mostek_driver, &of_platform_bus_type);
@@ -1037,24 +995,6 @@ static int starfire_set_rtc_time(struct rtc_time *time)
 	return starfire_set_time(seconds);
 }
 
-static void hypervisor_get_rtc_time(struct rtc_time *time)
-{
-	u32 seconds = hypervisor_get_time();
-
-	to_tm(seconds, time);
-	time->tm_year -= 1900;
-	time->tm_mon -= 1;
-}
-
-static int hypervisor_set_rtc_time(struct rtc_time *time)
-{
-	u32 seconds = mktime(time->tm_year + 1900, time->tm_mon + 1,
-			     time->tm_mday, time->tm_hour,
-			     time->tm_min, time->tm_sec);
-
-	return hypervisor_set_time(seconds);
-}
-
 struct mini_rtc_ops {
 	void (*get_rtc_time)(struct rtc_time *);
 	int (*set_rtc_time)(struct rtc_time *);
@@ -1063,11 +1003,6 @@ struct mini_rtc_ops {
 static struct mini_rtc_ops starfire_rtc_ops = {
 	.get_rtc_time = starfire_get_rtc_time,
 	.set_rtc_time = starfire_set_rtc_time,
-};
-
-static struct mini_rtc_ops hypervisor_rtc_ops = {
-	.get_rtc_time = hypervisor_get_rtc_time,
-	.set_rtc_time = hypervisor_set_rtc_time,
 };
 
 static struct mini_rtc_ops *mini_rtc_ops;
@@ -1192,9 +1127,7 @@ static int __init rtc_mini_init(void)
 {
 	int retval;
 
-	if (tlb_type == hypervisor)
-		mini_rtc_ops = &hypervisor_rtc_ops;
-	else if (this_is_starfire)
+	if (this_is_starfire)
 		mini_rtc_ops = &starfire_rtc_ops;
 	else
 		return -ENODEV;
