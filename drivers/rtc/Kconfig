@@ -599,4 +599,11 @@ config RTC_DRV_SUN4V
 	  If you say Y here you will get support for the Hypervisor
 	  based RTC on SUN4V systems.
 
+config RTC_DRV_STARFIRE
+	bool "Starfire RTC"
+	depends on SPARC64
+	help
+	  If you say Y here you will get support for the RTC found on
+	  Starfire systems.
+
 endif # RTC_CLASS
