@@ -628,7 +628,7 @@ config DEBUG_BLOCK_EXT_DEVT
         bool "Force extended block device numbers and spread them"
 	depends on DEBUG_KERNEL
 	depends on BLOCK
-	default y
+	default n
 	help
 	  Conventionally, block device numbers are allocated from
 	  predetermined contiguous area.  However, extended block area
