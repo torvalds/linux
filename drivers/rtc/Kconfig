@@ -592,4 +592,11 @@ config RTC_DRV_PPC
 	 the RTC. This exposes that functionality through the generic RTC
 	 class.
 
+config RTC_DRV_SUN4V
+	bool "SUN4V Hypervisor RTC"
+	depends on SPARC64
+	help
+	  If you say Y here you will get support for the Hypervisor
+	  based RTC on SUN4V systems.
+
 endif # RTC_CLASS
