@@ -414,6 +414,15 @@ config RTC_DRV_M48T59
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
 
+config RTC_DRV_BQ4802
+	tristate "TI BQ4802"
+	help
+	  If you say Y here you will get support for the TI
+	  BQ4802 RTC chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-bq4802.
+
 config RTC_DRV_V3020
 	tristate "EM Microelectronic V3020"
 	help
