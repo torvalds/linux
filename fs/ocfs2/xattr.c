@@ -1427,51 +1427,6 @@ out:
 
 }
 
-static int ocfs2_xattr_free_block(handle_t *handle,
-				  struct ocfs2_super *osb,
-				  struct ocfs2_xattr_block *xb)
-{
-	struct inode *xb_alloc_inode;
-	struct buffer_head *xb_alloc_bh = NULL;
-	u64 blk = le64_to_cpu(xb->xb_blkno);
-	u16 bit = le16_to_cpu(xb->xb_suballoc_bit);
-	u64 bg_blkno = ocfs2_which_suballoc_group(blk, bit);
-	int ret = 0;
-
-	xb_alloc_inode = ocfs2_get_system_file_inode(osb,
-				EXTENT_ALLOC_SYSTEM_INODE,
-				le16_to_cpu(xb->xb_suballoc_slot));
-	if (!xb_alloc_inode) {
-		ret = -ENOMEM;
-		mlog_errno(ret);
-		goto out;
-	}
-	mutex_lock(&xb_alloc_inode->i_mutex);
-
-	ret = ocfs2_inode_lock(xb_alloc_inode, &xb_alloc_bh, 1);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_mutex;
-	}
-	ret = ocfs2_extend_trans(handle, OCFS2_SUBALLOC_FREE);
-	if (ret < 0) {
-		mlog_errno(ret);
-		goto out_unlock;
-	}
-	ret = ocfs2_free_suballoc_bits(handle, xb_alloc_inode, xb_alloc_bh,
-				       bit, bg_blkno, 1);
-	if (ret < 0)
-		mlog_errno(ret);
-out_unlock:
-	ocfs2_inode_unlock(xb_alloc_inode, 1);
-	brelse(xb_alloc_bh);
-out_mutex:
-	mutex_unlock(&xb_alloc_inode->i_mutex);
-	iput(xb_alloc_inode);
-out:
-	return ret;
-}
-
 static int ocfs2_remove_value_outside(struct inode*inode,
 				      struct buffer_head *bh,
 				      struct ocfs2_xattr_header *header)
@@ -1533,6 +1488,84 @@ static int ocfs2_xattr_block_remove(struct inode *inode,
 	return ret;
 }
 
+static int ocfs2_xattr_free_block(struct inode *inode,
+				  u64 block)
+{
+	struct inode *xb_alloc_inode;
+	struct buffer_head *xb_alloc_bh = NULL;
+	struct buffer_head *blk_bh = NULL;
+	struct ocfs2_xattr_block *xb;
+	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+	handle_t *handle;
+	int ret = 0;
+	u64 blk, bg_blkno;
+	u16 bit;
+
+	ret = ocfs2_read_block(osb, block, &blk_bh,
+			       OCFS2_BH_CACHED, inode);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	/*Verify the signature of xattr block*/
+	if (memcmp((void *)blk_bh->b_data, OCFS2_XATTR_BLOCK_SIGNATURE,
+		   strlen(OCFS2_XATTR_BLOCK_SIGNATURE))) {
+		ret = -EFAULT;
+		goto out;
+	}
+
+	ret = ocfs2_xattr_block_remove(inode, blk_bh);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out;
+	}
+
+	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
+	blk = le64_to_cpu(xb->xb_blkno);
+	bit = le16_to_cpu(xb->xb_suballoc_bit);
+	bg_blkno = ocfs2_which_suballoc_group(blk, bit);
+
+	xb_alloc_inode = ocfs2_get_system_file_inode(osb,
+				EXTENT_ALLOC_SYSTEM_INODE,
+				le16_to_cpu(xb->xb_suballoc_slot));
+	if (!xb_alloc_inode) {
+		ret = -ENOMEM;
+		mlog_errno(ret);
+		goto out;
+	}
+	mutex_lock(&xb_alloc_inode->i_mutex);
+
+	ret = ocfs2_inode_lock(xb_alloc_inode, &xb_alloc_bh, 1);
+	if (ret < 0) {
+		mlog_errno(ret);
+		goto out_mutex;
+	}
+
+	handle = ocfs2_start_trans(osb, OCFS2_SUBALLOC_FREE);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		mlog_errno(ret);
+		goto out_unlock;
+	}
+
+	ret = ocfs2_free_suballoc_bits(handle, xb_alloc_inode, xb_alloc_bh,
+				       bit, bg_blkno, 1);
+	if (ret < 0)
+		mlog_errno(ret);
+
+	ocfs2_commit_trans(osb, handle);
+out_unlock:
+	ocfs2_inode_unlock(xb_alloc_inode, 1);
+	brelse(xb_alloc_bh);
+out_mutex:
+	mutex_unlock(&xb_alloc_inode->i_mutex);
+	iput(xb_alloc_inode);
+out:
+	brelse(blk_bh);
+	return ret;
+}
+
 /*
  * ocfs2_xattr_remove()
  *
@@ -1540,9 +1573,6 @@ static int ocfs2_xattr_block_remove(struct inode *inode,
  */
 int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 {
-	struct ocfs2_xattr_block *xb;
-	struct buffer_head *blk_bh = NULL;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	struct ocfs2_inode_info *oi = OCFS2_I(inode);
 	struct ocfs2_dinode *di = (struct ocfs2_dinode *)di_bh->b_data;
 	handle_t *handle;
@@ -1561,22 +1591,10 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 			goto out;
 		}
 	}
-	if (di->i_xattr_loc) {
-		ret = ocfs2_read_block(OCFS2_SB(inode->i_sb),
-				       le64_to_cpu(di->i_xattr_loc),
-				       &blk_bh, OCFS2_BH_CACHED, inode);
-		if (ret < 0) {
-			mlog_errno(ret);
-			return ret;
-		}
-		/*Verify the signature of xattr block*/
-		if (memcmp((void *)blk_bh->b_data, OCFS2_XATTR_BLOCK_SIGNATURE,
-			   strlen(OCFS2_XATTR_BLOCK_SIGNATURE))) {
-			ret = -EFAULT;
-			goto out;
-		}
 
-		ret = ocfs2_xattr_block_remove(inode, blk_bh);
+	if (di->i_xattr_loc) {
+		ret = ocfs2_xattr_free_block(inode,
+					     le64_to_cpu(di->i_xattr_loc));
 		if (ret < 0) {
 			mlog_errno(ret);
 			goto out;
@@ -1597,11 +1615,7 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 		goto out_commit;
 	}
 
-	if (di->i_xattr_loc) {
-		xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
-		ocfs2_xattr_free_block(handle, osb, xb);
-		di->i_xattr_loc = cpu_to_le64(0);
-	}
+	di->i_xattr_loc = 0;
 
 	spin_lock(&oi->ip_lock);
 	oi->ip_dyn_features &= ~(OCFS2_INLINE_XATTR_FL | OCFS2_HAS_XATTR_FL);
@@ -1614,8 +1628,6 @@ int ocfs2_xattr_remove(struct inode *inode, struct buffer_head *di_bh)
 out_commit:
 	ocfs2_commit_trans(OCFS2_SB(inode->i_sb), handle);
 out:
-	brelse(blk_bh);
-
 	return ret;
 }
 
