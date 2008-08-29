@@ -119,7 +119,7 @@ struct pxa3xx_nand_info {
 	struct nand_chip	nand_chip;
 
 	struct platform_device	 *pdev;
-	struct pxa3xx_nand_flash *flash_info;
+	const struct pxa3xx_nand_flash *flash_info;
 
 	struct clk		*clk;
 	void __iomem		*mmio_base;
@@ -158,6 +158,13 @@ struct pxa3xx_nand_info {
 	uint32_t		ndcb0;
 	uint32_t		ndcb1;
 	uint32_t		ndcb2;
+
+	/* calculated from pxa3xx_nand_flash data */
+	size_t		oob_size;
+	size_t		read_id_bytes;
+
+	unsigned int	col_addr_cycles;
+	unsigned int	row_addr_cycles;
 };
 
 static int use_dma = 1;
@@ -335,7 +342,7 @@ static int wait_for_event(struct pxa3xx_nand_info *info, uint32_t event)
 static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 			uint16_t cmd, int column, int page_addr)
 {
-	struct pxa3xx_nand_flash *f = info->flash_info;
+	const struct pxa3xx_nand_flash *f = info->flash_info;
 	const struct pxa3xx_nand_cmdset *cmdset = f->cmdset;
 
 	/* calculate data size */
@@ -354,14 +361,14 @@ static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 	info->ndcb0 = cmd | ((cmd & 0xff00) ? NDCB0_DBC : 0);
 	info->ndcb1 = 0;
 	info->ndcb2 = 0;
-	info->ndcb0 |= NDCB0_ADDR_CYC(f->row_addr_cycles + f->col_addr_cycles);
+	info->ndcb0 |= NDCB0_ADDR_CYC(info->row_addr_cycles + info->col_addr_cycles);
 
-	if (f->col_addr_cycles == 2) {
+	if (info->col_addr_cycles == 2) {
 		/* large block, 2 cycles for column address
 		 * row address starts from 3rd cycle
 		 */
 		info->ndcb1 |= (page_addr << 16) | (column & 0xffff);
-		if (f->row_addr_cycles == 3)
+		if (info->row_addr_cycles == 3)
 			info->ndcb2 = (page_addr >> 16) & 0xff;
 	} else
 		/* small block, 1 cycles for column address
@@ -622,7 +629,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 				int column, int page_addr)
 {
 	struct pxa3xx_nand_info *info = mtd->priv;
-	struct pxa3xx_nand_flash *flash_info = info->flash_info;
+	const struct pxa3xx_nand_flash *flash_info = info->flash_info;
 	const struct pxa3xx_nand_cmdset *cmdset = flash_info->cmdset;
 	int ret;
 
@@ -701,7 +708,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 		info->use_dma = 0;	/* force PIO read */
 		info->buf_start = 0;
 		info->buf_count = (command == NAND_CMD_READID) ?
-				flash_info->read_id_bytes : 1;
+				info->read_id_bytes : 1;
 
 		if (prepare_other_cmd(info, (command == NAND_CMD_READID) ?
 				cmdset->read_id : cmdset->read_status))
@@ -842,7 +849,7 @@ static int pxa3xx_nand_ecc_correct(struct mtd_info *mtd,
 
 static int __readid(struct pxa3xx_nand_info *info, uint32_t *id)
 {
-	struct pxa3xx_nand_flash *f = info->flash_info;
+	const struct pxa3xx_nand_flash *f = info->flash_info;
 	const struct pxa3xx_nand_cmdset *cmdset = f->cmdset;
 	uint32_t ndcr;
 	uint8_t  id_buff[8];
@@ -872,7 +879,7 @@ fail_timeout:
 }
 
 static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
-				    struct pxa3xx_nand_flash *f)
+				    const struct pxa3xx_nand_flash *f)
 {
 	struct platform_device *pdev = info->pdev;
 	struct pxa3xx_nand_platform_data *pdata = pdev->dev.platform_data;
@@ -885,25 +892,25 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 		return -EINVAL;
 
 	/* calculate flash information */
-	f->oob_size = (f->page_size == 2048) ? 64 : 16;
-	f->read_id_bytes = (f->page_size == 2048) ? 4 : 2;
+	info->oob_size = (f->page_size == 2048) ? 64 : 16;
+	info->read_id_bytes = (f->page_size == 2048) ? 4 : 2;
 
 	/* calculate addressing information */
-	f->col_addr_cycles = (f->page_size == 2048) ? 2 : 1;
+	info->col_addr_cycles = (f->page_size == 2048) ? 2 : 1;
 
 	if (f->num_blocks * f->page_per_block > 65536)
-		f->row_addr_cycles = 3;
+		info->row_addr_cycles = 3;
 	else
-		f->row_addr_cycles = 2;
+		info->row_addr_cycles = 2;
 
 	ndcr |= (pdata->enable_arbiter) ? NDCR_ND_ARB_EN : 0;
-	ndcr |= (f->col_addr_cycles == 2) ? NDCR_RA_START : 0;
+	ndcr |= (info->col_addr_cycles == 2) ? NDCR_RA_START : 0;
 	ndcr |= (f->page_per_block == 64) ? NDCR_PG_PER_BLK : 0;
 	ndcr |= (f->page_size == 2048) ? NDCR_PAGE_SZ : 0;
 	ndcr |= (f->flash_width == 16) ? NDCR_DWIDTH_M : 0;
 	ndcr |= (f->dfc_width == 16) ? NDCR_DWIDTH_C : 0;
 
-	ndcr |= NDCR_RD_ID_CNT(f->read_id_bytes);
+	ndcr |= NDCR_RD_ID_CNT(info->read_id_bytes);
 	ndcr |= NDCR_SPARE_EN; /* enable spare by default */
 
 	info->reg_ndcr = ndcr;
@@ -916,7 +923,7 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 				    const struct pxa3xx_nand_platform_data *pdata)
 {
-	struct pxa3xx_nand_flash *f;
+	const struct pxa3xx_nand_flash *f;
 	uint32_t id;
 	int i;
 
@@ -1011,7 +1018,7 @@ static struct nand_ecclayout hw_largepage_ecclayout = {
 static void pxa3xx_nand_init_mtd(struct mtd_info *mtd,
 				 struct pxa3xx_nand_info *info)
 {
-	struct pxa3xx_nand_flash *f = info->flash_info;
+	const struct pxa3xx_nand_flash *f = info->flash_info;
 	struct nand_chip *this = &info->nand_chip;
 
 	this->options = (f->flash_width == 16) ? NAND_BUSWIDTH_16: 0;

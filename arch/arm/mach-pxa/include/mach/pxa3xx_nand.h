@@ -39,13 +39,6 @@ struct pxa3xx_nand_flash {
 	uint32_t dfc_width;	/* Width of flash controller(DWIDTH_C) */
 	uint32_t num_blocks;	/* Number of physical blocks in Flash */
 	uint32_t chip_id;
-
-	/* NOTE: these are automatically calculated, do not define */
-	size_t		oob_size;
-	size_t		read_id_bytes;
-
-	unsigned int	col_addr_cycles;
-	unsigned int	row_addr_cycles;
 };
 
 struct pxa3xx_nand_platform_data {
@@ -59,7 +52,7 @@ struct pxa3xx_nand_platform_data {
 	const struct mtd_partition		*parts;
 	unsigned int				nr_parts;
 
-	struct pxa3xx_nand_flash * const	flash;
+	const struct pxa3xx_nand_flash * 	flash;
 	size_t					num_flash;
 };
 
