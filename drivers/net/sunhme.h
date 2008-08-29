@@ -405,15 +405,11 @@ struct happy_meal {
 	u32 (*read_desc32)(hme32 *);
 	void (*write_txd)(struct happy_meal_txd *, u32, u32);
 	void (*write_rxd)(struct happy_meal_rxd *, u32, u32);
-	u32 (*dma_map)(void *, void *, long, int);
-	void (*dma_unmap)(void *, u32, long, int);
-	void (*dma_sync_for_cpu)(void *, u32, long, int);
-	void (*dma_sync_for_device)(void *, u32, long, int);
 #endif
 
-	/* This is either a sbus_dev or a pci_dev. */
+	/* This is either an of_device or a pci_dev. */
 	void			  *happy_dev;
-	void			  *dma_dev;
+	struct device		  *dma_dev;
 
 	spinlock_t		  happy_lock;
 
