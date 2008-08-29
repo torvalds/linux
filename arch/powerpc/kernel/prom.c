@@ -888,9 +888,10 @@ static u64 __init dt_mem_next_cell(int s, cell_t **cellp)
  */
 static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
-	cell_t *dm, *ls;
+	cell_t *dm, *ls, *usm;
 	unsigned long l, n, flags;
 	u64 base, size, lmb_size;
+	unsigned int is_kexec_kdump = 0, rngs;
 
 	ls = (cell_t *)of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
 	if (ls == NULL || l < dt_root_size_cells * sizeof(cell_t))
@@ -905,6 +906,12 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(cell_t))
 		return 0;
 
+	/* check if this is a kexec/kdump kernel. */
+	usm = (cell_t *)of_get_flat_dt_prop(node, "linux,drconf-usable-memory",
+						 &l);
+	if (usm != NULL)
+		is_kexec_kdump = 1;
+
 	for (; n != 0; --n) {
 		base = dt_mem_next_cell(dt_root_addr_cells, &dm);
 		flags = dm[3];
@@ -915,13 +922,34 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 		if ((flags & 0x80) || !(flags & 0x8))
 			continue;
 		size = lmb_size;
-		if (iommu_is_off) {
-			if (base >= 0x80000000ul)
+		rngs = 1;
+		if (is_kexec_kdump) {
+			/*
+			 * For each lmb in ibm,dynamic-memory, a corresponding
+			 * entry in linux,drconf-usable-memory property contains
+			 * a counter 'p' followed by 'p' (base, size) duple.
+			 * Now read the counter from
+			 * linux,drconf-usable-memory property
+			 */
+			rngs = dt_mem_next_cell(dt_root_size_cells, &usm);
+			if (!rngs) /* there are no (base, size) duple */
 				continue;
-			if ((base + size) > 0x80000000ul)
-				size = 0x80000000ul - base;
 		}
-		lmb_add(base, size);
+		do {
+			if (is_kexec_kdump) {
+				base = dt_mem_next_cell(dt_root_addr_cells,
+							 &usm);
+				size = dt_mem_next_cell(dt_root_size_cells,
+							 &usm);
+			}
+			if (iommu_is_off) {
+				if (base >= 0x80000000ul)
+					continue;
+				if ((base + size) > 0x80000000ul)
+					size = 0x80000000ul - base;
+			}
+			lmb_add(base, size);
+		} while (--rngs);
 	}
 	lmb_dump_all();
 	return 0;

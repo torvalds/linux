@@ -150,6 +150,21 @@ static const int *of_get_associativity(struct device_node *dev)
 	return of_get_property(dev, "ibm,associativity", NULL);
 }
 
+/*
+ * Returns the property linux,drconf-usable-memory if
+ * it exists (the property exists only in kexec/kdump kernels,
+ * added by kexec-tools)
+ */
+static const u32 *of_get_usable_memory(struct device_node *memory)
+{
+	const u32 *prop;
+	u32 len;
+	prop = of_get_property(memory, "linux,drconf-usable-memory", &len);
+	if (!prop || len < sizeof(unsigned int))
+		return 0;
+	return prop;
+}
+
 /* Returns nid in the range [0..MAX_NUMNODES-1], or -1 if no useful numa
  * info is found.
  */
@@ -487,14 +502,29 @@ static unsigned long __init numa_enforce_memory_limit(unsigned long start,
 }
 
 /*
+ * Reads the counter for a given entry in
+ * linux,drconf-usable-memory property
+ */
+static inline int __init read_usm_ranges(const u32 **usm)
+{
+	/*
+	 * For each lmb in ibm,dynamic-memory a corresponding
+	 * entry in linux,drconf-usable-memory property contains
+	 * a counter followed by that many (base, size) duple.
+	 * read the counter from linux,drconf-usable-memory
+	 */
+	return read_n_cells(n_mem_size_cells, usm);
+}
+
+/*
  * Extract NUMA information from the ibm,dynamic-reconfiguration-memory
  * node.  This assumes n_mem_{addr,size}_cells have been set.
  */
 static void __init parse_drconf_memory(struct device_node *memory)
 {
-	const u32 *dm;
-	unsigned int n, rc;
-	unsigned long lmb_size, size;
+	const u32 *dm, *usm;
+	unsigned int n, rc, ranges, is_kexec_kdump = 0;
+	unsigned long lmb_size, base, size, sz;
 	int nid;
 	struct assoc_arrays aa;
 
@@ -510,6 +540,11 @@ static void __init parse_drconf_memory(struct device_node *memory)
 	if (rc)
 		return;
 
+	/* check if this is a kexec/kdump kernel */
+	usm = of_get_usable_memory(memory);
+	if (usm != NULL)
+		is_kexec_kdump = 1;
+
 	for (; n != 0; --n) {
 		struct of_drconf_cell drmem;
 
@@ -521,21 +556,31 @@ static void __init parse_drconf_memory(struct device_node *memory)
 		    || !(drmem.flags & DRCONF_MEM_ASSIGNED))
 			continue;
 
-		nid = of_drconf_to_nid_single(&drmem, &aa);
+		base = drmem.base_addr;
+		size = lmb_size;
+		ranges = 1;
 
-		fake_numa_create_new_node(
-				((drmem.base_addr + lmb_size) >> PAGE_SHIFT),
+		if (is_kexec_kdump) {
+			ranges = read_usm_ranges(&usm);
+			if (!ranges) /* there are no (base, size) duple */
+				continue;
+		}
+		do {
+			if (is_kexec_kdump) {
+				base = read_n_cells(n_mem_addr_cells, &usm);
+				size = read_n_cells(n_mem_size_cells, &usm);
+			}
+			nid = of_drconf_to_nid_single(&drmem, &aa);
+			fake_numa_create_new_node(
+				((base + size) >> PAGE_SHIFT),
 					   &nid);
-
-		node_set_online(nid);
-
-		size = numa_enforce_memory_limit(drmem.base_addr, lmb_size);
-		if (!size)
-			continue;
-
-		add_active_range(nid, drmem.base_addr >> PAGE_SHIFT,
-				 (drmem.base_addr >> PAGE_SHIFT)
-				 + (size >> PAGE_SHIFT));
+			node_set_online(nid);
+			sz = numa_enforce_memory_limit(base, size);
+			if (sz)
+				add_active_range(nid, base >> PAGE_SHIFT,
+						 (base >> PAGE_SHIFT)
+						 + (sz >> PAGE_SHIFT));
+		} while (--ranges);
 	}
 }
 
