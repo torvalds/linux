@@ -911,11 +911,25 @@ static int pxa3xx_nand_config_flash(struct pxa3xx_nand_info *info,
 	return 0;
 }
 
-static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info)
+static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
+				    const struct pxa3xx_nand_platform_data *pdata)
 {
 	struct pxa3xx_nand_flash *f;
 	uint32_t id;
 	int i;
+
+	for (i = 0; i<pdata->num_flash; ++i) {
+		f = pdata->flash + i;
+
+		if (pxa3xx_nand_config_flash(info, f))
+			continue;
+
+		if (__readid(info, &id))
+			continue;
+
+		if (id == f->chip_id)
+			return 0;
+	}
 
 	for (i = 0; i < ARRAY_SIZE(builtin_flash_types); i++) {
 
@@ -1114,7 +1128,7 @@ static int pxa3xx_nand_probe(struct platform_device *pdev)
 		goto fail_free_buf;
 	}
 
-	ret = pxa3xx_nand_detect_flash(info);
+	ret = pxa3xx_nand_detect_flash(info, pdata);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to detect flash\n");
 		ret = -ENODEV;

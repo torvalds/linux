@@ -58,6 +58,9 @@ struct pxa3xx_nand_platform_data {
 
 	struct mtd_partition *parts;
 	unsigned int	nr_parts;
+
+	struct pxa3xx_nand_flash * const	flash;
+	size_t					num_flash;
 };
 
 extern void pxa3xx_set_nand_info(struct pxa3xx_nand_platform_data *info);
