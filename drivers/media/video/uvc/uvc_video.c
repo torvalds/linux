@@ -455,7 +455,8 @@ static void uvc_video_decode_isoc(struct urb *urb,
 			urb->iso_frame_desc[i].actual_length - ret);
 
 		/* Process the header again. */
-		uvc_video_decode_end(video, buf, mem, ret);
+		uvc_video_decode_end(video, buf, mem,
+			urb->iso_frame_desc[i].actual_length);
 
 		if (buf->state == UVC_BUF_STATE_DONE ||
 		    buf->state == UVC_BUF_STATE_ERROR)
@@ -512,7 +513,7 @@ static void uvc_video_decode_bulk(struct urb *urb,
 	    video->bulk.payload_size >= video->bulk.max_payload_size) {
 		if (!video->bulk.skip_payload && buf != NULL) {
 			uvc_video_decode_end(video, buf, video->bulk.header,
-				video->bulk.header_size);
+				video->bulk.payload_size);
 			if (buf->state == UVC_BUF_STATE_DONE ||
 			    buf->state == UVC_BUF_STATE_ERROR)
 				buf = uvc_queue_next_buffer(&video->queue, buf);
