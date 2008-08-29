@@ -1271,12 +1271,12 @@ static inline const char *e820_type_to_string(int e820_type)
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
-struct resource __initdata *e820_res;
+static struct resource __initdata *e820_res;
 void __init e820_reserve_resources(void)
 {
 	int i;
-	u64 end;
 	struct resource *res;
+	u64 end;
 
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	e820_res = res;
@@ -1293,6 +1293,12 @@ void __init e820_reserve_resources(void)
 		res->end = end;
 
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
+
+		/*
+		 * don't register the region that could be conflicted with
+		 * pci device BAR resource and insert them later in
+		 * pcibios_resource_survey()
+		 */
 		if (e820.map[i].type != E820_RESERVED || res->start < (1ULL<<20))
 			insert_resource(&iomem_resource, res);
 		res++;
@@ -1313,7 +1319,7 @@ void __init e820_reserve_resources_late(void)
 
 	res = e820_res;
 	for (i = 0; i < e820.nr_map; i++) {
-		if (e820.map[i].type == E820_RESERVED && res->start >= (1ULL<<20))
+		if (!res->parent && res->end)
 			insert_resource(&iomem_resource, res);
 		res++;
 	}
