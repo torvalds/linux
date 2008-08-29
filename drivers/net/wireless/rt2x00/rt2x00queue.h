@@ -368,6 +368,7 @@ enum queue_index {
  * @length: Number of frames in queue.
  * @index: Index pointers to entry positions in the queue,
  *	use &enum queue_index to get a specific index field.
+ * @txop: maximum burst time.
  * @aifs: The aifs value for outgoing frames (field ignored in RX queue).
  * @cw_min: The cw min value for outgoing frames (field ignored in RX queue).
  * @cw_max: The cw max value for outgoing frames (field ignored in RX queue).
@@ -387,6 +388,7 @@ struct data_queue {
 	unsigned short length;
 	unsigned short index[Q_INDEX_MAX];
 
+	unsigned short txop;
 	unsigned short aifs;
 	unsigned short cw_min;
 	unsigned short cw_max;

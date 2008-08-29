@@ -736,6 +736,7 @@ static void rt2x00queue_init(struct rt2x00_dev *rt2x00dev,
 
 	queue->rt2x00dev = rt2x00dev;
 	queue->qid = qid;
+	queue->txop = 0;
 	queue->aifs = 2;
 	queue->cw_min = 5;
 	queue->cw_max = 10;

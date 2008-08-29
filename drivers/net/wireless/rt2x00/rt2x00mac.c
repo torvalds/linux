@@ -666,10 +666,11 @@ int rt2x00mac_conf_tx(struct ieee80211_hw *hw, u16 queue_idx,
 		queue->cw_max = 10; /* cw_min: 2^10 = 1024. */
 
 	queue->aifs = params->aifs;
+	queue->txop = params->txop;
 
 	INFO(rt2x00dev,
-	     "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d.\n",
-	     queue_idx, queue->cw_min, queue->cw_max, queue->aifs);
+	     "Configured TX queue %d - CWmin: %d, CWmax: %d, Aifs: %d, TXop: %d.\n",
+	     queue_idx, queue->cw_min, queue->cw_max, queue->aifs, queue->txop);
 
 	return 0;
 }
