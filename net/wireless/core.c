@@ -1,7 +1,7 @@
 /*
  * This is the linux wireless configuration interface.
  *
- * Copyright 2006, 2007		Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2008		Johannes Berg <johannes@sipsolutions.net>
  */
 
 #include <linux/if.h>
@@ -259,6 +259,13 @@ int wiphy_register(struct wiphy *wiphy)
 	struct ieee80211_supported_band *sband;
 	bool have_band = false;
 	int i;
+	u16 ifmodes = wiphy->interface_modes;
+
+	/* sanity check ifmodes */
+	WARN_ON(!ifmodes);
+	ifmodes &= ((1 << __NL80211_IFTYPE_AFTER_LAST) - 1) & ~1;
+	if (WARN_ON(ifmodes != wiphy->interface_modes))
+		wiphy->interface_modes = ifmodes;
 
 	/* sanity check supported bands/channels */
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {

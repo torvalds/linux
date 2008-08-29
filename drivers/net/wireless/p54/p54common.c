@@ -1072,6 +1072,9 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
 		     IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_UNSPEC;
+
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	dev->max_signal = 127;
 
