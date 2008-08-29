@@ -164,6 +164,7 @@ static int use_dma = 1;
 module_param(use_dma, bool, 0444);
 MODULE_PARM_DESC(use_dma, "enable DMA for data transfering to/from NAND HW");
 
+#ifdef CONFIG_MTD_NAND_PXA3xx_BUILTIN
 static struct pxa3xx_nand_cmdset smallpage_cmdset = {
 	.read1		= 0x0000,
 	.read2		= 0x0050,
@@ -275,6 +276,7 @@ static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 	&micron1GbX16,
 	&stm2GbX16,
 };
+#endif /* CONFIG_MTD_NAND_PXA3xx_BUILTIN */
 
 #define NDTR0_tCH(c)	(min((c), 7) << 19)
 #define NDTR0_tCS(c)	(min((c), 7) << 16)
@@ -931,6 +933,7 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 			return 0;
 	}
 
+#ifdef CONFIG_MTD_NAND_PXA3xx_BUILTIN
 	for (i = 0; i < ARRAY_SIZE(builtin_flash_types); i++) {
 
 		f = builtin_flash_types[i];
@@ -944,6 +947,7 @@ static int pxa3xx_nand_detect_flash(struct pxa3xx_nand_info *info,
 		if (id == f->chip_id)
 			return 0;
 	}
+#endif
 
 	return -ENODEV;
 }

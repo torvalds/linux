@@ -334,6 +334,13 @@ config MTD_NAND_PXA3xx
 	  This enables the driver for the NAND flash device found on
 	  PXA3xx processors
 
+config MTD_NAND_PXA3xx_BUILTIN
+	bool "Use builtin definitions for some NAND chips (deprecated)"
+	depends on MTD_NAND_PXA3xx
+	help
+	  This enables builtin definitions for some NAND chips. This
+	  is deprecated in favor of platform specific data.
+
 config MTD_NAND_CM_X270
 	tristate "Support for NAND Flash on CM-X270 modules"
 	depends on MTD_NAND && MACH_ARMCORE
