@@ -63,5 +63,18 @@
 #define PALMZ72_PRESCALER		0x3F
 #define PALMZ72_PERIOD_NS		3500
 
+#ifdef CONFIG_PM
+struct palmz72_resume_info {
+	u32 magic0;		/* 0x0 */
+	u32 magic1;		/* 0x4 */
+	u32 resume_addr;	/* 0x8 */
+	u32 pad[11];		/* 0xc..0x37 */
+	u32 arm_control;	/* 0x38 */
+	u32 aux_control;	/* 0x3c */
+	u32 ttb;		/* 0x40 */
+	u32 domain_access;	/* 0x44 */
+	u32 process_id;		/* 0x48 */
+};
+#endif
 #endif
 

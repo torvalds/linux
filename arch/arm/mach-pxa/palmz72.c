@@ -449,6 +449,80 @@ static struct pxafb_mach_info palmz72_lcd_screen = {
 	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL,
 };
 
+#ifdef CONFIG_PM
+
+/* We have some black magic here
+ * PalmOS ROM on recover expects special struct physical address
+ * to be transferred via PSPR. Using this struct PalmOS restores
+ * its state after sleep. As for Linux, we need to setup it the
+ * same way. More than that, PalmOS ROM changes some values in memory.
+ * For now only one location is found, which needs special treatment.
+ * Thanks to Alex Osborne, Andrzej Zaborowski, and lots of other people
+ * for reading backtraces for me :)
+ */
+
+#define PALMZ72_SAVE_DWORD ((unsigned long *)0xc0000050)
+
+static struct palmz72_resume_info palmz72_resume_info = {
+	.magic0 = 0xb4e6,
+	.magic1 = 1,
+
+	/* reset state, MMU off etc */
+	.arm_control = 0,
+	.aux_control = 0,
+	.ttb = 0,
+	.domain_access = 0,
+	.process_id = 0,
+};
+
+static unsigned long store_ptr;
+
+/* sys_device for Palm Zire 72 PM */
+
+static int palmz72_pm_suspend(struct sys_device *dev, pm_message_t msg)
+{
+	/* setup the resume_info struct for the original bootloader */
+	palmz72_resume_info.resume_addr = (u32) pxa_cpu_resume;
+
+	/* Storing memory touched by ROM */
+	store_ptr = *PALMZ72_SAVE_DWORD;
+
+	/* Setting PSPR to a proper value */
+	PSPR = virt_to_phys(&palmz72_resume_info);
+
+	return 0;
+}
+
+static int palmz72_pm_resume(struct sys_device *dev)
+{
+	*PALMZ72_SAVE_DWORD = store_ptr;
+	return 0;
+}
+
+static struct sysdev_class palmz72_pm_sysclass = {
+	.name = "palmz72_pm",
+	.suspend = palmz72_pm_suspend,
+	.resume = palmz72_pm_resume,
+};
+
+static struct sys_device palmz72_pm_device = {
+	.cls = &palmz72_pm_sysclass,
+};
+
+static int __init palmz72_pm_init(void)
+{
+	int ret = -ENODEV;
+	if (machine_is_palmz72()) {
+		ret = sysdev_class_register(&palmz72_pm_sysclass);
+		if (ret == 0)
+			ret = sysdev_register(&palmz72_pm_device);
+	}
+	return ret;
+}
+
+device_initcall(palmz72_pm_init);
+#endif
+
 /******************************************************************************
  * Machine init
  ******************************************************************************/
