@@ -48,8 +48,8 @@ MODULE_DESCRIPTION("Hardware watchdog driver for Sun RIO");
 MODULE_SUPPORTED_DEVICE("watchdog");
 MODULE_LICENSE("GPL");
 
-#define RIOWD_NAME	"pmc"
-#define PFX		RIOWD_NAME ": "
+#define DRIVER_NAME	"riowd"
+#define PFX		DRIVER_NAME ": "
 
 struct riowd {
 	void __iomem		*regs;
@@ -92,7 +92,7 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 	static struct watchdog_info info = {
 		.options		= WDIOF_SETTIMEOUT,
 		.firmware_version	= 1,
-		.identity		= "riowd",
+		.identity		= DRIVER_NAME,
 	};
 	void __user *argp = (void __user *)arg;
 	struct riowd *p = riowd_device;
@@ -190,7 +190,7 @@ static int __devinit riowd_probe(struct of_device *op,
 
 	spin_lock_init(&p->lock);
 
-	p->regs = of_ioremap(&op->resource[0], 0, 2, "riowd");
+	p->regs = of_ioremap(&op->resource[0], 0, 2, DRIVER_NAME);
 	if (!p->regs) {
 		printk(KERN_ERR PFX "Cannot map registers.\n");
 		goto out_free;
@@ -239,7 +239,7 @@ static struct of_device_id riowd_match[] = {
 MODULE_DEVICE_TABLE(of, riowd_match);
 
 static struct of_platform_driver riowd_driver = {
-	.name		= "riowd",
+	.name		= DRIVER_NAME,
 	.match_table	= riowd_match,
 	.probe		= riowd_probe,
 	.remove		= __devexit_p(riowd_remove),
