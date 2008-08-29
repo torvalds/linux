@@ -434,7 +434,7 @@ config ARCH_ORION5X
 	help
 	  Support for the following Marvell Orion 5x series SoCs:
 	  Orion-1 (5181), Orion-VoIP (5181L), Orion-NAS (5182),
-	  Orion-2 (5281).
+	  Orion-2 (5281), Orion-1-90 (6183).
 
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"

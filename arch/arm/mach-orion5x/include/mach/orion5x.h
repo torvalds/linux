@@ -2,7 +2,7 @@
  * arch/arm/mach-orion5x/include/mach/orion5x.h
  *
  * Generic definitions of Orion SoC flavors:
- *  Orion-1, Orion-VoIP, Orion-NAS, and Orion-2.
+ *  Orion-1, Orion-VoIP, Orion-NAS, Orion-2, and Orion-1-90.
  *
  * Maintainer: Tzachi Perelstein <tzachi@marvell.com>
  *
@@ -76,6 +76,9 @@
 #define MV88F5281_REV_D0	4
 #define MV88F5281_REV_D1	5
 #define MV88F5281_REV_D2	6
+/* Orion-1-90 (88F6183) */
+#define MV88F6183_DEV_ID	0x6183
+#define MV88F6183_REV_B0	3
 
 /*******************************************************************************
  * Orion Registers Map
@@ -86,6 +89,7 @@
 #define ORION5X_DEV_BUS_PHYS_BASE	(ORION5X_REGS_PHYS_BASE | 0x10000)
 #define ORION5X_DEV_BUS_VIRT_BASE	(ORION5X_REGS_VIRT_BASE | 0x10000)
 #define ORION5X_DEV_BUS_REG(x)		(ORION5X_DEV_BUS_VIRT_BASE | (x))
+#define  SPI_PHYS_BASE			(ORION5X_DEV_BUS_PHYS_BASE | 0x0600)
 #define  I2C_PHYS_BASE			(ORION5X_DEV_BUS_PHYS_BASE | 0x1000)
 #define  UART0_PHYS_BASE		(ORION5X_DEV_BUS_PHYS_BASE | 0x2000)
 #define  UART0_VIRT_BASE		(ORION5X_DEV_BUS_VIRT_BASE | 0x2000)
