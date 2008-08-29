@@ -58,6 +58,8 @@
 
 
 
+/* default JPEG quality */
+#define S2255_DEF_JPEG_QUAL     50
 /* vendor request in */
 #define S2255_VR_IN		0
 /* vendor request out */
@@ -242,6 +244,8 @@ struct s2255_dev {
 	struct s2255_pipeinfo	pipes[MAX_PIPE_BUFFERS];
 	struct s2255_bufferi		buffer[MAX_CHANNELS];
 	struct s2255_mode	mode[MAX_CHANNELS];
+	/* jpeg compression */
+	struct v4l2_jpegcompression jc[MAX_CHANNELS];
 	const struct s2255_fmt	*cur_fmt[MAX_CHANNELS];
 	int			cur_frame[MAX_CHANNELS];
 	int			last_frame[MAX_CHANNELS];
@@ -1035,7 +1039,8 @@ static int vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 		fh->mode.color = COLOR_Y8;
 		break;
 	case V4L2_PIX_FMT_JPEG:
-		fh->mode.color = COLOR_JPG | (50 << 8);
+		fh->mode.color = COLOR_JPG |
+			(fh->dev->jc[fh->channel].quality << 8);
 		break;
 	case V4L2_PIX_FMT_YUV422P:
 		fh->mode.color = COLOR_YUVPL;
@@ -1207,6 +1212,10 @@ static int s2255_set_mode(struct s2255_dev *dev, unsigned long chn,
 	dprintk(3, "mode scale [%ld] %p %d\n", chn, &dev->mode[chn],
 		dev->mode[chn].scale);
 	dprintk(2, "mode contrast %x\n", mode->contrast);
+
+	/* if JPEG, set the quality */
+	if ((mode->color & MASK_COLOR) == COLOR_JPG)
+		mode->color = (dev->jc[chn].quality << 8) | COLOR_JPG;
 
 	/* save the mode */
 	dev->mode[chn] = *mode;
@@ -1472,6 +1481,27 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	return -EINVAL;
 }
 
+static int vidioc_g_jpegcomp(struct file *file, void *priv,
+			 struct v4l2_jpegcompression *jc)
+{
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+	*jc = dev->jc[fh->channel];
+	dprintk(2, "getting jpegcompression, quality %d\n", jc->quality);
+	return 0;
+}
+
+static int vidioc_s_jpegcomp(struct file *file, void *priv,
+			 struct v4l2_jpegcompression *jc)
+{
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+	if (jc->quality < 0 || jc->quality > 100)
+		return -EINVAL;
+	dev->jc[fh->channel].quality = jc->quality;
+	dprintk(2, "setting jpeg quality %d\n", jc->quality);
+	return 0;
+}
 static int s2255_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
@@ -1762,6 +1792,8 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 #ifdef CONFIG_VIDEO_V4L1_COMPAT
 	.vidiocgmbuf = vidioc_cgmbuf,
 #endif
+	.vidioc_s_jpegcomp = vidioc_s_jpegcomp,
+	.vidioc_g_jpegcomp = vidioc_g_jpegcomp,
 };
 
 static struct video_device template = {
@@ -2148,6 +2180,7 @@ static int s2255_board_init(struct s2255_dev *dev)
 	for (j = 0; j < MAX_CHANNELS; j++) {
 		dev->b_acquire[j] = 0;
 		dev->mode[j] = mode_def;
+		dev->jc[j].quality = S2255_DEF_JPEG_QUAL;
 		dev->cur_fmt[j] = &formats[0];
 		dev->mode[j].restart = 1;
 		dev->req_image_size[j] = get_transfer_size(&mode_def);
