@@ -1,9 +1,9 @@
 /*
  * PHY functions
  *
- * Copyright (c) 2004, 2005, 2006, 2007 Reyk Floeter <reyk@openbsd.org>
- * Copyright (c) 2006, 2007 Nick Kossifidis <mickflemm@gmail.com>
- * Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
+ * Copyright (c) 2004-2007 Reyk Floeter <reyk@openbsd.org>
+ * Copyright (c) 2006-2007 Nick Kossifidis <mickflemm@gmail.com>
+ * Copyright (c) 2007-2008 Jiri Slaby <jirislaby@gmail.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -18,6 +18,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *
  */
+
+#define _ATH5K_PHY
 
 #include <linux/delay.h>
 
@@ -2501,3 +2503,5 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, unsigned int power)
 
 	return ath5k_hw_txpower(ah, channel, power);
 }
+
+#undef _ATH5K_PHY
