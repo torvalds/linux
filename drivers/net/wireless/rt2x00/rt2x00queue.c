@@ -100,8 +100,21 @@ void rt2x00queue_map_txskb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 {
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(skb);
 
-	skbdesc->skb_dma = dma_map_single(rt2x00dev->dev, skb->data, skb->len,
-					  DMA_TO_DEVICE);
+	/*
+	 * If device has requested headroom, we should make sure that
+	 * is also mapped to the DMA so it can be used for transfering
+	 * additional descriptor information to the hardware.
+	 */
+	skb_push(skb, rt2x00dev->hw->extra_tx_headroom);
+
+	skbdesc->skb_dma =
+	    dma_map_single(rt2x00dev->dev, skb->data, skb->len, DMA_TO_DEVICE);
+
+	/*
+	 * Restore data pointer to original location again.
+	 */
+	skb_pull(skb, rt2x00dev->hw->extra_tx_headroom);
+
 	skbdesc->flags |= SKBDESC_DMA_MAPPED_TX;
 }
 EXPORT_SYMBOL_GPL(rt2x00queue_map_txskb);
@@ -117,7 +130,12 @@ void rt2x00queue_unmap_skb(struct rt2x00_dev *rt2x00dev, struct sk_buff *skb)
 	}
 
 	if (skbdesc->flags & SKBDESC_DMA_MAPPED_TX) {
-		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma, skb->len,
+		/*
+		 * Add headroom to the skb length, it has been removed
+		 * by the driver, but it was actually mapped to DMA.
+		 */
+		dma_unmap_single(rt2x00dev->dev, skbdesc->skb_dma,
+				 skb->len + rt2x00dev->hw->extra_tx_headroom,
 				 DMA_TO_DEVICE);
 		skbdesc->flags &= ~SKBDESC_DMA_MAPPED_TX;
 	}
