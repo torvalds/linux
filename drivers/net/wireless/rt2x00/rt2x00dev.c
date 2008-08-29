@@ -653,7 +653,7 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 
 		if (((rxdesc.dev_flags & RXDONE_SIGNAL_PLCP) &&
 		     (rate->plcp == rxdesc.signal)) ||
-		    (!(rxdesc.dev_flags & RXDONE_SIGNAL_PLCP) &&
+		    ((rxdesc.dev_flags & RXDONE_SIGNAL_BITRATE) &&
 		      (rate->bitrate == rxdesc.signal))) {
 			idx = i;
 			break;
