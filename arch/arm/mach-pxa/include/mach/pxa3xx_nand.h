@@ -30,8 +30,8 @@ struct pxa3xx_nand_cmdset {
 };
 
 struct pxa3xx_nand_flash {
-	struct pxa3xx_nand_timing *timing; /* NAND Flash timing */
-	struct pxa3xx_nand_cmdset *cmdset;
+	const struct pxa3xx_nand_timing *timing; /* NAND Flash timing */
+	const struct pxa3xx_nand_cmdset *cmdset;
 
 	uint32_t page_per_block;/* Pages per block (PG_PER_BLK) */
 	uint32_t page_size;	/* Page size in bytes (PAGE_SZ) */
@@ -56,8 +56,8 @@ struct pxa3xx_nand_platform_data {
 	 */
 	int	enable_arbiter;
 
-	struct mtd_partition *parts;
-	unsigned int	nr_parts;
+	const struct mtd_partition		*parts;
+	unsigned int				nr_parts;
 
 	struct pxa3xx_nand_flash * const	flash;
 	size_t					num_flash;

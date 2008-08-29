@@ -293,7 +293,7 @@ static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 #define ns2cycle(ns, clk)	(int)(((ns) * (clk / 1000000) / 1000) + 1)
 
 static void pxa3xx_nand_set_timing(struct pxa3xx_nand_info *info,
-				   struct pxa3xx_nand_timing *t)
+				   const struct pxa3xx_nand_timing *t)
 {
 	unsigned long nand_clk = clk_get_rate(info->clk);
 	uint32_t ndtr0, ndtr1;
@@ -336,7 +336,7 @@ static int prepare_read_prog_cmd(struct pxa3xx_nand_info *info,
 			uint16_t cmd, int column, int page_addr)
 {
 	struct pxa3xx_nand_flash *f = info->flash_info;
-	struct pxa3xx_nand_cmdset *cmdset = f->cmdset;
+	const struct pxa3xx_nand_cmdset *cmdset = f->cmdset;
 
 	/* calculate data size */
 	switch (f->page_size) {
@@ -387,7 +387,7 @@ static int prepare_erase_cmd(struct pxa3xx_nand_info *info,
 
 static int prepare_other_cmd(struct pxa3xx_nand_info *info, uint16_t cmd)
 {
-	struct pxa3xx_nand_cmdset *cmdset = info->flash_info->cmdset;
+	const struct pxa3xx_nand_cmdset *cmdset = info->flash_info->cmdset;
 
 	info->ndcb0 = cmd | ((cmd & 0xff00) ? NDCB0_DBC : 0);
 	info->ndcb1 = 0;
@@ -623,7 +623,7 @@ static void pxa3xx_nand_cmdfunc(struct mtd_info *mtd, unsigned command,
 {
 	struct pxa3xx_nand_info *info = mtd->priv;
 	struct pxa3xx_nand_flash *flash_info = info->flash_info;
-	struct pxa3xx_nand_cmdset *cmdset = flash_info->cmdset;
+	const struct pxa3xx_nand_cmdset *cmdset = flash_info->cmdset;
 	int ret;
 
 	info->use_dma = (use_dma) ? 1 : 0;
@@ -843,7 +843,7 @@ static int pxa3xx_nand_ecc_correct(struct mtd_info *mtd,
 static int __readid(struct pxa3xx_nand_info *info, uint32_t *id)
 {
 	struct pxa3xx_nand_flash *f = info->flash_info;
-	struct pxa3xx_nand_cmdset *cmdset = f->cmdset;
+	const struct pxa3xx_nand_cmdset *cmdset = f->cmdset;
 	uint32_t ndcr;
 	uint8_t  id_buff[8];
 
