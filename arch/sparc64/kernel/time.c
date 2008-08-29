@@ -405,6 +405,11 @@ static unsigned long timer_ticks_per_nsec_quotient __read_mostly;
 
 int update_persistent_clock(struct timespec now)
 {
+	struct rtc_device *rtc = rtc_class_open("rtc0");
+
+	if (rtc)
+		return rtc_set_mmss(rtc, now.tv_sec);
+
 	return set_rtc_mmss(now.tv_sec);
 }
 
