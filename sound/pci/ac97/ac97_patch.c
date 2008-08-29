@@ -3548,7 +3548,7 @@ static const struct snd_kcontrol_new snd_ac97_controls_vt1617a[] = {
 	},
 };
 
-int patch_vt1617a(struct snd_ac97 * ac97)
+static int patch_vt1617a(struct snd_ac97 * ac97)
 {
 	int err = 0;
 	int val;
@@ -3764,7 +3764,7 @@ static const struct snd_kcontrol_new snd_ac97_controls_vt1618[] = {
 	}
 };
 
-int patch_vt1618(struct snd_ac97 *ac97)
+static int patch_vt1618(struct snd_ac97 *ac97)
 {
 	return patch_build_controls(ac97, snd_ac97_controls_vt1618,
 				    ARRAY_SIZE(snd_ac97_controls_vt1618));
