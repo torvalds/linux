@@ -942,7 +942,7 @@ static int snd_vt1724_playback_pro_open(struct snd_pcm_substream *substream)
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_ice1712 *ice = snd_pcm_substream_chip(substream);
-	int chs;
+	int chs, num_indeps;
 
 	runtime->private_data = (void *)&vt1724_playback_pro_reg;
 	ice->playback_pro_substream = substream;
@@ -952,7 +952,8 @@ static int snd_vt1724_playback_pro_open(struct snd_pcm_substream *substream)
 	set_rate_constraints(ice, substream);
 	mutex_lock(&ice->open_mutex);
 	/* calculate the currently available channels */
-	for (chs = 0; chs < 3; chs++) {
+	num_indeps = ice->num_total_dacs / 2 - 1;
+	for (chs = 0; chs < num_indeps; chs++) {
 		if (ice->pcm_reserved[chs])
 			break;
 	}
