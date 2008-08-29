@@ -12,6 +12,7 @@
 #include <linux/poll.h>
 #include <linux/fs.h>
 #include <linux/device.h>
+#include <linux/cdev.h>
 #include <linux/mutex.h>
 #include <linux/videodev2.h>
 
@@ -47,6 +48,8 @@ struct video_device
 
 	/* sysfs */
 	struct device dev;		/* v4l device */
+	struct cdev cdev;		/* character device */
+	void (*cdev_release)(struct kobject *kobj);
 	struct device *parent;		/* device parent */
 
 	/* device info */
