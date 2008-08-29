@@ -122,6 +122,8 @@ obj-$(CONFIG_SH_WDT) += shwdt.o
 
 # SPARC64 Architecture
 
+obj-$(CONFIG_WATCHDOG_RIO)		+= riowd.o
+
 # XTENSA Architecture
 
 # Architecture Independant
