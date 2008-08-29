@@ -2158,6 +2158,24 @@ static unsigned char aureon71_eeprom[] __devinitdata = {
 };
 #define prodigy71_eeprom aureon71_eeprom
 
+static unsigned char aureon71_universe_eeprom[] __devinitdata = {
+	[ICE_EEP2_SYSCONF]     = 0x2b,	/* clock 512, mpu401, spdif-in/ADC,
+					 * 4DACs
+					 */
+	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
+	[ICE_EEP2_I2S]         = 0xfc,	/* vol, 96k, 24bit, 192k */
+	[ICE_EEP2_SPDIF]       = 0xc3,	/* out-en, out-int, spdif-in */
+	[ICE_EEP2_GPIO_DIR]    = 0xff,
+	[ICE_EEP2_GPIO_DIR1]   = 0xff,
+	[ICE_EEP2_GPIO_DIR2]   = 0x5f,
+	[ICE_EEP2_GPIO_MASK]   = 0x00,
+	[ICE_EEP2_GPIO_MASK1]  = 0x00,
+	[ICE_EEP2_GPIO_MASK2]  = 0x00,
+	[ICE_EEP2_GPIO_STATE]  = 0x00,
+	[ICE_EEP2_GPIO_STATE1] = 0x00,
+	[ICE_EEP2_GPIO_STATE2] = 0x00,
+};
+
 static unsigned char prodigy71lt_eeprom[] __devinitdata = {
 	[ICE_EEP2_SYSCONF]     = 0x4b,	/* clock 384, spdif-in/ADC, 4DACs */
 	[ICE_EEP2_ACLINK]      = 0x80,	/* I2S */
@@ -2203,8 +2221,8 @@ struct snd_ice1712_card_info snd_vt1724_aureon_cards[] __devinitdata = {
 		.model = "universe",
  		.chip_init = aureon_init,
  		.build_controls = aureon_add_controls,
- 		.eeprom_size = sizeof(aureon71_eeprom),
- 		.eeprom_data = aureon71_eeprom,
+		.eeprom_size = sizeof(aureon71_universe_eeprom),
+		.eeprom_data = aureon71_universe_eeprom,
 		.driver = "Aureon71Univ", /* keep in 15 letters */
 	},
 	{
