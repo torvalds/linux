@@ -1297,7 +1297,7 @@ static void rt2500usb_beacondone(struct urb *urb)
 	struct queue_entry *entry = (struct queue_entry *)urb->context;
 	struct queue_entry_priv_usb_bcn *bcn_priv = entry->priv_data;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &entry->queue->rt2x00dev->flags))
 		return;
 
 	/*

@@ -41,16 +41,16 @@ static int rt2x00rfkill_toggle_radio(void *data, enum rfkill_state state)
 	/*
 	 * Only continue if there are enabled interfaces.
 	 */
-	if (!test_bit(DEVICE_STARTED, &rt2x00dev->flags))
+	if (!test_bit(DEVICE_STATE_STARTED, &rt2x00dev->flags))
 		return 0;
 
 	if (state == RFKILL_STATE_UNBLOCKED) {
 		INFO(rt2x00dev, "Hardware button pressed, enabling radio.\n");
-		__clear_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags);
+		clear_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags);
 		retval = rt2x00lib_enable_radio(rt2x00dev);
 	} else if (state == RFKILL_STATE_SOFT_BLOCKED) {
 		INFO(rt2x00dev, "Hardware button pressed, disabling radio.\n");
-		__set_bit(DEVICE_DISABLED_RADIO_HW, &rt2x00dev->flags);
+		set_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags);
 		rt2x00lib_disable_radio(rt2x00dev);
 	} else {
 		WARNING(rt2x00dev, "Received unexpected rfkill state %d.\n",

@@ -163,7 +163,7 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
 	struct txdone_entry_desc txdesc;
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
@@ -232,7 +232,7 @@ static inline void rt2x00usb_kick_tx_entry(struct queue_entry *entry)
 {
 	struct queue_entry_priv_usb *entry_priv = entry->priv_data;
 
-	if (__test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
+	if (test_and_clear_bit(ENTRY_DATA_PENDING, &entry->flags))
 		usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 }
 
@@ -283,7 +283,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	u8 rxd[32];
 
-	if (!test_bit(DEVICE_ENABLED_RADIO, &rt2x00dev->flags) ||
+	if (!test_bit(DEVICE_STATE_ENABLED_RADIO, &rt2x00dev->flags) ||
 	    !test_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags))
 		return;
 
@@ -293,7 +293,7 @@ static void rt2x00usb_interrupt_rxdone(struct urb *urb)
 	 * a problem.
 	 */
 	if (urb->actual_length < entry->queue->desc_size || urb->status) {
-		__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+		set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 		usb_submit_urb(urb, GFP_ATOMIC);
 		return;
 	}
@@ -361,7 +361,7 @@ void rt2x00usb_init_rxentry(struct rt2x00_dev *rt2x00dev,
 			  entry->skb->data, entry->skb->len,
 			  rt2x00usb_interrupt_rxdone, entry);
 
-	__set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
+	set_bit(ENTRY_OWNER_DEVICE_DATA, &entry->flags);
 	usb_submit_urb(entry_priv->urb, GFP_ATOMIC);
 }
 EXPORT_SYMBOL_GPL(rt2x00usb_init_rxentry);
