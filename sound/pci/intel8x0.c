@@ -83,7 +83,7 @@ MODULE_PARM_DESC(index, "Index value for Intel i8x0 soundcard.");
 module_param(id, charp, 0444);
 MODULE_PARM_DESC(id, "ID string for Intel i8x0 soundcard.");
 module_param(ac97_clock, int, 0444);
-MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = auto-detect).");
+MODULE_PARM_DESC(ac97_clock, "AC'97 codec clock (0 = whitelist + auto-detect, 1 = force autodetect).");
 module_param(ac97_quirk, charp, 0444);
 MODULE_PARM_DESC(ac97_quirk, "AC'97 workaround for strange hardware.");
 module_param(buggy_semaphore, bool, 0444);
@@ -2692,6 +2692,38 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	snd_ac97_update_power(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 0);
 }
 
+struct intel8x0_clock_list {
+	unsigned short subvendor;
+	unsigned short subdevice;
+	unsigned int rate;
+};
+
+static struct intel8x0_clock_list intel8x0_clock_list[] __devinitdata = {
+	{ 0x0e11, 0x008a, 41000 },	/* Analog Devices AD1885 */
+	{ 0x1028, 0x00be, 44100 },	/* Analog Devices AD1885 */
+	{ 0x1028, 0x0177, 48000 },	/* Analog Devices AD1980 */
+	{ 0x1043, 0x80f3, 48000 },	/* Analog Devices AD1985 */
+	{ 0x0000, 0x0000, 00000 }	/* terminator */
+};
+
+static int __devinit intel8x0_in_clock_list(struct intel8x0 *chip)
+{
+	struct pci_dev *pci = chip->pci;
+	struct intel8x0_clock_list *wl;
+
+	for (wl = intel8x0_clock_list; wl->subvendor; wl++) {
+		if (wl->subvendor == pci->subsystem_vendor &&
+		    wl->subdevice == pci->subsystem_device) {
+			printk(KERN_INFO "intel8x0: white list rate for %04x:%04x is %i\n",
+				pci->subsystem_vendor,
+				pci->subsystem_device, wl->rate);
+			chip->ac97_bus->clock = wl->rate;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 #ifdef CONFIG_PROC_FS
 static void snd_intel8x0_proc_read(struct snd_info_entry * entry,
 				   struct snd_info_buffer *buffer)
@@ -3087,8 +3119,14 @@ static int __devinit snd_intel8x0_probe(struct pci_dev *pci,
 		 "%s with %s at irq %i", card->shortname,
 		 snd_ac97_get_short_name(chip->ac97[0]), chip->irq);
 
-	if (! ac97_clock)
-		intel8x0_measure_ac97_clock(chip);
+	if (ac97_clock == 0 || ac97_clock == 1) {
+		if (ac97_clock == 0) {
+			if (intel8x0_in_clock_list(chip) == 0)
+				intel8x0_measure_ac97_clock(chip);
+		} else {
+			intel8x0_measure_ac97_clock(chip);
+		}
+	}
 
 	if ((err = snd_card_register(card)) < 0) {
 		snd_card_free(card);
