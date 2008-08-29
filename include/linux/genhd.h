@@ -16,9 +16,9 @@
 #ifdef CONFIG_BLOCK
 
 #define kobj_to_dev(k)		container_of((k), struct device, kobj)
-#define dev_to_disk(device)	container_of((device), struct gendisk, __dev)
+#define dev_to_disk(device)	container_of((device), struct gendisk, part0.__dev)
 #define dev_to_part(device)	container_of((device), struct hd_struct, __dev)
-#define disk_to_dev(disk)	(&((disk)->__dev))
+#define disk_to_dev(disk)	(&(disk)->part0.__dev)
 #define part_to_dev(part)	(&((part)->__dev))
 
 extern struct device_type part_type;
@@ -141,7 +141,6 @@ struct gendisk {
 
 	int flags;
 	struct device *driverfs_dev;  // FIXME: remove
-	struct device __dev;
 	struct kobject *holder_dir;
 	struct kobject *slave_dir;
 
@@ -164,8 +163,12 @@ struct gendisk {
 
 static inline struct gendisk *part_to_disk(struct hd_struct *part)
 {
-	if (likely(part))
-		return dev_to_disk(part_to_dev(part)->parent);
+	if (likely(part)) {
+		if (part->partno)
+			return dev_to_disk(part_to_dev(part)->parent);
+		else
+			return dev_to_disk(part_to_dev(part));
+	}
 	return NULL;
 }
 

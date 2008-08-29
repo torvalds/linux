@@ -537,22 +537,15 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
  */
 extern struct block_device *bdget_disk(struct gendisk *disk, int partno)
 {
-	dev_t devt = MKDEV(0, 0);
+	struct hd_struct *part;
+	struct block_device *bdev = NULL;
 
-	if (partno == 0)
-		devt = disk_devt(disk);
-	else {
-		struct hd_struct *part;
+	part = disk_get_part(disk, partno);
+	if (part && (part->nr_sects || partno == 0))
+		bdev = bdget(part_devt(part));
+	disk_put_part(part);
 
-		part = disk_get_part(disk, partno);
-		if (part && part->nr_sects)
-			devt = part_devt(part);
-		disk_put_part(part);
-	}
-
-	if (likely(devt != MKDEV(0, 0)))
-		return bdget(devt);
-	return NULL;
+	return bdev;
 }
 EXPORT_SYMBOL(bdget_disk);
 
@@ -1000,27 +993,18 @@ dev_t blk_lookup_devt(const char *name, int partno)
 	class_dev_iter_init(&iter, &block_class, NULL, &disk_type);
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct gendisk *disk = dev_to_disk(dev);
+		struct hd_struct *part;
 
 		if (strcmp(dev->bus_id, name))
 			continue;
-		if (partno < 0 || partno >= disk_max_parts(disk))
-			continue;
 
-		if (partno == 0)
-			devt = disk_devt(disk);
-		else {
-			struct hd_struct *part;
-
-			part = disk_get_part(disk, partno);
-			if (!part || !part->nr_sects) {
-				disk_put_part(part);
-				continue;
-			}
-
+		part = disk_get_part(disk, partno);
+		if (part && (part->nr_sects || partno == 0)) {
 			devt = part_devt(part);
 			disk_put_part(part);
+			break;
 		}
-		break;
+		disk_put_part(part);
 	}
 	class_dev_iter_exit(&iter);
 	return devt;
