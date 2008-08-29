@@ -1,7 +1,6 @@
-/* $Id: riowatchdog.c,v 1.3.2.2 2002/01/23 18:48:02 davem Exp $
- * riowatchdog.c - driver for hw watchdog inside Super I/O of RIO
+/* riowatchdog.c - driver for hw watchdog inside Super I/O of RIO
  *
- * Copyright (C) 2001 David S. Miller (davem@redhat.com)
+ * Copyright (C) 2001, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -12,14 +11,13 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/smp_lock.h>
+#include <linux/watchdog.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
-#include <asm/ebus.h>
-#include <asm/bbc.h>
-#include <asm/oplib.h>
 #include <asm/uaccess.h>
 
-#include <asm/watchdog.h>
 
 /* RIO uses the NatSemi Super I/O power management logical device
  * as its' watchdog.
@@ -45,74 +43,35 @@
  * The watchdog device generates no interrupts.
  */
 
-MODULE_AUTHOR("David S. Miller <davem@redhat.com>");
+MODULE_AUTHOR("David S. Miller <davem@davemloft.net>");
 MODULE_DESCRIPTION("Hardware watchdog driver for Sun RIO");
 MODULE_SUPPORTED_DEVICE("watchdog");
 MODULE_LICENSE("GPL");
 
 #define RIOWD_NAME	"pmc"
-#define RIOWD_MINOR	215
+#define PFX		RIOWD_NAME ": "
 
-static DEFINE_SPINLOCK(riowd_lock);
+struct riowd {
+	void __iomem		*regs;
+	spinlock_t		lock;
+};
 
-static void __iomem *bbc_regs;
-static void __iomem *riowd_regs;
+static struct riowd *riowd_device;
+
 #define WDTO_INDEX	0x05
 
 static int riowd_timeout = 1;		/* in minutes */
 module_param(riowd_timeout, int, 0);
 MODULE_PARM_DESC(riowd_timeout, "Watchdog timeout in minutes");
 
-#if 0 /* Currently unused. */
-static u8 riowd_readreg(int index)
-{
-	unsigned long flags;
-	u8 ret;
-
-	spin_lock_irqsave(&riowd_lock, flags);
-	writeb(index, riowd_regs + 0);
-	ret = readb(riowd_regs + 1);
-	spin_unlock_irqrestore(&riowd_lock, flags);
-
-	return ret;
-}
-#endif
-
-static void riowd_writereg(u8 val, int index)
+static void riowd_writereg(struct riowd *p, u8 val, int index)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&riowd_lock, flags);
-	writeb(index, riowd_regs + 0);
-	writeb(val, riowd_regs + 1);
-	spin_unlock_irqrestore(&riowd_lock, flags);
-}
-
-static void riowd_pingtimer(void)
-{
-	riowd_writereg(riowd_timeout, WDTO_INDEX);
-}
-
-static void riowd_stoptimer(void)
-{
-	u8 val;
-
-	riowd_writereg(0, WDTO_INDEX);
-
-	val = readb(bbc_regs + BBC_WDACTION);
-	val &= ~BBC_WDACTION_RST;
-	writeb(val, bbc_regs + BBC_WDACTION);
-}
-
-static void riowd_starttimer(void)
-{
-	u8 val;
-
-	riowd_writereg(riowd_timeout, WDTO_INDEX);
-
-	val = readb(bbc_regs + BBC_WDACTION);
-	val |= BBC_WDACTION_RST;
-	writeb(val, bbc_regs + BBC_WDACTION);
+	spin_lock_irqsave(&p->lock, flags);
+	writeb(index, p->regs + 0);
+	writeb(val, p->regs + 1);
+	spin_unlock_irqrestore(&p->lock, flags);
 }
 
 static int riowd_open(struct inode *inode, struct file *filp)
@@ -131,9 +90,12 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 		       unsigned int cmd, unsigned long arg)
 {
 	static struct watchdog_info info = {
-	       	WDIOF_SETTIMEOUT, 0, "Natl. Semiconductor PC97317"
+		.options		= WDIOF_SETTIMEOUT,
+		.firmware_version	= 1,
+		.identity		= "riowd",
 	};
 	void __user *argp = (void __user *)arg;
+	struct riowd *p = riowd_device;
 	unsigned int options;
 	int new_margin;
 
@@ -150,7 +112,7 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 		break;
 
 	case WDIOC_KEEPALIVE:
-		riowd_pingtimer();
+		riowd_writereg(p, riowd_timeout, WDTO_INDEX);
 		break;
 
 	case WDIOC_SETOPTIONS:
@@ -158,9 +120,9 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 			return -EFAULT;
 
 		if (options & WDIOS_DISABLECARD)
-			riowd_stoptimer();
+			riowd_writereg(p, 0, WDTO_INDEX);
 		else if (options & WDIOS_ENABLECARD)
-			riowd_starttimer();
+			riowd_writereg(p, riowd_timeout, WDTO_INDEX);
 		else
 			return -EINVAL;
 
@@ -170,9 +132,9 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 		if (get_user(new_margin, (int __user *)argp))
 			return -EFAULT;
 		if ((new_margin < 60) || (new_margin > (255 * 60)))
-		    return -EINVAL;
+			return -EINVAL;
 		riowd_timeout = (new_margin + 59) / 60;
-		riowd_pingtimer();
+		riowd_writereg(p, riowd_timeout, WDTO_INDEX);
 		/* Fall */
 
 	case WDIOC_GETTIMEOUT:
@@ -187,8 +149,10 @@ static int riowd_ioctl(struct inode *inode, struct file *filp,
 
 static ssize_t riowd_write(struct file *file, const char __user *buf, size_t count, loff_t *ppos)
 {
+	struct riowd *p = riowd_device;
+
 	if (count) {
-		riowd_pingtimer();
+		riowd_writereg(p, riowd_timeout, WDTO_INDEX);
 		return 1;
 	}
 
@@ -197,99 +161,99 @@ static ssize_t riowd_write(struct file *file, const char __user *buf, size_t cou
 
 static const struct file_operations riowd_fops = {
 	.owner =	THIS_MODULE,
+	.llseek =	no_llseek,
 	.ioctl =	riowd_ioctl,
 	.open =		riowd_open,
 	.write =	riowd_write,
 	.release =	riowd_release,
 };
 
-static struct miscdevice riowd_miscdev = { RIOWD_MINOR, RIOWD_NAME, &riowd_fops };
+static struct miscdevice riowd_miscdev = {
+	.minor	= WATCHDOG_MINOR,
+	.name	= "watchdog",
+	.fops	= &riowd_fops
+};
 
-static int __init riowd_bbc_init(void)
+static int __devinit riowd_probe(struct of_device *op,
+				 const struct of_device_id *match)
 {
-	struct 	linux_ebus *ebus = NULL;
-	struct 	linux_ebus_device *edev = NULL;
-	u8 val;
+	struct riowd *p;
+	int err = -EINVAL;
 
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->ofdev.node->name, "bbc"))
-				goto found_bbc;
-		}
+	if (riowd_device)
+		goto out;
+
+	err = -ENOMEM;
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	if (!p)
+		goto out;
+
+	spin_lock_init(&p->lock);
+
+	p->regs = of_ioremap(&op->resource[0], 0, 2, "riowd");
+	if (!p->regs) {
+		printk(KERN_ERR PFX "Cannot map registers.\n");
+		goto out_free;
 	}
 
-found_bbc:
-	if (!edev)
-		return -ENODEV;
-	bbc_regs = ioremap(edev->resource[0].start, BBC_REGS_SIZE);
-	if (!bbc_regs)
-		return -ENODEV;
+	err = misc_register(&riowd_miscdev);
+	if (err) {
+		printk(KERN_ERR PFX "Cannot register watchdog misc device.\n");
+		goto out_iounmap;
+	}
 
-	/* Turn it off. */
-	val = readb(bbc_regs + BBC_WDACTION);
-	val &= ~BBC_WDACTION_RST;
-	writeb(val, bbc_regs + BBC_WDACTION);
+	printk(KERN_INFO PFX "Hardware watchdog [%i minutes], "
+	       "regs at %p\n", riowd_timeout, p->regs);
+
+	dev_set_drvdata(&op->dev, p);
+	riowd_device = p;
+	err = 0;
+
+out_iounmap:
+	of_iounmap(&op->resource[0], p->regs, 2);
+
+out_free:
+	kfree(p);
+
+out:
+	return err;
+}
+
+static int __devexit riowd_remove(struct of_device *op)
+{
+	struct riowd *p = dev_get_drvdata(&op->dev);
+
+	misc_deregister(&riowd_miscdev);
+	of_iounmap(&op->resource[0], p->regs, 2);
+	kfree(p);
 
 	return 0;
 }
+
+static struct of_device_id riowd_match[] = {
+	{
+		.name = "pmc",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, riowd_match);
+
+static struct of_platform_driver riowd_driver = {
+	.name		= "riowd",
+	.match_table	= riowd_match,
+	.probe		= riowd_probe,
+	.remove		= __devexit_p(riowd_remove),
+};
 
 static int __init riowd_init(void)
 {
-	struct 	linux_ebus *ebus = NULL;
-	struct 	linux_ebus_device *edev = NULL;
-
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->ofdev.node->name, RIOWD_NAME))
-				goto ebus_done;
-		}
-	}
-
-ebus_done:
-	if (!edev)
-		goto fail;
-
-	riowd_regs = ioremap(edev->resource[0].start, 2);
-	if (riowd_regs == NULL) {
-		printk(KERN_ERR "pmc: Cannot map registers.\n");
-		return -ENODEV;
-	}
-
-	if (riowd_bbc_init()) {
-		printk(KERN_ERR "pmc: Failure initializing BBC config.\n");
-		goto fail;
-	}
-
-	if (misc_register(&riowd_miscdev)) {
-		printk(KERN_ERR "pmc: Cannot register watchdog misc device.\n");
-		goto fail;
-	}
-
-	printk(KERN_INFO "pmc: Hardware watchdog [%i minutes], "
-	       "regs at %p\n", riowd_timeout, riowd_regs);
-
-	return 0;
-
-fail:
-	if (riowd_regs) {
-		iounmap(riowd_regs);
-		riowd_regs = NULL;
-	}
-	if (bbc_regs) {
-		iounmap(bbc_regs);
-		bbc_regs = NULL;
-	}
-	return -ENODEV;
+	return of_register_driver(&riowd_driver, &of_bus_type);
 }
 
-static void __exit riowd_cleanup(void)
+static void __exit riowd_exit(void)
 {
-	misc_deregister(&riowd_miscdev);
-	iounmap(riowd_regs);
-	riowd_regs = NULL;
-	iounmap(bbc_regs);
-	bbc_regs = NULL;
+	of_unregister_driver(&riowd_driver);
 }
 
 module_init(riowd_init);
-module_exit(riowd_cleanup);
+module_exit(riowd_exit);
