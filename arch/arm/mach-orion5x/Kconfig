@@ -105,6 +105,12 @@ config MACH_RD88F5181L_FXO
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell Orion-VoIP FXO (88F5181L) RD.
 
+config MACH_RD88F6183AP_GE
+	bool "Marvell Orion-1-90 AP GE Reference Design"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell Orion-1-90 (88F6183) AP GE RD.
+
 endmenu
 
 endif
