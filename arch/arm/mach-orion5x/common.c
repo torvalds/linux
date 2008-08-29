@@ -146,7 +146,6 @@ void __init orion5x_ehci1_init(void)
  ****************************************************************************/
 struct mv643xx_eth_shared_platform_data orion5x_eth_shared_data = {
 	.dram		= &orion5x_mbus_dram_info,
-	.t_clk		= ORION5X_TCLK,
 };
 
 static struct resource orion5x_eth_shared_resources[] = {
@@ -282,7 +281,7 @@ static struct plat_serial8250_port orion5x_uart0_data[] = {
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= ORION5X_TCLK,
+		.uartclk	= 0,
 	}, {
 	},
 };
@@ -326,7 +325,7 @@ static struct plat_serial8250_port orion5x_uart1_data[] = {
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= ORION5X_TCLK,
+		.uartclk	= 0,
 	}, {
 	},
 };
@@ -459,9 +458,17 @@ void __init orion5x_xor_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+int orion5x_tclk;
+
+int __init orion5x_find_tclk(void)
+{
+	return 166666667;
+}
+
 static void orion5x_timer_init(void)
 {
-	orion_time_init(IRQ_ORION5X_BRIDGE, ORION5X_TCLK);
+	orion5x_tclk = orion5x_find_tclk();
+	orion_time_init(IRQ_ORION5X_BRIDGE, orion5x_tclk);
 }
 
 struct sys_timer orion5x_timer = {
@@ -514,7 +521,11 @@ void __init orion5x_init(void)
 	u32 dev, rev;
 
 	orion5x_id(&dev, &rev, &dev_name);
-	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, ORION5X_TCLK);
+	printk(KERN_INFO "Orion ID: %s. TCLK=%d.\n", dev_name, orion5x_tclk);
+
+	orion5x_eth_shared_data.t_clk = orion5x_tclk;
+	orion5x_uart0_data[0].uartclk = orion5x_tclk;
+	orion5x_uart1_data[0].uartclk = orion5x_tclk;
 
 	/*
 	 * Setup Orion address map
