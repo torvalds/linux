@@ -378,6 +378,10 @@ static int atmel_lcdfb_check_var(struct fb_var_screeninfo *var,
 			var->red.offset = 11;
 			var->blue.offset = 0;
 			var->green.length = 6;
+		} else if (sinfo->lcd_wiring_mode == ATMEL_LCDC_WIRING_RGB555) {
+			var->red.offset = 10;
+			var->blue.offset = 0;
+			var->green.length = 5;
 		} else {
 			/* BGR:555 mode */
 			var->red.offset = 0;
