@@ -21,6 +21,7 @@ config SPARC64
 	select ARCH_WANT_OPTIONAL_GPIOLIB
 	select RTC_CLASS
 	select RTC_DRV_M48T59
+	select RTC_DRV_CMOS
 
 config GENERIC_TIME
 	bool
