@@ -168,11 +168,6 @@ static void rt2x00usb_interrupt_txdone(struct urb *urb)
 		return;
 
 	/*
-	 * Remove the descriptor data from the buffer.
-	 */
-	skb_pull(entry->skb, entry->queue->desc_size);
-
-	/*
 	 * Obtain the status about this packet.
 	 * Note that when the status is 0 it does not mean the
 	 * frame was send out correctly. It only means the frame
@@ -223,6 +218,12 @@ int rt2x00usb_write_tx_data(struct queue_entry *entry)
 			  usb_sndbulkpipe(usb_dev, 1),
 			  entry->skb->data, length,
 			  rt2x00usb_interrupt_txdone, entry);
+
+	/*
+	 * Make sure the skb->data pointer points to the frame, not the
+	 * descriptor.
+	 */
+	skb_pull(entry->skb, entry->queue->desc_size);
 
 	return 0;
 }
