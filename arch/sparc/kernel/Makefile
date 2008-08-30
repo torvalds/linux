@@ -21,7 +21,6 @@ obj-$(CONFIG_PCI) += pcic.o
 obj-$(CONFIG_SUN4) += sun4setup.o
 obj-$(CONFIG_SMP) += trampoline.o smp.o sun4m_smp.o sun4d_smp.o
 obj-$(CONFIG_SUN_AUXIO) += auxio.o
-obj-$(CONFIG_PCI) += ebus.o
 obj-$(CONFIG_SUN_PM) += apc.o pmc.o
 obj-$(CONFIG_MODULES) += module.o sparc_ksyms.o
 obj-$(CONFIG_SPARC_LED) += led.o

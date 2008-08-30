@@ -18,11 +18,12 @@
 #include <linux/msi.h>
 #include <linux/irq.h>
 #include <linux/init.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/irq.h>
-#include <asm/ebus.h>
 #include <asm/prom.h>
 #include <asm/apb.h>
 
@@ -808,7 +809,6 @@ static int __init pcibios_init(void)
 
 	pci_scan_each_controller_bus();
 
-	ebus_init();
 	power_init();
 
 	return 0;

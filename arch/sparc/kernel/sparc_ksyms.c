@@ -45,9 +45,6 @@
 #ifdef CONFIG_SBUS
 #include <asm/dma.h>
 #endif
-#ifdef CONFIG_PCI
-#include <asm/ebus.h>
-#endif
 #include <asm/io-unit.h>
 #include <asm/bug.h>
 
@@ -152,7 +149,6 @@ EXPORT_SYMBOL(BTFIXUP_CALL(pgprot_noncached));
 EXPORT_SYMBOL(sbus_set_sbus64);
 #endif
 #ifdef CONFIG_PCI
-EXPORT_SYMBOL(ebus_chain);
 EXPORT_SYMBOL(insb);
 EXPORT_SYMBOL(outsb);
 EXPORT_SYMBOL(insw);
