@@ -27,8 +27,6 @@
 #include "cx18-av-core.h"
 #include "cx18-i2c.h"
 
-#include <media/ir-kbd-i2c.h>
-
 #define CX18_REG_I2C_1_WR   0xf15000
 #define CX18_REG_I2C_1_RD   0xf15008
 #define CX18_REG_I2C_2_WR   0xf25100
