@@ -167,9 +167,6 @@ void pci_config_write32(u32 *addr, u32 val)
 /* Probe for all PCI controllers in the system. */
 extern void sabre_init(struct device_node *, const char *);
 extern void psycho_init(struct device_node *, const char *);
-extern void schizo_init(struct device_node *, const char *);
-extern void schizo_plus_init(struct device_node *, const char *);
-extern void tomatillo_init(struct device_node *, const char *);
 extern void sun4v_pci_init(struct device_node *, const char *);
 extern void fire_pci_init(struct device_node *, const char *);
 
@@ -182,12 +179,6 @@ static struct {
 	{ "pci108e,a001", sabre_init },
 	{ "SUNW,psycho", psycho_init },
 	{ "pci108e,8000", psycho_init },
-	{ "SUNW,schizo", schizo_init },
-	{ "pci108e,8001", schizo_init },
-	{ "SUNW,schizo+", schizo_plus_init },
-	{ "pci108e,8002", schizo_plus_init },
-	{ "SUNW,tomatillo", tomatillo_init },
-	{ "pci108e,a801", tomatillo_init },
 	{ "SUNW,sun4v-pci", sun4v_pci_init },
 	{ "pciex108e,80f0", fire_pci_init },
 };
@@ -795,8 +786,10 @@ static void __init pci_scan_each_controller_bus(void)
 {
 	struct pci_pbm_info *pbm;
 
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next)
-		pbm->scan_bus(pbm);
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
+		if (pbm->scan_bus)
+			pbm->scan_bus(pbm);
+	}
 }
 
 static int __init pcibios_init(void)

@@ -1,6 +1,6 @@
 /* pci_schizo.c: SCHIZO/TOMATILLO specific PCI controller support.
  *
- * Copyright (C) 2001, 2002, 2003, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 2001, 2002, 2003, 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
@@ -13,13 +13,14 @@
 
 #include <asm/iommu.h>
 #include <asm/irq.h>
-#include <asm/upa.h>
 #include <asm/pstate.h>
 #include <asm/prom.h>
-#include <asm/oplib.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
+
+#define DRIVER_NAME	"schizo"
+#define PFX		DRIVER_NAME ": "
 
 /* All SCHIZO registers are 64-bits.  The following accessor
  * routines are how they are accessed.  The REG parameter
@@ -1084,7 +1085,7 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void __init schizo_scan_bus(struct pci_pbm_info *pbm)
+static void __devinit schizo_scan_bus(struct pci_pbm_info *pbm)
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable =
@@ -1187,9 +1188,9 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 			break;
 
 		default:
-			prom_printf("SCHIZO: strange virtual-dma size.\n");
-			prom_halt();
-	};
+			printk(KERN_ERR PFX "Strange virtual-dma size.\n");
+			return -EINVAL;
+	}
 
 	/* Register addresses, SCHIZO has iommu ctx flushing. */
 	iommu->iommu_control  = pbm->pbm_regs + SCHIZO_IOMMU_CONTROL;
@@ -1212,7 +1213,7 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 
 	tagbase = SCHIZO_IOMMU_TAG, database = SCHIZO_IOMMU_DATA;
 
-	for(i = 0; i < 16; i++) {
+	for (i = 0; i < 16; i++) {
 		schizo_write(pbm->pbm_regs + tagbase + (i * 8UL), 0);
 		schizo_write(pbm->pbm_regs + database + (i * 8UL), 0);
 	}
@@ -1222,8 +1223,10 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	 */
 	err = iommu_table_init(iommu, tsbsize * 8 * 1024, vdma[0], dma_mask,
 			       pbm->numa_node);
-	if (err)
+	if (err) {
+		printk(KERN_ERR PFX "iommu_table_init() fails with %d\n", err);
 		return err;
+	}
 
 	schizo_write(iommu->iommu_tsbbase, __pa(iommu->page_table));
 
@@ -1236,7 +1239,7 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	case 128:
 		control |= SCHIZO_IOMMU_TSBSZ_128K;
 		break;
-	};
+	}
 
 	control |= SCHIZO_IOMMU_CTRL_ENAB;
 	schizo_write(iommu->iommu_control, control);
@@ -1334,9 +1337,9 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	}
 }
 
-static int __init schizo_pbm_init(struct pci_controller_info *p,
-				  struct device_node *dp, u32 portid,
-				  int chip_type)
+static int __devinit schizo_pbm_init(struct pci_controller_info *p,
+				     struct device_node *dp, u32 portid,
+				     int chip_type)
 {
 	const struct linux_prom64_registers *regs;
 	struct pci_pbm_info *pbm;
@@ -1382,7 +1385,6 @@ static int __init schizo_pbm_init(struct pci_controller_info *p,
 
 	pbm->numa_node = -1;
 
-	pbm->scan_bus = schizo_scan_bus;
 	pbm->pci_ops = &sun4u_pci_ops;
 	pbm->config_space_reg_bits = 8;
 
@@ -1420,6 +1422,8 @@ static int __init schizo_pbm_init(struct pci_controller_info *p,
 
 	schizo_pbm_strbuf_init(pbm);
 
+	schizo_scan_bus(pbm);
+
 	return 0;
 }
 
@@ -1433,8 +1437,7 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
-static void __init __schizo_init(struct device_node *dp, char *model_name,
-				 int chip_type)
+static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_type)
 {
 	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
@@ -1447,48 +1450,88 @@ static void __init __schizo_init(struct device_node *dp, char *model_name,
 		if (portid_compare(pbm->portid, portid, chip_type)) {
 			if (schizo_pbm_init(pbm->parent, dp,
 					    portid, chip_type))
-				goto fatal_memory_error;
-			return;
+				return -ENOMEM;
+			return 0;
 		}
 	}
 
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p)
-		goto fatal_memory_error;
+	if (!p) {
+		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
+		goto out_free;
+	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	if (!iommu) {
+		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
+		goto out_free;
+	}
 
 	p->pbm_A.iommu = iommu;
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	if (!iommu) {
+		printk(KERN_ERR PFX "Cannot allocate PBM B iommu.\n");
+		goto out_free;
+	}
 
 	p->pbm_B.iommu = iommu;
 
 	if (schizo_pbm_init(p, dp, portid, chip_type))
-		goto fatal_memory_error;
+		goto out_free;
 
-	return;
+	return 0;
 
-fatal_memory_error:
-	prom_printf("SCHIZO: Fatal memory allocation error.\n");
-	prom_halt();
+out_free:
+	if (p) {
+		if (p->pbm_A.iommu)
+			kfree(p->pbm_A.iommu);
+		if (p->pbm_B.iommu)
+			kfree(p->pbm_B.iommu);
+		kfree(p);
+	}
+	return -ENOMEM;
 }
 
-void __init schizo_init(struct device_node *dp, char *model_name)
+static int __devinit schizo_probe(struct of_device *op,
+				  const struct of_device_id *match)
 {
-	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO);
+	return __schizo_init(op->node, (unsigned long) match->data);
 }
 
-void __init schizo_plus_init(struct device_node *dp, char *model_name)
+/* The ordering of this table is very important.  Some Tomatillo
+ * nodes announce that they are compatible with both pci108e,a801
+ * and pci108e,8001.  So list the chips in reverse chronological
+ * order.
+ */
+static struct of_device_id schizo_match[] = {
+	{
+		.name = "pci",
+		.compatible = "pci108e,a801",
+		.data = (void *) PBM_CHIP_TYPE_TOMATILLO,
+	},
+	{
+		.name = "pci",
+		.compatible = "pci108e,8002",
+		.data = (void *) PBM_CHIP_TYPE_SCHIZO_PLUS,
+	},
+	{
+		.name = "pci",
+		.compatible = "pci108e,8001",
+		.data = (void *) PBM_CHIP_TYPE_SCHIZO,
+	},
+	{},
+};
+
+static struct of_platform_driver schizo_driver = {
+	.name		= DRIVER_NAME,
+	.match_table	= schizo_match,
+	.probe		= schizo_probe,
+};
+
+static int __init schizo_init(void)
 {
-	__schizo_init(dp, model_name, PBM_CHIP_TYPE_SCHIZO_PLUS);
+	return of_register_driver(&schizo_driver, &of_bus_type);
 }
 
-void __init tomatillo_init(struct device_node *dp, char *model_name)
-{
-	__schizo_init(dp, model_name, PBM_CHIP_TYPE_TOMATILLO);
-}
+subsys_initcall(schizo_init);
