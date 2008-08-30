@@ -932,7 +932,6 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	unsigned int input_cnt,idx;
 	int ret = 0;
 
-	lock_kernel();
 	dip = container_of(video_devdata(file),struct pvr2_v4l2_dev,devbase);
 
 	vp = dip->v4lp;
@@ -943,13 +942,11 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	if (!pvr2_hdw_dev_ok(hdw)) {
 		pvr2_trace(PVR2_TRACE_OPEN_CLOSE,
 			   "pvr2_v4l2_open: hardware not ready");
-		unlock_kernel();
 		return -EIO;
 	}
 
 	fhp = kzalloc(sizeof(*fhp),GFP_KERNEL);
 	if (!fhp) {
-		unlock_kernel();
 		return -ENOMEM;
 	}
 
@@ -979,7 +976,6 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 			   fhp);
 
 		kfree(fhp);
-		unlock_kernel();
 		return ret;
 	}
 
@@ -996,7 +992,6 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 			   "Destroying pvr_v4l2_fh id=%p (input map failure)",
 			   fhp);
 		kfree(fhp);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 	input_cnt = 0;
@@ -1020,7 +1015,6 @@ static int pvr2_v4l2_open(struct inode *inode, struct file *file)
 	v4l2_prio_open(&vp->prio,&fhp->prio);
 
 	fhp->fw_mode_flag = pvr2_hdw_cpufw_get_enabled(hdw);
-	unlock_kernel();
 
 	return 0;
 }
