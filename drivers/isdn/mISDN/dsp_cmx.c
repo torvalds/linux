@@ -744,11 +744,11 @@ conf_software:
 					if (dsp->pcm_slot_rx >= 0 &&
 					    dsp->pcm_slot_rx <
 					    sizeof(freeslots))
-						freeslots[dsp->pcm_slot_tx] = 0;
+						freeslots[dsp->pcm_slot_rx] = 0;
 					if (dsp->pcm_slot_tx >= 0 &&
 					    dsp->pcm_slot_tx <
 					    sizeof(freeslots))
-						freeslots[dsp->pcm_slot_rx] = 0;
+						freeslots[dsp->pcm_slot_tx] = 0;
 				}
 			}
 			i = 0;
@@ -836,11 +836,11 @@ conf_software:
 					if (dsp->pcm_slot_rx >= 0 &&
 					    dsp->pcm_slot_rx <
 					    sizeof(freeslots))
-						freeslots[dsp->pcm_slot_tx] = 0;
+						freeslots[dsp->pcm_slot_rx] = 0;
 					if (dsp->pcm_slot_tx >= 0 &&
 					    dsp->pcm_slot_tx <
 					    sizeof(freeslots))
-						freeslots[dsp->pcm_slot_rx] = 0;
+						freeslots[dsp->pcm_slot_tx] = 0;
 				}
 			}
 			i1 = 0;
