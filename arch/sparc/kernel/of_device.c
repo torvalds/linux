@@ -62,11 +62,6 @@ void of_propagate_archdata(struct of_device *bus)
 	}
 }
 
-#ifdef CONFIG_PCI
-struct bus_type ebus_bus_type;
-EXPORT_SYMBOL(ebus_bus_type);
-#endif
-
 struct bus_type of_platform_bus_type;
 EXPORT_SYMBOL(of_platform_bus_type);
 
@@ -584,11 +579,6 @@ static int __init of_bus_driver_init(void)
 	int err;
 
 	err = of_bus_type_init(&of_platform_bus_type, "of");
-#ifdef CONFIG_PCI
-	if (!err)
-		err = of_bus_type_init(&ebus_bus_type, "ebus");
-#endif
-
 	if (!err)
 		scan_of_devices();
 
