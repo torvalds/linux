@@ -202,6 +202,8 @@ void b43_gphy_set_baseband_attenuation(struct b43_wldev *dev,
 void b43_gphy_channel_switch(struct b43_wldev *dev,
 			     unsigned int channel,
 			     bool synthetic_pu_workaround);
+u8 * b43_generate_dyn_tssi2dbm_tab(struct b43_wldev *dev,
+				   s16 pab0, s16 pab1, s16 pab2);
 
 struct b43_phy_operations;
 extern const struct b43_phy_operations b43_phyops_g;
