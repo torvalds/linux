@@ -690,10 +690,6 @@ _GLOBAL(enter_rtas)
 	std	r7,_DAR(r1)
 	mfdsisr	r8
 	std	r8,_DSISR(r1)
-	mfsrr0	r9
-	std	r9,_SRR0(r1)
-	mfsrr1	r10
-	std	r10,_SRR1(r1)
 
 	/* Temporary workaround to clear CR until RTAS can be modified to
 	 * ignore all bits.
@@ -754,6 +750,10 @@ _STATIC(rtas_return_loc)
 	mfspr	r4,SPRN_SPRG3	        /* Get PACA */
 	clrldi	r4,r4,2			/* convert to realmode address */
 
+	bcl	20,31,$+4
+0:	mflr	r3
+	ld	r3,(1f-0b)(r3)		/* get &.rtas_restore_regs */
+
 	mfmsr   r6
 	li	r0,MSR_RI
 	andc	r6,r6,r0
@@ -761,13 +761,15 @@ _STATIC(rtas_return_loc)
 	mtmsrd  r6
         
         ld	r1,PACAR1(r4)           /* Restore our SP */
-	LOAD_REG_IMMEDIATE(r3,.rtas_restore_regs)
         ld	r4,PACASAVEDMSR(r4)     /* Restore our MSR */
 
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
 	rfid
 	b	.	/* prevent speculative execution */
+
+	.align	3
+1:	.llong	.rtas_restore_regs
 
 _STATIC(rtas_restore_regs)
 	/* relocation is on at this point */
@@ -788,10 +790,6 @@ _STATIC(rtas_restore_regs)
 	mtdar	r7
 	ld	r8,_DSISR(r1)
 	mtdsisr	r8
-	ld	r9,_SRR0(r1)
-	mtsrr0	r9
-	ld	r10,_SRR1(r1)
-	mtsrr1	r10
 
         addi	r1,r1,RTAS_FRAME_SIZE	/* Unstack our frame */
 	ld	r0,16(r1)		/* get return address */

@@ -128,11 +128,11 @@ __secondary_hold:
 	/* Tell the master cpu we're here */
 	/* Relocation is off & we are located at an address less */
 	/* than 0x100, so only need to grab low order offset.    */
-	std	r24,__secondary_hold_acknowledge@l(0)
+	std	r24,__secondary_hold_acknowledge-_stext(0)
 	sync
 
 	/* All secondary cpus wait here until told to start. */
-100:	ld	r4,__secondary_hold_spinloop@l(0)
+100:	ld	r4,__secondary_hold_spinloop-_stext(0)
 	cmpdi	0,r4,0
 	beq	100b
 
@@ -1223,11 +1223,14 @@ _GLOBAL(generic_secondary_smp_init)
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
 
+	/* get the TOC pointer (real address) */
+	bl	.relative_toc
+
 	/* Set up a paca value for this processor. Since we have the
 	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
 	 */
-	LOAD_REG_IMMEDIATE(r13, paca)	/* Get base vaddr of paca array	 */
+	LOAD_REG_ADDR(r13, paca)	/* Get base vaddr of paca array	 */
 	li	r5,0			/* logical cpu id                */
 1:	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
 	cmpw	r6,r24			/* Compare to our id             */
@@ -1256,7 +1259,7 @@ _GLOBAL(generic_secondary_smp_init)
 	sync				/* order paca.run and cur_cpu_spec */
 
 	/* See if we need to call a cpu state restore handler */
-	LOAD_REG_IMMEDIATE(r23, cur_cpu_spec)
+	LOAD_REG_ADDR(r23, cur_cpu_spec)
 	ld	r23,0(r23)
 	ld	r23,CPU_SPEC_RESTORE(r23)
 	cmpdi	0,r23,0
@@ -1272,10 +1275,15 @@ _GLOBAL(generic_secondary_smp_init)
 	b	__secondary_start
 #endif
 
+/*
+ * Turn the MMU off.
+ * Assumes we're mapped EA == RA if the MMU is on.
+ */
 _STATIC(__mmu_off)
 	mfmsr	r3
 	andi.	r0,r3,MSR_IR|MSR_DR
 	beqlr
+	mflr	r4
 	andc	r3,r3,r0
 	mtspr	SPRN_SRR0,r4
 	mtspr	SPRN_SRR1,r3
@@ -1296,6 +1304,18 @@ _STATIC(__mmu_off)
  *
  */
 _GLOBAL(__start_initialization_multiplatform)
+	/* Make sure we are running in 64 bits mode */
+	bl	.enable_64b_mode
+
+	/* Get TOC pointer (current runtime address) */
+	bl	.relative_toc
+
+	/* find out where we are now */
+	bcl	20,31,$+4
+0:	mflr	r26			/* r26 = runtime addr here */
+	addis	r26,r26,(_stext - 0b)@ha
+	addi	r26,r26,(_stext - 0b)@l	/* current runtime base addr */
+
 	/*
 	 * Are we booted from a PROM Of-type client-interface ?
 	 */
@@ -1306,9 +1326,6 @@ _GLOBAL(__start_initialization_multiplatform)
 	/* Save parameters */
 	mr	r31,r3
 	mr	r30,r4
-
-	/* Make sure we are running in 64 bits mode */
-	bl	.enable_64b_mode
 
 	/* Setup some critical 970 SPRs before switching MMU off */
 	mfspr	r0,SPRN_PVR
@@ -1324,9 +1341,7 @@ _GLOBAL(__start_initialization_multiplatform)
 1:	bl	.__cpu_preinit_ppc970
 2:
 
-	/* Switch off MMU if not already */
-	LOAD_REG_IMMEDIATE(r4, .__after_prom_start - KERNELBASE)
-	add	r4,r4,r30
+	/* Switch off MMU if not already off */
 	bl	.__mmu_off
 	b	.__after_prom_start
 
@@ -1341,22 +1356,9 @@ _INIT_STATIC(__boot_from_prom)
 	/*
 	 * Align the stack to 16-byte boundary
 	 * Depending on the size and layout of the ELF sections in the initial
-	 * boot binary, the stack pointer will be unalignet on PowerMac
+	 * boot binary, the stack pointer may be unaligned on PowerMac
 	 */
 	rldicr	r1,r1,0,59
-
-	/* Make sure we are running in 64 bits mode */
-	bl	.enable_64b_mode
-
-	/* put a relocation offset into r3 */
-	bl	.reloc_offset
-
-	LOAD_REG_IMMEDIATE(r2,__toc_start)
-	addi	r2,r2,0x4000
-	addi	r2,r2,0x4000
-
-	/* Relocate the TOC from a virt addr to a real addr */
-	add	r2,r2,r3
 
 	/* Restore parameters */
 	mr	r3,r31
@@ -1373,53 +1375,37 @@ _INIT_STATIC(__boot_from_prom)
 _STATIC(__after_prom_start)
 
 /*
- * We need to run with __start at physical address PHYSICAL_START.
+ * We need to run with _stext at physical address PHYSICAL_START.
  * This will leave some code in the first 256B of
  * real memory, which are reserved for software use.
- * The remainder of the first page is loaded with the fixed
- * interrupt vectors.  The next two pages are filled with
- * unknown exception placeholders.
  *
  * Note: This process overwrites the OF exception vectors.
- *	r26 == relocation offset
- *	r27 == KERNELBASE
  */
-	bl	.reloc_offset
-	mr	r26,r3
-	LOAD_REG_IMMEDIATE(r27, KERNELBASE)
-
 	LOAD_REG_IMMEDIATE(r3, PHYSICAL_START)	/* target addr */
-
-	// XXX FIXME: Use phys returned by OF (r30)
-	add	r4,r27,r26 		/* source addr			 */
-					/* current address of _start	 */
-					/*   i.e. where we are running	 */
-					/*	the source addr		 */
-
-	cmpdi	r4,0			/* In some cases the loader may  */
-	bne	1f
-	b	.start_here_multiplatform /* have already put us at zero */
-					/* so we can skip the copy.      */
-1:	LOAD_REG_IMMEDIATE(r5,copy_to_here) /* # bytes of memory to copy */
-	sub	r5,r5,r27
-
+	cmpd	r3,r26			/* In some cases the loader may  */
+	beq	9f			/* have already put us at zero */
+	mr	r4,r26			/* source address */
+	lis	r5,(copy_to_here - _stext)@ha
+	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
 	li	r6,0x100		/* Start offset, the first 0x100 */
 					/* bytes were copied earlier.	 */
 
 	bl	.copy_and_flush		/* copy the first n bytes	 */
 					/* this includes the code being	 */
 					/* executed here.		 */
-
-	LOAD_REG_IMMEDIATE(r0, 4f)	/* Jump to the copy of this code */
-	mtctr	r0			/* that we just made/relocated	 */
+	addis	r8,r3,(4f - _stext)@ha	/* Jump to the copy of this code */
+	addi	r8,r8,(4f - _stext)@l	/* that we just made */
+	mtctr	r8
 	bctr
 
-4:	LOAD_REG_IMMEDIATE(r5,klimit)
-	add	r5,r5,r26
-	ld	r5,0(r5)		/* get the value of klimit */
-	sub	r5,r5,r27
+4:	/* Now copy the rest of the kernel up to _end */
+	addis	r5,r26,(p_end - _stext)@ha
+	ld	r5,(p_end - _stext)@l(r5)	/* get _end */
 	bl	.copy_and_flush		/* copy the rest */
-	b	.start_here_multiplatform
+
+9:	b	.start_here_multiplatform
+
+p_end:	.llong	_end - _stext
 
 /*
  * Copy routine used to copy the kernel to start at physical address 0
@@ -1484,6 +1470,9 @@ _GLOBAL(pmac_secondary_start)
 	/* turn on 64-bit mode */
 	bl	.enable_64b_mode
 
+	/* get TOC pointer (real address) */
+	bl	.relative_toc
+
 	/* Copy some CPU settings from CPU 0 */
 	bl	.__restore_cpu_ppc970
 
@@ -1493,10 +1482,10 @@ _GLOBAL(pmac_secondary_start)
 	mtmsrd	r3			/* RI on */
 
 	/* Set up a paca value for this processor. */
-	LOAD_REG_IMMEDIATE(r4, paca)	/* Get base vaddr of paca array	*/
-	mulli	r13,r24,PACA_SIZE	 /* Calculate vaddr of right paca */
+	LOAD_REG_ADDR(r4,paca)		/* Get base vaddr of paca array	*/
+	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
-	mtspr	SPRN_SPRG3,r13		 /* Save vaddr of paca in SPRG3	*/
+	mtspr	SPRN_SPRG3,r13		/* Save vaddr of paca in SPRG3	*/
 
 	/* Create a temp kernel stack for use before relocation is on.	*/
 	ld	r1,PACAEMERGSP(r13)
@@ -1523,9 +1512,6 @@ _GLOBAL(pmac_secondary_start)
 __secondary_start:
 	/* Set thread priority to MEDIUM */
 	HMT_MEDIUM
-
-	/* Load TOC */
-	ld	r2,PACATOC(r13)
 
 	/* Do early setup for that CPU (stab, slb, hash table pointer) */
 	bl	.early_setup_secondary
@@ -1563,9 +1549,11 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
 
 /* 
  * Running with relocation on at this point.  All we want to do is
- * zero the stack back-chain pointer before going into C code.
+ * zero the stack back-chain pointer and get the TOC virtual address
+ * before going into C code.
  */
 _GLOBAL(start_secondary_prolog)
+	ld	r2,PACATOC(r13)
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	.start_secondary
@@ -1577,34 +1565,46 @@ _GLOBAL(start_secondary_prolog)
  */
 _GLOBAL(enable_64b_mode)
 	mfmsr	r11			/* grab the current MSR */
-	li	r12,1
-	rldicr	r12,r12,MSR_SF_LG,(63-MSR_SF_LG)
-	or	r11,r11,r12
-	li	r12,1
-	rldicr	r12,r12,MSR_ISF_LG,(63-MSR_ISF_LG)
+	li	r12,(MSR_SF | MSR_ISF)@highest
+	sldi	r12,r12,48
 	or	r11,r11,r12
 	mtmsrd	r11
 	isync
 	blr
 
 /*
+ * This puts the TOC pointer into r2, offset by 0x8000 (as expected
+ * by the toolchain).  It computes the correct value for wherever we
+ * are running at the moment, using position-independent code.
+ */
+_GLOBAL(relative_toc)
+	mflr	r0
+	bcl	20,31,$+4
+0:	mflr	r9
+	ld	r2,(p_toc - 0b)(r9)
+	add	r2,r2,r9
+	mtlr	r0
+	blr
+
+p_toc:	.llong	__toc_start + 0x8000 - 0b
+
+/*
  * This is where the main kernel code starts.
  */
 _INIT_STATIC(start_here_multiplatform)
-	/* get a new offset, now that the kernel has moved. */
-	bl	.reloc_offset
-	mr	r26,r3
+	/* set up the TOC (real address) */
+	bl	.relative_toc
 
 	/* Clear out the BSS. It may have been done in prom_init,
 	 * already but that's irrelevant since prom_init will soon
 	 * be detached from the kernel completely. Besides, we need
 	 * to clear it now for kexec-style entry.
 	 */
-	LOAD_REG_IMMEDIATE(r11,__bss_stop)
-	LOAD_REG_IMMEDIATE(r8,__bss_start)
+	LOAD_REG_ADDR(r11,__bss_stop)
+	LOAD_REG_ADDR(r8,__bss_start)
 	sub	r11,r11,r8		/* bss size			*/
 	addi	r11,r11,7		/* round up to an even double word */
-	rldicl. r11,r11,61,3		/* shift right by 3		*/
+	srdi.	r11,r11,3		/* shift right by 3		*/
 	beq	4f
 	addi	r8,r8,-8
 	li	r0,0
@@ -1617,35 +1617,28 @@ _INIT_STATIC(start_here_multiplatform)
 	ori	r6,r6,MSR_RI
 	mtmsrd	r6			/* RI on */
 
-	/* The following gets the stack and TOC set up with the regs */
+	/* The following gets the stack set up with the regs */
 	/* pointing to the real addr of the kernel stack.  This is   */
 	/* all done to support the C function call below which sets  */
 	/* up the htab.  This is done because we have relocated the  */
 	/* kernel but are still running in real mode. */
 
-	LOAD_REG_IMMEDIATE(r3,init_thread_union)
-	add	r3,r3,r26
+	LOAD_REG_ADDR(r3,init_thread_union)
 
-	/* set up a stack pointer (physical address) */
+	/* set up a stack pointer */
 	addi	r1,r3,THREAD_SIZE
 	li	r0,0
 	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
-
-	/* set up the TOC (physical address) */
-	LOAD_REG_IMMEDIATE(r2,__toc_start)
-	addi	r2,r2,0x4000
-	addi	r2,r2,0x4000
-	add	r2,r2,r26
 
 	/* Do very early kernel initializations, including initial hash table,
 	 * stab and slb setup before we turn on relocation.	*/
 
 	/* Restore parameters passed from prom_init/kexec */
 	mr	r3,r31
- 	bl	.early_setup
+	bl	.early_setup		/* also sets r13 and SPRG3 */
 
-	LOAD_REG_IMMEDIATE(r3, .start_here_common)
-	LOAD_REG_IMMEDIATE(r4, MSR_KERNEL)
+	LOAD_REG_ADDR(r3, .start_here_common)
+	ld	r4,PACAKMSR(r13)
 	mtspr	SPRN_SRR0,r3
 	mtspr	SPRN_SRR1,r4
 	rfid
@@ -1654,20 +1647,10 @@ _INIT_STATIC(start_here_multiplatform)
 	/* This is where all platforms converge execution */
 _INIT_GLOBAL(start_here_common)
 	/* relocation is on at this point */
-
-	/* The following code sets up the SP and TOC now that we are */
-	/* running with translation enabled. */
-
-	LOAD_REG_IMMEDIATE(r3,init_thread_union)
-
-	/* set up the stack */
-	addi	r1,r3,THREAD_SIZE
-	li	r0,0
-	stdu	r0,-STACK_FRAME_OVERHEAD(r1)
-
-	/* Load the TOC */
-	ld	r2,PACATOC(r13)
 	std	r1,PACAKSAVE(r13)
+
+	/* Load the TOC (virtual address) */
+	ld	r2,PACATOC(r13)
 
 	bl	.setup_system
 
