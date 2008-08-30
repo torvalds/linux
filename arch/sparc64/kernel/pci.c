@@ -337,6 +337,7 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 				  struct pci_bus *bus, int devfn)
 {
 	struct dev_archdata *sd;
+	struct of_device *op;
 	struct pci_dev *dev;
 	const char *type;
 	u32 class;
@@ -350,13 +351,16 @@ struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	sd->stc = &pbm->stc;
 	sd->host_controller = pbm;
 	sd->prom_node = node;
-	sd->op = of_find_device_by_node(node);
+	sd->op = op = of_find_device_by_node(node);
 	sd->numa_node = pbm->numa_node;
 
-	sd = &sd->op->dev.archdata;
+	sd = &op->dev.archdata;
 	sd->iommu = pbm->iommu;
 	sd->stc = &pbm->stc;
 	sd->numa_node = pbm->numa_node;
+
+	if (!strcmp(node->name, "ebus"))
+		of_propagate_archdata(op);
 
 	type = of_get_property(node, "device_type", NULL);
 	if (type == NULL)
