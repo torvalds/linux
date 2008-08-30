@@ -36,6 +36,10 @@
 #define PVR2_CID_FREQUENCY 6
 #define PVR2_CID_HRES 7
 #define PVR2_CID_VRES 8
+#define PVR2_CID_CROPL 9
+#define PVR2_CID_CROPT 10
+#define PVR2_CID_CROPW 11
+#define PVR2_CID_CROPH 12
 
 /* Legal values for the INPUT state variable */
 #define PVR2_CVAL_INPUT_TV 0

@@ -402,6 +402,52 @@ static int ctrl_freq_set(struct pvr2_ctrl *cptr,int m,int v)
 	return 0;
 }
 
+static int ctrl_cropl_min_get(struct pvr2_ctrl *cptr, int *left)
+{
+	struct v4l2_cropcap *cap = &cptr->hdw->cropcap;
+	if (cap->bounds.width > 0) {
+		/* This statement is present purely to shut up
+		   checkpatch.pl */
+		*left = cap->bounds.left - cap->defrect.left;
+	} else {
+		/* This statement is present purely to shut up
+		   checkpatch.pl */
+		*left = -119;
+	}
+	return 0;
+}
+
+static int ctrl_cropl_max_get(struct pvr2_ctrl *cptr, int *left)
+{
+	struct v4l2_cropcap *cap = &cptr->hdw->cropcap;
+	if (cap->bounds.width > 0) {
+		*left = cap->bounds.left + cap->bounds.width
+			- cap->defrect.left;
+		*left += 3;
+		*left -= cptr->hdw->cropw_val;
+	} else {
+		/* This statement is present purely to shut up
+		   checkpatch.pl */
+		*left = 340;
+	}
+	return 0;
+}
+
+static int ctrl_cropt_min_get(struct pvr2_ctrl *cptr, int *top)
+{
+	struct v4l2_cropcap *cap = &cptr->hdw->cropcap;
+	if (cap->bounds.height > 0) {
+		/* This statement is present purely to shut up
+		   checkpatch.pl */
+		*top = cap->bounds.top - cap->defrect.top;
+	} else {
+		/* This statement is present purely to shut up
+		   checkpatch.pl */
+		*top = -19;
+	}
+	return 0;
+}
+
 static int ctrl_vres_max_get(struct pvr2_ctrl *cptr,int *vp)
 {
 	/* Actual maximum depends on the video standard in effect. */
@@ -409,6 +455,19 @@ static int ctrl_vres_max_get(struct pvr2_ctrl *cptr,int *vp)
 		*vp = 480;
 	} else {
 		*vp = 576;
+	}
+	return 0;
+}
+
+static int ctrl_cropt_max_get(struct pvr2_ctrl *cptr, int *top)
+{
+	struct v4l2_cropcap *cap = &cptr->hdw->cropcap;
+	if (cap->bounds.height > 0) {
+		*top = cap->bounds.top + cap->bounds.height - cap->defrect.top;
+		*top -= cptr->hdw->croph_val;
+	} else {
+		ctrl_vres_max_get(cptr, top);
+		*top -= 32;
 	}
 	return 0;
 }
@@ -779,6 +838,10 @@ VCREATE_FUNCS(balance)
 VCREATE_FUNCS(bass)
 VCREATE_FUNCS(treble)
 VCREATE_FUNCS(mute)
+VCREATE_FUNCS(cropl)
+VCREATE_FUNCS(cropt)
+VCREATE_FUNCS(cropw)
+VCREATE_FUNCS(croph)
 VCREATE_FUNCS(audiomode)
 VCREATE_FUNCS(res_hor)
 VCREATE_FUNCS(res_ver)
@@ -849,6 +912,39 @@ static const struct pvr2_ctl_info control_defs[] = {
 		.default_value = 0,
 		DEFREF(mute),
 		DEFBOOL,
+	}, {
+		.desc = "Capture left margin",
+		.name = "crop_left",
+		.internal_id = PVR2_CID_CROPL,
+		.default_value = 0,
+		DEFREF(cropl),
+		DEFINT(-129, 340),
+		.get_min_value = ctrl_cropl_min_get,
+		.get_max_value = ctrl_cropl_max_get,
+	}, {
+		.desc = "Capture top margin",
+		.name = "crop_top",
+		.internal_id = PVR2_CID_CROPT,
+		.default_value = 0,
+		DEFREF(cropt),
+		DEFINT(-35, 544),
+		.get_min_value = ctrl_cropt_min_get,
+		.get_max_value = ctrl_cropt_max_get,
+	}, {
+		.desc = "Capture width",
+		.name = "crop_width",
+		.internal_id = PVR2_CID_CROPW,
+		.default_value = 720,
+		DEFREF(cropw),
+		DEFINT(388, 849), /* determined empirically, any res_hor>=64 */
+	}, {
+		.desc = "Capture height",
+		.name = "crop_height",
+		.internal_id = PVR2_CID_CROPH,
+		.default_value = 480,
+		DEFREF(croph),
+		DEFINT(32, 576),
+		.get_max_value = ctrl_vres_max_get,
 	},{
 		.desc = "Video Source",
 		.name = "input",
@@ -2092,6 +2188,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 			valid_std_mask;
 	}
 
+	memset(&hdw->cropcap, 0, sizeof hdw->cropcap);
 	hdw->eeprom_addr = -1;
 	hdw->unit_number = -1;
 	hdw->v4l_minor_number_video = -1;
@@ -2528,6 +2625,28 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		/* Can't commit anything until pathway is ok. */
 		return 0;
 	}
+	/* The broadcast decoder can only scale down, so if
+	 * res_*_dirty && crop window < output format ==> enlarge crop.
+	 *
+	 * The mpeg encoder receives fields of res_hor_val dots and
+	 * res_ver_val halflines.  Limits: hor<=720, ver<=576.
+	 */
+	if (hdw->res_hor_dirty && hdw->cropw_val < hdw->res_hor_val) {
+		hdw->cropw_val = hdw->res_hor_val;
+		hdw->cropw_dirty = !0;
+	} else if (hdw->cropw_dirty) {
+		hdw->res_hor_dirty = !0;           /* must rescale */
+		hdw->res_hor_val = min(720, hdw->cropw_val);
+	}
+	if (hdw->res_ver_dirty && hdw->croph_val < hdw->res_ver_val) {
+		hdw->croph_val = hdw->res_ver_val;
+		hdw->croph_dirty = !0;
+	} else if (hdw->croph_dirty) {
+		int nvres = hdw->std_mask_cur & V4L2_STD_525_60 ? 480 : 576;
+		hdw->res_ver_dirty = !0;
+		hdw->res_ver_val = min(nvres, hdw->croph_val);
+	}
+
 	/* If any of the below has changed, then we can't do the update
 	   while the pipeline is running.  Pipeline must be paused first
 	   and decoder -> encoder connection be made quiescent before we

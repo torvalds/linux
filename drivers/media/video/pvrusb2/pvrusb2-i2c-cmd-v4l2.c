@@ -233,6 +233,55 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_size = {
 };
 
 
+static void set_crop(struct pvr2_hdw *hdw)
+{
+	struct v4l2_cropcap cap;
+	struct v4l2_crop crop;
+	int stat;
+
+	memset(&cap, 0, sizeof cap);
+	cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	stat = pvr2_i2c_core_cmd(hdw, VIDIOC_CROPCAP, &cap);
+	hdw->cropcap = cap;
+
+	memset(&crop, 0, sizeof crop);
+	crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+	crop.c = cap.defrect;
+	crop.c.left += hdw->cropl_val;
+	crop.c.top += hdw->cropt_val;
+	crop.c.height = hdw->croph_val;
+	crop.c.width = hdw->cropw_val;
+
+	pvr2_trace(PVR2_TRACE_CHIPS,
+		   "i2c v4l2 set_crop stat=%d cap=%d:%d:%d:%d"
+		   " crop=%d:%d:%d:%d", stat, cap.bounds.width,
+		   cap.bounds.height, cap.bounds.left, cap.bounds.top,
+		   crop.c.width, crop.c.height, crop.c.left, crop.c.top);
+
+	if (stat >= 0) {
+		/* This comment is present purely to keep
+		   checkpatch.pl quiet */
+		pvr2_i2c_core_cmd(hdw, VIDIOC_S_CROP, &crop);
+	}
+}
+
+static int check_crop(struct pvr2_hdw *hdw)
+{
+	/* The "0 +" stupidity is present only to get checkpatch.pl to
+	   shut up.  I _want_ those parantheses present so that the
+	   two lines automatically line up in my editor.  I despise
+	   checkpatch.pl. */
+	return 0 + (hdw->cropl_dirty || hdw->cropt_dirty ||
+		    hdw->cropw_dirty || hdw->croph_dirty);
+}
+
+const struct pvr2_i2c_op pvr2_i2c_op_v4l2_crop = {
+	.check = check_crop,
+	.update = set_crop,
+	.name = "v4l2_crop",
+};
+
+
 static void do_log(struct pvr2_hdw *hdw)
 {
 	pvr2_trace(PVR2_TRACE_CHIPS,"i2c v4l2 do_log()");

@@ -319,6 +319,7 @@ struct pvr2_hdw {
 	struct pvr2_ctl_info std_info_cur;
 	struct v4l2_standard *std_defs;
 	const char **std_enum_names;
+	struct v4l2_cropcap cropcap;
 
 	// Generated string names, one per actual V4L2 standard
 	const char *std_mask_ptrs[32];
@@ -367,6 +368,10 @@ struct pvr2_hdw {
 	VCREATE_DATA(bass);
 	VCREATE_DATA(treble);
 	VCREATE_DATA(mute);
+	VCREATE_DATA(cropl);
+	VCREATE_DATA(cropt);
+	VCREATE_DATA(cropw);
+	VCREATE_DATA(croph);
 	VCREATE_DATA(input);
 	VCREATE_DATA(audiomode);
 	VCREATE_DATA(res_hor);
