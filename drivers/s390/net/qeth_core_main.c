@@ -3024,7 +3024,7 @@ static inline void __qeth_fill_buffer(struct sk_buff *skb,
 	struct qdio_buffer *buffer, int is_tso, int *next_element_to_fill,
 	int offset)
 {
-	int length = skb->len;
+	int length = skb->len - offset;
 	int length_here;
 	int element;
 	char *data;

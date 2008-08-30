@@ -500,51 +500,21 @@ int ieee80211_ht_addt_info_ie_to_ht_bss_info(
 static void ieee80211_sta_send_associnfo(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_if_sta *ifsta)
 {
-	char *buf;
-	size_t len;
-	int i;
 	union iwreq_data wrqu;
 
-	if (!ifsta->assocreq_ies && !ifsta->assocresp_ies)
-		return;
-
-	buf = kmalloc(50 + 2 * (ifsta->assocreq_ies_len +
-				ifsta->assocresp_ies_len), GFP_KERNEL);
-	if (!buf)
-		return;
-
-	len = sprintf(buf, "ASSOCINFO(");
 	if (ifsta->assocreq_ies) {
-		len += sprintf(buf + len, "ReqIEs=");
-		for (i = 0; i < ifsta->assocreq_ies_len; i++) {
-			len += sprintf(buf + len, "%02x",
-				       ifsta->assocreq_ies[i]);
-		}
+		memset(&wrqu, 0, sizeof(wrqu));
+		wrqu.data.length = ifsta->assocreq_ies_len;
+		wireless_send_event(sdata->dev, IWEVASSOCREQIE, &wrqu,
+				    ifsta->assocreq_ies);
 	}
+
 	if (ifsta->assocresp_ies) {
-		if (ifsta->assocreq_ies)
-			len += sprintf(buf + len, " ");
-		len += sprintf(buf + len, "RespIEs=");
-		for (i = 0; i < ifsta->assocresp_ies_len; i++) {
-			len += sprintf(buf + len, "%02x",
-				       ifsta->assocresp_ies[i]);
-		}
+		memset(&wrqu, 0, sizeof(wrqu));
+		wrqu.data.length = ifsta->assocresp_ies_len;
+		wireless_send_event(sdata->dev, IWEVASSOCRESPIE, &wrqu,
+				    ifsta->assocresp_ies);
 	}
-	len += sprintf(buf + len, ")");
-
-	if (len > IW_CUSTOM_MAX) {
-		len = sprintf(buf, "ASSOCRESPIE=");
-		for (i = 0; i < ifsta->assocresp_ies_len; i++) {
-			len += sprintf(buf + len, "%02x",
-				       ifsta->assocresp_ies[i]);
-		}
-	}
-
-	memset(&wrqu, 0, sizeof(wrqu));
-	wrqu.data.length = len;
-	wireless_send_event(sdata->dev, IWEVCUSTOM, &wrqu, buf);
-
-	kfree(buf);
 }
 
 
@@ -864,7 +834,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	if (count == 8) {
+	if (rates_len > count) {
 		pos = skb_put(skb, rates_len - count + 2);
 		*pos++ = WLAN_EID_EXT_SUPP_RATES;
 		*pos++ = rates_len - count;
@@ -2788,7 +2758,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		       jiffies);
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
 		if (beacon_timestamp > rx_timestamp) {
-#ifndef CONFIG_MAC80211_IBSS_DEBUG
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: beacon TSF higher than "
 			       "local TSF - IBSS merge with BSSID %s\n",
 			       sdata->dev->name, print_mac(mac, mgmt->bssid));

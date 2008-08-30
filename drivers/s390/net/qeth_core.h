@@ -689,6 +689,7 @@ struct qeth_mc_mac {
 	struct list_head list;
 	__u8 mc_addr[MAX_ADDR_LEN];
 	unsigned char mc_addrlen;
+	int is_vmac;
 };
 
 struct qeth_card {
