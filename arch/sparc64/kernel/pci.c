@@ -166,7 +166,6 @@ void pci_config_write32(u32 *addr, u32 val)
 
 /* Probe for all PCI controllers in the system. */
 extern void sabre_init(struct device_node *, const char *);
-extern void psycho_init(struct device_node *, const char *);
 extern void fire_pci_init(struct device_node *, const char *);
 
 static struct {
@@ -176,8 +175,6 @@ static struct {
 	{ "SUNW,sabre", sabre_init },
 	{ "pci108e,a000", sabre_init },
 	{ "pci108e,a001", sabre_init },
-	{ "SUNW,psycho", psycho_init },
-	{ "pci108e,8000", psycho_init },
 	{ "pciex108e,80f0", fire_pci_init },
 };
 #define PCI_NUM_CONTROLLER_TYPES	ARRAY_SIZE(pci_controller_table)
