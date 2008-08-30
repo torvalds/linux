@@ -325,16 +325,32 @@ do_stab_bolted_pSeries:
 	mfspr	r12,SPRN_SPRG2
 	EXCEPTION_PROLOG_PSERIES(PACA_EXSLB, .do_stab_bolted)
 
+#ifdef CONFIG_PPC_PSERIES
 /*
- * We have some room here  we use that to put
- * the peries slb miss user trampoline code so it's reasonably
- * away from slb_miss_user_common to avoid problems with rfid
- *
+ * Vectors for the FWNMI option.  Share common code.
+ */
+	.globl system_reset_fwnmi
+      .align 7
+system_reset_fwnmi:
+	HMT_MEDIUM
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXGEN, system_reset_common)
+
+	.globl machine_check_fwnmi
+      .align 7
+machine_check_fwnmi:
+	HMT_MEDIUM
+	mtspr	SPRN_SPRG1,r13		/* save r13 */
+	EXCEPTION_PROLOG_PSERIES(PACA_EXMC, machine_check_common)
+
+#endif /* CONFIG_PPC_PSERIES */
+
+#ifdef __DISABLED__
+/*
  * This is used for when the SLB miss handler has to go virtual,
  * which doesn't happen for now anymore but will once we re-implement
  * dynamic VSIDs for shared page tables
  */
-#ifdef __DISABLED__
 slb_miss_user_pseries:
 	std	r10,PACA_EXGEN+EX_R10(r13)
 	std	r11,PACA_EXGEN+EX_R11(r13)
@@ -357,25 +373,14 @@ slb_miss_user_pseries:
 	b	.				/* prevent spec. execution */
 #endif /* __DISABLED__ */
 
-#ifdef CONFIG_PPC_PSERIES
+	.align	7
+	.globl	__end_interrupts
+__end_interrupts:
+
 /*
- * Vectors for the FWNMI option.  Share common code.
+ * Code from here down to __end_handlers is invoked from the
+ * exception prologs above.
  */
-	.globl system_reset_fwnmi
-      .align 7
-system_reset_fwnmi:
-	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(PACA_EXGEN, system_reset_common)
-
-	.globl machine_check_fwnmi
-      .align 7
-machine_check_fwnmi:
-	HMT_MEDIUM
-	mtspr	SPRN_SPRG1,r13		/* save r13 */
-	EXCEPTION_PROLOG_PSERIES_FORCE_64BIT(PACA_EXMC, machine_check_common)
-
-#endif /* CONFIG_PPC_PSERIES */
 
 /*** Common interrupt handlers ***/
 
@@ -454,65 +459,6 @@ bad_stack:
 	ld	r2,PACATOC(r13)
 1:	addi	r3,r1,STACK_FRAME_OVERHEAD
 	bl	.kernel_bad_stack
-	b	1b
-
-/*
- * Return from an exception with minimal checks.
- * The caller is assumed to have done EXCEPTION_PROLOG_COMMON.
- * If interrupts have been enabled, or anything has been
- * done that might have changed the scheduling status of
- * any task or sent any task a signal, you should use
- * ret_from_except or ret_from_except_lite instead of this.
- */
-fast_exc_return_irq:			/* restores irq state too */
-	ld	r3,SOFTE(r1)
-	TRACE_AND_RESTORE_IRQ(r3);
-	ld	r12,_MSR(r1)
-	rldicl	r4,r12,49,63		/* get MSR_EE to LSB */
-	stb	r4,PACAHARDIRQEN(r13)	/* restore paca->hard_enabled */
-	b	1f
-
-	.globl	fast_exception_return
-fast_exception_return:
-	ld	r12,_MSR(r1)
-1:	ld	r11,_NIP(r1)
-	andi.	r3,r12,MSR_RI		/* check if RI is set */
-	beq-	unrecov_fer
-
-#ifdef CONFIG_VIRT_CPU_ACCOUNTING
-	andi.	r3,r12,MSR_PR
-	beq	2f
-	ACCOUNT_CPU_USER_EXIT(r3, r4)
-2:
-#endif
-
-	ld	r3,_CCR(r1)
-	ld	r4,_LINK(r1)
-	ld	r5,_CTR(r1)
-	ld	r6,_XER(r1)
-	mtcr	r3
-	mtlr	r4
-	mtctr	r5
-	mtxer	r6
-	REST_GPR(0, r1)
-	REST_8GPRS(2, r1)
-
-	mfmsr	r10
-	rldicl	r10,r10,48,1		/* clear EE */
-	rldicr	r10,r10,16,61		/* clear RI (LE is 0 already) */
-	mtmsrd	r10,1
-
-	mtspr	SPRN_SRR1,r12
-	mtspr	SPRN_SRR0,r11
-	REST_4GPRS(10, r1)
-	ld	r1,GPR1(r1)
-	rfid
-	b	.	/* prevent speculative execution */
-
-unrecov_fer:
-	bl	.save_nvgprs
-1:	addi	r3,r1,STACK_FRAME_OVERHEAD
-	bl	.unrecoverable_exception
 	b	1b
 
 /*
@@ -766,6 +712,85 @@ END_FTR_SECTION_IFSET(CPU_FTR_ALTIVEC)
 	bl	.altivec_unavailable_exception
 	b	.ret_from_except
 
+	.align	7
+	.globl vsx_unavailable_common
+vsx_unavailable_common:
+	EXCEPTION_PROLOG_COMMON(0xf40, PACA_EXGEN)
+#ifdef CONFIG_VSX
+BEGIN_FTR_SECTION
+	bne	.load_up_vsx
+1:
+END_FTR_SECTION_IFSET(CPU_FTR_VSX)
+#endif
+	bl	.save_nvgprs
+	addi	r3,r1,STACK_FRAME_OVERHEAD
+	ENABLE_INTS
+	bl	.vsx_unavailable_exception
+	b	.ret_from_except
+
+	.align	7
+	.globl	__end_handlers
+__end_handlers:
+
+/*
+ * Return from an exception with minimal checks.
+ * The caller is assumed to have done EXCEPTION_PROLOG_COMMON.
+ * If interrupts have been enabled, or anything has been
+ * done that might have changed the scheduling status of
+ * any task or sent any task a signal, you should use
+ * ret_from_except or ret_from_except_lite instead of this.
+ */
+fast_exc_return_irq:			/* restores irq state too */
+	ld	r3,SOFTE(r1)
+	TRACE_AND_RESTORE_IRQ(r3);
+	ld	r12,_MSR(r1)
+	rldicl	r4,r12,49,63		/* get MSR_EE to LSB */
+	stb	r4,PACAHARDIRQEN(r13)	/* restore paca->hard_enabled */
+	b	1f
+
+	.globl	fast_exception_return
+fast_exception_return:
+	ld	r12,_MSR(r1)
+1:	ld	r11,_NIP(r1)
+	andi.	r3,r12,MSR_RI		/* check if RI is set */
+	beq-	unrecov_fer
+
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+	andi.	r3,r12,MSR_PR
+	beq	2f
+	ACCOUNT_CPU_USER_EXIT(r3, r4)
+2:
+#endif
+
+	ld	r3,_CCR(r1)
+	ld	r4,_LINK(r1)
+	ld	r5,_CTR(r1)
+	ld	r6,_XER(r1)
+	mtcr	r3
+	mtlr	r4
+	mtctr	r5
+	mtxer	r6
+	REST_GPR(0, r1)
+	REST_8GPRS(2, r1)
+
+	mfmsr	r10
+	rldicl	r10,r10,48,1		/* clear EE */
+	rldicr	r10,r10,16,61		/* clear RI (LE is 0 already) */
+	mtmsrd	r10,1
+
+	mtspr	SPRN_SRR1,r12
+	mtspr	SPRN_SRR0,r11
+	REST_4GPRS(10, r1)
+	ld	r1,GPR1(r1)
+	rfid
+	b	.	/* prevent speculative execution */
+
+unrecov_fer:
+	bl	.save_nvgprs
+1:	addi	r3,r1,STACK_FRAME_OVERHEAD
+	bl	.unrecoverable_exception
+	b	1b
+
 #ifdef CONFIG_ALTIVEC
 /*
  * load_up_altivec(unused, unused, tsk)
@@ -839,22 +864,6 @@ _STATIC(load_up_altivec)
 	/* restore registers and return */
 	blr
 #endif /* CONFIG_ALTIVEC */
-
-	.align	7
-	.globl vsx_unavailable_common
-vsx_unavailable_common:
-	EXCEPTION_PROLOG_COMMON(0xf40, PACA_EXGEN)
-#ifdef CONFIG_VSX
-BEGIN_FTR_SECTION
-	bne	.load_up_vsx
-1:
-END_FTR_SECTION_IFSET(CPU_FTR_VSX)
-#endif
-	bl	.save_nvgprs
-	addi	r3,r1,STACK_FRAME_OVERHEAD
-	ENABLE_INTS
-	bl	.vsx_unavailable_exception
-	b	.ret_from_except
 
 #ifdef CONFIG_VSX
 /*
