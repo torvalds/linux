@@ -1367,7 +1367,7 @@ static void init_irqreg(struct bttv *btv)
 			(btv->gpioirq ? BT848_INT_GPINT : 0) |
 			BT848_INT_SCERR |
 			(fdsr ? BT848_INT_FDSR : 0) |
-			BT848_INT_RISCI|BT848_INT_OCERR|BT848_INT_VPRES|
+			BT848_INT_RISCI | BT848_INT_OCERR |
 			BT848_INT_FMTCHG|BT848_INT_HLOCK|
 			BT848_INT_I2CDONE,
 			BT848_INT_MASK);
