@@ -451,7 +451,7 @@ static void attach_one_temp(struct bbc_i2c_bus *bp, struct of_device *op,
 	if (!tp)
 		return;
 
-	tp->client = bbc_i2c_attach(op);
+	tp->client = bbc_i2c_attach(bp, op);
 	if (!tp->client) {
 		kfree(tp);
 		return;
@@ -496,7 +496,7 @@ static void attach_one_fan(struct bbc_i2c_bus *bp, struct of_device *op,
 	if (!fp)
 		return;
 
-	fp->client = bbc_i2c_attach(op);
+	fp->client = bbc_i2c_attach(bp, op);
 	if (!fp->client) {
 		kfree(fp);
 		return;
@@ -529,7 +529,7 @@ int bbc_envctrl_init(struct bbc_i2c_bus *bp)
 	int fan_index = 0;
 	int devidx = 0;
 
-	while ((op = bbc_i2c_getdev(devidx++)) != NULL) {
+	while ((op = bbc_i2c_getdev(bp, devidx++)) != NULL) {
 		if (!strcmp(op->node->name, "temperature"))
 			attach_one_temp(bp, op, temp_index++);
 		if (!strcmp(op->node->name, "fan-control"))
