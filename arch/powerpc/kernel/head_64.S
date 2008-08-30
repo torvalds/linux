@@ -1360,6 +1360,12 @@ _INIT_STATIC(__boot_from_prom)
 	 */
 	rldicr	r1,r1,0,59
 
+#ifdef CONFIG_RELOCATABLE
+	/* Relocate code for where we are now */
+	mr	r3,r26
+	bl	.relocate
+#endif
+
 	/* Restore parameters */
 	mr	r3,r31
 	mr	r4,r30
@@ -1368,11 +1374,19 @@ _INIT_STATIC(__boot_from_prom)
 	mr	r7,r27
 
 	/* Do all of the interaction with OF client interface */
+	mr	r8,r26
 	bl	.prom_init
 	/* We never return */
 	trap
 
 _STATIC(__after_prom_start)
+#ifdef CONFIG_RELOCATABLE
+	/* process relocations for the final address of the kernel */
+	lis	r25,PAGE_OFFSET@highest	/* compute virtual base of kernel */
+	sldi	r25,r25,32
+	mr	r3,r25
+	bl	.relocate
+#endif
 
 /*
  * We need to run with _stext at physical address PHYSICAL_START.
@@ -1381,10 +1395,9 @@ _STATIC(__after_prom_start)
  *
  * Note: This process overwrites the OF exception vectors.
  */
-	LOAD_REG_IMMEDIATE(r3, PHYSICAL_START)	/* target addr */
-	cmpd	r3,r26			/* In some cases the loader may  */
+	li	r3,0			/* target addr */
+	mr.	r4,r26			/* In some cases the loader may  */
 	beq	9f			/* have already put us at zero */
-	mr	r4,r26			/* source address */
 	lis	r5,(copy_to_here - _stext)@ha
 	addi	r5,r5,(copy_to_here - _stext)@l /* # bytes of memory to copy */
 	li	r6,0x100		/* Start offset, the first 0x100 */
@@ -1616,6 +1629,13 @@ _INIT_STATIC(start_here_multiplatform)
 	mfmsr	r6
 	ori	r6,r6,MSR_RI
 	mtmsrd	r6			/* RI on */
+
+#ifdef CONFIG_RELOCATABLE
+	/* Save the physical address we're running at in kernstart_addr */
+	LOAD_REG_ADDR(r4, kernstart_addr)
+	clrldi	r0,r25,2
+	std	r0,0(r4)
+#endif
 
 	/* The following gets the stack set up with the regs */
 	/* pointing to the real addr of the kernel stack.  This is   */

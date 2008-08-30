@@ -806,6 +806,19 @@ config PIN_TLB
 endmenu
 
 if PPC64
+config RELOCATABLE
+	bool "Build a relocatable kernel"
+	help
+	  This builds a kernel image that is capable of running anywhere
+	  in the RMA (real memory area) at any 16k-aligned base address.
+	  The kernel is linked as a position-independent executable (PIE)
+	  and contains dynamic relocations which are processed early
+	  in the bootup process.
+
+	  One use is for the kexec on panic case where the recovery kernel
+	  must live at a different physical address than the primary
+	  kernel.
+
 config PAGE_OFFSET
 	hex
 	default "0xc000000000000000"

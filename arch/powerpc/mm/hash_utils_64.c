@@ -194,7 +194,7 @@ int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
 		unsigned long tprot = prot;
 
 		/* Make kernel text executable */
-		if (in_kernel_text(vaddr))
+		if (overlaps_kernel_text(vaddr, vaddr + step))
 			tprot &= ~HPTE_R_N;
 
 		hash = hpt_hash(va, shift, ssize);

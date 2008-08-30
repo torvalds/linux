@@ -437,7 +437,7 @@ typedef struct {
 	})
 #endif /* 1 */
 
-/* This is only valid for addresses >= KERNELBASE */
+/* This is only valid for addresses >= PAGE_OFFSET */
 static inline unsigned long get_kernel_vsid(unsigned long ea, int ssize)
 {
 	if (ssize == MMU_SEGSIZE_256M)

@@ -1192,6 +1192,9 @@ void __init early_init_devtree(void *params)
 
 	/* Reserve LMB regions used by kernel, initrd, dt, etc... */
 	lmb_reserve(PHYSICAL_START, __pa(klimit) - PHYSICAL_START);
+	/* If relocatable, reserve first 32k for interrupt vectors etc. */
+	if (PHYSICAL_START > MEMORY_START)
+		lmb_reserve(MEMORY_START, 0x8000);
 	reserve_kdump_trampoline();
 	reserve_crashkernel();
 	early_reserve_mem();
