@@ -66,19 +66,29 @@ static void b43_lpphy_op_exit(struct b43_wldev *dev)
 
 static u16 b43_lpphy_op_read(struct b43_wldev *dev, u16 reg)
 {
-	//TODO
-	return 0;
+	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	return b43_read16(dev, B43_MMIO_PHY_DATA);
 }
 
 static void b43_lpphy_op_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
-	//TODO
+	b43_write16(dev, B43_MMIO_PHY_CONTROL, reg);
+	b43_write16(dev, B43_MMIO_PHY_DATA, value);
 }
 
 static u16 b43_lpphy_op_radio_read(struct b43_wldev *dev, u16 reg)
 {
-	//TODO
-	return 0;
+	/* Register 1 is a 32-bit register. */
+	B43_WARN_ON(reg == 1);
+	/* LP-PHY needs a special bit set for read access */
+	if (dev->phy.rev < 2) {
+		if (reg != 0x4001)
+			reg |= 0x100;
+	} else
+		reg |= 0x200;
+
+	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
+	return b43_read16(dev, B43_MMIO_RADIO_DATA_LOW);
 }
 
 static void b43_lpphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
@@ -86,7 +96,8 @@ static void b43_lpphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 	/* Register 1 is a 32-bit register. */
 	B43_WARN_ON(reg == 1);
 
-	//TODO
+	b43_write16(dev, B43_MMIO_RADIO_CONTROL, reg);
+	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, value);
 }
 
 static void b43_lpphy_op_software_rfkill(struct b43_wldev *dev,
