@@ -799,8 +799,6 @@ static void __init pci_scan_each_controller_bus(void)
 		pbm->scan_bus(pbm);
 }
 
-extern void power_init(void);
-
 static int __init pcibios_init(void)
 {
 	pci_controller_probe();
@@ -808,8 +806,6 @@ static int __init pcibios_init(void)
 		return 0;
 
 	pci_scan_each_controller_bus();
-
-	power_init();
 
 	return 0;
 }

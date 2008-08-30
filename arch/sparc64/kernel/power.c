@@ -1,28 +1,21 @@
 /* power.c: Power management driver.
  *
- * Copyright (C) 1999, 2007 David S. Miller (davem@davemloft.net)
+ * Copyright (C) 1999, 2007, 2008 David S. Miller (davem@davemloft.net)
  */
 
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/sched.h>
-#include <linux/signal.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/pm.h>
-#include <linux/syscalls.h>
 #include <linux/reboot.h>
 #include <linux/of_device.h>
 
-#include <asm/system.h>
 #include <asm/auxio.h>
 #include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/sstate.h>
 #include <asm/reboot.h>
-
-#include <linux/unistd.h>
 
 /*
  * sysctl - toggle power-off restriction for serial console 
@@ -111,8 +104,9 @@ static struct of_platform_driver power_driver = {
 	},
 };
 
-void __init power_init(void)
+static int __init power_init(void)
 {
-	of_register_driver(&power_driver, &of_platform_bus_type);
-	return;
+	return of_register_driver(&power_driver, &of_platform_bus_type);
 }
+
+device_initcall(power_init);
