@@ -180,10 +180,6 @@ static void check_hung_task(struct task_struct *t, unsigned long now)
 	if (t->flags & PF_FROZEN)
 		return;
 
-	/* Don't check for tasks waiting on network file systems like NFS */
-	if (t->state & TASK_KILLABLE)
-		return;
-
 	if (switch_count != t->last_switch_count || !t->last_switch_timestamp) {
 		t->last_switch_count = switch_count;
 		t->last_switch_timestamp = now;
@@ -237,7 +233,8 @@ static void check_hung_uninterruptible_tasks(int this_cpu)
 	do_each_thread(g, t) {
 		if (!--max_count)
 			goto unlock;
-		if (t->state & TASK_UNINTERRUPTIBLE)
+		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
+		if (t->state == TASK_UNINTERRUPTIBLE)
 			check_hung_task(t, now);
 	} while_each_thread(g, t);
  unlock:
