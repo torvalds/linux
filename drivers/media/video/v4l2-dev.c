@@ -91,8 +91,11 @@ static void v4l2_chardev_release(struct kobject *kobj)
 	struct video_device *vfd = container_of(kobj, struct video_device, cdev.kobj);
 
 	mutex_lock(&videodev_lock);
-	if (video_device[vfd->minor] != vfd)
-		panic("videodev: bad release");
+	if (video_device[vfd->minor] != vfd) {
+		mutex_unlock(&videodev_lock);
+		BUG();
+		return;
+	}
 
 	/* Free up this device for reuse */
 	video_device[vfd->minor] = NULL;
