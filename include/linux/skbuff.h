@@ -15,6 +15,7 @@
 #define _LINUX_SKBUFF_H
 
 #include <linux/kernel.h>
+#include <linux/kmemcheck.h>
 #include <linux/compiler.h>
 #include <linux/time.h>
 #include <linux/cache.h>
@@ -346,6 +347,7 @@ struct sk_buff {
 		};
 	};
 	__u32			priority;
+	kmemcheck_bitfield_begin(flags1);
 	__u8			local_df:1,
 				cloned:1,
 				ip_summed:2,
@@ -356,6 +358,7 @@ struct sk_buff {
 				ipvs_property:1,
 				peeked:1,
 				nf_trace:1;
+	kmemcheck_bitfield_end(flags1);
 	__be16			protocol;
 
 	void			(*destructor)(struct sk_buff *skb);
@@ -375,6 +378,8 @@ struct sk_buff {
 	__u16			tc_verd;	/* traffic control verdict */
 #endif
 #endif
+
+	kmemcheck_bitfield_begin(flags2);
 #ifdef CONFIG_IPV6_NDISC_NODETYPE
 	__u8			ndisc_nodetype:2;
 #endif
@@ -382,6 +387,8 @@ struct sk_buff {
 	__u8			do_not_encrypt:1;
 	__u8			requeue:1;
 #endif
+	kmemcheck_bitfield_end(flags2);
+
 	/* 0/13/14 bit hole */
 
 #ifdef CONFIG_NET_DMA
