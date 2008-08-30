@@ -79,6 +79,8 @@ void __init initialise_pacas(void)
 		new_paca->lock_token = 0x8000;
 		new_paca->paca_index = cpu;
 		new_paca->kernel_toc = kernel_toc;
+		new_paca->kernelbase = KERNELBASE;
+		new_paca->kernel_msr = MSR_KERNEL;
 		new_paca->hw_cpu_id = 0xffff;
 		new_paca->slb_shadow_ptr = &slb_shadow[cpu];
 		new_paca->__current = &init_task;

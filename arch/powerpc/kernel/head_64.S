@@ -82,7 +82,11 @@ END_FTR_SECTION(0, 1)
 	/* Catch branch to 0 in real mode */
 	trap
 
-	/* Secondary processors spin on this value until it goes to 1. */
+	/* Secondary processors spin on this value until it becomes nonzero.
+	 * When it does it contains the real address of the descriptor
+	 * of the function that the cpu should jump to to continue
+	 * initialization.
+	 */
 	.globl  __secondary_hold_spinloop
 __secondary_hold_spinloop:
 	.llong	0x0
@@ -109,8 +113,11 @@ __secondary_hold_acknowledge:
  * before the bulk of the kernel has been relocated.  This code
  * is relocated to physical address 0x60 before prom_init is run.
  * All of it must fit below the first exception vector at 0x100.
+ * Use .globl here not _GLOBAL because we want __secondary_hold
+ * to be the actual text address, not a descriptor.
  */
-_GLOBAL(__secondary_hold)
+	.globl	__secondary_hold
+__secondary_hold:
 	mfmsr	r24
 	ori	r24,r24,MSR_RI
 	mtmsrd	r24			/* RI on */
@@ -126,11 +133,11 @@ _GLOBAL(__secondary_hold)
 
 	/* All secondary cpus wait here until told to start. */
 100:	ld	r4,__secondary_hold_spinloop@l(0)
-	cmpdi	0,r4,1
-	bne	100b
+	cmpdi	0,r4,0
+	beq	100b
 
 #if defined(CONFIG_SMP) || defined(CONFIG_KEXEC)
-	LOAD_REG_IMMEDIATE(r4, .generic_secondary_smp_init)
+	ld	r4,0(r4)		/* deref function descriptor */
 	mtctr	r4
 	mr	r3,r24
 	bctr
@@ -147,6 +154,10 @@ exception_marker:
 /*
  * This is the start of the interrupt handlers for pSeries
  * This code runs with relocation off.
+ * Code from here to __end_interrupts gets copied down to real
+ * address 0x100 when we are running a relocatable kernel.
+ * Therefore any relative branches in this section must only
+ * branch to labels in this section.
  */
 	. = 0x100
 	.globl __start_interrupts
@@ -200,7 +211,20 @@ data_access_slb_pSeries:
 	mfspr	r10,SPRN_SPRG1
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	b	.slb_miss_realmode	/* Rel. branch works in real mode */
+#ifndef CONFIG_RELOCATABLE
+	b	.slb_miss_realmode
+#else
+	/*
+	 * We can't just use a direct branch to .slb_miss_realmode
+	 * because the distance from here to there depends on where
+	 * the kernel ends up being put.
+	 */
+	mfctr	r11
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10, .slb_miss_realmode)
+	mtctr	r10
+	bctr
+#endif
 
 	STD_EXCEPTION_PSERIES(0x400, instruction_access)
 
@@ -225,7 +249,15 @@ instruction_access_slb_pSeries:
 	mfspr	r10,SPRN_SPRG1
 	std	r10,PACA_EXSLB+EX_R13(r13)
 	mfspr	r12,SPRN_SRR1		/* and SRR1 */
-	b	.slb_miss_realmode	/* Rel. branch works in real mode */
+#ifndef CONFIG_RELOCATABLE
+	b	.slb_miss_realmode
+#else
+	mfctr	r11
+	ld	r10,PACAKBASE(r13)
+	LOAD_HANDLER(r10, .slb_miss_realmode)
+	mtctr	r10
+	bctr
+#endif
 
 	MASKABLE_EXCEPTION_PSERIES(0x500, hardware_interrupt)
 	STD_EXCEPTION_PSERIES(0x600, alignment)
@@ -244,14 +276,12 @@ BEGIN_FTR_SECTION
 	beq-	1f
 END_FTR_SECTION_IFSET(CPU_FTR_REAL_LE)
 	mr	r9,r13
-	mfmsr	r10
 	mfspr	r13,SPRN_SPRG3
 	mfspr	r11,SPRN_SRR0
-	clrrdi	r12,r13,32
-	oris	r12,r12,system_call_common@h
-	ori	r12,r12,system_call_common@l
+	ld	r12,PACAKBASE(r13)
+	ld	r10,PACAKMSR(r13)
+	LOAD_HANDLER(r12, system_call_entry)
 	mtspr	SPRN_SRR0,r12
-	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI
 	mfspr	r12,SPRN_SRR1
 	mtspr	SPRN_SRR1,r10
 	rfid
@@ -379,7 +409,10 @@ __end_interrupts:
 
 /*
  * Code from here down to __end_handlers is invoked from the
- * exception prologs above.
+ * exception prologs above.  Because the prologs assemble the
+ * addresses of these handlers using the LOAD_HANDLER macro,
+ * which uses an addi instruction, these handlers must be in
+ * the first 32k of the kernel image.
  */
 
 /*** Common interrupt handlers ***/
@@ -418,6 +451,10 @@ machine_check_common:
 	STD_EXCEPTION_COMMON(0x1600, cbe_maintenance, .cbe_maintenance_exception)
 	STD_EXCEPTION_COMMON(0x1800, cbe_thermal, .cbe_thermal_exception)
 #endif /* CONFIG_CBE_RAS */
+
+	.align	7
+system_call_entry:
+	b	system_call_common
 
 /*
  * Here we have detected that the kernel stack pointer is bad.
@@ -562,6 +599,9 @@ unrecov_user_slb:
  */
 _GLOBAL(slb_miss_realmode)
 	mflr	r10
+#ifdef CONFIG_RELOCATABLE
+	mtctr	r11
+#endif
 
 	stw	r9,PACA_EXSLB+EX_CCR(r13)	/* save CR in exc. frame */
 	std	r10,PACA_EXSLB+EX_LR(r13)	/* save LR */
@@ -612,11 +652,10 @@ BEGIN_FW_FTR_SECTION
 END_FW_FTR_SECTION_IFSET(FW_FEATURE_ISERIES)
 #endif /* CONFIG_PPC_ISERIES */
 	mfspr	r11,SPRN_SRR0
-	clrrdi	r10,r13,32
+	ld	r10,PACAKBASE(r13)
 	LOAD_HANDLER(r10,unrecov_slb)
 	mtspr	SPRN_SRR0,r10
-	mfmsr	r10
-	ori	r10,r10,MSR_IR|MSR_DR|MSR_RI
+	ld	r10,PACAKMSR(r13)
 	mtspr	SPRN_SRR1,r10
 	rfid
 	b	.
