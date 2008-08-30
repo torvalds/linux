@@ -8,12 +8,15 @@
 #include <linux/init.h>
 #include <linux/msi.h>
 #include <linux/irq.h>
+#include <linux/of_device.h>
 
-#include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
 
 #include "pci_impl.h"
+
+#define DRIVER_NAME	"fire"
+#define PFX		DRIVER_NAME ": "
 
 #define fire_read(__reg) \
 ({	u64 __ret; \
@@ -452,7 +455,6 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 
 	pbm->numa_node = -1;
 
-	pbm->scan_bus = pci_fire_scan_bus;
 	pbm->pci_ops = &sun4u_pci_ops;
 	pbm->config_space_reg_bits = 12;
 
@@ -481,6 +483,8 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 
 	pci_fire_msi_init(pbm);
 
+	pci_fire_scan_bus(pbm);
+
 	return 0;
 }
 
@@ -491,43 +495,75 @@ static inline int portid_compare(u32 x, u32 y)
 	return 0;
 }
 
-void __init fire_pci_init(struct device_node *dp, const char *model_name)
+static int __devinit fire_probe(struct of_device *op,
+				const struct of_device_id *match)
 {
+	struct device_node *dp = op->node;
 	struct pci_controller_info *p;
-	u32 portid = of_getintprop_default(dp, "portid", 0xff);
-	struct iommu *iommu;
 	struct pci_pbm_info *pbm;
+	struct iommu *iommu;
+	u32 portid;
+	int err;
 
+	portid = of_getintprop_default(dp, "portid", 0xff);
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (portid_compare(pbm->portid, portid)) {
-			if (pci_fire_pbm_init(pbm->parent, dp, portid))
-				goto fatal_memory_error;
-			return;
-		}
+		if (portid_compare(pbm->portid, portid))
+			return pci_fire_pbm_init(pbm->parent, dp, portid);
 	}
 
+	err = -ENOMEM;
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p)
-		goto fatal_memory_error;
+	if (!p) {
+		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
+		goto out_free;
+	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	if (!iommu) {
+		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
+		goto out_free;
+	}
 
 	p->pbm_A.iommu = iommu;
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu)
-		goto fatal_memory_error;
+	if (!iommu) {
+		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
+		goto out_free;
+	}
 
 	p->pbm_B.iommu = iommu;
 
-	if (pci_fire_pbm_init(p, dp, portid))
-		goto fatal_memory_error;
+	return pci_fire_pbm_init(p, dp, portid);
 
-	return;
-
-fatal_memory_error:
-	prom_printf("PCI_FIRE: Fatal memory allocation error.\n");
-	prom_halt();
+out_free:
+	if (p) {
+		if (p->pbm_A.iommu)
+			kfree(p->pbm_A.iommu);
+		if (p->pbm_B.iommu)
+			kfree(p->pbm_B.iommu);
+		kfree(p);
+	}
+	return err;
 }
+
+static struct of_device_id fire_match[] = {
+	{
+		.name = "pci",
+		.compatible = "pciex108e,80f0",
+	},
+	{},
+};
+
+static struct of_platform_driver fire_driver = {
+	.name		= DRIVER_NAME,
+	.match_table	= fire_match,
+	.probe		= fire_probe,
+};
+
+static int __init fire_init(void)
+{
+	return of_register_driver(&fire_driver, &of_bus_type);
+}
+
+subsys_initcall(fire_init);

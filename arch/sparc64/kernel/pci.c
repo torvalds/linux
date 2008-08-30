@@ -164,79 +164,6 @@ void pci_config_write32(u32 *addr, u32 val)
 	spin_unlock_irqrestore(&pci_poke_lock, flags);
 }
 
-/* Probe for all PCI controllers in the system. */
-extern void fire_pci_init(struct device_node *, const char *);
-
-static struct {
-	char *model_name;
-	void (*init)(struct device_node *, const char *);
-} pci_controller_table[] __initdata = {
-	{ "pciex108e,80f0", fire_pci_init },
-};
-#define PCI_NUM_CONTROLLER_TYPES	ARRAY_SIZE(pci_controller_table)
-
-static int __init pci_controller_init(const char *model_name, int namelen, struct device_node *dp)
-{
-	int i;
-
-	for (i = 0; i < PCI_NUM_CONTROLLER_TYPES; i++) {
-		if (!strncmp(model_name,
-			     pci_controller_table[i].model_name,
-			     namelen)) {
-			pci_controller_table[i].init(dp, model_name);
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-static int __init pci_controller_scan(int (*handler)(const char *, int, struct device_node *))
-{
-	struct device_node *dp;
-	int count = 0;
-
-	for_each_node_by_name(dp, "pci") {
-		struct property *prop;
-		int len;
-
-		prop = of_find_property(dp, "model", &len);
-		if (!prop)
-			prop = of_find_property(dp, "compatible", &len);
-
-		if (prop) {
-			const char *model = prop->value;
-			int item_len = 0;
-
-			/* Our value may be a multi-valued string in the
-			 * case of some compatible properties. For sanity,
-			 * only try the first one.
-			 */
-			while (model[item_len] && len) {
-				len--;
-				item_len++;
-			}
-
-			if (handler(model, item_len, dp))
-				count++;
-		}
-	}
-
-	return count;
-}
-
-/* Find each controller in the system, attach and initialize
- * software state structure for each and link into the
- * pci_pbm_root.  Setup the controller enough such
- * that bus scanning can be done.
- */
-static void __init pci_controller_probe(void)
-{
-	printk("PCI: Probing for controllers.\n");
-
-	pci_controller_scan(pci_controller_init);
-}
-
 static int ofpci_verbose;
 
 static int __init ofpci_debug(char *str)
@@ -772,29 +699,6 @@ struct pci_bus * __devinit pci_scan_one_pbm(struct pci_pbm_info *pbm)
 
 	return bus;
 }
-
-static void __init pci_scan_each_controller_bus(void)
-{
-	struct pci_pbm_info *pbm;
-
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (pbm->scan_bus)
-			pbm->scan_bus(pbm);
-	}
-}
-
-static int __init pcibios_init(void)
-{
-	pci_controller_probe();
-	if (pci_pbm_root == NULL)
-		return 0;
-
-	pci_scan_each_controller_bus();
-
-	return 0;
-}
-
-subsys_initcall(pcibios_init);
 
 void __devinit pcibios_fixup_bus(struct pci_bus *pbus)
 {
