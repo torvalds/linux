@@ -29,7 +29,7 @@
 #include "phy_common.h"
 #include "phy_g.h"
 #include "phy_a.h"
-#include "nphy.h"
+#include "phy_n.h"
 #include "b43.h"
 #include "main.h"
 

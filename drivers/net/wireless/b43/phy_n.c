@@ -26,7 +26,7 @@
 #include <linux/types.h>
 
 #include "b43.h"
-#include "nphy.h"
+#include "phy_n.h"
 #include "tables_nphy.h"
 
 

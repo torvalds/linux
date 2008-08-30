@@ -46,7 +46,7 @@
 #include "debugfs.h"
 #include "phy_common.h"
 #include "phy_g.h"
-#include "nphy.h"
+#include "phy_n.h"
 #include "dma.h"
 #include "pio.h"
 #include "sysfs.h"
