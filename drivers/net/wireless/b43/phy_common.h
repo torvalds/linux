@@ -165,6 +165,7 @@ struct b43_phy_operations {
 struct b43_phy_a;
 struct b43_phy_g;
 struct b43_phy_n;
+struct b43_phy_lp;
 
 struct b43_phy {
 	/* Hardware operation callbacks. */
@@ -185,6 +186,8 @@ struct b43_phy {
 		struct b43_phy_g *g;
 		/* N-PHY specific information */
 		struct b43_phy_n *n;
+		/* LP-PHY specific information */
+		struct b43_phy_lp *lp;
 	};
 
 	/* Band support flags. */
