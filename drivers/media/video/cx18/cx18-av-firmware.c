@@ -20,6 +20,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include <linux/firmware.h>
 
 #define CX18_AUDIO_ENABLE 0xc72014
@@ -119,10 +120,10 @@ int cx18_av_loadfw(struct cx18 *cx)
 	   have a name in the spec. */
 	cx18_av_write4(cx, 0x09CC, 1);
 
-	v = read_reg(CX18_AUDIO_ENABLE);
-	/* If bit 11 is 1 */
+	v = cx18_read_reg(cx, CX18_AUDIO_ENABLE);
+	/* If bit 11 is 1, clear bit 10 */
 	if (v & 0x800)
-		write_reg(v & 0xFFFFFBFF, CX18_AUDIO_ENABLE); /* Clear bit 10 */
+		cx18_write_reg(cx, v & 0xFFFFFBFF, CX18_AUDIO_ENABLE);
 
 	/* Enable WW auto audio standard detection */
 	v = cx18_av_read4(cx, CXADEC_STD_DET_CTL);

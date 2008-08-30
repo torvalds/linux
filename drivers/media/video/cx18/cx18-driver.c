@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-version.h"
 #include "cx18-cards.h"
 #include "cx18-i2c.h"
@@ -651,7 +652,7 @@ static int __devinit cx18_probe(struct pci_dev *dev,
 		goto free_mem;
 	}
 	cx->reg_mem = cx->enc_mem + CX18_REG_OFFSET;
-	devtype = read_reg(0xC72028);
+	devtype = cx18_read_reg(cx, 0xC72028);
 	switch (devtype & 0xff000000) {
 	case 0xff000000:
 		CX18_INFO("cx23418 revision %08x (A)\n", devtype);
@@ -897,8 +898,8 @@ static void cx18_remove(struct pci_dev *pci_dev)
 		cx18_stop_all_captures(cx);
 
 	/* Interrupts */
-	sw1_irq_disable(IRQ_CPU_TO_EPU | IRQ_APU_TO_EPU);
-	sw2_irq_disable(IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
+	cx18_sw1_irq_disable(cx, IRQ_CPU_TO_EPU | IRQ_APU_TO_EPU);
+	cx18_sw2_irq_disable(cx, IRQ_CPU_TO_EPU_ACK | IRQ_APU_TO_EPU_ACK);
 
 	cx18_halt_firmware(cx);
 

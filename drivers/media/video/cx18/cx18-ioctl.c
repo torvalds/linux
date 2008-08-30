@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-version.h"
 #include "cx18-mailbox.h"
 #include "cx18-i2c.h"
@@ -286,9 +287,9 @@ static int cx18_cxc(struct cx18 *cx, unsigned int cmd, void *arg)
 
 	spin_lock_irqsave(&cx18_cards_lock, flags);
 	if (cmd == VIDIOC_DBG_G_REGISTER)
-		regs->val = read_enc(regs->reg);
+		regs->val = cx18_read_enc(cx, regs->reg);
 	else
-		write_enc(regs->val, regs->reg);
+		cx18_write_enc(cx, regs->val, regs->reg);
 	spin_unlock_irqrestore(&cx18_cards_lock, flags);
 	return 0;
 }

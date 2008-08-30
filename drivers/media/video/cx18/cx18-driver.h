@@ -457,47 +457,4 @@ void cx18_read_eeprom(struct cx18 *cx, struct tveeprom *tv);
 /* First-open initialization: load firmware, etc. */
 int cx18_init_on_first_open(struct cx18 *cx);
 
-/* This is a PCI post thing, where if the pci register is not read, then
-   the write doesn't always take effect right away. By reading back the
-   register any pending PCI writes will be performed (in order), and so
-   you can be sure that the writes are guaranteed to be done.
-
-   Rarely needed, only in some timing sensitive cases.
-   Apparently if this is not done some motherboards seem
-   to kill the firmware and get into the broken state until computer is
-   rebooted. */
-#define write_sync(val, reg) \
-	do { writel(val, reg); readl(reg); } while (0)
-
-#define read_reg(reg) readl(cx->reg_mem + (reg))
-#define write_reg(val, reg) writel(val, cx->reg_mem + (reg))
-#define write_reg_sync(val, reg) \
-	do { write_reg(val, reg); read_reg(reg); } while (0)
-
-#define read_enc(addr) readl(cx->enc_mem + (u32)(addr))
-#define write_enc(val, addr) writel(val, cx->enc_mem + (u32)(addr))
-#define write_enc_sync(val, addr) \
-	do { write_enc(val, addr); read_enc(addr); } while (0)
-
-#define sw1_irq_enable(val) do { \
-	write_reg(val, SW1_INT_STATUS); \
-	write_reg(read_reg(SW1_INT_ENABLE_PCI) | (val), SW1_INT_ENABLE_PCI); \
-} while (0)
-
-#define sw1_irq_disable(val) \
-	write_reg(read_reg(SW1_INT_ENABLE_PCI) & ~(val), SW1_INT_ENABLE_PCI);
-
-#define sw2_irq_enable(val) do { \
-	write_reg(val, SW2_INT_STATUS); \
-	write_reg(read_reg(SW2_INT_ENABLE_PCI) | (val), SW2_INT_ENABLE_PCI); \
-} while (0)
-
-#define sw2_irq_disable(val) \
-	write_reg(read_reg(SW2_INT_ENABLE_PCI) & ~(val), SW2_INT_ENABLE_PCI);
-
-#define setup_page(addr) do { \
-    u32 val = read_reg(0xD000F8) & ~0x1f00; \
-    write_reg(val | (((addr) >> 17) & 0x1f00), 0xD000F8); \
-} while (0)
-
 #endif /* CX18_DRIVER_H */

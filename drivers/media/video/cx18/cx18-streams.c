@@ -22,6 +22,7 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-fileops.h"
 #include "cx18-mailbox.h"
 #include "cx18-i2c.h"
@@ -469,7 +470,7 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 
 	if (atomic_read(&cx->tot_capturing) == 0) {
 		clear_bit(CX18_F_I_EOS, &cx->i_flags);
-		write_reg(7, CX18_DSP0_INTERRUPT_MASK);
+		cx18_write_reg(cx, 7, CX18_DSP0_INTERRUPT_MASK);
 	}
 
 	cx18_vapi(cx, CX18_CPU_DE_SET_MDL_ACK, 3, s->handle,
@@ -479,8 +480,9 @@ int cx18_start_v4l2_encode_stream(struct cx18_stream *s)
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf = list_entry(p, struct cx18_buffer, list);
 
-		writel(buf->dma_handle, &cx->scb->cpu_mdl[buf->id].paddr);
-		writel(s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
+		cx18_writel(cx, buf->dma_handle,
+					&cx->scb->cpu_mdl[buf->id].paddr);
+		cx18_writel(cx, s->buf_size, &cx->scb->cpu_mdl[buf->id].length);
 		cx18_vapi(cx, CX18_CPU_DE_SET_MDL, 5, s->handle,
 			(void __iomem *)&cx->scb->cpu_mdl[buf->id] - cx->enc_mem,
 			1, buf->id, s->buf_size);
@@ -563,7 +565,7 @@ int cx18_stop_v4l2_encode_stream(struct cx18_stream *s, int gop_end)
 	if (atomic_read(&cx->tot_capturing) > 0)
 		return 0;
 
-	write_reg(5, CX18_DSP0_INTERRUPT_MASK);
+	cx18_write_reg(cx, 5, CX18_DSP0_INTERRUPT_MASK);
 	wake_up(&s->waitq);
 
 	return 0;
