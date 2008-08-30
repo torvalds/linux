@@ -19,6 +19,7 @@
 #include <asm/system.h>
 #include <asm/page.h>
 #include <asm/ebus.h>
+#include <asm/ebus_dma.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 #include <asm/irq.h>
