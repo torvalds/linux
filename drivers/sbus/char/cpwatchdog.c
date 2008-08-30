@@ -11,6 +11,7 @@
  * 			reset 'stopped' watchdogs on affected platforms.
  *
  * Copyright (c) 2000 Eric Brower (ebrower@usa.net)
+ * Copyright (C) 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/kernel.h>
@@ -25,36 +26,34 @@
 #include <linux/timer.h>
 #include <linux/smp_lock.h>
 #include <linux/io.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+
 #include <asm/irq.h>
-#include <asm/ebus.h>
-#include <asm/oplib.h>
 #include <asm/uaccess.h>
 
 #include <asm/watchdog.h>
 
+#define DRIVER_NAME	"cpwd"
+#define PFX		DRIVER_NAME ": "
+
 #define WD_OBPNAME	"watchdog"
-#define WD_BADMODEL "SUNW,501-5336"
+#define WD_BADMODEL	"SUNW,501-5336"
 #define WD_BTIMEOUT	(jiffies + (HZ * 1000))
 #define WD_BLIMIT	0xFFFF
-
-#define WD0_DEVNAME "watchdog0"
-#define WD1_DEVNAME "watchdog1"
-#define WD2_DEVNAME "watchdog2"
 
 #define WD0_MINOR	212
 #define WD1_MINOR	213	
 #define WD2_MINOR	214	
 
+/* Internal driver definitions.  */
+#define WD0_ID			0
+#define WD1_ID			1
+#define WD2_ID			2
+#define WD_NUMDEVS		3
 
-/* Internal driver definitions
- */
-#define WD0_ID			0		/* Watchdog0						*/
-#define WD1_ID			1		/* Watchdog1						*/
-#define WD2_ID			2		/* Watchdog2						*/
-#define WD_NUMDEVS		3		/* Device contains 3 timers			*/
-
-#define WD_INTR_OFF		0		/* Interrupt disable value			*/
-#define WD_INTR_ON		1		/* Interrupt enable value			*/
+#define WD_INTR_OFF		0
+#define WD_INTR_ON		1
 
 #define WD_STAT_INIT	0x01	/* Watchdog timer is initialized	*/
 #define WD_STAT_BSTOP	0x02	/* Watchdog timer is brokenstopped	*/
@@ -68,6 +67,29 @@
 
 #define WD_S_RUNNING	0x01	/* Watchdog device status running	*/
 #define WD_S_EXPIRED	0x02	/* Watchdog device status expired	*/
+
+struct cpwd {
+	void __iomem	*regs;
+	spinlock_t	lock;
+
+	unsigned int	irq;
+
+	unsigned long	timeout;
+	bool		enabled;
+	bool		reboot;
+	bool		broken;
+	bool		initialized;
+
+	struct {
+		struct miscdevice	misc;
+		void __iomem		*regs;
+		u8			intr_mask;
+		u8			runstatus;
+		u16			timeout;
+	} devs[WD_NUMDEVS];
+};
+
+static struct cpwd *cpwd_device;
 
 /* Sun uses Altera PLD EPF8820ATC144-4 
  * providing three hardware watchdogs:
@@ -130,40 +152,12 @@
 #define PLD_IMASK	(PLD_OFF + 0x00)
 #define PLD_STATUS	(PLD_OFF + 0x04)
 
-/* Individual timer structure 
- */
-struct wd_timer {
-	__u16			timeout;
-	__u8			intr_mask;
-	unsigned char		runstatus;
-	void __iomem		*regs;
-};
-
-/* Device structure
- */
-struct wd_device {
-	int				irq;
-	spinlock_t		lock;
-	unsigned char	isbaddoggie;	/* defective PLD */
-	unsigned char	opt_enable;
-	unsigned char	opt_reboot;
-	unsigned short	opt_timeout;
-	unsigned char	initialized;
-	struct wd_timer	watchdog[WD_NUMDEVS];
-	void __iomem	*regs;
-};
-
-static struct wd_device wd_dev = { 
-		0, __SPIN_LOCK_UNLOCKED(wd_dev.lock), 0, 0, 0, 0,
-};
-
-static struct timer_list wd_timer;
+static struct timer_list cpwd_timer;
 
 static int wd0_timeout = 0;
 static int wd1_timeout = 0;
 static int wd2_timeout = 0;
 
-#ifdef MODULE
 module_param	(wd0_timeout, int, 0);
 MODULE_PARM_DESC(wd0_timeout, "Default watchdog0 timeout in 1/10secs");
 module_param 	(wd1_timeout, int, 0);
@@ -171,400 +165,115 @@ MODULE_PARM_DESC(wd1_timeout, "Default watchdog1 timeout in 1/10secs");
 module_param 	(wd2_timeout, int, 0);
 MODULE_PARM_DESC(wd2_timeout, "Default watchdog2 timeout in 1/10secs");
 
-MODULE_AUTHOR
-	("Eric Brower <ebrower@usa.net>");
-MODULE_DESCRIPTION
-	("Hardware watchdog driver for Sun Microsystems CP1400/1500");
+MODULE_AUTHOR("Eric Brower <ebrower@usa.net>");
+MODULE_DESCRIPTION("Hardware watchdog driver for Sun Microsystems CP1400/1500");
 MODULE_LICENSE("GPL");
-MODULE_SUPPORTED_DEVICE
-	("watchdog");
-#endif /* ifdef MODULE */
+MODULE_SUPPORTED_DEVICE("watchdog");
 
-/* Forward declarations of internal methods
- */
-#ifdef WD_DEBUG
-static void wd_dumpregs(void);
-#endif
-static irqreturn_t wd_interrupt(int irq, void *dev_id);
-static void wd_toggleintr(struct wd_timer* pTimer, int enable);
-static void wd_pingtimer(struct wd_timer* pTimer);
-static void wd_starttimer(struct wd_timer* pTimer);
-static void wd_resetbrokentimer(struct wd_timer* pTimer);
-static void wd_stoptimer(struct wd_timer* pTimer);
-static void wd_brokentimer(unsigned long data);
-static int  wd_getstatus(struct wd_timer* pTimer);
-
-/* PLD expects words to be written in LSB format,
- * so we must flip all words prior to writing them to regs
- */
-static inline unsigned short flip_word(unsigned short word)
+static void cpwd_writew(u16 val, void __iomem *addr)
 {
-	return ((word & 0xff) << 8) | ((word >> 8) & 0xff);
+	writew(cpu_to_le16(val), addr);
+}
+static u16 cpwd_readw(void __iomem *addr)
+{
+	u16 val = readw(addr);
+
+	return le16_to_cpu(val);
 }
 
-#define wd_writew(val, addr) 	(writew(flip_word(val), addr))
-#define wd_readw(addr) 			(flip_word(readw(addr)))
-#define wd_writeb(val, addr) 	(writeb(val, addr))
-#define wd_readb(addr) 			(readb(addr))
-
-
-/* CP1400s seem to have broken PLD implementations--
- * the interrupt_mask register cannot be written, so
- * no timer interrupts can be masked within the PLD.
- */
-static inline int wd_isbroken(void)
+static void cpwd_writeb(u8 val, void __iomem *addr)
 {
-	/* we could test this by read/write/read/restore
-	 * on the interrupt mask register only if OBP
-	 * 'watchdog-enable?' == FALSE, but it seems 
-	 * ubiquitous on CP1400s
-	 */
-	char val[32];
-	prom_getproperty(prom_root_node, "model", val, sizeof(val));
-	return((!strcmp(val, WD_BADMODEL)) ? 1 : 0);
-}
-		
-/* Retrieve watchdog-enable? option from OBP
- * Returns 0 if false, 1 if true
- */
-static inline int wd_opt_enable(void)
-{
-	int opt_node;
-
-	opt_node = prom_getchild(prom_root_node);
-	opt_node = prom_searchsiblings(opt_node, "options");
-	return((-1 == prom_getint(opt_node, "watchdog-enable?")) ? 0 : 1);
+	writeb(val, addr);
 }
 
-/* Retrieve watchdog-reboot? option from OBP
- * Returns 0 if false, 1 if true
- */
-static inline int wd_opt_reboot(void)
+static u8 cpwd_readb(void __iomem *addr)
 {
-	int opt_node;
-
-	opt_node = prom_getchild(prom_root_node);
-	opt_node = prom_searchsiblings(opt_node, "options");
-	return((-1 == prom_getint(opt_node, "watchdog-reboot?")) ? 0 : 1);
+	return readb(addr);
 }
-
-/* Retrieve watchdog-timeout option from OBP
- * Returns OBP value, or 0 if not located
- */
-static inline int wd_opt_timeout(void)
-{
-	int opt_node;
-	char value[32];
-	char *p = value;
-
-	opt_node = prom_getchild(prom_root_node);
-	opt_node = prom_searchsiblings(opt_node, "options");
-	opt_node = prom_getproperty(opt_node, 
-								"watchdog-timeout", 
-								value, 
-								sizeof(value));
-	if(-1 != opt_node) {
-		/* atoi implementation */
-		for(opt_node = 0; /* nop */; p++) {
-			if(*p >= '0' && *p <= '9') {
-				opt_node = (10*opt_node)+(*p-'0');
-			}
-			else {
-				break;
-			}
-		}
-	}
-	return((-1 == opt_node) ? (0) : (opt_node)); 
-}
-
-static int wd_open(struct inode *inode, struct file *f)
-{
-	lock_kernel();
-	switch(iminor(inode))
-	{
-		case WD0_MINOR:
-			f->private_data = &wd_dev.watchdog[WD0_ID];
-			break;
-		case WD1_MINOR:
-			f->private_data = &wd_dev.watchdog[WD1_ID];
-			break;
-		case WD2_MINOR:
-			f->private_data = &wd_dev.watchdog[WD2_ID];
-			break;
-		default:
-			unlock_kernel();
-			return(-ENODEV);
-	}
-
-	/* Register IRQ on first open of device */
-	if(0 == wd_dev.initialized)
-	{	
-		if (request_irq(wd_dev.irq, 
-						&wd_interrupt, 
-						IRQF_SHARED,
-						WD_OBPNAME,
-						(void *)wd_dev.regs)) {
-			printk("%s: Cannot register IRQ %d\n", 
-				WD_OBPNAME, wd_dev.irq);
-			unlock_kernel();
-			return(-EBUSY);
-		}
-		wd_dev.initialized = 1;
-	}
-
-	unlock_kernel();
-	return(nonseekable_open(inode, f));
-}
-
-static int wd_release(struct inode *inode, struct file *file)
-{
-	return 0;
-}
-
-static int wd_ioctl(struct inode *inode, struct file *file, 
-		     unsigned int cmd, unsigned long arg)
-{
-	int 	setopt 				= 0;
-	struct 	wd_timer* pTimer 	= (struct wd_timer*)file->private_data;
-	void __user *argp = (void __user *)arg;
-	struct 	watchdog_info info 	= {
-		0,
-		0,
-		"Altera EPF8820ATC144-4"
-	};
-
-	if(NULL == pTimer) {
-		return(-EINVAL);
-	}
-
-	switch(cmd)
-	{
-		/* Generic Linux IOCTLs */
-		case WDIOC_GETSUPPORT:
-			if(copy_to_user(argp, &info, sizeof(struct watchdog_info))) {
-				return(-EFAULT);
-			}
-			break;
-		case WDIOC_GETSTATUS:
-		case WDIOC_GETBOOTSTATUS:
-			if (put_user(0, (int __user *)argp))
-				return -EFAULT;
-			break;
-		case WDIOC_KEEPALIVE:
-			wd_pingtimer(pTimer);
-			break;
-		case WDIOC_SETOPTIONS:
-			if(copy_from_user(&setopt, argp, sizeof(unsigned int))) {
-				return -EFAULT;
-			}
-			if(setopt & WDIOS_DISABLECARD) {
-				if(wd_dev.opt_enable) {
-					printk(
-						"%s: cannot disable watchdog in ENABLED mode\n",
-						WD_OBPNAME);
-					return(-EINVAL);
-				}
-				wd_stoptimer(pTimer);
-			}
-			else if(setopt & WDIOS_ENABLECARD) {
-				wd_starttimer(pTimer);
-			}
-			else {
-				return(-EINVAL);
-			}	
-			break;
-		/* Solaris-compatible IOCTLs */
-		case WIOCGSTAT:
-			setopt = wd_getstatus(pTimer);
-			if(copy_to_user(argp, &setopt, sizeof(unsigned int))) {
-				return(-EFAULT);
-			}
-			break;
-		case WIOCSTART:
-			wd_starttimer(pTimer);
-			break;
-		case WIOCSTOP:
-			if(wd_dev.opt_enable) {
-				printk("%s: cannot disable watchdog in ENABLED mode\n",
-					WD_OBPNAME);
-				return(-EINVAL);
-			}
-			wd_stoptimer(pTimer);
-			break;
-		default:
-			return(-EINVAL);
-	}
-	return(0);
-}
-
-static long wd_compat_ioctl(struct file *file, unsigned int cmd,
-		unsigned long arg)
-{
-	int rval = -ENOIOCTLCMD;
-
-	switch (cmd) {
-	/* solaris ioctls are specific to this driver */
-	case WIOCSTART:
-	case WIOCSTOP:
-	case WIOCGSTAT:
-		lock_kernel();
-		rval = wd_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
-		unlock_kernel();
-		break;
-	/* everything else is handled by the generic compat layer */
-	default:
-		break;
-	}
-
-	return rval;
-}
-
-static ssize_t wd_write(struct file 	*file, 
-			const char	__user *buf, 
-			size_t 		count, 
-			loff_t 		*ppos)
-{
-	struct wd_timer* pTimer = (struct wd_timer*)file->private_data;
-
-	if(NULL == pTimer) {
-		return(-EINVAL);
-	}
-
-	if (count) {
-		wd_pingtimer(pTimer);
-		return 1;
-	}
-	return 0;
-}
-
-static ssize_t wd_read(struct file * file, char __user *buffer,
-		        size_t count, loff_t *ppos)
-{
-#ifdef WD_DEBUG
-	wd_dumpregs();
-	return(0);
-#else
-	return(-EINVAL);
-#endif /* ifdef WD_DEBUG */
-}
-
-static irqreturn_t wd_interrupt(int irq, void *dev_id)
-{
-	/* Only WD0 will interrupt-- others are NMI and we won't
-	 * see them here....
-	 */
-	spin_lock_irq(&wd_dev.lock);
-	if((unsigned long)wd_dev.regs == (unsigned long)dev_id)
-	{
-		wd_stoptimer(&wd_dev.watchdog[WD0_ID]);
-		wd_dev.watchdog[WD0_ID].runstatus |=  WD_STAT_SVCD;
-	}
-	spin_unlock_irq(&wd_dev.lock);
-	return IRQ_HANDLED;
-}
-
-static const struct file_operations wd_fops = {
-	.owner =	THIS_MODULE,
-	.ioctl =	wd_ioctl,
-	.compat_ioctl =	wd_compat_ioctl,
-	.open =		wd_open,
-	.write =	wd_write,
-	.read =		wd_read,
-	.release =	wd_release,
-};
-
-static struct miscdevice wd0_miscdev = { WD0_MINOR, WD0_DEVNAME, &wd_fops };
-static struct miscdevice wd1_miscdev = { WD1_MINOR, WD1_DEVNAME, &wd_fops };
-static struct miscdevice wd2_miscdev = { WD2_MINOR, WD2_DEVNAME, &wd_fops };
-
-#ifdef WD_DEBUG
-static void wd_dumpregs(void)
-{
-	/* Reading from downcounters initiates watchdog countdown--
-	 * Example is included below for illustration purposes.
-	 */
-	int i;
-	printk("%s: dumping register values\n", WD_OBPNAME);
-	for(i = WD0_ID; i < WD_NUMDEVS; ++i) {
-			/* printk("\t%s%i: dcntr  at 0x%lx: 0x%x\n", 
-			 * 	WD_OBPNAME,
-		 	 *	i,
-			 *	(unsigned long)(&wd_dev.watchdog[i].regs->dcntr), 
-			 *	readw(&wd_dev.watchdog[i].regs->dcntr));
-			 */
-			printk("\t%s%i: limit  at 0x%lx: 0x%x\n", 
-				WD_OBPNAME,
-				i,
-				(unsigned long)(&wd_dev.watchdog[i].regs->limit), 
-				readw(&wd_dev.watchdog[i].regs->limit));
-			printk("\t%s%i: status at 0x%lx: 0x%x\n", 
-				WD_OBPNAME,
-				i,
-				(unsigned long)(&wd_dev.watchdog[i].regs->status), 
-				readb(&wd_dev.watchdog[i].regs->status));
-			printk("\t%s%i: driver status: 0x%x\n",
-				WD_OBPNAME,
-				i,
-				wd_getstatus(&wd_dev.watchdog[i]));
-	}
-	printk("\tintr_mask  at %p: 0x%x\n", 
-		wd_dev.regs + PLD_IMASK,
-		readb(wd_dev.regs + PLD_IMASK));
-	printk("\tpld_status at %p: 0x%x\n", 
-		wd_dev.regs + PLD_STATUS, 
-		readb(wd_dev.regs + PLD_STATUS));
-}
-#endif
 
 /* Enable or disable watchdog interrupts
  * Because of the CP1400 defect this should only be
  * called during initialzation or by wd_[start|stop]timer()
  *
- * pTimer 	- pointer to timer device, or NULL to indicate all timers 
+ * index 	- sub-device index, or -1 for 'all'
  * enable	- non-zero to enable interrupts, zero to disable
  */
-static void wd_toggleintr(struct wd_timer* pTimer, int enable)
+static void cpwd_toggleintr(struct cpwd *p, int index, int enable)
 {
-	unsigned char curregs = wd_readb(wd_dev.regs + PLD_IMASK);
+	unsigned char curregs = cpwd_readb(p->regs + PLD_IMASK);
 	unsigned char setregs = 
-		(NULL == pTimer) ? 
-			(WD0_INTR_MASK | WD1_INTR_MASK | WD2_INTR_MASK) : 
-			(pTimer->intr_mask);
+		(index == -1) ? 
+		(WD0_INTR_MASK | WD1_INTR_MASK | WD2_INTR_MASK) : 
+		(p->devs[index].intr_mask);
 
-	(WD_INTR_ON == enable) ?
-		(curregs &= ~setregs):
-		(curregs |=  setregs);
+	if (enable == WD_INTR_ON)
+		curregs &= ~setregs;
+	else
+		curregs |= setregs;
 
-	wd_writeb(curregs, wd_dev.regs + PLD_IMASK);
-	return;
+	cpwd_writeb(curregs, p->regs + PLD_IMASK);
+}
+
+/* Restarts timer with maximum limit value and
+ * does not unset 'brokenstop' value.
+ */
+static void cpwd_resetbrokentimer(struct cpwd *p, int index)
+{
+	cpwd_toggleintr(p, index, WD_INTR_ON);
+	cpwd_writew(WD_BLIMIT, p->devs[index].regs + WD_LIMIT);
+}
+
+/* Timer method called to reset stopped watchdogs--
+ * because of the PLD bug on CP1400, we cannot mask
+ * interrupts within the PLD so me must continually
+ * reset the timers ad infinitum.
+ */
+static void cpwd_brokentimer(unsigned long data)
+{
+	struct cpwd *p = (struct cpwd *) data;
+	int id, tripped = 0;
+
+	/* kill a running timer instance, in case we
+	 * were called directly instead of by kernel timer
+	 */
+	if (timer_pending(&cpwd_timer))
+		del_timer(&cpwd_timer);
+
+	for (id = 0; id < WD_NUMDEVS; id++) {
+		if (p->devs[id].runstatus & WD_STAT_BSTOP) {
+			++tripped;
+			cpwd_resetbrokentimer(p, id);
+		}
+	}
+
+	if (tripped) {
+		/* there is at least one timer brokenstopped-- reschedule */
+		cpwd_timer.expires = WD_BTIMEOUT;
+		add_timer(&cpwd_timer);
+	}
 }
 
 /* Reset countdown timer with 'limit' value and continue countdown.
  * This will not start a stopped timer.
- *
- * pTimer	- pointer to timer device
  */
-static void wd_pingtimer(struct wd_timer* pTimer)
+static void cpwd_pingtimer(struct cpwd *p, int index)
 {
-	if (wd_readb(pTimer->regs + WD_STATUS) & WD_S_RUNNING) {
-		wd_readw(pTimer->regs + WD_DCNTR);
-	}
+	if (cpwd_readb(p->devs[index].regs + WD_STATUS) & WD_S_RUNNING)
+		cpwd_readw(p->devs[index].regs + WD_DCNTR);
 }
 
 /* Stop a running watchdog timer-- the timer actually keeps
  * running, but the interrupt is masked so that no action is
  * taken upon expiration.
- *
- * pTimer	- pointer to timer device
  */
-static void wd_stoptimer(struct wd_timer* pTimer)
+static void cpwd_stoptimer(struct cpwd *p, int index)
 {
-	if(wd_readb(pTimer->regs + WD_STATUS) & WD_S_RUNNING) {
-		wd_toggleintr(pTimer, WD_INTR_OFF);
+	if (cpwd_readb(p->devs[index].regs + WD_STATUS) & WD_S_RUNNING) {
+		cpwd_toggleintr(p, index, WD_INTR_OFF);
 
-		if(wd_dev.isbaddoggie) {
-			pTimer->runstatus |= WD_STAT_BSTOP;
-			wd_brokentimer((unsigned long)&wd_dev);
+		if (p->broken) {
+			p->devs[index].runstatus |= WD_STAT_BSTOP;
+			cpwd_brokentimer((unsigned long) p);
 		}
 	}
 }
@@ -575,146 +284,35 @@ static void wd_stoptimer(struct wd_timer* pTimer)
  *
  * This function will enable interrupts on the specified
  * watchdog.
- *
- * pTimer	- pointer to timer device
- * limit	- limit (countdown) value in 1/10th seconds
  */
-static void wd_starttimer(struct wd_timer* pTimer)
+static void cpwd_starttimer(struct cpwd *p, int index)
 {
-	if(wd_dev.isbaddoggie) {
-		pTimer->runstatus &= ~WD_STAT_BSTOP;
-	}
-	pTimer->runstatus &= ~WD_STAT_SVCD;
+	if (p->broken)
+		p->devs[index].runstatus &= ~WD_STAT_BSTOP;
 
-	wd_writew(pTimer->timeout, pTimer->regs + WD_LIMIT);
-	wd_toggleintr(pTimer, WD_INTR_ON);
+	p->devs[index].runstatus &= ~WD_STAT_SVCD;
+
+	cpwd_writew(p->devs[index].timeout, p->devs[index].regs + WD_LIMIT);
+	cpwd_toggleintr(p, index, WD_INTR_ON);
 }
 
-/* Restarts timer with maximum limit value and
- * does not unset 'brokenstop' value.
- */
-static void wd_resetbrokentimer(struct wd_timer* pTimer)
+static int cpwd_getstatus(struct cpwd *p, int index)
 {
-	wd_toggleintr(pTimer, WD_INTR_ON);
-	wd_writew(WD_BLIMIT, pTimer->regs + WD_LIMIT);
-}
-
-/* Timer device initialization helper.
- * Returns 0 on success, other on failure
- */
-static int wd_inittimer(int whichdog)
-{
-	struct miscdevice 				*whichmisc;
-	void __iomem *whichregs;
-	char 							whichident[8];
-	int								whichmask;
-	__u16							whichlimit;
-
-	switch(whichdog)
-	{
-		case WD0_ID:
-			whichmisc = &wd0_miscdev;
-			strcpy(whichident, "RIC");
-			whichregs = wd_dev.regs + WD0_OFF;
-			whichmask = WD0_INTR_MASK;
-			whichlimit= (0 == wd0_timeout) 	? 
-						(wd_dev.opt_timeout): 
-						(wd0_timeout);
-			break;
-		case WD1_ID:
-			whichmisc = &wd1_miscdev;
-			strcpy(whichident, "XIR");
-			whichregs = wd_dev.regs + WD1_OFF;
-			whichmask = WD1_INTR_MASK;
-			whichlimit= (0 == wd1_timeout) 	? 
-						(wd_dev.opt_timeout): 
-						(wd1_timeout);
-			break;
-		case WD2_ID:
-			whichmisc = &wd2_miscdev;
-			strcpy(whichident, "POR");
-			whichregs = wd_dev.regs + WD2_OFF;
-			whichmask = WD2_INTR_MASK;
-			whichlimit= (0 == wd2_timeout) 	? 
-						(wd_dev.opt_timeout): 
-						(wd2_timeout);
-			break;
-		default:
-			printk("%s: %s: invalid watchdog id: %i\n",
-				WD_OBPNAME, __func__, whichdog);
-			return(1);
-	}
-	if(0 != misc_register(whichmisc))
-	{
-		return(1);
-	}
-	wd_dev.watchdog[whichdog].regs			= whichregs;
-	wd_dev.watchdog[whichdog].timeout 		= whichlimit;
-	wd_dev.watchdog[whichdog].intr_mask		= whichmask;
-	wd_dev.watchdog[whichdog].runstatus 	&= ~WD_STAT_BSTOP;
-	wd_dev.watchdog[whichdog].runstatus 	|= WD_STAT_INIT;
-
-	printk("%s%i: %s hardware watchdog [%01i.%i sec] %s\n", 
-		WD_OBPNAME, 
-		whichdog, 
-		whichident, 
-		wd_dev.watchdog[whichdog].timeout / 10,
-		wd_dev.watchdog[whichdog].timeout % 10,
-		(0 != wd_dev.opt_enable) ? "in ENABLED mode" : "");
-	return(0);
-}
-
-/* Timer method called to reset stopped watchdogs--
- * because of the PLD bug on CP1400, we cannot mask
- * interrupts within the PLD so me must continually
- * reset the timers ad infinitum.
- */
-static void wd_brokentimer(unsigned long data)
-{
-	struct wd_device* pDev = (struct wd_device*)data;
-	int id, tripped = 0;
-
-	/* kill a running timer instance, in case we
-	 * were called directly instead of by kernel timer
-	 */
-	if(timer_pending(&wd_timer)) {
-		del_timer(&wd_timer);
-	}
-
-	for(id = WD0_ID; id < WD_NUMDEVS; ++id) {
-		if(pDev->watchdog[id].runstatus & WD_STAT_BSTOP) {
-			++tripped;
-			wd_resetbrokentimer(&pDev->watchdog[id]);
-		}
-	}
-
-	if(tripped) {
-		/* there is at least one timer brokenstopped-- reschedule */
-		init_timer(&wd_timer);
-		wd_timer.expires = WD_BTIMEOUT;
-		add_timer(&wd_timer);
-	}
-}
-
-static int wd_getstatus(struct wd_timer* pTimer)
-{
-	unsigned char stat = wd_readb(pTimer->regs + WD_STATUS);
-	unsigned char intr = wd_readb(wd_dev.regs + PLD_IMASK);
+	unsigned char stat = cpwd_readb(p->devs[index].regs + WD_STATUS);
+	unsigned char intr = cpwd_readb(p->devs[index].regs + PLD_IMASK);
 	unsigned char ret  = WD_STOPPED;
 
 	/* determine STOPPED */
-	if(0 == stat ) { 
-		return(ret);
-	}
+	if (!stat) 
+		return ret;
+
 	/* determine EXPIRED vs FREERUN vs RUNNING */
-	else if(WD_S_EXPIRED & stat) {
+	else if (WD_S_EXPIRED & stat) {
 		ret = WD_EXPIRED;
-	}
-	else if(WD_S_RUNNING & stat) {
-		if(intr & pTimer->intr_mask) {
+	} else if(WD_S_RUNNING & stat) {
+		if (intr & p->devs[index].intr_mask) {
 			ret = WD_FREERUN;
-		}
-		else {
+		} else {
 			/* Fudge WD_EXPIRED status for defective CP1400--
 			 * IF timer is running 
 			 * 	AND brokenstop is set 
@@ -726,133 +324,372 @@ static int wd_getstatus(struct wd_timer* pTimer)
 			 * 	AND no interrupt has been serviced
 			 * we are WD_FREERUN.
 			 */
-			if(wd_dev.isbaddoggie && (pTimer->runstatus & WD_STAT_BSTOP)) {
-				if(pTimer->runstatus & WD_STAT_SVCD) {
+			if (p->broken &&
+			    (p->devs[index].runstatus & WD_STAT_BSTOP)) {
+				if (p->devs[index].runstatus & WD_STAT_SVCD) {
 					ret = WD_EXPIRED;
-				}
-				else {
+				} else {
 					/* we could as well pretend we are expired */
 					ret = WD_FREERUN;
 				}
-			}
-			else {
+			} else {
 				ret = WD_RUNNING;
 			}
 		}
 	}
 
 	/* determine SERVICED */
-	if(pTimer->runstatus & WD_STAT_SVCD) {
+	if (p->devs[index].runstatus & WD_STAT_SVCD)
 		ret |= WD_SERVICED;
-	}
 
 	return(ret);
 }
 
-static int __init wd_init(void)
+static irqreturn_t cpwd_interrupt(int irq, void *dev_id)
 {
-	int 	id;
-	struct 	linux_ebus *ebus = NULL;
-	struct 	linux_ebus_device *edev = NULL;
+	struct cpwd *p = dev_id;
 
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (!strcmp(edev->ofdev.node->name, WD_OBPNAME))
-				goto ebus_done;
-		}
-	}
-
-ebus_done:
-	if(!edev) {
-		printk("%s: unable to locate device\n", WD_OBPNAME);
-		return -ENODEV;
-	}
-
-	wd_dev.regs = 
-		ioremap(edev->resource[0].start, 4 * WD_TIMER_REGSZ); /* ? */
-
-	if(NULL == wd_dev.regs) {
-		printk("%s: unable to map registers\n", WD_OBPNAME);
-		return(-ENODEV);
-	}
-
-	/* initialize device structure from OBP parameters */
-	wd_dev.irq 			= edev->irqs[0];
-	wd_dev.opt_enable	= wd_opt_enable();
-	wd_dev.opt_reboot	= wd_opt_reboot();
-	wd_dev.opt_timeout	= wd_opt_timeout();
-	wd_dev.isbaddoggie	= wd_isbroken();
-
-	/* disable all interrupts unless watchdog-enabled? == true */
-	if(! wd_dev.opt_enable) {
-		wd_toggleintr(NULL, WD_INTR_OFF);
-	}
-
-	/* register miscellaneous devices */
-	for(id = WD0_ID; id < WD_NUMDEVS; ++id) {
-		if(0 != wd_inittimer(id)) {
-			printk("%s%i: unable to initialize\n", WD_OBPNAME, id);
-		}
-	}
-
-	/* warn about possible defective PLD */
-	if(wd_dev.isbaddoggie) {
-		init_timer(&wd_timer);
-		wd_timer.function 	= wd_brokentimer;
-		wd_timer.data		= (unsigned long)&wd_dev;
-		wd_timer.expires	= WD_BTIMEOUT;
-
-		printk("%s: PLD defect workaround enabled for model %s\n",
-			WD_OBPNAME, WD_BADMODEL);
-	}
-	return(0);
-}
-
-static void __exit wd_cleanup(void)
-{
-	int id;
-
-	/* if 'watchdog-enable?' == TRUE, timers are not stopped 
-	 * when module is unloaded.  All brokenstopped timers will
-	 * also now eventually trip. 
+	/* Only WD0 will interrupt-- others are NMI and we won't
+	 * see them here....
 	 */
-	for(id = WD0_ID; id < WD_NUMDEVS; ++id) {
-		if(WD_S_RUNNING == wd_readb(wd_dev.watchdog[id].regs + WD_STATUS)) {
-			if(wd_dev.opt_enable) {
-				printk(KERN_WARNING "%s%i: timer not stopped at release\n",
-					WD_OBPNAME, id);
-			}
-			else {
-				wd_stoptimer(&wd_dev.watchdog[id]);
-				if(wd_dev.watchdog[id].runstatus & WD_STAT_BSTOP) {
-					wd_resetbrokentimer(&wd_dev.watchdog[id]);
-					printk(KERN_WARNING 
-							"%s%i: defect workaround disabled at release, "\
-							"timer expires in ~%01i sec\n",
-							WD_OBPNAME, id, 
-							wd_readw(wd_dev.watchdog[id].regs + WD_LIMIT) / 10);
-				}
-			}
+	spin_lock_irq(&p->lock);
+
+	cpwd_stoptimer(p, WD0_ID);
+	p->devs[WD0_ID].runstatus |=  WD_STAT_SVCD;
+
+	spin_unlock_irq(&p->lock);
+
+	return IRQ_HANDLED;
+}
+
+static int cpwd_open(struct inode *inode, struct file *f)
+{
+	struct cpwd *p = cpwd_device;
+
+	lock_kernel();
+	switch(iminor(inode)) {
+		case WD0_MINOR:
+		case WD1_MINOR:
+		case WD2_MINOR:
+			break;
+
+		default:
+			unlock_kernel();
+			return -ENODEV;
+	}
+
+	/* Register IRQ on first open of device */
+	if (!p->initialized) {
+		if (request_irq(p->irq, &cpwd_interrupt, 
+				IRQF_SHARED, DRIVER_NAME, p)) {
+			printk(KERN_ERR PFX "Cannot register IRQ %d\n", 
+				p->irq);
+			unlock_kernel();
+			return -EBUSY;
+		}
+		p->initialized = true;
+	}
+
+	unlock_kernel();
+
+	return nonseekable_open(inode, f);
+}
+
+static int cpwd_release(struct inode *inode, struct file *file)
+{
+	return 0;
+}
+
+static int cpwd_ioctl(struct inode *inode, struct file *file, 
+		      unsigned int cmd, unsigned long arg)
+{
+	static struct watchdog_info info = {
+		.options		= WDIOF_SETTIMEOUT,
+		.firmware_version	= 1,
+		.identity		= DRIVER_NAME,
+	};
+	void __user *argp = (void __user *)arg;
+	int index = iminor(inode) - WD0_MINOR;
+	struct cpwd *p = cpwd_device;
+	int setopt = 0;
+
+	switch (cmd) {
+	/* Generic Linux IOCTLs */
+	case WDIOC_GETSUPPORT:
+		if (copy_to_user(argp, &info, sizeof(struct watchdog_info)))
+			return -EFAULT;
+		break;
+
+	case WDIOC_GETSTATUS:
+	case WDIOC_GETBOOTSTATUS:
+		if (put_user(0, (int __user *)argp))
+			return -EFAULT;
+		break;
+
+	case WDIOC_KEEPALIVE:
+		cpwd_pingtimer(p, index);
+		break;
+
+	case WDIOC_SETOPTIONS:
+		if (copy_from_user(&setopt, argp, sizeof(unsigned int)))
+			return -EFAULT;
+
+		if (setopt & WDIOS_DISABLECARD) {
+			if (p->enabled)
+				return -EINVAL;
+			cpwd_stoptimer(p, index);
+		} else if (setopt & WDIOS_ENABLECARD) {
+			cpwd_starttimer(p, index);
+		} else {
+			return -EINVAL;
+		}	
+		break;
+
+	/* Solaris-compatible IOCTLs */
+	case WIOCGSTAT:
+		setopt = cpwd_getstatus(p, index);
+		if (copy_to_user(argp, &setopt, sizeof(unsigned int)))
+			return -EFAULT;
+		break;
+
+	case WIOCSTART:
+		cpwd_starttimer(p, index);
+		break;
+
+	case WIOCSTOP:
+		if (p->enabled)
+			return(-EINVAL);
+
+		cpwd_stoptimer(p, index);
+		break;
+
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static long cpwd_compat_ioctl(struct file *file, unsigned int cmd,
+			      unsigned long arg)
+{
+	int rval = -ENOIOCTLCMD;
+
+	switch (cmd) {
+	/* solaris ioctls are specific to this driver */
+	case WIOCSTART:
+	case WIOCSTOP:
+	case WIOCGSTAT:
+		lock_kernel();
+		rval = cpwd_ioctl(file->f_path.dentry->d_inode, file, cmd, arg);
+		unlock_kernel();
+		break;
+
+	/* everything else is handled by the generic compat layer */
+	default:
+		break;
+	}
+
+	return rval;
+}
+
+static ssize_t cpwd_write(struct file *file, const char __user *buf, 
+			  size_t count, loff_t *ppos)
+{
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct cpwd *p = cpwd_device;
+	int index = iminor(inode);
+
+	if (count) {
+		cpwd_pingtimer(p, index);
+		return 1;
+	}
+
+	return 0;
+}
+
+static ssize_t cpwd_read(struct file * file, char __user *buffer,
+			 size_t count, loff_t *ppos)
+{
+	return -EINVAL;
+}
+
+static const struct file_operations cpwd_fops = {
+	.owner =	THIS_MODULE,
+	.ioctl =	cpwd_ioctl,
+	.compat_ioctl =	cpwd_compat_ioctl,
+	.open =		cpwd_open,
+	.write =	cpwd_write,
+	.read =		cpwd_read,
+	.release =	cpwd_release,
+};
+
+static int __devinit cpwd_probe(struct of_device *op,
+				const struct of_device_id *match)
+{
+	struct device_node *options;
+	const char *str_prop;
+	const void *prop_val;
+	int i, err = -EINVAL;
+	struct cpwd *p;
+
+	if (cpwd_device)
+		return -EINVAL;
+
+	p = kzalloc(sizeof(*p), GFP_KERNEL);
+	err = -ENOMEM;
+	if (!p) {
+		printk(KERN_ERR PFX "Unable to allocate struct cpwd.\n");
+		goto out;
+	}
+
+	p->irq = op->irqs[0];
+
+	spin_lock_init(&p->lock);
+
+	p->regs = of_ioremap(&op->resource[0], 0,
+			     4 * WD_TIMER_REGSZ, DRIVER_NAME);
+	if (!p->regs) {
+		printk(KERN_ERR PFX "Unable to map registers.\n");
+		goto out_free;
+	}
+
+	options = of_find_node_by_path("/options");
+	err = -ENODEV;
+	if (!options) {
+		printk(KERN_ERR PFX "Unable to find /options node.\n");
+		goto out_iounmap;
+	}
+
+	prop_val = of_get_property(options, "watchdog-enable?", NULL);
+	p->enabled = (prop_val ? true : false);
+
+	prop_val = of_get_property(options, "watchdog-reboot?", NULL);
+	p->reboot = (prop_val ? true : false);
+
+	str_prop = of_get_property(options, "watchdog-timeout", NULL);
+	if (str_prop)
+		p->timeout = simple_strtoul(str_prop, NULL, 10);
+
+	/* CP1400s seem to have broken PLD implementations-- the
+	 * interrupt_mask register cannot be written, so no timer
+	 * interrupts can be masked within the PLD.
+	 */
+	str_prop = of_get_property(op->node, "model", NULL);
+	p->broken = (str_prop && !strcmp(str_prop, WD_BADMODEL));
+
+	if (!p->enabled)
+		cpwd_toggleintr(p, -1, WD_INTR_OFF);
+
+	for (i = 0; i < WD_NUMDEVS; i++) {
+		static const char *cpwd_names[] = { "RIC", "XIR", "POR" };
+		static int *parms[] = { &wd0_timeout,
+					&wd1_timeout,
+					&wd2_timeout };
+		struct miscdevice *mp = &p->devs[i].misc;
+
+		mp->minor = WD0_MINOR + i;
+		mp->name = cpwd_names[i];
+		mp->fops = &cpwd_fops;
+
+		p->devs[i].regs = p->regs + (i * WD_TIMER_REGSZ);
+		p->devs[i].intr_mask = (WD0_INTR_MASK << i);
+		p->devs[i].runstatus &= ~WD_STAT_BSTOP;
+		p->devs[i].runstatus |= WD_STAT_INIT;
+		p->devs[i].timeout = p->timeout;
+		if (*parms[i])
+			p->devs[i].timeout = *parms[i];
+
+		err = misc_register(&p->devs[i].misc);
+		if (err) {
+			printk(KERN_ERR "Could not register misc device for "
+			       "dev %d\n", i);
+			goto out_unregister;
 		}
 	}
 
-	if(wd_dev.isbaddoggie && timer_pending(&wd_timer)) {
-		del_timer(&wd_timer);
+	if (p->broken) {
+		init_timer(&cpwd_timer);
+		cpwd_timer.function 	= cpwd_brokentimer;
+		cpwd_timer.data		= (unsigned long) p;
+		cpwd_timer.expires	= WD_BTIMEOUT;
+
+		printk(KERN_INFO PFX "PLD defect workaround enabled for "
+		       "model " WD_BADMODEL ".\n");
 	}
-	if(0 != (wd_dev.watchdog[WD0_ID].runstatus & WD_STAT_INIT)) {
-		misc_deregister(&wd0_miscdev);
-	}
-	if(0 != (wd_dev.watchdog[WD1_ID].runstatus & WD_STAT_INIT)) {
-		misc_deregister(&wd1_miscdev);
-	}
-	if(0 != (wd_dev.watchdog[WD2_ID].runstatus & WD_STAT_INIT)) {
-		misc_deregister(&wd2_miscdev);
-	}
-	if(0 != wd_dev.initialized) {
-		free_irq(wd_dev.irq, (void *)wd_dev.regs);
-	}
-	iounmap(wd_dev.regs);
+
+	dev_set_drvdata(&op->dev, p);
+	cpwd_device = p;
+	err = 0;
+
+out:
+	return err;
+
+out_unregister:
+	for (i--; i >= 0; i--)
+		misc_deregister(&p->devs[i].misc);
+
+out_iounmap:
+	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
+
+out_free:
+	kfree(p);
+	goto out;
 }
 
-module_init(wd_init);
-module_exit(wd_cleanup);
+static int __devexit cpwd_remove(struct of_device *op)
+{
+	struct cpwd *p = dev_get_drvdata(&op->dev);
+	int i;
+
+	for (i = 0; i < 4; i++) {
+		misc_deregister(&p->devs[i].misc);
+
+		if (!p->enabled) {
+			cpwd_stoptimer(p, i);
+			if (p->devs[i].runstatus & WD_STAT_BSTOP)
+				cpwd_resetbrokentimer(p, i);
+		}
+	}
+
+	if (p->broken)
+		del_timer_sync(&cpwd_timer);
+
+	if (p->initialized)
+		free_irq(p->irq, p);
+
+	of_iounmap(&op->resource[0], p->regs, 4 * WD_TIMER_REGSZ);
+	kfree(p);
+
+	cpwd_device = NULL;
+
+	return 0;
+}
+
+static struct of_device_id cpwd_match[] = {
+	{
+		.name = "watchdog",
+	},
+	{},
+};
+MODULE_DEVICE_TABLE(of, cpwd_match);
+
+static struct of_platform_driver cpwd_driver = {
+	.name		= DRIVER_NAME,
+	.match_table	= cpwd_match,
+	.probe		= cpwd_probe,
+	.remove		= __devexit_p(cpwd_remove),
+};
+
+static int __init cpwd_init(void)
+{
+	return of_register_driver(&cpwd_driver, &of_bus_type);
+}
+
+static void __exit cpwd_exit(void)
+{
+	of_unregister_driver(&cpwd_driver);
+}
+
+module_init(cpwd_init);
+module_exit(cpwd_exit);
