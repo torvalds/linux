@@ -272,7 +272,7 @@ void __cpuinit xsave_init(void)
 /*
  * setup the xstate image representing the init state
  */
-void setup_xstate_init(void)
+static void __init setup_xstate_init(void)
 {
 	init_xstate_buf = alloc_bootmem(xstate_size);
 	init_xstate_buf->i387.mxcsr = MXCSR_DEFAULT;
