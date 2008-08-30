@@ -1313,6 +1313,17 @@ int pvr2_upload_firmware2(struct pvr2_hdw *hdw)
 		if (bcnt > FIRMWARE_CHUNK_SIZE) bcnt = FIRMWARE_CHUNK_SIZE;
 		memcpy(fw_ptr, fw_entry->data + fw_done, bcnt);
 		/* Usbsnoop log shows that we must swap bytes... */
+		/* Some background info: The data being swapped here is a
+		   firmware image destined for the mpeg encoder chip that
+		   lives at the other end of a USB endpoint.  The encoder
+		   chip always talks in 32 bit chunks and its storage is
+		   organized into 32 bit words.  However from the file
+		   system to the encoder chip everything is purely a byte
+		   stream.  The firmware file's contents are always 32 bit
+		   swapped from what the encoder expects.  Thus the need
+		   always exists to swap the bytes regardless of the endian
+		   type of the host processor and therefore swab32() makes
+		   the most sense. */
 		for (icnt = 0; icnt < bcnt/4 ; icnt++)
 			((u32 *)fw_ptr)[icnt] = swab32(((u32 *)fw_ptr)[icnt]);
 
