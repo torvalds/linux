@@ -1417,18 +1417,23 @@ static void ixgbe_configure_srrctl(struct ixgbe_adapter *adapter, int index)
 	struct ixgbe_ring *rx_ring;
 	u32 srrctl;
 	int queue0;
-	unsigned long *mask, maskval = 1;
-	long shift, len;
+	unsigned long mask;
 
-	if (adapter->flags & IXGBE_FLAG_RSS_ENABLED) {
-		mask = (unsigned long *) &adapter->ring_feature[RING_F_RSS].mask;
-		len = sizeof(adapter->ring_feature[RING_F_RSS].mask) * 8;
+	/* program one srrctl register per VMDq index */
+	if (adapter->flags & IXGBE_FLAG_VMDQ_ENABLED) {
+		long shift, len;
+		mask = (unsigned long) adapter->ring_feature[RING_F_RSS].mask;
+		len = sizeof(adapter->ring_feature[RING_F_VMDQ].mask) * 8;
+		shift = find_first_bit(&mask, len);
+		queue0 = index & mask;
+		index = (index & mask) >> shift;
+	/* program one srrctl per RSS queue since RDRXCTL.MVMEN is enabled */
 	} else {
-		mask = &maskval;
-		len = 1;
+		mask = (unsigned long) adapter->ring_feature[RING_F_RSS].mask;
+		queue0 = index & mask;
+		index = index & mask;
 	}
-	shift = find_first_bit(mask, len);
-	queue0 = index << shift;
+
 	rx_ring = &adapter->rx_ring[queue0];
 
 	srrctl = IXGBE_READ_REG(&adapter->hw, IXGBE_SRRCTL(index));
