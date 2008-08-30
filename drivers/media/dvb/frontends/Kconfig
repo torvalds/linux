@@ -392,4 +392,10 @@ config DVB_LGS8GL5
 	help
 	  A DMB-TH tuner module. Say Y when you want to support this frontend.
 
+comment "Tools to develop new frontends"
+
+config DVB_DUMMY_FE
+	tristate "Dummy frontend driver"
+	default n
+
 endmenu
