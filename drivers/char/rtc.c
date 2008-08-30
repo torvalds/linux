@@ -88,12 +88,12 @@
 #endif
 
 #ifdef CONFIG_SPARC32
-#include <linux/pci.h>
-#include <linux/jiffies.h>
-#include <asm/ebus.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
+#include <asm/io.h>
 
 static unsigned long rtc_port;
-static int rtc_irq = PCI_IRQ_NONE;
+static int rtc_irq;
 #endif
 
 #ifdef	CONFIG_HPET_RTC_IRQ
@@ -973,8 +973,8 @@ static int __init rtc_init(void)
 	char *guess = NULL;
 #endif
 #ifdef CONFIG_SPARC32
-	struct linux_ebus *ebus;
-	struct linux_ebus_device *edev;
+	struct device_node *ebus_dp;
+	struct of_device *op;
 #else
 	void *r;
 #ifdef RTC_IRQ
@@ -983,12 +983,16 @@ static int __init rtc_init(void)
 #endif
 
 #ifdef CONFIG_SPARC32
-	for_each_ebus(ebus) {
-		for_each_ebusdev(edev, ebus) {
-			if (strcmp(edev->prom_node->name, "rtc") == 0) {
-				rtc_port = edev->resource[0].start;
-				rtc_irq = edev->irqs[0];
-				goto found;
+	for_each_node_by_name(ebus_dp, "ebus") {
+		struct device_node *dp;
+		for (dp = ebus_dp; dp; dp = dp->sibling) {
+			if (!strcmp(dp->name, "rtc")) {
+				op = of_find_device_by_node(dp);
+				if (op) {
+					rtc_port = op->resource[0].start;
+					rtc_irq = op->irqs[0];
+					goto found;
+				}
 			}
 		}
 	}
@@ -997,7 +1001,7 @@ static int __init rtc_init(void)
 	return -EIO;
 
 found:
-	if (rtc_irq == PCI_IRQ_NONE) {
+	if (!rtc_irq) {
 		rtc_has_irq = 0;
 		goto no_irq;
 	}
