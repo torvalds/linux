@@ -1915,7 +1915,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 				 const struct usb_device_id *devid)
 {
 	unsigned int idx,cnt1,cnt2,m;
-	struct pvr2_hdw *hdw;
+	struct pvr2_hdw *hdw = NULL;
 	int valid_std_mask;
 	struct pvr2_ctrl *cptr;
 	const struct pvr2_device_desc *hdw_desc;
@@ -1924,6 +1924,16 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	struct pvr2_ctl_info *ciptr;
 
 	hdw_desc = (const struct pvr2_device_desc *)(devid->driver_info);
+
+	if (hdw_desc == NULL) {
+		pvr2_trace(PVR2_TRACE_INIT, "pvr2_hdw_create:"
+			   " No device description pointer,"
+			   " unable to continue.");
+		pvr2_trace(PVR2_TRACE_INIT, "If you have a new device type,"
+			   " please contact Mike Isely <isely@pobox.com>"
+			   " to get it included in the driver\n");
+		goto fail;
+	}
 
 	hdw = kzalloc(sizeof(*hdw),GFP_KERNEL);
 	pvr2_trace(PVR2_TRACE_INIT,"pvr2_hdw_create: hdw=%p, type \"%s\"",
