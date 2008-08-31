@@ -28,11 +28,6 @@ void check_if_starfire(void)
 		this_is_starfire = 1;
 }
 
-void starfire_cpu_setup(void)
-{
-	/* Currently, nothing to do.  */
-}
-
 int starfire_hard_smp_processor_id(void)
 {
 	return upa_readl(0x1fff40000d0UL);

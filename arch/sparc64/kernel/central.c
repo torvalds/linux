@@ -306,11 +306,8 @@ void __init central_probe(void)
 	int err;
 
 	dp = of_find_node_by_name(NULL, "central");
-	if (!dp) {
-		if (this_is_starfire)
-			starfire_cpu_setup();
+	if (!dp)
 		return;
-	}
 
 	/* Ok we got one, grab some memory for software state. */
 	central_bus = (struct linux_central *)
