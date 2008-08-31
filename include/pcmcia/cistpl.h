@@ -573,11 +573,6 @@ typedef struct tuple_t {
 #define TUPLE_RETURN_LINK	0x01
 #define TUPLE_RETURN_COMMON	0x02
 
-/* For ValidateCIS */
-typedef struct cisinfo_t {
-    u_int	Chains;
-} cisinfo_t;
-
 #define CISTPL_MAX_CIS_SIZE	0x200
 
 #endif /* LINUX_CISTPL_H */

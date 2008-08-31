@@ -201,12 +201,6 @@ typedef struct win_req_t {
 #define WIN_BAR_MASK		0xe000
 #define WIN_BAR_SHIFT		13
 
-typedef struct cs_status_t {
-    u_char	Function;
-    event_t 	CardState;
-    event_t	SocketState;
-} cs_status_t;
-
 typedef struct error_info_t {
     int		func;
     int		retcode;

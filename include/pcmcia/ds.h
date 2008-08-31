@@ -367,6 +367,17 @@ typedef struct config_info_t {
 	u_int			IOAddrLines;
 } config_info_t;
 
+/* For ValidateCIS */
+typedef struct cisinfo_t {
+	u_int			Chains;
+} cisinfo_t;
+
+typedef struct cs_status_t {
+	u_char			Function;
+	event_t 		CardState;
+	event_t			SocketState;
+} cs_status_t;
+
 typedef union ds_ioctl_arg_t {
 	adjust_t		adjust;
 	config_info_t		config;
