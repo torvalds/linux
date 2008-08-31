@@ -2657,6 +2657,8 @@ static int pvr2_hdw_commit_execute(struct pvr2_hdw *hdw)
 		 hdw->srate_dirty ||
 		 hdw->res_ver_dirty ||
 		 hdw->res_hor_dirty ||
+		 hdw->cropw_dirty ||
+		 hdw->croph_dirty ||
 		 hdw->input_dirty ||
 		 (hdw->active_stream_type != hdw->desired_stream_type));
 	if (disruptive_change && !hdw->state_pipeline_idle) {
