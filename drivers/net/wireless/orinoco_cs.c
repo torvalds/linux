@@ -80,7 +80,7 @@ orinoco_cs_hard_reset(struct orinoco_private *priv)
 	/* We need atomic ops here, because we're not holding the lock */
 	set_bit(0, &card->hard_reset_in_progress);
 
-	err = pcmcia_reset_card(link, NULL);
+	err = pcmcia_reset_card(link->socket);
 	if (err)
 		return err;
 

@@ -925,7 +925,7 @@ static void mace_tx_timeout(struct net_device *dev)
   printk(KERN_NOTICE "%s: transmit timed out -- ", dev->name);
 #if RESET_ON_TIMEOUT
   printk("resetting card\n");
-  pcmcia_reset_card(link, NULL);
+  pcmcia_reset_card(link->socket);
 #else /* #if RESET_ON_TIMEOUT */
   printk("NOT resetting card\n");
 #endif /* #if RESET_ON_TIMEOUT */

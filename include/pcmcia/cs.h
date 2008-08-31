@@ -201,16 +201,6 @@ typedef struct win_req_t {
 #define WIN_BAR_MASK		0xe000
 #define WIN_BAR_SHIFT		13
 
-/* Attributes for RegisterClient -- UNUSED -- */
-#define INFO_MASTER_CLIENT	0x01
-#define INFO_IO_CLIENT		0x02
-#define INFO_MTD_CLIENT		0x04
-#define INFO_MEM_CLIENT		0x08
-#define MAX_NUM_CLIENTS		3
-
-#define INFO_CARD_SHARE		0x10
-#define INFO_CARD_EXCL		0x20
-
 typedef struct cs_status_t {
     u_char	Function;
     event_t 	CardState;
@@ -251,62 +241,5 @@ typedef struct error_info_t {
 #define CS_EVENT_CB_DETECT		0x100000
 #define CS_EVENT_3VCARD			0x200000
 #define CS_EVENT_XVCARD			0x400000
-
-
-#ifdef __KERNEL__
-
-/*
- *  The main Card Services entry point
- */
-
-enum service {
-    AccessConfigurationRegister, AddSocketServices,
-    AdjustResourceInfo, CheckEraseQueue, CloseMemory, CopyMemory,
-    DeregisterClient, DeregisterEraseQueue, GetCardServicesInfo,
-    GetClientInfo, GetConfigurationInfo, GetEventMask,
-    GetFirstClient, GetFirstPartion, GetFirstRegion, GetFirstTuple,
-    GetNextClient, GetNextPartition, GetNextRegion, GetNextTuple,
-    GetStatus, GetTupleData, MapLogSocket, MapLogWindow, MapMemPage,
-    MapPhySocket, MapPhyWindow, ModifyConfiguration, ModifyWindow,
-    OpenMemory, ParseTuple, ReadMemory, RegisterClient,
-    RegisterEraseQueue, RegisterMTD, RegisterTimer,
-    ReleaseConfiguration, ReleaseExclusive, ReleaseIO, ReleaseIRQ,
-    ReleaseSocketMask, ReleaseWindow, ReplaceSocketServices,
-    RequestConfiguration, RequestExclusive, RequestIO, RequestIRQ,
-    RequestSocketMask, RequestWindow, ResetCard, ReturnSSEntry,
-    SetEventMask, SetRegion, ValidateCIS, VendorSpecific,
-    WriteMemory, BindDevice, BindMTD, ReportError,
-    SuspendCard, ResumeCard, EjectCard, InsertCard, ReplaceCIS,
-    GetFirstWindow, GetNextWindow, GetMemPage
-};
-
-struct pcmcia_socket;
-
-int pcmcia_access_configuration_register(struct pcmcia_device *p_dev, conf_reg_t *reg);
-int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
-int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
-int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
-int pcmcia_release_window(window_handle_t win);
-int pcmcia_request_configuration(struct pcmcia_device *p_dev, config_req_t *req);
-int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
-int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
-int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req, window_handle_t *wh);
-int pcmcia_suspend_card(struct pcmcia_socket *skt);
-int pcmcia_resume_card(struct pcmcia_socket *skt);
-int pcmcia_eject_card(struct pcmcia_socket *skt);
-int pcmcia_insert_card(struct pcmcia_socket *skt);
-int pccard_reset_card(struct pcmcia_socket *skt);
-
-struct pcmcia_device * pcmcia_dev_present(struct pcmcia_device *p_dev);
-void pcmcia_disable_device(struct pcmcia_device *p_dev);
-
-struct pcmcia_socket * pcmcia_get_socket(struct pcmcia_socket *skt);
-void pcmcia_put_socket(struct pcmcia_socket *skt);
-
-/* compatibility functions */
-#define pcmcia_reset_card(p_dev, req) \
-		pccard_reset_card(p_dev->socket)
-
-#endif /* __KERNEL__ */
 
 #endif /* _LINUX_CS_H */

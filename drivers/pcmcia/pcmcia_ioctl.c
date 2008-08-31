@@ -861,7 +861,7 @@ static int ds_ioctl(struct inode * inode, struct file * file,
 	ret = pccard_parse_tuple(&buf->tuple, &buf->tuple_parse.parse);
 	break;
     case DS_RESET_CARD:
-	ret = pccard_reset_card(s);
+	ret = pcmcia_reset_card(s);
 	break;
     case DS_GET_STATUS:
 	    if (buf->status.Function &&

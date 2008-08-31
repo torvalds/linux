@@ -752,7 +752,7 @@ EXPORT_SYMBOL(pccard_register_pcmcia);
  * CIS register.
  */
 
-int pccard_reset_card(struct pcmcia_socket *skt)
+int pcmcia_reset_card(struct pcmcia_socket *skt)
 {
 	int ret;
 
@@ -791,7 +791,7 @@ int pccard_reset_card(struct pcmcia_socket *skt)
 
 	return ret;
 } /* reset_card */
-EXPORT_SYMBOL(pccard_reset_card);
+EXPORT_SYMBOL(pcmcia_reset_card);
 
 
 /* These shut down or wake up a socket.  They are sort of user

@@ -174,9 +174,17 @@ int pcmcia_get_window(struct pcmcia_socket *s,
 		      window_handle_t *handle,
 		      int idx,
 		      win_req_t *req);
-int pccard_reset_card(struct pcmcia_socket *skt);
 int pccard_register_pcmcia(struct pcmcia_socket *s, struct pcmcia_callback *c);
 struct pcmcia_socket *pcmcia_get_socket_by_nr(unsigned int nr);
+
+int pcmcia_suspend_card(struct pcmcia_socket *skt);
+int pcmcia_resume_card(struct pcmcia_socket *skt);
+
+int pcmcia_eject_card(struct pcmcia_socket *skt);
+int pcmcia_insert_card(struct pcmcia_socket *skt);
+
+struct pcmcia_socket *pcmcia_get_socket(struct pcmcia_socket *skt);
+void pcmcia_put_socket(struct pcmcia_socket *skt);
 
 /* cistpl.c */
 int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr,
@@ -187,6 +195,8 @@ void release_cis_mem(struct pcmcia_socket *s);
 void destroy_cis_cache(struct pcmcia_socket *s);
 int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
 		      cisdata_t code, void *parse);
+int pcmcia_replace_cis(struct pcmcia_socket *s,
+		       const u8 *data, const size_t len);
 
 /* rsrc_mgr.c */
 int pcmcia_validate_mem(struct pcmcia_socket *s);

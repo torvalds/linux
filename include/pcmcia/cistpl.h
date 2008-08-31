@@ -580,8 +580,8 @@ typedef struct cisinfo_t {
 
 #define CISTPL_MAX_CIS_SIZE	0x200
 
-int pcmcia_replace_cis(struct pcmcia_socket *s,
-		       const u8 *data, const size_t len);
+#ifdef __KERNEL__
+struct pcmcia_socket;
 
 /* don't use outside of PCMCIA core yet */
 int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int func, tuple_t *tuple);
@@ -614,5 +614,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 						 unsigned int vcc,
 						 void *priv_data),
 		       void *priv_data);
+
+#endif /* __KERNEL__ */
 
 #endif /* LINUX_CISTPL_H */

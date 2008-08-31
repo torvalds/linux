@@ -65,7 +65,7 @@ static void signalled_reboot_work(struct work_struct *work_reboot)
 	struct ipw_dev *ipw = container_of(work_reboot, struct ipw_dev,
 			work_reboot);
 	struct pcmcia_device *link = ipw->link;
-	int ret = pccard_reset_card(link->socket);
+	int ret = pcmcia_reset_card(link->socket);
 
 	if (ret != 0)
 		cs_error(link, ResetCard, ret);

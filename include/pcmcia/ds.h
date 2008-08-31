@@ -145,7 +145,26 @@ struct pcmcia_device {
  * or dev_dbg() directly in the driver, without referring to pcmcia_error_func()
  * and/or pcmcia_error_ret() for those functions will go away soon.
  */
-
+enum service {
+    AccessConfigurationRegister, AddSocketServices,
+    AdjustResourceInfo, CheckEraseQueue, CloseMemory, CopyMemory,
+    DeregisterClient, DeregisterEraseQueue, GetCardServicesInfo,
+    GetClientInfo, GetConfigurationInfo, GetEventMask,
+    GetFirstClient, GetFirstPartion, GetFirstRegion, GetFirstTuple,
+    GetNextClient, GetNextPartition, GetNextRegion, GetNextTuple,
+    GetStatus, GetTupleData, MapLogSocket, MapLogWindow, MapMemPage,
+    MapPhySocket, MapPhyWindow, ModifyConfiguration, ModifyWindow,
+    OpenMemory, ParseTuple, ReadMemory, RegisterClient,
+    RegisterEraseQueue, RegisterMTD, RegisterTimer,
+    ReleaseConfiguration, ReleaseExclusive, ReleaseIO, ReleaseIRQ,
+    ReleaseSocketMask, ReleaseWindow, ReplaceSocketServices,
+    RequestConfiguration, RequestExclusive, RequestIO, RequestIRQ,
+    RequestSocketMask, RequestWindow, ResetCard, ReturnSSEntry,
+    SetEventMask, SetRegion, ValidateCIS, VendorSpecific,
+    WriteMemory, BindDevice, BindMTD, ReportError,
+    SuspendCard, ResumeCard, EjectCard, InsertCard, ReplaceCIS,
+    GetFirstWindow, GetNextWindow, GetMemPage
+};
 const char *pcmcia_error_func(int func);
 const char *pcmcia_error_ret(int ret);
 
@@ -157,6 +176,32 @@ const char *pcmcia_error_ret(int ret);
 			   pcmcia_error_ret(ret));	\
 	}
 
+
+/* is the device still there? */
+struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *p_dev);
+
+/* low-level interface reset */
+int pcmcia_reset_card(struct pcmcia_socket *skt);
+
+/* CIS config */
+int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
+					 conf_reg_t *reg);
+
+/* device configuration */
+int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
+int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
+int pcmcia_request_configuration(struct pcmcia_device *p_dev,
+				 config_req_t *req);
+
+int pcmcia_request_window(struct pcmcia_device **p_dev, win_req_t *req,
+			  window_handle_t *wh);
+int pcmcia_release_window(window_handle_t win);
+
+int pcmcia_get_mem_page(window_handle_t win, memreq_t *req);
+int pcmcia_map_mem_page(window_handle_t win, memreq_t *req);
+
+int pcmcia_modify_configuration(struct pcmcia_device *p_dev, modconf_t *mod);
+void pcmcia_disable_device(struct pcmcia_device *p_dev);
 
 #endif /* __KERNEL__ */
 
@@ -340,6 +385,15 @@ typedef union ds_ioctl_arg_t {
 
 /* used in userspace only */
 #define CS_IN_USE			0x1e
+
+#define INFO_MASTER_CLIENT	0x01
+#define INFO_IO_CLIENT		0x02
+#define INFO_MTD_CLIENT		0x04
+#define INFO_MEM_CLIENT		0x08
+#define MAX_NUM_CLIENTS		3
+
+#define INFO_CARD_SHARE		0x10
+#define INFO_CARD_EXCL		0x20
 
 
 #endif /* !defined(__KERNEL__) || defined(CONFIG_PCMCIA_IOCTL) */
