@@ -176,6 +176,34 @@ const char *pcmcia_error_ret(int ret);
 			   pcmcia_error_ret(ret));	\
 	}
 
+/* CIS access.
+ * Use the pcmcia_* versions in PCMCIA drivers
+ */
+int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse);
+
+int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function,
+			   tuple_t *tuple);
+#define pcmcia_get_first_tuple(p_dev, tuple) \
+		pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple)
+
+int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function,
+			  tuple_t *tuple);
+#define pcmcia_get_next_tuple(p_dev, tuple) \
+		pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple)
+
+int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
+#define pcmcia_get_tuple_data(p_dev, tuple) \
+		pccard_get_tuple_data(p_dev->socket, tuple)
+
+
+/* loop CIS entries for valid configuration */
+int pcmcia_loop_config(struct pcmcia_device *p_dev,
+		       int	(*conf_check)	(struct pcmcia_device *p_dev,
+						 cistpl_cftable_entry_t *cf,
+						 cistpl_cftable_entry_t *dflt,
+						 unsigned int vcc,
+						 void *priv_data),
+		       void *priv_data);
 
 /* is the device still there? */
 struct pcmcia_device *pcmcia_dev_present(struct pcmcia_device *p_dev);

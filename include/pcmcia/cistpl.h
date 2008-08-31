@@ -580,34 +580,4 @@ typedef struct cisinfo_t {
 
 #define CISTPL_MAX_CIS_SIZE	0x200
 
-#ifdef __KERNEL__
-struct pcmcia_socket;
-
-int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse);
-
-/* don't use outside of PCMCIA core yet */
-int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int func, tuple_t *tuple);
-int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple_t *tuple);
-int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
-
-/* ... but use these wrappers instead */
-#define pcmcia_get_first_tuple(p_dev, tuple) \
-		pccard_get_first_tuple(p_dev->socket, p_dev->func, tuple)
-
-#define pcmcia_get_next_tuple(p_dev, tuple) \
-		pccard_get_next_tuple(p_dev->socket, p_dev->func, tuple)
-
-#define pcmcia_get_tuple_data(p_dev, tuple) \
-		pccard_get_tuple_data(p_dev->socket, tuple)
-
-int pcmcia_loop_config(struct pcmcia_device *p_dev,
-		       int	(*conf_check)	(struct pcmcia_device *p_dev,
-						 cistpl_cftable_entry_t *cf,
-						 cistpl_cftable_entry_t *dflt,
-						 unsigned int vcc,
-						 void *priv_data),
-		       void *priv_data);
-
-#endif /* __KERNEL__ */
-
 #endif /* LINUX_CISTPL_H */
