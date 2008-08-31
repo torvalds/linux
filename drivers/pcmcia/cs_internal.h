@@ -197,6 +197,8 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function,
 		      cisdata_t code, void *parse);
 int pcmcia_replace_cis(struct pcmcia_socket *s,
 		       const u8 *data, const size_t len);
+int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function,
+			unsigned int *count);
 
 /* rsrc_mgr.c */
 int pcmcia_validate_mem(struct pcmcia_socket *s);

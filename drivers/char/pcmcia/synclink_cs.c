@@ -604,7 +604,7 @@ static int mgslpc_config(struct pcmcia_device *link)
 
     cfg = &(parse.cftable_entry);
     CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-    CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
+    CS_CHECK(ParseTuple, pcmcia_parse_tuple(&tuple, &parse));
 
     if (cfg->flags & CISTPL_CFTABLE_DEFAULT) dflt = *cfg;
     if (cfg->index == 0)

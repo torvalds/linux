@@ -362,7 +362,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 	tuple.DesiredTuple = CISTPL_CFTABLE_ENTRY;
 	CS_CHECK(GetFirstTuple, pcmcia_get_first_tuple(link, &tuple));
 	CS_CHECK(GetTupleData, pcmcia_get_tuple_data(link, &tuple));
-	CS_CHECK(ParseTuple, pcmcia_parse_tuple(link, &tuple, &parse));
+	CS_CHECK(ParseTuple, pcmcia_parse_tuple(&tuple, &parse));
 	link->conf.ConfigIndex = parse.cftable_entry.index;
 	switch (link->manf_id) {
 	case MANFID_TDK:

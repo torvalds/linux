@@ -305,7 +305,7 @@ static int sandisk_enable_wireless(struct net_device *dev)
 	tuple.DesiredTuple = CISTPL_LONGLINK_MFC;
 	if (pcmcia_get_first_tuple(hw_priv->link, &tuple) ||
 	    pcmcia_get_tuple_data(hw_priv->link, &tuple) ||
-	    pcmcia_parse_tuple(hw_priv->link, &tuple, parse) ||
+	    pcmcia_parse_tuple(&tuple, parse) ||
 		parse->longlink_mfc.nfn < 2) {
 		/* No multi-function links found */
 		ret = -ENODEV;

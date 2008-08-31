@@ -377,7 +377,7 @@ first_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 
 	if ((err = pcmcia_get_first_tuple(handle, tuple)) == 0 &&
 			(err = pcmcia_get_tuple_data(handle, tuple)) == 0)
-		err = pcmcia_parse_tuple(handle, tuple, parse);
+		err = pcmcia_parse_tuple(tuple, parse);
 	return err;
 }
 
@@ -388,7 +388,7 @@ next_tuple(struct pcmcia_device *handle, tuple_t *tuple, cisparse_t *parse)
 
 	if ((err = pcmcia_get_next_tuple(handle, tuple)) == 0 &&
 			(err = pcmcia_get_tuple_data(handle, tuple)) == 0)
-		err = pcmcia_parse_tuple(handle, tuple, parse);
+		err = pcmcia_parse_tuple(tuple, parse);
 	return err;
 }
 

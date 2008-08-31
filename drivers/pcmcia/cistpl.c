@@ -1359,7 +1359,7 @@ static int parse_format(tuple_t *tuple, cistpl_format_t *fmt)
 
 /*====================================================================*/
 
-int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse)
+int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 {
     int ret = 0;
     
@@ -1442,7 +1442,7 @@ int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse)
 	    __cs_dbg(0, "parse_tuple failed %d\n", ret);
     return ret;
 }
-EXPORT_SYMBOL(pccard_parse_tuple);
+EXPORT_SYMBOL(pcmcia_parse_tuple);
 
 /*======================================================================
 
@@ -1472,7 +1472,7 @@ int pccard_read_tuple(struct pcmcia_socket *s, unsigned int function, cisdata_t 
     ret = pccard_get_tuple_data(s, &tuple);
     if (ret != 0)
 	    goto done;
-    ret = pccard_parse_tuple(&tuple, parse);
+    ret = pcmcia_parse_tuple(&tuple, parse);
 done:
     kfree(buf);
     return ret;

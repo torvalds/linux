@@ -937,7 +937,7 @@ int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		if (pcmcia_get_tuple_data(p_dev, tuple))
 			goto next_entry;
 
-		if (pcmcia_parse_tuple(p_dev, tuple, &cfg_mem->parse))
+		if (pcmcia_parse_tuple(tuple, &cfg_mem->parse))
 			goto next_entry;
 
 		/* default values */

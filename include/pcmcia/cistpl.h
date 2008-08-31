@@ -583,13 +583,12 @@ typedef struct cisinfo_t {
 #ifdef __KERNEL__
 struct pcmcia_socket;
 
+int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse);
+
 /* don't use outside of PCMCIA core yet */
 int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int func, tuple_t *tuple);
 int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple_t *tuple);
 int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple);
-int pccard_parse_tuple(tuple_t *tuple, cisparse_t *parse);
-
-int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned int *count);
 
 /* ... but use these wrappers instead */
 #define pcmcia_get_first_tuple(p_dev, tuple) \
@@ -600,12 +599,6 @@ int pccard_validate_cis(struct pcmcia_socket *s, unsigned int function, unsigned
 
 #define pcmcia_get_tuple_data(p_dev, tuple) \
 		pccard_get_tuple_data(p_dev->socket, tuple)
-
-#define pcmcia_parse_tuple(p_dev, tuple, parse) \
-		pccard_parse_tuple(tuple, parse)
-
-#define pcmcia_validate_cis(p_dev, info) \
-		pccard_validate_cis(p_dev->socket, p_dev->func, info)
 
 int pcmcia_loop_config(struct pcmcia_device *p_dev,
 		       int	(*conf_check)	(struct pcmcia_device *p_dev,

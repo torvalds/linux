@@ -127,7 +127,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		goto exit0;
 	}
 
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
 	if (ret != 0) {
 		cs_error(link, ParseTuple, ret);
@@ -163,7 +163,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		goto exit0;
 	}
 
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
 	if (ret != 0) {
 		cs_error(link, GetTupleData, ret);
@@ -206,7 +206,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 		goto exit1;
 	}
 
-	ret = pcmcia_parse_tuple(link, &tuple, &parse);
+	ret = pcmcia_parse_tuple(&tuple, &parse);
 
 	if (ret != 0) {
 		cs_error(link, ParseTuple, ret);

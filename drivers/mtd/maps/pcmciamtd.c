@@ -374,7 +374,7 @@ static void card_settings(struct pcmciamtd_dev *dev, struct pcmcia_device *link,
 			cs_error(link, GetTupleData, rc);
 			break;
 		}
-		rc = pcmcia_parse_tuple(link, &tuple, &parse);
+		rc = pcmcia_parse_tuple(&tuple, &parse);
 		if (rc != 0) {
 			cs_error(link, ParseTuple, rc);
 			break;
@@ -497,11 +497,6 @@ static int pcmciamtd_config(struct pcmcia_device *link)
 	int new_name = 0;
 
 	DEBUG(3, "link=0x%p", link);
-
-	DEBUG(2, "Validating CIS");
-	ret = pcmcia_validate_cis(link, NULL);
-	if (ret != 0)
-		cs_error(link, GetTupleData, ret);
 
 	card_settings(dev, link, &new_name);
 

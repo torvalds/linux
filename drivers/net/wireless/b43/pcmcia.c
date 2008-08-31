@@ -87,7 +87,7 @@ static int __devinit b43_pcmcia_probe(struct pcmcia_device *dev)
 	res = pcmcia_get_tuple_data(dev, &tuple);
 	if (res != 0)
 		goto err_kfree_ssb;
-	res = pcmcia_parse_tuple(dev, &tuple, &parse);
+	res = pcmcia_parse_tuple(&tuple, &parse);
 	if (res != 0)
 		goto err_kfree_ssb;
 
