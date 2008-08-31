@@ -1568,7 +1568,8 @@ int compat_set_fd_set(unsigned long nr, compat_ulong_t __user *ufdset,
 	((unsigned long) (MAX_SCHEDULE_TIMEOUT / HZ)-1)
 
 int compat_core_sys_select(int n, compat_ulong_t __user *inp,
-	compat_ulong_t __user *outp, compat_ulong_t __user *exp, s64 *timeout)
+	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
+	struct timespec *end_time)
 {
 	fd_set_bits fds;
 	void *bits;
@@ -1615,7 +1616,7 @@ int compat_core_sys_select(int n, compat_ulong_t __user *inp,
 	zero_fd_set(n, fds.res_out);
 	zero_fd_set(n, fds.res_ex);
 
-	ret = do_select(n, &fds, timeout);
+	ret = do_select(n, &fds, end_time);
 
 	if (ret < 0)
 		goto out;
@@ -1641,7 +1642,7 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 	compat_ulong_t __user *outp, compat_ulong_t __user *exp,
 	struct compat_timeval __user *tvp)
 {
-	s64 timeout = -1;
+	struct timespec end_time, *to = NULL;
 	struct compat_timeval tv;
 	int ret;
 
@@ -1649,43 +1650,14 @@ asmlinkage long compat_sys_select(int n, compat_ulong_t __user *inp,
 		if (copy_from_user(&tv, tvp, sizeof(tv)))
 			return -EFAULT;
 
-		if (tv.tv_sec < 0 || tv.tv_usec < 0)
+		to = &end_time;
+		if (poll_select_set_timeout(to, tv.tv_sec,
+					    tv.tv_usec * NSEC_PER_USEC))
 			return -EINVAL;
-
-		/* Cast to u64 to make GCC stop complaining */
-		if ((u64)tv.tv_sec >= (u64)MAX_INT64_SECONDS)
-			timeout = -1;	/* infinite */
-		else {
-			timeout = DIV_ROUND_UP(tv.tv_usec, 1000000/HZ);
-			timeout += tv.tv_sec * HZ;
-		}
 	}
 
-	ret = compat_core_sys_select(n, inp, outp, exp, &timeout);
-
-	if (tvp) {
-		struct compat_timeval rtv;
-
-		if (current->personality & STICKY_TIMEOUTS)
-			goto sticky;
-		rtv.tv_usec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ));
-		rtv.tv_sec = timeout;
-		if (compat_timeval_compare(&rtv, &tv) >= 0)
-			rtv = tv;
-		if (copy_to_user(tvp, &rtv, sizeof(rtv))) {
-sticky:
-			/*
-			 * If an application puts its timeval in read-only
-			 * memory, we don't want the Linux-specific update to
-			 * the timeval to cause a fault after the select has
-			 * completed successfully. However, because we're not
-			 * updating the timeval, we can't restart the system
-			 * call.
-			 */
-			if (ret == -ERESTARTNOHAND)
-				ret = -EINTR;
-		}
-	}
+	ret = compat_core_sys_select(n, inp, outp, exp, to);
+	ret = poll_select_copy_remaining(&end_time, tvp, 1, ret);
 
 	return ret;
 }
@@ -1698,15 +1670,16 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 {
 	compat_sigset_t ss32;
 	sigset_t ksigmask, sigsaved;
-	s64 timeout = MAX_SCHEDULE_TIMEOUT;
 	struct compat_timespec ts;
+	struct timespec end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
 		if (copy_from_user(&ts, tsp, sizeof(ts)))
 			return -EFAULT;
 
-		if (ts.tv_sec < 0 || ts.tv_nsec < 0)
+		to = &end_time;
+		if (poll_select_set_timeout(to, ts.tv_sec, ts.tv_nsec))
 			return -EINVAL;
 	}
 
@@ -1721,51 +1694,8 @@ asmlinkage long compat_sys_pselect7(int n, compat_ulong_t __user *inp,
 		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
 	}
 
-	do {
-		if (tsp) {
-			if ((unsigned long)ts.tv_sec < MAX_SELECT_SECONDS) {
-				timeout = DIV_ROUND_UP(ts.tv_nsec, 1000000000/HZ);
-				timeout += ts.tv_sec * (unsigned long)HZ;
-				ts.tv_sec = 0;
-				ts.tv_nsec = 0;
-			} else {
-				ts.tv_sec -= MAX_SELECT_SECONDS;
-				timeout = MAX_SELECT_SECONDS * HZ;
-			}
-		}
-
-		ret = compat_core_sys_select(n, inp, outp, exp, &timeout);
-
-	} while (!ret && !timeout && tsp && (ts.tv_sec || ts.tv_nsec));
-
-	if (tsp) {
-		struct compat_timespec rts;
-
-		if (current->personality & STICKY_TIMEOUTS)
-			goto sticky;
-
-		rts.tv_sec = timeout / HZ;
-		rts.tv_nsec = (timeout % HZ) * (NSEC_PER_SEC/HZ);
-		if (rts.tv_nsec >= NSEC_PER_SEC) {
-			rts.tv_sec++;
-			rts.tv_nsec -= NSEC_PER_SEC;
-		}
-		if (compat_timespec_compare(&rts, &ts) >= 0)
-			rts = ts;
-		if (copy_to_user(tsp, &rts, sizeof(rts))) {
-sticky:
-			/*
-			 * If an application puts its timeval in read-only
-			 * memory, we don't want the Linux-specific update to
-			 * the timeval to cause a fault after the select has
-			 * completed successfully. However, because we're not
-			 * updating the timeval, we can't restart the system
-			 * call.
-			 */
-			if (ret == -ERESTARTNOHAND)
-				ret = -EINTR;
-		}
-	}
+	ret = compat_core_sys_select(n, inp, outp, exp, to);
+	ret = poll_select_copy_remaining(&end_time, tsp, 0, ret);
 
 	if (ret == -ERESTARTNOHAND) {
 		/*
@@ -1810,18 +1740,16 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 	compat_sigset_t ss32;
 	sigset_t ksigmask, sigsaved;
 	struct compat_timespec ts;
-	s64 timeout = -1;
+	struct timespec end_time, *to = NULL;
 	int ret;
 
 	if (tsp) {
 		if (copy_from_user(&ts, tsp, sizeof(ts)))
 			return -EFAULT;
 
-		/* We assume that ts.tv_sec is always lower than
-		   the number of seconds that can be expressed in
-		   an s64. Otherwise the compiler bitches at us */
-		timeout = DIV_ROUND_UP(ts.tv_nsec, 1000000000/HZ);
-		timeout += ts.tv_sec * HZ;
+		to = &end_time;
+		if (poll_select_set_timeout(to, ts.tv_sec, ts.tv_nsec))
+			return -EINVAL;
 	}
 
 	if (sigmask) {
@@ -1835,7 +1763,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 		sigprocmask(SIG_SETMASK, &ksigmask, &sigsaved);
 	}
 
-	ret = do_sys_poll(ufds, nfds, &timeout);
+	ret = do_sys_poll(ufds, nfds, to);
 
 	/* We can restart this syscall, usually */
 	if (ret == -EINTR) {
@@ -1853,31 +1781,7 @@ asmlinkage long compat_sys_ppoll(struct pollfd __user *ufds,
 	} else if (sigmask)
 		sigprocmask(SIG_SETMASK, &sigsaved, NULL);
 
-	if (tsp && timeout >= 0) {
-		struct compat_timespec rts;
-
-		if (current->personality & STICKY_TIMEOUTS)
-			goto sticky;
-		/* Yes, we know it's actually an s64, but it's also positive. */
-		rts.tv_nsec = jiffies_to_usecs(do_div((*(u64*)&timeout), HZ)) *
-					1000;
-		rts.tv_sec = timeout;
-		if (compat_timespec_compare(&rts, &ts) >= 0)
-			rts = ts;
-		if (copy_to_user(tsp, &rts, sizeof(rts))) {
-sticky:
-			/*
-			 * If an application puts its timeval in read-only
-			 * memory, we don't want the Linux-specific update to
-			 * the timeval to cause a fault after the select has
-			 * completed successfully. However, because we're not
-			 * updating the timeval, we can't restart the system
-			 * call.
-			 */
-			if (ret == -ERESTARTNOHAND && timeout >= 0)
-				ret = -EINTR;
-		}
-	}
+	ret = poll_select_copy_remaining(&end_time, tsp, 0, ret);
 
 	return ret;
 }
