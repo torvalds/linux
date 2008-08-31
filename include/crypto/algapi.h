@@ -248,6 +248,11 @@ static inline struct crypto_hash *crypto_spawn_hash(struct crypto_spawn *spawn)
 	return __crypto_hash_cast(crypto_spawn_tfm(spawn, type, mask));
 }
 
+static inline void *crypto_hash_ctx(struct crypto_hash *tfm)
+{
+	return crypto_tfm_ctx(&tfm->base);
+}
+
 static inline void *crypto_hash_ctx_aligned(struct crypto_hash *tfm)
 {
 	return crypto_tfm_ctx_aligned(&tfm->base);

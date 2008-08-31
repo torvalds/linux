@@ -301,9 +301,114 @@ static int crypto_init_shash_ops_async(struct crypto_tfm *tfm)
 	return 0;
 }
 
+static int shash_compat_setkey(struct crypto_hash *tfm, const u8 *key,
+			       unsigned int keylen)
+{
+	struct shash_desc *desc = crypto_hash_ctx(tfm);
+
+	return crypto_shash_setkey(desc->tfm, key, keylen);
+}
+
+static int shash_compat_init(struct hash_desc *hdesc)
+{
+	struct shash_desc *desc = crypto_hash_ctx(hdesc->tfm);
+
+	desc->flags = hdesc->flags;
+
+	return crypto_shash_init(desc);
+}
+
+static int shash_compat_update(struct hash_desc *hdesc, struct scatterlist *sg,
+			       unsigned int len)
+{
+	struct shash_desc *desc = crypto_hash_ctx(hdesc->tfm);
+	struct crypto_hash_walk walk;
+	int nbytes;
+
+	for (nbytes = crypto_hash_walk_first_compat(hdesc, &walk, sg, len);
+	     nbytes > 0; nbytes = crypto_hash_walk_done(&walk, nbytes))
+		nbytes = crypto_shash_update(desc, walk.data, nbytes);
+
+	return nbytes;
+}
+
+static int shash_compat_final(struct hash_desc *hdesc, u8 *out)
+{
+	return crypto_shash_final(crypto_hash_ctx(hdesc->tfm), out);
+}
+
+static int shash_compat_digest(struct hash_desc *hdesc, struct scatterlist *sg,
+			       unsigned int nbytes, u8 *out)
+{
+	unsigned int offset = sg->offset;
+	int err;
+
+	if (nbytes < min(sg->length, ((unsigned int)(PAGE_SIZE)) - offset)) {
+		struct shash_desc *desc = crypto_hash_ctx(hdesc->tfm);
+		void *data;
+
+		desc->flags = hdesc->flags;
+
+		data = crypto_kmap(sg_page(sg), 0);
+		err = crypto_shash_digest(desc, data + offset, nbytes, out);
+		crypto_kunmap(data, 0);
+		crypto_yield(desc->flags);
+		goto out;
+	}
+
+	err = shash_compat_init(hdesc);
+	if (err)
+		goto out;
+
+	err = shash_compat_update(hdesc, sg, nbytes);
+	if (err)
+		goto out;
+
+	err = shash_compat_final(hdesc, out);
+
+out:
+	return err;
+}
+
+static void crypto_exit_shash_ops_compat(struct crypto_tfm *tfm)
+{
+	struct shash_desc *desc= crypto_tfm_ctx(tfm);
+
+	crypto_free_shash(desc->tfm);
+}
+
+static int crypto_init_shash_ops_compat(struct crypto_tfm *tfm)
+{
+	struct hash_tfm *crt = &tfm->crt_hash;
+	struct crypto_alg *calg = tfm->__crt_alg;
+	struct shash_alg *alg = __crypto_shash_alg(calg);
+	struct shash_desc *desc = crypto_tfm_ctx(tfm);
+	struct crypto_shash *shash;
+
+	shash = __crypto_shash_cast(crypto_create_tfm(
+		calg, &crypto_shash_type));
+	if (IS_ERR(shash))
+		return PTR_ERR(shash);
+
+	desc->tfm = shash;
+	tfm->exit = crypto_exit_shash_ops_compat;
+
+	crt->init = shash_compat_init;
+	crt->update = shash_compat_update;
+	crt->final  = shash_compat_final;
+	crt->digest = shash_compat_digest;
+	crt->setkey = shash_compat_setkey;
+
+	crt->digestsize = alg->digestsize;
+
+	return 0;
+}
+
 static int crypto_init_shash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 {
 	switch (mask & CRYPTO_ALG_TYPE_MASK) {
+	case CRYPTO_ALG_TYPE_HASH_MASK:
+		return crypto_init_shash_ops_compat(tfm);
 	case CRYPTO_ALG_TYPE_AHASH_MASK:
 		return crypto_init_shash_ops_async(tfm);
 	}
@@ -314,7 +419,11 @@ static int crypto_init_shash_ops(struct crypto_tfm *tfm, u32 type, u32 mask)
 static unsigned int crypto_shash_ctxsize(struct crypto_alg *alg, u32 type,
 					 u32 mask)
 {
+	struct shash_alg *salg = __crypto_shash_alg(alg);
+
 	switch (mask & CRYPTO_ALG_TYPE_MASK) {
+	case CRYPTO_ALG_TYPE_HASH_MASK:
+		return sizeof(struct shash_desc) + salg->descsize;
 	case CRYPTO_ALG_TYPE_AHASH_MASK:
 		return sizeof(struct crypto_shash *);
 	}

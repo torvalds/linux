@@ -39,6 +39,9 @@ extern const struct crypto_type crypto_ahash_type;
 int crypto_hash_walk_done(struct crypto_hash_walk *walk, int err);
 int crypto_hash_walk_first(struct ahash_request *req,
 			   struct crypto_hash_walk *walk);
+int crypto_hash_walk_first_compat(struct hash_desc *hdesc,
+				  struct crypto_hash_walk *walk,
+				  struct scatterlist *sg, unsigned int len);
 
 int crypto_register_shash(struct shash_alg *alg);
 int crypto_unregister_shash(struct shash_alg *alg);
