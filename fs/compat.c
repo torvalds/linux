@@ -1436,6 +1436,57 @@ out_ret:
 
 #define __COMPAT_NFDBITS       (8 * sizeof(compat_ulong_t))
 
+static int poll_select_copy_remaining(struct timespec *end_time, void __user *p,
+				      int timeval, int ret)
+{
+	struct timespec ts;
+
+	if (!p)
+		return ret;
+
+	if (current->personality & STICKY_TIMEOUTS)
+		goto sticky;
+
+	/* No update for zero timeout */
+	if (!end_time->tv_sec && !end_time->tv_nsec)
+		return ret;
+
+	ktime_get_ts(&ts);
+	ts = timespec_sub(*end_time, ts);
+	if (ts.tv_sec < 0)
+		ts.tv_sec = ts.tv_nsec = 0;
+
+	if (timeval) {
+		struct compat_timeval rtv;
+
+		rtv.tv_sec = ts.tv_sec;
+		rtv.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
+
+		if (!copy_to_user(p, &rtv, sizeof(rtv)))
+			return ret;
+	} else {
+		struct compat_timespec rts;
+
+		rts.tv_sec = ts.tv_sec;
+		rts.tv_nsec = ts.tv_nsec;
+
+		if (!copy_to_user(p, &rts, sizeof(rts)))
+			return ret;
+	}
+	/*
+	 * If an application puts its timeval in read-only memory, we
+	 * don't want the Linux-specific update to the timeval to
+	 * cause a fault after the select has completed
+	 * successfully. However, because we're not updating the
+	 * timeval, we can't restart the system call.
+	 */
+
+sticky:
+	if (ret == -ERESTARTNOHAND)
+		ret = -EINTR;
+	return ret;
+}
+
 /*
  * Ooo, nasty.  We need here to frob 32-bit unsigned longs to
  * 64-bit unsigned longs.

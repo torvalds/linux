@@ -120,6 +120,8 @@ extern int do_sys_poll(struct pollfd __user * ufds, unsigned int nfds,
 extern int core_sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			   fd_set __user *exp, s64 *timeout);
 
+extern int poll_select_set_timeout(struct timespec *to, long sec, long nsec);
+
 #endif /* KERNEL */
 
 #endif /* _LINUX_POLL_H */
