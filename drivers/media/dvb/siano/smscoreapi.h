@@ -400,8 +400,10 @@ extern void smscore_onresponse(struct smscore_device_t *coredev,
 extern int smscore_get_common_buffer_size(struct smscore_device_t *coredev);
 extern int smscore_map_common_buffer(struct smscore_device_t *coredev,
 				      struct vm_area_struct *vma);
-extern int smscore_get_fw_filename(struct smscore_device_t *coredev, int mode, char* filename);
-extern int smscore_send_fw_file(struct smscore_device_t *coredev, u8* ufwbuf,int size);
+extern int smscore_get_fw_filename(struct smscore_device_t *coredev,
+				   int mode, char *filename);
+extern int smscore_send_fw_file(struct smscore_device_t *coredev,
+				u8 *ufwbuf, int size);
 
 extern
 struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev);
@@ -420,7 +422,7 @@ int smscore_led_state(struct smscore_device_t *core, int led);
 
 /* ------------------------------------------------------------------------ */
 
-extern int sms_debug;
+extern int sms_dbg;
 
 #define DBG_INFO 1
 #define DBG_ADV  2
@@ -429,7 +431,7 @@ extern int sms_debug;
 	printk(kern "%s: " fmt "\n", __func__, ##arg)
 
 #define dprintk(kern, lvl, fmt, arg...) do {\
-	if (sms_debug & lvl) \
+	if (sms_dbg & lvl) \
 		sms_printk(kern, fmt, ##arg); } while (0)
 
 #define sms_log(fmt, arg...) sms_printk(KERN_INFO, fmt, ##arg)

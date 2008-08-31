@@ -34,8 +34,8 @@
 #include "smscoreapi.h"
 #include "sms-cards.h"
 
-int sms_debug;
-module_param_named(debug, sms_debug, int, 0644);
+int sms_dbg;
+module_param_named(debug, sms_dbg, int, 0644);
 MODULE_PARM_DESC(debug, "set debug level (info=1, adv=2 (or-able))");
 
 struct smscore_device_notifyee_t {
@@ -105,11 +105,13 @@ int smscore_led_state(struct smscore_device_t *core, int led)
 		core->led_state = led;
 	return core->led_state;
 }
+EXPORT_SYMBOL(smscore_set_board_id);
 
 int smscore_get_board_id(struct smscore_device_t *core)
 {
 	return core->board_id;
 }
+EXPORT_SYMBOL(smscore_get_board_id);
 
 struct smscore_registry_entry_t {
 	struct list_head entry;
@@ -170,6 +172,7 @@ int smscore_registry_getmode(char *devpath)
 
 	return default_mode;
 }
+EXPORT_SYMBOL(smscore_registry_getmode);
 
 static enum sms_device_type_st smscore_registry_gettype(char *devpath)
 {
@@ -261,6 +264,7 @@ int smscore_register_hotplug(hotplug_t hotplug)
 
 	return rc;
 }
+EXPORT_SYMBOL(smscore_register_hotplug);
 
 /**
  * unregister a client callback that called when device plugged in/unplugged
@@ -289,6 +293,7 @@ void smscore_unregister_hotplug(hotplug_t hotplug)
 
 	kmutex_unlock(&g_smscore_deviceslock);
 }
+EXPORT_SYMBOL(smscore_unregister_hotplug);
 
 static void smscore_notify_clients(struct smscore_device_t *coredev)
 {
@@ -432,6 +437,7 @@ int smscore_register_device(struct smsdevice_params_t *params,
 
 	return 0;
 }
+EXPORT_SYMBOL(smscore_register_device);
 
 /**
  * sets initial device mode and notifies client hotplugs that device is ready
@@ -460,6 +466,7 @@ int smscore_start_device(struct smscore_device_t *coredev)
 
 	return rc;
 }
+EXPORT_SYMBOL(smscore_start_device);
 
 static int smscore_sendrequest_and_wait(struct smscore_device_t *coredev,
 					void *buffer, size_t size,
@@ -688,6 +695,7 @@ void smscore_unregister_device(struct smscore_device_t *coredev)
 
 	sms_info("device %p destroyed", coredev);
 }
+EXPORT_SYMBOL(smscore_unregister_device);
 
 static int smscore_detect_mode(struct smscore_device_t *coredev)
 {
@@ -879,6 +887,7 @@ int smscore_get_device_mode(struct smscore_device_t *coredev)
 {
 	return coredev->mode;
 }
+EXPORT_SYMBOL(smscore_get_device_mode);
 
 /**
  * find client by response id & type within the clients list.
@@ -1006,6 +1015,7 @@ void smscore_onresponse(struct smscore_device_t *coredev,
 		smscore_putbuffer(coredev, cb);
 	}
 }
+EXPORT_SYMBOL(smscore_onresponse);
 
 /**
  * return pointer to next free buffer descriptor from core pool
@@ -1031,6 +1041,7 @@ struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev)
 
 	return cb;
 }
+EXPORT_SYMBOL(smscore_getbuffer);
 
 /**
  * return buffer descriptor to a pool
@@ -1045,6 +1056,7 @@ void smscore_putbuffer(struct smscore_device_t *coredev,
 {
 	list_add_locked(&cb->entry, &coredev->buffers, &coredev->bufferslock);
 }
+EXPORT_SYMBOL(smscore_putbuffer);
 
 static int smscore_validate_client(struct smscore_device_t *coredev,
 				   struct smscore_client_t *client,
@@ -1124,6 +1136,7 @@ int smscore_register_client(struct smscore_device_t *coredev,
 
 	return 0;
 }
+EXPORT_SYMBOL(smscore_register_client);
 
 /**
  * frees smsclient object and all subclients associated with it
@@ -1154,6 +1167,7 @@ void smscore_unregister_client(struct smscore_client_t *client)
 
 	spin_unlock_irqrestore(&coredev->clientslock, flags);
 }
+EXPORT_SYMBOL(smscore_unregister_client);
 
 /**
  * verifies that source id is not taken by another client,
@@ -1193,6 +1207,7 @@ int smsclient_sendrequest(struct smscore_client_t *client,
 
 	return coredev->sendrequest_handler(coredev->context, buffer, size);
 }
+EXPORT_SYMBOL(smsclient_sendrequest);
 
 
 int smscore_configure_gpio(struct smscore_device_t *coredev, u32 pin,
@@ -1316,30 +1331,8 @@ static void __exit smscore_module_exit(void)
 	}
 	kmutex_unlock(&g_smscore_registrylock);
 
-//#ifdef DVB_CORE
-//	smsdvb_unregister();
-//#endif
-
 	sms_debug("");
 }
-
-EXPORT_SYMBOL(smscore_onresponse);
-EXPORT_SYMBOL(sms_get_board);
-EXPORT_SYMBOL(sms_debug);
-EXPORT_SYMBOL(smscore_putbuffer);
-EXPORT_SYMBOL(smscore_registry_getmode);
-EXPORT_SYMBOL(smscore_register_device);
-EXPORT_SYMBOL(smscore_set_board_id);
-EXPORT_SYMBOL(smscore_start_device);
-EXPORT_SYMBOL(smscore_unregister_device);
-EXPORT_SYMBOL(smscore_getbuffer);
-EXPORT_SYMBOL(smscore_get_device_mode);
-EXPORT_SYMBOL(smscore_register_client);
-EXPORT_SYMBOL(smscore_unregister_hotplug);
-EXPORT_SYMBOL(smsclient_sendrequest);
-EXPORT_SYMBOL(smscore_unregister_client);
-EXPORT_SYMBOL(smscore_get_board_id);
-EXPORT_SYMBOL(smscore_register_hotplug);
 
 module_init(smscore_module_init);
 module_exit(smscore_module_exit);
