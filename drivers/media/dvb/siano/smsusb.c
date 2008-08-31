@@ -424,6 +424,7 @@ static int smsusb_probe(struct usb_interface *intf,
 
 	rc = smsusb_init_device(intf, id->driver_info);
 	sms_info("rc %d", rc);
+	sms_board_load_modules(id->driver_info);
 	return rc;
 }
 

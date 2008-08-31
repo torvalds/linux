@@ -204,3 +204,20 @@ int sms_board_lna_control(struct smscore_device_t *coredev, int onoff)
 	return -EINVAL;
 }
 EXPORT_SYMBOL(sms_board_lna_control);
+
+int sms_board_load_modules(int id)
+{
+	switch (id) {
+	case SMS1XXX_BOARD_HAUPPAUGE_CATAMOUNT:
+	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_A:
+	case SMS1XXX_BOARD_HAUPPAUGE_OKEMO_B:
+	case SMS1XXX_BOARD_HAUPPAUGE_WINDHAM:
+		request_module("smsdvb");
+		break;
+	default:
+		/* do nothing */
+		break;
+	}
+	return 0;
+}
+EXPORT_SYMBOL(sms_board_load_modules);
