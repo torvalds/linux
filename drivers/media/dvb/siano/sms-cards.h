@@ -54,6 +54,4 @@ int sms_board_led_feedback(struct smscore_device_t *coredev, int led);
 int sms_board_power(struct smscore_device_t *coredev, int onoff);
 int sms_board_lna_control(struct smscore_device_t *coredev, int onoff);
 
-extern struct usb_device_id smsusb_id_table[];
-
 #endif /* __SMS_CARDS_H__ */
