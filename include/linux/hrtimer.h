@@ -346,6 +346,8 @@ extern long hrtimer_nanosleep_restart(struct restart_block *restart_block);
 extern void hrtimer_init_sleeper(struct hrtimer_sleeper *sl,
 				 struct task_struct *tsk);
 
+extern int schedule_hrtimeout(ktime_t *expires, const enum hrtimer_mode mode);
+
 /* Soft interrupt function to run the hrtimer queues: */
 extern void hrtimer_run_queues(void);
 extern void hrtimer_run_pending(void);
