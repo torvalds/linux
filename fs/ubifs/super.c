@@ -386,6 +386,7 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;
 	buf->f_ffree = 0;
 	buf->f_namelen = UBIFS_MAX_NLEN;
+	memcpy(&buf->f_fsid, c->uuid, sizeof(__kernel_fsid_t));
 
 	return 0;
 }
