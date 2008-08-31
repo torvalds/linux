@@ -6,6 +6,7 @@ obj-$(CONFIG_LCD_LTV350QV)	   += ltv350qv.o
 obj-$(CONFIG_LCD_ILI9320)	   += ili9320.o
 obj-$(CONFIG_LCD_PLATFORM)	   += platform_lcd.o
 obj-$(CONFIG_LCD_VGG2432A4)	   += vgg2432a4.o
+obj-$(CONFIG_LCD_TDO24M)	   += tdo24m.o
 
 obj-$(CONFIG_BACKLIGHT_CLASS_DEVICE) += backlight.o
 obj-$(CONFIG_BACKLIGHT_ATMEL_PWM)    += atmel-pwm-bl.o

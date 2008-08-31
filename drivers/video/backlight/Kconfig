@@ -51,6 +51,14 @@ config LCD_ILI9320
 	  If you have a panel based on the ILI9320 controller chip
 	  then say y to include a power driver for it.
 
+config LCD_TDO24M
+	tristate "Toppoly TDO24M LCD Panels support"
+	depends on LCD_CLASS_DEVICE && SPI_MASTER
+	default n
+	help
+	  If you have a Toppoly TDO24M series LCD panel, say y here to
+	  include the support for it.
+
 config LCD_VGG2432A4
 	tristate "VGG2432A4 LCM device support"
 	depends on BACKLIGHT_LCD_SUPPORT && LCD_CLASS_DEVICE && SPI_MASTER
