@@ -159,7 +159,8 @@ static int sdio_card_irq_get(struct mmc_card *card)
 	if (!host->sdio_irqs++) {
 		atomic_set(&host->sdio_irq_thread_abort, 0);
 		host->sdio_irq_thread =
-			kthread_run(sdio_irq_thread, host, "ksdiorqd");
+			kthread_run(sdio_irq_thread, host, "ksdioirqd/%s",
+				mmc_hostname(host));
 		if (IS_ERR(host->sdio_irq_thread)) {
 			int err = PTR_ERR(host->sdio_irq_thread);
 			host->sdio_irqs--;
