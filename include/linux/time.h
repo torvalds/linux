@@ -38,6 +38,8 @@ struct timezone {
 #define NSEC_PER_SEC	1000000000L
 #define FSEC_PER_SEC	1000000000000000L
 
+#define TIME_T_MAX	(time_t)((1UL << ((sizeof(time_t) << 3) - 1)) - 1)
+
 static inline int timespec_equal(const struct timespec *a,
                                  const struct timespec *b)
 {
@@ -72,6 +74,8 @@ extern unsigned long mktime(const unsigned int year, const unsigned int mon,
 			    const unsigned int min, const unsigned int sec);
 
 extern void set_normalized_timespec(struct timespec *ts, time_t sec, long nsec);
+extern struct timespec timespec_add_safe(const struct timespec lhs,
+					 const struct timespec rhs);
 
 /*
  * sub = lhs - rhs, in normalized form
