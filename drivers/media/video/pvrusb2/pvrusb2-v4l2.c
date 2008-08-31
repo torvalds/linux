@@ -533,7 +533,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 
 			lmin = pvr2_ctrl_get_min(hcp);
 			lmax = pvr2_ctrl_get_max(hcp);
-			ldef = pvr2_ctrl_get_def(hcp);
+			pvr2_ctrl_get_def(hcp, &ldef);
 			if (w == -1) {
 				w = ldef;
 			} else if (w < lmin) {
@@ -543,7 +543,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			}
 			lmin = pvr2_ctrl_get_min(vcp);
 			lmax = pvr2_ctrl_get_max(vcp);
-			ldef = pvr2_ctrl_get_def(vcp);
+			pvr2_ctrl_get_def(vcp, &ldef);
 			if (h == -1) {
 				h = ldef;
 			} else if (h < lmin) {
@@ -604,6 +604,7 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 	case VIDIOC_QUERYCTRL:
 	{
 		struct pvr2_ctrl *cptr;
+		int val;
 		struct v4l2_queryctrl *vc = (struct v4l2_queryctrl *)arg;
 		ret = 0;
 		if (vc->id & V4L2_CTRL_FLAG_NEXT_CTRL) {
@@ -627,7 +628,8 @@ static int pvr2_v4l2_do_ioctl(struct inode *inode, struct file *file,
 			   pvr2_ctrl_get_desc(cptr));
 		strlcpy(vc->name,pvr2_ctrl_get_desc(cptr),sizeof(vc->name));
 		vc->flags = pvr2_ctrl_get_v4lflags(cptr);
-		vc->default_value = pvr2_ctrl_get_def(cptr);
+		pvr2_ctrl_get_def(cptr, &val);
+		vc->default_value = val;
 		switch (pvr2_ctrl_get_type(cptr)) {
 		case pvr2_ctl_enum:
 			vc->type = V4L2_CTRL_TYPE_MENU;

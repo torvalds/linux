@@ -82,6 +82,7 @@ struct pvr2_ctl_info {
 
 	/* Control's implementation */
 	pvr2_ctlf_get_value get_value;      /* Get its value */
+	pvr2_ctlf_get_value get_def_value;  /* Get its default value */
 	pvr2_ctlf_get_value get_min_value;  /* Get minimum allowed value */
 	pvr2_ctlf_get_value get_max_value;  /* Get maximum allowed value */
 	pvr2_ctlf_set_value set_value;      /* Set its value */
