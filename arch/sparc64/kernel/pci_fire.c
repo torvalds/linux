@@ -515,13 +515,13 @@ static int __devinit fire_probe(struct of_device *op,
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
 		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
-		goto out_free;
+		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
-		goto out_free;
+		goto out_free_controller;
 	}
 
 	p->pbm_A.iommu = iommu;
@@ -529,21 +529,20 @@ static int __devinit fire_probe(struct of_device *op,
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
-		goto out_free;
+		goto out_free_iommu_A;
 	}
 
 	p->pbm_B.iommu = iommu;
 
 	return pci_fire_pbm_init(p, dp, portid);
 
-out_free:
-	if (p) {
-		if (p->pbm_A.iommu)
-			kfree(p->pbm_A.iommu);
-		if (p->pbm_B.iommu)
-			kfree(p->pbm_B.iommu);
-		kfree(p);
-	}
+out_free_iommu_A:
+	kfree(p->pbm_A.iommu);
+			
+out_free_controller:
+	kfree(p);
+
+out_err:
 	return err;
 }
 

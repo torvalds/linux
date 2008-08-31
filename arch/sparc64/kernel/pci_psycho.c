@@ -1051,13 +1051,13 @@ static int __devinit psycho_probe(struct of_device *op,
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
 		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
-		goto out_free;
+		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
-		goto out_free;
+		goto out_free_controller;
 	}
 
 	p->pbm_A.iommu = p->pbm_B.iommu = iommu;
@@ -1069,7 +1069,7 @@ static int __devinit psycho_probe(struct of_device *op,
 	err = -ENODEV;
 	if (!pr_regs) {
 		printk(KERN_ERR PFX "No reg property.\n");
-		goto out_free;
+		goto out_free_iommu;
 	}
 
 	p->pbm_A.controller_regs = pr_regs[2].phys_addr;
@@ -1082,7 +1082,7 @@ static int __devinit psycho_probe(struct of_device *op,
 
 	err = psycho_iommu_init(&p->pbm_A);
 	if (err)
-		goto out_free;
+		goto out_free_iommu;
 
 	is_pbm_a = ((pr_regs[0].phys_addr & 0x6000) == 0x2000);
 
@@ -1090,12 +1090,13 @@ static int __devinit psycho_probe(struct of_device *op,
 
 	return 0;
 
-out_free:
-	if (p) {
-		if (p->pbm_A.iommu)
-			kfree(p->pbm_A.iommu);
-		kfree(p);
-	}
+out_free_iommu:
+	kfree(p->pbm_A.iommu);
+
+out_free_controller:
+	kfree(p);
+
+out_err:
 	return err;
 }
 

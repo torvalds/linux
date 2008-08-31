@@ -786,13 +786,13 @@ static int __devinit sabre_probe(struct of_device *op,
 	p = kzalloc(sizeof(*p), GFP_ATOMIC);
 	if (!p) {
 		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
-		goto out_free;
+		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(*iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
-		goto out_free;
+		goto out_free_controller;
 	}
 
 	pbm = &p->pbm_A;
@@ -813,7 +813,7 @@ static int __devinit sabre_probe(struct of_device *op,
 	err = -ENODEV;
 	if (!pr_regs) {
 		printk(KERN_ERR PFX "No reg property\n");
-		goto out_free;
+		goto out_free_iommu;
 	}
 
 	/*
@@ -843,7 +843,7 @@ static int __devinit sabre_probe(struct of_device *op,
 	vdma = of_get_property(dp, "virtual-dma", NULL);
 	if (!vdma) {
 		printk(KERN_ERR PFX "No virtual-dma property\n");
-		goto out_free;
+		goto out_free_iommu;
 	}
 
 	dma_mask = vdma[0];
@@ -863,12 +863,12 @@ static int __devinit sabre_probe(struct of_device *op,
 			break;
 		default:
 			printk(KERN_ERR PFX "Strange virtual-dma size.\n");
-			goto out_free;
+			goto out_free_iommu;
 	}
 
 	err = sabre_iommu_init(pbm, tsbsize, vdma[0], dma_mask);
 	if (err)
-		goto out_free;
+		goto out_free_iommu;
 
 	/*
 	 * Look for APB underneath.
@@ -876,12 +876,13 @@ static int __devinit sabre_probe(struct of_device *op,
 	sabre_pbm_init(p, pbm, dp);
 	return 0;
 
-out_free:
-	if (p) {
-		if (p->pbm_A.iommu)
-			kfree(p->pbm_A.iommu);
-		kfree(p);
-	}
+out_free_iommu:
+	kfree(p->pbm_A.iommu);
+
+out_free_controller:
+	kfree(p);
+
+out_err:
 	return err;
 }
 

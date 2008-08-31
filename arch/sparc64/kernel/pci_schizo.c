@@ -1443,14 +1443,16 @@ static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_ty
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	u32 portid;
+	int err;
 
 	portid = of_getintprop_default(dp, "portid", 0xff);
 
+	err = -ENOMEM;
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (portid_compare(pbm->portid, portid, chip_type)) {
 			if (schizo_pbm_init(pbm->parent, dp,
 					    portid, chip_type))
-				return -ENOMEM;
+				goto out_err;
 			return 0;
 		}
 	}
@@ -1458,13 +1460,13 @@ static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_ty
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
 		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
-		goto out_free;
+		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
-		goto out_free;
+		goto out_free_controller;
 	}
 
 	p->pbm_A.iommu = iommu;
@@ -1472,25 +1474,27 @@ static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_ty
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM B iommu.\n");
-		goto out_free;
+		goto out_free_iommu_A;
 	}
 
 	p->pbm_B.iommu = iommu;
 
 	if (schizo_pbm_init(p, dp, portid, chip_type))
-		goto out_free;
+		goto out_free_iommu_B;
 
 	return 0;
 
-out_free:
-	if (p) {
-		if (p->pbm_A.iommu)
-			kfree(p->pbm_A.iommu);
-		if (p->pbm_B.iommu)
-			kfree(p->pbm_B.iommu);
-		kfree(p);
-	}
-	return -ENOMEM;
+out_free_iommu_B:
+	kfree(p->pbm_B.iommu);
+
+out_free_iommu_A:
+	kfree(p->pbm_A.iommu);
+
+out_free_controller:
+	kfree(p);
+
+out_err:
+	return err;
 }
 
 static int __devinit schizo_probe(struct of_device *op,

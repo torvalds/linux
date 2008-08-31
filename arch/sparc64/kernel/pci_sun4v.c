@@ -949,7 +949,7 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	struct device_node *dp;
 	struct iommu *iommu;
 	u32 devhandle;
-	int i;
+	int i, err;
 
 	dp = op->node;
 
@@ -970,9 +970,10 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	}
 
 	regs = of_get_property(dp, "reg", NULL);
+	err = -ENODEV;
 	if (!regs) {
 		printk(KERN_ERR PFX "Could not find config registers\n");
-		return -ENODEV;
+		goto out_err;
 	}
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
@@ -982,11 +983,12 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 		}
 	}
 
+	err = -ENOMEM;
 	for_each_possible_cpu(i) {
 		unsigned long page = get_zeroed_page(GFP_ATOMIC);
 
 		if (!page)
-			return -ENOMEM;
+			goto out_err;
 
 		per_cpu(iommu_batch, i).pglist = (u64 *) page;
 	}
@@ -994,13 +996,13 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
 	if (!p) {
 		printk(KERN_ERR PFX "Could not allocate pci_controller_info\n");
-		goto out_free;
+		goto out_err;
 	}
 
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Could not allocate pbm A iommu\n");
-		goto out_free;
+		goto out_free_controller;
 	}
 
 	p->pbm_A.iommu = iommu;
@@ -1008,22 +1010,21 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Could not allocate pbm B iommu\n");
-		goto out_free;
+		goto out_free_iommu_A;
 	}
 
 	p->pbm_B.iommu = iommu;
 
 	return pci_sun4v_pbm_init(p, dp, devhandle);
 
-out_free:
-	if (p) {
-		if (p->pbm_A.iommu)
-			kfree(p->pbm_A.iommu);
-		if (p->pbm_B.iommu)
-			kfree(p->pbm_B.iommu);
-		kfree(p);
-	}
-	return -ENOMEM;
+out_free_iommu_A:
+	kfree(p->pbm_A.iommu);
+
+out_free_controller:
+	kfree(p);
+
+out_err:
+	return err;
 }
 
 static struct of_device_id __initdata pci_sun4v_match[] = {
