@@ -3,7 +3,7 @@
  *
  *  This file contains implementation for the interface to sms core component
  *
- *  author: Anatoly Greenblat
+ *  author: Uri Shkolnik
  *
  *  Copyright (c), 2005-2008 Siano Mobile Silicon, Inc.
  *
@@ -732,7 +732,7 @@ static char *smscore_fw_lkup[][SMS_NUM_OF_DEVICE_TYPES] = {
 	/*DVBH*/
 	{"none", "dvb_nova_12mhz.inp", "dvb_nova_12mhz_b0.inp", "none"},
 	/*TDMB*/
-	{"none", "tdmb_nova_12mhz.inp", "none", "none"},
+	{"none", "tdmb_nova_12mhz.inp", "tdmb_nova_12mhz_b0.inp", "none"},
 	/*DABIP*/
 	{"none", "none", "none", "none"},
 	/*BDA*/
@@ -1276,12 +1276,12 @@ static int __init smscore_module_init(void)
 	INIT_LIST_HEAD(&g_smscore_registry);
 	kmutex_init(&g_smscore_registrylock);
 
-	/* USB Register */
-	rc = smsusb_register();
 
-	/* DVB Register */
-	rc = smsdvb_register();
 
+
+
+
+	return rc;
 	sms_debug("rc %d", rc);
 
 	return rc;
@@ -1289,6 +1289,10 @@ static int __init smscore_module_init(void)
 
 static void __exit smscore_module_exit(void)
 {
+
+
+
+
 
 	kmutex_lock(&g_smscore_deviceslock);
 	while (!list_empty(&g_smscore_notifyees)) {
@@ -1312,18 +1316,34 @@ static void __exit smscore_module_exit(void)
 	}
 	kmutex_unlock(&g_smscore_registrylock);
 
-	/* DVB UnRegister */
-	smsdvb_unregister();
-
-	/* Unregister USB */
-	smsusb_unregister();
+//#ifdef DVB_CORE
+//	smsdvb_unregister();
+//#endif
 
 	sms_debug("");
 }
 
+EXPORT_SYMBOL(smscore_onresponse);
+EXPORT_SYMBOL(sms_get_board);
+EXPORT_SYMBOL(sms_debug);
+EXPORT_SYMBOL(smscore_putbuffer);
+EXPORT_SYMBOL(smscore_registry_getmode);
+EXPORT_SYMBOL(smscore_register_device);
+EXPORT_SYMBOL(smscore_set_board_id);
+EXPORT_SYMBOL(smscore_start_device);
+EXPORT_SYMBOL(smscore_unregister_device);
+EXPORT_SYMBOL(smscore_getbuffer);
+EXPORT_SYMBOL(smscore_get_device_mode);
+EXPORT_SYMBOL(smscore_register_client);
+EXPORT_SYMBOL(smscore_unregister_hotplug);
+EXPORT_SYMBOL(smsclient_sendrequest);
+EXPORT_SYMBOL(smscore_unregister_client);
+EXPORT_SYMBOL(smscore_get_board_id);
+EXPORT_SYMBOL(smscore_register_hotplug);
+
 module_init(smscore_module_init);
 module_exit(smscore_module_exit);
 
-MODULE_DESCRIPTION("Driver for the Siano SMS1XXX USB dongle");
-MODULE_AUTHOR("Siano Mobile Silicon,,, (doronc@siano-ms.com)");
+MODULE_DESCRIPTION("Siano MDTV Core module");
+MODULE_AUTHOR("Siano Mobile Silicon, Inc. (uris@siano-ms.com)");
 MODULE_LICENSE("GPL");

@@ -29,13 +29,13 @@
 #include <linux/scatterlist.h>
 #include <linux/types.h>
 #include <asm/page.h>
+#include <linux/mutex.h>
 
 #include "dmxdev.h"
 #include "dvbdev.h"
 #include "dvb_demux.h"
 #include "dvb_frontend.h"
 
-#include <linux/mutex.h>
 
 #define kmutex_init(_p_) mutex_init(_p_)
 #define kmutex_lock(_p_) mutex_lock(_p_)
@@ -397,6 +397,11 @@ extern int smsclient_sendrequest(struct smscore_client_t *client,
 extern void smscore_onresponse(struct smscore_device_t *coredev,
 			       struct smscore_buffer_t *cb);
 
+extern int smscore_get_common_buffer_size(struct smscore_device_t *coredev);
+extern int smscore_map_common_buffer(struct smscore_device_t *coredev,
+				      struct vm_area_struct *vma);
+extern int smscore_get_fw_filename(struct smscore_device_t *coredev, int mode, char* filename);
+extern int smscore_send_fw_file(struct smscore_device_t *coredev, u8* ufwbuf,int size);
 
 extern
 struct smscore_buffer_t *smscore_getbuffer(struct smscore_device_t *coredev);
@@ -412,13 +417,6 @@ int smscore_get_board_id(struct smscore_device_t *core);
 
 int smscore_led_state(struct smscore_device_t *core, int led);
 
-/* smsdvb.c */
-int smsdvb_register(void);
-void smsdvb_unregister(void);
-
-/* smsusb.c */
-int smsusb_register(void);
-void smsusb_unregister(void);
 
 /* ------------------------------------------------------------------------ */
 

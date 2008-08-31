@@ -1,7 +1,7 @@
 /*
  *  Driver for the Siano SMS1xxx USB dongle
  *
- *  author: Anatoly Greenblat
+ *  Author: Uri Shkolni
  *
  *  Copyright (c), 2005-2008 Siano Mobile Silicon, Inc.
  *
@@ -368,7 +368,7 @@ static void smsdvb_release(struct dvb_frontend *fe)
 
 static struct dvb_frontend_ops smsdvb_fe_ops = {
 	.info = {
-		.name			= "Siano Mobile Digital SMS1xxx",
+		.name			= "Siano Mobile Digital MDTV Receiver",
 		.type			= FE_OFDM,
 		.frequency_min		= 44250000,
 		.frequency_max		= 867250000,
@@ -410,7 +410,7 @@ static int smsdvb_hotplug(struct smscore_device_t *coredev,
 	if (!arrival)
 		return 0;
 
-	if (smscore_get_device_mode(coredev) != 4) {
+	if (smscore_get_device_mode(coredev) != DEVICE_MODE_DVBT_BDA) {
 		sms_err("SMS Device mode is not set for "
 			"DVB operation.");
 		return 0;
@@ -512,7 +512,7 @@ adapter_error:
 	return rc;
 }
 
-int smsdvb_register(void)
+int smsdvb_module_init(void)
 {
 	int rc;
 
@@ -526,7 +526,7 @@ int smsdvb_register(void)
 	return rc;
 }
 
-void smsdvb_unregister(void)
+void smsdvb_module_exit(void)
 {
 	smscore_unregister_hotplug(smsdvb_hotplug);
 
@@ -538,3 +538,10 @@ void smsdvb_unregister(void)
 
 	kmutex_unlock(&g_smsdvb_clientslock);
 }
+
+module_init(smsdvb_module_init);
+module_exit(smsdvb_module_exit);
+
+MODULE_DESCRIPTION("SMS DVB subsystem adaptation module");
+MODULE_AUTHOR("Siano Mobile Silicon, INC. (uris@siano-ms.com)");
+MODULE_LICENSE("GPL");
