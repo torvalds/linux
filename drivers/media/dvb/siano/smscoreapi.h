@@ -369,27 +369,6 @@ struct smscore_gpio_config {
 	u8 outputdriving;
 };
 
-struct smsdvb_client_t {
-	struct list_head entry;
-
-	struct smscore_device_t	*coredev;
-	struct smscore_client_t	*smsclient;
-
-	struct dvb_adapter	adapter;
-	struct dvb_demux	demux;
-	struct dmxdev		dmxdev;
-	struct dvb_frontend	frontend;
-
-	fe_status_t		fe_status;
-	int			fe_ber, fe_snr, fe_unc, fe_signal_strength;
-
-	struct completion	tune_done, stat_done;
-
-	/* todo: save freq/band instead whole struct */
-	struct dvb_frontend_parameters fe_params;
-
-};
-
 extern void smscore_registry_setmode(char *devpath, int mode);
 extern int smscore_registry_getmode(char *devpath);
 

@@ -27,6 +27,26 @@
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+struct smsdvb_client_t {
+	struct list_head entry;
+
+	struct smscore_device_t *coredev;
+	struct smscore_client_t *smsclient;
+
+	struct dvb_adapter      adapter;
+	struct dvb_demux        demux;
+	struct dmxdev           dmxdev;
+	struct dvb_frontend     frontend;
+
+	fe_status_t             fe_status;
+	int                     fe_ber, fe_snr, fe_unc, fe_signal_strength;
+
+	struct completion       tune_done, stat_done;
+
+	/* todo: save freq/band instead whole struct */
+	struct dvb_frontend_parameters fe_params;
+};
+
 static struct list_head g_smsdvb_clients;
 static struct mutex g_smsdvb_clientslock;
 
