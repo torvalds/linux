@@ -1504,7 +1504,7 @@ static int __devinit schizo_probe(struct of_device *op,
  * and pci108e,8001.  So list the chips in reverse chronological
  * order.
  */
-static struct of_device_id schizo_match[] = {
+static struct of_device_id __initdata schizo_match[] = {
 	{
 		.name = "pci",
 		.compatible = "pci108e,a801",

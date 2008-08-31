@@ -801,7 +801,7 @@ static int __devexit us3mc_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id us3mc_match[] = {
+static const struct of_device_id us3mc_match[] = {
 	{
 		.name = "memory-controller",
 	},

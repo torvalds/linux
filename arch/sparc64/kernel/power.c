@@ -89,7 +89,7 @@ static int __devinit power_probe(struct of_device *op, const struct of_device_id
 	return 0;
 }
 
-static struct of_device_id power_match[] = {
+static struct of_device_id __initdata power_match[] = {
 	{
 		.name = "power",
 	},

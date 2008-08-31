@@ -1070,7 +1070,7 @@ out_err:
 	return err;
 }
 
-static struct of_device_id amd7930_match[] = {
+static const struct of_device_id amd7930_match[] = {
 	{
 		.name = "audio",
 	},

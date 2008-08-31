@@ -372,7 +372,7 @@ static int __devexit bpp_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id bpp_match[] = {
+static const struct of_device_id bpp_match[] = {
 	{
 		.name = "SUNW,bpp",
 	},

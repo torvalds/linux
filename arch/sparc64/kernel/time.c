@@ -438,7 +438,7 @@ static int __devinit rtc_probe(struct of_device *op, const struct of_device_id *
 	return platform_device_register(&rtc_cmos_device);
 }
 
-static struct of_device_id rtc_match[] = {
+static struct of_device_id __initdata rtc_match[] = {
 	{
 		.name = "rtc",
 		.compatible = "m5819",
@@ -482,7 +482,7 @@ static int __devinit bq4802_probe(struct of_device *op, const struct of_device_i
 	return platform_device_register(&rtc_bq4802_device);
 }
 
-static struct of_device_id bq4802_match[] = {
+static struct of_device_id __initdata bq4802_match[] = {
 	{
 		.name = "rtc",
 		.compatible = "bq4802",
@@ -566,7 +566,7 @@ static int __devinit mostek_probe(struct of_device *op, const struct of_device_i
 	return platform_device_register(&m48t59_rtc);
 }
 
-static struct of_device_id mostek_match[] = {
+static struct of_device_id __initdata mostek_match[] = {
 	{
 		.name = "eeprom",
 	},

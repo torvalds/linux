@@ -1026,7 +1026,7 @@ out_free:
 	return -ENOMEM;
 }
 
-static struct of_device_id pci_sun4v_match[] = {
+static struct of_device_id __initdata pci_sun4v_match[] = {
 	{
 		.name = "pci",
 		.compatible = "SUNW,sun4v-pci",

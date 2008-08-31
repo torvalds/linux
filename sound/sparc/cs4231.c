@@ -2094,7 +2094,7 @@ static int __devexit cs4231_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id cs4231_match[] = {
+static const struct of_device_id cs4231_match[] = {
 	{
 		.name = "SUNW,CS4231",
 	},

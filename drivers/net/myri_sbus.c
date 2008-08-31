@@ -1125,7 +1125,7 @@ static int __devexit myri_sbus_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id myri_sbus_match[] = {
+static const struct of_device_id myri_sbus_match[] = {
 	{
 		.name = "MYRICOM,mlanai",
 	},

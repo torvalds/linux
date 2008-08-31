@@ -138,7 +138,7 @@ static int __devexit uflash_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id uflash_match[] = {
+static const struct of_device_id uflash_match[] = {
 	{
 		.name = UFLASH_OBPNAME,
 	},

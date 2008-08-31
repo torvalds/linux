@@ -666,7 +666,7 @@ static int __devexit cpwd_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id cpwd_match[] = {
+static const struct of_device_id cpwd_match[] = {
 	{
 		.name = "watchdog",
 	},

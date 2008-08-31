@@ -2685,7 +2685,7 @@ static int __devexit fore200e_sba_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id fore200e_sba_match[] = {
+static const struct of_device_id fore200e_sba_match[] = {
 	{
 		.name = SBA200E_PROM_NAME,
 		.data = (void *) &fore200e_bus[1],

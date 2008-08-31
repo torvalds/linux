@@ -589,7 +589,7 @@ static int __devexit cg14_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id cg14_match[] = {
+static const struct of_device_id cg14_match[] = {
 	{
 		.name = "cgfourteen",
 	},

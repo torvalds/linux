@@ -617,7 +617,7 @@ static int __devexit esp_sbus_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id esp_match[] = {
+static const struct of_device_id esp_match[] = {
 	{
 		.name = "SUNW,esp",
 	},

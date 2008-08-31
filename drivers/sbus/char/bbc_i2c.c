@@ -404,7 +404,7 @@ static int __devexit bbc_i2c_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id bbc_i2c_match[] = {
+static const struct of_device_id bbc_i2c_match[] = {
 	{
 		.name = "i2c",
 		.compatible = "SUNW,bbc-i2c",

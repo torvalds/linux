@@ -349,7 +349,7 @@ static int __devexit p9100_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id p9100_match[] = {
+static const struct of_device_id p9100_match[] = {
 	{
 		.name = "p9100",
 	},

@@ -249,7 +249,7 @@ static int bbc_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id bbc_beep_match[] = {
+static const struct of_device_id bbc_beep_match[] = {
 	{
 		.name = "beep",
 		.compatible = "SUNW,bbc-beep",
@@ -328,7 +328,7 @@ static int grover_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id grover_beep_match[] = {
+static const struct of_device_id grover_beep_match[] = {
 	{
 		.name = "beep",
 		.compatible = "SUNW,smbus-beep",

@@ -1415,7 +1415,7 @@ static int __devexit qpti_sbus_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id qpti_match[] = {
+static const struct of_device_id qpti_match[] = {
 	{
 		.name = "ptisp",
 		.data = &qpti_template,

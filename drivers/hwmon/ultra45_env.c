@@ -290,7 +290,7 @@ static int __devexit env_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id env_match[] = {
+static const struct of_device_id env_match[] = {
 	{
 		.name = "env-monitor",
 		.compatible = "SUNW,ebus-pic16f747-env",

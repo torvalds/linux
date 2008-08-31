@@ -885,7 +885,7 @@ out_free:
 	return err;
 }
 
-static struct of_device_id sabre_match[] = {
+static struct of_device_id __initdata sabre_match[] = {
 	{
 		.name = "pci",
 		.compatible = "pci108e,a001",

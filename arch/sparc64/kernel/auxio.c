@@ -109,7 +109,7 @@ void auxio_set_lte(int on)
 	}
 }
 
-static struct of_device_id auxio_match[] = {
+static struct of_device_id __initdata auxio_match[] = {
 	{
 		.name = "auxio",
 	},

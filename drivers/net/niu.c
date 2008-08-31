@@ -9074,7 +9074,7 @@ static int __devexit niu_of_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id niu_match[] = {
+static const struct of_device_id niu_match[] = {
 	{
 		.name = "network",
 		.compatible = "SUNW,niusl",

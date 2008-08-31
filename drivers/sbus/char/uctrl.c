@@ -417,7 +417,7 @@ static int __devexit uctrl_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id uctrl_match[] = {
+static const struct of_device_id uctrl_match[] = {
 	{
 		.name = "uctrl",
 	},

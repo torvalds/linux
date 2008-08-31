@@ -72,7 +72,7 @@ static int __devinit pmc_probe(struct of_device *op,
 	return 0;
 }
 
-static struct of_device_id pmc_match[] = {
+static struct of_device_id __initdata pmc_match[] = {
 	{
 		.name = PMC_OBPNAME,
 	},

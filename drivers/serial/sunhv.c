@@ -616,7 +616,7 @@ static int __devexit hv_remove(struct of_device *dev)
 	return 0;
 }
 
-static struct of_device_id hv_match[] = {
+static const struct of_device_id hv_match[] = {
 	{
 		.name = "console",
 		.compatible = "qcn",

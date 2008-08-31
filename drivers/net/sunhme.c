@@ -3252,7 +3252,7 @@ static int __devexit hme_sbus_remove(struct of_device *op)
 	return 0;
 }
 
-static struct of_device_id hme_sbus_match[] = {
+static const struct of_device_id hme_sbus_match[] = {
 	{
 		.name = "SUNW,hme",
 	},
