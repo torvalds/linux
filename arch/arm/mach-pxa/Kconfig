@@ -353,4 +353,7 @@ config TOSA_BT
 config PXA_HAVE_BOARD_IRQS
 	bool
 
+config PXA_HAVE_ISA_IRQS
+	bool
+
 endif
