@@ -2692,36 +2692,26 @@ static void __devinit intel8x0_measure_ac97_clock(struct intel8x0 *chip)
 	snd_ac97_update_power(chip->ac97[0], AC97_PCM_FRONT_DAC_RATE, 0);
 }
 
-struct intel8x0_clock_list {
-	unsigned short subvendor;
-	unsigned short subdevice;
-	unsigned int rate;
-};
-
-static struct intel8x0_clock_list intel8x0_clock_list[] __devinitdata = {
-	{ 0x0e11, 0x008a, 41000 },	/* Analog Devices AD1885 */
-	{ 0x1028, 0x00be, 44100 },	/* Analog Devices AD1885 */
-	{ 0x1028, 0x0177, 48000 },	/* Analog Devices AD1980 */
-	{ 0x1043, 0x80f3, 48000 },	/* Analog Devices AD1985 */
-	{ 0x0000, 0x0000, 00000 }	/* terminator */
+static struct snd_pci_quirk intel8x0_clock_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x0e11, 0x008a, "AD1885", 41000),
+	SND_PCI_QUIRK(0x1028, 0x00be, "AD1885", 44100),
+	SND_PCI_QUIRK(0x1028, 0x0177, "AD1980", 48000),
+	SND_PCI_QUIRK(0x1043, 0x80f3, "AD1985", 48000),
+	{ }	/* terminator */
 };
 
 static int __devinit intel8x0_in_clock_list(struct intel8x0 *chip)
 {
 	struct pci_dev *pci = chip->pci;
-	struct intel8x0_clock_list *wl;
+	const struct snd_pci_quirk *wl;
 
-	for (wl = intel8x0_clock_list; wl->subvendor; wl++) {
-		if (wl->subvendor == pci->subsystem_vendor &&
-		    wl->subdevice == pci->subsystem_device) {
-			printk(KERN_INFO "intel8x0: white list rate for %04x:%04x is %i\n",
-				pci->subsystem_vendor,
-				pci->subsystem_device, wl->rate);
-			chip->ac97_bus->clock = wl->rate;
-			return 1;
-		}
-	}
-	return 0;
+	wl = snd_pci_quirk_lookup(pci, intel8x0_clock_list);
+	if (!wl)
+		return 0;
+	printk(KERN_INFO "intel8x0: white list rate for %04x:%04x is %i\n",
+	       pci->subsystem_vendor, pci->subsystem_device, wl->value);
+	chip->ac97_bus->clock = wl->value;
+	return 1;
 }
 
 #ifdef CONFIG_PROC_FS
