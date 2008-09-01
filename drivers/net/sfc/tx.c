@@ -1096,6 +1096,11 @@ static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
 		efx_stop_queue(tx_queue->efx);
 
  unwind:
+	/* Free the DMA mapping we were in the process of writing out */
+	if (state.ifc.unmap_len)
+		pci_unmap_page(tx_queue->efx->pci_dev, state.ifc.unmap_addr,
+			       state.ifc.unmap_len, PCI_DMA_TODEVICE);
+
 	efx_enqueue_unwind(tx_queue);
 	return rc2;
 }
