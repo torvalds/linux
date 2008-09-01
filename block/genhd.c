@@ -307,7 +307,7 @@ static void *part_start(struct seq_file *part, loff_t *pos)
 	loff_t k = *pos;
 
 	if (!k)
-		seq_puts(part, "major minor  #blocks  name\n\n");
+		part->private = (void *)1LU;	/* tell show to print header */
 
 	mutex_lock(&block_class_lock);
 	dev = class_find_device(&block_class, NULL, &k, find_start);
@@ -348,6 +348,17 @@ static int show_partition(struct seq_file *part, void *v)
 	struct gendisk *sgp = v;
 	int n;
 	char buf[BDEVNAME_SIZE];
+
+	/*
+	 * Print header if start told us to do.  This is to preserve
+	 * the original behavior of not printing header if no
+	 * partition exists.  This hackery will be removed later with
+	 * class iteration clean up.
+	 */
+	if (part->private) {
+		seq_puts(part, "major minor  #blocks  name\n\n");
+		part->private = NULL;
+	}
 
 	/* Don't show non-partitionable removeable devices or empty devices */
 	if (!get_capacity(sgp) ||
