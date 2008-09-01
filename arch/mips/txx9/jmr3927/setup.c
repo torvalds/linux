@@ -200,10 +200,15 @@ static void __init jmr3927_mtd_init(void)
 
 static void __init jmr3927_device_init(void)
 {
+	unsigned long iocled_base = JMR3927_IOC_LED_ADDR - IO_BASE;
+#ifdef __LITTLE_ENDIAN
+	iocled_base |= 1;
+#endif
 	__swizzle_addr_b = jmr3927_swizzle_addr_b;
 	jmr3927_rtc_init();
 	tx3927_wdt_init();
 	jmr3927_mtd_init();
+	txx9_iocled_init(iocled_base, -1, 8, 1, "green", NULL);
 }
 
 struct txx9_board_vec jmr3927_vec __initdata = {

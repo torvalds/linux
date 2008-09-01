@@ -321,6 +321,7 @@ static void __init rbtx4927_device_init(void)
 	rbtx4927_ne_init();
 	tx4927_wdt_init();
 	rbtx4927_mtd_init();
+	txx9_iocled_init(RBTX4927_LED_ADDR - IO_BASE, -1, 3, 1, "green", NULL);
 }
 
 struct txx9_board_vec rbtx4927_vec __initdata = {

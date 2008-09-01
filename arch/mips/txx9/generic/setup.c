@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/serial_core.h>
 #include <linux/mtd/physmap.h>
+#include <linux/leds.h>
 #include <asm/bootinfo.h>
 #include <asm/time.h>
 #include <asm/reboot.h>
@@ -649,3 +650,113 @@ void __init txx9_physmap_flash_init(int no, unsigned long addr,
 		platform_device_put(pdev);
 #endif
 }
+
+#if defined(CONFIG_LEDS_GPIO) || defined(CONFIG_LEDS_GPIO_MODULE)
+static DEFINE_SPINLOCK(txx9_iocled_lock);
+
+#define TXX9_IOCLED_MAXLEDS 8
+
+struct txx9_iocled_data {
+	struct gpio_chip chip;
+	u8 cur_val;
+	void __iomem *mmioaddr;
+	struct gpio_led_platform_data pdata;
+	struct gpio_led leds[TXX9_IOCLED_MAXLEDS];
+	char names[TXX9_IOCLED_MAXLEDS][32];
+};
+
+static int txx9_iocled_get(struct gpio_chip *chip, unsigned int offset)
+{
+	struct txx9_iocled_data *data =
+		container_of(chip, struct txx9_iocled_data, chip);
+	return data->cur_val & (1 << offset);
+}
+
+static void txx9_iocled_set(struct gpio_chip *chip, unsigned int offset,
+			    int value)
+{
+	struct txx9_iocled_data *data =
+		container_of(chip, struct txx9_iocled_data, chip);
+	unsigned long flags;
+	spin_lock_irqsave(&txx9_iocled_lock, flags);
+	if (value)
+		data->cur_val |= 1 << offset;
+	else
+		data->cur_val &= ~(1 << offset);
+	writeb(data->cur_val, data->mmioaddr);
+	mmiowb();
+	spin_unlock_irqrestore(&txx9_iocled_lock, flags);
+}
+
+static int txx9_iocled_dir_in(struct gpio_chip *chip, unsigned int offset)
+{
+	return 0;
+}
+
+static int txx9_iocled_dir_out(struct gpio_chip *chip, unsigned int offset,
+			       int value)
+{
+	txx9_iocled_set(chip, offset, value);
+	return 0;
+}
+
+void __init txx9_iocled_init(unsigned long baseaddr,
+			     int basenum, unsigned int num, int lowactive,
+			     const char *color, char **deftriggers)
+{
+	struct txx9_iocled_data *iocled;
+	struct platform_device *pdev;
+	int i;
+	static char *default_triggers[] __initdata = {
+		"heartbeat",
+		"ide-disk",
+		"nand-disk",
+		NULL,
+	};
+
+	if (!deftriggers)
+		deftriggers = default_triggers;
+	iocled = kzalloc(sizeof(*iocled), GFP_KERNEL);
+	if (!iocled)
+		return;
+	iocled->mmioaddr = ioremap(baseaddr, 1);
+	if (!iocled->mmioaddr)
+		return;
+	iocled->chip.get = txx9_iocled_get;
+	iocled->chip.set = txx9_iocled_set;
+	iocled->chip.direction_input = txx9_iocled_dir_in;
+	iocled->chip.direction_output = txx9_iocled_dir_out;
+	iocled->chip.label = "iocled";
+	iocled->chip.base = basenum;
+	iocled->chip.ngpio = num;
+	if (gpiochip_add(&iocled->chip))
+		return;
+	if (basenum < 0)
+		basenum = iocled->chip.base;
+
+	pdev = platform_device_alloc("leds-gpio", basenum);
+	if (!pdev)
+		return;
+	iocled->pdata.num_leds = num;
+	iocled->pdata.leds = iocled->leds;
+	for (i = 0; i < num; i++) {
+		struct gpio_led *led = &iocled->leds[i];
+		snprintf(iocled->names[i], sizeof(iocled->names[i]),
+			 "iocled:%s:%u", color, i);
+		led->name = iocled->names[i];
+		led->gpio = basenum + i;
+		led->active_low = lowactive;
+		if (deftriggers && *deftriggers)
+			led->default_trigger = *deftriggers++;
+	}
+	pdev->dev.platform_data = &iocled->pdata;
+	if (platform_device_add(pdev))
+		platform_device_put(pdev);
+}
+#else /* CONFIG_LEDS_GPIO */
+void __init txx9_iocled_init(unsigned long baseaddr,
+			     int basenum, unsigned int num, int lowactive,
+			     const char *color, char **deftriggers)
+{
+}
+#endif /* CONFIG_LEDS_GPIO */
