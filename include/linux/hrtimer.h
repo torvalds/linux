@@ -111,7 +111,7 @@ enum hrtimer_cb_mode {
  */
 struct hrtimer {
 	struct rb_node			node;
-	ktime_t				expires;
+	ktime_t				_expires;
 	enum hrtimer_restart		(*function)(struct hrtimer *);
 	struct hrtimer_clock_base	*base;
 	unsigned long			state;
@@ -219,41 +219,41 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 
 static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
 {
-	timer->expires = time;
+	timer->_expires = time;
 }
 static inline void hrtimer_set_expires_tv64(struct hrtimer *timer, s64 tv64)
 {
-	timer->expires.tv64 = tv64;
+	timer->_expires.tv64 = tv64;
 }
 
 static inline void hrtimer_add_expires(struct hrtimer *timer, ktime_t time)
 {
-	timer->expires = ktime_add_safe(timer->expires, time);
+	timer->_expires = ktime_add_safe(timer->_expires, time);
 }
 
 static inline void hrtimer_add_expires_ns(struct hrtimer *timer, unsigned long ns)
 {
-	timer->expires = ktime_add_ns(timer->expires, ns);
+	timer->_expires = ktime_add_ns(timer->_expires, ns);
 }
 
 static inline ktime_t hrtimer_get_expires(const struct hrtimer *timer)
 {
-	return timer->expires;
+	return timer->_expires;
 }
 
 static inline s64 hrtimer_get_expires_tv64(const struct hrtimer *timer)
 {
-	return timer->expires.tv64;
+	return timer->_expires.tv64;
 }
 
 static inline s64 hrtimer_get_expires_ns(const struct hrtimer *timer)
 {
-	return ktime_to_ns(timer->expires);
+	return ktime_to_ns(timer->_expires);
 }
 
 static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
 {
-    return ktime_sub(timer->expires, timer->base->get_time());
+    return ktime_sub(timer->_expires, timer->base->get_time());
 }
 
 /*
@@ -334,7 +334,7 @@ static inline int hrtimer_start_expires(struct hrtimer *timer,
 
 static inline int hrtimer_restart(struct hrtimer *timer)
 {
-	return hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
+	return hrtimer_start(timer, timer->_expires, HRTIMER_MODE_ABS);
 }
 
 /* Query timers: */
