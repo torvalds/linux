@@ -514,7 +514,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_selftest_state *state = efx->loopback_selftest;
 	struct efx_channel *channel;
-	int i, rc = 0;
+	int i, tx_rc, rx_rc;
 
 	for (i = 0; i < loopback_test_level; i++) {
 		/* Determine how many packets to send */
@@ -531,7 +531,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 			state->packet_count);
 
 		efx_iterate_state(efx);
-		rc = efx_tx_loopback(tx_queue);
+		tx_rc = efx_tx_loopback(tx_queue);
 		
 		/* NAPI polling is not enabled, so process channels synchronously */
 		schedule_timeout_uninterruptible(HZ / 50);
@@ -540,14 +540,14 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 				efx_process_channel_now(channel);
 		}
 
-		rc |= efx_rx_loopback(tx_queue, lb_tests);
+		rx_rc = efx_rx_loopback(tx_queue, lb_tests);
 		kfree(state->skbs);
 
-		if (rc) {
+		if (tx_rc || rx_rc) {
 			/* Wait a while to ensure there are no packets
 			 * floating around after a failure. */
 			schedule_timeout_uninterruptible(HZ / 10);
-			return rc;
+			return tx_rc ? tx_rc : rx_rc;
 		}
 	}
 
@@ -555,7 +555,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 		"of %d packets\n", tx_queue->queue, LOOPBACK_MODE(efx),
 		state->packet_count);
 
-	return rc;
+	return 0;
 }
 
 static int efx_test_loopbacks(struct efx_nic *efx,
