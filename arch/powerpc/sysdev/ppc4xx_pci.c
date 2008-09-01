@@ -30,13 +30,11 @@
 #include <asm/machdep.h>
 #include <asm/dcr.h>
 #include <asm/dcr-regs.h>
+#include <mm/mmu_decl.h>
 
 #include "ppc4xx_pci.h"
 
 static int dma_offset_set;
-
-/* Move that to a useable header */
-extern unsigned long total_memory;
 
 #define U64_TO_U32_LOW(val)	((u32)((val) & 0x00000000ffffffffULL))
 #define U64_TO_U32_HIGH(val)	((u32)((val) >> 32))
@@ -105,7 +103,8 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 
 	/* Default */
 	res->start = 0;
-	res->end = size = 0x80000000;
+	size = 0x80000000;
+	res->end = size - 1;
 	res->flags = IORESOURCE_MEM | IORESOURCE_PREFETCH;
 
 	/* Get dma-ranges property */
@@ -167,13 +166,13 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 	 */
 	if (size < total_memory) {
 		printk(KERN_ERR "%s: dma-ranges too small "
-		       "(size=%llx total_memory=%lx)\n",
-		       hose->dn->full_name, size, total_memory);
+		       "(size=%llx total_memory=%llx)\n",
+		       hose->dn->full_name, size, (u64)total_memory);
 		return -ENXIO;
 	}
 
 	/* Check we are a power of 2 size and that base is a multiple of size*/
-	if (!is_power_of_2(size) ||
+	if ((size & (size - 1)) != 0  ||
 	    (res->start & (size - 1)) != 0) {
 		printk(KERN_ERR "%s: dma-ranges unaligned\n",
 		       hose->dn->full_name);
