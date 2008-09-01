@@ -474,9 +474,9 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 			      TX_NON_IP_DROP_DIS_B0, 1);
 
 	if (falcon_rev(efx) >= FALCON_REV_B0) {
-		int csum = !(efx->net_dev->features & NETIF_F_IP_CSUM);
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_IP_CHKSM_DIS_B0, csum);
-		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_TCP_CHKSM_DIS_B0, csum);
+		int csum = tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM;
+		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_IP_CHKSM_DIS_B0, !csum);
+		EFX_SET_OWORD_FIELD(tx_desc_ptr, TX_TCP_CHKSM_DIS_B0, !csum);
 	}
 
 	falcon_write_table(efx, &tx_desc_ptr, efx->type->txd_ptr_tbl_base,
@@ -485,10 +485,11 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 	if (falcon_rev(efx) < FALCON_REV_B0) {
 		efx_oword_t reg;
 
-		BUG_ON(tx_queue->queue >= 128); /* HW limit */
+		/* Only 128 bits in this register */
+		BUILD_BUG_ON(EFX_TX_QUEUE_COUNT >= 128);
 
 		falcon_read(efx, &reg, TX_CHKSM_CFG_REG_KER_A1);
-		if (efx->net_dev->features & NETIF_F_IP_CSUM)
+		if (tx_queue->queue == EFX_TX_QUEUE_OFFLOAD_CSUM)
 			clear_bit_le(tx_queue->queue, (void *)&reg);
 		else
 			set_bit_le(tx_queue->queue, (void *)&reg);

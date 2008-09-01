@@ -368,7 +368,14 @@ inline int efx_xmit(struct efx_nic *efx,
 int efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	return efx_xmit(efx, &efx->tx_queue[0], skb);
+	struct efx_tx_queue *tx_queue;
+
+	if (likely(skb->ip_summed == CHECKSUM_PARTIAL))
+		tx_queue = &efx->tx_queue[EFX_TX_QUEUE_OFFLOAD_CSUM];
+	else
+		tx_queue = &efx->tx_queue[EFX_TX_QUEUE_NO_CSUM];
+
+	return efx_xmit(efx, tx_queue, skb);
 }
 
 void efx_xmit_done(struct efx_tx_queue *tx_queue, unsigned int index)
@@ -412,26 +419,21 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	/* Allocate software ring */
 	txq_size = (efx->type->txd_ring_mask + 1) * sizeof(*tx_queue->buffer);
 	tx_queue->buffer = kzalloc(txq_size, GFP_KERNEL);
-	if (!tx_queue->buffer) {
-		rc = -ENOMEM;
-		goto fail1;
-	}
+	if (!tx_queue->buffer)
+		return -ENOMEM;
 	for (i = 0; i <= efx->type->txd_ring_mask; ++i)
 		tx_queue->buffer[i].continuation = 1;
 
 	/* Allocate hardware ring */
 	rc = falcon_probe_tx(tx_queue);
 	if (rc)
-		goto fail2;
+		goto fail;
 
 	return 0;
 
- fail2:
+ fail:
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
- fail1:
-	tx_queue->used = 0;
-
 	return rc;
 }
 
@@ -494,7 +496,6 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 
 	kfree(tx_queue->buffer);
 	tx_queue->buffer = NULL;
-	tx_queue->used = 0;
 }
 
 

@@ -923,22 +923,13 @@ static void efx_select_used(struct efx_nic *efx)
 	struct efx_rx_queue *rx_queue;
 	int i;
 
-	/* TX queues.  One per port per channel with TX capability
-	 * (more than one per port won't work on Linux, due to out
-	 *  of order issues... but will be fine on Solaris)
-	 */
-	tx_queue = &efx->tx_queue[0];
-
-	/* Perform this for each channel with TX capabilities.
-	 * At the moment, we only support a single TX queue
-	 */
-	tx_queue->used = 1;
-	if ((!EFX_INT_MODE_USE_MSI(efx)) && separate_tx_and_rx_channels)
-		tx_queue->channel = &efx->channel[1];
-	else
-		tx_queue->channel = &efx->channel[0];
-	tx_queue->channel->used_flags |= EFX_USED_BY_TX;
-	tx_queue++;
+	efx_for_each_tx_queue(tx_queue, efx) {
+		if (!EFX_INT_MODE_USE_MSI(efx) && separate_tx_and_rx_channels)
+			tx_queue->channel = &efx->channel[1];
+		else
+			tx_queue->channel = &efx->channel[0];
+		tx_queue->channel->used_flags |= EFX_USED_BY_TX;
+	}
 
 	/* RX queues.  Each has a dedicated channel. */
 	for (i = 0; i < EFX_MAX_RX_QUEUES; i++) {
@@ -1881,7 +1872,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 		channel->evqnum = i;
 		channel->work_pending = 0;
 	}
-	for (i = 0; i < EFX_MAX_TX_QUEUES; i++) {
+	for (i = 0; i < EFX_TX_QUEUE_COUNT; i++) {
 		tx_queue = &efx->tx_queue[i];
 		tx_queue->efx = efx;
 		tx_queue->queue = i;

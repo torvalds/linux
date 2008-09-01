@@ -63,6 +63,10 @@ struct efx_selftest_state {
 	int flush;
 	int packet_count;
 	struct sk_buff **skbs;
+
+	/* Checksums are being offloaded */
+	int offload_csum;
+
 	atomic_t rx_good;
 	atomic_t rx_bad;
 	struct efx_loopback_payload payload;
@@ -292,8 +296,9 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 	
 	received = (struct efx_loopback_payload *) buf_ptr;
 	received->ip.saddr = payload->ip.saddr;
-	received->ip.check = payload->ip.check;
-	
+	if (state->offload_csum)
+		received->ip.check = payload->ip.check;
+
 	/* Check that header exists */
 	if (pkt_len < sizeof(received->header)) {
 		EFX_ERR(efx, "saw runt RX packet (length %d) in %s loopback "
@@ -634,6 +639,8 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 
 		/* Test every TX queue */
 		efx_for_each_tx_queue(tx_queue, efx) {
+			state->offload_csum = (tx_queue->queue ==
+					       EFX_TX_QUEUE_OFFLOAD_CSUM);
 			rc |= efx_test_loopback(tx_queue,
 						&tests->loopback[mode]);
 			if (rc)

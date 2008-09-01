@@ -88,8 +88,11 @@ do {if (net_ratelimit()) EFX_LOG(efx, fmt, ##args); } while (0)
  **************************************************************************/
 
 #define EFX_MAX_CHANNELS 32
-#define EFX_MAX_TX_QUEUES 1
 #define EFX_MAX_RX_QUEUES EFX_MAX_CHANNELS
+
+#define EFX_TX_QUEUE_OFFLOAD_CSUM	0
+#define EFX_TX_QUEUE_NO_CSUM		1
+#define EFX_TX_QUEUE_COUNT		2
 
 /**
  * struct efx_special_buffer - An Efx special buffer
@@ -156,7 +159,6 @@ struct efx_tx_buffer {
  *
  * @efx: The associated Efx NIC
  * @queue: DMA queue number
- * @used: Queue is used by net driver
  * @channel: The associated channel
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
@@ -188,7 +190,6 @@ struct efx_tx_queue {
 	/* Members which don't change on the fast path */
 	struct efx_nic *efx ____cacheline_aligned_in_smp;
 	int queue;
-	int used;
 	struct efx_channel *channel;
 	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
@@ -699,7 +700,7 @@ struct efx_nic {
 	enum nic_state state;
 	enum reset_type reset_pending;
 
-	struct efx_tx_queue tx_queue[EFX_MAX_TX_QUEUES];
+	struct efx_tx_queue tx_queue[EFX_TX_QUEUE_COUNT];
 	struct efx_rx_queue rx_queue[EFX_MAX_RX_QUEUES];
 	struct efx_channel channel[EFX_MAX_CHANNELS];
 
@@ -840,19 +841,15 @@ struct efx_nic_type {
 /* Iterate over all used TX queues */
 #define efx_for_each_tx_queue(_tx_queue, _efx)				\
 	for (_tx_queue = &_efx->tx_queue[0];				\
-	     _tx_queue < &_efx->tx_queue[EFX_MAX_TX_QUEUES];		\
-	     _tx_queue++)						\
-		if (!_tx_queue->used)					\
-			continue;					\
-		else
+	     _tx_queue < &_efx->tx_queue[EFX_TX_QUEUE_COUNT];		\
+	     _tx_queue++)
 
 /* Iterate over all TX queues belonging to a channel */
 #define efx_for_each_channel_tx_queue(_tx_queue, _channel)		\
 	for (_tx_queue = &_channel->efx->tx_queue[0];			\
-	     _tx_queue < &_channel->efx->tx_queue[EFX_MAX_TX_QUEUES];	\
+	     _tx_queue < &_channel->efx->tx_queue[EFX_TX_QUEUE_COUNT];	\
 	     _tx_queue++)						\
-		if ((!_tx_queue->used) ||				\
-		    (_tx_queue->channel != _channel))			\
+		if (_tx_queue->channel != _channel)			\
 			continue;					\
 		else
 
