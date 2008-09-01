@@ -588,9 +588,15 @@ static int i915_quiescent(struct drm_device * dev)
 static int i915_flush_ioctl(struct drm_device *dev, void *data,
 			    struct drm_file *file_priv)
 {
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
+	int ret;
 
-	return i915_quiescent(dev);
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
+
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_quiescent(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
 }
 
 static int i915_batchbuffer(struct drm_device *dev, void *data,
@@ -611,14 +617,16 @@ static int i915_batchbuffer(struct drm_device *dev, void *data,
 	DRM_DEBUG("i915 batchbuffer, start %x used %d cliprects %d\n",
 		  batch->start, batch->used, batch->num_cliprects);
 
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (batch->num_cliprects && DRM_VERIFYAREA_READ(batch->cliprects,
 						       batch->num_cliprects *
 						       sizeof(struct drm_clip_rect)))
 		return -EFAULT;
 
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_dispatch_batchbuffer(dev, batch);
+	mutex_unlock(&dev->struct_mutex);
 
 	sarea_priv->last_dispatch = (int)hw_status[5];
 	return ret;
@@ -637,7 +645,7 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 	DRM_DEBUG("i915 cmdbuffer, buf %p sz %d cliprects %d\n",
 		  cmdbuf->buf, cmdbuf->sz, cmdbuf->num_cliprects);
 
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (cmdbuf->num_cliprects &&
 	    DRM_VERIFYAREA_READ(cmdbuf->cliprects,
@@ -647,7 +655,9 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 		return -EFAULT;
 	}
 
+	mutex_lock(&dev->struct_mutex);
 	ret = i915_dispatch_cmdbuffer(dev, cmdbuf);
+	mutex_unlock(&dev->struct_mutex);
 	if (ret) {
 		DRM_ERROR("i915_dispatch_cmdbuffer failed\n");
 		return ret;
@@ -660,11 +670,17 @@ static int i915_cmdbuffer(struct drm_device *dev, void *data,
 static int i915_flip_bufs(struct drm_device *dev, void *data,
 			  struct drm_file *file_priv)
 {
+	int ret;
+
 	DRM_DEBUG("%s\n", __func__);
 
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
-	return i915_dispatch_flip(dev);
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_dispatch_flip(dev);
+	mutex_unlock(&dev->struct_mutex);
+
+	return ret;
 }
 
 static int i915_getparam(struct drm_device *dev, void *data,

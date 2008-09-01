@@ -349,6 +349,21 @@ u32 i915_get_vblank_counter(struct drm_device *dev, int plane)
 	return count;
 }
 
+void
+i915_gem_vblank_work_handler(struct work_struct *work)
+{
+	drm_i915_private_t *dev_priv;
+	struct drm_device *dev;
+
+	dev_priv = container_of(work, drm_i915_private_t,
+				mm.vblank_work);
+	dev = dev_priv->dev;
+
+	mutex_lock(&dev->struct_mutex);
+	i915_vblank_tasklet(dev);
+	mutex_unlock(&dev->struct_mutex);
+}
+
 irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 {
 	struct drm_device *dev = (struct drm_device *) arg;
@@ -422,8 +437,12 @@ irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS)
 	if (iir & I915_ASLE_INTERRUPT)
 		opregion_asle_intr(dev);
 
-	if (vblank && dev_priv->swaps_pending > 0)
-		drm_locked_tasklet(dev, i915_vblank_tasklet);
+	if (vblank && dev_priv->swaps_pending > 0) {
+		if (dev_priv->ring.ring_obj == NULL)
+			drm_locked_tasklet(dev, i915_vblank_tasklet);
+		else
+			schedule_work(&dev_priv->mm.vblank_work);
+	}
 
 	return IRQ_HANDLED;
 }
@@ -514,14 +533,15 @@ int i915_irq_emit(struct drm_device *dev, void *data,
 	drm_i915_irq_emit_t *emit = data;
 	int result;
 
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
+	RING_LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
-
+	mutex_lock(&dev->struct_mutex);
 	result = i915_emit_irq(dev);
+	mutex_unlock(&dev->struct_mutex);
 
 	if (DRM_COPY_TO_USER(emit->irq_seq, &result, sizeof(int))) {
 		DRM_ERROR("copy_to_user\n");

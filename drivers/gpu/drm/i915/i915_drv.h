@@ -285,6 +285,9 @@ typedef struct drm_i915_private {
 		 */
 		struct delayed_work retire_work;
 
+		/** Work task for vblank-related ring access */
+		struct work_struct vblank_work;
+
 		uint32_t next_gem_seqno;
 
 		/**
@@ -435,6 +438,7 @@ extern int i915_irq_wait(struct drm_device *dev, void *data,
 void i915_user_irq_get(struct drm_device *dev);
 void i915_user_irq_put(struct drm_device *dev);
 
+extern void i915_gem_vblank_work_handler(struct work_struct *work);
 extern irqreturn_t i915_driver_irq_handler(DRM_IRQ_ARGS);
 extern void i915_driver_irq_preinstall(struct drm_device * dev);
 extern int i915_driver_irq_postinstall(struct drm_device *dev);
@@ -537,6 +541,17 @@ extern int intel_opregion_init(struct drm_device *dev);
 extern void intel_opregion_free(struct drm_device *dev);
 extern void opregion_asle_intr(struct drm_device *dev);
 extern void opregion_enable_asle(struct drm_device *dev);
+
+/**
+ * Lock test for when it's just for synchronization of ring access.
+ *
+ * In that case, we don't need to do it when GEM is initialized as nobody else
+ * has access to the ring.
+ */
+#define RING_LOCK_TEST_WITH_RETURN(dev, file_priv) do {			\
+	if (((drm_i915_private_t *)dev->dev_private)->ring.ring_obj == NULL) \
+		LOCK_TEST_WITH_RETURN(dev, file_priv);			\
+} while (0)
 
 #define I915_READ(reg)          DRM_READ32(dev_priv->mmio_map, (reg))
 #define I915_WRITE(reg,val)     DRM_WRITE32(dev_priv->mmio_map, (reg), (val))
