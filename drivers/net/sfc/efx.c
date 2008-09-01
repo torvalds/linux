@@ -560,6 +560,12 @@ void __efx_reconfigure_port(struct efx_nic *efx)
 	EFX_LOG(efx, "reconfiguring MAC from PHY settings on CPU %d\n",
 		raw_smp_processor_id());
 
+	/* Serialise the promiscuous flag with efx_set_multicast_list. */
+	if (efx_dev_registered(efx)) {
+		netif_addr_lock_bh(efx->net_dev);
+		netif_addr_unlock_bh(efx->net_dev);
+	}
+
 	falcon_reconfigure_xmac(efx);
 
 	/* Inform kernel of loss/gain of carrier */
@@ -1410,26 +1416,19 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 	return 0;
 }
 
-/* Context: netif_tx_lock held, BHs disabled. */
+/* Context: netif_addr_lock held, BHs disabled. */
 static void efx_set_multicast_list(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct dev_mc_list *mc_list = net_dev->mc_list;
 	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
-	bool promiscuous;
+	bool promiscuous = !!(net_dev->flags & IFF_PROMISC);
+	bool changed = (efx->promiscuous != promiscuous);
 	u32 crc;
 	int bit;
 	int i;
 
-	/* Set per-MAC promiscuity flag and reconfigure MAC if necessary */
-	promiscuous = !!(net_dev->flags & IFF_PROMISC);
-	if (efx->promiscuous != promiscuous) {
-		efx->promiscuous = promiscuous;
-		/* Close the window between efx_stop_port() and efx_flush_all()
-		 * by only queuing work when the port is enabled. */
-		if (efx->port_enabled)
-			queue_work(efx->workqueue, &efx->reconfigure_work);
-	}
+	efx->promiscuous = promiscuous;
 
 	/* Build multicast hash table */
 	if (promiscuous || (net_dev->flags & IFF_ALLMULTI)) {
@@ -1443,6 +1442,13 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 			mc_list = mc_list->next;
 		}
 	}
+
+	if (!efx->port_enabled)
+		/* Delay pushing settings until efx_start_port() */
+		return;
+
+	if (changed)
+		queue_work(efx->workqueue, &efx->reconfigure_work);
 
 	/* Create and activate new global multicast hash table */
 	falcon_set_multicast_hash(efx);
