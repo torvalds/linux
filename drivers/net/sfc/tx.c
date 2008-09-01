@@ -47,7 +47,7 @@ void efx_stop_queue(struct efx_nic *efx)
  * We want to be able to nest calls to netif_stop_queue(), since each
  * channel can have an individual stop on the queue.
  */
-inline void efx_wake_queue(struct efx_nic *efx)
+void efx_wake_queue(struct efx_nic *efx)
 {
 	local_bh_disable();
 	if (atomic_dec_and_lock(&efx->netif_stop_count,
@@ -59,8 +59,8 @@ inline void efx_wake_queue(struct efx_nic *efx)
 	local_bh_enable();
 }
 
-static inline void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
-				      struct efx_tx_buffer *buffer)
+static void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
+			       struct efx_tx_buffer *buffer)
 {
 	if (buffer->unmap_len) {
 		struct pci_dev *pci_dev = tx_queue->efx->pci_dev;
@@ -110,8 +110,8 @@ static void efx_fini_tso(struct efx_tx_queue *tx_queue);
 static void efx_tsoh_heap_free(struct efx_tx_queue *tx_queue,
 			       struct efx_tso_header *tsoh);
 
-static inline void efx_tsoh_free(struct efx_tx_queue *tx_queue,
-				 struct efx_tx_buffer *buffer)
+static void efx_tsoh_free(struct efx_tx_queue *tx_queue,
+			  struct efx_tx_buffer *buffer)
 {
 	if (buffer->tsoh) {
 		if (likely(!buffer->tsoh->unmap_len)) {
@@ -138,8 +138,8 @@ static inline void efx_tsoh_free(struct efx_tx_queue *tx_queue,
  * Returns NETDEV_TX_OK or NETDEV_TX_BUSY
  * You must hold netif_tx_lock() to call this function.
  */
-static inline int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
-				  const struct sk_buff *skb)
+static int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
+			   const struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct pci_dev *pci_dev = efx->pci_dev;
@@ -305,8 +305,8 @@ static inline int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
  * This removes packets from the TX queue, up to and including the
  * specified index.
  */
-static inline void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
-				       unsigned int index)
+static void efx_dequeue_buffers(struct efx_tx_queue *tx_queue,
+				unsigned int index)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	unsigned int stop_index, read_ptr;
@@ -578,7 +578,7 @@ struct tso_state {
  * Verify that our various assumptions about sk_buffs and the conditions
  * under which TSO will be attempted hold true.
  */
-static inline void efx_tso_check_safe(const struct sk_buff *skb)
+static void efx_tso_check_safe(const struct sk_buff *skb)
 {
 	EFX_BUG_ON_PARANOID(skb->protocol != htons(ETH_P_IP));
 	EFX_BUG_ON_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
@@ -772,8 +772,8 @@ static int efx_tx_queue_insert(struct efx_tx_queue *tx_queue,
  * a single fragment, and we know it doesn't cross a page boundary.  It
  * also allows us to not worry about end-of-packet etc.
  */
-static inline void efx_tso_put_header(struct efx_tx_queue *tx_queue,
-				      struct efx_tso_header *tsoh, unsigned len)
+static void efx_tso_put_header(struct efx_tx_queue *tx_queue,
+			       struct efx_tso_header *tsoh, unsigned len)
 {
 	struct efx_tx_buffer *buffer;
 
@@ -826,7 +826,7 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 
 
 /* Parse the SKB header and initialise state. */
-static inline void tso_start(struct tso_state *st, const struct sk_buff *skb)
+static void tso_start(struct tso_state *st, const struct sk_buff *skb)
 {
 	/* All ethernet/IP/TCP headers combined size is TCP header size
 	 * plus offset of TCP header relative to start of packet.
@@ -848,8 +848,8 @@ static inline void tso_start(struct tso_state *st, const struct sk_buff *skb)
 	st->unmap_single = false;
 }
 
-static inline int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
-				   skb_frag_t *frag)
+static int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
+			    skb_frag_t *frag)
 {
 	st->unmap_addr = pci_map_page(efx->pci_dev, frag->page,
 				      frag->page_offset, frag->size,
@@ -864,9 +864,8 @@ static inline int tso_get_fragment(struct tso_state *st, struct efx_nic *efx,
 	return -ENOMEM;
 }
 
-static inline int
-tso_get_head_fragment(struct tso_state *st, struct efx_nic *efx,
-		      const struct sk_buff *skb)
+static int tso_get_head_fragment(struct tso_state *st, struct efx_nic *efx,
+				 const struct sk_buff *skb)
 {
 	int hl = st->header_len;
 	int len = skb_headlen(skb) - hl;
@@ -894,9 +893,9 @@ tso_get_head_fragment(struct tso_state *st, struct efx_nic *efx,
  * of fragment or end-of-packet.  Return 0 on success, 1 if not enough
  * space in @tx_queue.
  */
-static inline int tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
-						const struct sk_buff *skb,
-						struct tso_state *st)
+static int tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
+					 const struct sk_buff *skb,
+					 struct tso_state *st)
 {
 	struct efx_tx_buffer *buffer;
 	int n, end_of_packet, rc;
@@ -946,9 +945,9 @@ static inline int tso_fill_packet_with_fragment(struct efx_tx_queue *tx_queue,
  * Generate a new header and prepare for the new packet.  Return 0 on
  * success, or -1 if failed to alloc header.
  */
-static inline int tso_start_new_packet(struct efx_tx_queue *tx_queue,
-				       const struct sk_buff *skb,
-				       struct tso_state *st)
+static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
+				const struct sk_buff *skb,
+				struct tso_state *st)
 {
 	struct efx_tso_header *tsoh;
 	struct iphdr *tsoh_iph;

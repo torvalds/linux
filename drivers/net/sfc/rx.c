@@ -212,8 +212,8 @@ void efx_lro_fini(struct net_lro_mgr *lro_mgr)
  * and populates a struct efx_rx_buffer with the relevant
  * information.  Return a negative error code or 0 on success.
  */
-static inline int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
-					 struct efx_rx_buffer *rx_buf)
+static int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
+				  struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct net_device *net_dev = efx->net_dev;
@@ -252,8 +252,8 @@ static inline int efx_init_rx_buffer_skb(struct efx_rx_queue *rx_queue,
  * and populates a struct efx_rx_buffer with the relevant
  * information.  Return a negative error code or 0 on success.
  */
-static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
-					  struct efx_rx_buffer *rx_buf)
+static int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
+				   struct efx_rx_buffer *rx_buf)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	int bytes, space, offset;
@@ -319,8 +319,8 @@ static inline int efx_init_rx_buffer_page(struct efx_rx_queue *rx_queue,
  * and populates a struct efx_rx_buffer with the relevant
  * information.
  */
-static inline int efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
-				     struct efx_rx_buffer *new_rx_buf)
+static int efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
+			      struct efx_rx_buffer *new_rx_buf)
 {
 	int rc = 0;
 
@@ -340,8 +340,8 @@ static inline int efx_init_rx_buffer(struct efx_rx_queue *rx_queue,
 	return rc;
 }
 
-static inline void efx_unmap_rx_buffer(struct efx_nic *efx,
-				       struct efx_rx_buffer *rx_buf)
+static void efx_unmap_rx_buffer(struct efx_nic *efx,
+				struct efx_rx_buffer *rx_buf)
 {
 	if (rx_buf->page) {
 		EFX_BUG_ON_PARANOID(rx_buf->skb);
@@ -357,8 +357,8 @@ static inline void efx_unmap_rx_buffer(struct efx_nic *efx,
 	}
 }
 
-static inline void efx_free_rx_buffer(struct efx_nic *efx,
-				      struct efx_rx_buffer *rx_buf)
+static void efx_free_rx_buffer(struct efx_nic *efx,
+			       struct efx_rx_buffer *rx_buf)
 {
 	if (rx_buf->page) {
 		__free_pages(rx_buf->page, efx->rx_buffer_order);
@@ -369,8 +369,8 @@ static inline void efx_free_rx_buffer(struct efx_nic *efx,
 	}
 }
 
-static inline void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
-				      struct efx_rx_buffer *rx_buf)
+static void efx_fini_rx_buffer(struct efx_rx_queue *rx_queue,
+			       struct efx_rx_buffer *rx_buf)
 {
 	efx_unmap_rx_buffer(rx_queue->efx, rx_buf);
 	efx_free_rx_buffer(rx_queue->efx, rx_buf);
@@ -506,10 +506,10 @@ void efx_rx_work(struct work_struct *data)
 		efx_schedule_slow_fill(rx_queue, 1);
 }
 
-static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
-					    struct efx_rx_buffer *rx_buf,
-					    int len, bool *discard,
-					    bool *leak_packet)
+static void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
+				     struct efx_rx_buffer *rx_buf,
+				     int len, bool *discard,
+				     bool *leak_packet)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned max_len = rx_buf->len - efx->type->rx_buffer_padding;
@@ -546,8 +546,8 @@ static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
  * Handles driverlink veto, and passes the fragment up via
  * the appropriate LRO method
  */
-static inline void efx_rx_packet_lro(struct efx_channel *channel,
-				     struct efx_rx_buffer *rx_buf)
+static void efx_rx_packet_lro(struct efx_channel *channel,
+			      struct efx_rx_buffer *rx_buf)
 {
 	struct net_lro_mgr *lro_mgr = &channel->lro_mgr;
 	void *priv = channel;
@@ -574,9 +574,9 @@ static inline void efx_rx_packet_lro(struct efx_channel *channel,
 }
 
 /* Allocate and construct an SKB around a struct page.*/
-static inline struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
-					    struct efx_nic *efx,
-					    int hdr_len)
+static struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
+				     struct efx_nic *efx,
+				     int hdr_len)
 {
 	struct sk_buff *skb;
 

@@ -815,8 +815,8 @@ void falcon_generate_event(struct efx_channel *channel, efx_qword_t *event)
  * Falcon batches TX completion events; the message we receive is of
  * the form "complete all TX events up to this index".
  */
-static inline void falcon_handle_tx_event(struct efx_channel *channel,
-					  efx_qword_t *event)
+static void falcon_handle_tx_event(struct efx_channel *channel,
+				   efx_qword_t *event)
 {
 	unsigned int tx_ev_desc_ptr;
 	unsigned int tx_ev_q_label;
@@ -952,8 +952,8 @@ static void falcon_handle_rx_bad_index(struct efx_rx_queue *rx_queue,
  * Also "is multicast" and "matches multicast filter" flags can be used to
  * discard non-matching multicast packets.
  */
-static inline int falcon_handle_rx_event(struct efx_channel *channel,
-					 const efx_qword_t *event)
+static int falcon_handle_rx_event(struct efx_channel *channel,
+				  const efx_qword_t *event)
 {
 	unsigned int rx_ev_q_label, rx_ev_desc_ptr, rx_ev_byte_cnt;
 	unsigned int rx_ev_hdr_type, rx_ev_mcast_pkt;

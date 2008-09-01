@@ -158,7 +158,7 @@ static void efx_fini_channels(struct efx_nic *efx);
  * never be concurrently called more than once on the same channel,
  * though different channels may be being processed concurrently.
  */
-static inline int efx_process_channel(struct efx_channel *channel, int rx_quota)
+static int efx_process_channel(struct efx_channel *channel, int rx_quota)
 {
 	int rxdmaqs;
 	struct efx_rx_queue *rx_queue;
