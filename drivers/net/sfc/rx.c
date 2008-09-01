@@ -789,23 +789,14 @@ int efx_probe_rx_queue(struct efx_rx_queue *rx_queue)
 	/* Allocate RX buffers */
 	rxq_size = (efx->type->rxd_ring_mask + 1) * sizeof(*rx_queue->buffer);
 	rx_queue->buffer = kzalloc(rxq_size, GFP_KERNEL);
-	if (!rx_queue->buffer) {
-		rc = -ENOMEM;
-		goto fail1;
-	}
+	if (!rx_queue->buffer)
+		return -ENOMEM;
 
 	rc = falcon_probe_rx(rx_queue);
-	if (rc)
-		goto fail2;
-
-	return 0;
-
- fail2:
-	kfree(rx_queue->buffer);
-	rx_queue->buffer = NULL;
- fail1:
-	rx_queue->used = 0;
-
+	if (rc) {
+		kfree(rx_queue->buffer);
+		rx_queue->buffer = NULL;
+	}
 	return rc;
 }
 
@@ -872,7 +863,6 @@ void efx_remove_rx_queue(struct efx_rx_queue *rx_queue)
 
 	kfree(rx_queue->buffer);
 	rx_queue->buffer = NULL;
-	rx_queue->used = 0;
 }
 
 void efx_flush_lro(struct efx_channel *channel)

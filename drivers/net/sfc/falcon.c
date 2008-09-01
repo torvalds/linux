@@ -1535,7 +1535,7 @@ static void falcon_setup_rss_indir_table(struct efx_nic *efx)
 	     offset < RX_RSS_INDIR_TBL_B0 + 0x800;
 	     offset += 0x10) {
 		EFX_POPULATE_DWORD_1(dword, RX_RSS_INDIR_ENT_B0,
-				     i % efx->rss_queues);
+				     i % efx->n_rx_queues);
 		falcon_writel(efx, &dword, offset);
 		i++;
 	}
@@ -2785,7 +2785,7 @@ int falcon_init_nic(struct efx_nic *efx)
 	if (falcon_rev(efx) >= FALCON_REV_B0)
 		EFX_SET_OWORD_FIELD(temp, NUM_KER, 0);
 	else
-		EFX_SET_OWORD_FIELD(temp, NUM_KER, efx->rss_queues - 1);
+		EFX_SET_OWORD_FIELD(temp, NUM_KER, efx->n_rx_queues - 1);
 	if (EFX_WORKAROUND_7244(efx)) {
 		EFX_SET_OWORD_FIELD(temp, UDP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, UDP_WILD_SRCH_LIMIT, 8);

@@ -859,20 +859,20 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		 * We will need one channel per interrupt.
 		 */
 		wanted_ints = rss_cpus ? rss_cpus : efx_wanted_rx_queues();
-		efx->rss_queues = min(wanted_ints, max_channels);
+		efx->n_rx_queues = min(wanted_ints, max_channels);
 
-		for (i = 0; i < efx->rss_queues; i++)
+		for (i = 0; i < efx->n_rx_queues; i++)
 			xentries[i].entry = i;
-		rc = pci_enable_msix(efx->pci_dev, xentries, efx->rss_queues);
+		rc = pci_enable_msix(efx->pci_dev, xentries, efx->n_rx_queues);
 		if (rc > 0) {
-			EFX_BUG_ON_PARANOID(rc >= efx->rss_queues);
-			efx->rss_queues = rc;
+			EFX_BUG_ON_PARANOID(rc >= efx->n_rx_queues);
+			efx->n_rx_queues = rc;
 			rc = pci_enable_msix(efx->pci_dev, xentries,
-					     efx->rss_queues);
+					     efx->n_rx_queues);
 		}
 
 		if (rc == 0) {
-			for (i = 0; i < efx->rss_queues; i++)
+			for (i = 0; i < efx->n_rx_queues; i++)
 				efx->channel[i].irq = xentries[i].vector;
 		} else {
 			/* Fall back to single channel MSI */
@@ -883,7 +883,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 
 	/* Try single interrupt MSI */
 	if (efx->interrupt_mode == EFX_INT_MODE_MSI) {
-		efx->rss_queues = 1;
+		efx->n_rx_queues = 1;
 		rc = pci_enable_msi(efx->pci_dev);
 		if (rc == 0) {
 			efx->channel[0].irq = efx->pci_dev->irq;
@@ -895,7 +895,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 
 	/* Assume legacy interrupts */
 	if (efx->interrupt_mode == EFX_INT_MODE_LEGACY) {
-		efx->rss_queues = 1;
+		efx->n_rx_queues = 1;
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
 }
@@ -914,14 +914,10 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	efx->legacy_irq = 0;
 }
 
-/* Select number of used resources
- * Should be called after probe_interrupts()
- */
-static void efx_select_used(struct efx_nic *efx)
+static void efx_set_channels(struct efx_nic *efx)
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
-	int i;
 
 	efx_for_each_tx_queue(tx_queue, efx) {
 		if (!EFX_INT_MODE_USE_MSI(efx) && separate_tx_and_rx_channels)
@@ -931,19 +927,9 @@ static void efx_select_used(struct efx_nic *efx)
 		tx_queue->channel->used_flags |= EFX_USED_BY_TX;
 	}
 
-	/* RX queues.  Each has a dedicated channel. */
-	for (i = 0; i < EFX_MAX_RX_QUEUES; i++) {
-		rx_queue = &efx->rx_queue[i];
-
-		if (i < efx->rss_queues) {
-			rx_queue->used = true;
-			/* If we allow multiple RX queues per channel
-			 * we need to decide that here
-			 */
-			rx_queue->channel = &efx->channel[rx_queue->queue];
-			rx_queue->channel->used_flags |= EFX_USED_BY_RX;
-			rx_queue++;
-		}
+	efx_for_each_rx_queue(rx_queue, efx) {
+		rx_queue->channel = &efx->channel[rx_queue->queue];
+		rx_queue->channel->used_flags |= EFX_USED_BY_RX;
 	}
 }
 
@@ -962,8 +948,7 @@ static int efx_probe_nic(struct efx_nic *efx)
 	 * in MSI-X interrupts. */
 	efx_probe_interrupts(efx);
 
-	/* Determine number of RX queues and TX queues */
-	efx_select_used(efx);
+	efx_set_channels(efx);
 
 	/* Initialise the interrupt moderation settings */
 	efx_init_irq_moderation(efx, tx_irq_mod_usec, rx_irq_mod_usec);
