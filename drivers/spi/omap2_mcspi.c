@@ -119,12 +119,14 @@ struct omap2_mcspi {
 	struct clk		*fck;
 	/* Virtual base address of the controller */
 	void __iomem		*base;
+	unsigned long		phys;
 	/* SPI1 has 4 channels, while SPI2 has 2 */
 	struct omap2_mcspi_dma	*dma_channels;
 };
 
 struct omap2_mcspi_cs {
 	void __iomem		*base;
+	unsigned long		phys;
 	int			word_len;
 };
 
@@ -233,7 +235,7 @@ omap2_mcspi_txrx_dma(struct spi_device *spi, struct spi_transfer *xfer)
 	c = count;
 	word_len = cs->word_len;
 
-	base = (unsigned long) io_v2p(cs->base);
+	base = cs->phys;
 	tx_reg = base + OMAP2_MCSPI_TX0;
 	rx_reg = base + OMAP2_MCSPI_RX0;
 	rx = xfer->rx_buf;
@@ -633,6 +635,7 @@ static int omap2_mcspi_setup(struct spi_device *spi)
 		if (!cs)
 			return -ENOMEM;
 		cs->base = mcspi->base + spi->chip_select * 0x14;
+		cs->phys = mcspi->phys + spi->chip_select * 0x14;
 		spi->controller_state = cs;
 	}
 
@@ -1005,6 +1008,7 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 		goto err1;
 	}
 
+	mcspi->phys = r->start;
 	mcspi->base = (void __iomem *) io_p2v(r->start);
 
 	INIT_WORK(&mcspi->work, omap2_mcspi_work);
