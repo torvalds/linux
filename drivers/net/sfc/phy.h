@@ -23,7 +23,7 @@ enum tenxpress_state {
 
 extern void tenxpress_set_state(struct efx_nic *efx,
 				enum tenxpress_state state);
-extern void tenxpress_phy_blink(struct efx_nic *efx, int blink);
+extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
 extern void tenxpress_crc_err(struct efx_nic *efx);
 
 /****************************************************************************

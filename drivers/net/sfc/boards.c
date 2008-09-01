@@ -31,23 +31,23 @@ static void blink_led_timer(unsigned long context)
 		mod_timer(&bl->timer, jiffies + BLINK_INTERVAL);
 }
 
-static void board_blink(struct efx_nic *efx, int blink)
+static void board_blink(struct efx_nic *efx, bool blink)
 {
 	struct efx_blinker *blinker = &efx->board_info.blinker;
 
 	/* The rtnl mutex serialises all ethtool ioctls, so
 	 * nothing special needs doing here. */
 	if (blink) {
-		blinker->resubmit = 1;
-		blinker->state = 0;
+		blinker->resubmit = true;
+		blinker->state = false;
 		setup_timer(&blinker->timer, blink_led_timer,
 			    (unsigned long)efx);
 		mod_timer(&blinker->timer, jiffies + BLINK_INTERVAL);
 	} else {
-		blinker->resubmit = 0;
+		blinker->resubmit = false;
 		if (blinker->timer.function)
 			del_timer_sync(&blinker->timer);
-		efx->board_info.set_fault_led(efx, 0);
+		efx->board_info.set_fault_led(efx, false);
 	}
 }
 
@@ -78,7 +78,7 @@ static int sfe4002_init_leds(struct efx_nic *efx)
 	return 0;
 }
 
-static void sfe4002_fault_led(struct efx_nic *efx, int state)
+static void sfe4002_fault_led(struct efx_nic *efx, bool state)
 {
 	xfp_set_led(efx, SFE4002_FAULT_LED, state ? QUAKE_LED_ON :
 			QUAKE_LED_OFF);

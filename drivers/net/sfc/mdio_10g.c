@@ -159,20 +159,19 @@ int mdio_clause45_check_mmds(struct efx_nic *efx,
 	return 0;
 }
 
-int mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
+bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 {
 	int phy_id = efx->mii.phy_id;
 	int status;
-	int ok = 1;
+	bool ok = true;
 	int mmd = 0;
-	int good;
 
 	/* If the port is in loopback, then we should only consider a subset
 	 * of mmd's */
 	if (LOOPBACK_INTERNAL(efx))
-		return 1;
+		return true;
 	else if (efx->loopback_mode == LOOPBACK_NETWORK)
-		return 0;
+		return false;
 	else if (efx->loopback_mode == LOOPBACK_PHYXS)
 		mmd_mask &= ~(MDIO_MMDREG_DEVS0_PHYXS |
 			      MDIO_MMDREG_DEVS0_PCS |
@@ -192,8 +191,7 @@ int mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 			status = mdio_clause45_read(efx, phy_id,
 						    mmd, MDIO_MMDREG_STAT1);
 
-			good = status & (1 << MDIO_MMDREG_STAT1_LINK_LBN);
-			ok = ok && good;
+			ok = ok && (status & (1 << MDIO_MMDREG_STAT1_LINK_LBN));
 		}
 		mmd_mask = (mmd_mask >> 1);
 		mmd++;

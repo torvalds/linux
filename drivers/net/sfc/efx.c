@@ -51,7 +51,7 @@ static struct workqueue_struct *refill_workqueue;
  * This sets the default for new devices.  It can be controlled later
  * using ethtool.
  */
-static int lro = 1;
+static int lro = true;
 module_param(lro, int, 0644);
 MODULE_PARM_DESC(lro, "Large receive offload acceleration");
 
@@ -64,7 +64,7 @@ MODULE_PARM_DESC(lro, "Large receive offload acceleration");
  * This is forced to 0 for MSI interrupt mode as the interrupt vector
  * is not written
  */
-static unsigned int separate_tx_and_rx_channels = 1;
+static unsigned int separate_tx_and_rx_channels = true;
 
 /* This is the weight assigned to each of the (per-channel) virtual
  * NAPI devices.
@@ -80,7 +80,7 @@ unsigned int efx_monitor_interval = 1 * HZ;
 /* This controls whether or not the hardware monitor will trigger a
  * reset when it detects an error condition.
  */
-static unsigned int monitor_reset = 1;
+static unsigned int monitor_reset = true;
 
 /* This controls whether or not the driver will initialise devices
  * with invalid MAC addresses stored in the EEPROM or flash.  If true,
@@ -202,7 +202,7 @@ static inline void efx_channel_processed(struct efx_channel *channel)
 	/* The interrupt handler for this channel may set work_pending
 	 * as soon as we acknowledge the events we've seen.  Make sure
 	 * it's cleared before then. */
-	channel->work_pending = 0;
+	channel->work_pending = false;
 	smp_wmb();
 
 	falcon_eventq_read_ack(channel);
@@ -431,8 +431,8 @@ static void efx_start_channel(struct efx_channel *channel)
 	/* The interrupt handler for this channel may set work_pending
 	 * as soon as we enable it.  Make sure it's cleared before
 	 * then.  Similarly, make sure it sees the enabled flag set. */
-	channel->work_pending = 0;
-	channel->enabled = 1;
+	channel->work_pending = false;
+	channel->enabled = true;
 	smp_wmb();
 
 	napi_enable(&channel->napi_str);
@@ -455,7 +455,7 @@ static void efx_stop_channel(struct efx_channel *channel)
 
 	EFX_LOG(channel->efx, "stop chan %d\n", channel->channel);
 
-	channel->enabled = 0;
+	channel->enabled = false;
 	napi_disable(&channel->napi_str);
 
 	/* Ensure that any worker threads have exited or will be no-ops */
@@ -525,8 +525,6 @@ void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay)
  */
 static void efx_link_status_changed(struct efx_nic *efx)
 {
-	int carrier_ok;
-
 	/* SFC Bug 5356: A net_dev notifier is registered, so we must ensure
 	 * that no events are triggered between unregister_netdev() and the
 	 * driver unloading. A more general condition is that NETDEV_CHANGE
@@ -534,8 +532,7 @@ static void efx_link_status_changed(struct efx_nic *efx)
 	if (!netif_running(efx->net_dev))
 		return;
 
-	carrier_ok = netif_carrier_ok(efx->net_dev) ? 1 : 0;
-	if (efx->link_up != carrier_ok) {
+	if (efx->link_up != netif_carrier_ok(efx->net_dev)) {
 		efx->n_link_state_changes++;
 
 		if (efx->link_up)
@@ -660,7 +657,7 @@ static int efx_init_port(struct efx_nic *efx)
 	if (rc)
 		return rc;
 
-	efx->port_initialized = 1;
+	efx->port_initialized = true;
 
 	/* Reconfigure port to program MAC registers */
 	falcon_reconfigure_xmac(efx);
@@ -677,7 +674,7 @@ static void efx_start_port(struct efx_nic *efx)
 	BUG_ON(efx->port_enabled);
 
 	mutex_lock(&efx->mac_lock);
-	efx->port_enabled = 1;
+	efx->port_enabled = true;
 	__efx_reconfigure_port(efx);
 	mutex_unlock(&efx->mac_lock);
 }
@@ -691,7 +688,7 @@ static void efx_stop_port(struct efx_nic *efx)
 	EFX_LOG(efx, "stop port\n");
 
 	mutex_lock(&efx->mac_lock);
-	efx->port_enabled = 0;
+	efx->port_enabled = false;
 	mutex_unlock(&efx->mac_lock);
 
 	/* Serialise against efx_set_multicast_list() */
@@ -709,9 +706,9 @@ static void efx_fini_port(struct efx_nic *efx)
 		return;
 
 	falcon_fini_xmac(efx);
-	efx->port_initialized = 0;
+	efx->port_initialized = false;
 
-	efx->link_up = 0;
+	efx->link_up = false;
 	efx_link_status_changed(efx);
 }
 
@@ -866,7 +863,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 
 		if (rc == 0) {
 			for (i = 0; i < efx->rss_queues; i++) {
-				efx->channel[i].has_interrupt = 1;
+				efx->channel[i].has_interrupt = true;
 				efx->channel[i].irq = xentries[i].vector;
 			}
 		} else {
@@ -882,7 +879,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		rc = pci_enable_msi(efx->pci_dev);
 		if (rc == 0) {
 			efx->channel[0].irq = efx->pci_dev->irq;
-			efx->channel[0].has_interrupt = 1;
+			efx->channel[0].has_interrupt = true;
 		} else {
 			EFX_ERR(efx, "could not enable MSI\n");
 			efx->interrupt_mode = EFX_INT_MODE_LEGACY;
@@ -894,7 +891,7 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		efx->rss_queues = 1;
 		/* Every channel is interruptible */
 		for (i = 0; i < EFX_MAX_CHANNELS; i++)
-			efx->channel[i].has_interrupt = 1;
+			efx->channel[i].has_interrupt = true;
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
 }
@@ -935,7 +932,7 @@ static void efx_select_used(struct efx_nic *efx)
 		rx_queue = &efx->rx_queue[i];
 
 		if (i < efx->rss_queues) {
-			rx_queue->used = 1;
+			rx_queue->used = true;
 			/* If we allow multiple RX queues per channel
 			 * we need to decide that here
 			 */
@@ -1462,13 +1459,13 @@ static void efx_set_multicast_list(struct net_device *net_dev)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct dev_mc_list *mc_list = net_dev->mc_list;
 	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
-	int promiscuous;
+	bool promiscuous;
 	u32 crc;
 	int bit;
 	int i;
 
 	/* Set per-MAC promiscuity flag and reconfigure MAC if necessary */
-	promiscuous = (net_dev->flags & IFF_PROMISC) ? 1 : 0;
+	promiscuous = !!(net_dev->flags & IFF_PROMISC);
 	if (efx->promiscuous != promiscuous) {
 		efx->promiscuous = promiscuous;
 		/* Close the window between efx_stop_port() and efx_flush_all()
@@ -1801,7 +1798,7 @@ int efx_port_dummy_op_int(struct efx_nic *efx)
 	return 0;
 }
 void efx_port_dummy_op_void(struct efx_nic *efx) {}
-void efx_port_dummy_op_blink(struct efx_nic *efx, int blink) {}
+void efx_port_dummy_op_blink(struct efx_nic *efx, bool blink) {}
 
 static struct efx_phy_operations efx_dummy_phy_operations = {
 	.init		 = efx_port_dummy_op_int,
@@ -1855,7 +1852,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 	efx->board_info = efx_dummy_board_info;
 
 	efx->net_dev = net_dev;
-	efx->rx_checksum_enabled = 1;
+	efx->rx_checksum_enabled = true;
 	spin_lock_init(&efx->netif_stop_lock);
 	spin_lock_init(&efx->stats_lock);
 	mutex_init(&efx->mac_lock);
@@ -1869,7 +1866,7 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 		channel->efx = efx;
 		channel->channel = i;
 		channel->evqnum = i;
-		channel->work_pending = 0;
+		channel->work_pending = false;
 	}
 	for (i = 0; i < EFX_TX_QUEUE_COUNT; i++) {
 		tx_queue = &efx->tx_queue[i];

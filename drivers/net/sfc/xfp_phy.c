@@ -40,7 +40,7 @@ void xfp_set_led(struct efx_nic *p, int led, int mode)
 }
 
 struct xfp_phy_data {
-	int tx_disabled;
+	bool tx_disabled;
 };
 
 #define XFP_MAX_RESET_TIME 500
@@ -151,7 +151,7 @@ static void xfp_phy_reconfigure(struct efx_nic *efx)
 static void xfp_phy_fini(struct efx_nic *efx)
 {
 	/* Clobber the LED if it was blinking */
-	efx->board_info.blink(efx, 0);
+	efx->board_info.blink(efx, false);
 
 	/* Free the context block */
 	kfree(efx->phy_data);

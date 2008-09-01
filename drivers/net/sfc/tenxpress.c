@@ -122,7 +122,7 @@ struct tenxpress_phy_data {
 	enum tenxpress_state state;
 	enum efx_loopback_mode loopback_mode;
 	atomic_t bad_crc_count;
-	int tx_disabled;
+	bool tx_disabled;
 	int bad_lp_tries;
 };
 
@@ -274,7 +274,7 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 	return 0;
 }
 
-static void tenxpress_set_bad_lp(struct efx_nic *efx, int bad_lp)
+static void tenxpress_set_bad_lp(struct efx_nic *efx, bool bad_lp)
 {
 	struct tenxpress_phy_data *pd = efx->phy_data;
 	int reg;
@@ -311,15 +311,15 @@ static void tenxpress_set_bad_lp(struct efx_nic *efx, int bad_lp)
  * into a non-10GBT port and if so warn the user that they won't get
  * link any time soon as we are 10GBT only, unless caller specified
  * not to do this check (it isn't useful in loopback) */
-static int tenxpress_link_ok(struct efx_nic *efx, int check_lp)
+static bool tenxpress_link_ok(struct efx_nic *efx, bool check_lp)
 {
-	int ok = mdio_clause45_links_ok(efx, TENXPRESS_REQUIRED_DEVS);
+	bool ok = mdio_clause45_links_ok(efx, TENXPRESS_REQUIRED_DEVS);
 
 	if (ok) {
-		tenxpress_set_bad_lp(efx, 0);
+		tenxpress_set_bad_lp(efx, false);
 	} else if (check_lp) {
 		/* Are we plugged into the wrong sort of link? */
-		int bad_lp = 0;
+		bool bad_lp = false;
 		int phy_id = efx->mii.phy_id;
 		int an_stat = mdio_clause45_read(efx, phy_id, MDIO_MMD_AN,
 						 MDIO_AN_STATUS);
@@ -332,7 +332,7 @@ static int tenxpress_link_ok(struct efx_nic *efx, int check_lp)
 		 * bit has the advantage of not clearing when autoneg
 		 * restarts. */
 		if (!(xphy_stat & (1 << PMA_PMD_XSTAT_FLP_LBN))) {
-			tenxpress_set_bad_lp(efx, 0);
+			tenxpress_set_bad_lp(efx, false);
 			return ok;
 		}
 
@@ -367,8 +367,8 @@ static void tenxpress_phyxs_loopback(struct efx_nic *efx)
 static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	int loop_change = LOOPBACK_OUT_OF(phy_data, efx,
-					  TENXPRESS_LOOPBACKS);
+	bool loop_change = LOOPBACK_OUT_OF(phy_data, efx,
+					   TENXPRESS_LOOPBACKS);
 
 	if (!tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL))
 		return;
@@ -388,7 +388,7 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 
 	phy_data->tx_disabled = efx->tx_disabled;
 	phy_data->loopback_mode = efx->loopback_mode;
-	efx->link_up = tenxpress_link_ok(efx, 0);
+	efx->link_up = tenxpress_link_ok(efx, false);
 	efx->link_options = GM_LPA_10000FULL;
 }
 
@@ -402,10 +402,10 @@ static void tenxpress_phy_clear_interrupt(struct efx_nic *efx)
 static int tenxpress_phy_check_hw(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	int phy_up = tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL);
-	int link_ok;
+	bool phy_up = tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL);
+	bool link_ok;
 
-	link_ok = phy_up && tenxpress_link_ok(efx, 1);
+	link_ok = phy_up && tenxpress_link_ok(efx, true);
 
 	if (link_ok != efx->link_up)
 		falcon_xmac_sim_phy_event(efx);
@@ -444,7 +444,7 @@ static void tenxpress_phy_fini(struct efx_nic *efx)
 
 /* Set the RX and TX LEDs and Link LED flashing. The other LEDs
  * (which probably aren't wired anyway) are left in AUTO mode */
-void tenxpress_phy_blink(struct efx_nic *efx, int blink)
+void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
 {
 	int reg;
 

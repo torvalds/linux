@@ -60,12 +60,12 @@ static const char *payload_msg =
  * @payload:		Payload used in tests
  */
 struct efx_selftest_state {
-	int flush;
+	bool flush;
 	int packet_count;
 	struct sk_buff **skbs;
 
 	/* Checksums are being offloaded */
-	int offload_csum;
+	bool offload_csum;
 
 	atomic_t rx_good;
 	atomic_t rx_bad;
@@ -537,7 +537,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 				      state->packet_count, GFP_KERNEL);
 		if (!state->skbs)
 			return -ENOMEM;
-		state->flush = 0;
+		state->flush = false;
 
 		EFX_LOG(efx, "TX queue %d testing %s loopback with %d "
 			"packets\n", tx_queue->queue, LOOPBACK_MODE(efx),
@@ -580,7 +580,8 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 	struct ethtool_cmd ecmd, ecmd_loopback;
 	struct efx_tx_queue *tx_queue;
 	enum efx_loopback_mode old_mode, mode;
-	int count, rc, link_up;
+	bool link_up;
+	int count, rc;
 
 	rc = efx_ethtool_get_settings(efx->net_dev, &ecmd);
 	if (rc) {
@@ -611,7 +612,7 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 			continue;
 
 		/* Move the port into the specified loopback mode. */
-		state->flush = 1;
+		state->flush = true;
 		efx->loopback_mode = mode;
 		efx_reconfigure_port(efx);
 
@@ -664,7 +665,7 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 
  out:
 	/* Take out of loopback and restore PHY settings */
-	state->flush = 1;
+	state->flush = true;
 	efx->loopback_mode = old_mode;
 	efx_ethtool_set_settings(efx->net_dev, &ecmd);
 
@@ -716,7 +717,7 @@ int efx_offline_test(struct efx_nic *efx,
 	 * all received packets will be dropped. Mark the state as
 	 * "flushing" so all inflight packets are dropped */
 	BUG_ON(efx->loopback_selftest);
-	state->flush = 1;
+	state->flush = true;
 	efx->loopback_selftest = state;
 
 	rc = efx_test_loopbacks(efx, tests, loopback_modes);

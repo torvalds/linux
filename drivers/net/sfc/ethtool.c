@@ -447,7 +447,7 @@ static int efx_ethtool_set_rx_csum(struct net_device *net_dev, u32 enable)
 	/* No way to stop the hardware doing the checks; we just
 	 * ignore the result.
 	 */
-	efx->rx_checksum_enabled = (enable ? 1 : 0);
+	efx->rx_checksum_enabled = !!enable;
 
 	return 0;
 }
@@ -641,9 +641,9 @@ static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
 
-	pause->rx_pause = (efx->flow_control & EFX_FC_RX) ? 1 : 0;
-	pause->tx_pause = (efx->flow_control & EFX_FC_TX) ? 1 : 0;
-	pause->autoneg = (efx->flow_control & EFX_FC_AUTO) ? 1 : 0;
+	pause->rx_pause = !!(efx->flow_control & EFX_FC_RX);
+	pause->tx_pause = !!(efx->flow_control & EFX_FC_TX);
+	pause->autoneg = !!(efx->flow_control & EFX_FC_AUTO);
 }
 
 

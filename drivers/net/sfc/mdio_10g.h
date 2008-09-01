@@ -199,16 +199,17 @@ static inline u32 mdio_clause45_read_id(struct efx_nic *efx, int mmd)
 	return (id_hi << 16) | (id_low);
 }
 
-static inline int mdio_clause45_phyxgxs_lane_sync(struct efx_nic *efx)
+static inline bool mdio_clause45_phyxgxs_lane_sync(struct efx_nic *efx)
 {
-	int i, sync, lane_status;
+	int i, lane_status;
+	bool sync;
 
 	for (i = 0; i < 2; ++i)
 		lane_status = mdio_clause45_read(efx, efx->mii.phy_id,
 						 MDIO_MMD_PHYXS,
 						 MDIO_PHYXS_LANE_STATE);
 
-	sync = (lane_status & (1 << MDIO_PHYXS_LANE_ALIGNED_LBN)) != 0;
+	sync = !!(lane_status & (1 << MDIO_PHYXS_LANE_ALIGNED_LBN));
 	if (!sync)
 		EFX_LOG(efx, "XGXS lane status: %x\n", lane_status);
 	return sync;
@@ -230,8 +231,8 @@ int mdio_clause45_check_mmds(struct efx_nic *efx,
 			     unsigned int mmd_mask, unsigned int fatal_mask);
 
 /* Check the link status of specified mmds in bit mask */
-extern int mdio_clause45_links_ok(struct efx_nic *efx,
-				  unsigned int mmd_mask);
+extern bool mdio_clause45_links_ok(struct efx_nic *efx,
+				   unsigned int mmd_mask);
 
 /* Generic transmit disable support though PMAPMD */
 extern void mdio_clause45_transmit_disable(struct efx_nic *efx);

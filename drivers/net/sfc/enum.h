@@ -52,12 +52,11 @@ extern const char *efx_loopback_mode_names[];
 #define LOOPBACK_MASK(_efx)			\
 	(1 << (_efx)->loopback_mode)
 
-#define LOOPBACK_INTERNAL(_efx)						\
-	((LOOPBACKS_10G_INTERNAL & LOOPBACK_MASK(_efx)) ? 1 : 0)
+#define LOOPBACK_INTERNAL(_efx)				\
+	(!!(LOOPBACKS_10G_INTERNAL & LOOPBACK_MASK(_efx)))
 
-#define LOOPBACK_OUT_OF(_from, _to, _mask)		\
-	(((LOOPBACK_MASK(_from) & (_mask)) &&		\
-	  ((LOOPBACK_MASK(_to) & (_mask)) == 0)) ? 1 : 0)
+#define LOOPBACK_OUT_OF(_from, _to, _mask)				\
+	((LOOPBACK_MASK(_from) & (_mask)) && !(LOOPBACK_MASK(_to) & (_mask)))
 
 /*****************************************************************************/
 

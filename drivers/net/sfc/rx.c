@@ -508,8 +508,8 @@ void efx_rx_work(struct work_struct *data)
 
 static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 					    struct efx_rx_buffer *rx_buf,
-					    int len, int *discard,
-					    int *leak_packet)
+					    int len, bool *discard,
+					    bool *leak_packet)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	unsigned max_len = rx_buf->len - efx->type->rx_buffer_padding;
@@ -520,7 +520,7 @@ static inline void efx_rx_packet__check_len(struct efx_rx_queue *rx_queue,
 	/* The packet must be discarded, but this is only a fatal error
 	 * if the caller indicated it was
 	 */
-	*discard = 1;
+	*discard = true;
 
 	if ((len > rx_buf->len) && EFX_WORKAROUND_8071(efx)) {
 		EFX_ERR_RL(efx, " RX queue %d seriously overlength "
@@ -621,11 +621,11 @@ static inline struct sk_buff *efx_rx_mk_skb(struct efx_rx_buffer *rx_buf,
 }
 
 void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
-		   unsigned int len, int checksummed, int discard)
+		   unsigned int len, bool checksummed, bool discard)
 {
 	struct efx_nic *efx = rx_queue->efx;
 	struct efx_rx_buffer *rx_buf;
-	int leak_packet = 0;
+	bool leak_packet = false;
 
 	rx_buf = efx_rx_buffer(rx_queue, index);
 	EFX_BUG_ON_PARANOID(!rx_buf->data);
@@ -683,11 +683,11 @@ void efx_rx_packet(struct efx_rx_queue *rx_queue, unsigned int index,
 
 /* Handle a received packet.  Second half: Touches packet payload. */
 void __efx_rx_packet(struct efx_channel *channel,
-		     struct efx_rx_buffer *rx_buf, int checksummed)
+		     struct efx_rx_buffer *rx_buf, bool checksummed)
 {
 	struct efx_nic *efx = channel->efx;
 	struct sk_buff *skb;
-	int lro = efx->net_dev->features & NETIF_F_LRO;
+	bool lro = !!(efx->net_dev->features & NETIF_F_LRO);
 
 	/* If we're in loopback test, then pass the packet directly to the
 	 * loopback layer, and free the rx_buf here

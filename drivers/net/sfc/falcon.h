@@ -65,7 +65,7 @@ extern int falcon_probe_port(struct efx_nic *efx);
 extern void falcon_remove_port(struct efx_nic *efx);
 
 /* MAC/PHY */
-extern int falcon_xaui_link_ok(struct efx_nic *efx);
+extern bool falcon_xaui_link_ok(struct efx_nic *efx);
 extern int falcon_dma_stats(struct efx_nic *efx,
 			    unsigned int done_offset);
 extern void falcon_drain_tx_fifo(struct efx_nic *efx);

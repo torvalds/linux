@@ -539,7 +539,7 @@ static int falcon_flush_tx_queue(struct efx_tx_queue *tx_queue)
 
 	if (EFX_WORKAROUND_11557(efx)) {
 		efx_oword_t reg;
-		int enabled;
+		bool enabled;
 
 		falcon_read_table(efx, &reg, efx->type->txd_ptr_tbl_base,
 				  tx_queue->queue);
@@ -644,8 +644,8 @@ int falcon_init_rx(struct efx_rx_queue *rx_queue)
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
 	int rc;
-	int is_b0 = falcon_rev(efx) >= FALCON_REV_B0;
-	int iscsi_digest_en = is_b0;
+	bool is_b0 = falcon_rev(efx) >= FALCON_REV_B0;
+	bool iscsi_digest_en = is_b0;
 
 	EFX_LOG(efx, "RX queue %d ring in special buffers %d-%d\n",
 		rx_queue->queue, rx_queue->rxd.index,
@@ -695,7 +695,8 @@ static int falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
 	read_ptr = channel->eventq_read_ptr;
 	for (i = 0; i < FALCON_EVQ_SIZE; ++i) {
 		efx_qword_t *event = falcon_event(channel, read_ptr);
-		int ev_code, ev_sub_code, ev_queue, ev_failed;
+		int ev_code, ev_sub_code, ev_queue;
+		bool ev_failed;
 		if (!falcon_event_present(event))
 			break;
 
@@ -722,7 +723,7 @@ static int falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
 
 	if (EFX_WORKAROUND_11557(efx)) {
 		efx_oword_t reg;
-		int enabled;
+		bool enabled;
 
 		falcon_read_table(efx, &reg, efx->type->rxd_ptr_tbl_base,
 				  rx_queue->queue);
@@ -851,15 +852,16 @@ static inline void falcon_handle_tx_event(struct efx_channel *channel,
 /* Detect errors included in the rx_evt_pkt_ok bit. */
 static void falcon_handle_rx_not_ok(struct efx_rx_queue *rx_queue,
 				    const efx_qword_t *event,
-				    unsigned *rx_ev_pkt_ok,
-				    int *discard)
+				    bool *rx_ev_pkt_ok,
+				    bool *discard)
 {
 	struct efx_nic *efx = rx_queue->efx;
-	unsigned rx_ev_buf_owner_id_err, rx_ev_ip_hdr_chksum_err;
-	unsigned rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
-	unsigned rx_ev_frm_trunc, rx_ev_drib_nib, rx_ev_tobe_disc;
-	unsigned rx_ev_pkt_type, rx_ev_other_err, rx_ev_pause_frm;
-	unsigned rx_ev_ip_frag_err, rx_ev_hdr_type, rx_ev_mcast_pkt;
+	bool rx_ev_buf_owner_id_err, rx_ev_ip_hdr_chksum_err;
+	bool rx_ev_tcp_udp_chksum_err, rx_ev_eth_crc_err;
+	bool rx_ev_frm_trunc, rx_ev_drib_nib, rx_ev_tobe_disc;
+	bool rx_ev_other_err, rx_ev_pause_frm;
+	bool rx_ev_ip_frag_err, rx_ev_hdr_type, rx_ev_mcast_pkt;
+	unsigned rx_ev_pkt_type;
 
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, RX_EV_HDR_TYPE);
 	rx_ev_mcast_pkt = EFX_QWORD_FIELD(*event, RX_EV_MCAST_PKT);
@@ -954,9 +956,9 @@ static inline int falcon_handle_rx_event(struct efx_channel *channel,
 					 const efx_qword_t *event)
 {
 	unsigned int rx_ev_q_label, rx_ev_desc_ptr, rx_ev_byte_cnt;
-	unsigned int rx_ev_pkt_ok, rx_ev_hdr_type, rx_ev_mcast_pkt;
+	unsigned int rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned expected_ptr;
-	int discard = 0, checksummed;
+	bool rx_ev_pkt_ok, discard = false, checksummed;
 	struct efx_rx_queue *rx_queue;
 	struct efx_nic *efx = channel->efx;
 
@@ -985,7 +987,7 @@ static inline int falcon_handle_rx_event(struct efx_channel *channel,
 	} else {
 		falcon_handle_rx_not_ok(rx_queue, event, &rx_ev_pkt_ok,
 					&discard);
-		checksummed = 0;
+		checksummed = false;
 	}
 
 	/* Detect multicast packets that didn't match the filter */
@@ -995,7 +997,7 @@ static inline int falcon_handle_rx_event(struct efx_channel *channel,
 			EFX_QWORD_FIELD(*event, RX_EV_MCAST_HASH_MATCH);
 
 		if (unlikely(!rx_ev_mcast_hash_match))
-			discard = 1;
+			discard = true;
 	}
 
 	/* Handle received packet */
@@ -1010,23 +1012,23 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 				       efx_qword_t *event)
 {
 	struct efx_nic *efx = channel->efx;
-	int is_phy_event = 0, handled = 0;
+	bool is_phy_event = false, handled = false;
 
 	/* Check for interrupt on either port.  Some boards have a
 	 * single PHY wired to the interrupt line for port 1. */
 	if (EFX_QWORD_FIELD(*event, G_PHY0_INTR) ||
 	    EFX_QWORD_FIELD(*event, G_PHY1_INTR) ||
 	    EFX_QWORD_FIELD(*event, XG_PHY_INTR))
-		is_phy_event = 1;
+		is_phy_event = true;
 
 	if ((falcon_rev(efx) >= FALCON_REV_B0) &&
 	    EFX_OWORD_FIELD(*event, XG_MNT_INTR_B0))
-		is_phy_event = 1;
+		is_phy_event = true;
 
 	if (is_phy_event) {
 		efx->phy_op->clear_interrupt(efx);
 		queue_work(efx->workqueue, &efx->reconfigure_work);
-		handled = 1;
+		handled = true;
 	}
 
 	if (EFX_QWORD_FIELD_VER(efx, *event, RX_RECOVERY)) {
@@ -1036,7 +1038,7 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 		atomic_inc(&efx->rx_reset);
 		efx_schedule_reset(efx, EFX_WORKAROUND_6555(efx) ?
 				   RESET_TYPE_RX_RECOVERY : RESET_TYPE_DISABLE);
-		handled = 1;
+		handled = true;
 	}
 
 	if (!handled)
@@ -1756,7 +1758,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 	int link_speed;
-	unsigned int tx_fc;
+	bool tx_fc;
 
 	if (efx->link_options & GM_LPA_10000)
 		link_speed = 0x3;
@@ -1791,7 +1793,7 @@ void falcon_reconfigure_mac_wrapper(struct efx_nic *efx)
 	/* Transmission of pause frames when RX crosses the threshold is
 	 * covered by RX_XOFF_MAC_EN and XM_TX_CFG_REG:XM_FCNTL.
 	 * Action on receipt of pause frames is controller by XM_DIS_FCNTL */
-	tx_fc = (efx->flow_control & EFX_FC_TX) ? 1 : 0;
+	tx_fc = !!(efx->flow_control & EFX_FC_TX);
 	falcon_read(efx, &reg, RX_CFG_REG_KER);
 	EFX_SET_OWORD_FIELD_VER(efx, reg, RX_XOFF_MAC_EN, tx_fc);
 
@@ -2064,7 +2066,7 @@ int falcon_probe_port(struct efx_nic *efx)
 		return rc;
 
 	/* Set up GMII structure for PHY */
-	efx->mii.supports_gmii = 1;
+	efx->mii.supports_gmii = true;
 	falcon_init_mdio(&efx->mii);
 
 	/* Hardware flow ctrl. FalconA RX FIFO too small for pause generation */

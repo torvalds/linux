@@ -137,8 +137,8 @@ struct efx_tx_buffer {
 	struct efx_tso_header *tsoh;
 	dma_addr_t dma_addr;
 	unsigned short len;
-	unsigned char continuation;
-	unsigned char unmap_single;
+	bool continuation;
+	bool unmap_single;
 	unsigned short unmap_len;
 };
 
@@ -162,7 +162,7 @@ struct efx_tx_buffer {
  * @txd: The hardware descriptor ring
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
- * @stopped: Stopped flag.
+ * @stopped: Stopped count.
  *	Set if this TX queue is currently stopping its port.
  * @insert_count: Current insert pointer
  *	This is the number of buffers that have been added to the
@@ -265,7 +265,7 @@ struct efx_rx_buffer {
 struct efx_rx_queue {
 	struct efx_nic *efx;
 	int queue;
-	int used;
+	bool used;
 	struct efx_channel *channel;
 	struct efx_rx_buffer *buffer;
 	struct efx_special_buffer rxd;
@@ -359,13 +359,13 @@ struct efx_channel {
 	int evqnum;
 	int channel;
 	int used_flags;
-	int enabled;
+	bool enabled;
 	int irq;
-	unsigned int has_interrupt;
+	bool has_interrupt;
 	unsigned int irq_moderation;
 	struct net_device *napi_dev;
 	struct napi_struct napi_str;
-	int work_pending;
+	bool work_pending;
 	struct efx_special_buffer eventq;
 	unsigned int eventq_read_ptr;
 	unsigned int last_eventq_read_ptr;
@@ -388,7 +388,7 @@ struct efx_channel {
 	 * access with prefetches.
 	 */
 	struct efx_rx_buffer *rx_pkt;
-	int rx_pkt_csummed;
+	bool rx_pkt_csummed;
 
 };
 
@@ -401,8 +401,8 @@ struct efx_channel {
  */
 struct efx_blinker {
 	int led_num;
-	int state;
-	int resubmit;
+	bool state;
+	bool resubmit;
 	struct timer_list timer;
 };
 
@@ -430,8 +430,8 @@ struct efx_board {
 	 * have a separate init callback that happens later than
 	 * board init. */
 	int (*init_leds)(struct efx_nic *efx);
-	void (*set_fault_led) (struct efx_nic *efx, int state);
-	void (*blink) (struct efx_nic *efx, int start);
+	void (*set_fault_led) (struct efx_nic *efx, bool state);
+	void (*blink) (struct efx_nic *efx, bool start);
 	void (*fini) (struct efx_nic *nic);
 	struct efx_blinker blinker;
 	struct i2c_client *hwmon_client, *ioexp_client;
@@ -714,11 +714,11 @@ struct efx_nic {
 	struct falcon_nic_data *nic_data;
 
 	struct mutex mac_lock;
-	int port_enabled;
+	bool port_enabled;
 
-	int port_initialized;
+	bool port_initialized;
 	struct net_device *net_dev;
-	int rx_checksum_enabled;
+	bool rx_checksum_enabled;
 
 	atomic_t netif_stop_count;
 	spinlock_t netif_stop_lock;
@@ -734,13 +734,13 @@ struct efx_nic {
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mii_if_info mii;
-	unsigned tx_disabled;
+	bool tx_disabled;
 
-	int link_up;
+	bool link_up;
 	unsigned int link_options;
 	unsigned int n_link_state_changes;
 
-	int promiscuous;
+	bool promiscuous;
 	union efx_multicast_hash multicast_hash;
 	enum efx_fc_type flow_control;
 	struct work_struct reconfigure_work;
