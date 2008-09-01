@@ -242,7 +242,7 @@ static struct i2c_algo_bit_data falcon_i2c_bit_operations = {
  * falcon_alloc_special_buffer()) in Falcon's buffer table, allowing
  * it to be used for event queues, descriptor rings etc.
  */
-static int
+static void
 falcon_init_special_buffer(struct efx_nic *efx,
 			   struct efx_special_buffer *buffer)
 {
@@ -266,8 +266,6 @@ falcon_init_special_buffer(struct efx_nic *efx,
 				     BUF_OWNER_ID_FBUF, 0);
 		falcon_write_sram(efx, &buf_desc, index);
 	}
-
-	return 0;
 }
 
 /* Unmaps a buffer from Falcon and clears the buffer table entries */
@@ -449,16 +447,13 @@ int falcon_probe_tx(struct efx_tx_queue *tx_queue)
 					   sizeof(efx_qword_t));
 }
 
-int falcon_init_tx(struct efx_tx_queue *tx_queue)
+void falcon_init_tx(struct efx_tx_queue *tx_queue)
 {
 	efx_oword_t tx_desc_ptr;
 	struct efx_nic *efx = tx_queue->efx;
-	int rc;
 
 	/* Pin TX descriptor ring */
-	rc = falcon_init_special_buffer(efx, &tx_queue->txd);
-	if (rc)
-		return rc;
+	falcon_init_special_buffer(efx, &tx_queue->txd);
 
 	/* Push TX descriptor ring to card */
 	EFX_POPULATE_OWORD_10(tx_desc_ptr,
@@ -495,8 +490,6 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 			set_bit_le(tx_queue->queue, (void *)&reg);
 		falcon_write(efx, &reg, TX_CHKSM_CFG_REG_KER_A1);
 	}
-
-	return 0;
 }
 
 static int falcon_flush_tx_queue(struct efx_tx_queue *tx_queue)
@@ -639,11 +632,10 @@ int falcon_probe_rx(struct efx_rx_queue *rx_queue)
 					   sizeof(efx_qword_t));
 }
 
-int falcon_init_rx(struct efx_rx_queue *rx_queue)
+void falcon_init_rx(struct efx_rx_queue *rx_queue)
 {
 	efx_oword_t rx_desc_ptr;
 	struct efx_nic *efx = rx_queue->efx;
-	int rc;
 	bool is_b0 = falcon_rev(efx) >= FALCON_REV_B0;
 	bool iscsi_digest_en = is_b0;
 
@@ -652,9 +644,7 @@ int falcon_init_rx(struct efx_rx_queue *rx_queue)
 		rx_queue->rxd.index + rx_queue->rxd.entries - 1);
 
 	/* Pin RX descriptor ring */
-	rc = falcon_init_special_buffer(efx, &rx_queue->rxd);
-	if (rc)
-		return rc;
+	falcon_init_special_buffer(efx, &rx_queue->rxd);
 
 	/* Push RX descriptor ring to card */
 	EFX_POPULATE_OWORD_10(rx_desc_ptr,
@@ -671,7 +661,6 @@ int falcon_init_rx(struct efx_rx_queue *rx_queue)
 			      RX_DESCQ_EN, 1);
 	falcon_write_table(efx, &rx_desc_ptr, efx->type->rxd_ptr_tbl_base,
 			   rx_queue->queue);
-	return 0;
 }
 
 static int falcon_flush_rx_queue(struct efx_rx_queue *rx_queue)
@@ -1205,20 +1194,17 @@ int falcon_probe_eventq(struct efx_channel *channel)
 	return falcon_alloc_special_buffer(efx, &channel->eventq, evq_size);
 }
 
-int falcon_init_eventq(struct efx_channel *channel)
+void falcon_init_eventq(struct efx_channel *channel)
 {
 	efx_oword_t evq_ptr;
 	struct efx_nic *efx = channel->efx;
-	int rc;
 
 	EFX_LOG(efx, "channel %d event queue in special buffers %d-%d\n",
 		channel->channel, channel->eventq.index,
 		channel->eventq.index + channel->eventq.entries - 1);
 
 	/* Pin event queue buffer */
-	rc = falcon_init_special_buffer(efx, &channel->eventq);
-	if (rc)
-		return rc;
+	falcon_init_special_buffer(efx, &channel->eventq);
 
 	/* Fill event queue with all ones (i.e. empty events) */
 	memset(channel->eventq.addr, 0xff, channel->eventq.len);
@@ -1232,8 +1218,6 @@ int falcon_init_eventq(struct efx_channel *channel)
 			   channel->channel);
 
 	falcon_set_int_moderation(channel);
-
-	return 0;
 }
 
 void falcon_fini_eventq(struct efx_channel *channel)

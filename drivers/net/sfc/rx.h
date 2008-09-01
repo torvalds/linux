@@ -14,7 +14,7 @@
 
 int efx_probe_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_remove_rx_queue(struct efx_rx_queue *rx_queue);
-int efx_init_rx_queue(struct efx_rx_queue *rx_queue);
+void efx_init_rx_queue(struct efx_rx_queue *rx_queue);
 void efx_fini_rx_queue(struct efx_rx_queue *rx_queue);
 
 int efx_lro_init(struct net_lro_mgr *lro_mgr, struct efx_nic *efx);

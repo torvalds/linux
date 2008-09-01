@@ -282,13 +282,13 @@ static int efx_probe_eventq(struct efx_channel *channel)
 }
 
 /* Prepare channel's event queue */
-static int efx_init_eventq(struct efx_channel *channel)
+static void efx_init_eventq(struct efx_channel *channel)
 {
 	EFX_LOG(channel->efx, "chan %d init event queue\n", channel->channel);
 
 	channel->eventq_read_ptr = 0;
 
-	return falcon_init_eventq(channel);
+	falcon_init_eventq(channel);
 }
 
 static void efx_fini_eventq(struct efx_channel *channel)
@@ -354,12 +354,11 @@ static int efx_probe_channel(struct efx_channel *channel)
  * to propagate configuration changes (mtu, checksum offload), or
  * to clear hardware error conditions
  */
-static int efx_init_channels(struct efx_nic *efx)
+static void efx_init_channels(struct efx_nic *efx)
 {
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
-	int rc = 0;
 
 	/* Calculate the rx buffer allocation parameters required to
 	 * support the current MTU, including padding for header
@@ -374,36 +373,20 @@ static int efx_init_channels(struct efx_nic *efx)
 	efx_for_each_channel(channel, efx) {
 		EFX_LOG(channel->efx, "init chan %d\n", channel->channel);
 
-		rc = efx_init_eventq(channel);
-		if (rc)
-			goto err;
+		efx_init_eventq(channel);
 
-		efx_for_each_channel_tx_queue(tx_queue, channel) {
-			rc = efx_init_tx_queue(tx_queue);
-			if (rc)
-				goto err;
-		}
+		efx_for_each_channel_tx_queue(tx_queue, channel)
+			efx_init_tx_queue(tx_queue);
 
 		/* The rx buffer allocation strategy is MTU dependent */
 		efx_rx_strategy(channel);
 
-		efx_for_each_channel_rx_queue(rx_queue, channel) {
-			rc = efx_init_rx_queue(rx_queue);
-			if (rc)
-				goto err;
-		}
+		efx_for_each_channel_rx_queue(rx_queue, channel)
+			efx_init_rx_queue(rx_queue);
 
 		WARN_ON(channel->rx_pkt != NULL);
 		efx_rx_strategy(channel);
 	}
-
-	return 0;
-
- err:
-	EFX_ERR(efx, "failed to initialise channel %d\n",
-		channel ? channel->channel : -1);
-	efx_fini_channels(efx);
-	return rc;
 }
 
 /* This enables event queue processing and packet transmission.
@@ -1121,24 +1104,16 @@ static void efx_remove_all(struct efx_nic *efx)
 }
 
 /* A convinience function to safely flush all the queues */
-int efx_flush_queues(struct efx_nic *efx)
+void efx_flush_queues(struct efx_nic *efx)
 {
-	int rc;
-
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	efx_stop_all(efx);
 
 	efx_fini_channels(efx);
-	rc = efx_init_channels(efx);
-	if (rc) {
-		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
-		return rc;
-	}
+	efx_init_channels(efx);
 
 	efx_start_all(efx);
-
-	return 0;
 }
 
 /**************************************************************************
@@ -1311,7 +1286,6 @@ static int efx_net_open(struct net_device *net_dev)
 static int efx_net_stop(struct net_device *net_dev)
 {
 	struct efx_nic *efx = netdev_priv(net_dev);
-	int rc;
 
 	EFX_LOG(efx, "closing %s on CPU %d\n", net_dev->name,
 		raw_smp_processor_id());
@@ -1319,9 +1293,7 @@ static int efx_net_stop(struct net_device *net_dev)
 	/* Stop the device and flush all the channels */
 	efx_stop_all(efx);
 	efx_fini_channels(efx);
-	rc = efx_init_channels(efx);
-	if (rc)
-		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
+	efx_init_channels(efx);
 
 	return 0;
 }
@@ -1404,15 +1376,9 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 
 	efx_fini_channels(efx);
 	net_dev->mtu = new_mtu;
-	rc = efx_init_channels(efx);
-	if (rc)
-		goto fail;
+	efx_init_channels(efx);
 
 	efx_start_all(efx);
-	return rc;
-
- fail:
-	efx_schedule_reset(efx, RESET_TYPE_DISABLE);
 	return rc;
 }
 
@@ -1588,22 +1554,19 @@ static int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
 	int rc;
 
-	rc = efx_init_channels(efx);
-	if (rc)
-		goto fail1;
+	efx_init_channels(efx);
 
 	/* Restore MAC and PHY settings. */
 	rc = falcon_xmac_set_settings(efx, ecmd);
 	if (rc) {
 		EFX_ERR(efx, "could not restore PHY settings\n");
-		goto fail2;
+		goto fail;
 	}
 
 	return 0;
 
- fail2:
+ fail:
 	efx_fini_channels(efx);
- fail1:
 	return rc;
 }
 
@@ -2023,19 +1986,16 @@ static int efx_pci_probe_main(struct efx_nic *efx)
 		goto fail5;
 	}
 
-	rc = efx_init_channels(efx);
-	if (rc)
-		goto fail6;
+	efx_init_channels(efx);
 
 	rc = falcon_init_interrupt(efx);
 	if (rc)
-		goto fail7;
+		goto fail6;
 
 	return 0;
 
- fail7:
-	efx_fini_channels(efx);
  fail6:
+	efx_fini_channels(efx);
 	efx_fini_port(efx);
  fail5:
  fail4:

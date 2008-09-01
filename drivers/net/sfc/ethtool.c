@@ -503,10 +503,10 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 	if (offline) {
 		/* Stop the kernel from sending packets during the test. */
 		efx_stop_queue(efx);
-		rc = efx_flush_queues(efx);
-		if (!rc)
-			rc = efx_offline_test(efx, &efx_tests,
-					      efx->loopback_modes);
+		efx_flush_queues(efx);
+
+		rc = efx_offline_test(efx, &efx_tests,
+				      efx->loopback_modes);
 		efx_wake_queue(efx);
 	}
 

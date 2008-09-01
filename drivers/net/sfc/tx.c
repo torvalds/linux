@@ -443,7 +443,7 @@ int efx_probe_tx_queue(struct efx_tx_queue *tx_queue)
 	return rc;
 }
 
-int efx_init_tx_queue(struct efx_tx_queue *tx_queue)
+void efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 {
 	EFX_LOG(tx_queue->efx, "initialising TX queue %d\n", tx_queue->queue);
 
@@ -454,7 +454,7 @@ int efx_init_tx_queue(struct efx_tx_queue *tx_queue)
 	BUG_ON(tx_queue->stopped);
 
 	/* Set up TX descriptor ring */
-	return falcon_init_tx(tx_queue);
+	falcon_init_tx(tx_queue);
 }
 
 void efx_release_tx_buffers(struct efx_tx_queue *tx_queue)

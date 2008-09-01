@@ -33,7 +33,7 @@ extern void efx_schedule_slow_fill(struct efx_rx_queue *rx_queue, int delay);
 
 /* Channels */
 extern void efx_process_channel_now(struct efx_channel *channel);
-extern int efx_flush_queues(struct efx_nic *efx);
+extern void efx_flush_queues(struct efx_nic *efx);
 
 /* Ports */
 extern void efx_reconfigure_port(struct efx_nic *efx);

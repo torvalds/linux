@@ -40,21 +40,21 @@ extern struct efx_nic_type falcon_b_nic_type;
 
 /* TX data path */
 extern int falcon_probe_tx(struct efx_tx_queue *tx_queue);
-extern int falcon_init_tx(struct efx_tx_queue *tx_queue);
+extern void falcon_init_tx(struct efx_tx_queue *tx_queue);
 extern void falcon_fini_tx(struct efx_tx_queue *tx_queue);
 extern void falcon_remove_tx(struct efx_tx_queue *tx_queue);
 extern void falcon_push_buffers(struct efx_tx_queue *tx_queue);
 
 /* RX data path */
 extern int falcon_probe_rx(struct efx_rx_queue *rx_queue);
-extern int falcon_init_rx(struct efx_rx_queue *rx_queue);
+extern void falcon_init_rx(struct efx_rx_queue *rx_queue);
 extern void falcon_fini_rx(struct efx_rx_queue *rx_queue);
 extern void falcon_remove_rx(struct efx_rx_queue *rx_queue);
 extern void falcon_notify_rx_desc(struct efx_rx_queue *rx_queue);
 
 /* Event data path */
 extern int falcon_probe_eventq(struct efx_channel *channel);
-extern int falcon_init_eventq(struct efx_channel *channel);
+extern void falcon_init_eventq(struct efx_channel *channel);
 extern void falcon_fini_eventq(struct efx_channel *channel);
 extern void falcon_remove_eventq(struct efx_channel *channel);
 extern int falcon_process_eventq(struct efx_channel *channel, int rx_quota);
