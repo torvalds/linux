@@ -517,7 +517,7 @@ static void hrtimer_force_reprogram(struct hrtimer_cpu_base *cpu_base)
 		if (!base->first)
 			continue;
 		timer = rb_entry(base->first, struct hrtimer, node);
-		expires = ktime_sub(timer->expires, base->offset);
+		expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 		if (expires.tv64 < cpu_base->expires_next.tv64)
 			cpu_base->expires_next = expires;
 	}
@@ -539,10 +539,10 @@ static int hrtimer_reprogram(struct hrtimer *timer,
 			     struct hrtimer_clock_base *base)
 {
 	ktime_t *expires_next = &__get_cpu_var(hrtimer_bases).expires_next;
-	ktime_t expires = ktime_sub(timer->expires, base->offset);
+	ktime_t expires = ktime_sub(hrtimer_get_expires(timer), base->offset);
 	int res;
 
-	WARN_ON_ONCE(timer->expires.tv64 < 0);
+	WARN_ON_ONCE(hrtimer_get_expires_tv64(timer) < 0);
 
 	/*
 	 * When the callback is running, we do not reprogram the clock event
@@ -794,7 +794,7 @@ u64 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 	u64 orun = 1;
 	ktime_t delta;
 
-	delta = ktime_sub(now, timer->expires);
+	delta = ktime_sub(now, hrtimer_get_expires(timer));
 
 	if (delta.tv64 < 0)
 		return 0;
@@ -806,8 +806,8 @@ u64 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 		s64 incr = ktime_to_ns(interval);
 
 		orun = ktime_divns(delta, incr);
-		timer->expires = ktime_add_ns(timer->expires, incr * orun);
-		if (timer->expires.tv64 > now.tv64)
+		hrtimer_add_expires_ns(timer, incr * orun);
+		if (hrtimer_get_expires_tv64(timer) > now.tv64)
 			return orun;
 		/*
 		 * This (and the ktime_add() below) is the
@@ -815,7 +815,7 @@ u64 hrtimer_forward(struct hrtimer *timer, ktime_t now, ktime_t interval)
 		 */
 		orun++;
 	}
-	timer->expires = ktime_add_safe(timer->expires, interval);
+	hrtimer_add_expires(timer, interval);
 
 	return orun;
 }
@@ -847,7 +847,8 @@ static void enqueue_hrtimer(struct hrtimer *timer,
 		 * We dont care about collisions. Nodes with
 		 * the same expiry time stay together.
 		 */
-		if (timer->expires.tv64 < entry->expires.tv64) {
+		if (hrtimer_get_expires_tv64(timer) <
+				hrtimer_get_expires_tv64(entry)) {
 			link = &(*link)->rb_left;
 		} else {
 			link = &(*link)->rb_right;
@@ -982,7 +983,7 @@ hrtimer_start(struct hrtimer *timer, ktime_t tim, const enum hrtimer_mode mode)
 #endif
 	}
 
-	timer->expires = tim;
+	hrtimer_set_expires(timer, tim);
 
 	timer_stats_hrtimer_set_start_info(timer);
 
@@ -1076,7 +1077,7 @@ ktime_t hrtimer_get_remaining(const struct hrtimer *timer)
 	ktime_t rem;
 
 	base = lock_hrtimer_base(timer, &flags);
-	rem = ktime_sub(timer->expires, base->get_time());
+	rem = hrtimer_expires_remaining(timer);
 	unlock_hrtimer_base(timer, &flags);
 
 	return rem;
@@ -1108,7 +1109,7 @@ ktime_t hrtimer_get_next_event(void)
 				continue;
 
 			timer = rb_entry(base->first, struct hrtimer, node);
-			delta.tv64 = timer->expires.tv64;
+			delta.tv64 = hrtimer_get_expires_tv64(timer);
 			delta = ktime_sub(delta, base->get_time());
 			if (delta.tv64 < mindelta.tv64)
 				mindelta.tv64 = delta.tv64;
@@ -1308,10 +1309,10 @@ void hrtimer_interrupt(struct clock_event_device *dev)
 
 			timer = rb_entry(node, struct hrtimer, node);
 
-			if (basenow.tv64 < timer->expires.tv64) {
+			if (basenow.tv64 < hrtimer_get_expires_tv64(timer)) {
 				ktime_t expires;
 
-				expires = ktime_sub(timer->expires,
+				expires = ktime_sub(hrtimer_get_expires(timer),
 						    base->offset);
 				if (expires.tv64 < expires_next.tv64)
 					expires_next = expires;
@@ -1414,7 +1415,8 @@ void hrtimer_run_queues(void)
 			struct hrtimer *timer;
 
 			timer = rb_entry(node, struct hrtimer, node);
-			if (base->softirq_time.tv64 <= timer->expires.tv64)
+			if (base->softirq_time.tv64 <=
+					hrtimer_get_expires_tv64(timer))
 				break;
 
 			if (timer->cb_mode == HRTIMER_CB_SOFTIRQ) {
@@ -1462,7 +1464,7 @@ static int __sched do_nanosleep(struct hrtimer_sleeper *t, enum hrtimer_mode mod
 
 	do {
 		set_current_state(TASK_INTERRUPTIBLE);
-		hrtimer_start(&t->timer, t->timer.expires, mode);
+		hrtimer_start_expires(&t->timer, mode);
 		if (!hrtimer_active(&t->timer))
 			t->task = NULL;
 
@@ -1484,7 +1486,7 @@ static int update_rmtp(struct hrtimer *timer, struct timespec __user *rmtp)
 	struct timespec rmt;
 	ktime_t rem;
 
-	rem = ktime_sub(timer->expires, timer->base->get_time());
+	rem = hrtimer_expires_remaining(timer);
 	if (rem.tv64 <= 0)
 		return 0;
 	rmt = ktime_to_timespec(rem);
@@ -1503,7 +1505,7 @@ long __sched hrtimer_nanosleep_restart(struct restart_block *restart)
 
 	hrtimer_init_on_stack(&t.timer, restart->nanosleep.index,
 				HRTIMER_MODE_ABS);
-	t.timer.expires.tv64 = restart->nanosleep.expires;
+	hrtimer_set_expires_tv64(&t.timer, restart->nanosleep.expires);
 
 	if (do_nanosleep(&t, HRTIMER_MODE_ABS))
 		goto out;
@@ -1530,7 +1532,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	int ret = 0;
 
 	hrtimer_init_on_stack(&t.timer, clockid, mode);
-	t.timer.expires = timespec_to_ktime(*rqtp);
+	hrtimer_set_expires(&t.timer, timespec_to_ktime(*rqtp));
 	if (do_nanosleep(&t, mode))
 		goto out;
 
@@ -1550,7 +1552,7 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	restart->fn = hrtimer_nanosleep_restart;
 	restart->nanosleep.index = t.timer.base->index;
 	restart->nanosleep.rmtp = rmtp;
-	restart->nanosleep.expires = t.timer.expires.tv64;
+	restart->nanosleep.expires = hrtimer_get_expires_tv64(&t.timer);
 
 	ret = -ERESTART_RESTARTBLOCK;
 out:
@@ -1724,11 +1726,11 @@ int __sched schedule_hrtimeout(ktime_t *expires,
 	}
 
 	hrtimer_init_on_stack(&t.timer, CLOCK_MONOTONIC, mode);
-	t.timer.expires = *expires;
+	hrtimer_set_expires(&t.timer, *expires);
 
 	hrtimer_init_sleeper(&t, current);
 
-	hrtimer_start(&t.timer, t.timer.expires, mode);
+	hrtimer_start_expires(&t.timer, mode);
 	if (!hrtimer_active(&t.timer))
 		t.task = NULL;
 

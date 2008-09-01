@@ -288,7 +288,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 				goto out;
 			}
 
-			ts->idle_tick = ts->sched_timer.expires;
+			ts->idle_tick = hrtimer_get_expires(&ts->sched_timer);
 			ts->tick_stopped = 1;
 			ts->idle_jiffies = last_jiffies;
 			rcu_enter_nohz();
@@ -419,21 +419,21 @@ void tick_nohz_restart_sched_tick(void)
 	ts->tick_stopped  = 0;
 	ts->idle_exittime = now;
 	hrtimer_cancel(&ts->sched_timer);
-	ts->sched_timer.expires = ts->idle_tick;
+	hrtimer_set_expires(&ts->sched_timer, ts->idle_tick);
 
 	while (1) {
 		/* Forward the time to expire in the future */
 		hrtimer_forward(&ts->sched_timer, now, tick_period);
 
 		if (ts->nohz_mode == NOHZ_MODE_HIGHRES) {
-			hrtimer_start(&ts->sched_timer,
-				      ts->sched_timer.expires,
+			hrtimer_start_expires(&ts->sched_timer,
 				      HRTIMER_MODE_ABS);
 			/* Check, if the timer was already in the past */
 			if (hrtimer_active(&ts->sched_timer))
 				break;
 		} else {
-			if (!tick_program_event(ts->sched_timer.expires, 0))
+			if (!tick_program_event(
+				hrtimer_get_expires(&ts->sched_timer), 0))
 				break;
 		}
 		/* Update jiffies and reread time */
@@ -446,7 +446,7 @@ void tick_nohz_restart_sched_tick(void)
 static int tick_nohz_reprogram(struct tick_sched *ts, ktime_t now)
 {
 	hrtimer_forward(&ts->sched_timer, now, tick_period);
-	return tick_program_event(ts->sched_timer.expires, 0);
+	return tick_program_event(hrtimer_get_expires(&ts->sched_timer), 0);
 }
 
 /*
@@ -529,7 +529,7 @@ static void tick_nohz_switch_to_nohz(void)
 	next = tick_init_jiffy_update();
 
 	for (;;) {
-		ts->sched_timer.expires = next;
+		hrtimer_set_expires(&ts->sched_timer, next);
 		if (!tick_program_event(next, 0))
 			break;
 		next = ktime_add(next, tick_period);
@@ -625,16 +625,15 @@ void tick_setup_sched_timer(void)
 	ts->sched_timer.cb_mode = HRTIMER_CB_IRQSAFE_NO_SOFTIRQ;
 
 	/* Get the next period (per cpu) */
-	ts->sched_timer.expires = tick_init_jiffy_update();
+	hrtimer_set_expires(&ts->sched_timer, tick_init_jiffy_update());
 	offset = ktime_to_ns(tick_period) >> 1;
 	do_div(offset, num_possible_cpus());
 	offset *= smp_processor_id();
-	ts->sched_timer.expires = ktime_add_ns(ts->sched_timer.expires, offset);
+	hrtimer_add_expires_ns(&ts->sched_timer, offset);
 
 	for (;;) {
 		hrtimer_forward(&ts->sched_timer, now, tick_period);
-		hrtimer_start(&ts->sched_timer, ts->sched_timer.expires,
-			      HRTIMER_MODE_ABS);
+		hrtimer_start_expires(&ts->sched_timer, HRTIMER_MODE_ABS);
 		/* Check, if the timer was already in the past */
 		if (hrtimer_active(&ts->sched_timer))
 			break;
