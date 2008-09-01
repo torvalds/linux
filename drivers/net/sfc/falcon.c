@@ -1953,8 +1953,10 @@ int falcon_dma_stats(struct efx_nic *efx, unsigned int done_offset)
 
 	/* Wait for transfer to complete */
 	for (i = 0; i < 400; i++) {
-		if (*(volatile u32 *)dma_done == FALCON_STATS_DONE)
+		if (*(volatile u32 *)dma_done == FALCON_STATS_DONE) {
+			rmb(); /* Ensure the stats are valid. */
 			return 0;
+		}
 		udelay(10);
 	}
 
