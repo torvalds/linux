@@ -493,18 +493,8 @@
 #define MAC_MCAST_HASH_REG0_KER 0xca0
 #define MAC_MCAST_HASH_REG1_KER 0xcb0
 
-/* GMAC registers */
-#define FALCON_GMAC_REGBANK 0xe00
-#define FALCON_GMAC_REGBANK_SIZE 0x200
-#define FALCON_GMAC_REG_SIZE 0x10
-
-/* XMAC registers */
-#define FALCON_XMAC_REGBANK 0x1200
-#define FALCON_XMAC_REGBANK_SIZE 0x200
-#define FALCON_XMAC_REG_SIZE 0x10
-
 /* XGMAC address register low */
-#define XM_ADR_LO_REG_MAC 0x00
+#define XM_ADR_LO_REG 0x1200
 #define XM_ADR_3_LBN 24
 #define XM_ADR_3_WIDTH 8
 #define XM_ADR_2_LBN 16
@@ -515,14 +505,14 @@
 #define XM_ADR_0_WIDTH 8
 
 /* XGMAC address register high */
-#define XM_ADR_HI_REG_MAC 0x01
+#define XM_ADR_HI_REG 0x1210
 #define XM_ADR_5_LBN 8
 #define XM_ADR_5_WIDTH 8
 #define XM_ADR_4_LBN 0
 #define XM_ADR_4_WIDTH 8
 
 /* XGMAC global configuration */
-#define XM_GLB_CFG_REG_MAC 0x02
+#define XM_GLB_CFG_REG 0x1220
 #define XM_RX_STAT_EN_LBN 11
 #define XM_RX_STAT_EN_WIDTH 1
 #define XM_TX_STAT_EN_LBN 10
@@ -535,7 +525,7 @@
 #define XM_CORE_RST_WIDTH 1
 
 /* XGMAC transmit configuration */
-#define XM_TX_CFG_REG_MAC 0x03
+#define XM_TX_CFG_REG 0x1230
 #define XM_IPG_LBN 16
 #define XM_IPG_WIDTH 4
 #define XM_FCNTL_LBN 10
@@ -550,7 +540,7 @@
 #define XM_TXEN_WIDTH 1
 
 /* XGMAC receive configuration */
-#define XM_RX_CFG_REG_MAC 0x04
+#define XM_RX_CFG_REG 0x1240
 #define XM_PASS_CRC_ERR_LBN 25
 #define XM_PASS_CRC_ERR_WIDTH 1
 #define XM_ACPT_ALL_MCAST_LBN 11
@@ -563,7 +553,7 @@
 #define XM_RXEN_WIDTH 1
 
 /* XGMAC management interrupt mask register */
-#define XM_MGT_INT_MSK_REG_MAC_B0 0x5
+#define XM_MGT_INT_MSK_REG_B0 0x1250
 #define XM_MSK_PRMBLE_ERR_LBN 2
 #define XM_MSK_PRMBLE_ERR_WIDTH 1
 #define XM_MSK_RMTFLT_LBN 1
@@ -572,29 +562,29 @@
 #define XM_MSK_LCLFLT_WIDTH 1
 
 /* XGMAC flow control register */
-#define XM_FC_REG_MAC 0x7
+#define XM_FC_REG 0x1270
 #define XM_PAUSE_TIME_LBN 16
 #define XM_PAUSE_TIME_WIDTH 16
 #define XM_DIS_FCNTL_LBN 0
 #define XM_DIS_FCNTL_WIDTH 1
 
 /* XGMAC pause time count register */
-#define XM_PAUSE_TIME_REG_MAC 0x9
+#define XM_PAUSE_TIME_REG 0x1290
 
 /* XGMAC transmit parameter register */
-#define XM_TX_PARAM_REG_MAC 0x0d
+#define XM_TX_PARAM_REG 0x012d0
 #define XM_TX_JUMBO_MODE_LBN 31
 #define XM_TX_JUMBO_MODE_WIDTH 1
 #define XM_MAX_TX_FRM_SIZE_LBN 16
 #define XM_MAX_TX_FRM_SIZE_WIDTH 14
 
 /* XGMAC receive parameter register */
-#define XM_RX_PARAM_REG_MAC 0x0e
+#define XM_RX_PARAM_REG 0x12e0
 #define XM_MAX_RX_FRM_SIZE_LBN 0
 #define XM_MAX_RX_FRM_SIZE_WIDTH 14
 
 /* XGMAC management interrupt status register */
-#define XM_MGT_INT_REG_MAC_B0 0x0f
+#define XM_MGT_INT_REG_B0 0x12f0
 #define XM_PRMBLE_ERR 2
 #define XM_PRMBLE_WIDTH 1
 #define XM_RMTFLT_LBN 1
@@ -603,7 +593,7 @@
 #define XM_LCLFLT_WIDTH 1
 
 /* XGXS/XAUI powerdown/reset register */
-#define XX_PWR_RST_REG_MAC 0x10
+#define XX_PWR_RST_REG 0x1300
 
 #define XX_PWRDND_EN_LBN 15
 #define XX_PWRDND_EN_WIDTH 1
@@ -633,7 +623,7 @@
 #define XX_RST_XX_EN_WIDTH 1
 
 /* XGXS/XAUI powerdown/reset control register */
-#define XX_SD_CTL_REG_MAC 0x11
+#define XX_SD_CTL_REG 0x1310
 #define XX_HIDRVD_LBN 15
 #define XX_HIDRVD_WIDTH 1
 #define XX_LODRVD_LBN 14
@@ -659,7 +649,7 @@
 #define XX_LPBKA_LBN 0
 #define XX_LPBKA_WIDTH 1
 
-#define XX_TXDRV_CTL_REG_MAC 0x12
+#define XX_TXDRV_CTL_REG 0x1320
 #define XX_DEQD_LBN 28
 #define XX_DEQD_WIDTH 4
 #define XX_DEQC_LBN 24
@@ -678,7 +668,7 @@
 #define XX_DTXA_WIDTH 4
 
 /* XAUI XGXS core status register */
-#define XX_CORE_STAT_REG_MAC 0x16
+#define XX_CORE_STAT_REG 0x1360
 #define XX_FORCE_SIG_LBN 24
 #define XX_FORCE_SIG_WIDTH 8
 #define XX_FORCE_SIG_DECODE_FORCED 0xff

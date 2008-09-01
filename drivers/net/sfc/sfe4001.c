@@ -19,6 +19,7 @@
 #include "boards.h"
 #include "falcon.h"
 #include "falcon_hwdefs.h"
+#include "falcon_io.h"
 #include "mac.h"
 
 /**************************************************************************
@@ -128,17 +129,17 @@ static int sfe4001_poweron(struct efx_nic *efx)
 	unsigned int i, j;
 	int rc;
 	u8 out;
-	efx_dword_t reg;
+	efx_oword_t reg;
 
 	/* Ensure that XGXS and XAUI SerDes are held in reset */
-	EFX_POPULATE_DWORD_7(reg, XX_PWRDNA_EN, 1,
+	EFX_POPULATE_OWORD_7(reg, XX_PWRDNA_EN, 1,
 			     XX_PWRDNB_EN, 1,
 			     XX_RSTPLLAB_EN, 1,
 			     XX_RESETA_EN, 1,
 			     XX_RESETB_EN, 1,
 			     XX_RSTXGXSRX_EN, 1,
 			     XX_RSTXGXSTX_EN, 1);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
 	/* Clear any previous over-temperature alert */

@@ -23,48 +23,20 @@
 
 /**************************************************************************
  *
- * MAC register access
- *
- **************************************************************************/
-
-/* Offset of an XMAC register within Falcon */
-#define FALCON_XMAC_REG(mac_reg)					\
-	(FALCON_XMAC_REGBANK + ((mac_reg) * FALCON_XMAC_REG_SIZE))
-
-void falcon_xmac_writel(struct efx_nic *efx,
-			 efx_dword_t *value, unsigned int mac_reg)
-{
-	efx_oword_t temp;
-
-	EFX_POPULATE_OWORD_1(temp, MAC_DATA, EFX_DWORD_FIELD(*value, MAC_DATA));
-	falcon_write(efx, &temp, FALCON_XMAC_REG(mac_reg));
-}
-
-void falcon_xmac_readl(struct efx_nic *efx,
-		       efx_dword_t *value, unsigned int mac_reg)
-{
-	efx_oword_t temp;
-
-	falcon_read(efx, &temp, FALCON_XMAC_REG(mac_reg));
-	EFX_POPULATE_DWORD_1(*value, MAC_DATA, EFX_OWORD_FIELD(temp, MAC_DATA));
-}
-
-/**************************************************************************
- *
  * MAC operations
  *
  *************************************************************************/
 static int falcon_reset_xmac(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 	int count;
 
-	EFX_POPULATE_DWORD_1(reg, XM_CORE_RST, 1);
-	falcon_xmac_writel(efx, &reg, XM_GLB_CFG_REG_MAC);
+	EFX_POPULATE_OWORD_1(reg, XM_CORE_RST, 1);
+	falcon_write(efx, &reg, XM_GLB_CFG_REG);
 
 	for (count = 0; count < 10000; count++) {	/* wait upto 100ms */
-		falcon_xmac_readl(efx, &reg, XM_GLB_CFG_REG_MAC);
-		if (EFX_DWORD_FIELD(reg, XM_CORE_RST) == 0)
+		falcon_read(efx, &reg, XM_GLB_CFG_REG);
+		if (EFX_OWORD_FIELD(reg, XM_CORE_RST) == 0)
 			return 0;
 		udelay(10);
 	}
@@ -76,25 +48,25 @@ static int falcon_reset_xmac(struct efx_nic *efx)
 /* Configure the XAUI driver that is an output from Falcon */
 static void falcon_setup_xaui(struct efx_nic *efx)
 {
-	efx_dword_t sdctl, txdrv;
+	efx_oword_t sdctl, txdrv;
 
 	/* Move the XAUI into low power, unless there is no PHY, in
 	 * which case the XAUI will have to drive a cable. */
 	if (efx->phy_type == PHY_TYPE_NONE)
 		return;
 
-	falcon_xmac_readl(efx, &sdctl, XX_SD_CTL_REG_MAC);
-	EFX_SET_DWORD_FIELD(sdctl, XX_HIDRVD, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_LODRVD, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_HIDRVC, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_LODRVC, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_HIDRVB, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_LODRVB, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_HIDRVA, XX_SD_CTL_DRV_DEFAULT);
-	EFX_SET_DWORD_FIELD(sdctl, XX_LODRVA, XX_SD_CTL_DRV_DEFAULT);
-	falcon_xmac_writel(efx, &sdctl, XX_SD_CTL_REG_MAC);
+	falcon_read(efx, &sdctl, XX_SD_CTL_REG);
+	EFX_SET_OWORD_FIELD(sdctl, XX_HIDRVD, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_LODRVD, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_HIDRVC, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_LODRVC, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_HIDRVB, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_LODRVB, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_HIDRVA, XX_SD_CTL_DRV_DEFAULT);
+	EFX_SET_OWORD_FIELD(sdctl, XX_LODRVA, XX_SD_CTL_DRV_DEFAULT);
+	falcon_write(efx, &sdctl, XX_SD_CTL_REG);
 
-	EFX_POPULATE_DWORD_8(txdrv,
+	EFX_POPULATE_OWORD_8(txdrv,
 			     XX_DEQD, XX_TXDRV_DEQ_DEFAULT,
 			     XX_DEQC, XX_TXDRV_DEQ_DEFAULT,
 			     XX_DEQB, XX_TXDRV_DEQ_DEFAULT,
@@ -103,67 +75,67 @@ static void falcon_setup_xaui(struct efx_nic *efx)
 			     XX_DTXC, XX_TXDRV_DTX_DEFAULT,
 			     XX_DTXB, XX_TXDRV_DTX_DEFAULT,
 			     XX_DTXA, XX_TXDRV_DTX_DEFAULT);
-	falcon_xmac_writel(efx, &txdrv, XX_TXDRV_CTL_REG_MAC);
+	falcon_write(efx, &txdrv, XX_TXDRV_CTL_REG);
 }
 
 static void falcon_hold_xaui_in_rst(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 
-	EFX_ZERO_DWORD(reg);
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDNA_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDNB_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDNC_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDND_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RSTPLLAB_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RSTPLLCD_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RESETA_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RESETB_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RESETC_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RESETD_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
-	EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_ZERO_OWORD(reg);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDNA_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDNB_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDNC_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDND_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLAB_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLCD_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETA_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETB_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETC_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETD_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
+	EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 }
 
 static int _falcon_reset_xaui_a(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 
 	falcon_hold_xaui_in_rst(efx);
-	falcon_xmac_readl(efx, &reg, XX_PWR_RST_REG_MAC);
+	falcon_read(efx, &reg, XX_PWR_RST_REG);
 
 	/* Follow the RAMBUS XAUI data reset sequencing
 	 * Channels A and B first: power down, reset PLL, reset, clear
 	 */
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDNA_EN, 0);
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDNB_EN, 0);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDNA_EN, 0);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDNB_EN, 0);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
-	EFX_SET_DWORD_FIELD(reg, XX_RSTPLLAB_EN, 0);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLAB_EN, 0);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
-	EFX_SET_DWORD_FIELD(reg, XX_RESETA_EN, 0);
-	EFX_SET_DWORD_FIELD(reg, XX_RESETB_EN, 0);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETA_EN, 0);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETB_EN, 0);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
 	/* Channels C and D: power down, reset PLL, reset, clear */
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDNC_EN, 0);
-	EFX_SET_DWORD_FIELD(reg, XX_PWRDND_EN, 0);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDNC_EN, 0);
+	EFX_SET_OWORD_FIELD(reg, XX_PWRDND_EN, 0);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
-	EFX_SET_DWORD_FIELD(reg, XX_RSTPLLCD_EN, 0);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLCD_EN, 0);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
-	EFX_SET_DWORD_FIELD(reg, XX_RESETC_EN, 0);
-	EFX_SET_DWORD_FIELD(reg, XX_RESETD_EN, 0);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETC_EN, 0);
+	EFX_SET_OWORD_FIELD(reg, XX_RESETD_EN, 0);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
 	/* Setup XAUI */
@@ -171,8 +143,8 @@ static int _falcon_reset_xaui_a(struct efx_nic *efx)
 	udelay(10);
 
 	/* Take XGXS out of reset */
-	EFX_ZERO_DWORD(reg);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	EFX_ZERO_OWORD(reg);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 	udelay(10);
 
 	return 0;
@@ -180,16 +152,16 @@ static int _falcon_reset_xaui_a(struct efx_nic *efx)
 
 static int _falcon_reset_xaui_b(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 	int count;
 
 	EFX_POPULATE_DWORD_1(reg, XX_RST_XX_EN, 1);
-	falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+	falcon_write(efx, &reg, XX_PWR_RST_REG);
 
 	/* Give some time for the link to establish */
 	for (count = 0; count < 1000; count++) { /* wait upto 10ms */
-		falcon_xmac_readl(efx, &reg, XX_PWR_RST_REG_MAC);
-		if (EFX_DWORD_FIELD(reg, XX_RST_XX_EN) == 0) {
+		falcon_read(efx, &reg, XX_PWR_RST_REG);
+		if (EFX_OWORD_FIELD(reg, XX_RST_XX_EN) == 0) {
 			falcon_setup_xaui(efx);
 			return 0;
 		}
@@ -215,17 +187,17 @@ int falcon_reset_xaui(struct efx_nic *efx)
 
 static bool falcon_xgmii_status(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 
 	if (falcon_rev(efx) < FALCON_REV_B0)
 		return true;
 
 	/* The ISR latches, so clear it and re-read */
-	falcon_xmac_readl(efx, &reg, XM_MGT_INT_REG_MAC_B0);
-	falcon_xmac_readl(efx, &reg, XM_MGT_INT_REG_MAC_B0);
+	falcon_read(efx, &reg, XM_MGT_INT_REG_B0);
+	falcon_read(efx, &reg, XM_MGT_INT_REG_B0);
 
-	if (EFX_DWORD_FIELD(reg, XM_LCLFLT) ||
-	    EFX_DWORD_FIELD(reg, XM_RMTFLT)) {
+	if (EFX_OWORD_FIELD(reg, XM_LCLFLT) ||
+	    EFX_OWORD_FIELD(reg, XM_RMTFLT)) {
 		EFX_INFO(efx, "MGT_INT: "EFX_DWORD_FMT"\n", EFX_DWORD_VAL(reg));
 		return false;
 	}
@@ -235,19 +207,19 @@ static bool falcon_xgmii_status(struct efx_nic *efx)
 
 static void falcon_mask_status_intr(struct efx_nic *efx, bool enable)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 
 	if ((falcon_rev(efx) < FALCON_REV_B0) || LOOPBACK_INTERNAL(efx))
 		return;
 
 	/* Flush the ISR */
 	if (enable)
-		falcon_xmac_readl(efx, &reg, XM_MGT_INT_REG_MAC_B0);
+		falcon_read(efx, &reg, XM_MGT_INT_REG_B0);
 
-	EFX_POPULATE_DWORD_2(reg,
+	EFX_POPULATE_OWORD_2(reg,
 			     XM_MSK_RMTFLT, !enable,
 			     XM_MSK_LCLFLT, !enable);
-	falcon_xmac_writel(efx, &reg, XM_MGT_INT_MSK_REG_MAC_B0);
+	falcon_write(efx, &reg, XM_MGT_INT_MSK_REG_B0);
 }
 
 int falcon_init_xmac(struct efx_nic *efx)
@@ -281,7 +253,7 @@ int falcon_init_xmac(struct efx_nic *efx)
 
 bool falcon_xaui_link_ok(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 	bool align_done, link_ok = false;
 	int sync_status;
 
@@ -289,18 +261,18 @@ bool falcon_xaui_link_ok(struct efx_nic *efx)
 		return true;
 
 	/* Read link status */
-	falcon_xmac_readl(efx, &reg, XX_CORE_STAT_REG_MAC);
+	falcon_read(efx, &reg, XX_CORE_STAT_REG);
 
-	align_done = EFX_DWORD_FIELD(reg, XX_ALIGN_DONE);
-	sync_status = EFX_DWORD_FIELD(reg, XX_SYNC_STAT);
+	align_done = EFX_OWORD_FIELD(reg, XX_ALIGN_DONE);
+	sync_status = EFX_OWORD_FIELD(reg, XX_SYNC_STAT);
 	if (align_done && (sync_status == XX_SYNC_STAT_DECODE_SYNCED))
 		link_ok = true;
 
 	/* Clear link status ready for next read */
-	EFX_SET_DWORD_FIELD(reg, XX_COMMA_DET, XX_COMMA_DET_RESET);
-	EFX_SET_DWORD_FIELD(reg, XX_CHARERR, XX_CHARERR_RESET);
-	EFX_SET_DWORD_FIELD(reg, XX_DISPERR, XX_DISPERR_RESET);
-	falcon_xmac_writel(efx, &reg, XX_CORE_STAT_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_COMMA_DET, XX_COMMA_DET_RESET);
+	EFX_SET_OWORD_FIELD(reg, XX_CHARERR, XX_CHARERR_RESET);
+	EFX_SET_OWORD_FIELD(reg, XX_DISPERR, XX_DISPERR_RESET);
+	falcon_write(efx, &reg, XX_CORE_STAT_REG);
 
 	/* If the link is up, then check the phy side of the xaui link
 	 * (error conditions from the wire side propoagate back through
@@ -321,7 +293,7 @@ bool falcon_xaui_link_ok(struct efx_nic *efx)
 static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 {
 	unsigned int max_frame_len;
-	efx_dword_t reg;
+	efx_oword_t reg;
 	bool rx_fc = !!(efx->flow_control & EFX_FC_RX);
 
 	/* Configure MAC  - cut-thru mode is hard wired on */
@@ -329,7 +301,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 			     XM_RX_JUMBO_MODE, 1,
 			     XM_TX_STAT_EN, 1,
 			     XM_RX_STAT_EN, 1);
-	falcon_xmac_writel(efx, &reg, XM_GLB_CFG_REG_MAC);
+	falcon_write(efx, &reg, XM_GLB_CFG_REG);
 
 	/* Configure TX */
 	EFX_POPULATE_DWORD_6(reg,
@@ -339,7 +311,7 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 			     XM_TXCRC, 1,
 			     XM_FCNTL, 1,
 			     XM_IPG, 0x3);
-	falcon_xmac_writel(efx, &reg, XM_TX_CFG_REG_MAC);
+	falcon_write(efx, &reg, XM_TX_CFG_REG);
 
 	/* Configure RX */
 	EFX_POPULATE_DWORD_5(reg,
@@ -348,21 +320,21 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 			     XM_ACPT_ALL_MCAST, 1,
 			     XM_ACPT_ALL_UCAST, efx->promiscuous,
 			     XM_PASS_CRC_ERR, 1);
-	falcon_xmac_writel(efx, &reg, XM_RX_CFG_REG_MAC);
+	falcon_write(efx, &reg, XM_RX_CFG_REG);
 
 	/* Set frame length */
 	max_frame_len = EFX_MAX_FRAME_LEN(efx->net_dev->mtu);
 	EFX_POPULATE_DWORD_1(reg, XM_MAX_RX_FRM_SIZE, max_frame_len);
-	falcon_xmac_writel(efx, &reg, XM_RX_PARAM_REG_MAC);
+	falcon_write(efx, &reg, XM_RX_PARAM_REG);
 	EFX_POPULATE_DWORD_2(reg,
 			     XM_MAX_TX_FRM_SIZE, max_frame_len,
 			     XM_TX_JUMBO_MODE, 1);
-	falcon_xmac_writel(efx, &reg, XM_TX_PARAM_REG_MAC);
+	falcon_write(efx, &reg, XM_TX_PARAM_REG);
 
 	EFX_POPULATE_DWORD_2(reg,
 			     XM_PAUSE_TIME, 0xfffe, /* MAX PAUSE TIME */
 			     XM_DIS_FCNTL, !rx_fc);
-	falcon_xmac_writel(efx, &reg, XM_FC_REG_MAC);
+	falcon_write(efx, &reg, XM_FC_REG);
 
 	/* Set MAC address */
 	EFX_POPULATE_DWORD_4(reg,
@@ -370,16 +342,16 @@ static void falcon_reconfigure_xmac_core(struct efx_nic *efx)
 			     XM_ADR_1, efx->net_dev->dev_addr[1],
 			     XM_ADR_2, efx->net_dev->dev_addr[2],
 			     XM_ADR_3, efx->net_dev->dev_addr[3]);
-	falcon_xmac_writel(efx, &reg, XM_ADR_LO_REG_MAC);
+	falcon_write(efx, &reg, XM_ADR_LO_REG);
 	EFX_POPULATE_DWORD_2(reg,
 			     XM_ADR_4, efx->net_dev->dev_addr[4],
 			     XM_ADR_5, efx->net_dev->dev_addr[5]);
-	falcon_xmac_writel(efx, &reg, XM_ADR_HI_REG_MAC);
+	falcon_write(efx, &reg, XM_ADR_HI_REG);
 }
 
 static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
 {
-	efx_dword_t reg;
+	efx_oword_t reg;
 	bool xgxs_loopback = (efx->loopback_mode == LOOPBACK_XGXS);
 	bool xaui_loopback = (efx->loopback_mode == LOOPBACK_XAUI);
 	bool xgmii_loopback = (efx->loopback_mode == LOOPBACK_XGMII);
@@ -390,44 +362,44 @@ static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
 		bool old_xgmii_loopback, old_xgxs_loopback, old_xaui_loopback;
 		bool reset_xgxs;
 
-		falcon_xmac_readl(efx, &reg, XX_CORE_STAT_REG_MAC);
-		old_xgxs_loopback = EFX_DWORD_FIELD(reg, XX_XGXS_LB_EN);
-		old_xgmii_loopback = EFX_DWORD_FIELD(reg, XX_XGMII_LB_EN);
+		falcon_read(efx, &reg, XX_CORE_STAT_REG);
+		old_xgxs_loopback = EFX_OWORD_FIELD(reg, XX_XGXS_LB_EN);
+		old_xgmii_loopback = EFX_OWORD_FIELD(reg, XX_XGMII_LB_EN);
 
-		falcon_xmac_readl(efx, &reg, XX_SD_CTL_REG_MAC);
-		old_xaui_loopback = EFX_DWORD_FIELD(reg, XX_LPBKA);
+		falcon_read(efx, &reg, XX_SD_CTL_REG);
+		old_xaui_loopback = EFX_OWORD_FIELD(reg, XX_LPBKA);
 
 		/* The PHY driver may have turned XAUI off */
 		reset_xgxs = ((xgxs_loopback != old_xgxs_loopback) ||
 			      (xaui_loopback != old_xaui_loopback) ||
 			      (xgmii_loopback != old_xgmii_loopback));
 		if (reset_xgxs) {
-			falcon_xmac_readl(efx, &reg, XX_PWR_RST_REG_MAC);
-			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
-			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
-			falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+			falcon_read(efx, &reg, XX_PWR_RST_REG);
+			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
+			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
+			falcon_write(efx, &reg, XX_PWR_RST_REG);
 			udelay(1);
-			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSTX_EN, 0);
-			EFX_SET_DWORD_FIELD(reg, XX_RSTXGXSRX_EN, 0);
-			falcon_xmac_writel(efx, &reg, XX_PWR_RST_REG_MAC);
+			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSTX_EN, 0);
+			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSRX_EN, 0);
+			falcon_write(efx, &reg, XX_PWR_RST_REG);
 			udelay(1);
 		}
 	}
 
-	falcon_xmac_readl(efx, &reg, XX_CORE_STAT_REG_MAC);
-	EFX_SET_DWORD_FIELD(reg, XX_FORCE_SIG,
+	falcon_read(efx, &reg, XX_CORE_STAT_REG);
+	EFX_SET_OWORD_FIELD(reg, XX_FORCE_SIG,
 			    (xgxs_loopback || xaui_loopback) ?
 			    XX_FORCE_SIG_DECODE_FORCED : 0);
-	EFX_SET_DWORD_FIELD(reg, XX_XGXS_LB_EN, xgxs_loopback);
-	EFX_SET_DWORD_FIELD(reg, XX_XGMII_LB_EN, xgmii_loopback);
-	falcon_xmac_writel(efx, &reg, XX_CORE_STAT_REG_MAC);
+	EFX_SET_OWORD_FIELD(reg, XX_XGXS_LB_EN, xgxs_loopback);
+	EFX_SET_OWORD_FIELD(reg, XX_XGMII_LB_EN, xgmii_loopback);
+	falcon_write(efx, &reg, XX_CORE_STAT_REG);
 
-	falcon_xmac_readl(efx, &reg, XX_SD_CTL_REG_MAC);
-	EFX_SET_DWORD_FIELD(reg, XX_LPBKD, xaui_loopback);
-	EFX_SET_DWORD_FIELD(reg, XX_LPBKC, xaui_loopback);
-	EFX_SET_DWORD_FIELD(reg, XX_LPBKB, xaui_loopback);
-	EFX_SET_DWORD_FIELD(reg, XX_LPBKA, xaui_loopback);
-	falcon_xmac_writel(efx, &reg, XX_SD_CTL_REG_MAC);
+	falcon_read(efx, &reg, XX_SD_CTL_REG);
+	EFX_SET_OWORD_FIELD(reg, XX_LPBKD, xaui_loopback);
+	EFX_SET_OWORD_FIELD(reg, XX_LPBKC, xaui_loopback);
+	EFX_SET_OWORD_FIELD(reg, XX_LPBKB, xaui_loopback);
+	EFX_SET_OWORD_FIELD(reg, XX_LPBKA, xaui_loopback);
+	falcon_write(efx, &reg, XX_SD_CTL_REG);
 }
 
 

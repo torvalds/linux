@@ -13,10 +13,6 @@
 
 #include "net_driver.h"
 
-extern void falcon_xmac_writel(struct efx_nic *efx,
-			       efx_dword_t *value, unsigned int mac_reg);
-extern void falcon_xmac_readl(struct efx_nic *efx,
-			      efx_dword_t *value, unsigned int mac_reg);
 extern int falcon_init_xmac(struct efx_nic *efx);
 extern void falcon_reconfigure_xmac(struct efx_nic *efx);
 extern void falcon_update_stats_xmac(struct efx_nic *efx);
