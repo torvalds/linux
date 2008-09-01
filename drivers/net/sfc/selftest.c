@@ -400,7 +400,7 @@ static void efx_iterate_state(struct efx_nic *efx)
 	smp_wmb();
 }
 
-static int efx_tx_loopback(struct efx_tx_queue *tx_queue)
+static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_selftest_state *state = efx->loopback_selftest;
@@ -449,8 +449,22 @@ static int efx_tx_loopback(struct efx_tx_queue *tx_queue)
 	return 0;
 }
 
-static int efx_rx_loopback(struct efx_tx_queue *tx_queue,
-			   struct efx_loopback_self_tests *lb_tests)
+static int efx_poll_loopback(struct efx_nic *efx)
+{
+	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_channel *channel;
+
+	/* NAPI polling is not enabled, so process channels
+	 * synchronously */
+	efx_for_each_channel_with_interrupt(channel, efx) {
+		if (channel->work_pending)
+			efx_process_channel_now(channel);
+	}
+	return atomic_read(&state->rx_good) == state->packet_count;
+}
+
+static int efx_end_loopback(struct efx_tx_queue *tx_queue,
+			    struct efx_loopback_self_tests *lb_tests)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_selftest_state *state = efx->loopback_selftest;
@@ -513,8 +527,7 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct efx_selftest_state *state = efx->loopback_selftest;
-	struct efx_channel *channel;
-	int i, tx_rc, rx_rc;
+	int i, begin_rc, end_rc;
 
 	for (i = 0; i < loopback_test_level; i++) {
 		/* Determine how many packets to send */
@@ -531,23 +544,24 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 			state->packet_count);
 
 		efx_iterate_state(efx);
-		tx_rc = efx_tx_loopback(tx_queue);
-		
-		/* NAPI polling is not enabled, so process channels synchronously */
-		schedule_timeout_uninterruptible(HZ / 50);
-		efx_for_each_channel_with_interrupt(channel, efx) {
-			if (channel->work_pending)
-				efx_process_channel_now(channel);
+		begin_rc = efx_begin_loopback(tx_queue);
+
+		/* This will normally complete very quickly, but be
+		 * prepared to wait up to 100 ms. */
+		msleep(1);
+		if (!efx_poll_loopback(efx)) {
+			msleep(100);
+			efx_poll_loopback(efx);
 		}
 
-		rx_rc = efx_rx_loopback(tx_queue, lb_tests);
+		end_rc = efx_end_loopback(tx_queue, lb_tests);
 		kfree(state->skbs);
 
-		if (tx_rc || rx_rc) {
+		if (begin_rc || end_rc) {
 			/* Wait a while to ensure there are no packets
 			 * floating around after a failure. */
 			schedule_timeout_uninterruptible(HZ / 10);
-			return tx_rc ? tx_rc : rx_rc;
+			return begin_rc ? begin_rc : end_rc;
 		}
 	}
 
