@@ -28,7 +28,6 @@
 #include "efx.h"
 #include "mdio_10g.h"
 #include "falcon.h"
-#include "workarounds.h"
 #include "mac.h"
 
 #define EFX_MAX_MTU (9 * 1024)
