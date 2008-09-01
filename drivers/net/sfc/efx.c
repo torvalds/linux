@@ -2092,6 +2092,9 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 			      NETIF_F_HIGHDMA | NETIF_F_TSO);
 	if (lro)
 		net_dev->features |= NETIF_F_LRO;
+	/* Mask for features that also apply to VLAN devices */
+	net_dev->vlan_features |= (NETIF_F_ALL_CSUM | NETIF_F_SG |
+				   NETIF_F_HIGHDMA);
 	efx = netdev_priv(net_dev);
 	pci_set_drvdata(pci_dev, efx);
 	rc = efx_init_struct(efx, type, pci_dev, net_dev);
