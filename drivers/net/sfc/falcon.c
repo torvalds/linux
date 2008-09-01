@@ -2780,19 +2780,14 @@ int falcon_init_nic(struct efx_nic *efx)
 	EFX_INVERT_OWORD(temp);
 	falcon_write(efx, &temp, FATAL_INTR_REG_KER);
 
-	/* Set number of RSS queues for receive path. */
-	falcon_read(efx, &temp, RX_FILTER_CTL_REG);
-	if (falcon_rev(efx) >= FALCON_REV_B0)
-		EFX_SET_OWORD_FIELD(temp, NUM_KER, 0);
-	else
-		EFX_SET_OWORD_FIELD(temp, NUM_KER, efx->n_rx_queues - 1);
 	if (EFX_WORKAROUND_7244(efx)) {
+		falcon_read(efx, &temp, RX_FILTER_CTL_REG);
 		EFX_SET_OWORD_FIELD(temp, UDP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, UDP_WILD_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, TCP_FULL_SRCH_LIMIT, 8);
 		EFX_SET_OWORD_FIELD(temp, TCP_WILD_SRCH_LIMIT, 8);
+		falcon_write(efx, &temp, RX_FILTER_CTL_REG);
 	}
-	falcon_write(efx, &temp, RX_FILTER_CTL_REG);
 
 	falcon_setup_rss_indir_table(efx);
 
