@@ -140,8 +140,7 @@ static void efx_fini_channels(struct efx_nic *efx);
 
 #define EFX_ASSERT_RESET_SERIALISED(efx)		\
 	do {						\
-		if ((efx->state == STATE_RUNNING) ||	\
-		    (efx->state == STATE_RESETTING))	\
+		if (efx->state == STATE_RUNNING)	\
 			ASSERT_RTNL();			\
 	} while (0)
 
@@ -1615,7 +1614,6 @@ static int efx_reset(struct efx_nic *efx)
 		goto unlock_rtnl;
 	}
 
-	efx->state = STATE_RESETTING;
 	EFX_INFO(efx, "resetting (%d)\n", method);
 
 	efx_reset_down(efx, &ecmd);
@@ -1646,7 +1644,6 @@ static int efx_reset(struct efx_nic *efx)
 		goto disable;
 
 	EFX_LOG(efx, "reset complete\n");
-	efx->state = STATE_RUNNING;
  unlock_rtnl:
 	rtnl_unlock();
 	return 0;

@@ -459,8 +459,7 @@ enum nic_state {
 	STATE_INIT = 0,
 	STATE_RUNNING = 1,
 	STATE_FINI = 2,
-	STATE_RESETTING = 3, /* rtnl_lock always held */
-	STATE_DISABLED = 4,
+	STATE_DISABLED = 3,
 	STATE_MAX,
 };
 
