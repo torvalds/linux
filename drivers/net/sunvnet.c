@@ -1,6 +1,6 @@
 /* sunvnet.c: Sun LDOM Virtual Network Driver.
  *
- * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/module.h>
@@ -1260,7 +1260,7 @@ static int vnet_port_remove(struct vio_dev *vdev)
 	return 0;
 }
 
-static struct vio_device_id vnet_port_match[] = {
+static const struct vio_device_id vnet_port_match[] = {
 	{
 		.type = "vnet-port",
 	},

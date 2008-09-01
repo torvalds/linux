@@ -1,6 +1,6 @@
 /* sunvdc.c: Sun LDOM Virtual Disk Client.
  *
- * Copyright (C) 2007 David S. Miller <davem@davemloft.net>
+ * Copyright (C) 2007, 2008 David S. Miller <davem@davemloft.net>
  */
 
 #include <linux/module.h>
@@ -834,7 +834,7 @@ static int vdc_port_remove(struct vio_dev *vdev)
 	return 0;
 }
 
-static struct vio_device_id vdc_port_match[] = {
+static const struct vio_device_id vdc_port_match[] = {
 	{
 		.type = "vdc-port",
 	},
