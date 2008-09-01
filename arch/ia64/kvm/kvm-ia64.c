@@ -1112,7 +1112,7 @@ static void kvm_migrate_hlt_timer(struct kvm_vcpu *vcpu)
 	struct hrtimer *p_ht = &vcpu->arch.hlt_timer;
 
 	if (hrtimer_cancel(p_ht))
-		hrtimer_start(p_ht, p_ht->expires, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(p_ht, HRTIMER_MODE_ABS);
 }
 
 static enum hrtimer_restart hlt_timer_fn(struct hrtimer *data)
