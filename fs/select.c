@@ -28,6 +28,58 @@
 
 #include <asm/uaccess.h>
 
+
+/*
+ * Estimate expected accuracy in ns from a timeval.
+ *
+ * After quite a bit of churning around, we've settled on
+ * a simple thing of taking 0.1% of the timeout as the
+ * slack, with a cap of 100 msec.
+ * "nice" tasks get a 0.5% slack instead.
+ *
+ * Consider this comment an open invitation to come up with even
+ * better solutions..
+ */
+
+static unsigned long __estimate_accuracy(struct timespec *tv)
+{
+	unsigned long slack;
+	int divfactor = 1000;
+
+	if (task_nice(current))
+		divfactor = divfactor / 5;
+
+	slack = tv->tv_nsec / divfactor;
+	slack += tv->tv_sec * (NSEC_PER_SEC/divfactor);
+
+	if (slack > 100 * NSEC_PER_MSEC)
+		slack =  100 * NSEC_PER_MSEC;
+	return slack;
+}
+
+static unsigned long estimate_accuracy(struct timespec *tv)
+{
+	unsigned long ret;
+	struct timespec now;
+
+	/*
+	 * Realtime tasks get a slack of 0 for obvious reasons.
+	 */
+
+	if (current->policy == SCHED_FIFO ||
+		current->policy == SCHED_RR)
+		return 0;
+
+	ktime_get_ts(&now);
+	now = timespec_sub(*tv, now);
+	ret = __estimate_accuracy(&now);
+	if (ret < current->timer_slack_ns)
+		return current->timer_slack_ns;
+	return ret;
+}
+
+
+
 struct poll_table_page {
 	struct poll_table_page * next;
 	struct poll_table_entry * entry;
@@ -262,6 +314,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 	struct poll_wqueues table;
 	poll_table *wait;
 	int retval, i, timed_out = 0;
+	unsigned long slack = 0;
 
 	rcu_read_lock();
 	retval = max_select_fd(n, fds);
@@ -277,6 +330,9 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 		wait = NULL;
 		timed_out = 1;
 	}
+
+	if (end_time)
+		slack = estimate_accuracy(end_time);
 
 	retval = 0;
 	for (;;) {
@@ -353,7 +409,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 			to = &expire;
 		}
 
-		if (!schedule_hrtimeout(to, HRTIMER_MODE_ABS))
+		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
 			timed_out = 1;
 	}
 	__set_current_state(TASK_RUNNING);
@@ -593,12 +649,16 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 	poll_table* pt = &wait->pt;
 	ktime_t expire, *to = NULL;
 	int timed_out = 0, count = 0;
+	unsigned long slack = 0;
 
 	/* Optimise the no-wait case */
 	if (end_time && !end_time->tv_sec && !end_time->tv_nsec) {
 		pt = NULL;
 		timed_out = 1;
 	}
+
+	if (end_time)
+		slack = estimate_accuracy(end_time);
 
 	for (;;) {
 		struct poll_list *walk;
@@ -646,7 +706,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 			to = &expire;
 		}
 
-		if (!schedule_hrtimeout(to, HRTIMER_MODE_ABS))
+		if (!schedule_hrtimeout_range(to, slack, HRTIMER_MODE_ABS))
 			timed_out = 1;
 	}
 	__set_current_state(TASK_RUNNING);
