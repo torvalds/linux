@@ -373,16 +373,18 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	return n;
 }
 
-static int efx_ethtool_get_stats_count(struct net_device *net_dev)
+static int efx_ethtool_get_sset_count(struct net_device *net_dev,
+				      int string_set)
 {
-	return EFX_ETHTOOL_NUM_STATS;
-}
-
-static int efx_ethtool_self_test_count(struct net_device *net_dev)
-{
-	struct efx_nic *efx = netdev_priv(net_dev);
-
-	return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
+	switch (string_set) {
+	case ETH_SS_STATS:
+		return EFX_ETHTOOL_NUM_STATS;
+	case ETH_SS_TEST:
+		return efx_ethtool_fill_self_tests(netdev_priv(net_dev),
+						   NULL, NULL, NULL);
+	default:
+		return -EINVAL;
+	}
 }
 
 static void efx_ethtool_get_strings(struct net_device *net_dev,
@@ -719,10 +721,9 @@ struct ethtool_ops efx_ethtool_ops = {
 	.set_tso		= ethtool_op_set_tso,
 	.get_flags		= ethtool_op_get_flags,
 	.set_flags		= ethtool_op_set_flags,
-	.self_test_count	= efx_ethtool_self_test_count,
+	.get_sset_count		= efx_ethtool_get_sset_count,
 	.self_test		= efx_ethtool_self_test,
 	.get_strings		= efx_ethtool_get_strings,
 	.phys_id		= efx_ethtool_phys_id,
-	.get_stats_count	= efx_ethtool_get_stats_count,
 	.get_ethtool_stats	= efx_ethtool_get_stats,
 };
