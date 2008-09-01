@@ -1098,21 +1098,6 @@ sys32_mremap (unsigned int addr, unsigned int old_len, unsigned int new_len,
 	return ret;
 }
 
-asmlinkage long
-sys32_pipe (int __user *fd)
-{
-	int retval;
-	int fds[2];
-
-	retval = do_pipe_flags(fds, 0);
-	if (retval)
-		goto out;
-	if (copy_to_user(fd, fds, sizeof(fds)))
-		retval = -EFAULT;
-  out:
-	return retval;
-}
-
 asmlinkage unsigned long
 sys32_alarm (unsigned int seconds)
 {
