@@ -5,8 +5,8 @@
 #include <linux/types.h>
 #include <linux/init.h>
 
-extern char *sparc_cpu_type;
-extern char *sparc_fpu_type;
+extern const char *sparc_cpu_type;
+extern const char *sparc_fpu_type;
 
 extern void __init per_cpu_patch(void);
 extern void __init sun4v_patch(void);

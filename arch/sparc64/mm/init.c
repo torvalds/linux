@@ -1841,8 +1841,6 @@ void __init paging_init(void)
 	}
 
 	printk("Booting Linux...\n");
-
-	cpu_probe();
 }
 
 int __init page_in_phys_avail(unsigned long paddr)
