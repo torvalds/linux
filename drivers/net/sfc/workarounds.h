@@ -24,8 +24,6 @@
 #define EFX_WORKAROUND_7575 EFX_WORKAROUND_ALWAYS
 /* TX pkt parser problem with <= 16 byte TXes */
 #define EFX_WORKAROUND_9141 EFX_WORKAROUND_ALWAYS
-/* XGXS and XAUI reset sequencing in SW */
-#define EFX_WORKAROUND_9388 EFX_WORKAROUND_ALWAYS
 /* Low rate CRC errors require XAUI reset */
 #define EFX_WORKAROUND_10750 EFX_WORKAROUND_ALWAYS
 /* TX_EV_PKT_ERR can be caused by a dangling TX descriptor

@@ -1750,7 +1750,6 @@ static struct efx_phy_operations efx_dummy_phy_operations = {
 	.check_hw        = efx_port_dummy_op_int,
 	.fini		 = efx_port_dummy_op_void,
 	.clear_interrupt = efx_port_dummy_op_void,
-	.reset_xaui      = efx_port_dummy_op_void,
 };
 
 static struct efx_board efx_dummy_board_info = {

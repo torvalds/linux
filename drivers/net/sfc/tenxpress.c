@@ -146,8 +146,6 @@ static int tenxpress_phy_check(struct efx_nic *efx)
 	return 0;
 }
 
-static void tenxpress_reset_xaui(struct efx_nic *efx);
-
 static int tenxpress_init(struct efx_nic *efx)
 {
 	int rc, reg;
@@ -428,54 +426,6 @@ void tenxpress_phy_blink(struct efx_nic *efx, bool blink)
 			    PMA_PMD_LED_OVERR_REG, reg);
 }
 
-static void tenxpress_reset_xaui(struct efx_nic *efx)
-{
-	int phy = efx->mii.phy_id;
-	int clk_ctrl, test_select, soft_rst2;
-
-	/* Real work is done on clock_ctrl other resets are thought to be
-	 * optional but make the reset more reliable
-	 */
-
-	/* Read */
-	clk_ctrl = mdio_clause45_read(efx, phy, MDIO_MMD_PCS,
-				      PCS_CLOCK_CTRL_REG);
-	test_select = mdio_clause45_read(efx, phy, MDIO_MMD_PCS,
-					 PCS_TEST_SELECT_REG);
-	soft_rst2 = mdio_clause45_read(efx, phy, MDIO_MMD_PCS,
-				       PCS_SOFT_RST2_REG);
-
-	/* Put in reset */
-	test_select &= ~(1 << CLK312_EN_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_TEST_SELECT_REG, test_select);
-
-	soft_rst2 &= ~((1 << XGXS_RST_N_LBN) | (1 << SERDES_RST_N_LBN));
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_SOFT_RST2_REG, soft_rst2);
-
-	clk_ctrl &= ~(1 << PLL312_RST_N_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_CLOCK_CTRL_REG, clk_ctrl);
-	udelay(10);
-
-	/* Remove reset */
-	clk_ctrl |= (1 << PLL312_RST_N_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_CLOCK_CTRL_REG, clk_ctrl);
-	udelay(10);
-
-	soft_rst2 |= ((1 << XGXS_RST_N_LBN) | (1 << SERDES_RST_N_LBN));
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_SOFT_RST2_REG, soft_rst2);
-	udelay(10);
-
-	test_select |= (1 << CLK312_EN_LBN);
-	mdio_clause45_write(efx, phy, MDIO_MMD_PCS,
-			    PCS_TEST_SELECT_REG, test_select);
-	udelay(10);
-}
-
 static int tenxpress_phy_test(struct efx_nic *efx)
 {
 	/* BIST is automatically run after a special software reset */
@@ -488,7 +438,6 @@ struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.check_hw         = tenxpress_phy_check_hw,
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = tenxpress_phy_clear_interrupt,
-	.reset_xaui       = tenxpress_reset_xaui,
 	.test             = tenxpress_phy_test,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = TENXPRESS_LOOPBACKS,

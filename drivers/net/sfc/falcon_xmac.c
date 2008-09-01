@@ -78,79 +78,7 @@ static void falcon_setup_xaui(struct efx_nic *efx)
 	falcon_write(efx, &txdrv, XX_TXDRV_CTL_REG);
 }
 
-static void falcon_hold_xaui_in_rst(struct efx_nic *efx)
-{
-	efx_oword_t reg;
-
-	EFX_ZERO_OWORD(reg);
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDNA_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDNB_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDNC_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDND_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLAB_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLCD_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RESETA_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RESETB_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RESETC_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RESETD_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
-	EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-}
-
-static int _falcon_reset_xaui_a(struct efx_nic *efx)
-{
-	efx_oword_t reg;
-
-	falcon_hold_xaui_in_rst(efx);
-	falcon_read(efx, &reg, XX_PWR_RST_REG);
-
-	/* Follow the RAMBUS XAUI data reset sequencing
-	 * Channels A and B first: power down, reset PLL, reset, clear
-	 */
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDNA_EN, 0);
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDNB_EN, 0);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLAB_EN, 0);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	EFX_SET_OWORD_FIELD(reg, XX_RESETA_EN, 0);
-	EFX_SET_OWORD_FIELD(reg, XX_RESETB_EN, 0);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	/* Channels C and D: power down, reset PLL, reset, clear */
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDNC_EN, 0);
-	EFX_SET_OWORD_FIELD(reg, XX_PWRDND_EN, 0);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	EFX_SET_OWORD_FIELD(reg, XX_RSTPLLCD_EN, 0);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	EFX_SET_OWORD_FIELD(reg, XX_RESETC_EN, 0);
-	EFX_SET_OWORD_FIELD(reg, XX_RESETD_EN, 0);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	/* Setup XAUI */
-	falcon_setup_xaui(efx);
-	udelay(10);
-
-	/* Take XGXS out of reset */
-	EFX_ZERO_OWORD(reg);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
-
-	return 0;
-}
-
-static int _falcon_reset_xaui_b(struct efx_nic *efx)
+int falcon_reset_xaui(struct efx_nic *efx)
 {
 	efx_oword_t reg;
 	int count;
@@ -169,20 +97,6 @@ static int _falcon_reset_xaui_b(struct efx_nic *efx)
 	}
 	EFX_ERR(efx, "timed out waiting for XAUI/XGXS reset\n");
 	return -ETIMEDOUT;
-}
-
-int falcon_reset_xaui(struct efx_nic *efx)
-{
-	int rc;
-
-	if (EFX_WORKAROUND_9388(efx)) {
-		falcon_hold_xaui_in_rst(efx);
-		efx->phy_op->reset_xaui(efx);
-		rc = _falcon_reset_xaui_a(efx);
-	} else {
-		rc = _falcon_reset_xaui_b(efx);
-	}
-	return rc;
 }
 
 static bool falcon_xgmii_status(struct efx_nic *efx)

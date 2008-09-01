@@ -129,18 +129,6 @@ static int sfe4001_poweron(struct efx_nic *efx)
 	unsigned int i, j;
 	int rc;
 	u8 out;
-	efx_oword_t reg;
-
-	/* Ensure that XGXS and XAUI SerDes are held in reset */
-	EFX_POPULATE_OWORD_7(reg, XX_PWRDNA_EN, 1,
-			     XX_PWRDNB_EN, 1,
-			     XX_RSTPLLAB_EN, 1,
-			     XX_RESETA_EN, 1,
-			     XX_RESETB_EN, 1,
-			     XX_RSTXGXSRX_EN, 1,
-			     XX_RSTXGXSTX_EN, 1);
-	falcon_write(efx, &reg, XX_PWR_RST_REG);
-	udelay(10);
 
 	/* Clear any previous over-temperature alert */
 	rc = i2c_smbus_read_byte_data(hwmon_client, RSL);
