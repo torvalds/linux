@@ -107,14 +107,6 @@ asmlinkage long compat_sys_sysfs(u32 option, u32 arg1, u32 arg2)
 	return sys_sysfs((int)option, arg1, arg2);
 }
 
-asmlinkage long compat_sys_pause(void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	
-	return -ERESTARTNOHAND;
-}
-
 static inline long get_ts32(struct timespec *o, struct compat_timeval __user *i)
 {
 	long usec;
