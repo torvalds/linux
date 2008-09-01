@@ -57,7 +57,7 @@ extern int falcon_probe_eventq(struct efx_channel *channel);
 extern int falcon_init_eventq(struct efx_channel *channel);
 extern void falcon_fini_eventq(struct efx_channel *channel);
 extern void falcon_remove_eventq(struct efx_channel *channel);
-extern int falcon_process_eventq(struct efx_channel *channel, int *rx_quota);
+extern int falcon_process_eventq(struct efx_channel *channel, int rx_quota);
 extern void falcon_eventq_read_ack(struct efx_channel *channel);
 
 /* Ports */

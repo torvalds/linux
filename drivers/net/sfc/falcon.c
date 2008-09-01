@@ -952,10 +952,10 @@ static void falcon_handle_rx_bad_index(struct efx_rx_queue *rx_queue,
  * Also "is multicast" and "matches multicast filter" flags can be used to
  * discard non-matching multicast packets.
  */
-static int falcon_handle_rx_event(struct efx_channel *channel,
-				  const efx_qword_t *event)
+static void falcon_handle_rx_event(struct efx_channel *channel,
+				   const efx_qword_t *event)
 {
-	unsigned int rx_ev_q_label, rx_ev_desc_ptr, rx_ev_byte_cnt;
+	unsigned int rx_ev_desc_ptr, rx_ev_byte_cnt;
 	unsigned int rx_ev_hdr_type, rx_ev_mcast_pkt;
 	unsigned expected_ptr;
 	bool rx_ev_pkt_ok, discard = false, checksummed;
@@ -968,16 +968,14 @@ static int falcon_handle_rx_event(struct efx_channel *channel,
 	rx_ev_hdr_type = EFX_QWORD_FIELD(*event, RX_EV_HDR_TYPE);
 	WARN_ON(EFX_QWORD_FIELD(*event, RX_EV_JUMBO_CONT));
 	WARN_ON(EFX_QWORD_FIELD(*event, RX_EV_SOP) != 1);
+	WARN_ON(EFX_QWORD_FIELD(*event, RX_EV_Q_LABEL) != channel->channel);
 
-	rx_ev_q_label = EFX_QWORD_FIELD(*event, RX_EV_Q_LABEL);
-	rx_queue = &efx->rx_queue[rx_ev_q_label];
+	rx_queue = &efx->rx_queue[channel->channel];
 
 	rx_ev_desc_ptr = EFX_QWORD_FIELD(*event, RX_EV_DESC_PTR);
 	expected_ptr = rx_queue->removed_count & FALCON_RXD_RING_MASK;
-	if (unlikely(rx_ev_desc_ptr != expected_ptr)) {
+	if (unlikely(rx_ev_desc_ptr != expected_ptr))
 		falcon_handle_rx_bad_index(rx_queue, rx_ev_desc_ptr);
-		return rx_ev_q_label;
-	}
 
 	if (likely(rx_ev_pkt_ok)) {
 		/* If packet is marked as OK and packet type is TCP/IPv4 or
@@ -1003,8 +1001,6 @@ static int falcon_handle_rx_event(struct efx_channel *channel,
 	/* Handle received packet */
 	efx_rx_packet(rx_queue, rx_ev_desc_ptr, rx_ev_byte_cnt,
 		      checksummed, discard);
-
-	return rx_ev_q_label;
 }
 
 /* Global events are basically PHY events */
@@ -1109,13 +1105,12 @@ static void falcon_handle_driver_event(struct efx_channel *channel,
 	}
 }
 
-int falcon_process_eventq(struct efx_channel *channel, int *rx_quota)
+int falcon_process_eventq(struct efx_channel *channel, int rx_quota)
 {
 	unsigned int read_ptr;
 	efx_qword_t event, *p_event;
 	int ev_code;
-	int rxq;
-	int rxdmaqs = 0;
+	int rx_packets = 0;
 
 	read_ptr = channel->eventq_read_ptr;
 
@@ -1137,9 +1132,8 @@ int falcon_process_eventq(struct efx_channel *channel, int *rx_quota)
 
 		switch (ev_code) {
 		case RX_IP_EV_DECODE:
-			rxq = falcon_handle_rx_event(channel, &event);
-			rxdmaqs |= (1 << rxq);
-			(*rx_quota)--;
+			falcon_handle_rx_event(channel, &event);
+			++rx_packets;
 			break;
 		case TX_IP_EV_DECODE:
 			falcon_handle_tx_event(channel, &event);
@@ -1166,10 +1160,10 @@ int falcon_process_eventq(struct efx_channel *channel, int *rx_quota)
 		/* Increment read pointer */
 		read_ptr = (read_ptr + 1) & FALCON_EVQ_MASK;
 
-	} while (*rx_quota);
+	} while (rx_packets < rx_quota);
 
 	channel->eventq_read_ptr = read_ptr;
-	return rxdmaqs;
+	return rx_packets;
 }
 
 void falcon_set_int_moderation(struct efx_channel *channel)

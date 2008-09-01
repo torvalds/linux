@@ -160,14 +160,16 @@ static void efx_fini_channels(struct efx_nic *efx);
  */
 static int efx_process_channel(struct efx_channel *channel, int rx_quota)
 {
-	int rxdmaqs;
-	struct efx_rx_queue *rx_queue;
+	struct efx_nic *efx = channel->efx;
+	int rx_packets;
 
-	if (unlikely(channel->efx->reset_pending != RESET_TYPE_NONE ||
+	if (unlikely(efx->reset_pending != RESET_TYPE_NONE ||
 		     !channel->enabled))
-		return rx_quota;
+		return 0;
 
-	rxdmaqs = falcon_process_eventq(channel, &rx_quota);
+	rx_packets = falcon_process_eventq(channel, rx_quota);
+	if (rx_packets == 0)
+		return 0;
 
 	/* Deliver last RX packet. */
 	if (channel->rx_pkt) {
@@ -179,16 +181,9 @@ static int efx_process_channel(struct efx_channel *channel, int rx_quota)
 	efx_flush_lro(channel);
 	efx_rx_strategy(channel);
 
-	/* Refill descriptor rings as necessary */
-	rx_queue = &channel->efx->rx_queue[0];
-	while (rxdmaqs) {
-		if (rxdmaqs & 0x01)
-			efx_fast_push_rx_descriptors(rx_queue);
-		rx_queue++;
-		rxdmaqs >>= 1;
-	}
+	efx_fast_push_rx_descriptors(&efx->rx_queue[channel->channel]);
 
-	return rx_quota;
+	return rx_packets;
 }
 
 /* Mark channel as finished processing
@@ -218,14 +213,12 @@ static int efx_poll(struct napi_struct *napi, int budget)
 	struct efx_channel *channel =
 		container_of(napi, struct efx_channel, napi_str);
 	struct net_device *napi_dev = channel->napi_dev;
-	int unused;
 	int rx_packets;
 
 	EFX_TRACE(channel->efx, "channel %d NAPI poll executing on CPU %d\n",
 		  channel->channel, raw_smp_processor_id());
 
-	unused = efx_process_channel(channel, budget);
-	rx_packets = (budget - unused);
+	rx_packets = efx_process_channel(channel, budget);
 
 	if (rx_packets < budget) {
 		/* There is no race here; although napi_disable() will
