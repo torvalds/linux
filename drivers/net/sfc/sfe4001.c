@@ -145,7 +145,7 @@ MODULE_PARM_DESC(phy_flash_cfg,
 int sfe4001_init(struct efx_nic *efx)
 {
 	struct i2c_client *hwmon_client, *ioexp_client;
-	unsigned int count;
+	unsigned int i, j;
 	int rc;
 	u8 out;
 	efx_dword_t reg;
@@ -209,17 +209,24 @@ int sfe4001_init(struct efx_nic *efx)
 	if (rc)
 		goto fail_on;
 
-	/* Turn all power off then wait 1 sec. This ensures PHY is reset */
+	/* If PHY power is on, turn it all off and wait 1 second to
+	 * ensure a full reset.
+	 */
+	rc = i2c_smbus_read_byte_data(ioexp_client, P0_OUT);
+	if (rc < 0)
+		goto fail_on;
 	out = 0xff & ~((0 << P0_EN_1V2_LBN) | (0 << P0_EN_2V5_LBN) |
 		       (0 << P0_EN_3V3X_LBN) | (0 << P0_EN_5V_LBN) |
 		       (0 << P0_EN_1V0X_LBN));
-	rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
-	if (rc)
-		goto fail_on;
+	if (rc != out) {
+		EFX_INFO(efx, "power-cycling PHY\n");
+		rc = i2c_smbus_write_byte_data(ioexp_client, P0_OUT, out);
+		if (rc)
+			goto fail_on;
+		schedule_timeout_uninterruptible(HZ);
+	}
 
-	schedule_timeout_uninterruptible(HZ);
-	count = 0;
-	do {
+	for (i = 0; i < 20; ++i) {
 		/* Turn on 1.2V, 2.5V, 3.3V and 5V power rails */
 		out = 0xff & ~((1 << P0_EN_1V2_LBN) | (1 << P0_EN_2V5_LBN) |
 			       (1 << P0_EN_3V3X_LBN) | (1 << P0_EN_5V_LBN) |
@@ -238,23 +245,29 @@ int sfe4001_init(struct efx_nic *efx)
 		if (rc)
 			goto fail_on;
 
-		EFX_INFO(efx, "waiting for power (attempt %d)...\n", count);
+		EFX_INFO(efx, "waiting for DSP boot (attempt %d)...\n", i);
 
-		schedule_timeout_uninterruptible(HZ);
-
-		/* Check DSP is powered */
-		rc = i2c_smbus_read_byte_data(ioexp_client, P1_IN);
-		if (rc < 0)
-			goto fail_on;
-		if (rc & (1 << P1_AFE_PWD_LBN))
+		/* In flash config mode, DSP does not turn on AFE, so
+		 * just wait 1 second.
+		 */
+		if (sfe4001_phy_flash_cfg) {
+			schedule_timeout_uninterruptible(HZ);
 			goto done;
+		}
 
-		/* DSP doesn't look powered in flash config mode */
-		if (sfe4001_phy_flash_cfg)
-			goto done;
-	} while (++count < 20);
+		for (j = 0; j < 10; ++j) {
+			msleep(100);
 
-	EFX_INFO(efx, "timed out waiting for power\n");
+			/* Check DSP has asserted AFE power line */
+			rc = i2c_smbus_read_byte_data(ioexp_client, P1_IN);
+			if (rc < 0)
+				goto fail_on;
+			if (rc & (1 << P1_AFE_PWD_LBN))
+				goto done;
+		}
+	}
+
+	EFX_INFO(efx, "timed out waiting for DSP boot\n");
 	rc = -ETIMEDOUT;
 	goto fail_on;
 
