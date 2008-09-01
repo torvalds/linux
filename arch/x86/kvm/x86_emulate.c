@@ -187,7 +187,7 @@ static u16 opcode_table[256] = {
 	ImplicitOps, ImplicitOps, Group | Group3_Byte, Group | Group3,
 	/* 0xF8 - 0xFF */
 	ImplicitOps, 0, ImplicitOps, ImplicitOps,
-	0, 0, Group | Group4, Group | Group5,
+	ImplicitOps, ImplicitOps, Group | Group4, Group | Group5,
 };
 
 static u16 twobyte_table[256] = {
@@ -1760,6 +1760,14 @@ special_insn:
 		break;
 	case 0xfb: /* sti */
 		ctxt->eflags |= X86_EFLAGS_IF;
+		c->dst.type = OP_NONE;	/* Disable writeback. */
+		break;
+	case 0xfc: /* cld */
+		ctxt->eflags &= ~EFLG_DF;
+		c->dst.type = OP_NONE;	/* Disable writeback. */
+		break;
+	case 0xfd: /* std */
+		ctxt->eflags |= EFLG_DF;
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfe ... 0xff:	/* Grp4/Grp5 */
