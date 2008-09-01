@@ -659,7 +659,6 @@ fatal_memory_error:
 
 static int __init sbus_init(void)
 {
-	extern void firetruck_init(void);
 	struct device_node *dp;
 
 	for_each_node_by_name(dp, "sbus") {
@@ -668,8 +667,6 @@ static int __init sbus_init(void)
 		sbus_iommu_init(op);
 		of_propagate_archdata(op);
 	}
-
-	firetruck_init();
 
 	return 0;
 }

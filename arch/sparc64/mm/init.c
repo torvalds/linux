@@ -1673,8 +1673,6 @@ void __cpuinit sun4v_ktsb_register(void)
 
 /* paging_init() sets up the page tables */
 
-extern void central_probe(void);
-
 static unsigned long last_valid_pfn;
 pgd_t swapper_pg_dir[2048];
 
@@ -1844,7 +1842,6 @@ void __init paging_init(void)
 
 	printk("Booting Linux...\n");
 
-	central_probe();
 	cpu_probe();
 }
 
