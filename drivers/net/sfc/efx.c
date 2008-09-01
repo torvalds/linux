@@ -780,7 +780,7 @@ static int efx_init_io(struct efx_nic *efx)
 	return 0;
 
  fail4:
-	release_mem_region(efx->membase_phys, efx->type->mem_map_size);
+	pci_release_region(efx->pci_dev, efx->type->mem_bar);
  fail3:
 	efx->membase_phys = 0;
  fail2:
