@@ -788,7 +788,7 @@ static int uda1380_probe(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct uda1380_setup_data *setup;
 	struct snd_soc_codec *codec;
-	int ret = 0;
+	int ret;
 
 	pr_info("UDA1380 Audio Codec %s", UDA1380_VERSION);
 
@@ -803,13 +803,13 @@ static int uda1380_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	uda1380_socdev = socdev;
+	ret = -ENODEV;
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = uda1380_add_i2c_device(pdev, setup);
 	}
-#else
-	/* Add other interfaces here */
 #endif
 
 	if (ret != 0)

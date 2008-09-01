@@ -622,7 +622,7 @@ static int ak4535_probe(struct platform_device *pdev)
 	struct ak4535_setup_data *setup;
 	struct snd_soc_codec *codec;
 	struct ak4535_priv *ak4535;
-	int ret = 0;
+	int ret;
 
 	printk(KERN_INFO "AK4535 Audio Codec %s", AK4535_VERSION);
 
@@ -644,14 +644,14 @@ static int ak4535_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	ak4535_socdev = socdev;
+	ret = -ENODEV;
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		codec->hw_read = (hw_read_t)i2c_master_recv;
 		ret = ak4535_add_i2c_device(pdev, setup);
 	}
-#else
-	/* Add other interfaces here */
 #endif
 
 	if (ret != 0) {

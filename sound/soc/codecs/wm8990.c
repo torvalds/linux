@@ -1565,7 +1565,7 @@ static int wm8990_probe(struct platform_device *pdev)
 	struct wm8990_setup_data *setup;
 	struct snd_soc_codec *codec;
 	struct wm8990_priv *wm8990;
-	int ret = 0;
+	int ret;
 
 	pr_info("WM8990 Audio Codec %s\n", WM8990_VERSION);
 
@@ -1587,13 +1587,13 @@ static int wm8990_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&codec->dapm_paths);
 	wm8990_socdev = socdev;
 
+	ret = -ENODEV;
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8990_add_i2c_device(pdev, setup);
 	}
-#else
-		/* Add other interfaces here */
 #endif
 
 	if (ret != 0) {

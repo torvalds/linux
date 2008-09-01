@@ -934,7 +934,7 @@ static int wm8750_probe(struct platform_device *pdev)
 	struct wm8750_setup_data *setup = socdev->codec_data;
 	struct snd_soc_codec *codec;
 	struct wm8750_priv *wm8750;
-	int ret = 0;
+	int ret;
 
 	pr_info("WM8750 Audio Codec %s", WM8750_VERSION);
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
@@ -955,13 +955,13 @@ static int wm8750_probe(struct platform_device *pdev)
 	wm8750_socdev = socdev;
 	INIT_DELAYED_WORK(&codec->delayed_work, wm8750_work);
 
+	ret = -ENODEV;
+
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8750_add_i2c_device(pdev, setup);
 	}
-#else
-		/* Add other interfaces here */
 #endif
 
 	if (ret != 0) {
