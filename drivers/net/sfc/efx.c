@@ -1854,7 +1854,6 @@ static int efx_init_struct(struct efx_nic *efx, struct efx_nic_type *type,
 		channel = &efx->channel[i];
 		channel->efx = efx;
 		channel->channel = i;
-		channel->evqnum = i;
 		channel->work_pending = false;
 	}
 	for (i = 0; i < EFX_TX_QUEUE_COUNT; i++) {

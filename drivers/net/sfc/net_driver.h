@@ -322,7 +322,6 @@ enum efx_rx_alloc_method {
  * queue.
  *
  * @efx: Associated Efx NIC
- * @evqnum: Event queue number
  * @channel: Channel instance number
  * @used_flags: Channel is used by net driver
  * @enabled: Channel enabled indicator
@@ -353,7 +352,6 @@ enum efx_rx_alloc_method {
  */
 struct efx_channel {
 	struct efx_nic *efx;
-	int evqnum;
 	int channel;
 	int used_flags;
 	bool enabled;

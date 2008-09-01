@@ -466,7 +466,7 @@ int falcon_init_tx(struct efx_tx_queue *tx_queue)
 			      TX_ISCSI_DDIG_EN, 0,
 			      TX_ISCSI_HDIG_EN, 0,
 			      TX_DESCQ_BUF_BASE_ID, tx_queue->txd.index,
-			      TX_DESCQ_EVQ_ID, tx_queue->channel->evqnum,
+			      TX_DESCQ_EVQ_ID, tx_queue->channel->channel,
 			      TX_DESCQ_OWNER_ID, 0,
 			      TX_DESCQ_LABEL, tx_queue->queue,
 			      TX_DESCQ_SIZE, FALCON_TXD_RING_ORDER,
@@ -661,7 +661,7 @@ int falcon_init_rx(struct efx_rx_queue *rx_queue)
 			      RX_ISCSI_DDIG_EN, iscsi_digest_en,
 			      RX_ISCSI_HDIG_EN, iscsi_digest_en,
 			      RX_DESCQ_BUF_BASE_ID, rx_queue->rxd.index,
-			      RX_DESCQ_EVQ_ID, rx_queue->channel->evqnum,
+			      RX_DESCQ_EVQ_ID, rx_queue->channel->channel,
 			      RX_DESCQ_OWNER_ID, 0,
 			      RX_DESCQ_LABEL, rx_queue->queue,
 			      RX_DESCQ_SIZE, FALCON_RXD_RING_ORDER,
@@ -795,7 +795,7 @@ void falcon_eventq_read_ack(struct efx_channel *channel)
 
 	EFX_POPULATE_DWORD_1(reg, EVQ_RPTR_DWORD, channel->eventq_read_ptr);
 	falcon_writel_table(efx, &reg, efx->type->evq_rptr_tbl_base,
-			    channel->evqnum);
+			    channel->channel);
 }
 
 /* Use HW to insert a SW defined event */
@@ -804,7 +804,7 @@ void falcon_generate_event(struct efx_channel *channel, efx_qword_t *event)
 	efx_oword_t drv_ev_reg;
 
 	EFX_POPULATE_OWORD_2(drv_ev_reg,
-			     DRV_EV_QID, channel->evqnum,
+			     DRV_EV_QID, channel->channel,
 			     DRV_EV_DATA,
 			     EFX_QWORD_FIELD64(*event, WHOLE_EVENT));
 	falcon_write(channel->efx, &drv_ev_reg, DRV_EV_REG_KER);
@@ -1197,7 +1197,7 @@ void falcon_set_int_moderation(struct efx_channel *channel)
 				     TIMER_VAL, 0);
 	}
 	falcon_writel_page_locked(efx, &timer_cmd, TIMER_CMD_REG_KER,
-				  channel->evqnum);
+				  channel->channel);
 
 }
 
@@ -1235,7 +1235,7 @@ int falcon_init_eventq(struct efx_channel *channel)
 			     EVQ_SIZE, FALCON_EVQ_ORDER,
 			     EVQ_BUF_BASE_ID, channel->eventq.index);
 	falcon_write_table(efx, &evq_ptr, efx->type->evq_ptr_tbl_base,
-			   channel->evqnum);
+			   channel->channel);
 
 	falcon_set_int_moderation(channel);
 
@@ -1250,7 +1250,7 @@ void falcon_fini_eventq(struct efx_channel *channel)
 	/* Remove event queue from card */
 	EFX_ZERO_OWORD(eventq_ptr);
 	falcon_write_table(efx, &eventq_ptr, efx->type->evq_ptr_tbl_base,
-			   channel->evqnum);
+			   channel->channel);
 
 	/* Unpin event queue */
 	falcon_fini_special_buffer(efx, &channel->eventq);
