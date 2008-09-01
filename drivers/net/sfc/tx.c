@@ -64,12 +64,14 @@ static inline void efx_dequeue_buffer(struct efx_tx_queue *tx_queue,
 {
 	if (buffer->unmap_len) {
 		struct pci_dev *pci_dev = tx_queue->efx->pci_dev;
+		dma_addr_t unmap_addr = (buffer->dma_addr + buffer->len -
+					 buffer->unmap_len);
 		if (buffer->unmap_single)
-			pci_unmap_single(pci_dev, buffer->unmap_addr,
-					 buffer->unmap_len, PCI_DMA_TODEVICE);
+			pci_unmap_single(pci_dev, unmap_addr, buffer->unmap_len,
+					 PCI_DMA_TODEVICE);
 		else
-			pci_unmap_page(pci_dev, buffer->unmap_addr,
-				       buffer->unmap_len, PCI_DMA_TODEVICE);
+			pci_unmap_page(pci_dev, unmap_addr, buffer->unmap_len,
+				       PCI_DMA_TODEVICE);
 		buffer->unmap_len = 0;
 		buffer->unmap_single = 0;
 	}
@@ -233,7 +235,6 @@ static inline int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
 		} while (len);
 
 		/* Transfer ownership of the unmapping to the final buffer */
-		buffer->unmap_addr = unmap_addr;
 		buffer->unmap_single = unmap_single;
 		buffer->unmap_len = unmap_len;
 		unmap_len = 0;
@@ -805,6 +806,7 @@ static inline void efx_tso_put_header(struct efx_tx_queue *tx_queue,
 static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 {
 	struct efx_tx_buffer *buffer;
+	dma_addr_t unmap_addr;
 
 	/* Work backwards until we hit the original insert pointer value */
 	while (tx_queue->insert_count != tx_queue->write_count) {
@@ -816,15 +818,15 @@ static void efx_enqueue_unwind(struct efx_tx_queue *tx_queue)
 		buffer->len = 0;
 		buffer->continuation = 1;
 		if (buffer->unmap_len) {
+			unmap_addr = (buffer->dma_addr + buffer->len -
+				      buffer->unmap_len);
 			if (buffer->unmap_single)
 				pci_unmap_single(tx_queue->efx->pci_dev,
-						 buffer->unmap_addr,
-						 buffer->unmap_len,
+						 unmap_addr, buffer->unmap_len,
 						 PCI_DMA_TODEVICE);
 			else
 				pci_unmap_page(tx_queue->efx->pci_dev,
-					       buffer->unmap_addr,
-					       buffer->unmap_len,
+					       unmap_addr, buffer->unmap_len,
 					       PCI_DMA_TODEVICE);
 			buffer->unmap_len = 0;
 		}
