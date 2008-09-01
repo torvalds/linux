@@ -638,6 +638,12 @@ config DEBUG_BLOCK_EXT_DEVT
 	  userland code paths which assume predetermined contiguous
 	  device number allocation.
 
+	  Note that turning on this debug option shuffles all the
+	  device numbers for all IDE and SCSI devices including libata
+	  ones, so root partition specified using device number
+	  directly (via rdev or root=MAJ:MIN) won't work anymore.
+	  Textual device names (root=/dev/sdXn) will continue to work.
+
 	  Say N if you are unsure.
 
 config LKDTM
