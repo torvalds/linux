@@ -1098,7 +1098,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 	    register value without FIFO size correction as the current
 	    DMA pointer.  position_fix=2 will make the driver to use
 	    the position buffer instead of reading SD_LPIB register.
-	    (Usually SD_LPLIB register is more accurate than the
+	    (Usually SD_LPIB register is more accurate than the
 	    position buffer.)
 
     NB: If you get many "azx_get_response timeout" messages at
