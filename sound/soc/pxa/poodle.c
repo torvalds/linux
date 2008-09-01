@@ -284,6 +284,7 @@ static struct snd_soc_machine snd_soc_machine_poodle = {
 
 /* poodle audio private data */
 static struct wm8731_setup_data poodle_wm8731_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 

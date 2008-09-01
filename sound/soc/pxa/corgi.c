@@ -330,6 +330,7 @@ static struct snd_soc_machine snd_soc_machine_corgi = {
 
 /* corgi audio private data */
 static struct wm8731_setup_data corgi_wm8731_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1b,
 };
 
