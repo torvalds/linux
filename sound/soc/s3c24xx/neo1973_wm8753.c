@@ -597,54 +597,20 @@ static struct snd_soc_device neo1973_snd_devdata = {
 	.codec_data = &neo1973_wm8753_setup,
 };
 
-static struct i2c_client client_template;
-
-static const unsigned short normal_i2c[] = { 0x7C, I2C_CLIENT_END };
-
-/* Magic definition of all other variables and things */
-I2C_CLIENT_INSMOD;
-
-static int lm4857_amp_probe(struct i2c_adapter *adap, int addr, int kind)
+static int lm4857_i2c_probe(struct i2c_client *client,
+			    const struct i2c_device_id *id)
 {
-	int ret;
-
 	DBG("Entered %s\n", __func__);
-
-	client_template.adapter = adap;
-	client_template.addr = addr;
-
-	i2c = kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL)
-		return -ENOMEM;
-
-	ret = i2c_attach_client(i2c);
-	if (ret < 0) {
-		printk(KERN_ERR "LM4857 failed to attach at addr %x\n", addr);
-		goto exit_err;
-	}
 
 	lm4857_write_regs();
-	return ret;
-
-exit_err:
-	kfree(i2c);
-	return ret;
-}
-
-static int lm4857_i2c_detach(struct i2c_client *client)
-{
-	DBG("Entered %s\n", __func__);
-
-	i2c_detach_client(client);
-	kfree(client);
 	return 0;
 }
 
-static int lm4857_i2c_attach(struct i2c_adapter *adap)
+static int lm4857_i2c_remove(struct i2c_client *client)
 {
 	DBG("Entered %s\n", __func__);
 
-	return i2c_probe(adap, &addr_data, lm4857_amp_probe);
+	return 0;
 }
 
 static u8 lm4857_state;
@@ -682,27 +648,67 @@ static void lm4857_shutdown(struct i2c_client *dev)
 	lm4857_write_regs();
 }
 
-/* corgi i2c codec control layer */
+static const struct i2c_device_id lm4857_i2c_id[] = {
+	{ "neo1973_lm4857", 0 }
+	{ }
+};
+
 static struct i2c_driver lm4857_i2c_driver = {
 	.driver = {
 		.name = "LM4857 I2C Amp",
 		.owner = THIS_MODULE,
 	},
-	.id =             I2C_DRIVERID_LM4857,
 	.suspend =        lm4857_suspend,
 	.resume	=         lm4857_resume,
 	.shutdown =       lm4857_shutdown,
-	.attach_adapter = lm4857_i2c_attach,
-	.detach_client =  lm4857_i2c_detach,
-	.command =        NULL,
-};
-
-static struct i2c_client client_template = {
-	.name =   "LM4857",
-	.driver = &lm4857_i2c_driver,
+	.probe =          lm4857_i2c_probe,
+	.remove =         lm4857_i2c_remove,
+	.id_table =       lm4857_i2c_id,
 };
 
 static struct platform_device *neo1973_snd_device;
+static struct i2c_client *lm4857_client;
+
+static int __init neo1973_add_lm4857_device(struct platform_device *pdev,
+					    int i2c_bus,
+					    unsigned short i2c_address)
+{
+	struct i2c_board_info info;
+	struct i2c_adapter *adapter;
+	struct i2c_client *client;
+	int ret;
+
+	ret = i2c_add_driver(&lm4857_i2c_driver);
+	if (ret != 0) {
+		dev_err(&pdev->dev, "can't add lm4857 driver\n");
+		return ret;
+	}
+
+	memset(&info, 0, sizeof(struct i2c_board_info));
+	info.addr = i2c_address;
+	strlcpy(info.type, "neo1973_lm4857", I2C_NAME_SIZE);
+
+	adapter = i2c_get_adapter(i2c_bus);
+	if (!adapter) {
+		dev_err(&pdev->dev, "can't get i2c adapter %d\n", i2c_bus);
+		goto err_driver;
+	}
+
+	client = i2c_new_device(adapter, &info);
+	i2c_put_adapter(adapter);
+	if (!client) {
+		dev_err(&pdev->dev, "can't add lm4857 device at 0x%x\n",
+			(unsigned int)info.addr);
+		goto err_driver;
+	}
+
+	lm4857_client = client;
+	return 0;
+
+err_driver:
+	i2c_del_driver(&lm4857_i2c_driver);
+	return -ENODEV;
+}
 
 static int __init neo1973_init(void)
 {
@@ -723,11 +729,10 @@ static int __init neo1973_init(void)
 		return ret;
 	}
 
-	ret = i2c_add_driver(&lm4857_i2c_driver);
-	if (ret != 0) {
-		printk(KERN_ERR "can't add i2c driver");
+	ret = neo1973_add_lm4857_device(neo1973_snd_device,
+					neo1973_wm8753_setup, 0x7C);
+	if (ret != 0)
 		platform_device_unregister(neo1973_snd_device);
-	}
 
 	return ret;
 }
@@ -736,6 +741,7 @@ static void __exit neo1973_exit(void)
 {
 	DBG("Entered %s\n", __func__);
 
+	i2c_unregister_device(lm4857_client);
 	i2c_del_driver(&lm4857_i2c_driver);
 	platform_device_unregister(neo1973_snd_device);
 }
