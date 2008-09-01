@@ -819,38 +819,48 @@ static void efx_fini_io(struct efx_nic *efx)
 	pci_disable_device(efx->pci_dev);
 }
 
-/* Probe the number and type of interrupts we are able to obtain. */
+/* Get number of RX queues wanted.  Return number of online CPU
+ * packages in the expectation that an IRQ balancer will spread
+ * interrupts across them. */
+static int efx_wanted_rx_queues(void)
+{
+	cpumask_t core_mask;
+	int count;
+	int cpu;
+
+	cpus_clear(core_mask);
+	count = 0;
+	for_each_online_cpu(cpu) {
+		if (!cpu_isset(cpu, core_mask)) {
+			++count;
+			cpus_or(core_mask, core_mask,
+				topology_core_siblings(cpu));
+		}
+	}
+
+	return count;
+}
+
+/* Probe the number and type of interrupts we are able to obtain, and
+ * the resulting numbers of channels and RX queues.
+ */
 static void efx_probe_interrupts(struct efx_nic *efx)
 {
-	int max_channel = efx->type->phys_addr_channels - 1;
-	struct msix_entry xentries[EFX_MAX_CHANNELS];
+	int max_channels =
+		min_t(int, efx->type->phys_addr_channels, EFX_MAX_CHANNELS);
 	int rc, i;
 
 	if (efx->interrupt_mode == EFX_INT_MODE_MSIX) {
-		BUG_ON(!pci_find_capability(efx->pci_dev, PCI_CAP_ID_MSIX));
+		struct msix_entry xentries[EFX_MAX_CHANNELS];
+		int wanted_ints;
 
-		if (rss_cpus == 0) {
-			cpumask_t core_mask;
-			int cpu;
+		/* We want one RX queue and interrupt per CPU package
+		 * (or as specified by the rss_cpus module parameter).
+		 * We will need one channel per interrupt.
+		 */
+		wanted_ints = rss_cpus ? rss_cpus : efx_wanted_rx_queues();
+		efx->rss_queues = min(wanted_ints, max_channels);
 
-			cpus_clear(core_mask);
-			efx->rss_queues = 0;
-			for_each_online_cpu(cpu) {
-				if (!cpu_isset(cpu, core_mask)) {
-					++efx->rss_queues;
-					cpus_or(core_mask, core_mask,
-						topology_core_siblings(cpu));
-				}
-			}
-		} else {
-			efx->rss_queues = rss_cpus;
-		}
-
-		efx->rss_queues = min(efx->rss_queues, max_channel + 1);
-		efx->rss_queues = min(efx->rss_queues, EFX_MAX_CHANNELS);
-
-		/* Request maximum number of MSI interrupts, and fill out
-		 * the channel interrupt information the allowed allocation */
 		for (i = 0; i < efx->rss_queues; i++)
 			xentries[i].entry = i;
 		rc = pci_enable_msix(efx->pci_dev, xentries, efx->rss_queues);
