@@ -1336,8 +1336,9 @@ static int ocfs2_xattr_set_entry(struct inode *inode,
 	}
 
 	if (!(flag & OCFS2_INLINE_XATTR_FL)) {
-		/*set extended attribue in external blcok*/
+		/* set extended attribute in external block. */
 		ret = ocfs2_extend_trans(handle,
+					 OCFS2_INODE_UPDATE_CREDITS +
 					 OCFS2_XATTR_BLOCK_UPDATE_CREDITS);
 		if (ret) {
 			mlog_errno(ret);
@@ -3701,6 +3702,18 @@ static int ocfs2_add_new_xattr_cluster(struct inode *inode,
 		}
 	}
 
+	if (handle->h_buffer_credits < credits) {
+		/*
+		 * The journal has been restarted before, and don't
+		 * have enough space for the insertion, so extend it
+		 * here.
+		 */
+		ret = ocfs2_extend_trans(handle, credits);
+		if (ret) {
+			mlog_errno(ret);
+			goto leave;
+		}
+	}
 	mlog(0, "Insert %u clusters at block %llu for xattr at %u\n",
 	     num_bits, block, v_start);
 	ret = ocfs2_insert_extent(osb, handle, inode, &et, v_start, block,
