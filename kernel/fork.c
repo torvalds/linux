@@ -987,6 +987,8 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	p->prev_utime = cputime_zero;
 	p->prev_stime = cputime_zero;
 
+	p->default_timer_slack_ns = current->timer_slack_ns;
+
 #ifdef CONFIG_DETECT_SOFTLOCKUP
 	p->last_switch_count = 0;
 	p->last_switch_timestamp = 0;

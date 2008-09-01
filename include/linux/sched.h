@@ -1301,6 +1301,12 @@ struct task_struct {
 	int latency_record_count;
 	struct latency_record latency_record[LT_SAVECOUNT];
 #endif
+	/*
+	 * time slack values; these are used to round up poll() and
+	 * select() etc timeout values. These are in nanoseconds.
+	 */
+	unsigned long timer_slack_ns;
+	unsigned long default_timer_slack_ns;
 };
 
 /*

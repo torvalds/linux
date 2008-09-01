@@ -1727,6 +1727,16 @@ asmlinkage long sys_prctl(int option, unsigned long arg2, unsigned long arg3,
 		case PR_SET_TSC:
 			error = SET_TSC_CTL(arg2);
 			break;
+		case PR_GET_TIMERSLACK:
+			error = current->timer_slack_ns;
+			break;
+		case PR_SET_TIMERSLACK:
+			if (arg2 <= 0)
+				current->timer_slack_ns =
+					current->default_timer_slack_ns;
+			else
+				current->timer_slack_ns = arg2;
+			break;
 		default:
 			error = -EINVAL;
 			break;
