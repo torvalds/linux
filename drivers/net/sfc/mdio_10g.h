@@ -210,7 +210,7 @@ static inline int mdio_clause45_phyxgxs_lane_sync(struct efx_nic *efx)
 
 	sync = (lane_status & (1 << MDIO_PHYXS_LANE_ALIGNED_LBN)) != 0;
 	if (!sync)
-		EFX_INFO(efx, "XGXS lane status: %x\n", lane_status);
+		EFX_LOG(efx, "XGXS lane status: %x\n", lane_status);
 	return sync;
 }
 
