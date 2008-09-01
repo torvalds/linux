@@ -144,7 +144,7 @@ struct kvm_rmap_desc {
 
 struct kvm_shadow_walk {
 	int (*entry)(struct kvm_shadow_walk *walk, struct kvm_vcpu *vcpu,
-		     gva_t addr, u64 *spte, int level);
+		     u64 addr, u64 *spte, int level);
 };
 
 static struct kmem_cache *pte_chain_cache;
@@ -941,7 +941,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 }
 
 static int walk_shadow(struct kvm_shadow_walk *walker,
-		       struct kvm_vcpu *vcpu, gva_t addr)
+		       struct kvm_vcpu *vcpu, u64 addr)
 {
 	hpa_t shadow_addr;
 	int level;
@@ -1270,7 +1270,7 @@ struct direct_shadow_walk {
 
 static int direct_map_entry(struct kvm_shadow_walk *_walk,
 			    struct kvm_vcpu *vcpu,
-			    gva_t addr, u64 *sptep, int level)
+			    u64 addr, u64 *sptep, int level)
 {
 	struct direct_shadow_walk *walk =
 		container_of(_walk, struct direct_shadow_walk, walker);
@@ -1289,7 +1289,7 @@ static int direct_map_entry(struct kvm_shadow_walk *_walk,
 
 	if (*sptep == shadow_trap_nonpresent_pte) {
 		pseudo_gfn = (addr & PT64_DIR_BASE_ADDR_MASK) >> PAGE_SHIFT;
-		sp = kvm_mmu_get_page(vcpu, pseudo_gfn, addr, level - 1,
+		sp = kvm_mmu_get_page(vcpu, pseudo_gfn, (gva_t)addr, level - 1,
 				      1, ACC_ALL, sptep);
 		if (!sp) {
 			pgprintk("nonpaging_map: ENOMEM\n");
@@ -1317,7 +1317,7 @@ static int __direct_map(struct kvm_vcpu *vcpu, gpa_t v, int write,
 		.pt_write = 0,
 	};
 
-	r = walk_shadow(&walker.walker, vcpu, (gva_t)gfn << PAGE_SHIFT);
+	r = walk_shadow(&walker.walker, vcpu, gfn << PAGE_SHIFT);
 	if (r < 0)
 		return r;
 	return walker.pt_write;

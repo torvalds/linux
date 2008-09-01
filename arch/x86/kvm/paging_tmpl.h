@@ -286,7 +286,7 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
  * Fetch a shadow pte for a specific level in the paging hierarchy.
  */
 static int FNAME(shadow_walk_entry)(struct kvm_shadow_walk *_sw,
-				    struct kvm_vcpu *vcpu, gva_t addr,
+				    struct kvm_vcpu *vcpu, u64 addr,
 				    u64 *sptep, int level)
 {
 	struct shadow_walker *sw =
@@ -326,7 +326,7 @@ static int FNAME(shadow_walk_entry)(struct kvm_shadow_walk *_sw,
 		metaphysical = 0;
 		table_gfn = gw->table_gfn[level - 2];
 	}
-	shadow_page = kvm_mmu_get_page(vcpu, table_gfn, addr, level-1,
+	shadow_page = kvm_mmu_get_page(vcpu, table_gfn, (gva_t)addr, level-1,
 				       metaphysical, access, sptep);
 	if (!metaphysical) {
 		r = kvm_read_guest_atomic(vcpu->kvm, gw->pte_gpa[level - 2],
