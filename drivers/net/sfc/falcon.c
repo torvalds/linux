@@ -1007,7 +1007,7 @@ static void falcon_handle_global_event(struct efx_channel *channel,
 		is_phy_event = true;
 
 	if ((falcon_rev(efx) >= FALCON_REV_B0) &&
-	    EFX_OWORD_FIELD(*event, XG_MNT_INTR_B0))
+	    EFX_QWORD_FIELD(*event, XG_MNT_INTR_B0))
 		is_phy_event = true;
 
 	if (is_phy_event) {
