@@ -1951,7 +1951,7 @@ static int falcon_gmii_wait(struct efx_nic *efx)
 static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
 			      int addr, int value)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	unsigned int phy_id2 = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
 
@@ -2019,7 +2019,7 @@ static void falcon_mdio_write(struct net_device *net_dev, int phy_id,
  * could be read, -1 will be returned. */
 static int falcon_mdio_read(struct net_device *net_dev, int phy_id, int addr)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	unsigned int phy_addr = phy_id & FALCON_PHY_ID_ID_MASK;
 	efx_oword_t reg;
 	int value = -1;

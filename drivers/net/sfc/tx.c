@@ -367,7 +367,7 @@ inline int efx_xmit(struct efx_nic *efx,
  */
 int efx_hard_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	return efx_xmit(efx, &efx->tx_queue[0], skb);
 }
 

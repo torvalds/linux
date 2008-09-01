@@ -1249,7 +1249,7 @@ static void efx_monitor(struct work_struct *data)
  */
 static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
@@ -1303,7 +1303,7 @@ static void efx_fini_napi(struct efx_nic *efx)
  */
 static void efx_netpoll(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 
 	efx_for_each_channel_with_interrupt(channel, efx)
@@ -1321,7 +1321,7 @@ static void efx_netpoll(struct net_device *net_dev)
 /* Context: process, rtnl_lock() held. */
 static int efx_net_open(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	EFX_ASSERT_RESET_SERIALISED(efx);
 
 	EFX_LOG(efx, "opening device %s on CPU %d\n", net_dev->name,
@@ -1337,7 +1337,7 @@ static int efx_net_open(struct net_device *net_dev)
  */
 static int efx_net_stop(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	EFX_LOG(efx, "closing %s on CPU %d\n", net_dev->name,
@@ -1356,7 +1356,7 @@ static int efx_net_stop(struct net_device *net_dev)
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	struct net_device_stats *stats = &net_dev->stats;
 
@@ -1403,7 +1403,7 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 /* Context: netif_tx_lock held, BHs disabled. */
 static void efx_watchdog(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	EFX_ERR(efx, "TX stuck with stop_count=%d port_enabled=%d: %s\n",
 		atomic_read(&efx->netif_stop_count), efx->port_enabled,
@@ -1417,7 +1417,7 @@ static void efx_watchdog(struct net_device *net_dev)
 /* Context: process, rtnl_lock() held. */
 static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc = 0;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
@@ -1445,7 +1445,7 @@ static int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 
 static int efx_set_mac_address(struct net_device *net_dev, void *data)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct sockaddr *addr = data;
 	char *new_addr = addr->sa_data;
 
@@ -1469,7 +1469,7 @@ static int efx_set_mac_address(struct net_device *net_dev, void *data)
 /* Context: netif_tx_lock held, BHs disabled. */
 static void efx_set_multicast_list(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct dev_mc_list *mc_list = net_dev->mc_list;
 	union efx_multicast_hash *mc_hash = &efx->multicast_hash;
 	int promiscuous;
@@ -1510,7 +1510,7 @@ static int efx_netdev_event(struct notifier_block *this,
 	struct net_device *net_dev = ptr;
 
 	if (net_dev->open == efx_net_open && event == NETDEV_CHANGENAME) {
-		struct efx_nic *efx = net_dev->priv;
+		struct efx_nic *efx = netdev_priv(net_dev);
 
 		strcpy(efx->name, net_dev->name);
 	}
@@ -1568,7 +1568,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	if (!efx->net_dev)
 		return;
 
-	BUG_ON(efx->net_dev->priv != efx);
+	BUG_ON(netdev_priv(efx->net_dev) != efx);
 
 	/* Free up any skbs still remaining. This has to happen before
 	 * we try to unregister the netdev as running their destructors
@@ -2105,7 +2105,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
 			      NETIF_F_HIGHDMA | NETIF_F_TSO);
 	if (lro)
 		net_dev->features |= NETIF_F_LRO;
-	efx = net_dev->priv;
+	efx = netdev_priv(net_dev);
 	pci_set_drvdata(pci_dev, efx);
 	rc = efx_init_struct(efx, type, pci_dev, net_dev);
 	if (rc)

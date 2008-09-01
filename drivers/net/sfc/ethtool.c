@@ -183,7 +183,7 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 /* Identify device by flashing LEDs */
 static int efx_ethtool_phys_id(struct net_device *net_dev, u32 seconds)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	efx->board_info.blink(efx, 1);
 	schedule_timeout_interruptible(seconds * HZ);
@@ -195,7 +195,7 @@ static int efx_ethtool_phys_id(struct net_device *net_dev, u32 seconds)
 int efx_ethtool_get_settings(struct net_device *net_dev,
 			     struct ethtool_cmd *ecmd)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	mutex_lock(&efx->mac_lock);
@@ -209,7 +209,7 @@ int efx_ethtool_get_settings(struct net_device *net_dev,
 int efx_ethtool_set_settings(struct net_device *net_dev,
 			     struct ethtool_cmd *ecmd)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	mutex_lock(&efx->mac_lock);
@@ -224,7 +224,7 @@ int efx_ethtool_set_settings(struct net_device *net_dev,
 static void efx_ethtool_get_drvinfo(struct net_device *net_dev,
 				    struct ethtool_drvinfo *info)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	strlcpy(info->driver, EFX_DRIVER_NAME, sizeof(info->driver));
 	strlcpy(info->version, EFX_DRIVER_VERSION, sizeof(info->version));
@@ -376,7 +376,7 @@ static int efx_ethtool_get_stats_count(struct net_device *net_dev)
 
 static int efx_ethtool_self_test_count(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	return efx_ethtool_fill_self_tests(efx, NULL, NULL, NULL);
 }
@@ -384,7 +384,7 @@ static int efx_ethtool_self_test_count(struct net_device *net_dev)
 static void efx_ethtool_get_strings(struct net_device *net_dev,
 				    u32 string_set, u8 *strings)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct ethtool_string *ethtool_strings =
 		(struct ethtool_string *)strings;
 	int i;
@@ -410,7 +410,7 @@ static void efx_ethtool_get_stats(struct net_device *net_dev,
 				  struct ethtool_stats *stats,
 				  u64 *data)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_mac_stats *mac_stats = &efx->mac_stats;
 	struct efx_ethtool_stat *stat;
 	struct efx_channel *channel;
@@ -460,7 +460,7 @@ static int efx_ethtool_set_tso(struct net_device *net_dev, u32 enable)
 
 static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	int rc;
 
 	rc = ethtool_op_set_tx_csum(net_dev, enable);
@@ -483,7 +483,7 @@ static int efx_ethtool_set_tx_csum(struct net_device *net_dev, u32 enable)
 
 static int efx_ethtool_set_rx_csum(struct net_device *net_dev, u32 enable)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	/* No way to stop the hardware doing the checks; we just
 	 * ignore the result.
@@ -495,7 +495,7 @@ static int efx_ethtool_set_rx_csum(struct net_device *net_dev, u32 enable)
 
 static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	return efx->rx_checksum_enabled;
 }
@@ -503,7 +503,7 @@ static u32 efx_ethtool_get_rx_csum(struct net_device *net_dev)
 static void efx_ethtool_self_test(struct net_device *net_dev,
 				  struct ethtool_test *test, u64 *data)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_self_tests efx_tests;
 	int offline, already_up;
 	int rc;
@@ -561,14 +561,14 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 /* Restart autonegotiation */
 static int efx_ethtool_nway_reset(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	return mii_nway_restart(&efx->mii);
 }
 
 static u32 efx_ethtool_get_link(struct net_device *net_dev)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	return efx->link_up;
 }
@@ -576,7 +576,7 @@ static u32 efx_ethtool_get_link(struct net_device *net_dev)
 static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
 	struct efx_channel *channel;
@@ -614,7 +614,7 @@ static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	unsigned tx_usecs, rx_usecs;
@@ -657,7 +657,7 @@ static int efx_ethtool_set_coalesce(struct net_device *net_dev,
 static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 				      struct ethtool_pauseparam *pause)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 	enum efx_fc_type flow_control = efx->flow_control;
 	int rc;
 
@@ -680,7 +680,7 @@ static int efx_ethtool_set_pauseparam(struct net_device *net_dev,
 static void efx_ethtool_get_pauseparam(struct net_device *net_dev,
 				       struct ethtool_pauseparam *pause)
 {
-	struct efx_nic *efx = net_dev->priv;
+	struct efx_nic *efx = netdev_priv(net_dev);
 
 	pause->rx_pause = (efx->flow_control & EFX_FC_RX) ? 1 : 0;
 	pause->tx_pause = (efx->flow_control & EFX_FC_TX) ? 1 : 0;
