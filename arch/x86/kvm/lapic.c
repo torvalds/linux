@@ -953,9 +953,7 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 	}
 	if (apic_lvtt_period(apic)) {
 		result = 1;
-		apic->timer.dev.expires = ktime_add_ns(
-					apic->timer.dev.expires,
-					apic->timer.period);
+		hrtimer_add_expires_ns(&apic->timer.dev, apic->timer.period);
 	}
 	return result;
 }
@@ -1124,7 +1122,7 @@ void __kvm_migrate_apic_timer(struct kvm_vcpu *vcpu)
 
 	timer = &apic->timer.dev;
 	if (hrtimer_cancel(timer))
-		hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
 void kvm_lapic_sync_from_vapic(struct kvm_vcpu *vcpu)

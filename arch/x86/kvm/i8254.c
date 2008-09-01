@@ -205,8 +205,8 @@ static int __pit_timer_fn(struct kvm_kpit_state *ps)
 		wake_up_interruptible(&vcpu0->wq);
 	}
 
-	pt->timer.expires = ktime_add_ns(pt->timer.expires, pt->period);
-	pt->scheduled = ktime_to_ns(pt->timer.expires);
+	hrtimer_add_expires_ns(&pt->timer, pt->period);
+	pt->scheduled = ktime_to_ns(hrtimer_get_expires(&pt->timer));
 
 	return (pt->period == 0 ? 0 : 1);
 }
@@ -246,7 +246,7 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 
 	timer = &pit->pit_state.pit_timer.timer;
 	if (hrtimer_cancel(timer))
-		hrtimer_start(timer, timer->expires, HRTIMER_MODE_ABS);
+		hrtimer_start_expires(timer, HRTIMER_MODE_ABS);
 }
 
 static void destroy_pit_timer(struct kvm_kpit_timer *pt)
