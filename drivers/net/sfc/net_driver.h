@@ -638,6 +638,10 @@ union efx_multicast_hash {
  *	This register is written with the SMP processor ID whenever an
  *	interrupt is handled.  It is used by falcon_test_interrupt()
  *	to verify that an interrupt has occurred.
+ * @spi_flash: SPI flash device
+ *	This field will be %NULL if no flash device is present.
+ * @spi_eeprom: SPI EEPROM device
+ *	This field will be %NULL if no EEPROM device is present.
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
  * @mac_lock: MAC access lock. Protects @port_enabled, efx_monitor() and
@@ -708,6 +712,9 @@ struct efx_nic {
 
 	struct efx_buffer irq_status;
 	volatile signed int last_irq_cpu;
+
+	struct efx_spi_device *spi_flash;
+	struct efx_spi_device *spi_eeprom;
 
 	unsigned n_rx_nodesc_drop_cnt;
 

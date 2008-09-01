@@ -17,6 +17,7 @@
 #include "ethtool.h"
 #include "falcon.h"
 #include "gmii.h"
+#include "spi.h"
 #include "mac.h"
 
 const char *efx_loopback_mode_names[] = {
@@ -170,6 +171,11 @@ static struct efx_ethtool_stat efx_ethtool_stats[] = {
 
 /* Number of ethtool statistics */
 #define EFX_ETHTOOL_NUM_STATS ARRAY_SIZE(efx_ethtool_stats)
+
+/* EEPROM range with gPXE configuration */
+#define EFX_ETHTOOL_EEPROM_MAGIC 0xEFAB
+#define EFX_ETHTOOL_EEPROM_MIN 0x100U
+#define EFX_ETHTOOL_EEPROM_MAX 0x400U
 
 /**************************************************************************
  *
@@ -532,6 +538,49 @@ static u32 efx_ethtool_get_link(struct net_device *net_dev)
 	return efx->link_up;
 }
 
+static int efx_ethtool_get_eeprom_len(struct net_device *net_dev)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_spi_device *spi = efx->spi_eeprom;
+
+	if (!spi)
+		return 0;
+	return min(spi->size, EFX_ETHTOOL_EEPROM_MAX) -
+		min(spi->size, EFX_ETHTOOL_EEPROM_MIN);
+}
+
+static int efx_ethtool_get_eeprom(struct net_device *net_dev,
+				  struct ethtool_eeprom *eeprom, u8 *buf)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_spi_device *spi = efx->spi_eeprom;
+	size_t len;
+	int rc;
+
+	rc = falcon_spi_read(spi, eeprom->offset + EFX_ETHTOOL_EEPROM_MIN,
+			     eeprom->len, &len, buf);
+	eeprom->magic = EFX_ETHTOOL_EEPROM_MAGIC;
+	eeprom->len = len;
+	return rc;
+}
+
+static int efx_ethtool_set_eeprom(struct net_device *net_dev,
+				  struct ethtool_eeprom *eeprom, u8 *buf)
+{
+	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_spi_device *spi = efx->spi_eeprom;
+	size_t len;
+	int rc;
+
+	if (eeprom->magic != EFX_ETHTOOL_EEPROM_MAGIC)
+		return -EINVAL;
+
+	rc = falcon_spi_write(spi, eeprom->offset + EFX_ETHTOOL_EEPROM_MIN,
+			      eeprom->len, &len, buf);
+	eeprom->len = len;
+	return rc;
+}
+
 static int efx_ethtool_get_coalesce(struct net_device *net_dev,
 				    struct ethtool_coalesce *coalesce)
 {
@@ -653,6 +702,9 @@ struct ethtool_ops efx_ethtool_ops = {
 	.get_drvinfo		= efx_ethtool_get_drvinfo,
 	.nway_reset		= efx_ethtool_nway_reset,
 	.get_link		= efx_ethtool_get_link,
+	.get_eeprom_len		= efx_ethtool_get_eeprom_len,
+	.get_eeprom		= efx_ethtool_get_eeprom,
+	.set_eeprom		= efx_ethtool_set_eeprom,
 	.get_coalesce		= efx_ethtool_get_coalesce,
 	.set_coalesce		= efx_ethtool_set_coalesce,
 	.get_pauseparam         = efx_ethtool_get_pauseparam,

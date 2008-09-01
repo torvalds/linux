@@ -92,6 +92,17 @@
 /* SPI host data register */
 #define EE_SPI_HDATA_REG_KER 0x0120
 
+/* SPI/VPD config register */
+#define EE_VPD_CFG_REG_KER 0x0140
+#define EE_VPD_EN_LBN 0
+#define EE_VPD_EN_WIDTH 1
+#define EE_VPD_EN_AD9_MODE_LBN 1
+#define EE_VPD_EN_AD9_MODE_WIDTH 1
+#define EE_EE_CLOCK_DIV_LBN 112
+#define EE_EE_CLOCK_DIV_WIDTH 7
+#define EE_SF_CLOCK_DIV_LBN 120
+#define EE_SF_CLOCK_DIV_WIDTH 7
+
 /* PCIE CORE ACCESS REG */
 #define PCIE_CORE_ADDR_PCIE_DEVICE_CTRL_STAT 0x68
 #define PCIE_CORE_ADDR_PCIE_LINK_CTRL_STAT 0x70
@@ -114,6 +125,9 @@
 #define STRAP_10G_WIDTH 1
 #define STRAP_PCIE_LBN 0
 #define STRAP_PCIE_WIDTH 1
+
+#define BOOTED_USING_NVDEVICE_LBN 3
+#define BOOTED_USING_NVDEVICE_WIDTH 1
 
 /* GPIO control register */
 #define GPIO_CTL_REG_KER 0x0210
@@ -1127,6 +1141,25 @@ struct falcon_nvconfig_board_v2 {
 	__le16 board_revision;
 } __packed;
 
+/* Board configuration v3 extra information */
+struct falcon_nvconfig_board_v3 {
+	__le32 spi_device_type[2];
+} __packed;
+
+/* Bit numbers for spi_device_type */
+#define SPI_DEV_TYPE_SIZE_LBN 0
+#define SPI_DEV_TYPE_SIZE_WIDTH 5
+#define SPI_DEV_TYPE_ADDR_LEN_LBN 6
+#define SPI_DEV_TYPE_ADDR_LEN_WIDTH 2
+#define SPI_DEV_TYPE_ERASE_CMD_LBN 8
+#define SPI_DEV_TYPE_ERASE_CMD_WIDTH 8
+#define SPI_DEV_TYPE_ERASE_SIZE_LBN 16
+#define SPI_DEV_TYPE_ERASE_SIZE_WIDTH 5
+#define SPI_DEV_TYPE_BLOCK_SIZE_LBN 24
+#define SPI_DEV_TYPE_BLOCK_SIZE_WIDTH 5
+#define SPI_DEV_TYPE_FIELD(type, field) \
+	(((type) >> EFX_LOW_BIT(field)) & EFX_MASK32(field))
+
 #define NVCONFIG_BASE 0x300
 #define NVCONFIG_BOARD_MAGIC_NUM 0xFA1C
 struct falcon_nvconfig {
@@ -1144,6 +1177,8 @@ struct falcon_nvconfig {
 	__le16 board_struct_ver;
 	__le16 board_checksum;
 	struct falcon_nvconfig_board_v2 board_v2;
+	efx_oword_t ee_base_page_reg;			/* 0x3B0 */
+	struct falcon_nvconfig_board_v3 board_v3;
 } __packed;
 
 #endif /* EFX_FALCON_HWDEFS_H */

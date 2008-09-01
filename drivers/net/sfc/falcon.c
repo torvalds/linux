@@ -1620,62 +1620,193 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 /* Wait for SPI command completion */
 static int falcon_spi_wait(struct efx_nic *efx)
 {
+	unsigned long timeout = jiffies + DIV_ROUND_UP(HZ, 10);
 	efx_oword_t reg;
-	int cmd_en, timer_active;
-	int count;
+	bool cmd_en, timer_active;
 
-	count = 0;
-	do {
+	for (;;) {
 		falcon_read(efx, &reg, EE_SPI_HCMD_REG_KER);
 		cmd_en = EFX_OWORD_FIELD(reg, EE_SPI_HCMD_CMD_EN);
 		timer_active = EFX_OWORD_FIELD(reg, EE_WR_TIMER_ACTIVE);
 		if (!cmd_en && !timer_active)
 			return 0;
-		udelay(10);
-	} while (++count < 10000); /* wait upto 100msec */
-	EFX_ERR(efx, "timed out waiting for SPI\n");
-	return -ETIMEDOUT;
+		if (time_after_eq(jiffies, timeout)) {
+			EFX_ERR(efx, "timed out waiting for SPI\n");
+			return -ETIMEDOUT;
+		}
+		cpu_relax();
+	}
 }
 
-static int
-falcon_spi_read(struct efx_nic *efx, int device_id, unsigned int command,
-		unsigned int address, unsigned int addr_len,
-		void *data, unsigned int len)
+static int falcon_spi_cmd(const struct efx_spi_device *spi,
+			  unsigned int command, int address,
+			  const void *in, void *out, unsigned int len)
 {
+	struct efx_nic *efx = spi->efx;
+	bool addressed = (address >= 0);
+	bool reading = (out != NULL);
 	efx_oword_t reg;
 	int rc;
 
-	BUG_ON(len > FALCON_SPI_MAX_LEN);
+	/* Input validation */
+	if (len > FALCON_SPI_MAX_LEN)
+		return -EINVAL;
 
 	/* Check SPI not currently being accessed */
 	rc = falcon_spi_wait(efx);
 	if (rc)
 		return rc;
 
-	/* Program address register */
-	EFX_POPULATE_OWORD_1(reg, EE_SPI_HADR_ADR, address);
-	falcon_write(efx, &reg, EE_SPI_HADR_REG_KER);
+	/* Program address register, if we have an address */
+	if (addressed) {
+		EFX_POPULATE_OWORD_1(reg, EE_SPI_HADR_ADR, address);
+		falcon_write(efx, &reg, EE_SPI_HADR_REG_KER);
+	}
 
-	/* Issue read command */
+	/* Program data register, if we have data */
+	if (in != NULL) {
+		memcpy(&reg, in, len);
+		falcon_write(efx, &reg, EE_SPI_HDATA_REG_KER);
+	}
+
+	/* Issue read/write command */
 	EFX_POPULATE_OWORD_7(reg,
 			     EE_SPI_HCMD_CMD_EN, 1,
-			     EE_SPI_HCMD_SF_SEL, device_id,
+			     EE_SPI_HCMD_SF_SEL, spi->device_id,
 			     EE_SPI_HCMD_DABCNT, len,
-			     EE_SPI_HCMD_READ, EE_SPI_READ,
+			     EE_SPI_HCMD_READ, reading,
 			     EE_SPI_HCMD_DUBCNT, 0,
-			     EE_SPI_HCMD_ADBCNT, addr_len,
+			     EE_SPI_HCMD_ADBCNT,
+			     (addressed ? spi->addr_len : 0),
 			     EE_SPI_HCMD_ENC, command);
 	falcon_write(efx, &reg, EE_SPI_HCMD_REG_KER);
 
-	/* Wait for read to complete */
+	/* Wait for read/write to complete */
 	rc = falcon_spi_wait(efx);
 	if (rc)
 		return rc;
 
 	/* Read data */
-	falcon_read(efx, &reg, EE_SPI_HDATA_REG_KER);
-	memcpy(data, &reg, len);
+	if (out != NULL) {
+		falcon_read(efx, &reg, EE_SPI_HDATA_REG_KER);
+		memcpy(out, &reg, len);
+	}
+
 	return 0;
+}
+
+static unsigned int
+falcon_spi_write_limit(const struct efx_spi_device *spi, unsigned int start)
+{
+	return min(FALCON_SPI_MAX_LEN,
+		   (spi->block_size - (start & (spi->block_size - 1))));
+}
+
+static inline u8
+efx_spi_munge_command(const struct efx_spi_device *spi,
+		      const u8 command, const unsigned int address)
+{
+	return command | (((address >> 8) & spi->munge_address) << 3);
+}
+
+
+static int falcon_spi_fast_wait(const struct efx_spi_device *spi)
+{
+	u8 status;
+	int i, rc;
+
+	/* Wait up to 1000us for flash/EEPROM to finish a fast operation. */
+	for (i = 0; i < 50; i++) {
+		udelay(20);
+
+		rc = falcon_spi_cmd(spi, SPI_RDSR, -1, NULL,
+				    &status, sizeof(status));
+		if (rc)
+			return rc;
+		if (!(status & SPI_STATUS_NRDY))
+			return 0;
+	}
+	EFX_ERR(spi->efx,
+		"timed out waiting for device %d last status=0x%02x\n",
+		spi->device_id, status);
+	return -ETIMEDOUT;
+}
+
+int falcon_spi_read(const struct efx_spi_device *spi, loff_t start,
+		    size_t len, size_t *retlen, u8 *buffer)
+{
+	unsigned int command, block_len, pos = 0;
+	int rc = 0;
+
+	while (pos < len) {
+		block_len = min((unsigned int)len - pos,
+				FALCON_SPI_MAX_LEN);
+
+		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		rc = falcon_spi_cmd(spi, command, start + pos, NULL,
+				    buffer + pos, block_len);
+		if (rc)
+			break;
+		pos += block_len;
+
+		/* Avoid locking up the system */
+		cond_resched();
+		if (signal_pending(current)) {
+			rc = -EINTR;
+			break;
+		}
+	}
+
+	if (retlen)
+		*retlen = pos;
+	return rc;
+}
+
+int falcon_spi_write(const struct efx_spi_device *spi, loff_t start,
+		     size_t len, size_t *retlen, const u8 *buffer)
+{
+	u8 verify_buffer[FALCON_SPI_MAX_LEN];
+	unsigned int command, block_len, pos = 0;
+	int rc = 0;
+
+	while (pos < len) {
+		rc = falcon_spi_cmd(spi, SPI_WREN, -1, NULL, NULL, 0);
+		if (rc)
+			break;
+
+		block_len = min((unsigned int)len - pos,
+				falcon_spi_write_limit(spi, start + pos));
+		command = efx_spi_munge_command(spi, SPI_WRITE, start + pos);
+		rc = falcon_spi_cmd(spi, command, start + pos,
+				    buffer + pos, NULL, block_len);
+		if (rc)
+			break;
+
+		rc = falcon_spi_fast_wait(spi);
+		if (rc)
+			break;
+
+		command = efx_spi_munge_command(spi, SPI_READ, start + pos);
+		rc = falcon_spi_cmd(spi, command, start + pos,
+				    NULL, verify_buffer, block_len);
+		if (memcmp(verify_buffer, buffer + pos, block_len)) {
+			rc = -EIO;
+			break;
+		}
+
+		pos += block_len;
+
+		/* Avoid locking up the system */
+		cond_resched();
+		if (signal_pending(current)) {
+			rc = -EINTR;
+			break;
+		}
+	}
+
+	if (retlen)
+		*retlen = pos;
+	return rc;
 }
 
 /**************************************************************************
@@ -2251,40 +2382,66 @@ static int falcon_reset_sram(struct efx_nic *efx)
 	return -ETIMEDOUT;
 }
 
+static int falcon_spi_device_init(struct efx_nic *efx,
+				  struct efx_spi_device **spi_device_ret,
+				  unsigned int device_id, u32 device_type)
+{
+	struct efx_spi_device *spi_device;
+
+	if (device_type != 0) {
+		spi_device = kmalloc(sizeof(*spi_device), GFP_KERNEL);
+		if (!spi_device)
+			return -ENOMEM;
+		spi_device->device_id = device_id;
+		spi_device->size =
+			1 << SPI_DEV_TYPE_FIELD(device_type, SPI_DEV_TYPE_SIZE);
+		spi_device->addr_len =
+			SPI_DEV_TYPE_FIELD(device_type, SPI_DEV_TYPE_ADDR_LEN);
+		spi_device->munge_address = (spi_device->size == 1 << 9 &&
+					     spi_device->addr_len == 1);
+		spi_device->block_size =
+			1 << SPI_DEV_TYPE_FIELD(device_type,
+						SPI_DEV_TYPE_BLOCK_SIZE);
+
+		spi_device->efx = efx;
+	} else {
+		spi_device = NULL;
+	}
+
+	kfree(*spi_device_ret);
+	*spi_device_ret = spi_device;
+	return 0;
+}
+
+
+static void falcon_remove_spi_devices(struct efx_nic *efx)
+{
+	kfree(efx->spi_eeprom);
+	efx->spi_eeprom = NULL;
+	kfree(efx->spi_flash);
+	efx->spi_flash = NULL;
+}
+
 /* Extract non-volatile configuration */
 static int falcon_probe_nvconfig(struct efx_nic *efx)
 {
 	struct falcon_nvconfig *nvconfig;
-	efx_oword_t nic_stat;
-	int device_id;
-	unsigned addr_len;
-	size_t offset, len;
+	struct efx_spi_device *spi;
 	int magic_num, struct_ver, board_rev;
 	int rc;
 
-	/* Find the boot device. */
-	falcon_read(efx, &nic_stat, NIC_STAT_REG);
-	if (EFX_OWORD_FIELD(nic_stat, SF_PRST)) {
-		device_id = EE_SPI_FLASH;
-		addr_len = 3;
-	} else if (EFX_OWORD_FIELD(nic_stat, EE_PRST)) {
-		device_id = EE_SPI_EEPROM;
-		addr_len = 2;
-	} else {
-		return -ENODEV;
-	}
-
 	nvconfig = kmalloc(sizeof(*nvconfig), GFP_KERNEL);
+	if (!nvconfig)
+		return -ENOMEM;
 
 	/* Read the whole configuration structure into memory. */
-	for (offset = 0; offset < sizeof(*nvconfig); offset += len) {
-		len = min(sizeof(*nvconfig) - offset,
-			  (size_t) FALCON_SPI_MAX_LEN);
-		rc = falcon_spi_read(efx, device_id, SPI_READ,
-				     NVCONFIG_BASE + offset, addr_len,
-				     (char *)nvconfig + offset, len);
-		if (rc)
-			goto out;
+	spi = efx->spi_flash ? efx->spi_flash : efx->spi_eeprom;
+	rc = falcon_spi_read(spi, NVCONFIG_BASE, sizeof(*nvconfig),
+			     NULL, (char *)nvconfig);
+	if (rc) {
+		EFX_ERR(efx, "Failed to read %s\n", efx->spi_flash ? "flash" :
+			"EEPROM");
+		goto fail1;
 	}
 
 	/* Read the MAC addresses */
@@ -2302,17 +2459,38 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 		board_rev = 0;
 	} else {
 		struct falcon_nvconfig_board_v2 *v2 = &nvconfig->board_v2;
+		struct falcon_nvconfig_board_v3 *v3 = &nvconfig->board_v3;
 
 		efx->phy_type = v2->port0_phy_type;
 		efx->mii.phy_id = v2->port0_phy_addr;
 		board_rev = le16_to_cpu(v2->board_revision);
+
+		if (struct_ver >= 3) {
+			__le32 fl = v3->spi_device_type[EE_SPI_FLASH];
+			__le32 ee = v3->spi_device_type[EE_SPI_EEPROM];
+			rc = falcon_spi_device_init(efx, &efx->spi_flash,
+						    EE_SPI_FLASH,
+						    le32_to_cpu(fl));
+			if (rc)
+				goto fail2;
+			rc = falcon_spi_device_init(efx, &efx->spi_eeprom,
+						    EE_SPI_EEPROM,
+						    le32_to_cpu(ee));
+			if (rc)
+				goto fail2;
+		}
 	}
 
 	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mii.phy_id);
 
 	efx_set_board_info(efx, board_rev);
 
- out:
+	kfree(nvconfig);
+	return 0;
+
+ fail2:
+	falcon_remove_spi_devices(efx);
+ fail1:
 	kfree(nvconfig);
 	return rc;
 }
@@ -2361,6 +2539,86 @@ static int falcon_probe_nic_variant(struct efx_nic *efx)
 	}
 
 	return 0;
+}
+
+/* Probe all SPI devices on the NIC */
+static void falcon_probe_spi_devices(struct efx_nic *efx)
+{
+	efx_oword_t nic_stat, gpio_ctl, ee_vpd_cfg;
+	bool has_flash, has_eeprom, boot_is_external;
+
+	falcon_read(efx, &gpio_ctl, GPIO_CTL_REG_KER);
+	falcon_read(efx, &nic_stat, NIC_STAT_REG);
+	falcon_read(efx, &ee_vpd_cfg, EE_VPD_CFG_REG_KER);
+
+	has_flash = EFX_OWORD_FIELD(nic_stat, SF_PRST);
+	has_eeprom = EFX_OWORD_FIELD(nic_stat, EE_PRST);
+	boot_is_external = EFX_OWORD_FIELD(gpio_ctl, BOOTED_USING_NVDEVICE);
+
+	if (has_flash) {
+		/* Default flash SPI device: Atmel AT25F1024
+		 * 128 KB, 24-bit address, 32 KB erase block,
+		 * 256 B write block
+		 */
+		u32 flash_device_type =
+			(17 << SPI_DEV_TYPE_SIZE_LBN)
+			| (3 << SPI_DEV_TYPE_ADDR_LEN_LBN)
+			| (0x52 << SPI_DEV_TYPE_ERASE_CMD_LBN)
+			| (15 << SPI_DEV_TYPE_ERASE_SIZE_LBN)
+			| (8 << SPI_DEV_TYPE_BLOCK_SIZE_LBN);
+
+		falcon_spi_device_init(efx, &efx->spi_flash,
+				       EE_SPI_FLASH, flash_device_type);
+
+		if (!boot_is_external) {
+			/* Disable VPD and set clock dividers to safe
+			 * values for initial programming.
+			 */
+			EFX_LOG(efx, "Booted from internal ASIC settings;"
+				" setting SPI config\n");
+			EFX_POPULATE_OWORD_3(ee_vpd_cfg, EE_VPD_EN, 0,
+					     /* 125 MHz / 7 ~= 20 MHz */
+					     EE_SF_CLOCK_DIV, 7,
+					     /* 125 MHz / 63 ~= 2 MHz */
+					     EE_EE_CLOCK_DIV, 63);
+			falcon_write(efx, &ee_vpd_cfg, EE_VPD_CFG_REG_KER);
+		}
+	}
+
+	if (has_eeprom) {
+		u32 eeprom_device_type;
+
+		/* If it has no flash, it must have a large EEPROM
+		 * for chip config; otherwise check whether 9-bit
+		 * addressing is used for VPD configuration
+		 */
+		if (has_flash &&
+		    (!boot_is_external ||
+		     EFX_OWORD_FIELD(ee_vpd_cfg, EE_VPD_EN_AD9_MODE))) {
+			/* Default SPI device: Atmel AT25040 or similar
+			 * 512 B, 9-bit address, 8 B write block
+			 */
+			eeprom_device_type =
+				(9 << SPI_DEV_TYPE_SIZE_LBN)
+				| (1 << SPI_DEV_TYPE_ADDR_LEN_LBN)
+				| (3 << SPI_DEV_TYPE_BLOCK_SIZE_LBN);
+		} else {
+			/* "Large" SPI device: Atmel AT25640 or similar
+			 * 8 KB, 16-bit address, 32 B write block
+			 */
+			eeprom_device_type =
+				(13 << SPI_DEV_TYPE_SIZE_LBN)
+				| (2 << SPI_DEV_TYPE_ADDR_LEN_LBN)
+				| (5 << SPI_DEV_TYPE_BLOCK_SIZE_LBN);
+		}
+
+		falcon_spi_device_init(efx, &efx->spi_eeprom,
+				       EE_SPI_EEPROM, eeprom_device_type);
+	}
+
+	EFX_LOG(efx, "flash is %s, EEPROM is %s\n",
+		(has_flash ? "present" : "absent"),
+		(has_eeprom ? "present" : "absent"));
 }
 
 int falcon_probe_nic(struct efx_nic *efx)
@@ -2413,6 +2671,8 @@ int falcon_probe_nic(struct efx_nic *efx)
 		(unsigned long long)efx->irq_status.dma_addr,
 		efx->irq_status.addr, virt_to_phys(efx->irq_status.addr));
 
+	falcon_probe_spi_devices(efx);
+
 	/* Read in the non-volatile configuration */
 	rc = falcon_probe_nvconfig(efx);
 	if (rc)
@@ -2432,6 +2692,7 @@ int falcon_probe_nic(struct efx_nic *efx)
 	return 0;
 
  fail5:
+	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
  fail4:
  fail3:
@@ -2608,6 +2869,7 @@ void falcon_remove_nic(struct efx_nic *efx)
 	rc = i2c_del_adapter(&efx->i2c_adap);
 	BUG_ON(rc);
 
+	falcon_remove_spi_devices(efx);
 	falcon_free_buffer(efx, &efx->irq_status);
 
 	falcon_reset_hw(efx, RESET_TYPE_ALL);
