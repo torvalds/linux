@@ -948,22 +948,32 @@ static struct i2c_adapter pvr2_i2c_adap_template = {
 	.client_unregister = pvr2_i2c_detach_inform,
 };
 
-static void do_i2c_scan(struct pvr2_hdw *hdw)
+
+/* Return true if device exists at given address */
+static int do_i2c_probe(struct pvr2_hdw *hdw, int addr)
 {
 	struct i2c_msg msg[1];
-	int i,rc;
+	int rc;
 	msg[0].addr = 0;
 	msg[0].flags = I2C_M_RD;
 	msg[0].len = 0;
 	msg[0].buf = NULL;
-	printk("%s: i2c scan beginning\n",hdw->name);
+	msg[0].addr = addr;
+	rc = i2c_transfer(&hdw->i2c_adap, msg, ARRAY_SIZE(msg));
+	return rc == 1;
+}
+
+static void do_i2c_scan(struct pvr2_hdw *hdw)
+{
+	int i;
+	printk(KERN_INFO "%s: i2c scan beginning\n", hdw->name);
 	for (i = 0; i < 128; i++) {
-		msg[0].addr = i;
-		rc = i2c_transfer(&hdw->i2c_adap,msg, ARRAY_SIZE(msg));
-		if (rc != 1) continue;
-		printk("%s: i2c scan: found device @ 0x%x\n",hdw->name,i);
+		if (do_i2c_probe(hdw, i)) {
+			printk(KERN_INFO "%s: i2c scan: found device @ 0x%x\n",
+			       hdw->name, i);
+		}
 	}
-	printk("%s: i2c scan done.\n",hdw->name);
+	printk(KERN_INFO "%s: i2c scan done.\n", hdw->name);
 }
 
 void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
@@ -1008,6 +1018,16 @@ void pvr2_i2c_core_init(struct pvr2_hdw *hdw)
 	mutex_init(&hdw->i2c_list_lock);
 	hdw->i2c_linked = !0;
 	i2c_add_adapter(&hdw->i2c_adap);
+	if (hdw->i2c_func[0x18] == i2c_24xxx_ir) {
+		/* Probe for a different type of IR receiver on this
+		   device.  If present, disable the emulated IR receiver. */
+		if (do_i2c_probe(hdw, 0x71)) {
+			pvr2_trace(PVR2_TRACE_INFO,
+				   "Device has newer IR hardware;"
+				   " disabling unneeded virtual IR device");
+			hdw->i2c_func[0x18] = NULL;
+		}
+	}
 	if (i2c_scan) do_i2c_scan(hdw);
 }
 
