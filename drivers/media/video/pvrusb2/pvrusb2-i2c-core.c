@@ -891,6 +891,7 @@ static int pvr2_i2c_attach_inform(struct i2c_client *client)
 	INIT_LIST_HEAD(&cp->list);
 	cp->client = client;
 	mutex_lock(&hdw->i2c_list_lock); do {
+		hdw->cropcap_stale = !0;
 		list_add_tail(&cp->list,&hdw->i2c_clients);
 		hdw->i2c_pend_types |= PVR2_I2C_PEND_DETECT;
 	} while (0); mutex_unlock(&hdw->i2c_list_lock);
@@ -905,6 +906,7 @@ static int pvr2_i2c_detach_inform(struct i2c_client *client)
 	unsigned long amask = 0;
 	int foundfl = 0;
 	mutex_lock(&hdw->i2c_list_lock); do {
+		hdw->cropcap_stale = !0;
 		list_for_each_entry_safe(cp, ncp, &hdw->i2c_clients, list) {
 			if (cp->client == client) {
 				trace_i2c("pvr2_i2c_detach"

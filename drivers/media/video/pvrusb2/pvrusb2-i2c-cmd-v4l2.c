@@ -37,6 +37,7 @@ static void set_standard(struct pvr2_hdw *hdw)
 		pvr2_i2c_core_cmd(hdw,VIDIOC_S_STD,&vs);
 	}
 	hdw->tuner_signal_stale = !0;
+	hdw->cropcap_stale = !0;
 }
 
 
@@ -235,34 +236,20 @@ const struct pvr2_i2c_op pvr2_i2c_op_v4l2_size = {
 
 static void set_crop(struct pvr2_hdw *hdw)
 {
-	struct v4l2_cropcap cap;
 	struct v4l2_crop crop;
-	int stat;
-
-	memset(&cap, 0, sizeof cap);
-	cap.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	stat = pvr2_i2c_core_cmd(hdw, VIDIOC_CROPCAP, &cap);
-	hdw->cropcap = cap;
 
 	memset(&crop, 0, sizeof crop);
 	crop.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	crop.c = cap.defrect;
-	crop.c.left += hdw->cropl_val;
-	crop.c.top += hdw->cropt_val;
+	crop.c.left = hdw->cropl_val;
+	crop.c.top = hdw->cropt_val;
 	crop.c.height = hdw->croph_val;
 	crop.c.width = hdw->cropw_val;
 
 	pvr2_trace(PVR2_TRACE_CHIPS,
-		   "i2c v4l2 set_crop stat=%d cap=%d:%d:%d:%d"
-		   " crop=%d:%d:%d:%d", stat, cap.bounds.width,
-		   cap.bounds.height, cap.bounds.left, cap.bounds.top,
+		   "i2c v4l2 set_crop crop=%d:%d:%d:%d",
 		   crop.c.width, crop.c.height, crop.c.left, crop.c.top);
 
-	if (stat >= 0) {
-		/* This comment is present purely to keep
-		   checkpatch.pl quiet */
-		pvr2_i2c_core_cmd(hdw, VIDIOC_S_CROP, &crop);
-	}
+	pvr2_i2c_core_cmd(hdw, VIDIOC_S_CROP, &crop);
 }
 
 static int check_crop(struct pvr2_hdw *hdw)
@@ -312,7 +299,19 @@ void pvr2_v4l2_cmd_stream(struct pvr2_i2c_client *cp,int fl)
 
 void pvr2_v4l2_cmd_status_poll(struct pvr2_i2c_client *cp)
 {
-	pvr2_i2c_client_cmd(cp,VIDIOC_G_TUNER,&cp->hdw->tuner_signal_info);
+	int stat;
+	struct pvr2_hdw *hdw = cp->hdw;
+	if (hdw->cropcap_stale) {
+		hdw->cropcap_info.type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		stat = pvr2_i2c_client_cmd(cp, VIDIOC_CROPCAP,
+					   &hdw->cropcap_info);
+		if (stat == 0) {
+			/* Check was successful, so the data is no
+			   longer considered stale. */
+			hdw->cropcap_stale = 0;
+		}
+	}
+	pvr2_i2c_client_cmd(cp, VIDIOC_G_TUNER, &hdw->tuner_signal_info);
 }
 
 

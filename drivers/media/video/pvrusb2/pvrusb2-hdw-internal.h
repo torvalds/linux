@@ -308,6 +308,10 @@ struct pvr2_hdw {
 	struct v4l2_tuner tuner_signal_info;
 	int tuner_signal_stale;
 
+	/* Cropping capability info */
+	struct v4l2_cropcap cropcap_info;
+	int cropcap_stale;
+
 	/* Video standard handling */
 	v4l2_std_id std_mask_eeprom; // Hardware supported selections
 	v4l2_std_id std_mask_avail;  // Which standards we may select from
@@ -320,7 +324,6 @@ struct pvr2_hdw {
 	struct pvr2_ctl_info std_info_cur;
 	struct v4l2_standard *std_defs;
 	const char **std_enum_names;
-	struct v4l2_cropcap cropcap;
 
 	// Generated string names, one per actual V4L2 standard
 	const char *std_mask_ptrs[32];
