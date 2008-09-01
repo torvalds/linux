@@ -26,12 +26,12 @@
 #define OMAP1510_BASE_BAUD	(12000000/16)
 #define OMAP16XX_BASE_BAUD	(48000000/16)
 
-#define is_omap_port(p)	({int __ret = 0;			\
-			if (p == IO_ADDRESS(OMAP_UART1_BASE) ||	\
-			    p == IO_ADDRESS(OMAP_UART2_BASE) ||	\
-			    p == IO_ADDRESS(OMAP_UART3_BASE))	\
-				__ret = 1;			\
-			__ret;					\
+#define is_omap_port(pt)	({int __ret = 0;			\
+			if ((pt)->port.mapbase == OMAP_UART1_BASE ||	\
+			    (pt)->port.mapbase == OMAP_UART2_BASE ||	\
+			    (pt)->port.mapbase == OMAP_UART3_BASE)	\
+				__ret = 1;				\
+			__ret;						\
 			})
 
 #endif

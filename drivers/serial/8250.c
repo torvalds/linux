@@ -2213,7 +2213,7 @@ serial8250_set_termios(struct uart_port *port, struct ktermios *termios,
 
 #ifdef CONFIG_ARCH_OMAP15XX
 	/* Workaround to enable 115200 baud on OMAP1510 internal ports */
-	if (cpu_is_omap1510() && is_omap_port((unsigned int)up->port.membase)) {
+	if (cpu_is_omap1510() && is_omap_port(up)) {
 		if (baud == 115200) {
 			quot = 1;
 			serial_out(up, UART_OMAP_OSC_12M_SEL, 1);
