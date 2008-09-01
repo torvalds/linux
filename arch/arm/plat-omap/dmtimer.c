@@ -693,7 +693,7 @@ int __init omap_dm_timer_init(void)
 
 	for (i = 0; i < dm_timer_count; i++) {
 		timer = &dm_timers[i];
-		timer->io_base = (void __iomem *)io_p2v(timer->phys_base);
+		timer->io_base = IO_ADDRESS(timer->phys_base);
 #if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 		if (cpu_class_is_omap2()) {
 			char clk_name[16];

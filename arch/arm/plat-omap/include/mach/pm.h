@@ -39,11 +39,11 @@
  * Register and offset definitions to be used in PM assembler code
  * ----------------------------------------------------------------------------
  */
-#define CLKGEN_REG_ASM_BASE		io_p2v(0xfffece00)
+#define CLKGEN_REG_ASM_BASE		IO_ADDRESS(0xfffece00)
 #define ARM_IDLECT1_ASM_OFFSET		0x04
 #define ARM_IDLECT2_ASM_OFFSET		0x08
 
-#define TCMIF_ASM_BASE			io_p2v(0xfffecc00)
+#define TCMIF_ASM_BASE			IO_ADDRESS(0xfffecc00)
 #define EMIFS_CONFIG_ASM_OFFSET		0x0c
 #define EMIFF_SDRAM_CONFIG_ASM_OFFSET	0x20
 

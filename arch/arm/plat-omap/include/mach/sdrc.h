@@ -63,9 +63,9 @@
  */
 
 
-#define OMAP242X_SMS_REGADDR(reg)	(void __iomem *)IO_ADDRESS(OMAP2420_SMS_BASE + reg)
-#define OMAP243X_SMS_REGADDR(reg)	(void __iomem *)IO_ADDRESS(OMAP243X_SMS_BASE + reg)
-#define OMAP343X_SMS_REGADDR(reg)	(void __iomem *)IO_ADDRESS(OMAP343X_SMS_BASE + reg)
+#define OMAP242X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP2420_SMS_BASE + reg)
+#define OMAP243X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP243X_SMS_BASE + reg)
+#define OMAP343X_SMS_REGADDR(reg)	IO_ADDRESS(OMAP343X_SMS_BASE + reg)
 
 /* SMS register offsets - read/write with sms_{read,write}_reg() */
 

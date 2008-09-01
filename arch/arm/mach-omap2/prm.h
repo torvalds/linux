@@ -18,7 +18,7 @@
 
 #ifndef __ASSEMBLER__
 #define OMAP_PRM_REGADDR(module, reg)					\
-	(void __iomem *)IO_ADDRESS(OMAP2_PRM_BASE + (module) + (reg))
+			IO_ADDRESS(OMAP2_PRM_BASE + (module) + (reg))
 #else
 #define OMAP2420_PRM_REGADDR(module, reg)				\
 			IO_ADDRESS(OMAP2420_PRM_BASE + (module) + (reg))

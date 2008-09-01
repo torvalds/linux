@@ -19,11 +19,11 @@
 #include <mach/io.h>
 
 #define OMAP242X_CTRL_REGADDR(reg)					\
-	(void __iomem *)IO_ADDRESS(OMAP242X_CTRL_BASE + (reg))
+	IO_ADDRESS(OMAP242X_CTRL_BASE + (reg))
 #define OMAP243X_CTRL_REGADDR(reg)					\
-	(void __iomem *)IO_ADDRESS(OMAP243X_CTRL_BASE + (reg))
+	IO_ADDRESS(OMAP243X_CTRL_BASE + (reg))
 #define OMAP343X_CTRL_REGADDR(reg)					\
-	(void __iomem *)IO_ADDRESS(OMAP343X_CTRL_BASE + (reg))
+	IO_ADDRESS(OMAP343X_CTRL_BASE + (reg))
 
 /*
  * As elsewhere, the "OMAP2_" prefix indicates that the macro is valid for
