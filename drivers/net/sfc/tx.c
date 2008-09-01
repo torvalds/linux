@@ -516,7 +516,7 @@ void efx_remove_tx_queue(struct efx_tx_queue *tx_queue)
 /* Number of bytes inserted at the start of a TSO header buffer,
  * similar to NET_IP_ALIGN.
  */
-#if defined(__i386__) || defined(__x86_64__)
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
 #define TSOH_OFFSET	0
 #else
 #define TSOH_OFFSET	NET_IP_ALIGN
