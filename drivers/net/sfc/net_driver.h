@@ -366,7 +366,6 @@ struct efx_channel {
 	unsigned int irq_moderation;
 	struct net_device *napi_dev;
 	struct napi_struct napi_str;
-	struct work_struct reset_work;
 	int work_pending;
 	struct efx_special_buffer eventq;
 	unsigned int eventq_read_ptr;
