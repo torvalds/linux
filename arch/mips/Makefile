@@ -567,15 +567,11 @@ cflags-$(CONFIG_MIKROTIK_RB532) += -Iinclude/asm-mips/mach-rc32434
 load-$(CONFIG_MIKROTIK_RB532)	+= 0xffffffff80101000
 
 #
-# Toshiba RBTX4927 board or
-# Toshiba RBTX4937 board
+# Toshiba RBTX49XX boards
 #
 core-$(CONFIG_TOSHIBA_RBTX4927)	+= arch/mips/txx9/rbtx4927/
-
-#
-# Toshiba RBTX4938 board
-#
 core-$(CONFIG_TOSHIBA_RBTX4938) += arch/mips/txx9/rbtx4938/
+core-$(CONFIG_TOSHIBA_RBTX4939) += arch/mips/txx9/rbtx4939/
 
 cflags-y			+= -Iinclude/asm-mips/mach-generic
 drivers-$(CONFIG_PCI)		+= arch/mips/pci/

@@ -372,6 +372,11 @@ static void __init select_board(void)
 		txx9_board_vec = &rbtx4938_vec;
 		break;
 #endif
+#ifdef CONFIG_TOSHIBA_RBTX4939
+	case 0x4939:
+		txx9_board_vec = &rbtx4939_vec;
+		break;
+#endif
 	}
 #endif
 }

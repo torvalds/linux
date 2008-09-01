@@ -45,6 +45,14 @@ config TOSHIBA_RBTX4938
 	  This Toshiba board is based on the TX4938 processor. Say Y here to
 	  support this machine type
 
+config TOSHIBA_RBTX4939
+	bool "Toshiba RBTX4939 bobard"
+	depends on MACH_TX49XX
+	select SOC_TX4939
+	help
+	  This Toshiba board is based on the TX4939 processor. Say Y here to
+	  support this machine type
+
 config SOC_TX3927
 	bool
 	select CEVT_TXX9
