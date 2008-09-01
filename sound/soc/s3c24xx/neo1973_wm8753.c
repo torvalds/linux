@@ -717,12 +717,16 @@ static int __init neo1973_init(void)
 	neo1973_snd_devdata.dev = &neo1973_snd_device->dev;
 	ret = platform_device_add(neo1973_snd_device);
 
-	if (ret)
+	if (ret) {
 		platform_device_put(neo1973_snd_device);
+		return ret;
+	}
 
 	ret = i2c_add_driver(&lm4857_i2c_driver);
-	if (ret != 0)
+	if (ret != 0) {
 		printk(KERN_ERR "can't add i2c driver");
+		platform_device_unregister(neo1973_snd_device);
+	}
 
 	return ret;
 }
