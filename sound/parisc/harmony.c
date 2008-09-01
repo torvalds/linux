@@ -869,7 +869,7 @@ snd_harmony_mixer_init(struct snd_harmony *h)
 	int idx, err;
 
 	if (snd_BUG_ON(!h))
-		reutrn -EINVAL;
+		return -EINVAL;
 	strcpy(card->mixername, "Harmony Gain control interface");
 
 	for (idx = 0; idx < HARMONY_CONTROLS; idx++) {
