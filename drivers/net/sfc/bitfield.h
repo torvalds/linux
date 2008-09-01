@@ -416,10 +416,21 @@ typedef union efx_oword {
  * for read-modify-write operations.
  *
  */
-
 #define EFX_INVERT_OWORD(oword) do {		\
 	(oword).u64[0] = ~((oword).u64[0]);	\
 	(oword).u64[1] = ~((oword).u64[1]);	\
+	} while (0)
+
+#define EFX_AND_OWORD(oword, from, mask)			\
+	do {							\
+		(oword).u64[0] = (from).u64[0] & (mask).u64[0];	\
+		(oword).u64[1] = (from).u64[1] & (mask).u64[1];	\
+	} while (0)
+
+#define EFX_OR_OWORD(oword, from, mask)				\
+	do {							\
+		(oword).u64[0] = (from).u64[0] | (mask).u64[0];	\
+		(oword).u64[1] = (from).u64[1] | (mask).u64[1];	\
 	} while (0)
 
 #define EFX_INSERT64(min, max, low, high, value)			\
@@ -528,5 +539,11 @@ typedef union efx_oword {
 #define DMA_ADDR_T_WIDTH	(8 * sizeof(dma_addr_t))
 #define EFX_DMA_TYPE_WIDTH(width) \
 	(((width) < DMA_ADDR_T_WIDTH) ? (width) : DMA_ADDR_T_WIDTH)
+
+
+/* Static initialiser */
+#define EFX_OWORD32(a, b, c, d)						\
+	{ .u32 = { __constant_cpu_to_le32(a), __constant_cpu_to_le32(b), \
+		   __constant_cpu_to_le32(c), __constant_cpu_to_le32(d) } }
 
 #endif /* EFX_BITFIELD_H */

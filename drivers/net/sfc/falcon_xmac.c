@@ -373,17 +373,9 @@ static void falcon_reconfigure_xgxs_core(struct efx_nic *efx)
 		reset_xgxs = ((xgxs_loopback != old_xgxs_loopback) ||
 			      (xaui_loopback != old_xaui_loopback) ||
 			      (xgmii_loopback != old_xgmii_loopback));
-		if (reset_xgxs) {
-			falcon_read(efx, &reg, XX_PWR_RST_REG);
-			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSTX_EN, 1);
-			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSRX_EN, 1);
-			falcon_write(efx, &reg, XX_PWR_RST_REG);
-			udelay(1);
-			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSTX_EN, 0);
-			EFX_SET_OWORD_FIELD(reg, XX_RSTXGXSRX_EN, 0);
-			falcon_write(efx, &reg, XX_PWR_RST_REG);
-			udelay(1);
-		}
+
+		if (reset_xgxs)
+			falcon_reset_xaui(efx);
 	}
 
 	falcon_read(efx, &reg, XX_CORE_STAT_REG);

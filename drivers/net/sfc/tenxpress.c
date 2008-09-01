@@ -65,24 +65,9 @@
 #define PMA_PMD_LED_DEFAULT	(PMA_PMD_LED_OFF << PMA_PMD_LED_RX_LBN)
 
 
-/* Self test (BIST) control register */
-#define PMA_PMD_BIST_CTRL_REG	(0xc014)
-#define PMA_PMD_BIST_BER_LBN	(2)	/* Run BER test */
-#define PMA_PMD_BIST_CONT_LBN	(1)	/* Run continuous BIST until cleared */
-#define PMA_PMD_BIST_SINGLE_LBN	(0)	/* Run 1 BIST iteration (self clears) */
-/* Self test status register */
-#define PMA_PMD_BIST_STAT_REG	(0xc015)
-#define PMA_PMD_BIST_ENX_LBN	(3)
-#define PMA_PMD_BIST_PMA_LBN	(2)
-#define PMA_PMD_BIST_RXD_LBN	(1)
-#define PMA_PMD_BIST_AFE_LBN	(0)
-
 /* Special Software reset register */
 #define PMA_PMD_EXT_CTRL_REG 49152
 #define PMA_PMD_EXT_SSR_LBN 15
-
-#define BIST_MAX_DELAY	(1000)
-#define BIST_POLL_DELAY	(10)
 
 /* Misc register defines */
 #define PCS_CLOCK_CTRL_REG 0xd801
@@ -491,6 +476,12 @@ static void tenxpress_reset_xaui(struct efx_nic *efx)
 	udelay(10);
 }
 
+static int tenxpress_phy_test(struct efx_nic *efx)
+{
+	/* BIST is automatically run after a special software reset */
+	return tenxpress_special_reset(efx);
+}
+
 struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,
@@ -498,6 +489,7 @@ struct efx_phy_operations falcon_tenxpress_phy_ops = {
 	.fini             = tenxpress_phy_fini,
 	.clear_interrupt  = tenxpress_phy_clear_interrupt,
 	.reset_xaui       = tenxpress_reset_xaui,
+	.test             = tenxpress_phy_test,
 	.mmds             = TENXPRESS_REQUIRED_DEVS,
 	.loopbacks        = TENXPRESS_LOOPBACKS,
 };

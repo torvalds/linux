@@ -27,6 +27,9 @@
 #include "boards.h"
 #include "workarounds.h"
 #include "mac.h"
+#include "spi.h"
+#include "falcon_io.h"
+#include "mdio_10g.h"
 
 /*
  * Loopback test packet structure
@@ -51,7 +54,7 @@ static const char *payload_msg =
 	"Hello world! This is an Efx loopback test in progress!";
 
 /**
- * efx_selftest_state - persistent state during a selftest
+ * efx_loopback_state - persistent state during a loopback selftest
  * @flush:		Drop all packets in efx_loopback_rx_packet
  * @packet_count:	Number of packets being used in this test
  * @skbs:		An array of skbs transmitted
@@ -59,7 +62,7 @@ static const char *payload_msg =
  * @rx_bad:		RX bad packet count
  * @payload:		Payload used in tests
  */
-struct efx_selftest_state {
+struct efx_loopback_state {
 	bool flush;
 	int packet_count;
 	struct sk_buff **skbs;
@@ -74,21 +77,65 @@ struct efx_selftest_state {
 
 /**************************************************************************
  *
- * Configurable values
+ * MII, NVRAM and register tests
  *
  **************************************************************************/
 
-/* Level of loopback testing
- *
- * The maximum packet burst length is 16**(n-1), i.e.
- *
- * - Level 0 : no packets
- * - Level 1 : 1 packet
- * - Level 2 : 17 packets (1 * 1 packet, 1 * 16 packets)
- * - Level 3 : 273 packets (1 * 1 packet, 1 * 16 packet, 1 * 256 packets)
- *
- */
-static unsigned int loopback_test_level = 3;
+static int efx_test_mii(struct efx_nic *efx, struct efx_self_tests *tests)
+{
+	int rc = 0;
+	u16 physid1, physid2;
+	struct mii_if_info *mii = &efx->mii;
+	struct net_device *net_dev = efx->net_dev;
+
+	if (efx->phy_type == PHY_TYPE_NONE)
+		return 0;
+
+	mutex_lock(&efx->mac_lock);
+	tests->mii = -1;
+
+	physid1 = mii->mdio_read(net_dev, mii->phy_id, MII_PHYSID1);
+	physid2 = mii->mdio_read(net_dev, mii->phy_id, MII_PHYSID2);
+
+	if ((physid1 == 0x0000) || (physid1 == 0xffff) ||
+	    (physid2 == 0x0000) || (physid2 == 0xffff)) {
+		EFX_ERR(efx, "no MII PHY present with ID %d\n",
+			mii->phy_id);
+		rc = -EINVAL;
+		goto out;
+	}
+
+	rc = mdio_clause45_check_mmds(efx, efx->phy_op->mmds, 0);
+	if (rc)
+		goto out;
+
+out:
+	mutex_unlock(&efx->mac_lock);
+	tests->mii = rc ? -1 : 1;
+	return rc;
+}
+
+static int efx_test_nvram(struct efx_nic *efx, struct efx_self_tests *tests)
+{
+	int rc;
+
+	rc = falcon_read_nvram(efx, NULL);
+	tests->nvram = rc ? -1 : 1;
+	return rc;
+}
+
+static int efx_test_chip(struct efx_nic *efx, struct efx_self_tests *tests)
+{
+	int rc;
+
+	/* Not supported on A-series silicon */
+	if (falcon_rev(efx) < FALCON_REV_B0)
+		return 0;
+
+	rc = falcon_test_registers(efx);
+	tests->registers = rc ? -1 : 1;
+	return rc;
+}
 
 /**************************************************************************
  *
@@ -199,39 +246,18 @@ static int efx_test_eventq_irq(struct efx_channel *channel,
 	return 0;
 }
 
-/**************************************************************************
- *
- * PHY testing
- *
- **************************************************************************/
-
-/* Check PHY presence by reading the PHY ID registers */
-static int efx_test_phy(struct efx_nic *efx,
-			struct efx_self_tests *tests)
+static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests)
 {
-	u16 physid1, physid2;
-	struct mii_if_info *mii = &efx->mii;
-	struct net_device *net_dev = efx->net_dev;
+	int rc;
 
-	if (efx->phy_type == PHY_TYPE_NONE)
+	if (!efx->phy_op->test)
 		return 0;
 
-	EFX_LOG(efx, "testing PHY presence\n");
-	tests->phy_ok = -1;
-
-	physid1 = mii->mdio_read(net_dev, mii->phy_id, MII_PHYSID1);
-	physid2 = mii->mdio_read(net_dev, mii->phy_id, MII_PHYSID2);
-
-	if ((physid1 != 0x0000) && (physid1 != 0xffff) &&
-	    (physid2 != 0x0000) && (physid2 != 0xffff)) {
-		EFX_LOG(efx, "found MII PHY %d ID 0x%x:%x\n",
-			mii->phy_id, physid1, physid2);
-		tests->phy_ok = 1;
-		return 0;
-	}
-
-	EFX_ERR(efx, "no MII PHY present with ID %d\n", mii->phy_id);
-	return -ENODEV;
+	mutex_lock(&efx->mac_lock);
+	rc = efx->phy_op->test(efx);
+	mutex_unlock(&efx->mac_lock);
+	tests->phy = rc ? -1 : 1;
+	return rc;
 }
 
 /**************************************************************************
@@ -247,7 +273,7 @@ static int efx_test_phy(struct efx_nic *efx,
 void efx_loopback_rx_packet(struct efx_nic *efx,
 			    const char *buf_ptr, int pkt_len)
 {
-	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct efx_loopback_payload *received;
 	struct efx_loopback_payload *payload;
 
@@ -258,7 +284,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 		return;
 
 	payload = &state->payload;
-	
+
 	received = (struct efx_loopback_payload *) buf_ptr;
 	received->ip.saddr = payload->ip.saddr;
 	if (state->offload_csum)
@@ -332,7 +358,7 @@ void efx_loopback_rx_packet(struct efx_nic *efx,
 /* Initialise an efx_selftest_state for a new iteration */
 static void efx_iterate_state(struct efx_nic *efx)
 {
-	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct net_device *net_dev = efx->net_dev;
 	struct efx_loopback_payload *payload = &state->payload;
 
@@ -368,14 +394,14 @@ static void efx_iterate_state(struct efx_nic *efx)
 static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 {
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct efx_loopback_payload *payload;
 	struct sk_buff *skb;
 	int i, rc;
 
 	/* Transmit N copies of buffer */
 	for (i = 0; i < state->packet_count; i++) {
-		/* Allocate an skb, holding an extra reference for 
+		/* Allocate an skb, holding an extra reference for
 		 * transmit completion counting */
 		skb = alloc_skb(sizeof(state->payload), GFP_KERNEL);
 		if (!skb)
@@ -416,7 +442,7 @@ static int efx_begin_loopback(struct efx_tx_queue *tx_queue)
 
 static int efx_poll_loopback(struct efx_nic *efx)
 {
-	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct efx_channel *channel;
 
 	/* NAPI polling is not enabled, so process channels
@@ -432,7 +458,7 @@ static int efx_end_loopback(struct efx_tx_queue *tx_queue,
 			    struct efx_loopback_self_tests *lb_tests)
 {
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_loopback_state *state = efx->loopback_selftest;
 	struct sk_buff *skb;
 	int tx_done = 0, rx_good, rx_bad;
 	int i, rc = 0;
@@ -491,10 +517,10 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 		  struct efx_loopback_self_tests *lb_tests)
 {
 	struct efx_nic *efx = tx_queue->efx;
-	struct efx_selftest_state *state = efx->loopback_selftest;
+	struct efx_loopback_state *state = efx->loopback_selftest;
 	int i, begin_rc, end_rc;
 
-	for (i = 0; i < loopback_test_level; i++) {
+	for (i = 0; i < 3; i++) {
 		/* Determine how many packets to send */
 		state->packet_count = (efx->type->txd_ring_mask + 1) / 3;
 		state->packet_count = min(1 << (i << 2), state->packet_count);
@@ -537,42 +563,28 @@ efx_test_loopback(struct efx_tx_queue *tx_queue,
 	return 0;
 }
 
-static int efx_test_loopbacks(struct efx_nic *efx,
+static int efx_test_loopbacks(struct efx_nic *efx, struct ethtool_cmd ecmd,
 			      struct efx_self_tests *tests,
 			      unsigned int loopback_modes)
 {
-	struct efx_selftest_state *state = efx->loopback_selftest;
-	struct ethtool_cmd ecmd, ecmd_loopback;
+	enum efx_loopback_mode mode;
+	struct efx_loopback_state *state;
 	struct efx_tx_queue *tx_queue;
-	enum efx_loopback_mode old_mode, mode;
 	bool link_up;
-	int count, rc;
+	int count, rc = 0;
 
-	rc = efx_ethtool_get_settings(efx->net_dev, &ecmd);
-	if (rc) {
-		EFX_ERR(efx, "could not get GMII settings\n");
-		return rc;
-	}
-	old_mode = efx->loopback_mode;
-
-	/* Disable autonegotiation for the purposes of loopback */
-	memcpy(&ecmd_loopback, &ecmd, sizeof(ecmd_loopback));
-	if (ecmd_loopback.autoneg == AUTONEG_ENABLE) {
-		ecmd_loopback.autoneg = AUTONEG_DISABLE;
-		ecmd_loopback.duplex = DUPLEX_FULL;
-		ecmd_loopback.speed = SPEED_10000;
-	}
-
-	rc = efx_ethtool_set_settings(efx->net_dev, &ecmd_loopback);
-	if (rc) {
-		EFX_ERR(efx, "could not disable autonegotiation\n");
-		goto out;
-	}
-	tests->loopback_speed = ecmd_loopback.speed;
-	tests->loopback_full_duplex = ecmd_loopback.duplex;
+	/* Set the port loopback_selftest member. From this point on
+	 * all received packets will be dropped. Mark the state as
+	 * "flushing" so all inflight packets are dropped */
+	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	if (state == NULL)
+		return -ENOMEM;
+	BUG_ON(efx->loopback_selftest);
+	state->flush = true;
+	efx->loopback_selftest = state;
 
 	/* Test all supported loopback modes */
-	for (mode = LOOPBACK_NONE; mode < LOOPBACK_TEST_MAX; mode++) {
+	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
 		if (!(loopback_modes & (1 << mode)))
 			continue;
 
@@ -601,7 +613,7 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 			 */
 			link_up = efx->link_up;
 			if (!falcon_xaui_link_ok(efx))
-				link_up = 0;
+				link_up = false;
 
 		} while ((++count < 20) && !link_up);
 
@@ -629,10 +641,11 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 	}
 
  out:
-	/* Take out of loopback and restore PHY settings */
+	/* Remove the flush. The caller will remove the loopback setting */
 	state->flush = true;
-	efx->loopback_mode = old_mode;
-	efx_ethtool_set_settings(efx->net_dev, &ecmd);
+	efx->loopback_selftest = NULL;
+	wmb();
+	kfree(state);
 
 	return rc;
 }
@@ -648,18 +661,27 @@ static int efx_test_loopbacks(struct efx_nic *efx,
 int efx_online_test(struct efx_nic *efx, struct efx_self_tests *tests)
 {
 	struct efx_channel *channel;
-	int rc;
+	int rc, rc2 = 0;
+
+	rc = efx_test_mii(efx, tests);
+	if (rc && !rc2)
+		rc2 = rc;
+
+	rc = efx_test_nvram(efx, tests);
+	if (rc && !rc2)
+		rc2 = rc;
 
 	rc = efx_test_interrupts(efx, tests);
-	if (rc)
-		return rc;
+	if (rc && !rc2)
+		rc2 = rc;
+
 	efx_for_each_channel(channel, efx) {
 		rc = efx_test_eventq_irq(channel, tests);
-		if (rc)
-			return rc;
+		if (rc && !rc2)
+			rc2 = rc;
 	}
-	rc = efx_test_phy(efx, tests);
-	return rc;
+
+	return rc2;
 }
 
 /* Offline (i.e. disruptive) testing
@@ -667,27 +689,66 @@ int efx_online_test(struct efx_nic *efx, struct efx_self_tests *tests)
 int efx_offline_test(struct efx_nic *efx,
 		     struct efx_self_tests *tests, unsigned int loopback_modes)
 {
-	struct efx_selftest_state *state;
-	int rc;
+	enum efx_loopback_mode loopback_mode = efx->loopback_mode;
+	int phy_mode = efx->phy_mode;
+	struct ethtool_cmd ecmd, ecmd_test;
+	int rc, rc2 = 0;
 
-	/* Create a selftest_state structure to hold state for the test */
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state == NULL)
-		return -ENOMEM;
+	/* force the carrier state off so the kernel doesn't transmit during
+	 * the loopback test, and the watchdog timeout doesn't fire. Also put
+	 * falcon into loopback for the register test.
+	 */
+	mutex_lock(&efx->mac_lock);
+	efx->port_inhibited = true;
+	if (efx->loopback_modes)
+		efx->loopback_mode = __ffs(efx->loopback_modes);
+	__efx_reconfigure_port(efx);
+	mutex_unlock(&efx->mac_lock);
 
-	/* Set the port loopback_selftest member. From this point on
-	 * all received packets will be dropped. Mark the state as
-	 * "flushing" so all inflight packets are dropped */
-	BUG_ON(efx->loopback_selftest);
-	state->flush = true;
-	efx->loopback_selftest = state;
+	/* free up all consumers of SRAM (including all the queues) */
+	efx_reset_down(efx, &ecmd);
 
-	rc = efx_test_loopbacks(efx, tests, loopback_modes);
+	rc = efx_test_chip(efx, tests);
+	if (rc && !rc2)
+		rc2 = rc;
 
-	efx->loopback_selftest = NULL;
-	wmb();
-	kfree(state);
+	/* reset the chip to recover from the register test */
+	rc = falcon_reset_hw(efx, RESET_TYPE_ALL);
 
-	return rc;
+	/* Modify the saved ecmd so that when efx_reset_up() restores the phy
+	 * state, AN is disabled, and the phy is powered, and out of loopback */
+	memcpy(&ecmd_test, &ecmd, sizeof(ecmd_test));
+	if (ecmd_test.autoneg == AUTONEG_ENABLE) {
+		ecmd_test.autoneg = AUTONEG_DISABLE;
+		ecmd_test.duplex = DUPLEX_FULL;
+		ecmd_test.speed = SPEED_10000;
+	}
+	efx->loopback_mode = LOOPBACK_NONE;
+
+	rc = efx_reset_up(efx, &ecmd_test, rc == 0);
+	if (rc) {
+		EFX_ERR(efx, "Unable to recover from chip test\n");
+		efx_schedule_reset(efx, RESET_TYPE_DISABLE);
+		return rc;
+	}
+
+	tests->loopback_speed = ecmd_test.speed;
+	tests->loopback_full_duplex = ecmd_test.duplex;
+
+	rc = efx_test_phy(efx, tests);
+	if (rc && !rc2)
+		rc2 = rc;
+
+	rc = efx_test_loopbacks(efx, ecmd_test, tests, loopback_modes);
+	if (rc && !rc2)
+		rc2 = rc;
+
+	/* restore the PHY to the previous state */
+	efx->loopback_mode = loopback_mode;
+	efx->phy_mode = phy_mode;
+	efx->port_inhibited = false;
+	efx_ethtool_set_settings(efx->net_dev, &ecmd);
+
+	return rc2;
 }
 

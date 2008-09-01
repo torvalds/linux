@@ -93,6 +93,12 @@ extern void falcon_update_nic_stats(struct efx_nic *efx);
 extern void falcon_set_multicast_hash(struct efx_nic *efx);
 extern int falcon_reset_xaui(struct efx_nic *efx);
 
+/* Tests */
+struct falcon_nvconfig;
+extern int falcon_read_nvram(struct efx_nic *efx,
+			     struct falcon_nvconfig *nvconfig);
+extern int falcon_test_registers(struct efx_nic *efx);
+
 /**************************************************************************
  *
  * Falcon MAC stats

@@ -2223,6 +2223,170 @@ void falcon_set_multicast_hash(struct efx_nic *efx)
 	falcon_write(efx, &mc_hash->oword[1], MAC_MCAST_HASH_REG1_KER);
 }
 
+
+/**************************************************************************
+ *
+ * Falcon test code
+ *
+ **************************************************************************/
+
+int falcon_read_nvram(struct efx_nic *efx, struct falcon_nvconfig *nvconfig_out)
+{
+	struct falcon_nvconfig *nvconfig;
+	struct efx_spi_device *spi;
+	void *region;
+	int rc, magic_num, struct_ver;
+	__le16 *word, *limit;
+	u32 csum;
+
+	region = kmalloc(NVCONFIG_END, GFP_KERNEL);
+	if (!region)
+		return -ENOMEM;
+	nvconfig = region + NVCONFIG_OFFSET;
+
+	spi = efx->spi_flash ? efx->spi_flash : efx->spi_eeprom;
+	rc = falcon_spi_read(spi, 0, NVCONFIG_END, NULL, region);
+	if (rc) {
+		EFX_ERR(efx, "Failed to read %s\n",
+			efx->spi_flash ? "flash" : "EEPROM");
+		rc = -EIO;
+		goto out;
+	}
+
+	magic_num = le16_to_cpu(nvconfig->board_magic_num);
+	struct_ver = le16_to_cpu(nvconfig->board_struct_ver);
+
+	rc = -EINVAL;
+	if (magic_num != NVCONFIG_BOARD_MAGIC_NUM) {
+		EFX_ERR(efx, "NVRAM bad magic 0x%x\n", magic_num);
+		goto out;
+	}
+	if (struct_ver < 2) {
+		EFX_ERR(efx, "NVRAM has ancient version 0x%x\n", struct_ver);
+		goto out;
+	} else if (struct_ver < 4) {
+		word = &nvconfig->board_magic_num;
+		limit = (__le16 *) (nvconfig + 1);
+	} else {
+		word = region;
+		limit = region + NVCONFIG_END;
+	}
+	for (csum = 0; word < limit; ++word)
+		csum += le16_to_cpu(*word);
+
+	if (~csum & 0xffff) {
+		EFX_ERR(efx, "NVRAM has incorrect checksum\n");
+		goto out;
+	}
+
+	rc = 0;
+	if (nvconfig_out)
+		memcpy(nvconfig_out, nvconfig, sizeof(*nvconfig));
+
+ out:
+	kfree(region);
+	return rc;
+}
+
+/* Registers tested in the falcon register test */
+static struct {
+	unsigned address;
+	efx_oword_t mask;
+} efx_test_registers[] = {
+	{ ADR_REGION_REG_KER,
+	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	{ RX_CFG_REG_KER,
+	  EFX_OWORD32(0xFFFFFFFE, 0x00017FFF, 0x00000000, 0x00000000) },
+	{ TX_CFG_REG_KER,
+	  EFX_OWORD32(0x7FFF0037, 0x00000000, 0x00000000, 0x00000000) },
+	{ TX_CFG2_REG_KER,
+	  EFX_OWORD32(0xFFFEFE80, 0x1FFFFFFF, 0x020000FE, 0x007FFFFF) },
+	{ MAC0_CTRL_REG_KER,
+	  EFX_OWORD32(0xFFFF0000, 0x00000000, 0x00000000, 0x00000000) },
+	{ SRM_TX_DC_CFG_REG_KER,
+	  EFX_OWORD32(0x001FFFFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ RX_DC_CFG_REG_KER,
+	  EFX_OWORD32(0x0000000F, 0x00000000, 0x00000000, 0x00000000) },
+	{ RX_DC_PF_WM_REG_KER,
+	  EFX_OWORD32(0x000003FF, 0x00000000, 0x00000000, 0x00000000) },
+	{ DP_CTRL_REG,
+	  EFX_OWORD32(0x00000FFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_GLB_CFG_REG,
+	  EFX_OWORD32(0x00000C68, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_TX_CFG_REG,
+	  EFX_OWORD32(0x00080164, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_RX_CFG_REG,
+	  EFX_OWORD32(0x07100A0C, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_RX_PARAM_REG,
+	  EFX_OWORD32(0x00001FF8, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_FC_REG,
+	  EFX_OWORD32(0xFFFF0001, 0x00000000, 0x00000000, 0x00000000) },
+	{ XM_ADR_LO_REG,
+	  EFX_OWORD32(0xFFFFFFFF, 0x00000000, 0x00000000, 0x00000000) },
+	{ XX_SD_CTL_REG,
+	  EFX_OWORD32(0x0003FF0F, 0x00000000, 0x00000000, 0x00000000) },
+};
+
+static bool efx_masked_compare_oword(const efx_oword_t *a, const efx_oword_t *b,
+				     const efx_oword_t *mask)
+{
+	return ((a->u64[0] ^ b->u64[0]) & mask->u64[0]) ||
+		((a->u64[1] ^ b->u64[1]) & mask->u64[1]);
+}
+
+int falcon_test_registers(struct efx_nic *efx)
+{
+	unsigned address = 0, i, j;
+	efx_oword_t mask, imask, original, reg, buf;
+
+	/* Falcon should be in loopback to isolate the XMAC from the PHY */
+	WARN_ON(!LOOPBACK_INTERNAL(efx));
+
+	for (i = 0; i < ARRAY_SIZE(efx_test_registers); ++i) {
+		address = efx_test_registers[i].address;
+		mask = imask = efx_test_registers[i].mask;
+		EFX_INVERT_OWORD(imask);
+
+		falcon_read(efx, &original, address);
+
+		/* bit sweep on and off */
+		for (j = 0; j < 128; j++) {
+			if (!EFX_EXTRACT_OWORD32(mask, j, j))
+				continue;
+
+			/* Test this testable bit can be set in isolation */
+			EFX_AND_OWORD(reg, original, mask);
+			EFX_SET_OWORD32(reg, j, j, 1);
+
+			falcon_write(efx, &reg, address);
+			falcon_read(efx, &buf, address);
+
+			if (efx_masked_compare_oword(&reg, &buf, &mask))
+				goto fail;
+
+			/* Test this testable bit can be cleared in isolation */
+			EFX_OR_OWORD(reg, original, mask);
+			EFX_SET_OWORD32(reg, j, j, 0);
+
+			falcon_write(efx, &reg, address);
+			falcon_read(efx, &buf, address);
+
+			if (efx_masked_compare_oword(&reg, &buf, &mask))
+				goto fail;
+		}
+
+		falcon_write(efx, &original, address);
+	}
+
+	return 0;
+
+fail:
+	EFX_ERR(efx, "wrote "EFX_OWORD_FMT" read "EFX_OWORD_FMT
+		" at address 0x%x mask "EFX_OWORD_FMT"\n", EFX_OWORD_VAL(reg),
+		EFX_OWORD_VAL(buf), address, EFX_OWORD_VAL(mask));
+	return -EIO;
+}
+
 /**************************************************************************
  *
  * Device reset
@@ -2404,37 +2568,22 @@ static void falcon_remove_spi_devices(struct efx_nic *efx)
 static int falcon_probe_nvconfig(struct efx_nic *efx)
 {
 	struct falcon_nvconfig *nvconfig;
-	struct efx_spi_device *spi;
-	int magic_num, struct_ver, board_rev;
+	int board_rev;
 	int rc;
 
 	nvconfig = kmalloc(sizeof(*nvconfig), GFP_KERNEL);
 	if (!nvconfig)
 		return -ENOMEM;
 
-	/* Read the whole configuration structure into memory. */
-	spi = efx->spi_flash ? efx->spi_flash : efx->spi_eeprom;
-	rc = falcon_spi_read(spi, NVCONFIG_BASE, sizeof(*nvconfig),
-			     NULL, (char *)nvconfig);
-	if (rc) {
-		EFX_ERR(efx, "Failed to read %s\n", efx->spi_flash ? "flash" :
-			"EEPROM");
-		goto fail1;
-	}
-
-	/* Read the MAC addresses */
-	memcpy(efx->mac_address, nvconfig->mac_address[0], ETH_ALEN);
-
-	/* Read the board configuration. */
-	magic_num = le16_to_cpu(nvconfig->board_magic_num);
-	struct_ver = le16_to_cpu(nvconfig->board_struct_ver);
-
-	if (magic_num != NVCONFIG_BOARD_MAGIC_NUM || struct_ver < 2) {
-		EFX_ERR(efx, "Non volatile memory bad magic=%x ver=%x "
-			"therefore using defaults\n", magic_num, struct_ver);
+	rc = falcon_read_nvram(efx, nvconfig);
+	if (rc == -EINVAL) {
+		EFX_ERR(efx, "NVRAM is invalid therefore using defaults\n");
 		efx->phy_type = PHY_TYPE_NONE;
 		efx->mii.phy_id = PHY_ADDR_INVALID;
 		board_rev = 0;
+		rc = 0;
+	} else if (rc) {
+		goto fail1;
 	} else {
 		struct falcon_nvconfig_board_v2 *v2 = &nvconfig->board_v2;
 		struct falcon_nvconfig_board_v3 *v3 = &nvconfig->board_v3;
@@ -2443,7 +2592,7 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 		efx->mii.phy_id = v2->port0_phy_addr;
 		board_rev = le16_to_cpu(v2->board_revision);
 
-		if (struct_ver >= 3) {
+		if (le16_to_cpu(nvconfig->board_struct_ver) >= 3) {
 			__le32 fl = v3->spi_device_type[EE_SPI_FLASH];
 			__le32 ee = v3->spi_device_type[EE_SPI_EEPROM];
 			rc = falcon_spi_device_init(efx, &efx->spi_flash,
@@ -2458,6 +2607,9 @@ static int falcon_probe_nvconfig(struct efx_nic *efx)
 				goto fail2;
 		}
 	}
+
+	/* Read the MAC addresses */
+	memcpy(efx->mac_address, nvconfig->mac_address[0], ETH_ALEN);
 
 	EFX_LOG(efx, "PHY is %d phy_id %d\n", efx->phy_type, efx->mii.phy_id);
 

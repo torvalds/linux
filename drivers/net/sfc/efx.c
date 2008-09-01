@@ -508,6 +508,11 @@ static void efx_link_status_changed(struct efx_nic *efx)
 	if (!netif_running(efx->net_dev))
 		return;
 
+	if (efx->port_inhibited) {
+		netif_carrier_off(efx->net_dev);
+		return;
+	}
+
 	if (efx->link_up != netif_carrier_ok(efx->net_dev)) {
 		efx->n_link_state_changes++;
 
@@ -549,7 +554,7 @@ static void efx_link_status_changed(struct efx_nic *efx)
 
 /* This call reinitialises the MAC to pick up new PHY settings. The
  * caller must hold the mac_lock */
-static void __efx_reconfigure_port(struct efx_nic *efx)
+void __efx_reconfigure_port(struct efx_nic *efx)
 {
 	WARN_ON(!mutex_is_locked(&efx->mac_lock));
 
@@ -634,6 +639,7 @@ static int efx_init_port(struct efx_nic *efx)
 		return rc;
 
 	efx->port_initialized = true;
+	efx->stats_enabled = true;
 
 	/* Reconfigure port to program MAC registers */
 	falcon_reconfigure_xmac(efx);
@@ -1311,7 +1317,7 @@ static struct net_device_stats *efx_net_stats(struct net_device *net_dev)
 	 */
 	if (!spin_trylock(&efx->stats_lock))
 		return stats;
-	if (efx->state == STATE_RUNNING) {
+	if (efx->stats_enabled) {
 		falcon_update_stats_xmac(efx);
 		falcon_update_nic_stats(efx);
 	}
@@ -1529,7 +1535,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 
 /* Tears down the entire software state and most of the hardware state
  * before reset.  */
-static void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
+void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 {
 	int rc;
 
@@ -1538,6 +1544,7 @@ static void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
 	/* The net_dev->get_stats handler is quite slow, and will fail
 	 * if a fetch is pending over reset. Serialise against it. */
 	spin_lock(&efx->stats_lock);
+	efx->stats_enabled = false;
 	spin_unlock(&efx->stats_lock);
 
 	efx_stop_all(efx);
@@ -1555,8 +1562,7 @@ static void efx_reset_down(struct efx_nic *efx, struct ethtool_cmd *ecmd)
  * that we were unable to reinitialise the hardware, and the
  * driver should be disabled. If ok is false, then the rx and tx
  * engines are not restarted, pending a RESET_DISABLE. */
-static int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd,
-			bool ok)
+int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd, bool ok)
 {
 	int rc;
 
@@ -1577,8 +1583,10 @@ static int efx_reset_up(struct efx_nic *efx, struct ethtool_cmd *ecmd,
 
 	mutex_unlock(&efx->mac_lock);
 
-	if (ok)
+	if (ok) {
 		efx_start_all(efx);
+		efx->stats_enabled = true;
+	}
 	return rc;
 }
 

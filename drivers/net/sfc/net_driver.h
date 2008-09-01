@@ -515,6 +515,7 @@ struct efx_phy_operations {
 	void (*clear_interrupt) (struct efx_nic *efx);
 	int (*check_hw) (struct efx_nic *efx);
 	void (*reset_xaui) (struct efx_nic *efx);
+	int (*test) (struct efx_nic *efx);
 	int mmds;
 	unsigned loopbacks;
 };
@@ -533,7 +534,7 @@ enum efx_phy_mode {
 
 static inline bool efx_phy_mode_disabled(enum efx_phy_mode mode)
 {
-	return (mode & ~PHY_MODE_TX_DISABLED) != 0;
+	return !!(mode & ~PHY_MODE_TX_DISABLED);
 }
 
 /*
@@ -655,13 +656,14 @@ union efx_multicast_hash {
  *	This field will be %NULL if no EEPROM device is present.
  * @n_rx_nodesc_drop_cnt: RX no descriptor drop count
  * @nic_data: Hardware dependant state
- * @mac_lock: MAC access lock. Protects @port_enabled, efx_monitor() and
- *	efx_reconfigure_port()
+ * @mac_lock: MAC access lock. Protects @port_enabled, @phy_mode,
+ *	@port_inhibited, efx_monitor() and efx_reconfigure_port()
  * @port_enabled: Port enabled indicator.
  *	Serialises efx_stop_all(), efx_start_all() and efx_monitor() and
  *	efx_reconfigure_work with kernel interfaces. Safe to read under any
  *	one of the rtnl_lock, mac_lock, or netif_tx_lock, but all three must
  *	be held to modify it.
+ * @port_inhibited: If set, the netif_carrier is always off. Hold the mac_lock
  * @port_initialized: Port initialized?
  * @net_dev: Operating system network device. Consider holding the rtnl lock
  * @rx_checksum_enabled: RX checksumming enabled
@@ -671,14 +673,16 @@ union efx_multicast_hash {
  *	can provide.  Generic code converts these into a standard
  *	&struct net_device_stats.
  * @stats_buffer: DMA buffer for statistics
- * @stats_lock: Statistics update lock
+ * @stats_lock: Statistics update lock. Serialises statistics fetches
+ * @stats_enabled: Temporarily disable statistics fetches.
+ *	Serialised by @stats_lock
  * @mac_address: Permanent MAC address
  * @phy_type: PHY type
  * @phy_lock: PHY access lock
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mii: PHY interface
- * @phy_mode: PHY operating mode
+ * @phy_mode: PHY operating mode. Serialised by @mac_lock.
  * @link_up: Link status
  * @link_options: Link options (MII/GMII format)
  * @n_link_state_changes: Number of times the link has changed state
@@ -733,6 +737,7 @@ struct efx_nic {
 
 	struct mutex mac_lock;
 	bool port_enabled;
+	bool port_inhibited;
 
 	bool port_initialized;
 	struct net_device *net_dev;
@@ -744,6 +749,7 @@ struct efx_nic {
 	struct efx_mac_stats mac_stats;
 	struct efx_buffer stats_buffer;
 	spinlock_t stats_lock;
+	bool stats_enabled;
 
 	unsigned char mac_address[ETH_ALEN];
 

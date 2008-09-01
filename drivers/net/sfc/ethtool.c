@@ -333,7 +333,10 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 	unsigned int n = 0;
 	enum efx_loopback_mode mode;
 
-	/* Interrupt */
+	efx_fill_test(n++, strings, data, &tests->mii,
+		      "core", 0, "mii", NULL);
+	efx_fill_test(n++, strings, data, &tests->nvram,
+		      "core", 0, "nvram", NULL);
 	efx_fill_test(n++, strings, data, &tests->interrupt,
 		      "core", 0, "interrupt", NULL);
 
@@ -353,16 +356,17 @@ static int efx_ethtool_fill_self_tests(struct efx_nic *efx,
 			      "eventq.poll", NULL);
 	}
 
-	/* PHY presence */
-	efx_fill_test(n++, strings, data, &tests->phy_ok,
-		      EFX_PORT_NAME, "phy_ok", NULL);
+	efx_fill_test(n++, strings, data, &tests->registers,
+		      "core", 0, "registers", NULL);
+	efx_fill_test(n++, strings, data, &tests->phy,
+		      EFX_PORT_NAME, "phy", NULL);
 
 	/* Loopback tests */
 	efx_fill_test(n++, strings, data, &tests->loopback_speed,
 		      EFX_PORT_NAME, "loopback.speed", NULL);
 	efx_fill_test(n++, strings, data, &tests->loopback_full_duplex,
 		      EFX_PORT_NAME, "loopback.full_duplex", NULL);
-	for (mode = LOOPBACK_NONE; mode < LOOPBACK_TEST_MAX; mode++) {
+	for (mode = LOOPBACK_NONE; mode <= LOOPBACK_TEST_MAX; mode++) {
 		if (!(efx->loopback_modes & (1 << mode)))
 			continue;
 		n = efx_fill_loopback_test(efx,
@@ -500,15 +504,9 @@ static void efx_ethtool_self_test(struct net_device *net_dev,
 		goto out;
 
 	/* Perform offline tests only if online tests passed */
-	if (offline) {
-		/* Stop the kernel from sending packets during the test. */
-		efx_stop_queue(efx);
-		efx_flush_queues(efx);
-
+	if (offline)
 		rc = efx_offline_test(efx, &efx_tests,
 				      efx->loopback_modes);
-		efx_wake_queue(efx);
-	}
 
  out:
 	if (!already_up)
