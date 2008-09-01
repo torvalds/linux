@@ -291,10 +291,33 @@ static struct pxa3xx_nand_flash micron1GbX16 = {
 	.chip_id	= 0xb12c,
 };
 
+static struct pxa3xx_nand_timing stm2GbX16_timing = {
+	.tCH = 10,
+	.tCS = 35,
+	.tWH = 15,
+	.tWP = 25,
+	.tRH = 15,
+	.tRP = 25,
+	.tR = 25000,
+	.tWHR = 60,
+	.tAR = 10,
+};
+
+static struct pxa3xx_nand_flash stm2GbX16 = {
+	.timing = &stm2GbX16_timing,
+	.page_per_block = 64,
+	.page_size = 2048,
+	.flash_width = 16,
+	.dfc_width = 16,
+	.num_blocks = 2048,
+	.chip_id = 0xba20,
+};
+
 static struct pxa3xx_nand_flash *builtin_flash_types[] = {
 	&samsung512MbX16,
 	&micron1GbX8,
 	&micron1GbX16,
+	&stm2GbX16,
 };
 
 #define NDTR0_tCH(c)	(min((c), 7) << 19)
