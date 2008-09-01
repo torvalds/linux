@@ -73,7 +73,7 @@ extern unsigned int kobjsize(const void *objp);
 #endif
 
 /*
- * vm_flags..
+ * vm_flags in vm_area_struct, see mm_types.h.
  */
 #define VM_READ		0x00000001	/* currently active flags */
 #define VM_WRITE	0x00000002
@@ -834,7 +834,6 @@ extern int mprotect_fixup(struct vm_area_struct *vma,
 			  struct vm_area_struct **pprev, unsigned long start,
 			  unsigned long end, unsigned long newflags);
 
-#ifdef CONFIG_HAVE_GET_USER_PAGES_FAST
 /*
  * get_user_pages_fast provides equivalent functionality to get_user_pages,
  * operating on current and current->mm (force=0 and doesn't return any vmas).
@@ -847,25 +846,6 @@ extern int mprotect_fixup(struct vm_area_struct *vma,
  */
 int get_user_pages_fast(unsigned long start, int nr_pages, int write,
 			struct page **pages);
-
-#else
-/*
- * Should probably be moved to asm-generic, and architectures can include it if
- * they don't implement their own get_user_pages_fast.
- */
-#define get_user_pages_fast(start, nr_pages, write, pages)	\
-({								\
-	struct mm_struct *mm = current->mm;			\
-	int ret;						\
-								\
-	down_read(&mm->mmap_sem);				\
-	ret = get_user_pages(current, mm, start, nr_pages,	\
-					write, 0, pages, NULL);	\
-	up_read(&mm->mmap_sem);					\
-								\
-	ret;							\
-})
-#endif
 
 /*
  * A callback you can register to apply pressure to ageable caches.

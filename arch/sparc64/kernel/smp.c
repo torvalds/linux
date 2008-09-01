@@ -858,9 +858,7 @@ void smp_tsb_sync(struct mm_struct *mm)
 extern unsigned long xcall_flush_tlb_mm;
 extern unsigned long xcall_flush_tlb_pending;
 extern unsigned long xcall_flush_tlb_kernel_range;
-#ifdef CONFIG_MAGIC_SYSRQ
 extern unsigned long xcall_fetch_glob_regs;
-#endif
 extern unsigned long xcall_receive_signal;
 extern unsigned long xcall_new_mmu_context_version;
 #ifdef CONFIG_KGDB
@@ -1005,12 +1003,10 @@ void kgdb_roundup_cpus(unsigned long flags)
 }
 #endif
 
-#ifdef CONFIG_MAGIC_SYSRQ
 void smp_fetch_global_regs(void)
 {
 	smp_cross_call(&xcall_fetch_glob_regs, 0, 0, 0);
 }
-#endif
 
 /* We know that the window frames of the user have been flushed
  * to the stack before we get here because all callers of us

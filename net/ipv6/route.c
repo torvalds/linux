@@ -2106,7 +2106,8 @@ static inline size_t rt6_nlmsg_size(void)
 	       + nla_total_size(sizeof(struct rta_cacheinfo));
 }
 
-static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
+static int rt6_fill_node(struct net *net,
+			 struct sk_buff *skb, struct rt6_info *rt,
 			 struct in6_addr *dst, struct in6_addr *src,
 			 int iif, int type, u32 pid, u32 seq,
 			 int prefix, int nowait, unsigned int flags)
@@ -2187,8 +2188,9 @@ static int rt6_fill_node(struct sk_buff *skb, struct rt6_info *rt,
 #endif
 			NLA_PUT_U32(skb, RTA_IIF, iif);
 	} else if (dst) {
+		struct inet6_dev *idev = ip6_dst_idev(&rt->u.dst);
 		struct in6_addr saddr_buf;
-		if (ipv6_dev_get_saddr(ip6_dst_idev(&rt->u.dst)->dev,
+		if (ipv6_dev_get_saddr(net, idev ? idev->dev : NULL,
 				       dst, 0, &saddr_buf) == 0)
 			NLA_PUT(skb, RTA_PREFSRC, 16, &saddr_buf);
 	}
@@ -2233,7 +2235,8 @@ int rt6_dump_route(struct rt6_info *rt, void *p_arg)
 	} else
 		prefix = 0;
 
-	return rt6_fill_node(arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
+	return rt6_fill_node(arg->net,
+		     arg->skb, rt, NULL, NULL, 0, RTM_NEWROUTE,
 		     NETLINK_CB(arg->cb->skb).pid, arg->cb->nlh->nlmsg_seq,
 		     prefix, 0, NLM_F_MULTI);
 }
@@ -2299,7 +2302,7 @@ static int inet6_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr* nlh, void
 	rt = (struct rt6_info*) ip6_route_output(net, NULL, &fl);
 	skb->dst = &rt->u.dst;
 
-	err = rt6_fill_node(skb, rt, &fl.fl6_dst, &fl.fl6_src, iif,
+	err = rt6_fill_node(net, skb, rt, &fl.fl6_dst, &fl.fl6_src, iif,
 			    RTM_NEWROUTE, NETLINK_CB(in_skb).pid,
 			    nlh->nlmsg_seq, 0, 0, 0);
 	if (err < 0) {
@@ -2326,7 +2329,7 @@ void inet6_rt_notify(int event, struct rt6_info *rt, struct nl_info *info)
 	if (skb == NULL)
 		goto errout;
 
-	err = rt6_fill_node(skb, rt, NULL, NULL, 0,
+	err = rt6_fill_node(net, skb, rt, NULL, NULL, 0,
 				event, info->pid, seq, 0, 0, 0);
 	if (err < 0) {
 		/* -EMSGSIZE implies BUG in rt6_nlmsg_size() */

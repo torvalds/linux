@@ -220,7 +220,7 @@ int strict_strtou##type(const char *cp, unsigned int base, valtype *res)\
 	if (len == 0)							\
 		return -EINVAL;						\
 									\
-	val = simple_strtoul(cp, &tail, base);				\
+	val = simple_strtou##type(cp, &tail, base);			\
 	if ((*tail == '\0') ||						\
 		((len == (size_t)(tail - cp) + 1) && (*tail == '\n'))) {\
 		*res = val;						\

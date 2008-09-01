@@ -83,7 +83,7 @@ xfs_setattr(
 	cred_t			*credp)
 {
 	xfs_mount_t		*mp = ip->i_mount;
-	struct inode		*inode = XFS_ITOV(ip);
+	struct inode		*inode = VFS_I(ip);
 	int			mask = iattr->ia_valid;
 	xfs_trans_t		*tp;
 	int			code;
@@ -182,7 +182,7 @@ xfs_setattr(
 	xfs_ilock(ip, lock_flags);
 
 	/* boolean: are we the file owner? */
-	file_owner = (current_fsuid(credp) == ip->i_d.di_uid);
+	file_owner = (current_fsuid() == ip->i_d.di_uid);
 
 	/*
 	 * Change various properties of a file.
@@ -513,7 +513,6 @@ xfs_setattr(
 			ip->i_d.di_atime.t_sec = iattr->ia_atime.tv_sec;
 			ip->i_d.di_atime.t_nsec = iattr->ia_atime.tv_nsec;
 			ip->i_update_core = 1;
-			timeflags &= ~XFS_ICHGTIME_ACC;
 		}
 		if (mask & ATTR_MTIME) {
 			inode->i_mtime = iattr->ia_mtime;
@@ -714,7 +713,7 @@ xfs_fsync(
 		return XFS_ERROR(EIO);
 
 	/* capture size updates in I/O completion before writing the inode. */
-	error = filemap_fdatawait(vn_to_inode(XFS_ITOV(ip))->i_mapping);
+	error = filemap_fdatawait(VFS_I(ip)->i_mapping);
 	if (error)
 		return XFS_ERROR(error);
 
@@ -1160,7 +1159,6 @@ int
 xfs_release(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
 	xfs_mount_t	*mp = ip->i_mount;
 	int		error;
 
@@ -1195,13 +1193,13 @@ xfs_release(
 		 * be exposed to that problem.
 		 */
 		truncated = xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED);
-		if (truncated && VN_DIRTY(vp) && ip->i_delayed_blks > 0)
+		if (truncated && VN_DIRTY(VFS_I(ip)) && ip->i_delayed_blks > 0)
 			xfs_flush_pages(ip, 0, -1, XFS_B_ASYNC, FI_NONE);
 	}
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-		     ((ip->i_size > 0) || (VN_CACHED(vp) > 0 ||
+		     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
 		       ip->i_delayed_blks > 0)) &&
 		     (ip->i_df.if_flags & XFS_IFEXTENTS))  &&
 		    (!(ip->i_d.di_flags &
@@ -1227,7 +1225,6 @@ int
 xfs_inactive(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
 	xfs_bmap_free_t	free_list;
 	xfs_fsblock_t	first_block;
 	int		committed;
@@ -1242,7 +1239,7 @@ xfs_inactive(
 	 * If the inode is already free, then there can be nothing
 	 * to clean up here.
 	 */
-	if (ip->i_d.di_mode == 0 || VN_BAD(vp)) {
+	if (ip->i_d.di_mode == 0 || VN_BAD(VFS_I(ip))) {
 		ASSERT(ip->i_df.if_real_bytes == 0);
 		ASSERT(ip->i_df.if_broot_bytes == 0);
 		return VN_INACTIVE_CACHE;
@@ -1272,7 +1269,7 @@ xfs_inactive(
 
 	if (ip->i_d.di_nlink != 0) {
 		if ((((ip->i_d.di_mode & S_IFMT) == S_IFREG) &&
-                     ((ip->i_size > 0) || (VN_CACHED(vp) > 0 ||
+                     ((ip->i_size > 0) || (VN_CACHED(VFS_I(ip)) > 0 ||
                        ip->i_delayed_blks > 0)) &&
 		      (ip->i_df.if_flags & XFS_IFEXTENTS) &&
 		     (!(ip->i_d.di_flags &
@@ -1536,7 +1533,7 @@ xfs_create(
 	 * Make sure that we have allocated dquot(s) on disk.
 	 */
 	error = XFS_QM_DQVOPALLOC(mp, dp,
-			current_fsuid(credp), current_fsgid(credp), prid,
+			current_fsuid(), current_fsgid(), prid,
 			XFS_QMOPT_QUOTALL|XFS_QMOPT_INHERIT, &udqp, &gdqp);
 	if (error)
 		goto std_return;
@@ -1708,111 +1705,6 @@ std_return:
 }
 
 #ifdef DEBUG
-/*
- * Some counters to see if (and how often) we are hitting some deadlock
- * prevention code paths.
- */
-
-int xfs_rm_locks;
-int xfs_rm_lock_delays;
-int xfs_rm_attempts;
-#endif
-
-/*
- * The following routine will lock the inodes associated with the
- * directory and the named entry in the directory. The locks are
- * acquired in increasing inode number.
- *
- * If the entry is "..", then only the directory is locked. The
- * vnode ref count will still include that from the .. entry in
- * this case.
- *
- * There is a deadlock we need to worry about. If the locked directory is
- * in the AIL, it might be blocking up the log. The next inode we lock
- * could be already locked by another thread waiting for log space (e.g
- * a permanent log reservation with a long running transaction (see
- * xfs_itruncate_finish)). To solve this, we must check if the directory
- * is in the ail and use lock_nowait. If we can't lock, we need to
- * drop the inode lock on the directory and try again. xfs_iunlock will
- * potentially push the tail if we were holding up the log.
- */
-STATIC int
-xfs_lock_dir_and_entry(
-	xfs_inode_t	*dp,
-	xfs_inode_t	*ip)	/* inode of entry 'name' */
-{
-	int		attempts;
-	xfs_ino_t	e_inum;
-	xfs_inode_t	*ips[2];
-	xfs_log_item_t	*lp;
-
-#ifdef DEBUG
-	xfs_rm_locks++;
-#endif
-	attempts = 0;
-
-again:
-	xfs_ilock(dp, XFS_ILOCK_EXCL | XFS_ILOCK_PARENT);
-
-	e_inum = ip->i_ino;
-
-	xfs_itrace_ref(ip);
-
-	/*
-	 * We want to lock in increasing inum. Since we've already
-	 * acquired the lock on the directory, we may need to release
-	 * if if the inum of the entry turns out to be less.
-	 */
-	if (e_inum > dp->i_ino) {
-		/*
-		 * We are already in the right order, so just
-		 * lock on the inode of the entry.
-		 * We need to use nowait if dp is in the AIL.
-		 */
-
-		lp = (xfs_log_item_t *)dp->i_itemp;
-		if (lp && (lp->li_flags & XFS_LI_IN_AIL)) {
-			if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL)) {
-				attempts++;
-#ifdef DEBUG
-				xfs_rm_attempts++;
-#endif
-
-				/*
-				 * Unlock dp and try again.
-				 * xfs_iunlock will try to push the tail
-				 * if the inode is in the AIL.
-				 */
-
-				xfs_iunlock(dp, XFS_ILOCK_EXCL);
-
-				if ((attempts % 5) == 0) {
-					delay(1); /* Don't just spin the CPU */
-#ifdef DEBUG
-					xfs_rm_lock_delays++;
-#endif
-				}
-				goto again;
-			}
-		} else {
-			xfs_ilock(ip, XFS_ILOCK_EXCL);
-		}
-	} else if (e_inum < dp->i_ino) {
-		xfs_iunlock(dp, XFS_ILOCK_EXCL);
-
-		ips[0] = ip;
-		ips[1] = dp;
-		xfs_lock_inodes(ips, 2, XFS_ILOCK_EXCL);
-	}
-	/* else	 e_inum == dp->i_ino */
-	/*     This can happen if we're asked to lock /x/..
-	 *     the entry is "..", which is also the parent directory.
-	 */
-
-	return 0;
-}
-
-#ifdef DEBUG
 int xfs_locked_n;
 int xfs_small_retries;
 int xfs_middle_retries;
@@ -1946,6 +1838,45 @@ again:
 #endif
 }
 
+void
+xfs_lock_two_inodes(
+	xfs_inode_t		*ip0,
+	xfs_inode_t		*ip1,
+	uint			lock_mode)
+{
+	xfs_inode_t		*temp;
+	int			attempts = 0;
+	xfs_log_item_t		*lp;
+
+	ASSERT(ip0->i_ino != ip1->i_ino);
+
+	if (ip0->i_ino > ip1->i_ino) {
+		temp = ip0;
+		ip0 = ip1;
+		ip1 = temp;
+	}
+
+ again:
+	xfs_ilock(ip0, xfs_lock_inumorder(lock_mode, 0));
+
+	/*
+	 * If the first lock we have locked is in the AIL, we must TRY to get
+	 * the second lock. If we can't get it, we must release the first one
+	 * and try again.
+	 */
+	lp = (xfs_log_item_t *)ip0->i_itemp;
+	if (lp && (lp->li_flags & XFS_LI_IN_AIL)) {
+		if (!xfs_ilock_nowait(ip1, xfs_lock_inumorder(lock_mode, 1))) {
+			xfs_iunlock(ip0, lock_mode);
+			if ((++attempts % 5) == 0)
+				delay(1); /* Don't just spin the CPU */
+			goto again;
+		}
+	} else {
+		xfs_ilock(ip1, xfs_lock_inumorder(lock_mode, 1));
+	}
+}
+
 int
 xfs_remove(
 	xfs_inode_t             *dp,
@@ -2018,9 +1949,7 @@ xfs_remove(
 		goto out_trans_cancel;
 	}
 
-	error = xfs_lock_dir_and_entry(dp, ip);
-	if (error)
-		goto out_trans_cancel;
+	xfs_lock_two_inodes(dp, ip, XFS_ILOCK_EXCL);
 
 	/*
 	 * At this point, we've gotten both the directory and the entry
@@ -2047,9 +1976,6 @@ xfs_remove(
 		}
 	}
 
-	/*
-	 * Entry must exist since we did a lookup in xfs_lock_dir_and_entry.
-	 */
 	XFS_BMAP_INIT(&free_list, &first_block);
 	error = xfs_dir_removename(tp, dp, name, ip->i_ino,
 					&first_block, &free_list, resblks);
@@ -2155,7 +2081,6 @@ xfs_link(
 {
 	xfs_mount_t		*mp = tdp->i_mount;
 	xfs_trans_t		*tp;
-	xfs_inode_t		*ips[2];
 	int			error;
 	xfs_bmap_free_t         free_list;
 	xfs_fsblock_t           first_block;
@@ -2203,15 +2128,7 @@ xfs_link(
 		goto error_return;
 	}
 
-	if (sip->i_ino < tdp->i_ino) {
-		ips[0] = sip;
-		ips[1] = tdp;
-	} else {
-		ips[0] = tdp;
-		ips[1] = sip;
-	}
-
-	xfs_lock_inodes(ips, 2, XFS_ILOCK_EXCL);
+	xfs_lock_two_inodes(sip, tdp, XFS_ILOCK_EXCL);
 
 	/*
 	 * Increment vnode ref counts since xfs_trans_commit &
@@ -2352,7 +2269,7 @@ xfs_mkdir(
 	 * Make sure that we have allocated dquot(s) on disk.
 	 */
 	error = XFS_QM_DQVOPALLOC(mp, dp,
-			current_fsuid(credp), current_fsgid(credp), prid,
+			current_fsuid(), current_fsgid(), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT, &udqp, &gdqp);
 	if (error)
 		goto std_return;
@@ -2578,7 +2495,7 @@ xfs_symlink(
 	 * Make sure that we have allocated dquot(s) on disk.
 	 */
 	error = XFS_QM_DQVOPALLOC(mp, dp,
-			current_fsuid(credp), current_fsgid(credp), prid,
+			current_fsuid(), current_fsgid(), prid,
 			XFS_QMOPT_QUOTALL | XFS_QMOPT_INHERIT, &udqp, &gdqp);
 	if (error)
 		goto std_return;
@@ -2873,14 +2790,13 @@ int
 xfs_reclaim(
 	xfs_inode_t	*ip)
 {
-	bhv_vnode_t	*vp = XFS_ITOV(ip);
 
 	xfs_itrace_entry(ip);
 
-	ASSERT(!VN_MAPPED(vp));
+	ASSERT(!VN_MAPPED(VFS_I(ip)));
 
 	/* bad inode, get out here ASAP */
-	if (VN_BAD(vp)) {
+	if (VN_BAD(VFS_I(ip))) {
 		xfs_ireclaim(ip);
 		return 0;
 	}
@@ -2917,7 +2833,7 @@ xfs_reclaim(
 		XFS_MOUNT_ILOCK(mp);
 		spin_lock(&ip->i_flags_lock);
 		__xfs_iflags_set(ip, XFS_IRECLAIMABLE);
-		vn_to_inode(vp)->i_private = NULL;
+		VFS_I(ip)->i_private = NULL;
 		ip->i_vnode = NULL;
 		spin_unlock(&ip->i_flags_lock);
 		list_add_tail(&ip->i_reclaim, &mp->m_del_inodes);
@@ -2933,7 +2849,7 @@ xfs_finish_reclaim(
 	int		sync_mode)
 {
 	xfs_perag_t	*pag = xfs_get_perag(ip->i_mount, ip->i_ino);
-	bhv_vnode_t	*vp = XFS_ITOV_NULL(ip);
+	struct inode	*vp = VFS_I(ip);
 
 	if (vp && VN_BAD(vp))
 		goto reclaim;
@@ -3321,7 +3237,6 @@ xfs_free_file_space(
 	xfs_off_t		len,
 	int			attr_flags)
 {
-	bhv_vnode_t		*vp;
 	int			committed;
 	int			done;
 	xfs_off_t		end_dmi_offset;
@@ -3341,7 +3256,6 @@ xfs_free_file_space(
 	xfs_trans_t		*tp;
 	int			need_iolock = 1;
 
-	vp = XFS_ITOV(ip);
 	mp = ip->i_mount;
 
 	xfs_itrace_entry(ip);
@@ -3378,7 +3292,7 @@ xfs_free_file_space(
 	rounding = max_t(uint, 1 << mp->m_sb.sb_blocklog, PAGE_CACHE_SIZE);
 	ioffset = offset & ~(rounding - 1);
 
-	if (VN_CACHED(vp) != 0) {
+	if (VN_CACHED(VFS_I(ip)) != 0) {
 		xfs_inval_cached_trace(ip, ioffset, -1, ioffset, -1);
 		error = xfs_flushinval_pages(ip, ioffset, -1, FI_REMAPF_LOCKED);
 		if (error)

@@ -175,9 +175,15 @@ M:	bcrl@kvack.org
 L:	linux-aio@kvack.org
 S:	Supported
 
-ABIT UGURU HARDWARE MONITOR DRIVER
+ABIT UGURU 1,2 HARDWARE MONITOR DRIVER
 P:	Hans de Goede
 M:	j.w.r.degoede@hhs.nl
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+
+ABIT UGURU 3 HARDWARE MONITOR DRIVER
+P:	Alistair John Strachan
+M:	alistair@devzero.co.uk
 L:	lm-sensors@lm-sensors.org
 S:	Maintained
 
@@ -936,94 +942,19 @@ M:	joern@lazybastard.org
 L:	linux-mtd@lists.infradead.org
 S:	Maintained
 
+BLUETOOTH DRIVERS
+P:	Marcel Holtmann
+M:	marcel@holtmann.org
+L:	linux-bluetooth@vger.kernel.org
+W:	http://www.bluez.org/
+S:	Maintained
+
 BLUETOOTH SUBSYSTEM
 P:	Marcel Holtmann
 M:	marcel@holtmann.org
-P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com
 L:	linux-bluetooth@vger.kernel.org
-W:	http://bluez.sf.net
-W:	http://www.bluez.org
-W:	http://www.holtmann.org/linux/bluetooth/
+W:	http://www.bluez.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/holtmann/bluetooth-2.6.git
-S:	Maintained
-
-BLUETOOTH RFCOMM LAYER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com
-S:	Maintained
-
-BLUETOOTH BNEP LAYER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com
-S:	Maintained
-
-BLUETOOTH CMTP LAYER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HIDP LAYER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI UART DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com
-S:	Maintained
-
-BLUETOOTH HCI USB DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com
-S:	Maintained
-
-BLUETOOTH HCI BCM203X DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI BPA10X DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI BFUSB DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI DTL1 DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI BLUECARD DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI BT3C DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI BTUART DRIVER
-P:	Marcel Holtmann
-M:	marcel@holtmann.org
-S:	Maintained
-
-BLUETOOTH HCI VHCI DRIVER
-P:	Maxim Krasnyansky
-M:	maxk@qualcomm.com
 S:	Maintained
 
 BONDING DRIVER
@@ -2462,7 +2393,7 @@ L:	kernel-janitors@vger.kernel.org
 W:	http://www.kerneljanitors.org/
 S:	Maintained
 
-KERNEL NFSD
+KERNEL NFSD, SUNRPC, AND LOCKD SERVERS
 P:	J. Bruce Fields
 M:	bfields@fieldses.org
 P:	Neil Brown
@@ -2928,6 +2859,12 @@ M:	jirislaby@gmail.com
 L:	linux-kernel@vger.kernel.org
 S:	Maintained
 
+MUSB MULTIPOINT HIGH SPEED DUAL-ROLE CONTROLLER
+P:     Felipe Balbi
+M:     felipe.balbi@nokia.com
+L:     linux-usb@vger.kernel.org
+S:     Maintained
+
 MYRICOM MYRI-10G 10GbE DRIVER (MYRI10GE)
 P:	Andrew Gallatin
 M:	gallatin@myri.com
@@ -3076,9 +3013,10 @@ M:	horms@verge.net.au
 P:	Julian Anastasov
 M:	ja@ssi.bg
 L:	netdev@vger.kernel.org
+L:	lvs-devel@vger.kernel.org
 S:	Maintained
 
-NFS CLIENT
+NFS, SUNRPC, AND LOCKD CLIENTS
 P:	Trond Myklebust
 M:	Trond.Myklebust@netapp.com
 L:	linux-nfs@vger.kernel.org
@@ -3741,6 +3679,16 @@ L:	linux-visws-devel@lists.sf.net
 W:	http://linux-visws.sf.net
 S:	Maintained for 2.6.
 
+SGI GRU DRIVER
+P:	Jack Steiner
+M:	steiner@sgi.com
+S:	Maintained
+
+SGI XP/XPC/XPNET DRIVER
+P:	Dean Nelson
+M:	dcn@sgi.com
+S:	Maintained
+
 SIMTEC EB110ATX (Chalice CATS)
 P:	Ben Dooks
 P:	Vincent Sanders
@@ -4057,7 +4005,7 @@ S:      Maintained
 
 TI OMAP MMC INTERFACE DRIVER
 P:	Carlos Aguiar, Anderson Briglia and Syed Khasim
-M:	linux-omap-open-source@linux.omap.com (subscribers only)
+M:	linux-omap@vger.kernel.org
 W:	http://linux.omap.com
 W:	http://www.muru.com/linux/omap/
 S:	Maintained
@@ -4193,12 +4141,6 @@ USB ACM DRIVER
 P:	Oliver Neukum
 M:	oliver@neukum.name
 L:	linux-usb@vger.kernel.org
-S:	Maintained
-
-USB AUERSWALD DRIVER
-P:	Wolfgang Muees
-M:	wolfgang@iksw-muees.de
-L:      linux-usb@vger.kernel.org
 S:	Maintained
 
 USB BLOCK DRIVER (UB ub)

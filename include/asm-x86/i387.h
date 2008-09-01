@@ -13,6 +13,7 @@
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
 #include <linux/regset.h>
+#include <linux/hardirq.h>
 #include <asm/asm.h>
 #include <asm/processor.h>
 #include <asm/sigcontext.h>
@@ -62,8 +63,6 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 #else
 		     : [fx] "cdaSDb" (fx), "m" (*fx), "0" (0));
 #endif
-	if (unlikely(err))
-		init_fpu(current);
 	return err;
 }
 
@@ -234,6 +233,37 @@ static inline void kernel_fpu_end(void)
 {
 	stts();
 	preempt_enable();
+}
+
+/*
+ * Some instructions like VIA's padlock instructions generate a spurious
+ * DNA fault but don't modify SSE registers. And these instructions
+ * get used from interrupt context aswell. To prevent these kernel instructions
+ * in interrupt context interact wrongly with other user/kernel fpu usage, we
+ * should use them only in the context of irq_ts_save/restore()
+ */
+static inline int irq_ts_save(void)
+{
+	/*
+	 * If we are in process context, we are ok to take a spurious DNA fault.
+	 * Otherwise, doing clts() in process context require pre-emption to
+	 * be disabled or some heavy lifting like kernel_fpu_begin()
+	 */
+	if (!in_interrupt())
+		return 0;
+
+	if (read_cr0() & X86_CR0_TS) {
+		clts();
+		return 1;
+	}
+
+	return 0;
+}
+
+static inline void irq_ts_restore(int TS_state)
+{
+	if (TS_state)
+		stts();
 }
 
 #ifdef CONFIG_X86_64

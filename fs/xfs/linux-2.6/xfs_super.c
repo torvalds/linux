@@ -581,118 +581,6 @@ xfs_max_file_offset(
 	return (((__uint64_t)pagefactor) << bitshift) - 1;
 }
 
-STATIC_INLINE void
-xfs_set_inodeops(
-	struct inode		*inode)
-{
-	switch (inode->i_mode & S_IFMT) {
-	case S_IFREG:
-		inode->i_op = &xfs_inode_operations;
-		inode->i_fop = &xfs_file_operations;
-		inode->i_mapping->a_ops = &xfs_address_space_operations;
-		break;
-	case S_IFDIR:
-		if (xfs_sb_version_hasasciici(&XFS_M(inode->i_sb)->m_sb))
-			inode->i_op = &xfs_dir_ci_inode_operations;
-		else
-			inode->i_op = &xfs_dir_inode_operations;
-		inode->i_fop = &xfs_dir_file_operations;
-		break;
-	case S_IFLNK:
-		inode->i_op = &xfs_symlink_inode_operations;
-		if (!(XFS_I(inode)->i_df.if_flags & XFS_IFINLINE))
-			inode->i_mapping->a_ops = &xfs_address_space_operations;
-		break;
-	default:
-		inode->i_op = &xfs_inode_operations;
-		init_special_inode(inode, inode->i_mode, inode->i_rdev);
-		break;
-	}
-}
-
-STATIC_INLINE void
-xfs_revalidate_inode(
-	xfs_mount_t		*mp,
-	bhv_vnode_t		*vp,
-	xfs_inode_t		*ip)
-{
-	struct inode		*inode = vn_to_inode(vp);
-
-	inode->i_mode	= ip->i_d.di_mode;
-	inode->i_nlink	= ip->i_d.di_nlink;
-	inode->i_uid	= ip->i_d.di_uid;
-	inode->i_gid	= ip->i_d.di_gid;
-
-	switch (inode->i_mode & S_IFMT) {
-	case S_IFBLK:
-	case S_IFCHR:
-		inode->i_rdev =
-			MKDEV(sysv_major(ip->i_df.if_u2.if_rdev) & 0x1ff,
-			      sysv_minor(ip->i_df.if_u2.if_rdev));
-		break;
-	default:
-		inode->i_rdev = 0;
-		break;
-	}
-
-	inode->i_generation = ip->i_d.di_gen;
-	i_size_write(inode, ip->i_d.di_size);
-	inode->i_atime.tv_sec	= ip->i_d.di_atime.t_sec;
-	inode->i_atime.tv_nsec	= ip->i_d.di_atime.t_nsec;
-	inode->i_mtime.tv_sec	= ip->i_d.di_mtime.t_sec;
-	inode->i_mtime.tv_nsec	= ip->i_d.di_mtime.t_nsec;
-	inode->i_ctime.tv_sec	= ip->i_d.di_ctime.t_sec;
-	inode->i_ctime.tv_nsec	= ip->i_d.di_ctime.t_nsec;
-	if (ip->i_d.di_flags & XFS_DIFLAG_IMMUTABLE)
-		inode->i_flags |= S_IMMUTABLE;
-	else
-		inode->i_flags &= ~S_IMMUTABLE;
-	if (ip->i_d.di_flags & XFS_DIFLAG_APPEND)
-		inode->i_flags |= S_APPEND;
-	else
-		inode->i_flags &= ~S_APPEND;
-	if (ip->i_d.di_flags & XFS_DIFLAG_SYNC)
-		inode->i_flags |= S_SYNC;
-	else
-		inode->i_flags &= ~S_SYNC;
-	if (ip->i_d.di_flags & XFS_DIFLAG_NOATIME)
-		inode->i_flags |= S_NOATIME;
-	else
-		inode->i_flags &= ~S_NOATIME;
-	xfs_iflags_clear(ip, XFS_IMODIFIED);
-}
-
-void
-xfs_initialize_vnode(
-	struct xfs_mount	*mp,
-	bhv_vnode_t		*vp,
-	struct xfs_inode	*ip)
-{
-	struct inode		*inode = vn_to_inode(vp);
-
-	if (!ip->i_vnode) {
-		ip->i_vnode = vp;
-		inode->i_private = ip;
-	}
-
-	/*
-	 * We need to set the ops vectors, and unlock the inode, but if
-	 * we have been called during the new inode create process, it is
-	 * too early to fill in the Linux inode.  We will get called a
-	 * second time once the inode is properly set up, and then we can
-	 * finish our work.
-	 */
-	if (ip->i_d.di_mode != 0 && (inode->i_state & I_NEW)) {
-		xfs_revalidate_inode(mp, vp, ip);
-		xfs_set_inodeops(inode);
-
-		xfs_iflags_clear(ip, XFS_INEW);
-		barrier();
-
-		unlock_new_inode(inode);
-	}
-}
-
 int
 xfs_blkdev_get(
 	xfs_mount_t		*mp,
@@ -982,26 +870,21 @@ STATIC struct inode *
 xfs_fs_alloc_inode(
 	struct super_block	*sb)
 {
-	bhv_vnode_t		*vp;
-
-	vp = kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
-	if (unlikely(!vp))
-		return NULL;
-	return vn_to_inode(vp);
+	return kmem_zone_alloc(xfs_vnode_zone, KM_SLEEP);
 }
 
 STATIC void
 xfs_fs_destroy_inode(
 	struct inode		*inode)
 {
-	kmem_zone_free(xfs_vnode_zone, vn_from_inode(inode));
+	kmem_zone_free(xfs_vnode_zone, inode);
 }
 
 STATIC void
 xfs_fs_inode_init_once(
 	void			*vnode)
 {
-	inode_init_once(vn_to_inode((bhv_vnode_t *)vnode));
+	inode_init_once((struct inode *)vnode);
 }
 
 /*
@@ -1106,7 +989,7 @@ void
 xfs_flush_inode(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = ip->i_vnode;
+	struct inode	*inode = VFS_I(ip);
 
 	igrab(inode);
 	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_inode_work);
@@ -1131,7 +1014,7 @@ void
 xfs_flush_device(
 	xfs_inode_t	*ip)
 {
-	struct inode	*inode = vn_to_inode(XFS_ITOV(ip));
+	struct inode	*inode = VFS_I(ip);
 
 	igrab(inode);
 	xfs_syncd_queue_work(ip->i_mount, inode, xfs_flush_device_work);
@@ -1201,6 +1084,15 @@ xfssyncd(
 }
 
 STATIC void
+xfs_free_fsname(
+	struct xfs_mount	*mp)
+{
+	kfree(mp->m_fsname);
+	kfree(mp->m_rtname);
+	kfree(mp->m_logname);
+}
+
+STATIC void
 xfs_fs_put_super(
 	struct super_block	*sb)
 {
@@ -1239,8 +1131,6 @@ xfs_fs_put_super(
 	error = xfs_unmount_flush(mp, 0);
 	WARN_ON(error);
 
-	IRELE(rip);
-
 	/*
 	 * If we're forcing a shutdown, typically because of a media error,
 	 * we want to make sure we invalidate dirty pages that belong to
@@ -1257,10 +1147,12 @@ xfs_fs_put_super(
 	}
 
 	xfs_unmountfs(mp);
+	xfs_freesb(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
 	xfs_qmops_put(mp);
 	xfs_dmops_put(mp);
+	xfs_free_fsname(mp);
 	kfree(mp);
 }
 
@@ -1517,6 +1409,8 @@ xfs_start_flags(
 	struct xfs_mount_args	*ap,
 	struct xfs_mount	*mp)
 {
+	int			error;
+
 	/* Values are in BBs */
 	if ((ap->flags & XFSMNT_NOALIGN) != XFSMNT_NOALIGN) {
 		/*
@@ -1549,17 +1443,27 @@ xfs_start_flags(
 			ap->logbufsize);
 		return XFS_ERROR(EINVAL);
 	}
+
+	error = ENOMEM;
+
 	mp->m_logbsize = ap->logbufsize;
 	mp->m_fsname_len = strlen(ap->fsname) + 1;
-	mp->m_fsname = kmem_alloc(mp->m_fsname_len, KM_SLEEP);
-	strcpy(mp->m_fsname, ap->fsname);
+
+	mp->m_fsname = kstrdup(ap->fsname, GFP_KERNEL);
+	if (!mp->m_fsname)
+		goto out;
+
 	if (ap->rtname[0]) {
-		mp->m_rtname = kmem_alloc(strlen(ap->rtname) + 1, KM_SLEEP);
-		strcpy(mp->m_rtname, ap->rtname);
+		mp->m_rtname = kstrdup(ap->rtname, GFP_KERNEL);
+		if (!mp->m_rtname)
+			goto out_free_fsname;
+
 	}
+
 	if (ap->logname[0]) {
-		mp->m_logname = kmem_alloc(strlen(ap->logname) + 1, KM_SLEEP);
-		strcpy(mp->m_logname, ap->logname);
+		mp->m_logname = kstrdup(ap->logname, GFP_KERNEL);
+		if (!mp->m_logname)
+			goto out_free_rtname;
 	}
 
 	if (ap->flags & XFSMNT_WSYNC)
@@ -1632,6 +1536,14 @@ xfs_start_flags(
 	if (ap->flags & XFSMNT_DMAPI)
 		mp->m_flags |= XFS_MOUNT_DMAPI;
 	return 0;
+
+
+ out_free_rtname:
+	kfree(mp->m_rtname);
+ out_free_fsname:
+	kfree(mp->m_fsname);
+ out:
+	return error;
 }
 
 /*
@@ -1792,10 +1704,10 @@ xfs_fs_fill_super(
 	 */
 	error = xfs_start_flags(args, mp);
 	if (error)
-		goto out_destroy_counters;
+		goto out_free_fsname;
 	error = xfs_readsb(mp, flags);
 	if (error)
-		goto out_destroy_counters;
+		goto out_free_fsname;
 	error = xfs_finish_flags(args, mp);
 	if (error)
 		goto out_free_sb;
@@ -1811,7 +1723,7 @@ xfs_fs_fill_super(
 	if (error)
 		goto out_free_sb;
 
-	error = xfs_mountfs(mp, flags);
+	error = xfs_mountfs(mp);
 	if (error)
 		goto out_filestream_unmount;
 
@@ -1825,7 +1737,7 @@ xfs_fs_fill_super(
 	sb->s_time_gran = 1;
 	set_posix_acl_flag(sb);
 
-	root = igrab(mp->m_rootip->i_vnode);
+	root = igrab(VFS_I(mp->m_rootip));
 	if (!root) {
 		error = ENOENT;
 		goto fail_unmount;
@@ -1857,7 +1769,8 @@ xfs_fs_fill_super(
 	xfs_filestream_unmount(mp);
  out_free_sb:
 	xfs_freesb(mp);
- out_destroy_counters:
+ out_free_fsname:
+	xfs_free_fsname(mp);
 	xfs_icsb_destroy_counters(mp);
 	xfs_close_devices(mp);
  out_put_qmops:
@@ -1890,10 +1803,8 @@ xfs_fs_fill_super(
 	error = xfs_unmount_flush(mp, 0);
 	WARN_ON(error);
 
-	IRELE(mp->m_rootip);
-
 	xfs_unmountfs(mp);
-	goto out_destroy_counters;
+	goto out_free_sb;
 }
 
 STATIC int
@@ -2014,7 +1925,7 @@ xfs_free_trace_bufs(void)
 STATIC int __init
 xfs_init_zones(void)
 {
-	xfs_vnode_zone = kmem_zone_init_flags(sizeof(bhv_vnode_t), "xfs_vnode",
+	xfs_vnode_zone = kmem_zone_init_flags(sizeof(struct inode), "xfs_vnode",
 					KM_ZONE_HWALIGN | KM_ZONE_RECLAIM |
 					KM_ZONE_SPREAD,
 					xfs_fs_inode_init_once);

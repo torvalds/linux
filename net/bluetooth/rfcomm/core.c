@@ -2115,7 +2115,7 @@ MODULE_PARM_DESC(channel_mtu, "Default MTU for the RFCOMM channel");
 module_param(l2cap_mtu, uint, 0644);
 MODULE_PARM_DESC(l2cap_mtu, "Default MTU for the L2CAP connection");
 
-MODULE_AUTHOR("Maxim Krasnyansky <maxk@qualcomm.com>, Marcel Holtmann <marcel@holtmann.org>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth RFCOMM ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

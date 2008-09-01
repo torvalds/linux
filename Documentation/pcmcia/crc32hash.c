@@ -26,7 +26,7 @@ int main(int argc, char **argv) {
 		printf("no string passed as argument\n");
 		return -1;
 	}
-	result = crc32(argv[1], strlen(argv[1]));
+	result = crc32((unsigned char const *)argv[1], strlen(argv[1]));
 	printf("0x%x\n", result);
 	return 0;
 }

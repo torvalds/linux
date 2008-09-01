@@ -143,7 +143,11 @@ static void *per_cpu_node_setup(void *cpu_data, int node)
 	int cpu;
 
 	for_each_possible_early_cpu(cpu) {
-		if (node == node_cpuid[cpu].nid) {
+		if (cpu == 0) {
+			void *cpu0_data = __phys_per_cpu_start - PERCPU_PAGE_SIZE;
+			__per_cpu_offset[cpu] = (char*)cpu0_data -
+				__per_cpu_start;
+		} else if (node == node_cpuid[cpu].nid) {
 			memcpy(__va(cpu_data), __phys_per_cpu_start,
 			       __per_cpu_end - __per_cpu_start);
 			__per_cpu_offset[cpu] = (char*)__va(cpu_data) -

@@ -1304,7 +1304,7 @@ EXPORT_SYMBOL(atmel_open);
 int atmel_open(struct net_device *dev)
 {
 	struct atmel_private *priv = netdev_priv(dev);
-	int i, channel;
+	int i, channel, err;
 
 	/* any scheduled timer is no longer needed and might screw things up.. */
 	del_timer_sync(&priv->management_timer);
@@ -1328,8 +1328,9 @@ int atmel_open(struct net_device *dev)
 	priv->site_survey_state = SITE_SURVEY_IDLE;
 	priv->station_is_associated = 0;
 
-	if (!reset_atmel_card(dev))
-		return -EAGAIN;
+	err = reset_atmel_card(dev);
+	if (err)
+		return err;
 
 	if (priv->config_reg_domain) {
 		priv->reg_domain = priv->config_reg_domain;
@@ -3061,11 +3062,19 @@ static void authenticate(struct atmel_private *priv, u16 frame_len)
 	}
 
 	if (status == WLAN_STATUS_NOT_SUPPORTED_AUTH_ALG) {
-		/* Do opensystem first, then try sharedkey */
+		/* Flip back and forth between WEP auth modes until the max
+		 * authentication tries has been exceeded.
+		 */
 		if (system == WLAN_AUTH_OPEN) {
 			priv->CurrentAuthentTransactionSeqNum = 0x001;
 			priv->exclude_unencrypted = 1;
 			send_authentication_request(priv, WLAN_AUTH_SHARED_KEY, NULL, 0);
+			return;
+		} else if (   system == WLAN_AUTH_SHARED_KEY
+		           && priv->wep_is_on) {
+			priv->CurrentAuthentTransactionSeqNum = 0x001;
+			priv->exclude_unencrypted = 0;
+			send_authentication_request(priv, WLAN_AUTH_OPEN, NULL, 0);
 			return;
 		} else if (priv->connect_to_any_BSS) {
 			int bss_index;
@@ -3580,12 +3589,12 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 
 	if (i == 0) {
 		printk(KERN_ALERT "%s: MAC failed to boot.\n", priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 
 	if ((priv->host_info_base = atmel_read16(priv->dev, MR2)) == 0xffff) {
 		printk(KERN_ALERT "%s: card missing.\n", priv->dev->name);
-		return 0;
+		return -ENODEV;
 	}
 
 	/* now check for completion of MAC initialization through
@@ -3609,19 +3618,19 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 	if (i == 0) {
 		printk(KERN_ALERT "%s: MAC failed to initialise.\n",
 				priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 
 	/* Check for MAC_INIT_OK only on the register that the MAC_INIT_OK was set */
 	if ((mr3 & MAC_INIT_COMPLETE) &&
 	    !(atmel_read16(priv->dev, MR3) & MAC_INIT_OK)) {
 		printk(KERN_ALERT "%s: MAC failed MR3 self-test.\n", priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 	if ((mr1 & MAC_INIT_COMPLETE) &&
 	    !(atmel_read16(priv->dev, MR1) & MAC_INIT_OK)) {
 		printk(KERN_ALERT "%s: MAC failed MR1 self-test.\n", priv->dev->name);
-		return 0;
+		return -EIO;
 	}
 
 	atmel_copy_to_host(priv->dev, (unsigned char *)iface,
@@ -3642,7 +3651,7 @@ static int atmel_wakeup_firmware(struct atmel_private *priv)
 	iface->func_ctrl = le16_to_cpu(iface->func_ctrl);
 	iface->mac_status = le16_to_cpu(iface->mac_status);
 
-	return 1;
+	return 0;
 }
 
 /* determine type of memory and MAC address */
@@ -3693,7 +3702,7 @@ static int probe_atmel_card(struct net_device *dev)
 		/* Standard firmware in flash, boot it up and ask
 		   for the Mac Address */
 		priv->card_type = CARD_TYPE_SPI_FLASH;
-		if (atmel_wakeup_firmware(priv)) {
+		if (atmel_wakeup_firmware(priv) == 0) {
 			atmel_get_mib(priv, Mac_Address_Mib_Type, 0, dev->dev_addr, 6);
 
 			/* got address, now squash it again until the network
@@ -3835,6 +3844,7 @@ static int reset_atmel_card(struct net_device *dev)
 	struct atmel_private *priv = netdev_priv(dev);
 	u8 configuration;
 	int old_state = priv->station_state;
+	int err = 0;
 
 	/* data to add to the firmware names, in priority order
 	   this implemenents firmware versioning */
@@ -3868,11 +3878,12 @@ static int reset_atmel_card(struct net_device *dev)
 					       dev->name);
 					strcpy(priv->firmware_id, "atmel_at76c502.bin");
 				}
-				if (request_firmware(&fw_entry, priv->firmware_id, priv->sys_dev) != 0) {
+				err = request_firmware(&fw_entry, priv->firmware_id, priv->sys_dev);
+				if (err != 0) {
 					printk(KERN_ALERT
 					       "%s: firmware %s is missing, cannot continue.\n",
 					       dev->name, priv->firmware_id);
-					return 0;
+					return err;
 				}
 			} else {
 				int fw_index = 0;
@@ -3901,7 +3912,7 @@ static int reset_atmel_card(struct net_device *dev)
 					       "%s: firmware %s is missing, cannot start.\n",
 					       dev->name, priv->firmware_id);
 					priv->firmware_id[0] = '\0';
-					return 0;
+					return -ENOENT;
 				}
 			}
 
@@ -3926,8 +3937,9 @@ static int reset_atmel_card(struct net_device *dev)
 			release_firmware(fw_entry);
 	}
 
-	if (!atmel_wakeup_firmware(priv))
-		return 0;
+	err = atmel_wakeup_firmware(priv);
+	if (err != 0)
+		return err;
 
 	/* Check the version and set the correct flag for wpa stuff,
 	   old and new firmware is incompatible.
@@ -3968,10 +3980,9 @@ static int reset_atmel_card(struct net_device *dev)
 	if (!priv->radio_on_broken) {
 		if (atmel_send_command_wait(priv, CMD_EnableRadio, NULL, 0) ==
 		    CMD_STATUS_REJECTED_RADIO_OFF) {
-			printk(KERN_INFO
-			       "%s: cannot turn the radio on. (Hey radio, you're beautiful!)\n",
+			printk(KERN_INFO "%s: cannot turn the radio on.\n",
 			       dev->name);
-                        return 0;
+                        return -EIO;
 		}
 	}
 
@@ -4006,7 +4017,7 @@ static int reset_atmel_card(struct net_device *dev)
 		wireless_send_event(priv->dev, SIOCGIWAP, &wrqu, NULL);
 	}
 
-	return 1;
+	return 0;
 }
 
 static void atmel_send_command(struct atmel_private *priv, int command,

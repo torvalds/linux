@@ -93,6 +93,8 @@ out:
 void free_event_buffer(void)
 {
 	vfree(event_buffer);
+
+	event_buffer = NULL;
 }
 
  

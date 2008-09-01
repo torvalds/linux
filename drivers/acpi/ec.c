@@ -110,6 +110,31 @@ static struct acpi_ec {
 	u8 handlers_installed;
 } *boot_ec, *first_ec;
 
+/* 
+ * Some Asus system have exchanged ECDT data/command IO addresses.
+ */
+static int print_ecdt_error(const struct dmi_system_id *id)
+{
+	printk(KERN_NOTICE PREFIX "%s detected - "
+		"ECDT has exchanged control/data I/O address\n",
+		id->ident);
+	return 0;
+}
+
+static struct dmi_system_id __cpuinitdata ec_dmi_table[] = {
+	{
+	print_ecdt_error, "Asus L4R", {
+	DMI_MATCH(DMI_BIOS_VERSION, "1008.006"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "L4R"),
+	DMI_MATCH(DMI_BOARD_NAME, "L4R") }, NULL},
+	{
+	print_ecdt_error, "Asus M6R", {
+	DMI_MATCH(DMI_BIOS_VERSION, "0207"),
+	DMI_MATCH(DMI_PRODUCT_NAME, "M6R"),
+	DMI_MATCH(DMI_BOARD_NAME, "M6R") }, NULL},
+	{},
+};
+
 /* --------------------------------------------------------------------------
                              Transaction Management
    -------------------------------------------------------------------------- */
@@ -196,6 +221,8 @@ static int acpi_ec_wait(struct acpi_ec *ec, enum ec_event event, int force_poll)
 				return 0;
 			msleep(1);
 		}
+		if (acpi_ec_check_status(ec,event))
+			return 0;
 	}
 	pr_err(PREFIX "acpi_ec_wait timeout, status = 0x%2.2x, event = %s\n",
 		acpi_ec_read_status(ec),
@@ -911,6 +938,15 @@ int __init acpi_ec_ecdt_probe(void)
 		pr_info(PREFIX "EC description table is found, configuring boot EC\n");
 		boot_ec->command_addr = ecdt_ptr->control.address;
 		boot_ec->data_addr = ecdt_ptr->data.address;
+		if (dmi_check_system(ec_dmi_table)) {
+			/*
+			 * If the board falls into ec_dmi_table, it means
+			 * that ECDT table gives the incorrect command/status
+			 * & data I/O address. Just fix it.
+			 */
+			boot_ec->data_addr = ecdt_ptr->control.address;
+			boot_ec->command_addr = ecdt_ptr->data.address;
+		}
 		boot_ec->gpe = ecdt_ptr->gpe;
 		boot_ec->handle = ACPI_ROOT_OBJECT;
 		acpi_get_handle(ACPI_ROOT_OBJECT, ecdt_ptr->id, &boot_ec->handle);

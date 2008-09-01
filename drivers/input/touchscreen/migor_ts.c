@@ -173,7 +173,7 @@ static int migor_ts_probe(struct i2c_client *client,
 	input_set_abs_params(input, ABS_X, 95, 955, 0, 0);
 	input_set_abs_params(input, ABS_Y, 85, 935, 0, 0);
 
-	input->name = client->driver_name;
+	input->name = client->name;
 	input->id.bustype = BUS_I2C;
 	input->dev.parent = &client->dev;
 
@@ -192,7 +192,7 @@ static int migor_ts_probe(struct i2c_client *client,
 		goto err1;
 
 	error = request_irq(priv->irq, migor_ts_isr, IRQF_TRIGGER_LOW,
-			    client->driver_name, priv);
+			    client->name, priv);
 	if (error) {
 		dev_err(&client->dev, "Unable to request touchscreen IRQ.\n");
 		goto err2;
@@ -224,12 +224,19 @@ static int migor_ts_remove(struct i2c_client *client)
 	return 0;
 }
 
+static const struct i2c_device_id migor_ts_id[] = {
+	{ "migor_ts", 0 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, migor_ts);
+
 static struct i2c_driver migor_ts_driver = {
 	.driver = {
 		.name = "migor_ts",
 	},
 	.probe = migor_ts_probe,
 	.remove = migor_ts_remove,
+	.id_table = migor_ts_id,
 };
 
 static int __init migor_ts_init(void)

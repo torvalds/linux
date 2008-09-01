@@ -964,11 +964,34 @@ static void pipe_irq_disable(struct r8a66597 *r8a66597, u16 pipenum)
 	disable_irq_nrdy(r8a66597, pipenum);
 }
 
+static void r8a66597_root_hub_start_polling(struct r8a66597 *r8a66597)
+{
+	mod_timer(&r8a66597->rh_timer,
+			jiffies + msecs_to_jiffies(R8A66597_RH_POLL_TIME));
+}
+
+static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port,
+					int connect)
+{
+	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
+
+	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
+	rh->scount = R8A66597_MAX_SAMPLING;
+	if (connect)
+		rh->port |= 1 << USB_PORT_FEAT_CONNECTION;
+	else
+		rh->port &= ~(1 << USB_PORT_FEAT_CONNECTION);
+	rh->port |= 1 << USB_PORT_FEAT_C_CONNECTION;
+
+	r8a66597_root_hub_start_polling(r8a66597);
+}
+
 /* this function must be called with interrupt disabled */
 static void r8a66597_check_syssts(struct r8a66597 *r8a66597, int port,
 					u16 syssts)
 {
 	if (syssts == SE0) {
+		r8a66597_write(r8a66597, ~ATTCH, get_intsts_reg(port));
 		r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
 		return;
 	}
@@ -1002,13 +1025,10 @@ static void r8a66597_usb_disconnect(struct r8a66597 *r8a66597, int port)
 {
 	struct r8a66597_device *dev = r8a66597->root_hub[port].dev;
 
-	r8a66597->root_hub[port].port &= ~(1 << USB_PORT_FEAT_CONNECTION);
-	r8a66597->root_hub[port].port |= (1 << USB_PORT_FEAT_C_CONNECTION);
-
 	disable_r8a66597_pipe_all(r8a66597, dev);
 	free_usb_address(r8a66597, dev);
 
-	r8a66597_bset(r8a66597, ATTCHE, get_intenb_reg(port));
+	start_root_hub_sampling(r8a66597, port, 0);
 }
 
 /* this function must be called with interrupt disabled */
@@ -1551,23 +1571,6 @@ static void irq_pipe_nrdy(struct r8a66597 *r8a66597)
 	}
 }
 
-static void r8a66597_root_hub_start_polling(struct r8a66597 *r8a66597)
-{
-	mod_timer(&r8a66597->rh_timer,
-			jiffies + msecs_to_jiffies(R8A66597_RH_POLL_TIME));
-}
-
-static void start_root_hub_sampling(struct r8a66597 *r8a66597, int port)
-{
-	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
-
-	rh->old_syssts = r8a66597_read(r8a66597, get_syssts_reg(port)) & LNST;
-	rh->scount = R8A66597_MAX_SAMPLING;
-	r8a66597->root_hub[port].port |= (1 << USB_PORT_FEAT_CONNECTION)
-					 | (1 << USB_PORT_FEAT_C_CONNECTION);
-	r8a66597_root_hub_start_polling(r8a66597);
-}
-
 static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 {
 	struct r8a66597 *r8a66597 = hcd_to_r8a66597(hcd);
@@ -1594,7 +1597,7 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 			r8a66597_bclr(r8a66597, ATTCHE, INTENB2);
 
 			/* start usb bus sampling */
-			start_root_hub_sampling(r8a66597, 1);
+			start_root_hub_sampling(r8a66597, 1, 1);
 		}
 		if (mask2 & DTCH) {
 			r8a66597_write(r8a66597, ~DTCH, INTSTS2);
@@ -1609,7 +1612,7 @@ static irqreturn_t r8a66597_irq(struct usb_hcd *hcd)
 			r8a66597_bclr(r8a66597, ATTCHE, INTENB1);
 
 			/* start usb bus sampling */
-			start_root_hub_sampling(r8a66597, 0);
+			start_root_hub_sampling(r8a66597, 0, 1);
 		}
 		if (mask1 & DTCH) {
 			r8a66597_write(r8a66597, ~DTCH, INTSTS1);

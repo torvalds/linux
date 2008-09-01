@@ -577,7 +577,7 @@ static int htb_enqueue(struct sk_buff *skb, struct Qdisc *sch)
 			sch->qstats.drops++;
 			cl->qstats.drops++;
 		}
-		return NET_XMIT_DROP;
+		return ret;
 	} else {
 		cl->bstats.packets +=
 			skb_is_gso(skb)?skb_shinfo(skb)->gso_segs:1;
@@ -623,7 +623,7 @@ static int htb_requeue(struct sk_buff *skb, struct Qdisc *sch)
 			sch->qstats.drops++;
 			cl->qstats.drops++;
 		}
-		return NET_XMIT_DROP;
+		return ret;
 	} else
 		htb_activate(q, cl);
 
@@ -1279,7 +1279,8 @@ static int htb_delete(struct Qdisc *sch, unsigned long arg)
 
 	/* delete from hash and active; remainder in destroy_class */
 	qdisc_class_hash_remove(&q->clhash, &cl->common);
-	cl->parent->children--;
+	if (cl->parent)
+		cl->parent->children--;
 
 	if (cl->prio_activity)
 		htb_deactivate(q, cl);
@@ -1371,7 +1372,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 			goto failure;
 
 		gen_new_estimator(&cl->bstats, &cl->rate_est,
-				  qdisc_root_lock(sch),
+				  qdisc_root_sleeping_lock(sch),
 				  tca[TCA_RATE] ? : &est.nla);
 		cl->refcnt = 1;
 		cl->children = 0;
@@ -1426,7 +1427,7 @@ static int htb_change_class(struct Qdisc *sch, u32 classid,
 	} else {
 		if (tca[TCA_RATE])
 			gen_replace_estimator(&cl->bstats, &cl->rate_est,
-					      qdisc_root_lock(sch),
+					      qdisc_root_sleeping_lock(sch),
 					      tca[TCA_RATE]);
 		sch_tree_lock(sch);
 	}

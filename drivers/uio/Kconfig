@@ -33,6 +33,19 @@ config UIO_PDRV
 
 	  If you don't know what to do here, say N.
 
+config UIO_PDRV_GENIRQ
+	tristate "Userspace I/O platform driver with generic IRQ handling"
+	help
+	  Platform driver for Userspace I/O devices, including generic
+	  interrupt handling code. Shared interrupts are not supported.
+
+	  This kernel driver requires that the matching userspace driver
+	  handles interrupts in a special way. Userspace is responsible
+	  for acknowledging the hardware device if needed, and re-enabling
+	  interrupts in the interrupt controller using the write() syscall.
+
+	  If you don't know what to do here, say N.
+
 config UIO_SMX
 	tristate "SMX cryptengine UIO interface"
 	default n

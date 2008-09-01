@@ -64,68 +64,6 @@ struct pcpu_lstats {
 	unsigned long bytes;
 };
 
-/* KISS: just allocate small chunks and copy bits.
- *
- * So, in fact, this is documentation, explaining what we expect
- * of largesending device modulo TCP checksum, which is ignored for loopback.
- */
-
-#ifdef LOOPBACK_TSO
-static void emulate_large_send_offload(struct sk_buff *skb)
-{
-	struct iphdr *iph = ip_hdr(skb);
-	struct tcphdr *th = (struct tcphdr *)(skb_network_header(skb) +
-					      (iph->ihl * 4));
-	unsigned int doffset = (iph->ihl + th->doff) * 4;
-	unsigned int mtu = skb_shinfo(skb)->gso_size + doffset;
-	unsigned int offset = 0;
-	u32 seq = ntohl(th->seq);
-	u16 id  = ntohs(iph->id);
-
-	while (offset + doffset < skb->len) {
-		unsigned int frag_size = min(mtu, skb->len - offset) - doffset;
-		struct sk_buff *nskb = alloc_skb(mtu + 32, GFP_ATOMIC);
-
-		if (!nskb)
-			break;
-		skb_reserve(nskb, 32);
-		skb_set_mac_header(nskb, -ETH_HLEN);
-		skb_reset_network_header(nskb);
-		iph = ip_hdr(nskb);
-		skb_copy_to_linear_data(nskb, skb_network_header(skb),
-					doffset);
-		if (skb_copy_bits(skb,
-				  doffset + offset,
-				  nskb->data + doffset,
-				  frag_size))
-			BUG();
-		skb_put(nskb, doffset + frag_size);
-		nskb->ip_summed = CHECKSUM_UNNECESSARY;
-		nskb->dev = skb->dev;
-		nskb->priority = skb->priority;
-		nskb->protocol = skb->protocol;
-		nskb->dst = dst_clone(skb->dst);
-		memcpy(nskb->cb, skb->cb, sizeof(skb->cb));
-		nskb->pkt_type = skb->pkt_type;
-
-		th = (struct tcphdr *)(skb_network_header(nskb) + iph->ihl * 4);
-		iph->tot_len = htons(frag_size + doffset);
-		iph->id = htons(id);
-		iph->check = 0;
-		iph->check = ip_fast_csum((unsigned char *) iph, iph->ihl);
-		th->seq = htonl(seq);
-		if (offset + doffset + frag_size < skb->len)
-			th->fin = th->psh = 0;
-		netif_rx(nskb);
-		offset += frag_size;
-		seq += frag_size;
-		id++;
-	}
-
-	dev_kfree_skb(skb);
-}
-#endif /* LOOPBACK_TSO */
-
 /*
  * The higher levels take care of making this non-reentrant (it's
  * called with bh's disabled).
@@ -137,9 +75,6 @@ static int loopback_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_orphan(skb);
 
 	skb->protocol = eth_type_trans(skb,dev);
-#ifndef LOOPBACK_MUST_CHECKSUM
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-#endif
 
 #ifdef LOOPBACK_TSO
 	if (skb_is_gso(skb)) {
@@ -234,9 +169,7 @@ static void loopback_setup(struct net_device *dev)
 	dev->type		= ARPHRD_LOOPBACK;	/* 0x0001*/
 	dev->flags		= IFF_LOOPBACK;
 	dev->features 		= NETIF_F_SG | NETIF_F_FRAGLIST
-#ifdef LOOPBACK_TSO
 		| NETIF_F_TSO
-#endif
 		| NETIF_F_NO_CSUM
 		| NETIF_F_HIGHDMA
 		| NETIF_F_LLTX

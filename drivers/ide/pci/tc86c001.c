@@ -249,7 +249,7 @@ static struct pci_driver driver = {
 	.name		= "TC86C001",
 	.id_table	= tc86c001_pci_tbl,
 	.probe		= tc86c001_init_one,
-	.remove		= tc86c001_remove,
+	.remove		= __devexit_p(tc86c001_remove),
 };
 
 static int __init tc86c001_ide_init(void)

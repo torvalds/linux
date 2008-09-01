@@ -78,7 +78,6 @@
 #include <linux/wait.h>
 #include <linux/bcd.h>
 #include <linux/delay.h>
-#include <linux/smp_lock.h>
 #include <linux/uaccess.h>
 
 #include <asm/current.h>

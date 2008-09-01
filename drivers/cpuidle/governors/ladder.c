@@ -67,9 +67,16 @@ static int ladder_select_state(struct cpuidle_device *dev)
 	struct ladder_device *ldev = &__get_cpu_var(ladder_devices);
 	struct ladder_device_state *last_state;
 	int last_residency, last_idx = ldev->last_state_idx;
+	int latency_req = pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY);
 
 	if (unlikely(!ldev))
 		return 0;
+
+	/* Special case when user has set very strict latency requirement */
+	if (unlikely(latency_req == 0)) {
+		ladder_do_selection(ldev, last_idx, 0);
+		return 0;
+	}
 
 	last_state = &ldev->states[last_idx];
 
@@ -81,8 +88,7 @@ static int ladder_select_state(struct cpuidle_device *dev)
 	/* consider promotion */
 	if (last_idx < dev->state_count - 1 &&
 	    last_residency > last_state->threshold.promotion_time &&
-	    dev->states[last_idx + 1].exit_latency <=
-			pm_qos_requirement(PM_QOS_CPU_DMA_LATENCY)) {
+	    dev->states[last_idx + 1].exit_latency <= latency_req) {
 		last_state->stats.promotion_count++;
 		last_state->stats.demotion_count = 0;
 		if (last_state->stats.promotion_count >= last_state->threshold.promotion_count) {
@@ -92,7 +98,19 @@ static int ladder_select_state(struct cpuidle_device *dev)
 	}
 
 	/* consider demotion */
-	if (last_idx > 0 &&
+	if (last_idx > CPUIDLE_DRIVER_STATE_START &&
+	    dev->states[last_idx].exit_latency > latency_req) {
+		int i;
+
+		for (i = last_idx - 1; i > CPUIDLE_DRIVER_STATE_START; i--) {
+			if (dev->states[i].exit_latency <= latency_req)
+				break;
+		}
+		ladder_do_selection(ldev, last_idx, i);
+		return i;
+	}
+
+	if (last_idx > CPUIDLE_DRIVER_STATE_START &&
 	    last_residency < last_state->threshold.demotion_time) {
 		last_state->stats.demotion_count++;
 		last_state->stats.promotion_count = 0;
@@ -117,7 +135,7 @@ static int ladder_enable_device(struct cpuidle_device *dev)
 	struct ladder_device_state *lstate;
 	struct cpuidle_state *state;
 
-	ldev->last_state_idx = 0;
+	ldev->last_state_idx = CPUIDLE_DRIVER_STATE_START;
 
 	for (i = 0; i < dev->state_count; i++) {
 		state = &dev->states[i];

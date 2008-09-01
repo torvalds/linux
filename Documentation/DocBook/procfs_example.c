@@ -189,8 +189,6 @@ static int __init init_procfs_example(void)
 	return 0;
 
 no_symlink:
-	remove_proc_entry("tty", example_dir);
-no_tty:
 	remove_proc_entry("bar", example_dir);
 no_bar:
 	remove_proc_entry("foo", example_dir);
@@ -206,7 +204,6 @@ out:
 static void __exit cleanup_procfs_example(void)
 {
 	remove_proc_entry("jiffies_too", example_dir);
-	remove_proc_entry("tty", example_dir);
 	remove_proc_entry("bar", example_dir);
 	remove_proc_entry("foo", example_dir);
 	remove_proc_entry("jiffies", example_dir);
@@ -222,3 +219,4 @@ module_exit(cleanup_procfs_example);
 
 MODULE_AUTHOR("Erik Mouw");
 MODULE_DESCRIPTION("procfs examples");
+MODULE_LICENSE("GPL");

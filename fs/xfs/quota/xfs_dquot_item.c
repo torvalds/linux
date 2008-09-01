@@ -151,7 +151,7 @@ xfs_qm_dquot_logitem_push(
 	dqp = logitem->qli_dquot;
 
 	ASSERT(XFS_DQ_IS_LOCKED(dqp));
-	ASSERT(XFS_DQ_IS_FLUSH_LOCKED(dqp));
+	ASSERT(!completion_done(&dqp->q_flush));
 
 	/*
 	 * Since we were able to lock the dquot's flush lock and
@@ -245,7 +245,7 @@ xfs_qm_dquot_logitem_pushbuf(
 	 * inode flush completed and the inode was taken off the AIL.
 	 * So, just get out.
 	 */
-	if (!issemalocked(&(dqp->q_flock))  ||
+	if (completion_done(&dqp->q_flush)  ||
 	    ((qip->qli_item.li_flags & XFS_LI_IN_AIL) == 0)) {
 		qip->qli_pushbuf_flag = 0;
 		xfs_dqunlock(dqp);
@@ -258,7 +258,7 @@ xfs_qm_dquot_logitem_pushbuf(
 	if (bp != NULL) {
 		if (XFS_BUF_ISDELAYWRITE(bp)) {
 			dopush = ((qip->qli_item.li_flags & XFS_LI_IN_AIL) &&
-				  issemalocked(&(dqp->q_flock)));
+				  !completion_done(&dqp->q_flush));
 			qip->qli_pushbuf_flag = 0;
 			xfs_dqunlock(dqp);
 
@@ -317,7 +317,7 @@ xfs_qm_dquot_logitem_trylock(
 		return (XFS_ITEM_LOCKED);
 
 	retval = XFS_ITEM_SUCCESS;
-	if (! xfs_qm_dqflock_nowait(dqp)) {
+	if (!xfs_dqflock_nowait(dqp)) {
 		/*
 		 * The dquot is already being flushed.	It may have been
 		 * flushed delayed write, however, and we don't want to

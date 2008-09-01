@@ -66,7 +66,7 @@ static struct sram_piece free_l1_data_B_sram_head, used_l1_data_B_sram_head;
 static struct sram_piece free_l1_inst_sram_head, used_l1_inst_sram_head;
 #endif
 
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 static struct sram_piece free_l2_sram_head, used_l2_sram_head;
 #endif
 
@@ -175,7 +175,7 @@ static void __init l1_inst_sram_init(void)
 
 static void __init l2_sram_init(void)
 {
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	free_l2_sram_head.next =
 		kmem_cache_alloc(sram_piece_cache, GFP_KERNEL);
 	if (!free_l2_sram_head.next) {
@@ -335,7 +335,7 @@ static int _sram_free(const void *addr,
 		plast->size += pavail->size;
 		kmem_cache_free(sram_piece_cache, pavail);
 	} else {
-		pavail->next = plast;
+		pavail->next = plast->next;
 		plast->next = pavail;
 		plast = pavail;
 	}
@@ -367,7 +367,7 @@ int sram_free(const void *addr)
 		 && addr < (void *)(L1_DATA_B_START + L1_DATA_B_LENGTH))
 		return l1_data_B_sram_free(addr);
 #endif
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	else if (addr >= (void *)L2_START
 		 && addr < (void *)(L2_START + L2_LENGTH))
 		return l2_sram_free(addr);
@@ -379,7 +379,7 @@ EXPORT_SYMBOL(sram_free);
 
 void *l1_data_A_sram_alloc(size_t size)
 {
-	unsigned flags;
+	unsigned long flags;
 	void *addr = NULL;
 
 	/* add mutex operation */
@@ -402,7 +402,7 @@ EXPORT_SYMBOL(l1_data_A_sram_alloc);
 
 int l1_data_A_sram_free(const void *addr)
 {
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -425,7 +425,7 @@ EXPORT_SYMBOL(l1_data_A_sram_free);
 void *l1_data_B_sram_alloc(size_t size)
 {
 #if L1_DATA_B_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -450,7 +450,7 @@ EXPORT_SYMBOL(l1_data_B_sram_alloc);
 int l1_data_B_sram_free(const void *addr)
 {
 #if L1_DATA_B_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -504,7 +504,7 @@ EXPORT_SYMBOL(l1_data_sram_free);
 void *l1_inst_sram_alloc(size_t size)
 {
 #if L1_CODE_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -529,7 +529,7 @@ EXPORT_SYMBOL(l1_inst_sram_alloc);
 int l1_inst_sram_free(const void *addr)
 {
 #if L1_CODE_LENGTH != 0
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -551,7 +551,7 @@ EXPORT_SYMBOL(l1_inst_sram_free);
 /* L1 Scratchpad memory allocate function */
 void *l1sram_alloc(size_t size)
 {
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -569,7 +569,7 @@ void *l1sram_alloc(size_t size)
 /* L1 Scratchpad memory allocate function */
 void *l1sram_alloc_max(size_t *psize)
 {
-	unsigned flags;
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -587,7 +587,7 @@ void *l1sram_alloc_max(size_t *psize)
 /* L1 Scratchpad memory free function */
 int l1sram_free(const void *addr)
 {
-	unsigned flags;
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -604,8 +604,8 @@ int l1sram_free(const void *addr)
 
 void *l2_sram_alloc(size_t size)
 {
-#ifdef L2_LENGTH
-	unsigned flags;
+#if L2_LENGTH != 0
+	unsigned long flags;
 	void *addr;
 
 	/* add mutex operation */
@@ -640,8 +640,8 @@ EXPORT_SYMBOL(l2_sram_zalloc);
 
 int l2_sram_free(const void *addr)
 {
-#ifdef L2_LENGTH
-	unsigned flags;
+#if L2_LENGTH != 0
+	unsigned long flags;
 	int ret;
 
 	/* add mutex operation */
@@ -779,7 +779,7 @@ static int sram_proc_read(char *buf, char **start, off_t offset, int count,
 			&free_l1_inst_sram_head, &used_l1_inst_sram_head))
 		goto not_done;
 #endif
-#ifdef L2_LENGTH
+#if L2_LENGTH != 0
 	if (_sram_proc_read(buf, &len, count, "L2",
 			&free_l2_sram_head, &used_l2_sram_head))
 		goto not_done;

@@ -43,7 +43,6 @@ extern int pciehp_poll_mode;
 extern int pciehp_poll_time;
 extern int pciehp_debug;
 extern int pciehp_force;
-extern int pciehp_slot_with_bus;
 extern struct workqueue_struct *pciehp_wq;
 
 #define dbg(format, arg...)						\

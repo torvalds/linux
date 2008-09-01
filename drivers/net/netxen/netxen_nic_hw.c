@@ -733,28 +733,53 @@ static int netxen_get_flash_block(struct netxen_adapter *adapter, int base,
 	return 0;
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 mac[])
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
 {
-	__le32 *pmac = (__le32 *) & mac[0];
+	__le32 *pmac = (__le32 *) mac;
+	u32 offset;
 
-	if (netxen_get_flash_block(adapter,
-				   NETXEN_USER_START +
-				   offsetof(struct netxen_new_user_info,
-					    mac_addr),
-				   FLASH_NUM_PORTS * sizeof(u64), pmac) == -1) {
+	offset = NETXEN_USER_START +
+		offsetof(struct netxen_new_user_info, mac_addr) +
+		adapter->portnum * sizeof(u64);
+
+	if (netxen_get_flash_block(adapter, offset, sizeof(u64), pmac) == -1)
 		return -1;
-	}
+
 	if (*mac == cpu_to_le64(~0ULL)) {
+
+		offset = NETXEN_USER_START_OLD +
+			offsetof(struct netxen_user_old_info, mac_addr) +
+			adapter->portnum * sizeof(u64);
+
 		if (netxen_get_flash_block(adapter,
-					   NETXEN_USER_START_OLD +
-					   offsetof(struct netxen_user_old_info,
-						    mac_addr),
-					   FLASH_NUM_PORTS * sizeof(u64),
-					   pmac) == -1)
+					offset, sizeof(u64), pmac) == -1)
 			return -1;
+
 		if (*mac == cpu_to_le64(~0ULL))
 			return -1;
 	}
+	return 0;
+}
+
+int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac)
+{
+	uint32_t crbaddr, mac_hi, mac_lo;
+	int pci_func = adapter->ahw.pci_func;
+
+	crbaddr = CRB_MAC_BLOCK_START +
+		(4 * ((pci_func/2) * 3)) + (4 * (pci_func & 1));
+
+	adapter->hw_read_wx(adapter, crbaddr, &mac_lo, 4);
+	adapter->hw_read_wx(adapter, crbaddr+4, &mac_hi, 4);
+
+	mac_hi = cpu_to_le32(mac_hi);
+	mac_lo = cpu_to_le32(mac_lo);
+
+	if (pci_func & 1)
+		*mac = ((mac_lo >> 16) | ((u64)mac_hi << 16));
+	else
+		*mac = ((mac_lo) | ((u64)mac_hi << 32));
+
 	return 0;
 }
 
@@ -2183,10 +2208,10 @@ void netxen_nic_flash_print(struct netxen_adapter *adapter)
 	if (adapter->portnum == 0) {
 		get_brd_name_by_type(board_info->board_type, brd_name);
 
-		printk("NetXen %s Board S/N %s  Chip id 0x%x\n",
-				brd_name, serial_num, board_info->chip_id);
-		printk("NetXen Firmware version %d.%d.%d\n", fw_major,
-				fw_minor, fw_build);
+		printk(KERN_INFO "NetXen %s Board S/N %s  Chip rev 0x%x\n",
+				brd_name, serial_num, adapter->ahw.revision_id);
+		printk(KERN_INFO "NetXen Firmware version %d.%d.%d\n",
+				fw_major, fw_minor, fw_build);
 	}
 
 	if (NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build) <

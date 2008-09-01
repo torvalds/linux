@@ -475,6 +475,7 @@ const struct file_operations xfs_invis_file_operations = {
 const struct file_operations xfs_dir_file_operations = {
 	.read		= generic_read_dir,
 	.readdir	= xfs_file_readdir,
+	.llseek		= generic_file_llseek,
 	.unlocked_ioctl	= xfs_file_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= xfs_file_compat_ioctl,

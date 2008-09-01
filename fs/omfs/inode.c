@@ -232,8 +232,7 @@ struct inode *omfs_iget(struct super_block *sb, ino_t ino)
 		inode->i_mode = S_IFDIR | (S_IRWXUGO & ~sbi->s_dmask);
 		inode->i_op = &omfs_dir_inops;
 		inode->i_fop = &omfs_dir_operations;
-		inode->i_size = be32_to_cpu(oi->i_head.h_body_size) +
-			sizeof(struct omfs_header);
+		inode->i_size = sbi->s_sys_blocksize;
 		inc_nlink(inode);
 		break;
 	case OMFS_FILE:

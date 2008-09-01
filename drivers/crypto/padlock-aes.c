@@ -16,6 +16,7 @@
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
 #include <asm/byteorder.h>
+#include <asm/i387.h>
 #include "padlock.h"
 
 /* Control word. */
@@ -141,6 +142,12 @@ static inline void padlock_reset_key(void)
 	asm volatile ("pushfl; popfl");
 }
 
+/*
+ * While the padlock instructions don't use FP/SSE registers, they
+ * generate a spurious DNA fault when cr0.ts is '1'. These instructions
+ * should be used only inside the irq_ts_save/restore() context
+ */
+
 static inline void padlock_xcrypt(const u8 *input, u8 *output, void *key,
 				  void *control_word)
 {
@@ -205,15 +212,23 @@ static inline u8 *padlock_xcrypt_cbc(const u8 *input, u8 *output, void *key,
 static void aes_encrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
+	int ts_state;
 	padlock_reset_key();
+
+	ts_state = irq_ts_save();
 	aes_crypt(in, out, ctx->E, &ctx->cword.encrypt);
+	irq_ts_restore(ts_state);
 }
 
 static void aes_decrypt(struct crypto_tfm *tfm, u8 *out, const u8 *in)
 {
 	struct aes_ctx *ctx = aes_ctx(tfm);
+	int ts_state;
 	padlock_reset_key();
+
+	ts_state = irq_ts_save();
 	aes_crypt(in, out, ctx->D, &ctx->cword.decrypt);
+	irq_ts_restore(ts_state);
 }
 
 static struct crypto_alg aes_alg = {
@@ -244,12 +259,14 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
+	int ts_state;
 
 	padlock_reset_key();
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
+	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		padlock_xcrypt_ecb(walk.src.virt.addr, walk.dst.virt.addr,
 				   ctx->E, &ctx->cword.encrypt,
@@ -257,6 +274,7 @@ static int ecb_aes_encrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
+	irq_ts_restore(ts_state);
 
 	return err;
 }
@@ -268,12 +286,14 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
+	int ts_state;
 
 	padlock_reset_key();
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
+	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		padlock_xcrypt_ecb(walk.src.virt.addr, walk.dst.virt.addr,
 				   ctx->D, &ctx->cword.decrypt,
@@ -281,7 +301,7 @@ static int ecb_aes_decrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
-
+	irq_ts_restore(ts_state);
 	return err;
 }
 
@@ -314,12 +334,14 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
+	int ts_state;
 
 	padlock_reset_key();
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
+	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		u8 *iv = padlock_xcrypt_cbc(walk.src.virt.addr,
 					    walk.dst.virt.addr, ctx->E,
@@ -329,6 +351,7 @@ static int cbc_aes_encrypt(struct blkcipher_desc *desc,
 		nbytes &= AES_BLOCK_SIZE - 1;
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
+	irq_ts_restore(ts_state);
 
 	return err;
 }
@@ -340,12 +363,14 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 	struct aes_ctx *ctx = blk_aes_ctx(desc->tfm);
 	struct blkcipher_walk walk;
 	int err;
+	int ts_state;
 
 	padlock_reset_key();
 
 	blkcipher_walk_init(&walk, dst, src, nbytes);
 	err = blkcipher_walk_virt(desc, &walk);
 
+	ts_state = irq_ts_save();
 	while ((nbytes = walk.nbytes)) {
 		padlock_xcrypt_cbc(walk.src.virt.addr, walk.dst.virt.addr,
 				   ctx->D, walk.iv, &ctx->cword.decrypt,
@@ -354,6 +379,7 @@ static int cbc_aes_decrypt(struct blkcipher_desc *desc,
 		err = blkcipher_walk_done(desc, &walk, nbytes);
 	}
 
+	irq_ts_restore(ts_state);
 	return err;
 }
 

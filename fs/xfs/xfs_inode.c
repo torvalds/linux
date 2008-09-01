@@ -580,8 +580,8 @@ xfs_iformat_extents(
 		xfs_validate_extents(ifp, nex, XFS_EXTFMT_INODE(ip));
 		for (i = 0; i < nex; i++, dp++) {
 			xfs_bmbt_rec_host_t *ep = xfs_iext_get_ext(ifp, i);
-			ep->l0 = be64_to_cpu(get_unaligned(&dp->l0));
-			ep->l1 = be64_to_cpu(get_unaligned(&dp->l1));
+			ep->l0 = get_unaligned_be64(&dp->l0);
+			ep->l1 = get_unaligned_be64(&dp->l1);
 		}
 		XFS_BMAP_TRACE_EXLIST(ip, nex, whichfork);
 		if (whichfork != XFS_DATA_FORK ||
@@ -835,22 +835,22 @@ xfs_iread(
 	 * Do this before xfs_iformat in case it adds entries.
 	 */
 #ifdef	XFS_INODE_TRACE
-	ip->i_trace = ktrace_alloc(INODE_TRACE_SIZE, KM_SLEEP);
+	ip->i_trace = ktrace_alloc(INODE_TRACE_SIZE, KM_NOFS);
 #endif
 #ifdef XFS_BMAP_TRACE
-	ip->i_xtrace = ktrace_alloc(XFS_BMAP_KTRACE_SIZE, KM_SLEEP);
+	ip->i_xtrace = ktrace_alloc(XFS_BMAP_KTRACE_SIZE, KM_NOFS);
 #endif
 #ifdef XFS_BMBT_TRACE
-	ip->i_btrace = ktrace_alloc(XFS_BMBT_KTRACE_SIZE, KM_SLEEP);
+	ip->i_btrace = ktrace_alloc(XFS_BMBT_KTRACE_SIZE, KM_NOFS);
 #endif
 #ifdef XFS_RW_TRACE
-	ip->i_rwtrace = ktrace_alloc(XFS_RW_KTRACE_SIZE, KM_SLEEP);
+	ip->i_rwtrace = ktrace_alloc(XFS_RW_KTRACE_SIZE, KM_NOFS);
 #endif
 #ifdef XFS_ILOCK_TRACE
-	ip->i_lock_trace = ktrace_alloc(XFS_ILOCK_KTRACE_SIZE, KM_SLEEP);
+	ip->i_lock_trace = ktrace_alloc(XFS_ILOCK_KTRACE_SIZE, KM_NOFS);
 #endif
 #ifdef XFS_DIR2_TRACE
-	ip->i_dir_trace = ktrace_alloc(XFS_DIR2_KTRACE_SIZE, KM_SLEEP);
+	ip->i_dir_trace = ktrace_alloc(XFS_DIR2_KTRACE_SIZE, KM_NOFS);
 #endif
 
 	/*
@@ -1046,9 +1046,9 @@ xfs_ialloc(
 {
 	xfs_ino_t	ino;
 	xfs_inode_t	*ip;
-	bhv_vnode_t	*vp;
 	uint		flags;
 	int		error;
+	timespec_t	tv;
 
 	/*
 	 * Call the space management code to pick
@@ -1077,13 +1077,12 @@ xfs_ialloc(
 	}
 	ASSERT(ip != NULL);
 
-	vp = XFS_ITOV(ip);
 	ip->i_d.di_mode = (__uint16_t)mode;
 	ip->i_d.di_onlink = 0;
 	ip->i_d.di_nlink = nlink;
 	ASSERT(ip->i_d.di_nlink == nlink);
-	ip->i_d.di_uid = current_fsuid(cr);
-	ip->i_d.di_gid = current_fsgid(cr);
+	ip->i_d.di_uid = current_fsuid();
+	ip->i_d.di_gid = current_fsgid();
 	ip->i_d.di_projid = prid;
 	memset(&(ip->i_d.di_pad[0]), 0, sizeof(ip->i_d.di_pad));
 
@@ -1130,7 +1129,13 @@ xfs_ialloc(
 	ip->i_size = 0;
 	ip->i_d.di_nextents = 0;
 	ASSERT(ip->i_d.di_nblocks == 0);
-	xfs_ichgtime(ip, XFS_ICHGTIME_CHG|XFS_ICHGTIME_ACC|XFS_ICHGTIME_MOD);
+
+	nanotime(&tv);
+	ip->i_d.di_mtime.t_sec = (__int32_t)tv.tv_sec;
+	ip->i_d.di_mtime.t_nsec = (__int32_t)tv.tv_nsec;
+	ip->i_d.di_atime = ip->i_d.di_mtime;
+	ip->i_d.di_ctime = ip->i_d.di_mtime;
+
 	/*
 	 * di_gen will have been taken care of in xfs_iread.
 	 */
@@ -1220,7 +1225,7 @@ xfs_ialloc(
 	xfs_trans_log_inode(tp, ip, flags);
 
 	/* now that we have an i_mode we can setup inode ops and unlock */
-	xfs_initialize_vnode(tp->t_mountp, vp, ip);
+	xfs_setup_inode(ip);
 
 	*ipp = ip;
 	return 0;
@@ -1399,7 +1404,6 @@ xfs_itruncate_start(
 	xfs_fsize_t	last_byte;
 	xfs_off_t	toss_start;
 	xfs_mount_t	*mp;
-	bhv_vnode_t	*vp;
 	int		error = 0;
 
 	ASSERT(xfs_isilocked(ip, XFS_IOLOCK_EXCL));
@@ -1408,7 +1412,6 @@ xfs_itruncate_start(
 	       (flags == XFS_ITRUNC_MAYBE));
 
 	mp = ip->i_mount;
-	vp = XFS_ITOV(ip);
 
 	/* wait for the completion of any pending DIOs */
 	if (new_size < ip->i_size)
@@ -1457,7 +1460,7 @@ xfs_itruncate_start(
 
 #ifdef DEBUG
 	if (new_size == 0) {
-		ASSERT(VN_CACHED(vp) == 0);
+		ASSERT(VN_CACHED(VFS_I(ip)) == 0);
 	}
 #endif
 	return error;
@@ -2630,7 +2633,6 @@ xfs_idestroy(
 		xfs_idestroy_fork(ip, XFS_ATTR_FORK);
 	mrfree(&ip->i_lock);
 	mrfree(&ip->i_iolock);
-	freesema(&ip->i_flock);
 
 #ifdef XFS_INODE_TRACE
 	ktrace_free(ip->i_trace);
@@ -3048,10 +3050,10 @@ cluster_corrupt_out:
 /*
  * xfs_iflush() will write a modified inode's changes out to the
  * inode's on disk home.  The caller must have the inode lock held
- * in at least shared mode and the inode flush semaphore must be
- * held as well.  The inode lock will still be held upon return from
+ * in at least shared mode and the inode flush completion must be
+ * active as well.  The inode lock will still be held upon return from
  * the call and the caller is free to unlock it.
- * The inode flush lock will be unlocked when the inode reaches the disk.
+ * The inode flush will be completed when the inode reaches the disk.
  * The flags indicate how the inode's buffer should be written out.
  */
 int
@@ -3070,7 +3072,7 @@ xfs_iflush(
 	XFS_STATS_INC(xs_iflush_count);
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
-	ASSERT(issemalocked(&(ip->i_flock)));
+	ASSERT(!completion_done(&ip->i_flush));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
 
@@ -3233,7 +3235,7 @@ xfs_iflush_int(
 #endif
 
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
-	ASSERT(issemalocked(&(ip->i_flock)));
+	ASSERT(!completion_done(&ip->i_flush));
 	ASSERT(ip->i_d.di_format != XFS_DINODE_FMT_BTREE ||
 	       ip->i_d.di_nextents > ip->i_df.if_ext_max);
 
@@ -3465,7 +3467,6 @@ xfs_iflush_all(
 	xfs_mount_t	*mp)
 {
 	xfs_inode_t	*ip;
-	bhv_vnode_t	*vp;
 
  again:
 	XFS_MOUNT_ILOCK(mp);
@@ -3480,14 +3481,13 @@ xfs_iflush_all(
 			continue;
 		}
 
-		vp = XFS_ITOV_NULL(ip);
-		if (!vp) {
+		if (!VFS_I(ip)) {
 			XFS_MOUNT_IUNLOCK(mp);
 			xfs_finish_reclaim(ip, 0, XFS_IFLUSH_ASYNC);
 			goto again;
 		}
 
-		ASSERT(vn_count(vp) == 0);
+		ASSERT(vn_count(VFS_I(ip)) == 0);
 
 		ip = ip->i_mnext;
 	} while (ip != mp->m_inodes);
@@ -3707,7 +3707,7 @@ xfs_iext_add_indirect_multi(
 	 * (all extents past */
 	if (nex2) {
 		byte_diff = nex2 * sizeof(xfs_bmbt_rec_t);
-		nex2_ep = (xfs_bmbt_rec_t *) kmem_alloc(byte_diff, KM_SLEEP);
+		nex2_ep = (xfs_bmbt_rec_t *) kmem_alloc(byte_diff, KM_NOFS);
 		memmove(nex2_ep, &erp->er_extbuf[idx], byte_diff);
 		erp->er_extcount -= nex2;
 		xfs_iext_irec_update_extoffs(ifp, erp_idx + 1, -nex2);
@@ -4007,8 +4007,7 @@ xfs_iext_realloc_direct(
 			ifp->if_u1.if_extents =
 				kmem_realloc(ifp->if_u1.if_extents,
 						rnew_size,
-						ifp->if_real_bytes,
-						KM_SLEEP);
+						ifp->if_real_bytes, KM_NOFS);
 		}
 		if (rnew_size > ifp->if_real_bytes) {
 			memset(&ifp->if_u1.if_extents[ifp->if_bytes /
@@ -4067,7 +4066,7 @@ xfs_iext_inline_to_direct(
 	xfs_ifork_t	*ifp,		/* inode fork pointer */
 	int		new_size)	/* number of extents in file */
 {
-	ifp->if_u1.if_extents = kmem_alloc(new_size, KM_SLEEP);
+	ifp->if_u1.if_extents = kmem_alloc(new_size, KM_NOFS);
 	memset(ifp->if_u1.if_extents, 0, new_size);
 	if (ifp->if_bytes) {
 		memcpy(ifp->if_u1.if_extents, ifp->if_u2.if_inline_ext,
@@ -4099,7 +4098,7 @@ xfs_iext_realloc_indirect(
 	} else {
 		ifp->if_u1.if_ext_irec = (xfs_ext_irec_t *)
 			kmem_realloc(ifp->if_u1.if_ext_irec,
-				new_size, size, KM_SLEEP);
+				new_size, size, KM_NOFS);
 	}
 }
 
@@ -4341,11 +4340,10 @@ xfs_iext_irec_init(
 	nextents = ifp->if_bytes / (uint)sizeof(xfs_bmbt_rec_t);
 	ASSERT(nextents <= XFS_LINEAR_EXTS);
 
-	erp = (xfs_ext_irec_t *)
-		kmem_alloc(sizeof(xfs_ext_irec_t), KM_SLEEP);
+	erp = kmem_alloc(sizeof(xfs_ext_irec_t), KM_NOFS);
 
 	if (nextents == 0) {
-		ifp->if_u1.if_extents = kmem_alloc(XFS_IEXT_BUFSZ, KM_SLEEP);
+		ifp->if_u1.if_extents = kmem_alloc(XFS_IEXT_BUFSZ, KM_NOFS);
 	} else if (!ifp->if_real_bytes) {
 		xfs_iext_inline_to_direct(ifp, XFS_IEXT_BUFSZ);
 	} else if (ifp->if_real_bytes < XFS_IEXT_BUFSZ) {
@@ -4393,7 +4391,7 @@ xfs_iext_irec_new(
 
 	/* Initialize new extent record */
 	erp = ifp->if_u1.if_ext_irec;
-	erp[erp_idx].er_extbuf = kmem_alloc(XFS_IEXT_BUFSZ, KM_SLEEP);
+	erp[erp_idx].er_extbuf = kmem_alloc(XFS_IEXT_BUFSZ, KM_NOFS);
 	ifp->if_real_bytes = nlists * XFS_IEXT_BUFSZ;
 	memset(erp[erp_idx].er_extbuf, 0, XFS_IEXT_BUFSZ);
 	erp[erp_idx].er_extcount = 0;
