@@ -12,19 +12,16 @@
 #ifndef __s390x__
 #include <asm-generic/statfs.h>
 #else
+/*
+ * We can't use <asm-generic/statfs.h> because in 64-bit mode
+ * we mix ints of different sizes in our struct statfs.
+ */
 
 #ifndef __KERNEL_STRICT_NAMES
-
 #include <linux/types.h>
-
 typedef __kernel_fsid_t	fsid_t;
-
 #endif
 
-/*
- * This is ugly -- we're already 64-bit clean, so just duplicate the 
- * definitions.
- */
 struct statfs {
 	int  f_type;
 	int  f_bsize;
