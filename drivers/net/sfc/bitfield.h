@@ -52,9 +52,9 @@
  *
  * The maximum width mask that can be generated is 64 bits.
  */
-#define EFX_MASK64(field)					\
-	(EFX_WIDTH(field) == 64 ? ~((u64) 0) :		\
-	 (((((u64) 1) << EFX_WIDTH(field))) - 1))
+#define EFX_MASK64(width)			\
+	((width) == 64 ? ~((u64) 0) :		\
+	 (((((u64) 1) << (width))) - 1))
 
 /* Mask equal in width to the specified field.
  *
@@ -63,9 +63,9 @@
  * The maximum width mask that can be generated is 32 bits.  Use
  * EFX_MASK64 for higher width fields.
  */
-#define EFX_MASK32(field)					\
-	(EFX_WIDTH(field) == 32 ? ~((u32) 0) :		\
-	 (((((u32) 1) << EFX_WIDTH(field))) - 1))
+#define EFX_MASK32(width)			\
+	((width) == 32 ? ~((u32) 0) :		\
+	 (((((u32) 1) << (width))) - 1))
 
 /* A doubleword (i.e. 4 byte) datatype - little-endian in HW */
 typedef union efx_dword {
@@ -138,44 +138,49 @@ typedef union efx_oword {
 	EFX_EXTRACT_NATIVE(le32_to_cpu(element), min, max, low, high)
 
 #define EFX_EXTRACT_OWORD64(oword, low, high)				\
-	(EFX_EXTRACT64((oword).u64[0], 0, 63, low, high) |		\
-	 EFX_EXTRACT64((oword).u64[1], 64, 127, low, high))
+	((EFX_EXTRACT64((oword).u64[0], 0, 63, low, high) |		\
+	  EFX_EXTRACT64((oword).u64[1], 64, 127, low, high)) &		\
+	 EFX_MASK64(high + 1 - low))
 
 #define EFX_EXTRACT_QWORD64(qword, low, high)				\
-	EFX_EXTRACT64((qword).u64[0], 0, 63, low, high)
+	(EFX_EXTRACT64((qword).u64[0], 0, 63, low, high) &		\
+	 EFX_MASK64(high + 1 - low))
 
 #define EFX_EXTRACT_OWORD32(oword, low, high)				\
-	(EFX_EXTRACT32((oword).u32[0], 0, 31, low, high) |		\
-	 EFX_EXTRACT32((oword).u32[1], 32, 63, low, high) |		\
-	 EFX_EXTRACT32((oword).u32[2], 64, 95, low, high) |		\
-	 EFX_EXTRACT32((oword).u32[3], 96, 127, low, high))
+	((EFX_EXTRACT32((oword).u32[0], 0, 31, low, high) |		\
+	  EFX_EXTRACT32((oword).u32[1], 32, 63, low, high) |		\
+	  EFX_EXTRACT32((oword).u32[2], 64, 95, low, high) |		\
+	  EFX_EXTRACT32((oword).u32[3], 96, 127, low, high)) &		\
+	 EFX_MASK32(high + 1 - low))
 
 #define EFX_EXTRACT_QWORD32(qword, low, high)				\
-	(EFX_EXTRACT32((qword).u32[0], 0, 31, low, high) |		\
-	 EFX_EXTRACT32((qword).u32[1], 32, 63, low, high))
+	((EFX_EXTRACT32((qword).u32[0], 0, 31, low, high) |		\
+	  EFX_EXTRACT32((qword).u32[1], 32, 63, low, high)) &		\
+	 EFX_MASK32(high + 1 - low))
 
-#define EFX_EXTRACT_DWORD(dword, low, high)				\
-	EFX_EXTRACT32((dword).u32[0], 0, 31, low, high)
+#define EFX_EXTRACT_DWORD(dword, low, high)			\
+	(EFX_EXTRACT32((dword).u32[0], 0, 31, low, high) &	\
+	 EFX_MASK32(high + 1 - low))
 
-#define EFX_OWORD_FIELD64(oword, field)					\
-	(EFX_EXTRACT_OWORD64(oword, EFX_LOW_BIT(field), EFX_HIGH_BIT(field)) \
-	 & EFX_MASK64(field))
+#define EFX_OWORD_FIELD64(oword, field)				\
+	EFX_EXTRACT_OWORD64(oword, EFX_LOW_BIT(field),		\
+			    EFX_HIGH_BIT(field))
 
-#define EFX_QWORD_FIELD64(qword, field)					\
-	(EFX_EXTRACT_QWORD64(qword, EFX_LOW_BIT(field), EFX_HIGH_BIT(field)) \
-	 & EFX_MASK64(field))
+#define EFX_QWORD_FIELD64(qword, field)				\
+	EFX_EXTRACT_QWORD64(qword, EFX_LOW_BIT(field),		\
+			    EFX_HIGH_BIT(field))
 
-#define EFX_OWORD_FIELD32(oword, field)					\
-	(EFX_EXTRACT_OWORD32(oword, EFX_LOW_BIT(field), EFX_HIGH_BIT(field)) \
-	 & EFX_MASK32(field))
+#define EFX_OWORD_FIELD32(oword, field)				\
+	EFX_EXTRACT_OWORD32(oword, EFX_LOW_BIT(field),		\
+			    EFX_HIGH_BIT(field))
 
-#define EFX_QWORD_FIELD32(qword, field)					\
-	(EFX_EXTRACT_QWORD32(qword, EFX_LOW_BIT(field), EFX_HIGH_BIT(field)) \
-	 & EFX_MASK32(field))
+#define EFX_QWORD_FIELD32(qword, field)				\
+	EFX_EXTRACT_QWORD32(qword, EFX_LOW_BIT(field),		\
+			    EFX_HIGH_BIT(field))
 
-#define EFX_DWORD_FIELD(dword, field)					   \
-	(EFX_EXTRACT_DWORD(dword, EFX_LOW_BIT(field), EFX_HIGH_BIT(field)) \
-	 & EFX_MASK32(field))
+#define EFX_DWORD_FIELD(dword, field)				\
+	EFX_EXTRACT_DWORD(dword, EFX_LOW_BIT(field),		\
+			  EFX_HIGH_BIT(field))
 
 #define EFX_OWORD_IS_ZERO64(oword)					\
 	(((oword).u64[0] | (oword).u64[1]) == (__force __le64) 0)
@@ -417,62 +422,84 @@ typedef union efx_oword {
 	(oword).u64[1] = ~((oword).u64[1]);	\
 	} while (0)
 
-#define EFX_INSERT_FIELD64(...)					\
-	cpu_to_le64(EFX_INSERT_FIELD_NATIVE(__VA_ARGS__))
+#define EFX_INSERT64(min, max, low, high, value)			\
+	cpu_to_le64(EFX_INSERT_NATIVE(min, max, low, high, value))
 
-#define EFX_INSERT_FIELD32(...)					\
-	cpu_to_le32(EFX_INSERT_FIELD_NATIVE(__VA_ARGS__))
+#define EFX_INSERT32(min, max, low, high, value)			\
+	cpu_to_le32(EFX_INSERT_NATIVE(min, max, low, high, value))
 
-#define EFX_INPLACE_MASK64(min, max, field)			\
-	EFX_INSERT_FIELD64(min, max, field, EFX_MASK64(field))
+#define EFX_INPLACE_MASK64(min, max, low, high)				\
+	EFX_INSERT64(min, max, low, high, EFX_MASK64(high + 1 - low))
 
-#define EFX_INPLACE_MASK32(min, max, field)			\
-	EFX_INSERT_FIELD32(min, max, field, EFX_MASK32(field))
+#define EFX_INPLACE_MASK32(min, max, low, high)				\
+	EFX_INSERT32(min, max, low, high, EFX_MASK32(high + 1 - low))
 
-#define EFX_SET_OWORD_FIELD64(oword, field, value) do {			\
+#define EFX_SET_OWORD64(oword, low, high, value) do {			\
 	(oword).u64[0] = (((oword).u64[0] 				\
-			   & ~EFX_INPLACE_MASK64(0,  63, field))	\
-			  | EFX_INSERT_FIELD64(0,  63, field, value));  \
+			   & ~EFX_INPLACE_MASK64(0,  63, low, high))	\
+			  | EFX_INSERT64(0,  63, low, high, value));	\
 	(oword).u64[1] = (((oword).u64[1] 				\
-			   & ~EFX_INPLACE_MASK64(64, 127, field))	\
-			  | EFX_INSERT_FIELD64(64, 127, field, value)); \
+			   & ~EFX_INPLACE_MASK64(64, 127, low, high))	\
+			  | EFX_INSERT64(64, 127, low, high, value));	\
 	} while (0)
 
-#define EFX_SET_QWORD_FIELD64(qword, field, value) do {			\
+#define EFX_SET_QWORD64(qword, low, high, value) do {			\
 	(qword).u64[0] = (((qword).u64[0] 				\
-			   & ~EFX_INPLACE_MASK64(0, 63, field))		\
-			  | EFX_INSERT_FIELD64(0, 63, field, value));	\
+			   & ~EFX_INPLACE_MASK64(0, 63, low, high))	\
+			  | EFX_INSERT64(0, 63, low, high, value));	\
 	} while (0)
 
-#define EFX_SET_OWORD_FIELD32(oword, field, value) do {			\
+#define EFX_SET_OWORD32(oword, low, high, value) do {			\
 	(oword).u32[0] = (((oword).u32[0] 				\
-			   & ~EFX_INPLACE_MASK32(0, 31, field))		\
-			  | EFX_INSERT_FIELD32(0, 31, field, value));	\
+			   & ~EFX_INPLACE_MASK32(0, 31, low, high))	\
+			  | EFX_INSERT32(0, 31, low, high, value));	\
 	(oword).u32[1] = (((oword).u32[1] 				\
-			   & ~EFX_INPLACE_MASK32(32, 63, field))	\
-			  | EFX_INSERT_FIELD32(32, 63, field, value));	\
+			   & ~EFX_INPLACE_MASK32(32, 63, low, high))	\
+			  | EFX_INSERT32(32, 63, low, high, value));	\
 	(oword).u32[2] = (((oword).u32[2] 				\
-			   & ~EFX_INPLACE_MASK32(64, 95, field))	\
-			  | EFX_INSERT_FIELD32(64, 95, field, value));	\
+			   & ~EFX_INPLACE_MASK32(64, 95, low, high))	\
+			  | EFX_INSERT32(64, 95, low, high, value));	\
 	(oword).u32[3] = (((oword).u32[3] 				\
-			   & ~EFX_INPLACE_MASK32(96, 127, field))	\
-			  | EFX_INSERT_FIELD32(96, 127, field, value));	\
+			   & ~EFX_INPLACE_MASK32(96, 127, low, high))	\
+			  | EFX_INSERT32(96, 127, low, high, value));	\
 	} while (0)
 
-#define EFX_SET_QWORD_FIELD32(qword, field, value) do {			\
+#define EFX_SET_QWORD32(qword, low, high, value) do {			\
 	(qword).u32[0] = (((qword).u32[0] 				\
-			   & ~EFX_INPLACE_MASK32(0, 31, field))		\
-			  | EFX_INSERT_FIELD32(0, 31, field, value));	\
+			   & ~EFX_INPLACE_MASK32(0, 31, low, high))	\
+			  | EFX_INSERT32(0, 31, low, high, value));	\
 	(qword).u32[1] = (((qword).u32[1] 				\
-			   & ~EFX_INPLACE_MASK32(32, 63, field))	\
-			  | EFX_INSERT_FIELD32(32, 63, field, value));	\
+			   & ~EFX_INPLACE_MASK32(32, 63, low, high))	\
+			  | EFX_INSERT32(32, 63, low, high, value));	\
 	} while (0)
 
-#define EFX_SET_DWORD_FIELD(dword, field, value) do {			\
-	(dword).u32[0] = (((dword).u32[0] 				\
-			   & ~EFX_INPLACE_MASK32(0, 31, field))		\
-			  | EFX_INSERT_FIELD32(0, 31, field, value));	\
+#define EFX_SET_DWORD32(dword, low, high, value) do {			\
+	(dword).u32[0] = (((dword).u32[0]				\
+			   & ~EFX_INPLACE_MASK32(0, 31, low, high))	\
+			  | EFX_INSERT32(0, 31, low, high, value));	\
 	} while (0)
+
+#define EFX_SET_OWORD_FIELD64(oword, field, value)			\
+	EFX_SET_OWORD64(oword, EFX_LOW_BIT(field),			\
+			 EFX_HIGH_BIT(field), value)
+
+#define EFX_SET_QWORD_FIELD64(qword, field, value)			\
+	EFX_SET_QWORD64(qword, EFX_LOW_BIT(field),			\
+			 EFX_HIGH_BIT(field), value)
+
+#define EFX_SET_OWORD_FIELD32(oword, field, value)			\
+	EFX_SET_OWORD32(oword, EFX_LOW_BIT(field),			\
+			 EFX_HIGH_BIT(field), value)
+
+#define EFX_SET_QWORD_FIELD32(qword, field, value)			\
+	EFX_SET_QWORD32(qword, EFX_LOW_BIT(field),			\
+			 EFX_HIGH_BIT(field), value)
+
+#define EFX_SET_DWORD_FIELD(dword, field, value)			\
+	EFX_SET_DWORD32(dword, EFX_LOW_BIT(field),			\
+			 EFX_HIGH_BIT(field), value)
+
+
 
 #if BITS_PER_LONG == 64
 #define EFX_SET_OWORD_FIELD EFX_SET_OWORD_FIELD64

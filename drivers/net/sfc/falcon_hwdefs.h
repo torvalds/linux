@@ -1147,8 +1147,8 @@ struct falcon_nvconfig_board_v3 {
 #define SPI_DEV_TYPE_ERASE_SIZE_WIDTH 5
 #define SPI_DEV_TYPE_BLOCK_SIZE_LBN 24
 #define SPI_DEV_TYPE_BLOCK_SIZE_WIDTH 5
-#define SPI_DEV_TYPE_FIELD(type, field) \
-	(((type) >> EFX_LOW_BIT(field)) & EFX_MASK32(field))
+#define SPI_DEV_TYPE_FIELD(type, field)					\
+	(((type) >> EFX_LOW_BIT(field)) & EFX_MASK32(EFX_WIDTH(field)))
 
 #define NVCONFIG_BASE 0x300
 #define NVCONFIG_BOARD_MAGIC_NUM 0xFA1C
