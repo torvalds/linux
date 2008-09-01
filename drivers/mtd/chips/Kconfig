@@ -6,6 +6,7 @@ menu "RAM/ROM/Flash chip drivers"
 config MTD_CFI
 	tristate "Detect flash chips by Common Flash Interface (CFI) probe"
 	select MTD_GEN_PROBE
+	select MTD_CFI_UTIL
 	help
 	  The Common Flash Interface specification was developed by Intel,
 	  AMD and other flash manufactures that provides a universal method
