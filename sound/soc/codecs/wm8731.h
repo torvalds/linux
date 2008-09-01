@@ -35,6 +35,7 @@
 #define WM8731_DAI		0
 
 struct wm8731_setup_data {
+	int            spi;
 	int            i2c_bus;
 	unsigned short i2c_address;
 };
