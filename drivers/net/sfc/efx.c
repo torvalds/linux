@@ -1774,7 +1774,7 @@ static struct pci_device_id efx_pci_table[] __devinitdata = {
  *
  * Dummy PHY/MAC/Board operations
  *
- * Can be used where the MAC does not implement this operation
+ * Can be used for some unimplemented operations
  * Needed so all function pointers are valid and do not have to be tested
  * before use
  *
@@ -1795,17 +1795,12 @@ static struct efx_phy_operations efx_dummy_phy_operations = {
 	.reset_xaui      = efx_port_dummy_op_void,
 };
 
-/* Dummy board operations */
-static int efx_nic_dummy_op_int(struct efx_nic *nic)
-{
-	return 0;
-}
-
 static struct efx_board efx_dummy_board_info = {
-	.init    = efx_nic_dummy_op_int,
-	.init_leds = efx_port_dummy_op_int,
-	.set_fault_led = efx_port_dummy_op_blink,
-	.fini	= efx_port_dummy_op_void,
+	.init		= efx_port_dummy_op_int,
+	.init_leds	= efx_port_dummy_op_int,
+	.set_fault_led	= efx_port_dummy_op_blink,
+	.blink		= efx_port_dummy_op_blink,
+	.fini		= efx_port_dummy_op_void,
 };
 
 /**************************************************************************
