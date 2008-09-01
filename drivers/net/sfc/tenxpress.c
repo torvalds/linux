@@ -377,8 +377,7 @@ static int tenxpress_phy_check_hw(struct efx_nic *efx)
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
 	bool link_ok;
 
-	link_ok = (phy_data->phy_mode == PHY_MODE_NORMAL &&
-		   tenxpress_link_ok(efx, true));
+	link_ok = tenxpress_link_ok(efx, true);
 
 	if (link_ok != efx->link_up)
 		falcon_xmac_sim_phy_event(efx);
