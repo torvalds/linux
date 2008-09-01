@@ -202,7 +202,7 @@ ia32_syscall_table:
 	data8 sys32_ptrace
 	data8 sys32_alarm
 	data8 sys_ni_syscall
-	data8 sys32_pause
+	data8 sys_pause
 	data8 compat_sys_utime	  /* 30 */
 	data8 sys_ni_syscall	  /* old stty syscall holder */
 	data8 sys_ni_syscall	  /* old gtty syscall holder */

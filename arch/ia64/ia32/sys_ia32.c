@@ -1704,14 +1704,6 @@ out:
 }
 
 asmlinkage int
-sys32_pause (void)
-{
-	current->state = TASK_INTERRUPTIBLE;
-	schedule();
-	return -ERESTARTNOHAND;
-}
-
-asmlinkage int
 sys32_msync (unsigned int start, unsigned int len, int flags)
 {
 	unsigned int addr;
