@@ -217,6 +217,45 @@ static inline int hrtimer_is_hres_active(struct hrtimer *timer)
 	return timer->base->cpu_base->hres_active;
 }
 
+static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
+{
+	timer->expires = time;
+}
+static inline void hrtimer_set_expires_tv64(struct hrtimer *timer, s64 tv64)
+{
+	timer->expires.tv64 = tv64;
+}
+
+static inline void hrtimer_add_expires(struct hrtimer *timer, ktime_t time)
+{
+	timer->expires = ktime_add_safe(timer->expires, time);
+}
+
+static inline void hrtimer_add_expires_ns(struct hrtimer *timer, unsigned long ns)
+{
+	timer->expires = ktime_add_ns(timer->expires, ns);
+}
+
+static inline ktime_t hrtimer_get_expires(const struct hrtimer *timer)
+{
+	return timer->expires;
+}
+
+static inline s64 hrtimer_get_expires_tv64(const struct hrtimer *timer)
+{
+	return timer->expires.tv64;
+}
+
+static inline s64 hrtimer_get_expires_ns(const struct hrtimer *timer)
+{
+	return ktime_to_ns(timer->expires);
+}
+
+static inline ktime_t hrtimer_expires_remaining(const struct hrtimer *timer)
+{
+    return ktime_sub(timer->expires, timer->base->get_time());
+}
+
 /*
  * The resolution of the clocks. The resolution value is returned in
  * the clock_getres() system call to give application programmers an
@@ -286,6 +325,12 @@ extern int hrtimer_start(struct hrtimer *timer, ktime_t tim,
 			 const enum hrtimer_mode mode);
 extern int hrtimer_cancel(struct hrtimer *timer);
 extern int hrtimer_try_to_cancel(struct hrtimer *timer);
+
+static inline int hrtimer_start_expires(struct hrtimer *timer,
+						enum hrtimer_mode mode)
+{
+	return hrtimer_start(timer, hrtimer_get_expires(timer), mode);
+}
 
 static inline int hrtimer_restart(struct hrtimer *timer)
 {
