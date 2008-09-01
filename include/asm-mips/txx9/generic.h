@@ -64,4 +64,22 @@ struct physmap_flash_data;
 void txx9_physmap_flash_init(int no, unsigned long addr, unsigned long size,
 			     const struct physmap_flash_data *pdata);
 
+/* 8 bit version of __fls(): find first bit set (returns 0..7) */
+static inline unsigned int __fls8(unsigned char x)
+{
+	int r = 7;
+
+	if (!(x & 0xf0)) {
+		r -= 4;
+		x <<= 4;
+	}
+	if (!(x & 0xc0)) {
+		r -= 2;
+		x <<= 2;
+	}
+	if (!(x & 0x80))
+		r -= 1;
+	return r;
+}
+
 #endif /* __ASM_TXX9_GENERIC_H */
