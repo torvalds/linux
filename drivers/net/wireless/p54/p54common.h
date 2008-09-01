@@ -29,6 +29,17 @@ struct bootrec_exp_if {
 	__le16 top_compat;
 } __attribute__((packed));
 
+struct bootrec_desc {
+	__le16 modes;
+	__le16 flags;
+	__le32 rx_start;
+	__le32 rx_end;
+	u8 headroom;
+	u8 tailroom;
+	u8 unimportant[6];
+	u8 rates[16];
+} __attribute__((packed));
+
 #define BR_CODE_MIN			0x80000000
 #define BR_CODE_COMPONENT_ID		0x80000001
 #define BR_CODE_COMPONENT_VERSION	0x80000002

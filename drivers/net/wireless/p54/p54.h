@@ -39,7 +39,6 @@ struct p54_control_hdr {
 } __attribute__ ((packed));
 
 #define EEPROM_READBACK_LEN (sizeof(struct p54_control_hdr) + 4 /* p54_eeprom_lm86 */)
-#define MAX_RX_SIZE (IEEE80211_MAX_RTS_THRESHOLD + sizeof(struct p54_control_hdr) + 20 /* length of struct p54_rx_hdr */ + 16 )
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
 
@@ -53,6 +52,9 @@ struct p54_common {
 	void (*stop)(struct ieee80211_hw *dev);
 	int mode;
 	u16 seqno;
+	u16 rx_mtu;
+	u8 headroom;
+	u8 tailroom;
 	struct mutex conf_mutex;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
@@ -70,7 +72,7 @@ struct p54_common {
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
-void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
+int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
 int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len);
 void p54_fill_eeprom_readback(struct p54_control_hdr *hdr);
 struct ieee80211_hw *p54_init_common(size_t priv_data_len);

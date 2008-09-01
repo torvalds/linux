@@ -95,7 +95,7 @@ static void p54u_rx_cb(struct urb *urb)
 		skb_pull(skb, sizeof(struct net2280_tx_hdr));
 
 	if (p54_rx(dev, skb)) {
-		skb = dev_alloc_skb(MAX_RX_SIZE);
+		skb = dev_alloc_skb(priv->common.rx_mtu + 32);
 		if (unlikely(!skb)) {
 			usb_free_urb(urb);
 			/* TODO check rx queue length and refill *somewhere* */
@@ -145,7 +145,7 @@ static int p54u_init_urbs(struct ieee80211_hw *dev)
 	struct p54u_rx_info *info;
 
 	while (skb_queue_len(&priv->rx_queue) < 32) {
-		skb = __dev_alloc_skb(MAX_RX_SIZE, GFP_KERNEL);
+		skb = __dev_alloc_skb(priv->common.rx_mtu + 32, GFP_KERNEL);
 		if (!skb)
 			break;
 		entry = usb_alloc_urb(0, GFP_KERNEL);
@@ -153,7 +153,10 @@ static int p54u_init_urbs(struct ieee80211_hw *dev)
 			kfree_skb(skb);
 			break;
 		}
-		usb_fill_bulk_urb(entry, priv->udev, usb_rcvbulkpipe(priv->udev, P54U_PIPE_DATA), skb_tail_pointer(skb), MAX_RX_SIZE, p54u_rx_cb, skb);
+		usb_fill_bulk_urb(entry, priv->udev,
+				  usb_rcvbulkpipe(priv->udev, P54U_PIPE_DATA),
+				  skb_tail_pointer(skb),
+				  priv->common.rx_mtu + 32, p54u_rx_cb, skb);
 		info = (struct p54u_rx_info *) skb->cb;
 		info->urb = entry;
 		info->dev = dev;
@@ -412,7 +415,9 @@ static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 		goto err_req_fw_failed;
 	}
 
-	p54_parse_firmware(dev, fw_entry);
+	err = p54_parse_firmware(dev, fw_entry);
+	if (err)
+		goto err_upload_failed;
 
 	left = block_size = min((size_t)P54U_FW_BLOCK, fw_entry->size);
 	strcpy(buf, start_string);
@@ -549,7 +554,12 @@ static int p54u_upload_firmware_net2280(struct ieee80211_hw *dev)
 		return err;
 	}
 
-	p54_parse_firmware(dev, fw_entry);
+	err = p54_parse_firmware(dev, fw_entry);
+	if (err) {
+		kfree(buf);
+		release_firmware(fw_entry);
+		return err;
+	}
 
 #define P54U_WRITE(type, addr, data) \
 	do {\
