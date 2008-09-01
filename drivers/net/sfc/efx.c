@@ -1027,7 +1027,8 @@ static void efx_start_all(struct efx_nic *efx)
 	/* Mark the port as enabled so port reconfigurations can start, then
 	 * restart the transmit interface early so the watchdog timer stops */
 	efx_start_port(efx);
-	efx_wake_queue(efx);
+	if (efx_dev_registered(efx))
+		efx_wake_queue(efx);
 
 	efx_for_each_channel(channel, efx)
 		efx_start_channel(channel);
@@ -1102,8 +1103,8 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Stop the kernel transmit interface late, so the watchdog
 	 * timer isn't ticking over the flush */
-	efx_stop_queue(efx);
 	if (efx_dev_registered(efx)) {
+		efx_stop_queue(efx);
 		netif_tx_lock_bh(efx->net_dev);
 		netif_tx_unlock_bh(efx->net_dev);
 	}
