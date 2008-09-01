@@ -4039,7 +4039,8 @@ static void __devinit boot_msp34xx(struct bttv *btv, int pin)
 
 	gpio_inout(mask,mask);
 	gpio_bits(mask,0);
-	udelay(2500);
+	mdelay(2);
+	udelay(500);
 	gpio_bits(mask,mask);
 
 	if (bttv_gpio)
