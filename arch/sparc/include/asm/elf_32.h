@@ -105,11 +105,8 @@ typedef struct {
 #define ELF_DATA	ELFDATA2MSB
 
 #define USE_ELF_CORE_DUMP
-#ifndef CONFIG_SUN4
+
 #define ELF_EXEC_PAGESIZE	4096
-#else
-#define ELF_EXEC_PAGESIZE	8192
-#endif
 
 
 /* This is the location that an ET_DYN program is loaded if exec'ed.  Typical
@@ -126,7 +123,7 @@ typedef struct {
 /* Sun4c has none of the capabilities, most sun4m's have them all.
  * XXX This is gross, set some global variable at boot time. -DaveM
  */
-#define ELF_HWCAP	((ARCH_SUN4C_SUN4) ? 0 : \
+#define ELF_HWCAP	((ARCH_SUN4C) ? 0 : \
 			 (HWCAP_SPARC_FLUSH | HWCAP_SPARC_STBAR | \
 			  HWCAP_SPARC_SWAP | \
 			  ((srmmu_modtype != Cypress && \

@@ -39,7 +39,6 @@
 #include <asm/io.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>
-#include <asm/sun4paddr.h>
 #include <asm/page.h>
 #include <asm/pcic.h>
 #include <asm/irq_regs.h>
@@ -53,27 +52,6 @@ void __iomem *mstk48t02_regs = NULL;
 static struct mostek48t08 __iomem *mstk48t08_regs = NULL;
 static int set_rtc_mmss(unsigned long);
 static int sbus_do_settimeofday(struct timespec *tv);
-
-#ifdef CONFIG_SUN4
-struct intersil *intersil_clock;
-#define intersil_cmd(intersil_reg, intsil_cmd) intersil_reg->int_cmd_reg = \
-	(intsil_cmd)
-
-#define intersil_intr(intersil_reg, intsil_cmd) intersil_reg->int_intr_reg = \
-	(intsil_cmd)
-
-#define intersil_start(intersil_reg) intersil_cmd(intersil_reg, \
-	( INTERSIL_START | INTERSIL_32K | INTERSIL_NORMAL | INTERSIL_24H |\
-	  INTERSIL_INTR_ENABLE))
-
-#define intersil_stop(intersil_reg) intersil_cmd(intersil_reg, \
-	( INTERSIL_STOP | INTERSIL_32K | INTERSIL_NORMAL | INTERSIL_24H |\
-	  INTERSIL_INTR_ENABLE))
-
-#define intersil_read_intr(intersil_reg, towhere) towhere = \
-	intersil_reg->int_intr_reg
-
-#endif
 
 unsigned long profile_pc(struct pt_regs *regs)
 {
@@ -117,15 +95,7 @@ static irqreturn_t timer_interrupt(int dummy, void *dev_id)
 
 	/* Protect counter clear so that do_gettimeoffset works */
 	write_seqlock(&xtime_lock);
-#ifdef CONFIG_SUN4
-	if((idprom->id_machtype == (SM_SUN4 | SM_4_260)) ||
-	   (idprom->id_machtype == (SM_SUN4 | SM_4_110))) {
-		int temp;
-        	intersil_read_intr(intersil_clock, temp);
-		/* re-enable the irq */
-		enable_pil_irq(10);
-	}
-#endif
+
 	clear_clock_irq();
 
 	do_timer(1);
@@ -250,55 +220,6 @@ static void __devinit mostek_set_system_time(void)
 	spin_unlock_irq(&mostek_lock);
 }
 
-/* Probe for the real time clock chip on Sun4 */
-static inline void sun4_clock_probe(void)
-{
-#ifdef CONFIG_SUN4
-	int temp;
-	struct resource r;
-
-	memset(&r, 0, sizeof(r));
-	if( idprom->id_machtype == (SM_SUN4 | SM_4_330) ) {
-		sp_clock_typ = MSTK48T02;
-		r.start = sun4_clock_physaddr;
-		mstk48t02_regs = of_ioremap(&r, 0,
-				       sizeof(struct mostek48t02), NULL);
-		mstk48t08_regs = NULL;  /* To catch weirdness */
-		intersil_clock = NULL;  /* just in case */
-
-		/* Kick start the clock if it is completely stopped. */
-		if (mostek_read(mstk48t02_regs + MOSTEK_SEC) & MSTK_STOP)
-			kick_start_clock();
-	} else if( idprom->id_machtype == (SM_SUN4 | SM_4_260)) {
-		/* intersil setup code */
-		printk("Clock: INTERSIL at %8x ",sun4_clock_physaddr);
-		sp_clock_typ = INTERSIL;
-		r.start = sun4_clock_physaddr;
-		intersil_clock = (struct intersil *) 
-		    of_ioremap(&r, 0, sizeof(*intersil_clock), "intersil");
-		mstk48t02_regs = 0;  /* just be sure */
-		mstk48t08_regs = NULL;  /* ditto */
-		/* initialise the clock */
-
-		intersil_intr(intersil_clock,INTERSIL_INT_100HZ);
-
-		intersil_start(intersil_clock);
-
-		intersil_read_intr(intersil_clock, temp);
-                while (!(temp & 0x80))
-                        intersil_read_intr(intersil_clock, temp);
-
-                intersil_read_intr(intersil_clock, temp);
-                while (!(temp & 0x80))
-                        intersil_read_intr(intersil_clock, temp);
-
-		intersil_stop(intersil_clock);
-
-	}
-#endif
-}
-
-#ifndef CONFIG_SUN4
 static int __devinit clock_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
@@ -365,7 +286,6 @@ static int __init clock_init(void)
  * need to see the clock registers.
  */
 fs_initcall(clock_init);
-#endif /* !CONFIG_SUN4 */
 
 static void __init sbus_time_init(void)
 {
@@ -373,51 +293,8 @@ static void __init sbus_time_init(void)
 	BTFIXUPSET_CALL(bus_do_settimeofday, sbus_do_settimeofday, BTFIXUPCALL_NORM);
 	btfixup();
 
-	if (ARCH_SUN4)
-		sun4_clock_probe();
-
 	sparc_init_timers(timer_interrupt);
 	
-#ifdef CONFIG_SUN4
-	if(idprom->id_machtype == (SM_SUN4 | SM_4_330)) {
-		mostek_set_system_time();
-	} else if(idprom->id_machtype == (SM_SUN4 | SM_4_260) ) {
-		/* initialise the intersil on sun4 */
-		unsigned int year, mon, day, hour, min, sec;
-		int temp;
-		struct intersil *iregs;
-
-		iregs=intersil_clock;
-		if(!iregs) {
-			prom_printf("Something wrong, clock regs not mapped yet.\n");
-			prom_halt();
-		}
-
-		intersil_intr(intersil_clock,INTERSIL_INT_100HZ);
-		disable_pil_irq(10);
-		intersil_stop(iregs);
-		intersil_read_intr(intersil_clock, temp);
-
-		temp = iregs->clk.int_csec;
-
-		sec = iregs->clk.int_sec;
-		min = iregs->clk.int_min;
-		hour = iregs->clk.int_hour;
-		day = iregs->clk.int_day;
-		mon = iregs->clk.int_month;
-		year = MSTK_CVT_YEAR(iregs->clk.int_year);
-
-		enable_pil_irq(10);
-		intersil_start(iregs);
-
-		xtime.tv_sec = mktime(year, mon, day, hour, min, sec);
-		xtime.tv_nsec = (INITIAL_JIFFIES % HZ) * (NSEC_PER_SEC / HZ);
-	        set_normalized_timespec(&wall_to_monotonic,
- 	                               -xtime.tv_sec, -xtime.tv_nsec);
-		printk("%u/%u/%u %u:%u:%u\n",day,mon,year,hour,min,sec);
-	}
-#endif
-
 	/* Now that OBP ticker has been silenced, it is safe to enable IRQ. */
 	local_irq_enable();
 }
@@ -532,43 +409,6 @@ static int set_rtc_mmss(unsigned long nowtime)
 	int real_seconds, real_minutes, mostek_minutes;
 	struct mostek48t02 *regs = (struct mostek48t02 *)mstk48t02_regs;
 	unsigned long flags;
-#ifdef CONFIG_SUN4
-	struct intersil *iregs = intersil_clock;
-	int temp;
-#endif
-
-	/* Not having a register set can lead to trouble. */
-	if (!regs) {
-#ifdef CONFIG_SUN4
-		if(!iregs)
-		return -1;
-	 	else {
-			temp = iregs->clk.int_csec;
-
-			mostek_minutes = iregs->clk.int_min;
-
-			real_seconds = nowtime % 60;
-			real_minutes = nowtime / 60;
-			if (((abs(real_minutes - mostek_minutes) + 15)/30) & 1)
-				real_minutes += 30;	/* correct for half hour time zone */
-			real_minutes %= 60;
-
-			if (abs(real_minutes - mostek_minutes) < 30) {
-				intersil_stop(iregs);
-				iregs->clk.int_sec=real_seconds;
-				iregs->clk.int_min=real_minutes;
-				intersil_start(iregs);
-			} else {
-				printk(KERN_WARNING
-			       "set_rtc_mmss: can't update from %d to %d\n",
-				       mostek_minutes, real_minutes);
-				return -1;
-			}
-			
-			return 0;
-		}
-#endif
-	}
 
 	spin_lock_irqsave(&mostek_lock, flags);
 	/* Read the current RTC minutes. */

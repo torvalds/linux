@@ -442,7 +442,6 @@ static void __init of_console_init(void)
 
 	switch (prom_vers) {
 	case PROM_V0:
-	case PROM_SUN4:
 		skip = 0;
 		switch (*romvec->pv_stdout) {
 		case PROMDEV_SCREEN:

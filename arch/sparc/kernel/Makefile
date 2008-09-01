@@ -18,7 +18,6 @@ obj-y    := entry.o wof.o wuf.o etrap.o rtrap.o traps.o $(IRQ_OBJS) \
 devres-y = ../../../kernel/irq/devres.o
 
 obj-$(CONFIG_PCI) += pcic.o
-obj-$(CONFIG_SUN4) += sun4setup.o
 obj-$(CONFIG_SMP) += trampoline.o smp.o sun4m_smp.o sun4d_smp.o
 obj-$(CONFIG_SUN_AUXIO) += auxio.o
 obj-$(CONFIG_SUN_PM) += apc.o pmc.o

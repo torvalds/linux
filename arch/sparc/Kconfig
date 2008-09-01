@@ -210,17 +210,6 @@ config SUN_PM
 	  Enable power management and CPU standby features on supported
 	  SPARC platforms.
 
-config SUN4
-	bool "Support for SUN4 machines (disables SUN4[CDM] support)"
-	depends on !SMP
-	default n
-	help
-	  Say Y here if, and only if, your machine is a sun4. Note that
-	  a kernel compiled with this option will run only on sun4.
-	  (And the current version will probably work only on sun4/330.)
-
-if !SUN4
-
 config PCI
 	bool "Support for PCI and PS/2 keyboard/mouse"
 	help
@@ -232,8 +221,6 @@ config PCI_SYSCALL
 	def_bool PCI
 
 source "drivers/pci/Kconfig"
-
-endif
 
 config SUN_OPENPROMFS
 	tristate "Openprom tree appears in /proc/openprom"
@@ -266,9 +253,7 @@ source "net/Kconfig"
 
 source "drivers/Kconfig"
 
-if !SUN4
 source "drivers/sbus/char/Kconfig"
-endif
 
 # This one must be before the filesystem configs. -DaveM
 

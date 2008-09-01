@@ -34,12 +34,7 @@
 /* sun4 probably wants half word accesses to ASI_SEGMAP, while sun4c+
    likes byte accesses. These are to avoid ifdef mania. */
 
-#ifdef CONFIG_SUN4
-#define lduXa	lduha
-#define stXa	stha
-#else
 #define lduXa	lduba
 #define stXa	stba
-#endif
 
 #endif /* !(_SPARC_ASMMACRO_H) */

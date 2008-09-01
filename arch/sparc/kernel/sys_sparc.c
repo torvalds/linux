@@ -53,7 +53,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 	/* See asm-sparc/uaccess.h */
 	if (len > TASK_SIZE - PAGE_SIZE)
 		return -ENOMEM;
-	if (ARCH_SUN4C_SUN4 && len > 0x20000000)
+	if (ARCH_SUN4C && len > 0x20000000)
 		return -ENOMEM;
 	if (!addr)
 		addr = TASK_UNMAPPED_BASE;
@@ -65,7 +65,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 	for (vmm = find_vma(current->mm, addr); ; vmm = vmm->vm_next) {
 		/* At this point:  (!vmm || addr < vmm->vm_end). */
-		if (ARCH_SUN4C_SUN4 && addr < 0xe0000000 && 0x20000000 - len < addr) {
+		if (ARCH_SUN4C && addr < 0xe0000000 && 0x20000000 - len < addr) {
 			addr = PAGE_OFFSET;
 			vmm = find_vma(current->mm, PAGE_OFFSET);
 		}
@@ -81,7 +81,7 @@ unsigned long arch_get_unmapped_area(struct file *filp, unsigned long addr, unsi
 
 asmlinkage unsigned long sparc_brk(unsigned long brk)
 {
-	if(ARCH_SUN4C_SUN4) {
+	if(ARCH_SUN4C) {
 		if ((brk & 0xe0000000) != (current->mm->brk & 0xe0000000))
 			return current->mm->brk;
 	}
@@ -221,7 +221,7 @@ out:
 
 int sparc_mmap_check(unsigned long addr, unsigned long len)
 {
-	if (ARCH_SUN4C_SUN4 &&
+	if (ARCH_SUN4C &&
 	    (len > 0x20000000 ||
 	     (addr < 0xe0000000 && addr + len > 0x20000000)))
 		return -EINVAL;

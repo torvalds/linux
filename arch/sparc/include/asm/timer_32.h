@@ -9,7 +9,6 @@
 #define _SPARC_TIMER_H
 
 #include <asm/system.h>  /* For SUN4M_NCPUS */
-#include <asm/sun4paddr.h>
 #include <asm/btfixup.h>
 
 /* Timer structures. The interrupt timer has two properties which
@@ -34,12 +33,7 @@ struct sun4c_timer_info {
   __volatile__ unsigned int timer_limit14;
 };
 
-#define SUN4C_TIMER_PHYSADDR   0xf3000000
-#ifdef CONFIG_SUN4
-#define SUN_TIMER_PHYSADDR SUN4_300_TIMER_PHYSADDR
-#else
-#define SUN_TIMER_PHYSADDR SUN4C_TIMER_PHYSADDR
-#endif
+#define SUN_TIMER_PHYSADDR   0xf3000000
 
 /* A sun4m has two blocks of registers which are probably of the same
  * structure. LSI Logic's L64851 is told to _decrement_ from the limit

@@ -191,7 +191,7 @@ asmlinkage void do_sparc_fault(struct pt_regs *regs, int text_fault, int write,
 	 * only copy the information from the master page table,
 	 * nothing more.
 	 */
-	if (!ARCH_SUN4C_SUN4 && address >= TASK_SIZE)
+	if (!ARCH_SUN4C && address >= TASK_SIZE)
 		goto vmalloc_fault;
 
 	info.si_code = SEGV_MAPERR;

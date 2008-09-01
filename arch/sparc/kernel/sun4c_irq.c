@@ -33,7 +33,6 @@
 #include <asm/traps.h>
 #include <asm/irq.h>
 #include <asm/io.h>
-#include <asm/sun4paddr.h>
 #include <asm/idprom.h>
 #include <asm/machines.h>
 
@@ -130,22 +129,10 @@ static void sun4c_enable_irq(unsigned int irq_nr)
 
 volatile struct sun4c_timer_info *sun4c_timers;
 
-#ifdef CONFIG_SUN4
-/* This is an ugly hack to work around the
-   current timer code, and make it work with 
-   the sun4/260 intersil 
-   */
-volatile struct sun4c_timer_info sun4_timer;
-#endif
-
 static void sun4c_clear_clock_irq(void)
 {
 	volatile unsigned int clear_intr;
-#ifdef CONFIG_SUN4
-	if (idprom->id_machtype == (SM_SUN4 | SM_4_260)) 
-	  clear_intr = sun4_timer.timer_limit10;
-	else
-#endif
+
 	clear_intr = sun4c_timers->timer_limit10;
 }
 
@@ -166,11 +153,6 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 	/* Map the Timer chip, this is implemented in hardware inside
 	 * the cache chip on the sun4c.
 	 */
-#ifdef CONFIG_SUN4
-	if (idprom->id_machtype == (SM_SUN4 | SM_4_260))
-		sun4c_timers = &sun4_timer;
-	else
-#endif
 	sun4c_timers = ioremap(SUN_TIMER_PHYSADDR,
 	    sizeof(struct sun4c_timer_info));
 
@@ -206,28 +188,22 @@ void __init sun4c_init_IRQ(void)
 {
 	struct linux_prom_registers int_regs[2];
 	int ie_node;
+	struct resource phyres;
 
-	if (ARCH_SUN4) {
-		interrupt_enable = (char *)
-		    ioremap(sun4_ie_physaddr, PAGE_SIZE);
-	} else {
-		struct resource phyres;
+	ie_node = prom_searchsiblings (prom_getchild(prom_root_node),
+				       "interrupt-enable");
+	if(ie_node == 0)
+		panic("Cannot find /interrupt-enable node");
 
-		ie_node = prom_searchsiblings (prom_getchild(prom_root_node),
-				       	"interrupt-enable");
-		if(ie_node == 0)
-			panic("Cannot find /interrupt-enable node");
-
-		/* Depending on the "address" property is bad news... */
-		interrupt_enable = NULL;
-		if (prom_getproperty(ie_node, "reg", (char *) int_regs,
-				     sizeof(int_regs)) != -1) {
-			memset(&phyres, 0, sizeof(struct resource));
-			phyres.flags = int_regs[0].which_io;
-			phyres.start = int_regs[0].phys_addr;
-			interrupt_enable = (char *) of_ioremap(&phyres, 0,
-			    int_regs[0].reg_size, "sun4c_intr");
-		}
+	/* Depending on the "address" property is bad news... */
+	interrupt_enable = NULL;
+	if (prom_getproperty(ie_node, "reg", (char *) int_regs,
+			     sizeof(int_regs)) != -1) {
+		memset(&phyres, 0, sizeof(struct resource));
+		phyres.flags = int_regs[0].which_io;
+		phyres.start = int_regs[0].phys_addr;
+		interrupt_enable = (char *) of_ioremap(&phyres, 0,
+		    int_regs[0].reg_size, "sun4c_intr");
 	}
 	if (!interrupt_enable)
 		panic("Cannot map interrupt_enable");

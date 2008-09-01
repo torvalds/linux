@@ -31,7 +31,6 @@
 #include <asm/oplib.h>
 #include <asm/openprom.h>
 #include <asm/mmu_context.h>
-#include <asm/sun4paddr.h>
 #include <asm/highmem.h>
 #include <asm/btfixup.h>
 #include <asm/cacheflush.h>
@@ -52,15 +51,11 @@ extern int num_segmaps, num_contexts;
 
 extern unsigned long page_kernel;
 
-#ifdef CONFIG_SUN4
-#define SUN4C_VAC_SIZE sun4c_vacinfo.num_bytes
-#else
 /* That's it, we prom_halt() on sun4c if the cache size is something other than 65536.
  * So let's save some cycles and just use that everywhere except for that bootup
  * sanity check.
  */
 #define SUN4C_VAC_SIZE 65536
-#endif
 
 #define SUN4C_KERNEL_BUCKETS 32
 
@@ -285,75 +280,32 @@ void __init sun4c_probe_vac(void)
 {
 	sun4c_disable_vac();
 
-	if (ARCH_SUN4) {
-		switch (idprom->id_machtype) {
-
-		case (SM_SUN4|SM_4_110):
-			sun4c_vacinfo.type = VAC_NONE;
-			sun4c_vacinfo.num_bytes = 0;
-			sun4c_vacinfo.linesize = 0;
-			sun4c_vacinfo.do_hwflushes = 0;
-			prom_printf("No VAC. Get some bucks and buy a real computer.");
-			prom_halt();
-			break;
-
-		case (SM_SUN4|SM_4_260):
-			sun4c_vacinfo.type = VAC_WRITE_BACK;
-			sun4c_vacinfo.num_bytes = 128 * 1024;
-			sun4c_vacinfo.linesize = 16;
-			sun4c_vacinfo.do_hwflushes = 0;
-			break;
-
-		case (SM_SUN4|SM_4_330):
-			sun4c_vacinfo.type = VAC_WRITE_THROUGH;
-			sun4c_vacinfo.num_bytes = 128 * 1024;
-			sun4c_vacinfo.linesize = 16;
-			sun4c_vacinfo.do_hwflushes = 0;
-			break;
-
-		case (SM_SUN4|SM_4_470):
-			sun4c_vacinfo.type = VAC_WRITE_BACK;
-			sun4c_vacinfo.num_bytes = 128 * 1024;
-			sun4c_vacinfo.linesize = 32;
-			sun4c_vacinfo.do_hwflushes = 0;
-			break;
-
-		default:
-			prom_printf("Cannot initialize VAC - weird sun4 model idprom->id_machtype = %d", idprom->id_machtype);
-			prom_halt();
-		};
+	if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS1)) ||
+	    (idprom->id_machtype == (SM_SUN4C | SM_4C_SS1PLUS))) {
+		/* PROM on SS1 lacks this info, to be super safe we
+		 * hard code it here since this arch is cast in stone.
+		 */
+		sun4c_vacinfo.num_bytes = 65536;
+		sun4c_vacinfo.linesize = 16;
 	} else {
-		sun4c_vacinfo.type = VAC_WRITE_THROUGH;
+		sun4c_vacinfo.num_bytes =
+		 prom_getintdefault(prom_root_node, "vac-size", 65536);
+		sun4c_vacinfo.linesize =
+		 prom_getintdefault(prom_root_node, "vac-linesize", 16);
+	}
+	sun4c_vacinfo.do_hwflushes =
+	 prom_getintdefault(prom_root_node, "vac-hwflush", 0);
 
-		if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS1)) ||
-		    (idprom->id_machtype == (SM_SUN4C | SM_4C_SS1PLUS))) {
-			/* PROM on SS1 lacks this info, to be super safe we
-			 * hard code it here since this arch is cast in stone.
-			 */
-			sun4c_vacinfo.num_bytes = 65536;
-			sun4c_vacinfo.linesize = 16;
-		} else {
-			sun4c_vacinfo.num_bytes =
-			 prom_getintdefault(prom_root_node, "vac-size", 65536);
-			sun4c_vacinfo.linesize =
-			 prom_getintdefault(prom_root_node, "vac-linesize", 16);
-		}
+	if (sun4c_vacinfo.do_hwflushes == 0)
 		sun4c_vacinfo.do_hwflushes =
-		 prom_getintdefault(prom_root_node, "vac-hwflush", 0);
+		 prom_getintdefault(prom_root_node, "vac_hwflush", 0);
 
-		if (sun4c_vacinfo.do_hwflushes == 0)
-			sun4c_vacinfo.do_hwflushes =
-			 prom_getintdefault(prom_root_node, "vac_hwflush", 0);
-
-		if (sun4c_vacinfo.num_bytes != 65536) {
-			prom_printf("WEIRD Sun4C VAC cache size, "
-				    "tell sparclinux@vger.kernel.org");
-			prom_halt();
-		}
+	if (sun4c_vacinfo.num_bytes != 65536) {
+		prom_printf("WEIRD Sun4C VAC cache size, "
+			    "tell sparclinux@vger.kernel.org");
+		prom_halt();
 	}
 
-	sun4c_vacinfo.num_lines =
-		(sun4c_vacinfo.num_bytes / sun4c_vacinfo.linesize);
 	switch (sun4c_vacinfo.linesize) {
 	case 16:
 		sun4c_vacinfo.log2lsize = 4;
@@ -447,49 +399,18 @@ static void __init patch_kernel_fault_handler(void)
 
 static void __init sun4c_probe_mmu(void)
 {
-	if (ARCH_SUN4) {
-		switch (idprom->id_machtype) {
-		case (SM_SUN4|SM_4_110):
-			prom_printf("No support for 4100 yet\n");
-			prom_halt();
-			num_segmaps = 256;
-			num_contexts = 8;
-			break;
-
-		case (SM_SUN4|SM_4_260):
-			/* should be 512 segmaps. when it get fixed */
-			num_segmaps = 256;
-			num_contexts = 16;
-			break;
-
-		case (SM_SUN4|SM_4_330):
-			num_segmaps = 256;
-			num_contexts = 16;
-			break;
-
-		case (SM_SUN4|SM_4_470):
-			/* should be 1024 segmaps. when it get fixed */
-			num_segmaps = 256;
-			num_contexts = 64;
-			break;
-		default:
-			prom_printf("Invalid SUN4 model\n");
-			prom_halt();
-		};
+	if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS1)) ||
+	    (idprom->id_machtype == (SM_SUN4C | SM_4C_SS1PLUS))) {
+		/* Hardcode these just to be safe, PROM on SS1 does
+		* not have this info available in the root node.
+		*/
+		num_segmaps = 128;
+		num_contexts = 8;
 	} else {
-		if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS1)) ||
-		    (idprom->id_machtype == (SM_SUN4C | SM_4C_SS1PLUS))) {
-			/* Hardcode these just to be safe, PROM on SS1 does
-		 	* not have this info available in the root node.
-		 	*/
-			num_segmaps = 128;
-			num_contexts = 8;
-		} else {
-			num_segmaps =
-			    prom_getintdefault(prom_root_node, "mmu-npmg", 128);
-			num_contexts =
-			    prom_getintdefault(prom_root_node, "mmu-nctx", 0x8);
-		}
+		num_segmaps =
+		    prom_getintdefault(prom_root_node, "mmu-npmg", 128);
+		num_contexts =
+		    prom_getintdefault(prom_root_node, "mmu-nctx", 0x8);
 	}
 	patch_kernel_fault_handler();
 }
@@ -501,18 +422,14 @@ void __init sun4c_probe_memerr_reg(void)
 	int node;
 	struct linux_prom_registers regs[1];
 
-	if (ARCH_SUN4) {
-		sun4c_memerr_reg = ioremap(sun4_memreg_physaddr, PAGE_SIZE);
-	} else {
-		node = prom_getchild(prom_root_node);
-		node = prom_searchsiblings(prom_root_node, "memory-error");
-		if (!node)
-			return;
-		if (prom_getproperty(node, "reg", (char *)regs, sizeof(regs)) <= 0)
-			return;
-		/* hmm I think regs[0].which_io is zero here anyways */
-		sun4c_memerr_reg = ioremap(regs[0].phys_addr, regs[0].reg_size);
-	}
+	node = prom_getchild(prom_root_node);
+	node = prom_searchsiblings(prom_root_node, "memory-error");
+	if (!node)
+		return;
+	if (prom_getproperty(node, "reg", (char *)regs, sizeof(regs)) <= 0)
+		return;
+	/* hmm I think regs[0].which_io is zero here anyways */
+	sun4c_memerr_reg = ioremap(regs[0].phys_addr, regs[0].reg_size);
 }
 
 static inline void sun4c_init_ss2_cache_bug(void)
@@ -521,7 +438,6 @@ static inline void sun4c_init_ss2_cache_bug(void)
 
 	if ((idprom->id_machtype == (SM_SUN4C | SM_4C_SS2)) ||
 	    (idprom->id_machtype == (SM_SUN4C | SM_4C_IPX)) ||
-	    (idprom->id_machtype == (SM_SUN4 | SM_4_330)) ||
 	    (idprom->id_machtype == (SM_SUN4C | SM_4C_ELC))) {
 		/* Whee.. */
 		printk("SS2 cache bug detected, uncaching trap table page\n");
@@ -617,11 +533,7 @@ static inline void sun4c_init_map_kernelprom(unsigned long kernel_end)
 {
 	unsigned long vaddr;
 	unsigned char pseg, ctx;
-#ifdef CONFIG_SUN4
-	/* sun4/110 and 260 have no kadb. */
-	if ((idprom->id_machtype != (SM_SUN4 | SM_4_260)) && 
-	    (idprom->id_machtype != (SM_SUN4 | SM_4_110))) {
-#endif
+
 	for (vaddr = KADB_DEBUGGER_BEGVM;
 	     vaddr < LINUX_OPPROM_ENDVM;
 	     vaddr += SUN4C_REAL_PGDIR_SIZE) {
@@ -633,9 +545,7 @@ static inline void sun4c_init_map_kernelprom(unsigned long kernel_end)
 			fix_permissions(vaddr, _SUN4C_PAGE_PRIV, 0);
 		}
 	}
-#ifdef CONFIG_SUN4
-	}
-#endif
+
 	for (vaddr = KERNBASE; vaddr < kernel_end; vaddr += SUN4C_REAL_PGDIR_SIZE) {
 		pseg = sun4c_get_segmap(vaddr);
 		mmu_entry_pool[pseg].locked = 1;
@@ -1041,14 +951,10 @@ static struct thread_info *sun4c_alloc_thread_info(void)
 	 * so we must flush the cache to guarantee consistency.
 	 */
 	sun4c_flush_page(pages);
-#ifndef CONFIG_SUN4	
 	sun4c_flush_page(pages + PAGE_SIZE);
-#endif
 
 	sun4c_put_pte(addr, BUCKET_PTE(pages));
-#ifndef CONFIG_SUN4	
 	sun4c_put_pte(addr + PAGE_SIZE, BUCKET_PTE(pages + PAGE_SIZE));
-#endif
 
 #ifdef CONFIG_DEBUG_STACK_USAGE
 	memset((void *)addr, 0, PAGE_SIZE << THREAD_INFO_ORDER);
@@ -1065,13 +971,11 @@ static void sun4c_free_thread_info(struct thread_info *ti)
 
 	/* We are deleting a mapping, so the flush here is mandatory. */
 	sun4c_flush_page(tiaddr);
-#ifndef CONFIG_SUN4	
 	sun4c_flush_page(tiaddr + PAGE_SIZE);
-#endif
+
 	sun4c_put_pte(tiaddr, 0);
-#ifndef CONFIG_SUN4	
 	sun4c_put_pte(tiaddr + PAGE_SIZE, 0);
-#endif
+
 	sun4c_bucket[entry] = BUCKET_EMPTY;
 	if (entry < sun4c_lowbucket_avail)
 		sun4c_lowbucket_avail = entry;

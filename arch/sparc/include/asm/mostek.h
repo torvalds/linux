@@ -128,44 +128,6 @@ struct mostek48t08 {
 	struct mostek48t02 regs;     /* Here is what we are interested in.   */
 };
 
-#ifdef CONFIG_SUN4
-enum sparc_clock_type {	MSTK48T02, MSTK48T08, \
-INTERSIL, MSTK_INVALID };
-#else
-enum sparc_clock_type {	MSTK48T02, MSTK48T08, \
-MSTK_INVALID };
-#endif
-
-#ifdef CONFIG_SUN4
-/* intersil on a sun 4/260 code  data from harris doc */
-struct intersil_dt {
-        volatile unsigned char int_csec;
-        volatile unsigned char int_hour;
-        volatile unsigned char int_min;
-        volatile unsigned char int_sec;
-        volatile unsigned char int_month;
-        volatile unsigned char int_day;
-        volatile unsigned char int_year;
-        volatile unsigned char int_dow;
-};
-
-struct intersil {
-	struct intersil_dt clk;
-	struct intersil_dt cmp;
-	volatile unsigned char int_intr_reg;
-	volatile unsigned char int_cmd_reg;
-};
-
-#define INTERSIL_STOP        0x0
-#define INTERSIL_START       0x8
-#define INTERSIL_INTR_DISABLE   0x0
-#define INTERSIL_INTR_ENABLE   0x10
-#define INTERSIL_32K		0x0
-#define INTERSIL_NORMAL		0x0
-#define INTERSIL_24H		0x4
-#define INTERSIL_INT_100HZ	0x2
-
-/* end of intersil info */
-#endif
+enum sparc_clock_type { MSTK48T02, MSTK48T08, MSTK_INVALID };
 
 #endif /* !(_SPARC_MOSTEK_H) */

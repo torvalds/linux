@@ -34,13 +34,7 @@ enum sparc_cpu {
 
 extern enum sparc_cpu sparc_cpu_model;
 
-#ifndef CONFIG_SUN4
-#define ARCH_SUN4C_SUN4 (sparc_cpu_model==sun4c)
-#define ARCH_SUN4 0
-#else
-#define ARCH_SUN4C_SUN4 1
-#define ARCH_SUN4 1
-#endif
+#define ARCH_SUN4C (sparc_cpu_model==sun4c)
 
 #define SUN4M_NCPUS            4              /* Architectural limit of sun4m. */
 

@@ -26,9 +26,8 @@ enum sparc_cpu {
 
 #define sparc_cpu_model sun4u
 
-/* This cannot ever be a sun4c nor sun4 :) That's just history. */
-#define ARCH_SUN4C_SUN4 0
-#define ARCH_SUN4 0
+/* This cannot ever be a sun4c :) That's just history. */
+#define ARCH_SUN4C 0
 
 extern char reboot_command[];
 

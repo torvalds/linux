@@ -1502,43 +1502,6 @@ fail:
 	return -ENODEV;
 }
 
-#ifdef CONFIG_SUN4
-
-#include <asm/sun4paddr.h>
-#include <asm/machines.h>
-
-/* Find all the lance cards on the system and initialize them */
-static struct sbus_dev sun4_sdev;
-static int __devinit sparc_lance_init(void)
-{
-	if ((idprom->id_machtype == (SM_SUN4|SM_4_330)) ||
-	    (idprom->id_machtype == (SM_SUN4|SM_4_470))) {
-		memset(&sun4_sdev, 0, sizeof(struct sbus_dev));
-		sun4_sdev.reg_addrs[0].phys_addr = sun4_eth_physaddr;
-		sun4_sdev.irqs[0] = 6;
-		return sparc_lance_probe_one(&sun4_sdev, NULL, NULL);
-	}
-	return -ENODEV;
-}
-
-static int __exit sunlance_sun4_remove(void)
-{
-	struct lance_private *lp = dev_get_drvdata(&sun4_sdev.ofdev.dev);
-	struct net_device *net_dev = lp->dev;
-
-	unregister_netdev(net_dev);
-
-	lance_free_hwresources(lp);
-
-	free_netdev(net_dev);
-
-	dev_set_drvdata(&sun4_sdev.ofdev.dev, NULL);
-
-	return 0;
-}
-
-#else /* !CONFIG_SUN4 */
-
 static int __devinit sunlance_sbus_probe(struct of_device *op, const struct of_device_id *match)
 {
 	struct of_device *parent = to_of_device(op->dev.parent);
@@ -1593,15 +1556,10 @@ static int __init sparc_lance_init(void)
 {
 	return of_register_driver(&sunlance_sbus_driver, &of_bus_type);
 }
-#endif /* !CONFIG_SUN4 */
 
 static void __exit sparc_lance_exit(void)
 {
-#ifdef CONFIG_SUN4
-	sunlance_sun4_remove();
-#else
 	of_unregister_driver(&sunlance_sbus_driver);
-#endif
 }
 
 module_init(sparc_lance_init);
