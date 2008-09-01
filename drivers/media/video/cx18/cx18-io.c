@@ -21,76 +21,69 @@
  */
 
 #include "cx18-driver.h"
+#include "cx18-io.h"
 #include "cx18-irq.h"
-
-void cx18_raw_writel(struct cx18 *cx, u32 val, void __iomem *addr)
-{
-	__raw_writel(val, addr);
-}
-
-u32 cx18_raw_readl(struct cx18 *cx, const void __iomem *addr)
-{
-	return __raw_readl(addr);
-}
-
-u32 cx18_write_sync(struct cx18 *cx, u32 val, void __iomem *addr)
-{
-	writel(val, addr);
-	return readl(addr);
-}
-
-void cx18_writel(struct cx18 *cx, u32 val, void __iomem *addr)
-{
-	writel(val, addr);
-}
-
-u32 cx18_readl(struct cx18 *cx, const void __iomem *addr)
-{
-	return readl(addr);
-}
-
-
-/* Access "register" region of CX23418 memory mapped I/O */
-u32 cx18_read_reg(struct cx18 *cx, u32 reg)
-{
-	return readl(cx->reg_mem + reg);
-}
-
-void cx18_write_reg(struct cx18 *cx, u32 val, u32 reg)
-{
-	writel(val, cx->reg_mem + reg);
-}
-
-u32 cx18_write_reg_sync(struct cx18 *cx, u32 val, u32 reg)
-{
-	return cx18_write_sync(cx, val, cx->reg_mem + reg);
-}
-
-/* Access "encoder memory" region of CX23418 memory mapped I/O */
-u32 cx18_read_enc(struct cx18 *cx, u32 addr)
-{
-	return readl(cx->enc_mem + addr);
-}
-
-void cx18_write_enc(struct cx18 *cx, u32 val, u32 addr)
-{
-	writel(val, cx->enc_mem + addr);
-}
-
-u32 cx18_write_enc_sync(struct cx18 *cx, u32 val, u32 addr)
-{
-	return cx18_write_sync(cx, val, cx->enc_mem + addr);
-}
 
 void cx18_memcpy_fromio(struct cx18 *cx, void *to,
 			const void __iomem *from, unsigned int len)
 {
-	memcpy_fromio(to, from, len);
+	/* Align reads on the CX23418's addresses */
+	if ((len > 0) && ((unsigned)from & 1)) {
+		*((u8 *)to) = cx18_readb(cx, from);
+		len--;
+		to++;
+		from++;
+	}
+	if ((len > 1) && ((unsigned)from & 2)) {
+		*((u16 *)to) = cx18_raw_readw(cx, from);
+		len -= 2;
+		to += 2;
+		from += 2;
+	}
+	while (len > 3) {
+		*((u32 *)to) = cx18_raw_readl(cx, from);
+		len -= 4;
+		to += 4;
+		from += 4;
+	}
+	if (len > 1) {
+		*((u16 *)to) = cx18_raw_readw(cx, from);
+		len -= 2;
+		to += 2;
+		from += 2;
+	}
+	if (len > 0)
+		*((u8 *)to) = cx18_readb(cx, from);
 }
 
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count)
 {
-	memset_io(addr, val, count);
+	u16 val2 = val | (val << 8);
+	u32 val4 = val2 | (val2 << 16);
+
+	/* Align writes on the CX23418's addresses */
+	if ((count > 0) && ((unsigned)addr & 1)) {
+		cx18_writeb(cx, (u8) val, addr);
+		count--;
+		addr++;
+	}
+	if ((count > 1) && ((unsigned)addr & 2)) {
+		cx18_writew(cx, val2, addr);
+		count -= 2;
+		addr += 2;
+	}
+	while (count > 3) {
+		cx18_writel(cx, val4, addr);
+		count -= 4;
+		addr += 4;
+	}
+	if (count > 1) {
+		cx18_writew(cx, val2, addr);
+		count -= 2;
+		addr += 2;
+	}
+	if (count > 0)
+		cx18_writeb(cx, (u8) val, addr);
 }
 
 void cx18_sw1_irq_enable(struct cx18 *cx, u32 val)

@@ -4,6 +4,7 @@
  *  Derived from ivtv-driver.c
  *
  *  Copyright (C) 2007  Hans Verkuil <hverkuil@xs4all.nl>
+ *  Copyright (C) 2008  Andy Walls <awalls@radix.net>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -74,10 +75,14 @@ static int radio[CX18_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1,
 				     -1, -1, -1, -1, -1, -1, -1, -1 };
-
+static int mmio_ndelay[CX18_MAX_CARDS] = { -1, -1, -1, -1, -1, -1, -1, -1,
+					   -1, -1, -1, -1, -1, -1, -1, -1,
+					   -1, -1, -1, -1, -1, -1, -1, -1,
+					   -1, -1, -1, -1, -1, -1, -1, -1 };
 static unsigned cardtype_c = 1;
 static unsigned tuner_c = 1;
 static unsigned radio_c = 1;
+static int mmio_ndelay_c = 1;
 static char pal[] = "--";
 static char secam[] = "--";
 static char ntsc[] = "-";
@@ -96,6 +101,7 @@ int cx18_debug;
 module_param_array(tuner, int, &tuner_c, 0644);
 module_param_array(radio, bool, &radio_c, 0644);
 module_param_array(cardtype, int, &cardtype_c, 0644);
+module_param_array(mmio_ndelay, int, &mmio_ndelay_c, 0644);
 module_param_string(pal, pal, sizeof(pal), 0644);
 module_param_string(secam, secam, sizeof(secam), 0644);
 module_param_string(ntsc, ntsc, sizeof(ntsc), 0644);
@@ -141,6 +147,11 @@ MODULE_PARM_DESC(debug,
 MODULE_PARM_DESC(cx18_pci_latency,
 		 "Change the PCI latency to 64 if lower: 0 = No, 1 = Yes,\n"
 		 "\t\t\tDefault: Yes");
+MODULE_PARM_DESC(mmio_ndelay,
+		 "Delay (ns) for each CX23418 memory mapped IO access.\n"
+		 "\t\t\tTry larger values that are close to a multiple of the\n"
+		 "\t\t\tPCI clock period, 30.3 ns, if your card doesn't work.\n"
+		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_MMIO_NDELAY));
 MODULE_PARM_DESC(enc_mpg_buffers,
 		 "Encoder MPG Buffers (in MB)\n"
 		 "\t\t\tDefault: " __stringify(CX18_DEFAULT_ENC_MPG_BUFFERS));
@@ -356,6 +367,11 @@ static void cx18_process_options(struct cx18 *cx)
 	cx->options.cardtype = cardtype[cx->num];
 	cx->options.tuner = tuner[cx->num];
 	cx->options.radio = radio[cx->num];
+
+	if (mmio_ndelay[cx->num] < 0)
+		cx->options.mmio_ndelay = CX18_DEFAULT_MMIO_NDELAY;
+	else
+		cx->options.mmio_ndelay = mmio_ndelay[cx->num];
 
 	cx->std = cx18_parse_std(cx);
 	if (cx->options.cardtype == -1) {

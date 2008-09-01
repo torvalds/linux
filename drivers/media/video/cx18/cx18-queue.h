@@ -28,7 +28,6 @@
 static inline void cx18_buf_sync_for_cpu(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
-	/* FIXME check IO transfers */
 	pci_dma_sync_single_for_cpu(s->cx->dev, buf->dma_handle,
 				s->buf_size, s->dma);
 }
@@ -36,7 +35,6 @@ static inline void cx18_buf_sync_for_cpu(struct cx18_stream *s,
 static inline void cx18_buf_sync_for_device(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
-	/* FIXME check IO transfers */
 	pci_dma_sync_single_for_device(s->cx->dev, buf->dma_handle,
 				s->buf_size, s->dma);
 }

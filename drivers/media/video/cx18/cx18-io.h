@@ -25,37 +25,108 @@
 
 #include "cx18-driver.h"
 
-/* This is a PCI post thing, where if the pci register is not read, then
-   the write doesn't always take effect right away. By reading back the
-   register any pending PCI writes will be performed (in order), and so
-   you can be sure that the writes are guaranteed to be done.
+static inline void cx18_io_delay(struct cx18 *cx)
+{
+	if (cx->options.mmio_ndelay)
+		ndelay(cx->options.mmio_ndelay);
+}
 
-   Rarely needed, only in some timing sensitive cases.
-   Apparently if this is not done some motherboards seem
-   to kill the firmware and get into the broken state until computer is
-   rebooted. */
-u32 cx18_write_sync(struct cx18 *cx, u32 val, void __iomem *addr);
+/* Non byteswapping memory mapped IO */
+static inline void cx18_raw_writel(struct cx18 *cx, u32 val, void __iomem *addr)
+{
+	__raw_writel(val, addr);
+	cx18_io_delay(cx);
+}
 
-void cx18_writel(struct cx18 *cx, u32 val, void __iomem *addr);
-u32 cx18_readl(struct cx18 *cx, const void __iomem *addr);
+static inline u32 cx18_raw_readl(struct cx18 *cx, const void __iomem *addr)
+{
+	u32 ret = __raw_readl(addr);
+	cx18_io_delay(cx);
+	return ret;
+}
 
-/* No endiannes conversion calls */
-void cx18_raw_writel(struct cx18 *cx, u32 val, void __iomem *addr);
-u32 cx18_raw_readl(struct cx18 *cx, const void __iomem *addr);
+static inline u16 cx18_raw_readw(struct cx18 *cx, const void __iomem *addr)
+{
+	u16 ret = __raw_readw(addr);
+	cx18_io_delay(cx);
+	return ret;
+}
 
-/* Access "register" region of CX23418 memory mapped I/O */
-u32 cx18_read_reg(struct cx18 *cx, u32 reg);
-void cx18_write_reg(struct cx18 *cx, u32 val, u32 reg);
-u32 cx18_write_reg_sync(struct cx18 *cx, u32 val, u32 reg);
+/* Normal memory mapped IO */
+static inline void cx18_writel(struct cx18 *cx, u32 val, void __iomem *addr)
+{
+	writel(val, addr);
+	cx18_io_delay(cx);
+}
 
-/* Access "encoder memory" region of CX23418 memory mapped I/O */
-u32 cx18_read_enc(struct cx18 *cx, u32 addr);
-void cx18_write_enc(struct cx18 *cx, u32 val, u32 addr);
-u32 cx18_write_enc_sync(struct cx18 *cx, u32 val, u32 addr);
+static inline void cx18_writew(struct cx18 *cx, u16 val, void __iomem *addr)
+{
+	writew(val, addr);
+	cx18_io_delay(cx);
+}
+
+static inline void cx18_writeb(struct cx18 *cx, u8 val, void __iomem *addr)
+{
+	writeb(val, addr);
+	cx18_io_delay(cx);
+}
+
+static inline u32 cx18_readl(struct cx18 *cx, const void __iomem *addr)
+{
+	u32 ret = readl(addr);
+	cx18_io_delay(cx);
+	return ret;
+}
+
+static inline u8 cx18_readb(struct cx18 *cx, const void __iomem *addr)
+{
+	u8 ret = readb(addr);
+	cx18_io_delay(cx);
+	return ret;
+}
+
+static inline u32 cx18_write_sync(struct cx18 *cx, u32 val, void __iomem *addr)
+{
+	cx18_writel(cx, val, addr);
+	return cx18_readl(cx, addr);
+}
 
 void cx18_memcpy_fromio(struct cx18 *cx, void *to,
 			const void __iomem *from, unsigned int len);
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count);
+
+/* Access "register" region of CX23418 memory mapped I/O */
+static inline void cx18_write_reg(struct cx18 *cx, u32 val, u32 reg)
+{
+	cx18_writel(cx, val, cx->reg_mem + reg);
+}
+
+static inline u32 cx18_read_reg(struct cx18 *cx, u32 reg)
+{
+	return cx18_readl(cx, cx->reg_mem + reg);
+}
+
+static inline u32 cx18_write_reg_sync(struct cx18 *cx, u32 val, u32 reg)
+{
+	return cx18_write_sync(cx, val, cx->reg_mem + reg);
+}
+
+/* Access "encoder memory" region of CX23418 memory mapped I/O */
+static inline void cx18_write_enc(struct cx18 *cx, u32 val, u32 addr)
+{
+	cx18_writel(cx, val, cx->enc_mem + addr);
+}
+
+static inline u32 cx18_read_enc(struct cx18 *cx, u32 addr)
+{
+	return cx18_readl(cx, cx->enc_mem + addr);
+}
+
+static inline u32 cx18_write_enc_sync(struct cx18 *cx, u32 val, u32 addr)
+{
+	return cx18_write_sync(cx, val, cx->enc_mem + addr);
+}
+
 
 void cx18_sw1_irq_enable(struct cx18 *cx, u32 val);
 void cx18_sw1_irq_disable(struct cx18 *cx, u32 val);
