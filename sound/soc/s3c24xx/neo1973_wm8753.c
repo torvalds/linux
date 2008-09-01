@@ -586,6 +586,7 @@ static struct snd_soc_machine neo1973 = {
 };
 
 static struct wm8753_setup_data neo1973_wm8753_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1a,
 };
 

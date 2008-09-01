@@ -79,6 +79,7 @@
 #define WM8753_ADCTL2		0x3f
 
 struct wm8753_setup_data {
+	int i2c_bus;
 	unsigned short i2c_address;
 };
 
