@@ -96,6 +96,14 @@ config LEDS_COBALT_RAQ
 	help
 	  This option enables support for the Cobalt Raq series LEDs.
 
+config LEDS_SUNFIRE
+	tristate "LED support for SunFire servers."
+	depends on LEDS_CLASS && SPARC64
+	select LEDS_TRIGGERS
+	help
+	  This option enables support for the Left, Middle, and Right
+	  LEDs on the I/O and CPU boards of SunFire UltraSPARC servers.
+
 config LEDS_HP6XX
 	tristate "LED Support for the HP Jornada 6xx"
 	depends on LEDS_CLASS && SH_HP6XX
