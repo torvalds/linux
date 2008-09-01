@@ -28,6 +28,7 @@
 #include <asm/time.h>
 #include <asm/reboot.h>
 #include <asm/r4kcache.h>
+#include <asm/sections.h>
 #include <asm/txx9/generic.h>
 #include <asm/txx9/pci.h>
 #include <asm/txx9tmr.h>
@@ -394,6 +395,11 @@ void __init prom_init(void)
 
 void __init prom_free_prom_memory(void)
 {
+	unsigned long saddr = PAGE_SIZE;
+	unsigned long eaddr = __pa_symbol(&_text);
+
+	if (saddr < eaddr)
+		free_init_pages("prom memory", saddr, eaddr);
 }
 
 const char *get_system_type(void)
