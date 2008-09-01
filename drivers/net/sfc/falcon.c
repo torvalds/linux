@@ -1317,7 +1317,7 @@ void falcon_enable_interrupts(struct efx_nic *efx)
 
 	/* Force processing of all the channels to get the EVQ RPTRs up to
 	   date */
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel(channel, efx)
 		efx_schedule_channel(channel);
 }
 
@@ -1567,7 +1567,7 @@ int falcon_init_interrupt(struct efx_nic *efx)
 	}
 
 	/* Hook MSI or MSI-X interrupt */
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		rc = request_irq(channel->irq, falcon_msi_interrupt,
 				 IRQF_PROBE_SHARED, /* Not shared */
 				 efx->name, channel);
@@ -1580,7 +1580,7 @@ int falcon_init_interrupt(struct efx_nic *efx)
 	return 0;
 
  fail2:
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel(channel, efx)
 		free_irq(channel->irq, channel);
  fail1:
 	return rc;
@@ -1592,7 +1592,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
 	efx_oword_t reg;
 
 	/* Disable MSI/MSI-X interrupts */
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		if (channel->irq)
 			free_irq(channel->irq, channel);
 	}

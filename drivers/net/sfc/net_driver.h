@@ -329,7 +329,6 @@ enum efx_rx_alloc_method {
  * @used_flags: Channel is used by net driver
  * @enabled: Channel enabled indicator
  * @irq: IRQ number (MSI and MSI-X only)
- * @has_interrupt: Channel has an interrupt
  * @irq_moderation: IRQ moderation value (in us)
  * @napi_dev: Net device used with NAPI
  * @napi_str: NAPI control structure
@@ -361,7 +360,6 @@ struct efx_channel {
 	int used_flags;
 	bool enabled;
 	int irq;
-	bool has_interrupt;
 	unsigned int irq_moderation;
 	struct net_device *napi_dev;
 	struct napi_struct napi_str;
@@ -831,15 +829,6 @@ struct efx_nic_type {
 	     _channel < &_efx->channel[EFX_MAX_CHANNELS];		\
 	     _channel++)						\
 		if (!_channel->used_flags)				\
-			continue;					\
-		else
-
-/* Iterate over all used channels with interrupts */
-#define efx_for_each_channel_with_interrupt(_channel, _efx)		\
-	for (_channel = &_efx->channel[0];				\
-	     _channel < &_efx->channel[EFX_MAX_CHANNELS];		\
-	     _channel++)						\
-		if (!(_channel->used_flags && _channel->has_interrupt))	\
 			continue;					\
 		else
 

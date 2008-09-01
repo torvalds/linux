@@ -111,7 +111,7 @@ static int efx_test_interrupts(struct efx_nic *efx,
 
 	/* ACK each interrupting event queue. Receiving an interrupt due to
 	 * traffic before a test event is raised is considered a pass */
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		if (channel->work_pending)
 			efx_process_channel_now(channel);
 		if (efx->last_irq_cpu >= 0)
@@ -133,41 +133,6 @@ static int efx_test_interrupts(struct efx_nic *efx,
 	EFX_LOG(efx, "test interrupt (mode %d) seen on CPU%d\n",
 		efx->interrupt_mode, efx->last_irq_cpu);
 	tests->interrupt = 1;
-	return 0;
-}
-
-/* Test generation and receipt of non-interrupting events */
-static int efx_test_eventq(struct efx_channel *channel,
-			   struct efx_self_tests *tests)
-{
-	unsigned int magic;
-
-	/* Channel specific code, limited to 20 bits */
-	magic = (0x00010150 + channel->channel);
-	EFX_LOG(channel->efx, "channel %d testing event queue with code %x\n",
-		channel->channel, magic);
-
-	tests->eventq_dma[channel->channel] = -1;
-	tests->eventq_int[channel->channel] = 1;	/* fake pass */
-	tests->eventq_poll[channel->channel] = 1;	/* fake pass */
-
-	/* Reset flag and zero magic word */
-	channel->efx->last_irq_cpu = -1;
-	channel->eventq_magic = 0;
-	smp_wmb();
-
-	falcon_generate_test_event(channel, magic);
-	udelay(1);
-
-	efx_process_channel_now(channel);
-	if (channel->eventq_magic != magic) {
-		EFX_ERR(channel->efx, "channel %d  failed to see test event\n",
-			channel->channel);
-		return -ETIMEDOUT;
-	} else {
-		tests->eventq_dma[channel->channel] = 1;
-	}
-
 	return 0;
 }
 
@@ -456,7 +421,7 @@ static int efx_poll_loopback(struct efx_nic *efx)
 
 	/* NAPI polling is not enabled, so process channels
 	 * synchronously */
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		if (channel->work_pending)
 			efx_process_channel_now(channel);
 	}
@@ -689,10 +654,7 @@ int efx_online_test(struct efx_nic *efx, struct efx_self_tests *tests)
 	if (rc)
 		return rc;
 	efx_for_each_channel(channel, efx) {
-		if (channel->has_interrupt)
-			rc = efx_test_eventq_irq(channel, tests);
-		else
-			rc = efx_test_eventq(channel, tests);
+		rc = efx_test_eventq_irq(channel, tests);
 		if (rc)
 			return rc;
 	}

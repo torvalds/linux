@@ -259,7 +259,7 @@ void efx_process_channel_now(struct efx_channel *channel)
 	falcon_disable_interrupts(efx);
 	if (efx->legacy_irq)
 		synchronize_irq(efx->legacy_irq);
-	if (channel->has_interrupt && channel->irq)
+	if (channel->irq)
 		synchronize_irq(channel->irq);
 
 	/* Wait for any NAPI processing to complete */
@@ -872,10 +872,8 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		}
 
 		if (rc == 0) {
-			for (i = 0; i < efx->rss_queues; i++) {
-				efx->channel[i].has_interrupt = true;
+			for (i = 0; i < efx->rss_queues; i++)
 				efx->channel[i].irq = xentries[i].vector;
-			}
 		} else {
 			/* Fall back to single channel MSI */
 			efx->interrupt_mode = EFX_INT_MODE_MSI;
@@ -889,7 +887,6 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 		rc = pci_enable_msi(efx->pci_dev);
 		if (rc == 0) {
 			efx->channel[0].irq = efx->pci_dev->irq;
-			efx->channel[0].has_interrupt = true;
 		} else {
 			EFX_ERR(efx, "could not enable MSI\n");
 			efx->interrupt_mode = EFX_INT_MODE_LEGACY;
@@ -899,9 +896,6 @@ static void efx_probe_interrupts(struct efx_nic *efx)
 	/* Assume legacy interrupts */
 	if (efx->interrupt_mode == EFX_INT_MODE_LEGACY) {
 		efx->rss_queues = 1;
-		/* Every channel is interruptible */
-		for (i = 0; i < EFX_MAX_CHANNELS; i++)
-			efx->channel[i].has_interrupt = true;
 		efx->legacy_irq = efx->pci_dev->irq;
 	}
 }
@@ -911,7 +905,7 @@ static void efx_remove_interrupts(struct efx_nic *efx)
 	struct efx_channel *channel;
 
 	/* Remove MSI/MSI-X interrupts */
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel(channel, efx)
 		channel->irq = 0;
 	pci_disable_msi(efx->pci_dev);
 	pci_disable_msix(efx->pci_dev);
@@ -1106,7 +1100,7 @@ static void efx_stop_all(struct efx_nic *efx)
 	falcon_disable_interrupts(efx);
 	if (efx->legacy_irq)
 		synchronize_irq(efx->legacy_irq);
-	efx_for_each_channel_with_interrupt(channel, efx) {
+	efx_for_each_channel(channel, efx) {
 		if (channel->irq)
 			synchronize_irq(channel->irq);
 	}
@@ -1303,7 +1297,7 @@ static void efx_netpoll(struct net_device *net_dev)
 	struct efx_nic *efx = netdev_priv(net_dev);
 	struct efx_channel *channel;
 
-	efx_for_each_channel_with_interrupt(channel, efx)
+	efx_for_each_channel(channel, efx)
 		efx_schedule_channel(channel);
 }
 
