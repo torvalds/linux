@@ -413,6 +413,7 @@ struct kvm_vcpu_stat {
 	u32 insn_emulation;
 	u32 insn_emulation_fail;
 	u32 hypercalls;
+	u32 irq_injections;
 };
 
 struct descriptor_table {

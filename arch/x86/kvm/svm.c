@@ -1519,6 +1519,7 @@ static inline void svm_inject_irq(struct vcpu_svm *svm, int irq)
 
 	KVMTRACE_1D(INJ_VIRQ, &svm->vcpu, (u32)irq, handler);
 
+	++svm->vcpu.stat.irq_injections;
 	control = &svm->vmcb->control;
 	control->int_vector = irq;
 	control->int_ctl &= ~V_INTR_PRIO_MASK;

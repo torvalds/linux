@@ -2341,6 +2341,7 @@ static void vmx_inject_irq(struct kvm_vcpu *vcpu, int irq)
 
 	KVMTRACE_1D(INJ_VIRQ, vcpu, (u32)irq, handler);
 
+	++vcpu->stat.irq_injections;
 	if (vcpu->arch.rmode.active) {
 		vmx->rmode.irq.pending = true;
 		vmx->rmode.irq.vector = irq;
