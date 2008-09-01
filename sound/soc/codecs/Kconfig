@@ -1,6 +1,6 @@
 config SND_SOC_ALL_CODECS
 	tristate "Build all ASoC CODEC drivers"
-	select I2C
+	depends on I2C
 	select SPI
 	select SND_SOC_AK4535
 	select SND_SOC_UDA1380
