@@ -105,7 +105,7 @@ struct efx_tso_header {
 };
 
 static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
-			       const struct sk_buff *skb);
+			       struct sk_buff *skb);
 static void efx_fini_tso(struct efx_tx_queue *tx_queue);
 static void efx_tsoh_heap_free(struct efx_tx_queue *tx_queue,
 			       struct efx_tso_header *tsoh);
@@ -139,7 +139,7 @@ static void efx_tsoh_free(struct efx_tx_queue *tx_queue,
  * You must hold netif_tx_lock() to call this function.
  */
 static int efx_enqueue_skb(struct efx_tx_queue *tx_queue,
-			   const struct sk_buff *skb)
+			   struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	struct pci_dev *pci_dev = efx->pci_dev;
@@ -578,11 +578,24 @@ struct tso_state {
  * Verify that our various assumptions about sk_buffs and the conditions
  * under which TSO will be attempted hold true.
  */
-static void efx_tso_check_safe(const struct sk_buff *skb)
+static void efx_tso_check_safe(struct sk_buff *skb)
 {
-	EFX_BUG_ON_PARANOID(skb->protocol != htons(ETH_P_IP));
+	__be16 protocol = skb->protocol;
+
 	EFX_BUG_ON_PARANOID(((struct ethhdr *)skb->data)->h_proto !=
-			    skb->protocol);
+			    protocol);
+	if (protocol == htons(ETH_P_8021Q)) {
+		/* Find the encapsulated protocol; reset network header
+		 * and transport header based on that. */
+		struct vlan_ethhdr *veh = (struct vlan_ethhdr *)skb->data;
+		protocol = veh->h_vlan_encapsulated_proto;
+		skb_set_network_header(skb, sizeof(*veh));
+		if (protocol == htons(ETH_P_IP))
+			skb_set_transport_header(skb, sizeof(*veh) +
+						 4 * ip_hdr(skb)->ihl);
+	}
+
+	EFX_BUG_ON_PARANOID(protocol != htons(ETH_P_IP));
 	EFX_BUG_ON_PARANOID(ip_hdr(skb)->protocol != IPPROTO_TCP);
 	EFX_BUG_ON_PARANOID((PTR_DIFF(tcp_hdr(skb), skb->data)
 			     + (tcp_hdr(skb)->doff << 2u)) >
@@ -1020,7 +1033,7 @@ static int tso_start_new_packet(struct efx_tx_queue *tx_queue,
  * %NETDEV_TX_OK or %NETDEV_TX_BUSY.
  */
 static int efx_enqueue_skb_tso(struct efx_tx_queue *tx_queue,
-			       const struct sk_buff *skb)
+			       struct sk_buff *skb)
 {
 	struct efx_nic *efx = tx_queue->efx;
 	int frag_i, rc, rc2 = NETDEV_TX_OK;
