@@ -214,7 +214,10 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 {
 	int rc, reg;
 
-	EFX_TRACE(efx, "%s\n", __func__);
+	/* The XGMAC clock is driven from the SFC7101/SFT9001 312MHz clock, so
+	 * a special software reset can glitch the XGMAC sufficiently for stats
+	 * requests to fail. Since we don't ofen special_reset, just lock. */
+	spin_lock(&efx->stats_lock);
 
 	/* Initiate reset */
 	reg = mdio_clause45_read(efx, efx->mii.phy_id,
@@ -223,20 +226,22 @@ static int tenxpress_special_reset(struct efx_nic *efx)
 	mdio_clause45_write(efx, efx->mii.phy_id, MDIO_MMD_PMAPMD,
 			    PMA_PMD_EXT_CTRL_REG, reg);
 
-	msleep(200);
+	mdelay(200);
 
 	/* Wait for the blocks to come out of reset */
 	rc = mdio_clause45_wait_reset_mmds(efx,
 					   TENXPRESS_REQUIRED_DEVS);
 	if (rc < 0)
-		return rc;
+		goto unlock;
 
 	/* Try and reconfigure the device */
 	rc = tenxpress_init(efx);
 	if (rc < 0)
-		return rc;
+		goto unlock;
 
-	return 0;
+unlock:
+	spin_unlock(&efx->stats_lock);
+	return rc;
 }
 
 static void tenxpress_set_bad_lp(struct efx_nic *efx, bool bad_lp)
