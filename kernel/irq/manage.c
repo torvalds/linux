@@ -397,10 +397,7 @@ int setup_irq(unsigned int irq, struct irqaction *new)
 		if (!(desc->status & IRQ_NOAUTOEN)) {
 			desc->depth = 0;
 			desc->status &= ~IRQ_DISABLED;
-			if (desc->chip->startup)
-				desc->chip->startup(irq);
-			else
-				desc->chip->enable(irq);
+			desc->chip->startup(irq);
 		} else
 			/* Undo nested disables: */
 			desc->depth = 1;
