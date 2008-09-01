@@ -1374,10 +1374,11 @@ static irqreturn_t falcon_fatal_interrupt(struct efx_nic *efx)
 			EFX_OWORD_FMT "\n", EFX_OWORD_VAL(reg));
 	}
 
-	/* Disable DMA bus mastering on both devices */
+	/* Disable both devices */
 	pci_disable_device(efx->pci_dev);
 	if (FALCON_IS_DUAL_FUNC(efx))
 		pci_disable_device(nic_data->pci_dev2);
+	falcon_disable_interrupts(efx);
 
 	if (++n_int_errors < FALCON_MAX_INT_ERRORS) {
 		EFX_ERR(efx, "SYSTEM ERROR - reset scheduled\n");
