@@ -249,6 +249,9 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 	return 0;
 }
 
+const char* p54_rf_chips[] = { "NULL", "Indigo?", "Duette",
+                              "Frisbee", "Xbow", "Longbow" };
+
 int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
@@ -258,6 +261,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	void *tmp;
 	int err;
 	u8 *end = (u8 *)eeprom + len;
+	DECLARE_MAC_BUF(mac);
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
 	entry = (void *)wrap->data + le16_to_cpu(wrap->len);
@@ -339,7 +343,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			while ((u8 *)tmp < entry->data + data_len) {
 				struct bootrec_exp_if *exp_if = tmp;
 				if (le16_to_cpu(exp_if->if_id) == 0xF)
-					priv->rxhw = exp_if->variant & cpu_to_le16(0x07);
+					priv->rxhw = le16_to_cpu(exp_if->variant) & 0x07;
 				tmp += sizeof(struct bootrec_exp_if);
 			}
 			break;
@@ -365,6 +369,37 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		goto err;
 	}
 
+	switch (priv->rxhw) {
+		case 4: /* XBow */
+		case 1: /* Indigo? */
+		case 2: /* Duette */
+			/* TODO: 5GHz initialization goes here */
+
+		case 3: /* Frisbee */
+		case 5: /* Longbow */
+			dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
+			break;
+		default:
+			printk(KERN_ERR "%s: unsupported RF-Chip\n",
+				wiphy_name(dev->wiphy));
+			err = -EINVAL;
+			goto err;
+	}
+
+	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
+		u8 perm_addr[ETH_ALEN];
+
+		printk(KERN_WARNING "%s: Invalid hwaddr! Using randomly generated MAC addr\n",
+			wiphy_name(dev->wiphy));
+		random_ether_addr(perm_addr);
+		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
+	}
+
+	printk(KERN_INFO "%s: hwaddr %s, MAC:isl38%02x RF:%s\n",
+		wiphy_name(dev->wiphy),
+		print_mac(mac, dev->wiphy->perm_addr),
+		priv->version, p54_rf_chips[priv->rxhw]);
+
 	return 0;
 
   err:
@@ -387,20 +422,6 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	return err;
 }
 EXPORT_SYMBOL_GPL(p54_parse_eeprom);
-
-void p54_fill_eeprom_readback(struct p54_control_hdr *hdr)
-{
-	struct p54_eeprom_lm86 *eeprom_hdr;
-
-	hdr->magic1 = cpu_to_le16(0x8000);
-	hdr->len = cpu_to_le16(sizeof(*eeprom_hdr) + 0x2000);
-	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_EEPROM_READBACK);
-	hdr->retry1 = hdr->retry2 = 0;
-	eeprom_hdr = (struct p54_eeprom_lm86 *) hdr->data;
-	eeprom_hdr->offset = 0x0;
-	eeprom_hdr->len = cpu_to_le16(0x2000);
-}
-EXPORT_SYMBOL_GPL(p54_fill_eeprom_readback);
 
 static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
@@ -499,6 +520,21 @@ out:
 		p54_wake_free_queues(dev);
 }
 
+static void p54_rx_eeprom_readback(struct ieee80211_hw *dev,
+				   struct sk_buff *skb)
+{
+	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
+	struct p54_eeprom_lm86 *eeprom = (struct p54_eeprom_lm86 *) hdr->data;
+	struct p54_common *priv = dev->priv;
+
+	if (!priv->eeprom)
+		return ;
+
+	memcpy(priv->eeprom, eeprom->data, eeprom->len);
+
+	complete(&priv->eeprom_comp);
+}
+
 static void p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
@@ -508,6 +544,9 @@ static void p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 		p54_rx_frame_sent(dev, skb);
 		break;
 	case P54_CONTROL_TYPE_BBP:
+		break;
+	case P54_CONTROL_TYPE_EEPROM_READBACK:
+		p54_rx_eeprom_readback(dev, skb);
 		break;
 	default:
 		printk(KERN_DEBUG "%s: not handling 0x%02x type control frame\n",
@@ -606,6 +645,64 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 
 	data->req_id = cpu_to_le32(target_addr + priv->headroom);
 }
+
+int p54_read_eeprom(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	struct p54_control_hdr *hdr = NULL;
+	struct p54_eeprom_lm86 *eeprom_hdr;
+	size_t eeprom_size = 0x2020, offset = 0, blocksize;
+	int ret = -ENOMEM;
+	void *eeprom = NULL;
+
+	hdr = (struct p54_control_hdr *)kzalloc(sizeof(*hdr) +
+		sizeof(*eeprom_hdr) + EEPROM_READBACK_LEN, GFP_KERNEL);
+	if (!hdr)
+		goto free;
+
+	priv->eeprom = kzalloc(EEPROM_READBACK_LEN, GFP_KERNEL);
+	if (!priv->eeprom)
+		goto free;
+
+	eeprom = kzalloc(eeprom_size, GFP_KERNEL);
+	if (!eeprom)
+		goto free;
+
+	hdr->magic1 = cpu_to_le16(0x8000);
+	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_EEPROM_READBACK);
+	hdr->retry1 = hdr->retry2 = 0;
+	eeprom_hdr = (struct p54_eeprom_lm86 *) hdr->data;
+
+	while (eeprom_size) {
+		blocksize = min(eeprom_size, (size_t)EEPROM_READBACK_LEN);
+		hdr->len = cpu_to_le16(blocksize + sizeof(*eeprom_hdr));
+		eeprom_hdr->offset = cpu_to_le16(offset);
+		eeprom_hdr->len = cpu_to_le16(blocksize);
+		p54_assign_address(dev, NULL, hdr, hdr->len + sizeof(*hdr));
+	        priv->tx(dev, hdr, hdr->len + sizeof(*hdr), 0);
+
+		if (!wait_for_completion_interruptible_timeout(&priv->eeprom_comp, HZ)) {
+			printk(KERN_ERR "%s: device does not respond!\n",
+				wiphy_name(dev->wiphy));
+			ret = -EBUSY;
+			goto free;
+	        }
+
+		memcpy(eeprom + offset, priv->eeprom, blocksize);
+		offset += blocksize;
+		eeprom_size -= blocksize;
+	}
+
+	ret = p54_parse_eeprom(dev, eeprom, offset);
+free:
+	kfree(priv->eeprom);
+	priv->eeprom = NULL;
+	kfree(hdr);
+	kfree(eeprom);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(p54_read_eeprom);
 
 static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
@@ -718,7 +815,7 @@ static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
 	filter->magic3 = cpu_to_le32(magic3);
 	filter->rx_addr = cpu_to_le32(priv->rx_end);
 	filter->max_rx = cpu_to_le16(priv->rx_mtu);
-	filter->rxhw = priv->rxhw;
+	filter->rxhw = cpu_to_le16(priv->rxhw);
 	filter->magic8 = cpu_to_le16(magic8);
 	filter->magic9 = cpu_to_le16(magic9);
 
@@ -1081,7 +1178,6 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_INVALID;
 	skb_queue_head_init(&priv->tx_queue);
-	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
 		     IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_UNSPEC;
@@ -1101,6 +1197,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 				 sizeof(struct p54_tx_control_allocdata);
 
 	mutex_init(&priv->conf_mutex);
+	init_completion(&priv->eeprom_comp);
 
 	return dev;
 }

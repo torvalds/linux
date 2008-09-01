@@ -38,7 +38,7 @@ struct p54_control_hdr {
 	u8 data[0];
 } __attribute__ ((packed));
 
-#define EEPROM_READBACK_LEN (sizeof(struct p54_control_hdr) + 4 /* p54_eeprom_lm86 */)
+#define EEPROM_READBACK_LEN 0x3fc
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
 
@@ -63,18 +63,19 @@ struct p54_common {
 	struct pda_channel_output_limit *output_limit;
 	unsigned int output_limit_len;
 	struct pda_pa_curve_data *curve_data;
-	__le16 rxhw;
+	u16 rxhw;
 	u8 version;
 	unsigned int tx_hdr_len;
 	void *cached_vdcf;
 	unsigned int fw_var;
 	struct ieee80211_tx_queue_stats tx_stats[8];
+	void *eeprom;
+	struct completion eeprom_comp;
 };
 
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb);
 int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw);
-int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len);
-void p54_fill_eeprom_readback(struct p54_control_hdr *hdr);
+int p54_read_eeprom(struct ieee80211_hw *dev);
 struct ieee80211_hw *p54_init_common(size_t priv_data_len);
 void p54_free_common(struct ieee80211_hw *dev);
 

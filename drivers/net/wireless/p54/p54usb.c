@@ -315,73 +315,6 @@ static int p54u_bulk_msg(struct p54u_priv *priv, unsigned int ep,
 			    data, len, &alen, 2000);
 }
 
-static int p54u_read_eeprom(struct ieee80211_hw *dev)
-{
-	struct p54u_priv *priv = dev->priv;
-	void *buf;
-	struct p54_control_hdr *hdr;
-	int err, alen;
-	size_t offset = priv->hw_type ? 0x10 : 0x20;
-
-	buf = kmalloc(0x2020, GFP_KERNEL);
-	if (!buf) {
-		printk(KERN_ERR "p54usb: cannot allocate memory for "
-		       "eeprom readback!\n");
-		return -ENOMEM;
-	}
-
-	if (priv->hw_type) {
-		*((u32 *) buf) = priv->common.rx_start;
-		err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf, sizeof(u32));
-		if (err) {
-			printk(KERN_ERR "p54usb: addr send failed\n");
-			goto fail;
-		}
-	} else {
-		struct net2280_reg_write *reg = buf;
-		reg->port = cpu_to_le16(NET2280_DEV_U32);
-		reg->addr = cpu_to_le32(P54U_DEV_BASE);
-		reg->val = cpu_to_le32(ISL38XX_DEV_INT_DATA);
-		err = p54u_bulk_msg(priv, P54U_PIPE_DEV, buf, sizeof(*reg));
-		if (err) {
-			printk(KERN_ERR "p54usb: dev_int send failed\n");
-			goto fail;
-		}
-	}
-
-	hdr = buf + priv->common.tx_hdr_len;
-	p54_fill_eeprom_readback(hdr);
-	hdr->req_id = cpu_to_le32(priv->common.rx_start);
-	if (priv->common.tx_hdr_len) {
-		struct net2280_tx_hdr *tx_hdr = buf;
-		tx_hdr->device_addr = hdr->req_id;
-		tx_hdr->len = cpu_to_le16(EEPROM_READBACK_LEN);
-	}
-
-	/* we can just pretend to send 0x2000 bytes of nothing in the headers */
-	err = p54u_bulk_msg(priv, P54U_PIPE_DATA, buf,
-			    EEPROM_READBACK_LEN + priv->common.tx_hdr_len);
-	if (err) {
-		printk(KERN_ERR "p54usb: eeprom req send failed\n");
-		goto fail;
-	}
-
-	err = usb_bulk_msg(priv->udev,
-			   usb_rcvbulkpipe(priv->udev, P54U_PIPE_DATA),
-			   buf, 0x2020, &alen, 1000);
-	if (!err && alen > offset) {
-		p54_parse_eeprom(dev, (u8 *)buf + offset, alen - offset);
-	} else {
-		printk(KERN_ERR "p54usb: eeprom read failed!\n");
-		err = -EINVAL;
-		goto fail;
-	}
-
- fail:
-	kfree(buf);
-	return err;
-}
-
 static int p54u_upload_firmware_3887(struct ieee80211_hw *dev)
 {
 	static char start_string[] = "~~~~<\r";
@@ -861,30 +794,19 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 	if (err)
 		goto err_free_dev;
 
-	err = p54u_read_eeprom(dev);
+	skb_queue_head_init(&priv->rx_queue);
+
+	p54u_open(dev);
+	err = p54_read_eeprom(dev);
+	p54u_stop(dev);
 	if (err)
 		goto err_free_dev;
-
-	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
-		u8 perm_addr[ETH_ALEN];
-
-		printk(KERN_WARNING "p54usb: Invalid hwaddr! Using randomly generated MAC addr\n");
-		random_ether_addr(perm_addr);
-		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
-	}
-
-	skb_queue_head_init(&priv->rx_queue);
 
 	err = ieee80211_register_hw(dev);
 	if (err) {
 		printk(KERN_ERR "p54usb: Cannot register netdevice\n");
 		goto err_free_dev;
 	}
-
-	printk(KERN_INFO "%s: hwaddr %s, isl38%02x\n",
-	       wiphy_name(dev->wiphy),
-	       print_mac(mac, dev->wiphy->perm_addr),
-	       priv->common.version);
 
 	return 0;
 
