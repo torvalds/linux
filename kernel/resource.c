@@ -438,7 +438,7 @@ int insert_resource(struct resource *parent, struct resource *new)
 
 /**
  * insert_resource_expand_to_fit - Insert a resource into the resource tree
- * @parent: parent of the new resource
+ * @root: root resource descriptor
  * @new: new resource to insert
  *
  * Insert a resource into the resource tree, possibly expanding it in order
