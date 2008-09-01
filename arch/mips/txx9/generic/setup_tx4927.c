@@ -252,3 +252,34 @@ void __init tx4927_mtd_init(int ch)
 		return;	/* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
 }
+
+static void __init tx4927_stop_unused_modules(void)
+{
+	__u64 pcfg, rst = 0, ckd = 0;
+	char buf[128];
+
+	buf[0] = '\0';
+	local_irq_disable();
+	pcfg = ____raw_readq(&tx4927_ccfgptr->pcfg);
+	if (!(pcfg & TX4927_PCFG_SEL2)) {
+		rst |= TX4927_CLKCTR_ACLRST;
+		ckd |= TX4927_CLKCTR_ACLCKD;
+		strcat(buf, " ACLC");
+	}
+	if (rst | ckd) {
+		txx9_set64(&tx4927_ccfgptr->clkctr, rst);
+		txx9_set64(&tx4927_ccfgptr->clkctr, ckd);
+	}
+	local_irq_enable();
+	if (buf[0])
+		pr_info("%s: stop%s\n", txx9_pcode_str, buf);
+}
+
+static int __init tx4927_late_init(void)
+{
+	if (txx9_pcode != 0x4927)
+		return -ENODEV;
+	tx4927_stop_unused_modules();
+	return 0;
+}
+late_initcall(tx4927_late_init);

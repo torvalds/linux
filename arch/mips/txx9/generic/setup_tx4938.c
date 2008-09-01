@@ -334,3 +334,59 @@ void __init tx4938_mtd_init(int ch)
 		return;	/* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
 }
+
+static void __init tx4938_stop_unused_modules(void)
+{
+	__u64 pcfg, rst = 0, ckd = 0;
+	char buf[128];
+
+	buf[0] = '\0';
+	local_irq_disable();
+	pcfg = ____raw_readq(&tx4938_ccfgptr->pcfg);
+	switch (txx9_pcode) {
+	case 0x4937:
+		if (!(pcfg & TX4938_PCFG_SEL2)) {
+			rst |= TX4938_CLKCTR_ACLRST;
+			ckd |= TX4938_CLKCTR_ACLCKD;
+			strcat(buf, " ACLC");
+		}
+		break;
+	case 0x4938:
+		if (!(pcfg & TX4938_PCFG_SEL2) ||
+		    (pcfg & TX4938_PCFG_ETH0_SEL)) {
+			rst |= TX4938_CLKCTR_ACLRST;
+			ckd |= TX4938_CLKCTR_ACLCKD;
+			strcat(buf, " ACLC");
+		}
+		if ((pcfg &
+		     (TX4938_PCFG_ATA_SEL | TX4938_PCFG_ISA_SEL |
+		      TX4938_PCFG_NDF_SEL))
+		    != TX4938_PCFG_NDF_SEL) {
+			rst |= TX4938_CLKCTR_NDFRST;
+			ckd |= TX4938_CLKCTR_NDFCKD;
+			strcat(buf, " NDFMC");
+		}
+		if (!(pcfg & TX4938_PCFG_SPI_SEL)) {
+			rst |= TX4938_CLKCTR_SPIRST;
+			ckd |= TX4938_CLKCTR_SPICKD;
+			strcat(buf, " SPI");
+		}
+		break;
+	}
+	if (rst | ckd) {
+		txx9_set64(&tx4938_ccfgptr->clkctr, rst);
+		txx9_set64(&tx4938_ccfgptr->clkctr, ckd);
+	}
+	local_irq_enable();
+	if (buf[0])
+		pr_info("%s: stop%s\n", txx9_pcode_str, buf);
+}
+
+static int __init tx4938_late_init(void)
+{
+	if (txx9_pcode != 0x4937 && txx9_pcode != 0x4938)
+		return -ENODEV;
+	tx4938_stop_unused_modules();
+	return 0;
+}
+late_initcall(tx4938_late_init);
