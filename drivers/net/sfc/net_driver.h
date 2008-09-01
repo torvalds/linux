@@ -853,9 +853,9 @@ struct efx_nic_type {
 
 /* Iterate over all RX queues belonging to a channel */
 #define efx_for_each_channel_rx_queue(_rx_queue, _channel)		\
-	for (_rx_queue = &_channel->efx->rx_queue[0];			\
-	     _rx_queue < &_channel->efx->rx_queue[EFX_MAX_RX_QUEUES];	\
-	     _rx_queue++)						\
+	for (_rx_queue = &_channel->efx->rx_queue[_channel->channel];	\
+	     _rx_queue;							\
+	     _rx_queue = NULL)						\
 		if (_rx_queue->channel != _channel)			\
 			continue;					\
 		else
