@@ -160,6 +160,7 @@ struct efx_tx_buffer {
  * @channel: The associated channel
  * @buffer: The software buffer ring
  * @txd: The hardware descriptor ring
+ * @flushed: Used when handling queue flushing
  * @read_count: Current read pointer.
  *	This is the number of buffers that have been removed from both rings.
  * @stopped: Stopped count.
@@ -192,6 +193,7 @@ struct efx_tx_queue {
 	struct efx_nic *nic;
 	struct efx_tx_buffer *buffer;
 	struct efx_special_buffer txd;
+	bool flushed;
 
 	/* Members used mainly on the completion path */
 	unsigned int read_count ____cacheline_aligned_in_smp;
@@ -260,6 +262,7 @@ struct efx_rx_buffer {
  *	the remaining space in the allocation.
  * @buf_dma_addr: Page's DMA address.
  * @buf_data: Page's host address.
+ * @flushed: Use when handling queue flushing
  */
 struct efx_rx_queue {
 	struct efx_nic *efx;
@@ -285,6 +288,7 @@ struct efx_rx_queue {
 	struct page *buf_page;
 	dma_addr_t buf_dma_addr;
 	char *buf_data;
+	bool flushed;
 };
 
 /**

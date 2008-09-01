@@ -445,9 +445,16 @@ static void efx_fini_channels(struct efx_nic *efx)
 	struct efx_channel *channel;
 	struct efx_tx_queue *tx_queue;
 	struct efx_rx_queue *rx_queue;
+	int rc;
 
 	EFX_ASSERT_RESET_SERIALISED(efx);
 	BUG_ON(efx->port_enabled);
+
+	rc = falcon_flush_queues(efx);
+	if (rc)
+		EFX_ERR(efx, "failed to flush queues\n");
+	else
+		EFX_LOG(efx, "successfully flushed all queues\n");
 
 	efx_for_each_channel(channel, efx) {
 		EFX_LOG(channel->efx, "shut down chan %d\n", channel->channel);
@@ -456,13 +463,6 @@ static void efx_fini_channels(struct efx_nic *efx)
 			efx_fini_rx_queue(rx_queue);
 		efx_for_each_channel_tx_queue(tx_queue, channel)
 			efx_fini_tx_queue(tx_queue);
-	}
-
-	/* Do the event queues last so that we can handle flush events
-	 * for all DMA queues. */
-	efx_for_each_channel(channel, efx) {
-		EFX_LOG(channel->efx, "shut down evq %d\n", channel->channel);
-
 		efx_fini_eventq(channel);
 	}
 }
@@ -1092,7 +1092,6 @@ static void efx_stop_all(struct efx_nic *efx)
 
 	/* Isolate the MAC from the TX and RX engines, so that queue
 	 * flushes will complete in a timely fashion. */
-	falcon_deconfigure_mac_wrapper(efx);
 	falcon_drain_tx_fifo(efx);
 
 	/* Stop the kernel transmit interface late, so the watchdog
