@@ -15,14 +15,6 @@
  */
 extern struct efx_phy_operations falcon_tenxpress_phy_ops;
 
-enum tenxpress_state {
-	TENXPRESS_STATUS_OFF = 0,
-	TENXPRESS_STATUS_OTEMP = 1,
-	TENXPRESS_STATUS_NORMAL = 2,
-};
-
-extern void tenxpress_set_state(struct efx_nic *efx,
-				enum tenxpress_state state);
 extern void tenxpress_phy_blink(struct efx_nic *efx, bool blink);
 extern void tenxpress_crc_err(struct efx_nic *efx);
 

@@ -69,10 +69,6 @@ static int falcon_reset_xmac(struct efx_nic *efx)
 		udelay(10);
 	}
 
-	/* This often fails when DSP is disabled, ignore it */
-	if (sfe4001_phy_flash_cfg)
-		return 0;
-
 	EFX_ERR(efx, "timed out waiting for XMAC core reset\n");
 	return -ETIMEDOUT;
 }
@@ -444,7 +440,8 @@ static bool falcon_check_xaui_link_up(struct efx_nic *efx)
 	max_tries = tries;
 
 	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
-	    (efx->phy_type == PHY_TYPE_NONE))
+	    (efx->phy_type == PHY_TYPE_NONE) ||
+	    efx_phy_mode_disabled(efx->phy_mode))
 		return false;
 
 	while (tries) {
@@ -471,7 +468,11 @@ void falcon_reconfigure_xmac(struct efx_nic *efx)
 
 	falcon_deconfigure_mac_wrapper(efx);
 
-	efx->tx_disabled = LOOPBACK_INTERNAL(efx);
+	/* Reconfigure the PHY, disabling transmit in mac level loopback. */
+	if (LOOPBACK_INTERNAL(efx))
+		efx->phy_mode |= PHY_MODE_TX_DISABLED;
+	else
+		efx->phy_mode &= ~PHY_MODE_TX_DISABLED;
 	efx->phy_op->reconfigure(efx);
 
 	falcon_reconfigure_xgxs_core(efx);
@@ -566,7 +567,7 @@ int falcon_check_xmac(struct efx_nic *efx)
 	int rc;
 
 	if ((efx->loopback_mode == LOOPBACK_NETWORK) ||
-	    (efx->phy_type == PHY_TYPE_NONE))
+	    efx_phy_mode_disabled(efx->phy_mode))
 		return 0;
 
 	falcon_mask_status_intr(efx, false);

@@ -1296,6 +1296,9 @@ static int efx_net_open(struct net_device *net_dev)
 	EFX_LOG(efx, "opening device %s on CPU %d\n", net_dev->name,
 		raw_smp_processor_id());
 
+	if (efx->phy_mode & PHY_MODE_SPECIAL)
+		return -EBUSY;
+
 	efx_start_all(efx);
 	return 0;
 }

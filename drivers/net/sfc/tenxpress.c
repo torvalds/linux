@@ -119,26 +119,11 @@ MODULE_PARM_DESC(crc_error_reset_threshold,
 		 "Max number of CRC errors before XAUI reset");
 
 struct tenxpress_phy_data {
-	enum tenxpress_state state;
 	enum efx_loopback_mode loopback_mode;
 	atomic_t bad_crc_count;
-	bool tx_disabled;
+	enum efx_phy_mode phy_mode;
 	int bad_lp_tries;
 };
-
-static int tenxpress_state_is(struct efx_nic *efx, int state)
-{
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	return (phy_data != NULL) && (state == phy_data->state);
-}
-
-void tenxpress_set_state(struct efx_nic *efx,
-				enum tenxpress_state state)
-{
-	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	if (phy_data != NULL)
-		phy_data->state = state;
-}
 
 void tenxpress_crc_err(struct efx_nic *efx)
 {
@@ -214,15 +199,12 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	if (!phy_data)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
+	phy_data->phy_mode = efx->phy_mode;
 
-	tenxpress_set_state(efx, TENXPRESS_STATUS_NORMAL);
-
-	if (!sfe4001_phy_flash_cfg) {
-		rc = mdio_clause45_wait_reset_mmds(efx,
-						   TENXPRESS_REQUIRED_DEVS);
-		if (rc < 0)
-			goto fail;
-	}
+	rc = mdio_clause45_wait_reset_mmds(efx,
+					   TENXPRESS_REQUIRED_DEVS);
+	if (rc < 0)
+		goto fail;
 
 	rc = mdio_clause45_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
 	if (rc < 0)
@@ -370,13 +352,16 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	bool loop_change = LOOPBACK_OUT_OF(phy_data, efx,
 					   TENXPRESS_LOOPBACKS);
 
-	if (!tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL))
+	if (efx->phy_mode & PHY_MODE_SPECIAL) {
+		phy_data->phy_mode = efx->phy_mode;
 		return;
+	}
 
 	/* When coming out of transmit disable, coming out of low power
 	 * mode, or moving out of any PHY internal loopback mode,
 	 * perform a special software reset */
-	if ((phy_data->tx_disabled && !efx->tx_disabled) ||
+	if ((efx->phy_mode == PHY_MODE_NORMAL &&
+	     phy_data->phy_mode != PHY_MODE_NORMAL) ||
 	    loop_change) {
 		tenxpress_special_reset(efx);
 		falcon_reset_xaui(efx);
@@ -386,8 +371,8 @@ static void tenxpress_phy_reconfigure(struct efx_nic *efx)
 	mdio_clause45_phy_reconfigure(efx);
 	tenxpress_phyxs_loopback(efx);
 
-	phy_data->tx_disabled = efx->tx_disabled;
 	phy_data->loopback_mode = efx->loopback_mode;
+	phy_data->phy_mode = efx->phy_mode;
 	efx->link_up = tenxpress_link_ok(efx, false);
 	efx->link_options = GM_LPA_10000FULL;
 }
@@ -402,16 +387,15 @@ static void tenxpress_phy_clear_interrupt(struct efx_nic *efx)
 static int tenxpress_phy_check_hw(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data = efx->phy_data;
-	bool phy_up = tenxpress_state_is(efx, TENXPRESS_STATUS_NORMAL);
 	bool link_ok;
 
-	link_ok = phy_up && tenxpress_link_ok(efx, true);
+	link_ok = (phy_data->phy_mode == PHY_MODE_NORMAL &&
+		   tenxpress_link_ok(efx, true));
 
 	if (link_ok != efx->link_up)
 		falcon_xmac_sim_phy_event(efx);
 
-	/* Nothing to check if we've already shut down the PHY */
-	if (!phy_up)
+	if (phy_data->phy_mode != PHY_MODE_NORMAL)
 		return 0;
 
 	if (atomic_read(&phy_data->bad_crc_count) > crc_error_reset_threshold) {

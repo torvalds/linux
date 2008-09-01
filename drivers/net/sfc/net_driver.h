@@ -519,6 +519,23 @@ struct efx_phy_operations {
 	unsigned loopbacks;
 };
 
+/**
+ * @enum efx_phy_mode - PHY operating mode flags
+ * @PHY_MODE_NORMAL: on and should pass traffic
+ * @PHY_MODE_TX_DISABLED: on with TX disabled
+ * @PHY_MODE_SPECIAL: on but will not pass traffic
+ */
+enum efx_phy_mode {
+	PHY_MODE_NORMAL		= 0,
+	PHY_MODE_TX_DISABLED	= 1,
+	PHY_MODE_SPECIAL	= 8,
+};
+
+static inline bool efx_phy_mode_disabled(enum efx_phy_mode mode)
+{
+	return (mode & ~PHY_MODE_TX_DISABLED) != 0;
+}
+
 /*
  * Efx extended statistics
  *
@@ -661,7 +678,7 @@ union efx_multicast_hash {
  * @phy_op: PHY interface
  * @phy_data: PHY private data (including PHY-specific stats)
  * @mii: PHY interface
- * @tx_disabled: PHY transmitter turned off
+ * @phy_mode: PHY operating mode
  * @link_up: Link status
  * @link_options: Link options (MII/GMII format)
  * @n_link_state_changes: Number of times the link has changed state
@@ -735,7 +752,7 @@ struct efx_nic {
 	struct efx_phy_operations *phy_op;
 	void *phy_data;
 	struct mii_if_info mii;
-	bool tx_disabled;
+	enum efx_phy_mode phy_mode;
 
 	bool link_up;
 	unsigned int link_options;

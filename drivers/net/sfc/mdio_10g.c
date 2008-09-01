@@ -172,6 +172,8 @@ bool mdio_clause45_links_ok(struct efx_nic *efx, unsigned int mmd_mask)
 		return true;
 	else if (efx->loopback_mode == LOOPBACK_NETWORK)
 		return false;
+	else if (efx_phy_mode_disabled(efx->phy_mode))
+		return false;
 	else if (efx->loopback_mode == LOOPBACK_PHYXS)
 		mmd_mask &= ~(MDIO_MMDREG_DEVS0_PHYXS |
 			      MDIO_MMDREG_DEVS0_PCS |
@@ -206,7 +208,7 @@ void mdio_clause45_transmit_disable(struct efx_nic *efx)
 
 	ctrl1 = ctrl2 = mdio_clause45_read(efx, phy_id, MDIO_MMD_PMAPMD,
 					   MDIO_MMDREG_TXDIS);
-	if (efx->tx_disabled)
+	if (efx->phy_mode & PHY_MODE_TX_DISABLED)
 		ctrl2 |= (1 << MDIO_MMDREG_TXDIS_GLOBAL_LBN);
 	else
 		ctrl1 &= ~(1 << MDIO_MMDREG_TXDIS_GLOBAL_LBN);
