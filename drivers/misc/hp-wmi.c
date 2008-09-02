@@ -49,6 +49,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 #define HPWMI_ALS_QUERY 0x3
 #define HPWMI_DOCK_QUERY 0x4
 #define HPWMI_WIRELESS_QUERY 0x5
+#define HPWMI_HOTKEY_QUERY 0xc
 
 static int __init hp_wmi_bios_setup(struct platform_device *device);
 static int __exit hp_wmi_bios_remove(struct platform_device *device);
@@ -69,7 +70,7 @@ struct bios_return {
 
 struct key_entry {
 	char type;		/* See KE_* below */
-	u8 code;
+	u16 code;
 	u16 keycode;
 };
 
@@ -79,7 +80,9 @@ static struct key_entry hp_wmi_keymap[] = {
 	{KE_SW, 0x01, SW_DOCK},
 	{KE_KEY, 0x02, KEY_BRIGHTNESSUP},
 	{KE_KEY, 0x03, KEY_BRIGHTNESSDOWN},
-	{KE_KEY, 0x04, KEY_HELP},
+	{KE_KEY, 0x20e6, KEY_PROG1},
+	{KE_KEY, 0x2142, KEY_MEDIA},
+	{KE_KEY, 0x231b, KEY_HELP},
 	{KE_END, 0}
 };
 
@@ -318,6 +321,9 @@ void hp_wmi_notify(u32 value, void *context)
 
 	if (obj && obj->type == ACPI_TYPE_BUFFER && obj->buffer.length == 8) {
 		int eventcode = *((u8 *) obj->buffer.pointer);
+		if (eventcode == 0x4)
+			eventcode = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
+							 0);
 		key = hp_wmi_get_entry_by_scancode(eventcode);
 		if (key) {
 			switch (key->type) {
