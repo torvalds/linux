@@ -202,7 +202,7 @@ static int ide_gd_open(struct inode *inode, struct file *filp)
 			goto out_put_idkp;
 		}
 
-		if ((drive->dev_flags & IDE_DFLAG_WP) && (filp->f_mode & 2)) {
+		if ((drive->dev_flags & IDE_DFLAG_WP) && (filp->f_mode & FMODE_WRITE)) {
 			ret = -EROFS;
 			goto out_put_idkp;
 		}

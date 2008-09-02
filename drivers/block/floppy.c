@@ -3761,14 +3761,14 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		UFDCS->rawcmd = 2;
 
 	if (!(filp->f_flags & O_NDELAY)) {
-		if (filp->f_mode & 3) {
+		if (filp->f_mode & (FMODE_READ|FMODE_WRITE)) {
 			UDRS->last_checked = 0;
 			check_disk_change(inode->i_bdev);
 			if (UTESTF(FD_DISK_CHANGED))
 				goto out;
 		}
 		res = -EROFS;
-		if ((filp->f_mode & 2) && !(UTESTF(FD_DISK_WRITABLE)))
+		if ((filp->f_mode & FMODE_WRITE) && !(UTESTF(FD_DISK_WRITABLE)))
 			goto out;
 	}
 	mutex_unlock(&open_lock);

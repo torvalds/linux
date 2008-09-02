@@ -305,7 +305,7 @@ static int pf_open(struct inode *inode, struct file *file)
 	if (pf->media_status == PF_NM)
 		return -ENODEV;
 
-	if ((pf->media_status == PF_RO) && (file->f_mode & 2))
+	if ((pf->media_status == PF_RO) && (file->f_mode & FMODE_WRITE))
 		return -EROFS;
 
 	pf->access++;

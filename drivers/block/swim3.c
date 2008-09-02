@@ -908,13 +908,13 @@ static int floppy_open(struct inode *inode, struct file *filp)
 		return -EBUSY;
 
 	if (err == 0 && (filp->f_flags & O_NDELAY) == 0
-	    && (filp->f_mode & 3)) {
+	    && (filp->f_mode & (FMODE_READ|FMODE_WRITE))) {
 		check_disk_change(inode->i_bdev);
 		if (fs->ejected)
 			err = -ENXIO;
 	}
 
-	if (err == 0 && (filp->f_mode & 2)) {
+	if (err == 0 && (filp->f_mode & FMODE_WRITE)) {
 		if (fs->write_prot < 0)
 			fs->write_prot = swim3_readbit(fs, WRITE_PROT);
 		if (fs->write_prot)

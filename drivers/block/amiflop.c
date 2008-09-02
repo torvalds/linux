@@ -1560,9 +1560,9 @@ static int floppy_open(struct inode *inode, struct file *filp)
 	if (fd_ref[drive] && old_dev != system)
 		return -EBUSY;
 
-	if (filp && filp->f_mode & 3) {
+	if (filp && filp->f_mode & (FMODE_READ|FMODE_WRITE)) {
 		check_disk_change(inode->i_bdev);
-		if (filp->f_mode & 2 ) {
+		if (filp->f_mode & FMODE_WRITE ) {
 			int wrprot;
 
 			get_fdc(drive);

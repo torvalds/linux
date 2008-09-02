@@ -1826,9 +1826,9 @@ static int floppy_open( struct inode *inode, struct file *filp )
 	if (filp->f_flags & O_NDELAY)
 		return 0;
 
-	if (filp->f_mode & 3) {
+	if (filp->f_mode & (FMODE_READ|FMODE_WRITE)) {
 		check_disk_change(inode->i_bdev);
-		if (filp->f_mode & 2) {
+		if (filp->f_mode & FMODE_WRITE) {
 			if (p->wpstat) {
 				if (p->ref < 0)
 					p->ref = 0;

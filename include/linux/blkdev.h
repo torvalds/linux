@@ -910,7 +910,8 @@ static inline int sb_issue_discard(struct super_block *sb,
 * command filter functions
 */
 extern int blk_verify_command(struct blk_cmd_filter *filter,
-			      unsigned char *cmd, int has_write_perm);
+			      unsigned char *cmd, fmode_t has_write_perm);
+extern void blk_unregister_filter(struct gendisk *disk);
 extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 #define MAX_PHYS_SEGMENTS 128

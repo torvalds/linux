@@ -63,18 +63,18 @@ extern int dir_notify_enable;
 #define MAY_ACCESS 16
 #define MAY_OPEN 32
 
-#define FMODE_READ 1
-#define FMODE_WRITE 2
+#define FMODE_READ ((__force fmode_t)1)
+#define FMODE_WRITE ((__force fmode_t)2)
 
 /* Internal kernel extensions */
-#define FMODE_LSEEK	4
-#define FMODE_PREAD	8
+#define FMODE_LSEEK	((__force fmode_t)4)
+#define FMODE_PREAD	((__force fmode_t)8)
 #define FMODE_PWRITE	FMODE_PREAD	/* These go hand in hand */
 
 /* File is being opened for execution. Primary users of this flag are
    distributed filesystems that can use it to achieve correct ETXTBUSY
    behavior for cross-node execution/opening_for_writing of files */
-#define FMODE_EXEC	16
+#define FMODE_EXEC	((__force fmode_t)16)
 
 #define RW_MASK		1
 #define RWA_MASK	2
@@ -825,7 +825,7 @@ struct file {
 	const struct file_operations	*f_op;
 	atomic_long_t		f_count;
 	unsigned int 		f_flags;
-	mode_t			f_mode;
+	fmode_t			f_mode;
 	loff_t			f_pos;
 	struct fown_struct	f_owner;
 	unsigned int		f_uid, f_gid;
@@ -1714,7 +1714,7 @@ extern struct block_device *bdget(dev_t);
 extern void bd_set_size(struct block_device *, loff_t size);
 extern void bd_forget(struct inode *inode);
 extern void bdput(struct block_device *);
-extern struct block_device *open_by_devnum(dev_t, unsigned);
+extern struct block_device *open_by_devnum(dev_t, fmode_t);
 #else
 static inline void bd_forget(struct inode *inode) {}
 #endif
@@ -1729,7 +1729,7 @@ extern int blkdev_driver_ioctl(struct inode *inode, struct file *file,
 			       struct gendisk *disk, unsigned cmd,
 			       unsigned long arg);
 extern long compat_blkdev_ioctl(struct file *, unsigned, unsigned long);
-extern int blkdev_get(struct block_device *, mode_t, unsigned);
+extern int blkdev_get(struct block_device *, fmode_t, unsigned);
 extern int blkdev_put(struct block_device *);
 extern int bd_claim(struct block_device *, void *);
 extern void bd_release(struct block_device *);

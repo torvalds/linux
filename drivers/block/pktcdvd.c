@@ -2320,7 +2320,7 @@ static int pkt_open_write(struct pktcdvd_device *pd)
 /*
  * called at open time.
  */
-static int pkt_open_dev(struct pktcdvd_device *pd, int write)
+static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 {
 	int ret;
 	long lba;

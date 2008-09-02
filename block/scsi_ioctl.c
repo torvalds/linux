@@ -384,7 +384,8 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 		  struct gendisk *disk, struct scsi_ioctl_command __user *sic)
 {
 	struct request *rq;
-	int err, write_perm = 0;
+	int err;
+	fmode_t write_perm = 0;
 	unsigned int in_len, out_len, bytes, opcode, cmdlen;
 	char *buffer = NULL, sense[SCSI_SENSE_BUFFERSIZE];
 
@@ -428,7 +429,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 
 	/* scsi_ioctl passes NULL */
 	if (file && (file->f_mode & FMODE_WRITE))
-		write_perm = 1;
+		write_perm = FMODE_WRITE;
 
 	err = blk_verify_command(&q->cmd_filter, rq->cmd, write_perm);
 	if (err)

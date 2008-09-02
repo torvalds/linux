@@ -840,7 +840,7 @@ EXPORT_SYMBOL_GPL(bd_release_from_disk);
  * to be used for internal purposes.  If you ever need it - reconsider
  * your API.
  */
-struct block_device *open_by_devnum(dev_t dev, unsigned mode)
+struct block_device *open_by_devnum(dev_t dev, fmode_t mode)
 {
 	struct block_device *bdev = bdget(dev);
 	int err = -ENOMEM;
@@ -975,7 +975,7 @@ void bd_set_size(struct block_device *bdev, loff_t size)
 }
 EXPORT_SYMBOL(bd_set_size);
 
-static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
+static int __blkdev_get(struct block_device *bdev, fmode_t mode, unsigned flags,
 			int for_part);
 static int __blkdev_put(struct block_device *bdev, int for_part);
 
@@ -1104,7 +1104,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	return ret;
 }
 
-static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
+static int __blkdev_get(struct block_device *bdev, fmode_t mode, unsigned flags,
 			int for_part)
 {
 	/*
@@ -1123,7 +1123,7 @@ static int __blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags,
 	return do_open(bdev, &fake_file, for_part);
 }
 
-int blkdev_get(struct block_device *bdev, mode_t mode, unsigned flags)
+int blkdev_get(struct block_device *bdev, fmode_t mode, unsigned flags)
 {
 	return __blkdev_get(bdev, mode, flags, 0);
 }
@@ -1315,7 +1315,7 @@ EXPORT_SYMBOL(lookup_bdev);
 struct block_device *open_bdev_excl(const char *path, int flags, void *holder)
 {
 	struct block_device *bdev;
-	mode_t mode = FMODE_READ;
+	fmode_t mode = FMODE_READ;
 	int error = 0;
 
 	bdev = lookup_bdev(path);

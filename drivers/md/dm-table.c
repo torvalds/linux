@@ -43,7 +43,7 @@ struct dm_table {
 	 * device.  This should be a combination of FMODE_READ
 	 * and FMODE_WRITE.
 	 */
-	int mode;
+	fmode_t mode;
 
 	/* a list of devices used by this table */
 	struct list_head devices;
@@ -217,7 +217,7 @@ static int alloc_targets(struct dm_table *t, unsigned int num)
 	return 0;
 }
 
-int dm_table_create(struct dm_table **result, int mode,
+int dm_table_create(struct dm_table **result, fmode_t mode,
 		    unsigned num_targets, struct mapped_device *md)
 {
 	struct dm_table *t = kzalloc(sizeof(*t), GFP_KERNEL);
@@ -395,7 +395,7 @@ static int check_device_area(struct dm_dev_internal *dd, sector_t start,
  * careful to leave things as they were if we fail to reopen the
  * device.
  */
-static int upgrade_mode(struct dm_dev_internal *dd, int new_mode,
+static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
 			struct mapped_device *md)
 {
 	int r;
@@ -421,7 +421,7 @@ static int upgrade_mode(struct dm_dev_internal *dd, int new_mode,
  */
 static int __table_get_device(struct dm_table *t, struct dm_target *ti,
 			      const char *path, sector_t start, sector_t len,
-			      int mode, struct dm_dev **result)
+			      fmode_t mode, struct dm_dev **result)
 {
 	int r;
 	dev_t uninitialized_var(dev);
@@ -537,7 +537,7 @@ void dm_set_device_limits(struct dm_target *ti, struct block_device *bdev)
 EXPORT_SYMBOL_GPL(dm_set_device_limits);
 
 int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
-		  sector_t len, int mode, struct dm_dev **result)
+		  sector_t len, fmode_t mode, struct dm_dev **result)
 {
 	int r = __table_get_device(ti->table, ti, path,
 				   start, len, mode, result);
@@ -887,7 +887,7 @@ struct list_head *dm_table_get_devices(struct dm_table *t)
 	return &t->devices;
 }
 
-int dm_table_get_mode(struct dm_table *t)
+fmode_t dm_table_get_mode(struct dm_table *t)
 {
 	return t->mode;
 }

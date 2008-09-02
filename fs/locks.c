@@ -1580,7 +1580,8 @@ asmlinkage long sys_flock(unsigned int fd, unsigned int cmd)
 	cmd &= ~LOCK_NB;
 	unlock = (cmd == LOCK_UN);
 
-	if (!unlock && !(cmd & LOCK_MAND) && !(filp->f_mode & 3))
+	if (!unlock && !(cmd & LOCK_MAND) &&
+	    !(filp->f_mode & (FMODE_READ|FMODE_WRITE)))
 		goto out_putf;
 
 	error = flock_make_lock(filp, &lock, cmd);

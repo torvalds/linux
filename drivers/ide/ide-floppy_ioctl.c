@@ -250,7 +250,7 @@ static int ide_floppy_format_ioctl(ide_drive_t *drive, struct file *file,
 	case IDEFLOPPY_IOCTL_FORMAT_GET_CAPACITY:
 		return ide_floppy_get_format_capacities(drive, argp);
 	case IDEFLOPPY_IOCTL_FORMAT_START:
-		if (!(file->f_mode & 2))
+		if (!(file->f_mode & FMODE_WRITE))
 			return -EPERM;
 		return ide_floppy_format_unit(drive, (int __user *)argp);
 	case IDEFLOPPY_IOCTL_FORMAT_GET_PROGRESS:
