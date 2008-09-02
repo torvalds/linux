@@ -719,8 +719,8 @@ extern int blk_remove_plug(struct request_queue *);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct request_queue *,
 			  struct gendisk *, unsigned int, void __user *);
-extern int sg_scsi_ioctl(struct file *, struct request_queue *,
-		struct gendisk *, struct scsi_ioctl_command __user *);
+extern int sg_scsi_ioctl(struct request_queue *, struct gendisk *, fmode_t,
+			 struct scsi_ioctl_command __user *);
 
 /*
  * Temporary export, until SCSI gets fixed up.

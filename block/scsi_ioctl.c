@@ -379,12 +379,11 @@ out:
  *      bytes in one int) where the lowest byte is the SCSI status.
  */
 #define OMAX_SB_LEN 16          /* For backward compatibility */
-int sg_scsi_ioctl(struct file *file, struct request_queue *q,
-		  struct gendisk *disk, struct scsi_ioctl_command __user *sic)
+int sg_scsi_ioctl(struct request_queue *q, struct gendisk *disk, fmode_t mode,
+		struct scsi_ioctl_command __user *sic)
 {
 	struct request *rq;
 	int err;
-	fmode_t write_perm = 0;
 	unsigned int in_len, out_len, bytes, opcode, cmdlen;
 	char *buffer = NULL, sense[SCSI_SENSE_BUFFERSIZE];
 
@@ -426,11 +425,7 @@ int sg_scsi_ioctl(struct file *file, struct request_queue *q,
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
-	/* scsi_ioctl passes NULL */
-	if (file && (file->f_mode & FMODE_WRITE))
-		write_perm = FMODE_WRITE;
-
-	err = blk_verify_command(&q->cmd_filter, rq->cmd, write_perm);
+	err = blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE);
 	if (err)
 		goto error;
 
@@ -636,7 +631,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			if (!arg)
 				break;
 
-			err = sg_scsi_ioctl(file, q, bd_disk, arg);
+			err = sg_scsi_ioctl(q, bd_disk, file ? file->f_mode : 0, arg);
 			break;
 		case CDROMCLOSETRAY:
 			err = blk_send_start_stop(q, bd_disk, 0x03);

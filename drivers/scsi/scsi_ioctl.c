@@ -237,7 +237,7 @@ int scsi_ioctl(struct scsi_device *sdev, int cmd, void __user *arg)
 	case SCSI_IOCTL_SEND_COMMAND:
 		if (!capable(CAP_SYS_ADMIN) || !capable(CAP_SYS_RAWIO))
 			return -EACCES;
-		return sg_scsi_ioctl(NULL, sdev->request_queue, NULL, arg);
+		return sg_scsi_ioctl(sdev->request_queue, NULL, 0, arg);
 	case SCSI_IOCTL_DOORLOCK:
 		return scsi_set_medium_removal(sdev, SCSI_REMOVAL_PREVENT);
 	case SCSI_IOCTL_DOORUNLOCK:
