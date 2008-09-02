@@ -14066,6 +14066,13 @@ static struct hda_verb alc662_auto_init_verbs[] = {
 	{ }
 };
 
+/* additional verbs for ALC663 */
+static struct hda_verb alc663_auto_init_verbs[] = {
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(0)},
+	{0x0f, AC_VERB_SET_AMP_GAIN_MUTE, AMP_IN_UNMUTE(1)},
+	{ }
+};
+
 static struct hda_verb alc663_m51va_init_verbs[] = {
 	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_HP},
 	{0x21, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
@@ -14594,6 +14601,14 @@ static int alc662_auto_create_extra_out(struct alc_spec *spec, hda_nid_t pin,
 	if (!pin)
 		return 0;
 
+	if (pin == 0x17) {
+		/* ALC663 has a mono output pin on 0x17 */
+		sprintf(name, "%s Playback Switch", pfx);
+		err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+				  HDA_COMPOSE_AMP_VAL(pin, 2, 0, HDA_OUTPUT));
+		return err;
+	}
+
 	if (alc880_is_fixed_pin(pin)) {
 		nid = alc880_idx_to_dac(alc880_fixed_pin_idx(pin));
                 /* printk("DAC nid=%x\n",nid); */
@@ -14764,6 +14779,9 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux;
 	
 	spec->init_verbs[spec->num_init_verbs++] = alc662_auto_init_verbs;
+	if (codec->vendor_id == 0x10ec0663)
+		spec->init_verbs[spec->num_init_verbs++] =
+			alc663_auto_init_verbs;
 	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
 	spec->num_mixers++;
 	return 1;
