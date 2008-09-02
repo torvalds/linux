@@ -188,7 +188,6 @@ static ssize_t sg_new_write(Sg_fd *sfp, struct file *file,
 			int read_only, Sg_request **o_srp);
 static int sg_common_write(Sg_fd * sfp, Sg_request * srp,
 			   unsigned char *cmnd, int timeout, int blocking);
-static int sg_read_xfer(Sg_request * srp);
 static int sg_read_oxfer(Sg_request * srp, char __user *outp, int num_read_xfer);
 static void sg_remove_scat(Sg_scatter_hold * schp);
 static void sg_build_reserve(Sg_fd * sfp, int req_size);
@@ -523,8 +522,11 @@ sg_new_read(Sg_fd * sfp, char __user *buf, size_t count, Sg_request * srp)
 		err = -EFAULT;
 		goto err_out;
 	}
-	err = sg_read_xfer(srp);
-      err_out:
+	if (srp->bio) {
+		err = blk_rq_unmap_user(srp->bio);
+		srp->bio = NULL;
+	}
+err_out:
 	sg_finish_rem_req(srp);
 	return (0 == err) ? count : err;
 }
@@ -1829,31 +1831,6 @@ sg_remove_scat(Sg_scatter_hold * schp)
 		}
 	}
 	memset(schp, 0, sizeof (*schp));
-}
-
-static int
-sg_read_xfer(Sg_request * srp)
-{
-	sg_io_hdr_t *hp = &srp->header;
-	Sg_scatter_hold *schp = &srp->data;
-	int num_xfer = 0;
-	int dxfer_dir = hp->dxfer_direction;
-	int new_interface = ('\0' == hp->interface_id) ? 0 : 1;
-
-	if ((SG_DXFER_UNKNOWN == dxfer_dir) || (SG_DXFER_FROM_DEV == dxfer_dir)
-	    || (SG_DXFER_TO_FROM_DEV == dxfer_dir)) {
-		num_xfer = hp->dxfer_len;
-		if (schp->bufflen < num_xfer)
-			num_xfer = schp->bufflen;
-	}
-	if ((num_xfer <= 0) || (schp->dio_in_use) ||
-	    (new_interface
-	     && ((SG_FLAG_NO_DXFER | SG_FLAG_MMAP_IO) & hp->flags)))
-		return 0;
-
-	SCSI_LOG_TIMEOUT(4, printk("sg_read_xfer: num_xfer=%d, iovec_count=%d, k_use_sg=%d\n",
-			  num_xfer, (int)hp->iovec_count, schp->k_use_sg));
-	return 0;
 }
 
 static int
