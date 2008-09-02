@@ -949,6 +949,7 @@ EXPORT_SYMBOL(alloc_pci_dev);
 static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 {
 	struct pci_dev *dev;
+	struct pci_slot *slot;
 	u32 l;
 	u8 hdr_type;
 	int delay = 1;
@@ -996,6 +997,10 @@ static struct pci_dev *pci_scan_device(struct pci_bus *bus, int devfn)
 	dev->cfg_size = pci_cfg_space_size(dev);
 	dev->error_state = pci_channel_io_normal;
 	set_pcie_port_type(dev);
+
+	list_for_each_entry(slot, &bus->slots, list)
+		if (PCI_SLOT(devfn) == slot->number)
+			dev->slot = slot;
 
 	/* Assume 32-bit PCI; let 64-bit PCI cards (which are far rarer)
 	   set this higher, assuming the system even supports it.  */
