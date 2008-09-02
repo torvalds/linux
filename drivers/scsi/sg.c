@@ -188,7 +188,6 @@ static ssize_t sg_new_write(Sg_fd *sfp, struct file *file,
 			int read_only, Sg_request **o_srp);
 static int sg_common_write(Sg_fd * sfp, Sg_request * srp,
 			   unsigned char *cmnd, int timeout, int blocking);
-static int sg_write_xfer(Sg_request * srp);
 static int sg_read_xfer(Sg_request * srp);
 static int sg_read_oxfer(Sg_request * srp, char __user *outp, int num_read_xfer);
 static void sg_remove_scat(Sg_scatter_hold * schp);
@@ -735,11 +734,6 @@ sg_common_write(Sg_fd * sfp, Sg_request * srp,
 		SCSI_LOG_TIMEOUT(1, printk("sg_common_write: start_req err=%d\n", k));
 		sg_finish_rem_req(srp);
 		return k;	/* probably out of space --> ENOMEM */
-	}
-	if ((k = sg_write_xfer(srp))) {
-		SCSI_LOG_TIMEOUT(1, printk("sg_common_write: write_xfer, bad address\n"));
-		sg_finish_rem_req(srp);
-		return k;
 	}
 	if (sdp->detached) {
 		sg_finish_rem_req(srp);
@@ -1814,32 +1808,6 @@ out:
 		goto retry;
 
 	return -ENOMEM;
-}
-
-static int
-sg_write_xfer(Sg_request * srp)
-{
-	sg_io_hdr_t *hp = &srp->header;
-	Sg_scatter_hold *schp = &srp->data;
-	int num_xfer = 0;
-	int dxfer_dir = hp->dxfer_direction;
-	int new_interface = ('\0' == hp->interface_id) ? 0 : 1;
-
-	if ((SG_DXFER_UNKNOWN == dxfer_dir) || (SG_DXFER_TO_DEV == dxfer_dir) ||
-	    (SG_DXFER_TO_FROM_DEV == dxfer_dir)) {
-		num_xfer = (int) (new_interface ? hp->dxfer_len : hp->flags);
-		if (schp->bufflen < num_xfer)
-			num_xfer = schp->bufflen;
-	}
-	if ((num_xfer <= 0) || (schp->dio_in_use) ||
-	    (new_interface
-	     && ((SG_FLAG_NO_DXFER | SG_FLAG_MMAP_IO) & hp->flags)))
-		return 0;
-
-	SCSI_LOG_TIMEOUT(4, printk("sg_write_xfer: num_xfer=%d, k_use_sg=%d\n",
-			  num_xfer, schp->k_use_sg));
-
-	return 0;
 }
 
 static void
