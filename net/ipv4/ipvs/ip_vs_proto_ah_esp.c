@@ -125,8 +125,8 @@ ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 
 static void
-ah_esp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
-		    int offset, const char *msg)
+ah_esp_debug_packet_v4(struct ip_vs_protocol *pp, const struct sk_buff *skb,
+		       int offset, const char *msg)
 {
 	char buf[256];
 	struct iphdr _iph, *ih;
@@ -140,6 +140,38 @@ ah_esp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 			NIPQUAD(ih->daddr));
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
+}
+
+#ifdef CONFIG_IP_VS_IPV6
+static void
+ah_esp_debug_packet_v6(struct ip_vs_protocol *pp, const struct sk_buff *skb,
+		       int offset, const char *msg)
+{
+	char buf[256];
+	struct ipv6hdr _iph, *ih;
+
+	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
+	if (ih == NULL)
+		sprintf(buf, "%s TRUNCATED", pp->name);
+	else
+		sprintf(buf, "%s " NIP6_FMT "->" NIP6_FMT,
+			pp->name, NIP6(ih->saddr),
+			NIP6(ih->daddr));
+
+	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
+}
+#endif
+
+static void
+ah_esp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
+		    int offset, const char *msg)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (skb->protocol == __constant_htons(ETH_P_IPV6))
+		ah_esp_debug_packet_v6(pp, skb, offset, msg);
+	else
+#endif
+		ah_esp_debug_packet_v4(pp, skb, offset, msg);
 }
 
 
