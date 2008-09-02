@@ -256,9 +256,9 @@ void ip_vs_sync_conn(struct ip_vs_conn *cp)
 	s->cport = cp->cport;
 	s->vport = cp->vport;
 	s->dport = cp->dport;
-	s->caddr = cp->caddr;
-	s->vaddr = cp->vaddr;
-	s->daddr = cp->daddr;
+	s->caddr = cp->caddr.ip;
+	s->vaddr = cp->vaddr.ip;
+	s->daddr = cp->daddr.ip;
 	s->flags = htons(cp->flags & ~IP_VS_CONN_F_HASHED);
 	s->state = htons(cp->state);
 	if (cp->flags & IP_VS_CONN_F_SEQ_MASK) {

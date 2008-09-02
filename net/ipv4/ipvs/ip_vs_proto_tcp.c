@@ -147,7 +147,7 @@ tcp_snat_handler(struct sk_buff *skb,
 	/* Adjust TCP checksums */
 	if (!cp->app) {
 		/* Only port and addr are changed, do fast csum update */
-		tcp_fast_csum_update(tcph, cp->daddr, cp->vaddr,
+		tcp_fast_csum_update(tcph, cp->daddr.ip, cp->vaddr.ip,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = CHECKSUM_NONE;
@@ -155,7 +155,7 @@ tcp_snat_handler(struct sk_buff *skb,
 		/* full checksum calculation */
 		tcph->check = 0;
 		skb->csum = skb_checksum(skb, tcphoff, skb->len - tcphoff, 0);
-		tcph->check = csum_tcpudp_magic(cp->vaddr, cp->caddr,
+		tcph->check = csum_tcpudp_magic(cp->vaddr.ip, cp->caddr.ip,
 						skb->len - tcphoff,
 						cp->protocol, skb->csum);
 		IP_VS_DBG(11, "O-pkt: %s O-csum=%d (+%zd)\n",
@@ -198,7 +198,7 @@ tcp_dnat_handler(struct sk_buff *skb,
 	 */
 	if (!cp->app) {
 		/* Only port and addr are changed, do fast csum update */
-		tcp_fast_csum_update(tcph, cp->vaddr, cp->daddr,
+		tcp_fast_csum_update(tcph, cp->vaddr.ip, cp->daddr.ip,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = CHECKSUM_NONE;
@@ -206,7 +206,7 @@ tcp_dnat_handler(struct sk_buff *skb,
 		/* full checksum calculation */
 		tcph->check = 0;
 		skb->csum = skb_checksum(skb, tcphoff, skb->len - tcphoff, 0);
-		tcph->check = csum_tcpudp_magic(cp->caddr, cp->daddr,
+		tcph->check = csum_tcpudp_magic(cp->caddr.ip, cp->daddr.ip,
 						skb->len - tcphoff,
 						cp->protocol, skb->csum);
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
@@ -427,8 +427,8 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 			  th->fin? 'F' : '.',
 			  th->ack? 'A' : '.',
 			  th->rst? 'R' : '.',
-			  NIPQUAD(cp->daddr), ntohs(cp->dport),
-			  NIPQUAD(cp->caddr), ntohs(cp->cport),
+			  NIPQUAD(cp->daddr.ip), ntohs(cp->dport),
+			  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
 			  tcp_state_name(cp->state),
 			  tcp_state_name(new_state),
 			  atomic_read(&cp->refcnt));
@@ -549,8 +549,8 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 			IP_VS_DBG(9, "%s: Binding conn %u.%u.%u.%u:%u->"
 				  "%u.%u.%u.%u:%u to app %s on port %u\n",
 				  __func__,
-				  NIPQUAD(cp->caddr), ntohs(cp->cport),
-				  NIPQUAD(cp->vaddr), ntohs(cp->vport),
+				  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
+				  NIPQUAD(cp->vaddr.ip), ntohs(cp->vport),
 				  inc->name, ntohs(inc->port));
 			cp->app = inc;
 			if (inc->init_conn)

@@ -158,7 +158,7 @@ udp_snat_handler(struct sk_buff *skb,
 	 */
 	if (!cp->app && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
-		udp_fast_csum_update(udph, cp->daddr, cp->vaddr,
+		udp_fast_csum_update(udph, cp->daddr.ip, cp->vaddr.ip,
 				     cp->dport, cp->vport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = CHECKSUM_NONE;
@@ -166,7 +166,7 @@ udp_snat_handler(struct sk_buff *skb,
 		/* full checksum calculation */
 		udph->check = 0;
 		skb->csum = skb_checksum(skb, udphoff, skb->len - udphoff, 0);
-		udph->check = csum_tcpudp_magic(cp->vaddr, cp->caddr,
+		udph->check = csum_tcpudp_magic(cp->vaddr.ip, cp->caddr.ip,
 						skb->len - udphoff,
 						cp->protocol, skb->csum);
 		if (udph->check == 0)
@@ -211,7 +211,7 @@ udp_dnat_handler(struct sk_buff *skb,
 	 */
 	if (!cp->app && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
-		udp_fast_csum_update(udph, cp->vaddr, cp->daddr,
+		udp_fast_csum_update(udph, cp->vaddr.ip, cp->daddr.ip,
 				     cp->vport, cp->dport);
 		if (skb->ip_summed == CHECKSUM_COMPLETE)
 			skb->ip_summed = CHECKSUM_NONE;
@@ -219,7 +219,7 @@ udp_dnat_handler(struct sk_buff *skb,
 		/* full checksum calculation */
 		udph->check = 0;
 		skb->csum = skb_checksum(skb, udphoff, skb->len - udphoff, 0);
-		udph->check = csum_tcpudp_magic(cp->caddr, cp->daddr,
+		udph->check = csum_tcpudp_magic(cp->caddr.ip, cp->daddr.ip,
 						skb->len - udphoff,
 						cp->protocol, skb->csum);
 		if (udph->check == 0)
@@ -343,8 +343,8 @@ static int udp_app_conn_bind(struct ip_vs_conn *cp)
 			IP_VS_DBG(9, "%s: Binding conn %u.%u.%u.%u:%u->"
 				  "%u.%u.%u.%u:%u to app %s on port %u\n",
 				  __func__,
-				  NIPQUAD(cp->caddr), ntohs(cp->cport),
-				  NIPQUAD(cp->vaddr), ntohs(cp->vport),
+				  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
+				  NIPQUAD(cp->vaddr.ip), ntohs(cp->vport),
 				  inc->name, ntohs(inc->port));
 			cp->app = inc;
 			if (inc->init_conn)

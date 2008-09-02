@@ -172,17 +172,17 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 
 		IP_VS_DBG(7, "PASV response (%u.%u.%u.%u:%d) -> "
 			  "%u.%u.%u.%u:%d detected\n",
-			  NIPQUAD(from), ntohs(port), NIPQUAD(cp->caddr), 0);
+			  NIPQUAD(from), ntohs(port), NIPQUAD(cp->caddr.ip), 0);
 
 		/*
 		 * Now update or create an connection entry for it
 		 */
 		n_cp = ip_vs_conn_out_get(iph->protocol, from, port,
-					  cp->caddr, 0);
+					  cp->caddr.ip, 0);
 		if (!n_cp) {
 			n_cp = ip_vs_conn_new(IPPROTO_TCP,
-					      cp->caddr, 0,
-					      cp->vaddr, port,
+					      cp->caddr.ip, 0,
+					      cp->vaddr.ip, port,
 					      from, port,
 					      IP_VS_CONN_F_NO_CPORT,
 					      cp->dest);
@@ -196,7 +196,7 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		/*
 		 * Replace the old passive address with the new one
 		 */
-		from = n_cp->vaddr;
+		from = n_cp->vaddr.ip;
 		port = n_cp->vport;
 		sprintf(buf,"%d,%d,%d,%d,%d,%d", NIPQUAD(from),
 			(ntohs(port)>>8)&255, ntohs(port)&255);
@@ -306,16 +306,16 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	 */
 	IP_VS_DBG(7, "protocol %s %u.%u.%u.%u:%d %u.%u.%u.%u:%d\n",
 		  ip_vs_proto_name(iph->protocol),
-		  NIPQUAD(to), ntohs(port), NIPQUAD(cp->vaddr), 0);
+		  NIPQUAD(to), ntohs(port), NIPQUAD(cp->vaddr.ip), 0);
 
 	n_cp = ip_vs_conn_in_get(iph->protocol,
 				 to, port,
-				 cp->vaddr, htons(ntohs(cp->vport)-1));
+				 cp->vaddr.ip, htons(ntohs(cp->vport)-1));
 	if (!n_cp) {
 		n_cp = ip_vs_conn_new(IPPROTO_TCP,
 				      to, port,
-				      cp->vaddr, htons(ntohs(cp->vport)-1),
-				      cp->daddr, htons(ntohs(cp->dport)-1),
+				      cp->vaddr.ip, htons(ntohs(cp->vport)-1),
+				      cp->daddr.ip, htons(ntohs(cp->dport)-1),
 				      0,
 				      cp->dest);
 		if (!n_cp)

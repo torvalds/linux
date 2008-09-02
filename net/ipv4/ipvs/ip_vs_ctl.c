@@ -317,7 +317,8 @@ static int ip_vs_svc_hash(struct ip_vs_service *svc)
 		/*
 		 *  Hash it by <protocol,addr,port> in ip_vs_svc_table
 		 */
-		hash = ip_vs_svc_hashkey(svc->protocol, svc->addr, svc->port);
+		hash = ip_vs_svc_hashkey(svc->protocol, svc->addr.ip,
+					 svc->port);
 		list_add(&svc->s_list, &ip_vs_svc_table[hash]);
 	} else {
 		/*
@@ -373,7 +374,7 @@ __ip_vs_service_get(__u16 protocol, __be32 vaddr, __be16 vport)
 	hash = ip_vs_svc_hashkey(protocol, vaddr, vport);
 
 	list_for_each_entry(svc, &ip_vs_svc_table[hash], s_list){
-		if ((svc->addr == vaddr)
+		if ((svc->addr.ip == vaddr)
 		    && (svc->port == vport)
 		    && (svc->protocol == protocol)) {
 			/* HIT */
@@ -503,7 +504,7 @@ static int ip_vs_rs_hash(struct ip_vs_dest *dest)
 	 *	Hash by proto,addr,port,
 	 *	which are the parameters of the real service.
 	 */
-	hash = ip_vs_rs_hashkey(dest->addr, dest->port);
+	hash = ip_vs_rs_hashkey(dest->addr.ip, dest->port);
 	list_add(&dest->d_list, &ip_vs_rtable[hash]);
 
 	return 1;
@@ -543,7 +544,7 @@ ip_vs_lookup_real_service(__u16 protocol, __be32 daddr, __be16 dport)
 
 	read_lock(&__ip_vs_rs_lock);
 	list_for_each_entry(dest, &ip_vs_rtable[hash], d_list) {
-		if ((dest->addr == daddr)
+		if ((dest->addr.ip == daddr)
 		    && (dest->port == dport)
 		    && ((dest->protocol == protocol) ||
 			dest->vfwmark)) {
@@ -569,7 +570,7 @@ ip_vs_lookup_dest(struct ip_vs_service *svc, __be32 daddr, __be16 dport)
 	 * Find the destination for the given service
 	 */
 	list_for_each_entry(dest, &svc->destinations, n_list) {
-		if ((dest->addr == daddr) && (dest->port == dport)) {
+		if ((dest->addr.ip == daddr) && (dest->port == dport)) {
 			/* HIT */
 			return dest;
 		}
@@ -626,14 +627,14 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, __be32 daddr, __be16 dport)
 		IP_VS_DBG(3, "Destination %u/%u.%u.%u.%u:%u still in trash, "
 			  "dest->refcnt=%d\n",
 			  dest->vfwmark,
-			  NIPQUAD(dest->addr), ntohs(dest->port),
+			  NIPQUAD(dest->addr.ip), ntohs(dest->port),
 			  atomic_read(&dest->refcnt));
-		if (dest->addr == daddr &&
+		if (dest->addr.ip == daddr &&
 		    dest->port == dport &&
 		    dest->vfwmark == svc->fwmark &&
 		    dest->protocol == svc->protocol &&
 		    (svc->fwmark ||
-		     (dest->vaddr == svc->addr &&
+		     (dest->vaddr.ip == svc->addr.ip &&
 		      dest->vport == svc->port))) {
 			/* HIT */
 			return dest;
@@ -646,7 +647,7 @@ ip_vs_trash_get_dest(struct ip_vs_service *svc, __be32 daddr, __be16 dport)
 			IP_VS_DBG(3, "Removing destination %u/%u.%u.%u.%u:%u "
 				  "from trash\n",
 				  dest->vfwmark,
-				  NIPQUAD(dest->addr), ntohs(dest->port));
+				  NIPQUAD(dest->addr.ip), ntohs(dest->port));
 			list_del(&dest->n_list);
 			ip_vs_dst_reset(dest);
 			__ip_vs_unbind_svc(dest);
@@ -779,10 +780,10 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest,
 	}
 
 	dest->protocol = svc->protocol;
-	dest->vaddr = svc->addr;
+	dest->vaddr.ip = svc->addr.ip;
 	dest->vport = svc->port;
 	dest->vfwmark = svc->fwmark;
-	dest->addr = udest->addr;
+	dest->addr.ip = udest->addr;
 	dest->port = udest->port;
 
 	atomic_set(&dest->activeconns, 0);
@@ -847,7 +848,7 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user *udest)
 			  NIPQUAD(daddr), ntohs(dport),
 			  atomic_read(&dest->refcnt),
 			  dest->vfwmark,
-			  NIPQUAD(dest->vaddr),
+			  NIPQUAD(dest->vaddr.ip),
 			  ntohs(dest->vport));
 		__ip_vs_update_dest(svc, dest, udest);
 
@@ -993,7 +994,7 @@ static void __ip_vs_del_dest(struct ip_vs_dest *dest)
 	} else {
 		IP_VS_DBG(3, "Moving dest %u.%u.%u.%u:%u into trash, "
 			  "dest->refcnt=%d\n",
-			  NIPQUAD(dest->addr), ntohs(dest->port),
+			  NIPQUAD(dest->addr.ip), ntohs(dest->port),
 			  atomic_read(&dest->refcnt));
 		list_add(&dest->n_list, &ip_vs_dest_trash);
 		atomic_inc(&dest->refcnt);
@@ -1101,7 +1102,7 @@ ip_vs_add_service(struct ip_vs_service_user *u, struct ip_vs_service **svc_p)
 	atomic_set(&svc->refcnt, 0);
 
 	svc->protocol = u->protocol;
-	svc->addr = u->addr;
+	svc->addr.ip = u->addr;
 	svc->port = u->port;
 	svc->fwmark = u->fwmark;
 	svc->flags = u->flags;
@@ -1751,7 +1752,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		if (iter->table == ip_vs_svc_table)
 			seq_printf(seq, "%s  %08X:%04X %s ",
 				   ip_vs_proto_name(svc->protocol),
-				   ntohl(svc->addr),
+				   ntohl(svc->addr.ip),
 				   ntohs(svc->port),
 				   svc->scheduler->name);
 		else
@@ -1768,7 +1769,7 @@ static int ip_vs_info_seq_show(struct seq_file *seq, void *v)
 		list_for_each_entry(dest, &svc->destinations, n_list) {
 			seq_printf(seq,
 				   "  -> %08X:%04X      %-7s %-6d %-10d %-10d\n",
-				   ntohl(dest->addr), ntohs(dest->port),
+				   ntohl(dest->addr.ip), ntohs(dest->port),
 				   ip_vs_fwd_name(atomic_read(&dest->conn_flags)),
 				   atomic_read(&dest->weight),
 				   atomic_read(&dest->activeconns),
@@ -2040,7 +2041,7 @@ static void
 ip_vs_copy_service(struct ip_vs_service_entry *dst, struct ip_vs_service *src)
 {
 	dst->protocol = src->protocol;
-	dst->addr = src->addr;
+	dst->addr = src->addr.ip;
 	dst->port = src->port;
 	dst->fwmark = src->fwmark;
 	strlcpy(dst->sched_name, src->scheduler->name, sizeof(dst->sched_name));
@@ -2114,7 +2115,7 @@ __ip_vs_get_dest_entries(const struct ip_vs_get_dests *get,
 			if (count >= get->num_dests)
 				break;
 
-			entry.addr = dest->addr;
+			entry.addr = dest->addr.ip;
 			entry.port = dest->port;
 			entry.conn_flags = atomic_read(&dest->conn_flags);
 			entry.weight = atomic_read(&dest->weight);

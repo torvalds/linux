@@ -21,6 +21,9 @@
 #include <linux/timer.h>
 
 #include <net/checksum.h>
+#include <linux/netfilter.h>		/* for union nf_inet_addr */
+#include <linux/ipv6.h>			/* for struct ipv6hdr */
+#include <net/ipv6.h>			/* for ipv6_addr_copy */
 
 #ifdef CONFIG_IP_VS_DEBUG
 #include <linux/net.h>
@@ -259,9 +262,10 @@ struct ip_vs_conn {
 	struct list_head        c_list;         /* hashed list heads */
 
 	/* Protocol, addresses and port numbers */
-	__be32                   caddr;          /* client address */
-	__be32                   vaddr;          /* virtual address */
-	__be32                   daddr;          /* destination address */
+	u16                      af;		/* address family */
+	union nf_inet_addr       caddr;          /* client address */
+	union nf_inet_addr       vaddr;          /* virtual address */
+	union nf_inet_addr       daddr;          /* destination address */
 	__be16                   cport;
 	__be16                   vport;
 	__be16                   dport;
@@ -314,8 +318,9 @@ struct ip_vs_service {
 	atomic_t		refcnt;   /* reference counter */
 	atomic_t		usecnt;   /* use counter */
 
+	u16			af;       /* address family */
 	__u16			protocol; /* which protocol (TCP/UDP) */
-	__be32			addr;	  /* IP address for virtual service */
+	union nf_inet_addr	addr;	  /* IP address for virtual service */
 	__be16			port;	  /* port number for the service */
 	__u32                   fwmark;   /* firewall mark of the service */
 	unsigned		flags;	  /* service status flags */
@@ -342,7 +347,8 @@ struct ip_vs_dest {
 	struct list_head	n_list;   /* for the dests in the service */
 	struct list_head	d_list;   /* for table with all the dests */
 
-	__be32			addr;		/* IP address of the server */
+	u16			af;		/* address family */
+	union nf_inet_addr	addr;		/* IP address of the server */
 	__be16			port;		/* port number of the server */
 	volatile unsigned	flags;		/* dest status flags */
 	atomic_t		conn_flags;	/* flags to copy to conn */
@@ -366,7 +372,7 @@ struct ip_vs_dest {
 	/* for virtual service */
 	struct ip_vs_service	*svc;		/* service it belongs to */
 	__u16			protocol;	/* which protocol (TCP/UDP) */
-	__be32			vaddr;		/* virtual IP address */
+	union nf_inet_addr	vaddr;		/* virtual IP address */
 	__be16			vport;		/* virtual port number */
 	__u32			vfwmark;	/* firewall mark of service */
 };

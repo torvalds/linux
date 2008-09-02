@@ -76,7 +76,7 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	write_unlock(&svc->sched_lock);
 	IP_VS_DBG(6, "RR: server %u.%u.%u.%u:%u "
 		  "activeconns %d refcnt %d weight %d\n",
-		  NIPQUAD(dest->addr), ntohs(dest->port),
+		  NIPQUAD(dest->addr.ip), ntohs(dest->port),
 		  atomic_read(&dest->activeconns),
 		  atomic_read(&dest->refcnt), atomic_read(&dest->weight));
 

@@ -197,7 +197,7 @@ ip_vs_wrr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	IP_VS_DBG(6, "WRR: server %u.%u.%u.%u:%u "
 		  "activeconns %d refcnt %d weight %d\n",
-		  NIPQUAD(dest->addr), ntohs(dest->port),
+		  NIPQUAD(dest->addr.ip), ntohs(dest->port),
 		  atomic_read(&dest->activeconns),
 		  atomic_read(&dest->refcnt),
 		  atomic_read(&dest->weight));

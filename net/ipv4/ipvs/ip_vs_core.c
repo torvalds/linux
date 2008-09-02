@@ -232,14 +232,14 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 						    snet, 0,
 						    iph->daddr,
 						    ports[1],
-						    dest->addr, dest->port,
+						    dest->addr.ip, dest->port,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			else
 				ct = ip_vs_conn_new(iph->protocol,
 						    snet, 0,
 						    iph->daddr, 0,
-						    dest->addr, 0,
+						    dest->addr.ip, 0,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			if (ct == NULL)
@@ -286,14 +286,14 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 				ct = ip_vs_conn_new(IPPROTO_IP,
 						    snet, 0,
 						    htonl(svc->fwmark), 0,
-						    dest->addr, 0,
+						    dest->addr.ip, 0,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			else
 				ct = ip_vs_conn_new(iph->protocol,
 						    snet, 0,
 						    iph->daddr, 0,
-						    dest->addr, 0,
+						    dest->addr.ip, 0,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			if (ct == NULL)
@@ -313,7 +313,7 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	cp = ip_vs_conn_new(iph->protocol,
 			    iph->saddr, ports[0],
 			    iph->daddr, ports[1],
-			    dest->addr, dport,
+			    dest->addr.ip, dport,
 			    0,
 			    dest);
 	if (cp == NULL) {
@@ -380,7 +380,7 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	cp = ip_vs_conn_new(iph->protocol,
 			    iph->saddr, pptr[0],
 			    iph->daddr, pptr[1],
-			    dest->addr, dest->port?dest->port:pptr[1],
+			    dest->addr.ip, dest->port ? dest->port : pptr[1],
 			    0,
 			    dest);
 	if (cp == NULL)
@@ -389,9 +389,9 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	IP_VS_DBG(6, "Schedule fwd:%c c:%u.%u.%u.%u:%u v:%u.%u.%u.%u:%u "
 		  "d:%u.%u.%u.%u:%u conn->flags:%X conn->refcnt:%d\n",
 		  ip_vs_fwd_tag(cp),
-		  NIPQUAD(cp->caddr), ntohs(cp->cport),
-		  NIPQUAD(cp->vaddr), ntohs(cp->vport),
-		  NIPQUAD(cp->daddr), ntohs(cp->dport),
+		  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
+		  NIPQUAD(cp->vaddr.ip), ntohs(cp->vport),
+		  NIPQUAD(cp->daddr.ip), ntohs(cp->dport),
 		  cp->flags, atomic_read(&cp->refcnt));
 
 	ip_vs_conn_stats(cp, svc);
@@ -526,14 +526,14 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 	struct iphdr *ciph	 = (struct iphdr *)(icmph + 1);
 
 	if (inout) {
-		iph->saddr = cp->vaddr;
+		iph->saddr = cp->vaddr.ip;
 		ip_send_check(iph);
-		ciph->daddr = cp->vaddr;
+		ciph->daddr = cp->vaddr.ip;
 		ip_send_check(ciph);
 	} else {
-		iph->daddr = cp->daddr;
+		iph->daddr = cp->daddr.ip;
 		ip_send_check(iph);
-		ciph->saddr = cp->daddr;
+		ciph->saddr = cp->daddr.ip;
 		ip_send_check(ciph);
 	}
 
@@ -762,7 +762,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 	/* mangle the packet */
 	if (pp->snat_handler && !pp->snat_handler(skb, pp, cp))
 		goto drop;
-	ip_hdr(skb)->saddr = cp->vaddr;
+	ip_hdr(skb)->saddr = cp->vaddr.ip;
 	ip_send_check(ip_hdr(skb));
 
 	/* For policy routing, packets originating from this

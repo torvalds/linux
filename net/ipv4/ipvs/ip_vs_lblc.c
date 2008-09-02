@@ -422,7 +422,7 @@ __ip_vs_lblc_schedule(struct ip_vs_service *svc, struct iphdr *iph)
 
 	IP_VS_DBG(6, "LBLC: server %d.%d.%d.%d:%d "
 		  "activeconns %d refcnt %d weight %d overhead %d\n",
-		  NIPQUAD(least->addr), ntohs(least->port),
+		  NIPQUAD(least->addr.ip), ntohs(least->port),
 		  atomic_read(&least->activeconns),
 		  atomic_read(&least->refcnt),
 		  atomic_read(&least->weight), loh);
@@ -506,7 +506,7 @@ out:
 	IP_VS_DBG(6, "LBLC: destination IP address %u.%u.%u.%u "
 		  "--> server %u.%u.%u.%u:%d\n",
 		  NIPQUAD(iph->daddr),
-		  NIPQUAD(dest->addr),
+		  NIPQUAD(dest->addr.ip),
 		  ntohs(dest->port));
 
 	return dest;

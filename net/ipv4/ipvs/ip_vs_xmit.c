@@ -71,7 +71,7 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 				.oif = 0,
 				.nl_u = {
 					.ip4_u = {
-						.daddr = dest->addr,
+						.daddr = dest->addr.ip,
 						.saddr = 0,
 						.tos = rtos, } },
 			};
@@ -80,12 +80,12 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 				spin_unlock(&dest->dst_lock);
 				IP_VS_DBG_RL("ip_route_output error, "
 					     "dest: %u.%u.%u.%u\n",
-					     NIPQUAD(dest->addr));
+					     NIPQUAD(dest->addr.ip));
 				return NULL;
 			}
 			__ip_vs_dst_set(dest, rtos, dst_clone(&rt->u.dst));
 			IP_VS_DBG(10, "new dst %u.%u.%u.%u, refcnt=%d, rtos=%X\n",
-				  NIPQUAD(dest->addr),
+				  NIPQUAD(dest->addr.ip),
 				  atomic_read(&rt->u.dst.__refcnt), rtos);
 		}
 		spin_unlock(&dest->dst_lock);
@@ -94,14 +94,14 @@ __ip_vs_get_out_rt(struct ip_vs_conn *cp, u32 rtos)
 			.oif = 0,
 			.nl_u = {
 				.ip4_u = {
-					.daddr = cp->daddr,
+					.daddr = cp->daddr.ip,
 					.saddr = 0,
 					.tos = rtos, } },
 		};
 
 		if (ip_route_output_key(&init_net, &rt, &fl)) {
 			IP_VS_DBG_RL("ip_route_output error, dest: "
-				     "%u.%u.%u.%u\n", NIPQUAD(cp->daddr));
+				     "%u.%u.%u.%u\n", NIPQUAD(cp->daddr.ip));
 			return NULL;
 		}
 	}
@@ -264,7 +264,7 @@ ip_vs_nat_xmit(struct sk_buff *skb, struct ip_vs_conn *cp,
 	/* mangle the packet */
 	if (pp->dnat_handler && !pp->dnat_handler(skb, pp, cp))
 		goto tx_error;
-	ip_hdr(skb)->daddr = cp->daddr;
+	ip_hdr(skb)->daddr = cp->daddr.ip;
 	ip_send_check(ip_hdr(skb));
 
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After DNAT");

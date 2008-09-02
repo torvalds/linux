@@ -68,7 +68,7 @@ ip_vs_lc_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 
 	if (least)
 	IP_VS_DBG(6, "LC: server %u.%u.%u.%u:%u activeconns %d inactconns %d\n",
-		  NIPQUAD(least->addr), ntohs(least->port),
+		  NIPQUAD(least->addr.ip), ntohs(least->port),
 		  atomic_read(&least->activeconns),
 		  atomic_read(&least->inactconns));
 
