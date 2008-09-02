@@ -975,7 +975,6 @@ static void __init psycho_pbm_init(struct pci_controller_info *p,
 				   struct of_device *op, int is_pbm_a)
 {
 	struct device_node *dp = op->node;
-	struct property *prop;
 	struct pci_pbm_info *pbm;
 
 	if (is_pbm_a)
@@ -994,14 +993,8 @@ static void __init psycho_pbm_init(struct pci_controller_info *p,
 	pbm->index = pci_num_pbms++;
 
 	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
-	pbm->chip_version = 0;
-	prop = of_find_property(dp, "version#", NULL);
-	if (prop)
-		pbm->chip_version = *(int *) prop->value;
-	pbm->chip_revision = 0;
-	prop = of_find_property(dp, "module-revision#", NULL);
-	if (prop)
-		pbm->chip_revision = *(int *) prop->value;
+	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
+	pbm->chip_revision = of_getintprop_default(dp, "module-revision#", 0);
 
 	pbm->parent = p;
 	pbm->prom_node = dp;
@@ -1031,13 +1024,9 @@ static int __devinit psycho_probe(struct of_device *op,
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	int is_pbm_a, err;
-	const u32 *p32;
 	u32 upa_portid;
 
-	upa_portid = 0xff;
-	p32 = of_get_property(dp, "upa-portid", NULL);
-	if (p32)
-		upa_portid = *p32;
+	upa_portid = of_getintprop_default(dp, "upa-portid", 0xff);
 
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		struct pci_controller_info *p = pbm->parent;
