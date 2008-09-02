@@ -46,7 +46,6 @@
 #include <asm/tsb.h>
 #include <asm/hypervisor.h>
 #include <asm/prom.h>
-#include <asm/sstate.h>
 #include <asm/mdesc.h>
 #include <asm/cpudata.h>
 #include <asm/irq.h>
@@ -1716,8 +1715,6 @@ void __init paging_init(void)
 
 	kern_base = (prom_boot_mapping_phys_low >> 22UL) << 22UL;
 	kern_size = (unsigned long)&_end - (unsigned long)KERNBASE;
-
-	sstate_booting();
 
 	/* Invalidate both kernel TSBs.  */
 	memset(swapper_tsb, 0x40, sizeof(swapper_tsb));

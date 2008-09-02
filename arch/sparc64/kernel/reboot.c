@@ -7,7 +7,6 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 
-#include <asm/sstate.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 
@@ -24,7 +23,6 @@ EXPORT_SYMBOL(pm_power_off);
 
 void machine_power_off(void)
 {
-	sstate_poweroff();
 	if (strcmp(of_console_device->type, "serial") || scons_pwroff)
 		prom_halt_power_off();
 
@@ -33,7 +31,6 @@ void machine_power_off(void)
 
 void machine_halt(void)
 {
-	sstate_halt();
 	prom_halt();
 	panic("Halt failed!");
 }
@@ -42,7 +39,6 @@ void machine_restart(char *cmd)
 {
 	char *p;
 
-	sstate_reboot();
 	p = strchr(reboot_command, '\n');
 	if (p)
 		*p = 0;

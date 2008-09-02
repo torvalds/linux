@@ -7,18 +7,11 @@
 #include <asm/cpudata.h>
 #endif
 
-#ifdef CONFIG_SPARC64
-#include <asm/sstate.h>
-#endif
-
 extern unsigned long loops_per_jiffy;
 
 static void __init check_bugs(void)
 {
 #if defined(CONFIG_SPARC32) && !defined(CONFIG_SMP)
 	cpu_data(0).udelay_val = loops_per_jiffy;
-#endif
-#ifdef CONFIG_SPARC64
-	sstate_running();
 #endif
 }
