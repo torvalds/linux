@@ -177,7 +177,7 @@ typedef struct sg_device { /* holds the state of each scsi generic device */
 
 static int sg_fasync(int fd, struct file *filp, int mode);
 /* tasklet or soft irq callback */
-static void sg_cmd_done(void *data, char *sense, int result, int resid);
+static void sg_rq_end_io(struct request *rq, int uptodate);
 static int sg_start_req(Sg_request *srp, unsigned char *cmd);
 static void sg_finish_rem_req(Sg_request * srp);
 static int sg_build_indirect(Sg_scatter_hold * schp, Sg_fd * sfp, int buff_size);
@@ -225,11 +225,6 @@ static int sg_allow_access(struct file *filp, unsigned char *cmd)
 
 	return blk_verify_command(&q->cmd_filter,
 				  cmd, filp->f_mode & FMODE_WRITE);
-}
-
-static void sg_rq_end_io(struct request *rq, int uptodate)
-{
-	sg_cmd_done(rq->end_io_data, rq->sense, rq->errors, rq->data_len);
 }
 
 static int
@@ -1257,16 +1252,19 @@ sg_mmap(struct file *filp, struct vm_area_struct *vma)
 	return 0;
 }
 
-/* This function is a "bottom half" handler that is called by the
- * mid level when a command is completed (or has failed). */
-static void
-sg_cmd_done(void *data, char *sense, int result, int resid)
+/*
+ * This function is a "bottom half" handler that is called by the mid
+ * level when a command is completed (or has failed).
+ */
+static void sg_rq_end_io(struct request *rq, int uptodate)
 {
-	Sg_request *srp = data;
+	struct sg_request *srp = rq->end_io_data;
 	Sg_device *sdp = NULL;
 	Sg_fd *sfp;
 	unsigned long iflags;
 	unsigned int ms;
+	char *sense;
+	int result, resid;
 
 	if (NULL == srp) {
 		printk(KERN_ERR "sg_cmd_done: NULL request\n");
@@ -1280,6 +1278,9 @@ sg_cmd_done(void *data, char *sense, int result, int resid)
 		return;
 	}
 
+	sense = rq->sense;
+	result = rq->errors;
+	resid = rq->data_len;
 
 	SCSI_LOG_TIMEOUT(4, printk("sg_cmd_done: %s, pack_id=%d, res=0x%x\n",
 		sdp->disk->disk_name, srp->header.pack_id, result));
