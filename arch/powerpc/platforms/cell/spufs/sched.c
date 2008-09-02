@@ -643,9 +643,10 @@ static struct spu *find_victim(struct spu_context *ctx)
 			    !(tmp->flags & SPU_CREATE_NOSCHED) &&
 			    (!victim || tmp->prio > victim->prio)) {
 				victim = spu->ctx;
-				get_spu_context(victim);
 			}
 		}
+		if (victim)
+			get_spu_context(victim);
 		mutex_unlock(&cbe_spu_info[node].list_mutex);
 
 		if (victim) {
