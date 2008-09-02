@@ -491,8 +491,9 @@ struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp)
 	struct ip_vs_dest *dest;
 
 	if ((cp) && (!cp->dest)) {
-		dest = ip_vs_find_dest(cp->daddr.ip, cp->dport,
-				       cp->vaddr.ip, cp->vport, cp->protocol);
+		dest = ip_vs_find_dest(cp->af, &cp->daddr, cp->dport,
+				       &cp->vaddr, cp->vport,
+				       cp->protocol);
 		ip_vs_bind_dest(cp, dest);
 		return dest;
 	} else

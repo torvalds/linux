@@ -804,14 +804,16 @@ static inline void ip_vs_service_put(struct ip_vs_service *svc)
 }
 
 extern struct ip_vs_dest *
-ip_vs_lookup_real_service(__u16 protocol, __be32 daddr, __be16 dport);
+ip_vs_lookup_real_service(int af, __u16 protocol,
+			  const union nf_inet_addr *daddr, __be16 dport);
+
 extern int ip_vs_use_count_inc(void);
 extern void ip_vs_use_count_dec(void);
 extern int ip_vs_control_init(void);
 extern void ip_vs_control_cleanup(void);
 extern struct ip_vs_dest *
-ip_vs_find_dest(__be32 daddr, __be16 dport,
-		 __be32 vaddr, __be16 vport, __u16 protocol);
+ip_vs_find_dest(int af, const union nf_inet_addr *daddr, __be16 dport,
+		const union nf_inet_addr *vaddr, __be16 vport, __u16 protocol);
 extern struct ip_vs_dest *ip_vs_try_bind_dest(struct ip_vs_conn *cp);
 
 

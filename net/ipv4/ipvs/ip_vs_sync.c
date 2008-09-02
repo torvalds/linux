@@ -383,8 +383,11 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 			 * If it is not found the connection will remain unbound
 			 * but still handled.
 			 */
-			dest = ip_vs_find_dest(s->daddr, s->dport,
-					       s->vaddr, s->vport,
+			dest = ip_vs_find_dest(AF_INET,
+					       (union nf_inet_addr *)&s->daddr,
+					       s->dport,
+					       (union nf_inet_addr *)&s->vaddr,
+					       s->vport,
 					       s->protocol);
 			/*  Set the approprite ativity flag */
 			if (s->protocol == IPPROTO_TCP) {

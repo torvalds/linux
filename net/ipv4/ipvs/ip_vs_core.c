@@ -957,8 +957,8 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 						  sizeof(_ports), _ports);
 			if (pptr == NULL)
 				return NF_ACCEPT;	/* Not for me */
-			if (ip_vs_lookup_real_service(iph.protocol,
-						      iph.saddr.ip,
+			if (ip_vs_lookup_real_service(af, iph.protocol,
+						      &iph.saddr,
 						      pptr[0])) {
 				/*
 				 * Notify the real server: there is no
