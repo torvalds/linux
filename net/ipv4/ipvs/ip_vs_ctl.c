@@ -1177,6 +1177,19 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 		goto out_mod_dec;
 	}
 
+#ifdef CONFIG_IP_VS_IPV6
+	if (u->af == AF_INET6) {
+		if (!sched->supports_ipv6) {
+			ret = -EAFNOSUPPORT;
+			goto out_err;
+		}
+		if ((u->netmask < 1) || (u->netmask > 128)) {
+			ret = -EINVAL;
+			goto out_err;
+		}
+	}
+#endif
+
 	svc = kzalloc(sizeof(struct ip_vs_service), GFP_ATOMIC);
 	if (svc == NULL) {
 		IP_VS_DBG(1, "ip_vs_add_service: kmalloc failed.\n");
@@ -1214,7 +1227,10 @@ ip_vs_add_service(struct ip_vs_service_user_kern *u,
 		atomic_inc(&ip_vs_nullsvc_counter);
 
 	ip_vs_new_estimator(&svc->stats);
-	ip_vs_num_services++;
+
+	/* Count only IPv4 services for old get/setsockopt interface */
+	if (svc->af == AF_INET)
+		ip_vs_num_services++;
 
 	/* Hash the service into the service table */
 	write_lock_bh(&__ip_vs_svc_lock);
@@ -1264,6 +1280,19 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		return -ENOENT;
 	}
 	old_sched = sched;
+
+#ifdef CONFIG_IP_VS_IPV6
+	if (u->af == AF_INET6) {
+		if (!sched->supports_ipv6) {
+			ret = EAFNOSUPPORT;
+			goto out;
+		}
+		if ((u->netmask < 1) || (u->netmask > 128)) {
+			ret = EINVAL;
+			goto out;
+		}
+	}
+#endif
 
 	write_lock_bh(&__ip_vs_svc_lock);
 
@@ -1329,7 +1358,10 @@ static void __ip_vs_del_service(struct ip_vs_service *svc)
 	struct ip_vs_dest *dest, *nxt;
 	struct ip_vs_scheduler *old_sched;
 
-	ip_vs_num_services--;
+	/* Count only IPv4 services for old get/setsockopt interface */
+	if (svc->af == AF_INET)
+		ip_vs_num_services--;
+
 	ip_vs_kill_estimator(&svc->stats);
 
 	/* Unbind scheduler */
@@ -2212,6 +2244,10 @@ __ip_vs_get_service_entries(const struct ip_vs_get_services *get,
 
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
 		list_for_each_entry(svc, &ip_vs_svc_table[idx], s_list) {
+			/* Only expose IPv4 entries to old interface */
+			if (svc->af != AF_INET)
+				continue;
+
 			if (count >= get->num_services)
 				goto out;
 			memset(&entry, 0, sizeof(entry));
@@ -2227,6 +2263,10 @@ __ip_vs_get_service_entries(const struct ip_vs_get_services *get,
 
 	for (idx = 0; idx < IP_VS_SVC_TAB_SIZE; idx++) {
 		list_for_each_entry(svc, &ip_vs_svc_fwm_table[idx], f_list) {
+			/* Only expose IPv4 entries to old interface */
+			if (svc->af != AF_INET)
+				continue;
+
 			if (count >= get->num_services)
 				goto out;
 			memset(&entry, 0, sizeof(entry));
@@ -2584,7 +2624,7 @@ static int ip_vs_genl_fill_service(struct sk_buff *skb,
 	if (!nl_service)
 		return -EMSGSIZE;
 
-	NLA_PUT_U16(skb, IPVS_SVC_ATTR_AF, AF_INET);
+	NLA_PUT_U16(skb, IPVS_SVC_ATTR_AF, svc->af);
 
 	if (svc->fwmark) {
 		NLA_PUT_U32(skb, IPVS_SVC_ATTR_FWMARK, svc->fwmark);
@@ -2691,8 +2731,11 @@ static int ip_vs_genl_parse_service(struct ip_vs_service_user_kern *usvc,
 		return -EINVAL;
 
 	usvc->af = nla_get_u16(nla_af);
-	/* For now, only support IPv4 */
-	if (nla_get_u16(nla_af) != AF_INET)
+#ifdef CONFIG_IP_VS_IPV6
+	if (usvc->af != AF_INET && usvc->af != AF_INET6)
+#else
+	if (usvc->af != AF_INET)
+#endif
 		return -EAFNOSUPPORT;
 
 	if (nla_fwmark) {
