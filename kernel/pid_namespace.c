@@ -179,12 +179,6 @@ void zap_pid_ns_processes(struct pid_namespace *pid_ns)
 		rc = sys_wait4(-1, NULL, __WALL, NULL);
 	} while (rc != -ECHILD);
 
-	/*
-	 * We can not clear ->child_reaper or leave it alone.
-	 * There may by stealth EXIT_DEAD tasks on ->children,
-	 * forget_original_parent() must move them somewhere.
-	 */
-	pid_ns->child_reaper = init_pid_ns.child_reaper;
 	acct_exit_ns(pid_ns);
 	return;
 }
