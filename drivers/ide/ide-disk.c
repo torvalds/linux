@@ -445,20 +445,6 @@ static void idedisk_check_hpa(ide_drive_t *drive)
 	}
 }
 
-/*
- * Compute drive->capacity, the full capacity of the drive
- * Called with drive->id != NULL.
- *
- * To compute capacity, this uses either of
- *
- *    1. CHS value set by user       (whatever user sets will be trusted)
- *    2. LBA value from target drive (require new ATA feature)
- *    3. LBA value from system BIOS  (new one is OK, old one may break)
- *    4. CHS value from system BIOS  (traditional style)
- *
- * in above order (i.e., if value of higher priority is available,
- * reset will be ignored).
- */
 static void init_idedisk_capacity(ide_drive_t *drive)
 {
 	struct hd_driveid *id = drive->id;
