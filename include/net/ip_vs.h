@@ -783,7 +783,8 @@ extern struct ip_vs_stats ip_vs_stats;
 extern const struct ctl_path net_vs_ctl_path[];
 
 extern struct ip_vs_service *
-ip_vs_service_get(__u32 fwmark, __u16 protocol, __be32 vaddr, __be16 vport);
+ip_vs_service_get(int af, __u32 fwmark, __u16 protocol,
+		  const union nf_inet_addr *vaddr, __be16 vport);
 
 static inline void ip_vs_service_put(struct ip_vs_service *svc)
 {

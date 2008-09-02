@@ -74,16 +74,19 @@ tcp_conn_schedule(struct sk_buff *skb,
 {
 	struct ip_vs_service *svc;
 	struct tcphdr _tcph, *th;
+	struct ip_vs_iphdr iph;
 
-	th = skb_header_pointer(skb, ip_hdrlen(skb), sizeof(_tcph), &_tcph);
+	ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
+
+	th = skb_header_pointer(skb, iph.len, sizeof(_tcph), &_tcph);
 	if (th == NULL) {
 		*verdict = NF_DROP;
 		return 0;
 	}
 
 	if (th->syn &&
-	    (svc = ip_vs_service_get(skb->mark, ip_hdr(skb)->protocol,
-				     ip_hdr(skb)->daddr, th->dest))) {
+	    (svc = ip_vs_service_get(AF_INET, skb->mark, iph.protocol,
+				     &iph.daddr, th->dest))) {
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.

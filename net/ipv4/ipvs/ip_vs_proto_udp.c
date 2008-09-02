@@ -80,16 +80,19 @@ udp_conn_schedule(struct sk_buff *skb, struct ip_vs_protocol *pp,
 {
 	struct ip_vs_service *svc;
 	struct udphdr _udph, *uh;
+	struct ip_vs_iphdr iph;
 
-	uh = skb_header_pointer(skb, ip_hdrlen(skb),
-				sizeof(_udph), &_udph);
+	ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
+
+	uh = skb_header_pointer(skb, iph.len, sizeof(_udph), &_udph);
 	if (uh == NULL) {
 		*verdict = NF_DROP;
 		return 0;
 	}
 
-	if ((svc = ip_vs_service_get(skb->mark, ip_hdr(skb)->protocol,
-				     ip_hdr(skb)->daddr, uh->dest))) {
+	svc = ip_vs_service_get(AF_INET, skb->mark, iph.protocol,
+				&iph.daddr, uh->dest);
+	if (svc) {
 		if (ip_vs_todrop()) {
 			/*
 			 * It seems that we are very loaded.
