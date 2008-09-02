@@ -68,7 +68,6 @@ static void sg_proc_cleanup(void);
 #endif
 
 #define SG_ALLOW_DIO_DEF 0
-#define SG_ALLOW_DIO_CODE /* compile out by commenting this define */
 
 #define SG_MAX_DEVS 32768
 
@@ -1674,13 +1673,12 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
 		return 0;
 
-#ifdef SG_ALLOW_DIO_CODE
 	if (sg_allow_dio && (hp->flags & SG_FLAG_DIRECT_IO) &&
 	    (dxfer_dir != SG_DXFER_UNKNOWN) && (0 == hp->iovec_count) &&
 	    (!sfp->parentdp->device->host->unchecked_isa_dma) &&
 	    blk_rq_aligned(q, hp->dxferp, dxfer_len))
 		return sg_build_direct(srp, sfp, dxfer_len);
-#endif
+
 	if ((!sg_res_in_use(sfp)) && (dxfer_len <= rsv_schp->bufflen))
 		sg_link_reserve(sfp, srp, dxfer_len);
 	else
