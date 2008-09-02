@@ -522,10 +522,6 @@ sg_new_read(Sg_fd * sfp, char __user *buf, size_t count, Sg_request * srp)
 		err = -EFAULT;
 		goto err_out;
 	}
-	if (srp->bio) {
-		err = blk_rq_unmap_user(srp->bio);
-		srp->bio = NULL;
-	}
 err_out:
 	sg_finish_rem_req(srp);
 	return (0 == err) ? count : err;
@@ -1843,9 +1839,6 @@ sg_read_oxfer(Sg_request * srp, char __user *outp, int num_read_xfer)
 				   num_read_xfer));
 	if ((!outp) || (num_read_xfer <= 0))
 		return 0;
-
-	blk_rq_unmap_user(srp->bio);
-	srp->bio = NULL;
 
 	num = 1 << (PAGE_SHIFT + schp->page_order);
 	for (k = 0; k < schp->k_use_sg && schp->pages[k]; k++) {
