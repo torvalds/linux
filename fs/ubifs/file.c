@@ -577,8 +577,256 @@ out:
 	return copied;
 }
 
+/**
+ * populate_page - copy data nodes into a page for bulk-read.
+ * @c: UBIFS file-system description object
+ * @page: page
+ * @bu: bulk-read information
+ * @n: next zbranch slot
+ *
+ * This function returns %0 on success and a negative error code on failure.
+ */
+static int populate_page(struct ubifs_info *c, struct page *page,
+			 struct bu_info *bu, int *n)
+{
+	int i = 0, nn = *n, offs = bu->zbranch[0].offs, hole = 1, read = 0;
+	struct inode *inode = page->mapping->host;
+	loff_t i_size = i_size_read(inode);
+	unsigned int page_block;
+	void *addr, *zaddr;
+	pgoff_t end_index;
+
+	dbg_gen("ino %lu, pg %lu, i_size %lld, flags %#lx",
+		inode->i_ino, page->index, i_size, page->flags);
+
+	addr = zaddr = kmap(page);
+
+	end_index = (i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	if (!i_size || page->index > end_index) {
+		memset(addr, 0, PAGE_CACHE_SIZE);
+		goto out_hole;
+	}
+
+	page_block = page->index << UBIFS_BLOCKS_PER_PAGE_SHIFT;
+	while (1) {
+		int err, len, out_len, dlen;
+
+		if (nn >= bu->cnt ||
+		    key_block(c, &bu->zbranch[nn].key) != page_block)
+			memset(addr, 0, UBIFS_BLOCK_SIZE);
+		else {
+			struct ubifs_data_node *dn;
+
+			dn = bu->buf + (bu->zbranch[nn].offs - offs);
+
+			ubifs_assert(dn->ch.sqnum >
+				     ubifs_inode(inode)->creat_sqnum);
+
+			len = le32_to_cpu(dn->size);
+			if (len <= 0 || len > UBIFS_BLOCK_SIZE)
+				goto out_err;
+
+			dlen = le32_to_cpu(dn->ch.len) - UBIFS_DATA_NODE_SZ;
+			out_len = UBIFS_BLOCK_SIZE;
+			err = ubifs_decompress(&dn->data, dlen, addr, &out_len,
+					       le16_to_cpu(dn->compr_type));
+			if (err || len != out_len)
+				goto out_err;
+
+			if (len < UBIFS_BLOCK_SIZE)
+				memset(addr + len, 0, UBIFS_BLOCK_SIZE - len);
+
+			nn += 1;
+			hole = 0;
+			read = (i << UBIFS_BLOCK_SHIFT) + len;
+		}
+		if (++i >= UBIFS_BLOCKS_PER_PAGE)
+			break;
+		addr += UBIFS_BLOCK_SIZE;
+		page_block += 1;
+	}
+
+	if (end_index == page->index) {
+		int len = i_size & (PAGE_CACHE_SIZE - 1);
+
+		if (len < read)
+			memset(zaddr + len, 0, read - len);
+	}
+
+out_hole:
+	if (hole) {
+		SetPageChecked(page);
+		dbg_gen("hole");
+	}
+
+	SetPageUptodate(page);
+	ClearPageError(page);
+	flush_dcache_page(page);
+	kunmap(page);
+	*n = nn;
+	return 0;
+
+out_err:
+	ClearPageUptodate(page);
+	SetPageError(page);
+	flush_dcache_page(page);
+	kunmap(page);
+	ubifs_err("bad data node (block %u, inode %lu)",
+		  page_block, inode->i_ino);
+	return -EINVAL;
+}
+
+/**
+ * ubifs_do_bulk_read - do bulk-read.
+ * @c: UBIFS file-system description object
+ * @page1: first page
+ *
+ * This function returns %1 if the bulk-read is done, otherwise %0 is returned.
+ */
+static int ubifs_do_bulk_read(struct ubifs_info *c, struct page *page1)
+{
+	pgoff_t offset = page1->index, end_index;
+	struct address_space *mapping = page1->mapping;
+	struct inode *inode = mapping->host;
+	struct ubifs_inode *ui = ubifs_inode(inode);
+	struct bu_info *bu;
+	int err, page_idx, page_cnt, ret = 0, n = 0;
+	loff_t isize;
+
+	bu = kmalloc(sizeof(struct bu_info), GFP_NOFS);
+	if (!bu)
+		return 0;
+
+	bu->buf_len = c->bulk_read_buf_size;
+	bu->buf = kmalloc(bu->buf_len, GFP_NOFS);
+	if (!bu->buf)
+		goto out_free;
+
+	data_key_init(c, &bu->key, inode->i_ino,
+		      offset << UBIFS_BLOCKS_PER_PAGE_SHIFT);
+
+	err = ubifs_tnc_get_bu_keys(c, bu);
+	if (err)
+		goto out_warn;
+
+	if (bu->eof) {
+		/* Turn off bulk-read at the end of the file */
+		ui->read_in_a_row = 1;
+		ui->bulk_read = 0;
+	}
+
+	page_cnt = bu->blk_cnt >> UBIFS_BLOCKS_PER_PAGE_SHIFT;
+	if (!page_cnt) {
+		/*
+		 * This happens when there are multiple blocks per page and the
+		 * blocks for the first page we are looking for, are not
+		 * together. If all the pages were like this, bulk-read would
+		 * reduce performance, so we turn it off for a while.
+		 */
+		ui->read_in_a_row = 0;
+		ui->bulk_read = 0;
+		goto out_free;
+	}
+
+	if (bu->cnt) {
+		err = ubifs_tnc_bulk_read(c, bu);
+		if (err)
+			goto out_warn;
+	}
+
+	err = populate_page(c, page1, bu, &n);
+	if (err)
+		goto out_warn;
+
+	unlock_page(page1);
+	ret = 1;
+
+	isize = i_size_read(inode);
+	if (isize == 0)
+		goto out_free;
+	end_index = ((isize - 1) >> PAGE_CACHE_SHIFT);
+
+	for (page_idx = 1; page_idx < page_cnt; page_idx++) {
+		pgoff_t page_offset = offset + page_idx;
+		struct page *page;
+
+		if (page_offset > end_index)
+			break;
+		page = find_or_create_page(mapping, page_offset,
+					   GFP_NOFS | __GFP_COLD);
+		if (!page)
+			break;
+		if (!PageUptodate(page))
+			err = populate_page(c, page, bu, &n);
+		unlock_page(page);
+		page_cache_release(page);
+		if (err)
+			break;
+	}
+
+	ui->last_page_read = offset + page_idx - 1;
+
+out_free:
+	kfree(bu->buf);
+	kfree(bu);
+	return ret;
+
+out_warn:
+	ubifs_warn("ignoring error %d and skipping bulk-read", err);
+	goto out_free;
+}
+
+/**
+ * ubifs_bulk_read - determine whether to bulk-read and, if so, do it.
+ * @page: page from which to start bulk-read.
+ *
+ * Some flash media are capable of reading sequentially at faster rates. UBIFS
+ * bulk-read facility is designed to take advantage of that, by reading in one
+ * go consecutive data nodes that are also located consecutively in the same
+ * LEB. This function returns %1 if a bulk-read is done and %0 otherwise.
+ */
+static int ubifs_bulk_read(struct page *page)
+{
+	struct inode *inode = page->mapping->host;
+	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_inode *ui = ubifs_inode(inode);
+	pgoff_t index = page->index, last_page_read = ui->last_page_read;
+	int ret = 0;
+
+	ui->last_page_read = index;
+
+	if (!c->bulk_read)
+		return 0;
+	/*
+	 * Bulk-read is protected by ui_mutex, but it is an optimization, so
+	 * don't bother if we cannot lock the mutex.
+	 */
+	if (!mutex_trylock(&ui->ui_mutex))
+		return 0;
+	if (index != last_page_read + 1) {
+		/* Turn off bulk-read if we stop reading sequentially */
+		ui->read_in_a_row = 1;
+		if (ui->bulk_read)
+			ui->bulk_read = 0;
+		goto out_unlock;
+	}
+	if (!ui->bulk_read) {
+		ui->read_in_a_row += 1;
+		if (ui->read_in_a_row < 3)
+			goto out_unlock;
+		/* Three reads in a row, so switch on bulk-read */
+		ui->bulk_read = 1;
+	}
+	ret = ubifs_do_bulk_read(c, page);
+out_unlock:
+	mutex_unlock(&ui->ui_mutex);
+	return ret;
+}
+
 static int ubifs_readpage(struct file *file, struct page *page)
 {
+	if (ubifs_bulk_read(page))
+		return 0;
 	do_readpage(page);
 	unlock_page(page);
 	return 0;

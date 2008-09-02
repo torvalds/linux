@@ -1492,6 +1492,289 @@ out:
 }
 
 /**
+ * ubifs_tnc_get_bu_keys - lookup keys for bulk-read.
+ * @c: UBIFS file-system description object
+ * @bu: bulk-read parameters and results
+ *
+ * Lookup consecutive data node keys for the same inode that reside
+ * consecutively in the same LEB.
+ */
+int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu)
+{
+	int n, err = 0, lnum = -1, uninitialized_var(offs);
+	int uninitialized_var(len);
+	unsigned int block = key_block(c, &bu->key);
+	struct ubifs_znode *znode;
+
+	bu->cnt = 0;
+	bu->blk_cnt = 0;
+	bu->eof = 0;
+
+	mutex_lock(&c->tnc_mutex);
+	/* Find first key */
+	err = ubifs_lookup_level0(c, &bu->key, &znode, &n);
+	if (err < 0)
+		goto out;
+	if (err) {
+		/* Key found */
+		len = znode->zbranch[n].len;
+		/* The buffer must be big enough for at least 1 node */
+		if (len > bu->buf_len) {
+			err = -EINVAL;
+			goto out;
+		}
+		/* Add this key */
+		bu->zbranch[bu->cnt++] = znode->zbranch[n];
+		bu->blk_cnt += 1;
+		lnum = znode->zbranch[n].lnum;
+		offs = ALIGN(znode->zbranch[n].offs + len, 8);
+	}
+	while (1) {
+		struct ubifs_zbranch *zbr;
+		union ubifs_key *key;
+		unsigned int next_block;
+
+		/* Find next key */
+		err = tnc_next(c, &znode, &n);
+		if (err)
+			goto out;
+		zbr = &znode->zbranch[n];
+		key = &zbr->key;
+		/* See if there is another data key for this file */
+		if (key_inum(c, key) != key_inum(c, &bu->key) ||
+		    key_type(c, key) != UBIFS_DATA_KEY) {
+			err = -ENOENT;
+			goto out;
+		}
+		if (lnum < 0) {
+			/* First key found */
+			lnum = zbr->lnum;
+			offs = ALIGN(zbr->offs + zbr->len, 8);
+			len = zbr->len;
+			if (len > bu->buf_len) {
+				err = -EINVAL;
+				goto out;
+			}
+		} else {
+			/*
+			 * The data nodes must be in consecutive positions in
+			 * the same LEB.
+			 */
+			if (zbr->lnum != lnum || zbr->offs != offs)
+				goto out;
+			offs += ALIGN(zbr->len, 8);
+			len = ALIGN(len, 8) + zbr->len;
+			/* Must not exceed buffer length */
+			if (len > bu->buf_len)
+				goto out;
+		}
+		/* Allow for holes */
+		next_block = key_block(c, key);
+		bu->blk_cnt += (next_block - block - 1);
+		if (bu->blk_cnt >= UBIFS_MAX_BULK_READ)
+			goto out;
+		block = next_block;
+		/* Add this key */
+		bu->zbranch[bu->cnt++] = *zbr;
+		bu->blk_cnt += 1;
+		/* See if we have room for more */
+		if (bu->cnt >= UBIFS_MAX_BULK_READ)
+			goto out;
+		if (bu->blk_cnt >= UBIFS_MAX_BULK_READ)
+			goto out;
+	}
+out:
+	if (err == -ENOENT) {
+		bu->eof = 1;
+		err = 0;
+	}
+	bu->gc_seq = c->gc_seq;
+	mutex_unlock(&c->tnc_mutex);
+	if (err)
+		return err;
+	/*
+	 * An enormous hole could cause bulk-read to encompass too many
+	 * page cache pages, so limit the number here.
+	 */
+	if (bu->blk_cnt >= UBIFS_MAX_BULK_READ)
+		bu->blk_cnt = UBIFS_MAX_BULK_READ;
+	/*
+	 * Ensure that bulk-read covers a whole number of page cache
+	 * pages.
+	 */
+	if (UBIFS_BLOCKS_PER_PAGE == 1 ||
+	    !(bu->blk_cnt & (UBIFS_BLOCKS_PER_PAGE - 1)))
+		return 0;
+	if (bu->eof) {
+		/* At the end of file we can round up */
+		bu->blk_cnt += UBIFS_BLOCKS_PER_PAGE - 1;
+		return 0;
+	}
+	/* Exclude data nodes that do not make up a whole page cache page */
+	block = key_block(c, &bu->key) + bu->blk_cnt;
+	block &= ~(UBIFS_BLOCKS_PER_PAGE - 1);
+	while (bu->cnt) {
+		if (key_block(c, &bu->zbranch[bu->cnt - 1].key) < block)
+			break;
+		bu->cnt -= 1;
+	}
+	return 0;
+}
+
+/**
+ * read_wbuf - bulk-read from a LEB with a wbuf.
+ * @wbuf: wbuf that may overlap the read
+ * @buf: buffer into which to read
+ * @len: read length
+ * @lnum: LEB number from which to read
+ * @offs: offset from which to read
+ *
+ * This functions returns %0 on success or a negative error code on failure.
+ */
+static int read_wbuf(struct ubifs_wbuf *wbuf, void *buf, int len, int lnum,
+		     int offs)
+{
+	const struct ubifs_info *c = wbuf->c;
+	int rlen, overlap;
+
+	dbg_io("LEB %d:%d, length %d", lnum, offs, len);
+	ubifs_assert(wbuf && lnum >= 0 && lnum < c->leb_cnt && offs >= 0);
+	ubifs_assert(!(offs & 7) && offs < c->leb_size);
+	ubifs_assert(offs + len <= c->leb_size);
+
+	spin_lock(&wbuf->lock);
+	overlap = (lnum == wbuf->lnum && offs + len > wbuf->offs);
+	if (!overlap) {
+		/* We may safely unlock the write-buffer and read the data */
+		spin_unlock(&wbuf->lock);
+		return ubi_read(c->ubi, lnum, buf, offs, len);
+	}
+
+	/* Don't read under wbuf */
+	rlen = wbuf->offs - offs;
+	if (rlen < 0)
+		rlen = 0;
+
+	/* Copy the rest from the write-buffer */
+	memcpy(buf + rlen, wbuf->buf + offs + rlen - wbuf->offs, len - rlen);
+	spin_unlock(&wbuf->lock);
+
+	if (rlen > 0)
+		/* Read everything that goes before write-buffer */
+		return ubi_read(c->ubi, lnum, buf, offs, rlen);
+
+	return 0;
+}
+
+/**
+ * validate_data_node - validate data nodes for bulk-read.
+ * @c: UBIFS file-system description object
+ * @buf: buffer containing data node to validate
+ * @zbr: zbranch of data node to validate
+ *
+ * This functions returns %0 on success or a negative error code on failure.
+ */
+static int validate_data_node(struct ubifs_info *c, void *buf,
+			      struct ubifs_zbranch *zbr)
+{
+	union ubifs_key key1;
+	struct ubifs_ch *ch = buf;
+	int err, len;
+
+	if (ch->node_type != UBIFS_DATA_NODE) {
+		ubifs_err("bad node type (%d but expected %d)",
+			  ch->node_type, UBIFS_DATA_NODE);
+		goto out_err;
+	}
+
+	err = ubifs_check_node(c, buf, zbr->lnum, zbr->offs, 0);
+	if (err) {
+		ubifs_err("expected node type %d", UBIFS_DATA_NODE);
+		goto out;
+	}
+
+	len = le32_to_cpu(ch->len);
+	if (len != zbr->len) {
+		ubifs_err("bad node length %d, expected %d", len, zbr->len);
+		goto out_err;
+	}
+
+	/* Make sure the key of the read node is correct */
+	key_read(c, buf + UBIFS_KEY_OFFSET, &key1);
+	if (!keys_eq(c, &zbr->key, &key1)) {
+		ubifs_err("bad key in node at LEB %d:%d",
+			  zbr->lnum, zbr->offs);
+		dbg_tnc("looked for key %s found node's key %s",
+			DBGKEY(&zbr->key), DBGKEY1(&key1));
+		goto out_err;
+	}
+
+	return 0;
+
+out_err:
+	err = -EINVAL;
+out:
+	ubifs_err("bad node at LEB %d:%d", zbr->lnum, zbr->offs);
+	dbg_dump_node(c, buf);
+	dbg_dump_stack();
+	return err;
+}
+
+/**
+ * ubifs_tnc_bulk_read - read a number of data nodes in one go.
+ * @c: UBIFS file-system description object
+ * @bu: bulk-read parameters and results
+ *
+ * This functions reads and validates the data nodes that were identified by the
+ * 'ubifs_tnc_get_bu_keys()' function. This functions returns %0 on success,
+ * -EAGAIN to indicate a race with GC, or another negative error code on
+ * failure.
+ */
+int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu)
+{
+	int lnum = bu->zbranch[0].lnum, offs = bu->zbranch[0].offs, len, err, i;
+	struct ubifs_wbuf *wbuf;
+	void *buf;
+
+	len = bu->zbranch[bu->cnt - 1].offs;
+	len += bu->zbranch[bu->cnt - 1].len - offs;
+	if (len > bu->buf_len) {
+		ubifs_err("buffer too small %d vs %d", bu->buf_len, len);
+		return -EINVAL;
+	}
+
+	/* Do the read */
+	wbuf = ubifs_get_wbuf(c, lnum);
+	if (wbuf)
+		err = read_wbuf(wbuf, bu->buf, len, lnum, offs);
+	else
+		err = ubi_read(c->ubi, lnum, bu->buf, offs, len);
+
+	/* Check for a race with GC */
+	if (maybe_leb_gced(c, lnum, bu->gc_seq))
+		return -EAGAIN;
+
+	if (err && err != -EBADMSG) {
+		ubifs_err("failed to read from LEB %d:%d, error %d",
+			  lnum, offs, err);
+		dbg_dump_stack();
+		dbg_tnc("key %s", DBGKEY(&bu->key));
+		return err;
+	}
+
+	/* Validate the nodes read */
+	buf = bu->buf;
+	for (i = 0; i < bu->cnt; i++) {
+		err = validate_data_node(c, buf, &bu->zbranch[i]);
+		if (err)
+			return err;
+		buf = buf + ALIGN(bu->zbranch[i].len, 8);
+	}
+
+	return 0;
+}
+
+/**
  * do_lookup_nm- look up a "hashed" node.
  * @c: UBIFS file-system description object
  * @key: node key to lookup

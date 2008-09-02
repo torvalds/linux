@@ -142,6 +142,9 @@
 /* Maximum expected tree height for use by bottom_up_buf */
 #define BOTTOM_UP_HEIGHT 64
 
+/* Maximum number of data nodes to bulk-read */
+#define UBIFS_MAX_BULK_READ 32
+
 /*
  * Lockdep classes for UBIFS inode @ui_mutex.
  */
@@ -329,8 +332,8 @@ struct ubifs_gced_idx_leb {
  * @dirty: non-zero if the inode is dirty
  * @xattr: non-zero if this is an extended attribute inode
  * @ui_mutex: serializes inode write-back with the rest of VFS operations,
- *            serializes "clean <-> dirty" state changes, protects @dirty,
- *            @ui_size, and @xattr_size
+ *            serializes "clean <-> dirty" state changes, serializes bulk-read,
+ *            protects @dirty, @ui_size, and @xattr_size
  * @ui_lock: protects @synced_i_size
  * @synced_i_size: synchronized size of inode, i.e. the value of inode size
  *                 currently stored on the flash; used only for regular file
@@ -338,6 +341,9 @@ struct ubifs_gced_idx_leb {
  * @ui_size: inode size used by UBIFS when writing to flash
  * @flags: inode flags (@UBIFS_COMPR_FL, etc)
  * @compr_type: default compression type used for this inode
+ * @last_page_read: page number of last page read (for bulk read)
+ * @read_in_a_row: number of consecutive pages read in a row (for bulk read)
+ * @bulk_read: indicates whether bulk-read should be used
  * @data_len: length of the data attached to the inode
  * @data: inode's data
  *
@@ -385,6 +391,9 @@ struct ubifs_inode {
 	loff_t ui_size;
 	int flags;
 	int compr_type;
+	pgoff_t last_page_read;
+	pgoff_t read_in_a_row;
+	int bulk_read;
 	int data_len;
 	void *data;
 };
@@ -744,6 +753,28 @@ struct ubifs_znode {
 };
 
 /**
+ * struct bu_info - bulk-read information
+ * @key: first data node key
+ * @zbranch: zbranches of data nodes to bulk read
+ * @buf: buffer to read into
+ * @buf_len: buffer length
+ * @gc_seq: GC sequence number to detect races with GC
+ * @cnt: number of data nodes for bulk read
+ * @blk_cnt: number of data blocks including holes
+ * @oef: end of file reached
+ */
+struct bu_info {
+	union ubifs_key key;
+	struct ubifs_zbranch zbranch[UBIFS_MAX_BULK_READ];
+	void *buf;
+	int buf_len;
+	int gc_seq;
+	int cnt;
+	int blk_cnt;
+	int eof;
+};
+
+/**
  * struct ubifs_node_range - node length range description data structure.
  * @len: fixed node length
  * @min_len: minimum possible node length
@@ -862,9 +893,11 @@ struct ubifs_orphan {
 /**
  * struct ubifs_mount_opts - UBIFS-specific mount options information.
  * @unmount_mode: selected unmount mode (%0 default, %1 normal, %2 fast)
+ * @bulk_read: enable bulk-reads
  */
 struct ubifs_mount_opts {
 	unsigned int unmount_mode:2;
+	unsigned int bulk_read:2;
 };
 
 /**
@@ -964,6 +997,9 @@ struct ubifs_mount_opts {
  * @max_leb_cnt: maximum count of logical eraseblocks
  * @old_leb_cnt: count of logical eraseblocks before re-size
  * @ro_media: the underlying UBI volume is read-only
+ *
+ * @bulk_read: enable bulk-reads
+ * @bulk_read_buf_size: buffer size for bulk-reads
  *
  * @dirty_pg_cnt: number of dirty pages (not used)
  * @dirty_zn_cnt: number of dirty znodes
@@ -1204,6 +1240,9 @@ struct ubifs_info {
 	int max_leb_cnt;
 	int old_leb_cnt;
 	int ro_media;
+
+	int bulk_read;
+	int bulk_read_buf_size;
 
 	atomic_long_t dirty_pg_cnt;
 	atomic_long_t dirty_zn_cnt;
@@ -1490,6 +1529,8 @@ void destroy_old_idx(struct ubifs_info *c);
 int is_idx_node_in_tnc(struct ubifs_info *c, union ubifs_key *key, int level,
 		       int lnum, int offs);
 int insert_old_idx_znode(struct ubifs_info *c, struct ubifs_znode *znode);
+int ubifs_tnc_get_bu_keys(struct ubifs_info *c, struct bu_info *bu);
+int ubifs_tnc_bulk_read(struct ubifs_info *c, struct bu_info *bu);
 
 /* tnc_misc.c */
 struct ubifs_znode *ubifs_tnc_levelorder_next(struct ubifs_znode *zr,

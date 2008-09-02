@@ -401,6 +401,11 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 	else if (c->mount_opts.unmount_mode == 1)
 		seq_printf(s, ",norm_unmount");
 
+	if (c->mount_opts.bulk_read == 2)
+		seq_printf(s, ",bulk_read");
+	else if (c->mount_opts.bulk_read == 1)
+		seq_printf(s, ",no_bulk_read");
+
 	return 0;
 }
 
@@ -538,6 +543,18 @@ static int init_constants_early(struct ubifs_info *c)
 	 * calculations when reporting free space.
 	 */
 	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
+	/* Buffer size for bulk-reads */
+	c->bulk_read_buf_size = UBIFS_MAX_BULK_READ * UBIFS_MAX_DATA_NODE_SZ;
+	if (c->bulk_read_buf_size > c->leb_size)
+		c->bulk_read_buf_size = c->leb_size;
+	if (c->bulk_read_buf_size > 128 * 1024) {
+		/* Check if we can kmalloc more than 128KiB */
+		void *try = kmalloc(c->bulk_read_buf_size, GFP_KERNEL);
+
+		kfree(try);
+		if (!try)
+			c->bulk_read_buf_size = 128 * 1024;
+	}
 	return 0;
 }
 
@@ -840,17 +857,23 @@ static int check_volume_empty(struct ubifs_info *c)
  *
  * Opt_fast_unmount: do not run a journal commit before un-mounting
  * Opt_norm_unmount: run a journal commit before un-mounting
+ * Opt_bulk_read: enable bulk-reads
+ * Opt_no_bulk_read: disable bulk-reads
  * Opt_err: just end of array marker
  */
 enum {
 	Opt_fast_unmount,
 	Opt_norm_unmount,
+	Opt_bulk_read,
+	Opt_no_bulk_read,
 	Opt_err,
 };
 
 static match_table_t tokens = {
 	{Opt_fast_unmount, "fast_unmount"},
 	{Opt_norm_unmount, "norm_unmount"},
+	{Opt_bulk_read, "bulk_read"},
+	{Opt_no_bulk_read, "no_bulk_read"},
 	{Opt_err, NULL},
 };
 
@@ -887,6 +910,14 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 		case Opt_norm_unmount:
 			c->mount_opts.unmount_mode = 1;
 			c->fast_unmount = 0;
+			break;
+		case Opt_bulk_read:
+			c->mount_opts.bulk_read = 2;
+			c->bulk_read = 1;
+			break;
+		case Opt_no_bulk_read:
+			c->mount_opts.bulk_read = 1;
+			c->bulk_read = 0;
 			break;
 		default:
 			ubifs_err("unrecognized mount option \"%s\" "
