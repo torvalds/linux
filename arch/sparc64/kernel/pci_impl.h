@@ -146,7 +146,6 @@ struct pci_pbm_info {
 	unsigned int			pci_first_busno;
 	unsigned int			pci_last_busno;
 	struct pci_bus			*pci_bus;
-	void (*scan_bus)(struct pci_pbm_info *);
 	struct pci_ops			*pci_ops;
 
 	int				numa_node;
@@ -164,7 +163,8 @@ extern int pci_num_pbms;
 
 /* PCI bus scanning and fixup support. */
 extern void pci_get_pbm_props(struct pci_pbm_info *pbm);
-extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm);
+extern struct pci_bus *pci_scan_one_pbm(struct pci_pbm_info *pbm,
+					struct device *parent);
 extern void pci_determine_mem_io_space(struct pci_pbm_info *pbm);
 
 /* Error reporting support. */
