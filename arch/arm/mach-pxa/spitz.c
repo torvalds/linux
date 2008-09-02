@@ -19,6 +19,7 @@
 #include <linux/major.h>
 #include <linux/fs.h>
 #include <linux/interrupt.h>
+#include <linux/gpio.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
@@ -371,17 +372,36 @@ static int spitz_mci_init(struct device *dev, irq_handler_t spitz_detect_int, vo
 	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
 	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
 	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
-	pxa_gpio_mode(SPITZ_GPIO_nSD_DETECT | GPIO_IN);
-	pxa_gpio_mode(SPITZ_GPIO_nSD_WP | GPIO_IN);
+
+	err = gpio_request(SPITZ_GPIO_nSD_DETECT, "nSD_DETECT");
+	if (err)
+		goto err_out;
+
+	err = gpio_request(SPITZ_GPIO_nSD_WP, "nSD_WP");
+	if (err)
+		goto err_free_1;
+
+	gpio_direction_input(SPITZ_GPIO_nSD_DETECT);
+	gpio_direction_input(SPITZ_GPIO_nSD_WP);
 
 	spitz_mci_platform_data.detect_delay = msecs_to_jiffies(250);
 
 	err = request_irq(SPITZ_IRQ_GPIO_nSD_DETECT, spitz_detect_int,
-			  IRQF_DISABLED | IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
+			  IRQF_DISABLED | IRQF_TRIGGER_RISING |
+			  IRQF_TRIGGER_FALLING,
 			  "MMC card detect", data);
-	if (err)
-		printk(KERN_ERR "spitz_mci_init: MMC/SD: can't request MMC card detect IRQ\n");
+	if (err) {
+		pr_err("%s: MMC/SD: can't request MMC card detect IRQ\n",
+				__func__);
+		goto err_free_2;
+	}
+	return 0;
 
+err_free_2:
+	gpio_free(SPITZ_GPIO_nSD_WP);
+err_free_1:
+	gpio_free(SPITZ_GPIO_nSD_DETECT);
+err_out:
 	return err;
 }
 
@@ -397,12 +417,14 @@ static void spitz_mci_setpower(struct device *dev, unsigned int vdd)
 
 static int spitz_mci_get_ro(struct device *dev)
 {
-	return GPLR(SPITZ_GPIO_nSD_WP) & GPIO_bit(SPITZ_GPIO_nSD_WP);
+	return gpio_get_value(SPITZ_GPIO_nSD_WP);
 }
 
 static void spitz_mci_exit(struct device *dev, void *data)
 {
 	free_irq(SPITZ_IRQ_GPIO_nSD_DETECT, data);
+	gpio_free(SPITZ_GPIO_nSD_WP);
+	gpio_free(SPITZ_GPIO_nSD_DETECT);
 }
 
 static struct pxamci_platform_data spitz_mci_platform_data = {
@@ -419,6 +441,12 @@ static struct pxamci_platform_data spitz_mci_platform_data = {
  */
 static int spitz_ohci_init(struct device *dev)
 {
+	int err;
+
+	err = gpio_request(SPITZ_GPIO_USB_HOST, "USB_HOST");
+	if (err)
+		return err;
+
 	/* Only Port 2 is connected */
 	pxa_gpio_mode(SPITZ_GPIO_USB_CONNECT | GPIO_IN);
 	pxa_gpio_mode(SPITZ_GPIO_USB_HOST | GPIO_OUT);
@@ -427,7 +455,7 @@ static int spitz_ohci_init(struct device *dev)
 	/* Setup USB Port 2 Output Control Register */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
 
-	GPSR(SPITZ_GPIO_USB_HOST) = GPIO_bit(SPITZ_GPIO_USB_HOST);
+	gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
 
 	UHCHR = (UHCHR) &
 		~(UHCHR_SSEP1 | UHCHR_SSEP2 | UHCHR_SSEP3 | UHCHR_SSE);
