@@ -815,8 +815,22 @@ static int ip_vs_conn_seq_show(struct seq_file *seq, void *v)
 	else {
 		const struct ip_vs_conn *cp = v;
 
-		seq_printf(seq,
-			"%-3s %08X %04X %08X %04X %08X %04X %-11s %7lu\n",
+#ifdef CONFIG_IP_VS_IPV6
+		if (cp->af == AF_INET6)
+			seq_printf(seq,
+				"%-3s " NIP6_FMT " %04X " NIP6_FMT
+				" %04X " NIP6_FMT " %04X %-11s %7lu\n",
+				ip_vs_proto_name(cp->protocol),
+				NIP6(cp->caddr.in6), ntohs(cp->cport),
+				NIP6(cp->vaddr.in6), ntohs(cp->vport),
+				NIP6(cp->daddr.in6), ntohs(cp->dport),
+				ip_vs_state_name(cp->protocol, cp->state),
+				(cp->timer.expires-jiffies)/HZ);
+		else
+#endif
+			seq_printf(seq,
+				"%-3s %08X %04X %08X %04X"
+				" %08X %04X %-11s %7lu\n",
 				ip_vs_proto_name(cp->protocol),
 				ntohl(cp->caddr.ip), ntohs(cp->cport),
 				ntohl(cp->vaddr.ip), ntohs(cp->vport),
@@ -864,8 +878,23 @@ static int ip_vs_conn_sync_seq_show(struct seq_file *seq, void *v)
 	else {
 		const struct ip_vs_conn *cp = v;
 
-		seq_printf(seq,
-			"%-3s %08X %04X %08X %04X %08X %04X %-11s %-6s %7lu\n",
+#ifdef CONFIG_IP_VS_IPV6
+		if (cp->af == AF_INET6)
+			seq_printf(seq,
+				"%-3s " NIP6_FMT " %04X " NIP6_FMT
+				" %04X " NIP6_FMT " %04X %-11s %-6s %7lu\n",
+				ip_vs_proto_name(cp->protocol),
+				NIP6(cp->caddr.in6), ntohs(cp->cport),
+				NIP6(cp->vaddr.in6), ntohs(cp->vport),
+				NIP6(cp->daddr.in6), ntohs(cp->dport),
+				ip_vs_state_name(cp->protocol, cp->state),
+				ip_vs_origin_name(cp->flags),
+				(cp->timer.expires-jiffies)/HZ);
+		else
+#endif
+			seq_printf(seq,
+				"%-3s %08X %04X %08X %04X "
+				"%08X %04X %-11s %-6s %7lu\n",
 				ip_vs_proto_name(cp->protocol),
 				ntohl(cp->caddr.ip), ntohs(cp->cport),
 				ntohl(cp->vaddr.ip), ntohs(cp->vport),
