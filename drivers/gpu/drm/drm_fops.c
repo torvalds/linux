@@ -246,7 +246,7 @@ static int drm_open_helper(struct inode *inode, struct file *filp,
 	memset(priv, 0, sizeof(*priv));
 	filp->private_data = priv;
 	priv->filp = filp;
-	priv->uid = current->euid;
+	priv->uid = current_euid();
 	priv->pid = task_pid_nr(current);
 	priv->minor = idr_find(&drm_minors_idr, minor_id);
 	priv->ioctl_count = 0;
