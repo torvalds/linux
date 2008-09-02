@@ -341,6 +341,25 @@ config USB_AMD5536UDC
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+config USB_GADGET_FSL_QE
+	boolean "Freescale QE/CPM USB Device Controller"
+	depends on FSL_SOC && (QUICC_ENGINE || CPM)
+	help
+	   Some of Freescale PowerPC processors have a Full Speed
+	   QE/CPM2 USB controller, which support device mode with 4
+	   programmable endpoints. This driver supports the
+	   controller in the MPC8360 and MPC8272, and should work with
+	   controllers having QE or CPM2, given minor tweaks.
+
+	   Set CONFIG_USB_GADGET to "m" to build this driver as a
+	   dynmically linked module called "fsl_qe_udc".
+
+config USB_FSL_QE
+	tristate
+	depends on USB_GADGET_FSL_QE
+	default USB_GADGET
+	select USB_GADGET_SELECTED
+
 config USB_GADGET_NET2280
 	boolean "NetChip 228x"
 	depends on PCI
