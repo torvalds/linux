@@ -7,21 +7,11 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
-#include <linux/pm.h>
 #include <linux/reboot.h>
 #include <linux/of_device.h>
 
-#include <asm/auxio.h>
 #include <asm/prom.h>
 #include <asm/io.h>
-#include <asm/sstate.h>
-#include <asm/reboot.h>
-
-/*
- * sysctl - toggle power-off restriction for serial console 
- * systems in machine_power_off()
- */
-int scons_pwroff = 1; 
 
 static void __iomem *power_reg;
 
@@ -32,31 +22,6 @@ static irqreturn_t power_handler(int irq, void *dev_id)
 	/* FIXME: Check registers for status... */
 	return IRQ_HANDLED;
 }
-
-static void (*poweroff_method)(void) = machine_alt_power_off;
-
-void machine_power_off(void)
-{
-	sstate_poweroff();
-	if (strcmp(of_console_device->type, "serial") || scons_pwroff) {
-		if (power_reg) {
-			/* Both register bits seem to have the
-			 * same effect, so until I figure out
-			 * what the difference is...
-			 */
-			writel(AUXIO_PCIO_CPWR_OFF | AUXIO_PCIO_SPWR_OFF, power_reg);
-		} else {
-			if (poweroff_method != NULL) {
-				poweroff_method();
-				/* not reached */
-			}
-		}
-	}
-	machine_halt();
-}
-
-void (*pm_power_off)(void) = machine_power_off;
-EXPORT_SYMBOL(pm_power_off);
 
 static int __init has_button_interrupt(unsigned int irq, struct device_node *dp)
 {
@@ -77,8 +42,6 @@ static int __devinit power_probe(struct of_device *op, const struct of_device_id
 
 	printk(KERN_INFO "%s: Control reg at %lx\n",
 	       op->node->name, res->start);
-
-	poweroff_method = machine_halt;  /* able to use the standard halt */
 
 	if (has_button_interrupt(irq, op->node)) {
 		if (request_irq(irq,
