@@ -803,11 +803,12 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void __init psycho_scan_bus(struct pci_pbm_info *pbm)
+static void __init psycho_scan_bus(struct pci_pbm_info *pbm,
+				   struct device *parent)
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable = 0;
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
+	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
 
 	/* After the PCI bus scan is complete, we can register
 	 * the error interrupt handlers.
@@ -971,8 +972,9 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 #define PSYCHO_MEMSPACE_SIZE	0x07fffffffUL
 
 static void __init psycho_pbm_init(struct pci_controller_info *p,
-			    struct device_node *dp, int is_pbm_a)
+				   struct of_device *op, int is_pbm_a)
 {
+	struct device_node *dp = op->node;
 	struct property *prop;
 	struct pci_pbm_info *pbm;
 
@@ -1015,7 +1017,7 @@ static void __init psycho_pbm_init(struct pci_controller_info *p,
 
 	psycho_pbm_strbuf_init(pbm, is_pbm_a);
 
-	psycho_scan_bus(pbm);
+	psycho_scan_bus(pbm, &op->dev);
 }
 
 #define PSYCHO_CONFIGSPACE	0x001000000UL
@@ -1042,7 +1044,7 @@ static int __devinit psycho_probe(struct of_device *op,
 
 		if (p->pbm_A.portid == upa_portid) {
 			is_pbm_a = (p->pbm_A.prom_node == NULL);
-			psycho_pbm_init(p, dp, is_pbm_a);
+			psycho_pbm_init(p, op, is_pbm_a);
 			return 0;
 		}
 	}
@@ -1086,7 +1088,7 @@ static int __devinit psycho_probe(struct of_device *op,
 
 	is_pbm_a = ((pr_regs[0].phys_addr & 0x6000) == 0x2000);
 
-	psycho_pbm_init(p, dp, is_pbm_a);
+	psycho_pbm_init(p, op, is_pbm_a);
 
 	return 0;
 

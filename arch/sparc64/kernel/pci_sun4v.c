@@ -543,7 +543,8 @@ static const struct dma_ops sun4v_dma_ops = {
 	.sync_sg_for_cpu		= dma_4v_sync_sg_for_cpu,
 };
 
-static void __init pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
+static void __init pci_sun4v_scan_bus(struct pci_pbm_info *pbm,
+				      struct device *parent)
 {
 	struct property *prop;
 	struct device_node *dp;
@@ -551,7 +552,7 @@ static void __init pci_sun4v_scan_bus(struct pci_pbm_info *pbm)
 	dp = pbm->prom_node;
 	prop = of_find_property(dp, "66mhz-capable", NULL);
 	pbm->is_66mhz_capable = (prop != NULL);
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
+	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
 
 	/* XXX register error interrupt handlers XXX */
 }
@@ -894,8 +895,9 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 #endif /* !(CONFIG_PCI_MSI) */
 
 static int __init pci_sun4v_pbm_init(struct pci_controller_info *p,
-				     struct device_node *dp, u32 devhandle)
+				     struct of_device *op, u32 devhandle)
 {
+	struct device_node *dp = op->node;
 	struct pci_pbm_info *pbm;
 	int err;
 
@@ -934,7 +936,7 @@ static int __init pci_sun4v_pbm_init(struct pci_controller_info *p,
 
 	pci_sun4v_msi_init(pbm);
 
-	pci_sun4v_scan_bus(pbm);
+	pci_sun4v_scan_bus(pbm, &op->dev);
 
 	return 0;
 }
@@ -979,7 +981,7 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			return pci_sun4v_pbm_init(pbm->parent, dp, devhandle);
+			return pci_sun4v_pbm_init(pbm->parent, op, devhandle);
 		}
 	}
 
@@ -1015,7 +1017,7 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 
 	p->pbm_B.iommu = iommu;
 
-	return pci_sun4v_pbm_init(p, dp, devhandle);
+	return pci_sun4v_pbm_init(p, op, devhandle);
 
 out_free_iommu_A:
 	kfree(p->pbm_A.iommu);

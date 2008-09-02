@@ -33,13 +33,6 @@
 			       "i" (ASI_PHYS_BYPASS_EC_E) \
 			     : "memory")
 
-static void __init pci_fire_scan_bus(struct pci_pbm_info *pbm)
-{
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
-
-	/* XXX register error interrupt handlers XXX */
-}
-
 #define FIRE_IOMMU_CONTROL	0x40000UL
 #define FIRE_IOMMU_TSBBASE	0x40008UL
 #define FIRE_IOMMU_FLUSH	0x40100UL
@@ -439,9 +432,10 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 }
 
 static int __init pci_fire_pbm_init(struct pci_controller_info *p,
-				    struct device_node *dp, u32 portid)
+				    struct of_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
+	struct device_node *dp = op->node;
 	struct pci_pbm_info *pbm;
 	int err;
 
@@ -483,7 +477,9 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 
 	pci_fire_msi_init(pbm);
 
-	pci_fire_scan_bus(pbm);
+	pbm->pci_bus = pci_scan_one_pbm(pbm, &op->dev);
+
+	/* XXX register error interrupt handlers XXX */
 
 	return 0;
 }
@@ -508,7 +504,7 @@ static int __devinit fire_probe(struct of_device *op,
 	portid = of_getintprop_default(dp, "portid", 0xff);
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (portid_compare(pbm->portid, portid))
-			return pci_fire_pbm_init(pbm->parent, dp, portid);
+			return pci_fire_pbm_init(pbm->parent, op, portid);
 	}
 
 	err = -ENOMEM;
@@ -534,7 +530,7 @@ static int __devinit fire_probe(struct of_device *op,
 
 	p->pbm_B.iommu = iommu;
 
-	return pci_fire_pbm_init(p, dp, portid);
+	return pci_fire_pbm_init(p, op, portid);
 
 out_free_iommu_A:
 	kfree(p->pbm_A.iommu);

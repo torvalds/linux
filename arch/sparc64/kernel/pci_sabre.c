@@ -634,7 +634,8 @@ static void apb_init(struct pci_bus *sabre_bus)
 	}
 }
 
-static void __init sabre_scan_bus(struct pci_pbm_info *pbm)
+static void __init sabre_scan_bus(struct pci_pbm_info *pbm,
+				  struct device *parent)
 {
 	static int once;
 
@@ -662,7 +663,7 @@ static void __init sabre_scan_bus(struct pci_pbm_info *pbm)
 	}
 	once++;
 
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
+	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
 	if (!pbm->pci_bus)
 		return;
 
@@ -734,8 +735,10 @@ static int sabre_iommu_init(struct pci_pbm_info *pbm,
 }
 
 static void __init sabre_pbm_init(struct pci_controller_info *p,
-				  struct pci_pbm_info *pbm, struct device_node *dp)
+				  struct pci_pbm_info *pbm, struct of_device *op)
 {
+	struct device_node *dp = op->node;
+
 	pbm->name = dp->full_name;
 	printk("%s: SABRE PCI Bus Module\n", pbm->name);
 
@@ -753,7 +756,7 @@ static void __init sabre_pbm_init(struct pci_controller_info *p,
 
 	pci_determine_mem_io_space(pbm);
 
-	sabre_scan_bus(pbm);
+	sabre_scan_bus(pbm, &op->dev);
 }
 
 static int __devinit sabre_probe(struct of_device *op,
@@ -873,7 +876,7 @@ static int __devinit sabre_probe(struct of_device *op,
 	/*
 	 * Look for APB underneath.
 	 */
-	sabre_pbm_init(p, pbm, dp);
+	sabre_pbm_init(p, pbm, op);
 	return 0;
 
 out_free_iommu:

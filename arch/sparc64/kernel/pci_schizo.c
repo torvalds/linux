@@ -1085,14 +1085,15 @@ static void pbm_config_busmastering(struct pci_pbm_info *pbm)
 	pci_config_write8(addr, 64);
 }
 
-static void __devinit schizo_scan_bus(struct pci_pbm_info *pbm)
+static void __devinit schizo_scan_bus(struct pci_pbm_info *pbm,
+				      struct device *parent)
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable =
 		(of_find_property(pbm->prom_node, "66mhz-capable", NULL)
 		 != NULL);
 
-	pbm->pci_bus = pci_scan_one_pbm(pbm);
+	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
 
 	if (pbm->chip_type == PBM_CHIP_TYPE_TOMATILLO)
 		tomatillo_register_error_handlers(pbm);
@@ -1338,10 +1339,11 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 }
 
 static int __devinit schizo_pbm_init(struct pci_controller_info *p,
-				     struct device_node *dp, u32 portid,
+				     struct of_device *op, u32 portid,
 				     int chip_type)
 {
 	const struct linux_prom64_registers *regs;
+	struct device_node *dp = op->node;
 	struct pci_pbm_info *pbm;
 	const char *chipset_name;
 	int is_pbm_a, err;
@@ -1422,7 +1424,7 @@ static int __devinit schizo_pbm_init(struct pci_controller_info *p,
 
 	schizo_pbm_strbuf_init(pbm);
 
-	schizo_scan_bus(pbm);
+	schizo_scan_bus(pbm, &op->dev);
 
 	return 0;
 }
@@ -1437,8 +1439,9 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
-static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_type)
+static int __devinit __schizo_init(struct of_device *op, unsigned long chip_type)
 {
+	struct device_node *dp = op->node;
 	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
@@ -1450,7 +1453,7 @@ static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_ty
 	err = -ENOMEM;
 	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
 		if (portid_compare(pbm->portid, portid, chip_type)) {
-			if (schizo_pbm_init(pbm->parent, dp,
+			if (schizo_pbm_init(pbm->parent, op,
 					    portid, chip_type))
 				goto out_err;
 			return 0;
@@ -1479,7 +1482,7 @@ static int __devinit __schizo_init(struct device_node *dp, unsigned long chip_ty
 
 	p->pbm_B.iommu = iommu;
 
-	if (schizo_pbm_init(p, dp, portid, chip_type))
+	if (schizo_pbm_init(p, op, portid, chip_type))
 		goto out_free_iommu_B;
 
 	return 0;
@@ -1500,7 +1503,7 @@ out_err:
 static int __devinit schizo_probe(struct of_device *op,
 				  const struct of_device_id *match)
 {
-	return __schizo_init(op->node, (unsigned long) match->data);
+	return __schizo_init(op, (unsigned long) match->data);
 }
 
 /* The ordering of this table is very important.  Some Tomatillo
