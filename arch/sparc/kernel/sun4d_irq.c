@@ -51,7 +51,6 @@ struct sun4d_timer_regs *sun4d_timers;
 #define MAX_STATIC_ALLOC	4
 extern struct irqaction static_irqaction[MAX_STATIC_ALLOC];
 extern int static_irq_count;
-unsigned char cpu_leds[32];
 #ifdef CONFIG_SMP
 static unsigned char sbus_tid[32];
 #endif

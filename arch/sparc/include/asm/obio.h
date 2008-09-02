@@ -155,17 +155,6 @@ static inline void bw_set_ctrl(int cpu, unsigned ctrl)
 			      "i" (ASI_M_CTL));
 }
 
-extern unsigned char cpu_leds[32];
-
-static inline void show_leds(int cpuid)
-{
-	cpuid &= 0x1e;
-	__asm__ __volatile__ ("stba %0, [%1] %2" : :
-			      "r" ((cpu_leds[cpuid] << 4) | cpu_leds[cpuid+1]),
-			      "r" (ECSR_BASE(cpuid) | BB_LEDS),
-			      "i" (ASI_M_CTL));
-}
-
 static inline unsigned cc_get_ipen(void)
 {
 	unsigned pending;

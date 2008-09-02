@@ -71,6 +71,17 @@ static void smp_setup_percpu_timer(void);
 extern void cpu_probe(void);
 extern void sun4d_distribute_irqs(void);
 
+static unsigned char cpu_leds[32];
+
+static inline void show_leds(int cpuid)
+{
+	cpuid &= 0x1e;
+	__asm__ __volatile__ ("stba %0, [%1] %2" : :
+			      "r" ((cpu_leds[cpuid] << 4) | cpu_leds[cpuid+1]),
+			      "r" (ECSR_BASE(cpuid) | BB_LEDS),
+			      "i" (ASI_M_CTL));
+}
+
 void __init smp4d_callin(void)
 {
 	int cpuid = hard_smp4d_processor_id();
