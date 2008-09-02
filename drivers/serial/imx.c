@@ -1133,13 +1133,19 @@ static int serial_imx_probe(struct platform_device *pdev)
 	if(pdata && (pdata->flags & IMXUART_HAVE_RTSCTS))
 		sport->have_rtscts = 1;
 
-	if (pdata->init)
-		pdata->init(pdev);
+	if (pdata->init) {
+		ret = pdata->init(pdev);
+		if (ret)
+			goto clkput;
+	}
 
 	uart_add_one_port(&imx_reg, &sport->port);
 	platform_set_drvdata(pdev, &sport->port);
 
 	return 0;
+clkput:
+	clk_put(sport->clk);
+	clk_disable(sport->clk);
 unmap:
 	iounmap(sport->port.membase);
 free:
