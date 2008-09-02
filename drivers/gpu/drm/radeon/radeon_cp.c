@@ -626,8 +626,6 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 		     dev_priv->ring.size_l2qw);
 #endif
 
-	/* Start with assuming that writeback doesn't work */
-	dev_priv->writeback_works = 0;
 
 	/* Initialize the scratch register pointer.  This will cause
 	 * the scratch register values to be written out to memory
@@ -673,6 +671,9 @@ static void radeon_cp_init_ring_buffer(struct drm_device * dev,
 static void radeon_test_writeback(drm_radeon_private_t * dev_priv)
 {
 	u32 tmp;
+
+	/* Start with assuming that writeback doesn't work */
+	dev_priv->writeback_works = 0;
 
 	/* Writeback doesn't seem to work everywhere, test it here and possibly
 	 * enable it if it appears to work
