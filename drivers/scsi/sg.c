@@ -1626,13 +1626,22 @@ exit_sg(void)
 	idr_destroy(&sg_index_idr);
 }
 
-static int __sg_start_req(struct sg_request *srp, struct sg_io_hdr *hp,
-			  unsigned char *cmd)
+static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 {
-	struct sg_fd *sfp = srp->parentfp;
-	struct request_queue *q = sfp->parentdp->device->request_queue;
+	int res = 0;
 	struct request *rq;
+	Sg_fd *sfp = srp->parentfp;
+	sg_io_hdr_t *hp = &srp->header;
+	int dxfer_len = (int) hp->dxfer_len;
+	int dxfer_dir = hp->dxfer_direction;
+	Sg_scatter_hold *req_schp = &srp->data;
+	Sg_scatter_hold *rsv_schp = &sfp->reserve;
+	struct request_queue *q = sfp->parentdp->device->request_queue;
+	struct rq_map_data map_data;
 	int rw = hp->dxfer_direction == SG_DXFER_TO_DEV ? WRITE : READ;
+
+	SCSI_LOG_TIMEOUT(4, printk(KERN_INFO "sg_start_req: dxfer_len=%d\n",
+				   dxfer_len));
 
 	rq = blk_get_request(q, rw, GFP_ATOMIC);
 	if (!rq)
@@ -1647,27 +1656,6 @@ static int __sg_start_req(struct sg_request *srp, struct sg_io_hdr *hp,
 	rq->end_io_data = srp;
 	rq->sense = srp->sense_b;
 	rq->retries = SG_DEFAULT_RETRIES;
-
-	return 0;
-}
-
-static int sg_start_req(Sg_request *srp, unsigned char *cmd)
-{
-	int res;
-	Sg_fd *sfp = srp->parentfp;
-	sg_io_hdr_t *hp = &srp->header;
-	int dxfer_len = (int) hp->dxfer_len;
-	int dxfer_dir = hp->dxfer_direction;
-	Sg_scatter_hold *req_schp = &srp->data;
-	Sg_scatter_hold *rsv_schp = &sfp->reserve;
-	struct request_queue *q = sfp->parentdp->device->request_queue;
-	struct rq_map_data map_data;
-
-	SCSI_LOG_TIMEOUT(4, printk("sg_start_req: dxfer_len=%d\n", dxfer_len));
-
-	res = __sg_start_req(srp, hp, cmd);
-	if (res)
-		return res;
 
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
 		return 0;
