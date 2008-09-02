@@ -202,7 +202,6 @@ static Sg_request *sg_get_rq_mark(Sg_fd * sfp, int pack_id);
 static Sg_request *sg_add_request(Sg_fd * sfp);
 static int sg_remove_request(Sg_fd * sfp, Sg_request * srp);
 static int sg_res_in_use(Sg_fd * sfp);
-static int sg_build_direct(Sg_request * srp, Sg_fd * sfp, int dxfer_len);
 static Sg_device *sg_get_dev(int dev);
 #ifdef CONFIG_SCSI_PROC_FS
 static int sg_last_dev(void);
@@ -1628,16 +1627,17 @@ exit_sg(void)
 
 static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 {
-	int res = 0;
+	int res;
 	struct request *rq;
 	Sg_fd *sfp = srp->parentfp;
 	sg_io_hdr_t *hp = &srp->header;
 	int dxfer_len = (int) hp->dxfer_len;
 	int dxfer_dir = hp->dxfer_direction;
+	unsigned int iov_count = hp->iovec_count;
 	Sg_scatter_hold *req_schp = &srp->data;
 	Sg_scatter_hold *rsv_schp = &sfp->reserve;
 	struct request_queue *q = sfp->parentdp->device->request_queue;
-	struct rq_map_data map_data;
+	struct rq_map_data *md, map_data;
 	int rw = hp->dxfer_direction == SG_DXFER_TO_DEV ? WRITE : READ;
 
 	SCSI_LOG_TIMEOUT(4, printk(KERN_INFO "sg_start_req: dxfer_len=%d\n",
@@ -1660,38 +1660,43 @@ static int sg_start_req(Sg_request *srp, unsigned char *cmd)
 	if ((dxfer_len <= 0) || (dxfer_dir == SG_DXFER_NONE))
 		return 0;
 
-	if (sg_allow_dio && (hp->flags & SG_FLAG_DIRECT_IO) &&
-	    (dxfer_dir != SG_DXFER_UNKNOWN) && (0 == hp->iovec_count) &&
-	    (!sfp->parentdp->device->host->unchecked_isa_dma) &&
+	if (sg_allow_dio && hp->flags & SG_FLAG_DIRECT_IO &&
+	    dxfer_dir != SG_DXFER_UNKNOWN && !iov_count &&
+	    !sfp->parentdp->device->host->unchecked_isa_dma &&
 	    blk_rq_aligned(q, hp->dxferp, dxfer_len))
-		return sg_build_direct(srp, sfp, dxfer_len);
-
-	if ((!sg_res_in_use(sfp)) && (dxfer_len <= rsv_schp->bufflen))
-		sg_link_reserve(sfp, srp, dxfer_len);
+		md = NULL;
 	else
-		res = sg_build_indirect(req_schp, sfp, dxfer_len);
+		md = &map_data;
 
-	if (!res) {
-		struct request *rq = srp->rq;
-		Sg_scatter_hold *schp = &srp->data;
-		int iovec_count = (int) hp->iovec_count;
+	if (md) {
+		if (!sg_res_in_use(sfp) && dxfer_len <= rsv_schp->bufflen)
+			sg_link_reserve(sfp, srp, dxfer_len);
+		else {
+			res = sg_build_indirect(req_schp, sfp, dxfer_len);
+			if (res)
+				return res;
+		}
 
-		map_data.pages = schp->pages;
-		map_data.page_order = schp->page_order;
-		map_data.nr_entries = schp->k_use_sg;
-
-		if (iovec_count)
-			res = blk_rq_map_user_iov(q, rq, &map_data, hp->dxferp,
-						  iovec_count,
-						  hp->dxfer_len, GFP_ATOMIC);
-		else
-			res = blk_rq_map_user(q, rq, &map_data, hp->dxferp,
-					      hp->dxfer_len, GFP_ATOMIC);
-
-		if (!res)
-			srp->bio = rq->bio;
+		md->pages = req_schp->pages;
+		md->page_order = req_schp->page_order;
+		md->nr_entries = req_schp->k_use_sg;
 	}
 
+	if (iov_count)
+		res = blk_rq_map_user_iov(q, rq, md, hp->dxferp, iov_count,
+					  hp->dxfer_len, GFP_ATOMIC);
+	else
+		res = blk_rq_map_user(q, rq, md, hp->dxferp,
+				      hp->dxfer_len, GFP_ATOMIC);
+
+	if (!res) {
+		srp->bio = rq->bio;
+
+		if (!md) {
+			req_schp->dio_in_use = 1;
+			hp->info |= SG_INFO_DIRECT_IO;
+		}
+	}
 	return res;
 }
 
@@ -1728,25 +1733,6 @@ sg_build_sgat(Sg_scatter_hold * schp, const Sg_fd * sfp, int tablesize)
 		return -ENOMEM;
 	schp->sglist_len = sg_bufflen;
 	return tablesize;	/* number of scat_gath elements allocated */
-}
-
-/* Returns: -ve -> error, 0 -> done, 1 -> try indirect */
-static int
-sg_build_direct(Sg_request * srp, Sg_fd * sfp, int dxfer_len)
-{
-	sg_io_hdr_t *hp = &srp->header;
-	Sg_scatter_hold *schp = &srp->data;
-	int res;
-	struct request *rq = srp->rq;
-	struct request_queue *q = sfp->parentdp->device->request_queue;
-
-	res = blk_rq_map_user(q, rq, NULL, hp->dxferp, dxfer_len, GFP_ATOMIC);
-	if (res)
-		return res;
-	srp->bio = rq->bio;
-	schp->dio_in_use = 1;
-	hp->info |= SG_INFO_DIRECT_IO;
-	return 0;
 }
 
 static int
