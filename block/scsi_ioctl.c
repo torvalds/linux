@@ -190,12 +190,11 @@ void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter)
 EXPORT_SYMBOL_GPL(blk_set_cmd_filter_defaults);
 
 static int blk_fill_sghdr_rq(struct request_queue *q, struct request *rq,
-			     struct sg_io_hdr *hdr, struct file *file)
+			     struct sg_io_hdr *hdr, fmode_t mode)
 {
 	if (copy_from_user(rq->cmd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (blk_verify_command(&q->cmd_filter, rq->cmd,
-			       file->f_mode & FMODE_WRITE))
+	if (blk_verify_command(&q->cmd_filter, rq->cmd, mode & FMODE_WRITE))
 		return -EPERM;
 
 	/*
@@ -260,8 +259,8 @@ static int blk_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 	return r;
 }
 
-static int sg_io(struct file *file, struct request_queue *q,
-		struct gendisk *bd_disk, struct sg_io_hdr *hdr)
+static int sg_io(struct request_queue *q, struct gendisk *bd_disk,
+		struct sg_io_hdr *hdr, fmode_t mode)
 {
 	unsigned long start_time;
 	int writing = 0, ret = 0;
@@ -293,7 +292,7 @@ static int sg_io(struct file *file, struct request_queue *q,
 	if (!rq)
 		return -ENOMEM;
 
-	if (blk_fill_sghdr_rq(q, rq, hdr, file)) {
+	if (blk_fill_sghdr_rq(q, rq, hdr, mode)) {
 		blk_put_request(rq);
 		return -EFAULT;
 	}
@@ -565,7 +564,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			err = -EFAULT;
 			if (copy_from_user(&hdr, arg, sizeof(hdr)))
 				break;
-			err = sg_io(file, q, bd_disk, &hdr);
+			err = sg_io(q, bd_disk, &hdr, file ? file->f_mode : 0);
 			if (err == -EFAULT)
 				break;
 
@@ -613,7 +612,7 @@ int scsi_cmd_ioctl(struct file *file, struct request_queue *q,
 			hdr.cmdp = ((struct cdrom_generic_command __user*) arg)->cmd;
 			hdr.cmd_len = sizeof(cgc.cmd);
 
-			err = sg_io(file, q, bd_disk, &hdr);
+			err = sg_io(q, bd_disk, &hdr, file ? file->f_mode : 0);
 			if (err == -EFAULT)
 				break;
 
