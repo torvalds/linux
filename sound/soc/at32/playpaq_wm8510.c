@@ -377,6 +377,7 @@ static struct snd_soc_machine snd_soc_machine_playpaq = {
 
 
 static struct wm8510_setup_data playpaq_wm8510_setup = {
+	.i2c_bus = 0,
 	.i2c_address = 0x1a,
 };
 
