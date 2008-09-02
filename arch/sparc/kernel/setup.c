@@ -216,13 +216,20 @@ void __init setup_arch(char **cmdline_p)
 
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
-	if(!strcmp(&cputypval,"sun4 ")) { sparc_cpu_model=sun4; }
-	if(!strcmp(&cputypval,"sun4c")) { sparc_cpu_model=sun4c; }
-	if(!strcmp(&cputypval,"sun4m")) { sparc_cpu_model=sun4m; }
-	if(!strcmp(&cputypval,"sun4s")) { sparc_cpu_model=sun4m; }  /* CP-1200 with PROM 2.30 -E */
-	if(!strcmp(&cputypval,"sun4d")) { sparc_cpu_model=sun4d; }
-	if(!strcmp(&cputypval,"sun4e")) { sparc_cpu_model=sun4e; }
-	if(!strcmp(&cputypval,"sun4u")) { sparc_cpu_model=sun4u; }
+	if (!strcmp(&cputypval,"sun4 "))
+		sparc_cpu_model = sun4;
+	if (!strcmp(&cputypval,"sun4c"))
+		sparc_cpu_model = sun4c;
+	if (!strcmp(&cputypval,"sun4m"))
+		sparc_cpu_model = sun4m;
+	if (!strcmp(&cputypval,"sun4s"))
+		sparc_cpu_model = sun4m; /* CP-1200 with PROM 2.30 -E */
+	if (!strcmp(&cputypval,"sun4d"))
+		sparc_cpu_model = sun4d;
+	if (!strcmp(&cputypval,"sun4e"))
+		sparc_cpu_model = sun4e;
+	if (!strcmp(&cputypval,"sun4u"))
+		sparc_cpu_model = sun4u;
 
 	printk("ARCH: ");
 	switch(sparc_cpu_model) {
