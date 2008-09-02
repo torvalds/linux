@@ -731,13 +731,13 @@ static void cx11646_jpeg(struct gspca_dev*gspca_dev)
 	reg_w_val(gspca_dev, 0x0000, 0x00);
 	/* wait for completion */
 	retry = 50;
-	while (retry--) {
+	do {
 		reg_r(gspca_dev, 0x0002, 1);
 							/* 0x07 until 0x00 */
 		if (gspca_dev->usb_buf[0] == 0x00)
 			break;
 		reg_w_val(gspca_dev, 0x0053, 0x00);
-	}
+	} while (--retry);
 	if (retry == 0)
 		PDEBUG(D_ERR, "Damned Errors sending jpeg Table");
 	/* send the qtable now */
