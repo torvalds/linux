@@ -1265,6 +1265,8 @@ static void blocking_cb(struct gfs2_sbd *sdp, struct lm_lockname *name,
 	holdtime = gl->gl_tchange + gl->gl_ops->go_min_hold_time;
 	if (time_before(now, holdtime))
 		delay = holdtime - now;
+	if (test_bit(GLF_REPLY_PENDING, &gl->gl_flags))
+		delay = gl->gl_ops->go_min_hold_time;
 
 	spin_lock(&gl->gl_spin);
 	handle_callback(gl, state, 1, delay);
