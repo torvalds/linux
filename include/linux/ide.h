@@ -1158,8 +1158,7 @@ struct ide_ioctl_devset {
 int ide_setting_ioctl(ide_drive_t *, struct block_device *, unsigned int,
 		      unsigned long, const struct ide_ioctl_devset *);
 
-int generic_ide_ioctl(ide_drive_t *, struct file *, struct block_device *,
-		      unsigned, unsigned long);
+int generic_ide_ioctl(ide_drive_t *, struct block_device *, unsigned, unsigned long);
 
 extern int ide_vlb_clk;
 extern int ide_pci_clk;

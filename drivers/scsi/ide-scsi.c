@@ -478,7 +478,7 @@ static int idescsi_ide_ioctl(struct inode *inode, struct file *file,
 {
 	struct block_device *bdev = inode->i_bdev;
 	struct ide_scsi_obj *scsi = ide_scsi_g(bdev->bd_disk);
-	return generic_ide_ioctl(scsi->drive, file, bdev, cmd, arg);
+	return generic_ide_ioctl(scsi->drive, bdev, cmd, arg);
 }
 
 static struct block_device_operations idescsi_ops = {

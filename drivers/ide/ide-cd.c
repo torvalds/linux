@@ -2174,7 +2174,7 @@ static int idecd_ioctl(struct inode *inode, struct file *file,
 		break;
 	}
 
-	err = generic_ide_ioctl(info->drive, file, bdev, cmd, arg);
+	err = generic_ide_ioctl(info->drive, bdev, cmd, arg);
 	if (err == -EINVAL)
 		err = cdrom_ioctl(file, &info->devinfo, inode, cmd, arg);
 
