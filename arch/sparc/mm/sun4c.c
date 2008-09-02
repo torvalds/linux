@@ -1108,7 +1108,7 @@ static void sun4c_unlockarea(char *vaddr, unsigned long size)
  * by implication and fool the page locking code above
  * if passed to by mistake.
  */
-static __u32 sun4c_get_scsi_one(char *bufptr, unsigned long len, struct sbus_bus *sbus)
+static __u32 sun4c_get_scsi_one(struct device *dev, char *bufptr, unsigned long len)
 {
 	unsigned long page;
 
@@ -1120,7 +1120,7 @@ static __u32 sun4c_get_scsi_one(char *bufptr, unsigned long len, struct sbus_bus
 	return (__u32)sun4c_lockarea(bufptr, len);
 }
 
-static void sun4c_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *sbus)
+static void sun4c_get_scsi_sgl(struct device *dev, struct scatterlist *sg, int sz)
 {
 	while (sz != 0) {
 		--sz;
@@ -1130,14 +1130,14 @@ static void sun4c_get_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *
 	}
 }
 
-static void sun4c_release_scsi_one(__u32 bufptr, unsigned long len, struct sbus_bus *sbus)
+static void sun4c_release_scsi_one(struct device *dev, __u32 bufptr, unsigned long len)
 {
 	if (bufptr < sun4c_iobuffer_start)
 		return; /* On kernel stack or similar, see above */
 	sun4c_unlockarea((char *)bufptr, len);
 }
 
-static void sun4c_release_scsi_sgl(struct scatterlist *sg, int sz, struct sbus_bus *sbus)
+static void sun4c_release_scsi_sgl(struct device *dev, struct scatterlist *sg, int sz)
 {
 	while (sz != 0) {
 		--sz;
