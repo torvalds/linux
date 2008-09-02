@@ -904,6 +904,17 @@ static inline __wsum ip_vs_check_diff4(__be32 old, __be32 new, __wsum oldsum)
 	return csum_partial((char *) diff, sizeof(diff), oldsum);
 }
 
+#ifdef CONFIG_IP_VS_IPV6
+static inline __wsum ip_vs_check_diff16(const __be32 *old, const __be32 *new,
+					__wsum oldsum)
+{
+	__be32 diff[8] = { ~old[3], ~old[2], ~old[1], ~old[0],
+			    new[3],  new[2],  new[1],  new[0] };
+
+	return csum_partial((char *) diff, sizeof(diff), oldsum);
+}
+#endif
+
 static inline __wsum ip_vs_check_diff2(__be16 old, __be16 new, __wsum oldsum)
 {
 	__be16 diff[2] = { ~old, new };
