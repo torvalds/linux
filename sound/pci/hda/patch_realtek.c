@@ -14782,6 +14782,11 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	if (codec->vendor_id == 0x10ec0663)
 		spec->init_verbs[spec->num_init_verbs++] =
 			alc663_auto_init_verbs;
+
+	err = alc_auto_add_mic_boost(codec);
+	if (err < 0)
+		return err;
+
 	spec->mixers[spec->num_mixers] = alc662_capture_mixer;
 	spec->num_mixers++;
 	return 1;
