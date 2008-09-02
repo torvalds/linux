@@ -173,19 +173,21 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		    __be16 ports[2])
 {
 	struct ip_vs_conn *cp = NULL;
-	struct iphdr *iph = ip_hdr(skb);
+	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
 	struct ip_vs_conn *ct;
 	__be16  dport;	 /* destination port to forward */
-	__be32  snet;	 /* source network of the client, after masking */
+	union nf_inet_addr snet;	/* source network of the client,
+					   after masking */
+	ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
 
 	/* Mask saddr with the netmask to adjust template granularity */
-	snet = iph->saddr & svc->netmask;
+	snet.ip = iph.saddr.ip & svc->netmask;
 
 	IP_VS_DBG(6, "p-schedule: src %u.%u.%u.%u:%u dest %u.%u.%u.%u:%u "
 		  "mnet %u.%u.%u.%u\n",
-		  NIPQUAD(iph->saddr), ntohs(ports[0]),
-		  NIPQUAD(iph->daddr), ntohs(ports[1]),
+		  NIPQUAD(iph.saddr.ip), ntohs(ports[0]),
+		  NIPQUAD(iph.daddr.ip), ntohs(ports[1]),
 		  NIPQUAD(snet));
 
 	/*
@@ -204,11 +206,11 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	if (ports[1] == svc->port) {
 		/* Check if a template already exists */
 		if (svc->port != FTPPORT)
-			ct = ip_vs_ct_in_get(iph->protocol, snet, 0,
-					       iph->daddr, ports[1]);
+			ct = ip_vs_ct_in_get(AF_INET, iph.protocol, &snet, 0,
+					     &iph.daddr, ports[1]);
 		else
-			ct = ip_vs_ct_in_get(iph->protocol, snet, 0,
-					       iph->daddr, 0);
+			ct = ip_vs_ct_in_get(AF_INET, iph.protocol, &snet, 0,
+					     &iph.daddr, 0);
 
 		if (!ct || !ip_vs_check_template(ct)) {
 			/*
@@ -228,18 +230,18 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 			 * for ftp service.
 			 */
 			if (svc->port != FTPPORT)
-				ct = ip_vs_conn_new(iph->protocol,
-						    snet, 0,
-						    iph->daddr,
+				ct = ip_vs_conn_new(AF_INET, iph.protocol,
+						    &snet, 0,
+						    &iph.daddr,
 						    ports[1],
-						    dest->addr.ip, dest->port,
+						    &dest->addr, dest->port,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			else
-				ct = ip_vs_conn_new(iph->protocol,
-						    snet, 0,
-						    iph->daddr, 0,
-						    dest->addr.ip, 0,
+				ct = ip_vs_conn_new(AF_INET, iph.protocol,
+						    &snet, 0,
+						    &iph.daddr, 0,
+						    &dest->addr, 0,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			if (ct == NULL)
@@ -258,12 +260,16 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 		 * fwmark template: <IPPROTO_IP,caddr,0,fwmark,0,daddr,0>
 		 * port zero template: <protocol,caddr,0,vaddr,0,daddr,0>
 		 */
-		if (svc->fwmark)
-			ct = ip_vs_ct_in_get(IPPROTO_IP, snet, 0,
-					       htonl(svc->fwmark), 0);
-		else
-			ct = ip_vs_ct_in_get(iph->protocol, snet, 0,
-					       iph->daddr, 0);
+		if (svc->fwmark) {
+			union nf_inet_addr fwmark = {
+				.all = { 0, 0, 0, htonl(svc->fwmark) }
+			};
+
+			ct = ip_vs_ct_in_get(AF_INET, IPPROTO_IP, &snet, 0,
+					     &fwmark, 0);
+		} else
+			ct = ip_vs_ct_in_get(AF_INET, iph.protocol, &snet, 0,
+					     &iph.daddr, 0);
 
 		if (!ct || !ip_vs_check_template(ct)) {
 			/*
@@ -282,18 +288,22 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 			/*
 			 * Create a template according to the service
 			 */
-			if (svc->fwmark)
-				ct = ip_vs_conn_new(IPPROTO_IP,
-						    snet, 0,
-						    htonl(svc->fwmark), 0,
-						    dest->addr.ip, 0,
+			if (svc->fwmark) {
+				union nf_inet_addr fwmark = {
+					.all = { 0, 0, 0, htonl(svc->fwmark) }
+				};
+
+				ct = ip_vs_conn_new(AF_INET, IPPROTO_IP,
+						    &snet, 0,
+						    &fwmark, 0,
+						    &dest->addr, 0,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
-			else
-				ct = ip_vs_conn_new(iph->protocol,
-						    snet, 0,
-						    iph->daddr, 0,
-						    dest->addr.ip, 0,
+			} else
+				ct = ip_vs_conn_new(AF_INET, iph.protocol,
+						    &snet, 0,
+						    &iph.daddr, 0,
+						    &dest->addr, 0,
 						    IP_VS_CONN_F_TEMPLATE,
 						    dest);
 			if (ct == NULL)
@@ -310,10 +320,10 @@ ip_vs_sched_persist(struct ip_vs_service *svc,
 	/*
 	 *    Create a new connection according to the template
 	 */
-	cp = ip_vs_conn_new(iph->protocol,
-			    iph->saddr, ports[0],
-			    iph->daddr, ports[1],
-			    dest->addr.ip, dport,
+	cp = ip_vs_conn_new(AF_INET, iph.protocol,
+			    &iph.saddr, ports[0],
+			    &iph.daddr, ports[1],
+			    &dest->addr, dport,
 			    0,
 			    dest);
 	if (cp == NULL) {
@@ -342,12 +352,12 @@ struct ip_vs_conn *
 ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 {
 	struct ip_vs_conn *cp = NULL;
-	struct iphdr *iph = ip_hdr(skb);
+	struct ip_vs_iphdr iph;
 	struct ip_vs_dest *dest;
 	__be16 _ports[2], *pptr;
 
-	pptr = skb_header_pointer(skb, iph->ihl*4,
-				  sizeof(_ports), _ports);
+	ip_vs_fill_iphdr(svc->af, skb_network_header(skb), &iph);
+	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
 	if (pptr == NULL)
 		return NULL;
 
@@ -377,10 +387,10 @@ ip_vs_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	/*
 	 *    Create a connection entry.
 	 */
-	cp = ip_vs_conn_new(iph->protocol,
-			    iph->saddr, pptr[0],
-			    iph->daddr, pptr[1],
-			    dest->addr.ip, dest->port ? dest->port : pptr[1],
+	cp = ip_vs_conn_new(AF_INET, iph.protocol,
+			    &iph.saddr, pptr[0],
+			    &iph.daddr, pptr[1],
+			    &dest->addr, dest->port ? dest->port : pptr[1],
 			    0,
 			    dest);
 	if (cp == NULL)
@@ -408,10 +418,10 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		struct ip_vs_protocol *pp)
 {
 	__be16 _ports[2], *pptr;
-	struct iphdr *iph = ip_hdr(skb);
+	struct ip_vs_iphdr iph;
+	ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
 
-	pptr = skb_header_pointer(skb, iph->ihl*4,
-				  sizeof(_ports), _ports);
+	pptr = skb_header_pointer(skb, iph.len, sizeof(_ports), _ports);
 	if (pptr == NULL) {
 		ip_vs_service_put(svc);
 		return NF_DROP;
@@ -421,7 +431,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	   and the destination is RTN_UNICAST (and not local), then create
 	   a cache_bypass connection entry */
 	if (sysctl_ip_vs_cache_bypass && svc->fwmark
-	    && (inet_addr_type(&init_net, iph->daddr) == RTN_UNICAST)) {
+	    && (inet_addr_type(&init_net, iph.daddr.ip) == RTN_UNICAST)) {
 		int ret, cs;
 		struct ip_vs_conn *cp;
 
@@ -429,9 +439,9 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 
 		/* create a new connection entry */
 		IP_VS_DBG(6, "ip_vs_leave: create a cache_bypass entry\n");
-		cp = ip_vs_conn_new(iph->protocol,
-				    iph->saddr, pptr[0],
-				    iph->daddr, pptr[1],
+		cp = ip_vs_conn_new(AF_INET, iph.protocol,
+				    &iph.saddr, pptr[0],
+				    &iph.daddr, pptr[1],
 				    0, 0,
 				    IP_VS_CONN_F_BYPASS,
 				    NULL);

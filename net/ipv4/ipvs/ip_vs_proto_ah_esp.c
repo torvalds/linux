@@ -46,16 +46,16 @@ ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 	struct ip_vs_conn *cp;
 
 	if (likely(!inverse)) {
-		cp = ip_vs_conn_in_get(IPPROTO_UDP,
-				       iph->saddr.ip,
+		cp = ip_vs_conn_in_get(af, IPPROTO_UDP,
+				       &iph->saddr,
 				       htons(PORT_ISAKMP),
-				       iph->daddr.ip,
+				       &iph->daddr,
 				       htons(PORT_ISAKMP));
 	} else {
-		cp = ip_vs_conn_in_get(IPPROTO_UDP,
-				       iph->daddr.ip,
+		cp = ip_vs_conn_in_get(af, IPPROTO_UDP,
+				       &iph->daddr,
 				       htons(PORT_ISAKMP),
-				       iph->saddr.ip,
+				       &iph->saddr,
 				       htons(PORT_ISAKMP));
 	}
 
@@ -86,16 +86,16 @@ ah_esp_conn_out_get(int af, const struct sk_buff *skb,
 	struct ip_vs_conn *cp;
 
 	if (likely(!inverse)) {
-		cp = ip_vs_conn_out_get(IPPROTO_UDP,
-					iph->saddr.ip,
+		cp = ip_vs_conn_out_get(af, IPPROTO_UDP,
+					&iph->saddr,
 					htons(PORT_ISAKMP),
-					iph->daddr.ip,
+					&iph->daddr,
 					htons(PORT_ISAKMP));
 	} else {
-		cp = ip_vs_conn_out_get(IPPROTO_UDP,
-					iph->daddr.ip,
+		cp = ip_vs_conn_out_get(af, IPPROTO_UDP,
+					&iph->daddr,
 					htons(PORT_ISAKMP),
-					iph->saddr.ip,
+					&iph->saddr,
 					htons(PORT_ISAKMP));
 	}
 

@@ -36,13 +36,13 @@ tcp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return NULL;
 
 	if (likely(!inverse)) {
-		return ip_vs_conn_in_get(iph->protocol,
-					 iph->saddr.ip, pptr[0],
-					 iph->daddr.ip, pptr[1]);
+		return ip_vs_conn_in_get(af, iph->protocol,
+					 &iph->saddr, pptr[0],
+					 &iph->daddr, pptr[1]);
 	} else {
-		return ip_vs_conn_in_get(iph->protocol,
-					 iph->daddr.ip, pptr[1],
-					 iph->saddr.ip, pptr[0]);
+		return ip_vs_conn_in_get(af, iph->protocol,
+					 &iph->daddr, pptr[1],
+					 &iph->saddr, pptr[0]);
 	}
 }
 
@@ -58,13 +58,13 @@ tcp_conn_out_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
 		return NULL;
 
 	if (likely(!inverse)) {
-		return ip_vs_conn_out_get(iph->protocol,
-					  iph->saddr.ip, pptr[0],
-					  iph->daddr.ip, pptr[1]);
+		return ip_vs_conn_out_get(af, iph->protocol,
+					  &iph->saddr, pptr[0],
+					  &iph->daddr, pptr[1]);
 	} else {
-		return ip_vs_conn_out_get(iph->protocol,
-					  iph->daddr.ip, pptr[1],
-					  iph->saddr.ip, pptr[0]);
+		return ip_vs_conn_out_get(af, iph->protocol,
+					  &iph->daddr, pptr[1],
+					  &iph->saddr, pptr[0]);
 	}
 }
 
