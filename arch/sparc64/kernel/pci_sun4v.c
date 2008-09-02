@@ -587,22 +587,15 @@ static unsigned long __init probe_existing_entries(struct pci_pbm_info *pbm,
 
 static int __init pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 {
+	static const u32 vdma_default[] = { 0x80000000, 0x80000000 };
 	struct iommu *iommu = pbm->iommu;
-	struct property *prop;
 	unsigned long num_tsb_entries, sz, tsbsize;
-	u32 vdma[2], dma_mask, dma_offset;
+	u32 dma_mask, dma_offset;
+	const u32 *vdma;
 
-	prop = of_find_property(pbm->prom_node, "virtual-dma", NULL);
-	if (prop) {
-		u32 *val = prop->value;
-
-		vdma[0] = val[0];
-		vdma[1] = val[1];
-	} else {
-		/* No property, use default values. */
-		vdma[0] = 0x80000000;
-		vdma[1] = 0x80000000;
-	}
+	vdma = of_get_property(pbm->prom_node, "virtual-dma", NULL);
+	if (!vdma)
+		vdma = vdma_default;
 
 	if ((vdma[0] | vdma[1]) & ~IO_PAGE_MASK) {
 		printk(KERN_ERR PFX "Strange virtual-dma[%08x:%08x].\n",
