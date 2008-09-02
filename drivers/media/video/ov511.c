@@ -5653,7 +5653,7 @@ static ssize_t show_exposure(struct device *cd,
 	if (!ov->dev)
 		return -ENODEV;
 	sensor_get_exposure(ov, &exp);
-	return sprintf(buf, "%d\n", exp >> 8);
+	return sprintf(buf, "%d\n", exp);
 }
 static DEVICE_ATTR(exposure, S_IRUGO, show_exposure, NULL);
 
