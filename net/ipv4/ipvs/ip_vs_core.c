@@ -572,6 +572,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
+	struct ip_vs_iphdr ciph;
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, ihl, verdict;
@@ -627,8 +628,9 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 
 	offset += cih->ihl * 4;
 
+	ip_vs_fill_iphdr(AF_INET, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_out_get(skb, pp, cih, offset, 1);
+	cp = pp->conn_out_get(AF_INET, skb, pp, &ciph, offset, 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -686,43 +688,41 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 	  const struct net_device *in, const struct net_device *out,
 	  int (*okfn)(struct sk_buff *))
 {
-	struct iphdr	*iph;
+	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
-	int ihl;
 
 	EnterFunction(11);
 
 	if (skb->ipvs_property)
 		return NF_ACCEPT;
 
-	iph = ip_hdr(skb);
-	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
+	ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
+	if (unlikely(iph.protocol == IPPROTO_ICMP)) {
 		int related, verdict = ip_vs_out_icmp(skb, &related);
 
 		if (related)
 			return verdict;
-		iph = ip_hdr(skb);
+		ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
 	}
 
-	pp = ip_vs_proto_get(iph->protocol);
+	pp = ip_vs_proto_get(iph.protocol);
 	if (unlikely(!pp))
 		return NF_ACCEPT;
 
 	/* reassemble IP fragments */
-	if (unlikely(iph->frag_off & htons(IP_MF|IP_OFFSET) &&
+	if (unlikely(ip_hdr(skb)->frag_off & htons(IP_MF|IP_OFFSET) &&
 		     !pp->dont_defrag)) {
 		if (ip_vs_gather_frags(skb, IP_DEFRAG_VS_OUT))
 			return NF_STOLEN;
-		iph = ip_hdr(skb);
-	}
 
-	ihl = iph->ihl << 2;
+		ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
+	}
 
 	/*
 	 * Check if the packet belongs to an existing entry
 	 */
-	cp = pp->conn_out_get(skb, pp, iph, ihl, 0);
+	cp = pp->conn_out_get(AF_INET, skb, pp, &iph, iph.len, 0);
 
 	if (unlikely(!cp)) {
 		if (sysctl_ip_vs_nat_icmp_send &&
@@ -730,18 +730,18 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 		     pp->protocol == IPPROTO_UDP)) {
 			__be16 _ports[2], *pptr;
 
-			pptr = skb_header_pointer(skb, ihl,
+			pptr = skb_header_pointer(skb, iph.len,
 						  sizeof(_ports), _ports);
 			if (pptr == NULL)
 				return NF_ACCEPT;	/* Not for me */
-			if (ip_vs_lookup_real_service(iph->protocol,
-						      iph->saddr, pptr[0])) {
+			if (ip_vs_lookup_real_service(iph.protocol,
+						      iph.saddr.ip, pptr[0])) {
 				/*
 				 * Notify the real server: there is no
 				 * existing entry if it is not RST
 				 * packet or not TCP packet.
 				 */
-				if (iph->protocol != IPPROTO_TCP
+				if (iph.protocol != IPPROTO_TCP
 				    || !is_tcp_reset(skb)) {
 					icmp_send(skb,ICMP_DEST_UNREACH,
 						  ICMP_PORT_UNREACH, 0);
@@ -756,7 +756,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 
 	IP_VS_DBG_PKT(11, pp, skb, 0, "Outgoing packet");
 
-	if (!skb_make_writable(skb, ihl))
+	if (!skb_make_writable(skb, iph.len))
 		goto drop;
 
 	/* mangle the packet */
@@ -804,6 +804,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	struct iphdr *iph;
 	struct icmphdr	_icmph, *ic;
 	struct iphdr	_ciph, *cih;	/* The ip header contained within the ICMP */
+	struct ip_vs_iphdr ciph;
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, ihl, verdict;
@@ -860,8 +861,9 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 
 	offset += cih->ihl * 4;
 
+	ip_vs_fill_iphdr(AF_INET, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
-	cp = pp->conn_in_get(skb, pp, cih, offset, 1);
+	cp = pp->conn_in_get(AF_INET, skb, pp, &ciph, offset, 1);
 	if (!cp)
 		return NF_ACCEPT;
 
@@ -897,11 +899,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	 const struct net_device *in, const struct net_device *out,
 	 int (*okfn)(struct sk_buff *))
 {
-	struct iphdr	*iph;
+	struct ip_vs_iphdr iph;
 	struct ip_vs_protocol *pp;
 	struct ip_vs_conn *cp;
 	int ret, restart;
-	int ihl;
+
+	ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
 
 	/*
 	 *	Big tappo: only PACKET_HOST (neither loopback nor mcasts)
@@ -909,38 +912,35 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	 */
 	if (unlikely(skb->pkt_type != PACKET_HOST
 		     || skb->dev->flags & IFF_LOOPBACK || skb->sk)) {
-		IP_VS_DBG(12, "packet type=%d proto=%d daddr=%d.%d.%d.%d ignored\n",
-			  skb->pkt_type,
-			  ip_hdr(skb)->protocol,
-			  NIPQUAD(ip_hdr(skb)->daddr));
+		IP_VS_DBG_BUF(12, "packet type=%d proto=%d daddr=%s ignored\n",
+			      skb->pkt_type,
+			      iph.protocol,
+			      IP_VS_DBG_ADDR(AF_INET, &iph.daddr));
 		return NF_ACCEPT;
 	}
 
-	iph = ip_hdr(skb);
-	if (unlikely(iph->protocol == IPPROTO_ICMP)) {
+	if (unlikely(iph.protocol == IPPROTO_ICMP)) {
 		int related, verdict = ip_vs_in_icmp(skb, &related, hooknum);
 
 		if (related)
 			return verdict;
-		iph = ip_hdr(skb);
+		ip_vs_fill_iphdr(AF_INET, skb_network_header(skb), &iph);
 	}
 
 	/* Protocol supported? */
-	pp = ip_vs_proto_get(iph->protocol);
+	pp = ip_vs_proto_get(iph.protocol);
 	if (unlikely(!pp))
 		return NF_ACCEPT;
-
-	ihl = iph->ihl << 2;
 
 	/*
 	 * Check if the packet belongs to an existing connection entry
 	 */
-	cp = pp->conn_in_get(skb, pp, iph, ihl, 0);
+	cp = pp->conn_in_get(AF_INET, skb, pp, &iph, iph.len, 0);
 
 	if (unlikely(!cp)) {
 		int v;
 
-		if (!pp->conn_schedule(skb, pp, &v, &cp))
+		if (!pp->conn_schedule(AF_INET, skb, pp, &v, &cp))
 			return v;
 	}
 

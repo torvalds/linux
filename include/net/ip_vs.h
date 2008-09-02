@@ -296,21 +296,23 @@ struct ip_vs_protocol {
 
 	void (*exit)(struct ip_vs_protocol *pp);
 
-	int (*conn_schedule)(struct sk_buff *skb,
+	int (*conn_schedule)(int af, struct sk_buff *skb,
 			     struct ip_vs_protocol *pp,
 			     int *verdict, struct ip_vs_conn **cpp);
 
 	struct ip_vs_conn *
-	(*conn_in_get)(const struct sk_buff *skb,
+	(*conn_in_get)(int af,
+		       const struct sk_buff *skb,
 		       struct ip_vs_protocol *pp,
-		       const struct iphdr *iph,
+		       const struct ip_vs_iphdr *iph,
 		       unsigned int proto_off,
 		       int inverse);
 
 	struct ip_vs_conn *
-	(*conn_out_get)(const struct sk_buff *skb,
+	(*conn_out_get)(int af,
+			const struct sk_buff *skb,
 			struct ip_vs_protocol *pp,
-			const struct iphdr *iph,
+			const struct ip_vs_iphdr *iph,
 			unsigned int proto_off,
 			int inverse);
 
@@ -320,7 +322,8 @@ struct ip_vs_protocol {
 	int (*dnat_handler)(struct sk_buff *skb,
 			    struct ip_vs_protocol *pp, struct ip_vs_conn *cp);
 
-	int (*csum_check)(struct sk_buff *skb, struct ip_vs_protocol *pp);
+	int (*csum_check)(int af, struct sk_buff *skb,
+			  struct ip_vs_protocol *pp);
 
 	const char *(*state_name)(int state);
 

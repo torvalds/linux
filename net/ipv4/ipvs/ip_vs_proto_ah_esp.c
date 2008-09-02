@@ -39,25 +39,23 @@ struct isakmp_hdr {
 
 
 static struct ip_vs_conn *
-ah_esp_conn_in_get(const struct sk_buff *skb,
-		   struct ip_vs_protocol *pp,
-		   const struct iphdr *iph,
-		   unsigned int proto_off,
+ah_esp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
+		   const struct ip_vs_iphdr *iph, unsigned int proto_off,
 		   int inverse)
 {
 	struct ip_vs_conn *cp;
 
 	if (likely(!inverse)) {
 		cp = ip_vs_conn_in_get(IPPROTO_UDP,
-				       iph->saddr,
+				       iph->saddr.ip,
 				       htons(PORT_ISAKMP),
-				       iph->daddr,
+				       iph->daddr.ip,
 				       htons(PORT_ISAKMP));
 	} else {
 		cp = ip_vs_conn_in_get(IPPROTO_UDP,
-				       iph->daddr,
+				       iph->daddr.ip,
 				       htons(PORT_ISAKMP),
-				       iph->saddr,
+				       iph->saddr.ip,
 				       htons(PORT_ISAKMP));
 	}
 
@@ -66,12 +64,12 @@ ah_esp_conn_in_get(const struct sk_buff *skb,
 		 * We are not sure if the packet is from our
 		 * service, so our conn_schedule hook should return NF_ACCEPT
 		 */
-		IP_VS_DBG(12, "Unknown ISAKMP entry for outin packet "
-			  "%s%s %u.%u.%u.%u->%u.%u.%u.%u\n",
-			  inverse ? "ICMP+" : "",
-			  pp->name,
-			  NIPQUAD(iph->saddr),
-			  NIPQUAD(iph->daddr));
+		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for outin packet "
+			      "%s%s %s->%s\n",
+			      inverse ? "ICMP+" : "",
+			      pp->name,
+			      IP_VS_DBG_ADDR(af, &iph->saddr),
+			      IP_VS_DBG_ADDR(af, &iph->daddr));
 	}
 
 	return cp;
@@ -79,32 +77,35 @@ ah_esp_conn_in_get(const struct sk_buff *skb,
 
 
 static struct ip_vs_conn *
-ah_esp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
-		    const struct iphdr *iph, unsigned int proto_off, int inverse)
+ah_esp_conn_out_get(int af, const struct sk_buff *skb,
+		    struct ip_vs_protocol *pp,
+		    const struct ip_vs_iphdr *iph,
+		    unsigned int proto_off,
+		    int inverse)
 {
 	struct ip_vs_conn *cp;
 
 	if (likely(!inverse)) {
 		cp = ip_vs_conn_out_get(IPPROTO_UDP,
-					iph->saddr,
+					iph->saddr.ip,
 					htons(PORT_ISAKMP),
-					iph->daddr,
+					iph->daddr.ip,
 					htons(PORT_ISAKMP));
 	} else {
 		cp = ip_vs_conn_out_get(IPPROTO_UDP,
-					iph->daddr,
+					iph->daddr.ip,
 					htons(PORT_ISAKMP),
-					iph->saddr,
+					iph->saddr.ip,
 					htons(PORT_ISAKMP));
 	}
 
 	if (!cp) {
-		IP_VS_DBG(12, "Unknown ISAKMP entry for inout packet "
-			  "%s%s %u.%u.%u.%u->%u.%u.%u.%u\n",
-			  inverse ? "ICMP+" : "",
-			  pp->name,
-			  NIPQUAD(iph->saddr),
-			  NIPQUAD(iph->daddr));
+		IP_VS_DBG_BUF(12, "Unknown ISAKMP entry for inout packet "
+			      "%s%s %s->%s\n",
+			      inverse ? "ICMP+" : "",
+			      pp->name,
+			      IP_VS_DBG_ADDR(af, &iph->saddr),
+			      IP_VS_DBG_ADDR(af, &iph->daddr));
 	}
 
 	return cp;
@@ -112,8 +113,7 @@ ah_esp_conn_out_get(const struct sk_buff *skb, struct ip_vs_protocol *pp,
 
 
 static int
-ah_esp_conn_schedule(struct sk_buff *skb,
-		     struct ip_vs_protocol *pp,
+ah_esp_conn_schedule(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		     int *verdict, struct ip_vs_conn **cpp)
 {
 	/*
