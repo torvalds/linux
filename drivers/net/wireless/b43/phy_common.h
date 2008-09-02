@@ -74,11 +74,21 @@ enum b43_txpwr_result {
 /**
  * struct b43_phy_operations - Function pointers for PHY ops.
  *
- * @prepare:		Prepare the PHY. This is called before @init.
+ * @allocate:		Allocate and initialise the PHY data structures.
+ * 			Must not be NULL.
+ * @free:		Destroy and free the PHY data structures.
+ * 			Must not be NULL.
+ *
+ * @prepare_structs:	Prepare the PHY data structures.
+ * 			The data structures allocated in @allocate are
+ * 			initialized here.
+ * 			Must not be NULL.
+ * @prepare_hardware:	Prepare the PHY. This is called before b43_chip_init to
+ * 			do some early early PHY hardware init.
  * 			Can be NULL, if not required.
  * @init:		Initialize the PHY.
  * 			Must not be NULL.
- * @exit:		Shutdown the PHY and free all data structures.
+ * @exit:		Shutdown the PHY.
  * 			Can be NULL, if not required.
  *
  * @phy_read:		Read from a PHY register.
@@ -133,7 +143,9 @@ enum b43_txpwr_result {
 struct b43_phy_operations {
 	/* Initialisation */
 	int (*allocate)(struct b43_wldev *dev);
-	int (*prepare)(struct b43_wldev *dev);
+	void (*free)(struct b43_wldev *dev);
+	void (*prepare_structs)(struct b43_wldev *dev);
+	int (*prepare_hardware)(struct b43_wldev *dev);
 	int (*init)(struct b43_wldev *dev);
 	void (*exit)(struct b43_wldev *dev);
 
@@ -237,10 +249,15 @@ struct b43_phy {
 
 
 /**
- * b43_phy_operations_setup - Initialize the PHY operations datastructure
- * based on the current PHY type.
+ * b43_phy_allocate - Allocate PHY structs
+ * Allocate the PHY data structures, based on the current dev->phy.type
  */
-int b43_phy_operations_setup(struct b43_wldev *dev);
+int b43_phy_allocate(struct b43_wldev *dev);
+
+/**
+ * b43_phy_free - Free PHY structs
+ */
+void b43_phy_free(struct b43_wldev *dev);
 
 /**
  * b43_phy_init - Initialise the PHY

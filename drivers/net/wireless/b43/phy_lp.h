@@ -530,7 +530,7 @@
 
 
 struct b43_phy_lp {
-	bool initialised;
+	//TODO
 };
 
 

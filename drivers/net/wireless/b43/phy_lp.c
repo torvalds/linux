@@ -36,32 +36,32 @@ static int b43_lpphy_op_allocate(struct b43_wldev *dev)
 		return -ENOMEM;
 	dev->phy.lp = lpphy;
 
-	//TODO
-
 	return 0;
+}
+
+static void b43_lpphy_op_prepare_structs(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_lp *lpphy = phy->lp;
+
+	memset(lpphy, 0, sizeof(*lpphy));
+
+	//TODO
+}
+
+static void b43_lpphy_op_free(struct b43_wldev *dev)
+{
+	struct b43_phy_lp *lpphy = dev->phy.lp;
+
+	kfree(lpphy);
+	dev->phy.lp = NULL;
 }
 
 static int b43_lpphy_op_init(struct b43_wldev *dev)
 {
-	struct b43_phy_lp *lpphy = dev->phy.lp;
-
 	//TODO
-	lpphy->initialised = 1;
 
 	return 0;
-}
-
-static void b43_lpphy_op_exit(struct b43_wldev *dev)
-{
-	struct b43_phy_lp *lpphy = dev->phy.lp;
-
-	if (lpphy->initialised) {
-		//TODO
-		lpphy->initialised = 0;
-	}
-
-	kfree(lpphy);
-	dev->phy.lp = NULL;
 }
 
 static u16 b43_lpphy_op_read(struct b43_wldev *dev, u16 reg)
@@ -138,8 +138,9 @@ static enum b43_txpwr_result b43_lpphy_op_recalc_txpower(struct b43_wldev *dev,
 
 const struct b43_phy_operations b43_phyops_lp = {
 	.allocate		= b43_lpphy_op_allocate,
+	.free			= b43_lpphy_op_free,
+	.prepare_structs	= b43_lpphy_op_prepare_structs,
 	.init			= b43_lpphy_op_init,
-	.exit			= b43_lpphy_op_exit,
 	.phy_read		= b43_lpphy_op_read,
 	.phy_write		= b43_lpphy_op_write,
 	.radio_read		= b43_lpphy_op_radio_read,

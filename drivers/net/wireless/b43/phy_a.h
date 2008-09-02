@@ -103,8 +103,6 @@ void b43_ofdmtab_write32(struct b43_wldev *dev, u16 table,
 
 
 struct b43_phy_a {
-	bool initialised;
-
 	/* Pointer to the table used to convert a
 	 * TSSI value to dBm-Q5.2 */
 	const s8 *tssi2dbm;

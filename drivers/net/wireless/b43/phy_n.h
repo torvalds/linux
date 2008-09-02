@@ -920,8 +920,6 @@
 struct b43_wldev;
 
 struct b43_phy_n {
-	bool initialised;
-
 	//TODO lots of missing stuff
 };
 

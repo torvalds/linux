@@ -114,8 +114,6 @@ static inline bool b43_compare_bbatt(const struct b43_bbatt *a,
 struct b43_txpower_lo_control;
 
 struct b43_phy_g {
-	bool initialised;
-
 	/* ACI (adjacent channel interference) flags. */
 	bool aci_enable;
 	bool aci_wlan_automatic;
