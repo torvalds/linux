@@ -25,6 +25,55 @@
 #include <linux/ipv6.h>			/* for struct ipv6hdr */
 #include <net/ipv6.h>			/* for ipv6_addr_copy */
 
+struct ip_vs_iphdr {
+	int len;
+	__u8 protocol;
+	union nf_inet_addr saddr;
+	union nf_inet_addr daddr;
+};
+
+static inline void
+ip_vs_fill_iphdr(int af, const void *nh, struct ip_vs_iphdr *iphdr)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		const struct ipv6hdr *iph = nh;
+		iphdr->len = sizeof(struct ipv6hdr);
+		iphdr->protocol = iph->nexthdr;
+		ipv6_addr_copy(&iphdr->saddr.in6, &iph->saddr);
+		ipv6_addr_copy(&iphdr->daddr.in6, &iph->daddr);
+	} else
+#endif
+	{
+		const struct iphdr *iph = nh;
+		iphdr->len = iph->ihl * 4;
+		iphdr->protocol = iph->protocol;
+		iphdr->saddr.ip = iph->saddr;
+		iphdr->daddr.ip = iph->daddr;
+	}
+}
+
+static inline void ip_vs_addr_copy(int af, union nf_inet_addr *dst,
+				   const union nf_inet_addr *src)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		ipv6_addr_copy(&dst->in6, &src->in6);
+	else
+#endif
+	dst->ip = src->ip;
+}
+
+static inline int ip_vs_addr_equal(int af, const union nf_inet_addr *a,
+				   const union nf_inet_addr *b)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		return ipv6_addr_equal(&a->in6, &b->in6);
+#endif
+	return a->ip == b->ip;
+}
+
 #ifdef CONFIG_IP_VS_DEBUG
 #include <linux/net.h>
 
