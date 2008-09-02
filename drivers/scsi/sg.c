@@ -116,7 +116,6 @@ typedef struct sg_scatter_hold { /* holding area for scsi scatter gather info */
 	unsigned short k_use_sg; /* Count of kernel scatter-gather pieces */
 	unsigned sglist_len; /* size of malloc'd scatter-gather list ++ */
 	unsigned bufflen;	/* Size of (aggregate) data buffer */
-	unsigned b_malloc_len;	/* actual len malloc'ed in buffer */
 	struct page **pages;
 	int page_order;
 	char dio_in_use;	/* 0->indirect IO (or mmap), 1->dio */
@@ -1986,7 +1985,6 @@ sg_link_reserve(Sg_fd * sfp, Sg_request * srp, int size)
 			req_schp->pages = rsv_schp->pages;
 
 			req_schp->bufflen = size;
-			req_schp->b_malloc_len = rsv_schp->b_malloc_len;
 			req_schp->page_order = rsv_schp->page_order;
 			break;
 		} else
