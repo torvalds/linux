@@ -490,19 +490,23 @@ set_tcp_state(struct ip_vs_protocol *pp, struct ip_vs_conn *cp,
 	if (new_state != cp->state) {
 		struct ip_vs_dest *dest = cp->dest;
 
-		IP_VS_DBG(8, "%s %s [%c%c%c%c] %u.%u.%u.%u:%d->"
-			  "%u.%u.%u.%u:%d state: %s->%s conn->refcnt:%d\n",
-			  pp->name,
-			  (state_off==TCP_DIR_OUTPUT)?"output ":"input ",
-			  th->syn? 'S' : '.',
-			  th->fin? 'F' : '.',
-			  th->ack? 'A' : '.',
-			  th->rst? 'R' : '.',
-			  NIPQUAD(cp->daddr.ip), ntohs(cp->dport),
-			  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
-			  tcp_state_name(cp->state),
-			  tcp_state_name(new_state),
-			  atomic_read(&cp->refcnt));
+		IP_VS_DBG_BUF(8, "%s %s [%c%c%c%c] %s:%d->"
+			      "%s:%d state: %s->%s conn->refcnt:%d\n",
+			      pp->name,
+			      ((state_off == TCP_DIR_OUTPUT) ?
+			       "output " : "input "),
+			      th->syn ? 'S' : '.',
+			      th->fin ? 'F' : '.',
+			      th->ack ? 'A' : '.',
+			      th->rst ? 'R' : '.',
+			      IP_VS_DBG_ADDR(cp->af, &cp->daddr),
+			      ntohs(cp->dport),
+			      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+			      ntohs(cp->cport),
+			      tcp_state_name(cp->state),
+			      tcp_state_name(new_state),
+			      atomic_read(&cp->refcnt));
+
 		if (dest) {
 			if (!(cp->flags & IP_VS_CONN_F_INACTIVE) &&
 			    (new_state != IP_VS_TCP_S_ESTABLISHED)) {
@@ -623,12 +627,15 @@ tcp_app_conn_bind(struct ip_vs_conn *cp)
 				break;
 			spin_unlock(&tcp_app_lock);
 
-			IP_VS_DBG(9, "%s: Binding conn %u.%u.%u.%u:%u->"
-				  "%u.%u.%u.%u:%u to app %s on port %u\n",
-				  __func__,
-				  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
-				  NIPQUAD(cp->vaddr.ip), ntohs(cp->vport),
-				  inc->name, ntohs(inc->port));
+			IP_VS_DBG_BUF(9, "%s: Binding conn %s:%u->"
+				      "%s:%u to app %s on port %u\n",
+				      __func__,
+				      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+				      ntohs(cp->cport),
+				      IP_VS_DBG_ADDR(cp->af, &cp->vaddr),
+				      ntohs(cp->vport),
+				      inc->name, ntohs(inc->port));
+
 			cp->app = inc;
 			if (inc->init_conn)
 				result = inc->init_conn(inc, cp);

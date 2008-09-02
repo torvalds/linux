@@ -408,12 +408,15 @@ static int udp_app_conn_bind(struct ip_vs_conn *cp)
 				break;
 			spin_unlock(&udp_app_lock);
 
-			IP_VS_DBG(9, "%s: Binding conn %u.%u.%u.%u:%u->"
-				  "%u.%u.%u.%u:%u to app %s on port %u\n",
-				  __func__,
-				  NIPQUAD(cp->caddr.ip), ntohs(cp->cport),
-				  NIPQUAD(cp->vaddr.ip), ntohs(cp->vport),
-				  inc->name, ntohs(inc->port));
+			IP_VS_DBG_BUF(9, "%s: Binding conn %s:%u->"
+				      "%s:%u to app %s on port %u\n",
+				      __func__,
+				      IP_VS_DBG_ADDR(cp->af, &cp->caddr),
+				      ntohs(cp->cport),
+				      IP_VS_DBG_ADDR(cp->af, &cp->vaddr),
+				      ntohs(cp->vport),
+				      inc->name, ntohs(inc->port));
+
 			cp->app = inc;
 			if (inc->init_conn)
 				result = inc->init_conn(inc, cp);

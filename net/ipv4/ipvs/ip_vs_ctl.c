@@ -924,13 +924,14 @@ ip_vs_add_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest)
 	dest = ip_vs_trash_get_dest(svc, &daddr, dport);
 
 	if (dest != NULL) {
-		IP_VS_DBG(3, "Get destination %u.%u.%u.%u:%u from trash, "
-			  "dest->refcnt=%d, service %u/%u.%u.%u.%u:%u\n",
-			  NIPQUAD(daddr), ntohs(dport),
-			  atomic_read(&dest->refcnt),
-			  dest->vfwmark,
-			  NIPQUAD(dest->vaddr.ip),
-			  ntohs(dest->vport));
+		IP_VS_DBG_BUF(3, "Get destination %s:%u from trash, "
+			      "dest->refcnt=%d, service %u/%s:%u\n",
+			      IP_VS_DBG_ADDR(svc->af, &daddr), ntohs(dport),
+			      atomic_read(&dest->refcnt),
+			      dest->vfwmark,
+			      IP_VS_DBG_ADDR(svc->af, &dest->vaddr),
+			      ntohs(dest->vport));
+
 		__ip_vs_update_dest(svc, dest, udest);
 
 		/*
@@ -1076,10 +1077,11 @@ static void __ip_vs_del_dest(struct ip_vs_dest *dest)
 		atomic_dec(&dest->svc->refcnt);
 		kfree(dest);
 	} else {
-		IP_VS_DBG(3, "Moving dest %u.%u.%u.%u:%u into trash, "
-			  "dest->refcnt=%d\n",
-			  NIPQUAD(dest->addr.ip), ntohs(dest->port),
-			  atomic_read(&dest->refcnt));
+		IP_VS_DBG_BUF(3, "Moving dest %s:%u into trash, "
+			      "dest->refcnt=%d\n",
+			      IP_VS_DBG_ADDR(dest->af, &dest->addr),
+			      ntohs(dest->port),
+			      atomic_read(&dest->refcnt));
 		list_add(&dest->n_list, &ip_vs_dest_trash);
 		atomic_inc(&dest->refcnt);
 	}
