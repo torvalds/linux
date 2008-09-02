@@ -389,6 +389,33 @@ static inline void ip_vs_bind_xmit(struct ip_vs_conn *cp)
 	}
 }
 
+#ifdef CONFIG_IP_VS_IPV6
+static inline void ip_vs_bind_xmit_v6(struct ip_vs_conn *cp)
+{
+	switch (IP_VS_FWD_METHOD(cp)) {
+	case IP_VS_CONN_F_MASQ:
+		cp->packet_xmit = ip_vs_nat_xmit_v6;
+		break;
+
+	case IP_VS_CONN_F_TUNNEL:
+		cp->packet_xmit = ip_vs_tunnel_xmit_v6;
+		break;
+
+	case IP_VS_CONN_F_DROUTE:
+		cp->packet_xmit = ip_vs_dr_xmit_v6;
+		break;
+
+	case IP_VS_CONN_F_LOCALNODE:
+		cp->packet_xmit = ip_vs_null_xmit;
+		break;
+
+	case IP_VS_CONN_F_BYPASS:
+		cp->packet_xmit = ip_vs_bypass_xmit_v6;
+		break;
+	}
+}
+#endif
+
 
 static inline int ip_vs_dest_totalconns(struct ip_vs_dest *dest)
 {
@@ -694,7 +721,12 @@ ip_vs_conn_new(int af, int proto, const union nf_inet_addr *caddr, __be16 cport,
 	cp->timeout = 3*HZ;
 
 	/* Bind its packet transmitter */
-	ip_vs_bind_xmit(cp);
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		ip_vs_bind_xmit_v6(cp);
+	else
+#endif
+		ip_vs_bind_xmit(cp);
 
 	if (unlikely(pp && atomic_read(&pp->appcnt)))
 		ip_vs_bind_app(cp, pp);

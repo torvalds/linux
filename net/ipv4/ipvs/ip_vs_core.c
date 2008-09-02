@@ -570,6 +570,49 @@ void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
 			"Forwarding altered incoming ICMP");
 }
 
+#ifdef CONFIG_IP_VS_IPV6
+void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
+		    struct ip_vs_conn *cp, int inout)
+{
+	struct ipv6hdr *iph	 = ipv6_hdr(skb);
+	unsigned int icmp_offset = sizeof(struct ipv6hdr);
+	struct icmp6hdr *icmph	 = (struct icmp6hdr *)(skb_network_header(skb) +
+						      icmp_offset);
+	struct ipv6hdr *ciph	 = (struct ipv6hdr *)(icmph + 1);
+
+	if (inout) {
+		iph->saddr = cp->vaddr.in6;
+		ciph->daddr = cp->vaddr.in6;
+	} else {
+		iph->daddr = cp->daddr.in6;
+		ciph->saddr = cp->daddr.in6;
+	}
+
+	/* the TCP/UDP port */
+	if (IPPROTO_TCP == ciph->nexthdr || IPPROTO_UDP == ciph->nexthdr) {
+		__be16 *ports = (void *)ciph + sizeof(struct ipv6hdr);
+
+		if (inout)
+			ports[1] = cp->vport;
+		else
+			ports[0] = cp->dport;
+	}
+
+	/* And finally the ICMP checksum */
+	icmph->icmp6_cksum = 0;
+	/* TODO IPv6: is this correct for ICMPv6? */
+	ip_vs_checksum_complete(skb, icmp_offset);
+	skb->ip_summed = CHECKSUM_UNNECESSARY;
+
+	if (inout)
+		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
+			"Forwarding altered outgoing ICMPv6");
+	else
+		IP_VS_DBG_PKT(11, pp, skb, (void *)ciph - (void *)iph,
+			"Forwarding altered incoming ICMPv6");
+}
+#endif
+
 /*
  *	Handle ICMP messages in the inside-to-outside direction (outgoing).
  *	Find any that might be relevant, check against existing connections,

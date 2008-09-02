@@ -855,6 +855,19 @@ extern int ip_vs_icmp_xmit
 (struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp, int offset);
 extern void ip_vs_dst_reset(struct ip_vs_dest *dest);
 
+#ifdef CONFIG_IP_VS_IPV6
+extern int ip_vs_bypass_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_nat_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_tunnel_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_dr_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp);
+extern int ip_vs_icmp_xmit_v6
+(struct sk_buff *skb, struct ip_vs_conn *cp, struct ip_vs_protocol *pp,
+ int offset);
+#endif
 
 /*
  *	This is a simple mechanism to ignore packets when
@@ -899,7 +912,12 @@ static inline char ip_vs_fwd_tag(struct ip_vs_conn *cp)
 }
 
 extern void ip_vs_nat_icmp(struct sk_buff *skb, struct ip_vs_protocol *pp,
-		struct ip_vs_conn *cp, int dir);
+			   struct ip_vs_conn *cp, int dir);
+
+#ifdef CONFIG_IP_VS_IPV6
+extern void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
+			      struct ip_vs_conn *cp, int dir);
+#endif
 
 extern __sum16 ip_vs_checksum_complete(struct sk_buff *skb, int offset);
 
