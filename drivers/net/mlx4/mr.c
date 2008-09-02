@@ -67,7 +67,8 @@ struct mlx4_mpt_entry {
 #define MLX4_MPT_FLAG_PHYSICAL	    (1 <<  9)
 #define MLX4_MPT_FLAG_REGION	    (1 <<  8)
 
-#define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 26)
+#define MLX4_MPT_PD_FLAG_FAST_REG   (1 << 27)
+#define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
 #define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
 
 #define MLX4_MTT_FLAG_PRESENT		1
@@ -348,7 +349,10 @@ int mlx4_mr_enable(struct mlx4_dev *dev, struct mlx4_mr *mr)
 	if (mr->mtt.order >= 0 && mr->mtt.page_shift == 0) {
 		/* fast register MR in free state */
 		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_FREE);
-		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_FAST_REG);
+		mpt_entry->pd_flags |= cpu_to_be32(MLX4_MPT_PD_FLAG_FAST_REG |
+						   MLX4_MPT_PD_FLAG_RAE);
+		mpt_entry->mtt_sz    = cpu_to_be32((1 << mr->mtt.order) *
+						   MLX4_MTT_ENTRY_PER_SEG);
 	} else {
 		mpt_entry->flags    |= cpu_to_be32(MLX4_MPT_FLAG_SW_OWNS);
 	}
