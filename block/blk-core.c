@@ -1780,9 +1780,9 @@ EXPORT_SYMBOL(end_dequeued_request);
  *     they have a residual value to account for. For that case this function
  *     isn't really useful, unless the residual just happens to be the
  *     full current segment. In other words, don't use this function in new
- *     code. Either use end_request_completely(), or the
- *     end_that_request_chunk() (along with end_that_request_last()) for
- *     partial completions.
+ *     code. Use blk_end_request() or __blk_end_request() to end partial parts
+ *     of a request, or end_dequeued_request() and end_queued_request() to
+ *     completely end IO on a dequeued/queued request.
  *
  **/
 void end_request(struct request *req, int uptodate)
