@@ -42,7 +42,7 @@ static int __blk_rq_unmap_user(struct bio *bio)
 
 static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 			     struct rq_map_data *map_data, void __user *ubuf,
-			     unsigned int len, gfp_t gfp_mask)
+			     unsigned int len, int null_mapped, gfp_t gfp_mask)
 {
 	unsigned long uaddr;
 	struct bio *bio, *orig_bio;
@@ -62,6 +62,9 @@ static int __blk_rq_map_user(struct request_queue *q, struct request *rq,
 
 	if (IS_ERR(bio))
 		return PTR_ERR(bio);
+
+	if (null_mapped)
+		bio->bi_flags |= (1 << BIO_NULL_MAPPED);
 
 	orig_bio = bio;
 	blk_queue_bounce(q, &bio);
@@ -111,12 +114,17 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 {
 	unsigned long bytes_read = 0;
 	struct bio *bio = NULL;
-	int ret;
+	int ret, null_mapped = 0;
 
 	if (len > (q->max_hw_sectors << 9))
 		return -EINVAL;
-	if (!len || !ubuf)
+	if (!len)
 		return -EINVAL;
+	if (!ubuf) {
+		if (!map_data || rq_data_dir(rq) != READ)
+			return -EINVAL;
+		null_mapped = 1;
+	}
 
 	while (bytes_read != len) {
 		unsigned long map_len, end, start;
@@ -135,7 +143,7 @@ int blk_rq_map_user(struct request_queue *q, struct request *rq,
 			map_len -= PAGE_SIZE;
 
 		ret = __blk_rq_map_user(q, rq, map_data, ubuf, map_len,
-					gfp_mask);
+					null_mapped, gfp_mask);
 		if (ret < 0)
 			goto unmap_rq;
 		if (!bio)
