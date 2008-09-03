@@ -271,7 +271,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
 
 	cam = &gspca_dev->cam;
-	cam->dev_name = (char *) id->driver_info;
 	cam->epaddr = 0x05;
 	cam->cam_mode = sif_mode;
 	cam->nmodes = ARRAY_SIZE(sif_mode);

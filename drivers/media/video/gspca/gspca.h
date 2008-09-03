@@ -56,7 +56,6 @@ extern int gspca_debug;
 
 /* device information - set at probe time */
 struct cam {
-	char *dev_name;
 	struct v4l2_pix_format *cam_mode;	/* size nmodes */
 	char nmodes;
 	__u8 epaddr;
