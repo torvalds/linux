@@ -283,9 +283,7 @@ static int printk_partition(struct device *dev, void *data)
  */
 void __init printk_all_partitions(void)
 {
-	mutex_lock(&block_class_lock);
 	class_for_each_device(&block_class, NULL, NULL, printk_partition);
-	mutex_unlock(&block_class_lock);
 }
 
 #ifdef CONFIG_PROC_FS
@@ -305,17 +303,15 @@ static int find_start(struct device *dev, void *data)
 static void *part_start(struct seq_file *part, loff_t *pos)
 {
 	struct device *dev;
-	loff_t k = *pos;
+	loff_t n = *pos;
 
-	if (!k)
+	if (!n)
 		part->private = (void *)1LU;	/* tell show to print header */
 
-	mutex_lock(&block_class_lock);
-	dev = class_find_device(&block_class, NULL, &k, find_start);
-	if (dev) {
-		put_device(dev);
+	dev = class_find_device(&block_class, NULL, &n, find_start);
+	if (dev)
 		return dev_to_disk(dev);
-	}
+
 	return NULL;
 }
 
@@ -341,7 +337,6 @@ static void *part_next(struct seq_file *part, void *v, loff_t *pos)
 
 static void part_stop(struct seq_file *part, void *v)
 {
-	mutex_unlock(&block_class_lock);
 }
 
 static int show_partition(struct seq_file *part, void *v)
@@ -583,14 +578,12 @@ static struct device_type disk_type = {
 static void *diskstats_start(struct seq_file *part, loff_t *pos)
 {
 	struct device *dev;
-	loff_t k = *pos;
+	loff_t n = *pos;
 
-	mutex_lock(&block_class_lock);
-	dev = class_find_device(&block_class, NULL, &k, find_start);
-	if (dev) {
-		put_device(dev);
+	dev = class_find_device(&block_class, NULL, &n, find_start);
+	if (dev)
 		return dev_to_disk(dev);
-	}
+
 	return NULL;
 }
 
@@ -610,7 +603,6 @@ static void *diskstats_next(struct seq_file *part, void *v, loff_t *pos)
 
 static void diskstats_stop(struct seq_file *part, void *v)
 {
-	mutex_unlock(&block_class_lock);
 }
 
 static int diskstats_show(struct seq_file *s, void *v)
@@ -729,7 +721,6 @@ dev_t blk_lookup_devt(const char *name, int part)
 	dev_t devt = MKDEV(0, 0);
 	struct find_block find;
 
-	mutex_lock(&block_class_lock);
 	find.name = name;
 	find.part = part;
 	dev = class_find_device(&block_class, NULL, &find, match_id);
@@ -738,7 +729,6 @@ dev_t blk_lookup_devt(const char *name, int part)
 		devt = MKDEV(MAJOR(dev->devt),
 			     MINOR(dev->devt) + part);
 	}
-	mutex_unlock(&block_class_lock);
 
 	return devt;
 }
