@@ -38,9 +38,9 @@ struct sd {
 #define CONTRAST_MAX 0x3fff
 
 	__u16 exposure;			/* rev12a only */
-#define EXPOSURE_MIN 0x0120
+#define EXPOSURE_MIN 0x2001
 #define EXPOSURE_DEF 0x20ae
-#define EXPOSURE_MAX 0x5720
+#define EXPOSURE_MAX 0x421d
 
 	__u8 brightness;		/* rev72a only */
 #define BRIGHTNESS_MIN 0
@@ -61,6 +61,9 @@ struct sd {
 #define GAIN_MIN 0x0
 #define GAIN_DEF 0x24
 #define GAIN_MAX 0x24
+
+#define EXPO12A_DEF 3
+	__u8 expo12a;		/* expo/gain? for rev 12a */
 
 	__u8 chip_revision;
 #define Rev012A 0
@@ -553,6 +556,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->exposure = EXPOSURE_DEF;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->gain = GAIN_DEF;
+	sd->expo12a = EXPO12A_DEF;
 	return 0;
 }
 
@@ -609,12 +613,9 @@ static void setwhite(struct gspca_dev *gspca_dev)
 		return;
 	}
 	/* try to emulate MS-win as possible */
-	if (white < 0x45)
-		reg8616 = white;
-	else
-		reg8616 = 0x93 + (white >> 2);
-	reg8614 = 0x28 + (white >> 4);
+	reg8616 = 0x90 - white * 5 / 8;
 	reg_w_val(gspca_dev->dev, 0x8616, reg8616);
+	reg8614 = 0x20 + white * 3 / 8;
 	reg_w_val(gspca_dev->dev, 0x8614, reg8614);
 }
 
@@ -622,30 +623,32 @@ static void setwhite(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
+	__u8 data[2];
 
-	reg_w_val(dev, 0x8309, sd->gain);
+	data[0] = sd->exposure;
+	data[1] = sd->exposure >> 8;
+	reg_w_buf(gspca_dev, 0x8309, data, 2);
 }
 
 /* rev 12a only */
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	struct usb_device *dev = gspca_dev->dev;
+	__u8 data[2];
 
-	reg_w_val(dev, 0x8335, sd->gain);
+	data[0] = sd->gain;
+	data[1] = 0;
+	reg_w_buf(gspca_dev, 0x8335, data, 2);
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->chip_revision == Rev072A) {
-		if (sd->autogain)
-			sd->ag_cnt = AG_CNT_START;
-		else
-			sd->ag_cnt = -1;
-	}
+	if (sd->autogain)
+		sd->ag_cnt = AG_CNT_START;
+	else
+		sd->ag_cnt = -1;
 }
 
 static void sd_start_12a(struct gspca_dev *gspca_dev)
@@ -684,6 +687,7 @@ static void sd_start_12a(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev->dev, 0x850b, 0x03);
 	setcontrast(gspca_dev);
 	setwhite(gspca_dev);
+	setautogain(gspca_dev);
 }
 static void sd_start_72a(struct gspca_dev *gspca_dev)
 {
@@ -713,12 +717,24 @@ static void sd_start_72a(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
-	reg_w_val(gspca_dev->dev, 0x8112, 0x20);
-	reg_w_val(gspca_dev->dev, 0x8102, 0x00); /* white balance - new */
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->chip_revision == Rev012A) {
+		reg_w_val(gspca_dev->dev, 0x8112, 0x0e);
+	} else {
+		reg_w_val(gspca_dev->dev, 0x8112, 0x20);
+/*		reg_w_val(gspca_dev->dev, 0x8102, 0x00); ?? */
+	}
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->chip_revision == Rev012A) {
+		reg_w_val(gspca_dev->dev, 0x8118, 0x29);
+		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
+	}
 }
 
 /* this function is called at close time */
@@ -727,7 +743,6 @@ static void sd_close(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev->dev, 0x8114, 0);
 }
 
-/* rev72a only */
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -739,6 +754,7 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	__u8 luma_mean = 110;
 	__u8 luma_delta = 20;
 	__u8 spring = 4;
+	__u8 reg8339[2];
 
 	if (sd->ag_cnt < 0)
 		return;
@@ -793,13 +809,16 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 		}
 		break;
 	case Rev012A:
-		/* sensor registers is access and memory mapped to 0x8300 */
-		/* readind all 0x83xx block the sensor */
-		/*
-		 * The data from the header seem wrong where is the luma
-		 * and chroma mean value
-		 * at the moment set exposure in contrast set
-		 */
+		reg_r(gspca_dev, 0x8330, 2);
+		if (gspca_dev->usb_buf[1] > 0x08) {
+			reg8339[0] = ++sd->expo12a;
+			reg8339[1] = 0;
+			reg_w_buf(gspca_dev, 0x8339, reg8339, 2);
+		} else if (gspca_dev->usb_buf[1] < 0x02) {
+			reg8339[0] = --sd->expo12a;
+			reg8339[1] = 0;
+			reg_w_buf(gspca_dev, 0x8339, reg8339, 2);
+		}
 		break;
 	}
 }
