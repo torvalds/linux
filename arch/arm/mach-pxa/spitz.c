@@ -38,7 +38,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa27x.h>
 #include <mach/pxa27x-udc.h>
 #include <mach/reset.h>
 #include <mach/i2c.h>
@@ -57,6 +57,66 @@
 #include "generic.h"
 #include "devices.h"
 #include "sharpsl.h"
+
+static unsigned long spitz_pin_config[] __initdata = {
+	/* Chip Selects */
+	GPIO78_nCS_2,	/* SCOOP #2 */
+	GPIO80_nCS_4,	/* SCOOP #1 */
+
+	/* LCD - 16bpp Active TFT */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+
+	/* PC Card */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO79_PSKTSEL,
+	GPIO55_nPREG,
+	GPIO56_nPWAIT,
+	GPIO57_nIOIS16,
+
+	/* MMC */
+	GPIO32_MMC_CLK,
+	GPIO112_MMC_CMD,
+	GPIO92_MMC_DAT_0,
+	GPIO109_MMC_DAT_1,
+	GPIO110_MMC_DAT_2,
+	GPIO111_MMC_DAT_3,
+
+	/* GPIOs */
+	GPIO9_GPIO,	/* SPITZ_GPIO_nSD_DETECT */
+	GPIO81_GPIO,	/* SPITZ_GPIO_nSD_WP */
+	GPIO41_GPIO,	/* SPITZ_GPIO_USB_CONNECT */
+	GPIO37_GPIO,	/* SPITZ_GPIO_USB_HOST */
+	GPIO35_GPIO,	/* SPITZ_GPIO_USB_DEVICE */
+	GPIO22_GPIO,	/* SPITZ_GPIO_HSYNC */
+	GPIO94_GPIO,	/* SPITZ_GPIO_CF_CD */
+	GPIO105_GPIO,	/* SPITZ_GPIO_CF_IRQ */
+	GPIO106_GPIO,	/* SPITZ_GPIO_CF2_IRQ */
+
+	GPIO1_GPIO | WAKEUP_ON_EDGE_RISE,
+};
 
 /*
  * Spitz SCOOP Device #1
@@ -146,27 +206,6 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 	}
 }
 
-static void spitz_pcmcia_init(void)
-{
-	/* Setup default state of GPIO outputs
-	   before we enable them as outputs. */
-	GPSR(GPIO48_nPOE) = GPIO_bit(GPIO48_nPOE) |
-		GPIO_bit(GPIO49_nPWE) |	GPIO_bit(GPIO50_nPIOR) |
-		GPIO_bit(GPIO51_nPIOW) | GPIO_bit(GPIO54_nPCE_2);
-	GPSR(GPIO85_nPCE_1) = GPIO_bit(GPIO85_nPCE_1);
-
-	pxa_gpio_mode(GPIO48_nPOE_MD);
-	pxa_gpio_mode(GPIO49_nPWE_MD);
-	pxa_gpio_mode(GPIO50_nPIOR_MD);
-	pxa_gpio_mode(GPIO51_nPIOW_MD);
-	pxa_gpio_mode(GPIO55_nPREG_MD);
-	pxa_gpio_mode(GPIO56_nPWAIT_MD);
-	pxa_gpio_mode(GPIO57_nIOIS16_MD);
-	pxa_gpio_mode(GPIO85_nPCE_1_MD);
-	pxa_gpio_mode(GPIO54_nPCE_2_MD);
-	pxa_gpio_mode(GPIO104_pSKTSEL_MD);
-}
-
 static void spitz_pcmcia_pwr(struct device *scoop, unsigned short cpr, int nr)
 {
 	/* Only need to override behaviour for slot 0 */
@@ -192,7 +231,6 @@ static struct scoop_pcmcia_dev spitz_pcmcia_scoop[] = {
 static struct scoop_pcmcia_config spitz_pcmcia_config = {
 	.devs         = &spitz_pcmcia_scoop[0],
 	.num_devs     = 2,
-	.pcmcia_init  = spitz_pcmcia_init,
 	.power_ctrl   = spitz_pcmcia_pwr,
 };
 
@@ -365,14 +403,6 @@ static int spitz_mci_init(struct device *dev, irq_handler_t spitz_detect_int, vo
 {
 	int err;
 
-	/* setup GPIO for PXA27x MMC controller	*/
-	pxa_gpio_mode(GPIO32_MMCCLK_MD);
-	pxa_gpio_mode(GPIO112_MMCCMD_MD);
-	pxa_gpio_mode(GPIO92_MMCDAT0_MD);
-	pxa_gpio_mode(GPIO109_MMCDAT1_MD);
-	pxa_gpio_mode(GPIO110_MMCDAT2_MD);
-	pxa_gpio_mode(GPIO111_MMCDAT3_MD);
-
 	err = gpio_request(SPITZ_GPIO_nSD_DETECT, "nSD_DETECT");
 	if (err)
 		goto err_out;
@@ -447,12 +477,9 @@ static int spitz_ohci_init(struct device *dev)
 	if (err)
 		return err;
 
-	/* Only Port 2 is connected */
-	pxa_gpio_mode(SPITZ_GPIO_USB_CONNECT | GPIO_IN);
-	pxa_gpio_mode(SPITZ_GPIO_USB_HOST | GPIO_OUT);
-	pxa_gpio_mode(SPITZ_GPIO_USB_DEVICE | GPIO_IN);
-
-	/* Setup USB Port 2 Output Control Register */
+	/* Only Port 2 is connected
+	 * Setup USB Port 2 Output Control Register
+	 */
 	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
 
 	gpio_direction_output(SPITZ_GPIO_USB_HOST, 1);
@@ -582,20 +609,12 @@ static void __init common_init(void)
 
 	PMCR = 0x00;
 
-	/* setup sleep mode values */
-	PWER  = 0x00000002;
-	PFER  = 0x00000000;
-	PRER  = 0x00000002;
-	PGSR0 = 0x0158C000;
-	PGSR1 = 0x00FF0080;
-	PGSR2 = 0x0001C004;
-
 	/* Stop 3.6MHz and drive HIGH to PCMCIA and CS */
 	PCFR |= PCFR_OPDE;
 
-	corgi_ssp_set_machinfo(&spitz_ssp_machinfo);
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(spitz_pin_config));
 
-	pxa_gpio_mode(SPITZ_GPIO_HSYNC | GPIO_IN);
+	corgi_ssp_set_machinfo(&spitz_ssp_machinfo);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
