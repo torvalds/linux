@@ -38,6 +38,9 @@ struct au0828_board au0828_boards[] = {
 	[AU0828_BOARD_DVICO_FUSIONHDTV7] = {
 		.name	= "DViCO FusionHDTV USB",
 	},
+	[AU0828_BOARD_HAUPPAUGE_WOODBURY] = {
+		.name = "Hauppauge Woodbury",
+	},
 };
 
 /* Tuner callback function for au0828 boards. Currently only needed
@@ -115,6 +118,7 @@ void au0828_card_setup(struct au0828_dev *dev)
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
+	case AU0828_BOARD_HAUPPAUGE_WOODBURY:
 		if (dev->i2c_rc == 0)
 			hauppauge_eeprom(dev, eeprom+0xa0);
 		break;
@@ -134,6 +138,7 @@ void au0828_gpio_setup(struct au0828_dev *dev)
 	case AU0828_BOARD_HAUPPAUGE_HVR850:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q:
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
+	case AU0828_BOARD_HAUPPAUGE_WOODBURY:
 		/* GPIO's
 		 * 4 - CS5340
 		 * 5 - AU8522 Demodulator
@@ -205,6 +210,8 @@ struct usb_device_id au0828_usb_id_table [] = {
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
 	{ USB_DEVICE(0x2040, 0x7281),
 		.driver_info = AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL },
+	{ USB_DEVICE(0x2040, 0x8200),
+		.driver_info = AU0828_BOARD_HAUPPAUGE_WOODBURY },
 	{ },
 };
 
