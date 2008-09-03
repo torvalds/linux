@@ -210,7 +210,7 @@ static void tick_do_broadcast_on_off(void *why)
 	struct clock_event_device *bc, *dev;
 	struct tick_device *td;
 	unsigned long flags, *reason = why;
-	int cpu;
+	int cpu, bc_stopped;
 
 	spin_lock_irqsave(&tick_broadcast_lock, flags);
 
@@ -227,6 +227,8 @@ static void tick_do_broadcast_on_off(void *why)
 
 	if (!tick_device_is_functional(dev))
 		goto out;
+
+	bc_stopped = cpus_empty(tick_broadcast_mask);
 
 	switch (*reason) {
 	case CLOCK_EVT_NOTIFY_BROADCAST_ON:
@@ -250,9 +252,10 @@ static void tick_do_broadcast_on_off(void *why)
 		break;
 	}
 
-	if (cpus_empty(tick_broadcast_mask))
-		clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
-	else {
+	if (cpus_empty(tick_broadcast_mask)) {
+		if (!bc_stopped)
+			clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
+	} else if (bc_stopped) {
 		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
 			tick_broadcast_start_periodic(bc);
 		else
@@ -501,9 +504,12 @@ static void tick_broadcast_clear_oneshot(int cpu)
  */
 void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
-	bc->event_handler = tick_handle_oneshot_broadcast;
-	clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
-	bc->next_event.tv64 = KTIME_MAX;
+	/* Set it up only once ! */
+	if (bc->event_handler != tick_handle_oneshot_broadcast) {
+		bc->event_handler = tick_handle_oneshot_broadcast;
+		clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
+		bc->next_event.tv64 = KTIME_MAX;
+	}
 }
 
 /*
