@@ -208,14 +208,14 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	u16 radio_cfg;
-	u8 val_link;
+	u16 link;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
+	pci_read_config_word(priv->pci_dev, PCI_CFG_LINK_CTRL, &link);
 
 	/* L1 is enabled by BIOS */
-	if ((val_link & PCI_LINK_VAL_L1_EN) == PCI_LINK_VAL_L1_EN)
+	if ((link & PCI_CFG_LINK_CTRL_VAL_L1_EN) == PCI_CFG_LINK_CTRL_VAL_L1_EN)
 		/* diable L0S disabled L1A enabled */
 		iwl_set_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 	else
