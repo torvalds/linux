@@ -31,9 +31,6 @@ MODULE_LICENSE("GPL");
 /* specific webcam descriptor */
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
-
-	struct sd_desc sd_desc;		/* our nctrls differ dependend upon the
-					   sensor, so we use a per cam copy */
 	atomic_t avg_lum;
 
 	unsigned char gain;
@@ -60,9 +57,8 @@ struct sd {
 
 /* flags used in the device id table */
 #define F_GAIN 0x01		/* has gain */
-#define F_AUTO 0x02		/* has autogain */
-#define F_SIF  0x04		/* sif or vga */
-#define F_H18  0x08		/* long (18 b) or short (12 b) frame header */
+#define F_SIF  0x02		/* sif or vga */
+#define F_H18  0x04		/* long (18 b) or short (12 b) frame header */
 
 #define COMP2 0x8f
 #define COMP 0xc7		/* 0x87 //0x07 */
@@ -95,6 +91,7 @@ static int sd_setfreq(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getfreq(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
+#define BRIGHTNESS_IDX 0
 	{
 	    {
 		.id      = V4L2_CID_BRIGHTNESS,
@@ -109,6 +106,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setbrightness,
 	    .get = sd_getbrightness,
 	},
+#define GAIN_IDX 1
 	{
 	    {
 		.id      = V4L2_CID_GAIN,
@@ -124,6 +122,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setgain,
 	    .get = sd_getgain,
 	},
+#define EXPOSURE_IDX 2
 	{
 		{
 			.id = V4L2_CID_EXPOSURE,
@@ -140,6 +139,7 @@ static struct ctrl sd_ctrls[] = {
 		.set = sd_setexposure,
 		.get = sd_getexposure,
 	},
+#define AUTOGAIN_IDX 3
 	{
 		{
 			.id = V4L2_CID_AUTOGAIN,
@@ -155,6 +155,7 @@ static struct ctrl sd_ctrls[] = {
 		.set = sd_setautogain,
 		.get = sd_getautogain,
 	},
+#define FREQ_IDX 4
 	{
 		{
 			.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -545,9 +546,6 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 			goto err;
 		break;
 	    }
-	case SENSOR_TAS5110:
-		/* FIXME figure out howto control brightness on TAS5110 */
-		break;
 	}
 	return;
 err:
@@ -665,6 +663,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		else if (reg11 > 16)
 			reg11 = 16;
 
+		/* In 640x480, if the reg11 has less than 3, the image is
+		   unstable (not enough bandwidth). */
+		if (gspca_dev->width == 640 && reg11 < 3)
+			reg11 = 3;
+
 		/* frame exposure time in ms = 1000 * reg11 / 30    ->
 		reg10 = sd->exposure * 2 * reg10_max / (1000 * reg11 / 30) */
 		reg10 = (sd->exposure * 60 * reg10_max) / (1000 * reg11);
@@ -677,11 +680,6 @@ static void setexposure(struct gspca_dev *gspca_dev)
 			reg10 = 10;
 		else if (reg10 > reg10_max)
 			reg10 = reg10_max;
-
-		/* In 640x480, if the reg11 has less than 3, the image is
-		   unstable (not enough bandwidth). */
-		if (gspca_dev->width == 640 && reg11 < 3)
-			reg11 = 3;
 
 		/* Write reg 10 and reg11 low nibble */
 		i2c[1] = sd->sensor_addr;
@@ -759,23 +757,17 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct cam *cam;
 	int sif = 0;
 
-	/* nctrls depends upon the sensor, so we use a per cam copy */
-	memcpy(&sd->sd_desc, gspca_dev->sd_desc, sizeof(struct sd_desc));
-	gspca_dev->sd_desc = &sd->sd_desc;
-
 	/* copy the webcam info from the device id */
 	sd->sensor = (id->driver_info >> 24) & 0xff;
 	if (id->driver_info & (F_GAIN << 16))
 		sd->sensor_has_gain = 1;
-	if (id->driver_info & (F_AUTO << 16))
-		sd->sd_desc.dq_callback = do_autogain;
 	if (id->driver_info & (F_SIF << 16))
 		sif = 1;
 	if (id->driver_info & (F_H18 << 16))
 		sd->fr_h_sz = 18;		/* size of frame header */
 	else
 		sd->fr_h_sz = 12;
-	sd->sd_desc.nctrls = (id->driver_info >> 8) & 0xff;
+	gspca_dev->ctrl_dis = (id->driver_info >> 8) & 0xff;
 	sd->sensor_addr = id->driver_info & 0xff;
 
 	cam = &gspca_dev->cam;
@@ -790,7 +782,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->gain = GAIN_DEF;
 	sd->exposure = EXPOSURE_DEF;
-	sd->autogain = AUTOGAIN_DEF;
+	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN_IDX))
+		sd->autogain = 0; /* Disable do_autogain callback */
+	else
+		sd->autogain = AUTOGAIN_DEF;
 	sd->freq = FREQ_DEF;
 
 	return 0;
@@ -1169,50 +1164,55 @@ static const struct sd_desc sd_desc = {
 	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
+	.dq_callback = do_autogain,
 };
 
 /* -- module initialisation -- */
-#define SFCI(sensor, flags, nctrls, i2c_addr) \
+#define SFCI(sensor, flags, disable_ctrls, i2c_addr) \
 	.driver_info = (SENSOR_ ## sensor << 24) \
 			| ((flags) << 16) \
-			| ((nctrls) << 8) \
+			| ((disable_ctrls) << 8) \
 			| (i2c_addr)
+#define NO_EXPO ((1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX))
+#define NO_FREQ (1 << FREQ_IDX)
+#define NO_BRIGHTNESS (1 << BRIGHTNESS_IDX)
+
 static __devinitdata struct usb_device_id device_table[] = {
 #ifndef CONFIG_USB_SN9C102
 	{USB_DEVICE(0x0c45, 0x6001),			/* SN9C102 */
-			SFCI(TAS5110, F_GAIN|F_AUTO|F_SIF, 4, 0)},
+			SFCI(TAS5110, F_GAIN|F_SIF, NO_BRIGHTNESS|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6005),			/* SN9C101 */
-			SFCI(TAS5110, F_GAIN|F_AUTO|F_SIF, 4, 0)},
+			SFCI(TAS5110, F_GAIN|F_SIF, NO_BRIGHTNESS|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6007),			/* SN9C101 */
-			SFCI(TAS5110, F_GAIN|F_AUTO|F_SIF, 4, 0)},
+			SFCI(TAS5110, F_GAIN|F_SIF, NO_BRIGHTNESS|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6009),			/* SN9C101 */
-			SFCI(PAS106, F_SIF, 2, 0)},
+			SFCI(PAS106, F_SIF, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x600d),			/* SN9C101 */
-			SFCI(PAS106, F_SIF, 2, 0)},
+			SFCI(PAS106, F_SIF, NO_EXPO|NO_FREQ, 0)},
 #endif
 	{USB_DEVICE(0x0c45, 0x6011),		/* SN9C101 - SN9C101G */
-			SFCI(OV6650, F_GAIN|F_AUTO|F_SIF, 5, 0x60)},
+			SFCI(OV6650, F_GAIN|F_SIF, 0, 0x60)},
 #ifndef CONFIG_USB_SN9C102
 	{USB_DEVICE(0x0c45, 0x6019),			/* SN9C101 */
-			SFCI(OV7630, F_GAIN|F_AUTO, 5, 0x21)},
+			SFCI(OV7630, F_GAIN, 0, 0x21)},
 	{USB_DEVICE(0x0c45, 0x6024),			/* SN9C102 */
-			SFCI(TAS5130CXX, 0, 2, 0)},
+			SFCI(TAS5130CXX, 0, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6025),			/* SN9C102 */
-			SFCI(TAS5130CXX, 0, 2, 0)},
+			SFCI(TAS5130CXX, 0, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6028),			/* SN9C102 */
-			SFCI(PAS202, 0, 2, 0)},
+			SFCI(PAS202, 0, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6029),			/* SN9C101 */
-			SFCI(PAS106, F_SIF, 2, 0)},
+			SFCI(PAS106, F_SIF, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x602c),			/* SN9C102 */
-			SFCI(OV7630, F_GAIN|F_AUTO, 5, 0x21)},
+			SFCI(OV7630, F_GAIN, 0, 0x21)},
 	{USB_DEVICE(0x0c45, 0x602d),			/* SN9C102 */
-			SFCI(HV7131R, 0, 2, 0)},
+			SFCI(HV7131R, 0, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x602e),			/* SN9C102 */
-			SFCI(OV7630, F_GAIN|F_AUTO, 5, 0x21)},
+			SFCI(OV7630, F_GAIN, 0, 0x21)},
 	{USB_DEVICE(0x0c45, 0x60af),			/* SN9C103 */
-			SFCI(PAS202, F_H18, 2, 0)},
+			SFCI(PAS202, F_H18, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x60b0),			/* SN9C103 */
-			SFCI(OV7630, F_GAIN|F_AUTO|F_H18, 5, 0x21)},
+			SFCI(OV7630, F_GAIN|F_H18, 0, 0x21)},
 #endif
 	{}
 };
