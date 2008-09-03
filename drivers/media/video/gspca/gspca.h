@@ -118,9 +118,6 @@ struct gspca_frame {
 	struct v4l2_buffer v4l2_buf;
 };
 
-/* defines for the flags member */
-#define GSPCA_SENSOR_UPSIDE_DOWN_FLAG 0x01
-
 struct gspca_dev {
 	struct video_device vdev;	/* !! must be the first item */
 	struct file_operations fops;
@@ -166,7 +163,6 @@ struct gspca_dev {
 	char nurbs;			/* number of allocated URBs */
 	char memory;			/* memory type (V4L2_MEMORY_xxx) */
 	__u8 nbalt;			/* number of USB alternate settings */
-	__u8 flags;                     /* see GSPCA_XXX_FLAG defines */
 };
 
 int gspca_dev_probe(struct usb_interface *intf,
