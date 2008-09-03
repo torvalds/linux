@@ -32,7 +32,8 @@ static int			nrhosts;
 static DEFINE_MUTEX(nlm_host_mutex);
 
 static void			nlm_gc_hosts(void);
-static struct nsm_handle	*nsm_find(const struct sockaddr_in *sin,
+static struct nsm_handle	*nsm_find(const struct sockaddr *sap,
+						const size_t salen,
 						const char *hostname,
 						const size_t hostname_len,
 						const int create);
@@ -185,7 +186,8 @@ static struct nlm_host *nlm_lookup_host(int server,
 		atomic_inc(&nsm->sm_count);
 	else {
 		host = NULL;
-		nsm = nsm_find(sin, hostname, hostname_len, 1);
+		nsm = nsm_find((struct sockaddr *)sin, sizeof(*sin),
+				hostname, hostname_len, 1);
 		if (!nsm) {
 			dprintk("lockd: nlm_lookup_host failed; "
 				"no nsm handle\n");
@@ -417,7 +419,8 @@ void nlm_host_rebooted(const struct sockaddr_in *sin,
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;
 
-	nsm = nsm_find(sin, hostname, hostname_len, 0);
+	nsm = nsm_find((struct sockaddr *)sin, sizeof(*sin),
+			hostname, hostname_len, 0);
 	if (nsm == NULL) {
 		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
 				hostname_len, hostname);
@@ -557,7 +560,8 @@ nlm_gc_hosts(void)
 static LIST_HEAD(nsm_handles);
 static DEFINE_SPINLOCK(nsm_lock);
 
-static struct nsm_handle *nsm_find(const struct sockaddr_in *sin,
+static struct nsm_handle *nsm_find(const struct sockaddr *sap,
+				   const size_t salen,
 				   const char *hostname,
 				   const size_t hostname_len,
 				   const int create)
@@ -565,7 +569,7 @@ static struct nsm_handle *nsm_find(const struct sockaddr_in *sin,
 	struct nsm_handle *nsm = NULL;
 	struct nsm_handle *pos;
 
-	if (!sin)
+	if (!sap)
 		return NULL;
 
 	if (hostname && memchr(hostname, '/', hostname_len) != NULL) {
@@ -585,7 +589,7 @@ retry:
 			if (strlen(pos->sm_name) != hostname_len
 			 || memcmp(pos->sm_name, hostname, hostname_len))
 				continue;
-		} else if (!nlm_cmp_addr(nsm_addr(pos), (struct sockaddr *)sin))
+		} else if (!nlm_cmp_addr(nsm_addr(pos), sap))
 			continue;
 		atomic_inc(&pos->sm_count);
 		kfree(nsm);
@@ -605,8 +609,8 @@ retry:
 	if (nsm == NULL)
 		return NULL;
 
-	memcpy(nsm_addr(nsm), sin, sizeof(*sin));
-	nsm->sm_addrlen = sizeof(*sin);
+	memcpy(nsm_addr(nsm), sap, salen);
+	nsm->sm_addrlen = salen;
 	nsm->sm_name = (char *) (nsm + 1);
 	memcpy(nsm->sm_name, hostname, hostname_len);
 	nsm->sm_name[hostname_len] = '\0';
