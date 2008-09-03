@@ -19,10 +19,36 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
+/* Some documentation about various registers as determined by trial and error.
+   When the register addresses differ between the 7202 and the 7311 the 2
+   different addresses are written as 7302addr/7311addr, when one of the 2
+   addresses is a - sign that register description is not valid for the
+   matching IC.
+
+   Register page 1:
+
+   Address	Description
+   -/0x08	Unknown compressor related, must always be 8 except when not
+		in 640x480 resolution and page 4 reg 2 <= 3 then set it to 9 !
+   -/0x1b	Auto white balance related, bit 0 is AWB enable (inverted)
+		bits 345 seem to toggle per color gains on/off (inverted)
+   0x78		Global control, bit 6 controls the LED (inverted)
+   -/0x80	JPEG compression ratio ? Best not touched
+
+   Register page 3/4:
+
+   Address	Description
+   0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
+		the 7302, so one of 3, 6, 9, ...
+   -/0x0f	Master gain 1-245, low value = high gain
+   0x10/-	Master gain 0-31
+   -/0x10	Another gain 0-15, limited influence (1-2x gain I guess)
+   0x21		Bitfield: 0-1 unused, 2-3 vflip/hflip, 4-5 unknown, 6-7 unused
+*/
+
 #define MODULE_NAME "pac7311"
 
 #include "gspca.h"
-#include "jpeg.h"
 
 MODULE_AUTHOR("Thomas Kaiser thomas@kaiser-linux.li");
 MODULE_DESCRIPTION("Pixart PAC7311");
@@ -32,25 +58,22 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;		/* !! must be the first item */
 
-	int lum_sum;
-	atomic_t avg_lum;
-	atomic_t do_gain;
-
 	unsigned char brightness;
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
 	__u8 hflip;
 	__u8 vflip;
-	__u8 qindex;
-
-	char tosof;	/* number of bytes before next start of frame */
-	signed char ag_cnt;
-#define AG_CNT_START 13
 
 	__u8 sensor;
 #define SENSOR_PAC7302 0
 #define SENSOR_PAC7311 1
+
+	u8 sof_read;
+	u8 header_read;
+	u8 autogain_ignore_frames;
+
+	atomic_t avg_lum;
 };
 
 /* V4L2 controls supported by the driver */
@@ -92,7 +115,7 @@ static struct ctrl sd_ctrls[] = {
 #define CONTRAST_MAX 255
 		.maximum = CONTRAST_MAX,
 		.step    = 1,
-#define CONTRAST_DEF 60
+#define CONTRAST_DEF 127
 		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
@@ -243,7 +266,7 @@ static const __u8 start_7302[] = {
 	0x2a, 5,	0xc8, 0x00, 0x18, 0x12, 0x22,
 	0x64, 8,	0x00, 0x00, 0xf0, 0x01, 0x14, 0x44, 0x44, 0x44,
 	0x6e, 1,	0x08,
-	0xff, 1,	0x03,		/* page 1 */
+	0xff, 1,	0x01,		/* page 1 */
 	0x78, 1,	0x00,
 	0, 0				/* end of sequence */
 };
@@ -274,9 +297,9 @@ static const __u8 page3_7302[] = {
 
 /* pac 7311 */
 static const __u8 probe_7311[] = {
-	0x78, 0x40,	/* Bit_0=start stream, Bit_7=LED */
-	0x78, 0x40,	/* Bit_0=start stream, Bit_7=LED */
-	0x78, 0x44,	/* Bit_0=start stream, Bit_7=LED */
+	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
+	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
+	0x78, 0x44,	/* Bit_0=start stream, Bit_6=LED */
 	0xff, 0x04,
 	0x27, 0x80,
 	0x28, 0xca,
@@ -340,18 +363,6 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 			500);
 }
 
-static __u8 reg_r(struct gspca_dev *gspca_dev,
-			     __u8 index)
-{
-	usb_control_msg(gspca_dev->dev,
-			usb_rcvctrlpipe(gspca_dev->dev, 0),
-			0,			/* request */
-			USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			0,			/* value */
-			index, gspca_dev->usb_buf, 1,
-			500);
-	return gspca_dev->usb_buf[0];
-}
 
 static void reg_w(struct gspca_dev *gspca_dev,
 		  __u8 index,
@@ -413,7 +424,7 @@ static void reg_w_var(struct gspca_dev *gspca_dev,
 			reg_w_page(gspca_dev, page3_7302, sizeof page3_7302);
 			break;
 		default:
-			if (len > 32) {
+			if (len > 64) {
 				PDEBUG(D_ERR|D_STREAM,
 					"Incorrect variable sequence");
 				return;
@@ -453,7 +464,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->nmodes = 1;
 	} else {
 		PDEBUG(D_CONF, "Find Sensor PAC7311");
-		reg_w_seq(gspca_dev, probe_7302, sizeof probe_7302);
+		reg_w_seq(gspca_dev, probe_7311, sizeof probe_7311);
 
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
@@ -465,8 +476,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autogain = AUTOGAIN_DEF;
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
-	sd->qindex = 3;
-	sd->ag_cnt = -1;
 	return 0;
 }
 
@@ -497,6 +506,7 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0xdc, 0x01);
 }
 
+/* This function is used by pac7302 only */
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -506,7 +516,10 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 		setbrightcont(gspca_dev);
 		return;
 	}
-/*jfm: inverted?*/
+/* HDG: this is not brightness but gain, I'll add gain and exposure controls
+   in a next patch */
+	return;
+
 	brightness = BRIGHTNESS_MAX - sd->brightness;
 	reg_w(gspca_dev, 0xff, 0x04);
 	reg_w(gspca_dev, 0x0e, 0x00);
@@ -524,12 +537,13 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		setbrightcont(gspca_dev);
 		return;
 	}
-	reg_w(gspca_dev, 0xff, 0x01);
-	reg_w(gspca_dev, 0x10, sd->contrast);
+	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x10, sd->contrast >> 4);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
 }
 
+/* This function is used by pac7302 only */
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -551,36 +565,24 @@ static void setcolors(struct gspca_dev *gspca_dev)
 			reg_w(gspca_dev, 0x0f + 2 * i + 1, v);
 		}
 		reg_w(gspca_dev, 0xdc, 0x01);
-		return;
-	}
-	reg_w(gspca_dev, 0xff, 0x01);
-	reg_w(gspca_dev, 0x80, sd->colors);
-	/* load registers to sensor (Bit 0, auto clear) */
-	reg_w(gspca_dev, 0x11, 0x01);
-	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
-}
-
-static void setautogain(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (sd->autogain) {
-		sd->lum_sum = 0;
-		sd->ag_cnt = AG_CNT_START;
-	} else {
-		sd->ag_cnt = -1;
+		PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
 	}
 }
 
-/* this function is used by pac7302 only */
 static void sethvflip(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 data;
 
-	reg_w(gspca_dev, 0xff, 0x03);		/* page 3 */
-	data = (sd->hflip ? 0x00 : 0x08)
-		| (sd->vflip ? 0x04 : 0x00);
+	if (sd->sensor == SENSOR_PAC7302) {
+		reg_w(gspca_dev, 0xff, 0x03);		/* page 3 */
+		data = (sd->hflip ? 0x00 : 0x08)
+			| (sd->vflip ? 0x04 : 0x00);
+	} else {
+		reg_w(gspca_dev, 0xff, 0x04);		/* page 3 */
+		data = (sd->hflip ? 0x04 : 0x00)
+			| (sd->vflip ? 0x08 : 0x00);
+	}
 	reg_w(gspca_dev, 0x21, data);
 	reg_w(gspca_dev, 0x11, 0x01);
 }
@@ -588,7 +590,6 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	reg_w(gspca_dev, 0x78, 0x44);	/* Turn on LED */
 	return 0;
 }
 
@@ -596,7 +597,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sd->tosof = 0;
+	sd->sof_read = 0;
 
 	if (sd->sensor == SENSOR_PAC7302)
 		reg_w_var(gspca_dev, start_7302);
@@ -606,7 +607,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setcontrast(gspca_dev);
 	setbrightness(gspca_dev);
 	setcolors(gspca_dev);
-	setautogain(gspca_dev);
 
 	/* set correct resolution */
 	switch (gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv) {
@@ -621,7 +621,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case 1:					/* 320x240 pac7311 */
 		reg_w(gspca_dev, 0xff, 0x04);
-		reg_w(gspca_dev, 0x02, 0x07);
+		reg_w(gspca_dev, 0x02, 0x03);
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x08, 0x09);
 		reg_w(gspca_dev, 0x17, 0x30);
@@ -650,6 +650,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x78, 0x44);
 		reg_w(gspca_dev, 0x78, 0x45);
 	}
+
+	sd->sof_read = 0;
+	sd->autogain_ignore_frames = 0;
+	atomic_set(&sd->avg_lum, -1);
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
@@ -657,6 +661,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	if (sd->sensor == SENSOR_PAC7302) {
+		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x78, 0x00);
 		reg_w(gspca_dev, 0x78, 0x00);
 		return;
@@ -668,9 +673,9 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x2a, 0x0e);
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w(gspca_dev, 0x3e, 0x20);
-	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
-	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
-	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_6=LED */
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -690,41 +695,21 @@ static void sd_close(struct gspca_dev *gspca_dev)
 
 static void do_autogain(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
-	int luma;
-	int luma_mean = 128;
-	int luma_delta = 20;
-	__u8 spring = 5;
-	int Gbright;
-
-	if (!atomic_read(&sd->do_gain))
-		return;
-	atomic_set(&sd->do_gain, 0);
-
-	luma = atomic_read(&sd->avg_lum);
-	Gbright = reg_r(gspca_dev, 0x02);
-	PDEBUG(D_FRAM, "luma mean %d", luma);
-	if (luma < luma_mean - luma_delta ||
-	    luma > luma_mean + luma_delta) {
-		Gbright += (luma_mean - luma) >> spring;
-		if (Gbright > 0x1a)
-			Gbright = 0x1a;
-		else if (Gbright < 4)
-			Gbright = 4;
-		PDEBUG(D_FRAM, "gbright %d", Gbright);
-		if (sd->sensor == SENSOR_PAC7302) {
-			reg_w(gspca_dev, 0xff, 0x03);
-			reg_w(gspca_dev, 0x10, Gbright);
-			/* load registers to sensor (Bit 0, auto clear) */
-			reg_w(gspca_dev, 0x11, 0x01);
-		} else {
-			reg_w(gspca_dev, 0xff, 0x04);
-			reg_w(gspca_dev, 0x0f, Gbright);
-			/* load registers to sensor (Bit 0, auto clear) */
-			reg_w(gspca_dev, 0x11, 0x01);
-		}
-	}
 }
+
+static const unsigned char pac7311_jpeg_header1[] = {
+  0xff, 0xd8, 0xff, 0xc0, 0x00, 0x11, 0x08
+};
+
+static const unsigned char pac7311_jpeg_header2[] = {
+  0x03, 0x01, 0x21, 0x00, 0x02, 0x11, 0x01, 0x03, 0x11, 0x01, 0xff, 0xda,
+  0x00, 0x0c, 0x03, 0x01, 0x00, 0x02, 0x11, 0x03, 0x11, 0x00, 0x3f, 0x00
+};
+
+/* Include pac common sof detection functions */
+#include "pac_common.h"
+
+#define HEADER_LENGTH 2
 
 /* this function is run at interrupt level */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -733,58 +718,89 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
+	unsigned char *sof;
 
-#define INTER_FRAME 0x53	/* eof + inter frame + sof */
-#define LUM_OFFSET 0x1e		/* reverse offset / start of frame */
+	sof = pac_find_sof(gspca_dev, data, len);
+	if (sof) {
+		unsigned char tmpbuf[4];
+		int n, lum_offset, footer_length;
 
-	/*
-	 * inside a frame, there may be:
-	 *	escaped ff ('ff 00')
-	 *	sequences'ff ff ff xx' to remove
-	 *	end of frame ('ff d9')
-	 * at the end of frame, there are:
-	 *	ff d9			end of frame
-	 *	0x33 bytes
-	 *	one byte luminosity
-	 *	0x16 bytes
-	 *	ff ff 00 ff 96 62 44	start of frame
-	 */
-
-	if (sd->tosof != 0) {	/* if outside a frame */
-
-		/* get the luminosity and go to the start of frame */
-		data += sd->tosof;
-		len -= sd->tosof;
-		if (sd->tosof > LUM_OFFSET)
-			sd->lum_sum += data[-LUM_OFFSET];
-		sd->tosof = 0;
-		jpeg_put_header(gspca_dev, frame, sd->qindex, 0x21);
-	}
-
-	for (i = 0; i < len; i++) {
-		if (data[i] != 0xff)
-			continue;
-		switch (data[i + 1]) {
-		case 0xd9:		/* 'ff d9' end of frame */
-			frame = gspca_frame_add(gspca_dev,
-						LAST_PACKET,
-						frame, data, i + 2);
-			data += i + INTER_FRAME;
-			len -= i + INTER_FRAME;
-			i = 0;
-			if (len > -LUM_OFFSET)
-				sd->lum_sum += data[-LUM_OFFSET];
-			if (len < 0) {
-				sd->tosof = -len;
-				break;
-			}
-			jpeg_put_header(gspca_dev, frame, sd->qindex, 0x21);
-			break;
+		if (sd->sensor == SENSOR_PAC7302) {
+		  lum_offset = 34 + sizeof pac_sof_marker;
+		  footer_length = 74;
+		} else {
+		  lum_offset = 24 + sizeof pac_sof_marker;
+		  footer_length = 26;
 		}
+
+		/* Finish decoding current frame */
+		n = (sof - data) - (footer_length + sizeof pac_sof_marker);
+		if (n < 0) {
+			frame->data_end += n;
+			n = 0;
+		}
+		frame = gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+					data, n);
+		if (gspca_dev->last_packet_type != DISCARD_PACKET &&
+				frame->data_end[-2] == 0xff &&
+				frame->data_end[-1] == 0xd9)
+			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
+						NULL, 0);
+
+		n = sof - data;
+		len -= n;
+		data = sof;
+
+		/* Get average lumination */
+		if (gspca_dev->last_packet_type == LAST_PACKET &&
+				n >= lum_offset) {
+			if (sd->sensor == SENSOR_PAC7302)
+				atomic_set(&sd->avg_lum,
+						(data[-lum_offset] << 8) |
+						data[-lum_offset + 1]);
+			else
+				atomic_set(&sd->avg_lum,
+						data[-lum_offset] +
+						data[-lum_offset + 1]);
+		} else {
+			atomic_set(&sd->avg_lum, -1);
+		}
+
+		/* Start the new frame with the jpeg header */
+		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			pac7311_jpeg_header1, sizeof(pac7311_jpeg_header1));
+		if (sd->sensor == SENSOR_PAC7302) {
+			/* The PAC7302 has the image rotated 90 degrees */
+			tmpbuf[0] = gspca_dev->width >> 8;
+			tmpbuf[1] = gspca_dev->width & 0xff;
+			tmpbuf[2] = gspca_dev->height >> 8;
+			tmpbuf[3] = gspca_dev->height & 0xff;
+		} else {
+			tmpbuf[0] = gspca_dev->height >> 8;
+			tmpbuf[1] = gspca_dev->height & 0xff;
+			tmpbuf[2] = gspca_dev->width >> 8;
+			tmpbuf[3] = gspca_dev->width & 0xff;
+		}
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame, tmpbuf, 4);
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			pac7311_jpeg_header2, sizeof(pac7311_jpeg_header2));
+
+		sd->header_read = 0;
 	}
-	gspca_frame_add(gspca_dev, INTER_PACKET,
-			frame, data, i);
+
+	if (sd->header_read < HEADER_LENGTH) {
+		/* skip the variable part of the sof header */
+		int needed = HEADER_LENGTH - sd->header_read;
+		if (len <= needed) {
+			sd->header_read += len;
+			return;
+		}
+		data += needed;
+		len -= needed;
+		sd->header_read = HEADER_LENGTH;
+	}
+
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
@@ -846,8 +862,7 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->autogain = val;
-	if (gspca_dev->streaming)
-		setautogain(gspca_dev);
+
 	return 0;
 }
 

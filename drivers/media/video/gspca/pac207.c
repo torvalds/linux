@@ -181,9 +181,6 @@ static const __u8 pac207_sensor_init[][8] = {
 			/* 48 reg_72 Rate Control end BalSize_4a =0x36 */
 static const __u8 PacReg72[] = { 0x00, 0x00, 0x36, 0x00 };
 
-static const unsigned char pac207_sof_marker[5] =
-		{ 0xff, 0xff, 0x00, 0xff, 0x96 };
-
 static int pac207_write_regs(struct gspca_dev *gspca_dev, u16 index,
 	const u8 *buffer, u16 length)
 {
@@ -367,31 +364,8 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 		sd->autogain_ignore_frames = PAC207_AUTOGAIN_IGNORE_FRAMES;
 }
 
-static unsigned char *pac207_find_sof(struct gspca_dev *gspca_dev,
-					unsigned char *m, int len)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	int i;
-
-	/* Search for the SOF marker (fixed part) in the header */
-	for (i = 0; i < len; i++) {
-		if (m[i] == pac207_sof_marker[sd->sof_read]) {
-			sd->sof_read++;
-			if (sd->sof_read == sizeof(pac207_sof_marker)) {
-				PDEBUG(D_STREAM,
-					"SOF found, bytes to analyze: %u."
-					" Frame starts at byte #%u",
-					len, i + 1);
-				sd->sof_read = 0;
-				return m + i + 1;
-			}
-		} else {
-			sd->sof_read = 0;
-		}
-	}
-
-	return NULL;
-}
+/* Include pac common sof detection functions */
+#include "pac_common.h"
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,
@@ -401,14 +375,14 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char *sof;
 
-	sof = pac207_find_sof(gspca_dev, data, len);
+	sof = pac_find_sof(gspca_dev, data, len);
 	if (sof) {
 		int n;
 
 		/* finish decoding current frame */
 		n = sof - data;
-		if (n > sizeof pac207_sof_marker)
-			n -= sizeof pac207_sof_marker;
+		if (n > sizeof pac_sof_marker)
+			n -= sizeof pac_sof_marker;
 		else
 			n = 0;
 		frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
