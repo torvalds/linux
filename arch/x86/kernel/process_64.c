@@ -85,6 +85,13 @@ void exit_idle(void)
 	__exit_idle();
 }
 
+#ifndef CONFIG_SMP
+static inline void play_dead(void)
+{
+	BUG();
+}
+#endif
+
 /*
  * The idle thread. There's no useful work to be
  * done, so just try to conserve power and have a

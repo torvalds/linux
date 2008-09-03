@@ -714,10 +714,3 @@ void __cpuinit cpu_init(void)
 	mxcsr_feature_mask_init();
 }
 
-void reset_lazy_tlbstate(void)
-{
-	int cpu = raw_smp_processor_id();
-
-	per_cpu(cpu_tlbstate, cpu).state = 0;
-	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
-}

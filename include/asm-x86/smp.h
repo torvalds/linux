@@ -222,14 +222,5 @@ static inline int hard_smp_processor_id(void)
 
 #endif /* CONFIG_X86_LOCAL_APIC */
 
-#ifdef CONFIG_HOTPLUG_CPU
-#ifdef CONFIG_X86_32
-extern void reset_lazy_tlbstate(void);
-#else
-static inline void reset_lazy_tlbstate(void)
-{ }
-#endif /* CONFIG_X86_32 */
-#endif
-
 #endif /* __ASSEMBLY__ */
 #endif
