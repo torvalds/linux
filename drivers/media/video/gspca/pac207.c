@@ -56,12 +56,6 @@ MODULE_LICENSE("GPL");
 #define PAC207_GAIN_KNEE		20
 
 #define PAC207_AUTOGAIN_DEADZONE	30
-/* We calculating the autogain at the end of the transfer of a frame, at this
-   moment a frame with the old settings is being transmitted, and a frame is
-   being captured with the old settings. So if we adjust the autogain we must
-   ignore atleast the 2 next frames for the new settings to come into effect
-   before doing any other adjustments */
-#define PAC207_AUTOGAIN_IGNORE_FRAMES	3
 
 /* specific webcam descriptor */
 struct sd {
@@ -338,6 +332,9 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
 }
 
+/* Include pac common sof detection functions */
+#include "pac_common.h"
+
 static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -351,11 +348,8 @@ static void pac207_do_auto_gain(struct gspca_dev *gspca_dev)
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum,
 			100 + sd->brightness / 2, PAC207_AUTOGAIN_DEADZONE,
 			PAC207_GAIN_KNEE, PAC207_EXPOSURE_KNEE))
-		sd->autogain_ignore_frames = PAC207_AUTOGAIN_IGNORE_FRAMES;
+		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
-
-/* Include pac common sof detection functions */
-#include "pac_common.h"
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,
@@ -500,7 +494,7 @@ static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val)
 		sd->gain = PAC207_GAIN_DEFAULT;
 		if (gspca_dev->streaming) {
 			sd->autogain_ignore_frames =
-				PAC207_AUTOGAIN_IGNORE_FRAMES;
+				PAC_AUTOGAIN_IGNORE_FRAMES;
 			setexposure(gspca_dev);
 			setgain(gspca_dev);
 		}

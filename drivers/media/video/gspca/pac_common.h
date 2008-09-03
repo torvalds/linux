@@ -23,6 +23,13 @@
  *
  */
 
+/* We calculate the autogain at the end of the transfer of a frame, at this
+   moment a frame with the old settings is being transmitted, and a frame is
+   being captured with the old settings. So if we adjust the autogain we must
+   ignore atleast the 2 next frames for the new settings to come into effect
+   before doing any other adjustments */
+#define PAC_AUTOGAIN_IGNORE_FRAMES	3
+
 static const unsigned char pac_sof_marker[5] =
 		{ 0xff, 0xff, 0x00, 0xff, 0x96 };
 
@@ -37,7 +44,7 @@ static unsigned char *pac_find_sof(struct gspca_dev *gspca_dev,
 		if (m[i] == pac_sof_marker[sd->sof_read]) {
 			sd->sof_read++;
 			if (sd->sof_read == sizeof(pac_sof_marker)) {
-				PDEBUG(D_STREAM,
+				PDEBUG(D_FRAM,
 					"SOF found, bytes to analyze: %u."
 					" Frame starts at byte #%u",
 					len, i + 1);
