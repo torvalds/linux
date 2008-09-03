@@ -303,7 +303,7 @@ static int tda10048_firmware_upload(struct dvb_frontend *fe)
 
 	if (fw->size != TDA10048_DEFAULT_FIRMWARE_SIZE) {
 		printk(KERN_ERR "%s: firmware incorrect size\n", __func__);
-		return -EIO;
+		ret = -EIO;
 	} else {
 		printk(KERN_INFO "%s: firmware uploading\n", __func__);
 
