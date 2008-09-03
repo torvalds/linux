@@ -806,6 +806,11 @@ static int dev_close(struct inode *inode, struct file *file)
 
 	/* if the file did the capture, free the streaming resources */
 	if (gspca_dev->capt_file == file) {
+		if (gspca_dev->streaming) {
+			mutex_lock(&gspca_dev->usb_lock);
+			gspca_stream_off(gspca_dev);
+			mutex_unlock(&gspca_dev->usb_lock);
+		}
 		frame_free(gspca_dev);
 		gspca_dev->capt_file = NULL;
 		gspca_dev->memory = GSPCA_MEMORY_NO;
