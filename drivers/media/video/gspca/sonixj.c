@@ -794,7 +794,7 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 
 	switch (sd->sensor) {
 	case SENSOR_OM6802:
-		reg_w1(gspca_dev, 0x02, 0x71);
+		reg_w1(gspca_dev, 0x02, 0x73);		/* was 71 */
 		reg_w1(gspca_dev, 0x01, 0x42);
 		reg_w1(gspca_dev, 0x17, 0x64);
 		reg_w1(gspca_dev, 0x01, 0x42);
@@ -1056,7 +1056,7 @@ static unsigned int setexposure(struct gspca_dev *gspca_dev,
 			expo = 0x0001;
 		gainOm[3] = expo >> 2;
 		i2c_w8(gspca_dev, gainOm);
-		reg_w1(gspca_dev, 0x96, expo >> 5);
+		reg_w1(gspca_dev, 0x96, (expo >> 5) & 0x1f);
 		PDEBUG(D_CONF, "set exposure %d", gainOm[3]);
 		break;
 	    }
@@ -1138,11 +1138,13 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	int colour;
 
 	colour = sd->colors - 128;
-	if (colour > 0)
+	if (colour > 0) {
 		data = (colour + 32) & 0x7f;	/* blue */
-	else
+		reg_w1(gspca_dev, 0x06, data);
+	} else {
 		data = (-colour + 32) & 0x7f;	/* red */
-	reg_w1(gspca_dev, 0x05, data);
+		reg_w1(gspca_dev, 0x05, data);
+	}
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
