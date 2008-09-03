@@ -43,14 +43,14 @@ static inline int major_to_index(int major)
 }
 
 #ifdef CONFIG_PROC_FS
-void blkdev_show(struct seq_file *f, off_t offset)
+void blkdev_show(struct seq_file *seqf, off_t offset)
 {
 	struct blk_major_name *dp;
 
 	if (offset < BLKDEV_MAJOR_HASH_SIZE) {
 		mutex_lock(&block_class_lock);
 		for (dp = major_names[offset]; dp; dp = dp->next)
-			seq_printf(f, "%3d %s\n", dp->major, dp->name);
+			seq_printf(seqf, "%3d %s\n", dp->major, dp->name);
 		mutex_unlock(&block_class_lock);
 	}
 }
@@ -157,7 +157,7 @@ void blk_unregister_region(dev_t devt, unsigned long range)
 
 EXPORT_SYMBOL(blk_unregister_region);
 
-static struct kobject *exact_match(dev_t devt, int *part, void *data)
+static struct kobject *exact_match(dev_t devt, int *partno, void *data)
 {
 	struct gendisk *p = data;
 
@@ -217,9 +217,9 @@ void unlink_gendisk(struct gendisk *disk)
  * This function gets the structure containing partitioning
  * information for the given device @devt.
  */
-struct gendisk *get_gendisk(dev_t devt, int *part)
+struct gendisk *get_gendisk(dev_t devt, int *partno)
 {
-	struct kobject *kobj = kobj_lookup(bdev_map, devt, part);
+	struct kobject *kobj = kobj_lookup(bdev_map, devt, partno);
 	struct device *dev = kobj_to_dev(kobj);
 
 	return  kobj ? dev_to_disk(dev) : NULL;
@@ -336,22 +336,11 @@ static void *show_partition_start(struct seq_file *seqf, loff_t *pos)
 	return p;
 }
 
-static int show_partition(struct seq_file *part, void *v)
+static int show_partition(struct seq_file *seqf, void *v)
 {
 	struct gendisk *sgp = v;
 	int n;
 	char buf[BDEVNAME_SIZE];
-
-	/*
-	 * Print header if start told us to do.  This is to preserve
-	 * the original behavior of not printing header if no
-	 * partition exists.  This hackery will be removed later with
-	 * class iteration clean up.
-	 */
-	if (part->private) {
-		seq_puts(part, "major minor  #blocks  name\n\n");
-		part->private = NULL;
-	}
 
 	/* Don't show non-partitionable removeable devices or empty devices */
 	if (!get_capacity(sgp) ||
@@ -361,7 +350,7 @@ static int show_partition(struct seq_file *part, void *v)
 		return 0;
 
 	/* show the full disk and all non-0 size partitions of it */
-	seq_printf(part, "%4d  %4d %10llu %s\n",
+	seq_printf(seqf, "%4d  %4d %10llu %s\n",
 		sgp->major, sgp->first_minor,
 		(unsigned long long)get_capacity(sgp) >> 1,
 		disk_name(sgp, 0, buf));
@@ -370,7 +359,7 @@ static int show_partition(struct seq_file *part, void *v)
 			continue;
 		if (sgp->part[n]->nr_sects == 0)
 			continue;
-		seq_printf(part, "%4d  %4d %10llu %s\n",
+		seq_printf(seqf, "%4d  %4d %10llu %s\n",
 			sgp->major, n + 1 + sgp->first_minor,
 			(unsigned long long)sgp->part[n]->nr_sects >> 1 ,
 			disk_name(sgp, n + 1, buf));
@@ -388,7 +377,7 @@ const struct seq_operations partitions_op = {
 #endif
 
 
-static struct kobject *base_probe(dev_t devt, int *part, void *data)
+static struct kobject *base_probe(dev_t devt, int *partno, void *data)
 {
 	if (request_module("block-major-%d-%d", MAJOR(devt), MINOR(devt)) > 0)
 		/* Make old-style 2.4 aliases work */
@@ -564,7 +553,14 @@ static struct device_type disk_type = {
 };
 
 #ifdef CONFIG_PROC_FS
-static int diskstats_show(struct seq_file *s, void *v)
+/*
+ * aggregate disk stat collector.  Uses the same stats that the sysfs
+ * entries do, above, but makes them available through one seq_file.
+ *
+ * The output looks suspiciously like /proc/partitions with a bunch of
+ * extra fields.
+ */
+static int diskstats_show(struct seq_file *seqf, void *v)
 {
 	struct gendisk *gp = v;
 	char buf[BDEVNAME_SIZE];
@@ -572,7 +568,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 
 	/*
 	if (&gp->dev.kobj.entry == block_class.devices.next)
-		seq_puts(s,	"major minor name"
+		seq_puts(seqf,	"major minor name"
 				"     rio rmerge rsect ruse wio wmerge "
 				"wsect wuse running use aveq"
 				"\n\n");
@@ -581,7 +577,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 	preempt_disable();
 	disk_round_stats(gp);
 	preempt_enable();
-	seq_printf(s, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
+	seq_printf(seqf, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
 		gp->major, gp->first_minor, disk_name(gp, 0, buf),
 		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
 		(unsigned long long)disk_stat_read(gp, sectors[0]),
@@ -603,7 +599,7 @@ static int diskstats_show(struct seq_file *s, void *v)
 		preempt_disable();
 		part_round_stats(hd);
 		preempt_enable();
-		seq_printf(s, "%4d %4d %s %lu %lu %llu "
+		seq_printf(seqf, "%4d %4d %s %lu %lu %llu "
 			   "%u %lu %lu %llu %u %u %u %u\n",
 			   gp->major, n + gp->first_minor + 1,
 			   disk_name(gp, n + 1, buf),
@@ -655,7 +651,7 @@ void genhd_media_change_notify(struct gendisk *disk)
 EXPORT_SYMBOL_GPL(genhd_media_change_notify);
 #endif  /*  0  */
 
-dev_t blk_lookup_devt(const char *name, int part)
+dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
 	struct class_dev_iter iter;
@@ -665,9 +661,9 @@ dev_t blk_lookup_devt(const char *name, int part)
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct gendisk *disk = dev_to_disk(dev);
 
-		if (!strcmp(dev->bus_id, name) && part < disk->minors) {
+		if (!strcmp(dev->bus_id, name) && partno < disk->minors) {
 			devt = MKDEV(MAJOR(dev->devt),
-				     MINOR(dev->devt) + part);
+				     MINOR(dev->devt) + partno);
 			break;
 		}
 	}
@@ -777,10 +773,10 @@ int bdev_read_only(struct block_device *bdev)
 
 EXPORT_SYMBOL(bdev_read_only);
 
-int invalidate_partition(struct gendisk *disk, int index)
+int invalidate_partition(struct gendisk *disk, int partno)
 {
 	int res = 0;
-	struct block_device *bdev = bdget_disk(disk, index);
+	struct block_device *bdev = bdget_disk(disk, partno);
 	if (bdev) {
 		fsync_bdev(bdev);
 		res = __invalidate_device(bdev);

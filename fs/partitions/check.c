@@ -120,22 +120,22 @@ static int (*check_part[])(struct parsed_partitions *, struct block_device *) = 
  * a pointer to that same buffer (for convenience).
  */
 
-char *disk_name(struct gendisk *hd, int part, char *buf)
+char *disk_name(struct gendisk *hd, int partno, char *buf)
 {
-	if (!part)
+	if (!partno)
 		snprintf(buf, BDEVNAME_SIZE, "%s", hd->disk_name);
 	else if (isdigit(hd->disk_name[strlen(hd->disk_name)-1]))
-		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, part);
+		snprintf(buf, BDEVNAME_SIZE, "%sp%d", hd->disk_name, partno);
 	else
-		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, part);
+		snprintf(buf, BDEVNAME_SIZE, "%s%d", hd->disk_name, partno);
 
 	return buf;
 }
 
 const char *bdevname(struct block_device *bdev, char *buf)
 {
-	int part = MINOR(bdev->bd_dev) - bdev->bd_disk->first_minor;
-	return disk_name(bdev->bd_disk, part, buf);
+	int partno = MINOR(bdev->bd_dev) - bdev->bd_disk->first_minor;
+	return disk_name(bdev->bd_disk, partno, buf);
 }
 
 EXPORT_SYMBOL(bdevname);
@@ -310,13 +310,13 @@ static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
 	kobject_put(k);
 }
 
-void delete_partition(struct gendisk *disk, int part)
+void delete_partition(struct gendisk *disk, int partno)
 {
-	struct hd_struct *p = disk->part[part-1];
+	struct hd_struct *p = disk->part[partno - 1];
 
 	if (!p)
 		return;
-	disk->part[part-1] = NULL;
+	disk->part[partno - 1] = NULL;
 	p->start_sect = 0;
 	p->nr_sects = 0;
 	part_stat_set_all(p, 0);
@@ -333,12 +333,13 @@ static ssize_t whole_disk_show(struct device *dev,
 static DEVICE_ATTR(whole_disk, S_IRUSR | S_IRGRP | S_IROTH,
 		   whole_disk_show, NULL);
 
-int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, int flags)
+int add_partition(struct gendisk *disk, int partno,
+		  sector_t start, sector_t len, int flags)
 {
 	struct hd_struct *p;
 	int err;
 
-	if (disk->part[part - 1])
+	if (disk->part[partno - 1])
 		return -EBUSY;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -351,18 +352,18 @@ int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, 
 	}
 	p->start_sect = start;
 	p->nr_sects = len;
-	p->partno = part;
+	p->partno = partno;
 	p->policy = disk->policy;
 
 	if (isdigit(disk->dev.bus_id[strlen(disk->dev.bus_id)-1]))
 		snprintf(p->dev.bus_id, BUS_ID_SIZE,
-		"%sp%d", disk->dev.bus_id, part);
+		"%sp%d", disk->dev.bus_id, partno);
 	else
 		snprintf(p->dev.bus_id, BUS_ID_SIZE,
-			 "%s%d", disk->dev.bus_id, part);
+			 "%s%d", disk->dev.bus_id, partno);
 
 	device_initialize(&p->dev);
-	p->dev.devt = MKDEV(disk->major, disk->first_minor + part);
+	p->dev.devt = MKDEV(disk->major, disk->first_minor + partno);
 	p->dev.class = &block_class;
 	p->dev.type = &part_type;
 	p->dev.parent = &disk->dev;
@@ -386,7 +387,7 @@ int add_partition(struct gendisk *disk, int part, sector_t start, sector_t len, 
 	}
 
 	/* everything is up and running, commence */
-	disk->part[part - 1] = p;
+	disk->part[partno - 1] = p;
 
 	/* suppress uevent if the disk supresses it */
 	if (!disk->dev.uevent_suppress)

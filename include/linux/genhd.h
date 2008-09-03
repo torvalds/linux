@@ -365,7 +365,7 @@ extern int get_blkdev_list(char *, int);
 extern void add_disk(struct gendisk *disk);
 extern void del_gendisk(struct gendisk *gp);
 extern void unlink_gendisk(struct gendisk *gp);
-extern struct gendisk *get_gendisk(dev_t dev, int *part);
+extern struct gendisk *get_gendisk(dev_t dev, int *partno);
 
 extern void set_device_ro(struct block_device *bdev, int flag);
 extern void set_disk_ro(struct gendisk *disk, int flag);
@@ -534,8 +534,8 @@ struct unixware_disklabel {
 #define ADDPART_FLAG_RAID	1
 #define ADDPART_FLAG_WHOLEDISK	2
 
-extern dev_t blk_lookup_devt(const char *name, int part);
-extern char *disk_name (struct gendisk *hd, int part, char *buf);
+extern dev_t blk_lookup_devt(const char *name, int partno);
+extern char *disk_name (struct gendisk *hd, int partno, char *buf);
 
 extern int rescan_partitions(struct gendisk *disk, struct block_device *bdev);
 extern int __must_check add_partition(struct gendisk *, int, sector_t, sector_t, int);
@@ -553,16 +553,16 @@ extern void blk_register_region(dev_t devt, unsigned long range,
 			void *data);
 extern void blk_unregister_region(dev_t devt, unsigned long range);
 
-static inline struct block_device *bdget_disk(struct gendisk *disk, int index)
+static inline struct block_device *bdget_disk(struct gendisk *disk, int partno)
 {
-	return bdget(MKDEV(disk->major, disk->first_minor) + index);
+	return bdget(MKDEV(disk->major, disk->first_minor) + partno);
 }
 
 #else /* CONFIG_BLOCK */
 
 static inline void printk_all_partitions(void) { }
 
-static inline dev_t blk_lookup_devt(const char *name, int part)
+static inline dev_t blk_lookup_devt(const char *name, int partno)
 {
 	dev_t devt = MKDEV(0, 0);
 	return devt;

@@ -930,7 +930,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	struct module *owner = NULL;
 	struct gendisk *disk;
 	int ret;
-	int part;
+	int partno;
 	int perm = 0;
 
 	if (file->f_mode & FMODE_READ)
@@ -949,7 +949,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	ret = -ENXIO;
 	file->f_mapping = bdev->bd_inode->i_mapping;
 	lock_kernel();
-	disk = get_gendisk(bdev->bd_dev, &part);
+	disk = get_gendisk(bdev->bd_dev, &partno);
 	if (!disk) {
 		unlock_kernel();
 		bdput(bdev);
@@ -961,7 +961,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 	if (!bdev->bd_openers) {
 		bdev->bd_disk = disk;
 		bdev->bd_contains = bdev;
-		if (!part) {
+		if (!partno) {
 			struct backing_dev_info *bdi;
 			if (disk->fops->open) {
 				ret = disk->fops->open(bdev->bd_inode, file);
@@ -989,7 +989,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 			if (ret)
 				goto out_first;
 			bdev->bd_contains = whole;
-			p = disk->part[part - 1];
+			p = disk->part[partno - 1];
 			bdev->bd_inode->i_data.backing_dev_info =
 			   whole->bd_inode->i_data.backing_dev_info;
 			if (!(disk->flags & GENHD_FL_UP) || !p || !p->nr_sects) {

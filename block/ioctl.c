@@ -15,7 +15,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	struct blkpg_ioctl_arg a;
 	struct blkpg_partition p;
 	long long start, length;
-	int part;
+	int partno;
 	int i;
 	int err;
 
@@ -28,8 +28,8 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	disk = bdev->bd_disk;
 	if (bdev != bdev->bd_contains)
 		return -EINVAL;
-	part = p.pno;
-	if (part <= 0 || part >= disk->minors)
+	partno = p.pno;
+	if (partno <= 0 || partno >= disk->minors)
 		return -EINVAL;
 	switch (a.op) {
 		case BLKPG_ADD_PARTITION:
@@ -59,13 +59,14 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 				}
 			}
 			/* all seems OK */
-			err = add_partition(disk, part, start, length, ADDPART_FLAG_NONE);
+			err = add_partition(disk, partno, start, length,
+					    ADDPART_FLAG_NONE);
 			mutex_unlock(&bdev->bd_mutex);
 			return err;
 		case BLKPG_DEL_PARTITION:
-			if (!disk->part[part-1])
+			if (!disk->part[partno - 1])
 				return -ENXIO;
-			bdevp = bdget_disk(disk, part);
+			bdevp = bdget_disk(disk, partno);
 			if (!bdevp)
 				return -ENOMEM;
 			mutex_lock(&bdevp->bd_mutex);
@@ -79,7 +80,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			invalidate_bdev(bdevp);
 
 			mutex_lock_nested(&bdev->bd_mutex, 1);
-			delete_partition(disk, part);
+			delete_partition(disk, partno);
 			mutex_unlock(&bdev->bd_mutex);
 			mutex_unlock(&bdevp->bd_mutex);
 			bdput(bdevp);
