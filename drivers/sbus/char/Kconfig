@@ -13,16 +13,6 @@ config SUN_OPENPROMIO
 
 	  If unsure, say Y.
 
-config SUN_MOSTEK_RTC
-	tristate "Mostek real time clock support"
-	depends on SPARC32
-	help
-	  The Mostek RTC chip is used on all known Sun computers except
-	  some JavaStations. For a JavaStation you need to say Y both here
-	  and to "Enhanced Real Time Clock Support".
-
-	  Say Y here unless you are building a special purpose kernel.
-
 config OBP_FLASH
 	tristate "OBP Flash Device support"
 	depends on SPARC64
