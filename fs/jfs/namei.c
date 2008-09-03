@@ -1547,6 +1547,7 @@ const struct file_operations jfs_dir_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= jfs_compat_ioctl,
 #endif
+	.llseek		= generic_file_llseek,
 };
 
 static int jfs_ci_hash(struct dentry *dir, struct qstr *this)

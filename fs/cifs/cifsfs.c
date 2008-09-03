@@ -765,6 +765,7 @@ const struct file_operations cifs_dir_ops = {
 	.dir_notify = cifs_dir_notify,
 #endif /* CONFIG_CIFS_EXPERIMENTAL */
 	.unlocked_ioctl  = cifs_ioctl,
+	.llseek = generic_file_llseek,
 };
 
 static void
