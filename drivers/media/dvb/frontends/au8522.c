@@ -304,67 +304,40 @@ static int au8522_mse2snr_lookup(struct mse2snr_tab *tab, int sz, int mse,
 	return ret;
 }
 
-/* 3.25 MHz IF Frequency table */
-static struct {
-	u16 reg;
-	u16 data;
-} if_3_25_mhz_tab[] = {
-	{ 0x80b5, 0x00 },
-	{ 0x80b6, 0x3d },
-	{ 0x80b7, 0xa0 },
-};
-
-/* 4.00 MHz IF Frequency table */
-static struct {
-	u16 reg;
-	u16 data;
-} if_4_mhz_tab[] = {
-	{ 0x80b5, 0x00 },
-	{ 0x80b6, 0x4b },
-	{ 0x80b7, 0xd9 },
-};
-
-/* 6.00 MHz IF Frequency table */
-static struct {
-	u16 reg;
-	u16 data;
-} if_6_mhz_tab[] = {
-	{ 0x80b5, 0xfb },
-	{ 0x80b6, 0x8e },
-	{ 0x80b7, 0x39 },
-};
-
 static int au8522_set_if(struct dvb_frontend *fe, enum au8522_if_freq if_freq)
 {
 	struct au8522_state *state = fe->demodulator_priv;
-	int i;
+	u8 r0b5, r0b6, r0b7;
+	char *ifmhz;
 
 	switch (if_freq) {
 	case AU8522_IF_3_25MHZ:
-		dprintk("%s() 3.25 MHz\n", __func__);
-		for (i = 0; i < ARRAY_SIZE(if_3_25_mhz_tab); i++)
-			au8522_writereg(state,
-					if_3_25_mhz_tab[i].reg,
-					if_3_25_mhz_tab[i].data);
+		ifmhz = "3.25";
+		r0b5 = 0x00;
+		r0b6 = 0x3d;
+		r0b7 = 0xa0;
 		break;
 	case AU8522_IF_4MHZ:
-		dprintk("%s() 4.00 MHz\n", __func__);
-		for (i = 0; i < ARRAY_SIZE(if_4_mhz_tab); i++)
-			au8522_writereg(state,
-					if_4_mhz_tab[i].reg,
-					if_4_mhz_tab[i].data);
+		ifmhz = "4.00";
+		r0b5 = 0x00;
+		r0b6 = 0x4b;
+		r0b7 = 0xd9;
 		break;
 	case AU8522_IF_6MHZ:
-		dprintk("%s() 6.00 MHz\n", __func__);
-		for (i = 0; i < ARRAY_SIZE(if_6_mhz_tab); i++)
-			au8522_writereg(state,
-					if_6_mhz_tab[i].reg,
-					if_6_mhz_tab[i].data);
+		ifmhz = "6.00";
+		r0b5 = 0xfb;
+		r0b6 = 0x8e;
+		r0b7 = 0x39;
 		break;
 	default:
 		dprintk("%s() IF Frequency not supported\n", __func__);
 		return -EINVAL;
 	}
+	dprintk("%s() %s MHz\n", __func__, ifmhz);
+	au8522_writereg(state, 0x80b5, r0b5);
+	au8522_writereg(state, 0x80b6, r0b6);
+	au8522_writereg(state, 0x80b7, r0b7);
+
 	return 0;
 }
 
