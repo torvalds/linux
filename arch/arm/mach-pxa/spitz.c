@@ -23,6 +23,9 @@
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
+#include <linux/spi/spi.h>
+#include <linux/spi/ads7846.h>
+#include <linux/spi/corgi_lcd.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
@@ -47,6 +50,7 @@
 #include <mach/ohci.h>
 #include <mach/udc.h>
 #include <mach/pxafb.h>
+#include <mach/pxa2xx_spi.h>
 #include <mach/akita.h>
 #include <mach/spitz.h>
 #include <mach/sharpsl.h>
@@ -237,64 +241,6 @@ static struct scoop_pcmcia_config spitz_pcmcia_config = {
 EXPORT_SYMBOL(spitzscoop_device);
 EXPORT_SYMBOL(spitzscoop2_device);
 
-
-/*
- * Spitz SSP Device
- *
- * Set the parent as the scoop device because a lot of SSP devices
- * also use scoop functions and this makes the power up/down order
- * work correctly.
- */
-struct platform_device spitzssp_device = {
-	.name		= "corgi-ssp",
-	.dev		= {
- 		.parent = &spitzscoop_device.dev,
-	},
-	.id		= -1,
-};
-
-struct corgissp_machinfo spitz_ssp_machinfo = {
-	.port		= 2,
-	.cs_lcdcon	= SPITZ_GPIO_LCDCON_CS,
-	.cs_ads7846	= SPITZ_GPIO_ADS7846_CS,
-	.cs_max1111	= SPITZ_GPIO_MAX1111_CS,
-	.clk_lcdcon	= 520,
-	.clk_ads7846	= 14,
-	.clk_max1111	= 56,
-};
-
-
-/*
- * Spitz Backlight Device
- */
-static void spitz_bl_kick_battery(void)
-{
-	void (*kick_batt)(void);
-
-	kick_batt = symbol_get(sharpsl_battery_kick);
-	if (kick_batt) {
-		kick_batt();
-		symbol_put(sharpsl_battery_kick);
-	}
-}
-
-static struct generic_bl_info spitz_bl_machinfo = {
-	.name = "corgi-bl",
-	.default_intensity = 0x1f,
-	.limit_mask = 0x0b,
-	.max_intensity = 0x2f,
-	.kick_battery = spitz_bl_kick_battery,
-};
-
-static struct platform_device spitzbl_device = {
-	.name		= "generic-bl",
-	.dev		= {
- 		.platform_data	= &spitz_bl_machinfo,
-	},
-	.id		= -1,
-};
-
-
 /*
  * Spitz Keyboard Device
  */
@@ -312,83 +258,150 @@ static struct platform_device spitzled_device = {
 	.id		= -1,
 };
 
-/*
- * Spitz Touch Screen Device
- */
+#if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
+static struct pxa2xx_spi_master spitz_spi_info = {
+	.num_chipselect	= 3,
+};
 
-static unsigned long (*get_hsync_invperiod)(struct device *dev);
+static struct ads7846_platform_data spitz_ads7846_info = {
+	.model			= 7846,
+	.vref_delay_usecs	= 100,
+	.x_plate_ohms		= 419,
+	.y_plate_ohms		= 486,
+	.gpio_pendown		= SPITZ_GPIO_TP_INT,
+};
 
-static void inline sharpsl_wait_sync(int gpio)
+static void spitz_ads7846_cs(u32 command)
 {
-	while((GPLR(gpio) & GPIO_bit(gpio)) == 0);
-	while((GPLR(gpio) & GPIO_bit(gpio)) != 0);
+	gpio_set_value(SPITZ_GPIO_ADS7846_CS, !(command == PXA2XX_CS_ASSERT));
 }
 
-static struct device *spitz_pxafb_dev;
+static struct pxa2xx_spi_chip spitz_ads7846_chip = {
+	.cs_control		= spitz_ads7846_cs,
+};
 
-static int is_pxafb_device(struct device * dev, void * data)
+static void spitz_notify_intensity(int intensity)
 {
-	struct platform_device *pdev = container_of(dev, struct platform_device, dev);
+	if (machine_is_spitz() || machine_is_borzoi()) {
+		/* Bit 5 is via SCOOP */
+		if (intensity & 0x0020)
+			reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
+		else
+			set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
 
-	return (strncmp(pdev->name, "pxa2xx-fb", 9) == 0);
-}
-
-static unsigned long spitz_get_hsync_invperiod(void)
-{
-#ifdef CONFIG_FB_PXA
-	if (!spitz_pxafb_dev) {
-		spitz_pxafb_dev = bus_find_device(&platform_bus_type, NULL, NULL, is_pxafb_device);
-		if (!spitz_pxafb_dev)
-			return 0;
+		if (intensity)
+			set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+		else
+			reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+		return;
 	}
-	if (!get_hsync_invperiod)
-		get_hsync_invperiod = symbol_get(pxafb_get_hsync_time);
-	if (!get_hsync_invperiod)
+
+	if (machine_is_akita()) {
+		/* Bit 5 is via IO-Expander */
+		if (intensity & 0x0020)
+			akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
+		else
+			akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
+
+		if (intensity)
+			akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+		else
+			akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+		return;
+	}
+}
+
+static void spitz_bl_kick_battery(void)
+{
+	void (*kick_batt)(void);
+
+	kick_batt = symbol_get(sharpsl_battery_kick);
+	if (kick_batt) {
+		kick_batt();
+		symbol_put(sharpsl_battery_kick);
+	}
+}
+
+static struct corgi_lcd_platform_data spitz_lcdcon_info = {
+	.init_mode		= CORGI_LCD_MODE_VGA,
+	.max_intensity		= 0x2f,
+	.default_intensity	= 0x1f,
+	.limit_mask		= 0x0b,
+	.notify			= spitz_notify_intensity,
+	.kick_battery		= spitz_bl_kick_battery,
+};
+
+static void spitz_lcdcon_cs(u32 command)
+{
+	gpio_set_value(SPITZ_GPIO_LCDCON_CS, !(command == PXA2XX_CS_ASSERT));
+}
+
+static struct pxa2xx_spi_chip spitz_lcdcon_chip = {
+	.cs_control	= spitz_lcdcon_cs,
+};
+
+static void spitz_max1111_cs(u32 command)
+{
+	gpio_set_value(SPITZ_GPIO_MAX1111_CS, !(command == PXA2XX_CS_ASSERT));
+}
+
+static struct pxa2xx_spi_chip spitz_max1111_chip = {
+	.cs_control	= spitz_max1111_cs,
+};
+
+static struct spi_board_info spitz_spi_devices[] = {
+	{
+		.modalias	= "ads7846",
+		.max_speed_hz	= 1200000,
+		.bus_num	= 2,
+		.chip_select	= 0,
+		.platform_data	= &spitz_ads7846_info,
+		.controller_data= &spitz_ads7846_chip,
+		.irq		= gpio_to_irq(SPITZ_GPIO_TP_INT),
+	}, {
+		.modalias	= "corgi-lcd",
+		.max_speed_hz	= 50000,
+		.bus_num	= 2,
+		.chip_select	= 1,
+		.platform_data	= &spitz_lcdcon_info,
+		.controller_data= &spitz_lcdcon_chip,
+	}, {
+		.modalias	= "max1111",
+		.max_speed_hz	= 450000,
+		.bus_num	= 2,
+		.chip_select	= 2,
+		.controller_data= &spitz_max1111_chip,
+	},
+};
+
+static void __init spitz_init_spi(void)
+{
+	int err;
+
+	err = gpio_request(SPITZ_GPIO_ADS7846_CS, "ADS7846_CS");
+	if (err)
+		return;
+
+	err = gpio_request(SPITZ_GPIO_LCDCON_CS, "LCDCON_CS");
+	if (err)
+		goto err_free_1;
+
+	err = gpio_request(SPITZ_GPIO_MAX1111_CS, "MAX1111_CS");
+	if (err)
+		goto err_free_2;
+
+	pxa2xx_set_spi_info(2, &spitz_spi_info);
+	spi_register_board_info(ARRAY_AND_SIZE(spitz_spi_devices));
+	return;
+
+err_free_2:
+	gpio_free(SPITZ_GPIO_LCDCON_CS);
+err_free_1:
+	gpio_free(SPITZ_GPIO_ADS7846_CS);
+}
+#else
+static inline void spitz_init_spi(void) {}
 #endif
-		return 0;
-
-	return get_hsync_invperiod(spitz_pxafb_dev);
-}
-
-static void spitz_put_hsync(void)
-{
-	put_device(spitz_pxafb_dev);
-	if (get_hsync_invperiod)
-		symbol_put(pxafb_get_hsync_time);
-	spitz_pxafb_dev = NULL;
-	get_hsync_invperiod = NULL;
-}
-
-static void spitz_wait_hsync(void)
-{
-	sharpsl_wait_sync(SPITZ_GPIO_HSYNC);
-}
-
-static struct resource spitzts_resources[] = {
-	[0] = {
-		.start		= SPITZ_IRQ_GPIO_TP_INT,
-		.end		= SPITZ_IRQ_GPIO_TP_INT,
-		.flags		= IORESOURCE_IRQ,
-	},
-};
-
-static struct corgits_machinfo  spitz_ts_machinfo = {
-	.get_hsync_invperiod = spitz_get_hsync_invperiod,
-	.put_hsync           = spitz_put_hsync,
-	.wait_hsync          = spitz_wait_hsync,
-};
-
-static struct platform_device spitzts_device = {
-	.name		= "corgi-ts",
-	.dev		= {
- 		.parent = &spitzssp_device.dev,
-		.platform_data	= &spitz_ts_machinfo,
-	},
-	.id		= -1,
-	.num_resources	= ARRAY_SIZE(spitzts_resources),
-	.resource	= spitzts_resources,
-};
-
 
 /*
  * MMC/SD Device
@@ -532,14 +545,6 @@ static struct pxaficp_platform_data spitz_ficp_platform_data = {
  * Spitz PXA Framebuffer
  */
 
-static void spitz_lcd_power(int on, struct fb_var_screeninfo *var)
-{
-	if (on)
-		corgi_lcdtg_hw_init(var->xres);
-	else
-		corgi_lcdtg_suspend();
-}
-
 static struct pxafb_mode_info spitz_pxafb_modes[] = {
 {
 	.pixclock       = 19231,
@@ -573,16 +578,12 @@ static struct pxafb_mach_info spitz_pxafb_info = {
 	.num_modes      = 2,
 	.fixed_modes    = 1,
 	.lcd_conn	= LCD_COLOR_TFT_16BPP | LCD_ALTERNATE_MAPPING,
-	.pxafb_lcd_power = spitz_lcd_power,
 };
 
 
 static struct platform_device *devices[] __initdata = {
 	&spitzscoop_device,
-	&spitzssp_device,
 	&spitzkbd_device,
-	&spitzts_device,
-	&spitzbl_device,
 	&spitzled_device,
 };
 
@@ -613,43 +614,20 @@ static void __init common_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(spitz_pin_config));
 
-	corgi_ssp_set_machinfo(&spitz_ssp_machinfo);
+	spitz_init_spi();
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 	pxa_set_mci_info(&spitz_mci_platform_data);
 	pxa_set_ohci_info(&spitz_ohci_platform_data);
 	pxa_set_ficp_info(&spitz_ficp_platform_data);
-	set_pxa_fb_parent(&spitzssp_device.dev);
 	set_pxa_fb_info(&spitz_pxafb_info);
 	pxa_set_i2c_info(NULL);
 }
 
 #if defined(CONFIG_MACH_SPITZ) || defined(CONFIG_MACH_BORZOI)
-static void spitz_bl_set_intensity(int intensity)
-{
-	if (intensity > 0x10)
-		intensity += 0x10;
-
-	/* Bits 0-4 are accessed via the SSP interface */
-	corgi_ssp_blduty_set(intensity & 0x1f);
-
-	/* Bit 5 is via SCOOP */
-	if (intensity & 0x0020)
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
-	else
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
-
-	if (intensity)
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
-	else
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
-}
-
 static void __init spitz_init(void)
 {
 	platform_scoop_config = &spitz_pcmcia_config;
-
-	spitz_bl_machinfo.set_bl_intensity = spitz_bl_set_intensity;
 
 	common_init();
 
@@ -668,26 +646,6 @@ struct platform_device akitaioexp_device = {
 
 EXPORT_SYMBOL_GPL(akitaioexp_device);
 
-static void akita_bl_set_intensity(int intensity)
-{
-	if (intensity > 0x10)
-		intensity += 0x10;
-
-	/* Bits 0-4 are accessed via the SSP interface */
-	corgi_ssp_blduty_set(intensity & 0x1f);
-
-	/* Bit 5 is via IO-Expander */
-	if (intensity & 0x0020)
-		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
-	else
-		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
-
-	if (intensity)
-		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
-	else
-		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
-}
-
 static void __init akita_init(void)
 {
 	spitz_ficp_platform_data.transceiver_mode = akita_irda_transceiver_mode;
@@ -695,7 +653,6 @@ static void __init akita_init(void)
 	/* We just pretend the second element of the array doesn't exist */
 	spitz_pcmcia_config.num_devs = 1;
 	platform_scoop_config = &spitz_pcmcia_config;
-	spitz_bl_machinfo.set_bl_intensity = akita_bl_set_intensity;
 
 	platform_device_register(&akitaioexp_device);
 
