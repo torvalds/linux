@@ -34,6 +34,7 @@ struct sd {
 
 	unsigned short contrast;
 	__u8 brightness;
+	__u8 white;
 	__u8 autogain;
 
 	__u8 chip_revision;
@@ -46,11 +47,12 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setwhite(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getwhite(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
-#define SD_BRIGHTNESS 0
 	{
 	 {
 	  .id = V4L2_CID_BRIGHTNESS,
@@ -59,12 +61,12 @@ static struct ctrl sd_ctrls[] = {
 	  .minimum = 0,
 	  .maximum = 63,
 	  .step = 1,
-	  .default_value = 32,
+#define BRIGHTNESS_DEF 32
+		.default_value = BRIGHTNESS_DEF,
 	  },
 	 .set = sd_setbrightness,
 	 .get = sd_getbrightness,
 	 },
-#define SD_CONTRAST 1
 	{
 	 {
 	  .id = V4L2_CID_CONTRAST,
@@ -73,12 +75,26 @@ static struct ctrl sd_ctrls[] = {
 	  .minimum = 0,
 	  .maximum = 0x3fff,
 	  .step = 1,
-	  .default_value = 0x2000,
+#define CONTRAST_DEF 0x2000
+		.default_value = CONTRAST_DEF,
 	  },
 	 .set = sd_setcontrast,
 	 .get = sd_getcontrast,
 	 },
-#define SD_AUTOGAIN 2
+	{
+	    {
+		.id = V4L2_CID_DO_WHITE_BALANCE,
+		.type = V4L2_CTRL_TYPE_INTEGER,
+		.name = "While Balance",
+		.minimum = 0,
+		.maximum = 0x7f,
+		.step = 1,
+#define WHITE_DEF 40
+		.default_value = WHITE_DEF,
+		},
+		.set = sd_setwhite,
+		.get = sd_getwhite,
+	    },
 	{
 	 {
 	  .id = V4L2_CID_AUTOGAIN,
@@ -87,7 +103,8 @@ static struct ctrl sd_ctrls[] = {
 	  .minimum = 0,
 	  .maximum = 1,
 	  .step = 1,
-	  .default_value = 1,
+#define AUTOGAIN_DEF 1
+	  .default_value = AUTOGAIN_DEF,
 	  },
 	 .set = sd_setautogain,
 	 .get = sd_getautogain,
@@ -438,7 +455,7 @@ static const __u16 spca561_init_data[][2] = {
 	{0x0035, 0x8801},	/* 0x14 - set gain general */
 	{0x001f, 0x8805},	/* 0x14 */
 	{0x0000, 0x8800},
-	{0x0030, 0x8112},
+	{0x000e, 0x8112},	/* white balance - was 30 */
 	{}
 };
 
@@ -478,9 +495,10 @@ static const __u16 Pb100_2map8300[][2] = {
 };
 
 static const __u16 spca561_161rev12A_data1[][2] = {
-	{0x21, 0x8118},
-	{0x01, 0x8114},
-	{0x00, 0x8112},
+	{0x29, 0x8118},		/* white balance - was 21 */
+	{0x08, 0x8114},		/* white balance - was 01 */
+	{0x0e, 0x8112},		/* white balance - was 00 */
+	{0x00, 0x8102},		/* white balance - new */
 	{0x92, 0x8804},
 	{0x04, 0x8802},		/* windows uses 08 */
 	{}
@@ -505,14 +523,16 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{0xb0, 0x8603},
 
 	/* sensor gains */
+	{0x07, 0x8601},		/* white balance - new */
+	{0x07, 0x8602},		/* white balance - new */
 	{0x00, 0x8610},		/* *red */
 	{0x00, 0x8611},		/* 3f   *green */
 	{0x00, 0x8612},		/* green *blue */
 	{0x00, 0x8613},		/* blue *green */
-	{0x35, 0x8614},		/* green *red */
-	{0x35, 0x8615},		/* 40   *green */
-	{0x35, 0x8616},		/* 7a   *blue */
-	{0x35, 0x8617},		/* 40   *green */
+	{0x43, 0x8614},		/* green *red - white balance - was 0x35 */
+	{0x40, 0x8615},		/* 40   *green - white balance - was 0x35 */
+	{0x71, 0x8616},		/* 7a   *blue - white balance - was 0x35 */
+	{0x40, 0x8617},		/* 40   *green - white balance - was 0x35 */
 
 	{0x0c, 0x8620},		/* 0c */
 	{0xc8, 0x8631},		/* c8 */
@@ -527,6 +547,7 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{0xdf, 0x863c},		/* df */
 	{0xf0, 0x8505},
 	{0x32, 0x850a},
+	{0x99, 0x8700},		/* - white balance - new */
 	{}
 };
 
@@ -588,9 +609,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam->nmodes = sizeof sif_mode / sizeof sif_mode[0];
 
 	sd->chip_revision = id->driver_info;
-	sd->brightness = sd_ctrls[SD_BRIGHTNESS].qctrl.default_value;
-	sd->contrast = sd_ctrls[SD_CONTRAST].qctrl.default_value;
-	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
+	sd->brightness = BRIGHTNESS_DEF;
+	sd->contrast = CONTRAST_DEF;
+	sd->autogain = AUTOGAIN_DEF;
+	sd->white = WHITE_DEF;
 	return 0;
 }
 
@@ -628,19 +650,50 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		reg_w_val(dev, lowb, 0x8653);
 		reg_w_val(dev, lowb, 0x8654);
 		break;
-	case Rev012A: {
+	default: {
+/*	case Rev012A: { */
 		__u8 Reg8391[] =
 			{ 0x00, 0x00, 0x00, 0x00, 0x0c, 0x00, 0x00, 0x00 };
 
 		/* Write camera sensor settings */
 		expotimes = (sd->contrast >> 5) & 0x07ff;
+		/* exposure is in 8309 2b, range 0120 - 5720 */
 		Reg8391[0] = expotimes & 0xff;	/* exposure */
 		Reg8391[1] = 0x18 | (expotimes >> 8);
 		Reg8391[2] = sd->brightness;	/* gain */
+		/* gain in 8335, 2b range 0000 - 2400 */
 		reg_w_buf(gspca_dev, 0x8391, Reg8391, 8);
 		reg_w_buf(gspca_dev, 0x8390, Reg8391, 8);
 		break;
 	    }
+	}
+}
+
+static void setwhite(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u16 white;
+	__u8 reg8614, reg8616;
+
+	switch (sd->chip_revision) {
+	case Rev072A:
+		/* no such hardware */
+		break;
+	default:
+/*	case Rev012A: */
+		white = sd->white;
+		if (sd->white == 0) {
+			PDEBUG(D_CONF, "Discarding null whiteness");
+			break;
+		}
+		/* try to emulate MS-win as possible */
+		if (white < 0x45)
+			reg8616 = white;
+		else
+			reg8616 = 0x93 + (white >> 2);
+		reg8614 = 0x28 + (white >> 4);
+		reg_w_val(gspca_dev->dev, reg8616, 0x8616);
+		reg_w_val(gspca_dev->dev, reg8614, 0x8614);
 	}
 }
 
@@ -714,6 +767,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w_val(gspca_dev->dev, 0x8112, 0x1e | 0x20);
 		reg_w_val(gspca_dev->dev, 0x850b, 0x03);
 		setcontrast(gspca_dev);
+		setwhite(gspca_dev);
 		break;
 	}
 }
@@ -721,6 +775,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	reg_w_val(gspca_dev->dev, 0x8112, 0x20);
+	reg_w_val(gspca_dev->dev, 0x8102, 0x00); /* white balance - new */
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -965,6 +1020,25 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->autogain;
+	return 0;
+}
+
+/* white balance - new */
+static int sd_setwhite(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->white = val;
+	if (gspca_dev->streaming)
+		setwhite(gspca_dev);
+	return 0;
+}
+
+static int sd_getwhite(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->white;
 	return 0;
 }
 
