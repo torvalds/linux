@@ -736,7 +736,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
 	int sif = 0;
-	const __u8 stop = 0x09; /* Disable stream turn of LED */
 
 	reg_r(gspca_dev, 0x00);
 	if (gspca_dev->usb_buf[0] != 0x10)
@@ -773,15 +772,16 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->autogain = AUTOGAIN_DEF;
 	sd->freq = FREQ_DEF;
 
-	/* Disable stream turn of LED */
-	reg_w(gspca_dev, 0x01, &stop, 1);
-
 	return 0;
 }
 
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	const __u8 stop = 0x09; /* Disable stream turn of LED */
+
+	reg_w(gspca_dev, 0x01, &stop, 1);
+
 	return 0;
 }
 

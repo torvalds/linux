@@ -245,7 +245,7 @@ static struct v4l2_pix_format vga_mode[] = {
 };
 
 /* pac 7302 */
-static const __u8 probe_7302[] = {
+static const __u8 init_7302[] = {
 /*	index,value */
 	0xff, 0x01,		/* page 1 */
 	0x78, 0x00,		/* deactivate */
@@ -341,7 +341,7 @@ static const __u8 page3_7302[] = {
 };
 
 /* pac 7311 */
-static const __u8 probe_7311[] = {
+static const __u8 init_7311[] = {
 	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
 	0x78, 0x40,	/* Bit_0=start stream, Bit_6=LED */
 	0x78, 0x44,	/* Bit_0=start stream, Bit_6=LED */
@@ -503,14 +503,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sensor = id->driver_info;
 	if (sd->sensor == SENSOR_PAC7302) {
 		PDEBUG(D_CONF, "Find Sensor PAC7302");
-		reg_w_seq(gspca_dev, probe_7302, sizeof probe_7302);
-
 		cam->cam_mode = &vga_mode[2];	/* only 640x480 */
 		cam->nmodes = 1;
 	} else {
 		PDEBUG(D_CONF, "Find Sensor PAC7311");
-		reg_w_seq(gspca_dev, probe_7311, sizeof probe_7311);
-
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
 		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX)
@@ -669,6 +665,13 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 /* this function is called at probe and resume time */
 static int sd_init(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->sensor == SENSOR_PAC7302)
+		reg_w_seq(gspca_dev, init_7302, sizeof init_7302);
+	else
+		reg_w_seq(gspca_dev, init_7311, sizeof init_7311);
+
 	return 0;
 }
 
