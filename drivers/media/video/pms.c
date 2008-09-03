@@ -1030,7 +1030,8 @@ static int __init init_pms_cards(void)
 
 #ifndef MODULE
 	if (!enable) {
-		printk(KERN_INFO "Not enabled\n");
+		printk(KERN_INFO "PMS: not enabled, use pms.enable=1 to "
+				 "probe\n");
 		return -ENODEV;
 	}
 #endif
