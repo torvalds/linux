@@ -72,7 +72,7 @@ struct iwl_power_mgr {
 	/* final power level that used to calculate final power command */
 	u8 power_mode;
 	u8 user_power_setting; /* set by user through mac80211 or sysfs */
-	u8 system_power_setting; /* set by kernel syatem tools */
+	u8 system_power_setting; /* set by kernel system tools */
 	u8 critical_power_setting; /* set if driver over heated */
 	u8 is_battery_active; /* DC/AC power */
 	u8 power_disabled; /* flag to disable using power saving level */

@@ -1607,8 +1607,7 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-
-int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
 	int rc;
 	u8 band = 0;

@@ -88,7 +88,7 @@ static int iwl_is_empty_essid(const char *essid, int essid_len)
 
 
 
-const char *iwl_escape_essid(const char *essid, u8 essid_len)
+static const char *iwl_escape_essid(const char *essid, u8 essid_len)
 {
 	static char escaped[IW_ESSID_MAX_SIZE * 2 + 1];
 	const char *s = essid;
@@ -111,7 +111,6 @@ const char *iwl_escape_essid(const char *essid, u8 essid_len)
 	*d = '\0';
 	return escaped;
 }
-EXPORT_SYMBOL(iwl_escape_essid);
 
 /**
  * iwl_scan_cancel - Cancel any currently executing HW scan

@@ -250,7 +250,7 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 
 
 /*
- * calucaute the final power mode index
+ * compute the final power mode index
  */
 int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
@@ -267,9 +267,9 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 		return -EAGAIN;
 	}
 
-       /* If on battery, set to 3,
-	* if plugged into AC power, set to CAM ("continuously aware mode"),
-	* else user level */
+	/* If on battery, set to 3,
+	 * if plugged into AC power, set to CAM ("continuously aware mode"),
+	 * else user level */
 
 	switch (setting->system_power_setting) {
 	case IWL_POWER_SYS_AUTO:

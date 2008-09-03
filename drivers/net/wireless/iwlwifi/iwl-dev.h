@@ -565,50 +565,31 @@ struct iwl_hw_params {
 #define IWL_RX_STATS(x) (&x->u.rx_frame.stats)
 #define IWL_RX_DATA(x) (IWL_RX_HDR(x)->payload)
 
-
 /******************************************************************************
  *
- * Functions implemented in iwl-base.c which are forward declared here
- * for use by iwl-*.c
+ * Functions implemented in core module which are forward declared here
+ * for use by iwl-[4-5].c
  *
- *****************************************************************************/
-struct iwl_addsta_cmd;
-extern int iwl_send_add_sta(struct iwl_priv *priv,
-			    struct iwl_addsta_cmd *sta, u8 flags);
-u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
-			 u8 flags, struct ieee80211_ht_info *ht_info);
-extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
-					struct ieee80211_hdr *hdr,
-					const u8 *dest, int left);
-extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
-int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
-extern int iwl4965_set_power(struct iwl_priv *priv, void *cmd);
-
-extern const u8 iwl_bcast_addr[ETH_ALEN];
-
-/******************************************************************************
- *
- * Functions implemented in iwl-[34]*.c which are forward declared here
- * for use by iwl-base.c
- *
- * NOTE:  The implementation of these functions are hardware specific
- * which is why they are in the hardware specific files (vs. iwl-base.c)
+ * NOTE:  The implementation of these functions are not hardware specific
+ * which is why they are in the core module files.
  *
  * Naming convention --
- * iwl4965_         <-- Its part of iwlwifi (should be changed to iwl4965_)
- * iwl4965_hw_      <-- Hardware specific (implemented in iwl-XXXX.c by all HW)
+ * iwl_         <-- Is part of iwlwifi
  * iwlXXXX_     <-- Hardware specific (implemented in iwl-XXXX.c for XXXX)
  * iwl4965_bg_      <-- Called from work queue context
  * iwl4965_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
+struct iwl_addsta_cmd;
+extern int iwl_send_add_sta(struct iwl_priv *priv,
+			    struct iwl_addsta_cmd *sta, u8 flags);
+extern u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr,
+			int is_ap, u8 flags, struct ieee80211_ht_info *ht_info);
+extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
+extern int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
+extern const u8 iwl_bcast_addr[ETH_ALEN];
 extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
-extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
-				 struct iwl_frame *frame, u8 rate);
-extern void iwl4965_disable_events(struct iwl_priv *priv);
-
-extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {

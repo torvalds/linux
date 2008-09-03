@@ -801,7 +801,7 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	else
 		priv->staging_rxon.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
 
-	IWL_DEBUG_ASSOC("rx_chain=0x%Xi active=%d idle=%d\n",
+	IWL_DEBUG_ASSOC("rx_chain=0x%X active=%d idle=%d\n",
 			priv->staging_rxon.rx_chain,
 			active_rx_cnt, idle_rx_cnt);
 
@@ -1158,7 +1158,6 @@ int iwl_verify_ucode(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_verify_ucode);
 
-
 static const char *desc_lookup(int i)
 {
 	switch (i) {
@@ -1239,9 +1238,9 @@ EXPORT_SYMBOL(iwl_dump_nic_error_log);
 /**
  * iwl_print_event_log - Dump error event log to syslog
  *
- * NOTE: Must be called with iwl4965_grab_nic_access() already obtained!
+ * NOTE: Must be called with iwl_grab_nic_access() already obtained!
  */
-void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
+static void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 				u32 num_events, u32 mode)
 {
 	u32 i;
@@ -1282,8 +1281,6 @@ void iwl_print_event_log(struct iwl_priv *priv, u32 start_idx,
 		}
 	}
 }
-EXPORT_SYMBOL(iwl_print_event_log);
-
 
 void iwl_dump_nic_event_log(struct iwl_priv *priv)
 {
