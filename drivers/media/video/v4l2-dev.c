@@ -257,6 +257,9 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	int ret;
 	char *name_base;
 
+	if (vfd == NULL)
+		return -EINVAL;
+
 	switch (type) {
 	case VFL_TYPE_GRABBER:
 		base = MINOR_VFL_TYPE_GRABBER_MIN;
