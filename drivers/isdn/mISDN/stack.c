@@ -453,7 +453,7 @@ connect_layer1(struct mISDNdevice *dev, struct mISDNchannel *ch,
 		ch->peer = &dev->D.st->own;
 		ch->st = dev->D.st;
 		rq.protocol = protocol;
-		rq.adr.channel = 0;
+		rq.adr.channel = adr->channel;
 		err = dev->D.ctrl(&dev->D, OPEN_CHANNEL, &rq);
 		printk(KERN_DEBUG "%s: ret 1 %d\n", __func__, err);
 		if (err)

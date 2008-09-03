@@ -166,6 +166,25 @@ recv_Dchannel(struct dchannel *dch)
 EXPORT_SYMBOL(recv_Dchannel);
 
 void
+recv_Echannel(struct dchannel *ech, struct dchannel *dch)
+{
+	struct mISDNhead *hh;
+
+	if (ech->rx_skb->len < 2) { /* at least 2 for sapi / tei */
+		dev_kfree_skb(ech->rx_skb);
+		ech->rx_skb = NULL;
+		return;
+	}
+	hh = mISDN_HEAD_P(ech->rx_skb);
+	hh->prim = PH_DATA_E_IND;
+	hh->id = get_sapi_tei(ech->rx_skb->data);
+	skb_queue_tail(&dch->rqueue, ech->rx_skb);
+	ech->rx_skb = NULL;
+	schedule_event(dch, FLG_RECVQUEUE);
+}
+EXPORT_SYMBOL(recv_Echannel);
+
+void
 recv_Bchannel(struct bchannel *bch)
 {
 	struct mISDNhead *hh;
