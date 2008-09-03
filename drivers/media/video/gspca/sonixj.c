@@ -444,7 +444,7 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x2b, 0x34, 0x00, 0x00, 0x00, 0x10},
 /* */
 	{0xa1, 0x21, 0x10, 0x83, 0x00, 0x00, 0x00, 0x10},
-	{0xb1, 0x21, 0x01, 0x88, 0x70, 0x00, 0x00, 0x10},
+/*	{0xb1, 0x21, 0x01, 0x88, 0x70, 0x00, 0x00, 0x10}, */
 	{}
 };
 static const __u8 ov7660_sensor_init[][8] = {
@@ -811,6 +811,13 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x17, 0xae);
 		reg_w1(gspca_dev, 0x01, 0x42);
 		break;
+/*jfm: from win trace */
+	case SENSOR_OV7660:
+		reg_w1(gspca_dev, 0x01, 0x61);
+		reg_w1(gspca_dev, 0x17, 0x20);
+		reg_w1(gspca_dev, 0x01, 0x60);
+		reg_w1(gspca_dev, 0x01, 0x40);
+		break;
 	default:
 		reg_w1(gspca_dev, 0x01, 0x43);
 		reg_w1(gspca_dev, 0x17, 0x61);
@@ -1076,7 +1083,7 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned val;
-	__u8 reg84_full[13];
+	__u8 reg84_full[0x15];
 
 	memset(reg84_full, 0, sizeof reg84_full);
 	val = sd->contrast * 0x20 / CONTRAST_MAX + 0x10;	/* 10..30 */
@@ -1088,7 +1095,7 @@ static void setbrightcont(struct gspca_dev *gspca_dev)
 			/ BRIGHTNESS_MAX;
 	else
 		val = 0;
-	reg84_full[10] = val;			/* 00..1f */
+	reg84_full[0x12] = val;			/* 00..1f */
 	reg_w(gspca_dev, 0x84, reg84_full, sizeof reg84_full);
 }
 
@@ -1184,7 +1191,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	sn9c1xx = sn_tb[(int) sd->sensor];
 	configure_gpio(gspca_dev, sn9c1xx);
 
-/*	reg_w1(gspca_dev, 0x01, 0x44);		jfm from win trace*/
 	reg_w1(gspca_dev, 0x15, sn9c1xx[0x15]);
 	reg_w1(gspca_dev, 0x16, sn9c1xx[0x16]);
 	reg_w1(gspca_dev, 0x12, sn9c1xx[0x12]);
@@ -1300,7 +1306,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x18, reg18);
 
 	reg_w1(gspca_dev, 0x17, reg17);
-	reg_w1(gspca_dev, 0x01, reg1);
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 	case SENSOR_MI0360:
@@ -1314,6 +1319,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	}
 	setautogain(gspca_dev);
+	reg_w1(gspca_dev, 0x01, reg1);
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
