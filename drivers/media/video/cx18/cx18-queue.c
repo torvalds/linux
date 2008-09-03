@@ -78,12 +78,13 @@ struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q)
 	return buf;
 }
 
-struct cx18_buffer *cx18_queue_find_buf(struct cx18_stream *s, u32 id,
+struct cx18_buffer *cx18_queue_get_buf_irq(struct cx18_stream *s, u32 id,
 	u32 bytesused)
 {
 	struct cx18 *cx = s->cx;
 	struct list_head *p;
 
+	spin_lock(&s->qlock);
 	list_for_each(p, &s->q_free.list) {
 		struct cx18_buffer *buf =
 			list_entry(p, struct cx18_buffer, list);
@@ -92,17 +93,19 @@ struct cx18_buffer *cx18_queue_find_buf(struct cx18_stream *s, u32 id,
 			continue;
 		buf->bytesused = bytesused;
 		/* the transport buffers are handled differently,
-		   so there is no need to move them to the full queue */
-		if (s->type == CX18_ENC_STREAM_TYPE_TS)
-			return buf;
-		s->q_free.buffers--;
-		s->q_free.length -= s->buf_size;
-		s->q_full.buffers++;
-		s->q_full.length += s->buf_size;
-		s->q_full.bytesused += buf->bytesused;
-		list_move_tail(&buf->list, &s->q_full.list);
+		   they are not moved to the full queue */
+		if (s->type != CX18_ENC_STREAM_TYPE_TS) {
+			s->q_free.buffers--;
+			s->q_free.length -= s->buf_size;
+			s->q_full.buffers++;
+			s->q_full.length += s->buf_size;
+			s->q_full.bytesused += buf->bytesused;
+			list_move_tail(&buf->list, &s->q_full.list);
+		}
+		spin_unlock(&s->qlock);
 		return buf;
 	}
+	spin_unlock(&s->qlock);
 	CX18_ERR("Cannot find buffer %d for stream %s\n", id, s->name);
 	return NULL;
 }

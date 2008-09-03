@@ -46,7 +46,7 @@ void cx18_queue_init(struct cx18_queue *q);
 void cx18_enqueue(struct cx18_stream *s, struct cx18_buffer *buf,
 	struct cx18_queue *q);
 struct cx18_buffer *cx18_dequeue(struct cx18_stream *s, struct cx18_queue *q);
-struct cx18_buffer *cx18_queue_find_buf(struct cx18_stream *s, u32 id,
+struct cx18_buffer *cx18_queue_get_buf_irq(struct cx18_stream *s, u32 id,
 	u32 bytesused);
 void cx18_flush_queues(struct cx18_stream *s);
 
