@@ -610,13 +610,14 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			continue;
 		switch (data[i + 1]) {
 		case 0xd9:		/* end of frame */
+			i += 2;
 			frame = gspca_frame_add(gspca_dev,
 						LAST_PACKET,
-						frame, data, i + 1);
-			data += INTER_FRAME;
-			len -= INTER_FRAME;
+						frame, data, i);
+			data += i + INTER_FRAME;
+			len -= i + INTER_FRAME;
 			i = 0;
-			if (len > LUM_OFFSET)
+			if (len > -LUM_OFFSET)
 				sd->lum_sum += data[-LUM_OFFSET];
 			if (len < 0) {
 				sd->tosof = -len;
