@@ -24,8 +24,9 @@
 #define NO_IRQ	(-1)
 #endif
 
-#define M48T59_READ(reg)	pdata->read_byte(dev, reg)
-#define M48T59_WRITE(val, reg)	pdata->write_byte(dev, reg, val)
+#define M48T59_READ(reg) (pdata->read_byte(dev, pdata->offset + reg))
+#define M48T59_WRITE(val, reg) \
+	(pdata->write_byte(dev, pdata->offset + reg, val))
 
 #define M48T59_SET_BITS(mask, reg)	\
 	M48T59_WRITE((M48T59_READ(reg) | (mask)), (reg))
@@ -309,6 +310,11 @@ static const struct rtc_class_ops m48t59_rtc_ops = {
 	.proc		= m48t59_rtc_proc,
 };
 
+static const struct rtc_class_ops m48t02_rtc_ops = {
+	.read_time	= m48t59_rtc_read_time,
+	.set_time	= m48t59_rtc_set_time,
+};
+
 static ssize_t m48t59_nvram_read(struct kobject *kobj,
 				struct bin_attribute *bin_attr,
 				char *buf, loff_t pos, size_t size)
@@ -320,7 +326,7 @@ static ssize_t m48t59_nvram_read(struct kobject *kobj,
 	ssize_t cnt = 0;
 	unsigned long flags;
 
-	for (; size > 0 && pos < M48T59_NVRAM_SIZE; cnt++, size--) {
+	for (; size > 0 && pos < pdata->offset; cnt++, size--) {
 		spin_lock_irqsave(&m48t59->lock, flags);
 		*buf++ = M48T59_READ(cnt);
 		spin_unlock_irqrestore(&m48t59->lock, flags);
@@ -340,7 +346,7 @@ static ssize_t m48t59_nvram_write(struct kobject *kobj,
 	ssize_t cnt = 0;
 	unsigned long flags;
 
-	for (; size > 0 && pos < M48T59_NVRAM_SIZE; cnt++, size--) {
+	for (; size > 0 && pos < pdata->offset; cnt++, size--) {
 		spin_lock_irqsave(&m48t59->lock, flags);
 		M48T59_WRITE(*buf++, cnt);
 		spin_unlock_irqrestore(&m48t59->lock, flags);
@@ -357,7 +363,6 @@ static struct bin_attribute m48t59_nvram_attr = {
 	},
 	.read = m48t59_nvram_read,
 	.write = m48t59_nvram_write,
-	.size = M48T59_NVRAM_SIZE,
 };
 
 static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
@@ -366,6 +371,8 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 	struct m48t59_private *m48t59 = NULL;
 	struct resource *res;
 	int ret = -ENOMEM;
+	char *name;
+	const struct rtc_class_ops *ops;
 
 	/* This chip could be memory-mapped or I/O-mapped */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
@@ -390,6 +397,8 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 			/* Ensure we only kmalloc platform data once */
 			pdev->dev.platform_data = pdata;
 		}
+		if (!pdata->type)
+			pdata->type = M48T59RTC_TYPE_M48T59;
 
 		/* Try to use the generic memory read/write ops */
 		if (!pdata->write_byte)
@@ -419,13 +428,35 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 		if (ret)
 			goto out;
 	}
+	switch (pdata->type) {
+	case M48T59RTC_TYPE_M48T59:
+		name = "m48t59";
+		ops = &m48t59_rtc_ops;
+		pdata->offset = 0x1ff0;
+		break;
+	case M48T59RTC_TYPE_M48T02:
+		name = "m48t02";
+		ops = &m48t02_rtc_ops;
+		pdata->offset = 0x7f0;
+		break;
+	case M48T59RTC_TYPE_M48T08:
+		name = "m48t08";
+		ops = &m48t02_rtc_ops;
+		pdata->offset = 0x1ff0;
+		break;
+	default:
+		dev_err(&pdev->dev, "Unknown RTC type\n");
+		ret = -ENODEV;
+		goto out;
+	}
 
-	m48t59->rtc = rtc_device_register("m48t59", &pdev->dev,
-				&m48t59_rtc_ops, THIS_MODULE);
+	m48t59->rtc = rtc_device_register(name, &pdev->dev, ops, THIS_MODULE);
 	if (IS_ERR(m48t59->rtc)) {
 		ret = PTR_ERR(m48t59->rtc);
 		goto out;
 	}
+
+	m48t59_nvram_attr.size = pdata->offset;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &m48t59_nvram_attr);
 	if (ret)
@@ -489,5 +520,5 @@ module_init(m48t59_rtc_init);
 module_exit(m48t59_rtc_exit);
 
 MODULE_AUTHOR("Mark Zhan <rongkai.zhan@windriver.com>");
-MODULE_DESCRIPTION("M48T59 RTC driver");
+MODULE_DESCRIPTION("M48T59/M48T02/M48T08 RTC driver");
 MODULE_LICENSE("GPL");

@@ -406,10 +406,13 @@ config RTC_DRV_M48T86
 	  will be called rtc-m48t86.
 
 config RTC_DRV_M48T59
-	tristate "ST M48T59"
+	tristate "ST M48T59/M48T08/M48T02"
 	help
 	  If you say Y here you will get support for the
-	  ST M48T59 RTC chip.
+	  ST M48T59 RTC chip and compatible ST M48T08 and M48T02.
+
+	  These chips are usually found in Sun SPARC and UltraSPARC
+	  workstations.
 
 	  This driver can also be built as a module, if so, the module
 	  will be called "rtc-m48t59".
