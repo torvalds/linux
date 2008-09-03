@@ -31,13 +31,11 @@ static unsigned long		next_gc;
 static int			nrhosts;
 static DEFINE_MUTEX(nlm_host_mutex);
 
-
 static void			nlm_gc_hosts(void);
-static struct nsm_handle *	__nsm_find(const struct sockaddr_in *,
-					const char *, unsigned int, int);
-static struct nsm_handle *	nsm_find(const struct sockaddr_in *sin,
-					 const char *hostname,
-					 unsigned int hostname_len);
+static struct nsm_handle	*nsm_find(const struct sockaddr_in *sin,
+						const char *hostname,
+						const size_t hostname_len,
+						const int create);
 
 /*
  * Hash function must work well on big- and little-endian platforms
@@ -187,7 +185,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 		atomic_inc(&nsm->sm_count);
 	else {
 		host = NULL;
-		nsm = nsm_find(sin, hostname, hostname_len);
+		nsm = nsm_find(sin, hostname, hostname_len, 1);
 		if (!nsm) {
 			dprintk("lockd: nlm_lookup_host failed; "
 				"no nsm handle\n");
@@ -419,8 +417,7 @@ void nlm_host_rebooted(const struct sockaddr_in *sin,
 	struct nsm_handle *nsm;
 	struct nlm_host	*host;
 
-	/* Find the NSM handle for this peer */
-	nsm = __nsm_find(sin, hostname, hostname_len, 0);
+	nsm = nsm_find(sin, hostname, hostname_len, 0);
 	if (nsm == NULL) {
 		dprintk("lockd: never saw rebooted peer '%.*s' before\n",
 				hostname_len, hostname);
@@ -560,10 +557,10 @@ nlm_gc_hosts(void)
 static LIST_HEAD(nsm_handles);
 static DEFINE_SPINLOCK(nsm_lock);
 
-static struct nsm_handle *
-__nsm_find(const struct sockaddr_in *sin,
-		const char *hostname, unsigned int hostname_len,
-		int create)
+static struct nsm_handle *nsm_find(const struct sockaddr_in *sin,
+				   const char *hostname,
+				   const size_t hostname_len,
+				   const int create)
 {
 	struct nsm_handle *nsm = NULL;
 	struct nsm_handle *pos;
@@ -575,7 +572,7 @@ __nsm_find(const struct sockaddr_in *sin,
 		if (printk_ratelimit()) {
 			printk(KERN_WARNING "Invalid hostname \"%.*s\" "
 					    "in NFS lock request\n",
-				hostname_len, hostname);
+				(int)hostname_len, hostname);
 		}
 		return NULL;
 	}
@@ -621,13 +618,6 @@ retry:
 found:
 	spin_unlock(&nsm_lock);
 	return nsm;
-}
-
-static struct nsm_handle *
-nsm_find(const struct sockaddr_in *sin, const char *hostname,
-	 unsigned int hostname_len)
-{
-	return __nsm_find(sin, hostname, hostname_len, 1);
 }
 
 /*
