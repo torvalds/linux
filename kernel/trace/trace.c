@@ -1117,9 +1117,8 @@ trace_entry_idx(struct trace_array *tr, struct trace_array_cpu *data,
 }
 
 /* Increment the index counter of an iterator by one */
-static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
+static void __trace_iterator_increment(struct trace_iterator *iter, int cpu)
 {
-	iter->idx++;
 	iter->next_idx[cpu]++;
 	iter->next_page_idx[cpu]++;
 
@@ -1130,6 +1129,12 @@ static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
 		iter->next_page[cpu] =
 			trace_next_list(data, iter->next_page[cpu]);
 	}
+}
+
+static void trace_iterator_increment(struct trace_iterator *iter, int cpu)
+{
+	iter->idx++;
+	__trace_iterator_increment(iter, cpu);
 }
 
 static struct trace_entry *
@@ -1153,7 +1158,7 @@ trace_entry_next(struct trace_array *tr, struct trace_array_cpu *data,
 
 	/* find a real entry */
 	do {
-		trace_iterator_increment(iter, cpu);
+		__trace_iterator_increment(iter, cpu);
 		ent = trace_entry_idx(tr, tr->data[cpu], iter, cpu);
 	} while (ent && ent->type != TRACE_CONT);
 
@@ -1187,7 +1192,7 @@ __find_next_entry(struct trace_iterator *iter, int *ent_cpu, int inc)
 				ent = trace_entry_next(tr, data, iter, cpu);
 			else {
 				while (ent && ent->type == TRACE_CONT) {
-					trace_iterator_increment(iter, cpu);
+					__trace_iterator_increment(iter, cpu);
 					ent = trace_entry_idx(tr, tr->data[cpu],
 							      iter, cpu);
 				}
@@ -1566,7 +1571,7 @@ trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 
 	do {
 		trace_seq_printf(s, "%s", ent->cont.buf);
-		trace_iterator_increment(iter, iter->cpu);
+		__trace_iterator_increment(iter, iter->cpu);
 		ent = trace_entry_idx(tr, data, iter, iter->cpu);
 	} while (ent && ent->type == TRACE_CONT);
 }
