@@ -163,15 +163,17 @@ static void x25_close(struct net_device *dev)
 
 static int x25_rx(struct sk_buff *skb)
 {
+	struct net_device *dev = skb->dev;
+
 	if ((skb = skb_share_check(skb, GFP_ATOMIC)) == NULL) {
-		skb->dev->stats.rx_dropped++;
+		dev->stats.rx_dropped++;
 		return NET_RX_DROP;
 	}
 
-	if (lapb_data_received(skb->dev, skb) == LAPB_OK)
+	if (lapb_data_received(dev, skb) == LAPB_OK)
 		return NET_RX_SUCCESS;
 
-	skb->dev->stats.rx_errors++;
+	dev->stats.rx_errors++;
 	dev_kfree_skb_any(skb);
 	return NET_RX_DROP;
 }
