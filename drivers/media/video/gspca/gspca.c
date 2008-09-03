@@ -869,7 +869,7 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 		id &= V4L2_CTRL_ID_MASK;
 		id++;
 		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
-			if (id < gspca_dev->sd_desc->ctrls[i].qctrl.id)
+			if (gspca_dev->sd_desc->ctrls[i].qctrl.id < id)
 				continue;
 			if (ix < 0) {
 				ix = i;
@@ -908,6 +908,8 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	     i++, ctrls++) {
 		if (ctrl->id != ctrls->qctrl.id)
 			continue;
+		if (gspca_dev->ctrl_dis & (1 << i))
+			return -EINVAL;
 		if (ctrl->value < ctrls->qctrl.minimum
 		    || ctrl->value > ctrls->qctrl.maximum)
 			return -ERANGE;
@@ -934,6 +936,8 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	     i++, ctrls++) {
 		if (ctrl->id != ctrls->qctrl.id)
 			continue;
+		if (gspca_dev->ctrl_dis & (1 << i))
+			return -EINVAL;
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
 		ret = ctrls->get(gspca_dev, &ctrl->value);
