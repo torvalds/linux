@@ -55,6 +55,8 @@ struct m48t59_plat_data {
 
 	int type; /* RTC model */
 
+	/* ioaddr mapped externally */
+	void __iomem *ioaddr;
 	/* offset to RTC registers, automatically set according to the type */
 	unsigned int offset;
 };

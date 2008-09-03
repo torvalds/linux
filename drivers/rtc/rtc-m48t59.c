@@ -411,9 +411,14 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 	if (!m48t59)
 		return -ENOMEM;
 
-	m48t59->ioaddr = ioremap(res->start, res->end - res->start + 1);
-	if (!m48t59->ioaddr)
-		goto out;
+	m48t59->ioaddr = pdata->ioaddr;
+
+	if (!m48t59->ioaddr) {
+		/* ioaddr not mapped externally */
+		m48t59->ioaddr = ioremap(res->start, res->end - res->start + 1);
+		if (!m48t59->ioaddr)
+			goto out;
+	}
 
 	/* Try to get irq number. We also can work in
 	 * the mode without IRQ.
@@ -481,11 +486,12 @@ out:
 static int __devexit m48t59_rtc_remove(struct platform_device *pdev)
 {
 	struct m48t59_private *m48t59 = platform_get_drvdata(pdev);
+	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 
 	sysfs_remove_bin_file(&pdev->dev.kobj, &m48t59_nvram_attr);
 	if (!IS_ERR(m48t59->rtc))
 		rtc_device_unregister(m48t59->rtc);
-	if (m48t59->ioaddr)
+	if (m48t59->ioaddr && !pdata->ioaddr)
 		iounmap(m48t59->ioaddr);
 	if (m48t59->irq != NO_IRQ)
 		free_irq(m48t59->irq, &pdev->dev);
