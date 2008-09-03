@@ -14,6 +14,7 @@
 #define _ASM_SYSCALL_H	1
 
 #include <linux/sched.h>
+#include <linux/err.h>
 
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)
@@ -47,7 +48,7 @@ static inline long syscall_get_error(struct task_struct *task,
 		 */
 		error = (long) (int) error;
 #endif
-	return error >= -4095L ? error : 0;
+	return IS_ERR_VALUE(error) ? error : 0;
 }
 
 static inline long syscall_get_return_value(struct task_struct *task,
