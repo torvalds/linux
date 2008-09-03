@@ -38,9 +38,9 @@ struct sd {
 #define CONTRAST_MAX 0x3fff
 
 	__u16 exposure;			/* rev12a only */
-#define EXPOSURE_MIN 0x2001
-#define EXPOSURE_DEF 0x20ae
-#define EXPOSURE_MAX 0x421d
+#define EXPOSURE_MIN 0
+#define EXPOSURE_DEF 200
+#define EXPOSURE_MAX 762
 
 	__u8 brightness;		/* rev72a only */
 #define BRIGHTNESS_MIN 0
@@ -48,7 +48,7 @@ struct sd {
 #define BRIGHTNESS_MAX 63
 
 	__u8 white;			/* rev12a only */
-#define WHITE_MIN 0
+#define WHITE_MIN 1
 #define WHITE_DEF 0x40
 #define WHITE_MAX 0x7f
 
@@ -608,10 +608,6 @@ static void setwhite(struct gspca_dev *gspca_dev)
 	__u8 reg8614, reg8616;
 
 	white = sd->white;
-	if (sd->white == 0) {
-		PDEBUG(D_CONF, "Discarding null whiteness");
-		return;
-	}
 	/* try to emulate MS-win as possible */
 	reg8616 = 0x90 - white * 5 / 8;
 	reg_w_val(gspca_dev->dev, 0x8616, reg8616);
@@ -623,10 +619,12 @@ static void setwhite(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	int expo;
 	__u8 data[2];
 
-	data[0] = sd->exposure;
-	data[1] = sd->exposure >> 8;
+	expo = sd->exposure + 0x20a8;	/* from test */
+	data[0] = expo;
+	data[1] = expo >> 8;
 	reg_w_buf(gspca_dev, 0x8309, data, 2);
 }
 
