@@ -799,8 +799,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
 }
@@ -961,14 +961,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	ByteSend = 0x09;	/* 0X00 */
 	reg_w(gspca_dev, 0x01, &ByteSend, 1);
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -1162,11 +1154,9 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 	.dq_callback = do_autogain,

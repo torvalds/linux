@@ -1477,8 +1477,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	return 0;
 }
@@ -1640,19 +1640,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w(dev, 0x89, 0xffff, 0xffff);
 }
 
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-/*	struct usb_device *dev = gspca_dev->dev;
-	__u8 buffread;
-
-	reg_w(dev, 0x89, 0xffff, 0xffff);
-	reg_w(dev, 0xa0, 0x01, 0xb301);
-	reg_w(dev, 0xa0, 0x09, 0xb303);
-	reg_w(dev, 0x89, 0xffff, 0xffff);
-*/
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -1741,11 +1728,10 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };

@@ -558,10 +558,12 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 	gspca_dev->streaming = 0;
 	atomic_set(&gspca_dev->nevent, 0);
 	if (gspca_dev->present) {
-		gspca_dev->sd_desc->stopN(gspca_dev);
+		if (gspca_dev->sd_desc->stopN)
+			gspca_dev->sd_desc->stopN(gspca_dev);
 		destroy_urbs(gspca_dev);
 		gspca_set_alt0(gspca_dev);
-		gspca_dev->sd_desc->stop0(gspca_dev);
+		if (gspca_dev->sd_desc->stop0)
+			gspca_dev->sd_desc->stop0(gspca_dev);
 		PDEBUG(D_STREAM, "stream off OK");
 	}
 }
@@ -770,19 +772,7 @@ static int dev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	/* if not done yet, initialize the sensor */
-	if (gspca_dev->users == 0) {
-		if (mutex_lock_interruptible(&gspca_dev->usb_lock)) {
-			ret = -ERESTARTSYS;
-			goto out;
-		}
-		ret = gspca_dev->sd_desc->open(gspca_dev);
-		mutex_unlock(&gspca_dev->usb_lock);
-		if (ret != 0) {
-			PDEBUG(D_ERR|D_CONF, "init device failed %d", ret);
-			goto out;
-		}
-	} else if (gspca_dev->users > 4) {	/* (arbitrary value) */
+	if (gspca_dev->users > 4) {	/* (arbitrary value) */
 		ret = -EBUSY;
 		goto out;
 	}
@@ -795,6 +785,7 @@ static int dev_open(struct inode *inode, struct file *file)
 	else
 		gspca_dev->vdev.debug &= ~3;
 #endif
+	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
 	if (ret != 0)
@@ -815,11 +806,6 @@ static int dev_close(struct inode *inode, struct file *file)
 
 	/* if the file did the capture, free the streaming resources */
 	if (gspca_dev->capt_file == file) {
-		mutex_lock(&gspca_dev->usb_lock);
-		if (gspca_dev->streaming)
-			gspca_stream_off(gspca_dev);
-		gspca_dev->sd_desc->close(gspca_dev);
-		mutex_unlock(&gspca_dev->usb_lock);
 		frame_free(gspca_dev);
 		gspca_dev->capt_file = NULL;
 		gspca_dev->memory = GSPCA_MEMORY_NO;
@@ -1747,8 +1733,11 @@ int gspca_dev_probe(struct usb_interface *intf,
 /*	gspca_dev->users = 0;			(done by kzalloc) */
 	gspca_dev->nbufread = 2;
 
-	/* configure the subdriver */
+	/* configure the subdriver and initialize the USB device */
 	ret = gspca_dev->sd_desc->config(gspca_dev, id);
+	if (ret < 0)
+		goto out;
+	ret = gspca_dev->sd_desc->init(gspca_dev);
 	if (ret < 0)
 		goto out;
 	ret = gspca_set_alt0(gspca_dev);
@@ -1825,10 +1814,12 @@ int gspca_suspend(struct usb_interface *intf, pm_message_t message)
 	if (!gspca_dev->streaming)
 		return 0;
 	gspca_dev->frozen = 1;		/* avoid urb error messages */
-	gspca_dev->sd_desc->stopN(gspca_dev);
+	if (gspca_dev->sd_desc->stopN)
+		gspca_dev->sd_desc->stopN(gspca_dev);
 	destroy_urbs(gspca_dev);
 	gspca_set_alt0(gspca_dev);
-	gspca_dev->sd_desc->stop0(gspca_dev);
+	if (gspca_dev->sd_desc->stop0)
+		gspca_dev->sd_desc->stop0(gspca_dev);
 	return 0;
 }
 EXPORT_SYMBOL(gspca_suspend);
@@ -1838,11 +1829,9 @@ int gspca_resume(struct usb_interface *intf)
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
 	gspca_dev->frozen = 0;
-	if (gspca_dev->users != 0) {
-		gspca_dev->sd_desc->open(gspca_dev);
-		if (gspca_dev->streaming)
-			return gspca_init_transfer(gspca_dev);
-	}
+	gspca_dev->sd_desc->init(gspca_dev);
+	if (gspca_dev->streaming)
+		return gspca_init_transfer(gspca_dev);
 	return 0;
 }
 EXPORT_SYMBOL(gspca_resume);

@@ -90,15 +90,14 @@ struct sd_desc {
 /* controls */
 	const struct ctrl *ctrls;
 	int nctrls;
-/* operations */
+/* mandatory operations */
 	cam_cf_op config;	/* called on probe */
-	cam_op open;		/* called on open */
+	cam_op init;		/* called on probe and resume */
 	cam_v_op start;		/* called on stream on */
-	cam_v_op stopN;		/* called on stream off - main alt */
-	cam_v_op stop0;		/* called on stream off - alt 0 */
-	cam_v_op close;		/* called on close */
 	cam_pkt_op pkt_scan;
 /* optional operations */
+	cam_v_op stopN;		/* called on stream off - main alt */
+	cam_v_op stop0;		/* called on stream off - alt 0 */
 	cam_v_op dq_callback;	/* called when a frame has been dequeued */
 	cam_jpg_op get_jcomp;
 	cam_jpg_op set_jcomp;

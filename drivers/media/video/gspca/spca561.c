@@ -560,14 +560,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open_12a(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init_12a(struct gspca_dev *gspca_dev)
 {
 	PDEBUG(D_STREAM, "Chip revision: 012a");
 	init_161rev12A(gspca_dev);
 	return 0;
 }
-static int sd_open_72a(struct gspca_dev *gspca_dev)
+static int sd_init_72a(struct gspca_dev *gspca_dev)
 {
 	PDEBUG(D_STREAM, "Chip revision: 072a");
 	write_vector(gspca_dev, spca561_init_data);
@@ -733,12 +733,7 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		reg_w_val(gspca_dev->dev, 0x8118, 0x29);
 		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
 	}
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-	reg_w_val(gspca_dev->dev, 0x8114, 0);
+/*	reg_w_val(gspca_dev->dev, 0x8114, 0); */
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -1121,11 +1116,10 @@ static const struct sd_desc sd_desc_12a = {
 	.ctrls = sd_ctrls_12a,
 	.nctrls = ARRAY_SIZE(sd_ctrls_12a),
 	.config = sd_config,
-	.open = sd_open_12a,
+	.init = sd_init_12a,
 	.start = sd_start_12a,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 /*	.dq_callback = do_autogain,	 * fixme */
 };
@@ -1134,11 +1128,10 @@ static const struct sd_desc sd_desc_72a = {
 	.ctrls = sd_ctrls_72a,
 	.nctrls = ARRAY_SIZE(sd_ctrls_72a),
 	.config = sd_config,
-	.open = sd_open_72a,
+	.init = sd_init_72a,
 	.start = sd_start_72a,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 };

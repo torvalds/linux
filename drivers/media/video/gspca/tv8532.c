@@ -331,8 +331,8 @@ static void tv_8532_PollReg(struct gspca_dev *gspca_dev)
 	}
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	reg_w_1(gspca_dev, TV8532_AD_SLOPE, 0x32);
 	reg_w_1(gspca_dev, TV8532_AD_BITCTRL, 0x00);
@@ -448,14 +448,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
 	reg_w_1(gspca_dev, TV8532_GPIO_OE, 0x0b);
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 }
 
 static void tv8532_preprocess(struct gspca_dev *gspca_dev)
@@ -611,11 +603,9 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
