@@ -131,7 +131,8 @@ static struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step	= 1,
-		.default_value = 1,
+#define AUTOGAIN_DEF 1
+		.default_value = AUTOGAIN_DEF,
 		.flags = 0,
 	    },
 	    .set = sd_setautogain,
@@ -256,13 +257,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		return -ENODEV;
 	}
 
-	pac207_write_reg(gspca_dev, 0x41, 0x00);
-				/* Bit_0=Image Format,
-				 * Bit_1=LED,
-				 * Bit_2=Compression test mode enable */
-	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
-	pac207_write_reg(gspca_dev, 0x11, 0x30); /* Analog Bias */
-
 	PDEBUG(D_PROBE,
 		"Pixart PAC207BCA Image Processor and Control Chip detected"
 		" (vid/pid 0x%04X:0x%04X)", id->idVendor, id->idProduct);
@@ -274,6 +268,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->brightness = PAC207_BRIGHTNESS_DEFAULT;
 	sd->exposure = PAC207_EXPOSURE_DEFAULT;
 	sd->gain = PAC207_GAIN_DEFAULT;
+	sd->autogain = AUTOGAIN_DEF;
 
 	return 0;
 }
@@ -281,9 +276,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	struct sd *sd = (struct sd *) gspca_dev;
+	pac207_write_reg(gspca_dev, 0x41, 0x00);
+				/* Bit_0=Image Format,
+				 * Bit_1=LED,
+				 * Bit_2=Compression test mode enable */
+	pac207_write_reg(gspca_dev, 0x0f, 0x00); /* Power Control */
+	pac207_write_reg(gspca_dev, 0x11, 0x30); /* Analog Bias */
 
-	sd->autogain = 1;
 	return 0;
 }
 
