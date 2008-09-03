@@ -699,8 +699,9 @@ enum iwl4965_false_alarm_state {
 
 enum iwl4965_chain_noise_state {
 	IWL_CHAIN_NOISE_ALIVE = 0,  /* must be 0 */
-	IWL_CHAIN_NOISE_ACCUMULATE = 1,
-	IWL_CHAIN_NOISE_CALIBRATED = 2,
+	IWL_CHAIN_NOISE_ACCUMULATE,
+	IWL_CHAIN_NOISE_CALIBRATED,
+	IWL_CHAIN_NOISE_DONE,
 };
 
 enum iwl4965_calib_enabled_state {
@@ -758,17 +759,18 @@ struct iwl_sensitivity_data {
 
 /* Chain noise (differential Rx gain) calib data */
 struct iwl_chain_noise_data {
-	u8 state;
-	u16 beacon_count;
+	u32 active_chains;
 	u32 chain_noise_a;
 	u32 chain_noise_b;
 	u32 chain_noise_c;
 	u32 chain_signal_a;
 	u32 chain_signal_b;
 	u32 chain_signal_c;
+	u16 beacon_count;
 	u8 disconn_array[NUM_RX_CHAINS];
 	u8 delta_gain_code[NUM_RX_CHAINS];
 	u8 radio_write;
+	u8 state;
 };
 
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
