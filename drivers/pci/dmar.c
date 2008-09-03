@@ -397,10 +397,10 @@ dmar_find_matched_drhd_unit(struct pci_dev *dev)
 
 int __init dmar_dev_scope_init(void)
 {
-	struct dmar_drhd_unit *drhd;
+	struct dmar_drhd_unit *drhd, *drhd_n;
 	int ret = -ENODEV;
 
-	for_each_drhd_unit(drhd) {
+	list_for_each_entry_safe(drhd, drhd_n, &dmar_drhd_units, list) {
 		ret = dmar_parse_dev(drhd);
 		if (ret)
 			return ret;
@@ -408,8 +408,8 @@ int __init dmar_dev_scope_init(void)
 
 #ifdef CONFIG_DMAR
 	{
-		struct dmar_rmrr_unit *rmrr;
-		for_each_rmrr_units(rmrr) {
+		struct dmar_rmrr_unit *rmrr, *rmrr_n;
+		list_for_each_entry_safe(rmrr, rmrr_n, &dmar_rmrr_units, list) {
 			ret = rmrr_parse_dev(rmrr);
 			if (ret)
 				return ret;
