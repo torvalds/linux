@@ -314,19 +314,29 @@ static inline void disk_sysfs_add_subdirs(struct gendisk *disk)
 	kobject_put(k);
 }
 
+static void delete_partition_rcu_cb(struct rcu_head *head)
+{
+	struct hd_struct *part = container_of(head, struct hd_struct, rcu_head);
+
+	part->start_sect = 0;
+	part->nr_sects = 0;
+	part_stat_set_all(part, 0);
+	put_device(&part->dev);
+}
+
 void delete_partition(struct gendisk *disk, int partno)
 {
-	struct hd_struct *p = disk->part[partno - 1];
+	struct hd_struct *part;
 
-	if (!p)
+	part = disk->__part[partno-1];
+	if (!part)
 		return;
-	disk->part[partno - 1] = NULL;
-	p->start_sect = 0;
-	p->nr_sects = 0;
-	part_stat_set_all(p, 0);
-	kobject_put(p->holder_dir);
-	device_del(&p->dev);
-	put_device(&p->dev);
+
+	rcu_assign_pointer(disk->__part[partno-1], NULL);
+	kobject_put(part->holder_dir);
+	device_del(&part->dev);
+
+	call_rcu(&part->rcu_head, delete_partition_rcu_cb);
 }
 
 static ssize_t whole_disk_show(struct device *dev,
@@ -343,7 +353,7 @@ int add_partition(struct gendisk *disk, int partno,
 	struct hd_struct *p;
 	int err;
 
-	if (disk->part[partno - 1])
+	if (disk->__part[partno - 1])
 		return -EBUSY;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -391,7 +401,8 @@ int add_partition(struct gendisk *disk, int partno,
 	}
 
 	/* everything is up and running, commence */
-	disk->part[partno - 1] = p;
+	INIT_RCU_HEAD(&p->rcu_head);
+	rcu_assign_pointer(disk->__part[partno - 1], p);
 
 	/* suppress uevent if the disk supresses it */
 	if (!disk->dev.uevent_suppress)
@@ -414,9 +425,9 @@ out_put:
 void register_disk(struct gendisk *disk)
 {
 	struct block_device *bdev;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 	char *s;
-	int i;
-	struct hd_struct *p;
 	int err;
 
 	disk->dev.parent = disk->driverfs_dev;
@@ -466,16 +477,16 @@ exit:
 	kobject_uevent(&disk->dev.kobj, KOBJ_ADD);
 
 	/* announce possible partitions */
-	for (i = 0; i < disk_max_parts(disk); i++) {
-		p = disk->part[i];
-		if (!p || !p->nr_sects)
-			continue;
-		kobject_uevent(&p->dev.kobj, KOBJ_ADD);
-	}
+	disk_part_iter_init(&piter, disk, 0);
+	while ((part = disk_part_iter_next(&piter)))
+		kobject_uevent(&part->dev.kobj, KOBJ_ADD);
+	disk_part_iter_exit(&piter);
 }
 
 int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 {
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 	struct parsed_partitions *state;
 	int p, res;
 
@@ -485,8 +496,12 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	if (res)
 		return res;
 	bdev->bd_invalidated = 0;
-	for (p = 1; p <= disk_max_parts(disk); p++)
-		delete_partition(disk, p);
+
+	disk_part_iter_init(&piter, disk, DISK_PITER_INCL_EMPTY);
+	while ((part = disk_part_iter_next(&piter)))
+		delete_partition(disk, part->partno);
+	disk_part_iter_exit(&piter);
+
 	if (disk->fops->revalidate_disk)
 		disk->fops->revalidate_disk(disk);
 	if (!get_capacity(disk) || !(state = check_partition(disk, bdev)))
@@ -545,13 +560,18 @@ EXPORT_SYMBOL(read_dev_sector);
 
 void del_gendisk(struct gendisk *disk)
 {
-	int p;
+	struct disk_part_iter piter;
+	struct hd_struct *part;
 
 	/* invalidate stuff */
-	for (p = disk_max_parts(disk); p > 0; p--) {
-		invalidate_partition(disk, p);
-		delete_partition(disk, p);
+	disk_part_iter_init(&piter, disk,
+			     DISK_PITER_INCL_EMPTY | DISK_PITER_REVERSE);
+	while ((part = disk_part_iter_next(&piter))) {
+		invalidate_partition(disk, part->partno);
+		delete_partition(disk, part->partno);
 	}
+	disk_part_iter_exit(&piter);
+
 	invalidate_partition(disk, 0);
 	disk->capacity = 0;
 	disk->flags &= ~GENHD_FL_UP;

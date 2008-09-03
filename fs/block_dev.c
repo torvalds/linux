@@ -929,6 +929,7 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 {
 	struct module *owner = NULL;
 	struct gendisk *disk;
+	struct hd_struct *part = NULL;
 	int ret;
 	int partno;
 	int perm = 0;
@@ -978,7 +979,6 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 			if (bdev->bd_invalidated)
 				rescan_partitions(disk, bdev);
 		} else {
-			struct hd_struct *p;
 			struct block_device *whole;
 			whole = bdget_disk(disk, 0);
 			ret = -ENOMEM;
@@ -989,16 +989,16 @@ static int do_open(struct block_device *bdev, struct file *file, int for_part)
 			if (ret)
 				goto out_first;
 			bdev->bd_contains = whole;
-			p = disk->part[partno - 1];
+			part = disk_get_part(disk, partno);
 			bdev->bd_inode->i_data.backing_dev_info =
 			   whole->bd_inode->i_data.backing_dev_info;
-			if (!(disk->flags & GENHD_FL_UP) || !p || !p->nr_sects) {
+			if (!(disk->flags & GENHD_FL_UP) ||
+			    !part || !part->nr_sects) {
 				ret = -ENXIO;
 				goto out_first;
 			}
-			kobject_get(&p->dev.kobj);
-			bdev->bd_part = p;
-			bd_set_size(bdev, (loff_t) p->nr_sects << 9);
+			bdev->bd_part = part;
+			bd_set_size(bdev, (loff_t)part->nr_sects << 9);
 		}
 	} else {
 		put_disk(disk);
@@ -1027,6 +1027,7 @@ out_first:
 		__blkdev_put(bdev->bd_contains, 1);
 	bdev->bd_contains = NULL;
 	put_disk(disk);
+	disk_put_part(part);
 	module_put(owner);
 out:
 	mutex_unlock(&bdev->bd_mutex);
@@ -1119,7 +1120,7 @@ static int __blkdev_put(struct block_device *bdev, int for_part)
 		module_put(owner);
 
 		if (bdev->bd_contains != bdev) {
-			kobject_put(&bdev->bd_part->dev.kobj);
+			disk_put_part(bdev->bd_part);
 			bdev->bd_part = NULL;
 		}
 		bdev->bd_disk = NULL;

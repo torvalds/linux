@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/kdev_t.h>
+#include <linux/rcupdate.h>
 
 #ifdef CONFIG_BLOCK
 
@@ -100,6 +101,7 @@ struct hd_struct {
 #else
 	struct disk_stats dkstats;
 #endif
+	struct rcu_head rcu_head;
 };
 
 #define GENHD_FL_REMOVABLE			1
@@ -120,7 +122,14 @@ struct gendisk {
                                          * disks that can't be partitioned. */
 
 	char disk_name[32];		/* name of major driver */
-	struct hd_struct **part;	/* [indexed by minor - 1] */
+
+	/* Array of pointers to partitions indexed by partno - 1.
+	 * Protected with matching bdev lock but stat and other
+	 * non-critical accesses use RCU.  Always access through
+	 * helpers.
+	 */
+	struct hd_struct **__part;
+
 	struct block_device_operations *fops;
 	struct request_queue *queue;
 	void *private_data;
@@ -171,25 +180,41 @@ static inline dev_t part_devt(struct hd_struct *part)
 	return part->dev.devt;
 }
 
+extern struct hd_struct *disk_get_part(struct gendisk *disk, int partno);
+
+static inline void disk_put_part(struct hd_struct *part)
+{
+	if (likely(part))
+		put_device(&part->dev);
+}
+
+/*
+ * Smarter partition iterator without context limits.
+ */
+#define DISK_PITER_REVERSE	(1 << 0) /* iterate in the reverse direction */
+#define DISK_PITER_INCL_EMPTY	(1 << 1) /* include 0-sized parts */
+
+struct disk_part_iter {
+	struct gendisk		*disk;
+	struct hd_struct	*part;
+	int			idx;
+	unsigned int		flags;
+};
+
+extern void disk_part_iter_init(struct disk_part_iter *piter,
+				 struct gendisk *disk, unsigned int flags);
+extern struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter);
+extern void disk_part_iter_exit(struct disk_part_iter *piter);
+
+extern struct hd_struct *disk_map_sector_rcu(struct gendisk *disk,
+					     sector_t sector);
+
 /* 
  * Macros to operate on percpu disk statistics:
  *
  * The __ variants should only be called in critical sections. The full
  * variants disable/enable preemption.
  */
-static inline struct hd_struct *disk_map_sector(struct gendisk *gendiskp,
-						sector_t sector)
-{
-	struct hd_struct *part;
-	int i;
-	for (i = 0; i < disk_max_parts(gendiskp); i++) {
-		part = gendiskp->part[i];
-		if (part && part->start_sect <= sector
-		    && sector < part->start_sect + part->nr_sects)
-			return part;
-	}
-	return NULL;
-}
 
 #ifdef	CONFIG_SMP
 #define __disk_stat_add(gendiskp, field, addnd) 	\

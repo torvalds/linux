@@ -387,14 +387,19 @@ static int attempt_merge(struct request_queue *q, struct request *req,
 	elv_merge_requests(q, req, next);
 
 	if (req->rq_disk) {
-		struct hd_struct *part =
-			disk_map_sector(req->rq_disk, req->sector);
+		struct hd_struct *part;
+
+		rcu_read_lock();
+
+		part = disk_map_sector_rcu(req->rq_disk, req->sector);
 		disk_round_stats(req->rq_disk);
 		req->rq_disk->in_flight--;
 		if (part) {
 			part_round_stats(part);
 			part->in_flight--;
 		}
+
+		rcu_read_unlock();
 	}
 
 	req->ioprio = ioprio_best(req->ioprio, next->ioprio);

@@ -12,11 +12,12 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 {
 	struct block_device *bdevp;
 	struct gendisk *disk;
+	struct hd_struct *part;
 	struct blkpg_ioctl_arg a;
 	struct blkpg_partition p;
+	struct disk_part_iter piter;
 	long long start, length;
 	int partno;
-	int i;
 	int err;
 
 	if (!capable(CAP_SYS_ADMIN))
@@ -47,28 +48,33 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			mutex_lock(&bdev->bd_mutex);
 
 			/* overlap? */
-			for (i = 0; i < disk_max_parts(disk); i++) {
-				struct hd_struct *s = disk->part[i];
-
-				if (!s)
-					continue;
-				if (!(start+length <= s->start_sect ||
-				      start >= s->start_sect + s->nr_sects)) {
+			disk_part_iter_init(&piter, disk,
+					    DISK_PITER_INCL_EMPTY);
+			while ((part = disk_part_iter_next(&piter))) {
+				if (!(start + length <= part->start_sect ||
+				      start >= part->start_sect + part->nr_sects)) {
+					disk_part_iter_exit(&piter);
 					mutex_unlock(&bdev->bd_mutex);
 					return -EBUSY;
 				}
 			}
+			disk_part_iter_exit(&piter);
+
 			/* all seems OK */
 			err = add_partition(disk, partno, start, length,
 					    ADDPART_FLAG_NONE);
 			mutex_unlock(&bdev->bd_mutex);
 			return err;
 		case BLKPG_DEL_PARTITION:
-			if (!disk->part[partno - 1])
+			part = disk_get_part(disk, partno);
+			if (!part)
 				return -ENXIO;
-			bdevp = bdget_disk(disk, partno);
+
+			bdevp = bdget(part_devt(part));
+			disk_put_part(part);
 			if (!bdevp)
 				return -ENOMEM;
+
 			mutex_lock(&bdevp->bd_mutex);
 			if (bdevp->bd_openers) {
 				mutex_unlock(&bdevp->bd_mutex);

@@ -757,11 +757,15 @@ diskstats(struct gendisk *disk, struct bio *bio, ulong duration, sector_t sector
 	const int rw = bio_data_dir(bio);
 	struct hd_struct *part;
 
-	part = disk_map_sector(disk, sector);
+	rcu_read_lock();
+
+	part = disk_map_sector_rcu(disk, sector);
 	all_stat_inc(disk, part, ios[rw], sector);
 	all_stat_add(disk, part, ticks[rw], duration, sector);
 	all_stat_add(disk, part, sectors[rw], n_sect, sector);
 	all_stat_add(disk, part, io_ticks, duration, sector);
+
+	rcu_read_unlock();
 }
 
 void

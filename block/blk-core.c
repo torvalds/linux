@@ -60,7 +60,9 @@ static void drive_stat_acct(struct request *rq, int new_io)
 	if (!blk_fs_request(rq) || !rq->rq_disk)
 		return;
 
-	part = disk_map_sector(rq->rq_disk, rq->sector);
+	rcu_read_lock();
+
+	part = disk_map_sector_rcu(rq->rq_disk, rq->sector);
 	if (!new_io)
 		__all_stat_inc(rq->rq_disk, part, merges[rw], rq->sector);
 	else {
@@ -71,6 +73,8 @@ static void drive_stat_acct(struct request *rq, int new_io)
 			part->in_flight++;
 		}
 	}
+
+	rcu_read_unlock();
 }
 
 void blk_queue_congestion_threshold(struct request_queue *q)
@@ -1557,12 +1561,14 @@ static int __end_that_request_first(struct request *req, int error,
 	}
 
 	if (blk_fs_request(req) && req->rq_disk) {
-		struct hd_struct *part =
-			disk_map_sector(req->rq_disk, req->sector);
 		const int rw = rq_data_dir(req);
+		struct hd_struct *part;
 
+		rcu_read_lock();
+		part = disk_map_sector_rcu(req->rq_disk, req->sector);
 		all_stat_add(req->rq_disk, part, sectors[rw],
 				nr_bytes >> 9, req->sector);
+		rcu_read_unlock();
 	}
 
 	total_bytes = bio_nbytes = 0;
@@ -1746,7 +1752,11 @@ static void end_that_request_last(struct request *req, int error)
 	if (disk && blk_fs_request(req) && req != &req->q->bar_rq) {
 		unsigned long duration = jiffies - req->start_time;
 		const int rw = rq_data_dir(req);
-		struct hd_struct *part = disk_map_sector(disk, req->sector);
+		struct hd_struct *part;
+
+		rcu_read_lock();
+
+		part = disk_map_sector_rcu(disk, req->sector);
 
 		__all_stat_inc(disk, part, ios[rw], req->sector);
 		__all_stat_add(disk, part, ticks[rw], duration, req->sector);
@@ -1756,6 +1766,8 @@ static void end_that_request_last(struct request *req, int error)
 			part_round_stats(part);
 			part->in_flight--;
 		}
+
+		rcu_read_unlock();
 	}
 
 	if (req->end_io)
