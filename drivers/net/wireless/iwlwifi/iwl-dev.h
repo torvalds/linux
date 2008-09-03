@@ -406,6 +406,7 @@ struct iwl_ht_info {
 	/* self configuration data */
 	u8 is_ht;
 	u8 supported_chan_width;
+	u8 sm_ps;
 	u8 is_green_field;
 	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
 	u8 max_amsdu_size;
@@ -990,7 +991,6 @@ struct iwl_priv {
 	 * hardware */
 	u16 assoc_id;
 	u16 assoc_capability;
-	u8 ps_mode;
 
 	struct iwl_qos_info qos_data;
 

@@ -564,8 +564,6 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 	if (!iwl_conf->is_ht)
 		return;
 
-	priv->ps_mode = (u8)((ht_conf->cap & IEEE80211_HT_CAP_SM_PS) >> 2);
-
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
 		iwl_conf->sgf |= HT_SHORT_GI_20MHZ;
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
@@ -585,6 +583,8 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 		iwl_conf->extension_chan_offset = IEEE80211_HT_IE_CHA_SEC_NONE;
 		iwl_conf->supported_chan_width = 0;
 	}
+
+	iwl_conf->sm_ps = (u8)((ht_conf->cap & IEEE80211_HT_CAP_SM_PS) >> 2);
 
 	memcpy(iwl_conf->supp_mcs_set, ht_conf->supp_mcs_set, 16);
 
