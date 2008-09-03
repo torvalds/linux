@@ -193,7 +193,7 @@ dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 {
 	struct acpi_dmar_hardware_unit *drhd;
 	static int include_all;
-	int ret;
+	int ret = 0;
 
 	drhd = (struct acpi_dmar_hardware_unit *) dmaru->hdr;
 
