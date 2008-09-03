@@ -70,7 +70,6 @@ struct sd {
 #define SENSOR_PAC7311 1
 
 	u8 sof_read;
-	u8 header_read;
 	u8 autogain_ignore_frames;
 
 	atomic_t avg_lum;
@@ -709,8 +708,6 @@ static const unsigned char pac7311_jpeg_header2[] = {
 /* Include pac common sof detection functions */
 #include "pac_common.h"
 
-#define HEADER_LENGTH 2
-
 /* this function is run at interrupt level */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
@@ -784,22 +781,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		gspca_frame_add(gspca_dev, INTER_PACKET, frame, tmpbuf, 4);
 		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 			pac7311_jpeg_header2, sizeof(pac7311_jpeg_header2));
-
-		sd->header_read = 0;
 	}
-
-	if (sd->header_read < HEADER_LENGTH) {
-		/* skip the variable part of the sof header */
-		int needed = HEADER_LENGTH - sd->header_read;
-		if (len <= needed) {
-			sd->header_read += len;
-			return;
-		}
-		data += needed;
-		len -= needed;
-		sd->header_read = HEADER_LENGTH;
-	}
-
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
