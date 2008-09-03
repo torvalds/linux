@@ -34,7 +34,6 @@
 
 struct m48t59_private {
 	void __iomem *ioaddr;
-	unsigned int size; /* iomem size */
 	int irq;
 	struct rtc_device *rtc;
 	spinlock_t lock; /* serialize the NVRAM and RTC access */
@@ -403,8 +402,7 @@ static int __devinit m48t59_rtc_probe(struct platform_device *pdev)
 	if (!m48t59)
 		return -ENOMEM;
 
-	m48t59->size = res->end - res->start + 1;
-	m48t59->ioaddr = ioremap(res->start, m48t59->size);
+	m48t59->ioaddr = ioremap(res->start, res->end - res->start + 1);
 	if (!m48t59->ioaddr)
 		goto out;
 
