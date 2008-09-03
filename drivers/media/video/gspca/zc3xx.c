@@ -6964,8 +6964,13 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 	case SENSOR_MC501CB:
 		return -1;		/* don't probe */
 	case SENSOR_TAS5130C_VF0250:
-				/* may probe but with write in reg 0x0010 */
+			/* may probe but with no write in reg 0x0010 */
 		return -1;		/* don't probe */
+	case SENSOR_PAS106:
+		sensor =  sif_probe(gspca_dev);
+		if (sensor >= 0)
+			return sensor;
+		break;
 	}
 	sensor = vga_2wr_probe(gspca_dev);
 	if (sensor >= 0) {
@@ -6974,12 +6979,10 @@ static int zcxx_probeSensor(struct gspca_dev *gspca_dev)
 		/* next probe is needed for OmniVision ? */
 	}
 	sensor2 = vga_3wr_probe(gspca_dev);
-	if (sensor2 >= 0) {
-		if (sensor >= 0)
-			return sensor;
-		return sensor2;
-	}
-	return sif_probe(gspca_dev);
+	if (sensor2 >= 0
+	    && sensor >= 0)
+		return sensor;
+	return sensor2;
 }
 
 /* this function is called at probe time */
@@ -7502,14 +7505,14 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e)},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4017)},
-	{USB_DEVICE(0x041e, 0x401c)},
+	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x401e)},
 	{USB_DEVICE(0x041e, 0x401f)},
 #endif
 	{USB_DEVICE(0x041e, 0x4029)},
 #ifndef CONFIG_USB_ZC0301
-	{USB_DEVICE(0x041e, 0x4034)},
-	{USB_DEVICE(0x041e, 0x4035)},
+	{USB_DEVICE(0x041e, 0x4034), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x041e, 0x4035), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
 #endif
@@ -7541,10 +7544,10 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08d8)},
 	{USB_DEVICE(0x046d, 0x08da)},
 	{USB_DEVICE(0x046d, 0x08dd), .driver_info = SENSOR_MC501CB},
-	{USB_DEVICE(0x0471, 0x0325)},
-	{USB_DEVICE(0x0471, 0x0326)},
-	{USB_DEVICE(0x0471, 0x032d)},
-	{USB_DEVICE(0x0471, 0x032e)},
+	{USB_DEVICE(0x0471, 0x0325), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x0471, 0x0326), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x0471, 0x032d), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x0471, 0x032e), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x055f, 0xc005)},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x055f, 0xd003)},
