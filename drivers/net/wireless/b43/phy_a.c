@@ -632,6 +632,7 @@ const struct b43_phy_operations b43_phyops_a = {
 	.radio_write		= b43_aphy_op_radio_write,
 	.supports_hwpctl	= b43_aphy_op_supports_hwpctl,
 	.software_rfkill	= b43_aphy_op_software_rfkill,
+	.switch_analog		= b43_phyop_switch_analog_generic,
 	.switch_channel		= b43_aphy_op_switch_channel,
 	.get_default_chan	= b43_aphy_op_get_default_chan,
 	.set_rx_antenna		= b43_aphy_op_set_rx_antenna,

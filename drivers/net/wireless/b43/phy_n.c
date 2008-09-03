@@ -583,6 +583,12 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 {//TODO
 }
 
+static void b43_nphy_op_switch_analog(struct b43_wldev *dev, bool on)
+{
+	b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
+		      on ? 0 : 0x7FFF);
+}
+
 static int b43_nphy_op_switch_channel(struct b43_wldev *dev,
 				      unsigned int new_channel)
 {
@@ -614,6 +620,7 @@ const struct b43_phy_operations b43_phyops_n = {
 	.radio_read		= b43_nphy_op_radio_read,
 	.radio_write		= b43_nphy_op_radio_write,
 	.software_rfkill	= b43_nphy_op_software_rfkill,
+	.switch_analog		= b43_nphy_op_switch_analog,
 	.switch_channel		= b43_nphy_op_switch_channel,
 	.get_default_chan	= b43_nphy_op_get_default_chan,
 	.recalc_txpower		= b43_nphy_op_recalc_txpower,

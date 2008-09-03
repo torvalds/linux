@@ -1052,23 +1052,6 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	}
 }
 
-/* Turn the Analog ON/OFF */
-static void b43_switch_analog(struct b43_wldev *dev, int on)
-{
-	switch (dev->phy.type) {
-	case B43_PHYTYPE_A:
-	case B43_PHYTYPE_G:
-		b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
-		break;
-	case B43_PHYTYPE_N:
-		b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
-			      on ? 0 : 0x7FFF);
-		break;
-	default:
-		B43_WARN_ON(1);
-	}
-}
-
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 {
 	u32 tmslow;
@@ -1096,7 +1079,7 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 	 * PHY-type, yet. wireless_core_reset will be called once again later,
 	 * when we know the PHY-type. */
 	if (dev->phy.ops)
-		b43_switch_analog(dev, 1);
+		dev->phy.ops->switch_analog(dev, 1);
 
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
 	macctl &= ~B43_MACCTL_GMODE;
@@ -3952,7 +3935,7 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	b43_dma_free(dev);
 	b43_pio_free(dev);
 	b43_chip_exit(dev);
-	b43_switch_analog(dev, 0);
+	dev->phy.ops->switch_analog(dev, 0);
 	if (dev->wl->current_beacon) {
 		dev_kfree_skb_any(dev->wl->current_beacon);
 		dev->wl->current_beacon = NULL;
@@ -4437,7 +4420,7 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43_chip_reset);
 
-	b43_switch_analog(dev, 0);
+	dev->phy.ops->switch_analog(dev, 0);
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(bus);
 

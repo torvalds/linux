@@ -374,3 +374,8 @@ int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset)
 
 	return average;
 }
+
+void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on)
+{
+	b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
+}

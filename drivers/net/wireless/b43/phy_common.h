@@ -108,6 +108,8 @@ enum b43_txpwr_result {
  * 			RFKILL_STATE_SOFT_BLOCKED or
  * 			RFKILL_STATE_UNBLOCKED
  * 			Must not be NULL.
+ * @switch_analog:	Turn the Analog on/off.
+ * 			Must not be NULL.
  * @switch_channel:	Switch the radio to another channel.
  * 			Must not be NULL.
  * @get_default_chan:	Just returns the default channel number.
@@ -158,6 +160,7 @@ struct b43_phy_operations {
 	/* Radio */
 	bool (*supports_hwpctl)(struct b43_wldev *dev);
 	void (*software_rfkill)(struct b43_wldev *dev, enum rfkill_state state);
+	void (*switch_analog)(struct b43_wldev *dev, bool on);
 	int (*switch_channel)(struct b43_wldev *dev, unsigned int new_channel);
 	unsigned int (*get_default_chan)(struct b43_wldev *dev);
 	void (*set_rx_antenna)(struct b43_wldev *dev, int antenna);
@@ -396,6 +399,15 @@ void b43_phy_txpower_adjust_work(struct work_struct *work);
  * Returns the average of the 4 TSSI values, or a negative error code.
  */
 int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
+
+/**
+ * b43_phy_switch_analog_generic - Generic PHY operation for switching the Analog.
+ *
+ * It does the switching based on the PHY0 core register.
+ * Do _not_ call this directly. Only use it as a switch_analog callback
+ * for struct b43_phy_operations.
+ */
+void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
 
 
 #endif /* LINUX_B43_PHY_COMMON_H_ */

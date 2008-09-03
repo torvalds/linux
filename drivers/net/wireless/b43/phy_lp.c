@@ -146,6 +146,7 @@ const struct b43_phy_operations b43_phyops_lp = {
 	.radio_read		= b43_lpphy_op_radio_read,
 	.radio_write		= b43_lpphy_op_radio_write,
 	.software_rfkill	= b43_lpphy_op_software_rfkill,
+	.switch_analog		= b43_phyop_switch_analog_generic,
 	.switch_channel		= b43_lpphy_op_switch_channel,
 	.get_default_chan	= b43_lpphy_op_get_default_chan,
 	.set_rx_antenna		= b43_lpphy_op_set_rx_antenna,
