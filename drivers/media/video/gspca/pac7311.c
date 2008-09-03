@@ -42,6 +42,7 @@ struct sd {
 	unsigned char autogain;
 	__u8 hflip;
 	__u8 vflip;
+	__u8 qindex;
 
 	char tosof;	/* number of bytes before next start of frame */
 	signed char ag_cnt;
@@ -462,6 +463,9 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = CONTRAST_DEF;
 	sd->colors = COLOR_DEF;
 	sd->autogain = AUTOGAIN_DEF;
+	sd->hflip = HFLIP_DEF;
+	sd->vflip = VFLIP_DEF;
+	sd->qindex = 3;
 	sd->ag_cnt = -1;
 	return 0;
 }
@@ -505,6 +509,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 /*jfm: inverted?*/
 	brightness = BRIGHTNESS_MAX - sd->brightness;
 	reg_w(gspca_dev, 0xff, 0x04);
+	reg_w(gspca_dev, 0x0e, 0x00);
 	reg_w(gspca_dev, 0x0f, brightness);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
@@ -520,7 +525,7 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 		return;
 	}
 	reg_w(gspca_dev, 0xff, 0x01);
-	reg_w(gspca_dev, 0x80, sd->contrast);
+	reg_w(gspca_dev, 0x10, sd->contrast);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
 }
@@ -549,7 +554,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 		return;
 	}
 	reg_w(gspca_dev, 0xff, 0x01);
-	reg_w(gspca_dev, 0x10, sd->colors);
+	reg_w(gspca_dev, 0x80, sd->colors);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
 	PDEBUG(D_CONF|D_STREAM, "color: %i", sd->colors);
@@ -583,7 +588,7 @@ static void sethvflip(struct gspca_dev *gspca_dev)
 /* this function is called at open time */
 static int sd_open(struct gspca_dev *gspca_dev)
 {
-	reg_w(gspca_dev, 0x78, 0x00);	/* Turn on LED */
+	reg_w(gspca_dev, 0x78, 0x44);	/* Turn on LED */
 	return 0;
 }
 
@@ -612,27 +617,24 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0x08, 0x09);
 		reg_w(gspca_dev, 0x17, 0x20);
 		reg_w(gspca_dev, 0x1b, 0x00);
-/*		reg_w(gspca_dev, 0x80, 0x69); */
 		reg_w(gspca_dev, 0x87, 0x10);
 		break;
 	case 1:					/* 320x240 pac7311 */
 		reg_w(gspca_dev, 0xff, 0x04);
-		reg_w(gspca_dev, 0x02, 0x03);
+		reg_w(gspca_dev, 0x02, 0x07);
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x08, 0x09);
 		reg_w(gspca_dev, 0x17, 0x30);
-/*		reg_w(gspca_dev, 0x80, 0x3f); */
 		reg_w(gspca_dev, 0x87, 0x11);
 		break;
 	case 0:					/* 640x480 */
 		if (sd->sensor == SENSOR_PAC7302)
 			break;
 		reg_w(gspca_dev, 0xff, 0x04);
-		reg_w(gspca_dev, 0x02, 0x03);
+		reg_w(gspca_dev, 0x02, 0x07);
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x08, 0x08);
 		reg_w(gspca_dev, 0x17, 0x00);
-/*		reg_w(gspca_dev, 0x80, 0x1c); */
 		reg_w(gspca_dev, 0x87, 0x12);
 		break;
 	}
@@ -645,8 +647,8 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x78, 0x01);
 	} else {
-		reg_w(gspca_dev, 0x78, 0x04);
-		reg_w(gspca_dev, 0x78, 0x05);
+		reg_w(gspca_dev, 0x78, 0x44);
+		reg_w(gspca_dev, 0x78, 0x45);
 	}
 }
 
@@ -666,7 +668,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x2a, 0x0e);
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w(gspca_dev, 0x3e, 0x20);
-	reg_w(gspca_dev, 0x78, 0x04); /* Bit_0=start stream, Bit_7=LED */
+	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
 	reg_w(gspca_dev, 0x78, 0x44); /* Bit_0=start stream, Bit_7=LED */
 }
@@ -757,7 +759,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		if (sd->tosof > LUM_OFFSET)
 			sd->lum_sum += data[-LUM_OFFSET];
 		sd->tosof = 0;
-		jpeg_put_header(gspca_dev, frame, 1, 0x21);
+		jpeg_put_header(gspca_dev, frame, sd->qindex, 0x21);
 	}
 
 	for (i = 0; i < len; i++) {
@@ -777,7 +779,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				sd->tosof = -len;
 				break;
 			}
-			jpeg_put_header(gspca_dev, frame, 1, 0x21);
+			jpeg_put_header(gspca_dev, frame, sd->qindex, 0x21);
 			break;
 		}
 	}
