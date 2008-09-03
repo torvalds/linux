@@ -793,7 +793,7 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 
 	switch (sd->sensor) {
 	case SENSOR_OM6802:
-		reg_w1(gspca_dev, 0x02, 0x73);		/* was 71 */
+		reg_w1(gspca_dev, 0x02, 0x71);
 		reg_w1(gspca_dev, 0x01, 0x42);
 		reg_w1(gspca_dev, 0x17, 0x64);
 		reg_w1(gspca_dev, 0x01, 0x42);
