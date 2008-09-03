@@ -224,7 +224,7 @@ static void setup_ht_cap(struct ieee80211_ht_info *ht_info)
 
 	ht_info->ht_supported = 1;
 	ht_info->cap = (u16)IEEE80211_HT_CAP_SUP_WIDTH
-			|(u16)IEEE80211_HT_CAP_MIMO_PS
+			|(u16)IEEE80211_HT_CAP_SM_PS
 			|(u16)IEEE80211_HT_CAP_SGI_40
 			|(u16)IEEE80211_HT_CAP_DSSSCCK40;
 

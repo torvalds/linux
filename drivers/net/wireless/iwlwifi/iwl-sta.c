@@ -191,20 +191,20 @@ static void iwl_set_ht_add_station(struct iwl_priv *priv, u8 index,
 	if (!sta_ht_inf || !sta_ht_inf->ht_supported)
 		goto done;
 
-	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2;
+	mimo_ps_mode = (sta_ht_inf->cap & IEEE80211_HT_CAP_SM_PS) >> 2;
 
 	sta_flags = priv->stations[index].sta.station_flags;
 
 	sta_flags &= ~(STA_FLG_RTS_MIMO_PROT_MSK | STA_FLG_MIMO_DIS_MSK);
 
 	switch (mimo_ps_mode) {
-	case WLAN_HT_CAP_MIMO_PS_STATIC:
+	case WLAN_HT_CAP_SM_PS_STATIC:
 		sta_flags |= STA_FLG_MIMO_DIS_MSK;
 		break;
-	case WLAN_HT_CAP_MIMO_PS_DYNAMIC:
+	case WLAN_HT_CAP_SM_PS_DYNAMIC:
 		sta_flags |= STA_FLG_RTS_MIMO_PROT_MSK;
 		break;
-	case WLAN_HT_CAP_MIMO_PS_DISABLED:
+	case WLAN_HT_CAP_SM_PS_DISABLED:
 		break;
 	default:
 		IWL_WARNING("Invalid MIMO PS mode %d\n", mimo_ps_mode);

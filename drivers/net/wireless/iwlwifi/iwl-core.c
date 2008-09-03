@@ -399,8 +399,8 @@ static void iwlcore_init_ht_hw_capab(const struct iwl_priv *priv,
 
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_GRN_FLD;
 	ht_info->cap |= (u16)IEEE80211_HT_CAP_SGI_20;
-	ht_info->cap |= (u16)(IEEE80211_HT_CAP_MIMO_PS &
-			     (IWL_MIMO_PS_NONE << 2));
+	ht_info->cap |= (u16)(IEEE80211_HT_CAP_SM_PS &
+			     (WLAN_HT_CAP_SM_PS_DISABLED << 2));
 
 	max_bit_rate = MAX_BIT_RATE_20_MHZ;
 	if (priv->hw_params.fat_channel & BIT(band)) {
@@ -709,7 +709,7 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
 
 	/* # of Rx chains to use when expecting MIMO. */
-	if (is_single || (!is_cam && (priv->ps_mode == IWL_MIMO_PS_STATIC)))
+	if (is_single || (!is_cam && (priv->ps_mode == WLAN_HT_CAP_SM_PS_STATIC)))
 		return 2;
 	else
 		return 3;
@@ -721,14 +721,14 @@ static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
 	/* # Rx chains when idling and maybe trying to save power */
 	switch (priv->ps_mode) {
-	case IWL_MIMO_PS_STATIC:
-	case IWL_MIMO_PS_DYNAMIC:
+	case WLAN_HT_CAP_SM_PS_STATIC:
+	case WLAN_HT_CAP_SM_PS_DYNAMIC:
 		idle_cnt = (is_cam) ? 2 : 1;
 		break;
-	case IWL_MIMO_PS_NONE:
+	case WLAN_HT_CAP_SM_PS_DISABLED:
 		idle_cnt = (is_cam) ? active_cnt : 1;
 		break;
-	case IWL_MIMO_PS_INVALID:
+	case WLAN_HT_CAP_SM_PS_INVALID:
 	default:
 		IWL_ERROR("invalide mimo ps mode %d\n", priv->ps_mode);
 		WARN_ON(1);
@@ -912,7 +912,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->iw_mode = IEEE80211_IF_TYPE_STA;
 
 	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
-	priv->ps_mode = IWL_MIMO_PS_NONE;
+	priv->ps_mode = WLAN_HT_CAP_SM_PS_DISABLED;
 
 	/* Choose which receivers/antennas to use */
 	iwl_set_rxon_chain(priv);

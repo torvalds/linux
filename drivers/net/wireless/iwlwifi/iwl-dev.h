@@ -644,11 +644,6 @@ struct iwl_kw {
 #define IWL_CHANNEL_WIDTH_20MHZ   0
 #define IWL_CHANNEL_WIDTH_40MHZ   1
 
-#define IWL_MIMO_PS_STATIC        0
-#define IWL_MIMO_PS_NONE          3
-#define IWL_MIMO_PS_DYNAMIC       1
-#define IWL_MIMO_PS_INVALID       2
-
 #define IWL_OPERATION_MODE_AUTO     0
 #define IWL_OPERATION_MODE_HT_ONLY  1
 #define IWL_OPERATION_MODE_MIXED    2

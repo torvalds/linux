@@ -1140,8 +1140,8 @@ u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
 	ht_conf.ht_supported = 1;
 
 	ht_conf.cap = req_ht_cap->cap & sband->ht_info.cap;
-	ht_conf.cap &= ~(IEEE80211_HT_CAP_MIMO_PS);
-	ht_conf.cap |= sband->ht_info.cap & IEEE80211_HT_CAP_MIMO_PS;
+	ht_conf.cap &= ~(IEEE80211_HT_CAP_SM_PS);
+	ht_conf.cap |= sband->ht_info.cap & IEEE80211_HT_CAP_SM_PS;
 	ht_bss_conf.primary_channel = req_bss_cap->primary_channel;
 	ht_bss_conf.bss_cap = req_bss_cap->bss_cap;
 	ht_bss_conf.bss_op_mode = req_bss_cap->bss_op_mode;

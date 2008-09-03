@@ -708,7 +708,7 @@ struct ieee80211_ht_addt_info {
 
 /* 802.11n HT capabilities masks */
 #define IEEE80211_HT_CAP_SUP_WIDTH		0x0002
-#define IEEE80211_HT_CAP_MIMO_PS		0x000C
+#define IEEE80211_HT_CAP_SM_PS			0x000C
 #define IEEE80211_HT_CAP_GRN_FLD		0x0010
 #define IEEE80211_HT_CAP_SGI_20			0x0020
 #define IEEE80211_HT_CAP_SGI_40			0x0040
@@ -737,11 +737,11 @@ struct ieee80211_ht_addt_info {
 #define IEEE80211_HT_IE_NON_GF_STA_PRSNT	0x0004
 #define IEEE80211_HT_IE_NON_HT_STA_PRSNT	0x0010
 
-/* MIMO Power Save Modes */
-#define WLAN_HT_CAP_MIMO_PS_STATIC	0
-#define WLAN_HT_CAP_MIMO_PS_DYNAMIC	1
-#define WLAN_HT_CAP_MIMO_PS_INVALID	2
-#define WLAN_HT_CAP_MIMO_PS_DISABLED	3
+/* Spatial Multiplexing Power Save Modes */
+#define WLAN_HT_CAP_SM_PS_STATIC	0
+#define WLAN_HT_CAP_SM_PS_DYNAMIC	1
+#define WLAN_HT_CAP_SM_PS_INVALID	2
+#define WLAN_HT_CAP_SM_PS_DISABLED	3
 
 /* Authentication algorithms */
 #define WLAN_AUTH_OPEN 0
