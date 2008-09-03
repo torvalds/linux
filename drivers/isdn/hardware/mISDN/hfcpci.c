@@ -1964,7 +1964,8 @@ hfc_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	switch (cmd) {
 	case OPEN_CHANNEL:
 		rq = arg;
-		if (rq->adr.channel == 0)
+		if ((rq->protocol == ISDN_P_TE_S0) ||
+		    (rq->protocol == ISDN_P_NT_S0))
 			err = open_dchannel(hc, ch, rq);
 		else
 			err = open_bchannel(hc, rq);
