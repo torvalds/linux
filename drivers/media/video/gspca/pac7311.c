@@ -40,6 +40,8 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
+	__u8 hflip;
+	__u8 vflip;
 
 	char tosof;	/* number of bytes before next start of frame */
 	signed char ag_cnt;
@@ -59,6 +61,10 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -97,7 +103,8 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Saturation",
 		.minimum = 0,
-		.maximum = 255,
+#define COLOR_MAX 255
+		.maximum = COLOR_MAX,
 		.step    = 1,
 #define COLOR_DEF 127
 		.default_value = COLOR_DEF,
@@ -118,6 +125,35 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
+	},
+/* next controls work with pac7302 only */
+	{
+	    {
+		.id      = V4L2_CID_HFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Mirror",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define HFLIP_DEF 0
+		.default_value = HFLIP_DEF,
+	    },
+	    .set = sd_sethflip,
+	    .get = sd_gethflip,
+	},
+	{
+	    {
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vflip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define VFLIP_DEF 0
+		.default_value = VFLIP_DEF,
+	    },
+	    .set = sd_setvflip,
+	    .get = sd_getvflip,
 	},
 };
 
@@ -493,8 +529,25 @@ static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor == SENSOR_PAC7302)
+	if (sd->sensor == SENSOR_PAC7302) {
+		int i, v;
+		static const int a[9] =
+			{217, -212, 0, -101, 170, -67, -38, -315, 355};
+		static const int b[9] =
+			{19, 106, 0, 19, 106, 1, 19, 106, 1};
+
+		reg_w(gspca_dev, 0xff, 0x03);	/* page 3 */
+		reg_w(gspca_dev, 0x11, 0x01);
+		reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+		reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+		for (i = 0; i < 9; i++) {
+			v = a[i] * sd->colors / COLOR_MAX + b[i];
+			reg_w(gspca_dev, 0x0f + 2 * i, (v >> 8) & 0x07);
+			reg_w(gspca_dev, 0x0f + 2 * i + 1, v);
+		}
+		reg_w(gspca_dev, 0xdc, 0x01);
 		return;
+	}
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w(gspca_dev, 0x10, sd->colors);
 	/* load registers to sensor (Bit 0, auto clear) */
@@ -512,6 +565,19 @@ static void setautogain(struct gspca_dev *gspca_dev)
 	} else {
 		sd->ag_cnt = -1;
 	}
+}
+
+/* this function is used by pac7302 only */
+static void sethvflip(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	__u8 data;
+
+	reg_w(gspca_dev, 0xff, 0x03);		/* page 3 */
+	data = (sd->hflip ? 0x00 : 0x08)
+		| (sd->vflip ? 0x04 : 0x00);
+	reg_w(gspca_dev, 0x21, data);
+	reg_w(gspca_dev, 0x11, 0x01);
 }
 
 /* this function is called at open time */
@@ -574,6 +640,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/* start stream */
 	reg_w(gspca_dev, 0xff, 0x01);
 	if (sd->sensor == SENSOR_PAC7302) {
+		sethvflip(gspca_dev);
 		reg_w(gspca_dev, 0x78, 0x01);
 		reg_w(gspca_dev, 0xff, 0x01);
 		reg_w(gspca_dev, 0x78, 0x01);
@@ -787,6 +854,42 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->autogain;
+	return 0;
+}
+
+static int sd_sethflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->hflip = val;
+	if (gspca_dev->streaming)
+		sethvflip(gspca_dev);
+	return 0;
+}
+
+static int sd_gethflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->hflip;
+	return 0;
+}
+
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->vflip = val;
+	if (gspca_dev->streaming)
+		sethvflip(gspca_dev);
+	return 0;
+}
+
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->vflip;
 	return 0;
 }
 
