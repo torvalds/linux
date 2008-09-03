@@ -82,9 +82,10 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Contrast",
 		.minimum = 0,
-		.maximum = 255,
+#define CONTRAST_MAX 255
+		.maximum = CONTRAST_MAX,
 		.step    = 1,
-#define CONTRAST_DEF 127
+#define CONTRAST_DEF 60
 		.default_value = CONTRAST_DEF,
 	    },
 	    .set = sd_setcontrast,
@@ -94,7 +95,7 @@ static struct ctrl sd_ctrls[] = {
 	    {
 		.id      = V4L2_CID_SATURATION,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Color",
+		.name    = "Saturation",
 		.minimum = 0,
 		.maximum = 255,
 		.step    = 1,
@@ -429,13 +430,42 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
+/* rev 12a only */
+static void setbrightcont(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i, v;
+	static const __u8 max[10] =
+		{0x29, 0x33, 0x42, 0x5a, 0x6e, 0x80, 0x9f, 0xbb,
+		 0xd4, 0xec};
+	static const __u8 delta[10] =
+		{0x35, 0x33, 0x33, 0x2f, 0x2a, 0x25, 0x1e, 0x17,
+		 0x11, 0x0b};
+
+	reg_w(gspca_dev, 0xff, 0x00);	/* page 0 */
+	for (i = 0; i < 10; i++) {
+		v = max[i];
+		v += (sd->brightness - BRIGHTNESS_MAX)
+			* 150 / BRIGHTNESS_MAX;		/* 200 ? */
+		v -= delta[i] * sd->contrast / CONTRAST_MAX;
+		if (v < 0)
+			v = 0;
+		else if (v > 0xff)
+			v = 0xff;
+		reg_w(gspca_dev, 0xa2 + i, v);
+	}
+	reg_w(gspca_dev, 0xdc, 0x01);
+}
+
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int brightness;
 
-	if (sd->sensor == SENSOR_PAC7302)
+	if (sd->sensor == SENSOR_PAC7302) {
+		setbrightcont(gspca_dev);
 		return;
+	}
 /*jfm: inverted?*/
 	brightness = BRIGHTNESS_MAX - sd->brightness;
 	reg_w(gspca_dev, 0xff, 0x04);
@@ -449,13 +479,14 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->sensor == SENSOR_PAC7302)
+	if (sd->sensor == SENSOR_PAC7302) {
+		setbrightcont(gspca_dev);
 		return;
+	}
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w(gspca_dev, 0x80, sd->contrast);
 	/* load registers to sensor (Bit 0, auto clear) */
 	reg_w(gspca_dev, 0x11, 0x01);
-	PDEBUG(D_CONF|D_STREAM, "contrast: %i", sd->contrast);
 }
 
 static void setcolors(struct gspca_dev *gspca_dev)
