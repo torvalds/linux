@@ -154,5 +154,4 @@
  */
 extern struct platform_device spitzscoop_device;
 extern struct platform_device spitzscoop2_device;
-extern struct platform_device spitzssp_device;
 extern struct sharpsl_charger_machinfo spitz_pm_machinfo;
