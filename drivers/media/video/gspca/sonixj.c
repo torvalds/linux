@@ -59,6 +59,7 @@ struct sd {
 #define SENSOR_OV7648 5
 #define SENSOR_OV7660 6
 	unsigned char i2c_base;
+	__u8 regf1;
 };
 
 /* V4L2 controls supported by the driver */
@@ -78,7 +79,8 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Brightness",
 		.minimum = 0,
-		.maximum = 0xffff,
+#define BRIGHTNESS_MAX 0xffff
+		.maximum = BRIGHTNESS_MAX,
 		.step    = 1,
 #define BRIGHTNESS_DEF 0x7fff
 		.default_value = BRIGHTNESS_DEF,
@@ -92,7 +94,8 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Contrast",
 		.minimum = 0,
-		.maximum = 127,
+#define CONTRAST_MAX 127
+		.maximum = CONTRAST_MAX,
 		.step    = 1,
 #define CONTRAST_DEF 63
 		.default_value = CONTRAST_DEF,
@@ -240,27 +243,16 @@ static const __u8 *sn_tb[] = {
 	sn_ov7660
 };
 
-static const __u8 regsn20[] = {
+static const __u8 gamma_def[] = {
 	0x00, 0x2d, 0x46, 0x5a, 0x6c, 0x7c, 0x8b, 0x99,
 	0xa6, 0xb2, 0xbf, 0xca, 0xd5, 0xe0, 0xeb, 0xf5, 0xff
-};
-static const __u8 regsn20_sn9c325[] = {
-	0x0a, 0x3a, 0x56, 0x6c, 0x7e, 0x8d, 0x9a, 0xa4,
-	0xaf, 0xbb, 0xc5, 0xcd, 0xd5, 0xde, 0xe8, 0xed, 0xf5
 };
 
 static const __u8 reg84[] = {
 	0x14, 0x00, 0x27, 0x00, 0x07, 0x00, 0xe5, 0x0f,
 	0xe4, 0x0f, 0x38, 0x00, 0x3e, 0x00, 0xc3, 0x0f,
-/*	0x00, 0x00, 0x00, 0x00, 0x00 */
-	0xf7, 0x0f, 0x0a, 0x00, 0x00
+	0xf7, 0x0f, 0x00, 0x00, 0x00
 };
-static const __u8 reg84_sn9c325[] = {
-	0x14, 0x00, 0x27, 0x00, 0x07, 0x00, 0xe4, 0x0f,
-	0xd3, 0x0f, 0x4b, 0x00, 0x48, 0x00, 0xc0, 0x0f,
-	0xf8, 0x0f, 0x00, 0x00, 0x00
-};
-
 static const __u8 hv7131r_sensor_init[][8] = {
 	{0xC1, 0x11, 0x01, 0x08, 0x01, 0x00, 0x00, 0x10},
 	{0xB1, 0x11, 0x34, 0x17, 0x7F, 0x00, 0x00, 0x10},
@@ -411,7 +403,7 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0xc8, 0x00, 0x00, 0x00, 0x10},
 /* win: delay 20ms */
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
-/* win: loop on 2 wwrite, 1 read */
+/* win: i2c_r from 00 to 80 */
 	{0xd1, 0x21, 0x03, 0x80, 0x10, 0x20, 0x80, 0x10},
 	{0xb1, 0x21, 0x0c, 0x20, 0x20, 0x00, 0x00, 0x10},
 	{0xd1, 0x21, 0x11, 0x00, 0x48, 0xc0, 0x00, 0x10},
@@ -446,9 +438,11 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x10, 0x32, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xb1, 0x21, 0x01, 0x80, 0x80, 0x00, 0x00, 0x10},
+/* */
 	{0xa1, 0x21, 0x11, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x2a, 0x88, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x2b, 0x34, 0x00, 0x00, 0x00, 0x10},
+/* */
 	{0xa1, 0x21, 0x10, 0x83, 0x00, 0x00, 0x00, 0x10},
 	{0xb1, 0x21, 0x01, 0x88, 0x70, 0x00, 0x00, 0x10},
 	{}
@@ -778,7 +772,7 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 	static const __u8 regd4[] = {0x60, 0x00, 0x00};
 
 	reg_w1(gspca_dev, 0xf1, 0x00);
-	reg_w1(gspca_dev, 0x01, 0x00);		/*jfm was sn9c1xx[1] in v1*/
+	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 
 	/* configure gpio */
 	reg_w(gspca_dev, 0x01, &sn9c1xx[1], 2);
@@ -804,6 +798,13 @@ static int configure_gpio(struct gspca_dev *gspca_dev,
 		reg_w1(gspca_dev, 0x01, 0x42);
 		reg_w1(gspca_dev, 0x17, 0x64);
 		reg_w1(gspca_dev, 0x01, 0x42);
+		break;
+/*jfm: from win trace */
+	case SENSOR_OV7630:
+		reg_w1(gspca_dev, 0x01, 0x61);
+		reg_w1(gspca_dev, 0x17, 0xe2);
+		reg_w1(gspca_dev, 0x01, 0x60);
+		reg_w1(gspca_dev, 0x01, 0x40);
 		break;
 	case SENSOR_OV7648:
 		reg_w1(gspca_dev, 0x01, 0x43);
@@ -870,9 +871,20 @@ static void ov7630_InitSensor(struct gspca_dev *gspca_dev)
 {
 	int i = 0;
 
-	i2c_w8(gspca_dev, ov7630_sensor_init[i]);
+	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 76 01 */
+	i++;
+	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 c8 (RGB+SRST) */
 	i++;
 	msleep(20);
+	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 48 */
+	i++;
+	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 c8 */
+	i++;
+	msleep(20);
+	i2c_w8(gspca_dev, ov7630_sensor_init[i]);	/* 12 48 */
+	i++;
+/*jfm:win i2c_r from 00 to 80*/
+
 	while (ov7630_sensor_init[i][0]) {
 		i2c_w8(gspca_dev, ov7630_sensor_init[i]);
 		i++;
@@ -917,6 +929,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->bridge = id->driver_info >> 16;
 	sd->sensor = id->driver_info >> 8;
 	sd->i2c_base = id->driver_info;
+	sd->regf1 = 0;			/*jfm: was 1 in v1*/
 
 	sd->qindex = 4;			/* set the quantization table */
 	sd->brightness = BRIGHTNESS_DEF;
@@ -969,7 +982,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	reg_w1(gspca_dev, 0xf1, 0x01);
+	reg_w1(gspca_dev, 0xf1, sd->regf1);
 
 	return 0;
 }
@@ -1051,6 +1064,28 @@ static unsigned int setexposure(struct gspca_dev *gspca_dev,
 	return expo;
 }
 
+/* this function is used for sensors o76xx only */
+static void setbrightcont(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	unsigned val;
+	__u8 reg84_full[13];
+
+	memset(reg84_full, 0, sizeof reg84_full);
+	val = sd->contrast * 0x20 / CONTRAST_MAX + 0x10;	/* 10..30 */
+	reg84_full[2] = val;
+	reg84_full[0] = (val + 1) / 2;
+	reg84_full[4] = (val + 1) / 5;
+	if (val > BRIGHTNESS_DEF)
+		val = (sd->brightness - BRIGHTNESS_DEF) * 0x20
+			/ BRIGHTNESS_MAX;
+	else
+		val = 0;
+	reg84_full[10] = val;			/* 00..1f */
+	reg_w(gspca_dev, 0x84, reg84_full, sizeof reg84_full);
+}
+
+/* sensor != ov76xx */
 static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1082,6 +1117,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x96, k2);
 }
 
+/* sensor != ov76xx */
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1175,24 +1211,11 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x07, sn9c1xx[7]);
 	reg_w1(gspca_dev, 0x06, sn9c1xx[6]);
 	reg_w1(gspca_dev, 0x14, sn9c1xx[0x14]);
-	switch (sd->bridge) {
-	case BRIDGE_SN9C325:
-		reg_w(gspca_dev, 0x20, regsn20_sn9c325,
-				sizeof regsn20_sn9c325);
-		for (i = 0; i < 8; i++)
-			reg_w(gspca_dev, 0x84, reg84_sn9c325,
-					sizeof reg84_sn9c325);
-		reg_w1(gspca_dev, 0x9a, 0x0a);
-		reg_w1(gspca_dev, 0x99, 0x60);
-		break;
-	default:
-		reg_w(gspca_dev, 0x20, regsn20, sizeof regsn20);
-		for (i = 0; i < 8; i++)
-			reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
+	reg_w(gspca_dev, 0x20, gamma_def, sizeof gamma_def);
+	for (i = 0; i < 8; i++)
+		reg_w(gspca_dev, 0x84, reg84, sizeof reg84);
 		reg_w1(gspca_dev, 0x9a, 0x08);
 		reg_w1(gspca_dev, 0x99, 0x59);
-		break;
-	}
 
 	mode = gspca_dev->cam.cam_mode[(int) gspca_dev->curr_mode].priv;
 	if (mode)
@@ -1272,8 +1295,18 @@ static void sd_start(struct gspca_dev *gspca_dev)
 
 	reg_w1(gspca_dev, 0x17, reg17);
 	reg_w1(gspca_dev, 0x01, reg1);
-	setbrightness(gspca_dev);
-	setcontrast(gspca_dev);
+	switch (sd->sensor) {
+	case SENSOR_HV7131R:
+	case SENSOR_MI0360:
+	case SENSOR_MO4000:
+	case SENSOR_OM6802:
+		setbrightness(gspca_dev);
+		setcontrast(gspca_dev);
+		break;
+	default:			/* OV76xx */
+		setbrightcont(gspca_dev);
+		break;
+	}
 	setautogain(gspca_dev);
 }
 
@@ -1311,7 +1344,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, sn9c1xx[0x17]);
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 	reg_w1(gspca_dev, 0x01, data);
-	reg_w1(gspca_dev, 0xf1, 0x01);
+	reg_w1(gspca_dev, 0xf1, sd->regf1);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -1409,72 +1442,24 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
-static unsigned int getexposure(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 hexpo, mexpo, lexpo;
-
-	switch (sd->sensor) {
-	case SENSOR_HV7131R:
-		/* read sensor exposure */
-		i2c_r5(gspca_dev, 0x25);
-		return (gspca_dev->usb_buf[0] << 16)
-			| (gspca_dev->usb_buf[1] << 8)
-			| gspca_dev->usb_buf[2];
-	case SENSOR_MI0360:
-		/* read sensor exposure */
-		i2c_r5(gspca_dev, 0x09);
-		return (gspca_dev->usb_buf[0] << 8)
-			| gspca_dev->usb_buf[1];
-	default:
-/*	case SENSOR_MO4000: */
-		i2c_r5(gspca_dev, 0x0e);
-		hexpo = 0;		/* gspca_dev->usb_buf[1] & 0x07; */
-		mexpo = 0x40;		/* gspca_dev->usb_buf[2] & 0xff; */
-		lexpo = (gspca_dev->usb_buf[1] & 0x30) >> 4;
-		PDEBUG(D_CONF, "exposure %d",
-			(hexpo << 10) | (mexpo << 2) | lexpo);
-		return (hexpo << 10) | (mexpo << 2) | lexpo;
-#if 0
-/*jfm: not called*/
-/*	case SENSOR_OV7648:		* jfm: is it ok for 7648? */
-/*	case SENSOR_OV7660: */
-		/* read sensor exposure */
-		i2c_r5(gspca_dev, 0x04);
-		hexpo = gspca_dev->usb_buf[3] & 0x2f;
-		lexpo = gspca_dev->usb_buf[0] & 0x02;
-		i2c_r5(gspca_dev, 0x08);
-		mexpo = gspca_dev->usb_buf[2];
-		return (hexpo << 10) | (mexpo << 2) | lexpo;
-#endif
-	}
-	/* not reached */
-}
-
-static void getbrightness(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	/* hardcoded registers seem not readable */
-	switch (sd->sensor) {
-	case SENSOR_HV7131R:
-		sd->brightness = getexposure(gspca_dev) >> 4;
-		break;
-	case SENSOR_MI0360:
-	case SENSOR_MO4000:
-	case SENSOR_OM6802:
-		sd->brightness = getexposure(gspca_dev) << 4;
-		break;
-	}
-}
-
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->brightness = val;
-	if (gspca_dev->streaming)
-		setbrightness(gspca_dev);
+	if (gspca_dev->streaming) {
+		switch (sd->sensor) {
+		case SENSOR_HV7131R:
+		case SENSOR_MI0360:
+		case SENSOR_MO4000:
+		case SENSOR_OM6802:
+			setbrightness(gspca_dev);
+			break;
+		default:			/* OV76xx */
+			setbrightcont(gspca_dev);
+			break;
+		}
+	}
 	return 0;
 }
 
@@ -1482,7 +1467,6 @@ static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	getbrightness(gspca_dev);
 	*val = sd->brightness;
 	return 0;
 }
@@ -1492,8 +1476,19 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	sd->contrast = val;
-	if (gspca_dev->streaming)
-		setcontrast(gspca_dev);
+	if (gspca_dev->streaming) {
+		switch (sd->sensor) {
+		case SENSOR_HV7131R:
+		case SENSOR_MI0360:
+		case SENSOR_MO4000:
+		case SENSOR_OM6802:
+			setcontrast(gspca_dev);
+			break;
+		default:			/* OV76xx */
+			setbrightcont(gspca_dev);
+			break;
+		}
+	}
 	return 0;
 }
 
