@@ -233,7 +233,7 @@ static char *effects_control[] = {
 static struct v4l2_pix_format vga_mode_t16[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 3 / 8 + 590,
+		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 4},
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
