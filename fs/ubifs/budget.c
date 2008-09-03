@@ -723,24 +723,25 @@ void ubifs_release_dirty_inode_budget(struct ubifs_info *c,
  */
 long long ubifs_reported_space(const struct ubifs_info *c, uint64_t free)
 {
-	int divisor, factor;
+	int divisor, factor, f;
 
 	/*
 	 * Reported space size is @free * X, where X is UBIFS block size
 	 * divided by UBIFS block size + all overhead one data block
 	 * introduces. The overhead is the node header + indexing overhead.
 	 *
-	 * Indexing overhead is calculations are based on the following
-	 * formula: I = N/(f - 1) + 1, where I - number of indexing nodes, N -
-	 * number of data nodes, f - fanout. Because effective UBIFS fanout is
-	 * twice as less than maximum fanout, we assume that each data node
+	 * Indexing overhead calculations are based on the following formula:
+	 * I = N/(f - 1) + 1, where I - number of indexing nodes, N - number
+	 * of data nodes, f - fanout. Because effective UBIFS fanout is twice
+	 * as less than maximum fanout, we assume that each data node
 	 * introduces 3 * @c->max_idx_node_sz / (@c->fanout/2 - 1) bytes.
 	 * Note, the multiplier 3 is because UBIFS reseves thrice as more space
 	 * for the index.
 	 */
+	f = c->fanout > 3 ? c->fanout >> 1 : 2;
 	factor = UBIFS_BLOCK_SIZE;
 	divisor = UBIFS_MAX_DATA_NODE_SZ;
-	divisor += (c->max_idx_node_sz * 3) / ((c->fanout >> 1) - 1);
+	divisor += (c->max_idx_node_sz * 3) / (f - 1);
 	free *= factor;
 	do_div(free, divisor);
 	return free;
