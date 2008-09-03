@@ -39,6 +39,8 @@ DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 static struct au8522_config hauppauge_hvr950q_config = {
 	.demod_address = 0x8e >> 1,
 	.status_mode   = AU8522_DEMODLOCKING,
+	.qam_if        = AU8522_IF_6MHZ,
+	.vsb_if        = AU8522_IF_6MHZ,
 };
 
 static struct au8522_config hauppauge_woodbury_config = {
