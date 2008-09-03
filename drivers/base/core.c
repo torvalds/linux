@@ -1256,7 +1256,7 @@ struct device *device_create_vargs(struct class *class, struct device *parent,
 	return dev;
 
 error:
-	kfree(dev);
+	put_device(dev);
 	return ERR_PTR(retval);
 }
 EXPORT_SYMBOL_GPL(device_create_vargs);
