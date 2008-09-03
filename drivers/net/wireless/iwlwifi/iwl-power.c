@@ -319,7 +319,7 @@ EXPORT_SYMBOL(iwl_power_update_mode);
  * this will be usefull for rate scale to disable PM during heavy
  * Tx/Rx activities
  */
-int iwl_power_disable_management(struct iwl_priv *priv)
+int iwl_power_disable_management(struct iwl_priv *priv, u32 ms)
 {
 	u16 prev_mode;
 	int ret = 0;
@@ -332,6 +332,11 @@ int iwl_power_disable_management(struct iwl_priv *priv)
 	ret = iwl_power_update_mode(priv, 0);
 	priv->power_data.power_disabled = 1;
 	priv->power_data.user_power_setting = prev_mode;
+	cancel_delayed_work(&priv->set_power_save);
+	if (ms)
+		queue_delayed_work(priv->workqueue, &priv->set_power_save,
+				   msecs_to_jiffies(ms));
+
 
 	return ret;
 }
@@ -426,3 +431,35 @@ int iwl_power_temperature_change(struct iwl_priv *priv)
 	return ret;
 }
 EXPORT_SYMBOL(iwl_power_temperature_change);
+
+static void iwl_bg_set_power_save(struct work_struct *work)
+{
+	struct iwl_priv *priv = container_of(work,
+				struct iwl_priv, set_power_save.work);
+	IWL_DEBUG(IWL_DL_STATE, "update power\n");
+
+	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
+		return;
+
+	mutex_lock(&priv->mutex);
+
+	/* on starting association we disable power managment
+	 * until association, if association failed then this
+	 * timer will expire and enable PM again.
+	 */
+	if (!iwl_is_associated(priv))
+		iwl_power_enable_management(priv);
+
+	mutex_unlock(&priv->mutex);
+}
+void iwl_setup_power_deferred_work(struct iwl_priv *priv)
+{
+	INIT_DELAYED_WORK(&priv->set_power_save, iwl_bg_set_power_save);
+}
+EXPORT_SYMBOL(iwl_setup_power_deferred_work);
+
+void iwl_power_cancel_timeout(struct iwl_priv *priv)
+{
+	cancel_delayed_work(&priv->set_power_save);
+}
+EXPORT_SYMBOL(iwl_power_cancel_timeout);

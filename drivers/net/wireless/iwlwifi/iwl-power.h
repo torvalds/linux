@@ -78,8 +78,10 @@ struct iwl_power_mgr {
 	u8 power_disabled; /* flag to disable using power saving level */
 };
 
+void iwl_setup_power_deferred_work(struct iwl_priv *priv);
+void iwl_power_cancel_timeout(struct iwl_priv *priv);
 int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh);
-int iwl_power_disable_management(struct iwl_priv *priv);
+int iwl_power_disable_management(struct iwl_priv *priv, u32 ms);
 int iwl_power_enable_management(struct iwl_priv *priv);
 int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode);
 int iwl_power_set_system_mode(struct iwl_priv *priv, u16 mode);
