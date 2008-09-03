@@ -23,11 +23,11 @@
 #include "tick-internal.h"
 
 /**
- * tick_program_event
+ * tick_program_event internal worker function
  */
-int tick_program_event(ktime_t expires, int force)
+static int __tick_program_event(struct clock_event_device *dev,
+				ktime_t expires, int force)
 {
-	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
 	ktime_t now = ktime_get();
 
 	while (1) {
@@ -38,6 +38,16 @@ int tick_program_event(ktime_t expires, int force)
 		now = ktime_get();
 		expires = ktime_add(now, ktime_set(0, dev->min_delta_ns));
 	}
+}
+
+/**
+ * tick_program_event
+ */
+int tick_program_event(ktime_t expires, int force)
+{
+	struct clock_event_device *dev = __get_cpu_var(tick_cpu_device).evtdev;
+
+	return __tick_program_event(dev, expires, force);
 }
 
 /**
@@ -61,7 +71,7 @@ void tick_setup_oneshot(struct clock_event_device *newdev,
 {
 	newdev->event_handler = handler;
 	clockevents_set_mode(newdev, CLOCK_EVT_MODE_ONESHOT);
-	clockevents_program_event(newdev, next_event, ktime_get());
+	__tick_program_event(newdev, next_event, 1);
 }
 
 /**
