@@ -40,7 +40,8 @@ struct sd {
 	unsigned char colors;
 	unsigned char autogain;
 
-	char ffseq;
+	char ffnb;	/* number of 'ff' in the previous frame */
+	char tosof;	/* number of bytes before next start of frame */
 	signed char ag_cnt;
 #define AG_CNT_START 13
 };
@@ -335,6 +336,10 @@ static int sd_open(struct gspca_dev *gspca_dev)
 
 static void sd_start(struct gspca_dev *gspca_dev)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->ffnb = 0;
+	sd->tosof = 0;
 	reg_w(gspca_dev, 0xff, 0x01);
 	reg_w_buf(gspca_dev, 0x0002, "\x48\x0a\x40\x08\x00\x00\x08\x00", 8);
 	reg_w_buf(gspca_dev, 0x000a, "\x06\xff\x11\xff\x5a\x30\x90\x4c", 8);
@@ -511,114 +516,123 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 	}
 }
 
+/* output the jpeg header */
+static void put_jpeg_head(struct gspca_dev *gspca_dev,
+			struct gspca_frame *frame)
+{
+	unsigned char tmpbuf[4];
+
+	gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+			(__u8 *) pac7311_jpeg_header,
+			12);
+	tmpbuf[0] = gspca_dev->height >> 8;
+	tmpbuf[1] = gspca_dev->height & 0xff;
+	tmpbuf[2] = gspca_dev->width >> 8;
+	tmpbuf[3] = gspca_dev->width & 0xff;
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+			tmpbuf, 4);
+	gspca_frame_add(gspca_dev, INTER_PACKET, frame,
+		(__u8 *) &pac7311_jpeg_header[16],
+		PAC7311_JPEG_HEADER_SIZE - 16);
+}
+
+/* this function is run at interrupt level */
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
 			int len)			/* iso packet length */
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	unsigned char tmpbuf[4];
-	int i, p, ffseq;
+	int i;
 
-/*	if (len < 5) { */
-	if (len < 6) {
-/*		gspca_dev->last_packet_type = DISCARD_PACKET; */
-		return;
+#define INTER_FRAME 0x53
+#define LUM_OFFSET 0x1e		/* reverse offset / start of frame */
+
+	/*
+	 * inside a frame, there may be:
+	 *	escaped ff ('ff 00')
+	 *	sequences'ff ff ff xx' to remove
+	 *	end of frame ('ff d9')
+	 * at the end of frame, there are:
+	 *	ff d9			end of frame
+	 *	0x33 bytes
+	 *	one byte luminosity
+	 *	0x16 bytes
+	 *	ff ff 00 ff 96 62 44	start of frame header
+	 */
+
+	if (sd->tosof == 0) {	/* if inside a frame */
+
+		/* check for 'ff ff ff xx' at start and at end of packet */
+		/* (len is always >= 3) */
+		switch (sd->ffnb) {
+		case 1:
+			if (data[0] != 0xff)
+				break;		/* keep 'ff 00' */
+			/* fall thru */
+		case 2:
+		case 3:
+			data += 4 - sd->ffnb;
+			len -= 4 - sd->ffnb;
+			sd->ffnb = 0;
+			break;
+		}
+		if (data[len - 1] == 0xff) {
+			if (data[len - 2] == 0xff) {
+				if (data[len - 3] == 0xff) {
+					sd->ffnb = 3;
+					len -= 3;
+				} else {
+					sd->ffnb = 2;
+					len -= 2;
+				}
+			} else {
+				sd->ffnb = 1;
+				len--;
+			}
+		}
+	} else {		/* outside a frame */
+
+		/*
+		 * get the luminosity
+		 * and go to the start of frame
+		 */
+		data += sd->tosof;
+		len -= sd->tosof;
+		if (sd->tosof > LUM_OFFSET)
+			sd->lum_sum += data[-LUM_OFFSET];
+		put_jpeg_head(gspca_dev, frame);
+		sd->tosof = 0;
 	}
 
-	ffseq = sd->ffseq;
-
-	for (p = 0; p < len - 6; p++) {
-		if ((data[0 + p] == 0xff)
-		    && (data[1 + p] == 0xff)
-		    && (data[2 + p] == 0x00)
-		    && (data[3 + p] == 0xff)
-		    && (data[4 + p] == 0x96)) {
-
-			/* start of frame */
-			if (sd->ag_cnt >= 0 && p > 28) {
-				sd->lum_sum += data[p - 23];
-				if (--sd->ag_cnt < 0) {
-					sd->ag_cnt = AG_CNT_START;
-					atomic_set(&sd->avg_lum,
-						sd->lum_sum / AG_CNT_START);
-					sd->lum_sum = 0;
-					atomic_set(&sd->do_gain, 1);
-				}
+	for (i = 0; i < len; i++) {
+		if (data[i] != 0xff)
+			continue;
+		switch (data[i + 1]) {
+		case 0xd9:		/* end of frame */
+			frame = gspca_frame_add(gspca_dev,
+						LAST_PACKET,
+						frame, data, i + 1);
+			data += INTER_FRAME;
+			len -= INTER_FRAME;
+			i = 0;
+			if (len > LUM_OFFSET)
+				sd->lum_sum += data[-LUM_OFFSET];
+			if (len < 0) {
+				sd->tosof = -len;
+				break;
 			}
-
-			/* copy the end of data to the current frame */
-			frame = gspca_frame_add(gspca_dev, LAST_PACKET, frame,
-						data, p);
-
-			/* put the JPEG header in the new frame */
-			gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
-					(unsigned char *) pac7311_jpeg_header,
-					12);
-			tmpbuf[0] = gspca_dev->height >> 8;
-			tmpbuf[1] = gspca_dev->height & 0xff;
-			tmpbuf[2] = gspca_dev->width >> 8;
-			tmpbuf[3] = gspca_dev->width & 0xff;
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-					tmpbuf, 4);
-			gspca_frame_add(gspca_dev, INTER_PACKET, frame,
-				(unsigned char *) &pac7311_jpeg_header[16],
-				PAC7311_JPEG_HEADER_SIZE - 16);
-
-			data += p + 7;
-			len -= p + 7;
-			ffseq = 0;
+			put_jpeg_head(gspca_dev, frame);
+			break;
+		case 0xff:		/* 'ff ff ff xx' */
+			gspca_frame_add(gspca_dev, INTER_PACKET,
+					frame, data, i);
+			data += i + 4;
+			len -= i + 4;
+			i = 0;
 			break;
 		}
 	}
-
-	/* remove the 'ff ff ff xx' sequences */
-	switch (ffseq) {
-	case 3:
-		data += 1;
-		len -= 1;
-		break;
-	case 2:
-		if (data[0] == 0xff) {
-			data += 2;
-			len -= 2;
-			frame->data_end -= 2;
-		}
-		break;
-	case 1:
-		if (data[0] == 0xff
-		    && data[1] == 0xff) {
-			data += 3;
-			len -= 3;
-			frame->data_end -= 1;
-		}
-		break;
-	}
-	for (i = 0; i < len - 4; i++) {
-		if (data[i] == 0xff
-		    && data[i + 1] == 0xff
-		    && data[i + 2] == 0xff) {
-			memmove(&data[i], &data[i + 4], len - i - 4);
-			len -= 4;
-		}
-	}
-	ffseq = 0;
-	if (data[len - 4] == 0xff) {
-		if (data[len - 3] == 0xff
-		    && data[len - 2] == 0xff) {
-			len -= 4;
-		}
-	} else if (data[len - 3] == 0xff) {
-		if (data[len - 2] == 0xff
-		    && data[len - 1] == 0xff)
-			ffseq = 3;
-	} else if (data[len - 2] == 0xff) {
-		if (data[len - 1] == 0xff)
-			ffseq = 2;
-	} else if (data[len - 1] == 0xff)
-		ffseq = 1;
-	sd->ffseq = ffseq;
-	gspca_frame_add(gspca_dev, INTER_PACKET, frame, data, len);
 }
 
 static void getbrightness(struct gspca_dev *gspca_dev)
