@@ -3726,7 +3726,7 @@ static ssize_t store_flags(struct device *d,
 	unsigned long val;
 	u32 flags;
 	int ret = strict_strtoul(buf, 0, &val);
-	if (!ret)
+	if (ret)
 		return ret;
 	flags = (u32)val;
 
@@ -3765,7 +3765,7 @@ static ssize_t store_filter_flags(struct device *d,
 	unsigned long val;
 	u32 filter_flags;
 	int ret = strict_strtoul(buf, 0, &val);
-	if (!ret)
+	if (ret)
 		return ret;
 	filter_flags = (u32)val;
 
@@ -3905,7 +3905,7 @@ static ssize_t store_power_level(struct device *d,
 	}
 
 	ret = strict_strtoul(buf, 10, &mode);
-	if (!ret)
+	if (ret)
 		goto out;
 
 	ret = iwl_power_set_user_mode(priv, mode);
