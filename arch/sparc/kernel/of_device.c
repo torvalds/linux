@@ -344,6 +344,27 @@ static int __init build_one_resource(struct device_node *parent,
 	return 1;
 }
 
+static int __init use_1to1_mapping(struct device_node *pp)
+{
+	/* If we have a ranges property in the parent, use it.  */
+	if (of_find_property(pp, "ranges", NULL) != NULL)
+		return 0;
+
+	/* Some SBUS devices use intermediate nodes to express
+	 * hierarchy within the device itself.  These aren't
+	 * real bus nodes, and don't have a 'ranges' property.
+	 * But, we should still pass the translation work up
+	 * to the SBUS itself.
+	 */
+	if (!strcmp(pp->name, "dma") ||
+	    !strcmp(pp->name, "espdma") ||
+	    !strcmp(pp->name, "ledma") ||
+	    !strcmp(pp->name, "lebuffer"))
+		return 0;
+
+	return 1;
+}
+
 static int of_resource_verbose;
 
 static void __init build_device_resources(struct of_device *op,
@@ -389,10 +410,7 @@ static void __init build_device_resources(struct of_device *op,
 
 		memcpy(addr, reg, na * 4);
 
-		/* If the immediate parent has no ranges property to apply,
-		 * just use a 1<->1 mapping.
-		 */
-		if (of_find_property(pp, "ranges", NULL) == NULL) {
+		if (use_1to1_mapping(pp)) {
 			result = of_read_addr(addr, na);
 			goto build_res;
 		}

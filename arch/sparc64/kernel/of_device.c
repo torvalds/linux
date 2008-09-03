@@ -438,8 +438,17 @@ static int __init use_1to1_mapping(struct device_node *pp)
 
 	/* If the parent is the dma node of an ISA bus, pass
 	 * the translation up to the root.
+	 *
+	 * Some SBUS devices use intermediate nodes to express
+	 * hierarchy within the device itself.  These aren't
+	 * real bus nodes, and don't have a 'ranges' property.
+	 * But, we should still pass the translation work up
+	 * to the SBUS itself.
 	 */
-	if (!strcmp(pp->name, "dma"))
+	if (!strcmp(pp->name, "dma") ||
+	    !strcmp(pp->name, "espdma") ||
+	    !strcmp(pp->name, "ledma") ||
+	    !strcmp(pp->name, "lebuffer"))
 		return 0;
 
 	/* Similarly for all PCI bridges, if we get this far
