@@ -1605,7 +1605,7 @@ void falcon_fini_interrupt(struct efx_nic *efx)
  **************************************************************************
  */
 
-#define FALCON_SPI_MAX_LEN sizeof(efx_oword_t)
+#define FALCON_SPI_MAX_LEN ((unsigned) sizeof(efx_oword_t))
 
 /* Wait for SPI command completion */
 static int falcon_spi_wait(struct efx_nic *efx)
