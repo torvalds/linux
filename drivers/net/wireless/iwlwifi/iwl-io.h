@@ -61,7 +61,7 @@
  *
  */
 
-#define _iwl_write32(priv, ofs, val) writel((val), (priv)->hw_base + (ofs))
+#define _iwl_write32(priv, ofs, val) iowrite32((val), (priv)->hw_base + (ofs))
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *priv,
 				 u32 ofs, u32 val)
@@ -75,7 +75,7 @@ static inline void __iwl_write32(const char *f, u32 l, struct iwl_priv *priv,
 #define iwl_write32(priv, ofs, val) _iwl_write32(priv, ofs, val)
 #endif
 
-#define _iwl_read32(priv, ofs) readl((priv)->hw_base + (ofs))
+#define _iwl_read32(priv, ofs) ioread32((priv)->hw_base + (ofs))
 #ifdef CONFIG_IWLWIFI_DEBUG
 static inline u32 __iwl_read32(char *f, u32 l, struct iwl_priv *priv, u32 ofs)
 {

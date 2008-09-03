@@ -59,7 +59,7 @@
  *
  */
 
-#define _iwl3945_write32(priv, ofs, val) writel((val), (priv)->hw_base + (ofs))
+#define _iwl3945_write32(priv, ofs, val) iowrite32((val), (priv)->hw_base + (ofs))
 #ifdef CONFIG_IWL3945_DEBUG
 static inline void __iwl3945_write32(const char *f, u32 l, struct iwl3945_priv *priv,
 				 u32 ofs, u32 val)
@@ -73,14 +73,14 @@ static inline void __iwl3945_write32(const char *f, u32 l, struct iwl3945_priv *
 #define iwl3945_write32(priv, ofs, val) _iwl3945_write32(priv, ofs, val)
 #endif
 
-#define _iwl3945_read32(priv, ofs) readl((priv)->hw_base + (ofs))
+#define _iwl3945_read32(priv, ofs) ioread32((priv)->hw_base + (ofs))
 #ifdef CONFIG_IWL3945_DEBUG
 static inline u32 __iwl3945_read32(char *f, u32 l, struct iwl3945_priv *priv, u32 ofs)
 {
 	IWL_DEBUG_IO("read_direct32(0x%08X) - %s %d\n", ofs, f, l);
 	return _iwl3945_read32(priv, ofs);
 }
-#define iwl3945_read32(priv, ofs) __iwl3945_read32(__FILE__, __LINE__, priv, ofs)
+#define iwl3945_read32(priv, ofs)__iwl3945_read32(__FILE__, __LINE__, priv, ofs)
 #else
 #define iwl3945_read32(p, o) _iwl3945_read32(p, o)
 #endif
