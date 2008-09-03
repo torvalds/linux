@@ -884,11 +884,6 @@ static int vidioc_queryctrl(struct file *file, void *priv,
 			return 0;
 		}
 	}
-	if (id >= V4L2_CID_BASE
-	    && id <= V4L2_CID_LASTP1) {
-		q_ctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
-		return 0;
-	}
 	return -EINVAL;
 }
 

@@ -30,7 +30,7 @@
 
 #define MAX_GAMMA 0x10		/* 0 to 15 */
 
-#define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 3)
+#define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 0)
 
 MODULE_AUTHOR("Leandro Costantino <le_costantino@pixartargentina.com.ar>");
 MODULE_DESCRIPTION("GSPCA/T613 (JPEG Compliance) USB Camera Driver");
