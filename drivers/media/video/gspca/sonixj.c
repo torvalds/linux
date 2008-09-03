@@ -1136,7 +1136,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_OM6802:
 		om6802_InitSensor(gspca_dev);
-		reg1 = 0x46;		/* 640 clk 24Mz */
 		reg17 = 0x64;		/* 640 MCKSIZE */
 		break;
 	case SENSOR_OV7648:
