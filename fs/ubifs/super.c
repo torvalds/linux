@@ -370,6 +370,7 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct ubifs_info *c = dentry->d_sb->s_fs_info;
 	unsigned long long free;
+	__le32 *uuid = (__le32 *)c->uuid;
 
 	free = ubifs_get_free_space(c);
 	dbg_gen("free space %lld bytes (%lld blocks)",
@@ -386,8 +387,8 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;
 	buf->f_ffree = 0;
 	buf->f_namelen = UBIFS_MAX_NLEN;
-	memcpy(&buf->f_fsid, c->uuid, sizeof(__kernel_fsid_t));
-
+	buf->f_fsid.val[0] = le32_to_cpu(uuid[0]) ^ le32_to_cpu(uuid[2]);
+	buf->f_fsid.val[1] = le32_to_cpu(uuid[1]) ^ le32_to_cpu(uuid[3]);
 	return 0;
 }
 
