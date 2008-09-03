@@ -54,10 +54,10 @@ struct hd_struct *disk_get_part(struct gendisk *disk, int partno)
 {
 	struct hd_struct *part;
 
-	if (unlikely(partno < 1 || partno > disk_max_parts(disk)))
+	if (unlikely(partno < 0 || partno >= disk_max_parts(disk)))
 		return NULL;
 	rcu_read_lock();
-	part = rcu_dereference(disk->__part[partno - 1]);
+	part = rcu_dereference(disk->__part[partno]);
 	if (part)
 		get_device(part_to_dev(part));
 	rcu_read_unlock();
@@ -85,8 +85,10 @@ void disk_part_iter_init(struct disk_part_iter *piter, struct gendisk *disk,
 
 	if (flags & DISK_PITER_REVERSE)
 		piter->idx = disk_max_parts(piter->disk) - 1;
-	else
+	else if (flags & DISK_PITER_INCL_PART0)
 		piter->idx = 0;
+	else
+		piter->idx = 1;
 
 	piter->flags = flags;
 }
@@ -114,7 +116,10 @@ struct hd_struct *disk_part_iter_next(struct disk_part_iter *piter)
 	/* determine iteration parameters */
 	if (piter->flags & DISK_PITER_REVERSE) {
 		inc = -1;
-		end = -1;
+		if (piter->flags & DISK_PITER_INCL_PART0)
+			end = -1;
+		else
+			end = 0;
 	} else {
 		inc = 1;
 		end = disk_max_parts(piter->disk);
@@ -177,7 +182,7 @@ struct hd_struct *disk_map_sector_rcu(struct gendisk *disk, sector_t sector)
 {
 	int i;
 
-	for (i = 0; i < disk_max_parts(disk); i++) {
+	for (i = 1; i < disk_max_parts(disk); i++) {
 		struct hd_struct *part = rcu_dereference(disk->__part[i]);
 
 		if (part && part->start_sect <= sector &&
@@ -669,7 +674,7 @@ static int show_partition(struct seq_file *seqf, void *v)
 	char buf[BDEVNAME_SIZE];
 
 	/* Don't show non-partitionable removeable devices or empty devices */
-	if (!get_capacity(sgp) || (!disk_max_parts(sgp) &&
+	if (!get_capacity(sgp) || (!disk_partitionable(sgp) &&
 				   (sgp->flags & GENHD_FL_REMOVABLE)))
 		return 0;
 	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
@@ -742,7 +747,7 @@ static ssize_t disk_ext_range_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%d\n", disk_max_parts(disk) + 1);
+	return sprintf(buf, "%d\n", disk_max_parts(disk));
 }
 
 static ssize_t disk_removable_show(struct device *dev,
@@ -998,7 +1003,7 @@ dev_t blk_lookup_devt(const char *name, int partno)
 
 		if (strcmp(dev->bus_id, name))
 			continue;
-		if (partno < 0 || partno > disk_max_parts(disk))
+		if (partno < 0 || partno >= disk_max_parts(disk))
 			continue;
 
 		if (partno == 0)
@@ -1045,21 +1050,22 @@ struct gendisk *alloc_disk_ext_node(int minors, int ext_minors, int node_id)
 				GFP_KERNEL | __GFP_ZERO, node_id);
 	if (disk) {
 		int tot_minors = minors + ext_minors;
+		int size = tot_minors * sizeof(struct hd_struct *);
 
 		if (!init_disk_stats(disk)) {
 			kfree(disk);
 			return NULL;
 		}
-		if (tot_minors > 1) {
-			int size = (tot_minors - 1) * sizeof(struct hd_struct *);
-			disk->__part = kmalloc_node(size,
-				GFP_KERNEL | __GFP_ZERO, node_id);
-			if (!disk->__part) {
-				free_disk_stats(disk);
-				kfree(disk);
-				return NULL;
-			}
+
+		disk->__part = kmalloc_node(size, GFP_KERNEL | __GFP_ZERO,
+					    node_id);
+		if (!disk->__part) {
+			free_disk_stats(disk);
+			kfree(disk);
+			return NULL;
 		}
+		disk->__part[0] = &disk->part0;
+
 		disk->minors = minors;
 		disk->ext_minors = ext_minors;
 		rand_initialize_disk(disk);

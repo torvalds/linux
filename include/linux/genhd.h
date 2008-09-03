@@ -127,12 +127,13 @@ struct gendisk {
 
 	char disk_name[32];		/* name of major driver */
 
-	/* Array of pointers to partitions indexed by partno - 1.
+	/* Array of pointers to partitions indexed by partno.
 	 * Protected with matching bdev lock but stat and other
 	 * non-critical accesses use RCU.  Always access through
 	 * helpers.
 	 */
 	struct hd_struct **__part;
+	struct hd_struct part0;
 
 	struct block_device_operations *fops;
 	struct request_queue *queue;
@@ -171,7 +172,12 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 
 static inline int disk_max_parts(struct gendisk *disk)
 {
-	return disk->minors + disk->ext_minors - 1;
+	return disk->minors + disk->ext_minors;
+}
+
+static inline bool disk_partitionable(struct gendisk *disk)
+{
+	return disk_max_parts(disk) > 1;
 }
 
 static inline dev_t disk_devt(struct gendisk *disk)
@@ -197,6 +203,7 @@ static inline void disk_put_part(struct hd_struct *part)
  */
 #define DISK_PITER_REVERSE	(1 << 0) /* iterate in the reverse direction */
 #define DISK_PITER_INCL_EMPTY	(1 << 1) /* include 0-sized parts */
+#define DISK_PITER_INCL_PART0	(1 << 2) /* include partition 0 */
 
 struct disk_part_iter {
 	struct gendisk		*disk;

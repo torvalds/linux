@@ -173,7 +173,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	if (isdigit(state->name[strlen(state->name)-1]))
 		sprintf(state->name, "p");
 
-	state->limit = disk_max_parts(hd) + 1;
+	state->limit = disk_max_parts(hd);
 	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
@@ -329,12 +329,12 @@ void delete_partition(struct gendisk *disk, int partno)
 {
 	struct hd_struct *part;
 
-	part = disk->__part[partno-1];
+	part = disk->__part[partno];
 	if (!part)
 		return;
 
 	blk_free_devt(part_devt(part));
-	rcu_assign_pointer(disk->__part[partno-1], NULL);
+	rcu_assign_pointer(disk->__part[partno], NULL);
 	kobject_put(part->holder_dir);
 	device_del(part_to_dev(part));
 
@@ -359,7 +359,7 @@ int add_partition(struct gendisk *disk, int partno,
 	const char *dname;
 	int err;
 
-	if (disk->__part[partno - 1])
+	if (disk->__part[partno])
 		return -EBUSY;
 
 	p = kzalloc(sizeof(*p), GFP_KERNEL);
@@ -413,7 +413,7 @@ int add_partition(struct gendisk *disk, int partno,
 
 	/* everything is up and running, commence */
 	INIT_RCU_HEAD(&p->rcu_head);
-	rcu_assign_pointer(disk->__part[partno - 1], p);
+	rcu_assign_pointer(disk->__part[partno], p);
 
 	/* suppress uevent if the disk supresses it */
 	if (!ddev->uevent_suppress)
@@ -467,7 +467,7 @@ void register_disk(struct gendisk *disk)
 	disk_sysfs_add_subdirs(disk);
 
 	/* No minors to use for partitions */
-	if (!disk_max_parts(disk))
+	if (!disk_partitionable(disk))
 		goto exit;
 
 	/* No such device (e.g., media were just removed) */
