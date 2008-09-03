@@ -2911,7 +2911,7 @@ static int pkt_setup_dev(dev_t dev, dev_t* pkt_dev)
 	if (!disk->queue)
 		goto out_mem2;
 
-	pd->pkt_dev = MKDEV(disk->major, disk->first_minor);
+	pd->pkt_dev = MKDEV(pktdev_major, idx);
 	ret = pkt_new_dev(pd, dev);
 	if (ret)
 		goto out_new_dev;

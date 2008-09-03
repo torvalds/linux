@@ -111,10 +111,14 @@ struct hd_struct {
 #define GENHD_FL_FAIL				64
 
 struct gendisk {
+	/* major, first_minor and minors are input parameters only,
+	 * don't use directly.  Use disk_devt() and disk_max_parts().
+	 */
 	int major;			/* major number of driver */
 	int first_minor;
 	int minors;                     /* maximum number of minors, =1 for
                                          * disks that can't be partitioned. */
+
 	char disk_name[32];		/* name of major driver */
 	struct hd_struct **part;	/* [indexed by minor - 1] */
 	struct block_device_operations *fops;
@@ -152,6 +156,21 @@ static inline struct gendisk *part_to_disk(struct hd_struct *part)
 	return NULL;
 }
 
+static inline int disk_max_parts(struct gendisk *disk)
+{
+	return disk->minors - 1;
+}
+
+static inline dev_t disk_devt(struct gendisk *disk)
+{
+	return disk->dev.devt;
+}
+
+static inline dev_t part_devt(struct hd_struct *part)
+{
+	return part->dev.devt;
+}
+
 /* 
  * Macros to operate on percpu disk statistics:
  *
@@ -163,7 +182,7 @@ static inline struct hd_struct *disk_map_sector(struct gendisk *gendiskp,
 {
 	struct hd_struct *part;
 	int i;
-	for (i = 0; i < gendiskp->minors - 1; i++) {
+	for (i = 0; i < disk_max_parts(gendiskp); i++) {
 		part = gendiskp->part[i];
 		if (part && part->start_sect <= sector
 		    && sector < part->start_sect + part->nr_sects)
@@ -366,6 +385,7 @@ extern void add_disk(struct gendisk *disk);
 extern void del_gendisk(struct gendisk *gp);
 extern void unlink_gendisk(struct gendisk *gp);
 extern struct gendisk *get_gendisk(dev_t dev, int *partno);
+extern struct block_device *bdget_disk(struct gendisk *disk, int partno);
 
 extern void set_device_ro(struct block_device *bdev, int flag);
 extern void set_disk_ro(struct gendisk *disk, int flag);
@@ -552,11 +572,6 @@ extern void blk_register_region(dev_t devt, unsigned long range,
 			int (*lock)(dev_t, void *),
 			void *data);
 extern void blk_unregister_region(dev_t devt, unsigned long range);
-
-static inline struct block_device *bdget_disk(struct gendisk *disk, int partno)
-{
-	return bdget(MKDEV(disk->major, disk->first_minor) + partno);
-}
 
 #else /* CONFIG_BLOCK */
 

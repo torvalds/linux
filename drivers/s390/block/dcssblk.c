@@ -114,7 +114,7 @@ dcssblk_assign_free_minor(struct dcssblk_dev_info *dev_info)
 		found = 0;
 		// test if minor available
 		list_for_each_entry(entry, &dcssblk_devices, lh)
-			if (minor == entry->gd->first_minor)
+			if (minor == MINOR(disk_devt(entry->gd)))
 				found++;
 		if (!found) break; // got unused minor
 	}
@@ -397,7 +397,7 @@ dcssblk_add_store(struct device *dev, struct device_attribute *attr, const char 
 		goto unload_seg;
 	}
 	sprintf(dev_info->gd->disk_name, "dcssblk%d",
-		dev_info->gd->first_minor);
+		MINOR(disk_devt(dev_info->gd)));
 	list_add_tail(&dev_info->lh, &dcssblk_devices);
 
 	if (!try_module_get(THIS_MODULE)) {

@@ -541,7 +541,7 @@ static int ps3disk_remove(struct ps3_system_bus_device *_dev)
 	struct ps3disk_private *priv = dev->sbd.core.driver_data;
 
 	mutex_lock(&ps3disk_mask_mutex);
-	__clear_bit(priv->gendisk->first_minor / PS3DISK_MINORS,
+	__clear_bit(MINOR(disk_devt(priv->gendisk)) / PS3DISK_MINORS,
 		    &ps3disk_mask);
 	mutex_unlock(&ps3disk_mask_mutex);
 	del_gendisk(priv->gendisk);

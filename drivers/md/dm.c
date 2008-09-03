@@ -1146,7 +1146,7 @@ static void unlock_fs(struct mapped_device *md);
 
 static void free_dev(struct mapped_device *md)
 {
-	int minor = md->disk->first_minor;
+	int minor = MINOR(disk_devt(md->disk));
 
 	if (md->suspended_bdev) {
 		unlock_fs(md);
@@ -1267,7 +1267,7 @@ static struct mapped_device *dm_find_md(dev_t dev)
 
 	md = idr_find(&_minor_idr, minor);
 	if (md && (md == MINOR_ALLOCED ||
-		   (dm_disk(md)->first_minor != minor) ||
+		   (MINOR(disk_devt(dm_disk(md))) != minor) ||
 		   test_bit(DMF_FREEING, &md->flags))) {
 		md = NULL;
 		goto out;
@@ -1318,7 +1318,8 @@ void dm_put(struct mapped_device *md)
 
 	if (atomic_dec_and_lock(&md->holders, &_minor_lock)) {
 		map = dm_get_table(md);
-		idr_replace(&_minor_idr, MINOR_ALLOCED, dm_disk(md)->first_minor);
+		idr_replace(&_minor_idr, MINOR_ALLOCED,
+			    MINOR(disk_devt(dm_disk(md))));
 		set_bit(DMF_FREEING, &md->flags);
 		spin_unlock(&_minor_lock);
 		if (!dm_suspended(md)) {

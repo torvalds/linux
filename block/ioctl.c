@@ -29,7 +29,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 	if (bdev != bdev->bd_contains)
 		return -EINVAL;
 	partno = p.pno;
-	if (partno <= 0 || partno >= disk->minors)
+	if (partno <= 0 || partno > disk_max_parts(disk))
 		return -EINVAL;
 	switch (a.op) {
 		case BLKPG_ADD_PARTITION:
@@ -47,7 +47,7 @@ static int blkpg_ioctl(struct block_device *bdev, struct blkpg_ioctl_arg __user 
 			mutex_lock(&bdev->bd_mutex);
 
 			/* overlap? */
-			for (i = 0; i < disk->minors - 1; i++) {
+			for (i = 0; i < disk_max_parts(disk); i++) {
 				struct hd_struct *s = disk->part[i];
 
 				if (!s)
@@ -96,7 +96,7 @@ static int blkdev_reread_part(struct block_device *bdev)
 	struct gendisk *disk = bdev->bd_disk;
 	int res;
 
-	if (disk->minors == 1 || bdev != bdev->bd_contains)
+	if (!disk_max_parts(disk) || bdev != bdev->bd_contains)
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EACCES;

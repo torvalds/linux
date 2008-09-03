@@ -83,7 +83,7 @@ static void mmc_blk_put(struct mmc_blk_data *md)
 	mutex_lock(&open_lock);
 	md->usage--;
 	if (md->usage == 0) {
-		int devidx = md->disk->first_minor >> MMC_SHIFT;
+		int devidx = MINOR(disk_devt(md->disk)) >> MMC_SHIFT;
 		__clear_bit(devidx, dev_use);
 
 		put_disk(md->disk);

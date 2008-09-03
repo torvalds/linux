@@ -186,13 +186,14 @@ void add_disk(struct gendisk *disk)
 	int retval;
 
 	disk->flags |= GENHD_FL_UP;
-	blk_register_region(MKDEV(disk->major, disk->first_minor),
-			    disk->minors, NULL, exact_match, exact_lock, disk);
+	disk->dev.devt = MKDEV(disk->major, disk->first_minor);
+	blk_register_region(disk_devt(disk), disk->minors, NULL,
+			    exact_match, exact_lock, disk);
 	register_disk(disk);
 	blk_register_queue(disk);
 
 	bdi = &disk->queue->backing_dev_info;
-	bdi_register_dev(bdi, MKDEV(disk->major, disk->first_minor));
+	bdi_register_dev(bdi, disk_devt(disk));
 	retval = sysfs_create_link(&disk->dev.kobj, &bdi->dev->kobj, "bdi");
 	WARN_ON(retval);
 }
@@ -205,8 +206,7 @@ void unlink_gendisk(struct gendisk *disk)
 	sysfs_remove_link(&disk->dev.kobj, "bdi");
 	bdi_unregister(&disk->queue->backing_dev_info);
 	blk_unregister_queue(disk);
-	blk_unregister_region(MKDEV(disk->major, disk->first_minor),
-			      disk->minors);
+	blk_unregister_region(disk_devt(disk), disk->minors);
 }
 
 /**
@@ -224,6 +224,38 @@ struct gendisk *get_gendisk(dev_t devt, int *partno)
 
 	return  kobj ? dev_to_disk(dev) : NULL;
 }
+
+/**
+ * bdget_disk - do bdget() by gendisk and partition number
+ * @disk: gendisk of interest
+ * @partno: partition number
+ *
+ * Find partition @partno from @disk, do bdget() on it.
+ *
+ * CONTEXT:
+ * Don't care.
+ *
+ * RETURNS:
+ * Resulting block_device on success, NULL on failure.
+ */
+extern struct block_device *bdget_disk(struct gendisk *disk, int partno)
+{
+	dev_t devt = MKDEV(0, 0);
+
+	if (partno == 0)
+		devt = disk_devt(disk);
+	else {
+		struct hd_struct *part = disk->part[partno - 1];
+
+		if (part && part->nr_sects)
+			devt = part_devt(part);
+	}
+
+	if (likely(devt != MKDEV(0, 0)))
+		return bdget(devt);
+	return NULL;
+}
+EXPORT_SYMBOL(bdget_disk);
 
 /*
  * print a full list of all partitions - intended for places where the root
@@ -255,7 +287,7 @@ void __init printk_all_partitions(void)
 		 * option takes.
 		 */
 		printk("%02x%02x %10llu %s",
-		       disk->major, disk->first_minor,
+		       MAJOR(disk_devt(disk)), MINOR(disk_devt(disk)),
 		       (unsigned long long)get_capacity(disk) >> 1,
 		       disk_name(disk, 0, buf));
 		if (disk->driverfs_dev != NULL &&
@@ -266,15 +298,15 @@ void __init printk_all_partitions(void)
 			printk(" (driver?)\n");
 
 		/* now show the partitions */
-		for (n = 0; n < disk->minors - 1; ++n) {
-			if (disk->part[n] == NULL)
-				continue;
-			if (disk->part[n]->nr_sects == 0)
+		for (n = 0; n < disk_max_parts(disk); ++n) {
+			struct hd_struct *part = disk->part[n];
+
+			if (!part || !part->nr_sects)
 				continue;
 			printk("  %02x%02x %10llu %s\n",
-			       disk->major, n + 1 + disk->first_minor,
-			       (unsigned long long)disk->part[n]->nr_sects >> 1,
-			       disk_name(disk, n + 1, buf));
+			       MAJOR(part_devt(part)), MINOR(part_devt(part)),
+			       (unsigned long long)part->nr_sects >> 1,
+			       disk_name(disk, part->partno, buf));
 		}
 	}
 	class_dev_iter_exit(&iter);
@@ -343,26 +375,27 @@ static int show_partition(struct seq_file *seqf, void *v)
 	char buf[BDEVNAME_SIZE];
 
 	/* Don't show non-partitionable removeable devices or empty devices */
-	if (!get_capacity(sgp) ||
-			(sgp->minors == 1 && (sgp->flags & GENHD_FL_REMOVABLE)))
+	if (!get_capacity(sgp) || (!disk_max_parts(sgp) &&
+				   (sgp->flags & GENHD_FL_REMOVABLE)))
 		return 0;
 	if (sgp->flags & GENHD_FL_SUPPRESS_PARTITION_INFO)
 		return 0;
 
 	/* show the full disk and all non-0 size partitions of it */
 	seq_printf(seqf, "%4d  %4d %10llu %s\n",
-		sgp->major, sgp->first_minor,
+		MAJOR(disk_devt(sgp)), MINOR(disk_devt(sgp)),
 		(unsigned long long)get_capacity(sgp) >> 1,
 		disk_name(sgp, 0, buf));
-	for (n = 0; n < sgp->minors - 1; n++) {
-		if (!sgp->part[n])
+	for (n = 0; n < disk_max_parts(sgp); n++) {
+		struct hd_struct *part = sgp->part[n];
+		if (!part)
 			continue;
-		if (sgp->part[n]->nr_sects == 0)
+		if (part->nr_sects == 0)
 			continue;
 		seq_printf(seqf, "%4d  %4d %10llu %s\n",
-			sgp->major, n + 1 + sgp->first_minor,
-			(unsigned long long)sgp->part[n]->nr_sects >> 1 ,
-			disk_name(sgp, n + 1, buf));
+			   MAJOR(part_devt(part)), MINOR(part_devt(part)),
+			   (unsigned long long)part->nr_sects >> 1,
+			   disk_name(sgp, part->partno, buf));
 	}
 
 	return 0;
@@ -578,7 +611,8 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 	disk_round_stats(gp);
 	preempt_enable();
 	seq_printf(seqf, "%4d %4d %s %lu %lu %llu %u %lu %lu %llu %u %u %u %u\n",
-		gp->major, gp->first_minor, disk_name(gp, 0, buf),
+		MAJOR(disk_devt(gp)), MINOR(disk_devt(gp)),
+		disk_name(gp, 0, buf),
 		disk_stat_read(gp, ios[0]), disk_stat_read(gp, merges[0]),
 		(unsigned long long)disk_stat_read(gp, sectors[0]),
 		jiffies_to_msecs(disk_stat_read(gp, ticks[0])),
@@ -590,7 +624,7 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		jiffies_to_msecs(disk_stat_read(gp, time_in_queue)));
 
 	/* now show all non-0 size partitions of it */
-	for (n = 0; n < gp->minors - 1; n++) {
+	for (n = 0; n < disk_max_parts(gp); n++) {
 		struct hd_struct *hd = gp->part[n];
 
 		if (!hd || !hd->nr_sects)
@@ -601,8 +635,8 @@ static int diskstats_show(struct seq_file *seqf, void *v)
 		preempt_enable();
 		seq_printf(seqf, "%4d %4d %s %lu %lu %llu "
 			   "%u %lu %lu %llu %u %u %u %u\n",
-			   gp->major, n + gp->first_minor + 1,
-			   disk_name(gp, n + 1, buf),
+			   MAJOR(part_devt(hd)), MINOR(part_devt(hd)),
+			   disk_name(gp, hd->partno, buf),
 			   part_stat_read(hd, ios[0]),
 			   part_stat_read(hd, merges[0]),
 			   (unsigned long long)part_stat_read(hd, sectors[0]),
@@ -661,11 +695,22 @@ dev_t blk_lookup_devt(const char *name, int partno)
 	while ((dev = class_dev_iter_next(&iter))) {
 		struct gendisk *disk = dev_to_disk(dev);
 
-		if (!strcmp(dev->bus_id, name) && partno < disk->minors) {
-			devt = MKDEV(MAJOR(dev->devt),
-				     MINOR(dev->devt) + partno);
-			break;
+		if (strcmp(dev->bus_id, name))
+			continue;
+		if (partno < 0 || partno > disk_max_parts(disk))
+			continue;
+
+		if (partno == 0)
+			devt = disk_devt(disk);
+		else {
+			struct hd_struct *part = disk->part[partno - 1];
+
+			if (!part || !part->nr_sects)
+				continue;
+
+			devt = part_devt(part);
 		}
+		break;
 	}
 	class_dev_iter_exit(&iter);
 	return devt;
@@ -755,7 +800,7 @@ void set_disk_ro(struct gendisk *disk, int flag)
 {
 	int i;
 	disk->policy = flag;
-	for (i = 0; i < disk->minors - 1; i++)
+	for (i = 0; i < disk_max_parts(disk); i++)
 		if (disk->part[i]) disk->part[i]->policy = flag;
 }
 

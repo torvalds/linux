@@ -892,7 +892,7 @@ int check_disk_change(struct block_device *bdev)
 
 	if (bdops->revalidate_disk)
 		bdops->revalidate_disk(bdev->bd_disk);
-	if (bdev->bd_disk->minors > 1)
+	if (disk_max_parts(bdev->bd_disk))
 		bdev->bd_invalidated = 1;
 	return 1;
 }

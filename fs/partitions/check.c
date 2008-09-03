@@ -134,7 +134,11 @@ char *disk_name(struct gendisk *hd, int partno, char *buf)
 
 const char *bdevname(struct block_device *bdev, char *buf)
 {
-	int partno = MINOR(bdev->bd_dev) - bdev->bd_disk->first_minor;
+	int partno = 0;
+
+	if (bdev->bd_part)
+		partno = bdev->bd_part->partno;
+
 	return disk_name(bdev->bd_disk, partno, buf);
 }
 
@@ -169,7 +173,7 @@ check_partition(struct gendisk *hd, struct block_device *bdev)
 	if (isdigit(state->name[strlen(state->name)-1]))
 		sprintf(state->name, "p");
 
-	state->limit = hd->minors;
+	state->limit = disk_max_parts(hd) + 1;
 	i = res = err = 0;
 	while (!res && check_part[i]) {
 		memset(&state->parts, 0, sizeof(state->parts));
@@ -416,7 +420,6 @@ void register_disk(struct gendisk *disk)
 	int err;
 
 	disk->dev.parent = disk->driverfs_dev;
-	disk->dev.devt = MKDEV(disk->major, disk->first_minor);
 
 	strlcpy(disk->dev.bus_id, disk->disk_name, BUS_ID_SIZE);
 	/* ewww... some of these buggers have / in the name... */
@@ -440,7 +443,7 @@ void register_disk(struct gendisk *disk)
 	disk_sysfs_add_subdirs(disk);
 
 	/* No minors to use for partitions */
-	if (disk->minors == 1)
+	if (!disk_max_parts(disk))
 		goto exit;
 
 	/* No such device (e.g., media were just removed) */
@@ -463,8 +466,8 @@ exit:
 	kobject_uevent(&disk->dev.kobj, KOBJ_ADD);
 
 	/* announce possible partitions */
-	for (i = 1; i < disk->minors; i++) {
-		p = disk->part[i-1];
+	for (i = 0; i < disk_max_parts(disk); i++) {
+		p = disk->part[i];
 		if (!p || !p->nr_sects)
 			continue;
 		kobject_uevent(&p->dev.kobj, KOBJ_ADD);
@@ -482,7 +485,7 @@ int rescan_partitions(struct gendisk *disk, struct block_device *bdev)
 	if (res)
 		return res;
 	bdev->bd_invalidated = 0;
-	for (p = 1; p < disk->minors; p++)
+	for (p = 1; p <= disk_max_parts(disk); p++)
 		delete_partition(disk, p);
 	if (disk->fops->revalidate_disk)
 		disk->fops->revalidate_disk(disk);
@@ -545,7 +548,7 @@ void del_gendisk(struct gendisk *disk)
 	int p;
 
 	/* invalidate stuff */
-	for (p = disk->minors - 1; p > 0; p--) {
+	for (p = disk_max_parts(disk); p > 0; p--) {
 		invalidate_partition(disk, p);
 		delete_partition(disk, p);
 	}
