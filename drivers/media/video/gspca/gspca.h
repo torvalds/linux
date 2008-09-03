@@ -127,7 +127,8 @@ struct gspca_dev {
 	const struct sd_desc *sd_desc;		/* subdriver description */
 	unsigned ctrl_dis;		/* disabled controls (bit map) */
 
-	__u8 usb_buf[8];			/* buffer for USB exchanges */
+#define USB_BUF_SZ 64
+	__u8 *usb_buf;				/* buffer for USB exchanges */
 	struct urb *urb[MAX_NURBS];
 
 	__u8 *frbuf;				/* buffer for nframes */

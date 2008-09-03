@@ -391,7 +391,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 				NULL, 0, 500);
 		return;
 	}
-	if (len <= sizeof gspca_dev->usb_buf) {
+	if (len <= USB_BUF_SZ) {
 		memcpy(gspca_dev->usb_buf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),

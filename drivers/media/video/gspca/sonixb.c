@@ -410,7 +410,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 		  int len)
 {
 #ifdef GSPCA_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+	if (len > USB_BUF_SZ) {
 		PDEBUG(D_ERR|D_PACK, "reg_w: buffer overflow");
 		return;
 	}
@@ -424,26 +424,6 @@ static void reg_w(struct gspca_dev *gspca_dev,
 			0,			/* index */
 			gspca_dev->usb_buf, len,
 			500);
-}
-
-static void reg_w_big(struct gspca_dev *gspca_dev,
-		  __u16 value,
-		  const __u8 *buffer,
-		  int len)
-{
-	__u8 *tmpbuf;
-
-	tmpbuf = kmalloc(len, GFP_KERNEL);
-	memcpy(tmpbuf, buffer, len);
-	usb_control_msg(gspca_dev->dev,
-			usb_sndctrlpipe(gspca_dev->dev, 0),
-			0x08,			/* request */
-			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-			value,
-			0,			/* index */
-			tmpbuf, len,
-			500);
-	kfree(tmpbuf);
 }
 
 static int i2c_w(struct gspca_dev *gspca_dev, const __u8 *buffer)
@@ -886,7 +866,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/* reg 0x17 SensorClk enable inv Clk 0x60 */
 	reg_w(gspca_dev, 0x17, &sn9c10x[0x17 - 1], 1);
 	/* Set the registers from the template */
-	reg_w_big(gspca_dev, 0x01, sn9c10x, l);
+	reg_w(gspca_dev, 0x01, sn9c10x, l);
 	switch (sd->sensor) {
 	case SENSOR_HV7131R:
 		i2c_w_vector(gspca_dev, hv7131_sensor_init,

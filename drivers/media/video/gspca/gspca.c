@@ -1731,6 +1731,12 @@ int gspca_dev_probe(struct usb_interface *intf,
 		err("couldn't kzalloc gspca struct");
 		return -EIO;
 	}
+	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
+	if (!gspca_dev->usb_buf) {
+		err("out of memory");
+		ret = -EIO;
+		goto out;
+	}
 	gspca_dev->dev = dev;
 	gspca_dev->iface = interface->bInterfaceNumber;
 	gspca_dev->nbalt = intf->num_altsetting;
@@ -1774,6 +1780,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	PDEBUG(D_PROBE, "probe ok");
 	return 0;
 out:
+	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
 }
@@ -1806,6 +1813,7 @@ void gspca_disconnect(struct usb_interface *intf)
 /* We don't want people trying to open up the device */
 	video_unregister_device(&gspca_dev->vdev);
 /* Free the memory */
+	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	PDEBUG(D_PROBE, "disconnect complete");
 }

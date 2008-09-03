@@ -613,10 +613,16 @@ static const __u8 qtable4[] = {
 	0x29, 0x29, 0x29, 0x29
 };
 
-/* read <len> bytes (len < sizeof gspca_dev->usb_buf) to gspca_dev->usb_buf */
+/* read <len> bytes to gspca_dev->usb_buf */
 static void reg_r(struct gspca_dev *gspca_dev,
 		  __u16 value, int len)
 {
+#ifdef GSPCA_DEBUG
+	if (len > USB_BUF_SZ) {
+		err("reg_r: buffer overflow");
+		return;
+	}
+#endif
 	usb_control_msg(gspca_dev->dev,
 			usb_rcvctrlpipe(gspca_dev->dev, 0),
 			0,
@@ -649,29 +655,20 @@ static void reg_w(struct gspca_dev *gspca_dev,
 {
 	PDEBUG(D_USBO, "reg_w [%02x] = %02x %02x ..",
 		value, buffer[0], buffer[1]);
-	if (len <= sizeof gspca_dev->usb_buf) {
-		memcpy(gspca_dev->usb_buf, buffer, len);
-		usb_control_msg(gspca_dev->dev,
-				usb_sndctrlpipe(gspca_dev->dev, 0),
-				0x08,
-			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-				value, 0,
-				gspca_dev->usb_buf, len,
-				500);
-	} else {
-		__u8 *tmpbuf;
-
-		tmpbuf = kmalloc(len, GFP_KERNEL);
-		memcpy(tmpbuf, buffer, len);
-		usb_control_msg(gspca_dev->dev,
-				usb_sndctrlpipe(gspca_dev->dev, 0),
-				0x08,
-			   USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
-				value, 0,
-				tmpbuf, len,
-				500);
-		kfree(tmpbuf);
+#ifdef GSPCA_DEBUG
+	if (len > USB_BUF_SZ) {
+		err("reg_w: buffer overflow");
+		return;
 	}
+#endif
+	memcpy(gspca_dev->usb_buf, buffer, len);
+	usb_control_msg(gspca_dev->dev,
+			usb_sndctrlpipe(gspca_dev->dev, 0),
+			0x08,
+			USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_INTERFACE,
+			value, 0,
+			gspca_dev->usb_buf, len,
+			500);
 }
 
 /* I2C write 1 byte */

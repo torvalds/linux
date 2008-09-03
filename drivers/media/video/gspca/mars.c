@@ -100,22 +100,6 @@ static int reg_w(struct gspca_dev *gspca_dev,
 	return rc;
 }
 
-static int reg_w_buf(struct gspca_dev *gspca_dev,
-			__u16 index, __u8 *buf, int len)
-{
-	int rc;
-
-	rc = usb_control_msg(gspca_dev->dev,
-			 usb_sndbulkpipe(gspca_dev->dev, 4),
-			 0x12,
-			 0xc8,		/* ?? */
-			 0,		/* value */
-			 index, buf, len, 500);
-	if (rc < 0)
-		PDEBUG(D_ERR, "reg write [%02x] error %d", index, rc);
-	return rc;
-}
-
 static void bulk_w(struct gspca_dev *gspca_dev,
 		   __u16 *pch,
 		   __u16 Address)
@@ -175,7 +159,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	/*
 	   Initialize the MR97113 chip register
 	 */
-	data = kmalloc(16, GFP_KERNEL);
 	data[0] = 0x00;		/* address */
 	data[1] = 0x0c | 0x01;	/* reg 0 */
 	data[2] = 0x01;		/* reg 1 */
@@ -195,12 +178,10 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	data[10] = 0x5d;	/* reg 9, I2C device address
 				 *	[for PAS5101 (0x40)] [for MI (0x5d)] */
 
-	err_code = reg_w_buf(gspca_dev, data[0], data, 11);
-	kfree(data);
+	err_code = reg_w(gspca_dev, data[0], 11);
 	if (err_code < 0)
 		return;
 
-	data = gspca_dev->usb_buf;
 	data[0] = 0x23;		/* address */
 	data[1] = 0x09;		/* reg 35, append frame header */
 
