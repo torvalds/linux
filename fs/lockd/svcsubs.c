@@ -418,7 +418,7 @@ EXPORT_SYMBOL_GPL(nlmsvc_unlock_all_by_sb);
 static int
 nlmsvc_match_ip(void *datap, struct nlm_host *host)
 {
-	return nlm_cmp_addr(nlm_srcaddr_in(host), datap);
+	return nlm_cmp_addr(nlm_srcaddr(host), datap);
 }
 
 /**

@@ -12,6 +12,8 @@
 #ifdef __KERNEL__
 
 #include <linux/in.h>
+#include <linux/in6.h>
+#include <net/ipv6.h>
 #include <linux/fs.h>
 #include <linux/kref.h>
 #include <linux/utsname.h>
@@ -272,13 +274,39 @@ static inline struct inode *nlmsvc_file_inode(struct nlm_file *file)
 	return file->f_file->f_path.dentry->d_inode;
 }
 
-/*
- * Compare two host addresses (needs modifying for ipv6)
- */
-static inline int nlm_cmp_addr(const struct sockaddr_in *sin1,
-			       const struct sockaddr_in *sin2)
+static inline int __nlm_cmp_addr4(const struct sockaddr *sap1,
+				  const struct sockaddr *sap2)
 {
+	const struct sockaddr_in *sin1 = (const struct sockaddr_in *)sap1;
+	const struct sockaddr_in *sin2 = (const struct sockaddr_in *)sap2;
 	return sin1->sin_addr.s_addr == sin2->sin_addr.s_addr;
+}
+
+static inline int __nlm_cmp_addr6(const struct sockaddr *sap1,
+				  const struct sockaddr *sap2)
+{
+	const struct sockaddr_in6 *sin1 = (const struct sockaddr_in6 *)sap1;
+	const struct sockaddr_in6 *sin2 = (const struct sockaddr_in6 *)sap2;
+	return ipv6_addr_equal(&sin1->sin6_addr, &sin2->sin6_addr);
+}
+
+/*
+ * Compare two host addresses
+ *
+ * Return TRUE if the addresses are the same; otherwise FALSE.
+ */
+static inline int nlm_cmp_addr(const struct sockaddr *sap1,
+			       const struct sockaddr *sap2)
+{
+	if (sap1->sa_family == sap2->sa_family) {
+		switch (sap1->sa_family) {
+		case AF_INET:
+			return __nlm_cmp_addr4(sap1, sap2);
+		case AF_INET6:
+			return __nlm_cmp_addr6(sap1, sap2);
+		}
+	}
+	return 0;
 }
 
 /*

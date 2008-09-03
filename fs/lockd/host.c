@@ -116,7 +116,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 	 */
 	chain = &nlm_hosts[hash];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
-		if (!nlm_cmp_addr(nlm_addr_in(host), sin))
+		if (!nlm_cmp_addr(nlm_addr(host), (struct sockaddr *)sin))
 			continue;
 
 		/* See if we have an NSM handle for this client */
@@ -129,7 +129,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 			continue;
 		if (host->h_server != server)
 			continue;
-		if (!nlm_cmp_addr(nlm_srcaddr_in(host), ssin))
+		if (!nlm_cmp_addr(nlm_srcaddr(host), (struct sockaddr *)ssin))
 			continue;
 
 		/* Move to head of hash chain. */
@@ -551,7 +551,7 @@ retry:
 			if (strlen(pos->sm_name) != hostname_len
 			 || memcmp(pos->sm_name, hostname, hostname_len))
 				continue;
-		} else if (!nlm_cmp_addr(nsm_addr_in(pos), sin))
+		} else if (!nlm_cmp_addr(nsm_addr(pos), (struct sockaddr *)sin))
 			continue;
 		atomic_inc(&pos->sm_count);
 		kfree(nsm);
