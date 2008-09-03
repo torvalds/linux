@@ -551,7 +551,7 @@ retry:
 			if (strlen(pos->sm_name) != hostname_len
 			 || memcmp(pos->sm_name, hostname, hostname_len))
 				continue;
-		} else if (!nlm_cmp_addr(&pos->sm_addr, sin))
+		} else if (!nlm_cmp_addr(nsm_addr_in(pos), sin))
 			continue;
 		atomic_inc(&pos->sm_count);
 		kfree(nsm);
@@ -571,7 +571,8 @@ retry:
 	if (nsm == NULL)
 		return NULL;
 
-	nsm->sm_addr = *sin;
+	memcpy(nsm_addr(nsm), sin, sizeof(*sin));
+	nsm->sm_addrlen = sizeof(*sin);
 	nsm->sm_name = (char *) (nsm + 1);
 	memcpy(nsm->sm_name, hostname, hostname_len);
 	nsm->sm_name[hostname_len] = '\0';

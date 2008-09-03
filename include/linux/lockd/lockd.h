@@ -71,7 +71,8 @@ struct nsm_handle {
 	struct list_head	sm_link;
 	atomic_t		sm_count;
 	char *			sm_name;
-	struct sockaddr_in	sm_addr;
+	struct sockaddr_storage	sm_addr;
+	size_t			sm_addrlen;
 	unsigned int		sm_monitored : 1,
 				sm_sticky : 1;	/* don't unmonitor */
 	char			sm_addrbuf[48];	/* address eyecatcher */
@@ -98,6 +99,16 @@ static inline struct sockaddr_in *nlm_srcaddr_in(const struct nlm_host *host)
 static inline struct sockaddr *nlm_srcaddr(const struct nlm_host *host)
 {
 	return (struct sockaddr *)&host->h_srcaddr;
+}
+
+static inline struct sockaddr_in *nsm_addr_in(const struct nsm_handle *handle)
+{
+	return (struct sockaddr_in *)&handle->sm_addr;
+}
+
+static inline struct sockaddr *nsm_addr(const struct nsm_handle *handle)
+{
+	return (struct sockaddr *)&handle->sm_addr;
 }
 
 /*
