@@ -1668,6 +1668,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		return;
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
+	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
 
