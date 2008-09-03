@@ -2217,8 +2217,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 			sta->txrate_idx = i;
 
 	sta->last_txrate_idx = sta->txrate_idx;
-	/* WTF is with this bogus comment? A doesn't have cck rates */
-	/* For MODE_IEEE80211A, cck rates are at end of rate table */
+	/* For MODE_IEEE80211A, skip over cck rates in global rate table */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
 		sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
