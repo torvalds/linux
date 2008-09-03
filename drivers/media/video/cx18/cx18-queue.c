@@ -110,99 +110,31 @@ struct cx18_buffer *cx18_queue_get_buf_irq(struct cx18_stream *s, u32 id,
 	return NULL;
 }
 
-static void cx18_queue_move_buf(struct cx18_stream *s, struct cx18_queue *from,
-		struct cx18_queue *to, int clear, int full)
-{
-	struct cx18_buffer *buf =
-		list_entry(from->list.next, struct cx18_buffer, list);
-
-	list_move_tail(from->list.next, &to->list);
-	from->buffers--;
-	from->length -= s->buf_size;
-	from->bytesused -= buf->bytesused - buf->readpos;
-	/* special handling for q_free */
-	if (clear)
-		buf->bytesused = buf->readpos = buf->b_flags = 0;
-	else if (full) {
-		/* special handling for stolen buffers, assume
-		   all bytes are used. */
-		buf->bytesused = s->buf_size;
-		buf->readpos = buf->b_flags = 0;
-	}
-	to->buffers++;
-	to->length += s->buf_size;
-	to->bytesused += buf->bytesused - buf->readpos;
-}
-
-/* Move 'needed_bytes' worth of buffers from queue 'from' into queue 'to'.
-   If 'needed_bytes' == 0, then move all buffers from 'from' into 'to'.
-   If 'steal' != NULL, then buffers may also taken from that queue if
-   needed.
-
-   The buffer is automatically cleared if it goes to the free queue. It is
-   also cleared if buffers need to be taken from the 'steal' queue and
-   the 'from' queue is the free queue.
-
-   When 'from' is q_free, then needed_bytes is compared to the total
-   available buffer length, otherwise needed_bytes is compared to the
-   bytesused value. For the 'steal' queue the total available buffer
-   length is always used.
-
-   -ENOMEM is returned if the buffers could not be obtained, 0 if all
-   buffers where obtained from the 'from' list and if non-zero then
-   the number of stolen buffers is returned. */
-static int cx18_queue_move(struct cx18_stream *s, struct cx18_queue *from,
-			   struct cx18_queue *steal, struct cx18_queue *to,
-			   int needed_bytes)
+/* Move all buffers of a queue to q_free, while flushing the buffers */
+static void cx18_queue_flush(struct cx18_stream *s, struct cx18_queue *q)
 {
 	unsigned long flags;
-	int rc = 0;
-	int from_free = from == &s->q_free;
-	int to_free = to == &s->q_free;
-	int bytes_available;
+	struct cx18_buffer *buf;
+
+	if (q == &s->q_free)
+		return;
 
 	spin_lock_irqsave(&s->qlock, flags);
-	if (needed_bytes == 0) {
-		from_free = 1;
-		needed_bytes = from->length;
+	while (!list_empty(&q->list)) {
+		buf = list_entry(q->list.next, struct cx18_buffer, list);
+		list_move_tail(q->list.next, &s->q_free.list);
+		buf->bytesused = buf->readpos = buf->b_flags = 0;
+		s->q_free.buffers++;
+		s->q_free.length += s->buf_size;
 	}
-
-	bytes_available = from_free ? from->length : from->bytesused;
-	bytes_available += steal ? steal->length : 0;
-
-	if (bytes_available < needed_bytes) {
-		spin_unlock_irqrestore(&s->qlock, flags);
-		return -ENOMEM;
-	}
-	if (from_free) {
-		u32 old_length = to->length;
-
-		while (to->length - old_length < needed_bytes) {
-			if (list_empty(&from->list))
-				from = steal;
-			if (from == steal)
-				rc++; 	/* keep track of 'stolen' buffers */
-			cx18_queue_move_buf(s, from, to, 1, 0);
-		}
-	} else {
-		u32 old_bytesused = to->bytesused;
-
-		while (to->bytesused - old_bytesused < needed_bytes) {
-			if (list_empty(&from->list))
-				from = steal;
-			if (from == steal)
-				rc++; 	/* keep track of 'stolen' buffers */
-			cx18_queue_move_buf(s, from, to, to_free, rc);
-		}
-	}
+	cx18_queue_init(q);
 	spin_unlock_irqrestore(&s->qlock, flags);
-	return rc;
 }
 
 void cx18_flush_queues(struct cx18_stream *s)
 {
-	cx18_queue_move(s, &s->q_io, NULL, &s->q_free, 0);
-	cx18_queue_move(s, &s->q_full, NULL, &s->q_free, 0);
+	cx18_queue_flush(s, &s->q_io);
+	cx18_queue_flush(s, &s->q_full);
 }
 
 int cx18_stream_alloc(struct cx18_stream *s)
