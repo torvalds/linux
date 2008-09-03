@@ -74,6 +74,10 @@ struct sensor_data {
 /* sensor_data flags */
 #define F_GAIN 0x01		/* has gain */
 #define F_SIF  0x02		/* sif or vga */
+#define F_RAW  0x04		/* sensor tested ok with raw bayer mode */
+
+/* priv field of struct v4l2_pix_format flags (do not use low nibble!) */
+#define MODE_RAW 0x10		/* raw bayer mode */
 
 /* ctrl_dis helper macros */
 #define NO_EXPO ((1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX))
@@ -205,6 +209,11 @@ static struct ctrl sd_ctrls[] = {
 };
 
 static struct v4l2_pix_format vga_mode[] = {
+	{160, 120, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2 | MODE_RAW},
 	{160, 120, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 5 / 4,
@@ -222,6 +231,11 @@ static struct v4l2_pix_format vga_mode[] = {
 		.priv = 0},
 };
 static struct v4l2_pix_format sif_mode[] = {
+	{176, 144, V4L2_PIX_FMT_SBGGR8, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1 | MODE_RAW},
 	{176, 144, V4L2_PIX_FMT_SN9C10X, V4L2_FIELD_NONE,
 		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 5 / 4,
@@ -237,7 +251,7 @@ static struct v4l2_pix_format sif_mode[] = {
 static const __u8 initHv7131[] = {
 	0x46, 0x77, 0x00, 0x04, 0x00, 0x00, 0x00, 0x80, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
-	0x00, 0x00, 0x00, 0x03, 0x01, 0x00,	/* shift from 0x02 0x01 0x00 */
+	0x00, 0x00, 0x00, 0x02, 0x01, 0x00,
 	0x28, 0x1e, 0x60, 0x8a, 0x20,
 	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c
 };
@@ -251,7 +265,7 @@ static const __u8 hv7131_sensor_init[][8] = {
 static const __u8 initOv6650[] = {
 	0x44, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,
 	0x60, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-	0x00, 0x02, 0x01, 0x0a, 0x16, 0x12, 0x68, 0x8b,
+	0x00, 0x01, 0x01, 0x0a, 0x16, 0x12, 0x68, 0x8b,
 	0x10, 0x1d, 0x10, 0x00, 0x06, 0x1f, 0x00
 };
 static const __u8 ov6650_sensor_init[][8] =
@@ -290,7 +304,7 @@ static const __u8 ov6650_sensor_init[][8] =
 static const __u8 initOv7630[] = {
 	0x04, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x80,	/* r01 .. r08 */
 	0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,	/* r09 .. r10 */
-	0x00, 0x02, 0x01, 0x0a,				/* r11 .. r14 */
+	0x00, 0x01, 0x01, 0x0a,				/* r11 .. r14 */
 	0x28, 0x1e,			/* H & V sizes     r15 .. r16 */
 	0x68, COMP2, MCK_INIT1,				/* r17 .. r19 */
 	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c		/* r1a .. r1f */
@@ -334,7 +348,7 @@ static const __u8 ov7630_sensor_init_3[][8] = {
 static const __u8 initPas106[] = {
 	0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x81, 0x40, 0x00, 0x00, 0x00,
 	0x00, 0x00,
-	0x00, 0x00, 0x00, 0x05, 0x01, 0x00,
+	0x00, 0x00, 0x00, 0x04, 0x01, 0x00,
 	0x16, 0x12, 0x24, COMP1, MCK_INIT1,
 	0x18, 0x10, 0x04, 0x03, 0x11, 0x0c
 };
@@ -384,7 +398,7 @@ static const __u8 pas106_sensor_init[][8] = {
 static const __u8 initPas202[] = {
 	0x44, 0x44, 0x21, 0x30, 0x00, 0x00, 0x00, 0x80, 0x40, 0x00, 0x00, 0x00,
 	0x00, 0x00,
-	0x00, 0x00, 0x00, 0x07, 0x03, 0x0a,	/* 6 */
+	0x00, 0x00, 0x00, 0x06, 0x03, 0x0a,
 	0x28, 0x1e, 0x28, 0x89, 0x20,
 	0x00, 0x00, 0x02, 0x03, 0x0f, 0x0c
 };
@@ -415,7 +429,7 @@ static const __u8 pas202_sensor_init[][8] = {
 static const __u8 initTas5110[] = {
 	0x44, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
-	0x00, 0x01, 0x00, 0x46, 0x09, 0x0a,	/* shift from 0x45 0x09 0x0a */
+	0x00, 0x01, 0x00, 0x45, 0x09, 0x0a,
 	0x16, 0x12, 0x60, 0x86, 0x2b,
 	0x14, 0x0a, 0x02, 0x02, 0x09, 0x07
 };
@@ -428,7 +442,7 @@ static const __u8 tas5110_sensor_init[][8] = {
 static const __u8 initTas5130[] = {
 	0x04, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x20, 0x11, 0x00, 0x00, 0x00,
 	0x00, 0x00,
-	0x00, 0x01, 0x00, 0x69, 0x0c, 0x0a,
+	0x00, 0x01, 0x00, 0x68, 0x0c, 0x0a,
 	0x28, 0x1e, 0x60, COMP, MCK_INIT,
 	0x18, 0x10, 0x04, 0x03, 0x11, 0x0c
 };
@@ -442,14 +456,15 @@ static const __u8 tas5130_sensor_init[][8] = {
 
 struct sensor_data sensor_data[] = {
 SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
-SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
+SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF|F_RAW, 0,
+	0x60),
 SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,
 	F_GAIN, 0, 0x21),
 SENS(initPas106, NULL, pas106_sensor_init, NULL, NULL, F_SIF, NO_EXPO|NO_FREQ,
 	0),
-SENS(initPas202, initPas202, pas202_sensor_init, NULL, NULL, 0,
+SENS(initPas202, initPas202, pas202_sensor_init, NULL, NULL, F_RAW,
 	NO_EXPO|NO_FREQ, 0),
-SENS(initTas5110, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF,
+SENS(initTas5110, NULL, tas5110_sensor_init, NULL, NULL, F_GAIN|F_SIF|F_RAW,
 	NO_BRIGHTNESS|NO_FREQ, 0),
 SENS(initTas5130, NULL, tas5130_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ,
 	0),
@@ -819,6 +834,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		cam->cam_mode = sif_mode;
 		cam->nmodes = ARRAY_SIZE(sif_mode);
 	}
+	if (!(sensor_data[sd->sensor].flags & F_RAW)) {
+		cam->cam_mode++;
+		cam->nmodes--;
+	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->gain = GAIN_DEF;
 	sd->exposure = EXPOSURE_DEF;
@@ -867,6 +886,9 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		reg17_19[2] = mode ? 0x23 : 0x43;
 		break;
 	}
+	/* Disable compression when the raw bayer format has been selected */
+	if (gspca_dev->cam.cam_mode[gspca_dev->curr_mode].priv & MODE_RAW)
+		reg17_19[1] &= ~0x80;
 
 	/* reg 0x01 bit 2 video transfert on */
 	reg_w(gspca_dev, 0x01, &sn9c10x[0x01 - 1], 1);
@@ -929,6 +951,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 {
 	int i;
 	struct sd *sd = (struct sd *) gspca_dev;
+	struct cam *cam = &gspca_dev->cam;
 
 	/* frames start with:
 	 *	ff ff 00 c4 c4 96	synchro
@@ -982,6 +1005,17 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			}
 		}
 	}
+
+	if (cam->cam_mode[gspca_dev->curr_mode].priv & MODE_RAW) {
+		/* In raw mode we sometimes get some garbage after the frame
+		   ignore this */
+		int used = frame->data_end - frame->data;
+		int size = cam->cam_mode[gspca_dev->curr_mode].sizeimage;
+
+		if (used + len > size)
+			len = size - used;
+	}
+
 	gspca_frame_add(gspca_dev, INTER_PACKET,
 			frame, data, len);
 }
