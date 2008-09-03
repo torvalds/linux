@@ -2758,6 +2758,8 @@ int falcon_probe_nic(struct efx_nic *efx)
 
 	/* Allocate storage for hardware specific data */
 	nic_data = kzalloc(sizeof(*nic_data), GFP_KERNEL);
+	if (!nic_data)
+		return -ENOMEM;
 	efx->nic_data = nic_data;
 
 	/* Determine number of ports etc. */
