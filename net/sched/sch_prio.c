@@ -254,16 +254,12 @@ static int prio_dump(struct Qdisc *sch, struct sk_buff *skb)
 {
 	struct prio_sched_data *q = qdisc_priv(sch);
 	unsigned char *b = skb_tail_pointer(skb);
-	struct nlattr *nest;
 	struct tc_prio_qopt opt;
 
 	opt.bands = q->bands;
 	memcpy(&opt.priomap, q->prio2band, TC_PRIO_MAX+1);
 
-	nest = nla_nest_compat_start(skb, TCA_OPTIONS, sizeof(opt), &opt);
-	if (nest == NULL)
-		goto nla_put_failure;
-	nla_nest_compat_end(skb, nest);
+	NLA_PUT(skb, TCA_OPTIONS, sizeof(opt), &opt);
 
 	return skb->len;
 
