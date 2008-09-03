@@ -1,7 +1,7 @@
 /*
  *   Conexant cx24123/cx24109 - DVB QPSK Satellite demod/tuner driver
  *
- *   Copyright (C) 2005 Steven Toth <stoth@hauppauge.com>
+ *   Copyright (C) 2005 Steven Toth <stoth@linuxtv.org>
  *
  *   Support for KWorld DVB-S 100 by Vadim Catana <skystar@moldova.cc>
  *

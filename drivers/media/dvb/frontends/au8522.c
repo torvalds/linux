@@ -1,7 +1,7 @@
 /*
     Auvitek AU8522 QAM/8VSB demodulator driver
 
-    Copyright (C) 2008 Steven Toth <stoth@hauppauge.com>
+    Copyright (C) 2008 Steven Toth <stoth@linuxtv.org>
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

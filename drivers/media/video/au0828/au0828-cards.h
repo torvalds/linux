@@ -1,7 +1,7 @@
 /*
  *  Driver for the Auvitek USB bridge
  *
- *  Copyright (c) 2008 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2008 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
