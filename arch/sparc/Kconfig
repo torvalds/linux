@@ -75,6 +75,8 @@ config SPARC
 	select HAVE_ARCH_KGDB if !SMP
 	select HAVE_ARCH_TRACEHOOK
 	select ARCH_WANT_OPTIONAL_GPIOLIB
+	select RTC_CLASS
+	select RTC_DRV_M48T59
 
 # Identify this as a Sparc32 build
 config SPARC32
