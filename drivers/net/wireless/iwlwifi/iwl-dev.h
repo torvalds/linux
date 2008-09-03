@@ -728,13 +728,10 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
-struct iwl_calib_results {
-	void *tx_iq_res;
-	void *tx_iq_perd_res;
-	void *lo_res;
-	u32 tx_iq_res_len;
-	u32 tx_iq_perd_res_len;
-	u32 lo_res_len;
+/* Opaque calibration results */
+struct iwl_calib_result {
+	void *buf;
+	size_t buf_len;
 };
 
 enum ucode_type {
@@ -796,6 +793,7 @@ enum {
 
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
+#define IWL_CALIB_MAX  3
 
 struct iwl_priv {
 
@@ -839,7 +837,7 @@ struct iwl_priv {
 	s32 last_temperature;
 
 	/* init calibration results */
-	struct iwl_calib_results calib_results;
+	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
 
 	/* Scan related variables */
 	unsigned long last_scan_jiffies;
