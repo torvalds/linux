@@ -114,7 +114,9 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	cam_pkt_op pkt_scan;
 
 	if (urb->status != 0) {
+#ifdef CONFIG_PM
 		if (!gspca_dev->frozen)
+#endif
 			PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
 		return;		/* disconnection ? */
 	}
