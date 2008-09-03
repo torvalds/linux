@@ -856,37 +856,44 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-/* the use of V4L2_CTRL_FLAG_NEXT_CTRL asks for the controls to be sorted */
 static int vidioc_queryctrl(struct file *file, void *priv,
 			   struct v4l2_queryctrl *q_ctrl)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i;
+	int i, ix;
 	u32 id;
 
+	ix = -1;
 	id = q_ctrl->id;
 	if (id & V4L2_CTRL_FLAG_NEXT_CTRL) {
 		id &= V4L2_CTRL_ID_MASK;
 		id++;
 		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
-			if (id >= gspca_dev->sd_desc->ctrls[i].qctrl.id) {
-				memcpy(q_ctrl,
-					&gspca_dev->sd_desc->ctrls[i].qctrl,
-					sizeof *q_ctrl);
-				return 0;
+			if (id < gspca_dev->sd_desc->ctrls[i].qctrl.id)
+				continue;
+			if (ix < 0) {
+				ix = i;
+				continue;
 			}
+			if (gspca_dev->sd_desc->ctrls[i].qctrl.id
+				    > gspca_dev->sd_desc->ctrls[ix].qctrl.id)
+				continue;
+			ix = i;
 		}
-		return -EINVAL;
 	}
 	for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
 		if (id == gspca_dev->sd_desc->ctrls[i].qctrl.id) {
-			memcpy(q_ctrl,
-				&gspca_dev->sd_desc->ctrls[i].qctrl,
-				sizeof *q_ctrl);
-			return 0;
+			ix = i;
+			break;
 		}
 	}
-	return -EINVAL;
+	if (ix < 0)
+		return -EINVAL;
+	memcpy(q_ctrl, &gspca_dev->sd_desc->ctrls[ix].qctrl,
+		sizeof *q_ctrl);
+	if (gspca_dev->ctrl_dis & (1 << ix))
+		q_ctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
+	return 0;
 }
 
 static int vidioc_s_ctrl(struct file *file, void *priv,

@@ -69,6 +69,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
+#define LIGHTFREQ_IDX 1
 	{
 	    {
 		.id	 = V4L2_CID_POWER_LINE_FREQUENCY,
@@ -1463,6 +1464,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->qindex = 7;
 	sd->autogain = AUTOGAIN_DEF;
 	sd->lightfreq = FREQ_DEF;
+	if (sd->sensor != SENSOR_OV7670)
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
 
 	if (sd->bridge == BRIDGE_VC0321) {
 		reg_r(gspca_dev, 0x8a, 0, 3);

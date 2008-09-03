@@ -116,6 +116,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setcolors,
 	    .get = sd_getcolors,
 	},
+#define AUTOGAIN_IDX 3
 	{
 	    {
 		.id      = V4L2_CID_AUTOGAIN,
@@ -936,6 +937,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autogain = AUTOGAIN_DEF;
 	sd->ag_cnt = -1;
 
+	switch (sd->sensor) {
+	case SENSOR_OV7630:
+	case SENSOR_OV7648:
+	case SENSOR_OV7660:
+		gspca_dev->ctrl_dis = (1 << AUTOGAIN_IDX);
+		break;
+	}
+
 	return 0;
 }
 
@@ -1150,16 +1159,12 @@ static void setautogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	switch (sd->sensor) {
-	case SENSOR_HV7131R:
-	case SENSOR_MO4000:
-	case SENSOR_MI0360:
-		if (sd->autogain)
-			sd->ag_cnt = AG_CNT_START;
-		else
-			sd->ag_cnt = -1;
-		break;
-	}
+	if (gspca_dev->ctrl_dis & (1 << AUTOGAIN_IDX))
+		return;
+	if (sd->autogain)
+		sd->ag_cnt = AG_CNT_START;
+	else
+		sd->ag_cnt = -1;
 }
 
 /* -- start the camera -- */

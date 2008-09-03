@@ -81,6 +81,7 @@ static struct ctrl sd_ctrls[] = {
 	 .set = sd_setcontrast,
 	 .get = sd_getcontrast,
 	 },
+#define COLOR_IDX 2
 	{
 	 {
 	  .id = V4L2_CID_SATURATION,
@@ -665,6 +666,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		cam->cam_mode = vga_mode;
 		cam->nmodes = sizeof vga_mode / sizeof vga_mode[0];
+		gspca_dev->ctrl_dis = (1 << COLOR_IDX);
 	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;

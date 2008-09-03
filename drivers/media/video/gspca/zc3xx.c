@@ -85,6 +85,7 @@ static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getsharpness(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
+#define BRIGHTNESS_IDX 0
 #define SD_BRIGHTNESS 0
 	{
 	    {
@@ -141,6 +142,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
 	},
+#define LIGHTFREQ_IDX 4
 #define SD_FREQ 4
 	{
 	    {
@@ -7149,6 +7151,20 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->autogain = sd_ctrls[SD_AUTOGAIN].qctrl.default_value;
 	sd->lightfreq = sd_ctrls[SD_FREQ].qctrl.default_value;
 	sd->sharpness = sd_ctrls[SD_SHARPNESS].qctrl.default_value;
+
+	switch (sd->sensor) {
+	case SENSOR_GC0305:
+	case SENSOR_OV7620:
+	case SENSOR_PO2030:
+		gspca_dev->ctrl_dis = (1 << BRIGHTNESS_IDX);
+		break;
+	case SENSOR_HDCS2020:
+	case SENSOR_HV7131B:
+	case SENSOR_HV7131C:
+	case SENSOR_OV7630C:
+		gspca_dev->ctrl_dis = (1 << LIGHTFREQ_IDX);
+		break;
+	}
 
 	/* switch the led off */
 	reg_w(gspca_dev->dev, 0x01, 0x0000);

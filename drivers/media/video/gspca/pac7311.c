@@ -150,6 +150,7 @@ static struct ctrl sd_ctrls[] = {
 	    .get = sd_getautogain,
 	},
 /* next controls work with pac7302 only */
+#define HFLIP_IDX 4
 	{
 	    {
 		.id      = V4L2_CID_HFLIP,
@@ -164,6 +165,7 @@ static struct ctrl sd_ctrls[] = {
 	    .set = sd_sethflip,
 	    .get = sd_gethflip,
 	},
+#define VFLIP_IDX 5
 	{
 	    {
 		.id      = V4L2_CID_VFLIP,
@@ -467,6 +469,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 		cam->cam_mode = vga_mode;
 		cam->nmodes = ARRAY_SIZE(vga_mode);
+		gspca_dev->ctrl_dis = (1 << HFLIP_IDX)
+				| (1 << VFLIP_IDX);
 	}
 
 	sd->brightness = BRIGHTNESS_DEF;
