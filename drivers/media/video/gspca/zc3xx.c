@@ -70,6 +70,10 @@ struct sd {
 	unsigned short chip_revision;
 };
 
+#define DRIVER_INFO(sensor, flags) .driver_info = ((sensor) << 8) | (flags)
+#define DRIVER_INFO_GET_SENSOR(driver_info) ((driver_info) >> 8)
+#define DRIVER_INFO_GET_FLAGS(driver_info)  ((driver_info) & 0xff)
+
 /* V4L2 controls supported by the driver */
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
@@ -7015,7 +7019,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 
 	/* define some sensors from the vendor/product */
 	sd->sharpness = 2;
-	sd->sensor = id->driver_info;
+	sd->sensor = DRIVER_INFO_GET_SENSOR(id->driver_info);
+	gspca_dev->flags = DRIVER_INFO_GET_FLAGS(id->driver_info);
 	sensor = zcxx_probeSensor(gspca_dev);
 	if (sensor >= 0)
 		PDEBUG(D_PROBE, "probe sensor -> %02x", sensor);
@@ -7505,19 +7510,19 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e)},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4017)},
-	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x041e, 0x401c), DRIVER_INFO(SENSOR_PAS106, 0)},
 	{USB_DEVICE(0x041e, 0x401e)},
 	{USB_DEVICE(0x041e, 0x401f)},
 #endif
 	{USB_DEVICE(0x041e, 0x4029)},
 #ifndef CONFIG_USB_ZC0301
-	{USB_DEVICE(0x041e, 0x4034), .driver_info = SENSOR_PAS106},
-	{USB_DEVICE(0x041e, 0x4035), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x041e, 0x4034), DRIVER_INFO(SENSOR_PAS106, 0)},
+	{USB_DEVICE(0x041e, 0x4035), DRIVER_INFO(SENSOR_PAS106, 0)},
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
 #endif
-	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_TAS5130C_VF0250},
-	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x041e, 0x4051), DRIVER_INFO(SENSOR_TAS5130C_VF0250, 0)},
+	{USB_DEVICE(0x041e, 0x4053), DRIVER_INFO(SENSOR_TAS5130C_VF0250, 0)},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0458, 0x7007)},
 	{USB_DEVICE(0x0458, 0x700c)},
@@ -7543,11 +7548,13 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08d9)},
 	{USB_DEVICE(0x046d, 0x08d8)},
 	{USB_DEVICE(0x046d, 0x08da)},
-	{USB_DEVICE(0x046d, 0x08dd), .driver_info = SENSOR_MC501CB},
-	{USB_DEVICE(0x0471, 0x0325), .driver_info = SENSOR_PAS106},
-	{USB_DEVICE(0x0471, 0x0326), .driver_info = SENSOR_PAS106},
-	{USB_DEVICE(0x0471, 0x032d), .driver_info = SENSOR_PAS106},
-	{USB_DEVICE(0x0471, 0x032e), .driver_info = SENSOR_PAS106},
+	{USB_DEVICE(0x046d, 0x08dd), DRIVER_INFO(SENSOR_MC501CB, 0)},
+	{USB_DEVICE(0x0471, 0x0325), DRIVER_INFO(SENSOR_PAS106,
+		GSPCA_SENSOR_UPSIDE_DOWN_FLAG)},
+	{USB_DEVICE(0x0471, 0x0326), DRIVER_INFO(SENSOR_PAS106,
+		GSPCA_SENSOR_UPSIDE_DOWN_FLAG)},
+	{USB_DEVICE(0x0471, 0x032d), DRIVER_INFO(SENSOR_PAS106, 0)},
+	{USB_DEVICE(0x0471, 0x032e), DRIVER_INFO(SENSOR_PAS106, 0)},
 	{USB_DEVICE(0x055f, 0xc005)},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x055f, 0xd003)},
@@ -7559,7 +7566,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0ac8, 0x301b)},
 	{USB_DEVICE(0x0ac8, 0x303b)},
 #endif
-	{USB_DEVICE(0x0ac8, 0x305b), .driver_info = SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x0ac8, 0x305b), DRIVER_INFO(SENSOR_TAS5130C_VF0250, 0)},
 #ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x307b)},
 	{USB_DEVICE(0x10fd, 0x0128)},

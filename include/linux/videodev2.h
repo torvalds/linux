@@ -261,6 +261,11 @@ struct v4l2_capability {
 #define V4L2_CAP_ASYNCIO                0x02000000  /* async I/O */
 #define V4L2_CAP_STREAMING              0x04000000  /* streaming I/O ioctls */
 
+/* This flags gets set if the "sensor" is known to be upside down and this can
+   *not* be fixed using v4l2 flipx/y controls. Note that absence of this flag
+   is not a guarantee for the image not being upside down. */
+#define V4L2_CAP_SENSOR_UPSIDE_DOWN     0x10000000
+
 /*
  *	V I D E O   I M A G E   F O R M A T
  */

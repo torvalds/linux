@@ -851,6 +851,8 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE
 			  | V4L2_CAP_STREAMING
 			  | V4L2_CAP_READWRITE;
+	if (gspca_dev->flags & GSPCA_SENSOR_UPSIDE_DOWN_FLAG)
+		cap->capabilities |= V4L2_CAP_SENSOR_UPSIDE_DOWN;
 	return 0;
 }
 
