@@ -1024,7 +1024,6 @@ static int ioctl_queryctrl(void *arg,struct camera_data *cam)
 		if(cam->params.pnp_id.device_type == DEVICE_STV_672 &&
 		   cam->params.version.sensor_flags==CPIA2_VP_SENSOR_FLAGS_500){
 			// Maximum 15fps
-			int i;
 			for(i=0; i<c->maximum; ++i) {
 				if(framerate_controls[i].value ==
 				   CPIA2_VP_FRAMERATE_15) {

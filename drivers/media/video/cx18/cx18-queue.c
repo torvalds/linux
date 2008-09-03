@@ -217,10 +217,10 @@ int cx18_stream_alloc(struct cx18_stream *s)
 		s->name, s->buffers, s->buf_size,
 		s->buffers * s->buf_size / 1024);
 
-	if (((char *)&cx->scb->cpu_mdl[cx->mdl_offset + s->buffers] -
-				(char *)cx->scb) > SCB_RESERVED_SIZE) {
-		unsigned bufsz = (((char *)cx->scb) + SCB_RESERVED_SIZE -
-					((char *)cx->scb->cpu_mdl));
+	if (((char __iomem *)&cx->scb->cpu_mdl[cx->mdl_offset + s->buffers] -
+				(char __iomem *)cx->scb) > SCB_RESERVED_SIZE) {
+		unsigned bufsz = (((char __iomem *)cx->scb) + SCB_RESERVED_SIZE -
+					((char __iomem *)cx->scb->cpu_mdl));
 
 		CX18_ERR("Too many buffers, cannot fit in SCB area\n");
 		CX18_ERR("Max buffers = %zd\n",

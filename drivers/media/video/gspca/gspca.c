@@ -1401,7 +1401,7 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 	i = ret;				/* frame index */
 	frame = &gspca_dev->frame[i];
 	if (gspca_dev->memory == V4L2_MEMORY_USERPTR) {
-		if (copy_to_user((__u8 *) frame->v4l2_buf.m.userptr,
+		if (copy_to_user((__u8 __user *) frame->v4l2_buf.m.userptr,
 				 frame->data,
 				 frame->v4l2_buf.bytesused)) {
 			PDEBUG(D_ERR|D_STREAM,
