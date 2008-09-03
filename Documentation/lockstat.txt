@@ -100,6 +100,7 @@ The first lock (05-10) is a read/write lock, and shows two lines above the
 short separator. The contention points don't match the column descriptors,
 they have two: contentions and [<IP>] symbol.
 
+The integer part of the time values is in us.
 
 View the top contending locks:
 
