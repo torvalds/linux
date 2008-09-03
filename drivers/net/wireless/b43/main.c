@@ -2718,7 +2718,8 @@ static int b43_chip_init(struct b43_wldev *dev)
 	if (err)
 		goto err_gpio_clean;
 
-	b43_write16(dev, 0x03E6, 0x0000);
+	/* Turn the Analog on and initialize the PHY. */
+	phy->ops->switch_analog(dev, 1);
 	err = b43_phy_init(dev);
 	if (err)
 		goto err_gpio_clean;
