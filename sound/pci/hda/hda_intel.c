@@ -222,9 +222,9 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define RIRB_INT_OVERRUN	0x04
 #define RIRB_INT_MASK		0x05
 
-/* STATESTS int mask: SD2,SD1,SD0 */
-#define AZX_MAX_CODECS		3
-#define STATESTS_INT_MASK	0x07
+/* STATESTS int mask: S3,SD2,SD1,SD0 */
+#define AZX_MAX_CODECS		4
+#define STATESTS_INT_MASK	0x0f
 
 /* SD_CTL bits */
 #define SD_CTL_STREAM_RESET	0x01	/* stream reset bit */
@@ -410,6 +410,7 @@ enum {
 	AZX_DRIVER_ULI,
 	AZX_DRIVER_NVIDIA,
 	AZX_DRIVER_TERA,
+	AZX_NUM_DRIVERS, /* keep this as last entry */
 };
 
 static char *driver_short_names[] __devinitdata = {
@@ -1184,16 +1185,18 @@ static int azx_setup_controller(struct azx *chip, struct azx_dev *azx_dev)
  * Codec initialization
  */
 
-static unsigned int azx_max_codecs[] __devinitdata = {
-	[AZX_DRIVER_ICH] = 4,		/* Some ICH9 boards use SD3 */
-	[AZX_DRIVER_SCH] = 3,
-	[AZX_DRIVER_ATI] = 4,
-	[AZX_DRIVER_ATIHDMI] = 4,
-	[AZX_DRIVER_VIA] = 3,		/* FIXME: correct? */
-	[AZX_DRIVER_SIS] = 3,		/* FIXME: correct? */
-	[AZX_DRIVER_ULI] = 3,		/* FIXME: correct? */
-	[AZX_DRIVER_NVIDIA] = 3,	/* FIXME: correct? */
+/* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
+static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
 	[AZX_DRIVER_TERA] = 1,
+};
+
+/* number of slots to probe as default
+ * this can be different from azx_max_codecs[] -- e.g. some boards
+ * report wrongly the non-existing 4th slot availability
+ */
+static unsigned int azx_default_codecs[AZX_NUM_DRIVERS] __devinitdata = {
+	[AZX_DRIVER_ICH] = 3,
+	[AZX_DRIVER_ATI] = 3,
 };
 
 static int __devinit azx_codec_create(struct azx *chip, const char *model,
@@ -1201,6 +1204,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 {
 	struct hda_bus_template bus_temp;
 	int c, codecs, audio_codecs, err;
+	int def_slots, max_slots;
 
 	memset(&bus_temp, 0, sizeof(bus_temp));
 	bus_temp.private_data = chip;
@@ -1217,7 +1221,13 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 		return err;
 
 	codecs = audio_codecs = 0;
-	for (c = 0; c < AZX_MAX_CODECS; c++) {
+	max_slots = azx_max_codecs[chip->driver_type];
+	if (!max_slots)
+		max_slots = AZX_MAX_CODECS;
+	def_slots = azx_default_codecs[chip->driver_type];
+	if (!def_slots)
+		def_slots = max_slots;
+	for (c = 0; c < def_slots; c++) {
 		if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 			struct hda_codec *codec;
 			err = snd_hda_codec_new(chip->bus, c, &codec);
@@ -1230,7 +1240,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model,
 	}
 	if (!audio_codecs) {
 		/* probe additional slots if no codec is found */
-		for (; c < azx_max_codecs[chip->driver_type]; c++) {
+		for (; c < max_slots; c++) {
 			if ((chip->codec_mask & (1 << c)) & codec_probe_mask) {
 				err = snd_hda_codec_new(chip->bus, c, NULL);
 				if (err < 0)
