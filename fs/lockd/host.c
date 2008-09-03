@@ -116,7 +116,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 	 */
 	chain = &nlm_hosts[hash];
 	hlist_for_each_entry(host, pos, chain, h_hash) {
-		if (!nlm_cmp_addr(&host->h_addr, sin))
+		if (!nlm_cmp_addr(nlm_addr_in(host), sin))
 			continue;
 
 		/* See if we have an NSM handle for this client */
@@ -165,8 +165,9 @@ static struct nlm_host *nlm_lookup_host(int server,
 		goto out;
 	}
 	host->h_name	   = nsm->sm_name;
-	host->h_addr       = *sin;
-	nlm_clear_port((struct sockaddr *)&host->h_addr);
+	memcpy(nlm_addr(host), sin, sizeof(*sin));
+	host->h_addrlen = sizeof(*sin);
+	nlm_clear_port(nlm_addr(host));
 	host->h_saddr	   = *ssin;
 	host->h_version    = version;
 	host->h_proto      = proto;
@@ -291,8 +292,8 @@ nlm_bind_host(struct nlm_host *host)
 		};
 		struct rpc_create_args args = {
 			.protocol	= host->h_proto,
-			.address	= (struct sockaddr *)&host->h_addr,
-			.addrsize	= sizeof(host->h_addr),
+			.address	= nlm_addr(host),
+			.addrsize	= host->h_addrlen,
 			.saddress	= (struct sockaddr *)&host->h_saddr,
 			.timeout	= &timeparms,
 			.servername	= host->h_name,

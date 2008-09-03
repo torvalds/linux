@@ -38,7 +38,8 @@
  */
 struct nlm_host {
 	struct hlist_node	h_hash;		/* doubly linked list */
-	struct sockaddr_in	h_addr;		/* peer address */
+	struct sockaddr_storage	h_addr;		/* peer address */
+	size_t			h_addrlen;
 	struct sockaddr_in	h_saddr;	/* our address (optional) */
 	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
 	char *			h_name;		/* remote hostname */
@@ -75,6 +76,19 @@ struct nsm_handle {
 				sm_sticky : 1;	/* don't unmonitor */
 	char			sm_addrbuf[48];	/* address eyecatcher */
 };
+
+/*
+ * Rigorous type checking on sockaddr type conversions
+ */
+static inline struct sockaddr_in *nlm_addr_in(const struct nlm_host *host)
+{
+	return (struct sockaddr_in *)&host->h_addr;
+}
+
+static inline struct sockaddr *nlm_addr(const struct nlm_host *host)
+{
+	return (struct sockaddr *)&host->h_addr;
+}
 
 /*
  * Map an fl_owner_t into a unique 32-bit "pid"
