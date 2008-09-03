@@ -2595,7 +2595,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 							rx_status->band);
 
 		prev_rates = sta->supp_rates[rx_status->band];
-		sta->supp_rates[rx_status->band] &= supp_rates;
+		sta->supp_rates[rx_status->band] = supp_rates;
 		if (sta->supp_rates[rx_status->band] == 0) {
 			/* No matching rates - this should not really happen.
 			 * Make sure that at least one rate is marked
