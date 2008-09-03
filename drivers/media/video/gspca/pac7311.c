@@ -1049,6 +1049,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x093a, 0x260f), .driver_info = SENSOR_PAC7311},
 	{USB_DEVICE(0x093a, 0x2621), .driver_info = SENSOR_PAC7302},
 	{USB_DEVICE(0x093a, 0x2624), .driver_info = SENSOR_PAC7302},
+	{USB_DEVICE(0x093a, 0x2626), .driver_info = SENSOR_PAC7302},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);

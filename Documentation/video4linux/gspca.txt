@@ -189,6 +189,7 @@ pac7311		093a:260e	Gigaware VGA PC Camera, Trust WB-3350p, SIGMA cam 2350
 pac7311		093a:260f	SnakeCam
 pac7311		093a:2621	PAC731x
 pac7311		093a:2624	PAC7302
+pac7311		093a:2626	Labtec 2200
 zc3xx		0ac8:0302	Z-star Vimicro zc0302
 vc032x		0ac8:0321	Vimicro generic vc0321
 vc032x		0ac8:0323	Vimicro Vc0323
