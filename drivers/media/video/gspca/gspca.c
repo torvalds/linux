@@ -114,7 +114,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	cam_pkt_op pkt_scan;
 
 	if (urb->status != 0) {
-		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		if (!gspca_dev->frozen)
+			PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
 		return;		/* disconnection ? */
 	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
@@ -1808,6 +1809,33 @@ void gspca_disconnect(struct usb_interface *intf)
 }
 EXPORT_SYMBOL(gspca_disconnect);
 
+#ifdef CONFIG_PM
+int gspca_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+
+	if (!gspca_dev->streaming)
+		return 0;
+	gspca_dev->frozen = 1;		/* avoid urb error messages */
+	gspca_dev->sd_desc->stopN(gspca_dev);
+	destroy_urbs(gspca_dev);
+	gspca_set_alt0(gspca_dev);
+	gspca_dev->sd_desc->stop0(gspca_dev);
+	return 0;
+}
+EXPORT_SYMBOL(gspca_suspend);
+
+int gspca_resume(struct usb_interface *intf)
+{
+	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+
+	gspca_dev->frozen = 0;
+	if (!gspca_dev->streaming)
+		return 0;
+	return gspca_init_transfer(gspca_dev);
+}
+EXPORT_SYMBOL(gspca_resume);
+#endif
 /* -- cam driver utility functions -- */
 
 /* auto gain and exposure algorithm based on the knee algorithm described here:

@@ -154,6 +154,9 @@ struct gspca_dev {
 	struct mutex queue_lock;	/* ISOC queue protection */
 	__u32 sequence;			/* frame sequence number */
 	char streaming;
+#ifdef CONFIG_PM
+	char frozen;			/* suspend - resume */
+#endif
 	char users;			/* number of opens */
 	char present;			/* device connected */
 	char nbufread;			/* number of buffers for read() */
@@ -173,6 +176,10 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len);
+#ifdef CONFIG_PM
+int gspca_suspend(struct usb_interface *intf, pm_message_t message);
+int gspca_resume(struct usb_interface *intf);
+#endif
 int gspca_auto_gain_n_exposure(struct gspca_dev *gspca_dev, int avg_lum,
 	int desired_avg_lum, int deadzone, int gain_knee, int exposure_knee);
 #endif /* GSPCAV2_H */
