@@ -1655,7 +1655,7 @@ print_lat_fmt(struct trace_iterator *iter, unsigned int trace_idx, int cpu)
 	case TRACE_PRINT:
 		seq_print_ip_sym(s, field->print.ip, sym_flags);
 		trace_seq_printf(s, ": %s", field->print.buf);
-		if (field->flags && TRACE_FLAG_CONT)
+		if (field->flags & TRACE_FLAG_CONT)
 			trace_seq_print_cont(s, iter);
 		break;
 	default:
@@ -1768,7 +1768,7 @@ static int print_trace_fmt(struct trace_iterator *iter)
 	case TRACE_PRINT:
 		seq_print_ip_sym(s, field->print.ip, sym_flags);
 		trace_seq_printf(s, ": %s", field->print.buf);
-		if (field->flags && TRACE_FLAG_CONT)
+		if (field->flags & TRACE_FLAG_CONT)
 			trace_seq_print_cont(s, iter);
 		break;
 	}
@@ -1833,7 +1833,7 @@ static int print_raw_fmt(struct trace_iterator *iter)
 	case TRACE_PRINT:
 		trace_seq_printf(s, "# %lx %s",
 				 field->print.ip, field->print.buf);
-		if (field->flags && TRACE_FLAG_CONT)
+		if (field->flags & TRACE_FLAG_CONT)
 			trace_seq_print_cont(s, iter);
 		break;
 	}
