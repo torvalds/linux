@@ -372,16 +372,8 @@ cpumask_t *tick_get_broadcast_oneshot_mask(void)
 static int tick_broadcast_set_event(ktime_t expires, int force)
 {
 	struct clock_event_device *bc = tick_broadcast_device.evtdev;
-	ktime_t now = ktime_get();
-	int res;
 
-	for(;;) {
-		res = clockevents_program_event(bc, expires, now);
-		if (!res || !force)
-			return res;
-		now = ktime_get();
-		expires = ktime_add(now, ktime_set(0, bc->min_delta_ns));
-	}
+	return tick_dev_program_event(bc, expires, force);
 }
 
 int tick_resume_broadcast_oneshot(struct clock_event_device *bc)
