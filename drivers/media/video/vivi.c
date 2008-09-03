@@ -1021,13 +1021,13 @@ static int vivi_release(void)
 		dev = list_entry(list, struct vivi_dev, vivi_devlist);
 
 		if (-1 != dev->vfd->minor) {
+			printk(KERN_INFO "%s: unregistering /dev/video%d\n",
+				VIVI_MODULE_NAME, dev->vfd->minor);
 			video_unregister_device(dev->vfd);
-			printk(KERN_INFO "%s: /dev/video%d unregistered.\n",
-				VIVI_MODULE_NAME, dev->vfd->minor);
 		} else {
-			video_device_release(dev->vfd);
-			printk(KERN_INFO "%s: /dev/video%d released.\n",
+			printk(KERN_INFO "%s: releasing /dev/video%d\n",
 				VIVI_MODULE_NAME, dev->vfd->minor);
+			video_device_release(dev->vfd);
 		}
 
 		kfree(dev);
