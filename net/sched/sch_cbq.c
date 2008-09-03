@@ -1754,7 +1754,7 @@ static void cbq_put(struct Qdisc *sch, unsigned long arg)
 
 	if (--cl->refcnt == 0) {
 #ifdef CONFIG_NET_CLS_ACT
-		spinlock_t *root_lock = qdisc_root_lock(sch);
+		spinlock_t *root_lock = qdisc_root_sleeping_lock(sch);
 		struct cbq_sched_data *q = qdisc_priv(sch);
 
 		spin_lock_bh(root_lock);
