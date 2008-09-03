@@ -702,8 +702,16 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 static void put_jpeg_head(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame)
 {
+	struct sd *sd = (struct sd *) gspca_dev;
 	unsigned char tmpbuf[4];
 
+	if (sd->ag_cnt >= 0) {
+		if (--sd->ag_cnt < 0) {
+			sd->ag_cnt = AG_CNT_START;
+			atomic_set(&sd->avg_lum, sd->lum_sum / AG_CNT_START);
+			atomic_set(&sd->do_gain, 1);
+		}
+	}
 	gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
 			(__u8 *) pac7311_jpeg_header,
 			12);
@@ -727,7 +735,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
 
-#define INTER_FRAME 0x53
+#define INTER_FRAME 0x53	/* eof + inter frame + sof */
 #define LUM_OFFSET 0x1e		/* reverse offset / start of frame */
 
 	/*
@@ -746,11 +754,18 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	if (sd->tosof == 0) {	/* if inside a frame */
 
 		/* check for 'ff ff ff xx' at start and at end of packet */
-		/* (len is always >= 3) */
+		/* (len is always >= 3 and xx never ff) */
 		switch (sd->ffnb) {
 		case 1:
-			if (data[0] != 0xff)
+			if (data[0] != 0xff) {	/* can be '00' only */
+				__u8 ff;
+
+				sd->ffnb = 0;
+				ff = 0xff;
+				gspca_frame_add(gspca_dev, INTER_PACKET,
+						frame, &ff, 1);
 				break;		/* keep 'ff 00' */
+			}
 			/* fall thru */
 		case 2:
 		case 3:
@@ -775,16 +790,13 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		}
 	} else {		/* outside a frame */
 
-		/*
-		 * get the luminosity
-		 * and go to the start of frame
-		 */
+		/* get the luminosity and go to the start of frame */
 		data += sd->tosof;
 		len -= sd->tosof;
 		if (sd->tosof > LUM_OFFSET)
 			sd->lum_sum += data[-LUM_OFFSET];
-		put_jpeg_head(gspca_dev, frame);
 		sd->tosof = 0;
+		put_jpeg_head(gspca_dev, frame);
 	}
 
 	for (i = 0; i < len; i++) {
@@ -792,10 +804,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			continue;
 		switch (data[i + 1]) {
 		case 0xd9:		/* end of frame */
-			i += 2;
 			frame = gspca_frame_add(gspca_dev,
 						LAST_PACKET,
-						frame, data, i);
+						frame, data, i + 2);
 			data += i + INTER_FRAME;
 			len -= i + INTER_FRAME;
 			i = 0;
@@ -816,6 +827,8 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			break;
 		}
 	}
+	gspca_frame_add(gspca_dev, INTER_PACKET,
+			frame, data, i);
 }
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
