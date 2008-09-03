@@ -1838,9 +1838,12 @@ int gspca_resume(struct usb_interface *intf)
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 
 	gspca_dev->frozen = 0;
-	if (!gspca_dev->streaming)
-		return 0;
-	return gspca_init_transfer(gspca_dev);
+	if (gspca_dev->users != 0) {
+		gspca_dev->sd_desc->open(gspca_dev);
+		if (gspca_dev->streaming)
+			return gspca_init_transfer(gspca_dev);
+	}
+	return 0;
 }
 EXPORT_SYMBOL(gspca_resume);
 #endif
