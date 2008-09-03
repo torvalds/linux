@@ -281,7 +281,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	default:
 		printk(KERN_ERR "%s called with unknown type: %d\n",
 		       __func__, type);
-		return -1;
+		return -EINVAL;
 	}
 
 	/* pick a minor number */
