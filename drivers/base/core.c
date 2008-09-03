@@ -523,11 +523,16 @@ static void klist_children_put(struct klist_node *n)
  * device_initialize - init device structure.
  * @dev: device.
  *
- * This prepares the device for use by other layers,
- * including adding it to the device hierarchy.
+ * This prepares the device for use by other layers by initializing
+ * its fields.
  * It is the first half of device_register(), if called by
- * that, though it can also be called separately, so one
- * may use @dev's fields (e.g. the refcount).
+ * that function, though it can also be called separately, so one
+ * may use @dev's fields. In particular, get_device()/put_device()
+ * may be used for reference counting of @dev after calling this
+ * function.
+ *
+ * NOTE: Use put_device() to give up your reference instead of freeing
+ * @dev directly once you have called this function.
  */
 void device_initialize(struct device *dev)
 {
@@ -835,9 +840,13 @@ static void device_remove_sys_dev_entry(struct device *dev)
  * This is part 2 of device_register(), though may be called
  * separately _iff_ device_initialize() has been called separately.
  *
- * This adds it to the kobject hierarchy via kobject_add(), adds it
+ * This adds @dev to the kobject hierarchy via kobject_add(), adds it
  * to the global and sibling lists for the device, then
  * adds it to the other relevant subsystems of the driver model.
+ *
+ * NOTE: _Never_ directly free @dev after calling this function, even
+ * if it returned an error! Always use put_device() to give up your
+ * reference instead.
  */
 int device_add(struct device *dev)
 {
@@ -965,6 +974,10 @@ done:
  * I.e. you should only call the two helpers separately if
  * have a clearly defined need to use and refcount the device
  * before it is added to the hierarchy.
+ *
+ * NOTE: _Never_ directly free @dev after calling this function, even
+ * if it returned an error! Always use put_device() to give up the
+ * reference initialized in this function instead.
  */
 int device_register(struct device *dev)
 {
