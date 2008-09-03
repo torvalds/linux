@@ -1694,8 +1694,8 @@ static int si470x_usb_driver_probe(struct usb_interface *intf,
 	INIT_DELAYED_WORK(&radio->work, si470x_work);
 
 	/* register video device */
-	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr)) {
-		retval = -EIO;
+	retval = video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr);
+	if (retval) {
 		printk(KERN_WARNING DRIVER_NAME
 				": Could not register video device\n");
 		goto err_all;

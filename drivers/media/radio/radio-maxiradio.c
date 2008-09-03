@@ -410,7 +410,7 @@ static int __devinit maxiradio_init_one(struct pci_dev *pdev, const struct pci_d
 	mutex_init(&radio_unit.lock);
 	maxiradio_radio.priv = &radio_unit;
 
-	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr)==-1) {
+	if (video_register_device(&maxiradio_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		printk("radio-maxiradio: can't register device!");
 		goto err_out_free_region;
 	}
