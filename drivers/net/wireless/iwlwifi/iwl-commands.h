@@ -163,6 +163,13 @@ enum {
 /* iwl_cmd_header flags value */
 #define IWL_CMD_FAILED_MSK 0x40
 
+#define SEQ_TO_QUEUE(s)	(((s) >> 8) & 0x1f)
+#define QUEUE_TO_SEQ(q)	(((q) & 0x1f) << 8)
+#define SEQ_TO_INDEX(s)	((s) & 0xff)
+#define INDEX_TO_SEQ(i)	((i) & 0xff)
+#define SEQ_HUGE_FRAME	__constant_cpu_to_le16(0x4000)
+#define SEQ_RX_FRAME	__constant_cpu_to_le16(0x8000)
+
 /**
  * struct iwl_cmd_header
  *
@@ -171,7 +178,7 @@ enum {
  */
 struct iwl_cmd_header {
 	u8 cmd;		/* Command ID:  REPLY_RXON, etc. */
-	u8 flags;	/* IWL_CMD_* */
+	u8 flags;	/* 0:5 reserved, 6 abort, 7 internal */
 	/*
 	 * The driver sets up the sequence number to values of its chosing.
 	 * uCode does not use this value, but passes it back to the driver
@@ -187,11 +194,12 @@ struct iwl_cmd_header {
 	 *
 	 * The Linux driver uses the following format:
 	 *
-	 *  0:7    index/position within Tx queue
-	 *  8:13   Tx queue selection
-	 * 14:14   driver sets this to indicate command is in the 'huge'
-	 *         storage at the end of the command buffers, i.e. scan cmd
-	 * 15:15   uCode sets this in uCode-originated response/notification
+	 *  0:7		tfd index - position within TX queue
+	 *  8:12	TX queue id
+	 *  13		reserved
+	 *  14		huge - driver sets this to indicate command is in the
+	 *  		'huge' storage at the end of the command buffers
+	 *  15		unsolicited RX or uCode-originated notification
 	 */
 	__le16 sequence;
 

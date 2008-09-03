@@ -1057,7 +1057,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(IWL_CMD_QUEUE_NUM) |
 			INDEX_TO_SEQ(q->write_ptr));
 	if (out_cmd->meta.flags & CMD_SIZE_HUGE)
-		out_cmd->hdr.sequence |= cpu_to_le16(SEQ_HUGE_FRAME);
+		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 	len = (idx == TFD_CMD_SLOTS) ?
 			IWL_MAX_SCAN_SIZE : sizeof(struct iwl_cmd);
 	phys_addr = pci_map_single(priv->pci_dev, out_cmd, len,
@@ -1192,8 +1192,8 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	int huge = sequence & SEQ_HUGE_FRAME;
 	int cmd_index;
+	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct iwl_cmd *cmd;
 
 	/* If a Tx command is being handled and it isn't in the actual
