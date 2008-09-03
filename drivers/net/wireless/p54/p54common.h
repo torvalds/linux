@@ -186,7 +186,7 @@ struct p54_rx_hdr {
 	u8 quality;
 	u16 unknown2;
 	__le64 timestamp;
-	u8 data[0];
+	u8 align[0];
 } __attribute__ ((packed));
 
 struct p54_frame_sent_hdr {
@@ -218,14 +218,29 @@ struct p54_tx_control_filter {
 	u8 bssid[ETH_ALEN];
 	u8 rx_antenna;
 	u8 rx_align;
-	__le32 basic_rate_mask;
-	u8 rts_rates[8];
-	__le32 rx_addr;
-	__le16 max_rx;
-	__le16 rxhw;
-	__le16 wakeup_timer;
-	__le16 unalloc;
+	union {
+		struct {
+			__le32 basic_rate_mask;
+			u8 rts_rates[8];
+			__le32 rx_addr;
+			__le16 max_rx;
+			__le16 rxhw;
+			__le16 wakeup_timer;
+			__le16 unalloc0;
+		} v1 __attribute__ ((packed));
+		struct {
+			__le32 rx_addr;
+			__le16 max_rx;
+			__le16 rxhw;
+			__le16 timer;
+			__le16 unalloc0;
+			__le32 unalloc1;
+		} v2 __attribute__ ((packed));
+	} __attribute__ ((packed));
 } __attribute__ ((packed));
+
+#define P54_TX_CONTROL_FILTER_V1_LEN (sizeof(struct p54_tx_control_filter))
+#define P54_TX_CONTROL_FILTER_V2_LEN (sizeof(struct p54_tx_control_filter)-8)
 
 struct p54_tx_control_channel {
 	__le16 flags;
@@ -238,14 +253,28 @@ struct p54_tx_control_channel {
 	u8 val_qpsk;
 	u8 val_16qam;
 	u8 val_64qam;
-	struct pda_pa_curve_data_sample_rev1 curve_data[8];
+	struct p54_pa_curve_data_sample curve_data[8];
 	u8 dup_bpsk;
 	u8 dup_qpsk;
 	u8 dup_16qam;
 	u8 dup_64qam;
-	__le16 rssical_mul;
-	__le16 rssical_add;
+	union {
+		struct {
+			__le16 rssical_mul;
+			__le16 rssical_add;
+		} v1 __attribute__ ((packed));
+
+		struct {
+			__le32 basic_rate_mask;
+			 u8 rts_rates[8];
+			__le16 rssical_mul;
+			__le16 rssical_add;
+		} v2 __attribute__ ((packed));
+	} __attribute__ ((packed));
 } __attribute__ ((packed));
+
+#define P54_TX_CONTROL_CHANNEL_V1_LEN (sizeof(struct p54_tx_control_channel)-12)
+#define P54_TX_CONTROL_CHANNEL_V2_LEN (sizeof(struct p54_tx_control_channel))
 
 struct p54_tx_control_led {
 	__le16 mode;
