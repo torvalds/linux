@@ -63,6 +63,7 @@ struct p54_common {
 	struct mutex conf_mutex;
 	u8 mac_addr[ETH_ALEN];
 	u8 bssid[ETH_ALEN];
+	__le16 filter_type;
 	struct pda_iq_autocal_entry *iq_autocal;
 	unsigned int iq_autocal_len;
 	struct pda_channel_output_limit *output_limit;
@@ -70,6 +71,7 @@ struct p54_common {
 	struct pda_pa_curve_data *curve_data;
 	u16 rxhw;
 	u8 version;
+	u8 rx_antenna;
 	unsigned int tx_hdr_len;
 	void *cached_vdcf;
 	unsigned int fw_var;

@@ -786,8 +786,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 }
 
 static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
-			  const u8 *dst, const u8 *src, u8 antenna,
-			  u32 magic3, u32 magic8, u32 magic9)
+			  const u8 *bssid)
 {
 	struct p54_common *priv = dev->priv;
 	struct p54_control_hdr *hdr;
@@ -806,19 +805,19 @@ static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
 	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*filter));
 	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_FILTER_SET);
 
-	filter->filter_type = cpu_to_le16(filter_type);
-	memcpy(filter->dst, dst, ETH_ALEN);
-	if (!src)
-		memset(filter->src, ~0, ETH_ALEN);
+	priv->filter_type = filter->filter_type = cpu_to_le16(filter_type);
+	memcpy(filter->mac_addr, priv->mac_addr, ETH_ALEN);
+	if (!bssid)
+		memset(filter->bssid, ~0, ETH_ALEN);
 	else
-		memcpy(filter->src, src, ETH_ALEN);
-	filter->antenna = antenna;
-	filter->magic3 = cpu_to_le32(magic3);
+		memcpy(filter->bssid, bssid, ETH_ALEN);
+
+	filter->rx_antenna = priv->rx_antenna;
+	filter->basic_rate_mask = cpu_to_le32(0x15F);
 	filter->rx_addr = cpu_to_le32(priv->rx_end);
 	filter->max_rx = cpu_to_le16(priv->rx_mtu);
 	filter->rxhw = cpu_to_le16(priv->rxhw);
-	filter->magic8 = cpu_to_le16(magic8);
-	filter->magic9 = cpu_to_le16(magic9);
+	filter->wakeup_timer = cpu_to_le16(500);
 
 	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*filter), 1);
 	return 0;
@@ -1044,12 +1043,11 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 
 	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 
-	p54_set_filter(dev, 0, priv->mac_addr, NULL, 0, 1, 0, 0xF642);
-	p54_set_filter(dev, 0, priv->mac_addr, NULL, 1, 0, 0, 0xF642);
+	p54_set_filter(dev, 0, NULL);
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_STA:
-		p54_set_filter(dev, 1, priv->mac_addr, NULL, 0, 0x15F, 0x1F4, 0);
+		p54_set_filter(dev, 1, NULL);
 		break;
 	default:
 		BUG();	/* impossible */
@@ -1067,7 +1065,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
-	p54_set_filter(dev, 0, priv->mac_addr, NULL, 2, 0, 0, 0);
+	p54_set_filter(dev, 0, NULL);
 }
 
 static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -1076,6 +1074,8 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
+	priv->rx_antenna = (conf->antenna_sel_rx == 0) ?
+		2 : conf->antenna_sel_tx - 1;
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
 	mutex_unlock(&priv->conf_mutex);
@@ -1089,8 +1089,7 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
-	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 0, 1, 0, 0xF642);
-	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 2, 0, 0, 0);
+	p54_set_filter(dev, 0, conf->bssid);
 	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
 	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	mutex_unlock(&priv->conf_mutex);
@@ -1108,11 +1107,9 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			p54_set_filter(dev, 0, priv->mac_addr,
-				       NULL, 2, 0, 0, 0);
+			p54_set_filter(dev, 0, NULL);
 		else
-			p54_set_filter(dev, 0, priv->mac_addr,
-				       priv->bssid, 2, 0, 0, 0);
+			p54_set_filter(dev, 0, priv->bssid);
 	}
 }
 

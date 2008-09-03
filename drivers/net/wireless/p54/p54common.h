@@ -214,17 +214,17 @@ struct p54_tx_control_allocdata {
 
 struct p54_tx_control_filter {
 	__le16 filter_type;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN];
-	u8 antenna;
-	u8 debug;
-	__le32 magic3;
-	u8 rates[8];	// FIXME: what's this for?
+	u8 mac_addr[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	u8 rx_antenna;
+	u8 rx_align;
+	__le32 basic_rate_mask;
+	u8 rts_rates[8];
 	__le32 rx_addr;
 	__le16 max_rx;
 	__le16 rxhw;
-	__le16 magic8;
-	__le16 magic9;
+	__le16 wakeup_timer;
+	__le16 unalloc;
 } __attribute__ ((packed));
 
 struct p54_tx_control_channel {
