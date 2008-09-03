@@ -39,7 +39,7 @@
 
    Address	Description
    0x02		Clock divider 2-63, fps =~ 60 / val. Must be a multiple of 3 on
-		the 7302, so one of 3, 6, 9, ...
+		the 7302, so one of 3, 6, 9, ..., except when between 6 and 12?
    -/0x0f	Master gain 1-245, low value = high gain
    0x10/-	Master gain 0-31
    -/0x10	Another gain 0-15, limited influence (1-2x gain I guess)
@@ -626,8 +626,9 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 	if (sd->sensor == SENSOR_PAC7302) {
 		/* On the pac7302 reg2 MUST be a multiple of 3, so round it to
-		   the nearest multiple of 3 */
-		reg = ((reg + 1) / 3) * 3;
+		   the nearest multiple of 3, except when between 6 and 12? */
+		if (reg < 6 || reg > 12)
+			reg = ((reg + 1) / 3) * 3;
 		reg_w(gspca_dev, 0xff, 0x03);		/* page 3 */
 		reg_w(gspca_dev, 0x02, reg);
 	} else {
@@ -761,20 +762,32 @@ static void do_autogain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int avg_lum = atomic_read(&sd->avg_lum);
-	int desired_lum;
+	int desired_lum, deadzone;
 
 	if (avg_lum == -1)
 		return;
 
-	if (sd->sensor == SENSOR_PAC7302)
-		desired_lum = 70 + sd->brightness * 2;
-	else
+	if (sd->sensor == SENSOR_PAC7302) {
+		desired_lum = 270 + sd->brightness * 4;
+		/* Hack hack, with the 7202 the first exposure step is
+		   pretty large, so if we're about to make the first
+		   exposure increase make the deadzone large to avoid
+		   oscilating */
+		if (desired_lum > avg_lum && sd->gain == GAIN_DEF &&
+				sd->exposure > EXPOSURE_DEF &&
+				sd->exposure < 42)
+			deadzone = 90;
+		else
+			deadzone = 30;
+	} else {
 		desired_lum = 200;
+		deadzone = 20;
+	}
 
 	if (sd->autogain_ignore_frames > 0)
 		sd->autogain_ignore_frames--;
 	else if (gspca_auto_gain_n_exposure(gspca_dev, avg_lum, desired_lum,
-			10, GAIN_KNEE, EXPOSURE_KNEE))
+			deadzone, GAIN_KNEE, EXPOSURE_KNEE))
 		sd->autogain_ignore_frames = PAC_AUTOGAIN_IGNORE_FRAMES;
 }
 
@@ -802,7 +815,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		int n, lum_offset, footer_length;
 
 		if (sd->sensor == SENSOR_PAC7302) {
-		  lum_offset = 34 + sizeof pac_sof_marker;
+		  /* 6 bytes after the FF D9 EOF marker a number of lumination
+		     bytes are send corresponding to different parts of the
+		     image, the 14th and 15th byte after the EOF seem to
+		     correspond to the center of the image */
+		  lum_offset = 61 + sizeof pac_sof_marker;
 		  footer_length = 74;
 		} else {
 		  lum_offset = 24 + sizeof pac_sof_marker;
@@ -829,18 +846,11 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 
 		/* Get average lumination */
 		if (gspca_dev->last_packet_type == LAST_PACKET &&
-				n >= lum_offset) {
-			if (sd->sensor == SENSOR_PAC7302)
-				atomic_set(&sd->avg_lum,
-						(data[-lum_offset] << 8) |
+				n >= lum_offset)
+			atomic_set(&sd->avg_lum, data[-lum_offset] +
 						data[-lum_offset + 1]);
-			else
-				atomic_set(&sd->avg_lum,
-						data[-lum_offset] +
-						data[-lum_offset + 1]);
-		} else {
+		else
 			atomic_set(&sd->avg_lum, -1);
-		}
 
 		/* Start the new frame with the jpeg header */
 		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
