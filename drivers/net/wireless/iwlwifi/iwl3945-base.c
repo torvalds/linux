@@ -4814,7 +4814,6 @@ static inline u16 iwl3945_get_active_dwell_time(struct iwl3945_priv *priv,
 static u16 iwl3945_get_passive_dwell_time(struct iwl3945_priv *priv,
 					  enum ieee80211_band band)
 {
-	u16 active = iwl3945_get_active_dwell_time(priv, band);
 	u16 passive = (band == IEEE80211_BAND_2GHZ) ?
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_24 :
 	    IWL_PASSIVE_DWELL_BASE + IWL_PASSIVE_DWELL_TIME_52;
@@ -4828,9 +4827,6 @@ static u16 iwl3945_get_passive_dwell_time(struct iwl3945_priv *priv,
 			passive = IWL_PASSIVE_DWELL_BASE;
 		passive = (passive * 98) / 100 - IWL_CHANNEL_TUNE_TIME * 2;
 	}
-
-	if (passive <= active)
-		passive = active + 1;
 
 	return passive;
 }
@@ -4855,6 +4851,9 @@ static int iwl3945_get_channels_for_scan(struct iwl3945_priv *priv,
 
 	active_dwell = iwl3945_get_active_dwell_time(priv, band);
 	passive_dwell = iwl3945_get_passive_dwell_time(priv, band);
+
+	if (passive_dwell <= active_dwell)
+		passive_dwell = active_dwell + 1;
 
 	for (i = 0, added = 0; i < sband->n_channels; i++) {
 		if (channels[i].flags & IEEE80211_CHAN_DISABLED)
