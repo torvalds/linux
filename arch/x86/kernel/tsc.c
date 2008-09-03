@@ -122,15 +122,75 @@ static u64 tsc_read_refs(u64 *pm, u64 *hpet)
 	return ULLONG_MAX;
 }
 
+/*
+ * Try to calibrate the TSC against the Programmable
+ * Interrupt Timer and return the frequency of the TSC
+ * in kHz.
+ *
+ * Return ULONG_MAX on failure to calibrate.
+ */
+static unsigned long pit_calibrate_tsc(void)
+{
+	u64 tsc, t1, t2, delta;
+	unsigned long tscmin, tscmax;
+	int pitcnt;
+
+	/* Set the Gate high, disable speaker */
+	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
+
+	/*
+	 * Setup CTC channel 2* for mode 0, (interrupt on terminal
+	 * count mode), binary count. Set the latch register to 50ms
+	 * (LSB then MSB) to begin countdown.
+	 */
+	outb(0xb0, 0x43);
+	outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
+	outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
+
+	tsc = t1 = t2 = get_cycles();
+
+	pitcnt = 0;
+	tscmax = 0;
+	tscmin = ULONG_MAX;
+	while ((inb(0x61) & 0x20) == 0) {
+		t2 = get_cycles();
+		delta = t2 - tsc;
+		tsc = t2;
+		if ((unsigned long) delta < tscmin)
+			tscmin = (unsigned int) delta;
+		if ((unsigned long) delta > tscmax)
+			tscmax = (unsigned int) delta;
+		pitcnt++;
+	}
+
+	/*
+	 * Sanity checks:
+	 *
+	 * If we were not able to read the PIT more than 5000
+	 * times, then we have been hit by a massive SMI
+	 *
+	 * If the maximum is 10 times larger than the minimum,
+	 * then we got hit by an SMI as well.
+	 */
+	if (pitcnt < 5000 || tscmax > 10 * tscmin)
+		return ULONG_MAX;
+
+	/* Calculate the PIT value */
+	delta = t2 - t1;
+	do_div(delta, 50);
+	return delta;
+}
+
+
 /**
  * native_calibrate_tsc - calibrate the tsc on boot
  */
 unsigned long native_calibrate_tsc(void)
 {
-	u64 tsc1, tsc2, tr1, tr2, tsc, delta, pm1, pm2, hpet1, hpet2;
+	u64 tsc1, tsc2, delta, pm1, pm2, hpet1, hpet2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
-	unsigned long flags, tscmin, tscmax;
-	int hpet = is_hpet_enabled(), pitcnt, i;
+	unsigned long flags;
+	int hpet = is_hpet_enabled(), i;
 
 	/*
 	 * Run 5 calibration loops to get the lowest frequency value
@@ -157,72 +217,22 @@ unsigned long native_calibrate_tsc(void)
 	 * amount of time anyway.
 	 */
 	for (i = 0; i < 5; i++) {
-
-		tscmin = ULONG_MAX;
-		tscmax = 0;
-		pitcnt = 0;
-
-		local_irq_save(flags);
+		unsigned long tsc_pit_khz;
 
 		/*
 		 * Read the start value and the reference count of
-		 * hpet/pmtimer when available:
+		 * hpet/pmtimer when available. Then do the PIT
+		 * calibration, which will take at least 50ms, and
+		 * read the end value.
 		 */
+		local_irq_save(flags);
 		tsc1 = tsc_read_refs(&pm1, hpet ? &hpet1 : NULL);
-
-		/* Set the Gate high, disable speaker */
-		outb((inb(0x61) & ~0x02) | 0x01, 0x61);
-
-		/*
-		 * Setup CTC channel 2* for mode 0, (interrupt on terminal
-		 * count mode), binary count. Set the latch register to 50ms
-		 * (LSB then MSB) to begin countdown.
-		 *
-		 * Some devices need a delay here.
-		 */
-		outb(0xb0, 0x43);
-		outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
-		outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
-
-		tsc = tr1 = tr2 = get_cycles();
-
-		while ((inb(0x61) & 0x20) == 0) {
-			tr2 = get_cycles();
-			delta = tr2 - tsc;
-			tsc = tr2;
-			if ((unsigned int) delta < tscmin)
-				tscmin = (unsigned int) delta;
-			if ((unsigned int) delta > tscmax)
-				tscmax = (unsigned int) delta;
-			pitcnt++;
-		}
-
-		/*
-		 * We waited at least 50ms above. Now read
-		 * pmtimer/hpet reference again
-		 */
+		tsc_pit_khz = pit_calibrate_tsc();
 		tsc2 = tsc_read_refs(&pm2, hpet ? &hpet2 : NULL);
-
 		local_irq_restore(flags);
 
-		/*
-		 * Sanity checks:
-		 *
-		 * If we were not able to read the PIT more than 5000
-		 * times, then we have been hit by a massive SMI
-		 *
-		 * If the maximum is 10 times larger than the minimum,
-		 * then we got hit by an SMI as well.
-		 */
-		if (pitcnt > 5000 && tscmax < 10 * tscmin) {
-
-			/* Calculate the PIT value */
-			delta = tr2 - tr1;
-			do_div(delta, 50);
-
-			/* We take the smallest value into account */
-			tsc_pit_min = min(tsc_pit_min, (unsigned long) delta);
-		}
+		/* Pick the lowest PIT TSC calibration so far */
+		tsc_pit_min = min(tsc_pit_min, tsc_pit_khz);
 
 		/* hpet or pmtimer available ? */
 		if (!hpet && !pm1 && !pm2)
