@@ -904,10 +904,10 @@ static struct sd_desc sd_desc = {
 
 /* -- module initialisation -- */
 static __devinitdata struct usb_device_id device_table[] = {
-#ifndef CONFIG_USB_ET61X251
 	{USB_DEVICE(0x102c, 0x6151), .driver_info = SENSOR_PAS106},
-#endif
+#ifndef CONFIG_USB_ET61X251
 	{USB_DEVICE(0x102c, 0x6251), .driver_info = SENSOR_TAS5130CXX},
+#endif
 	{}
 };
 
