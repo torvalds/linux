@@ -129,7 +129,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 			continue;
 		if (host->h_server != server)
 			continue;
-		if (!nlm_cmp_addr(&host->h_saddr, ssin))
+		if (!nlm_cmp_addr(nlm_srcaddr_in(host), ssin))
 			continue;
 
 		/* Move to head of hash chain. */
@@ -168,7 +168,7 @@ static struct nlm_host *nlm_lookup_host(int server,
 	memcpy(nlm_addr(host), sin, sizeof(*sin));
 	host->h_addrlen = sizeof(*sin);
 	nlm_clear_port(nlm_addr(host));
-	host->h_saddr	   = *ssin;
+	memcpy(nlm_srcaddr(host), ssin, sizeof(*ssin));
 	host->h_version    = version;
 	host->h_proto      = proto;
 	host->h_rpcclnt    = NULL;
@@ -192,8 +192,8 @@ static struct nlm_host *nlm_lookup_host(int server,
 
 	nlm_display_address((struct sockaddr *)&host->h_addr,
 				host->h_addrbuf, sizeof(host->h_addrbuf));
-	nlm_display_address((struct sockaddr *)&host->h_saddr,
-				host->h_saddrbuf, sizeof(host->h_saddrbuf));
+	nlm_display_address((struct sockaddr *)&host->h_srcaddr,
+				host->h_srcaddrbuf, sizeof(host->h_srcaddrbuf));
 
 	dprintk("lockd: nlm_lookup_host created host %s\n",
 			host->h_name);
@@ -267,7 +267,7 @@ nlm_bind_host(struct nlm_host *host)
 	struct rpc_clnt	*clnt;
 
 	dprintk("lockd: nlm_bind_host %s (%s), my addr=%s\n",
-			host->h_name, host->h_addrbuf, host->h_saddrbuf);
+			host->h_name, host->h_addrbuf, host->h_srcaddrbuf);
 
 	/* Lock host handle */
 	mutex_lock(&host->h_mutex);
@@ -294,7 +294,7 @@ nlm_bind_host(struct nlm_host *host)
 			.protocol	= host->h_proto,
 			.address	= nlm_addr(host),
 			.addrsize	= host->h_addrlen,
-			.saddress	= (struct sockaddr *)&host->h_saddr,
+			.saddress	= nlm_srcaddr(host),
 			.timeout	= &timeparms,
 			.servername	= host->h_name,
 			.program	= &nlm_program,

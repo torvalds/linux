@@ -40,7 +40,7 @@ struct nlm_host {
 	struct hlist_node	h_hash;		/* doubly linked list */
 	struct sockaddr_storage	h_addr;		/* peer address */
 	size_t			h_addrlen;
-	struct sockaddr_in	h_saddr;	/* our address (optional) */
+	struct sockaddr_storage	h_srcaddr;	/* our address (optional) */
 	struct rpc_clnt	*	h_rpcclnt;	/* RPC client to talk to peer */
 	char *			h_name;		/* remote hostname */
 	u32			h_version;	/* interface version */
@@ -64,7 +64,7 @@ struct nlm_host {
 	struct nsm_handle *	h_nsmhandle;	/* NSM status handle */
 
 	char			h_addrbuf[48],	/* address eyecatchers */
-				h_saddrbuf[48];
+				h_srcaddrbuf[48];
 };
 
 struct nsm_handle {
@@ -88,6 +88,16 @@ static inline struct sockaddr_in *nlm_addr_in(const struct nlm_host *host)
 static inline struct sockaddr *nlm_addr(const struct nlm_host *host)
 {
 	return (struct sockaddr *)&host->h_addr;
+}
+
+static inline struct sockaddr_in *nlm_srcaddr_in(const struct nlm_host *host)
+{
+	return (struct sockaddr_in *)&host->h_srcaddr;
+}
+
+static inline struct sockaddr *nlm_srcaddr(const struct nlm_host *host)
+{
+	return (struct sockaddr *)&host->h_srcaddr;
 }
 
 /*
