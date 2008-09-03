@@ -108,9 +108,9 @@ static struct ctrl sd_ctrls[] = {
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Color",
 		.minimum = 0,
-		.maximum = 255,
+		.maximum = 64,
 		.step    = 1,
-#define COLOR_DEF 127
+#define COLOR_DEF 32
 		.default_value = COLOR_DEF,
 	    },
 	    .set = sd_setcolors,
@@ -1132,17 +1132,18 @@ static void setcontrast(struct gspca_dev *gspca_dev)
 static void setcolors(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	__u8 data;
-	int colour;
+	__u8 blue, red;
 
-	colour = sd->colors - 128;
-	if (colour > 0) {
-		data = (colour + 32) & 0x7f;	/* blue */
-		reg_w1(gspca_dev, 0x06, data);
+	if (sd->colors >= 32) {
+		red = 32 + (sd->colors - 32) / 2;
+		blue = 64 - sd->colors;
 	} else {
-		data = (-colour + 32) & 0x7f;	/* red */
-		reg_w1(gspca_dev, 0x05, data);
+		red = sd->colors;
+		blue = 32 + (32 - sd->colors) / 2;
 	}
+	reg_w1(gspca_dev, 0x05, red);
+/*	reg_w1(gspca_dev, 0x07, 32); */
+	reg_w1(gspca_dev, 0x06, blue);
 }
 
 static void setautogain(struct gspca_dev *gspca_dev)
