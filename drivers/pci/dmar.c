@@ -212,7 +212,7 @@ dmar_parse_dev(struct dmar_drhd_unit *dmaru)
 		include_all = 1;
 	}
 
-	if (ret || (dmaru->devices_cnt == 0 && !dmaru->include_all)) {
+	if (ret) {
 		list_del(&dmaru->list);
 		kfree(dmaru);
 	}
