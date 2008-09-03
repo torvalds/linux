@@ -1248,7 +1248,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_OV7630:
 		ov7630_InitSensor(gspca_dev);
 		reg17 = 0xe2;
-		reg1 = 0x40;
+		reg1 = 0x44;
 		break;
 	case SENSOR_OV7648:
 		ov7648_InitSensor(gspca_dev);
