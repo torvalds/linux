@@ -637,12 +637,6 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 
 struct iwl_priv;
 
-/*
- * Forward declare iwl-4965.c functions for iwl-base.c
- */
-extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
-int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
-					u8 tid, int txq_id);
 
 /* Structures, enum, and defines specific to the 4965 */
 
