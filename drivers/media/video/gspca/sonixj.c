@@ -59,7 +59,6 @@ struct sd {
 #define SENSOR_OV7648 5
 #define SENSOR_OV7660 6
 	unsigned char i2c_base;
-	__u8 regf1;
 };
 
 /* V4L2 controls supported by the driver */
@@ -929,7 +928,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->bridge = id->driver_info >> 16;
 	sd->sensor = id->driver_info >> 8;
 	sd->i2c_base = id->driver_info;
-	sd->regf1 = 0;			/*jfm: was 1 in v1*/
 
 	sd->qindex = 4;			/* set the quantization table */
 	sd->brightness = BRIGHTNESS_DEF;
@@ -982,7 +980,7 @@ static int sd_open(struct gspca_dev *gspca_dev)
 		break;
 	}
 
-	reg_w1(gspca_dev, 0xf1, sd->regf1);
+	reg_w1(gspca_dev, 0xf1, 0x01);
 
 	return 0;
 }
@@ -1346,7 +1344,7 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 	reg_w1(gspca_dev, 0x17, sn9c1xx[0x17]);
 	reg_w1(gspca_dev, 0x01, sn9c1xx[1]);
 	reg_w1(gspca_dev, 0x01, data);
-	reg_w1(gspca_dev, 0xf1, sd->regf1);
+	reg_w1(gspca_dev, 0xf1, 0x00);
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
