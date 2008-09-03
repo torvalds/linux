@@ -7508,26 +7508,21 @@ static const struct sd_desc sd_desc = {
 
 static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x041e, 0x041e)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4017)},
 	{USB_DEVICE(0x041e, 0x401c), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x401e)},
 	{USB_DEVICE(0x041e, 0x401f)},
-#endif
+	{USB_DEVICE(0x041e, 0x4022)},
 	{USB_DEVICE(0x041e, 0x4029)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x041e, 0x4034), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x4035), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x041e, 0x4036)},
 	{USB_DEVICE(0x041e, 0x403a)},
-#endif
 	{USB_DEVICE(0x041e, 0x4051), .driver_info = SENSOR_TAS5130C_VF0250},
 	{USB_DEVICE(0x041e, 0x4053), .driver_info = SENSOR_TAS5130C_VF0250},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0458, 0x7007)},
 	{USB_DEVICE(0x0458, 0x700c)},
 	{USB_DEVICE(0x0458, 0x700f)},
-#endif
 	{USB_DEVICE(0x0461, 0x0a00)},
 	{USB_DEVICE(0x046d, 0x08a0)},
 	{USB_DEVICE(0x046d, 0x08a1)},
@@ -7539,7 +7534,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x046d, 0x08aa)},
 	{USB_DEVICE(0x046d, 0x08ac)},
 	{USB_DEVICE(0x046d, 0x08ad)},
-#ifndef CONFIG_USB_ZC0301
+#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x046d, 0x08ae)},
 #endif
 	{USB_DEVICE(0x046d, 0x08af)},
@@ -7554,22 +7549,20 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0471, 0x032d), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x0471, 0x032e), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x055f, 0xc005)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x055f, 0xd003)},
 	{USB_DEVICE(0x055f, 0xd004)},
-#endif
 	{USB_DEVICE(0x0698, 0x2003)},
+	{USB_DEVICE(0x0ac8, 0x0301), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x0ac8, 0x0302)},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x301b)},
+#if !defined CONFIG_USB_ZC0301 && !defined CONFIG_USB_ZC0301_MODULE
 	{USB_DEVICE(0x0ac8, 0x303b)},
 #endif
 	{USB_DEVICE(0x0ac8, 0x305b), .driver_info = SENSOR_TAS5130C_VF0250},
-#ifndef CONFIG_USB_ZC0301
 	{USB_DEVICE(0x0ac8, 0x307b)},
 	{USB_DEVICE(0x10fd, 0x0128)},
+	{USB_DEVICE(0x10fd, 0x804d)},
 	{USB_DEVICE(0x10fd, 0x8050)},
-#endif
 	{}			/* end of entry */
 };
 #undef DVNAME

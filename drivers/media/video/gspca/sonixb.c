@@ -1153,7 +1153,7 @@ static const struct sd_desc sd_desc = {
 #define NO_BRIGHTNESS (1 << BRIGHTNESS_IDX)
 
 static __devinitdata struct usb_device_id device_table[] = {
-#ifndef CONFIG_USB_SN9C102
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6001),			/* SN9C102 */
 			SFCI(TAS5110, F_GAIN|F_SIF, NO_BRIGHTNESS|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x6005),			/* SN9C101 */
@@ -1167,7 +1167,7 @@ static __devinitdata struct usb_device_id device_table[] = {
 #endif
 	{USB_DEVICE(0x0c45, 0x6011),		/* SN9C101 - SN9C101G */
 			SFCI(OV6650, F_GAIN|F_SIF, 0, 0x60)},
-#ifndef CONFIG_USB_SN9C102
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x6019),			/* SN9C101 */
 			SFCI(OV7630, F_GAIN, 0, 0x21)},
 	{USB_DEVICE(0x0c45, 0x6024),			/* SN9C102 */
@@ -1180,10 +1180,14 @@ static __devinitdata struct usb_device_id device_table[] = {
 			SFCI(PAS106, F_SIF, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x602c),			/* SN9C102 */
 			SFCI(OV7630, F_GAIN, 0, 0x21)},
+#endif
 	{USB_DEVICE(0x0c45, 0x602d),			/* SN9C102 */
 			SFCI(HV7131R, 0, NO_EXPO|NO_FREQ, 0)},
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x602e),			/* SN9C102 */
 			SFCI(OV7630, F_GAIN, 0, 0x21)},
+	{USB_DEVICE(0x0c45, 0x608f),			/* SN9C103 */
+			SFCI(OV7630, F_GAIN|F_H18, 0, 0x21)},
 	{USB_DEVICE(0x0c45, 0x60af),			/* SN9C103 */
 			SFCI(PAS202, F_H18, NO_EXPO|NO_FREQ, 0)},
 	{USB_DEVICE(0x0c45, 0x60b0),			/* SN9C103 */
