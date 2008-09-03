@@ -1743,10 +1743,6 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 		if (!bssid)
 			return 0;
 		if (ieee80211_is_beacon(hdr->frame_control)) {
-			if (!rx->sta)
-				rx->sta = ieee80211_ibss_add_sta(sdata,
-						rx->skb, bssid, hdr->addr2,
-						BIT(rx->status->rate_idx));
 			return 1;
 		}
 		else if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
