@@ -37,6 +37,8 @@
 
 #include "cpu.h"
 
+static struct cpu_dev *this_cpu __cpuinitdata;
+
 /* We need valid kernel segments for data and code in long mode too
  * IRET will check the segment types  kkeil 2000/10/28
  * Also sysret mandates a special GDT layout
@@ -78,7 +80,6 @@ static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_vendor = "Unknown",
 	.c_x86_vendor = X86_VENDOR_UNKNOWN,
 };
-static struct cpu_dev *this_cpu __cpuinitdata;
 
 int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
@@ -112,7 +113,7 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 
 void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
-	unsigned int n, dummy, ebx, ecx, edx;
+	unsigned int n, dummy, ebx, ecx, edx, l2size;
 
 	n = c->extended_cpuid_level;
 
@@ -125,15 +126,17 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 		c->x86_tlbsize = 0;
 	}
 
-	if (n >= 0x80000006) {
-		cpuid(0x80000006, &dummy, &ebx, &ecx, &edx);
-		ecx = cpuid_ecx(0x80000006);
-		c->x86_cache_size = ecx >> 16;
-		c->x86_tlbsize += ((ebx >> 16) & 0xfff) + (ebx & 0xfff);
+	if (n < 0x80000006)	/* Some chips just has a large L1. */
+		return;
 
-		printk(KERN_INFO "CPU: L2 Cache: %dK (%d bytes/line)\n",
-		c->x86_cache_size, ecx & 0xFF);
-	}
+	cpuid(0x80000006, &dummy, &ebx, &ecx, &edx);
+	l2size = ecx >> 16;
+	c->x86_tlbsize += ((ebx >> 16) & 0xfff) + (ebx & 0xfff);
+
+	c->x86_cache_size = l2size;
+
+	printk(KERN_INFO "CPU: L2 Cache: %dK (%d bytes/line)\n",
+			l2size, ecx & 0xFF);
 }
 
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
@@ -142,13 +145,12 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	u32 eax, ebx, ecx, edx;
 	int index_msb, core_bits;
 
-	cpuid(1, &eax, &ebx, &ecx, &edx);
-
-
 	if (!cpu_has(c, X86_FEATURE_HT))
 		return;
 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		goto out;
+
+	cpuid(1, &eax, &ebx, &ecx, &edx);
 
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
@@ -175,6 +177,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		c->cpu_core_id = phys_pkg_id(index_msb) &
 					       ((1 << core_bits) - 1);
 	}
+
 out:
 	if ((c->x86_max_cores * smp_num_siblings) > 1) {
 		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
@@ -182,7 +185,6 @@ out:
 		printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
 		       c->cpu_core_id);
 	}
-
 #endif
 }
 
@@ -405,10 +407,10 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
-	c->x86_clflush_size = 64;
-	c->x86_cache_alignment = c->x86_clflush_size;
 	c->x86_max_cores = 1;
 	c->x86_coreid_bits = 0;
+	c->x86_clflush_size = 64;
+	c->x86_cache_alignment = c->x86_clflush_size;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
 	generic_identify(c);

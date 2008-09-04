@@ -22,6 +22,8 @@
 
 #include "cpu.h"
 
+static struct cpu_dev *this_cpu __cpuinitdata;
+
 DEFINE_PER_CPU(struct gdt_page, gdt_page) = { .gdt = {
 	[GDT_ENTRY_KERNEL_CS] = { { { 0x0000ffff, 0x00cf9a00 } } },
 	[GDT_ENTRY_KERNEL_DS] = { { { 0x0000ffff, 0x00cf9200 } } },
@@ -58,6 +60,109 @@ DEFINE_PER_CPU(struct gdt_page, gdt_page) = { .gdt = {
 } };
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
+static int cachesize_override __cpuinitdata = -1;
+static int disable_x86_serial_nr __cpuinitdata = 1;
+
+static int __init cachesize_setup(char *str)
+{
+	get_option(&str, &cachesize_override);
+	return 1;
+}
+__setup("cachesize=", cachesize_setup);
+
+/*
+ * Naming convention should be: <Name> [(<Codename>)]
+ * This table only is used unless init_<vendor>() below doesn't set it;
+ * in particular, if CPUID levels 0x80000002..4 are supported, this isn't used
+ *
+ */
+
+/* Look up CPU names by table lookup. */
+static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
+{
+	struct cpu_model_info *info;
+
+	if (c->x86_model >= 16)
+		return NULL;	/* Range check */
+
+	if (!this_cpu)
+		return NULL;
+
+	info = this_cpu->c_models;
+
+	while (info && info->family) {
+		if (info->family == c->x86)
+			return info->model_names[c->x86_model];
+		info++;
+	}
+	return NULL;		/* Not found */
+}
+
+static int __init x86_fxsr_setup(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_FXSR);
+	setup_clear_cpu_cap(X86_FEATURE_XMM);
+	return 1;
+}
+__setup("nofxsr", x86_fxsr_setup);
+
+static int __init x86_sep_setup(char *s)
+{
+	setup_clear_cpu_cap(X86_FEATURE_SEP);
+	return 1;
+}
+__setup("nosep", x86_sep_setup);
+
+/* Standard macro to see if a specific flag is changeable */
+static inline int flag_is_changeable_p(u32 flag)
+{
+	u32 f1, f2;
+
+	asm("pushfl\n\t"
+	    "pushfl\n\t"
+	    "popl %0\n\t"
+	    "movl %0,%1\n\t"
+	    "xorl %2,%0\n\t"
+	    "pushl %0\n\t"
+	    "popfl\n\t"
+	    "pushfl\n\t"
+	    "popl %0\n\t"
+	    "popfl\n\t"
+	    : "=&r" (f1), "=&r" (f2)
+	    : "ir" (flag));
+
+	return ((f1^f2) & flag) != 0;
+}
+
+/* Probe for the CPUID instruction */
+static int __cpuinit have_cpuid_p(void)
+{
+	return flag_is_changeable_p(X86_EFLAGS_ID);
+}
+
+static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
+{
+	if (cpu_has(c, X86_FEATURE_PN) && disable_x86_serial_nr) {
+		/* Disable processor serial number */
+		unsigned long lo, hi;
+		rdmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
+		lo |= 0x200000;
+		wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
+		printk(KERN_NOTICE "CPU serial number disabled.\n");
+		clear_cpu_cap(c, X86_FEATURE_PN);
+
+		/* Disabling the serial number may affect the cpuid level */
+		c->cpuid_level = cpuid_eax(0);
+	}
+}
+
+static int __init x86_serial_nr_setup(char *s)
+{
+	disable_x86_serial_nr = 0;
+	return 1;
+}
+__setup("serialnumber", x86_serial_nr_setup);
+
 __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
 /* Current gdt points %fs at the "master" per-cpu area: after this,
@@ -71,9 +176,6 @@ void switch_to_new_gdt(void)
 	load_gdt(&gdt_descr);
 	asm("mov %0, %%fs" : : "r" (__KERNEL_PERCPU) : "memory");
 }
-
-static int cachesize_override __cpuinitdata = -1;
-static int disable_x86_serial_nr __cpuinitdata = 1;
 
 static struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
 
@@ -95,14 +197,6 @@ static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_vendor = "Unknown",
 	.c_x86_vendor = X86_VENDOR_UNKNOWN,
 };
-static struct cpu_dev *this_cpu __cpuinitdata;
-
-static int __init cachesize_setup(char *str)
-{
-	get_option(&str, &cachesize_override);
-	return 1;
-}
-__setup("cachesize=", cachesize_setup);
 
 int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
@@ -133,7 +227,6 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 	return 1;
 }
 
-
 void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, ebx, ecx, edx, l2size;
@@ -150,7 +243,7 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 	if (n < 0x80000006)	/* Some chips just has a large L1. */
 		return;
 
-	ecx = cpuid_ecx(0x80000006);
+	cpuid(0x80000006, &dummy, &ebx, &ecx, &edx);
 	l2size = ecx >> 16;
 
 	/* do processor-specific cache resizing */
@@ -167,47 +260,22 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 	c->x86_cache_size = l2size;
 
 	printk(KERN_INFO "CPU: L2 Cache: %dK (%d bytes/line)\n",
-	       l2size, ecx & 0xFF);
-}
-
-/*
- * Naming convention should be: <Name> [(<Codename>)]
- * This table only is used unless init_<vendor>() below doesn't set it;
- * in particular, if CPUID levels 0x80000002..4 are supported, this isn't used
- *
- */
-
-/* Look up CPU names by table lookup. */
-static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
-{
-	struct cpu_model_info *info;
-
-	if (c->x86_model >= 16)
-		return NULL;	/* Range check */
-
-	if (!this_cpu)
-		return NULL;
-
-	info = this_cpu->c_models;
-
-	while (info && info->family) {
-		if (info->family == c->x86)
-			return info->model_names[c->x86_model];
-		info++;
-	}
-	return NULL;		/* Not found */
+			l2size, ecx & 0xFF);
 }
 
 #ifdef CONFIG_X86_HT
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
-	u32 	eax, ebx, ecx, edx;
-	int 	index_msb, core_bits;
+	u32 eax, ebx, ecx, edx;
+	int index_msb, core_bits;
+
+	if (!cpu_has(c, X86_FEATURE_HT))
+		return;
+
+	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
+		goto out;
 
 	cpuid(1, &eax, &ebx, &ecx, &edx);
-
-	if (!cpu_has(c, X86_FEATURE_HT) || cpu_has(c, X86_FEATURE_CMP_LEGACY))
-		return;
 
 	smp_num_siblings = (ebx & 0xff0000) >> 16;
 
@@ -225,8 +293,6 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		index_msb = get_count_order(smp_num_siblings);
 		c->phys_proc_id = phys_pkg_id(c->initial_apicid, index_msb);
 
-		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
-		       c->phys_proc_id);
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
@@ -236,10 +302,14 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		c->cpu_core_id = phys_pkg_id(c->initial_apicid, index_msb) &
 					       ((1 << core_bits) - 1);
+	}
 
-		if (c->x86_max_cores > 1)
-			printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
-			       c->cpu_core_id);
+out:
+	if ((c->x86_max_cores * smp_num_siblings) > 1) {
+		printk(KERN_INFO  "CPU: Physical Processor ID: %d\n",
+		       c->phys_proc_id);
+		printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
+		       c->cpu_core_id);
 	}
 }
 #endif
@@ -271,52 +341,6 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 	this_cpu = &default_cpu;
-}
-
-
-static int __init x86_fxsr_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_FXSR);
-	setup_clear_cpu_cap(X86_FEATURE_XMM);
-	return 1;
-}
-__setup("nofxsr", x86_fxsr_setup);
-
-
-static int __init x86_sep_setup(char *s)
-{
-	setup_clear_cpu_cap(X86_FEATURE_SEP);
-	return 1;
-}
-__setup("nosep", x86_sep_setup);
-
-
-/* Standard macro to see if a specific flag is changeable */
-static inline int flag_is_changeable_p(u32 flag)
-{
-	u32 f1, f2;
-
-	asm("pushfl\n\t"
-	    "pushfl\n\t"
-	    "popl %0\n\t"
-	    "movl %0,%1\n\t"
-	    "xorl %2,%0\n\t"
-	    "pushl %0\n\t"
-	    "popfl\n\t"
-	    "pushfl\n\t"
-	    "popl %0\n\t"
-	    "popfl\n\t"
-	    : "=&r" (f1), "=&r" (f2)
-	    : "ir" (flag));
-
-	return ((f1^f2) & flag) != 0;
-}
-
-
-/* Probe for the CPUID instruction */
-static int __cpuinit have_cpuid_p(void)
-{
-	return flag_is_changeable_p(X86_EFLAGS_ID);
 }
 
 void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
@@ -380,15 +404,15 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
-	c->x86_cache_alignment = 32;
 	c->x86_clflush_size = 32;
+	c->x86_cache_alignment = c->x86_clflush_size;
 
 	if (!have_cpuid_p())
 		return;
 
-	c->extended_cpuid_level = 0;
-
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+
+	c->extended_cpuid_level = 0;
 
 	cpu_detect(c);
 
@@ -486,31 +510,6 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 	init_scattered_cpuid_features(c);
 	detect_nopl(c);
 }
-
-static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
-{
-	if (cpu_has(c, X86_FEATURE_PN) && disable_x86_serial_nr) {
-		/* Disable processor serial number */
-		unsigned long lo, hi;
-		rdmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
-		lo |= 0x200000;
-		wrmsr(MSR_IA32_BBL_CR_CTL, lo, hi);
-		printk(KERN_NOTICE "CPU serial number disabled.\n");
-		clear_cpu_cap(c, X86_FEATURE_PN);
-
-		/* Disabling the serial number may affect the cpuid level */
-		c->cpuid_level = cpuid_eax(0);
-	}
-}
-
-static int __init x86_serial_nr_setup(char *s)
-{
-	disable_x86_serial_nr = 0;
-	return 1;
-}
-__setup("serialnumber", x86_serial_nr_setup);
-
-
 
 /*
  * This does the hard work of actually picking apart the CPU stuff...
