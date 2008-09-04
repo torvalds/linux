@@ -27,7 +27,12 @@
 #define OCFS2_JOURNAL_H
 
 #include <linux/fs.h>
-#include <linux/jbd.h>
+#ifndef CONFIG_OCFS2_COMPAT_JBD
+# include <linux/jbd2.h>
+#else
+# include <linux/jbd.h>
+# include "ocfs2_jbd_compat.h"
+#endif
 
 enum ocfs2_journal_state {
 	OCFS2_JOURNAL_FREE = 0,
@@ -215,8 +220,8 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *                          buffer. Will have to call ocfs2_journal_dirty once
  *                          we've actually dirtied it. Type is one of . or .
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
- *  ocfs2_journal_dirty_data - Indicate that a data buffer should go out before
- *                             the current handle commits.
+ *  ocfs2_jbd2_file_inode  - Mark an inode so that its data goes out before
+ *                           the current handle commits.
  */
 
 /* You must always start_trans with a number of buffs > 0, but it's
@@ -268,8 +273,10 @@ int                  ocfs2_journal_access(handle_t *handle,
  */
 int                  ocfs2_journal_dirty(handle_t *handle,
 					 struct buffer_head *bh);
+#ifdef CONFIG_OCFS2_COMPAT_JBD
 int                  ocfs2_journal_dirty_data(handle_t *handle,
 					      struct buffer_head *bh);
+#endif
 
 /*
  *  Credit Macros:
@@ -428,6 +435,18 @@ static inline int ocfs2_calc_tree_trunc_credits(struct super_block *sb,
 	credits += OCFS2_TRUNCATE_LOG_UPDATE;
 
 	return credits;
+}
+
+static inline int ocfs2_jbd2_file_inode(handle_t *handle, struct inode *inode)
+{
+	return jbd2_journal_file_inode(handle, &OCFS2_I(inode)->ip_jinode);
+}
+
+static inline int ocfs2_begin_ordered_truncate(struct inode *inode,
+					       loff_t new_size)
+{
+	return jbd2_journal_begin_ordered_truncate(&OCFS2_I(inode)->ip_jinode,
+						   new_size);
 }
 
 #endif /* OCFS2_JOURNAL_H */

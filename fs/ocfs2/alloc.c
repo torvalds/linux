@@ -6421,18 +6421,11 @@ bail:
 	return status;
 }
 
-static int ocfs2_writeback_zero_func(handle_t *handle, struct buffer_head *bh)
+static int ocfs2_zero_func(handle_t *handle, struct buffer_head *bh)
 {
 	set_buffer_uptodate(bh);
 	mark_buffer_dirty(bh);
 	return 0;
-}
-
-static int ocfs2_ordered_zero_func(handle_t *handle, struct buffer_head *bh)
-{
-	set_buffer_uptodate(bh);
-	mark_buffer_dirty(bh);
-	return ocfs2_journal_dirty_data(handle, bh);
 }
 
 static void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
@@ -6453,17 +6446,18 @@ static void ocfs2_map_and_dirty_page(struct inode *inode, handle_t *handle,
 	 * here if they aren't - ocfs2_map_page_blocks()
 	 * might've skipped some
 	 */
-	if (ocfs2_should_order_data(inode)) {
-		ret = walk_page_buffers(handle,
-					page_buffers(page),
-					from, to, &partial,
-					ocfs2_ordered_zero_func);
-		if (ret < 0)
-			mlog_errno(ret);
-	} else {
+	ret = walk_page_buffers(handle, page_buffers(page),
+				from, to, &partial,
+				ocfs2_zero_func);
+	if (ret < 0)
+		mlog_errno(ret);
+	else if (ocfs2_should_order_data(inode)) {
+		ret = ocfs2_jbd2_file_inode(handle, inode);
+#ifdef CONFIG_OCFS2_COMPAT_JBD
 		ret = walk_page_buffers(handle, page_buffers(page),
 					from, to, &partial,
-					ocfs2_writeback_zero_func);
+					ocfs2_journal_dirty_data);
+#endif
 		if (ret < 0)
 			mlog_errno(ret);
 	}

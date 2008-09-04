@@ -534,6 +534,9 @@ static int ocfs2_truncate_for_delete(struct ocfs2_super *osb,
 	 * data and fast symlinks.
 	 */
 	if (fe->i_clusters) {
+		if (ocfs2_should_order_data(inode))
+			ocfs2_begin_ordered_truncate(inode, 0);
+
 		handle = ocfs2_start_trans(osb, OCFS2_INODE_UPDATE_CREDITS);
 		if (IS_ERR(handle)) {
 			status = PTR_ERR(handle);
@@ -1100,6 +1103,8 @@ void ocfs2_clear_inode(struct inode *inode)
 	oi->ip_last_trans = 0;
 	oi->ip_dir_start_lookup = 0;
 	oi->ip_blkno = 0ULL;
+	jbd2_journal_release_jbd_inode(OCFS2_SB(inode->i_sb)->journal->j_journal,
+				       &oi->ip_jinode);
 
 bail:
 	mlog_exit_void();

@@ -185,7 +185,7 @@ static int ocfs2_sync_file(struct file *file,
 		goto bail;
 
 	journal = osb->journal->j_journal;
-	err = journal_force_commit(journal);
+	err = jbd2_journal_force_commit(journal);
 
 bail:
 	mlog_exit(err);
@@ -941,9 +941,15 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 			goto bail_unlock;
 		}
 
-		if (i_size_read(inode) > attr->ia_size)
+		if (i_size_read(inode) > attr->ia_size) {
+			if (ocfs2_should_order_data(inode)) {
+				status = ocfs2_begin_ordered_truncate(inode,
+								      attr->ia_size);
+				if (status)
+					goto bail_unlock;
+			}
 			status = ocfs2_truncate_file(inode, bh, attr->ia_size);
-		else
+		} else
 			status = ocfs2_extend_file(inode, bh, attr->ia_size);
 		if (status < 0) {
 			if (status != -ENOSPC)
@@ -1888,7 +1894,7 @@ out_dio:
 		 */
 		if (old_size != i_size_read(inode) ||
 		    old_clusters != OCFS2_I(inode)->ip_clusters) {
-			ret = journal_force_commit(osb->journal->j_journal);
+			ret = jbd2_journal_force_commit(osb->journal->j_journal);
 			if (ret < 0)
 				written = ret;
 		}

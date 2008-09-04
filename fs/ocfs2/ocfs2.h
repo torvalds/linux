@@ -34,7 +34,12 @@
 #include <linux/workqueue.h>
 #include <linux/kref.h>
 #include <linux/mutex.h>
-#include <linux/jbd.h>
+#ifndef CONFIG_OCFS2_COMPAT_JBD
+# include <linux/jbd2.h>
+#else
+# include <linux/jbd.h>
+# include "ocfs2_jbd_compat.h"
+#endif
 
 /* For union ocfs2_dlm_lksb */
 #include "stackglue.h"
