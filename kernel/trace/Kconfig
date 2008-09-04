@@ -22,6 +22,7 @@ config TRACING
 config FTRACE
 	bool "Kernel Function Tracer"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select FRAME_POINTER
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
@@ -40,6 +41,7 @@ config IRQSOFF_TRACER
 	depends on TRACE_IRQFLAGS_SUPPORT
 	depends on GENERIC_TIME
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACE_IRQFLAGS
 	select TRACING
 	select TRACER_MAX_TRACE
@@ -63,6 +65,7 @@ config PREEMPT_TRACER
 	depends on GENERIC_TIME
 	depends on PREEMPT
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACING
 	select TRACER_MAX_TRACE
 	help
@@ -90,6 +93,7 @@ config SYSPROF_TRACER
 config SCHED_TRACER
 	bool "Scheduling Latency Tracer"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACING
 	select CONTEXT_SWITCH_TRACER
 	select TRACER_MAX_TRACE
@@ -100,6 +104,7 @@ config SCHED_TRACER
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select TRACING
 	select MARKERS
 	help
@@ -120,6 +125,7 @@ config DYNAMIC_FTRACE
 	bool "enable/disable ftrace tracepoints dynamically"
 	depends on FTRACE
 	depends on HAVE_DYNAMIC_FTRACE
+	depends on DEBUG_KERNEL
 	default y
 	help
          This option will modify all the calls to ftrace dynamically
@@ -146,6 +152,7 @@ config FTRACE_SELFTEST
 config FTRACE_STARTUP_TEST
 	bool "Perform a startup test on ftrace"
 	depends on TRACING
+	depends on DEBUG_KERNEL
 	select FTRACE_SELFTEST
 	help
 	  This option performs a series of startup tests on ftrace. On bootup
