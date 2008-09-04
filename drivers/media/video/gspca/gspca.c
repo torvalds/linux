@@ -178,6 +178,48 @@ static void isoc_irq(struct urb *urb
 }
 
 /*
+ * bulk message interrupt from the USB device
+ */
+static void bulk_irq(struct urb *urb
+)
+{
+	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
+	struct gspca_frame *frame;
+	int j, ret;
+
+	PDEBUG(D_PACK, "bulk irq");
+	if (!gspca_dev->streaming)
+		return;
+	if (urb->status != 0 && urb->status != -ECONNRESET) {
+#ifdef CONFIG_PM
+		if (!gspca_dev->frozen)
+#endif
+			PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+		return;		/* disconnection ? */
+	}
+
+	/* check the availability of the frame buffer */
+	j = gspca_dev->fr_i;
+	j = gspca_dev->fr_queue[j];
+	frame = &gspca_dev->frame[j];
+	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
+				!= V4L2_BUF_FLAG_QUEUED) {
+		gspca_dev->last_packet_type = DISCARD_PACKET;
+	} else {
+		PDEBUG(D_PACK, "packet l:%d", urb->actual_length);
+		gspca_dev->sd_desc->pkt_scan(gspca_dev,
+					frame,
+					urb->transfer_buffer,
+					urb->actual_length);
+	}
+	/* resubmit the URB */
+	urb->status = 0;
+	ret = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ret < 0)
+		PDEBUG(D_ERR|D_PACK, "usb_submit_urb() ret %d", ret);
+}
+
+/*
  * add data to the current frame
  *
  * This function is called by the subdrivers at interrupt level.
@@ -374,10 +416,11 @@ static void destroy_urbs(struct gspca_dev *gspca_dev)
 }
 
 /*
- * search an input isochronous endpoint in an alternate setting
+ * search an input transfer endpoint in an alternate setting
  */
-static struct usb_host_endpoint *alt_isoc(struct usb_host_interface *alt,
-					  __u8 epaddr)
+static struct usb_host_endpoint *alt_xfer(struct usb_host_interface *alt,
+					  __u8 epaddr,
+					  __u8 xfer)
 {
 	struct usb_host_endpoint *ep;
 	int i, attr;
@@ -388,7 +431,7 @@ static struct usb_host_endpoint *alt_isoc(struct usb_host_interface *alt,
 		if (ep->desc.bEndpointAddress == epaddr) {
 			attr = ep->desc.bmAttributes
 						& USB_ENDPOINT_XFERTYPE_MASK;
-			if (attr == USB_ENDPOINT_XFER_ISOC)
+			if (attr == xfer)
 				return ep;
 			break;
 		}
@@ -397,14 +440,14 @@ static struct usb_host_endpoint *alt_isoc(struct usb_host_interface *alt,
 }
 
 /*
- * search an input isochronous endpoint
+ * search an input (isoc or bulk) endpoint
  *
  * The endpoint is defined by the subdriver.
  * Use only the first isoc (some Zoran - 0x0572:0x0001 - have two such ep).
  * This routine may be called many times when the bandwidth is too small
  * (the bandwidth is checked on urb submit).
  */
-static struct usb_host_endpoint *get_isoc_ep(struct gspca_dev *gspca_dev)
+static struct usb_host_endpoint *get_ep(struct gspca_dev *gspca_dev)
 {
 	struct usb_interface *intf;
 	struct usb_host_endpoint *ep;
@@ -414,15 +457,19 @@ static struct usb_host_endpoint *get_isoc_ep(struct gspca_dev *gspca_dev)
 	ep = NULL;
 	i = gspca_dev->alt;			/* previous alt setting */
 	while (--i > 0) {			/* alt 0 is unusable */
-		ep = alt_isoc(&intf->altsetting[i], gspca_dev->cam.epaddr);
+		ep = alt_xfer(&intf->altsetting[i],
+				gspca_dev->cam.epaddr,
+				gspca_dev->bulk
+					? USB_ENDPOINT_XFER_BULK
+					: USB_ENDPOINT_XFER_ISOC);
 		if (ep)
 			break;
 	}
 	if (ep == NULL) {
-		err("no ISOC endpoint found");
+		err("no transfer endpoint found");
 		return NULL;
 	}
-	PDEBUG(D_STREAM, "use ISOC alt %d ep 0x%02x",
+	PDEBUG(D_STREAM, "use alt %d ep 0x%02x",
 			i, ep->desc.bEndpointAddress);
 	ret = usb_set_interface(gspca_dev->dev, gspca_dev->iface, i);
 	if (ret < 0) {
@@ -434,7 +481,7 @@ static struct usb_host_endpoint *get_isoc_ep(struct gspca_dev *gspca_dev)
 }
 
 /*
- * create the isochronous URBs
+ * create the URBs for image transfer
  */
 static int create_urbs(struct gspca_dev *gspca_dev,
 			struct usb_host_endpoint *ep)
@@ -447,12 +494,20 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 
 	/* See paragraph 5.9 / table 5-11 of the usb 2.0 spec. */
 	psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
-	npkt = ISO_MAX_SIZE / psize;
-	if (npkt > ISO_MAX_PKT)
-		npkt = ISO_MAX_PKT;
-	bsize = psize * npkt;
-	PDEBUG(D_STREAM,
-		"isoc %d pkts size %d (bsize:%d)", npkt, psize, bsize);
+	if (!gspca_dev->bulk) {
+		npkt = ISO_MAX_SIZE / psize;
+		if (npkt > ISO_MAX_PKT)
+			npkt = ISO_MAX_PKT;
+		bsize = psize * npkt;
+		PDEBUG(D_STREAM,
+			"isoc %d pkts size %d = bsize:%d",
+			npkt, psize, bsize);
+	} else {
+		npkt = 0;
+		bsize = psize;
+		PDEBUG(D_STREAM, "bulk bsize:%d", bsize);
+	}
+
 	nurbs = DEF_NURBS;
 	gspca_dev->nurbs = nurbs;
 	for (n = 0; n < nurbs; n++) {
@@ -476,17 +531,23 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		gspca_dev->urb[n] = urb;
 		urb->dev = gspca_dev->dev;
 		urb->context = gspca_dev;
-		urb->pipe = usb_rcvisocpipe(gspca_dev->dev,
-					    ep->desc.bEndpointAddress);
-		urb->transfer_flags = URB_ISO_ASAP
-					| URB_NO_TRANSFER_DMA_MAP;
-		urb->interval = ep->desc.bInterval;
-		urb->complete = isoc_irq;
-		urb->number_of_packets = npkt;
 		urb->transfer_buffer_length = bsize;
-		for (i = 0; i < npkt; i++) {
-			urb->iso_frame_desc[i].length = psize;
-			urb->iso_frame_desc[i].offset = psize * i;
+		if (npkt != 0) {		/* ISOC */
+			urb->pipe = usb_rcvisocpipe(gspca_dev->dev,
+						    ep->desc.bEndpointAddress);
+			urb->transfer_flags = URB_ISO_ASAP
+						| URB_NO_TRANSFER_DMA_MAP;
+			urb->interval = ep->desc.bInterval;
+			urb->complete = isoc_irq;
+			urb->number_of_packets = npkt;
+			for (i = 0; i < npkt; i++) {
+				urb->iso_frame_desc[i].length = psize;
+				urb->iso_frame_desc[i].offset = psize * i;
+			}
+		} else {		/* bulk */
+			urb->pipe = usb_rcvbulkpipe(gspca_dev->dev,
+						ep->desc.bEndpointAddress),
+			urb->complete = bulk_irq;
 		}
 	}
 	return 0;
@@ -508,7 +569,7 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 	gspca_dev->alt = gspca_dev->nbalt;
 	for (;;) {
 		PDEBUG(D_STREAM, "init transfer alt %d", gspca_dev->alt);
-		ep = get_isoc_ep(gspca_dev);
+		ep = get_ep(gspca_dev);
 		if (ep == NULL) {
 			ret = -EIO;
 			goto out;

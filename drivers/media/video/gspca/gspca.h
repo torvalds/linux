@@ -49,8 +49,8 @@ extern int gspca_debug;
 	} while (0)
 
 #define GSPCA_MAX_FRAMES 16	/* maximum number of video frame buffers */
-/* ISOC transfers */
-#define MAX_NURBS 16		/* max number of URBs */
+/* image transfers */
+#define MAX_NURBS 4		/* max number of URBs */
 #define ISO_MAX_PKT 32		/* max number of packets in an ISOC transfer */
 #define ISO_MAX_SIZE 0x8000	/* max size of one URB buffer (32 Kb) */
 
@@ -143,6 +143,7 @@ struct gspca_dev {
 
 	__u8 iface;			/* USB interface number */
 	__u8 alt;			/* USB alternate setting */
+	__u8 bulk;		/* image transfer by isoc (0) or bulk (1) */
 	__u8 curr_mode;			/* current camera mode */
 	__u32 pixfmt;			/* current mode parameters */
 	__u16 width;
