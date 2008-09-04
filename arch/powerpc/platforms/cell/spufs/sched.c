@@ -728,7 +728,8 @@ static void spu_schedule(struct spu *spu, struct spu_context *ctx)
 	/* not a candidate for interruptible because it's called either
 	   from the scheduler thread or from spu_deactivate */
 	mutex_lock(&ctx->state_mutex);
-	__spu_schedule(spu, ctx);
+	if (ctx->state == SPU_STATE_SAVED)
+		__spu_schedule(spu, ctx);
 	spu_release(ctx);
 }
 
