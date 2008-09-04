@@ -71,9 +71,6 @@ enum ccid3_options {
 };
 
 struct ccid3_options_received {
-	u64 ccid3or_seqno:48,
-	    ccid3or_loss_intervals_idx:16;
-	u16 ccid3or_loss_intervals_len;
 	u32 ccid3or_loss_event_rate;
 	u32 ccid3or_receive_rate;
 };

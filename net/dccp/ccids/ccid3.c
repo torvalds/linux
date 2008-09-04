@@ -487,60 +487,31 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 				     unsigned char len, u16 idx,
 				     unsigned char *value)
 {
-	int rc = 0;
-	const struct dccp_sock *dp = dccp_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv = &hctx->options_received;
 	__be32 opt_val;
 
-	if (opt_recv->ccid3or_seqno != dp->dccps_gsr) {
-		opt_recv->ccid3or_seqno		     = dp->dccps_gsr;
-		opt_recv->ccid3or_loss_event_rate    = ~0;
-		opt_recv->ccid3or_loss_intervals_idx = 0;
-		opt_recv->ccid3or_loss_intervals_len = 0;
-		opt_recv->ccid3or_receive_rate	     = 0;
-	}
-
 	switch (option) {
+	case TFRC_OPT_RECEIVE_RATE:
 	case TFRC_OPT_LOSS_EVENT_RATE:
 		if (unlikely(len != 4)) {
-			DCCP_WARN("%s(%p), invalid len %d "
-				  "for TFRC_OPT_LOSS_EVENT_RATE\n",
-				  dccp_role(sk), sk, len);
-			rc = -EINVAL;
-		} else {
-			opt_val = get_unaligned((__be32 *)value);
-			opt_recv->ccid3or_loss_event_rate = ntohl(opt_val);
-			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
-				       dccp_role(sk), sk,
-				       opt_recv->ccid3or_loss_event_rate);
+			DCCP_WARN("%s(%p), invalid len %d for %u\n",
+				  dccp_role(sk), sk, len, option);
+			return -EINVAL;
 		}
-		break;
-	case TFRC_OPT_LOSS_INTERVALS:
-		opt_recv->ccid3or_loss_intervals_idx = idx;
-		opt_recv->ccid3or_loss_intervals_len = len;
-		ccid3_pr_debug("%s(%p), LOSS_INTERVALS=(%u, %u)\n",
-			       dccp_role(sk), sk,
-			       opt_recv->ccid3or_loss_intervals_idx,
-			       opt_recv->ccid3or_loss_intervals_len);
-		break;
-	case TFRC_OPT_RECEIVE_RATE:
-		if (unlikely(len != 4)) {
-			DCCP_WARN("%s(%p), invalid len %d "
-				  "for TFRC_OPT_RECEIVE_RATE\n",
-				  dccp_role(sk), sk, len);
-			rc = -EINVAL;
-		} else {
-			opt_val = get_unaligned((__be32 *)value);
-			opt_recv->ccid3or_receive_rate = ntohl(opt_val);
-			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
-				       dccp_role(sk), sk,
-				       opt_recv->ccid3or_receive_rate);
-		}
-		break;
-	}
+		opt_val = ntohl(get_unaligned((__be32 *)value));
 
-	return rc;
+		if (option == TFRC_OPT_RECEIVE_RATE) {
+			opt_recv->ccid3or_receive_rate = opt_val;
+			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
+				       dccp_role(sk), sk, opt_val);
+		} else {
+			opt_recv->ccid3or_loss_event_rate = opt_val;
+			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
+				       dccp_role(sk), sk, opt_val);
+		}
+	}
+	return 0;
 }
 
 static int ccid3_hc_tx_init(struct ccid *ccid, struct sock *sk)
