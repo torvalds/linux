@@ -202,7 +202,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	 * setsockopt(CCIDs-I-want/accept). -acme
 	 */
 	if (likely(ctl_sock_initialized)) {
-		int rc = dccp_feat_init(dmsk);
+		int rc = dccp_feat_init(sk);
 
 		if (rc)
 			return rc;

@@ -14,6 +14,15 @@
 #include <linux/types.h>
 #include "dccp.h"
 
+/*
+ * Known limit values
+ */
+/* Ack Ratio takes 2-byte integer values (11.3) */
+#define DCCPF_ACK_RATIO_MAX	0xFFFF
+/* Wmin=32 and Wmax=2^46-1 from 7.5.2 */
+#define DCCPF_SEQ_WMIN		32
+#define DCCPF_SEQ_WMAX		0x3FFFFFFFFFFFull
+
 enum dccp_feat_type {
 	FEAT_AT_RX   = 1,	/* located at RX side of half-connection  */
 	FEAT_AT_TX   = 2,	/* located at TX side of half-connection  */
@@ -74,6 +83,20 @@ static inline u8 dccp_feat_genopt(struct dccp_feat_entry *entry)
 	return entry->is_local ? DCCPO_CHANGE_L : DCCPO_CHANGE_R;
 }
 
+/**
+ * struct ccid_dependency  -  Track changes resulting from choosing a CCID
+ * @dependent_feat: one of %dccp_feature_numbers
+ * @is_local: local (1) or remote (0) @dependent_feat
+ * @is_mandatory: whether presence of @dependent_feat is mission-critical or not
+ * @val: corresponding default value for @dependent_feat (u8 is sufficient here)
+ */
+struct ccid_dependency {
+	u8	dependent_feat;
+	bool	is_local:1,
+		is_mandatory:1;
+	u8	val;
+};
+
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern const char *dccp_feat_typename(const u8 type);
 extern const char *dccp_feat_name(const u8 feat);
@@ -96,6 +119,6 @@ extern int  dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 extern void dccp_feat_clean(struct dccp_minisock *dmsk);
 extern int  dccp_feat_clone(struct sock *oldsk, struct sock *newsk);
 extern int  dccp_feat_clone_list(struct list_head const *, struct list_head *);
-extern int  dccp_feat_init(struct dccp_minisock *dmsk);
+extern int  dccp_feat_init(struct sock *sk);
 
 #endif /* _DCCP_FEAT_H */
