@@ -48,6 +48,21 @@ static inline u32 scaled_div32(u64 a, u64 b)
 }
 
 /**
+ * tfrc_scaled_sqrt  -  Compute scaled integer sqrt(x) for 0 < x < 2^22-1
+ * Uses scaling to improve accuracy of the integer approximation of sqrt(). The
+ * scaling factor of 2^10 limits the maximum @sample to 4e6; this is okay for
+ * clamped RTT samples (dccp_sample_rtt).
+ * Should best be used for expressions of type sqrt(x)/sqrt(y), since then the
+ * scaling factor is neutralised. For this purpose, it avoids returning zero.
+ */
+static inline u16 tfrc_scaled_sqrt(const u32 sample)
+{
+	const unsigned long non_zero_sample = sample ? : 1;
+
+	return int_sqrt(non_zero_sample << 10);
+}
+
+/**
  * tfrc_ewma  -  Exponentially weighted moving average
  * @weight: Weight to be used as damping factor, in units of 1/10
  */

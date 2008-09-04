@@ -47,8 +47,8 @@
 /* Two seconds as per RFC 3448 4.2 */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
-/* Parameter t_mbi from [RFC 3448, 4.3]: backoff interval in seconds */
-#define TFRC_T_MBI		   64
+/* Maximum backoff interval t_mbi (RFC 3448, 4.3) */
+#define TFRC_T_MBI		   (64 * USEC_PER_SEC)
 
 /*
  * The t_delta parameter (RFC 3448, 4.6): delays of less than %USEC_PER_MSEC are
@@ -76,6 +76,7 @@ enum ccid3_options {
  * @x_recv - Receive rate    in 64 * bytes per second
  * @x_calc - Calculated rate in bytes per second
  * @rtt - Estimate of current round trip time in usecs
+ * @r_sqmean - Estimate of long-term RTT (RFC 3448, 4.5)
  * @p - Current loss event rate (0-1) scaled by 1000000
  * @s - Packet size in bytes
  * @t_rto - Nofeedback Timer setting in usecs
@@ -94,6 +95,7 @@ struct ccid3_hc_tx_sock {
 	u64				x_recv;
 	u32				x_calc;
 	u32				rtt;
+	u16				r_sqmean;
 	u32				p;
 	u32				t_rto;
 	u32				t_ipi;
