@@ -355,14 +355,6 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 	return __dccp_hdr_len(dccp_hdr(skb));
 }
 
-
-/* initial values for each feature */
-#define DCCPF_INITIAL_SEQUENCE_WINDOW		100
-#define DCCPF_INITIAL_ACK_RATIO			2
-#define DCCPF_INITIAL_CCID			DCCPC_CCID2
-/* FIXME: for now we're default to 1 but it should really be 0 */
-#define DCCPF_INITIAL_SEND_NDP_COUNT		1
-
 /**
  * struct dccp_request_sock  -  represent DCCP-specific connection request
  * @dreq_inet_rsk: structure inherited from

@@ -99,6 +99,13 @@ struct ccid_dependency {
 	u8	val;
 };
 
+/*
+ * Sysctls to seed defaults for feature negotiation
+ */
+extern unsigned long sysctl_dccp_sequence_window;
+extern int	     sysctl_dccp_rx_ccid;
+extern int	     sysctl_dccp_tx_ccid;
+
 #ifdef CONFIG_IP_DCCP_DEBUG
 extern const char *dccp_feat_typename(const u8 type);
 extern const char *dccp_feat_name(const u8 feat);
@@ -113,6 +120,7 @@ static inline void dccp_feat_debug(const u8 type, const u8 feat, const u8 val)
 #endif /* CONFIG_IP_DCCP_DEBUG */
 
 extern int  dccp_feat_init(struct sock *sk);
+extern void dccp_feat_initialise_sysctls(void);
 extern int  dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 				  u8 const *list, u8 len);
 extern int  dccp_feat_register_nn(struct sock *sk, u8 feat, u64 val);

@@ -26,6 +26,11 @@
 #include "ccid.h"
 #include "feat.h"
 
+/* feature-specific sysctls - initialised to the defaults from RFC 4340, 6.4 */
+unsigned long	sysctl_dccp_sequence_window __read_mostly = 100;
+int		sysctl_dccp_rx_ccid	    __read_mostly = 2,
+		sysctl_dccp_tx_ccid	    __read_mostly = 2;
+
 /*
  * Feature activation handlers.
  *
@@ -1141,7 +1146,7 @@ int dccp_feat_init(struct sock *sk)
 
 	/* Non-negotiable (NN) features */
 	rc = __feat_register_nn(fn, DCCPF_SEQUENCE_WINDOW, 0,
-				    sysctl_dccp_feat_sequence_window);
+				    sysctl_dccp_sequence_window);
 	if (rc)
 		return rc;
 
@@ -1172,8 +1177,8 @@ int dccp_feat_init(struct sock *sk)
 	if (ccid_request_modules(tx.val, tx.len))
 		goto free_ccid_lists;
 
-	if (!dccp_feat_prefer(sysctl_dccp_feat_tx_ccid, tx.val, tx.len) ||
-	    !dccp_feat_prefer(sysctl_dccp_feat_rx_ccid, rx.val, rx.len))
+	if (!dccp_feat_prefer(sysctl_dccp_tx_ccid, tx.val, tx.len) ||
+	    !dccp_feat_prefer(sysctl_dccp_rx_ccid, rx.val, rx.len))
 		goto free_ccid_lists;
 
 	rc = __feat_register_sp(fn, DCCPF_CCID, true, false, tx.val, tx.len);
