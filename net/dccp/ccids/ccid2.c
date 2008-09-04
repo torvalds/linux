@@ -34,51 +34,8 @@
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 static int ccid2_debug;
 #define ccid2_pr_debug(format, a...)	DCCP_PR_DEBUG(ccid2_debug, format, ##a)
-
-static void ccid2_hc_tx_check_sanity(const struct ccid2_hc_tx_sock *hctx)
-{
-	int len = 0;
-	int pipe = 0;
-	struct ccid2_seq *seqp = hctx->seqh;
-
-	/* there is data in the chain */
-	if (seqp != hctx->seqt) {
-		seqp = seqp->ccid2s_prev;
-		len++;
-		if (!seqp->ccid2s_acked)
-			pipe++;
-
-		while (seqp != hctx->seqt) {
-			struct ccid2_seq *prev = seqp->ccid2s_prev;
-
-			len++;
-			if (!prev->ccid2s_acked)
-				pipe++;
-
-			/* packets are sent sequentially */
-			BUG_ON(dccp_delta_seqno(seqp->ccid2s_seq,
-						prev->ccid2s_seq ) >= 0);
-			BUG_ON(time_before(seqp->ccid2s_sent,
-					   prev->ccid2s_sent));
-
-			seqp = prev;
-		}
-	}
-
-	BUG_ON(pipe != hctx->pipe);
-	ccid2_pr_debug("len of chain=%d\n", len);
-
-	do {
-		seqp = seqp->ccid2s_prev;
-		len++;
-	} while (seqp != hctx->seqh);
-
-	ccid2_pr_debug("total len=%d\n", len);
-	BUG_ON(len != hctx->seqbufc * CCID2_SEQBUF_LEN);
-}
 #else
 #define ccid2_pr_debug(format, a...)
-#define ccid2_hc_tx_check_sanity(hctx)
 #endif
 
 static int ccid2_hc_tx_alloc_seq(struct ccid2_hc_tx_sock *hctx)
@@ -176,8 +133,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 
 	ccid2_pr_debug("RTO_EXPIRE\n");
 
-	ccid2_hc_tx_check_sanity(hctx);
-
 	/* back-off timer */
 	hctx->rto <<= 1;
 
@@ -200,7 +155,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	hctx->rpseq    = 0;
 	hctx->rpdupack = -1;
 	ccid2_change_l_ack_ratio(sk, 1);
-	ccid2_hc_tx_check_sanity(hctx);
 
 	/* if we were blocked before, we may now send cwnd=1 packet */
 	if (sender_was_blocked)
@@ -314,7 +268,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 		}
 	} while (0);
 	ccid2_pr_debug("=========\n");
-	ccid2_hc_tx_check_sanity(hctx);
 #endif
 }
 
@@ -463,7 +416,6 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	int done = 0;
 	unsigned int maxincr = 0;
 
-	ccid2_hc_tx_check_sanity(hctx);
 	/* check reverse path congestion */
 	seqno = DCCP_SKB_CB(skb)->dccpd_seq;
 
@@ -640,7 +592,6 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		hctx->seqt = hctx->seqt->ccid2s_next;
 	}
 
-	ccid2_hc_tx_check_sanity(hctx);
 done:
 	/* check if incoming Acks allow pending packets to be sent */
 	if (sender_was_blocked && !ccid2_cwnd_network_limited(hctx))
@@ -680,8 +631,6 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	hctx->last_cong = jiffies;
 	setup_timer(&hctx->rtotimer, ccid2_hc_tx_rto_expire, (unsigned long)sk);
 	INIT_LIST_HEAD(&hctx->av_chunks);
-
-	ccid2_hc_tx_check_sanity(hctx);
 	return 0;
 }
 
