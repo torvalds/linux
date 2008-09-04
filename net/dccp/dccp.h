@@ -415,6 +415,23 @@ static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 	dp->dccps_gsr = seq;
 	/* Sequence validity window depends on remote Sequence Window (7.5.1) */
 	dp->dccps_swl = SUB48(ADD48(dp->dccps_gsr, 1), dp->dccps_r_seq_win / 4);
+	/*
+	 * Adjust SWL so that it is not below ISR. In contrast to RFC 4340,
+	 * 7.5.1 we perform this check beyond the initial handshake: W/W' are
+	 * always > 32, so for the first W/W' packets in the lifetime of a
+	 * connection we always have to adjust SWL.
+	 * A second reason why we are doing this is that the window depends on
+	 * the feature-remote value of Sequence Window: nothing stops the peer
+	 * from updating this value while we are busy adjusting SWL for the
+	 * first W packets (we would have to count from scratch again then).
+	 * Therefore it is safer to always make sure that the Sequence Window
+	 * is not artificially extended by a peer who grows SWL downwards by
+	 * continually updating the feature-remote Sequence-Window.
+	 * If sequence numbers wrap it is bad luck. But that will take a while
+	 * (48 bit), and this measure prevents Sequence-number attacks.
+	 */
+	if (before48(dp->dccps_swl, dp->dccps_isr))
+		dp->dccps_swl = dp->dccps_isr;
 	dp->dccps_swh = ADD48(dp->dccps_gsr, (3 * dp->dccps_r_seq_win) / 4);
 }
 
@@ -425,6 +442,9 @@ static inline void dccp_update_gss(struct sock *sk, u64 seq)
 	dp->dccps_gss = seq;
 	/* Ack validity window depends on local Sequence Window value (7.5.1) */
 	dp->dccps_awl = SUB48(ADD48(dp->dccps_gss, 1), dp->dccps_l_seq_win);
+	/* Adjust AWL so that it is not below ISS - see comment above for SWL */
+	if (before48(dp->dccps_awl, dp->dccps_iss))
+		dp->dccps_awl = dp->dccps_iss;
 	dp->dccps_awh = dp->dccps_gss;
 }
 
