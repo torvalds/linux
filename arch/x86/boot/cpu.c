@@ -16,9 +16,6 @@
  */
 
 #include "boot.h"
-#include "bitops.h"
-#include <asm/cpufeature.h>
-
 #include "cpustr.h"
 
 static char *cpu_name(int level)

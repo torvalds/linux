@@ -73,6 +73,11 @@ static void keyboard_set_repeat(void)
  */
 static void query_ist(void)
 {
+	/* Some older BIOSes apparently crash on this call, so filter
+	   it from machines too old to have SpeedStep at all. */
+	if (cpu.level < 6)
+		return;
+
 	asm("int $0x15"
 	    : "=a" (boot_params.ist_info.signature),
 	      "=b" (boot_params.ist_info.command),

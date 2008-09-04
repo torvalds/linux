@@ -890,7 +890,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	loff_t new_size = attr->ia_size;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 	struct ubifs_budget_req req = { .dirtied_ino = 1,
-					.dirtied_ino_d = ui->data_len };
+				.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 
 	err = ubifs_budget_space(c, &req);
 	if (err)
@@ -941,7 +941,8 @@ int ubifs_setattr(struct dentry *dentry, struct iattr *attr)
 	struct inode *inode = dentry->d_inode;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
-	dbg_gen("ino %lu, ia_valid %#x", inode->i_ino, attr->ia_valid);
+	dbg_gen("ino %lu, mode %#x, ia_valid %#x",
+		inode->i_ino, inode->i_mode, attr->ia_valid);
 	err = inode_change_ok(inode, attr);
 	if (err)
 		return err;
@@ -1051,7 +1052,7 @@ static int update_mctime(struct ubifs_info *c, struct inode *inode)
 	if (mctime_update_needed(inode, &now)) {
 		int err, release;
 		struct ubifs_budget_req req = { .dirtied_ino = 1,
-						.dirtied_ino_d = ui->data_len };
+				.dirtied_ino_d = ALIGN(ui->data_len, 8) };
 
 		err = ubifs_budget_space(c, &req);
 		if (err)
@@ -1270,6 +1271,7 @@ struct file_operations ubifs_file_operations = {
 	.fsync          = ubifs_fsync,
 	.unlocked_ioctl = ubifs_ioctl,
 	.splice_read	= generic_file_splice_read,
+	.splice_write	= generic_file_splice_write,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl   = ubifs_compat_ioctl,
 #endif

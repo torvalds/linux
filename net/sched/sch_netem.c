@@ -341,7 +341,7 @@ static int get_dist_table(struct Qdisc *sch, const struct nlattr *attr)
 	for (i = 0; i < n; i++)
 		d->table[i] = data[i];
 
-	root_lock = qdisc_root_lock(sch);
+	root_lock = qdisc_root_sleeping_lock(sch);
 
 	spin_lock_bh(root_lock);
 	d = xchg(&q->delay_dist, d);

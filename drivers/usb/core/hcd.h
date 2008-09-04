@@ -212,8 +212,6 @@ struct hc_driver {
 	int	(*bus_suspend)(struct usb_hcd *);
 	int	(*bus_resume)(struct usb_hcd *);
 	int	(*start_port_reset)(struct usb_hcd *, unsigned port_num);
-	void	(*hub_irq_enable)(struct usb_hcd *);
-		/* Needed only if port-change IRQs are level-triggered */
 
 		/* force handover of high-speed port to full-speed companion */
 	void	(*relinquish_port)(struct usb_hcd *, int);
@@ -378,8 +376,6 @@ extern void usb_set_device_state(struct usb_device *udev,
 extern struct list_head usb_bus_list;
 extern struct mutex usb_bus_list_lock;
 extern wait_queue_head_t usb_kill_urb_queue;
-
-extern void usb_enable_root_hub_irq(struct usb_bus *bus);
 
 extern int usb_find_interface_driver(struct usb_device *dev,
 	struct usb_interface *interface);

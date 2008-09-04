@@ -17,6 +17,7 @@
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
+#include <linux/delay.h>
 #include <linux/pci.h>
 #include <sound/control.h>
 #include <sound/core.h>
@@ -107,6 +108,9 @@ static void set_ak4396_params(struct oxygen *chip,
 	else
 		value |= AK4396_DFS_QUAD;
 	data->ak4396_ctl2 = value;
+
+	msleep(1); /* wait for the new MCLK to become stable */
+
 	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB);
 	ak4396_write(chip, AK4396_CONTROL_2, value);
 	ak4396_write(chip, AK4396_CONTROL_1, AK4396_DIF_24_MSB | AK4396_RSTN);

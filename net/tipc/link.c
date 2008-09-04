@@ -1155,7 +1155,7 @@ int tipc_link_send_buf(struct link *l_ptr, struct sk_buff *buf)
 int tipc_link_send(struct sk_buff *buf, u32 dest, u32 selector)
 {
 	struct link *l_ptr;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	int res = -ELINKCONG;
 
 	read_lock_bh(&tipc_net_lock);
@@ -1226,7 +1226,7 @@ static int link_send_buf_fast(struct link *l_ptr, struct sk_buff *buf,
 int tipc_send_buf_fast(struct sk_buff *buf, u32 destnode)
 {
 	struct link *l_ptr;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	int res;
 	u32 selector = msg_origport(buf_msg(buf)) & 1;
 	u32 dummy;
@@ -1270,7 +1270,7 @@ int tipc_link_send_sections_fast(struct port *sender,
 	struct tipc_msg *hdr = &sender->publ.phdr;
 	struct link *l_ptr;
 	struct sk_buff *buf;
-	struct node *node;
+	struct tipc_node *node;
 	int res;
 	u32 selector = msg_origport(hdr) & 1;
 
@@ -1364,7 +1364,7 @@ static int link_send_sections_long(struct port *sender,
 				   u32 destaddr)
 {
 	struct link *l_ptr;
-	struct node *node;
+	struct tipc_node *node;
 	struct tipc_msg *hdr = &sender->publ.phdr;
 	u32 dsz = msg_data_sz(hdr);
 	u32 max_pkt,fragm_sz,rest;
@@ -1636,7 +1636,7 @@ void tipc_link_push_queue(struct link *l_ptr)
 
 static void link_reset_all(unsigned long addr)
 {
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	char addr_string[16];
 	u32 i;
 
@@ -1682,7 +1682,7 @@ static void link_retransmit_failure(struct link *l_ptr, struct sk_buff *buf)
 
 		/* Handle failure on broadcast link */
 
-		struct node *n_ptr;
+		struct tipc_node *n_ptr;
 		char addr_string[16];
 
 		tipc_printf(TIPC_OUTPUT, "Msg seq number: %u,  ", msg_seqno(msg));
@@ -1843,7 +1843,7 @@ void tipc_recv_msg(struct sk_buff *head, struct tipc_bearer *tb_ptr)
 	read_lock_bh(&tipc_net_lock);
 	while (head) {
 		struct bearer *b_ptr = (struct bearer *)tb_ptr;
-		struct node *n_ptr;
+		struct tipc_node *n_ptr;
 		struct link *l_ptr;
 		struct sk_buff *crs;
 		struct sk_buff *buf = head;
@@ -2935,7 +2935,7 @@ void tipc_link_set_queue_limits(struct link *l_ptr, u32 window)
  * Returns pointer to link (or 0 if invalid link name).
  */
 
-static struct link *link_find_link(const char *name, struct node **node)
+static struct link *link_find_link(const char *name, struct tipc_node **node)
 {
 	struct link_name link_name_parts;
 	struct bearer *b_ptr;
@@ -2965,7 +2965,7 @@ struct sk_buff *tipc_link_cmd_config(const void *req_tlv_area, int req_tlv_space
 	struct tipc_link_config *args;
 	u32 new_value;
 	struct link *l_ptr;
-	struct node *node;
+	struct tipc_node *node;
 	int res;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_CONFIG))
@@ -3043,7 +3043,7 @@ struct sk_buff *tipc_link_cmd_reset_stats(const void *req_tlv_area, int req_tlv_
 {
 	char *link_name;
 	struct link *l_ptr;
-	struct node *node;
+	struct tipc_node *node;
 
 	if (!TLV_CHECK(req_tlv_area, req_tlv_space, TIPC_TLV_LINK_NAME))
 		return tipc_cfg_reply_error_string(TIPC_CFG_TLV_ERROR);
@@ -3091,7 +3091,7 @@ static int tipc_link_stats(const char *name, char *buf, const u32 buf_size)
 {
 	struct print_buf pb;
 	struct link *l_ptr;
-	struct node *node;
+	struct tipc_node *node;
 	char *status;
 	u32 profile_total = 0;
 
@@ -3207,7 +3207,7 @@ int link_control(const char *name, u32 op, u32 val)
 	int res = -EINVAL;
 	struct link *l_ptr;
 	u32 bearer_id;
-	struct node * node;
+	struct tipc_node * node;
 	u32 a;
 
 	a = link_name2addr(name, &bearer_id);
@@ -3249,7 +3249,7 @@ int link_control(const char *name, u32 op, u32 val)
 
 u32 tipc_link_get_max_pkt(u32 dest, u32 selector)
 {
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	struct link *l_ptr;
 	u32 res = MAX_PKT_DEFAULT;
 

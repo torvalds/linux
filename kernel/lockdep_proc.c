@@ -82,7 +82,6 @@ static void print_name(struct seq_file *m, struct lock_class *class)
 
 static int l_show(struct seq_file *m, void *v)
 {
-	unsigned long nr_forward_deps, nr_backward_deps;
 	struct lock_class *class = v;
 	struct lock_list *entry;
 	char c1, c2, c3, c4;
@@ -96,11 +95,10 @@ static int l_show(struct seq_file *m, void *v)
 #ifdef CONFIG_DEBUG_LOCKDEP
 	seq_printf(m, " OPS:%8ld", class->ops);
 #endif
-	nr_forward_deps = lockdep_count_forward_deps(class);
-	seq_printf(m, " FD:%5ld", nr_forward_deps);
-
-	nr_backward_deps = lockdep_count_backward_deps(class);
-	seq_printf(m, " BD:%5ld", nr_backward_deps);
+#ifdef CONFIG_PROVE_LOCKING
+	seq_printf(m, " FD:%5ld", lockdep_count_forward_deps(class));
+	seq_printf(m, " BD:%5ld", lockdep_count_backward_deps(class));
+#endif
 
 	get_usage_chars(class, &c1, &c2, &c3, &c4);
 	seq_printf(m, " %c%c%c%c", c1, c2, c3, c4);
@@ -325,7 +323,9 @@ static int lockdep_stats_show(struct seq_file *m, void *v)
 		if (class->usage_mask & LOCKF_ENABLED_HARDIRQS_READ)
 			nr_hardirq_read_unsafe++;
 
+#ifdef CONFIG_PROVE_LOCKING
 		sum_forward_deps += lockdep_count_forward_deps(class);
+#endif
 	}
 #ifdef CONFIG_DEBUG_LOCKDEP
 	DEBUG_LOCKS_WARN_ON(debug_atomic_read(&nr_unused_locks) != nr_unused);
@@ -472,8 +472,9 @@ static void snprint_time(char *buf, size_t bufsiz, s64 nr)
 {
 	unsigned long rem;
 
+	nr += 5; /* for display rounding */
 	rem = do_div(nr, 1000); /* XXX: do_div_signed */
-	snprintf(buf, bufsiz, "%lld.%02d", (long long)nr, ((int)rem+5)/10);
+	snprintf(buf, bufsiz, "%lld.%02d", (long long)nr, (int)rem/10);
 }
 
 static void seq_time(struct seq_file *m, s64 time)

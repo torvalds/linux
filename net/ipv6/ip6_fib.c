@@ -378,6 +378,7 @@ static int inet6_dump_fib(struct sk_buff *skb, struct netlink_callback *cb)
 
 	arg.skb = skb;
 	arg.cb = cb;
+	arg.net = net;
 	w->args = &arg;
 
 	for (h = s_h; h < FIB_TABLE_HASHSZ; h++, s_e = 0) {

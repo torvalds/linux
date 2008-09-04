@@ -26,9 +26,10 @@
 #include <asm/mach/time.h>
 #include <mach/hardware.h>
 #include <mach/orion5x.h>
-#include <asm/plat-orion/ehci-orion.h>
-#include <asm/plat-orion/orion_nand.h>
-#include <asm/plat-orion/time.h>
+#include <plat/ehci-orion.h>
+#include <plat/mv_xor.h>
+#include <plat/orion_nand.h>
+#include <plat/time.h>
 #include "common.h"
 
 /*****************************************************************************
@@ -355,6 +356,103 @@ void __init orion5x_uart1_init(void)
 
 
 /*****************************************************************************
+ * XOR engine
+ ****************************************************************************/
+static struct resource orion5x_xor_shared_resources[] = {
+	{
+		.name	= "xor low",
+		.start	= ORION5X_XOR_PHYS_BASE,
+		.end	= ORION5X_XOR_PHYS_BASE + 0xff,
+		.flags	= IORESOURCE_MEM,
+	}, {
+		.name	= "xor high",
+		.start	= ORION5X_XOR_PHYS_BASE + 0x200,
+		.end	= ORION5X_XOR_PHYS_BASE + 0x2ff,
+		.flags	= IORESOURCE_MEM,
+	},
+};
+
+static struct platform_device orion5x_xor_shared = {
+	.name		= MV_XOR_SHARED_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(orion5x_xor_shared_resources),
+	.resource	= orion5x_xor_shared_resources,
+};
+
+static u64 orion5x_xor_dmamask = DMA_32BIT_MASK;
+
+static struct resource orion5x_xor0_resources[] = {
+	[0] = {
+		.start	= IRQ_ORION5X_XOR0,
+		.end	= IRQ_ORION5X_XOR0,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data orion5x_xor0_data = {
+	.shared		= &orion5x_xor_shared,
+	.hw_id		= 0,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device orion5x_xor0_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 0,
+	.num_resources	= ARRAY_SIZE(orion5x_xor0_resources),
+	.resource	= orion5x_xor0_resources,
+	.dev		= {
+		.dma_mask		= &orion5x_xor_dmamask,
+		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.platform_data		= (void *)&orion5x_xor0_data,
+	},
+};
+
+static struct resource orion5x_xor1_resources[] = {
+	[0] = {
+		.start	= IRQ_ORION5X_XOR1,
+		.end	= IRQ_ORION5X_XOR1,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+static struct mv_xor_platform_data orion5x_xor1_data = {
+	.shared		= &orion5x_xor_shared,
+	.hw_id		= 1,
+	.pool_size	= PAGE_SIZE,
+};
+
+static struct platform_device orion5x_xor1_channel = {
+	.name		= MV_XOR_NAME,
+	.id		= 1,
+	.num_resources	= ARRAY_SIZE(orion5x_xor1_resources),
+	.resource	= orion5x_xor1_resources,
+	.dev		= {
+		.dma_mask		= &orion5x_xor_dmamask,
+		.coherent_dma_mask	= DMA_64BIT_MASK,
+		.platform_data		= (void *)&orion5x_xor1_data,
+	},
+};
+
+void __init orion5x_xor_init(void)
+{
+	platform_device_register(&orion5x_xor_shared);
+
+	/*
+	 * two engines can't do memset simultaneously, this limitation
+	 * satisfied by removing memset support from one of the engines.
+	 */
+	dma_cap_set(DMA_MEMCPY, orion5x_xor0_data.cap_mask);
+	dma_cap_set(DMA_XOR, orion5x_xor0_data.cap_mask);
+	platform_device_register(&orion5x_xor0_channel);
+
+	dma_cap_set(DMA_MEMCPY, orion5x_xor1_data.cap_mask);
+	dma_cap_set(DMA_MEMSET, orion5x_xor1_data.cap_mask);
+	dma_cap_set(DMA_XOR, orion5x_xor1_data.cap_mask);
+	platform_device_register(&orion5x_xor1_channel);
+}
+
+
+/*****************************************************************************
  * Time handling
  ****************************************************************************/
 static void orion5x_timer_init(void)
@@ -382,6 +480,8 @@ static void __init orion5x_id(u32 *dev, u32 *rev, char **dev_name)
 			*dev_name = "MV88F5281-D2";
 		} else if (*rev == MV88F5281_REV_D1) {
 			*dev_name = "MV88F5281-D1";
+		} else if (*rev == MV88F5281_REV_D0) {
+			*dev_name = "MV88F5281-D0";
 		} else {
 			*dev_name = "MV88F5281-Rev-Unsupported";
 		}
@@ -416,6 +516,15 @@ void __init orion5x_init(void)
 	 * Setup Orion address map
 	 */
 	orion5x_setup_cpu_mbus_bridge();
+
+	/*
+	 * Don't issue "Wait for Interrupt" instruction if we are
+	 * running on D0 5281 silicon.
+	 */
+	if (dev == MV88F5281_DEV_ID && rev == MV88F5281_REV_D0) {
+		printk(KERN_INFO "Orion: Applying 5281 D0 WFI workaround.\n");
+		disable_hlt();
+	}
 }
 
 /*
