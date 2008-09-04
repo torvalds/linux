@@ -254,12 +254,8 @@ static void set_crop(struct pvr2_hdw *hdw)
 
 static int check_crop(struct pvr2_hdw *hdw)
 {
-	/* The "0 +" stupidity is present only to get checkpatch.pl to
-	   shut up.  I _want_ those parantheses present so that the
-	   two lines automatically line up in my editor.  I despise
-	   checkpatch.pl. */
-	return 0 + (hdw->cropl_dirty || hdw->cropt_dirty ||
-		    hdw->cropw_dirty || hdw->croph_dirty);
+	return (hdw->cropl_dirty || hdw->cropt_dirty ||
+		hdw->cropw_dirty || hdw->croph_dirty);
 }
 
 const struct pvr2_i2c_op pvr2_i2c_op_v4l2_crop = {

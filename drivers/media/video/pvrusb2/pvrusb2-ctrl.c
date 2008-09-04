@@ -141,10 +141,8 @@ int pvr2_ctrl_get_def(struct pvr2_ctrl *cptr, int *valptr)
 	LOCK_TAKE(cptr->hdw->big_lock); do {
 		if (cptr->info->type == pvr2_ctl_int) {
 			if (cptr->info->get_def_value) {
-				/* Comment to keep checkpatch.pl quiet */
 				ret = cptr->info->get_def_value(cptr, valptr);
 			} else {
-				/* Comment to keep checkpatch.pl quiet */
 				*valptr = cptr->info->default_value;
 			}
 		}

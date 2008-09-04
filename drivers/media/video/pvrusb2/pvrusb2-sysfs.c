@@ -158,7 +158,6 @@ static ssize_t show_def(struct device *class_dev,
 	pvr2_sysfs_trace("pvr2_sysfs(%p) show_def(cid=%d) is %d, stat=%d",
 			 cip->chptr, cip->ctl_id, val, ret);
 	if (ret < 0) {
-		/* Keep checkpatch.pl quiet */
 		return ret;
 	}
 	return scnprintf(buf, PAGE_SIZE, "%d\n", val);

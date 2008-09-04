@@ -408,7 +408,6 @@ static int ctrl_cropl_min_get(struct pvr2_ctrl *cptr, int *left)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*left = cap->bounds.left;
@@ -420,13 +419,10 @@ static int ctrl_cropl_max_get(struct pvr2_ctrl *cptr, int *left)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*left = cap->bounds.left;
 	if (cap->bounds.width > cptr->hdw->cropw_val) {
-		/* This statement is present purely to shut up
-		   checkpatch.pl */
 		*left += cap->bounds.width - cptr->hdw->cropw_val;
 	}
 	return 0;
@@ -437,7 +433,6 @@ static int ctrl_cropt_min_get(struct pvr2_ctrl *cptr, int *top)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*top = cap->bounds.top;
@@ -449,12 +444,10 @@ static int ctrl_cropt_max_get(struct pvr2_ctrl *cptr, int *top)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*top = cap->bounds.top;
 	if (cap->bounds.height > cptr->hdw->croph_val) {
-		/* Keep checkpatch.pl quiet */
 		*top += cap->bounds.height - cptr->hdw->croph_val;
 	}
 	return 0;
@@ -465,12 +458,10 @@ static int ctrl_cropw_max_get(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = 0;
 	if (cap->bounds.width > cptr->hdw->cropl_val) {
-		/* Keep checkpatch.pl quiet */
 		*val = cap->bounds.width - cptr->hdw->cropl_val;
 	}
 	return 0;
@@ -481,12 +472,10 @@ static int ctrl_croph_max_get(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = 0;
 	if (cap->bounds.height > cptr->hdw->cropt_val) {
-		/* Keep checkpatch.pl quiet */
 		*val = cap->bounds.height - cptr->hdw->cropt_val;
 	}
 	return 0;
@@ -497,7 +486,6 @@ static int ctrl_get_cropcapbl(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->bounds.left;
@@ -509,7 +497,6 @@ static int ctrl_get_cropcapbt(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->bounds.top;
@@ -521,7 +508,6 @@ static int ctrl_get_cropcapbw(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->bounds.width;
@@ -533,7 +519,6 @@ static int ctrl_get_cropcapbh(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->bounds.height;
@@ -545,7 +530,6 @@ static int ctrl_get_cropcapdl(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->defrect.left;
@@ -557,7 +541,6 @@ static int ctrl_get_cropcapdt(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->defrect.top;
@@ -569,7 +552,6 @@ static int ctrl_get_cropcapdw(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->defrect.width;
@@ -581,7 +563,6 @@ static int ctrl_get_cropcapdh(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->defrect.height;
@@ -593,7 +574,6 @@ static int ctrl_get_cropcappan(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->pixelaspect.numerator;
@@ -605,7 +585,6 @@ static int ctrl_get_cropcappad(struct pvr2_ctrl *cptr, int *val)
 	struct v4l2_cropcap *cap = &cptr->hdw->cropcap_info;
 	int stat = pvr2_hdw_check_cropcap(cptr->hdw);
 	if (stat != 0) {
-		/* Keep checkpatch.pl quiet */
 		return stat;
 	}
 	*val = cap->pixelaspect.denominator;
@@ -3008,12 +2987,10 @@ void pvr2_hdw_execute_tuner_poll(struct pvr2_hdw *hdw)
 static int pvr2_hdw_check_cropcap(struct pvr2_hdw *hdw)
 {
 	if (!hdw->cropcap_stale) {
-		/* Keep checkpatch.pl quiet */
 		return 0;
 	}
 	pvr2_i2c_core_status_poll(hdw);
 	if (hdw->cropcap_stale) {
-		/* Keep checkpatch.pl quiet */
 		return -EIO;
 	}
 	return 0;
@@ -3027,7 +3004,6 @@ int pvr2_hdw_get_cropcap(struct pvr2_hdw *hdw, struct v4l2_cropcap *pp)
 	LOCK_TAKE(hdw->big_lock);
 	stat = pvr2_hdw_check_cropcap(hdw);
 	if (!stat) {
-		/* Keep checkpatch.pl quiet */
 		memcpy(pp, &hdw->cropcap_info, sizeof(hdw->cropcap_info));
 	}
 	LOCK_GIVE(hdw->big_lock);
