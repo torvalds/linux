@@ -122,6 +122,10 @@ static u64 tsc_read_refs(u64 *pm, u64 *hpet)
 	return ULLONG_MAX;
 }
 
+#define CAL_MS		50
+#define CAL_LATCH	(CLOCK_TICK_RATE / (1000 / CAL_MS))
+#define CAL_PIT_LOOPS	5000
+
 /*
  * Try to calibrate the TSC against the Programmable
  * Interrupt Timer and return the frequency of the TSC
@@ -144,8 +148,8 @@ static unsigned long pit_calibrate_tsc(void)
 	 * (LSB then MSB) to begin countdown.
 	 */
 	outb(0xb0, 0x43);
-	outb((CLOCK_TICK_RATE / (1000 / 50)) & 0xff, 0x42);
-	outb((CLOCK_TICK_RATE / (1000 / 50)) >> 8, 0x42);
+	outb(CAL_LATCH & 0xff, 0x42);
+	outb(CAL_LATCH >> 8, 0x42);
 
 	tsc = t1 = t2 = get_cycles();
 
@@ -166,18 +170,18 @@ static unsigned long pit_calibrate_tsc(void)
 	/*
 	 * Sanity checks:
 	 *
-	 * If we were not able to read the PIT more than 5000
+	 * If we were not able to read the PIT more than PIT_MIN_LOOPS
 	 * times, then we have been hit by a massive SMI
 	 *
 	 * If the maximum is 10 times larger than the minimum,
 	 * then we got hit by an SMI as well.
 	 */
-	if (pitcnt < 5000 || tscmax > 10 * tscmin)
+	if (pitcnt < CAL_PIT_LOOPS || tscmax > 10 * tscmin)
 		return ULONG_MAX;
 
 	/* Calculate the PIT value */
 	delta = t2 - t1;
-	do_div(delta, 50);
+	do_div(delta, CAL_MS);
 	return delta;
 }
 
