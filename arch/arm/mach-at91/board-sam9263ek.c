@@ -26,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
+#include <linux/i2c/at24.h>
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
@@ -203,6 +204,24 @@ static struct atmel_nand_data __initdata ek_nand_data = {
 
 
 /*
+ * I2C devices
+ */
+static struct at24_platform_data at24c512 = {
+	.byte_len	= SZ_512K / 8,
+	.page_size	= 128,
+	.flags		= AT24_FLAG_ADDR16,
+};
+
+
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("24c512", 0x50),
+		.platform_data = &at24c512,
+	},
+	/* more devices can be added using expansion connectors */
+};
+
+/*
  * LCD Controller
  */
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
@@ -360,7 +379,7 @@ static void __init ek_board_init(void)
 	/* NAND */
 	at91_add_device_nand(&ek_nand_data);
 	/* I2C */
-	at91_add_device_i2c(NULL, 0);
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
 	/* Push Buttons */

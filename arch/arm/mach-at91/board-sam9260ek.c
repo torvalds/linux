@@ -27,6 +27,7 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/at73c213.h>
 #include <linux/clk.h>
+#include <linux/i2c/at24.h>
 
 #include <mach/hardware.h>
 #include <asm/setup.h>
@@ -222,6 +223,23 @@ static struct gpio_led ek_leds[] = {
 	}
 };
 
+/*
+ * I2C devices
+ */
+static struct at24_platform_data at24c512 = {
+	.byte_len	= SZ_512K / 8,
+	.page_size	= 128,
+	.flags		= AT24_FLAG_ADDR16,
+};
+
+static struct i2c_board_info __initdata ek_i2c_devices[] = {
+	{
+		I2C_BOARD_INFO("24c512", 0x50),
+		.platform_data = &at24c512,
+	},
+	/* more devices can be added using expansion connectors */
+};
+
 static void __init ek_board_init(void)
 {
 	/* Serial */
@@ -239,7 +257,7 @@ static void __init ek_board_init(void)
 	/* MMC */
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* I2C */
-	at91_add_device_i2c(NULL, 0);
+	at91_add_device_i2c(ek_i2c_devices, ARRAY_SIZE(ek_i2c_devices));
 	/* SSC (to AT73C213) */
 	at73c213_set_clk(&at73c213_data);
 	at91_add_device_ssc(AT91SAM9260_ID_SSC, ATMEL_SSC_TX);
