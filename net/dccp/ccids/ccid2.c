@@ -596,12 +596,8 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	/* RFC 4341, 5: initialise ssthresh to arbitrarily high (max) value */
 	hctx->ssthresh = ~0U;
 
-	/*
-	 * RFC 4341, 5: "The cwnd parameter is initialized to at most four
-	 * packets for new connections, following the rules from [RFC3390]".
-	 * We need to convert the bytes of RFC3390 into the packets of RFC 4341.
-	 */
-	hctx->cwnd = clamp(4380U / dp->dccps_mss_cache, 2U, 4U);
+	/* Use larger initial windows (RFC 3390, rfc2581bis) */
+	hctx->cwnd = rfc3390_bytes_to_packets(dp->dccps_mss_cache);
 
 	/* Make sure that Ack Ratio is enabled and within bounds. */
 	max_ratio = DIV_ROUND_UP(hctx->cwnd, 2);
