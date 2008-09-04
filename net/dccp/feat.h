@@ -106,19 +106,6 @@ extern unsigned long sysctl_dccp_sequence_window;
 extern int	     sysctl_dccp_rx_ccid;
 extern int	     sysctl_dccp_tx_ccid;
 
-#ifdef CONFIG_IP_DCCP_DEBUG
-extern const char *dccp_feat_typename(const u8 type);
-extern const char *dccp_feat_name(const u8 feat);
-
-static inline void dccp_feat_debug(const u8 type, const u8 feat, const u8 val)
-{
-	dccp_pr_debug("%s(%s (%d), %d)\n", dccp_feat_typename(type),
-					   dccp_feat_name(feat), feat, val);
-}
-#else
-#define dccp_feat_debug(type, feat, val)
-#endif /* CONFIG_IP_DCCP_DEBUG */
-
 extern int  dccp_feat_init(struct sock *sk);
 extern void dccp_feat_initialise_sysctls(void);
 extern int  dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,

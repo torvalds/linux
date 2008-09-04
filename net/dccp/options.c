@@ -498,10 +498,6 @@ int dccp_insert_fn_opt(struct sk_buff *skb, u8 type, u8 feat,
 		*to++ = *val;
 	if (len)
 		memcpy(to, val, len);
-
-	dccp_pr_debug("%s(%s (%d), ...), length %d\n",
-		      dccp_feat_typename(type),
-		      dccp_feat_name(feat), feat, len);
 	return 0;
 }
 
