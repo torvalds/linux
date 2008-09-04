@@ -74,6 +74,18 @@ static int dccp_hdlr_seq_win(struct sock *sk, u64 seq_win, bool rx)
 
 static int dccp_hdlr_ack_ratio(struct sock *sk, u64 ratio, bool rx)
 {
+#ifndef __CCID2_COPES_GRACEFULLY_WITH_DYNAMIC_ACK_RATIO_UPDATES__
+	/*
+	 * FIXME: This is required until several problems in the CCID-2 code are
+	 * resolved. The CCID-2 code currently does not cope well; using dynamic
+	 * Ack Ratios greater than 1 caused instabilities. These were manifest
+	 * in hangups and long RTO timeouts (1...3 seconds). Until this has been
+	 * stabilised, it is safer not to activate dynamic Ack Ratio changes.
+	 */
+	dccp_pr_debug("Not changing %s Ack Ratio from 1 to %u\n",
+		      rx ? "RX" : "TX", (u16)ratio);
+	ratio = 1;
+#endif
 	if (rx)
 		dccp_sk(sk)->dccps_r_ack_ratio = ratio;
 	else
