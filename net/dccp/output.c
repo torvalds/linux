@@ -251,65 +251,98 @@ do_interrupted:
 	goto out;
 }
 
+/**
+ * dccp_xmit_packet  -  Send data packet under control of CCID
+ * Transmits next-queued payload and informs CCID to account for the packet.
+ */
+static void dccp_xmit_packet(struct sock *sk)
+{
+	int err, len;
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct sk_buff *skb = skb_dequeue(&sk->sk_write_queue);
+
+	if (unlikely(skb == NULL))
+		return;
+	len = skb->len;
+
+	if (sk->sk_state == DCCP_PARTOPEN) {
+		const u32 cur_mps = dp->dccps_mss_cache - DCCP_FEATNEG_OVERHEAD;
+		/*
+		 * See 8.1.5 - Handshake Completion.
+		 *
+		 * For robustness we resend Confirm options until the client has
+		 * entered OPEN. During the initial feature negotiation, the MPS
+		 * is smaller than usual, reduced by the Change/Confirm options.
+		 */
+		if (!list_empty(&dp->dccps_featneg) && len > cur_mps) {
+			DCCP_WARN("Payload too large (%d) for featneg.\n", len);
+			dccp_send_ack(sk);
+			dccp_feat_list_purge(&dp->dccps_featneg);
+		}
+
+		inet_csk_schedule_ack(sk);
+		inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
+					      inet_csk(sk)->icsk_rto,
+					      DCCP_RTO_MAX);
+		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_DATAACK;
+	} else if (dccp_ack_pending(sk)) {
+		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_DATAACK;
+	} else {
+		DCCP_SKB_CB(skb)->dccpd_type = DCCP_PKT_DATA;
+	}
+
+	err = dccp_transmit_skb(sk, skb);
+	if (err)
+		dccp_pr_debug("transmit_skb() returned err=%d\n", err);
+	/*
+	 * Register this one as sent even if an error occurred. To the remote
+	 * end a local packet drop is indistinguishable from network loss, i.e.
+	 * any local drop will eventually be reported via receiver feedback.
+	 */
+	ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, len);
+
+	/*
+	 * If the CCID needs to transfer additional header options out-of-band
+	 * (e.g. Ack Vectors or feature-negotiation options), it activates this
+	 * flag to schedule a Sync. The Sync will automatically incorporate all
+	 * currently pending header options, thus clearing the backlog.
+	 */
+	if (dp->dccps_sync_scheduled)
+		dccp_send_sync(sk, dp->dccps_gsr, DCCP_PKT_SYNC);
+}
+
 void dccp_write_xmit(struct sock *sk, int block)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
 
 	while ((skb = skb_peek(&sk->sk_write_queue))) {
-		int err = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
+		int rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 
-		if (err > 0) {
+		switch (ccid_packet_dequeue_eval(rc)) {
+		case CCID_PACKET_WILL_DEQUEUE_LATER:
+			return;
+		case CCID_PACKET_DELAY:
 			if (!block) {
 				sk_reset_timer(sk, &dp->dccps_xmit_timer,
-						msecs_to_jiffies(err)+jiffies);
+						msecs_to_jiffies(rc)+jiffies);
+				return;
+			}
+			rc = dccp_wait_for_ccid(sk, skb, rc);
+			if (rc && rc != -EINTR) {
+				DCCP_BUG("err=%d after dccp_wait_for_ccid", rc);
+				skb_dequeue(&sk->sk_write_queue);
+				kfree_skb(skb);
 				break;
-			} else
-				err = dccp_wait_for_ccid(sk, skb, err);
-			if (err && err != -EINTR)
-				DCCP_BUG("err=%d after dccp_wait_for_ccid", err);
-		}
-
-		skb_dequeue(&sk->sk_write_queue);
-		if (err == 0) {
-			struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
-			const int len = skb->len;
-
-			if (sk->sk_state == DCCP_PARTOPEN) {
-				const u32 cur_mps = dp->dccps_mss_cache - DCCP_FEATNEG_OVERHEAD;
-				/*
-				 * See 8.1.5 - Handshake Completion.
-				 *
-				 * For robustness we resend Confirm options until the client has
-				 * entered OPEN. During the initial feature negotiation, the MPS
-				 * is smaller than usual, reduced by the Change/Confirm options.
-				 */
-				if (!list_empty(&dp->dccps_featneg) && len > cur_mps) {
-					DCCP_WARN("Payload too large (%d) for featneg.\n", len);
-					dccp_send_ack(sk);
-					dccp_feat_list_purge(&dp->dccps_featneg);
-				}
-
-				inet_csk_schedule_ack(sk);
-				inet_csk_reset_xmit_timer(sk, ICSK_TIME_DACK,
-						  inet_csk(sk)->icsk_rto,
-						  DCCP_RTO_MAX);
-				dcb->dccpd_type = DCCP_PKT_DATAACK;
-			} else if (dccp_ack_pending(sk))
-				dcb->dccpd_type = DCCP_PKT_DATAACK;
-			else
-				dcb->dccpd_type = DCCP_PKT_DATA;
-
-			err = dccp_transmit_skb(sk, skb);
-			ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, len);
-			if (err)
-				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
-					 err);
-			if (dp->dccps_sync_scheduled)
-				dccp_send_sync(sk, dp->dccps_gsr, DCCP_PKT_SYNC);
-		} else {
-			dccp_pr_debug("packet discarded due to err=%d\n", err);
+			}
+			/* fall through */
+		case CCID_PACKET_SEND_AT_ONCE:
+			dccp_xmit_packet(sk);
+			break;
+		case CCID_PACKET_ERR:
+			skb_dequeue(&sk->sk_write_queue);
 			kfree_skb(skb);
+			dccp_pr_debug("packet discarded due to err=%d\n", rc);
 		}
 	}
 }
