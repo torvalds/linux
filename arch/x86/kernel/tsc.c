@@ -227,6 +227,117 @@ static unsigned long pit_calibrate_tsc(u32 latch, unsigned long ms, int loopmin)
 	return delta;
 }
 
+/*
+ * This reads the current MSB of the PIT counter, and
+ * checks if we are running on sufficiently fast and
+ * non-virtualized hardware.
+ *
+ * Our expectations are:
+ *
+ *  - the PIT is running at roughly 1.19MHz
+ *
+ *  - each IO is going to take about 1us on real hardware,
+ *    but we allow it to be much faster (by a factor of 10) or
+ *    _slightly_ slower (ie we allow up to a 2us read+counter
+ *    update - anything else implies a unacceptably slow CPU
+ *    or PIT for the fast calibration to work.
+ *
+ *  - with 256 PIT ticks to read the value, we have 214us to
+ *    see the same MSB (and overhead like doing a single TSC
+ *    read per MSB value etc).
+ *
+ *  - We're doing 2 reads per loop (LSB, MSB), and we expect
+ *    them each to take about a microsecond on real hardware.
+ *    So we expect a count value of around 100. But we'll be
+ *    generous, and accept anything over 50.
+ *
+ *  - if the PIT is stuck, and we see *many* more reads, we
+ *    return early (and the next caller of pit_expect_msb()
+ *    then consider it a failure when they don't see the
+ *    next expected value).
+ *
+ * These expectations mean that we know that we have seen the
+ * transition from one expected value to another with a fairly
+ * high accuracy, and we didn't miss any events. We can thus
+ * use the TSC value at the transitions to calculate a pretty
+ * good value for the TSC frequencty.
+ */
+static inline int pit_expect_msb(unsigned char val)
+{
+	int count = 0;
+
+	for (count = 0; count < 50000; count++) {
+		/* Ignore LSB */
+		inb(0x42);
+		if (inb(0x42) != val)
+			break;
+	}
+	return count > 50;
+}
+
+/*
+ * How many MSB values do we want to see? We aim for a
+ * 15ms calibration, which assuming a 2us counter read
+ * error should give us roughly 150 ppm precision for
+ * the calibration.
+ */
+#define QUICK_PIT_MS 15
+#define QUICK_PIT_ITERATIONS (QUICK_PIT_MS * PIT_TICK_RATE / 1000 / 256)
+
+static unsigned long quick_pit_calibrate(void)
+{
+	/* Set the Gate high, disable speaker */
+	outb((inb(0x61) & ~0x02) | 0x01, 0x61);
+
+	/*
+	 * Counter 2, mode 0 (one-shot), binary count
+	 *
+	 * NOTE! Mode 2 decrements by two (and then the
+	 * output is flipped each time, giving the same
+	 * final output frequency as a decrement-by-one),
+	 * so mode 0 is much better when looking at the
+	 * individual counts.
+	 */
+	outb(0xb0, 0x43);
+
+	/* Start at 0xffff */
+	outb(0xff, 0x42);
+	outb(0xff, 0x42);
+
+	if (pit_expect_msb(0xff)) {
+		int i;
+		u64 t1, t2, delta;
+		unsigned char expect = 0xfe;
+
+		t1 = get_cycles();
+		for (i = 0; i < QUICK_PIT_ITERATIONS; i++, expect--) {
+			if (!pit_expect_msb(expect))
+				goto failed;
+		}
+		t2 = get_cycles();
+
+		/*
+		 * Ok, if we get here, then we've seen the
+		 * MSB of the PIT decrement QUICK_PIT_ITERATIONS
+		 * times, and each MSB had many hits, so we never
+		 * had any sudden jumps.
+		 *
+		 * As a result, we can depend on there not being
+		 * any odd delays anywhere, and the TSC reads are
+		 * reliable.
+		 *
+		 * kHz = ticks / time-in-seconds / 1000;
+		 * kHz = (t2 - t1) / (QPI * 256 / PIT_TICK_RATE) / 1000
+		 * kHz = ((t2 - t1) * PIT_TICK_RATE) / (QPI * 256 * 1000)
+		 */
+		delta = (t2 - t1)*PIT_TICK_RATE;
+		do_div(delta, QUICK_PIT_ITERATIONS*256*1000);
+		printk("Fast TSC calibration using PIT\n");
+		return delta;
+	}
+failed:
+	return 0;
+}
 
 /**
  * native_calibrate_tsc - calibrate the tsc on boot
@@ -235,8 +346,14 @@ unsigned long native_calibrate_tsc(void)
 {
 	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
-	unsigned long flags, latch, ms;
+	unsigned long flags, latch, ms, fast_calibrate;
 	int hpet = is_hpet_enabled(), i, loopmin;
+
+	local_irq_save(flags);
+	fast_calibrate = quick_pit_calibrate();
+	local_irq_restore(flags);
+	if (fast_calibrate)
+		return fast_calibrate;
 
 	/*
 	 * Run 5 calibration loops to get the lowest frequency value
