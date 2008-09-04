@@ -131,16 +131,12 @@ enum ccid3_hc_rx_states {
 
 /** struct ccid3_hc_rx_sock - CCID3 receiver half-connection socket
  *
- *  @x_recv  -  Receiver estimate of send rate (RFC 3448 4.3)
- *  @rtt  -  Receiver estimate of rtt (non-standard)
- *  @p  -  Current loss event rate (RFC 3448 5.4)
  *  @last_counter  -  Tracks window counter (RFC 4342, 8.1)
  *  @state  -  Receiver state, one of %ccid3_hc_rx_states
  *  @bytes_recv  -  Total sum of DCCP payload bytes
  *  @x_recv  -  Receiver estimate of send rate (RFC 3448, sec. 4.3)
  *  @rtt  -  Receiver estimate of RTT
  *  @tstamp_last_feedback  -  Time at which last feedback was sent
- *  @tstamp_last_ack  -  Time at which last feedback was sent
  *  @hist  -  Packet history (loss detection + RTT sampling)
  *  @li_hist  -  Loss Interval database
  *  @s  -  Received packet size in bytes
