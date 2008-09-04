@@ -161,8 +161,14 @@ static int em28xx_init_audio_isoc(struct em28xx *dev)
 
 		memset(dev->adev->transfer_buffer[i], 0x80, sb_size);
 		urb = usb_alloc_urb(EM28XX_NUM_AUDIO_PACKETS, GFP_ATOMIC);
-		if (!urb)
+		if (!urb) {
+			em28xx_errdev("usb_alloc_urb failed!\n");
+			for (j = 0; j < i; j++) {
+				usb_free_urb(dev->adev->urb[j]);
+				kfree(dev->adev->transfer_buffer[j]);
+			}
 			return -ENOMEM;
+		}
 
 		urb->dev = dev->udev;
 		urb->context = dev;
