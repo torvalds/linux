@@ -577,6 +577,28 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 		hcrx->p_inverse = ~0U;   /* see RFC 4342, 8.5 */
 		break;
 	case CCID3_FBACK_PARAM_CHANGE:
+		if (unlikely(hcrx->state == TFRC_RSTATE_NO_DATA)) {
+			/*
+			 * rfc3448bis-06, 6.3.1: First packet(s) lost or marked
+			 * FIXME: in rfc3448bis the receiver returns X_recv=0
+			 * here as it normally would in the first feedback packet.
+			 * However this is not possible yet, since the code still
+			 * uses RFC 3448, i.e.
+			 *    If (p > 0)
+			 *      Calculate X_calc using the TCP throughput equation.
+			 *      X = max(min(X_calc, 2*X_recv), s/t_mbi);
+			 * would bring X down to s/t_mbi. That is why we return
+			 * X_recv according to rfc3448bis-06 for the moment.
+			 */
+			u32 rtt = hcrx->rtt ? : DCCP_FALLBACK_RTT, s = hcrx->s;
+
+			if (s == 0) {
+				DCCP_WARN("No sample for s, using fallback\n");
+				s = TCP_MIN_RCVMSS;
+			}
+			hcrx->x_recv = scaled_div32(s, 2 * rtt);
+			break;
+		}
 		/*
 		 * When parameters change (new loss or p > p_prev), we do not
 		 * have a reliable estimate for R_m of [RFC 3448, 6.2] and so
@@ -650,6 +672,14 @@ static u32 ccid3_first_li(struct sock *sk)
 	u32 x_recv, p, delta;
 	u64 fval;
 
+	/*
+	 * rfc3448bis-06, 6.3.1: First data packet(s) are marked or lost. Set p
+	 * to give the equivalent of X_target = s/(2*R). Thus fval = 2 and so p
+	 * is about 20.64%. This yields an interval length of 4.84 (rounded up).
+	 */
+	if (unlikely(hcrx->state == TFRC_RSTATE_NO_DATA))
+		return 5;
+
 	if (hcrx->rtt == 0) {
 		DCCP_WARN("No RTT estimate available, using fallback RTT\n");
 		hcrx->rtt = DCCP_FALLBACK_RTT;
@@ -683,6 +713,15 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	const u64 ndp = dccp_sk(sk)->dccps_options_received.dccpor_ndp;
 	const bool is_data_packet = dccp_data_packet(skb);
 
+	/*
+	 * Perform loss detection and handle pending losses
+	 */
+	if (tfrc_rx_handle_loss(&hcrx->hist, &hcrx->li_hist,
+				skb, ndp, ccid3_first_li, sk)) {
+		do_feedback = CCID3_FBACK_PARAM_CHANGE;
+		goto done_receiving;
+	}
+
 	if (unlikely(hcrx->state == TFRC_RSTATE_NO_DATA)) {
 		if (is_data_packet) {
 			const u32 payload = skb->len - dccp_hdr(skb)->dccph_doff * 4;
@@ -708,15 +747,6 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		 */
 		hcrx->s = tfrc_ewma(hcrx->s, payload, 9);
 		hcrx->bytes_recv += payload;
-	}
-
-	/*
-	 * Perform loss detection and handle pending losses
-	 */
-	if (tfrc_rx_handle_loss(&hcrx->hist, &hcrx->li_hist,
-				skb, ndp, ccid3_first_li, sk)) {
-		do_feedback = CCID3_FBACK_PARAM_CHANGE;
-		goto done_receiving;
 	}
 
 	if (tfrc_rx_hist_loss_pending(&hcrx->hist))

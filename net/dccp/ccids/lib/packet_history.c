@@ -335,6 +335,9 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 {
 	int is_new_loss = 0;
 
+	if (tfrc_rx_hist_duplicate(h, skb))
+		return 0;
+
 	if (h->loss_count == 0) {
 		__do_track_loss(h, skb, ndp);
 	} else if (h->loss_count == 1) {
