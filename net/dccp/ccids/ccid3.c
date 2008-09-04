@@ -66,15 +66,15 @@ static inline u64 rfc3390_initial_rate(struct sock *sk)
 }
 
 /**
- * ccid3_update_send_interval  -  Calculate new t_ipi = s / X_inst
- * This respects the granularity of X_inst (64 * bytes/second).
+ * ccid3_update_send_interval  -  Calculate new t_ipi = s / X
+ * This respects the granularity of X (64 * bytes/second) and enforces the
+ * scaled minimum of s * 64 / t_mbi = `s' bytes/second as per RFC 3448/4342.
  */
 static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
 {
+	if (unlikely(hctx->x <= hctx->s))
+		hctx->x	= hctx->s;
 	hctx->t_ipi = scaled_div32(((u64)hctx->s) << 6, hctx->x);
-
-	ccid3_pr_debug("t_ipi=%u, s=%u, X=%u\n", hctx->t_ipi,
-		       hctx->s, (unsigned)(hctx->x >> 6));
 }
 
 static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hctx, ktime_t now)
@@ -115,7 +115,6 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 	if (hctx->p > 0) {
 
 		hctx->x = min(((u64)hctx->x_calc) << 6, min_rate);
-		hctx->x = max(hctx->x, (((u64)hctx->s) << 6) / TFRC_T_MBI);
 
 	} else if (ktime_us_delta(now, hctx->t_ld) - (s64)hctx->rtt >= 0) {
 
@@ -197,8 +196,9 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	if (hctx->t_rto == 0 || hctx->p == 0) {
 
 		/* halve send rate directly */
-		hctx->x = max(hctx->x / 2, (((u64)hctx->s) << 6) / TFRC_T_MBI);
+		hctx->x /= 2;
 		ccid3_update_send_interval(hctx);
+
 	} else {
 		/*
 		 *  Modify the cached value of X_recv
@@ -213,9 +213,7 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 		BUG_ON(hctx->p && !hctx->x_calc);
 
 		if (hctx->x_calc > (hctx->x_recv >> 5))
-			hctx->x_recv =
-				max(hctx->x_recv / 2,
-				    (((__u64)hctx->s) << 6) / (2 * TFRC_T_MBI));
+			hctx->x_recv /= 2;
 		else {
 			hctx->x_recv = hctx->x_calc;
 			hctx->x_recv <<= 4;
