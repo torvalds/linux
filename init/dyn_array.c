@@ -54,7 +54,7 @@ void __init pre_alloc_dyn_array(void)
 			da->init_work(da);
 	}
 #else
-#ifdef CONFIF_GENERIC_HARDIRQS
+#ifdef CONFIG_GENERIC_HARDIRQS
 	unsigned int i;
 
 	for (i = 0; i < NR_IRQS; i++)
@@ -117,9 +117,8 @@ void __init per_cpu_alloc_dyn_array(int cpu, char *ptr)
 
 		phys += size;
 
-		if (da->init_work) {
+		if (da->init_work)
 			da->init_work(da);
-		}
 	}
 #endif
 }
