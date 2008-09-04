@@ -99,6 +99,13 @@ static int dccp_feat_default_value(u8 feat_num)
 	return idx < 0 ? : dccp_feat_table[idx].default_value;
 }
 
+/* Test for "Req'd" feature (RFC 4340, 6.4) */
+static inline int dccp_feat_must_be_understood(u8 feat_num)
+{
+	return	feat_num == DCCPF_CCID || feat_num == DCCPF_SHORT_SEQNOS ||
+		feat_num == DCCPF_SEQUENCE_WINDOW;
+}
+
 /* copy constructor, fval must not already contain allocated memory */
 static int dccp_feat_clone_sp_val(dccp_feat_val *fval, u8 const *val, u8 len)
 {
@@ -1093,7 +1100,6 @@ int dccp_feat_change_recv(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 }
 
 EXPORT_SYMBOL_GPL(dccp_feat_change_recv);
-#endif	/* (later) */
 
 int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 			   u8 *val, u8 len)
@@ -1148,6 +1154,7 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 }
 
 EXPORT_SYMBOL_GPL(dccp_feat_confirm_recv);
+#endif	/* (later) */
 
 void dccp_feat_clean(struct dccp_minisock *dmsk)
 {
@@ -1344,6 +1351,93 @@ not_valid_or_not_known:
 }
 
 /**
+ * dccp_feat_confirm_recv  -  Process received Confirm options
+ * @fn: feature-negotiation list to update
+ * @is_mandatory: whether @opt was preceded by a Mandatory option
+ * @opt: %DCCPO_CONFIRM_L or %DCCPO_CONFIRM_R
+ * @feat: one of %dccp_feature_numbers
+ * @val: NN value or SP value/preference list
+ * @len: length of @val in bytes
+ * @server: whether this node is server (1) or client (0)
+ */
+static u8 dccp_feat_confirm_recv(struct list_head *fn, u8 is_mandatory, u8 opt,
+				 u8 feat, u8 *val, u8 len, const bool server)
+{
+	u8 *plist, plen, type = dccp_feat_type(feat);
+	const bool local = (opt == DCCPO_CONFIRM_R);
+	struct dccp_feat_entry *entry = dccp_feat_list_lookup(fn, feat, local);
+
+	if (entry == NULL) {	/* nothing queued: ignore or handle error */
+		if (is_mandatory && type == FEAT_UNKNOWN)
+			return DCCP_RESET_CODE_MANDATORY_ERROR;
+
+		if (!local && type == FEAT_NN)		/* 6.3.2 */
+			goto confirmation_failed;
+		return 0;
+	}
+
+	if (entry->state != FEAT_CHANGING)		/* 6.6.2 */
+		return 0;
+
+	if (len == 0) {
+		if (dccp_feat_must_be_understood(feat))	/* 6.6.7 */
+			goto confirmation_failed;
+		/*
+		 * Empty Confirm during connection setup: this means reverting
+		 * to the `old' value, which in this case is the default. Since
+		 * we handle default values automatically when no other values
+		 * have been set, we revert to the old value by removing this
+		 * entry from the list.
+		 */
+		dccp_feat_list_pop(entry);
+		return 0;
+	}
+
+	if (type == FEAT_NN) {
+		if (len > sizeof(entry->val.nn))
+			goto confirmation_failed;
+
+		if (entry->val.nn == dccp_decode_value_var(val, len))
+			goto confirmation_succeeded;
+
+		DCCP_WARN("Bogus Confirm for non-existing value\n");
+		goto confirmation_failed;
+	}
+
+	/*
+	 * Parsing SP Confirms: the first element of @val is the preferred
+	 * SP value which the peer confirms, the remainder depends on @len.
+	 * Note that only the confirmed value need to be a valid SP value.
+	 */
+	if (!dccp_feat_is_valid_sp_val(feat, *val))
+		goto confirmation_failed;
+
+	if (len == 1) {		/* peer didn't supply a preference list */
+		plist = val;
+		plen  = len;
+	} else {		/* preferred value + preference list */
+		plist = val + 1;
+		plen  = len - 1;
+	}
+
+	/* Check whether the peer got the reconciliation right (6.6.8) */
+	if (dccp_feat_reconcile(&entry->val, plist, plen, server, 0) != *val) {
+		DCCP_WARN("Confirm selected the wrong value %u\n", *val);
+		return DCCP_RESET_CODE_OPTION_ERROR;
+	}
+	entry->val.sp.vec[0] = *val;
+
+confirmation_succeeded:
+	entry->state = FEAT_STABLE;
+	return 0;
+
+confirmation_failed:
+	DCCP_WARN("Confirmation failed\n");
+	return is_mandatory ? DCCP_RESET_CODE_MANDATORY_ERROR
+			    : DCCP_RESET_CODE_OPTION_ERROR;
+}
+
+/**
  * dccp_feat_parse_options  -  Process Feature-Negotiation Options
  * @sk: for general use and used by the client during connection setup
  * @dreq: used by the server during connection setup
@@ -1373,6 +1467,10 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		case DCCPO_CHANGE_R:
 			return dccp_feat_change_recv(fn, mandatory, opt, feat,
 						     val, len, server);
+		case DCCPO_CONFIRM_R:
+		case DCCPO_CONFIRM_L:
+			return dccp_feat_confirm_recv(fn, mandatory, opt, feat,
+						      val, len, server);
 		}
 	}
 	return 0;	/* ignore FN options in all other states */

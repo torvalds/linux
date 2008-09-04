@@ -134,25 +134,13 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 			dccp_pr_debug("%s opt: NDP count=%llu\n", dccp_role(sk),
 				      (unsigned long long)opt_recv->dccpor_ndp);
 			break;
-		case DCCPO_CHANGE_L:
-		case DCCPO_CHANGE_R:
-			if (pkt_type == DCCP_PKT_DATA)
+		case DCCPO_CHANGE_L ... DCCPO_CONFIRM_R:
+			if (pkt_type == DCCP_PKT_DATA)      /* RFC 4340, 6 */
 				break;
 			rc = dccp_feat_parse_options(sk, dreq, mandatory, opt,
 						    *value, value + 1, len - 1);
 			if (rc)
 				goto out_featneg_failed;
-			break;
-		case DCCPO_CONFIRM_L:
-			/* fall through */
-		case DCCPO_CONFIRM_R:
-			if (pkt_type == DCCP_PKT_DATA)
-				break;
-			if (len < 2)	/* FIXME this disallows empty confirm */
-				goto out_invalid_option;
-			if (dccp_feat_confirm_recv(sk, opt, *value,
-						   value + 1, len - 1))
-				goto out_invalid_option;
 			break;
 		case DCCPO_ACK_VECTOR_0:
 		case DCCPO_ACK_VECTOR_1:
