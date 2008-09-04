@@ -23,6 +23,20 @@
 
 #define DCCP_FEAT_SP_NOAGREE (-123)
 
+/* copy constructor, fval must not already contain allocated memory */
+static int dccp_feat_clone_sp_val(dccp_feat_val *fval, u8 const *val, u8 len)
+{
+	fval->sp.len = len;
+	if (fval->sp.len > 0) {
+		fval->sp.vec = kmemdup(val, len, gfp_any());
+		if (fval->sp.vec == NULL) {
+			fval->sp.len = 0;
+			return -ENOBUFS;
+		}
+	}
+	return 0;
+}
+
 int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
 		     u8 *val, u8 len, gfp_t gfp)
 {
