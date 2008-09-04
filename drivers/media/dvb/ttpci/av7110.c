@@ -2256,7 +2256,7 @@ static int frontend_init(struct av7110 *av7110)
 	if (!av7110->fe) {
 		/* FIXME: propagate the failure code from the lower layers */
 		ret = -ENOMEM;
-		printk("dvb-ttpci: A frontend driver was not found for device %04x/%04x subsystem %04x/%04x\n",
+		printk("dvb-ttpci: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       av7110->dev->pci->vendor,
 		       av7110->dev->pci->device,
 		       av7110->dev->pci->subsystem_vendor,

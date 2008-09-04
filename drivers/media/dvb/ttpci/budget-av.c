@@ -1049,7 +1049,7 @@ static void frontend_init(struct budget_av *budget_av)
 
 	if (fe == NULL) {
 		printk(KERN_ERR "budget-av: A frontend driver was not found "
-				"for device %04x/%04x subsystem %04x/%04x\n",
+				"for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       saa->pci->vendor,
 		       saa->pci->device,
 		       saa->pci->subsystem_vendor,

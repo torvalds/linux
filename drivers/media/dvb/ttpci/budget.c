@@ -550,7 +550,7 @@ static void frontend_init(struct budget *budget)
 	}
 
 	if (budget->dvb_frontend == NULL) {
-		printk("budget: A frontend driver was not found for device %04x/%04x subsystem %04x/%04x\n",
+		printk("budget: A frontend driver was not found for device [%04x:%04x] subsystem [%04x:%04x]\n",
 		       budget->dev->pci->vendor,
 		       budget->dev->pci->device,
 		       budget->dev->pci->subsystem_vendor,

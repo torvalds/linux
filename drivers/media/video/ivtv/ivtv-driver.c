@@ -655,9 +655,9 @@ done:
 
 	if (itv->card == NULL) {
 		itv->card = ivtv_get_card(IVTV_CARD_PVR_150);
-		IVTV_ERR("Unknown card: vendor/device: %04x/%04x\n",
+		IVTV_ERR("Unknown card: vendor/device: [%04x:%04x]\n",
 		     itv->dev->vendor, itv->dev->device);
-		IVTV_ERR("              subsystem vendor/device: %04x/%04x\n",
+		IVTV_ERR("              subsystem vendor/device: [%04x:%04x]\n",
 		     itv->dev->subsystem_vendor, itv->dev->subsystem_device);
 		IVTV_ERR("              %s based\n", chipname);
 		IVTV_ERR("Defaulting to %s card\n", itv->card->name);
