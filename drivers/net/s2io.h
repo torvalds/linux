@@ -962,6 +962,7 @@ struct s2io_nic {
 	int task_flag;
 	unsigned long long start_time;
 	struct vlan_group *vlgrp;
+	int vlan_strip_flag;
 #define MSIX_FLG                0xA5
 	int num_entries;
 	struct msix_entry *entries;

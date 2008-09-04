@@ -371,9 +371,6 @@ static void s2io_vlan_rx_register(struct net_device *dev,
 				flags[i]);
 }
 
-/* A flag indicating whether 'RX_PA_CFG_STRIP_VLAN_TAG' bit is set or not */
-static int vlan_strip_flag;
-
 /* Unregister the vlan */
 static void s2io_vlan_rx_kill_vid(struct net_device *dev, unsigned long vid)
 {
@@ -2303,7 +2300,7 @@ static int start_nic(struct s2io_nic *nic)
 		val64 = readq(&bar0->rx_pa_cfg);
 		val64 &= ~RX_PA_CFG_STRIP_VLAN_TAG;
 		writeq(val64, &bar0->rx_pa_cfg);
-		vlan_strip_flag = 0;
+		nic->vlan_strip_flag = 0;
 	}
 
 	/*
@@ -5010,7 +5007,7 @@ static void s2io_set_multicast(struct net_device *dev)
 			val64 = readq(&bar0->rx_pa_cfg);
 			val64 &= ~RX_PA_CFG_STRIP_VLAN_TAG;
 			writeq(val64, &bar0->rx_pa_cfg);
-			vlan_strip_flag = 0;
+			sp->vlan_strip_flag = 0;
 		}
 
 		val64 = readq(&bar0->mac_cfg);
@@ -5032,7 +5029,7 @@ static void s2io_set_multicast(struct net_device *dev)
 			val64 = readq(&bar0->rx_pa_cfg);
 			val64 |= RX_PA_CFG_STRIP_VLAN_TAG;
 			writeq(val64, &bar0->rx_pa_cfg);
-			vlan_strip_flag = 1;
+			sp->vlan_strip_flag = 1;
 		}
 
 		val64 = readq(&bar0->mac_cfg);
@@ -8206,6 +8203,11 @@ s2io_init_nic(struct pci_dev *pdev, const struct pci_device_id *pre)
 	/* Initialize device name */
 	sprintf(sp->name, "%s Neterion %s", dev->name, sp->product_name);
 
+	if (vlan_tag_strip)
+		sp->vlan_strip_flag = 1;
+	else
+		sp->vlan_strip_flag = 0;
+
 	/*
 	 * Make Link state as off at this point, when the Link change
 	 * interrupt comes the state will be automatically changed to
@@ -8311,7 +8313,7 @@ static int check_L2_lro_capable(u8 *buffer, struct iphdr **ip,
 		 * If vlan stripping is disabled and the frame is VLAN tagged,
 		 * shift the offset by the VLAN header size bytes.
 		 */
-		if ((!vlan_strip_flag) &&
+		if ((!sp->vlan_strip_flag) &&
 			(rxdp->Control_1 & RXD_FRAME_VLAN_TAG))
 			ip_off += HEADER_VLAN_SIZE;
 	} else {
@@ -8592,7 +8594,7 @@ static void queue_rx_frame(struct sk_buff *skb, u16 vlan_tag)
 
 	skb->protocol = eth_type_trans(skb, dev);
 	if (sp->vlgrp && vlan_tag
-		&& (vlan_strip_flag)) {
+		&& (sp->vlan_strip_flag)) {
 		/* Queueing the vlan frame to the upper layer */
 		if (sp->config.napi)
 			vlan_hwaccel_receive_skb(skb, sp->vlgrp, vlan_tag);
