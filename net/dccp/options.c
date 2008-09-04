@@ -26,7 +26,6 @@
 int sysctl_dccp_feat_sequence_window = DCCPF_INITIAL_SEQUENCE_WINDOW;
 int sysctl_dccp_feat_rx_ccid	      = DCCPF_INITIAL_CCID;
 int sysctl_dccp_feat_tx_ccid	      = DCCPF_INITIAL_CCID;
-int sysctl_dccp_feat_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
 
 u64 dccp_decode_value_var(const u8 *bf, const u8 len)
 {
@@ -145,8 +144,7 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		case DCCPO_ACK_VECTOR_1:
 			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
 				break;
-
-			if (dccp_msk(sk)->dccpms_send_ack_vector &&
+			if (dp->dccps_hc_rx_ackvec != NULL &&
 			    dccp_ackvec_parse(sk, skb, &ackno, opt, value, len))
 				goto out_invalid_option;
 			break;
@@ -526,7 +524,6 @@ static void dccp_insert_option_padding(struct sk_buff *skb)
 int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
@@ -547,7 +544,7 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 			if (dccp_insert_option_timestamp(sk, skb))
 				return -1;
 
-		} else if (dmsk->dccpms_send_ack_vector	&&
+		} else if (dp->dccps_hc_rx_ackvec != NULL &&
 			   dccp_ackvec_pending(dp->dccps_hc_rx_ackvec) &&
 			   dccp_insert_option_ackvec(sk, skb)) {
 				return -1;

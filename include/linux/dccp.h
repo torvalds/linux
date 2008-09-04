@@ -360,7 +360,6 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 #define DCCPF_INITIAL_SEQUENCE_WINDOW		100
 #define DCCPF_INITIAL_ACK_RATIO			2
 #define DCCPF_INITIAL_CCID			DCCPC_CCID2
-#define DCCPF_INITIAL_SEND_ACK_VECTOR		1
 /* FIXME: for now we're default to 1 but it should really be 0 */
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
 
@@ -370,13 +369,11 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   * Will be used to pass the state from dccp_request_sock to dccp_sock.
   *
   * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
-  * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
   * @dccpms_pending - List of features being negotiated
   * @dccpms_conf -
   */
 struct dccp_minisock {
 	__u64			dccpms_sequence_window;
-	__u8			dccpms_send_ack_vector;
 	struct list_head	dccpms_pending;
 	struct list_head	dccpms_conf;
 };

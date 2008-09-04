@@ -98,7 +98,6 @@ extern int  sysctl_dccp_retries2;
 extern int  sysctl_dccp_feat_sequence_window;
 extern int  sysctl_dccp_feat_rx_ccid;
 extern int  sysctl_dccp_feat_tx_ccid;
-extern int  sysctl_dccp_feat_send_ack_vector;
 extern int  sysctl_dccp_tx_qlen;
 extern int  sysctl_dccp_sync_ratelimit;
 
@@ -434,7 +433,7 @@ static inline int dccp_ack_pending(const struct sock *sk)
 	const struct dccp_sock *dp = dccp_sk(sk);
 	return dp->dccps_timestamp_echo != 0 ||
 #ifdef CONFIG_IP_DCCP_ACKVEC
-	       (dccp_msk(sk)->dccpms_send_ack_vector &&
+	       (dp->dccps_hc_rx_ackvec != NULL &&
 		dccp_ackvec_pending(dp->dccps_hc_rx_ackvec)) ||
 #endif
 	       inet_csk_ack_scheduled(sk);
