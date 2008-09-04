@@ -658,7 +658,6 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 	result = scaled_div(s, R);
 	return scaled_div32(result, f);
 }
-
 EXPORT_SYMBOL_GPL(tfrc_calc_x);
 
 /**
@@ -693,5 +692,19 @@ u32 tfrc_calc_x_reverse_lookup(u32 fvalue)
 	index = tfrc_binsearch(fvalue, 0);
 	return (index + 1) * 1000000 / TFRC_CALC_X_ARRSIZE;
 }
-
 EXPORT_SYMBOL_GPL(tfrc_calc_x_reverse_lookup);
+
+/**
+ * tfrc_invert_loss_event_rate  -  Compute p so that 10^6 corresponds to 100%
+ * When @loss_event_rate is large, there is a chance that p is truncated to 0.
+ * To avoid re-entering slow-start in that case, we set p = TFRC_SMALLEST_P > 0.
+ */
+u32 tfrc_invert_loss_event_rate(u32 loss_event_rate)
+{
+	if (loss_event_rate == UINT_MAX)		/* see RFC 4342, 8.5 */
+		return 0;
+	if (unlikely(loss_event_rate == 0))		/* map 1/0 into 100% */
+		return 1000000;
+	return max_t(u32, scaled_div(1, loss_event_rate), TFRC_SMALLEST_P);
+}
+EXPORT_SYMBOL_GPL(tfrc_invert_loss_event_rate);
