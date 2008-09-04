@@ -370,11 +370,10 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, int more,
 static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct ccid3_options_received *opt_recv = &hctx->options_received;
 	struct tfrc_tx_hist_entry *acked;
 	ktime_t now;
 	unsigned long t_nfb;
-	u32 pinv, r_sample;
+	u32 r_sample;
 
 	/* we are only interested in ACKs */
 	if (!(DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK ||
@@ -403,17 +402,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	now	  = ktime_get_real();
 	r_sample  = dccp_sample_rtt(sk, ktime_us_delta(now, acked->stamp));
 	hctx->rtt = tfrc_ewma(hctx->rtt, r_sample, 9);
-
-	/* Update receive rate in units of 64 * bytes/second */
-	hctx->x_recv = opt_recv->ccid3or_receive_rate;
-	hctx->x_recv <<= 6;
-
-	/* Update loss event rate (which is scaled by 1e6) */
-	pinv = opt_recv->ccid3or_loss_event_rate;
-	if (pinv == 0)
-		hctx->p = 0;
-	else
-		hctx->p = tfrc_invert_loss_event_rate(pinv);
 
 	/*
 	 * Update allowed sending rate X as per draft rfc3448bis-00, 4.2/3
@@ -487,7 +475,6 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, u8 packet_type,
 				     u8 option, u8 *optval, u8 optlen)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	struct ccid3_options_received *opt_recv = &hctx->options_received;
 	__be32 opt_val;
 
 	switch (option) {
@@ -504,11 +491,16 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, u8 packet_type,
 		opt_val = ntohl(get_unaligned((__be32 *)optval));
 
 		if (option == TFRC_OPT_RECEIVE_RATE) {
-			opt_recv->ccid3or_receive_rate = opt_val;
+			/* Receive Rate is kept in units of 64 bytes/second */
+			hctx->x_recv = opt_val;
+			hctx->x_recv <<= 6;
+
 			ccid3_pr_debug("%s(%p), RECEIVE_RATE=%u\n",
 				       dccp_role(sk), sk, opt_val);
 		} else {
-			opt_recv->ccid3or_loss_event_rate = opt_val;
+			/* Update the fixpoint Loss Event Rate fraction */
+			hctx->p = tfrc_invert_loss_event_rate(opt_val);
+
 			ccid3_pr_debug("%s(%p), LOSS_EVENT_RATE=%u\n",
 				       dccp_role(sk), sk, opt_val);
 		}
