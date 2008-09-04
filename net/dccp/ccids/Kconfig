@@ -1,8 +1,7 @@
 menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 
 config IP_DCCP_CCID2
-	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
+	tristate "CCID2 (TCP-Like)"
 	def_tristate IP_DCCP
 	---help---
 	  CCID 2, TCP-like Congestion Control, denotes Additive Increase,
@@ -35,7 +34,7 @@ config IP_DCCP_CCID2_DEBUG
 	    If in doubt, say N.
 
 config IP_DCCP_CCID3
-	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
+	tristate "CCID3 (TCP-Friendly)"
 	def_tristate IP_DCCP
 	select IP_DCCP_TFRC_LIB
 	---help---
@@ -63,9 +62,9 @@ config IP_DCCP_CCID3
 
 	  If in doubt, say M.
 
+if IP_DCCP_CCID3
 config IP_DCCP_CCID3_DEBUG
 	  bool "CCID3 debugging messages"
-	  depends on IP_DCCP_CCID3
 	  ---help---
 	    Enable CCID3-specific debugging messages.
 
@@ -78,7 +77,6 @@ config IP_DCCP_CCID3_DEBUG
 config IP_DCCP_CCID3_RTO
 	  int "Use higher bound for nofeedback timer"
 	  default 100
-	  depends on IP_DCCP_CCID3 && EXPERIMENTAL
 	  ---help---
 	    Use higher lower bound for nofeedback timer expiration.
 
@@ -105,6 +103,7 @@ config IP_DCCP_CCID3_RTO
 	    The purpose of the nofeedback timer is to slow DCCP down when there
 	    is serious network congestion: experimenting with larger values should
 	    therefore not be performed on WANs.
+endif	# IP_DCCP_CCID3
 
 config IP_DCCP_TFRC_LIB
 	tristate
