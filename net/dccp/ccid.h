@@ -129,13 +129,41 @@ static inline int ccid_get_current_tx_ccid(struct dccp_sock *dp)
 extern void ccid_hc_rx_delete(struct ccid *ccid, struct sock *sk);
 extern void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk);
 
+/*
+ * Congestion control of queued data packets via CCID decision.
+ *
+ * The TX CCID performs its congestion-control by indicating whether and when a
+ * queued packet may be sent, using the return code of ccid_hc_tx_send_packet().
+ * The following modes are supported via the symbolic constants below:
+ * - timer-based pacing    (CCID returns a delay value in milliseconds);
+ * - autonomous dequeueing (CCID internally schedules dccps_xmitlet).
+ */
+
+enum ccid_dequeueing_decision {
+	CCID_PACKET_SEND_AT_ONCE =	 0x00000,  /* "green light": no delay */
+	CCID_PACKET_DELAY_MAX =		 0x0FFFF,  /* maximum delay in msecs  */
+	CCID_PACKET_DELAY =		 0x10000,  /* CCID msec-delay mode */
+	CCID_PACKET_WILL_DEQUEUE_LATER = 0x20000,  /* CCID autonomous mode */
+	CCID_PACKET_ERR =		 0xF0000,  /* error condition */
+};
+
+static inline int ccid_packet_dequeue_eval(const int return_code)
+{
+	if (return_code < 0)
+		return CCID_PACKET_ERR;
+	if (return_code == 0)
+		return CCID_PACKET_SEND_AT_ONCE;
+	if (return_code <= CCID_PACKET_DELAY_MAX)
+		return CCID_PACKET_DELAY;
+	return return_code;
+}
+
 static inline int ccid_hc_tx_send_packet(struct ccid *ccid, struct sock *sk,
 					 struct sk_buff *skb)
 {
-	int rc = 0;
 	if (ccid->ccid_ops->ccid_hc_tx_send_packet != NULL)
-		rc = ccid->ccid_ops->ccid_hc_tx_send_packet(sk, skb);
-	return rc;
+		return ccid->ccid_ops->ccid_hc_tx_send_packet(sk, skb);
+	return CCID_PACKET_SEND_AT_ONCE;
 }
 
 static inline void ccid_hc_tx_packet_sent(struct ccid *ccid, struct sock *sk,
