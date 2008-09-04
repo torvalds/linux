@@ -13,6 +13,7 @@
  *  -----------
  *  o Feature negotiation is coordinated with connection setup (as in TCP), wild
  *    changes of parameters of an established connection are not supported.
+ *  o Changing NN values (Ack Ratio only) is supported in state OPEN/PARTOPEN.
  *  o All currently known SP features have 1-byte quantities. If in the future
  *    extensions of RFCs 4340..42 define features with item lengths larger than
  *    one byte, a feature-specific extension of the code will be required.
@@ -335,6 +336,20 @@ static int __dccp_feat_activate(struct sock *sk, const int idx,
 		   fval ? "" : "default ",  (unsigned long long)val);
 
 	return dccp_feat_table[idx].activation_hdlr(sk, val, rx);
+}
+
+/**
+ * dccp_feat_activate  -  Activate feature value on socket
+ * @sk: fully connected DCCP socket (after handshake is complete)
+ * @feat_num: feature to activate, one of %dccp_feature_numbers
+ * @local: whether local (1) or remote (0) @feat_num is meant
+ * @fval: the value (SP or NN) to activate, or NULL to use the default value
+ * For general use this function is preferable over __dccp_feat_activate().
+ */
+static int dccp_feat_activate(struct sock *sk, u8 feat_num, bool local,
+			      dccp_feat_val const *fval)
+{
+	return __dccp_feat_activate(sk, dccp_feat_index(feat_num), local, fval);
 }
 
 /* Test for "Req'd" feature (RFC 4340, 6.4) */
@@ -733,6 +748,48 @@ int dccp_feat_register_nn(struct sock *sk, u8 feat, u64 val)
 		return -EINVAL;
 	return __feat_register_nn(&dccp_sk(sk)->dccps_featneg, feat, 0, val);
 }
+
+/**
+ * dccp_feat_signal_nn_change  -  Update NN values for an established connection
+ * @sk: DCCP socket of an established connection
+ * @feat: NN feature number from %dccp_feature_numbers
+ * @nn_val: the new value to use
+ * This function is used to communicate NN updates out-of-band. The difference
+ * to feature negotiation during connection setup is that values are activated
+ * immediately after validation, i.e. we don't wait for the Confirm: either the
+ * value is accepted by the peer (and then the waiting is futile), or it is not
+ * (Reset or empty Confirm). We don't accept empty Confirms - transmitted values
+ * are validated, and the peer "MUST accept any valid value" (RFC 4340, 6.3.2).
+ */
+int dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val)
+{
+	struct list_head *fn = &dccp_sk(sk)->dccps_featneg;
+	dccp_feat_val fval = { .nn = nn_val };
+	struct dccp_feat_entry *entry;
+
+	if (sk->sk_state != DCCP_OPEN && sk->sk_state != DCCP_PARTOPEN)
+		return 0;
+
+	if (dccp_feat_type(feat) != FEAT_NN ||
+	    !dccp_feat_is_valid_nn_val(feat, nn_val))
+		return -EINVAL;
+
+	entry = dccp_feat_list_lookup(fn, feat, 1);
+	if (entry != NULL) {
+		dccp_pr_debug("Ignoring %llu, entry %llu exists in state %s\n",
+			      (unsigned long long)nn_val,
+			      (unsigned long long)entry->val.nn,
+			      dccp_feat_sname[entry->state]);
+		return 0;
+	}
+
+	if (dccp_feat_activate(sk, feat, 1, &fval))
+		return -EADV;
+
+	inet_csk_schedule_ack(sk);
+	return dccp_feat_push_change(fn, feat, 1, 0, &fval);
+}
+EXPORT_SYMBOL_GPL(dccp_feat_signal_nn_change);
 
 /*
  *	Tracking features whose value depend on the choice of CCID
