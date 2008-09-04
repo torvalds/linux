@@ -109,6 +109,7 @@ config CONTEXT_SWITCH_TRACER
 config STACK_TRACER
 	bool "Trace max stack"
 	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
 	select FTRACE
 	select STACKTRACE
 	help
