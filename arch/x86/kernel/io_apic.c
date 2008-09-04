@@ -166,7 +166,7 @@ static void __init init_work(void *data)
 
 	memcpy(cfg, irq_cfg_legacy, sizeof(irq_cfg_legacy));
 
-	legacy_count = sizeof(irq_cfg_legacy)/sizeof(irq_cfg_legacy[0]);
+	legacy_count = ARRAY_SIZE(irq_cfg_legacy);
 	for (i = legacy_count; i < *da->nr; i++)
 		init_one_irq_cfg(&cfg[i]);
 
