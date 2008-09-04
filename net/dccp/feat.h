@@ -115,8 +115,8 @@ static inline void dccp_feat_debug(const u8 type, const u8 feat, const u8 val)
 extern int  dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 				  u8 const *list, u8 len);
 extern int  dccp_feat_register_nn(struct sock *sk, u8 feat, u64 val);
-extern int  dccp_feat_change_recv(struct sock *sk, u8 type, u8 feature,
-				  u8 *val, u8 len);
+extern int  dccp_feat_parse_options(struct sock *, struct dccp_request_sock *,
+				    u8 mand, u8 opt, u8 feat, u8 *val, u8 len);
 extern int  dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 				   u8 *val, u8 len);
 extern void dccp_feat_clean(struct dccp_minisock *dmsk);
