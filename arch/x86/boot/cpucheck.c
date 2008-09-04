@@ -22,21 +22,13 @@
 
 #ifdef _SETUP
 # include "boot.h"
-# include "bitops.h"
 #endif
 #include <linux/types.h>
-#include <asm/cpufeature.h>
 #include <asm/processor-flags.h>
 #include <asm/required-features.h>
 #include <asm/msr-index.h>
 
-struct cpu_features {
-	int level;		/* Family, or 64 for x86-64 */
-	int model;
-	u32 flags[NCAPINTS];
-};
-
-static struct cpu_features cpu;
+struct cpu_features cpu;
 static u32 cpu_vendor[3];
 static u32 err_flags[NCAPINTS];
 
@@ -46,12 +38,12 @@ static const u32 req_flags[NCAPINTS] =
 {
 	REQUIRED_MASK0,
 	REQUIRED_MASK1,
-	REQUIRED_MASK2,
-	REQUIRED_MASK3,
+	0, /* REQUIRED_MASK2 not implemented in this file */
+	0, /* REQUIRED_MASK3 not implemented in this file */
 	REQUIRED_MASK4,
-	REQUIRED_MASK5,
+	0, /* REQUIRED_MASK5 not implemented in this file */
 	REQUIRED_MASK6,
-	REQUIRED_MASK7,
+	0, /* REQUIRED_MASK7 not implemented in this file */
 };
 
 #define A32(a, b, c, d) (((d) << 24)+((c) << 16)+((b) << 8)+(a))

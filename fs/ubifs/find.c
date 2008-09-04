@@ -290,9 +290,14 @@ int ubifs_find_dirty_leb(struct ubifs_info *c, struct ubifs_lprops *ret_lp,
 		idx_lp = idx_heap->arr[0];
 		sum = idx_lp->free + idx_lp->dirty;
 		/*
-		 * Since we reserve twice as more space for the index than it
+		 * Since we reserve thrice as much space for the index than it
 		 * actually takes, it does not make sense to pick indexing LEBs
-		 * with less than half LEB of dirty space.
+		 * with less than, say, half LEB of dirty space. May be half is
+		 * not the optimal boundary - this should be tested and
+		 * checked. This boundary should determine how much we use
+		 * in-the-gaps to consolidate the index comparing to how much
+		 * we use garbage collector to consolidate it. The "half"
+		 * criteria just feels to be fine.
 		 */
 		if (sum < min_space || sum < c->half_leb_size)
 			idx_lp = NULL;

@@ -182,7 +182,7 @@ acpi_status acpi_ns_evaluate(struct acpi_evaluate_info *info);
  */
 u32 acpi_ns_opens_scope(acpi_object_type type);
 
-void
+acpi_status
 acpi_ns_build_external_path(struct acpi_namespace_node *node,
 			    acpi_size size, char *name_buffer);
 

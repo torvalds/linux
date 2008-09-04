@@ -73,7 +73,7 @@ static void __init smp_dump_qct(void)
 }
 
 
-void __init numaq_tsc_disable(void)
+void __cpuinit numaq_tsc_disable(void)
 {
 	if (!found_numaq)
 		return;

@@ -567,7 +567,7 @@ bool get_instruction(unsigned short *val, unsigned short *address)
 	 * we don't read something in the async space that can hang forever
 	 */
 	if ((addr >= FIXED_CODE_START && (addr + 2) <= physical_mem_end) ||
-#ifdef L2_START
+#if L2_LENGTH != 0
 	    (addr >= L2_START && (addr + 2) <= (L2_START + L2_LENGTH)) ||
 #endif
 	    (addr >= BOOT_ROM_START && (addr + 2) <= (BOOT_ROM_START + BOOT_ROM_LENGTH)) ||
@@ -601,12 +601,55 @@ bool get_instruction(unsigned short *val, unsigned short *address)
 	return false;
 }
 
+/* 
+ * decode the instruction if we are printing out the trace, as it
+ * makes things easier to follow, without running it through objdump
+ * These are the normal instructions which cause change of flow, which
+ * would be at the source of the trace buffer
+ */
+void decode_instruction(unsigned short *address)
+{
+	unsigned short opcode;
+
+	if (get_instruction(&opcode, address)) {
+		if (opcode == 0x0010)
+			printk("RTS");
+		else if (opcode == 0x0011)
+			printk("RTI");
+		else if (opcode == 0x0012)
+			printk("RTX");
+		else if (opcode >= 0x0050 && opcode <= 0x0057)
+			printk("JUMP (P%i)", opcode & 7);
+		else if (opcode >= 0x0060 && opcode <= 0x0067)
+			printk("CALL (P%i)", opcode & 7);
+		else if (opcode >= 0x0070 && opcode <= 0x0077)
+			printk("CALL (PC+P%i)", opcode & 7);
+		else if (opcode >= 0x0080 && opcode <= 0x0087)
+			printk("JUMP (PC+P%i)", opcode & 7);
+		else if ((opcode >= 0x1000 && opcode <= 0x13FF) || (opcode >= 0x1800 && opcode <= 0x1BFF))
+			printk("IF !CC JUMP");
+		else if ((opcode >= 0x1400 && opcode <= 0x17ff) || (opcode >= 0x1c00 && opcode <= 0x1fff))
+			printk("IF CC JUMP");
+		else if (opcode >= 0x2000 && opcode <= 0x2fff)
+			printk("JUMP.S");
+		else if (opcode >= 0xe080 && opcode <= 0xe0ff)
+			printk("LSETUP");
+		else if (opcode >= 0xe200 && opcode <= 0xe2ff)
+			printk("JUMP.L");
+		else if (opcode >= 0xe300 && opcode <= 0xe3ff)
+			printk("CALL pcrel");
+		else
+			printk("0x%04x", opcode);
+	}
+
+}
+
 void dump_bfin_trace_buffer(void)
 {
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
 	int tflags, i = 0;
 	char buf[150];
-	unsigned short val = 0, *addr;
+	unsigned short *addr;
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
 	int j, index;
 #endif
@@ -615,6 +658,10 @@ void dump_bfin_trace_buffer(void)
 
 	printk(KERN_NOTICE "Hardware Trace:\n");
 
+#ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
+	printk(KERN_NOTICE "WARNING: Expanded trace turned on - can not trace exceptions\n");
+#endif
+
 	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
 		for (; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
 			decode_address(buf, (unsigned long)bfin_read_TBUF());
@@ -622,45 +669,14 @@ void dump_bfin_trace_buffer(void)
 			addr = (unsigned short *)bfin_read_TBUF();
 			decode_address(buf, (unsigned long)addr);
 			printk(KERN_NOTICE "     Source : %s ", buf);
-			if (get_instruction(&val, addr)) {
-				if (val == 0x0010)
-					printk("RTS");
-				else if (val == 0x0011)
-					printk("RTI");
-				else if (val == 0x0012)
-					printk("RTX");
-				else if (val >= 0x0050 && val <= 0x0057)
-					printk("JUMP (P%i)", val & 7);
-				else if (val >= 0x0060 && val <= 0x0067)
-					printk("CALL (P%i)", val & 7);
-				else if (val >= 0x0070 && val <= 0x0077)
-					printk("CALL (PC+P%i)", val & 7);
-				else if (val >= 0x0080 && val <= 0x0087)
-					printk("JUMP (PC+P%i)", val & 7);
-				else if ((val >= 0x1000 && val <= 0x13FF) ||
-				    (val >= 0x1800 && val <= 0x1BFF))
-					printk("IF !CC JUMP");
-				else if ((val >= 0x1400 && val <= 0x17ff) ||
-				    (val >= 0x1c00 && val <= 0x1fff))
-					printk("IF CC JUMP");
-				else if (val >= 0x2000 && val <= 0x2fff)
-					printk("JUMP.S");
-				else if (val >= 0xe080 && val <= 0xe0ff)
-					printk("LSETUP");
-				else if (val >= 0xe200 && val <= 0xe2ff)
-					printk("JUMP.L");
-				else if (val >= 0xe300 && val <= 0xe3ff)
-					printk("CALL pcrel");
-				else
-					printk("0x%04x", val);
-			}
+			decode_instruction(addr);
 			printk("\n");
 		}
 	}
 
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
 	if (trace_buff_offset)
-		index = trace_buff_offset/4 - 1;
+		index = trace_buff_offset / 4;
 	else
 		index = EXPAND_LEN;
 
@@ -672,7 +688,9 @@ void dump_bfin_trace_buffer(void)
 		if (index < 0 )
 			index = EXPAND_LEN;
 		decode_address(buf, software_trace_buff[index]);
-		printk(KERN_NOTICE "     Source : %s\n", buf);
+		printk(KERN_NOTICE "     Source : %s ", buf);
+		decode_instruction((unsigned short *)software_trace_buff[index]);
+		printk("\n");
 		index -= 1;
 		if (index < 0)
 			index = EXPAND_LEN;

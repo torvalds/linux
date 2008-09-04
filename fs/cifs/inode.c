@@ -649,6 +649,7 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 		inode->i_fop = &simple_dir_operations;
 		inode->i_uid = cifs_sb->mnt_uid;
 		inode->i_gid = cifs_sb->mnt_gid;
+	} else if (rc) {
 		_FreeXid(xid);
 		iget_failed(inode);
 		return ERR_PTR(rc);

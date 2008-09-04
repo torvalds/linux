@@ -54,6 +54,20 @@
 #include "ubifs.h"
 
 /**
+ * ubifs_ro_mode - switch UBIFS to read read-only mode.
+ * @c: UBIFS file-system description object
+ * @err: error code which is the reason of switching to R/O mode
+ */
+void ubifs_ro_mode(struct ubifs_info *c, int err)
+{
+	if (!c->ro_media) {
+		c->ro_media = 1;
+		ubifs_warn("switched to read-only mode, error %d", err);
+		dbg_dump_stack();
+	}
+}
+
+/**
  * ubifs_check_node - check node.
  * @c: UBIFS file-system description object
  * @buf: node to check

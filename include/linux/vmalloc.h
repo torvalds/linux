@@ -4,9 +4,9 @@
 #include <linux/spinlock.h>
 #include <asm/page.h>		/* pgprot_t */
 
-struct vm_area_struct;
+struct vm_area_struct;		/* vma defining user mapping in mm_types.h */
 
-/* bits in vm_struct->flags */
+/* bits in flags of vmalloc's vm_struct below */
 #define VM_IOREMAP	0x00000001	/* ioremap() and friends */
 #define VM_ALLOC	0x00000002	/* vmalloc() */
 #define VM_MAP		0x00000004	/* vmap()ed pages */

@@ -15,6 +15,8 @@
 #include <linux/rmap.h>
 #include <linux/mmu_notifier.h>
 #include <linux/sched.h>
+#include <linux/seqlock.h>
+#include <linux/mutex.h>
 #include <asm/tlbflush.h>
 #include <asm/io.h>
 
@@ -22,22 +24,18 @@
  * We do use our own empty page to avoid interference with other users
  * of ZERO_PAGE(), such as /dev/zero
  */
+static DEFINE_MUTEX(xip_sparse_mutex);
+static seqcount_t xip_sparse_seq = SEQCNT_ZERO;
 static struct page *__xip_sparse_page;
 
+/* called under xip_sparse_mutex */
 static struct page *xip_sparse_page(void)
 {
 	if (!__xip_sparse_page) {
 		struct page *page = alloc_page(GFP_HIGHUSER | __GFP_ZERO);
 
-		if (page) {
-			static DEFINE_SPINLOCK(xip_alloc_lock);
-			spin_lock(&xip_alloc_lock);
-			if (!__xip_sparse_page)
-				__xip_sparse_page = page;
-			else
-				__free_page(page);
-			spin_unlock(&xip_alloc_lock);
-		}
+		if (page)
+			__xip_sparse_page = page;
 	}
 	return __xip_sparse_page;
 }
@@ -174,18 +172,23 @@ __xip_unmap (struct address_space * mapping,
 	pte_t pteval;
 	spinlock_t *ptl;
 	struct page *page;
+	unsigned count;
+	int locked = 0;
+
+	count = read_seqcount_begin(&xip_sparse_seq);
 
 	page = __xip_sparse_page;
 	if (!page)
 		return;
 
+retry:
 	spin_lock(&mapping->i_mmap_lock);
 	vma_prio_tree_foreach(vma, &iter, &mapping->i_mmap, pgoff, pgoff) {
 		mm = vma->vm_mm;
 		address = vma->vm_start +
 			((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 		BUG_ON(address < vma->vm_start || address >= vma->vm_end);
-		pte = page_check_address(page, mm, address, &ptl);
+		pte = page_check_address(page, mm, address, &ptl, 1);
 		if (pte) {
 			/* Nuke the page table entry. */
 			flush_cache_page(vma, address, pte_pfn(*pte));
@@ -198,6 +201,14 @@ __xip_unmap (struct address_space * mapping,
 		}
 	}
 	spin_unlock(&mapping->i_mmap_lock);
+
+	if (locked) {
+		mutex_unlock(&xip_sparse_mutex);
+	} else if (read_seqcount_retry(&xip_sparse_seq, count)) {
+		mutex_lock(&xip_sparse_mutex);
+		locked = 1;
+		goto retry;
+	}
 }
 
 /*
@@ -218,7 +229,7 @@ static int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 	int error;
 
 	/* XXX: are VM_FAULT_ codes OK? */
-
+again:
 	size = (i_size_read(inode) + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
 	if (vmf->pgoff >= size)
 		return VM_FAULT_SIGBUS;
@@ -237,8 +248,10 @@ static int xip_file_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 		int err;
 
 		/* maybe shared writable, allocate new block */
+		mutex_lock(&xip_sparse_mutex);
 		error = mapping->a_ops->get_xip_mem(mapping, vmf->pgoff, 1,
 							&xip_mem, &xip_pfn);
+		mutex_unlock(&xip_sparse_mutex);
 		if (error)
 			return VM_FAULT_SIGBUS;
 		/* unmap sparse mappings at pgoff from all other vmas */
@@ -252,14 +265,34 @@ found:
 		BUG_ON(err);
 		return VM_FAULT_NOPAGE;
 	} else {
+		int err, ret = VM_FAULT_OOM;
+
+		mutex_lock(&xip_sparse_mutex);
+		write_seqcount_begin(&xip_sparse_seq);
+		error = mapping->a_ops->get_xip_mem(mapping, vmf->pgoff, 0,
+							&xip_mem, &xip_pfn);
+		if (unlikely(!error)) {
+			write_seqcount_end(&xip_sparse_seq);
+			mutex_unlock(&xip_sparse_mutex);
+			goto again;
+		}
+		if (error != -ENODATA)
+			goto out;
 		/* not shared and writable, use xip_sparse_page() */
 		page = xip_sparse_page();
 		if (!page)
-			return VM_FAULT_OOM;
+			goto out;
+		err = vm_insert_page(vma, (unsigned long)vmf->virtual_address,
+							page);
+		if (err == -ENOMEM)
+			goto out;
 
-		page_cache_get(page);
-		vmf->page = page;
-		return 0;
+		ret = VM_FAULT_NOPAGE;
+out:
+		write_seqcount_end(&xip_sparse_seq);
+		mutex_unlock(&xip_sparse_mutex);
+
+		return ret;
 	}
 }
 
@@ -308,8 +341,10 @@ __xip_file_write(struct file *filp, const char __user *buf,
 						&xip_mem, &xip_pfn);
 		if (status == -ENODATA) {
 			/* we allocate a new page unmap it */
+			mutex_lock(&xip_sparse_mutex);
 			status = a_ops->get_xip_mem(mapping, index, 1,
 							&xip_mem, &xip_pfn);
+			mutex_unlock(&xip_sparse_mutex);
 			if (!status)
 				/* unmap page at pgoff from all other vmas */
 				__xip_unmap(mapping, index);
