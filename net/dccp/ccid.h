@@ -116,6 +116,24 @@ extern struct ccid *ccid_hc_rx_new(unsigned char id, struct sock *sk,
 extern struct ccid *ccid_hc_tx_new(unsigned char id, struct sock *sk,
 				   gfp_t gfp);
 
+static inline int ccid_get_current_rx_ccid(struct dccp_sock *dp)
+{
+	struct ccid *ccid = dp->dccps_hc_rx_ccid;
+
+	if (ccid == NULL || ccid->ccid_ops == NULL)
+		return -1;
+	return ccid->ccid_ops->ccid_id;
+}
+
+static inline int ccid_get_current_tx_ccid(struct dccp_sock *dp)
+{
+	struct ccid *ccid = dp->dccps_hc_tx_ccid;
+
+	if (ccid == NULL || ccid->ccid_ops == NULL)
+		return -1;
+	return ccid->ccid_ops->ccid_id;
+}
+
 extern void ccid_hc_rx_delete(struct ccid *ccid, struct sock *sk);
 extern void ccid_hc_tx_delete(struct ccid *ccid, struct sock *sk);
 
