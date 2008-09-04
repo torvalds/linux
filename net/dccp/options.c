@@ -430,6 +430,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
+	struct dccp_skb_cb *dcb = DCCP_SKB_CB(skb);
 	const u16 buflen = dccp_ackvec_buflen(av);
 	/* Figure out how many options do we need to represent the ackvec */
 	const u8 nr_opts = DIV_ROUND_UP(buflen, DCCP_SINGLE_OPT_MAXLEN);
@@ -438,10 +439,25 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	const unsigned char *tail, *from;
 	unsigned char *to;
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
+	if (dcb->dccpd_opt_len + len > DCCP_MAX_OPT_LEN) {
+		DCCP_WARN("Lacking space for %u bytes on %s packet\n", len,
+			  dccp_packet_name(dcb->dccpd_type));
 		return -1;
-
-	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
+	}
+	/*
+	 * Since Ack Vectors are variable-length, we can not always predict
+	 * their size. To catch exception cases where the space is running out
+	 * on the skb, a separate Sync is scheduled to carry the Ack Vector.
+	 */
+	if (len > DCCPAV_MIN_OPTLEN &&
+	    len + dcb->dccpd_opt_len + skb->len > dp->dccps_mss_cache) {
+		DCCP_WARN("No space left for Ack Vector (%u) on skb (%u+%u), "
+			  "MPS=%u ==> reduce payload size?\n", len, skb->len,
+			  dcb->dccpd_opt_len, dp->dccps_mss_cache);
+		dp->dccps_sync_scheduled = 1;
+		return 0;
+	}
+	dcb->dccpd_opt_len += len;
 
 	to   = skb_push(skb, len);
 	len  = buflen;
@@ -482,7 +498,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	/*
 	 * Each sent Ack Vector is recorded in the list, as per A.2 of RFC 4340.
 	 */
-	if (dccp_ackvec_update_records(av, DCCP_SKB_CB(skb)->dccpd_seq, nonce))
+	if (dccp_ackvec_update_records(av, dcb->dccpd_seq, nonce))
 		return -ENOBUFS;
 	return 0;
 }

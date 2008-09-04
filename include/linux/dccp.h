@@ -462,6 +462,7 @@ struct dccp_ackvec;
  * @dccps_hc_rx_insert_options - receiver wants to add options when acking
  * @dccps_hc_tx_insert_options - sender wants to add options when sending
  * @dccps_server_timewait - server holds timewait state on close (RFC 4340, 8.3)
+ * @dccps_sync_scheduled - flag which signals "send out-of-band message soon"
  * @dccps_xmit_timer - timer for when CCID is not ready to send
  * @dccps_syn_rtt - RTT sample from Request/Response exchange (in usecs)
  */
@@ -502,6 +503,7 @@ struct dccp_sock {
 	__u8				dccps_hc_rx_insert_options:1;
 	__u8				dccps_hc_tx_insert_options:1;
 	__u8				dccps_server_timewait:1;
+	__u8				dccps_sync_scheduled:1;
 	struct timer_list		dccps_xmit_timer;
 };
 

@@ -305,6 +305,8 @@ void dccp_write_xmit(struct sock *sk, int block)
 			if (err)
 				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
 					 err);
+			if (dp->dccps_sync_scheduled)
+				dccp_send_sync(sk, dp->dccps_gsr, DCCP_PKT_SYNC);
 		} else {
 			dccp_pr_debug("packet discarded due to err=%d\n", err);
 			kfree_skb(skb);
@@ -590,6 +592,12 @@ void dccp_send_sync(struct sock *sk, const u64 ackno,
 	skb_reserve(skb, sk->sk_prot->max_header);
 	DCCP_SKB_CB(skb)->dccpd_type = pkt_type;
 	DCCP_SKB_CB(skb)->dccpd_ack_seq = ackno;
+
+	/*
+	 * Clear the flag in case the Sync was scheduled for out-of-band data,
+	 * such as carrying a long Ack Vector.
+	 */
+	dccp_sk(sk)->dccps_sync_scheduled = 0;
 
 	dccp_transmit_skb(sk, skb);
 }
