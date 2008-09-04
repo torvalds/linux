@@ -853,6 +853,32 @@ struct block_device *open_by_devnum(dev_t dev, unsigned mode)
 EXPORT_SYMBOL(open_by_devnum);
 
 /**
+ * flush_disk - invalidates all buffer-cache entries on a disk
+ *
+ * @bdev:      struct block device to be flushed
+ *
+ * Invalidates all buffer-cache entries on a disk. It should be called
+ * when a disk has been changed -- either by a media change or online
+ * resize.
+ */
+static void flush_disk(struct block_device *bdev)
+{
+	if (__invalidate_device(bdev)) {
+		char name[BDEVNAME_SIZE] = "";
+
+		if (bdev->bd_disk)
+			disk_name(bdev->bd_disk, 0, name);
+		printk(KERN_WARNING "VFS: busy inodes on changed media or "
+		       "resized disk %s\n", name);
+	}
+
+	if (!bdev->bd_disk)
+		return;
+	if (disk_partitionable(bdev->bd_disk))
+		bdev->bd_invalidated = 1;
+}
+
+/**
  * check_disk_size_change - checks for disk size change and adjusts
  *                          bdev size.
  *
@@ -929,13 +955,9 @@ int check_disk_change(struct block_device *bdev)
 	if (!bdops->media_changed(bdev->bd_disk))
 		return 0;
 
-	if (__invalidate_device(bdev))
-		printk("VFS: busy inodes on changed media.\n");
-
+	flush_disk(bdev);
 	if (bdops->revalidate_disk)
 		bdops->revalidate_disk(bdev->bd_disk);
-	if (disk_partitionable(bdev->bd_disk))
-		bdev->bd_invalidated = 1;
 	return 1;
 }
 
