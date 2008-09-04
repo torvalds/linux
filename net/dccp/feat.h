@@ -112,13 +112,13 @@ static inline void dccp_feat_debug(const u8 type, const u8 feat, const u8 val)
 #define dccp_feat_debug(type, feat, val)
 #endif /* CONFIG_IP_DCCP_DEBUG */
 
+extern int  dccp_feat_init(struct sock *sk);
 extern int  dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 				  u8 const *list, u8 len);
 extern int  dccp_feat_register_nn(struct sock *sk, u8 feat, u64 val);
 extern int  dccp_feat_parse_options(struct sock *, struct dccp_request_sock *,
 				    u8 mand, u8 opt, u8 feat, u8 *val, u8 len);
 extern int  dccp_feat_clone_list(struct list_head const *, struct list_head *);
-extern int  dccp_feat_init(struct sock *sk);
 
 /*
  * Encoding variable-length options and their maximum length.

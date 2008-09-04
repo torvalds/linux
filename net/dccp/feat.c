@@ -1110,23 +1110,69 @@ int dccp_feat_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	return 0;	/* ignore FN options in all other states */
 }
 
+/**
+ * dccp_feat_init  -  Seed feature negotiation with host-specific defaults
+ * This initialises global defaults, depending on the value of the sysctls.
+ * These can later be overridden by registering changes via setsockopt calls.
+ * The last link in the chain is finalise_settings, to make sure that between
+ * here and the start of actual feature negotiation no inconsistencies enter.
+ *
+ * All features not appearing below use either defaults or are otherwise
+ * later adjusted through dccp_feat_finalise_settings().
+ */
 int dccp_feat_init(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-	struct dccp_minisock *dmsk = dccp_msk(sk);
+	struct list_head *fn = &dccp_sk(sk)->dccps_featneg;
+	u8 on = 1, off = 0;
 	int rc;
+	struct {
+		u8 *val;
+		u8 len;
+	} tx, rx;
 
-	INIT_LIST_HEAD(&dmsk->dccpms_pending);	/* XXX no longer used */
-	INIT_LIST_HEAD(&dmsk->dccpms_conf);	/* XXX no longer used */
+	/* Non-negotiable (NN) features */
+	rc = __feat_register_nn(fn, DCCPF_SEQUENCE_WINDOW, 0,
+				    sysctl_dccp_feat_sequence_window);
+	if (rc)
+		return rc;
 
-	/* Ack ratio */
-	rc = __feat_register_nn(&dp->dccps_featneg, DCCPF_ACK_RATIO, 0,
-				dp->dccps_l_ack_ratio);
-out:
+	/* Server-priority (SP) features */
+
+	/* Advertise that short seqnos are not supported (7.6.1) */
+	rc = __feat_register_sp(fn, DCCPF_SHORT_SEQNOS, true, true, &off, 1);
+	if (rc)
+		return rc;
+
+	/* RFC 4340 12.1: "If a DCCP is not ECN capable, ..." */
+	rc = __feat_register_sp(fn, DCCPF_ECN_INCAPABLE, true, true, &on, 1);
+	if (rc)
+		return rc;
+
+	/*
+	 * We advertise the available list of CCIDs and reorder according to
+	 * preferences, to avoid failure resulting from negotiating different
+	 * singleton values (which always leads to failure).
+	 * These settings can still (later) be overridden via sockopts.
+	 */
+	if (ccid_get_builtin_ccids(&tx.val, &tx.len) ||
+	    ccid_get_builtin_ccids(&rx.val, &rx.len))
+		return -ENOBUFS;
+
+	if (!dccp_feat_prefer(sysctl_dccp_feat_tx_ccid, tx.val, tx.len) ||
+	    !dccp_feat_prefer(sysctl_dccp_feat_rx_ccid, rx.val, rx.len))
+		goto free_ccid_lists;
+
+	rc = __feat_register_sp(fn, DCCPF_CCID, true, false, tx.val, tx.len);
+	if (rc)
+		goto free_ccid_lists;
+
+	rc = __feat_register_sp(fn, DCCPF_CCID, false, false, rx.val, rx.len);
+
+free_ccid_lists:
+	kfree(tx.val);
+	kfree(rx.val);
 	return rc;
 }
-
-EXPORT_SYMBOL_GPL(dccp_feat_init);
 
 int dccp_feat_activate_values(struct sock *sk, struct list_head *fn_list)
 {
