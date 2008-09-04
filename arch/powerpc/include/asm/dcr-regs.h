@@ -68,6 +68,13 @@
 #define SDR0_UART3		0x0123
 #define SDR0_CUST0		0x4000
 
+/* SDR for 405EZ */
+#define DCRN_SDR_ICINTSTAT	0x4510
+#define ICINTSTAT_ICRX	0x80000000
+#define ICINTSTAT_ICTX0	0x40000000
+#define ICINTSTAT_ICTX1 0x20000000
+#define ICINTSTAT_ICTX	0x60000000
+
 /*
  * All those DCR register addresses are offsets from the base address
  * for the SRAM0 controller (e.g. 0x20 on 440GX). The base address is
