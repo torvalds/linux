@@ -83,6 +83,7 @@ static struct cpu_dev *this_cpu __cpuinitdata;
 int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
+	char *p, *q;
 
 	if (c->extended_cpuid_level < 0x80000004)
 		return 0;
@@ -92,6 +93,19 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 	cpuid(0x80000003, &v[4], &v[5], &v[6], &v[7]);
 	cpuid(0x80000004, &v[8], &v[9], &v[10], &v[11]);
 	c->x86_model_id[48] = 0;
+
+	/* Intel chips right-justify this string for some dumb reason;
+	   undo that brain damage */
+	p = q = &c->x86_model_id[0];
+	while (*p == ' ')
+	     p++;
+	if (p != q) {
+	     while (*p)
+		  *q++ = *p++;
+	     while (q <= &c->x86_model_id[48])
+		  *q++ = '\0';	/* Zero-pad the rest */
+	}
+
 	return 1;
 }
 
