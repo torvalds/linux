@@ -236,15 +236,27 @@ extern unsigned int irq_find_mapping(struct irq_host *host,
 extern unsigned int irq_create_direct_mapping(struct irq_host *host);
 
 /**
- * irq_radix_revmap - Find a linux virq from a hw irq number.
+ * irq_radix_revmap_insert - Insert a hw irq to linux virq number mapping.
+ * @host: host owning this hardware interrupt
+ * @virq: linux irq number
+ * @hwirq: hardware irq number in that host space
+ *
+ * This is for use by irq controllers that use a radix tree reverse
+ * mapping for fast lookup.
+ */
+extern void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
+				    irq_hw_number_t hwirq);
+
+/**
+ * irq_radix_revmap_lookup - Find a linux virq from a hw irq number.
  * @host: host owning this hardware interrupt
  * @hwirq: hardware irq number in that host space
  *
  * This is a fast path, for use by irq controller code that uses radix tree
  * revmaps
  */
-extern unsigned int irq_radix_revmap(struct irq_host *host,
-				     irq_hw_number_t hwirq);
+extern unsigned int irq_radix_revmap_lookup(struct irq_host *host,
+					    irq_hw_number_t hwirq);
 
 /**
  * irq_linear_revmap - Find a linux virq from a hw irq number.
