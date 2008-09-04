@@ -1894,6 +1894,10 @@ open_dchannel(struct hfc_pci *hc, struct mISDNchannel *ch,
 		    hc->dch.dev.id, __builtin_return_address(0));
 	if (rq->protocol == ISDN_P_NONE)
 		return -EINVAL;
+	if (rq->adr.channel == 1) {
+		/* TODO: E-Channel */
+		return -EINVAL;
+	}
 	if (!hc->initdone) {
 		if (rq->protocol == ISDN_P_TE_S0) {
 			err = create_l1(&hc->dch, hfc_l1callback);
