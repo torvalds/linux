@@ -87,10 +87,8 @@ static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
 			       "%llu %llu %d\n",
 			       NIPQUAD(inet->saddr), ntohs(inet->sport),
 			       NIPQUAD(inet->daddr), ntohs(inet->dport), size,
-			       hctx->ccid3hctx_s, hctx->ccid3hctx_rtt,
-			       hctx->ccid3hctx_p, hctx->ccid3hctx_x_calc,
-			       hctx->ccid3hctx_x_recv >> 6,
-			       hctx->ccid3hctx_x >> 6, hctx->ccid3hctx_t_ipi);
+			       hctx->s, hctx->rtt, hctx->p, hctx->x_calc,
+			       hctx->x_recv >> 6, hctx->x >> 6, hctx->t_ipi);
 		else
 			printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d\n",
 			       NIPQUAD(inet->saddr), ntohs(inet->sport),
