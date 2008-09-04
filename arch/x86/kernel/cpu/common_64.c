@@ -103,9 +103,8 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 
 	if (n >= 0x80000005) {
 		cpuid(0x80000005, &dummy, &ebx, &ecx, &edx);
-		printk(KERN_INFO "CPU: L1 I Cache: %dK (%d bytes/line), "
-		       "D cache %dK (%d bytes/line)\n",
-		       edx>>24, edx&0xFF, ecx>>24, ecx&0xFF);
+		printk(KERN_INFO "CPU: L1 I Cache: %dK (%d bytes/line), D cache %dK (%d bytes/line)\n",
+				edx>>24, edx&0xFF, ecx>>24, ecx&0xFF);
 		c->x86_cache_size = (ecx>>24) + (edx>>24);
 		/* On K8 L1 TLB is inclusive, so don't count it */
 		c->x86_tlbsize = 0;
@@ -143,8 +142,8 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	} else if (smp_num_siblings > 1) {
 
 		if (smp_num_siblings > NR_CPUS) {
-			printk(KERN_WARNING "CPU: Unsupported number of "
-			       "siblings %d", smp_num_siblings);
+			printk(KERN_WARNING "CPU: Unsupported number of siblings %d",
+					smp_num_siblings);
 			smp_num_siblings = 1;
 			return;
 		}
@@ -182,7 +181,7 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		if (cpu_devs[i]) {
 			if (!strcmp(v, cpu_devs[i]->c_ident[0]) ||
 			    (cpu_devs[i]->c_ident[1] &&
-			    !strcmp(v, cpu_devs[i]->c_ident[1]))) {
+			     !strcmp(v, cpu_devs[i]->c_ident[1]))) {
 				c->x86_vendor = i;
 				this_cpu = cpu_devs[i];
 				return;
@@ -217,39 +216,6 @@ static void __init early_cpu_support_print(void)
 	}
 }
 
-/*
- * The NOPL instruction is supposed to exist on all CPUs with
- * family >= 6, unfortunately, that's not true in practice because
- * of early VIA chips and (more importantly) broken virtualizers that
- * are not easy to detect.  Hence, probe for it based on first
- * principles.
- *
- * Note: no 64-bit chip is known to lack these, but put the code here
- * for consistency with 32 bits, and to make it utterly trivial to
- * diagnose the problem should it ever surface.
- */
-static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
-{
-	const u32 nopl_signature = 0x888c53b1; /* Random number */
-	u32 has_nopl = nopl_signature;
-
-	clear_cpu_cap(c, X86_FEATURE_NOPL);
-	if (c->x86 >= 6) {
-		asm volatile("\n"
-			     "1:      .byte 0x0f,0x1f,0xc0\n" /* nopl %eax */
-			     "2:\n"
-			     "        .section .fixup,\"ax\"\n"
-			     "3:      xor %0,%0\n"
-			     "        jmp 2b\n"
-			     "        .previous\n"
-			     _ASM_EXTABLE(1b,3b)
-			     : "+a" (has_nopl));
-
-		if (has_nopl == nopl_signature)
-			set_cpu_cap(c, X86_FEATURE_NOPL);
-	}
-}
-
 void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
 {
 	/* Get vendor name */
@@ -258,6 +224,7 @@ void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
 	      (unsigned int *)&c->x86_vendor_id[8],
 	      (unsigned int *)&c->x86_vendor_id[4]);
 
+	c->x86 = 4;
 	/* Intel-defined flags: level 0x00000001 */
 	if (c->cpuid_level >= 0x00000001) {
 		u32 junk, tfms, cap0, misc;
@@ -268,12 +235,11 @@ void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
 		if (c->x86 == 0xf)
 			c->x86 += (tfms >> 20) & 0xff;
 		if (c->x86 >= 0x6)
-			c->x86_model += ((tfms >> 16) & 0xF) << 4;
-		if (cap0 & (1<<19))
+			c->x86_model += ((tfms >> 16) & 0xf) << 4;
+		if (cap0 & (1<<19)) {
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
-	} else {
-		/* Have CPUID level 0 only - unheard of */
-		c->x86 = 4;
+			c->x86_cache_alignment = c->x86_clflush_size;
+		}
 	}
 }
 
@@ -282,9 +248,6 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 {
 	u32 tfms, xlvl;
 	u32 ebx;
-
-	/* Initialize the standard set of capabilities */
-	/* Note that the vendor-specific code below might override */
 
 	/* Intel-defined flags: level 0x00000001 */
 	if (c->cpuid_level >= 0x00000001) {
@@ -359,6 +322,39 @@ void __init early_cpu_init(void)
 
 	early_cpu_support_print();
 	early_identify_cpu(&boot_cpu_data);
+}
+
+/*
+ * The NOPL instruction is supposed to exist on all CPUs with
+ * family >= 6, unfortunately, that's not true in practice because
+ * of early VIA chips and (more importantly) broken virtualizers that
+ * are not easy to detect.  Hence, probe for it based on first
+ * principles.
+ *
+ * Note: no 64-bit chip is known to lack these, but put the code here
+ * for consistency with 32 bits, and to make it utterly trivial to
+ * diagnose the problem should it ever surface.
+ */
+static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
+{
+	const u32 nopl_signature = 0x888c53b1; /* Random number */
+	u32 has_nopl = nopl_signature;
+
+	clear_cpu_cap(c, X86_FEATURE_NOPL);
+	if (c->x86 >= 6) {
+		asm volatile("\n"
+			     "1:      .byte 0x0f,0x1f,0xc0\n" /* nopl %eax */
+			     "2:\n"
+			     "        .section .fixup,\"ax\"\n"
+			     "3:      xor %0,%0\n"
+			     "        jmp 2b\n"
+			     "        .previous\n"
+			     _ASM_EXTABLE(1b,3b)
+			     : "+a" (has_nopl));
+
+		if (has_nopl == nopl_signature)
+			set_cpu_cap(c, X86_FEATURE_NOPL);
+	}
 }
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
@@ -448,7 +444,7 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 }
 
-void __cpuinit identify_boot_cpu(void)
+void __init identify_boot_cpu(void)
 {
 	identify_cpu(&boot_cpu_data);
 }
@@ -459,13 +455,6 @@ void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
 	identify_cpu(c);
 	mtrr_ap_init();
 }
-
-static __init int setup_noclflush(char *arg)
-{
-	setup_clear_cpu_cap(X86_FEATURE_CLFLSH);
-	return 1;
-}
-__setup("noclflush", setup_noclflush);
 
 struct msr_range {
 	unsigned min;
@@ -509,6 +498,13 @@ static __init int setup_show_msr(char *arg)
 	return 1;
 }
 __setup("show_msr=", setup_show_msr);
+
+static __init int setup_noclflush(char *arg)
+{
+	setup_clear_cpu_cap(X86_FEATURE_CLFLSH);
+	return 1;
+}
+__setup("noclflush", setup_noclflush);
 
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
