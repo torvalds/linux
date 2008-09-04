@@ -203,6 +203,14 @@ static int iommu_flush_pages(struct amd_iommu *iommu, u16 domid,
 	return 0;
 }
 
+/* Flush the whole IO/TLB for a given protection domain */
+static void iommu_flush_tlb(struct amd_iommu *iommu, u16 domid)
+{
+	u64 address = CMD_INV_IOMMU_ALL_PAGES_ADDRESS;
+
+	iommu_queue_inv_iommu_pages(iommu, address, domid, 0, 1);
+}
+
 /****************************************************************************
  *
  * The functions below are used the create the page table mappings for
@@ -386,14 +394,18 @@ static unsigned long dma_ops_alloc_addresses(struct device *dev,
 			PAGE_SIZE) >> PAGE_SHIFT;
 	limit = limit < size ? limit : size;
 
-	if (dom->next_bit >= limit)
+	if (dom->next_bit >= limit) {
 		dom->next_bit = 0;
+		dom->need_flush = true;
+	}
 
 	address = iommu_area_alloc(dom->bitmap, limit, dom->next_bit, pages,
 			0 , boundary_size, 0);
-	if (address == -1)
+	if (address == -1) {
 		address = iommu_area_alloc(dom->bitmap, limit, 0, pages,
 				0, boundary_size, 0);
+		dom->need_flush = true;
+	}
 
 	if (likely(address != -1)) {
 		dom->next_bit = address + pages;
@@ -552,6 +564,8 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	 */
 	dma_dom->bitmap[0] = 1;
 	dma_dom->next_bit = 0;
+
+	dma_dom->need_flush = false;
 
 	/* Intialize the exclusion range if necessary */
 	if (iommu->exclusion_start &&
@@ -795,7 +809,10 @@ static dma_addr_t __map_single(struct device *dev,
 	}
 	address += offset;
 
-	if (unlikely(iommu_has_npcache(iommu)))
+	if (unlikely(dma_dom->need_flush && !iommu_fullflush)) {
+		iommu_flush_tlb(iommu, dma_dom->domain.id);
+		dma_dom->need_flush = false;
+	} else if (unlikely(iommu_has_npcache(iommu)))
 		iommu_flush_pages(iommu, dma_dom->domain.id, address, size);
 
 out:
@@ -829,7 +846,8 @@ static void __unmap_single(struct amd_iommu *iommu,
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
-	iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
+	if (iommu_fullflush)
+		iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
 }
 
 /*

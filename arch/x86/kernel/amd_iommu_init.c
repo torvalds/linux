@@ -995,6 +995,11 @@ int __init amd_iommu_init(void)
 	else
 		printk("disabled\n");
 
+	if (iommu_fullflush)
+		printk(KERN_INFO "AMD IOMMU: IO/TLB flush on unmap enabled\n");
+	else
+		printk(KERN_INFO "AMD IOMMU: Lazy IO/TLB flushing enabled\n");
+
 out:
 	return ret;
 
@@ -1057,7 +1062,7 @@ void __init amd_iommu_detect(void)
 static int __init parse_amd_iommu_options(char *str)
 {
 	for (; *str; ++str) {
-		if (strcmp(str, "isolate") == 0)
+		if (strncmp(str, "isolate", 7) == 0)
 			amd_iommu_isolate = 1;
 	}
 

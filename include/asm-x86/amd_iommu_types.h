@@ -196,6 +196,9 @@ struct dma_ops_domain {
 	 * just calculate its address in constant time.
 	 */
 	u64 **pte_pages;
+
+	/* This will be set to true when TLB needs to be flushed */
+	bool need_flush;
 };
 
 /*
