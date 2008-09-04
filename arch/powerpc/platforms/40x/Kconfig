@@ -14,6 +14,15 @@
 #	help
 #	  This option enables support for the CPCI405 board.
 
+config ACADIA
+	bool "Acadia"
+	depends on 40x
+	default n
+	select PPC40x_SIMPLE
+	select 405EZ
+	help
+	  This option enables support for the AMCC 405EZ Acadia evaluation board.
+
 config EP405
 	bool "EP405/EP405PC"
 	depends on 40x
@@ -93,6 +102,13 @@ config XILINX_VIRTEX_GENERIC_BOARD
 	  Most Virtex designs should use this unless it needs to do some
 	  special configuration at board probe time.
 
+config PPC40x_SIMPLE
+	bool "Simple PowerPC 40x board support"
+	depends on 40x
+	default n
+	help
+	  This option enables the simple PowerPC 40x platform support.
+
 # 40x specific CPU modules, selected based on the board above.
 config NP405H
 	bool
@@ -117,6 +133,12 @@ config 405EX
 	bool
 	select IBM_NEW_EMAC_EMAC4
 	select IBM_NEW_EMAC_RGMII
+
+config 405EZ
+	bool
+	select IBM_NEW_EMAC_NO_FLOW_CTRL
+	select IBM_NEW_EMAC_MAL_CLR_ICINTSTAT
+	select IBM_NEW_EMAC_MAL_COMMON_ERR
 
 config 405GPR
 	bool
