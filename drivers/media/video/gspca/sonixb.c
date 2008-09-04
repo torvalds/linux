@@ -52,6 +52,7 @@ MODULE_LICENSE("GPL");
 struct sd {
 	struct gspca_dev gspca_dev;	/* !! must be the first item */
 	atomic_t avg_lum;
+	int prev_avg_lum;
 
 	unsigned char gain;
 	unsigned char exposure;
@@ -1022,10 +1023,19 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 				} else {
 					lum = data[i + 8] + (data[i + 9] << 8);
 				}
-				if (lum == 0) {
+				/* When exposure changes midway a frame we
+				   get a lum of 0 in this case drop 2 frames
+				   as the frames directly after an exposure
+				   change have an unstable image. Sometimes lum
+				   *really* is 0 (cam used in low light with
+				   low exposure setting), so do not drop frames
+				   if the previous lum was 0 too. */
+				if (lum == 0 && sd->prev_avg_lum != 0) {
 					lum = -1;
 					sd->frames_to_drop = 2;
-				}
+					sd->prev_avg_lum = 0;
+				} else
+					sd->prev_avg_lum = lum;
 				atomic_set(&sd->avg_lum, lum);
 
 				if (sd->frames_to_drop) {
