@@ -439,9 +439,8 @@ void do_softirq(void)
 
 static LIST_HEAD(irq_hosts);
 static DEFINE_SPINLOCK(irq_big_lock);
-static DEFINE_PER_CPU(unsigned int, irq_radix_reader);
-static unsigned int irq_radix_writer;
 static unsigned int revmap_trees_allocated;
+static DEFINE_MUTEX(revmap_trees_mutex);
 struct irq_map_entry irq_map[NR_IRQS];
 static unsigned int irq_virq_count = NR_IRQS;
 static struct irq_host *irq_default_host;
@@ -582,57 +581,6 @@ void irq_set_virq_count(unsigned int count)
 	BUG_ON(count < NUM_ISA_INTERRUPTS);
 	if (count < NR_IRQS)
 		irq_virq_count = count;
-}
-
-/* radix tree not lockless safe ! we use a brlock-type mecanism
- * for now, until we can use a lockless radix tree
- */
-static void irq_radix_wrlock(unsigned long *flags)
-{
-	unsigned int cpu, ok;
-
-	spin_lock_irqsave(&irq_big_lock, *flags);
-	irq_radix_writer = 1;
-	smp_mb();
-	do {
-		barrier();
-		ok = 1;
-		for_each_possible_cpu(cpu) {
-			if (per_cpu(irq_radix_reader, cpu)) {
-				ok = 0;
-				break;
-			}
-		}
-		if (!ok)
-			cpu_relax();
-	} while(!ok);
-}
-
-static void irq_radix_wrunlock(unsigned long flags)
-{
-	smp_wmb();
-	irq_radix_writer = 0;
-	spin_unlock_irqrestore(&irq_big_lock, flags);
-}
-
-static void irq_radix_rdlock(unsigned long *flags)
-{
-	local_irq_save(*flags);
-	__get_cpu_var(irq_radix_reader) = 1;
-	smp_mb();
-	if (likely(irq_radix_writer == 0))
-		return;
-	__get_cpu_var(irq_radix_reader) = 0;
-	smp_wmb();
-	spin_lock(&irq_big_lock);
-	__get_cpu_var(irq_radix_reader) = 1;
-	spin_unlock(&irq_big_lock);
-}
-
-static void irq_radix_rdunlock(unsigned long flags)
-{
-	__get_cpu_var(irq_radix_reader) = 0;
-	local_irq_restore(flags);
 }
 
 static int irq_setup_virq(struct irq_host *host, unsigned int virq,
@@ -789,7 +737,6 @@ void irq_dispose_mapping(unsigned int virq)
 {
 	struct irq_host *host;
 	irq_hw_number_t hwirq;
-	unsigned long flags;
 
 	if (virq == NO_IRQ)
 		return;
@@ -829,9 +776,9 @@ void irq_dispose_mapping(unsigned int virq)
 		smp_rmb();
 		if (revmap_trees_allocated < 1)
 			break;
-		irq_radix_wrlock(&flags);
+		mutex_lock(&revmap_trees_mutex);
 		radix_tree_delete(&host->revmap_data.tree, hwirq);
-		irq_radix_wrunlock(flags);
+		mutex_unlock(&revmap_trees_mutex);
 		break;
 	}
 
@@ -885,7 +832,6 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 {
 	struct irq_map_entry *ptr;
 	unsigned int virq;
-	unsigned long flags;
 
 	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
 
@@ -897,9 +843,11 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 		return irq_find_mapping(host, hwirq);
 
 	/* Now try to resolve */
-	irq_radix_rdlock(&flags);
+	/*
+	 * No rcu_read_lock(ing) needed, the ptr returned can't go under us
+	 * as it's referencing an entry in the static irq_map table.
+	 */
 	ptr = radix_tree_lookup(&host->revmap_data.tree, hwirq);
-	irq_radix_rdunlock(flags);
 
 	/*
 	 * If found in radix tree, then fine.
@@ -917,7 +865,6 @@ unsigned int irq_radix_revmap_lookup(struct irq_host *host,
 void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
 			     irq_hw_number_t hwirq)
 {
-	unsigned long flags;
 
 	WARN_ON(host->revmap_type != IRQ_HOST_MAP_TREE);
 
@@ -931,10 +878,10 @@ void irq_radix_revmap_insert(struct irq_host *host, unsigned int virq,
 		return;
 
 	if (virq != NO_IRQ) {
-		irq_radix_wrlock(&flags);
+		mutex_lock(&revmap_trees_mutex);
 		radix_tree_insert(&host->revmap_data.tree, hwirq,
 				  &irq_map[virq]);
-		irq_radix_wrunlock(flags);
+		mutex_unlock(&revmap_trees_mutex);
 	}
 }
 
@@ -1044,7 +991,6 @@ void irq_early_init(void)
 static int irq_late_init(void)
 {
 	struct irq_host *h;
-	unsigned long flags;
 	unsigned int i;
 
 	/*
@@ -1068,14 +1014,14 @@ static int irq_late_init(void)
 	 * Insert the reverse mapping for those interrupts already present
 	 * in irq_map[].
 	 */
-	irq_radix_wrlock(&flags);
+	mutex_lock(&revmap_trees_mutex);
 	for (i = 0; i < irq_virq_count; i++) {
 		if (irq_map[i].host &&
 		    (irq_map[i].host->revmap_type == IRQ_HOST_MAP_TREE))
 			radix_tree_insert(&irq_map[i].host->revmap_data.tree,
 					  irq_map[i].hwirq, &irq_map[i]);
 	}
-	irq_radix_wrunlock(flags);
+	mutex_unlock(&revmap_trees_mutex);
 
 	/*
 	 * Make sure the radix trees insertions are visible before setting
