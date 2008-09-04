@@ -469,6 +469,10 @@ int dccp_connect(struct sock *sk)
 	struct sk_buff *skb;
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
+	/* do not connect if feature negotiation setup fails */
+	if (dccp_feat_finalise_settings(dccp_sk(sk)))
+		return -EPROTO;
+
 	dccp_connect_init(sk);
 
 	skb = alloc_skb(sk->sk_prot->max_header, sk->sk_allocation);
