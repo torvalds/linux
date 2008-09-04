@@ -93,19 +93,16 @@ static inline u64 rfc3390_initial_rate(struct sock *sk)
 	return scaled_div(w_init << 6, hctx->rtt);
 }
 
-/*
- * Recalculate t_ipi and delta (should be called whenever X changes)
+/**
+ * ccid3_update_send_interval  -  Calculate new t_ipi = s / X_inst
+ * This respects the granularity of X_inst (64 * bytes/second).
  */
 static void ccid3_update_send_interval(struct ccid3_hc_tx_sock *hctx)
 {
-	/* Calculate new t_ipi = s / X_inst (X_inst is in 64 * bytes/second) */
 	hctx->t_ipi = scaled_div32(((u64)hctx->s) << 6, hctx->x);
 
-	/* Calculate new delta by delta = min(t_ipi / 2, t_gran / 2) */
-	hctx->delta = min_t(u32, hctx->t_ipi / 2, TFRC_OPSYS_HALF_TIME_GRAN);
-
-	ccid3_pr_debug("t_ipi=%u, delta=%u, s=%u, X=%u\n", hctx->t_ipi,
-		       hctx->delta, hctx->s, (unsigned)(hctx->x >> 6));
+	ccid3_pr_debug("t_ipi=%u, s=%u, X=%u\n", hctx->t_ipi,
+		       hctx->s, (unsigned)(hctx->x >> 6));
 }
 
 static u32 ccid3_hc_tx_idle_rtt(struct ccid3_hc_tx_sock *hctx, ktime_t now)
@@ -340,8 +337,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		 * else
 		 *       // send the packet in (t_nom - t_now) milliseconds.
 		 */
-		if (delay - (s64)hctx->delta >= 1000)
-			return (u32)delay / 1000L;
+		if (delay >= TFRC_T_DELTA)
+			return (u32)delay / USEC_PER_MSEC;
 
 		ccid3_hc_tx_update_win_count(hctx, now);
 		break;

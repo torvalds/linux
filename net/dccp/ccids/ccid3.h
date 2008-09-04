@@ -47,11 +47,22 @@
 /* Two seconds as per RFC 3448 4.2 */
 #define TFRC_INITIAL_TIMEOUT	   (2 * USEC_PER_SEC)
 
-/* In usecs - half the scheduling granularity as per RFC3448 4.6 */
-#define TFRC_OPSYS_HALF_TIME_GRAN  (USEC_PER_SEC / (2 * HZ))
-
 /* Parameter t_mbi from [RFC 3448, 4.3]: backoff interval in seconds */
 #define TFRC_T_MBI		   64
+
+/*
+ * The t_delta parameter (RFC 3448, 4.6): delays of less than %USEC_PER_MSEC are
+ * rounded down to 0, since sk_reset_timer() here uses millisecond granularity.
+ * Hence we can use a constant t_delta = %USEC_PER_MSEC when HZ >= 500. A coarse
+ * resolution of HZ < 500 means that the error is below one timer tick (t_gran)
+ * when using the constant t_delta  =  t_gran / 2  =  %USEC_PER_SEC / (2 * HZ).
+ */
+#if (HZ >= 500)
+# define TFRC_T_DELTA		   USEC_PER_MSEC
+#else
+# define TFRC_T_DELTA		   (USEC_PER_SEC / (2 * HZ))
+#warning Coarse CONFIG_HZ resolution -- higher value recommended for TFRC.
+#endif
 
 enum ccid3_options {
 	TFRC_OPT_LOSS_EVENT_RATE = 192,
@@ -92,7 +103,6 @@ enum ccid3_hc_tx_states {
  * @no_feedback_timer - Handle to no feedback timer
  * @t_ld - Time last doubled during slow start
  * @t_nom - Nominal send time of next packet
- * @delta - Send timer delta (RFC 3448, 4.6) in usecs
  * @hist - Packet history
  * @options_received - Parsed set of retrieved options
  */
@@ -111,7 +121,6 @@ struct ccid3_hc_tx_sock {
 	struct timer_list		no_feedback_timer;
 	ktime_t				t_ld;
 	ktime_t				t_nom;
-	u32				delta;
 	struct tfrc_tx_hist_entry	*hist;
 	struct ccid3_options_received	options_received;
 };
