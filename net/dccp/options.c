@@ -428,6 +428,66 @@ static int dccp_insert_option_timestamp_echo(struct dccp_sock *dp,
 	return 0;
 }
 
+static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
+{
+	struct dccp_sock *dp = dccp_sk(sk);
+	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
+	/* Figure out how many options do we need to represent the ackvec */
+	const u8 nr_opts = DIV_ROUND_UP(av->av_vec_len, DCCP_SINGLE_OPT_MAXLEN);
+	u16 len = av->av_vec_len + 2 * nr_opts;
+	u8 i, nonce = 0;
+	const unsigned char *tail, *from;
+	unsigned char *to;
+
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len > DCCP_MAX_OPT_LEN)
+		return -1;
+
+	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
+
+	to   = skb_push(skb, len);
+	len  = av->av_vec_len;
+	from = av->av_buf + av->av_buf_head;
+	tail = av->av_buf + DCCPAV_MAX_ACKVEC_LEN;
+
+	for (i = 0; i < nr_opts; ++i) {
+		int copylen = len;
+
+		if (len > DCCP_SINGLE_OPT_MAXLEN)
+			copylen = DCCP_SINGLE_OPT_MAXLEN;
+
+		/*
+		 * RFC 4340, 12.2: Encode the Nonce Echo for this Ack Vector via
+		 * its type; ack_nonce is the sum of all individual buf_nonce's.
+		 */
+		nonce ^= av->av_buf_nonce[i];
+
+		*to++ = DCCPO_ACK_VECTOR_0 + av->av_buf_nonce[i];
+		*to++ = copylen + 2;
+
+		/* Check if buf_head wraps */
+		if (from + copylen > tail) {
+			const u16 tailsize = tail - from;
+
+			memcpy(to, from, tailsize);
+			to	+= tailsize;
+			len	-= tailsize;
+			copylen	-= tailsize;
+			from	= av->av_buf;
+		}
+
+		memcpy(to, from, copylen);
+		from += copylen;
+		to   += copylen;
+		len  -= copylen;
+	}
+	/*
+	 * Each sent Ack Vector is recorded in the list, as per A.2 of RFC 4340.
+	 */
+	if (dccp_ackvec_update_records(av, DCCP_SKB_CB(skb)->dccpd_seq, nonce))
+		return -ENOBUFS;
+	return 0;
+}
+
 /**
  * dccp_insert_option_mandatory  -  Mandatory option (5.8.2)
  * Note that since we are using skb_push, this function needs to be called

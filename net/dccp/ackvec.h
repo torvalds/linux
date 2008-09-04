@@ -112,7 +112,7 @@ extern int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 			     u64 *ackno, const u8 opt,
 			     const u8 *value, const u8 len);
 
-extern int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb);
+extern int  dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 sum);
 
 static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
 {
@@ -155,8 +155,7 @@ static inline int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 	return -1;
 }
 
-static inline int dccp_insert_option_ackvec(const struct sock *sk,
-					    const struct sk_buff *skb)
+static inline int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 nonce)
 {
 	return -1;
 }
