@@ -393,53 +393,35 @@ static int __feat_register_sp(struct list_head *fn, u8 feat, u8 is_local,
 	return dccp_feat_push_change(fn, feat, is_local, mandatory, &fval);
 }
 
-int dccp_feat_change(struct dccp_minisock *dmsk, u8 type, u8 feature,
-		     u8 *val, u8 len, gfp_t gfp)
-{
-	struct dccp_opt_pend *opt;
-
-	dccp_feat_debug(type, feature, *val);
-
-	if (len > 3) {
-		DCCP_WARN("invalid length %d\n", len);
+/**
+ * dccp_feat_register_sp  -  Register requests to change SP feature values
+ * @sk: client or listening socket
+ * @feat: one of %dccp_feature_numbers
+ * @is_local: whether the local (1) or remote (0) @feat is meant
+ * @list: array of preferred values, in descending order of preference
+ * @len: length of @list in bytes
+ */
+int dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
+			  u8 const *list, u8 len)
+{	 /* any changes must be registered before establishing the connection */
+	if (sk->sk_state != DCCP_CLOSED)
+		return -EISCONN;
+	if (dccp_feat_type(feat) != FEAT_SP)
 		return -EINVAL;
-	}
-	/* XXX add further sanity checks */
-
-	/* check if that feature is already being negotiated */
-	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
-		/* ok we found a negotiation for this option already */
-		if (opt->dccpop_feat == feature && opt->dccpop_type == type) {
-			dccp_pr_debug("Replacing old\n");
-			/* replace */
-			BUG_ON(opt->dccpop_val == NULL);
-			kfree(opt->dccpop_val);
-			opt->dccpop_val	 = val;
-			opt->dccpop_len	 = len;
-			opt->dccpop_conf = 0;
-			return 0;
-		}
-	}
-
-	/* negotiation for a new feature */
-	opt = kmalloc(sizeof(*opt), gfp);
-	if (opt == NULL)
-		return -ENOMEM;
-
-	opt->dccpop_type = type;
-	opt->dccpop_feat = feature;
-	opt->dccpop_len	 = len;
-	opt->dccpop_val	 = val;
-	opt->dccpop_conf = 0;
-	opt->dccpop_sc	 = NULL;
-
-	BUG_ON(opt->dccpop_val == NULL);
-
-	list_add_tail(&opt->dccpop_node, &dmsk->dccpms_pending);
-	return 0;
+	return __feat_register_sp(&dccp_sk(sk)->dccps_featneg, feat, is_local,
+				  0, list, len);
 }
 
-EXPORT_SYMBOL_GPL(dccp_feat_change);
+/* Analogous to dccp_feat_register_sp(), but for non-negotiable values */
+int dccp_feat_register_nn(struct sock *sk, u8 feat, u64 val)
+{
+	/* any changes must be registered before establishing the connection */
+	if (sk->sk_state != DCCP_CLOSED)
+		return -EISCONN;
+	if (dccp_feat_type(feat) != FEAT_NN)
+		return -EINVAL;
+	return __feat_register_nn(&dccp_sk(sk)->dccps_featneg, feat, 0, val);
+}
 
 /*
  *	Tracking features whose value depend on the choice of CCID
@@ -1137,7 +1119,7 @@ int dccp_feat_init(struct sock *sk)
 
 	/* Ack ratio */
 	rc = __feat_register_nn(&dp->dccps_featneg, DCCPF_ACK_RATIO, 0,
-				dmsk->dccpms_ack_ratio);
+				dp->dccps_l_ack_ratio);
 out:
 	return rc;
 }

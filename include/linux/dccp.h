@@ -193,13 +193,6 @@ enum dccp_feature_numbers {
 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
-/* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
-struct dccp_so_feat {
-	__u8 dccpsf_feat;
-	__u8 __user *dccpsf_val;
-	__u8 dccpsf_len;
-};
-
 /* DCCP socket options */
 #define DCCP_SOCKOPT_PACKET_SIZE	1 /* XXX deprecated, without effect */
 #define DCCP_SOCKOPT_SERVICE		2
