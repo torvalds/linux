@@ -73,7 +73,7 @@ struct sd {
 #define AG_CNT_START 13
 };
 
-static struct v4l2_pix_format sif_mode[] = {
+static struct v4l2_pix_format sif_012a_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
 		.bytesperline = 160,
 		.sizeimage = 160 * 120,
@@ -92,6 +92,29 @@ static struct v4l2_pix_format sif_mode[] = {
 	{352, 288, V4L2_PIX_FMT_SPCA561, V4L2_FIELD_NONE,
 		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 4 / 8,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 0},
+};
+
+static struct v4l2_pix_format sif_072a_mode[] = {
+	{160, 120, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+		.bytesperline = 160,
+		.sizeimage = 160 * 120,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 3},
+	{176, 144, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+		.bytesperline = 176,
+		.sizeimage = 176 * 144,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 2},
+	{320, 240, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+		.bytesperline = 320,
+		.sizeimage = 320 * 240,
+		.colorspace = V4L2_COLORSPACE_SRGB,
+		.priv = 1},
+	{352, 288, V4L2_PIX_FMT_SGBRG8, V4L2_FIELD_NONE,
+		.bytesperline = 352,
+		.sizeimage = 352 * 288,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
 };
@@ -546,10 +569,15 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	cam = &gspca_dev->cam;
 	cam->epaddr = 0x01;
 	gspca_dev->nbalt = 7 + 1;	/* choose alternate 7 first */
-	cam->cam_mode = sif_mode;
-	cam->nmodes = ARRAY_SIZE(sif_mode);
 
 	sd->chip_revision = id->driver_info;
+	if (sd->chip_revision == Rev012A) {
+		cam->cam_mode = sif_012a_mode;
+		cam->nmodes = ARRAY_SIZE(sif_012a_mode);
+	} else {
+		cam->cam_mode = sif_072a_mode;
+		cam->nmodes = ARRAY_SIZE(sif_072a_mode);
+	}
 	sd->brightness = BRIGHTNESS_DEF;
 	sd->contrast = CONTRAST_DEF;
 	sd->white = WHITE_DEF;
@@ -833,8 +861,9 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 					frame, data, len);
 		} else {
 			/* raw bayer (with a header, which we skip) */
-			data += 20;
-			len -= 20;
+/*fixme: is this specific to the rev012a? */
+			data += 16;
+			len -= 16;
 			gspca_frame_add(gspca_dev, FIRST_PACKET,
 						frame, data, len);
 		}
