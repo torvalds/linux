@@ -1664,6 +1664,51 @@ static const struct cx88_board cx88_boards[] = {
 		},
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_HAUPPAUGE_HVR4000] = {
+		.name           = "Hauppauge WinTV-HVR4000 DVB-S/S2/T/Hybrid",
+		.tuner_type     = TUNER_PHILIPS_FMD1216ME_MK3,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.tda9887_conf   = TDA9887_PRESENT,
+		/*
+		 * GPIO0 (WINTV2000)
+		 *
+		 * Analogue     SAT     DVB-T
+		 * Antenna      0xc4bf  0xc4bb
+		 * Composite    0xc4bf  0xc4bb
+		 * S-Video      0xc4bf  0xc4bb
+		 * Composite1   0xc4ff  0xc4fb
+		 * S-Video1     0xc4ff  0xc4fb
+		 */
+		.input          = {{
+			.type   = CX88_VMUX_TELEVISION,
+			.vmux   = 0,
+			.gpio0  = 0xc4bf,
+		}, {
+			.type   = CX88_VMUX_COMPOSITE1,
+			.vmux   = 1,
+			.gpio0  = 0xc4bf,
+		}, {
+			.type   = CX88_VMUX_SVIDEO,
+			.vmux   = 2,
+			.gpio0  = 0xc4bf,
+		} },
+		/* fixme: Add radio support */
+		.mpeg           = CX88_MPEG_DVB,
+	},
+	[CX88_BOARD_HAUPPAUGE_HVR4000LITE] = {
+		.name           = "Hauppauge WinTV-HVR4000(Lite) DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2013,6 +2058,26 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x17de,
 		.subdevice = 0x08c1,
 		.card      = CX88_BOARD_KWORLD_ATSC_120,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x6900,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR4000,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x6904,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR4000,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x6902,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR4000,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x6905,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR4000LITE,
+	}, {
+		.subvendor = 0x0070,
+		.subdevice = 0x6906,
+		.card      = CX88_BOARD_HAUPPAUGE_HVR4000LITE,
 	},
 };
 
@@ -2065,6 +2130,13 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 14669: /* WinTV-HVR3000 (OEM, no IR, no b/panel video - Low profile) */
 	case 28552: /* WinTV-PVR 'Roslyn' (No IR) */
 	case 34519: /* WinTV-PCI-FM */
+	case 69009:
+		/* WinTV-HVR4000 (DVBS/S2/T, Video and IR, back panel inputs) */
+	case 69100: /* WinTV-HVR4000LITE (DVBS/S2, IR) */
+	case 69500: /* WinTV-HVR4000LITE (DVBS/S2, No IR) */
+	case 69559:
+		/* WinTV-HVR4000 (DVBS/S2/T, Video no IR, back panel inputs) */
+	case 69569: /* WinTV-HVR4000 (DVBS/S2/T, Video no IR) */
 	case 90002: /* Nova-T-PCI (9002) */
 	case 92001: /* Nova-S-Plus (Video and IR) */
 	case 92002: /* Nova-S-Plus (Video and IR) */
@@ -2415,6 +2487,11 @@ static void cx88_card_setup_pre_i2c(struct cx88_core *core)
 		/* Enable the xc5000 tuner */
 		cx_set(MO_GP0_IO, 0x00001010);
 		break;
+	case CX88_BOARD_HAUPPAUGE_HVR4000:
+	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
+		/* Init GPIO to allow tuner to attach */
+		cx_write(MO_GP0_IO, 0x0000c4bf);
+		udelay(1000);
 	}
 }
 
@@ -2489,6 +2566,8 @@ static void cx88_card_setup(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_HVR1100LP:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
 	case CX88_BOARD_HAUPPAUGE_HVR1300:
+	case CX88_BOARD_HAUPPAUGE_HVR4000:
+	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
 		if (0 == core->i2c_rc)
 			hauppauge_eeprom(core, eeprom);
 		break;

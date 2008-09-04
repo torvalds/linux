@@ -48,6 +48,7 @@
 #include "tuner-simple.h"
 #include "tda9887.h"
 #include "s5h1411.h"
+#include "cx24116.h"
 
 MODULE_DESCRIPTION("driver for cx2388x based DVB cards");
 MODULE_AUTHOR("Chris Pascoe <c.pascoe@itee.uq.edu.au>");
@@ -518,6 +519,35 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 	return 0;
 }
 
+static int cx24116_set_ts_param(struct dvb_frontend *fe,
+	int is_punctured)
+{
+	struct cx8802_dev *dev = fe->dvb->priv;
+	dev->ts_gen_cntrl = 0x2;
+
+	return 0;
+}
+
+static int cx24116_reset_device(struct dvb_frontend *fe)
+{
+	struct cx8802_dev *dev = fe->dvb->priv;
+	struct cx88_core *core = dev->core;
+
+	/* Reset the part */
+	cx_write(MO_SRST_IO, 0);
+	msleep(10);
+	cx_write(MO_SRST_IO, 1);
+	msleep(10);
+
+	return 0;
+}
+
+static struct cx24116_config hauppauge_hvr4000_config = {
+	.demod_address          = 0x05,
+	.set_ts_params          = cx24116_set_ts_param,
+	.reset_device           = cx24116_reset_device,
+};
+
 static int dvb_register(struct cx8802_dev *dev)
 {
 	struct cx88_core *core = dev->core;
@@ -874,6 +904,18 @@ static int dvb_register(struct cx8802_dev *dev)
 					&core->i2c_adap,
 					&dvico_fusionhdtv7_tuner_config))
 				goto frontend_detach;
+		}
+		break;
+	case CX88_BOARD_HAUPPAUGE_HVR4000:
+	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
+		/* Support for DVB-S only, not DVB-T support */
+		dev->dvb.frontend = dvb_attach(cx24116_attach,
+			&hauppauge_hvr4000_config,
+			&dev->core->i2c_adap);
+		if (dev->dvb.frontend) {
+			dvb_attach(isl6421_attach, dev->dvb.frontend,
+				&dev->core->i2c_adap,
+				0x08, 0x00, 0x00);
 		}
 		break;
 	default:
