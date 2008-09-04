@@ -124,25 +124,21 @@ enum ccid3_hc_rx_states {
  *
  *  @last_counter  -  Tracks window counter (RFC 4342, 8.1)
  *  @state  -  Receiver state, one of %ccid3_hc_rx_states
- *  @bytes_recv  -  Total sum of DCCP payload bytes
  *  @x_recv  -  Receiver estimate of send rate (RFC 3448, sec. 4.3)
  *  @rtt  -  Receiver estimate of RTT
  *  @tstamp_last_feedback  -  Time at which last feedback was sent
  *  @hist  -  Packet history (loss detection + RTT sampling)
  *  @li_hist  -  Loss Interval database
- *  @s  -  Received packet size in bytes
  *  @p_inverse  -  Inverse of Loss Event Rate (RFC 4342, sec. 8.5)
  */
 struct ccid3_hc_rx_sock {
 	u8				last_counter:4;
 	enum ccid3_hc_rx_states		state:8;
-	u32				bytes_recv;
 	u32				x_recv;
 	u32				rtt;
 	ktime_t				tstamp_last_feedback;
 	struct tfrc_rx_hist		hist;
 	struct tfrc_loss_hist		li_hist;
-	u16				s;
 #define p_inverse			li_hist.i_mean
 };
 

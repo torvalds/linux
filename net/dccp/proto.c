@@ -185,7 +185,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	sk->sk_state		= DCCP_CLOSED;
 	sk->sk_write_space	= dccp_write_space;
 	icsk->icsk_sync_mss	= dccp_sync_mss;
-	dp->dccps_mss_cache	= 536;
+	dp->dccps_mss_cache	= TCP_MIN_RCVMSS;
 	dp->dccps_rate_last	= jiffies;
 	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
 	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;

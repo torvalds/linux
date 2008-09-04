@@ -352,6 +352,16 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 		__three_after_loss(h);
 	}
 
+	/*
+	 * Update moving-average of `s' and the sum of received payload bytes.
+	 */
+	if (dccp_data_packet(skb)) {
+		const u32 payload = skb->len - dccp_hdr(skb)->dccph_doff * 4;
+
+		h->packet_size = tfrc_ewma(h->packet_size, payload, 9);
+		h->bytes_recvd += payload;
+	}
+
 	/* RFC 3448, 6.1: update I_0, whose growth implies p <= p_prev */
 	if (!is_new_loss)
 		tfrc_lh_update_i_mean(lh, skb);

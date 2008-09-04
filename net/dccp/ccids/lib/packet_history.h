@@ -91,12 +91,16 @@ struct tfrc_rx_hist_entry {
  * @loss_count:		Number of entries in circular history
  * @loss_start:		Movable index (for loss detection)
  * @rtt_sample_prev:	Used during RTT sampling, points to candidate entry
+ * @packet_size:	Packet size in bytes (as per RFC 3448, 3.1)
+ * @bytes_recvd:	Number of bytes received since last sending feedback
  */
 struct tfrc_rx_hist {
 	struct tfrc_rx_hist_entry *ring[TFRC_NDUPACK + 1];
 	u8			  loss_count:2,
 				  loss_start:2;
 #define rtt_sample_prev		  loss_start
+	u32			  packet_size,
+				  bytes_recvd;
 };
 
 /**
@@ -138,6 +142,18 @@ static inline struct tfrc_rx_hist_entry *
 static inline bool tfrc_rx_hist_loss_pending(const struct tfrc_rx_hist *h)
 {
 	return h->loss_count > 0;
+}
+
+/*
+ * Accessor functions to retrieve parameters sampled by the RX history
+ */
+static inline u32 tfrc_rx_hist_packet_size(const struct tfrc_rx_hist *h)
+{
+	if (h->packet_size == 0) {
+		DCCP_WARN("No sample for s, using fallback\n");
+		return TCP_MIN_RCVMSS;
+	}
+	return h->packet_size;
 }
 
 extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,

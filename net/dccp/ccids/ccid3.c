@@ -590,12 +590,9 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 			 * would bring X down to s/t_mbi. That is why we return
 			 * X_recv according to rfc3448bis-06 for the moment.
 			 */
-			u32 rtt = hcrx->rtt ? : DCCP_FALLBACK_RTT, s = hcrx->s;
+			u32 rtt = hcrx->rtt ? : DCCP_FALLBACK_RTT,
+			    s	= tfrc_rx_hist_packet_size(&hcrx->hist);
 
-			if (s == 0) {
-				DCCP_WARN("No sample for s, using fallback\n");
-				s = TCP_MIN_RCVMSS;
-			}
 			hcrx->x_recv = scaled_div32(s, 2 * rtt);
 			break;
 		}
@@ -617,7 +614,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 		if (delta <= 0)
 			DCCP_BUG("delta (%ld) <= 0", (long)delta);
 		else
-			hcrx->x_recv = scaled_div32(hcrx->bytes_recv, delta);
+			hcrx->x_recv = scaled_div32(hcrx->hist.bytes_recvd, delta);
 		break;
 	default:
 		return;
@@ -628,7 +625,7 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 
 	hcrx->tstamp_last_feedback = now;
 	hcrx->last_counter	   = dccp_hdr(skb)->dccph_ccval;
-	hcrx->bytes_recv	   = 0;
+	hcrx->hist.bytes_recvd	   = 0;
 
 	dp->dccps_hc_rx_insert_options = 1;
 	dccp_send_ack(sk);
@@ -669,7 +666,8 @@ static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 static u32 ccid3_first_li(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	u32 x_recv, p, delta;
+	u32 x_recv, p, delta,
+	    s = tfrc_rx_hist_packet_size(&hcrx->hist);
 	u64 fval;
 
 	/*
@@ -686,7 +684,7 @@ static u32 ccid3_first_li(struct sock *sk)
 	}
 
 	delta = ktime_to_us(net_timedelta(hcrx->tstamp_last_feedback));
-	x_recv = scaled_div32(hcrx->bytes_recv, delta);
+	x_recv = scaled_div32(hcrx->hist.bytes_recvd, delta);
 	if (x_recv == 0) {		/* would also trigger divide-by-zero */
 		DCCP_WARN("X_recv==0\n");
 		if (hcrx->x_recv == 0) {
@@ -696,8 +694,7 @@ static u32 ccid3_first_li(struct sock *sk)
 		x_recv = hcrx->x_recv;
 	}
 
-	fval = scaled_div(hcrx->s, hcrx->rtt);
-	fval = scaled_div32(fval, x_recv);
+	fval = scaled_div32(scaled_div(s, hcrx->rtt), x_recv);
 	p = tfrc_calc_x_reverse_lookup(fval);
 
 	ccid3_pr_debug("%s(%p), receive rate=%u bytes/s, implied "
@@ -724,29 +721,10 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 
 	if (unlikely(hcrx->state == TFRC_RSTATE_NO_DATA)) {
 		if (is_data_packet) {
-			const u32 payload = skb->len - dccp_hdr(skb)->dccph_doff * 4;
 			do_feedback = CCID3_FBACK_INITIAL;
 			ccid3_hc_rx_set_state(sk, TFRC_RSTATE_DATA);
-			hcrx->s = payload;
-			/*
-			 * Not necessary to update bytes_recv here,
-			 * since X_recv = 0 for the first feedback packet (cf.
-			 * RFC 3448, 6.3) -- gerrit
-			 */
 		}
 		goto update_records;
-	}
-
-	if (tfrc_rx_hist_duplicate(&hcrx->hist, skb))
-		return; /* done receiving */
-
-	if (is_data_packet) {
-		const u32 payload = skb->len - dccp_hdr(skb)->dccph_doff * 4;
-		/*
-		 * Update moving-average of s and the sum of received payload bytes
-		 */
-		hcrx->s = tfrc_ewma(hcrx->s, payload, 9);
-		hcrx->bytes_recv += payload;
 	}
 
 	if (tfrc_rx_hist_loss_pending(&hcrx->hist))
