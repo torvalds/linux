@@ -57,6 +57,10 @@ can be set before calling bind().
 DCCP_SOCKOPT_GET_CUR_MPS is read-only and retrieves the current maximum packet
 size (application payload size) in bytes, see RFC 4340, section 14.
 
+DCCP_SOCKOPT_AVAILABLE_CCIDS is also read-only and returns the list of CCIDs
+supported by the endpoint (see include/linux/dccp.h for symbolic constants).
+The caller needs to provide a sufficiently large (> 2) array of type uint8_t.
+
 DCCP_SOCKOPT_SERVER_TIMEWAIT enables the server (listening socket) to hold
 timewait state when closing the connection (RFC 4340, 8.3). The usual case is
 that the closing server sends a CloseReq, whereupon the client holds timewait

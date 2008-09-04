@@ -383,6 +383,10 @@ static int __feat_register_sp(struct list_head *fn, u8 feat, u8 is_local,
 	    !dccp_feat_sp_list_ok(feat, sp_val, sp_len))
 		return -EINVAL;
 
+	/* Avoid negotiating alien CCIDs by only advertising supported ones */
+	if (feat == DCCPF_CCID && !ccid_support_check(sp_val, sp_len))
+		return -EOPNOTSUPP;
+
 	if (dccp_feat_clone_sp_val(&fval, sp_val, sp_len))
 		return -ENOMEM;
 
