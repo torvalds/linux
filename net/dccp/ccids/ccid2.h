@@ -70,6 +70,11 @@ struct ccid2_hc_tx_sock {
 	struct list_head	av_chunks;
 };
 
+static inline bool ccid2_cwnd_network_limited(struct ccid2_hc_tx_sock *hctx)
+{
+	return (hctx->pipe >= hctx->cwnd);
+}
+
 struct ccid2_hc_rx_sock {
 	int			data;
 };
