@@ -348,7 +348,7 @@ static const __u8 initOv7630[] = {
 static const __u8 initOv7630_3[] = {
 	0x44, 0x44, 0x00, 0x1a, 0x20, 0x20, 0x20, 0x80,	/* r01 .. r08 */
 	0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x04,	/* r09 .. r10 */
-	0x00, 0x01, 0x01, 0x0a,				/* r11 .. r14 */
+	0x00, 0x02, 0x01, 0x0a,				/* r11 .. r14 */
 	0x28, 0x1e,			/* H & V sizes     r15 .. r16 */
 	0x68, 0x8f, MCK_INIT1,				/* r17 .. r19 */
 	0x1d, 0x10, 0x02, 0x03, 0x0f, 0x0c, 0x00,	/* r1a .. r20 */
@@ -1230,10 +1230,12 @@ static __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x602d), SB(HV7131R, 102)},
 #if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
 	{USB_DEVICE(0x0c45, 0x602e), SB(OV7630, 102)},
-	{USB_DEVICE(0x0c45, 0x608f), SB(OV7630, 103)},
-	{USB_DEVICE(0x0c45, 0x60af), SB(PAS202, 103)},
-	{USB_DEVICE(0x0c45, 0x60b0), SB(OV7630, 103)},
 #endif
+	{USB_DEVICE(0x0c45, 0x608f), SB(OV7630, 103)},
+#if !defined CONFIG_USB_SN9C102 && !defined CONFIG_USB_SN9C102_MODULE
+	{USB_DEVICE(0x0c45, 0x60af), SB(PAS202, 103)},
+#endif
+	{USB_DEVICE(0x0c45, 0x60b0), SB(OV7630, 103)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, device_table);
