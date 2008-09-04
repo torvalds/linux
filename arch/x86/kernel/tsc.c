@@ -122,6 +122,43 @@ static u64 tsc_read_refs(u64 *pm, u64 *hpet)
 	return ULLONG_MAX;
 }
 
+/*
+ * Calculate the TSC frequency from HPET reference
+ */
+static unsigned long calc_hpet_ref(u64 deltatsc, u64 hpet1, u64 hpet2)
+{
+	u64 tmp;
+
+	if (hpet2 < hpet1)
+		hpet2 += 0x100000000ULL;
+	hpet2 -= hpet1;
+	tmp = ((u64)hpet2 * hpet_readl(HPET_PERIOD));
+	do_div(tmp, 1000000);
+	do_div(deltatsc, tmp);
+
+	return (unsigned long) deltatsc;
+}
+
+/*
+ * Calculate the TSC frequency from PMTimer reference
+ */
+static unsigned long calc_pmtimer_ref(u64 deltatsc, u64 pm1, u64 pm2)
+{
+	u64 tmp;
+
+	if (!pm1 && !pm2)
+		return ULONG_MAX;
+
+	if (pm2 < pm1)
+		pm2 += (u64)ACPI_PM_OVRRUN;
+	pm2 -= pm1;
+	tmp = pm2 * 1000000000LL;
+	do_div(tmp, PMTMR_TICKS_PER_SEC);
+	do_div(deltatsc, tmp);
+
+	return (unsigned long) deltatsc;
+}
+
 #define CAL_MS		50
 #define CAL_LATCH	(CLOCK_TICK_RATE / (1000 / CAL_MS))
 #define CAL_PIT_LOOPS	5000
@@ -247,22 +284,11 @@ unsigned long native_calibrate_tsc(void)
 			continue;
 
 		tsc2 = (tsc2 - tsc1) * 1000000LL;
+		if (hpet)
+			tsc2 = calc_hpet_ref(tsc2, hpet1, hpet2);
+		else
+			tsc2 = calc_pmtimer_ref(tsc2, pm1, pm2);
 
-		if (hpet) {
-			if (hpet2 < hpet1)
-				hpet2 += 0x100000000ULL;
-			hpet2 -= hpet1;
-			tsc1 = ((u64)hpet2 * hpet_readl(HPET_PERIOD));
-			do_div(tsc1, 1000000);
-		} else {
-			if (pm2 < pm1)
-				pm2 += (u64)ACPI_PM_OVRRUN;
-			pm2 -= pm1;
-			tsc1 = pm2 * 1000000000LL;
-			do_div(tsc1, PMTMR_TICKS_PER_SEC);
-		}
-
-		do_div(tsc2, tsc1);
 		tsc_ref_min = min(tsc_ref_min, (unsigned long) tsc2);
 	}
 
