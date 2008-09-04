@@ -157,6 +157,7 @@ enum {
 	Opt_stack,
 	Opt_user_xattr,
 	Opt_nouser_xattr,
+	Opt_inode64,
 	Opt_err,
 };
 
@@ -178,6 +179,7 @@ static const match_table_t tokens = {
 	{Opt_stack, "cluster_stack=%s"},
 	{Opt_user_xattr, "user_xattr"},
 	{Opt_nouser_xattr, "nouser_xattr"},
+	{Opt_inode64, "inode64"},
 	{Opt_err, NULL}
 };
 
@@ -408,6 +410,15 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	    (parsed_options.mount_opt & OCFS2_MOUNT_DATA_WRITEBACK)) {
 		ret = -EINVAL;
 		mlog(ML_ERROR, "Cannot change data mode on remount\n");
+		goto out;
+	}
+
+	/* Probably don't want this on remount; it might
+	 * mess with other nodes */
+	if (!(osb->s_mount_opt & OCFS2_MOUNT_INODE64) &&
+	    (parsed_options.mount_opt & OCFS2_MOUNT_INODE64)) {
+		ret = -EINVAL;
+		mlog(ML_ERROR, "Cannot enable inode64 on remount\n");
 		goto out;
 	}
 
@@ -930,6 +941,9 @@ static int ocfs2_parse_options(struct super_block *sb,
 			       OCFS2_STACK_LABEL_LEN);
 			mopt->cluster_stack[OCFS2_STACK_LABEL_LEN] = '\0';
 			break;
+		case Opt_inode64:
+			mopt->mount_opt |= OCFS2_MOUNT_INODE64;
+			break;
 		default:
 			mlog(ML_ERROR,
 			     "Unrecognized mount option \"%s\" "
@@ -993,6 +1007,9 @@ static int ocfs2_show_options(struct seq_file *s, struct vfsmount *mnt)
 	if (osb->osb_cluster_stack[0])
 		seq_printf(s, ",cluster_stack=%.*s", OCFS2_STACK_LABEL_LEN,
 			   osb->osb_cluster_stack);
+
+	if (opts & OCFS2_MOUNT_INODE64)
+		seq_printf(s, ",inode64");
 
 	return 0;
 }

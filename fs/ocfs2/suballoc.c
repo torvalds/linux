@@ -601,9 +601,10 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	/*
 	 * stat(2) can't handle i_ino > 32bits, so we tell the
 	 * lower levels not to allocate us a block group past that
-	 * limit.
+	 * limit.  The 'inode64' mount option avoids this behavior.
 	 */
-	(*ac)->ac_max_block = (u32)~0U;
+	if (!(osb->s_mount_opt & OCFS2_MOUNT_INODE64))
+		(*ac)->ac_max_block = (u32)~0U;
 
 	/*
 	 * slot is set when we successfully steal inode from other nodes.
