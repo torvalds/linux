@@ -140,4 +140,6 @@ extern void dccp_encode_value_var(const u64 value, u8 *to, const u8 len);
 extern u64  dccp_decode_value_var(const u8 *bf, const u8 len);
 
 extern int  dccp_insert_option_mandatory(struct sk_buff *skb);
+extern int  dccp_insert_fn_opt(struct sk_buff *skb, u8 type, u8 feat,
+			       u8 *val, u8 len, bool repeat_first);
 #endif /* _DCCP_FEAT_H */

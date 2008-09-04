@@ -482,74 +482,52 @@ int dccp_insert_option_mandatory(struct sk_buff *skb)
 	return 0;
 }
 
-static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
-				u8 *val, u8 len)
+/**
+ * dccp_insert_fn_opt  -  Insert single Feature-Negotiation option into @skb
+ * @type: %DCCPO_CHANGE_L, %DCCPO_CHANGE_R, %DCCPO_CONFIRM_L, %DCCPO_CONFIRM_R
+ * @feat: one out of %dccp_feature_numbers
+ * @val: NN value or SP array (preferred element first) to copy
+ * @len: true length of @val in bytes (excluding first element repetition)
+ * @repeat_first: whether to copy the first element of @val twice
+ * The last argument is used to construct Confirm options, where the preferred
+ * value and the preference list appear separately (RFC 4340, 6.3.1). Preference
+ * lists are kept such that the preferred entry is always first, so we only need
+ * to copy twice, and avoid the overhead of cloning into a bigger array.
+ */
+int dccp_insert_fn_opt(struct sk_buff *skb, u8 type, u8 feat,
+		       u8 *val, u8 len, bool repeat_first)
 {
-	u8 *to;
+	u8 tot_len, *to;
 
-	if (DCCP_SKB_CB(skb)->dccpd_opt_len + len + 3 > DCCP_MAX_OPT_LEN) {
-		DCCP_WARN("packet too small for feature %d option!\n", feat);
+	/* take the `Feature' field and possible repetition into account */
+	if (len > (DCCP_SINGLE_OPT_MAXLEN - 2)) {
+		DCCP_WARN("length %u for feature %u too large\n", len, feat);
 		return -1;
 	}
 
-	DCCP_SKB_CB(skb)->dccpd_opt_len += len + 3;
+	if (unlikely(val == NULL || len == 0))
+		len = repeat_first = 0;
+	tot_len = 3 + repeat_first + len;
 
-	to    = skb_push(skb, len + 3);
+	if (DCCP_SKB_CB(skb)->dccpd_opt_len + tot_len > DCCP_MAX_OPT_LEN) {
+		DCCP_WARN("packet too small for feature %d option!\n", feat);
+		return -1;
+	}
+	DCCP_SKB_CB(skb)->dccpd_opt_len += tot_len;
+
+	to    = skb_push(skb, tot_len);
 	*to++ = type;
-	*to++ = len + 3;
+	*to++ = tot_len;
 	*to++ = feat;
 
+	if (repeat_first)
+		*to++ = *val;
 	if (len)
 		memcpy(to, val, len);
 
 	dccp_pr_debug("%s(%s (%d), ...), length %d\n",
 		      dccp_feat_typename(type),
 		      dccp_feat_name(feat), feat, len);
-	return 0;
-}
-
-static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
-{
-	struct dccp_minisock *dmsk = dccp_msk(sk);
-	struct dccp_opt_pend *opt, *next;
-	int change = 0;
-
-	/* confirm any options [NN opts] */
-	list_for_each_entry_safe(opt, next, &dmsk->dccpms_conf, dccpop_node) {
-		dccp_insert_feat_opt(skb, opt->dccpop_type,
-				     opt->dccpop_feat, opt->dccpop_val,
-				     opt->dccpop_len);
-		/* fear empty confirms */
-		if (opt->dccpop_val)
-			kfree(opt->dccpop_val);
-		kfree(opt);
-	}
-	INIT_LIST_HEAD(&dmsk->dccpms_conf);
-
-	/* see which features we need to send */
-	list_for_each_entry(opt, &dmsk->dccpms_pending, dccpop_node) {
-		/* see if we need to send any confirm */
-		if (opt->dccpop_sc) {
-			dccp_insert_feat_opt(skb, opt->dccpop_type + 1,
-					     opt->dccpop_feat,
-					     opt->dccpop_sc->dccpoc_val,
-					     opt->dccpop_sc->dccpoc_len);
-
-			BUG_ON(!opt->dccpop_sc->dccpoc_val);
-			kfree(opt->dccpop_sc->dccpoc_val);
-			kfree(opt->dccpop_sc);
-			opt->dccpop_sc = NULL;
-		}
-
-		/* any option not confirmed, re-send it */
-		if (!opt->dccpop_conf) {
-			dccp_insert_feat_opt(skb, opt->dccpop_type,
-					     opt->dccpop_feat, opt->dccpop_val,
-					     opt->dccpop_len);
-			change++;
-		}
-	}
-
 	return 0;
 }
 
@@ -588,13 +566,6 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 			return -1;
 		dp->dccps_hc_rx_insert_options = 0;
 	}
-
-	/* Feature negotiation */
-	/* Data packets can't do feat negotiation */
-	if (DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATA &&
-	    DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATAACK &&
-	    dccp_insert_options_feat(sk, skb))
-		return -1;
 
 	/*
 	 * Obtain RTT sample from Request/Response exchange.
