@@ -565,29 +565,17 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 
 static void ccid3_hc_tx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	struct ccid3_hc_tx_sock *hctx;
-
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return;
-
-	hctx = ccid3_hc_tx_sk(sk);
-	info->tcpi_rto = hctx->t_rto;
-	info->tcpi_rtt = hctx->rtt;
+	info->tcpi_rto = ccid3_hc_tx_sk(sk)->t_rto;
+	info->tcpi_rtt = ccid3_hc_tx_sk(sk)->rtt;
 }
 
 static int ccid3_hc_tx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
-	const struct ccid3_hc_tx_sock *hctx;
+	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct tfrc_tx_info tfrc;
 	const void *val;
 
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return -EINVAL;
-
-	hctx = ccid3_hc_tx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_TX_INFO:
 		if (len < sizeof(tfrc))
@@ -707,13 +695,11 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 
 static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
 {
-	const struct ccid3_hc_rx_sock *hcrx;
+	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	__be32 x_recv, pinv;
 
 	if (!(sk->sk_state == DCCP_OPEN || sk->sk_state == DCCP_PARTOPEN))
 		return 0;
-
-	hcrx = ccid3_hc_rx_sk(sk);
 
 	if (dccp_packet_without_ack(skb))
 		return 0;
@@ -876,30 +862,18 @@ static void ccid3_hc_rx_exit(struct sock *sk)
 
 static void ccid3_hc_rx_get_info(struct sock *sk, struct tcp_info *info)
 {
-	const struct ccid3_hc_rx_sock *hcrx;
-
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return;
-
-	hcrx = ccid3_hc_rx_sk(sk);
-	info->tcpi_ca_state = hcrx->state;
+	info->tcpi_ca_state = ccid3_hc_rx_sk(sk)->state;
 	info->tcpi_options  |= TCPI_OPT_TIMESTAMPS;
-	info->tcpi_rcv_rtt  = hcrx->rtt;
+	info->tcpi_rcv_rtt  = ccid3_hc_rx_sk(sk)->rtt;
 }
 
 static int ccid3_hc_rx_getsockopt(struct sock *sk, const int optname, int len,
 				  u32 __user *optval, int __user *optlen)
 {
-	const struct ccid3_hc_rx_sock *hcrx;
+	const struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct tfrc_rx_info rx_info;
 	const void *val;
 
-	/* Listen socks doesn't have a private CCID block */
-	if (sk->sk_state == DCCP_LISTEN)
-		return -EINVAL;
-
-	hcrx = ccid3_hc_rx_sk(sk);
 	switch (optname) {
 	case DCCP_SOCKOPT_CCID_RX_INFO:
 		if (len < sizeof(rx_info))
