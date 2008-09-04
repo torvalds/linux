@@ -73,17 +73,20 @@ static struct dccp_qpolicy_operations {
 	void		(*push)	(struct sock *sk, struct sk_buff *skb);
 	bool		(*full) (struct sock *sk);
 	struct sk_buff*	(*top)  (struct sock *sk);
+	__be32		params;
 
 } qpol_table[DCCPQ_POLICY_MAX] = {
 	[DCCPQ_POLICY_SIMPLE] = {
-		.push = qpolicy_simple_push,
-		.full = qpolicy_simple_full,
-		.top  = qpolicy_simple_top,
+		.push   = qpolicy_simple_push,
+		.full   = qpolicy_simple_full,
+		.top    = qpolicy_simple_top,
+		.params = 0,
 	},
 	[DCCPQ_POLICY_PRIO] = {
-		.push = qpolicy_simple_push,
-		.full = qpolicy_prio_full,
-		.top  = qpolicy_prio_best_skb,
+		.push   = qpolicy_simple_push,
+		.full   = qpolicy_prio_full,
+		.top    = qpolicy_prio_best_skb,
+		.params = DCCP_SCM_PRIORITY,
 	},
 };
 
@@ -123,4 +126,12 @@ struct sk_buff *dccp_qpolicy_pop(struct sock *sk)
 	if (skb)
 		skb_unlink(skb, &sk->sk_write_queue);
 	return skb;
+}
+
+bool dccp_qpolicy_param_ok(struct sock *sk, __be32 param)
+{
+	/* check if exactly one bit is set */
+	if (!param || (param & (param - 1)))
+		return false;
+	return (qpol_table[dccp_sk(sk)->dccps_qpolicy].params & param) == param;
 }
