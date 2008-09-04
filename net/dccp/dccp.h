@@ -334,7 +334,14 @@ extern struct sk_buff *dccp_ctl_make_reset(struct sock *sk,
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
-extern u32	   dccp_sample_rtt(struct sock *sk, long delta);
+
+static inline u32  dccp_sane_rtt(long usec_sample)
+{
+	if (unlikely(usec_sample <= 0 || usec_sample > DCCP_SANE_RTT_MAX))
+		DCCP_WARN("RTT sample %ld out of bounds!\n", usec_sample);
+	return clamp_val(usec_sample, DCCP_SANE_RTT_MIN, DCCP_SANE_RTT_MAX);
+}
+extern u32 dccp_sample_rtt(struct sock *sk, long delta);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
