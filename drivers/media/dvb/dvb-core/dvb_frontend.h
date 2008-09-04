@@ -169,6 +169,10 @@ struct dvb_frontend_ops {
 
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
+
+	int (*set_property)(struct dvb_frontend* fe, tv_property_t* tvp);
+	int (*get_property)(struct dvb_frontend* fe, tv_property_t* tvp);
+	int (*set_params)(struct dvb_frontend* fe);
 };
 
 #define MAX_EVENT 8
@@ -182,6 +186,45 @@ struct dvb_fe_events {
 	struct mutex		  mtx;
 };
 
+struct tv_frontend_properties {
+
+	/* Cache State */
+	u32			state;
+
+	u32			frequency;
+	fe_modulation_t		modulation;
+
+	fe_sec_voltage_t	voltage;
+	fe_sec_tone_mode_t	sectone;
+	fe_spectral_inversion_t	inversion;
+	fe_code_rate_t		fec_inner;
+	fe_transmit_mode_t	transmission_mode;
+	fe_bandwidth_t		bandwidth;
+	fe_guard_interval_t	guard_interval;
+	fe_hierarchy_t		hierarchy;
+	u32			symbol_rate;
+	fe_code_rate_t		code_rate_HP;
+	fe_code_rate_t		code_rate_LP;
+
+	fe_pilot_t		pilot;
+	fe_rolloff_t		rolloff;
+
+	fe_delivery_system_t	delivery_system;
+
+	/* ISDB-T specifics */
+	u32			isdb_segment_num;
+	u32			isdb_segment_width;
+	fe_code_rate_t		isdb_layera_fec;
+	fe_modulation_t		isdb_layera_modulation;
+	u32			isdb_layera_segment_width;
+	fe_code_rate_t		isdb_layerb_fec;
+	fe_modulation_t		isdb_layerb_modulation;
+	u32			isdb_layerb_segment_width;
+	fe_code_rate_t		isdb_layerc_fec;
+	fe_modulation_t		isdb_layerc_modulation;
+	u32			isdb_layerc_segment_width;
+};
+
 struct dvb_frontend {
 	struct dvb_frontend_ops ops;
 	struct dvb_adapter *dvb;
@@ -190,6 +233,7 @@ struct dvb_frontend {
 	void *frontend_priv;
 	void *sec_priv;
 	void *analog_demod_priv;
+	struct tv_frontend_properties tv_property_cache;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter *dvb,

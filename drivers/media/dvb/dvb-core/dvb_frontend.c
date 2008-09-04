@@ -755,6 +755,535 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 	return 0;
 }
 
+struct tv_cmds_h tv_cmds[] = {
+	[TV_SEQ_UNDEFINED] = {
+		.name	= "TV_SEQ_UNDEFINED",
+		.cmd	= TV_SEQ_UNDEFINED,
+		.set	= 1,
+	},
+	[TV_SEQ_START] = {
+		.name	= "TV_SEQ_START",
+		.cmd	= TV_SEQ_START,
+		.set	= 1,
+	},
+	[TV_SEQ_CONTINUE] = {
+		.name	= "TV_SEQ_CONTINUE",
+		.cmd	= TV_SEQ_CONTINUE,
+		.set	= 1,
+	},
+	[TV_SEQ_COMPLETE] = {
+		.name	= "TV_SEQ_COMPLETE",
+		.cmd	= TV_SEQ_COMPLETE,
+		.set	= 1,
+	},
+	[TV_SEQ_TERMINATE] = {
+		.name	= "TV_SEQ_TERMINATE",
+		.cmd	= TV_SEQ_TERMINATE,
+		.set	= 1,
+	},
+
+	/* Set */
+	[TV_SET_FREQUENCY] = {
+		.name	= "TV_SET_FREQUENCY",
+		.cmd	= TV_SET_FREQUENCY,
+		.set	= 1,
+	},
+	[TV_SET_BANDWIDTH] = {
+		.name	= "TV_SET_BANDWIDTH",
+		.cmd	= TV_SET_BANDWIDTH,
+		.set	= 1,
+	},
+	[TV_SET_MODULATION] = {
+		.name	= "TV_SET_MODULATION",
+		.cmd	= TV_SET_MODULATION,
+		.set	= 1,
+	},
+	[TV_SET_INVERSION] = {
+		.name	= "TV_SET_INVERSION",
+		.cmd	= TV_SET_INVERSION,
+		.set	= 1,
+	},
+	[TV_SET_DISEQC_MASTER] = {
+		.name	= "TV_SET_DISEQC_MASTER",
+		.cmd	= TV_SET_DISEQC_MASTER,
+		.set	= 1,
+		.buffer	= 1,
+	},
+	[TV_SET_SYMBOLRATE] = {
+		.name	= "TV_SET_SYMBOLRATE",
+		.cmd	= TV_SET_SYMBOLRATE,
+		.set	= 1,
+	},
+	[TV_SET_INNERFEC] = {
+		.name	= "TV_SET_INNERFEC",
+		.cmd	= TV_SET_INNERFEC,
+		.set	= 1,
+	},
+	[TV_SET_VOLTAGE] = {
+		.name	= "TV_SET_VOLTAGE",
+		.cmd	= TV_SET_VOLTAGE,
+		.set	= 1,
+	},
+	[TV_SET_TONE] = {
+		.name	= "TV_SET_TONE",
+		.cmd	= TV_SET_TONE,
+		.set	= 1,
+	},
+	[TV_SET_PILOT] = {
+		.name	= "TV_SET_PILOT",
+		.cmd	= TV_SET_PILOT,
+		.set	= 1,
+	},
+	[TV_SET_ROLLOFF] = {
+		.name	= "TV_SET_ROLLOFF",
+		.cmd	= TV_SET_ROLLOFF,
+		.set	= 1,
+	},
+	[TV_SET_DELIVERY_SYSTEM] = {
+		.name	= "TV_SET_DELIVERY_SYSTEM",
+		.cmd	= TV_SET_DELIVERY_SYSTEM,
+		.set	= 1,
+	},
+	[TV_SET_ISDB_SEGMENT_NUM] = {
+		.name	= "TV_SET_ISDB_SEGMENT_NUM",
+		.cmd	= TV_SET_ISDB_SEGMENT_NUM,
+		.set	= 1,
+	},
+	[TV_SET_ISDB_SEGMENT_WIDTH] = {
+		.name	= "TV_SET_ISDB_SEGMENT_WIDTH",
+		.cmd	= TV_SET_ISDB_SEGMENT_WIDTH,
+		.set	= 1,
+	},
+
+	/* Get */
+	[TV_GET_FREQUENCY] = {
+		.name	= "TV_GET_FREQUENCY",
+		.cmd	= TV_GET_FREQUENCY,
+		.set	= 0,
+	},
+	[TV_GET_BANDWIDTH] = {
+		.name	= "TV_GET_BANDWIDTH",
+		.cmd	= TV_GET_BANDWIDTH,
+		.set	= 0,
+	},
+	[TV_GET_MODULATION] = {
+		.name	= "TV_GET_MODULATION",
+		.cmd	= TV_GET_MODULATION,
+		.set	= 0,
+	},
+	[TV_GET_INVERSION] = {
+		.name	= "TV_GET_INVERSION",
+		.cmd	= TV_GET_INVERSION,
+		.set	= 0,
+	},
+	[TV_GET_DISEQC_SLAVE_REPLY] = {
+		.name	= "TV_GET_DISEQC_SLAVE_REPLY",
+		.cmd	= TV_GET_DISEQC_SLAVE_REPLY,
+		.set	= 0,
+		.buffer	= 1,
+	},
+	[TV_GET_SYMBOLRATE] = {
+		.name	= "TV_GET_SYMBOLRATE",
+		.cmd	= TV_GET_SYMBOLRATE,
+		.set	= 0,
+	},
+	[TV_GET_INNERFEC] = {
+		.name	= "TV_GET_INNERFEC",
+		.cmd	= TV_GET_INNERFEC,
+		.set	= 0,
+	},
+	[TV_GET_VOLTAGE] = {
+		.name	= "TV_GET_VOLTAGE",
+		.cmd	= TV_GET_VOLTAGE,
+		.set	= 0,
+	},
+	[TV_GET_TONE] = {
+		.name	= "TV_GET_TONE",
+		.cmd	= TV_GET_TONE,
+		.set	= 0,
+	},
+	[TV_GET_PILOT] = {
+		.name	= "TV_GET_PILOT",
+		.cmd	= TV_GET_PILOT,
+		.set	= 0,
+	},
+	[TV_GET_ROLLOFF] = {
+		.name	= "TV_GET_ROLLOFF",
+		.cmd	= TV_GET_ROLLOFF,
+		.set	= 0,
+	},
+	[TV_GET_DELIVERY_SYSTEM] = {
+		.name	= "TV_GET_DELIVERY_SYSTEM",
+		.cmd	= TV_GET_DELIVERY_SYSTEM,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_SEGMENT_NUM] = {
+		.name	= "TV_GET_ISDB_SEGMENT_NUM",
+		.cmd	= TV_GET_ISDB_SEGMENT_NUM,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_SEGMENT_WIDTH] = {
+		.name	= "TV_GET_ISDB_SEGMENT_WIDTH",
+		.cmd	= TV_GET_ISDB_SEGMENT_WIDTH,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERA_FEC] = {
+		.name	= "TV_GET_ISDB_LAYERA_FEC",
+		.cmd	= TV_GET_ISDB_LAYERA_FEC,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERA_MODULATION] = {
+		.name	= "TV_GET_ISDB_LAYERA_MODULATION",
+		.cmd	= TV_GET_ISDB_LAYERA_MODULATION,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERA_SEGMENT_WIDTH] = {
+		.name	= "TV_GET_ISDB_LAYERA_SEGMENT_WIDTH",
+		.cmd	= TV_GET_ISDB_LAYERA_SEGMENT_WIDTH,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERB_FEC] = {
+		.name	= "TV_GET_ISDB_LAYERB_FEC",
+		.cmd	= TV_GET_ISDB_LAYERB_FEC,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERB_MODULATION] = {
+		.name	= "TV_GET_ISDB_LAYERB_MODULATION",
+		.cmd	= TV_GET_ISDB_LAYERB_MODULATION,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERB_SEGMENT_WIDTH] = {
+		.name	= "TV_GET_ISDB_LAYERB_SEGMENT_WIDTH",
+		.cmd	= TV_GET_ISDB_LAYERB_SEGMENT_WIDTH,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERC_FEC] = {
+		.name	= "TV_GET_ISDB_LAYERC_FEC",
+		.cmd	= TV_GET_ISDB_LAYERC_FEC,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERC_MODULATION] = {
+		.name	= "TV_GET_ISDB_LAYERC_MODULATION",
+		.cmd	= TV_GET_ISDB_LAYERC_MODULATION,
+		.set	= 0,
+	},
+	[TV_GET_ISDB_LAYERC_SEGMENT_WIDTH] = {
+		.name	= "TV_GET_ISDB_LAYERC_SEGMENT_WIDTH",
+		.cmd	= TV_GET_ISDB_LAYERC_SEGMENT_WIDTH,
+		.set	= 0,
+	},
+};
+
+void tv_property_dump(tv_property_t *tvp)
+{
+	int i;
+
+	printk("%s() tvp.cmd    = 0x%08x (%s)\n"
+		,__FUNCTION__
+		,tvp->cmd
+		,tv_cmds[ tvp->cmd ].name);
+
+	if(tv_cmds[ tvp->cmd ].buffer) {
+
+		printk("%s() tvp.u.buffer.len = 0x%02x\n"
+			,__FUNCTION__
+			,tvp->u.buffer.len);
+
+		for(i = 0; i < tvp->u.buffer.len; i++)
+			printk("%s() tvp.u.buffer.data[0x%02x] = 0x%02x\n"
+				,__FUNCTION__
+				,i
+				,tvp->u.buffer.data[i]);
+
+	} else
+		printk("%s() tvp.u.data = 0x%08x\n", __FUNCTION__, tvp->u.data);
+}
+
+int is_legacy_delivery_system(fe_delivery_system_t s)
+{
+	if((s == SYS_UNDEFINED) || (s == SYS_DVBC_ANNEX_AC) ||
+		(s == SYS_DVBC_ANNEX_B) || (s == SYS_DVBT) || (s == SYS_DVBS))
+		return 1;
+
+	return 0;
+}
+
+int tv_property_cache_submit(struct dvb_frontend *fe)
+{
+
+	/* We have to do one of two things:
+	 * To support legacy devices using the new API we take values from
+	 * the tv_cache and generate a legacy truning structure.
+	 *
+	 * Or,
+	 *
+	 * To support advanced tuning devices with the new API we
+	 * notify the new advance driver type that a tuning operation is required
+	 * and let it pull values from the cache as is, we don't need to
+	 * pass structures.
+	 *
+	 * We'll use the modulation type to assess how this is handled. as the API
+	 * progresses we'll probably want to have a flag in dvb_frontend_ops
+	 * to allow the frontend driver to dictate how it likes to be tuned.
+	 *
+	 * Because of how this is attached to the ioctl handler for legacy support,
+	 * it's important to return an appropriate result code with atleast the following
+	 * three meanings:
+	 * < 0 = processing error
+	 *   0 = lecagy ioctl handler to submit a traditional set_frontend() call.
+	 *   1 = lecagy ioctl handler should NOT submit a traditional set_frontend() call.
+	 */
+
+	int r;
+
+	struct tv_frontend_properties *c = &fe->tv_property_cache;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_frontend_parameters p;
+
+	printk("%s()\n", __FUNCTION__);
+
+	/* For legacy delivery systems we don't need the delivery_system to be specified */
+	if(is_legacy_delivery_system(c->delivery_system)) {
+		switch(c->modulation) {
+		case QPSK:
+			printk("%s() Preparing QPSK req\n", __FUNCTION__);
+			p.frequency = c->frequency;
+			p.inversion = c->inversion;
+			p.u.qpsk.symbol_rate = c->symbol_rate;
+			p.u.qpsk.fec_inner = c->fec_inner;
+			memcpy(&fepriv->parameters, &p,
+				sizeof (struct dvb_frontend_parameters));
+
+			/* Call the traditional tuning mechanisms. */
+
+			r = 0;
+			break;
+		case QAM_16:
+		case QAM_32:
+		case QAM_64:
+		case QAM_128:
+		case QAM_256:
+		case QAM_AUTO:
+			printk("%s() Preparing QAM req\n", __FUNCTION__);
+			p.frequency = c->frequency;
+			p.inversion = c->inversion;
+			p.u.qam.symbol_rate = c->symbol_rate;
+			p.u.vsb.modulation = c->modulation;
+			printk("%s() frequency = %d\n", __FUNCTION__, p.frequency);
+			printk("%s() QAM       = %d\n", __FUNCTION__, p.u.vsb.modulation);
+			memcpy(&fepriv->parameters, &p,
+				sizeof (struct dvb_frontend_parameters));
+
+			/* At this point we're fully formed for backwards
+			 * compatability and we need to return this
+			 * via the ioctl handler as SET_FRONTEND (arg).
+			 * We've already patched the new values into the
+			 * frontends tuning structures so the ioctl code just
+			 * continues as if a legacy tune structure was passed
+			 * from userspace.
+			 */
+
+			r = 0;
+			break;
+		case VSB_8:
+		case VSB_16:
+			printk("%s() Preparing VSB req\n", __FUNCTION__);
+			p.frequency = c->frequency;
+			p.u.vsb.modulation = c->modulation;
+			memcpy(&fepriv->parameters, &p,
+				sizeof (struct dvb_frontend_parameters));
+
+			/* Call the traditional tuning mechanisms. */
+
+			r = 0;
+			break;
+		/* TODO: Add any missing modulation types */
+		default:
+			r = -1;
+		}
+	} else {
+		/* For advanced delivery systems / modulation types ...
+		 * we seed the lecacy dvb_frontend_parameters structure
+		 * so that the sanity checking code later in the IOCTL processing
+		 * can validate our basic frequency ranges, symbolrates, modulation
+		 * etc.
+		 */
+		r = -1;
+
+		switch(c->modulation) {
+		case _8PSK:
+		case _16APSK:
+		case NBC_QPSK:
+			/* Just post a notification to the demod driver and let it pull
+			 * the specific values it wants from its tv_property_cache.
+			 * It can decide how best to use those parameters.
+			 * IOCTL will call set_frontend (by default) due to zigzag
+			 * support etc.
+			 */
+			if (fe->ops.set_params)
+				r = fe->ops.set_params(fe);
+
+			p.frequency = c->frequency;
+			p.inversion = c->inversion;
+			p.u.qpsk.symbol_rate = c->symbol_rate;
+			p.u.qpsk.fec_inner = c->fec_inner;
+			memcpy(&fepriv->parameters, &p,
+				sizeof (struct dvb_frontend_parameters));
+
+			r = 0;
+			break;
+		default:
+			r = -1;
+		}
+
+		if(c->delivery_system == SYS_ISDBT) {
+			/* Fake out a generic DVB-T request so we pass validation in the ioctl */
+			p.frequency = c->frequency;
+			p.inversion = INVERSION_AUTO;
+			p.u.ofdm.constellation = QAM_AUTO;
+			p.u.ofdm.code_rate_HP = FEC_AUTO;
+			p.u.ofdm.code_rate_LP = FEC_AUTO;
+			p.u.ofdm.bandwidth = BANDWIDTH_AUTO;
+			p.u.ofdm.transmission_mode = TRANSMISSION_MODE_AUTO;
+			p.u.ofdm.guard_interval = GUARD_INTERVAL_AUTO;
+			p.u.ofdm.hierarchy_information = HIERARCHY_AUTO;
+			memcpy(&fepriv->parameters, &p,
+				sizeof (struct dvb_frontend_parameters));
+
+			r = 0;
+		}
+	}
+	return r;
+}
+
+int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp)
+{
+	int r = 0;
+	printk("%s()\n", __FUNCTION__);
+	tv_property_dump(tvp);
+
+	switch(tvp->cmd) {
+	case TV_SEQ_START:
+	case TV_SEQ_TERMINATE:
+		/* Reset a cache of data specific to the frontend here. This does
+		 * not effect hardware.
+		 */
+		printk("%s() Flushing property cache\n", __FUNCTION__);
+		memset(&fe->tv_property_cache, 0, sizeof(struct tv_frontend_properties));
+		fe->tv_property_cache.state = TV_SEQ_START;
+		fe->tv_property_cache.delivery_system = SYS_UNDEFINED;
+		break;
+	case TV_SEQ_COMPLETE:
+		/* interpret the cache of data, build either a traditional frontend
+		 * tunerequest and submit it to a subset of the ioctl handler,
+		 * or, call a new undefined method on the frontend to deal with
+		 * all new tune requests.
+		 */
+		fe->tv_property_cache.state = TV_SEQ_COMPLETE;
+		printk("%s() Finalised property cache\n", __FUNCTION__);
+		r = tv_property_cache_submit(fe);
+		break;
+	case TV_SET_FREQUENCY:
+		fe->tv_property_cache.frequency = tvp->u.data;
+		break;
+	case TV_GET_FREQUENCY:
+		tvp->u.data = fe->tv_property_cache.frequency;
+		break;
+	case TV_SET_MODULATION:
+		fe->tv_property_cache.modulation = tvp->u.data;
+		break;
+	case TV_GET_MODULATION:
+		tvp->u.data = fe->tv_property_cache.modulation;
+		break;
+	case TV_SET_BANDWIDTH:
+		fe->tv_property_cache.bandwidth = tvp->u.data;
+		break;
+	case TV_GET_BANDWIDTH:
+		tvp->u.data = fe->tv_property_cache.bandwidth;
+		break;
+	case TV_SET_INVERSION:
+		fe->tv_property_cache.inversion = tvp->u.data;
+		break;
+	case TV_GET_INVERSION:
+		tvp->u.data = fe->tv_property_cache.inversion;
+		break;
+	case TV_SET_SYMBOLRATE:
+		fe->tv_property_cache.symbol_rate = tvp->u.data;
+		break;
+	case TV_GET_SYMBOLRATE:
+		tvp->u.data = fe->tv_property_cache.symbol_rate;
+		break;
+	case TV_SET_INNERFEC:
+		fe->tv_property_cache.fec_inner = tvp->u.data;
+		break;
+	case TV_GET_INNERFEC:
+		tvp->u.data = fe->tv_property_cache.fec_inner;
+		break;
+	case TV_SET_PILOT:
+		fe->tv_property_cache.pilot = tvp->u.data;
+		break;
+	case TV_GET_PILOT:
+		tvp->u.data = fe->tv_property_cache.pilot;
+		break;
+	case TV_SET_ROLLOFF:
+		fe->tv_property_cache.rolloff = tvp->u.data;
+		break;
+	case TV_GET_ROLLOFF:
+		tvp->u.data = fe->tv_property_cache.rolloff;
+		break;
+	case TV_SET_DELIVERY_SYSTEM:
+		fe->tv_property_cache.delivery_system = tvp->u.data;
+		break;
+	case TV_GET_DELIVERY_SYSTEM:
+		tvp->u.data = fe->tv_property_cache.delivery_system;
+		break;
+
+	/* ISDB-T Support here */
+	case TV_SET_ISDB_SEGMENT_NUM:
+		fe->tv_property_cache.isdb_segment_num = tvp->u.data;
+		break;
+	case TV_GET_ISDB_SEGMENT_NUM:
+		tvp->u.data = fe->tv_property_cache.isdb_segment_num;
+		break;
+	case TV_SET_ISDB_SEGMENT_WIDTH:
+		fe->tv_property_cache.isdb_segment_width = tvp->u.data;
+		break;
+	case TV_GET_ISDB_SEGMENT_WIDTH:
+		tvp->u.data = fe->tv_property_cache.isdb_segment_width;
+		break;
+	case TV_GET_ISDB_LAYERA_FEC:
+		tvp->u.data = fe->tv_property_cache.isdb_layera_fec;
+		break;
+	case TV_GET_ISDB_LAYERA_MODULATION:
+		tvp->u.data = fe->tv_property_cache.isdb_layera_modulation;
+		break;
+	case TV_GET_ISDB_LAYERA_SEGMENT_WIDTH:
+		tvp->u.data = fe->tv_property_cache.isdb_layera_segment_width;
+		break;
+	case TV_GET_ISDB_LAYERB_FEC:
+		tvp->u.data = fe->tv_property_cache.isdb_layerb_fec;
+		break;
+	case TV_GET_ISDB_LAYERB_MODULATION:
+		tvp->u.data = fe->tv_property_cache.isdb_layerb_modulation;
+		break;
+	case TV_GET_ISDB_LAYERB_SEGMENT_WIDTH:
+		tvp->u.data = fe->tv_property_cache.isdb_layerb_segment_width;
+		break;
+	case TV_GET_ISDB_LAYERC_FEC:
+		tvp->u.data = fe->tv_property_cache.isdb_layerc_fec;
+		break;
+	case TV_GET_ISDB_LAYERC_MODULATION:
+		tvp->u.data = fe->tv_property_cache.isdb_layerc_modulation;
+		break;
+	case TV_GET_ISDB_LAYERC_SEGMENT_WIDTH:
+		tvp->u.data = fe->tv_property_cache.isdb_layerc_segment_width;
+		break;
+
+	}
+
+	return 0;
+}
+
 static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg)
 {
@@ -762,6 +1291,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int err = -EOPNOTSUPP;
+	tv_property_t* tvp;
 
 	dprintk ("%s\n", __func__);
 
@@ -775,6 +1305,27 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	if (down_interruptible (&fepriv->sem))
 		return -ERESTARTSYS;
+
+	if(cmd == FE_SET_PROPERTY) {
+		printk("%s() FE_SET_PROPERTY\n", __FUNCTION__);
+
+		/* TODO: basic property validation here */
+
+		/* TODO: ioctl userdata out of range check here */
+		tvp = parg;
+		while(tvp->cmd != TV_SEQ_UNDEFINED) {
+			tv_property_process(fe, tvp);
+			if( (tvp->cmd == TV_SEQ_TERMINATE) || (tvp->cmd == TV_SEQ_COMPLETE) )
+				break;
+			tvp++;
+		}
+
+		if(fe->tv_property_cache.state == TV_SEQ_COMPLETE) {
+			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
+			cmd = FE_SET_FRONTEND;
+		}
+		err = 0;
+	}
 
 	switch (cmd) {
 	case FE_GET_INFO: {
@@ -942,13 +1493,20 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	case FE_SET_FRONTEND: {
 		struct dvb_frontend_tune_settings fetunesettings;
 
-		if (dvb_frontend_check_parameters(fe, parg) < 0) {
-			err = -EINVAL;
-			break;
-		}
+		if(fe->tv_property_cache.state == TV_SEQ_COMPLETE) {
+			if (dvb_frontend_check_parameters(fe, &fepriv->parameters) < 0) {
+				err = -EINVAL;
+				break;
+			}
+		} else {
+			if (dvb_frontend_check_parameters(fe, parg) < 0) {
+				err = -EINVAL;
+				break;
+			}
 
-		memcpy (&fepriv->parameters, parg,
-			sizeof (struct dvb_frontend_parameters));
+			memcpy (&fepriv->parameters, parg,
+				sizeof (struct dvb_frontend_parameters));
+		}
 
 		memset(&fetunesettings, 0, sizeof(struct dvb_frontend_tune_settings));
 		memcpy(&fetunesettings.parameters, parg,
@@ -1030,6 +1588,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	up (&fepriv->sem);
 	return err;
 }
+
 
 static unsigned int dvb_frontend_poll(struct file *file, struct poll_table_struct *wait)
 {

@@ -62,6 +62,7 @@ typedef enum fe_caps {
 	FE_CAN_HIERARCHY_AUTO		= 0x100000,
 	FE_CAN_8VSB			= 0x200000,
 	FE_CAN_16VSB			= 0x400000,
+	FE_HAS_EXTENDED_CAPS		= 0x800000,   // We need more bitspace for newer APIs, indicate this.
 	FE_NEEDS_BENDING		= 0x20000000, // not supported anymore, don't use (frontend requires frequency bending)
 	FE_CAN_RECOVER			= 0x40000000, // frontend can recover from a cable unplug automatically
 	FE_CAN_MUTE_TS			= 0x80000000  // frontend can stop spurious TS data output
@@ -147,7 +148,9 @@ typedef enum fe_code_rate {
 	FEC_6_7,
 	FEC_7_8,
 	FEC_8_9,
-	FEC_AUTO
+	FEC_AUTO,
+	FEC_3_5,
+	FEC_9_10,
 } fe_code_rate_t;
 
 
@@ -160,7 +163,11 @@ typedef enum fe_modulation {
 	QAM_256,
 	QAM_AUTO,
 	VSB_8,
-	VSB_16
+	VSB_16,
+	_8PSK,
+	_16APSK,
+	NBC_QPSK,
+	DQPSK,
 } fe_modulation_t;
 
 typedef enum fe_transmit_mode {
@@ -238,6 +245,125 @@ struct dvb_frontend_event {
 	fe_status_t status;
 	struct dvb_frontend_parameters parameters;
 };
+
+/* TODO: Turn this into a series of defines, so future maintainers
+ * don't insert random new commands and break backwards
+ * binary compatability.
+ */
+typedef enum tv_cmd_types {
+	TV_SEQ_UNDEFINED,
+	TV_SEQ_START,
+	TV_SEQ_CONTINUE,
+	TV_SEQ_COMPLETE,
+	TV_SEQ_TERMINATE,
+
+	TV_SET_FREQUENCY,
+	TV_SET_MODULATION,
+	TV_SET_BANDWIDTH,
+	TV_SET_INVERSION,
+	TV_SET_DISEQC_MASTER,
+	TV_SET_SYMBOLRATE,
+	TV_SET_INNERFEC,
+	TV_SET_VOLTAGE,
+	TV_SET_TONE,
+	TV_SET_PILOT,
+	TV_SET_ROLLOFF,
+
+	TV_GET_FREQUENCY,
+	TV_GET_MODULATION,
+	TV_GET_BANDWIDTH,
+	TV_GET_INVERSION,
+	TV_GET_DISEQC_SLAVE_REPLY,
+	TV_GET_SYMBOLRATE,
+	TV_GET_INNERFEC,
+	TV_GET_VOLTAGE,
+	TV_GET_TONE,
+	TV_GET_PILOT,
+	TV_GET_ROLLOFF,
+
+	/* Basic enumeration set for querying unlimited capabilities */
+	TV_GET_FE_CAPABILITY_COUNT,
+	TV_GET_FE_CAPABILITY,
+
+	/* New commands are always appended */
+	TV_SET_DELIVERY_SYSTEM,
+	TV_GET_DELIVERY_SYSTEM,
+
+	/* ISDB-T */
+	TV_SET_ISDB_SEGMENT_NUM,
+	TV_GET_ISDB_SEGMENT_NUM,
+	TV_SET_ISDB_SEGMENT_WIDTH,
+	TV_GET_ISDB_SEGMENT_WIDTH,
+	TV_GET_ISDB_LAYERA_FEC,
+	TV_GET_ISDB_LAYERA_MODULATION,
+	TV_GET_ISDB_LAYERA_SEGMENT_WIDTH,
+	TV_GET_ISDB_LAYERB_FEC,
+	TV_GET_ISDB_LAYERB_MODULATION,
+	TV_GET_ISDB_LAYERB_SEGMENT_WIDTH,
+	TV_GET_ISDB_LAYERC_FEC,
+	TV_GET_ISDB_LAYERC_MODULATION,
+	TV_GET_ISDB_LAYERC_SEGMENT_WIDTH,
+
+} tv_cmd_types_t;
+
+typedef enum fe_pilot {
+	PILOT_ON,
+	PILOT_OFF,
+	PILOT_AUTO,
+} fe_pilot_t;
+
+typedef enum fe_rolloff {
+	ROLLOFF_20,
+	ROLLOFF_25,
+	ROLLOFF_35,
+	ROLLOFF_AUTO,
+} fe_rolloff_t;
+
+typedef enum fe_delivery_system {
+	SYS_UNDEFINED,
+	SYS_DVBC_ANNEX_AC,
+	SYS_DVBC_ANNEX_B,
+	SYS_DVBT,
+	SYS_DVBS,
+	SYS_DVBS2,
+	SYS_DVBH,
+	SYS_ISDBT,
+	SYS_ISDBS,
+	SYS_ISDBC,
+	SYS_ATSC,
+	SYS_ATSCMH,
+	SYS_DMBTH,
+	SYS_CMMB,
+	SYS_DAB,
+} fe_delivery_system_t;
+
+struct tv_cmds_h {
+	char	*name;		/* A display name for debugging purposes */
+
+	__u32	cmd;		/* A unique ID */
+
+	/* Flags */
+	__u32	set:1;		/* Either a set or get property */
+	__u32	buffer:1;	/* Does this property use the buffer? */
+	__u32	reserved:30;	/* Align */
+};
+
+typedef struct {
+	__u32 cmd;
+	union {
+		__u32 data;
+		struct {
+			__u8 data[32];
+			__u32 len;
+		} buffer;
+	} u;
+} tv_property_t;
+
+/* No more than 16 properties during any given ioctl */
+typedef tv_property_t tv_properties_t[16];
+
+#define FE_SET_PROPERTY		   _IOW('o', 82, tv_properties_t)
+#define FE_GET_PROPERTY		   _IOR('o', 83, tv_properties_t)
 
 
 /**
