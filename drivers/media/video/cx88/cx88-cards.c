@@ -1709,6 +1709,18 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TEVII_S460] = {
+		.name           = "TeVii S460 DVB-S/S2",
+		.tuner_type     = UNSET,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2078,6 +2090,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x6906,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR4000LITE,
+	}, {
+		.subvendor = 0xD460,
+		.subdevice = 0x9022,
+		.card      = CX88_BOARD_TEVII_S460,
 	},
 };
 
@@ -2649,7 +2665,14 @@ static void cx88_card_setup(struct cx88_core *core)
 		tea5767_cfg.priv  = &ctl;
 
 		cx88_call_i2c_clients(core, TUNER_SET_CONFIG, &tea5767_cfg);
+		break;
 	}
+	case  CX88_BOARD_TEVII_S460:
+		cx_write(MO_SRST_IO, 0);
+		msleep(100);
+		cx_write(MO_SRST_IO, 1);
+		msleep(100);
+		break;
 	} /*end switch() */
 
 

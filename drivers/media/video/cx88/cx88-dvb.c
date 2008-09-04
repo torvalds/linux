@@ -376,6 +376,31 @@ static int geniatech_dvbs_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
+static int tevii_dvbs_set_voltage(struct dvb_frontend *fe,
+				      fe_sec_voltage_t voltage)
+{
+	struct cx8802_dev *dev= fe->dvb->priv;
+	struct cx88_core *core = dev->core;
+
+	switch (voltage) {
+		case SEC_VOLTAGE_13:
+			printk("LNB Voltage SEC_VOLTAGE_13\n");
+			cx_write(MO_GP0_IO, 0x00006040);
+			break;
+		case SEC_VOLTAGE_18:
+			printk("LNB Voltage SEC_VOLTAGE_18\n");
+			cx_write(MO_GP0_IO, 0x00006060);
+			break;
+		case SEC_VOLTAGE_OFF:
+			printk("LNB Voltage SEC_VOLTAGE_off\n");
+			break;
+	}
+
+	if (core->prev_set_voltage)
+		return core->prev_set_voltage(fe, voltage);
+	return 0;
+}
+
 static int cx88_pci_nano_callback(void *ptr, int command, int arg)
 {
 	struct cx88_core *core = ptr;
@@ -546,6 +571,12 @@ static struct cx24116_config hauppauge_hvr4000_config = {
 	.demod_address          = 0x05,
 	.set_ts_params          = cx24116_set_ts_param,
 	.reset_device           = cx24116_reset_device,
+};
+
+static struct cx24116_config tevii_s460_config = {
+	.demod_address = 0x55,
+	.set_ts_params = cx24116_set_ts_param,
+	.reset_device  = cx24116_reset_device,
 };
 
 static int dvb_register(struct cx8802_dev *dev)
@@ -916,6 +947,15 @@ static int dvb_register(struct cx8802_dev *dev)
 			dvb_attach(isl6421_attach, dev->dvb.frontend,
 				&dev->core->i2c_adap,
 				0x08, 0x00, 0x00);
+		}
+		break;
+	case CX88_BOARD_TEVII_S460:
+	        dev->dvb.frontend = dvb_attach(cx24116_attach,
+					       &tevii_s460_config,
+					       &core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			dev->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
 		}
 		break;
 	default:
