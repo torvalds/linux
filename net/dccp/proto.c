@@ -735,7 +735,7 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		goto out_discard;
 
 	skb_queue_tail(&sk->sk_write_queue, skb);
-	dccp_write_xmit(sk,0);
+	dccp_write_xmit(sk);
 out_release:
 	release_sock(sk);
 	return rc ? : len;
@@ -958,8 +958,21 @@ void dccp_close(struct sock *sk, long timeout)
 		/* Check zero linger _after_ checking for unread data. */
 		sk->sk_prot->disconnect(sk, 0);
 	} else if (sk->sk_state != DCCP_CLOSED) {
+		/*
+		 * Normal connection termination. May need to wait if there are
+		 * still packets in the TX queue that are delayed by the CCID.
+		 */
+		dccp_flush_write_queue(sk, &timeout);
 		dccp_terminate_connection(sk);
 	}
+
+	/*
+	 * Flush write queue. This may be necessary in several cases:
+	 * - we have been closed by the peer but still have application data;
+	 * - abortive termination (unread data or zero linger time),
+	 * - normal termination but queue could not be flushed within time limit
+	 */
+	__skb_queue_purge(&sk->sk_write_queue);
 
 	sk_stream_wait_close(sk, timeout);
 
