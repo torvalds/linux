@@ -110,12 +110,6 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 	dp->dccps_l_ack_ratio = val;
 }
 
-static void ccid2_change_srtt(struct ccid2_hc_tx_sock *hctx, long val)
-{
-	ccid2_pr_debug("change SRTT to %ld\n", val);
-	hctx->srtt = val;
-}
-
 static void ccid2_start_rto_timer(struct sock *sk);
 
 static void ccid2_hc_tx_rto_expire(unsigned long data)
@@ -123,7 +117,6 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	struct sock *sk = (struct sock *)data;
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 	const bool sender_was_blocked = ccid2_cwnd_network_limited(hctx);
-	long s;
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk)) {
@@ -135,10 +128,8 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 
 	/* back-off timer */
 	hctx->rto <<= 1;
-
-	s = hctx->rto / HZ;
-	if (s > 60)
-		hctx->rto = 60 * HZ;
+	if (hctx->rto > DCCP_RTO_MAX)
+		hctx->rto = DCCP_RTO_MAX;
 
 	/* adjust pipe, cwnd etc */
 	hctx->ssthresh = hctx->cwnd / 2;
@@ -279,9 +270,87 @@ static void ccid2_hc_tx_kill_rto_timer(struct sock *sk)
 	ccid2_pr_debug("deleted RTO timer\n");
 }
 
-static inline void ccid2_new_ack(struct sock *sk,
-				 struct ccid2_seq *seqp,
-				 unsigned int *maxincr)
+/**
+ * ccid2_rtt_estimator - Sample RTT and compute RTO using RFC2988 algorithm
+ * This code is almost identical with TCP's tcp_rtt_estimator(), since
+ * - it has a higher sampling frequency (recommended by RFC 1323),
+ * - the RTO does not collapse into RTT due to RTTVAR going towards zero,
+ * - it is simple (cf. more complex proposals such as Eifel timer or research
+ *   which suggests that the gain should be set according to window size),
+ * - in tests it was found to work well with CCID2 [gerrit].
+ */
+static void ccid2_rtt_estimator(struct sock *sk, const long mrtt)
+{
+	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
+	long m = mrtt ? : 1;
+
+	if (hctx->srtt == 0) {
+		/* First measurement m */
+		hctx->srtt = m << 3;
+		hctx->mdev = m << 1;
+
+		hctx->mdev_max = max(TCP_RTO_MIN, hctx->mdev);
+		hctx->rttvar   = hctx->mdev_max;
+		hctx->rtt_seq  = dccp_sk(sk)->dccps_gss;
+	} else {
+		/* Update scaled SRTT as SRTT += 1/8 * (m - SRTT) */
+		m -= (hctx->srtt >> 3);
+		hctx->srtt += m;
+
+		/* Similarly, update scaled mdev with regard to |m| */
+		if (m < 0) {
+			m = -m;
+			m -= (hctx->mdev >> 2);
+			/*
+			 * This neutralises RTO increase when RTT < SRTT - mdev
+			 * (see P. Sarolahti, A. Kuznetsov,"Congestion Control
+			 * in Linux TCP", USENIX 2002, pp. 49-62).
+			 */
+			if (m > 0)
+				m >>= 3;
+		} else {
+			m -= (hctx->mdev >> 2);
+		}
+		hctx->mdev += m;
+
+		if (hctx->mdev > hctx->mdev_max) {
+			hctx->mdev_max = hctx->mdev;
+			if (hctx->mdev_max > hctx->rttvar)
+				hctx->rttvar = hctx->mdev_max;
+		}
+
+		/*
+		 * Decay RTTVAR at most once per flight, exploiting that
+		 *  1) pipe <= cwnd <= Sequence_Window = W  (RFC 4340, 7.5.2)
+		 *  2) AWL = GSS-W+1 <= GAR <= GSS          (RFC 4340, 7.5.1)
+		 * GAR is a useful bound for FlightSize = pipe, AWL is probably
+		 * too low as it over-estimates pipe.
+		 */
+		if (after48(dccp_sk(sk)->dccps_gar, hctx->rtt_seq)) {
+			if (hctx->mdev_max < hctx->rttvar)
+				hctx->rttvar -= (hctx->rttvar -
+						 hctx->mdev_max) >> 2;
+			hctx->rtt_seq  = dccp_sk(sk)->dccps_gss;
+			hctx->mdev_max = TCP_RTO_MIN;
+		}
+	}
+
+	/*
+	 * Set RTO from SRTT and RTTVAR
+	 * Clock granularity is ignored since the minimum error for RTTVAR is
+	 * clamped to 50msec (corresponding to HZ=20). This leads to a minimum
+	 * RTO of 200msec. This agrees with TCP and RFC 4341, 5.: "Because DCCP
+	 * does not retransmit data, DCCP does not require TCP's recommended
+	 * minimum timeout of one second".
+	 */
+	hctx->rto = (hctx->srtt >> 3) + hctx->rttvar;
+
+	if (hctx->rto > DCCP_RTO_MAX)
+		hctx->rto = DCCP_RTO_MAX;
+}
+
+static void ccid2_new_ack(struct sock *sk, struct ccid2_seq *seqp,
+			  unsigned int *maxincr)
 {
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 
@@ -295,64 +364,15 @@ static inline void ccid2_new_ack(struct sock *sk,
 			hctx->cwnd += 1;
 			hctx->packets_acked = 0;
 	}
-
-	/* update RTO */
-	if (hctx->srtt == -1 ||
-	    time_after(jiffies, hctx->lastrtt + hctx->srtt)) {
-		unsigned long r = (long)jiffies - (long)seqp->ccid2s_sent;
-		int s;
-
-		/* first measurement */
-		if (hctx->srtt == -1) {
-			ccid2_pr_debug("R: %lu Time=%lu seq=%llu\n",
-				       r, jiffies,
-				       (unsigned long long)seqp->ccid2s_seq);
-			ccid2_change_srtt(hctx, r);
-			hctx->rttvar = r >> 1;
-		} else {
-			/* RTTVAR */
-			long tmp = hctx->srtt - r;
-			long srtt;
-
-			if (tmp < 0)
-				tmp *= -1;
-
-			tmp >>= 2;
-			hctx->rttvar *= 3;
-			hctx->rttvar >>= 2;
-			hctx->rttvar += tmp;
-
-			/* SRTT */
-			srtt = hctx->srtt;
-			srtt *= 7;
-			srtt >>= 3;
-			tmp = r >> 3;
-			srtt += tmp;
-			ccid2_change_srtt(hctx, srtt);
-		}
-		s = hctx->rttvar << 2;
-		/* clock granularity is 1 when based on jiffies */
-		if (!s)
-			s = 1;
-		hctx->rto = hctx->srtt + s;
-
-		/* must be at least a second */
-		s = hctx->rto / HZ;
-		/* DCCP doesn't require this [but I like it cuz my code sux] */
-#if 1
-		if (s < 1)
-			hctx->rto = HZ;
-#endif
-		/* max 60 seconds */
-		if (s > 60)
-			hctx->rto = HZ * 60;
-
-		hctx->lastrtt = jiffies;
-
-		ccid2_pr_debug("srtt: %ld rttvar: %ld rto: %ld (HZ=%d) R=%lu\n",
-			       hctx->srtt, hctx->rttvar,
-			       hctx->rto, HZ, r);
-	}
+	/*
+	 * FIXME: RTT is sampled several times per acknowledgment (for each
+	 * entry in the Ack Vector), instead of once per Ack (as in TCP SACK).
+	 * This causes the RTT to be over-estimated, since the older entries
+	 * in the Ack Vector have earlier sending times.
+	 * The cleanest solution is to not use the ccid2s_sent field at all
+	 * and instead use DCCP timestamps - need to be resolved at some time.
+	 */
+	ccid2_rtt_estimator(sk, jiffies - seqp->ccid2s_sent);
 }
 
 static void ccid2_congestion_event(struct sock *sk, struct ccid2_seq *seqp)
@@ -579,8 +599,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (hctx->pipe == 0)
 		sk_stop_timer(sk, &hctx->rtotimer);
 	else
-		sk_reset_timer(sk, &hctx->rtotimer,
-			       jiffies + hctx->rto);
+		sk_reset_timer(sk, &hctx->rtotimer, jiffies + hctx->rto);
 done:
 	/* check if incoming Acks allow pending packets to be sent */
 	if (sender_was_blocked && !ccid2_cwnd_network_limited(hctx))
@@ -613,9 +632,7 @@ static int ccid2_hc_tx_init(struct ccid *ccid, struct sock *sk)
 	if (ccid2_hc_tx_alloc_seq(hctx))
 		return -ENOMEM;
 
-	hctx->rto	 = 3 * HZ;
-	ccid2_change_srtt(hctx, -1);
-	hctx->rttvar	= -1;
+	hctx->rto	= DCCP_TIMEOUT_INIT;
 	hctx->rpdupack  = -1;
 	hctx->last_cong = jiffies;
 	setup_timer(&hctx->rtotimer, ccid2_hc_tx_rto_expire, (unsigned long)sk);

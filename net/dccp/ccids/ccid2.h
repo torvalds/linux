@@ -44,7 +44,12 @@ struct ccid2_seq {
  *
  * @{cwnd,ssthresh,pipe}: as per RFC 4341, section 5
  * @packets_acked: Ack counter for deriving cwnd growth (RFC 3465)
- * @lastrtt: time RTT was last measured
+ * @srtt: smoothed RTT estimate, scaled by 2^3
+ * @mdev: smoothed RTT variation, scaled by 2^2
+ * @mdev_max: maximum of @mdev during one flight
+ * @rttvar: moving average/maximum of @mdev_max
+ * @rto: RTO value deriving from SRTT and RTTVAR (RFC 2988)
+ * @rtt_seq: to decay RTTVAR at most once per flight
  * @rpseq: last consecutive seqno
  * @rpdupack: dupacks since rpseq
  * @av_chunks: list of Ack Vectors received on current skb
@@ -58,10 +63,13 @@ struct ccid2_hc_tx_sock {
 	int			seqbufc;
 	struct ccid2_seq	*seqh;
 	struct ccid2_seq	*seqt;
-	long			rto;
-	long			srtt;
-	long			rttvar;
-	unsigned long		lastrtt;
+	/* RTT measurement: variables/principles are the same as in TCP */
+	u32			srtt,
+				mdev,
+				mdev_max,
+				rttvar,
+				rto;
+	u64			rtt_seq:48;
 	struct timer_list	rtotimer;
 	u64			rpseq;
 	int			rpdupack;
