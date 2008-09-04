@@ -352,28 +352,6 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_handle_loss);
 
-int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h)
-{
-	int i;
-
-	for (i = 0; i <= TFRC_NDUPACK; i++) {
-		h->ring[i] = kmem_cache_alloc(tfrc_rx_hist_slab, GFP_ATOMIC);
-		if (h->ring[i] == NULL)
-			goto out_free;
-	}
-
-	h->loss_count = h->loss_start = 0;
-	return 0;
-
-out_free:
-	while (i-- != 0) {
-		kmem_cache_free(tfrc_rx_hist_slab, h->ring[i]);
-		h->ring[i] = NULL;
-	}
-	return -ENOBUFS;
-}
-EXPORT_SYMBOL_GPL(tfrc_rx_hist_alloc);
-
 void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
 {
 	int i;
@@ -385,6 +363,36 @@ void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
 		}
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_purge);
+
+static int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h)
+{
+	int i;
+
+	memset(h, 0, sizeof(*h));
+
+	for (i = 0; i <= TFRC_NDUPACK; i++) {
+		h->ring[i] = kmem_cache_alloc(tfrc_rx_hist_slab, GFP_ATOMIC);
+		if (h->ring[i] == NULL) {
+			tfrc_rx_hist_purge(h);
+			return -ENOBUFS;
+		}
+	}
+	return 0;
+}
+
+int tfrc_rx_hist_init(struct tfrc_rx_hist *h, struct sock *sk)
+{
+	if (tfrc_rx_hist_alloc(h))
+		return -ENOBUFS;
+	/*
+	 * Initialise first entry with GSR to start loss detection as early as
+	 * possible. Code using this must not use any other fields. The entry
+	 * will be overwritten once the CCID updates its received packets.
+	 */
+	tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno = dccp_sk(sk)->dccps_gsr;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_init);
 
 /**
  * tfrc_rx_hist_rtt_last_s - reference entry to compute RTT samples against

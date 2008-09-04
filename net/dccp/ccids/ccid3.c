@@ -766,7 +766,7 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 
 	hcrx->state = TFRC_RSTATE_NO_DATA;
 	tfrc_lh_init(&hcrx->li_hist);
-	return tfrc_rx_hist_alloc(&hcrx->hist);
+	return tfrc_rx_hist_init(&hcrx->hist, sk);
 }
 
 static void ccid3_hc_rx_exit(struct sock *sk)
