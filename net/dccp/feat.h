@@ -3,14 +3,14 @@
 /*
  *  net/dccp/feat.h
  *
- *  An implementation of the DCCP protocol
+ *  Feature negotiation for the DCCP protocol (RFC 4340, section 6)
+ *  Copyright (c) 2008 Gerrit Renker <gerrit@erg.abdn.ac.uk>
  *  Copyright (c) 2005 Andrea Bittau <a.bittau@cs.ucl.ac.uk>
  *
- *	This program is free software; you can redistribute it and/or modify it
- *	under the terms of the GNU General Public License version 2 as
- *	published by the Free Software Foundation.
+ *  This program is free software; you can redistribute it and/or modify it
+ *  under the terms of the GNU General Public License version 2 as
+ *  published by the Free Software Foundation.
  */
-
 #include <linux/types.h>
 #include "dccp.h"
 
@@ -117,8 +117,6 @@ extern int  dccp_feat_register_sp(struct sock *sk, u8 feat, u8 is_local,
 extern int  dccp_feat_register_nn(struct sock *sk, u8 feat, u64 val);
 extern int  dccp_feat_parse_options(struct sock *, struct dccp_request_sock *,
 				    u8 mand, u8 opt, u8 feat, u8 *val, u8 len);
-extern void dccp_feat_clean(struct dccp_minisock *dmsk);
-extern int  dccp_feat_clone(struct sock *oldsk, struct sock *newsk);
 extern int  dccp_feat_clone_list(struct list_head const *, struct list_head *);
 extern int  dccp_feat_init(struct sock *sk);
 
