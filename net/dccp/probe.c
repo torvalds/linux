@@ -46,70 +46,54 @@ static struct {
 	struct kfifo	  *fifo;
 	spinlock_t	  lock;
 	wait_queue_head_t wait;
-	struct timespec	  tstart;
+	ktime_t		  start;
 } dccpw;
 
-static void printl(const char *fmt, ...)
-{
-	va_list args;
-	int len;
-	struct timespec now;
-	char tbuf[256];
-
-	va_start(args, fmt);
-	getnstimeofday(&now);
-
-	now = timespec_sub(now, dccpw.tstart);
-
-	len = sprintf(tbuf, "%lu.%06lu ",
-		      (unsigned long) now.tv_sec,
-		      (unsigned long) now.tv_nsec / NSEC_PER_USEC);
-	len += vscnprintf(tbuf+len, sizeof(tbuf)-len, fmt, args);
-	va_end(args);
-
-	kfifo_put(dccpw.fifo, tbuf, len);
-	wake_up(&dccpw.wait);
-}
-
-static int jdccp_sendmsg(struct kiocb *iocb, struct sock *sk,
-			 struct msghdr *msg, size_t size)
+static void jdccp_write_xmit(struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 	struct ccid3_hc_tx_sock *hctx = NULL;
+	struct timespec tv;
+	char buf[256];
+	int len, ccid = ccid_get_current_tx_ccid(dccp_sk(sk));
 
-	if (ccid_get_current_tx_ccid(dccp_sk(sk)) == DCCPC_CCID3)
+	if (ccid == DCCPC_CCID3)
 		hctx = ccid3_hc_tx_sk(sk);
 
-	if (port == 0 || ntohs(inet->dport) == port ||
-	    ntohs(inet->sport) == port) {
+	if (!port || ntohs(inet->dport) == port || ntohs(inet->sport) == port) {
+
+		tv  = ktime_to_timespec(ktime_sub(ktime_get(), dccpw.start));
+		len = sprintf(buf, "%lu.%09lu %d.%d.%d.%d:%u %d.%d.%d.%d:%u %d",
+			       (unsigned long)tv.tv_sec,
+			       (unsigned long)tv.tv_nsec,
+			       NIPQUAD(inet->saddr), ntohs(inet->sport),
+			       NIPQUAD(inet->daddr), ntohs(inet->dport), ccid);
+
 		if (hctx)
-			printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d %d %d %d %u "
-			       "%llu %llu %d\n",
-			       NIPQUAD(inet->saddr), ntohs(inet->sport),
-			       NIPQUAD(inet->daddr), ntohs(inet->dport), size,
+			len += sprintf(buf + len, " %d %d %d %u %u %u %d",
 			       hctx->s, hctx->rtt, hctx->p, hctx->x_calc,
-			       hctx->x_recv >> 6, hctx->x >> 6, hctx->t_ipi);
-		else
-			printl("%d.%d.%d.%d:%u %d.%d.%d.%d:%u %d\n",
-			       NIPQUAD(inet->saddr), ntohs(inet->sport),
-			       NIPQUAD(inet->daddr), ntohs(inet->dport), size);
+			       (unsigned)(hctx->x_recv >> 6),
+			       (unsigned)(hctx->x >> 6), hctx->t_ipi);
+
+		len += sprintf(buf + len, "\n");
+		kfifo_put(dccpw.fifo, buf, len);
+		wake_up(&dccpw.wait);
 	}
 
 	jprobe_return();
-	return 0;
 }
 
 static struct jprobe dccp_send_probe = {
 	.kp	= {
-		.symbol_name = "dccp_sendmsg",
+		.symbol_name = "dccp_write_xmit",
 	},
-	.entry	= jdccp_sendmsg,
+	.entry	= jdccp_write_xmit,
 };
 
 static int dccpprobe_open(struct inode *inode, struct file *file)
 {
 	kfifo_reset(dccpw.fifo);
-	getnstimeofday(&dccpw.tstart);
+	dccpw.start = ktime_get();
 	return 0;
 }
 
