@@ -301,7 +301,7 @@ void dccp_write_xmit(struct sock *sk, int block)
 				dcb->dccpd_type = DCCP_PKT_DATA;
 
 			err = dccp_transmit_skb(sk, skb);
-			ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, 0, len);
+			ccid_hc_tx_packet_sent(dp->dccps_hc_tx_ccid, sk, len);
 			if (err)
 				DCCP_BUG("err=%d after ccid_hc_tx_packet_sent",
 					 err);

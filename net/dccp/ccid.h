@@ -71,7 +71,7 @@ struct ccid_operations {
 	int		(*ccid_hc_tx_send_packet)(struct sock *sk,
 						  struct sk_buff *skb);
 	void		(*ccid_hc_tx_packet_sent)(struct sock *sk,
-						  int more, unsigned int len);
+						  unsigned int len);
 	void		(*ccid_hc_rx_get_info)(struct sock *sk,
 					       struct tcp_info *info);
 	void		(*ccid_hc_tx_get_info)(struct sock *sk,
@@ -139,10 +139,10 @@ static inline int ccid_hc_tx_send_packet(struct ccid *ccid, struct sock *sk,
 }
 
 static inline void ccid_hc_tx_packet_sent(struct ccid *ccid, struct sock *sk,
-					  int more, unsigned int len)
+					  unsigned int len)
 {
 	if (ccid->ccid_ops->ccid_hc_tx_packet_sent != NULL)
-		ccid->ccid_ops->ccid_hc_tx_packet_sent(sk, more, len);
+		ccid->ccid_ops->ccid_hc_tx_packet_sent(sk, len);
 }
 
 static inline void ccid_hc_rx_packet_recv(struct ccid *ccid, struct sock *sk,
