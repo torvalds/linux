@@ -110,8 +110,6 @@ static void ccid2_change_l_ack_ratio(struct sock *sk, u32 val)
 	dp->dccps_l_ack_ratio = val;
 }
 
-static void ccid2_start_rto_timer(struct sock *sk);
-
 static void ccid2_hc_tx_rto_expire(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
@@ -150,21 +148,11 @@ static void ccid2_hc_tx_rto_expire(unsigned long data)
 	/* if we were blocked before, we may now send cwnd=1 packet */
 	if (sender_was_blocked)
 		tasklet_schedule(&dccp_sk(sk)->dccps_xmitlet);
-	ccid2_start_rto_timer(sk);
+	/* restart backed-off timer */
+	sk_reset_timer(sk, &hctx->rtotimer, jiffies + hctx->rto);
 out:
 	bh_unlock_sock(sk);
 	sock_put(sk);
-}
-
-static void ccid2_start_rto_timer(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
-
-	ccid2_pr_debug("setting RTO timeout=%ld\n", hctx->rto);
-
-	BUG_ON(timer_pending(&hctx->rtotimer));
-	sk_reset_timer(sk, &hctx->rtotimer,
-		       jiffies + hctx->rto);
 }
 
 static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
@@ -245,7 +233,7 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 
 	/* setup RTO timer */
 	if (!timer_pending(&hctx->rtotimer))
-		ccid2_start_rto_timer(sk);
+		sk_reset_timer(sk, &hctx->rtotimer, jiffies + hctx->rto);
 
 #ifdef CONFIG_IP_DCCP_CCID2_DEBUG
 	do {
@@ -260,14 +248,6 @@ static void ccid2_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 	} while (0);
 	ccid2_pr_debug("=========\n");
 #endif
-}
-
-static void ccid2_hc_tx_kill_rto_timer(struct sock *sk)
-{
-	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
-
-	sk_stop_timer(sk, &hctx->rtotimer);
-	ccid2_pr_debug("deleted RTO timer\n");
 }
 
 /**
@@ -645,7 +625,7 @@ static void ccid2_hc_tx_exit(struct sock *sk)
 	struct ccid2_hc_tx_sock *hctx = ccid2_hc_tx_sk(sk);
 	int i;
 
-	ccid2_hc_tx_kill_rto_timer(sk);
+	sk_stop_timer(sk, &hctx->rtotimer);
 
 	for (i = 0; i < hctx->seqbufc; i++)
 		kfree(hctx->seqbuf[i]);
