@@ -1158,6 +1158,11 @@ int dccp_feat_init(struct sock *sk)
 	    ccid_get_builtin_ccids(&rx.val, &rx.len))
 		return -ENOBUFS;
 
+	/* Pre-load all CCID modules that are going to be advertised */
+	rc = -EUNATCH;
+	if (ccid_request_modules(tx.val, tx.len))
+		goto free_ccid_lists;
+
 	if (!dccp_feat_prefer(sysctl_dccp_feat_tx_ccid, tx.val, tx.len) ||
 	    !dccp_feat_prefer(sysctl_dccp_feat_rx_ccid, rx.val, rx.len))
 		goto free_ccid_lists;

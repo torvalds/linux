@@ -196,22 +196,41 @@ int ccid_unregister(struct ccid_operations *ccid_ops)
 
 EXPORT_SYMBOL_GPL(ccid_unregister);
 
+/**
+ * ccid_request_module  -  Pre-load CCID module for later use
+ * This should be called only from process context (e.g. during connection
+ * setup) and is necessary for later calls to ccid_new (typically in software
+ * interrupt), so that it has the modules available when they are needed.
+ */
+static int ccid_request_module(u8 id)
+{
+	if (!in_atomic()) {
+		ccids_read_lock();
+		if (ccids[id] == NULL) {
+			ccids_read_unlock();
+			return request_module("net-dccp-ccid-%d", id);
+		}
+		ccids_read_unlock();
+	}
+	return 0;
+}
+
+int ccid_request_modules(u8 const *ccid_array, u8 array_len)
+{
+#ifdef CONFIG_KMOD
+	while (array_len--)
+		if (ccid_request_module(ccid_array[array_len]))
+			return -1;
+#endif
+	return 0;
+}
+
 struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx, gfp_t gfp)
 {
 	struct ccid_operations *ccid_ops;
 	struct ccid *ccid = NULL;
 
 	ccids_read_lock();
-#ifdef CONFIG_KMOD
-	if (ccids[id] == NULL) {
-		/* We only try to load if in process context */
-		ccids_read_unlock();
-		if (gfp & GFP_ATOMIC)
-			goto out;
-		request_module("net-dccp-ccid-%d", id);
-		ccids_read_lock();
-	}
-#endif
 	ccid_ops = ccids[id];
 	if (ccid_ops == NULL)
 		goto out_unlock;
