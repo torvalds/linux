@@ -125,9 +125,6 @@ send_ndp = 1
 send_ackvec = 1
 	Whether or not to send Ack Vector options (sec. 11.5).
 
-ack_ratio = 2
-	The default Ack Ratio (sec. 11.3) to use.
-
 tx_ccid = 2
 	Default CCID for the sender-receiver half-connection.
 

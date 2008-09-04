@@ -368,7 +368,6 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   * @dccpms_ccid - Congestion Control Id (CCID) (section 10)
   * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
   * @dccpms_send_ndp_count - Send NDP Count Feature (7.7.2)
-  * @dccpms_ack_ratio - Ack Ratio Feature (section 11.3)
   * @dccpms_pending - List of features being negotiated
   * @dccpms_conf -
   */
@@ -378,7 +377,6 @@ struct dccp_minisock {
 	__u8			dccpms_tx_ccid;
 	__u8			dccpms_send_ack_vector;
 	__u8			dccpms_send_ndp_count;
-	__u8			dccpms_ack_ratio;
 	struct list_head	dccpms_pending;
 	struct list_head	dccpms_conf;
 };
