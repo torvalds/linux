@@ -158,7 +158,7 @@ static inline s64 towards_target(struct virtio_balloon *vb)
 	vb->vdev->config->get(vb->vdev,
 			      offsetof(struct virtio_balloon_config, num_pages),
 			      &v, sizeof(v));
-	return v - vb->num_pages;
+	return (s64)v - vb->num_pages;
 }
 
 static void update_balloon_size(struct virtio_balloon *vb)

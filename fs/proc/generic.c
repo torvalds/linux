@@ -330,6 +330,7 @@ retry:
 		spin_lock(&proc_inum_lock);
 		ida_remove(&proc_inum_ida, i);
 		spin_unlock(&proc_inum_lock);
+		return 0;
 	}
 	return PROC_DYNAMIC_FIRST + i;
 }

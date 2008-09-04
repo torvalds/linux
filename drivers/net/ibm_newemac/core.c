@@ -663,9 +663,6 @@ static int emac_configure(struct emac_instance *dev)
 	if (emac_phy_gpcs(dev->phy.mode))
 		emac_mii_reset_phy(&dev->phy);
 
-	/* Required for Pause packet support in EMAC */
-	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
-
 	return 0;
 }
 
@@ -1149,6 +1146,9 @@ static int emac_open(struct net_device *ndev)
 		emac_print_link_status(dev);
 	} else
 		netif_carrier_on(dev->ndev);
+
+	/* Required for Pause packet support in EMAC */
+	dev_mc_add(ndev, default_mcast_addr, sizeof(default_mcast_addr), 1);
 
 	emac_configure(dev);
 	mal_poll_add(dev->mal, &dev->commac);
