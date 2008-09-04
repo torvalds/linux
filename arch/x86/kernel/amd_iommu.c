@@ -795,6 +795,9 @@ static dma_addr_t __map_single(struct device *dev,
 	}
 	address += offset;
 
+	if (unlikely(iommu_has_npcache(iommu)))
+		iommu_flush_pages(iommu, dma_dom->domain.id, address, size);
+
 out:
 	return address;
 }
@@ -825,6 +828,8 @@ static void __unmap_single(struct amd_iommu *iommu,
 	}
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
+
+	iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
 }
 
 /*
@@ -852,9 +857,6 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir);
 	if (addr == bad_dma_address)
 		goto out;
-
-	if (iommu_has_npcache(iommu))
-		iommu_flush_pages(iommu, domain->id, addr, size);
 
 	if (iommu->need_sync)
 		iommu_completion_wait(iommu);
@@ -884,8 +886,6 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 	spin_lock_irqsave(&domain->lock, flags);
 
 	__unmap_single(iommu, domain->priv, dma_addr, size, dir);
-
-	iommu_flush_pages(iommu, domain->id, dma_addr, size);
 
 	if (iommu->need_sync)
 		iommu_completion_wait(iommu);
@@ -948,9 +948,6 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 			mapped_elems++;
 		} else
 			goto unmap;
-		if (iommu_has_npcache(iommu))
-			iommu_flush_pages(iommu, domain->id, s->dma_address,
-					  s->dma_length);
 	}
 
 	if (iommu->need_sync)
@@ -996,8 +993,6 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 	for_each_sg(sglist, s, nelems, i) {
 		__unmap_single(iommu, domain->priv, s->dma_address,
 			       s->dma_length, dir);
-		iommu_flush_pages(iommu, domain->id, s->dma_address,
-				  s->dma_length);
 		s->dma_address = s->dma_length = 0;
 	}
 
@@ -1048,9 +1043,6 @@ static void *alloc_coherent(struct device *dev, size_t size,
 		goto out;
 	}
 
-	if (iommu_has_npcache(iommu))
-		iommu_flush_pages(iommu, domain->id, *dma_addr, size);
-
 	if (iommu->need_sync)
 		iommu_completion_wait(iommu);
 
@@ -1082,7 +1074,6 @@ static void free_coherent(struct device *dev, size_t size,
 	spin_lock_irqsave(&domain->lock, flags);
 
 	__unmap_single(iommu, domain->priv, dma_addr, size, DMA_BIDIRECTIONAL);
-	iommu_flush_pages(iommu, domain->id, dma_addr, size);
 
 	if (iommu->need_sync)
 		iommu_completion_wait(iommu);
