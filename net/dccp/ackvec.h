@@ -64,7 +64,6 @@ static inline u8 dccp_ackvec_state(const u8 *cell)
  *		   %DCCP_SINGLE_OPT_MAXLEN cells in the live portion of @av_buf
  * @av_overflow:   if 1 then buf_head == buf_tail indicates buffer wraparound
  * @av_records:	   list of %dccp_ackvec_record (Ack Vectors sent previously)
- * @av_veclen:	   length of the live portion of @av_buf
  */
 struct dccp_ackvec {
 	u8			av_buf[DCCPAV_MAX_ACKVEC_LEN];
@@ -75,7 +74,6 @@ struct dccp_ackvec {
 	bool			av_buf_nonce[DCCPAV_NUM_ACKVECS];
 	u8			av_overflow:1;
 	struct list_head	av_records;
-	u16			av_vec_len;
 };
 
 /** struct dccp_ackvec_record - Records information about sent Ack Vectors
@@ -101,24 +99,11 @@ struct dccp_ackvec_record {
 	u8		 avr_ack_nonce:1;
 };
 
-struct sock;
-struct sk_buff;
-
-#ifdef CONFIG_IP_DCCP_ACKVEC
-extern int dccp_ackvec_init(void);
+extern int  dccp_ackvec_init(void);
 extern void dccp_ackvec_exit(void);
 
 extern struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority);
 extern void dccp_ackvec_free(struct dccp_ackvec *av);
-
-extern int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
-			   const u64 ackno, const u8 state);
-
-extern void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av,
-					struct sock *sk, const u64 ackno);
-extern int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-			     u64 *ackno, const u8 opt,
-			     const u8 *value, const u8 len);
 
 extern void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb);
 extern int  dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 sum);
@@ -129,66 +114,4 @@ static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
 {
 	return av->av_overflow == 0 && av->av_buf_head == av->av_buf_tail;
 }
-#else /* CONFIG_IP_DCCP_ACKVEC */
-static inline int dccp_ackvec_init(void)
-{
-	return 0;
-}
-
-static inline void dccp_ackvec_exit(void)
-{
-}
-
-static inline struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
-{
-	return NULL;
-}
-
-static inline void dccp_ackvec_free(struct dccp_ackvec *av)
-{
-}
-
-static inline void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
-{
-
-}
-
-static inline int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
-				  const u64 ackno, const u8 state)
-{
-	return -1;
-}
-
-static inline void dccp_ackvec_clear_state(struct dccp_ackvec *av,
-					    const u64 ackno)
-{
-}
-
-static inline void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av,
-					       struct sock *sk, const u64 ackno)
-{
-}
-
-static inline int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
-				    const u64 *ackno, const u8 opt,
-				    const u8 *value, const u8 len)
-{
-	return -1;
-}
-
-static inline int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 nonce)
-{
-	return -1;
-}
-
-static inline u16 dccp_ackvec_buflen(const struct dccp_ackvec *av)
-{
-	return 0;
-}
-
-static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
-{
-	return true;
-}
-#endif /* CONFIG_IP_DCCP_ACKVEC */
 #endif /* _ACKVEC_H */

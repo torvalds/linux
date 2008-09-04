@@ -4,7 +4,6 @@ menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
 config IP_DCCP_CCID2
 	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
 	def_tristate IP_DCCP
-	select IP_DCCP_ACKVEC
 	---help---
 	  CCID 2, TCP-like Congestion Control, denotes Additive Increase,
 	  Multiplicative Decrease (AIMD) congestion control with behavior
