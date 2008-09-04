@@ -794,7 +794,7 @@ smc_pxa_dma_irq(int dma, void *dummy)
 #define RPC_LSB_DEFAULT RPC_LED_FD
 #endif
 
-#define RPC_DEFAULT (RPC_ANEG | (RPC_LSA_DEFAULT << RPC_LSXA_SHFT) | (RPC_LSB_DEFAULT << RPC_LSXB_SHFT) | RPC_SPEED | RPC_DPLX)
+#define RPC_DEFAULT (RPC_ANEG | RPC_SPEED | RPC_DPLX)
 
 
 /* Bank 0 0x0C is reserved */

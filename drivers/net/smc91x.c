@@ -1520,7 +1520,9 @@ smc_open(struct net_device *dev)
 	/* Setup the default Register Modes */
 	lp->tcr_cur_mode = TCR_DEFAULT;
 	lp->rcr_cur_mode = RCR_DEFAULT;
-	lp->rpc_cur_mode = RPC_DEFAULT;
+	lp->rpc_cur_mode = RPC_DEFAULT |
+				lp->cfg.leda << RPC_LSXA_SHFT |
+				lp->cfg.ledb << RPC_LSXB_SHFT;
 
 	/*
 	 * If we are not using a MII interface, we need to
@@ -2155,6 +2157,11 @@ static int smc_drv_probe(struct platform_device *pdev)
 		lp->cfg.flags |= (SMC_CAN_USE_16BIT) ? SMC91X_USE_16BIT : 0;
 		lp->cfg.flags |= (SMC_CAN_USE_32BIT) ? SMC91X_USE_32BIT : 0;
 		lp->cfg.flags |= (nowait) ? SMC91X_NOWAIT : 0;
+	}
+
+	if (!lp->cfg.leda && !lp->cfg.ledb) {
+		lp->cfg.leda = RPC_LSA_DEFAULT;
+		lp->cfg.ledb = RPC_LSB_DEFAULT;
 	}
 
 	ndev->dma = (unsigned char)-1;
