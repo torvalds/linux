@@ -533,9 +533,6 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 				      enum ccid3_fback_type fbtype)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	struct dccp_sock *dp = dccp_sk(sk);
-	ktime_t now = ktime_get_real();
-	s64 delta = 0;
 
 	switch (fbtype) {
 	case CCID3_FBACK_INITIAL:
@@ -565,42 +562,33 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 		/*
 		 * When parameters change (new loss or p > p_prev), we do not
 		 * have a reliable estimate for R_m of [RFC 3448, 6.2] and so
-		 * need to  reuse the previous value of X_recv. However, when
-		 * X_recv was 0 (due to early loss), this would kill X down to
-		 * s/t_mbi (i.e. one packet in 64 seconds).
-		 * To avoid such drastic reduction, we approximate X_recv as
-		 * the number of bytes since last feedback.
-		 * This is a safe fallback, since X is bounded above by X_calc.
+		 * always check whether at least RTT time units were covered.
 		 */
-		if (hcrx->x_recv > 0)
-			break;
-		/* fall through */
+		hcrx->x_recv = tfrc_rx_hist_x_recv(&hcrx->hist, hcrx->x_recv);
+		break;
 	case CCID3_FBACK_PERIODIC:
 		/*
-		 * FIXME: check if delta is less than or equal to 1 RTT using
-		 * the receiver RTT sample. This is described in Errata 610/611
-		 * of RFC 4342 which reference section 6.2 of RFC 3448.
+		 * Step (2) of rfc3448bis-06, 6.2:
+		 * - if no data packets have been received, just restart timer
+		 * - if data packets have been received, re-compute X_recv
 		 */
-		delta = ktime_us_delta(now, hcrx->tstamp_last_feedback);
-		if (delta <= 0)
-			DCCP_BUG("delta (%ld) <= 0", (long)delta);
-		else
-			hcrx->x_recv = scaled_div32(hcrx->hist.bytes_recvd, delta);
+		if (hcrx->hist.bytes_recvd == 0)
+			goto prepare_for_next_time;
+		hcrx->x_recv = tfrc_rx_hist_x_recv(&hcrx->hist, hcrx->x_recv);
 		break;
 	default:
 		return;
 	}
 
-	ccid3_pr_debug("Interval %ldusec, X_recv=%u, 1/p=%u\n",
-		       (long)delta, hcrx->x_recv, hcrx->p_inverse);
+	ccid3_pr_debug("X_recv=%u, 1/p=%u\n", hcrx->x_recv, hcrx->p_inverse);
 
-	hcrx->tstamp_last_feedback = now;
-	hcrx->last_counter	   = dccp_hdr(skb)->dccph_ccval;
-	hcrx->hist.bytes_recvd	   = 0;
-	hcrx->feedback		   = fbtype;
-
-	dp->dccps_hc_rx_insert_options = 1;
+	dccp_sk(sk)->dccps_hc_rx_insert_options = 1;
 	dccp_send_ack(sk);
+
+prepare_for_next_time:
+	tfrc_rx_hist_restart_byte_counter(&hcrx->hist);
+	hcrx->last_counter = dccp_hdr(skb)->dccph_ccval;
+	hcrx->feedback	   = fbtype;
 }
 
 static int ccid3_hc_rx_insert_options(struct sock *sk, struct sk_buff *skb)
@@ -639,7 +627,7 @@ static u32 ccid3_first_li(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	u32 s = tfrc_rx_hist_packet_size(&hcrx->hist),
-	    rtt = tfrc_rx_hist_rtt(&hcrx->hist), x_recv, p, delta;
+	    rtt = tfrc_rx_hist_rtt(&hcrx->hist), x_recv, p;
 	u64 fval;
 
 	/*
@@ -650,16 +638,9 @@ static u32 ccid3_first_li(struct sock *sk)
 	if (unlikely(hcrx->feedback == CCID3_FBACK_NONE))
 		return 5;
 
-	delta = ktime_to_us(net_timedelta(hcrx->tstamp_last_feedback));
-	x_recv = scaled_div32(hcrx->hist.bytes_recvd, delta);
-	if (x_recv == 0) {		/* would also trigger divide-by-zero */
-		DCCP_WARN("X_recv==0\n");
-		if (hcrx->x_recv == 0) {
-			DCCP_BUG("stored value of X_recv is zero");
-			return ~0U;
-		}
-		x_recv = hcrx->x_recv;
-	}
+	x_recv = tfrc_rx_hist_x_recv(&hcrx->hist, hcrx->x_recv);
+	if (x_recv == 0)
+		goto failed;
 
 	fval = scaled_div32(scaled_div(s, rtt), x_recv);
 	p = tfrc_calc_x_reverse_lookup(fval);
@@ -667,7 +648,10 @@ static u32 ccid3_first_li(struct sock *sk)
 	ccid3_pr_debug("%s(%p), receive rate=%u bytes/s, implied "
 		       "loss rate=%u\n", dccp_role(sk), sk, x_recv, p);
 
-	return p == 0 ? ~0U : scaled_div(1, p);
+	if (p > 0)
+		return scaled_div(1, p);
+failed:
+	return UINT_MAX;
 }
 
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)

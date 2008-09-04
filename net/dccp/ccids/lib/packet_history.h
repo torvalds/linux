@@ -93,7 +93,8 @@ struct tfrc_rx_hist_entry {
  * @rtt_sample_prev:	Used during RTT sampling, points to candidate entry
  * @rtt_estimate:	Receiver RTT estimate
  * @packet_size:	Packet size in bytes (as per RFC 3448, 3.1)
- * @bytes_recvd:	Number of bytes received since last sending feedback
+ * @bytes_recvd:	Number of bytes received since @bytes_start
+ * @bytes_start:	Start time for counting @bytes_recvd
  */
 struct tfrc_rx_hist {
 	struct tfrc_rx_hist_entry *ring[TFRC_NDUPACK + 1];
@@ -105,6 +106,7 @@ struct tfrc_rx_hist {
 	/* Receiver sampling of application payload lengths */
 	u32			  packet_size,
 				  bytes_recvd;
+	ktime_t			  bytes_start;
 };
 
 /**
@@ -168,6 +170,15 @@ static inline u32 tfrc_rx_hist_rtt(const struct tfrc_rx_hist *h)
 	}
 	return h->rtt_estimate;
 }
+
+static inline void tfrc_rx_hist_restart_byte_counter(struct tfrc_rx_hist *h)
+{
+	h->bytes_recvd = 0;
+	h->bytes_start = ktime_get_real();
+}
+
+extern u32  tfrc_rx_hist_x_recv(struct tfrc_rx_hist *h, const u32 last_x_recv);
+
 
 extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 				    const struct sk_buff *skb, const u64 ndp);

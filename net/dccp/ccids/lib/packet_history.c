@@ -385,6 +385,36 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_handle_loss);
 
+/* Compute the sending rate X_recv measured between feedback intervals */
+u32 tfrc_rx_hist_x_recv(struct tfrc_rx_hist *h, const u32 last_x_recv)
+{
+	u64 bytes = h->bytes_recvd, last_rtt = h->rtt_estimate;
+	s64 delta = ktime_to_us(net_timedelta(h->bytes_start));
+
+	WARN_ON(delta <= 0);
+	/*
+	 * Ensure that the sampling interval for X_recv is at least one RTT,
+	 * by extending the sampling interval backwards in time, over the last
+	 * R_(m-1) seconds, as per rfc3448bis-06, 6.2.
+	 * To reduce noise (e.g. when the RTT changes often), this is only
+	 * done when delta is smaller than RTT/2.
+	 */
+	if (last_x_recv > 0 && delta < last_rtt/2) {
+		tfrc_pr_debug("delta < RTT ==> %ld us < %u us\n",
+			      (long)delta, (unsigned)last_rtt);
+
+		delta = (bytes ? delta : 0) + last_rtt;
+		bytes += div_u64((u64)last_x_recv * last_rtt, USEC_PER_SEC);
+	}
+
+	if (unlikely(bytes == 0)) {
+		DCCP_WARN("X_recv == 0, using old value of %u\n", last_x_recv);
+		return last_x_recv;
+	}
+	return scaled_div32(bytes, delta);
+}
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_x_recv);
+
 void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
 {
 	int i;
