@@ -252,7 +252,8 @@ extern const char *dccp_state_name(const int state);
 extern void dccp_set_state(struct sock *sk, const int state);
 extern void dccp_done(struct sock *sk);
 
-extern void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb);
+extern int  dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
+			    struct sk_buff const *skb);
 
 extern int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
