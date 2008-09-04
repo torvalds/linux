@@ -27,6 +27,7 @@ enum qdisc_state_t
 {
 	__QDISC_STATE_RUNNING,
 	__QDISC_STATE_SCHED,
+	__QDISC_STATE_DEACTIVATED,
 };
 
 struct qdisc_size_table {
@@ -60,7 +61,6 @@ struct Qdisc
 	struct gnet_stats_basic	bstats;
 	struct gnet_stats_queue	qstats;
 	struct gnet_stats_rate_est	rate_est;
-	struct rcu_head 	q_rcu;
 	int			(*reshape_fail)(struct sk_buff *skb,
 					struct Qdisc *q);
 
@@ -191,6 +191,11 @@ static inline spinlock_t *qdisc_lock(struct Qdisc *qdisc)
 static inline struct Qdisc *qdisc_root(struct Qdisc *qdisc)
 {
 	return qdisc->dev_queue->qdisc;
+}
+
+static inline struct Qdisc *qdisc_root_sleeping(struct Qdisc *qdisc)
+{
+	return qdisc->dev_queue->qdisc_sleeping;
 }
 
 /* The qdisc root lock is a mechanism by which to top level

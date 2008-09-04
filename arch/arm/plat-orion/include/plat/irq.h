@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/plat-orion/irq.h
+ * arch/arm/plat-orion/include/plat/irq.h
  *
  * Marvell Orion SoC IRQ handling.
  *
@@ -8,8 +8,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_PLAT_ORION_IRQ_H
-#define __ASM_PLAT_ORION_IRQ_H
+#ifndef __PLAT_IRQ_H
+#define __PLAT_IRQ_H
 
 void orion_irq_init(unsigned int irq_start, void __iomem *maskaddr);
 

@@ -49,10 +49,13 @@ extern unsigned long wait_for_completion_timeout(struct completion *x,
 						   unsigned long timeout);
 extern unsigned long wait_for_completion_interruptible_timeout(
 			struct completion *x, unsigned long timeout);
+extern bool try_wait_for_completion(struct completion *x);
+extern bool completion_done(struct completion *x);
 
 extern void complete(struct completion *);
 extern void complete_all(struct completion *);
 
 #define INIT_COMPLETION(x)	((x).done = 0)
+
 
 #endif

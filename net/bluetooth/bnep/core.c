@@ -736,7 +736,7 @@ MODULE_PARM_DESC(compress_src, "Compress sources headers");
 module_param(compress_dst, bool, 0644);
 MODULE_PARM_DESC(compress_dst, "Compress destination headers");
 
-MODULE_AUTHOR("David Libault <david.libault@inventel.fr>, Maxim Krasnyansky <maxk@qualcomm.com>");
+MODULE_AUTHOR("Marcel Holtmann <marcel@holtmann.org>");
 MODULE_DESCRIPTION("Bluetooth BNEP ver " VERSION);
 MODULE_VERSION(VERSION);
 MODULE_LICENSE("GPL");

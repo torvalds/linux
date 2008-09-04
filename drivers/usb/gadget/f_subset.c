@@ -66,9 +66,7 @@ struct f_gether {
 
 	char				ethaddr[14];
 
-	struct usb_descriptor_header	**fs_function;
 	struct geth_descs		fs;
-	struct usb_descriptor_header	**hs_function;
 	struct geth_descs		hs;
 };
 

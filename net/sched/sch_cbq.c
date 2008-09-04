@@ -521,6 +521,10 @@ static void cbq_ovl_delay(struct cbq_class *cl)
 	struct cbq_sched_data *q = qdisc_priv(cl->qdisc);
 	psched_tdiff_t delay = cl->undertime - q->now;
 
+	if (test_bit(__QDISC_STATE_DEACTIVATED,
+		     &qdisc_root_sleeping(cl->qdisc)->state))
+		return;
+
 	if (!cl->delayed) {
 		psched_time_t sched = q->now;
 		ktime_t expires;
@@ -654,7 +658,7 @@ static enum hrtimer_restart cbq_undelay(struct hrtimer *timer)
 	}
 
 	sch->flags &= ~TCQ_F_THROTTLED;
-	__netif_schedule(sch);
+	__netif_schedule(qdisc_root(sch));
 	return HRTIMER_NORESTART;
 }
 

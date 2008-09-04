@@ -59,14 +59,14 @@ extern struct kmem_zone *xfs_acl_zone;
 		(zone) = kmem_zone_init(sizeof(xfs_acl_t), (name))
 #define xfs_acl_zone_destroy(zone)	kmem_zone_destroy(zone)
 
-extern int xfs_acl_inherit(bhv_vnode_t *, mode_t mode, xfs_acl_t *);
+extern int xfs_acl_inherit(struct inode *, mode_t mode, xfs_acl_t *);
 extern int xfs_acl_iaccess(struct xfs_inode *, mode_t, cred_t *);
-extern int xfs_acl_vtoacl(bhv_vnode_t *, xfs_acl_t *, xfs_acl_t *);
-extern int xfs_acl_vhasacl_access(bhv_vnode_t *);
-extern int xfs_acl_vhasacl_default(bhv_vnode_t *);
-extern int xfs_acl_vset(bhv_vnode_t *, void *, size_t, int);
-extern int xfs_acl_vget(bhv_vnode_t *, void *, size_t, int);
-extern int xfs_acl_vremove(bhv_vnode_t *, int);
+extern int xfs_acl_vtoacl(struct inode *, xfs_acl_t *, xfs_acl_t *);
+extern int xfs_acl_vhasacl_access(struct inode *);
+extern int xfs_acl_vhasacl_default(struct inode *);
+extern int xfs_acl_vset(struct inode *, void *, size_t, int);
+extern int xfs_acl_vget(struct inode *, void *, size_t, int);
+extern int xfs_acl_vremove(struct inode *, int);
 
 #define _ACL_PERM_INVALID(perm)	((perm) & ~(ACL_READ|ACL_WRITE|ACL_EXECUTE))
 

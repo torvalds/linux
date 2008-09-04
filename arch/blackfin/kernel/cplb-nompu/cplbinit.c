@@ -164,17 +164,13 @@ static struct cplb_desc cplb_data[] = {
 		.name = "Asynchronous Memory Banks",
 	},
 	{
-#ifdef L2_START
 		.start = L2_START,
 		.end = L2_START + L2_LENGTH,
 		.psize = SIZE_1M,
 		.attr = SWITCH_T | I_CPLB | D_CPLB,
 		.i_conf = L2_MEMORY,
 		.d_conf = L2_MEMORY,
-		.valid = 1,
-#else
-		.valid = 0,
-#endif
+		.valid = (L2_LENGTH > 0),
 		.name = "L2 Memory",
 	},
 	{

@@ -1,0 +1,175 @@
+#
+# USB Dual Role (OTG-ready) Controller Drivers
+# for silicon based on Mentor Graphics INVENTRA designs
+#
+
+comment "Enable Host or Gadget support to see Inventra options"
+	depends on !USB && USB_GADGET=n
+
+# (M)HDRC = (Multipoint) Highspeed Dual-Role Controller
+config USB_MUSB_HDRC
+	depends on (USB || USB_GADGET) && HAVE_CLK
+	select TWL4030_USB if MACH_OMAP_3430SDP
+	tristate 'Inventra Highspeed Dual Role Controller (TI, ...)'
+	help
+	  Say Y here if your system has a dual role high speed USB
+	  controller based on the Mentor Graphics silicon IP.  Then
+	  configure options to match your silicon and the board
+	  it's being used with, including the USB peripheral role,
+	  or the USB host role, or both.
+
+	  Texas Instruments parts using this IP include DaVinci 644x,
+	  OMAP 243x, OMAP 343x, and TUSB 6010.
+
+	  If you do not know what this is, please say N.
+
+	  To compile this driver as a module, choose M here; the
+	  module will be called "musb_hdrc".
+
+config USB_MUSB_SOC
+	boolean
+	depends on USB_MUSB_HDRC
+	default y if ARCH_DAVINCI
+	default y if ARCH_OMAP2430
+	default y if ARCH_OMAP34XX
+	help
+	  Use a static <asm/arch/hdrc_cnf.h> file to describe how the
+	  controller is configured (endpoints, mechanisms, etc) on the
+	  current iteration of a given system-on-chip.
+
+comment "DaVinci 644x USB support"
+	depends on USB_MUSB_HDRC && ARCH_DAVINCI
+
+comment "OMAP 243x high speed USB support"
+	depends on USB_MUSB_HDRC && ARCH_OMAP2430
+
+comment "OMAP 343x high speed USB support"
+	depends on USB_MUSB_HDRC && ARCH_OMAP34XX
+
+config USB_TUSB6010
+	boolean "TUSB 6010 support"
+	depends on USB_MUSB_HDRC && !USB_MUSB_SOC
+	default y
+	help
+	  The TUSB 6010 chip, from Texas Instruments, connects a discrete
+	  HDRC core using a 16-bit parallel bus (NOR flash style) or VLYNQ
+	  (a high speed serial link).  It can use system-specific external
+	  DMA controllers.
+
+choice
+	prompt "Driver Mode"
+	depends on USB_MUSB_HDRC
+	help
+	  Dual-Role devices can support both host and peripheral roles,
+	  as well as a the special "OTG Device" role which can switch
+	  between both roles as needed.
+
+# use USB_MUSB_HDRC_HCD not USB_MUSB_HOST to #ifdef host side support;
+# OTG needs both roles, not just USB_MUSB_HOST.
+config USB_MUSB_HOST
+	depends on USB
+	bool "USB Host"
+	help
+	  Say Y here if your system supports the USB host role.
+	  If it has a USB "A" (rectangular), "Mini-A" (uncommon),
+	  or "Mini-AB" connector, it supports the host role.
+	  (With a "Mini-AB" connector, you should enable USB OTG.)
+
+# use USB_GADGET_MUSB_HDRC not USB_MUSB_PERIPHERAL to #ifdef peripheral
+# side support ... OTG needs both roles
+config USB_MUSB_PERIPHERAL
+	depends on USB_GADGET
+	bool "USB Peripheral (gadget stack)"
+	select USB_GADGET_MUSB_HDRC
+	help
+	  Say Y here if your system supports the USB peripheral role.
+	  If it has a USB "B" (squarish), "Mini-B", or "Mini-AB"
+	  connector, it supports the peripheral role.
+	  (With a "Mini-AB" connector, you should enable USB OTG.)
+
+config USB_MUSB_OTG
+	depends on USB && USB_GADGET && PM && EXPERIMENTAL
+	bool "Both host and peripheral:  USB OTG (On The Go) Device"
+	select USB_GADGET_MUSB_HDRC
+	select USB_OTG
+	help
+	   The most notable feature of USB OTG is support for a
+	   "Dual-Role" device, which can act as either a device
+	   or a host.  The initial role choice can be changed
+	   later, when two dual-role devices talk to each other.
+
+	   At this writing, the OTG support in this driver is incomplete,
+	   omitting the mandatory HNP or SRP protocols.  However, some
+	   of the cable based role switching works.  (That is, grounding
+	   the ID pin switches the controller to host mode, while leaving
+	   it floating leaves it in peripheral mode.)
+
+	   Select this if your system has a Mini-AB connector, or
+	   to simplify certain kinds of configuration.
+
+	   To implement your OTG Targeted Peripherals List (TPL), enable
+	   USB_OTG_WHITELIST and update "drivers/usb/core/otg_whitelist.h"
+	   to match your requirements.
+
+endchoice
+
+# enable peripheral support (including with OTG)
+config USB_GADGET_MUSB_HDRC
+	bool
+	depends on USB_MUSB_HDRC && (USB_MUSB_PERIPHERAL || USB_MUSB_OTG)
+#	default y
+#	select USB_GADGET_DUALSPEED
+#	select USB_GADGET_SELECTED
+
+# enables host support (including with OTG)
+config USB_MUSB_HDRC_HCD
+	bool
+	depends on USB_MUSB_HDRC && (USB_MUSB_HOST || USB_MUSB_OTG)
+	select USB_OTG if USB_GADGET_MUSB_HDRC
+	default y
+
+
+config MUSB_PIO_ONLY
+	bool 'Disable DMA (always use PIO)'
+	depends on USB_MUSB_HDRC
+	default y if USB_TUSB6010
+	help
+	  All data is copied between memory and FIFO by the CPU.
+	  DMA controllers are ignored.
+
+	  Do not select 'n' here unless DMA support for your SOC or board
+	  is unavailable (or unstable).  When DMA is enabled at compile time,
+	  you can still disable it at run time using the "use_dma=n" module
+	  parameter.
+
+config USB_INVENTRA_DMA
+	bool
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	default ARCH_OMAP2430 || ARCH_OMAP34XX
+	help
+	  Enable DMA transfers using Mentor's engine.
+
+config USB_TI_CPPI_DMA
+	bool
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	default ARCH_DAVINCI
+	help
+	  Enable DMA transfers when TI CPPI DMA is available.
+
+config USB_TUSB_OMAP_DMA
+	bool
+	depends on USB_MUSB_HDRC && !MUSB_PIO_ONLY
+	depends on USB_TUSB6010
+	depends on ARCH_OMAP
+	default y
+	help
+	  Enable DMA transfers on TUSB 6010 when OMAP DMA is available.
+
+config	USB_MUSB_DEBUG
+	depends on USB_MUSB_HDRC
+	bool "Enable debugging messages"
+	default n
+	help
+	  This enables musb debugging. To set the logging level use the debug
+	  module parameter. Starting at level 3, per-transfer (urb, usb_request,
+	  packet, or dma transfer) tracing may kick in.

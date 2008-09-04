@@ -849,7 +849,7 @@ static int __init acpi_irq_penalty_update(char *str, int used)
 		if (irq < 0)
 			continue;
 
-		if (irq >= ACPI_MAX_IRQS)
+		if (irq >= ARRAY_SIZE(acpi_irq_penalty))
 			continue;
 
 		if (used)
@@ -872,10 +872,12 @@ static int __init acpi_irq_penalty_update(char *str, int used)
  */
 void acpi_penalize_isa_irq(int irq, int active)
 {
-	if (active)
-		acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
-	else
-		acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
+	if (irq >= 0 && irq < ARRAY_SIZE(acpi_irq_penalty)) {
+		if (active)
+			acpi_irq_penalty[irq] += PIRQ_PENALTY_ISA_USED;
+		else
+			acpi_irq_penalty[irq] += PIRQ_PENALTY_PCI_USING;
+	}
 }
 
 /*

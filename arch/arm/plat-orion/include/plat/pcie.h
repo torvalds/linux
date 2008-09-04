@@ -1,5 +1,5 @@
 /*
- * include/asm-arm/plat-orion/pcie.h
+ * arch/arm/plat-orion/include/plat/pcie.h
  *
  * Marvell Orion SoC PCIe handling.
  *
@@ -8,8 +8,8 @@
  * warranty of any kind, whether express or implied.
  */
 
-#ifndef __ASM_PLAT_ORION_PCIE_H
-#define __ASM_PLAT_ORION_PCIE_H
+#ifndef __PLAT_PCIE_H
+#define __PLAT_PCIE_H
 
 u32 orion_pcie_dev_id(void __iomem *base);
 u32 orion_pcie_rev(void __iomem *base);

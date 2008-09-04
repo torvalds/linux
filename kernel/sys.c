@@ -169,9 +169,9 @@ asmlinkage long sys_setpriority(int which, int who, int niceval)
 				pgrp = find_vpid(who);
 			else
 				pgrp = task_pgrp(current);
-			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
+			do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 				error = set_one_prio(p, niceval, error);
-			} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
+			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
 			user = current->user;
@@ -229,11 +229,11 @@ asmlinkage long sys_getpriority(int which, int who)
 				pgrp = find_vpid(who);
 			else
 				pgrp = task_pgrp(current);
-			do_each_pid_task(pgrp, PIDTYPE_PGID, p) {
+			do_each_pid_thread(pgrp, PIDTYPE_PGID, p) {
 				niceval = 20 - task_nice(p);
 				if (niceval > retval)
 					retval = niceval;
-			} while_each_pid_task(pgrp, PIDTYPE_PGID, p);
+			} while_each_pid_thread(pgrp, PIDTYPE_PGID, p);
 			break;
 		case PRIO_USER:
 			user = current->user;
@@ -274,7 +274,7 @@ void emergency_restart(void)
 }
 EXPORT_SYMBOL_GPL(emergency_restart);
 
-static void kernel_restart_prepare(char *cmd)
+void kernel_restart_prepare(char *cmd)
 {
 	blocking_notifier_call_chain(&reboot_notifier_list, SYS_RESTART, cmd);
 	system_state = SYSTEM_RESTART;

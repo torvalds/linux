@@ -46,7 +46,7 @@ static void __save_processor_state(struct saved_context *ctxt)
 	ctxt->cr0 = read_cr0();
 	ctxt->cr2 = read_cr2();
 	ctxt->cr3 = read_cr3();
-	ctxt->cr4 = read_cr4();
+	ctxt->cr4 = read_cr4_safe();
 }
 
 /* Needed by apm.c */
@@ -99,7 +99,9 @@ static void __restore_processor_state(struct saved_context *ctxt)
 	/*
 	 * control registers
 	 */
-	write_cr4(ctxt->cr4);
+	/* cr4 was introduced in the Pentium CPU */
+	if (ctxt->cr4)
+		write_cr4(ctxt->cr4);
 	write_cr3(ctxt->cr3);
 	write_cr2(ctxt->cr2);
 	write_cr0(ctxt->cr0);

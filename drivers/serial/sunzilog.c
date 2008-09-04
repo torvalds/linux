@@ -32,11 +32,11 @@
 #include <linux/serio.h>
 #endif
 #include <linux/init.h>
+#include <linux/of_device.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
-#include <asm/of_device.h>
 
 #if defined(CONFIG_SERIAL_SUNZILOG_CONSOLE) && defined(CONFIG_MAGIC_SYSRQ)
 #define SUPPORT_SYSRQ

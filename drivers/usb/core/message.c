@@ -1091,8 +1091,8 @@ void usb_disable_device(struct usb_device *dev, int skip_ep0)
 				continue;
 			dev_dbg(&dev->dev, "unregistering interface %s\n",
 				dev_name(&interface->dev));
-			device_del(&interface->dev);
 			usb_remove_sysfs_intf_files(interface);
+			device_del(&interface->dev);
 		}
 
 		/* Now that the interfaces are unbound, nobody should

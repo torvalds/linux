@@ -284,6 +284,16 @@ config USB_LH7A40X
 	default USB_GADGET
 	select USB_GADGET_SELECTED
 
+# built in ../musb along with host support
+config USB_GADGET_MUSB_HDRC
+	boolean "Inventra HDRC USB Peripheral (TI, ...)"
+	depends on USB_MUSB_HDRC && (USB_MUSB_PERIPHERAL || USB_MUSB_OTG)
+	select USB_GADGET_DUALSPEED
+	select USB_GADGET_SELECTED
+	help
+	  This OTG-capable silicon IP is used in dual designs including
+	  the TI DaVinci, OMAP 243x, OMAP 343x, and TUSB 6010.
+
 config USB_GADGET_OMAP
 	boolean "OMAP USB Device Controller"
 	depends on ARCH_OMAP

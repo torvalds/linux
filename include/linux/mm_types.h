@@ -113,7 +113,7 @@ struct vm_area_struct {
 	struct vm_area_struct *vm_next;
 
 	pgprot_t vm_page_prot;		/* Access permissions of this VMA. */
-	unsigned long vm_flags;		/* Flags, listed below. */
+	unsigned long vm_flags;		/* Flags, see mm.h. */
 
 	struct rb_node vm_rb;
 

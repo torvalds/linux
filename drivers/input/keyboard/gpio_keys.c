@@ -9,7 +9,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/version.h>
 
 #include <linux/init.h>
 #include <linux/fs.h>
@@ -118,6 +117,7 @@ static int __devinit gpio_keys_probe(struct platform_device *pdev)
 		unsigned int type = button->type ?: EV_KEY;
 
 		bdata->input = input;
+		bdata->button = button;
 		setup_timer(&bdata->timer,
 			    gpio_check_button, (unsigned long)bdata);
 
@@ -256,7 +256,7 @@ static int gpio_keys_resume(struct platform_device *pdev)
 #define gpio_keys_resume	NULL
 #endif
 
-struct platform_driver gpio_keys_device_driver = {
+static struct platform_driver gpio_keys_device_driver = {
 	.probe		= gpio_keys_probe,
 	.remove		= __devexit_p(gpio_keys_remove),
 	.suspend	= gpio_keys_suspend,

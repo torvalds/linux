@@ -26,7 +26,6 @@
 #include <linux/errno.h>
 #include <linux/types.h>
 #include <linux/delay.h>
-#include <linux/version.h>
 
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>

@@ -9,7 +9,7 @@
 /* Maximum address we can use for the control code buffer */
 #define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
 
-#define KEXEC_CONTROL_CODE_SIZE (8192 + 8192 + 4096)
+#define KEXEC_CONTROL_PAGE_SIZE (8192 + 8192 + 4096)
 
 /* The native architecture */
 #define KEXEC_ARCH KEXEC_ARCH_IA_64

@@ -341,7 +341,7 @@ static struct platform_device *osiris_devices[] __initdata = {
 	&osiris_pcmcia,
 };
 
-static struct clk *osiris_clocks[] = {
+static struct clk *osiris_clocks[] __initdata = {
 	&s3c24xx_dclk0,
 	&s3c24xx_dclk1,
 	&s3c24xx_clkout0,

@@ -1055,9 +1055,10 @@ static int w83791d_probe(struct i2c_client *client,
 {
 	struct w83791d_data *data;
 	struct device *dev = &client->dev;
-	int i, val1, err;
+	int i, err;
 
 #ifdef DEBUG
+	int val1;
 	val1 = w83791d_read(client, W83791D_REG_DID_VID4);
 	dev_dbg(dev, "Device ID version: %d.%d (0x%02x)\n",
 			(val1 >> 5) & 0x07, (val1 >> 1) & 0x0f, val1);

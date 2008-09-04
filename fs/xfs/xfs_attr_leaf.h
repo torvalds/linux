@@ -274,6 +274,4 @@ int	xfs_attr_leaf_order(struct xfs_dabuf *leaf1_bp,
 				   struct xfs_dabuf *leaf2_bp);
 int	xfs_attr_leaf_newentsize(int namelen, int valuelen, int blocksize,
 					int *local);
-int	xfs_attr_rolltrans(struct xfs_trans **transp, struct xfs_inode *dp);
-
 #endif	/* __XFS_ATTR_LEAF_H__ */
