@@ -1009,7 +1009,12 @@ static int __init omap2_mcspi_probe(struct platform_device *pdev)
 	}
 
 	mcspi->phys = r->start;
-	mcspi->base = (void __iomem *) io_p2v(r->start);
+	mcspi->base = ioremap(r->start, r->end - r->start + 1);
+	if (!mcspi->base) {
+		dev_dbg(&pdev->dev, "can't ioremap MCSPI\n");
+		status = -ENOMEM;
+		goto err1aa;
+	}
 
 	INIT_WORK(&mcspi->work, omap2_mcspi_work);
 
@@ -1059,6 +1064,8 @@ err3:
 err2:
 	clk_put(mcspi->ick);
 err1a:
+	iounmap(mcspi->base);
+err1aa:
 	release_mem_region(r->start, (r->end - r->start) + 1);
 err1:
 	spi_master_put(master);
@@ -1071,6 +1078,7 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 	struct omap2_mcspi	*mcspi;
 	struct omap2_mcspi_dma	*dma_channels;
 	struct resource		*r;
+	void __iomem *base;
 
 	master = dev_get_drvdata(&pdev->dev);
 	mcspi = spi_master_get_devdata(master);
@@ -1082,7 +1090,9 @@ static int __exit omap2_mcspi_remove(struct platform_device *pdev)
 	r = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	release_mem_region(r->start, (r->end - r->start) + 1);
 
+	base = mcspi->base;
 	spi_unregister_master(master);
+	iounmap(base);
 	kfree(dma_channels);
 
 	return 0;

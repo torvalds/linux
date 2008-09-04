@@ -156,7 +156,7 @@ struct resmap {
 };
 
 static struct {
-	u32		base;
+	void __iomem	*base;
 
 	struct omapfb_mem_desc	mem_desc;
 	struct resmap		*res_map[DISPC_MEMTYPE_NUM];
@@ -1349,14 +1349,19 @@ static int omap_dispc_init(struct omapfb_device *fbdev, int ext_mode,
 
 	memset(&dispc, 0, sizeof(dispc));
 
-	dispc.base = io_p2v(DISPC_BASE);
+	dispc.base = ioremap(DISPC_BASE, SZ_1K);
+	if (!dispc.base) {
+		dev_err(fbdev->dev, "can't ioremap DISPC\n");
+		return -ENOMEM;
+	}
+
 	dispc.fbdev = fbdev;
 	dispc.ext_mode = ext_mode;
 
 	init_completion(&dispc.frame_done);
 
 	if ((r = get_dss_clocks()) < 0)
-		return r;
+		goto fail0;
 
 	enable_interface_clocks(1);
 	enable_lcd_clocks(1);
@@ -1464,7 +1469,8 @@ fail1:
 	enable_lcd_clocks(0);
 	enable_interface_clocks(0);
 	put_dss_clocks();
-
+fail0:
+	iounmap(dispc.base);
 	return r;
 }
 
@@ -1481,6 +1487,7 @@ static void omap_dispc_cleanup(void)
 	free_irq(INT_24XX_DSS_IRQ, dispc.fbdev);
 	enable_interface_clocks(0);
 	put_dss_clocks();
+	iounmap(dispc.base);
 }
 
 const struct lcd_ctrl omap2_int_ctrl = {

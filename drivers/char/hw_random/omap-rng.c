@@ -118,18 +118,21 @@ static int __init omap_rng_probe(struct platform_device *pdev)
 
 	mem = request_mem_region(res->start, res->end - res->start + 1,
 				 pdev->name);
-	if (mem == NULL)
-		return -EBUSY;
+	if (mem == NULL) {
+		ret = -EBUSY;
+		goto err_region;
+	}
 
 	dev_set_drvdata(&pdev->dev, mem);
-	rng_base = (u32 __force __iomem *)io_p2v(res->start);
+	rng_base = ioremap(res->start, res->end - res->start + 1);
+	if (!rng_base) {
+		ret = -ENOMEM;
+		goto err_ioremap;
+	}
 
 	ret = hwrng_register(&omap_rng_ops);
-	if (ret) {
-		release_resource(mem);
-		rng_base = NULL;
-		return ret;
-	}
+	if (ret)
+		goto err_register;
 
 	dev_info(&pdev->dev, "OMAP Random Number Generator ver. %02x\n",
 		omap_rng_read_reg(RNG_REV_REG));
@@ -138,6 +141,18 @@ static int __init omap_rng_probe(struct platform_device *pdev)
 	rng_dev = pdev;
 
 	return 0;
+
+err_register:
+	iounmap(rng_base);
+	rng_base = NULL;
+err_ioremap:
+	release_resource(mem);
+err_region:
+	if (cpu_is_omap24xx()) {
+		clk_disable(rng_ick);
+		clk_put(rng_ick);
+	}
+	return ret;
 }
 
 static int __exit omap_rng_remove(struct platform_device *pdev)
@@ -147,6 +162,8 @@ static int __exit omap_rng_remove(struct platform_device *pdev)
 	hwrng_unregister(&omap_rng_ops);
 
 	omap_rng_write_reg(RNG_MASK_REG, 0x0);
+
+	iounmap(rng_base);
 
 	if (cpu_is_omap24xx()) {
 		clk_disable(rng_ick);
