@@ -168,6 +168,8 @@ enum {
 	DCCPO_MIN_CCID_SPECIFIC = 128,
 	DCCPO_MAX_CCID_SPECIFIC = 255,
 };
+/* maximum size of a single TLV-encoded DCCP option (sans type/len bytes) */
+#define DCCP_SINGLE_OPT_MAXLEN	253
 
 /* DCCP CCIDS */
 enum {
@@ -203,6 +205,9 @@ enum dccp_feature_numbers {
 #define DCCP_SOCKOPT_SEND_CSCOV		10
 #define DCCP_SOCKOPT_RECV_CSCOV		11
 #define DCCP_SOCKOPT_AVAILABLE_CCIDS	12
+#define DCCP_SOCKOPT_CCID		13
+#define DCCP_SOCKOPT_TX_CCID		14
+#define DCCP_SOCKOPT_RX_CCID		15
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
 #define DCCP_SOCKOPT_CCID_TX_INFO	192
 

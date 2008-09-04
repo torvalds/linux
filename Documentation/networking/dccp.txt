@@ -61,6 +61,20 @@ DCCP_SOCKOPT_AVAILABLE_CCIDS is also read-only and returns the list of CCIDs
 supported by the endpoint (see include/linux/dccp.h for symbolic constants).
 The caller needs to provide a sufficiently large (> 2) array of type uint8_t.
 
+DCCP_SOCKOPT_CCID is write-only and sets both the TX and RX CCIDs at the same
+time, combining the operation of the next two socket options. This option is
+preferrable over the latter two, since often applications will use the same
+type of CCID for both directions; and mixed use of CCIDs is not currently well
+understood. This socket option takes as argument at least one uint8_t value, or
+an array of uint8_t values, which must match available CCIDS (see above). CCIDs
+must be registered on the socket before calling connect() or listen().
+
+DCCP_SOCKOPT_TX_CCID is read/write. It returns the current CCID (if set) or sets
+the preference list for the TX CCID, using the same format as DCCP_SOCKOPT_CCID.
+Please note that the getsockopt argument type here is `int', not uint8_t.
+
+DCCP_SOCKOPT_RX_CCID is analogous to DCCP_SOCKOPT_TX_CCID, but for the RX CCID.
+
 DCCP_SOCKOPT_SERVER_TIMEWAIT enables the server (listening socket) to hold
 timewait state when closing the connection (RFC 4340, 8.3). The usual case is
 that the closing server sends a CloseReq, whereupon the client holds timewait

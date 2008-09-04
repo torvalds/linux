@@ -506,6 +506,36 @@ static int dccp_setsockopt_cscov(struct sock *sk, int cscov, bool rx)
 	return rc;
 }
 
+static int dccp_setsockopt_ccid(struct sock *sk, int type,
+				char __user *optval, int optlen)
+{
+	u8 *val;
+	int rc = 0;
+
+	if (optlen < 1 || optlen > DCCP_FEAT_MAX_SP_VALS)
+		return -EINVAL;
+
+	val = kmalloc(optlen, GFP_KERNEL);
+	if (val == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(val, optval, optlen)) {
+		kfree(val);
+		return -EFAULT;
+	}
+
+	lock_sock(sk);
+	if (type == DCCP_SOCKOPT_TX_CCID || type == DCCP_SOCKOPT_CCID)
+		rc = dccp_feat_register_sp(sk, DCCPF_CCID, 1, val, optlen);
+
+	if (!rc && (type == DCCP_SOCKOPT_RX_CCID || type == DCCP_SOCKOPT_CCID))
+		rc = dccp_feat_register_sp(sk, DCCPF_CCID, 0, val, optlen);
+	release_sock(sk);
+
+	kfree(val);
+	return rc;
+}
+
 static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 		char __user *optval, int optlen)
 {
@@ -520,6 +550,10 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_CHANGE_R:
 		DCCP_WARN("sockopt(CHANGE_L/R) is deprecated: fix your app\n");
 		return 0;
+	case DCCP_SOCKOPT_CCID:
+	case DCCP_SOCKOPT_RX_CCID:
+	case DCCP_SOCKOPT_TX_CCID:
+		return dccp_setsockopt_ccid(sk, optname, optval, optlen);
 	}
 
 	if (optlen < (int)sizeof(int))

@@ -22,6 +22,8 @@
 /* Wmin=32 and Wmax=2^46-1 from 7.5.2 */
 #define DCCPF_SEQ_WMIN		32
 #define DCCPF_SEQ_WMAX		0x3FFFFFFFFFFFull
+/* Maximum number of SP values that fit in a single (Confirm) option */
+#define DCCP_FEAT_MAX_SP_VALS	(DCCP_SINGLE_OPT_MAXLEN - 2)
 
 enum dccp_feat_type {
 	FEAT_AT_RX   = 1,	/* located at RX side of half-connection  */
