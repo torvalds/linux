@@ -192,10 +192,8 @@ static void __do_track_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u64 n1)
 	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
 	    s1 = DCCP_SKB_CB(skb)->dccpd_seq;
 
-	if (!dccp_loss_free(s0, s1, n1)) {	/* gap between S0 and S1 */
+	if (!dccp_loss_free(s0, s1, n1))	/* gap between S0 and S1 */
 		h->loss_count = 1;
-		tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_entry(h, 1), skb, n1);
-	}
 }
 
 static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2)
@@ -328,13 +326,13 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
 }
 
 /**
- *  tfrc_rx_handle_loss  -  Loss detection and further processing
- *  @h:		    The non-empty RX history object
- *  @lh:	    Loss Intervals database to update
- *  @skb:	    Currently received packet
- *  @ndp:	    The NDP count belonging to @skb
- *  @calc_first_li: Caller-dependent computation of first loss interval in @lh
- *  @sk:	    Used by @calc_first_li (see tfrc_lh_interval_add)
+ *  tfrc_rx_congestion_event  -  Loss detection and further processing
+ *  @h:		The non-empty RX history object
+ *  @lh:	Loss Intervals database to update
+ *  @skb:	Currently received packet
+ *  @ndp:	The NDP count belonging to @skb
+ *  @first_li:	Caller-dependent computation of first loss interval in @lh
+ *  @sk:	Used by @calc_first_li (see tfrc_lh_interval_add)
  *  Chooses action according to pending loss, updates LI database when a new
  *  loss was detected, and does required post-processing. Returns 1 when caller
  *  should send feedback, 0 otherwise.
@@ -342,12 +340,12 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
  *  records accordingly, the caller should not perform any more RX history
  *  operations when loss_count is greater than 0 after calling this function.
  */
-int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
-			struct tfrc_loss_hist *lh,
-			struct sk_buff *skb, const u64 ndp,
-			u32 (*calc_first_li)(struct sock *), struct sock *sk)
+bool tfrc_rx_congestion_event(struct tfrc_rx_hist *h,
+			      struct tfrc_loss_hist *lh,
+			      struct sk_buff *skb, const u64 ndp,
+			      u32 (*first_li)(struct sock *), struct sock *sk)
 {
-	int is_new_loss = 0;
+	bool new_event = false;
 
 	if (tfrc_rx_hist_duplicate(h, skb))
 		return 0;
@@ -355,6 +353,7 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 	if (h->loss_count == 0) {
 		__do_track_loss(h, skb, ndp);
 		tfrc_rx_hist_sample_rtt(h, skb);
+		tfrc_rx_hist_add_packet(h, skb, ndp);
 	} else if (h->loss_count == 1) {
 		__one_after_loss(h, skb, ndp);
 	} else if (h->loss_count != 2) {
@@ -363,7 +362,7 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 		/*
 		 * Update Loss Interval database and recycle RX records
 		 */
-		is_new_loss = tfrc_lh_interval_add(lh, h, calc_first_li, sk);
+		new_event = tfrc_lh_interval_add(lh, h, first_li, sk);
 		__three_after_loss(h);
 	}
 
@@ -378,12 +377,12 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 	}
 
 	/* RFC 3448, 6.1: update I_0, whose growth implies p <= p_prev */
-	if (!is_new_loss)
+	if (!new_event)
 		tfrc_lh_update_i_mean(lh, skb);
 
-	return is_new_loss;
+	return new_event;
 }
-EXPORT_SYMBOL_GPL(tfrc_rx_handle_loss);
+EXPORT_SYMBOL_GPL(tfrc_rx_congestion_event);
 
 /* Compute the sending rate X_recv measured between feedback intervals */
 u32 tfrc_rx_hist_x_recv(struct tfrc_rx_hist *h, const u32 last_x_recv)

@@ -186,11 +186,11 @@ extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
 extern int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb);
 
 struct tfrc_loss_hist;
-extern int  tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
-				struct tfrc_loss_hist *lh,
-				struct sk_buff *skb, const u64 ndp,
-				u32 (*first_li)(struct sock *sk),
-				struct sock *sk);
+extern bool tfrc_rx_congestion_event(struct tfrc_rx_hist *h,
+				     struct tfrc_loss_hist *lh,
+				     struct sk_buff *skb, const u64 ndp,
+				     u32 (*first_li)(struct sock *sk),
+				     struct sock *sk);
 extern void tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h,
 				    const struct sk_buff *skb);
 extern int  tfrc_rx_hist_init(struct tfrc_rx_hist *h, struct sock *sk);

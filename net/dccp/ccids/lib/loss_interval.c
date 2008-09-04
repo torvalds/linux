@@ -140,18 +140,18 @@ static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
  * @sk:		   Used by @calc_first_li in caller-specific way (subtyping)
  * Updates I_mean and returns 1 if a new interval has in fact been added to @lh.
  */
-int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
-			 u32 (*calc_first_li)(struct sock *), struct sock *sk)
+bool tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
+			  u32 (*calc_first_li)(struct sock *), struct sock *sk)
 {
 	struct tfrc_loss_interval *cur = tfrc_lh_peek(lh), *new;
 
 	if (cur != NULL && !tfrc_lh_is_new_loss(cur, tfrc_rx_hist_loss_prev(rh)))
-		return 0;
+		return false;
 
 	new = tfrc_lh_demand_next(lh);
 	if (unlikely(new == NULL)) {
 		DCCP_CRIT("Cannot allocate/add loss record.");
-		return 0;
+		return false;
 	}
 
 	new->li_seqno	  = tfrc_rx_hist_loss_prev(rh)->tfrchrx_seqno;
@@ -169,7 +169,7 @@ int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
 
 		tfrc_lh_calc_i_mean(lh);
 	}
-	return 1;
+	return true;
 }
 EXPORT_SYMBOL_GPL(tfrc_lh_interval_add);
 

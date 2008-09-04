@@ -657,41 +657,26 @@ failed:
 static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-	enum ccid3_fback_type do_feedback = CCID3_FBACK_NONE;
 	const u64 ndp = dccp_sk(sk)->dccps_options_received.dccpor_ndp;
 	const bool is_data_packet = dccp_data_packet(skb);
 
 	/*
 	 * Perform loss detection and handle pending losses
 	 */
-	if (tfrc_rx_handle_loss(&hcrx->hist, &hcrx->li_hist,
-				skb, ndp, ccid3_first_li, sk)) {
-		do_feedback = CCID3_FBACK_PARAM_CHANGE;
-		goto done_receiving;
-	}
-
-	if (unlikely(hcrx->feedback == CCID3_FBACK_NONE)) {
-		if (is_data_packet)
-			do_feedback = CCID3_FBACK_INITIAL;
-		goto update_records;
-	}
-
-	if (tfrc_rx_hist_loss_pending(&hcrx->hist))
-		return; /* done receiving */
-
+	if (tfrc_rx_congestion_event(&hcrx->hist, &hcrx->li_hist,
+				     skb, ndp, ccid3_first_li, sk))
+		ccid3_hc_rx_send_feedback(sk, skb, CCID3_FBACK_PARAM_CHANGE);
+	/*
+	 * Feedback for first non-empty data packet (RFC 3448, 6.3)
+	 */
+	else if (unlikely(hcrx->feedback == CCID3_FBACK_NONE && is_data_packet))
+		ccid3_hc_rx_send_feedback(sk, skb, CCID3_FBACK_INITIAL);
 	/*
 	 * Check if the periodic once-per-RTT feedback is due; RFC 4342, 10.3
 	 */
-	if (is_data_packet &&
-	    SUB16(dccp_hdr(skb)->dccph_ccval, hcrx->last_counter) > 3)
-		do_feedback = CCID3_FBACK_PERIODIC;
-
-update_records:
-	tfrc_rx_hist_add_packet(&hcrx->hist, skb, ndp);
-
-done_receiving:
-	if (do_feedback)
-		ccid3_hc_rx_send_feedback(sk, skb, do_feedback);
+	else if (!tfrc_rx_hist_loss_pending(&hcrx->hist) && is_data_packet &&
+		 SUB16(dccp_hdr(skb)->dccph_ccval, hcrx->last_counter) > 3)
+		ccid3_hc_rx_send_feedback(sk, skb, CCID3_FBACK_PERIODIC);
 }
 
 static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
