@@ -29,6 +29,9 @@
 /* Estimated minimum average Ack Vector length - used for updating MPS */
 #define DCCPAV_MIN_OPTLEN	16
 
+/* Threshold for coping with large bursts of losses */
+#define DCCPAV_BURST_THRESH	(DCCPAV_MAX_ACKVEC_LEN / 8)
+
 enum dccp_ackvec_states {
 	DCCPAV_RECEIVED =	0x00,
 	DCCPAV_ECN_MARKED =	0x40,
@@ -117,6 +120,7 @@ extern int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 			     u64 *ackno, const u8 opt,
 			     const u8 *value, const u8 len);
 
+extern void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb);
 extern int  dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 sum);
 extern void dccp_ackvec_clear_state(struct dccp_ackvec *av, const u64 ackno);
 extern u16  dccp_ackvec_buflen(const struct dccp_ackvec *av);
@@ -142,6 +146,11 @@ static inline struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 
 static inline void dccp_ackvec_free(struct dccp_ackvec *av)
 {
+}
+
+static inline void dccp_ackvec_input(struct dccp_ackvec *av, struct sk_buff *skb)
+{
+
 }
 
 static inline int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
