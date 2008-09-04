@@ -549,13 +549,9 @@ static void __init __reserve_region_with_split(struct resource *root,
 	}
 
 	if (!res) {
-		printk(KERN_DEBUG "    __reserve_region_with_split: (%s) [%llx, %llx], res: (%s) [%llx, %llx]\n",
-			 conflict->name, conflict->start, conflict->end,
-			 name, start, end);
-
 		/* failed, split and try again */
 
-		/* conflict coverred whole area */
+		/* conflict covered whole area */
 		if (conflict->start <= start && conflict->end >= end)
 			return;
 
