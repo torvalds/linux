@@ -63,10 +63,13 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
  *    - DCCP-Reset    with ACK Subheader and 4 bytes of Reset Code fields
  *  Hence a safe upper bound for the maximum option length is 1020-28 = 992
  */
-#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(int))
+#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(uint32_t))
 #define DCCP_MAX_PACKET_HDR 28
 #define DCCP_MAX_OPT_LEN (MAX_DCCP_SPECIFIC_HEADER - DCCP_MAX_PACKET_HDR)
 #define MAX_DCCP_HEADER (MAX_DCCP_SPECIFIC_HEADER + MAX_HEADER)
+
+/* Upper bound for initial feature-negotiation overhead (padded to 32 bits) */
+#define DCCP_FEATNEG_OVERHEAD	 (32 * sizeof(uint32_t))
 
 #define DCCP_TIMEWAIT_LEN (60 * HZ) /* how long to wait to destroy TIME-WAIT
 				     * state, about 60 seconds */
