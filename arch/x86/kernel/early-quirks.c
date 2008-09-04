@@ -95,6 +95,20 @@ static void __init nvidia_bugs(int num, int slot, int func)
 
 }
 
+#ifdef CONFIG_DMAR
+static void __init intel_g33_dmar(int num, int slot, int func)
+{
+	struct acpi_table_header *dmar_tbl;
+	acpi_status status;
+
+	status = acpi_get_table(ACPI_SIG_DMAR, 0, &dmar_tbl);
+	if (ACPI_SUCCESS(status)) {
+		printk(KERN_INFO "BIOS BUG: DMAR advertised on Intel G31/G33 chipset -- ignoring\n");
+		dmar_disabled = 1;
+	}
+}
+#endif
+
 #define QFLAG_APPLY_ONCE 	0x1
 #define QFLAG_APPLIED		0x2
 #define QFLAG_DONE		(QFLAG_APPLY_ONCE|QFLAG_APPLIED)
@@ -114,6 +128,10 @@ static struct chipset early_qrk[] __initdata = {
 	  PCI_CLASS_BRIDGE_PCI, PCI_ANY_ID, QFLAG_APPLY_ONCE, via_bugs },
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_K8_NB,
 	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, fix_hypertransport_config },
+#ifdef CONFIG_DMAR
+	{ PCI_VENDOR_ID_INTEL, 0x29c0,
+	  PCI_CLASS_BRIDGE_HOST, PCI_ANY_ID, 0, intel_g33_dmar },
+#endif
 	{}
 };
 
