@@ -234,6 +234,18 @@ extern void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);
 
+/*
+ * TX Packet Dequeueing Interface
+ */
+extern void		dccp_qpolicy_push(struct sock *sk, struct sk_buff *skb);
+extern bool		dccp_qpolicy_full(struct sock *sk);
+extern void		dccp_qpolicy_drop(struct sock *sk, struct sk_buff *skb);
+extern struct sk_buff	*dccp_qpolicy_top(struct sock *sk);
+extern struct sk_buff	*dccp_qpolicy_pop(struct sock *sk);
+
+/*
+ * TX Packet Output and TX Timers
+ */
 extern void dccp_write_xmit(struct sock *sk);
 extern void dccp_write_space(struct sock *sk);
 extern void dccp_flush_write_queue(struct sock *sk, long *time_budget);

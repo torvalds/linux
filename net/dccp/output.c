@@ -241,7 +241,7 @@ static void dccp_xmit_packet(struct sock *sk)
 {
 	int err, len;
 	struct dccp_sock *dp = dccp_sk(sk);
-	struct sk_buff *skb = skb_dequeue(&sk->sk_write_queue);
+	struct sk_buff *skb = dccp_qpolicy_pop(sk);
 
 	if (unlikely(skb == NULL))
 		return;
@@ -344,7 +344,7 @@ void dccp_write_xmit(struct sock *sk)
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct sk_buff *skb;
 
-	while ((skb = skb_peek(&sk->sk_write_queue))) {
+	while ((skb = dccp_qpolicy_top(sk))) {
 		int rc = ccid_hc_tx_send_packet(dp->dccps_hc_tx_ccid, sk, skb);
 
 		switch (ccid_packet_dequeue_eval(rc)) {
@@ -358,8 +358,7 @@ void dccp_write_xmit(struct sock *sk)
 			dccp_xmit_packet(sk);
 			break;
 		case CCID_PACKET_ERR:
-			skb_dequeue(&sk->sk_write_queue);
-			kfree_skb(skb);
+			dccp_qpolicy_drop(sk, skb);
 			dccp_pr_debug("packet discarded due to err=%d\n", rc);
 		}
 	}

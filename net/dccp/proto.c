@@ -189,6 +189,7 @@ int dccp_init_sock(struct sock *sk, const __u8 ctl_sock_initialized)
 	dp->dccps_rate_last	= jiffies;
 	dp->dccps_role		= DCCP_ROLE_UNDEFINED;
 	dp->dccps_service	= DCCP_SERVICE_CODE_IS_ABSENT;
+	dp->dccps_tx_qlen	= sysctl_dccp_tx_qlen;
 
 	dccp_init_xmit_timers(sk);
 
@@ -541,6 +542,20 @@ static int do_dccp_setsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_RECV_CSCOV:
 		err = dccp_setsockopt_cscov(sk, val, true);
 		break;
+	case DCCP_SOCKOPT_QPOLICY_ID:
+		if (sk->sk_state != DCCP_CLOSED)
+			err = -EISCONN;
+		else if (val < 0 || val >= DCCPQ_POLICY_MAX)
+			err = -EINVAL;
+		else
+			dp->dccps_qpolicy = val;
+		break;
+	case DCCP_SOCKOPT_QPOLICY_TXQLEN:
+		if (val < 0)
+			err = -EINVAL;
+		else
+			dp->dccps_tx_qlen = val;
+		break;
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -648,6 +663,12 @@ static int do_dccp_getsockopt(struct sock *sk, int level, int optname,
 	case DCCP_SOCKOPT_RECV_CSCOV:
 		val = dp->dccps_pcrlen;
 		break;
+	case DCCP_SOCKOPT_QPOLICY_ID:
+		val = dp->dccps_qpolicy;
+		break;
+	case DCCP_SOCKOPT_QPOLICY_TXQLEN:
+		val = dp->dccps_tx_qlen;
+		break;
 	case 128 ... 191:
 		return ccid_hc_rx_getsockopt(dp->dccps_hc_rx_ccid, sk, optname,
 					     len, (u32 __user *)optval, optlen);
@@ -690,6 +711,43 @@ int compat_dccp_getsockopt(struct sock *sk, int level, int optname,
 EXPORT_SYMBOL_GPL(compat_dccp_getsockopt);
 #endif
 
+static int dccp_msghdr_parse(struct msghdr *msg, struct sk_buff *skb)
+{
+	struct cmsghdr *cmsg = CMSG_FIRSTHDR(msg);
+
+	/*
+	 * Assign an (opaque) qpolicy priority value to skb->priority.
+	 *
+	 * We are overloading this skb field for use with the qpolicy subystem.
+	 * The skb->priority is normally used for the SO_PRIORITY option, which
+	 * is initialised from sk_priority. Since the assignment of sk_priority
+	 * to skb->priority happens later (on layer 3), we overload this field
+	 * for use with queueing priorities as long as the skb is on layer 4.
+	 * The default priority value (if nothing is set) is 0.
+	 */
+	skb->priority = 0;
+
+	for (; cmsg != NULL; cmsg = CMSG_NXTHDR(msg, cmsg)) {
+
+		if (!CMSG_OK(msg, cmsg))
+			return -EINVAL;
+
+		if (cmsg->cmsg_level != SOL_DCCP)
+			continue;
+
+		switch (cmsg->cmsg_type) {
+		case DCCP_SCM_PRIORITY:
+			if (cmsg->cmsg_len != CMSG_LEN(sizeof(__u32)))
+				return -EINVAL;
+			skb->priority = *(__u32 *)CMSG_DATA(cmsg);
+			break;
+		default:
+			return -EINVAL;
+		}
+	}
+	return 0;
+}
+
 int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 		 size_t len)
 {
@@ -705,8 +763,7 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 
 	lock_sock(sk);
 
-	if (sysctl_dccp_tx_qlen &&
-	    (sk->sk_write_queue.qlen >= sysctl_dccp_tx_qlen)) {
+	if (dccp_qpolicy_full(sk)) {
 		rc = -EAGAIN;
 		goto out_release;
 	}
@@ -734,7 +791,11 @@ int dccp_sendmsg(struct kiocb *iocb, struct sock *sk, struct msghdr *msg,
 	if (rc != 0)
 		goto out_discard;
 
-	skb_queue_tail(&sk->sk_write_queue, skb);
+	rc = dccp_msghdr_parse(msg, skb);
+	if (rc != 0)
+		goto out_discard;
+
+	dccp_qpolicy_push(sk, skb);
 	dccp_write_xmit(sk);
 out_release:
 	release_sock(sk);
