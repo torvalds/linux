@@ -50,11 +50,6 @@ struct bootrec_desc {
 #define BR_CODE_END_OF_BRA		0xFF0000FF
 #define LEGACY_BR_CODE_END_OF_BRA	0xFFFFFFFF
 
-#define FW_FMAC 0x464d4143
-#define FW_LM86 0x4c4d3836
-#define FW_LM87 0x4c4d3837
-#define FW_LM20 0x4c4d3230
-
 /* PDA defines are Copyright (C) 2005 Nokia Corporation (taken from islsm_pda.h) */
 
 struct pda_entry {

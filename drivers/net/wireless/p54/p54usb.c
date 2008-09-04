@@ -91,8 +91,13 @@ static void p54u_rx_cb(struct urb *urb)
 
 	skb_unlink(skb, &priv->rx_queue);
 	skb_put(skb, urb->actual_length);
-	if (!priv->hw_type)
-		skb_pull(skb, sizeof(struct net2280_tx_hdr));
+
+	if (priv->hw_type == P54U_NET2280)
+		skb_pull(skb, priv->common.tx_hdr_len);
+	if (priv->common.fw_interface == FW_LM87) {
+		skb_pull(skb, 4);
+		skb_put(skb, 4);
+	}
 
 	if (p54_rx(dev, skb)) {
 		skb = dev_alloc_skb(priv->common.rx_mtu + 32);
@@ -109,9 +114,12 @@ static void p54u_rx_cb(struct urb *urb)
 		urb->context = skb;
 		skb_queue_tail(&priv->rx_queue, skb);
 	} else {
-		if (!priv->hw_type)
-			skb_push(skb, sizeof(struct net2280_tx_hdr));
-
+		if (priv->hw_type == P54U_NET2280)
+			skb_push(skb, priv->common.tx_hdr_len);
+		if (priv->common.fw_interface == FW_LM87) {
+			skb_push(skb, 4);
+			skb_put(skb, 4);
+		}
 		skb_reset_tail_pointer(skb);
 		skb_trim(skb, 0);
 		if (urb->transfer_buffer != skb_tail_pointer(skb)) {
@@ -207,6 +215,42 @@ static void p54u_tx_3887(struct ieee80211_hw *dev, struct p54_control_hdr *data,
 		free_on_tx ? p54u_tx_free_cb : p54u_tx_cb, dev);
 
 	usb_submit_urb(addr_urb, GFP_ATOMIC);
+	usb_submit_urb(data_urb, GFP_ATOMIC);
+}
+
+__le32 p54u_lm87_chksum(const u32 *data, size_t length)
+{
+	__le32 chk = 0;
+
+	length >>= 2;
+	while (length--) {
+		chk ^= cpu_to_le32(*data++);
+		chk = (chk >> 5) ^ (chk << 3);
+	}
+
+	return chk;
+}
+
+static void p54u_tx_lm87(struct ieee80211_hw *dev,
+			 struct p54_control_hdr *data,
+			 size_t len, int free_on_tx)
+{
+	struct p54u_priv *priv = dev->priv;
+	struct urb *data_urb;
+	struct lm87_tx_hdr *hdr = (void *)data - sizeof(*hdr);
+
+	data_urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!data_urb)
+		return;
+
+	hdr->chksum = p54u_lm87_chksum((u32 *)data, len);
+	hdr->device_addr = data->req_id;
+
+	usb_fill_bulk_urb(data_urb, priv->udev,
+		usb_sndbulkpipe(priv->udev, P54U_PIPE_DATA), hdr,
+		len + sizeof(*hdr), free_on_tx ? p54u_tx_free_cb : p54u_tx_cb,
+		dev);
+
 	usb_submit_urb(data_urb, GFP_ATOMIC);
 }
 
@@ -776,21 +820,23 @@ static int __devinit p54u_probe(struct usb_interface *intf,
 		}
 	}
 	priv->common.open = p54u_open;
-
+	priv->common.stop = p54u_stop;
 	if (recognized_pipes < P54U_PIPE_NUMBER) {
 		priv->hw_type = P54U_3887;
-		priv->common.tx = p54u_tx_3887;
+		err = p54u_upload_firmware_3887(dev);
+		if (priv->common.fw_interface == FW_LM87) {
+			dev->extra_tx_headroom += sizeof(struct lm87_tx_hdr);
+			priv->common.tx_hdr_len = sizeof(struct lm87_tx_hdr);
+			priv->common.tx = p54u_tx_lm87;
+		} else
+			priv->common.tx = p54u_tx_3887;
 	} else {
+		priv->hw_type = P54U_NET2280;
 		dev->extra_tx_headroom += sizeof(struct net2280_tx_hdr);
 		priv->common.tx_hdr_len = sizeof(struct net2280_tx_hdr);
 		priv->common.tx = p54u_tx_net2280;
-	}
-	priv->common.stop = p54u_stop;
-
-	if (priv->hw_type)
-		err = p54u_upload_firmware_3887(dev);
-	else
 		err = p54u_upload_firmware_net2280(dev);
+	}
 	if (err)
 		goto err_free_dev;
 

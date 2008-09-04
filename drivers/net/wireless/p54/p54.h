@@ -42,6 +42,11 @@ struct p54_control_hdr {
 
 #define ISL38XX_DEV_FIRMWARE_ADDR 0x20000
 
+#define FW_FMAC 0x464d4143
+#define FW_LM86 0x4c4d3836
+#define FW_LM87 0x4c4d3837
+#define FW_LM20 0x4c4d3230
+
 struct p54_common {
 	u32 rx_start;
 	u32 rx_end;
@@ -68,6 +73,7 @@ struct p54_common {
 	unsigned int tx_hdr_len;
 	void *cached_vdcf;
 	unsigned int fw_var;
+	unsigned int fw_interface;
 	struct ieee80211_tx_queue_stats tx_stats[8];
 	void *eeprom;
 	struct completion eeprom_comp;
