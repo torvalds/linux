@@ -41,6 +41,7 @@ struct ctx_switch_entry {
 	unsigned int		next_pid;
 	unsigned char		next_prio;
 	unsigned char		next_state;
+	unsigned int		next_cpu;
 };
 
 /*
