@@ -59,8 +59,8 @@
 #include "bnx2x.h"
 #include "bnx2x_init.h"
 
-#define DRV_MODULE_VERSION	"1.45.20"
-#define DRV_MODULE_RELDATE	"2008/08/25"
+#define DRV_MODULE_VERSION	"1.45.21"
+#define DRV_MODULE_RELDATE	"2008/09/03"
 #define BNX2X_BC_VER		0x040200
 
 /* Time in jiffies before concluding the transmitter is hung */
@@ -1027,7 +1027,7 @@ static inline int bnx2x_alloc_rx_skb(struct bnx2x *bp,
 	if (unlikely(skb == NULL))
 		return -ENOMEM;
 
-	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_use_size,
+	mapping = pci_map_single(bp->pdev, skb->data, bp->rx_buf_size,
 				 PCI_DMA_FROMDEVICE);
 	if (unlikely(dma_mapping_error(&bp->pdev->dev, mapping))) {
 		dev_kfree_skb(skb);
@@ -1169,7 +1169,7 @@ static void bnx2x_tpa_start(struct bnx2x_fastpath *fp, u16 queue,
 	/* move empty skb from pool to prod and map it */
 	prod_rx_buf->skb = fp->tpa_pool[queue].skb;
 	mapping = pci_map_single(bp->pdev, fp->tpa_pool[queue].skb->data,
-				 bp->rx_buf_use_size, PCI_DMA_FROMDEVICE);
+				 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 	pci_unmap_addr_set(prod_rx_buf, mapping, mapping);
 
 	/* move partial skb from cons to pool (don't unmap yet) */
@@ -1276,7 +1276,7 @@ static void bnx2x_tpa_stop(struct bnx2x *bp, struct bnx2x_fastpath *fp,
 	   pool entry status to BNX2X_TPA_STOP even if new skb allocation
 	   fails. */
 	pci_unmap_single(bp->pdev, pci_unmap_addr(rx_buf, mapping),
-			 bp->rx_buf_use_size, PCI_DMA_FROMDEVICE);
+			 bp->rx_buf_size, PCI_DMA_FROMDEVICE);
 
 	if (likely(new_skb)) {
 		/* fix ip xsum and give it to the stack */
@@ -1520,7 +1520,7 @@ static int bnx2x_rx_int(struct bnx2x_fastpath *fp, int budget)
 			} else if (bnx2x_alloc_rx_skb(bp, fp, bd_prod) == 0) {
 				pci_unmap_single(bp->pdev,
 					pci_unmap_addr(rx_buf, mapping),
-						 bp->rx_buf_use_size,
+						 bp->rx_buf_size,
 						 PCI_DMA_FROMDEVICE);
 				skb_reserve(skb, pad);
 				skb_put(skb, len);
@@ -4229,7 +4229,7 @@ static inline void bnx2x_free_tpa_pool(struct bnx2x *bp,
 		if (fp->tpa_state[i] == BNX2X_TPA_START)
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_use_size,
+					 bp->rx_buf_size,
 					 PCI_DMA_FROMDEVICE);
 
 		dev_kfree_skb(skb);
@@ -4245,15 +4245,14 @@ static void bnx2x_init_rx_rings(struct bnx2x *bp)
 	u16 ring_prod, cqe_ring_prod;
 	int i, j;
 
-	bp->rx_buf_use_size = bp->dev->mtu;
-	bp->rx_buf_use_size += bp->rx_offset + ETH_OVREHEAD;
-	bp->rx_buf_size = bp->rx_buf_use_size + 64;
+	bp->rx_buf_size = bp->dev->mtu;
+	bp->rx_buf_size += bp->rx_offset + ETH_OVREHEAD +
+		BCM_RX_ETH_PAYLOAD_ALIGN;
 
 	if (bp->flags & TPA_ENABLE_FLAG) {
 		DP(NETIF_MSG_IFUP,
-		   "rx_buf_use_size %d  rx_buf_size %d  effective_mtu %d\n",
-		   bp->rx_buf_use_size, bp->rx_buf_size,
-		   bp->dev->mtu + ETH_OVREHEAD);
+		   "rx_buf_size %d  effective_mtu %d\n",
+		   bp->rx_buf_size, bp->dev->mtu + ETH_OVREHEAD);
 
 		for_each_queue(bp, j) {
 			struct bnx2x_fastpath *fp = &bp->fp[j];
@@ -4462,9 +4461,10 @@ static void bnx2x_init_context(struct bnx2x *bp)
 		context->ustorm_st_context.common.status_block_id = sb_id;
 		context->ustorm_st_context.common.flags =
 			USTORM_ETH_ST_CONTEXT_CONFIG_ENABLE_MC_ALIGNMENT;
-		context->ustorm_st_context.common.mc_alignment_size = 64;
+		context->ustorm_st_context.common.mc_alignment_size =
+			BCM_RX_ETH_PAYLOAD_ALIGN;
 		context->ustorm_st_context.common.bd_buff_size =
-						bp->rx_buf_use_size;
+						bp->rx_buf_size;
 		context->ustorm_st_context.common.bd_page_base_hi =
 						U64_HI(fp->rx_desc_mapping);
 		context->ustorm_st_context.common.bd_page_base_lo =
@@ -4717,7 +4717,7 @@ static void bnx2x_init_internal_func(struct bnx2x *bp)
 	}
 
 	/* Init CQ ring mapping and aggregation size */
-	max_agg_size = min((u32)(bp->rx_buf_use_size +
+	max_agg_size = min((u32)(bp->rx_buf_size +
 				 8*BCM_PAGE_SIZE*PAGES_PER_SGE),
 			   (u32)0xffff);
 	for_each_queue(bp, i) {
@@ -5940,7 +5940,7 @@ static void bnx2x_free_rx_skbs(struct bnx2x *bp)
 
 			pci_unmap_single(bp->pdev,
 					 pci_unmap_addr(rx_buf, mapping),
-					 bp->rx_buf_use_size,
+					 bp->rx_buf_size,
 					 PCI_DMA_FROMDEVICE);
 
 			rx_buf->skb = NULL;
