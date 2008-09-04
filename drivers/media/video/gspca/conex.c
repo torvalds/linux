@@ -124,7 +124,7 @@ static void reg_r(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 
 #ifdef GSPCA_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+	if (len > USB_BUF_SZ) {
 		err("reg_r: buffer overflow");
 		return;
 	}
@@ -164,7 +164,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 	struct usb_device *dev = gspca_dev->dev;
 
 #ifdef GSPCA_DEBUG
-	if (len > sizeof gspca_dev->usb_buf) {
+	if (len > USB_BUF_SZ) {
 		err("reg_w: buffer overflow");
 		return;
 	}
@@ -826,8 +826,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	cx11646_init1(gspca_dev);
 	cx11646_initsize(gspca_dev);
@@ -843,10 +843,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	cx11646_fw(gspca_dev);
 	cx_sensor(gspca_dev);
 	cx11646_jpeg(gspca_dev);
-}
-
-static void sd_stopN(struct gspca_dev *gspca_dev)
-{
 }
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
@@ -869,10 +865,6 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 	reg_w_val(gspca_dev, 0x0010, 0x00);
 	reg_r(gspca_dev, 0x0033, 1);
 	reg_w_val(gspca_dev, 0x00fc, 0xe0);
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
@@ -998,11 +990,9 @@ static struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
-	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
@@ -1026,6 +1016,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */
