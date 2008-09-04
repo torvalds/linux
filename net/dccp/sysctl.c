@@ -48,13 +48,6 @@ static struct ctl_table dccp_default_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
-		.procname	= "send_ndp",
-		.data		= &sysctl_dccp_feat_send_ndp_count,
-		.maxlen		= sizeof(sysctl_dccp_feat_send_ndp_count),
-		.mode		= 0644,
-		.proc_handler	= proc_dointvec,
-	},
-	{
 		.procname	= "request_retries",
 		.data		= &sysctl_dccp_request_retries,
 		.maxlen		= sizeof(sysctl_dccp_request_retries),

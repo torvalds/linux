@@ -371,14 +371,12 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
   *
   * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
   * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
-  * @dccpms_send_ndp_count - Send NDP Count Feature (7.7.2)
   * @dccpms_pending - List of features being negotiated
   * @dccpms_conf -
   */
 struct dccp_minisock {
 	__u64			dccpms_sequence_window;
 	__u8			dccpms_send_ack_vector;
-	__u8			dccpms_send_ndp_count;
 	struct list_head	dccpms_pending;
 	struct list_head	dccpms_conf;
 };
@@ -490,6 +488,7 @@ struct dccp_ackvec;
  * @dccps_r_ack_ratio - feature-remote Ack Ratio
  * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
  * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
+ * @dccps_send_ndp_count - local Send NDP Count feature (7.7.2)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_mss_cache - current value of MSS (path MTU minus header sizes)
  * @dccps_rate_last - timestamp for rate-limiting DCCP-Sync (RFC 4340, 7.5.4)
@@ -529,6 +528,7 @@ struct dccp_sock {
 	__u16				dccps_r_ack_ratio;
 	__u8				dccps_pcslen:4;
 	__u8				dccps_pcrlen:4;
+	__u8				dccps_send_ndp_count:1;
 	__u64				dccps_ndp_count:48;
 	unsigned long			dccps_rate_last;
 	struct dccp_minisock		dccps_minisock;

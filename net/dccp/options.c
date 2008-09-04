@@ -27,7 +27,6 @@ int sysctl_dccp_feat_sequence_window = DCCPF_INITIAL_SEQUENCE_WINDOW;
 int sysctl_dccp_feat_rx_ccid	      = DCCPF_INITIAL_CCID;
 int sysctl_dccp_feat_tx_ccid	      = DCCPF_INITIAL_CCID;
 int sysctl_dccp_feat_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
-int sysctl_dccp_feat_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
 
 u64 dccp_decode_value_var(const u8 *bf, const u8 len)
 {
@@ -531,8 +530,7 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 
 	DCCP_SKB_CB(skb)->dccpd_opt_len = 0;
 
-	if (dmsk->dccpms_send_ndp_count &&
-	    dccp_insert_option_ndp(sk, skb))
+	if (dp->dccps_send_ndp_count && dccp_insert_option_ndp(sk, skb))
 		return -1;
 
 	if (DCCP_SKB_CB(skb)->dccpd_type != DCCP_PKT_DATA) {

@@ -133,9 +133,6 @@ retries2
 	importance for retransmitted acknowledgments and feature negotiation,
 	data packets are never retransmitted. Analogue of tcp_retries2.
 
-send_ndp = 1
-	Whether or not to send NDP count options (sec. 7.7.2).
-
 send_ackvec = 1
 	Whether or not to send Ack Vector options (sec. 11.5).
 
