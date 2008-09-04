@@ -74,6 +74,26 @@ config IP_DCCP_CCID3_DEBUG
 
 	    If in doubt, say N.
 
+choice
+	  prompt "Select method for measuring the packet size s"
+	  default IP_DCCP_CCID3_MEASURE_S_AS_MPS
+
+config IP_DCCP_CCID3_MEASURE_S_AS_MPS
+	  bool "Always use MPS in place of s"
+	  ---help---
+	    This use is recommended as it is consistent with the initialisation
+	    of X and suggested when s varies (rfc3448bis, (1) in section 4.1).
+config IP_DCCP_CCID3_MEASURE_S_AS_AVG
+	  bool "Use moving average"
+	  ---help---
+	    An alternative way of tracking s, also supported by rfc3448bis.
+	    This used to be the default for CCID-3 in previous kernels.
+config IP_DCCP_CCID3_MEASURE_S_AS_MAX
+	  bool "Track the maximum payload length"
+	  ---help---
+	    An experimental method based on tracking the maximum packet size.
+endchoice
+
 config IP_DCCP_CCID3_RTO
 	  int "Use higher bound for nofeedback timer"
 	  default 100

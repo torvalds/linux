@@ -136,17 +136,18 @@ static void ccid3_hc_tx_update_x(struct sock *sk, ktime_t *stamp)
 }
 
 /*
- *	Track the mean packet size `s' (cf. RFC 4342, 5.3 and  RFC 3448, 4.1)
- *	@len: DCCP packet payload size in bytes
+ * ccid3_hc_tx_measure_packet_size  -  Measuring the packet size `s' (sec 4.1)
+ * @new_len: DCCP payload size in bytes (not used by all methods)
  */
-static inline void ccid3_hc_tx_update_s(struct ccid3_hc_tx_sock *hctx, int len)
+static u32 ccid3_hc_tx_measure_packet_size(struct sock *sk, const u16 new_len)
 {
-	const u16 old_s = hctx->s;
-
-	hctx->s = tfrc_ewma(hctx->s, len, 9);
-
-	if (hctx->s != old_s)
-		ccid3_update_send_interval(hctx);
+#if   defined(CONFIG_IP_DCCP_CCID3_MEASURE_S_AS_AVG)
+	return tfrc_ewma(ccid3_hc_tx_sk(sk)->s, new_len, 9);
+#elif defined(CONFIG_IP_DCCP_CCID3_MEASURE_S_AS_MAX)
+	return max(ccid3_hc_tx_sk(sk)->s, new_len);
+#else /* CONFIG_IP_DCCP_CCID3_MEASURE_S_AS_MPS	*/
+	return dccp_sk(sk)->dccps_mss_cache;
+#endif
 }
 
 /*
@@ -271,8 +272,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		/* Set t_0 for initial packet */
 		hctx->t_nom = now;
 
-		hctx->s = skb->len;
-
 		/*
 		 * Use initial RTT sample when available: recommended by erratum
 		 * to RFC 4342. This implements the initialisation procedure of
@@ -294,6 +293,9 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			hctx->x	  = dp->dccps_mss_cache;
 			hctx->x <<= 6;
 		}
+
+		/* Compute t_ipi = s / X */
+		hctx->s = ccid3_hc_tx_measure_packet_size(sk, skb->len);
 		ccid3_update_send_interval(hctx);
 
 	} else {
@@ -326,7 +328,8 @@ static void ccid3_hc_tx_packet_sent(struct sock *sk, unsigned int len)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
-	ccid3_hc_tx_update_s(hctx, len);
+	/* Changes to s will become effective the next time X is computed */
+	hctx->s = ccid3_hc_tx_measure_packet_size(sk, len);
 
 	if (tfrc_tx_hist_add(&hctx->hist, dccp_sk(sk)->dccps_gss))
 		DCCP_CRIT("packet history - out of memory!");
