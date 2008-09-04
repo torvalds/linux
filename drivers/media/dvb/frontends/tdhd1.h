@@ -28,6 +28,8 @@
 
 #include "tda1004x.h"
 
+static int alps_tdhd1_204_request_firmware(struct dvb_frontend *fe, const struct firmware **fw, char *name);
+
 static struct tda1004x_config alps_tdhd1_204a_config = {
 	.demod_address = 0x8,
 	.invert = 1,
@@ -35,6 +37,7 @@ static struct tda1004x_config alps_tdhd1_204a_config = {
 	.xtal_freq = TDA10046_XTAL_4M,
 	.agc_config = TDA10046_AGC_DEFAULT,
 	.if_freq = TDA10046_FREQ_3617,
+	.request_firmware = alps_tdhd1_204_request_firmware
 };
 
 static int alps_tdhd1_204a_tuner_set_params(struct dvb_frontend *fe, struct dvb_frontend_parameters *params)

@@ -391,6 +391,13 @@ static struct stv0299_config alps_bsbe1_config_activy = {
 	.set_symbol_rate = alps_bsbe1_set_symbol_rate,
 };
 
+static int alps_tdhd1_204_request_firmware(struct dvb_frontend *fe, const struct firmware **fw, char *name)
+{
+	struct budget *budget = (struct budget *)fe->dvb->priv;
+
+	return request_firmware(fw, name, &budget->dev->pci->dev);
+}
+
 
 static int i2c_readreg(struct i2c_adapter *i2c, u8 adr, u8 reg)
 {
