@@ -1119,18 +1119,6 @@ int dccp_feat_init(struct sock *sk)
 	INIT_LIST_HEAD(&dmsk->dccpms_pending);	/* XXX no longer used */
 	INIT_LIST_HEAD(&dmsk->dccpms_conf);	/* XXX no longer used */
 
-	/* CCID L */
-	rc = __feat_register_sp(&dp->dccps_featneg, DCCPF_CCID, 1, 0,
-				&dmsk->dccpms_tx_ccid, 1);
-	if (rc)
-		goto out;
-
-	/* CCID R */
-	rc = __feat_register_sp(&dp->dccps_featneg, DCCPF_CCID, 0, 0,
-				&dmsk->dccpms_rx_ccid, 1);
-	if (rc)
-		goto out;
-
 	/* Ack ratio */
 	rc = __feat_register_nn(&dp->dccps_featneg, DCCPF_ACK_RATIO, 0,
 				dp->dccps_l_ack_ratio);

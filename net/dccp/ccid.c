@@ -253,20 +253,6 @@ out_module_put:
 
 EXPORT_SYMBOL_GPL(ccid_new);
 
-struct ccid *ccid_hc_rx_new(unsigned char id, struct sock *sk, gfp_t gfp)
-{
-	return ccid_new(id, sk, 1, gfp);
-}
-
-EXPORT_SYMBOL_GPL(ccid_hc_rx_new);
-
-struct ccid *ccid_hc_tx_new(unsigned char id,struct sock *sk,  gfp_t gfp)
-{
-	return ccid_new(id, sk, 0, gfp);
-}
-
-EXPORT_SYMBOL_GPL(ccid_hc_tx_new);
-
 static void ccid_delete(struct ccid *ccid, struct sock *sk, int rx)
 {
 	struct ccid_operations *ccid_ops;
