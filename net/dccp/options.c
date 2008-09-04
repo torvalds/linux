@@ -489,7 +489,6 @@ static int dccp_insert_feat_opt(struct sk_buff *skb, u8 type, u8 feat,
 
 static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_minisock *dmsk = dccp_msk(sk);
 	struct dccp_opt_pend *opt, *next;
 	int change = 0;
@@ -528,23 +527,6 @@ static int dccp_insert_options_feat(struct sock *sk, struct sk_buff *skb)
 					     opt->dccpop_len);
 			change++;
 		}
-	}
-
-	/* Retransmit timer.
-	 * If this is the master listening sock, we don't set a timer on it.  It
-	 * should be fine because if the dude doesn't receive our RESPONSE
-	 * [which will contain the CHANGE] he will send another REQUEST which
-	 * will "retrnasmit" the change.
-	 */
-	if (change && dp->dccps_role != DCCP_ROLE_LISTEN) {
-		dccp_pr_debug("reset feat negotiation timer %p\n", sk);
-
-		/* XXX don't reset the timer on re-transmissions.  I.e. reset it
-		 * only when sending new stuff i guess.  Currently the timer
-		 * never backs off because on re-transmission it just resets it!
-		 */
-		inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-					  inet_csk(sk)->icsk_rto, DCCP_RTO_MAX);
 	}
 
 	return 0;

@@ -6,6 +6,8 @@
  *
  *  ASSUMPTIONS
  *  -----------
+ *  o Feature negotiation is coordinated with connection setup (as in TCP), wild
+ *    changes of parameters of an established connection are not supported.
  *  o All currently known SP features have 1-byte quantities. If in the future
  *    extensions of RFCs 4340..42 define features with item lengths larger than
  *    one byte, a feature-specific extension of the code will be required.
@@ -652,6 +654,9 @@ int dccp_feat_change_recv(struct sock *sk, u8 type, u8 feature, u8 *val, u8 len)
 {
 	int rc;
 
+	/* Ignore Change requests other than during connection setup */
+	if (sk->sk_state != DCCP_LISTEN && sk->sk_state != DCCP_REQUESTING)
+		return 0;
 	dccp_feat_debug(type, feature, *val);
 
 	/* figure out if it's SP or NN feature */
@@ -701,6 +706,9 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 	int found = 0;
 	int all_confirmed = 1;
 
+	/* Ignore Confirm options other than during connection setup */
+	if (sk->sk_state != DCCP_LISTEN && sk->sk_state != DCCP_REQUESTING)
+		return 0;
 	dccp_feat_debug(type, feature, *val);
 
 	/* locate our change request */
@@ -733,17 +741,6 @@ int dccp_feat_confirm_recv(struct sock *sk, u8 type, u8 feature,
 
 		if (!opt->dccpop_conf)
 			all_confirmed = 0;
-	}
-
-	/* fix re-transmit timer */
-	/* XXX gotta make sure that no option negotiation occurs during
-	 * connection shutdown.  Consider that the CLOSEREQ is sent and timer is
-	 * on.  if all options are confirmed it might kill timer which should
-	 * remain alive until close is received.
-	 */
-	if (all_confirmed) {
-		dccp_pr_debug("clear feat negotiation timer %p\n", sk);
-		inet_csk_clear_xmit_timer(sk, ICSK_TIME_RETRANS);
 	}
 
 	if (!found)
