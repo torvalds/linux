@@ -356,6 +356,7 @@ enum trace_iterator_flags {
 	TRACE_ITER_BLOCK		= 0x80,
 	TRACE_ITER_STACKTRACE		= 0x100,
 	TRACE_ITER_SCHED_TREE		= 0x200,
+	TRACE_ITER_PRINTK		= 0x400,
 };
 
 #endif /* _LINUX_KERNEL_TRACE_H */

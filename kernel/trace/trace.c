@@ -235,6 +235,7 @@ static const char *trace_options[] = {
 	"block",
 	"stacktrace",
 	"sched-tree",
+	"ftrace_printk",
 	NULL
 };
 
@@ -3091,9 +3092,10 @@ static __init void tracer_init_debugfs(void)
 
 int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 {
-	struct trace_array *tr = &global_trace;
 	static DEFINE_SPINLOCK(trace_buf_lock);
 	static char trace_buf[TRACE_BUF_SIZE];
+
+	struct trace_array *tr = &global_trace;
 	struct trace_array_cpu *data;
 	struct trace_entry *entry;
 	unsigned long flags;
@@ -3101,7 +3103,7 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	va_list ap;
 	int cpu, len = 0, write, written = 0;
 
-	if (likely(!ftrace_function_enabled))
+	if (!(trace_flags & TRACE_ITER_PRINTK) || !tr->ctrl || tracing_disabled)
 		return 0;
 
 	local_irq_save(flags);
@@ -3109,7 +3111,7 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	data = tr->data[cpu];
 	disabled = atomic_inc_return(&data->disabled);
 
-	if (unlikely(disabled != 1 || !ftrace_function_enabled))
+	if (unlikely(disabled != 1))
 		goto out;
 
 	spin_lock(&trace_buf_lock);
