@@ -96,7 +96,7 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 	unsigned int *v;
 	char *p, *q;
 
-	if (cpuid_eax(0x80000000) < 0x80000004)
+	if (c->extended_cpuid_level < 0x80000004)
 		return 0;
 
 	v = (unsigned int *) c->x86_model_id;
@@ -125,7 +125,7 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, ecx, edx, l2size;
 
-	n = cpuid_eax(0x80000000);
+	n = c->extended_cpuid_level;
 
 	if (n >= 0x80000005) {
 		cpuid(0x80000005, &dummy, &dummy, &ecx, &edx);
@@ -186,7 +186,7 @@ static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
 }
 
 
-static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
+static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
 	char *v = c->x86_vendor_id;
 	int i;
@@ -198,8 +198,7 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c, int early)
 			    (cpu_devs[i]->c_ident[1] &&
 			     !strcmp(v, cpu_devs[i]->c_ident[1]))) {
 				c->x86_vendor = i;
-				if (!early)
-					this_cpu = cpu_devs[i];
+				this_cpu = cpu_devs[i];
 				return;
 			}
 		}
@@ -284,34 +283,30 @@ void __init cpu_detect(struct cpuinfo_x86 *c)
 		}
 	}
 }
-static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
+
+static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 {
 	u32 tfms, xlvl;
-	unsigned int ebx;
+	u32 ebx;
 
-	memset(&c->x86_capability, 0, sizeof c->x86_capability);
-	if (have_cpuid_p()) {
-		/* Intel-defined flags: level 0x00000001 */
-		if (c->cpuid_level >= 0x00000001) {
-			u32 capability, excap;
-			cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
-			c->x86_capability[0] = capability;
-			c->x86_capability[4] = excap;
-		}
-
-		/* AMD-defined flags: level 0x80000001 */
-		xlvl = cpuid_eax(0x80000000);
-		if ((xlvl & 0xffff0000) == 0x80000000) {
-			if (xlvl >= 0x80000001) {
-				c->x86_capability[1] = cpuid_edx(0x80000001);
-				c->x86_capability[6] = cpuid_ecx(0x80000001);
-			}
-		}
-
+	/* Intel-defined flags: level 0x00000001 */
+	if (c->cpuid_level >= 0x00000001) {
+		u32 capability, excap;
+		cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
+		c->x86_capability[0] = capability;
+		c->x86_capability[4] = excap;
 	}
 
+	/* AMD-defined flags: level 0x80000001 */
+	xlvl = cpuid_eax(0x80000000);
+	c->extended_cpuid_level = xlvl;
+	if ((xlvl & 0xffff0000) == 0x80000000) {
+		if (xlvl >= 0x80000001) {
+			c->x86_capability[1] = cpuid_edx(0x80000001);
+			c->x86_capability[6] = cpuid_ecx(0x80000001);
+		}
+	}
 }
-
 /*
  * Do minimum CPU detection early.
  * Fields really needed: vendor, cpuid_level, family, model, mask,
@@ -321,25 +316,29 @@ static void __cpuinit early_get_cap(struct cpuinfo_x86 *c)
  * WARNING: this function is only called on the BP.  Don't add code here
  * that is supposed to run on all CPUs.
  */
-static void __init early_cpu_detect(void)
+static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
-	struct cpuinfo_x86 *c = &boot_cpu_data;
-
 	c->x86_cache_alignment = 32;
 	c->x86_clflush_size = 32;
 
 	if (!have_cpuid_p())
 		return;
 
+	c->extended_cpuid_level = 0;
+
+	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+
 	cpu_detect(c);
 
-	get_cpu_vendor(c, 1);
+	get_cpu_vendor(c);
 
-	early_get_cap(c);
+	get_cpu_cap(c);
 
 	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
 	    cpu_devs[c->x86_vendor]->c_early_init)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
+
+	validate_pat_support(c);
 }
 
 /*
@@ -373,60 +372,32 @@ static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 {
-	u32 tfms, xlvl;
-	unsigned int ebx;
+	if (!have_cpuid_p())
+		return;
 
-	if (have_cpuid_p()) {
-		/* Get vendor name */
-		cpuid(0x00000000, (unsigned int *)&c->cpuid_level,
-		      (unsigned int *)&c->x86_vendor_id[0],
-		      (unsigned int *)&c->x86_vendor_id[8],
-		      (unsigned int *)&c->x86_vendor_id[4]);
+	c->extended_cpuid_level = 0;
 
-		get_cpu_vendor(c, 0);
-		/* Initialize the standard set of capabilities */
-		/* Note that the vendor-specific code below might override */
-		/* Intel-defined flags: level 0x00000001 */
-		if (c->cpuid_level >= 0x00000001) {
-			u32 capability, excap;
-			cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
-			c->x86_capability[0] = capability;
-			c->x86_capability[4] = excap;
-			c->x86 = (tfms >> 8) & 15;
-			c->x86_model = (tfms >> 4) & 15;
-			if (c->x86 == 0xf)
-				c->x86 += (tfms >> 20) & 0xff;
-			if (c->x86 >= 0x6)
-				c->x86_model += ((tfms >> 16) & 0xF) << 4;
-			c->x86_mask = tfms & 15;
-			c->initial_apicid = (ebx >> 24) & 0xFF;
+	cpu_detect(c);
+
+	get_cpu_vendor(c);
+
+	get_cpu_cap(c);
+
+	if (c->cpuid_level >= 0x00000001) {
+		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
 #ifdef CONFIG_X86_HT
-			c->apicid = phys_pkg_id(c->initial_apicid, 0);
-			c->phys_proc_id = c->initial_apicid;
+		c->apicid = phys_pkg_id(c->initial_apicid, 0);
+		c->phys_proc_id = c->initial_apicid;
 #else
-			c->apicid = c->initial_apicid;
+		c->apicid = c->initial_apicid;
 #endif
-			if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
-				c->x86_clflush_size = ((ebx >> 8) & 0xff) * 8;
-		} else {
-			/* Have CPUID level 0 only - unheard of */
-			c->x86 = 4;
-		}
-
-		/* AMD-defined flags: level 0x80000001 */
-		xlvl = cpuid_eax(0x80000000);
-		if ((xlvl & 0xffff0000) == 0x80000000) {
-			if (xlvl >= 0x80000001) {
-				c->x86_capability[1] = cpuid_edx(0x80000001);
-				c->x86_capability[6] = cpuid_ecx(0x80000001);
-			}
-			if (xlvl >= 0x80000004)
-				get_model_name(c); /* Default name */
-		}
-
-		init_scattered_cpuid_features(c);
-		detect_nopl(c);
 	}
+
+	if (c->extended_cpuid_level >= 0x80000004)
+		get_model_name(c); /* Default name */
+
+	init_scattered_cpuid_features(c);
+	detect_nopl(c);
 }
 
 static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
@@ -651,13 +622,10 @@ void __init early_cpu_init(void)
 {
 	struct cpu_vendor_dev *cvdev;
 
-	for (cvdev = __x86cpuvendor_start ;
-	     cvdev < __x86cpuvendor_end   ;
-	     cvdev++)
+	for (cvdev = __x86cpuvendor_start; cvdev < __x86cpuvendor_end; cvdev++)
 		cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
 
-	early_cpu_detect();
-	validate_pat_support(&boot_cpu_data);
+	early_identify_cpu(&boot_cpu_data);
 }
 
 /* Make sure %fs is initialized properly in idle threads */

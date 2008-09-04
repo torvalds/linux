@@ -195,6 +195,7 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 		printk(KERN_ERR "CPU: Your system may be unstable.\n");
 	}
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
+	this_cpu = &default_cpu;
 }
 
 static void __init early_cpu_support_print(void)
@@ -249,56 +250,18 @@ static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
 	}
 }
 
-static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c);
-
-void __init early_cpu_init(void)
+void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
 {
-        struct cpu_vendor_dev *cvdev;
-
-        for (cvdev = __x86cpuvendor_start ;
-             cvdev < __x86cpuvendor_end   ;
-             cvdev++)
-                cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
-	early_cpu_support_print();
-	early_identify_cpu(&boot_cpu_data);
-}
-
-/* Do some early cpuid on the boot CPU to get some parameter that are
-   needed before check_bugs. Everything advanced is in identify_cpu
-   below. */
-static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
-{
-	u32 tfms, xlvl;
-
-	c->loops_per_jiffy = loops_per_jiffy;
-	c->x86_cache_size = -1;
-	c->x86_vendor = X86_VENDOR_UNKNOWN;
-	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
-	c->x86_vendor_id[0] = '\0'; /* Unset */
-	c->x86_model_id[0] = '\0';  /* Unset */
-	c->x86_clflush_size = 64;
-	c->x86_cache_alignment = c->x86_clflush_size;
-	c->x86_max_cores = 1;
-	c->x86_coreid_bits = 0;
-	c->extended_cpuid_level = 0;
-	memset(&c->x86_capability, 0, sizeof c->x86_capability);
-
 	/* Get vendor name */
 	cpuid(0x00000000, (unsigned int *)&c->cpuid_level,
 	      (unsigned int *)&c->x86_vendor_id[0],
 	      (unsigned int *)&c->x86_vendor_id[8],
 	      (unsigned int *)&c->x86_vendor_id[4]);
 
-	get_cpu_vendor(c);
-
-	/* Initialize the standard set of capabilities */
-	/* Note that the vendor-specific code below might override */
-
 	/* Intel-defined flags: level 0x00000001 */
 	if (c->cpuid_level >= 0x00000001) {
-		__u32 misc;
-		cpuid(0x00000001, &tfms, &misc, &c->x86_capability[4],
-		      &c->x86_capability[0]);
+		u32 junk, tfms, cap0, misc;
+		cpuid(0x00000001, &tfms, &misc, &junk, &cap0);
 		c->x86 = (tfms >> 8) & 0xf;
 		c->x86_model = (tfms >> 4) & 0xf;
 		c->x86_mask = tfms & 0xf;
@@ -306,17 +269,32 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86 += (tfms >> 20) & 0xff;
 		if (c->x86 >= 0x6)
 			c->x86_model += ((tfms >> 16) & 0xF) << 4;
-		if (test_cpu_cap(c, X86_FEATURE_CLFLSH))
+		if (cap0 & (1<<19))
 			c->x86_clflush_size = ((misc >> 8) & 0xff) * 8;
 	} else {
 		/* Have CPUID level 0 only - unheard of */
 		c->x86 = 4;
 	}
+}
 
-	c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xff;
-#ifdef CONFIG_SMP
-	c->phys_proc_id = c->initial_apicid;
-#endif
+
+static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
+{
+	u32 tfms, xlvl;
+	u32 ebx;
+
+	/* Initialize the standard set of capabilities */
+	/* Note that the vendor-specific code below might override */
+
+	/* Intel-defined flags: level 0x00000001 */
+	if (c->cpuid_level >= 0x00000001) {
+		u32 capability, excap;
+
+		cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
+		c->x86_capability[0] = capability;
+		c->x86_capability[4] = excap;
+	}
+
 	/* AMD-defined flags: level 0x80000001 */
 	xlvl = cpuid_eax(0x80000000);
 	c->extended_cpuid_level = xlvl;
@@ -325,8 +303,6 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 			c->x86_capability[1] = cpuid_edx(0x80000001);
 			c->x86_capability[6] = cpuid_ecx(0x80000001);
 		}
-		if (xlvl >= 0x80000004)
-			get_model_name(c); /* Default name */
 	}
 
 	/* Transmeta-defined flags: level 0x80860001 */
@@ -346,14 +322,65 @@ static void __cpuinit early_identify_cpu(struct cpuinfo_x86 *c)
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
 	}
+}
 
-	detect_nopl(c);
+/* Do some early cpuid on the boot CPU to get some parameter that are
+   needed before check_bugs. Everything advanced is in identify_cpu
+   below. */
+static void __init early_identify_cpu(struct cpuinfo_x86 *c)
+{
+
+	c->x86_clflush_size = 64;
+	c->x86_cache_alignment = c->x86_clflush_size;
+
+	memset(&c->x86_capability, 0, sizeof c->x86_capability);
+
+	c->extended_cpuid_level = 0;
+
+	cpu_detect(c);
+
+	get_cpu_vendor(c);
+
+	get_cpu_cap(c);
 
 	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
 	    cpu_devs[c->x86_vendor]->c_early_init)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
 
 	validate_pat_support(c);
+}
+
+void __init early_cpu_init(void)
+{
+	struct cpu_vendor_dev *cvdev;
+
+	for (cvdev = __x86cpuvendor_start; cvdev < __x86cpuvendor_end; cvdev++)
+		cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
+
+	early_cpu_support_print();
+	early_identify_cpu(&boot_cpu_data);
+}
+
+static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
+{
+	c->extended_cpuid_level = 0;
+
+	cpu_detect(c);
+
+	get_cpu_vendor(c);
+
+	get_cpu_cap(c);
+
+	c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xff;
+#ifdef CONFIG_SMP
+	c->phys_proc_id = c->initial_apicid;
+#endif
+
+	if (c->extended_cpuid_level >= 0x80000004)
+		get_model_name(c); /* Default name */
+
+	init_scattered_cpuid_features(c);
+	detect_nopl(c);
 }
 
 /*
@@ -363,9 +390,19 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 {
 	int i;
 
-	early_identify_cpu(c);
+	c->loops_per_jiffy = loops_per_jiffy;
+	c->x86_cache_size = -1;
+	c->x86_vendor = X86_VENDOR_UNKNOWN;
+	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
+	c->x86_vendor_id[0] = '\0'; /* Unset */
+	c->x86_model_id[0] = '\0';  /* Unset */
+	c->x86_clflush_size = 64;
+	c->x86_cache_alignment = c->x86_clflush_size;
+	c->x86_max_cores = 1;
+	c->x86_coreid_bits = 0;
+	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
-	init_scattered_cpuid_features(c);
+	generic_identify(c);
 
 	c->apicid = phys_pkg_id(0);
 
