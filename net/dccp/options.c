@@ -432,9 +432,10 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 	struct dccp_ackvec *av = dp->dccps_hc_rx_ackvec;
+	const u16 buflen = dccp_ackvec_buflen(av);
 	/* Figure out how many options do we need to represent the ackvec */
-	const u8 nr_opts = DIV_ROUND_UP(av->av_vec_len, DCCP_SINGLE_OPT_MAXLEN);
-	u16 len = av->av_vec_len + 2 * nr_opts;
+	const u8 nr_opts = DIV_ROUND_UP(buflen, DCCP_SINGLE_OPT_MAXLEN);
+	u16 len = buflen + 2 * nr_opts;
 	u8 i, nonce = 0;
 	const unsigned char *tail, *from;
 	unsigned char *to;
@@ -445,7 +446,7 @@ static int dccp_insert_option_ackvec(struct sock *sk, struct sk_buff *skb)
 	DCCP_SKB_CB(skb)->dccpd_opt_len += len;
 
 	to   = skb_push(skb, len);
-	len  = av->av_vec_len;
+	len  = buflen;
 	from = av->av_buf + av->av_buf_head;
 	tail = av->av_buf + DCCPAV_MAX_ACKVEC_LEN;
 
@@ -583,8 +584,7 @@ int dccp_insert_options(struct sock *sk, struct sk_buff *skb)
 			if (dccp_insert_option_timestamp(sk, skb))
 				return -1;
 
-		} else if (dp->dccps_hc_rx_ackvec != NULL &&
-			   dccp_ackvec_pending(dp->dccps_hc_rx_ackvec) &&
+		} else if (dccp_ackvec_pending(sk) &&
 			   dccp_insert_option_ackvec(sk, skb)) {
 				return -1;
 		}

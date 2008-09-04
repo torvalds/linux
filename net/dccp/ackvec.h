@@ -21,6 +21,7 @@
  * the maximum size of a single Ack Vector. Setting %DCCPAV_NUM_ACKVECS to 1
  * will be sufficient for most cases of low Ack Ratios, using a value of 2 gives
  * more headroom if Ack Ratio is higher or when the sender acknowledges slowly.
+ * The maximum value is bounded by the u16 types for indices and functions.
  */
 #define DCCPAV_NUM_ACKVECS	2
 #define DCCPAV_MAX_ACKVEC_LEN	(DCCP_SINGLE_OPT_MAXLEN * DCCPAV_NUM_ACKVECS)
@@ -55,8 +56,10 @@ static inline u8 dccp_ackvec_state(const u8 *cell)
  * @av_buf_head:   head index; begin of live portion in @av_buf
  * @av_buf_tail:   tail index; first index _after_ the live portion in @av_buf
  * @av_buf_ackno:  highest seqno of acknowledgeable packet recorded in @av_buf
+ * @av_tail_ackno: lowest  seqno of acknowledgeable packet recorded in @av_buf
  * @av_buf_nonce:  ECN nonce sums, each covering subsequent segments of up to
  *		   %DCCP_SINGLE_OPT_MAXLEN cells in the live portion of @av_buf
+ * @av_overflow:   if 1 then buf_head == buf_tail indicates buffer wraparound
  * @av_records:	   list of %dccp_ackvec_record (Ack Vectors sent previously)
  * @av_veclen:	   length of the live portion of @av_buf
  */
@@ -65,7 +68,9 @@ struct dccp_ackvec {
 	u16			av_buf_head;
 	u16			av_buf_tail;
 	u64			av_buf_ackno:48;
+	u64			av_tail_ackno:48;
 	bool			av_buf_nonce[DCCPAV_NUM_ACKVECS];
+	u8			av_overflow:1;
 	struct list_head	av_records;
 	u16			av_vec_len;
 };
@@ -113,10 +118,11 @@ extern int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 			     const u8 *value, const u8 len);
 
 extern int  dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 sum);
+extern u16  dccp_ackvec_buflen(const struct dccp_ackvec *av);
 
-static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
+static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
 {
-	return av->av_vec_len;
+	return av->av_overflow == 0 && av->av_buf_head == av->av_buf_tail;
 }
 #else /* CONFIG_IP_DCCP_ACKVEC */
 static inline int dccp_ackvec_init(void)
@@ -160,9 +166,14 @@ static inline int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8
 	return -1;
 }
 
-static inline int dccp_ackvec_pending(const struct dccp_ackvec *av)
+static inline u16 dccp_ackvec_buflen(const struct dccp_ackvec *av)
 {
 	return 0;
+}
+
+static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
+{
+	return true;
 }
 #endif /* CONFIG_IP_DCCP_ACKVEC */
 #endif /* _ACKVEC_H */

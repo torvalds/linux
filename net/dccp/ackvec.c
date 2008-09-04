@@ -29,7 +29,7 @@ struct dccp_ackvec *dccp_ackvec_alloc(const gfp_t priority)
 	struct dccp_ackvec *av = kmem_cache_zalloc(dccp_ackvec_slab, priority);
 
 	if (av != NULL) {
-		av->av_buf_head	= DCCPAV_MAX_ACKVEC_LEN - 1;
+		av->av_buf_head	= av->av_buf_tail = DCCPAV_MAX_ACKVEC_LEN - 1;
 		INIT_LIST_HEAD(&av->av_records);
 	}
 	return av;
@@ -72,6 +72,14 @@ int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seqno, u8 nonce_sum)
 	avr->avr_ack_nonce  = nonce_sum;
 	avr->avr_ack_runlen = dccp_ackvec_runlen(av->av_buf + av->av_buf_head);
 	/*
+	 * When the buffer overflows, we keep no more than one record. This is
+	 * the simplest way of disambiguating sender-Acks dating from before the
+	 * overflow from sender-Acks which refer to after the overflow; a simple
+	 * solution is preferable here since we are handling an exception.
+	 */
+	if (av->av_overflow)
+		dccp_ackvec_purge_records(av);
+	/*
 	 * Since GSS is incremented for each packet, the list is automatically
 	 * arranged in descending order of @ack_seqno.
 	 */
@@ -82,6 +90,27 @@ int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seqno, u8 nonce_sum)
 		      (unsigned long long)avr->avr_ack_ackno,
 		      avr->avr_ack_runlen);
 	return 0;
+}
+
+/*
+ * Buffer index and length computation using modulo-buffersize arithmetic.
+ * Note that, as pointers move from right to left, head is `before' tail.
+ */
+static inline u16 __ackvec_idx_add(const u16 a, const u16 b)
+{
+	return (a + b) % DCCPAV_MAX_ACKVEC_LEN;
+}
+
+static inline u16 __ackvec_idx_sub(const u16 a, const u16 b)
+{
+	return __ackvec_idx_add(a, DCCPAV_MAX_ACKVEC_LEN - b);
+}
+
+u16 dccp_ackvec_buflen(const struct dccp_ackvec *av)
+{
+	if (unlikely(av->av_overflow))
+		return DCCPAV_MAX_ACKVEC_LEN;
+	return __ackvec_idx_sub(av->av_buf_tail, av->av_buf_head);
 }
 
 /*
