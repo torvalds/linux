@@ -124,4 +124,18 @@ extern int  dccp_feat_clone(struct sock *oldsk, struct sock *newsk);
 extern int  dccp_feat_clone_list(struct list_head const *, struct list_head *);
 extern int  dccp_feat_init(struct sock *sk);
 
+/*
+ * Encoding variable-length options and their maximum length.
+ *
+ * This affects NN options (SP options are all u8) and other variable-length
+ * options (see table 3 in RFC 4340). The limit is currently given the Sequence
+ * Window NN value (sec. 7.5.2) and the NDP count (sec. 7.7) option, all other
+ * options consume less than 6 bytes (timestamps are 4 bytes).
+ * When updating this constant (e.g. due to new internet drafts / RFCs), make
+ * sure that you also update all code which refers to it.
+ */
+#define DCCP_OPTVAL_MAXLEN	6
+
+extern void dccp_encode_value_var(const u64 value, u8 *to, const u8 len);
+extern u64  dccp_decode_value_var(const u8 *bf, const u8 len);
 #endif /* _DCCP_FEAT_H */

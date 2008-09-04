@@ -29,16 +29,20 @@ int sysctl_dccp_feat_tx_ccid	      = DCCPF_INITIAL_CCID;
 int sysctl_dccp_feat_send_ack_vector = DCCPF_INITIAL_SEND_ACK_VECTOR;
 int sysctl_dccp_feat_send_ndp_count  = DCCPF_INITIAL_SEND_NDP_COUNT;
 
-static u32 dccp_decode_value_var(const unsigned char *bf, const u8 len)
+u64 dccp_decode_value_var(const u8 *bf, const u8 len)
 {
-	u32 value = 0;
+	u64 value = 0;
 
+	if (len >= DCCP_OPTVAL_MAXLEN)
+		value += ((u64)*bf++) << 40;
+	if (len > 4)
+		value += ((u64)*bf++) << 32;
 	if (len > 3)
-		value += *bf++ << 24;
+		value += ((u64)*bf++) << 24;
 	if (len > 2)
-		value += *bf++ << 16;
+		value += ((u64)*bf++) << 16;
 	if (len > 1)
-		value += *bf++ << 8;
+		value += ((u64)*bf++) << 8;
 	if (len > 0)
 		value += *bf;
 
@@ -298,9 +302,12 @@ out_invalid_option:
 
 EXPORT_SYMBOL_GPL(dccp_parse_options);
 
-static void dccp_encode_value_var(const u32 value, unsigned char *to,
-				  const unsigned int len)
+void dccp_encode_value_var(const u64 value, u8 *to, const u8 len)
 {
+	if (len >= DCCP_OPTVAL_MAXLEN)
+		*to++ = (value & 0xFF0000000000ull) >> 40;
+	if (len > 4)
+		*to++ = (value & 0xFF00000000ull) >> 32;
 	if (len > 3)
 		*to++ = (value & 0xFF000000) >> 24;
 	if (len > 2)
