@@ -869,6 +869,19 @@ MODULE_PARM_DESC(ccid3_debug, "Enable debug messages");
 
 static __init int ccid3_module_init(void)
 {
+	struct timespec tp;
+
+	/*
+	 * Without a fine-grained clock resolution, RTTs/X_recv are not sampled
+	 * correctly and feedback is sent either too early or too late.
+	 */
+	hrtimer_get_res(CLOCK_MONOTONIC, &tp);
+	if (tp.tv_sec || tp.tv_nsec > DCCP_TIME_RESOLUTION * NSEC_PER_USEC) {
+		printk(KERN_ERR "%s: Timer too coarse (%ld usec), need %u-usec"
+		       " resolution - check your clocksource.\n", __func__,
+		       tp.tv_nsec/NSEC_PER_USEC, DCCP_TIME_RESOLUTION);
+		return -ESOCKTNOSUPPORT;
+	}
 	return ccid_register(&ccid3);
 }
 module_init(ccid3_module_init);
