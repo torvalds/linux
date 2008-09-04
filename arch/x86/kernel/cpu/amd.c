@@ -298,6 +298,7 @@ static struct cpu_dev amd_cpu_dev __cpuinitdata = {
 	.c_early_init   = early_init_amd,
 	.c_init		= init_amd,
 	.c_size_cache	= amd_size_cache,
+	.c_x86_vendor	= X86_VENDOR_AMD,
 };
 
-cpu_vendor_dev_register(X86_VENDOR_AMD, &amd_cpu_dev);
+cpu_dev_register(amd_cpu_dev);

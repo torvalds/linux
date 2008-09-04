@@ -75,7 +75,7 @@ void switch_to_new_gdt(void)
 static int cachesize_override __cpuinitdata = -1;
 static int disable_x86_serial_nr __cpuinitdata = 1;
 
-struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
+static struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
 
 static void __cpuinit default_init(struct cpuinfo_x86 *c)
 {
@@ -93,8 +93,9 @@ static void __cpuinit default_init(struct cpuinfo_x86 *c)
 static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_init	= default_init,
 	.c_vendor = "Unknown",
+	.c_x86_vendor = X86_VENDOR_UNKNOWN,
 };
-static struct cpu_dev *this_cpu __cpuinitdata = &default_cpu;
+static struct cpu_dev *this_cpu __cpuinitdata;
 
 static int __init cachesize_setup(char *str)
 {
@@ -250,21 +251,24 @@ static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 	static int printed;
 
 	for (i = 0; i < X86_VENDOR_NUM; i++) {
-		if (cpu_devs[i]) {
-			if (!strcmp(v, cpu_devs[i]->c_ident[0]) ||
-			    (cpu_devs[i]->c_ident[1] &&
-			     !strcmp(v, cpu_devs[i]->c_ident[1]))) {
-				c->x86_vendor = i;
-				this_cpu = cpu_devs[i];
-				return;
-			}
+		if (!cpu_devs[i])
+			break;
+
+		if (!strcmp(v, cpu_devs[i]->c_ident[0]) ||
+		    (cpu_devs[i]->c_ident[1] &&
+		     !strcmp(v, cpu_devs[i]->c_ident[1]))) {
+			this_cpu = cpu_devs[i];
+			c->x86_vendor = this_cpu->c_x86_vendor;
+			return;
 		}
 	}
+
 	if (!printed) {
 		printed++;
 		printk(KERN_ERR "CPU: Vendor unknown, using generic init.\n");
 		printk(KERN_ERR "CPU: Your system may be unstable.\n");
 	}
+
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
 	this_cpu = &default_cpu;
 }
@@ -313,25 +317,6 @@ static inline int flag_is_changeable_p(u32 flag)
 static int __cpuinit have_cpuid_p(void)
 {
 	return flag_is_changeable_p(X86_EFLAGS_ID);
-}
-
-static void __init early_cpu_support_print(void)
-{
-	int i,j;
-	struct cpu_dev *cpu_devx;
-
-	printk("KERNEL supported cpus:\n");
-	for (i = 0; i < X86_VENDOR_NUM; i++) {
-		cpu_devx = cpu_devs[i];
-		if (!cpu_devx)
-			continue;
-		for (j = 0; j < 2; j++) {
-			if (!cpu_devx->c_ident[j])
-				continue;
-			printk("  %s %s\n", cpu_devx->c_vendor,
-				cpu_devx->c_ident[j]);
-		}
-	}
 }
 
 void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
@@ -411,21 +396,35 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 
 	get_cpu_cap(c);
 
-	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
-	    cpu_devs[c->x86_vendor]->c_early_init)
-		cpu_devs[c->x86_vendor]->c_early_init(c);
+	if (this_cpu->c_early_init)
+		this_cpu->c_early_init(c);
 
 	validate_pat_support(c);
 }
 
 void __init early_cpu_init(void)
 {
-	struct cpu_vendor_dev *cvdev;
+	struct cpu_dev **cdev;
+	int count = 0;
 
-	for (cvdev = __x86cpuvendor_start; cvdev < __x86cpuvendor_end; cvdev++)
-		cpu_devs[cvdev->vendor] = cvdev->cpu_dev;
+	printk("KERNEL supported cpus:\n");
+	for (cdev = __x86_cpu_dev_start; cdev < __x86_cpu_dev_end; cdev++) {
+		struct cpu_dev *cpudev = *cdev;
+		unsigned int j;
 
-	early_cpu_support_print();
+		if (count >= X86_VENDOR_NUM)
+			break;
+		cpu_devs[count] = cpudev;
+		count++;
+
+		for (j = 0; j < 2; j++) {
+			if (!cpudev->c_ident[j])
+				continue;
+			printk("  %s %s\n", cpudev->c_vendor,
+				cpudev->c_ident[j]);
+		}
+	}
+
 	early_identify_cpu(&boot_cpu_data);
 }
 
