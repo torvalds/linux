@@ -91,6 +91,7 @@ unsigned long __init per_cpu_dyn_array_size(unsigned long *align)
 	return total_size;
 }
 
+#ifdef CONFIG_SMP
 void __init per_cpu_alloc_dyn_array(int cpu, char *ptr)
 {
 #ifdef CONFIG_HAVE_DYN_ARRAY
@@ -122,3 +123,4 @@ void __init per_cpu_alloc_dyn_array(int cpu, char *ptr)
 	}
 #endif
 }
+#endif
