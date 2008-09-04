@@ -27,63 +27,67 @@
 void cx18_memcpy_fromio(struct cx18 *cx, void *to,
 			const void __iomem *from, unsigned int len)
 {
+	const u8 *src = from;
+	u8 *dst = to;
+
 	/* Align reads on the CX23418's addresses */
-	if ((len > 0) && ((unsigned)from & 1)) {
-		*((u8 *)to) = cx18_readb(cx, from);
+	if ((len > 0) && ((unsigned long) src & 1)) {
+		*dst = cx18_readb(cx, src);
 		len--;
-		to++;
-		from++;
+		dst++;
+		src++;
 	}
-	if ((len > 1) && ((unsigned)from & 2)) {
-		*((u16 *)to) = cx18_raw_readw(cx, from);
+	if ((len > 1) && ((unsigned long) src & 2)) {
+		*((u16 *)dst) = cx18_raw_readw(cx, src);
 		len -= 2;
-		to += 2;
-		from += 2;
+		dst += 2;
+		src += 2;
 	}
 	while (len > 3) {
-		*((u32 *)to) = cx18_raw_readl(cx, from);
+		*((u32 *)dst) = cx18_raw_readl(cx, src);
 		len -= 4;
-		to += 4;
-		from += 4;
+		dst += 4;
+		src += 4;
 	}
 	if (len > 1) {
-		*((u16 *)to) = cx18_raw_readw(cx, from);
+		*((u16 *)dst) = cx18_raw_readw(cx, src);
 		len -= 2;
-		to += 2;
-		from += 2;
+		dst += 2;
+		src += 2;
 	}
 	if (len > 0)
-		*((u8 *)to) = cx18_readb(cx, from);
+		*dst = cx18_readb(cx, src);
 }
 
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count)
 {
+	u8 *dst = addr;
 	u16 val2 = val | (val << 8);
 	u32 val4 = val2 | (val2 << 16);
 
 	/* Align writes on the CX23418's addresses */
-	if ((count > 0) && ((unsigned)addr & 1)) {
-		cx18_writeb(cx, (u8) val, addr);
+	if ((count > 0) && ((unsigned long)dst & 1)) {
+		cx18_writeb(cx, (u8) val, dst);
 		count--;
-		addr++;
+		dst++;
 	}
-	if ((count > 1) && ((unsigned)addr & 2)) {
-		cx18_writew(cx, val2, addr);
+	if ((count > 1) && ((unsigned long)dst & 2)) {
+		cx18_writew(cx, val2, dst);
 		count -= 2;
-		addr += 2;
+		dst += 2;
 	}
 	while (count > 3) {
-		cx18_writel(cx, val4, addr);
+		cx18_writel(cx, val4, dst);
 		count -= 4;
-		addr += 4;
+		dst += 4;
 	}
 	if (count > 1) {
-		cx18_writew(cx, val2, addr);
+		cx18_writew(cx, val2, dst);
 		count -= 2;
-		addr += 2;
+		dst += 2;
 	}
 	if (count > 0)
-		cx18_writeb(cx, (u8) val, addr);
+		cx18_writeb(cx, (u8) val, dst);
 }
 
 void cx18_sw1_irq_enable(struct cx18 *cx, u32 val)
