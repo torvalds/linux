@@ -147,14 +147,15 @@ static void init_one_irq_cfg(struct irq_cfg *cfg)
 
 static struct irq_cfg *irq_cfgx;
 
+#ifdef CONFIG_HAVE_SPARSE_IRQ
 /*
  * Protect the irq_cfgx_free freelist:
  */
 static DEFINE_SPINLOCK(irq_cfg_lock);
 
-#ifdef CONFIG_HAVE_SPARSE_IRQ
 static struct irq_cfg *irq_cfgx_free;
 #endif
+
 static void __init init_work(void *data)
 {
 	struct dyn_array *da = data;
