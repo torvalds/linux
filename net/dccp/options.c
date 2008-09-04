@@ -54,7 +54,6 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 	struct dccp_sock *dp = dccp_sk(sk);
 	const struct dccp_hdr *dh = dccp_hdr(skb);
 	const u8 pkt_type = DCCP_SKB_CB(skb)->dccpd_type;
-	u64 ackno = DCCP_SKB_CB(skb)->dccpd_ack_seq;
 	unsigned char *options = (unsigned char *)dh + dccp_hdr_len(skb);
 	unsigned char *opt_ptr = options;
 	const unsigned char *opt_end = (unsigned char *)dh +
@@ -133,9 +132,8 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 		case DCCPO_ACK_VECTOR_1:
 			if (dccp_packet_without_ack(skb))   /* RFC 4340, 11.4 */
 				break;
-			if (dp->dccps_hc_rx_ackvec != NULL &&
-			    dccp_ackvec_parse(sk, skb, &ackno, opt, value, len))
-				goto out_invalid_option;
+			dccp_pr_debug("%s Ack Vector (len=%u)\n", dccp_role(sk),
+				      len);
 			break;
 		case DCCPO_TIMESTAMP:
 			if (len != 4)

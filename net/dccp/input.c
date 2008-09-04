@@ -164,8 +164,8 @@ static void dccp_event_ack_recv(struct sock *sk, struct sk_buff *skb)
 	struct dccp_sock *dp = dccp_sk(sk);
 
 	if (dp->dccps_hc_rx_ackvec != NULL)
-		dccp_ackvec_check_rcv_ackno(dp->dccps_hc_rx_ackvec, sk,
-					    DCCP_SKB_CB(skb)->dccpd_ack_seq);
+		dccp_ackvec_clear_state(dp->dccps_hc_rx_ackvec,
+					DCCP_SKB_CB(skb)->dccpd_ack_seq);
 }
 
 static void dccp_deliver_input_to_ccids(struct sock *sk, struct sk_buff *skb)

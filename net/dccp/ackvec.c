@@ -92,6 +92,24 @@ int dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seqno, u8 nonce_sum)
 	return 0;
 }
 
+static struct dccp_ackvec_record *dccp_ackvec_lookup(struct list_head *av_list,
+						     const u64 ackno)
+{
+	struct dccp_ackvec_record *avr;
+	/*
+	 * Exploit that records are inserted in descending order of sequence
+	 * number, start with the oldest record first. If @ackno is `before'
+	 * the earliest ack_ackno, the packet is too old to be considered.
+	 */
+	list_for_each_entry_reverse(avr, av_list, avr_node) {
+		if (avr->avr_ack_seqno == ackno)
+			return avr;
+		if (before48(ackno, avr->avr_ack_seqno))
+			break;
+	}
+	return NULL;
+}
+
 /*
  * Buffer index and length computation using modulo-buffersize arithmetic.
  * Note that, as pointers move from right to left, head is `before' tail.
@@ -354,6 +372,76 @@ int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 	dccp_ackvec_check_rcv_ackvector(dccp_sk(sk)->dccps_hc_rx_ackvec, sk,
 					ackno, len, value);
 	return 0;
+}
+
+/**
+ * dccp_ackvec_clear_state  -  Perform house-keeping / garbage-collection
+ * This routine is called when the peer acknowledges the receipt of Ack Vectors
+ * up to and including @ackno. While based on on section A.3 of RFC 4340, here
+ * are additional precautions to prevent corrupted buffer state. In particular,
+ * we use tail_ackno to identify outdated records; it always marks the earliest
+ * packet of group (2) in 11.4.2.
+ */
+void dccp_ackvec_clear_state(struct dccp_ackvec *av, const u64 ackno)
+ {
+	struct dccp_ackvec_record *avr, *next;
+	u8 runlen_now, eff_runlen;
+	s64 delta;
+
+	avr = dccp_ackvec_lookup(&av->av_records, ackno);
+	if (avr == NULL)
+		return;
+	/*
+	 * Deal with outdated acknowledgments: this arises when e.g. there are
+	 * several old records and the acks from the peer come in slowly. In
+	 * that case we may still have records that pre-date tail_ackno.
+	 */
+	delta = dccp_delta_seqno(av->av_tail_ackno, avr->avr_ack_ackno);
+	if (delta < 0)
+		goto free_records;
+	/*
+	 * Deal with overlapping Ack Vectors: don't subtract more than the
+	 * number of packets between tail_ackno and ack_ackno.
+	 */
+	eff_runlen = delta < avr->avr_ack_runlen ? delta : avr->avr_ack_runlen;
+
+	runlen_now = dccp_ackvec_runlen(av->av_buf + avr->avr_ack_ptr);
+	/*
+	 * The run length of Ack Vector cells does not decrease over time. If
+	 * the run length is the same as at the time the Ack Vector was sent, we
+	 * free the ack_ptr cell. That cell can however not be freed if the run
+	 * length has increased: in this case we need to move the tail pointer
+	 * backwards (towards higher indices), to its next-oldest neighbour.
+	 */
+	if (runlen_now > eff_runlen) {
+
+		av->av_buf[avr->avr_ack_ptr] -= eff_runlen + 1;
+		av->av_buf_tail = __ackvec_idx_add(avr->avr_ack_ptr, 1);
+
+		/* This move may not have cleared the overflow flag. */
+		if (av->av_overflow)
+			av->av_overflow = (av->av_buf_head == av->av_buf_tail);
+	} else {
+		av->av_buf_tail	= avr->avr_ack_ptr;
+		/*
+		 * We have made sure that avr points to a valid cell within the
+		 * buffer. This cell is either older than head, or equals head
+		 * (empty buffer): in both cases we no longer have any overflow.
+		 */
+		av->av_overflow	= 0;
+	}
+
+	/*
+	 * The peer has acknowledged up to and including ack_ackno. Hence the
+	 * first packet in group (2) of 11.4.2 is the successor of ack_ackno.
+	 */
+	av->av_tail_ackno = ADD48(avr->avr_ack_ackno, 1);
+
+free_records:
+	list_for_each_entry_safe_from(avr, next, &av->av_records, avr_node) {
+		list_del(&avr->avr_node);
+		kmem_cache_free(dccp_ackvec_record_slab, avr);
+	}
 }
 
 int __init dccp_ackvec_init(void)

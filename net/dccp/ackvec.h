@@ -118,6 +118,7 @@ extern int dccp_ackvec_parse(struct sock *sk, const struct sk_buff *skb,
 			     const u8 *value, const u8 len);
 
 extern int  dccp_ackvec_update_records(struct dccp_ackvec *av, u64 seq, u8 sum);
+extern void dccp_ackvec_clear_state(struct dccp_ackvec *av, const u64 ackno);
 extern u16  dccp_ackvec_buflen(const struct dccp_ackvec *av);
 
 static inline bool dccp_ackvec_is_empty(const struct dccp_ackvec *av)
@@ -147,6 +148,11 @@ static inline int dccp_ackvec_add(struct dccp_ackvec *av, const struct sock *sk,
 				  const u64 ackno, const u8 state)
 {
 	return -1;
+}
+
+static inline void dccp_ackvec_clear_state(struct dccp_ackvec *av,
+					    const u64 ackno)
+{
 }
 
 static inline void dccp_ackvec_check_rcv_ackno(struct dccp_ackvec *av,
