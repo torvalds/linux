@@ -632,8 +632,16 @@ u32 tfrc_calc_x(u16 s, u32 R, u32 p)
 
 	if (p <= TFRC_CALC_X_SPLIT) 		{     /* 0.0000 < p <= 0.05   */
 		if (p < TFRC_SMALLEST_P) {	      /* 0.0000 < p <  0.0001 */
-			DCCP_WARN("Value of p (%d) below resolution. "
-				  "Substituting %d\n", p, TFRC_SMALLEST_P);
+			/*
+			 * In the congestion-avoidance phase p decays towards 0
+			 * when there are no further losses, so this case is
+			 * natural. Truncating to p_min = 0.01% means that the
+			 * maximum achievable throughput is limited to about
+			 * X_calc_max = 122.4 * s/RTT (see RFC 3448, 3.1); e.g.
+			 * with s=1500 bytes, RTT=0.01 s: X_calc_max = 147 Mbps.
+			 */
+			tfrc_pr_debug("Value of p (%d) below resolution. "
+				      "Substituting %d\n", p, TFRC_SMALLEST_P);
 			index = 0;
 		} else 				      /* 0.0001 <= p <= 0.05  */
 			index =  p/TFRC_SMALLEST_P - 1;
