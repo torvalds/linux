@@ -1320,7 +1320,7 @@ void __init e820_reserve_resources_late(void)
 	res = e820_res;
 	for (i = 0; i < e820.nr_map; i++) {
 		if (!res->parent && res->end)
-			insert_resource(&iomem_resource, res);
+			reserve_region_with_split(&iomem_resource, res->start, res->end, res->name);
 		res++;
 	}
 }
