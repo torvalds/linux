@@ -53,18 +53,16 @@ static int ccid3_debug;
 /*
  * Compute the initial sending rate X_init in the manner of RFC 3390:
  *
- *	X_init  =  min(4 * s, max(2 * s, 4380 bytes)) / RTT
+ *	X_init  =  min(4 * MPS, max(2 * MPS, 4380 bytes)) / RTT
  *
- * Note that RFC 3390 uses MSS, RFC 4342 refers to RFC 3390, and rfc3448bis
- * (rev-02) clarifies the use of RFC 3390 with regard to the above formula.
  * For consistency with other parts of the code, X_init is scaled by 2^6.
  */
 static inline u64 rfc3390_initial_rate(struct sock *sk)
 {
-	const struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
-	const __u32 w_init = clamp_t(__u32, 4380U, 2 * hctx->s, 4 * hctx->s);
+	const u32 mps = dccp_sk(sk)->dccps_mss_cache,
+	       w_init = clamp(4380U, 2 * mps, 4 * mps);
 
-	return scaled_div(w_init << 6, hctx->rtt);
+	return scaled_div(w_init << 6, ccid3_hc_tx_sk(sk)->rtt);
 }
 
 /**
@@ -293,7 +291,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			 * - set sending rate X_pps = 1pps as per RFC 3448, 4.2.
 			 */
 			hctx->rtt = DCCP_FALLBACK_RTT;
-			hctx->x   = hctx->s;
+			hctx->x	  = dp->dccps_mss_cache;
 			hctx->x <<= 6;
 		}
 		ccid3_update_send_interval(hctx);
