@@ -56,7 +56,6 @@ static const char *ccid3_tx_state_name(enum ccid3_hc_tx_states state)
 	[TFRC_SSTATE_NO_SENT]  = "NO_SENT",
 	[TFRC_SSTATE_NO_FBACK] = "NO_FBACK",
 	[TFRC_SSTATE_FBACK]    = "FBACK",
-	[TFRC_SSTATE_TERM]     = "TERM",
 	};
 
 	return ccid3_state_names[state];
@@ -210,10 +209,13 @@ static void ccid3_hc_tx_no_feedback_timer(unsigned long data)
 	ccid3_pr_debug("%s(%p, state=%s) - entry \n", dccp_role(sk), sk,
 		       ccid3_tx_state_name(hctx->state));
 
+	/* Ignore and do not restart after leaving the established state */
+	if ((1 << sk->sk_state) & ~(DCCPF_OPEN | DCCPF_PARTOPEN))
+		goto out;
+
+	/* Reset feedback state to "no feedback received" */
 	if (hctx->state == TFRC_SSTATE_FBACK)
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-	else if (hctx->state != TFRC_SSTATE_NO_FBACK)
-		goto out;
 
 	/*
 	 * Determine new allowed sending rate X as per draft rfc3448bis-00, 4.4
@@ -288,8 +290,7 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 	if (unlikely(skb->len == 0))
 		return -EBADMSG;
 
-	switch (hctx->state) {
-	case TFRC_SSTATE_NO_SENT:
+	if (hctx->state == TFRC_SSTATE_NO_SENT) {
 		sk_reset_timer(sk, &hctx->no_feedback_timer, (jiffies +
 				usecs_to_jiffies(TFRC_INITIAL_TIMEOUT)));
 		hctx->last_win_count   = 0;
@@ -324,9 +325,8 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 		ccid3_update_send_interval(hctx);
 
 		ccid3_hc_tx_set_state(sk, TFRC_SSTATE_NO_FBACK);
-		break;
-	case TFRC_SSTATE_NO_FBACK:
-	case TFRC_SSTATE_FBACK:
+
+	} else {
 		delay = ktime_us_delta(hctx->t_nom, now);
 		ccid3_pr_debug("delay=%ld\n", (long)delay);
 		/*
@@ -341,10 +341,6 @@ static int ccid3_hc_tx_send_packet(struct sock *sk, struct sk_buff *skb)
 			return (u32)delay / USEC_PER_MSEC;
 
 		ccid3_hc_tx_update_win_count(hctx, now);
-		break;
-	case TFRC_SSTATE_TERM:
-		DCCP_BUG("%s(%p) - Illegal state TERM", dccp_role(sk), sk);
-		return -EINVAL;
 	}
 
 	/* prepare to send now (add options etc.) */
@@ -378,11 +374,6 @@ static void ccid3_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 	if (!(DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_ACK ||
 	      DCCP_SKB_CB(skb)->dccpd_type == DCCP_PKT_DATAACK))
 		return;
-	/* ... and only in the established state */
-	if (hctx->state != TFRC_SSTATE_FBACK &&
-	    hctx->state != TFRC_SSTATE_NO_FBACK)
-		return;
-
 	/*
 	 * Locate the acknowledged packet in the TX history.
 	 *
@@ -522,9 +513,7 @@ static void ccid3_hc_tx_exit(struct sock *sk)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 
-	ccid3_hc_tx_set_state(sk, TFRC_SSTATE_TERM);
 	sk_stop_timer(sk, &hctx->no_feedback_timer);
-
 	tfrc_tx_hist_purge(&hctx->hist);
 }
 
@@ -583,7 +572,6 @@ static const char *ccid3_rx_state_name(enum ccid3_hc_rx_states state)
 	static char *ccid3_rx_state_names[] = {
 	[TFRC_RSTATE_NO_DATA] = "NO_DATA",
 	[TFRC_RSTATE_DATA]    = "DATA",
-	[TFRC_RSTATE_TERM]    = "TERM",
 	};
 
 	return ccid3_rx_state_names[state];
@@ -609,13 +597,8 @@ static void ccid3_hc_rx_send_feedback(struct sock *sk,
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
 	struct dccp_sock *dp = dccp_sk(sk);
-	ktime_t now;
+	ktime_t now = ktime_get_real();
 	s64 delta = 0;
-
-	if (unlikely(hcrx->state == TFRC_RSTATE_TERM))
-		return;
-
-	now = ktime_get_real();
 
 	switch (fbtype) {
 	case CCID3_FBACK_INITIAL:
@@ -818,8 +801,6 @@ static int ccid3_hc_rx_init(struct ccid *ccid, struct sock *sk)
 static void ccid3_hc_rx_exit(struct sock *sk)
 {
 	struct ccid3_hc_rx_sock *hcrx = ccid3_hc_rx_sk(sk);
-
-	ccid3_hc_rx_set_state(sk, TFRC_RSTATE_TERM);
 
 	tfrc_rx_hist_purge(&hcrx->hist);
 	tfrc_lh_cleanup(&hcrx->li_hist);
