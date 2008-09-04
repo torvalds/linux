@@ -114,16 +114,18 @@ static inline struct ccid3_hc_tx_sock *ccid3_hc_tx_sk(const struct sock *sk)
     return hctx;
 }
 
-/* TFRC receiver states */
-enum ccid3_hc_rx_states {
-	TFRC_RSTATE_NO_DATA = 1,
-	TFRC_RSTATE_DATA,
+
+enum ccid3_fback_type {
+	CCID3_FBACK_NONE = 0,
+	CCID3_FBACK_INITIAL,
+	CCID3_FBACK_PERIODIC,
+	CCID3_FBACK_PARAM_CHANGE
 };
 
 /** struct ccid3_hc_rx_sock - CCID3 receiver half-connection socket
  *
  *  @last_counter  -  Tracks window counter (RFC 4342, 8.1)
- *  @state  -  Receiver state, one of %ccid3_hc_rx_states
+ *  @feedback  -  The type of the feedback last sent
  *  @x_recv  -  Receiver estimate of send rate (RFC 3448, sec. 4.3)
  *  @rtt  -  Receiver estimate of RTT
  *  @tstamp_last_feedback  -  Time at which last feedback was sent
@@ -133,7 +135,7 @@ enum ccid3_hc_rx_states {
  */
 struct ccid3_hc_rx_sock {
 	u8				last_counter:4;
-	enum ccid3_hc_rx_states		state:8;
+	enum ccid3_fback_type		feedback:4;
 	u32				x_recv;
 	u32				rtt;
 	ktime_t				tstamp_last_feedback;
