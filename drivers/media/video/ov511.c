@@ -3591,7 +3591,7 @@ static int
 ov51x_init_isoc(struct usb_ov511 *ov)
 {
 	struct urb *urb;
-	int fx, err, n, size;
+	int fx, err, n, i, size;
 
 	PDEBUG(3, "*** Initializing capture ***");
 
@@ -3662,6 +3662,8 @@ ov51x_init_isoc(struct usb_ov511 *ov)
 		urb = usb_alloc_urb(FRAMES_PER_DESC, GFP_KERNEL);
 		if (!urb) {
 			err("init isoc: usb_alloc_urb ret. NULL");
+			for (i = 0; i < n; i++)
+				usb_free_urb(ov->sbuf[i].urb);
 			return -ENOMEM;
 		}
 		ov->sbuf[n].urb = urb;
