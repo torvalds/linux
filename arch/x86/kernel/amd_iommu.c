@@ -876,7 +876,7 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 	if (addr == bad_dma_address)
 		goto out;
 
-	if (iommu->need_sync)
+	if (unlikely(iommu->need_sync))
 		iommu_completion_wait(iommu);
 
 out:
@@ -905,7 +905,7 @@ static void unmap_single(struct device *dev, dma_addr_t dma_addr,
 
 	__unmap_single(iommu, domain->priv, dma_addr, size, dir);
 
-	if (iommu->need_sync)
+	if (unlikely(iommu->need_sync))
 		iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -968,7 +968,7 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 			goto unmap;
 	}
 
-	if (iommu->need_sync)
+	if (unlikely(iommu->need_sync))
 		iommu_completion_wait(iommu);
 
 out:
@@ -1014,7 +1014,7 @@ static void unmap_sg(struct device *dev, struct scatterlist *sglist,
 		s->dma_address = s->dma_length = 0;
 	}
 
-	if (iommu->need_sync)
+	if (unlikely(iommu->need_sync))
 		iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
@@ -1061,7 +1061,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
 		goto out;
 	}
 
-	if (iommu->need_sync)
+	if (unlikely(iommu->need_sync))
 		iommu_completion_wait(iommu);
 
 out:
@@ -1093,7 +1093,7 @@ static void free_coherent(struct device *dev, size_t size,
 
 	__unmap_single(iommu, domain->priv, dma_addr, size, DMA_BIDIRECTIONAL);
 
-	if (iommu->need_sync)
+	if (unlikely(iommu->need_sync))
 		iommu_completion_wait(iommu);
 
 	spin_unlock_irqrestore(&domain->lock, flags);
