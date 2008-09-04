@@ -2567,6 +2567,8 @@ static int __devinit emac_init_config(struct emac_instance *dev)
 		if (of_device_is_compatible(np, "ibm,emac-440ep") ||
 		    of_device_is_compatible(np, "ibm,emac-440gr"))
 			dev->features |= EMAC_FTR_440EP_PHY_CLK_FIX;
+		if (of_device_is_compatible(np, "ibm,emac-405ez"))
+			dev->features |= EMAC_FTR_NO_FLOW_CONTROL_40x;
 	}
 
 	/* Fixup some feature bits based on the device tree */

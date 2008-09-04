@@ -62,3 +62,7 @@ config IBM_NEW_EMAC_TAH
 config IBM_NEW_EMAC_EMAC4
 	bool
 	default n
+
+config IBM_NEW_EMAC_NO_FLOW_CTRL
+	bool
+	default n
