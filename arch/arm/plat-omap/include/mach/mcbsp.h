@@ -316,7 +316,6 @@ struct omap_mcbsp_ops {
 
 struct omap_mcbsp_platform_data {
 	unsigned long phys_base;
-	u32 virt_base;
 	u8 dma_rx_sync, dma_tx_sync;
 	u16 rx_irq, tx_irq;
 	struct omap_mcbsp_ops *ops;
@@ -326,7 +325,7 @@ struct omap_mcbsp_platform_data {
 struct omap_mcbsp {
 	struct device *dev;
 	unsigned long phys_base;
-	u32 io_base;
+	void __iomem *io_base;
 	u8 id;
 	u8 free;
 	omap_mcbsp_word_length rx_word_length;
