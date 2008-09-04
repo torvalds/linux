@@ -151,14 +151,31 @@ int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_duplicate);
 
+
+static void __tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
+{
+	struct tfrc_rx_hist_entry *tmp = h->ring[a];
+
+	h->ring[a] = h->ring[b];
+	h->ring[b] = tmp;
+}
+
 static void tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
 {
-	const u8 idx_a = tfrc_rx_hist_index(h, a),
-		 idx_b = tfrc_rx_hist_index(h, b);
-	struct tfrc_rx_hist_entry *tmp = h->ring[idx_a];
+	__tfrc_rx_hist_swap(h, tfrc_rx_hist_index(h, a),
+			       tfrc_rx_hist_index(h, b));
+}
 
-	h->ring[idx_a] = h->ring[idx_b];
-	h->ring[idx_b] = tmp;
+/**
+ * tfrc_rx_hist_resume_rtt_sampling  -  Prepare RX history for RTT sampling
+ * This is called after loss detection has finished, when the history entry
+ * with the index of `loss_count' holds the highest-received sequence number.
+ * RTT sampling requires this information at ring[0] (tfrc_rx_hist_sample_rtt).
+ */
+static inline void tfrc_rx_hist_resume_rtt_sampling(struct tfrc_rx_hist *h)
+{
+	__tfrc_rx_hist_swap(h, 0, tfrc_rx_hist_index(h, h->loss_count));
+	h->loss_count = h->loss_start = 0;
 }
 
 /*
@@ -200,8 +217,7 @@ static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2
 
 		if (dccp_loss_free(s2, s1, n1)) {
 			/* hole is filled: S0, S2, and S1 are consecutive */
-			h->loss_count = 0;
-			h->loss_start = tfrc_rx_hist_index(h, 1);
+			tfrc_rx_hist_resume_rtt_sampling(h);
 		} else
 			/* gap between S2 and S1: just update loss_prev */
 			tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_loss_prev(h), skb, n2);
@@ -254,8 +270,7 @@ static int __two_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n3)
 
 			if (dccp_loss_free(s1, s2, n2)) {
 				/* entire hole filled by S0, S3, S1, S2 */
-				h->loss_start = tfrc_rx_hist_index(h, 2);
-				h->loss_count = 0;
+				tfrc_rx_hist_resume_rtt_sampling(h);
 			} else {
 				/* gap remains between S1 and S2 */
 				h->loss_start = tfrc_rx_hist_index(h, 1);
@@ -299,8 +314,7 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
 
 		if (dccp_loss_free(s2, s3, n3)) {
 			/* no gap between S2 and S3: entire hole is filled */
-			h->loss_start = tfrc_rx_hist_index(h, 3);
-			h->loss_count = 0;
+			tfrc_rx_hist_resume_rtt_sampling(h);
 		} else {
 			/* gap between S2 and S3 */
 			h->loss_start = tfrc_rx_hist_index(h, 2);
@@ -340,6 +354,7 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 
 	if (h->loss_count == 0) {
 		__do_track_loss(h, skb, ndp);
+		tfrc_rx_hist_sample_rtt(h, skb);
 	} else if (h->loss_count == 1) {
 		__one_after_loss(h, skb, ndp);
 	} else if (h->loss_count != 2) {
@@ -435,11 +450,24 @@ static inline struct tfrc_rx_hist_entry *
  * Based on ideas presented in RFC 4342, 8.1. Returns 0 if it was not able
  * to compute a sample with given data - calling function should check this.
  */
-u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
+void tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
 {
-	u32 sample = 0,
-	    delta_v = SUB16(dccp_hdr(skb)->dccph_ccval,
-			    tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
+	u32 sample = 0, delta_v;
+
+	/*
+	 * When not to sample:
+	 * - on non-data packets
+	 *   (RFC 4342, 8.1: CCVal only fully defined for data packets);
+	 * - when no data packets have been received yet
+	 *   (FIXME: using sampled packet size as indicator here);
+	 * - as long as there are gaps in the sequence space (pending loss).
+	 */
+	if (!dccp_data_packet(skb) || h->packet_size == 0 ||
+	    tfrc_rx_hist_loss_pending(h))
+		return;
+
+	delta_v = SUB16(dccp_hdr(skb)->dccph_ccval,
+			tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
 
 	if (delta_v < 1 || delta_v > 4) {	/* unsuitable CCVal delta */
 		if (h->rtt_sample_prev == 2) {	/* previous candidate stored */
@@ -479,6 +507,6 @@ u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
 	h->rtt_sample_prev = 0;	       /* use current entry as next reference */
 keep_ref_for_next_time:
 
-	return sample;
+	h->rtt_estimate = tfrc_ewma(h->rtt_estimate, sample, 9);
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_sample_rtt);

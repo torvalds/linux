@@ -91,6 +91,7 @@ struct tfrc_rx_hist_entry {
  * @loss_count:		Number of entries in circular history
  * @loss_start:		Movable index (for loss detection)
  * @rtt_sample_prev:	Used during RTT sampling, points to candidate entry
+ * @rtt_estimate:	Receiver RTT estimate
  * @packet_size:	Packet size in bytes (as per RFC 3448, 3.1)
  * @bytes_recvd:	Number of bytes received since last sending feedback
  */
@@ -98,7 +99,10 @@ struct tfrc_rx_hist {
 	struct tfrc_rx_hist_entry *ring[TFRC_NDUPACK + 1];
 	u8			  loss_count:2,
 				  loss_start:2;
+	/* Receiver RTT sampling */
 #define rtt_sample_prev		  loss_start
+	u32			  rtt_estimate;
+	/* Receiver sampling of application payload lengths */
 	u32			  packet_size,
 				  bytes_recvd;
 };
@@ -154,6 +158,15 @@ static inline u32 tfrc_rx_hist_packet_size(const struct tfrc_rx_hist *h)
 		return TCP_MIN_RCVMSS;
 	}
 	return h->packet_size;
+
+}
+static inline u32 tfrc_rx_hist_rtt(const struct tfrc_rx_hist *h)
+{
+	if (h->rtt_estimate == 0) {
+		DCCP_WARN("No RTT estimate available, using fallback RTT\n");
+		return  DCCP_FALLBACK_RTT;
+	}
+	return h->rtt_estimate;
 }
 
 extern void tfrc_rx_hist_add_packet(struct tfrc_rx_hist *h,
@@ -167,8 +180,8 @@ extern int  tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 				struct sk_buff *skb, const u64 ndp,
 				u32 (*first_li)(struct sock *sk),
 				struct sock *sk);
-extern u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h,
-				   const struct sk_buff *skb);
+extern void tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h,
+				    const struct sk_buff *skb);
 extern int  tfrc_rx_hist_init(struct tfrc_rx_hist *h, struct sock *sk);
 extern void tfrc_rx_hist_purge(struct tfrc_rx_hist *h);
 
