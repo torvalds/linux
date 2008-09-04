@@ -317,6 +317,12 @@ static unsigned long quick_pit_calibrate(void)
 		t2 = get_cycles();
 
 		/*
+		 * Make sure we can rely on the second TSC timestamp:
+		 */
+		if (!pit_expect_msb(--expect))
+			goto failed;
+
+		/*
 		 * Ok, if we get here, then we've seen the
 		 * MSB of the PIT decrement QUICK_PIT_ITERATIONS
 		 * times, and each MSB had many hits, so we never
