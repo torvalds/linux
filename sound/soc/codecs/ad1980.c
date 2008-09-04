@@ -141,7 +141,7 @@ static int ac97_write(struct snd_soc_codec *codec, unsigned int reg,
 	return 0;
 }
 
-struct snd_soc_codec_dai ad1980_dai = {
+struct snd_soc_dai ad1980_dai = {
 	.name = "AC97",
 	.playback = {
 		.stream_name = "Playback",

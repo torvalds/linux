@@ -17,7 +17,7 @@
 #define PR5		0x2000
 #define PR6		0x4000
 
-extern struct snd_soc_codec_dai ad1980_dai;
+extern struct snd_soc_dai ad1980_dai;
 extern struct snd_soc_codec_device soc_codec_dev_ad1980;
 
 #endif
