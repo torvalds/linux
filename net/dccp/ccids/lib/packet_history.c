@@ -351,6 +351,11 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 		is_new_loss = tfrc_lh_interval_add(lh, h, calc_first_li, sk);
 		__three_after_loss(h);
 	}
+
+	/* RFC 3448, 6.1: update I_0, whose growth implies p <= p_prev */
+	if (!is_new_loss)
+		tfrc_lh_update_i_mean(lh, skb);
+
 	return is_new_loss;
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_handle_loss);

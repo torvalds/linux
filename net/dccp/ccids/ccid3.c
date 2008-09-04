@@ -767,15 +767,7 @@ static void ccid3_hc_rx_packet_recv(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (sample != 0)
 			hcrx->rtt = tfrc_ewma(hcrx->rtt, sample, 9);
-
-	} else if (tfrc_lh_update_i_mean(&hcrx->li_hist, skb)) {
-		/*
-		 * Step (3) of [RFC 3448, 6.1]: Recompute I_mean and, if I_mean
-		 * has decreased (resp. p has increased), send feedback now.
-		 */
-		do_feedback = CCID3_FBACK_PARAM_CHANGE;
 	}
-
 	/*
 	 * Check if the periodic once-per-RTT feedback is due; RFC 4342, 10.3
 	 */

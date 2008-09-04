@@ -86,21 +86,26 @@ static void tfrc_lh_calc_i_mean(struct tfrc_loss_hist *lh)
 
 /**
  * tfrc_lh_update_i_mean  -  Update the `open' loss interval I_0
- * For recomputing p: returns `true' if p > p_prev  <=>  1/p < 1/p_prev
+ * This updates I_mean as the sequence numbers increase. As a consequence, the
+ * open loss interval I_0 increases, hence p = W_tot/max(I_tot0, I_tot1)
+ * decreases, and thus there is no need to send renewed feedback.
  */
-u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
+void tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 {
 	struct tfrc_loss_interval *cur = tfrc_lh_peek(lh);
-	u32 old_i_mean = lh->i_mean;
 	s64 len;
 
 	if (cur == NULL)			/* not initialised */
-		return 0;
+		return;
+
+	/* FIXME: should probably also count non-data packets (RFC 4342, 6.1) */
+	if (!dccp_data_packet(skb))
+		return;
 
 	len = dccp_delta_seqno(cur->li_seqno, DCCP_SKB_CB(skb)->dccpd_seq) + 1;
 
 	if (len - (s64)cur->li_length <= 0)	/* duplicate or reordered */
-		return 0;
+		return;
 
 	if (SUB16(dccp_hdr(skb)->dccph_ccval, cur->li_ccval) > 4)
 		/*
@@ -114,14 +119,11 @@ u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 		cur->li_is_closed = 1;
 
 	if (tfrc_lh_length(lh) == 1)		/* due to RFC 3448, 6.3.1 */
-		return 0;
+		return;
 
 	cur->li_length = len;
 	tfrc_lh_calc_i_mean(lh);
-
-	return (lh->i_mean < old_i_mean);
 }
-EXPORT_SYMBOL_GPL(tfrc_lh_update_i_mean);
 
 /* Determine if `new_loss' does begin a new loss interval [RFC 4342, 10.2] */
 static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
