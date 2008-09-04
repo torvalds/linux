@@ -1,6 +1,8 @@
 #ifndef _SH_SETUP_H
 #define _SH_SETUP_H
 
+#include <asm/mmzone.h>
+
 #define COMMAND_LINE_SIZE 256
 
 #ifdef __KERNEL__

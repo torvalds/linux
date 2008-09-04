@@ -1113,7 +1113,7 @@ static const char *sci_type(struct uart_port *port)
 		case PORT_IRDA: return "irda";
 	}
 
-	return 0;
+	return NULL;
 }
 
 static void sci_release_port(struct uart_port *port)

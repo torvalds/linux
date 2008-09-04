@@ -127,6 +127,8 @@ static inline unsigned long __cmpxchg(volatile void * ptr, unsigned long old,
   })
 
 extern void die(const char *str, struct pt_regs *regs, long err) __attribute__ ((noreturn));
+void free_initmem(void);
+void free_initrd_mem(unsigned long start, unsigned long end);
 
 extern void *set_exception_table_vec(unsigned int vec, void *handler);
 
@@ -179,8 +181,8 @@ BUILD_TRAP_HANDLER(fpu_state_restore);
 #define arch_align_stack(x) (x)
 
 struct mem_access {
-	unsigned long (*from)(void *dst, const void *src, unsigned long cnt);
-	unsigned long (*to)(void *dst, const void *src, unsigned long cnt);
+	unsigned long (*from)(void *dst, const void __user *src, unsigned long cnt);
+	unsigned long (*to)(void __user *dst, const void *src, unsigned long cnt);
 };
 
 #ifdef CONFIG_SUPERH32

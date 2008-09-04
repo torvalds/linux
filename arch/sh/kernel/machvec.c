@@ -14,6 +14,7 @@
 #include <linux/string.h>
 #include <asm/machvec.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 

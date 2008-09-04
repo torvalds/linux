@@ -25,6 +25,7 @@
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/io.h>
+#include <asm/syscalls.h>
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/mmu_context.h>

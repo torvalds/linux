@@ -30,6 +30,7 @@
 #include <asm/uaccess.h>
 #include <asm/pgtable.h>
 #include <asm/cacheflush.h>
+#include <asm/syscalls.h>
 #include <asm/fpu.h>
 
 #define _BLOCKABLE (~(sigmask(SIGKILL) | sigmask(SIGSTOP)))
@@ -247,7 +248,6 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	struct rt_sigframe __user *frame = (struct rt_sigframe __user *)regs->regs[15];
 	sigset_t set;
-	stack_t st;
 	int r0;
 
 	if (!access_ok(VERIFY_READ, frame, sizeof(*frame)))
@@ -265,11 +265,9 @@ asmlinkage int sys_rt_sigreturn(unsigned long r4, unsigned long r5,
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &r0))
 		goto badframe;
 
-	if (__copy_from_user(&st, &frame->uc.uc_stack, sizeof(st)))
+	if (do_sigaltstack(&frame->uc.uc_stack, NULL,
+			   regs->regs[15]) == -EFAULT)
 		goto badframe;
-	/* It is more difficult to avoid calling this function than to
-	   call it and ignore errors.  */
-	do_sigaltstack((const stack_t __user *)&st, NULL, (unsigned long)frame);
 
 	return r0;
 
@@ -429,7 +427,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Create the ucontext.  */
 	err |= __put_user(0, &frame->uc.uc_flags);
-	err |= __put_user(0, &frame->uc.uc_link);
+	err |= __put_user(NULL, &frame->uc.uc_link);
 	err |= __put_user((void *)current->sas_ss_sp,
 			  &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->regs[15]),

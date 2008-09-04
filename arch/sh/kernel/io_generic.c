@@ -81,7 +81,7 @@ void generic_insb(unsigned long port, void *dst, unsigned long count)
 	volatile u8 *port_addr;
 	u8 *buf = dst;
 
-	port_addr = (volatile u8 *)__ioport_map(port, 1);
+	port_addr = (volatile u8 __force *)__ioport_map(port, 1);
 	while (count--)
 		*buf++ = *port_addr;
 }
@@ -91,7 +91,7 @@ void generic_insw(unsigned long port, void *dst, unsigned long count)
 	volatile u16 *port_addr;
 	u16 *buf = dst;
 
-	port_addr = (volatile u16 *)__ioport_map(port, 2);
+	port_addr = (volatile u16 __force *)__ioport_map(port, 2);
 	while (count--)
 		*buf++ = *port_addr;
 
@@ -103,7 +103,7 @@ void generic_insl(unsigned long port, void *dst, unsigned long count)
 	volatile u32 *port_addr;
 	u32 *buf = dst;
 
-	port_addr = (volatile u32 *)__ioport_map(port, 4);
+	port_addr = (volatile u32 __force *)__ioport_map(port, 4);
 	while (count--)
 		*buf++ = *port_addr;
 

@@ -99,4 +99,20 @@ do {							\
 int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma);
 
+asmlinkage void do_address_error(struct pt_regs *regs,
+				 unsigned long writeaccess,
+				 unsigned long address);
+asmlinkage void do_divide_error(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs __regs);
+asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs __regs);
+asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
+				unsigned long r6, unsigned long r7,
+				struct pt_regs __regs);
+asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
+				   unsigned long r6, unsigned long r7,
+				   struct pt_regs __regs);
+
 #endif /* __ASM_SH_SYSTEM_32_H */

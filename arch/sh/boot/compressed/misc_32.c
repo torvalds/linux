@@ -191,7 +191,7 @@ long* stack_start = &user_stack[STACK_SIZE];
 
 void decompress_kernel(void)
 {
-	output_data = 0;
+	output_data = NULL;
 	output_ptr = PHYSADDR((unsigned long)&_text+PAGE_SIZE);
 #ifdef CONFIG_29BIT
 	output_ptr |= P2SEG;

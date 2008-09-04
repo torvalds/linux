@@ -26,6 +26,7 @@
 #include <asm/system.h>
 #include <asm/ubc.h>
 #include <asm/fpu.h>
+#include <asm/syscalls.h>
 
 static int hlt_counter;
 int ubc_usercnt = 0;

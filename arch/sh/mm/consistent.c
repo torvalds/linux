@@ -44,7 +44,7 @@ void *dma_alloc_coherent(struct device *dev, size_t size,
 	 */
 	dma_cache_sync(dev, ret, size, DMA_BIDIRECTIONAL);
 
-	ret_nocache = ioremap_nocache(virt_to_phys(ret), size);
+	ret_nocache = (void __force *)ioremap_nocache(virt_to_phys(ret), size);
 	if (!ret_nocache) {
 		free_pages((unsigned long)ret, order);
 		return NULL;

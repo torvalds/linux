@@ -16,6 +16,7 @@
 #include <linux/timex.h>
 #include <linux/sched.h>
 #include <linux/clockchips.h>
+#include <linux/mc146818rtc.h>	/* for rtc_lock */
 #include <linux/smp.h>
 #include <asm/clock.h>
 #include <asm/rtc.h>

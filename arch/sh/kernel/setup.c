@@ -26,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/debugfs.h>
 #include <linux/crash_dump.h>
+#include <linux/mmzone.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>

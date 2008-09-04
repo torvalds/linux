@@ -294,9 +294,10 @@ arch_init_clk_ops(struct clk_ops **ops, int type)
 {
 }
 
-void __init __attribute__ ((weak))
+int __init __attribute__ ((weak))
 arch_clk_init(void)
 {
+	return 0;
 }
 
 static int show_clocks(char *buf, char **start, off_t off,
@@ -331,7 +332,7 @@ int __init clk_init(void)
 		ret |= clk_register(clk);
 	}
 
-	arch_clk_init();
+	ret |= arch_clk_init();
 
 	/* Kick the child clocks.. */
 	propagate_rate(&master_clk);

@@ -27,6 +27,7 @@
 #include <asm/system.h>
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
+#include <asm/syscalls.h>
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -105,6 +106,7 @@ void ptrace_disable(struct task_struct *child)
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	struct user * dummy = NULL;
+	unsigned long __user *datap = (unsigned long __user *)data;
 	int ret;
 
 	switch (request) {
@@ -133,7 +135,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			tmp = !!tsk_used_math(child);
 		else
 			tmp = 0;
-		ret = put_user(tmp, (unsigned long __user *)data);
+		ret = put_user(tmp, datap);
 		break;
 	}
 
@@ -202,7 +204,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 
 		ret = 0;
-		if (put_user(tmp, (unsigned long *) data)) {
+		if (put_user(tmp, datap)) {
 			ret = -EFAULT;
 			break;
 		}
