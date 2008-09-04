@@ -853,6 +853,34 @@ struct block_device *open_by_devnum(dev_t dev, unsigned mode)
 EXPORT_SYMBOL(open_by_devnum);
 
 /**
+ * check_disk_size_change - checks for disk size change and adjusts
+ *                          bdev size.
+ *
+ * @disk: struct gendisk to check
+ * @bdev: struct bdev to adjust.
+ *
+ * This routine checks to see if the bdev size does not match the disk size
+ * and adjusts it if it differs.
+ */
+void check_disk_size_change(struct gendisk *disk, struct block_device *bdev)
+{
+	loff_t disk_size, bdev_size;
+
+	disk_size = (loff_t)get_capacity(disk) << 9;
+	bdev_size = i_size_read(bdev->bd_inode);
+	if (disk_size != bdev_size) {
+		char name[BDEVNAME_SIZE];
+
+		disk_name(disk, 0, name);
+		printk(KERN_INFO
+		       "%s: detected capacity change from %lld to %lld\n",
+		       name, bdev_size, disk_size);
+		i_size_write(bdev->bd_inode, disk_size);
+	}
+}
+EXPORT_SYMBOL(check_disk_size_change);
+
+/**
  * revalidate_disk - wrapper for lower-level driver's revalidate_disk
  *                   call-back
  *
@@ -864,11 +892,20 @@ EXPORT_SYMBOL(open_by_devnum);
  */
 int revalidate_disk(struct gendisk *disk)
 {
+	struct block_device *bdev;
 	int ret = 0;
 
 	if (disk->fops->revalidate_disk)
 		ret = disk->fops->revalidate_disk(disk);
 
+	bdev = bdget_disk(disk, 0);
+	if (!bdev)
+		return ret;
+
+	mutex_lock(&bdev->bd_mutex);
+	check_disk_size_change(disk, bdev);
+	mutex_unlock(&bdev->bd_mutex);
+	bdput(bdev);
 	return ret;
 }
 EXPORT_SYMBOL(revalidate_disk);
