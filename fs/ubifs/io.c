@@ -74,6 +74,7 @@ void ubifs_ro_mode(struct ubifs_info *c, int err)
  * @lnum: logical eraseblock number
  * @offs: offset within the logical eraseblock
  * @quiet: print no messages
+ * @chk_crc: indicates whether to always check the CRC
  *
  * This function checks node magic number and CRC checksum. This function also
  * validates node length to prevent UBIFS from becoming crazy when an attacker
@@ -85,7 +86,7 @@ void ubifs_ro_mode(struct ubifs_info *c, int err)
  * or magic.
  */
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
-		     int offs, int quiet)
+		     int offs, int quiet, int chk_crc)
 {
 	int err = -EINVAL, type, node_len;
 	uint32_t crc, node_crc, magic;
@@ -120,6 +121,10 @@ int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
 	} else if (node_len < c->ranges[type].min_len ||
 		   node_len > c->ranges[type].max_len)
 		goto out_len;
+
+	if (!chk_crc && type == UBIFS_DATA_NODE && !c->always_chk_crc)
+		if (c->no_chk_data_crc)
+			return 0;
 
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
 	node_crc = le32_to_cpu(ch->crc);
@@ -722,7 +727,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 		goto out;
 	}
 
-	err = ubifs_check_node(c, buf, lnum, offs, 0);
+	err = ubifs_check_node(c, buf, lnum, offs, 0, 0);
 	if (err) {
 		ubifs_err("expected node type %d", type);
 		return err;
@@ -781,7 +786,7 @@ int ubifs_read_node(const struct ubifs_info *c, void *buf, int type, int len,
 		goto out;
 	}
 
-	err = ubifs_check_node(c, buf, lnum, offs, 0);
+	err = ubifs_check_node(c, buf, lnum, offs, 0, 0);
 	if (err) {
 		ubifs_err("expected node type %d", type);
 		return err;

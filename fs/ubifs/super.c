@@ -406,6 +406,11 @@ static int ubifs_show_options(struct seq_file *s, struct vfsmount *mnt)
 	else if (c->mount_opts.bulk_read == 1)
 		seq_printf(s, ",no_bulk_read");
 
+	if (c->mount_opts.chk_data_crc == 2)
+		seq_printf(s, ",chk_data_crc");
+	else if (c->mount_opts.chk_data_crc == 1)
+		seq_printf(s, ",no_chk_data_crc");
+
 	return 0;
 }
 
@@ -859,6 +864,8 @@ static int check_volume_empty(struct ubifs_info *c)
  * Opt_norm_unmount: run a journal commit before un-mounting
  * Opt_bulk_read: enable bulk-reads
  * Opt_no_bulk_read: disable bulk-reads
+ * Opt_chk_data_crc: check CRCs when reading data nodes
+ * Opt_no_chk_data_crc: do not check CRCs when reading data nodes
  * Opt_err: just end of array marker
  */
 enum {
@@ -866,6 +873,8 @@ enum {
 	Opt_norm_unmount,
 	Opt_bulk_read,
 	Opt_no_bulk_read,
+	Opt_chk_data_crc,
+	Opt_no_chk_data_crc,
 	Opt_err,
 };
 
@@ -874,6 +883,8 @@ static match_table_t tokens = {
 	{Opt_norm_unmount, "norm_unmount"},
 	{Opt_bulk_read, "bulk_read"},
 	{Opt_no_bulk_read, "no_bulk_read"},
+	{Opt_chk_data_crc, "chk_data_crc"},
+	{Opt_no_chk_data_crc, "no_chk_data_crc"},
 	{Opt_err, NULL},
 };
 
@@ -918,6 +929,14 @@ static int ubifs_parse_options(struct ubifs_info *c, char *options,
 		case Opt_no_bulk_read:
 			c->mount_opts.bulk_read = 1;
 			c->bulk_read = 0;
+			break;
+		case Opt_chk_data_crc:
+			c->mount_opts.chk_data_crc = 2;
+			c->no_chk_data_crc = 0;
+			break;
+		case Opt_no_chk_data_crc:
+			c->mount_opts.chk_data_crc = 1;
+			c->no_chk_data_crc = 1;
 			break;
 		default:
 			ubifs_err("unrecognized mount option \"%s\" "
@@ -1026,6 +1045,8 @@ static int mount_ubifs(struct ubifs_info *c)
 		if (!c->ileb_buf)
 			goto out_free;
 	}
+
+	c->always_chk_crc = 1;
 
 	err = ubifs_read_superblock(c);
 	if (err)
@@ -1167,6 +1188,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	err = dbg_check_filesystem(c);
 	if (err)
 		goto out_infos;
+
+	c->always_chk_crc = 0;
 
 	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
 		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
@@ -1313,6 +1336,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 
 	mutex_lock(&c->umount_mutex);
 	c->remounting_rw = 1;
+	c->always_chk_crc = 1;
 
 	/* Check for enough free space */
 	if (ubifs_calc_available(c, c->min_idx_lebs) <= 0) {
@@ -1381,13 +1405,15 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 		c->bgt = NULL;
 		ubifs_err("cannot spawn \"%s\", error %d",
 			  c->bgt_name, err);
-		return err;
+		goto out;
 	}
 	wake_up_process(c->bgt);
 
 	c->orph_buf = vmalloc(c->leb_size);
-	if (!c->orph_buf)
-		return -ENOMEM;
+	if (!c->orph_buf) {
+		err = -ENOMEM;
+		goto out;
+	}
 
 	/* Check for enough log space */
 	lnum = c->lhead_lnum + 1;
@@ -1414,6 +1440,7 @@ static int ubifs_remount_rw(struct ubifs_info *c)
 	dbg_gen("re-mounted read-write");
 	c->vfs_sb->s_flags &= ~MS_RDONLY;
 	c->remounting_rw = 0;
+	c->always_chk_crc = 0;
 	mutex_unlock(&c->umount_mutex);
 	return 0;
 
@@ -1429,6 +1456,7 @@ out:
 	c->ileb_buf = NULL;
 	ubifs_lpt_free(c, 1);
 	c->remounting_rw = 0;
+	c->always_chk_crc = 0;
 	mutex_unlock(&c->umount_mutex);
 	return err;
 }

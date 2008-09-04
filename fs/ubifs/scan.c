@@ -87,7 +87,7 @@ int ubifs_scan_a_node(const struct ubifs_info *c, void *buf, int len, int lnum,
 
 	dbg_scan("scanning %s", dbg_ntype(ch->node_type));
 
-	if (ubifs_check_node(c, buf, lnum, offs, quiet))
+	if (ubifs_check_node(c, buf, lnum, offs, quiet, 1))
 		return SCANNED_A_CORRUPT_NODE;
 
 	if (ch->node_type == UBIFS_PAD_NODE) {

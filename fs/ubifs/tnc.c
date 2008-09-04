@@ -470,6 +470,10 @@ static int try_read_node(const struct ubifs_info *c, void *buf, int type,
 	if (node_len != len)
 		return 0;
 
+	if (type == UBIFS_DATA_NODE && !c->always_chk_crc)
+		if (c->no_chk_data_crc)
+			return 0;
+
 	crc = crc32(UBIFS_CRC32_INIT, buf + 8, node_len - 8);
 	node_crc = le32_to_cpu(ch->crc);
 	if (crc != node_crc)
@@ -1687,7 +1691,7 @@ static int validate_data_node(struct ubifs_info *c, void *buf,
 		goto out_err;
 	}
 
-	err = ubifs_check_node(c, buf, zbr->lnum, zbr->offs, 0);
+	err = ubifs_check_node(c, buf, zbr->lnum, zbr->offs, 0, 0);
 	if (err) {
 		ubifs_err("expected node type %d", UBIFS_DATA_NODE);
 		goto out;

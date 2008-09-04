@@ -894,10 +894,12 @@ struct ubifs_orphan {
  * struct ubifs_mount_opts - UBIFS-specific mount options information.
  * @unmount_mode: selected unmount mode (%0 default, %1 normal, %2 fast)
  * @bulk_read: enable bulk-reads
+ * @chk_data_crc: check CRCs when reading data nodes
  */
 struct ubifs_mount_opts {
 	unsigned int unmount_mode:2;
 	unsigned int bulk_read:2;
+	unsigned int chk_data_crc:2;
 };
 
 /**
@@ -1000,6 +1002,9 @@ struct ubifs_mount_opts {
  *
  * @bulk_read: enable bulk-reads
  * @bulk_read_buf_size: buffer size for bulk-reads
+ *
+ * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
+ *                   recovery)
  *
  * @dirty_pg_cnt: number of dirty pages (not used)
  * @dirty_zn_cnt: number of dirty znodes
@@ -1138,6 +1143,7 @@ struct ubifs_mount_opts {
  * @rcvrd_mst_node: recovered master node to write when mounting ro to rw
  * @size_tree: inode size information for recovery
  * @remounting_rw: set while remounting from ro to rw (sb flags have MS_RDONLY)
+ * @always_chk_crc: always check CRCs (while mounting and remounting rw)
  * @mount_opts: UBIFS-specific mount options
  *
  * @dbg_buf: a buffer of LEB size used for debugging purposes
@@ -1243,6 +1249,8 @@ struct ubifs_info {
 
 	int bulk_read;
 	int bulk_read_buf_size;
+
+	int no_chk_data_crc;
 
 	atomic_long_t dirty_pg_cnt;
 	atomic_long_t dirty_zn_cnt;
@@ -1374,6 +1382,7 @@ struct ubifs_info {
 	struct ubifs_mst_node *rcvrd_mst_node;
 	struct rb_root size_tree;
 	int remounting_rw;
+	int always_chk_crc;
 	struct ubifs_mount_opts mount_opts;
 
 #ifdef CONFIG_UBIFS_FS_DEBUG
@@ -1416,7 +1425,7 @@ int ubifs_read_node_wbuf(struct ubifs_wbuf *wbuf, void *buf, int type, int len,
 int ubifs_write_node(struct ubifs_info *c, void *node, int len, int lnum,
 		     int offs, int dtype);
 int ubifs_check_node(const struct ubifs_info *c, const void *buf, int lnum,
-		     int offs, int quiet);
+		     int offs, int quiet, int chk_crc);
 void ubifs_prepare_node(struct ubifs_info *c, void *buf, int len, int pad);
 void ubifs_prep_grp_node(struct ubifs_info *c, void *node, int len, int last);
 int ubifs_io_init(struct ubifs_info *c);

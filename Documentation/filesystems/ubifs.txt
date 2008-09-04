@@ -89,6 +89,12 @@ fast_unmount		do not commit on unmount; this option makes
 bulk_read		read more in one go to take advantage of flash
 			media that read faster sequentially
 no_bulk_read (*)	do not bulk-read
+no_chk_data_crc		skip checking of CRCs on data nodes in order to
+			improve read performance. Use this option only
+			if the flash media is highly reliable. The effect
+			of this option is that corruption of the contents
+			of a file can go unnoticed.
+chk_data_crc (*)	do not skip checking CRCs on data nodes
 
 
 Quick usage instructions
