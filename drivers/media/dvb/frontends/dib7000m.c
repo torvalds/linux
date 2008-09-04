@@ -1284,7 +1284,8 @@ struct i2c_adapter * dib7000m_get_i2c_master(struct dvb_frontend *demod, enum di
 }
 EXPORT_SYMBOL(dib7000m_get_i2c_master);
 
-int dib7000m_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods, u8 default_addr, struct dib7000m_config cfg[])
+static int dib7000m_i2c_enumeration(struct i2c_adapter *i2c, int no_of_demods,
+		u8 default_addr, struct dib7000m_config cfg[])
 {
 	struct dib7000m_state st = { .i2c_adap = i2c };
 	int k = 0;

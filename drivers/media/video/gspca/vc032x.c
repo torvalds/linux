@@ -80,7 +80,6 @@ static struct ctrl sd_ctrls[] = {
 		.step    = 1,
 #define FREQ_DEF 1
 		.default_value = FREQ_DEF,
-		.default_value = 1,
 	    },
 	    .set = sd_setfreq,
 	    .get = sd_getfreq,

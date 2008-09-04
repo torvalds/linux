@@ -194,12 +194,6 @@ const struct zoran_format zoran_formats[] = {
 // RJ: Test only - want to test BUZ_USE_HIMEM even when CONFIG_BIGPHYS_AREA is defined
 
 
-extern int v4l_nbufs;
-extern int v4l_bufsize;
-extern int jpg_nbufs;
-extern int jpg_bufsize;
-extern int pass_through;
-
 static int lock_norm;	/* 0 = default 1 = Don't change TV standard (norm) */
 module_param(lock_norm, int, 0644);
 MODULE_PARM_DESC(lock_norm, "Prevent norm changes (1 = ignore, >1 = fail)");

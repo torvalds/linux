@@ -490,7 +490,7 @@ static const __u8 tas5130_sensor_init[][8] = {
 	{0x30, 0x11, 0x02, 0x20, 0x70, 0x00, 0x00, 0x10},
 };
 
-struct sensor_data sensor_data[] = {
+static struct sensor_data sensor_data[] = {
 SENS(initHv7131, NULL, hv7131_sensor_init, NULL, NULL, 0, NO_EXPO|NO_FREQ, 0),
 SENS(initOv6650, NULL, ov6650_sensor_init, NULL, NULL, F_GAIN|F_SIF, 0, 0x60),
 SENS(initOv7630, initOv7630_3, ov7630_sensor_init, NULL, ov7630_sensor_init_3,

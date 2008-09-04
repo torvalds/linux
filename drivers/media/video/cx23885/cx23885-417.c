@@ -632,7 +632,7 @@ int mc417_memory_read(struct cx23885_dev *dev, u32 address, u32 *value)
 /* ------------------------------------------------------------------ */
 
 /* MPEG encoder API */
-char *cmd_to_str(int cmd)
+static char *cmd_to_str(int cmd)
 {
 	switch (cmd) {
 	case CX2341X_ENC_PING_FW:

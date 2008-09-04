@@ -132,7 +132,7 @@ error:
 
 static struct dvb_frontend_ops dvb_dummy_fe_qpsk_ops;
 
-struct dvb_frontend* dvb_dummy_fe_qpsk_attach()
+struct dvb_frontend *dvb_dummy_fe_qpsk_attach(void)
 {
 	struct dvb_dummy_fe_state* state = NULL;
 
@@ -152,7 +152,7 @@ error:
 
 static struct dvb_frontend_ops dvb_dummy_fe_qam_ops;
 
-struct dvb_frontend* dvb_dummy_fe_qam_attach()
+struct dvb_frontend *dvb_dummy_fe_qam_attach(void)
 {
 	struct dvb_dummy_fe_state* state = NULL;
 

@@ -411,8 +411,8 @@ struct em28xx {
 	/* frame properties */
 	int width;		/* current frame width */
 	int height;		/* current frame height */
-	int hscale;		/* horizontal scale factor (see datasheet) */
-	int vscale;		/* vertical scale factor (see datasheet) */
+	unsigned hscale;	/* horizontal scale factor (see datasheet) */
+	unsigned vscale;	/* vertical scale factor (see datasheet) */
 	int interlaced;		/* 1=interlace fileds, 0=just top fileds */
 	unsigned int video_bytesread;	/* Number of bytes read */
 

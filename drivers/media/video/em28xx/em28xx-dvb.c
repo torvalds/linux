@@ -274,7 +274,7 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 
 /* ------------------------------------------------------------------ */
 
-int register_dvb(struct em28xx_dvb *dvb,
+static int register_dvb(struct em28xx_dvb *dvb,
 		 struct module *module,
 		 struct em28xx *dev,
 		 struct device *device)

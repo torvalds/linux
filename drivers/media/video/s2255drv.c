@@ -491,7 +491,7 @@ static void planar422p_to_yuv_packed(const unsigned char *in,
 	return;
 }
 
-void s2255_reset_dsppower(struct s2255_dev *dev)
+static void s2255_reset_dsppower(struct s2255_dev *dev)
 {
 	s2255_vendor_req(dev, 0x40, 0x0b0b, 0x0b0b, NULL, 0, 1);
 	msleep(10);

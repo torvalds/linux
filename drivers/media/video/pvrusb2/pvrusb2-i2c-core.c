@@ -827,7 +827,7 @@ static unsigned int pvr2_i2c_client_describe(struct pvr2_i2c_client *cp,
 	if ((detail & PVR2_I2C_DETAIL_CTLMASK) && cp->ctl_mask) {
 		unsigned int idx;
 		unsigned long msk,sm;
-		int spcfl;
+
 		bcnt = scnprintf(buf,maxlen," [");
 		ccnt += bcnt; buf += bcnt; maxlen -= bcnt;
 		sm = 0;

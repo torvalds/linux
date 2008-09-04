@@ -143,10 +143,11 @@ static int em2800_i2c_check_for_device(struct em28xx *dev, unsigned char addr)
 	}
 	for (write_timeout = EM2800_I2C_WRITE_TIMEOUT; write_timeout > 0;
 	     write_timeout -= 5) {
-		unsigned msg = dev->em28xx_read_reg(dev, 0x5);
-		if (msg == 0x94)
+		unsigned reg = dev->em28xx_read_reg(dev, 0x5);
+
+		if (reg == 0x94)
 			return -ENODEV;
-		else if (msg == 0x84)
+		else if (reg == 0x84)
 			return 0;
 		msleep(5);
 	}

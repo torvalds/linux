@@ -381,9 +381,9 @@ static inline void start_debi_dma(struct av7110 *av7110, int dir,
 		irdebi(av7110, DEBISWAB, addr, 0, len);
 }
 
-static void debiirq(unsigned long data)
+static void debiirq(unsigned long cookie)
 {
-	struct av7110 *av7110 = (struct av7110 *) data;
+	struct av7110 *av7110 = (struct av7110 *)cookie;
 	int type = av7110->debitype;
 	int handle = (type >> 8) & 0x1f;
 	unsigned int xfer = 0;
@@ -492,9 +492,9 @@ debi_done:
 }
 
 /* irq from av7110 firmware writing the mailbox register in the DPRAM */
-static void gpioirq(unsigned long data)
+static void gpioirq(unsigned long cookie)
 {
-	struct av7110 *av7110 = (struct av7110 *) data;
+	struct av7110 *av7110 = (struct av7110 *)cookie;
 	u32 rxbuf, txbuf;
 	int len;
 
@@ -1260,9 +1260,9 @@ static int budget_stop_feed(struct dvb_demux_feed *feed)
 	return status;
 }
 
-static void vpeirq(unsigned long data)
+static void vpeirq(unsigned long cookie)
 {
-	struct av7110 *budget = (struct av7110 *) data;
+	struct av7110 *budget = (struct av7110 *)cookie;
 	u8 *mem = (u8 *) (budget->grabbing);
 	u32 olddma = budget->ttbp;
 	u32 newdma = saa7146_read(budget->dev, PCI_VDP3);

@@ -58,8 +58,6 @@
 		   ZR36057_ISR_GIRQ1 | \
 		   ZR36057_ISR_JPEGRepIRQ )
 
-extern const struct zoran_format zoran_formats[];
-
 static int lml33dpath;		/* default = 0
 				 * 1 will use digital path in capture
 				 * mode instead of analog. It can be
