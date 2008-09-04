@@ -364,19 +364,6 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 #define DCCPF_INITIAL_SEND_NDP_COUNT		1
 
 /**
-  * struct dccp_minisock - Minimal DCCP connection representation
-  *
-  * Will be used to pass the state from dccp_request_sock to dccp_sock.
-  *
-  * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
-  */
-struct dccp_minisock {
-	__u64			dccpms_sequence_window;
-};
-
-extern void dccp_minisock_init(struct dccp_minisock *dmsk);
-
-/**
  * struct dccp_request_sock  -  represent DCCP-specific connection request
  * @dreq_inet_rsk: structure inherited from
  * @dreq_iss: initial sequence number sent on the Response (RFC 4340, 7.1)
@@ -464,13 +451,14 @@ struct dccp_ackvec;
  * @dccps_timestamp_time - time of receiving latest @dccps_timestamp_echo
  * @dccps_l_ack_ratio - feature-local Ack Ratio
  * @dccps_r_ack_ratio - feature-remote Ack Ratio
+ * @dccps_l_seq_win - local Sequence Window (influences ack number validity)
+ * @dccps_r_seq_win - remote Sequence Window (influences seq number validity)
  * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
  * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
  * @dccps_send_ndp_count - local Send NDP Count feature (7.7.2)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_mss_cache - current value of MSS (path MTU minus header sizes)
  * @dccps_rate_last - timestamp for rate-limiting DCCP-Sync (RFC 4340, 7.5.4)
- * @dccps_minisock - associated minisock (accessed via dccp_msk)
  * @dccps_featneg - tracks feature-negotiation state (mostly during handshake)
  * @dccps_hc_rx_ackvec - rx half connection ack vector
  * @dccps_hc_rx_ccid - CCID used for the receiver (or receiving half-connection)
@@ -504,12 +492,13 @@ struct dccp_sock {
 	__u32				dccps_timestamp_time;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
+	__u64				dccps_l_seq_win:48;
+	__u64				dccps_r_seq_win:48;
 	__u8				dccps_pcslen:4;
 	__u8				dccps_pcrlen:4;
 	__u8				dccps_send_ndp_count:1;
 	__u64				dccps_ndp_count:48;
 	unsigned long			dccps_rate_last;
-	struct dccp_minisock		dccps_minisock;
 	struct list_head		dccps_featneg;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
 	struct ccid			*dccps_hc_rx_ccid;
@@ -525,11 +514,6 @@ struct dccp_sock {
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;
-}
-
-static inline struct dccp_minisock *dccp_msk(const struct sock *sk)
-{
-	return (struct dccp_minisock *)&dccp_sk(sk)->dccps_minisock;
 }
 
 static inline const char *dccp_role(const struct sock *sk)

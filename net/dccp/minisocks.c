@@ -42,11 +42,6 @@ struct inet_timewait_death_row dccp_death_row = {
 
 EXPORT_SYMBOL_GPL(dccp_death_row);
 
-void dccp_minisock_init(struct dccp_minisock *dmsk)
-{
-	dmsk->dccpms_sequence_window = sysctl_dccp_feat_sequence_window;
-}
-
 void dccp_time_wait(struct sock *sk, int state, int timeo)
 {
 	struct inet_timewait_sock *tw = NULL;
@@ -110,7 +105,6 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		struct dccp_request_sock *dreq = dccp_rsk(req);
 		struct inet_connection_sock *newicsk = inet_csk(newsk);
 		struct dccp_sock *newdp = dccp_sk(newsk);
-		struct dccp_minisock *newdmsk = dccp_msk(newsk);
 
 		newdp->dccps_role	    = DCCP_ROLE_SERVER;
 		newdp->dccps_hc_rx_ackvec   = NULL;
@@ -128,10 +122,6 @@ struct sock *dccp_create_openreq_child(struct sock *sk,
 		 *    Initialize S.GAR := S.ISS
 		 *    Set S.ISR, S.GSR, S.SWL, S.SWH from packet or Init Cookies
 		 */
-
-		/* See dccp_v4_conn_request */
-		newdmsk->dccpms_sequence_window = req->rcv_wnd;
-
 		newdp->dccps_gar = newdp->dccps_iss = dreq->dreq_iss;
 		dccp_update_gss(newsk, dreq->dreq_iss);
 
@@ -289,7 +279,6 @@ int dccp_reqsk_init(struct request_sock *req,
 
 	inet_rsk(req)->rmt_port	  = dccp_hdr(skb)->dccph_sport;
 	inet_rsk(req)->acked	  = 0;
-	req->rcv_wnd		  = sysctl_dccp_feat_sequence_window;
 	dreq->dreq_timestamp_echo = 0;
 
 	/* inherit feature negotiation options from listening socket */
