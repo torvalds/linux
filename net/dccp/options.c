@@ -163,6 +163,8 @@ int dccp_parse_options(struct sock *sk, struct dccp_request_sock *dreq,
 				      dccp_role(sk), ntohl(opt_val),
 				      (unsigned long long)
 				      DCCP_SKB_CB(skb)->dccpd_ack_seq);
+			/* schedule an Ack in case this sender is quiescent */
+			inet_csk_schedule_ack(sk);
 			break;
 		case DCCPO_TIMESTAMP_ECHO:
 			if (len != 4 && len != 6 && len != 8)
