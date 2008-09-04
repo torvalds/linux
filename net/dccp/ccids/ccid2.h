@@ -47,6 +47,7 @@ struct ccid2_seq {
  * @lastrtt: time RTT was last measured
  * @rpseq: last consecutive seqno
  * @rpdupack: dupacks since rpseq
+ * @av_chunks: list of Ack Vectors received on current skb
  */
 struct ccid2_hc_tx_sock {
 	u32			cwnd;
@@ -66,6 +67,7 @@ struct ccid2_hc_tx_sock {
 	int			rpdupack;
 	unsigned long		last_cong;
 	u64			high_ack;
+	struct list_head	av_chunks;
 };
 
 struct ccid2_hc_rx_sock {
