@@ -104,7 +104,7 @@ __setup("notsc", notsc_setup);
 /*
  * Read TSC and the reference counters. Take care of SMI disturbance
  */
-static u64 tsc_read_refs(u64 *pm, u64 *hpet)
+static u64 tsc_read_refs(u64 *p, int hpet)
 {
 	u64 t1, t2;
 	int i;
@@ -112,9 +112,9 @@ static u64 tsc_read_refs(u64 *pm, u64 *hpet)
 	for (i = 0; i < MAX_RETRIES; i++) {
 		t1 = get_cycles();
 		if (hpet)
-			*hpet = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
+			*p = hpet_readl(HPET_COUNTER) & 0xFFFFFFFF;
 		else
-			*pm = acpi_pm_read_early();
+			*p = acpi_pm_read_early();
 		t2 = get_cycles();
 		if ((t2 - t1) < SMI_TRESHOLD)
 			return t2;
@@ -228,7 +228,7 @@ static unsigned long pit_calibrate_tsc(void)
  */
 unsigned long native_calibrate_tsc(void)
 {
-	u64 tsc1, tsc2, delta, pm1, pm2, hpet1, hpet2;
+	u64 tsc1, tsc2, delta, ref1, ref2;
 	unsigned long tsc_pit_min = ULONG_MAX, tsc_ref_min = ULONG_MAX;
 	unsigned long flags;
 	int hpet = is_hpet_enabled(), i;
@@ -267,16 +267,16 @@ unsigned long native_calibrate_tsc(void)
 		 * read the end value.
 		 */
 		local_irq_save(flags);
-		tsc1 = tsc_read_refs(&pm1, hpet ? &hpet1 : NULL);
+		tsc1 = tsc_read_refs(&ref1, hpet);
 		tsc_pit_khz = pit_calibrate_tsc();
-		tsc2 = tsc_read_refs(&pm2, hpet ? &hpet2 : NULL);
+		tsc2 = tsc_read_refs(&ref2, hpet);
 		local_irq_restore(flags);
 
 		/* Pick the lowest PIT TSC calibration so far */
 		tsc_pit_min = min(tsc_pit_min, tsc_pit_khz);
 
 		/* hpet or pmtimer available ? */
-		if (!hpet && !pm1 && !pm2)
+		if (!hpet && !ref1 && !ref2)
 			continue;
 
 		/* Check, whether the sampling was disturbed by an SMI */
@@ -285,9 +285,9 @@ unsigned long native_calibrate_tsc(void)
 
 		tsc2 = (tsc2 - tsc1) * 1000000LL;
 		if (hpet)
-			tsc2 = calc_hpet_ref(tsc2, hpet1, hpet2);
+			tsc2 = calc_hpet_ref(tsc2, ref1, ref2);
 		else
-			tsc2 = calc_pmtimer_ref(tsc2, pm1, pm2);
+			tsc2 = calc_pmtimer_ref(tsc2, ref1, ref2);
 
 		tsc_ref_min = min(tsc_ref_min, (unsigned long) tsc2);
 	}
@@ -301,7 +301,7 @@ unsigned long native_calibrate_tsc(void)
 		       "SMI disturbance.\n");
 
 		/* We don't have an alternative source, disable TSC */
-		if (!hpet && !pm1 && !pm2) {
+		if (!hpet && !ref1 && !ref2) {
 			printk("TSC: No reference (HPET/PMTIMER) available\n");
 			return 0;
 		}
@@ -321,7 +321,7 @@ unsigned long native_calibrate_tsc(void)
 	}
 
 	/* We don't have an alternative source, use the PIT calibration value */
-	if (!hpet && !pm1 && !pm2) {
+	if (!hpet && !ref1 && !ref2) {
 		printk(KERN_INFO "TSC: Using PIT calibration value\n");
 		return tsc_pit_min;
 	}
