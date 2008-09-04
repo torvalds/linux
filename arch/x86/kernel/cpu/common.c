@@ -335,11 +335,11 @@ static void __init early_cpu_detect(void)
 
 	get_cpu_vendor(c, 1);
 
+	early_get_cap(c);
+
 	if (c->x86_vendor != X86_VENDOR_UNKNOWN &&
 	    cpu_devs[c->x86_vendor]->c_early_init)
 		cpu_devs[c->x86_vendor]->c_early_init(c);
-
-	early_get_cap(c);
 }
 
 /*
