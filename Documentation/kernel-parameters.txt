@@ -1882,6 +1882,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	shapers=	[NET]
 			Maximal number of shapers.
 
+	show_msr=	[x86] show boot-time MSR settings
+			Format: { <integer> }
+			Show boot-time (BIOS-initialized) MSR settings.
+			The parameter means the number of CPUs to show,
+			for example 1 means boot CPU only.
+
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.
 

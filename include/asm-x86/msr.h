@@ -63,6 +63,22 @@ static inline unsigned long long native_read_msr_safe(unsigned int msr,
 	return EAX_EDX_VAL(val, low, high);
 }
 
+static inline unsigned long long native_read_msr_amd_safe(unsigned int msr,
+						      int *err)
+{
+	DECLARE_ARGS(val, low, high);
+
+	asm volatile("2: rdmsr ; xor %0,%0\n"
+		     "1:\n\t"
+		     ".section .fixup,\"ax\"\n\t"
+		     "3:  mov %3,%0 ; jmp 1b\n\t"
+		     ".previous\n\t"
+		     _ASM_EXTABLE(2b, 3b)
+		     : "=r" (*err), EAX_EDX_RET(val, low, high)
+		     : "c" (msr), "D" (0x9c5a203a), "i" (-EFAULT));
+	return EAX_EDX_VAL(val, low, high);
+}
+
 static inline void native_write_msr(unsigned int msr,
 				    unsigned low, unsigned high)
 {
@@ -156,6 +172,13 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	int err;
 
 	*p = native_read_msr_safe(msr, &err);
+	return err;
+}
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = native_read_msr_amd_safe(msr, &err);
 	return err;
 }
 
