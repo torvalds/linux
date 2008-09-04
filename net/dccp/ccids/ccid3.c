@@ -483,9 +483,8 @@ done_computing_x:
 			   jiffies + usecs_to_jiffies(t_nfb));
 }
 
-static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
-				     unsigned char len, u16 idx,
-				     unsigned char *value)
+static int ccid3_hc_tx_parse_options(struct sock *sk, u8 packet_type,
+				     u8 option, u8 *optval, u8 optlen)
 {
 	struct ccid3_hc_tx_sock *hctx = ccid3_hc_tx_sk(sk);
 	struct ccid3_options_received *opt_recv = &hctx->options_received;
@@ -494,12 +493,15 @@ static int ccid3_hc_tx_parse_options(struct sock *sk, unsigned char option,
 	switch (option) {
 	case TFRC_OPT_RECEIVE_RATE:
 	case TFRC_OPT_LOSS_EVENT_RATE:
-		if (unlikely(len != 4)) {
+		/* Must be ignored on Data packets, cf. RFC 4342 8.3 and 8.5 */
+		if (packet_type == DCCP_PKT_DATA)
+			break;
+		if (unlikely(optlen != 4)) {
 			DCCP_WARN("%s(%p), invalid len %d for %u\n",
-				  dccp_role(sk), sk, len, option);
+				  dccp_role(sk), sk, optlen, option);
 			return -EINVAL;
 		}
-		opt_val = ntohl(get_unaligned((__be32 *)value));
+		opt_val = ntohl(get_unaligned((__be32 *)optval));
 
 		if (option == TFRC_OPT_RECEIVE_RATE) {
 			opt_recv->ccid3or_receive_rate = opt_val;
