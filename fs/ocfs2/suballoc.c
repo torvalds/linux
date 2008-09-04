@@ -62,15 +62,18 @@ static int ocfs2_block_group_fill(handle_t *handle,
 				  struct ocfs2_chain_list *cl);
 static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 				   struct inode *alloc_inode,
-				   struct buffer_head *bh);
+				   struct buffer_head *bh,
+				   u64 max_block);
 
 static int ocfs2_cluster_group_search(struct inode *inode,
 				      struct buffer_head *group_bh,
 				      u32 bits_wanted, u32 min_bits,
+				      u64 max_block,
 				      u16 *bit_off, u16 *bits_found);
 static int ocfs2_block_group_search(struct inode *inode,
 				    struct buffer_head *group_bh,
 				    u32 bits_wanted, u32 min_bits,
+				    u64 max_block,
 				    u16 *bit_off, u16 *bits_found);
 static int ocfs2_claim_suballoc_bits(struct ocfs2_super *osb,
 				     struct ocfs2_alloc_context *ac,
@@ -110,6 +113,9 @@ static inline void ocfs2_block_to_cluster_group(struct inode *inode,
 						u64 data_blkno,
 						u64 *bg_blkno,
 						u16 *bg_bit_off);
+static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
+					     u32 bits_wanted, u64 max_block,
+					     struct ocfs2_alloc_context **ac);
 
 void ocfs2_free_ac_resource(struct ocfs2_alloc_context *ac)
 {
@@ -276,7 +282,8 @@ static inline u16 ocfs2_find_smallest_chain(struct ocfs2_chain_list *cl)
  */
 static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 				   struct inode *alloc_inode,
-				   struct buffer_head *bh)
+				   struct buffer_head *bh,
+				   u64 max_block)
 {
 	int status, credits;
 	struct ocfs2_dinode *fe = (struct ocfs2_dinode *) bh->b_data;
@@ -294,9 +301,9 @@ static int ocfs2_block_group_alloc(struct ocfs2_super *osb,
 	mlog_entry_void();
 
 	cl = &fe->id2.i_chain;
-	status = ocfs2_reserve_clusters(osb,
-					le16_to_cpu(cl->cl_cpg),
-					&ac);
+	status = ocfs2_reserve_clusters_with_limit(osb,
+						   le16_to_cpu(cl->cl_cpg),
+						   max_block, &ac);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -469,7 +476,8 @@ static int ocfs2_reserve_suballoc_bits(struct ocfs2_super *osb,
 			goto bail;
 		}
 
-		status = ocfs2_block_group_alloc(osb, alloc_inode, bh);
+		status = ocfs2_block_group_alloc(osb, alloc_inode, bh,
+						 ac->ac_max_block);
 		if (status < 0) {
 			if (status != -ENOSPC)
 				mlog_errno(status);
@@ -591,6 +599,13 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	(*ac)->ac_group_search = ocfs2_block_group_search;
 
 	/*
+	 * stat(2) can't handle i_ino > 32bits, so we tell the
+	 * lower levels not to allocate us a block group past that
+	 * limit.
+	 */
+	(*ac)->ac_max_block = (u32)~0U;
+
+	/*
 	 * slot is set when we successfully steal inode from other nodes.
 	 * It is reset in 3 places:
 	 * 1. when we flush the truncate log
@@ -670,9 +685,9 @@ bail:
 /* Callers don't need to care which bitmap (local alloc or main) to
  * use so we figure it out for them, but unfortunately this clutters
  * things a bit. */
-int ocfs2_reserve_clusters(struct ocfs2_super *osb,
-			   u32 bits_wanted,
-			   struct ocfs2_alloc_context **ac)
+static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
+					     u32 bits_wanted, u64 max_block,
+					     struct ocfs2_alloc_context **ac)
 {
 	int status;
 
@@ -686,13 +701,18 @@ int ocfs2_reserve_clusters(struct ocfs2_super *osb,
 	}
 
 	(*ac)->ac_bits_wanted = bits_wanted;
+	(*ac)->ac_max_block = max_block;
 
 	status = -ENOSPC;
 	if (ocfs2_alloc_should_use_local(osb, bits_wanted)) {
 		status = ocfs2_reserve_local_alloc_bits(osb,
 							bits_wanted,
 							*ac);
-		if ((status < 0) && (status != -ENOSPC)) {
+		if (status == -EFBIG) {
+			/* The local alloc window is outside ac_max_block.
+			 * use the main bitmap. */
+			status = -ENOSPC;
+		} else if ((status < 0) && (status != -ENOSPC)) {
 			mlog_errno(status);
 			goto bail;
 		}
@@ -716,6 +736,13 @@ bail:
 
 	mlog_exit(status);
 	return status;
+}
+
+int ocfs2_reserve_clusters(struct ocfs2_super *osb,
+			   u32 bits_wanted,
+			   struct ocfs2_alloc_context **ac)
+{
+	return ocfs2_reserve_clusters_with_limit(osb, bits_wanted, 0, ac);
 }
 
 /*
@@ -1000,10 +1027,12 @@ static inline int ocfs2_block_group_reasonably_empty(struct ocfs2_group_desc *bg
 static int ocfs2_cluster_group_search(struct inode *inode,
 				      struct buffer_head *group_bh,
 				      u32 bits_wanted, u32 min_bits,
+				      u64 max_block,
 				      u16 *bit_off, u16 *bits_found)
 {
 	int search = -ENOSPC;
 	int ret;
+	u64 blkoff;
 	struct ocfs2_group_desc *gd = (struct ocfs2_group_desc *) group_bh->b_data;
 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
 	u16 tmp_off, tmp_found;
@@ -1038,6 +1067,17 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 		if (ret)
 			return ret;
 
+		if (max_block) {
+			blkoff = ocfs2_clusters_to_blocks(inode->i_sb,
+							  gd_cluster_off +
+							  tmp_off + tmp_found);
+			mlog(0, "Checking %llu against %llu\n",
+			     (unsigned long long)blkoff,
+			     (unsigned long long)max_block);
+			if (blkoff > max_block)
+				return -ENOSPC;
+		}
+
 		/* ocfs2_block_group_find_clear_bits() might
 		 * return success, but we still want to return
 		 * -ENOSPC unless it found the minimum number
@@ -1061,19 +1101,31 @@ static int ocfs2_cluster_group_search(struct inode *inode,
 static int ocfs2_block_group_search(struct inode *inode,
 				    struct buffer_head *group_bh,
 				    u32 bits_wanted, u32 min_bits,
+				    u64 max_block,
 				    u16 *bit_off, u16 *bits_found)
 {
 	int ret = -ENOSPC;
+	u64 blkoff;
 	struct ocfs2_group_desc *bg = (struct ocfs2_group_desc *) group_bh->b_data;
 
 	BUG_ON(min_bits != 1);
 	BUG_ON(ocfs2_is_cluster_bitmap(inode));
 
-	if (bg->bg_free_bits_count)
+	if (bg->bg_free_bits_count) {
 		ret = ocfs2_block_group_find_clear_bits(OCFS2_SB(inode->i_sb),
 							group_bh, bits_wanted,
 							le16_to_cpu(bg->bg_bits),
 							bit_off, bits_found);
+		if (!ret && max_block) {
+			blkoff = le64_to_cpu(bg->bg_blkno) + *bit_off +
+				*bits_found;
+			mlog(0, "Checking %llu against %llu\n",
+			     (unsigned long long)blkoff,
+			     (unsigned long long)max_block);
+			if (blkoff > max_block)
+				ret = -ENOSPC;
+		}
+	}
 
 	return ret;
 }
@@ -1138,7 +1190,7 @@ static int ocfs2_search_one_group(struct ocfs2_alloc_context *ac,
 	}
 
 	ret = ac->ac_group_search(alloc_inode, group_bh, bits_wanted, min_bits,
-				  bit_off, &found);
+				  ac->ac_max_block, bit_off, &found);
 	if (ret < 0) {
 		if (ret != -ENOSPC)
 			mlog_errno(ret);
@@ -1210,11 +1262,12 @@ static int ocfs2_search_chain(struct ocfs2_alloc_context *ac,
 	status = -ENOSPC;
 	/* for now, the chain search is a bit simplistic. We just use
 	 * the 1st group with any empty bits. */
-	while ((status = ac->ac_group_search(alloc_inode, group_bh, bits_wanted,
-					     min_bits, bit_off, &tmp_bits)) == -ENOSPC) {
+	while ((status = ac->ac_group_search(alloc_inode, group_bh,
+					     bits_wanted, min_bits,
+					     ac->ac_max_block, bit_off,
+					     &tmp_bits)) == -ENOSPC) {
 		if (!bg->bg_next_group)
 			break;
-
 		if (prev_group_bh) {
 			brelse(prev_group_bh);
 			prev_group_bh = NULL;

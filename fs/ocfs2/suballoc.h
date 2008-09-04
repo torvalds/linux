@@ -28,10 +28,11 @@
 
 typedef int (group_search_t)(struct inode *,
 			     struct buffer_head *,
-			     u32,
-			     u32,
-			     u16 *,
-			     u16 *);
+			     u32,			/* bits_wanted */
+			     u32,			/* min_bits */
+			     u64,			/* max_block */
+			     u16 *,			/* *bit_off */
+			     u16 *);			/* *bits_found */
 
 struct ocfs2_alloc_context {
 	struct inode *ac_inode;    /* which bitmap are we allocating from? */
@@ -51,6 +52,8 @@ struct ocfs2_alloc_context {
 	group_search_t *ac_group_search;
 
 	u64    ac_last_group;
+	u64    ac_max_block;  /* Highest block number to allocate. 0 is
+				 is the same as ~0 - unlimited */
 };
 
 void ocfs2_free_alloc_context(struct ocfs2_alloc_context *ac);
