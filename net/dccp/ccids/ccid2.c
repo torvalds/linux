@@ -580,8 +580,7 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 					 &vector, &veclen)) != -1) {
 		/* go through this ack vector */
 		while (veclen--) {
-			const u8 rl = *vector & DCCP_ACKVEC_LEN_MASK;
-			u64 ackno_end_rl = SUB48(ackno, rl);
+			u64 ackno_end_rl = SUB48(ackno, dccp_ackvec_runlen(vector));
 
 			ccid2_pr_debug("ackvec start:%llu end:%llu\n",
 				       (unsigned long long)ackno,
@@ -604,17 +603,15 @@ static void ccid2_hc_tx_packet_recv(struct sock *sk, struct sk_buff *skb)
 			 * run length
 			 */
 			while (between48(seqp->ccid2s_seq,ackno_end_rl,ackno)) {
-				const u8 state = *vector &
-						 DCCP_ACKVEC_STATE_MASK;
+				const u8 state = dccp_ackvec_state(vector);
 
 				/* new packet received or marked */
-				if (state != DCCP_ACKVEC_STATE_NOT_RECEIVED &&
+				if (state != DCCPAV_NOT_RECEIVED &&
 				    !seqp->ccid2s_acked) {
-					if (state ==
-					    DCCP_ACKVEC_STATE_ECN_MARKED) {
+					if (state == DCCPAV_ECN_MARKED)
 						ccid2_congestion_event(sk,
 								       seqp);
-					} else
+					else
 						ccid2_new_ack(sk, seqp,
 							      &maxincr);
 

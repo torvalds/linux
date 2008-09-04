@@ -377,8 +377,7 @@ int dccp_rcv_established(struct sock *sk, struct sk_buff *skb,
 
 	if (dp->dccps_hc_rx_ackvec != NULL &&
 	    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-			    DCCP_SKB_CB(skb)->dccpd_seq,
-			    DCCP_ACKVEC_STATE_RECEIVED))
+			    DCCP_SKB_CB(skb)->dccpd_seq, DCCPAV_RECEIVED))
 		goto discard;
 	dccp_deliver_input_to_ccids(sk, skb);
 
@@ -627,8 +626,7 @@ int dccp_rcv_state_process(struct sock *sk, struct sk_buff *skb,
 
 		if (dp->dccps_hc_rx_ackvec != NULL &&
 		    dccp_ackvec_add(dp->dccps_hc_rx_ackvec, sk,
-				    DCCP_SKB_CB(skb)->dccpd_seq,
-				    DCCP_ACKVEC_STATE_RECEIVED))
+				    DCCP_SKB_CB(skb)->dccpd_seq, DCCPAV_RECEIVED))
 			goto discard;
 
 		dccp_deliver_input_to_ccids(sk, skb);
