@@ -101,7 +101,7 @@ static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 		     "1:"
 		     "sete %b1\n\t"
 		     "movzbl %b1,%0\n\t"
-		     : "=&a" (tmp), "=Q" (new), "+m" (lock->slock)
+		     : "=&a" (tmp), "=&Q" (new), "+m" (lock->slock)
 		     :
 		     : "memory", "cc");
 
@@ -146,7 +146,7 @@ static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 		     /* don't need lfence here, because loads are in-order */
 		     "jmp 1b\n"
 		     "2:"
-		     : "+Q" (inc), "+m" (lock->slock), "=r" (tmp)
+		     : "+r" (inc), "+m" (lock->slock), "=&r" (tmp)
 		     :
 		     : "memory", "cc");
 }
@@ -166,7 +166,7 @@ static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 		     "1:"
 		     "sete %b1\n\t"
 		     "movzbl %b1,%0\n\t"
-		     : "=&a" (tmp), "=r" (new), "+m" (lock->slock)
+		     : "=&a" (tmp), "=&q" (new), "+m" (lock->slock)
 		     :
 		     : "memory", "cc");
 
