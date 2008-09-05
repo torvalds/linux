@@ -123,7 +123,6 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 		if (!pmd_present(*pmd)) {
 			pte_t *pte_table;
 			pte_table = (pte_t *)alloc_bootmem_low_pages(PAGE_SIZE);
-			memset(pte_table, 0, PAGE_SIZE);
 			pmd_populate_kernel(&init_mm, pmd, pte_table);
 		}
 
