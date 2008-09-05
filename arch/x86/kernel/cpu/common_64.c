@@ -214,6 +214,9 @@ void switch_to_new_gdt(void)
 	gdt_descr.address = (long)get_cpu_gdt_table(smp_processor_id());
 	gdt_descr.size = GDT_SIZE - 1;
 	load_gdt(&gdt_descr);
+#ifdef CONFIG_X86_32
+	asm("mov %0, %%fs" : : "r" (__KERNEL_PERCPU) : "memory");
+#endif
 }
 
 static struct cpu_dev *cpu_devs[X86_VENDOR_NUM] = {};
