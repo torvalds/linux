@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_MSGBUF_H
-#define _ASM_X86_MSGBUF_H
+#ifndef ASM_X86__MSGBUF_H
+#define ASM_X86__MSGBUF_H
 
 /*
  * The msqid64_ds structure for i386 architecture.
@@ -36,4 +36,4 @@ struct msqid64_ds {
 	unsigned long  __unused5;
 };
 
-#endif /* _ASM_X86_MSGBUF_H */
+#endif /* ASM_X86__MSGBUF_H */

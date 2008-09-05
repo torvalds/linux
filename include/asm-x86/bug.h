@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_BUG_H
-#define _ASM_X86_BUG_H
+#ifndef ASM_X86__BUG_H
+#define ASM_X86__BUG_H
 
 #ifdef CONFIG_BUG
 #define HAVE_ARCH_BUG
@@ -36,4 +36,4 @@ do {								\
 #endif /* !CONFIG_BUG */
 
 #include <asm-generic/bug.h>
-#endif
+#endif /* ASM_X86__BUG_H */

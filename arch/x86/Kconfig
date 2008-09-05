@@ -1643,6 +1643,14 @@ config DMAR_FLOPPY_WA
 	 workaround will setup a 1:1 mapping for the first
 	 16M to make floppy (an ISA device) work.
 
+config INTR_REMAP
+	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	help
+	 Supports Interrupt remapping for IO-APIC and MSI devices.
+	 To use x2apic mode in the CPU's which support x2APIC enhancements or
+	 to support platforms with CPU's having > 8 bit APIC ID, say Y.
+
 source "drivers/pci/pcie/Kconfig"
 
 source "drivers/pci/Kconfig"

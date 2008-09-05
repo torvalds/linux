@@ -1,5 +1,5 @@
-#ifndef __ASM_CMPXCHG_H
-#define __ASM_CMPXCHG_H
+#ifndef ASM_X86__CMPXCHG_64_H
+#define ASM_X86__CMPXCHG_64_H
 
 #include <asm/alternative.h> /* Provides LOCK_PREFIX */
 
@@ -182,4 +182,4 @@ static inline unsigned long __cmpxchg_local(volatile void *ptr,
 	cmpxchg_local((ptr), (o), (n));					\
 })
 
-#endif
+#endif /* ASM_X86__CMPXCHG_64_H */

@@ -1,5 +1,5 @@
-#ifndef __ASM_MSR_INDEX_H
-#define __ASM_MSR_INDEX_H
+#ifndef ASM_X86__MSR_INDEX_H
+#define ASM_X86__MSR_INDEX_H
 
 /* CPU model specific register (MSR) numbers */
 
@@ -310,4 +310,4 @@
 /* Geode defined MSRs */
 #define MSR_GEODE_BUSCONT_CONF0		0x00001900
 
-#endif /* __ASM_MSR_INDEX_H */
+#endif /* ASM_X86__MSR_INDEX_H */

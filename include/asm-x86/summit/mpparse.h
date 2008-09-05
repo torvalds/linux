@@ -1,7 +1,6 @@
-#ifndef __ASM_MACH_MPPARSE_H
-#define __ASM_MACH_MPPARSE_H
+#ifndef __ASM_SUMMIT_MPPARSE_H
+#define __ASM_SUMMIT_MPPARSE_H
 
-#include <mach_apic.h>
 #include <asm/tsc.h>
 
 extern int use_cyclone;
@@ -12,11 +11,11 @@ extern void setup_summit(void);
 #define setup_summit()	{}
 #endif
 
-static inline int mps_oem_check(struct mp_config_table *mpc, char *oem, 
+static inline int mps_oem_check(struct mp_config_table *mpc, char *oem,
 		char *productid)
 {
-	if (!strncmp(oem, "IBM ENSW", 8) && 
-			(!strncmp(productid, "VIGIL SMP", 9) 
+	if (!strncmp(oem, "IBM ENSW", 8) &&
+			(!strncmp(productid, "VIGIL SMP", 9)
 			 || !strncmp(productid, "EXA", 3)
 			 || !strncmp(productid, "RUTHLESS SMP", 12))){
 		mark_tsc_unstable("Summit based system");
@@ -107,4 +106,4 @@ static inline int is_WPEG(struct rio_detail *rio){
 		rio->type == LookOutAWPEG || rio->type == LookOutBWPEG);
 }
 
-#endif /* __ASM_MACH_MPPARSE_H */
+#endif /* __ASM_SUMMIT_MPPARSE_H */

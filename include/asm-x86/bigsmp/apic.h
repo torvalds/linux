@@ -11,7 +11,7 @@ static inline int apic_id_registered(void)
 
 /* Round robin the irqs amoung the online cpus */
 static inline cpumask_t target_cpus(void)
-{ 
+{
 	static unsigned long cpu = NR_CPUS;
 	do {
 		if (cpu >= NR_CPUS)
@@ -23,7 +23,7 @@ static inline cpumask_t target_cpus(void)
 }
 
 #undef APIC_DEST_LOGICAL
-#define APIC_DEST_LOGICAL 	0
+#define APIC_DEST_LOGICAL	0
 #define TARGET_CPUS		(target_cpus())
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define INT_DELIVERY_MODE	(dest_Fixed)

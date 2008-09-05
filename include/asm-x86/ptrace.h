@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_PTRACE_H
-#define _ASM_X86_PTRACE_H
+#ifndef ASM_X86__PTRACE_H
+#define ASM_X86__PTRACE_H
 
 #include <linux/compiler.h>	/* For __user */
 #include <asm/ptrace-abi.h>
@@ -148,6 +148,9 @@ extern void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 #endif
 
+extern long syscall_trace_enter(struct pt_regs *);
+extern void syscall_trace_leave(struct pt_regs *);
+
 static inline unsigned long regs_return_value(struct pt_regs *regs)
 {
 	return regs->ax;
@@ -239,4 +242,4 @@ extern int do_set_thread_area(struct task_struct *p, int idx,
 
 #endif /* !__ASSEMBLY__ */
 
-#endif
+#endif /* ASM_X86__PTRACE_H */

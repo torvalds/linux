@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_APIC_H
-#define __ASM_MACH_APIC_H
+#ifndef __ASM_SUMMIT_APIC_H
+#define __ASM_SUMMIT_APIC_H
 
 #include <asm/smp.h>
 
@@ -21,7 +21,7 @@ static inline cpumask_t target_cpus(void)
 	 * Just start on cpu 0.  IRQ balancing will spread load
 	 */
 	return cpumask_of_cpu(0);
-} 
+}
 #define TARGET_CPUS	(target_cpus())
 
 #define INT_DELIVERY_MODE (dest_LowestPrio)
@@ -30,10 +30,10 @@ static inline cpumask_t target_cpus(void)
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
 {
 	return 0;
-} 
+}
 
 /* we don't use the phys_cpu_present_map to indicate apicid presence */
-static inline unsigned long check_apicid_present(int bit) 
+static inline unsigned long check_apicid_present(int bit)
 {
 	return 1;
 }
@@ -122,7 +122,7 @@ static inline physid_mask_t ioapic_phys_id_map(physid_mask_t phys_id_map)
 
 static inline physid_mask_t apicid_to_cpu_present(int apicid)
 {
-	return physid_mask_of_physid(apicid);
+	return physid_mask_of_physid(0);
 }
 
 static inline void setup_portio_remap(void)
@@ -143,22 +143,22 @@ static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 	int num_bits_set;
 	int cpus_found = 0;
 	int cpu;
-	int apicid;	
+	int apicid;
 
 	num_bits_set = cpus_weight(cpumask);
 	/* Return id to all */
 	if (num_bits_set == NR_CPUS)
 		return (int) 0xFF;
-	/* 
-	 * The cpus in the mask must all be on the apic cluster.  If are not 
-	 * on the same apicid cluster return default value of TARGET_CPUS. 
+	/*
+	 * The cpus in the mask must all be on the apic cluster.  If are not
+	 * on the same apicid cluster return default value of TARGET_CPUS.
 	 */
 	cpu = first_cpu(cpumask);
 	apicid = cpu_to_logical_apicid(cpu);
 	while (cpus_found < num_bits_set) {
 		if (cpu_isset(cpu, cpumask)) {
 			int new_apicid = cpu_to_logical_apicid(cpu);
-			if (apicid_cluster(apicid) != 
+			if (apicid_cluster(apicid) !=
 					apicid_cluster(new_apicid)){
 				printk ("%s: Not a valid mask!\n",__FUNCTION__);
 				return 0xFF;
@@ -182,4 +182,4 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 	return hard_smp_processor_id() >> index_msb;
 }
 
-#endif /* __ASM_MACH_APIC_H */
+#endif /* __ASM_SUMMIT_APIC_H */

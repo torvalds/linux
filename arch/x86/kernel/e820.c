@@ -148,6 +148,9 @@ void __init e820_print_map(char *who)
 		case E820_NVS:
 			printk(KERN_CONT "(ACPI NVS)\n");
 			break;
+		case E820_UNUSABLE:
+			printk("(unusable)\n");
+			break;
 		default:
 			printk(KERN_CONT "type %u\n", e820.map[i].type);
 			break;
@@ -1260,6 +1263,7 @@ static inline const char *e820_type_to_string(int e820_type)
 	case E820_RAM:	return "System RAM";
 	case E820_ACPI:	return "ACPI Tables";
 	case E820_NVS:	return "ACPI Non-volatile Storage";
+	case E820_UNUSABLE:	return "Unusable memory";
 	default:	return "reserved";
 	}
 }
@@ -1267,6 +1271,7 @@ static inline const char *e820_type_to_string(int e820_type)
 /*
  * Mark e820 reserved areas as busy for the resource manager.
  */
+static struct resource __initdata *e820_res;
 void __init e820_reserve_resources(void)
 {
 	int i;
@@ -1274,6 +1279,7 @@ void __init e820_reserve_resources(void)
 	u64 end;
 
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
+	e820_res = res;
 	for (i = 0; i < e820.nr_map; i++) {
 		end = e820.map[i].addr + e820.map[i].size - 1;
 #ifndef CONFIG_RESOURCES_64BIT
@@ -1287,7 +1293,14 @@ void __init e820_reserve_resources(void)
 		res->end = end;
 
 		res->flags = IORESOURCE_MEM | IORESOURCE_BUSY;
-		insert_resource(&iomem_resource, res);
+
+		/*
+		 * don't register the region that could be conflicted with
+		 * pci device BAR resource and insert them later in
+		 * pcibios_resource_survey()
+		 */
+		if (e820.map[i].type != E820_RESERVED || res->start < (1ULL<<20))
+			insert_resource(&iomem_resource, res);
 		res++;
 	}
 
@@ -1296,6 +1309,19 @@ void __init e820_reserve_resources(void)
 		firmware_map_add_early(entry->addr,
 			entry->addr + entry->size - 1,
 			e820_type_to_string(entry->type));
+	}
+}
+
+void __init e820_reserve_resources_late(void)
+{
+	int i;
+	struct resource *res;
+
+	res = e820_res;
+	for (i = 0; i < e820.nr_map; i++) {
+		if (!res->parent && res->end)
+			reserve_region_with_split(&iomem_resource, res->start, res->end, res->name);
+		res++;
 	}
 }
 

@@ -10,13 +10,15 @@
 #include <asm/e820.h>
 #include <asm/setup.h>
 
+#include <mach_ipi.h>
+
 #ifdef CONFIG_HOTPLUG_CPU
 #define DEFAULT_SEND_IPI	(1)
 #else
 #define DEFAULT_SEND_IPI	(0)
 #endif
 
-int no_broadcast=DEFAULT_SEND_IPI;
+int no_broadcast = DEFAULT_SEND_IPI;
 
 /**
  * pre_intr_init_hook - initialisation prior to setting up interrupt vectors
@@ -36,15 +38,6 @@ void __init pre_intr_init_hook(void)
 	init_ISA_irqs();
 }
 
-/*
- * IRQ2 is cascade interrupt to second interrupt controller
- */
-static struct irqaction irq2 = {
-	.handler = no_action,
-	.mask = CPU_MASK_NONE,
-	.name = "cascade",
-};
-
 /**
  * intr_init_hook - post gate setup interrupt initialisation
  *
@@ -60,12 +53,6 @@ void __init intr_init_hook(void)
 		if (x86_quirks->arch_intr_init())
 			return;
 	}
-#ifdef CONFIG_X86_LOCAL_APIC
-	apic_intr_init();
-#endif
-
-	if (!acpi_ioapic)
-		setup_irq(2, &irq2);
 }
 
 /**

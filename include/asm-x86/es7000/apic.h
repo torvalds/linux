@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_APIC_H
-#define __ASM_MACH_APIC_H
+#ifndef __ASM_ES7000_APIC_H
+#define __ASM_ES7000_APIC_H
 
 #define xapic_phys_to_log_apicid(cpu) per_cpu(x86_bios_cpu_apicid, cpu)
 #define esr_disable (1)
@@ -10,7 +10,7 @@ static inline int apic_id_registered(void)
 }
 
 static inline cpumask_t target_cpus(void)
-{ 
+{
 #if defined CONFIG_ES7000_CLUSTERED_APIC
 	return CPU_MASK_ALL;
 #else
@@ -23,24 +23,24 @@ static inline cpumask_t target_cpus(void)
 #define APIC_DFR_VALUE		(APIC_DFR_CLUSTER)
 #define INT_DELIVERY_MODE	(dest_LowestPrio)
 #define INT_DEST_MODE		(1)    /* logical delivery broadcast to all procs */
-#define NO_BALANCE_IRQ 		(1)
+#define NO_BALANCE_IRQ		(1)
 #undef  WAKE_SECONDARY_VIA_INIT
 #define WAKE_SECONDARY_VIA_MIP
 #else
 #define APIC_DFR_VALUE		(APIC_DFR_FLAT)
 #define INT_DELIVERY_MODE	(dest_Fixed)
 #define INT_DEST_MODE		(0)    /* phys delivery to target procs */
-#define NO_BALANCE_IRQ 		(0)
+#define NO_BALANCE_IRQ		(0)
 #undef  APIC_DEST_LOGICAL
 #define APIC_DEST_LOGICAL	0x0
 #define WAKE_SECONDARY_VIA_INIT
 #endif
 
 static inline unsigned long check_apicid_used(physid_mask_t bitmap, int apicid)
-{ 
+{
 	return 0;
-} 
-static inline unsigned long check_apicid_present(int bit) 
+}
+static inline unsigned long check_apicid_present(int bit)
 {
 	return physid_isset(bit, phys_cpu_present_map);
 }
@@ -80,7 +80,7 @@ static inline void setup_apic_routing(void)
 {
 	int apic = per_cpu(x86_bios_cpu_apicid, smp_processor_id());
 	printk("Enabling APIC mode:  %s.  Using %d I/O APICs, target cpus %lx\n",
-		(apic_version[apic] == 0x14) ? 
+		(apic_version[apic] == 0x14) ?
 		"Physical Cluster" : "Logical Cluster", nr_ioapics, cpus_addr(TARGET_CPUS)[0]);
 }
 
@@ -141,7 +141,7 @@ static inline void setup_portio_remap(void)
 extern unsigned int boot_cpu_physical_apicid;
 static inline int check_phys_apicid_present(int cpu_physical_apicid)
 {
-	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
+	boot_cpu_physical_apicid = read_apic_id();
 	return (1);
 }
 
@@ -150,7 +150,7 @@ static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 	int num_bits_set;
 	int cpus_found = 0;
 	int cpu;
-	int apicid;	
+	int apicid;
 
 	num_bits_set = cpus_weight(cpumask);
 	/* Return id to all */
@@ -160,16 +160,16 @@ static inline unsigned int cpu_mask_to_apicid(cpumask_t cpumask)
 #else
 		return cpu_to_logical_apicid(0);
 #endif
-	/* 
-	 * The cpus in the mask must all be on the apic cluster.  If are not 
-	 * on the same apicid cluster return default value of TARGET_CPUS. 
+	/*
+	 * The cpus in the mask must all be on the apic cluster.  If are not
+	 * on the same apicid cluster return default value of TARGET_CPUS.
 	 */
 	cpu = first_cpu(cpumask);
 	apicid = cpu_to_logical_apicid(cpu);
 	while (cpus_found < num_bits_set) {
 		if (cpu_isset(cpu, cpumask)) {
 			int new_apicid = cpu_to_logical_apicid(cpu);
-			if (apicid_cluster(apicid) != 
+			if (apicid_cluster(apicid) !=
 					apicid_cluster(new_apicid)){
 				printk ("%s: Not a valid mask!\n",__FUNCTION__);
 #if defined CONFIG_ES7000_CLUSTERED_APIC
@@ -191,4 +191,4 @@ static inline u32 phys_pkg_id(u32 cpuid_apic, int index_msb)
 	return cpuid_apic >> index_msb;
 }
 
-#endif /* __ASM_MACH_APIC_H */
+#endif /* __ASM_ES7000_APIC_H */

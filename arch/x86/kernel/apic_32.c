@@ -145,13 +145,18 @@ static int modern_apic(void)
 	return lapic_get_version() >= 0x14;
 }
 
-void apic_wait_icr_idle(void)
+/*
+ * Paravirt kernels also might be using these below ops. So we still
+ * use generic apic_read()/apic_write(), which might be pointing to different
+ * ops in PARAVIRT case.
+ */
+void xapic_wait_icr_idle(void)
 {
 	while (apic_read(APIC_ICR) & APIC_ICR_BUSY)
 		cpu_relax();
 }
 
-u32 safe_apic_wait_icr_idle(void)
+u32 safe_xapic_wait_icr_idle(void)
 {
 	u32 send_status;
 	int timeout;
@@ -167,16 +172,48 @@ u32 safe_apic_wait_icr_idle(void)
 	return send_status;
 }
 
+void xapic_icr_write(u32 low, u32 id)
+{
+	apic_write(APIC_ICR2, SET_APIC_DEST_FIELD(id));
+	apic_write(APIC_ICR, low);
+}
+
+u64 xapic_icr_read(void)
+{
+	u32 icr1, icr2;
+
+	icr2 = apic_read(APIC_ICR2);
+	icr1 = apic_read(APIC_ICR);
+
+	return icr1 | ((u64)icr2 << 32);
+}
+
+static struct apic_ops xapic_ops = {
+	.read = native_apic_mem_read,
+	.write = native_apic_mem_write,
+	.icr_read = xapic_icr_read,
+	.icr_write = xapic_icr_write,
+	.wait_icr_idle = xapic_wait_icr_idle,
+	.safe_wait_icr_idle = safe_xapic_wait_icr_idle,
+};
+
+struct apic_ops __read_mostly *apic_ops = &xapic_ops;
+EXPORT_SYMBOL_GPL(apic_ops);
+
 /**
  * enable_NMI_through_LVT0 - enable NMI through local vector table 0
  */
 void __cpuinit enable_NMI_through_LVT0(void)
 {
-	unsigned int v = APIC_DM_NMI;
+	unsigned int v;
 
-	/* Level triggered for 82489DX */
+	/* unmask and set to NMI */
+	v = APIC_DM_NMI;
+
+	/* Level triggered for 82489DX (32bit mode) */
 	if (!lapic_is_integrated())
 		v |= APIC_LVT_LEVEL_TRIGGER;
+
 	apic_write(APIC_LVT0, v);
 }
 
@@ -193,9 +230,13 @@ int get_physical_broadcast(void)
  */
 int lapic_get_maxlvt(void)
 {
-	unsigned int v = apic_read(APIC_LVR);
+	unsigned int v;
 
-	/* 82489DXs do not report # of LVT entries. */
+	v = apic_read(APIC_LVR);
+	/*
+	 * - we always have APIC integrated on 64bit mode
+	 * - 82489DXs do not report # of LVT entries
+	 */
 	return APIC_INTEGRATED(GET_APIC_VERSION(v)) ? GET_APIC_MAXLVT(v) : 2;
 }
 
@@ -1205,7 +1246,7 @@ void __init init_apic_mappings(void)
 	 * default configuration (or the MP table is broken).
 	 */
 	if (boot_cpu_physical_apicid == -1U)
-		boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
+		boot_cpu_physical_apicid = read_apic_id();
 
 }
 
@@ -1242,7 +1283,7 @@ int __init APIC_init_uniprocessor(void)
 	 * might be zero if read from MP tables. Get it from LAPIC.
 	 */
 #ifdef CONFIG_CRASH_DUMP
-	boot_cpu_physical_apicid = GET_APIC_ID(read_apic_id());
+	boot_cpu_physical_apicid = read_apic_id();
 #endif
 	physid_set_mask_of_physid(boot_cpu_physical_apicid, &phys_cpu_present_map);
 
@@ -1319,54 +1360,6 @@ void smp_error_interrupt(struct pt_regs *regs)
 	printk(KERN_DEBUG "APIC error on CPU%d: %02lx(%02lx)\n",
 		smp_processor_id(), v , v1);
 	irq_exit();
-}
-
-#ifdef CONFIG_SMP
-void __init smp_intr_init(void)
-{
-	/*
-	 * IRQ0 must be given a fixed assignment and initialized,
-	 * because it's used before the IO-APIC is set up.
-	 */
-	set_intr_gate(FIRST_DEVICE_VECTOR, interrupt[0]);
-
-	/*
-	 * The reschedule interrupt is a CPU-to-CPU reschedule-helper
-	 * IPI, driven by wakeup.
-	 */
-	alloc_intr_gate(RESCHEDULE_VECTOR, reschedule_interrupt);
-
-	/* IPI for invalidation */
-	alloc_intr_gate(INVALIDATE_TLB_VECTOR, invalidate_interrupt);
-
-	/* IPI for generic function call */
-	alloc_intr_gate(CALL_FUNCTION_VECTOR, call_function_interrupt);
-
-	/* IPI for single call function */
-	set_intr_gate(CALL_FUNCTION_SINGLE_VECTOR,
-				call_function_single_interrupt);
-}
-#endif
-
-/*
- * Initialize APIC interrupts
- */
-void __init apic_intr_init(void)
-{
-#ifdef CONFIG_SMP
-	smp_intr_init();
-#endif
-	/* self generated IPI for local APIC timer */
-	alloc_intr_gate(LOCAL_TIMER_VECTOR, apic_timer_interrupt);
-
-	/* IPI vectors for APIC spurious and error interrupts */
-	alloc_intr_gate(SPURIOUS_APIC_VECTOR, spurious_interrupt);
-	alloc_intr_gate(ERROR_APIC_VECTOR, error_interrupt);
-
-	/* thermal monitor LVT interrupt */
-#ifdef CONFIG_X86_MCE_P4THERMAL
-	alloc_intr_gate(THERMAL_APIC_VECTOR, thermal_interrupt);
-#endif
 }
 
 /**

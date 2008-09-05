@@ -339,9 +339,8 @@ static void
 show_trace_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		unsigned long *stack, unsigned long bp, char *log_lvl)
 {
-	printk("\nCall Trace:\n");
+	printk("Call Trace:\n");
 	dump_trace(task, regs, stack, bp, &print_trace_ops, log_lvl);
-	printk("\n");
 }
 
 void show_trace(struct task_struct *task, struct pt_regs *regs,
@@ -386,6 +385,7 @@ show_stack_log_lvl(struct task_struct *task, struct pt_regs *regs,
 		printk(" %016lx", *stack++);
 		touch_nmi_watchdog();
 	}
+	printk("\n");
 	show_trace_log_lvl(task, regs, sp, bp, log_lvl);
 }
 
@@ -443,7 +443,6 @@ void show_registers(struct pt_regs *regs)
 		printk("Stack: ");
 		show_stack_log_lvl(NULL, regs, (unsigned long *)sp,
 				regs->bp, "");
-		printk("\n");
 
 		printk(KERN_EMERG "Code: ");
 
@@ -1134,7 +1133,7 @@ asmlinkage void math_state_restore(void)
 	/*
 	 * Paranoid restore. send a SIGSEGV if we fail to restore the state.
 	 */
-	if (unlikely(restore_fpu_checking(&me->thread.xstate->fxsave))) {
+	if (unlikely(restore_fpu_checking(me))) {
 		stts();
 		force_sig(SIGSEGV, me);
 		return;
@@ -1172,10 +1171,6 @@ void __init trap_init(void)
 #ifdef CONFIG_IA32_EMULATION
 	set_system_gate(IA32_SYSCALL_VECTOR, ia32_syscall);
 #endif
-	/*
-	 * initialize the per thread extended state:
-	 */
-	init_thread_xstate();
 	/*
 	 * Should be a barrier for any external CPU state:
 	 */

@@ -1,5 +1,5 @@
-#ifndef _I386_PGTABLE_2LEVEL_H
-#define _I386_PGTABLE_2LEVEL_H
+#ifndef ASM_X86__PGTABLE_2LEVEL_H
+#define ASM_X86__PGTABLE_2LEVEL_H
 
 #define pte_ERROR(e) \
 	printk("%s:%d: bad pte %08lx.\n", __FILE__, __LINE__, (e).pte_low)
@@ -78,4 +78,4 @@ static inline pte_t native_ptep_get_and_clear(pte_t *xp)
 #define __pte_to_swp_entry(pte)		((swp_entry_t) { (pte).pte_low })
 #define __swp_entry_to_pte(x)		((pte_t) { .pte = (x).val })
 
-#endif /* _I386_PGTABLE_2LEVEL_H */
+#endif /* ASM_X86__PGTABLE_2LEVEL_H */

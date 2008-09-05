@@ -17,8 +17,8 @@
  * Markus Metzger <markus.t.metzger@intel.com>, Dec 2007
  */
 
-#ifndef _ASM_X86_DS_H
-#define _ASM_X86_DS_H
+#ifndef ASM_X86__DS_H
+#define ASM_X86__DS_H
 
 #include <linux/types.h>
 #include <linux/init.h>
@@ -69,4 +69,4 @@ extern int ds_write_bts(void *, const struct bts_struct *);
 extern unsigned long ds_debugctl_mask(void);
 extern void __cpuinit ds_init_intel(struct cpuinfo_x86 *c);
 
-#endif /* _ASM_X86_DS_H */
+#endif /* ASM_X86__DS_H */

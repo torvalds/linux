@@ -1,5 +1,5 @@
-#ifndef _LINUX_VM86_H
-#define _LINUX_VM86_H
+#ifndef ASM_X86__VM86_H
+#define ASM_X86__VM86_H
 
 /*
  * I'm guessing at the VIF/VIP flag usage, but hope that this is how
@@ -205,4 +205,4 @@ static inline int handle_vm86_trap(struct kernel_vm86_regs *a, long b, int c)
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__VM86_H */

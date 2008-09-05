@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef _ASM_X86_AMD_IOMMU_H
-#define _ASM_X86_AMD_IOMMU_H
+#ifndef ASM_X86__AMD_IOMMU_H
+#define ASM_X86__AMD_IOMMU_H
 
 #ifdef CONFIG_AMD_IOMMU
 extern int amd_iommu_init(void);
@@ -29,4 +29,4 @@ static inline int amd_iommu_init(void) { return -ENODEV; }
 static inline void amd_iommu_detect(void) { }
 #endif
 
-#endif
+#endif /* ASM_X86__AMD_IOMMU_H */

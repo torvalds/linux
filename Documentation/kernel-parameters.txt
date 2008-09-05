@@ -1425,6 +1425,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nolapic_timer	[X86-32,APIC] Do not use the local APIC timer.
 
+	nox2apic	[X86-64,APIC] Do not enable x2APIC mode.
+
+	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
+			default x2apic cluster mode on platforms
+			supporting x2apic.
+
 	noltlbs		[PPC] Do not use large page/tlb entries for kernel
 			lowmem mapping on PPC40x.
 
@@ -1881,6 +1887,12 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	shapers=	[NET]
 			Maximal number of shapers.
+
+	show_msr=	[x86] show boot-time MSR settings
+			Format: { <integer> }
+			Show boot-time (BIOS-initialized) MSR settings.
+			The parameter means the number of CPUs to show,
+			for example 1 means boot CPU only.
 
 	sim710=		[SCSI,HW]
 			See header of drivers/scsi/sim710.c.

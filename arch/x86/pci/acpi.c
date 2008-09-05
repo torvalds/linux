@@ -250,10 +250,5 @@ int __init pci_acpi_init(void)
 			acpi_pci_irq_enable(dev);
 	}
 
-#ifdef CONFIG_X86_IO_APIC
-	if (acpi_ioapic)
-		print_IO_APIC();
-#endif
-
 	return 0;
 }

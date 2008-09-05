@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_APICDEF_H
-#define __ASM_MACH_APICDEF_H
+#ifndef __ASM_NUMAQ_APICDEF_H
+#define __ASM_NUMAQ_APICDEF_H
 
 
 #define APIC_ID_MASK (0xF<<24)

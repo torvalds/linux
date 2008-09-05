@@ -314,6 +314,16 @@ enum {
 		EAMD3D		= 1<<20,
 };
 
+static void __cpuinit early_init_centaur(struct cpuinfo_x86 *c)
+{
+	switch (c->x86) {
+	case 5:
+		/* Emulate MTRRs using Centaur's MCR. */
+		set_cpu_cap(c, X86_FEATURE_CENTAUR_MCR);
+		break;
+	}
+}
+
 static void __cpuinit init_centaur(struct cpuinfo_x86 *c)
 {
 
@@ -462,8 +472,10 @@ centaur_size_cache(struct cpuinfo_x86 *c, unsigned int size)
 static struct cpu_dev centaur_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Centaur",
 	.c_ident	= { "CentaurHauls" },
+	.c_early_init	= early_init_centaur,
 	.c_init		= init_centaur,
 	.c_size_cache	= centaur_size_cache,
+	.c_x86_vendor	= X86_VENDOR_CENTAUR,
 };
 
-cpu_vendor_dev_register(X86_VENDOR_CENTAUR, &centaur_cpu_dev);
+cpu_dev_register(centaur_cpu_dev);

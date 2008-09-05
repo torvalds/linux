@@ -1,5 +1,5 @@
-#ifndef _ASM_ARCH_HOOKS_H
-#define _ASM_ARCH_HOOKS_H
+#ifndef ASM_X86__ARCH_HOOKS_H
+#define ASM_X86__ARCH_HOOKS_H
 
 #include <linux/interrupt.h>
 
@@ -12,8 +12,6 @@
 /* these aren't arch hooks, they are generic routines
  * that can be used by the hooks */
 extern void init_ISA_irqs(void);
-extern void apic_intr_init(void);
-extern void smp_intr_init(void);
 extern irqreturn_t timer_interrupt(int irq, void *dev_id);
 
 /* these are the defined hooks */
@@ -25,4 +23,4 @@ extern void pre_time_init_hook(void);
 extern void time_init_hook(void);
 extern void mca_nmi_hook(void);
 
-#endif
+#endif /* ASM_X86__ARCH_HOOKS_H */

@@ -7,8 +7,8 @@
  * as published by the Free Software Foundation.
  */
 
-#ifndef _ASM_GEODE_H_
-#define _ASM_GEODE_H_
+#ifndef ASM_X86__GEODE_H
+#define ASM_X86__GEODE_H
 
 #include <asm/processor.h>
 #include <linux/io.h>
@@ -250,4 +250,4 @@ extern int __init mfgpt_timer_setup(void);
 static inline int mfgpt_timer_setup(void) { return 0; }
 #endif
 
-#endif
+#endif /* ASM_X86__GEODE_H */

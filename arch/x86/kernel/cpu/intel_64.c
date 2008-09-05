@@ -80,7 +80,10 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (c->x86 == 6)
 		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
 	set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
-	c->x86_max_cores = intel_num_cpu_cores(c);
+
+	detect_extended_topology(c);
+	if (!cpu_has(c, X86_FEATURE_XTOPOLOGY))
+		c->x86_max_cores = intel_num_cpu_cores(c);
 
 	srat_detect_node();
 }
@@ -90,6 +93,7 @@ static struct cpu_dev intel_cpu_dev __cpuinitdata = {
 	.c_ident	= { "GenuineIntel" },
 	.c_early_init   = early_init_intel,
 	.c_init		= init_intel,
+	.c_x86_vendor	= X86_VENDOR_INTEL,
 };
-cpu_vendor_dev_register(X86_VENDOR_INTEL, &intel_cpu_dev);
 
+cpu_dev_register(intel_cpu_dev);

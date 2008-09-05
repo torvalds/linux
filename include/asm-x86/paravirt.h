@@ -1,5 +1,5 @@
-#ifndef __ASM_PARAVIRT_H
-#define __ASM_PARAVIRT_H
+#ifndef ASM_X86__PARAVIRT_H
+#define ASM_X86__PARAVIRT_H
 /* Various instructions on x86 need to be replaced for
  * para-virtualization: those hooks are defined here. */
 
@@ -137,6 +137,7 @@ struct pv_cpu_ops {
 
 	/* MSR, PMC and TSR operations.
 	   err = 0/-EFAULT.  wrmsr returns 0/-EFAULT. */
+	u64 (*read_msr_amd)(unsigned int msr, int *err);
 	u64 (*read_msr)(unsigned int msr, int *err);
 	int (*write_msr)(unsigned int msr, unsigned low, unsigned high);
 
@@ -200,12 +201,6 @@ struct pv_irq_ops {
 
 struct pv_apic_ops {
 #ifdef CONFIG_X86_LOCAL_APIC
-	/*
-	 * Direct APIC operations, principally for VMI.  Ideally
-	 * these shouldn't be in this interface.
-	 */
-	void (*apic_write)(unsigned long reg, u32 v);
-	u32 (*apic_read)(unsigned long reg);
 	void (*setup_boot_clock)(void);
 	void (*setup_secondary_clock)(void);
 
@@ -726,6 +721,10 @@ static inline u64 paravirt_read_msr(unsigned msr, int *err)
 {
 	return PVOP_CALL2(u64, pv_cpu_ops.read_msr, msr, err);
 }
+static inline u64 paravirt_read_msr_amd(unsigned msr, int *err)
+{
+	return PVOP_CALL2(u64, pv_cpu_ops.read_msr_amd, msr, err);
+}
 static inline int paravirt_write_msr(unsigned msr, unsigned low, unsigned high)
 {
 	return PVOP_CALL3(int, pv_cpu_ops.write_msr, msr, low, high);
@@ -769,6 +768,13 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	int err;
 
 	*p = paravirt_read_msr(msr, &err);
+	return err;
+}
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = paravirt_read_msr_amd(msr, &err);
 	return err;
 }
 
@@ -898,19 +904,6 @@ static inline void slow_down_io(void)
 }
 
 #ifdef CONFIG_X86_LOCAL_APIC
-/*
- * Basic functions accessing APICs.
- */
-static inline void apic_write(unsigned long reg, u32 v)
-{
-	PVOP_VCALL2(pv_apic_ops.apic_write, reg, v);
-}
-
-static inline u32 apic_read(unsigned long reg)
-{
-	return PVOP_CALL1(unsigned long, pv_apic_ops.apic_read, reg);
-}
-
 static inline void setup_boot_clock(void)
 {
 	PVOP_VCALL0(pv_apic_ops.setup_boot_clock);
@@ -1634,4 +1627,4 @@ static inline unsigned long __raw_local_irq_save(void)
 
 #endif /* __ASSEMBLY__ */
 #endif /* CONFIG_PARAVIRT */
-#endif	/* __ASM_PARAVIRT_H */
+#endif /* ASM_X86__PARAVIRT_H */

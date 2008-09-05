@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_64_IA32_H
-#define _ASM_X86_64_IA32_H
+#ifndef ASM_X86__IA32_H
+#define ASM_X86__IA32_H
 
 
 #ifdef CONFIG_IA32_EMULATION
@@ -167,4 +167,4 @@ extern void ia32_pick_mmap_layout(struct mm_struct *mm);
 
 #endif /* !CONFIG_IA32_SUPPORT */
 
-#endif
+#endif /* ASM_X86__IA32_H */

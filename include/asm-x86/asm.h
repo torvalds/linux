@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_ASM_H
-#define _ASM_X86_ASM_H
+#ifndef ASM_X86__ASM_H
+#define ASM_X86__ASM_H
 
 #ifdef __ASSEMBLY__
 # define __ASM_FORM(x)	x
@@ -39,4 +39,4 @@
 	_ASM_PTR #from "," #to "\n" \
 	" .previous\n"
 
-#endif /* _ASM_X86_ASM_H */
+#endif /* ASM_X86__ASM_H */

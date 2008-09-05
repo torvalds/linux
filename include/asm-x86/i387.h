@@ -7,8 +7,8 @@
  * x86-64 work by Andi Kleen 2002
  */
 
-#ifndef _ASM_X86_I387_H
-#define _ASM_X86_I387_H
+#ifndef ASM_X86__I387_H
+#define ASM_X86__I387_H
 
 #include <linux/sched.h>
 #include <linux/kernel_stat.h>
@@ -19,22 +19,31 @@
 #include <asm/sigcontext.h>
 #include <asm/user.h>
 #include <asm/uaccess.h>
+#include <asm/xsave.h>
 
+extern unsigned int sig_xstate_size;
 extern void fpu_init(void);
 extern void mxcsr_feature_mask_init(void);
 extern int init_fpu(struct task_struct *child);
 extern asmlinkage void math_state_restore(void);
 extern void init_thread_xstate(void);
+extern int dump_fpu(struct pt_regs *, struct user_i387_struct *);
 
 extern user_regset_active_fn fpregs_active, xfpregs_active;
 extern user_regset_get_fn fpregs_get, xfpregs_get, fpregs_soft_get;
 extern user_regset_set_fn fpregs_set, xfpregs_set, fpregs_soft_set;
 
+extern struct _fpx_sw_bytes fx_sw_reserved;
 #ifdef CONFIG_IA32_EMULATION
+extern unsigned int sig_xstate_ia32_size;
+extern struct _fpx_sw_bytes fx_sw_reserved_ia32;
 struct _fpstate_ia32;
-extern int save_i387_ia32(struct _fpstate_ia32 __user *buf);
-extern int restore_i387_ia32(struct _fpstate_ia32 __user *buf);
+struct _xstate_ia32;
+extern int save_i387_xstate_ia32(void __user *buf);
+extern int restore_i387_xstate_ia32(void __user *buf);
 #endif
+
+#define X87_FSW_ES (1 << 7)	/* Exception Summary */
 
 #ifdef CONFIG_X86_64
 
@@ -46,7 +55,7 @@ static inline void tolerant_fwait(void)
 		     _ASM_EXTABLE(1b, 2b));
 }
 
-static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
+static inline int fxrstor_checking(struct i387_fxsave_struct *fx)
 {
 	int err;
 
@@ -66,15 +75,31 @@ static inline int restore_fpu_checking(struct i387_fxsave_struct *fx)
 	return err;
 }
 
-#define X87_FSW_ES (1 << 7)	/* Exception Summary */
+static inline int restore_fpu_checking(struct task_struct *tsk)
+{
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		return xrstor_checking(&tsk->thread.xstate->xsave);
+	else
+		return fxrstor_checking(&tsk->thread.xstate->fxsave);
+}
 
 /* AMD CPUs don't save/restore FDP/FIP/FOP unless an exception
    is pending. Clear the x87 state here by setting it to fixed
    values. The kernel data segment can be sometimes 0 and sometimes
    new user value. Both should be ok.
    Use the PDA as safe address because it should be already in L1. */
-static inline void clear_fpu_state(struct i387_fxsave_struct *fx)
+static inline void clear_fpu_state(struct task_struct *tsk)
 {
+	struct xsave_struct *xstate = &tsk->thread.xstate->xsave;
+	struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
+
+	/*
+	 * xsave header may indicate the init state of the FP.
+	 */
+	if ((task_thread_info(tsk)->status & TS_XSAVE) &&
+	    !(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
+		return;
+
 	if (unlikely(fx->swd & X87_FSW_ES))
 		asm volatile("fnclex");
 	alternative_input(ASM_NOP8 ASM_NOP2,
@@ -83,7 +108,7 @@ static inline void clear_fpu_state(struct i387_fxsave_struct *fx)
 			  X86_FEATURE_FXSAVE_LEAK);
 }
 
-static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
+static inline int fxsave_user(struct i387_fxsave_struct __user *fx)
 {
 	int err;
 
@@ -107,7 +132,7 @@ static inline int save_i387_checking(struct i387_fxsave_struct __user *fx)
 	return err;
 }
 
-static inline void __save_init_fpu(struct task_struct *tsk)
+static inline void fxsave(struct task_struct *tsk)
 {
 	/* Using "rex64; fxsave %0" is broken because, if the memory operand
 	   uses any extended registers for addressing, a second REX prefix
@@ -132,7 +157,16 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 			     : "=m" (tsk->thread.xstate->fxsave)
 			     : "cdaSDb" (&tsk->thread.xstate->fxsave));
 #endif
-	clear_fpu_state(&tsk->thread.xstate->fxsave);
+}
+
+static inline void __save_init_fpu(struct task_struct *tsk)
+{
+	if (task_thread_info(tsk)->status & TS_XSAVE)
+		xsave(tsk);
+	else
+		fxsave(tsk);
+
+	clear_fpu_state(tsk);
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
 
@@ -147,6 +181,10 @@ static inline void tolerant_fwait(void)
 
 static inline void restore_fpu(struct task_struct *tsk)
 {
+	if (task_thread_info(tsk)->status & TS_XSAVE) {
+		xrstor_checking(&tsk->thread.xstate->xsave);
+		return;
+	}
 	/*
 	 * The "nop" is needed to make the instructions the same
 	 * length.
@@ -172,6 +210,27 @@ static inline void restore_fpu(struct task_struct *tsk)
  */
 static inline void __save_init_fpu(struct task_struct *tsk)
 {
+	if (task_thread_info(tsk)->status & TS_XSAVE) {
+		struct xsave_struct *xstate = &tsk->thread.xstate->xsave;
+		struct i387_fxsave_struct *fx = &tsk->thread.xstate->fxsave;
+
+		xsave(tsk);
+
+		/*
+		 * xsave header may indicate the init state of the FP.
+		 */
+		if (!(xstate->xsave_hdr.xstate_bv & XSTATE_FP))
+			goto end;
+
+		if (unlikely(fx->swd & X87_FSW_ES))
+			asm volatile("fnclex");
+
+		/*
+		 * we can do a simple return here or be paranoid :)
+		 */
+		goto clear_state;
+	}
+
 	/* Use more nops than strictly needed in case the compiler
 	   varies code */
 	alternative_input(
@@ -181,6 +240,7 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 		X86_FEATURE_FXSR,
 		[fx] "m" (tsk->thread.xstate->fxsave),
 		[fsw] "m" (tsk->thread.xstate->fxsave.swd) : "memory");
+clear_state:
 	/* AMD K7/K8 CPUs don't save/restore FDP/FIP/FOP unless an exception
 	   is pending.  Clear the x87 state here by setting it to fixed
 	   values. safe_address is a random variable that should be in L1 */
@@ -190,16 +250,17 @@ static inline void __save_init_fpu(struct task_struct *tsk)
 		"fildl %[addr]", 	/* set F?P to defined value */
 		X86_FEATURE_FXSAVE_LEAK,
 		[addr] "m" (safe_address));
+end:
 	task_thread_info(tsk)->status &= ~TS_USEDFPU;
 }
+
+#endif	/* CONFIG_X86_64 */
 
 /*
  * Signal frame handlers...
  */
-extern int save_i387(struct _fpstate __user *buf);
-extern int restore_i387(struct _fpstate __user *buf);
-
-#endif	/* CONFIG_X86_64 */
+extern int save_i387_xstate(void __user *buf);
+extern int restore_i387_xstate(void __user *buf);
 
 static inline void __unlazy_fpu(struct task_struct *tsk)
 {
@@ -336,4 +397,4 @@ static inline unsigned short get_fpu_mxcsr(struct task_struct *tsk)
 	}
 }
 
-#endif	/* _ASM_X86_I387_H */
+#endif /* ASM_X86__I387_H */

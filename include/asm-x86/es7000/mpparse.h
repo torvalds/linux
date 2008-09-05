@@ -1,5 +1,5 @@
-#ifndef __ASM_MACH_MPPARSE_H
-#define __ASM_MACH_MPPARSE_H
+#ifndef __ASM_ES7000_MPPARSE_H
+#define __ASM_ES7000_MPPARSE_H
 
 #include <linux/acpi.h>
 

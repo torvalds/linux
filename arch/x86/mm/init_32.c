@@ -47,6 +47,7 @@
 #include <asm/paravirt.h>
 #include <asm/setup.h>
 #include <asm/cacheflush.h>
+#include <asm/smp.h>
 
 unsigned int __VMALLOC_RESERVE = 128 << 20;
 

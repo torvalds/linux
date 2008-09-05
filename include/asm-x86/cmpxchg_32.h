@@ -1,5 +1,5 @@
-#ifndef __ASM_CMPXCHG_H
-#define __ASM_CMPXCHG_H
+#ifndef ASM_X86__CMPXCHG_32_H
+#define ASM_X86__CMPXCHG_32_H
 
 #include <linux/bitops.h> /* for LOCK_PREFIX */
 
@@ -341,4 +341,4 @@ extern unsigned long long cmpxchg_486_u64(volatile void *, u64, u64);
 
 #endif
 
-#endif
+#endif /* ASM_X86__CMPXCHG_32_H */

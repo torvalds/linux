@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_ALTERNATIVE_H
-#define _ASM_X86_ALTERNATIVE_H
+#ifndef ASM_X86__ALTERNATIVE_H
+#define ASM_X86__ALTERNATIVE_H
 
 #include <linux/types.h>
 #include <linux/stddef.h>
@@ -180,4 +180,4 @@ extern void add_nops(void *insns, unsigned int len);
 extern void *text_poke(void *addr, const void *opcode, size_t len);
 extern void *text_poke_early(void *addr, const void *opcode, size_t len);
 
-#endif /* _ASM_X86_ALTERNATIVE_H */
+#endif /* ASM_X86__ALTERNATIVE_H */

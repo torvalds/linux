@@ -282,6 +282,30 @@ static int __init i8259A_init_sysfs(void)
 
 device_initcall(i8259A_init_sysfs);
 
+void mask_8259A(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&i8259A_lock, flags);
+
+	outb(0xff, PIC_MASTER_IMR);	/* mask all of 8259A-1 */
+	outb(0xff, PIC_SLAVE_IMR);	/* mask all of 8259A-2 */
+
+	spin_unlock_irqrestore(&i8259A_lock, flags);
+}
+
+void unmask_8259A(void)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&i8259A_lock, flags);
+
+	outb(cached_master_mask, PIC_MASTER_IMR); /* restore master IRQ mask */
+	outb(cached_slave_mask, PIC_SLAVE_IMR);	  /* restore slave IRQ mask */
+
+	spin_unlock_irqrestore(&i8259A_lock, flags);
+}
+
 void init_8259A(int auto_eoi)
 {
 	unsigned long flags;

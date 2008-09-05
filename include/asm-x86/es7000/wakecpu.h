@@ -1,7 +1,7 @@
-#ifndef __ASM_MACH_WAKECPU_H
-#define __ASM_MACH_WAKECPU_H
+#ifndef __ASM_ES7000_WAKECPU_H
+#define __ASM_ES7000_WAKECPU_H
 
-/* 
+/*
  * This file copes with machines that wakeup secondary CPUs by the
  * INIT, INIT, STARTUP sequence.
  */

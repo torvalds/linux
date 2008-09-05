@@ -15,7 +15,7 @@
 
 #include <stdio.h>
 
-#include "../kernel/cpu/feature_names.c"
+#include "../kernel/cpu/capflags.c"
 
 #if NCAPFLAGS > 8
 # error "Need to adjust the boot code handling of CPUID strings"

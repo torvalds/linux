@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_DEVICE_H
-#define _ASM_X86_DEVICE_H
+#ifndef ASM_X86__DEVICE_H
+#define ASM_X86__DEVICE_H
 
 struct dev_archdata {
 #ifdef CONFIG_ACPI
@@ -13,4 +13,4 @@ struct dma_mapping_ops *dma_ops;
 #endif
 };
 
-#endif /* _ASM_X86_DEVICE_H */
+#endif /* ASM_X86__DEVICE_H */
