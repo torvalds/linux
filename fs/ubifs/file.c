@@ -147,6 +147,12 @@ static int do_readpage(struct page *page)
 				err = ret;
 				if (err != -ENOENT)
 					break;
+			} else if (block + 1 == beyond) {
+				int dlen = le32_to_cpu(dn->size);
+				int ilen = i_size & (UBIFS_BLOCK_SIZE - 1);
+
+				if (ilen && ilen < dlen)
+					memset(addr + ilen, 0, dlen - ilen);
 			}
 		}
 		if (++i >= UBIFS_BLOCKS_PER_PAGE)
@@ -601,7 +607,7 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 
 	addr = zaddr = kmap(page);
 
-	end_index = (i_size + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
 	if (!i_size || page->index > end_index) {
 		memset(addr, 0, PAGE_CACHE_SIZE);
 		goto out_hole;
@@ -649,7 +655,7 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 	if (end_index == page->index) {
 		int len = i_size & (PAGE_CACHE_SIZE - 1);
 
-		if (len < read)
+		if (len && len < read)
 			memset(zaddr + len, 0, read - len);
 	}
 
