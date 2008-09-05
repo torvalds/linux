@@ -93,12 +93,13 @@ EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 static int do_not_nx __cpuinitdata;
 
-/* noexec=on|off
-Control non executable mappings for 64bit processes.
-
-on	Enable(default)
-off	Disable
-*/
+/*
+ * noexec=on|off
+ * Control non-executable mappings for 64-bit processes.
+ *
+ * on	Enable (default)
+ * off	Disable
+ */
 static int __init nonx_setup(char *str)
 {
 	if (!str)
@@ -125,13 +126,14 @@ void __cpuinit check_efer(void)
 
 int force_personality32;
 
-/* noexec32=on|off
-Control non executable heap for 32bit processes.
-To control the stack too use noexec=off
-
-on	PROT_READ does not imply PROT_EXEC for 32bit processes (default)
-off	PROT_READ implies PROT_EXEC
-*/
+/*
+ * noexec32=on|off
+ * Control non executable heap for 32bit processes.
+ * To control the stack too use noexec=off
+ *
+ * on	PROT_READ does not imply PROT_EXEC for 32-bit processes (default)
+ * off	PROT_READ implies PROT_EXEC
+ */
 static int __init nonx32_setup(char *str)
 {
 	if (!strcmp(str, "on"))
