@@ -134,7 +134,7 @@ const struct zoran_format zoran_formats[] = {
 	}, {
 		.name = "16-bit RGB BE",
 		ZFMT(-1,
-		     V4L2_PIX_FMT_RGB565, V4L2_COLORSPACE_SRGB),
+		     V4L2_PIX_FMT_RGB565X, V4L2_COLORSPACE_SRGB),
 		.depth = 16,
 		.flags = ZORAN_FORMAT_CAPTURE |
 			 ZORAN_FORMAT_OVERLAY,
