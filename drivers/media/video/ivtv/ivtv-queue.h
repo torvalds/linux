@@ -23,7 +23,7 @@
 #define IVTV_QUEUE_H
 
 #define IVTV_DMA_UNMAPPED	((u32) -1)
-#define SLICED_VBI_PIO 1
+#define SLICED_VBI_PIO 0
 
 /* ivtv_buffer utility functions */
 
