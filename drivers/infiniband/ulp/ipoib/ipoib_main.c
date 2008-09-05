@@ -156,14 +156,8 @@ static int ipoib_stop(struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	/*
-	 * Now flush workqueue to make sure a scheduled task doesn't
-	 * bring our internal state back up.
-	 */
-	flush_workqueue(ipoib_workqueue);
-
-	ipoib_ib_dev_down(dev, 1);
-	ipoib_ib_dev_stop(dev, 1);
+	ipoib_ib_dev_down(dev, 0);
+	ipoib_ib_dev_stop(dev, 0);
 
 	if (!test_bit(IPOIB_FLAG_SUBINTERFACE, &priv->flags)) {
 		struct ipoib_dev_priv *cpriv;
@@ -1314,7 +1308,7 @@ sysfs_failed:
 
 register_failed:
 	ib_unregister_event_handler(&priv->event_handler);
-	flush_scheduled_work();
+	flush_workqueue(ipoib_workqueue);
 
 event_failed:
 	ipoib_dev_cleanup(priv->dev);
@@ -1373,7 +1367,12 @@ static void ipoib_remove_one(struct ib_device *device)
 
 	list_for_each_entry_safe(priv, tmp, dev_list, list) {
 		ib_unregister_event_handler(&priv->event_handler);
-		flush_scheduled_work();
+
+		rtnl_lock();
+		dev_change_flags(priv->dev, priv->dev->flags & ~IFF_UP);
+		rtnl_unlock();
+
+		flush_workqueue(ipoib_workqueue);
 
 		unregister_netdev(priv->dev);
 		ipoib_dev_cleanup(priv->dev);

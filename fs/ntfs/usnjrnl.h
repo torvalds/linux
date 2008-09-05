@@ -113,7 +113,7 @@ typedef struct {
  * Reason flags (32-bit).  Cumulative flags describing the change(s) to the
  * file since it was last opened.  I think the names speak for themselves but
  * if you disagree check out the descriptions in the Linux NTFS project NTFS
- * documentation: http://linux-ntfs.sourceforge.net/ntfs/files/usnjrnl.html
+ * documentation: http://www.linux-ntfs.org/
  */
 enum {
 	USN_REASON_DATA_OVERWRITE	= const_cpu_to_le32(0x00000001),
@@ -145,7 +145,7 @@ typedef le32 USN_REASON_FLAGS;
  * Source info flags (32-bit).  Information about the source of the change(s)
  * to the file.  For detailed descriptions of what these mean, see the Linux
  * NTFS project NTFS documentation:
- *	http://linux-ntfs.sourceforge.net/ntfs/files/usnjrnl.html
+ *	http://www.linux-ntfs.org/
  */
 enum {
 	USN_SOURCE_DATA_MANAGEMENT	  = const_cpu_to_le32(0x00000001),

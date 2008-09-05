@@ -161,7 +161,7 @@ teql_destroy(struct Qdisc* sch)
 						txq = netdev_get_tx_queue(master->dev, 0);
 						master->slaves = NULL;
 
-						root_lock = qdisc_root_lock(txq->qdisc);
+						root_lock = qdisc_root_sleeping_lock(txq->qdisc);
 						spin_lock_bh(root_lock);
 						qdisc_reset(txq->qdisc);
 						spin_unlock_bh(root_lock);

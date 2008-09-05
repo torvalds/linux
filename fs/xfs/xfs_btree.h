@@ -158,8 +158,8 @@ typedef struct xfs_btree_cur
 	__uint8_t	bc_blocklog;	/* log2(blocksize) of btree blocks */
 	xfs_btnum_t	bc_btnum;	/* identifies which btree type */
 	union {
-		struct {			/* needed for BNO, CNT */
-			struct xfs_buf	*agbp;	/* agf buffer pointer */
+		struct {			/* needed for BNO, CNT, INO */
+			struct xfs_buf	*agbp;	/* agf/agi buffer pointer */
 			xfs_agnumber_t	agno;	/* ag number */
 		} a;
 		struct {			/* needed for BMAP */
@@ -172,10 +172,6 @@ typedef struct xfs_btree_cur
 			char		flags;		/* flags */
 #define	XFS_BTCUR_BPRV_WASDEL	1			/* was delayed */
 		} b;
-		struct {			/* needed for INO */
-			struct xfs_buf	*agbp;	/* agi buffer pointer */
-			xfs_agnumber_t	agno;	/* ag number */
-		} i;
 	}		bc_private;	/* per-btree type data */
 } xfs_btree_cur_t;
 

@@ -895,6 +895,9 @@ static void handle_console_output(int fd, struct virtqueue *vq, bool timeout)
 	}
 }
 
+/* This is called when we no longer want to hear about Guest changes to a
+ * virtqueue.  This is more efficient in high-traffic cases, but it means we
+ * have to set a timer to check if any more changes have occurred. */
 static void block_vq(struct virtqueue *vq)
 {
 	struct itimerval itm;
@@ -939,6 +942,11 @@ static void handle_net_output(int fd, struct virtqueue *vq, bool timeout)
 	if (!timeout && num)
 		block_vq(vq);
 
+	/* We never quite know how long should we wait before we check the
+	 * queue again for more packets.  We start at 500 microseconds, and if
+	 * we get fewer packets than last time, we assume we made the timeout
+	 * too small and increase it by 10 microseconds.  Otherwise, we drop it
+	 * by one microsecond every time.  It seems to work well enough. */
 	if (timeout) {
 		if (num < last_timeout_num)
 			timeout_usec += 10;
@@ -1447,21 +1455,6 @@ static void configure_device(int fd, const char *tapif, u32 ipaddr)
 		err(1, "Bringing interface %s up", tapif);
 }
 
-static void get_mac(int fd, const char *tapif, unsigned char hwaddr[6])
-{
-	struct ifreq ifr;
-
-	memset(&ifr, 0, sizeof(ifr));
-	strcpy(ifr.ifr_name, tapif);
-
-	/* SIOC stands for Socket I/O Control.  G means Get (vs S for Set
-	 * above).  IF means Interface, and HWADDR is hardware address.
-	 * Simple! */
-	if (ioctl(fd, SIOCGIFHWADDR, &ifr) != 0)
-		err(1, "getting hw address for %s", tapif);
-	memcpy(hwaddr, ifr.ifr_hwaddr.sa_data, 6);
-}
-
 static int get_tun_device(char tapif[IFNAMSIZ])
 {
 	struct ifreq ifr;
@@ -1531,11 +1524,8 @@ static void setup_tun_net(char *arg)
 	p = strchr(arg, ':');
 	if (p) {
 		str2mac(p+1, conf.mac);
+		add_feature(dev, VIRTIO_NET_F_MAC);
 		*p = '\0';
-	} else {
-		p = arg + strlen(arg);
-		/* None supplied; query the randomly assigned mac. */
-		get_mac(ipfd, tapif, conf.mac);
 	}
 
 	/* arg is now either an IP address or a bridge name */
@@ -1547,13 +1537,10 @@ static void setup_tun_net(char *arg)
 	/* Set up the tun device. */
 	configure_device(ipfd, tapif, ip);
 
-	/* Tell Guest what MAC address to use. */
-	add_feature(dev, VIRTIO_NET_F_MAC);
 	add_feature(dev, VIRTIO_F_NOTIFY_ON_EMPTY);
 	/* Expect Guest to handle everything except UFO */
 	add_feature(dev, VIRTIO_NET_F_CSUM);
 	add_feature(dev, VIRTIO_NET_F_GUEST_CSUM);
-	add_feature(dev, VIRTIO_NET_F_MAC);
 	add_feature(dev, VIRTIO_NET_F_GUEST_TSO4);
 	add_feature(dev, VIRTIO_NET_F_GUEST_TSO6);
 	add_feature(dev, VIRTIO_NET_F_GUEST_ECN);

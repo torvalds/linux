@@ -326,12 +326,16 @@ static void __cpuinit start_secondary(void *unused)
 	 * for which cpus receive the IPI. Holding this
 	 * lock helps us to not include this cpu in a currently in progress
 	 * smp_call_function().
+	 *
+	 * We need to hold vector_lock so there the set of online cpus
+	 * does not change while we are assigning vectors to cpus.  Holding
+	 * this lock ensures we don't half assign or remove an irq from a cpu.
 	 */
 	ipi_call_lock_irq();
-#ifdef CONFIG_X86_IO_APIC
-	setup_vector_irq(smp_processor_id());
-#endif
+	lock_vector_lock();
+	__setup_vector_irq(smp_processor_id());
 	cpu_set(smp_processor_id(), cpu_online_map);
+	unlock_vector_lock();
 	ipi_call_unlock_irq();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
 
@@ -752,6 +756,14 @@ static void __cpuinit do_fork_idle(struct work_struct *work)
 }
 
 #ifdef CONFIG_X86_64
+
+/* __ref because it's safe to call free_bootmem when after_bootmem == 0. */
+static void __ref free_bootmem_pda(struct x8664_pda *oldpda)
+{
+	if (!after_bootmem)
+		free_bootmem((unsigned long)oldpda, sizeof(*oldpda));
+}
+
 /*
  * Allocate node local memory for the AP pda.
  *
@@ -780,8 +792,7 @@ int __cpuinit get_local_pda(int cpu)
 
 	if (oldpda) {
 		memcpy(newpda, oldpda, size);
-		if (!after_bootmem)
-			free_bootmem((unsigned long)oldpda, size);
+		free_bootmem_pda(oldpda);
 	}
 
 	newpda->in_bootmem = 0;
@@ -1044,6 +1055,34 @@ static __init void disable_smp(void)
 static int __init smp_sanity_check(unsigned max_cpus)
 {
 	preempt_disable();
+
+#if defined(CONFIG_X86_PC) && defined(CONFIG_X86_32)
+	if (def_to_bigsmp && nr_cpu_ids > 8) {
+		unsigned int cpu;
+		unsigned nr;
+
+		printk(KERN_WARNING
+		       "More than 8 CPUs detected - skipping them.\n"
+		       "Use CONFIG_X86_GENERICARCH and CONFIG_X86_BIGSMP.\n");
+
+		nr = 0;
+		for_each_present_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_present_map);
+			nr++;
+		}
+
+		nr = 0;
+		for_each_possible_cpu(cpu) {
+			if (nr >= 8)
+				cpu_clear(cpu, cpu_possible_map);
+			nr++;
+		}
+
+		nr_cpu_ids = 8;
+	}
+#endif
+
 	if (!physid_isset(hard_smp_processor_id(), phys_cpu_present_map)) {
 		printk(KERN_WARNING "weird, boot CPU (#%d) not listed"
 				    "by the BIOS.\n", hard_smp_processor_id());
@@ -1182,6 +1221,9 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	printk(KERN_INFO "CPU%d: ", 0);
 	print_cpu_info(&cpu_data(0));
 	setup_boot_clock();
+
+	if (is_uv_system())
+		uv_system_init();
 out:
 	preempt_enable();
 }
@@ -1336,7 +1378,9 @@ int __cpu_disable(void)
 	remove_siblinginfo(cpu);
 
 	/* It's now safe to remove this processor from the online map */
+	lock_vector_lock();
 	remove_cpu_from_maps(cpu);
+	unlock_vector_lock();
 	fixup_irqs(cpu_online_map);
 	return 0;
 }
@@ -1370,17 +1414,3 @@ void __cpu_die(unsigned int cpu)
 	BUG();
 }
 #endif
-
-/*
- * If the BIOS enumerates physical processors before logical,
- * maxcpus=N at enumeration-time can be used to disable HT.
- */
-static int __init parse_maxcpus(char *arg)
-{
-	extern unsigned int maxcpus;
-
-	if (arg)
-		maxcpus = simple_strtoul(arg, NULL, 0);
-	return 0;
-}
-early_param("maxcpus", parse_maxcpus);

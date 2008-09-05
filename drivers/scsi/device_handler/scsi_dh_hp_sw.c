@@ -282,7 +282,7 @@ static int hp_sw_activate(struct scsi_device *sdev)
 	return ret;
 }
 
-const struct scsi_dh_devlist hp_sw_dh_data_list[] = {
+static const struct scsi_dh_devlist hp_sw_dh_data_list[] = {
 	{"COMPAQ", "MSA1000 VOLUME"},
 	{"COMPAQ", "HSV110"},
 	{"HP", "HSV100"},

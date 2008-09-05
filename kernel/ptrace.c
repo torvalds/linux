@@ -140,7 +140,7 @@ int __ptrace_may_access(struct task_struct *task, unsigned int mode)
 	if (!dumpable && !capable(CAP_SYS_PTRACE))
 		return -EPERM;
 
-	return security_ptrace(current, task, mode);
+	return security_ptrace_may_access(task, mode);
 }
 
 bool ptrace_may_access(struct task_struct *task, unsigned int mode)
@@ -499,8 +499,7 @@ repeat:
 			goto repeat;
 		}
 
-		ret = security_ptrace(current->parent, current,
-				      PTRACE_MODE_ATTACH);
+		ret = security_ptrace_traceme(current->parent);
 
 		/*
 		 * Set the ptrace bit in the process ptrace flags.

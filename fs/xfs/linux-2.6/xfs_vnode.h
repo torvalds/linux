@@ -22,20 +22,6 @@ struct file;
 struct xfs_iomap;
 struct attrlist_cursor_kern;
 
-typedef struct inode	bhv_vnode_t;
-
-/*
- * Vnode to Linux inode mapping.
- */
-static inline bhv_vnode_t *vn_from_inode(struct inode *inode)
-{
-	return inode;
-}
-static inline struct inode *vn_to_inode(bhv_vnode_t *vnode)
-{
-	return vnode;
-}
-
 /*
  * Return values for xfs_inactive.  A return value of
  * VN_INACTIVE_NOCACHE implies that the file system behavior
@@ -76,57 +62,52 @@ extern void	vn_iowait(struct xfs_inode *ip);
 extern void	vn_iowake(struct xfs_inode *ip);
 extern void	vn_ioerror(struct xfs_inode *ip, int error, char *f, int l);
 
-static inline int vn_count(bhv_vnode_t *vp)
+static inline int vn_count(struct inode *vp)
 {
-	return atomic_read(&vn_to_inode(vp)->i_count);
+	return atomic_read(&vp->i_count);
 }
 
-/*
- * Vnode reference counting functions (and macros for compatibility).
- */
-extern bhv_vnode_t	*vn_hold(bhv_vnode_t *);
+#define IHOLD(ip) \
+do { \
+	ASSERT(atomic_read(&VFS_I(ip)->i_count) > 0) ; \
+	atomic_inc(&(VFS_I(ip)->i_count)); \
+	xfs_itrace_hold((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+} while (0)
 
-#if defined(XFS_INODE_TRACE)
-#define VN_HOLD(vp)		\
-	((void)vn_hold(vp),	\
-	  xfs_itrace_hold(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address))
-#define VN_RELE(vp)		\
-	  (xfs_itrace_rele(xfs_vtoi(vp), __FILE__, __LINE__, (inst_t *)__return_address), \
-	   iput(vn_to_inode(vp)))
-#else
-#define VN_HOLD(vp)		((void)vn_hold(vp))
-#define VN_RELE(vp)		(iput(vn_to_inode(vp)))
-#endif
+#define IRELE(ip) \
+do { \
+	xfs_itrace_rele((ip), __FILE__, __LINE__, (inst_t *)__return_address); \
+	iput(VFS_I(ip)); \
+} while (0)
 
-static inline bhv_vnode_t *vn_grab(bhv_vnode_t *vp)
+static inline struct inode *vn_grab(struct inode *vp)
 {
-	struct inode *inode = igrab(vn_to_inode(vp));
-	return inode ? vn_from_inode(inode) : NULL;
+	return igrab(vp);
 }
 
 /*
  * Dealing with bad inodes
  */
-static inline int VN_BAD(bhv_vnode_t *vp)
+static inline int VN_BAD(struct inode *vp)
 {
-	return is_bad_inode(vn_to_inode(vp));
+	return is_bad_inode(vp);
 }
 
 /*
  * Extracting atime values in various formats
  */
-static inline void vn_atime_to_bstime(bhv_vnode_t *vp, xfs_bstime_t *bs_atime)
+static inline void vn_atime_to_bstime(struct inode *vp, xfs_bstime_t *bs_atime)
 {
 	bs_atime->tv_sec = vp->i_atime.tv_sec;
 	bs_atime->tv_nsec = vp->i_atime.tv_nsec;
 }
 
-static inline void vn_atime_to_timespec(bhv_vnode_t *vp, struct timespec *ts)
+static inline void vn_atime_to_timespec(struct inode *vp, struct timespec *ts)
 {
 	*ts = vp->i_atime;
 }
 
-static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
+static inline void vn_atime_to_time_t(struct inode *vp, time_t *tt)
 {
 	*tt = vp->i_atime.tv_sec;
 }
@@ -134,9 +115,9 @@ static inline void vn_atime_to_time_t(bhv_vnode_t *vp, time_t *tt)
 /*
  * Some useful predicates.
  */
-#define VN_MAPPED(vp)	mapping_mapped(vn_to_inode(vp)->i_mapping)
-#define VN_CACHED(vp)	(vn_to_inode(vp)->i_mapping->nrpages)
-#define VN_DIRTY(vp)	mapping_tagged(vn_to_inode(vp)->i_mapping, \
+#define VN_MAPPED(vp)	mapping_mapped(vp->i_mapping)
+#define VN_CACHED(vp)	(vp->i_mapping->nrpages)
+#define VN_DIRTY(vp)	mapping_tagged(vp->i_mapping, \
 					PAGECACHE_TAG_DIRTY)
 
 

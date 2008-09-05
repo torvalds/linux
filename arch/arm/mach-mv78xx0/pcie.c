@@ -12,7 +12,7 @@
 #include <linux/pci.h>
 #include <linux/mbus.h>
 #include <asm/mach/pci.h>
-#include <asm/plat-orion/pcie.h>
+#include <plat/pcie.h>
 #include "common.h"
 
 struct pcie_port {

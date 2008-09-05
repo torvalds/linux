@@ -236,7 +236,7 @@ extern struct ia64_sal_desc_ptc *ia64_ptc_domain_info;
 
 extern unsigned short sal_revision;	/* supported SAL spec revision */
 extern unsigned short sal_version;	/* SAL version; OEM dependent */
-#define SAL_VERSION_CODE(major, minor) ((BIN2BCD(major) << 8) | BIN2BCD(minor))
+#define SAL_VERSION_CODE(major, minor) ((bin2bcd(major) << 8) | bin2bcd(minor))
 
 extern const char *ia64_sal_strerror (long status);
 extern void ia64_sal_init (struct ia64_sal_systab *sal_systab);

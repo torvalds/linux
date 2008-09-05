@@ -26,7 +26,10 @@ DEFINE_PER_CPU(struct quicklist, quicklist)[CONFIG_NR_QUICK];
 static unsigned long max_pages(unsigned long min_pages)
 {
 	unsigned long node_free_pages, max;
-	struct zone *zones = NODE_DATA(numa_node_id())->node_zones;
+	int node = numa_node_id();
+	struct zone *zones = NODE_DATA(node)->node_zones;
+	int num_cpus_on_node;
+	node_to_cpumask_ptr(cpumask_on_node, node);
 
 	node_free_pages =
 #ifdef CONFIG_ZONE_DMA
@@ -38,6 +41,10 @@ static unsigned long max_pages(unsigned long min_pages)
 		zone_page_state(&zones[ZONE_NORMAL], NR_FREE_PAGES);
 
 	max = node_free_pages / FRACTION_OF_NODE_MEM;
+
+	num_cpus_on_node = cpus_weight_nr(*cpumask_on_node);
+	max /= num_cpus_on_node;
+
 	return max(max, min_pages);
 }
 

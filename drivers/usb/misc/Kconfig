@@ -42,16 +42,6 @@ config USB_ADUTUX
 	  To compile this driver as a module, choose M here.  The module
 	  will be called adutux.
 
-config USB_AUERSWALD
-	tristate "USB Auerswald ISDN support"
-	depends on USB
-	help
-	  Say Y here if you want to connect an Auerswald USB ISDN Device
-	  to your computer's USB port.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called auerswald.
-
 config USB_RIO500
 	tristate "USB Diamond Rio500 support"
 	depends on USB

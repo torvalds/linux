@@ -63,9 +63,7 @@ struct f_ecm {
 
 	char				ethaddr[14];
 
-	struct usb_descriptor_header	**fs_function;
 	struct ecm_ep_descs		fs;
-	struct usb_descriptor_header	**hs_function;
 	struct ecm_ep_descs		hs;
 
 	struct usb_ep			*notify;

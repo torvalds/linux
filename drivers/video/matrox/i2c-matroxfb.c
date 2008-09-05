@@ -87,13 +87,7 @@ static int matroxfb_gpio_getscl(void* data) {
 	return (matroxfb_read_gpio(b->minfo) & b->mask.clock) ? 1 : 0;
 }
 
-static struct i2c_adapter matrox_i2c_adapter_template =
-{
-	.owner =	THIS_MODULE,
-	.id =		I2C_HW_B_G400,
-};
-
-static struct i2c_algo_bit_data matrox_i2c_algo_template =
+static const struct i2c_algo_bit_data matrox_i2c_algo_template =
 {
 	.setsda		= matroxfb_gpio_setsda,
 	.setscl		= matroxfb_gpio_setscl,
@@ -112,7 +106,7 @@ static int i2c_bus_reg(struct i2c_bit_adapter* b, struct matrox_fb_info* minfo,
 	b->minfo = minfo;
 	b->mask.data = data;
 	b->mask.clock = clock;
-	b->adapter = matrox_i2c_adapter_template;
+	b->adapter.owner = THIS_MODULE;
 	snprintf(b->adapter.name, sizeof(b->adapter.name), name,
 		minfo->fbcon.node);
 	i2c_set_adapdata(&b->adapter, b);
@@ -187,6 +181,17 @@ static void* i2c_matroxfb_probe(struct matrox_fb_info* minfo) {
 				  MAT_DATA, MAT_CLK, "MAVEN:fb%u", 0);
 		if (err)
 			printk(KERN_INFO "i2c-matroxfb: Could not register Maven i2c bus. Continuing anyway.\n");
+		else {
+			struct i2c_board_info maven_info = {
+				I2C_BOARD_INFO("maven", 0x1b),
+			};
+			unsigned short const addr_list[2] = {
+				0x1b, I2C_CLIENT_END
+			};
+
+			i2c_new_probed_device(&m2info->maven.adapter,
+					      &maven_info, addr_list);
+		}
 	}
 	return m2info;
 fail_ddc1:;

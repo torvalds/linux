@@ -68,6 +68,10 @@
 #include "plpar_wrappers.h"
 #include "pseries.h"
 
+int CMO_PrPSP = -1;
+int CMO_SecPSP = -1;
+unsigned long CMO_PageSize = (ASM_CONST(1) << IOMMU_PAGE_SHIFT);
+EXPORT_SYMBOL(CMO_PageSize);
 
 int fwnmi_active;  /* TRUE if an FWNMI handler is present */
 
@@ -325,8 +329,7 @@ void pSeries_cmo_feature_init(void)
 {
 	char *ptr, *key, *value, *end;
 	int call_status;
-	int PrPSP = -1;
-	int SecPSP = -1;
+	int page_order = IOMMU_PAGE_SHIFT;
 
 	pr_debug(" -> fw_cmo_feature_init()\n");
 	spin_lock(&rtas_data_buf_lock);
@@ -365,21 +368,31 @@ void pSeries_cmo_feature_init(void)
 				break;
 			}
 
-			if (0 == strcmp(key, "PrPSP"))
-				PrPSP = simple_strtol(value, NULL, 10);
+			if (0 == strcmp(key, "CMOPageSize"))
+				page_order = simple_strtol(value, NULL, 10);
+			else if (0 == strcmp(key, "PrPSP"))
+				CMO_PrPSP = simple_strtol(value, NULL, 10);
 			else if (0 == strcmp(key, "SecPSP"))
-				SecPSP = simple_strtol(value, NULL, 10);
+				CMO_SecPSP = simple_strtol(value, NULL, 10);
 			value = key = ptr + 1;
 		}
 		ptr++;
 	}
 
-	if (PrPSP != -1 || SecPSP != -1) {
+	/* Page size is returned as the power of 2 of the page size,
+	 * convert to the page size in bytes before returning
+	 */
+	CMO_PageSize = 1 << page_order;
+	pr_debug("CMO_PageSize = %lu\n", CMO_PageSize);
+
+	if (CMO_PrPSP != -1 || CMO_SecPSP != -1) {
 		pr_info("CMO enabled\n");
-		pr_debug("CMO enabled, PrPSP=%d, SecPSP=%d\n", PrPSP, SecPSP);
+		pr_debug("CMO enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
+		         CMO_SecPSP);
 		powerpc_firmware_features |= FW_FEATURE_CMO;
 	} else
-		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", PrPSP, SecPSP);
+		pr_debug("CMO not enabled, PrPSP=%d, SecPSP=%d\n", CMO_PrPSP,
+		         CMO_SecPSP);
 	spin_unlock(&rtas_data_buf_lock);
 	pr_debug(" <- fw_cmo_feature_init()\n");
 }

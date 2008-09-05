@@ -79,10 +79,8 @@ static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 	u32 command;
 	int rate;
 
-	printk(KERN_INFO PFX "Found an AGP %d.%d compliant device at %s.\n",
-		agp_bridge->major_version,
-		agp_bridge->minor_version,
-		pci_name(agp_bridge->dev));
+	dev_info(&agp_bridge->dev->dev, "AGP %d.%d bridge\n",
+		 agp_bridge->major_version, agp_bridge->minor_version);
 
 	pci_read_config_dword(agp_bridge->dev, agp_bridge->capndx + PCI_AGP_STATUS, &command);
 	command = agp_collect_device_status(bridge, mode, command);
@@ -94,8 +92,8 @@ static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 		if (!agp)
 			continue;
 
-		printk(KERN_INFO PFX "Putting AGP V3 device at %s into %dx mode\n",
-			pci_name(device), rate);
+		dev_info(&agp_bridge->dev->dev, "putting AGP V3 device at %s into %dx mode\n",
+			 pci_name(device), rate);
 
 		pci_write_config_dword(device, agp + PCI_AGP_COMMAND, command);
 
@@ -105,7 +103,7 @@ static void sis_delayed_enable(struct agp_bridge_data *bridge, u32 mode)
 		 * cannot be configured
 		 */
 		if (device->device == bridge->dev->device) {
-			printk(KERN_INFO PFX "SiS delay workaround: giving bridge time to recover.\n");
+			dev_info(&agp_bridge->dev->dev, "SiS delay workaround: giving bridge time to recover\n");
 			msleep(10);
 		}
 	}
@@ -190,7 +188,8 @@ static int __devinit agp_sis_probe(struct pci_dev *pdev,
 		return -ENODEV;
 
 
-	printk(KERN_INFO PFX "Detected SiS chipset - id:%i\n", pdev->device);
+	dev_info(&pdev->dev, "SiS chipset [%04x/%04x]\n",
+		 pdev->vendor, pdev->device);
 	bridge = agp_alloc_bridge();
 	if (!bridge)
 		return -ENOMEM;
@@ -242,7 +241,7 @@ static struct pci_device_id agp_sis_pci_table[] = {
 		.class		= (PCI_CLASS_BRIDGE_HOST << 8),
 		.class_mask	= ~0,
 		.vendor		= PCI_VENDOR_ID_SI,
-		.device		= PCI_DEVICE_ID_SI_5591_AGP,
+		.device		= PCI_DEVICE_ID_SI_5591,
 		.subvendor	= PCI_ANY_ID,
 		.subdevice	= PCI_ANY_ID,
 	},

@@ -562,7 +562,7 @@ done:
 	return result;
 }
 
-const struct scsi_dh_devlist clariion_dev_list[] = {
+static const struct scsi_dh_devlist clariion_dev_list[] = {
 	{"DGC", "RAID"},
 	{"DGC", "DISK"},
 	{"DGC", "VRAID"},

@@ -400,7 +400,7 @@ xfs_filestream_init(void)
 	if (!item_zone)
 		return -ENOMEM;
 #ifdef XFS_FILESTREAMS_TRACE
-	xfs_filestreams_trace_buf = ktrace_alloc(XFS_FSTRM_KTRACE_SIZE, KM_SLEEP);
+	xfs_filestreams_trace_buf = ktrace_alloc(XFS_FSTRM_KTRACE_SIZE, KM_NOFS);
 #endif
 	return 0;
 }

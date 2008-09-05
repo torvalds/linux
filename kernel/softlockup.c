@@ -233,7 +233,8 @@ static void check_hung_uninterruptible_tasks(int this_cpu)
 	do_each_thread(g, t) {
 		if (!--max_count)
 			goto unlock;
-		if (t->state & TASK_UNINTERRUPTIBLE)
+		/* use "==" to skip the TASK_KILLABLE tasks waiting on NFS */
+		if (t->state == TASK_UNINTERRUPTIBLE)
 			check_hung_task(t, now);
 	} while_each_thread(g, t);
  unlock:

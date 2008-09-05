@@ -41,6 +41,7 @@ struct atmel_lcdfb_info {
 	struct work_struct	task;
 
 	unsigned int		guard_time;
+	unsigned int 		smem_len;
 	struct platform_device	*pdev;
 	struct clk		*bus_clk;
 	struct clk		*lcdc_clk;

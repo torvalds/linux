@@ -209,3 +209,11 @@ SECTIONS
 
   DWARF_DEBUG
 }
+
+#ifdef CONFIG_KEXEC
+/* Link time checks */
+#include <asm/kexec.h>
+
+ASSERT(kexec_control_code_size <= KEXEC_CONTROL_CODE_MAX_SIZE,
+       "kexec control code size is too big")
+#endif

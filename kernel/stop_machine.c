@@ -65,7 +65,6 @@ static void ack_state(void)
 static int stop_cpu(struct stop_machine_data *smdata)
 {
 	enum stopmachine_state curstate = STOPMACHINE_NONE;
-	int uninitialized_var(ret);
 
 	/* Simple state machine */
 	do {
