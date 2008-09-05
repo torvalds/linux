@@ -148,6 +148,7 @@ static struct resource poodle_scoop_resources[] = {
 static struct scoop_config poodle_scoop_setup = {
 	.io_dir		= POODLE_SCOOP_IO_DIR,
 	.io_out		= POODLE_SCOOP_IO_OUT,
+	.gpio_base	= POODLE_SCOOP_GPIO_BASE,
 };
 
 struct platform_device poodle_scoop_device = {
