@@ -69,7 +69,7 @@ static unsigned long reset_value[NUM_COUNTERS];
    data. Should then be added to linux/oprofile.h. */
 extern void
 oprofile_add_ibs_sample(struct pt_regs *const regs,
-			unsigned int * const ibs_sample, int ibs_code);
+			unsigned int *const ibs_sample, int ibs_code);
 
 struct ibs_fetch_sample {
 	/* MSRC001_1031 IBS Fetch Linear Address Register */
@@ -469,9 +469,9 @@ static void clear_ibs_nmi(void)
 		on_each_cpu(apic_clear_ibs_nmi_per_cpu, NULL, 1);
 }
 
-static int (*create_arch_files)(struct super_block * sb, struct dentry * root);
+static int (*create_arch_files)(struct super_block *sb, struct dentry *root);
 
-static int setup_ibs_files(struct super_block * sb, struct dentry * root)
+static int setup_ibs_files(struct super_block *sb, struct dentry *root)
 {
 	struct dentry *dir;
 	int ret = 0;

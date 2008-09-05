@@ -404,7 +404,7 @@ set_count_mode(u32 kernel, u32 user)
 	}
 }
 
-static inline void enable_ctr(u32 cpu, u32 ctr, u32 * pm07_cntrl)
+static inline void enable_ctr(u32 cpu, u32 ctr, u32 *pm07_cntrl)
 {
 
 	pm07_cntrl[ctr] |= CBE_PM_CTR_ENABLE;

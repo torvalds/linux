@@ -19,7 +19,7 @@ struct oprofile_stat_struct oprofile_stats;
  
 void oprofile_reset_stats(void)
 {
-	struct oprofile_cpu_buffer * cpu_buf; 
+	struct oprofile_cpu_buffer *cpu_buf;
 	int i;
  
 	for_each_possible_cpu(i) {
@@ -36,11 +36,11 @@ void oprofile_reset_stats(void)
 }
 
 
-void oprofile_create_stats_files(struct super_block * sb, struct dentry * root)
+void oprofile_create_stats_files(struct super_block *sb, struct dentry *root)
 {
-	struct oprofile_cpu_buffer * cpu_buf;
-	struct dentry * cpudir;
-	struct dentry * dir;
+	struct oprofile_cpu_buffer *cpu_buf;
+	struct dentry *cpudir;
+	struct dentry *dir;
 	char buf[10];
 	int i;
 

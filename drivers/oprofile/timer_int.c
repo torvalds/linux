@@ -35,7 +35,7 @@ static void timer_stop(void)
 }
 
 
-void __init oprofile_timer_init(struct oprofile_operations * ops)
+void __init oprofile_timer_init(struct oprofile_operations *ops)
 {
 	ops->create_files = NULL;
 	ops->setup = NULL;

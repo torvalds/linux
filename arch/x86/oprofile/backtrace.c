@@ -53,7 +53,7 @@ struct frame_head {
 } __attribute__((packed));
 
 static struct frame_head *
-dump_user_backtrace(struct frame_head * head)
+dump_user_backtrace(struct frame_head *head)
 {
 	struct frame_head bufhead[2];
 

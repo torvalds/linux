@@ -22,8 +22,8 @@ struct op_msr {
 };
 
 struct op_msrs {
-	struct op_msr * counters;
-	struct op_msr * controls;
+	struct op_msr *counters;
+	struct op_msr *controls;
 };
 
 struct pt_regs;
