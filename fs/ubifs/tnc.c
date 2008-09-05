@@ -1962,7 +1962,7 @@ static int tnc_insert(struct ubifs_info *c, struct ubifs_znode *znode,
 {
 	struct ubifs_znode *zn, *zi, *zp;
 	int i, keep, move, appending = 0;
-	union ubifs_key *key = &zbr->key;
+	union ubifs_key *key = &zbr->key, *key1;
 
 	ubifs_assert(n >= 0 && n <= c->fanout);
 
@@ -2003,20 +2003,33 @@ again:
 	zn->level = znode->level;
 
 	/* Decide where to split */
-	if (znode->level == 0 && n == c->fanout &&
-	    key_type(c, key) == UBIFS_DATA_KEY) {
-		union ubifs_key *key1;
-
-		/*
-		 * If this is an inode which is being appended - do not split
-		 * it because no other zbranches can be inserted between
-		 * zbranches of consecutive data nodes anyway.
-		 */
-		key1 = &znode->zbranch[n - 1].key;
-		if (key_inum(c, key1) == key_inum(c, key) &&
-		    key_type(c, key1) == UBIFS_DATA_KEY &&
-		    key_block(c, key1) == key_block(c, key) - 1)
-			appending = 1;
+	if (znode->level == 0 && key_type(c, key) == UBIFS_DATA_KEY) {
+		/* Try not to split consecutive data keys */
+		if (n == c->fanout) {
+			key1 = &znode->zbranch[n - 1].key;
+			if (key_inum(c, key1) == key_inum(c, key) &&
+			    key_type(c, key1) == UBIFS_DATA_KEY)
+				appending = 1;
+		} else
+			goto check_split;
+	} else if (appending && n != c->fanout) {
+		/* Try not to split consecutive data keys */
+		appending = 0;
+check_split:
+		if (n >= (c->fanout + 1) / 2) {
+			key1 = &znode->zbranch[0].key;
+			if (key_inum(c, key1) == key_inum(c, key) &&
+			    key_type(c, key1) == UBIFS_DATA_KEY) {
+				key1 = &znode->zbranch[n].key;
+				if (key_inum(c, key1) != key_inum(c, key) ||
+				    key_type(c, key1) != UBIFS_DATA_KEY) {
+					keep = n;
+					move = c->fanout - keep;
+					zi = znode;
+					goto do_split;
+				}
+			}
+		}
 	}
 
 	if (appending) {
@@ -2046,6 +2059,8 @@ again:
 			zbr->znode->parent = zn;
 	}
 
+do_split:
+
 	__set_bit(DIRTY_ZNODE, &zn->flags);
 	atomic_long_inc(&c->dirty_zn_cnt);
 
@@ -2072,14 +2087,11 @@ again:
 
 	/* Insert new znode (produced by spitting) into the parent */
 	if (zp) {
-		i = n;
+		if (n == 0 && zi == znode && znode->iip == 0)
+			correct_parent_keys(c, znode);
+
 		/* Locate insertion point */
 		n = znode->iip + 1;
-		if (appending && n != c->fanout)
-			appending = 0;
-
-		if (i == 0 && zi == znode && znode->iip == 0)
-			correct_parent_keys(c, znode);
 
 		/* Tail recursion */
 		zbr->key = zn->zbranch[0].key;
