@@ -18,15 +18,7 @@
 #include <linux/compiler.h>
 #include <asm/types.h>
 
-#ifdef __ARMEB__
-# define __BIG_ENDIAN
-#else
-# define __LITTLE_ENDIAN
-#endif
-
-#define __SWAB_64_THRU_32__
-
-static inline __attribute_const__ __u32 __arch_swab32(__u32 x)
+static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 {
 	__u32 t;
 
@@ -48,8 +40,19 @@ static inline __attribute_const__ __u32 __arch_swab32(__u32 x)
 
 	return x;
 }
-#define __arch_swab32 __arch_swab32
 
-#include <linux/byteorder.h>
+#define __arch__swab32(x) ___arch__swab32(x)
+
+#if !defined(__STRICT_ANSI__) || defined(__KERNEL__)
+#  define __BYTEORDER_HAS_U64__
+#  define __SWAB_64_THRU_32__
+#endif
+
+#ifdef __ARMEB__
+#include <linux/byteorder/big_endian.h>
+#else
+#include <linux/byteorder/little_endian.h>
+#endif
 
 #endif
+
