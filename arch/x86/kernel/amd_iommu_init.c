@@ -417,6 +417,30 @@ static void __init free_command_buffer(struct amd_iommu *iommu)
 	free_pages((unsigned long)iommu->cmd_buf, get_order(CMD_BUFFER_SIZE));
 }
 
+/* allocates the memory where the IOMMU will log its events to */
+static u8 * __init alloc_event_buffer(struct amd_iommu *iommu)
+{
+	u64 entry;
+	iommu->evt_buf = (u8 *)__get_free_pages(GFP_KERNEL | __GFP_ZERO,
+						get_order(EVT_BUFFER_SIZE));
+
+	if (iommu->evt_buf == NULL)
+		return NULL;
+
+	entry = (u64)virt_to_phys(iommu->evt_buf) | EVT_LEN_MASK;
+	memcpy_toio(iommu->mmio_base + MMIO_EVT_BUF_OFFSET,
+		    &entry, sizeof(entry));
+
+	iommu->evt_buf_size = EVT_BUFFER_SIZE;
+
+	return iommu->evt_buf;
+}
+
+static void __init free_event_buffer(struct amd_iommu *iommu)
+{
+	free_pages((unsigned long)iommu->evt_buf, get_order(EVT_BUFFER_SIZE));
+}
+
 /* sets a specific bit in the device table entry. */
 static void set_dev_entry_bit(u16 devid, u8 bit)
 {
@@ -622,6 +646,7 @@ static int __init init_iommu_devices(struct amd_iommu *iommu)
 static void __init free_iommu_one(struct amd_iommu *iommu)
 {
 	free_command_buffer(iommu);
+	free_event_buffer(iommu);
 	iommu_unmap_mmio_space(iommu);
 }
 
@@ -659,6 +684,10 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	iommu_set_device_table(iommu);
 	iommu->cmd_buf = alloc_command_buffer(iommu);
 	if (!iommu->cmd_buf)
+		return -ENOMEM;
+
+	iommu->evt_buf = alloc_event_buffer(iommu);
+	if (!iommu->evt_buf)
 		return -ENOMEM;
 
 	init_iommu_from_pci(iommu);

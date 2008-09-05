@@ -116,6 +116,10 @@
 #define MMIO_CMD_SIZE_SHIFT 56
 #define MMIO_CMD_SIZE_512 (0x9ULL << MMIO_CMD_SIZE_SHIFT)
 
+/* constants for event buffer handling */
+#define EVT_BUFFER_SIZE		8192 /* 512 entries */
+#define EVT_LEN_MASK		(0x9ULL << 56)
+
 #define PAGE_MODE_1_LEVEL 0x01
 #define PAGE_MODE_2_LEVEL 0x02
 #define PAGE_MODE_3_LEVEL 0x03
@@ -242,6 +246,11 @@ struct amd_iommu {
 	u8 *cmd_buf;
 	/* size of command buffer */
 	u32 cmd_buf_size;
+
+	/* event buffer virtual address */
+	u8 *evt_buf;
+	/* size of event buffer */
+	u32 evt_buf_size;
 
 	/* if one, we need to send a completion wait command */
 	int need_sync;
