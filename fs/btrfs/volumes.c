@@ -1079,6 +1079,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 	if (ret)
 		goto out_close_bdev;
 
+	set_blocksize(device->bdev, 4096);
+
 	total_bytes = btrfs_super_total_bytes(&root->fs_info->super_copy);
 	btrfs_set_super_total_bytes(&root->fs_info->super_copy,
 				    total_bytes + device->total_bytes);
