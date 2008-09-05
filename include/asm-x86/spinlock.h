@@ -21,8 +21,10 @@
 
 #ifdef CONFIG_X86_32
 # define LOCK_PTR_REG "a"
+# define REG_PTR_MODE "k"
 #else
 # define LOCK_PTR_REG "D"
+# define REG_PTR_MODE "q"
 #endif
 
 #if defined(CONFIG_X86_32) && \
@@ -77,19 +79,17 @@ static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 
 static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 {
-	int tmp;
-	short new;
+	int tmp, new;
 
-	asm volatile("movw %2,%w0\n\t"
+	asm volatile("movzwl %2, %0\n\t"
 		     "cmpb %h0,%b0\n\t"
+		     "leal 0x100(%" REG_PTR_MODE "0), %1\n\t"
 		     "jne 1f\n\t"
-		     "movw %w0,%w1\n\t"
-		     "incb %h1\n\t"
 		     LOCK_PREFIX "cmpxchgw %w1,%2\n\t"
 		     "1:"
 		     "sete %b1\n\t"
 		     "movzbl %b1,%0\n\t"
-		     : "=&a" (tmp), "=&Q" (new), "+m" (lock->slock)
+		     : "=&a" (tmp), "=&q" (new), "+m" (lock->slock)
 		     :
 		     : "memory", "cc");
 
@@ -136,8 +136,8 @@ static __always_inline int __ticket_spin_trylock(raw_spinlock_t *lock)
 		     "movl %0,%1\n\t"
 		     "roll $16, %0\n\t"
 		     "cmpl %0,%1\n\t"
+		     "leal 0x00010000(%" REG_PTR_MODE "0), %1\n\t"
 		     "jne 1f\n\t"
-		     "addl $0x00010000, %1\n\t"
 		     LOCK_PREFIX "cmpxchgl %1,%2\n\t"
 		     "1:"
 		     "sete %b1\n\t"
