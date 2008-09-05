@@ -33,6 +33,7 @@ struct btrfs_inode {
 	struct extent_io_tree io_failure_tree;
 	struct mutex csum_mutex;
 	struct mutex extent_mutex;
+	struct mutex log_mutex;
 	struct inode vfs_inode;
 	struct btrfs_ordered_inode_tree ordered_tree;
 
@@ -44,10 +45,17 @@ struct btrfs_inode {
 
 	struct list_head delalloc_inodes;
 
+	/* full 64 bit generation number */
+	u64 generation;
+
 	/*
 	 * transid of the trans_handle that last modified this inode
 	 */
 	u64 last_trans;
+	/*
+	 * transid that last logged this inode
+	 */
+	u64 logged_trans;
 	u64 delalloc_bytes;
 	u64 disk_i_size;
 	u32 flags;

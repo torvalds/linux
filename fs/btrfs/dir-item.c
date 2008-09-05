@@ -96,6 +96,7 @@ int btrfs_insert_xattr_item(struct btrfs_trans_handle *trans,
 	btrfs_set_dir_item_key(leaf, dir_item, &disk_key);
 	btrfs_set_dir_type(leaf, dir_item, BTRFS_FT_XATTR);
 	btrfs_set_dir_name_len(leaf, dir_item, name_len);
+	btrfs_set_dir_transid(leaf, dir_item, trans->transid);
 	btrfs_set_dir_data_len(leaf, dir_item, data_len);
 	name_ptr = (unsigned long)(dir_item + 1);
 	data_ptr = (unsigned long)((char *)name_ptr + name_len);
@@ -142,6 +143,7 @@ int btrfs_insert_dir_item(struct btrfs_trans_handle *trans, struct btrfs_root
 	btrfs_set_dir_type(leaf, dir_item, type);
 	btrfs_set_dir_data_len(leaf, dir_item, 0);
 	btrfs_set_dir_name_len(leaf, dir_item, name_len);
+	btrfs_set_dir_transid(leaf, dir_item, trans->transid);
 	name_ptr = (unsigned long)(dir_item + 1);
 
 	write_extent_buffer(leaf, name, name_ptr, name_len);
@@ -169,6 +171,7 @@ second_insert:
 	btrfs_set_dir_type(leaf, dir_item, type);
 	btrfs_set_dir_data_len(leaf, dir_item, 0);
 	btrfs_set_dir_name_len(leaf, dir_item, name_len);
+	btrfs_set_dir_transid(leaf, dir_item, trans->transid);
 	name_ptr = (unsigned long)(dir_item + 1);
 	write_extent_buffer(leaf, name, name_ptr, name_len);
 	btrfs_mark_buffer_dirty(leaf);

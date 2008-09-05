@@ -36,6 +36,8 @@
 #include "btrfs_inode.h"
 #include "ioctl.h"
 #include "print-tree.h"
+#include "tree-log.h"
+#include "locking.h"
 #include "compat.h"
 
 
@@ -988,10 +990,27 @@ out_nolock:
 	*ppos = pos;
 
 	if (num_written > 0 && ((file->f_flags & O_SYNC) || IS_SYNC(inode))) {
-		err = sync_page_range(inode, inode->i_mapping,
-				      start_pos, num_written);
+		struct btrfs_trans_handle *trans;
+
+		err = btrfs_fdatawrite_range(inode->i_mapping, start_pos,
+					     start_pos + num_written -1,
+					     WB_SYNC_NONE);
 		if (err < 0)
 			num_written = err;
+
+		err = btrfs_wait_on_page_writeback_range(inode->i_mapping,
+				 start_pos, start_pos + num_written - 1);
+		if (err < 0)
+			num_written = err;
+
+		trans = btrfs_start_transaction(root, 1);
+		ret = btrfs_log_dentry_safe(trans, root, file->f_dentry);
+		if (ret == 0) {
+			btrfs_sync_log(trans, root);
+			btrfs_end_transaction(trans, root);
+		} else {
+			btrfs_commit_transaction(trans, root);
+		}
 	} else if (num_written > 0 && (file->f_flags & O_DIRECT)) {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
 		do_sync_file_range(file, start_pos,
@@ -1019,8 +1038,7 @@ int btrfs_release_file(struct inode * inode, struct file * filp)
 	return 0;
 }
 
-static int btrfs_sync_file(struct file *file,
-			   struct dentry *dentry, int datasync)
+int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -1043,6 +1061,8 @@ static int btrfs_sync_file(struct file *file,
 	}
 	mutex_unlock(&root->fs_info->trans_mutex);
 
+	filemap_fdatawait(inode->i_mapping);
+
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
 	 */
@@ -1054,7 +1074,16 @@ static int btrfs_sync_file(struct file *file,
 		ret = -ENOMEM;
 		goto out;
 	}
-	ret = btrfs_commit_transaction(trans, root);
+
+	ret = btrfs_log_dentry_safe(trans, root, file->f_dentry);
+	if (ret < 0)
+		goto out;
+	if (ret > 0) {
+		ret = btrfs_commit_transaction(trans, root);
+	} else {
+		btrfs_sync_log(trans, root);
+		ret = btrfs_end_transaction(trans, root);
+	}
 out:
 	return ret > 0 ? EIO : ret;
 }

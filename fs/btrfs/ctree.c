@@ -60,7 +60,7 @@ void btrfs_free_path(struct btrfs_path *p)
 	kmem_cache_free(btrfs_path_cachep, p);
 }
 
-void btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
+void noinline btrfs_release_path(struct btrfs_root *root, struct btrfs_path *p)
 {
 	int i;
 
@@ -176,7 +176,7 @@ int btrfs_copy_root(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int __btrfs_cow_block(struct btrfs_trans_handle *trans,
+int noinline __btrfs_cow_block(struct btrfs_trans_handle *trans,
 			     struct btrfs_root *root,
 			     struct extent_buffer *buf,
 			     struct extent_buffer *parent, int parent_slot,
@@ -294,7 +294,7 @@ int __btrfs_cow_block(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-int btrfs_cow_block(struct btrfs_trans_handle *trans,
+int noinline btrfs_cow_block(struct btrfs_trans_handle *trans,
 		    struct btrfs_root *root, struct extent_buffer *buf,
 		    struct extent_buffer *parent, int parent_slot,
 		    struct extent_buffer **cow_ret, u64 prealloc_dest)
@@ -677,9 +677,10 @@ static int noinline check_block(struct btrfs_root *root,
  *
  * slot may point to max if the key is bigger than all of the keys
  */
-static int generic_bin_search(struct extent_buffer *eb, unsigned long p,
-			      int item_size, struct btrfs_key *key,
-			      int max, int *slot)
+static noinline int generic_bin_search(struct extent_buffer *eb,
+				       unsigned long p,
+				       int item_size, struct btrfs_key *key,
+				       int max, int *slot)
 {
 	int low = 0;
 	int high = max;
@@ -765,7 +766,7 @@ static int bin_search(struct extent_buffer *eb, struct btrfs_key *key,
 	return -1;
 }
 
-static struct extent_buffer *read_node_slot(struct btrfs_root *root,
+static noinline struct extent_buffer *read_node_slot(struct btrfs_root *root,
 				   struct extent_buffer *parent, int slot)
 {
 	int level = btrfs_header_level(parent);
@@ -781,7 +782,7 @@ static struct extent_buffer *read_node_slot(struct btrfs_root *root,
 		       btrfs_node_ptr_generation(parent, slot));
 }
 
-static int balance_level(struct btrfs_trans_handle *trans,
+static noinline int balance_level(struct btrfs_trans_handle *trans,
 			 struct btrfs_root *root,
 			 struct btrfs_path *path, int level)
 {
@@ -1128,8 +1129,9 @@ static int noinline push_nodes_for_insert(struct btrfs_trans_handle *trans,
 /*
  * readahead one full node of leaves
  */
-static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
-			     int level, int slot, u64 objectid)
+static noinline void reada_for_search(struct btrfs_root *root,
+				      struct btrfs_path *path,
+				      int level, int slot, u64 objectid)
 {
 	struct extent_buffer *node;
 	struct btrfs_disk_key disk_key;
@@ -1201,7 +1203,8 @@ static void reada_for_search(struct btrfs_root *root, struct btrfs_path *path,
 	}
 }
 
-static void unlock_up(struct btrfs_path *path, int level, int lowest_unlock)
+static noinline void unlock_up(struct btrfs_path *path, int level,
+			       int lowest_unlock)
 {
 	int i;
 	int skip_level = level;
@@ -1759,8 +1762,9 @@ static int insert_ptr(struct btrfs_trans_handle *trans, struct btrfs_root
  *
  * returns 0 on success and < 0 on failure
  */
-static int split_node(struct btrfs_trans_handle *trans, struct btrfs_root
-		      *root, struct btrfs_path *path, int level)
+static noinline int split_node(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct btrfs_path *path, int level)
 {
 	u64 root_gen;
 	struct extent_buffer *c;
@@ -1874,7 +1878,8 @@ static int leaf_space_used(struct extent_buffer *l, int start, int nr)
  * the start of the leaf data.  IOW, how much room
  * the leaf has left for both items and data
  */
-int btrfs_leaf_free_space(struct btrfs_root *root, struct extent_buffer *leaf)
+int noinline btrfs_leaf_free_space(struct btrfs_root *root,
+				   struct extent_buffer *leaf)
 {
 	int nritems = btrfs_header_nritems(leaf);
 	int ret;
@@ -2283,9 +2288,11 @@ out:
  *
  * returns 0 if all went well and < 0 on failure.
  */
-static int split_leaf(struct btrfs_trans_handle *trans, struct btrfs_root
-		      *root, struct btrfs_key *ins_key,
-		      struct btrfs_path *path, int data_size, int extend)
+static noinline int split_leaf(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *root,
+			       struct btrfs_key *ins_key,
+			       struct btrfs_path *path, int data_size,
+			       int extend)
 {
 	u64 root_gen;
 	struct extent_buffer *l;
@@ -3079,6 +3086,7 @@ int btrfs_prev_leaf(struct btrfs_root *root, struct btrfs_path *path)
  * was nothing in the tree that matched the search criteria.
  */
 int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
+			 struct btrfs_key *max_key,
 			 struct btrfs_path *path, int cache_only,
 			 u64 min_trans)
 {
@@ -3093,6 +3101,7 @@ int btrfs_search_forward(struct btrfs_root *root, struct btrfs_key *min_key,
 again:
 	cur = btrfs_lock_root_node(root);
 	level = btrfs_header_level(cur);
+	WARN_ON(path->nodes[level]);
 	path->nodes[level] = cur;
 	path->locks[level] = 1;
 
@@ -3107,6 +3116,8 @@ again:
 
 		/* at level = 0, we're done, setup the path and exit */
 		if (level == 0) {
+			if (slot >= nritems)
+				goto find_next_key;
 			ret = 0;
 			path->slots[level] = slot;
 			btrfs_item_key_to_cpu(cur, &found_key, slot);
@@ -3123,6 +3134,8 @@ again:
 			u64 blockptr;
 			u64 gen;
 			struct extent_buffer *tmp;
+			struct btrfs_disk_key disk_key;
+
 			blockptr = btrfs_node_blockptr(cur, slot);
 			gen = btrfs_node_ptr_generation(cur, slot);
 			if (gen < min_trans) {
@@ -3131,6 +3144,14 @@ again:
 			}
 			if (!cache_only)
 				break;
+
+			if (max_key) {
+				btrfs_node_key(cur, &disk_key, slot);
+				if (comp_keys(&disk_key, max_key) >= 0) {
+					ret = 1;
+					goto out;
+				}
+			}
 
 			tmp = btrfs_find_tree_block(root, blockptr,
 					    btrfs_level_size(root, level - 1));
@@ -3143,14 +3164,16 @@ again:
 				free_extent_buffer(tmp);
 			slot++;
 		}
+find_next_key:
 		/*
 		 * we didn't find a candidate key in this node, walk forward
 		 * and find another one
 		 */
 		if (slot >= nritems) {
-			ret = btrfs_find_next_key(root, path, min_key, level,
+			path->slots[level] = slot;
+			sret = btrfs_find_next_key(root, path, min_key, level,
 						  cache_only, min_trans);
-			if (ret == 0) {
+			if (sret == 0) {
 				btrfs_release_path(root, path);
 				goto again;
 			} else {
@@ -3351,6 +3374,7 @@ int btrfs_previous_item(struct btrfs_root *root,
 {
 	struct btrfs_key found_key;
 	struct extent_buffer *leaf;
+	u32 nritems;
 	int ret;
 
 	while(1) {
@@ -3362,9 +3386,20 @@ int btrfs_previous_item(struct btrfs_root *root,
 			path->slots[0]--;
 		}
 		leaf = path->nodes[0];
+		nritems = btrfs_header_nritems(leaf);
+		if (nritems == 0)
+			return 1;
+		if (path->slots[0] == nritems)
+			path->slots[0]--;
+
 		btrfs_item_key_to_cpu(leaf, &found_key, path->slots[0]);
 		if (found_key.type == type)
 			return 0;
+		if (found_key.objectid < min_objectid)
+			break;
+		if (found_key.objectid == min_objectid &&
+		    found_key.type < type)
+			break;
 	}
 	return 1;
 }

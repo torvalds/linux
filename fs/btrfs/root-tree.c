@@ -202,8 +202,9 @@ again:
 		memcpy(&found_key, &key, sizeof(key));
 		key.offset++;
 		btrfs_release_path(root, path);
-		dead_root = btrfs_read_fs_root_no_radix(root->fs_info,
-							&found_key);
+		dead_root =
+			btrfs_read_fs_root_no_radix(root->fs_info->tree_root,
+						    &found_key);
 		if (IS_ERR(dead_root)) {
 			ret = PTR_ERR(dead_root);
 			goto err;

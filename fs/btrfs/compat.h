@@ -22,6 +22,21 @@ static inline struct dentry *d_obtain_alias(struct inode *inode)
 }
 #endif
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(2,6,18)
+static inline void btrfs_drop_nlink(struct inode *inode)
+{
+	inode->i_nlink--;
+}
+
+static inline void btrfs_inc_nlink(struct inode *inode)
+{
+	inode->i_nlink++;
+}
+#else
+# define btrfs_drop_nlink(inode) drop_nlink(inode)
+# define btrfs_inc_nlink(inode)	inc_nlink(inode)
+#endif
+
 /*
  * Even if AppArmor isn't enabled, it still has different prototypes.
  * Add more distro/version pairs here to declare which has AppArmor applied.

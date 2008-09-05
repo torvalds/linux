@@ -81,12 +81,12 @@ int btrfs_defrag_leaves(struct btrfs_trans_handle *trans,
 		memcpy(&key, &root->defrag_progress, sizeof(key));
 	}
 
-	path->lowest_level = 1;
 	path->keep_locks = 1;
 	if (cache_only)
 		min_trans = root->defrag_trans_start;
 
-	ret = btrfs_search_forward(root, &key, path, cache_only, min_trans);
+	ret = btrfs_search_forward(root, &key, NULL, path,
+				   cache_only, min_trans);
 	if (ret < 0)
 		goto out;
 	if (ret > 0) {

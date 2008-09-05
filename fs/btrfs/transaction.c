@@ -25,6 +25,7 @@
 #include "transaction.h"
 #include "locking.h"
 #include "ref-cache.h"
+#include "tree-log.h"
 
 static int total_trans = 0;
 extern struct kmem_cache *btrfs_trans_handle_cachep;
@@ -57,6 +58,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 		root->fs_info->generation++;
 		root->fs_info->last_alloc = 0;
 		root->fs_info->last_data_alloc = 0;
+		root->fs_info->last_log_alloc = 0;
 		cur_trans->num_writers = 1;
 		cur_trans->num_joined = 0;
 		cur_trans->transid = root->fs_info->generation;
@@ -83,7 +85,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 	return 0;
 }
 
-static noinline int record_root_in_trans(struct btrfs_root *root)
+noinline int btrfs_record_root_in_trans(struct btrfs_root *root)
 {
 	struct btrfs_dirty_root *dirty;
 	u64 running_trans_id = root->fs_info->running_transaction->transid;
@@ -151,7 +153,7 @@ static void wait_current_trans(struct btrfs_root *root)
 	}
 }
 
-struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
+static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 					     int num_blocks, int wait)
 {
 	struct btrfs_trans_handle *h =
@@ -164,7 +166,7 @@ struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	ret = join_transaction(root);
 	BUG_ON(ret);
 
-	record_root_in_trans(root);
+	btrfs_record_root_in_trans(root);
 	h->transid = root->fs_info->running_transaction->transid;
 	h->transaction = root->fs_info->running_transaction;
 	h->blocks_reserved = num_blocks;
@@ -456,6 +458,8 @@ static noinline int add_dirty_roots(struct btrfs_trans_handle *trans,
 			BUG_ON(!root->ref_tree);
 			dirty = root->dirty_root;
 
+			btrfs_free_log(trans, root);
+
 			if (root->commit_root == root->node) {
 				WARN_ON(root->node->start !=
 					btrfs_root_bytenr(&root->root_item));
@@ -600,7 +604,7 @@ static noinline int drop_dirty_roots(struct btrfs_root *tree_root,
 		num_bytes -= btrfs_root_used(&dirty->root->root_item);
 		bytes_used = btrfs_root_used(&root->root_item);
 		if (num_bytes) {
-			record_root_in_trans(root);
+			btrfs_record_root_in_trans(root);
 			btrfs_set_root_used(&root->root_item,
 					    bytes_used - num_bytes);
 		}
@@ -745,7 +749,6 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	int ret;
 
 	INIT_LIST_HEAD(&dirty_fs_roots);
-
 	mutex_lock(&root->fs_info->trans_mutex);
 	if (trans->transaction->in_commit) {
 		cur_trans = trans->transaction;
@@ -821,9 +824,29 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 	WARN_ON(cur_trans != trans->transaction);
 
+	/* btrfs_commit_tree_roots is responsible for getting the
+	 * various roots consistent with each other.  Every pointer
+	 * in the tree of tree roots has to point to the most up to date
+	 * root for every subvolume and other tree.  So, we have to keep
+	 * the tree logging code from jumping in and changing any
+	 * of the trees.
+	 *
+	 * At this point in the commit, there can't be any tree-log
+	 * writers, but a little lower down we drop the trans mutex
+	 * and let new people in.  By holding the tree_log_mutex
+	 * from now until after the super is written, we avoid races
+	 * with the tree-log code.
+	 */
+	mutex_lock(&root->fs_info->tree_log_mutex);
+
 	ret = add_dirty_roots(trans, &root->fs_info->fs_roots_radix,
 			      &dirty_fs_roots);
 	BUG_ON(ret);
+
+	/* add_dirty_roots gets rid of all the tree log roots, it is now
+	 * safe to free the root of tree log roots
+	 */
+	btrfs_free_log_root_tree(trans, root->fs_info);
 
 	ret = btrfs_commit_tree_roots(trans, root);
 	BUG_ON(ret);
@@ -843,6 +866,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 				   chunk_root->node->start);
 	btrfs_set_super_chunk_root_level(&root->fs_info->super_copy,
 					 btrfs_header_level(chunk_root->node));
+
+	if (!root->fs_info->log_root_recovering) {
+		btrfs_set_super_log_root(&root->fs_info->super_copy, 0);
+		btrfs_set_super_log_root_level(&root->fs_info->super_copy, 0);
+	}
+
 	memcpy(&root->fs_info->super_for_commit, &root->fs_info->super_copy,
 	       sizeof(root->fs_info->super_copy));
 
@@ -856,6 +885,12 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 	ret = btrfs_write_and_wait_transaction(trans, root);
 	BUG_ON(ret);
 	write_ctree_super(trans, root);
+
+	/*
+	 * the super is written, we can safely allow the tree-loggers
+	 * to go about their business
+	 */
+	mutex_unlock(&root->fs_info->tree_log_mutex);
 
 	btrfs_finish_extent_commit(trans, root, pinned_copy);
 	mutex_lock(&root->fs_info->trans_mutex);

@@ -41,6 +41,7 @@
 #include "async-thread.h"
 #include "locking.h"
 #include "ref-cache.h"
+#include "tree-log.h"
 
 #if 0
 static int check_tree_block(struct btrfs_root *root, struct extent_buffer *buf)
@@ -694,6 +695,18 @@ struct extent_buffer *btrfs_find_create_tree_block(struct btrfs_root *root,
 }
 
 
+int btrfs_write_tree_block(struct extent_buffer *buf)
+{
+	return btrfs_fdatawrite_range(buf->first_page->mapping, buf->start,
+				      buf->start + buf->len - 1, WB_SYNC_NONE);
+}
+
+int btrfs_wait_tree_block_writeback(struct extent_buffer *buf)
+{
+	return btrfs_wait_on_page_writeback_range(buf->first_page->mapping,
+				  buf->start, buf->start + buf->len -1);
+}
+
 struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 				      u32 blocksize, u64 parent_transid)
 {
@@ -732,15 +745,6 @@ int clean_tree_block(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 	return 0;
 }
 
-int wait_on_tree_block_writeback(struct btrfs_root *root,
-				 struct extent_buffer *buf)
-{
-	struct inode *btree_inode = root->fs_info->btree_inode;
-	wait_on_extent_buffer_writeback(&BTRFS_I(btree_inode)->io_tree,
-					buf);
-	return 0;
-}
-
 static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 			u32 stripesize, struct btrfs_root *root,
 			struct btrfs_fs_info *fs_info,
@@ -771,6 +775,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->node_lock);
 	spin_lock_init(&root->list_lock);
 	mutex_init(&root->objectid_mutex);
+	mutex_init(&root->log_mutex);
 
 	btrfs_leaf_ref_tree_init(&root->ref_tree_struct);
 	root->ref_tree = &root->ref_tree_struct;
@@ -809,11 +814,74 @@ static int find_and_setup_root(struct btrfs_root *tree_root,
 	return 0;
 }
 
-struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_fs_info *fs_info,
-					       struct btrfs_key *location)
+int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
+			     struct btrfs_fs_info *fs_info)
+{
+	struct extent_buffer *eb;
+	int ret;
+
+	if (!fs_info->log_root_tree)
+		return 0;
+
+	eb = fs_info->log_root_tree->node;
+
+	WARN_ON(btrfs_header_level(eb) != 0);
+	WARN_ON(btrfs_header_nritems(eb) != 0);
+
+	ret = btrfs_free_extent(trans, fs_info->tree_root,
+				eb->start, eb->len,
+				BTRFS_TREE_LOG_OBJECTID, 0, 0, 0, 1);
+	BUG_ON(ret);
+
+	free_extent_buffer(eb);
+	kfree(fs_info->log_root_tree);
+	fs_info->log_root_tree = NULL;
+	return 0;
+}
+
+int btrfs_init_log_root_tree(struct btrfs_trans_handle *trans,
+			     struct btrfs_fs_info *fs_info)
 {
 	struct btrfs_root *root;
 	struct btrfs_root *tree_root = fs_info->tree_root;
+
+	root = kzalloc(sizeof(*root), GFP_NOFS);
+	if (!root)
+		return -ENOMEM;
+
+	__setup_root(tree_root->nodesize, tree_root->leafsize,
+		     tree_root->sectorsize, tree_root->stripesize,
+		     root, fs_info, BTRFS_TREE_LOG_OBJECTID);
+
+	root->root_key.objectid = BTRFS_TREE_LOG_OBJECTID;
+	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
+	root->root_key.offset = BTRFS_TREE_LOG_OBJECTID;
+	root->ref_cows = 0;
+
+	root->node = btrfs_alloc_free_block(trans, root, root->leafsize,
+					    BTRFS_TREE_LOG_OBJECTID,
+					    0, 0, 0, 0, 0);
+
+	btrfs_set_header_nritems(root->node, 0);
+	btrfs_set_header_level(root->node, 0);
+	btrfs_set_header_bytenr(root->node, root->node->start);
+	btrfs_set_header_generation(root->node, trans->transid);
+	btrfs_set_header_owner(root->node, BTRFS_TREE_LOG_OBJECTID);
+
+	write_extent_buffer(root->node, root->fs_info->fsid,
+			    (unsigned long)btrfs_header_fsid(root->node),
+			    BTRFS_FSID_SIZE);
+	btrfs_mark_buffer_dirty(root->node);
+	btrfs_tree_unlock(root->node);
+	fs_info->log_root_tree = root;
+	return 0;
+}
+
+struct btrfs_root *btrfs_read_fs_root_no_radix(struct btrfs_root *tree_root,
+					       struct btrfs_key *location)
+{
+	struct btrfs_root *root;
+	struct btrfs_fs_info *fs_info = tree_root->fs_info;
 	struct btrfs_path *path;
 	struct extent_buffer *l;
 	u64 highest_inode;
@@ -863,11 +931,13 @@ out:
 				     blocksize, 0);
 	BUG_ON(!root->node);
 insert:
-	root->ref_cows = 1;
-	ret = btrfs_find_highest_inode(root, &highest_inode);
-	if (ret == 0) {
-		root->highest_inode = highest_inode;
-		root->last_inode_alloc = highest_inode;
+	if (location->objectid != BTRFS_TREE_LOG_OBJECTID) {
+		root->ref_cows = 1;
+		ret = btrfs_find_highest_inode(root, &highest_inode);
+		if (ret == 0) {
+			root->highest_inode = highest_inode;
+			root->last_inode_alloc = highest_inode;
+		}
 	}
 	return root;
 }
@@ -907,7 +977,7 @@ struct btrfs_root *btrfs_read_fs_root_no_name(struct btrfs_fs_info *fs_info,
 	if (root)
 		return root;
 
-	root = btrfs_read_fs_root_no_radix(fs_info, location);
+	root = btrfs_read_fs_root_no_radix(fs_info->tree_root, location);
 	if (IS_ERR(root))
 		return root;
 	ret = radix_tree_insert(&fs_info->fs_roots_radix,
@@ -1250,16 +1320,18 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	u32 blocksize;
 	u32 stripesize;
 	struct buffer_head *bh;
-	struct btrfs_root *extent_root = kmalloc(sizeof(struct btrfs_root),
+	struct btrfs_root *extent_root = kzalloc(sizeof(struct btrfs_root),
 						 GFP_NOFS);
-	struct btrfs_root *tree_root = kmalloc(sizeof(struct btrfs_root),
+	struct btrfs_root *tree_root = kzalloc(sizeof(struct btrfs_root),
 					       GFP_NOFS);
 	struct btrfs_fs_info *fs_info = kzalloc(sizeof(*fs_info),
 						GFP_NOFS);
-	struct btrfs_root *chunk_root = kmalloc(sizeof(struct btrfs_root),
+	struct btrfs_root *chunk_root = kzalloc(sizeof(struct btrfs_root),
 						GFP_NOFS);
-	struct btrfs_root *dev_root = kmalloc(sizeof(struct btrfs_root),
+	struct btrfs_root *dev_root = kzalloc(sizeof(struct btrfs_root),
 					      GFP_NOFS);
+	struct btrfs_root *log_tree_root;
+
 	int ret;
 	int err = -EINVAL;
 
@@ -1343,6 +1415,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	mutex_init(&fs_info->trans_mutex);
+	mutex_init(&fs_info->tree_log_mutex);
 	mutex_init(&fs_info->drop_mutex);
 	mutex_init(&fs_info->alloc_mutex);
 	mutex_init(&fs_info->chunk_mutex);
@@ -1352,6 +1425,10 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	init_waitqueue_head(&fs_info->transaction_throttle);
 	init_waitqueue_head(&fs_info->transaction_wait);
 	init_waitqueue_head(&fs_info->async_submit_wait);
+	init_waitqueue_head(&fs_info->tree_log_wait);
+	atomic_set(&fs_info->tree_log_commit, 0);
+	atomic_set(&fs_info->tree_log_writers, 0);
+	fs_info->tree_log_transid = 0;
 
 #if 0
 	ret = add_hasher(fs_info, "crc32c");
@@ -1532,7 +1609,26 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	if (!fs_info->transaction_kthread)
 		goto fail_cleaner;
 
+	if (btrfs_super_log_root(disk_super) != 0) {
+		u32 blocksize;
+		u64 bytenr = btrfs_super_log_root(disk_super);
 
+		blocksize =
+		     btrfs_level_size(tree_root,
+				      btrfs_super_log_root_level(disk_super));
+
+		log_tree_root = kzalloc(sizeof(struct btrfs_root),
+						      GFP_NOFS);
+
+		__setup_root(nodesize, leafsize, sectorsize, stripesize,
+			     log_tree_root, fs_info, BTRFS_TREE_LOG_OBJECTID);
+
+		log_tree_root->node = read_tree_block(tree_root, bytenr,
+						      blocksize, 0);
+		ret = btrfs_recover_log_trees(log_tree_root);
+		BUG_ON(ret);
+	}
+	fs_info->last_trans_committed = btrfs_super_generation(disk_super);
 	return tree_root;
 
 fail_cleaner:
