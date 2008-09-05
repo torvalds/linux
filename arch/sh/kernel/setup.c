@@ -249,17 +249,18 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	ROOT_DEV = Root_RAM0;
 
 	if (LOADER_TYPE && INITRD_START) {
-		if (INITRD_START + INITRD_SIZE <= (max_low_pfn << PAGE_SHIFT)) {
-			reserve_bootmem(INITRD_START + __MEMORY_START,
-					INITRD_SIZE, BOOTMEM_DEFAULT);
-			initrd_start = INITRD_START + PAGE_OFFSET +
-					__MEMORY_START;
+		unsigned long initrd_start_phys = INITRD_START + __MEMORY_START;
+
+		if (initrd_start_phys + INITRD_SIZE <= PFN_PHYS(max_low_pfn)) {
+			reserve_bootmem(initrd_start_phys, INITRD_SIZE,
+					BOOTMEM_DEFAULT);
+			initrd_start = (unsigned long)__va(initrd_start_phys);
 			initrd_end = initrd_start + INITRD_SIZE;
 		} else {
 			printk("initrd extends beyond end of memory "
-			    "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
-				    INITRD_START + INITRD_SIZE,
-				    max_low_pfn << PAGE_SHIFT);
+			       "(0x%08lx > 0x%08lx)\ndisabling initrd\n",
+			       initrd_start_phys + INITRD_SIZE,
+			       PFN_PHYS(max_low_pfn));
 			initrd_start = 0;
 		}
 	}
