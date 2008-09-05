@@ -3400,10 +3400,8 @@ int try_release_extent_buffer(struct extent_io_tree *tree, struct page *page)
 	}
 	/* at this point we can safely release the extent buffer */
 	num_pages = num_extent_pages(eb->start, eb->len);
-	for (i = 0; i < num_pages; i++) {
-		struct page *page = extent_buffer_page(eb, i);
-		page_cache_release(page);
-	}
+	for (i = 0; i < num_pages; i++)
+		page_cache_release(extent_buffer_page(eb, i));
 	rb_erase(&eb->rb_node, &tree->buffer);
 	__free_extent_buffer(eb);
 out:

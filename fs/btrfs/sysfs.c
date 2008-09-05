@@ -254,7 +254,7 @@ void btrfs_sysfs_del_super(struct btrfs_fs_info *fs)
 	wait_for_completion(&fs->kobj_unregister);
 }
 
-int btrfs_init_sysfs()
+int btrfs_init_sysfs(void)
 {
 	btrfs_kset = kset_create_and_add("btrfs", NULL, fs_kobj);
 	if (!btrfs_kset)
@@ -262,7 +262,7 @@ int btrfs_init_sysfs()
 	return 0;
 }
 
-void btrfs_exit_sysfs()
+void btrfs_exit_sysfs(void)
 {
 	kset_unregister(btrfs_kset);
 }
@@ -289,12 +289,12 @@ void btrfs_sysfs_del_super(struct btrfs_fs_info *fs)
 	return;
 }
 
-int btrfs_init_sysfs()
+int btrfs_init_sysfs(void)
 {
 	return 0;
 }
 
-void btrfs_exit_sysfs()
+void btrfs_exit_sysfs(void)
 {
 	return;
 }

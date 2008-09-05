@@ -739,7 +739,7 @@ long btrfs_ioctl_trans_end(struct file *file)
 		goto out;
 	}
 	btrfs_end_transaction(trans, root);
-	file->private_data = 0;
+	file->private_data = NULL;
 
 	mutex_lock(&root->fs_info->trans_mutex);
 	root->fs_info->open_ioctl_trans--;
