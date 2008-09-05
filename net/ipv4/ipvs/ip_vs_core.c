@@ -654,8 +654,9 @@ void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
 /* Handle relevant response ICMP messages - forward to the right
  * destination host. Used for NAT and local client.
  */
-static int handle_response_icmp(struct sk_buff *skb, struct iphdr *iph,
-				struct iphdr *cih, struct ip_vs_conn *cp,
+static int handle_response_icmp(int af, struct sk_buff *skb,
+				union nf_inet_addr *snet,
+				__u8 protocol, struct ip_vs_conn *cp,
 				struct ip_vs_protocol *pp,
 				unsigned int offset, unsigned int ihl)
 {
@@ -669,18 +670,22 @@ static int handle_response_icmp(struct sk_buff *skb, struct iphdr *iph,
 	/* Ensure the checksum is correct */
 	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
 		/* Failed checksum! */
-		IP_VS_DBG(1,
-			  "Forward ICMP: failed checksum from %d.%d.%d.%d!\n",
-			  NIPQUAD(iph->saddr));
+		IP_VS_DBG_BUF(1, "Forward ICMP: failed checksum from %s!\n",
+			      IP_VS_DBG_ADDR(af, snet));
 		goto out;
 	}
 
-	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
+	if (IPPROTO_TCP == protocol || IPPROTO_UDP == protocol)
 		offset += 2 * sizeof(__u16);
 	if (!skb_make_writable(skb, offset))
 		goto out;
 
-	ip_vs_nat_icmp(skb, pp, cp, 1);
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		ip_vs_nat_icmp_v6(skb, pp, cp, 1);
+	else
+#endif
+		ip_vs_nat_icmp(skb, pp, cp, 1);
 
 	/* do the statistics and put it back */
 	ip_vs_out_stats(cp, skb);
@@ -708,6 +713,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, ihl;
+	union nf_inet_addr snet;
 
 	*related = 1;
 
@@ -766,7 +772,9 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	if (!cp)
 		return NF_ACCEPT;
 
-	return handle_response_icmp(skb, iph, cih, cp, pp, offset, ihl);
+	snet.ip = iph->saddr;
+	return handle_response_icmp(AF_INET, skb, &snet, cih->protocol, cp,
+				    pp, offset, ihl);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -779,7 +787,8 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related)
 	struct ip_vs_iphdr ciph;
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
-	unsigned int offset, verdict;
+	unsigned int offset;
+	union nf_inet_addr snet;
 
 	*related = 1;
 
@@ -838,40 +847,9 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related)
 	if (!cp)
 		return NF_ACCEPT;
 
-	verdict = NF_DROP;
-
-	if (IP_VS_FWD_METHOD(cp) != 0) {
-		IP_VS_ERR("shouldn't reach here, because the box is on the "
-			  "half connection in the tun/dr module.\n");
-	}
-
-	/* Ensure the checksum is correct */
-	if (!skb_csum_unnecessary(skb)
-	    && ip_vs_checksum_complete(skb, sizeof(struct ipv6hdr))) {
-		/* Failed checksum! */
-		IP_VS_DBG(1, "Forward ICMPv6: failed checksum from "
-			  NIP6_FMT "!\n",
-			  NIP6(iph->saddr));
-		goto out;
-	}
-
-	if (IPPROTO_TCP == cih->nexthdr || IPPROTO_UDP == cih->nexthdr)
-		offset += 2 * sizeof(__u16);
-	if (!skb_make_writable(skb, offset))
-		goto out;
-
-	ip_vs_nat_icmp_v6(skb, pp, cp, 1);
-
-	/* do the statistics and put it back */
-	ip_vs_out_stats(cp, skb);
-
-	skb->ipvs_property = 1;
-	verdict = NF_ACCEPT;
-
-out:
-	__ip_vs_conn_put(cp);
-
-	return verdict;
+	snet.in6 = iph->saddr;
+	return handle_response_icmp(AF_INET6, skb, &snet, cih->nexthdr, cp,
+				    pp, offset, sizeof(struct ipv6hdr));
 }
 #endif
 
@@ -1055,7 +1033,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 							  ICMP_DEST_UNREACH,
 							  ICMP_PORT_UNREACH, 0);
 					return NF_DROP;
-				}
+			}
 			}
 		}
 		IP_VS_DBG_PKT(12, pp, skb, 0,
@@ -1083,6 +1061,7 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, ihl, verdict;
+	union nf_inet_addr snet;
 
 	*related = 1;
 
@@ -1142,9 +1121,12 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	if (!cp) {
 		/* The packet could also belong to a local client */
 		cp = pp->conn_out_get(AF_INET, skb, pp, &ciph, offset, 1);
-		if (cp)
-			return handle_response_icmp(skb, iph, cih, cp, pp,
+		if (cp) {
+			snet.ip = iph->saddr;
+			return handle_response_icmp(AF_INET, skb, &snet,
+						    cih->protocol, cp, pp,
 						    offset, ihl);
+		}
 		return NF_ACCEPT;
 	}
 
@@ -1183,6 +1165,7 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
 	unsigned int offset, verdict;
+	union nf_inet_addr snet;
 
 	*related = 1;
 
@@ -1240,8 +1223,18 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 	ip_vs_fill_iphdr(AF_INET6, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
 	cp = pp->conn_in_get(AF_INET6, skb, pp, &ciph, offset, 1);
-	if (!cp)
+	if (!cp) {
+		/* The packet could also belong to a local client */
+		cp = pp->conn_out_get(AF_INET6, skb, pp, &ciph, offset, 1);
+		if (cp) {
+			snet.in6 = iph->saddr;
+			return handle_response_icmp(AF_INET6, skb, &snet,
+						    cih->nexthdr,
+						    cp, pp, offset,
+						    sizeof(struct ipv6hdr));
+		}
 		return NF_ACCEPT;
+	}
 
 	verdict = NF_DROP;
 
@@ -1281,9 +1274,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	 *	Big tappo: only PACKET_HOST, including loopback for local client
 	 *	Don't handle local packets on IPv6 for now
 	 */
-	if (unlikely(skb->pkt_type != PACKET_HOST ||
-		     (af == AF_INET6 || (skb->dev->flags & IFF_LOOPBACK ||
-					 skb->sk)))) {
+	if (unlikely(skb->pkt_type != PACKET_HOST)) {
 		IP_VS_DBG_BUF(12, "packet type=%d proto=%d daddr=%s ignored\n",
 			      skb->pkt_type,
 			      iph.protocol,
