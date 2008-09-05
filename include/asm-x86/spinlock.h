@@ -54,19 +54,7 @@
  * much between them in performance though, especially as locks are out of line.
  */
 #if (NR_CPUS < 256)
-static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
-{
-	int tmp = ACCESS_ONCE(lock->slock);
-
-	return (((tmp >> 8) & 0xff) != (tmp & 0xff));
-}
-
-static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
-{
-	int tmp = ACCESS_ONCE(lock->slock);
-
-	return (((tmp >> 8) - tmp) & 0xff) > 1;
-}
+#define TICKET_SHIFT 8
 
 static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 {
@@ -116,19 +104,7 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 		     : "memory", "cc");
 }
 #else
-static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
-{
-	int tmp = ACCESS_ONCE(lock->slock);
-
-	return (((tmp >> 16) & 0xffff) != (tmp & 0xffff));
-}
-
-static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
-{
-	int tmp = ACCESS_ONCE(lock->slock);
-
-	return (((tmp >> 16) - tmp) & 0xffff) > 1;
-}
+#define TICKET_SHIFT 16
 
 static __always_inline void __ticket_spin_lock(raw_spinlock_t *lock)
 {
@@ -181,6 +157,20 @@ static __always_inline void __ticket_spin_unlock(raw_spinlock_t *lock)
 		     : "memory", "cc");
 }
 #endif
+
+static inline int __ticket_spin_is_locked(raw_spinlock_t *lock)
+{
+	int tmp = ACCESS_ONCE(lock->slock);
+
+	return !!(((tmp >> TICKET_SHIFT) ^ tmp) & ((1 << TICKET_SHIFT) - 1));
+}
+
+static inline int __ticket_spin_is_contended(raw_spinlock_t *lock)
+{
+	int tmp = ACCESS_ONCE(lock->slock);
+
+	return (((tmp >> TICKET_SHIFT) - tmp) & ((1 << TICKET_SHIFT) - 1)) > 1;
+}
 
 #define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
 
