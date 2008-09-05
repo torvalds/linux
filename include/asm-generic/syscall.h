@@ -126,7 +126,7 @@ void syscall_get_arguments(struct task_struct *task, struct pt_regs *regs,
  * @args:	array of argument values to store
  *
  * Changes @n arguments to the system call starting with the @i'th argument.
- * @n'th argument to @val.  Argument @i gets value @args[0], and so on.
+ * Argument @i gets value @args[0], and so on.
  * An arch inline version is probably optimal when @i and @n are constants.
  *
  * It's only valid to call this when @task is stopped for tracing on

@@ -272,7 +272,7 @@ static inline void tracehook_finish_clone(struct task_struct *child,
  * tracehook_report_clone_complete().  This must prevent the child from
  * self-reaping if tracehook_report_clone_complete() uses the @child
  * pointer; otherwise it might have died and been released by the time
- * tracehook_report_report_clone_complete() is called.
+ * tracehook_report_clone_complete() is called.
  *
  * Called with no locks held, but the child cannot run until this returns.
  */
