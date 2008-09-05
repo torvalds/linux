@@ -93,6 +93,7 @@ DEFINE_PER_CPU_PAGE_ALIGNED(struct gdt_page, gdt_page) = { .gdt = {
 #endif
 EXPORT_PER_CPU_SYMBOL_GPL(gdt_page);
 
+#ifdef CONFIG_X86_32
 static int cachesize_override __cpuinitdata = -1;
 static int disable_x86_serial_nr __cpuinitdata = 1;
 
@@ -195,6 +196,13 @@ static int __init x86_serial_nr_setup(char *s)
 	return 1;
 }
 __setup("serialnumber", x86_serial_nr_setup);
+#else
+/* Probe for the CPUID instruction */
+static inline int have_cpuid_p(void)
+{
+	return 1;
+}
+#endif
 
 __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
