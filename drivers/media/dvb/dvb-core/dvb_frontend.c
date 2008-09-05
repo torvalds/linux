@@ -1156,9 +1156,16 @@ int tv_property_cache_submit(struct dvb_frontend *fe)
 	return r;
 }
 
-int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp)
+static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
+			unsigned int cmd, void *parg);
+static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
+			unsigned int cmd, void *parg);
+
+int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp,
+	struct inode *inode, struct file *file)
 {
 	int r = 0;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	printk("%s()\n", __FUNCTION__);
 	tv_property_dump(tvp);
 
@@ -1181,7 +1188,9 @@ int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp)
 		 */
 		fe->tv_property_cache.state = TV_SEQ_COMPLETE;
 		printk("%s() Finalised property cache\n", __FUNCTION__);
-		r = tv_property_cache_submit(fe);
+		r |= tv_property_cache_submit(fe);
+		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
+			&fepriv->parameters);
 		break;
 	case TV_SET_FREQUENCY:
 		fe->tv_property_cache.frequency = tvp->u.data;
@@ -1278,10 +1287,25 @@ int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp)
 	case TV_GET_ISDB_LAYERC_SEGMENT_WIDTH:
 		tvp->u.data = fe->tv_property_cache.isdb_layerc_segment_width;
 		break;
-
+	case TV_SET_VOLTAGE:
+		fe->tv_property_cache.voltage = tvp->u.data;
+		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_VOLTAGE,
+			&fe->tv_property_cache.voltage);
+		break;
+	case TV_GET_VOLTAGE:
+		tvp->u.data = fe->tv_property_cache.voltage;
+		break;
+	case TV_SET_TONE:
+		fe->tv_property_cache.sectone = tvp->u.data;
+		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_TONE,
+			(void *)fe->tv_property_cache.sectone);
+		break;
+	case TV_GET_TONE:
+		tvp->u.data = fe->tv_property_cache.sectone;
+		break;
 	}
 
-	return 0;
+	return r;
 }
 
 static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
@@ -1291,7 +1315,6 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	struct dvb_frontend *fe = dvbdev->priv;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	int err = -EOPNOTSUPP;
-	tv_property_t* tvp;
 
 	dprintk ("%s\n", __func__);
 
@@ -1306,6 +1329,25 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 	if (down_interruptible (&fepriv->sem))
 		return -ERESTARTSYS;
 
+	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY))
+		err = dvb_frontend_ioctl_properties(inode, file, cmd, parg);
+	else
+		err = dvb_frontend_ioctl_legacy(inode, file, cmd, parg);
+
+	up(&fepriv->sem);
+	return err;
+}
+
+static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
+			unsigned int cmd, void *parg)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_frontend *fe = dvbdev->priv;
+	int err = -EOPNOTSUPP;
+	tv_property_t *tvp;
+
+	dprintk("%s\n", __func__);
+
 	if(cmd == FE_SET_PROPERTY) {
 		printk("%s() FE_SET_PROPERTY\n", __FUNCTION__);
 
@@ -1314,7 +1356,7 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		/* TODO: ioctl userdata out of range check here */
 		tvp = parg;
 		while(tvp->cmd != TV_SEQ_UNDEFINED) {
-			tv_property_process(fe, tvp);
+			tv_property_process(fe, tvp, inode, file);
 			if( (tvp->cmd == TV_SEQ_TERMINATE) || (tvp->cmd == TV_SEQ_COMPLETE) )
 				break;
 			tvp++;
@@ -1322,10 +1364,20 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 		if(fe->tv_property_cache.state == TV_SEQ_COMPLETE) {
 			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
-			cmd = FE_SET_FRONTEND;
 		}
 		err = 0;
 	}
+
+	return err;
+}
+
+static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
+			unsigned int cmd, void *parg)
+{
+	struct dvb_device *dvbdev = file->private_data;
+	struct dvb_frontend *fe = dvbdev->priv;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	int err = -EOPNOTSUPP;
 
 	switch (cmd) {
 	case FE_GET_INFO: {
@@ -1585,7 +1637,6 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 		break;
 	};
 
-	up (&fepriv->sem);
 	return err;
 }
 
