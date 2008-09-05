@@ -24,6 +24,7 @@
 #include <asm/mpspec.h>
 #include <asm/apic.h>
 #include <mach_apic.h>
+#include <asm/genapic.h>
 #endif
 #include <asm/pda.h>
 #include <asm/pgtable.h>
@@ -33,7 +34,6 @@
 #include <asm/proto.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
-#include <asm/genapic.h>
 
 #include "cpu.h"
 

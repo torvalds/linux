@@ -1,24 +1,40 @@
 #include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/string.h>
+#include <linux/bootmem.h>
+#include <linux/bitops.h>
+#include <linux/module.h>
+#include <linux/kgdb.h>
+#include <linux/topology.h>
 #include <linux/delay.h>
 #include <linux/smp.h>
-#include <linux/module.h>
 #include <linux/percpu.h>
-#include <linux/bootmem.h>
-#include <asm/processor.h>
 #include <asm/i387.h>
 #include <asm/msr.h>
 #include <asm/io.h>
+#include <asm/linkage.h>
 #include <asm/mmu_context.h>
 #include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <asm/pat.h>
 #include <asm/asm.h>
+#include <asm/numa.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
 #include <mach_apic.h>
+#include <asm/genapic.h>
 #endif
+
+#include <asm/pda.h>
+#include <asm/pgtable.h>
+#include <asm/processor.h>
+#include <asm/desc.h>
+#include <asm/atomic.h>
+#include <asm/proto.h>
+#include <asm/sections.h>
+#include <asm/setup.h>
 
 #include "cpu.h"
 
