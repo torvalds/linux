@@ -127,6 +127,7 @@ static struct resource corgi_scoop_resources[] = {
 static struct scoop_config corgi_scoop_setup = {
 	.io_dir 	= CORGI_SCOOP_IO_DIR,
 	.io_out		= CORGI_SCOOP_IO_OUT,
+	.gpio_base	= CORGI_SCOOP_GPIO_BASE,
 };
 
 struct platform_device corgiscoop_device = {
@@ -426,10 +427,7 @@ static struct pxa2xx_spi_chip corgi_ads7846_chip = {
 static void corgi_notify_intensity(int intensity)
 {
 	/* Bit 5 is via SCOOP */
-	if (intensity & 0x0020)
-		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
-	else
-		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_BACKLIGHT_CONT);
+	gpio_set_value(CORGI_GPIO_BACKLIGHT_CONT, !!(intensity & 0x0020));
 }
 
 static void corgi_bl_kick_battery(void)
@@ -539,7 +537,8 @@ static void corgi_poweroff(void)
 {
 	if (!machine_is_corgi())
 		/* Green LED off tells the bootloader to halt */
-		reset_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_LED_GREEN);
+		gpio_set_value(CORGI_GPIO_LED_GREEN, 0);
+
 	arm_machine_restart('h');
 }
 
@@ -547,7 +546,8 @@ static void corgi_restart(char mode)
 {
 	if (!machine_is_corgi())
 		/* Green LED on tells the bootloader to reboot */
-		set_scoop_gpio(&corgiscoop_device.dev, CORGI_SCP_LED_GREEN);
+		gpio_set_value(CORGI_GPIO_LED_GREEN, 1);
+
 	arm_machine_restart('h');
 }
 
