@@ -109,7 +109,7 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 	u32 data;
 	int max_irq;
 	int pos;
-	unsigned int irq;
+	int irq;
 	unsigned int irq_want;
 
 	pos = pci_find_ht_capability(dev, HT_CAPTYPE_IRQ);
