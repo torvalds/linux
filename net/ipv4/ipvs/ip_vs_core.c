@@ -651,12 +651,53 @@ void ip_vs_nat_icmp_v6(struct sk_buff *skb, struct ip_vs_protocol *pp,
 }
 #endif
 
+/* Handle relevant response ICMP messages - forward to the right
+ * destination host. Used for NAT and local client.
+ */
+static int handle_response_icmp(struct sk_buff *skb, struct iphdr *iph,
+				struct iphdr *cih, struct ip_vs_conn *cp,
+				struct ip_vs_protocol *pp,
+				unsigned int offset, unsigned int ihl)
+{
+	unsigned int verdict = NF_DROP;
+
+	if (IP_VS_FWD_METHOD(cp) != 0) {
+		IP_VS_ERR("shouldn't reach here, because the box is on the "
+			  "half connection in the tun/dr module.\n");
+	}
+
+	/* Ensure the checksum is correct */
+	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
+		/* Failed checksum! */
+		IP_VS_DBG(1,
+			  "Forward ICMP: failed checksum from %d.%d.%d.%d!\n",
+			  NIPQUAD(iph->saddr));
+		goto out;
+	}
+
+	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
+		offset += 2 * sizeof(__u16);
+	if (!skb_make_writable(skb, offset))
+		goto out;
+
+	ip_vs_nat_icmp(skb, pp, cp, 1);
+
+	/* do the statistics and put it back */
+	ip_vs_out_stats(cp, skb);
+
+	skb->ipvs_property = 1;
+	verdict = NF_ACCEPT;
+
+out:
+	__ip_vs_conn_put(cp);
+
+	return verdict;
+}
+
 /*
  *	Handle ICMP messages in the inside-to-outside direction (outgoing).
- *	Find any that might be relevant, check against existing connections,
- *	forward to the right destination host if relevant.
+ *	Find any that might be relevant, check against existing connections.
  *	Currently handles error types - unreachable, quench, ttl exceeded.
- *	(Only used in VS/NAT)
  */
 static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 {
@@ -666,7 +707,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	struct ip_vs_iphdr ciph;
 	struct ip_vs_conn *cp;
 	struct ip_vs_protocol *pp;
-	unsigned int offset, ihl, verdict;
+	unsigned int offset, ihl;
 
 	*related = 1;
 
@@ -725,38 +766,7 @@ static int ip_vs_out_icmp(struct sk_buff *skb, int *related)
 	if (!cp)
 		return NF_ACCEPT;
 
-	verdict = NF_DROP;
-
-	if (IP_VS_FWD_METHOD(cp) != 0) {
-		IP_VS_ERR("shouldn't reach here, because the box is on the "
-			  "half connection in the tun/dr module.\n");
-	}
-
-	/* Ensure the checksum is correct */
-	if (!skb_csum_unnecessary(skb) && ip_vs_checksum_complete(skb, ihl)) {
-		/* Failed checksum! */
-		IP_VS_DBG(1, "Forward ICMP: failed checksum from %d.%d.%d.%d!\n",
-			  NIPQUAD(iph->saddr));
-		goto out;
-	}
-
-	if (IPPROTO_TCP == cih->protocol || IPPROTO_UDP == cih->protocol)
-		offset += 2 * sizeof(__u16);
-	if (!skb_make_writable(skb, offset))
-		goto out;
-
-	ip_vs_nat_icmp(skb, pp, cp, 1);
-
-	/* do the statistics and put it back */
-	ip_vs_out_stats(cp, skb);
-
-	skb->ipvs_property = 1;
-	verdict = NF_ACCEPT;
-
-  out:
-	__ip_vs_conn_put(cp);
-
-	return verdict;
+	return handle_response_icmp(skb, iph, cih, cp, pp, offset, ihl);
 }
 
 #ifdef CONFIG_IP_VS_IPV6
@@ -875,10 +885,76 @@ static inline int is_tcp_reset(const struct sk_buff *skb, int nh_len)
 	return th->rst;
 }
 
+/* Handle response packets: rewrite addresses and send away...
+ * Used for NAT and local client.
+ */
+static unsigned int
+handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
+		struct ip_vs_conn *cp, int ihl)
+{
+	IP_VS_DBG_PKT(11, pp, skb, 0, "Outgoing packet");
+
+	if (!skb_make_writable(skb, ihl))
+		goto drop;
+
+	/* mangle the packet */
+	if (pp->snat_handler && !pp->snat_handler(skb, pp, cp))
+		goto drop;
+
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		ipv6_hdr(skb)->saddr = cp->vaddr.in6;
+	else
+#endif
+	{
+		ip_hdr(skb)->saddr = cp->vaddr.ip;
+		ip_send_check(ip_hdr(skb));
+	}
+
+	/* For policy routing, packets originating from this
+	 * machine itself may be routed differently to packets
+	 * passing through.  We want this packet to be routed as
+	 * if it came from this machine itself.  So re-compute
+	 * the routing information.
+	 */
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6) {
+		if (ip6_route_me_harder(skb) != 0)
+			goto drop;
+	} else
+#endif
+		if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
+			goto drop;
+
+	/* For policy routing, packets originating from this
+	 * machine itself may be routed differently to packets
+	 * passing through.  We want this packet to be routed as
+	 * if it came from this machine itself.  So re-compute
+	 * the routing information.
+	 */
+	if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
+		goto drop;
+
+	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
+
+	ip_vs_out_stats(cp, skb);
+	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
+	ip_vs_conn_put(cp);
+
+	skb->ipvs_property = 1;
+
+	LeaveFunction(11);
+	return NF_ACCEPT;
+
+drop:
+	ip_vs_conn_put(cp);
+	kfree_skb(skb);
+	return NF_STOLEN;
+}
+
 /*
  *	It is hooked at the NF_INET_FORWARD chain, used only for VS/NAT.
- *	Check if outgoing packet belongs to the established ip_vs_conn,
- *      rewrite addresses of the packet and send it on its way...
+ *	Check if outgoing packet belongs to the established ip_vs_conn.
  */
 static unsigned int
 ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
@@ -987,55 +1063,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 		return NF_ACCEPT;
 	}
 
-	IP_VS_DBG_PKT(11, pp, skb, 0, "Outgoing packet");
-
-	if (!skb_make_writable(skb, iph.len))
-		goto drop;
-
-	/* mangle the packet */
-	if (pp->snat_handler && !pp->snat_handler(skb, pp, cp))
-		goto drop;
-
-#ifdef CONFIG_IP_VS_IPV6
-	if (af == AF_INET6)
-		ipv6_hdr(skb)->saddr = cp->vaddr.in6;
-	else
-#endif
-	{
-		ip_hdr(skb)->saddr = cp->vaddr.ip;
-		ip_send_check(ip_hdr(skb));
-	}
-
-	/* For policy routing, packets originating from this
-	 * machine itself may be routed differently to packets
-	 * passing through.  We want this packet to be routed as
-	 * if it came from this machine itself.  So re-compute
-	 * the routing information.
-	 */
-#ifdef CONFIG_IP_VS_IPV6
-	if (af == AF_INET6) {
-		if (ip6_route_me_harder(skb) != 0)
-			goto drop;
-	} else
-#endif
-		if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
-			goto drop;
-
-	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
-
-	ip_vs_out_stats(cp, skb);
-	ip_vs_set_state(cp, IP_VS_DIR_OUTPUT, skb, pp);
-	ip_vs_conn_put(cp);
-
-	skb->ipvs_property = 1;
-
-	LeaveFunction(11);
-	return NF_ACCEPT;
-
-  drop:
-	ip_vs_conn_put(cp);
-	kfree_skb(skb);
-	return NF_STOLEN;
+	return handle_response(af, skb, pp, cp, iph.len);
 }
 
 
@@ -1111,8 +1139,14 @@ ip_vs_in_icmp(struct sk_buff *skb, int *related, unsigned int hooknum)
 	ip_vs_fill_iphdr(AF_INET, cih, &ciph);
 	/* The embedded headers contain source and dest in reverse order */
 	cp = pp->conn_in_get(AF_INET, skb, pp, &ciph, offset, 1);
-	if (!cp)
+	if (!cp) {
+		/* The packet could also belong to a local client */
+		cp = pp->conn_out_get(AF_INET, skb, pp, &ciph, offset, 1);
+		if (cp)
+			return handle_response_icmp(skb, iph, cih, cp, pp,
+						    offset, ihl);
 		return NF_ACCEPT;
+	}
 
 	verdict = NF_DROP;
 
@@ -1244,11 +1278,12 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 
 	/*
-	 *	Big tappo: only PACKET_HOST (neither loopback nor mcasts)
-	 *	... don't know why 1st test DOES NOT include 2nd (?)
+	 *	Big tappo: only PACKET_HOST, including loopback for local client
+	 *	Don't handle local packets on IPv6 for now
 	 */
-	if (unlikely(skb->pkt_type != PACKET_HOST
-		     || skb->dev->flags & IFF_LOOPBACK || skb->sk)) {
+	if (unlikely(skb->pkt_type != PACKET_HOST ||
+		     (af == AF_INET6 || (skb->dev->flags & IFF_LOOPBACK ||
+					 skb->sk)))) {
 		IP_VS_DBG_BUF(12, "packet type=%d proto=%d daddr=%s ignored\n",
 			      skb->pkt_type,
 			      iph.protocol,
@@ -1276,6 +1311,11 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 
 	if (unlikely(!cp)) {
 		int v;
+
+		/* For local client packets, it could be a response */
+		cp = pp->conn_out_get(af, skb, pp, &iph, iph.len, 0);
+		if (cp)
+			return handle_response(af, skb, pp, cp, iph.len);
 
 		if (!pp->conn_schedule(af, skb, pp, &v, &cp))
 			return v;

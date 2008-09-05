@@ -166,7 +166,7 @@ tcp_snat_handler(struct sk_buff *skb,
 	tcph->source = cp->vport;
 
 	/* Adjust TCP checksums */
-	if (!cp->app) {
+	if (!cp->app && (tcph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
@@ -235,7 +235,7 @@ tcp_dnat_handler(struct sk_buff *skb,
 	/*
 	 *	Adjust TCP checksums
 	 */
-	if (!cp->app) {
+	if (!cp->app && (tcph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		tcp_fast_csum_update(cp->af, tcph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
