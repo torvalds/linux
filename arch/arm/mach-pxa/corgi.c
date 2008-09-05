@@ -271,13 +271,33 @@ static struct platform_device corgikbd_device = {
 	.id		= -1,
 };
 
-
 /*
  * Corgi LEDs
  */
+static struct gpio_led corgi_gpio_leds[] = {
+	{
+		.name			= "corgi:amber:charge",
+		.default_trigger	= "sharpsl-charge",
+		.gpio			= CORGI_GPIO_LED_ORANGE,
+	},
+	{
+		.name			= "corgi:green:mail",
+		.default_trigger	= "nand-disk",
+		.gpio			= CORGI_GPIO_LED_GREEN,
+	},
+};
+
+static struct gpio_led_platform_data corgi_gpio_leds_info = {
+	.leds		= corgi_gpio_leds,
+	.num_leds	= ARRAY_SIZE(corgi_gpio_leds),
+};
+
 static struct platform_device corgiled_device = {
-	.name		= "corgi-led",
+	.name		= "leds-gpio",
 	.id		= -1,
+	.dev		= {
+		.platform_data = &corgi_gpio_leds_info,
+	},
 };
 
 /*
