@@ -4,6 +4,7 @@ config SND_SOC_ALL_CODECS
 	select SPI
 	select SPI_MASTER
 	select SND_SOC_AK4535
+	select SND_SOC_SSM2602
 	select SND_SOC_UDA1380
 	select SND_SOC_WM8510
 	select SND_SOC_WM8580
@@ -93,3 +94,6 @@ config SND_SOC_TLV320AIC26
 config SND_SOC_TLV320AIC3X
 	tristate
 	depends on I2C
+
+config SND_SOC_SSM2602
+	tristate
