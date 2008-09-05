@@ -838,7 +838,8 @@ ip_vs_new_dest(struct ip_vs_service *svc, struct ip_vs_dest_user_kern *udest,
 #ifdef CONFIG_IP_VS_IPV6
 	if (svc->af == AF_INET6) {
 		atype = ipv6_addr_type(&udest->addr.in6);
-		if (!(atype & IPV6_ADDR_UNICAST) &&
+		if ((!(atype & IPV6_ADDR_UNICAST) ||
+			atype & IPV6_ADDR_LINKLOCAL) &&
 			!__ip_vs_addr_is_local_v6(&udest->addr.in6))
 			return -EINVAL;
 	} else
