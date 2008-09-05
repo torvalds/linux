@@ -349,7 +349,11 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 		}
 
 		index_msb = get_count_order(smp_num_siblings);
+#ifdef CONFIG_X86_64
 		c->phys_proc_id = phys_pkg_id(index_msb);
+#else
+		c->phys_proc_id = phys_pkg_id(c->initial_apicid, index_msb);
+#endif
 
 		smp_num_siblings = smp_num_siblings / c->x86_max_cores;
 
@@ -357,8 +361,13 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 		core_bits = get_count_order(c->x86_max_cores);
 
+#ifdef CONFIG_X86_64
 		c->cpu_core_id = phys_pkg_id(index_msb) &
 					       ((1 << core_bits) - 1);
+#else
+		c->cpu_core_id = phys_pkg_id(c->initial_apicid, index_msb) &
+					       ((1 << core_bits) - 1);
+#endif
 	}
 
 out:
