@@ -151,7 +151,7 @@ const char * ip_vs_state_name(__u16 proto, int state)
 }
 
 
-void
+static void
 ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
@@ -190,7 +190,7 @@ ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
 }
 
 #ifdef CONFIG_IP_VS_IPV6
-void
+static void
 ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
 			     const struct sk_buff *skb,
 			     int offset,
