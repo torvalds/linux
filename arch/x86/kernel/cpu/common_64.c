@@ -581,6 +581,9 @@ static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
 
 static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 {
+	if (!have_cpuid_p())
+		return;
+
 	c->extended_cpuid_level = 0;
 
 	cpu_detect(c);
@@ -589,10 +592,20 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 
 	get_cpu_cap(c);
 
-	c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xff;
-#ifdef CONFIG_SMP
-	c->phys_proc_id = c->initial_apicid;
+	if (c->cpuid_level >= 0x00000001) {
+		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
+#ifdef CONFIG_X86_32
+# ifdef CONFIG_X86_HT
+		c->apicid = phys_pkg_id(c->initial_apicid, 0);
+# else
+		c->apicid = c->initial_apicid;
+# endif
 #endif
+
+#ifdef CONFIG_X86_HT
+		c->phys_proc_id = c->initial_apicid;
+#endif
+	}
 
 	if (c->extended_cpuid_level >= 0x80000004)
 		get_model_name(c); /* Default name */

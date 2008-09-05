@@ -548,6 +548,10 @@ void __init early_cpu_init(void)
  * of early VIA chips and (more importantly) broken virtualizers that
  * are not easy to detect.  Hence, probe for it based on first
  * principles.
+ *
+ * Note: no 64-bit chip is known to lack these, but put the code here
+ * for consistency with 32 bits, and to make it utterly trivial to
+ * diagnose the problem should it ever surface.
  */
 static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
 {
@@ -586,11 +590,16 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 
 	if (c->cpuid_level >= 0x00000001) {
 		c->initial_apicid = (cpuid_ebx(1) >> 24) & 0xFF;
-#ifdef CONFIG_X86_HT
+#ifdef CONFIG_X86_32
+# ifdef CONFIG_X86_HT
 		c->apicid = phys_pkg_id(c->initial_apicid, 0);
-		c->phys_proc_id = c->initial_apicid;
-#else
+# else
 		c->apicid = c->initial_apicid;
+# endif
+#endif
+
+#ifdef CONFIG_X86_HT
+		c->phys_proc_id = c->initial_apicid;
 #endif
 	}
 
