@@ -730,8 +730,20 @@ __setup("noclflush", setup_noclflush);
 
 void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 {
+	char *vendor = NULL;
+
+	if (c->x86_vendor < X86_VENDOR_NUM)
+		vendor = this_cpu->c_vendor;
+	else if (c->cpuid_level >= 0)
+		vendor = c->x86_vendor_id;
+
+	if (vendor && strncmp(c->x86_model_id, vendor, strlen(vendor)))
+		printk(KERN_CONT "%s ", vendor);
+
 	if (c->x86_model_id[0])
 		printk(KERN_CONT "%s", c->x86_model_id);
+	else
+		printk(KERN_CONT "%d86", c->x86);
 
 	if (c->x86_mask || c->cpuid_level >= 0)
 		printk(KERN_CONT " stepping %02x\n", c->x86_mask);
