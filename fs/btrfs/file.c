@@ -39,9 +39,10 @@
 #include "compat.h"
 
 
-static int btrfs_copy_from_user(loff_t pos, int num_pages, int write_bytes,
-				struct page **prepared_pages,
-				const char __user * buf)
+static int noinline btrfs_copy_from_user(loff_t pos, int num_pages,
+					 int write_bytes,
+					 struct page **prepared_pages,
+					 const char __user * buf)
 {
 	long page_fault = 0;
 	int i;
@@ -69,7 +70,7 @@ static int btrfs_copy_from_user(loff_t pos, int num_pages, int write_bytes,
 	return page_fault ? -EFAULT : 0;
 }
 
-static void btrfs_drop_pages(struct page **pages, size_t num_pages)
+static void noinline btrfs_drop_pages(struct page **pages, size_t num_pages)
 {
 	size_t i;
 	for (i = 0; i < num_pages; i++) {
@@ -359,7 +360,7 @@ out_unlock:
 	return err;
 }
 
-int btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
+int noinline btrfs_drop_extent_cache(struct inode *inode, u64 start, u64 end)
 {
 	struct extent_map *em;
 	struct extent_map *split = NULL;
@@ -515,7 +516,7 @@ out:
  * it is either truncated or split.  Anything entirely inside the range
  * is deleted from the tree.
  */
-int btrfs_drop_extents(struct btrfs_trans_handle *trans,
+int noinline btrfs_drop_extents(struct btrfs_trans_handle *trans,
 		       struct btrfs_root *root, struct inode *inode,
 		       u64 start, u64 end, u64 inline_limit, u64 *hint_byte)
 {
@@ -785,7 +786,7 @@ out:
 /*
  * this gets pages into the page cache and locks them down
  */
-static int prepare_pages(struct btrfs_root *root, struct file *file,
+static int noinline prepare_pages(struct btrfs_root *root, struct file *file,
 			 struct page **pages, size_t num_pages,
 			 loff_t pos, unsigned long first_index,
 			 unsigned long last_index, size_t write_bytes)

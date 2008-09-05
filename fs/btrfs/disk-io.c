@@ -250,7 +250,7 @@ static int btree_read_extent_buffer_pages(struct btrfs_root *root,
 		if (!ret &&
 		    !verify_parent_transid(io_tree, eb, parent_transid))
 			return ret;
-
+printk("read extent buffer pages failed with ret %d mirror no %d\n", ret, mirror_num);
 		num_copies = btrfs_num_copies(&root->fs_info->mapping_tree,
 					      eb->start, eb->len);
 		if (num_copies == 1)
@@ -348,6 +348,9 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 
 	found_start = btrfs_header_bytenr(eb);
 	if (found_start != start) {
+		printk("bad tree block start %llu %llu\n",
+		       (unsigned long long)found_start,
+		       (unsigned long long)eb->start);
 		ret = -EIO;
 		goto err;
 	}
@@ -709,6 +712,8 @@ struct extent_buffer *read_tree_block(struct btrfs_root *root, u64 bytenr,
 
 	if (ret == 0) {
 		buf->flags |= EXTENT_UPTODATE;
+	} else {
+		WARN_ON(1);
 	}
 	return buf;
 

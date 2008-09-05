@@ -94,8 +94,8 @@ int btrfs_cleanup_fs_uuids(void)
 	return 0;
 }
 
-static struct btrfs_device *__find_device(struct list_head *head, u64 devid,
-					  u8 *uuid)
+static noinline struct btrfs_device *__find_device(struct list_head *head,
+						   u64 devid, u8 *uuid)
 {
 	struct btrfs_device *dev;
 	struct list_head *cur;
@@ -110,7 +110,7 @@ static struct btrfs_device *__find_device(struct list_head *head, u64 devid,
 	return NULL;
 }
 
-static struct btrfs_fs_devices *find_fsid(u8 *fsid)
+static noinline struct btrfs_fs_devices *find_fsid(u8 *fsid)
 {
 	struct list_head *cur;
 	struct btrfs_fs_devices *fs_devices;
@@ -134,7 +134,7 @@ static struct btrfs_fs_devices *find_fsid(u8 *fsid)
  * the list if the block device is congested.  This way, multiple devices
  * can make progress from a single worker thread.
  */
-int run_scheduled_bios(struct btrfs_device *device)
+static int noinline run_scheduled_bios(struct btrfs_device *device)
 {
 	struct bio *pending;
 	struct backing_dev_info *bdi;
@@ -233,7 +233,7 @@ void pending_bios_fn(struct btrfs_work *work)
 	run_scheduled_bios(device);
 }
 
-static int device_list_add(const char *path,
+static noinline int device_list_add(const char *path,
 			   struct btrfs_super_block *disk_super,
 			   u64 devid, struct btrfs_fs_devices **fs_devices_ret)
 {
@@ -480,10 +480,10 @@ error:
  * called very infrequently and that a given device has a small number
  * of extents
  */
-static int find_free_dev_extent(struct btrfs_trans_handle *trans,
-				struct btrfs_device *device,
-				struct btrfs_path *path,
-				u64 num_bytes, u64 *start)
+static noinline int find_free_dev_extent(struct btrfs_trans_handle *trans,
+					 struct btrfs_device *device,
+					 struct btrfs_path *path,
+					 u64 num_bytes, u64 *start)
 {
 	struct btrfs_key key;
 	struct btrfs_root *root = device->dev_root;
@@ -645,7 +645,7 @@ int btrfs_free_dev_extent(struct btrfs_trans_handle *trans,
 	return ret;
 }
 
-int btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
+int noinline btrfs_alloc_dev_extent(struct btrfs_trans_handle *trans,
 			   struct btrfs_device *device,
 			   u64 chunk_tree, u64 chunk_objectid,
 			   u64 chunk_offset,
@@ -693,7 +693,8 @@ err:
 	return ret;
 }
 
-static int find_next_chunk(struct btrfs_root *root, u64 objectid, u64 *offset)
+static noinline int find_next_chunk(struct btrfs_root *root,
+				    u64 objectid, u64 *offset)
 {
 	struct btrfs_path *path;
 	int ret;
@@ -735,8 +736,8 @@ error:
 	return ret;
 }
 
-static int find_next_devid(struct btrfs_root *root, struct btrfs_path *path,
-			   u64 *objectid)
+static noinline int find_next_devid(struct btrfs_root *root,
+				    struct btrfs_path *path, u64 *objectid)
 {
 	int ret;
 	struct btrfs_key key;
@@ -1103,8 +1104,8 @@ out_close_bdev:
 	goto out;
 }
 
-int btrfs_update_device(struct btrfs_trans_handle *trans,
-			struct btrfs_device *device)
+int noinline btrfs_update_device(struct btrfs_trans_handle *trans,
+				 struct btrfs_device *device)
 {
 	int ret;
 	struct btrfs_path *path;
@@ -1544,8 +1545,8 @@ int btrfs_add_system_chunk(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
-static u64 chunk_bytes_by_type(u64 type, u64 calc_size, int num_stripes,
-			       int sub_stripes)
+static u64 noinline chunk_bytes_by_type(u64 type, u64 calc_size,
+					int num_stripes, int sub_stripes)
 {
 	if (type & (BTRFS_BLOCK_GROUP_RAID1 | BTRFS_BLOCK_GROUP_DUP))
 		return calc_size;
@@ -2141,8 +2142,9 @@ struct async_sched {
  * This will add one bio to the pending list for a device and make sure
  * the work struct is scheduled.
  */
-int schedule_bio(struct btrfs_root *root, struct btrfs_device *device,
-		 int rw, struct bio *bio)
+static int noinline schedule_bio(struct btrfs_root *root,
+				 struct btrfs_device *device,
+				 int rw, struct bio *bio)
 {
 	int should_queue = 1;
 

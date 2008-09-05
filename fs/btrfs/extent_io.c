@@ -1811,6 +1811,7 @@ printk("2bad mapping end %Lu cur %Lu\n", end, cur);
 		}
 		/* the get_extent function already copied into the page */
 		if (test_range_bit(tree, cur, cur_end, EXTENT_UPTODATE, 1)) {
+			check_page_uptodate(tree, page);
 			unlock_extent(tree, cur, cur + iosize - 1, GFP_NOFS);
 			cur = cur + iosize;
 			page_offset += iosize;
@@ -2785,21 +2786,20 @@ int set_extent_buffer_dirty(struct extent_io_tree *tree,
 		 * properly set.  releasepage may drop page->private
 		 * on us if the page isn't already dirty.
 		 */
+		lock_page(page);
 		if (i == 0) {
-			lock_page(page);
 			set_page_extent_head(page, eb->len);
 		} else if (PagePrivate(page) &&
 			   page->private != EXTENT_PAGE_PRIVATE) {
-			lock_page(page);
 			set_page_extent_mapped(page);
-			unlock_page(page);
 		}
 		__set_page_dirty_nobuffers(extent_buffer_page(eb, i));
-		if (i == 0)
-			unlock_page(page);
+		set_extent_dirty(tree, page_offset(page),
+				 page_offset(page) + PAGE_CACHE_SIZE -1,
+				 GFP_NOFS);
+		unlock_page(page);
 	}
-	return set_extent_dirty(tree, eb->start,
-				eb->start + eb->len - 1, GFP_NOFS);
+	return 0;
 }
 EXPORT_SYMBOL(set_extent_buffer_dirty);
 
@@ -2952,6 +2952,9 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 	if (all_uptodate) {
 		if (start_i == 0)
 			eb->flags |= EXTENT_UPTODATE;
+		if (ret) {
+			printk("all up to date but ret is %d\n", ret);
+		}
 		goto unlock_exit;
 	}
 
@@ -2968,6 +2971,7 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 						      mirror_num);
 			if (err) {
 				ret = err;
+				printk("err %d from __extent_read_full_page\n", ret);
 			}
 		} else {
 			unlock_page(page);
@@ -2978,12 +2982,15 @@ int read_extent_buffer_pages(struct extent_io_tree *tree,
 		submit_one_bio(READ, bio, mirror_num);
 
 	if (ret || !wait) {
+		if (ret)
+			printk("ret %d wait %d returning\n", ret, wait);
 		return ret;
 	}
 	for (i = start_i; i < num_pages; i++) {
 		page = extent_buffer_page(eb, i);
 		wait_on_page_locked(page);
 		if (!PageUptodate(page)) {
+			printk("page not uptodate after wait_on_page_locked\n");
 			ret = -EIO;
 		}
 	}
