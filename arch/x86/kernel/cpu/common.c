@@ -104,34 +104,6 @@ static int __init cachesize_setup(char *str)
 }
 __setup("cachesize=", cachesize_setup);
 
-/*
- * Naming convention should be: <Name> [(<Codename>)]
- * This table only is used unless init_<vendor>() below doesn't set it;
- * in particular, if CPUID levels 0x80000002..4 are supported, this isn't used
- *
- */
-
-/* Look up CPU names by table lookup. */
-static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
-{
-	struct cpu_model_info *info;
-
-	if (c->x86_model >= 16)
-		return NULL;	/* Range check */
-
-	if (!this_cpu)
-		return NULL;
-
-	info = this_cpu->c_models;
-
-	while (info && info->family) {
-		if (info->family == c->x86)
-			return info->model_names[c->x86_model];
-		info++;
-	}
-	return NULL;		/* Not found */
-}
-
 static int __init x86_fxsr_setup(char *s)
 {
 	setup_clear_cpu_cap(X86_FEATURE_FXSR);
@@ -197,12 +169,47 @@ static int __init x86_serial_nr_setup(char *s)
 }
 __setup("serialnumber", x86_serial_nr_setup);
 #else
+static inline int flag_is_changeable_p(u32 flag)
+{
+	return 1;
+}
 /* Probe for the CPUID instruction */
 static inline int have_cpuid_p(void)
 {
 	return 1;
 }
+static inline void squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
+{
+}
 #endif
+
+/*
+ * Naming convention should be: <Name> [(<Codename>)]
+ * This table only is used unless init_<vendor>() below doesn't set it;
+ * in particular, if CPUID levels 0x80000002..4 are supported, this isn't used
+ *
+ */
+
+/* Look up CPU names by table lookup. */
+static char __cpuinit *table_lookup_model(struct cpuinfo_x86 *c)
+{
+	struct cpu_model_info *info;
+
+	if (c->x86_model >= 16)
+		return NULL;	/* Range check */
+
+	if (!this_cpu)
+		return NULL;
+
+	info = this_cpu->c_models;
+
+	while (info && info->family) {
+		if (info->family == c->x86)
+			return info->model_names[c->x86_model];
+		info++;
+	}
+	return NULL;		/* Not found */
+}
 
 __u32 cleared_cpu_caps[NCAPINTS] __cpuinitdata;
 
@@ -620,12 +627,18 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	c->loops_per_jiffy = loops_per_jiffy;
 	c->x86_cache_size = -1;
 	c->x86_vendor = X86_VENDOR_UNKNOWN;
-	c->cpuid_level = -1;	/* CPUID not detected */
 	c->x86_model = c->x86_mask = 0;	/* So far unknown... */
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
+#ifdef CONFIG_X86_64
+	c->x86_coreid_bits = 0;
+	c->x86_clflush_size = 64;
+#else
+	c->cpuid_level = -1;	/* CPUID not detected */
 	c->x86_clflush_size = 32;
+#endif
+	c->x86_cache_alignment = c->x86_clflush_size;
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
 	if (!have_cpuid_p()) {
@@ -643,6 +656,10 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 
 	if (this_cpu->c_identify)
 		this_cpu->c_identify(c);
+
+#ifdef CONFIG_X86_64
+	c->apicid = phys_pkg_id(0);
+#endif
 
 	/*
 	 * Vendor-specific initialization.  In this section we
@@ -677,6 +694,10 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 				c->x86, c->x86_model);
 	}
 
+#ifdef CONFIG_X86_64
+	detect_ht(c);
+#endif
+
 	/*
 	 * On SMP, boot_cpu_data holds the common feature set between
 	 * all CPUs; so make sure that we indicate which features are
@@ -693,24 +714,34 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	for (i = 0; i < NCAPINTS; i++)
 		c->x86_capability[i] &= ~cleared_cpu_caps[i];
 
+#ifdef CONFIG_X86_MCE
 	/* Init Machine Check Exception if available. */
 	mcheck_init(c);
+#endif
 
 	select_idle_routine(c);
+
+#if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
+	numa_add_cpu(smp_processor_id());
+#endif
 }
 
 void __init identify_boot_cpu(void)
 {
 	identify_cpu(&boot_cpu_data);
+#ifdef CONFIG_X86_32
 	sysenter_setup();
 	enable_sep_cpu();
+#endif
 }
 
 void __cpuinit identify_secondary_cpu(struct cpuinfo_x86 *c)
 {
 	BUG_ON(c == &boot_cpu_data);
 	identify_cpu(c);
+#ifdef CONFIG_X86_32
 	enable_sep_cpu();
+#endif
 	mtrr_ap_init();
 }
 
