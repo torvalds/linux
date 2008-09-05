@@ -506,9 +506,6 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 
 	align_mask = (1UL << get_order(size)) - 1;
 
-	if (!dev)
-		dev = &x86_dma_fallback_dev;
-
 	*dma_addr = dma_map_area(dev, __pa(vaddr), size, DMA_BIDIRECTIONAL,
 				 align_mask);
 	flush_gart();
