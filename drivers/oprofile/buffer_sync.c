@@ -41,7 +41,6 @@ static cpumask_t marked_cpus = CPU_MASK_NONE;
 static DEFINE_SPINLOCK(task_mortuary);
 static void process_task_mortuary(void);
 
-
 /* Take ownership of the task struct and place it on the
  * list for processing. Only after two full buffer syncs
  * does the task eventually get freed, because by then

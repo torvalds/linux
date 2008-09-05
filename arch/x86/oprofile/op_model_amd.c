@@ -530,14 +530,14 @@ static void op_amd_exit(void)
 #endif
 
 struct op_x86_model_spec const op_amd_spec = {
-	.init = op_amd_init,
-	.exit = op_amd_exit,
-	.num_counters = NUM_COUNTERS,
-	.num_controls = NUM_CONTROLS,
-	.fill_in_addresses = &op_amd_fill_in_addresses,
-	.setup_ctrs = &op_amd_setup_ctrs,
-	.check_ctrs = &op_amd_check_ctrs,
-	.start = &op_amd_start,
-	.stop = &op_amd_stop,
-	.shutdown = &op_amd_shutdown
+	.init			= op_amd_init,
+	.exit			= op_amd_exit,
+	.num_counters		= NUM_COUNTERS,
+	.num_controls		= NUM_CONTROLS,
+	.fill_in_addresses	= &op_amd_fill_in_addresses,
+	.setup_ctrs		= &op_amd_setup_ctrs,
+	.check_ctrs		= &op_amd_check_ctrs,
+	.start			= &op_amd_start,
+	.stop			= &op_amd_stop,
+	.shutdown		= &op_amd_shutdown
 };

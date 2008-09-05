@@ -181,12 +181,12 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 
 
 struct op_x86_model_spec const op_ppro_spec = {
-	.num_counters = NUM_COUNTERS,
-	.num_controls = NUM_CONTROLS,
-	.fill_in_addresses = &ppro_fill_in_addresses,
-	.setup_ctrs = &ppro_setup_ctrs,
-	.check_ctrs = &ppro_check_ctrs,
-	.start = &ppro_start,
-	.stop = &ppro_stop,
-	.shutdown = &ppro_shutdown
+	.num_counters		= NUM_COUNTERS,
+	.num_controls		= NUM_CONTROLS,
+	.fill_in_addresses	= &ppro_fill_in_addresses,
+	.setup_ctrs		= &ppro_setup_ctrs,
+	.check_ctrs		= &ppro_check_ctrs,
+	.start			= &ppro_start,
+	.stop			= &ppro_stop,
+	.shutdown		= &ppro_shutdown
 };
