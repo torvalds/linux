@@ -704,6 +704,7 @@ __setup("clearcpuid=", setup_disablecpuid);
 
 cpumask_t cpu_initialized __cpuinitdata = CPU_MASK_NONE;
 
+#ifdef CONFIG_X86_64
 struct x8664_pda **_cpu_pda __read_mostly;
 EXPORT_SYMBOL(_cpu_pda);
 
@@ -837,6 +838,17 @@ unsigned long kernel_eflags;
  * debugging, no special alignment required.
  */
 DEFINE_PER_CPU(struct orig_ist, orig_ist);
+
+#else
+
+/* Make sure %fs is initialized properly in idle threads */
+struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
+{
+	memset(regs, 0, sizeof(struct pt_regs));
+	regs->fs = __KERNEL_PERCPU;
+	return regs;
+}
+#endif
 
 /*
  * cpu_init() initializes state that is per-CPU. Some data is already
