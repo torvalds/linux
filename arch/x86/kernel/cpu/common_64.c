@@ -26,6 +26,7 @@
 #include <mach_apic.h>
 #include <asm/genapic.h>
 #endif
+
 #include <asm/pda.h>
 #include <asm/pgtable.h>
 #include <asm/processor.h>
@@ -280,7 +281,6 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 	return 1;
 }
 
-
 void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 {
 	unsigned int n, dummy, ebx, ecx, edx, l2size;
@@ -307,7 +307,6 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 #ifdef CONFIG_X86_64
 	c->x86_tlbsize += ((ebx >> 16) & 0xfff) + (ebx & 0xfff);
 #else
-
 	/* do processor-specific cache resizing */
 	if (this_cpu->c_size_cache)
 		l2size = this_cpu->c_size_cache(c, l2size);
@@ -334,6 +333,7 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 
 	if (!cpu_has(c, X86_FEATURE_HT))
 		return;
+
 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		goto out;
 
@@ -443,7 +443,6 @@ void __cpuinit cpu_detect(struct cpuinfo_x86 *c)
 	}
 }
 
-
 static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 {
 	u32 tfms, xlvl;
@@ -452,7 +451,6 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 	/* Intel-defined flags: level 0x00000001 */
 	if (c->cpuid_level >= 0x00000001) {
 		u32 capability, excap;
-
 		cpuid(0x00000001, &tfms, &ebx, &excap, &capability);
 		c->x86_capability[0] = capability;
 		c->x86_capability[4] = excap;
@@ -488,7 +486,6 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 	}
 #endif
 }
-
 /*
  * Do minimum CPU detection early.
  * Fields really needed: vendor, cpuid_level, family, model, mask,
@@ -500,7 +497,6 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
-
 #ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
 #else
@@ -722,12 +718,12 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	/* Init Machine Check Exception if available. */
 	mcheck_init(c);
 #endif
+
 	select_idle_routine(c);
 
 #if defined(CONFIG_NUMA) && defined(CONFIG_X86_64)
 	numa_add_cpu(smp_processor_id());
 #endif
-
 }
 
 void __init identify_boot_cpu(void)
