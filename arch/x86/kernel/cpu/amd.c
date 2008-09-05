@@ -31,6 +31,11 @@ static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 		if (c->x86_power & (1<<8))
 			set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 	}
+
+	/*  Set MTRR capability flag if appropriate */
+	if (c->x86_model == 13 || c->x86_model == 9 ||
+	   (c->x86_model == 8 && c->x86_mask >= 8))
+		set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 }
 
 static void __cpuinit init_amd(struct cpuinfo_x86 *c)
@@ -166,10 +171,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 						mbytes);
 				}
 
-				/*  Set MTRR capability flag if appropriate */
-				if (c->x86_model == 13 || c->x86_model == 9 ||
-				   (c->x86_model == 8 && c->x86_mask >= 8))
-					set_cpu_cap(c, X86_FEATURE_K6_MTRR);
 				break;
 			}
 
@@ -297,6 +298,7 @@ static struct cpu_dev amd_cpu_dev __cpuinitdata = {
 	.c_early_init   = early_init_amd,
 	.c_init		= init_amd,
 	.c_size_cache	= amd_size_cache,
+	.c_x86_vendor	= X86_VENDOR_AMD,
 };
 
-cpu_vendor_dev_register(X86_VENDOR_AMD, &amd_cpu_dev);
+cpu_dev_register(amd_cpu_dev);

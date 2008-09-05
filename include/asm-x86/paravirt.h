@@ -137,6 +137,7 @@ struct pv_cpu_ops {
 
 	/* MSR, PMC and TSR operations.
 	   err = 0/-EFAULT.  wrmsr returns 0/-EFAULT. */
+	u64 (*read_msr_amd)(unsigned int msr, int *err);
 	u64 (*read_msr)(unsigned int msr, int *err);
 	int (*write_msr)(unsigned int msr, unsigned low, unsigned high);
 
@@ -720,6 +721,10 @@ static inline u64 paravirt_read_msr(unsigned msr, int *err)
 {
 	return PVOP_CALL2(u64, pv_cpu_ops.read_msr, msr, err);
 }
+static inline u64 paravirt_read_msr_amd(unsigned msr, int *err)
+{
+	return PVOP_CALL2(u64, pv_cpu_ops.read_msr_amd, msr, err);
+}
 static inline int paravirt_write_msr(unsigned msr, unsigned low, unsigned high)
 {
 	return PVOP_CALL3(int, pv_cpu_ops.write_msr, msr, low, high);
@@ -763,6 +768,13 @@ static inline int rdmsrl_safe(unsigned msr, unsigned long long *p)
 	int err;
 
 	*p = paravirt_read_msr(msr, &err);
+	return err;
+}
+static inline int rdmsrl_amd_safe(unsigned msr, unsigned long long *p)
+{
+	int err;
+
+	*p = paravirt_read_msr_amd(msr, &err);
 	return err;
 }
 

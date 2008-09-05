@@ -102,6 +102,7 @@ static struct cpu_dev transmeta_cpu_dev __cpuinitdata = {
 	.c_ident	= { "GenuineTMx86", "TransmetaCPU" },
 	.c_init		= init_transmeta,
 	.c_identify	= transmeta_identify,
+	.c_x86_vendor	= X86_VENDOR_TRANSMETA,
 };
 
-cpu_vendor_dev_register(X86_VENDOR_TRANSMETA, &transmeta_cpu_dev);
+cpu_dev_register(transmeta_cpu_dev);

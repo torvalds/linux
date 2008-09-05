@@ -21,21 +21,15 @@ struct cpu_dev {
 	void		(*c_init)(struct cpuinfo_x86 * c);
 	void		(*c_identify)(struct cpuinfo_x86 * c);
 	unsigned int	(*c_size_cache)(struct cpuinfo_x86 * c, unsigned int size);
+	int	c_x86_vendor;
 };
 
-extern struct cpu_dev * cpu_devs [X86_VENDOR_NUM];
+#define cpu_dev_register(cpu_devX) \
+	static struct cpu_dev *__cpu_dev_##cpu_devX __used \
+	__attribute__((__section__(".x86_cpu_dev.init"))) = \
+	&cpu_devX;
 
-struct cpu_vendor_dev {
-	int vendor;
-	struct cpu_dev *cpu_dev;
-};
-
-#define cpu_vendor_dev_register(cpu_vendor_id, cpu_dev) \
-	static struct cpu_vendor_dev __cpu_vendor_dev_##cpu_vendor_id __used \
-	__attribute__((__section__(".x86cpuvendor.init"))) = \
-	{ cpu_vendor_id, cpu_dev }
-
-extern struct cpu_vendor_dev __x86cpuvendor_start[], __x86cpuvendor_end[];
+extern struct cpu_dev *__x86_cpu_dev_start[], *__x86_cpu_dev_end[];
 
 extern int get_model_name(struct cpuinfo_x86 *c);
 extern void display_cacheinfo(struct cpuinfo_x86 *c);

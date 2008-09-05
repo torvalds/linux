@@ -77,9 +77,9 @@ struct cpuinfo_x86 {
 	__u8			x86_phys_bits;
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
+#endif
 	/* Max extended CPUID function supported: */
 	__u32			extended_cpuid_level;
-#endif
 	/* Maximum supported CPUID level, -1=no CPUID: */
 	int			cpuid_level;
 	__u32			x86_capability[NCAPINTS];

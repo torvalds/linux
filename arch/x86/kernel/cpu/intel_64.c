@@ -90,6 +90,7 @@ static struct cpu_dev intel_cpu_dev __cpuinitdata = {
 	.c_ident	= { "GenuineIntel" },
 	.c_early_init   = early_init_intel,
 	.c_init		= init_intel,
+	.c_x86_vendor	= X86_VENDOR_INTEL,
 };
-cpu_vendor_dev_register(X86_VENDOR_INTEL, &intel_cpu_dev);
 
+cpu_dev_register(intel_cpu_dev);
