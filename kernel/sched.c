@@ -204,7 +204,10 @@ void init_rt_bandwidth(struct rt_bandwidth *rt_b, u64 period, u64 runtime)
 	rt_b->rt_period_timer.cb_mode = HRTIMER_CB_IRQSAFE_NO_SOFTIRQ;
 }
 
-static inline int rt_bandwidth_enabled(void);
+static inline int rt_bandwidth_enabled(void)
+{
+	return sysctl_sched_rt_runtime >= 0;
+}
 
 static void start_rt_bandwidth(struct rt_bandwidth *rt_b)
 {
@@ -839,11 +842,6 @@ static inline u64 global_rt_runtime(void)
 		return RUNTIME_INF;
 
 	return (u64)sysctl_sched_rt_runtime * NSEC_PER_USEC;
-}
-
-static inline int rt_bandwidth_enabled(void)
-{
-	return sysctl_sched_rt_runtime >= 0;
 }
 
 #ifndef prepare_arch_switch
