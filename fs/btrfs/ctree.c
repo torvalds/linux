@@ -1656,8 +1656,8 @@ static int noinline insert_new_root(struct btrfs_trans_handle *trans,
 
 	c = btrfs_alloc_free_block(trans, root, root->nodesize,
 				   root->root_key.objectid,
-				   root_gen, lower_key.objectid, level,
-				   root->node->start, 0);
+				   root_gen, le64_to_cpu(lower_key.objectid),
+				   level, root->node->start, 0);
 	if (IS_ERR(c))
 		return PTR_ERR(c);
 
@@ -2352,8 +2352,9 @@ again:
 
 	right = btrfs_alloc_free_block(trans, root, root->leafsize,
 					 root->root_key.objectid,
-					 root_gen, disk_key.objectid, 0,
-					 l->start, 0);
+					 root_gen,
+					 le64_to_cpu(disk_key.objectid),
+					 0, l->start, 0);
 	if (IS_ERR(right)) {
 		BUG_ON(1);
 		return PTR_ERR(right);
