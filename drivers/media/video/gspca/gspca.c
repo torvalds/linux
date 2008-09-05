@@ -459,8 +459,7 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 		urb = usb_alloc_urb(npkt, GFP_KERNEL);
 		if (!urb) {
 			err("usb_alloc_urb failed");
-			for (i = 0; i < n; i++)
-				usb_free_urb(gspca_dev->urb[i]);
+			destroy_urbs(gspca_dev);
 			return -ENOMEM;
 		}
 		urb->transfer_buffer = usb_buffer_alloc(gspca_dev->dev,
@@ -470,8 +469,8 @@ static int create_urbs(struct gspca_dev *gspca_dev,
 
 		if (urb->transfer_buffer == NULL) {
 			usb_free_urb(urb);
-			destroy_urbs(gspca_dev);
 			err("usb_buffer_urb failed");
+			destroy_urbs(gspca_dev);
 			return -ENOMEM;
 		}
 		gspca_dev->urb[n] = urb;
