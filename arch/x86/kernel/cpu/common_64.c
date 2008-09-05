@@ -285,8 +285,10 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 		printk(KERN_INFO "CPU: L1 I Cache: %dK (%d bytes/line), D cache %dK (%d bytes/line)\n",
 				edx>>24, edx&0xFF, ecx>>24, ecx&0xFF);
 		c->x86_cache_size = (ecx>>24) + (edx>>24);
+#ifdef CONFIG_X86_64
 		/* On K8 L1 TLB is inclusive, so don't count it */
 		c->x86_tlbsize = 0;
+#endif
 	}
 
 	if (n < 0x80000006)	/* Some chips just has a large L1. */
@@ -294,7 +296,22 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 
 	cpuid(0x80000006, &dummy, &ebx, &ecx, &edx);
 	l2size = ecx >> 16;
+
+#ifdef CONFIG_X86_64
 	c->x86_tlbsize += ((ebx >> 16) & 0xfff) + (ebx & 0xfff);
+#else
+
+	/* do processor-specific cache resizing */
+	if (this_cpu->c_size_cache)
+		l2size = this_cpu->c_size_cache(c, l2size);
+
+	/* Allow user to override all this if necessary. */
+	if (cachesize_override != -1)
+		l2size = cachesize_override;
+
+	if (l2size == 0)
+		return;		/* Again, no L2 cache is possible */
+#endif
 
 	c->x86_cache_size = l2size;
 
