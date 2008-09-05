@@ -28,43 +28,90 @@
 #define TMU_TOCR_INIT	0x00
 #define TMU_TCR_INIT	0x0020
 
+#define TMU0		(0)
+#define TMU1		(1)
+
+static inline void _tmu_start(int tmu_num)
+{
+	ctrl_outb(ctrl_inb(TMU_012_TSTR) | (0x1<<tmu_num), TMU_012_TSTR);
+}
+
+static inline void _tmu_set_irq(int tmu_num, int enabled)
+{
+	register unsigned long tmu_tcr = TMU0_TCR + (0xc*tmu_num);
+	ctrl_outw( (enabled ? ctrl_inw(tmu_tcr) | (1<<5) : ctrl_inw(tmu_tcr) & ~(1<<5)), tmu_tcr);
+}
+
+static inline void _tmu_stop(int tmu_num)
+{
+	ctrl_outb(ctrl_inb(TMU_012_TSTR) & ~(0x1<<tmu_num), TMU_012_TSTR);
+}
+
+static inline void _tmu_clear_status(int tmu_num)
+{
+	register unsigned long tmu_tcr = TMU0_TCR + (0xc*tmu_num);
+	/* Clear UNF bit */
+	ctrl_outw(ctrl_inw(tmu_tcr) & ~0x100, tmu_tcr);
+}
+
+static inline unsigned long _tmu_read(int tmu_num)
+{
+        return ctrl_inl(TMU0_TCNT+0xC*tmu_num);
+}
+
 static int tmu_timer_start(void)
 {
-	ctrl_outb(ctrl_inb(TMU_012_TSTR) | 0x3, TMU_012_TSTR);
+	_tmu_start(TMU0);
+	_tmu_start(TMU1);
+	_tmu_set_irq(TMU0,1);
 	return 0;
 }
 
-static void tmu0_timer_set_interval(unsigned long interval, unsigned int reload)
+static int tmu_timer_stop(void)
 {
-	ctrl_outl(interval, TMU0_TCNT);
+	_tmu_stop(TMU0);
+	_tmu_stop(TMU1);
+	_tmu_clear_status(TMU0);
+	return 0;
+}
+
+/*
+ * also when the module_clk is scaled the TMU1
+ * will show the same frequency
+ */
+static int tmus_are_scaled;
+
+static cycle_t tmu_timer_read(void)
+{
+	return ((cycle_t)(~_tmu_read(TMU1)))<<tmus_are_scaled;
+}
+
+
+static unsigned long tmu_latest_interval[3];
+static void tmu_timer_set_interval(int tmu_num, unsigned long interval, unsigned int reload)
+{
+	unsigned long tmu_tcnt = TMU0_TCNT + tmu_num*0xC;
+	unsigned long tmu_tcor = TMU0_TCOR + tmu_num*0xC;
+
+	_tmu_stop(tmu_num);
+
+	ctrl_outl(interval, tmu_tcnt);
+	tmu_latest_interval[tmu_num] = interval;
 
 	/*
 	 * TCNT reloads from TCOR on underflow, clear it if we don't
 	 * intend to auto-reload
 	 */
-	if (reload)
-		ctrl_outl(interval, TMU0_TCOR);
-	else
-		ctrl_outl(0, TMU0_TCOR);
+	ctrl_outl( reload ? interval : 0 , tmu_tcor);
 
-	tmu_timer_start();
-}
-
-static int tmu_timer_stop(void)
-{
-	ctrl_outb(ctrl_inb(TMU_012_TSTR) & ~0x3, TMU_012_TSTR);
-	return 0;
-}
-
-static cycle_t tmu_timer_read(void)
-{
-	return ~ctrl_inl(TMU1_TCNT);
+	_tmu_start(tmu_num);
 }
 
 static int tmu_set_next_event(unsigned long cycles,
 			      struct clock_event_device *evt)
 {
-	tmu0_timer_set_interval(cycles, 1);
+	tmu_timer_set_interval(TMU0,cycles, evt->mode == CLOCK_EVT_MODE_PERIODIC);
+	_tmu_set_irq(TMU0,1);
 	return 0;
 }
 
@@ -96,12 +143,8 @@ static struct clock_event_device tmu0_clockevent = {
 static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 {
 	struct clock_event_device *evt = &tmu0_clockevent;
-	unsigned long timer_status;
-
-	/* Clear UNF bit */
-	timer_status = ctrl_inw(TMU0_TCR);
-	timer_status &= ~0x100;
-	ctrl_outw(timer_status, TMU0_TCR);
+	_tmu_clear_status(TMU0);
+	_tmu_set_irq(TMU0,tmu0_clockevent.mode != CLOCK_EVT_MODE_ONESHOT);
 
 	evt->event_handler(evt);
 
@@ -109,56 +152,73 @@ static irqreturn_t tmu_timer_interrupt(int irq, void *dummy)
 }
 
 static struct irqaction tmu0_irq = {
-	.name		= "periodic timer",
+	.name		= "periodic/oneshot timer",
 	.handler	= tmu_timer_interrupt,
 	.flags		= IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL,
 	.mask		= CPU_MASK_NONE,
 };
 
-static void tmu0_clk_init(struct clk *clk)
+static void __init tmu_clk_init(struct clk *clk)
 {
-	u8 divisor = TMU_TCR_INIT & 0x7;
-	ctrl_outw(TMU_TCR_INIT, TMU0_TCR);
-	clk->rate = clk->parent->rate / (4 << (divisor << 1));
+	u8 divisor  = TMU_TCR_INIT & 0x7;
+	int tmu_num = clk->name[3]-'0';
+	ctrl_outw(TMU_TCR_INIT, TMU0_TCR+(tmu_num*0xC));
+	clk->rate = clk_get_rate(clk->parent) / (4 << (divisor << 1));
 }
 
-static void tmu0_clk_recalc(struct clk *clk)
+static void tmu_clk_recalc(struct clk *clk)
 {
-	u8 divisor = ctrl_inw(TMU0_TCR) & 0x7;
-	clk->rate = clk->parent->rate / (4 << (divisor << 1));
+	int tmu_num = clk->name[3]-'0';
+	unsigned long prev_rate = clk_get_rate(clk);
+	unsigned long flags;
+	u8 divisor = ctrl_inw(TMU0_TCR+tmu_num*0xC) & 0x7;
+	clk->rate  = clk_get_rate(clk->parent) / (4 << (divisor << 1));
+
+	if(prev_rate==clk_get_rate(clk))
+		return;
+
+	if(tmu_num)
+		return; /* No more work on TMU1 */
+
+	local_irq_save(flags);
+	tmus_are_scaled = (prev_rate > clk->rate);
+
+	_tmu_stop(TMU0);
+
+	tmu0_clockevent.mult = div_sc(clk->rate, NSEC_PER_SEC,
+				tmu0_clockevent.shift);
+	tmu0_clockevent.max_delta_ns =
+			clockevent_delta2ns(-1, &tmu0_clockevent);
+	tmu0_clockevent.min_delta_ns =
+			clockevent_delta2ns(1, &tmu0_clockevent);
+
+	if (tmus_are_scaled)
+		tmu_latest_interval[TMU0] >>= 1;
+	else
+		tmu_latest_interval[TMU0] <<= 1;
+
+	tmu_timer_set_interval(TMU0,
+		tmu_latest_interval[TMU0],
+		tmu0_clockevent.mode == CLOCK_EVT_MODE_PERIODIC);
+
+	_tmu_start(TMU0);
+
+	local_irq_restore(flags);
 }
 
-static struct clk_ops tmu0_clk_ops = {
-	.init		= tmu0_clk_init,
-	.recalc		= tmu0_clk_recalc,
+static struct clk_ops tmu_clk_ops = {
+	.init		= tmu_clk_init,
+	.recalc		= tmu_clk_recalc,
 };
 
 static struct clk tmu0_clk = {
 	.name		= "tmu0_clk",
-	.ops		= &tmu0_clk_ops,
-};
-
-static void tmu1_clk_init(struct clk *clk)
-{
-	u8 divisor = TMU_TCR_INIT & 0x7;
-	ctrl_outw(divisor, TMU1_TCR);
-	clk->rate = clk->parent->rate / (4 << (divisor << 1));
-}
-
-static void tmu1_clk_recalc(struct clk *clk)
-{
-	u8 divisor = ctrl_inw(TMU1_TCR) & 0x7;
-	clk->rate = clk->parent->rate / (4 << (divisor << 1));
-}
-
-static struct clk_ops tmu1_clk_ops = {
-	.init		= tmu1_clk_init,
-	.recalc		= tmu1_clk_recalc,
+	.ops		= &tmu_clk_ops,
 };
 
 static struct clk tmu1_clk = {
 	.name		= "tmu1_clk",
-	.ops		= &tmu1_clk_ops,
+	.ops		= &tmu_clk_ops,
 };
 
 static int tmu_timer_init(void)
@@ -189,11 +249,12 @@ static int tmu_timer_init(void)
 	frequency = clk_get_rate(&tmu0_clk);
 	interval = (frequency + HZ / 2) / HZ;
 
-	sh_hpt_frequency = clk_get_rate(&tmu1_clk);
-	ctrl_outl(~0, TMU1_TCNT);
-	ctrl_outl(~0, TMU1_TCOR);
+	tmu_timer_set_interval(TMU0,interval, 1);
+	tmu_timer_set_interval(TMU1,~0,1);
 
-	tmu0_timer_set_interval(interval, 1);
+	_tmu_start(TMU1);
+
+	sh_hpt_frequency = clk_get_rate(&tmu1_clk);
 
 	tmu0_clockevent.mult = div_sc(frequency, NSEC_PER_SEC,
 				      tmu0_clockevent.shift);
