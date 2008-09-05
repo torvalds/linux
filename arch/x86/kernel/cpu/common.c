@@ -490,7 +490,11 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
  */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_X86_64
+	c->x86_clflush_size = 64;
+#else
 	c->x86_clflush_size = 32;
+#endif
 	c->x86_cache_alignment = c->x86_clflush_size;
 
 	if (!have_cpuid_p())

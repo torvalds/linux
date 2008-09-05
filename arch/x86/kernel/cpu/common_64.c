@@ -482,14 +482,27 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 #endif
 }
 
-/* Do some early cpuid on the boot CPU to get some parameter that are
-   needed before check_bugs. Everything advanced is in identify_cpu
-   below. */
+/*
+ * Do minimum CPU detection early.
+ * Fields really needed: vendor, cpuid_level, family, model, mask,
+ * cache alignment.
+ * The others are not touched to avoid unwanted side effects.
+ *
+ * WARNING: this function is only called on the BP.  Don't add code here
+ * that is supposed to run on all CPUs.
+ */
 static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 {
 
+#ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
+#else
+	c->x86_clflush_size = 32;
+#endif
 	c->x86_cache_alignment = c->x86_clflush_size;
+
+	if (!have_cpuid_p())
+		return;
 
 	memset(&c->x86_capability, 0, sizeof c->x86_capability);
 
