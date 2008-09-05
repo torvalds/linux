@@ -397,11 +397,11 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 					flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
 			cp = ip_vs_conn_new(AF_INET, s->protocol,
-					    (union nf_inet_addr *)s->caddr,
+					    (union nf_inet_addr *)&s->caddr,
 					    s->cport,
-					    (union nf_inet_addr *)s->vaddr,
+					    (union nf_inet_addr *)&s->vaddr,
 					    s->vport,
-					    (union nf_inet_addr *)s->daddr,
+					    (union nf_inet_addr *)&s->daddr,
 					    s->dport,
 					    flags, dest);
 			if (dest)
