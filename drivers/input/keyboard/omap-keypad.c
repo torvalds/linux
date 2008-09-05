@@ -62,7 +62,7 @@ struct omap_kp {
 	unsigned int debounce;
 };
 
-DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
+static DECLARE_TASKLET_DISABLED(kp_tasklet, omap_kp_tasklet, 0);
 
 static int *keymap;
 static unsigned int *row_gpios;

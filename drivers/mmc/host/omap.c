@@ -172,7 +172,7 @@ struct mmc_omap_host {
 	struct omap_mmc_platform_data *pdata;
 };
 
-void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
+static void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
 {
 	unsigned long tick_ns;
 
@@ -182,7 +182,7 @@ void mmc_omap_fclk_offdelay(struct mmc_omap_slot *slot)
 	}
 }
 
-void mmc_omap_fclk_enable(struct mmc_omap_host *host, unsigned int enable)
+static void mmc_omap_fclk_enable(struct mmc_omap_host *host, unsigned int enable)
 {
 	unsigned long flags;
 
