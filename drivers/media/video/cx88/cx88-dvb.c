@@ -454,6 +454,12 @@ static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
 	.if_khz		= 5380,
 };
 
+static struct zl10353_config cx88_pinnacle_hybrid_pctv = {
+	.demod_address = (0x1e >> 1),
+	.no_tuner      = 1,
+	.if2           = 45600,
+};
+
 static struct zl10353_config cx88_geniatech_x8000_mt = {
        .demod_address = (0x1e >> 1),
        .no_tuner = 1,
@@ -890,10 +896,13 @@ static int dvb_register(struct cx8802_dev *dev)
 		break;
 	 case CX88_BOARD_PINNACLE_HYBRID_PCTV:
 		dev->dvb.frontend = dvb_attach(zl10353_attach,
-					       &cx88_geniatech_x8000_mt,
+					       &cx88_pinnacle_hybrid_pctv,
 					       &core->i2c_adap);
-		if (attach_xc3028(0x61, dev) < 0)
-			goto frontend_detach;
+		if (dev->dvb.frontend) {
+			dev->dvb.frontend->ops.i2c_gate_ctrl = NULL;
+			if (attach_xc3028(0x61, dev) < 0)
+				goto frontend_detach;
+		}
 		break;
 	 case CX88_BOARD_GENIATECH_X8000_MT:
 		dev->ts_gen_cntrl = 0x00;
