@@ -80,20 +80,6 @@ static inline struct ubifs_inode *ubifs_inode(const struct inode *inode)
 }
 
 /**
- * ubifs_ro_mode - switch UBIFS to read read-only mode.
- * @c: UBIFS file-system description object
- * @err: error code which is the reason of switching to R/O mode
- */
-static inline void ubifs_ro_mode(struct ubifs_info *c, int err)
-{
-	if (!c->ro_media) {
-		c->ro_media = 1;
-		ubifs_warn("switched to read-only mode, error %d", err);
-		dbg_dump_stack();
-	}
-}
-
-/**
  * ubifs_compr_present - check if compressor was compiled in.
  * @compr_type: compressor type to check
  *
@@ -322,7 +308,7 @@ static inline long long ubifs_reported_space(const struct ubifs_info *c,
 {
 	int divisor, factor;
 
-	divisor = UBIFS_MAX_DATA_NODE_SZ + (c->max_idx_node_sz << 1);
+	divisor = UBIFS_MAX_DATA_NODE_SZ + (c->max_idx_node_sz * 3);
 	factor = UBIFS_MAX_DATA_NODE_SZ - UBIFS_DATA_NODE_SZ;
 	do_div(free, divisor);
 

@@ -22,7 +22,7 @@
 #define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
 #endif
 
-#define KEXEC_CONTROL_CODE_SIZE 4096
+#define KEXEC_CONTROL_PAGE_SIZE 4096
 
 /* The native architecture */
 #ifdef __powerpc64__

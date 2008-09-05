@@ -425,6 +425,7 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			       acpi_size * obj_length)
 {
 	acpi_size length;
+	acpi_size size;
 	acpi_status status = AE_OK;
 
 	ACPI_FUNCTION_TRACE_PTR(ut_get_simple_object_size, internal_object);
@@ -484,10 +485,14 @@ acpi_ut_get_simple_object_size(union acpi_operand_object *internal_object,
 			 * Get the actual length of the full pathname to this object.
 			 * The reference will be converted to the pathname to the object
 			 */
-			length +=
-			    ACPI_ROUND_UP_TO_NATIVE_WORD
-			    (acpi_ns_get_pathname_length
-			     (internal_object->reference.node));
+			size =
+			    acpi_ns_get_pathname_length(internal_object->
+							reference.node);
+			if (!size) {
+				return_ACPI_STATUS(AE_BAD_PARAMETER);
+			}
+
+			length += ACPI_ROUND_UP_TO_NATIVE_WORD(size);
 			break;
 
 		default:

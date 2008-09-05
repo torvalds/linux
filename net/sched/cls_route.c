@@ -75,7 +75,7 @@ static __inline__ int route4_fastmap_hash(u32 id, int iif)
 static inline
 void route4_reset_fastmap(struct Qdisc *q, struct route4_head *head, u32 id)
 {
-	spinlock_t *root_lock = qdisc_root_lock(q);
+	spinlock_t *root_lock = qdisc_root_sleeping_lock(q);
 
 	spin_lock_bh(root_lock);
 	memset(head->fastmap, 0, sizeof(head->fastmap));

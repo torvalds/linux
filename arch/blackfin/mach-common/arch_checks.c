@@ -27,8 +27,9 @@
  * 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 
-#include <asm/mach/anomaly.h>
-#include <asm/mach-common/clocks.h>
+#include <asm/fixed_code.h>
+#include <mach/anomaly.h>
+#include <asm/clocks.h>
 
 #ifdef CONFIG_BFIN_KERNEL_CLOCK
 
@@ -53,3 +54,11 @@
 # endif
 
 #endif /* CONFIG_BFIN_KERNEL_CLOCK */
+
+#if CONFIG_BOOT_LOAD < FIXED_CODE_END
+# error "The kernel load address must be after the fixed code section"
+#endif
+
+#if (CONFIG_BOOT_LOAD & 0x3)
+# error "The kernel load address must be 4 byte aligned"
+#endif

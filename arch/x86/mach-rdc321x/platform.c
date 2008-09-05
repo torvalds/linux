@@ -25,7 +25,6 @@
 #include <linux/list.h>
 #include <linux/device.h>
 #include <linux/platform_device.h>
-#include <linux/version.h>
 #include <linux/leds.h>
 
 #include <asm/gpio.h>

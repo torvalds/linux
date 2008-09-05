@@ -41,6 +41,10 @@
 # define PAGES_NR		17
 #endif
 
+#ifdef CONFIG_X86_32
+# define KEXEC_CONTROL_CODE_MAX_SIZE	2048
+#endif
+
 #ifndef __ASSEMBLY__
 
 #include <linux/string.h>
@@ -63,7 +67,7 @@
 /* Maximum address we can use for the control code buffer */
 # define KEXEC_CONTROL_MEMORY_LIMIT TASK_SIZE
 
-# define KEXEC_CONTROL_CODE_SIZE	4096
+# define KEXEC_CONTROL_PAGE_SIZE	4096
 
 /* The native architecture */
 # define KEXEC_ARCH KEXEC_ARCH_386
@@ -79,7 +83,7 @@
 # define KEXEC_CONTROL_MEMORY_LIMIT     (0xFFFFFFFFFFUL)
 
 /* Allocate one page for the pdp and the second for the code */
-# define KEXEC_CONTROL_CODE_SIZE  (4096UL + 4096UL)
+# define KEXEC_CONTROL_PAGE_SIZE  (4096UL + 4096UL)
 
 /* The native architecture */
 # define KEXEC_ARCH KEXEC_ARCH_X86_64

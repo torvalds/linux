@@ -33,8 +33,11 @@ void kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data);
 void kirkwood_pcie_init(void);
 void kirkwood_rtc_init(void);
 void kirkwood_sata_init(struct mv_sata_platform_data *sata_data);
+void kirkwood_spi_init(void);
 void kirkwood_uart0_init(void);
 void kirkwood_uart1_init(void);
+void kirkwood_xor0_init(void);
+void kirkwood_xor1_init(void);
 
 extern struct sys_timer kirkwood_timer;
 

@@ -364,11 +364,11 @@ const char *part_probes[] = { "cmdlinepart", "RedBoot", NULL };
 
 static struct mtd_partition bfin_plat_nand_partitions[] = {
 	{
-		.name   = "linux kernel",
+		.name   = "linux kernel(nand)",
 		.size   = 0x400000,
 		.offset = 0,
 	}, {
-		.name   = "file system",
+		.name   = "file system(nand)",
 		.size   = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	},
@@ -439,19 +439,19 @@ static void bfin_plat_nand_init(void) {}
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
 static struct mtd_partition stamp_partitions[] = {
 	{
-		.name       = "Bootloader",
+		.name       = "bootloader(nor)",
 		.size       = 0x40000,
 		.offset     = 0,
 	}, {
-		.name       = "Kernel",
+		.name       = "linux kernel(nor)",
 		.size       = 0xE0000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
-		.name       = "RootFS",
+		.name       = "file system(nor)",
 		.size       = 0x400000 - 0x40000 - 0xE0000 - 0x10000,
 		.offset     = MTDPART_OFS_APPEND,
 	}, {
-		.name       = "MAC Address",
+		.name       = "MAC Address(nor)",
 		.size       = MTDPART_SIZ_FULL,
 		.offset     = 0x3F0000,
 		.mask_flags = MTD_WRITEABLE,
@@ -485,16 +485,16 @@ static struct platform_device stamp_flash_device = {
 	|| defined(CONFIG_MTD_M25P80_MODULE)
 static struct mtd_partition bfin_spi_flash_partitions[] = {
 	{
-		.name = "bootloader",
+		.name = "bootloader(spi)",
 		.size = 0x00040000,
 		.offset = 0,
 		.mask_flags = MTD_CAP_ROM
 	}, {
-		.name = "kernel",
+		.name = "linux kernel(spi)",
 		.size = 0xe0000,
 		.offset = MTDPART_OFS_APPEND,
 	}, {
-		.name = "file system",
+		.name = "file system(spi)",
 		.size = MTDPART_SIZ_FULL,
 		.offset = MTDPART_OFS_APPEND,
 	}
@@ -584,6 +584,30 @@ static struct bfin5xx_spi_chip spidev_chip_info = {
 
 #if defined(CONFIG_MTD_DATAFLASH) \
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
+
+static struct mtd_partition bfin_spi_dataflash_partitions[] = {
+	{
+		.name = "bootloader(spi)",
+		.size = 0x00040000,
+		.offset = 0,
+		.mask_flags = MTD_CAP_ROM
+	}, {
+		.name = "linux kernel(spi)",
+		.size = 0xe0000,
+		.offset = MTDPART_OFS_APPEND,
+	}, {
+		.name = "file system(spi)",
+		.size = MTDPART_SIZ_FULL,
+		.offset = MTDPART_OFS_APPEND,
+	}
+};
+
+static struct flash_platform_data bfin_spi_dataflash_data = {
+	.name = "SPI Dataflash",
+	.parts = bfin_spi_dataflash_partitions,
+	.nr_parts = ARRAY_SIZE(bfin_spi_dataflash_partitions),
+};
+
 /* DataFlash chip */
 static struct bfin5xx_spi_chip data_flash_chip_info = {
 	.enable_dma = 0,         /* use dma transfer with this chip*/
@@ -609,9 +633,10 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	|| defined(CONFIG_MTD_DATAFLASH_MODULE)
 	{	/* DataFlash chip */
 		.modalias = "mtd_dataflash",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		.max_speed_hz = 33250000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0, /* Framework bus number */
 		.chip_select = 1, /* Framework chip select. On STAMP537 it is SPISSEL1*/
+		.platform_data = &bfin_spi_dataflash_data,
 		.controller_data = &data_flash_chip_info,
 		.mode = SPI_MODE_3,
 	},

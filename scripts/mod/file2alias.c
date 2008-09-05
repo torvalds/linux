@@ -344,14 +344,20 @@ static void do_pnp_device_entry(void *symval, unsigned long size,
 				struct module *mod)
 {
 	const unsigned long id_size = sizeof(struct pnp_device_id);
-	const struct pnp_device_id *id = symval;
+	const unsigned int count = (size / id_size)-1;
+	const struct pnp_device_id *devs = symval;
+	unsigned int i;
 
 	device_id_check(mod->name, "pnp", size, id_size, symval);
 
-	buf_printf(&mod->dev_table_buf,
-		   "MODULE_ALIAS(\"pnp:d%s*\");\n", id->id);
-	buf_printf(&mod->dev_table_buf,
-		   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id->id);
+	for (i = 0; i < count; i++) {
+		const char *id = (char *)devs[i].id;
+
+		buf_printf(&mod->dev_table_buf,
+			   "MODULE_ALIAS(\"pnp:d%s*\");\n", id);
+		buf_printf(&mod->dev_table_buf,
+			   "MODULE_ALIAS(\"acpi*:%s:*\");\n", id);
+	}
 }
 
 /* looks like: "pnp:dD" for every device of the card */

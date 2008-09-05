@@ -578,35 +578,29 @@ config SWIOTLB
 
 config IOMMU_HELPER
 	def_bool (CALGARY_IOMMU || GART_IOMMU || SWIOTLB || AMD_IOMMU)
+
 config MAXSMP
 	bool "Configure Maximum number of SMP Processors and NUMA Nodes"
-	depends on X86_64 && SMP
+	depends on X86_64 && SMP && BROKEN
 	default n
 	help
 	  Configure maximum number of CPUS and NUMA Nodes for this architecture.
 	  If unsure, say N.
 
-if MAXSMP
 config NR_CPUS
-	int
-	default "4096"
-endif
-
-if !MAXSMP
-config NR_CPUS
-	int "Maximum number of CPUs (2-4096)"
-	range 2 4096
+	int "Maximum number of CPUs (2-512)" if !MAXSMP
+	range 2 512
 	depends on SMP
+	default "4096" if MAXSMP
 	default "32" if X86_NUMAQ || X86_SUMMIT || X86_BIGSMP || X86_ES7000
 	default "8"
 	help
 	  This allows you to specify the maximum number of CPUs which this
-	  kernel will support.  The maximum supported value is 4096 and the
+	  kernel will support.  The maximum supported value is 512 and the
 	  minimum value which makes sense is 2.
 
 	  This is purely to save memory - each supported CPU adds
 	  approximately eight kilobytes to the kernel image.
-endif
 
 config SCHED_SMT
 	bool "SMT (Hyperthreading) scheduler support"
@@ -952,9 +946,9 @@ config NUMA
 	  local memory controller of the CPU and add some more
 	  NUMA awareness to the kernel.
 
-	  For i386 this is currently highly experimental and should be only
+	  For 32-bit this is currently highly experimental and should be only
 	  used for kernel development. It might also cause boot failures.
-	  For x86_64 this is recommended on all multiprocessor Opteron systems.
+	  For 64-bit this is recommended on all multiprocessor Opteron systems.
 	  If the system is EM64T, you should say N unless your system is
 	  EM64T NUMA.
 
@@ -997,17 +991,10 @@ config NUMA_EMU
 	  into virtual nodes when booted with "numa=fake=N", where N is the
 	  number of nodes. This is only useful for debugging.
 
-if MAXSMP
-
 config NODES_SHIFT
-	int
-	default "9"
-endif
-
-if !MAXSMP
-config NODES_SHIFT
-	int "Maximum NUMA Nodes (as a power of 2)"
+	int "Maximum NUMA Nodes (as a power of 2)" if !MAXSMP
 	range 1 9   if X86_64
+	default "9" if MAXSMP
 	default "6" if X86_64
 	default "4" if X86_NUMAQ
 	default "3"
@@ -1015,7 +1002,6 @@ config NODES_SHIFT
 	help
 	  Specify the maximum number of NUMA Nodes available on the target
 	  system.  Increases memory reserved to accomodate various tables.
-endif
 
 config HAVE_ARCH_BOOTMEM_NODE
 	def_bool y
@@ -1264,7 +1250,7 @@ config KEXEC
 	  strongly in flux, so no good recommendation can be made.
 
 config CRASH_DUMP
-	bool "kernel crash dumps (EXPERIMENTAL)"
+	bool "kernel crash dumps"
 	depends on X86_64 || (X86_32 && HIGHMEM)
 	help
 	  Generate crash dump after being started by kexec.

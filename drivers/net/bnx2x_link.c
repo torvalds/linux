@@ -21,7 +21,6 @@
 #include <linux/delay.h>
 #include <linux/ethtool.h>
 #include <linux/mutex.h>
-#include <linux/version.h>
 
 #include "bnx2x_reg.h"
 #include "bnx2x_fw_defs.h"

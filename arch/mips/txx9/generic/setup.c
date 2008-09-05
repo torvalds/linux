@@ -328,6 +328,9 @@ void __init arch_init_irq(void)
 
 void __init plat_time_init(void)
 {
+#ifdef CONFIG_CPU_TX49XX
+	mips_hpt_frequency = txx9_cpu_clock / 2;
+#endif
 	txx9_board_vec->time_init();
 }
 

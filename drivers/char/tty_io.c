@@ -2496,45 +2496,26 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user *arg)
 }
 
 /**
- *	tiocswinsz		-	implement window size set ioctl
- *	@tty; tty
- *	@arg: user buffer for result
+ *	tty_do_resize		-	resize event
+ *	@tty: tty being resized
+ *	@real_tty: real tty (not the same as tty if using a pty/tty pair)
+ *	@rows: rows (character)
+ *	@cols: cols (character)
  *
- *	Copies the user idea of the window size to the kernel. Traditionally
- *	this is just advisory information but for the Linux console it
- *	actually has driver level meaning and triggers a VC resize.
- *
- *	Locking:
- *		Called function use the console_sem is used to ensure we do
- *	not try and resize the console twice at once.
- *		The tty->termios_mutex is used to ensure we don't double
- *	resize and get confused. Lock order - tty->termios_mutex before
- *	console sem
+ *	Update the termios variables and send the neccessary signals to
+ *	peform a terminal resize correctly
  */
 
-static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
-	struct winsize __user *arg)
+int tty_do_resize(struct tty_struct *tty, struct tty_struct *real_tty,
+					struct winsize *ws)
 {
-	struct winsize tmp_ws;
 	struct pid *pgrp, *rpgrp;
 	unsigned long flags;
 
-	if (copy_from_user(&tmp_ws, arg, sizeof(*arg)))
-		return -EFAULT;
-
-	mutex_lock(&tty->termios_mutex);
-	if (!memcmp(&tmp_ws, &tty->winsize, sizeof(*arg)))
+	/* For a PTY we need to lock the tty side */
+	mutex_lock(&real_tty->termios_mutex);
+	if (!memcmp(ws, &tty->winsize, sizeof(*ws)))
 		goto done;
-
-#ifdef CONFIG_VT
-	if (tty->driver->type == TTY_DRIVER_TYPE_CONSOLE) {
-		if (vc_lock_resize(tty->driver_data, tmp_ws.ws_col,
-					tmp_ws.ws_row)) {
-			mutex_unlock(&tty->termios_mutex);
-			return -ENXIO;
-		}
-	}
-#endif
 	/* Get the PID values and reference them so we can
 	   avoid holding the tty ctrl lock while sending signals */
 	spin_lock_irqsave(&tty->ctrl_lock, flags);
@@ -2550,11 +2531,39 @@ static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
 	put_pid(pgrp);
 	put_pid(rpgrp);
 
-	tty->winsize = tmp_ws;
-	real_tty->winsize = tmp_ws;
+	tty->winsize = *ws;
+	real_tty->winsize = *ws;
 done:
-	mutex_unlock(&tty->termios_mutex);
+	mutex_unlock(&real_tty->termios_mutex);
 	return 0;
+}
+
+/**
+ *	tiocswinsz		-	implement window size set ioctl
+ *	@tty; tty
+ *	@arg: user buffer for result
+ *
+ *	Copies the user idea of the window size to the kernel. Traditionally
+ *	this is just advisory information but for the Linux console it
+ *	actually has driver level meaning and triggers a VC resize.
+ *
+ *	Locking:
+ *		Driver dependant. The default do_resize method takes the
+ *	tty termios mutex and ctrl_lock. The console takes its own lock
+ *	then calls into the default method.
+ */
+
+static int tiocswinsz(struct tty_struct *tty, struct tty_struct *real_tty,
+	struct winsize __user *arg)
+{
+	struct winsize tmp_ws;
+	if (copy_from_user(&tmp_ws, arg, sizeof(*arg)))
+		return -EFAULT;
+
+	if (tty->ops->resize)
+		return tty->ops->resize(tty, real_tty, &tmp_ws);
+	else
+		return tty_do_resize(tty, real_tty, &tmp_ws);
 }
 
 /**

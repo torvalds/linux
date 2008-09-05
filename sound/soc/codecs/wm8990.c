@@ -82,7 +82,7 @@ static const u16 wm8990_reg[] = {
 	0x0003,     /* R35 - ClassD1 */
 	0x0000,     /* R36 */
 	0x0100,     /* R37 - ClassD3 */
-	0x0000,     /* R38 */
+	0x0079,     /* R38 - ClassD4 */
 	0x0000,     /* R39 - Input Mixer1 */
 	0x0000,     /* R40 - Input Mixer2 */
 	0x0000,     /* R41 - Input Mixer3 */
@@ -311,11 +311,15 @@ SOC_SINGLE("Speaker Mode Switch", WM8990_CLASSD1,
 	WM8990_CDMODE_BIT, 1, 0),
 
 SOC_SINGLE("Speaker Output Attenuation Volume", WM8990_SPEAKER_VOLUME,
-	WM8990_SPKVOL_SHIFT, WM8990_SPKVOL_MASK, 0),
+	WM8990_SPKATTN_SHIFT, WM8990_SPKATTN_MASK, 0),
 SOC_SINGLE("Speaker DC Boost Volume", WM8990_CLASSD3,
 	WM8990_DCGAIN_SHIFT, WM8990_DCGAIN_MASK, 0),
 SOC_SINGLE("Speaker AC Boost Volume", WM8990_CLASSD3,
 	WM8990_ACGAIN_SHIFT, WM8990_ACGAIN_MASK, 0),
+SOC_SINGLE_TLV("Speaker Volume", WM8990_CLASSD4,
+	WM8990_SPKVOL_SHIFT, WM8990_SPKVOL_MASK, 0, out_pga_tlv),
+SOC_SINGLE("Speaker ZC Switch", WM8990_CLASSD4,
+	WM8990_SPKZC_SHIFT, WM8990_SPKZC_MASK, 0),
 
 SOC_WM899X_OUTPGA_SINGLE_R_TLV("Left DAC Digital Volume",
 	WM8990_LEFT_DAC_DIGITAL_VOLUME,
@@ -920,7 +924,7 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"SPKMIX", "SPKMIX Left Mixer PGA Switch", "LOPGA"},
 	{"SPKMIX", "SPKMIX Right Mixer PGA Switch", "ROPGA"},
 	{"SPKMIX", "SPKMIX Right DAC Switch", "Right DAC"},
-	{"SPKMIX", "SPKMIX Left DAC Switch", "Right DAC"},
+	{"SPKMIX", "SPKMIX Left DAC Switch", "Left DAC"},
 
 	/* LONMIX */
 	{"LONMIX", "LONMIX Left Mixer PGA Switch", "LOPGA"},
@@ -1496,10 +1500,9 @@ static int wm8990_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 	client_template.addr = addr;
 
 	i2c =  kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL) {
-		kfree(codec);
+	if (i2c == NULL)
 		return -ENOMEM;
-	}
+
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
 
@@ -1517,7 +1520,6 @@ static int wm8990_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 	return ret;
 
 err:
-	kfree(codec);
 	kfree(i2c);
 	return ret;
 }
@@ -1591,6 +1593,11 @@ static int wm8990_probe(struct platform_device *pdev)
 #else
 		/* Add other interfaces here */
 #endif
+
+	if (ret != 0) {
+		kfree(codec->private_data);
+		kfree(codec);
+	}
 	return ret;
 }
 

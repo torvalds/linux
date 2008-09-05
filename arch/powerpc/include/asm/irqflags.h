@@ -20,7 +20,7 @@
 #define TRACE_ENABLE_INTS	bl .trace_hardirqs_on
 #define TRACE_DISABLE_INTS	bl .trace_hardirqs_off
 #define TRACE_AND_RESTORE_IRQ_PARTIAL(en,skip)	\
-	cmpdi	en, 0;				\
+	cmpdi	en,0;				\
 	bne	95f;				\
 	stb	en,PACASOFTIRQEN(r13);		\
 	bl	.trace_hardirqs_off;		\
@@ -29,7 +29,8 @@
 	li	en,1;
 #define TRACE_AND_RESTORE_IRQ(en)		\
 	TRACE_AND_RESTORE_IRQ_PARTIAL(en,96f);	\
-96:	stb	en,PACASOFTIRQEN(r13)
+	stb	en,PACASOFTIRQEN(r13);	        \
+96:
 #else
 #define TRACE_ENABLE_INTS
 #define TRACE_DISABLE_INTS

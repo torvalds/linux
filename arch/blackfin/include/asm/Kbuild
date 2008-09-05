@@ -1,0 +1,3 @@
+include include/asm-generic/Kbuild.asm
+
+unifdef-y += fixed_code.h

@@ -954,7 +954,7 @@ static struct pci_driver driver = {
 	.name = "SCC IDE",
 	.id_table = scc_pci_tbl,
 	.probe = scc_init_one,
-	.remove = scc_remove,
+	.remove = __devexit_p(scc_remove),
 };
 
 static int scc_ide_init(void)
