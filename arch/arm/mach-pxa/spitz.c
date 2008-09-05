@@ -134,10 +134,11 @@ static struct resource spitz_scoop_resources[] = {
 };
 
 static struct scoop_config spitz_scoop_setup = {
-	.io_dir 	= SPITZ_SCP_IO_DIR,
+	.io_dir		= SPITZ_SCP_IO_DIR,
 	.io_out		= SPITZ_SCP_IO_OUT,
-	.suspend_clr = SPITZ_SCP_SUS_CLR,
-	.suspend_set = SPITZ_SCP_SUS_SET,
+	.suspend_clr	= SPITZ_SCP_SUS_CLR,
+	.suspend_set	= SPITZ_SCP_SUS_SET,
+	.gpio_base	= SPITZ_SCP_GPIO_BASE,
 };
 
 struct platform_device spitzscoop_device = {
@@ -162,10 +163,11 @@ static struct resource spitz_scoop2_resources[] = {
 };
 
 static struct scoop_config spitz_scoop2_setup = {
-	.io_dir 	= SPITZ_SCP2_IO_DIR,
+	.io_dir		= SPITZ_SCP2_IO_DIR,
 	.io_out		= SPITZ_SCP2_IO_OUT,
-	.suspend_clr = SPITZ_SCP2_SUS_CLR,
-	.suspend_set = SPITZ_SCP2_SUS_SET,
+	.suspend_clr	= SPITZ_SCP2_SUS_CLR,
+	.suspend_set	= SPITZ_SCP2_SUS_SET,
+	.gpio_base	= SPITZ_SCP2_GPIO_BASE,
 };
 
 struct platform_device spitzscoop2_device = {
@@ -187,7 +189,7 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 	unsigned short cpr = read_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR);
 
 	if (new_cpr & 0x0007) {
-	        set_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+		gpio_set_value(SPITZ_GPIO_CF_POWER, 1);
 		if (!(cpr & 0x0002) && !(cpr & 0x0004))
 		        mdelay(5);
 		if (device == SPITZ_PWR_CF)
@@ -203,7 +205,7 @@ static void spitz_card_pwr_ctrl(int device, unsigned short new_cpr)
 		if (!(cpr & 0x0002) && !(cpr & 0x0004)) {
 			write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, 0x0000);
 		        mdelay(1);
-		        reset_scoop_gpio(&spitzscoop_device.dev, SPITZ_SCP_CF_POWER);
+			gpio_set_value(SPITZ_GPIO_CF_POWER, 0);
 		} else {
 		        write_scoop_reg(&spitzscoop_device.dev, SCOOP_CPR, cpr | new_cpr);
 		}
@@ -283,16 +285,8 @@ static struct pxa2xx_spi_chip spitz_ads7846_chip = {
 static void spitz_notify_intensity(int intensity)
 {
 	if (machine_is_spitz() || machine_is_borzoi()) {
-		/* Bit 5 is via SCOOP */
-		if (intensity & 0x0020)
-			reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
-		else
-			set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_CONT);
-
-		if (intensity)
-			set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
-		else
-			reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_BACKLIGHT_ON);
+		gpio_set_value(SPITZ_GPIO_BACKLIGHT_CONT, !(intensity & 0x20));
+		gpio_set_value(SPITZ_GPIO_BACKLIGHT_ON, intensity);
 		return;
 	}
 
@@ -515,12 +509,34 @@ static struct pxaohci_platform_data spitz_ohci_platform_data = {
 /*
  * Irda
  */
+static int spitz_irda_startup(struct device *dev)
+{
+	int rc;
+
+	rc = gpio_request(SPITZ_GPIO_IR_ON, "IrDA on");
+	if (rc)
+		goto err;
+
+	rc = gpio_direction_output(SPITZ_GPIO_IR_ON, 1);
+	if (rc)
+		goto err_dir;
+
+	return 0;
+
+err_dir:
+	gpio_free(SPITZ_GPIO_IR_ON);
+err:
+	return rc;
+}
+
+static void spitz_irda_shutdown(struct device *dev)
+{
+	gpio_free(SPITZ_GPIO_IR_ON);
+}
+
 static void spitz_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF)
-		set_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
-	else
-		reset_scoop_gpio(&spitzscoop2_device.dev, SPITZ_SCP2_IR_ON);
+	gpio_set_value(SPITZ_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 
@@ -536,8 +552,10 @@ static void akita_irda_transceiver_mode(struct device *dev, int mode)
 #endif
 
 static struct pxaficp_platform_data spitz_ficp_platform_data = {
-	.transceiver_cap  = IR_SIRMODE | IR_OFF,
-	.transceiver_mode = spitz_irda_transceiver_mode,
+	.transceiver_cap	= IR_SIRMODE | IR_OFF,
+	.transceiver_mode	= spitz_irda_transceiver_mode,
+	.startup		= spitz_irda_startup,
+	.shutdown		= spitz_irda_shutdown,
 };
 
 
