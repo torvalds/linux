@@ -539,34 +539,6 @@ config SC6600_CDROMBASE
 	  Base I/O port address for the CD-ROM interface of the Audio Excel
 	  DSP 16 card.
 
-choice
-	prompt "Audio Excel DSP 16"
-	optional
-	depends on SOUND_AEDSP16
-
-config AEDSP16_MSS
-	bool "MSS emulation"
-	depends on SOUND_MSS
-	help
-	  Answer Y if you want your audio card to emulate Microsoft Sound
-	  System. You should then say Y to "Microsoft Sound System support"
-	  and say N to "Audio Excel DSP 16 (SBPro emulation)".
-
-config AEDSP16_SBPRO
-	bool "SBPro emulation"
-	depends on SOUND_SB
-	help
-	  Answer Y if you want your audio card to emulate Sound Blaster Pro.
-	  You should then say Y to "100% Sound Blaster compatibles
-	  (SB16/32/64, ESS, Jazz16) support" and N to "Audio Excel DSP 16 (MSS
-	  emulation)".
-
-	  If you compile the driver into the kernel, you have to add
-	  "aedsp16=<io>,<irq>,<dma>,<mssio>,<mpuio>,<mouirq>" to the kernel
-	  command line.
-
-endchoice
-
 config SOUND_VIDC
 	tristate "VIDC 16-bit sound"
 	depends on ARM && (ARCH_ACORN || ARCH_CLPS7500)
