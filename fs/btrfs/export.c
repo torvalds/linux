@@ -68,7 +68,6 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 {
 	struct btrfs_root *root;
 	struct inode *inode;
-	struct dentry *result;
 	struct btrfs_key key;
 
 	key.objectid = root_objectid;
@@ -92,11 +91,7 @@ static struct dentry *btrfs_get_dentry(struct super_block *sb, u64 objectid,
 		return ERR_PTR(-ESTALE);
 	}
 
-	result = d_obtain_alias(inode);
-	if (!result)
-		return ERR_PTR(-ENOMEM);
-
-	return result;
+	return d_obtain_alias(inode);
 }
 
 static struct dentry *btrfs_fh_to_parent(struct super_block *sb, struct fid *fh,
@@ -148,8 +143,6 @@ static struct dentry *btrfs_fh_to_dentry(struct super_block *sb, struct fid *fh,
 static struct dentry *btrfs_get_parent(struct dentry *child)
 {
 	struct inode *dir = child->d_inode;
-	struct inode *inode;
-	struct dentry *parent;
 	struct btrfs_root *root = BTRFS_I(dir)->root;
 	struct btrfs_key key;
 	struct btrfs_path *path;
@@ -203,13 +196,7 @@ static struct dentry *btrfs_get_parent(struct dentry *child)
 	btrfs_set_key_type(&key, BTRFS_INODE_ITEM_KEY);
 	key.offset = 0;
 
-	inode = btrfs_iget(root->fs_info->sb, &key, root, NULL);
-
-	parent = d_obtain_alias(inode);
-	if (!parent)
-		parent = ERR_PTR(-ENOMEM);
-
-	return parent;
+	return d_obtain_alias(btrfs_iget(root->fs_info->sb, &key, root, NULL));
 }
 
 const struct export_operations btrfs_export_ops = {
