@@ -3086,7 +3086,6 @@ static struct ibm_struct wan_driver_data = {
 	.read = wan_read,
 	.write = wan_write,
 	.exit = wan_exit,
-	.flags.experimental = 1,
 };
 
 /*************************************************************************
