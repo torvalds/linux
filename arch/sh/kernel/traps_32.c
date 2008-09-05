@@ -26,6 +26,7 @@
 #include <asm/system.h>
 #include <asm/uaccess.h>
 #include <asm/fpu.h>
+#include <asm/kprobes.h>
 
 #ifdef CONFIG_SH_KGDB
 #include <asm/kgdb.h>
@@ -743,6 +744,10 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	unsigned long error_code;
 	struct task_struct *tsk = current;
+
+	if (kprobe_handle_illslot(regs->pc) == 0)
+		return;
+
 #ifdef CONFIG_SH_FPU_EMU
 	unsigned short inst = 0;
 
