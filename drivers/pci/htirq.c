@@ -144,7 +144,7 @@ int __ht_create_irq(struct pci_dev *dev, int idx, ht_irq_update_t *update)
 #else
 	irq = create_irq();
 #endif
-	if (irq == 0) {
+	if (irq <= 0) {
 		kfree(cfg);
 		return -EBUSY;
 	}
