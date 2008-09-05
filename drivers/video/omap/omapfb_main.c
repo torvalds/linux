@@ -740,7 +740,7 @@ static int omapfb_update_win(struct fb_info *fbi,
 	int ret;
 
 	omapfb_rqueue_lock(plane->fbdev);
-	ret = omapfb_update_window_async(fbi, win, NULL, 0);
+	ret = omapfb_update_window_async(fbi, win, NULL, NULL);
 	omapfb_rqueue_unlock(plane->fbdev);
 
 	return ret;
@@ -768,7 +768,7 @@ static int omapfb_update_full_screen(struct fb_info *fbi)
 	win.format = 0;
 
 	omapfb_rqueue_lock(fbdev);
-	r = fbdev->ctrl->update_window(fbi, &win, NULL, 0);
+	r = fbdev->ctrl->update_window(fbi, &win, NULL, NULL);
 	omapfb_rqueue_unlock(fbdev);
 
 	return r;
@@ -1047,7 +1047,7 @@ void omapfb_write_first_pixel(struct omapfb_device *fbdev, u16 pixval)
 		win.height = 2;
 		win.out_width = 2;
 		win.out_height = 2;
-		fbdev->ctrl->update_window(fbdev->fb_info[0], &win, NULL, 0);
+		fbdev->ctrl->update_window(fbdev->fb_info[0], &win, NULL, NULL);
 	}
 	omapfb_rqueue_unlock(fbdev);
 }

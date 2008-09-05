@@ -1233,7 +1233,7 @@ int omap_request_dma_chain(int dev_id, const char *dev_name,
 	/* request and reserve DMA channels for the chain */
 	for (i = 0; i < no_of_chans; i++) {
 		err = omap_request_dma(dev_id, dev_name,
-					callback, 0, &channels[i]);
+					callback, NULL, &channels[i]);
 		if (err < 0) {
 			int j;
 			for (j = 0; j < i; j++)

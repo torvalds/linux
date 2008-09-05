@@ -251,7 +251,7 @@ int _omap2_clk_enable(struct clk *clk)
 	if (clk->enable)
 		return clk->enable(clk);
 
-	if (unlikely(clk->enable_reg == 0)) {
+	if (unlikely(clk->enable_reg == NULL)) {
 		printk(KERN_ERR "clock.c: Enable for %s without enable code\n",
 		       clk->name);
 		return 0; /* REVISIT: -EINVAL */
@@ -283,7 +283,7 @@ void _omap2_clk_disable(struct clk *clk)
 		return;
 	}
 
-	if (clk->enable_reg == 0) {
+	if (clk->enable_reg == NULL) {
 		/*
 		 * 'Independent' here refers to a clock which is not
 		 * controlled by its parent.
@@ -477,7 +477,7 @@ long omap2_clksel_round_rate(struct clk *clk, unsigned long target_rate)
 /* Given a clock and a rate apply a clock specific rounding function */
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	if (clk->round_rate != 0)
+	if (clk->round_rate != NULL)
 		return clk->round_rate(clk, rate);
 
 	if (clk->flags & RATE_FIXED)
@@ -566,7 +566,7 @@ u32 omap2_divisor_to_clksel(struct clk *clk, u32 div)
  */
 void __iomem *omap2_get_clksel(struct clk *clk, u32 *field_mask)
 {
-	if (unlikely((clk->clksel_reg == 0) || (clk->clksel_mask == 0)))
+	if (unlikely((clk->clksel_reg == NULL) || (clk->clksel_mask == NULL)))
 		return NULL;
 
 	*field_mask = clk->clksel_mask;
@@ -586,7 +586,7 @@ u32 omap2_clksel_get_divisor(struct clk *clk)
 	void __iomem *div_addr;
 
 	div_addr = omap2_get_clksel(clk, &field_mask);
-	if (div_addr == 0)
+	if (div_addr == NULL)
 		return 0;
 
 	field_val = __raw_readl(div_addr) & field_mask;
@@ -605,7 +605,7 @@ int omap2_clksel_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	div_addr = omap2_get_clksel(clk, &field_mask);
-	if (div_addr == 0)
+	if (div_addr == NULL)
 		return -EINVAL;
 
 	field_val = omap2_divisor_to_clksel(clk, new_div);
@@ -643,7 +643,7 @@ int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 		return -EINVAL;
 
 	/* dpll_ck, core_ck, virt_prcm_set; plus all clksel clocks */
-	if (clk->set_rate != 0)
+	if (clk->set_rate != NULL)
 		ret = clk->set_rate(clk, rate);
 
 	if (unlikely(ret == 0 && (clk->flags & RATE_PROPAGATES)))
@@ -664,7 +664,7 @@ static u32 omap2_clksel_get_src_field(void __iomem **src_addr,
 	const struct clksel_rate *clkr;
 
 	*parent_div = 0;
-	*src_addr = 0;
+	*src_addr = NULL;
 
 	clks = omap2_get_clksel_by_parent(clk, src_clk);
 	if (clks == NULL)
@@ -705,7 +705,7 @@ int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 
 	field_val = omap2_clksel_get_src_field(&src_addr, new_parent,
 					       &field_mask, clk, &parent_div);
-	if (src_addr == 0)
+	if (src_addr == NULL)
 		return -EINVAL;
 
 	if (clk->usecount > 0)
