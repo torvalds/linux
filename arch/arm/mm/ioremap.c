@@ -333,14 +333,13 @@ __arm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 }
 EXPORT_SYMBOL(__arm_ioremap);
 
-void __iounmap(volatile void __iomem *addr)
+void __iounmap(volatile void __iomem *io_addr)
 {
+	void *addr = (void *)(PAGE_MASK & (unsigned long)io_addr);
 #ifndef CONFIG_SMP
 	struct vm_struct **p, *tmp;
 #endif
 	unsigned int section_mapping = 0;
-
-	addr = (volatile void __iomem *)(PAGE_MASK & (unsigned long)addr);
 
 #ifndef CONFIG_SMP
 	/*
@@ -352,7 +351,7 @@ void __iounmap(volatile void __iomem *addr)
 	 */
 	write_lock(&vmlist_lock);
 	for (p = &vmlist ; (tmp = *p) ; p = &tmp->next) {
-		if((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
+		if ((tmp->flags & VM_IOREMAP) && (tmp->addr == addr)) {
 			if (tmp->flags & VM_ARM_SECTION_MAPPING) {
 				*p = tmp->next;
 				unmap_area_sections((unsigned long)tmp->addr,
@@ -367,6 +366,6 @@ void __iounmap(volatile void __iomem *addr)
 #endif
 
 	if (!section_mapping)
-		vunmap((void __force *)addr);
+		vunmap(addr);
 }
 EXPORT_SYMBOL(__iounmap);

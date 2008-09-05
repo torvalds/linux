@@ -6,6 +6,7 @@
 #include <linux/mman.h>
 #include <linux/shm.h>
 #include <linux/sched.h>
+#include <linux/io.h>
 #include <asm/cputype.h>
 #include <asm/system.h>
 

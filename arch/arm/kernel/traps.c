@@ -68,7 +68,8 @@ void dump_backtrace_entry(unsigned long where, unsigned long from, unsigned long
  */
 static int verify_stack(unsigned long sp)
 {
-	if (sp < PAGE_OFFSET || (sp > (unsigned long)high_memory && high_memory != 0))
+	if (sp < PAGE_OFFSET ||
+	    (sp > (unsigned long)high_memory && high_memory != NULL))
 		return -EFAULT;
 
 	return 0;

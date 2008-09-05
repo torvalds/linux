@@ -529,12 +529,12 @@ static void __init parse_cmdline(char **cmdline_p, char *from)
 			struct early_params *p;
 
 			for (p = &__early_begin; p < &__early_end; p++) {
-				int len = strlen(p->arg);
+				int arglen = strlen(p->arg);
 
-				if (memcmp(from, p->arg, len) == 0) {
+				if (memcmp(from, p->arg, arglen) == 0) {
 					if (to != command_line)
 						to -= 1;
-					from += len;
+					from += arglen;
 					p->fn(&from);
 
 					while (*from != ' ' && *from != '\0')

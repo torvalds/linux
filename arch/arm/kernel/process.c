@@ -267,35 +267,6 @@ void show_regs(struct pt_regs * regs)
 	__backtrace();
 }
 
-void show_fpregs(struct user_fp *regs)
-{
-	int i;
-
-	for (i = 0; i < 8; i++) {
-		unsigned long *p;
-		char type;
-
-		p = (unsigned long *)(regs->fpregs + i);
-
-		switch (regs->ftype[i]) {
-			case 1: type = 'f'; break;
-			case 2: type = 'd'; break;
-			case 3: type = 'e'; break;
-			default: type = '?'; break;
-		}
-		if (regs->init_flag)
-			type = '?';
-
-		printk("  f%d(%c): %08lx %08lx %08lx%c",
-			i, type, p[0], p[1], p[2], i & 1 ? '\n' : ' ');
-	}
-			
-
-	printk("FPSR: %08lx FPCR: %08lx\n",
-		(unsigned long)regs->fpsr,
-		(unsigned long)regs->fpcr);
-}
-
 /*
  * Free current thread data structures etc..
  */
