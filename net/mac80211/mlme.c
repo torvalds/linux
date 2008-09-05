@@ -478,21 +478,51 @@ int ieee80211_ht_addt_info_ie_to_ht_bss_info(
 static void ieee80211_sta_send_associnfo(struct net_device *dev,
 					 struct ieee80211_if_sta *ifsta)
 {
+	char *buf;
+	size_t len;
+	int i;
 	union iwreq_data wrqu;
 
+	if (!ifsta->assocreq_ies && !ifsta->assocresp_ies)
+		return;
+
+	buf = kmalloc(50 + 2 * (ifsta->assocreq_ies_len +
+				ifsta->assocresp_ies_len), GFP_KERNEL);
+	if (!buf)
+		return;
+
+	len = sprintf(buf, "ASSOCINFO(");
 	if (ifsta->assocreq_ies) {
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = ifsta->assocreq_ies_len;
-		wireless_send_event(dev, IWEVASSOCREQIE, &wrqu,
-				    ifsta->assocreq_ies);
+		len += sprintf(buf + len, "ReqIEs=");
+		for (i = 0; i < ifsta->assocreq_ies_len; i++) {
+			len += sprintf(buf + len, "%02x",
+				       ifsta->assocreq_ies[i]);
+		}
+	}
+	if (ifsta->assocresp_ies) {
+		if (ifsta->assocreq_ies)
+			len += sprintf(buf + len, " ");
+		len += sprintf(buf + len, "RespIEs=");
+		for (i = 0; i < ifsta->assocresp_ies_len; i++) {
+			len += sprintf(buf + len, "%02x",
+				       ifsta->assocresp_ies[i]);
+		}
+	}
+	len += sprintf(buf + len, ")");
+
+	if (len > IW_CUSTOM_MAX) {
+		len = sprintf(buf, "ASSOCRESPIE=");
+		for (i = 0; i < ifsta->assocresp_ies_len; i++) {
+			len += sprintf(buf + len, "%02x",
+				       ifsta->assocresp_ies[i]);
+		}
 	}
 
-	if (ifsta->assocresp_ies) {
-		memset(&wrqu, 0, sizeof(wrqu));
-		wrqu.data.length = ifsta->assocresp_ies_len;
-		wireless_send_event(dev, IWEVASSOCRESPIE, &wrqu,
-				    ifsta->assocresp_ies);
-	}
+	memset(&wrqu, 0, sizeof(wrqu));
+	wrqu.data.length = len;
+	wireless_send_event(dev, IWEVCUSTOM, &wrqu, buf);
+
+	kfree(buf);
 }
 
 
