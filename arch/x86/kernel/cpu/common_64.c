@@ -461,6 +461,7 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 		}
 	}
 
+#ifdef CONFIG_X86_64
 	/* Transmeta-defined flags: level 0x80860001 */
 	xlvl = cpuid_eax(0x80860000);
 	if ((xlvl & 0xffff0000) == 0x80860000) {
@@ -478,6 +479,7 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_virt_bits = (eax >> 8) & 0xff;
 		c->x86_phys_bits = eax & 0xff;
 	}
+#endif
 }
 
 /* Do some early cpuid on the boot CPU to get some parameter that are

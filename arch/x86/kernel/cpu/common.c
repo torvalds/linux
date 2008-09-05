@@ -458,6 +458,26 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 			c->x86_capability[6] = cpuid_ecx(0x80000001);
 		}
 	}
+
+#ifdef CONFIG_X86_64
+	/* Transmeta-defined flags: level 0x80860001 */
+	xlvl = cpuid_eax(0x80860000);
+	if ((xlvl & 0xffff0000) == 0x80860000) {
+		/* Don't set x86_cpuid_level here for now to not confuse. */
+		if (xlvl >= 0x80860001)
+			c->x86_capability[2] = cpuid_edx(0x80860001);
+	}
+
+	if (c->extended_cpuid_level >= 0x80000007)
+		c->x86_power = cpuid_edx(0x80000007);
+
+	if (c->extended_cpuid_level >= 0x80000008) {
+		u32 eax = cpuid_eax(0x80000008);
+
+		c->x86_virt_bits = (eax >> 8) & 0xff;
+		c->x86_phys_bits = eax & 0xff;
+	}
+#endif
 }
 /*
  * Do minimum CPU detection early.
