@@ -1818,19 +1818,6 @@ static int btrfs_find_actor(struct inode *inode, void *opaque)
 		args->root == BTRFS_I(inode)->root);
 }
 
-struct inode *btrfs_ilookup(struct super_block *s, u64 objectid,
-			    u64 root_objectid)
-{
-	struct btrfs_iget_args args;
-	args.ino = objectid;
-	args.root = btrfs_lookup_fs_root(btrfs_sb(s)->fs_info, root_objectid);
-
-	if (!args.root)
-		return NULL;
-
-	return ilookup5(s, objectid, btrfs_find_actor, (void *)&args);
-}
-
 struct inode *btrfs_iget_locked(struct super_block *s, u64 objectid,
 				struct btrfs_root *root)
 {
