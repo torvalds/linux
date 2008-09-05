@@ -38,7 +38,7 @@ obj-y			+= tsc.o io_delay.o rtc.o
 
 obj-$(CONFIG_X86_TRAMPOLINE)	+= trampoline.o
 obj-y				+= process.o
-obj-y				+= i387.o
+obj-y				+= i387.o xsave.o
 obj-y				+= ptrace.o
 obj-y				+= ds.o
 obj-$(CONFIG_X86_32)		+= tls.o

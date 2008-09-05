@@ -4,6 +4,40 @@
 #include <linux/compiler.h>
 #include <asm/types.h>
 
+#define FP_XSTATE_MAGIC1	0x46505853U
+#define FP_XSTATE_MAGIC2	0x46505845U
+#define FP_XSTATE_MAGIC2_SIZE	sizeof(FP_XSTATE_MAGIC2)
+
+/*
+ * bytes 464..511 in the current 512byte layout of fxsave/fxrstor frame
+ * are reserved for SW usage. On cpu's supporting xsave/xrstor, these bytes
+ * are used to extended the fpstate pointer in the sigcontext, which now
+ * includes the extended state information along with fpstate information.
+ *
+ * Presence of FP_XSTATE_MAGIC1 at the beginning of this SW reserved
+ * area and FP_XSTATE_MAGIC2 at the end of memory layout
+ * (extended_size - FP_XSTATE_MAGIC2_SIZE) indicates the presence of the
+ * extended state information in the memory layout pointed by the fpstate
+ * pointer in sigcontext.
+ */
+struct _fpx_sw_bytes {
+	__u32 magic1;		/* FP_XSTATE_MAGIC1 */
+	__u32 extended_size;	/* total size of the layout referred by
+				 * fpstate pointer in the sigcontext.
+				 */
+	__u64 xstate_bv;
+				/* feature bit mask (including fp/sse/extended
+				 * state) that is present in the memory
+				 * layout.
+				 */
+	__u32 xstate_size;	/* actual xsave state size, based on the
+				 * features saved in the layout.
+				 * 'extended_size' will be greater than
+				 * 'xstate_size'.
+				 */
+	__u32 padding[7];	/*  for future use. */
+};
+
 #ifdef __i386__
 /*
  * As documented in the iBCS2 standard..
@@ -53,7 +87,13 @@ struct _fpstate {
 	unsigned long	reserved;
 	struct _fpxreg	_fxsr_st[8];	/* FXSR FPU reg data is ignored */
 	struct _xmmreg	_xmm[8];
-	unsigned long	padding[56];
+	unsigned long	padding1[44];
+
+	union {
+		unsigned long	padding2[12];
+		struct _fpx_sw_bytes sw_reserved; /* represents the extended
+						   * state info */
+	};
 };
 
 #define X86_FXSR_MAGIC		0x0000
@@ -79,7 +119,15 @@ struct sigcontext {
 	unsigned long flags;
 	unsigned long sp_at_signal;
 	unsigned short ss, __ssh;
-	struct _fpstate __user *fpstate;
+
+	/*
+	 * fpstate is really (struct _fpstate *) or (struct _xstate *)
+	 * depending on the FP_XSTATE_MAGIC1 encoded in the SW reserved
+	 * bytes of (struct _fpstate) and FP_XSTATE_MAGIC2 present at the end
+	 * of extended memory layout. See comments at the defintion of
+	 * (struct _fpx_sw_bytes)
+	 */
+	void __user *fpstate;		/* zero when no FPU/extended context */
 	unsigned long oldmask;
 	unsigned long cr2;
 };
@@ -130,7 +178,12 @@ struct _fpstate {
 	__u32	mxcsr_mask;
 	__u32	st_space[32];	/* 8*16 bytes for each FP-reg */
 	__u32	xmm_space[64];	/* 16*16 bytes for each XMM-reg  */
-	__u32	reserved2[24];
+	__u32	reserved2[12];
+	union {
+		__u32	reserved3[12];
+		struct _fpx_sw_bytes sw_reserved; /* represents the extended
+						   * state information */
+	};
 };
 
 #ifdef __KERNEL__
@@ -161,7 +214,15 @@ struct sigcontext {
 	unsigned long trapno;
 	unsigned long oldmask;
 	unsigned long cr2;
-	struct _fpstate __user *fpstate;	/* zero when no FPU context */
+
+	/*
+	 * fpstate is really (struct _fpstate *) or (struct _xstate *)
+	 * depending on the FP_XSTATE_MAGIC1 encoded in the SW reserved
+	 * bytes of (struct _fpstate) and FP_XSTATE_MAGIC2 present at the end
+	 * of extended memory layout. See comments at the defintion of
+	 * (struct _fpx_sw_bytes)
+	 */
+	void __user *fpstate;		/* zero when no FPU/extended context */
 	unsigned long reserved1[8];
 };
 #else /* __KERNEL__ */
@@ -201,5 +262,23 @@ struct sigcontext {
 #endif /* !__KERNEL__ */
 
 #endif /* !__i386__ */
+
+struct _xsave_hdr {
+	__u64 xstate_bv;
+	__u64 reserved1[2];
+	__u64 reserved2[5];
+};
+
+/*
+ * Extended state pointed by the fpstate pointer in the sigcontext.
+ * In addition to the fpstate, information encoded in the xstate_hdr
+ * indicates the presence of other extended state information
+ * supported by the processor and OS.
+ */
+struct _xstate {
+	struct _fpstate fpstate;
+	struct _xsave_hdr xstate_hdr;
+	/* new processor state extensions go here */
+};
 
 #endif /* ASM_X86__SIGCONTEXT_H */

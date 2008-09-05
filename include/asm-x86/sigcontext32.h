@@ -40,7 +40,11 @@ struct _fpstate_ia32 {
 	__u32	reserved;
 	struct _fpxreg	_fxsr_st[8];
 	struct _xmmreg	_xmm[8];	/* It's actually 16 */
-	__u32	padding[56];
+	__u32	padding[44];
+	union {
+		__u32 padding2[12];
+		struct _fpx_sw_bytes sw_reserved;
+	};
 };
 
 struct sigcontext_ia32 {

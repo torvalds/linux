@@ -55,69 +55,6 @@ sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 }
 
 /*
- * Signal frame handlers.
- */
-
-static inline int save_i387(struct _fpstate __user *buf)
-{
-	struct task_struct *tsk = current;
-	int err = 0;
-
-	BUILD_BUG_ON(sizeof(struct user_i387_struct) !=
-			sizeof(tsk->thread.xstate->fxsave));
-
-	if ((unsigned long)buf % 16)
-		printk("save_i387: bad fpstate %p\n", buf);
-
-	if (!used_math())
-		return 0;
-	clear_used_math(); /* trigger finit */
-	if (task_thread_info(tsk)->status & TS_USEDFPU) {
-		err = save_i387_checking((struct i387_fxsave_struct __user *)
-					 buf);
-		if (err)
-			return err;
-		task_thread_info(tsk)->status &= ~TS_USEDFPU;
-		stts();
-	} else {
-		if (__copy_to_user(buf, &tsk->thread.xstate->fxsave,
-				   sizeof(struct i387_fxsave_struct)))
-			return -1;
-	}
-	return 1;
-}
-
-/*
- * This restores directly out of user space. Exceptions are handled.
- */
-static inline int restore_i387(struct _fpstate __user *buf)
-{
-	struct task_struct *tsk = current;
-	int err;
-
-	if (!used_math()) {
-		err = init_fpu(tsk);
-		if (err)
-			return err;
-	}
-
-	if (!(task_thread_info(current)->status & TS_USEDFPU)) {
-		clts();
-		task_thread_info(current)->status |= TS_USEDFPU;
-	}
-	err = restore_fpu_checking((__force struct i387_fxsave_struct *)buf);
-	if (unlikely(err)) {
-		/*
-		 * Encountered an error while doing the restore from the
-		 * user buffer, clear the fpu state.
-		 */
-		clear_fpu(tsk);
-		clear_used_math();
-	}
-	return err;
-}
-
-/*
  * Do a signal return; undo the signal stack.
  */
 static int
@@ -161,25 +98,11 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	{
 		struct _fpstate __user * buf;
 		err |= __get_user(buf, &sc->fpstate);
-
-		if (buf) {
-			if (!access_ok(VERIFY_READ, buf, sizeof(*buf)))
-				goto badframe;
-			err |= restore_i387(buf);
-		} else {
-			struct task_struct *me = current;
-			if (used_math()) {
-				clear_fpu(me);
-				clear_used_math();
-			}
-		}
+		err |= restore_i387_xstate(buf);
 	}
 
 	err |= __get_user(*pax, &sc->ax);
 	return err;
-
-badframe:
-	return 1;
 }
 
 asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
@@ -270,26 +193,23 @@ get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
 			sp = current->sas_ss_sp + current->sas_ss_size;
 	}
 
-	return (void __user *)round_down(sp - size, 16);
+	return (void __user *)round_down(sp - size, 64);
 }
 
 static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			   sigset_t *set, struct pt_regs * regs)
 {
 	struct rt_sigframe __user *frame;
-	struct _fpstate __user *fp = NULL; 
+	void __user *fp = NULL;
 	int err = 0;
 	struct task_struct *me = current;
 
 	if (used_math()) {
-		fp = get_stack(ka, regs, sizeof(struct _fpstate)); 
+		fp = get_stack(ka, regs, sig_xstate_size);
 		frame = (void __user *)round_down(
 			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
 
-		if (!access_ok(VERIFY_WRITE, fp, sizeof(struct _fpstate)))
-			goto give_sigsegv;
-
-		if (save_i387(fp) < 0) 
+		if (save_i387_xstate(fp) < 0)
 			err |= -1; 
 	} else
 		frame = get_stack(ka, regs, sizeof(struct rt_sigframe)) - 8;
@@ -304,7 +224,10 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	}
 		
 	/* Create the ucontext.  */
-	err |= __put_user(0, &frame->uc.uc_flags);
+	if (cpu_has_xsave)
+		err |= __put_user(UC_FP_XSTATE, &frame->uc.uc_flags);
+	else
+		err |= __put_user(0, &frame->uc.uc_flags);
 	err |= __put_user(0, &frame->uc.uc_link);
 	err |= __put_user(me->sas_ss_sp, &frame->uc.uc_stack.ss_sp);
 	err |= __put_user(sas_ss_flags(regs->sp),
