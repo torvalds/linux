@@ -901,7 +901,129 @@ struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
  * initialized (naturally) in the bootstrap process, such as the GDT
  * and IDT. We reload them nevertheless, this function acts as a
  * 'CPU state barrier', nothing should get across.
+ * A lot of state is already set up in PDA init for 64 bit
  */
+#ifdef CONFIG_X86_64
+void __cpuinit cpu_init(void)
+{
+	int cpu = stack_smp_processor_id();
+	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct orig_ist *orig_ist = &per_cpu(orig_ist, cpu);
+	unsigned long v;
+	char *estacks = NULL;
+	struct task_struct *me;
+	int i;
+
+	/* CPU 0 is initialised in head64.c */
+	if (cpu != 0)
+		pda_init(cpu);
+	else
+		estacks = boot_exception_stacks;
+
+	me = current;
+
+	if (cpu_test_and_set(cpu, cpu_initialized))
+		panic("CPU#%d already initialized!\n", cpu);
+
+	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
+
+	clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
+
+	/*
+	 * Initialize the per-CPU GDT with the boot GDT,
+	 * and set up the GDT descriptor:
+	 */
+
+	switch_to_new_gdt();
+	load_idt((const struct desc_ptr *)&idt_descr);
+
+	memset(me->thread.tls_array, 0, GDT_ENTRY_TLS_ENTRIES * 8);
+	syscall_init();
+
+	wrmsrl(MSR_FS_BASE, 0);
+	wrmsrl(MSR_KERNEL_GS_BASE, 0);
+	barrier();
+
+	check_efer();
+	if (cpu != 0 && x2apic)
+		enable_x2apic();
+
+	/*
+	 * set up and load the per-CPU TSS
+	 */
+	if (!orig_ist->ist[0]) {
+		static const unsigned int order[N_EXCEPTION_STACKS] = {
+		  [0 ... N_EXCEPTION_STACKS - 1] = EXCEPTION_STACK_ORDER,
+		  [DEBUG_STACK - 1] = DEBUG_STACK_ORDER
+		};
+		for (v = 0; v < N_EXCEPTION_STACKS; v++) {
+			if (cpu) {
+				estacks = (char *)__get_free_pages(GFP_ATOMIC, order[v]);
+				if (!estacks)
+					panic("Cannot allocate exception "
+					      "stack %ld %d\n", v, cpu);
+			}
+			estacks += PAGE_SIZE << order[v];
+			orig_ist->ist[v] = t->x86_tss.ist[v] =
+					(unsigned long)estacks;
+		}
+	}
+
+	t->x86_tss.io_bitmap_base = offsetof(struct tss_struct, io_bitmap);
+	/*
+	 * <= is required because the CPU will access up to
+	 * 8 bits beyond the end of the IO permission bitmap.
+	 */
+	for (i = 0; i <= IO_BITMAP_LONGS; i++)
+		t->io_bitmap[i] = ~0UL;
+
+	atomic_inc(&init_mm.mm_count);
+	me->active_mm = &init_mm;
+	if (me->mm)
+		BUG();
+	enter_lazy_tlb(&init_mm, me);
+
+	load_sp0(t, &current->thread);
+	set_tss_desc(cpu, t);
+	load_TR_desc();
+	load_LDT(&init_mm.context);
+
+#ifdef CONFIG_KGDB
+	/*
+	 * If the kgdb is connected no debug regs should be altered.  This
+	 * is only applicable when KGDB and a KGDB I/O module are built
+	 * into the kernel and you are using early debugging with
+	 * kgdbwait. KGDB will control the kernel HW breakpoint registers.
+	 */
+	if (kgdb_connected && arch_kgdb_ops.correct_hw_break)
+		arch_kgdb_ops.correct_hw_break();
+	else {
+#endif
+	/*
+	 * Clear all 6 debug registers:
+	 */
+
+	set_debugreg(0UL, 0);
+	set_debugreg(0UL, 1);
+	set_debugreg(0UL, 2);
+	set_debugreg(0UL, 3);
+	set_debugreg(0UL, 6);
+	set_debugreg(0UL, 7);
+#ifdef CONFIG_KGDB
+	/* If the kgdb is connected no debug regs should be altered. */
+	}
+#endif
+
+	fpu_init();
+
+	raw_local_save_flags(kernel_eflags);
+
+	if (is_uv_system())
+		uv_cpu_init();
+}
+
+#else
+
 void __cpuinit cpu_init(void)
 {
 	int cpu = smp_processor_id();
@@ -981,4 +1103,6 @@ void __cpuinit cpu_uninit(void)
 	per_cpu(cpu_tlbstate, cpu).state = 0;
 	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
 }
+#endif
+
 #endif

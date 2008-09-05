@@ -855,8 +855,9 @@ struct pt_regs * __cpuinit idle_regs(struct pt_regs *regs)
  * initialized (naturally) in the bootstrap process, such as the GDT
  * and IDT. We reload them nevertheless, this function acts as a
  * 'CPU state barrier', nothing should get across.
- * A lot of state is already set up in PDA init.
+ * A lot of state is already set up in PDA init for 64 bit
  */
+#ifdef CONFIG_X86_64
 void __cpuinit cpu_init(void)
 {
 	int cpu = stack_smp_processor_id();
@@ -974,3 +975,88 @@ void __cpuinit cpu_init(void)
 	if (is_uv_system())
 		uv_cpu_init();
 }
+
+#else
+
+void __cpuinit cpu_init(void)
+{
+	int cpu = smp_processor_id();
+	struct task_struct *curr = current;
+	struct tss_struct *t = &per_cpu(init_tss, cpu);
+	struct thread_struct *thread = &curr->thread;
+
+	if (cpu_test_and_set(cpu, cpu_initialized)) {
+		printk(KERN_WARNING "CPU#%d already initialized!\n", cpu);
+		for (;;) local_irq_enable();
+	}
+
+	printk(KERN_INFO "Initializing CPU#%d\n", cpu);
+
+	if (cpu_has_vme || cpu_has_tsc || cpu_has_de)
+		clear_in_cr4(X86_CR4_VME|X86_CR4_PVI|X86_CR4_TSD|X86_CR4_DE);
+
+	load_idt(&idt_descr);
+	switch_to_new_gdt();
+
+	/*
+	 * Set up and load the per-CPU TSS and LDT
+	 */
+	atomic_inc(&init_mm.mm_count);
+	curr->active_mm = &init_mm;
+	if (curr->mm)
+		BUG();
+	enter_lazy_tlb(&init_mm, curr);
+
+	load_sp0(t, thread);
+	set_tss_desc(cpu, t);
+	load_TR_desc();
+	load_LDT(&init_mm.context);
+
+#ifdef CONFIG_DOUBLEFAULT
+	/* Set up doublefault TSS pointer in the GDT */
+	__set_tss_desc(cpu, GDT_ENTRY_DOUBLEFAULT_TSS, &doublefault_tss);
+#endif
+
+	/* Clear %gs. */
+	asm volatile ("mov %0, %%gs" : : "r" (0));
+
+	/* Clear all 6 debug registers: */
+	set_debugreg(0, 0);
+	set_debugreg(0, 1);
+	set_debugreg(0, 2);
+	set_debugreg(0, 3);
+	set_debugreg(0, 6);
+	set_debugreg(0, 7);
+
+	/*
+	 * Force FPU initialization:
+	 */
+	if (cpu_has_xsave)
+		current_thread_info()->status = TS_XSAVE;
+	else
+		current_thread_info()->status = 0;
+	clear_used_math();
+	mxcsr_feature_mask_init();
+
+	/*
+	 * Boot processor to setup the FP and extended state context info.
+	 */
+	if (!smp_processor_id())
+		init_thread_xstate();
+
+	xsave_init();
+}
+
+#ifdef CONFIG_HOTPLUG_CPU
+void __cpuinit cpu_uninit(void)
+{
+	int cpu = raw_smp_processor_id();
+	cpu_clear(cpu, cpu_initialized);
+
+	/* lazy TLB state */
+	per_cpu(cpu_tlbstate, cpu).state = 0;
+	per_cpu(cpu_tlbstate, cpu).active_mm = &init_mm;
+}
+#endif
+
+#endif
