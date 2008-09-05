@@ -243,7 +243,7 @@ asmlinkage int sys_rt_sigreturn(unsigned long __unused)
 	return ax;
 
 badframe:
-	force_sig(SIGSEGV, current);
+	signal_fault(regs, frame, "rt sigreturn");
 	return 0;
 }
 
@@ -668,4 +668,20 @@ do_notify_resume(struct pt_regs *regs, void *unused, __u32 thread_info_flags)
 	}
 
 	clear_thread_flag(TIF_IRET);
+}
+
+void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
+{
+	struct task_struct *me = current;
+
+	if (show_unhandled_signals && printk_ratelimit()) {
+		printk(KERN_INFO
+		       "%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
+		       me->comm, me->pid, where, frame,
+		       regs->ip, regs->sp, regs->orig_ax);
+		print_vma_addr(" in ", regs->ip);
+		printk(KERN_CONT "\n");
+	}
+
+	force_sig(SIGSEGV, me);
 }
