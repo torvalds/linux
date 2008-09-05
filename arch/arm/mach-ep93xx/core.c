@@ -157,7 +157,7 @@ static unsigned char gpio_int_type2[3];
 static const u8 int_type1_register_offset[3]	= { 0x90, 0xac, 0x4c };
 static const u8 int_type2_register_offset[3]	= { 0x94, 0xb0, 0x50 };
 static const u8 eoi_register_offset[3]		= { 0x98, 0xb4, 0x54 };
-static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x5c };
+static const u8 int_en_register_offset[3]	= { 0x9c, 0xb8, 0x58 };
 
 void ep93xx_gpio_update_int_params(unsigned port)
 {
