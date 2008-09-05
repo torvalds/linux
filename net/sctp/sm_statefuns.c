@@ -2076,10 +2076,6 @@ sctp_disposition_t sctp_sf_shutdown_pending_abort(
 		    sctp_bind_addr_state(&asoc->base.bind_addr, &chunk->dest))
 		return sctp_sf_discard_chunk(ep, asoc, type, arg, commands);
 
-	/* Stop the T5-shutdown guard timer.  */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
-
 	return __sctp_sf_do_9_1_abort(ep, asoc, type, arg, commands);
 }
 
@@ -4543,13 +4539,6 @@ sctp_disposition_t sctp_sf_do_9_2_prm_shutdown(
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_SHUTDOWN_PENDING));
 
-	/* sctpimpguide-05 Section 2.12.2
-	 * The sender of the SHUTDOWN MAY also start an overall guard timer
-	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
-	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
-
 	disposition = SCTP_DISPOSITION_CONSUME;
 	if (sctp_outq_is_empty(&asoc->outqueue)) {
 		disposition = sctp_sf_do_9_2_start_shutdown(ep, asoc, type,
@@ -4993,6 +4982,13 @@ sctp_disposition_t sctp_sf_do_9_2_start_shutdown(
 	/* It shall then start the T2-shutdown timer */
 	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
 			SCTP_TO(SCTP_EVENT_TIMEOUT_T2_SHUTDOWN));
+
+	/* RFC 4960 Section 9.2
+	 * The sender of the SHUTDOWN MAY also start an overall guard timer
+	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
+	 */
+	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
+			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
 
 	if (asoc->autoclose)
 		sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_STOP,
@@ -5520,12 +5516,6 @@ sctp_disposition_t sctp_sf_autoclose_timer_expire(
 	sctp_add_cmd_sf(commands, SCTP_CMD_NEW_STATE,
 			SCTP_STATE(SCTP_STATE_SHUTDOWN_PENDING));
 
-	/* sctpimpguide-05 Section 2.12.2
-	 * The sender of the SHUTDOWN MAY also start an overall guard timer
-	 * 'T5-shutdown-guard' to bound the overall time for shutdown sequence.
-	 */
-	sctp_add_cmd_sf(commands, SCTP_CMD_TIMER_START,
-			SCTP_TO(SCTP_EVENT_TIMEOUT_T5_SHUTDOWN_GUARD));
 	disposition = SCTP_DISPOSITION_CONSUME;
 	if (sctp_outq_is_empty(&asoc->outqueue)) {
 		disposition = sctp_sf_do_9_2_start_shutdown(ep, asoc, type,
