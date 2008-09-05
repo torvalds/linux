@@ -31,6 +31,7 @@ source "sound/soc/sh/Kconfig"
 source "sound/soc/fsl/Kconfig"
 source "sound/soc/davinci/Kconfig"
 source "sound/soc/omap/Kconfig"
+source "sound/soc/blackfin/Kconfig"
 
 # Supported codecs
 source "sound/soc/codecs/Kconfig"
