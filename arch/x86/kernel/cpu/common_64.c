@@ -150,6 +150,9 @@ void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 	if (cpu_has(c, X86_FEATURE_CMP_LEGACY))
 		goto out;
 
+	if (cpu_has(c, X86_FEATURE_XTOPOLOGY))
+		return;
+
 	cpuid(1, &eax, &ebx, &ecx, &edx);
 
 	smp_num_siblings = (ebx & 0xff0000) >> 16;

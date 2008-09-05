@@ -176,9 +176,16 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (p)
 		strcpy(c->x86_model_id, p);
 
-	c->x86_max_cores = num_cpu_cores(c);
+	detect_extended_topology(c);
 
-	detect_ht(c);
+	if (!cpu_has(c, X86_FEATURE_XTOPOLOGY)) {
+		/*
+		 * let's use the legacy cpuid vector 0x1 and 0x4 for topology
+		 * detection.
+		 */
+		c->x86_max_cores = num_cpu_cores(c);
+		detect_ht(c);
+	}
 
 	/* Work around errata */
 	Intel_errata_workarounds(c);
