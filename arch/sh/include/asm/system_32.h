@@ -58,7 +58,8 @@ do {									\
 	last = __last;							\
 } while (0)
 
-#define __uses_jump_to_uncached __attribute__ ((__section__ (".uncached.text")))
+#define __uses_jump_to_uncached \
+	noinline __attribute__ ((__section__ (".uncached.text")))
 
 /*
  * Jump to uncached area.
