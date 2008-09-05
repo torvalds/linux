@@ -949,17 +949,17 @@ static int wm9713_pcm_hw_params(struct snd_pcm_substream *substream,
 
 static void wm9713_voiceshutdown(struct snd_pcm_substream *substream)
 {
-    struct snd_soc_pcm_runtime *rtd = substream->private_data;
-    struct snd_soc_device *socdev = rtd->socdev;
-    struct snd_soc_codec *codec = socdev->codec;
-    u16 status;
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_device *socdev = rtd->socdev;
+	struct snd_soc_codec *codec = socdev->codec;
+	u16 status;
 
-    /* Gracefully shut down the voice interface. */
-    status = ac97_read(codec, AC97_EXTENDED_STATUS) | 0x1000;
-    ac97_write(codec, AC97_HANDSET_RATE, 0x0280);
-    schedule_timeout_interruptible(msecs_to_jiffies(1));
-    ac97_write(codec, AC97_HANDSET_RATE, 0x0F80);
-    ac97_write(codec, AC97_EXTENDED_MID, status);
+	/* Gracefully shut down the voice interface. */
+	status = ac97_read(codec, AC97_EXTENDED_STATUS) | 0x1000;
+	ac97_write(codec, AC97_HANDSET_RATE, 0x0280);
+	schedule_timeout_interruptible(msecs_to_jiffies(1));
+	ac97_write(codec, AC97_HANDSET_RATE, 0x0F80);
+	ac97_write(codec, AC97_EXTENDED_MID, status);
 }
 
 static int ac97_hifi_prepare(struct snd_pcm_substream *substream)
