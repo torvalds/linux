@@ -141,7 +141,7 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
-#ifdef CONFIG_SMP
+#ifdef CONFIG_X86_HT
 	u32 eax, ebx, ecx, edx;
 	int index_msb, core_bits;
 

@@ -166,11 +166,7 @@ extern unsigned int init_intel_cacheinfo(struct cpuinfo_x86 *c);
 extern unsigned short num_cache_leaves;
 
 extern void detect_extended_topology(struct cpuinfo_x86 *c);
-#if defined(CONFIG_X86_HT) || defined(CONFIG_X86_64)
 extern void detect_ht(struct cpuinfo_x86 *c);
-#else
-static inline void detect_ht(struct cpuinfo_x86 *c) {}
-#endif
 
 static inline void native_cpuid(unsigned int *eax, unsigned int *ebx,
 				unsigned int *ecx, unsigned int *edx)

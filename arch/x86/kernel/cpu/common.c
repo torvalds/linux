@@ -263,9 +263,9 @@ void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
 			l2size, ecx & 0xFF);
 }
 
-#ifdef CONFIG_X86_HT
 void __cpuinit detect_ht(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_X86_HT
 	u32 eax, ebx, ecx, edx;
 	int index_msb, core_bits;
 
@@ -311,8 +311,8 @@ out:
 		printk(KERN_INFO  "CPU: Processor Core ID: %d\n",
 		       c->cpu_core_id);
 	}
-}
 #endif
+}
 
 static void __cpuinit get_cpu_vendor(struct cpuinfo_x86 *c)
 {
