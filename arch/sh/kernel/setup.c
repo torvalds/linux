@@ -233,15 +233,17 @@ void __init setup_bootmem_allocator(unsigned long free_pfn)
 	 * case of us accidentally initializing the bootmem allocator with
 	 * an invalid RAM area.
 	 */
-	reserve_bootmem(__MEMORY_START+PAGE_SIZE,
-		(PFN_PHYS(free_pfn)+bootmap_size+PAGE_SIZE-1)-__MEMORY_START,
-		BOOTMEM_DEFAULT);
+	reserve_bootmem(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET,
+			(PFN_PHYS(free_pfn) + bootmap_size + PAGE_SIZE - 1) -
+			(__MEMORY_START + CONFIG_ZERO_PAGE_OFFSET),
+			BOOTMEM_DEFAULT);
 
 	/*
 	 * reserve physical page 0 - it's a special BIOS page on many boxes,
 	 * enabling clean reboots, SMP operation, laptop functions.
 	 */
-	reserve_bootmem(__MEMORY_START, PAGE_SIZE, BOOTMEM_DEFAULT);
+	reserve_bootmem(__MEMORY_START, CONFIG_ZERO_PAGE_OFFSET,
+			BOOTMEM_DEFAULT);
 
 	sparse_memory_present_with_active_regions(0);
 
