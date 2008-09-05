@@ -61,7 +61,6 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 		pgd = get_TTB() + offset;
 		pgd_k = swapper_pg_dir + offset;
 
-		/* This will never happen with the folded page table. */
 		if (!pgd_present(*pgd)) {
 			if (!pgd_present(*pgd_k))
 				goto bad_area_nosemaphore;
@@ -71,9 +70,13 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 
 		pud = pud_offset(pgd, address);
 		pud_k = pud_offset(pgd_k, address);
-		if (pud_present(*pud) || !pud_present(*pud_k))
-			goto bad_area_nosemaphore;
-		set_pud(pud, *pud_k);
+
+		if (!pud_present(*pud)) {
+			if (!pud_present(*pud_k))
+				goto bad_area_nosemaphore;
+			set_pud(pud, *pud_k);
+			return;
+		}
 
 		pmd = pmd_offset(pud, address);
 		pmd_k = pmd_offset(pud_k, address);
