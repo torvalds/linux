@@ -82,9 +82,10 @@ struct btrfs_ordered_sum;
 #define BTRFS_TREE_LOG_FIXUP_OBJECTID -7ULL
 
 /*
- * All files have objectids higher than this.
+ * All files have objectids in this range.
  */
 #define BTRFS_FIRST_FREE_OBJECTID 256ULL
+#define BTRFS_LAST_FREE_OBJECTID -256ULL
 #define BTRFS_FIRST_CHUNK_TREE_OBJECTID 256ULL
 
 
