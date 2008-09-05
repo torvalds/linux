@@ -480,8 +480,8 @@ int ubifs_tnc_read_node(struct ubifs_info *c, struct ubifs_zbranch *zbr,
 	}
 
 	/* Make sure the key of the read node is correct */
-	key_read(c, key, &key1);
-	if (memcmp(node + UBIFS_KEY_OFFSET, &key1, c->key_len)) {
+	key_read(c, node + UBIFS_KEY_OFFSET, &key1);
+	if (!keys_eq(c, key, &key1)) {
 		ubifs_err("bad key in node at LEB %d:%d",
 			  zbr->lnum, zbr->offs);
 		dbg_tnc("looked for key %s found node's key %s",
