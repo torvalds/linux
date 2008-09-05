@@ -20,6 +20,7 @@
 #include <linux/fs.h>
 #include <linux/interrupt.h>
 #include <linux/gpio.h>
+#include <linux/leds.h>
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
@@ -255,9 +256,30 @@ static struct platform_device spitzkbd_device = {
 /*
  * Spitz LEDs
  */
+static struct gpio_led spitz_gpio_leds[] = {
+	{
+		.name			= "spitz:amber:charge",
+		.default_trigger	= "sharpsl-charge",
+		.gpio			= SPITZ_GPIO_LED_ORANGE,
+	},
+	{
+		.name			= "spitz:green:hddactivity",
+		.default_trigger	= "ide-disk",
+		.gpio			= SPITZ_GPIO_LED_GREEN,
+	},
+};
+
+static struct gpio_led_platform_data spitz_gpio_leds_info = {
+	.leds		= spitz_gpio_leds,
+	.num_leds	= ARRAY_SIZE(spitz_gpio_leds),
+};
+
 static struct platform_device spitzled_device = {
-	.name		= "spitz-led",
+	.name		= "leds-gpio",
 	.id		= -1,
+	.dev		= {
+		.platform_data = &spitz_gpio_leds_info,
+	},
 };
 
 #if defined(CONFIG_SPI_PXA2XX) || defined(CONFIG_SPI_PXA2XX_MODULE)
