@@ -497,10 +497,9 @@ static struct pcie_port_service_id port_pci_ids[] = { {
 	.driver_data =	0,
 	}, { /* end: all zeroes */ }
 };
-static const char device_name[] = "hpdriver";
 
 static struct pcie_port_service_driver hpdriver_portdrv = {
-	.name		= (char *)device_name,
+	.name		= PCIE_MODULE_NAME,
 	.id_table	= &port_pci_ids[0],
 
 	.probe		= pciehp_probe,
