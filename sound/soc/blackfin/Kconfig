@@ -1,0 +1,85 @@
+config SND_BF5XX_I2S
+	tristate "SoC I2S Audio for the ADI BF5xx chip"
+	depends on BLACKFIN && SND_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Blackfin SPORT (synchronous serial ports) interface in I2S
+	  mode (supports single stereo In/Out).
+	  You will also need to select the audio interfaces to support below.
+
+config SND_BF5XX_SOC_SSM2602
+	tristate "SoC SSM2602 Audio support for BF52x ezkit"
+	depends on SND_BF5XX_I2S
+	select SND_BF5XX_SOC_I2S
+	select SND_SOC_SSM2602
+	select I2C
+	select I2C_BLACKFIN_TWI
+	help
+	  Say Y if you want to add support for SoC audio on BF527-EZKIT.
+
+config SND_BF5XX_AC97
+	tristate "SoC AC97 Audio for the ADI BF5xx chip"
+	depends on BLACKFIN && SND_SOC
+	help
+	  Say Y or M if you want to add support for codecs attached to
+	  the Blackfin SPORT (synchronous serial ports) interface in slot 16
+	  mode (pseudo AC97 interface).
+	  You will also need to select the audio interfaces to support below.
+
+	  Note:
+	  AC97 codecs which do not implment the slot-16 mode will not function
+	  properly with this driver. This driver is known to work with the
+	  Analog Devices line of AC97 codecs.
+
+config SND_MMAP_SUPPORT
+	bool "Enable MMAP Support"
+	depends on SND_BF5XX_AC97
+	default y
+	help
+	  Say y if you want AC97 driver to support mmap mode.
+	  We introduce an intermediate buffer to simulate mmap.
+
+config SND_BF5XX_SOC_SPORT
+	tristate
+	
+config SND_BF5XX_SOC_I2S
+	tristate
+	select SND_BF5XX_SOC_SPORT
+
+config SND_BF5XX_SOC_AC97
+	tristate
+	select AC97_BUS
+	select SND_SOC_AC97_BUS
+	select SND_BF5XX_SOC_SPORT
+
+config SND_BF5XX_SOC_AD1980
+	tristate "SoC AD1980/1 Audio support for BF5xx"
+	depends on SND_BF5XX_AC97
+	select SND_BF5XX_SOC_AC97
+	select SND_SOC_AD1980
+	help
+	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
+
+config SND_BF5XX_SPORT_NUM
+	int "Set a SPORT for Sound chip"
+	depends on (SND_BF5XX_I2S || SND_BF5XX_AC97)
+	range 0 3 if BF54x
+	range 0 1 if (BF53x || BF561)
+	default 0
+	help
+	  Set the correct SPORT for sound chip.
+
+config SND_BF5XX_HAVE_COLD_RESET
+	bool "BOARD has COLD Reset GPIO"
+	depends on SND_BF5XX_AC97
+	default y if BFIN548_EZKIT
+	default n if !BFIN548_EZKIT
+	
+config SND_BF5XX_RESET_GPIO_NUM
+	int "Set a GPIO for cold reset"
+	depends on SND_BF5XX_HAVE_COLD_RESET
+	range 0 159
+	default 19 if BFIN548_EZKIT
+	default 5 if BFIN537_STAMP
+	help
+	  Set the correct GPIO for RESET the sound chip.
