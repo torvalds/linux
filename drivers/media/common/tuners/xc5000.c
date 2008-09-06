@@ -30,7 +30,6 @@
 #include "dvb_frontend.h"
 
 #include "xc5000.h"
-#include "xc5000_priv.h"
 
 static int debug;
 module_param(debug, int, 0644);
@@ -45,6 +44,18 @@ MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
 
 #define XC5000_DEFAULT_FIRMWARE "dvb-fe-xc5000-1.1.fw"
 #define XC5000_DEFAULT_FIRMWARE_SIZE 12332
+
+struct xc5000_priv {
+	struct xc5000_config *cfg;
+	struct i2c_adapter   *i2c;
+
+	u32 freq_hz;
+	u32 bandwidth;
+	u8  video_standard;
+	u8  rf_mode;
+
+	void *devptr;
+};
 
 /* Misc Defines */
 #define MAX_TV_STANDARD			23
