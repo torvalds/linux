@@ -340,6 +340,12 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 	}
 	codec->active--;
 
+	/* Muting the DAC suppresses artifacts caused during digital
+	 * shutdown, for example from stopping clocks.
+	 */
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		snd_soc_dai_digital_mute(codec_dai, 1);
+
 	if (cpu_dai->ops.shutdown)
 		cpu_dai->ops.shutdown(substream);
 
