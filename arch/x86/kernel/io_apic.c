@@ -41,6 +41,7 @@
 #endif
 #include <linux/bootmem.h>
 #include <linux/dmar.h>
+#include <linux/hpet.h>
 
 #include <asm/idle.h>
 #include <asm/io.h>
@@ -56,6 +57,7 @@
 #include <asm/hypertransport.h>
 #include <asm/setup.h>
 #include <asm/irq_remapping.h>
+#include <asm/hpet.h>
 
 #include <mach_ipi.h>
 #include <mach_apic.h>
@@ -3517,6 +3519,68 @@ int arch_setup_dmar_msi(unsigned int irq)
 		return ret;
 	dmar_msi_write(irq, &msg);
 	set_irq_chip_and_handler_name(irq, &dmar_msi_type, handle_edge_irq,
+		"edge");
+	return 0;
+}
+#endif
+
+#ifdef CONFIG_HPET_TIMER
+
+#ifdef CONFIG_SMP
+static void hpet_msi_set_affinity(unsigned int irq, cpumask_t mask)
+{
+	struct irq_cfg *cfg;
+	struct irq_desc *desc;
+	struct msi_msg msg;
+	unsigned int dest;
+	cpumask_t tmp;
+
+	cpus_and(tmp, mask, cpu_online_map);
+	if (cpus_empty(tmp))
+		return;
+
+	if (assign_irq_vector(irq, mask))
+		return;
+
+	cfg = irq_cfg(irq);
+	cpus_and(tmp, cfg->domain, mask);
+	dest = cpu_mask_to_apicid(tmp);
+
+	hpet_msi_read(irq, &msg);
+
+	msg.data &= ~MSI_DATA_VECTOR_MASK;
+	msg.data |= MSI_DATA_VECTOR(cfg->vector);
+	msg.address_lo &= ~MSI_ADDR_DEST_ID_MASK;
+	msg.address_lo |= MSI_ADDR_DEST_ID(dest);
+
+	hpet_msi_write(irq, &msg);
+	desc = irq_to_desc(irq);
+	desc->affinity = mask;
+}
+#endif /* CONFIG_SMP */
+
+struct irq_chip hpet_msi_type = {
+	.name = "HPET_MSI",
+	.unmask = hpet_msi_unmask,
+	.mask = hpet_msi_mask,
+	.ack = ack_apic_edge,
+#ifdef CONFIG_SMP
+	.set_affinity = hpet_msi_set_affinity,
+#endif
+	.retrigger = ioapic_retrigger_irq,
+};
+
+int arch_setup_hpet_msi(unsigned int irq)
+{
+	int ret;
+	struct msi_msg msg;
+
+	ret = msi_compose_msg(NULL, irq, &msg);
+	if (ret < 0)
+		return ret;
+
+	hpet_msi_write(irq, &msg);
+	set_irq_chip_and_handler_name(irq, &hpet_msi_type, handle_edge_irq,
 		"edge");
 	return 0;
 }

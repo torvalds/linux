@@ -6,6 +6,8 @@
 #include <linux/init.h>
 #include <linux/sysdev.h>
 #include <linux/pm.h>
+#include <linux/interrupt.h>
+#include <linux/cpu.h>
 
 #include <asm/fixmap.h>
 #include <asm/hpet.h>
@@ -24,6 +26,15 @@
  */
 unsigned long hpet_address;
 static void __iomem *hpet_virt_address;
+
+struct hpet_dev {
+	struct clock_event_device evt;
+	unsigned int num;
+	int cpu;
+	unsigned int irq;
+	unsigned int flags;
+	char name[10];
+};
 
 unsigned long hpet_readl(unsigned long a)
 {
@@ -302,6 +313,49 @@ static int hpet_legacy_next_event(unsigned long delta,
 			struct clock_event_device *evt)
 {
 	return hpet_next_event(delta, evt, 0);
+}
+
+/*
+ * HPET MSI Support
+ */
+
+void hpet_msi_unmask(unsigned int irq)
+{
+	struct hpet_dev *hdev = get_irq_data(irq);
+	unsigned long cfg;
+
+	/* unmask it */
+	cfg = hpet_readl(HPET_Tn_CFG(hdev->num));
+	cfg |= HPET_TN_FSB;
+	hpet_writel(cfg, HPET_Tn_CFG(hdev->num));
+}
+
+void hpet_msi_mask(unsigned int irq)
+{
+	unsigned long cfg;
+	struct hpet_dev *hdev = get_irq_data(irq);
+
+	/* mask it */
+	cfg = hpet_readl(HPET_Tn_CFG(hdev->num));
+	cfg &= ~HPET_TN_FSB;
+	hpet_writel(cfg, HPET_Tn_CFG(hdev->num));
+}
+
+void hpet_msi_write(unsigned int irq, struct msi_msg *msg)
+{
+	struct hpet_dev *hdev = get_irq_data(irq);
+
+	hpet_writel(msg->data, HPET_Tn_ROUTE(hdev->num));
+	hpet_writel(msg->address_lo, HPET_Tn_ROUTE(hdev->num) + 4);
+}
+
+void hpet_msi_read(unsigned int irq, struct msi_msg *msg)
+{
+	struct hpet_dev *hdev = get_irq_data(irq);
+
+	msg->data = hpet_readl(HPET_Tn_ROUTE(hdev->num));
+	msg->address_lo = hpet_readl(HPET_Tn_ROUTE(hdev->num) + 4);
+	msg->address_hi = 0;
 }
 
 /*
