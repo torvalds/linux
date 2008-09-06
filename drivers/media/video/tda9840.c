@@ -47,6 +47,15 @@ MODULE_PARM_DESC(debug, "Debug level (0-1)");
 #define	STEREO_ADJUST	0x03
 #define	TEST		0x04
 
+#define TDA9840_SET_MUTE                0x00
+#define TDA9840_SET_MONO                0x10
+#define TDA9840_SET_STEREO              0x2a
+#define TDA9840_SET_LANG1               0x12
+#define TDA9840_SET_LANG2               0x1e
+#define TDA9840_SET_BOTH                0x1a
+#define TDA9840_SET_BOTH_R              0x16
+#define TDA9840_SET_EXTERNAL            0x7a
+
 /* addresses to scan, found only at 0x42 (7-Bit) */
 static unsigned short normal_i2c[] = { I2C_ADDR_TDA9840, I2C_CLIENT_END };
 
@@ -62,26 +71,74 @@ static void tda9840_write(struct i2c_client *client, u8 reg, u8 val)
 
 static int tda9840_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
-	int result;
+	int result = 0;
 	int byte = *(int *)arg;
 
 	switch (cmd) {
-	case TDA9840_SWITCH:
-		v4l_dbg(1, debug, client, "TDA9840_SWITCH: 0x%02x\n", byte);
+	case VIDIOC_S_TUNER: {
+		struct v4l2_tuner *t = arg;
+		int byte;
 
-		if (byte != TDA9840_SET_MONO
-		    && byte != TDA9840_SET_MUTE
-		    && byte != TDA9840_SET_STEREO
-		    && byte != TDA9840_SET_LANG1
-		    && byte != TDA9840_SET_LANG2
-		    && byte != TDA9840_SET_BOTH
-		    && byte != TDA9840_SET_BOTH_R
-		    && byte != TDA9840_SET_EXTERNAL) {
+		if (t->index)
+			return -EINVAL;
+
+		switch (t->audmode) {
+		case V4L2_TUNER_MODE_STEREO:
+			byte = TDA9840_SET_STEREO;
+			break;
+		case V4L2_TUNER_MODE_LANG1_LANG2:
+			byte = TDA9840_SET_BOTH;
+			break;
+		case V4L2_TUNER_MODE_LANG1:
+			byte = TDA9840_SET_LANG1;
+			break;
+		case V4L2_TUNER_MODE_LANG2:
+			byte = TDA9840_SET_LANG2;
+			break;
+		default:
+			byte = TDA9840_SET_MONO;
+			break;
+		}
+		v4l_dbg(1, debug, client, "TDA9840_SWITCH: 0x%02x\n", byte);
+		tda9840_write(client, SWITCH, byte);
+		break;
+	}
+
+	case VIDIOC_G_TUNER: {
+		struct v4l2_tuner *t = arg;
+		u8 byte;
+
+		t->rxsubchans = V4L2_TUNER_SUB_MONO;
+		if (1 != i2c_master_recv(client, &byte, 1)) {
+			v4l_dbg(1, debug, client,
+				"i2c_master_recv() failed\n");
+			return -EIO;
+		}
+
+		if (byte & 0x80) {
+			v4l_dbg(1, debug, client,
+				"TDA9840_DETECT: register contents invalid\n");
 			return -EINVAL;
 		}
 
-		tda9840_write(client, SWITCH, byte);
+		v4l_dbg(1, debug, client, "TDA9840_DETECT: byte: 0x%02x\n", byte);
+
+		switch (byte & 0x60) {
+		case 0x00:
+			t->rxsubchans = V4L2_TUNER_SUB_MONO;
+			break;
+		case 0x20:
+			t->rxsubchans = V4L2_TUNER_SUB_LANG1 | V4L2_TUNER_SUB_LANG2;
+			break;
+		case 0x40:
+			t->rxsubchans = V4L2_TUNER_SUB_STEREO | V4L2_TUNER_SUB_MONO;
+			break;
+		default: /* Incorrect detect */
+			t->rxsubchans = V4L2_TUNER_MODE_MONO;
+			break;
+		}
 		break;
+	}
 
 	case TDA9840_LEVEL_ADJUST:
 		v4l_dbg(1, debug, client, "TDA9840_LEVEL_ADJUST: %d\n", byte);
@@ -115,36 +172,6 @@ static int tda9840_command(struct i2c_client *client, unsigned cmd, void *arg)
 
 		tda9840_write(client, STEREO_ADJUST, byte);
 		break;
-
-	case TDA9840_DETECT: {
-		int *ret = (int *)arg;
-
-		byte = i2c_smbus_read_byte_data(client, STEREO_ADJUST);
-		if (byte == -1) {
-			v4l_dbg(1, debug, client,
-				"i2c_smbus_read_byte_data() failed\n");
-			return -EIO;
-		}
-
-		if (byte & 0x80) {
-			v4l_dbg(1, debug, client,
-				"TDA9840_DETECT: register contents invalid\n");
-			return -EINVAL;
-		}
-
-		v4l_dbg(1, debug, client, "TDA9840_DETECT: byte: 0x%02x\n", byte);
-		*ret = (byte & 0x60) >> 5;
-		result = 0;
-		break;
-	}
-	case TDA9840_TEST:
-		v4l_dbg(1, debug, client, "TDA9840_TEST: 0x%02x\n", byte);
-
-		/* mask out irrelevant bits */
-		byte &= 0x3;
-
-		tda9840_write(client, TEST, byte);
-		break;
 	default:
 		return -ENOIOCTLCMD;
 	}
@@ -174,8 +201,7 @@ static int tda9840_probe(struct i2c_client *client,
 	byte = 0;
 	result = tda9840_command(client, TDA9840_LEVEL_ADJUST, &byte);
 	result += tda9840_command(client, TDA9840_STEREO_ADJUST, &byte);
-	byte = TDA9840_SET_MONO;
-	result = tda9840_command(client, TDA9840_SWITCH, &byte);
+	tda9840_write(client, SWITCH, TDA9840_SET_STEREO);
 	if (result) {
 		v4l_dbg(1, debug, client, "could not initialize tda9840\n");
 		return -ENODEV;
