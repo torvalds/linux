@@ -1,5 +1,5 @@
-#ifndef _ASMX86_TIME_H
-#define _ASMX86_TIME_H
+#ifndef ASM_X86__TIME_H
+#define ASM_X86__TIME_H
 
 extern void hpet_time_init(void);
 
@@ -46,6 +46,8 @@ static inline int native_set_wallclock(unsigned long nowtime)
 
 #endif
 
+extern void time_init(void);
+
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else /* !CONFIG_PARAVIRT */
@@ -58,4 +60,4 @@ static inline int native_set_wallclock(unsigned long nowtime)
 
 extern unsigned long __init calibrate_cpu(void);
 
-#endif
+#endif /* ASM_X86__TIME_H */

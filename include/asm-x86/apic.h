@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_APIC_H
-#define _ASM_X86_APIC_H
+#ifndef ASM_X86__APIC_H
+#define ASM_X86__APIC_H
 
 #include <linux/pm.h>
 #include <linux/delay.h>
@@ -9,6 +9,8 @@
 #include <asm/apicdef.h>
 #include <asm/processor.h>
 #include <asm/system.h>
+#include <asm/cpufeature.h>
+#include <asm/msr.h>
 
 #define ARCH_APICTIMER_STOPS_ON_C3	1
 
@@ -47,15 +49,18 @@ extern int disable_apic;
 #ifdef CONFIG_PARAVIRT
 #include <asm/paravirt.h>
 #else
-#define apic_write native_apic_write
-#define apic_read native_apic_read
 #define setup_boot_clock setup_boot_APIC_clock
 #define setup_secondary_clock setup_secondary_APIC_clock
 #endif
 
 extern int is_vsmp_box(void);
+extern void xapic_wait_icr_idle(void);
+extern u32 safe_xapic_wait_icr_idle(void);
+extern u64 xapic_icr_read(void);
+extern void xapic_icr_write(u32, u32);
+extern int setup_profiling_timer(unsigned int);
 
-static inline void native_apic_write(unsigned long reg, u32 v)
+static inline void native_apic_mem_write(u32 reg, u32 v)
 {
 	volatile u32 *addr = (volatile u32 *)(APIC_BASE + reg);
 
@@ -64,14 +69,67 @@ static inline void native_apic_write(unsigned long reg, u32 v)
 		       ASM_OUTPUT2("0" (v), "m" (*addr)));
 }
 
-static inline u32 native_apic_read(unsigned long reg)
+static inline u32 native_apic_mem_read(u32 reg)
 {
 	return *((volatile u32 *)(APIC_BASE + reg));
 }
 
-extern void apic_wait_icr_idle(void);
-extern u32 safe_apic_wait_icr_idle(void);
+static inline void native_apic_msr_write(u32 reg, u32 v)
+{
+	if (reg == APIC_DFR || reg == APIC_ID || reg == APIC_LDR ||
+	    reg == APIC_LVR)
+		return;
+
+	wrmsr(APIC_BASE_MSR + (reg >> 4), v, 0);
+}
+
+static inline u32 native_apic_msr_read(u32 reg)
+{
+	u32 low, high;
+
+	if (reg == APIC_DFR)
+		return -1;
+
+	rdmsr(APIC_BASE_MSR + (reg >> 4), low, high);
+	return low;
+}
+
+#ifndef CONFIG_X86_32
+extern int x2apic, x2apic_preenabled;
+extern void check_x2apic(void);
+extern void enable_x2apic(void);
+extern void enable_IR_x2apic(void);
+extern void x2apic_icr_write(u32 low, u32 id);
+#endif
+
+struct apic_ops {
+	u32 (*read)(u32 reg);
+	void (*write)(u32 reg, u32 v);
+	u64 (*icr_read)(void);
+	void (*icr_write)(u32 low, u32 high);
+	void (*wait_icr_idle)(void);
+	u32 (*safe_wait_icr_idle)(void);
+};
+
+extern struct apic_ops *apic_ops;
+
+#define apic_read (apic_ops->read)
+#define apic_write (apic_ops->write)
+#define apic_icr_read (apic_ops->icr_read)
+#define apic_icr_write (apic_ops->icr_write)
+#define apic_wait_icr_idle (apic_ops->wait_icr_idle)
+#define safe_apic_wait_icr_idle (apic_ops->safe_wait_icr_idle)
+
 extern int get_physical_broadcast(void);
+
+#ifdef CONFIG_X86_64
+static inline void ack_x2APIC_irq(void)
+{
+	/* Docs say use 0 for future compatibility */
+	native_apic_msr_write(APIC_EOI, 0);
+}
+#endif
+
 
 static inline void ack_APIC_irq(void)
 {
@@ -128,4 +186,4 @@ static inline void init_apic_mappings(void) { }
 
 #endif /* !CONFIG_X86_LOCAL_APIC */
 
-#endif /* __ASM_APIC_H */
+#endif /* ASM_X86__APIC_H */

@@ -49,16 +49,12 @@
 
 #define DEFAULT_DOMAIN_ADDRESS_WIDTH 48
 
-#define DMAR_OPERATION_TIMEOUT ((cycles_t) tsc_khz*10*1000) /* 10sec */
-
 #define DOMAIN_MAX_ADDR(gaw) ((((u64)1) << gaw) - 1)
 
 
 static void flush_unmaps_timeout(unsigned long data);
 
 DEFINE_TIMER(unmap_timer,  flush_unmaps_timeout, 0, 0);
-
-static struct intel_iommu *g_iommus;
 
 #define HIGH_WATER_MARK 250
 struct deferred_flush_tables {
@@ -80,7 +76,7 @@ static long list_size;
 
 static void domain_remove_dev_info(struct dmar_domain *domain);
 
-static int dmar_disabled;
+int dmar_disabled;
 static int __initdata dmar_map_gfx = 1;
 static int dmar_forcedac;
 static int intel_iommu_strict;
@@ -183,13 +179,6 @@ struct iova *alloc_iova_mem(void)
 void free_iova_mem(struct iova *iova)
 {
 	kmem_cache_free(iommu_iova_cache, iova);
-}
-
-static inline void __iommu_flush_cache(
-	struct intel_iommu *iommu, void *addr, int size)
-{
-	if (!ecap_coherent(iommu->ecap))
-		clflush_cache_range(addr, size);
 }
 
 /* Gets context entry for a given bus and devfn */
@@ -486,19 +475,6 @@ static int iommu_alloc_root_entry(struct intel_iommu *iommu)
 	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
-}
-
-#define IOMMU_WAIT_OP(iommu, offset, op, cond, sts) \
-{\
-	cycles_t start_time = get_cycles();\
-	while (1) {\
-		sts = op (iommu->reg + offset);\
-		if (cond)\
-			break;\
-		if (DMAR_OPERATION_TIMEOUT < (get_cycles() - start_time))\
-			panic("DMAR hardware is malfunctioning\n");\
-		cpu_relax();\
-	}\
 }
 
 static void iommu_set_root_entry(struct intel_iommu *iommu)
@@ -990,6 +966,8 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 		return -ENOMEM;
 	}
 
+	spin_lock_init(&iommu->lock);
+
 	/*
 	 * if Caching mode is set, then invalid translations are tagged
 	 * with domainid 0. Hence we need to pre-allocate it.
@@ -998,61 +976,14 @@ static int iommu_init_domains(struct intel_iommu *iommu)
 		set_bit(0, iommu->domain_ids);
 	return 0;
 }
-static struct intel_iommu *alloc_iommu(struct intel_iommu *iommu,
-					struct dmar_drhd_unit *drhd)
-{
-	int ret;
-	int map_size;
-	u32 ver;
 
-	iommu->reg = ioremap(drhd->reg_base_addr, PAGE_SIZE_4K);
-	if (!iommu->reg) {
-		printk(KERN_ERR "IOMMU: can't map the region\n");
-		goto error;
-	}
-	iommu->cap = dmar_readq(iommu->reg + DMAR_CAP_REG);
-	iommu->ecap = dmar_readq(iommu->reg + DMAR_ECAP_REG);
-
-	/* the registers might be more than one page */
-	map_size = max_t(int, ecap_max_iotlb_offset(iommu->ecap),
-		cap_max_fault_reg_offset(iommu->cap));
-	map_size = PAGE_ALIGN_4K(map_size);
-	if (map_size > PAGE_SIZE_4K) {
-		iounmap(iommu->reg);
-		iommu->reg = ioremap(drhd->reg_base_addr, map_size);
-		if (!iommu->reg) {
-			printk(KERN_ERR "IOMMU: can't map the region\n");
-			goto error;
-		}
-	}
-
-	ver = readl(iommu->reg + DMAR_VER_REG);
-	pr_debug("IOMMU %llx: ver %d:%d cap %llx ecap %llx\n",
-		drhd->reg_base_addr, DMAR_VER_MAJOR(ver), DMAR_VER_MINOR(ver),
-		iommu->cap, iommu->ecap);
-	ret = iommu_init_domains(iommu);
-	if (ret)
-		goto error_unmap;
-	spin_lock_init(&iommu->lock);
-	spin_lock_init(&iommu->register_lock);
-
-	drhd->iommu = iommu;
-	return iommu;
-error_unmap:
-	iounmap(iommu->reg);
-error:
-	kfree(iommu);
-	return NULL;
-}
 
 static void domain_exit(struct dmar_domain *domain);
-static void free_iommu(struct intel_iommu *iommu)
+
+void free_dmar_iommu(struct intel_iommu *iommu)
 {
 	struct dmar_domain *domain;
 	int i;
-
-	if (!iommu)
-		return;
 
 	i = find_first_bit(iommu->domain_ids, cap_ndoms(iommu->cap));
 	for (; i < cap_ndoms(iommu->cap); ) {
@@ -1078,10 +1009,6 @@ static void free_iommu(struct intel_iommu *iommu)
 
 	/* free context mapping */
 	free_context_table(iommu);
-
-	if (iommu->reg)
-		iounmap(iommu->reg);
-	kfree(iommu);
 }
 
 static struct dmar_domain * iommu_alloc_domain(struct intel_iommu *iommu)
@@ -1426,37 +1353,6 @@ find_domain(struct pci_dev *pdev)
 	return NULL;
 }
 
-static int dmar_pci_device_match(struct pci_dev *devices[], int cnt,
-     struct pci_dev *dev)
-{
-	int index;
-
-	while (dev) {
-		for (index = 0; index < cnt; index++)
-			if (dev == devices[index])
-				return 1;
-
-		/* Check our parent */
-		dev = dev->bus->self;
-	}
-
-	return 0;
-}
-
-static struct dmar_drhd_unit *
-dmar_find_matched_drhd_unit(struct pci_dev *dev)
-{
-	struct dmar_drhd_unit *drhd = NULL;
-
-	list_for_each_entry(drhd, &dmar_drhd_units, list) {
-		if (drhd->include_all || dmar_pci_device_match(drhd->devices,
-						drhd->devices_cnt, dev))
-			return drhd;
-	}
-
-	return NULL;
-}
-
 /* domain is initialized */
 static struct dmar_domain *get_domain_for_dev(struct pci_dev *pdev, int gaw)
 {
@@ -1729,20 +1625,12 @@ int __init init_dmars(void)
 	 * endfor
 	 */
 	for_each_drhd_unit(drhd) {
-		if (drhd->ignored)
-			continue;
 		g_num_of_iommus++;
 		/*
 		 * lock not needed as this is only incremented in the single
 		 * threaded kernel __init code path all other access are read
 		 * only
 		 */
-	}
-
-	g_iommus = kzalloc(g_num_of_iommus * sizeof(*iommu), GFP_KERNEL);
-	if (!g_iommus) {
-		ret = -ENOMEM;
-		goto error;
 	}
 
 	deferred_flush = kzalloc(g_num_of_iommus *
@@ -1752,16 +1640,15 @@ int __init init_dmars(void)
 		goto error;
 	}
 
-	i = 0;
 	for_each_drhd_unit(drhd) {
 		if (drhd->ignored)
 			continue;
-		iommu = alloc_iommu(&g_iommus[i], drhd);
-		i++;
-		if (!iommu) {
-			ret = -ENOMEM;
+
+		iommu = drhd->iommu;
+
+		ret = iommu_init_domains(iommu);
+		if (ret)
 			goto error;
-		}
 
 		/*
 		 * TBD:
@@ -1845,7 +1732,6 @@ error:
 		iommu = drhd->iommu;
 		free_iommu(iommu);
 	}
-	kfree(g_iommus);
 	return ret;
 }
 
@@ -2002,7 +1888,10 @@ static void flush_unmaps(void)
 	/* just flush them all */
 	for (i = 0; i < g_num_of_iommus; i++) {
 		if (deferred_flush[i].next) {
-			iommu_flush_iotlb_global(&g_iommus[i], 0);
+			struct intel_iommu *iommu =
+				deferred_flush[i].domain[0]->iommu;
+
+			iommu_flush_iotlb_global(iommu, 0);
 			for (j = 0; j < deferred_flush[i].next; j++) {
 				__free_iova(&deferred_flush[i].domain[j]->iovad,
 						deferred_flush[i].iova[j]);
@@ -2032,7 +1921,8 @@ static void add_unmap(struct dmar_domain *dom, struct iova *iova)
 	if (list_size == HIGH_WATER_MARK)
 		flush_unmaps();
 
-	iommu_id = dom->iommu - g_iommus;
+	iommu_id = dom->iommu->seq_id;
+
 	next = deferred_flush[iommu_id].next;
 	deferred_flush[iommu_id].domain[next] = dom;
 	deferred_flush[iommu_id].iova[next] = iova;
@@ -2348,15 +2238,6 @@ static void __init iommu_exit_mempool(void)
 
 }
 
-void __init detect_intel_iommu(void)
-{
-	if (swiotlb || no_iommu || iommu_detected || dmar_disabled)
-		return;
-	if (early_dmar_detect()) {
-		iommu_detected = 1;
-	}
-}
-
 static void __init init_no_remapping_devices(void)
 {
 	struct dmar_drhd_unit *drhd;
@@ -2403,11 +2284,18 @@ int __init intel_iommu_init(void)
 {
 	int ret = 0;
 
-	if (no_iommu || swiotlb || dmar_disabled)
-		return -ENODEV;
-
 	if (dmar_table_init())
 		return 	-ENODEV;
+
+	if (dmar_dev_scope_init())
+		return 	-ENODEV;
+
+	/*
+	 * Check the need for DMA-remapping initialization now.
+	 * Above initialization will also be used by Interrupt-remapping.
+	 */
+	if (no_iommu || swiotlb || dmar_disabled)
+		return -ENODEV;
 
 	iommu_init_mempool();
 	dmar_init_reserved_ranges();

@@ -24,8 +24,8 @@
  * Send feedback to Pat Gaughen <gone@us.ibm.com>
  */
 
-#ifndef _ASM_SRAT_H_
-#define _ASM_SRAT_H_
+#ifndef ASM_X86__SRAT_H
+#define ASM_X86__SRAT_H
 
 #ifdef CONFIG_ACPI_NUMA
 extern int get_memcfg_from_srat(void);
@@ -36,4 +36,4 @@ static inline int get_memcfg_from_srat(void)
 }
 #endif
 
-#endif /* _ASM_SRAT_H_ */
+#endif /* ASM_X86__SRAT_H */

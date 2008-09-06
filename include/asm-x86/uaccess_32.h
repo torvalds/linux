@@ -1,5 +1,5 @@
-#ifndef __i386_UACCESS_H
-#define __i386_UACCESS_H
+#ifndef ASM_X86__UACCESS_32_H
+#define ASM_X86__UACCESS_32_H
 
 /*
  * User space memory access functions
@@ -215,4 +215,4 @@ long strnlen_user(const char __user *str, long n);
 unsigned long __must_check clear_user(void __user *mem, unsigned long len);
 unsigned long __must_check __clear_user(void __user *mem, unsigned long len);
 
-#endif /* __i386_UACCESS_H */
+#endif /* ASM_X86__UACCESS_32_H */

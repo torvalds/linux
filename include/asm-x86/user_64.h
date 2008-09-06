@@ -1,5 +1,5 @@
-#ifndef _X86_64_USER_H
-#define _X86_64_USER_H
+#ifndef ASM_X86__USER_64_H
+#define ASM_X86__USER_64_H
 
 #include <asm/types.h>
 #include <asm/page.h>
@@ -134,4 +134,4 @@ struct user {
 #define HOST_TEXT_START_ADDR (u.start_code)
 #define HOST_STACK_END_ADDR (u.start_stack + u.u_ssize * NBPG)
 
-#endif /* _X86_64_USER_H */
+#endif /* ASM_X86__USER_64_H */

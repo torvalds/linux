@@ -53,4 +53,4 @@ static inline int irq_to_gpio(unsigned int irq)
 
 #endif /* CONFIG_GPIOLIB */
 
-#endif /* _ASM_I386_GPIO_H */
+#endif /* ASM_X86__GPIO_H */

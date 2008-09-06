@@ -1,5 +1,5 @@
-#ifndef _RDC321X_GPIO_H
-#define _RDC321X_GPIO_H
+#ifndef ASM_X86__MACH_RDC321X__GPIO_H
+#define ASM_X86__MACH_RDC321X__GPIO_H
 
 extern int rdc_gpio_get_value(unsigned gpio);
 extern void rdc_gpio_set_value(unsigned gpio, int value);
@@ -54,4 +54,4 @@ static inline int irq_to_gpio(unsigned irq)
 /* For cansleep */
 #include <asm-generic/gpio.h>
 
-#endif /* _RDC321X_GPIO_H_ */
+#endif /* ASM_X86__MACH_RDC321X__GPIO_H */

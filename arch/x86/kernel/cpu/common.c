@@ -13,6 +13,7 @@
 #include <asm/mtrr.h>
 #include <asm/mce.h>
 #include <asm/pat.h>
+#include <asm/asm.h>
 #ifdef CONFIG_X86_LOCAL_APIC
 #include <asm/mpspec.h>
 #include <asm/apic.h>
@@ -341,6 +342,35 @@ static void __init early_cpu_detect(void)
 	early_get_cap(c);
 }
 
+/*
+ * The NOPL instruction is supposed to exist on all CPUs with
+ * family >= 6, unfortunately, that's not true in practice because
+ * of early VIA chips and (more importantly) broken virtualizers that
+ * are not easy to detect.  Hence, probe for it based on first
+ * principles.
+ */
+static void __cpuinit detect_nopl(struct cpuinfo_x86 *c)
+{
+	const u32 nopl_signature = 0x888c53b1; /* Random number */
+	u32 has_nopl = nopl_signature;
+
+	clear_cpu_cap(c, X86_FEATURE_NOPL);
+	if (c->x86 >= 6) {
+		asm volatile("\n"
+			     "1:      .byte 0x0f,0x1f,0xc0\n" /* nopl %eax */
+			     "2:\n"
+			     "        .section .fixup,\"ax\"\n"
+			     "3:      xor %0,%0\n"
+			     "        jmp 2b\n"
+			     "        .previous\n"
+			     _ASM_EXTABLE(1b,3b)
+			     : "+a" (has_nopl));
+
+		if (has_nopl == nopl_signature)
+			set_cpu_cap(c, X86_FEATURE_NOPL);
+	}
+}
+
 static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 {
 	u32 tfms, xlvl;
@@ -395,8 +425,8 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		}
 
 		init_scattered_cpuid_features(c);
+		detect_nopl(c);
 	}
-
 }
 
 static void __cpuinit squash_the_stupid_serial_number(struct cpuinfo_x86 *c)
@@ -709,9 +739,20 @@ void __cpuinit cpu_init(void)
 	/*
 	 * Force FPU initialization:
 	 */
-	current_thread_info()->status = 0;
+	if (cpu_has_xsave)
+		current_thread_info()->status = TS_XSAVE;
+	else
+		current_thread_info()->status = 0;
 	clear_used_math();
 	mxcsr_feature_mask_init();
+
+	/*
+	 * Boot processor to setup the FP and extended state context info.
+	 */
+	if (!smp_processor_id())
+		init_thread_xstate();
+
+	xsave_init();
 }
 
 #ifdef CONFIG_HOTPLUG_CPU

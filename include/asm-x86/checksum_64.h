@@ -1,5 +1,5 @@
-#ifndef _X86_64_CHECKSUM_H
-#define _X86_64_CHECKSUM_H
+#ifndef ASM_X86__CHECKSUM_64_H
+#define ASM_X86__CHECKSUM_64_H
 
 /*
  * Checksums for x86-64
@@ -188,4 +188,4 @@ static inline unsigned add32_with_carry(unsigned a, unsigned b)
 	return a;
 }
 
-#endif
+#endif /* ASM_X86__CHECKSUM_64_H */

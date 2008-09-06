@@ -1,5 +1,5 @@
-#ifndef __ASM_HARDIRQ_H
-#define __ASM_HARDIRQ_H
+#ifndef ASM_X86__HARDIRQ_32_H
+#define ASM_X86__HARDIRQ_32_H
 
 #include <linux/threads.h>
 #include <linux/irq.h>
@@ -25,4 +25,4 @@ DECLARE_PER_CPU(irq_cpustat_t, irq_stat);
 void ack_bad_irq(unsigned int irq);
 #include <linux/irq_cpustat.h>
 
-#endif /* __ASM_HARDIRQ_H */
+#endif /* ASM_X86__HARDIRQ_32_H */

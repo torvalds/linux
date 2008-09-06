@@ -46,6 +46,7 @@
 #include <asm/nmi.h>
 #include <asm/msidef.h>
 #include <asm/hypertransport.h>
+#include <asm/setup.h>
 
 #include <mach_apic.h>
 #include <mach_apicdef.h>
@@ -1490,7 +1491,7 @@ void /*__init*/ print_local_APIC(void *dummy)
 		smp_processor_id(), hard_smp_processor_id());
 	v = apic_read(APIC_ID);
 	printk(KERN_INFO "... APIC ID:      %08x (%01x)\n", v,
-			GET_APIC_ID(read_apic_id()));
+			GET_APIC_ID(v));
 	v = apic_read(APIC_LVR);
 	printk(KERN_INFO "... APIC VERSION: %08x\n", v);
 	ver = GET_APIC_VERSION(v);
@@ -1698,8 +1699,7 @@ void disable_IO_APIC(void)
 		entry.dest_mode       = 0; /* Physical */
 		entry.delivery_mode   = dest_ExtINT; /* ExtInt */
 		entry.vector          = 0;
-		entry.dest.physical.physical_dest =
-					GET_APIC_ID(read_apic_id());
+		entry.dest.physical.physical_dest = read_apic_id();
 
 		/*
 		 * Add it to the IO-APIC irq-routing table:
@@ -1725,10 +1725,8 @@ static void __init setup_ioapic_ids_from_mpc(void)
 	unsigned char old_id;
 	unsigned long flags;
 
-#ifdef CONFIG_X86_NUMAQ
-	if (found_numaq)
+	if (x86_quirks->setup_ioapic_ids && x86_quirks->setup_ioapic_ids())
 		return;
-#endif
 
 	/*
 	 * Don't check I/O APIC IDs for xAPIC systems.  They have

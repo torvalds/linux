@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_FUTEX_H
-#define _ASM_X86_FUTEX_H
+#ifndef ASM_X86__FUTEX_H
+#define ASM_X86__FUTEX_H
 
 #ifdef __KERNEL__
 
@@ -137,4 +137,4 @@ static inline int futex_atomic_cmpxchg_inatomic(int __user *uaddr, int oldval,
 }
 
 #endif
-#endif
+#endif /* ASM_X86__FUTEX_H */

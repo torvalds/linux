@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SPARSEMEM_H
-#define _ASM_X86_SPARSEMEM_H
+#ifndef ASM_X86__SPARSEMEM_H
+#define ASM_X86__SPARSEMEM_H
 
 #ifdef CONFIG_SPARSEMEM
 /*
@@ -31,4 +31,4 @@
 #endif
 
 #endif /* CONFIG_SPARSEMEM */
-#endif
+#endif /* ASM_X86__SPARSEMEM_H */

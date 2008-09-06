@@ -1,4 +1,4 @@
-#/*
+/*
  * Kernel-based Virtual Machine driver for Linux
  *
  * This header defines architecture specific interfaces, x86 version
@@ -8,8 +8,8 @@
  *
  */
 
-#ifndef ASM_KVM_HOST_H
-#define ASM_KVM_HOST_H
+#ifndef ASM_X86__KVM_HOST_H
+#define ASM_X86__KVM_HOST_H
 
 #include <linux/types.h>
 #include <linux/mm.h>
@@ -735,4 +735,4 @@ asmlinkage void kvm_handle_fault_on_reboot(void);
 int kvm_unmap_hva(struct kvm *kvm, unsigned long hva);
 int kvm_age_hva(struct kvm *kvm, unsigned long hva);
 
-#endif
+#endif /* ASM_X86__KVM_HOST_H */

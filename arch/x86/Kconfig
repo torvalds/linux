@@ -29,6 +29,7 @@ config X86
 	select HAVE_FTRACE
 	select HAVE_KVM if ((X86_32 && !X86_VOYAGER && !X86_VISWS && !X86_NUMAQ) || X86_64)
 	select HAVE_ARCH_KGDB if !X86_VOYAGER
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_GENERIC_DMA_COHERENT if X86_32
 	select HAVE_EFFICIENT_UNALIGNED_ACCESS
 
@@ -1642,6 +1643,14 @@ config DMAR_FLOPPY_WA
 	 thereby failing to work when IOMMU is enabled. This
 	 workaround will setup a 1:1 mapping for the first
 	 16M to make floppy (an ISA device) work.
+
+config INTR_REMAP
+	bool "Support for Interrupt Remapping (EXPERIMENTAL)"
+	depends on X86_64 && X86_IO_APIC && PCI_MSI && ACPI && EXPERIMENTAL
+	help
+	 Supports Interrupt remapping for IO-APIC and MSI devices.
+	 To use x2apic mode in the CPU's which support x2APIC enhancements or
+	 to support platforms with CPU's having > 8 bit APIC ID, say Y.
 
 source "drivers/pci/pcie/Kconfig"
 

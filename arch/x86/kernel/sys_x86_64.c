@@ -16,6 +16,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/ia32.h>
+#include <asm/syscalls.h>
 
 asmlinkage long sys_mmap(unsigned long addr, unsigned long len, unsigned long prot, unsigned long flags,
 	unsigned long fd, unsigned long off)

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_APICDEF_H
-#define _ASM_X86_APICDEF_H
+#ifndef ASM_X86__APICDEF_H
+#define ASM_X86__APICDEF_H
 
 /*
  * Constants for various Intel APICs. (local APIC, IOAPIC, etc.)
@@ -105,6 +105,7 @@
 #define	APIC_TMICT	0x380
 #define	APIC_TMCCT	0x390
 #define	APIC_TDCR	0x3E0
+#define APIC_SELF_IPI	0x3F0
 #define		APIC_TDR_DIV_TMBASE	(1 << 2)
 #define		APIC_TDR_DIV_1		0xB
 #define		APIC_TDR_DIV_2		0x0
@@ -128,6 +129,8 @@
 #define	APIC_EILVT3     0x530
 
 #define APIC_BASE (fix_to_virt(FIX_APIC_BASE))
+#define APIC_BASE_MSR	0x800
+#define X2APIC_ENABLE	(1UL << 10)
 
 #ifdef CONFIG_X86_32
 # define MAX_IO_APICS 64
@@ -411,4 +414,4 @@ struct local_apic {
 #else
  #define BAD_APICID 0xFFFFu
 #endif
-#endif
+#endif /* ASM_X86__APICDEF_H */

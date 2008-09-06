@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_SEMBUF_H
-#define _ASM_X86_SEMBUF_H
+#ifndef ASM_X86__SEMBUF_H
+#define ASM_X86__SEMBUF_H
 
 /*
  * The semid64_ds structure for x86 architecture.
@@ -21,4 +21,4 @@ struct semid64_ds {
 	unsigned long	__unused4;
 };
 
-#endif /* _ASM_X86_SEMBUF_H */
+#endif /* ASM_X86__SEMBUF_H */

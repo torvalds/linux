@@ -1,5 +1,5 @@
-#ifndef _ASM_REQUIRED_FEATURES_H
-#define _ASM_REQUIRED_FEATURES_H 1
+#ifndef ASM_X86__REQUIRED_FEATURES_H
+#define ASM_X86__REQUIRED_FEATURES_H
 
 /* Define minimum CPUID feature set for kernel These bits are checked
    really early to actually display a visible error message before the
@@ -41,6 +41,12 @@
 # define NEED_3DNOW	0
 #endif
 
+#if defined(CONFIG_X86_P6_NOP) || defined(CONFIG_X86_64)
+# define NEED_NOPL	(1<<(X86_FEATURE_NOPL & 31))
+#else
+# define NEED_NOPL	0
+#endif
+
 #ifdef CONFIG_X86_64
 #define NEED_PSE	0
 #define NEED_MSR	(1<<(X86_FEATURE_MSR & 31))
@@ -67,10 +73,10 @@
 #define REQUIRED_MASK1	(NEED_LM|NEED_3DNOW)
 
 #define REQUIRED_MASK2	0
-#define REQUIRED_MASK3	0
+#define REQUIRED_MASK3	(NEED_NOPL)
 #define REQUIRED_MASK4	0
 #define REQUIRED_MASK5	0
 #define REQUIRED_MASK6	0
 #define REQUIRED_MASK7	0
 
-#endif
+#endif /* ASM_X86__REQUIRED_FEATURES_H */

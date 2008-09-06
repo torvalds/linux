@@ -1,5 +1,5 @@
-#ifndef _ASM_IO_H
-#define _ASM_IO_H
+#ifndef ASM_X86__IO_64_H
+#define ASM_X86__IO_64_H
 
 
 /*
@@ -235,7 +235,6 @@ void memset_io(volatile void __iomem *a, int b, size_t c);
 
 #define flush_write_buffers()
 
-extern int iommu_bio_merge;
 #define BIO_VMERGE_BOUNDARY iommu_bio_merge
 
 /*
@@ -245,4 +244,4 @@ extern int iommu_bio_merge;
 
 #endif /* __KERNEL__ */
 
-#endif
+#endif /* ASM_X86__IO_64_H */

@@ -3,8 +3,8 @@
  *
  */
 
-#ifndef _ASM_MMZONE_H_
-#define _ASM_MMZONE_H_
+#ifndef ASM_X86__MMZONE_32_H
+#define ASM_X86__MMZONE_32_H
 
 #include <asm/smp.h>
 
@@ -131,4 +131,4 @@ static inline int pfn_valid(int pfn)
 })
 #endif /* CONFIG_NEED_MULTIPLE_NODES */
 
-#endif /* _ASM_MMZONE_H_ */
+#endif /* ASM_X86__MMZONE_32_H */

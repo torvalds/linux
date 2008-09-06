@@ -17,8 +17,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-#ifndef __AMD_IOMMU_TYPES_H__
-#define __AMD_IOMMU_TYPES_H__
+#ifndef ASM_X86__AMD_IOMMU_TYPES_H
+#define ASM_X86__AMD_IOMMU_TYPES_H
 
 #include <linux/types.h>
 #include <linux/list.h>
@@ -341,4 +341,4 @@ static inline u16 calc_devid(u8 bus, u8 devfn)
 	return (((u16)bus) << 8) | devfn;
 }
 
-#endif
+#endif /* ASM_X86__AMD_IOMMU_TYPES_H */

@@ -1,5 +1,5 @@
-#ifndef _ASM_X86_BYTEORDER_H
-#define _ASM_X86_BYTEORDER_H
+#ifndef ASM_X86__BYTEORDER_H
+#define ASM_X86__BYTEORDER_H
 
 #include <asm/types.h>
 #include <linux/compiler.h>
@@ -78,4 +78,4 @@ static inline __attribute_const__ __u32 ___arch__swab32(__u32 x)
 
 #include <linux/byteorder/little_endian.h>
 
-#endif /* _ASM_X86_BYTEORDER_H */
+#endif /* ASM_X86__BYTEORDER_H */
