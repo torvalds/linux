@@ -177,11 +177,14 @@ static u16 opcode_table[256] = {
 	/* 0xD8 - 0xDF */
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE0 - 0xE7 */
-	0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0,
+	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
+	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xE8 - 0xEF */
 	ImplicitOps | Stack, SrcImm | ImplicitOps,
 	ImplicitOps, SrcImmByte | ImplicitOps,
-	0, 0, 0, 0,
+	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
+	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps, ImplicitOps, Group | Group3_Byte, Group | Group3,
@@ -1259,6 +1262,8 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	u64 msr_data;
 	unsigned long saved_eip = 0;
 	struct decode_cache *c = &ctxt->decode;
+	unsigned int port;
+	int io_dir_in;
 	int rc = 0;
 
 	/* Shadow copy of register state. Committed on successful emulation.
@@ -1687,6 +1692,16 @@ special_insn:
 		c->src.val = c->regs[VCPU_REGS_RCX];
 		emulate_grp2(ctxt);
 		break;
+	case 0xe4: 	/* inb */
+	case 0xe5: 	/* in */
+		port = insn_fetch(u8, 1, c->eip);
+		io_dir_in = 1;
+		goto do_io;
+	case 0xe6: /* outb */
+	case 0xe7: /* out */
+		port = insn_fetch(u8, 1, c->eip);
+		io_dir_in = 0;
+		goto do_io;
 	case 0xe8: /* call (near) */ {
 		long int rel;
 		switch (c->op_bytes) {
@@ -1737,6 +1752,22 @@ special_insn:
 		jmp_rel(c, c->src.val);
 		c->dst.type = OP_NONE; /* Disable writeback. */
 		break;
+	case 0xec: /* in al,dx */
+	case 0xed: /* in (e/r)ax,dx */
+		port = c->regs[VCPU_REGS_RDX];
+		io_dir_in = 1;
+		goto do_io;
+	case 0xee: /* out al,dx */
+	case 0xef: /* out (e/r)ax,dx */
+		port = c->regs[VCPU_REGS_RDX];
+		io_dir_in = 0;
+	do_io:	if (kvm_emulate_pio(ctxt->vcpu, NULL, io_dir_in,
+				   (c->d & ByteOp) ? 1 : c->op_bytes,
+				   port) != 0) {
+			c->eip = saved_eip;
+			goto cannot_emulate;
+		}
+		return 0;
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->arch.halt_request = 1;
 		break;
