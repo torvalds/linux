@@ -101,18 +101,15 @@ void ivtv_expand_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 	}
 }
 
-static int check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
+static void check_service_set(struct v4l2_sliced_vbi_format *fmt, int is_pal)
 {
 	int f, l;
-	u16 set = 0;
 
 	for (f = 0; f < 2; f++) {
 		for (l = 0; l < 24; l++) {
 			fmt->service_lines[f][l] = select_service_from_set(f, l, fmt->service_lines[f][l], is_pal);
-			set |= fmt->service_lines[f][l];
 		}
 	}
-	return set != 0;
 }
 
 u16 ivtv_get_service_set(struct v4l2_sliced_vbi_format *fmt)
@@ -474,7 +471,7 @@ static int ivtv_try_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format 
 	int h = fmt->fmt.pix.height;
 
 	w = min(w, 720);
-	w = max(w, 1);
+	w = max(w, 2);
 	h = min(h, itv->is_50hz ? 576 : 480);
 	h = max(h, 2);
 	ivtv_g_fmt_vid_cap(file, fh, fmt);
@@ -512,18 +509,18 @@ static int ivtv_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_
 static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv_open_id *id = fh;
+	struct ivtv *itv = id->itv;
 	s32 w = fmt->fmt.pix.width;
 	s32 h = fmt->fmt.pix.height;
 	int field = fmt->fmt.pix.field;
 	int ret = ivtv_g_fmt_vid_out(file, fh, fmt);
 
-	if (!ret && id->type == IVTV_DEC_STREAM_TYPE_YUV) {
+	w = min(w, 720);
+	w = max(w, 2);
+	h = min(h, itv->is_out_50hz ? 576 : 480);
+	h = max(h, 2);
+	if (id->type == IVTV_DEC_STREAM_TYPE_YUV)
 		fmt->fmt.pix.field = field;
-		w = min(w, 720);
-		w = max(w, 2);
-		h = min(h, 576);
-		h = max(h, 2);
-	}
 	fmt->fmt.pix.width = w;
 	fmt->fmt.pix.height = h;
 	return ret;
@@ -593,8 +590,7 @@ static int ivtv_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 	if (ret || id->type == IVTV_DEC_STREAM_TYPE_VBI)
 		return ret;
 
-	if (check_service_set(vbifmt, itv->is_50hz) == 0)
-		return -EINVAL;
+	check_service_set(vbifmt, itv->is_50hz);
 	if (atomic_read(&itv->capturing) > 0)
 		return -EBUSY;
 	itv->video_dec_func(itv, VIDIOC_S_FMT, fmt);
