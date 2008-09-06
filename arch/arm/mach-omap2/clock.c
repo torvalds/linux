@@ -22,7 +22,7 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 
 #include <mach/clock.h>
 #include <mach/sram.h>
