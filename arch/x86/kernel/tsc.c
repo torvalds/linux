@@ -319,7 +319,7 @@ static unsigned long quick_pit_calibrate(void)
 		/*
 		 * Make sure we can rely on the second TSC timestamp:
 		 */
-		if (!pit_expect_msb(--expect))
+		if (!pit_expect_msb(expect))
 			goto failed;
 
 		/*
