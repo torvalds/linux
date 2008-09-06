@@ -491,6 +491,18 @@ static void tick_broadcast_clear_oneshot(int cpu)
 	cpu_clear(cpu, tick_broadcast_oneshot_mask);
 }
 
+static void tick_broadcast_init_next_event(cpumask_t *mask, ktime_t expires)
+{
+	struct tick_device *td;
+	int cpu;
+
+	for_each_cpu_mask_nr(cpu, *mask) {
+		td = &per_cpu(tick_cpu_device, cpu);
+		if (td->evtdev)
+			td->evtdev->next_event = expires;
+	}
+}
+
 /**
  * tick_broadcast_setup_oneshot - setup the broadcast device
  */
@@ -498,9 +510,32 @@ void tick_broadcast_setup_oneshot(struct clock_event_device *bc)
 {
 	/* Set it up only once ! */
 	if (bc->event_handler != tick_handle_oneshot_broadcast) {
+		int was_periodic = bc->mode == CLOCK_EVT_MODE_PERIODIC;
+		int cpu = smp_processor_id();
+		cpumask_t mask;
+
 		bc->event_handler = tick_handle_oneshot_broadcast;
 		clockevents_set_mode(bc, CLOCK_EVT_MODE_ONESHOT);
-		bc->next_event.tv64 = KTIME_MAX;
+
+		/* Take the do_timer update */
+		tick_do_timer_cpu = cpu;
+
+		/*
+		 * We must be careful here. There might be other CPUs
+		 * waiting for periodic broadcast. We need to set the
+		 * oneshot_mask bits for those and program the
+		 * broadcast device to fire.
+		 */
+		mask = tick_broadcast_mask;
+		cpu_clear(cpu, mask);
+		cpus_or(tick_broadcast_oneshot_mask,
+			tick_broadcast_oneshot_mask, mask);
+
+		if (was_periodic && !cpus_empty(mask)) {
+			tick_broadcast_init_next_event(&mask, tick_next_period);
+			tick_broadcast_set_event(tick_next_period, 1);
+		} else
+			bc->next_event.tv64 = KTIME_MAX;
 	}
 }
 
