@@ -30,6 +30,7 @@
 #include <mach/bast-map.h>
 #include <mach/bast-cpld.h>
 
+#include "nor-simtec.h"
 
 static void simtec_nor_vpp(struct map_info *map, int vpp)
 {
@@ -50,7 +51,7 @@ static void simtec_nor_vpp(struct map_info *map, int vpp)
 	local_irq_restore(flags);
 }
 
-struct physmap_flash_data simtec_nor_pdata = {
+static struct physmap_flash_data simtec_nor_pdata = {
 	.width		= 2,
 	.set_vpp	= simtec_nor_vpp,
 	.nr_parts	= 0,

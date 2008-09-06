@@ -222,8 +222,7 @@ W:	http://code.google.com/p/aceracpi
 S:	Maintained
 
 ACPI
-P:	Andi Kleen
-M:	ak@linux.intel.com
+P:	Len Brown
 M:	lenb@kernel.org
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
@@ -418,6 +417,12 @@ M:	sfr@canb.auug.org.au
 L:	linux-laptop@vger.kernel.org
 W:	http://www.canb.auug.org.au/~sfr/
 S:	Supported
+
+APPLE BCM5974 MULTITOUCH DRIVER
+P:	Henrik Rydberg
+M:	rydberg@euromail.se
+L:	linux-input@vger.kernel.org
+S:	Maintained
 
 APPLE SMC DRIVER
 P:	Nicolas Boichat
@@ -3051,7 +3056,7 @@ P:	Anton Altaparmakov
 M:	aia21@cantab.net
 L:	linux-ntfs-dev@lists.sourceforge.net
 L:	linux-kernel@vger.kernel.org
-W:	http://linux-ntfs.sf.net/
+W:	http://www.linux-ntfs.org/
 T:	git kernel.org:/pub/scm/linux/kernel/git/aia21/ntfs-2.6.git
 S:	Maintained
 
@@ -4005,7 +4010,7 @@ S:      Maintained
 
 TI OMAP MMC INTERFACE DRIVER
 P:	Carlos Aguiar, Anderson Briglia and Syed Khasim
-M:	linux-omap-open-source@linux.omap.com (subscribers only)
+M:	linux-omap@vger.kernel.org
 W:	http://linux.omap.com
 W:	http://www.muru.com/linux/omap/
 S:	Maintained

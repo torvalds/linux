@@ -38,6 +38,7 @@
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
 #include <mach/pxa2xx-gpio.h>
+#include <mach/i2c.h>
 #include <mach/irda.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
@@ -532,6 +533,7 @@ static void __init corgi_init(void)
  	pxa_set_udc_info(&udc_info);
 	pxa_set_mci_info(&corgi_mci_platform_data);
 	pxa_set_ficp_info(&corgi_ficp_platform_data);
+	pxa_set_i2c_info(NULL);
 
 	platform_scoop_config = &corgi_pcmcia_config;
 

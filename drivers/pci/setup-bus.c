@@ -352,11 +352,12 @@ static int pbus_size_mem(struct pci_bus *bus, unsigned long mask, unsigned long 
 				continue;
 			r_size = r->end - r->start + 1;
 			/* For bridges size != alignment */
-			align = (i < PCI_BRIDGE_RESOURCES) ? r_size : r->start;
+			align = resource_alignment(r);
 			order = __ffs(align) - 20;
 			if (order > 11) {
-				dev_warn(&dev->dev, "BAR %d too large: "
+				dev_warn(&dev->dev, "BAR %d bad alignment %llx: "
 				       "%#016llx-%#016llx\n", i,
+				       (unsigned long long)align,
 				       (unsigned long long)r->start,
 				       (unsigned long long)r->end);
 				r->flags = 0;

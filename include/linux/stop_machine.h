@@ -3,15 +3,12 @@
 /* "Bogolock": stop the entire machine, disable interrupts.  This is a
    very heavy lock, which is equivalent to grabbing every spinlock
    (and more).  So the "read" side to such a lock is anything which
-   diables preeempt. */
+   disables preeempt. */
 #include <linux/cpu.h>
 #include <linux/cpumask.h>
 #include <asm/system.h>
 
 #if defined(CONFIG_STOP_MACHINE) && defined(CONFIG_SMP)
-
-/* Deprecated, but useful for transition. */
-#define ALL_CPUS ~0U
 
 /**
  * stop_machine: freeze the machine on all CPUs and run this function
@@ -50,18 +47,4 @@ static inline int stop_machine(int (*fn)(void *), void *data,
 	return ret;
 }
 #endif /* CONFIG_SMP */
-
-static inline int __deprecated stop_machine_run(int (*fn)(void *), void *data,
-						unsigned int cpu)
-{
-	/* If they don't care which cpu fn runs on, just pick one. */
-	if (cpu == NR_CPUS)
-		return stop_machine(fn, data, NULL);
-	else if (cpu == ~0U)
-		return stop_machine(fn, data, &cpu_possible_map);
-	else {
-		cpumask_t cpus = cpumask_of_cpu(cpu);
-		return stop_machine(fn, data, &cpus);
-	}
-}
 #endif /* _LINUX_STOP_MACHINE */

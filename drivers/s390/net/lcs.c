@@ -1412,7 +1412,8 @@ lcs_irq(struct ccw_device *cdev, unsigned long intparm, struct irb *irb)
 	}
 	/* How far in the ccw chain have we processed? */
 	if ((channel->state != LCS_CH_STATE_INIT) &&
-	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC)) {
+	    (irb->scsw.cmd.fctl & SCSW_FCTL_START_FUNC) &&
+	    (irb->scsw.cmd.cpa != 0)) {
 		index = (struct ccw1 *) __va((addr_t) irb->scsw.cmd.cpa)
 			- channel->ccws;
 		if ((irb->scsw.cmd.actl & SCSW_ACTL_SUSPENDED) ||

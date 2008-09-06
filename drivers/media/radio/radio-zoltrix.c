@@ -446,8 +446,7 @@ static int __init zoltrix_init(void)
 		return -EBUSY;
 	}
 
-	if (video_register_device(&zoltrix_radio, VFL_TYPE_RADIO, radio_nr) == -1)
-	{
+	if (video_register_device(&zoltrix_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io, 2);
 		return -EINVAL;
 	}

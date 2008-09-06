@@ -3116,13 +3116,22 @@ static ctl_table ipv4_route_table[] = {
 	{ .ctl_name = 0 }
 };
 
-static __net_initdata struct ctl_path ipv4_route_path[] = {
-	{ .procname = "net", .ctl_name = CTL_NET, },
-	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
-	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE, },
-	{ },
+static struct ctl_table empty[1];
+
+static struct ctl_table ipv4_skeleton[] =
+{
+	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE,
+	  .mode = 0555, .child = ipv4_route_table},
+	{ .procname = "neigh", .ctl_name = NET_IPV4_NEIGH,
+	  .mode = 0555, .child = empty},
+	{ }
 };
 
+static __net_initdata struct ctl_path ipv4_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ },
+};
 
 static struct ctl_table ipv4_route_flush_table[] = {
 	{
@@ -3134,6 +3143,13 @@ static struct ctl_table ipv4_route_flush_table[] = {
 		.strategy	= &ipv4_sysctl_rtcache_flush_strategy,
 	},
 	{ .ctl_name = 0 },
+};
+
+static __net_initdata struct ctl_path ipv4_route_path[] = {
+	{ .procname = "net", .ctl_name = CTL_NET, },
+	{ .procname = "ipv4", .ctl_name = NET_IPV4, },
+	{ .procname = "route", .ctl_name = NET_IPV4_ROUTE, },
+	{ },
 };
 
 static __net_init int sysctl_route_net_init(struct net *net)
@@ -3287,7 +3303,7 @@ int __init ip_rt_init(void)
  */
 void __init ip_static_sysctl_init(void)
 {
-	register_sysctl_paths(ipv4_route_path, ipv4_route_table);
+	register_sysctl_paths(ipv4_path, ipv4_skeleton);
 }
 #endif
 

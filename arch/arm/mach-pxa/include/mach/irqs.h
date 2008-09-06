@@ -183,6 +183,7 @@
       defined(CONFIG_MACH_TOSA) || \
       defined(CONFIG_MACH_MAINSTONE) || \
       defined(CONFIG_MACH_PCM027) || \
+      defined(CONFIG_ARCH_PXA_ESERIES) || \
       defined(CONFIG_MACH_MAGICIAN)
 #define NR_IRQS			(IRQ_BOARD_END)
 #elif defined(CONFIG_MACH_ZYLONITE)

@@ -5,6 +5,8 @@
 *.css
 *.dvi
 *.eps
+*.fw.gen.S
+*.fw
 *.gif
 *.grep
 *.grp

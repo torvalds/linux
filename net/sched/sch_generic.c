@@ -526,10 +526,9 @@ void qdisc_destroy(struct Qdisc *qdisc)
 	    !atomic_dec_and_test(&qdisc->refcnt))
 		return;
 
-	if (qdisc->parent)
-		list_del(&qdisc->list);
-
 #ifdef CONFIG_NET_SCHED
+	qdisc_list_del(qdisc);
+
 	qdisc_put_stab(qdisc->stab);
 #endif
 	gen_kill_estimator(&qdisc->bstats, &qdisc->rate_est);
@@ -635,7 +634,7 @@ static void dev_deactivate_queue(struct net_device *dev,
 		if (!(qdisc->flags & TCQ_F_BUILTIN))
 			set_bit(__QDISC_STATE_DEACTIVATED, &qdisc->state);
 
-		dev_queue->qdisc = qdisc_default;
+		rcu_assign_pointer(dev_queue->qdisc, qdisc_default);
 		qdisc_reset(qdisc);
 
 		spin_unlock_bh(qdisc_lock(qdisc));
@@ -710,7 +709,7 @@ static void shutdown_scheduler_queue(struct net_device *dev,
 	struct Qdisc *qdisc_default = _qdisc_default;
 
 	if (qdisc) {
-		dev_queue->qdisc = qdisc_default;
+		rcu_assign_pointer(dev_queue->qdisc, qdisc_default);
 		dev_queue->qdisc_sleeping = qdisc_default;
 
 		qdisc_destroy(qdisc);
