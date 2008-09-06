@@ -198,19 +198,6 @@ struct hrtimer_cpu_base {
 #endif
 };
 
-/*
- * In high resolution mode the time reference must be read accurate
- */
-static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
-{
-	return timer->base->get_time();
-}
-
-static inline int hrtimer_is_hres_active(struct hrtimer *timer)
-{
-	return timer->base->cpu_base->hres_active;
-}
-
 static inline void hrtimer_set_expires(struct hrtimer *timer, ktime_t time)
 {
 	timer->_expires = time;
@@ -282,6 +269,19 @@ struct clock_event_device;
 extern void clock_was_set(void);
 extern void hres_timers_resume(void);
 extern void hrtimer_interrupt(struct clock_event_device *dev);
+
+/*
+ * In high resolution mode the time reference must be read accurate
+ */
+static inline ktime_t hrtimer_cb_get_time(struct hrtimer *timer)
+{
+	return timer->base->get_time();
+}
+
+static inline int hrtimer_is_hres_active(struct hrtimer *timer)
+{
+	return timer->base->cpu_base->hres_active;
+}
 
 /*
  * The resolution of the clocks. The resolution value is returned in
