@@ -27,7 +27,7 @@
 void cx18_memcpy_fromio(struct cx18 *cx, void *to,
 			const void __iomem *from, unsigned int len)
 {
-	const u8 *src = from;
+	const u8 __iomem *src = from;
 	u8 *dst = to;
 
 	/* Align reads on the CX23418's addresses */
@@ -61,7 +61,7 @@ void cx18_memcpy_fromio(struct cx18 *cx, void *to,
 
 void cx18_memset_io(struct cx18 *cx, void __iomem *addr, int val, size_t count)
 {
-	u8 *dst = addr;
+	u8 __iomem *dst = addr;
 	u16 val2 = val | (val << 8);
 	u32 val4 = val2 | (val2 << 16);
 
