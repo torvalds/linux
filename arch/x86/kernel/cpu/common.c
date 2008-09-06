@@ -252,13 +252,13 @@ static struct cpu_dev __cpuinitdata default_cpu = {
 	.c_x86_vendor = X86_VENDOR_UNKNOWN,
 };
 
-int __cpuinit get_model_name(struct cpuinfo_x86 *c)
+static void __cpuinit get_model_name(struct cpuinfo_x86 *c)
 {
 	unsigned int *v;
 	char *p, *q;
 
 	if (c->extended_cpuid_level < 0x80000004)
-		return 0;
+		return;
 
 	v = (unsigned int *) c->x86_model_id;
 	cpuid(0x80000002, &v[0], &v[1], &v[2], &v[3]);
@@ -277,8 +277,6 @@ int __cpuinit get_model_name(struct cpuinfo_x86 *c)
 	     while (q <= &c->x86_model_id[48])
 		  *q++ = '\0';	/* Zero-pad the rest */
 	}
-
-	return 1;
 }
 
 void __cpuinit display_cacheinfo(struct cpuinfo_x86 *c)
@@ -610,8 +608,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 #endif
 	}
 
-	if (c->extended_cpuid_level >= 0x80000004)
-		get_model_name(c); /* Default name */
+	get_model_name(c); /* Default name */
 
 	init_scattered_cpuid_features(c);
 	detect_nopl(c);

@@ -157,8 +157,7 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	if (c->x86 >= 6)
 		set_cpu_cap(c, X86_FEATURE_FXSAVE_LEAK);
 
-	level = get_model_name(c);
-	if (!level) {
+	if (!c->x86_model_id[0]) {
 		switch (c->x86) {
 		case 0xf:
 			/* Should distinguish Models here, but this is only

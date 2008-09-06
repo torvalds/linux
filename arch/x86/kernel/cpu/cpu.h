@@ -31,7 +31,6 @@ struct cpu_dev {
 
 extern struct cpu_dev *__x86_cpu_dev_start[], *__x86_cpu_dev_end[];
 
-extern int get_model_name(struct cpuinfo_x86 *c);
 extern void display_cacheinfo(struct cpuinfo_x86 *c);
 
 #endif

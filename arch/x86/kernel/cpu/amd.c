@@ -42,7 +42,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 {
 	u32 l, h;
 	int mbytes = num_physpages >> (20-PAGE_SHIFT);
-	int r;
 
 #ifdef CONFIG_SMP
 	unsigned long long value;
@@ -74,8 +73,6 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	 * 3DNow is IDd by bit 31 in extended CPUID (1*32+31) anyway
 	 */
 	clear_cpu_cap(c, 0*32+31);
-
-	r = get_model_name(c);
 
 	switch (c->x86) {
 	case 4:

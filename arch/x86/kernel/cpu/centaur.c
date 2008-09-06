@@ -289,7 +289,6 @@ static void __cpuinit init_c3(struct cpuinfo_x86 *c)
 	if (c->x86_model >= 6 && c->x86_model < 9)
 		set_cpu_cap(c, X86_FEATURE_3DNOW);
 
-	get_model_name(c);
 	display_cacheinfo(c);
 }
 

@@ -12,7 +12,6 @@ static void __cpuinit init_transmeta(struct cpuinfo_x86 *c)
 	unsigned int cpu_rev, cpu_freq = 0, cpu_flags, new_cpu_rev;
 	char cpu_info[65];
 
-	get_model_name(c);	/* Same as AMD/Cyrix */
 	display_cacheinfo(c);
 
 	/* Print CMS and CPU revision */
