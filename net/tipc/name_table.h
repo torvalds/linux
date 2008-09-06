@@ -76,7 +76,7 @@ struct publication {
 	u32 node;
 	u32 ref;
 	u32 key;
-	struct node_subscr subscr;
+	struct tipc_node_subscr subscr;
 	struct list_head local_list;
 	struct list_head pport_list;
 	struct publication *node_list_next;

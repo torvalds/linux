@@ -44,7 +44,7 @@
  * tipc_nodesub_subscribe - create "node down" subscription for specified node
  */
 
-void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr,
+void tipc_nodesub_subscribe(struct tipc_node_subscr *node_sub, u32 addr,
 		       void *usr_handle, net_ev_handler handle_down)
 {
 	if (addr == tipc_own_addr) {
@@ -69,7 +69,7 @@ void tipc_nodesub_subscribe(struct node_subscr *node_sub, u32 addr,
  * tipc_nodesub_unsubscribe - cancel "node down" subscription (if any)
  */
 
-void tipc_nodesub_unsubscribe(struct node_subscr *node_sub)
+void tipc_nodesub_unsubscribe(struct tipc_node_subscr *node_sub)
 {
 	if (!node_sub->node)
 		return;

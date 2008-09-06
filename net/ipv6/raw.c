@@ -377,14 +377,14 @@ static inline int rawv6_rcv_skb(struct sock * sk, struct sk_buff * skb)
 	    skb_checksum_complete(skb)) {
 		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
-		return 0;
+		return NET_RX_DROP;
 	}
 
 	/* Charge it to the socket. */
 	if (sock_queue_rcv_skb(sk,skb)<0) {
 		atomic_inc(&sk->sk_drops);
 		kfree_skb(skb);
-		return 0;
+		return NET_RX_DROP;
 	}
 
 	return 0;
@@ -429,7 +429,7 @@ int rawv6_rcv(struct sock *sk, struct sk_buff *skb)
 		if (skb_checksum_complete(skb)) {
 			atomic_inc(&sk->sk_drops);
 			kfree_skb(skb);
-			return 0;
+			return NET_RX_DROP;
 		}
 	}
 

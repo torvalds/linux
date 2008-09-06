@@ -217,6 +217,14 @@ static inline spinlock_t *qdisc_root_lock(struct Qdisc *qdisc)
 	return qdisc_lock(root);
 }
 
+static inline spinlock_t *qdisc_root_sleeping_lock(struct Qdisc *qdisc)
+{
+	struct Qdisc *root = qdisc_root_sleeping(qdisc);
+
+	ASSERT_RTNL();
+	return qdisc_lock(root);
+}
+
 static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 {
 	return qdisc->dev_queue->dev;
@@ -224,12 +232,12 @@ static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 
 static inline void sch_tree_lock(struct Qdisc *q)
 {
-	spin_lock_bh(qdisc_root_lock(q));
+	spin_lock_bh(qdisc_root_sleeping_lock(q));
 }
 
 static inline void sch_tree_unlock(struct Qdisc *q)
 {
-	spin_unlock_bh(qdisc_root_lock(q));
+	spin_unlock_bh(qdisc_root_sleeping_lock(q));
 }
 
 #define tcf_tree_lock(tp)	sch_tree_lock((tp)->q)

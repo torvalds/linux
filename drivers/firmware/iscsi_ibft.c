@@ -669,8 +669,7 @@ static int __init ibft_register_kobjects(struct ibft_table_header *header,
 
 	control = (void *)header + sizeof(*header);
 	end = (void *)control + control->hdr.length;
-	eot_offset = (void *)header + header->length -
-		     (void *)control - sizeof(*header);
+	eot_offset = (void *)header + header->length - (void *)control;
 	rc = ibft_verify_hdr("control", (struct ibft_hdr *)control, id_control,
 			     sizeof(*control));
 

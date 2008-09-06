@@ -30,7 +30,6 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
-#include <linux/version.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
 

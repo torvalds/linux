@@ -582,6 +582,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 
 	q->sg_reserved_size = INT_MAX;
 
+	blk_set_cmd_filter_defaults(&q->cmd_filter);
+
 	/*
 	 * all done
 	 */
