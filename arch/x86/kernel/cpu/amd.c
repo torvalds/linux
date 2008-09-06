@@ -26,11 +26,8 @@ __asm__(".align 4\nvide: ret");
 
 static void __cpuinit early_init_amd(struct cpuinfo_x86 *c)
 {
-	if (cpuid_eax(0x80000000) >= 0x80000007) {
-		c->x86_power = cpuid_edx(0x80000007);
-		if (c->x86_power & (1<<8))
-			set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
-	}
+	if (c->x86_power & (1<<8))
+		set_cpu_cap(c, X86_FEATURE_CONSTANT_TSC);
 
 	/*  Set MTRR capability flag if appropriate */
 	if (c->x86_model == 13 || c->x86_model == 9 ||

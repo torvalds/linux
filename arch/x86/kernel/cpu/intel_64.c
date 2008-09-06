@@ -54,6 +54,8 @@ static void __cpuinit srat_detect_node(void)
 
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
+	early_init_intel(c);
+
 	init_intel_cacheinfo(c);
 	if (c->cpuid_level > 9) {
 		unsigned eax = cpuid_eax(10);

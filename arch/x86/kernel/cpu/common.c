@@ -473,9 +473,6 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 			c->x86_capability[2] = cpuid_edx(0x80860001);
 	}
 
-	if (c->extended_cpuid_level >= 0x80000007)
-		c->x86_power = cpuid_edx(0x80000007);
-
 	if (c->extended_cpuid_level >= 0x80000008) {
 		u32 eax = cpuid_eax(0x80000008);
 
@@ -483,6 +480,10 @@ static void __cpuinit get_cpu_cap(struct cpuinfo_x86 *c)
 		c->x86_phys_bits = eax & 0xff;
 	}
 #endif
+
+	if (c->extended_cpuid_level >= 0x80000007)
+		c->x86_power = cpuid_edx(0x80000007);
+
 }
 /*
  * Do minimum CPU detection early.
