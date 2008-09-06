@@ -33,11 +33,9 @@ void __init pre_alloc_dyn_array(void)
 
 	/* allocate them all together */
 	max_align = max_t(unsigned long, max_align, PAGE_SIZE);
-	ptr = __alloc_bootmem_nopanic(total_size, max_align, 0);
-	if (!ptr)
-		panic("Can not alloc dyn_alloc\n");
-
+	ptr = __alloc_bootmem(total_size, max_align, 0);
 	phys = virt_to_phys(ptr);
+
 	for (daa = __dyn_array_start ; daa < __dyn_array_end; daa++) {
 		struct dyn_array *da = *daa;
 
