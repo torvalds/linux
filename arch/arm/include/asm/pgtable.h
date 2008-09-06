@@ -175,8 +175,6 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 /*
  * These are the memory types, defined to be compatible with
  * pre-ARMv6 CPUs cacheable and bufferable bits:   XXCB
- * (note: build_mem_type_table modifies these bits
- * to work with our existing proc-*.S setup.)
  */
 #define L_PTE_MT_UNCACHED	(0x00 << 2)	/* 0000 */
 #define L_PTE_MT_BUFFERABLE	(0x01 << 2)	/* 0001 */
@@ -184,12 +182,10 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_MT_WRITEBACK	(0x03 << 2)	/* 0011 */
 #define L_PTE_MT_MINICACHE	(0x06 << 2)	/* 0110 (sa1100, xscale) */
 #define L_PTE_MT_WRITEALLOC	(0x07 << 2)	/* 0111 */
-#define L_PTE_MT_DEV_SHARED	(0x04 << 2)	/* 0100 (pre-v6) */
-#define L_PTE_MT_DEV_SHARED2	(0x05 << 2)	/* 0101 (v6) */
+#define L_PTE_MT_DEV_SHARED	(0x04 << 2)	/* 0100 */
 #define L_PTE_MT_DEV_NONSHARED	(0x0c << 2)	/* 1100 */
 #define L_PTE_MT_DEV_IXP2000	(0x0d << 2)	/* 1101 */
-#define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 (pre-v6) */
-#define L_PTE_MT_DEV_WC2	(0x08 << 2)	/* 1000 (v6) */
+#define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 */
 #define L_PTE_MT_DEV_CACHED	(0x0b << 2)	/* 1011 */
 #define L_PTE_MT_MASK		(0x0f << 2)
 

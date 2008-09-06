@@ -104,13 +104,37 @@
  *  11x0   0   1   0	r/w	r/o
  *  1111   0   1   1	r/w	r/w
  */
-	.macro	armv6_set_pte_ext
+	.macro	armv6_mt_table pfx
+\pfx\()_mt_table:
+	.long	0x00						@ L_PTE_MT_UNCACHED
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_BUFFERABLE
+	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_SHARED
+	.long	0x00						@ unused
+	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
+	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC
+	.long	0x00						@ unused
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
+	.long	0x00						@ unused
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
+	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
+	.long	0x00						@ L_PTE_MT_DEV_IXP2000
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+	.endm
+
+	.macro	armv6_set_pte_ext pfx
 	str	r1, [r0], #-2048		@ linux version
 
-	bic	r3, r1, #0x000003f0
+	bic	r3, r1, #0x000003fc
 	bic	r3, r3, #PTE_TYPE_MASK
 	orr	r3, r3, r2
 	orr	r3, r3, #PTE_EXT_AP0 | 2
+
+	adr	ip, \pfx\()_mt_table
+	and	r2, r1, #L_PTE_MT_MASK
+	ldr	r2, [ip, r2]
 
 	tst	r1, #L_PTE_WRITE
 	tstne	r1, #L_PTE_DIRTY
@@ -123,6 +147,8 @@
 
 	tst	r1, #L_PTE_EXEC
 	orreq	r3, r3, #PTE_EXT_XN
+
+	orr	r3, r3, r2
 
 	tst	r1, #L_PTE_YOUNG
 	tstne	r1, #L_PTE_PRESENT

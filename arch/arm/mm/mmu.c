@@ -194,7 +194,6 @@ static struct mem_type mem_types[] = {
 	},
 	[MT_DEVICE_NONSHARED] = { /* ARMv6 non-shared device */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_NONSHARED,
-		.prot_pte_ext	= PTE_EXT_TEX(2),
 		.prot_l1	= PMD_TYPE_TABLE,
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_TEX(2),
 		.domain		= DOMAIN_IO,
@@ -289,8 +288,6 @@ static void __init build_mem_type_table(void)
 	 * in xsc3 parlance, Uncached Normal in ARMv6 parlance).
 	 */
 	if (cpu_is_xsc3() || cpu_arch >= CPU_ARCH_ARMv6) {
-		mem_types[MT_DEVICE_WC].prot_pte_ext |= PTE_EXT_TEX(1);
-		mem_types[MT_DEVICE_WC].prot_pte &= ~L_PTE_BUFFERABLE;
 		mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_TEX(1);
 		mem_types[MT_DEVICE_WC].prot_sect &= ~PMD_SECT_BUFFERABLE;
 	}
@@ -351,7 +348,6 @@ static void __init build_mem_type_table(void)
 		/*
 		 * Mark the device area as "shared device"
 		 */
-		mem_types[MT_DEVICE].prot_pte |= L_PTE_BUFFERABLE;
 		mem_types[MT_DEVICE].prot_sect |= PMD_SECT_BUFFERED;
 
 #ifdef CONFIG_SMP

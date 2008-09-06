@@ -435,10 +435,10 @@ cpu_xscale_mt_table:
 	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
 	.long	0x00						@ L_PTE_MT_DEV_SHARED
-	.long	0x00						@ L_PTE_MT_DEV_SHARED2
+	.long	0x00						@ unused
 	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE			@ L_PTE_MT_MINICACHE
 	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC
-	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_WC2
+	.long	0x00						@ unused
 	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_WC
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED

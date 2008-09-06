@@ -100,9 +100,11 @@ ENTRY(cpu_v7_switch_mm)
  *	- pte   - PTE value to store
  *	- ext	- value for extended PTE bits
  */
+	armv6_mt_table cpu_v7
+
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	armv6_set_pte_ext
+	armv6_set_pte_ext cpu_v7
 #endif
 	mov	pc, lr
 
