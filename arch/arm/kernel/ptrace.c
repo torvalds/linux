@@ -126,7 +126,7 @@ ptrace_getrn(struct task_struct *child, unsigned long insn)
 
 	val = get_user_reg(child, reg);
 	if (reg == 15)
-		val = pc_pointer(val + 8);
+		val += 8;
 
 	return val;
 }
@@ -278,8 +278,7 @@ get_branch_address(struct task_struct *child, unsigned long pc, unsigned long in
 				else
 					base -= aluop2;
 			}
-			if (read_u32(child, base, &alt) == 0)
-				alt = pc_pointer(alt);
+			read_u32(child, base, &alt);
 		}
 		break;
 
@@ -305,8 +304,7 @@ get_branch_address(struct task_struct *child, unsigned long pc, unsigned long in
 
 			base = ptrace_getrn(child, insn);
 
-			if (read_u32(child, base + nr_regs, &alt) == 0)
-				alt = pc_pointer(alt);
+			read_u32(child, base + nr_regs, &alt);
 			break;
 		}
 		break;

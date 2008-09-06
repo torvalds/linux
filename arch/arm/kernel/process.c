@@ -385,7 +385,7 @@ unsigned long get_wchan(struct task_struct *p)
 	do {
 		if (fp < stack_start || fp > stack_end)
 			return 0;
-		lr = pc_pointer (((unsigned long *)fp)[-1]);
+		lr = ((unsigned long *)fp)[-1];
 		if (!in_sched_functions(lr))
 			return lr;
 		fp = *(unsigned long *) (fp - 12);

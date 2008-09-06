@@ -98,7 +98,7 @@ static inline struct thread_info *current_thread_info(void)
 }
 
 #define thread_saved_pc(tsk)	\
-	((unsigned long)(pc_pointer(task_thread_info(tsk)->cpu_context.pc)))
+	((unsigned long)(task_thread_info(tsk)->cpu_context.pc))
 #define thread_saved_fp(tsk)	\
 	((unsigned long)(task_thread_info(tsk)->cpu_context.fp))
 
