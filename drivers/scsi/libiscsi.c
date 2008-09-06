@@ -1456,7 +1456,7 @@ static void fail_all_commands(struct iscsi_conn *conn, unsigned lun,
 		if (lun == task->sc->device->lun || lun == -1) {
 			debug_scsi("failing in progress sc %p itt 0x%x\n",
 				   task->sc, task->itt);
-			fail_command(conn, task, DID_BUS_BUSY << 16);
+			fail_command(conn, task, error << 16);
 		}
 	}
 }
