@@ -1458,7 +1458,7 @@ __load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 		next = next->next;
 	} while (next != &cfs_rq->tasks && !entity_is_task(se));
 
-	if (next == &cfs_rq->tasks)
+	if (next == &cfs_rq->tasks && !entity_is_task(se))
 		return NULL;
 
 	cfs_rq->balance_iterator = next;
