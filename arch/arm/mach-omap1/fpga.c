@@ -21,9 +21,9 @@
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/errno.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/irq.h>
 

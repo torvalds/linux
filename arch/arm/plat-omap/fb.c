@@ -27,9 +27,9 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/bootmem.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/mach/map.h>
 
 #include <mach/board.h>

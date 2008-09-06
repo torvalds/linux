@@ -24,9 +24,10 @@
  */
 #include <linux/module.h>
 #include <linux/init.h>
-#include <asm/system.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/spinlock.h>
+
+#include <asm/system.h>
 
 #include <mach/mux.h>
 

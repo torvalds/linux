@@ -20,8 +20,8 @@
 #include <linux/mm.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/clcd.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/hardware/icst525.h>
 #include <mach/lm.h>
 #include <mach/impd1.h>

@@ -16,10 +16,9 @@
 #include <linux/mm.h>
 #include <linux/platform_device.h>
 #include <linux/sched.h>
-
+#include <linux/io.h>
 #include <linux/mtd/physmap.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 
 #include <asm/mach/arch.h>

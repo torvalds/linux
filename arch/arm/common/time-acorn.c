@@ -17,9 +17,9 @@
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/hardware/ioc.h>
 
 #include <asm/mach/time.h>

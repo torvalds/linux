@@ -39,10 +39,10 @@
 #include <linux/clk.h>
 #include <linux/mutex.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <mach/regs-clock.h>
 #include <mach/regs-gpio.h>

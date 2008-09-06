@@ -16,9 +16,9 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/io.h>
 
 #include <asm/setup.h>
-#include <asm/io.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 

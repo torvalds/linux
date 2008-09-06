@@ -28,11 +28,11 @@
 #include <linux/timex.h>
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/io.h>
 
 #include <mach/udc.h>
 #include <mach/hardware.h>
 #include <asm/uaccess.h>
-#include <asm/io.h>
 #include <asm/pgtable.h>
 #include <asm/page.h>
 #include <asm/irq.h>

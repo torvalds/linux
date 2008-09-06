@@ -16,9 +16,9 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/seq_file.h>
+#include <linux/io.h>
 
 #include <mach/ep93xx-regs.h>
-#include <asm/io.h>
 #include <asm/gpio.h>
 
 struct ep93xx_gpio_chip {

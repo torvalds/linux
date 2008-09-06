@@ -23,9 +23,9 @@
 #define __ASM_ARCH_REALVIEW_H
 
 #include <linux/amba/bus.h>
+#include <linux/io.h>
 
 #include <asm/leds.h>
-#include <asm/io.h>
 
 #define AMBA_DEVICE(name,busid,base,plat)			\
 static struct amba_device name##_device = {			\

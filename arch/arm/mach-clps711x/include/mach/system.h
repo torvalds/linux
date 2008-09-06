@@ -20,9 +20,9 @@
 #ifndef __ASM_ARCH_SYSTEM_H
 #define __ASM_ARCH_SYSTEM_H
 
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/hardware/clps7111.h>
-#include <asm/io.h>
 
 static inline void arch_idle(void)
 {

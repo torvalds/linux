@@ -29,10 +29,10 @@
 #include <linux/serial_core.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/delay.h>
 #include <asm/cacheflush.h>
 

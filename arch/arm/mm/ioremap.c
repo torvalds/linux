@@ -24,10 +24,10 @@
 #include <linux/errno.h>
 #include <linux/mm.h>
 #include <linux/vmalloc.h>
+#include <linux/io.h>
 
 #include <asm/cputype.h>
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/mmu_context.h>
 #include <asm/pgalloc.h>
 #include <asm/tlbflush.h>

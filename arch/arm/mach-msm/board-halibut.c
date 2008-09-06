@@ -18,6 +18,8 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/input.h>
+#include <linux/io.h>
+#include <linux/delay.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -27,9 +29,6 @@
 
 #include <mach/board.h>
 #include <mach/msm_iomap.h>
-
-#include <asm/io.h>
-#include <asm/delay.h>
 
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>

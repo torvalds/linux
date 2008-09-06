@@ -32,6 +32,7 @@
 #include <linux/termios.h>
 #include <linux/amba/bus.h>
 #include <linux/amba/serial.h>
+#include <linux/io.h>
 
 #include <asm/types.h>
 #include <asm/setup.h>
@@ -41,7 +42,6 @@
 #include <asm/system.h>
 #include <asm/tlbflush.h>
 #include <asm/pgtable.h>
-#include <asm/io.h>
 
 #include <asm/mach/map.h>
 #include <asm/mach/time.h>

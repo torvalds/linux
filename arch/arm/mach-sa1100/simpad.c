@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/io.h>
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
@@ -27,7 +28,6 @@
 
 #include <linux/serial_core.h>
 #include <linux/ioport.h>
-#include <asm/io.h>
 
 #include "generic.h"
 

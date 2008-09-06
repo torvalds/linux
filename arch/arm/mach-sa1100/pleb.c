@@ -8,11 +8,10 @@
 #include <linux/ioport.h>
 #include <linux/platform_device.h>
 #include <linux/irq.h>
-
+#include <linux/io.h>
 #include <linux/mtd/partitions.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 

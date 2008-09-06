@@ -33,11 +33,11 @@
 #include <linux/ioport.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
 #include <asm/atomic.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 
 #include <mach/regs-clock.h>
 

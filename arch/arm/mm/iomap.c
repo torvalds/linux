@@ -7,8 +7,7 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/ioport.h>
-
-#include <asm/io.h>
+#include <linux/io.h>
 
 #ifdef __io
 void __iomem *ioport_map(unsigned long port, unsigned int nr)

@@ -25,12 +25,12 @@
 #include <linux/irq.h>
 #include <linux/err.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <asm/system.h>
 #include <asm/leds.h>
 #include <asm/mach-types.h>
 
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <mach/map.h>
 #include <asm/plat-s3c/regs-timer.h>

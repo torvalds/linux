@@ -21,9 +21,8 @@
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 #include <asm/bitops.h>
-
-#include <asm/io.h>
 
 #include <mach/clock.h>
 #include <mach/sram.h>

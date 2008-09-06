@@ -22,10 +22,10 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/map.h>
 #include <asm/hardware/vic.h>
-#include <asm/io.h>
 #include <mach/netx-regs.h>
 #include <asm/mach/irq.h>
 

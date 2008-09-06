@@ -30,7 +30,7 @@
 #include <linux/blkdev.h>
 #include <linux/err.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <mach/mailbox.h>
 #include "mailbox.h"
 

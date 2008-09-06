@@ -7,9 +7,9 @@
 #include <linux/mm.h>
 #include <linux/pagemap.h>
 #include <linux/bootmem.h>
+#include <linux/io.h>
 
 #include <asm/cacheflush.h>
-#include <asm/io.h>
 #include <asm/page.h>
 #include <asm/mach/arch.h>
 

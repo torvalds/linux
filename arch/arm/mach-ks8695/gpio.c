@@ -23,8 +23,8 @@
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include <linux/module.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <mach/hardware.h>
 #include <asm/mach/irq.h>
 

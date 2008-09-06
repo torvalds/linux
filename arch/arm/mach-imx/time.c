@@ -18,9 +18,9 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 #include <linux/clk.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/leds.h>
 #include <asm/irq.h>
 #include <asm/mach/time.h>

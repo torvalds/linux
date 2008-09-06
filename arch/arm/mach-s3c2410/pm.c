@@ -25,9 +25,9 @@
 #include <linux/errno.h>
 #include <linux/time.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 
 #include <asm/mach-types.h>
 

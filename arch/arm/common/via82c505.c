@@ -4,8 +4,8 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/ioport.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/system.h>
 
 #include <asm/mach/pci.h>

@@ -19,10 +19,9 @@
 #include <linux/ioport.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
+#include <linux/io.h>
 
 #include <asm/dma.h>
-#include <asm/io.h>
-
 #include <asm/mach/dma.h>
 
 #define ISA_DMA_MODE_READ	0x44

@@ -26,7 +26,6 @@
 #include <asm/system.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
-#include <asm/io.h>
 
 #include "ptrace.h"
 #include "signal.h"

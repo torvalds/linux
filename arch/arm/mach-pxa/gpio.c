@@ -16,10 +16,10 @@
 #include <linux/module.h>
 #include <linux/irq.h>
 #include <linux/sysdev.h>
+#include <linux/io.h>
 
 #include <asm/gpio.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-gpio.h>
 

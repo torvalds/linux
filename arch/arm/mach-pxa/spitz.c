@@ -22,13 +22,13 @@
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
+#include <linux/io.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
 #include <mach/hardware.h>
 #include <asm/irq.h>
-#include <asm/io.h>
 #include <asm/system.h>
 
 #include <asm/mach/arch.h>

@@ -32,9 +32,9 @@
 #include <linux/list.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
 #include <mach/dmtimer.h>
-#include <asm/io.h>
 #include <mach/irqs.h>
 
 /* register offsets */

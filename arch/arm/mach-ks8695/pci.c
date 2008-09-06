@@ -27,8 +27,8 @@
 #include <linux/init.h>
 #include <linux/irq.h>
 #include <linux/delay.h>
+#include <linux/io.h>
 
-#include <asm/io.h>
 #include <asm/signal.h>
 #include <asm/mach/pci.h>
 #include <mach/hardware.h>

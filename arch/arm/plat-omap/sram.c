@@ -15,9 +15,9 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/io.h>
 
 #include <asm/tlb.h>
-#include <asm/io.h>
 #include <asm/cacheflush.h>
 
 #include <asm/mach/map.h>

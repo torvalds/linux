@@ -25,9 +25,9 @@
 #include <linux/serial_8250.h>
 #include <linux/device.h>
 #include <linux/spi/spi.h>
+#include <linux/io.h>
 
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/pgtable.h>

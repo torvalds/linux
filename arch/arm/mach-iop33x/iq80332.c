@@ -22,8 +22,8 @@
 #include <linux/serial_8250.h>
 #include <linux/mtd/physmap.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 #include <mach/hardware.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>

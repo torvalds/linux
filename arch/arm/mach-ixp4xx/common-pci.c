@@ -25,10 +25,10 @@
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/io.h>
 #include <asm/dma-mapping.h>
 
 #include <asm/cputype.h>
-#include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 #include <asm/system.h>

@@ -19,9 +19,9 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/io.h>
 
 #include <asm/mach/flash.h>
-#include <asm/io.h>
 
 #include <asm/setup.h>
 
