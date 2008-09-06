@@ -1518,41 +1518,44 @@ static void setup_IO_APIC_irq(int apic, int pin, unsigned int irq,
 
 static void __init setup_IO_APIC_irqs(void)
 {
-	int apic, pin, idx, irq, first_notcon = 1;
+	int apic, pin, idx, irq;
+	int notcon = 0;
 
 	apic_printk(APIC_VERBOSE, KERN_DEBUG "init IO_APIC IRQs\n");
 
 	for (apic = 0; apic < nr_ioapics; apic++) {
-	for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
+		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++) {
 
-		idx = find_irq_entry(apic,pin,mp_INT);
-		if (idx == -1) {
-			if (first_notcon) {
-				apic_printk(APIC_VERBOSE, KERN_DEBUG " IO-APIC (apicid-pin) %d-%d", mp_ioapics[apic].mp_apicid, pin);
-				first_notcon = 0;
-			} else
-				apic_printk(APIC_VERBOSE, ", %d-%d", mp_ioapics[apic].mp_apicid, pin);
-			continue;
-		}
-		if (!first_notcon) {
-			apic_printk(APIC_VERBOSE, " not connected.\n");
-			first_notcon = 1;
-		}
+			idx = find_irq_entry(apic, pin, mp_INT);
+			if (idx == -1) {
+				apic_printk(APIC_VERBOSE,
+					KERN_DEBUG " %d-%d",
+					mp_ioapics[apic].mp_apicid, pin);
+				if (!notcon)
+					notcon = 1;
+				continue;
+			}
 
-		irq = pin_2_irq(idx, apic, pin);
+			irq = pin_2_irq(idx, apic, pin);
 #ifdef CONFIG_X86_32
-                if (multi_timer_check(apic, irq))
-                        continue;
+			if (multi_timer_check(apic, irq))
+				continue;
 #endif
-		add_pin_to_irq(irq, apic, pin);
+			add_pin_to_irq(irq, apic, pin);
 
-		setup_IO_APIC_irq(apic, pin, irq,
-				  irq_trigger(idx), irq_polarity(idx));
-	}
+			setup_IO_APIC_irq(apic, pin, irq,
+					irq_trigger(idx), irq_polarity(idx));
+		}
+		if (notcon) {
+			apic_printk(APIC_VERBOSE,
+				KERN_DEBUG " (apicid-pin) not connected\n");
+			notcon = 0;
+		}
 	}
 
-	if (!first_notcon)
-		apic_printk(APIC_VERBOSE, " not connected.\n");
+	if (notcon)
+		apic_printk(APIC_VERBOSE,
+			KERN_DEBUG " (apicid-pin) not connected\n");
 }
 
 /*
