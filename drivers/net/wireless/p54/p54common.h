@@ -301,4 +301,17 @@ struct p54_tx_control_vdcf {
 	__le16 frameburst;
 } __attribute__ ((packed));
 
+struct p54_statistics {
+	__le32 rx_success;
+	__le32 rx_bad_fcs;
+	__le32 rx_abort;
+	__le32 rx_abort_phy;
+	__le32 rts_success;
+	__le32 rts_fail;
+	__le32 tsf32;
+	__le32 airtime;
+	__le32 noise;
+	__le32 unkn[10]; /* CCE / CCA / RADAR */
+} __attribute__ ((packed));
+
 #endif /* P54COMMON_H */

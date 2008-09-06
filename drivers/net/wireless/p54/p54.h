@@ -91,6 +91,11 @@ struct p54_common {
 	u32 tsf_low32;
 	u32 tsf_high32;
 	struct ieee80211_tx_queue_stats tx_stats[8];
+	struct ieee80211_low_level_stats stats;
+	struct timer_list stats_timer;
+	struct completion stats_comp;
+	void *cached_stats;
+	int noise;
 	void *eeprom;
 	struct completion eeprom_comp;
 };
