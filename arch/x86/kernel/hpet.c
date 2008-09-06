@@ -227,44 +227,44 @@ static void hpet_legacy_clockevent_register(void)
 	printk(KERN_DEBUG "hpet clockevent registered\n");
 }
 
-static void hpet_legacy_set_mode(enum clock_event_mode mode,
-			  struct clock_event_device *evt)
+static void hpet_set_mode(enum clock_event_mode mode,
+			  struct clock_event_device *evt, int timer)
 {
 	unsigned long cfg, cmp, now;
 	uint64_t delta;
 
 	switch(mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		delta = ((uint64_t)(NSEC_PER_SEC/HZ)) * hpet_clockevent.mult;
-		delta >>= hpet_clockevent.shift;
+		delta = ((uint64_t)(NSEC_PER_SEC/HZ)) * evt->mult;
+		delta >>= evt->shift;
 		now = hpet_readl(HPET_COUNTER);
 		cmp = now + (unsigned long) delta;
-		cfg = hpet_readl(HPET_T0_CFG);
+		cfg = hpet_readl(HPET_Tn_CFG(timer));
 		cfg |= HPET_TN_ENABLE | HPET_TN_PERIODIC |
 		       HPET_TN_SETVAL | HPET_TN_32BIT;
-		hpet_writel(cfg, HPET_T0_CFG);
+		hpet_writel(cfg, HPET_Tn_CFG(timer));
 		/*
 		 * The first write after writing TN_SETVAL to the
 		 * config register sets the counter value, the second
 		 * write sets the period.
 		 */
-		hpet_writel(cmp, HPET_T0_CMP);
+		hpet_writel(cmp, HPET_Tn_CMP(timer));
 		udelay(1);
-		hpet_writel((unsigned long) delta, HPET_T0_CMP);
+		hpet_writel((unsigned long) delta, HPET_Tn_CMP(timer));
 		break;
 
 	case CLOCK_EVT_MODE_ONESHOT:
-		cfg = hpet_readl(HPET_T0_CFG);
+		cfg = hpet_readl(HPET_Tn_CFG(timer));
 		cfg &= ~HPET_TN_PERIODIC;
 		cfg |= HPET_TN_ENABLE | HPET_TN_32BIT;
-		hpet_writel(cfg, HPET_T0_CFG);
+		hpet_writel(cfg, HPET_Tn_CFG(timer));
 		break;
 
 	case CLOCK_EVT_MODE_UNUSED:
 	case CLOCK_EVT_MODE_SHUTDOWN:
-		cfg = hpet_readl(HPET_T0_CFG);
+		cfg = hpet_readl(HPET_Tn_CFG(timer));
 		cfg &= ~HPET_TN_ENABLE;
-		hpet_writel(cfg, HPET_T0_CFG);
+		hpet_writel(cfg, HPET_Tn_CFG(timer));
 		break;
 
 	case CLOCK_EVT_MODE_RESUME:
@@ -273,14 +273,14 @@ static void hpet_legacy_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static int hpet_legacy_next_event(unsigned long delta,
-				  struct clock_event_device *evt)
+static int hpet_next_event(unsigned long delta,
+			   struct clock_event_device *evt, int timer)
 {
 	u32 cnt;
 
 	cnt = hpet_readl(HPET_COUNTER);
 	cnt += (u32) delta;
-	hpet_writel(cnt, HPET_T0_CMP);
+	hpet_writel(cnt, HPET_Tn_CMP(timer));
 
 	/*
 	 * We need to read back the CMP register to make sure that
@@ -290,6 +290,18 @@ static int hpet_legacy_next_event(unsigned long delta,
 	WARN_ON((u32)hpet_readl(HPET_T0_CMP) != cnt);
 
 	return (s32)((u32)hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
+}
+
+static void hpet_legacy_set_mode(enum clock_event_mode mode,
+			struct clock_event_device *evt)
+{
+	hpet_set_mode(mode, evt, 0);
+}
+
+static int hpet_legacy_next_event(unsigned long delta,
+			struct clock_event_device *evt)
+{
+	return hpet_next_event(delta, evt, 0);
 }
 
 /*
