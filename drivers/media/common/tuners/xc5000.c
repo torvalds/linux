@@ -30,6 +30,7 @@
 #include "dvb_frontend.h"
 
 #include "xc5000.h"
+#include "tuner-i2c.h"
 
 static int debug;
 module_param(debug, int, 0644);
@@ -39,6 +40,9 @@ static int xc5000_load_fw_on_attach;
 module_param_named(init_fw, xc5000_load_fw_on_attach, int, 0644);
 MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
 
+static DEFINE_MUTEX(xc5000_list_mutex);
+static LIST_HEAD(hybrid_tuner_instance_list);
+
 #define dprintk(level,fmt, arg...) if (debug >= level) \
 	printk(KERN_INFO "%s: " fmt, "xc5000", ## arg)
 
@@ -47,7 +51,9 @@ MODULE_PARM_DESC(init_fw, "Load firmware during driver initialization.");
 
 struct xc5000_priv {
 	struct xc5000_config *cfg;
-	struct i2c_adapter   *i2c;
+
+	struct tuner_i2c_props i2c_props;
+	struct list_head hybrid_tuner_instance_list;
 
 	u32 freq_hz;
 	u32 bandwidth;
@@ -520,13 +526,13 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 	u8 buf[2] = { reg >> 8, reg & 0xff };
 	u8 bval[2] = { 0, 0 };
 	struct i2c_msg msg[2] = {
-		{ .addr = priv->cfg->i2c_address,
+		{ .addr = priv->i2c_props.addr,
 			.flags = 0, .buf = &buf[0], .len = 2 },
-		{ .addr = priv->cfg->i2c_address,
+		{ .addr = priv->i2c_props.addr,
 			.flags = I2C_M_RD, .buf = &bval[0], .len = 2 },
 	};
 
-	if (i2c_transfer(priv->i2c, msg, 2) != 2) {
+	if (i2c_transfer(priv->i2c_props.adap, msg, 2) != 2) {
 		printk(KERN_WARNING "xc5000: I2C read failed\n");
 		return -EREMOTEIO;
 	}
@@ -537,10 +543,10 @@ static int xc5000_readreg(struct xc5000_priv *priv, u16 reg, u16 *val)
 
 static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 {
-	struct i2c_msg msg = { .addr = priv->cfg->i2c_address,
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 		.flags = 0, .buf = buf, .len = len };
 
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
 		printk(KERN_ERR "xc5000: I2C write failed (len=%i)\n",
 			(int)len);
 		return -EREMOTEIO;
@@ -550,10 +556,10 @@ static int xc5000_writeregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 
 static int xc5000_readregs(struct xc5000_priv *priv, u8 *buf, u8 len)
 {
-	struct i2c_msg msg = { .addr = priv->cfg->i2c_address,
+	struct i2c_msg msg = { .addr = priv->i2c_props.addr,
 		.flags = I2C_M_RD, .buf = buf, .len = len };
 
-	if (i2c_transfer(priv->i2c, &msg, 1) != 1) {
+	if (i2c_transfer(priv->i2c_props.adap, &msg, 1) != 1) {
 		printk(KERN_ERR "xc5000 I2C read failed (len=%i)\n",(int)len);
 		return -EREMOTEIO;
 	}
@@ -570,7 +576,7 @@ static int xc5000_fwupload(struct dvb_frontend* fe)
 	printk(KERN_INFO "xc5000: waiting for firmware upload (%s)...\n",
 		XC5000_DEFAULT_FIRMWARE);
 
-	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE, &priv->i2c->dev);
+	ret = request_firmware(&fw, XC5000_DEFAULT_FIRMWARE, &priv->i2c_props.adap->dev);
 	if (ret) {
 		printk(KERN_ERR "xc5000: Upload failed. (file not found?)\n");
 		ret = XC_RESULT_RESET_FAILURE;
@@ -908,9 +914,19 @@ static int xc5000_init(struct dvb_frontend *fe)
 
 static int xc5000_release(struct dvb_frontend *fe)
 {
+	struct xc5000_priv *priv = fe->tuner_priv;
+
 	dprintk(1, "%s()\n", __func__);
-	kfree(fe->tuner_priv);
+
+	mutex_lock(&xc5000_list_mutex);
+
+	if (priv)
+		hybrid_tuner_release_state(priv);
+
+	mutex_unlock(&xc5000_list_mutex);
+
 	fe->tuner_priv = NULL;
+
 	return 0;
 }
 
@@ -938,26 +954,41 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 				   struct xc5000_config *cfg, void *devptr)
 {
 	struct xc5000_priv *priv = NULL;
+	int instance;
 	u16 id = 0;
 
-	dprintk(1, "%s()\n", __func__);
+	dprintk(1, "%s(%d-%04x)\n", __func__,
+		i2c ? i2c_adapter_id(i2c) : -1,
+		cfg ? cfg->i2c_address : -1);
 
-	priv = kzalloc(sizeof(struct xc5000_priv), GFP_KERNEL);
-	if (priv == NULL)
-		return NULL;
+	mutex_lock(&xc5000_list_mutex);
 
-	priv->cfg = cfg;
-	priv->bandwidth = BANDWIDTH_6_MHZ;
-	priv->i2c = i2c;
-	priv->devptr = devptr;
+	instance = hybrid_tuner_request_state(struct xc5000_priv, priv,
+					      hybrid_tuner_instance_list,
+					      i2c, cfg->i2c_address, "xc5000");
+	switch (instance) {
+	case 0:
+		goto fail;
+		break;
+	case 1:
+		/* new tuner instance */
+		priv->cfg = cfg;
+		priv->bandwidth = BANDWIDTH_6_MHZ;
+		priv->devptr = devptr;
+
+		fe->tuner_priv = priv;
+		break;
+	default:
+		/* existing tuner instance */
+		fe->tuner_priv = priv;
+		break;
+	}
 
 	/* Check if firmware has been loaded. It is possible that another
 	   instance of the driver has loaded the firmware.
 	 */
-	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0) {
-		kfree(priv);
-		return NULL;
-	}
+	if (xc5000_readreg(priv, XREG_PRODUCT_ID, &id) != 0)
+		goto fail;
 
 	switch(id) {
 	case XC_PRODUCT_ID_FW_LOADED:
@@ -978,19 +1009,23 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		printk(KERN_ERR
 			"xc5000: Device not found at addr 0x%02x (0x%x)\n",
 			cfg->i2c_address, id);
-		kfree(priv);
-		return NULL;
+		goto fail;
 	}
+
+	mutex_unlock(&xc5000_list_mutex);
 
 	memcpy(&fe->ops.tuner_ops, &xc5000_tuner_ops,
 		sizeof(struct dvb_tuner_ops));
-
-	fe->tuner_priv = priv;
 
 	if (xc5000_load_fw_on_attach)
 		xc5000_init(fe);
 
 	return fe;
+fail:
+	mutex_unlock(&xc5000_list_mutex);
+
+	xc5000_release(fe);
+	return NULL;
 }
 EXPORT_SYMBOL(xc5000_attach);
 
