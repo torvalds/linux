@@ -178,6 +178,11 @@ static inline void *phys_to_virt(unsigned long x)
  * memory.  Use of these is *deprecated* (and that doesn't mean
  * use the __ prefixed forms instead.)  See dma-mapping.h.
  */
+#ifndef __virt_to_bus
+#define __virt_to_bus	__virt_to_phys
+#define __bus_to_virt	__phys_to_virt
+#endif
+
 static inline __deprecated unsigned long virt_to_bus(void *x)
 {
 	return __virt_to_bus((unsigned long)x);
