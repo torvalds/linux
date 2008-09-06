@@ -87,10 +87,11 @@ int irq_set_affinity(unsigned int irq, cpumask_t cpumask)
 		return -EINVAL;
 
 #ifdef CONFIG_GENERIC_PENDING_IRQ
-	if (desc->status & IRQ_MOVE_PCNTXT) {
+	if (desc->status & IRQ_MOVE_PCNTXT || desc->status & IRQ_DISABLED) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&desc->lock, flags);
+		desc->affinity = cpumask;
 		desc->chip->set_affinity(irq, cpumask);
 		spin_unlock_irqrestore(&desc->lock, flags);
 	} else
