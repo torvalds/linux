@@ -303,15 +303,6 @@ static int empress_streamoff(struct file *file, void *priv,
 	return videobuf_streamoff(&dev->empress_tsq);
 }
 
-static int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
-					      unsigned int cmd, void *arg)
-{
-	if (dev->mpeg_i2c_client == NULL)
-		return -EINVAL;
-	return dev->mpeg_i2c_client->driver->command(dev->mpeg_i2c_client,
-								cmd, arg);
-}
-
 static int empress_s_ext_ctrls(struct file *file, void *priv,
 			       struct v4l2_ext_controls *ctrls)
 {
@@ -431,6 +422,20 @@ static int empress_g_chip_ident(struct file *file, void *fh,
 	return -EINVAL;
 }
 
+static int empress_s_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	return saa7134_s_std_internal(dev, NULL, id);
+}
+
+static int empress_g_std(struct file *file, void *priv, v4l2_std_id *id)
+{
+	struct saa7134_dev *dev = file->private_data;
+
+	*id = dev->tvnorm->id;
+	return 0;
+}
 
 static const struct file_operations ts_fops =
 {
@@ -465,6 +470,8 @@ static const struct v4l2_ioctl_ops ts_ioctl_ops = {
 	.vidioc_g_ctrl			= empress_g_ctrl,
 	.vidioc_s_ctrl			= empress_s_ctrl,
 	.vidioc_g_chip_ident 		= empress_g_chip_ident,
+	.vidioc_s_std			= empress_s_std,
+	.vidioc_g_std			= empress_g_std,
 };
 
 /* ----------------------------------------------------------- */

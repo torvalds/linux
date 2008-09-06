@@ -427,6 +427,16 @@ void saa7134_i2c_call_clients(struct saa7134_dev *dev,
 	i2c_clients_command(&dev->i2c_adap, cmd, arg);
 }
 
+int saa7134_i2c_call_saa6752(struct saa7134_dev *dev,
+					      unsigned int cmd, void *arg)
+{
+	if (dev->mpeg_i2c_client == NULL)
+		return -EINVAL;
+	return dev->mpeg_i2c_client->driver->command(dev->mpeg_i2c_client,
+								cmd, arg);
+}
+EXPORT_SYMBOL_GPL(saa7134_i2c_call_saa6752);
+
 int saa7134_i2c_register(struct saa7134_dev *dev)
 {
 	dev->i2c_adap = saa7134_adap_template;
