@@ -20,9 +20,10 @@
 #include <linux/stddef.h>
 #include <linux/personality.h>
 #include <linux/compiler.h>
+#include <linux/uaccess.h>
+
 #include <asm/processor.h>
 #include <asm/ucontext.h>
-#include <asm/uaccess.h>
 #include <asm/i387.h>
 #include <asm/proto.h>
 #include <asm/ia32_unistd.h>
@@ -44,11 +45,6 @@
 # define FIX_EFLAGS	__FIX_EFLAGS
 #endif
 
-int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-               sigset_t *set, struct pt_regs * regs); 
-int ia32_setup_frame(int sig, struct k_sigaction *ka,
-            sigset_t *set, struct pt_regs * regs); 
-
 asmlinkage long
 sys_sigaltstack(const stack_t __user *uss, stack_t __user *uoss,
 		struct pt_regs *regs)
@@ -68,7 +64,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	/* Always make any pending restarted system calls return -EINTR */
 	current_thread_info()->restart_block.fn = do_no_restart_syscall;
 
-#define COPY(x)		err |= __get_user(regs->x, &sc->x)
+#define COPY(x)		(err |= __get_user(regs->x, &sc->x))
 
 	COPY(di); COPY(si); COPY(bp); COPY(sp); COPY(bx);
 	COPY(dx); COPY(cx); COPY(ip);
@@ -98,7 +94,7 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	}
 
 	{
-		struct _fpstate __user * buf;
+		struct _fpstate __user *buf;
 		err |= __get_user(buf, &sc->fpstate);
 		err |= restore_i387_xstate(buf);
 	}
@@ -124,7 +120,7 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	current->blocked = set;
 	recalc_sigpending();
 	spin_unlock_irq(&current->sighand->siglock);
-	
+
 	if (restore_sigcontext(regs, &frame->uc.uc_mcontext, &ax))
 		goto badframe;
 
@@ -134,16 +130,17 @@ asmlinkage long sys_rt_sigreturn(struct pt_regs *regs)
 	return ax;
 
 badframe:
-	signal_fault(regs,frame,"sigreturn");
+	signal_fault(regs, frame, "sigreturn");
 	return 0;
-}	
+}
 
 /*
  * Set up a signal frame.
  */
 
 static inline int
-setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs, unsigned long mask, struct task_struct *me)
+setup_sigcontext(struct sigcontext __user *sc, struct pt_regs *regs,
+		unsigned long mask, struct task_struct *me)
 {
 	int err = 0;
 
@@ -199,7 +196,7 @@ get_stack(struct k_sigaction *ka, struct pt_regs *regs, unsigned long size)
 }
 
 static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
-			   sigset_t *set, struct pt_regs * regs)
+			   sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe __user *frame;
 	void __user *fp = NULL;
@@ -212,19 +209,19 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 			(unsigned long)fp - sizeof(struct rt_sigframe), 16) - 8;
 
 		if (save_i387_xstate(fp) < 0)
-			err |= -1; 
+			err |= -1;
 	} else
 		frame = get_stack(ka, regs, sizeof(struct rt_sigframe)) - 8;
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		goto give_sigsegv;
 
-	if (ka->sa.sa_flags & SA_SIGINFO) { 
+	if (ka->sa.sa_flags & SA_SIGINFO) {
 		err |= copy_siginfo_to_user(&frame->info, info);
 		if (err)
 			goto give_sigsegv;
 	}
-		
+
 	/* Create the ucontext.  */
 	if (cpu_has_xsave)
 		err |= __put_user(UC_FP_XSTATE, &frame->uc.uc_flags);
@@ -237,9 +234,9 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(me->sas_ss_size, &frame->uc.uc_stack.ss_size);
 	err |= setup_sigcontext(&frame->uc.uc_mcontext, regs, set->sig[0], me);
 	err |= __put_user(fp, &frame->uc.uc_mcontext.fpstate);
-	if (sizeof(*set) == 16) { 
+	if (sizeof(*set) == 16) {
 		__put_user(set->sig[0], &frame->uc.uc_sigmask.sig[0]);
-		__put_user(set->sig[1], &frame->uc.uc_sigmask.sig[1]); 
+		__put_user(set->sig[1], &frame->uc.uc_sigmask.sig[1]);
 	} else
 		err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 
@@ -250,7 +247,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
 	} else {
 		/* could use a vstub here */
-		goto give_sigsegv; 
+		goto give_sigsegv;
 	}
 
 	if (err)
@@ -258,7 +255,7 @@ static int setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 
 	/* Set up registers for signal handler */
 	regs->di = sig;
-	/* In case the signal handler was declared without prototypes */ 
+	/* In case the signal handler was declared without prototypes */
 	regs->ax = 0;
 
 	/* This also works for non SA_SIGINFO handlers because they expect the
@@ -282,7 +279,7 @@ give_sigsegv:
 
 /*
  * OK, we're invoking a handler
- */	
+ */
 
 static int
 handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
@@ -326,7 +323,7 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 			ret = ia32_setup_rt_frame(sig, ka, info, oldset, regs);
 		else
 			ret = ia32_setup_frame(sig, ka, oldset, regs);
-	} else 
+	} else
 #endif
 	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
@@ -352,9 +349,9 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 		regs->flags &= ~X86_EFLAGS_TF;
 
 		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked,&current->blocked,&ka->sa.sa_mask);
+		sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
 		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked,sig);
+			sigaddset(&current->blocked, sig);
 		recalc_sigpending();
 		spin_unlock_irq(&current->sighand->siglock);
 
@@ -464,14 +461,15 @@ void do_notify_resume(struct pt_regs *regs, void *unused,
 }
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where)
-{ 
-	struct task_struct *me = current; 
+{
+	struct task_struct *me = current;
 	if (show_unhandled_signals && printk_ratelimit()) {
 		printk("%s[%d] bad frame in %s frame:%p ip:%lx sp:%lx orax:%lx",
-	       me->comm,me->pid,where,frame,regs->ip,regs->sp,regs->orig_ax);
+	       me->comm, me->pid, where, frame, regs->ip,
+		   regs->sp, regs->orig_ax);
 		print_vma_addr(" in ", regs->ip);
 		printk("\n");
 	}
 
-	force_sig(SIGSEGV, me); 
-} 
+	force_sig(SIGSEGV, me);
+}

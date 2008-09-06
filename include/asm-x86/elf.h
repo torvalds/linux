@@ -148,8 +148,9 @@ do {						\
 
 static inline void start_ia32_thread(struct pt_regs *regs, u32 ip, u32 sp)
 {
-	asm volatile("movl %0,%%fs" :: "r" (0));
-	asm volatile("movl %0,%%es; movl %0,%%ds" : : "r" (__USER32_DS));
+	loadsegment(fs, 0);
+	loadsegment(ds, __USER32_DS);
+	loadsegment(es, __USER32_DS);
 	load_gs_index(0);
 	regs->ip = ip;
 	regs->sp = sp;

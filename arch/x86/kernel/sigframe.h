@@ -34,4 +34,9 @@ struct rt_sigframe {
 	struct siginfo info;
 	/* fp state follows here */
 };
+
+int ia32_setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
+		sigset_t *set, struct pt_regs *regs);
+int ia32_setup_frame(int sig, struct k_sigaction *ka,
+		sigset_t *set, struct pt_regs *regs);
 #endif

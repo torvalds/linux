@@ -328,7 +328,7 @@ void __init initmem_init(unsigned long start_pfn,
 
 	get_memcfg_numa();
 
-	kva_pages = round_up(calculate_numa_remap_pages(), PTRS_PER_PTE);
+	kva_pages = roundup(calculate_numa_remap_pages(), PTRS_PER_PTE);
 
 	kva_target_pfn = round_down(max_low_pfn - kva_pages, PTRS_PER_PTE);
 	do {

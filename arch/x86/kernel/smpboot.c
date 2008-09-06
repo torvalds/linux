@@ -1313,16 +1313,13 @@ __init void prefill_possible_map(void)
 	if (!num_processors)
 		num_processors = 1;
 
-#ifdef CONFIG_HOTPLUG_CPU
 	if (additional_cpus == -1) {
 		if (disabled_cpus > 0)
 			additional_cpus = disabled_cpus;
 		else
 			additional_cpus = 0;
 	}
-#else
-	additional_cpus = 0;
-#endif
+
 	possible = num_processors + additional_cpus;
 	if (possible > NR_CPUS)
 		possible = NR_CPUS;

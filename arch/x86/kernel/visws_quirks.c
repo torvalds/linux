@@ -25,45 +25,31 @@
 #include <asm/visws/cobalt.h>
 #include <asm/visws/piix4.h>
 #include <asm/arch_hooks.h>
+#include <asm/io_apic.h>
 #include <asm/fixmap.h>
 #include <asm/reboot.h>
 #include <asm/setup.h>
 #include <asm/e820.h>
-#include <asm/smp.h>
 #include <asm/io.h>
 
 #include <mach_ipi.h>
 
 #include "mach_apic.h"
 
-#include <linux/init.h>
-#include <linux/smp.h>
-
 #include <linux/kernel_stat.h>
-#include <linux/interrupt.h>
-#include <linux/init.h>
 
-#include <asm/io.h>
-#include <asm/apic.h>
 #include <asm/i8259.h>
 #include <asm/irq_vectors.h>
-#include <asm/visws/cobalt.h>
 #include <asm/visws/lithium.h>
-#include <asm/visws/piix4.h>
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
-#include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
 
 extern int no_broadcast;
 
-#include <asm/io.h>
 #include <asm/apic.h>
-#include <asm/arch_hooks.h>
-#include <asm/visws/cobalt.h>
-#include <asm/visws/lithium.h>
 
 char visws_board_type	= -1;
 char visws_board_rev	= -1;
