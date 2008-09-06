@@ -512,27 +512,20 @@ static int ivtv_try_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_
 static int ivtv_try_fmt_vid_out(struct file *file, void *fh, struct v4l2_format *fmt)
 {
 	struct ivtv_open_id *id = fh;
-	s32 w, h;
-	int field;
-	int ret;
+	s32 w = fmt->fmt.pix.width;
+	s32 h = fmt->fmt.pix.height;
+	int field = fmt->fmt.pix.field;
+	int ret = ivtv_g_fmt_vid_out(file, fh, fmt);
 
-	w = fmt->fmt.pix.width;
-	h = fmt->fmt.pix.height;
-	field = fmt->fmt.pix.field;
-	ret = ivtv_g_fmt_vid_out(file, fh, fmt);
-	fmt->fmt.pix.width = w;
-	fmt->fmt.pix.height = h;
 	if (!ret && id->type == IVTV_DEC_STREAM_TYPE_YUV) {
 		fmt->fmt.pix.field = field;
-		if (fmt->fmt.pix.width < 2)
-			fmt->fmt.pix.width = 2;
-		if (fmt->fmt.pix.width > 720)
-			fmt->fmt.pix.width = 720;
-		if (fmt->fmt.pix.height < 2)
-			fmt->fmt.pix.height = 2;
-		if (fmt->fmt.pix.height > 576)
-			fmt->fmt.pix.height = 576;
+		w = min(w, 720);
+		w = max(w, 2);
+		h = min(h, 576);
+		h = max(h, 2);
 	}
+	fmt->fmt.pix.width = w;
+	fmt->fmt.pix.height = h;
 	return ret;
 }
 
@@ -560,9 +553,9 @@ static int ivtv_s_fmt_vid_cap(struct file *file, void *fh, struct v4l2_format *f
 	struct ivtv_open_id *id = fh;
 	struct ivtv *itv = id->itv;
 	struct cx2341x_mpeg_params *p = &itv->params;
+	int ret = ivtv_try_fmt_vid_cap(file, fh, fmt);
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
-	int ret = ivtv_try_fmt_vid_cap(file, fh, fmt);
 
 	if (ret)
 		return ret;

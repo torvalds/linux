@@ -171,7 +171,6 @@ static int cx18_try_fmt_vid_cap(struct file *file, void *fh,
 {
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
-
 	int w = fmt->fmt.pix.width;
 	int h = fmt->fmt.pix.height;
 
@@ -203,8 +202,7 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	struct cx18_open_id *id = fh;
 	struct cx18 *cx = id->cx;
 	int ret;
-	int w = fmt->fmt.pix.width;
-	int h = fmt->fmt.pix.height;
+	int w, h;
 
 	ret = v4l2_prio_check(&cx->prio, &id->prio);
 	if (ret)
@@ -213,6 +211,8 @@ static int cx18_s_fmt_vid_cap(struct file *file, void *fh,
 	ret = cx18_try_fmt_vid_cap(file, fh, fmt);
 	if (ret)
 		return ret;
+	w = fmt->fmt.pix.width;
+	h = fmt->fmt.pix.height;
 
 	if (cx->params.width == w && cx->params.height == h)
 		return 0;
