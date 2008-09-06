@@ -50,17 +50,17 @@ static LIST_HEAD(hybrid_tuner_instance_list);
 #define XC5000_DEFAULT_FIRMWARE_SIZE 12332
 
 struct xc5000_priv {
-	struct xc5000_config *cfg;
-
 	struct tuner_i2c_props i2c_props;
 	struct list_head hybrid_tuner_instance_list;
 
+	u32 if_khz;
 	u32 freq_hz;
 	u32 bandwidth;
 	u8  video_standard;
 	u8  rf_mode;
 
 	void *devptr;
+	int  (*tuner_callback) (void *priv, int command, int arg);
 };
 
 /* Misc Defines */
@@ -233,9 +233,8 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 
 	dprintk(1, "%s()\n", __func__);
 
-	if (priv->cfg->tuner_callback) {
-		ret = priv->cfg->tuner_callback(priv->devptr,
-						XC5000_TUNER_RESET, 0);
+	if (priv->tuner_callback) {
+		ret = priv->tuner_callback(priv->devptr, XC5000_TUNER_RESET, 0);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");
 	} else
@@ -692,10 +691,10 @@ static int xc5000_set_params(struct dvb_frontend *fe,
 		return -EREMOTEIO;
 	}
 
-	ret = xc_set_IF_frequency(priv, priv->cfg->if_khz);
+	ret = xc_set_IF_frequency(priv, priv->if_khz);
 	if (ret != XC_RESULT_SUCCESS) {
 		printk(KERN_ERR "xc5000: xc_Set_IF_frequency(%d) failed\n",
-			priv->cfg->if_khz);
+		       priv->if_khz);
 		return -EIO;
 	}
 
@@ -972,9 +971,10 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 		break;
 	case 1:
 		/* new tuner instance */
-		priv->cfg = cfg;
 		priv->bandwidth = BANDWIDTH_6_MHZ;
 		priv->devptr = devptr;
+		priv->if_khz = cfg->if_khz;
+		priv->tuner_callback = cfg->tuner_callback;
 
 		fe->tuner_priv = priv;
 		break;
