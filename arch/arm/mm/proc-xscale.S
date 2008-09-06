@@ -406,8 +406,6 @@ ENTRY(cpu_xscale_dcache_clean_area)
 
 /* =============================== PageTable ============================== */
 
-#define PTE_CACHE_WRITE_ALLOCATE 0
-
 /*
  * cpu_xscale_switch_mm(pgd)
  *
@@ -431,34 +429,40 @@ ENTRY(cpu_xscale_switch_mm)
  *
  * Errata 40: must set memory to write-through for user read-only pages.
  */
+cpu_xscale_mt_table:
+	.long	0x00						@ L_PTE_MT_UNCACHED
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_BUFFERABLE
+	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+	.long	0x00						@ L_PTE_MT_DEV_SHARED
+	.long	0x00						@ L_PTE_MT_DEV_SHARED2
+	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE			@ L_PTE_MT_MINICACHE
+	.long	PTE_EXT_TEX(1) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_WC2
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_DEV_WC
+	.long	0x00						@ unused
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
+	.long	0x00						@ L_PTE_MT_DEV_NONSHARED
+	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_IXP2000
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+
 	.align	5
 ENTRY(cpu_xscale_set_pte_ext)
 	xscale_set_pte_ext_prologue
-	@
-	@ Handle the X bit.  We want to set this bit for the minicache
-	@ (U = E = B = W = 0, C = 1) or when write allocate is enabled,
-	@ and we have a writeable, cacheable region.  If we ignore the
-	@ U and E bits, we can allow user space to use the minicache as
-	@ well.
-	@
-	@  X = (C & ~W & ~B) | (C & W & B & write_allocate)
-	@
-	and	ip, r1, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
-	teq	ip, #L_PTE_CACHEABLE
-#if PTE_CACHE_WRITE_ALLOCATE
-	teqne	ip, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
-#endif
-	orreq	r2, r2, #PTE_EXT_TEX(1)
 
 	@
-	@ Erratum 40: The B bit must be cleared for a user read-only
-	@ cacheable page.
+	@ Erratum 40: must set memory to write-through for user read-only pages
 	@
-	@  B = B & ~(U & C & ~W)
-	@
-	and	ip, r1, #L_PTE_USER | L_PTE_WRITE | L_PTE_CACHEABLE
-	teq	ip, #L_PTE_USER | L_PTE_CACHEABLE
-	biceq	r2, r2, #PTE_BUFFERABLE
+	and	ip, r1, #(L_PTE_MT_MASK | L_PTE_USER | L_PTE_WRITE) & ~(4 << 2)
+	teq	ip, #L_PTE_MT_WRITEBACK | L_PTE_USER
+
+	moveq	r1, #L_PTE_MT_WRITETHROUGH
+	and	r1, r1, #L_PTE_MT_MASK
+	adr	ip, cpu_xscale_mt_table
+	ldr	ip, [ip, r1]
+	bic	r2, r2, #0x0c
+	orr	r2, r2, ip
 
 	xscale_set_pte_ext_epilogue
 	mov	pc, lr

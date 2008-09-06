@@ -188,8 +188,8 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_MT_DEV_SHARED2	(0x05 << 2)	/* 0101 (v6) */
 #define L_PTE_MT_DEV_NONSHARED	(0x0c << 2)	/* 1100 */
 #define L_PTE_MT_DEV_IXP2000	(0x0d << 2)	/* 1101 */
-#define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 (pre-v6, !xsc3) */
-#define L_PTE_MT_DEV_WC2	(0x08 << 2)	/* 1000 (xsc3, v6) */
+#define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 (pre-v6) */
+#define L_PTE_MT_DEV_WC2	(0x08 << 2)	/* 1000 (v6) */
 #define L_PTE_MT_DEV_CACHED	(0x0b << 2)	/* 1011 */
 #define L_PTE_MT_MASK		(0x0f << 2)
 

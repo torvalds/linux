@@ -347,16 +347,36 @@ ENTRY(cpu_xsc3_switch_mm)
  * Set a PTE and flush it out
  *
  */
+
+cpu_xsc3_mt_table:
+	.long	0x00						@ L_PTE_MT_UNCACHED
+	.long	PTE_BUFFERABLE					@ L_PTE_MT_BUFFERABLE
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE			@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEBACK
+	.long	0x00						@ L_PTE_MT_DEV_SHARED
+	.long	0x00						@ L_PTE_MT_DEV_SHARED2
+	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (not present?)
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC2
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
+	.long	0x00						@ unused
+	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_DEV_CACHED
+	.long	0x00						@ L_PTE_MT_DEV_NONSHARED
+	.long	0x00						@ L_PTE_MT_DEV_IXP2000 (not present)
+	.long	0x00						@ unused
+	.long	0x00						@ unused
+
 	.align	5
 ENTRY(cpu_xsc3_set_pte_ext)
 	xscale_set_pte_ext_prologue
 
-	@ If it's cacheable, it needs to be in L2 also.
-	tst	r1, #L_PTE_CACHEABLE
-	orrne	r2, r2, #PTE_EXT_TEX(0x5)
-
 	tst	r1, #L_PTE_SHARED		@ shared?
-	orrne	r2, r2, #0x200
+	and	r1, r1, #L_PTE_MT_MASK
+	adr	ip, cpu_xsc3_mt_table
+	ldr	ip, [ip, r1]
+	orrne	r2, r2, #PTE_EXT_COHERENT	@ interlock: mask in coherent bit
+	bic	r2, r2, #0x0c			@ clear old C,B bits
+	orr	r2, r2, ip
 
 	xscale_set_pte_ext_epilogue
 	mov	pc, lr
