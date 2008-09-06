@@ -390,8 +390,8 @@ static int dvb_register(struct cx23885_tsport *port)
 						&dev->i2c_bus[0].i2c_adap);
 		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
-				&i2c_bus->i2c_adap,
-				&hauppauge_hvr1500q_tunerconfig, port);
+				   &i2c_bus->i2c_adap,
+				   &hauppauge_hvr1500q_tunerconfig);
 		break;
 	case CX23885_BOARD_HAUPPAUGE_HVR1500:
 		i2c_bus = &dev->i2c_bus[1];
@@ -471,8 +471,8 @@ static int dvb_register(struct cx23885_tsport *port)
 							&i2c_bus->i2c_adap);
 		if (port->dvb.frontend != NULL)
 			dvb_attach(xc5000_attach, port->dvb.frontend,
-				&i2c_bus->i2c_adap,
-				&dvico_xc5000_tunerconfig, port);
+				   &i2c_bus->i2c_adap,
+				   &dvico_xc5000_tunerconfig);
 		break;
 	case CX23885_BOARD_DVICO_FUSIONHDTV_DVB_T_DUAL_EXP: {
 		i2c_bus = &dev->i2c_bus[port->nr - 1];

@@ -59,7 +59,6 @@ struct xc5000_priv {
 	u8  video_standard;
 	u8  rf_mode;
 
-	void *devptr;
 	int  (*tuner_callback) (void *priv, int command, int arg);
 };
 
@@ -234,7 +233,10 @@ static void xc5000_TunerReset(struct dvb_frontend *fe)
 	dprintk(1, "%s()\n", __func__);
 
 	if (priv->tuner_callback) {
-		ret = priv->tuner_callback(priv->devptr, XC5000_TUNER_RESET, 0);
+		ret = priv->tuner_callback(((fe->dvb) && (fe->dvb->priv)) ?
+					   fe->dvb->priv :
+					   priv->i2c_props.adap->algo_data,
+					   XC5000_TUNER_RESET, 0);
 		if (ret)
 			printk(KERN_ERR "xc5000: reset failed\n");
 	} else
@@ -950,7 +952,7 @@ static const struct dvb_tuner_ops xc5000_tuner_ops = {
 
 struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 				   struct i2c_adapter *i2c,
-				   struct xc5000_config *cfg, void *devptr)
+				   struct xc5000_config *cfg)
 {
 	struct xc5000_priv *priv = NULL;
 	int instance;
@@ -972,7 +974,6 @@ struct dvb_frontend *xc5000_attach(struct dvb_frontend *fe,
 	case 1:
 		/* new tuner instance */
 		priv->bandwidth = BANDWIDTH_6_MHZ;
-		priv->devptr = devptr;
 		priv->if_khz = cfg->if_khz;
 		priv->tuner_callback = cfg->tuner_callback;
 

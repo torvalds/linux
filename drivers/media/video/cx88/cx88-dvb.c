@@ -813,13 +813,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &pinnacle_pctv_hd_800i_config,
 					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			/* tuner_config.video_dev must point to
-			 * i2c_adap.algo_data
-			 */
 			if (!dvb_attach(xc5000_attach, dev->dvb.frontend,
 					&core->i2c_adap,
-					&pinnacle_pctv_hd_800i_tuner_config,
-					core->i2c_adap.algo_data))
+					&pinnacle_pctv_hd_800i_tuner_config))
 				goto frontend_detach;
 		}
 		break;
@@ -874,13 +870,9 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &dvico_fusionhdtv7_config,
 					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
-			/* tuner_config.video_dev must point to
-			 * i2c_adap.algo_data
-			 */
 			if (!dvb_attach(xc5000_attach, dev->dvb.frontend,
 					&core->i2c_adap,
-					&dvico_fusionhdtv7_tuner_config,
-					core->i2c_adap.algo_data))
+					&dvico_fusionhdtv7_tuner_config))
 				goto frontend_detach;
 		}
 		break;

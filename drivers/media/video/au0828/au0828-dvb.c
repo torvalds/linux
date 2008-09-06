@@ -358,9 +358,8 @@ int au0828_dvb_register(struct au0828_dev *dev)
 				&hauppauge_hvr950q_config,
 				&dev->i2c_adap);
 		if (dvb->frontend != NULL)
-			dvb_attach(xc5000_attach, dvb->frontend,
-				&dev->i2c_adap,
-				&hauppauge_hvr950q_tunerconfig, dev);
+			dvb_attach(xc5000_attach, dvb->frontend, &dev->i2c_adap,
+				   &hauppauge_hvr950q_tunerconfig);
 		break;
 	case AU0828_BOARD_HAUPPAUGE_HVR950Q_MXL:
 		dvb->frontend = dvb_attach(au8522_attach,
