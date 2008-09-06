@@ -278,6 +278,13 @@ static int hpet_legacy_next_event(unsigned long delta,
 	cnt += (u32) delta;
 	hpet_writel(cnt, HPET_T0_CMP);
 
+	/*
+	 * We need to read back the CMP register to make sure that
+	 * what we wrote hit the chip before we compare it to the
+	 * counter.
+	 */
+	WARN_ON((u32)hpet_readl(HPET_T0_CMP) != cnt);
+
 	return (s32)((u32)hpet_readl(HPET_COUNTER) - cnt) >= 0 ? -ETIME : 0;
 }
 
