@@ -433,6 +433,13 @@ static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	size_t header_len = sizeof(*hdr);
 	u32 tsf32;
 
+	if (!(hdr->magic & cpu_to_le16(0x0001))) {
+		if (priv->filter_flags & FIF_FCSFAIL)
+			rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+		else
+			return 0;
+	}
+
 	rx_status.signal = hdr->rssi;
 	/* XX correct? */
 	rx_status.qual = (100 * hdr->rssi) / 127;
@@ -1127,13 +1134,26 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	*total_flags &= FIF_BCN_PRBRESP_PROMISC;
+	*total_flags &= FIF_BCN_PRBRESP_PROMISC |
+			FIF_PROMISC_IN_BSS |
+			FIF_FCSFAIL;
+
+	priv->filter_flags = *total_flags;
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			p54_set_filter(dev, 0, NULL);
+			p54_set_filter(dev, priv->filter_type, NULL);
 		else
-			p54_set_filter(dev, 0, priv->bssid);
+			p54_set_filter(dev, priv->filter_type, priv->bssid);
+	}
+
+	if (changed_flags & FIF_PROMISC_IN_BSS) {
+		if (*total_flags & FIF_PROMISC_IN_BSS)
+			p54_set_filter(dev, priv->filter_type |
+				cpu_to_le16(0x8), NULL);
+		else
+			p54_set_filter(dev, priv->filter_type &
+				~cpu_to_le16(0x8), priv->bssid);
 	}
 }
 

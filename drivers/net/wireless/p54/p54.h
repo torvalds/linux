@@ -80,6 +80,7 @@ struct p54_common {
 	struct pda_channel_output_limit *output_limit;
 	unsigned int output_limit_len;
 	struct pda_pa_curve_data *curve_data;
+	unsigned int filter_flags;
 	u16 rxhw;
 	u8 version;
 	u8 rx_antenna;
