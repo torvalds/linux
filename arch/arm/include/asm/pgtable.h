@@ -164,13 +164,34 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_PRESENT		(1 << 0)
 #define L_PTE_FILE		(1 << 1)	/* only when !PRESENT */
 #define L_PTE_YOUNG		(1 << 1)
-#define L_PTE_BUFFERABLE	(1 << 2)	/* matches PTE */
-#define L_PTE_CACHEABLE		(1 << 3)	/* matches PTE */
+#define L_PTE_BUFFERABLE	(1 << 2)	/* obsolete, matches PTE */
+#define L_PTE_CACHEABLE		(1 << 3)	/* obsolete, matches PTE */
 #define L_PTE_DIRTY		(1 << 6)
 #define L_PTE_WRITE		(1 << 7)
 #define L_PTE_USER		(1 << 8)
 #define L_PTE_EXEC		(1 << 9)
 #define L_PTE_SHARED		(1 << 10)	/* shared(v6), coherent(xsc3) */
+
+/*
+ * These are the memory types, defined to be compatible with
+ * pre-ARMv6 CPUs cacheable and bufferable bits:   XXCB
+ * (note: build_mem_type_table modifies these bits
+ * to work with our existing proc-*.S setup.)
+ */
+#define L_PTE_MT_UNCACHED	(0x00 << 2)	/* 0000 */
+#define L_PTE_MT_BUFFERABLE	(0x01 << 2)	/* 0001 */
+#define L_PTE_MT_WRITETHROUGH	(0x02 << 2)	/* 0010 */
+#define L_PTE_MT_WRITEBACK	(0x03 << 2)	/* 0011 */
+#define L_PTE_MT_MINICACHE	(0x06 << 2)	/* 0110 (sa1100, xscale) */
+#define L_PTE_MT_WRITEALLOC	(0x07 << 2)	/* 0111 */
+#define L_PTE_MT_DEV_SHARED	(0x04 << 2)	/* 0100 (pre-v6) */
+#define L_PTE_MT_DEV_SHARED2	(0x05 << 2)	/* 0101 (v6) */
+#define L_PTE_MT_DEV_NONSHARED	(0x0c << 2)	/* 1100 */
+#define L_PTE_MT_DEV_IXP2000	(0x0d << 2)	/* 1101 */
+#define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 (pre-v6, !xsc3) */
+#define L_PTE_MT_DEV_WC2	(0x08 << 2)	/* 1000 (xsc3, v6) */
+#define L_PTE_MT_DEV_CACHED	(0x0b << 2)	/* 1011 */
+#define L_PTE_MT_MASK		(0x0f << 2)
 
 #ifndef __ASSEMBLY__
 
@@ -180,7 +201,7 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
  * as well as any architecture dependent bits like global/ASID and SMP
  * shared mapping bits.
  */
-#define _L_PTE_DEFAULT	L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_CACHEABLE | L_PTE_BUFFERABLE
+#define _L_PTE_DEFAULT	L_PTE_PRESENT | L_PTE_YOUNG
 #define _L_PTE_READ	L_PTE_USER | L_PTE_EXEC
 
 extern pgprot_t		pgprot_user;
@@ -286,8 +307,10 @@ static inline pte_t pte_mkspecial(pte_t pte) { return pte; }
 /*
  * Mark the prot value as uncacheable and unbufferable.
  */
-#define pgprot_noncached(prot)	__pgprot(pgprot_val(prot) & ~(L_PTE_CACHEABLE | L_PTE_BUFFERABLE))
-#define pgprot_writecombine(prot) __pgprot(pgprot_val(prot) & ~L_PTE_CACHEABLE)
+#define pgprot_noncached(prot) \
+	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_UNCACHED)
+#define pgprot_writecombine(prot) \
+	__pgprot((pgprot_val(prot) & ~L_PTE_MT_MASK) | L_PTE_MT_BUFFERABLE)
 
 #define pmd_none(pmd)		(!pmd_val(pmd))
 #define pmd_present(pmd)	(pmd_val(pmd))

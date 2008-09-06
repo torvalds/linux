@@ -21,7 +21,7 @@
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
 
-static unsigned long shared_pte_mask = L_PTE_CACHEABLE;
+static unsigned long shared_pte_mask = L_PTE_MT_BUFFERABLE;
 
 /*
  * We take the easy way out of this problem - we make the
@@ -63,9 +63,10 @@ static int adjust_pte(struct vm_area_struct *vma, unsigned long address)
 	 * If this page isn't present, or is already setup to
 	 * fault (ie, is old), we can safely ignore any issues.
 	 */
-	if (ret && pte_val(entry) & shared_pte_mask) {
+	if (ret && (pte_val(entry) & L_PTE_MT_MASK) != shared_pte_mask) {
 		flush_cache_page(vma, address, pte_pfn(entry));
-		pte_val(entry) &= ~shared_pte_mask;
+		pte_val(entry) &= ~L_PTE_MT_MASK;
+		pte_val(entry) |= shared_pte_mask;
 		set_pte_at(vma->vm_mm, address, pte, entry);
 		flush_tlb_page(vma, address);
 	}
@@ -197,7 +198,7 @@ void __init check_writebuffer_bugs(void)
 		unsigned long *p1, *p2;
 		pgprot_t prot = __pgprot(L_PTE_PRESENT|L_PTE_YOUNG|
 					 L_PTE_DIRTY|L_PTE_WRITE|
-					 L_PTE_BUFFERABLE);
+					 L_PTE_MT_BUFFERABLE);
 
 		p1 = vmap(&page, 1, VM_IOREMAP, prot);
 		p2 = vmap(&page, 1, VM_IOREMAP, prot);
@@ -218,7 +219,7 @@ void __init check_writebuffer_bugs(void)
 
 	if (v) {
 		printk("failed, %s\n", reason);
-		shared_pte_mask |= L_PTE_BUFFERABLE;
+		shared_pte_mask = L_PTE_MT_UNCACHED;
 	} else {
 		printk("ok\n");
 	}

@@ -30,7 +30,7 @@
 #define COPYPAGE_MINICACHE	0xffff8000
 
 #define minicache_pgprot __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | \
-				  L_PTE_CACHEABLE)
+				  L_PTE_MT_MINICACHE)
 
 static DEFINE_SPINLOCK(minicache_lock);
 
