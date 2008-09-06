@@ -1,39 +1,39 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
+#include <linux/interrupt.h>
+#include <linux/sysdev.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/hpet.h>
 #include <linux/init.h>
-#include <linux/sysdev.h>
-#include <linux/pm.h>
-#include <linux/interrupt.h>
 #include <linux/cpu.h>
+#include <linux/pm.h>
+#include <linux/io.h>
 
 #include <asm/fixmap.h>
-#include <asm/hpet.h>
 #include <asm/i8253.h>
-#include <asm/io.h>
+#include <asm/hpet.h>
 
-#define HPET_MASK	CLOCKSOURCE_MASK(32)
-#define HPET_SHIFT	22
+#define HPET_MASK			CLOCKSOURCE_MASK(32)
+#define HPET_SHIFT			22
 
 /* FSEC = 10^-15
    NSEC = 10^-9 */
-#define FSEC_PER_NSEC	1000000L
+#define FSEC_PER_NSEC			1000000L
 
 /*
  * HPET address is set in acpi/boot.c, when an ACPI entry exists
  */
-unsigned long hpet_address;
-static void __iomem *hpet_virt_address;
+unsigned long				hpet_address;
+static void __iomem			*hpet_virt_address;
 
 struct hpet_dev {
-	struct clock_event_device evt;
-	unsigned int num;
-	int cpu;
-	unsigned int irq;
-	unsigned int flags;
-	char name[10];
+	struct clock_event_device	evt;
+	unsigned int			num;
+	int				cpu;
+	unsigned int			irq;
+	unsigned int			flags;
+	char				name[10];
 };
 
 unsigned long hpet_readl(unsigned long a)
@@ -70,7 +70,7 @@ static inline void hpet_clear_mapping(void)
 static int boot_hpet_disable;
 int hpet_force_user;
 
-static int __init hpet_setup(char* str)
+static int __init hpet_setup(char *str)
 {
 	if (str) {
 		if (!strncmp("disable", str, 7))
@@ -91,7 +91,7 @@ __setup("nohpet", disable_hpet);
 
 static inline int is_hpet_capable(void)
 {
-	return (!boot_hpet_disable && hpet_address);
+	return !boot_hpet_disable && hpet_address;
 }
 
 /*
@@ -122,10 +122,10 @@ static void hpet_reserve_platform_timers(unsigned long id)
 
 	nrtimers = ((id & HPET_ID_NUMBER) >> HPET_ID_NUMBER_SHIFT) + 1;
 
-	memset(&hd, 0, sizeof (hd));
-	hd.hd_phys_address = hpet_address;
-	hd.hd_address = hpet;
-	hd.hd_nirqs = nrtimers;
+	memset(&hd, 0, sizeof(hd));
+	hd.hd_phys_address	= hpet_address;
+	hd.hd_address		= hpet;
+	hd.hd_nirqs		= nrtimers;
 	hpet_reserve_timer(&hd, 0);
 
 #ifdef CONFIG_HPET_EMULATE_RTC
@@ -141,8 +141,8 @@ static void hpet_reserve_platform_timers(unsigned long id)
 	hd.hd_irq[1] = HPET_LEGACY_RTC;
 
 	for (i = 2; i < nrtimers; timer++, i++) {
-		hd.hd_irq[i] = (readl(&timer->hpet_config) & Tn_INT_ROUTE_CNF_MASK) >>
-			Tn_INT_ROUTE_CNF_SHIFT;
+		hd.hd_irq[i] = (readl(&timer->hpet_config) &
+			Tn_INT_ROUTE_CNF_MASK) >> Tn_INT_ROUTE_CNF_SHIFT;
 	}
 
 	hpet_alloc(&hd);
@@ -244,7 +244,7 @@ static void hpet_set_mode(enum clock_event_mode mode,
 	unsigned long cfg, cmp, now;
 	uint64_t delta;
 
-	switch(mode) {
+	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
 		delta = ((uint64_t)(NSEC_PER_SEC/HZ)) * evt->mult;
 		delta >>= evt->shift;
