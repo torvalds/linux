@@ -3059,6 +3059,15 @@ static void b43_qos_params_upload(struct b43_wldev *dev,
 	}
 }
 
+/* Mapping of mac80211 queue numbers to b43 QoS SHM offsets. */
+static const u16 b43_qos_shm_offsets[] = {
+	/* [mac80211-queue-nr] = SHM_OFFSET, */
+	[0] = B43_QOS_VOICE,
+	[1] = B43_QOS_VIDEO,
+	[2] = B43_QOS_BESTEFFORT,
+	[3] = B43_QOS_BACKGROUND,
+};
+
 /* Update the QOS parameters in hardware. */
 static void b43_qos_update(struct b43_wldev *dev)
 {
@@ -3067,14 +3076,8 @@ static void b43_qos_update(struct b43_wldev *dev)
 	unsigned long flags;
 	unsigned int i;
 
-	/* Mapping of mac80211 queues to b43 SHM offsets. */
-	static const u16 qos_shm_offsets[] = {
-		[0] = B43_QOS_VOICE,
-		[1] = B43_QOS_VIDEO,
-		[2] = B43_QOS_BESTEFFORT,
-		[3] = B43_QOS_BACKGROUND,
-	};
-	BUILD_BUG_ON(ARRAY_SIZE(qos_shm_offsets) != ARRAY_SIZE(wl->qos_params));
+	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+		     ARRAY_SIZE(wl->qos_params));
 
 	b43_mac_suspend(dev);
 	spin_lock_irqsave(&wl->irq_lock, flags);
@@ -3083,7 +3086,7 @@ static void b43_qos_update(struct b43_wldev *dev)
 		params = &(wl->qos_params[i]);
 		if (params->need_hw_update) {
 			b43_qos_params_upload(dev, &(params->p),
-					      qos_shm_offsets[i]);
+					      b43_qos_shm_offsets[i]);
 			params->need_hw_update = 0;
 		}
 	}
@@ -3097,11 +3100,42 @@ static void b43_qos_clear(struct b43_wl *wl)
 	struct b43_qos_params *params;
 	unsigned int i;
 
+	/* Initialize QoS parameters to sane defaults. */
+
+	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+		     ARRAY_SIZE(wl->qos_params));
+
 	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++) {
 		params = &(wl->qos_params[i]);
 
-		memset(&(params->p), 0, sizeof(params->p));
-		params->p.aifs = -1;
+		switch (b43_qos_shm_offsets[i]) {
+		case B43_QOS_VOICE:
+			params->p.txop = 0;
+			params->p.aifs = 2;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x0001;
+			break;
+		case B43_QOS_VIDEO:
+			params->p.txop = 0;
+			params->p.aifs = 2;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x0001;
+			break;
+		case B43_QOS_BESTEFFORT:
+			params->p.txop = 0;
+			params->p.aifs = 3;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x03FF;
+			break;
+		case B43_QOS_BACKGROUND:
+			params->p.txop = 0;
+			params->p.aifs = 7;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x03FF;
+			break;
+		default:
+			B43_WARN_ON(1);
+		}
 		params->need_hw_update = 1;
 	}
 }
