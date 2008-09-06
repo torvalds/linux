@@ -2658,6 +2658,7 @@ hfcmulti_interrupt(int intno, void *dev_id)
 	if (status & V_MISC_IRQSTA) {
 		/* misc IRQ */
 		r_irq_misc = HFC_inb_nodebug(hc, R_IRQ_MISC);
+		r_irq_misc &= hc->hw.r_irqmsk_misc; /* ignore disabled irqs */
 		if (r_irq_misc & V_STA_IRQ) {
 			if (hc->type == 1) {
 				/* state machine */
