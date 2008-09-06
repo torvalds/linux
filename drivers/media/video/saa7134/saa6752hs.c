@@ -224,7 +224,7 @@ static struct saa6752hs_mpeg_params param_defaults =
 
 /* ---------------------------------------------------------------------- */
 
-static int saa6752hs_chip_command(struct i2c_client* client,
+static int saa6752hs_chip_command(struct i2c_client *client,
 				  enum saa6752hs_command command)
 {
 	unsigned char buf[3];
@@ -291,54 +291,61 @@ static int saa6752hs_chip_command(struct i2c_client* client,
 }
 
 
-static int saa6752hs_set_bitrate(struct i2c_client* client,
+static inline void set_reg8(struct i2c_client *client, uint8_t reg, uint8_t val)
+{
+	u8 buf[2];
+
+	buf[0] = reg;
+	buf[1] = val;
+	i2c_master_send(client, buf, 2);
+}
+
+static inline void set_reg16(struct i2c_client *client, uint8_t reg, uint16_t val)
+{
+	u8 buf[3];
+
+	buf[0] = reg;
+	buf[1] = val >> 8;
+	buf[2] = val & 0xff;
+	i2c_master_send(client, buf, 3);
+}
+
+static int saa6752hs_set_bitrate(struct i2c_client *client,
 				 struct saa6752hs_state *h)
 {
 	struct saa6752hs_mpeg_params *params = &h->params;
-	u8 buf[3];
 	int tot_bitrate;
+	int is_384k;
 
 	/* set the bitrate mode */
-	buf[0] = 0x71;
-	buf[1] = (params->vi_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) ? 0 : 1;
-	i2c_master_send(client, buf, 2);
+	set_reg8(client, 0x71,
+		params->vi_bitrate_mode != V4L2_MPEG_VIDEO_BITRATE_MODE_VBR);
 
 	/* set the video bitrate */
 	if (params->vi_bitrate_mode == V4L2_MPEG_VIDEO_BITRATE_MODE_VBR) {
 		/* set the target bitrate */
-		buf[0] = 0x80;
-		buf[1] = params->vi_bitrate >> 8;
-		buf[2] = params->vi_bitrate & 0xff;
-		i2c_master_send(client, buf, 3);
+		set_reg16(client, 0x80, params->vi_bitrate);
 
 		/* set the max bitrate */
-		buf[0] = 0x81;
-		buf[1] = params->vi_bitrate_peak >> 8;
-		buf[2] = params->vi_bitrate_peak & 0xff;
-		i2c_master_send(client, buf, 3);
+		set_reg16(client, 0x81, params->vi_bitrate_peak);
 		tot_bitrate = params->vi_bitrate_peak;
 	} else {
 		/* set the target bitrate (no max bitrate for CBR) */
-		buf[0] = 0x81;
-		buf[1] = params->vi_bitrate >> 8;
-		buf[2] = params->vi_bitrate & 0xff;
-		i2c_master_send(client, buf, 3);
+		set_reg16(client, 0x81, params->vi_bitrate);
 		tot_bitrate = params->vi_bitrate;
 	}
 
 	/* set the audio encoding */
-	buf[0] = 0x93;
-	buf[1] = (params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3);
-	i2c_master_send(client, buf, 2);
+	set_reg8(client, 0x93,
+			params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3);
 
 	/* set the audio bitrate */
-	buf[0] = 0x94;
 	if (params->au_encoding == V4L2_MPEG_AUDIO_ENCODING_AC3)
-		buf[1] = V4L2_MPEG_AUDIO_AC3_BITRATE_384K == params->au_ac3_bitrate;
+		is_384k = V4L2_MPEG_AUDIO_AC3_BITRATE_384K == params->au_ac3_bitrate;
 	else
-		buf[1] = V4L2_MPEG_AUDIO_L2_BITRATE_384K == params->au_l2_bitrate;
-	tot_bitrate += buf[1] ? 384 : 256;
-	i2c_master_send(client, buf, 2);
+		is_384k = V4L2_MPEG_AUDIO_L2_BITRATE_384K == params->au_l2_bitrate;
+	set_reg8(client, 0x94, is_384k);
+	tot_bitrate += is_384k ? 384 : 256;
 
 	/* Note: the total max bitrate is determined by adding the video and audio
 	   bitrates together and also adding an extra 768kbit/s to stay on the
@@ -349,16 +356,12 @@ static int saa6752hs_set_bitrate(struct i2c_client* client,
 		tot_bitrate = MPEG_TOTAL_TARGET_BITRATE_MAX;
 
 	/* set the total bitrate */
-	buf[0] = 0xb1;
-	buf[1] = tot_bitrate >> 8;
-	buf[2] = tot_bitrate & 0xff;
-	i2c_master_send(client, buf, 3);
-
+	set_reg16(client, 0xb1, tot_bitrate);
 	return 0;
 }
 
-static void saa6752hs_set_subsampling(struct i2c_client* client,
-				      struct v4l2_format* f)
+static void saa6752hs_set_subsampling(struct i2c_client *client,
+				      struct v4l2_format *f)
 {
 	struct saa6752hs_state *h = i2c_get_clientdata(client);
 	int dist_352, dist_480, dist_720;
@@ -665,51 +668,31 @@ static int saa6752hs_init(struct i2c_client *client, u32 leading_null_bytes)
 	h = i2c_get_clientdata(client);
 
 	/* Set video format - must be done first as it resets other settings */
-	buf[0] = 0x41;
-	buf[1] = h->video_format;
-	i2c_master_send(client, buf, 2);
+	set_reg8(client, 0x41, h->video_format);
 
 	/* Set number of lines in input signal */
-	buf[0] = 0x40;
-	buf[1] = 0x00;
-	if (h->standard & V4L2_STD_525_60)
-		buf[1] = 0x01;
-	i2c_master_send(client, buf, 2);
+	set_reg8(client, 0x40, (h->standard & V4L2_STD_525_60) ? 1 : 0);
 
 	/* set bitrate */
 	saa6752hs_set_bitrate(client, h);
 
 	/* Set GOP structure {3, 13} */
-	buf[0] = 0x72;
-	buf[1] = 0x03;
-	buf[2] = 0x0D;
-	i2c_master_send(client,buf,3);
+	set_reg16(client, 0x72, 0x030d);
 
 	/* Set minimum Q-scale {4} */
-	buf[0] = 0x82;
-	buf[1] = 0x04;
-	i2c_master_send(client,buf,2);
+	set_reg8(client, 0x82, 0x04);
 
 	/* Set maximum Q-scale {12} */
-	buf[0] = 0x83;
-	buf[1] = 0x0C;
-	i2c_master_send(client,buf,2);
+	set_reg8(client, 0x83, 0x0c);
 
 	/* Set Output Protocol */
-	buf[0] = 0xD0;
-	buf[1] = 0x81;
-	i2c_master_send(client,buf,2);
+	set_reg8(client, 0xd0, 0x81);
 
 	/* Set video output stream format {TS} */
-	buf[0] = 0xB0;
-	buf[1] = 0x05;
-	i2c_master_send(client,buf,2);
+	set_reg8(client, 0xb0, 0x05);
 
 	/* Set leading null byte for TS */
-	buf[0] = 0xF6;
-	buf[1] = (leading_null_bytes >> 8) & 0xff;
-	buf[2] = leading_null_bytes & 0xff;
-	i2c_master_send(client, buf, 3);
+	set_reg16(client, 0xf6, leading_null_bytes);
 
 	/* compute PAT */
 	memcpy(localPAT, PAT, sizeof(PAT));
@@ -744,33 +727,21 @@ static int saa6752hs_init(struct i2c_client *client, u32 leading_null_bytes)
 	localPMT[size - 1] = crc & 0xFF;
 
 	/* Set Audio PID */
-	buf[0] = 0xC1;
-	buf[1] = (h->params.ts_pid_audio >> 8) & 0xFF;
-	buf[2] = h->params.ts_pid_audio & 0xFF;
-	i2c_master_send(client,buf,3);
+	set_reg16(client, 0xc1, h->params.ts_pid_audio);
 
 	/* Set Video PID */
-	buf[0] = 0xC0;
-	buf[1] = (h->params.ts_pid_video >> 8) & 0xFF;
-	buf[2] = h->params.ts_pid_video & 0xFF;
-	i2c_master_send(client,buf,3);
+	set_reg16(client, 0xc0, h->params.ts_pid_video);
 
 	/* Set PCR PID */
-	buf[0] = 0xC4;
-	buf[1] = (h->params.ts_pid_pcr >> 8) & 0xFF;
-	buf[2] = h->params.ts_pid_pcr & 0xFF;
-	i2c_master_send(client,buf,3);
+	set_reg16(client, 0xc4, h->params.ts_pid_pcr);
 
 	/* Send SI tables */
 	i2c_master_send(client, localPAT, sizeof(PAT));
 	i2c_master_send(client, localPMT, size);
 
 	/* mute then unmute audio. This removes buzzing artefacts */
-	buf[0] = 0xa4;
-	buf[1] = 1;
-	i2c_master_send(client, buf, 2);
-	buf[1] = 0;
-	i2c_master_send(client, buf, 2);
+	set_reg8(client, 0xa4, 1);
+	set_reg8(client, 0xa4, 0);
 
 	/* start it going */
 	saa6752hs_chip_command(client, SAA6752HS_COMMAND_START);
