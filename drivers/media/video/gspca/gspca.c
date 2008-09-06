@@ -43,7 +43,7 @@ MODULE_AUTHOR("Jean-Francois Moine <http://moinejf.free.fr>");
 MODULE_DESCRIPTION("GSPCA USB Camera Driver");
 MODULE_LICENSE("GPL");
 
-#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 2, 0)
+#define DRIVER_VERSION_NUMBER	KERNEL_VERSION(2, 3, 0)
 
 static int video_nr = -1;
 
