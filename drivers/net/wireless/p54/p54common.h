@@ -314,4 +314,11 @@ struct p54_statistics {
 	__le32 unkn[10]; /* CCE / CCA / RADAR */
 } __attribute__ ((packed));
 
+struct p54_tx_control_xbow_synth {
+	__le16 magic1;
+	__le16 magic2;
+	__le16 freq;
+	u32 padding[5];
+} __attribute__ ((packed));
+
 #endif /* P54COMMON_H */
