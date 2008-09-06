@@ -197,6 +197,9 @@ struct hfc_multi {
 
 	spinlock_t	lock;	/* the lock */
 
+	struct mISDNclock *iclock; /* isdn clock support */
+	int		iclock_on;
+
 	/*
 	 * the channel index is counted from 0, regardless where the channel
 	 * is located on the hfc-channel.

@@ -199,6 +199,7 @@ mISDNInit(void)
 
 	printk(KERN_INFO "Modular ISDN core version %d.%d.%d\n",
 		MISDN_MAJOR_VERSION, MISDN_MINOR_VERSION, MISDN_RELEASE);
+	mISDN_init_clock(&debug);
 	mISDN_initstack(&debug);
 	err = mISDN_inittimer(&debug);
 	if (err)

@@ -133,6 +133,12 @@
  *	Give the value of the clock control register (A_ST_CLK_DLY)
  *	of the S/T interfaces in TE mode.
  *	This register is needed for the TBR3 certification, so don't change it.
+ *
+ * clock:
+ *	NOTE: only one clockdelay_te value must be given once
+ *	Selects interface with clock source for mISDN and applications.
+ *	Set to card number starting with 1. Set to -1 to disable.
+ *	By default, the first card is used as clock source.
  */
 
 /*
@@ -190,12 +196,13 @@ static int nt_t1_count[] = { 3840, 1920, 960, 480, 240, 120, 60, 30  };
  */
 
 static uint	type[MAX_CARDS];
-static uint	pcm[MAX_CARDS];
-static uint	dslot[MAX_CARDS];
+static int	pcm[MAX_CARDS];
+static int	dslot[MAX_CARDS];
 static uint	iomode[MAX_CARDS];
 static uint	port[MAX_PORTS];
 static uint	debug;
 static uint	poll;
+static int	clock;
 static uint	timer;
 static uint	clockdelay_te = CLKDEL_TE;
 static uint	clockdelay_nt = CLKDEL_NT;
@@ -207,12 +214,13 @@ MODULE_LICENSE("GPL");
 MODULE_VERSION(HFC_MULTI_VERSION);
 module_param(debug, uint, S_IRUGO | S_IWUSR);
 module_param(poll, uint, S_IRUGO | S_IWUSR);
+module_param(clock, int, S_IRUGO | S_IWUSR);
 module_param(timer, uint, S_IRUGO | S_IWUSR);
 module_param(clockdelay_te, uint, S_IRUGO | S_IWUSR);
 module_param(clockdelay_nt, uint, S_IRUGO | S_IWUSR);
 module_param_array(type, uint, NULL, S_IRUGO | S_IWUSR);
-module_param_array(pcm, uint, NULL, S_IRUGO | S_IWUSR);
-module_param_array(dslot, uint, NULL, S_IRUGO | S_IWUSR);
+module_param_array(pcm, int, NULL, S_IRUGO | S_IWUSR);
+module_param_array(dslot, int, NULL, S_IRUGO | S_IWUSR);
 module_param_array(iomode, uint, NULL, S_IRUGO | S_IWUSR);
 module_param_array(port, uint, NULL, S_IRUGO | S_IWUSR);
 
@@ -2629,6 +2637,7 @@ hfcmulti_interrupt(int intno, void *dev_id)
 		iqcnt = 0;
 	}
 #endif
+
 	if (!r_irq_statech &&
 	    !(status & (V_DTMF_STA | V_LOST_STA | V_EXT_IRQSTA |
 	    V_MISC_IRQSTA | V_FR_IRQSTA))) {
@@ -2683,11 +2692,13 @@ hfcmulti_interrupt(int intno, void *dev_id)
 					plxsd_checksync(hc, 0);
 			}
 		}
-		if (r_irq_misc & V_TI_IRQ)
+		if (r_irq_misc & V_TI_IRQ) {
+			if (hc->iclock_on)
+				mISDN_clock_update(hc->iclock, poll, NULL);
 			handle_timer_irq(hc);
+		}
 
 		if (r_irq_misc & V_DTMF_IRQ) {
-			/* -> DTMF IRQ */
 			hfcmulti_dtmf(hc);
 		}
 		if (r_irq_misc & V_IRQ_PROC) {
@@ -4075,6 +4086,15 @@ hfcm_dctrl(struct mISDNchannel *ch, u_int cmd, void *arg)
 	return err;
 }
 
+static int
+clockctl(void *priv, int enable)
+{
+	struct hfc_multi *hc = priv;
+
+	hc->iclock_on = enable;
+	return 0;
+}
+
 /*
  * initialize the card
  */
@@ -4489,10 +4509,14 @@ release_card(struct hfc_multi *hc)
 		printk(KERN_WARNING "%s: release card (%d) entered\n",
 		    __func__, hc->id);
 
+	/* unregister clock source */
+	if (hc->iclock)
+		mISDN_unregister_clock(hc->iclock);
+
+	/* disable irq */
 	spin_lock_irqsave(&hc->lock, flags);
 	disable_hwirq(hc);
 	spin_unlock_irqrestore(&hc->lock, flags);
-
 	udelay(1000);
 
 	/* dimm leds */
@@ -5003,6 +5027,10 @@ hfcmulti_init(struct pci_dev *pdev, const struct pci_device_id *ent)
 	list_add_tail(&hc->list, &HFClist);
 	spin_unlock_irqrestore(&HFClock, flags);
 
+	/* use as clock source */
+	if (clock == HFC_cnt + 1)
+		hc->iclock = mISDN_register_clock("HFCMulti", 0, clockctl, hc);
+
 	/* initialize hardware */
 	ret_err = init_card(hc);
 	if (ret_err) {
@@ -5272,6 +5300,9 @@ HFCmulti_init(void)
 		return err;
 
 	}
+
+	if (!clock)
+		clock = 1;
 
 	err = pci_register_driver(&hfcmultipci_driver);
 	if (err < 0) {

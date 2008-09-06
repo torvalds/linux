@@ -371,6 +371,7 @@ struct mISDN_ctrl_req {
 #define DEBUG_L2_TEI		0x00100000
 #define DEBUG_L2_TEIFSM		0x00200000
 #define DEBUG_TIMER		0x01000000
+#define DEBUG_CLOCK		0x02000000
 
 #define mISDN_HEAD_P(s)		((struct mISDNhead *)&s->cb[0])
 #define mISDN_HEAD_PRIM(s)	(((struct mISDNhead *)&s->cb[0])->prim)
@@ -384,6 +385,7 @@ struct mISDN_ctrl_req {
 struct mISDNchannel;
 struct mISDNdevice;
 struct mISDNstack;
+struct mISDNclock;
 
 struct channel_req {
 	u_int			protocol;
@@ -460,6 +462,16 @@ struct mISDNstack {
 #endif
 };
 
+typedef	int	(clockctl_func_t)(void *, int);
+
+struct	mISDNclock {
+	struct list_head	list;
+	char			name[64];
+	int			pri;
+	clockctl_func_t		*ctl;
+	void			*priv;
+};
+
 /* global alloc/queue functions */
 
 static inline struct sk_buff *
@@ -510,8 +522,13 @@ extern int	mISDN_register_device(struct mISDNdevice *, char *name);
 extern void	mISDN_unregister_device(struct mISDNdevice *);
 extern int	mISDN_register_Bprotocol(struct Bprotocol *);
 extern void	mISDN_unregister_Bprotocol(struct Bprotocol *);
+extern struct mISDNclock *mISDN_register_clock(char *, int, clockctl_func_t *,
+						void *);
+extern void	mISDN_unregister_clock(struct mISDNclock *);
 
 extern void	set_channel_address(struct mISDNchannel *, u_int, u_int);
+extern void	mISDN_clock_update(struct mISDNclock *, int, struct timeval *);
+extern unsigned short mISDN_clock_get(void);
 
 #endif /* __KERNEL__ */
 #endif /* mISDNIF_H */

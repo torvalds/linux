@@ -1557,13 +1557,11 @@ send_packet:
 	schedule_work(&dsp->workq);
 }
 
-static u32	samplecount;
+static u32	jittercount; /* counter for jitter check */;
 struct timer_list dsp_spl_tl;
 u32	dsp_spl_jiffies; /* calculate the next time to fire */
-#ifdef UNUSED
-static u32	dsp_start_jiffies; /* jiffies at the time, the calculation begins */
-#endif /* UNUSED */
-static struct timeval dsp_start_tv; /* time at start of calculation */
+static u16	dsp_count; /* last sample count */
+static int	dsp_count_valid ; /* if we have last sample count */
 
 void
 dsp_cmx_send(void *arg)
@@ -1577,38 +1575,32 @@ dsp_cmx_send(void *arg)
 	int r, rr;
 	int jittercheck = 0, delay, i;
 	u_long flags;
-	struct timeval tv;
-	u32 elapsed;
-	s16 length;
+	u16 length, count;
 
 	/* lock */
 	spin_lock_irqsave(&dsp_lock, flags);
 
-	if (!dsp_start_tv.tv_sec) {
-		do_gettimeofday(&dsp_start_tv);
+	if (!dsp_count_valid) {
+		dsp_count = mISDN_clock_get();
 		length = dsp_poll;
+		dsp_count_valid = 1;
 	} else {
-		do_gettimeofday(&tv);
-		elapsed = ((tv.tv_sec - dsp_start_tv.tv_sec) * 8000)
-		    + ((s32)(tv.tv_usec / 125) - (dsp_start_tv.tv_usec / 125));
-		dsp_start_tv.tv_sec = tv.tv_sec;
-		dsp_start_tv.tv_usec = tv.tv_usec;
-		length = elapsed;
+		count = mISDN_clock_get();
+		length = count - dsp_count;
+		dsp_count = count;
 	}
 	if (length > MAX_POLL + 100)
 		length = MAX_POLL + 100;
-/* printk(KERN_DEBUG "len=%d dsp_count=0x%x.%04x dsp_poll_diff=0x%x.%04x\n",
- length, dsp_count >> 16, dsp_count & 0xffff, dsp_poll_diff >> 16,
- dsp_poll_diff & 0xffff);
- */
+	/* printk(KERN_DEBUG "len=%d dsp_count=0x%x\n", length, dsp_count); */
 
 	/*
-	 * check if jitter needs to be checked
-	 * (this is about every second = 8192 samples)
+	 * check if jitter needs to be checked (this is every second)
 	 */
-	samplecount += length;
-	if ((samplecount & 8191) < length)
+	jittercount += length;
+	if (jittercount >= 8000) {
+		jittercount -= 8000;
 		jittercheck = 1;
+	}
 
 	/* loop all members that do not require conference mixing */
 	list_for_each_entry(dsp, &dsp_ilist, list) {
