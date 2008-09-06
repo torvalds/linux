@@ -28,7 +28,6 @@
 #include <asm/mach-types.h>
 #include <mach/pxa-regs.h>
 #include <mach/hardware.h>
-#include <mach/akita.h>
 #include <mach/spitz.h>
 #include "../codecs/wm8750.h"
 #include "pxa2xx-pcm.h"
@@ -219,14 +218,10 @@ static int spitz_mic_bias(struct snd_soc_dapm_widget *w,
 		gpio_set_value(SPITZ_GPIO_MIC_BIAS,
 				SND_SOC_DAPM_EVENT_ON(event));
 
-	if (machine_is_akita()) {
-		if (SND_SOC_DAPM_EVENT_ON(event))
-			akita_set_ioexp(&akitaioexp_device.dev,
-				AKITA_IOEXP_MIC_BIAS);
-		else
-			akita_reset_ioexp(&akitaioexp_device.dev,
-				AKITA_IOEXP_MIC_BIAS);
-	}
+	if (machine_is_akita())
+		gpio_set_value(AKITA_GPIO_MIC_BIAS,
+				SND_SOC_DAPM_EVENT_ON(event));
+
 	return 0;
 }
 

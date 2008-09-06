@@ -24,6 +24,8 @@
 #include <linux/mmc/host.h>
 #include <linux/pm.h>
 #include <linux/backlight.h>
+#include <linux/i2c.h>
+#include <linux/i2c/pca953x.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 #include <linux/spi/corgi_lcd.h>
@@ -52,7 +54,6 @@
 #include <mach/udc.h>
 #include <mach/pxafb.h>
 #include <mach/pxa2xx_spi.h>
-#include <mach/akita.h>
 #include <mach/spitz.h>
 #include <mach/sharpsl.h>
 
@@ -313,16 +314,8 @@ static void spitz_notify_intensity(int intensity)
 	}
 
 	if (machine_is_akita()) {
-		/* Bit 5 is via IO-Expander */
-		if (intensity & 0x0020)
-			akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
-		else
-			akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_CONT);
-
-		if (intensity)
-			akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
-		else
-			akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_BACKLIGHT_ON);
+		gpio_set_value(AKITA_GPIO_BACKLIGHT_CONT, !(intensity & 0x20));
+		gpio_set_value(AKITA_GPIO_BACKLIGHT_ON, intensity);
 		return;
 	}
 }
@@ -565,10 +558,7 @@ static void spitz_irda_transceiver_mode(struct device *dev, int mode)
 #ifdef CONFIG_MACH_AKITA
 static void akita_irda_transceiver_mode(struct device *dev, int mode)
 {
-	if (mode & IR_OFF)
-		akita_set_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
-	else
-		akita_reset_ioexp(&akitaioexp_device.dev, AKITA_IOEXP_IR_ON);
+	gpio_set_value(AKITA_GPIO_IR_ON, mode & IR_OFF);
 	pxa2xx_transceiver_mode(dev, mode);
 }
 #endif
@@ -679,12 +669,17 @@ static void __init spitz_init(void)
 /*
  * Akita IO Expander
  */
-struct platform_device akitaioexp_device = {
-	.name		= "akita-ioexp",
-	.id		= -1,
+static struct pca953x_platform_data akita_ioexp = {
+	.gpio_base		= AKITA_IOEXP_GPIO_BASE,
 };
 
-EXPORT_SYMBOL_GPL(akitaioexp_device);
+static struct i2c_board_info akita_i2c_board_info[] = {
+	{
+		.type		= "max7310",
+		.addr		= 0x18,
+		.platform_data	= &akita_ioexp,
+	},
+};
 
 static void __init akita_init(void)
 {
@@ -694,9 +689,9 @@ static void __init akita_init(void)
 	spitz_pcmcia_config.num_devs = 1;
 	platform_scoop_config = &spitz_pcmcia_config;
 
-	platform_device_register(&akitaioexp_device);
+	pxa_set_i2c_info(NULL);
+	i2c_register_board_info(0, ARRAY_AND_SIZE(akita_i2c_board_info));
 
-	spitzscoop_device.dev.parent = &akitaioexp_device.dev;
 	common_init();
 }
 #endif
