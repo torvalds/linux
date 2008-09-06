@@ -88,6 +88,7 @@ struct p54_common {
 	void *cached_vdcf;
 	unsigned int fw_var;
 	unsigned int fw_interface;
+	unsigned int output_power;
 	u32 tsf_low32;
 	u32 tsf_high32;
 	struct ieee80211_tx_queue_stats tx_stats[8];

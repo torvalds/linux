@@ -800,7 +800,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->hw_queue = skb_get_queue_mapping(skb) + 4;
 	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
 		2 : info->antenna_sel_tx - 1;
-	txhdr->output_power = 0x7f; // HW Maximum
+	txhdr->output_power = priv->output_power;
 	txhdr->cts_rate = (info->flags & IEEE80211_TX_CTL_NO_ACK) ?
 			  0 : cts_rate;
 	if (padding)
@@ -1154,6 +1154,7 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	mutex_lock(&priv->conf_mutex);
 	priv->rx_antenna = (conf->antenna_sel_rx == 0) ?
 		2 : conf->antenna_sel_tx - 1;
+	priv->output_power = conf->power_level << 2;
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
 	mutex_unlock(&priv->conf_mutex);
