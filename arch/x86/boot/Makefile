@@ -181,6 +181,7 @@ isoimage: $(BOOTIMAGE)
 	mkisofs -J -r -o $(obj)/image.iso -b isolinux.bin -c boot.cat \
 		-no-emul-boot -boot-load-size 4 -boot-info-table \
 		$(obj)/isoimage
+	isohybrid $(obj)/image.iso 2>/dev/null || true
 	rm -rf $(obj)/isoimage
 
 zlilo: $(BOOTIMAGE)
