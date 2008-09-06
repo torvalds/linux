@@ -113,9 +113,6 @@ static struct stack stacks[NR_CPUS];
 char elf_platform[ELF_PLATFORM_SIZE];
 EXPORT_SYMBOL(elf_platform);
 
-unsigned long phys_initrd_start __initdata = 0;
-unsigned long phys_initrd_size __initdata = 0;
-
 static struct meminfo meminfo __initdata = { 0, };
 static const char *cpu_name;
 static const char *machine_name;
@@ -445,20 +442,6 @@ static struct machine_desc * __init setup_machine(unsigned int nr)
 	return list;
 }
 
-static void __init early_initrd(char **p)
-{
-	unsigned long start, size;
-
-	start = memparse(*p, p);
-	if (**p == ',') {
-		size = memparse((*p) + 1, p);
-
-		phys_initrd_start = start;
-		phys_initrd_size = size;
-	}
-}
-__early_param("initrd=", early_initrd);
-
 static void __init arm_add_memory(unsigned long start, unsigned long size)
 {
 	struct membank *bank;
@@ -695,26 +678,6 @@ static int __init parse_tag_ramdisk(const struct tag *tag)
 }
 
 __tagtable(ATAG_RAMDISK, parse_tag_ramdisk);
-
-static int __init parse_tag_initrd(const struct tag *tag)
-{
-	printk(KERN_WARNING "ATAG_INITRD is deprecated; "
-		"please update your bootloader.\n");
-	phys_initrd_start = __virt_to_phys(tag->u.initrd.start);
-	phys_initrd_size = tag->u.initrd.size;
-	return 0;
-}
-
-__tagtable(ATAG_INITRD, parse_tag_initrd);
-
-static int __init parse_tag_initrd2(const struct tag *tag)
-{
-	phys_initrd_start = tag->u.initrd.start;
-	phys_initrd_size = tag->u.initrd.size;
-	return 0;
-}
-
-__tagtable(ATAG_INITRD2, parse_tag_initrd2);
 
 static int __init parse_tag_serialnr(const struct tag *tag)
 {
