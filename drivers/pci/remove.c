@@ -115,13 +115,9 @@ void pci_remove_behind_bridge(struct pci_dev *dev)
 {
 	struct list_head *l, *n;
 
-	if (dev->subordinate) {
-		list_for_each_safe(l, n, &dev->subordinate->devices) {
-			struct pci_dev *dev = pci_dev_b(l);
-
-			pci_remove_bus_device(dev);
-		}
-	}
+	if (dev->subordinate)
+		list_for_each_safe(l, n, &dev->subordinate->devices)
+			pci_remove_bus_device(pci_dev_b(l));
 }
 
 static void pci_stop_bus_devices(struct pci_bus *bus)
