@@ -28,12 +28,12 @@
 #include <linux/pm.h>
 #include <linux/tick.h>
 #include <linux/utsname.h>
+#include <linux/uaccess.h>
 
 #include <asm/leds.h>
 #include <asm/processor.h>
 #include <asm/system.h>
 #include <asm/thread_notify.h>
-#include <asm/uaccess.h>
 #include <asm/mach/time.h>
 
 static const char *processor_modes[] = {

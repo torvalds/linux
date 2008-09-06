@@ -13,11 +13,11 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/kprobes.h>
+#include <linux/uaccess.h>
 
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/tlbflush.h>
-#include <asm/uaccess.h>
 
 #include "fault.h"
 

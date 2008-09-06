@@ -19,11 +19,11 @@
 #include <linux/kallsyms.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/uaccess.h>
 
 #include <asm/atomic.h>
 #include <asm/cacheflush.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
 #include <asm/unistd.h>
 #include <asm/traps.h>
 #include <asm/io.h>

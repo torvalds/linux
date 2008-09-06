@@ -8,8 +8,8 @@
 #include <linux/init.h>
 #include <linux/init_task.h>
 #include <linux/mqueue.h>
+#include <linux/uaccess.h>
 
-#include <asm/uaccess.h>
 #include <asm/pgtable.h>
 
 static struct fs_struct init_fs = INIT_FS;
