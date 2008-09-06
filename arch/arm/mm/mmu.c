@@ -28,9 +28,6 @@
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
-extern void _stext, _etext, __data_start, _end;
-extern pgd_t swapper_pg_dir[PTRS_PER_PGD];
-
 /*
  * empty_zero_page is a special page that is used for
  * zero-initialized data and COW.

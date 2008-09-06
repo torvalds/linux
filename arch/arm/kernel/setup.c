@@ -61,8 +61,7 @@ __setup("fpe=", fpe_setup);
 
 extern void paging_init(struct meminfo *, struct machine_desc *desc);
 extern void reboot_setup(char *str);
-extern int root_mountflags;
-extern void _stext, _text, _etext, __data_start, _edata, _end;
+extern void _text, _etext, __data_start, _edata, _end;
 
 unsigned int processor_id;
 EXPORT_SYMBOL(processor_id);

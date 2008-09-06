@@ -15,8 +15,6 @@
 
 #include "mm.h"
 
-extern void _stext, __data_start, _end;
-
 /*
  * Reserve the various regions of node 0
  */
