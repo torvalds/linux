@@ -433,20 +433,7 @@ ENTRY(cpu_xscale_switch_mm)
  */
 	.align	5
 ENTRY(cpu_xscale_set_pte_ext)
-	str	r1, [r0], #-2048		@ linux version
-
-	bic	r2, r1, #0xff0
-	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
-
-	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
-
-	tst	r3, #L_PTE_USER			@ User?
-	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
-
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ Write and Dirty?
-	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
-						@ combined with user -> user r/w
-
+	xscale_set_pte_ext_prologue
 	@
 	@ Handle the X bit.  We want to set this bit for the minicache
 	@ (U = E = B = W = 0, C = 1) or when write allocate is enabled,
@@ -456,11 +443,10 @@ ENTRY(cpu_xscale_set_pte_ext)
 	@
 	@  X = (C & ~W & ~B) | (C & W & B & write_allocate)
 	@
-	eor	ip, r1, #L_PTE_CACHEABLE
-	tst	ip, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
+	and	ip, r1, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
+	teq	ip, #L_PTE_CACHEABLE
 #if PTE_CACHE_WRITE_ALLOCATE
-	eorne	ip, r1, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
-	tstne	ip, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
+	teqne	ip, #L_PTE_CACHEABLE | L_PTE_WRITE | L_PTE_BUFFERABLE
 #endif
 	orreq	r2, r2, #PTE_EXT_TEX(1)
 
@@ -474,13 +460,7 @@ ENTRY(cpu_xscale_set_pte_ext)
 	teq	ip, #L_PTE_USER | L_PTE_CACHEABLE
 	biceq	r2, r2, #PTE_BUFFERABLE
 
-	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ Present and Young?
-	movne	r2, #0				@ no -> fault
-
-	str	r2, [r0]			@ hardware version
-	mov	ip, #0
-	mcr	p15, 0, r0, c7, c10, 1		@ Clean D cache line
-	mcr	p15, 0, ip, c7, c10, 4		@ Drain Write (& Fill) Buffer
+	xscale_set_pte_ext_epilogue
 	mov	pc, lr
 
 

@@ -20,6 +20,8 @@
 #include <asm/pgtable.h>
 #include <asm/ptrace.h>
 
+#include "proc-macros.S"
+
 ENTRY(cpu_arm6_dcache_clean_area)
 ENTRY(cpu_arm7_dcache_clean_area)
 		mov	pc, lr
@@ -214,30 +216,13 @@ ENTRY(cpu_arm7_switch_mm)
  *	   : r1 = value to set
  * Purpose : Set a PTE and flush it out of any WB cache
  */
-		.align	5
+	.align	5
 ENTRY(cpu_arm6_set_pte_ext)
 ENTRY(cpu_arm7_set_pte_ext)
 #ifdef CONFIG_MMU
-		str	r1, [r0], #-2048		@ linux version
-
-		eor	r1, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
-
-		bic	r2, r1, #PTE_SMALL_AP_MASK
-		bic	r2, r2, #PTE_TYPE_MASK
-		orr	r2, r2, #PTE_TYPE_SMALL
-
-		tst	r1, #L_PTE_USER			@ User?
-		orrne	r2, r2, #PTE_SMALL_AP_URO_SRW
-
-		tst	r1, #L_PTE_WRITE | L_PTE_DIRTY	@ Write and Dirty?
-		orreq	r2, r2, #PTE_SMALL_AP_UNO_SRW
-
-		tst	r1, #L_PTE_PRESENT | L_PTE_YOUNG	@ Present and Young
-		movne	r2, #0
-
-		str	r2, [r0]			@ hardware version
+	armv3_set_pte_ext wc_disable=0
 #endif /* CONFIG_MMU */
-		mov	pc, lr
+	mov	pc, lr
 
 /*
  * Function: _arm6_7_reset

@@ -99,46 +99,10 @@ ENTRY(cpu_v7_switch_mm)
  *		  (hardware version is stored at -1024 bytes)
  *	- pte   - PTE value to store
  *	- ext	- value for extended PTE bits
- *
- *	Permissions:
- *	  YUWD  APX AP1 AP0	SVC	User
- *	  0xxx   0   0   0	no acc	no acc
- *	  100x   1   0   1	r/o	no acc
- *	  10x0   1   0   1	r/o	no acc
- *	  1011   0   0   1	r/w	no acc
- *	  110x   0   1   0	r/w	r/o
- *	  11x0   0   1   0	r/w	r/o
- *	  1111   0   1   1	r/w	r/w
  */
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	str	r1, [r0], #-2048		@ linux version
-
-	bic	r3, r1, #0x000003f0
-	bic	r3, r3, #0x00000003
-	orr	r3, r3, r2
-	orr	r3, r3, #PTE_EXT_AP0 | 2
-
-	tst	r1, #L_PTE_WRITE
-	tstne	r1, #L_PTE_DIRTY
-	orreq	r3, r3, #PTE_EXT_APX
-
-	tst	r1, #L_PTE_USER
-	orrne	r3, r3, #PTE_EXT_AP1
-	tstne	r3, #PTE_EXT_APX
-	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
-
-	tst	r1, #L_PTE_YOUNG
-	biceq	r3, r3, #PTE_EXT_APX | PTE_EXT_AP_MASK
-
-	tst	r1, #L_PTE_EXEC
-	orreq	r3, r3, #PTE_EXT_XN
-
-	tst	r1, #L_PTE_PRESENT
-	moveq	r3, #0
-
-	str	r3, [r0]
-	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
+	armv6_set_pte_ext
 #endif
 	mov	pc, lr
 

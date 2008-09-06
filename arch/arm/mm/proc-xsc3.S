@@ -349,34 +349,16 @@ ENTRY(cpu_xsc3_switch_mm)
  */
 	.align	5
 ENTRY(cpu_xsc3_set_pte_ext)
-	str	r1, [r0], #-2048		@ linux version
+	xscale_set_pte_ext_prologue
 
-	bic	r2, r1, #0xff0			@ keep C, B bits
-	orr	r2, r2, #PTE_TYPE_EXT		@ extended page
+	@ If it's cacheable, it needs to be in L2 also.
+	tst	r1, #L_PTE_CACHEABLE
+	orrne	r2, r2, #PTE_EXT_TEX(0x5)
+
 	tst	r1, #L_PTE_SHARED		@ shared?
 	orrne	r2, r2, #0x200
 
-	eor	r3, r1, #L_PTE_PRESENT | L_PTE_YOUNG | L_PTE_WRITE | L_PTE_DIRTY
-
-	tst	r3, #L_PTE_USER			@ user?
-	orrne	r2, r2, #PTE_EXT_AP_URO_SRW	@ yes -> user r/o, system r/w
-
-	tst	r3, #L_PTE_WRITE | L_PTE_DIRTY	@ write and dirty?
-	orreq	r2, r2, #PTE_EXT_AP_UNO_SRW	@ yes -> user n/a, system r/w
-						@ combined with user -> user r/w
-
-	@ If it's cacheable, it needs to be in L2 also.
-	eor	ip, r1, #L_PTE_CACHEABLE
-	tst	ip, #L_PTE_CACHEABLE
-	orreq	r2, r2, #PTE_EXT_TEX(0x5)
-
-	tst	r3, #L_PTE_PRESENT | L_PTE_YOUNG	@ present and young?
-	movne	r2, #0				@ no -> fault
-
-	str	r2, [r0]			@ hardware version
-	mov	ip, #0
-	mcr	p15, 0, r0, c7, c10, 1		@ clean L1 D line
-	mcr	p15, 0, ip, c7, c10, 4		@ data write barrier
+	xscale_set_pte_ext_epilogue
 	mov	pc, lr
 
 	.ltorg
