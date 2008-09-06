@@ -63,8 +63,8 @@
 #  error "This driver requires kernel PCI support."
 #endif
 
-/* Default delay to throttle mmio access to the CX23418 so it doesn't choke */
-#define CX18_DEFAULT_MMIO_NDELAY 31 /* 30.3 ns = 1 PCI clock(s) / 33 MHz */
+/* Default delay to throttle mmio access to the CX23418 */
+#define CX18_DEFAULT_MMIO_NDELAY 0 /* 0 ns = 0 PCI clock(s) / 33 MHz */
 
 #define CX18_MEM_OFFSET	0x00000000
 #define CX18_MEM_SIZE	0x04000000
