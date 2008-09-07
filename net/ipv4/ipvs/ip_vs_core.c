@@ -847,7 +847,7 @@ static int ip_vs_out_icmp_v6(struct sk_buff *skb, int *related)
 	if (!cp)
 		return NF_ACCEPT;
 
-	snet.in6 = iph->saddr;
+	ipv6_addr_copy(&snet.in6, &iph->saddr);
 	return handle_response_icmp(AF_INET6, skb, &snet, cih->nexthdr, cp,
 				    pp, offset, sizeof(struct ipv6hdr));
 }
@@ -1227,7 +1227,7 @@ ip_vs_in_icmp_v6(struct sk_buff *skb, int *related, unsigned int hooknum)
 		/* The packet could also belong to a local client */
 		cp = pp->conn_out_get(AF_INET6, skb, pp, &ciph, offset, 1);
 		if (cp) {
-			snet.in6 = iph->saddr;
+			ipv6_addr_copy(&snet.in6, &iph->saddr);
 			return handle_response_icmp(AF_INET6, skb, &snet,
 						    cih->nexthdr,
 						    cp, pp, offset,
