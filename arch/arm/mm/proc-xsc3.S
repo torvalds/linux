@@ -345,23 +345,21 @@ ENTRY(cpu_xsc3_switch_mm)
  * cpu_xsc3_set_pte_ext(ptep, pte, ext)
  *
  * Set a PTE and flush it out
- *
  */
-
 cpu_xsc3_mt_table:
 	.long	0x00						@ L_PTE_MT_UNCACHED
-	.long	PTE_BUFFERABLE					@ L_PTE_MT_BUFFERABLE
-	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE			@ L_PTE_MT_WRITETHROUGH
-	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEBACK
-	.long	0x00						@ L_PTE_MT_DEV_SHARED
+	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_BUFFERABLE
+	.long	PTE_CACHEABLE					@ L_PTE_MT_WRITETHROUGH
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_WRITEBACK
+	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_SHARED
 	.long	0x00						@ unused
 	.long	0x00						@ L_PTE_MT_MINICACHE (not present)
 	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_WRITEALLOC (not present?)
 	.long	0x00						@ unused
 	.long	PTE_EXT_TEX(1)					@ L_PTE_MT_DEV_WC
 	.long	0x00						@ unused
-	.long	PTE_EXT_TEX(5) | PTE_CACHEABLE | PTE_BUFFERABLE	@ L_PTE_MT_DEV_CACHED
-	.long	0x00						@ L_PTE_MT_DEV_NONSHARED
+	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
+	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
 	.long	0x00						@ L_PTE_MT_DEV_IXP2000 (not present)
 	.long	0x00						@ unused
 	.long	0x00						@ unused
