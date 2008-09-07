@@ -215,8 +215,9 @@ static int mxb_probe(struct saa7146_dev* dev)
 
 	mxb->i2c_adapter = (struct i2c_adapter) {
 		.class = I2C_CLASS_TV_ANALOG,
-		.name = "mxb",
 	};
+
+	snprintf(mxb->i2c_adapter.name, sizeof(mxb->i2c_adapter.name), "mxb%d", mxb_num);
 
 	saa7146_i2c_adapter_prepare(dev, &mxb->i2c_adapter, SAA7146_I2C_BUS_BIT_RATE_480);
 	if(i2c_add_adapter(&mxb->i2c_adapter) < 0) {
