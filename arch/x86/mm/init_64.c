@@ -196,9 +196,6 @@ set_pte_vaddr_pud(pud_t *pud_page, unsigned long vaddr, pte_t new_pte)
 	}
 
 	pte = pte_offset_kernel(pmd, vaddr);
-	if (!pte_none(*pte) && pte_val(new_pte) &&
-	    pte_val(*pte) != (pte_val(new_pte) & __supported_pte_mask))
-		pte_ERROR(*pte);
 	set_pte(pte, new_pte);
 
 	/*
