@@ -1438,12 +1438,12 @@ static int snd_ctl_dev_disconnect(struct snd_device *device)
 	if (snd_BUG_ON(cardnum < 0 || cardnum >= SNDRV_CARDS))
 		return -ENXIO;
 
-	down_read(&card->controls_rwsem);
+	read_lock(&card->ctl_files_rwlock);
 	list_for_each_entry(ctl, &card->ctl_files, list) {
 		wake_up(&ctl->change_sleep);
 		kill_fasync(&ctl->fasync, SIGIO, POLL_ERR);
 	}
-	up_read(&card->controls_rwsem);
+	read_unlock(&card->ctl_files_rwlock);
 
 	if ((err = snd_unregister_device(SNDRV_DEVICE_TYPE_CONTROL,
 					 card, -1)) < 0)
