@@ -251,6 +251,10 @@ void start_periodic_check_for_corruption(void);
 static inline void check_for_bios_corruption(void)
 {
 }
+
+static inline void start_periodic_check_for_corruption(void)
+{
+}
 #endif
 
 /* Values used for system_state */
