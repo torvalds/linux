@@ -1061,7 +1061,6 @@ config HIGHPTE
 
 config X86_CHECK_BIOS_CORRUPTION
         bool "Check for low memory corruption"
-	default y
 	help
 	 Periodically check for memory corruption in low memory, which
 	 is suspected to be caused by BIOS.  Even when enabled in the
@@ -1081,6 +1080,14 @@ config X86_CHECK_BIOS_CORRUPTION
 	 BIOS-originated corruption always affects the same memory,
 	 you can use memmap= to prevent the kernel from using that
 	 memory.
+
+config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
+        bool "Set the default setting of memory_corruption_check"
+	depends on X86_CHECK_BIOS_CORRUPTION
+	default y
+	help
+	 Set whether the default state of memory_corruption_check is
+	 on or off.
 
 config MATH_EMULATION
 	bool

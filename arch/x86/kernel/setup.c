@@ -587,7 +587,8 @@ struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 #define MAX_SCAN_AREAS	8
 
-static int __read_mostly memory_corruption_check = 0;
+static int __read_mostly memory_corruption_check = -1;
+
 static unsigned __read_mostly corruption_check_size = 64*1024;
 static unsigned __read_mostly corruption_check_period = 60; /* seconds */
 
@@ -633,6 +634,16 @@ early_param("memory_corruption_check_size", set_corruption_check_size);
 static void __init setup_bios_corruption_check(void)
 {
 	u64 addr = PAGE_SIZE;	/* assume first page is reserved anyway */
+
+	if (memory_corruption_check == -1) {
+		memory_corruption_check =
+#ifdef CONFIG_X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
+			1
+#else
+			0
+#endif
+			;
+	}
 
 	if (corruption_check_size == 0)
 		memory_corruption_check = 0;
