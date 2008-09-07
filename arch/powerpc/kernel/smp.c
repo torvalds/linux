@@ -453,6 +453,7 @@ int __devinit start_secondary(void *unused)
 	secondary_cpu_time_init();
 
 	ipi_call_lock();
+	notify_cpu_starting(cpu);
 	cpu_set(cpu, cpu_online_map);
 	/* Update sibling maps */
 	base = cpu_first_thread_in_core(cpu);

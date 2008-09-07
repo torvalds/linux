@@ -498,6 +498,8 @@ static void __init smp_online(void)
 {
 	int cpu_id = smp_processor_id();
 
+	notify_cpu_starting(cpu_id);
+
 	local_irq_enable();
 
 	/* Get our bogomips. */

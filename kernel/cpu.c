@@ -453,6 +453,25 @@ out:
 }
 #endif /* CONFIG_PM_SLEEP_SMP */
 
+/**
+ * notify_cpu_starting(cpu) - call the CPU_STARTING notifiers
+ * @cpu: cpu that just started
+ *
+ * This function calls the cpu_chain notifiers with CPU_STARTING.
+ * It must be called by the arch code on the new cpu, before the new cpu
+ * enables interrupts and before the "boot" cpu returns from __cpu_up().
+ */
+void notify_cpu_starting(unsigned int cpu)
+{
+	unsigned long val = CPU_STARTING;
+
+#ifdef CONFIG_PM_SLEEP_SMP
+	if (cpu_isset(cpu, frozen_cpus))
+		val = CPU_STARTING_FROZEN;
+#endif /* CONFIG_PM_SLEEP_SMP */
+	raw_notifier_call_chain(&cpu_chain, val, (void *)(long)cpu);
+}
+
 #endif /* CONFIG_SMP */
 
 /*
