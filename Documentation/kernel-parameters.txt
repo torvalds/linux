@@ -360,6 +360,11 @@ and is between 256 and 4096 characters. It is defined in the file
 			Format: <io>,<irq>,<mode>
 			See header of drivers/net/hamradio/baycom_ser_hdx.c.
 
+	bios_corruption_check=0/1 [X86]
+			Some BIOSes seem to corrupt the first 64k of memory
+			when doing things like suspend/resume.  Setting this
+			option will scan the memory looking for corruption.
+
 	boot_delay=	Milliseconds to delay each printk during boot.
 			Values larger than 10 seconds (10000) are changed to
 			no delay (0).

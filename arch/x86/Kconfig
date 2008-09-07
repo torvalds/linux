@@ -201,6 +201,9 @@ config X86_TRAMPOLINE
 	depends on X86_SMP || (X86_VOYAGER && SMP) || (64BIT && ACPI_SLEEP)
 	default y
 
+config X86_CHECK_BIOS_CORRUPTION
+        def_bool y
+
 config KTIME_SCALAR
 	def_bool X86_32
 source "init/Kconfig"

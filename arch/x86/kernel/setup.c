@@ -579,6 +579,89 @@ static struct x86_quirks default_x86_quirks __initdata;
 struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
 
 /*
+ * Some BIOSes seem to corrupt the low 64k of memory during events
+ * like suspend/resume and unplugging an HDMI cable.  Reserve all
+ * remaining free memory in that area and fill it with a distinct
+ * pattern.
+ */
+#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
+#define MAX_SCAN_AREAS	8
+static struct e820entry scan_areas[MAX_SCAN_AREAS];
+static int num_scan_areas;
+
+static void __init setup_bios_corruption_check(void)
+{
+	u64 addr = PAGE_SIZE;	/* assume first page is reserved anyway */
+
+	while(addr < 0x10000 && num_scan_areas < MAX_SCAN_AREAS) {
+		u64 size;
+		addr = find_e820_area_size(addr, &size, PAGE_SIZE);
+
+		if (addr == 0)
+			break;
+
+		if ((addr + size) > 0x10000)
+			size = 0x10000 - addr;
+
+		if (size == 0)
+			break;
+
+		e820_update_range(addr, size, E820_RAM, E820_RESERVED);
+		scan_areas[num_scan_areas].addr = addr;
+		scan_areas[num_scan_areas].size = size;
+		num_scan_areas++;
+
+		/* Assume we've already mapped this early memory */
+		memset(__va(addr), 0, size);
+
+		addr += size;
+	}
+
+	printk(KERN_INFO "scanning %d areas for BIOS corruption\n",
+	       num_scan_areas);
+	update_e820();
+}
+
+static int __read_mostly bios_corruption_check = 1;
+
+void check_for_bios_corruption(void)
+{
+	int i;
+	int corruption = 0;
+
+	if (!bios_corruption_check)
+		return;
+
+	for(i = 0; i < num_scan_areas; i++) {
+		unsigned long *addr = __va(scan_areas[i].addr);
+		unsigned long size = scan_areas[i].size;
+
+		for(; size; addr++, size -= sizeof(unsigned long)) {
+			if (!*addr)
+				continue;
+			printk(KERN_ERR "Corrupted low memory at %p (%lx phys) = %08lx\n",
+			       addr, __pa(addr), *addr);
+			corruption = 1;
+			*addr = 0;
+		}
+	}
+
+	if (corruption)
+		dump_stack();
+}
+
+static int set_bios_corruption_check(char *arg)
+{
+	char *end;
+
+	bios_corruption_check = simple_strtol(arg, &end, 10);
+
+	return (*end == 0) ? 0 : -EINVAL;
+}
+early_param("bios_corruption_check", set_bios_corruption_check);
+#endif
+
+/*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
  * for initialization.  Note, the efi init code path is determined by the
@@ -748,6 +831,10 @@ void __init setup_arch(char **cmdline_p)
 		max_low_pfn = max_pfn;
 
 	high_memory = (void *)__va(max_pfn * PAGE_SIZE - 1) + 1;
+#endif
+
+#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
+	setup_bios_corruption_check();
 #endif
 
 	/* max_pfn_mapped is updated here */

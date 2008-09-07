@@ -254,6 +254,7 @@ static char *pm_verb(int event)
 
 static void pm_dev_dbg(struct device *dev, pm_message_t state, char *info)
 {
+	check_for_bios_corruption();
 	dev_dbg(dev, "%s%s%s\n", info, pm_verb(state.event),
 		((state.event & PM_EVENT_SLEEP) && device_may_wakeup(dev)) ?
 		", may wakeup" : "");

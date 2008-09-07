@@ -240,6 +240,18 @@ extern const char *print_tainted(void);
 extern void add_taint(unsigned);
 extern int root_mountflags;
 
+#ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
+/*
+ * This is obviously not a great place for this, but we want to be
+ * able to scatter it around anywhere in the kernel.
+ */
+void check_for_bios_corruption(void);
+#else
+static inline void check_for_bios_corruption(void)
+{
+}
+#endif
+
 /* Values used for system_state */
 extern enum system_states {
 	SYSTEM_BOOTING,
