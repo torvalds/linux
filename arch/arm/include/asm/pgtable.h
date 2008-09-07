@@ -184,7 +184,6 @@ extern void __pgd_error(const char *file, int line, unsigned long val);
 #define L_PTE_MT_WRITEALLOC	(0x07 << 2)	/* 0111 */
 #define L_PTE_MT_DEV_SHARED	(0x04 << 2)	/* 0100 */
 #define L_PTE_MT_DEV_NONSHARED	(0x0c << 2)	/* 1100 */
-#define L_PTE_MT_DEV_IXP2000	(0x0d << 2)	/* 1101 */
 #define L_PTE_MT_DEV_WC		(0x09 << 2)	/* 1001 */
 #define L_PTE_MT_DEV_CACHED	(0x0b << 2)	/* 1011 */
 #define L_PTE_MT_MASK		(0x0f << 2)

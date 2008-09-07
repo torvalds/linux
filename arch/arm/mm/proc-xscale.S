@@ -443,7 +443,7 @@ cpu_xscale_mt_table:
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
 	.long	0x00						@ L_PTE_MT_DEV_NONSHARED
-	.long	PTE_EXT_TEX(1) | PTE_BUFFERABLE			@ L_PTE_MT_DEV_IXP2000
+	.long	0x00						@ unused
 	.long	0x00						@ unused
 	.long	0x00						@ unused
 

@@ -204,13 +204,6 @@ static struct mem_type mem_types[] = {
 		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_WB,
 		.domain		= DOMAIN_IO,
 	},	
-	[MT_DEVICE_IXP2000] = {	  /* IXP2400 requires XCB=101 for on-chip I/O */
-		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_IXP2000,
-		.prot_l1	= PMD_TYPE_TABLE,
-		.prot_sect	= PROT_SECT_DEVICE | PMD_SECT_BUFFERABLE |
-				  PMD_SECT_TEX(1),
-		.domain		= DOMAIN_IO,
-	},
 	[MT_DEVICE_WC] = {	/* ioremap_wc */
 		.prot_pte	= PROT_PTE_DEVICE | L_PTE_MT_DEV_WC,
 		.prot_l1	= PMD_TYPE_TABLE,

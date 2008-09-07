@@ -360,7 +360,7 @@ cpu_xsc3_mt_table:
 	.long	0x00						@ unused
 	.long	PTE_CACHEABLE | PTE_BUFFERABLE			@ L_PTE_MT_DEV_CACHED
 	.long	PTE_EXT_TEX(2)					@ L_PTE_MT_DEV_NONSHARED
-	.long	0x00						@ L_PTE_MT_DEV_IXP2000 (not present)
+	.long	0x00						@ unused
 	.long	0x00						@ unused
 	.long	0x00						@ unused
 

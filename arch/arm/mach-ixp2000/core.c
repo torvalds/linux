@@ -84,64 +84,57 @@ static struct map_desc ixp2000_io_desc[] __initdata = {
 		.virtual	= IXP2000_CAP_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_CAP_PHYS_BASE),
 		.length		= IXP2000_CAP_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_INTCTL_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_INTCTL_PHYS_BASE),
 		.length		= IXP2000_INTCTL_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CREG_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CREG_PHYS_BASE),
 		.length		= IXP2000_PCI_CREG_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CSR_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CSR_PHYS_BASE),
 		.length		= IXP2000_PCI_CSR_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_MSF_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_MSF_PHYS_BASE),
 		.length		= IXP2000_MSF_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_SCRATCH_RING_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_SCRATCH_RING_PHYS_BASE),
 		.length		= IXP2000_SCRATCH_RING_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_SRAM0_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_SRAM0_PHYS_BASE),
 		.length		= IXP2000_SRAM0_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_IO_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_IO_PHYS_BASE),
 		.length		= IXP2000_PCI_IO_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CFG0_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CFG0_PHYS_BASE),
 		.length		= IXP2000_PCI_CFG0_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}, {
 		.virtual	= IXP2000_PCI_CFG1_VIRT_BASE,
 		.pfn		= __phys_to_pfn(IXP2000_PCI_CFG1_PHYS_BASE),
 		.length		= IXP2000_PCI_CFG1_SIZE,
-		.type		= MT_DEVICE_IXP2000,
+		.type		= MT_DEVICE,
 	}
 };
 
 void __init ixp2000_map_io(void)
 {
-	/*
-	 * On IXP2400 CPUs we need to use MT_DEVICE_IXP2000 so that
-	 * XCB=101 (to avoid triggering erratum #66), and given that
-	 * this mode speeds up I/O accesses and we have write buffer
-	 * flushes in the right places anyway, it doesn't hurt to use
-	 * XCB=101 for all IXP2000s.
-	 */
 	iotable_init(ixp2000_io_desc, ARRAY_SIZE(ixp2000_io_desc));
 
 	/* Set slowport to 8-bit mode.  */
