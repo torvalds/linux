@@ -246,13 +246,22 @@
 	   		};
 
 			IIC0: i2c@ef600700 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				compatible = "ibm,iic-440epx", "ibm,iic";
 				reg = <0xef600700 0x00000014>;
 				interrupt-parent = <&UIC0>;
 				interrupts = <0x2 0x4>;
+
+				hwmon@48 {
+					compatible = "adi,ad7414";
+					reg = <0x48>;
+				};
 			};
 
 			IIC1: i2c@ef600800 {
+				#address-cells = <1>;
+				#size-cells = <0>;
 				compatible = "ibm,iic-440epx", "ibm,iic";
 				reg = <0xef600800 0x00000014>;
 				interrupt-parent = <&UIC0>;
