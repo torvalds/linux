@@ -89,7 +89,7 @@ early_param("gbpages", parse_direct_gbpages_on);
 
 int after_bootmem;
 
-unsigned long __supported_pte_mask __read_mostly = ~0UL;
+pteval_t __supported_pte_mask __read_mostly = ~_PAGE_IOMAP;
 EXPORT_SYMBOL_GPL(__supported_pte_mask);
 
 static int do_not_nx __cpuinitdata;

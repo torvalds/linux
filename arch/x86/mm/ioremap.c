@@ -242,16 +242,16 @@ static void __iomem *__ioremap_caller(resource_size_t phys_addr,
 	switch (prot_val) {
 	case _PAGE_CACHE_UC:
 	default:
-		prot = PAGE_KERNEL_NOCACHE;
+		prot = PAGE_KERNEL_IO_NOCACHE;
 		break;
 	case _PAGE_CACHE_UC_MINUS:
-		prot = PAGE_KERNEL_UC_MINUS;
+		prot = PAGE_KERNEL_IO_UC_MINUS;
 		break;
 	case _PAGE_CACHE_WC:
-		prot = PAGE_KERNEL_WC;
+		prot = PAGE_KERNEL_IO_WC;
 		break;
 	case _PAGE_CACHE_WB:
-		prot = PAGE_KERNEL;
+		prot = PAGE_KERNEL_IO;
 		break;
 	}
 
