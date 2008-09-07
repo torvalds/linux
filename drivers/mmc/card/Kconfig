@@ -2,7 +2,7 @@
 # MMC/SD card drivers
 #
 
-comment "MMC/SD Card Drivers"
+comment "MMC/SD/SDIO Card Drivers"
 
 config MMC_BLOCK
 	tristate "MMC block device driver"
