@@ -18,6 +18,8 @@
 
 struct smc91x_platdata {
 	unsigned long flags;
+	unsigned char leda;
+	unsigned char ledb;
 };
 
 #endif /* __SMC91X_H__ */
