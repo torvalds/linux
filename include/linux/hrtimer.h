@@ -363,7 +363,7 @@ static inline int hrtimer_start_expires(struct hrtimer *timer,
 	soft = hrtimer_get_softexpires(timer);
 	hard = hrtimer_get_expires(timer);
 	delta = ktime_to_ns(ktime_sub(hard, soft));
-	return hrtimer_start_range_ns(timer, hrtimer_get_expires(timer), delta, mode);
+	return hrtimer_start_range_ns(timer, soft, delta, mode);
 }
 
 static inline int hrtimer_restart(struct hrtimer *timer)

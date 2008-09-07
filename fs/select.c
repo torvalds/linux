@@ -46,7 +46,7 @@ static unsigned long __estimate_accuracy(struct timespec *tv)
 	unsigned long slack;
 	int divfactor = 1000;
 
-	if (task_nice(current))
+	if (task_nice(current) > 0)
 		divfactor = divfactor / 5;
 
 	slack = tv->tv_nsec / divfactor;
@@ -66,8 +66,7 @@ static unsigned long estimate_accuracy(struct timespec *tv)
 	 * Realtime tasks get a slack of 0 for obvious reasons.
 	 */
 
-	if (current->policy == SCHED_FIFO ||
-		current->policy == SCHED_RR)
+	if (rt_task(current))
 		return 0;
 
 	ktime_get_ts(&now);
