@@ -30,6 +30,7 @@
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -5085,6 +5086,116 @@ lpfc_els_flush_all_cmd(struct lpfc_hba  *phba)
 }
 
 /**
+ * lpfc_send_els_failure_event: Posts an ELS command failure event.
+ * @phba: Pointer to hba context object.
+ * @cmdiocbp: Pointer to command iocb which reported error.
+ * @rspiocbp: Pointer to response iocb which reported error.
+ *
+ * This function sends an event when there is an ELS command
+ * failure.
+ **/
+void
+lpfc_send_els_failure_event(struct lpfc_hba *phba,
+			struct lpfc_iocbq *cmdiocbp,
+			struct lpfc_iocbq *rspiocbp)
+{
+	struct lpfc_vport *vport = cmdiocbp->vport;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_lsrjt_event lsrjt_event;
+	struct lpfc_fabric_event_header fabric_event;
+	struct ls_rjt stat;
+	struct lpfc_nodelist *ndlp;
+	uint32_t *pcmd;
+
+	ndlp = cmdiocbp->context1;
+	if (!ndlp || !NLP_CHK_NODE_ACT(ndlp))
+		return;
+
+	if (rspiocbp->iocb.ulpStatus == IOSTAT_LS_RJT) {
+		lsrjt_event.header.event_type = FC_REG_ELS_EVENT;
+		lsrjt_event.header.subcategory = LPFC_EVENT_LSRJT_RCV;
+		memcpy(lsrjt_event.header.wwpn, &ndlp->nlp_portname,
+			sizeof(struct lpfc_name));
+		memcpy(lsrjt_event.header.wwnn, &ndlp->nlp_nodename,
+			sizeof(struct lpfc_name));
+		pcmd = (uint32_t *) (((struct lpfc_dmabuf *)
+			cmdiocbp->context2)->virt);
+		lsrjt_event.command = *pcmd;
+		stat.un.lsRjtError = be32_to_cpu(rspiocbp->iocb.un.ulpWord[4]);
+		lsrjt_event.reason_code = stat.un.b.lsRjtRsnCode;
+		lsrjt_event.explanation = stat.un.b.lsRjtRsnCodeExp;
+		fc_host_post_vendor_event(shost,
+			fc_get_event_number(),
+			sizeof(lsrjt_event),
+			(char *)&lsrjt_event,
+			SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		return;
+	}
+	if ((rspiocbp->iocb.ulpStatus == IOSTAT_NPORT_BSY) ||
+		(rspiocbp->iocb.ulpStatus == IOSTAT_FABRIC_BSY)) {
+		fabric_event.event_type = FC_REG_FABRIC_EVENT;
+		if (rspiocbp->iocb.ulpStatus == IOSTAT_NPORT_BSY)
+			fabric_event.subcategory = LPFC_EVENT_PORT_BUSY;
+		else
+			fabric_event.subcategory = LPFC_EVENT_FABRIC_BUSY;
+		memcpy(fabric_event.wwpn, &ndlp->nlp_portname,
+			sizeof(struct lpfc_name));
+		memcpy(fabric_event.wwnn, &ndlp->nlp_nodename,
+			sizeof(struct lpfc_name));
+		fc_host_post_vendor_event(shost,
+			fc_get_event_number(),
+			sizeof(fabric_event),
+			(char *)&fabric_event,
+			SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+		return;
+	}
+
+}
+
+/**
+ * lpfc_send_els_event: Posts unsolicited els event.
+ * @vport: Pointer to vport object.
+ * @ndlp: Pointer FC node object.
+ * @cmd: ELS command code.
+ *
+ * This function posts an event when there is an incoming
+ * unsolicited ELS command.
+ **/
+static void
+lpfc_send_els_event(struct lpfc_vport *vport,
+		    struct lpfc_nodelist *ndlp,
+		    uint32_t cmd)
+{
+	struct lpfc_els_event_header els_data;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+
+	els_data.event_type = FC_REG_ELS_EVENT;
+	switch (cmd) {
+	case ELS_CMD_PLOGI:
+		els_data.subcategory = LPFC_EVENT_PLOGI_RCV;
+		break;
+	case ELS_CMD_PRLO:
+		els_data.subcategory = LPFC_EVENT_PRLO_RCV;
+		break;
+	case ELS_CMD_ADISC:
+		els_data.subcategory = LPFC_EVENT_ADISC_RCV;
+		break;
+	default:
+		return;
+	}
+	memcpy(els_data.wwpn, &ndlp->nlp_portname, sizeof(struct lpfc_name));
+	memcpy(els_data.wwnn, &ndlp->nlp_nodename, sizeof(struct lpfc_name));
+	fc_host_post_vendor_event(shost,
+		fc_get_event_number(),
+		sizeof(els_data),
+		(char *)&els_data,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+
+	return;
+}
+
+
+/**
  * lpfc_els_unsol_buffer: Process an unsolicited event data buffer.
  * @phba: pointer to lpfc hba data structure.
  * @pring: pointer to a SLI ring.
@@ -5185,6 +5296,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		phba->fc_stat.elsRcvPLOGI++;
 		ndlp = lpfc_plogi_confirm_nport(phba, payload, ndlp);
 
+		lpfc_send_els_event(vport, ndlp, cmd);
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			if (!(phba->pport->fc_flag & FC_PT2PT) ||
 				(phba->pport->fc_flag & FC_PT2PT_PLOGI)) {
@@ -5234,6 +5346,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			did, vport->port_state, ndlp->nlp_flag);
 
 		phba->fc_stat.elsRcvPRLO++;
+		lpfc_send_els_event(vport, ndlp, cmd);
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			rjt_err = LSRJT_UNABLE_TPC;
 			break;
@@ -5251,6 +5364,7 @@ lpfc_els_unsol_buffer(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			"RCV ADISC:       did:x%x/ste:x%x flg:x%x",
 			did, vport->port_state, ndlp->nlp_flag);
 
+		lpfc_send_els_event(vport, ndlp, cmd);
 		phba->fc_stat.elsRcvADISC++;
 		if (vport->port_state < LPFC_DISC_AUTH) {
 			rjt_err = LSRJT_UNABLE_TPC;

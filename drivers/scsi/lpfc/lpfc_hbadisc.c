@@ -30,6 +30,7 @@
 #include <scsi/scsi_transport_fc.h>
 
 #include "lpfc_hw.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_sli.h"
 #include "lpfc_scsi.h"
@@ -274,6 +275,124 @@ lpfc_dev_loss_tmo_handler(struct lpfc_nodelist *ndlp)
 		lpfc_disc_state_machine(vport, ndlp, NULL, NLP_EVT_DEVICE_RM);
 }
 
+/**
+ * lpfc_alloc_fast_evt: Allocates data structure for posting event.
+ * @phba: Pointer to hba context object.
+ *
+ * This function is called from the functions which need to post
+ * events from interrupt context. This function allocates data
+ * structure required for posting event. It also keeps track of
+ * number of events pending and prevent event storm when there are
+ * too many events.
+ **/
+struct lpfc_fast_path_event *
+lpfc_alloc_fast_evt(struct lpfc_hba *phba) {
+	struct lpfc_fast_path_event *ret;
+
+	/* If there are lot of fast event do not exhaust memory due to this */
+	if (atomic_read(&phba->fast_event_count) > LPFC_MAX_EVT_COUNT)
+		return NULL;
+
+	ret = kzalloc(sizeof(struct lpfc_fast_path_event),
+			GFP_ATOMIC);
+	if (ret)
+		atomic_inc(&phba->fast_event_count);
+	INIT_LIST_HEAD(&ret->work_evt.evt_listp);
+	ret->work_evt.evt = LPFC_EVT_FASTPATH_MGMT_EVT;
+	return ret;
+}
+
+/**
+ * lpfc_free_fast_evt: Frees event data structure.
+ * @phba: Pointer to hba context object.
+ * @evt:  Event object which need to be freed.
+ *
+ * This function frees the data structure required for posting
+ * events.
+ **/
+void
+lpfc_free_fast_evt(struct lpfc_hba *phba,
+		struct lpfc_fast_path_event *evt) {
+
+	atomic_dec(&phba->fast_event_count);
+	kfree(evt);
+}
+
+/**
+ * lpfc_send_fastpath_evt: Posts events generated from fast path.
+ * @phba: Pointer to hba context object.
+ * @evtp: Event data structure.
+ *
+ * This function is called from worker thread, when the interrupt
+ * context need to post an event. This function posts the event
+ * to fc transport netlink interface.
+ **/
+static void
+lpfc_send_fastpath_evt(struct lpfc_hba *phba,
+		struct lpfc_work_evt *evtp)
+{
+	unsigned long evt_category, evt_sub_category;
+	struct lpfc_fast_path_event *fast_evt_data;
+	char *evt_data;
+	uint32_t evt_data_size;
+	struct Scsi_Host *shost;
+
+	fast_evt_data = container_of(evtp, struct lpfc_fast_path_event,
+		work_evt);
+
+	evt_category = (unsigned long) fast_evt_data->un.fabric_evt.event_type;
+	evt_sub_category = (unsigned long) fast_evt_data->un.
+			fabric_evt.subcategory;
+	shost = lpfc_shost_from_vport(fast_evt_data->vport);
+	if (evt_category == FC_REG_FABRIC_EVENT) {
+		if (evt_sub_category == LPFC_EVENT_FCPRDCHKERR) {
+			evt_data = (char *) &fast_evt_data->un.read_check_error;
+			evt_data_size = sizeof(fast_evt_data->un.
+				read_check_error);
+		} else if ((evt_sub_category == LPFC_EVENT_FABRIC_BUSY) ||
+			(evt_sub_category == IOSTAT_NPORT_BSY)) {
+			evt_data = (char *) &fast_evt_data->un.fabric_evt;
+			evt_data_size = sizeof(fast_evt_data->un.fabric_evt);
+		} else {
+			lpfc_free_fast_evt(phba, fast_evt_data);
+			return;
+		}
+	} else if (evt_category == FC_REG_SCSI_EVENT) {
+		switch (evt_sub_category) {
+		case LPFC_EVENT_QFULL:
+		case LPFC_EVENT_DEVBSY:
+			evt_data = (char *) &fast_evt_data->un.scsi_evt;
+			evt_data_size = sizeof(fast_evt_data->un.scsi_evt);
+			break;
+		case LPFC_EVENT_CHECK_COND:
+			evt_data = (char *) &fast_evt_data->un.check_cond_evt;
+			evt_data_size =  sizeof(fast_evt_data->un.
+				check_cond_evt);
+			break;
+		case LPFC_EVENT_VARQUEDEPTH:
+			evt_data = (char *) &fast_evt_data->un.queue_depth_evt;
+			evt_data_size = sizeof(fast_evt_data->un.
+				queue_depth_evt);
+			break;
+		default:
+			lpfc_free_fast_evt(phba, fast_evt_data);
+			return;
+		}
+	} else {
+		lpfc_free_fast_evt(phba, fast_evt_data);
+		return;
+	}
+
+	fc_host_post_vendor_event(shost,
+		fc_get_event_number(),
+		evt_data_size,
+		evt_data,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+
+	lpfc_free_fast_evt(phba, fast_evt_data);
+	return;
+}
+
 static void
 lpfc_work_list_done(struct lpfc_hba *phba)
 {
@@ -344,6 +463,10 @@ lpfc_work_list_done(struct lpfc_hba *phba)
 				        ? 0 : lpfc_sli_brdkill(phba);
 			lpfc_unblock_mgmt_io(phba);
 			complete((struct completion *)(evtp->evt_arg2));
+			break;
+		case LPFC_EVT_FASTPATH_MGMT_EVT:
+			lpfc_send_fastpath_evt(phba, evtp);
+			free_evt = 0;
 			break;
 		}
 		if (free_evt)
@@ -1600,6 +1723,22 @@ lpfc_nlp_state_cleanup(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		 * sure to unblock any attached scsi devices
 		 */
 		lpfc_register_remote_port(vport, ndlp);
+	}
+	if ((new_state ==  NLP_STE_MAPPED_NODE) &&
+		(vport->stat_data_enabled)) {
+		/*
+		 * A new target is discovered, if there is no buffer for
+		 * statistical data collection allocate buffer.
+		 */
+		ndlp->lat_data = kcalloc(LPFC_MAX_BUCKET_COUNT,
+					 sizeof(struct lpfc_scsicmd_bkt),
+					 GFP_KERNEL);
+
+		if (!ndlp->lat_data)
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+				"0286 lpfc_nlp_state_cleanup failed to "
+				"allocate statistical data buffer DID "
+				"0x%x\n", ndlp->nlp_DID);
 	}
 	/*
 	 * if we added to Mapped list, but the remote port
@@ -3029,8 +3168,10 @@ lpfc_nlp_release(struct kref *kref)
 	spin_unlock_irqrestore(&phba->ndlp_lock, flags);
 
 	/* free ndlp memory for final ndlp release */
-	if (NLP_CHK_FREE_REQ(ndlp))
+	if (NLP_CHK_FREE_REQ(ndlp)) {
+		kfree(ndlp->lat_data);
 		mempool_free(ndlp, ndlp->vport->phba->nlp_mem_pool);
+	}
 }
 
 /* This routine bumps the reference count for a ndlp structure to ensure

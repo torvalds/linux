@@ -40,6 +40,8 @@ struct lpfc_sli2_slim;
 #define LPFC_MIN_TGT_QDEPTH	100
 #define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
+#define  LPFC_MAX_BUCKET_COUNT 20	/* Maximum no. of buckets for stat data
+					   collection. */
 /*
  * Following time intervals are used of adjusting SCSI device
  * queue depths when there are driver resource error or Firmware
@@ -381,6 +383,8 @@ struct lpfc_vport {
 	struct lpfc_debugfs_trc *disc_trc;
 	atomic_t disc_trc_cnt;
 #endif
+	uint8_t stat_data_enabled;
+	uint8_t stat_data_blocked;
 };
 
 struct hbq_s {
@@ -641,6 +645,17 @@ struct lpfc_hba {
 	uint32_t buffer_tag_count;
 	int wait_4_mlo_maint_flg;
 	wait_queue_head_t wait_4_mlo_m_q;
+	/* data structure used for latency data collection */
+#define LPFC_NO_BUCKET	   0
+#define LPFC_LINEAR_BUCKET 1
+#define LPFC_POWER2_BUCKET 2
+	uint8_t  bucket_type;
+	uint32_t bucket_base;
+	uint32_t bucket_step;
+
+/* Maximum number of events that can be outstanding at any time*/
+#define LPFC_MAX_EVT_COUNT 512
+	atomic_t fast_event_count;
 };
 
 static inline struct Scsi_Host *
@@ -699,15 +714,3 @@ lpfc_sli_read_hs(struct lpfc_hba *phba)
 	return;
 }
 
-#define FC_REG_DUMP_EVENT		0x10	/* Register for Dump events */
-#define FC_REG_TEMPERATURE_EVENT	0x20    /* Register for temperature
-						   event */
-
-struct temp_event {
-	uint32_t event_type;
-	uint32_t event_code;
-	uint32_t data;
-};
-#define LPFC_CRIT_TEMP		0x1
-#define LPFC_THRESHOLD_TEMP	0x2
-#define LPFC_NORMAL_TEMP	0x3

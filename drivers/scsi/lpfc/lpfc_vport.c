@@ -34,6 +34,7 @@
 #include <scsi/scsi_transport_fc.h>
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -744,4 +745,83 @@ lpfc_destroy_vport_work_array(struct lpfc_hba *phba, struct lpfc_vport **vports)
 	for (i=0; vports[i] != NULL && i <= phba->max_vpi; i++)
 		scsi_host_put(lpfc_shost_from_vport(vports[i]));
 	kfree(vports);
+}
+
+
+/**
+ * lpfc_vport_reset_stat_data: Reset the statistical data for the vport.
+ * @vport: Pointer to vport object.
+ *
+ * This function resets the statistical data for the vport. This function
+ * is called with the host_lock held
+ **/
+void
+lpfc_vport_reset_stat_data(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+		if (ndlp->lat_data)
+			memset(ndlp->lat_data, 0, LPFC_MAX_BUCKET_COUNT *
+				sizeof(struct lpfc_scsicmd_bkt));
+	}
+}
+
+
+/**
+ * lpfc_alloc_bucket: Allocate data buffer required for collecting
+ *  statistical data.
+ * @vport: Pointer to vport object.
+ *
+ * This function allocates data buffer required for all the FC
+ * nodes of the vport to collect statistical data.
+ **/
+void
+lpfc_alloc_bucket(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+
+		kfree(ndlp->lat_data);
+		ndlp->lat_data = NULL;
+
+		if (ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
+			ndlp->lat_data = kcalloc(LPFC_MAX_BUCKET_COUNT,
+					 sizeof(struct lpfc_scsicmd_bkt),
+					 GFP_ATOMIC);
+
+			if (!ndlp->lat_data)
+				lpfc_printf_vlog(vport, KERN_ERR, LOG_NODE,
+					"0287 lpfc_alloc_bucket failed to "
+					"allocate statistical data buffer DID "
+					"0x%x\n", ndlp->nlp_DID);
+		}
+	}
+}
+
+/**
+ * lpfc_free_bucket: Free data buffer required for collecting
+ *  statistical data.
+ * @vport: Pointer to vport object.
+ *
+ * Th function frees statistical data buffer of all the FC
+ * nodes of the vport.
+ **/
+void
+lpfc_free_bucket(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp = NULL, *next_ndlp = NULL;
+
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+
+		kfree(ndlp->lat_data);
+		ndlp->lat_data = NULL;
+	}
 }

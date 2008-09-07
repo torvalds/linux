@@ -107,6 +107,10 @@ struct fcp_cmnd {
 
 };
 
+struct lpfc_scsicmd_bkt {
+	uint32_t cmd_count;
+};
+
 struct lpfc_scsi_buf {
 	struct list_head list;
 	struct scsi_cmnd *pCmd;

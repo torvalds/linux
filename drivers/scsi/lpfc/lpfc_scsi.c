@@ -32,6 +32,7 @@
 #include "lpfc_version.h"
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -41,6 +42,111 @@
 
 #define LPFC_RESET_WAIT  2
 #define LPFC_ABORT_WAIT  2
+
+/**
+ * lpfc_update_stats: Update statistical data for the command completion.
+ * @phba: Pointer to HBA object.
+ * @lpfc_cmd: lpfc scsi command object pointer.
+ *
+ * This function is called when there is a command completion and this
+ * function updates the statistical data for the command completion.
+ **/
+static void
+lpfc_update_stats(struct lpfc_hba *phba, struct  lpfc_scsi_buf *lpfc_cmd)
+{
+	struct lpfc_rport_data *rdata = lpfc_cmd->rdata;
+	struct lpfc_nodelist *pnode = rdata->pnode;
+	struct scsi_cmnd *cmd = lpfc_cmd->pCmd;
+	unsigned long flags;
+	struct Scsi_Host  *shost = cmd->device->host;
+	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
+	unsigned long latency;
+	int i;
+
+	if (cmd->result)
+		return;
+
+	spin_lock_irqsave(shost->host_lock, flags);
+	if (!vport->stat_data_enabled ||
+		vport->stat_data_blocked ||
+		!pnode->lat_data ||
+		(phba->bucket_type == LPFC_NO_BUCKET)) {
+		spin_unlock_irqrestore(shost->host_lock, flags);
+		return;
+	}
+	latency = jiffies_to_msecs(jiffies - lpfc_cmd->start_time);
+
+	if (phba->bucket_type == LPFC_LINEAR_BUCKET) {
+		i = (latency + phba->bucket_step - 1 - phba->bucket_base)/
+			phba->bucket_step;
+		if (i >= LPFC_MAX_BUCKET_COUNT)
+			i = LPFC_MAX_BUCKET_COUNT;
+	} else {
+		for (i = 0; i < LPFC_MAX_BUCKET_COUNT-1; i++)
+			if (latency <= (phba->bucket_base +
+				((1<<i)*phba->bucket_step)))
+				break;
+	}
+
+	pnode->lat_data[i].cmd_count++;
+	spin_unlock_irqrestore(shost->host_lock, flags);
+}
+
+
+/**
+ * lpfc_send_sdev_queuedepth_change_event: Posts a queuedepth change
+ *                   event.
+ * @phba: Pointer to HBA context object.
+ * @vport: Pointer to vport object.
+ * @ndlp: Pointer to FC node associated with the target.
+ * @lun: Lun number of the scsi device.
+ * @old_val: Old value of the queue depth.
+ * @new_val: New value of the queue depth.
+ *
+ * This function sends an event to the mgmt application indicating
+ * there is a change in the scsi device queue depth.
+ **/
+static void
+lpfc_send_sdev_queuedepth_change_event(struct lpfc_hba *phba,
+		struct lpfc_vport  *vport,
+		struct lpfc_nodelist *ndlp,
+		uint32_t lun,
+		uint32_t old_val,
+		uint32_t new_val)
+{
+	struct lpfc_fast_path_event *fast_path_evt;
+	unsigned long flags;
+
+	fast_path_evt = lpfc_alloc_fast_evt(phba);
+	if (!fast_path_evt)
+		return;
+
+	fast_path_evt->un.queue_depth_evt.scsi_event.event_type =
+		FC_REG_SCSI_EVENT;
+	fast_path_evt->un.queue_depth_evt.scsi_event.subcategory =
+		LPFC_EVENT_VARQUEDEPTH;
+
+	/* Report all luns with change in queue depth */
+	fast_path_evt->un.queue_depth_evt.scsi_event.lun = lun;
+	if (ndlp && NLP_CHK_NODE_ACT(ndlp)) {
+		memcpy(&fast_path_evt->un.queue_depth_evt.scsi_event.wwpn,
+			&ndlp->nlp_portname, sizeof(struct lpfc_name));
+		memcpy(&fast_path_evt->un.queue_depth_evt.scsi_event.wwnn,
+			&ndlp->nlp_nodename, sizeof(struct lpfc_name));
+	}
+
+	fast_path_evt->un.queue_depth_evt.oldval = old_val;
+	fast_path_evt->un.queue_depth_evt.newval = new_val;
+	fast_path_evt->vport = vport;
+
+	fast_path_evt->work_evt.evt = LPFC_EVT_FASTPATH_MGMT_EVT;
+	spin_lock_irqsave(&phba->hbalock, flags);
+	list_add_tail(&fast_path_evt->work_evt.evt_listp, &phba->work_list);
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	lpfc_worker_wake_up(phba);
+
+	return;
+}
 
 /*
  * This function is called with no lock held when there is a resource
@@ -117,9 +223,10 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 	struct lpfc_vport **vports;
 	struct Scsi_Host  *shost;
 	struct scsi_device *sdev;
-	unsigned long new_queue_depth;
+	unsigned long new_queue_depth, old_queue_depth;
 	unsigned long num_rsrc_err, num_cmd_success;
 	int i;
+	struct lpfc_rport_data *rdata;
 
 	num_rsrc_err = atomic_read(&phba->num_rsrc_err);
 	num_cmd_success = atomic_read(&phba->num_cmd_success);
@@ -137,6 +244,7 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 				else
 					new_queue_depth = sdev->queue_depth -
 								new_queue_depth;
+				old_queue_depth = sdev->queue_depth;
 				if (sdev->ordered_tags)
 					scsi_adjust_queue_depth(sdev,
 							MSG_ORDERED_TAG,
@@ -145,6 +253,13 @@ lpfc_ramp_down_queue_handler(struct lpfc_hba *phba)
 					scsi_adjust_queue_depth(sdev,
 							MSG_SIMPLE_TAG,
 							new_queue_depth);
+				rdata = sdev->hostdata;
+				if (rdata)
+					lpfc_send_sdev_queuedepth_change_event(
+						phba, vports[i],
+						rdata->pnode,
+						sdev->lun, old_queue_depth,
+						new_queue_depth);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -159,6 +274,7 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 	struct Scsi_Host  *shost;
 	struct scsi_device *sdev;
 	int i;
+	struct lpfc_rport_data *rdata;
 
 	vports = lpfc_create_vport_work_array(phba);
 	if (vports != NULL)
@@ -176,6 +292,14 @@ lpfc_ramp_up_queue_handler(struct lpfc_hba *phba)
 					scsi_adjust_queue_depth(sdev,
 							MSG_SIMPLE_TAG,
 							sdev->queue_depth+1);
+				rdata = sdev->hostdata;
+				if (rdata)
+					lpfc_send_sdev_queuedepth_change_event(
+						phba, vports[i],
+						rdata->pnode,
+						sdev->lun,
+						sdev->queue_depth - 1,
+						sdev->queue_depth);
 			}
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
@@ -466,6 +590,97 @@ lpfc_scsi_prep_dma_buf(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 	return 0;
 }
 
+/**
+ * lpfc_send_scsi_error_event: Posts an event when there is SCSI error.
+ * @phba: Pointer to hba context object.
+ * @vport: Pointer to vport object.
+ * @lpfc_cmd: Pointer to lpfc scsi command which reported the error.
+ * @rsp_iocb: Pointer to response iocb object which reported error.
+ *
+ * This function posts an event when there is a SCSI command reporting
+ * error from the scsi device.
+ **/
+static void
+lpfc_send_scsi_error_event(struct lpfc_hba *phba, struct lpfc_vport *vport,
+		struct lpfc_scsi_buf *lpfc_cmd, struct lpfc_iocbq *rsp_iocb) {
+	struct scsi_cmnd *cmnd = lpfc_cmd->pCmd;
+	struct fcp_rsp *fcprsp = lpfc_cmd->fcp_rsp;
+	uint32_t resp_info = fcprsp->rspStatus2;
+	uint32_t scsi_status = fcprsp->rspStatus3;
+	uint32_t fcpi_parm = rsp_iocb->iocb.un.fcpi.fcpi_parm;
+	struct lpfc_fast_path_event *fast_path_evt = NULL;
+	struct lpfc_nodelist *pnode = lpfc_cmd->rdata->pnode;
+	unsigned long flags;
+
+	/* If there is queuefull or busy condition send a scsi event */
+	if ((cmnd->result == SAM_STAT_TASK_SET_FULL) ||
+		(cmnd->result == SAM_STAT_BUSY)) {
+		fast_path_evt = lpfc_alloc_fast_evt(phba);
+		if (!fast_path_evt)
+			return;
+		fast_path_evt->un.scsi_evt.event_type =
+			FC_REG_SCSI_EVENT;
+		fast_path_evt->un.scsi_evt.subcategory =
+		(cmnd->result == SAM_STAT_TASK_SET_FULL) ?
+		LPFC_EVENT_QFULL : LPFC_EVENT_DEVBSY;
+		fast_path_evt->un.scsi_evt.lun = cmnd->device->lun;
+		memcpy(&fast_path_evt->un.scsi_evt.wwpn,
+			&pnode->nlp_portname, sizeof(struct lpfc_name));
+		memcpy(&fast_path_evt->un.scsi_evt.wwnn,
+			&pnode->nlp_nodename, sizeof(struct lpfc_name));
+	} else if ((resp_info & SNS_LEN_VALID) && fcprsp->rspSnsLen &&
+		((cmnd->cmnd[0] == READ_10) || (cmnd->cmnd[0] == WRITE_10))) {
+		fast_path_evt = lpfc_alloc_fast_evt(phba);
+		if (!fast_path_evt)
+			return;
+		fast_path_evt->un.check_cond_evt.scsi_event.event_type =
+			FC_REG_SCSI_EVENT;
+		fast_path_evt->un.check_cond_evt.scsi_event.subcategory =
+			LPFC_EVENT_CHECK_COND;
+		fast_path_evt->un.check_cond_evt.scsi_event.lun =
+			cmnd->device->lun;
+		memcpy(&fast_path_evt->un.check_cond_evt.scsi_event.wwpn,
+			&pnode->nlp_portname, sizeof(struct lpfc_name));
+		memcpy(&fast_path_evt->un.check_cond_evt.scsi_event.wwnn,
+			&pnode->nlp_nodename, sizeof(struct lpfc_name));
+		fast_path_evt->un.check_cond_evt.sense_key =
+			cmnd->sense_buffer[2] & 0xf;
+		fast_path_evt->un.check_cond_evt.asc = cmnd->sense_buffer[12];
+		fast_path_evt->un.check_cond_evt.ascq = cmnd->sense_buffer[13];
+	} else if ((cmnd->sc_data_direction == DMA_FROM_DEVICE) &&
+		     fcpi_parm &&
+		     ((be32_to_cpu(fcprsp->rspResId) != fcpi_parm) ||
+			((scsi_status == SAM_STAT_GOOD) &&
+			!(resp_info & (RESID_UNDER | RESID_OVER))))) {
+		/*
+		 * If status is good or resid does not match with fcp_param and
+		 * there is valid fcpi_parm, then there is a read_check error
+		 */
+		fast_path_evt = lpfc_alloc_fast_evt(phba);
+		if (!fast_path_evt)
+			return;
+		fast_path_evt->un.read_check_error.header.event_type =
+			FC_REG_FABRIC_EVENT;
+		fast_path_evt->un.read_check_error.header.subcategory =
+			LPFC_EVENT_FCPRDCHKERR;
+		memcpy(&fast_path_evt->un.read_check_error.header.wwpn,
+			&pnode->nlp_portname, sizeof(struct lpfc_name));
+		memcpy(&fast_path_evt->un.read_check_error.header.wwnn,
+			&pnode->nlp_nodename, sizeof(struct lpfc_name));
+		fast_path_evt->un.read_check_error.lun = cmnd->device->lun;
+		fast_path_evt->un.read_check_error.opcode = cmnd->cmnd[0];
+		fast_path_evt->un.read_check_error.fcpiparam =
+			fcpi_parm;
+	} else
+		return;
+
+	fast_path_evt->vport = vport;
+	spin_lock_irqsave(&phba->hbalock, flags);
+	list_add_tail(&fast_path_evt->work_evt.evt_listp, &phba->work_list);
+	spin_unlock_irqrestore(&phba->hbalock, flags);
+	lpfc_worker_wake_up(phba);
+	return;
+}
 static void
 lpfc_scsi_unprep_dma_buf(struct lpfc_hba * phba, struct lpfc_scsi_buf * psb)
 {
@@ -493,6 +708,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 	uint32_t host_status = DID_OK;
 	uint32_t rsplen = 0;
 	uint32_t logit = LOG_FCP | LOG_FCP_ERROR;
+
 
 	/*
 	 *  If this is a task management command, there is no
@@ -609,6 +825,7 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 
  out:
 	cmnd->result = ScsiResult(host_status, scsi_status);
+	lpfc_send_scsi_error_event(vport->phba, vport, lpfc_cmd, rsp_iocb);
 }
 
 static void
@@ -625,6 +842,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 	struct scsi_device *sdev, *tmp_sdev;
 	int depth = 0;
 	unsigned long flags;
+	struct lpfc_fast_path_event *fast_path_evt;
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
@@ -655,6 +873,30 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 		case IOSTAT_NPORT_BSY:
 		case IOSTAT_FABRIC_BSY:
 			cmd->result = ScsiResult(DID_TRANSPORT_DISRUPTED, 0);
+			fast_path_evt = lpfc_alloc_fast_evt(phba);
+			if (!fast_path_evt)
+				break;
+			fast_path_evt->un.fabric_evt.event_type =
+				FC_REG_FABRIC_EVENT;
+			fast_path_evt->un.fabric_evt.subcategory =
+				(lpfc_cmd->status == IOSTAT_NPORT_BSY) ?
+				LPFC_EVENT_PORT_BUSY : LPFC_EVENT_FABRIC_BUSY;
+			if (pnode && NLP_CHK_NODE_ACT(pnode)) {
+				memcpy(&fast_path_evt->un.fabric_evt.wwpn,
+					&pnode->nlp_portname,
+					sizeof(struct lpfc_name));
+				memcpy(&fast_path_evt->un.fabric_evt.wwnn,
+					&pnode->nlp_nodename,
+					sizeof(struct lpfc_name));
+			}
+			fast_path_evt->vport = vport;
+			fast_path_evt->work_evt.evt =
+				LPFC_EVT_FASTPATH_MGMT_EVT;
+			spin_lock_irqsave(&phba->hbalock, flags);
+			list_add_tail(&fast_path_evt->work_evt.evt_listp,
+				&phba->work_list);
+			spin_unlock_irqrestore(&phba->hbalock, flags);
+			lpfc_worker_wake_up(phba);
 			break;
 		case IOSTAT_LOCAL_REJECT:
 			if (lpfc_cmd->result == IOERR_INVALID_RPI ||
@@ -687,6 +929,7 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				 scsi_get_resid(cmd));
 	}
 
+	lpfc_update_stats(phba, lpfc_cmd);
 	result = cmd->result;
 	sdev = cmd->device;
 	if (vport->cfg_max_scsicmpl_time &&
@@ -755,6 +998,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 				pnode->last_ramp_up_time = jiffies;
 			}
 		}
+		lpfc_send_sdev_queuedepth_change_event(phba, vport, pnode,
+			0xFFFFFFFF,
+			sdev->queue_depth - 1, sdev->queue_depth);
 	}
 
 	/*
@@ -784,6 +1030,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 			lpfc_printf_vlog(vport, KERN_WARNING, LOG_FCP,
 					 "0711 detected queue full - lun queue "
 					 "depth adjusted to %d.\n", depth);
+			lpfc_send_sdev_queuedepth_change_event(phba, vport,
+				pnode, 0xFFFFFFFF,
+				depth+1, depth);
 		}
 	}
 
@@ -1112,6 +1361,7 @@ lpfc_queuecommand(struct scsi_cmnd *cmnd, void (*done) (struct scsi_cmnd *))
 		goto out_host_busy;
 	}
 
+	lpfc_cmd->start_time = jiffies;
 	/*
 	 * Store the midlayer's command structure for the completion phase
 	 * and complete the command initialization.
@@ -1280,6 +1530,7 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 	int ret = SUCCESS;
 	int status;
 	int cnt;
+	struct lpfc_scsi_event_header scsi_event;
 
 	lpfc_block_error_handler(cmnd);
 	/*
@@ -1298,6 +1549,19 @@ lpfc_device_reset_handler(struct scsi_cmnd *cmnd)
 			break;
 		pnode = rdata->pnode;
 	}
+
+	scsi_event.event_type = FC_REG_SCSI_EVENT;
+	scsi_event.subcategory = LPFC_EVENT_TGTRESET;
+	scsi_event.lun = 0;
+	memcpy(scsi_event.wwpn, &pnode->nlp_portname, sizeof(struct lpfc_name));
+	memcpy(scsi_event.wwnn, &pnode->nlp_nodename, sizeof(struct lpfc_name));
+
+	fc_host_post_vendor_event(shost,
+		fc_get_event_number(),
+		sizeof(scsi_event),
+		(char *)&scsi_event,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+
 	if (!rdata || pnode->nlp_state != NLP_STE_MAPPED_NODE) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 				 "0721 LUN Reset rport "
@@ -1381,6 +1645,19 @@ lpfc_bus_reset_handler(struct scsi_cmnd *cmnd)
 	int cnt;
 	struct lpfc_scsi_buf * lpfc_cmd;
 	unsigned long later;
+	struct lpfc_scsi_event_header scsi_event;
+
+	scsi_event.event_type = FC_REG_SCSI_EVENT;
+	scsi_event.subcategory = LPFC_EVENT_BUSRESET;
+	scsi_event.lun = 0;
+	memcpy(scsi_event.wwpn, &vport->fc_portname, sizeof(struct lpfc_name));
+	memcpy(scsi_event.wwnn, &vport->fc_nodename, sizeof(struct lpfc_name));
+
+	fc_host_post_vendor_event(shost,
+		fc_get_event_number(),
+		sizeof(scsi_event),
+		(char *)&scsi_event,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
 
 	lpfc_block_error_handler(cmnd);
 	/*

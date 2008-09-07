@@ -294,6 +294,12 @@ void lpfc_ramp_down_queue_handler(struct lpfc_hba *);
 void lpfc_ramp_up_queue_handler(struct lpfc_hba *);
 void lpfc_scsi_dev_block(struct lpfc_hba *);
 
+void
+lpfc_send_els_failure_event(struct lpfc_hba *, struct lpfc_iocbq *,
+				struct lpfc_iocbq *);
+struct lpfc_fast_path_event *lpfc_alloc_fast_evt(struct lpfc_hba *);
+void lpfc_free_fast_evt(struct lpfc_hba *, struct lpfc_fast_path_event *);
+
 #define ScsiResult(host_code, scsi_code) (((host_code) << 16) | scsi_code)
 #define HBA_EVENT_RSCN                   5
 #define HBA_EVENT_LINK_UP                2

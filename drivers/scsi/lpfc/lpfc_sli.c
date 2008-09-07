@@ -32,6 +32,7 @@
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -1610,6 +1611,17 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if (cmdiocbp) {
 		if (cmdiocbp->iocb_cmpl) {
+			/*
+			 * If an ELS command failed send an event to mgmt
+			 * application.
+			 */
+			if (saveq->iocb.ulpStatus &&
+			     (pring->ringno == LPFC_ELS_RING) &&
+			     (cmdiocbp->iocb.ulpCommand ==
+				CMD_ELS_REQUEST64_CR))
+				lpfc_send_els_failure_event(phba,
+					cmdiocbp, saveq);
+
 			/*
 			 * Post all ELS completions to the worker thread.
 			 * All other are passed to the completion callback.

@@ -36,6 +36,7 @@
 
 #include "lpfc_hw.h"
 #include "lpfc_sli.h"
+#include "lpfc_nl.h"
 #include "lpfc_disc.h"
 #include "lpfc_scsi.h"
 #include "lpfc.h"
@@ -815,6 +816,7 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	unsigned long temperature;
 	struct temp_event temp_event_data;
 	struct Scsi_Host  *shost;
+	struct lpfc_board_event_header board_event;
 
 	/* If the pci channel is offline, ignore possible errors,
 	 * since we cannot communicate with the pci card anyway. */
@@ -823,6 +825,16 @@ lpfc_handle_eratt(struct lpfc_hba *phba)
 	/* If resets are disabled then leave the HBA alone and return */
 	if (!phba->cfg_enable_hba_reset)
 		return;
+
+	/* Send an internal error event to mgmt application */
+	board_event.event_type = FC_REG_BOARD_EVENT;
+	board_event.subcategory = LPFC_EVENT_PORTINTERR;
+	shost = lpfc_shost_from_vport(phba->pport);
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+				  sizeof(board_event),
+				  (char *) &board_event,
+				  SCSI_NL_VID_TYPE_PCI
+				  | PCI_VENDOR_ID_EMULEX);
 
 	if (phba->work_hs & HS_FFER6) {
 		/* Re-establishing Link */
@@ -2345,6 +2357,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	int  i, hbq_count;
 	uint16_t iotag;
 	int bars = pci_select_bars(pdev, IORESOURCE_MEM);
+	struct lpfc_adapter_event_header adapter_event;
 
 	if (pci_enable_device_mem(pdev))
 		goto out;
@@ -2355,6 +2368,7 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 	if (!phba)
 		goto out_release_regions;
 
+	atomic_set(&phba->fast_event_count, 0);
 	spin_lock_init(&phba->hbalock);
 
 	/* Initialize ndlp management spinlock */
@@ -2626,6 +2640,14 @@ lpfc_pci_probe_one(struct pci_dev *pdev, const struct pci_device_id *pid)
 
 	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
 			"0428 Perform SCSI scan\n");
+	/* Send board arrival event to upper layer */
+	adapter_event.event_type = FC_REG_ADAPTER_EVENT;
+	adapter_event.subcategory = LPFC_EVENT_ARRIVAL;
+	fc_host_post_vendor_event(shost, fc_get_event_number(),
+		sizeof(adapter_event),
+		(char *) &adapter_event,
+		SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_EMULEX);
+
 	scsi_scan_host(shost);
 
 	return 0;
