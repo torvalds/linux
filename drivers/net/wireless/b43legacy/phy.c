@@ -595,12 +595,14 @@ static void b43legacy_phy_initb5(struct b43legacy_wldev *dev)
 				    0x0035) & 0xFFC0) | 0x0064);
 		b43legacy_phy_write(dev, 0x005D, (b43legacy_phy_read(dev,
 				    0x005D) & 0xFF80) | 0x000A);
+		b43legacy_phy_write(dev, 0x5B, 0x0000);
+		b43legacy_phy_write(dev, 0x5C, 0x0000);
 	}
 
 	if (dev->bad_frames_preempt)
 		b43legacy_phy_write(dev, B43legacy_PHY_RADIO_BITFIELD,
 				    b43legacy_phy_read(dev,
-				    B43legacy_PHY_RADIO_BITFIELD) | (1 << 11));
+				    B43legacy_PHY_RADIO_BITFIELD) | (1 << 12));
 
 	if (phy->analog == 1) {
 		b43legacy_phy_write(dev, 0x0026, 0xCE00);
@@ -753,7 +755,7 @@ static void b43legacy_phy_initb6(struct b43legacy_wldev *dev)
 		b43legacy_radio_write16(dev, 0x0050, 0x0020);
 	}
 	if (phy->radio_rev <= 2) {
-		b43legacy_radio_write16(dev, 0x007C, 0x0020);
+		b43legacy_radio_write16(dev, 0x0050, 0x0020);
 		b43legacy_radio_write16(dev, 0x005A, 0x0070);
 		b43legacy_radio_write16(dev, 0x005B, 0x007B);
 		b43legacy_radio_write16(dev, 0x005C, 0x00B0);
@@ -771,7 +773,7 @@ static void b43legacy_phy_initb6(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x002A, 0x8AC0);
 	b43legacy_phy_write(dev, 0x0038, 0x0668);
 	b43legacy_radio_set_txpower_bg(dev, 0xFFFF, 0xFFFF, 0xFFFF);
-	if (phy->radio_rev <= 5)
+	if (phy->radio_rev == 4 || phy->radio_rev == 5)
 		b43legacy_phy_write(dev, 0x005D, (b43legacy_phy_read(dev,
 				    0x005D) & 0xFF80) | 0x0003);
 	if (phy->radio_rev <= 2)
@@ -1010,7 +1012,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		b43legacy_phy_initb5(dev);
 	else
 		b43legacy_phy_initb6(dev);
-	if (phy->rev >= 2 || phy->gmode)
+	if (phy->rev >= 2 && phy->gmode)
 		b43legacy_phy_inita(dev);
 
 	if (phy->rev >= 2) {
@@ -1025,18 +1027,22 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		b43legacy_phy_write(dev, 0x0811, 0x0400);
 		b43legacy_phy_write(dev, 0x0015, 0x00C0);
 	}
-	if (phy->rev >= 2 || phy->gmode) {
+	if (phy->gmode) {
 		tmp = b43legacy_phy_read(dev, 0x0400) & 0xFF;
-		if (tmp == 3 || tmp == 5) {
+		if (tmp == 3) {
+			b43legacy_phy_write(dev, 0x04C2, 0x1816);
+			b43legacy_phy_write(dev, 0x04C3, 0x8606);
+		}
+		if (tmp == 4 || tmp == 5) {
 			b43legacy_phy_write(dev, 0x04C2, 0x1816);
 			b43legacy_phy_write(dev, 0x04C3, 0x8006);
-			if (tmp == 5)
-				b43legacy_phy_write(dev, 0x04CC,
-						    (b43legacy_phy_read(dev,
-						     0x04CC) & 0x00FF) |
-						     0x1F00);
+			b43legacy_phy_write(dev, 0x04CC,
+					    (b43legacy_phy_read(dev,
+					     0x04CC) & 0x00FF) |
+					     0x1F00);
 		}
-		b43legacy_phy_write(dev, 0x047E, 0x0078);
+		if (phy->rev >= 2)
+			b43legacy_phy_write(dev, 0x047E, 0x0078);
 	}
 	if (phy->radio_rev == 8) {
 		b43legacy_phy_write(dev, 0x0801, b43legacy_phy_read(dev, 0x0801)
@@ -1078,7 +1084,7 @@ static void b43legacy_phy_initg(struct b43legacy_wldev *dev)
 		else
 			b43legacy_phy_write(dev, 0x002F, 0x0202);
 	}
-	if (phy->gmode || phy->rev >= 2) {
+	if (phy->gmode) {
 		b43legacy_phy_lo_adjust(dev, 0);
 		b43legacy_phy_write(dev, 0x080F, 0x8078);
 	}
