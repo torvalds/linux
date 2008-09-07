@@ -42,6 +42,7 @@ zc3xx		0458:7007	Genius VideoCam V2
 zc3xx		0458:700c	Genius VideoCam V3
 zc3xx		0458:700f	Genius VideoCam Web V2
 sonixj		0458:7025	Genius Eye 311Q
+sonixj		0458:702e	Genius Slim 310 NB
 sonixj		045e:00f5	MicroSoft VX3000
 sonixj		045e:00f7	MicroSoft VX1000
 ov519		045e:028c	Micro$oft xbox cam
