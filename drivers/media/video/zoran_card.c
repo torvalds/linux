@@ -988,7 +988,7 @@ zoran_open_init_params (struct zoran *zr)
 	zr->v4l_grab_seq = 0;
 	zr->v4l_settings.width = 192;
 	zr->v4l_settings.height = 144;
-	zr->v4l_settings.format = &zoran_formats[4];	/* YUY2 - YUV-4:2:2 packed */
+	zr->v4l_settings.format = &zoran_formats[7];	/* YUY2 - YUV-4:2:2 packed */
 	zr->v4l_settings.bytesperline =
 	    zr->v4l_settings.width *
 	    ((zr->v4l_settings.format->depth + 7) / 8);
