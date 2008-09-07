@@ -848,8 +848,6 @@ no_context:
  * Oops. The kernel tried to access some bad page. We'll have to
  * terminate things with extreme prejudice.
  */
-	check_for_bios_corruption();
-
 #ifdef CONFIG_X86_32
 	bust_spinlocks(1);
 #else

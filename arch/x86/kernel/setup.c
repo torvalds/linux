@@ -623,6 +623,7 @@ static void __init setup_bios_corruption_check(void)
 }
 
 static int __read_mostly bios_corruption_check = 1;
+static struct timer_list periodic_check_timer;
 
 void check_for_bios_corruption(void)
 {
@@ -648,6 +649,22 @@ void check_for_bios_corruption(void)
 
 	if (corruption)
 		dump_stack();
+}
+
+static void periodic_check_for_corruption(unsigned long data)
+{
+	check_for_bios_corruption();
+	mod_timer(&periodic_check_timer, jiffies + 60*HZ);
+}
+
+void start_periodic_check_for_corruption(void)
+{
+	if (!bios_corruption_check)
+		return;
+
+	init_timer(&periodic_check_timer);
+	periodic_check_timer.function = &periodic_check_for_corruption;
+	periodic_check_for_corruption(0);
 }
 
 static int set_bios_corruption_check(char *arg)

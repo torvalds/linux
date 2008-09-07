@@ -246,6 +246,7 @@ extern int root_mountflags;
  * able to scatter it around anywhere in the kernel.
  */
 void check_for_bios_corruption(void);
+void start_periodic_check_for_corruption(void);
 #else
 static inline void check_for_bios_corruption(void)
 {

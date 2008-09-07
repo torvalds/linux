@@ -769,6 +769,8 @@ void __init mem_init(void)
 {
 	long codesize, reservedpages, datasize, initsize;
 
+	start_periodic_check_for_corruption();
+
 	pci_iommu_alloc();
 
 	/* clear_bss() already clear the empty_zero_page */
