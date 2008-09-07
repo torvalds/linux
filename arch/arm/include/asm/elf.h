@@ -3,7 +3,6 @@
 
 #include <asm/hwcap.h>
 
-#ifndef __ASSEMBLY__
 /*
  * ELF register definitions..
  */
@@ -17,7 +16,6 @@ typedef unsigned long elf_freg_t[3];
 typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 
 typedef struct user_fp elf_fpregset_t;
-#endif
 
 #define EM_ARM	40
 #define EF_ARM_APCS26 0x08
@@ -41,7 +39,6 @@ typedef struct user_fp elf_fpregset_t;
 #endif
 #define ELF_ARCH	EM_ARM
 
-#ifndef __ASSEMBLY__
 /*
  * This yields a string that ld.so will use to load implementation
  * specific libraries for optimization.  This is more specific in
@@ -59,7 +56,6 @@ typedef struct user_fp elf_fpregset_t;
 #define ELF_PLATFORM	(elf_platform)
 
 extern char elf_platform[];
-#endif
 
 /*
  * This is used to ensure we don't load something for the wrong architecture.
