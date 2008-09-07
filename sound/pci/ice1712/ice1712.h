@@ -20,7 +20,7 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
- */      
+ */
 
 #include <sound/control.h>
 #include <sound/ac97_codec.h>
@@ -112,7 +112,7 @@
  */
 
 #define ICEDS(ice, x) ((ice)->dmapath_port + ICE1712_DS_##x)
- 
+
 #define ICE1712_DS_INTMASK		0x00	/* word - interrupt mask */
 #define ICE1712_DS_INTSTAT		0x02	/* word - interrupt status */
 #define ICE1712_DS_DATA			0x04	/* dword - channel data */
@@ -121,7 +121,7 @@
 /*
  *  Consumer section channel registers
  */
- 
+
 #define ICE1712_DSC_ADDR0		0x00	/* dword - base address 0 */
 #define ICE1712_DSC_COUNT0		0x01	/* word - count 0 */
 #define ICE1712_DSC_ADDR1		0x02	/* dword - base address 1 */
@@ -138,7 +138,7 @@
 #define ICE1712_DSC_RATE		0x05	/* dword - rate */
 #define ICE1712_DSC_VOLUME		0x06	/* word - volume control */
 
-/* 
+/*
  *  Professional multi-track direct control registers
  */
 
@@ -214,7 +214,7 @@
 
 
 /*
- *  
+ *
  */
 
 struct snd_ice1712;
@@ -253,12 +253,12 @@ enum {
 	ICE_EEP1_ADC_ID2,
 	ICE_EEP1_ADC_ID3
 };
-	
+
 #define ice_has_con_ac97(ice)	(!((ice)->eeprom.data[ICE_EEP1_CODEC] & ICE1712_CFG_NO_CON_AC97))
 
 
 struct snd_ak4xxx_private {
-	unsigned int cif: 1;		/* CIF mode */
+	unsigned int cif:1;		/* CIF mode */
 	unsigned char caddr;		/* C0 and C1 bits */
 	unsigned int data_mask;		/* DATA gpio bit */
 	unsigned int clk_mask;		/* CLK gpio bit */
@@ -306,11 +306,11 @@ struct snd_ice1712 {
 	struct snd_pcm *pcm;
 	struct snd_pcm *pcm_ds;
 	struct snd_pcm *pcm_pro;
-        struct snd_pcm_substream *playback_con_substream;
-        struct snd_pcm_substream *playback_con_substream_ds[6];
-        struct snd_pcm_substream *capture_con_substream;
-        struct snd_pcm_substream *playback_pro_substream;
-        struct snd_pcm_substream *capture_pro_substream;
+	struct snd_pcm_substream *playback_con_substream;
+	struct snd_pcm_substream *playback_con_substream_ds[6];
+	struct snd_pcm_substream *capture_con_substream;
+	struct snd_pcm_substream *playback_pro_substream;
+	struct snd_pcm_substream *capture_pro_substream;
 	unsigned int playback_pro_size;
 	unsigned int capture_pro_size;
 	unsigned int playback_con_virt_addr[6];
@@ -326,15 +326,15 @@ struct snd_ice1712 {
 	struct snd_ice1712_eeprom eeprom;
 
 	unsigned int pro_volumes[20];
-	unsigned int omni: 1;		/* Delta Omni I/O */
-	unsigned int dxr_enable: 1;	/* Terratec DXR enable for DMX6FIRE */
-	unsigned int vt1724: 1;
-	unsigned int vt1720: 1;
-	unsigned int has_spdif: 1;	/* VT1720/4 - has SPDIF I/O */
-	unsigned int force_pdma4: 1;	/* VT1720/4 - PDMA4 as non-spdif */
-	unsigned int force_rdma1: 1;	/* VT1720/4 - RDMA1 as non-spdif */
-	unsigned int midi_output: 1;	/* VT1720/4: MIDI output triggered */
-	unsigned int midi_input: 1;	/* VT1720/4: MIDI input triggered */
+	unsigned int omni:1;		/* Delta Omni I/O */
+	unsigned int dxr_enable:1;	/* Terratec DXR enable for DMX6FIRE */
+	unsigned int vt1724:1;
+	unsigned int vt1720:1;
+	unsigned int has_spdif:1;	/* VT1720/4 - has SPDIF I/O */
+	unsigned int force_pdma4:1;	/* VT1720/4 - PDMA4 as non-spdif */
+	unsigned int force_rdma1:1;	/* VT1720/4 - RDMA1 as non-spdif */
+	unsigned int midi_output:1;	/* VT1720/4: MIDI output triggered */
+	unsigned int midi_input:1;	/* VT1720/4: MIDI input triggered */
 	unsigned int num_total_dacs;	/* total DACs */
 	unsigned int num_total_adcs;	/* total ADCs */
 	unsigned int cur_rate;		/* current rate */
@@ -351,7 +351,7 @@ struct snd_ice1712 {
 	struct snd_i2c_bus *i2c;		/* I2C bus */
 	struct snd_i2c_device *cs8427;	/* CS8427 I2C device */
 	unsigned int cs8427_timeout;	/* CS8427 reset timeout in HZ/100 */
-	
+
 	struct ice1712_gpio {
 		unsigned int direction;		/* current direction bits */
 		unsigned int write_mask;	/* current mask bits */
@@ -455,7 +455,7 @@ static inline int snd_ice1712_gpio_read_bits(struct snd_ice1712 *ice,
 {
 	ice->gpio.direction &= ~mask;
 	snd_ice1712_gpio_set_dir(ice, ice->gpio.direction);
-	return  (snd_ice1712_gpio_read(ice) & mask);
+	return  snd_ice1712_gpio_read(ice) & mask;
 }
 
 int snd_ice1712_spdif_build_controls(struct snd_ice1712 *ice);
@@ -467,13 +467,13 @@ int snd_ice1712_akm4xxx_build_controls(struct snd_ice1712 *ice);
 
 int snd_ice1712_init_cs8427(struct snd_ice1712 *ice, int addr);
 
-static inline void snd_ice1712_write(struct snd_ice1712 * ice, u8 addr, u8 data)
+static inline void snd_ice1712_write(struct snd_ice1712 *ice, u8 addr, u8 data)
 {
 	outb(addr, ICEREG(ice, INDEX));
 	outb(data, ICEREG(ice, DATA));
 }
 
-static inline u8 snd_ice1712_read(struct snd_ice1712 * ice, u8 addr)
+static inline u8 snd_ice1712_read(struct snd_ice1712 *ice, u8 addr)
 {
 	outb(addr, ICEREG(ice, INDEX));
 	return inb(ICEREG(ice, DATA));
@@ -491,7 +491,7 @@ struct snd_ice1712_card_info {
 	char *driver;
 	int (*chip_init)(struct snd_ice1712 *);
 	int (*build_controls)(struct snd_ice1712 *);
-	unsigned int no_mpu401: 1;
+	unsigned int no_mpu401:1;
 	unsigned int mpu401_1_info_flags;
 	unsigned int mpu401_2_info_flags;
 	const char *mpu401_1_name;
