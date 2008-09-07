@@ -59,7 +59,7 @@ struct s5h1420_state {
 	 * it does not support repeated-start, workaround: write addr-1
 	 * and then read
 	 */
-	u8 shadow[255];
+	u8 shadow[256];
 };
 
 static u32 s5h1420_getsymbolrate(struct s5h1420_state* state);
