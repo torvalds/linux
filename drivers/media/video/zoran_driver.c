@@ -2917,6 +2917,8 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.bytesperline = 0;
 				fmt->fmt.pix.sizeimage =
 				    fh->jpg_buffers.buffer_size;
+				fmt->fmt.pix.colorspace =
+				    V4L2_COLORSPACE_SMPTE170M;
 
 				/* we hereby abuse this variable to show that
 				 * we're gonna do mjpeg capture */
@@ -2976,6 +2978,8 @@ zoran_do_ioctl (struct inode *inode,
 				fmt->fmt.pix.sizeimage =
 					fh->v4l_settings.height *
 					fh->v4l_settings.bytesperline;
+				fmt->fmt.pix.colorspace =
+					fh->v4l_settings.format->colorspace;
 				if (BUZ_MAX_HEIGHT <
 				    (fh->v4l_settings.height * 2))
 					fmt->fmt.pix.field =
