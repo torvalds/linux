@@ -725,6 +725,7 @@ struct hda_codec {
 	unsigned int spdif_status;	/* IEC958 status bits */
 	unsigned short spdif_ctls;	/* SPDIF control bits */
 	unsigned int spdif_in_enable;	/* SPDIF input enable? */
+	hda_nid_t *slave_dig_outs; /* optional digital out slave widgets */
 
 	struct snd_hwdep *hwdep;	/* assigned hwdep device */
 
