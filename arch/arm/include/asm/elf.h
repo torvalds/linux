@@ -18,9 +18,32 @@ typedef elf_greg_t elf_gregset_t[ELF_NGREG];
 typedef struct user_fp elf_fpregset_t;
 
 #define EM_ARM	40
-#define EF_ARM_APCS26 0x08
-#define EF_ARM_SOFT_FLOAT 0x200
-#define EF_ARM_EABI_MASK 0xFF000000
+
+#define EF_ARM_EABI_MASK	0xff000000
+#define EF_ARM_EABI_UNKNOWN	0x00000000
+#define EF_ARM_EABI_VER1	0x01000000
+#define EF_ARM_EABI_VER2	0x02000000
+#define EF_ARM_EABI_VER3	0x03000000
+#define EF_ARM_EABI_VER4	0x04000000
+#define EF_ARM_EABI_VER5	0x05000000
+
+#define EF_ARM_BE8		0x00800000	/* ABI 4,5 */
+#define EF_ARM_LE8		0x00400000	/* ABI 4,5 */
+#define EF_ARM_MAVERICK_FLOAT	0x00000800	/* ABI 0 */
+#define EF_ARM_VFP_FLOAT	0x00000400	/* ABI 0 */
+#define EF_ARM_SOFT_FLOAT	0x00000200	/* ABI 0 */
+#define EF_ARM_OLD_ABI		0x00000100	/* ABI 0 */
+#define EF_ARM_NEW_ABI		0x00000080	/* ABI 0 */
+#define EF_ARM_ALIGN8		0x00000040	/* ABI 0 */
+#define EF_ARM_PIC		0x00000020	/* ABI 0 */
+#define EF_ARM_MAPSYMSFIRST	0x00000010	/* ABI 2 */
+#define EF_ARM_APCS_FLOAT	0x00000010	/* ABI 0, floats in fp regs */
+#define EF_ARM_DYNSYMSUSESEGIDX	0x00000008	/* ABI 2 */
+#define EF_ARM_APCS_26		0x00000008	/* ABI 0 */
+#define EF_ARM_SYMSARESORTED	0x00000004	/* ABI 1,2 */
+#define EF_ARM_INTERWORK	0x00000004	/* ABI 0 */
+#define EF_ARM_HASENTRY		0x00000002	/* All */
+#define EF_ARM_RELEXEC		0x00000001	/* All */
 
 #define R_ARM_NONE	0
 #define R_ARM_PC24	1
@@ -57,23 +80,16 @@ typedef struct user_fp elf_fpregset_t;
 
 extern char elf_platform[];
 
+struct elf32_hdr;
+
 /*
  * This is used to ensure we don't load something for the wrong architecture.
  */
-#define elf_check_arch(x) ((x)->e_machine == EM_ARM && ELF_PROC_OK(x))
+extern int elf_check_arch(const struct elf32_hdr *);
+#define elf_check_arch elf_check_arch
 
-/*
- * 32-bit code is always OK.  Some cpus can do 26-bit, some can't.
- */
-#define ELF_PROC_OK(x)	(ELF_THUMB_OK(x) && ELF_26BIT_OK(x))
-
-#define ELF_THUMB_OK(x) \
-	((elf_hwcap & HWCAP_THUMB && ((x)->e_entry & 1) == 1) || \
-	 ((x)->e_entry & 3) == 0)
-
-#define ELF_26BIT_OK(x) \
-	((elf_hwcap & HWCAP_26BIT && (x)->e_flags & EF_ARM_APCS26) || \
-	  ((x)->e_flags & EF_ARM_APCS26) == 0)
+extern int arm_elf_read_implies_exec(const struct elf32_hdr *, int);
+#define elf_read_implies_exec(ex,stk) arm_elf_read_implies_exec(&(ex), stk)
 
 #define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	4096
@@ -90,23 +106,7 @@ extern char elf_platform[];
    have no such handler.  */
 #define ELF_PLAT_INIT(_r, load_addr)	(_r)->ARM_r0 = 0
 
-/*
- * Since the FPA coprocessor uses CP1 and CP2, and iWMMXt uses CP0
- * and CP1, we only enable access to the iWMMXt coprocessor if the
- * binary is EABI or softfloat (and thus, guaranteed not to use
- * FPA instructions.)
- */
-#define SET_PERSONALITY(ex, ibcs2)					\
-	do {								\
-		if ((ex).e_flags & EF_ARM_APCS26) {			\
-			set_personality(PER_LINUX);			\
-		} else {						\
-			set_personality(PER_LINUX_32BIT);		\
-			if (elf_hwcap & HWCAP_IWMMXT && (ex).e_flags & (EF_ARM_EABI_MASK | EF_ARM_SOFT_FLOAT)) \
-				set_thread_flag(TIF_USING_IWMMXT);	\
-			else						\
-				clear_thread_flag(TIF_USING_IWMMXT);	\
-		}							\
-	} while (0)
+extern void elf_set_personality(const struct elf32_hdr *);
+#define SET_PERSONALITY(ex, ibcs2)	elf_set_personality(&(ex))
 
 #endif
