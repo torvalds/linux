@@ -26,8 +26,6 @@ struct map_desc {
 #define MT_MEMORY		8
 #define MT_ROM			9
 
-#define MT_NONSHARED_DEVICE	MT_DEVICE_NONSHARED
-
 #ifdef CONFIG_MMU
 extern void iotable_init(struct map_desc *, int);
 #else
