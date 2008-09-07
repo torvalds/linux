@@ -34,6 +34,11 @@ struct lpfc_sli2_slim;
 #define LPFC_IOCB_LIST_CNT	2250	/* list of IOCBs for fast-path usage. */
 #define LPFC_Q_RAMP_UP_INTERVAL 120     /* lun q_depth ramp up interval */
 #define LPFC_VNAME_LEN		100	/* vport symbolic name length */
+#define LPFC_TGTQ_INTERVAL	40000	/* Min amount of time between tgt
+					   queue depth change in millisecs */
+#define LPFC_TGTQ_RAMPUP_PCENT	5	/* Target queue rampup in percentage */
+#define LPFC_MIN_TGT_QDEPTH	100
+#define LPFC_MAX_TGT_QDEPTH	0xFFFF
 
 /*
  * Following time intervals are used of adjusting SCSI device
@@ -363,6 +368,7 @@ struct lpfc_vport {
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_max_luns;
 	uint32_t cfg_enable_da_id;
+	uint32_t cfg_max_scsicmpl_time;
 
 	uint32_t dev_loss_tmo_changed;
 

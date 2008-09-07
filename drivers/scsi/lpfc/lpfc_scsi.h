@@ -139,6 +139,7 @@ struct lpfc_scsi_buf {
 	 */
 	struct lpfc_iocbq cur_iocbq;
 	wait_queue_head_t *waitq;
+	unsigned long start_time;
 };
 
 #define LPFC_SCSI_DMA_EXT_SIZE 264

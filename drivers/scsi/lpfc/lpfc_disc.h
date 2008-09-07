@@ -88,6 +88,9 @@ struct lpfc_nodelist {
 	unsigned long last_ramp_up_time;        /* jiffy of last ramp up */
 	unsigned long last_q_full_time;		/* jiffy of last queue full */
 	struct kref     kref;
+	atomic_t cmd_pending;
+	uint32_t cmd_qdepth;
+	unsigned long last_change_time;
 };
 
 /* Defines for nlp_flag (uint32) */

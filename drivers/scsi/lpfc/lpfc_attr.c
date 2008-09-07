@@ -2297,6 +2297,48 @@ LPFC_VPORT_ATTR_RW(use_adisc, 0, 0, 1,
 		   "Use ADISC on rediscovery to authenticate FCP devices");
 
 /*
+# lpfc_max_scsicmpl_time: Use scsi command completion time to control I/O queue
+# depth. Default value is 0. When the value of this parameter is zero the
+# SCSI command completion time is not used for controlling I/O queue depth. When
+# the parameter is set to a non-zero value, the I/O queue depth is controlled
+# to limit the I/O completion time to the parameter value.
+# The value is set in milliseconds.
+*/
+static int lpfc_max_scsicmpl_time;
+module_param(lpfc_max_scsicmpl_time, int, 0);
+MODULE_PARM_DESC(lpfc_max_scsicmpl_time,
+	"Use command completion time to control queue depth");
+lpfc_vport_param_show(max_scsicmpl_time);
+lpfc_vport_param_init(max_scsicmpl_time, 0, 0, 60000);
+static int
+lpfc_max_scsicmpl_time_set(struct lpfc_vport *vport, int val)
+{
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_nodelist *ndlp, *next_ndlp;
+
+	if (val == vport->cfg_max_scsicmpl_time)
+		return 0;
+	if ((val < 0) || (val > 60000))
+		return -EINVAL;
+	vport->cfg_max_scsicmpl_time = val;
+
+	spin_lock_irq(shost->host_lock);
+	list_for_each_entry_safe(ndlp, next_ndlp, &vport->fc_nodes, nlp_listp) {
+		if (!NLP_CHK_NODE_ACT(ndlp))
+			continue;
+		if (ndlp->nlp_state == NLP_STE_UNUSED_NODE)
+			continue;
+		ndlp->cmd_qdepth = LPFC_MAX_TGT_QDEPTH;
+	}
+	spin_unlock_irq(shost->host_lock);
+	return 0;
+}
+lpfc_vport_param_store(max_scsicmpl_time);
+static DEVICE_ATTR(lpfc_max_scsicmpl_time, S_IRUGO | S_IWUSR,
+		   lpfc_max_scsicmpl_time_show,
+		   lpfc_max_scsicmpl_time_store);
+
+/*
 # lpfc_ack0: Use ACK0, instead of ACK1 for class 2 acknowledgement. Value
 # range is [0,1]. Default value is 0.
 */
@@ -2459,6 +2501,7 @@ struct device_attribute *lpfc_hba_attrs[] = {
 	&dev_attr_lpfc_enable_hba_reset,
 	&dev_attr_lpfc_enable_hba_heartbeat,
 	&dev_attr_lpfc_sg_seg_cnt,
+	&dev_attr_lpfc_max_scsicmpl_time,
 	NULL,
 };
 
@@ -3580,6 +3623,7 @@ lpfc_get_vport_cfgparam(struct lpfc_vport *vport)
 	lpfc_restrict_login_init(vport, lpfc_restrict_login);
 	lpfc_fcp_class_init(vport, lpfc_fcp_class);
 	lpfc_use_adisc_init(vport, lpfc_use_adisc);
+	lpfc_max_scsicmpl_time_init(vport, lpfc_max_scsicmpl_time);
 	lpfc_fdmi_on_init(vport, lpfc_fdmi_on);
 	lpfc_discovery_threads_init(vport, lpfc_discovery_threads);
 	lpfc_max_luns_init(vport, lpfc_max_luns);
