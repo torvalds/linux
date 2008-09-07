@@ -1121,6 +1121,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_3) },
 	{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U8000) },
 	{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_STK7700PH) },
+	{ USB_DEVICE(USB_VID_ASUS,	USB_PID_ASUS_U3000H) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1430,6 +1431,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "YUAN High-Tech STK7700PH",
 				{ &dib0700_usb_id_table[38], NULL },
+				{ NULL },
+			},
+			{   "Asus My Cinema-U3000Hybrid",
+				{ &dib0700_usb_id_table[39], NULL },
 				{ NULL },
 			},
 		},
