@@ -400,7 +400,7 @@ static void delta_setup_spdif(struct snd_ice1712 *ice, int rate)
 static int snd_ice1712_delta1010lt_wordclock_status_get(struct snd_kcontrol *kcontrol,
 			 struct snd_ctl_elem_value *ucontrol)
 {
-	char reg = 0x10; // cs8427 receiver error register
+	char reg = 0x10; /* CS8427 receiver error register */
 	struct snd_ice1712 *ice = snd_kcontrol_chip(kcontrol);
 
 	if (snd_i2c_sendbytes(ice->cs8427, &reg, 1) != 1)

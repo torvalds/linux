@@ -21,7 +21,7 @@
  *   along with this program; if not, write to the Free Software
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
- */      
+ */
 
 #include <asm/io.h>
 #include <linux/delay.h>
@@ -34,9 +34,10 @@
 #include "ice1712.h"
 #include "envy24ht.h"
 #include "juli.h"
+
 struct juli_spec {
 	struct ak4114 *ak4114;
-	unsigned int analog: 1;
+	unsigned int analog:1;
 };
 
 /*
@@ -160,14 +161,17 @@ static int get_gpio_val(int rate)
 	return 0;
 }
 
-static void juli_ak4114_write(void *private_data, unsigned char reg, unsigned char val)
+static void juli_ak4114_write(void *private_data, unsigned char reg,
+				unsigned char val)
 {
-	snd_vt1724_write_i2c((struct snd_ice1712 *)private_data, AK4114_ADDR, reg, val);
+	snd_vt1724_write_i2c((struct snd_ice1712 *)private_data, AK4114_ADDR,
+				reg, val);
 }
-        
+
 static unsigned char juli_ak4114_read(void *private_data, unsigned char reg)
 {
-	return snd_vt1724_read_i2c((struct snd_ice1712 *)private_data, AK4114_ADDR, reg);
+	return snd_vt1724_read_i2c((struct snd_ice1712 *)private_data,
+					AK4114_ADDR, reg);
 }
 
 /*
@@ -175,7 +179,7 @@ static unsigned char juli_ak4114_read(void *private_data, unsigned char reg)
  * to the external rate
  */
 static void juli_spdif_in_open(struct snd_ice1712 *ice,
-			       struct snd_pcm_substream *substream)
+				struct snd_pcm_substream *substream)
 {
 	struct juli_spec *spec = ice->spec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
@@ -572,10 +576,12 @@ static void juli_ak4114_change(struct ak4114 *ak4114, unsigned char c0,
 static int __devinit juli_init(struct snd_ice1712 *ice)
 {
 	static const unsigned char ak4114_init_vals[] = {
-		/* AK4117_REG_PWRDN */	AK4114_RST | AK4114_PWN | AK4114_OCKS0 | AK4114_OCKS1,
+		/* AK4117_REG_PWRDN */	AK4114_RST | AK4114_PWN |
+					AK4114_OCKS0 | AK4114_OCKS1,
 		/* AK4114_REQ_FORMAT */	AK4114_DIF_I24I2S,
 		/* AK4114_REG_IO0 */	AK4114_TX1E,
-		/* AK4114_REG_IO1 */	AK4114_EFH_1024 | AK4114_DIT | AK4114_IPS(1),
+		/* AK4114_REG_IO1 */	AK4114_EFH_1024 | AK4114_DIT |
+					AK4114_IPS(1),
 		/* AK4114_REG_INT0_MASK */ 0,
 		/* AK4114_REG_INT1_MASK */ 0
 	};
@@ -605,12 +611,14 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 	spec->ak4114->check_flags = 0;
 
 #if 0
-        /* it seems that the analog doughter board detection does not work
-           reliably, so force the analog flag; it should be very rare
-           to use Juli@ without the analog doughter board */
+/*
+ * it seems that the analog doughter board detection does not work reliably, so
+ * force the analog flag; it should be very rare (if ever) to come at Juli@
+ * used without the analog daughter board
+ */
 	spec->analog = (ice->gpio.get_data(ice) & GPIO_ANALOG_PRESENT) ? 0 : 1;
 #else
-        spec->analog = 1;
+	spec->analog = 1;
 #endif
 
 	if (spec->analog) {
@@ -618,14 +626,16 @@ static int __devinit juli_init(struct snd_ice1712 *ice)
 		ice->num_total_dacs = 2;
 		ice->num_total_adcs = 2;
 
-		ak = ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
-		if (! ak)
+		ice->akm = kzalloc(sizeof(struct snd_akm4xxx), GFP_KERNEL);
+		ak = ice->akm;
+		if (!ak)
 			return -ENOMEM;
 		ice->akm_codecs = 1;
-		if ((err = snd_ice1712_akm4xxx_init(ak, &akm_juli_dac, NULL, ice)) < 0)
+		err = snd_ice1712_akm4xxx_init(ak, &akm_juli_dac, NULL, ice);
+		if (err < 0)
 			return err;
 	}
-	
+
 	/* juli is clocked by Xilinx array */
 	ice->hw_rates = &juli_rates_info;
 	ice->is_spdif_master = juli_is_spdif_master;

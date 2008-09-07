@@ -1,7 +1,7 @@
 /*
  *   ALSA driver for ICEnsemble ICE1712 (Envy24)
  *
- *   Lowlevel functions for M-Audio Revolution 7.1
+ *   Lowlevel functions for M-Audio Audiophile 192, Revolution 7.1 and 5.1
  *
  *	Copyright (c) 2003 Takashi Iwai <tiwai@suse.de>
  *
@@ -48,7 +48,7 @@ static void revo_i2s_mclk_changed(struct snd_ice1712 *ice)
 }
 
 /*
- * change the rate of envy24HT, AK4355 and AK4381
+ * change the rate of Envy24HT, AK4355 and AK4381
  */
 static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 {
@@ -83,8 +83,8 @@ static void revo_set_rate_val(struct snd_akm4xxx *ak, unsigned int rate)
 	tmp = snd_akm4xxx_get(ak, 0, reg);
 	tmp &= ~(0x03 << shift);
 	tmp |= dfs << shift;
-	// snd_akm4xxx_write(ak, 0, reg, tmp);
-	snd_akm4xxx_set(ak, 0, reg, tmp); /* the value is written in reset(0) */
+	/* snd_akm4xxx_write(ak, 0, reg, tmp); */
+	snd_akm4xxx_set(ak, 0, reg, tmp); /* value is written in reset(0) */
 	snd_akm4xxx_reset(ak, 0);
 }
 
