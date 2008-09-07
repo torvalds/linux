@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
 #include <linux/fb.h>
 #include <linux/lcd.h>
 #include <linux/spi/spi.h>
@@ -92,7 +93,10 @@ struct corgi_lcd {
 	int	mode;
 	char	buf[2];
 
-	void (*notify)(int intensity);
+	int	gpio_backlight_on;
+	int	gpio_backlight_cont;
+	int	gpio_backlight_cont_inverted;
+
 	void (*kick_battery)(void);
 };
 
@@ -393,18 +397,26 @@ static int corgi_bl_get_intensity(struct backlight_device *bd)
 
 static int corgi_bl_set_intensity(struct corgi_lcd *lcd, int intensity)
 {
+	int cont;
+
 	if (intensity > 0x10)
 		intensity += 0x10;
 
 	corgi_ssp_lcdtg_send(lcd, DUTYCTRL_ADRS, intensity);
-	lcd->intensity = intensity;
 
-	if (lcd->notify)
-		lcd->notify(intensity);
+	/* Bit 5 via GPIO_BACKLIGHT_CONT */
+	cont = !!(intensity & 0x20) ^ lcd->gpio_backlight_cont_inverted;
+
+	if (gpio_is_valid(lcd->gpio_backlight_cont))
+		gpio_set_value(lcd->gpio_backlight_cont, cont);
+
+	if (gpio_is_valid(lcd->gpio_backlight_on))
+		gpio_set_value(lcd->gpio_backlight_on, intensity);
 
 	if (lcd->kick_battery)
 		lcd->kick_battery();
 
+	lcd->intensity = intensity;
 	return 0;
 }
 
@@ -468,6 +480,56 @@ static int corgi_lcd_resume(struct spi_device *spi)
 #define corgi_lcd_resume	NULL
 #endif
 
+static int setup_gpio_backlight(struct corgi_lcd *lcd,
+				struct corgi_lcd_platform_data *pdata)
+{
+	struct spi_device *spi = lcd->spi_dev;
+	int err;
+
+	lcd->gpio_backlight_on = -1;
+	lcd->gpio_backlight_cont = -1;
+
+	if (gpio_is_valid(pdata->gpio_backlight_on)) {
+		err = gpio_request(pdata->gpio_backlight_on, "BL_ON");
+		if (err) {
+			dev_err(&spi->dev, "failed to request GPIO%d for "
+				"backlight_on\n", pdata->gpio_backlight_on);
+			return err;
+		}
+
+		lcd->gpio_backlight_on = pdata->gpio_backlight_on;
+		gpio_direction_output(lcd->gpio_backlight_on, 0);
+	}
+
+	if (gpio_is_valid(pdata->gpio_backlight_cont)) {
+		err = gpio_request(pdata->gpio_backlight_cont, "BL_CONT");
+		if (err) {
+			dev_err(&spi->dev, "failed to request GPIO%d for "
+				"backlight_cont\n", pdata->gpio_backlight_cont);
+			goto err_free_backlight_on;
+		}
+
+		lcd->gpio_backlight_cont = pdata->gpio_backlight_cont;
+
+		/* spitz and akita use both GPIOs for backlight, and
+		 * have inverted polarity of GPIO_BACKLIGHT_CONT
+		 */
+		if (gpio_is_valid(lcd->gpio_backlight_on)) {
+			lcd->gpio_backlight_cont_inverted = 1;
+			gpio_direction_output(lcd->gpio_backlight_cont, 1);
+		} else {
+			lcd->gpio_backlight_cont_inverted = 0;
+			gpio_direction_output(lcd->gpio_backlight_cont, 0);
+		}
+	}
+	return 0;
+
+err_free_backlight_on:
+	if (gpio_is_valid(lcd->gpio_backlight_on))
+		gpio_free(lcd->gpio_backlight_on);
+	return err;
+}
+
 static int __devinit corgi_lcd_probe(struct spi_device *spi)
 {
 	struct corgi_lcd_platform_data *pdata = spi->dev.platform_data;
@@ -506,7 +568,10 @@ static int __devinit corgi_lcd_probe(struct spi_device *spi)
 	lcd->bl_dev->props.brightness = pdata->default_intensity;
 	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
 
-	lcd->notify = pdata->notify;
+	ret = setup_gpio_backlight(lcd, pdata);
+	if (ret)
+		goto err_unregister_bl;
+
 	lcd->kick_battery = pdata->kick_battery;
 
 	dev_set_drvdata(&spi->dev, lcd);
@@ -517,6 +582,8 @@ static int __devinit corgi_lcd_probe(struct spi_device *spi)
 	the_corgi_lcd = lcd;
 	return 0;
 
+err_unregister_bl:
+	backlight_device_unregister(lcd->bl_dev);
 err_unregister_lcd:
 	lcd_device_unregister(lcd->lcd_dev);
 err_free_lcd:
@@ -532,6 +599,12 @@ static int __devexit corgi_lcd_remove(struct spi_device *spi)
 	lcd->bl_dev->props.brightness = 0;
 	backlight_update_status(lcd->bl_dev);
 	backlight_device_unregister(lcd->bl_dev);
+
+	if (gpio_is_valid(lcd->gpio_backlight_on))
+		gpio_free(lcd->gpio_backlight_on);
+
+	if (gpio_is_valid(lcd->gpio_backlight_cont))
+		gpio_free(lcd->gpio_backlight_cont);
 
 	corgi_lcd_set_power(lcd->lcd_dev, FB_BLANK_POWERDOWN);
 	lcd_device_unregister(lcd->lcd_dev);

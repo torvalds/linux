@@ -444,12 +444,6 @@ static struct pxa2xx_spi_chip corgi_ads7846_chip = {
 	.cs_control	= corgi_ads7846_cs,
 };
 
-static void corgi_notify_intensity(int intensity)
-{
-	/* Bit 5 is via SCOOP */
-	gpio_set_value(CORGI_GPIO_BACKLIGHT_CONT, !!(intensity & 0x0020));
-}
-
 static void corgi_bl_kick_battery(void)
 {
 	void (*kick_batt)(void);
@@ -466,7 +460,8 @@ static struct corgi_lcd_platform_data corgi_lcdcon_info = {
 	.max_intensity		= 0x2f,
 	.default_intensity	= 0x1f,
 	.limit_mask		= 0x0b,
-	.notify			= corgi_notify_intensity,
+	.gpio_backlight_cont	= CORGI_GPIO_BACKLIGHT_CONT,
+	.gpio_backlight_on	= -1,
 	.kick_battery		= corgi_bl_kick_battery,
 };
 
