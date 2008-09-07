@@ -1120,6 +1120,7 @@ struct usb_device_id dib0700_usb_id_table[] = {
 /* 35 */{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_TD_STICK_52009) },
 	{ USB_DEVICE(USB_VID_HAUPPAUGE, USB_PID_HAUPPAUGE_NOVA_T_500_3) },
 	{ USB_DEVICE(USB_VID_GIGABYTE,  USB_PID_GIGABYTE_U8000) },
+	{ USB_DEVICE(USB_VID_YUAN,      USB_PID_YUAN_STK7700PH) },
 	{ 0 }		/* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, dib0700_usb_id_table);
@@ -1409,7 +1410,7 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 		},
 
-		.num_device_descs = 4,
+		.num_device_descs = 5,
 		.devices = {
 			{   "Terratec Cinergy HT USB XE",
 				{ &dib0700_usb_id_table[27], NULL },
@@ -1425,6 +1426,10 @@ struct dvb_usb_device_properties dib0700_devices[] = {
 			},
 			{   "Gigabyte U8000-RH",
 				{ &dib0700_usb_id_table[37], NULL },
+				{ NULL },
+			},
+			{   "YUAN High-Tech STK7700PH",
+				{ &dib0700_usb_id_table[38], NULL },
 				{ NULL },
 			},
 		},
