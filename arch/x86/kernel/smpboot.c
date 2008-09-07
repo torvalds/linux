@@ -334,13 +334,16 @@ static void __cpuinit start_secondary(void *unused)
 	 * does not change while we are assigning vectors to cpus.  Holding
 	 * this lock ensures we don't half assign or remove an irq from a cpu.
 	 */
-	ipi_call_lock_irq();
+	ipi_call_lock();
 	lock_vector_lock();
 	__setup_vector_irq(smp_processor_id());
 	cpu_set(smp_processor_id(), cpu_online_map);
 	unlock_vector_lock();
-	ipi_call_unlock_irq();
+	ipi_call_unlock();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+
+	/* enable local interrupts */
+	local_irq_enable();
 
 	setup_secondary_clock();
 
