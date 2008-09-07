@@ -201,9 +201,6 @@ config X86_TRAMPOLINE
 	depends on X86_SMP || (X86_VOYAGER && SMP) || (64BIT && ACPI_SLEEP)
 	default y
 
-config X86_CHECK_BIOS_CORRUPTION
-        def_bool y
-
 config KTIME_SCALAR
 	def_bool X86_32
 source "init/Kconfig"
@@ -1061,6 +1058,29 @@ config HIGHPTE
 	  For systems with a lot of RAM, this can be wasteful of precious
 	  low memory.  Setting this option will put user-space page table
 	  entries in high memory.
+
+config X86_CHECK_BIOS_CORRUPTION
+        bool "Check for low memory corruption"
+	default y
+	help
+	 Periodically check for memory corruption in low memory, which
+	 is suspected to be caused by BIOS.  Even when enabled in the
+	 configuration, it is disabled at runtime.  Enable it by
+	 setting "memory_corruption_check=1" on the kernel command
+	 line.  By default it scans the low 64k of memory every 60
+	 seconds; see the memory_corruption_check_size and
+	 memory_corruption_check_period parameters in
+	 Documentation/kernel-parameters.txt to adjust this.
+
+	 When enabled with the default parameters, this option has
+	 almost no overhead, as it reserves a relatively small amount
+	 of memory and scans it infrequently.  It both detects corruption
+	 and prevents it from affecting the running system.
+
+	 It is, however, intended as a diagnostic tool; if repeatable
+	 BIOS-originated corruption always affects the same memory,
+	 you can use memmap= to prevent the kernel from using that
+	 memory.
 
 config MATH_EMULATION
 	bool

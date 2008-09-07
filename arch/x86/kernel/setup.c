@@ -586,22 +586,71 @@ struct x86_quirks *x86_quirks __initdata = &default_x86_quirks;
  */
 #ifdef CONFIG_X86_CHECK_BIOS_CORRUPTION
 #define MAX_SCAN_AREAS	8
+
+static int __read_mostly memory_corruption_check = 0;
+static unsigned __read_mostly corruption_check_size = 64*1024;
+static unsigned __read_mostly corruption_check_period = 60; /* seconds */
+
 static struct e820entry scan_areas[MAX_SCAN_AREAS];
 static int num_scan_areas;
+
+
+static int set_corruption_check(char *arg)
+{
+	char *end;
+
+	memory_corruption_check = simple_strtol(arg, &end, 10);
+
+	return (*end == 0) ? 0 : -EINVAL;
+}
+early_param("memory_corruption_check", set_corruption_check);
+
+static int set_corruption_check_period(char *arg)
+{
+	char *end;
+
+	corruption_check_period = simple_strtoul(arg, &end, 10);
+
+	return (*end == 0) ? 0 : -EINVAL;
+}
+early_param("memory_corruption_check_period", set_corruption_check_period);
+
+static int set_corruption_check_size(char *arg)
+{
+	char *end;
+	unsigned size;
+
+	size = memparse(arg, &end);
+
+	if (*end == '\0')
+		corruption_check_size = size;
+
+	return (size == corruption_check_size) ? 0 : -EINVAL;
+}
+early_param("memory_corruption_check_size", set_corruption_check_size);
+
 
 static void __init setup_bios_corruption_check(void)
 {
 	u64 addr = PAGE_SIZE;	/* assume first page is reserved anyway */
 
-	while(addr < 0x10000 && num_scan_areas < MAX_SCAN_AREAS) {
+	if (corruption_check_size == 0)
+		memory_corruption_check = 0;
+
+	if (!memory_corruption_check)
+		return;
+
+	corruption_check_size = round_up(corruption_check_size, PAGE_SIZE);
+
+	while(addr < corruption_check_size && num_scan_areas < MAX_SCAN_AREAS) {
 		u64 size;
 		addr = find_e820_area_size(addr, &size, PAGE_SIZE);
 
 		if (addr == 0)
 			break;
 
-		if ((addr + size) > 0x10000)
-			size = 0x10000 - addr;
+		if ((addr + size) > corruption_check_size)
+			size = corruption_check_size - addr;
 
 		if (size == 0)
 			break;
@@ -617,12 +666,11 @@ static void __init setup_bios_corruption_check(void)
 		addr += size;
 	}
 
-	printk(KERN_INFO "scanning %d areas for BIOS corruption\n",
+	printk(KERN_INFO "Scanning %d areas for low memory corruption\n",
 	       num_scan_areas);
 	update_e820();
 }
 
-static int __read_mostly bios_corruption_check = 1;
 static struct timer_list periodic_check_timer;
 
 void check_for_bios_corruption(void)
@@ -630,7 +678,7 @@ void check_for_bios_corruption(void)
 	int i;
 	int corruption = 0;
 
-	if (!bios_corruption_check)
+	if (!memory_corruption_check)
 		return;
 
 	for(i = 0; i < num_scan_areas; i++) {
@@ -647,35 +695,27 @@ void check_for_bios_corruption(void)
 		}
 	}
 
-	if (corruption)
-		dump_stack();
+	WARN(corruption, KERN_ERR "Memory corruption detected in low memory\n");
 }
 
 static void periodic_check_for_corruption(unsigned long data)
 {
 	check_for_bios_corruption();
-	mod_timer(&periodic_check_timer, jiffies + 60*HZ);
+	mod_timer(&periodic_check_timer, jiffies + corruption_check_period*HZ);
 }
 
 void start_periodic_check_for_corruption(void)
 {
-	if (!bios_corruption_check)
+	if (!memory_corruption_check || corruption_check_period == 0)
 		return;
+
+	printk(KERN_INFO "Scanning for low memory corruption every %d seconds\n",
+	       corruption_check_period);
 
 	init_timer(&periodic_check_timer);
 	periodic_check_timer.function = &periodic_check_for_corruption;
 	periodic_check_for_corruption(0);
 }
-
-static int set_bios_corruption_check(char *arg)
-{
-	char *end;
-
-	bios_corruption_check = simple_strtol(arg, &end, 10);
-
-	return (*end == 0) ? 0 : -EINVAL;
-}
-early_param("bios_corruption_check", set_bios_corruption_check);
 #endif
 
 /*
