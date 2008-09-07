@@ -41,9 +41,9 @@
  * better solutions..
  */
 
-static unsigned long __estimate_accuracy(struct timespec *tv)
+static long __estimate_accuracy(struct timespec *tv)
 {
-	unsigned long slack;
+	long slack;
 	int divfactor = 1000;
 
 	if (task_nice(current) > 0)
@@ -54,10 +54,13 @@ static unsigned long __estimate_accuracy(struct timespec *tv)
 
 	if (slack > 100 * NSEC_PER_MSEC)
 		slack =  100 * NSEC_PER_MSEC;
+
+	if (slack < 0)
+		slack = 0;
 	return slack;
 }
 
-static unsigned long estimate_accuracy(struct timespec *tv)
+static long estimate_accuracy(struct timespec *tv)
 {
 	unsigned long ret;
 	struct timespec now;
@@ -330,7 +333,7 @@ int do_select(int n, fd_set_bits *fds, struct timespec *end_time)
 		timed_out = 1;
 	}
 
-	if (end_time)
+	if (end_time && !timed_out)
 		slack = estimate_accuracy(end_time);
 
 	retval = 0;
@@ -656,7 +659,7 @@ static int do_poll(unsigned int nfds,  struct poll_list *list,
 		timed_out = 1;
 	}
 
-	if (end_time)
+	if (end_time && !timed_out)
 		slack = estimate_accuracy(end_time);
 
 	for (;;) {
