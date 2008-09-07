@@ -165,9 +165,6 @@ static inline void *phys_to_virt(unsigned long address)
 
 #include <asm-generic/iomap.h>
 
-extern void *early_ioremap(unsigned long addr, unsigned long size);
-extern void early_iounmap(void *addr, unsigned long size);
-
 /*
  * This one maps high address device memory and turns off caching for that area.
  * it's useful if some control registers are in such an area and write combining
