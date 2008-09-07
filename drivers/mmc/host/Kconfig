@@ -142,7 +142,7 @@ config MMC_TIFM_SD
 
 config MMC_SPI
 	tristate "MMC/SD over SPI"
-	depends on MMC && SPI_MASTER && !HIGHMEM && HAS_DMA
+	depends on SPI_MASTER && !HIGHMEM && HAS_DMA
 	select CRC7
 	select CRC_ITU_T
 	help
@@ -155,7 +155,7 @@ config MMC_SPI
 
 config MMC_S3C
 	tristate "Samsung S3C SD/MMC Card Interface support"
-	depends on ARCH_S3C2410 && MMC
+	depends on ARCH_S3C2410
 	help
 	  This selects a driver for the MCI interface found in
           Samsung's S3C2410, S3C2412, S3C2440, S3C2442 CPUs.
@@ -166,7 +166,7 @@ config MMC_S3C
 
 config MMC_SDRICOH_CS
 	tristate "MMC/SD driver for Ricoh Bay1Controllers (EXPERIMENTAL)"
-	depends on EXPERIMENTAL && MMC && PCI && PCMCIA
+	depends on EXPERIMENTAL && PCI && PCMCIA
 	help
 	  Say Y here if your Notebook reports a Ricoh Bay1Controller PCMCIA
 	  card whenever you insert a MMC or SD card into the card slot.
