@@ -13,7 +13,7 @@
 
 #ifdef CONFIG_SOUND_OSS_CORE
 static int __init init_oss_soundcore(void);
-static void __exit cleanup_oss_soundcore(void);
+static void cleanup_oss_soundcore(void);
 #else
 static inline int init_oss_soundcore(void)	{ return 0; }
 static inline void cleanup_oss_soundcore(void)	{ }
@@ -574,7 +574,7 @@ int soundcore_open(struct inode *inode, struct file *file)
 
 MODULE_ALIAS_CHARDEV_MAJOR(SOUND_MAJOR);
 
-static void __exit cleanup_oss_soundcore(void)
+static void cleanup_oss_soundcore(void)
 {
 	/* We have nothing to really do here - we know the lists must be
 	   empty */
