@@ -474,7 +474,7 @@ int __kprobes kprobe_exceptions_notify(struct notifier_block *self,
 				ret = NOTIFY_STOP;
 			} else {
 				/* Not a kprobe trap */
-				force_sig(SIGTRAP, current);
+				ret = NOTIFY_DONE;
 			}
 		} else {
 			p = get_kprobe(addr);
