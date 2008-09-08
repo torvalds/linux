@@ -904,15 +904,6 @@ handle_response(int af, struct sk_buff *skb, struct ip_vs_protocol *pp,
 		if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
 			goto drop;
 
-	/* For policy routing, packets originating from this
-	 * machine itself may be routed differently to packets
-	 * passing through.  We want this packet to be routed as
-	 * if it came from this machine itself.  So re-compute
-	 * the routing information.
-	 */
-	if (ip_route_me_harder(skb, RTN_LOCAL) != 0)
-		goto drop;
-
 	IP_VS_DBG_PKT(10, pp, skb, 0, "After SNAT");
 
 	ip_vs_out_stats(cp, skb);
