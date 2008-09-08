@@ -277,7 +277,7 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
  * here. When a retprobed function returns, this probe is hit and
  * trampoline_probe_handler() runs, calling the kretprobe's handler.
  */
-void kretprobe_trampoline_holder(void)
+static void __used kretprobe_trampoline_holder(void)
 {
 	asm volatile ("kretprobe_trampoline: \n" "nop\n");
 }
