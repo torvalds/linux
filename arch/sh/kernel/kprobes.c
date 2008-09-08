@@ -542,6 +542,7 @@ int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
 		       MIN_STACK_SIZE(stack_addr));
 
 		kcb->kprobe_status = KPROBE_HIT_SS;
+		preempt_enable_no_resched();
 		return 1;
 	}
 	return 0;
