@@ -45,12 +45,12 @@ static LIST_HEAD(gre_keymap_list);
 
 void nf_ct_gre_keymap_flush(void)
 {
-	struct list_head *pos, *n;
+	struct nf_ct_gre_keymap *km, *tmp;
 
 	write_lock_bh(&nf_ct_gre_lock);
-	list_for_each_safe(pos, n, &gre_keymap_list) {
-		list_del(pos);
-		kfree(pos);
+	list_for_each_entry_safe(km, tmp, &gre_keymap_list, list) {
+		list_del(&km->list);
+		kfree(km);
 	}
 	write_unlock_bh(&nf_ct_gre_lock);
 }
