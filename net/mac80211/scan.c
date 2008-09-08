@@ -23,6 +23,74 @@
 #define IEEE80211_PASSIVE_CHANNEL_TIME (HZ / 5)
 
 
+ieee80211_rx_result
+ieee80211_sta_rx_scan(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		      struct ieee80211_rx_status *rx_status)
+{
+	struct ieee80211_mgmt *mgmt;
+	struct ieee80211_sta_bss *bss;
+	u8 *elements;
+	struct ieee80211_channel *channel;
+	size_t baselen;
+	int freq;
+	__le16 fc;
+	bool presp, beacon = false;
+	struct ieee802_11_elems elems;
+
+	if (skb->len < 2)
+		return RX_DROP_UNUSABLE;
+
+	mgmt = (struct ieee80211_mgmt *) skb->data;
+	fc = mgmt->frame_control;
+
+	if (ieee80211_is_ctl(fc))
+		return RX_CONTINUE;
+
+	if (skb->len < 24)
+		return RX_DROP_MONITOR;
+
+	presp = ieee80211_is_probe_resp(fc);
+	if (presp) {
+		/* ignore ProbeResp to foreign address */
+		if (memcmp(mgmt->da, sdata->dev->dev_addr, ETH_ALEN))
+			return RX_DROP_MONITOR;
+
+		presp = true;
+		elements = mgmt->u.probe_resp.variable;
+		baselen = offsetof(struct ieee80211_mgmt, u.probe_resp.variable);
+	} else {
+		beacon = ieee80211_is_beacon(fc);
+		baselen = offsetof(struct ieee80211_mgmt, u.beacon.variable);
+		elements = mgmt->u.beacon.variable;
+	}
+
+	if (!presp && !beacon)
+		return RX_CONTINUE;
+
+	if (baselen > skb->len)
+		return RX_DROP_MONITOR;
+
+	ieee802_11_parse_elems(elements, skb->len - baselen, &elems);
+
+	if (elems.ds_params && elems.ds_params_len == 1)
+		freq = ieee80211_channel_to_frequency(elems.ds_params[0]);
+	else
+		freq = rx_status->freq;
+
+	channel = ieee80211_get_channel(sdata->local->hw.wiphy, freq);
+
+	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
+		return RX_DROP_MONITOR;
+
+	bss = ieee80211_bss_info_update(sdata->local, rx_status,
+					mgmt, skb->len, &elems,
+					freq, beacon);
+	ieee80211_rx_bss_put(sdata->local, bss);
+
+	dev_kfree_skb(skb);
+	return RX_QUEUED;
+}
+
 static void ieee80211_send_nullfunc(struct ieee80211_local *local,
 				    struct ieee80211_sub_if_data *sdata,
 				    int powersave)

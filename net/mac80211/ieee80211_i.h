@@ -937,6 +937,15 @@ void ieee802_11_parse_elems(u8 *start, size_t len,
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 			     u8 *ssid, size_t ssid_len);
+struct ieee80211_sta_bss *
+ieee80211_bss_info_update(struct ieee80211_local *local,
+			  struct ieee80211_rx_status *rx_status,
+			  struct ieee80211_mgmt *mgmt,
+			  size_t len,
+			  struct ieee802_11_elems *elems,
+			  int freq, bool beacon);
+void ieee80211_rx_bss_put(struct ieee80211_local *local,
+			  struct ieee80211_sta_bss *bss);
 
 #ifdef CONFIG_MAC80211_MESH
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);

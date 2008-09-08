@@ -128,10 +128,9 @@ static void __ieee80211_rx_bss_hash_del(struct ieee80211_local *local,
 }
 
 static struct ieee80211_sta_bss *
-ieee80211_rx_bss_add(struct ieee80211_sub_if_data *sdata, u8 *bssid, int freq,
+ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len)
 {
-	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sta_bss *bss;
 
 	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);
@@ -230,8 +229,8 @@ static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
 	kfree(bss);
 }
 
-static void ieee80211_rx_bss_put(struct ieee80211_local *local,
-				 struct ieee80211_sta_bss *bss)
+void ieee80211_rx_bss_put(struct ieee80211_local *local,
+			  struct ieee80211_sta_bss *bss)
 {
 	local_bh_disable();
 	if (!atomic_dec_and_lock(&bss->users, &local->sta_bss_lock)) {
@@ -2443,20 +2442,128 @@ static u64 ieee80211_sta_get_mandatory_rates(struct ieee80211_local *local,
 	return mandatory_rates;
 }
 
+struct ieee80211_sta_bss *
+ieee80211_bss_info_update(struct ieee80211_local *local,
+			  struct ieee80211_rx_status *rx_status,
+			  struct ieee80211_mgmt *mgmt,
+			  size_t len,
+			  struct ieee802_11_elems *elems,
+			  int freq, bool beacon)
+{
+	struct ieee80211_sta_bss *bss;
+	int clen;
+
+#ifdef CONFIG_MAC80211_MESH
+	if (elems->mesh_config)
+		bss = ieee80211_rx_mesh_bss_get(local, elems->mesh_id,
+				elems->mesh_id_len, elems->mesh_config, freq);
+	else
+#endif
+		bss = ieee80211_rx_bss_get(local, mgmt->bssid, freq,
+					   elems->ssid, elems->ssid_len);
+	if (!bss) {
+#ifdef CONFIG_MAC80211_MESH
+		if (elems->mesh_config)
+			bss = ieee80211_rx_mesh_bss_add(local, elems->mesh_id,
+				elems->mesh_id_len, elems->mesh_config,
+				elems->mesh_config_len, freq);
+		else
+#endif
+			bss = ieee80211_rx_bss_add(local, mgmt->bssid, freq,
+						  elems->ssid, elems->ssid_len);
+		if (!bss)
+			return NULL;
+	} else {
+#if 0
+		/* TODO: order by RSSI? */
+		spin_lock_bh(&local->sta_bss_lock);
+		list_move_tail(&bss->list, &local->sta_bss_list);
+		spin_unlock_bh(&local->sta_bss_lock);
+#endif
+	}
+
+	/* save the ERP value so that it is available at association time */
+	if (elems->erp_info && elems->erp_info_len >= 1) {
+		bss->erp_value = elems->erp_info[0];
+		bss->has_erp_value = 1;
+	}
+
+	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
+	bss->capability = le16_to_cpu(mgmt->u.beacon.capab_info);
+
+	if (elems->tim) {
+		struct ieee80211_tim_ie *tim_ie =
+			(struct ieee80211_tim_ie *)elems->tim;
+		bss->dtim_period = tim_ie->dtim_period;
+	}
+
+	/* set default value for buggy APs */
+	if (!elems->tim || bss->dtim_period == 0)
+		bss->dtim_period = 1;
+
+	bss->supp_rates_len = 0;
+	if (elems->supp_rates) {
+		clen = IEEE80211_MAX_SUPP_RATES - bss->supp_rates_len;
+		if (clen > elems->supp_rates_len)
+			clen = elems->supp_rates_len;
+		memcpy(&bss->supp_rates[bss->supp_rates_len], elems->supp_rates,
+		       clen);
+		bss->supp_rates_len += clen;
+	}
+	if (elems->ext_supp_rates) {
+		clen = IEEE80211_MAX_SUPP_RATES - bss->supp_rates_len;
+		if (clen > elems->ext_supp_rates_len)
+			clen = elems->ext_supp_rates_len;
+		memcpy(&bss->supp_rates[bss->supp_rates_len],
+		       elems->ext_supp_rates, clen);
+		bss->supp_rates_len += clen;
+	}
+
+	bss->band = rx_status->band;
+
+	bss->timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
+	bss->last_update = jiffies;
+	bss->signal = rx_status->signal;
+	bss->noise = rx_status->noise;
+	bss->qual = rx_status->qual;
+	bss->wmm_used = elems->wmm_param || elems->wmm_info;
+
+	if (!beacon)
+		bss->last_probe_resp = jiffies;
+
+	/*
+	 * For probe responses, or if we don't have any information yet,
+	 * use the IEs from the beacon.
+	 */
+	if (!bss->ies || !beacon) {
+		if (bss->ies == NULL || bss->ies_len < elems->total_len) {
+			kfree(bss->ies);
+			bss->ies = kmalloc(elems->total_len, GFP_ATOMIC);
+		}
+		if (bss->ies) {
+			memcpy(bss->ies, elems->ie_start, elems->total_len);
+			bss->ies_len = elems->total_len;
+		} else
+			bss->ies_len = 0;
+	}
+
+	return bss;
+}
+
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_mgmt *mgmt,
 				  size_t len,
 				  struct ieee80211_rx_status *rx_status,
-				  struct ieee802_11_elems *elems)
+				  struct ieee802_11_elems *elems,
+				  bool beacon)
 {
 	struct ieee80211_local *local = sdata->local;
-	int freq, clen;
+	int freq;
 	struct ieee80211_sta_bss *bss;
 	struct sta_info *sta;
 	struct ieee80211_channel *channel;
 	u64 beacon_timestamp, rx_timestamp;
 	u64 supp_rates = 0;
-	bool beacon = ieee80211_is_beacon(mgmt->frame_control);
 	enum ieee80211_band band = rx_status->band;
 	DECLARE_MAC_BUF(mac);
 	DECLARE_MAC_BUF(mac2);
@@ -2512,83 +2619,14 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		rcu_read_unlock();
 	}
 
-#ifdef CONFIG_MAC80211_MESH
-	if (elems->mesh_config)
-		bss = ieee80211_rx_mesh_bss_get(local, elems->mesh_id,
-				elems->mesh_id_len, elems->mesh_config, freq);
-	else
-#endif
-		bss = ieee80211_rx_bss_get(local, mgmt->bssid, freq,
-					   elems->ssid, elems->ssid_len);
-	if (!bss) {
-#ifdef CONFIG_MAC80211_MESH
-		if (elems->mesh_config)
-			bss = ieee80211_rx_mesh_bss_add(local, elems->mesh_id,
-				elems->mesh_id_len, elems->mesh_config,
-				elems->mesh_config_len, freq);
-		else
-#endif
-			bss = ieee80211_rx_bss_add(sdata, mgmt->bssid, freq,
-						  elems->ssid, elems->ssid_len);
-		if (!bss)
-			return;
-	} else {
-#if 0
-		/* TODO: order by RSSI? */
-		spin_lock_bh(&local->sta_bss_lock);
-		list_move_tail(&bss->list, &local->sta_bss_list);
-		spin_unlock_bh(&local->sta_bss_lock);
-#endif
-	}
+	bss = ieee80211_bss_info_update(local, rx_status, mgmt, len, elems,
+					freq, beacon);
+	if (!bss)
+		return;
 
-	/* save the ERP value so that it is available at association time */
-	if (elems->erp_info && elems->erp_info_len >= 1) {
-		bss->erp_value = elems->erp_info[0];
-		bss->has_erp_value = 1;
-	}
+	/* was just updated in ieee80211_bss_info_update */
+	beacon_timestamp = bss->timestamp;
 
-	bss->beacon_int = le16_to_cpu(mgmt->u.beacon.beacon_int);
-	bss->capability = le16_to_cpu(mgmt->u.beacon.capab_info);
-
-	if (elems->tim) {
-		struct ieee80211_tim_ie *tim_ie =
-			(struct ieee80211_tim_ie *)elems->tim;
-		bss->dtim_period = tim_ie->dtim_period;
-	}
-
-	/* set default value for buggy APs */
-	if (!elems->tim || bss->dtim_period == 0)
-		bss->dtim_period = 1;
-
-	bss->supp_rates_len = 0;
-	if (elems->supp_rates) {
-		clen = IEEE80211_MAX_SUPP_RATES - bss->supp_rates_len;
-		if (clen > elems->supp_rates_len)
-			clen = elems->supp_rates_len;
-		memcpy(&bss->supp_rates[bss->supp_rates_len], elems->supp_rates,
-		       clen);
-		bss->supp_rates_len += clen;
-	}
-	if (elems->ext_supp_rates) {
-		clen = IEEE80211_MAX_SUPP_RATES - bss->supp_rates_len;
-		if (clen > elems->ext_supp_rates_len)
-			clen = elems->ext_supp_rates_len;
-		memcpy(&bss->supp_rates[bss->supp_rates_len],
-		       elems->ext_supp_rates, clen);
-		bss->supp_rates_len += clen;
-	}
-
-	bss->band = band;
-
-	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
-
-	bss->timestamp = beacon_timestamp;
-	bss->last_update = jiffies;
-	bss->signal = rx_status->signal;
-	bss->noise = rx_status->noise;
-	bss->qual = rx_status->qual;
-	if (!beacon)
-		bss->last_probe_resp = jiffies;
 	/*
 	 * In STA mode, the remaining parameters should not be overridden
 	 * by beacons because they're not necessarily accurate there.
@@ -2599,21 +2637,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		return;
 	}
 
-	if (bss->ies == NULL || bss->ies_len < elems->total_len) {
-		kfree(bss->ies);
-		bss->ies = kmalloc(elems->total_len, GFP_ATOMIC);
-	}
-	if (bss->ies) {
-		memcpy(bss->ies, elems->ie_start, elems->total_len);
-		bss->ies_len = elems->total_len;
-	} else
-		bss->ies_len = 0;
-
-	bss->wmm_used = elems->wmm_param || elems->wmm_info;
-
 	/* check if we need to merge IBSS */
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && beacon &&
-	    !local->sta_sw_scanning && !local->sta_hw_scanning &&
 	    bss->capability & WLAN_CAPABILITY_IBSS &&
 	    bss->freq == local->oper_channel->center_freq &&
 	    elems->ssid_len == sdata->u.sta.ssid_len &&
@@ -2690,7 +2715,7 @@ static void ieee80211_rx_mgmt_probe_resp(struct ieee80211_sub_if_data *sdata,
 	ieee802_11_parse_elems(mgmt->u.probe_resp.variable, len - baselen,
 				&elems);
 
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, false);
 
 	/* direct probe may be part of the association flow */
 	if (test_and_clear_bit(IEEE80211_STA_REQ_DIRECT_PROBE,
@@ -2721,7 +2746,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	ieee802_11_parse_elems(mgmt->u.beacon.variable, len - baselen, &elems);
 
-	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems);
+	ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, &elems, true);
 
 	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return;
@@ -2729,15 +2754,6 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 
 	if (!(ifsta->flags & IEEE80211_STA_ASSOCIATED) ||
 	    memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0)
-		return;
-
-	/* Do not send changes to driver if we are scanning. This removes
-	 * requirement that a driver's bss_info_changed/conf_tx functions
-	 * need to be atomic.
-	 * This is really ugly code, we should rewrite scanning and make
-	 * all this more understandable for humans.
-	 */
-	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return;
 
 	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
@@ -2982,41 +2998,6 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 }
 
 
-ieee80211_rx_result
-ieee80211_sta_rx_scan(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		      struct ieee80211_rx_status *rx_status)
-{
-	struct ieee80211_mgmt *mgmt;
-	__le16 fc;
-
-	if (skb->len < 2)
-		return RX_DROP_UNUSABLE;
-
-	mgmt = (struct ieee80211_mgmt *) skb->data;
-	fc = mgmt->frame_control;
-
-	if (ieee80211_is_ctl(fc))
-		return RX_CONTINUE;
-
-	if (skb->len < 24)
-		return RX_DROP_MONITOR;
-
-	if (ieee80211_is_probe_resp(fc)) {
-		ieee80211_rx_mgmt_probe_resp(sdata, mgmt, skb->len, rx_status);
-		dev_kfree_skb(skb);
-		return RX_QUEUED;
-	}
-
-	if (ieee80211_is_beacon(fc)) {
-		ieee80211_rx_mgmt_beacon(sdata, mgmt, skb->len, rx_status);
-		dev_kfree_skb(skb);
-		return RX_QUEUED;
-	}
-
-	return RX_CONTINUE;
-}
-
-
 static int ieee80211_sta_active_ibss(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -3233,7 +3214,7 @@ static int ieee80211_sta_create_ibss(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: Creating new IBSS network, BSSID %s\n",
 	       sdata->dev->name, print_mac(mac, bssid));
 
-	bss = ieee80211_rx_bss_add(sdata, bssid,
+	bss = ieee80211_rx_bss_add(local, bssid,
 				   local->hw.conf.channel->center_freq,
 				   sdata->u.sta.ssid, sdata->u.sta.ssid_len);
 	if (!bss)
