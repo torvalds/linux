@@ -290,7 +290,9 @@ no_kprobe:
  */
 static void __used kretprobe_trampoline_holder(void)
 {
-	asm volatile ("kretprobe_trampoline: \n" "nop\n");
+	asm volatile (".globl kretprobe_trampoline\n"
+		      "kretprobe_trampoline:\n\t"
+		      "nop\n");
 }
 
 /*
