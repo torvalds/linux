@@ -2602,7 +2602,15 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	DECLARE_MAC_BUF(mac);
 	DECLARE_MAC_BUF(mac2);
 
-	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
+	if (elems->ds_params && elems->ds_params_len == 1)
+		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
+	else
+		freq = rx_status->freq;
+
+	channel = ieee80211_get_channel(local->hw.wiphy, freq);
+
+	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
+		return;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && elems->mesh_id &&
 	    elems->mesh_config && mesh_matches_local(elems, sdata)) {
@@ -2644,16 +2652,6 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 
 		rcu_read_unlock();
 	}
-
-	if (elems->ds_params && elems->ds_params_len == 1)
-		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
-	else
-		freq = rx_status->freq;
-
-	channel = ieee80211_get_channel(local->hw.wiphy, freq);
-
-	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
-		return;
 
 #ifdef CONFIG_MAC80211_MESH
 	if (elems->mesh_config)
@@ -2722,6 +2720,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	}
 
 	bss->band = band;
+
+	beacon_timestamp = le64_to_cpu(mgmt->u.beacon.timestamp);
 
 	bss->timestamp = beacon_timestamp;
 	bss->last_update = jiffies;
