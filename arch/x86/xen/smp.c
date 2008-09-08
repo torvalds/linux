@@ -333,7 +333,7 @@ static void xen_smp_cpus_done(unsigned int max_cpus)
 }
 
 #ifdef CONFIG_HOTPLUG_CPU
-int xen_cpu_disable(void)
+static int xen_cpu_disable(void)
 {
 	unsigned int cpu = smp_processor_id();
 	if (cpu == 0)
@@ -345,7 +345,7 @@ int xen_cpu_disable(void)
 	return 0;
 }
 
-void xen_cpu_die(unsigned int cpu)
+static void xen_cpu_die(unsigned int cpu)
 {
 	while (HYPERVISOR_vcpu_op(VCPUOP_is_up, cpu, NULL)) {
 		current->state = TASK_UNINTERRUPTIBLE;
@@ -362,7 +362,7 @@ void xen_cpu_die(unsigned int cpu)
 		alternatives_smp_switch(0);
 }
 
-void xen_play_dead(void)
+static void xen_play_dead(void)
 {
 	play_dead_common();
 	HYPERVISOR_vcpu_op(VCPUOP_down, smp_processor_id(), NULL);
@@ -370,17 +370,17 @@ void xen_play_dead(void)
 }
 
 #else /* !CONFIG_HOTPLUG_CPU */
-int xen_cpu_disable(void)
+static int xen_cpu_disable(void)
 {
 	return -ENOSYS;
 }
 
-void xen_cpu_die(unsigned int cpu)
+static void xen_cpu_die(unsigned int cpu)
 {
 	BUG();
 }
 
-void xen_play_dead(void)
+static void xen_play_dead(void)
 {
 	BUG();
 }
