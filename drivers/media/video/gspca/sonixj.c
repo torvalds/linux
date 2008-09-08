@@ -39,6 +39,7 @@ struct sd {
 	unsigned char contrast;
 	unsigned char colors;
 	unsigned char autogain;
+	__u8 vflip;			/* ov7630 only */
 
 	signed char ag_cnt;
 #define AG_CNT_START 13
@@ -70,6 +71,8 @@ static int sd_setcolors(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcolors(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val);
 
 static struct ctrl sd_ctrls[] = {
 	{
@@ -130,6 +133,22 @@ static struct ctrl sd_ctrls[] = {
 	    },
 	    .set = sd_setautogain,
 	    .get = sd_getautogain,
+	},
+/* ov7630 only */
+#define VFLIP_IDX 4
+	{
+	    {
+		.id      = V4L2_CID_VFLIP,
+		.type    = V4L2_CTRL_TYPE_BOOLEAN,
+		.name    = "Vflip",
+		.minimum = 0,
+		.maximum = 1,
+		.step    = 1,
+#define VFLIP_DEF 0
+		.default_value = VFLIP_DEF,
+	    },
+	    .set = sd_setvflip,
+	    .get = sd_getvflip,
 	},
 };
 
@@ -434,7 +453,8 @@ static const __u8 ov7630_sensor_init[][8] = {
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x12, 0x48, 0x00, 0x00, 0x00, 0x10},
 /*fixme: + 0x12, 0x04*/
-	{0xa1, 0x21, 0x75, 0x82, 0x00, 0x00, 0x00, 0x10},
+/*	{0xa1, 0x21, 0x75, 0x82, 0x00, 0x00, 0x00, 0x10},  * COMN
+							 * set by setvflip */
 	{0xa1, 0x21, 0x10, 0x32, 0x00, 0x00, 0x00, 0x10},
 	{0xa1, 0x21, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10},
 	{0xb1, 0x21, 0x01, 0x80, 0x80, 0x00, 0x00, 0x10},
@@ -949,6 +969,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		gspca_dev->ctrl_dis = (1 << AUTOGAIN_IDX);
 		break;
 	}
+	if (sd->sensor != SENSOR_OV7630)
+		gspca_dev->ctrl_dis |= (1 << VFLIP_IDX);
 
 	return 0;
 }
@@ -1172,6 +1194,14 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = -1;
 }
 
+static void setvflip(struct sd *sd)
+{
+	if (sd->sensor != SENSOR_OV7630)
+		return;
+	i2c_w1(&sd->gspca_dev, 0x75,			/* COMN */
+		sd->vflip ? 0x82 : 0x02);
+}
+
 /* -- start the camera -- */
 static void sd_start(struct gspca_dev *gspca_dev)
 {
@@ -1263,6 +1293,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_OV7630:
 		ov7630_InitSensor(gspca_dev);
+		setvflip(sd);
 		reg17 = 0xe2;
 		reg1 = 0x44;
 		break;
@@ -1543,6 +1574,23 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->autogain;
+	return 0;
+}
+
+static int sd_setvflip(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->vflip = val;
+	setvflip(sd);
+	return 0;
+}
+
+static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->vflip;
 	return 0;
 }
 
