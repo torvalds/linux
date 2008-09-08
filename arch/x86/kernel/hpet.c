@@ -635,6 +635,10 @@ static int hpet_cpuhp_notify(struct notifier_block *n,
 }
 #else
 
+static int hpet_setup_msi_irq(unsigned int irq)
+{
+	return 0;
+}
 void hpet_msi_capability_lookup(unsigned int start_timer)
 {
 	return;
