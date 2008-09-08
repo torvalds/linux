@@ -6,8 +6,6 @@
 #include <linux/types.h>
 #include <linux/ptrace.h>
 
-struct pt_regs;
-
 typedef u16 kprobe_opcode_t;
 #define BREAKPOINT_INSTRUCTION	0xc3ff
 
@@ -48,6 +46,7 @@ struct kprobe_ctlblk {
 	struct prev_kprobe prev_kprobe;
 };
 
+extern int kprobe_fault_handler(struct pt_regs *regs, int trapnr);
 extern int kprobe_exceptions_notify(struct notifier_block *self,
 				    unsigned long val, void *data);
 extern int kprobe_handle_illslot(unsigned long pc);
