@@ -513,10 +513,17 @@ static struct videobuf_queue_ops em28xx_video_qops = {
  */
 static int em28xx_config(struct em28xx *dev)
 {
+	int retval;
 
 	/* Sets I2C speed to 100 KHz */
-	if (!dev->is_em2800)
-		em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+	if (!dev->is_em2800) {
+		retval = em28xx_write_regs_req(dev, 0x00, 0x06, "\x40", 1);
+		if (retval < 0) {
+			em28xx_errdev("%s: em28xx_write_regs_req failed! retval [%d]\n",
+				__func__, retval);
+			return retval;
+		}
+	}
 
 	/* enable vbi capturing */
 
@@ -1953,13 +1960,23 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	}
 
 	/* register i2c bus */
-	em28xx_i2c_register(dev);
+	errCode = em28xx_i2c_register(dev);
+	if (errCode < 0) {
+		em28xx_errdev("%s: em28xx_i2c_register - errCode [%d]!\n",
+			__func__, errCode);
+		return errCode;
+	}
 
 	/* Do board specific init and eeprom reading */
 	em28xx_card_setup(dev);
 
 	/* Configure audio */
-	em28xx_audio_analog_set(dev);
+	errCode = em28xx_audio_analog_set(dev);
+	if (errCode < 0) {
+		em28xx_errdev("%s: em28xx_audio_analog_set - errCode [%d]!\n",
+			__func__, errCode);
+		return errCode;
+	}
 
 	/* configure the device */
 	em28xx_config_i2c(dev);
@@ -1979,6 +1996,11 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 	dev->ctl_input = 2;
 
 	errCode = em28xx_config(dev);
+	if (errCode < 0) {
+		em28xx_errdev("%s: em28xx_config - errCode [%d]!\n",
+			__func__, errCode);
+		return errCode;
+	}
 
 	list_add_tail(&dev->devlist, &em28xx_devlist);
 
@@ -2031,9 +2053,20 @@ static int em28xx_init_dev(struct em28xx **devhandle, struct usb_device *udev,
 
 	if (dev->has_msp34xx) {
 		/* Send a reset to other chips via gpio */
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
+		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xf7", 1);
+		if (errCode < 0) {
+			em28xx_errdev("%s: em28xx_write_regs_req - msp34xx(1) failed! errCode [%d]\n",
+				__func__, errCode);
+			return errCode;
+		}
 		msleep(3);
-		em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
+
+		errCode = em28xx_write_regs_req(dev, 0x00, 0x08, "\xff", 1);
+		if (errCode < 0) {
+			em28xx_errdev("%s: em28xx_write_regs_req - msp34xx(2) failed! errCode [%d]\n",
+				__func__, errCode);
+			return errCode;
+		}
 		msleep(3);
 	}
 
