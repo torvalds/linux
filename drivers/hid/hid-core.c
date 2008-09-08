@@ -1657,6 +1657,7 @@ static void hid_compat_load(struct work_struct *ws)
 	request_module("hid-dummy");
 }
 static DECLARE_WORK(hid_compat_work, hid_compat_load);
+static struct workqueue_struct *hid_compat_wq;
 #endif
 
 static int __init hid_init(void)
@@ -1674,7 +1675,12 @@ static int __init hid_init(void)
 		goto err_bus;
 
 #ifdef CONFIG_HID_COMPAT
-	schedule_work(&hid_compat_work);
+	hid_compat_wq = create_workqueue("hid_compat");
+	if (!hid_compat_wq) {
+		hidraw_exit();
+		goto err;
+	}
+	queue_work(hid_compat_wq, &hid_compat_work);
 #endif
 
 	return 0;
@@ -1686,6 +1692,9 @@ err:
 
 static void __exit hid_exit(void)
 {
+#ifdef CONFIG_HID_COMPAT
+	destroy_workqueue(hid_compat_wq);
+#endif
 	hidraw_exit();
 	bus_unregister(&hid_bus_type);
 }
