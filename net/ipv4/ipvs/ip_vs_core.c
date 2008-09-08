@@ -102,18 +102,18 @@ ip_vs_in_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 	struct ip_vs_dest *dest = cp->dest;
 	if (dest && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		spin_lock(&dest->stats.lock);
-		dest->stats.inpkts++;
-		dest->stats.inbytes += skb->len;
+		dest->stats.ustats.inpkts++;
+		dest->stats.ustats.inbytes += skb->len;
 		spin_unlock(&dest->stats.lock);
 
 		spin_lock(&dest->svc->stats.lock);
-		dest->svc->stats.inpkts++;
-		dest->svc->stats.inbytes += skb->len;
+		dest->svc->stats.ustats.inpkts++;
+		dest->svc->stats.ustats.inbytes += skb->len;
 		spin_unlock(&dest->svc->stats.lock);
 
 		spin_lock(&ip_vs_stats.lock);
-		ip_vs_stats.inpkts++;
-		ip_vs_stats.inbytes += skb->len;
+		ip_vs_stats.ustats.inpkts++;
+		ip_vs_stats.ustats.inbytes += skb->len;
 		spin_unlock(&ip_vs_stats.lock);
 	}
 }
@@ -125,18 +125,18 @@ ip_vs_out_stats(struct ip_vs_conn *cp, struct sk_buff *skb)
 	struct ip_vs_dest *dest = cp->dest;
 	if (dest && (dest->flags & IP_VS_DEST_F_AVAILABLE)) {
 		spin_lock(&dest->stats.lock);
-		dest->stats.outpkts++;
-		dest->stats.outbytes += skb->len;
+		dest->stats.ustats.outpkts++;
+		dest->stats.ustats.outbytes += skb->len;
 		spin_unlock(&dest->stats.lock);
 
 		spin_lock(&dest->svc->stats.lock);
-		dest->svc->stats.outpkts++;
-		dest->svc->stats.outbytes += skb->len;
+		dest->svc->stats.ustats.outpkts++;
+		dest->svc->stats.ustats.outbytes += skb->len;
 		spin_unlock(&dest->svc->stats.lock);
 
 		spin_lock(&ip_vs_stats.lock);
-		ip_vs_stats.outpkts++;
-		ip_vs_stats.outbytes += skb->len;
+		ip_vs_stats.ustats.outpkts++;
+		ip_vs_stats.ustats.outbytes += skb->len;
 		spin_unlock(&ip_vs_stats.lock);
 	}
 }
@@ -146,15 +146,15 @@ static inline void
 ip_vs_conn_stats(struct ip_vs_conn *cp, struct ip_vs_service *svc)
 {
 	spin_lock(&cp->dest->stats.lock);
-	cp->dest->stats.conns++;
+	cp->dest->stats.ustats.conns++;
 	spin_unlock(&cp->dest->stats.lock);
 
 	spin_lock(&svc->stats.lock);
-	svc->stats.conns++;
+	svc->stats.ustats.conns++;
 	spin_unlock(&svc->stats.lock);
 
 	spin_lock(&ip_vs_stats.lock);
-	ip_vs_stats.conns++;
+	ip_vs_stats.ustats.conns++;
 	spin_unlock(&ip_vs_stats.lock);
 }
 

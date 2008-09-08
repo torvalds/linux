@@ -65,37 +65,37 @@ static void estimation_timer(unsigned long arg)
 		s = container_of(e, struct ip_vs_stats, est);
 
 		spin_lock(&s->lock);
-		n_conns = s->conns;
-		n_inpkts = s->inpkts;
-		n_outpkts = s->outpkts;
-		n_inbytes = s->inbytes;
-		n_outbytes = s->outbytes;
+		n_conns = s->ustats.conns;
+		n_inpkts = s->ustats.inpkts;
+		n_outpkts = s->ustats.outpkts;
+		n_inbytes = s->ustats.inbytes;
+		n_outbytes = s->ustats.outbytes;
 
 		/* scaled by 2^10, but divided 2 seconds */
 		rate = (n_conns - e->last_conns)<<9;
 		e->last_conns = n_conns;
 		e->cps += ((long)rate - (long)e->cps)>>2;
-		s->cps = (e->cps+0x1FF)>>10;
+		s->ustats.cps = (e->cps+0x1FF)>>10;
 
 		rate = (n_inpkts - e->last_inpkts)<<9;
 		e->last_inpkts = n_inpkts;
 		e->inpps += ((long)rate - (long)e->inpps)>>2;
-		s->inpps = (e->inpps+0x1FF)>>10;
+		s->ustats.inpps = (e->inpps+0x1FF)>>10;
 
 		rate = (n_outpkts - e->last_outpkts)<<9;
 		e->last_outpkts = n_outpkts;
 		e->outpps += ((long)rate - (long)e->outpps)>>2;
-		s->outpps = (e->outpps+0x1FF)>>10;
+		s->ustats.outpps = (e->outpps+0x1FF)>>10;
 
 		rate = (n_inbytes - e->last_inbytes)<<4;
 		e->last_inbytes = n_inbytes;
 		e->inbps += ((long)rate - (long)e->inbps)>>2;
-		s->inbps = (e->inbps+0xF)>>5;
+		s->ustats.inbps = (e->inbps+0xF)>>5;
 
 		rate = (n_outbytes - e->last_outbytes)<<4;
 		e->last_outbytes = n_outbytes;
 		e->outbps += ((long)rate - (long)e->outbps)>>2;
-		s->outbps = (e->outbps+0xF)>>5;
+		s->ustats.outbps = (e->outbps+0xF)>>5;
 		spin_unlock(&s->lock);
 	}
 	spin_unlock(&est_lock);
@@ -108,20 +108,20 @@ void ip_vs_new_estimator(struct ip_vs_stats *stats)
 
 	INIT_LIST_HEAD(&est->list);
 
-	est->last_conns = stats->conns;
-	est->cps = stats->cps<<10;
+	est->last_conns = stats->ustats.conns;
+	est->cps = stats->ustats.cps<<10;
 
-	est->last_inpkts = stats->inpkts;
-	est->inpps = stats->inpps<<10;
+	est->last_inpkts = stats->ustats.inpkts;
+	est->inpps = stats->ustats.inpps<<10;
 
-	est->last_outpkts = stats->outpkts;
-	est->outpps = stats->outpps<<10;
+	est->last_outpkts = stats->ustats.outpkts;
+	est->outpps = stats->ustats.outpps<<10;
 
-	est->last_inbytes = stats->inbytes;
-	est->inbps = stats->inbps<<5;
+	est->last_inbytes = stats->ustats.inbytes;
+	est->inbps = stats->ustats.inbps<<5;
 
-	est->last_outbytes = stats->outbytes;
-	est->outbps = stats->outbps<<5;
+	est->last_outbytes = stats->ustats.outbytes;
+	est->outbps = stats->ustats.outbps<<5;
 
 	spin_lock_bh(&est_lock);
 	list_add(&est->list, &est_list);

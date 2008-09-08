@@ -744,18 +744,7 @@ ip_vs_zero_stats(struct ip_vs_stats *stats)
 {
 	spin_lock_bh(&stats->lock);
 
-	stats->conns = 0;
-	stats->inpkts = 0;
-	stats->outpkts = 0;
-	stats->inbytes = 0;
-	stats->outbytes = 0;
-
-	stats->cps = 0;
-	stats->inpps = 0;
-	stats->outpps = 0;
-	stats->inbps = 0;
-	stats->outbps = 0;
-
+	memset(&stats->ustats, 0, sizeof(stats->ustats));
 	ip_vs_zero_estimator(stats);
 
 	spin_unlock_bh(&stats->lock);
@@ -1964,20 +1953,20 @@ static int ip_vs_stats_show(struct seq_file *seq, void *v)
 		   "   Conns  Packets  Packets            Bytes            Bytes\n");
 
 	spin_lock_bh(&ip_vs_stats.lock);
-	seq_printf(seq, "%8X %8X %8X %16LX %16LX\n\n", ip_vs_stats.conns,
-		   ip_vs_stats.inpkts, ip_vs_stats.outpkts,
-		   (unsigned long long) ip_vs_stats.inbytes,
-		   (unsigned long long) ip_vs_stats.outbytes);
+	seq_printf(seq, "%8X %8X %8X %16LX %16LX\n\n", ip_vs_stats.ustats.conns,
+		   ip_vs_stats.ustats.inpkts, ip_vs_stats.ustats.outpkts,
+		   (unsigned long long) ip_vs_stats.ustats.inbytes,
+		   (unsigned long long) ip_vs_stats.ustats.outbytes);
 
 /*                 01234567 01234567 01234567 0123456701234567 0123456701234567 */
 	seq_puts(seq,
 		   " Conns/s   Pkts/s   Pkts/s          Bytes/s          Bytes/s\n");
 	seq_printf(seq,"%8X %8X %8X %16X %16X\n",
-			ip_vs_stats.cps,
-			ip_vs_stats.inpps,
-			ip_vs_stats.outpps,
-			ip_vs_stats.inbps,
-			ip_vs_stats.outbps);
+			ip_vs_stats.ustats.cps,
+			ip_vs_stats.ustats.inpps,
+			ip_vs_stats.ustats.outpps,
+			ip_vs_stats.ustats.inbps,
+			ip_vs_stats.ustats.outbps);
 	spin_unlock_bh(&ip_vs_stats.lock);
 
 	return 0;
@@ -2215,7 +2204,7 @@ static void
 ip_vs_copy_stats(struct ip_vs_stats_user *dst, struct ip_vs_stats *src)
 {
 	spin_lock_bh(&src->lock);
-	memcpy(dst, src, (char*)&src->lock - (char*)src);
+	memcpy(dst, &src->ustats, sizeof(*dst));
 	spin_unlock_bh(&src->lock);
 }
 
@@ -2591,16 +2580,16 @@ static int ip_vs_genl_fill_stats(struct sk_buff *skb, int container_type,
 
 	spin_lock_bh(&stats->lock);
 
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CONNS, stats->conns);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPKTS, stats->inpkts);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPKTS, stats->outpkts);
-	NLA_PUT_U64(skb, IPVS_STATS_ATTR_INBYTES, stats->inbytes);
-	NLA_PUT_U64(skb, IPVS_STATS_ATTR_OUTBYTES, stats->outbytes);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CPS, stats->cps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPPS, stats->inpps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPPS, stats->outpps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INBPS, stats->inbps);
-	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTBPS, stats->outbps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CONNS, stats->ustats.conns);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPKTS, stats->ustats.inpkts);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPKTS, stats->ustats.outpkts);
+	NLA_PUT_U64(skb, IPVS_STATS_ATTR_INBYTES, stats->ustats.inbytes);
+	NLA_PUT_U64(skb, IPVS_STATS_ATTR_OUTBYTES, stats->ustats.outbytes);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_CPS, stats->ustats.cps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INPPS, stats->ustats.inpps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTPPS, stats->ustats.outpps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_INBPS, stats->ustats.inbps);
+	NLA_PUT_U32(skb, IPVS_STATS_ATTR_OUTBPS, stats->ustats.outbps);
 
 	spin_unlock_bh(&stats->lock);
 

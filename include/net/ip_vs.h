@@ -254,27 +254,10 @@ struct ip_vs_estimator {
 
 struct ip_vs_stats
 {
-	__u32                   conns;          /* connections scheduled */
-	__u32                   inpkts;         /* incoming packets */
-	__u32                   outpkts;        /* outgoing packets */
-	__u64                   inbytes;        /* incoming bytes */
-	__u64                   outbytes;       /* outgoing bytes */
-
-	__u32			cps;		/* current connection rate */
-	__u32			inpps;		/* current in packet rate */
-	__u32			outpps;		/* current out packet rate */
-	__u32			inbps;		/* current in byte rate */
-	__u32			outbps;		/* current out byte rate */
-
-	/*
-	 * Don't add anything before the lock, because we use memcpy() to copy
-	 * the members before the lock to struct ip_vs_stats_user in
-	 * ip_vs_ctl.c.
-	 */
+	struct ip_vs_stats_user	ustats;         /* statistics */
+	struct ip_vs_estimator	est;		/* estimator */
 
 	spinlock_t              lock;           /* spin lock */
-
-	struct ip_vs_estimator	est;		/* estimator */
 };
 
 struct dst_entry;
