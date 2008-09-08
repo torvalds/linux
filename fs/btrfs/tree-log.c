@@ -1176,8 +1176,8 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	struct btrfs_key found_key;
 	struct btrfs_key log_key;
 	struct inode *dir;
-	struct inode *inode;
 	u8 log_type;
+	int exists;
 	int ret;
 
 	dir = read_one_inode(root, key->objectid);
@@ -1190,6 +1190,13 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 		   name_len);
 
 	btrfs_dir_item_key_to_cpu(eb, di, &log_key);
+	exists = btrfs_lookup_inode(trans, root, path, &log_key, 0);
+	if (exists == 0)
+		exists = 1;
+	else
+		exists = 0;
+	btrfs_release_path(root, path);
+
 	if (key->type == BTRFS_DIR_ITEM_KEY) {
 		dst_di = btrfs_lookup_dir_item(trans, root, path, key->objectid,
 				       name, name_len, 1);
@@ -1224,11 +1231,9 @@ static noinline int replay_one_name(struct btrfs_trans_handle *trans,
 	 * don't drop the conflicting directory entry if the inode
 	 * for the new entry doesn't exist
 	 */
-	inode = read_one_inode(root, log_key.objectid);
-	if (!inode)
+	if (!exists)
 		goto out;
 
-	iput(inode);
 	ret = drop_one_dir_item(trans, root, path, dir, dst_di);
 	BUG_ON(ret);
 

@@ -29,7 +29,10 @@ static struct kmem_cache *extent_buffer_cache;
 
 static LIST_HEAD(buffers);
 static LIST_HEAD(states);
+
+#ifdef LEAK_DEBUG
 static spinlock_t leak_lock = SPIN_LOCK_UNLOCKED;
+#endif
 
 #define BUFFER_LRU_MAX 64
 
@@ -106,7 +109,9 @@ EXPORT_SYMBOL(extent_io_tree_init);
 struct extent_state *alloc_extent_state(gfp_t mask)
 {
 	struct extent_state *state;
+#ifdef LEAK_DEBUG
 	unsigned long flags;
+#endif
 
 	state = kmem_cache_alloc(extent_state_cache, mask);
 	if (!state)
@@ -114,10 +119,11 @@ struct extent_state *alloc_extent_state(gfp_t mask)
 	state->state = 0;
 	state->private = 0;
 	state->tree = NULL;
+#ifdef LEAK_DEBUG
 	spin_lock_irqsave(&leak_lock, flags);
 	list_add(&state->leak_list, &states);
 	spin_unlock_irqrestore(&leak_lock, flags);
-
+#endif
 	atomic_set(&state->refs, 1);
 	init_waitqueue_head(&state->wq);
 	return state;
@@ -129,11 +135,15 @@ void free_extent_state(struct extent_state *state)
 	if (!state)
 		return;
 	if (atomic_dec_and_test(&state->refs)) {
+#ifdef LEAK_DEBUG
 		unsigned long flags;
+#endif
 		WARN_ON(state->tree);
+#ifdef LEAK_DEBUG
 		spin_lock_irqsave(&leak_lock, flags);
 		list_del(&state->leak_list);
 		spin_unlock_irqrestore(&leak_lock, flags);
+#endif
 		kmem_cache_free(extent_state_cache, state);
 	}
 }
@@ -2070,13 +2080,13 @@ done:
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,22)
-/* Taken directly from 2.6.23 for 2.6.18 back port */
+/* Taken directly from 2.6.23 with a mod for a lockpage hook */
 typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
                                 void *data);
+#endif
 
 /**
- * write_cache_pages - walk the list of dirty pages of the given address space
- * and write all of them.
+ * write_cache_pages - walk the list of dirty pages of the given address space and write all of them.
  * @mapping: address space structure to write
  * @wbc: subtract the number of written pages from *@wbc->nr_to_write
  * @writepage: function called for each page
@@ -2090,9 +2100,10 @@ typedef int (*writepage_t)(struct page *page, struct writeback_control *wbc,
  * WB_SYNC_ALL then we were called for data integrity and we must wait for
  * existing IO to complete.
  */
-static int write_cache_pages(struct address_space *mapping,
-		      struct writeback_control *wbc, writepage_t writepage,
-		      void *data)
+int extent_write_cache_pages(struct extent_io_tree *tree,
+			     struct address_space *mapping,
+			     struct writeback_control *wbc,
+			     writepage_t writepage, void *data)
 {
 	struct backing_dev_info *bdi = mapping->backing_dev_info;
 	int ret = 0;
@@ -2138,7 +2149,10 @@ retry:
 			 * swizzled back from swapper_space to tmpfs file
 			 * mapping
 			 */
-			lock_page(page);
+			if (tree->ops && tree->ops->write_cache_pages_lock_hook)
+				tree->ops->write_cache_pages_lock_hook(page);
+			else
+				lock_page(page);
 
 			if (unlikely(page->mapping != mapping)) {
 				unlock_page(page);
@@ -2187,9 +2201,12 @@ retry:
 	}
 	if (wbc->range_cyclic || (range_whole && wbc->nr_to_write > 0))
 		mapping->writeback_index = index;
+
+	if (wbc->range_cont)
+		wbc->range_start = index << PAGE_CACHE_SHIFT;
 	return ret;
 }
-#endif
+EXPORT_SYMBOL(extent_write_cache_pages);
 
 int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 			  get_extent_t *get_extent,
@@ -2214,7 +2231,8 @@ int extent_write_full_page(struct extent_io_tree *tree, struct page *page,
 
 	ret = __extent_writepage(page, wbc, &epd);
 
-	write_cache_pages(mapping, &wbc_writepages, __extent_writepage, &epd);
+	extent_write_cache_pages(tree, mapping, &wbc_writepages,
+				 __extent_writepage, &epd);
 	if (epd.bio) {
 		submit_one_bio(WRITE, epd.bio, 0);
 	}
@@ -2235,7 +2253,8 @@ int extent_writepages(struct extent_io_tree *tree,
 		.get_extent = get_extent,
 	};
 
-	ret = write_cache_pages(mapping, wbc, __extent_writepage, &epd);
+	ret = extent_write_cache_pages(tree, mapping, wbc,
+				       __extent_writepage, &epd);
 	if (epd.bio) {
 		submit_one_bio(WRITE, epd.bio, 0);
 	}
@@ -2567,15 +2586,19 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 						   gfp_t mask)
 {
 	struct extent_buffer *eb = NULL;
+#ifdef LEAK_DEBUG
 	unsigned long flags;
+#endif
 
 	eb = kmem_cache_zalloc(extent_buffer_cache, mask);
 	eb->start = start;
 	eb->len = len;
 	mutex_init(&eb->mutex);
+#ifdef LEAK_DEBUG
 	spin_lock_irqsave(&leak_lock, flags);
 	list_add(&eb->leak_list, &buffers);
 	spin_unlock_irqrestore(&leak_lock, flags);
+#endif
 	atomic_set(&eb->refs, 1);
 
 	return eb;
@@ -2583,10 +2606,12 @@ static struct extent_buffer *__alloc_extent_buffer(struct extent_io_tree *tree,
 
 static void __free_extent_buffer(struct extent_buffer *eb)
 {
+#ifdef LEAK_DEBUG
 	unsigned long flags;
 	spin_lock_irqsave(&leak_lock, flags);
 	list_del(&eb->leak_list);
 	spin_unlock_irqrestore(&leak_lock, flags);
+#endif
 	kmem_cache_free(extent_buffer_cache, eb);
 }
 

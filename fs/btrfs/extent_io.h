@@ -50,6 +50,7 @@ struct extent_io_ops {
 			    unsigned long old, unsigned long bits);
 	int (*clear_bit_hook)(struct inode *inode, u64 start, u64 end,
 			    unsigned long old, unsigned long bits);
+	int (*write_cache_pages_lock_hook)(struct page *page);
 };
 
 struct extent_io_tree {

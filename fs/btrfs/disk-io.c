@@ -307,9 +307,7 @@ int csum_dirty_buffer(struct btrfs_root *root, struct page *page)
 		goto err;
 	}
 	found_level = btrfs_header_level(eb);
-	spin_lock(&root->fs_info->hash_lock);
-	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
-	spin_unlock(&root->fs_info->hash_lock);
+
 	csum_tree_block(root, eb, 0);
 err:
 	free_extent_buffer(eb);
@@ -1998,7 +1996,36 @@ int btrfs_read_buffer(struct extent_buffer *buf, u64 parent_transid)
 	return ret;
 }
 
+int btree_lock_page_hook(struct page *page)
+{
+	struct inode *inode = page->mapping->host;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct extent_buffer *eb;
+	unsigned long len;
+	u64 bytenr = page_offset(page);
+
+	if (page->private == EXTENT_PAGE_PRIVATE)
+		goto out;
+
+	len = page->private >> 2;
+	eb = find_extent_buffer(io_tree, bytenr, len, GFP_NOFS);
+	if (!eb)
+		goto out;
+
+	btrfs_tree_lock(eb);
+	spin_lock(&root->fs_info->hash_lock);
+	btrfs_set_header_flag(eb, BTRFS_HEADER_FLAG_WRITTEN);
+	spin_unlock(&root->fs_info->hash_lock);
+	btrfs_tree_unlock(eb);
+	free_extent_buffer(eb);
+out:
+	lock_page(page);
+	return 0;
+}
+
 static struct extent_io_ops btree_extent_io_ops = {
+	.write_cache_pages_lock_hook = btree_lock_page_hook,
 	.writepage_io_hook = btree_writepage_io_hook,
 	.readpage_end_io_hook = btree_readpage_end_io_hook,
 	.submit_bio_hook = btree_submit_bio_hook,

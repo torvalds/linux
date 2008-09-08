@@ -1590,13 +1590,17 @@ static int finish_current_insert(struct btrfs_trans_handle *trans,
 }
 
 static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
-			  int pending)
+			  int is_data, int pending)
 {
 	int err = 0;
 
 	WARN_ON(!mutex_is_locked(&root->fs_info->alloc_mutex));
 	if (!pending) {
 		struct extent_buffer *buf;
+
+		if (is_data)
+			goto pinit;
+
 		buf = btrfs_find_tree_block(root, bytenr, num_bytes);
 		if (buf) {
 			/* we can reuse a block if it hasn't been written
@@ -1624,6 +1628,7 @@ static int pin_down_bytes(struct btrfs_root *root, u64 bytenr, u32 num_bytes,
 			}
 			free_extent_buffer(buf);
 		}
+pinit:
 		btrfs_update_pinned_extents(root, bytenr, num_bytes, 1);
 	} else {
 		set_extent_bits(&root->fs_info->pending_del,
@@ -1744,7 +1749,8 @@ static int __free_extent(struct btrfs_trans_handle *trans, struct btrfs_root
 #endif
 
 		if (pin) {
-			ret = pin_down_bytes(root, bytenr, num_bytes, 0);
+			ret = pin_down_bytes(root, bytenr, num_bytes,
+			     owner_objectid >= BTRFS_FIRST_FREE_OBJECTID, 0);
 			if (ret > 0)
 				mark_free = 1;
 			BUG_ON(ret < 0);
@@ -1862,9 +1868,17 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		ref_generation = 0;
 
 	if (root == extent_root) {
-		pin_down_bytes(root, bytenr, num_bytes, 1);
+		pin_down_bytes(root, bytenr, num_bytes, 0, 1);
 		return 0;
 	}
+	/* if metadata always pin */
+	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID)
+		pin = 1;
+
+	/* if data pin when any transaction has committed this */
+	if (ref_generation != trans->transid)
+		pin = 1;
+
 	ret = __free_extent(trans, root, bytenr, num_bytes, root_objectid,
 			    ref_generation, owner_objectid, owner_offset,
 			    pin, pin == 0);

@@ -161,7 +161,8 @@ static struct btrfs_trans_handle *start_transaction(struct btrfs_root *root,
 	int ret;
 
 	mutex_lock(&root->fs_info->trans_mutex);
-	if ((wait == 1 && !root->fs_info->open_ioctl_trans) || wait == 2)
+	if (!root->fs_info->log_root_recovering &&
+	    ((wait == 1 && !root->fs_info->open_ioctl_trans) || wait == 2))
 		wait_current_trans(root);
 	ret = join_transaction(root);
 	BUG_ON(ret);
@@ -328,9 +329,17 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 
 			index = start >> PAGE_CACHE_SHIFT;
 			start = (u64)(index + 1) << PAGE_CACHE_SHIFT;
-			page = find_lock_page(btree_inode->i_mapping, index);
+			page = find_get_page(btree_inode->i_mapping, index);
 			if (!page)
 				continue;
+
+			btree_lock_page_hook(page);
+			if (!page->mapping) {
+				unlock_page(page);
+				page_cache_release(page);
+				continue;
+			}
+
 			if (PageWriteback(page)) {
 				if (PageDirty(page))
 					wait_on_page_writeback(page);
@@ -360,7 +369,8 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 			if (!page)
 				continue;
 			if (PageDirty(page)) {
-				lock_page(page);
+				btree_lock_page_hook(page);
+				wait_on_page_writeback(page);
 				err = write_one_page(page, 0);
 				if (err)
 					werr = err;
