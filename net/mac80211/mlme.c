@@ -2612,12 +2612,11 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				      mesh_peer_accepts_plinks(elems));
 	}
 
-	rcu_read_lock();
-
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && elems->supp_rates &&
 	    memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0) {
-
 		supp_rates = ieee80211_sta_get_rates(local, elems, band);
+
+		rcu_read_lock();
 
 		sta = sta_info_get(local, mgmt->sa);
 		if (sta) {
@@ -2642,9 +2641,9 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			ieee80211_ibss_add_sta(sdata, NULL, mgmt->bssid,
 					       mgmt->sa, supp_rates);
 		}
-	}
 
-	rcu_read_unlock();
+		rcu_read_unlock();
+	}
 
 	if (elems->ds_params && elems->ds_params_len == 1)
 		freq = ieee80211_channel_to_frequency(elems->ds_params[0]);
