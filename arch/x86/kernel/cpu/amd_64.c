@@ -36,19 +36,23 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	unsigned bits;
-#ifdef CONFIG_NUMA
-	int cpu = smp_processor_id();
-	int node = 0;
-	unsigned apicid = hard_smp_processor_id();
-#endif
+
 	bits = c->x86_coreid_bits;
 
 	/* Low order bits define the core id (index of core in socket) */
 	c->cpu_core_id = c->initial_apicid & ((1 << bits)-1);
 	/* Convert the initial APIC ID into the socket ID */
 	c->phys_proc_id = c->initial_apicid >> bits;
+#endif
+}
 
+static void __cpuinit srat_detect_node(struct cpuinfo_x86 *c)
+{
 #ifdef CONFIG_NUMA
+	int cpu = smp_processor_id();
+	int node;
+	unsigned apicid = hard_smp_processor_id();
+
 	node = c->phys_proc_id;
 	if (apicid_to_node[apicid] != NUMA_NO_NODE)
 		node = apicid_to_node[apicid];
@@ -75,7 +79,6 @@ static void __cpuinit amd_detect_cmp(struct cpuinfo_x86 *c)
 	numa_set_node(cpu, node);
 
 	printk(KERN_INFO "CPU %d/%x -> Node %d\n", cpu, apicid, node);
-#endif
 #endif
 }
 
@@ -169,8 +172,10 @@ static void __cpuinit init_amd(struct cpuinfo_x86 *c)
 	display_cacheinfo(c);
 
 	/* Multi core CPU? */
-	if (c->extended_cpuid_level >= 0x80000008)
+	if (c->extended_cpuid_level >= 0x80000008) {
 		amd_detect_cmp(c);
+		srat_detect_node(c);
+	}
 
 	if (c->extended_cpuid_level >= 0x80000006) {
 		if ((c->x86 >= 0x0f) && (cpuid_edx(0x80000006) & 0xf000))
