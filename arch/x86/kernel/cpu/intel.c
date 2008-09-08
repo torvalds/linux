@@ -76,7 +76,7 @@ static void __cpuinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
 /*
  * find out the number of processor cores on the die
  */
-static int __cpuinit num_cpu_cores(struct cpuinfo_x86 *c)
+static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 {
 	unsigned int eax, ebx, ecx, edx;
 
@@ -183,7 +183,7 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 		 * let's use the legacy cpuid vector 0x1 and 0x4 for topology
 		 * detection.
 		 */
-		c->x86_max_cores = num_cpu_cores(c);
+		c->x86_max_cores = intel_num_cpu_cores(c);
 		detect_ht(c);
 	}
 
@@ -210,9 +210,8 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 
 	if (cpu_has_xmm2)
 		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
-	if (c->x86 == 15) {
+	if (c->x86 == 15)
 		set_cpu_cap(c, X86_FEATURE_P4);
-	}
 	if (c->x86 == 6)
 		set_cpu_cap(c, X86_FEATURE_P3);
 	if (cpu_has_ds) {
