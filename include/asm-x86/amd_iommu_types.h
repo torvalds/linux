@@ -232,6 +232,9 @@ struct amd_iommu {
 	/* capabilities of that IOMMU read from ACPI */
 	u32 cap;
 
+	/* pci domain of this IOMMU */
+	u16 pci_seg;
+
 	/* first device this IOMMU handles. read from PCI */
 	u16 first_device;
 	/* last device this IOMMU handles. read from PCI */
