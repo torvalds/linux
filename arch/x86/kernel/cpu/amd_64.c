@@ -1,9 +1,16 @@
 #include <linux/init.h>
+#include <linux/bitops.h>
 #include <linux/mm.h>
 
-#include <asm/numa_64.h>
-#include <asm/mmconfig.h>
-#include <asm/cacheflush.h>
+#include <asm/io.h>
+#include <asm/processor.h>
+#include <asm/apic.h>
+
+#ifdef CONFIG_X86_64
+# include <asm/numa_64.h>
+# include <asm/mmconfig.h>
+# include <asm/cacheflush.h>
+#endif
 
 #include <mach_apic.h>
 
