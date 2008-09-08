@@ -3822,6 +3822,7 @@ ieee80211_sta_scan_result(struct ieee80211_local *local,
 			  char *current_ev, char *end_buf)
 {
 	struct iw_event iwe;
+	char *buf;
 
 	if (time_after(jiffies,
 		       bss->last_update + IEEE80211_SCAN_RESULT_EXPIRE))
@@ -3896,7 +3897,7 @@ ieee80211_sta_scan_result(struct ieee80211_local *local,
 
 	ieee80211_sta_add_scan_ies(info, bss, &current_ev, end_buf);
 
-	if (bss && bss->supp_rates_len > 0) {
+	if (bss->supp_rates_len > 0) {
 		/* display all supported rates in readable format */
 		char *p = current_ev + iwe_stream_lcp_len(info);
 		int i;
@@ -3915,30 +3916,25 @@ ieee80211_sta_scan_result(struct ieee80211_local *local,
 		current_ev = p;
 	}
 
-	if (bss) {
-		char *buf;
-		buf = kmalloc(30, GFP_ATOMIC);
-		if (buf) {
-			memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, "tsf=%016llx", (unsigned long long)(bss->timestamp));
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf,
-							  &iwe, buf);
-			memset(&iwe, 0, sizeof(iwe));
-			iwe.cmd = IWEVCUSTOM;
-			sprintf(buf, " Last beacon: %dms ago",
-				jiffies_to_msecs(jiffies - bss->last_update));
-			iwe.u.data.length = strlen(buf);
-			current_ev = iwe_stream_add_point(info, current_ev,
-							  end_buf, &iwe, buf);
-			kfree(buf);
-		}
+	buf = kmalloc(30, GFP_ATOMIC);
+	if (buf) {
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVCUSTOM;
+		sprintf(buf, "tsf=%016llx", (unsigned long long)(bss->timestamp));
+		iwe.u.data.length = strlen(buf);
+		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
+						  &iwe, buf);
+		memset(&iwe, 0, sizeof(iwe));
+		iwe.cmd = IWEVCUSTOM;
+		sprintf(buf, " Last beacon: %dms ago",
+			jiffies_to_msecs(jiffies - bss->last_update));
+		iwe.u.data.length = strlen(buf);
+		current_ev = iwe_stream_add_point(info, current_ev,
+						  end_buf, &iwe, buf);
+		kfree(buf);
 	}
 
 	if (bss_mesh_cfg(bss)) {
-		char *buf;
 		u8 *cfg = bss_mesh_cfg(bss);
 		buf = kmalloc(50, GFP_ATOMIC);
 		if (buf) {
