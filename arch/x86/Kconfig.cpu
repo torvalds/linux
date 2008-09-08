@@ -444,17 +444,9 @@ config CPU_SUP_CYRIX_32
 	help
 	  This enables extended support for Cyrix processors
 
-config CPU_SUP_AMD_32
+config CPU_SUP_AMD
 	default y
 	bool "Support AMD processors" if PROCESSOR_SELECT
-	depends on !64BIT
-	help
-	  This enables extended support for AMD processors
-
-config CPU_SUP_AMD_64
-	default y
-	bool "Support AMD processors" if PROCESSOR_SELECT
-	depends on 64BIT
 	help
 	  This enables extended support for AMD processors
 

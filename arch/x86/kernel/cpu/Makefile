@@ -10,8 +10,7 @@ obj-$(CONFIG_X86_64)	+= bugs_64.o
 
 obj-$(CONFIG_CPU_SUP_INTEL_32)		+= intel.o
 obj-$(CONFIG_CPU_SUP_INTEL_64)		+= intel_64.o
-obj-$(CONFIG_CPU_SUP_AMD_32)		+= amd.o
-obj-$(CONFIG_CPU_SUP_AMD_64)		+= amd_64.o
+obj-$(CONFIG_CPU_SUP_AMD)		+= amd.o
 obj-$(CONFIG_CPU_SUP_CYRIX_32)		+= cyrix.o
 obj-$(CONFIG_CPU_SUP_CENTAUR_32)	+= centaur.o
 obj-$(CONFIG_CPU_SUP_CENTAUR_64)	+= centaur_64.o
