@@ -178,8 +178,8 @@ extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);
-extern int br_add_bridge(const char *name);
-extern int br_del_bridge(const char *name);
+extern int br_add_bridge(struct net *net, const char *name);
+extern int br_del_bridge(struct net *net, const char *name);
 extern void br_cleanup_bridges(void);
 extern int br_add_if(struct net_bridge *br,
 	      struct net_device *dev);
