@@ -674,11 +674,17 @@ int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 
 int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t ssid_len)
 {
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_sta *ifsta;
 
 	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
 		return ieee80211_sta_start_scan(sdata, ssid, ssid_len);
+
+	/*
+	 * STA has a state machine that might need to defer scanning
+	 * while it's trying to associate/authenticate, therefore we
+	 * queue it up to the state machine in that case.
+	 */
 
 	if (local->sta_sw_scanning || local->sta_hw_scanning) {
 		if (local->scan_sdata == sdata)
@@ -686,11 +692,14 @@ int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t
 		return -EBUSY;
 	}
 
+	ifsta = &sdata->u.sta;
+
 	ifsta->scan_ssid_len = ssid_len;
 	if (ssid_len)
 		memcpy(ifsta->scan_ssid, ssid, ssid_len);
 	set_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request);
 	queue_work(local->hw.workqueue, &ifsta->work);
+
 	return 0;
 }
 
