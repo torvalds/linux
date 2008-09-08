@@ -92,7 +92,13 @@
 #define DCSR_RUN	(1 << 31)	/* Run Bit (read / write) */
 #define DCSR_NODESC	(1 << 30)	/* No-Descriptor Fetch (read / write) */
 #define DCSR_STOPIRQEN	(1 << 29)	/* Stop Interrupt Enable (read / write) */
-#ifdef CONFIG_PXA27x
+#define DCSR_REQPEND	(1 << 8)	/* Request Pending (read-only) */
+#define DCSR_STOPSTATE	(1 << 3)	/* Stop State (read-only) */
+#define DCSR_ENDINTR	(1 << 2)	/* End Interrupt (read / write) */
+#define DCSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write) */
+#define DCSR_BUSERR	(1 << 0)	/* Bus Error Interrupt (read / write) */
+
+#if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define DCSR_EORIRQEN	(1 << 28)       /* End of Receive Interrupt Enable (R/W) */
 #define DCSR_EORJMPEN	(1 << 27)       /* Jump to next descriptor on EOR */
 #define DCSR_EORSTOPEN	(1 << 26)       /* STOP on an EOR */
@@ -101,11 +107,6 @@
 #define DCSR_CMPST	(1 << 10)       /* The Descriptor Compare Status */
 #define DCSR_EORINTR	(1 << 9)        /* The end of Receive */
 #endif
-#define DCSR_REQPEND	(1 << 8)	/* Request Pending (read-only) */
-#define DCSR_STOPSTATE	(1 << 3)	/* Stop State (read-only) */
-#define DCSR_ENDINTR	(1 << 2)	/* End Interrupt (read / write) */
-#define DCSR_STARTINTR	(1 << 1)	/* Start Interrupt (read / write) */
-#define DCSR_BUSERR	(1 << 0)	/* Bus Error Interrupt (read / write) */
 
 #define DALGN		__REG(0x400000a0)  /* DMA Alignment Register */
 #define DINT		__REG(0x400000f0)  /* DMA Interrupt Register */
