@@ -2798,11 +2798,6 @@ int kvm_emulate_halt(struct kvm_vcpu *vcpu)
 	KVMTRACE_0D(HLT, vcpu, handler);
 	if (irqchip_in_kernel(vcpu->kvm)) {
 		vcpu->arch.mp_state = KVM_MP_STATE_HALTED;
-		up_read(&vcpu->kvm->slots_lock);
-		kvm_vcpu_block(vcpu);
-		down_read(&vcpu->kvm->slots_lock);
-		if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
-			return -EINTR;
 		return 1;
 	} else {
 		vcpu->run->exit_reason = KVM_EXIT_HLT;
@@ -3097,24 +3092,10 @@ static void vapic_exit(struct kvm_vcpu *vcpu)
 	up_read(&vcpu->kvm->slots_lock);
 }
 
-static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+static int vcpu_enter_guest(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 {
 	int r;
 
-	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED)) {
-		pr_debug("vcpu %d received sipi with vector # %x\n",
-		       vcpu->vcpu_id, vcpu->arch.sipi_vector);
-		kvm_lapic_reset(vcpu);
-		r = kvm_x86_ops->vcpu_reset(vcpu);
-		if (r)
-			return r;
-		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
-	}
-
-	down_read(&vcpu->kvm->slots_lock);
-	vapic_enter(vcpu);
-
-again:
 	if (vcpu->requests)
 		if (test_and_clear_bit(KVM_REQ_MMU_RELOAD, &vcpu->requests))
 			kvm_mmu_unload(vcpu);
@@ -3151,19 +3132,10 @@ again:
 
 	local_irq_disable();
 
-	if (vcpu->requests || need_resched()) {
+	if (vcpu->requests || need_resched() || signal_pending(current)) {
 		local_irq_enable();
 		preempt_enable();
 		r = 1;
-		goto out;
-	}
-
-	if (signal_pending(current)) {
-		local_irq_enable();
-		preempt_enable();
-		r = -EINTR;
-		kvm_run->exit_reason = KVM_EXIT_INTR;
-		++vcpu->stat.signal_exits;
 		goto out;
 	}
 
@@ -3227,26 +3199,63 @@ again:
 	kvm_lapic_sync_from_vapic(vcpu);
 
 	r = kvm_x86_ops->handle_exit(kvm_run, vcpu);
-
-	if (r > 0) {
-		if (dm_request_for_irq_injection(vcpu, kvm_run)) {
-			r = -EINTR;
-			kvm_run->exit_reason = KVM_EXIT_INTR;
-			++vcpu->stat.request_irq_exits;
-			goto out;
-		}
-		if (!need_resched())
-			goto again;
-	}
-
 out:
-	up_read(&vcpu->kvm->slots_lock);
-	if (r > 0) {
-		kvm_resched(vcpu);
-		down_read(&vcpu->kvm->slots_lock);
-		goto again;
+	return r;
+}
+
+static int __vcpu_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
+{
+	int r;
+
+	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_SIPI_RECEIVED)) {
+		printk("vcpu %d received sipi with vector # %x\n",
+		       vcpu->vcpu_id, vcpu->arch.sipi_vector);
+		kvm_lapic_reset(vcpu);
+		r = kvm_x86_ops->vcpu_reset(vcpu);
+		if (r)
+			return r;
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
 	}
 
+	down_read(&vcpu->kvm->slots_lock);
+	vapic_enter(vcpu);
+
+	r = 1;
+	while (r > 0) {
+		if (kvm_arch_vcpu_runnable(vcpu))
+			r = vcpu_enter_guest(vcpu, kvm_run);
+		else {
+			up_read(&vcpu->kvm->slots_lock);
+			kvm_vcpu_block(vcpu);
+			down_read(&vcpu->kvm->slots_lock);
+			if (test_and_clear_bit(KVM_REQ_UNHALT, &vcpu->requests))
+				if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED)
+					vcpu->arch.mp_state =
+							KVM_MP_STATE_RUNNABLE;
+			if (vcpu->arch.mp_state != KVM_MP_STATE_RUNNABLE)
+				r = -EINTR;
+		}
+
+		if (r > 0) {
+			if (dm_request_for_irq_injection(vcpu, kvm_run)) {
+				r = -EINTR;
+				kvm_run->exit_reason = KVM_EXIT_INTR;
+				++vcpu->stat.request_irq_exits;
+			}
+			if (signal_pending(current)) {
+				r = -EINTR;
+				kvm_run->exit_reason = KVM_EXIT_INTR;
+				++vcpu->stat.signal_exits;
+			}
+			if (need_resched()) {
+				up_read(&vcpu->kvm->slots_lock);
+				kvm_resched(vcpu);
+				down_read(&vcpu->kvm->slots_lock);
+			}
+		}
+	}
+
+	up_read(&vcpu->kvm->slots_lock);
 	post_kvm_run_save(vcpu, kvm_run);
 
 	vapic_exit(vcpu);
@@ -3266,6 +3275,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (unlikely(vcpu->arch.mp_state == KVM_MP_STATE_UNINITIALIZED)) {
 		kvm_vcpu_block(vcpu);
+		clear_bit(KVM_REQ_UNHALT, &vcpu->requests);
 		r = -EAGAIN;
 		goto out;
 	}

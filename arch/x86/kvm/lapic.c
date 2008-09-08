@@ -339,13 +339,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		} else
 			apic_clear_vector(vector, apic->regs + APIC_TMR);
 
-		if (vcpu->arch.mp_state == KVM_MP_STATE_RUNNABLE)
-			kvm_vcpu_kick(vcpu);
-		else if (vcpu->arch.mp_state == KVM_MP_STATE_HALTED) {
-			vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
-			if (waitqueue_active(&vcpu->wq))
-				wake_up_interruptible(&vcpu->wq);
-		}
+		kvm_vcpu_kick(vcpu);
 
 		result = (orig_irr == 0);
 		break;
@@ -384,8 +378,7 @@ static int __apic_accept_irq(struct kvm_lapic *apic, int delivery_mode,
 		if (vcpu->arch.mp_state == KVM_MP_STATE_INIT_RECEIVED) {
 			vcpu->arch.sipi_vector = vector;
 			vcpu->arch.mp_state = KVM_MP_STATE_SIPI_RECEIVED;
-			if (waitqueue_active(&vcpu->wq))
-				wake_up_interruptible(&vcpu->wq);
+			kvm_vcpu_kick(vcpu);
 		}
 		break;
 
@@ -950,10 +943,9 @@ static int __apic_timer_fn(struct kvm_lapic *apic)
 
 	if(!atomic_inc_and_test(&apic->timer.pending))
 		set_bit(KVM_REQ_PENDING_TIMER, &apic->vcpu->requests);
-	if (waitqueue_active(q)) {
-		apic->vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+	if (waitqueue_active(q))
 		wake_up_interruptible(q);
-	}
+
 	if (apic_lvtt_period(apic)) {
 		result = 1;
 		apic->timer.dev.expires = ktime_add_ns(

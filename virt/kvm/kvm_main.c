@@ -980,12 +980,12 @@ void kvm_vcpu_block(struct kvm_vcpu *vcpu)
 	for (;;) {
 		prepare_to_wait(&vcpu->wq, &wait, TASK_INTERRUPTIBLE);
 
-		if (kvm_cpu_has_interrupt(vcpu))
+		if (kvm_cpu_has_interrupt(vcpu) ||
+		    kvm_cpu_has_pending_timer(vcpu) ||
+		    kvm_arch_vcpu_runnable(vcpu)) {
+			set_bit(KVM_REQ_UNHALT, &vcpu->requests);
 			break;
-		if (kvm_cpu_has_pending_timer(vcpu))
-			break;
-		if (kvm_arch_vcpu_runnable(vcpu))
-			break;
+		}
 		if (signal_pending(current))
 			break;
 

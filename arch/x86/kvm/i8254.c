@@ -200,10 +200,9 @@ static int __pit_timer_fn(struct kvm_kpit_state *ps)
 
 	if (!atomic_inc_and_test(&pt->pending))
 		set_bit(KVM_REQ_PENDING_TIMER, &vcpu0->requests);
-	if (vcpu0 && waitqueue_active(&vcpu0->wq)) {
-		vcpu0->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+
+	if (vcpu0 && waitqueue_active(&vcpu0->wq))
 		wake_up_interruptible(&vcpu0->wq);
-	}
 
 	pt->timer.expires = ktime_add_ns(pt->timer.expires, pt->period);
 	pt->scheduled = ktime_to_ns(pt->timer.expires);
