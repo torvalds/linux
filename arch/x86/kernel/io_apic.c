@@ -1528,11 +1528,16 @@ static void __init setup_IO_APIC_irqs(void)
 
 			idx = find_irq_entry(apic, pin, mp_INT);
 			if (idx == -1) {
-				apic_printk(APIC_VERBOSE,
-					KERN_DEBUG " %d-%d",
-					mp_ioapics[apic].mp_apicid, pin);
-				if (!notcon)
+				if (!notcon) {
 					notcon = 1;
+					apic_printk(APIC_VERBOSE,
+						KERN_DEBUG " %d-%d",
+						mp_ioapics[apic].mp_apicid,
+						pin);
+				} else
+					apic_printk(APIC_VERBOSE, " %d-%d",
+						mp_ioapics[apic].mp_apicid,
+						pin);
 				continue;
 			}
 
@@ -1548,14 +1553,14 @@ static void __init setup_IO_APIC_irqs(void)
 		}
 		if (notcon) {
 			apic_printk(APIC_VERBOSE,
-				KERN_DEBUG " (apicid-pin) not connected\n");
+				" (apicid-pin) not connected\n");
 			notcon = 0;
 		}
 	}
 
 	if (notcon)
 		apic_printk(APIC_VERBOSE,
-			KERN_DEBUG " (apicid-pin) not connected\n");
+			" (apicid-pin) not connected\n");
 }
 
 /*
