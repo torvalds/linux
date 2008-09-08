@@ -1572,7 +1572,6 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
-	u32 word, len;
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1580,17 +1579,6 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	skb_push(entry->skb, entry->queue->desc_size);
 	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
 	skbdesc->desc = entry->skb->data;
-
-	/*
-	 * Adjust the beacon databyte count. The current number is
-	 * calculated before this function gets called, but falsely
-	 * assumes that the descriptor was already present in the SKB.
-	 */
-	rt2x00_desc_read(skbdesc->desc, 0, &word);
-	len  = rt2x00_get_field32(word, TXD_W0_DATABYTE_COUNT);
-	len += skbdesc->desc_len;
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, len);
-	rt2x00_desc_write(skbdesc->desc, 0, word);
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
