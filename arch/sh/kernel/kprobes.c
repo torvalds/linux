@@ -252,6 +252,17 @@ static int __kprobes kprobe_handler(struct pt_regs *regs)
 	p = get_kprobe(addr);
 	if (!p) {
 		/* Not one of ours: let kernel handle it */
+		if (*(kprobe_opcode_t *)addr != BREAKPOINT_INSTRUCTION) {
+			/*
+			 * The breakpoint instruction was removed right
+			 * after we hit it. Another cpu has removed
+			 * either a probepoint or a debugger breakpoint
+			 * at this address. In either case, no further
+			 * handling of this interrupt is appropriate.
+			 */
+			ret = 1;
+		}
+
 		goto no_kprobe;
 	}
 
