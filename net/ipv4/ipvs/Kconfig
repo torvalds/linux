@@ -41,7 +41,8 @@ config	IP_VS_DEBUG
 
 config	IP_VS_TAB_BITS
 	int "IPVS connection table size (the Nth power of 2)"
-	default "12" 
+	range 8 20
+	default 12
 	---help---
 	  The IPVS connection hash table uses the chaining scheme to handle
 	  hash collisions. Using a big IPVS connection hash table will greatly

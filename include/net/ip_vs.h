@@ -621,16 +621,8 @@ extern void ip_vs_init_hash_table(struct list_head *table, int rows);
 #ifndef CONFIG_IP_VS_TAB_BITS
 #define CONFIG_IP_VS_TAB_BITS   12
 #endif
-/* make sure that IP_VS_CONN_TAB_BITS is located in [8, 20] */
-#if CONFIG_IP_VS_TAB_BITS < 8
-#define IP_VS_CONN_TAB_BITS	8
-#endif
-#if CONFIG_IP_VS_TAB_BITS > 20
-#define IP_VS_CONN_TAB_BITS	20
-#endif
-#if 8 <= CONFIG_IP_VS_TAB_BITS && CONFIG_IP_VS_TAB_BITS <= 20
+
 #define IP_VS_CONN_TAB_BITS	CONFIG_IP_VS_TAB_BITS
-#endif
 #define IP_VS_CONN_TAB_SIZE     (1 << IP_VS_CONN_TAB_BITS)
 #define IP_VS_CONN_TAB_MASK     (IP_VS_CONN_TAB_SIZE - 1)
 
