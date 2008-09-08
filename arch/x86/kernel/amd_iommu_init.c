@@ -242,9 +242,12 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 /* Function to enable the hardware */
 void __init iommu_enable(struct amd_iommu *iommu)
 {
-	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU at ");
-	print_devid(iommu->devid, 0);
-	printk(" cap 0x%hx\n", iommu->cap_ptr);
+	printk(KERN_INFO "AMD IOMMU: Enabling IOMMU "
+	       "at %02x:%02x.%x cap 0x%hx\n",
+	       iommu->dev->bus->number,
+	       PCI_SLOT(iommu->dev->devfn),
+	       PCI_FUNC(iommu->dev->devfn),
+	       iommu->cap_ptr);
 
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
@@ -511,15 +514,14 @@ static void __init set_device_exclusion_range(u16 devid, struct ivmd_header *m)
  */
 static void __init init_iommu_from_pci(struct amd_iommu *iommu)
 {
-	int bus = PCI_BUS(iommu->devid);
-	int dev = PCI_SLOT(iommu->devid);
-	int fn  = PCI_FUNC(iommu->devid);
 	int cap_ptr = iommu->cap_ptr;
 	u32 range;
 
-	iommu->cap = read_pci_config(bus, dev, fn, cap_ptr+MMIO_CAP_HDR_OFFSET);
+	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_CAP_HDR_OFFSET,
+			      &iommu->cap);
+	pci_read_config_dword(iommu->dev, cap_ptr + MMIO_RANGE_OFFSET,
+			      &range);
 
-	range = read_pci_config(bus, dev, fn, cap_ptr+MMIO_RANGE_OFFSET);
 	iommu->first_device = calc_devid(MMIO_GET_BUS(range),
 					 MMIO_GET_FD(range));
 	iommu->last_device = calc_devid(MMIO_GET_BUS(range),
@@ -674,7 +676,10 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	/*
 	 * Copy data from ACPI table entry to the iommu struct
 	 */
-	iommu->devid = h->devid;
+	iommu->dev = pci_get_bus_and_slot(PCI_BUS(h->devid), h->devid & 0xff);
+	if (!iommu->dev)
+		return 1;
+
 	iommu->cap_ptr = h->cap_ptr;
 	iommu->pci_seg = h->pci_seg;
 	iommu->mmio_phys = h->mmio_phys;
@@ -694,6 +699,8 @@ static int __init init_iommu_one(struct amd_iommu *iommu, struct ivhd_header *h)
 	init_iommu_from_pci(iommu);
 	init_iommu_from_acpi(iommu, h);
 	init_iommu_devices(iommu);
+
+	pci_enable_device(iommu->dev);
 
 	return 0;
 }

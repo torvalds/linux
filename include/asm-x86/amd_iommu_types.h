@@ -215,8 +215,9 @@ struct amd_iommu {
 	/* locks the accesses to the hardware */
 	spinlock_t lock;
 
-	/* device id of this IOMMU */
-	u16 devid;
+	/* Pointer to PCI device of this IOMMU */
+	struct pci_dev *dev;
+
 	/*
 	 * Capability pointer. There could be more than one IOMMU per PCI
 	 * device function if there are more than one AMD IOMMU capability
