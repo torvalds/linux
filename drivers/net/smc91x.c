@@ -1961,7 +1961,8 @@ static int __init smc_probe(struct net_device *dev, void __iomem *ioaddr,
 		if (dev->dma != (unsigned char)-1)
 			printk(" DMA %d", dev->dma);
 
-		printk("%s%s\n", nowait ? " [nowait]" : "",
+		printk("%s%s\n",
+			lp->cfg.flags & SMC91X_NOWAIT ? " [nowait]" : "",
 			THROTTLE_TX_PKTS ? " [throttle_tx]" : "");
 
 		if (!is_valid_ether_addr(dev->dev_addr)) {
