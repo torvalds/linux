@@ -500,6 +500,7 @@ static struct of_platform_driver bq4802_driver = {
 static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 	void __iomem *regs;
 	unsigned char val;
 
@@ -507,7 +508,7 @@ static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
 	val = readb(regs + ofs);
 
 	/* the year 0 is 1968 */
-	if (ofs == M48T59_YEAR) {
+	if (ofs == pdata->offset + M48T59_YEAR) {
 		val += 0x68;
 		if ((val & 0xf) > 9)
 			val += 6;
@@ -518,10 +519,11 @@ static unsigned char mostek_read_byte(struct device *dev, u32 ofs)
 static void mostek_write_byte(struct device *dev, u32 ofs, u8 val)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	struct m48t59_plat_data *pdata = pdev->dev.platform_data;
 	void __iomem *regs;
 
 	regs = (void __iomem *) pdev->resource[0].start;
-	if (ofs == M48T59_YEAR) {
+	if (ofs == pdata->offset + M48T59_YEAR) {
 		if (val < 0x68)
 			val += 0x32;
 		else
