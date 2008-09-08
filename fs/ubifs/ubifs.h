@@ -334,7 +334,7 @@ struct ubifs_gced_idx_leb {
  * @bulk_read: non-zero if bulk-read should be used
  * @ui_mutex: serializes inode write-back with the rest of VFS operations,
  *            serializes "clean <-> dirty" state changes, serializes bulk-read,
- *            protects @dirty, @ui_size, and @xattr_size
+ *            protects @dirty, @bulk_read, @ui_size, and @xattr_size
  * @ui_lock: protects @synced_i_size
  * @synced_i_size: synchronized size of inode, i.e. the value of inode size
  *                 currently stored on the flash; used only for regular file
@@ -944,10 +944,6 @@ struct ubifs_mount_opts {
  * @fast_unmount: do not run journal commit before un-mounting
  * @big_lpt: flag that LPT is too big to write whole during commit
  * @check_lpt_free: flag that indicates LPT GC may be needed
- * @nospace: non-zero if the file-system does not have flash space (used as
- *           optimization)
- * @nospace_rp: the same as @nospace, but additionally means that even reserved
- *              pool is full
  * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
  *                   recovery)
  * @bulk_read: enable bulk-reads
@@ -1017,12 +1013,17 @@ struct ubifs_mount_opts {
  *                        but which still have to be taken into account because
  *                        the index has not been committed so far
  * @space_lock: protects @budg_idx_growth, @budg_data_growth, @budg_dd_growth,
- *              @budg_uncommited_idx, @min_idx_lebs, @old_idx_sz, and @lst;
+ *              @budg_uncommited_idx, @min_idx_lebs, @old_idx_sz, @lst,
+ *              @nospace, and @nospace_rp;
  * @min_idx_lebs: minimum number of LEBs required for the index
  * @old_idx_sz: size of index on flash
  * @calc_idx_sz: temporary variable which is used to calculate new index size
  *               (contains accurate new index size at end of TNC commit start)
  * @lst: lprops statistics
+ * @nospace: non-zero if the file-system does not have flash space (used as
+ *           optimization)
+ * @nospace_rp: the same as @nospace, but additionally means that even reserved
+ *              pool is full
  *
  * @page_budget: budget for a page
  * @inode_budget: budget for an inode
@@ -1191,8 +1192,6 @@ struct ubifs_info {
 	unsigned int fast_unmount:1;
 	unsigned int big_lpt:1;
 	unsigned int check_lpt_free:1;
-	unsigned int nospace:1;
-	unsigned int nospace_rp:1;
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
 
@@ -1263,6 +1262,8 @@ struct ubifs_info {
 	unsigned long long old_idx_sz;
 	unsigned long long calc_idx_sz;
 	struct ubifs_lp_stats lst;
+	unsigned int nospace:1;
+	unsigned int nospace_rp:1;
 
 	int page_budget;
 	int inode_budget;
