@@ -75,9 +75,9 @@ struct cpuinfo_x86 {
 	int			 x86_tlbsize;
 	__u8			x86_virt_bits;
 	__u8			x86_phys_bits;
+#endif
 	/* CPUID returned core id bits: */
 	__u8			x86_coreid_bits;
-#endif
 	/* Max extended CPUID function supported: */
 	__u32			extended_cpuid_level;
 	/* Maximum supported CPUID level, -1=no CPUID: */

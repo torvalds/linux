@@ -629,8 +629,8 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 	c->x86_vendor_id[0] = '\0'; /* Unset */
 	c->x86_model_id[0] = '\0';  /* Unset */
 	c->x86_max_cores = 1;
-#ifdef CONFIG_X86_64
 	c->x86_coreid_bits = 0;
+#ifdef CONFIG_X86_64
 	c->x86_clflush_size = 64;
 #else
 	c->cpuid_level = -1;	/* CPUID not detected */
