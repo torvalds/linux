@@ -44,7 +44,7 @@ static struct clk *clk_i2s;
 static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
 	.name			= "I2S PCM Stereo out",
 	.dev_addr		= __PREG(SADR),
-	.drcmr			= &DRCMRTXSADR,
+	.drcmr			= &DRCMR(3),
 	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
@@ -52,7 +52,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_out = {
 static struct pxa2xx_pcm_dma_params pxa2xx_i2s_pcm_stereo_in = {
 	.name			= "I2S PCM Stereo in",
 	.dev_addr		= __PREG(SADR),
-	.drcmr			= &DRCMRRXSADR,
+	.drcmr			= &DRCMR(2),
 	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };

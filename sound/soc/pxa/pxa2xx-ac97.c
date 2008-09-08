@@ -244,7 +244,7 @@ struct snd_ac97_bus_ops soc_ac97_ops = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_out = {
 	.name			= "AC97 PCM Stereo out",
 	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMRTXPCDR,
+	.drcmr			= &DRCMR(12),
 	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
@@ -252,7 +252,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_out = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_in = {
 	.name			= "AC97 PCM Stereo in",
 	.dev_addr		= __PREG(PCDR),
-	.drcmr			= &DRCMRRXPCDR,
+	.drcmr			= &DRCMR(11),
 	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
 				  DCMD_BURST32 | DCMD_WIDTH4,
 };
@@ -260,7 +260,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_stereo_in = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_out = {
 	.name			= "AC97 Aux PCM (Slot 5) Mono out",
 	.dev_addr		= __PREG(MODR),
-	.drcmr			= &DRCMRTXMODR,
+	.drcmr			= &DRCMR(10),
 	.dcmd			= DCMD_INCSRCADDR | DCMD_FLOWTRG |
 				  DCMD_BURST16 | DCMD_WIDTH2,
 };
@@ -268,7 +268,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_out = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_in = {
 	.name			= "AC97 Aux PCM (Slot 5) Mono in",
 	.dev_addr		= __PREG(MODR),
-	.drcmr			= &DRCMRRXMODR,
+	.drcmr			= &DRCMR(9),
 	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
 				  DCMD_BURST16 | DCMD_WIDTH2,
 };
@@ -276,7 +276,7 @@ static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_aux_mono_in = {
 static struct pxa2xx_pcm_dma_params pxa2xx_ac97_pcm_mic_mono_in = {
 	.name			= "AC97 Mic PCM (Slot 6) Mono in",
 	.dev_addr		= __PREG(MCDR),
-	.drcmr			= &DRCMRRXMCDR,
+	.drcmr			= &DRCMR(8),
 	.dcmd			= DCMD_INCTRGADDR | DCMD_FLOWSRC |
 				  DCMD_BURST16 | DCMD_WIDTH2,
 };
