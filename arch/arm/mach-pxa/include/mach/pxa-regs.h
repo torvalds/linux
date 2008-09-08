@@ -418,50 +418,8 @@
 
 
 /*
- * I2C registers
+ * I2C registers - moved into drivers/i2c/busses/i2c-pxa.c
  */
-
-#define IBMR		__REG(0x40301680)  /* I2C Bus Monitor Register - IBMR */
-#define IDBR		__REG(0x40301688)  /* I2C Data Buffer Register - IDBR */
-#define ICR		__REG(0x40301690)  /* I2C Control Register - ICR */
-#define ISR		__REG(0x40301698)  /* I2C Status Register - ISR */
-#define ISAR		__REG(0x403016A0)  /* I2C Slave Address Register - ISAR */
-
-#define PWRIBMR    __REG(0x40f00180)  /* Power I2C Bus Monitor Register-IBMR */
-#define PWRIDBR    __REG(0x40f00188)  /* Power I2C Data Buffer Register-IDBR */
-#define PWRICR __REG(0x40f00190)  /* Power I2C Control Register - ICR */
-#define PWRISR __REG(0x40f00198)  /* Power I2C Status Register - ISR */
-#define PWRISAR    __REG(0x40f001A0)  /*Power I2C Slave Address Register-ISAR */
-
-#define ICR_START	(1 << 0)	   /* start bit */
-#define ICR_STOP	(1 << 1)	   /* stop bit */
-#define ICR_ACKNAK	(1 << 2)	   /* send ACK(0) or NAK(1) */
-#define ICR_TB		(1 << 3)	   /* transfer byte bit */
-#define ICR_MA		(1 << 4)	   /* master abort */
-#define ICR_SCLE	(1 << 5)	   /* master clock enable */
-#define ICR_IUE		(1 << 6)	   /* unit enable */
-#define ICR_GCD		(1 << 7)	   /* general call disable */
-#define ICR_ITEIE	(1 << 8)	   /* enable tx interrupts */
-#define ICR_IRFIE	(1 << 9)	   /* enable rx interrupts */
-#define ICR_BEIE	(1 << 10)	   /* enable bus error ints */
-#define ICR_SSDIE	(1 << 11)	   /* slave STOP detected int enable */
-#define ICR_ALDIE	(1 << 12)	   /* enable arbitration interrupt */
-#define ICR_SADIE	(1 << 13)	   /* slave address detected int enable */
-#define ICR_UR		(1 << 14)	   /* unit reset */
-#define ICR_FM		(1 << 15)	   /* fast mode */
-
-#define ISR_RWM		(1 << 0)	   /* read/write mode */
-#define ISR_ACKNAK	(1 << 1)	   /* ack/nak status */
-#define ISR_UB		(1 << 2)	   /* unit busy */
-#define ISR_IBB		(1 << 3)	   /* bus busy */
-#define ISR_SSD		(1 << 4)	   /* slave stop detected */
-#define ISR_ALD		(1 << 5)	   /* arbitration loss detected */
-#define ISR_ITE		(1 << 6)	   /* tx buffer empty */
-#define ISR_IRF		(1 << 7)	   /* rx buffer full */
-#define ISR_GCAD	(1 << 8)	   /* general call address detected */
-#define ISR_SAD		(1 << 9)	   /* slave address detected */
-#define ISR_BED		(1 << 10)	   /* bus error no ACK/NAK */
-
 
 /*
  * Serial Audio Controller
