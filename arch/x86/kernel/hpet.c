@@ -126,6 +126,24 @@ EXPORT_SYMBOL_GPL(is_hpet_enabled);
  * timer 0 and timer 1 in case of RTC emulation.
  */
 #ifdef CONFIG_HPET
+static void hpet_reserve_msi_timers(struct hpet_data *hd)
+{
+	int i;
+
+	if (!hpet_devs)
+		return;
+
+	for (i = 0; i < hpet_num_timers; i++) {
+		struct hpet_dev *hdev = &hpet_devs[i];
+
+		if (!(hdev->flags & HPET_DEV_VALID))
+			continue;
+
+		hd->hd_irq[hdev->num] = hdev->irq;
+		hpet_reserve_timer(hd, hdev->num);
+	}
+}
+
 static void hpet_reserve_platform_timers(unsigned long id)
 {
 	struct hpet __iomem *hpet = hpet_virt_address;
@@ -158,15 +176,7 @@ static void hpet_reserve_platform_timers(unsigned long id)
 			Tn_INT_ROUTE_CNF_MASK) >> Tn_INT_ROUTE_CNF_SHIFT;
 	}
 
-	for (i = 0; i < nrtimers; i++) {
-		struct hpet_dev *hdev = &hpet_devs[i];
-
-		if (!(hdev->flags & HPET_DEV_VALID))
-			continue;
-
-		hd.hd_irq[hdev->num] = hdev->irq;
-		hpet_reserve_timer(&hd, hdev->num);
-	}
+	hpet_reserve_msi_timers(&hd);
 
 	hpet_alloc(&hd);
 
