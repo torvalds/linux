@@ -1060,7 +1060,7 @@ static struct snd_kcontrol_new stac_dmux_mixer = {
 
 static struct snd_kcontrol_new stac_smux_mixer = {
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-	.name = "IEC958 Mux",
+	.name = "IEC958 Playback Source",
 	/* count set later */
 	.info = stac92xx_smux_enum_info,
 	.get = stac92xx_smux_enum_get,
