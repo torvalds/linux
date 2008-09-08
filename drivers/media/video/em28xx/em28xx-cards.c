@@ -93,28 +93,6 @@ struct em28xx_board em28xx_boards[] = {
 			.amux     = 0,
 		} },
 	},
-	[EM2800_BOARD_KWORLD_USB2800] = {
-		.name         = "Kworld USB2800",
-		.valid        = EM28XX_BOARD_NOT_VALIDATED,
-		.is_em2800    = 1,
-		.vchannels    = 3,
-		.tuner_type   = TUNER_PHILIPS_FCV1236D,
-		.tda9887_conf = TDA9887_PRESENT,
-		.decoder      = EM28XX_SAA7113,
-		.input          = { {
-			.type     = EM28XX_VMUX_TELEVISION,
-			.vmux     = SAA7115_COMPOSITE2,
-			.amux     = 0,
-		}, {
-			.type     = EM28XX_VMUX_COMPOSITE1,
-			.vmux     = SAA7115_COMPOSITE0,
-			.amux     = 1,
-		}, {
-			.type     = EM28XX_VMUX_SVIDEO,
-			.vmux     = SAA7115_SVIDEO3,
-			.amux     = 1,
-		} },
-	},
 	[EM2820_BOARD_KWORLD_PVRTV2800RF] = {
 		.name         = "Kworld PVR TV 2800 RF",
 		.is_em2800    = 0,
