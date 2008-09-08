@@ -3271,9 +3271,14 @@ void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	if ((ifsta->flags & (IEEE80211_STA_BSSID_SET |
-				IEEE80211_STA_AUTO_BSSID_SEL)) &&
+			     IEEE80211_STA_AUTO_BSSID_SEL)) &&
 	    (ifsta->flags & (IEEE80211_STA_SSID_SET |
-				IEEE80211_STA_AUTO_SSID_SEL))) {
+			     IEEE80211_STA_AUTO_SSID_SEL))) {
+
+		if (ifsta->state == IEEE80211_STA_MLME_ASSOCIATED)
+			ieee80211_set_disassoc(sdata, ifsta, true, true,
+					       WLAN_REASON_DEAUTH_LEAVING);
+
 		set_bit(IEEE80211_STA_REQ_AUTH, &ifsta->request);
 		queue_work(local->hw.workqueue, &ifsta->work);
 	}
