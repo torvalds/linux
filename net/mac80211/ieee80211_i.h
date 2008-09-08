@@ -53,6 +53,12 @@ struct ieee80211_local;
  * increased memory use (about 2 kB of RAM per entry). */
 #define IEEE80211_FRAGMENT_MAX 4
 
+/*
+ * Time after which we ignore scan results and no longer report/use
+ * them in any way.
+ */
+#define IEEE80211_SCAN_RESULT_EXPIRE (10 * HZ)
+
 struct ieee80211_fragment_entry {
 	unsigned long first_frag_time;
 	unsigned int seq;
@@ -924,8 +930,13 @@ u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    enum ieee80211_band band);
 void ieee80211_sta_tx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		int encrypt);
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+			      u8 *ssid, size_t ssid_len);
 void ieee802_11_parse_elems(u8 *start, size_t len,
-				   struct ieee802_11_elems *elems);
+			    struct ieee802_11_elems *elems);
+void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
+int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
+			     u8 *ssid, size_t ssid_len);
 
 #ifdef CONFIG_MAC80211_MESH
 void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
