@@ -286,7 +286,8 @@ static u16 group_table[] = {
 	ByteOp | DstMem | SrcNone | ModRM, ByteOp | DstMem | SrcNone | ModRM,
 	0, 0, 0, 0, 0, 0,
 	[Group5*8] =
-	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM, 0, 0,
+	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
+	SrcMem | ModRM | Stack, 0,
 	SrcMem | ModRM, 0, SrcMem | ModRM | Stack, 0,
 	[Group7*8] =
 	0, 0, ModRM | SrcMem, ModRM | SrcMem,
@@ -1162,6 +1163,14 @@ static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
 	case 1:	/* dec */
 		emulate_1op("dec", c->dst, ctxt->eflags);
 		break;
+	case 2: /* call near abs */ {
+		long int old_eip;
+		old_eip = c->eip;
+		c->eip = c->src.val;
+		c->src.val = old_eip;
+		emulate_push(ctxt);
+		break;
+	}
 	case 4: /* jmp abs */
 		c->eip = c->src.val;
 		break;
