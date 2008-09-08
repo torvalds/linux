@@ -125,3 +125,28 @@ void clks_register(struct clk *clks, size_t num)
 		list_add(&clks[i].node, &clocks);
 	mutex_unlock(&clocks_mutex);
 }
+
+int clk_add_alias(char *alias, struct device *alias_dev, char *id,
+	struct device *dev)
+{
+	struct clk *r = clk_lookup(dev, id);
+	struct clk *new;
+
+	if (!r)
+		return -ENODEV;
+
+	new = kzalloc(sizeof(struct clk), GFP_KERNEL);
+
+	if (!new)
+		return -ENOMEM;
+
+	new->name = alias;
+	new->dev = alias_dev;
+	new->other = r;
+
+	mutex_lock(&clocks_mutex);
+	list_add(&new->node, &clocks);
+	mutex_unlock(&clocks_mutex);
+
+	return 0;
+}

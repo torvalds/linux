@@ -211,6 +211,12 @@ static struct mem_type mem_types[] = {
 				  PMD_SECT_TEX(1),
 		.domain		= DOMAIN_IO,
 	},
+	[MT_DEVICE_WC] = {	/* ioremap_wc */
+		.prot_pte	= PROT_PTE_DEVICE,
+		.prot_l1	= PMD_TYPE_TABLE,
+		.prot_sect	= PROT_SECT_DEVICE,
+		.domain		= DOMAIN_IO,
+	},
 	[MT_CACHECLEAN] = {
 		.prot_sect = PMD_TYPE_SECT | PMD_SECT_XN,
 		.domain    = DOMAIN_KERNEL,
@@ -270,6 +276,20 @@ static void __init build_mem_type_table(void)
 		if (cachepolicy >= CPOLICY_WRITEALLOC)
 			cachepolicy = CPOLICY_WRITEBACK;
 		ecc_mask = 0;
+	}
+
+	/*
+	 * On non-Xscale3 ARMv5-and-older systems, use CB=01
+	 * (Uncached/Buffered) for ioremap_wc() mappings.  On XScale3
+	 * and ARMv6+, use TEXCB=00100 mappings (Inner/Outer Uncacheable
+	 * in xsc3 parlance, Uncached Normal in ARMv6 parlance).
+	 */
+	if (cpu_is_xsc3() || cpu_arch >= CPU_ARCH_ARMv6) {
+		mem_types[MT_DEVICE_WC].prot_pte_ext |= PTE_EXT_TEX(1);
+		mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_TEX(1);
+	} else {
+		mem_types[MT_DEVICE_WC].prot_pte |= L_PTE_BUFFERABLE;
+		mem_types[MT_DEVICE_WC].prot_sect |= PMD_SECT_BUFFERABLE;
 	}
 
 	/*

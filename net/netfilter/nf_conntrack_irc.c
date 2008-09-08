@@ -68,10 +68,20 @@ static const char *const dccprotos[] = {
 static int parse_dcc(char *data, const char *data_end, u_int32_t *ip,
 		     u_int16_t *port, char **ad_beg_p, char **ad_end_p)
 {
+	char *tmp;
+
 	/* at least 12: "AAAAAAAA P\1\n" */
 	while (*data++ != ' ')
 		if (data > data_end - 12)
 			return -1;
+
+	/* Make sure we have a newline character within the packet boundaries
+	 * because simple_strtoul parses until the first invalid character. */
+	for (tmp = data; tmp <= data_end; tmp++)
+		if (*tmp == '\n')
+			break;
+	if (tmp > data_end || *tmp != '\n')
+		return -1;
 
 	*ad_beg_p = data;
 	*ip = simple_strtoul(data, &data, 10);

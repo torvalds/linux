@@ -351,7 +351,7 @@ find_close_to_parent:
 			goto found_flexbg;
 		}
 
-		if (best_flex < 0 ||
+		if (flex_group[best_flex].free_inodes == 0 ||
 		    (flex_group[i].free_blocks >
 		     flex_group[best_flex].free_blocks &&
 		     flex_group[i].free_inodes))

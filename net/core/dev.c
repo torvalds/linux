@@ -1991,8 +1991,13 @@ static void net_tx_action(struct softirq_action *h)
 				spin_unlock(root_lock);
 			} else {
 				if (!test_bit(__QDISC_STATE_DEACTIVATED,
-					      &q->state))
+					      &q->state)) {
 					__netif_reschedule(q);
+				} else {
+					smp_mb__before_clear_bit();
+					clear_bit(__QDISC_STATE_SCHED,
+						  &q->state);
+				}
 			}
 		}
 	}

@@ -7,6 +7,7 @@ config VIDEO_AU0828
 	select DVB_AU8522 if !DVB_FE_CUSTOMIZE
 	select MEDIA_TUNER_XC5000 if !DVB_FE_CUSTOMIZE
 	select MEDIA_TUNER_MXL5007T if !DVB_FE_CUSTOMIZE
+	select MEDIA_TUNER_TDA18271 if !DVB_FE_CUSTOMIZE
 	---help---
 	  This is a video4linux driver for Auvitek's USB device.
 

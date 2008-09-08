@@ -508,7 +508,6 @@ static void ieee80211_sta_send_associnfo(struct ieee80211_sub_if_data *sdata,
 		wireless_send_event(sdata->dev, IWEVASSOCREQIE, &wrqu,
 				    ifsta->assocreq_ies);
 	}
-
 	if (ifsta->assocresp_ies) {
 		memset(&wrqu, 0, sizeof(wrqu));
 		wrqu.data.length = ifsta->assocresp_ies_len;

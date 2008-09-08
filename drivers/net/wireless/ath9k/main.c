@@ -204,7 +204,8 @@ static int ath_key_config(struct ath_softc *sc,
 	if (!ret)
 		return -EIO;
 
-	sc->sc_keytype = hk.kv_type;
+	if (mac)
+		sc->sc_keytype = hk.kv_type;
 	return 0;
 }
 
@@ -781,7 +782,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			key->hw_key_idx = key->keyidx;
 			/* push IV and Michael MIC generation to stack */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			if (key->alg == ALG_TKIP)
+				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 		}
 		break;
 	case DISABLE_KEY:

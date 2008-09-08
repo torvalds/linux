@@ -1489,10 +1489,9 @@ static int saa7115_probe(struct i2c_client *client,
 		 client->addr << 1, client->adapter->name);
 
 	state = kzalloc(sizeof(struct saa711x_state), GFP_KERNEL);
-	i2c_set_clientdata(client, state);
-	if (state == NULL) {
+	if (state == NULL)
 		return -ENOMEM;
-	}
+	i2c_set_clientdata(client, state);
 	state->input = -1;
 	state->output = SAA7115_IPORT_ON;
 	state->enable = 1;

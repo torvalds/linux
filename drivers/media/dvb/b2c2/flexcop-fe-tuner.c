@@ -137,7 +137,8 @@ static int flexcop_send_diseqc_msg(struct dvb_frontend* fe, int len, u8 *msg, un
 			flexcop_diseqc_send_byte(fe, 0xff);
 		else {
 			flexcop_set_tone(fe, SEC_TONE_ON);
-			udelay(12500);
+			mdelay(12);
+			udelay(500);
 			flexcop_set_tone(fe, SEC_TONE_OFF);
 		}
 		msleep(20);

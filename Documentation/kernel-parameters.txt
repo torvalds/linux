@@ -1074,6 +1074,9 @@ and is between 256 and 4096 characters. It is defined in the file
 
 			* [no]ncq: Turn on or off NCQ.
 
+			* nohrst, nosrst, norst: suppress hard, soft
+                          and both resets.
+
 			If there are multiple matching configurations changing
 			the same attribute, the last one is used.
 
