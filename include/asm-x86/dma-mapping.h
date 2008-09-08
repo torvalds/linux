@@ -246,6 +246,8 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	struct dma_mapping_ops *ops = get_dma_ops(dev);
 	void *memory;
 
+	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+
 	if (dma_alloc_from_coherent(dev, size, dma_handle, &memory))
 		return memory;
 
