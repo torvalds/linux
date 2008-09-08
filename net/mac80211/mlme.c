@@ -3052,10 +3052,7 @@ void ieee80211_sta_work(struct work_struct *work)
 	    ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE &&
 	    ifsta->state != IEEE80211_STA_MLME_ASSOCIATE &&
 	    test_and_clear_bit(IEEE80211_STA_REQ_SCAN, &ifsta->request)) {
-		if (ifsta->scan_ssid_len)
-			ieee80211_sta_start_scan(sdata, ifsta->scan_ssid, ifsta->scan_ssid_len);
-		else
-			ieee80211_sta_start_scan(sdata, NULL, 0);
+		ieee80211_sta_start_scan(sdata, ifsta->scan_ssid, ifsta->scan_ssid_len);
 		return;
 	}
 
