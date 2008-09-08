@@ -525,8 +525,7 @@ int __kprobes setjmp_pre_handler(struct kprobe *p, struct pt_regs *regs)
 
 void __kprobes jprobe_return(void)
 {
-	__asm("trapa #-1\n\t" "jprobe_return_end:\n\t" "nop\n\t");
-
+	asm volatile ("trapa #0x3a\n\t" "jprobe_return_end:\n\t" "nop\n\t");
 }
 
 int __kprobes longjmp_break_handler(struct kprobe *p, struct pt_regs *regs)
