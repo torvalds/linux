@@ -163,7 +163,7 @@ rf_write:
 	rt2x00_rf_write(rt2x00dev, word, value);
 }
 
-#ifdef CONFIG_RT61PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 /*
  * This function is only called from rt61pci_led_brightness()
  * make gcc happy by placing this function inside the
@@ -195,7 +195,7 @@ static void rt61pci_mcu_request(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field32(&reg, HOST_CMD_CSR_INTERRUPT_MCU, 1);
 	rt2x00pci_register_write(rt2x00dev, HOST_CMD_CSR, reg);
 }
-#endif /* CONFIG_RT61PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 static void rt61pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
 {
@@ -283,7 +283,7 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 #define rt61pci_rfkill_poll	NULL
 #endif /* CONFIG_RT2X00_LIB_RFKILL */
 
-#ifdef CONFIG_RT61PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt61pci_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
@@ -348,7 +348,7 @@ static void rt61pci_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt61pci_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT61PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -2374,7 +2374,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 * If the eeprom value is invalid,
 	 * switch to default led mode.
 	 */
-#ifdef CONFIG_RT61PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 	value = rt2x00_get_field16(eeprom, EEPROM_LED_LED_MODE);
 
@@ -2408,7 +2408,7 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_A,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_A));
-#endif /* CONFIG_RT61PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	return 0;
 }

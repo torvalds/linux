@@ -243,7 +243,7 @@ static int rt2400pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 #define rt2400pci_rfkill_poll	NULL
 #endif /* CONFIG_RT2X00_LIB_RFKILL */
 
-#ifdef CONFIG_RT2400PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt2400pci_brightness_set(struct led_classdev *led_cdev,
 				     enum led_brightness brightness)
 {
@@ -288,7 +288,7 @@ static void rt2400pci_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt2400pci_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT2400PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1374,14 +1374,14 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led mode, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT2400PCI_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_LED_MODE);
 
 	rt2400pci_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
 	if (value == LED_MODE_TXRX_ACTIVITY)
 		rt2400pci_init_led(rt2x00dev, &rt2x00dev->led_qual,
 				   LED_TYPE_ACTIVITY);
-#endif /* CONFIG_RT2400PCI_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	/*
 	 * Detect if this device has an hardware controlled radio.

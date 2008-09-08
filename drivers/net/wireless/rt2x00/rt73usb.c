@@ -292,7 +292,7 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT73USB_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt73usb_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
@@ -359,7 +359,7 @@ static void rt73usb_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt73usb_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT73USB_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1932,7 +1932,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led settings, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT73USB_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 
 	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
@@ -1965,7 +1965,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_A,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_A));
-#endif /* CONFIG_RT73USB_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	return 0;
 }

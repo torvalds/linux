@@ -45,7 +45,10 @@ config RT2X00_LIB_RFKILL
 
 config RT2X00_LIB_LEDS
 	boolean
-	depends on RT2X00_LIB && NEW_LEDS
+	depends on RT2X00_LIB
+	depends on NEW_LEDS
+	depends on LEDS_CLASS
+	default y
 
 config RT2400PCI
 	tristate "Ralink rt2400 (PCI/PCMCIA) support"
@@ -58,14 +61,6 @@ config RT2400PCI
 
 	  When compiled as a module, this driver will be called "rt2400pci.ko".
 
-config RT2400PCI_LEDS
-	bool "Ralink rt2400 leds support"
-	depends on RT2400PCI && NEW_LEDS
-	select LEDS_CLASS
-	select RT2X00_LIB_LEDS
-	---help---
-	  This adds support for led triggers provided my mac80211.
-
 config RT2500PCI
 	tristate "Ralink rt2500 (PCI/PCMCIA) support"
 	depends on PCI
@@ -76,14 +71,6 @@ config RT2500PCI
 	  Supported chips: RT2560.
 
 	  When compiled as a module, this driver will be called "rt2500pci.ko".
-
-config RT2500PCI_LEDS
-	bool "Ralink rt2500 leds support"
-	depends on RT2500PCI && NEW_LEDS
-	select LEDS_CLASS
-	select RT2X00_LIB_LEDS
-	---help---
-	  This adds support for led triggers provided my mac80211.
 
 config RT61PCI
 	tristate "Ralink rt2501/rt61 (PCI/PCMCIA) support"
@@ -99,14 +86,6 @@ config RT61PCI
 
 	  When compiled as a module, this driver will be called "rt61pci.ko".
 
-config RT61PCI_LEDS
-	bool "Ralink rt2501/rt61 leds support"
-	depends on RT61PCI && NEW_LEDS
-	select LEDS_CLASS
-	select RT2X00_LIB_LEDS
-	---help---
-	  This adds support for led triggers provided my mac80211.
-
 config RT2500USB
 	tristate "Ralink rt2500 (USB) support"
 	depends on USB
@@ -116,14 +95,6 @@ config RT2500USB
 	  Supported chips: RT2571 & RT2572.
 
 	  When compiled as a module, this driver will be called "rt2500usb.ko".
-
-config RT2500USB_LEDS
-	bool "Ralink rt2500 leds support"
-	depends on RT2500USB && NEW_LEDS
-	select LEDS_CLASS
-	select RT2X00_LIB_LEDS
-	---help---
-	  This adds support for led triggers provided my mac80211.
 
 config RT73USB
 	tristate "Ralink rt2501/rt73 (USB) support"
@@ -137,14 +108,6 @@ config RT73USB
 	  Supported chips: RT2571W, RT2573 & RT2671.
 
 	  When compiled as a module, this driver will be called "rt73usb.ko".
-
-config RT73USB_LEDS
-	bool "Ralink rt2501/rt73 leds support"
-	depends on RT73USB && NEW_LEDS
-	select LEDS_CLASS
-	select RT2X00_LIB_LEDS
-	---help---
-	  This adds support for led triggers provided my mac80211.
 
 config RT2X00_LIB_DEBUGFS
 	bool "Ralink debugfs support"
