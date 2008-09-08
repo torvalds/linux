@@ -9,8 +9,6 @@
 
 #include "cpu.h"
 
-int force_mwait __cpuinitdata;
-
 #ifdef CONFIG_NUMA
 static int __cpuinit nearby_node(int apicid)
 {
