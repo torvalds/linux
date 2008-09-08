@@ -200,6 +200,18 @@
 #define ISDN_P_NT_S0  		0x02
 #define ISDN_P_TE_E1		0x03
 #define ISDN_P_NT_E1  		0x04
+#define ISDN_P_TE_UP0		0x05
+#define ISDN_P_NT_UP0		0x06
+
+#define IS_ISDN_P_TE(p) ((p == ISDN_P_TE_S0) || (p == ISDN_P_TE_E1) || \
+				(p == ISDN_P_TE_UP0))
+#define IS_ISDN_P_NT(p) ((p == ISDN_P_NT_S0) || (p == ISDN_P_NT_E1) || \
+				(p == ISDN_P_NT_UP0))
+#define IS_ISDN_P_S0(p) ((p == ISDN_P_TE_S0) || (p == ISDN_P_NT_S0))
+#define IS_ISDN_P_E1(p) ((p == ISDN_P_TE_E1) || (p == ISDN_P_NT_E1))
+#define IS_ISDN_P_UP0(p) ((p == ISDN_P_TE_UP0) || (p == ISDN_P_NT_UP0))
+
+
 #define ISDN_P_LAPD_TE		0x10
 #define	ISDN_P_LAPD_NT		0x11
 
