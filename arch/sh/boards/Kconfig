@@ -184,6 +184,13 @@ config SH_EDOSK7705
 	bool "EDOSK7705"
 	depends on CPU_SUBTYPE_SH7705
 
+config SH_EDOSK7760
+	bool "EDOSK7760"
+	depends on CPU_SUBTYPE_SH7760
+	help
+	  Select if configuring for a Renesas EDOSK7760
+	  evaluation board.
+
 config SH_SH4202_MICRODEV
 	bool "SH4-202 MicroDev"
 	depends on CPU_SUBTYPE_SH4_202
