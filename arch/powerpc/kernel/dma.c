@@ -29,7 +29,7 @@ static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 {
 	struct page *page;
 	void *ret;
-	int node = dev->archdata.numa_node;
+	int node = dev_to_node(dev);
 
 	page = alloc_pages_node(node, flag, get_order(size));
 	if (page == NULL)

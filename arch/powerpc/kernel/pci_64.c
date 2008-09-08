@@ -558,11 +558,8 @@ void __devinit pcibios_setup_new_device(struct pci_dev *dev)
 	    sd->of_node ? sd->of_node->full_name : "<none>");
 
 	sd->dma_ops = pci_dma_ops;
-#ifdef CONFIG_NUMA
-	sd->numa_node = pcibus_to_node(dev->bus);
-#else
-	sd->numa_node = -1;
-#endif
+	set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
+
 	if (ppc_md.pci_dma_dev_setup)
 		ppc_md.pci_dma_dev_setup(dev);
 }
