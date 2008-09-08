@@ -126,7 +126,7 @@ static int m48t59_rtc_set_time(struct device *dev, struct rtc_time *tm)
 	M48T59_WRITE((BIN2BCD(tm->tm_mon + 1) & 0x1F), M48T59_MONTH);
 	M48T59_WRITE(BIN2BCD(tm->tm_year % 100), M48T59_YEAR);
 
-	if (tm->tm_year/100)
+	if (pdata->type == M48T59RTC_TYPE_M48T59 && (tm->tm_year / 100))
 		val = (M48T59_WDAY_CEB | M48T59_WDAY_CB);
 	val |= (BIN2BCD(tm->tm_wday) & 0x07);
 	M48T59_WRITE(val, M48T59_WDAY);
