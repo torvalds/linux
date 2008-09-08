@@ -283,6 +283,11 @@ address_needs_mapping(struct device *hwdev, dma_addr_t addr)
 	return (addr & ~mask) != 0;
 }
 
+static int is_swiotlb_buffer(char *addr)
+{
+	return addr >= io_tlb_start && addr < io_tlb_end;
+}
+
 /*
  * Allocates bounce buffer and returns its kernel virtual address.
  */
@@ -508,8 +513,7 @@ swiotlb_free_coherent(struct device *hwdev, size_t size, void *vaddr,
 		      dma_addr_t dma_handle)
 {
 	WARN_ON(irqs_disabled());
-	if (!(vaddr >= (void *)io_tlb_start
-                    && vaddr < (void *)io_tlb_end))
+	if (!is_swiotlb_buffer(vaddr))
 		free_pages((unsigned long) vaddr, get_order(size));
 	else
 		/* DMA_TO_DEVICE to avoid memcpy in unmap_single */
@@ -602,7 +606,7 @@ swiotlb_unmap_single_attrs(struct device *hwdev, dma_addr_t dev_addr,
 	char *dma_addr = bus_to_virt(dev_addr);
 
 	BUG_ON(dir == DMA_NONE);
-	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
+	if (is_swiotlb_buffer(dma_addr))
 		unmap_single(hwdev, dma_addr, size, dir);
 	else if (dir == DMA_FROM_DEVICE)
 		dma_mark_clean(dma_addr, size);
@@ -632,7 +636,7 @@ swiotlb_sync_single(struct device *hwdev, dma_addr_t dev_addr,
 	char *dma_addr = bus_to_virt(dev_addr);
 
 	BUG_ON(dir == DMA_NONE);
-	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
+	if (is_swiotlb_buffer(dma_addr))
 		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
 		dma_mark_clean(dma_addr, size);
@@ -663,7 +667,7 @@ swiotlb_sync_single_range(struct device *hwdev, dma_addr_t dev_addr,
 	char *dma_addr = bus_to_virt(dev_addr) + offset;
 
 	BUG_ON(dir == DMA_NONE);
-	if (dma_addr >= io_tlb_start && dma_addr < io_tlb_end)
+	if (is_swiotlb_buffer(dma_addr))
 		sync_single(hwdev, dma_addr, size, dir, target);
 	else if (dir == DMA_FROM_DEVICE)
 		dma_mark_clean(dma_addr, size);
