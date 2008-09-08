@@ -239,6 +239,29 @@ static inline int dma_get_cache_alignment(void)
 	return boot_cpu_data.x86_clflush_size;
 }
 
+static inline unsigned long dma_alloc_coherent_mask(struct device *dev,
+						    gfp_t gfp)
+{
+	unsigned long dma_mask = 0;
+
+	dma_mask = dev->coherent_dma_mask;
+	if (!dma_mask)
+		dma_mask = (gfp & GFP_DMA) ? DMA_24BIT_MASK : DMA_32BIT_MASK;
+
+	return dma_mask;
+}
+
+static inline gfp_t dma_alloc_coherent_gfp_flags(struct device *dev, gfp_t gfp)
+{
+	unsigned long dma_mask = dma_alloc_coherent_mask(dev, gfp);
+
+#ifdef CONFIG_X86_64
+	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA))
+		gfp |= GFP_DMA32;
+#endif
+       return gfp;
+}
+
 static inline void *
 dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp_t gfp)
@@ -259,10 +282,11 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 	if (!dev->dma_mask)
 		return NULL;
 
-	if (ops->alloc_coherent)
-		return ops->alloc_coherent(dev, size,
-				dma_handle, gfp);
-	return NULL;
+	if (!ops->alloc_coherent)
+		return NULL;
+
+	return ops->alloc_coherent(dev, size, dma_handle,
+				   dma_alloc_coherent_gfp_flags(dev, gfp));
 }
 
 static inline void dma_free_coherent(struct device *dev, size_t size,

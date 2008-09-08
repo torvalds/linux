@@ -80,26 +80,11 @@ nommu_alloc_coherent(struct device *hwdev, size_t size,
 	int node;
 	struct page *page;
 
+	dma_mask = dma_alloc_coherent_mask(hwdev, gfp);
+
 	gfp |= __GFP_ZERO;
 
-	dma_mask = hwdev->coherent_dma_mask;
-	if (!dma_mask)
-		dma_mask = *(hwdev->dma_mask);
-
-	if (dma_mask < DMA_24BIT_MASK)
-		return NULL;
-
 	node = dev_to_node(hwdev);
-
-#ifdef CONFIG_X86_64
-	if (dma_mask <= DMA_32BIT_MASK && !(gfp & GFP_DMA))
-		gfp |= GFP_DMA32;
-#endif
-
-	/* No alloc-free penalty for ISA devices */
-	if (dma_mask == DMA_24BIT_MASK)
-		gfp |= GFP_DMA;
-
 again:
 	page = alloc_pages_node(node, gfp, get_order(size));
 	if (!page)
