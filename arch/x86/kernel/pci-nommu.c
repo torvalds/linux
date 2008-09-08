@@ -80,9 +80,6 @@ nommu_alloc_coherent(struct device *hwdev, size_t size,
 	int node;
 	struct page *page;
 
-	if (hwdev->dma_mask == NULL)
-		return NULL;
-
 	gfp &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
 	gfp |= __GFP_ZERO;
 

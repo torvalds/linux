@@ -254,6 +254,9 @@ dma_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_handle,
 		gfp |= GFP_DMA;
 	}
 
+	if (!dev->dma_mask)
+		return NULL;
+
 	if (ops->alloc_coherent)
 		return ops->alloc_coherent(dev, size,
 				dma_handle, gfp);
