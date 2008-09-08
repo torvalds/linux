@@ -1563,9 +1563,14 @@ long hrtimer_nanosleep(struct timespec *rqtp, struct timespec __user *rmtp,
 	struct restart_block *restart;
 	struct hrtimer_sleeper t;
 	int ret = 0;
+	unsigned long slack;
+
+	slack = current->timer_slack_ns;
+	if (rt_task(current))
+		slack = 0;
 
 	hrtimer_init_on_stack(&t.timer, clockid, mode);
-	hrtimer_set_expires(&t.timer, timespec_to_ktime(*rqtp));
+	hrtimer_set_expires_range_ns(&t.timer, timespec_to_ktime(*rqtp), slack);
 	if (do_nanosleep(&t, mode))
 		goto out;
 
