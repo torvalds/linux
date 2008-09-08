@@ -27,6 +27,8 @@
 #include <linux/debugfs.h>
 #include <linux/crash_dump.h>
 #include <linux/mmzone.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -178,6 +180,24 @@ static void __init reserve_crashkernel(void)
 #else
 static inline void __init reserve_crashkernel(void)
 {}
+#endif
+
+#ifndef CONFIG_GENERIC_CALIBRATE_DELAY
+void __cpuinit calibrate_delay(void)
+{
+	struct clk *clk = clk_get(NULL, "cpu_clk");
+
+	if (IS_ERR(clk))
+		panic("Need a sane CPU clock definition!");
+
+	loops_per_jiffy = (clk_get_rate(clk) >> 1) / HZ;
+
+	printk(KERN_INFO "Calibrating delay loop (skipped)... "
+			 "%lu.%02lu BogoMIPS PRESET (lpj=%lu)\n",
+			 loops_per_jiffy/(500000/HZ),
+			 (loops_per_jiffy/(5000/HZ)) % 100,
+			 loops_per_jiffy);
+}
 #endif
 
 void __init __add_active_range(unsigned int nid, unsigned long start_pfn,

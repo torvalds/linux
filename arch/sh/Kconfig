@@ -25,6 +25,7 @@ config SUPERH32
 
 config SUPERH64
 	def_bool y if CPU_SH5
+	select GENERIC_CALIBRATE_DELAY
 
 config ARCH_DEFCONFIG
 	string
@@ -57,7 +58,7 @@ config GENERIC_IRQ_PROBE
 	def_bool y
 
 config GENERIC_CALIBRATE_DELAY
-	def_bool y
+	bool
 
 config GENERIC_IOMAP
 	bool
