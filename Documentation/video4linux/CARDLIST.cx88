@@ -68,3 +68,4 @@
  67 -> Kworld PlusTV HD PCI 120 (ATSC 120)                 [17de:08c1]
  68 -> Hauppauge WinTV-HVR4000 DVB-S/S2/T/Hybrid           [0070:6900,0070:6904,0070:6902]
  69 -> Hauppauge WinTV-HVR4000(Lite) DVB-S/S2              [0070:6905,0070:6906]
+ 70 -> TeVii S460 DVB-S/S2                                 [D460:9022]

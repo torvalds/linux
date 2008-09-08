@@ -1290,7 +1290,7 @@ int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp,
 	case TV_SET_VOLTAGE:
 		fe->tv_property_cache.voltage = tvp->u.data;
 		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_VOLTAGE,
-			&fe->tv_property_cache.voltage);
+			(void *)fe->tv_property_cache.voltage);
 		break;
 	case TV_GET_VOLTAGE:
 		tvp->u.data = fe->tv_property_cache.voltage;
