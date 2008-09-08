@@ -1174,8 +1174,6 @@ static irqreturn_t smc911x_interrupt(int irq, void *dev_id)
 
 	spin_unlock_irqrestore(&lp->lock, flags);
 
-	DBG(3, "%s: Interrupt done (%d loops)\n", dev->name, 8-timeout);
-
 	return IRQ_HANDLED;
 }
 
