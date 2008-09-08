@@ -232,11 +232,12 @@ void b43_set_txpower_g(struct b43_wldev *dev,
 	if (unlikely(tx_bias == 0xFF))
 		tx_bias = 0;
 
-	/* Save the values for later */
+	/* Save the values for later. Use memmove, because it's valid
+	 * to pass &gphy->rfatt as rfatt pointer argument. Same for bbatt. */
 	gphy->tx_control = tx_control;
-	memcpy(&gphy->rfatt, rfatt, sizeof(*rfatt));
+	memmove(&gphy->rfatt, rfatt, sizeof(*rfatt));
 	gphy->rfatt.with_padmix = !!(tx_control & B43_TXCTL_TXMIX);
-	memcpy(&gphy->bbatt, bbatt, sizeof(*bbatt));
+	memmove(&gphy->bbatt, bbatt, sizeof(*bbatt));
 
 	if (b43_debug(dev, B43_DBG_XMITPOWER)) {
 		b43dbg(dev->wl, "Tuning TX-power to bbatt(%u), "
@@ -2634,7 +2635,7 @@ static int b43_gphy_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_g *gphy;
 	struct b43_txpower_lo_control *lo;
-	int err, i;
+	int err;
 
 	gphy = kzalloc(sizeof(*gphy), GFP_KERNEL);
 	if (!gphy) {
@@ -2642,6 +2643,51 @@ static int b43_gphy_op_allocate(struct b43_wldev *dev)
 		goto error;
 	}
 	dev->phy.g = gphy;
+
+	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
+	if (!lo) {
+		err = -ENOMEM;
+		goto err_free_gphy;
+	}
+	gphy->lo_control = lo;
+
+	err = b43_gphy_init_tssi2dbm_table(dev);
+	if (err)
+		goto err_free_lo;
+
+	return 0;
+
+err_free_lo:
+	kfree(lo);
+err_free_gphy:
+	kfree(gphy);
+error:
+	return err;
+}
+
+static void b43_gphy_op_prepare_structs(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
+	const void *tssi2dbm;
+	int tgt_idle_tssi;
+	struct b43_txpower_lo_control *lo;
+	unsigned int i;
+
+	/* tssi2dbm table is constant, so it is initialized at alloc time.
+	 * Save a copy of the pointer. */
+	tssi2dbm = gphy->tssi2dbm;
+	tgt_idle_tssi = gphy->tgt_idle_tssi;
+	/* Save the LO pointer. */
+	lo = gphy->lo_control;
+
+	/* Zero out the whole PHY structure. */
+	memset(gphy, 0, sizeof(*gphy));
+
+	/* Restore pointers. */
+	gphy->tssi2dbm = tssi2dbm;
+	gphy->tgt_idle_tssi = tgt_idle_tssi;
+	gphy->lo_control = lo;
 
 	memset(gphy->minlowsig, 0xFF, sizeof(gphy->minlowsig));
 
@@ -2661,31 +2707,28 @@ static int b43_gphy_op_allocate(struct b43_wldev *dev)
 
 	gphy->average_tssi = 0xFF;
 
-	lo = kzalloc(sizeof(*lo), GFP_KERNEL);
-	if (!lo) {
-		err = -ENOMEM;
-		goto err_free_gphy;
-	}
-	gphy->lo_control = lo;
-
+	/* Local Osciallator structure */
 	lo->tx_bias = 0xFF;
 	INIT_LIST_HEAD(&lo->calib_list);
-
-	err = b43_gphy_init_tssi2dbm_table(dev);
-	if (err)
-		goto err_free_lo;
-
-	return 0;
-
-err_free_lo:
-	kfree(lo);
-err_free_gphy:
-	kfree(gphy);
-error:
-	return err;
 }
 
-static int b43_gphy_op_prepare(struct b43_wldev *dev)
+static void b43_gphy_op_free(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_g *gphy = phy->g;
+
+	kfree(gphy->lo_control);
+
+	if (gphy->dyn_tssi_tbl)
+		kfree(gphy->tssi2dbm);
+	gphy->dyn_tssi_tbl = 0;
+	gphy->tssi2dbm = NULL;
+
+	kfree(gphy);
+	dev->phy.g = NULL;
+}
+
+static int b43_gphy_op_prepare_hardware(struct b43_wldev *dev)
 {
 	struct b43_phy *phy = &dev->phy;
 	struct b43_phy_g *gphy = phy->g;
@@ -2717,28 +2760,14 @@ static int b43_gphy_op_prepare(struct b43_wldev *dev)
 
 static int b43_gphy_op_init(struct b43_wldev *dev)
 {
-	struct b43_phy_g *gphy = dev->phy.g;
-
 	b43_phy_initg(dev);
-	gphy->initialised = 1;
 
 	return 0;
 }
 
 static void b43_gphy_op_exit(struct b43_wldev *dev)
 {
-	struct b43_phy_g *gphy = dev->phy.g;
-
-	if (gphy->initialised) {
-		//TODO
-		gphy->initialised = 0;
-	}
 	b43_lo_g_cleanup(dev);
-	kfree(gphy->lo_control);
-	if (gphy->dyn_tssi_tbl)
-		kfree(gphy->tssi2dbm);
-	kfree(gphy);
-	dev->phy.g = NULL;
 }
 
 static u16 b43_gphy_op_read(struct b43_wldev *dev, u16 reg)
@@ -3231,7 +3260,9 @@ static void b43_gphy_op_pwork_60sec(struct b43_wldev *dev)
 
 const struct b43_phy_operations b43_phyops_g = {
 	.allocate		= b43_gphy_op_allocate,
-	.prepare		= b43_gphy_op_prepare,
+	.free			= b43_gphy_op_free,
+	.prepare_structs	= b43_gphy_op_prepare_structs,
+	.prepare_hardware	= b43_gphy_op_prepare_hardware,
 	.init			= b43_gphy_op_init,
 	.exit			= b43_gphy_op_exit,
 	.phy_read		= b43_gphy_op_read,
@@ -3240,6 +3271,7 @@ const struct b43_phy_operations b43_phyops_g = {
 	.radio_write		= b43_gphy_op_radio_write,
 	.supports_hwpctl	= b43_gphy_op_supports_hwpctl,
 	.software_rfkill	= b43_gphy_op_software_rfkill,
+	.switch_analog		= b43_phyop_switch_analog_generic,
 	.switch_channel		= b43_gphy_op_switch_channel,
 	.get_default_chan	= b43_gphy_op_get_default_chan,
 	.set_rx_antenna		= b43_gphy_op_set_rx_antenna,

@@ -773,7 +773,7 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 EXPORT_SYMBOL(iwl_set_rxon_chain);
 
 /**
- * iwlcore_set_rxon_channel - Set the phymode and channel values in staging RXON
+ * iwl_set_rxon_channel - Set the phymode and channel values in staging RXON
  * @phymode: MODE_IEEE80211A sets to 5.2GHz; all else set to 2.4GHz
  * @channel: Any channel valid for the requested phymode
 
@@ -782,10 +782,11 @@ EXPORT_SYMBOL(iwl_set_rxon_chain);
  * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the phymode
  */
-int iwl_set_rxon_channel(struct iwl_priv *priv,
-				enum ieee80211_band band,
-				u16 channel)
+int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch)
 {
+	enum ieee80211_band band = ch->band;
+	u16 channel = ieee80211_frequency_to_channel(ch->center_freq);
+
 	if (!iwl_get_channel_info(priv, band, channel)) {
 		IWL_DEBUG_INFO("Could not set channel to %d [%d]\n",
 			       channel, band);
@@ -819,6 +820,10 @@ int iwl_setup_mac(struct iwl_priv *priv)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM;
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 	/* queues to support 11n aggregation */
@@ -906,8 +911,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
 
-	iwl_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
-
 	priv->rates_mask = IWL_RATES_MASK;
 	/* If power management is turned on, default to AC mode */
 	priv->power_mode = IWL_POWER_AC;
@@ -933,22 +936,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL(iwl_init_drv);
-
-void iwl_free_calib_results(struct iwl_priv *priv)
-{
-	kfree(priv->calib_results.lo_res);
-	priv->calib_results.lo_res = NULL;
-	priv->calib_results.lo_res_len = 0;
-
-	kfree(priv->calib_results.tx_iq_res);
-	priv->calib_results.tx_iq_res = NULL;
-	priv->calib_results.tx_iq_res_len = 0;
-
-	kfree(priv->calib_results.tx_iq_perd_res);
-	priv->calib_results.tx_iq_perd_res = NULL;
-	priv->calib_results.tx_iq_perd_res_len = 0;
-}
-EXPORT_SYMBOL(iwl_free_calib_results);
 
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
@@ -977,10 +964,9 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 }
 EXPORT_SYMBOL(iwl_set_tx_power);
 
-
 void iwl_uninit_drv(struct iwl_priv *priv)
 {
-	iwl_free_calib_results(priv);
+	iwl_calib_free_results(priv);
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
 	kfree(priv->scan);

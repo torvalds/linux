@@ -185,6 +185,9 @@ struct wiphy {
 	/* permanent MAC address */
 	u8 perm_addr[ETH_ALEN];
 
+	/* Supported interface modes, OR together BIT(NL80211_IFTYPE_...) */
+	u16 interface_modes;
+
 	/* If multiple wiphys are registered and you're handed e.g.
 	 * a regular netdev with assigned ieee80211_ptr, you won't
 	 * know whether it points to a wiphy your driver has registered

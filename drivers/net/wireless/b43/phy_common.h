@@ -74,11 +74,21 @@ enum b43_txpwr_result {
 /**
  * struct b43_phy_operations - Function pointers for PHY ops.
  *
- * @prepare:		Prepare the PHY. This is called before @init.
+ * @allocate:		Allocate and initialise the PHY data structures.
+ * 			Must not be NULL.
+ * @free:		Destroy and free the PHY data structures.
+ * 			Must not be NULL.
+ *
+ * @prepare_structs:	Prepare the PHY data structures.
+ * 			The data structures allocated in @allocate are
+ * 			initialized here.
+ * 			Must not be NULL.
+ * @prepare_hardware:	Prepare the PHY. This is called before b43_chip_init to
+ * 			do some early early PHY hardware init.
  * 			Can be NULL, if not required.
  * @init:		Initialize the PHY.
  * 			Must not be NULL.
- * @exit:		Shutdown the PHY and free all data structures.
+ * @exit:		Shutdown the PHY.
  * 			Can be NULL, if not required.
  *
  * @phy_read:		Read from a PHY register.
@@ -97,6 +107,8 @@ enum b43_txpwr_result {
  * 			Possible state values are
  * 			RFKILL_STATE_SOFT_BLOCKED or
  * 			RFKILL_STATE_UNBLOCKED
+ * 			Must not be NULL.
+ * @switch_analog:	Turn the Analog on/off.
  * 			Must not be NULL.
  * @switch_channel:	Switch the radio to another channel.
  * 			Must not be NULL.
@@ -133,7 +145,9 @@ enum b43_txpwr_result {
 struct b43_phy_operations {
 	/* Initialisation */
 	int (*allocate)(struct b43_wldev *dev);
-	int (*prepare)(struct b43_wldev *dev);
+	void (*free)(struct b43_wldev *dev);
+	void (*prepare_structs)(struct b43_wldev *dev);
+	int (*prepare_hardware)(struct b43_wldev *dev);
 	int (*init)(struct b43_wldev *dev);
 	void (*exit)(struct b43_wldev *dev);
 
@@ -146,6 +160,7 @@ struct b43_phy_operations {
 	/* Radio */
 	bool (*supports_hwpctl)(struct b43_wldev *dev);
 	void (*software_rfkill)(struct b43_wldev *dev, enum rfkill_state state);
+	void (*switch_analog)(struct b43_wldev *dev, bool on);
 	int (*switch_channel)(struct b43_wldev *dev, unsigned int new_channel);
 	unsigned int (*get_default_chan)(struct b43_wldev *dev);
 	void (*set_rx_antenna)(struct b43_wldev *dev, int antenna);
@@ -165,6 +180,7 @@ struct b43_phy_operations {
 struct b43_phy_a;
 struct b43_phy_g;
 struct b43_phy_n;
+struct b43_phy_lp;
 
 struct b43_phy {
 	/* Hardware operation callbacks. */
@@ -185,6 +201,8 @@ struct b43_phy {
 		struct b43_phy_g *g;
 		/* N-PHY specific information */
 		struct b43_phy_n *n;
+		/* LP-PHY specific information */
+		struct b43_phy_lp *lp;
 	};
 
 	/* Band support flags. */
@@ -234,10 +252,15 @@ struct b43_phy {
 
 
 /**
- * b43_phy_operations_setup - Initialize the PHY operations datastructure
- * based on the current PHY type.
+ * b43_phy_allocate - Allocate PHY structs
+ * Allocate the PHY data structures, based on the current dev->phy.type
  */
-int b43_phy_operations_setup(struct b43_wldev *dev);
+int b43_phy_allocate(struct b43_wldev *dev);
+
+/**
+ * b43_phy_free - Free PHY structs
+ */
+void b43_phy_free(struct b43_wldev *dev);
 
 /**
  * b43_phy_init - Initialise the PHY
@@ -376,6 +399,15 @@ void b43_phy_txpower_adjust_work(struct work_struct *work);
  * Returns the average of the 4 TSSI values, or a negative error code.
  */
 int b43_phy_shm_tssi_read(struct b43_wldev *dev, u16 shm_offset);
+
+/**
+ * b43_phy_switch_analog_generic - Generic PHY operation for switching the Analog.
+ *
+ * It does the switching based on the PHY0 core register.
+ * Do _not_ call this directly. Only use it as a switch_analog callback
+ * for struct b43_phy_operations.
+ */
+void b43_phyop_switch_analog_generic(struct b43_wldev *dev, bool on);
 
 
 #endif /* LINUX_B43_PHY_COMMON_H_ */

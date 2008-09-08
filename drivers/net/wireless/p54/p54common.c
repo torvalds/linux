@@ -66,8 +66,7 @@ static struct ieee80211_supported_band band_2GHz = {
 	.n_bitrates = ARRAY_SIZE(p54_rates),
 };
 
-
-void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
+int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 {
 	struct p54_common *priv = dev->priv;
 	struct bootrec_exp_if *exp_if;
@@ -79,7 +78,7 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 	int i;
 
 	if (priv->rx_start)
-		return;
+		return 0;
 
 	while (data < end_data && *data)
 		data++;
@@ -94,7 +93,8 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		u32 code = le32_to_cpu(bootrec->code);
 		switch (code) {
 		case BR_CODE_COMPONENT_ID:
-			switch (be32_to_cpu(*(__be32 *)bootrec->data)) {
+			priv->fw_interface = be32_to_cpup(bootrec->data);
+			switch (priv->fw_interface) {
 			case FW_FMAC:
 				printk(KERN_INFO "p54: FreeMAC firmware\n");
 				break;
@@ -105,7 +105,7 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 				printk(KERN_INFO "p54: LM86 firmware\n");
 				break;
 			case FW_LM87:
-				printk(KERN_INFO "p54: LM87 firmware - not supported yet!\n");
+				printk(KERN_INFO "p54: LM87 firmware\n");
 				break;
 			default:
 				printk(KERN_INFO "p54: unknown firmware\n");
@@ -117,11 +117,22 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 			if (strnlen((unsigned char*)bootrec->data, 24) < 24)
 				fw_version = (unsigned char*)bootrec->data;
 			break;
-		case BR_CODE_DESCR:
-			priv->rx_start = le32_to_cpu(((__le32 *)bootrec->data)[1]);
+		case BR_CODE_DESCR: {
+			struct bootrec_desc *desc =
+				(struct bootrec_desc *)bootrec->data;
+			priv->rx_start = le32_to_cpu(desc->rx_start);
 			/* FIXME add sanity checking */
-			priv->rx_end = le32_to_cpu(((__le32 *)bootrec->data)[2]) - 0x3500;
+			priv->rx_end = le32_to_cpu(desc->rx_end) - 0x3500;
+			priv->headroom = desc->headroom;
+			priv->tailroom = desc->tailroom;
+			if (bootrec->len == 11)
+				priv->rx_mtu = (size_t) le16_to_cpu(
+					(__le16)bootrec->data[10]);
+			else
+				priv->rx_mtu = (size_t)
+					0x620 - priv->tx_hdr_len;
 			break;
+			}
 		case BR_CODE_EXPOSED_IF:
 			exp_if = (struct bootrec_exp_if *) bootrec->data;
 			for (i = 0; i < (len * sizeof(*exp_if) / 4); i++)
@@ -152,6 +163,8 @@ void p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
 		priv->tx_stats[7].limit = 1;
 		dev->queues = 4;
 	}
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(p54_parse_firmware);
 
@@ -237,6 +250,9 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 	return 0;
 }
 
+const char* p54_rf_chips[] = { "NULL", "Indigo?", "Duette",
+                              "Frisbee", "Xbow", "Longbow" };
+
 int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
 	struct p54_common *priv = dev->priv;
@@ -246,6 +262,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	void *tmp;
 	int err;
 	u8 *end = (u8 *)eeprom + len;
+	DECLARE_MAC_BUF(mac);
 
 	wrap = (struct eeprom_pda_wrap *) eeprom;
 	entry = (void *)wrap->data + le16_to_cpu(wrap->len);
@@ -327,7 +344,7 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 			while ((u8 *)tmp < entry->data + data_len) {
 				struct bootrec_exp_if *exp_if = tmp;
 				if (le16_to_cpu(exp_if->if_id) == 0xF)
-					priv->rxhw = exp_if->variant & cpu_to_le16(0x07);
+					priv->rxhw = le16_to_cpu(exp_if->variant) & 0x07;
 				tmp += sizeof(struct bootrec_exp_if);
 			}
 			break;
@@ -353,6 +370,37 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 		goto err;
 	}
 
+	switch (priv->rxhw) {
+		case 4: /* XBow */
+		case 1: /* Indigo? */
+		case 2: /* Duette */
+			/* TODO: 5GHz initialization goes here */
+
+		case 3: /* Frisbee */
+		case 5: /* Longbow */
+			dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
+			break;
+		default:
+			printk(KERN_ERR "%s: unsupported RF-Chip\n",
+				wiphy_name(dev->wiphy));
+			err = -EINVAL;
+			goto err;
+	}
+
+	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
+		u8 perm_addr[ETH_ALEN];
+
+		printk(KERN_WARNING "%s: Invalid hwaddr! Using randomly generated MAC addr\n",
+			wiphy_name(dev->wiphy));
+		random_ether_addr(perm_addr);
+		SET_IEEE80211_PERM_ADDR(dev, perm_addr);
+	}
+
+	printk(KERN_INFO "%s: hwaddr %s, MAC:isl38%02x RF:%s\n",
+		wiphy_name(dev->wiphy),
+		print_mac(mac, dev->wiphy->perm_addr),
+		priv->version, p54_rf_chips[priv->rxhw]);
+
 	return 0;
 
   err:
@@ -376,25 +424,12 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 }
 EXPORT_SYMBOL_GPL(p54_parse_eeprom);
 
-void p54_fill_eeprom_readback(struct p54_control_hdr *hdr)
-{
-	struct p54_eeprom_lm86 *eeprom_hdr;
-
-	hdr->magic1 = cpu_to_le16(0x8000);
-	hdr->len = cpu_to_le16(sizeof(*eeprom_hdr) + 0x2000);
-	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_EEPROM_READBACK);
-	hdr->retry1 = hdr->retry2 = 0;
-	eeprom_hdr = (struct p54_eeprom_lm86 *) hdr->data;
-	eeprom_hdr->offset = 0x0;
-	eeprom_hdr->len = cpu_to_le16(0x2000);
-}
-EXPORT_SYMBOL_GPL(p54_fill_eeprom_readback);
-
-static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
+static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_rx_hdr *hdr = (struct p54_rx_hdr *) skb->data;
 	struct ieee80211_rx_status rx_status = {0};
 	u16 freq = le16_to_cpu(hdr->freq);
+	size_t header_len = sizeof(*hdr);
 
 	rx_status.signal = hdr->rssi;
 	/* XX correct? */
@@ -406,10 +441,15 @@ static void p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 	rx_status.mactime = le64_to_cpu(hdr->timestamp);
 	rx_status.flag |= RX_FLAG_TSFT;
 
-	skb_pull(skb, sizeof(*hdr));
+	if (hdr->magic & cpu_to_le16(0x4000))
+		header_len += hdr->align[0];
+
+	skb_pull(skb, header_len);
 	skb_trim(skb, le16_to_cpu(hdr->len));
 
 	ieee80211_rx_irqsafe(dev, skb, &rx_status);
+
+	return -1;
 }
 
 static void inline p54_wake_free_queues(struct ieee80211_hw *dev)
@@ -428,7 +468,7 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
 	struct p54_frame_sent_hdr *payload = (struct p54_frame_sent_hdr *) hdr->data;
 	struct sk_buff *entry = (struct sk_buff *) priv->tx_queue.next;
-	u32 addr = le32_to_cpu(hdr->req_id) - 0x70;
+	u32 addr = le32_to_cpu(hdr->req_id) - priv->headroom;
 	struct memrecord *range = NULL;
 	u32 freed = 0;
 	u32 last_addr = priv->rx_start;
@@ -487,7 +527,22 @@ out:
 		p54_wake_free_queues(dev);
 }
 
-static void p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
+static void p54_rx_eeprom_readback(struct ieee80211_hw *dev,
+				   struct sk_buff *skb)
+{
+	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
+	struct p54_eeprom_lm86 *eeprom = (struct p54_eeprom_lm86 *) hdr->data;
+	struct p54_common *priv = dev->priv;
+
+	if (!priv->eeprom)
+		return ;
+
+	memcpy(priv->eeprom, eeprom->data, eeprom->len);
+
+	complete(&priv->eeprom_comp);
+}
+
+static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
 
@@ -497,36 +552,27 @@ static void p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 		break;
 	case P54_CONTROL_TYPE_BBP:
 		break;
+	case P54_CONTROL_TYPE_EEPROM_READBACK:
+		p54_rx_eeprom_readback(dev, skb);
+		break;
 	default:
 		printk(KERN_DEBUG "%s: not handling 0x%02x type control frame\n",
 		       wiphy_name(dev->wiphy), le16_to_cpu(hdr->type));
 		break;
 	}
+
+	return 0;
 }
 
 /* returns zero if skb can be reused */
 int p54_rx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	u8 type = le16_to_cpu(*((__le16 *)skb->data)) >> 8;
-	switch (type) {
-	case 0x00:
-	case 0x01:
-		p54_rx_data(dev, skb);
-		return -1;
-	case 0x4d:
-		/* TODO: do something better... but then again, I've never seen this happen */
-		printk(KERN_ERR "%s: Received fault. Probably need to restart hardware now..\n",
-		       wiphy_name(dev->wiphy));
-		break;
-	case 0x80:
-		p54_rx_control(dev, skb);
-		break;
-	default:
-		printk(KERN_ERR "%s: unknown frame RXed (0x%02x)\n",
-		       wiphy_name(dev->wiphy), type);
-		break;
-	}
-	return 0;
+
+	if (type == 0x80)
+		return p54_rx_control(dev, skb);
+	else
+		return p54_rx_data(dev, skb);
 }
 EXPORT_SYMBOL_GPL(p54_rx);
 
@@ -550,7 +596,7 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 	u32 target_addr = priv->rx_start;
 	unsigned long flags;
 	unsigned int left;
-	len = (len + 0x170 + 3) & ~0x3; /* 0x70 headroom, 0x100 tailroom */
+	len = (len + priv->headroom + priv->tailroom + 3) & ~0x3;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
 	left = skb_queue_len(&priv->tx_queue);
@@ -585,14 +631,73 @@ static void p54_assign_address(struct ieee80211_hw *dev, struct sk_buff *skb,
 		range->start_addr = target_addr;
 		range->end_addr = target_addr + len;
 		__skb_queue_after(&priv->tx_queue, target_skb, skb);
-		if (largest_hole < IEEE80211_MAX_RTS_THRESHOLD + 0x170 +
+		if (largest_hole < priv->rx_mtu + priv->headroom +
+				   priv->tailroom +
 				   sizeof(struct p54_control_hdr))
 			ieee80211_stop_queues(dev);
 	}
 	spin_unlock_irqrestore(&priv->tx_queue.lock, flags);
 
-	data->req_id = cpu_to_le32(target_addr + 0x70);
+	data->req_id = cpu_to_le32(target_addr + priv->headroom);
 }
+
+int p54_read_eeprom(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	struct p54_control_hdr *hdr = NULL;
+	struct p54_eeprom_lm86 *eeprom_hdr;
+	size_t eeprom_size = 0x2020, offset = 0, blocksize;
+	int ret = -ENOMEM;
+	void *eeprom = NULL;
+
+	hdr = (struct p54_control_hdr *)kzalloc(sizeof(*hdr) +
+		sizeof(*eeprom_hdr) + EEPROM_READBACK_LEN, GFP_KERNEL);
+	if (!hdr)
+		goto free;
+
+	priv->eeprom = kzalloc(EEPROM_READBACK_LEN, GFP_KERNEL);
+	if (!priv->eeprom)
+		goto free;
+
+	eeprom = kzalloc(eeprom_size, GFP_KERNEL);
+	if (!eeprom)
+		goto free;
+
+	hdr->magic1 = cpu_to_le16(0x8000);
+	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_EEPROM_READBACK);
+	hdr->retry1 = hdr->retry2 = 0;
+	eeprom_hdr = (struct p54_eeprom_lm86 *) hdr->data;
+
+	while (eeprom_size) {
+		blocksize = min(eeprom_size, (size_t)EEPROM_READBACK_LEN);
+		hdr->len = cpu_to_le16(blocksize + sizeof(*eeprom_hdr));
+		eeprom_hdr->offset = cpu_to_le16(offset);
+		eeprom_hdr->len = cpu_to_le16(blocksize);
+		p54_assign_address(dev, NULL, hdr, hdr->len + sizeof(*hdr));
+	        priv->tx(dev, hdr, hdr->len + sizeof(*hdr), 0);
+
+		if (!wait_for_completion_interruptible_timeout(&priv->eeprom_comp, HZ)) {
+			printk(KERN_ERR "%s: device does not respond!\n",
+				wiphy_name(dev->wiphy));
+			ret = -EBUSY;
+			goto free;
+	        }
+
+		memcpy(eeprom + offset, priv->eeprom, blocksize);
+		offset += blocksize;
+		eeprom_size -= blocksize;
+	}
+
+	ret = p54_parse_eeprom(dev, eeprom, offset);
+free:
+	kfree(priv->eeprom);
+	priv->eeprom = NULL;
+	kfree(hdr);
+	kfree(eeprom);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(p54_read_eeprom);
 
 static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
@@ -675,12 +780,12 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 }
 
 static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
-			  const u8 *dst, const u8 *src, u8 antenna,
-			  u32 magic3, u32 magic8, u32 magic9)
+			  const u8 *bssid)
 {
 	struct p54_common *priv = dev->priv;
 	struct p54_control_hdr *hdr;
 	struct p54_tx_control_filter *filter;
+	size_t data_len;
 
 	hdr = kzalloc(sizeof(*hdr) + sizeof(*filter) +
 		      priv->tx_hdr_len, GFP_ATOMIC);
@@ -691,25 +796,35 @@ static int p54_set_filter(struct ieee80211_hw *dev, u16 filter_type,
 
 	filter = (struct p54_tx_control_filter *) hdr->data;
 	hdr->magic1 = cpu_to_le16(0x8001);
-	hdr->len = cpu_to_le16(sizeof(*filter));
-	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*filter));
 	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_FILTER_SET);
 
-	filter->filter_type = cpu_to_le16(filter_type);
-	memcpy(filter->dst, dst, ETH_ALEN);
-	if (!src)
-		memset(filter->src, ~0, ETH_ALEN);
+	priv->filter_type = filter->filter_type = cpu_to_le16(filter_type);
+	memcpy(filter->mac_addr, priv->mac_addr, ETH_ALEN);
+	if (!bssid)
+		memset(filter->bssid, ~0, ETH_ALEN);
 	else
-		memcpy(filter->src, src, ETH_ALEN);
-	filter->antenna = antenna;
-	filter->magic3 = cpu_to_le32(magic3);
-	filter->rx_addr = cpu_to_le32(priv->rx_end);
-	filter->max_rx = cpu_to_le16(0x0620);	/* FIXME: for usb ver 1.. maybe */
-	filter->rxhw = priv->rxhw;
-	filter->magic8 = cpu_to_le16(magic8);
-	filter->magic9 = cpu_to_le16(magic9);
+		memcpy(filter->bssid, bssid, ETH_ALEN);
 
-	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*filter), 1);
+	filter->rx_antenna = priv->rx_antenna;
+
+	if (priv->fw_var < 0x500) {
+		data_len = P54_TX_CONTROL_FILTER_V1_LEN;
+		filter->v1.basic_rate_mask = cpu_to_le32(0x15F);
+		filter->v1.rx_addr = cpu_to_le32(priv->rx_end);
+		filter->v1.max_rx = cpu_to_le16(priv->rx_mtu);
+		filter->v1.rxhw = cpu_to_le16(priv->rxhw);
+		filter->v1.wakeup_timer = cpu_to_le16(500);
+	} else {
+		data_len = P54_TX_CONTROL_FILTER_V2_LEN;
+		filter->v2.rx_addr = cpu_to_le32(priv->rx_end);
+		filter->v2.max_rx = cpu_to_le16(priv->rx_mtu);
+		filter->v2.rxhw = cpu_to_le16(priv->rxhw);
+		filter->v2.timer = cpu_to_le16(1000);
+	}
+
+	hdr->len = cpu_to_le16(data_len);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + data_len);
+	priv->tx(dev, hdr, sizeof(*hdr) + data_len, 1);
 	return 0;
 }
 
@@ -719,6 +834,7 @@ static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
 	struct p54_control_hdr *hdr;
 	struct p54_tx_control_channel *chan;
 	unsigned int i;
+	size_t data_len;
 	void *entry;
 
 	hdr = kzalloc(sizeof(*hdr) + sizeof(*chan) +
@@ -731,9 +847,8 @@ static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
 	chan = (struct p54_tx_control_channel *) hdr->data;
 
 	hdr->magic1 = cpu_to_le16(0x8001);
-	hdr->len = cpu_to_le16(sizeof(*chan));
+
 	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_CHANNEL_CHANGE);
-	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*chan));
 
 	chan->flags = cpu_to_le16(0x1);
 	chan->dwell = cpu_to_le16(0x0);
@@ -785,10 +900,20 @@ static int p54_set_freq(struct ieee80211_hw *dev, __le16 freq)
 		break;
 	}
 
-	chan->rssical_mul = cpu_to_le16(130);
-	chan->rssical_add = cpu_to_le16(0xfe70);	/* -400 */
+	if (priv->fw_var < 0x500) {
+		data_len = P54_TX_CONTROL_CHANNEL_V1_LEN;
+		chan->v1.rssical_mul = cpu_to_le16(130);
+		chan->v1.rssical_add = cpu_to_le16(0xfe70);
+	} else {
+		data_len = P54_TX_CONTROL_CHANNEL_V2_LEN;
+		chan->v2.rssical_mul = cpu_to_le16(130);
+		chan->v2.rssical_add = cpu_to_le16(0xfe70);
+		chan->v2.basic_rate_mask = cpu_to_le32(0x15f);
+	}
 
-	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*chan), 1);
+	hdr->len = cpu_to_le16(data_len);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + data_len);
+	priv->tx(dev, hdr, sizeof(*hdr) + data_len, 1);
 	return 0;
 
  err:
@@ -933,12 +1058,11 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 
 	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
 
-	p54_set_filter(dev, 0, priv->mac_addr, NULL, 0, 1, 0, 0xF642);
-	p54_set_filter(dev, 0, priv->mac_addr, NULL, 1, 0, 0, 0xF642);
+	p54_set_filter(dev, 0, NULL);
 
 	switch (conf->type) {
 	case IEEE80211_IF_TYPE_STA:
-		p54_set_filter(dev, 1, priv->mac_addr, NULL, 0, 0x15F, 0x1F4, 0);
+		p54_set_filter(dev, 1, NULL);
 		break;
 	default:
 		BUG();	/* impossible */
@@ -956,7 +1080,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_MNTR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
-	p54_set_filter(dev, 0, priv->mac_addr, NULL, 2, 0, 0, 0);
+	p54_set_filter(dev, 0, NULL);
 }
 
 static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
@@ -965,6 +1089,8 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
+	priv->rx_antenna = (conf->antenna_sel_rx == 0) ?
+		2 : conf->antenna_sel_tx - 1;
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
 	mutex_unlock(&priv->conf_mutex);
@@ -978,8 +1104,7 @@ static int p54_config_interface(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	mutex_lock(&priv->conf_mutex);
-	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 0, 1, 0, 0xF642);
-	p54_set_filter(dev, 0, priv->mac_addr, conf->bssid, 2, 0, 0, 0);
+	p54_set_filter(dev, 0, conf->bssid);
 	p54_set_leds(dev, 1, !is_multicast_ether_addr(conf->bssid), 0);
 	memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 	mutex_unlock(&priv->conf_mutex);
@@ -997,11 +1122,9 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			p54_set_filter(dev, 0, priv->mac_addr,
-				       NULL, 2, 0, 0, 0);
+			p54_set_filter(dev, 0, NULL);
 		else
-			p54_set_filter(dev, 0, priv->mac_addr,
-				       priv->bssid, 2, 0, 0, 0);
+			p54_set_filter(dev, 0, priv->bssid);
 	}
 }
 
@@ -1068,10 +1191,12 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv = dev->priv;
 	priv->mode = IEEE80211_IF_TYPE_INVALID;
 	skb_queue_head_init(&priv->tx_queue);
-	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
 		     IEEE80211_HW_RX_INCLUDES_FCS |
 		     IEEE80211_HW_SIGNAL_UNSPEC;
+
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
 	dev->max_signal = 127;
 
@@ -1081,11 +1206,11 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv->tx_stats[3].limit = 1;
 	priv->tx_stats[4].limit = 5;
 	dev->queues = 1;
-
 	dev->extra_tx_headroom = sizeof(struct p54_control_hdr) + 4 +
 				 sizeof(struct p54_tx_control_allocdata);
 
 	mutex_init(&priv->conf_mutex);
+	init_completion(&priv->eeprom_comp);
 
 	return dev;
 }

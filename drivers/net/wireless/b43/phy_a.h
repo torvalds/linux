@@ -103,7 +103,13 @@ void b43_ofdmtab_write32(struct b43_wldev *dev, u16 table,
 
 
 struct b43_phy_a {
-	bool initialised;
+	/* Pointer to the table used to convert a
+	 * TSSI value to dBm-Q5.2 */
+	const s8 *tssi2dbm;
+	/* Target idle TSSI */
+	int tgt_idle_tssi;
+	/* Current idle TSSI */
+	int cur_idle_tssi;//FIXME value currently not set
 
 	/* A-PHY TX Power control value. */
 	u16 txpwr_offset;

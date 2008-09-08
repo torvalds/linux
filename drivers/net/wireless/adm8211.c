@@ -1884,6 +1884,7 @@ static int __devinit adm8211_probe(struct pci_dev *pdev,
 	dev->extra_tx_headroom = sizeof(struct adm8211_tx_hdr);
 	/* dev->flags = IEEE80211_HW_RX_INCLUDES_FCS in promisc mode */
 	dev->flags = IEEE80211_HW_SIGNAL_UNSPEC;
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	dev->channel_change_time = 1000;
 	dev->max_signal = 100;    /* FIXME: find better value */

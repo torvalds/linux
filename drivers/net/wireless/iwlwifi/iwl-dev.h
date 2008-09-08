@@ -225,12 +225,6 @@ struct iwl_frame {
 	struct list_head list;
 };
 
-#define SEQ_TO_QUEUE(x)  ((x >> 8) & 0xbf)
-#define QUEUE_TO_SEQ(x)  ((x & 0xbf) << 8)
-#define SEQ_TO_INDEX(x) ((u8)(x & 0xff))
-#define INDEX_TO_SEQ(x) ((u8)(x & 0xff))
-#define SEQ_HUGE_FRAME  (0x4000)
-#define SEQ_RX_FRAME    __constant_cpu_to_le16(0x8000)
 #define SEQ_TO_SN(seq) (((seq) & IEEE80211_SCTL_SEQ) >> 4)
 #define SN_TO_SEQ(ssn) (((ssn) << 4) & IEEE80211_SCTL_SEQ)
 #define MAX_SN ((IEEE80211_SCTL_SEQ) >> 4)
@@ -637,12 +631,6 @@ static inline u8 get_cmd_index(struct iwl_queue *q, u32 index, int is_huge)
 
 struct iwl_priv;
 
-/*
- * Forward declare iwl-4965.c functions for iwl-base.c
- */
-extern void iwl4965_rf_kill_ct_config(struct iwl_priv *priv);
-int iwl4965_check_empty_hw_queue(struct iwl_priv *priv, int sta_id,
-					u8 tid, int txq_id);
 
 /* Structures, enum, and defines specific to the 4965 */
 
@@ -734,13 +722,10 @@ struct statistics_general_data {
 	u32 beacon_energy_c;
 };
 
-struct iwl_calib_results {
-	void *tx_iq_res;
-	void *tx_iq_perd_res;
-	void *lo_res;
-	u32 tx_iq_res_len;
-	u32 tx_iq_perd_res_len;
-	u32 lo_res_len;
+/* Opaque calibration results */
+struct iwl_calib_result {
+	void *buf;
+	size_t buf_len;
 };
 
 enum ucode_type {
@@ -802,6 +787,7 @@ enum {
 
 
 #define IWL_MAX_NUM_QUEUES	20 /* FIXME: do dynamic allocation */
+#define IWL_CALIB_MAX  3
 
 struct iwl_priv {
 
@@ -845,7 +831,7 @@ struct iwl_priv {
 	s32 last_temperature;
 
 	/* init calibration results */
-	struct iwl_calib_results calib_results;
+	struct iwl_calib_result calib_results[IWL_CALIB_MAX];
 
 	/* Scan related variables */
 	unsigned long last_scan_jiffies;
@@ -1032,6 +1018,7 @@ struct iwl_priv {
 
 	struct tasklet_struct irq_tasklet;
 
+	struct delayed_work set_power_save;
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;

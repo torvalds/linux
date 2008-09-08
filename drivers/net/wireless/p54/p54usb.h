@@ -72,6 +72,11 @@ struct net2280_tx_hdr {
 	u8 padding[8];
 } __attribute__((packed));
 
+struct lm87_tx_hdr {
+	__le32 device_addr;
+	__le32 chksum;
+} __attribute__((packed));
+
 /* Some flags for the isl hardware registers controlling DMA inside the
  * chip */
 #define ISL38XX_DMA_STATUS_DONE			0x00000001

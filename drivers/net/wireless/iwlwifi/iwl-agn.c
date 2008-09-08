@@ -1273,7 +1273,7 @@ int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src)
 
 	if (src == IWL_PWR_SRC_VAUX) {
 		u32 val;
-		ret = pci_read_config_dword(priv->pci_dev, PCI_POWER_SOURCE,
+		ret = pci_read_config_dword(priv->pci_dev, PCI_CFG_POWER_SOURCE,
 					    &val);
 
 		if (val & PCI_CFG_PMC_PME_FROM_D3COLD_SUPPORT)
@@ -2486,6 +2486,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	if (!priv->vif || !priv->is_open)
 		return;
 
+	iwl_power_cancel_timeout(priv);
 	iwl_scan_cancel_timeout(priv, 200);
 
 	conf = ieee80211_get_hw_conf(priv->hw);
@@ -2550,10 +2551,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		break;
 	}
 
-	/* Enable Rx differential gain and sensitivity calibrations */
-	iwl_chain_noise_reset(priv);
-	priv->start_calib = 1;
-
 	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
 		priv->assoc_station_added = 1;
 
@@ -2561,7 +2558,12 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	iwl_activate_qos(priv, 0);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl_power_update_mode(priv, 0);
+	iwl_power_enable_management(priv);
+
+	/* Enable Rx differential gain and sensitivity calibrations */
+	iwl_chain_noise_reset(priv);
+	priv->start_calib = 1;
+
 	/* we have just associated, don't start scan too early */
 	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
@@ -2720,12 +2722,6 @@ static int iwl4965_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	IWL_DEBUG_MACDUMP("enter\n");
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR) {
-		IWL_DEBUG_MAC80211("leave - monitor\n");
-		dev_kfree_skb_any(skb);
-		return 0;
-	}
-
 	IWL_DEBUG_TX("dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
 		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
@@ -2841,7 +2837,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 	)
 		priv->staging_rxon.flags = 0;
 
-	iwl_set_rxon_channel(priv, conf->channel->band, channel);
+	iwl_set_rxon_channel(priv, conf->channel);
 
 	iwl_set_flags_for_band(priv, conf->channel->band);
 
@@ -3179,9 +3175,9 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 
 }
 
-static int iwl4965_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
+static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 {
-	int rc = 0;
+	int ret;
 	unsigned long flags;
 	struct iwl_priv *priv = hw->priv;
 
@@ -3191,41 +3187,40 @@ static int iwl4965_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t len)
 	spin_lock_irqsave(&priv->lock, flags);
 
 	if (!iwl_is_ready_rf(priv)) {
-		rc = -EIO;
+		ret = -EIO;
 		IWL_DEBUG_MAC80211("leave - not ready or exit pending\n");
 		goto out_unlock;
 	}
 
 	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {	/* APs don't scan */
-		rc = -EIO;
+		ret = -EIO;
 		IWL_ERROR("ERROR: APs don't scan\n");
 		goto out_unlock;
 	}
 
 	/* we don't schedule scan within next_scan_jiffies period */
 	if (priv->next_scan_jiffies &&
-			time_after(priv->next_scan_jiffies, jiffies)) {
-		rc = -EAGAIN;
+	    time_after(priv->next_scan_jiffies, jiffies)) {
+		IWL_DEBUG_SCAN("scan rejected: within next scan period\n");
+		ret = -EAGAIN;
 		goto out_unlock;
 	}
 	/* if we just finished scan ask for delay */
-	if (priv->last_scan_jiffies && time_after(priv->last_scan_jiffies +
-				IWL_DELAY_NEXT_SCAN, jiffies)) {
-		rc = -EAGAIN;
+	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
+	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
+		IWL_DEBUG_SCAN("scan rejected: within previous scan period\n");
+		ret = -EAGAIN;
 		goto out_unlock;
 	}
-	if (len) {
-		IWL_DEBUG_SCAN("direct scan for %s [%d]\n ",
-			       iwl_escape_essid(ssid, len), (int)len);
-
+	if (ssid_len) {
 		priv->one_direct_scan = 1;
-		priv->direct_ssid_len = (u8)
-		    min((u8) len, (u8) IW_ESSID_MAX_SIZE);
+		priv->direct_ssid_len =  min_t(u8, ssid_len, IW_ESSID_MAX_SIZE);
 		memcpy(priv->direct_ssid, ssid, priv->direct_ssid_len);
-	} else
+	} else {
 		priv->one_direct_scan = 0;
+	}
 
-	rc = iwl_scan_initiate(priv);
+	ret = iwl_scan_initiate(priv);
 
 	IWL_DEBUG_MAC80211("leave\n");
 
@@ -3233,7 +3228,7 @@ out_unlock:
 	spin_unlock_irqrestore(&priv->lock, flags);
 	mutex_unlock(&priv->mutex);
 
-	return rc;
+	return ret;
 }
 
 static void iwl4965_mac_update_tkip_key(struct ieee80211_hw *hw,
@@ -3536,6 +3531,16 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	/* Per mac80211.h: This is only used in IBSS mode... */
 	if (priv->iw_mode != IEEE80211_IF_TYPE_IBSS) {
 
+		/* switch to CAM during association period.
+		 * the ucode will block any association/authentication
+		 * frome during assiciation period if it can not hear
+		 * the AP because of PM. the timer enable PM back is
+		 * association do not complete
+		 */
+		if (priv->hw->conf.channel->flags & (IEEE80211_CHAN_PASSIVE_SCAN |
+						     IEEE80211_CHAN_RADAR))
+				iwl_power_disable_management(priv, 3000);
+
 		IWL_DEBUG_MAC80211("leave - not in IBSS\n");
 		mutex_unlock(&priv->mutex);
 		return;
@@ -3620,11 +3625,11 @@ static ssize_t store_debug_level(struct device *d,
 				 const char *buf, size_t count)
 {
 	struct iwl_priv *priv = d->driver_data;
-	char *p = (char *)buf;
-	u32 val;
+	unsigned long val;
+	int ret;
 
-	val = simple_strtoul(p, &p, 0);
-	if (p == buf)
+	ret = strict_strtoul(buf, 0, &val);
+	if (ret)
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in hex or decimal form.\n", buf);
 	else
@@ -3696,11 +3701,11 @@ static ssize_t store_tx_power(struct device *d,
 			      const char *buf, size_t count)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	char *p = (char *)buf;
-	u32 val;
+	unsigned long val;
+	int ret;
 
-	val = simple_strtoul(p, &p, 10);
-	if (p == buf)
+	ret = strict_strtoul(buf, 10, &val);
+	if (ret)
 		printk(KERN_INFO DRV_NAME
 		       ": %s is not in decimal form.\n", buf);
 	else
@@ -3724,7 +3729,12 @@ static ssize_t store_flags(struct device *d,
 			   const char *buf, size_t count)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	u32 flags = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+	u32 flags;
+	int ret = strict_strtoul(buf, 0, &val);
+	if (ret)
+		return ret;
+	flags = (u32)val;
 
 	mutex_lock(&priv->mutex);
 	if (le32_to_cpu(priv->staging_rxon.flags) != flags) {
@@ -3732,8 +3742,7 @@ static ssize_t store_flags(struct device *d,
 		if (iwl_scan_cancel_timeout(priv, 100))
 			IWL_WARNING("Could not cancel scan.\n");
 		else {
-			IWL_DEBUG_INFO("Committing rxon.flags = 0x%04X\n",
-				       flags);
+			IWL_DEBUG_INFO("Commit rxon.flags = 0x%04X\n", flags);
 			priv->staging_rxon.flags = cpu_to_le32(flags);
 			iwl4965_commit_rxon(priv);
 		}
@@ -3759,7 +3768,12 @@ static ssize_t store_filter_flags(struct device *d,
 				  const char *buf, size_t count)
 {
 	struct iwl_priv *priv = (struct iwl_priv *)d->driver_data;
-	u32 filter_flags = simple_strtoul(buf, NULL, 0);
+	unsigned long val;
+	u32 filter_flags;
+	int ret = strict_strtoul(buf, 0, &val);
+	if (ret)
+		return ret;
+	filter_flags = (u32)val;
 
 	mutex_lock(&priv->mutex);
 	if (le32_to_cpu(priv->staging_rxon.filter_flags) != filter_flags) {
@@ -3860,10 +3874,12 @@ static ssize_t store_retry_rate(struct device *d,
 				const char *buf, size_t count)
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
+	long val;
+	int ret  = strict_strtol(buf, 10, &val);
+	if (!ret)
+		return ret;
 
-	priv->retry_rate = simple_strtoul(buf, NULL, 0);
-	if (priv->retry_rate <= 0)
-		priv->retry_rate = 1;
+	priv->retry_rate = (val > 0) ? val : 1;
 
 	return count;
 }
@@ -3884,15 +3900,19 @@ static ssize_t store_power_level(struct device *d,
 {
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	int ret;
-	int mode;
+	unsigned long mode;
 
-	mode = simple_strtoul(buf, NULL, 0);
+
 	mutex_lock(&priv->mutex);
 
 	if (!iwl_is_ready(priv)) {
 		ret = -EAGAIN;
 		goto out;
 	}
+
+	ret = strict_strtoul(buf, 10, &mode);
+	if (ret)
+		goto out;
 
 	ret = iwl_power_set_user_mode(priv, mode);
 	if (ret) {
@@ -4073,6 +4093,7 @@ static void iwl_setup_deferred_work(struct iwl_priv *priv)
 	/* FIXME : remove when resolved PENDING */
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	iwl_setup_scan_deferred_work(priv);
+	iwl_setup_power_deferred_work(priv);
 
 	if (priv->cfg->ops->lib->setup_deferred_work)
 		priv->cfg->ops->lib->setup_deferred_work(priv);
@@ -4092,6 +4113,7 @@ static void iwl_cancel_deferred_work(struct iwl_priv *priv)
 
 	cancel_delayed_work_sync(&priv->init_alive_start);
 	cancel_delayed_work(&priv->scan_check);
+	cancel_delayed_work_sync(&priv->set_power_save);
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
 	del_timer_sync(&priv->statistics_periodic);
@@ -4140,7 +4162,7 @@ static struct ieee80211_ops iwl4965_hw_ops = {
 	.reset_tsf = iwl4965_mac_reset_tsf,
 	.bss_info_changed = iwl4965_bss_info_changed,
 	.ampdu_action = iwl4965_mac_ampdu_action,
-	.hw_scan = iwl4965_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan
 };
 
 static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
@@ -4215,9 +4237,6 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 
 	pci_set_drvdata(pdev, priv);
 
-	/* We disable the RETRY_TIMEOUT register (0x41) to keep
-	 * PCI Tx retries from interfering with C3 CPU state */
-	pci_write_config_byte(pdev, 0x41, 0x00);
 
 	/***********************
 	 * 3. Read REV register
@@ -4236,6 +4255,10 @@ static int iwl4965_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 	printk(KERN_INFO DRV_NAME
 		": Detected Intel Wireless WiFi Link %s REV=0x%X\n",
 		priv->cfg->name, priv->hw_rev);
+
+	/* We disable the RETRY_TIMEOUT register (0x41) to keep
+	 * PCI Tx retries from interfering with C3 CPU state */
+	pci_write_config_byte(pdev, PCI_CFG_RETRY_TIMEOUT, 0x00);
 
 	/* amp init */
 	err = priv->cfg->ops->lib->apm_ops.init(priv);

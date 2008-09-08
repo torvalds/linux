@@ -66,6 +66,66 @@
 #include "iwl-core.h"
 #include "iwl-calib.h"
 
+/*****************************************************************************
+ * INIT calibrations framework
+ *****************************************************************************/
+
+ int iwl_send_calib_results(struct iwl_priv *priv)
+{
+	int ret = 0;
+	int i = 0;
+
+	struct iwl_host_cmd hcmd = {
+		.id = REPLY_PHY_CALIBRATION_CMD,
+		.meta.flags = CMD_SIZE_HUGE,
+	};
+
+	for (i = 0; i < IWL_CALIB_MAX; i++)
+		if (priv->calib_results[i].buf) {
+			hcmd.len = priv->calib_results[i].buf_len;
+			hcmd.data = priv->calib_results[i].buf;
+			ret = iwl_send_cmd_sync(priv, &hcmd);
+			if (ret)
+				goto err;
+		}
+
+	return 0;
+err:
+	IWL_ERROR("Error %d iteration %d\n", ret, i);
+	return ret;
+}
+EXPORT_SYMBOL(iwl_send_calib_results);
+
+int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len)
+{
+	if (res->buf_len != len) {
+		kfree(res->buf);
+		res->buf = kzalloc(len, GFP_ATOMIC);
+	}
+	if (unlikely(res->buf == NULL))
+		return -ENOMEM;
+
+	res->buf_len = len;
+	memcpy(res->buf, buf, len);
+	return 0;
+}
+EXPORT_SYMBOL(iwl_calib_set);
+
+void iwl_calib_free_results(struct iwl_priv *priv)
+{
+	int i;
+
+	for (i = 0; i < IWL_CALIB_MAX; i++) {
+		kfree(priv->calib_results[i].buf);
+		priv->calib_results[i].buf = NULL;
+		priv->calib_results[i].buf_len = 0;
+	}
+}
+
+/*****************************************************************************
+ * RUNTIME calibrations framework
+ *****************************************************************************/
+
 /* "false alarms" are signals that our DSP tries to lock onto,
  *   but then determines that they are either noise, or transmissions
  *   from a distant wireless network (also "noise", really) that get

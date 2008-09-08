@@ -58,6 +58,25 @@ static inline u16 freq_r3A_value(u16 frequency)
 	return value;
 }
 
+#if 0
+/* This function converts a TSSI value to dBm in Q5.2 */
+static s8 b43_aphy_estimate_power_out(struct b43_wldev *dev, s8 tssi)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_a *aphy = phy->a;
+	s8 dbm = 0;
+	s32 tmp;
+
+	tmp = (aphy->tgt_idle_tssi - aphy->cur_idle_tssi + tssi);
+	tmp += 0x80;
+	tmp = clamp_val(tmp, 0x00, 0xFF);
+	dbm = aphy->tssi2dbm[tmp];
+	//TODO: There's a FIXME on the specs
+
+	return dbm;
+}
+#endif
+
 void b43_radio_set_tx_iq(struct b43_wldev *dev)
 {
 	static const u8 data_high[5] = { 0x00, 0x40, 0x80, 0x90, 0xD0 };
@@ -326,41 +345,104 @@ void b43_phy_inita(struct b43_wldev *dev)
 	}
 }
 
+/* Initialise the TSSI->dBm lookup table */
+static int b43_aphy_init_tssi2dbm_table(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_a *aphy = phy->a;
+	s16 pab0, pab1, pab2;
+
+	pab0 = (s16) (dev->dev->bus->sprom.pa1b0);
+	pab1 = (s16) (dev->dev->bus->sprom.pa1b1);
+	pab2 = (s16) (dev->dev->bus->sprom.pa1b2);
+
+	if (pab0 != 0 && pab1 != 0 && pab2 != 0 &&
+	    pab0 != -1 && pab1 != -1 && pab2 != -1) {
+		/* The pabX values are set in SPROM. Use them. */
+		if ((s8) dev->dev->bus->sprom.itssi_a != 0 &&
+		    (s8) dev->dev->bus->sprom.itssi_a != -1)
+			aphy->tgt_idle_tssi =
+			    (s8) (dev->dev->bus->sprom.itssi_a);
+		else
+			aphy->tgt_idle_tssi = 62;
+		aphy->tssi2dbm = b43_generate_dyn_tssi2dbm_tab(dev, pab0,
+							       pab1, pab2);
+		if (!aphy->tssi2dbm)
+			return -ENOMEM;
+	} else {
+		/* pabX values not set in SPROM,
+		 * but APHY needs a generated table. */
+		aphy->tssi2dbm = NULL;
+		b43err(dev->wl, "Could not generate tssi2dBm "
+		       "table (wrong SPROM info)!\n");
+		return -ENODEV;
+	}
+
+	return 0;
+}
+
 static int b43_aphy_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_a *aphy;
+	int err;
 
 	aphy = kzalloc(sizeof(*aphy), GFP_KERNEL);
 	if (!aphy)
 		return -ENOMEM;
 	dev->phy.a = aphy;
 
-	//TODO init struct b43_phy_a
+	err = b43_aphy_init_tssi2dbm_table(dev);
+	if (err)
+		goto err_free_aphy;
 
 	return 0;
+
+err_free_aphy:
+	kfree(aphy);
+	dev->phy.a = NULL;
+
+	return err;
+}
+
+static void b43_aphy_op_prepare_structs(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_a *aphy = phy->a;
+	const void *tssi2dbm;
+	int tgt_idle_tssi;
+
+	/* tssi2dbm table is constant, so it is initialized at alloc time.
+	 * Save a copy of the pointer. */
+	tssi2dbm = aphy->tssi2dbm;
+	tgt_idle_tssi = aphy->tgt_idle_tssi;
+
+	/* Zero out the whole PHY structure. */
+	memset(aphy, 0, sizeof(*aphy));
+
+	aphy->tssi2dbm = tssi2dbm;
+	aphy->tgt_idle_tssi = tgt_idle_tssi;
+
+	//TODO init struct b43_phy_a
+
+}
+
+static void b43_aphy_op_free(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_a *aphy = phy->a;
+
+	kfree(aphy->tssi2dbm);
+	aphy->tssi2dbm = NULL;
+
+	kfree(aphy);
+	dev->phy.a = NULL;
 }
 
 static int b43_aphy_op_init(struct b43_wldev *dev)
 {
-	struct b43_phy_a *aphy = dev->phy.a;
-
 	b43_phy_inita(dev);
-	aphy->initialised = 1;
 
 	return 0;
-}
-
-static void b43_aphy_op_exit(struct b43_wldev *dev)
-{
-	struct b43_phy_a *aphy = dev->phy.a;
-
-	if (aphy->initialised) {
-		//TODO
-		aphy->initialised = 0;
-	}
-	//TODO
-	kfree(aphy);
-	dev->phy.a = NULL;
 }
 
 static inline u16 adjust_phyreg(struct b43_wldev *dev, u16 offset)
@@ -430,7 +512,23 @@ static bool b43_aphy_op_supports_hwpctl(struct b43_wldev *dev)
 
 static void b43_aphy_op_software_rfkill(struct b43_wldev *dev,
 					enum rfkill_state state)
-{//TODO
+{
+	struct b43_phy *phy = &dev->phy;
+
+	if (state == RFKILL_STATE_UNBLOCKED) {
+		if (phy->radio_on)
+			return;
+		b43_radio_write16(dev, 0x0004, 0x00C0);
+		b43_radio_write16(dev, 0x0005, 0x0008);
+		b43_phy_write(dev, 0x0010, b43_phy_read(dev, 0x0010) & 0xFFF7);
+		b43_phy_write(dev, 0x0011, b43_phy_read(dev, 0x0011) & 0xFFF7);
+		b43_radio_init2060(dev);
+	} else {
+		b43_radio_write16(dev, 0x0004, 0x00FF);
+		b43_radio_write16(dev, 0x0005, 0x00FB);
+		b43_phy_write(dev, 0x0010, b43_phy_read(dev, 0x0010) | 0x0008);
+		b43_phy_write(dev, 0x0011, b43_phy_read(dev, 0x0011) | 0x0008);
+	}
 }
 
 static int b43_aphy_op_switch_channel(struct b43_wldev *dev,
@@ -525,14 +623,16 @@ static void b43_aphy_op_pwork_60sec(struct b43_wldev *dev)
 
 const struct b43_phy_operations b43_phyops_a = {
 	.allocate		= b43_aphy_op_allocate,
+	.free			= b43_aphy_op_free,
+	.prepare_structs	= b43_aphy_op_prepare_structs,
 	.init			= b43_aphy_op_init,
-	.exit			= b43_aphy_op_exit,
 	.phy_read		= b43_aphy_op_read,
 	.phy_write		= b43_aphy_op_write,
 	.radio_read		= b43_aphy_op_radio_read,
 	.radio_write		= b43_aphy_op_radio_write,
 	.supports_hwpctl	= b43_aphy_op_supports_hwpctl,
 	.software_rfkill	= b43_aphy_op_software_rfkill,
+	.switch_analog		= b43_phyop_switch_analog_generic,
 	.switch_channel		= b43_aphy_op_switch_channel,
 	.get_default_chan	= b43_aphy_op_get_default_chan,
 	.set_rx_antenna		= b43_aphy_op_set_rx_antenna,

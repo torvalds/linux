@@ -26,7 +26,7 @@
 #include <linux/types.h>
 
 #include "b43.h"
-#include "nphy.h"
+#include "phy_n.h"
 #include "tables_nphy.h"
 
 
@@ -499,35 +499,31 @@ static int b43_nphy_op_allocate(struct b43_wldev *dev)
 		return -ENOMEM;
 	dev->phy.n = nphy;
 
-	//TODO init struct b43_phy_n
-
 	return 0;
+}
+
+static void b43_nphy_op_prepare_structs(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = phy->n;
+
+	memset(nphy, 0, sizeof(*nphy));
+
+	//TODO init struct b43_phy_n
+}
+
+static void b43_nphy_op_free(struct b43_wldev *dev)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = phy->n;
+
+	kfree(nphy);
+	phy->n = NULL;
 }
 
 static int b43_nphy_op_init(struct b43_wldev *dev)
 {
-	struct b43_phy_n *nphy = dev->phy.n;
-	int err;
-
-	err = b43_phy_initn(dev);
-	if (err)
-		return err;
-	nphy->initialised = 1;
-
-	return 0;
-}
-
-static void b43_nphy_op_exit(struct b43_wldev *dev)
-{
-	struct b43_phy_n *nphy = dev->phy.n;
-
-	if (nphy->initialised) {
-		//TODO
-		nphy->initialised = 0;
-	}
-	//TODO
-	kfree(nphy);
-	dev->phy.n = NULL;
+	return b43_phy_initn(dev);
 }
 
 static inline void check_phyreg(struct b43_wldev *dev, u16 offset)
@@ -587,6 +583,12 @@ static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 {//TODO
 }
 
+static void b43_nphy_op_switch_analog(struct b43_wldev *dev, bool on)
+{
+	b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
+		      on ? 0 : 0x7FFF);
+}
+
 static int b43_nphy_op_switch_channel(struct b43_wldev *dev,
 				      unsigned int new_channel)
 {
@@ -610,13 +612,15 @@ static unsigned int b43_nphy_op_get_default_chan(struct b43_wldev *dev)
 
 const struct b43_phy_operations b43_phyops_n = {
 	.allocate		= b43_nphy_op_allocate,
+	.free			= b43_nphy_op_free,
+	.prepare_structs	= b43_nphy_op_prepare_structs,
 	.init			= b43_nphy_op_init,
-	.exit			= b43_nphy_op_exit,
 	.phy_read		= b43_nphy_op_read,
 	.phy_write		= b43_nphy_op_write,
 	.radio_read		= b43_nphy_op_radio_read,
 	.radio_write		= b43_nphy_op_radio_write,
 	.software_rfkill	= b43_nphy_op_software_rfkill,
+	.switch_analog		= b43_nphy_op_switch_analog,
 	.switch_channel		= b43_nphy_op_switch_channel,
 	.get_default_chan	= b43_nphy_op_get_default_chan,
 	.recalc_txpower		= b43_nphy_op_recalc_txpower,
