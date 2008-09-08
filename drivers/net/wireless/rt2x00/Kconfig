@@ -40,7 +40,8 @@ config RT2X00_LIB_CRYPTO
 config RT2X00_LIB_RFKILL
 	boolean
 	depends on RT2X00_LIB
-	select RFKILL
+	depends on RFKILL
+	default y
 
 config RT2X00_LIB_LEDS
 	boolean
@@ -56,15 +57,6 @@ config RT2400PCI
 	  Supported chips: RT2460.
 
 	  When compiled as a module, this driver will be called "rt2400pci.ko".
-
-config RT2400PCI_RFKILL
-	bool "Ralink rt2400 rfkill support"
-	depends on RT2400PCI
-	select RT2X00_LIB_RFKILL
-	---help---
-	  This adds support for integrated rt2400 hardware that features a
-	  hardware button to control the radio state.
-	  This feature depends on the RF switch subsystem rfkill.
 
 config RT2400PCI_LEDS
 	bool "Ralink rt2400 leds support"
@@ -84,15 +76,6 @@ config RT2500PCI
 	  Supported chips: RT2560.
 
 	  When compiled as a module, this driver will be called "rt2500pci.ko".
-
-config RT2500PCI_RFKILL
-	bool "Ralink rt2500 rfkill support"
-	depends on RT2500PCI
-	select RT2X00_LIB_RFKILL
-	---help---
-	  This adds support for integrated rt2500 hardware that features a
-	  hardware button to control the radio state.
-	  This feature depends on the RF switch subsystem rfkill.
 
 config RT2500PCI_LEDS
 	bool "Ralink rt2500 leds support"
@@ -115,15 +98,6 @@ config RT61PCI
 	  Supported chips: RT2561, RT2561S & RT2661.
 
 	  When compiled as a module, this driver will be called "rt61pci.ko".
-
-config RT61PCI_RFKILL
-	bool "Ralink rt2501/rt61 rfkill support"
-	depends on RT61PCI
-	select RT2X00_LIB_RFKILL
-	---help---
-	  This adds support for integrated rt61 hardware that features a
-	  hardware button to control the radio state.
-	  This feature depends on the RF switch subsystem rfkill.
 
 config RT61PCI_LEDS
 	bool "Ralink rt2501/rt61 leds support"

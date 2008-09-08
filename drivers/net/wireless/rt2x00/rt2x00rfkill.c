@@ -45,16 +45,15 @@ static int rt2x00rfkill_toggle_radio(void *data, enum rfkill_state state)
 		return 0;
 
 	if (state == RFKILL_STATE_UNBLOCKED) {
-		INFO(rt2x00dev, "Hardware button pressed, enabling radio.\n");
+		INFO(rt2x00dev, "RFKILL event: enabling radio.\n");
 		clear_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags);
 		retval = rt2x00lib_enable_radio(rt2x00dev);
 	} else if (state == RFKILL_STATE_SOFT_BLOCKED) {
-		INFO(rt2x00dev, "Hardware button pressed, disabling radio.\n");
+		INFO(rt2x00dev, "RFKILL event: disabling radio.\n");
 		set_bit(DEVICE_STATE_DISABLED_RADIO_HW, &rt2x00dev->flags);
 		rt2x00lib_disable_radio(rt2x00dev);
 	} else {
-		WARNING(rt2x00dev, "Received unexpected rfkill state %d.\n",
-			state);
+		WARNING(rt2x00dev, "RFKILL event: unknown state %d.\n", state);
 	}
 
 	return retval;
@@ -64,7 +63,12 @@ static int rt2x00rfkill_get_state(void *data, enum rfkill_state *state)
 {
 	struct rt2x00_dev *rt2x00dev = data;
 
-	*state = rt2x00dev->rfkill->state;
+	/*
+	 * rfkill_poll reports 1 when the key has been pressed and the
+	 * radio should be blocked.
+	 */
+	*state = rt2x00dev->ops->lib->rfkill_poll(rt2x00dev) ?
+	    RFKILL_STATE_SOFT_BLOCKED : RFKILL_STATE_UNBLOCKED;
 
 	return 0;
 }
@@ -73,19 +77,18 @@ static void rt2x00rfkill_poll(struct work_struct *work)
 {
 	struct rt2x00_dev *rt2x00dev =
 	    container_of(work, struct rt2x00_dev, rfkill_work.work);
-	int state;
+	enum rfkill_state state;
 
-	if (!test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state))
+	if (!test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state) ||
+	    !test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
 		return;
 
 	/*
-	 * rfkill_poll reports 1 when the key has been pressed and the
-	 * radio should be blocked.
+	 * Poll latest state and report it to rfkill who should sort
+	 * out if the state should be toggled or not.
 	 */
-	state = !rt2x00dev->ops->lib->rfkill_poll(rt2x00dev) ?
-	    RFKILL_STATE_UNBLOCKED : RFKILL_STATE_SOFT_BLOCKED;
-
-	rfkill_force_state(rt2x00dev->rfkill, state);
+	if (!rt2x00rfkill_get_state(rt2x00dev, &state))
+		rfkill_force_state(rt2x00dev->rfkill, state);
 
 	queue_delayed_work(rt2x00dev->hw->workqueue,
 			   &rt2x00dev->rfkill_work, RFKILL_POLL_INTERVAL);
@@ -93,8 +96,8 @@ static void rt2x00rfkill_poll(struct work_struct *work)
 
 void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
-	    !test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+	if (!test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state) ||
+	    test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state))
 		return;
 
 	if (rfkill_register(rt2x00dev->rfkill)) {
@@ -114,7 +117,7 @@ void rt2x00rfkill_register(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
+	if (!test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state) ||
 	    !test_bit(RFKILL_STATE_REGISTERED, &rt2x00dev->rfkill_state))
 		return;
 
@@ -127,21 +130,25 @@ void rt2x00rfkill_unregister(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+	struct device *dev = wiphy_dev(rt2x00dev->hw->wiphy);
+
+	if (test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
 		return;
 
-	rt2x00dev->rfkill =
-	    rfkill_allocate(wiphy_dev(rt2x00dev->hw->wiphy), RFKILL_TYPE_WLAN);
+	rt2x00dev->rfkill = rfkill_allocate(dev, RFKILL_TYPE_WLAN);
 	if (!rt2x00dev->rfkill) {
 		ERROR(rt2x00dev, "Failed to allocate rfkill handler.\n");
 		return;
 	}
 
+	__set_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state);
+
 	rt2x00dev->rfkill->name = rt2x00dev->ops->name;
 	rt2x00dev->rfkill->data = rt2x00dev;
 	rt2x00dev->rfkill->state = -1;
 	rt2x00dev->rfkill->toggle_radio = rt2x00rfkill_toggle_radio;
-	rt2x00dev->rfkill->get_state = rt2x00rfkill_get_state;
+	if (test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags))
+		rt2x00dev->rfkill->get_state = rt2x00rfkill_get_state;
 
 	INIT_DELAYED_WORK(&rt2x00dev->rfkill_work, rt2x00rfkill_poll);
 
@@ -150,8 +157,7 @@ void rt2x00rfkill_allocate(struct rt2x00_dev *rt2x00dev)
 
 void rt2x00rfkill_free(struct rt2x00_dev *rt2x00dev)
 {
-	if (!test_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags) ||
-	    !test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->rfkill_state))
+	if (!test_bit(RFKILL_STATE_ALLOCATED, &rt2x00dev->flags))
 		return;
 
 	cancel_delayed_work_sync(&rt2x00dev->rfkill_work);

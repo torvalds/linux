@@ -271,7 +271,7 @@ static const struct rt2x00debug rt61pci_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT61PCI_RFKILL
+#ifdef CONFIG_RT2X00_LIB_RFKILL
 static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -281,7 +281,7 @@ static int rt61pci_rfkill_poll(struct rt2x00_dev *rt2x00dev)
 }
 #else
 #define rt61pci_rfkill_poll	NULL
-#endif /* CONFIG_RT61PCI_RFKILL */
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 #ifdef CONFIG_RT61PCI_LEDS
 static void rt61pci_brightness_set(struct led_classdev *led_cdev,
@@ -2313,10 +2313,10 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Detect if this device has an hardware controlled radio.
 	 */
-#ifdef CONFIG_RT61PCI_RFKILL
+#ifdef CONFIG_RT2X00_LIB_RFKILL
 	if (rt2x00_get_field16(eeprom, EEPROM_ANTENNA_HARDWARE_RADIO))
 		__set_bit(CONFIG_SUPPORT_HW_BUTTON, &rt2x00dev->flags);
-#endif /* CONFIG_RT61PCI_RFKILL */
+#endif /* CONFIG_RT2X00_LIB_RFKILL */
 
 	/*
 	 * Read frequency offset and RF programming sequence.
