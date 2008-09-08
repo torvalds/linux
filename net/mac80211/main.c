@@ -551,7 +551,7 @@ static int ieee80211_stop(struct net_device *dev)
 		synchronize_rcu();
 		skb_queue_purge(&sdata->u.sta.skb_queue);
 
-		if (local->scan_dev == sdata->dev) {
+		if (local->scan_sdata == sdata) {
 			if (!local->ops->hw_scan) {
 				local->sta_sw_scanning = 0;
 				cancel_delayed_work(&local->scan_work);

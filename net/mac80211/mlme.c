@@ -3507,19 +3507,18 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 void ieee80211_scan_completed(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct net_device *dev = local->scan_dev;
 	struct ieee80211_sub_if_data *sdata;
 	union iwreq_data wrqu;
 
 	local->last_scan_completed = jiffies;
 	memset(&wrqu, 0, sizeof(wrqu));
-	wireless_send_event(dev, SIOCGIWSCAN, &wrqu, NULL);
+	wireless_send_event(local->scan_sdata->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 	if (local->sta_hw_scanning) {
 		local->sta_hw_scanning = 0;
 		if (ieee80211_hw_config(local))
 			printk(KERN_DEBUG "%s: failed to restore operational "
-			       "channel after scan\n", dev->name);
+			       "channel after scan\n", wiphy_name(local->hw.wiphy));
 		/* Restart STA timer for HW scan case */
 		rcu_read_lock();
 		list_for_each_entry_rcu(sdata, &local->interfaces, list)
@@ -3532,7 +3531,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	local->sta_sw_scanning = 0;
 	if (ieee80211_hw_config(local))
 		printk(KERN_DEBUG "%s: failed to restore operational "
-		       "channel after scan\n", dev->name);
+		       "channel after scan\n", wiphy_name(local->hw.wiphy));
 
 
 	netif_tx_lock_bh(local->mdev);
@@ -3562,8 +3561,8 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	}
 	rcu_read_unlock();
 
-done:
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+ done:
+	sdata = local->scan_sdata;
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
@@ -3578,8 +3577,7 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, scan_work.work);
-	struct net_device *dev = local->scan_dev;
-	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *chan;
 	int skip;
@@ -3627,7 +3625,7 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 			local->scan_channel = chan;
 			if (ieee80211_hw_config(local)) {
 				printk(KERN_DEBUG "%s: failed to set freq to "
-				       "%d MHz for scan\n", dev->name,
+				       "%d MHz for scan\n", wiphy_name(local->hw.wiphy),
 				       chan->center_freq);
 				skip = 1;
 			}
@@ -3697,7 +3695,7 @@ static int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	 */
 
 	if (local->sta_sw_scanning || local->sta_hw_scanning) {
-		if (local->scan_dev == scan_sdata->dev)
+		if (local->scan_sdata == scan_sdata)
 			return 0;
 		return -EBUSY;
 	}
@@ -3707,7 +3705,7 @@ static int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 					     ssid, ssid_len);
 		if (!rc) {
 			local->sta_hw_scanning = 1;
-			local->scan_dev = scan_sdata->dev;
+			local->scan_sdata = scan_sdata;
 		}
 		return rc;
 	}
@@ -3734,7 +3732,7 @@ static int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	local->scan_state = SCAN_SET_CHANNEL;
 	local->scan_channel_idx = 0;
 	local->scan_band = IEEE80211_BAND_2GHZ;
-	local->scan_dev = scan_sdata->dev;
+	local->scan_sdata = scan_sdata;
 
 	netif_addr_lock_bh(local->mdev);
 	local->filter_flags |= FIF_BCN_PRBRESP_PROMISC;
@@ -3762,7 +3760,7 @@ int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t
 		return ieee80211_sta_start_scan(sdata, ssid, ssid_len);
 
 	if (local->sta_sw_scanning || local->sta_hw_scanning) {
-		if (local->scan_dev == sdata->dev)
+		if (local->scan_sdata == sdata)
 			return 0;
 		return -EBUSY;
 	}
