@@ -1,7 +1,7 @@
 /*
  * TI DaVinci GPIO Support
  *
- * Copyright (c) 2006 David Brownell
+ * Copyright (c) 2006-2007 David Brownell
  * Copyright (c) 2007, MontaVista Software, Inc. <source@mvista.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -26,62 +26,22 @@
 
 #include <asm/mach/irq.h>
 
+
 static DEFINE_SPINLOCK(gpio_lock);
-static DECLARE_BITMAP(gpio_in_use, DAVINCI_N_GPIO);
 
-int gpio_request(unsigned gpio, const char *tag)
-{
-	if (gpio >= DAVINCI_N_GPIO)
-		return -EINVAL;
+struct davinci_gpio {
+	struct gpio_chip	chip;
+	struct gpio_controller	*__iomem regs;
+};
 
-	if (test_and_set_bit(gpio, gpio_in_use))
-		return -EBUSY;
+static struct davinci_gpio chips[DIV_ROUND_UP(DAVINCI_N_GPIO, 32)];
 
-	return 0;
-}
-EXPORT_SYMBOL(gpio_request);
-
-void gpio_free(unsigned gpio)
-{
-	if (gpio >= DAVINCI_N_GPIO)
-		return;
-
-	clear_bit(gpio, gpio_in_use);
-}
-EXPORT_SYMBOL(gpio_free);
 
 /* create a non-inlined version */
-static struct gpio_controller *__iomem gpio2controller(unsigned gpio)
+static struct gpio_controller *__iomem __init gpio2controller(unsigned gpio)
 {
 	return __gpio_to_controller(gpio);
 }
-
-/*
- * Assuming the pin is muxed as a gpio output, set its output value.
- */
-void __gpio_set(unsigned gpio, int value)
-{
-	struct gpio_controller *__iomem g = gpio2controller(gpio);
-
-	__raw_writel(__gpio_mask(gpio), value ? &g->set_data : &g->clr_data);
-}
-EXPORT_SYMBOL(__gpio_set);
-
-
-/*
- * Read the pin's value (works even if it's set up as output);
- * returns zero/nonzero.
- *
- * Note that changes are synched to the GPIO clock, so reading values back
- * right after you've set them may give old values.
- */
-int __gpio_get(unsigned gpio)
-{
-	struct gpio_controller *__iomem g = gpio2controller(gpio);
-
-	return !!(__gpio_mask(gpio) & __raw_readl(&g->in_data));
-}
-EXPORT_SYMBOL(__gpio_get);
 
 
 /*--------------------------------------------------------------------------*/
@@ -91,36 +51,45 @@ EXPORT_SYMBOL(__gpio_get);
  * needed, and enable the GPIO clock.
  */
 
-int gpio_direction_input(unsigned gpio)
+static int davinci_direction_in(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_controller *__iomem g = gpio2controller(gpio);
+	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct gpio_controller *__iomem g = d->regs;
 	u32 temp;
-	u32 mask;
-
-	if (!g)
-		return -EINVAL;
 
 	spin_lock(&gpio_lock);
-	mask = __gpio_mask(gpio);
 	temp = __raw_readl(&g->dir);
-	temp |= mask;
+	temp |= (1 << offset);
 	__raw_writel(temp, &g->dir);
 	spin_unlock(&gpio_lock);
+
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_input);
 
-int gpio_direction_output(unsigned gpio, int value)
+/*
+ * Read the pin's value (works even if it's set up as output);
+ * returns zero/nonzero.
+ *
+ * Note that changes are synched to the GPIO clock, so reading values back
+ * right after you've set them may give old values.
+ */
+static int davinci_gpio_get(struct gpio_chip *chip, unsigned offset)
 {
-	struct gpio_controller *__iomem g = gpio2controller(gpio);
-	u32 temp;
-	u32 mask;
+	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct gpio_controller *__iomem g = d->regs;
 
-	if (!g)
-		return -EINVAL;
+	return (1 << offset) & __raw_readl(&g->in_data);
+}
+
+static int
+davinci_direction_out(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct gpio_controller *__iomem g = d->regs;
+	u32 temp;
+	u32 mask = 1 << offset;
 
 	spin_lock(&gpio_lock);
-	mask = __gpio_mask(gpio);
 	temp = __raw_readl(&g->dir);
 	temp &= ~mask;
 	__raw_writel(mask, value ? &g->set_data : &g->clr_data);
@@ -128,8 +97,48 @@ int gpio_direction_output(unsigned gpio, int value)
 	spin_unlock(&gpio_lock);
 	return 0;
 }
-EXPORT_SYMBOL(gpio_direction_output);
 
+/*
+ * Assuming the pin is muxed as a gpio output, set its output value.
+ */
+static void
+davinci_gpio_set(struct gpio_chip *chip, unsigned offset, int value)
+{
+	struct davinci_gpio *d = container_of(chip, struct davinci_gpio, chip);
+	struct gpio_controller *__iomem g = d->regs;
+
+	__raw_writel((1 << offset), value ? &g->set_data : &g->clr_data);
+}
+
+static int __init davinci_gpio_setup(void)
+{
+	int i, base;
+
+	for (i = 0, base = 0;
+			i < ARRAY_SIZE(chips);
+			i++, base += 32) {
+		chips[i].chip.label = "DaVinci";
+
+		chips[i].chip.direction_input = davinci_direction_in;
+		chips[i].chip.get = davinci_gpio_get;
+		chips[i].chip.direction_output = davinci_direction_out;
+		chips[i].chip.set = davinci_gpio_set;
+
+		chips[i].chip.base = base;
+		chips[i].chip.ngpio = DAVINCI_N_GPIO - base;
+		if (chips[i].chip.ngpio > 32)
+			chips[i].chip.ngpio = 32;
+
+		chips[i].regs = gpio2controller(base);
+
+		gpiochip_add(&chips[i].chip);
+	}
+
+	return 0;
+}
+pure_initcall(davinci_gpio_setup);
+
+/*--------------------------------------------------------------------------*/
 /*
  * We expect irqs will normally be set up as input pins, but they can also be
  * used as output pins ... which is convenient for testing.
