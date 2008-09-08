@@ -141,12 +141,34 @@ udp_fast_csum_update(int af, struct udphdr *uhdr,
 		uhdr->check = CSUM_MANGLED_0;
 }
 
+static inline void
+udp_partial_csum_update(int af, struct udphdr *uhdr,
+		     const union nf_inet_addr *oldip,
+		     const union nf_inet_addr *newip,
+		     __be16 oldlen, __be16 newlen)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (af == AF_INET6)
+		uhdr->check =
+			csum_fold(ip_vs_check_diff16(oldip->ip6, newip->ip6,
+					 ip_vs_check_diff2(oldlen, newlen,
+						~csum_unfold(uhdr->check))));
+	else
+#endif
+	uhdr->check =
+		csum_fold(ip_vs_check_diff4(oldip->ip, newip->ip,
+				ip_vs_check_diff2(oldlen, newlen,
+						~csum_unfold(uhdr->check))));
+}
+
+
 static int
 udp_snat_handler(struct sk_buff *skb,
 		 struct ip_vs_protocol *pp, struct ip_vs_conn *cp)
 {
 	struct udphdr *udph;
 	unsigned int udphoff;
+	int oldlen;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -154,6 +176,7 @@ udp_snat_handler(struct sk_buff *skb,
 	else
 #endif
 		udphoff = ip_hdrlen(skb);
+	oldlen = skb->len - udphoff;
 
 	/* csum_check requires unshared skb */
 	if (!skb_make_writable(skb, udphoff+sizeof(*udph)))
@@ -177,7 +200,11 @@ udp_snat_handler(struct sk_buff *skb,
 	/*
 	 *	Adjust UDP checksums
 	 */
-	if (!cp->app && (udph->check != 0)) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
+					htonl(oldlen),
+					htonl(skb->len - udphoff));
+	} else if (!cp->app && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
 				     cp->dport, cp->vport);
@@ -216,6 +243,7 @@ udp_dnat_handler(struct sk_buff *skb,
 {
 	struct udphdr *udph;
 	unsigned int udphoff;
+	int oldlen;
 
 #ifdef CONFIG_IP_VS_IPV6
 	if (cp->af == AF_INET6)
@@ -223,6 +251,7 @@ udp_dnat_handler(struct sk_buff *skb,
 	else
 #endif
 		udphoff = ip_hdrlen(skb);
+	oldlen = skb->len - udphoff;
 
 	/* csum_check requires unshared skb */
 	if (!skb_make_writable(skb, udphoff+sizeof(*udph)))
@@ -247,7 +276,11 @@ udp_dnat_handler(struct sk_buff *skb,
 	/*
 	 *	Adjust UDP checksums
 	 */
-	if (!cp->app && (udph->check != 0)) {
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		udp_partial_csum_update(cp->af, udph, &cp->daddr, &cp->vaddr,
+					htonl(oldlen),
+					htonl(skb->len - udphoff));
+	} else if (!cp->app && (udph->check != 0)) {
 		/* Only port and addr are changed, do fast csum update */
 		udp_fast_csum_update(cp->af, udph, &cp->vaddr, &cp->daddr,
 				     cp->vport, cp->dport);
