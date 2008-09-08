@@ -60,7 +60,7 @@
 
 #define ERP_INFO_USE_PROTECTION BIT(1)
 
-/* mgmt header + 1 byte action code */
+/* mgmt header + 1 byte category code */
 #define IEEE80211_MIN_ACTION_SIZE (24 + 1)
 
 #define IEEE80211_ADDBA_PARAM_POLICY_MASK 0x0002
@@ -2988,7 +2988,8 @@ static void ieee80211_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 {
 	struct ieee80211_local *local = sdata->local;
 
-	if (len < IEEE80211_MIN_ACTION_SIZE)
+	/* all categories we currently handle have action_code */
+	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
 		return;
 
 	switch (mgmt->u.action.category) {

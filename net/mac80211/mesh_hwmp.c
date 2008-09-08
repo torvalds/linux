@@ -581,6 +581,10 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 	size_t baselen;
 	u32 last_hop_metric;
 
+	/* need action_code */
+	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+		return;
+
 	baselen = (u8 *) mgmt->u.action.u.mesh_action.variable - (u8 *) mgmt;
 	ieee802_11_parse_elems(mgmt->u.action.u.mesh_action.variable,
 			len - baselen, &elems);

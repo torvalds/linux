@@ -421,6 +421,10 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	DECLARE_MAC_BUF(mac);
 #endif
 
+	/* need action_code, aux */
+	if (len < IEEE80211_MIN_ACTION_SIZE + 3)
+		return;
+
 	if (is_multicast_ether_addr(mgmt->da)) {
 		mpl_dbg("Mesh plink: ignore frame from multicast address");
 		return;
