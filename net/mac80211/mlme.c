@@ -2872,14 +2872,17 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	    memcmp(ifsta->bssid, mgmt->bssid, ETH_ALEN) != 0)
 		return;
 
-	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
-				 elems.wmm_param_len);
-
 	/* Do not send changes to driver if we are scanning. This removes
-	 * requirement that driver's bss_info_changed function needs to be
-	 * atomic. */
+	 * requirement that a driver's bss_info_changed/conf_tx functions
+	 * need to be atomic.
+	 * This is really ugly code, we should rewrite scanning and make
+	 * all this more understandable for humans.
+	 */
 	if (local->sta_sw_scanning || local->sta_hw_scanning)
 		return;
+
+	ieee80211_sta_wmm_params(local, ifsta, elems.wmm_param,
+				 elems.wmm_param_len);
 
 	if (elems.erp_info && elems.erp_info_len >= 1)
 		changed |= ieee80211_handle_erp_ie(sdata, elems.erp_info[0]);
