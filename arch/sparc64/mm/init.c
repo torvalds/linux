@@ -1875,7 +1875,7 @@ static int pavail_rescan_ents __initdata;
  * memory list again, and make sure it provides at least as much
  * memory as 'pavail' does.
  */
-static void setup_valid_addr_bitmap_from_pavail(void)
+static void __init setup_valid_addr_bitmap_from_pavail(void)
 {
 	int i;
 
