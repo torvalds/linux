@@ -415,8 +415,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		memcpy(wrqu.ap_addr.sa_data, sdata->u.sta.bssid, ETH_ALEN);
 		ieee80211_sta_send_associnfo(sdata, ifsta);
 	} else {
-		netif_carrier_off(sdata->dev);
-		ieee80211_sta_tear_down_BA_sessions(sdata, ifsta->bssid);
 		ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
 		changed |= ieee80211_reset_erp_info(sdata);
 
@@ -437,18 +435,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	wrqu.ap_addr.sa_family = ARPHRD_ETHER;
 	wireless_send_event(sdata->dev, SIOCGIWAP, &wrqu, NULL);
-}
-
-static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
-				   struct ieee80211_if_sta *ifsta, int deauth)
-{
-	if (deauth) {
-		ifsta->direct_probe_tries = 0;
-		ifsta->auth_tries = 0;
-	}
-	ifsta->assoc_scan_tries = 0;
-	ifsta->assoc_tries = 0;
-	ieee80211_set_associated(sdata, ifsta, 0);
 }
 
 void ieee80211_sta_tx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
@@ -844,6 +830,50 @@ static void ieee80211_send_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_tx(sdata, skb, 0);
 }
 
+static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
+				   struct ieee80211_if_sta *ifsta, bool deauth,
+				   bool self_disconnected, u16 reason)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta;
+
+	rcu_read_lock();
+
+	sta = sta_info_get(local, ifsta->bssid);
+	if (!sta) {
+		rcu_read_unlock();
+		return;
+	}
+
+	if (deauth) {
+		ifsta->direct_probe_tries = 0;
+		ifsta->auth_tries = 0;
+	}
+	ifsta->assoc_scan_tries = 0;
+	ifsta->assoc_tries = 0;
+
+	netif_carrier_off(sdata->dev);
+
+	ieee80211_sta_tear_down_BA_sessions(sdata, sta->addr);
+
+	if (self_disconnected) {
+		if (deauth)
+			ieee80211_send_deauth(sdata, ifsta, reason);
+		else
+			ieee80211_send_disassoc(sdata, ifsta, reason);
+	}
+
+	ieee80211_set_associated(sdata, ifsta, 0);
+
+	if (self_disconnected)
+		ifsta->state = IEEE80211_STA_MLME_DISABLED;
+
+	sta_info_unlink(&sta);
+
+	rcu_read_unlock();
+
+	sta_info_destroy(sta);
+}
 
 static int ieee80211_privacy_mismatch(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_if_sta *ifsta)
@@ -938,7 +968,6 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 				       "range\n",
 				       sdata->dev->name, print_mac(mac, ifsta->bssid));
 				disassoc = 1;
-				sta_info_unlink(&sta);
 			} else
 				ieee80211_send_probe_req(sdata, ifsta->bssid,
 							 local->scan_ssid,
@@ -958,16 +987,12 @@ static void ieee80211_associated(struct ieee80211_sub_if_data *sdata,
 
 	rcu_read_unlock();
 
-	if (disassoc && sta)
-		sta_info_destroy(sta);
-
-	if (disassoc) {
-		ifsta->state = IEEE80211_STA_MLME_DISABLED;
-		ieee80211_set_associated(sdata, ifsta, 0);
-	} else {
+	if (disassoc)
+		ieee80211_set_disassoc(sdata, ifsta, true, true,
+					WLAN_REASON_PREV_AUTH_NOT_VALID);
+	else
 		mod_timer(&ifsta->timer, jiffies +
 				      IEEE80211_MONITORING_INTERVAL);
-	}
 }
 
 
@@ -1832,7 +1857,7 @@ static void ieee80211_rx_mgmt_deauth(struct ieee80211_sub_if_data *sdata,
 				      IEEE80211_RETRY_AUTH_INTERVAL);
 	}
 
-	ieee80211_set_disassoc(sdata, ifsta, 1);
+	ieee80211_set_disassoc(sdata, ifsta, true, false, 0);
 	ifsta->flags &= ~IEEE80211_STA_AUTHENTICATED;
 }
 
@@ -1862,7 +1887,7 @@ static void ieee80211_rx_mgmt_disassoc(struct ieee80211_sub_if_data *sdata,
 				      IEEE80211_RETRY_AUTH_INTERVAL);
 	}
 
-	ieee80211_set_disassoc(sdata, ifsta, 0);
+	ieee80211_set_disassoc(sdata, ifsta, false, false, 0);
 }
 
 
@@ -3200,8 +3225,8 @@ void ieee80211_sta_work(struct work_struct *work)
 		printk(KERN_DEBUG "%s: privacy configuration mismatch and "
 		       "mixed-cell disabled - disassociate\n", sdata->dev->name);
 
-		ieee80211_send_disassoc(sdata, ifsta, WLAN_REASON_UNSPECIFIED);
-		ieee80211_set_disassoc(sdata, ifsta, 0);
+		ieee80211_set_disassoc(sdata, ifsta, false, true,
+					WLAN_REASON_UNSPECIFIED);
 	}
 }
 
@@ -4236,8 +4261,7 @@ int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason
 	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
 		return -EINVAL;
 
-	ieee80211_send_deauth(sdata, ifsta, reason);
-	ieee80211_set_disassoc(sdata, ifsta, 1);
+	ieee80211_set_disassoc(sdata, ifsta, true, true, reason);
 	return 0;
 }
 
@@ -4255,8 +4279,7 @@ int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason)
 	if (!(ifsta->flags & IEEE80211_STA_ASSOCIATED))
 		return -1;
 
-	ieee80211_send_disassoc(sdata, ifsta, reason);
-	ieee80211_set_disassoc(sdata, ifsta, 0);
+	ieee80211_set_disassoc(sdata, ifsta, false, true, reason);
 	return 0;
 }
 
