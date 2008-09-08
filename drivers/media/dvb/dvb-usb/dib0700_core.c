@@ -350,7 +350,12 @@ int dib0700_streaming_ctrl(struct dvb_usb_adapter *adap, int onoff)
 
 	b[0] = REQUEST_ENABLE_VIDEO;
 	b[1] = (onoff << 4) | 0x00; /* this bit gives a kind of command, rather than enabling something or not */
-	b[2] = (0x01 << 4); /* Master mode */
+
+	if (st->disable_streaming_master_mode == 1)
+		b[2] = 0x00;
+	else
+		b[2] = (0x01 << 4); /* Master mode */
+
 	b[3] = 0x00;
 
 	deb_info("modifying (%d) streaming state for %d\n", onoff, adap->id);

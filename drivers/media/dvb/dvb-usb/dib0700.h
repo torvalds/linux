@@ -42,6 +42,7 @@ struct dib0700_state {
 	u8 rc_counter;
 	u8 is_dib7000pc;
 	u8 fw_use_new_i2c_api;
+	u8 disable_streaming_master_mode;
 };
 
 extern int dib0700_set_gpio(struct dvb_usb_device *, enum dib07x0_gpios gpio, u8 gpio_dir, u8 gpio_val);
