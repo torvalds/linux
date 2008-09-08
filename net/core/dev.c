@@ -4663,6 +4663,12 @@ int netdev_compute_features(unsigned long all, unsigned long one)
 		one |= NETIF_F_GSO_SOFTWARE;
 	one |= NETIF_F_GSO;
 
+	/*
+	 * If even one device supports a GSO protocol with software fallback,
+	 * enable it for all.
+	 */
+	all |= one & NETIF_F_GSO_SOFTWARE;
+
 	/* If even one device supports robust GSO, enable it for all. */
 	if (one & NETIF_F_GSO_ROBUST)
 		all |= NETIF_F_GSO_ROBUST;
