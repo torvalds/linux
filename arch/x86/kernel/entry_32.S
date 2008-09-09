@@ -730,6 +730,7 @@ error_code:
 	movl $(__USER_DS), %ecx
 	movl %ecx, %ds
 	movl %ecx, %es
+	TRACE_IRQS_OFF
 	movl %esp,%eax			# pt_regs pointer
 	call *%edi
 	jmp ret_from_exception
