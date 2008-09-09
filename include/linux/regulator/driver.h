@@ -51,7 +51,7 @@ struct regulator_ops {
 					  int output_uV, int load_uA);
 
 	/* the operations below are for configuration of regulator state when
-	 * it's parent PMIC enters a global STANBY/HIBERNATE state */
+	 * its parent PMIC enters a global STANDBY/HIBERNATE state */
 
 	/* set regulator suspend voltage */
 	int (*set_suspend_voltage) (struct regulator_dev *, int uV);
