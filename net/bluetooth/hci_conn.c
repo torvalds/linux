@@ -376,6 +376,19 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8
 }
 EXPORT_SYMBOL(hci_connect);
 
+/* Check link security requirement */
+int hci_conn_check_link_mode(struct hci_conn *conn)
+{
+	BT_DBG("conn %p", conn);
+
+	if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0 &&
+					!(conn->link_mode & HCI_LM_ENCRYPT))
+		return 0;
+
+	return 1;
+}
+EXPORT_SYMBOL(hci_conn_check_link_mode);
+
 /* Authenticate remote device */
 int hci_conn_auth(struct hci_conn *conn)
 {

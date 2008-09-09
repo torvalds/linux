@@ -1568,10 +1568,10 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	struct l2cap_conn_req *req = (struct l2cap_conn_req *) data;
 	struct l2cap_conn_rsp rsp;
 	struct sock *sk, *parent;
-	int result, status = 0;
+	int result, status = L2CAP_CS_NO_INFO;
 
 	u16 dcid = 0, scid = __le16_to_cpu(req->scid);
-	__le16 psm  = req->psm;
+	__le16 psm = req->psm;
 
 	BT_DBG("psm 0x%2.2x scid 0x%4.4x", psm, scid);
 
@@ -1580,6 +1580,13 @@ static inline int l2cap_connect_req(struct l2cap_conn *conn, struct l2cap_cmd_hd
 	if (!parent) {
 		result = L2CAP_CR_BAD_PSM;
 		goto sendresp;
+	}
+
+	/* Check if the ACL is secure enough (if not SDP) */
+	if (psm != cpu_to_le16(0x0001) &&
+				!hci_conn_check_link_mode(conn->hcon)) {
+		result = L2CAP_CR_SEC_BLOCK;
+		goto response;
 	}
 
 	result = L2CAP_CR_NO_MEM;
@@ -2239,7 +2246,7 @@ static int l2cap_auth_cfm(struct hci_conn *hcon, u8 status)
 			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
-			rsp.status = cpu_to_le16(0);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		}
@@ -2311,7 +2318,7 @@ static int l2cap_encrypt_cfm(struct hci_conn *hcon, u8 status, u8 encrypt)
 			rsp.scid   = cpu_to_le16(l2cap_pi(sk)->dcid);
 			rsp.dcid   = cpu_to_le16(l2cap_pi(sk)->scid);
 			rsp.result = cpu_to_le16(result);
-			rsp.status = cpu_to_le16(0);
+			rsp.status = cpu_to_le16(L2CAP_CS_NO_INFO);
 			l2cap_send_cmd(conn, l2cap_pi(sk)->ident,
 					L2CAP_CONN_RSP, sizeof(rsp), &rsp);
 		}
