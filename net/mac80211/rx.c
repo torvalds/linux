@@ -1586,20 +1586,20 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
 
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_MONITOR;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(rx->dev);
-	if ((sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-	     sdata->vif.type == IEEE80211_IF_TYPE_IBSS ||
-	     sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) &&
-	    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
-		ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
-	else
+	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
+	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
+	    sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT)
 		return RX_DROP_MONITOR;
 
+	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
+		return RX_DROP_MONITOR;
+
+	ieee80211_sta_rx_mgmt(sdata, rx->skb, rx->status);
 	return RX_QUEUED;
 }
 
