@@ -2170,17 +2170,23 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 	handle_t *handle = NULL;
 
 	handle = ext4_journal_current_handle();
-	if (!handle) {
-		ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
-				   bh_result, 0, 0, 0);
-		BUG_ON(!ret);
-	} else {
-		ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
-				   bh_result, create, 0, EXT4_DELALLOC_RSVED);
-	}
-
+	BUG_ON(!handle);
+	ret = ext4_get_blocks_wrap(handle, inode, iblock, max_blocks,
+			bh_result, create, 0, EXT4_DELALLOC_RSVED);
 	if (ret > 0) {
+
 		bh_result->b_size = (ret << inode->i_blkbits);
+
+		if (ext4_should_order_data(inode)) {
+			int retval;
+			retval = ext4_jbd2_file_inode(handle, inode);
+			if (retval)
+				/*
+				 * Failed to add inode for ordered
+				 * mode. Don't update file size
+				 */
+				return retval;
+		}
 
 		/*
 		 * Update on-disk size along with block allocation
@@ -2406,18 +2412,6 @@ restart_loop:
 				wbc->nr_to_write, inode->i_ino, ret);
 			dump_stack();
 			goto out_writepages;
-		}
-		if (ext4_should_order_data(inode)) {
-			/*
-			 * With ordered mode we need to add
-			 * the inode to the journal handl
-			 * when we do block allocation.
-			 */
-			ret = ext4_jbd2_file_inode(handle, inode);
-			if (ret) {
-				ext4_journal_stop(handle);
-				goto out_writepages;
-			}
 		}
 
 		to_write -= wbc->nr_to_write;

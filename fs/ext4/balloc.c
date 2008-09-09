@@ -2063,7 +2063,7 @@ ext4_fsblk_t ext4_new_meta_blocks(handle_t *handle, struct inode *inode,
 	/*
 	 * Account for the allocated meta blocks
 	 */
-	if (!(*errp)) {
+	if (!(*errp) && EXT4_I(inode)->i_delalloc_reserved_flag) {
 		spin_lock(&EXT4_I(inode)->i_block_reservation_lock);
 		EXT4_I(inode)->i_allocated_meta_blocks += *count;
 		spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
