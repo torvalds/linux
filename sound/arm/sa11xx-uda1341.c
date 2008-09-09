@@ -880,7 +880,7 @@ void snd_sa11xx_uda1341_free(struct snd_card *card)
 	audio_dma_free(&chip->s[SNDRV_PCM_STREAM_CAPTURE]);
 }
 
-static int __init sa11xx_uda1341_probe(struct platform_device *devptr)
+static int __devinit sa11xx_uda1341_probe(struct platform_device *devptr)
 {
 	int err;
 	struct snd_card *card;
