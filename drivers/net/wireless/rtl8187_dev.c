@@ -1184,6 +1184,8 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		dev->max_signal = 65;
 	}
 
+	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
+
 	if ((id->driver_info == DEVICE_RTL8187) && priv->is_rtl8187b)
 		printk(KERN_INFO "rtl8187: inconsistency between id with OEM"
 		       " info!\n");

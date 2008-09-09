@@ -113,10 +113,12 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 	struct nlattr *nl_bands, *nl_band;
 	struct nlattr *nl_freqs, *nl_freq;
 	struct nlattr *nl_rates, *nl_rate;
+	struct nlattr *nl_modes;
 	enum ieee80211_band band;
 	struct ieee80211_channel *chan;
 	struct ieee80211_rate *rate;
 	int i;
+	u16 ifmodes = dev->wiphy.interface_modes;
 
 	hdr = nl80211hdr_put(msg, pid, seq, flags, NL80211_CMD_NEW_WIPHY);
 	if (!hdr)
@@ -124,6 +126,20 @@ static int nl80211_send_wiphy(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_WIPHY, dev->idx);
 	NLA_PUT_STRING(msg, NL80211_ATTR_WIPHY_NAME, wiphy_name(&dev->wiphy));
+
+	nl_modes = nla_nest_start(msg, NL80211_ATTR_SUPPORTED_IFTYPES);
+	if (!nl_modes)
+		goto nla_put_failure;
+
+	i = 0;
+	while (ifmodes) {
+		if (ifmodes & 1)
+			NLA_PUT_FLAG(msg, i);
+		ifmodes >>= 1;
+		i++;
+	}
+
+	nla_nest_end(msg, nl_modes);
 
 	nl_bands = nla_nest_start(msg, NL80211_ATTR_WIPHY_BANDS);
 	if (!nl_bands)
@@ -415,7 +431,8 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 	ifindex = dev->ifindex;
 	dev_put(dev);
 
-	if (!drv->ops->change_virtual_intf) {
+	if (!drv->ops->change_virtual_intf ||
+	    !(drv->wiphy.interface_modes & (1 << type))) {
 		err = -EOPNOTSUPP;
 		goto unlock;
 	}
@@ -462,7 +479,8 @@ static int nl80211_new_interface(struct sk_buff *skb, struct genl_info *info)
 	if (IS_ERR(drv))
 		return PTR_ERR(drv);
 
-	if (!drv->ops->add_virtual_intf) {
+	if (!drv->ops->add_virtual_intf ||
+	    !(drv->wiphy.interface_modes & (1 << type))) {
 		err = -EOPNOTSUPP;
 		goto unlock;
 	}

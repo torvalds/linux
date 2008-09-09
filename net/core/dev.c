@@ -1991,8 +1991,13 @@ static void net_tx_action(struct softirq_action *h)
 				spin_unlock(root_lock);
 			} else {
 				if (!test_bit(__QDISC_STATE_DEACTIVATED,
-					      &q->state))
+					      &q->state)) {
 					__netif_reschedule(q);
+				} else {
+					smp_mb__before_clear_bit();
+					clear_bit(__QDISC_STATE_SCHED,
+						  &q->state);
+				}
 			}
 		}
 	}
@@ -4662,6 +4667,12 @@ int netdev_compute_features(unsigned long all, unsigned long one)
 	if (one & NETIF_F_GSO)
 		one |= NETIF_F_GSO_SOFTWARE;
 	one |= NETIF_F_GSO;
+
+	/*
+	 * If even one device supports a GSO protocol with software fallback,
+	 * enable it for all.
+	 */
+	all |= one & NETIF_F_GSO_SOFTWARE;
 
 	/* If even one device supports robust GSO, enable it for all. */
 	if (one & NETIF_F_GSO_ROBUST)

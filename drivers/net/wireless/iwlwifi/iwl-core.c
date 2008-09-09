@@ -592,12 +592,11 @@ static void iwlcore_free_geos(struct iwl_priv *priv)
 	clear_bit(STATUS_GEO_CONFIGURED, &priv->status);
 }
 
-static u8 is_single_rx_stream(struct iwl_priv *priv)
+static bool is_single_rx_stream(struct iwl_priv *priv)
 {
 	return !priv->current_ht_config.is_ht ||
 	       ((priv->current_ht_config.supp_mcs_set[1] == 0) &&
-		(priv->current_ht_config.supp_mcs_set[2] == 0)) ||
-	       priv->ps_mode == IWL_MIMO_PS_STATIC;
+		(priv->current_ht_config.supp_mcs_set[2] == 0));
 }
 
 static u8 iwl_is_channel_extension(struct iwl_priv *priv,
@@ -704,33 +703,39 @@ EXPORT_SYMBOL(iwl_set_rxon_ht);
  * MIMO (dual stream) requires at least 2, but works better with 3.
  * This does not determine *which* chains to use, just how many.
  */
-static int iwlcore_get_rx_chain_counter(struct iwl_priv *priv,
-					u8 *idle_state, u8 *rx_state)
+static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 {
-	u8 is_single = is_single_rx_stream(priv);
-	u8 is_cam = test_bit(STATUS_POWER_PMI, &priv->status) ? 0 : 1;
+	bool is_single = is_single_rx_stream(priv);
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
 
 	/* # of Rx chains to use when expecting MIMO. */
 	if (is_single || (!is_cam && (priv->ps_mode == IWL_MIMO_PS_STATIC)))
-		*rx_state = 2;
+		return 2;
 	else
-		*rx_state = 3;
+		return 3;
+}
 
+static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
+{
+	int idle_cnt;
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
 	/* # Rx chains when idling and maybe trying to save power */
 	switch (priv->ps_mode) {
 	case IWL_MIMO_PS_STATIC:
 	case IWL_MIMO_PS_DYNAMIC:
-		*idle_state = (is_cam) ? 2 : 1;
+		idle_cnt = (is_cam) ? 2 : 1;
 		break;
 	case IWL_MIMO_PS_NONE:
-		*idle_state = (is_cam) ? *rx_state : 1;
+		idle_cnt = (is_cam) ? active_cnt : 1;
 		break;
+	case IWL_MIMO_PS_INVALID:
 	default:
-		*idle_state = 1;
+		IWL_ERROR("invalide mimo ps mode %d\n", priv->ps_mode);
+		WARN_ON(1);
+		idle_cnt = -1;
 		break;
 	}
-
-	return 0;
+	return idle_cnt;
 }
 
 /**
@@ -741,39 +746,49 @@ static int iwlcore_get_rx_chain_counter(struct iwl_priv *priv,
  */
 void iwl_set_rxon_chain(struct iwl_priv *priv)
 {
-	u8 is_single = is_single_rx_stream(priv);
-	u8 idle_state, rx_state;
-
-	priv->staging_rxon.rx_chain = 0;
-	rx_state = idle_state = 3;
+	bool is_single = is_single_rx_stream(priv);
+	bool is_cam = !test_bit(STATUS_POWER_PMI, &priv->status);
+	u8 idle_rx_cnt, active_rx_cnt;
+	u16 rx_chain;
 
 	/* Tell uCode which antennas are actually connected.
 	 * Before first association, we assume all antennas are connected.
 	 * Just after first association, iwl_chain_noise_calibration()
 	 *    checks which antennas actually *are* connected. */
-	priv->staging_rxon.rx_chain |=
-		    cpu_to_le16(priv->hw_params.valid_rx_ant <<
-						 RXON_RX_CHAIN_VALID_POS);
+	rx_chain = priv->hw_params.valid_rx_ant << RXON_RX_CHAIN_VALID_POS;
 
 	/* How many receivers should we use? */
-	iwlcore_get_rx_chain_counter(priv, &idle_state, &rx_state);
-	priv->staging_rxon.rx_chain |=
-		cpu_to_le16(rx_state << RXON_RX_CHAIN_MIMO_CNT_POS);
-	priv->staging_rxon.rx_chain |=
-		cpu_to_le16(idle_state << RXON_RX_CHAIN_CNT_POS);
+	active_rx_cnt = iwl_get_active_rx_chain_count(priv);
+	idle_rx_cnt = iwl_get_idle_rx_chain_count(priv, active_rx_cnt);
 
-	if (!is_single && (rx_state >= 2) &&
-	    !test_bit(STATUS_POWER_PMI, &priv->status))
+	/* correct rx chain count accoridng hw settings */
+	if (priv->hw_params.rx_chains_num < active_rx_cnt)
+		active_rx_cnt = priv->hw_params.rx_chains_num;
+
+	if (priv->hw_params.rx_chains_num < idle_rx_cnt)
+		idle_rx_cnt = priv->hw_params.rx_chains_num;
+
+	rx_chain |= active_rx_cnt << RXON_RX_CHAIN_MIMO_CNT_POS;
+	rx_chain |= idle_rx_cnt  << RXON_RX_CHAIN_CNT_POS;
+
+	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
+
+	if (!is_single && (active_rx_cnt >= 2) && is_cam)
 		priv->staging_rxon.rx_chain |= RXON_RX_CHAIN_MIMO_FORCE_MSK;
 	else
 		priv->staging_rxon.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
 
-	IWL_DEBUG_ASSOC("rx chain %X\n", priv->staging_rxon.rx_chain);
+	IWL_DEBUG_ASSOC("rx_chain=0x%Xi active=%d idle=%d\n",
+			priv->staging_rxon.rx_chain,
+			active_rx_cnt, idle_rx_cnt);
+
+	WARN_ON(active_rx_cnt == 0 || idle_rx_cnt == 0 ||
+		active_rx_cnt < idle_rx_cnt);
 }
 EXPORT_SYMBOL(iwl_set_rxon_chain);
 
 /**
- * iwlcore_set_rxon_channel - Set the phymode and channel values in staging RXON
+ * iwl_set_rxon_channel - Set the phymode and channel values in staging RXON
  * @phymode: MODE_IEEE80211A sets to 5.2GHz; all else set to 2.4GHz
  * @channel: Any channel valid for the requested phymode
 
@@ -782,10 +797,11 @@ EXPORT_SYMBOL(iwl_set_rxon_chain);
  * NOTE:  Does not commit to the hardware; it sets appropriate bit fields
  * in the staging RXON flag structure based on the phymode
  */
-int iwl_set_rxon_channel(struct iwl_priv *priv,
-				enum ieee80211_band band,
-				u16 channel)
+int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch)
 {
+	enum ieee80211_band band = ch->band;
+	u16 channel = ieee80211_frequency_to_channel(ch->center_freq);
+
 	if (!iwl_get_channel_info(priv, band, channel)) {
 		IWL_DEBUG_INFO("Could not set channel to %d [%d]\n",
 			       channel, band);
@@ -819,6 +835,10 @@ int iwl_setup_mac(struct iwl_priv *priv)
 	/* Tell mac80211 our characteristics */
 	hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM;
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
 	/* Default value; 4 EDCA QOS priorities */
 	hw->queues = 4;
 	/* queues to support 11n aggregation */
@@ -906,8 +926,6 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
 
-	iwl_set_rxon_channel(priv, IEEE80211_BAND_2GHZ, 6);
-
 	priv->rates_mask = IWL_RATES_MASK;
 	/* If power management is turned on, default to AC mode */
 	priv->power_mode = IWL_POWER_AC;
@@ -933,22 +951,6 @@ err:
 	return ret;
 }
 EXPORT_SYMBOL(iwl_init_drv);
-
-void iwl_free_calib_results(struct iwl_priv *priv)
-{
-	kfree(priv->calib_results.lo_res);
-	priv->calib_results.lo_res = NULL;
-	priv->calib_results.lo_res_len = 0;
-
-	kfree(priv->calib_results.tx_iq_res);
-	priv->calib_results.tx_iq_res = NULL;
-	priv->calib_results.tx_iq_res_len = 0;
-
-	kfree(priv->calib_results.tx_iq_perd_res);
-	priv->calib_results.tx_iq_perd_res = NULL;
-	priv->calib_results.tx_iq_perd_res_len = 0;
-}
-EXPORT_SYMBOL(iwl_free_calib_results);
 
 int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 {
@@ -977,10 +979,9 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 }
 EXPORT_SYMBOL(iwl_set_tx_power);
 
-
 void iwl_uninit_drv(struct iwl_priv *priv)
 {
-	iwl_free_calib_results(priv);
+	iwl_calib_free_results(priv);
 	iwlcore_free_geos(priv);
 	iwl_free_channel_map(priv);
 	kfree(priv->scan);

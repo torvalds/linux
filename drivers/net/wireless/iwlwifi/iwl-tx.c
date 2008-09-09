@@ -402,12 +402,11 @@ static int iwl_hw_tx_queue_init(struct iwl_priv *priv,
 /**
  * iwl_tx_queue_init - Allocate and initialize one tx/cmd queue
  */
-static int iwl_tx_queue_init(struct iwl_priv *priv,
-			     struct iwl_tx_queue *txq,
+static int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 			     int slots_num, u32 txq_id)
 {
 	int i, len;
-	int rc = 0;
+	int ret;
 
 	/*
 	 * Alloc buffer array for commands (Tx or other types of commands).
@@ -426,19 +425,16 @@ static int iwl_tx_queue_init(struct iwl_priv *priv,
 				continue;
 		}
 
-		txq->cmd[i] = kmalloc(len, GFP_KERNEL | GFP_DMA);
+		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
 		if (!txq->cmd[i])
-			return -ENOMEM;
+			goto err;
 	}
 
 	/* Alloc driver data array and TFD circular buffer */
-	rc = iwl_tx_queue_alloc(priv, txq, txq_id);
-	if (rc) {
-		for (i = 0; i < slots_num; i++)
-			kfree(txq->cmd[i]);
+	ret = iwl_tx_queue_alloc(priv, txq, txq_id);
+	if (ret)
+		goto err;
 
-		return -ENOMEM;
-	}
 	txq->need_update = 0;
 
 	/* TFD_QUEUE_SIZE_MAX must be power-of-two size, otherwise
@@ -452,6 +448,17 @@ static int iwl_tx_queue_init(struct iwl_priv *priv,
 	iwl_hw_tx_queue_init(priv, txq);
 
 	return 0;
+err:
+	for (i = 0; i < slots_num; i++) {
+		kfree(txq->cmd[i]);
+		txq->cmd[i] = NULL;
+	}
+
+	if (txq_id == IWL_CMD_QUEUE_NUM) {
+		kfree(txq->cmd[slots_num]);
+		txq->cmd[slots_num] = NULL;
+	}
+	return -ENOMEM;
 }
 /**
  * iwl_hw_txq_ctx_free - Free TXQ Context
@@ -789,11 +796,6 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		goto drop_unlock;
 	}
 
-	if (!priv->vif) {
-		IWL_DEBUG_DROP("Dropping - !priv->vif\n");
-		goto drop_unlock;
-	}
-
 	if ((ieee80211_get_tx_rate(priv->hw, info)->hw_value & 0xFF) ==
 	     IWL_INVALID_RATE) {
 		IWL_ERROR("ERROR: No TX rate available.\n");
@@ -815,9 +817,11 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 
 	/* drop all data frame if we are not associated */
 	if (ieee80211_is_data(fc) &&
-	   (!iwl_is_associated(priv) ||
-	    ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id) ||
-	    !priv->assoc_station_added)) {
+	    (priv->iw_mode != IEEE80211_IF_TYPE_MNTR ||
+	    !(info->flags & IEEE80211_TX_CTL_INJECTED)) && /* packet injection */
+	    (!iwl_is_associated(priv) ||
+	     ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && !priv->assoc_id) ||
+	     !priv->assoc_station_added)) {
 		IWL_DEBUG_DROP("Dropping - !iwl_is_associated\n");
 		goto drop_unlock;
 	}
@@ -1057,7 +1061,7 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	out_cmd->hdr.sequence = cpu_to_le16(QUEUE_TO_SEQ(IWL_CMD_QUEUE_NUM) |
 			INDEX_TO_SEQ(q->write_ptr));
 	if (out_cmd->meta.flags & CMD_SIZE_HUGE)
-		out_cmd->hdr.sequence |= cpu_to_le16(SEQ_HUGE_FRAME);
+		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 	len = (idx == TFD_CMD_SLOTS) ?
 			IWL_MAX_SCAN_SIZE : sizeof(struct iwl_cmd);
 	phys_addr = pci_map_single(priv->pci_dev, out_cmd, len,
@@ -1192,8 +1196,8 @@ void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb)
 	u16 sequence = le16_to_cpu(pkt->hdr.sequence);
 	int txq_id = SEQ_TO_QUEUE(sequence);
 	int index = SEQ_TO_INDEX(sequence);
-	int huge = sequence & SEQ_HUGE_FRAME;
 	int cmd_index;
+	bool huge = !!(pkt->hdr.sequence & SEQ_HUGE_FRAME);
 	struct iwl_cmd *cmd;
 
 	/* If a Tx command is being handled and it isn't in the actual

@@ -140,9 +140,6 @@ void br_stp_rcv(const struct stp_proto *proto, struct sk_buff *skb,
 	struct net_bridge *br;
 	const unsigned char *buf;
 
-	if (!net_eq(dev_net(dev), &init_net))
-		goto err;
-
 	if (!p)
 		goto err;
 

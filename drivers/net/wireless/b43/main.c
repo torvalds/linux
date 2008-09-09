@@ -46,7 +46,7 @@
 #include "debugfs.h"
 #include "phy_common.h"
 #include "phy_g.h"
-#include "nphy.h"
+#include "phy_n.h"
 #include "dma.h"
 #include "pio.h"
 #include "sysfs.h"
@@ -1052,23 +1052,6 @@ void b43_power_saving_ctl_bits(struct b43_wldev *dev, unsigned int ps_flags)
 	}
 }
 
-/* Turn the Analog ON/OFF */
-static void b43_switch_analog(struct b43_wldev *dev, int on)
-{
-	switch (dev->phy.type) {
-	case B43_PHYTYPE_A:
-	case B43_PHYTYPE_G:
-		b43_write16(dev, B43_MMIO_PHY0, on ? 0 : 0xF4);
-		break;
-	case B43_PHYTYPE_N:
-		b43_phy_write(dev, B43_NPHY_AFECTL_OVER,
-			      on ? 0 : 0x7FFF);
-		break;
-	default:
-		B43_WARN_ON(1);
-	}
-}
-
 void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 {
 	u32 tmslow;
@@ -1091,8 +1074,12 @@ void b43_wireless_core_reset(struct b43_wldev *dev, u32 flags)
 	ssb_read32(dev->dev, SSB_TMSLOW);	/* flush */
 	msleep(1);
 
-	/* Turn Analog ON */
-	b43_switch_analog(dev, 1);
+	/* Turn Analog ON, but only if we already know the PHY-type.
+	 * This protects against very early setup where we don't know the
+	 * PHY-type, yet. wireless_core_reset will be called once again later,
+	 * when we know the PHY-type. */
+	if (dev->phy.ops)
+		dev->phy.ops->switch_analog(dev, 1);
 
 	macctl = b43_read32(dev, B43_MMIO_MACCTL);
 	macctl &= ~B43_MACCTL_GMODE;
@@ -2694,6 +2681,7 @@ static void b43_mgmtframe_txantenna(struct b43_wldev *dev, int antenna)
 /* This is the opposite of b43_chip_init() */
 static void b43_chip_exit(struct b43_wldev *dev)
 {
+	b43_phy_exit(dev);
 	b43_gpio_cleanup(dev);
 	/* firmware is released later */
 }
@@ -2730,7 +2718,8 @@ static int b43_chip_init(struct b43_wldev *dev)
 	if (err)
 		goto err_gpio_clean;
 
-	b43_write16(dev, 0x03E6, 0x0000);
+	/* Turn the Analog on and initialize the PHY. */
+	phy->ops->switch_analog(dev, 1);
 	err = b43_phy_init(dev);
 	if (err)
 		goto err_gpio_clean;
@@ -3947,12 +3936,11 @@ static void b43_wireless_core_exit(struct b43_wldev *dev)
 	b43_dma_free(dev);
 	b43_pio_free(dev);
 	b43_chip_exit(dev);
-	b43_switch_analog(dev, 0);
+	dev->phy.ops->switch_analog(dev, 0);
 	if (dev->wl->current_beacon) {
 		dev_kfree_skb_any(dev->wl->current_beacon);
 		dev->wl->current_beacon = NULL;
 	}
-	b43_phy_exit(dev);
 
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(dev->dev->bus);
@@ -3979,24 +3967,23 @@ static int b43_wireless_core_init(struct b43_wldev *dev)
 		b43_wireless_core_reset(dev, tmp);
 	}
 
+	/* Reset all data structures. */
 	setup_struct_wldev_for_init(dev);
-	err = b43_phy_operations_setup(dev);
-	if (err)
-		goto err_busdown;
+	phy->ops->prepare_structs(dev);
 
 	/* Enable IRQ routing to this device. */
 	ssb_pcicore_dev_irqvecs_enable(&bus->pcicore, dev->dev);
 
 	b43_imcfglo_timeouts_workaround(dev);
 	b43_bluetooth_coext_disable(dev);
-	if (phy->ops->prepare) {
-		err = phy->ops->prepare(dev);
+	if (phy->ops->prepare_hardware) {
+		err = phy->ops->prepare_hardware(dev);
 		if (err)
-			goto err_phy_exit;
+			goto err_busdown;
 	}
 	err = b43_chip_init(dev);
 	if (err)
-		goto err_phy_exit;
+		goto err_busdown;
 	b43_shm_write16(dev, B43_SHM_SHARED,
 			B43_SHM_SH_WLCOREREV, dev->dev->id.revision);
 	hf = b43_hf_read(dev);
@@ -4064,8 +4051,6 @@ out:
 
 err_chip_exit:
 	b43_chip_exit(dev);
-err_phy_exit:
-	b43_phy_exit(dev);
 err_busdown:
 	ssb_bus_may_powerdown(bus);
 	B43_WARN_ON(b43_status(dev) != B43_STAT_UNINIT);
@@ -4342,6 +4327,7 @@ static void b43_wireless_core_detach(struct b43_wldev *dev)
 	/* We release firmware that late to not be required to re-request
 	 * is all the time when we reinit the core. */
 	b43_release_firmware(dev);
+	b43_phy_free(dev);
 }
 
 static int b43_wireless_core_attach(struct b43_wldev *dev)
@@ -4415,29 +4401,35 @@ static int b43_wireless_core_attach(struct b43_wldev *dev)
 		}
 	}
 
+	err = b43_phy_allocate(dev);
+	if (err)
+		goto err_powerdown;
+
 	dev->phy.gmode = have_2ghz_phy;
 	tmp = dev->phy.gmode ? B43_TMSLOW_GMODE : 0;
 	b43_wireless_core_reset(dev, tmp);
 
 	err = b43_validate_chipaccess(dev);
 	if (err)
-		goto err_powerdown;
+		goto err_phy_free;
 	err = b43_setup_bands(dev, have_2ghz_phy, have_5ghz_phy);
 	if (err)
-		goto err_powerdown;
+		goto err_phy_free;
 
 	/* Now set some default "current_dev" */
 	if (!wl->current_dev)
 		wl->current_dev = dev;
 	INIT_WORK(&dev->restart_work, b43_chip_reset);
 
-	b43_switch_analog(dev, 0);
+	dev->phy.ops->switch_analog(dev, 0);
 	ssb_device_disable(dev->dev, 0);
 	ssb_bus_may_powerdown(bus);
 
 out:
 	return err;
 
+err_phy_free:
+	b43_phy_free(dev);
 err_powerdown:
 	ssb_bus_may_powerdown(bus);
 	return err;
@@ -4568,6 +4560,13 @@ static int b43_wireless_init(struct ssb_device *dev)
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		    IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM;
+
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_MESH_POINT) |
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_WDS) |
+		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->queues = b43_modparam_qos ? 4 : 1;
 	SET_IEEE80211_DEV(hw, dev->dev);

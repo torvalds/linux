@@ -894,7 +894,6 @@ struct iwl3945_priv {
 	struct delayed_work thermal_periodic;
 	struct delayed_work gather_stats;
 	struct delayed_work scan_check;
-	struct delayed_work post_associate;
 
 #define IWL_DEFAULT_TX_POWER 0x0F
 	s8 user_txpower_limit;

@@ -204,7 +204,8 @@ static int ath_key_config(struct ath_softc *sc,
 	if (!ret)
 		return -EIO;
 
-	sc->sc_keytype = hk.kv_type;
+	if (mac)
+		sc->sc_keytype = hk.kv_type;
 	return 0;
 }
 
@@ -781,7 +782,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			key->hw_key_idx = key->keyidx;
 			/* push IV and Michael MIC generation to stack */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			if (key->alg == ALG_TKIP)
+				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 		}
 		break;
 	case DISABLE_KEY:
@@ -1481,6 +1483,11 @@ static int ath_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM;
+
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_AP) |
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
 
 	SET_IEEE80211_DEV(hw, &pdev->dev);
 	pci_set_drvdata(pdev, hw);

@@ -25,7 +25,7 @@
 #include "b43.h"
 #include "tables_nphy.h"
 #include "phy_common.h"
-#include "nphy.h"
+#include "phy_n.h"
 
 
 struct b2055_inittab_entry {

@@ -1,7 +1,7 @@
 /*
- * Copyright (c) 2007 Nick Kossifidis <mickflemm@gmail.com>
- * Copyright (c) 2004, 2005, 2006, 2007 Reyk Floeter <reyk@openbsd.org>
- * Copyright (c) 2007 Michael Taylor <mike.taylor@apprion.com>
+ * Copyright (c) 2006-2008 Nick Kossifidis <mickflemm@gmail.com>
+ * Copyright (c) 2004-2008 Reyk Floeter <reyk@openbsd.org>
+ * Copyright (c) 2007-2008 Michael Taylor <mike.taylor@apprion.com>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -977,98 +977,6 @@
 #define AR5K_EEPROM_BASE	0x6000
 
 /*
- * Common ar5xxx EEPROM data offsets (set these on AR5K_EEPROM_BASE)
- */
-#define AR5K_EEPROM_MAGIC		0x003d	/* EEPROM Magic number */
-#define AR5K_EEPROM_MAGIC_VALUE		0x5aa5	/* Default - found on EEPROM */
-#define AR5K_EEPROM_MAGIC_5212		0x0000145c /* 5212 */
-#define AR5K_EEPROM_MAGIC_5211		0x0000145b /* 5211 */
-#define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
-
-#define AR5K_EEPROM_PROTECT		0x003f	/* EEPROM protect status */
-#define AR5K_EEPROM_PROTECT_RD_0_31	0x0001	/* Read protection bit for offsets 0x0 - 0x1f */
-#define AR5K_EEPROM_PROTECT_WR_0_31	0x0002	/* Write protection bit for offsets 0x0 - 0x1f */
-#define AR5K_EEPROM_PROTECT_RD_32_63	0x0004	/* 0x20 - 0x3f */
-#define AR5K_EEPROM_PROTECT_WR_32_63	0x0008
-#define AR5K_EEPROM_PROTECT_RD_64_127	0x0010	/* 0x40 - 0x7f */
-#define AR5K_EEPROM_PROTECT_WR_64_127	0x0020
-#define AR5K_EEPROM_PROTECT_RD_128_191	0x0040	/* 0x80 - 0xbf (regdom) */
-#define AR5K_EEPROM_PROTECT_WR_128_191	0x0080
-#define AR5K_EEPROM_PROTECT_RD_192_207	0x0100	/* 0xc0 - 0xcf */
-#define AR5K_EEPROM_PROTECT_WR_192_207	0x0200
-#define AR5K_EEPROM_PROTECT_RD_208_223	0x0400	/* 0xd0 - 0xdf */
-#define AR5K_EEPROM_PROTECT_WR_208_223	0x0800
-#define AR5K_EEPROM_PROTECT_RD_224_239	0x1000	/* 0xe0 - 0xef */
-#define AR5K_EEPROM_PROTECT_WR_224_239	0x2000
-#define AR5K_EEPROM_PROTECT_RD_240_255	0x4000	/* 0xf0 - 0xff */
-#define AR5K_EEPROM_PROTECT_WR_240_255	0x8000
-#define AR5K_EEPROM_REG_DOMAIN		0x00bf	/* EEPROM regdom */
-#define AR5K_EEPROM_INFO_BASE		0x00c0	/* EEPROM header */
-#define AR5K_EEPROM_INFO_MAX		(0x400 - AR5K_EEPROM_INFO_BASE)
-#define AR5K_EEPROM_INFO_CKSUM		0xffff
-#define AR5K_EEPROM_INFO(_n)		(AR5K_EEPROM_INFO_BASE + (_n))
-
-#define AR5K_EEPROM_VERSION		AR5K_EEPROM_INFO(1)	/* EEPROM Version */
-#define AR5K_EEPROM_VERSION_3_0		0x3000	/* No idea what's going on before this version */
-#define AR5K_EEPROM_VERSION_3_1		0x3001	/* ob/db values for 2Ghz (ar5211_rfregs) */
-#define AR5K_EEPROM_VERSION_3_2		0x3002	/* different frequency representation (eeprom_bin2freq) */
-#define AR5K_EEPROM_VERSION_3_3		0x3003	/* offsets changed, has 32 CTLs (see below) and ee_false_detect (eeprom_read_modes) */
-#define AR5K_EEPROM_VERSION_3_4		0x3004	/* has ee_i_gain ee_cck_ofdm_power_delta (eeprom_read_modes) */
-#define AR5K_EEPROM_VERSION_4_0		0x4000	/* has ee_misc*, ee_cal_pier, ee_turbo_max_power and ee_xr_power (eeprom_init) */
-#define AR5K_EEPROM_VERSION_4_1		0x4001	/* has ee_margin_tx_rx (eeprom_init) */
-#define AR5K_EEPROM_VERSION_4_2		0x4002	/* has ee_cck_ofdm_gain_delta (eeprom_init) */
-#define AR5K_EEPROM_VERSION_4_3		0x4003
-#define AR5K_EEPROM_VERSION_4_4		0x4004
-#define AR5K_EEPROM_VERSION_4_5		0x4005
-#define AR5K_EEPROM_VERSION_4_6		0x4006	/* has ee_scaled_cck_delta */
-#define AR5K_EEPROM_VERSION_4_7		0x4007
-
-#define AR5K_EEPROM_MODE_11A		0
-#define AR5K_EEPROM_MODE_11B		1
-#define AR5K_EEPROM_MODE_11G		2
-
-#define AR5K_EEPROM_HDR			AR5K_EEPROM_INFO(2)	/* Header that contains the device caps */
-#define AR5K_EEPROM_HDR_11A(_v)		(((_v) >> AR5K_EEPROM_MODE_11A) & 0x1)
-#define AR5K_EEPROM_HDR_11B(_v)		(((_v) >> AR5K_EEPROM_MODE_11B) & 0x1)
-#define AR5K_EEPROM_HDR_11G(_v)		(((_v) >> AR5K_EEPROM_MODE_11G) & 0x1)
-#define AR5K_EEPROM_HDR_T_2GHZ_DIS(_v)	(((_v) >> 3) & 0x1)	/* Disable turbo for 2Ghz (?) */
-#define AR5K_EEPROM_HDR_T_5GHZ_DBM(_v)	(((_v) >> 4) & 0x7f)	/* Max turbo power for a/XR mode (eeprom_init) */
-#define AR5K_EEPROM_HDR_DEVICE(_v)	(((_v) >> 11) & 0x7)
-#define AR5K_EEPROM_HDR_T_5GHZ_DIS(_v)	(((_v) >> 15) & 0x1)	/* Disable turbo for 5Ghz (?) */
-#define AR5K_EEPROM_HDR_RFKILL(_v)	(((_v) >> 14) & 0x1)	/* Device has RFKill support */
-
-#define AR5K_EEPROM_RFKILL_GPIO_SEL	0x0000001c
-#define AR5K_EEPROM_RFKILL_GPIO_SEL_S	2
-#define AR5K_EEPROM_RFKILL_POLARITY	0x00000002
-#define AR5K_EEPROM_RFKILL_POLARITY_S	1
-
-/* Newer EEPROMs are using a different offset */
-#define AR5K_EEPROM_OFF(_v, _v3_0, _v3_3) \
-	(((_v) >= AR5K_EEPROM_VERSION_3_3) ? _v3_3 : _v3_0)
-
-#define AR5K_EEPROM_ANT_GAIN(_v)	AR5K_EEPROM_OFF(_v, 0x00c4, 0x00c3)
-#define AR5K_EEPROM_ANT_GAIN_5GHZ(_v)	((int8_t)(((_v) >> 8) & 0xff))
-#define AR5K_EEPROM_ANT_GAIN_2GHZ(_v)	((int8_t)((_v) & 0xff))
-
-/* calibration settings */
-#define AR5K_EEPROM_MODES_11A(_v)	AR5K_EEPROM_OFF(_v, 0x00c5, 0x00d4)
-#define AR5K_EEPROM_MODES_11B(_v)	AR5K_EEPROM_OFF(_v, 0x00d0, 0x00f2)
-#define AR5K_EEPROM_MODES_11G(_v)	AR5K_EEPROM_OFF(_v, 0x00da, 0x010d)
-#define AR5K_EEPROM_CTL(_v)		AR5K_EEPROM_OFF(_v, 0x00e4, 0x0128)	/* Conformance test limits */
-
-/* [3.1 - 3.3] */
-#define AR5K_EEPROM_OBDB0_2GHZ		0x00ec
-#define AR5K_EEPROM_OBDB1_2GHZ		0x00ed
-
-/* Misc values available since EEPROM 4.0 */
-#define AR5K_EEPROM_MISC0		0x00c4
-#define AR5K_EEPROM_EARSTART(_v)	((_v) & 0xfff)
-#define AR5K_EEPROM_EEMAP(_v)		(((_v) >> 14) & 0x3)
-#define AR5K_EEPROM_MISC1		0x00c5
-#define AR5K_EEPROM_TARGET_PWRSTART(_v)	((_v) & 0xfff)
-#define AR5K_EEPROM_HAS32KHZCRYSTAL(_v)	(((_v) >> 14) & 0x1)
-
-/*
  * EEPROM data register
  */
 #define AR5K_EEPROM_DATA_5211	0x6004
@@ -1950,13 +1858,13 @@
 #define	AR5K_PHY_GAIN_OFFSET_RXTX_FLAG	0x00020000	/* RX-TX flag (?) */
 
 /*
- * Desired size register
+ * Desired ADC/PGA size register
  * (for more infos read ANI patent)
  */
 #define AR5K_PHY_DESIRED_SIZE		0x9850			/* Register Address */
 #define	AR5K_PHY_DESIRED_SIZE_ADC	0x000000ff	/* Mask for ADC desired size */
 #define	AR5K_PHY_DESIRED_SIZE_PGA	0x0000ff00	/* Mask for PGA desired size */
-#define	AR5K_PHY_DESIRED_SIZE_TOT	0x0ff00000	/* Mask for Total desired size (?) */
+#define	AR5K_PHY_DESIRED_SIZE_TOT	0x0ff00000	/* Mask for Total desired size */
 
 /*
  * PHY signal register

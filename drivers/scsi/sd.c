@@ -1875,6 +1875,7 @@ static int sd_probe(struct device *dev)
 
 	dev_set_drvdata(dev, sdkp);
 	add_disk(gd);
+	blk_register_filter(gd);
 	sd_dif_config_host(sdkp);
 
 	sd_printk(KERN_NOTICE, sdkp, "Attached SCSI %sdisk\n",
@@ -1908,6 +1909,7 @@ static int sd_remove(struct device *dev)
 	struct scsi_disk *sdkp = dev_get_drvdata(dev);
 
 	device_del(&sdkp->dev);
+	blk_unregister_filter(sdkp->disk);
 	del_gendisk(sdkp->disk);
 	sd_shutdown(dev);
 

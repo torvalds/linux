@@ -334,7 +334,7 @@ static int w9966_init(struct w9966_dev* cam, struct parport* port)
 	memcpy(&cam->vdev, &w9966_template, sizeof(struct video_device));
 	cam->vdev.priv = cam;
 
-	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) == -1)
+	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
 		return -1;
 
 	w9966_setState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);

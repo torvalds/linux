@@ -58,8 +58,8 @@
  * THE POSSIBILITY OF SUCH DAMAGES.
  */
 
-#include "debug.h"
 #include "base.h"
+#include "debug.h"
 
 static unsigned int ath5k_debug;
 module_param_named(debug, ath5k_debug, uint, 0);
@@ -525,7 +525,7 @@ ath5k_debug_printrxbuffs(struct ath5k_softc *sc, struct ath5k_hw *ah)
 		return;
 
 	printk(KERN_DEBUG "rx queue %x, link %p\n",
-		ath5k_hw_get_rx_buf(ah), sc->rxlink);
+		ath5k_hw_get_rxdp(ah), sc->rxlink);
 
 	spin_lock_bh(&sc->rxbuflock);
 	list_for_each_entry(bf, &sc->rxbuf, list) {

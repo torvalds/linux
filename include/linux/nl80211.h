@@ -210,6 +210,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_HT_CAPABILITY: HT Capability information element (from
  *	association request when used with NL80211_CMD_NEW_STATION)
  *
+ * @NL80211_ATTR_SUPPORTED_IFTYPES: nested attribute containing all
+ *	supported interface types, each a flag attribute with the number
+ *	of the interface mode.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -258,6 +262,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_BSS_SHORT_SLOT_TIME,
 
 	NL80211_ATTR_HT_CAPABILITY,
+
+	NL80211_ATTR_SUPPORTED_IFTYPES,
 
 	/* add attributes here, update the policy in nl80211.c */
 

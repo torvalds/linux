@@ -82,6 +82,7 @@ nla_put_failure:
  */
 void br_ifinfo_notify(int event, struct net_bridge_port *port)
 {
+	struct net *net = dev_net(port->dev);
 	struct sk_buff *skb;
 	int err = -ENOBUFS;
 
@@ -97,10 +98,10 @@ void br_ifinfo_notify(int event, struct net_bridge_port *port)
 		kfree_skb(skb);
 		goto errout;
 	}
-	err = rtnl_notify(skb, &init_net,0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
+	err = rtnl_notify(skb, net, 0, RTNLGRP_LINK, NULL, GFP_ATOMIC);
 errout:
 	if (err < 0)
-		rtnl_set_sk_err(&init_net, RTNLGRP_LINK, err);
+		rtnl_set_sk_err(net, RTNLGRP_LINK, err);
 }
 
 /*
@@ -112,11 +113,8 @@ static int br_dump_ifinfo(struct sk_buff *skb, struct netlink_callback *cb)
 	struct net_device *dev;
 	int idx;
 
-	if (net != &init_net)
-		return 0;
-
 	idx = 0;
-	for_each_netdev(&init_net, dev) {
+	for_each_netdev(net, dev) {
 		/* not a bridge port */
 		if (dev->br_port == NULL || idx < cb->args[0])
 			goto skip;
@@ -147,9 +145,6 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	struct net_bridge_port *p;
 	u8 new_state;
 
-	if (net != &init_net)
-		return -EINVAL;
-
 	if (nlmsg_len(nlh) < sizeof(*ifm))
 		return -EINVAL;
 
@@ -165,7 +160,7 @@ static int br_rtm_setlink(struct sk_buff *skb,  struct nlmsghdr *nlh, void *arg)
 	if (new_state > BR_STATE_BLOCKING)
 		return -EINVAL;
 
-	dev = __dev_get_by_index(&init_net, ifm->ifi_index);
+	dev = __dev_get_by_index(net, ifm->ifi_index);
 	if (!dev)
 		return -ENODEV;
 

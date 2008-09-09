@@ -145,7 +145,8 @@ static void iwl5000_apm_stop(struct iwl_priv *priv)
 
 	udelay(10);
 
-	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	/* clear "init complete"  move adapter D0A* --> D0U state */
+	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -208,14 +209,14 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	u16 radio_cfg;
-	u8 val_link;
+	u16 link;
 
 	spin_lock_irqsave(&priv->lock, flags);
 
-	pci_read_config_byte(priv->pci_dev, PCI_LINK_CTRL, &val_link);
+	pci_read_config_word(priv->pci_dev, PCI_CFG_LINK_CTRL, &link);
 
 	/* L1 is enabled by BIOS */
-	if ((val_link & PCI_LINK_VAL_L1_EN) == PCI_LINK_VAL_L1_EN)
+	if ((link & PCI_CFG_LINK_CTRL_VAL_L1_EN) == PCI_CFG_LINK_CTRL_VAL_L1_EN)
 		/* diable L0S disabled L1A enabled */
 		iwl_set_bit(priv, CSR_GIO_REG, CSR_GIO_REG_VAL_L0S_ENABLED);
 	else
@@ -444,48 +445,6 @@ static int iwl5000_send_Xtal_calib(struct iwl_priv *priv)
 				sizeof(cal_cmd), &cal_cmd);
 }
 
-static int iwl5000_send_calib_results(struct iwl_priv *priv)
-{
-	int ret = 0;
-
-	struct iwl_host_cmd hcmd = {
-		.id = REPLY_PHY_CALIBRATION_CMD,
-		.meta.flags = CMD_SIZE_HUGE,
-	};
-
-	if (priv->calib_results.lo_res) {
-		hcmd.len = priv->calib_results.lo_res_len;
-		hcmd.data = priv->calib_results.lo_res;
-		ret = iwl_send_cmd_sync(priv, &hcmd);
-
-		if (ret)
-			goto err;
-	}
-
-	if (priv->calib_results.tx_iq_res) {
-		hcmd.len = priv->calib_results.tx_iq_res_len;
-		hcmd.data = priv->calib_results.tx_iq_res;
-		ret = iwl_send_cmd_sync(priv, &hcmd);
-
-		if (ret)
-			goto err;
-	}
-
-	if (priv->calib_results.tx_iq_perd_res) {
-		hcmd.len = priv->calib_results.tx_iq_perd_res_len;
-		hcmd.data = priv->calib_results.tx_iq_perd_res;
-		ret = iwl_send_cmd_sync(priv, &hcmd);
-
-		if (ret)
-			goto err;
-	}
-
-	return 0;
-err:
-	IWL_ERROR("Error %d\n", ret);
-	return ret;
-}
-
 static int iwl5000_send_calib_cfg(struct iwl_priv *priv)
 {
 	struct iwl5000_calib_cfg_cmd calib_cfg_cmd;
@@ -510,33 +469,30 @@ static void iwl5000_rx_calib_result(struct iwl_priv *priv,
 	struct iwl_rx_packet *pkt = (void *)rxb->skb->data;
 	struct iwl5000_calib_hdr *hdr = (struct iwl5000_calib_hdr *)pkt->u.raw;
 	int len = le32_to_cpu(pkt->len) & FH_RSCSR_FRAME_SIZE_MSK;
-
-	iwl_free_calib_results(priv);
+	int index;
 
 	/* reduce the size of the length field itself */
 	len -= 4;
 
+	/* Define the order in which the results will be sent to the runtime
+	 * uCode. iwl_send_calib_results sends them in a row according to their
+	 * index. We sort them here */
 	switch (hdr->op_code) {
 	case IWL5000_PHY_CALIBRATE_LO_CMD:
-		priv->calib_results.lo_res = kzalloc(len, GFP_ATOMIC);
-		priv->calib_results.lo_res_len = len;
-		memcpy(priv->calib_results.lo_res, pkt->u.raw, len);
+		index = IWL5000_CALIB_LO;
 		break;
 	case IWL5000_PHY_CALIBRATE_TX_IQ_CMD:
-		priv->calib_results.tx_iq_res = kzalloc(len, GFP_ATOMIC);
-		priv->calib_results.tx_iq_res_len = len;
-		memcpy(priv->calib_results.tx_iq_res, pkt->u.raw, len);
+		index = IWL5000_CALIB_TX_IQ;
 		break;
 	case IWL5000_PHY_CALIBRATE_TX_IQ_PERD_CMD:
-		priv->calib_results.tx_iq_perd_res = kzalloc(len, GFP_ATOMIC);
-		priv->calib_results.tx_iq_perd_res_len = len;
-		memcpy(priv->calib_results.tx_iq_perd_res, pkt->u.raw, len);
+		index = IWL5000_CALIB_TX_IQ_PERD;
 		break;
 	default:
 		IWL_ERROR("Unknown calibration notification %d\n",
 			  hdr->op_code);
 		return;
 	}
+	iwl_calib_set(&priv->calib_results[index], pkt->u.raw, len);
 }
 
 static void iwl5000_rx_calib_complete(struct iwl_priv *priv,
@@ -577,14 +533,11 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
 		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
 
-	/* FIME: write the MSB of the phy_addr in CTRL1
-	 * iwl_write_direct32(priv,
-		IWL_FH_TFDIB_CTRL1_REG(IWL_FH_SRVC_CHNL),
-		((phy_addr & MSB_MSK)
-			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_count);
-	 */
 	iwl_write_direct32(priv,
-		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL), byte_cnt);
+		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
+		(iwl_get_dma_hi_address(phy_addr)
+			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+
 	iwl_write_direct32(priv,
 		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
 		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
@@ -834,7 +787,7 @@ static int iwl5000_alive_notify(struct iwl_priv *priv)
 	iwl5000_send_Xtal_calib(priv);
 
 	if (priv->ucode_type == UCODE_RT)
-		iwl5000_send_calib_results(priv);
+		iwl_send_calib_results(priv);
 
 	return 0;
 }

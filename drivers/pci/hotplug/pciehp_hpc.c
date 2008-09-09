@@ -1030,15 +1030,6 @@ static void pcie_shutdown_notification(struct controller *ctrl)
 	pciehp_free_irq(ctrl);
 }
 
-static void make_slot_name(struct slot *slot)
-{
-	if (pciehp_slot_with_bus)
-		snprintf(slot->name, SLOT_NAME_SIZE, "%04d_%04d",
-			 slot->bus, slot->number);
-	else
-		snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
-}
-
 static int pcie_init_slot(struct controller *ctrl)
 {
 	struct slot *slot;
@@ -1053,7 +1044,7 @@ static int pcie_init_slot(struct controller *ctrl)
 	slot->device = ctrl->slot_device_offset + slot->hp_slot;
 	slot->hpc_ops = ctrl->hpc_ops;
 	slot->number = ctrl->first_slot;
-	make_slot_name(slot);
+	snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
 	mutex_init(&slot->lock);
 	INIT_DELAYED_WORK(&slot->work, pciehp_queue_pushbutton_work);
 	list_add(&slot->slot_list, &ctrl->slot_list);

@@ -1,6 +1,14 @@
-ath5k-y				+= base.o
-ath5k-y				+= hw.o
+ath5k-y				+= caps.o
 ath5k-y				+= initvals.o
+ath5k-y				+= eeprom.o
+ath5k-y				+= gpio.o
+ath5k-y				+= desc.o
+ath5k-y				+= dma.o
+ath5k-y				+= qcu.o
+ath5k-y				+= pcu.o
 ath5k-y				+= phy.o
+ath5k-y				+= reset.o
+ath5k-y				+= attach.o
+ath5k-y				+= base.o
 ath5k-$(CONFIG_ATH5K_DEBUG)	+= debug.o
 obj-$(CONFIG_ATH5K)		+= ath5k.o

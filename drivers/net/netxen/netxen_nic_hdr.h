@@ -32,8 +32,6 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/version.h>
-
 #include <linux/spinlock.h>
 #include <asm/irq.h>
 #include <linux/init.h>

@@ -485,6 +485,12 @@ ath5k_pci_probe(struct pci_dev *pdev,
 	hw->flags = IEEE80211_HW_RX_INCLUDES_FCS |
 		    IEEE80211_HW_SIGNAL_DBM |
 		    IEEE80211_HW_NOISE_DBM;
+
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC) |
+		BIT(NL80211_IFTYPE_MESH_POINT);
+
 	hw->extra_tx_headroom = 2;
 	hw->channel_change_time = 5000;
 	sc = hw->priv;
@@ -707,7 +713,7 @@ ath5k_attach(struct pci_dev *pdev, struct ieee80211_hw *hw)
 	 * return false w/o doing anything.  MAC's that do
 	 * support it will return true w/o doing anything.
 	 */
-	ret = ah->ah_setup_xtx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
+	ret = ah->ah_setup_mrr_tx_desc(ah, NULL, 0, 0, 0, 0, 0, 0);
 	if (ret < 0)
 		goto err;
 	if (ret > 0)
@@ -1137,7 +1143,7 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	ds = bf->desc;
 	ds->ds_link = bf->daddr;	/* link to self */
 	ds->ds_data = bf->skbaddr;
-	ath5k_hw_setup_rx_desc(ah, ds,
+	ah->ah_setup_rx_desc(ah, ds,
 		skb_tailroom(skb),	/* buffer size */
 		0);
 
@@ -1188,12 +1194,12 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	list_add_tail(&bf->list, &txq->q);
 	sc->tx_stats[txq->qnum].len++;
 	if (txq->link == NULL) /* is this first packet? */
-		ath5k_hw_put_tx_buf(ah, txq->qnum, bf->daddr);
+		ath5k_hw_set_txdp(ah, txq->qnum, bf->daddr);
 	else /* no, so only link it */
 		*txq->link = bf->daddr;
 
 	txq->link = &ds->ds_link;
-	ath5k_hw_tx_start(ah, txq->qnum);
+	ath5k_hw_start_tx_dma(ah, txq->qnum);
 	mmiowb();
 	spin_unlock_bh(&txq->lock);
 
@@ -1393,7 +1399,7 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 		"beacon queueprops tqi_aifs:%d tqi_cw_min:%d tqi_cw_max:%d\n",
 		qi.tqi_aifs, qi.tqi_cw_min, qi.tqi_cw_max);
 
-	ret = ath5k_hw_setup_tx_queueprops(ah, sc->bhalq, &qi);
+	ret = ath5k_hw_set_tx_queueprops(ah, sc->bhalq, &qi);
 	if (ret) {
 		ATH5K_ERR(sc, "%s: unable to update parameters for beacon "
 			"hardware queue!\n", __func__);
@@ -1442,14 +1448,14 @@ ath5k_txq_cleanup(struct ath5k_softc *sc)
 		/* don't touch the hardware if marked invalid */
 		ath5k_hw_stop_tx_dma(ah, sc->bhalq);
 		ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "beacon queue %x\n",
-			ath5k_hw_get_tx_buf(ah, sc->bhalq));
+			ath5k_hw_get_txdp(ah, sc->bhalq));
 		for (i = 0; i < ARRAY_SIZE(sc->txqs); i++)
 			if (sc->txqs[i].setup) {
 				ath5k_hw_stop_tx_dma(ah, sc->txqs[i].qnum);
 				ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "txq [%u] %x, "
 					"link %p\n",
 					sc->txqs[i].qnum,
-					ath5k_hw_get_tx_buf(ah,
+					ath5k_hw_get_txdp(ah,
 							sc->txqs[i].qnum),
 					sc->txqs[i].link);
 			}
@@ -1509,8 +1515,8 @@ ath5k_rx_start(struct ath5k_softc *sc)
 	bf = list_first_entry(&sc->rxbuf, struct ath5k_buf, list);
 	spin_unlock_bh(&sc->rxbuflock);
 
-	ath5k_hw_put_rx_buf(ah, bf->daddr);
-	ath5k_hw_start_rx(ah);		/* enable recv descriptors */
+	ath5k_hw_set_rxdp(ah, bf->daddr);
+	ath5k_hw_start_rx_dma(ah);	/* enable recv descriptors */
 	ath5k_mode_setup(sc);		/* set filters, etc. */
 	ath5k_hw_start_rx_pcu(ah);	/* re-enable PCU/DMA engine */
 
@@ -1527,7 +1533,7 @@ ath5k_rx_stop(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
 
-	ath5k_hw_stop_pcu_recv(ah);	/* disable PCU */
+	ath5k_hw_stop_rx_pcu(ah);	/* disable PCU */
 	ath5k_hw_set_rx_filter(ah, 0);	/* clear recv filter */
 	ath5k_hw_stop_rx_dma(ah);	/* disable DMA engine */
 
@@ -1976,8 +1982,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 		/* NB: hw still stops DMA, so proceed */
 	}
 
-	ath5k_hw_put_tx_buf(ah, sc->bhalq, bf->daddr);
-	ath5k_hw_tx_start(ah, sc->bhalq);
+	ath5k_hw_set_txdp(ah, sc->bhalq, bf->daddr);
+	ath5k_hw_start_tx_dma(ah, sc->bhalq);
 	ATH5K_DBG(sc, ATH5K_DEBUG_BEACON, "TXDP[%u] = %llx (%p)\n",
 		sc->bhalq, (unsigned long long)bf->daddr, bf->desc);
 
@@ -2106,7 +2112,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 {
 	struct ath5k_hw *ah = sc->ah;
 
-	ath5k_hw_set_intr(ah, 0);
+	ath5k_hw_set_imr(ah, 0);
 	sc->bmisscount = 0;
 	sc->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
 
@@ -2132,7 +2138,7 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 	}
 	/* TODO else AP */
 
-	ath5k_hw_set_intr(ah, sc->imask);
+	ath5k_hw_set_imr(ah, sc->imask);
 }
 
 
@@ -2211,7 +2217,7 @@ ath5k_stop_locked(struct ath5k_softc *sc)
 
 	if (!test_bit(ATH_STAT_INVALID, sc->status)) {
 		ath5k_led_off(sc);
-		ath5k_hw_set_intr(ah, 0);
+		ath5k_hw_set_imr(ah, 0);
 		synchronize_irq(sc->pdev->irq);
 	}
 	ath5k_txq_cleanup(sc);
@@ -2604,7 +2610,7 @@ ath5k_reset(struct ath5k_softc *sc, bool stop, bool change_channel)
 	ATH5K_DBG(sc, ATH5K_DEBUG_RESET, "resetting\n");
 
 	if (stop) {
-		ath5k_hw_set_intr(ah, 0);
+		ath5k_hw_set_imr(ah, 0);
 		ath5k_txq_cleanup(sc);
 		ath5k_rx_stop(sc);
 	}

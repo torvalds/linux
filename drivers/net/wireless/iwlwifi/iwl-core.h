@@ -186,12 +186,9 @@ struct ieee80211_hw *iwl_alloc_all(struct iwl_cfg *cfg,
 void iwl_hw_detect(struct iwl_priv *priv);
 
 void iwl_clear_stations_table(struct iwl_priv *priv);
-void iwl_free_calib_results(struct iwl_priv *priv);
 void iwl_reset_qos(struct iwl_priv *priv);
 void iwl_set_rxon_chain(struct iwl_priv *priv);
-int iwl_set_rxon_channel(struct iwl_priv *priv,
-				enum ieee80211_band band,
-				u16 channel);
+int iwl_set_rxon_channel(struct iwl_priv *priv, struct ieee80211_channel *ch);
 void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info);
 u8 iwl_is_fat_tx_allowed(struct iwl_priv *priv,
 			 struct ieee80211_ht_info *sta_ht_inf);
@@ -290,6 +287,13 @@ const char *iwl_escape_essid(const char *essid, u8 essid_len);
 int iwl_scan_initiate(struct iwl_priv *priv);
 void iwl_setup_rx_scan_handlers(struct iwl_priv *priv);
 void iwl_setup_scan_deferred_work(struct iwl_priv *priv);
+
+/*******************************************************************************
+ * Calibrations - implemented in iwl-calib.c
+ ******************************************************************************/
+int iwl_send_calib_results(struct iwl_priv *priv);
+int iwl_calib_set(struct iwl_calib_result *res, const u8 *buf, int len);
+void iwl_calib_free_results(struct iwl_priv *priv);
 
 /*****************************************************
  *   S e n d i n g     H o s t     C o m m a n d s   *

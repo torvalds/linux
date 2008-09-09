@@ -116,7 +116,8 @@ static int SendDiSEqCMsg (struct budget *budget, int len, u8 *msg, unsigned long
 			DiseqcSendByte(budget, 0xff);
 		else {
 			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTHI);
-			udelay(12500);
+			mdelay(12);
+			udelay(500);
 			saa7146_setgpio(dev, 3, SAA7146_GPIO_OUTLO);
 		}
 		msleep(20);

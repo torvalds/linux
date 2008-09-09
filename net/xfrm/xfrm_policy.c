@@ -34,7 +34,7 @@
 
 #include "xfrm_hash.h"
 
-int sysctl_xfrm_larval_drop __read_mostly;
+int sysctl_xfrm_larval_drop __read_mostly = 1;
 
 #ifdef CONFIG_XFRM_STATISTICS
 DEFINE_SNMP_STAT(struct linux_xfrm_mib, xfrm_statistics) __read_mostly;
@@ -1731,8 +1731,7 @@ restart:
 			 * We can't enlist stable bundles either.
 			 */
 			write_unlock_bh(&policy->lock);
-			if (dst)
-				dst_free(dst);
+			dst_free(dst);
 
 			if (pol_dead)
 				XFRM_INC_STATS(LINUX_MIB_XFRMOUTPOLDEAD);
@@ -1748,8 +1747,7 @@ restart:
 			err = xfrm_dst_update_origin(dst, fl);
 		if (unlikely(err)) {
 			write_unlock_bh(&policy->lock);
-			if (dst)
-				dst_free(dst);
+			dst_free(dst);
 			XFRM_INC_STATS(LINUX_MIB_XFRMOUTBUNDLECHECKERROR);
 			goto error;
 		}

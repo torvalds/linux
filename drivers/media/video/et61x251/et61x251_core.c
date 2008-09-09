@@ -2588,6 +2588,7 @@ et61x251_usb_probe(struct usb_interface* intf, const struct usb_device_id* id)
 	cam->v4ldev->fops = &et61x251_fops;
 	cam->v4ldev->minor = video_nr[dev_nr];
 	cam->v4ldev->release = video_device_release;
+	cam->v4ldev->parent = &udev->dev;
 	video_set_drvdata(cam->v4ldev, cam);
 
 	init_completion(&cam->probe);

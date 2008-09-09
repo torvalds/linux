@@ -153,7 +153,7 @@ struct rt2x00_field32 {
  */
 #define is_power_of_two(x)	( !((x) & ((x)-1)) )
 #define low_bit_mask(x)		( ((x)-1) & ~(x) )
-#define is_valid_mask(x)	is_power_of_two(1 + (x) + low_bit_mask(x))
+#define is_valid_mask(x)	is_power_of_two(1LU + (x) + low_bit_mask(x))
 
 /*
  * Macro's to find first set bit in a variable.
@@ -190,8 +190,7 @@ struct rt2x00_field32 {
  * does not exceed the given typelimit.
  */
 #define FIELD_CHECK(__mask, __type)			\
-	BUILD_BUG_ON(!__builtin_constant_p(__mask) ||	\
-		     !(__mask) ||			\
+	BUILD_BUG_ON(!(__mask) ||			\
 		     !is_valid_mask(__mask) ||		\
 		     (__mask) != (__type)(__mask))	\
 

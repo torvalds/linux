@@ -29,6 +29,17 @@ struct bootrec_exp_if {
 	__le16 top_compat;
 } __attribute__((packed));
 
+struct bootrec_desc {
+	__le16 modes;
+	__le16 flags;
+	__le32 rx_start;
+	__le32 rx_end;
+	u8 headroom;
+	u8 tailroom;
+	u8 unimportant[6];
+	u8 rates[16];
+} __attribute__((packed));
+
 #define BR_CODE_MIN			0x80000000
 #define BR_CODE_COMPONENT_ID		0x80000001
 #define BR_CODE_COMPONENT_VERSION	0x80000002
@@ -38,11 +49,6 @@ struct bootrec_exp_if {
 #define BR_CODE_MAX			0x8FFFFFFF
 #define BR_CODE_END_OF_BRA		0xFF0000FF
 #define LEGACY_BR_CODE_END_OF_BRA	0xFFFFFFFF
-
-#define FW_FMAC 0x464d4143
-#define FW_LM86 0x4c4d3836
-#define FW_LM87 0x4c4d3837
-#define FW_LM20 0x4c4d3230
 
 /* PDA defines are Copyright (C) 2005 Nokia Corporation (taken from islsm_pda.h) */
 
@@ -180,7 +186,7 @@ struct p54_rx_hdr {
 	u8 quality;
 	u16 unknown2;
 	__le64 timestamp;
-	u8 data[0];
+	u8 align[0];
 } __attribute__ ((packed));
 
 struct p54_frame_sent_hdr {
@@ -208,18 +214,33 @@ struct p54_tx_control_allocdata {
 
 struct p54_tx_control_filter {
 	__le16 filter_type;
-	u8 dst[ETH_ALEN];
-	u8 src[ETH_ALEN];
-	u8 antenna;
-	u8 debug;
-	__le32 magic3;
-	u8 rates[8];	// FIXME: what's this for?
-	__le32 rx_addr;
-	__le16 max_rx;
-	__le16 rxhw;
-	__le16 magic8;
-	__le16 magic9;
+	u8 mac_addr[ETH_ALEN];
+	u8 bssid[ETH_ALEN];
+	u8 rx_antenna;
+	u8 rx_align;
+	union {
+		struct {
+			__le32 basic_rate_mask;
+			u8 rts_rates[8];
+			__le32 rx_addr;
+			__le16 max_rx;
+			__le16 rxhw;
+			__le16 wakeup_timer;
+			__le16 unalloc0;
+		} v1 __attribute__ ((packed));
+		struct {
+			__le32 rx_addr;
+			__le16 max_rx;
+			__le16 rxhw;
+			__le16 timer;
+			__le16 unalloc0;
+			__le32 unalloc1;
+		} v2 __attribute__ ((packed));
+	} __attribute__ ((packed));
 } __attribute__ ((packed));
+
+#define P54_TX_CONTROL_FILTER_V1_LEN (sizeof(struct p54_tx_control_filter))
+#define P54_TX_CONTROL_FILTER_V2_LEN (sizeof(struct p54_tx_control_filter)-8)
 
 struct p54_tx_control_channel {
 	__le16 flags;
@@ -232,14 +253,28 @@ struct p54_tx_control_channel {
 	u8 val_qpsk;
 	u8 val_16qam;
 	u8 val_64qam;
-	struct pda_pa_curve_data_sample_rev1 curve_data[8];
+	struct p54_pa_curve_data_sample curve_data[8];
 	u8 dup_bpsk;
 	u8 dup_qpsk;
 	u8 dup_16qam;
 	u8 dup_64qam;
-	__le16 rssical_mul;
-	__le16 rssical_add;
+	union {
+		struct {
+			__le16 rssical_mul;
+			__le16 rssical_add;
+		} v1 __attribute__ ((packed));
+
+		struct {
+			__le32 basic_rate_mask;
+			 u8 rts_rates[8];
+			__le16 rssical_mul;
+			__le16 rssical_add;
+		} v2 __attribute__ ((packed));
+	} __attribute__ ((packed));
 } __attribute__ ((packed));
+
+#define P54_TX_CONTROL_CHANNEL_V1_LEN (sizeof(struct p54_tx_control_channel)-12)
+#define P54_TX_CONTROL_CHANNEL_V2_LEN (sizeof(struct p54_tx_control_channel))
 
 struct p54_tx_control_led {
 	__le16 mode;
