@@ -418,6 +418,7 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 {
 	struct ubifs_info *c = sb->s_fs_info;
 	int i, ret = 0, err;
+	long long bud_bytes;
 
 	if (c->jheads)
 		for (i = 0; i < c->jhead_cnt; i++) {
@@ -425,6 +426,17 @@ static int ubifs_sync_fs(struct super_block *sb, int wait)
 			if (err && !ret)
 				ret = err;
 		}
+
+	/* Commit the journal unless it has too few data */
+	spin_lock(&c->buds_lock);
+	bud_bytes = c->bud_bytes;
+	spin_unlock(&c->buds_lock);
+	if (bud_bytes > c->leb_size) {
+		err = ubifs_run_commit(c);
+		if (err)
+			return err;
+	}
+
 	/*
 	 * We ought to call sync for c->ubi but it does not have one. If it had
 	 * it would in turn call mtd->sync, however mtd operations are
