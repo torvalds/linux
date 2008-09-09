@@ -1088,6 +1088,7 @@ void math_error(void __user *ip)
 
 void do_coprocessor_error(struct pt_regs *regs, long error_code)
 {
+	conditional_sti(regs);
 	ignore_fpu_irq = 1;
 	math_error((void __user *)regs->ip);
 }
@@ -1279,7 +1280,7 @@ void __init trap_init(void)
 	set_intr_gate(13, &general_protection);
 	set_intr_gate(14, &page_fault);
 	set_intr_gate(15, &spurious_interrupt_bug);
-	set_trap_gate(16, &coprocessor_error);
+	set_intr_gate(16, &coprocessor_error);
 	set_trap_gate(17, &alignment_check);
 #ifdef CONFIG_X86_MCE
 	set_trap_gate(18, &machine_check);
