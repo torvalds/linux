@@ -1691,6 +1691,9 @@ struct regulator_dev *regulator_register(struct regulator_desc *regulator_desc,
 	    !regulator_desc->type == REGULATOR_CURRENT)
 		return ERR_PTR(-EINVAL);
 
+	if (!init_data)
+		return ERR_PTR(-EINVAL);
+
 	rdev = kzalloc(sizeof(struct regulator_dev), GFP_KERNEL);
 	if (rdev == NULL)
 		return ERR_PTR(-ENOMEM);
