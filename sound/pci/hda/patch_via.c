@@ -34,6 +34,7 @@
 /* 2008-03-06  Lydia Wang  Add VT1702 codec and VT1708S codec support        */
 /* 2008-04-09  Lydia Wang  Add mute front speaker when HP plugin             */
 /* 2008-04-09  Lydia Wang  Add Independent HP feature                        */
+/* 2008-05-28  Lydia Wang  Add second S/PDIF Out support for VT1702	     */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -122,9 +123,11 @@ struct via_spec {
 	char *stream_name_digital;
 	struct hda_pcm_stream *stream_digital_playback;
 	struct hda_pcm_stream *stream_digital_capture;
+	struct hda_pcm_stream *stream_extra_digital_playback;
 
 	/* playback */
 	struct hda_multi_out multiout;
+	hda_nid_t extra_dig_out_nid;
 
 	/* capture */
 	unsigned int num_adc_nids;
@@ -136,7 +139,7 @@ struct via_spec {
 	unsigned int cur_mux[3];
 
 	/* PCM information */
-	struct hda_pcm pcm_rec[2];
+	struct hda_pcm pcm_rec[3];
 
 	/* dynamic controls, init_verbs and input_mux */
 	struct auto_pin_cfg autocfg;
@@ -664,6 +667,36 @@ static int via_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 					     stream_tag, format, substream);
 }
 
+/* setup SPDIF output stream */
+static void setup_dig_playback_stream(struct hda_codec *codec, hda_nid_t nid,
+				 unsigned int stream_tag, unsigned int format)
+{
+	/* turn off SPDIF once; otherwise the IEC958 bits won't be updated */
+	if (codec->spdif_ctls & AC_DIG1_ENABLE)
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
+				    codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
+	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
+	/* turn on again (if needed) */
+	if (codec->spdif_ctls & AC_DIG1_ENABLE)
+		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
+				    codec->spdif_ctls & 0xff);
+}
+
+static int via_extra_dig_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
+					struct hda_codec *codec,
+					unsigned int stream_tag,
+					unsigned int format,
+					struct snd_pcm_substream *substream)
+{
+	struct via_spec *spec = codec->spec;
+
+	mutex_lock(&codec->spdif_mutex);
+	setup_dig_playback_stream(codec, spec->extra_dig_out_nid, stream_tag,
+				  format);
+	mutex_unlock(&codec->spdif_mutex);
+	return 0;
+}
+
 /*
  * Analog capture
  */
@@ -769,6 +802,13 @@ static int via_build_controls(struct hda_codec *codec)
 		if (err < 0)
 			return err;
 		spec->multiout.share_spdif = 1;
+
+		if (spec->extra_dig_out_nid) {
+			err = snd_hda_create_spdif_out_ctls(codec,
+						    spec->extra_dig_out_nid);
+			if (err < 0)
+				return err;
+		}
 	}
 	if (spec->dig_in_nid) {
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
@@ -812,6 +852,17 @@ static int via_build_pcms(struct hda_codec *codec)
 			info->stream[SNDRV_PCM_STREAM_CAPTURE].nid =
 				spec->dig_in_nid;
 		}
+	}
+
+	if (spec->extra_dig_out_nid) {
+		codec->num_pcms++;
+		info++;
+		info->name = spec->stream_name_digital;
+		info->pcm_type = HDA_PCM_TYPE_HDMI;
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK] =
+				*(spec->stream_extra_digital_playback);
+		info->stream[SNDRV_PCM_STREAM_PLAYBACK].nid =
+				spec->extra_dig_out_nid;
 	}
 
 	return 0;
@@ -2466,6 +2517,16 @@ static struct hda_pcm_stream vt1708S_pcm_digital_playback = {
 	},
 };
 
+static struct hda_pcm_stream vt1708S_pcm_extra_digital_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in via_build_pcms */
+	.ops = {
+		.prepare = via_extra_dig_playback_pcm_prepare
+	},
+};
+
 /* fill in the dac_nids table from the parsed pin configuration */
 static int vt1708S_auto_fill_dac_nids(struct via_spec *spec,
 				     const struct auto_pin_cfg *cfg)
@@ -2702,6 +2763,8 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = VT1708S_DIGOUT_NID;
 
+	spec->extra_dig_out_nid = 0x15;
+
 	if (spec->kctl_alloc)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
@@ -2753,6 +2816,8 @@ static int patch_vt1708S(struct hda_codec *codec)
 
 	spec->stream_name_digital = "VT1708S Digital";
 	spec->stream_digital_playback = &vt1708S_pcm_digital_playback;
+	spec->stream_extra_digital_playback =
+					&vt1708S_pcm_extra_digital_playback;
 
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1708S_adc_nids;
@@ -2864,6 +2929,16 @@ static struct hda_pcm_stream vt1702_pcm_digital_playback = {
 		.open = via_dig_playback_pcm_open,
 		.close = via_dig_playback_pcm_close,
 		.prepare = via_dig_playback_pcm_prepare
+	},
+};
+
+static struct hda_pcm_stream vt1702_pcm_extra_digital_playback = {
+	.substreams = 1,
+	.channels_min = 2,
+	.channels_max = 2,
+	/* NID is set in via_build_pcms */
+	.ops = {
+		.prepare = via_extra_dig_playback_pcm_prepare
 	},
 };
 
@@ -3018,6 +3093,8 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 	if (spec->autocfg.dig_out_pin)
 		spec->multiout.dig_out_nid = VT1702_DIGOUT_NID;
 
+	spec->extra_dig_out_nid = 0x1B;
+
 	if (spec->kctl_alloc)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
@@ -3071,6 +3148,8 @@ static int patch_vt1702(struct hda_codec *codec)
 
 	spec->stream_name_digital = "VT1702 Digital";
 	spec->stream_digital_playback = &vt1702_pcm_digital_playback;
+	spec->stream_extra_digital_playback =
+					&vt1702_pcm_extra_digital_playback;
 
 	if (!spec->adc_nids && spec->input_mux) {
 		spec->adc_nids = vt1702_adc_nids;
