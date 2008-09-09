@@ -423,17 +423,9 @@ menuconfig PROCESSOR_SELECT
 	  This lets you choose what x86 vendor support code your kernel
 	  will include.
 
-config CPU_SUP_INTEL_32
+config CPU_SUP_INTEL
 	default y
 	bool "Support Intel processors" if PROCESSOR_SELECT
-	depends on !64BIT
-	help
-	  This enables extended support for Intel processors
-
-config CPU_SUP_INTEL_64
-	default y
-	bool "Support Intel processors" if PROCESSOR_SELECT
-	depends on 64BIT
 	help
 	  This enables extended support for Intel processors
 

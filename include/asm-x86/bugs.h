@@ -3,7 +3,7 @@
 
 extern void check_bugs(void);
 
-#ifdef CONFIG_CPU_SUP_INTEL_32
+#if defined(CONFIG_CPU_SUP_INTEL) && defined(CONFIG_X86_32)
 int ppro_with_ram_bug(void);
 #else
 static inline int ppro_with_ram_bug(void) { return 0; }
