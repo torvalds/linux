@@ -950,7 +950,6 @@ static void init_device_table(void)
 	for (devid = 0; devid <= amd_iommu_last_bdf; ++devid) {
 		set_dev_entry_bit(devid, DEV_ENTRY_VALID);
 		set_dev_entry_bit(devid, DEV_ENTRY_TRANSLATION);
-		set_dev_entry_bit(devid, DEV_ENTRY_NO_PAGE_FAULT);
 	}
 }
 
