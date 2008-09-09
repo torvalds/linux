@@ -533,7 +533,6 @@ vm86_trap:
 #define DO_ERROR(trapnr, signr, str, name)				\
 void do_##name(struct pt_regs *regs, long error_code)			\
 {									\
-	trace_hardirqs_fixup();						\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
 		return;							\
@@ -576,7 +575,6 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	info.si_errno = 0;						\
 	info.si_code = sicode;						\
 	info.si_addr = (void __user *)siaddr;				\
-	trace_hardirqs_fixup();						\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
 		return;							\
@@ -860,15 +858,9 @@ void restart_nmi(void)
 void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
 #ifdef CONFIG_KPROBES
-	trace_hardirqs_fixup();
-
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
 			== NOTIFY_STOP)
 		return;
-	/*
-	 * This is an interrupt gate, because kprobes wants interrupts
-	 * disabled. Normal trap handlers don't.
-	 */
 	conditional_sti(regs);
 #else
 	if (notify_die(DIE_TRAP, "int3", regs, error_code, 3, SIGTRAP)
@@ -906,8 +898,6 @@ void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	struct task_struct *tsk = current;
 	unsigned int condition;
 	int si_code;
-
-	trace_hardirqs_fixup();
 
 	get_debugreg(condition, 6);
 
