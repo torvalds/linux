@@ -247,12 +247,14 @@ config DVB_USB_AF9005_REMOTE
 	  Afatech AF9005 based receiver.
 
 config DVB_USB_DW2102
-	tristate "DvbWorld 2102 DVB-S USB2.0 receiver"
+	tristate "DvbWorld DVB-S/S2 USB2.0 support"
 	depends on DVB_USB
-	select DVB_STV0299 if !DVB_FE_CUSTOMISE
 	select DVB_PLL if !DVB_FE_CUSTOMISE
+	select DVB_STV0299 if !DVB_FE_CUSTOMISE
+	select DVB_CX24116 if !DVB_FE_CUSTOMISE
 	help
-	   Say Y here to support the DvbWorld 2102 DVB-S USB2.0 receiver.
+	  Say Y here to support the DvbWorld DVB-S/S2 USB2.0 receivers
+	  and the TeVii S650.
 
 config DVB_USB_ANYSEE
 	tristate "Anysee DVB-T/C USB2.0 support"
