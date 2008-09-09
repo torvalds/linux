@@ -826,7 +826,7 @@ static void xen_alloc_ptpage(struct mm_struct *mm, u32 pfn, unsigned level)
 
 		if (!PageHighMem(page)) {
 			make_lowmem_page_readonly(__va(PFN_PHYS((unsigned long)pfn)));
-			if (level == PT_PTE)
+			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
 				pin_pagetable_pfn(MMUEXT_PIN_L1_TABLE, pfn);
 		} else
 			/* make sure there are no stray mappings of
@@ -894,7 +894,7 @@ static void xen_release_ptpage(u32 pfn, unsigned level)
 
 	if (PagePinned(page)) {
 		if (!PageHighMem(page)) {
-			if (level == PT_PTE)
+			if (level == PT_PTE && USE_SPLIT_PTLOCKS)
 				pin_pagetable_pfn(MMUEXT_UNPIN_TABLE, pfn);
 			make_lowmem_page_readwrite(__va(PFN_PHYS(pfn)));
 		}
