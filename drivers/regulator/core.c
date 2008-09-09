@@ -669,6 +669,14 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	struct regulation_constraints *constraints)
 {
 	int ret = 0;
+	const char *name;
+
+	if (constraints->name)
+		name = constraints->name;
+	else if (rdev->desc->name)
+		name = rdev->desc->name;
+	else
+		name = "regulator";
 
 	rdev->constraints = constraints;
 
@@ -679,9 +687,9 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = rdev->desc->ops->set_voltage(rdev,
 			rdev->constraints->min_uV, rdev->constraints->max_uV);
 			if (ret < 0) {
-				printk(KERN_ERR "%s: failed to apply %duV"
-					" constraint\n", __func__,
-					rdev->constraints->min_uV);
+				printk(KERN_ERR "%s: failed to apply %duV constraint to %s\n",
+				       __func__,
+				       rdev->constraints->min_uV, name);
 				rdev->constraints = NULL;
 				goto out;
 			}
@@ -692,8 +700,15 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		rdev->use_count = 1;
 
 	/* do we need to setup our suspend state */
-	if (constraints->initial_state)
+	if (constraints->initial_state) {
 		ret = suspend_prepare(rdev, constraints->initial_state);
+		if (ret < 0) {
+			printk(KERN_ERR "%s: failed to set suspend state for %s\n",
+			       __func__, name);
+			rdev->constraints = NULL;
+			goto out;
+		}
+	}
 
 	print_constraints(rdev);
 out:
