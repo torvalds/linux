@@ -18,72 +18,76 @@
 #error This file should not be compiled without CONFIG_SYSCTL defined
 #endif
 
-/* Boundary values */
-static int		zero     = 0,
-			u8_max   = 0xFF;
-static unsigned long	seqw_min = 32;
-
 static struct ctl_table dccp_default_table[] = {
 	{
 		.procname	= "seq_window",
-		.data		= &sysctl_dccp_sequence_window,
-		.maxlen		= sizeof(sysctl_dccp_sequence_window),
+		.data		= &sysctl_dccp_feat_sequence_window,
+		.maxlen		= sizeof(sysctl_dccp_feat_sequence_window),
 		.mode		= 0644,
-		.proc_handler	= proc_doulongvec_minmax,
-		.extra1		= &seqw_min,		/* RFC 4340, 7.5.2 */
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "rx_ccid",
-		.data		= &sysctl_dccp_rx_ccid,
-		.maxlen		= sizeof(sysctl_dccp_rx_ccid),
+		.data		= &sysctl_dccp_feat_rx_ccid,
+		.maxlen		= sizeof(sysctl_dccp_feat_rx_ccid),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &u8_max,		/* RFC 4340, 10. */
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "tx_ccid",
-		.data		= &sysctl_dccp_tx_ccid,
-		.maxlen		= sizeof(sysctl_dccp_tx_ccid),
+		.data		= &sysctl_dccp_feat_tx_ccid,
+		.maxlen		= sizeof(sysctl_dccp_feat_tx_ccid),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &u8_max,		/* RFC 4340, 10. */
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "ack_ratio",
+		.data		= &sysctl_dccp_feat_ack_ratio,
+		.maxlen		= sizeof(sysctl_dccp_feat_ack_ratio),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "send_ackvec",
+		.data		= &sysctl_dccp_feat_send_ack_vector,
+		.maxlen		= sizeof(sysctl_dccp_feat_send_ack_vector),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
+	},
+	{
+		.procname	= "send_ndp",
+		.data		= &sysctl_dccp_feat_send_ndp_count,
+		.maxlen		= sizeof(sysctl_dccp_feat_send_ndp_count),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "request_retries",
 		.data		= &sysctl_dccp_request_retries,
 		.maxlen		= sizeof(sysctl_dccp_request_retries),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &u8_max,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "retries1",
 		.data		= &sysctl_dccp_retries1,
 		.maxlen		= sizeof(sysctl_dccp_retries1),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &u8_max,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "retries2",
 		.data		= &sysctl_dccp_retries2,
 		.maxlen		= sizeof(sysctl_dccp_retries2),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
-		.extra2		= &u8_max,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "tx_qlen",
 		.data		= &sysctl_dccp_tx_qlen,
 		.maxlen		= sizeof(sysctl_dccp_tx_qlen),
 		.mode		= 0644,
-		.proc_handler	= proc_dointvec_minmax,
-		.extra1		= &zero,
+		.proc_handler	= proc_dointvec,
 	},
 	{
 		.procname	= "sync_ratelimit",

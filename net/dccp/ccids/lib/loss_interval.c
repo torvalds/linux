@@ -86,26 +86,21 @@ static void tfrc_lh_calc_i_mean(struct tfrc_loss_hist *lh)
 
 /**
  * tfrc_lh_update_i_mean  -  Update the `open' loss interval I_0
- * This updates I_mean as the sequence numbers increase. As a consequence, the
- * open loss interval I_0 increases, hence p = W_tot/max(I_tot0, I_tot1)
- * decreases, and thus there is no need to send renewed feedback.
+ * For recomputing p: returns `true' if p > p_prev  <=>  1/p < 1/p_prev
  */
-void tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
+u8 tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 {
 	struct tfrc_loss_interval *cur = tfrc_lh_peek(lh);
+	u32 old_i_mean = lh->i_mean;
 	s64 len;
 
 	if (cur == NULL)			/* not initialised */
-		return;
-
-	/* FIXME: should probably also count non-data packets (RFC 4342, 6.1) */
-	if (!dccp_data_packet(skb))
-		return;
+		return 0;
 
 	len = dccp_delta_seqno(cur->li_seqno, DCCP_SKB_CB(skb)->dccpd_seq) + 1;
 
 	if (len - (s64)cur->li_length <= 0)	/* duplicate or reordered */
-		return;
+		return 0;
 
 	if (SUB16(dccp_hdr(skb)->dccph_ccval, cur->li_ccval) > 4)
 		/*
@@ -119,11 +114,14 @@ void tfrc_lh_update_i_mean(struct tfrc_loss_hist *lh, struct sk_buff *skb)
 		cur->li_is_closed = 1;
 
 	if (tfrc_lh_length(lh) == 1)		/* due to RFC 3448, 6.3.1 */
-		return;
+		return 0;
 
 	cur->li_length = len;
 	tfrc_lh_calc_i_mean(lh);
+
+	return (lh->i_mean < old_i_mean);
 }
+EXPORT_SYMBOL_GPL(tfrc_lh_update_i_mean);
 
 /* Determine if `new_loss' does begin a new loss interval [RFC 4342, 10.2] */
 static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
@@ -140,18 +138,18 @@ static inline u8 tfrc_lh_is_new_loss(struct tfrc_loss_interval *cur,
  * @sk:		   Used by @calc_first_li in caller-specific way (subtyping)
  * Updates I_mean and returns 1 if a new interval has in fact been added to @lh.
  */
-bool tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
-			  u32 (*calc_first_li)(struct sock *), struct sock *sk)
+int tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
+			 u32 (*calc_first_li)(struct sock *), struct sock *sk)
 {
 	struct tfrc_loss_interval *cur = tfrc_lh_peek(lh), *new;
 
 	if (cur != NULL && !tfrc_lh_is_new_loss(cur, tfrc_rx_hist_loss_prev(rh)))
-		return false;
+		return 0;
 
 	new = tfrc_lh_demand_next(lh);
 	if (unlikely(new == NULL)) {
 		DCCP_CRIT("Cannot allocate/add loss record.");
-		return false;
+		return 0;
 	}
 
 	new->li_seqno	  = tfrc_rx_hist_loss_prev(rh)->tfrchrx_seqno;
@@ -169,7 +167,7 @@ bool tfrc_lh_interval_add(struct tfrc_loss_hist *lh, struct tfrc_rx_hist *rh,
 
 		tfrc_lh_calc_i_mean(lh);
 	}
-	return true;
+	return 1;
 }
 EXPORT_SYMBOL_GPL(tfrc_lh_interval_add);
 
