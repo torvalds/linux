@@ -670,6 +670,7 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 {
 	int ret = 0;
 	const char *name;
+	struct regulator_ops *ops = rdev->desc->ops;
 
 	if (constraints->name)
 		name = constraints->name;
@@ -683,8 +684,8 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 	/* do we need to apply the constraint voltage */
 	if (rdev->constraints->apply_uV &&
 		rdev->constraints->min_uV == rdev->constraints->max_uV &&
-		rdev->desc->ops->set_voltage) {
-		ret = rdev->desc->ops->set_voltage(rdev,
+		ops->set_voltage) {
+		ret = ops->set_voltage(rdev,
 			rdev->constraints->min_uV, rdev->constraints->max_uV);
 			if (ret < 0) {
 				printk(KERN_ERR "%s: failed to apply %duV constraint to %s\n",
@@ -704,6 +705,20 @@ static int set_machine_constraints(struct regulator_dev *rdev,
 		ret = suspend_prepare(rdev, constraints->initial_state);
 		if (ret < 0) {
 			printk(KERN_ERR "%s: failed to set suspend state for %s\n",
+			       __func__, name);
+			rdev->constraints = NULL;
+			goto out;
+		}
+	}
+
+	/* if always_on is set then turn the regulator on if it's not
+	 * already on. */
+	if (constraints->always_on && ops->enable &&
+	    ((ops->is_enabled && !ops->is_enabled(rdev)) ||
+	     (!ops->is_enabled && !constraints->boot_on))) {
+		ret = ops->enable(rdev);
+		if (ret < 0) {
+			printk(KERN_ERR "%s: failed to enable %s\n",
 			       __func__, name);
 			rdev->constraints = NULL;
 			goto out;
