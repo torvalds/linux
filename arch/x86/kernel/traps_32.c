@@ -1144,6 +1144,8 @@ static void simd_math_error(void __user *ip)
 
 void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 {
+	conditional_sti(regs);
+
 	if (cpu_has_xmm) {
 		/* Handle SIMD FPU exceptions on PIII+ processors. */
 		ignore_fpu_irq = 1;
@@ -1294,7 +1296,7 @@ void __init trap_init(void)
 #ifdef CONFIG_X86_MCE
 	set_intr_gate(18, &machine_check);
 #endif
-	set_trap_gate(19, &simd_coprocessor_error);
+	set_intr_gate(19, &simd_coprocessor_error);
 
 	if (cpu_has_fxsr) {
 		printk(KERN_INFO "Enabling fast FPU save and restore... ");
