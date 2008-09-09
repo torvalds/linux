@@ -633,7 +633,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 }
 
 DO_VM86_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
-DO_VM86_TRAP(4, SIGSEGV, "overflow", overflow)
+DO_VM86_ERROR(4, SIGSEGV, "overflow", overflow)
 DO_VM86_TRAP(5, SIGSEGV, "bounds", bounds)
 DO_TRAP_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
 DO_TRAP(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
@@ -1252,7 +1252,7 @@ void __init trap_init(void)
 	set_intr_gate(1, &debug);
 	set_intr_gate(2, &nmi);
 	set_system_intr_gate(3, &int3); /* int3 can be called from all */
-	set_system_gate(4, &overflow); /* int4 can be called from all */
+	set_system_intr_gate(4, &overflow); /* int4 can be called from all */
 	set_trap_gate(5, &bounds);
 	set_trap_gate(6, &invalid_op);
 	set_trap_gate(7, &device_not_available);
