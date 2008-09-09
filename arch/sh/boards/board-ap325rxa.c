@@ -15,6 +15,7 @@
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
+#include <linux/mtd/sh_flctl.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/smc911x.h>
@@ -108,10 +109,50 @@ static struct platform_device ap325rxa_nor_flash_device = {
 	},
 };
 
+static struct mtd_partition nand_partition_info[] = {
+	{
+		.name	= "nand_data",
+		.offset	= 0,
+		.size	= MTDPART_SIZ_FULL,
+	},
+};
+
+static struct resource nand_flash_resources[] = {
+	[0] = {
+		.start	= 0xa4530000,
+		.end	= 0xa45300ff,
+		.flags	= IORESOURCE_MEM,
+	}
+};
+
+static struct sh_flctl_platform_data nand_flash_data = {
+	.parts		= nand_partition_info,
+	.nr_parts	= ARRAY_SIZE(nand_partition_info),
+	.flcmncr_val	= FCKSEL_E | TYPESEL_SET | NANWF_E,
+	.has_hwecc	= 1,
+};
+
+static struct platform_device nand_flash_device = {
+	.name		= "sh_flctl",
+	.resource	= nand_flash_resources,
+	.num_resources	= ARRAY_SIZE(nand_flash_resources),
+	.dev		= {
+		.platform_data = &nand_flash_data,
+	},
+};
+
 #define FPGA_LCDREG	0xB4100180
 #define FPGA_BKLREG	0xB4100212
 #define FPGA_LCDREG_VAL	0x0018
 #define PORT_MSELCRB	0xA4050182
+#define PORT_PUCR	0xA4050142
+#define PORT_PVCR	0xA4050144
+#define PORT_PXCR	0xA4050148
+#define PORT_HIZCRC	0xA405015C
+#define PORT_DRVCRA	0xA405018A
+#define PORT_DRVCRB	0xA405018C
+#define PORT_PXDR	0xA4050168
+#define PORT_PSELC	0xA4050152
 
 static void ap320_wvga_power_on(void *board_data)
 {
@@ -282,6 +323,7 @@ static struct platform_device *ap325rxa_devices[] __initdata = {
 #ifdef CONFIG_I2C
 	&camera_device,
 #endif
+	&nand_flash_device,
 };
 
 static struct i2c_board_info __initdata ap325rxa_i2c_devices[] = {
@@ -364,21 +406,28 @@ static int __init ap325rxa_devices_setup(void)
 
 	ctrl_outw(ctrl_inw(PORT_MSELCRB) & ~0x0001, PORT_MSELCRB);
 
+	/* FLCTL */
+	ctrl_outw(0, PORT_PUCR);
+	ctrl_outw(0, PORT_PVCR);
+	ctrl_outw(0, PORT_PSELC);
+
+	ctrl_outw(0, PORT_HIZCRC);
+	ctrl_outw(0xFFFF, PORT_DRVCRA);
+	ctrl_outw(0xFFFF, PORT_DRVCRB);
+
+	ctrl_outw((ctrl_inw(PORT_PXCR) & 0x3fff) | 0x4000, PORT_PXCR);
+	ctrl_outb(0x80, PORT_PXDR);
+
 	platform_resource_setup_memory(&ceu_device, "ceu", 4 << 20);
 
 	i2c_register_board_info(0, ap325rxa_i2c_devices,
 				ARRAY_SIZE(ap325rxa_i2c_devices));
- 
+
 	return platform_add_devices(ap325rxa_devices,
 				ARRAY_SIZE(ap325rxa_devices));
 }
 device_initcall(ap325rxa_devices_setup);
 
-static void __init ap325rxa_setup(char **cmdline_p)
-{
-}
-
 static struct sh_machine_vector mv_ap325rxa __initmv = {
 	.mv_name = "AP-325RXA",
-	.mv_setup = ap325rxa_setup,
 };
