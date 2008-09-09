@@ -36,10 +36,7 @@
 /*
  *
  * We simply use the ENABLE DISABLE registers inside of the IMX
- * to turn on/off specific interrupts.  FIXME- We should
- * also add support for the accelerated interrupt controller
- * by putting offets to irq jump code in the appropriate
- * places.
+ * to turn on/off specific interrupts.
  *
  */
 
@@ -101,6 +98,28 @@ imx_unmask_irq(unsigned int irq)
 {
 	__raw_writel(irq, IMX_AITC_INTENNUM);
 }
+
+#ifdef CONFIG_FIQ
+int imx_set_irq_fiq(unsigned int irq, unsigned int type)
+{
+	unsigned int irqt;
+
+	if (irq >= IMX_IRQS)
+		return -EINVAL;
+
+	if (irq < IMX_IRQS / 2) {
+		irqt = __raw_readl(IMX_AITC_INTTYPEL) & ~(1 << irq);
+		__raw_writel(irqt | (!!type << irq), IMX_AITC_INTTYPEL);
+	} else {
+		irq -= IMX_IRQS / 2;
+		irqt = __raw_readl(IMX_AITC_INTTYPEH) & ~(1 << irq);
+		__raw_writel(irqt | (!!type << irq), IMX_AITC_INTTYPEH);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(imx_set_irq_fiq);
+#endif /* CONFIG_FIQ */
 
 static int
 imx_gpio_irq_type(unsigned int _irq, unsigned int type)
@@ -286,4 +305,9 @@ imx_init_irq(void)
 
 	/* Release masking of interrupts according to priority */
 	__raw_writel(-1, IMX_AITC_NIMASK);
+
+#ifdef CONFIG_FIQ
+	/* Initialize FIQ */
+	init_FIQ();
+#endif
 }

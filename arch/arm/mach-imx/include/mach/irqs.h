@@ -111,6 +111,11 @@
 /* decode irq number to use with IMR(x), ISR(x) and friends */
 #define IRQ_TO_REG(irq) ((irq - IMX_IRQS) >> 5)
 
+/* all normal IRQs can be FIQs */
+#define FIQ_START	0
+/* switch betwean IRQ and FIQ */
+extern int imx_set_irq_fiq(unsigned int irq, unsigned int type);
+
 #define NR_IRQS (IRQ_GPIOD(32) + 1)
 #define IRQ_GPIO(x)
 #endif
