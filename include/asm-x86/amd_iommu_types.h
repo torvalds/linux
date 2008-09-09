@@ -71,6 +71,25 @@
 /* MMIO status bits */
 #define MMIO_STATUS_COM_WAIT_INT_MASK	0x04
 
+/* event logging constants */
+#define EVENT_ENTRY_SIZE	0x10
+#define EVENT_TYPE_SHIFT	28
+#define EVENT_TYPE_MASK		0xf
+#define EVENT_TYPE_ILL_DEV	0x1
+#define EVENT_TYPE_IO_FAULT	0x2
+#define EVENT_TYPE_DEV_TAB_ERR	0x3
+#define EVENT_TYPE_PAGE_TAB_ERR	0x4
+#define EVENT_TYPE_ILL_CMD	0x5
+#define EVENT_TYPE_CMD_HARD_ERR	0x6
+#define EVENT_TYPE_IOTLB_INV_TO	0x7
+#define EVENT_TYPE_INV_DEV_REQ	0x8
+#define EVENT_DEVID_MASK	0xffff
+#define EVENT_DEVID_SHIFT	0
+#define EVENT_DOMID_MASK	0xffff
+#define EVENT_DOMID_SHIFT	0
+#define EVENT_FLAGS_MASK	0xfff
+#define EVENT_FLAGS_SHIFT	0x10
+
 /* feature control bits */
 #define CONTROL_IOMMU_EN        0x00ULL
 #define CONTROL_HT_TUN_EN       0x01ULL
@@ -164,6 +183,9 @@
 #define IOMMU_CAP_NPCACHE 26
 
 #define MAX_DOMAIN_ID 65536
+
+/* FIXME: move this macro to <linux/pci.h> */
+#define PCI_BUS(x) (((x) >> 8) & 0xff)
 
 /*
  * This structure contains generic data for  IOMMU protection domains

@@ -32,7 +32,6 @@
 /*
  * definitions for the ACPI scanning code
  */
-#define PCI_BUS(x) (((x) >> 8) & 0xff)
 #define IVRS_HEADER_LENGTH 48
 
 #define ACPI_IVHD_TYPE                  0x10

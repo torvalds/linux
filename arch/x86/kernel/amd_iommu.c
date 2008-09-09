@@ -55,9 +55,94 @@ static int iommu_has_npcache(struct amd_iommu *iommu)
  *
  ****************************************************************************/
 
+static void iommu_print_event(void *__evt)
+{
+	u32 *event = __evt;
+	int type  = (event[1] >> EVENT_TYPE_SHIFT)  & EVENT_TYPE_MASK;
+	int devid = (event[0] >> EVENT_DEVID_SHIFT) & EVENT_DEVID_MASK;
+	int domid = (event[1] >> EVENT_DOMID_SHIFT) & EVENT_DOMID_MASK;
+	int flags = (event[1] >> EVENT_FLAGS_SHIFT) & EVENT_FLAGS_MASK;
+	u64 address = (u64)(((u64)event[3]) << 32) | event[2];
+
+	printk(KERN_ERR "AMD IOMMU: Event logged [");
+
+	switch (type) {
+	case EVENT_TYPE_ILL_DEV:
+		printk("ILLEGAL_DEV_TABLE_ENTRY device=%02x:%02x.%x "
+		       "address=0x%016llx flags=0x%04x]\n",
+		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+		       address, flags);
+		break;
+	case EVENT_TYPE_IO_FAULT:
+		printk("IO_PAGE_FAULT device=%02x:%02x.%x "
+		       "domain=0x%04x address=0x%016llx flags=0x%04x]\n",
+		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+		       domid, address, flags);
+		break;
+	case EVENT_TYPE_DEV_TAB_ERR:
+		printk("DEV_TAB_HARDWARE_ERROR device=%02x:%02x.%x "
+		       "address=0x%016llx flags=0x%04x]\n",
+		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+		       address, flags);
+		break;
+	case EVENT_TYPE_PAGE_TAB_ERR:
+		printk("PAGE_TAB_HARDWARE_ERROR device=%02x:%02x.%x "
+		       "domain=0x%04x address=0x%016llx flags=0x%04x]\n",
+		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+		       domid, address, flags);
+		break;
+	case EVENT_TYPE_ILL_CMD:
+		printk("ILLEGAL_COMMAND_ERROR address=0x%016llx]\n", address);
+		break;
+	case EVENT_TYPE_CMD_HARD_ERR:
+		printk("COMMAND_HARDWARE_ERROR address=0x%016llx "
+		       "flags=0x%04x]\n", address, flags);
+		break;
+	case EVENT_TYPE_IOTLB_INV_TO:
+		printk("IOTLB_INV_TIMEOUT device=%02x:%02x.%x "
+		       "address=0x%016llx]\n",
+		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+		       address);
+		break;
+	case EVENT_TYPE_INV_DEV_REQ:
+		printk("INVALID_DEVICE_REQUEST device=%02x:%02x.%x "
+		       "address=0x%016llx flags=0x%04x]\n",
+		       PCI_BUS(devid), PCI_SLOT(devid), PCI_FUNC(devid),
+		       address, flags);
+		break;
+	default:
+		printk(KERN_ERR "UNKNOWN type=0x%02x]\n", type);
+	}
+}
+
+static void iommu_poll_events(struct amd_iommu *iommu)
+{
+	u32 head, tail;
+	unsigned long flags;
+
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	head = readl(iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
+	tail = readl(iommu->mmio_base + MMIO_EVT_TAIL_OFFSET);
+
+	while (head != tail) {
+		iommu_print_event(iommu->evt_buf + head);
+		head = (head + EVENT_ENTRY_SIZE) % iommu->evt_buf_size;
+	}
+
+	writel(head, iommu->mmio_base + MMIO_EVT_HEAD_OFFSET);
+
+	spin_unlock_irqrestore(&iommu->lock, flags);
+}
+
 irqreturn_t amd_iommu_int_handler(int irq, void *data)
 {
-	return IRQ_NONE;
+	struct amd_iommu *iommu;
+
+	list_for_each_entry(iommu, &amd_iommu_list, list)
+		iommu_poll_events(iommu);
+
+	return IRQ_HANDLED;
 }
 
 /****************************************************************************
