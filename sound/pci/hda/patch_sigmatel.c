@@ -3859,6 +3859,7 @@ static int patch_stac92hd73xx(struct hda_codec *codec)
 		return -ENOMEM;
 
 	codec->spec = spec;
+	codec->slave_dig_outs = stac92hd73xx_slave_dig_outs;
 	spec->num_pins = ARRAY_SIZE(stac92hd73xx_pin_nids);
 	spec->pin_nids = stac92hd73xx_pin_nids;
 	spec->board_config = snd_hda_check_board_config(codec,
