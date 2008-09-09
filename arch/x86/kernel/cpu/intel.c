@@ -63,28 +63,6 @@ int __cpuinit ppro_with_ram_bug(void)
 	return 0;
 }
 
-
-/*
- * P4 Xeon errata 037 workaround.
- * Hardware prefetcher may cause stale data to be loaded into the cache.
- */
-static void __cpuinit Intel_errata_workarounds(struct cpuinfo_x86 *c)
-{
-	unsigned long lo, hi;
-
-	if ((c->x86 == 15) && (c->x86_model == 1) && (c->x86_mask == 1)) {
-		rdmsr(MSR_IA32_MISC_ENABLE, lo, hi);
-		if ((lo & (1<<9)) == 0) {
-			printk (KERN_INFO "CPU: C0 stepping P4 Xeon detected.\n");
-			printk (KERN_INFO "CPU: Disabling hardware prefetching (Errata 037)\n");
-			lo |= (1<<9);	/* Disable hw prefetching */
-			wrmsr (MSR_IA32_MISC_ENABLE, lo, hi);
-		}
-	}
-}
-
-
-
 #ifdef CONFIG_X86_F00F_BUG
 static void __cpuinit trap_init_f00f_bug(void)
 {
@@ -98,6 +76,88 @@ static void __cpuinit trap_init_f00f_bug(void)
 	load_idt(&idt_descr);
 }
 #endif
+
+static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
+{
+	unsigned long lo, hi;
+
+#ifdef CONFIG_X86_F00F_BUG
+	/*
+	 * All current models of Pentium and Pentium with MMX technology CPUs
+	 * have the F0 0F bug, which lets nonprivileged users lock up the system.
+	 * Note that the workaround only should be initialized once...
+	 */
+	c->f00f_bug = 0;
+	if (!paravirt_enabled() && c->x86 == 5) {
+		static int f00f_workaround_enabled;
+
+		c->f00f_bug = 1;
+		if (!f00f_workaround_enabled) {
+			trap_init_f00f_bug();
+			printk(KERN_NOTICE "Intel Pentium with F0 0F bug - workaround enabled.\n");
+			f00f_workaround_enabled = 1;
+		}
+	}
+#endif
+
+	/*
+	 * SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until
+	 * model 3 mask 3
+	 */
+	if ((c->x86<<8 | c->x86_model<<4 | c->x86_mask) < 0x633)
+		clear_cpu_cap(c, X86_FEATURE_SEP);
+
+	/*
+	 * P4 Xeon errata 037 workaround.
+	 * Hardware prefetcher may cause stale data to be loaded into the cache.
+	 */
+	if ((c->x86 == 15) && (c->x86_model == 1) && (c->x86_mask == 1)) {
+		rdmsr(MSR_IA32_MISC_ENABLE, lo, hi);
+		if ((lo & (1<<9)) == 0) {
+			printk (KERN_INFO "CPU: C0 stepping P4 Xeon detected.\n");
+			printk (KERN_INFO "CPU: Disabling hardware prefetching (Errata 037)\n");
+			lo |= (1<<9);	/* Disable hw prefetching */
+			wrmsr (MSR_IA32_MISC_ENABLE, lo, hi);
+		}
+	}
+
+	/*
+	 * See if we have a good local APIC by checking for buggy Pentia,
+	 * i.e. all B steppings and the C2 stepping of P54C when using their
+	 * integrated APIC (see 11AP erratum in "Pentium Processor
+	 * Specification Update").
+	 */
+	if (cpu_has_apic && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
+	    (c->x86_mask < 0x6 || c->x86_mask == 0xb))
+		set_cpu_cap(c, X86_FEATURE_11AP);
+
+
+#ifdef CONFIG_X86_INTEL_USERCOPY
+	/*
+	 * Set up the preferred alignment for movsl bulk memory moves
+	 */
+	switch (c->x86) {
+	case 4:		/* 486: untested */
+		break;
+	case 5:		/* Old Pentia: untested */
+		break;
+	case 6:		/* PII/PIII only like movsl with 8-byte alignment */
+		movsl_mask.mask = 7;
+		break;
+	case 15:	/* P4 is OK down to 8-byte alignment */
+		movsl_mask.mask = 7;
+		break;
+	}
+#endif
+
+#ifdef CONFIG_X86_NUMAQ
+	numaq_tsc_disable();
+#endif
+}
+#else
+static void __cpuinit intel_workarounds(struct cpuinfo_x86 *c)
+{
+}
 #endif
 
 static void __cpuinit srat_detect_node(void)
@@ -139,28 +199,10 @@ static int __cpuinit intel_num_cpu_cores(struct cpuinfo_x86 *c)
 static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 {
 	unsigned int l2 = 0;
-	char *p = NULL;
 
 	early_init_intel(c);
 
-#ifdef CONFIG_X86_F00F_BUG
-	/*
-	 * All current models of Pentium and Pentium with MMX technology CPUs
-	 * have the F0 0F bug, which lets nonprivileged users lock up the system.
-	 * Note that the workaround only should be initialized once...
-	 */
-	c->f00f_bug = 0;
-	if (!paravirt_enabled() && c->x86 == 5) {
-		static int f00f_workaround_enabled;
-
-		c->f00f_bug = 1;
-		if (!f00f_workaround_enabled) {
-			trap_init_f00f_bug();
-			printk(KERN_NOTICE "Intel Pentium with F0 0F bug - workaround enabled.\n");
-			f00f_workaround_enabled = 1;
-		}
-	}
-#endif
+	intel_workarounds(c);
 
 	l2 = init_intel_cacheinfo(c);
 	if (c->cpuid_level > 9) {
@@ -170,17 +212,32 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_ARCH_PERFMON);
 	}
 
-#ifdef CONFIG_X86_32
-	/* SEP CPUID bug: Pentium Pro reports SEP but doesn't have it until model 3 mask 3 */
-	if ((c->x86<<8 | c->x86_model<<4 | c->x86_mask) < 0x633)
-		clear_cpu_cap(c, X86_FEATURE_SEP);
+	if (cpu_has_xmm2)
+		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
+	if (cpu_has_ds) {
+		unsigned int l1;
+		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
+		if (!(l1 & (1<<11)))
+			set_cpu_cap(c, X86_FEATURE_BTS);
+		if (!(l1 & (1<<12)))
+			set_cpu_cap(c, X86_FEATURE_PEBS);
+		ds_init_intel(c);
+	}
 
+#ifdef CONFIG_X86_64
+	if (c->x86 == 15)
+		c->x86_cache_alignment = c->x86_clflush_size * 2;
+	if (c->x86 == 6)
+		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
+#else
 	/*
 	 * Names for the Pentium II/Celeron processors
 	 * detectable only by also checking the cache size.
 	 * Dixon is NOT a Celeron.
 	 */
 	if (c->x86 == 6) {
+		char *p = NULL;
+
 		switch (c->x86_model) {
 		case 5:
 			if (c->x86_mask == 0) {
@@ -203,51 +260,11 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 				p = "Celeron (Coppermine)";
 			break;
 		}
+
+		if (p)
+			strcpy(c->x86_model_id, p);
 	}
 
-	if (p)
-		strcpy(c->x86_model_id, p);
-
-	Intel_errata_workarounds(c);
-
-#ifdef CONFIG_X86_INTEL_USERCOPY
-	/*
-	 * Set up the preferred alignment for movsl bulk memory moves
-	 */
-	switch (c->x86) {
-	case 4:		/* 486: untested */
-		break;
-	case 5:		/* Old Pentia: untested */
-		break;
-	case 6:		/* PII/PIII only like movsl with 8-byte alignment */
-		movsl_mask.mask = 7;
-		break;
-	case 15:	/* P4 is OK down to 8-byte alignment */
-		movsl_mask.mask = 7;
-		break;
-	}
-#endif
-
-#endif
-
-	if (cpu_has_xmm2)
-		set_cpu_cap(c, X86_FEATURE_LFENCE_RDTSC);
-	if (cpu_has_ds) {
-		unsigned int l1;
-		rdmsr(MSR_IA32_MISC_ENABLE, l1, l2);
-		if (!(l1 & (1<<11)))
-			set_cpu_cap(c, X86_FEATURE_BTS);
-		if (!(l1 & (1<<12)))
-			set_cpu_cap(c, X86_FEATURE_PEBS);
-		ds_init_intel(c);
-	}
-
-#ifdef CONFIG_X86_64
-	if (c->x86 == 15)
-		c->x86_cache_alignment = c->x86_clflush_size * 2;
-	if (c->x86 == 6)
-		set_cpu_cap(c, X86_FEATURE_REP_GOOD);
-#else
 	if (c->x86 == 15)
 		set_cpu_cap(c, X86_FEATURE_P4);
 	if (c->x86 == 6)
@@ -256,19 +273,6 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 	if (cpu_has_bts)
 		ptrace_bts_init_intel(c);
 
-	/*
-	 * See if we have a good local APIC by checking for buggy Pentia,
-	 * i.e. all B steppings and the C2 stepping of P54C when using their
-	 * integrated APIC (see 11AP erratum in "Pentium Processor
-	 * Specification Update").
-	 */
-	if (cpu_has_apic && (c->x86<<8 | c->x86_model<<4) == 0x520 &&
-	    (c->x86_mask < 0x6 || c->x86_mask == 0xb))
-		set_cpu_cap(c, X86_FEATURE_11AP);
-
-#ifdef CONFIG_X86_NUMAQ
-	numaq_tsc_disable();
-#endif
 #endif
 
 	detect_extended_topology(c);
