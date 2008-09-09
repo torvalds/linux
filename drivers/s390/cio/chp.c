@@ -423,7 +423,7 @@ int chp_new(struct chp_id chpid)
 	ret = sysfs_create_group(&chp->dev.kobj, &chp_attr_group);
 	if (ret) {
 		device_unregister(&chp->dev);
-		goto out_free;
+		goto out;
 	}
 	mutex_lock(&channel_subsystems[chpid.cssid]->mutex);
 	if (channel_subsystems[chpid.cssid]->cm_enabled) {
@@ -432,14 +432,15 @@ int chp_new(struct chp_id chpid)
 			sysfs_remove_group(&chp->dev.kobj, &chp_attr_group);
 			device_unregister(&chp->dev);
 			mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
-			goto out_free;
+			goto out;
 		}
 	}
 	channel_subsystems[chpid.cssid]->chps[chpid.id] = chp;
 	mutex_unlock(&channel_subsystems[chpid.cssid]->mutex);
-	return ret;
+	goto out;
 out_free:
 	kfree(chp);
+out:
 	return ret;
 }
 
