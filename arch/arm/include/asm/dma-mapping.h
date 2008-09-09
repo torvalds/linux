@@ -15,10 +15,20 @@
  * must not be used by drivers.
  */
 #ifndef __arch_page_to_dma
+
+#if !defined(CONFIG_HIGHMEM)
 static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
 {
 	return (dma_addr_t)__virt_to_bus((unsigned long)page_address(page));
 }
+#elif defined(__pfn_to_bus)
+static inline dma_addr_t page_to_dma(struct device *dev, struct page *page)
+{
+	return (dma_addr_t)__pfn_to_bus(page_to_pfn(page));
+}
+#else
+#error "this machine class needs to define __arch_page_to_dma to use HIGHMEM"
+#endif
 
 static inline void *dma_to_virt(struct device *dev, dma_addr_t addr)
 {

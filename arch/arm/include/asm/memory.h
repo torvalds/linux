@@ -188,6 +188,7 @@ static inline void *phys_to_virt(unsigned long x)
 #ifndef __virt_to_bus
 #define __virt_to_bus	__virt_to_phys
 #define __bus_to_virt	__phys_to_virt
+#define __pfn_to_bus(x)	((x) << PAGE_SHIFT)
 #endif
 
 static inline __deprecated unsigned long virt_to_bus(void *x)
