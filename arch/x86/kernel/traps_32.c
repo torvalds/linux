@@ -632,7 +632,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	do_trap(trapnr, signr, str, 1, regs, error_code, &info);	\
 }
 
-DO_VM86_TRAP_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
+DO_VM86_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
 #ifndef CONFIG_KPROBES
 DO_VM86_TRAP(3, SIGTRAP, "int3", int3)
 #endif
@@ -1247,7 +1247,7 @@ void __init trap_init(void)
 	early_iounmap(p, 4);
 #endif
 
-	set_trap_gate(0, &divide_error);
+	set_intr_gate(0, &divide_error);
 	set_intr_gate(1, &debug);
 	set_intr_gate(2, &nmi);
 	set_system_intr_gate(3, &int3); /* int3 can be called from all */
