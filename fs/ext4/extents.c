@@ -383,8 +383,8 @@ static void ext4_ext_show_leaf(struct inode *inode, struct ext4_ext_path *path)
 	ext_debug("\n");
 }
 #else
-#define ext4_ext_show_path(inode,path)
-#define ext4_ext_show_leaf(inode,path)
+#define ext4_ext_show_path(inode, path)
+#define ext4_ext_show_leaf(inode, path)
 #endif
 
 void ext4_ext_drop_refs(struct ext4_ext_path *path)
@@ -1476,7 +1476,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 				struct ext4_ext_path *path,
 				struct ext4_extent *newext)
 {
-	struct ext4_extent_header * eh;
+	struct ext4_extent_header *eh;
 	struct ext4_extent *ex, *fex;
 	struct ext4_extent *nearex; /* nearest extent */
 	struct ext4_ext_path *npath = NULL;

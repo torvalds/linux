@@ -31,7 +31,7 @@
  * from ext4_file_open: open gets called at every open, but release
  * gets called only when /all/ the files are closed.
  */
-static int ext4_release_file (struct inode * inode, struct file * filp)
+static int ext4_release_file(struct inode *inode, struct file *filp)
 {
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&

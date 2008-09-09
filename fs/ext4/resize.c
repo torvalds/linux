@@ -416,8 +416,8 @@ static int add_new_gdb(handle_t *handle, struct inode *inode,
 		       "EXT4-fs: ext4_add_new_gdb: adding group block %lu\n",
 		       gdb_num);
 
-        /*
-         * If we are not using the primary superblock/GDT copy don't resize,
+	/*
+	 * If we are not using the primary superblock/GDT copy don't resize,
          * because the user tools have no way of handling this.  Probably a
          * bad time to do it anyways.
          */
@@ -964,7 +964,7 @@ int ext4_group_extend(struct super_block *sb, struct ext4_super_block *es,
 	ext4_group_t o_groups_count;
 	ext4_grpblk_t last;
 	ext4_grpblk_t add;
-	struct buffer_head * bh;
+	struct buffer_head *bh;
 	handle_t *handle;
 	int err;
 	unsigned long freed_blocks;

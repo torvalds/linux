@@ -190,7 +190,7 @@ static int ext4_journal_test_restart(handle_t *handle, struct inode *inode)
 /*
  * Called at the last iput() if i_nlink is zero.
  */
-void ext4_delete_inode (struct inode * inode)
+void ext4_delete_inode(struct inode *inode)
 {
 	handle_t *handle;
 	int err;
@@ -330,11 +330,11 @@ static int ext4_block_to_path(struct inode *inode,
 	int final = 0;
 
 	if (i_block < 0) {
-		ext4_warning (inode->i_sb, "ext4_block_to_path", "block < 0");
+		ext4_warning(inode->i_sb, "ext4_block_to_path", "block < 0");
 	} else if (i_block < direct_blocks) {
 		offsets[n++] = i_block;
 		final = direct_blocks;
-	} else if ( (i_block -= direct_blocks) < indirect_blocks) {
+	} else if ((i_block -= direct_blocks) < indirect_blocks) {
 		offsets[n++] = EXT4_IND_BLOCK;
 		offsets[n++] = i_block;
 		final = ptrs;
@@ -400,14 +400,14 @@ static Indirect *ext4_get_branch(struct inode *inode, int depth,
 
 	*err = 0;
 	/* i_data is not going away, no lock needed */
-	add_chain (chain, NULL, EXT4_I(inode)->i_data + *offsets);
+	add_chain(chain, NULL, EXT4_I(inode)->i_data + *offsets);
 	if (!p->key)
 		goto no_block;
 	while (--depth) {
 		bh = sb_bread(sb, le32_to_cpu(p->key));
 		if (!bh)
 			goto failure;
-		add_chain(++p, bh, (__le32*)bh->b_data + *++offsets);
+		add_chain(++p, bh, (__le32 *)bh->b_data + *++offsets);
 		/* Reader: end */
 		if (!p->key)
 			goto no_block;
@@ -443,7 +443,7 @@ no_block:
 static ext4_fsblk_t ext4_find_near(struct inode *inode, Indirect *ind)
 {
 	struct ext4_inode_info *ei = EXT4_I(inode);
-	__le32 *start = ind->bh ? (__le32*) ind->bh->b_data : ei->i_data;
+	__le32 *start = ind->bh ? (__le32 *) ind->bh->b_data : ei->i_data;
 	__le32 *p;
 	ext4_fsblk_t bg_start;
 	ext4_fsblk_t last_block;
@@ -630,7 +630,7 @@ allocated:
 	*err = 0;
 	return ret;
 failed_out:
-	for (i = 0; i <index; i++)
+	for (i = 0; i < index; i++)
 		ext4_free_blocks(handle, inode, new_blocks[i], 1, 0);
 	return ret;
 }
@@ -703,7 +703,7 @@ static int ext4_alloc_branch(handle_t *handle, struct inode *inode,
 		branch[n].p = (__le32 *) bh->b_data + offsets[n];
 		branch[n].key = cpu_to_le32(new_blocks[n]);
 		*branch[n].p = branch[n].key;
-		if ( n == indirect_blks) {
+		if (n == indirect_blks) {
 			current_block = new_blocks[n];
 			/*
 			 * End of chain, update the last new metablock of
@@ -730,7 +730,7 @@ failed:
 		BUFFER_TRACE(branch[i].bh, "call jbd2_journal_forget");
 		ext4_journal_forget(handle, branch[i].bh);
 	}
-	for (i = 0; i <indirect_blks; i++)
+	for (i = 0; i < indirect_blks; i++)
 		ext4_free_blocks(handle, inode, new_blocks[i], 1, 0);
 
 	ext4_free_blocks(handle, inode, new_blocks[i], num, 0);
@@ -783,7 +783,7 @@ static int ext4_splice_branch(handle_t *handle, struct inode *inode,
 	if (num == 0 && blks > 1) {
 		current_block = le32_to_cpu(where->key) + 1;
 		for (i = 1; i < blks; i++)
-			*(where->p + i ) = cpu_to_le32(current_block++);
+			*(where->p + i) = cpu_to_le32(current_block++);
 	}
 
 	/*
@@ -1241,7 +1241,7 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 			BUFFER_TRACE(bh, "call get_create_access");
 			fatal = ext4_journal_get_create_access(handle, bh);
 			if (!fatal && !buffer_uptodate(bh)) {
-				memset(bh->b_data,0,inode->i_sb->s_blocksize);
+				memset(bh->b_data, 0, inode->i_sb->s_blocksize);
 				set_buffer_uptodate(bh);
 			}
 			unlock_buffer(bh);
@@ -1266,7 +1266,7 @@ err:
 struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
 			       ext4_lblk_t block, int create, int *err)
 {
-	struct buffer_head * bh;
+	struct buffer_head *bh;
 
 	bh = ext4_getblk(handle, inode, block, create, err);
 	if (!bh)
@@ -1282,13 +1282,13 @@ struct buffer_head *ext4_bread(handle_t *handle, struct inode *inode,
 	return NULL;
 }
 
-static int walk_page_buffers(	handle_t *handle,
-				struct buffer_head *head,
-				unsigned from,
-				unsigned to,
-				int *partial,
-				int (*fn)(	handle_t *handle,
-						struct buffer_head *bh))
+static int walk_page_buffers(handle_t *handle,
+			     struct buffer_head *head,
+			     unsigned from,
+			     unsigned to,
+			     int *partial,
+			     int (*fn)(handle_t *handle,
+				       struct buffer_head *bh))
 {
 	struct buffer_head *bh;
 	unsigned block_start, block_end;
@@ -1296,9 +1296,9 @@ static int walk_page_buffers(	handle_t *handle,
 	int err, ret = 0;
 	struct buffer_head *next;
 
-	for (	bh = head, block_start = 0;
-		ret == 0 && (bh != head || !block_start);
-		block_start = block_end, bh = next)
+	for (bh = head, block_start = 0;
+	     ret == 0 && (bh != head || !block_start);
+	     block_start = block_end, bh = next)
 	{
 		next = bh->b_this_page;
 		block_end = block_start + blocksize;
@@ -1351,23 +1351,23 @@ static int ext4_write_begin(struct file *file, struct address_space *mapping,
 				loff_t pos, unsigned len, unsigned flags,
 				struct page **pagep, void **fsdata)
 {
- 	struct inode *inode = mapping->host;
+	struct inode *inode = mapping->host;
 	int ret, needed_blocks = ext4_writepage_trans_blocks(inode);
 	handle_t *handle;
 	int retries = 0;
- 	struct page *page;
+	struct page *page;
  	pgoff_t index;
- 	unsigned from, to;
+	unsigned from, to;
 
  	index = pos >> PAGE_CACHE_SHIFT;
- 	from = pos & (PAGE_CACHE_SIZE - 1);
- 	to = from + len;
+	from = pos & (PAGE_CACHE_SIZE - 1);
+	to = from + len;
 
 retry:
-  	handle = ext4_journal_start(inode, needed_blocks);
-  	if (IS_ERR(handle)) {
-  		ret = PTR_ERR(handle);
-  		goto out;
+	handle = ext4_journal_start(inode, needed_blocks);
+	if (IS_ERR(handle)) {
+		ret = PTR_ERR(handle);
+		goto out;
 	}
 
 	page = __grab_cache_page(mapping, index);
@@ -1387,9 +1387,9 @@ retry:
 	}
 
 	if (ret) {
- 		unlock_page(page);
+		unlock_page(page);
 		ext4_journal_stop(handle);
- 		page_cache_release(page);
+		page_cache_release(page);
 	}
 
 	if (ret == -ENOSPC && ext4_should_retry_alloc(inode->i_sb, &retries))
@@ -2456,7 +2456,7 @@ static int ext4_da_should_update_i_disksize(struct page *page,
 	bh = page_buffers(page);
 	idx = offset >> inode->i_blkbits;
 
-	for (i=0; i < idx; i++)
+	for (i = 0; i < idx; i++)
 		bh = bh->b_this_page;
 
 	if (!buffer_mapped(bh) || (buffer_delay(bh)))
@@ -2476,7 +2476,7 @@ static int ext4_da_write_end(struct file *file,
 	unsigned long start, end;
 
 	start = pos & (PAGE_CACHE_SIZE - 1);
-	end = start + copied -1;
+	end = start + copied - 1;
 
 	/*
 	 * generic_write_end() will run mark_inode_dirty() if i_size
@@ -2591,7 +2591,7 @@ static sector_t ext4_bmap(struct address_space *mapping, sector_t block)
 			return 0;
 	}
 
-	return generic_block_bmap(mapping,block,ext4_get_block);
+	return generic_block_bmap(mapping, block, ext4_get_block);
 }
 
 static int bget_one(handle_t *handle, struct buffer_head *bh)
@@ -3197,7 +3197,7 @@ static Indirect *ext4_find_shared(struct inode *inode, int depth,
 	if (!partial->key && *partial->p)
 		/* Writer: end */
 		goto no_top;
-	for (p=partial; p>chain && all_zeroes((__le32*)p->bh->b_data,p->p); p--)
+	for (p = partial; (p > chain) && all_zeroes((__le32 *) p->bh->b_data, p->p); p--)
 		;
 	/*
 	 * OK, we've found the last block that must survive. The rest of our
@@ -3216,7 +3216,7 @@ static Indirect *ext4_find_shared(struct inode *inode, int depth,
 	}
 	/* Writer: end */
 
-	while(partial > p) {
+	while (partial > p) {
 		brelse(partial->bh);
 		partial--;
 	}
@@ -3408,9 +3408,9 @@ static void ext4_free_branches(handle_t *handle, struct inode *inode,
 			/* This zaps the entire block.  Bottom up. */
 			BUFFER_TRACE(bh, "free child branches");
 			ext4_free_branches(handle, inode, bh,
-					   (__le32*)bh->b_data,
-					   (__le32*)bh->b_data + addr_per_block,
-					   depth);
+					(__le32 *) bh->b_data,
+					(__le32 *) bh->b_data + addr_per_block,
+					depth);
 
 			/*
 			 * We've probably journalled the indirect block several
@@ -3927,7 +3927,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 	inode->i_mode = le16_to_cpu(raw_inode->i_mode);
 	inode->i_uid = (uid_t)le16_to_cpu(raw_inode->i_uid_low);
 	inode->i_gid = (gid_t)le16_to_cpu(raw_inode->i_gid_low);
-	if(!(test_opt (inode->i_sb, NO_UID32))) {
+	if (!(test_opt(inode->i_sb, NO_UID32))) {
 		inode->i_uid |= le16_to_cpu(raw_inode->i_uid_high) << 16;
 		inode->i_gid |= le16_to_cpu(raw_inode->i_gid_high) << 16;
 	}
@@ -3945,7 +3945,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		if (inode->i_mode == 0 ||
 		    !(EXT4_SB(inode->i_sb)->s_mount_state & EXT4_ORPHAN_FS)) {
 			/* this inode is deleted */
-			brelse (bh);
+			brelse(bh);
 			ret = -ESTALE;
 			goto bad_inode;
 		}
@@ -3978,7 +3978,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 		ei->i_extra_isize = le16_to_cpu(raw_inode->i_extra_isize);
 		if (EXT4_GOOD_OLD_INODE_SIZE + ei->i_extra_isize >
 		    EXT4_INODE_SIZE(inode->i_sb)) {
-			brelse (bh);
+			brelse(bh);
 			ret = -EIO;
 			goto bad_inode;
 		}
@@ -4031,7 +4031,7 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
 			init_special_inode(inode, inode->i_mode,
 			   new_decode_dev(le32_to_cpu(raw_inode->i_block[1])));
 	}
-	brelse (iloc.bh);
+	brelse(iloc.bh);
 	ext4_set_inode_flags(inode);
 	unlock_new_inode(inode);
 	return inode;
@@ -4113,14 +4113,14 @@ static int ext4_do_update_inode(handle_t *handle,
 
 	ext4_get_inode_flags(ei);
 	raw_inode->i_mode = cpu_to_le16(inode->i_mode);
-	if(!(test_opt(inode->i_sb, NO_UID32))) {
+	if (!(test_opt(inode->i_sb, NO_UID32))) {
 		raw_inode->i_uid_low = cpu_to_le16(low_16_bits(inode->i_uid));
 		raw_inode->i_gid_low = cpu_to_le16(low_16_bits(inode->i_gid));
 /*
  * Fix up interoperability with old kernels. Otherwise, old inodes get
  * re-used with the upper 16 bits of the uid/gid intact
  */
-		if(!ei->i_dtime) {
+		if (!ei->i_dtime) {
 			raw_inode->i_uid_high =
 				cpu_to_le16(high_16_bits(inode->i_uid));
 			raw_inode->i_gid_high =
@@ -4208,7 +4208,7 @@ static int ext4_do_update_inode(handle_t *handle,
 	ei->i_state &= ~EXT4_STATE_NEW;
 
 out_brelse:
-	brelse (bh);
+	brelse(bh);
 	ext4_std_error(inode->i_sb, err);
 	return err;
 }

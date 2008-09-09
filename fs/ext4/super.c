@@ -654,7 +654,7 @@ static inline void ext4_show_quota_options(struct seq_file *seq,
 
 	if (sbi->s_jquota_fmt)
 		seq_printf(seq, ",jqfmt=%s",
-		(sbi->s_jquota_fmt == QFMT_VFS_OLD) ? "vfsold": "vfsv0");
+		(sbi->s_jquota_fmt == QFMT_VFS_OLD) ? "vfsold" : "vfsv0");
 
 	if (sbi->s_qf_names[USRQUOTA])
 		seq_printf(seq, ",usrjquota=%s", sbi->s_qf_names[USRQUOTA]);
@@ -822,7 +822,7 @@ static struct dentry *ext4_fh_to_parent(struct super_block *sb, struct fid *fid,
 }
 
 #ifdef CONFIG_QUOTA
-#define QTYPE2NAME(t) ((t) == USRQUOTA?"user":"group")
+#define QTYPE2NAME(t) ((t) == USRQUOTA ? "user" : "group")
 #define QTYPE2MOPT(on, t) ((t) == USRQUOTA?((on)##USRJQUOTA):((on)##GRPJQUOTA))
 
 static int ext4_dquot_initialize(struct inode *inode, int type);
@@ -1586,7 +1586,7 @@ static int ext4_check_descriptors(struct super_block *sb)
 	if (EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_FLEX_BG))
 		flexbg_flag = 1;
 
-	ext4_debug ("Checking group descriptors");
+	ext4_debug("Checking group descriptors");
 
 	for (i = 0; i < sbi->s_groups_count; i++) {
 		struct ext4_group_desc *gdp = ext4_get_group_desc(sb, i, NULL);

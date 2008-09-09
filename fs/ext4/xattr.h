@@ -51,8 +51,8 @@ struct ext4_xattr_entry {
 	(((name_len) + EXT4_XATTR_ROUND + \
 	sizeof(struct ext4_xattr_entry)) & ~EXT4_XATTR_ROUND)
 #define EXT4_XATTR_NEXT(entry) \
-	( (struct ext4_xattr_entry *)( \
-	  (char *)(entry) + EXT4_XATTR_LEN((entry)->e_name_len)) )
+	((struct ext4_xattr_entry *)( \
+	 (char *)(entry) + EXT4_XATTR_LEN((entry)->e_name_len)))
 #define EXT4_XATTR_SIZE(size) \
 	(((size) + EXT4_XATTR_ROUND) & ~EXT4_XATTR_ROUND)
 

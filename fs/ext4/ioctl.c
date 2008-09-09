@@ -25,7 +25,7 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 	unsigned int flags;
 	unsigned short rsv_window_size;
 
-	ext4_debug ("cmd = %u, arg = %lu\n", cmd, arg);
+	ext4_debug("cmd = %u, arg = %lu\n", cmd, arg);
 
 	switch (cmd) {
 	case EXT4_IOC_GETFLAGS:
@@ -186,7 +186,7 @@ setversion_out:
 	case EXT4_IOC_SETRSVSZ: {
 		int err;
 
-		if (!test_opt(inode->i_sb, RESERVATION) ||!S_ISREG(inode->i_mode))
+		if (!test_opt(inode->i_sb, RESERVATION) || !S_ISREG(inode->i_mode))
 			return -ENOTTY;
 
 		if (!is_owner_or_cap(inode))

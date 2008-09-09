@@ -43,7 +43,7 @@
  * inode to disk.
  */
 
-int ext4_sync_file(struct file * file, struct dentry *dentry, int datasync)
+int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 {
 	struct inode *inode = dentry->d_inode;
 	journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;

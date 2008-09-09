@@ -23,10 +23,10 @@
 #include "ext4.h"
 #include "xattr.h"
 
-static void * ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
+static void *ext4_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct ext4_inode_info *ei = EXT4_I(dentry->d_inode);
-	nd_set_link(nd, (char*)ei->i_data);
+	nd_set_link(nd, (char *) ei->i_data);
 	return NULL;
 }
 

@@ -40,8 +40,8 @@ struct ext4_sb_info {
 	unsigned long s_blocks_last;    /* Last seen block count */
 	loff_t s_bitmap_maxbytes;	/* max bytes for bitmap files */
 	struct buffer_head * s_sbh;	/* Buffer containing the super block */
-	struct ext4_super_block * s_es;	/* Pointer to the super block in the buffer */
-	struct buffer_head ** s_group_desc;
+	struct ext4_super_block *s_es;	/* Pointer to the super block in the buffer */
+	struct buffer_head **s_group_desc;
 	unsigned long  s_mount_opt;
 	ext4_fsblk_t s_sb_block;
 	uid_t s_resuid;
@@ -67,8 +67,8 @@ struct ext4_sb_info {
 	struct ext4_reserve_window_node s_rsv_window_head;
 
 	/* Journaling */
-	struct inode * s_journal_inode;
-	struct journal_s * s_journal;
+	struct inode *s_journal_inode;
+	struct journal_s *s_journal;
 	struct list_head s_orphan;
 	unsigned long s_commit_interval;
 	struct block_device *journal_bdev;
