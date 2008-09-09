@@ -652,6 +652,8 @@ do_general_protection(struct pt_regs *regs, long error_code)
 	struct tss_struct *tss;
 	int cpu;
 
+	conditional_sti(regs);
+
 	cpu = get_cpu();
 	tss = &per_cpu(init_tss, cpu);
 	thread = &current->thread;
@@ -1273,7 +1275,7 @@ void __init trap_init(void)
 	set_intr_gate(10, &invalid_TSS);
 	set_intr_gate(11, &segment_not_present);
 	set_intr_gate(12, &stack_segment);
-	set_trap_gate(13, &general_protection);
+	set_intr_gate(13, &general_protection);
 	set_intr_gate(14, &page_fault);
 	set_trap_gate(15, &spurious_interrupt_bug);
 	set_trap_gate(16, &coprocessor_error);
