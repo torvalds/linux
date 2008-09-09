@@ -28,6 +28,7 @@
 #include <asm/mach/time.h>
 #include <mach/imx-uart.h>
 #include <mach/board-pcm038.h>
+#include <mach/mxc_nand.h>
 
 #include "devices.h"
 
@@ -187,6 +188,11 @@ static void gpio_fec_inactive(void)
 			ARRAY_SIZE(mxc_fec_pins));
 }
 
+static struct mxc_nand_platform_data pcm038_nand_board_info = {
+	.width = 1,
+	.hw_ecc = 1,
+};
+
 static struct platform_device *platform_devices[] __initdata = {
 	&pcm038_nor_mtd_device,
 	&mxc_w1_master_device,
@@ -210,7 +216,9 @@ static void __init pcm038_init(void)
 	mxc_register_device(&mxc_uart_device0, &uart_pdata[0]);
 	mxc_register_device(&mxc_uart_device1, &uart_pdata[1]);
 	mxc_register_device(&mxc_uart_device2, &uart_pdata[2]);
+
 	mxc_gpio_mode(PE16_AF_RTCK); /* OWIRE */
+	mxc_register_device(&mxc_nand_device, &pcm038_nand_board_info);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
