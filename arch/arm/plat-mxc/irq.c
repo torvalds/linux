@@ -116,11 +116,6 @@ void __init mxc_init_irq(void)
 	for (i = 0; i < 8; i++)
 		__raw_writel(0, AVIC_NIPRIORITY(i));
 
-	/* Set WDOG2's interrupt the highest priority level (bit 28-31) */
-	reg = __raw_readl(AVIC_NIPRIORITY(6));
-	reg |= (0xF << 28);
-	__raw_writel(reg, AVIC_NIPRIORITY(6));
-
 	/* init architectures chained interrupt handler */
 	mxc_register_gpios();
 
