@@ -1804,15 +1804,17 @@ retry_alloc:
 		goto io_error;
 
 	free_blocks = le16_to_cpu(gdp->bg_free_blocks_count);
-	/*
-	 * if there is not enough free blocks to make a new resevation
-	 * turn off reservation for this allocation
-	 */
-	if (my_rsv && (free_blocks < windowsz)
-		&& (rsv_is_empty(&my_rsv->rsv_window)))
-		my_rsv = NULL;
 
 	if (free_blocks > 0) {
+		/*
+		 * try to allocate with group target block
+		 * in the goal group. If we have low free_blocks
+		 * count turn off reservation
+		 */
+		if (my_rsv && (free_blocks < windowsz)
+			&& (rsv_is_empty(&my_rsv->rsv_window)))
+			my_rsv = NULL;
+
 		bitmap_bh = ext4_read_block_bitmap(sb, group_no);
 		if (!bitmap_bh)
 			goto io_error;
@@ -1845,7 +1847,7 @@ retry_alloc:
 		 * free blocks is less than half of the reservation
 		 * window size.
 		 */
-		if (free_blocks <= (windowsz/2))
+		if (my_rsv && (free_blocks <= (windowsz/2)))
 			continue;
 
 		brelse(bitmap_bh);
