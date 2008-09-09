@@ -55,7 +55,7 @@
 #define BT_DBG(D...)
 #endif
 
-#define VERSION "2.10"
+#define VERSION "2.11"
 
 static u32 l2cap_feat_mask = 0x0000;
 
@@ -778,6 +778,7 @@ static int l2cap_do_connect(struct sock *sk)
 	struct l2cap_conn *conn;
 	struct hci_conn *hcon;
 	struct hci_dev *hdev;
+	__u8 auth_type;
 	int err = 0;
 
 	BT_DBG("%s -> %s psm 0x%2.2x", batostr(src), batostr(dst), l2cap_pi(sk)->psm);
@@ -789,7 +790,21 @@ static int l2cap_do_connect(struct sock *sk)
 
 	err = -ENOMEM;
 
-	hcon = hci_connect(hdev, ACL_LINK, dst);
+	if (l2cap_pi(sk)->link_mode & L2CAP_LM_AUTH ||
+			l2cap_pi(sk)->link_mode & L2CAP_LM_ENCRYPT ||
+				l2cap_pi(sk)->link_mode & L2CAP_LM_SECURE) {
+		if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+			auth_type = HCI_AT_NO_BONDING_MITM;
+		else
+			auth_type = HCI_AT_GENERAL_BONDING_MITM;
+	} else {
+		if (l2cap_pi(sk)->psm == cpu_to_le16(0x0001))
+			auth_type = HCI_AT_NO_BONDING;
+		else
+			auth_type = HCI_AT_GENERAL_BONDING;
+	}
+
+	hcon = hci_connect(hdev, ACL_LINK, dst, auth_type);
 	if (!hcon)
 		goto done;
 

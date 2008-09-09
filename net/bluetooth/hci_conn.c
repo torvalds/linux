@@ -330,7 +330,7 @@ EXPORT_SYMBOL(hci_get_route);
 
 /* Create SCO or ACL connection.
  * Device _must_ be locked */
-struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
+struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst, __u8 auth_type)
 {
 	struct hci_conn *acl;
 	struct hci_conn *sco;
@@ -344,8 +344,10 @@ struct hci_conn *hci_connect(struct hci_dev *hdev, int type, bdaddr_t *dst)
 
 	hci_conn_hold(acl);
 
-	if (acl->state == BT_OPEN || acl->state == BT_CLOSED)
+	if (acl->state == BT_OPEN || acl->state == BT_CLOSED) {
+		acl->auth_type = auth_type;
 		hci_acl_connect(acl);
+	}
 
 	if (type == ACL_LINK)
 		return acl;
@@ -381,7 +383,7 @@ int hci_conn_auth(struct hci_conn *conn)
 
 	if (conn->ssp_mode > 0 && conn->hdev->ssp_mode > 0) {
 		if (!(conn->auth_type & 0x01)) {
-			conn->auth_type = HCI_AT_GENERAL_BONDING_MITM;
+			conn->auth_type |= 0x01;
 			conn->link_mode &= ~HCI_LM_AUTH;
 		}
 	}
