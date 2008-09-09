@@ -274,13 +274,13 @@ cleanup1:
 }
 
 static int
-address_needs_mapping(struct device *hwdev, dma_addr_t addr)
+address_needs_mapping(struct device *hwdev, dma_addr_t addr, size_t size)
 {
 	dma_addr_t mask = 0xffffffff;
 	/* If the device has a mask, use it, otherwise default to 32 bits */
 	if (hwdev && hwdev->dma_mask)
 		mask = *hwdev->dma_mask;
-	return (addr & ~mask) != 0;
+	return !is_buffer_dma_capable(mask, addr, size);
 }
 
 static int is_swiotlb_buffer(char *addr)
@@ -473,7 +473,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	int order = get_order(size);
 
 	ret = (void *)__get_free_pages(flags, order);
-	if (ret && address_needs_mapping(hwdev, virt_to_bus(ret))) {
+	if (ret && address_needs_mapping(hwdev, virt_to_bus(ret), size)) {
 		/*
 		 * The allocated memory isn't reachable by the device.
 		 * Fall back on swiotlb_map_single().
@@ -497,7 +497,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 	dev_addr = virt_to_bus(ret);
 
 	/* Confirm address can be DMA'd by device */
-	if (address_needs_mapping(hwdev, dev_addr)) {
+	if (address_needs_mapping(hwdev, dev_addr, size)) {
 		printk("hwdev DMA mask = 0x%016Lx, dev_addr = 0x%016Lx\n",
 		       (unsigned long long)*hwdev->dma_mask,
 		       (unsigned long long)dev_addr);
@@ -561,7 +561,7 @@ swiotlb_map_single_attrs(struct device *hwdev, void *ptr, size_t size,
 	 * we can safely return the device addr and not worry about bounce
 	 * buffering it.
 	 */
-	if (!address_needs_mapping(hwdev, dev_addr) && !swiotlb_force)
+	if (!address_needs_mapping(hwdev, dev_addr, size) && !swiotlb_force)
 		return dev_addr;
 
 	/*
@@ -578,7 +578,7 @@ swiotlb_map_single_attrs(struct device *hwdev, void *ptr, size_t size,
 	/*
 	 * Ensure that the address returned is DMA'ble
 	 */
-	if (address_needs_mapping(hwdev, dev_addr))
+	if (address_needs_mapping(hwdev, dev_addr, size))
 		panic("map_single: bounce buffer is not DMA'ble");
 
 	return dev_addr;
@@ -721,7 +721,8 @@ swiotlb_map_sg_attrs(struct device *hwdev, struct scatterlist *sgl, int nelems,
 	for_each_sg(sgl, sg, nelems, i) {
 		addr = SG_ENT_VIRT_ADDRESS(sg);
 		dev_addr = virt_to_bus(addr);
-		if (swiotlb_force || address_needs_mapping(hwdev, dev_addr)) {
+		if (swiotlb_force ||
+		    address_needs_mapping(hwdev, dev_addr, sg->length)) {
 			void *map = map_single(hwdev, addr, sg->length, dir);
 			if (!map) {
 				/* Don't panic here, we expect map_sg users
