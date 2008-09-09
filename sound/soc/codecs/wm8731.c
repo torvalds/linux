@@ -688,12 +688,13 @@ static int wm8731_spi_write(struct spi_device *spi, const char *data, int len)
 {
 	struct spi_transfer t;
 	struct spi_message m;
-	u16 msg[2];
+	u8 msg[2];
 
 	if (len <= 0)
 		return 0;
 
-	msg[0] = (data[0] << 8) + data[1];
+	msg[0] = data[0];
+	msg[1] = data[1];
 
 	spi_message_init(&m);
 	memset(&t, 0, (sizeof t));
