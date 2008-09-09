@@ -1164,6 +1164,7 @@ void do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 
 void do_spurious_interrupt_bug(struct pt_regs *regs, long error_code)
 {
+	conditional_sti(regs);
 #if 0
 	/* No need to warn about this any longer. */
 	printk(KERN_INFO "Ignoring P6 Local APIC Spurious Interrupt Bug...\n");
@@ -1277,7 +1278,7 @@ void __init trap_init(void)
 	set_intr_gate(12, &stack_segment);
 	set_intr_gate(13, &general_protection);
 	set_intr_gate(14, &page_fault);
-	set_trap_gate(15, &spurious_interrupt_bug);
+	set_intr_gate(15, &spurious_interrupt_bug);
 	set_trap_gate(16, &coprocessor_error);
 	set_trap_gate(17, &alignment_check);
 #ifdef CONFIG_X86_MCE
