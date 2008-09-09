@@ -22,6 +22,7 @@
 #include <linux/init.h>
 #include <linux/clk.h>
 #include <linux/serial_8250.h>
+#include <linux/irq.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -106,6 +107,88 @@ static inline void mxc_init_imx_uart(void)
 }
 #endif /* !SERIAL_IMX */
 
+static void mx31ads_expio_irq_handler(u32 irq, struct irq_desc *desc)
+{
+	u32 imr_val;
+	u32 int_valid;
+	u32 expio_irq;
+
+	imr_val = __raw_readw(PBC_INTMASK_SET_REG);
+	int_valid = __raw_readw(PBC_INTSTATUS_REG) & imr_val;
+
+	expio_irq = MXC_EXP_IO_BASE;
+	for (; int_valid != 0; int_valid >>= 1, expio_irq++) {
+		if ((int_valid & 1) == 0)
+			continue;
+
+		generic_handle_irq(expio_irq);
+	}
+}
+
+/*
+ * Disable an expio pin's interrupt by setting the bit in the imr.
+ * @param irq           an expio virtual irq number
+ */
+static void expio_mask_irq(u32 irq)
+{
+	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	/* mask the interrupt */
+	__raw_writew(1 << expio, PBC_INTMASK_CLEAR_REG);
+	__raw_readw(PBC_INTMASK_CLEAR_REG);
+}
+
+/*
+ * Acknowledge an expanded io pin's interrupt by clearing the bit in the isr.
+ * @param irq           an expanded io virtual irq number
+ */
+static void expio_ack_irq(u32 irq)
+{
+	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	/* clear the interrupt status */
+	__raw_writew(1 << expio, PBC_INTSTATUS_REG);
+}
+
+/*
+ * Enable a expio pin's interrupt by clearing the bit in the imr.
+ * @param irq           a expio virtual irq number
+ */
+static void expio_unmask_irq(u32 irq)
+{
+	u32 expio = MXC_IRQ_TO_EXPIO(irq);
+	/* unmask the interrupt */
+	__raw_writew(1 << expio, PBC_INTMASK_SET_REG);
+}
+
+static struct irq_chip expio_irq_chip = {
+	.ack = expio_ack_irq,
+	.mask = expio_mask_irq,
+	.unmask = expio_unmask_irq,
+};
+
+static void __init mx31ads_init_expio(void)
+{
+	int i;
+
+	printk(KERN_INFO "MX31ADS EXPIO(CPLD) hardware\n");
+
+	/*
+	 * Configure INT line as GPIO input
+	 */
+	mxc_iomux_mode(IOMUX_MODE(MX31_PIN_GPIO1_4, IOMUX_CONFIG_GPIO));
+
+	/* disable the interrupt and clear the status */
+	__raw_writew(0xFFFF, PBC_INTMASK_CLEAR_REG);
+	__raw_writew(0xFFFF, PBC_INTSTATUS_REG);
+	for (i = MXC_EXP_IO_BASE; i < (MXC_EXP_IO_BASE + MXC_MAX_EXP_IO_LINES);
+	     i++) {
+		set_irq_chip(i, &expio_irq_chip);
+		set_irq_handler(i, handle_level_irq);
+		set_irq_flags(i, IRQF_VALID);
+	}
+	set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_HIGH);
+	set_irq_chained_handler(EXPIO_PARENT_INT, mx31ads_expio_irq_handler);
+}
+
 /*!
  * This structure defines static mappings for the i.MX31ADS board.
  */
@@ -142,6 +225,12 @@ void __init mx31ads_map_io(void)
 	iotable_init(mx31ads_io_desc, ARRAY_SIZE(mx31ads_io_desc));
 }
 
+void __init mx31ads_init_irq(void)
+{
+	mxc_init_irq();
+	mx31ads_init_expio();
+}
+
 /*!
  * Board specific initialization.
  */
@@ -171,7 +260,7 @@ MACHINE_START(MX31ADS, "Freescale MX31ADS")
 	.io_pg_offst	= ((AIPS1_BASE_ADDR_VIRT) >> 18) & 0xfffc,
 	.boot_params    = PHYS_OFFSET + 0x100,
 	.map_io         = mx31ads_map_io,
-	.init_irq       = mxc_init_irq,
+	.init_irq       = mx31ads_init_irq,
 	.init_machine   = mxc_board_init,
 	.timer          = &mx31ads_timer,
 MACHINE_END
