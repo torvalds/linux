@@ -14,7 +14,7 @@
 static int
 check_addr(char *name, struct device *hwdev, dma_addr_t bus, size_t size)
 {
-	if (hwdev && bus + size > *hwdev->dma_mask) {
+	if (hwdev && !is_buffer_dma_capable(*hwdev->dma_mask, bus, size)) {
 		if (*hwdev->dma_mask >= DMA_32BIT_MASK)
 			printk(KERN_ERR
 			    "nommu_%s: overflow %Lx+%zu of device mask %Lx\n",
@@ -79,6 +79,7 @@ nommu_alloc_coherent(struct device *hwdev, size_t size,
 	unsigned long dma_mask;
 	int node;
 	struct page *page;
+	dma_addr_t addr;
 
 	dma_mask = dma_alloc_coherent_mask(hwdev, gfp);
 
@@ -90,14 +91,15 @@ again:
 	if (!page)
 		return NULL;
 
-	if ((page_to_phys(page) + size > dma_mask) && !(gfp & GFP_DMA)) {
+	addr = page_to_phys(page);
+	if (!is_buffer_dma_capable(dma_mask, addr, size) && !(gfp & GFP_DMA)) {
 		free_pages((unsigned long)page_address(page), get_order(size));
 		gfp |= GFP_DMA;
 		goto again;
 	}
 
-	*dma_addr = page_to_phys(page);
-	if (check_addr("alloc_coherent", hwdev, *dma_addr, size)) {
+	if (check_addr("alloc_coherent", hwdev, addr, size)) {
+		*dma_addr = addr;
 		flush_write_buffers();
 		return page_address(page);
 	}
