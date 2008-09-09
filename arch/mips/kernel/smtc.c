@@ -70,7 +70,7 @@ static atomic_t ipi_timer_latch[NR_CPUS];
 
 #define IPIBUF_PER_CPU 4
 
-static struct smtc_ipi_q IPIQ[NR_CPUS];
+struct smtc_ipi_q IPIQ[NR_CPUS];
 static struct smtc_ipi_q freeIPIq;
 
 
