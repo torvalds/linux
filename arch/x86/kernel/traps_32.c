@@ -633,9 +633,6 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 }
 
 DO_VM86_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
-#ifndef CONFIG_KPROBES
-DO_VM86_TRAP(3, SIGTRAP, "int3", int3)
-#endif
 DO_VM86_TRAP(4, SIGSEGV, "overflow", overflow)
 DO_VM86_TRAP(5, SIGSEGV, "bounds", bounds)
 DO_TRAP_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
@@ -907,9 +904,9 @@ void restart_nmi(void)
 	acpi_nmi_enable();
 }
 
-#ifdef CONFIG_KPROBES
 void __kprobes do_int3(struct pt_regs *regs, long error_code)
 {
+#ifdef CONFIG_KPROBES
 	trace_hardirqs_fixup();
 
 	if (notify_die(DIE_INT3, "int3", regs, error_code, 3, SIGTRAP)
@@ -920,10 +917,14 @@ void __kprobes do_int3(struct pt_regs *regs, long error_code)
 	 * disabled. Normal trap handlers don't.
 	 */
 	conditional_sti(regs);
+#else
+	if (notify_die(DIE_TRAP, "int3", regs, error_code, 3, SIGTRAP)
+			== NOTIFY_STOP)
+		return;
+#endif
 
 	do_trap(3, SIGTRAP, "int3", 1, regs, error_code, NULL);
 }
-#endif
 
 /*
  * Our handling of the processor debug registers is non-trivial.
