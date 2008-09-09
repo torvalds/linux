@@ -62,6 +62,7 @@
 #include <asm/traps.h>
 
 #include "mach_traps.h"
+#include "cpu/mcheck/mce.h"
 
 DECLARE_BITMAP(used_vectors, NR_VECTORS);
 EXPORT_SYMBOL_GPL(used_vectors);
@@ -1252,6 +1253,14 @@ void __kprobes do_device_not_available(struct pt_regs *regs, long error)
 	}
 }
 
+#ifdef CONFIG_X86_MCE
+void __kprobes do_machine_check(struct pt_regs *regs, long error)
+{
+	conditional_sti(regs);
+	machine_check_vector(regs, error);
+}
+#endif
+
 void __init trap_init(void)
 {
 	int i;
@@ -1283,7 +1292,7 @@ void __init trap_init(void)
 	set_intr_gate(16, &coprocessor_error);
 	set_intr_gate(17, &alignment_check);
 #ifdef CONFIG_X86_MCE
-	set_trap_gate(18, &machine_check);
+	set_intr_gate(18, &machine_check);
 #endif
 	set_trap_gate(19, &simd_coprocessor_error);
 
