@@ -25,10 +25,10 @@
 #include <linux/types.h>
 #include <linux/msi.h>
 #include <linux/sysdev.h>
-#include "iova.h"
+#include <linux/iova.h>
 #include <linux/io.h>
+#include <linux/dma_remapping.h>
 #include <asm/cacheflush.h>
-#include "dma_remapping.h"
 
 /*
  * Intel IOMMU register specification per version 1.0 public spec.
@@ -304,4 +304,24 @@ extern int dmar_enable_qi(struct intel_iommu *iommu);
 extern void qi_global_iec(struct intel_iommu *iommu);
 
 extern void qi_submit_sync(struct qi_desc *desc, struct intel_iommu *iommu);
+
+void intel_iommu_domain_exit(struct dmar_domain *domain);
+struct dmar_domain *intel_iommu_domain_alloc(struct pci_dev *pdev);
+int intel_iommu_context_mapping(struct dmar_domain *domain,
+				struct pci_dev *pdev);
+int intel_iommu_page_mapping(struct dmar_domain *domain, dma_addr_t iova,
+			     u64 hpa, size_t size, int prot);
+void intel_iommu_detach_dev(struct dmar_domain *domain, u8 bus, u8 devfn);
+struct dmar_domain *intel_iommu_find_domain(struct pci_dev *pdev);
+u64 intel_iommu_iova_to_pfn(struct dmar_domain *domain, u64 iova);
+
+#ifdef CONFIG_DMAR
+int intel_iommu_found(void);
+#else /* CONFIG_DMAR */
+static inline int intel_iommu_found(void)
+{
+	return 0;
+}
+#endif /* CONFIG_DMAR */
+
 #endif

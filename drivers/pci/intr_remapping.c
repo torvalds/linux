@@ -4,7 +4,7 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 #include <asm/io_apic.h>
-#include "intel-iommu.h"
+#include <linux/intel-iommu.h>
 #include "intr_remapping.h"
 
 static struct ioapic_scope ir_ioapic[MAX_IO_APICS];
