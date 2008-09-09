@@ -30,6 +30,11 @@
  *	Sync with legacy version.
  *	Some clean ups.
  */
+/* Updates by Igor Liplianin
+ *
+ * September, 9th 2008
+ *	Fixed locking on high symbol rates (>30000).
+ */
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
@@ -809,7 +814,7 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	struct tv_frontend_properties *c = &fe->tv_property_cache;
 	struct cx24116_cmd cmd;
 	fe_status_t tunerstat;
-	int ret;
+	int ret, above30msps;
 	u8 retune=4;
 
 	dprintk("%s()\n",__func__);
@@ -839,6 +844,16 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	if (state->config->set_ts_params)
 		state->config->set_ts_params(fe, 0);
 
+	above30msps = (state->dcur.symbol_rate > 30000000);
+
+	if (above30msps){
+		cx24116_writereg(state, 0xF9, 0x01);
+		cx24116_writereg(state, 0xF3, 0x44);
+	} else {
+		cx24116_writereg(state, 0xF9, 0x00);
+		cx24116_writereg(state, 0xF3, 0x46);
+	}
+
 	/* Prepare a tune request */
 	cmd.args[0x00] = CMD_TUNEREQUEST;
 
@@ -866,11 +881,21 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 	cmd.args[0x0b] = 0x00;
 	cmd.args[0x0c] = 0x02;
 	cmd.args[0x0d] = state->dcur.fec_mask;
-	cmd.args[0x0e] = 0x06;
-	cmd.args[0x0f] = 0x00;
-	cmd.args[0x10] = 0x00;
-	cmd.args[0x11] = 0xFA;
-	cmd.args[0x12] = 0x24;
+
+	if (above30msps){
+		cmd.args[0x0e] = 0x04;
+		cmd.args[0x0f] = 0x00;
+		cmd.args[0x10] = 0x01;
+		cmd.args[0x11] = 0x77;
+		cmd.args[0x12] = 0x36;
+	} else {
+		cmd.args[0x0e] = 0x06;
+		cmd.args[0x0f] = 0x00;
+		cmd.args[0x10] = 0x00;
+		cmd.args[0x11] = 0xFA;
+		cmd.args[0x12] = 0x24;
+	}
+
 	cmd.len= 0x13;
 
 	/* We need to support pilot and non-pilot tuning in the
