@@ -436,7 +436,7 @@ static int rs_collect_tx_data(struct iwl_rate_scale_data *windows,
 		/* Shift bitmap by one frame (throw away oldest history),
 		 * OR in "1", and increment "success" if this
 		 * frame was successful. */
-		window->data <<= 1;;
+		window->data <<= 1;
 		if (successes > 0) {
 			window->success_counter++;
 			window->data |= 0x1;
@@ -1128,6 +1128,7 @@ static s32 rs_get_best_rate(struct iwl_priv *priv,
 
 			/* Higher rate not available, use the original */
 			} else {
+				new_rate = rate;
 				break;
 			}
 		}
