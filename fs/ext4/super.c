@@ -1716,9 +1716,9 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		DQUOT_INIT(inode);
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
-				"%s: truncating inode %lu to %Ld bytes\n",
+				"%s: truncating inode %lu to %lld bytes\n",
 				__func__, inode->i_ino, inode->i_size);
-			jbd_debug(2, "truncating inode %lu to %Ld bytes\n",
+			jbd_debug(2, "truncating inode %lu to %lld bytes\n",
 				  inode->i_ino, inode->i_size);
 			ext4_truncate(inode);
 			nr_truncates++;
@@ -2554,7 +2554,7 @@ static journal_t *ext4_get_journal(struct super_block *sb,
 		return NULL;
 	}
 
-	jbd_debug(2, "Journal inode found at %p: %Ld bytes\n",
+	jbd_debug(2, "Journal inode found at %p: %lld bytes\n",
 		  journal_inode, journal_inode->i_size);
 	if (!S_ISREG(journal_inode->i_mode)) {
 		printk(KERN_ERR "EXT4-fs: invalid journal inode.\n");
@@ -3439,7 +3439,7 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 	handle_t *handle = journal_current_handle();
 
 	if (!handle) {
-		printk(KERN_WARNING "EXT4-fs: Quota write (off=%Lu, len=%Lu)"
+		printk(KERN_WARNING "EXT4-fs: Quota write (off=%llu, len=%llu)"
 			" cancelled because transaction is not started.\n",
 			(unsigned long long)off, (unsigned long long)len);
 		return -EIO;
