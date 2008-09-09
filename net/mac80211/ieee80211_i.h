@@ -984,6 +984,11 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				     struct ieee80211_mgmt *mgmt,
 				     size_t len);
 
+/* Spectrum management */
+void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_mgmt *mgmt,
+				       size_t len);
+
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
 extern const unsigned char rfc1042_header[6];

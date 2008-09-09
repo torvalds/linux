@@ -445,53 +445,6 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_sta_tx(sdata, skb, 0);
 }
 
-static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_data *sdata,
-					struct ieee80211_msrment_ie *request_ie,
-					const u8 *da, const u8 *bssid,
-					u8 dialog_token)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb;
-	struct ieee80211_mgmt *msr_report;
-
-	skb = dev_alloc_skb(sizeof(*msr_report) + local->hw.extra_tx_headroom +
-				sizeof(struct ieee80211_msrment_ie));
-
-	if (!skb) {
-		printk(KERN_ERR "%s: failed to allocate buffer for "
-				"measurement report frame\n", sdata->dev->name);
-		return;
-	}
-
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-	msr_report = (struct ieee80211_mgmt *)skb_put(skb, 24);
-	memset(msr_report, 0, 24);
-	memcpy(msr_report->da, da, ETH_ALEN);
-	memcpy(msr_report->sa, sdata->dev->dev_addr, ETH_ALEN);
-	memcpy(msr_report->bssid, bssid, ETH_ALEN);
-	msr_report->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-						IEEE80211_STYPE_ACTION);
-
-	skb_put(skb, 1 + sizeof(msr_report->u.action.u.measurement));
-	msr_report->u.action.category = WLAN_CATEGORY_SPECTRUM_MGMT;
-	msr_report->u.action.u.measurement.action_code =
-				WLAN_ACTION_SPCT_MSR_RPRT;
-	msr_report->u.action.u.measurement.dialog_token = dialog_token;
-
-	msr_report->u.action.u.measurement.element_id = WLAN_EID_MEASURE_REPORT;
-	msr_report->u.action.u.measurement.length =
-			sizeof(struct ieee80211_msrment_ie);
-
-	memset(&msr_report->u.action.u.measurement.msr_elem, 0,
-		sizeof(struct ieee80211_msrment_ie));
-	msr_report->u.action.u.measurement.msr_elem.token = request_ie->token;
-	msr_report->u.action.u.measurement.msr_elem.mode |=
-			IEEE80211_SPCT_MSR_RPRT_MODE_REFUSED;
-	msr_report->u.action.u.measurement.msr_elem.type = request_ie->type;
-
-	ieee80211_sta_tx(sdata, skb, 0);
-}
-
 /* MLME */
 static void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_sta_bss *bss)
@@ -1010,24 +963,6 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 	ieee80211_send_auth(sdata, ifsta, 3, elems.challenge - 2,
 			    elems.challenge_len + 2, 1);
 }
-
-static void ieee80211_sta_process_measurement_req(struct ieee80211_sub_if_data *sdata,
-						struct ieee80211_mgmt *mgmt,
-						size_t len)
-{
-	/*
-	 * Ignoring measurement request is spec violation.
-	 * Mandatory measurements must be reported optional
-	 * measurements might be refused or reported incapable
-	 * For now just refuse
-	 * TODO: Answer basic measurement as unmeasured
-	 */
-	ieee80211_send_refuse_measurement_request(sdata,
-			&mgmt->u.action.u.measurement.msr_elem,
-			mgmt->sa, mgmt->bssid,
-			mgmt->u.action.u.measurement.dialog_token);
-}
-
 
 static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 				   struct ieee80211_if_sta *ifsta,
@@ -1870,32 +1805,16 @@ static void ieee80211_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
 				     size_t len,
 				     struct ieee80211_rx_status *rx_status)
 {
-	struct ieee80211_local *local = sdata->local;
-
-	/* all categories we currently handle have action_code */
-	if (len < IEEE80211_MIN_ACTION_SIZE + 1)
+	/* currently we only handle mesh interface action frames here */
+	if (!ieee80211_vif_is_mesh(&sdata->vif))
 		return;
 
 	switch (mgmt->u.action.category) {
-	case WLAN_CATEGORY_SPECTRUM_MGMT:
-		if (local->hw.conf.channel->band != IEEE80211_BAND_5GHZ)
-			break;
-		switch (mgmt->u.action.u.measurement.action_code) {
-		case WLAN_ACTION_SPCT_MSR_REQ:
-			if (len < (IEEE80211_MIN_ACTION_SIZE +
-				   sizeof(mgmt->u.action.u.measurement)))
-				break;
-			ieee80211_sta_process_measurement_req(sdata, mgmt, len);
-			break;
-		}
-		break;
 	case PLINK_CATEGORY:
-		if (ieee80211_vif_is_mesh(&sdata->vif))
-			mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
+		mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
 		break;
 	case MESH_PATH_SEL_CATEGORY:
-		if (ieee80211_vif_is_mesh(&sdata->vif))
-			mesh_rx_path_sel_frame(sdata, mgmt, len);
+		mesh_rx_path_sel_frame(sdata, mgmt, len);
 		break;
 	}
 }

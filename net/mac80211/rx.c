@@ -1561,12 +1561,26 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			ieee80211_process_delba(sdata, rx->sta, mgmt, len);
 			break;
 		}
-		rx->sta->rx_packets++;
-		dev_kfree_skb(rx->skb);
-		return RX_QUEUED;
+		break;
+	case WLAN_CATEGORY_SPECTRUM_MGMT:
+		if (local->hw.conf.channel->band != IEEE80211_BAND_5GHZ)
+			return RX_DROP_MONITOR;
+		switch (mgmt->u.action.u.measurement.action_code) {
+		case WLAN_ACTION_SPCT_MSR_REQ:
+			if (len < (IEEE80211_MIN_ACTION_SIZE +
+				   sizeof(mgmt->u.action.u.measurement)))
+				return RX_DROP_MONITOR;
+			ieee80211_process_measurement_req(sdata, mgmt, len);
+			break;
+		}
+		break;
+	default:
+		return RX_CONTINUE;
 	}
 
-	return RX_CONTINUE;
+	rx->sta->rx_packets++;
+	dev_kfree_skb(rx->skb);
+	return RX_QUEUED;
 }
 
 static ieee80211_rx_result debug_noinline
