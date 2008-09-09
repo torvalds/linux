@@ -1,10 +1,8 @@
 menu "DCCP CCIDs Configuration (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
 
 config IP_DCCP_CCID2
-	tristate "CCID2 (TCP-Like) (EXPERIMENTAL)"
+	tristate "CCID2 (TCP-Like)"
 	def_tristate IP_DCCP
-	select IP_DCCP_ACKVEC
 	---help---
 	  CCID 2, TCP-like Congestion Control, denotes Additive Increase,
 	  Multiplicative Decrease (AIMD) congestion control with behavior
@@ -36,7 +34,7 @@ config IP_DCCP_CCID2_DEBUG
 	    If in doubt, say N.
 
 config IP_DCCP_CCID3
-	tristate "CCID3 (TCP-Friendly) (EXPERIMENTAL)"
+	tristate "CCID3 (TCP-Friendly)"
 	def_tristate IP_DCCP
 	select IP_DCCP_TFRC_LIB
 	---help---
@@ -64,9 +62,9 @@ config IP_DCCP_CCID3
 
 	  If in doubt, say M.
 
+if IP_DCCP_CCID3
 config IP_DCCP_CCID3_DEBUG
 	  bool "CCID3 debugging messages"
-	  depends on IP_DCCP_CCID3
 	  ---help---
 	    Enable CCID3-specific debugging messages.
 
@@ -76,10 +74,29 @@ config IP_DCCP_CCID3_DEBUG
 
 	    If in doubt, say N.
 
+choice
+	  prompt "Select method for measuring the packet size s"
+	  default IP_DCCP_CCID3_MEASURE_S_AS_MPS
+
+config IP_DCCP_CCID3_MEASURE_S_AS_MPS
+	  bool "Always use MPS in place of s"
+	  ---help---
+	    This use is recommended as it is consistent with the initialisation
+	    of X and suggested when s varies (rfc3448bis, (1) in section 4.1).
+config IP_DCCP_CCID3_MEASURE_S_AS_AVG
+	  bool "Use moving average"
+	  ---help---
+	    An alternative way of tracking s, also supported by rfc3448bis.
+	    This used to be the default for CCID-3 in previous kernels.
+config IP_DCCP_CCID3_MEASURE_S_AS_MAX
+	  bool "Track the maximum payload length"
+	  ---help---
+	    An experimental method based on tracking the maximum packet size.
+endchoice
+
 config IP_DCCP_CCID3_RTO
 	  int "Use higher bound for nofeedback timer"
 	  default 100
-	  depends on IP_DCCP_CCID3 && EXPERIMENTAL
 	  ---help---
 	    Use higher lower bound for nofeedback timer expiration.
 
@@ -106,6 +123,7 @@ config IP_DCCP_CCID3_RTO
 	    The purpose of the nofeedback timer is to slow DCCP down when there
 	    is serious network congestion: experimenting with larger values should
 	    therefore not be performed on WANs.
+endif	# IP_DCCP_CCID3
 
 config IP_DCCP_TFRC_LIB
 	tristate

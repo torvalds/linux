@@ -42,9 +42,11 @@
 extern int dccp_debug;
 #define dccp_pr_debug(format, a...)	  DCCP_PR_DEBUG(dccp_debug, format, ##a)
 #define dccp_pr_debug_cat(format, a...)   DCCP_PRINTK(dccp_debug, format, ##a)
+#define dccp_debug(fmt, a...)		  dccp_pr_debug_cat(KERN_DEBUG fmt, ##a)
 #else
 #define dccp_pr_debug(format, a...)
 #define dccp_pr_debug_cat(format, a...)
+#define dccp_debug(format, a...)
 #endif
 
 extern struct inet_hashinfo dccp_hashinfo;
@@ -61,10 +63,13 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
  *    - DCCP-Reset    with ACK Subheader and 4 bytes of Reset Code fields
  *  Hence a safe upper bound for the maximum option length is 1020-28 = 992
  */
-#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(int))
+#define MAX_DCCP_SPECIFIC_HEADER (255 * sizeof(uint32_t))
 #define DCCP_MAX_PACKET_HDR 28
 #define DCCP_MAX_OPT_LEN (MAX_DCCP_SPECIFIC_HEADER - DCCP_MAX_PACKET_HDR)
 #define MAX_DCCP_HEADER (MAX_DCCP_SPECIFIC_HEADER + MAX_HEADER)
+
+/* Upper bound for initial feature-negotiation overhead (padded to 32 bits) */
+#define DCCP_FEATNEG_OVERHEAD	 (32 * sizeof(uint32_t))
 
 #define DCCP_TIMEWAIT_LEN (60 * HZ) /* how long to wait to destroy TIME-WAIT
 				     * state, about 60 seconds */
@@ -81,10 +86,13 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
  */
 #define DCCP_RTO_MAX ((unsigned)(64 * HZ))
 
+/* DCCP base time resolution - 10 microseconds (RFC 4340, 13.1 ... 13.3) */
+#define DCCP_TIME_RESOLUTION	10
+
 /*
  * RTT sampling: sanity bounds and fallback RTT value from RFC 4340, section 3.4
  */
-#define DCCP_SANE_RTT_MIN	100
+#define DCCP_SANE_RTT_MIN	(10 * DCCP_TIME_RESOLUTION)
 #define DCCP_FALLBACK_RTT	(USEC_PER_SEC / 5)
 #define DCCP_SANE_RTT_MAX	(3 * USEC_PER_SEC)
 
@@ -95,12 +103,6 @@ extern void dccp_time_wait(struct sock *sk, int state, int timeo);
 extern int  sysctl_dccp_request_retries;
 extern int  sysctl_dccp_retries1;
 extern int  sysctl_dccp_retries2;
-extern int  sysctl_dccp_feat_sequence_window;
-extern int  sysctl_dccp_feat_rx_ccid;
-extern int  sysctl_dccp_feat_tx_ccid;
-extern int  sysctl_dccp_feat_ack_ratio;
-extern int  sysctl_dccp_feat_send_ack_vector;
-extern int  sysctl_dccp_feat_send_ndp_count;
 extern int  sysctl_dccp_tx_qlen;
 extern int  sysctl_dccp_sync_ratelimit;
 
@@ -235,8 +237,22 @@ extern void dccp_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
 extern void dccp_send_sync(struct sock *sk, const u64 seq,
 			   const enum dccp_pkt_type pkt_type);
 
-extern void dccp_write_xmit(struct sock *sk, int block);
+/*
+ * TX Packet Dequeueing Interface
+ */
+extern void		dccp_qpolicy_push(struct sock *sk, struct sk_buff *skb);
+extern bool		dccp_qpolicy_full(struct sock *sk);
+extern void		dccp_qpolicy_drop(struct sock *sk, struct sk_buff *skb);
+extern struct sk_buff	*dccp_qpolicy_top(struct sock *sk);
+extern struct sk_buff	*dccp_qpolicy_pop(struct sock *sk);
+extern bool		dccp_qpolicy_param_ok(struct sock *sk, __be32 param);
+
+/*
+ * TX Packet Output and TX Timers
+ */
+extern void dccp_write_xmit(struct sock *sk);
 extern void dccp_write_space(struct sock *sk);
+extern void dccp_flush_write_queue(struct sock *sk, long *time_budget);
 
 extern void dccp_init_xmit_timers(struct sock *sk);
 static inline void dccp_clear_xmit_timers(struct sock *sk)
@@ -252,7 +268,8 @@ extern const char *dccp_state_name(const int state);
 extern void dccp_set_state(struct sock *sk, const int state);
 extern void dccp_done(struct sock *sk);
 
-extern void dccp_reqsk_init(struct request_sock *req, struct sk_buff *skb);
+extern int  dccp_reqsk_init(struct request_sock *rq, struct dccp_sock const *dp,
+			    struct sk_buff const *skb);
 
 extern int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb);
 
@@ -317,7 +334,14 @@ extern struct sk_buff *dccp_ctl_make_reset(struct sock *sk,
 extern int	   dccp_send_reset(struct sock *sk, enum dccp_reset_codes code);
 extern void	   dccp_send_close(struct sock *sk, const int active);
 extern int	   dccp_invalid_packet(struct sk_buff *skb);
-extern u32	   dccp_sample_rtt(struct sock *sk, long delta);
+
+static inline u32  dccp_sane_rtt(long usec_sample)
+{
+	if (unlikely(usec_sample <= 0 || usec_sample > DCCP_SANE_RTT_MAX))
+		DCCP_WARN("RTT sample %ld out of bounds!\n", usec_sample);
+	return clamp_val(usec_sample, DCCP_SANE_RTT_MIN, DCCP_SANE_RTT_MAX);
+}
+extern u32 dccp_sample_rtt(struct sock *sk, long delta);
 
 static inline int dccp_bad_service_code(const struct sock *sk,
 					const __be32 service)
@@ -411,35 +435,61 @@ static inline void dccp_hdr_set_ack(struct dccp_hdr_ack_bits *dhack,
 static inline void dccp_update_gsr(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
-	const struct dccp_minisock *dmsk = dccp_msk(sk);
 
 	dp->dccps_gsr = seq;
-	dccp_set_seqno(&dp->dccps_swl,
-		       dp->dccps_gsr + 1 - (dmsk->dccpms_sequence_window / 4));
-	dccp_set_seqno(&dp->dccps_swh,
-		       dp->dccps_gsr + (3 * dmsk->dccpms_sequence_window) / 4);
+	/* Sequence validity window depends on remote Sequence Window (7.5.1) */
+	dp->dccps_swl = SUB48(ADD48(dp->dccps_gsr, 1), dp->dccps_r_seq_win / 4);
+	/*
+	 * Adjust SWL so that it is not below ISR. In contrast to RFC 4340,
+	 * 7.5.1 we perform this check beyond the initial handshake: W/W' are
+	 * always > 32, so for the first W/W' packets in the lifetime of a
+	 * connection we always have to adjust SWL.
+	 * A second reason why we are doing this is that the window depends on
+	 * the feature-remote value of Sequence Window: nothing stops the peer
+	 * from updating this value while we are busy adjusting SWL for the
+	 * first W packets (we would have to count from scratch again then).
+	 * Therefore it is safer to always make sure that the Sequence Window
+	 * is not artificially extended by a peer who grows SWL downwards by
+	 * continually updating the feature-remote Sequence-Window.
+	 * If sequence numbers wrap it is bad luck. But that will take a while
+	 * (48 bit), and this measure prevents Sequence-number attacks.
+	 */
+	if (before48(dp->dccps_swl, dp->dccps_isr))
+		dp->dccps_swl = dp->dccps_isr;
+	dp->dccps_swh = ADD48(dp->dccps_gsr, (3 * dp->dccps_r_seq_win) / 4);
 }
 
 static inline void dccp_update_gss(struct sock *sk, u64 seq)
 {
 	struct dccp_sock *dp = dccp_sk(sk);
 
-	dp->dccps_awh = dp->dccps_gss = seq;
-	dccp_set_seqno(&dp->dccps_awl,
-		       (dp->dccps_gss -
-			dccp_msk(sk)->dccpms_sequence_window + 1));
+	dp->dccps_gss = seq;
+	/* Ack validity window depends on local Sequence Window value (7.5.1) */
+	dp->dccps_awl = SUB48(ADD48(dp->dccps_gss, 1), dp->dccps_l_seq_win);
+	/* Adjust AWL so that it is not below ISS - see comment above for SWL */
+	if (before48(dp->dccps_awl, dp->dccps_iss))
+		dp->dccps_awl = dp->dccps_iss;
+	dp->dccps_awh = dp->dccps_gss;
+}
+
+static inline int dccp_ackvec_pending(const struct sock *sk)
+{
+	return dccp_sk(sk)->dccps_hc_rx_ackvec != NULL &&
+	       !dccp_ackvec_is_empty(dccp_sk(sk)->dccps_hc_rx_ackvec);
 }
 
 static inline int dccp_ack_pending(const struct sock *sk)
 {
-	const struct dccp_sock *dp = dccp_sk(sk);
-	return dp->dccps_timestamp_echo != 0 ||
-#ifdef CONFIG_IP_DCCP_ACKVEC
-	       (dccp_msk(sk)->dccpms_send_ack_vector &&
-		dccp_ackvec_pending(dp->dccps_hc_rx_ackvec)) ||
-#endif
-	       inet_csk_ack_scheduled(sk);
+	return dccp_ackvec_pending(sk) || inet_csk_ack_scheduled(sk);
 }
+
+extern int  dccp_feat_signal_nn_change(struct sock *sk, u8 feat, u64 nn_val);
+extern int  dccp_feat_finalise_settings(struct dccp_sock *dp);
+extern int  dccp_feat_server_ccid_dependencies(struct dccp_request_sock *dreq);
+extern int  dccp_feat_insert_opts(struct dccp_sock*, struct dccp_request_sock*,
+				  struct sk_buff *skb);
+extern int  dccp_feat_activate_values(struct sock *sk, struct list_head *fn);
+extern void dccp_feat_list_purge(struct list_head *fn_list);
 
 extern int dccp_insert_options(struct sock *sk, struct sk_buff *skb);
 extern int dccp_insert_options_rsk(struct dccp_request_sock*, struct sk_buff*);

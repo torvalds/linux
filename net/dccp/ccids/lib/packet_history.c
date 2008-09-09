@@ -40,18 +40,6 @@
 #include "packet_history.h"
 #include "../../dccp.h"
 
-/**
- *  tfrc_tx_hist_entry  -  Simple singly-linked TX history list
- *  @next:  next oldest entry (LIFO order)
- *  @seqno: sequence number of this entry
- *  @stamp: send time of packet with sequence number @seqno
- */
-struct tfrc_tx_hist_entry {
-	struct tfrc_tx_hist_entry *next;
-	u64			  seqno;
-	ktime_t			  stamp;
-};
-
 /*
  * Transmitter History Routines
  */
@@ -71,15 +59,6 @@ void tfrc_tx_packet_history_exit(void)
 		kmem_cache_destroy(tfrc_tx_hist_slab);
 		tfrc_tx_hist_slab = NULL;
 	}
-}
-
-static struct tfrc_tx_hist_entry *
-	tfrc_tx_hist_find_entry(struct tfrc_tx_hist_entry *head, u64 seqno)
-{
-	while (head != NULL && head->seqno != seqno)
-		head = head->next;
-
-	return head;
 }
 
 int tfrc_tx_hist_add(struct tfrc_tx_hist_entry **headp, u64 seqno)
@@ -110,25 +89,6 @@ void tfrc_tx_hist_purge(struct tfrc_tx_hist_entry **headp)
 	*headp = NULL;
 }
 EXPORT_SYMBOL_GPL(tfrc_tx_hist_purge);
-
-u32 tfrc_tx_hist_rtt(struct tfrc_tx_hist_entry *head, const u64 seqno,
-		     const ktime_t now)
-{
-	u32 rtt = 0;
-	struct tfrc_tx_hist_entry *packet = tfrc_tx_hist_find_entry(head, seqno);
-
-	if (packet != NULL) {
-		rtt = ktime_us_delta(now, packet->stamp);
-		/*
-		 * Garbage-collect older (irrelevant) entries:
-		 */
-		tfrc_tx_hist_purge(&packet->next);
-	}
-
-	return rtt;
-}
-EXPORT_SYMBOL_GPL(tfrc_tx_hist_rtt);
-
 
 /*
  * 	Receiver History Routines
@@ -191,14 +151,31 @@ int tfrc_rx_hist_duplicate(struct tfrc_rx_hist *h, struct sk_buff *skb)
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_duplicate);
 
+
+static void __tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
+{
+	struct tfrc_rx_hist_entry *tmp = h->ring[a];
+
+	h->ring[a] = h->ring[b];
+	h->ring[b] = tmp;
+}
+
 static void tfrc_rx_hist_swap(struct tfrc_rx_hist *h, const u8 a, const u8 b)
 {
-	const u8 idx_a = tfrc_rx_hist_index(h, a),
-		 idx_b = tfrc_rx_hist_index(h, b);
-	struct tfrc_rx_hist_entry *tmp = h->ring[idx_a];
+	__tfrc_rx_hist_swap(h, tfrc_rx_hist_index(h, a),
+			       tfrc_rx_hist_index(h, b));
+}
 
-	h->ring[idx_a] = h->ring[idx_b];
-	h->ring[idx_b] = tmp;
+/**
+ * tfrc_rx_hist_resume_rtt_sampling  -  Prepare RX history for RTT sampling
+ * This is called after loss detection has finished, when the history entry
+ * with the index of `loss_count' holds the highest-received sequence number.
+ * RTT sampling requires this information at ring[0] (tfrc_rx_hist_sample_rtt).
+ */
+static inline void tfrc_rx_hist_resume_rtt_sampling(struct tfrc_rx_hist *h)
+{
+	__tfrc_rx_hist_swap(h, 0, tfrc_rx_hist_index(h, h->loss_count));
+	h->loss_count = h->loss_start = 0;
 }
 
 /*
@@ -215,10 +192,8 @@ static void __do_track_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u64 n1)
 	u64 s0 = tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno,
 	    s1 = DCCP_SKB_CB(skb)->dccpd_seq;
 
-	if (!dccp_loss_free(s0, s1, n1)) {	/* gap between S0 and S1 */
+	if (!dccp_loss_free(s0, s1, n1))	/* gap between S0 and S1 */
 		h->loss_count = 1;
-		tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_entry(h, 1), skb, n1);
-	}
 }
 
 static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2)
@@ -240,8 +215,7 @@ static void __one_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n2
 
 		if (dccp_loss_free(s2, s1, n1)) {
 			/* hole is filled: S0, S2, and S1 are consecutive */
-			h->loss_count = 0;
-			h->loss_start = tfrc_rx_hist_index(h, 1);
+			tfrc_rx_hist_resume_rtt_sampling(h);
 		} else
 			/* gap between S2 and S1: just update loss_prev */
 			tfrc_rx_hist_entry_from_skb(tfrc_rx_hist_loss_prev(h), skb, n2);
@@ -294,8 +268,7 @@ static int __two_after_loss(struct tfrc_rx_hist *h, struct sk_buff *skb, u32 n3)
 
 			if (dccp_loss_free(s1, s2, n2)) {
 				/* entire hole filled by S0, S3, S1, S2 */
-				h->loss_start = tfrc_rx_hist_index(h, 2);
-				h->loss_count = 0;
+				tfrc_rx_hist_resume_rtt_sampling(h);
 			} else {
 				/* gap remains between S1 and S2 */
 				h->loss_start = tfrc_rx_hist_index(h, 1);
@@ -339,8 +312,7 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
 
 		if (dccp_loss_free(s2, s3, n3)) {
 			/* no gap between S2 and S3: entire hole is filled */
-			h->loss_start = tfrc_rx_hist_index(h, 3);
-			h->loss_count = 0;
+			tfrc_rx_hist_resume_rtt_sampling(h);
 		} else {
 			/* gap between S2 and S3 */
 			h->loss_start = tfrc_rx_hist_index(h, 2);
@@ -354,13 +326,13 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
 }
 
 /**
- *  tfrc_rx_handle_loss  -  Loss detection and further processing
- *  @h:		    The non-empty RX history object
- *  @lh:	    Loss Intervals database to update
- *  @skb:	    Currently received packet
- *  @ndp:	    The NDP count belonging to @skb
- *  @calc_first_li: Caller-dependent computation of first loss interval in @lh
- *  @sk:	    Used by @calc_first_li (see tfrc_lh_interval_add)
+ *  tfrc_rx_congestion_event  -  Loss detection and further processing
+ *  @h:		The non-empty RX history object
+ *  @lh:	Loss Intervals database to update
+ *  @skb:	Currently received packet
+ *  @ndp:	The NDP count belonging to @skb
+ *  @first_li:	Caller-dependent computation of first loss interval in @lh
+ *  @sk:	Used by @calc_first_li (see tfrc_lh_interval_add)
  *  Chooses action according to pending loss, updates LI database when a new
  *  loss was detected, and does required post-processing. Returns 1 when caller
  *  should send feedback, 0 otherwise.
@@ -368,15 +340,20 @@ static void __three_after_loss(struct tfrc_rx_hist *h)
  *  records accordingly, the caller should not perform any more RX history
  *  operations when loss_count is greater than 0 after calling this function.
  */
-int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
-			struct tfrc_loss_hist *lh,
-			struct sk_buff *skb, const u64 ndp,
-			u32 (*calc_first_li)(struct sock *), struct sock *sk)
+bool tfrc_rx_congestion_event(struct tfrc_rx_hist *h,
+			      struct tfrc_loss_hist *lh,
+			      struct sk_buff *skb, const u64 ndp,
+			      u32 (*first_li)(struct sock *), struct sock *sk)
 {
-	int is_new_loss = 0;
+	bool new_event = false;
+
+	if (tfrc_rx_hist_duplicate(h, skb))
+		return 0;
 
 	if (h->loss_count == 0) {
 		__do_track_loss(h, skb, ndp);
+		tfrc_rx_hist_sample_rtt(h, skb);
+		tfrc_rx_hist_add_packet(h, skb, ndp);
 	} else if (h->loss_count == 1) {
 		__one_after_loss(h, skb, ndp);
 	} else if (h->loss_count != 2) {
@@ -385,34 +362,57 @@ int tfrc_rx_handle_loss(struct tfrc_rx_hist *h,
 		/*
 		 * Update Loss Interval database and recycle RX records
 		 */
-		is_new_loss = tfrc_lh_interval_add(lh, h, calc_first_li, sk);
+		new_event = tfrc_lh_interval_add(lh, h, first_li, sk);
 		__three_after_loss(h);
 	}
-	return is_new_loss;
-}
-EXPORT_SYMBOL_GPL(tfrc_rx_handle_loss);
 
-int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h)
+	/*
+	 * Update moving-average of `s' and the sum of received payload bytes.
+	 */
+	if (dccp_data_packet(skb)) {
+		const u32 payload = skb->len - dccp_hdr(skb)->dccph_doff * 4;
+
+		h->packet_size = tfrc_ewma(h->packet_size, payload, 9);
+		h->bytes_recvd += payload;
+	}
+
+	/* RFC 3448, 6.1: update I_0, whose growth implies p <= p_prev */
+	if (!new_event)
+		tfrc_lh_update_i_mean(lh, skb);
+
+	return new_event;
+}
+EXPORT_SYMBOL_GPL(tfrc_rx_congestion_event);
+
+/* Compute the sending rate X_recv measured between feedback intervals */
+u32 tfrc_rx_hist_x_recv(struct tfrc_rx_hist *h, const u32 last_x_recv)
 {
-	int i;
+	u64 bytes = h->bytes_recvd, last_rtt = h->rtt_estimate;
+	s64 delta = ktime_to_us(net_timedelta(h->bytes_start));
 
-	for (i = 0; i <= TFRC_NDUPACK; i++) {
-		h->ring[i] = kmem_cache_alloc(tfrc_rx_hist_slab, GFP_ATOMIC);
-		if (h->ring[i] == NULL)
-			goto out_free;
+	WARN_ON(delta <= 0);
+	/*
+	 * Ensure that the sampling interval for X_recv is at least one RTT,
+	 * by extending the sampling interval backwards in time, over the last
+	 * R_(m-1) seconds, as per rfc3448bis-06, 6.2.
+	 * To reduce noise (e.g. when the RTT changes often), this is only
+	 * done when delta is smaller than RTT/2.
+	 */
+	if (last_x_recv > 0 && delta < last_rtt/2) {
+		tfrc_pr_debug("delta < RTT ==> %ld us < %u us\n",
+			      (long)delta, (unsigned)last_rtt);
+
+		delta = (bytes ? delta : 0) + last_rtt;
+		bytes += div_u64((u64)last_x_recv * last_rtt, USEC_PER_SEC);
 	}
 
-	h->loss_count = h->loss_start = 0;
-	return 0;
-
-out_free:
-	while (i-- != 0) {
-		kmem_cache_free(tfrc_rx_hist_slab, h->ring[i]);
-		h->ring[i] = NULL;
+	if (unlikely(bytes == 0)) {
+		DCCP_WARN("X_recv == 0, using old value of %u\n", last_x_recv);
+		return last_x_recv;
 	}
-	return -ENOBUFS;
+	return scaled_div32(bytes, delta);
 }
-EXPORT_SYMBOL_GPL(tfrc_rx_hist_alloc);
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_x_recv);
 
 void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
 {
@@ -426,73 +426,81 @@ void tfrc_rx_hist_purge(struct tfrc_rx_hist *h)
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_purge);
 
-/**
- * tfrc_rx_hist_rtt_last_s - reference entry to compute RTT samples against
- */
-static inline struct tfrc_rx_hist_entry *
-			tfrc_rx_hist_rtt_last_s(const struct tfrc_rx_hist *h)
+static int tfrc_rx_hist_alloc(struct tfrc_rx_hist *h)
 {
-	return h->ring[0];
+	int i;
+
+	memset(h, 0, sizeof(*h));
+
+	for (i = 0; i <= TFRC_NDUPACK; i++) {
+		h->ring[i] = kmem_cache_alloc(tfrc_rx_hist_slab, GFP_ATOMIC);
+		if (h->ring[i] == NULL) {
+			tfrc_rx_hist_purge(h);
+			return -ENOBUFS;
+		}
+	}
+	return 0;
 }
 
-/**
- * tfrc_rx_hist_rtt_prev_s: previously suitable (wrt rtt_last_s) RTT-sampling entry
- */
-static inline struct tfrc_rx_hist_entry *
-			tfrc_rx_hist_rtt_prev_s(const struct tfrc_rx_hist *h)
+int tfrc_rx_hist_init(struct tfrc_rx_hist *h, struct sock *sk)
 {
-	return h->ring[h->rtt_sample_prev];
+	if (tfrc_rx_hist_alloc(h))
+		return -ENOBUFS;
+	/*
+	 * Initialise first entry with GSR to start loss detection as early as
+	 * possible. Code using this must not use any other fields. The entry
+	 * will be overwritten once the CCID updates its received packets.
+	 */
+	tfrc_rx_hist_loss_prev(h)->tfrchrx_seqno = dccp_sk(sk)->dccps_gsr;
+	return 0;
 }
+EXPORT_SYMBOL_GPL(tfrc_rx_hist_init);
 
 /**
  * tfrc_rx_hist_sample_rtt  -  Sample RTT from timestamp / CCVal
- * Based on ideas presented in RFC 4342, 8.1. Returns 0 if it was not able
- * to compute a sample with given data - calling function should check this.
+ * Based on ideas presented in RFC 4342, 8.1. This function expects that no loss
+ * is pending and uses the following history entries (via rtt_sample_prev):
+ * - h->ring[0]  contains the most recent history entry prior to @skb;
+ * - h->ring[1]  is an unused `dummy' entry when the current difference is 0;
  */
-u32 tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
+void tfrc_rx_hist_sample_rtt(struct tfrc_rx_hist *h, const struct sk_buff *skb)
 {
-	u32 sample = 0,
-	    delta_v = SUB16(dccp_hdr(skb)->dccph_ccval,
-			    tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
+	struct tfrc_rx_hist_entry *last = h->ring[0];
+	u32 sample, delta_v;
 
-	if (delta_v < 1 || delta_v > 4) {	/* unsuitable CCVal delta */
-		if (h->rtt_sample_prev == 2) {	/* previous candidate stored */
-			sample = SUB16(tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_ccval,
-				       tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
-			if (sample)
-				sample = 4 / sample *
-				         ktime_us_delta(tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_tstamp,
-							tfrc_rx_hist_rtt_last_s(h)->tfrchrx_tstamp);
-			else    /*
-				 * FIXME: This condition is in principle not
-				 * possible but occurs when CCID is used for
-				 * two-way data traffic. I have tried to trace
-				 * it, but the cause does not seem to be here.
-				 */
-				DCCP_BUG("please report to dccp@vger.kernel.org"
-					 " => prev = %u, last = %u",
-					 tfrc_rx_hist_rtt_prev_s(h)->tfrchrx_ccval,
-					 tfrc_rx_hist_rtt_last_s(h)->tfrchrx_ccval);
-		} else if (delta_v < 1) {
-			h->rtt_sample_prev = 1;
-			goto keep_ref_for_next_time;
-		}
+	/*
+	 * When not to sample:
+	 * - on non-data packets
+	 *   (RFC 4342, 8.1: CCVal only fully defined for data packets);
+	 * - when no data packets have been received yet
+	 *   (FIXME: using sampled packet size as indicator here);
+	 * - as long as there are gaps in the sequence space (pending loss).
+	 */
+	if (!dccp_data_packet(skb) || h->packet_size == 0 ||
+	    tfrc_rx_hist_loss_pending(h))
+		return;
 
-	} else if (delta_v == 4) /* optimal match */
-		sample = ktime_to_us(net_timedelta(tfrc_rx_hist_rtt_last_s(h)->tfrchrx_tstamp));
-	else {			 /* suboptimal match */
-		h->rtt_sample_prev = 2;
-		goto keep_ref_for_next_time;
+	h->rtt_sample_prev = 0;		/* reset previous candidate */
+
+	delta_v = SUB16(dccp_hdr(skb)->dccph_ccval, last->tfrchrx_ccval);
+	if (delta_v == 0) {		/* less than RTT/4 difference */
+		h->rtt_sample_prev = 1;
+		return;
 	}
+	sample = dccp_sane_rtt(ktime_to_us(net_timedelta(last->tfrchrx_tstamp)));
 
-	if (unlikely(sample > DCCP_SANE_RTT_MAX)) {
-		DCCP_WARN("RTT sample %u too large, using max\n", sample);
-		sample = DCCP_SANE_RTT_MAX;
-	}
+	if (delta_v <= 4)		/* between RTT/4 and RTT */
+		sample *= 4 / delta_v;
+	else if (!(sample < h->rtt_estimate && sample > h->rtt_estimate/2))
+		/*
+		* Optimisation: CCVal difference is greater than 1 RTT, yet the
+		* sample is less than the local RTT estimate; which means that
+		* the RTT estimate is too high.
+		* To avoid noise, it is not done if the sample is below RTT/2.
+		*/
+		return;
 
-	h->rtt_sample_prev = 0;	       /* use current entry as next reference */
-keep_ref_for_next_time:
-
-	return sample;
+	/* Use a lower weight than usual to increase responsiveness */
+	h->rtt_estimate = tfrc_ewma(h->rtt_estimate, sample, 5);
 }
 EXPORT_SYMBOL_GPL(tfrc_rx_hist_sample_rtt);
