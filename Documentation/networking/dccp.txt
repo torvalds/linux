@@ -45,25 +45,6 @@ http://linux-net.osdl.org/index.php/DCCP_Testing#Experimental_DCCP_source_tree
 
 Socket options
 ==============
-DCCP_SOCKOPT_QPOLICY_ID sets the dequeuing policy for outgoing packets. It takes
-a policy ID as argument and can only be set before the connection (i.e. changes
-during an established connection are not supported). Currently, two policies are
-defined: the "simple" policy (DCCPQ_POLICY_SIMPLE), which does nothing special,
-and a priority-based variant (DCCPQ_POLICY_PRIO). The latter allows to pass an
-u32 priority value as ancillary data to sendmsg(), where higher numbers indicate
-a higher packet priority (similar to SO_PRIORITY). This ancillary data needs to
-be formatted using a cmsg(3) message header filled in as follows:
-	cmsg->cmsg_level = SOL_DCCP;
-	cmsg->cmsg_type	 = DCCP_SCM_PRIORITY;
-	cmsg->cmsg_len	 = CMSG_LEN(sizeof(uint32_t));	/* or CMSG_LEN(4) */
-
-DCCP_SOCKOPT_QPOLICY_TXQLEN sets the maximum length of the output queue. A zero
-value is always interpreted as unbounded queue length. If different from zero,
-the interpretation of this parameter depends on the current dequeuing policy
-(see above): the "simple" policy will enforce a fixed queue size by returning
-EAGAIN, whereas the "prio" policy enforces a fixed queue length by dropping the
-lowest-priority packet first. The default value for this parameter is
-initialised from /proc/sys/net/dccp/default/tx_qlen.
 
 DCCP_SOCKOPT_SERVICE sets the service. The specification mandates use of
 service codes (RFC 4340, sec. 8.1.2); if this socket option is not set,
@@ -75,24 +56,6 @@ can be set before calling bind().
 
 DCCP_SOCKOPT_GET_CUR_MPS is read-only and retrieves the current maximum packet
 size (application payload size) in bytes, see RFC 4340, section 14.
-
-DCCP_SOCKOPT_AVAILABLE_CCIDS is also read-only and returns the list of CCIDs
-supported by the endpoint (see include/linux/dccp.h for symbolic constants).
-The caller needs to provide a sufficiently large (> 2) array of type uint8_t.
-
-DCCP_SOCKOPT_CCID is write-only and sets both the TX and RX CCIDs at the same
-time, combining the operation of the next two socket options. This option is
-preferrable over the latter two, since often applications will use the same
-type of CCID for both directions; and mixed use of CCIDs is not currently well
-understood. This socket option takes as argument at least one uint8_t value, or
-an array of uint8_t values, which must match available CCIDS (see above). CCIDs
-must be registered on the socket before calling connect() or listen().
-
-DCCP_SOCKOPT_TX_CCID is read/write. It returns the current CCID (if set) or sets
-the preference list for the TX CCID, using the same format as DCCP_SOCKOPT_CCID.
-Please note that the getsockopt argument type here is `int', not uint8_t.
-
-DCCP_SOCKOPT_RX_CCID is analogous to DCCP_SOCKOPT_TX_CCID, but for the RX CCID.
 
 DCCP_SOCKOPT_SERVER_TIMEWAIT enables the server (listening socket) to hold
 timewait state when closing the connection (RFC 4340, 8.3). The usual case is
@@ -152,16 +115,23 @@ retries2
 	importance for retransmitted acknowledgments and feature negotiation,
 	data packets are never retransmitted. Analogue of tcp_retries2.
 
+send_ndp = 1
+	Whether or not to send NDP count options (sec. 7.7.2).
+
+send_ackvec = 1
+	Whether or not to send Ack Vector options (sec. 11.5).
+
+ack_ratio = 2
+	The default Ack Ratio (sec. 11.3) to use.
+
 tx_ccid = 2
-	Default CCID for the sender-receiver half-connection. Depending on the
-	choice of CCID, the Send Ack Vector feature is enabled automatically.
+	Default CCID for the sender-receiver half-connection.
 
 rx_ccid = 2
-	Default CCID for the receiver-sender half-connection; see tx_ccid.
+	Default CCID for the receiver-sender half-connection.
 
 seq_window = 100
-	The initial sequence window (sec. 7.5.2) of the sender. This influences
-	the local ackno validity and the remote seqno validity windows (7.5.1).
+	The initial sequence window (sec. 7.5.2).
 
 tx_qlen = 5
 	The size of the transmit buffer in packets. A value of 0 corresponds

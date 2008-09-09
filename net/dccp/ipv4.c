@@ -545,7 +545,6 @@ out:
 
 static void dccp_v4_reqsk_destructor(struct request_sock *req)
 {
-	dccp_feat_list_purge(&dccp_rsk(req)->dreq_featneg);
 	kfree(inet_rsk(req)->opt);
 }
 
@@ -596,8 +595,7 @@ int dccp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	if (req == NULL)
 		goto drop;
 
-	if (dccp_reqsk_init(req, dccp_sk(sk), skb))
-		goto drop_and_free;
+	dccp_reqsk_init(req, skb);
 
 	dreq = dccp_rsk(req);
 	if (dccp_parse_options(sk, dreq, skb))

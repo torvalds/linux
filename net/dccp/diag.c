@@ -29,7 +29,7 @@ static void dccp_get_info(struct sock *sk, struct tcp_info *info)
 	info->tcpi_backoff	= icsk->icsk_backoff;
 	info->tcpi_pmtu		= icsk->icsk_pmtu_cookie;
 
-	if (dp->dccps_hc_rx_ackvec != NULL)
+	if (dccp_msk(sk)->dccpms_send_ack_vector)
 		info->tcpi_options |= TCPI_OPT_SACK;
 
 	ccid_hc_rx_get_info(dp->dccps_hc_rx_ccid, sk, info);

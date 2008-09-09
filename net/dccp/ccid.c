@@ -13,13 +13,6 @@
 
 #include "ccid.h"
 
-static u8 builtin_ccids[] = {
-	DCCPC_CCID2,		/* CCID2 is supported by default */
-#if defined(CONFIG_IP_DCCP_CCID3) || defined(CONFIG_IP_DCCP_CCID3_MODULE)
-	DCCPC_CCID3,
-#endif
-};
-
 static struct ccid_operations *ccids[CCID_MAX];
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT)
 static atomic_t ccids_lockct = ATOMIC_INIT(0);
@@ -93,47 +86,6 @@ static void ccid_kmem_cache_destroy(struct kmem_cache *slab)
 	}
 }
 
-/* check that up to @array_len members in @ccid_array are supported */
-bool ccid_support_check(u8 const *ccid_array, u8 array_len)
-{
-	u8 i, j, found;
-
-	for (i = 0, found = 0; i < array_len; i++, found = 0) {
-		for (j = 0; !found && j < ARRAY_SIZE(builtin_ccids); j++)
-			found = (ccid_array[i] == builtin_ccids[j]);
-		if (!found)
-			return false;
-	}
-	return true;
-}
-
-/**
- * ccid_get_builtin_ccids  -  Provide copy of `builtin' CCID array
- * @ccid_array: pointer to copy into
- * @array_len: value to return length into
- * This function allocates memory - caller must see that it is freed after use.
- */
-int ccid_get_builtin_ccids(u8 **ccid_array, u8 *array_len)
-{
-	*ccid_array = kmemdup(builtin_ccids, sizeof(builtin_ccids), gfp_any());
-	if (*ccid_array == NULL)
-		return -ENOBUFS;
-	*array_len = ARRAY_SIZE(builtin_ccids);
-	return 0;
-}
-
-int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
-				    char __user *optval, int __user *optlen)
-{
-	if (len < sizeof(builtin_ccids))
-		return -EINVAL;
-
-	if (put_user(sizeof(builtin_ccids), optlen) ||
-	    copy_to_user(optval, builtin_ccids, sizeof(builtin_ccids)))
-		return -EFAULT;
-	return 0;
-}
-
 int ccid_register(struct ccid_operations *ccid_ops)
 {
 	int err = -ENOBUFS;
@@ -196,41 +148,22 @@ int ccid_unregister(struct ccid_operations *ccid_ops)
 
 EXPORT_SYMBOL_GPL(ccid_unregister);
 
-/**
- * ccid_request_module  -  Pre-load CCID module for later use
- * This should be called only from process context (e.g. during connection
- * setup) and is necessary for later calls to ccid_new (typically in software
- * interrupt), so that it has the modules available when they are needed.
- */
-static int ccid_request_module(u8 id)
-{
-	if (!in_atomic()) {
-		ccids_read_lock();
-		if (ccids[id] == NULL) {
-			ccids_read_unlock();
-			return request_module("net-dccp-ccid-%d", id);
-		}
-		ccids_read_unlock();
-	}
-	return 0;
-}
-
-int ccid_request_modules(u8 const *ccid_array, u8 array_len)
-{
-#ifdef CONFIG_KMOD
-	while (array_len--)
-		if (ccid_request_module(ccid_array[array_len]))
-			return -1;
-#endif
-	return 0;
-}
-
 struct ccid *ccid_new(unsigned char id, struct sock *sk, int rx, gfp_t gfp)
 {
 	struct ccid_operations *ccid_ops;
 	struct ccid *ccid = NULL;
 
 	ccids_read_lock();
+#ifdef CONFIG_KMOD
+	if (ccids[id] == NULL) {
+		/* We only try to load if in process context */
+		ccids_read_unlock();
+		if (gfp & GFP_ATOMIC)
+			goto out;
+		request_module("net-dccp-ccid-%d", id);
+		ccids_read_lock();
+	}
+#endif
 	ccid_ops = ccids[id];
 	if (ccid_ops == NULL)
 		goto out_unlock;
@@ -271,6 +204,20 @@ out_module_put:
 }
 
 EXPORT_SYMBOL_GPL(ccid_new);
+
+struct ccid *ccid_hc_rx_new(unsigned char id, struct sock *sk, gfp_t gfp)
+{
+	return ccid_new(id, sk, 1, gfp);
+}
+
+EXPORT_SYMBOL_GPL(ccid_hc_rx_new);
+
+struct ccid *ccid_hc_tx_new(unsigned char id,struct sock *sk,  gfp_t gfp)
+{
+	return ccid_new(id, sk, 0, gfp);
+}
+
+EXPORT_SYMBOL_GPL(ccid_hc_tx_new);
 
 static void ccid_delete(struct ccid *ccid, struct sock *sk, int rx)
 {

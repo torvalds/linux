@@ -87,6 +87,17 @@ static void dccp_retransmit_timer(struct sock *sk)
 {
 	struct inet_connection_sock *icsk = inet_csk(sk);
 
+	/* retransmit timer is used for feature negotiation throughout
+	 * connection.  In this case, no packet is re-transmitted, but rather an
+	 * ack is generated and pending changes are placed into its options.
+	 */
+	if (sk->sk_send_head == NULL) {
+		dccp_pr_debug("feat negotiation retransmit timeout %p\n", sk);
+		if (sk->sk_state == DCCP_OPEN)
+			dccp_send_ack(sk);
+		goto backoff;
+	}
+
 	/*
 	 * More than than 4MSL (8 minutes) has passed, a RESET(aborted) was
 	 * sent, no need to retransmit, this sock is dead.
@@ -115,6 +126,7 @@ static void dccp_retransmit_timer(struct sock *sk)
 		return;
 	}
 
+backoff:
 	icsk->icsk_backoff++;
 
 	icsk->icsk_rto = min(icsk->icsk_rto << 1, DCCP_RTO_MAX);
@@ -237,35 +249,32 @@ out:
 	sock_put(sk);
 }
 
-/**
- * dccp_write_xmitlet  -  Workhorse for CCID packet dequeueing interface
- * See the comments above %ccid_dequeueing_decision for supported modes.
- */
-static void dccp_write_xmitlet(unsigned long data)
+/* Transmit-delay timer: used by the CCIDs to delay actual send time */
+static void dccp_write_xmit_timer(unsigned long data)
 {
 	struct sock *sk = (struct sock *)data;
+	struct dccp_sock *dp = dccp_sk(sk);
 
 	bh_lock_sock(sk);
 	if (sock_owned_by_user(sk))
-		sk_reset_timer(sk, &dccp_sk(sk)->dccps_xmit_timer, jiffies + 1);
+		sk_reset_timer(sk, &dp->dccps_xmit_timer, jiffies+1);
 	else
-		dccp_write_xmit(sk);
+		dccp_write_xmit(sk, 0);
 	bh_unlock_sock(sk);
+	sock_put(sk);
 }
 
-static void dccp_write_xmit_timer(unsigned long data)
+static void dccp_init_write_xmit_timer(struct sock *sk)
 {
-	dccp_write_xmitlet(data);
-	sock_put((struct sock *)data);
+	struct dccp_sock *dp = dccp_sk(sk);
+
+	setup_timer(&dp->dccps_xmit_timer, dccp_write_xmit_timer,
+			(unsigned long)sk);
 }
 
 void dccp_init_xmit_timers(struct sock *sk)
 {
-	struct dccp_sock *dp = dccp_sk(sk);
-
-	tasklet_init(&dp->dccps_xmitlet, dccp_write_xmitlet, (unsigned long)sk);
-	setup_timer(&dp->dccps_xmit_timer, dccp_write_xmit_timer,
-							     (unsigned long)sk);
+	dccp_init_write_xmit_timer(sk);
 	inet_csk_init_xmit_timers(sk, &dccp_write_timer, &dccp_delack_timer,
 				  &dccp_keepalive_timer);
 }
@@ -281,7 +290,8 @@ u32 dccp_timestamp(void)
 {
 	s64 delta = ktime_us_delta(ktime_get_real(), dccp_timestamp_seed);
 
-	return div_u64(delta, DCCP_TIME_RESOLUTION);
+	do_div(delta, 10);
+	return delta;
 }
 EXPORT_SYMBOL_GPL(dccp_timestamp);
 

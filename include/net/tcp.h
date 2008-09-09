@@ -782,21 +782,6 @@ static inline __u32 tcp_current_ssthresh(const struct sock *sk)
 /* Use define here intentionally to get WARN_ON location shown at the caller */
 #define tcp_verify_left_out(tp)	WARN_ON(tcp_left_out(tp) > tp->packets_out)
 
-/*
- * Convert RFC3390 larger initial windows into an equivalent number of packets.
- *
- * John Heffner states:
- *
- *	The RFC specifies a window of no more than 4380 bytes
- *	unless 2*MSS > 4380.  Reading the pseudocode in the RFC
- *	is a bit misleading because they use a clamp at 4380 bytes
- *	rather than a multiplier in the relevant range.
- */
-static inline u32 rfc3390_bytes_to_packets(const u32 bytes)
-{
-	return bytes <= 1095 ? 4 : (bytes > 1460 ? 2 : 3);
-}
-
 extern void tcp_enter_cwr(struct sock *sk, const int set_ssthresh);
 extern __u32 tcp_init_cwnd(struct tcp_sock *tp, struct dst_entry *dst);
 

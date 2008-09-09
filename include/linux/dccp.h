@@ -165,13 +165,9 @@ enum {
 	DCCPO_TIMESTAMP_ECHO = 42,
 	DCCPO_ELAPSED_TIME = 43,
 	DCCPO_MAX = 45,
-	DCCPO_MIN_RX_CCID_SPECIFIC = 128,	/* from sender to receiver */
-	DCCPO_MAX_RX_CCID_SPECIFIC = 191,
-	DCCPO_MIN_TX_CCID_SPECIFIC = 192,	/* from receiver to sender */
-	DCCPO_MAX_TX_CCID_SPECIFIC = 255,
+	DCCPO_MIN_CCID_SPECIFIC = 128,
+	DCCPO_MAX_CCID_SPECIFIC = 255,
 };
-/* maximum size of a single TLV-encoded DCCP option (sans type/len bytes) */
-#define DCCP_SINGLE_OPT_MAXLEN	253
 
 /* DCCP CCIDS */
 enum {
@@ -180,36 +176,27 @@ enum {
 };
 
 /* DCCP features (RFC 4340 section 6.4) */
-enum dccp_feature_numbers {
+enum {
 	DCCPF_RESERVED = 0,
 	DCCPF_CCID = 1,
-	DCCPF_SHORT_SEQNOS = 2,
+	DCCPF_SHORT_SEQNOS = 2,		/* XXX: not yet implemented */
 	DCCPF_SEQUENCE_WINDOW = 3,
-	DCCPF_ECN_INCAPABLE = 4,
+	DCCPF_ECN_INCAPABLE = 4,	/* XXX: not yet implemented */
 	DCCPF_ACK_RATIO = 5,
 	DCCPF_SEND_ACK_VECTOR = 6,
 	DCCPF_SEND_NDP_COUNT = 7,
 	DCCPF_MIN_CSUM_COVER = 8,
-	DCCPF_DATA_CHECKSUM = 9,
+	DCCPF_DATA_CHECKSUM = 9,	/* XXX: not yet implemented */
 	/* 10-127 reserved */
 	DCCPF_MIN_CCID_SPECIFIC = 128,
-	DCCPF_SEND_LEV_RATE = 192,	/* RFC 4342, sec. 8.4 */
 	DCCPF_MAX_CCID_SPECIFIC = 255,
 };
 
-/* DCCP socket control message types for cmsg */
-enum dccp_cmsg_type {
-	DCCP_SCM_PRIORITY = 1,
-	DCCP_SCM_QPOLICY_MAX = 0xFFFF,
-	/* ^-- Up to here reserved exclusively for qpolicy parameters */
-	DCCP_SCM_MAX
-};
-
-/* DCCP priorities for outgoing/queued packets */
-enum dccp_packet_dequeueing_policy {
-	DCCPQ_POLICY_SIMPLE,
-	DCCPQ_POLICY_PRIO,
-	DCCPQ_POLICY_MAX
+/* this structure is argument to DCCP_SOCKOPT_CHANGE_X */
+struct dccp_so_feat {
+	__u8 dccpsf_feat;
+	__u8 __user *dccpsf_val;
+	__u8 dccpsf_len;
 };
 
 /* DCCP socket options */
@@ -221,12 +208,6 @@ enum dccp_packet_dequeueing_policy {
 #define DCCP_SOCKOPT_SERVER_TIMEWAIT	6
 #define DCCP_SOCKOPT_SEND_CSCOV		10
 #define DCCP_SOCKOPT_RECV_CSCOV		11
-#define DCCP_SOCKOPT_AVAILABLE_CCIDS	12
-#define DCCP_SOCKOPT_CCID		13
-#define DCCP_SOCKOPT_TX_CCID		14
-#define DCCP_SOCKOPT_RX_CCID		15
-#define DCCP_SOCKOPT_QPOLICY_ID		16
-#define DCCP_SOCKOPT_QPOLICY_TXQLEN	17
 #define DCCP_SOCKOPT_CCID_RX_INFO	128
 #define DCCP_SOCKOPT_CCID_TX_INFO	192
 
@@ -374,13 +355,62 @@ static inline unsigned int dccp_hdr_len(const struct sk_buff *skb)
 	return __dccp_hdr_len(dccp_hdr(skb));
 }
 
+
+/* initial values for each feature */
+#define DCCPF_INITIAL_SEQUENCE_WINDOW		100
+#define DCCPF_INITIAL_ACK_RATIO			2
+#define DCCPF_INITIAL_CCID			DCCPC_CCID2
+#define DCCPF_INITIAL_SEND_ACK_VECTOR		1
+/* FIXME: for now we're default to 1 but it should really be 0 */
+#define DCCPF_INITIAL_SEND_NDP_COUNT		1
+
+/**
+  * struct dccp_minisock - Minimal DCCP connection representation
+  *
+  * Will be used to pass the state from dccp_request_sock to dccp_sock.
+  *
+  * @dccpms_sequence_window - Sequence Window Feature (section 7.5.2)
+  * @dccpms_ccid - Congestion Control Id (CCID) (section 10)
+  * @dccpms_send_ack_vector - Send Ack Vector Feature (section 11.5)
+  * @dccpms_send_ndp_count - Send NDP Count Feature (7.7.2)
+  * @dccpms_ack_ratio - Ack Ratio Feature (section 11.3)
+  * @dccpms_pending - List of features being negotiated
+  * @dccpms_conf -
+  */
+struct dccp_minisock {
+	__u64			dccpms_sequence_window;
+	__u8			dccpms_rx_ccid;
+	__u8			dccpms_tx_ccid;
+	__u8			dccpms_send_ack_vector;
+	__u8			dccpms_send_ndp_count;
+	__u8			dccpms_ack_ratio;
+	struct list_head	dccpms_pending;
+	struct list_head	dccpms_conf;
+};
+
+struct dccp_opt_conf {
+	__u8			*dccpoc_val;
+	__u8			dccpoc_len;
+};
+
+struct dccp_opt_pend {
+	struct list_head	dccpop_node;
+	__u8			dccpop_type;
+	__u8			dccpop_feat;
+	__u8		        *dccpop_val;
+	__u8			dccpop_len;
+	int			dccpop_conf;
+	struct dccp_opt_conf    *dccpop_sc;
+};
+
+extern void dccp_minisock_init(struct dccp_minisock *dmsk);
+
 /**
  * struct dccp_request_sock  -  represent DCCP-specific connection request
  * @dreq_inet_rsk: structure inherited from
  * @dreq_iss: initial sequence number sent on the Response (RFC 4340, 7.1)
  * @dreq_isr: initial sequence number received on the Request
  * @dreq_service: service code present on the Request (there is just one)
- * @dreq_featneg: feature negotiation options for this connection
  * The following two fields are analogous to the ones in dccp_sock:
  * @dreq_timestamp_echo: last received timestamp to echo (13.1)
  * @dreq_timestamp_echo: the time of receiving the last @dreq_timestamp_echo
@@ -390,7 +420,6 @@ struct dccp_request_sock {
 	__u64			 dreq_iss;
 	__u64			 dreq_isr;
 	__be32			 dreq_service;
-	struct list_head	 dreq_featneg;
 	__u32			 dreq_timestamp_echo;
 	__u32			 dreq_timestamp_time;
 };
@@ -462,28 +491,21 @@ struct dccp_ackvec;
  * @dccps_timestamp_time - time of receiving latest @dccps_timestamp_echo
  * @dccps_l_ack_ratio - feature-local Ack Ratio
  * @dccps_r_ack_ratio - feature-remote Ack Ratio
- * @dccps_l_seq_win - local Sequence Window (influences ack number validity)
- * @dccps_r_seq_win - remote Sequence Window (influences seq number validity)
  * @dccps_pcslen - sender   partial checksum coverage (via sockopt)
  * @dccps_pcrlen - receiver partial checksum coverage (via sockopt)
- * @dccps_send_ndp_count - local Send NDP Count feature (7.7.2)
  * @dccps_ndp_count - number of Non Data Packets since last data packet
  * @dccps_mss_cache - current value of MSS (path MTU minus header sizes)
  * @dccps_rate_last - timestamp for rate-limiting DCCP-Sync (RFC 4340, 7.5.4)
- * @dccps_featneg - tracks feature-negotiation state (mostly during handshake)
+ * @dccps_minisock - associated minisock (accessed via dccp_msk)
  * @dccps_hc_rx_ackvec - rx half connection ack vector
  * @dccps_hc_rx_ccid - CCID used for the receiver (or receiving half-connection)
  * @dccps_hc_tx_ccid - CCID used for the sender (or sending half-connection)
  * @dccps_options_received - parsed set of retrieved options
- * @dccps_qpolicy - TX dequeueing policy, one of %dccp_packet_dequeueing_policy
- * @dccps_tx_qlen - maximum length of the TX queue
  * @dccps_role - role of this sock, one of %dccp_role
  * @dccps_hc_rx_insert_options - receiver wants to add options when acking
  * @dccps_hc_tx_insert_options - sender wants to add options when sending
  * @dccps_server_timewait - server holds timewait state on close (RFC 4340, 8.3)
- * @dccps_sync_scheduled - flag which signals "send out-of-band message soon"
- * @dccps_xmitlet - tasklet scheduled by the TX CCID to dequeue data packets
- * @dccps_xmit_timer - used by the TX CCID to delay sending (rate-based pacing)
+ * @dccps_xmit_timer - timer for when CCID is not ready to send
  * @dccps_syn_rtt - RTT sample from Request/Response exchange (in usecs)
  */
 struct dccp_sock {
@@ -507,32 +529,30 @@ struct dccp_sock {
 	__u32				dccps_timestamp_time;
 	__u16				dccps_l_ack_ratio;
 	__u16				dccps_r_ack_ratio;
-	__u64				dccps_l_seq_win:48;
-	__u64				dccps_r_seq_win:48;
-	__u8				dccps_pcslen:4;
-	__u8				dccps_pcrlen:4;
-	__u8				dccps_send_ndp_count:1;
+	__u16				dccps_pcslen;
+	__u16				dccps_pcrlen;
 	__u64				dccps_ndp_count:48;
 	unsigned long			dccps_rate_last;
-	struct list_head		dccps_featneg;
+	struct dccp_minisock		dccps_minisock;
 	struct dccp_ackvec		*dccps_hc_rx_ackvec;
 	struct ccid			*dccps_hc_rx_ccid;
 	struct ccid			*dccps_hc_tx_ccid;
 	struct dccp_options_received	dccps_options_received;
-	__u8				dccps_qpolicy;
-	__u32				dccps_tx_qlen;
 	enum dccp_role			dccps_role:2;
 	__u8				dccps_hc_rx_insert_options:1;
 	__u8				dccps_hc_tx_insert_options:1;
 	__u8				dccps_server_timewait:1;
-	__u8				dccps_sync_scheduled:1;
-	struct tasklet_struct		dccps_xmitlet;
 	struct timer_list		dccps_xmit_timer;
 };
 
 static inline struct dccp_sock *dccp_sk(const struct sock *sk)
 {
 	return (struct dccp_sock *)sk;
+}
+
+static inline struct dccp_minisock *dccp_msk(const struct sock *sk)
+{
+	return (struct dccp_minisock *)&dccp_sk(sk)->dccps_minisock;
 }
 
 static inline const char *dccp_role(const struct sock *sk)
