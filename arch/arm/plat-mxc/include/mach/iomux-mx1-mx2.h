@@ -377,6 +377,8 @@ extern int mxc_gpio_setup_multiple_pins(const int *pin_list, unsigned count,
 #define PE13_PF_UART1_RXD	(GPIO_PORTE | GPIO_IN  | GPIO_PF | 13)
 #define PE14_PF_UART1_CTS	(GPIO_PORTE | GPIO_OUT | GPIO_PF | 14)
 #define PE15_PF_UART1_RTS	(GPIO_PORTE | GPIO_IN  | GPIO_PF | 15)
+#define PE16_AF_RTCK		(GPIO_PORTE | GPIO_OUT | GPIO_AF | 16)
+#define PE16_PF_RTCK		(GPIO_PORTE | GPIO_OUT | GPIO_PF | 16)
 #define PE18_AF_CSPI3_MISO	(GPIO_PORTE | GPIO_IN  | GPIO_AF | 18)
 #define PE21_AF_CSPI3_SS	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 21)
 #define PE22_AF_CSPI3_MOSI	(GPIO_PORTE | GPIO_OUT | GPIO_AF | 22)
