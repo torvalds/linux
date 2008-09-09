@@ -30,6 +30,7 @@
 /* 2007-09-12  Lydia Wang  Add EAPD enable during driver initialization      */
 /* 2007-09-17  Lydia Wang  Add VT1708B codec support                        */
 /* 2007-11-14  Lydia Wang  Add VT1708A codec HP and CD pin connect config    */
+/* 2008-02-03  Lydia Wang  Fix Rear channels and Back channels inverse issue */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -660,10 +661,10 @@ static int vt1708_auto_fill_dac_nids(struct via_spec *spec,
 				spec->multiout.dac_nids[i] = 0x12;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x13;
+				spec->multiout.dac_nids[i] = 0x11;
 				break;
 			case AUTO_SEQ_SIDE:
-				spec->multiout.dac_nids[i] = 0x11;
+				spec->multiout.dac_nids[i] = 0x13;
 				break;
 			}
 		}
@@ -688,7 +689,7 @@ static int vt1708_auto_create_multi_out_ctls(struct via_spec *spec,
 			continue;
 		
 		if (i != AUTO_SEQ_FRONT)
-			nid_vol = 0x1b - i + 1;
+			nid_vol = 0x18 + i;
 
 		if (i == AUTO_SEQ_CENLFE) {
 			/* Center/LFE */
@@ -1118,11 +1119,11 @@ static int vt1709_auto_fill_dac_nids(struct via_spec *spec,
 					break;
 				case AUTO_SEQ_SURROUND:
 					/* AOW3 */
-					spec->multiout.dac_nids[i] = 0x27;
+					spec->multiout.dac_nids[i] = 0x11;
 					break;
 				case AUTO_SEQ_SIDE:
 					/* AOW1 */
-					spec->multiout.dac_nids[i] = 0x11;
+					spec->multiout.dac_nids[i] = 0x27;
 					break;
 				default:
 					break;
@@ -1231,26 +1232,26 @@ static int vt1709_auto_create_multi_out_ctls(struct via_spec *spec,
 		} else if (i == AUTO_SEQ_SURROUND) {
 			sprintf(name, "%s Playback Volume", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(0x29, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(0x1a, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(0x29, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(0x1a, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 		} else if (i == AUTO_SEQ_SIDE) {
 			sprintf(name, "%s Playback Volume", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_VOL, name,
-					      HDA_COMPOSE_AMP_VAL(0x1a, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(0x29, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
 			err = via_add_control(spec, VIA_CTL_WIDGET_MUTE, name,
-					      HDA_COMPOSE_AMP_VAL(0x1a, 3, 0,
+					      HDA_COMPOSE_AMP_VAL(0x29, 3, 0,
 								  HDA_OUTPUT));
 			if (err < 0)
 				return err;
@@ -1690,10 +1691,10 @@ static int vt1708B_auto_fill_dac_nids(struct via_spec *spec,
 				spec->multiout.dac_nids[i] = 0x24;
 				break;
 			case AUTO_SEQ_SURROUND:
-				spec->multiout.dac_nids[i] = 0x25;
+				spec->multiout.dac_nids[i] = 0x11;
 				break;
 			case AUTO_SEQ_SIDE:
-				spec->multiout.dac_nids[i] = 0x11;
+				spec->multiout.dac_nids[i] = 0x25;
 				break;
 			}
 		}
@@ -1708,7 +1709,7 @@ static int vt1708B_auto_create_multi_out_ctls(struct via_spec *spec,
 {
 	char name[32];
 	static const char *chname[4] = { "Front", "Surround", "C/LFE", "Side" };
-	hda_nid_t nid_vols[] = {0x16, 0x27, 0x26, 0x18};
+	hda_nid_t nid_vols[] = {0x16, 0x18, 0x26, 0x27};
 	hda_nid_t nid, nid_vol = 0;
 	int i, err;
 
