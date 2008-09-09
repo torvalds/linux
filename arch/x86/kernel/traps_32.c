@@ -46,6 +46,7 @@
 #include <linux/edac.h>
 #endif
 
+#include <asm/processor-flags.h>
 #include <asm/arch_hooks.h>
 #include <asm/stacktrace.h>
 #include <asm/processor.h>
@@ -1236,6 +1237,17 @@ asmlinkage void math_emulate(long arg)
 
 #endif /* CONFIG_MATH_EMULATION */
 
+void __kprobes do_device_not_available(struct pt_regs *regs, long error)
+{
+	if (read_cr0() & X86_CR0_EM) {
+		conditional_sti(regs);
+		math_emulate(0);
+	} else {
+		math_state_restore(); /* interrupts still off */
+		conditional_sti(regs);
+	}
+}
+
 void __init trap_init(void)
 {
 	int i;
@@ -1255,7 +1267,7 @@ void __init trap_init(void)
 	set_system_intr_gate(4, &overflow); /* int4 can be called from all */
 	set_intr_gate(5, &bounds);
 	set_intr_gate(6, &invalid_op);
-	set_trap_gate(7, &device_not_available);
+	set_intr_gate(7, &device_not_available);
 	set_task_gate(8, GDT_ENTRY_DOUBLEFAULT_TSS);
 	set_trap_gate(9, &coprocessor_segment_overrun);
 	set_trap_gate(10, &invalid_TSS);

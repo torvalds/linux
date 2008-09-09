@@ -760,20 +760,9 @@ ENTRY(device_not_available)
 	RING0_INT_FRAME
 	pushl $-1			# mark this as an int
 	CFI_ADJUST_CFA_OFFSET 4
-	SAVE_ALL
-	GET_CR0_INTO_EAX
-	testl $0x4, %eax		# EM (math emulation bit)
-	jne device_not_available_emulate
-	preempt_stop(CLBR_ANY)
-	call math_state_restore
-	jmp ret_from_exception
-device_not_available_emulate:
-	pushl $0			# temporary storage for ORIG_EIP
+	pushl $do_device_not_available
 	CFI_ADJUST_CFA_OFFSET 4
-	call math_emulate
-	addl $4, %esp
-	CFI_ADJUST_CFA_OFFSET -4
-	jmp ret_from_exception
+	jmp error_code
 	CFI_ENDPROC
 END(device_not_available)
 
