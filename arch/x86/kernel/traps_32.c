@@ -528,6 +528,56 @@ vm86_trap:
 	return;
 }
 
+#define DO_TRAP(trapnr, signr, str, name)				\
+void do_##name(struct pt_regs *regs, long error_code)			\
+{									\
+	trace_hardirqs_fixup();						\
+	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
+							== NOTIFY_STOP)	\
+		return;							\
+	do_trap(trapnr, signr, str, 0, regs, error_code, NULL);		\
+}
+
+#define DO_TRAP_INFO(trapnr, signr, str, name, sicode, siaddr, irq)	\
+void do_##name(struct pt_regs *regs, long error_code)			\
+{									\
+	siginfo_t info;							\
+	if (irq)							\
+		local_irq_enable();					\
+	info.si_signo = signr;						\
+	info.si_errno = 0;						\
+	info.si_code = sicode;						\
+	info.si_addr = (void __user *)siaddr;				\
+	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
+							== NOTIFY_STOP)	\
+		return;							\
+	do_trap(trapnr, signr, str, 0, regs, error_code, &info);	\
+}
+
+#define DO_VM86_TRAP(trapnr, signr, str, name)				\
+void do_##name(struct pt_regs *regs, long error_code)			\
+{									\
+	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
+							== NOTIFY_STOP)	\
+		return;							\
+	do_trap(trapnr, signr, str, 1, regs, error_code, NULL);		\
+}
+
+#define DO_VM86_TRAP_INFO(trapnr, signr, str, name, sicode, siaddr)	\
+void do_##name(struct pt_regs *regs, long error_code)			\
+{									\
+	siginfo_t info;							\
+	info.si_signo = signr;						\
+	info.si_errno = 0;						\
+	info.si_code = sicode;						\
+	info.si_addr = (void __user *)siaddr;				\
+	trace_hardirqs_fixup();						\
+	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
+							== NOTIFY_STOP)	\
+		return;							\
+	do_trap(trapnr, signr, str, 1, regs, error_code, &info);	\
+}
+
 #define DO_ERROR(trapnr, signr, str, name)				\
 void do_##name(struct pt_regs *regs, long error_code)			\
 {									\
@@ -535,6 +585,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
 		return;							\
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, 0, regs, error_code, NULL);		\
 }
 
@@ -551,6 +602,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
 		return;							\
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, 0, regs, error_code, &info);	\
 }
 
@@ -560,6 +612,7 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
 		return;							\
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, 1, regs, error_code, NULL);		\
 }
 
@@ -575,22 +628,23 @@ void do_##name(struct pt_regs *regs, long error_code)			\
 	if (notify_die(DIE_TRAP, str, regs, error_code, trapnr, signr)	\
 							== NOTIFY_STOP)	\
 		return;							\
+	conditional_sti(regs);						\
 	do_trap(trapnr, signr, str, 1, regs, error_code, &info);	\
 }
 
-DO_VM86_ERROR_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
+DO_VM86_TRAP_INFO(0, SIGFPE, "divide error", divide_error, FPE_INTDIV, regs->ip)
 #ifndef CONFIG_KPROBES
-DO_VM86_ERROR(3, SIGTRAP, "int3", int3)
+DO_VM86_TRAP(3, SIGTRAP, "int3", int3)
 #endif
-DO_VM86_ERROR(4, SIGSEGV, "overflow", overflow)
-DO_VM86_ERROR(5, SIGSEGV, "bounds", bounds)
-DO_ERROR_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
-DO_ERROR(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
-DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
-DO_ERROR(11, SIGBUS, "segment not present", segment_not_present)
-DO_ERROR(12, SIGBUS, "stack segment", stack_segment)
-DO_ERROR_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
-DO_ERROR_INFO(32, SIGILL, "iret exception", iret_error, ILL_BADSTK, 0, 1)
+DO_VM86_TRAP(4, SIGSEGV, "overflow", overflow)
+DO_VM86_TRAP(5, SIGSEGV, "bounds", bounds)
+DO_TRAP_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
+DO_TRAP(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
+DO_TRAP(10, SIGSEGV, "invalid TSS", invalid_TSS)
+DO_TRAP(11, SIGBUS, "segment not present", segment_not_present)
+DO_TRAP(12, SIGBUS, "stack segment", stack_segment)
+DO_TRAP_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
+DO_TRAP_INFO(32, SIGILL, "iret exception", iret_error, ILL_BADSTK, 0, 1)
 
 void __kprobes
 do_general_protection(struct pt_regs *regs, long error_code)
