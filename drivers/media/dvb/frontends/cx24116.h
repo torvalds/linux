@@ -33,6 +33,9 @@ struct cx24116_config
 
 	/* Need to reset device during firmware loading */
 	int (*reset_device)(struct dvb_frontend* fe);
+
+	/* Need to set MPEG parameters */
+	u8 mpg_clk_pos_pol:0x02;
 };
 
 #if defined(CONFIG_DVB_CX24116) || defined(CONFIG_DVB_CX24116_MODULE)

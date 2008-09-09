@@ -478,7 +478,10 @@ static int cx24116_load_firmware (struct dvb_frontend* fe, const struct firmware
 	cmd.args[0x01] = 0x01;
 	cmd.args[0x02] = 0x75;
 	cmd.args[0x03] = 0x00;
-	cmd.args[0x04] = 0x02;
+	if (state->config->mpg_clk_pos_pol)
+		cmd.args[0x04] = state->config->mpg_clk_pos_pol;
+	else
+		cmd.args[0x04] = 0x02;
 	cmd.args[0x05] = 0x00;
 	cmd.len= 0x06;
 	ret = cx24116_cmd_execute(fe, &cmd);

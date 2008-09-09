@@ -284,7 +284,7 @@ static int dw2102_set_voltage(struct dvb_frontend *fe, fe_sec_voltage_t voltage)
 
 static struct cx24116_config dw2104_config = {
 	.demod_address = 0x55,
-	/*.mpg_clk_pos_pol = 0x01,*/
+	.mpg_clk_pos_pol = 0x01,
 };
 
 static int dw2104_frontend_attach(struct dvb_usb_adapter *d)
