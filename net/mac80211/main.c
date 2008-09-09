@@ -399,8 +399,15 @@ static int ieee80211_open(struct net_device *dev)
 		atomic_inc(&local->iff_promiscs);
 
 	local->open_count++;
-	if (need_hw_reconfig)
+	if (need_hw_reconfig) {
 		ieee80211_hw_config(local);
+		/*
+		 * set default queue parameters so drivers don't
+		 * need to initialise the hardware if the hardware
+		 * doesn't start up with sane defaults
+		 */
+		ieee80211_set_wmm_default(sdata);
+	}
 
 	/*
 	 * ieee80211_sta_work is disabled while network interface
