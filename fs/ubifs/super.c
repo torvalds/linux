@@ -1465,12 +1465,9 @@ out:
  * commit_on_unmount - commit the journal when un-mounting.
  * @c: UBIFS file-system description object
  *
- * This function is called during un-mounting and it commits the journal unless
- * the "fast unmount" mode is enabled. It also avoids committing the journal if
- * it contains too few data.
- *
- * Sometimes recovery requires the journal to be committed at least once, and
- * this function takes care about this.
+ * This function is called during un-mounting and re-mounting, and it commits
+ * the journal unless the "fast unmount" mode is enabled. It also avoids
+ * committing the journal if it contains too few data.
  */
 static void commit_on_unmount(struct ubifs_info *c)
 {
