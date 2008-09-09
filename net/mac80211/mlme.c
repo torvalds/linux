@@ -416,17 +416,18 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 }
 
 
-static void ieee80211_send_deauth(struct ieee80211_sub_if_data *sdata,
-				  struct ieee80211_if_sta *ifsta, u16 reason)
+static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
+					   u16 stype, u16 reason)
 {
 	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt));
 	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for deauth "
-		       "frame\n", sdata->dev->name);
+		printk(KERN_DEBUG "%s: failed to allocate buffer for "
+		       "deauth/disassoc frame\n", sdata->dev->name);
 		return;
 	}
 	skb_reserve(skb, local->hw.extra_tx_headroom);
@@ -436,38 +437,10 @@ static void ieee80211_send_deauth(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->da, ifsta->bssid, ETH_ALEN);
 	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_DEAUTH);
+	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT | stype);
 	skb_put(skb, 2);
+	/* u.deauth.reason_code == u.disassoc.reason_code */
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
-
-	ieee80211_sta_tx(sdata, skb, 0);
-}
-
-static void ieee80211_send_disassoc(struct ieee80211_sub_if_data *sdata,
-				    struct ieee80211_if_sta *ifsta, u16 reason)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sk_buff *skb;
-	struct ieee80211_mgmt *mgmt;
-
-	skb = dev_alloc_skb(local->hw.extra_tx_headroom + sizeof(*mgmt));
-	if (!skb) {
-		printk(KERN_DEBUG "%s: failed to allocate buffer for disassoc "
-		       "frame\n", sdata->dev->name);
-		return;
-	}
-	skb_reserve(skb, local->hw.extra_tx_headroom);
-
-	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
-	memset(mgmt, 0, 24);
-	memcpy(mgmt->da, ifsta->bssid, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
-	memcpy(mgmt->bssid, ifsta->bssid, ETH_ALEN);
-	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
-					  IEEE80211_STYPE_DISASSOC);
-	skb_put(skb, 2);
-	mgmt->u.disassoc.reason_code = cpu_to_le16(reason);
 
 	ieee80211_sta_tx(sdata, skb, 0);
 }
@@ -919,9 +892,11 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	if (self_disconnected) {
 		if (deauth)
-			ieee80211_send_deauth(sdata, ifsta, reason);
+			ieee80211_send_deauth_disassoc(sdata,
+				IEEE80211_STYPE_DEAUTH, reason);
 		else
-			ieee80211_send_disassoc(sdata, ifsta, reason);
+			ieee80211_send_deauth_disassoc(sdata,
+				IEEE80211_STYPE_DISASSOC, reason);
 	}
 
 	ifsta->flags &= ~IEEE80211_STA_ASSOCIATED;
