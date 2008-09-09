@@ -34,7 +34,7 @@
 
 #include "xfrm_hash.h"
 
-int sysctl_xfrm_larval_drop __read_mostly;
+int sysctl_xfrm_larval_drop __read_mostly = 1;
 
 #ifdef CONFIG_XFRM_STATISTICS
 DEFINE_SNMP_STAT(struct linux_xfrm_mib, xfrm_statistics) __read_mostly;
