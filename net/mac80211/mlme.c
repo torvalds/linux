@@ -539,12 +539,37 @@ static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_da
 }
 
 /* MLME */
+static void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_tx_queue_params qparam;
+	int i;
+
+	if (!local->ops->conf_tx)
+		return;
+
+	memset(&qparam, 0, sizeof(qparam));
+
+	qparam.aifs = 2;
+
+	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
+	    !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE))
+		qparam.cw_min = 31;
+	else
+		qparam.cw_min = 15;
+
+	qparam.cw_max = 1023;
+	qparam.txop = 0;
+
+	for (i = 0; i < local_to_hw(local)->queues; i++)
+		local->ops->conf_tx(local_to_hw(local), i, &qparam);
+}
+
 static void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 					 struct ieee80211_sta_bss *bss)
 {
 	struct ieee80211_local *local = sdata->local;
 	int i, have_higher_than_11mbit = 0;
-
 
 	/* cf. IEEE 802.11 9.2.12 */
 	for (i = 0; i < bss->supp_rates_len; i++)
@@ -557,26 +582,7 @@ static void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-
-	if (local->ops->conf_tx) {
-		struct ieee80211_tx_queue_params qparam;
-
-		memset(&qparam, 0, sizeof(qparam));
-
-		qparam.aifs = 2;
-
-		if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
-		    !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE))
-			qparam.cw_min = 31;
-		else
-			qparam.cw_min = 15;
-
-		qparam.cw_max = 1023;
-		qparam.txop = 0;
-
-		for (i = 0; i < local_to_hw(local)->queues; i++)
-			local->ops->conf_tx(local_to_hw(local), i, &qparam);
-	}
+	ieee80211_set_wmm_default(sdata);
 }
 
 static void ieee80211_sta_wmm_params(struct ieee80211_local *local,
