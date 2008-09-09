@@ -84,6 +84,12 @@ static unsigned int code_bytes = 64;
 static int ignore_nmis;
 static int die_counter;
 
+static inline void conditional_sti(struct pt_regs *regs)
+{
+	if (regs->flags & X86_EFLAGS_IF)
+		local_irq_enable();
+}
+
 void printk_address(unsigned long address, int reliable)
 {
 #ifdef CONFIG_KALLSYMS
@@ -859,7 +865,7 @@ void __kprobes do_int3(struct pt_regs *regs, long error_code)
 	 * This is an interrupt gate, because kprobes wants interrupts
 	 * disabled. Normal trap handlers don't.
 	 */
-	restore_interrupts(regs);
+	conditional_sti(regs);
 
 	do_trap(3, SIGTRAP, "int3", 1, regs, error_code, NULL);
 }
