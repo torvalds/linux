@@ -344,6 +344,12 @@ int ubifs_garbage_collect_leb(struct ubifs_info *c, struct ubifs_lprops *lp)
 		if (err)
 			goto out;
 
+		/* Allow for races with TNC */
+		c->gced_lnum = lnum;
+		smp_wmb();
+		c->gc_seq += 1;
+		smp_wmb();
+
 		if (c->gc_lnum == -1) {
 			c->gc_lnum = lnum;
 			err = LEB_RETAINED;
