@@ -464,9 +464,10 @@ static unsigned int __init intc_prio_data(struct intc_desc *desc,
 			}
 
 			fn += (pr->reg_width >> 3) - 1;
-			bit = pr->reg_width - ((j + 1) * pr->field_width);
 
-			BUG_ON(bit < 0);
+			BUG_ON((j + 1) * pr->field_width > pr->reg_width);
+
+			bit = pr->reg_width - ((j + 1) * pr->field_width);
 
 			return _INTC_MK(fn, mode,
 					intc_get_reg(d, reg_e),
@@ -531,9 +532,10 @@ static unsigned int __init intc_sense_data(struct intc_desc *desc,
 
 			fn = REG_FN_MODIFY_BASE;
 			fn += (sr->reg_width >> 3) - 1;
-			bit = sr->reg_width - ((j + 1) * sr->field_width);
 
-			BUG_ON(bit < 0);
+			BUG_ON((j + 1) * sr->field_width > sr->reg_width);
+
+			bit = sr->reg_width - ((j + 1) * sr->field_width);
 
 			return _INTC_MK(fn, 0, intc_get_reg(d, sr->reg),
 					0, sr->field_width, bit);
