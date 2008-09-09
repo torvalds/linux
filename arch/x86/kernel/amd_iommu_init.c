@@ -253,6 +253,13 @@ void __init iommu_enable(struct amd_iommu *iommu)
 	iommu_feature_enable(iommu, CONTROL_IOMMU_EN);
 }
 
+/* Function to enable IOMMU event logging and event interrupts */
+void __init iommu_enable_event_logging(struct amd_iommu *iommu)
+{
+	iommu_feature_enable(iommu, CONTROL_EVT_LOG_EN);
+	iommu_feature_enable(iommu, CONTROL_EVT_INT_EN);
+}
+
 /*
  * mapping and unmapping functions for the IOMMU MMIO space. Each AMD IOMMU in
  * the system has one.
@@ -958,6 +965,7 @@ static void __init enable_iommus(void)
 	list_for_each_entry(iommu, &amd_iommu_list, list) {
 		iommu_set_exclusion_range(iommu);
 		iommu_init_msi(iommu);
+		iommu_enable_event_logging(iommu);
 		iommu_enable(iommu);
 	}
 }
