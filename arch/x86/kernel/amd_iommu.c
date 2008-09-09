@@ -1205,6 +1205,30 @@ free_mem:
 }
 
 /*
+ * This function is called by the DMA layer to find out if we can handle a
+ * particular device. It is part of the dma_ops.
+ */
+static int amd_iommu_dma_supported(struct device *dev, u64 mask)
+{
+	u16 bdf;
+	struct pci_dev *pcidev;
+
+	/* No device or no PCI device */
+	if (!dev || dev->bus != &pci_bus_type)
+		return 0;
+
+	pcidev = to_pci_dev(dev);
+
+	bdf = calc_devid(pcidev->bus->number, pcidev->devfn);
+
+	/* Out of our scope? */
+	if (bdf > amd_iommu_last_bdf)
+		return 0;
+
+	return 1;
+}
+
+/*
  * The function for pre-allocating protection domains.
  *
  * If the driver core informs the DMA layer if a driver grabs a device
@@ -1247,6 +1271,7 @@ static struct dma_mapping_ops amd_iommu_dma_ops = {
 	.unmap_single = unmap_single,
 	.map_sg = map_sg,
 	.unmap_sg = unmap_sg,
+	.dma_supported = amd_iommu_dma_supported,
 };
 
 /*
