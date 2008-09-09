@@ -188,8 +188,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 
 /* MLME */
 static void ieee80211_sta_def_wmm_params(struct ieee80211_sub_if_data *sdata,
-					 struct ieee80211_sta_bss *bss,
-					 int ibss)
+					 struct ieee80211_sta_bss *bss)
 {
 	struct ieee80211_local *local = sdata->local;
 	int i, have_higher_than_11mbit = 0;
@@ -1849,7 +1848,7 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	}
 	ifsta->supp_rates_bits[local->hw.conf.channel->band] = rates;
 
-	ieee80211_sta_def_wmm_params(sdata, bss, 1);
+	ieee80211_sta_def_wmm_params(sdata, bss);
 
 	ifsta->state = IEEE80211_STA_MLME_IBSS_JOINED;
 	mod_timer(&ifsta->timer, jiffies + IEEE80211_IBSS_MERGE_INTERVAL);
@@ -2932,7 +2931,7 @@ static int ieee80211_sta_config_auth(struct ieee80211_sub_if_data *sdata,
 			ieee80211_sta_set_ssid(sdata, selected->ssid,
 					       selected->ssid_len);
 		ieee80211_sta_set_bssid(sdata, selected->bssid);
-		ieee80211_sta_def_wmm_params(sdata, selected, 0);
+		ieee80211_sta_def_wmm_params(sdata, selected);
 
 		/* Send out direct probe if no probe resp was received or
 		 * the one we have is outdated
