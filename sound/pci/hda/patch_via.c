@@ -32,6 +32,7 @@
 /* 2007-11-14  Lydia Wang  Add VT1708A codec HP and CD pin connect config    */
 /* 2008-02-03  Lydia Wang  Fix Rear channels and Back channels inverse issue */
 /* 2008-03-06  Lydia Wang  Add VT1702 codec and VT1708S codec support        */
+/* 2008-04-09  Lydia Wang  Add mute front speaker when HP plugin             */
 /*                                                                           */
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
@@ -83,6 +84,9 @@
 #define IS_VT1708S_VENDORID(x)		((x) >= 0x11060397 && (x) <= 0x11067397)
 #define IS_VT1702_VENDORID(x)		((x) >= 0x11060398 && (x) <= 0x11067398)
 
+#define VIA_HP_EVENT		0x01
+#define VIA_GPIO_EVENT		0x02
+
 enum {
 	VIA_CTL_WIDGET_VOL,
 	VIA_CTL_WIDGET_MUTE,
@@ -106,7 +110,8 @@ struct via_spec {
 	struct snd_kcontrol_new *mixers[3];
 	unsigned int num_mixers;
 
-	struct hda_verb *init_verbs;
+	struct hda_verb *init_verbs[5];
+	unsigned int num_iverbs;
 
 	char *stream_name_analog;
 	struct hda_pcm_stream *stream_analog_playback;
@@ -605,10 +610,85 @@ static void via_free(struct hda_codec *codec)
 	kfree(codec->spec);
 }
 
+/* mute internal speaker if HP is plugged */
+static void via_hp_automute(struct hda_codec *codec)
+{
+	unsigned int present;
+	struct via_spec *spec = codec->spec;
+
+	present = snd_hda_codec_read(codec, spec->autocfg.hp_pins[0], 0,
+				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
+	snd_hda_codec_amp_stereo(codec, spec->autocfg.line_out_pins[0],
+				 HDA_OUTPUT, 0, HDA_AMP_MUTE,
+				 present ? HDA_AMP_MUTE : 0);
+}
+
+static void via_gpio_control(struct hda_codec *codec)
+{
+	unsigned int gpio_data;
+	unsigned int vol_counter;
+	unsigned int vol;
+	unsigned int master_vol;
+
+	struct via_spec *spec = codec->spec;
+
+	gpio_data = snd_hda_codec_read(codec, codec->afg, 0,
+				       AC_VERB_GET_GPIO_DATA, 0) & 0x03;
+
+	vol_counter = (snd_hda_codec_read(codec, codec->afg, 0,
+					  0xF84, 0) & 0x3F0000) >> 16;
+
+	vol = vol_counter & 0x1F;
+	master_vol = snd_hda_codec_read(codec, 0x1A, 0,
+					AC_VERB_GET_AMP_GAIN_MUTE,
+					AC_AMP_GET_INPUT);
+
+	if (gpio_data == 0x02) {
+		/* unmute line out */
+		snd_hda_codec_amp_stereo(codec, spec->autocfg.line_out_pins[0],
+					 HDA_OUTPUT, 0, HDA_AMP_MUTE, 0);
+
+		if (vol_counter & 0x20) {
+			/* decrease volume */
+			if (vol > master_vol)
+				vol = master_vol;
+			snd_hda_codec_amp_stereo(codec, 0x1A, HDA_INPUT,
+						 0, HDA_AMP_VOLMASK,
+						 master_vol-vol);
+		} else {
+			/* increase volume */
+			snd_hda_codec_amp_stereo(codec, 0x1A, HDA_INPUT, 0,
+					 HDA_AMP_VOLMASK,
+					 ((master_vol+vol) > 0x2A) ? 0x2A :
+					  (master_vol+vol));
+		}
+	} else if (!(gpio_data & 0x02)) {
+		/* mute line out */
+		snd_hda_codec_amp_stereo(codec,
+					 spec->autocfg.line_out_pins[0],
+					 HDA_OUTPUT, 0, HDA_AMP_MUTE,
+					 HDA_AMP_MUTE);
+	}
+}
+
+/* unsolicited event for jack sensing */
+static void via_unsol_event(struct hda_codec *codec,
+				  unsigned int res)
+{
+	res >>= 26;
+	if (res == VIA_HP_EVENT)
+		via_hp_automute(codec);
+	else if (res == VIA_GPIO_EVENT)
+		via_gpio_control(codec);
+}
+
 static int via_init(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	snd_hda_sequence_write(codec, spec->init_verbs);
+	int i;
+	for (i = 0; i < spec->num_iverbs; i++)
+		snd_hda_sequence_write(codec, spec->init_verbs[i]);
+
 	/* Lydia Add for EAPD enable */
 	if (!spec->dig_in_nid) { /* No Digital In connection */
 		if (IS_VT1708_VENDORID(codec->vendor_id)) {
@@ -924,7 +1004,7 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	if (spec->kctl_alloc)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
-	spec->init_verbs = vt1708_volume_init_verbs;	
+	spec->init_verbs[spec->num_iverbs++] = vt1708_volume_init_verbs;
 
 	spec->input_mux = &spec->private_imux;
 
@@ -1014,6 +1094,11 @@ static struct snd_kcontrol_new vt1709_capture_mixer[] = {
 		.put = via_mux_enum_put,
 	},
 	{ } /* end */
+};
+
+static struct hda_verb vt1709_uniwill_init_verbs[] = {
+	{0x20, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
+	{ }
 };
 
 /*
@@ -1425,7 +1510,8 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 		       "Using genenic mode...\n");
 	}
 
-	spec->init_verbs = vt1709_10ch_volume_init_verbs;	
+	spec->init_verbs[spec->num_iverbs++] = vt1709_10ch_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
 	spec->stream_name_analog = "VT1709 Analog";
 	spec->stream_analog_playback = &vt1709_10ch_pcm_analog_playback;
@@ -1446,6 +1532,7 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
+	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1709_loopbacks;
 #endif
@@ -1516,7 +1603,8 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 		       "Using genenic mode...\n");
 	}
 
-	spec->init_verbs = vt1709_6ch_volume_init_verbs;	
+	spec->init_verbs[spec->num_iverbs++] = vt1709_6ch_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1709_uniwill_init_verbs;
 
 	spec->stream_name_analog = "VT1709 Analog";
 	spec->stream_analog_playback = &vt1709_6ch_pcm_analog_playback;
@@ -1537,6 +1625,7 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
+	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1709_loopbacks;
 #endif
@@ -1633,6 +1722,11 @@ static struct hda_verb vt1708B_4ch_volume_init_verbs[] = {
 	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	/* PW10 Input enable */
 	{0x21, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x20},
+	{ }
+};
+
+static struct hda_verb vt1708B_uniwill_init_verbs[] = {
+	{0x1D, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
 	{ }
 };
 
@@ -1956,7 +2050,8 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 		       "from BIOS.  Using genenic mode...\n");
 	}
 
-	spec->init_verbs = vt1708B_8ch_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708B_8ch_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
 	spec->stream_name_analog = "VT1708B Analog";
 	spec->stream_analog_playback = &vt1708B_8ch_pcm_analog_playback;
@@ -1976,6 +2071,7 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
+	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708B_loopbacks;
 #endif
@@ -2005,7 +2101,8 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 		       "from BIOS.  Using genenic mode...\n");
 	}
 
-	spec->init_verbs = vt1708B_4ch_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708B_4ch_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708B_uniwill_init_verbs;
 
 	spec->stream_name_analog = "VT1708B Analog";
 	spec->stream_analog_playback = &vt1708B_4ch_pcm_analog_playback;
@@ -2025,6 +2122,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
+	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708B_loopbacks;
 #endif
@@ -2075,6 +2173,11 @@ static struct hda_verb vt1708S_volume_init_verbs[] = {
 	{0x1d, AC_VERB_SET_CONNECT_SEL, 0x0},
 	/* PW9 Output enable */
 	{0x20, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{ }
+};
+
+static struct hda_verb vt1708S_uniwill_init_verbs[] = {
+	{0x1D, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
 	{ }
 };
 
@@ -2387,7 +2490,8 @@ static int patch_vt1708S(struct hda_codec *codec)
 		       "from BIOS.  Using genenic mode...\n");
 	}
 
-	spec->init_verbs = vt1708S_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708S_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1708S_uniwill_init_verbs;
 
 	spec->stream_name_analog = "VT1708S Analog";
 	spec->stream_analog_playback = &vt1708S_pcm_analog_playback;
@@ -2406,7 +2510,7 @@ static int patch_vt1708S(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
-
+	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708S_loopbacks;
 #endif
@@ -2465,6 +2569,12 @@ static struct hda_verb vt1702_volume_init_verbs[] = {
 	/* PW6 PW7 Output enable */
 	{0x19, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
 	{0x1C, AC_VERB_SET_PIN_WIDGET_CONTROL, 0x40},
+	{ }
+};
+
+static struct hda_verb vt1702_uniwill_init_verbs[] = {
+	{0x01, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_GPIO_EVENT},
+	{0x17, AC_VERB_SET_UNSOLICITED_ENABLE, AC_USRSP_EN | VIA_HP_EVENT},
 	{ }
 };
 
@@ -2694,7 +2804,8 @@ static int patch_vt1702(struct hda_codec *codec)
 		       "from BIOS.  Using genenic mode...\n");
 	}
 
-	spec->init_verbs = vt1702_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1702_volume_init_verbs;
+	spec->init_verbs[spec->num_iverbs++] = vt1702_uniwill_init_verbs;
 
 	spec->stream_name_analog = "VT1702 Analog";
 	spec->stream_analog_playback = &vt1702_pcm_analog_playback;
@@ -2713,7 +2824,7 @@ static int patch_vt1702(struct hda_codec *codec)
 	codec->patch_ops = via_patch_ops;
 
 	codec->patch_ops.init = via_auto_init;
-
+	codec->patch_ops.unsol_event = via_unsol_event;
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1702_loopbacks;
 #endif
