@@ -31,6 +31,8 @@
 #include <asm/mach/map.h>
 #include <mach/common.h>
 #include <mach/board-mx31ads.h>
+#include <mach/imx-uart.h>
+#include <mach/iomux-mx3.h>
 
 /*!
  * @file mx31ads.c
@@ -84,6 +86,26 @@ static inline int mxc_init_extuart(void)
 }
 #endif
 
+#if defined(CONFIG_SERIAL_IMX) || defined(CONFIG_SERIAL_IMX_MODULE)
+static struct imxuart_platform_data uart_pdata = {
+	.flags = IMXUART_HAVE_RTSCTS,
+};
+
+static inline void mxc_init_imx_uart(void)
+{
+	mxc_iomux_mode(MX31_PIN_CTS1__CTS1);
+	mxc_iomux_mode(MX31_PIN_RTS1__RTS1);
+	mxc_iomux_mode(MX31_PIN_TXD1__TXD1);
+	mxc_iomux_mode(MX31_PIN_RXD1__RXD1);
+
+	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+}
+#else /* !SERIAL_IMX */
+static inline void mxc_init_imx_uart(void)
+{
+}
+#endif /* !SERIAL_IMX */
+
 /*!
  * This structure defines static mappings for the i.MX31ADS board.
  */
@@ -126,6 +148,7 @@ void __init mx31ads_map_io(void)
 static void __init mxc_board_init(void)
 {
 	mxc_init_extuart();
+	mxc_init_imx_uart();
 }
 
 static void __init mx31ads_timer_init(void)
