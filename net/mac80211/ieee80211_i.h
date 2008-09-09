@@ -912,8 +912,6 @@ u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band);
-void ieee80211_sta_tx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		int encrypt);
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      u8 *ssid, size_t ssid_len);
 void ieee802_11_parse_elems(u8 *start, size_t len,
@@ -1000,6 +998,8 @@ int ieee80211_frame_duration(struct ieee80211_local *local, size_t len,
 void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int keyidx,
 				     struct ieee80211_hdr *hdr);
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata);
+void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		      int encrypt);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline

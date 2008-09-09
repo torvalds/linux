@@ -421,7 +421,7 @@ static void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	memcpy(nullfunc->addr2, sdata->dev->dev_addr, ETH_ALEN);
 	memcpy(nullfunc->addr3, sdata->u.sta.bssid, ETH_ALEN);
 
-	ieee80211_sta_tx(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)

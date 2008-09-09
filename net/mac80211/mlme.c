@@ -96,20 +96,6 @@ static int ieee80211_compatible_rates(struct ieee80211_sta_bss *bss,
 }
 
 /* frame sending functions */
-void ieee80211_sta_tx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		      int encrypt)
-{
-	skb->dev = sdata->local->mdev;
-	skb_set_mac_header(skb, 0);
-	skb_set_network_header(skb, 0);
-	skb_set_transport_header(skb, 0);
-
-	skb->iif = sdata->dev->ifindex;
-	skb->do_not_encrypt = !encrypt;
-
-	dev_queue_xmit(skb);
-}
-
 static void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 				struct ieee80211_if_sta *ifsta,
 				int transaction, u8 *extra, size_t extra_len,
@@ -144,7 +130,7 @@ static void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	if (extra)
 		memcpy(skb_put(skb, extra_len), extra, extra_len);
 
-	ieee80211_sta_tx(sdata, skb, encrypt);
+	ieee80211_tx_skb(sdata, skb, encrypt);
 }
 
 void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
@@ -204,7 +190,7 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 		*pos = rate->bitrate / 5;
 	}
 
-	ieee80211_sta_tx(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
@@ -412,7 +398,7 @@ static void ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata,
 	if (ifsta->assocreq_ies)
 		memcpy(ifsta->assocreq_ies, ies, ifsta->assocreq_ies_len);
 
-	ieee80211_sta_tx(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 
@@ -442,7 +428,7 @@ static void ieee80211_send_deauth_disassoc(struct ieee80211_sub_if_data *sdata,
 	/* u.deauth.reason_code == u.disassoc.reason_code */
 	mgmt->u.deauth.reason_code = cpu_to_le16(reason);
 
-	ieee80211_sta_tx(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 /* MLME */
@@ -1796,7 +1782,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	printk(KERN_DEBUG "%s: Sending ProbeResp to %s\n",
 	       sdata->dev->name, print_mac(mac, resp->da));
 #endif /* CONFIG_MAC80211_IBSS_DEBUG */
-	ieee80211_sta_tx(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 static void ieee80211_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,

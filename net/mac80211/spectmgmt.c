@@ -65,7 +65,7 @@ static void ieee80211_send_refuse_measurement_request(struct ieee80211_sub_if_da
 			IEEE80211_SPCT_MSR_RPRT_MODE_REFUSED;
 	msr_report->u.action.u.measurement.msr_elem.type = request_ie->type;
 
-	ieee80211_sta_tx(sdata, skb, 0);
+	ieee80211_tx_skb(sdata, skb, 0);
 }
 
 void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,

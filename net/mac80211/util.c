@@ -598,3 +598,17 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata)
 	for (i = 0; i < local_to_hw(local)->queues; i++)
 		local->ops->conf_tx(local_to_hw(local), i, &qparam);
 }
+
+void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		      int encrypt)
+{
+	skb->dev = sdata->local->mdev;
+	skb_set_mac_header(skb, 0);
+	skb_set_network_header(skb, 0);
+	skb_set_transport_header(skb, 0);
+
+	skb->iif = sdata->dev->ifindex;
+	skb->do_not_encrypt = !encrypt;
+
+	dev_queue_xmit(skb);
+}
