@@ -77,7 +77,7 @@ enum {
 };
 
 enum {
-	AUTO_SEQ_FRONT,
+	AUTO_SEQ_FRONT = 0,
 	AUTO_SEQ_SURROUND,
 	AUTO_SEQ_CENLFE,
 	AUTO_SEQ_SIDE
@@ -283,11 +283,11 @@ static int via_mux_enum_put(struct snd_kcontrol *kcontrol,
 		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
 					     0x18, &spec->cur_mux[adc_idx]);
 	else if ((IS_VT1709_10CH_VENDORID(vendor_id) ||
-		  IS_VT1709_6CH_VENDORID(vendor_id)) && adc_idx == 0)
+		  IS_VT1709_6CH_VENDORID(vendor_id)) && (adc_idx == 0))
 		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
 					     0x19, &spec->cur_mux[adc_idx]);
 	else if ((IS_VT1708B_8CH_VENDORID(vendor_id) ||
-		  IS_VT1708B_4CH_VENDORID(vendor_id)) && adc_idx == 0)
+		  IS_VT1708B_4CH_VENDORID(vendor_id)) && (adc_idx == 0))
 		return snd_hda_input_mux_put(codec, spec->input_mux, ucontrol,
 					     0x17, &spec->cur_mux[adc_idx]);
 	else
@@ -897,7 +897,7 @@ static int patch_vt1708(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -1360,7 +1360,7 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -1451,7 +1451,7 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -1890,7 +1890,7 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
@@ -1939,7 +1939,7 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kcalloc(1, sizeof(*spec), GFP_KERNEL);
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
