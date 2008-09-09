@@ -79,6 +79,7 @@ static void __init halibut_init(void)
 static void __init halibut_map_io(void)
 {
 	msm_map_common_io();
+	msm_clock_init();
 }
 
 MACHINE_START(HALIBUT, "Halibut Board (QCT SURF7200A)")
