@@ -440,9 +440,10 @@ ext4_ext_binsearch_idx(struct inode *inode,
 		for (k = 0; k < le16_to_cpu(eh->eh_entries); k++, ix++) {
 		  if (k != 0 &&
 		      le32_to_cpu(ix->ei_block) <= le32_to_cpu(ix[-1].ei_block)) {
-				printk("k=%d, ix=0x%p, first=0x%p\n", k,
-					ix, EXT_FIRST_INDEX(eh));
-				printk("%u <= %u\n",
+				printk(KERN_DEBUG "k=%d, ix=0x%p, "
+				       "first=0x%p\n", k,
+				       ix, EXT_FIRST_INDEX(eh));
+				printk(KERN_DEBUG "%u <= %u\n",
 				       le32_to_cpu(ix->ei_block),
 				       le32_to_cpu(ix[-1].ei_block));
 			}
@@ -2142,7 +2143,7 @@ void ext4_ext_init(struct super_block *sb)
 	 */
 
 	if (test_opt(sb, EXTENTS)) {
-		printk("EXT4-fs: file extents enabled");
+		printk(KERN_INFO "EXT4-fs: file extents enabled");
 #ifdef AGGRESSIVE_TEST
 		printk(", aggressive tests");
 #endif

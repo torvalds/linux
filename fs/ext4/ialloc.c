@@ -170,17 +170,18 @@ void ext4_free_inode (handle_t *handle, struct inode * inode)
 	ext4_group_t flex_group;
 
 	if (atomic_read(&inode->i_count) > 1) {
-		printk ("ext4_free_inode: inode has count=%d\n",
-					atomic_read(&inode->i_count));
+		printk(KERN_ERR "ext4_free_inode: inode has count=%d\n",
+		       atomic_read(&inode->i_count));
 		return;
 	}
 	if (inode->i_nlink) {
-		printk ("ext4_free_inode: inode has nlink=%d\n",
-			inode->i_nlink);
+		printk(KERN_ERR "ext4_free_inode: inode has nlink=%d\n",
+		       inode->i_nlink);
 		return;
 	}
 	if (!sb) {
-		printk("ext4_free_inode: inode on nonexistent device\n");
+		printk(KERN_ERR "ext4_free_inode: inode on "
+		       "nonexistent device\n");
 		return;
 	}
 	sbi = EXT4_SB(sb);
@@ -989,8 +990,9 @@ unsigned long ext4_count_free_inodes (struct super_block * sb)
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	printk("ext4_count_free_inodes: stored = %u, computed = %lu, %lu\n",
-		le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
+	printk(KERN_DEBUG "ext4_count_free_inodes: "
+	       "stored = %u, computed = %lu, %lu\n",
+	       le32_to_cpu(es->s_free_inodes_count), desc_count, bitmap_count);
 	return desc_count;
 #else
 	desc_count = 0;

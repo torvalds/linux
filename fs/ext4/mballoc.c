@@ -477,9 +477,10 @@ static void mb_cmp_bitmaps(struct ext4_buddy *e4b, void *bitmap)
 		b2 = (unsigned char *) bitmap;
 		for (i = 0; i < e4b->bd_sb->s_blocksize; i++) {
 			if (b1[i] != b2[i]) {
-				printk("corruption in group %lu at byte %u(%u):"
-				       " %x in copy != %x on disk/prealloc\n",
-					e4b->bd_group, i, i * 8, b1[i], b2[i]);
+				printk(KERN_ERR "corruption in group %lu "
+				       "at byte %u(%u): %x in copy != %x "
+				       "on disk/prealloc\n",
+				       e4b->bd_group, i, i * 8, b1[i], b2[i]);
 				BUG();
 			}
 		}
@@ -2560,7 +2561,7 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	ext4_mb_init_per_dev_proc(sb);
 	ext4_mb_history_init(sb);
 
-	printk("EXT4-fs: mballoc enabled\n");
+	printk(KERN_INFO "EXT4-fs: mballoc enabled\n");
 	return 0;
 }
 

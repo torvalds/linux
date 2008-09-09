@@ -254,12 +254,12 @@ static inline unsigned dx_node_limit (struct inode *dir)
  * Debug
  */
 #ifdef DX_DEBUG
-static void dx_show_index (char * label, struct dx_entry *entries)
+static void dx_show_index(char * label, struct dx_entry *entries)
 {
 	int i, n = dx_get_count (entries);
-	printk("%s index ", label);
+	printk(KERN_DEBUG "%s index ", label);
 	for (i = 0; i < n; i++) {
-		printk("%x->%lu ", i? dx_get_hash(entries + i) :
+		printk("%x->%lu ", i ? dx_get_hash(entries + i) :
 				0, (unsigned long)dx_get_block(entries + i));
 	}
 	printk("\n");
@@ -328,8 +328,9 @@ struct stats dx_show_entries(struct dx_hash_info *hinfo, struct inode *dir,
 		brelse (bh);
 	}
 	if (bcount)
-		printk("%snames %u, fullness %u (%u%%)\n", levels?"":"   ",
-			names, space/bcount,(space/bcount)*100/blocksize);
+		printk(KERN_DEBUG "%snames %u, fullness %u (%u%%)\n", 
+		       levels ? "" : "   ", names, space/bcount,
+		       (space/bcount)*100/blocksize);
 	return (struct stats) { names, space, bcount};
 }
 #endif /* DX_DEBUG */
@@ -635,8 +636,8 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 	int ret, err;
 	__u32 hashval;
 
-	dxtrace(printk("In htree_fill_tree, start hash: %x:%x\n", start_hash,
-		       start_minor_hash));
+	dxtrace(printk(KERN_DEBUG "In htree_fill_tree, start hash: %x:%x\n", 
+		       start_hash, start_minor_hash));
 	dir = dir_file->f_path.dentry->d_inode;
 	if (!(EXT4_I(dir)->i_flags & EXT4_INDEX_FL)) {
 		hinfo.hash_version = EXT4_SB(dir->i_sb)->s_def_hash_version;
@@ -694,8 +695,8 @@ int ext4_htree_fill_tree(struct file *dir_file, __u32 start_hash,
 			break;
 	}
 	dx_release(frames);
-	dxtrace(printk("Fill tree: returned %d entries, next hash: %x\n",
-		       count, *next_hash));
+	dxtrace(printk(KERN_DEBUG "Fill tree: returned %d entries, "
+		       "next hash: %x\n", count, *next_hash));
 	return count;
 errout:
 	dx_release(frames);
@@ -882,7 +883,8 @@ static struct buffer_head * ext4_find_entry (struct dentry *dentry,
 		 */
 		if (bh || (err != ERR_BAD_DX_DIR))
 			return bh;
-		dxtrace(printk("ext4_find_entry: dx failed, falling back\n"));
+		dxtrace(printk(KERN_DEBUG "ext4_find_entry: dx failed, "
+			       "falling back\n"));
 	}
 	nblocks = dir->i_size >> EXT4_BLOCK_SIZE_BITS(sb);
 	start = EXT4_I(dir)->i_dir_start_lookup;
@@ -1025,7 +1027,7 @@ static struct buffer_head * ext4_dx_find_entry(struct dentry *dentry,
 
 	*err = -ENOENT;
 errout:
-	dxtrace(printk("%s not found\n", name));
+	dxtrace(printk(KERN_DEBUG "%s not found\n", name));
 	dx_release (frames);
 	return NULL;
 }
@@ -1377,7 +1379,7 @@ static int make_indexed_dir(handle_t *handle, struct dentry *dentry,
 	struct fake_dirent *fde;
 
 	blocksize =  dir->i_sb->s_blocksize;
-	dxtrace(printk("Creating index\n"));
+	dxtrace(printk(KERN_DEBUG "Creating index\n"));
 	retval = ext4_journal_get_write_access(handle, bh);
 	if (retval) {
 		ext4_std_error(dir->i_sb, retval);
@@ -1527,7 +1529,7 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 	}
 
 	/* Block full, should compress but for now just split */
-	dxtrace(printk("using %u of %u node entries\n",
+	dxtrace(printk(KERN_DEBUG "using %u of %u node entries\n",
 		       dx_get_count(entries), dx_get_limit(entries)));
 	/* Need to split index? */
 	if (dx_get_count(entries) == dx_get_limit(entries)) {
@@ -1559,7 +1561,8 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 		if (levels) {
 			unsigned icount1 = icount/2, icount2 = icount - icount1;
 			unsigned hash2 = dx_get_hash(entries + icount1);
-			dxtrace(printk("Split index %i/%i\n", icount1, icount2));
+			dxtrace(printk(KERN_DEBUG "Split index %i/%i\n",
+				       icount1, icount2));
 
 			BUFFER_TRACE(frame->bh, "get_write_access"); /* index root */
 			err = ext4_journal_get_write_access(handle,
@@ -1588,7 +1591,8 @@ static int ext4_dx_add_entry(handle_t *handle, struct dentry *dentry,
 				goto journal_error;
 			brelse (bh2);
 		} else {
-			dxtrace(printk("Creating second level index...\n"));
+			dxtrace(printk(KERN_DEBUG
+				       "Creating second level index...\n"));
 			memcpy((char *) entries2, (char *) entries,
 			       icount * sizeof(struct dx_entry));
 			dx_set_limit(entries2, dx_node_limit(dir));

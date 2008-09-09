@@ -981,7 +981,7 @@ static ext4_fsblk_t get_sb_block(void **data)
 	/*todo: use simple_strtoll with >32bit ext4 */
 	sb_block = simple_strtoul(options, &options, 0);
 	if (*options && *options != ',') {
-		printk("EXT4-fs: Invalid sb specification: %s\n",
+		printk(KERN_ERR "EXT4-fs: Invalid sb specification: %s\n",
 		       (char *) *data);
 		return 1;
 	}
@@ -1082,7 +1082,8 @@ static int parse_options(char *options, struct super_block *sb,
 #else
 		case Opt_user_xattr:
 		case Opt_nouser_xattr:
-			printk("EXT4 (no)user_xattr options not supported\n");
+			printk(KERN_ERR "EXT4 (no)user_xattr options "
+			       "not supported\n");
 			break;
 #endif
 #ifdef CONFIG_EXT4DEV_FS_POSIX_ACL
@@ -1095,7 +1096,8 @@ static int parse_options(char *options, struct super_block *sb,
 #else
 		case Opt_acl:
 		case Opt_noacl:
-			printk("EXT4 (no)acl options not supported\n");
+			printk(KERN_ERR "EXT4 (no)acl options "
+			       "not supported\n");
 			break;
 #endif
 		case Opt_reservation:
@@ -1189,8 +1191,8 @@ set_qf_name:
 			     sb_any_quota_suspended(sb)) &&
 			    !sbi->s_qf_names[qtype]) {
 				printk(KERN_ERR
-					"EXT4-fs: Cannot change journaled "
-					"quota options when quota turned on.\n");
+				       "EXT4-fs: Cannot change journaled "
+				       "quota options when quota turned on.\n");
 				return 0;
 			}
 			qname = match_strdup(&args[0]);
@@ -1473,14 +1475,14 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			EXT4_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt);
 
-	printk(KERN_INFO "EXT4 FS on %s, ", sb->s_id);
 	if (EXT4_SB(sb)->s_journal->j_inode == NULL) {
 		char b[BDEVNAME_SIZE];
 
-		printk("external journal on %s\n",
-			bdevname(EXT4_SB(sb)->s_journal->j_dev, b));
+		printk(KERN_INFO "EXT4 FS on %s, external journal on %s\n",
+		       sb->s_id, bdevname(EXT4_SB(sb)->s_journal->j_dev, b));
 	} else {
-		printk("internal journal\n");
+		printk(KERN_INFO "EXT4 FS on %s, internal journal\n",
+		       sb->s_id);
 	}
 	return res;
 }
@@ -2714,6 +2716,11 @@ static int ext4_load_journal(struct super_block *sb,
 		if (!(journal = ext4_get_dev_journal(sb, journal_dev)))
 			return -EINVAL;
 	}
+
+	if (journal->j_flags & JBD2_BARRIER)
+		printk(KERN_INFO "EXT4-fs: barriers enabled\n");
+	else
+		printk(KERN_INFO "EXT4-fs: barriers disabled\n");
 
 	if (!really_read_only && test_opt(sb, UPDATE_JOURNAL)) {
 		err = jbd2_journal_update_format(journal);

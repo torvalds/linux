@@ -379,26 +379,28 @@ restart:
 	bad = 0;
 	prev = NULL;
 
-	printk("Block Allocation Reservation Windows Map (%s):\n", fn);
+	printk(KERN_DEBUG "Block Allocation Reservation "
+	       "Windows Map (%s):\n", fn);
 	while (n) {
 		rsv = rb_entry(n, struct ext4_reserve_window_node, rsv_node);
 		if (verbose)
-			printk("reservation window 0x%p "
+			printk(KERN_DEBUG "reservation window 0x%p "
 			       "start:  %llu, end:  %llu\n",
 			       rsv, rsv->rsv_start, rsv->rsv_end);
 		if (rsv->rsv_start && rsv->rsv_start >= rsv->rsv_end) {
-			printk("Bad reservation %p (start >= end)\n",
+			printk(KERN_DEBUG "Bad reservation %p (start >= end)\n",
 			       rsv);
 			bad = 1;
 		}
 		if (prev && prev->rsv_end >= rsv->rsv_start) {
-			printk("Bad reservation %p (prev->end >= start)\n",
-			       rsv);
+			printk(KERN_DEBUG "Bad reservation %p "
+			       "(prev->end >= start)\n", rsv);
 			bad = 1;
 		}
 		if (bad) {
 			if (!verbose) {
-				printk("Restarting reservation walk in verbose mode\n");
+				printk(KERN_DEBUG "Restarting reservation "
+				       "walk in verbose mode\n");
 				verbose = 1;
 				goto restart;
 			}
@@ -406,7 +408,7 @@ restart:
 		n = rb_next(n);
 		prev = rsv;
 	}
-	printk("Window map complete.\n");
+	printk(KERN_DEBUG "Window map complete.\n");
 	BUG_ON(bad);
 }
 #define rsv_window_dump(root, verbose) \
@@ -1702,7 +1704,7 @@ ext4_fsblk_t ext4_old_new_blocks(handle_t *handle, struct inode *inode,
 	sb = inode->i_sb;
 	if (!sb) {
 		*errp = -ENODEV;
-		printk("ext4_new_block: nonexistent device");
+		printk(KERN_ERR "ext4_new_block: nonexistent superblock");
 		return 0;
 	}
 
@@ -1884,8 +1886,8 @@ allocated:
 		for (i = 0; i < num; i++) {
 			if (ext4_test_bit(grp_alloc_blk+i,
 					bh2jh(bitmap_bh)->b_committed_data)) {
-				printk("%s: block was unexpectedly set in "
-					"b_committed_data\n", __func__);
+				printk(KERN_ERR "%s: block was unexpectedly "
+				       "set in b_committed_data\n", __func__);
 			}
 		}
 	}
@@ -2093,10 +2095,9 @@ ext4_fsblk_t ext4_count_free_blocks(struct super_block *sb)
 		bitmap_count += x;
 	}
 	brelse(bitmap_bh);
-	printk("ext4_count_free_blocks: stored = %llu"
-		", computed = %llu, %llu\n",
-		ext4_free_blocks_count(es),
-		desc_count, bitmap_count);
+	printk(KERN_DEBUG "ext4_count_free_blocks: stored = %llu"
+		", computed = %llu, %llu\n", ext4_free_blocks_count(es),
+	       desc_count, bitmap_count);
 	return bitmap_count;
 #else
 	desc_count = 0;
