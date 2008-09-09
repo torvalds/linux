@@ -251,7 +251,7 @@ drm_gem_flink_ioctl(struct drm_device *dev, void *data,
 
 	obj = drm_gem_object_lookup(dev, file_priv, args->handle);
 	if (obj == NULL)
-		return -EINVAL;
+		return -EBADF;
 
 again:
 	if (idr_pre_get(&dev->object_name_idr, GFP_KERNEL) == 0)
@@ -259,8 +259,9 @@ again:
 
 	spin_lock(&dev->object_name_lock);
 	if (obj->name) {
+		args->name = obj->name;
 		spin_unlock(&dev->object_name_lock);
-		return -EEXIST;
+		return 0;
 	}
 	ret = idr_get_new_above(&dev->object_name_idr, obj, 1,
 				 &obj->name);
