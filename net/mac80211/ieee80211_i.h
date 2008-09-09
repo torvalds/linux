@@ -909,22 +909,6 @@ int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);
 void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed);
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
-int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
-				   struct ieee80211_ht_info *ht_info);
-int ieee80211_ht_addt_info_ie_to_ht_bss_info(
-			struct ieee80211_ht_addt_info *ht_add_info_ie,
-			struct ieee80211_ht_bss_info *bss_info);
-void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata, const u8 *da,
-				  u16 tid, u8 dialog_token, u16 start_seq_num,
-				  u16 agg_size, u16 timeout);
-void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata, const u8 *da, u16 tid,
-				u16 initiator, u16 reason_code);
-void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
-
-void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
-				u16 tid, u16 initiator, u16 reason);
-void sta_addba_resp_timer_expired(unsigned long data);
-void ieee80211_sta_tear_down_BA_sessions(struct ieee80211_sub_if_data *sdata, u8 *addr);
 u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
 			    struct ieee802_11_elems *elems,
 			    enum ieee80211_band band);
@@ -976,6 +960,29 @@ void ieee80211_tx_pending(unsigned long data);
 int ieee80211_master_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 int ieee80211_subif_start_xmit(struct sk_buff *skb, struct net_device *dev);
+
+/* HT */
+int ieee80211_ht_cap_ie_to_ht_info(struct ieee80211_ht_cap *ht_cap_ie,
+				   struct ieee80211_ht_info *ht_info);
+int ieee80211_ht_addt_info_ie_to_ht_bss_info(
+			struct ieee80211_ht_addt_info *ht_add_info_ie,
+			struct ieee80211_ht_bss_info *bss_info);
+void ieee80211_send_bar(struct ieee80211_sub_if_data *sdata, u8 *ra, u16 tid, u16 ssn);
+
+void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *da,
+				u16 tid, u16 initiator, u16 reason);
+void ieee80211_sta_tear_down_BA_sessions(struct ieee80211_sub_if_data *sdata, u8 *addr);
+void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
+			     struct sta_info *sta,
+			     struct ieee80211_mgmt *mgmt, size_t len);
+void ieee80211_process_addba_resp(struct ieee80211_local *local,
+				  struct sta_info *sta,
+				  struct ieee80211_mgmt *mgmt,
+				  size_t len);
+void ieee80211_process_addba_request(struct ieee80211_local *local,
+				     struct sta_info *sta,
+				     struct ieee80211_mgmt *mgmt,
+				     size_t len);
 
 /* utility functions/constants */
 extern void *mac80211_wiphy_privid; /* for wiphy privid */
