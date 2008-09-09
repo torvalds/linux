@@ -1403,7 +1403,6 @@ config MIPS_MT_SMTC
 	depends on CPU_MIPS32_R2
 	#depends on CPU_MIPS64_R2		# once there is hardware ...
 	depends on SYS_SUPPORTS_MULTITHREADING
-	select GENERIC_CLOCKEVENTS_BROADCAST
 	select CPU_MIPSR2_IRQ_VI
 	select CPU_MIPSR2_IRQ_EI
 	select MIPS_MT
@@ -1451,32 +1450,17 @@ config MIPS_VPE_LOADER
 	  Includes a loader for loading an elf relocatable object
 	  onto another VPE and running it.
 
-config MIPS_MT_SMTC_INSTANT_REPLAY
-	bool "Low-latency Dispatch of Deferred SMTC IPIs"
-	depends on MIPS_MT_SMTC && !PREEMPT
-	default y
-	help
-	  SMTC pseudo-interrupts between TCs are deferred and queued
-	  if the target TC is interrupt-inhibited (IXMT). In the first
-	  SMTC prototypes, these queued IPIs were serviced on return
-	  to user mode, or on entry into the kernel idle loop. The
-	  INSTANT_REPLAY option dispatches them as part of local_irq_restore()
-	  processing, which adds runtime overhead (hence the option to turn
-	  it off), but ensures that IPIs are handled promptly even under
-	  heavy I/O interrupt load.
-
 config MIPS_MT_SMTC_IM_BACKSTOP
 	bool "Use per-TC register bits as backstop for inhibited IM bits"
 	depends on MIPS_MT_SMTC
-	default y
+	default n
 	help
 	  To support multiple TC microthreads acting as "CPUs" within
 	  a VPE, VPE-wide interrupt mask bits must be specially manipulated
 	  during interrupt handling. To support legacy drivers and interrupt
 	  controller management code, SMTC has a "backstop" to track and
 	  if necessary restore the interrupt mask. This has some performance
-	  impact on interrupt service overhead. Disable it only if you know
-	  what you are doing.
+	  impact on interrupt service overhead.
 
 config MIPS_MT_SMTC_IRQAFF
 	bool "Support IRQ affinity API"
@@ -1486,10 +1470,8 @@ config MIPS_MT_SMTC_IRQAFF
 	  Enables SMP IRQ affinity API (/proc/irq/*/smp_affinity, etc.)
 	  for SMTC Linux kernel. Requires platform support, of which
 	  an example can be found in the MIPS kernel i8259 and Malta
-	  platform code.  It is recommended that MIPS_MT_SMTC_INSTANT_REPLAY
-	  be enabled if MIPS_MT_SMTC_IRQAFF is used. Adds overhead to
-	  interrupt dispatch, and should be used only if you know what
-	  you are doing.
+	  platform code.  Adds some overhead to interrupt dispatch, and
+	  should be used only if you know what you are doing.
 
 config MIPS_VPE_LOADER_TOM
 	bool "Load VPE program into memory hidden from linux"

@@ -6,6 +6,7 @@
  */
 
 #include <asm/mips_mt.h>
+#include <asm/smtc_ipi.h>
 
 /*
  * System-wide SMTC status information
@@ -38,13 +39,14 @@ struct mm_struct;
 struct task_struct;
 
 void smtc_get_new_mmu_context(struct mm_struct *mm, unsigned long cpu);
-
+void self_ipi(struct smtc_ipi *);
 void smtc_flush_tlb_asid(unsigned long asid);
-extern int mipsmt_build_cpu_map(int startslot);
-extern void mipsmt_prepare_cpus(void);
+extern int smtc_build_cpu_map(int startslot);
+extern void smtc_prepare_cpus(int cpus);
 extern void smtc_smp_finish(void);
 extern void smtc_boot_secondary(int cpu, struct task_struct *t);
 extern void smtc_cpus_done(void);
+
 
 /*
  * Sharing the TLB between multiple VPEs means that the

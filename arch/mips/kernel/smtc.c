@@ -1,4 +1,21 @@
-/* Copyright (C) 2004 Mips Technologies, Inc */
+/*
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+ *
+ * Copyright (C) 2004 Mips Technologies, Inc
+ * Copyright (C) 2008 Kevin D. Kissell
+ */
 
 #include <linux/clockchips.h>
 #include <linux/kernel.h>
@@ -21,7 +38,6 @@
 #include <asm/time.h>
 #include <asm/addrspace.h>
 #include <asm/smtc.h>
-#include <asm/smtc_ipi.h>
 #include <asm/smtc_proc.h>
 
 /*
@@ -58,11 +74,6 @@ unsigned long irq_hwmask[NR_IRQS];
 
 asiduse smtc_live_asid[MAX_SMTC_TLBS][MAX_SMTC_ASIDS];
 
-/*
- * Clock interrupt "latch" buffers, per "CPU"
- */
-
-static atomic_t ipi_timer_latch[NR_CPUS];
 
 /*
  * Number of InterProcessor Interrupt (IPI) message buffers to allocate
@@ -282,7 +293,7 @@ static void smtc_configure_tlb(void)
  * phys_cpu_present_map and the logical/physical mappings.
  */
 
-int __init mipsmt_build_cpu_map(int start_cpu_slot)
+int __init smtc_build_cpu_map(int start_cpu_slot)
 {
 	int i, ntcs;
 
@@ -325,7 +336,12 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 	write_tc_c0_tcstatus((read_tc_c0_tcstatus()
 			& ~(TCSTATUS_TKSU | TCSTATUS_DA | TCSTATUS_IXMT))
 			| TCSTATUS_A);
-	write_tc_c0_tccontext(0);
+	/*
+	 * TCContext gets an offset from the base of the IPIQ array
+	 * to be used in low-level code to detect the presence of
+	 * an active IPI queue
+	 */
+	write_tc_c0_tccontext((sizeof(struct smtc_ipi_q) * cpu) << 16);
 	/* Bind tc to vpe */
 	write_tc_c0_tcbind(vpe);
 	/* In general, all TCs should have the same cpu_data indications */
@@ -336,10 +352,18 @@ static void smtc_tc_setup(int vpe, int tc, int cpu)
 		cpu_data[cpu].options &= ~MIPS_CPU_FPU;
 	cpu_data[cpu].vpe_id = vpe;
 	cpu_data[cpu].tc_id = tc;
+	/* Multi-core SMTC hasn't been tested, but be prepared */
+	cpu_data[cpu].core = (read_vpe_c0_ebase() >> 1) & 0xff;
 }
 
+/*
+ * Tweak to get Count registes in as close a sync as possible.
+ * Value seems good for 34K-class cores.
+ */
 
-void mipsmt_prepare_cpus(void)
+#define CP0_SKEW 8
+
+void smtc_prepare_cpus(int cpus)
 {
 	int i, vpe, tc, ntc, nvpe, tcpervpe[NR_CPUS], slop, cpu;
 	unsigned long flags;
@@ -363,13 +387,13 @@ void mipsmt_prepare_cpus(void)
 		IPIQ[i].head = IPIQ[i].tail = NULL;
 		spin_lock_init(&IPIQ[i].lock);
 		IPIQ[i].depth = 0;
-		atomic_set(&ipi_timer_latch[i], 0);
 	}
 
 	/* cpu_data index starts at zero */
 	cpu = 0;
 	cpu_data[cpu].vpe_id = 0;
 	cpu_data[cpu].tc_id = 0;
+	cpu_data[cpu].core = (read_c0_ebase() >> 1) & 0xff;
 	cpu++;
 
 	/* Report on boot-time options */
@@ -484,7 +508,8 @@ void mipsmt_prepare_cpus(void)
 			write_vpe_c0_compare(0);
 			/* Propagate Config7 */
 			write_vpe_c0_config7(read_c0_config7());
-			write_vpe_c0_count(read_c0_count());
+			write_vpe_c0_count(read_c0_count() + CP0_SKEW);
+			ehb();
 		}
 		/* enable multi-threading within VPE */
 		write_vpe_c0_vpecontrol(read_vpe_c0_vpecontrol() | VPECONTROL_TE);
@@ -585,24 +610,22 @@ void __cpuinit smtc_boot_secondary(int cpu, struct task_struct *idle)
 
 void smtc_init_secondary(void)
 {
-	/*
-	 * Start timer on secondary VPEs if necessary.
-	 * plat_timer_setup has already have been invoked by init/main
-	 * on "boot" TC.  Like per_cpu_trap_init() hack, this assumes that
-	 * SMTC init code assigns TCs consdecutively and in ascending order
-	 * to across available VPEs.
-	 */
-	if (((read_c0_tcbind() & TCBIND_CURTC) != 0) &&
-	    ((read_c0_tcbind() & TCBIND_CURVPE)
-	    != cpu_data[smp_processor_id() - 1].vpe_id)){
-		write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
-	}
-
 	local_irq_enable();
 }
 
 void smtc_smp_finish(void)
 {
+	int cpu = smp_processor_id();
+
+	/*
+	 * Lowest-numbered CPU per VPE starts a clock tick.
+	 * Like per_cpu_trap_init() hack, this assumes that
+	 * SMTC init code assigns TCs consdecutively and
+	 * in ascending order across available VPEs.
+	 */
+	if (cpu > 0 && (cpu_data[cpu].vpe_id != cpu_data[cpu - 1].vpe_id))
+		write_c0_compare(read_c0_count() + mips_hpt_frequency/HZ);
+
 	printk("TC %d going on-line as CPU %d\n",
 		cpu_data[smp_processor_id()].tc_id, smp_processor_id());
 }
@@ -755,6 +778,8 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 	struct smtc_ipi *pipi;
 	unsigned long flags;
 	int mtflags;
+	unsigned long tcrestart;
+	extern void r4k_wait_irqoff(void), __pastwait(void);
 
 	if (cpu == smp_processor_id()) {
 		printk("Cannot Send IPI to self!\n");
@@ -771,8 +796,6 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 	pipi->arg = (void *)action;
 	pipi->dest = cpu;
 	if (cpu_data[cpu].vpe_id != cpu_data[smp_processor_id()].vpe_id) {
-		if (type == SMTC_CLOCK_TICK)
-			atomic_inc(&ipi_timer_latch[cpu]);
 		/* If not on same VPE, enqueue and send cross-VPE interrupt */
 		smtc_ipi_nq(&IPIQ[cpu], pipi);
 		LOCK_CORE_PRA();
@@ -800,22 +823,29 @@ void smtc_send_ipi(int cpu, int type, unsigned int action)
 
 		if ((tcstatus & TCSTATUS_IXMT) != 0) {
 			/*
-			 * Spin-waiting here can deadlock,
-			 * so we queue the message for the target TC.
+			 * If we're in the the irq-off version of the wait
+			 * loop, we need to force exit from the wait and
+			 * do a direct post of the IPI.
+			 */
+			if (cpu_wait == r4k_wait_irqoff) {
+				tcrestart = read_tc_c0_tcrestart();
+				if (tcrestart >= (unsigned long)r4k_wait_irqoff
+				    && tcrestart < (unsigned long)__pastwait) {
+					write_tc_c0_tcrestart(__pastwait);
+					tcstatus &= ~TCSTATUS_IXMT;
+					write_tc_c0_tcstatus(tcstatus);
+					goto postdirect;
+				}
+			}
+			/*
+			 * Otherwise we queue the message for the target TC
+			 * to pick up when he does a local_irq_restore()
 			 */
 			write_tc_c0_tchalt(0);
 			UNLOCK_CORE_PRA();
-			/* Try to reduce redundant timer interrupt messages */
-			if (type == SMTC_CLOCK_TICK) {
-			    if (atomic_postincrement(&ipi_timer_latch[cpu])!=0){
-				smtc_ipi_nq(&freeIPIq, pipi);
-				return;
-			    }
-			}
 			smtc_ipi_nq(&IPIQ[cpu], pipi);
 		} else {
-			if (type == SMTC_CLOCK_TICK)
-				atomic_inc(&ipi_timer_latch[cpu]);
+postdirect:
 			post_direct_ipi(cpu, pipi);
 			write_tc_c0_tchalt(0);
 			UNLOCK_CORE_PRA();
@@ -883,7 +913,7 @@ static void ipi_call_interrupt(void)
 	smp_call_function_interrupt();
 }
 
-DECLARE_PER_CPU(struct clock_event_device, smtc_dummy_clockevent_device);
+DECLARE_PER_CPU(struct clock_event_device, mips_clockevent_device);
 
 void ipi_decode(struct smtc_ipi *pipi)
 {
@@ -891,20 +921,13 @@ void ipi_decode(struct smtc_ipi *pipi)
 	struct clock_event_device *cd;
 	void *arg_copy = pipi->arg;
 	int type_copy = pipi->type;
-	int ticks;
-
 	smtc_ipi_nq(&freeIPIq, pipi);
 	switch (type_copy) {
 	case SMTC_CLOCK_TICK:
 		irq_enter();
 		kstat_this_cpu.irqs[MIPS_CPU_IRQ_BASE + 1]++;
-		cd = &per_cpu(smtc_dummy_clockevent_device, cpu);
-		ticks = atomic_read(&ipi_timer_latch[cpu]);
-		atomic_sub(ticks, &ipi_timer_latch[cpu]);
-		while (ticks) {
-			cd->event_handler(cd);
-			ticks--;
-		}
+		cd = &per_cpu(mips_clockevent_device, cpu);
+		cd->event_handler(cd);
 		irq_exit();
 		break;
 
@@ -937,24 +960,48 @@ void ipi_decode(struct smtc_ipi *pipi)
 	}
 }
 
+/*
+ * Similar to smtc_ipi_replay(), but invoked from context restore,
+ * so it reuses the current exception frame rather than set up a
+ * new one with self_ipi.
+ */
+
 void deferred_smtc_ipi(void)
 {
-	struct smtc_ipi *pipi;
-	unsigned long flags;
-/* DEBUG */
-	int q = smp_processor_id();
+	int cpu = smp_processor_id();
 
 	/*
 	 * Test is not atomic, but much faster than a dequeue,
 	 * and the vast majority of invocations will have a null queue.
+	 * If irq_disabled when this was called, then any IPIs queued
+	 * after we test last will be taken on the next irq_enable/restore.
+	 * If interrupts were enabled, then any IPIs added after the
+	 * last test will be taken directly.
 	 */
-	if (IPIQ[q].head != NULL) {
-		while((pipi = smtc_ipi_dq(&IPIQ[q])) != NULL) {
-			/* ipi_decode() should be called with interrupts off */
-			local_irq_save(flags);
+
+	while (IPIQ[cpu].head != NULL) {
+		struct smtc_ipi_q *q = &IPIQ[cpu];
+		struct smtc_ipi *pipi;
+		unsigned long flags;
+
+		/*
+		 * It may be possible we'll come in with interrupts
+		 * already enabled.
+		 */
+		local_irq_save(flags);
+
+		spin_lock(&q->lock);
+		pipi = __smtc_ipi_dq(q);
+		spin_unlock(&q->lock);
+		if (pipi != NULL)
 			ipi_decode(pipi);
-			local_irq_restore(flags);
-		}
+		/*
+		 * The use of the __raw_local restore isn't
+		 * as obviously necessary here as in smtc_ipi_replay(),
+		 * but it's more efficient, given that we're already
+		 * running down the IPI queue.
+		 */
+		__raw_local_irq_restore(flags);
 	}
 }
 
@@ -1066,53 +1113,51 @@ static void setup_cross_vpe_interrupts(unsigned int nvpe)
 
 /*
  * SMTC-specific hacks invoked from elsewhere in the kernel.
- *
- * smtc_ipi_replay is called from raw_local_irq_restore which is only ever
- * called with interrupts disabled.  We do rely on interrupts being disabled
- * here because using spin_lock_irqsave()/spin_unlock_irqrestore() would
- * result in a recursive call to raw_local_irq_restore().
  */
 
-static void __smtc_ipi_replay(void)
+ /*
+  * smtc_ipi_replay is called from raw_local_irq_restore
+  */
+
+void smtc_ipi_replay(void)
 {
 	unsigned int cpu = smp_processor_id();
 
 	/*
 	 * To the extent that we've ever turned interrupts off,
 	 * we may have accumulated deferred IPIs.  This is subtle.
-	 * If we use the smtc_ipi_qdepth() macro, we'll get an
-	 * exact number - but we'll also disable interrupts
-	 * and create a window of failure where a new IPI gets
-	 * queued after we test the depth but before we re-enable
-	 * interrupts. So long as IXMT never gets set, however,
 	 * we should be OK:  If we pick up something and dispatch
 	 * it here, that's great. If we see nothing, but concurrent
 	 * with this operation, another TC sends us an IPI, IXMT
 	 * is clear, and we'll handle it as a real pseudo-interrupt
-	 * and not a pseudo-pseudo interrupt.
+	 * and not a pseudo-pseudo interrupt.  The important thing
+	 * is to do the last check for queued message *after* the
+	 * re-enabling of interrupts.
 	 */
-	if (IPIQ[cpu].depth > 0) {
-		while (1) {
-			struct smtc_ipi_q *q = &IPIQ[cpu];
-			struct smtc_ipi *pipi;
-			extern void self_ipi(struct smtc_ipi *);
+	while (IPIQ[cpu].head != NULL) {
+		struct smtc_ipi_q *q = &IPIQ[cpu];
+		struct smtc_ipi *pipi;
+		unsigned long flags;
 
-			spin_lock(&q->lock);
-			pipi = __smtc_ipi_dq(q);
-			spin_unlock(&q->lock);
-			if (!pipi)
-				break;
+		/*
+		 * It's just possible we'll come in with interrupts
+		 * already enabled.
+		 */
+		local_irq_save(flags);
 
+		spin_lock(&q->lock);
+		pipi = __smtc_ipi_dq(q);
+		spin_unlock(&q->lock);
+		/*
+		 ** But use a raw restore here to avoid recursion.
+		 */
+		__raw_local_irq_restore(flags);
+
+		if (pipi) {
 			self_ipi(pipi);
 			smtc_cpu_stats[cpu].selfipis++;
 		}
 	}
-}
-
-void smtc_ipi_replay(void)
-{
-	raw_local_irq_disable();
-	__smtc_ipi_replay();
 }
 
 EXPORT_SYMBOL(smtc_ipi_replay);
@@ -1193,40 +1238,13 @@ void smtc_idle_loop_hook(void)
 		}
 	}
 
-	/*
-	 * Now that we limit outstanding timer IPIs, check for hung TC
-	 */
-	for (tc = 0; tc < NR_CPUS; tc++) {
-		/* Don't check ourself - we'll dequeue IPIs just below */
-		if ((tc != smp_processor_id()) &&
-		    atomic_read(&ipi_timer_latch[tc]) > timerq_limit) {
-		    if (clock_hang_reported[tc] == 0) {
-			pdb_msg += sprintf(pdb_msg,
-				"TC %d looks hung with timer latch at %d\n",
-				tc, atomic_read(&ipi_timer_latch[tc]));
-			clock_hang_reported[tc]++;
-			}
-		}
-	}
 	emt(mtflags);
 	local_irq_restore(flags);
 	if (pdb_msg != &id_ho_db_msg[0])
 		printk("CPU%d: %s", smp_processor_id(), id_ho_db_msg);
 #endif /* CONFIG_SMTC_IDLE_HOOK_DEBUG */
 
-	/*
-	 * Replay any accumulated deferred IPIs. If "Instant Replay"
-	 * is in use, there should never be any.
-	 */
-#ifndef CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY
-	{
-		unsigned long flags;
-
-		local_irq_save(flags);
-		__smtc_ipi_replay();
-		local_irq_restore(flags);
-	}
-#endif /* CONFIG_MIPS_MT_SMTC_INSTANT_REPLAY */
+	smtc_ipi_replay();
 }
 
 void smtc_soft_dump(void)
@@ -1242,10 +1260,6 @@ void smtc_soft_dump(void)
 		printk("%d: %ld\n", i, smtc_cpu_stats[i].selfipis);
 	}
 	smtc_ipi_qdump();
-	printk("Timer IPI Backlogs:\n");
-	for (i=0; i < NR_CPUS; i++) {
-		printk("%d: %d\n", i, atomic_read(&ipi_timer_latch[i]));
-	}
 	printk("%d Recoveries of \"stolen\" FPU\n",
 	       atomic_read(&smtc_fpu_recoveries));
 }
