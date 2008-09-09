@@ -638,7 +638,7 @@ DO_VM86_ERROR(4, SIGSEGV, "overflow", overflow)
 DO_VM86_ERROR(5, SIGSEGV, "bounds", bounds)
 DO_ERROR_INFO(6, SIGILL, "invalid opcode", invalid_op, ILL_ILLOPN, regs->ip, 0)
 DO_ERROR(9, SIGFPE, "coprocessor segment overrun", coprocessor_segment_overrun)
-DO_TRAP(10, SIGSEGV, "invalid TSS", invalid_TSS)
+DO_ERROR(10, SIGSEGV, "invalid TSS", invalid_TSS)
 DO_TRAP(11, SIGBUS, "segment not present", segment_not_present)
 DO_TRAP(12, SIGBUS, "stack segment", stack_segment)
 DO_TRAP_INFO(17, SIGBUS, "alignment check", alignment_check, BUS_ADRALN, 0, 0)
@@ -1270,7 +1270,7 @@ void __init trap_init(void)
 	set_intr_gate(7, &device_not_available);
 	set_task_gate(8, GDT_ENTRY_DOUBLEFAULT_TSS);
 	set_intr_gate(9, &coprocessor_segment_overrun);
-	set_trap_gate(10, &invalid_TSS);
+	set_intr_gate(10, &invalid_TSS);
 	set_trap_gate(11, &segment_not_present);
 	set_trap_gate(12, &stack_segment);
 	set_trap_gate(13, &general_protection);
