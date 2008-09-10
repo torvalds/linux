@@ -423,6 +423,7 @@ static void xfrm_state_gc_task(struct work_struct *data)
 	list_for_each_entry_safe(x, tmp, &xfrm_state_gc_leftovers, gclist) {
 		if ((long)(x->lastused - completed) > 0)
 			break;
+		list_del(&x->gclist);
 		xfrm_state_gc_destroy(x);
 	}
 
