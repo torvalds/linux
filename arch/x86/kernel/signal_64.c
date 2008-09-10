@@ -94,7 +94,8 @@ restore_sigcontext(struct pt_regs *regs, struct sigcontext __user *sc,
 	}
 
 	{
-		struct _fpstate __user *buf;
+		void __user *buf;
+
 		err |= __get_user(buf, &sc->fpstate);
 		err |= restore_i387_xstate(buf);
 	}
