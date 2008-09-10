@@ -480,124 +480,103 @@ int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
-				    struct cmd_ds_command *cmd,
-				    int cmd_action,
-				    int cmd_oid, void *pdata_buf)
+/**
+ *  @brief Set an SNMP MIB value
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param oid  	The OID to set in the firmware
+ *  @param val  	Value to set the OID to
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val)
 {
-	struct cmd_ds_802_11_snmp_mib *pSNMPMIB = &cmd->params.smib;
-	u8 ucTemp;
+	struct cmd_ds_802_11_snmp_mib cmd;
+	int ret;
 
 	lbs_deb_enter(LBS_DEB_CMD);
 
-	lbs_deb_cmd("SNMP_CMD: cmd_oid = 0x%x\n", cmd_oid);
+	memset(&cmd, 0, sizeof (cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.oid = cpu_to_le16((u16) oid);
 
-	cmd->command = cpu_to_le16(CMD_802_11_SNMP_MIB);
-	cmd->size = cpu_to_le16(sizeof(*pSNMPMIB) + S_DS_GEN);
-
-	switch (cmd_oid) {
-	case OID_802_11_INFRASTRUCTURE_MODE:
-	{
-		u8 mode = (u8) (size_t) pdata_buf;
-		pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-		pSNMPMIB->oid = cpu_to_le16((u16) DESIRED_BSSTYPE_I);
-		pSNMPMIB->bufsize = cpu_to_le16(sizeof(u8));
-		if (mode == IW_MODE_ADHOC) {
-			ucTemp = SNMP_MIB_VALUE_ADHOC;
-		} else {
-			/* Infra and Auto modes */
-			ucTemp = SNMP_MIB_VALUE_INFRA;
-		}
-
-		memmove(pSNMPMIB->value, &ucTemp, sizeof(u8));
-
+	switch (oid) {
+	case SNMP_MIB_OID_BSS_TYPE:
+		cmd.bufsize = cpu_to_le16(sizeof(u8));
+		cmd.value[0] = (val == IW_MODE_ADHOC) ? 2 : 1;
 		break;
-	}
-
-	case OID_802_11D_ENABLE:
-		{
-			u32 ulTemp;
-
-			pSNMPMIB->oid = cpu_to_le16((u16) DOT11D_I);
-
-			if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-				ulTemp = *(u32 *)pdata_buf;
-				*((__le16 *)(pSNMPMIB->value)) =
-				    cpu_to_le16((u16) ulTemp);
-			}
-			break;
-		}
-
-	case OID_802_11_FRAGMENTATION_THRESHOLD:
-		{
-			u32 ulTemp;
-
-			pSNMPMIB->oid = cpu_to_le16((u16) FRAGTHRESH_I);
-
-			if (cmd_action == CMD_ACT_GET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
-			} else if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-				ulTemp = *((u32 *) pdata_buf);
-				*((__le16 *)(pSNMPMIB->value)) =
-				    cpu_to_le16((u16) ulTemp);
-
-			}
-
-			break;
-		}
-
-	case OID_802_11_RTS_THRESHOLD:
-		{
-
-			u32 ulTemp;
-			pSNMPMIB->oid = cpu_to_le16(RTSTHRESH_I);
-
-			if (cmd_action == CMD_ACT_GET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
-			} else if (cmd_action == CMD_ACT_SET) {
-				pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-				pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-				ulTemp = *((u32 *)pdata_buf);
-				*(__le16 *)(pSNMPMIB->value) =
-				    cpu_to_le16((u16) ulTemp);
-
-			}
-			break;
-		}
-	case OID_802_11_TX_RETRYCOUNT:
-		pSNMPMIB->oid = cpu_to_le16((u16) SHORT_RETRYLIM_I);
-
-		if (cmd_action == CMD_ACT_GET) {
-			pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_GET);
-		} else if (cmd_action == CMD_ACT_SET) {
-			pSNMPMIB->querytype = cpu_to_le16(CMD_ACT_SET);
-			pSNMPMIB->bufsize = cpu_to_le16(sizeof(u16));
-			*((__le16 *)(pSNMPMIB->value)) =
-			    cpu_to_le16((u16) priv->txretrycount);
-		}
-
+	case SNMP_MIB_OID_11D_ENABLE:
+	case SNMP_MIB_OID_FRAG_THRESHOLD:
+	case SNMP_MIB_OID_RTS_THRESHOLD:
+	case SNMP_MIB_OID_SHORT_RETRY_LIMIT:
+	case SNMP_MIB_OID_LONG_RETRY_LIMIT:
+		cmd.bufsize = cpu_to_le16(sizeof(u16));
+		*((__le16 *)(&cmd.value)) = cpu_to_le16(val);
 		break;
 	default:
+		lbs_deb_cmd("SNMP_CMD: (set) unhandled OID 0x%x\n", oid);
+		ret = -EINVAL;
+		goto out;
+	}
+
+	lbs_deb_cmd("SNMP_CMD: (set) oid 0x%x, oid size 0x%x, value 0x%x\n",
+		    le16_to_cpu(cmd.oid), le16_to_cpu(cmd.bufsize), val);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SNMP_MIB, &cmd);
+
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
+}
+
+/**
+ *  @brief Get an SNMP MIB value
+ *
+ *  @param priv    	A pointer to struct lbs_private structure
+ *  @param oid  	The OID to retrieve from the firmware
+ *  @param out_val  	Location for the returned value
+ *
+ *  @return 	   	0 on success, error on failure
+ */
+int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val)
+{
+	struct cmd_ds_802_11_snmp_mib cmd;
+	int ret;
+
+	lbs_deb_enter(LBS_DEB_CMD);
+
+	memset(&cmd, 0, sizeof (cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_GET);
+	cmd.oid = cpu_to_le16(oid);
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_SNMP_MIB, &cmd);
+	if (ret)
+		goto out;
+
+	switch (le16_to_cpu(cmd.bufsize)) {
+	case sizeof(u8):
+		if (oid == SNMP_MIB_OID_BSS_TYPE) {
+			if (cmd.value[0] == 2)
+				*out_val = IW_MODE_ADHOC;
+			else
+				*out_val = IW_MODE_INFRA;
+		} else
+			*out_val = cmd.value[0];
+		break;
+	case sizeof(u16):
+		*out_val = le16_to_cpu(*((__le16 *)(&cmd.value)));
+		break;
+	default:
+		lbs_deb_cmd("SNMP_CMD: (get) unhandled OID 0x%x size %d\n",
+		            oid, le16_to_cpu(cmd.bufsize));
 		break;
 	}
 
-	lbs_deb_cmd(
-	       "SNMP_CMD: command=0x%x, size=0x%x, seqnum=0x%x, result=0x%x\n",
-	       le16_to_cpu(cmd->command), le16_to_cpu(cmd->size),
-	       le16_to_cpu(cmd->seqnum), le16_to_cpu(cmd->result));
-
-	lbs_deb_cmd(
-	       "SNMP_CMD: action 0x%x, oid 0x%x, oidsize 0x%x, value 0x%x\n",
-	       le16_to_cpu(pSNMPMIB->querytype), le16_to_cpu(pSNMPMIB->oid),
-	       le16_to_cpu(pSNMPMIB->bufsize),
-	       le16_to_cpu(*(__le16 *) pSNMPMIB->value));
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
+out:
+	lbs_deb_leave_args(LBS_DEB_CMD, "ret %d", ret);
+	return ret;
 }
 
 /**
@@ -1407,11 +1386,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 
 	case CMD_802_11_AUTHENTICATE:
 		ret = lbs_cmd_80211_authenticate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_SNMP_MIB:
-		ret = lbs_cmd_802_11_snmp_mib(priv, cmdptr,
-					       cmd_action, cmd_oid, pdata_buf);
 		break;
 
 	case CMD_MAC_REG_ACCESS:

@@ -823,11 +823,7 @@ static int assoc_helper_mode(struct lbs_private *priv,
 	}
 
 	priv->mode = assoc_req->mode;
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_SNMP_MIB,
-				    0, CMD_OPTION_WAITFORRSP,
-				    OID_802_11_INFRASTRUCTURE_MODE,
-		/* Shoot me now */  (void *) (size_t) assoc_req->mode);
+	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_BSS_TYPE, assoc_req->mode);
 
 done:
 	lbs_deb_leave_args(LBS_DEB_ASSOC, "ret %d", ret);

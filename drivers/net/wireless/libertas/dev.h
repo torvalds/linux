@@ -240,9 +240,6 @@ struct lbs_private {
 	uint16_t enablehwauto;
 	uint16_t ratebitmap;
 
-	u32 fragthsd;
-	u32 rtsthsd;
-
 	u8 txretrycount;
 
 	/** Tx-related variables (for single packet tx) */
