@@ -480,4 +480,22 @@ static inline void print_irqtrace_events(struct task_struct *curr)
 # define lock_map_release(l)			do { } while (0)
 #endif
 
+#ifdef CONFIG_PROVE_LOCKING
+# define might_lock(lock) 						\
+do {									\
+	typecheck(struct lockdep_map *, &(lock)->dep_map);		\
+	lock_acquire(&(lock)->dep_map, 0, 0, 0, 2, NULL, _THIS_IP_);	\
+	lock_release(&(lock)->dep_map, 0, _THIS_IP_);			\
+} while (0)
+# define might_lock_read(lock) 						\
+do {									\
+	typecheck(struct lockdep_map *, &(lock)->dep_map);		\
+	lock_acquire(&(lock)->dep_map, 0, 0, 1, 2, NULL, _THIS_IP_);	\
+	lock_release(&(lock)->dep_map, 0, _THIS_IP_);			\
+} while (0)
+#else
+# define might_lock(lock) do { } while (0)
+# define might_lock_read(lock) do { } while (0)
+#endif
+
 #endif /* __LINUX_LOCKDEP_H */
