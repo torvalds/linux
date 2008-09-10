@@ -248,7 +248,7 @@ tape_std_mtsetblk(struct tape_device *device, int count)
 
 	/* Allocate a new idal buffer. */
 	new = idal_buffer_alloc(count, 0);
-	if (new == NULL)
+	if (IS_ERR(new))
 		return -ENOMEM;
 	if (device->char_data.idal_buf != NULL)
 		idal_buffer_free(device->char_data.idal_buf);

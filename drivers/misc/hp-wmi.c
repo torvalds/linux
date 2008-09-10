@@ -49,6 +49,7 @@ MODULE_ALIAS("wmi:5FB7F034-2C63-45e9-BE91-3D44E2C707E4");
 #define HPWMI_ALS_QUERY 0x3
 #define HPWMI_DOCK_QUERY 0x4
 #define HPWMI_WIRELESS_QUERY 0x5
+#define HPWMI_HOTKEY_QUERY 0xc
 
 static int __init hp_wmi_bios_setup(struct platform_device *device);
 static int __exit hp_wmi_bios_remove(struct platform_device *device);
@@ -69,7 +70,7 @@ struct bios_return {
 
 struct key_entry {
 	char type;		/* See KE_* below */
-	u8 code;
+	u16 code;
 	u16 keycode;
 };
 
@@ -79,7 +80,9 @@ static struct key_entry hp_wmi_keymap[] = {
 	{KE_SW, 0x01, SW_DOCK},
 	{KE_KEY, 0x02, KEY_BRIGHTNESSUP},
 	{KE_KEY, 0x03, KEY_BRIGHTNESSDOWN},
-	{KE_KEY, 0x04, KEY_HELP},
+	{KE_KEY, 0x20e6, KEY_PROG1},
+	{KE_KEY, 0x2142, KEY_MEDIA},
+	{KE_KEY, 0x231b, KEY_HELP},
 	{KE_END, 0}
 };
 
@@ -177,9 +180,9 @@ static int hp_wmi_wifi_state(void)
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	if (wireless & 0x100)
-		return 1;
+		return RFKILL_STATE_UNBLOCKED;
 	else
-		return 0;
+		return RFKILL_STATE_SOFT_BLOCKED;
 }
 
 static int hp_wmi_bluetooth_state(void)
@@ -187,9 +190,9 @@ static int hp_wmi_bluetooth_state(void)
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	if (wireless & 0x10000)
-		return 1;
+		return RFKILL_STATE_UNBLOCKED;
 	else
-		return 0;
+		return RFKILL_STATE_SOFT_BLOCKED;
 }
 
 static int hp_wmi_wwan_state(void)
@@ -197,9 +200,9 @@ static int hp_wmi_wwan_state(void)
 	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	if (wireless & 0x1000000)
-		return 1;
+		return RFKILL_STATE_UNBLOCKED;
 	else
-		return 0;
+		return RFKILL_STATE_SOFT_BLOCKED;
 }
 
 static ssize_t show_display(struct device *dev, struct device_attribute *attr,
@@ -318,6 +321,9 @@ void hp_wmi_notify(u32 value, void *context)
 
 	if (obj && obj->type == ACPI_TYPE_BUFFER && obj->buffer.length == 8) {
 		int eventcode = *((u8 *) obj->buffer.pointer);
+		if (eventcode == 0x4)
+			eventcode = hp_wmi_perform_query(HPWMI_HOTKEY_QUERY, 0,
+							 0);
 		key = hp_wmi_get_entry_by_scancode(eventcode);
 		if (key) {
 			switch (key->type) {
@@ -338,12 +344,14 @@ void hp_wmi_notify(u32 value, void *context)
 			}
 		} else if (eventcode == 0x5) {
 			if (wifi_rfkill)
-				wifi_rfkill->state = hp_wmi_wifi_state();
+				rfkill_force_state(wifi_rfkill,
+						   hp_wmi_wifi_state());
 			if (bluetooth_rfkill)
-				bluetooth_rfkill->state =
-				    hp_wmi_bluetooth_state();
+				rfkill_force_state(bluetooth_rfkill,
+						   hp_wmi_bluetooth_state());
 			if (wwan_rfkill)
-				wwan_rfkill->state = hp_wmi_wwan_state();
+				rfkill_force_state(wwan_rfkill,
+						   hp_wmi_wwan_state());
 		} else
 			printk(KERN_INFO "HP WMI: Unknown key pressed - %x\n",
 			       eventcode);
@@ -398,6 +406,7 @@ static void cleanup_sysfs(struct platform_device *device)
 static int __init hp_wmi_bios_setup(struct platform_device *device)
 {
 	int err;
+	int wireless = hp_wmi_perform_query(HPWMI_WIRELESS_QUERY, 0, 0);
 
 	err = device_create_file(&device->dev, &dev_attr_display);
 	if (err)
@@ -412,28 +421,33 @@ static int __init hp_wmi_bios_setup(struct platform_device *device)
 	if (err)
 		goto add_sysfs_error;
 
-	wifi_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WLAN);
-	wifi_rfkill->name = "hp-wifi";
-	wifi_rfkill->state = hp_wmi_wifi_state();
-	wifi_rfkill->toggle_radio = hp_wmi_wifi_set;
-	wifi_rfkill->user_claim_unsupported = 1;
+	if (wireless & 0x1) {
+		wifi_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WLAN);
+		wifi_rfkill->name = "hp-wifi";
+		wifi_rfkill->state = hp_wmi_wifi_state();
+		wifi_rfkill->toggle_radio = hp_wmi_wifi_set;
+		wifi_rfkill->user_claim_unsupported = 1;
+		rfkill_register(wifi_rfkill);
+	}
 
-	bluetooth_rfkill = rfkill_allocate(&device->dev,
-					   RFKILL_TYPE_BLUETOOTH);
-	bluetooth_rfkill->name = "hp-bluetooth";
-	bluetooth_rfkill->state = hp_wmi_bluetooth_state();
-	bluetooth_rfkill->toggle_radio = hp_wmi_bluetooth_set;
-	bluetooth_rfkill->user_claim_unsupported = 1;
+	if (wireless & 0x2) {
+		bluetooth_rfkill = rfkill_allocate(&device->dev,
+						   RFKILL_TYPE_BLUETOOTH);
+		bluetooth_rfkill->name = "hp-bluetooth";
+		bluetooth_rfkill->state = hp_wmi_bluetooth_state();
+		bluetooth_rfkill->toggle_radio = hp_wmi_bluetooth_set;
+		bluetooth_rfkill->user_claim_unsupported = 1;
+		rfkill_register(bluetooth_rfkill);
+	}
 
-	wwan_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WIMAX);
-	wwan_rfkill->name = "hp-wwan";
-	wwan_rfkill->state = hp_wmi_wwan_state();
-	wwan_rfkill->toggle_radio = hp_wmi_wwan_set;
-	wwan_rfkill->user_claim_unsupported = 1;
-
-	rfkill_register(wifi_rfkill);
-	rfkill_register(bluetooth_rfkill);
-	rfkill_register(wwan_rfkill);
+	if (wireless & 0x4) {
+		wwan_rfkill = rfkill_allocate(&device->dev, RFKILL_TYPE_WWAN);
+		wwan_rfkill->name = "hp-wwan";
+		wwan_rfkill->state = hp_wmi_wwan_state();
+		wwan_rfkill->toggle_radio = hp_wmi_wwan_set;
+		wwan_rfkill->user_claim_unsupported = 1;
+		rfkill_register(wwan_rfkill);
+	}
 
 	return 0;
 add_sysfs_error:
@@ -445,9 +459,12 @@ static int __exit hp_wmi_bios_remove(struct platform_device *device)
 {
 	cleanup_sysfs(device);
 
-	rfkill_unregister(wifi_rfkill);
-	rfkill_unregister(bluetooth_rfkill);
-	rfkill_unregister(wwan_rfkill);
+	if (wifi_rfkill)
+		rfkill_unregister(wifi_rfkill);
+	if (bluetooth_rfkill)
+		rfkill_unregister(bluetooth_rfkill);
+	if (wwan_rfkill)
+		rfkill_unregister(wwan_rfkill);
 
 	return 0;
 }

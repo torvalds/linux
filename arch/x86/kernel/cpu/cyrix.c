@@ -15,13 +15,11 @@
 /*
  * Read NSC/Cyrix DEVID registers (DIR) to get more detailed info. about the CPU
  */
-static void __cpuinit do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
+static void __cpuinit __do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 {
 	unsigned char ccr2, ccr3;
-	unsigned long flags;
 
 	/* we test for DEVID by checking whether CCR3 is writable */
-	local_irq_save(flags);
 	ccr3 = getCx86(CX86_CCR3);
 	setCx86(CX86_CCR3, ccr3 ^ 0x80);
 	getCx86(0xc0);   /* dummy to change bus */
@@ -44,9 +42,16 @@ static void __cpuinit do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
 		*dir0 = getCx86(CX86_DIR0);
 		*dir1 = getCx86(CX86_DIR1);
 	}
-	local_irq_restore(flags);
 }
 
+static void __cpuinit do_cyrix_devid(unsigned char *dir0, unsigned char *dir1)
+{
+	unsigned long flags;
+
+	local_irq_save(flags);
+	__do_cyrix_devid(dir0, dir1);
+	local_irq_restore(flags);
+}
 /*
  * Cx86_dir0_msb is a HACK needed by check_cx686_cpuid/slop in bugs.h in
  * order to identify the Cyrix CPU model after we're out of setup.c
@@ -134,23 +139,6 @@ static void __cpuinit set_cx86_memwb(void)
 	setCx86(CX86_CCR2, getCx86(CX86_CCR2) | 0x14);
 }
 
-static void __cpuinit set_cx86_inc(void)
-{
-	unsigned char ccr3;
-
-	printk(KERN_INFO "Enable Incrementor on Cyrix/NSC processor.\n");
-
-	ccr3 = getCx86(CX86_CCR3);
-	setCx86(CX86_CCR3, (ccr3 & 0x0f) | 0x10); /* enable MAPEN */
-	/* PCR1 -- Performance Control */
-	/* Incrementor on, whatever that is */
-	setCx86(CX86_PCR1, getCx86(CX86_PCR1) | 0x02);
-	/* PCR0 -- Performance Control */
-	/* Incrementor Margin 10 */
-	setCx86(CX86_PCR0, getCx86(CX86_PCR0) | 0x04);
-	setCx86(CX86_CCR3, ccr3);	/* disable MAPEN */
-}
-
 /*
  *	Configure later MediaGX and/or Geode processor.
  */
@@ -174,11 +162,28 @@ static void __cpuinit geode_configure(void)
 
 	set_cx86_memwb();
 	set_cx86_reorder();
-	set_cx86_inc();
 
 	local_irq_restore(flags);
 }
 
+static void __cpuinit early_init_cyrix(struct cpuinfo_x86 *c)
+{
+	unsigned char dir0, dir0_msn, dir1 = 0;
+
+	__do_cyrix_devid(&dir0, &dir1);
+	dir0_msn = dir0 >> 4; /* identifies CPU "family"   */
+
+	switch (dir0_msn) {
+	case 3: /* 6x86/6x86L */
+		/* Emulate MTRRs using Cyrix's ARRs. */
+		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
+		break;
+	case 5: /* 6x86MX/M II */
+		/* Emulate MTRRs using Cyrix's ARRs. */
+		set_cpu_cap(c, X86_FEATURE_CYRIX_ARR);
+		break;
+	}
+}
 
 static void __cpuinit init_cyrix(struct cpuinfo_x86 *c)
 {
@@ -434,6 +439,7 @@ static void __cpuinit cyrix_identify(struct cpuinfo_x86 *c)
 static struct cpu_dev cyrix_cpu_dev __cpuinitdata = {
 	.c_vendor	= "Cyrix",
 	.c_ident	= { "CyrixInstead" },
+	.c_early_init	= early_init_cyrix,
 	.c_init		= init_cyrix,
 	.c_identify	= cyrix_identify,
 };

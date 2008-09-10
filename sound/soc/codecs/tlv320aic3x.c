@@ -1199,10 +1199,9 @@ static int aic3x_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 	client_template.addr = addr;
 
 	i2c = kmemdup(&client_template, sizeof(client_template), GFP_KERNEL);
-	if (i2c == NULL) {
-		kfree(codec);
+	if (i2c == NULL)
 		return -ENOMEM;
-	}
+
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
 
@@ -1221,7 +1220,6 @@ static int aic3x_codec_probe(struct i2c_adapter *adap, int addr, int kind)
 	return ret;
 
 err:
-	kfree(codec);
 	kfree(i2c);
 	return ret;
 }
@@ -1302,6 +1300,11 @@ static int aic3x_probe(struct platform_device *pdev)
 #else
 	/* Add other interfaces here */
 #endif
+
+	if (ret != 0) {
+		kfree(codec->private_data);
+		kfree(codec);
+	}
 	return ret;
 }
 

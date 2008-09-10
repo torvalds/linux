@@ -88,6 +88,8 @@ static int uio_pdrv_remove(struct platform_device *pdev)
 
 	uio_unregister_device(pdata->uioinfo);
 
+	kfree(pdata);
+
 	return 0;
 }
 
@@ -114,5 +116,5 @@ module_exit(uio_pdrv_exit);
 
 MODULE_AUTHOR("Uwe Kleine-Koenig");
 MODULE_DESCRIPTION("Userspace I/O platform driver");
-MODULE_LICENSE("GPL");
+MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRIVER_NAME);

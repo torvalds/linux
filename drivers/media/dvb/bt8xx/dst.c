@@ -1244,7 +1244,7 @@ static int dst_command(struct dst_state *state, u8 *data, u8 len)
 		goto error;
 	}
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
-		udelay(3000);
+		mdelay(3);
 	if (read_dst(state, &reply, GET_ACK)) {
 		dprintk(verbose, DST_DEBUG, 1, "Trying to recover.. ");
 		if ((dst_error_recovery(state)) < 0) {
@@ -1260,7 +1260,7 @@ static int dst_command(struct dst_state *state, u8 *data, u8 len)
 	if (len >= 2 && data[0] == 0 && (data[1] == 1 || data[1] == 3))
 		goto error;
 	if (state->type_flags & DST_TYPE_HAS_FW_1)
-		udelay(3000);
+		mdelay(3);
 	else
 		udelay(2000);
 	if (!dst_wait_dst_ready(state, NO_DELAY))

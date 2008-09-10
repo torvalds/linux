@@ -174,7 +174,6 @@ static struct dentry *ntfs_lookup(struct inode *dir_ino, struct dentry *dent,
 	// TODO: Consider moving this lot to a separate function! (AIA)
 handle_name:
    {
-	struct dentry *real_dent, *new_dent;
 	MFT_RECORD *m;
 	ntfs_attr_search_ctx *ctx;
 	ntfs_inode *ni = NTFS_I(dent_inode);
@@ -255,93 +254,9 @@ handle_name:
 	}
 	nls_name.hash = full_name_hash(nls_name.name, nls_name.len);
 
-	/*
-	 * Note: No need for dent->d_lock lock as i_mutex is held on the
-	 * parent inode.
-	 */
-
-	/* Does a dentry matching the nls_name exist already? */
-	real_dent = d_lookup(dent->d_parent, &nls_name);
-	/* If not, create it now. */
-	if (!real_dent) {
-		real_dent = d_alloc(dent->d_parent, &nls_name);
-		kfree(nls_name.name);
-		if (!real_dent) {
-			err = -ENOMEM;
-			goto err_out;
-		}
-		new_dent = d_splice_alias(dent_inode, real_dent);
-		if (new_dent)
-			dput(real_dent);
-		else
-			new_dent = real_dent;
-		ntfs_debug("Done.  (Created new dentry.)");
-		return new_dent;
-	}
+	dent = d_add_ci(dent, dent_inode, &nls_name);
 	kfree(nls_name.name);
-	/* Matching dentry exists, check if it is negative. */
-	if (real_dent->d_inode) {
-		if (unlikely(real_dent->d_inode != dent_inode)) {
-			/* This can happen because bad inodes are unhashed. */
-			BUG_ON(!is_bad_inode(dent_inode));
-			BUG_ON(!is_bad_inode(real_dent->d_inode));
-		}
-		/*
-		 * Already have the inode and the dentry attached, decrement
-		 * the reference count to balance the ntfs_iget() we did
-		 * earlier on.  We found the dentry using d_lookup() so it
-		 * cannot be disconnected and thus we do not need to worry
-		 * about any NFS/disconnectedness issues here.
-		 */
-		iput(dent_inode);
-		ntfs_debug("Done.  (Already had inode and dentry.)");
-		return real_dent;
-	}
-	/*
-	 * Negative dentry: instantiate it unless the inode is a directory and
-	 * has a 'disconnected' dentry (i.e. IS_ROOT and DCACHE_DISCONNECTED),
-	 * in which case d_move() that in place of the found dentry.
-	 */
-	if (!S_ISDIR(dent_inode->i_mode)) {
-		/* Not a directory; everything is easy. */
-		d_instantiate(real_dent, dent_inode);
-		ntfs_debug("Done.  (Already had negative file dentry.)");
-		return real_dent;
-	}
-	spin_lock(&dcache_lock);
-	if (list_empty(&dent_inode->i_dentry)) {
-		/*
-		 * Directory without a 'disconnected' dentry; we need to do
-		 * d_instantiate() by hand because it takes dcache_lock which
-		 * we already hold.
-		 */
-		list_add(&real_dent->d_alias, &dent_inode->i_dentry);
-		real_dent->d_inode = dent_inode;
-		spin_unlock(&dcache_lock);
-		security_d_instantiate(real_dent, dent_inode);
-		ntfs_debug("Done.  (Already had negative directory dentry.)");
-		return real_dent;
-	}
-	/*
-	 * Directory with a 'disconnected' dentry; get a reference to the
-	 * 'disconnected' dentry.
-	 */
-	new_dent = list_entry(dent_inode->i_dentry.next, struct dentry,
-			d_alias);
-	dget_locked(new_dent);
-	spin_unlock(&dcache_lock);
-	/* Do security vodoo. */
-	security_d_instantiate(real_dent, dent_inode);
-	/* Move new_dent in place of real_dent. */
-	d_move(new_dent, real_dent);
-	/* Balance the ntfs_iget() we did above. */
-	iput(dent_inode);
-	/* Throw away real_dent. */
-	dput(real_dent);
-	/* Use new_dent as the actual dentry. */
-	ntfs_debug("Done.  (Already had negative, disconnected directory "
-			"dentry.)");
-	return new_dent;
+	return dent;
 
 eio_err_out:
 	ntfs_error(vol->sb, "Illegal file name attribute. Run chkdsk.");

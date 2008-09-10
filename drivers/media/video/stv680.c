@@ -1462,7 +1462,7 @@ static int stv680_probe (struct usb_interface *intf, const struct usb_device_id 
 	mutex_init (&stv680->lock);
 	wmb ();
 
-	if (video_register_device (stv680->vdev, VFL_TYPE_GRABBER, video_nr) == -1) {
+	if (video_register_device(stv680->vdev, VFL_TYPE_GRABBER, video_nr) < 0) {
 		PDEBUG (0, "STV(e): video_register_device failed");
 		retval = -EIO;
 		goto error_vdev;

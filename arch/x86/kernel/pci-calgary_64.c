@@ -343,9 +343,8 @@ static void iommu_free(struct iommu_table *tbl, dma_addr_t dma_addr,
 	/* were we called with bad_dma_address? */
 	badend = bad_dma_address + (EMERGENCY_PAGES * PAGE_SIZE);
 	if (unlikely((dma_addr >= bad_dma_address) && (dma_addr < badend))) {
-		printk(KERN_ERR "Calgary: driver tried unmapping bad DMA "
+		WARN(1, KERN_ERR "Calgary: driver tried unmapping bad DMA "
 		       "address 0x%Lx\n", dma_addr);
-		WARN_ON(1);
 		return;
 	}
 
@@ -1283,13 +1282,15 @@ static inline int __init determine_tce_table_size(u64 ram)
 static int __init build_detail_arrays(void)
 {
 	unsigned long ptr;
-	int i, scal_detail_size, rio_detail_size;
+	unsigned numnodes, i;
+	int scal_detail_size, rio_detail_size;
 
-	if (rio_table_hdr->num_scal_dev > MAX_NUMNODES){
+	numnodes = rio_table_hdr->num_scal_dev;
+	if (numnodes > MAX_NUMNODES){
 		printk(KERN_WARNING
 			"Calgary: MAX_NUMNODES too low! Defined as %d, "
 			"but system has %d nodes.\n",
-			MAX_NUMNODES, rio_table_hdr->num_scal_dev);
+			MAX_NUMNODES, numnodes);
 		return -ENODEV;
 	}
 
@@ -1310,8 +1311,7 @@ static int __init build_detail_arrays(void)
 	}
 
 	ptr = ((unsigned long)rio_table_hdr) + 3;
-	for (i = 0; i < rio_table_hdr->num_scal_dev;
-		    i++, ptr += scal_detail_size)
+	for (i = 0; i < numnodes; i++, ptr += scal_detail_size)
 		scal_devs[i] = (struct scal_detail *)ptr;
 
 	for (i = 0; i < rio_table_hdr->num_rio_dev;

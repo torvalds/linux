@@ -32,7 +32,7 @@
 #include <asm/errno.h>
 #include <asm/asm-offsets.h>
 
-#include <asm/mach-common/context.S>
+#include <asm/context.S>
 
 #ifdef CONFIG_EXCPT_IRQ_SYSC_L1
 .section .l1.text

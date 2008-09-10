@@ -41,6 +41,9 @@ extern void usb_host_cleanup(void);
 
 #ifdef	CONFIG_PM
 
+extern int usb_suspend(struct device *dev, pm_message_t msg);
+extern int usb_resume(struct device *dev);
+
 extern void usb_autosuspend_work(struct work_struct *work);
 extern int usb_port_suspend(struct usb_device *dev);
 extern int usb_port_resume(struct usb_device *dev);

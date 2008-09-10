@@ -968,7 +968,7 @@ ctnetlink_change_helper(struct nf_conn *ct, struct nlattr *cda[])
 		/* need to zero data of old helper */
 		memset(&help->help, 0, sizeof(help->help));
 	} else {
-		help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
+		help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 		if (help == NULL)
 			return -ENOMEM;
 	}
@@ -1136,29 +1136,10 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 	ct->timeout.expires = jiffies + ct->timeout.expires * HZ;
 	ct->status |= IPS_CONFIRMED;
 
-	if (cda[CTA_STATUS]) {
-		err = ctnetlink_change_status(ct, cda);
-		if (err < 0)
-			goto err;
-	}
-
-	if (cda[CTA_PROTOINFO]) {
-		err = ctnetlink_change_protoinfo(ct, cda);
-		if (err < 0)
-			goto err;
-	}
-
-	nf_ct_acct_ext_add(ct, GFP_KERNEL);
-
-#if defined(CONFIG_NF_CONNTRACK_MARK)
-	if (cda[CTA_MARK])
-		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
-#endif
-
 	rcu_read_lock();
 	helper = __nf_ct_helper_find(rtuple);
 	if (helper) {
-		help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
+		help = nf_ct_helper_ext_add(ct, GFP_ATOMIC);
 		if (help == NULL) {
 			rcu_read_unlock();
 			err = -ENOMEM;
@@ -1167,6 +1148,29 @@ ctnetlink_create_conntrack(struct nlattr *cda[],
 		/* not in hash table yet so not strictly necessary */
 		rcu_assign_pointer(help->helper, helper);
 	}
+
+	if (cda[CTA_STATUS]) {
+		err = ctnetlink_change_status(ct, cda);
+		if (err < 0) {
+			rcu_read_unlock();
+			goto err;
+		}
+	}
+
+	if (cda[CTA_PROTOINFO]) {
+		err = ctnetlink_change_protoinfo(ct, cda);
+		if (err < 0) {
+			rcu_read_unlock();
+			goto err;
+		}
+	}
+
+	nf_ct_acct_ext_add(ct, GFP_KERNEL);
+
+#if defined(CONFIG_NF_CONNTRACK_MARK)
+	if (cda[CTA_MARK])
+		ct->mark = ntohl(nla_get_be32(cda[CTA_MARK]));
+#endif
 
 	/* setup master conntrack: this is a confirmed expectation */
 	if (master_ct) {

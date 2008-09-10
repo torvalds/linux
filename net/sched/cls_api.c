@@ -205,7 +205,7 @@ replay:
 		}
 	}
 
-	root_lock = qdisc_root_lock(q);
+	root_lock = qdisc_root_sleeping_lock(q);
 
 	if (tp == NULL) {
 		/* Proto-tcf does not exist, create new one */
@@ -280,7 +280,7 @@ replay:
 		if (n->nlmsg_type == RTM_DELTFILTER && t->tcm_handle == 0) {
 			spin_lock_bh(root_lock);
 			*back = tp->next;
-			spin_lock_bh(root_lock);
+			spin_unlock_bh(root_lock);
 
 			tfilter_notify(skb, n, tp, fh, RTM_DELTFILTER);
 			tcf_destroy(tp);

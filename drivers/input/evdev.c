@@ -677,8 +677,8 @@ static int handle_eviocgbit(struct input_dev *dev, unsigned int cmd, void __user
 		len = OLD_KEY_MAX;
 		if (printk_timed_ratelimit(&keymax_warn_time, 10 * 1000))
 			printk(KERN_WARNING
-				"evdev.c(EVIOCGBIT): Suspicious buffer size %d, "
-				"limiting output to %d bytes. See "
+				"evdev.c(EVIOCGBIT): Suspicious buffer size %u, "
+				"limiting output to %zu bytes. See "
 				"http://userweb.kernel.org/~dtor/eviocgbit-bug.html\n",
 				OLD_KEY_MAX,
 				BITS_TO_LONGS(OLD_KEY_MAX) * sizeof(long));
