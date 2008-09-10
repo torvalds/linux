@@ -691,7 +691,7 @@ asmlinkage void __init start_kernel(void)
 	rest_init();
 }
 
-static int __initdata initcall_debug;
+static int initcall_debug;
 
 static int __init initcall_debug_setup(char *str)
 {
@@ -700,7 +700,7 @@ static int __init initcall_debug_setup(char *str)
 }
 __setup("initcall_debug", initcall_debug_setup);
 
-static void __init do_one_initcall(initcall_t fn)
+int do_one_initcall(initcall_t fn)
 {
 	int count = preempt_count();
 	ktime_t t0, t1, delta;
@@ -740,6 +740,8 @@ static void __init do_one_initcall(initcall_t fn)
 		print_fn_descriptor_symbol(KERN_WARNING "initcall %s", fn);
 		printk(" returned with %s\n", msgbuf);
 	}
+
+	return result;
 }
 
 

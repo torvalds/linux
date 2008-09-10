@@ -54,6 +54,8 @@ void deinit_kmem_cache(void);
 #define BUFFER_MAP		0x7
 
 #define HC_MEMORY_REG		0x33c
+#define ISP_BANK(x)		((x) << 16)
+
 #define HC_PORT1_CTRL		0x374
 #define PORT1_POWER		(3 << 3)
 #define PORT1_INIT1		(1 << 7)
@@ -118,6 +120,9 @@ struct inter_packet_info {
 
 typedef void (packet_enqueue)(struct usb_hcd *hcd, struct isp1760_qh *qh,
 		struct isp1760_qtd *qtd);
+
+#define isp1760_dbg(priv, fmt, args...) \
+	dev_dbg(priv_to_hcd(priv)->self.controller, fmt, ##args)
 
 #define isp1760_info(priv, fmt, args...) \
 	dev_info(priv_to_hcd(priv)->self.controller, fmt, ##args)

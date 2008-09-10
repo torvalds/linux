@@ -40,20 +40,20 @@
 #define DP(__mask, __fmt, __args...) do { \
 	if (bp->msglevel & (__mask)) \
 		printk(DP_LEVEL "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-			bp->dev?(bp->dev->name):"?", ##__args); \
+			bp->dev ? (bp->dev->name) : "?", ##__args); \
 	} while (0)
 
 /* errors debug print */
 #define BNX2X_DBG_ERR(__fmt, __args...) do { \
 	if (bp->msglevel & NETIF_MSG_PROBE) \
 		printk(KERN_ERR "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-			bp->dev?(bp->dev->name):"?", ##__args); \
+			bp->dev ? (bp->dev->name) : "?", ##__args); \
 	} while (0)
 
 /* for errors (never masked) */
 #define BNX2X_ERR(__fmt, __args...) do { \
 	printk(KERN_ERR "[%s:%d(%s)]" __fmt, __func__, __LINE__, \
-		bp->dev?(bp->dev->name):"?", ##__args); \
+		bp->dev ? (bp->dev->name) : "?", ##__args); \
 	} while (0)
 
 /* before we have a dev->name use dev_info() */
@@ -120,16 +120,8 @@
 #define SHMEM_RD(bp, field)		REG_RD(bp, SHMEM_ADDR(bp, field))
 #define SHMEM_WR(bp, field, val)	REG_WR(bp, SHMEM_ADDR(bp, field), val)
 
-#define NIG_WR(reg, val)	REG_WR(bp, reg, val)
-#define EMAC_WR(reg, val)	REG_WR(bp, emac_base + reg, val)
-#define BMAC_WR(reg, val)	REG_WR(bp, GRCBASE_NIG + bmac_addr + reg, val)
-
-
-#define for_each_queue(bp, var)	for (var = 0; var < bp->num_queues; var++)
-
-#define for_each_nondefault_queue(bp, var) \
-				for (var = 1; var < bp->num_queues; var++)
-#define is_multi(bp)		(bp->num_queues > 1)
+#define EMAC_RD(bp, reg)		REG_RD(bp, emac_base + reg)
+#define EMAC_WR(bp, reg, val)		REG_WR(bp, emac_base + reg, val)
 
 
 /* fast path */
@@ -159,11 +151,13 @@ struct sw_rx_page {
 #define PAGES_PER_SGE_SHIFT		0
 #define PAGES_PER_SGE			(1 << PAGES_PER_SGE_SHIFT)
 
+#define BCM_RX_ETH_PAYLOAD_ALIGN	64
+
 /* SGE ring related macros */
 #define NUM_RX_SGE_PAGES		2
 #define RX_SGE_CNT		(BCM_PAGE_SIZE / sizeof(struct eth_rx_sge))
 #define MAX_RX_SGE_CNT			(RX_SGE_CNT - 2)
-/* RX_SGE_CNT is promissed to be a power of 2 */
+/* RX_SGE_CNT is promised to be a power of 2 */
 #define RX_SGE_MASK			(RX_SGE_CNT - 1)
 #define NUM_RX_SGE			(RX_SGE_CNT * NUM_RX_SGE_PAGES)
 #define MAX_RX_SGE			(NUM_RX_SGE - 1)
@@ -258,8 +252,7 @@ struct bnx2x_fastpath {
 
 	unsigned long		tx_pkt,
 				rx_pkt,
-				rx_calls,
-				rx_alloc_failed;
+				rx_calls;
 	/* TPA related */
 	struct sw_rx_bd		tpa_pool[ETH_MAX_AGGREGATION_QUEUES_E1H];
 	u8			tpa_state[ETH_MAX_AGGREGATION_QUEUES_E1H];
@@ -274,6 +267,15 @@ struct bnx2x_fastpath {
 };
 
 #define bnx2x_fp(bp, nr, var)		(bp->fp[nr].var)
+
+#define BNX2X_HAS_TX_WORK(fp) \
+			((fp->tx_pkt_prod != le16_to_cpu(*fp->tx_cons_sb)) || \
+			 (fp->tx_pkt_prod != fp->tx_pkt_cons))
+
+#define BNX2X_HAS_RX_WORK(fp) \
+			(fp->rx_comp_cons != rx_cons_sb)
+
+#define BNX2X_HAS_WORK(fp)	(BNX2X_HAS_RX_WORK(fp) || BNX2X_HAS_TX_WORK(fp))
 
 
 /* MC hsi */
@@ -317,7 +319,7 @@ struct bnx2x_fastpath {
 #define RCQ_BD(x)			((x) & MAX_RCQ_BD)
 
 
-/* This is needed for determening of last_max */
+/* This is needed for determining of last_max */
 #define SUB_S16(a, b)			(s16)((s16)(a) - (s16)(b))
 
 #define __SGE_MASK_SET_BIT(el, bit) \
@@ -386,19 +388,27 @@ struct bnx2x_fastpath {
 #define TPA_TYPE(cqe_fp_flags)		((cqe_fp_flags) & \
 					 (TPA_TYPE_START | TPA_TYPE_END))
 
-#define BNX2X_RX_SUM_OK(cqe) \
-			(!(cqe->fast_path_cqe.status_flags & \
-			 (ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG | \
-			  ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG)))
+#define ETH_RX_ERROR_FALGS		ETH_FAST_PATH_RX_CQE_PHY_DECODE_ERR_FLG
+
+#define BNX2X_IP_CSUM_ERR(cqe) \
+			(!((cqe)->fast_path_cqe.status_flags & \
+			   ETH_FAST_PATH_RX_CQE_IP_XSUM_NO_VALIDATION_FLG) && \
+			 ((cqe)->fast_path_cqe.type_error_flags & \
+			  ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG))
+
+#define BNX2X_L4_CSUM_ERR(cqe) \
+			(!((cqe)->fast_path_cqe.status_flags & \
+			   ETH_FAST_PATH_RX_CQE_L4_XSUM_NO_VALIDATION_FLG) && \
+			 ((cqe)->fast_path_cqe.type_error_flags & \
+			  ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG))
+
+#define BNX2X_RX_CSUM_OK(cqe) \
+			(!(BNX2X_L4_CSUM_ERR(cqe) || BNX2X_IP_CSUM_ERR(cqe)))
 
 #define BNX2X_RX_SUM_FIX(cqe) \
 			((le16_to_cpu(cqe->fast_path_cqe.pars_flags.flags) & \
 			  PARSING_FLAGS_OVER_ETHERNET_PROTOCOL) == \
 			 (1 << PARSING_FLAGS_OVER_ETHERNET_PROTOCOL_SHIFT))
-
-#define ETH_RX_ERROR_FALGS	(ETH_FAST_PATH_RX_CQE_PHY_DECODE_ERR_FLG | \
-				 ETH_FAST_PATH_RX_CQE_IP_BAD_XSUM_FLG | \
-				 ETH_FAST_PATH_RX_CQE_L4_BAD_XSUM_FLG)
 
 
 #define FP_USB_FUNC_OFF			(2 + 2*HC_USTORM_SB_NUM_INDICES)
@@ -647,6 +657,8 @@ struct bnx2x_eth_stats {
 
 	u32 brb_drop_hi;
 	u32 brb_drop_lo;
+	u32 brb_truncate_hi;
+	u32 brb_truncate_lo;
 
 	u32 jabber_packets_received;
 
@@ -663,6 +675,9 @@ struct bnx2x_eth_stats {
 	u32 mac_discard;
 
 	u32 driver_xoff;
+	u32 rx_err_discard_pkt;
+	u32 rx_skb_alloc_failed;
+	u32 hw_csum_err;
 };
 
 #define STATS_OFFSET32(stat_name) \
@@ -737,8 +752,7 @@ struct bnx2x {
 
 	u32			rx_csum;
 	u32			rx_offset;
-	u32			rx_buf_use_size;	/* useable size */
-	u32			rx_buf_size;		/* with alignment */
+	u32			rx_buf_size;
 #define ETH_OVREHEAD			(ETH_HLEN + 8)	/* 8 for CRC + VLAN */
 #define ETH_MIN_PACKET_SIZE		60
 #define ETH_MAX_PACKET_SIZE		1500
@@ -753,7 +767,6 @@ struct bnx2x {
 	u16			def_att_idx;
 	u32			attn_state;
 	struct attn_route	attn_group[MAX_DYNAMIC_ATTN_GRPS];
-	u32			aeu_mask;
 	u32			nig_mask;
 
 	/* slow path ring */
@@ -772,7 +785,7 @@ struct bnx2x {
 	u8			stats_pending;
 	u8			set_mac_pending;
 
-	/* End of fileds used in the performance code paths */
+	/* End of fields used in the performance code paths */
 
 	int			panic;
 	int			msglevel;
@@ -794,9 +807,6 @@ struct bnx2x {
 #define BP_FUNC(bp)			(bp->func)
 #define BP_E1HVN(bp)			(bp->func >> 1)
 #define BP_L_ID(bp)			(BP_E1HVN(bp) << 2)
-/* assorted E1HVN */
-#define IS_E1HMF(bp)			(bp->e1hmf != 0)
-#define BP_MAX_QUEUES(bp)		(IS_E1HMF(bp) ? 4 : 16)
 
 	int			pm_cap;
 	int			pcie_cap;
@@ -821,6 +831,7 @@ struct bnx2x {
 	u32			mf_config;
 	u16			e1hov;
 	u8			e1hmf;
+#define IS_E1HMF(bp)			(bp->e1hmf != 0)
 
 	u8			wol;
 
@@ -836,7 +847,6 @@ struct bnx2x {
 	u16			rx_ticks_int;
 	u16			rx_ticks;
 
-	u32			stats_ticks;
 	u32			lin_cnt;
 
 	int			state;
@@ -852,6 +862,7 @@ struct bnx2x {
 #define BNX2X_STATE_ERROR		0xf000
 
 	int			num_queues;
+#define BP_MAX_QUEUES(bp)		(IS_E1HMF(bp) ? 4 : 16)
 
 	u32			rx_mode;
 #define BNX2X_RX_MODE_NONE		0
@@ -902,10 +913,17 @@ struct bnx2x {
 };
 
 
+#define for_each_queue(bp, var)	for (var = 0; var < bp->num_queues; var++)
+
+#define for_each_nondefault_queue(bp, var) \
+				for (var = 1; var < bp->num_queues; var++)
+#define is_multi(bp)		(bp->num_queues > 1)
+
+
 void bnx2x_read_dmae(struct bnx2x *bp, u32 src_addr, u32 len32);
 void bnx2x_write_dmae(struct bnx2x *bp, dma_addr_t dma_addr, u32 dst_addr,
 		      u32 len32);
-int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode);
+int bnx2x_set_gpio(struct bnx2x *bp, int gpio_num, u32 mode, u8 port);
 
 static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 			   int wait)
@@ -976,7 +994,7 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 #define PCICFG_LINK_SPEED_SHIFT		16
 
 
-#define BNX2X_NUM_STATS			39
+#define BNX2X_NUM_STATS			42
 #define BNX2X_NUM_TESTS			8
 
 #define BNX2X_MAC_LOOPBACK		0
@@ -1007,10 +1025,10 @@ static inline u32 reg_poll(struct bnx2x *bp, u32 reg, u32 expected, int ms,
 /* resolution of the rate shaping timer - 100 usec */
 #define RS_PERIODIC_TIMEOUT_USEC	100
 /* resolution of fairness algorithm in usecs -
-   coefficient for clauclating the actuall t fair */
+   coefficient for calculating the actual t fair */
 #define T_FAIR_COEF			10000000
 /* number of bytes in single QM arbitration cycle -
-   coeffiecnt for calculating the fairness timer */
+   coefficient for calculating the fairness timer */
 #define QM_ARB_BYTES			40000
 #define FAIR_MEM			2
 

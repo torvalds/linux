@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version	: v00.00.03.20-rc1
+ * Version     : v00.00.04.01-rc1
  *
  * Authors:
  *	(email-id : megaraidlinux@lsi.com)
@@ -71,6 +71,10 @@ static struct pci_device_id megasas_pci_table[] = {
 	/* ppc IOP */
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078DE)},
 	/* ppc IOP */
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS1078GEN2)},
+	/* gen2*/
+	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_SAS0079GEN2)},
+	/* gen2*/
 	{PCI_DEVICE(PCI_VENDOR_ID_LSI_LOGIC, PCI_DEVICE_ID_LSI_VERDE_ZCR)},
 	/* xscale IOP, vega */
 	{PCI_DEVICE(PCI_VENDOR_ID_DELL, PCI_DEVICE_ID_DELL_PERC5)},
@@ -198,6 +202,9 @@ megasas_clear_intr_xscale(struct megasas_register_set __iomem * regs)
 	 */
 	writel(status, &regs->outbound_intr_status);
 
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_status);
+
 	return 0;
 }
 
@@ -293,6 +300,9 @@ megasas_clear_intr_ppc(struct megasas_register_set __iomem * regs)
 	 */
 	writel(status, &regs->outbound_doorbell_clear);
 
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_doorbell_clear);
+
 	return 0;
 }
 /**
@@ -315,6 +325,99 @@ static struct megasas_instance_template megasas_instance_template_ppc = {
 	.disable_intr = megasas_disable_intr_ppc,
 	.clear_intr = megasas_clear_intr_ppc,
 	.read_fw_status_reg = megasas_read_fw_status_reg_ppc,
+};
+
+/**
+*	The following functions are defined for gen2 (deviceid : 0x78 0x79)
+*	controllers
+*/
+
+/**
+ * megasas_enable_intr_gen2 -  Enables interrupts
+ * @regs:                      MFI register set
+ */
+static inline void
+megasas_enable_intr_gen2(struct megasas_register_set __iomem *regs)
+{
+	writel(0xFFFFFFFF, &(regs)->outbound_doorbell_clear);
+
+	/* write ~0x00000005 (4 & 1) to the intr mask*/
+	writel(~MFI_GEN2_ENABLE_INTERRUPT_MASK, &(regs)->outbound_intr_mask);
+
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
+ * megasas_disable_intr_gen2 - Disables interrupt
+ * @regs:                      MFI register set
+ */
+static inline void
+megasas_disable_intr_gen2(struct megasas_register_set __iomem *regs)
+{
+	u32 mask = 0xFFFFFFFF;
+	writel(mask, &regs->outbound_intr_mask);
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_mask);
+}
+
+/**
+ * megasas_read_fw_status_reg_gen2 - returns the current FW status value
+ * @regs:                      MFI register set
+ */
+static u32
+megasas_read_fw_status_reg_gen2(struct megasas_register_set __iomem *regs)
+{
+	return readl(&(regs)->outbound_scratch_pad);
+}
+
+/**
+ * megasas_clear_interrupt_gen2 -      Check & clear interrupt
+ * @regs:                              MFI register set
+ */
+static int
+megasas_clear_intr_gen2(struct megasas_register_set __iomem *regs)
+{
+	u32 status;
+	/*
+	 * Check if it is our interrupt
+	 */
+	status = readl(&regs->outbound_intr_status);
+
+	if (!(status & MFI_GEN2_ENABLE_INTERRUPT_MASK))
+		return 1;
+
+	/*
+	 * Clear the interrupt by writing back the same value
+	 */
+	writel(status, &regs->outbound_doorbell_clear);
+
+	/* Dummy readl to force pci flush */
+	readl(&regs->outbound_intr_status);
+
+	return 0;
+}
+/**
+ * megasas_fire_cmd_gen2 -     Sends command to the FW
+ * @frame_phys_addr :          Physical address of cmd
+ * @frame_count :              Number of frames for the command
+ * @regs :                     MFI register set
+ */
+static inline void
+megasas_fire_cmd_gen2(dma_addr_t frame_phys_addr, u32 frame_count,
+			struct megasas_register_set __iomem *regs)
+{
+	writel((frame_phys_addr | (frame_count<<1))|1,
+			&(regs)->inbound_queue_port);
+}
+
+static struct megasas_instance_template megasas_instance_template_gen2 = {
+
+	.fire_cmd = megasas_fire_cmd_gen2,
+	.enable_intr = megasas_enable_intr_gen2,
+	.disable_intr = megasas_disable_intr_gen2,
+	.clear_intr = megasas_clear_intr_gen2,
+	.read_fw_status_reg = megasas_read_fw_status_reg_gen2,
 };
 
 /**
@@ -1976,7 +2079,12 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	/*
 	 * Map the message registers
 	 */
-	instance->base_addr = pci_resource_start(instance->pdev, 0);
+	if ((instance->pdev->device == PCI_DEVICE_ID_LSI_SAS1078GEN2) ||
+		(instance->pdev->device == PCI_DEVICE_ID_LSI_SAS0079GEN2)) {
+		instance->base_addr = pci_resource_start(instance->pdev, 1);
+	} else {
+		instance->base_addr = pci_resource_start(instance->pdev, 0);
+	}
 
 	if (pci_request_regions(instance->pdev, "megasas: LSI")) {
 		printk(KERN_DEBUG "megasas: IO memory region busy!\n");
@@ -1997,6 +2105,10 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 		case PCI_DEVICE_ID_LSI_SAS1078R:
 		case PCI_DEVICE_ID_LSI_SAS1078DE:
 			instance->instancet = &megasas_instance_template_ppc;
+			break;
+		case PCI_DEVICE_ID_LSI_SAS1078GEN2:
+		case PCI_DEVICE_ID_LSI_SAS0079GEN2:
+			instance->instancet = &megasas_instance_template_gen2;
 			break;
 		case PCI_DEVICE_ID_LSI_SAS1064R:
 		case PCI_DEVICE_ID_DELL_PERC5:
@@ -2857,6 +2969,7 @@ static void megasas_shutdown(struct pci_dev *pdev)
 {
 	struct megasas_instance *instance = pci_get_drvdata(pdev);
 	megasas_flush_cache(instance);
+	megasas_shutdown_controller(instance, MR_DCMD_CTRL_SHUTDOWN);
 }
 
 /**
@@ -3292,7 +3405,7 @@ megasas_sysfs_set_dbg_lvl(struct device_driver *dd, const char *buf, size_t coun
 	return retval;
 }
 
-static DRIVER_ATTR(dbg_lvl, S_IRUGO|S_IWUGO, megasas_sysfs_show_dbg_lvl,
+static DRIVER_ATTR(dbg_lvl, S_IRUGO|S_IWUSR, megasas_sysfs_show_dbg_lvl,
 		megasas_sysfs_set_dbg_lvl);
 
 static ssize_t

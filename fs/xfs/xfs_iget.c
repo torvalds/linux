@@ -216,7 +216,14 @@ finish_inode:
 	mrlock_init(&ip->i_iolock, MRLOCK_BARRIER, "xfsio", ip->i_ino);
 	init_waitqueue_head(&ip->i_ipin_wait);
 	atomic_set(&ip->i_pincount, 0);
-	initnsema(&ip->i_flock, 1, "xfsfino");
+
+	/*
+	 * Because we want to use a counting completion, complete
+	 * the flush completion once to allow a single access to
+	 * the flush completion without blocking.
+	 */
+	init_completion(&ip->i_flush);
+	complete(&ip->i_flush);
 
 	if (lock_flags)
 		xfs_ilock(ip, lock_flags);
@@ -288,10 +295,17 @@ finish_inode:
 	*ipp = ip;
 
 	/*
+	 * Set up the Linux with the Linux inode.
+	 */
+	ip->i_vnode = inode;
+	inode->i_private = ip;
+
+	/*
 	 * If we have a real type for an on-disk inode, we can set ops(&unlock)
 	 * now.	 If it's a new inode being created, xfs_ialloc will handle it.
 	 */
-	xfs_initialize_vnode(mp, inode, ip);
+	if (ip->i_d.di_mode != 0)
+		xfs_setup_inode(ip);
 	return 0;
 }
 
@@ -411,10 +425,11 @@ xfs_iput(xfs_inode_t	*ip,
  * Special iput for brand-new inodes that are still locked
  */
 void
-xfs_iput_new(xfs_inode_t	*ip,
-	     uint		lock_flags)
+xfs_iput_new(
+	xfs_inode_t	*ip,
+	uint		lock_flags)
 {
-	struct inode	*inode = ip->i_vnode;
+	struct inode	*inode = VFS_I(ip);
 
 	xfs_itrace_entry(ip);
 
@@ -775,26 +790,3 @@ xfs_isilocked(
 }
 #endif
 
-/*
- * The following three routines simply manage the i_flock
- * semaphore embedded in the inode.  This semaphore synchronizes
- * processes attempting to flush the in-core inode back to disk.
- */
-void
-xfs_iflock(xfs_inode_t *ip)
-{
-	psema(&(ip->i_flock), PINOD|PLTWAIT);
-}
-
-int
-xfs_iflock_nowait(xfs_inode_t *ip)
-{
-	return (cpsema(&(ip->i_flock)));
-}
-
-void
-xfs_ifunlock(xfs_inode_t *ip)
-{
-	ASSERT(issemalocked(&(ip->i_flock)));
-	vsema(&(ip->i_flock));
-}

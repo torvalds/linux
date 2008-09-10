@@ -308,9 +308,8 @@ static void __pci_restore_msi_state(struct pci_dev *dev)
 				  entry->msi_attrib.masked);
 
 	pci_read_config_word(dev, pos + PCI_MSI_FLAGS, &control);
-	control &= ~(PCI_MSI_FLAGS_QSIZE | PCI_MSI_FLAGS_ENABLE);
-	if (entry->msi_attrib.maskbit || !entry->msi_attrib.masked)
-		control |= PCI_MSI_FLAGS_ENABLE;
+	control &= ~PCI_MSI_FLAGS_QSIZE;
+	control |= PCI_MSI_FLAGS_ENABLE;
 	pci_write_config_word(dev, pos + PCI_MSI_FLAGS, control);
 }
 

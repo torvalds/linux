@@ -150,6 +150,8 @@ static void update_rfkill_state(struct rfkill *rfkill)
  * calls and handling all the red tape such as issuing notifications
  * if the call is successful.
  *
+ * Suspended devices are not touched at all, and -EAGAIN is returned.
+ *
  * Note that the @force parameter cannot override a (possibly cached)
  * state of RFKILL_STATE_HARD_BLOCKED.  Any device making use of
  * RFKILL_STATE_HARD_BLOCKED implements either get_state() or
@@ -167,6 +169,9 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
 {
 	int retval = 0;
 	enum rfkill_state oldstate, newstate;
+
+	if (unlikely(rfkill->dev.power.power_state.event & PM_EVENT_SLEEP))
+		return -EBUSY;
 
 	oldstate = rfkill->state;
 
@@ -214,7 +219,7 @@ static int rfkill_toggle_radio(struct rfkill *rfkill,
  *
  * This function toggles the state of all switches of given type,
  * unless a specific switch is claimed by userspace (in which case,
- * that switch is left alone).
+ * that switch is left alone) or suspended.
  */
 void rfkill_switch_all(enum rfkill_type type, enum rfkill_state state)
 {
@@ -239,8 +244,8 @@ EXPORT_SYMBOL(rfkill_switch_all);
 /**
  * rfkill_epo - emergency power off all transmitters
  *
- * This kicks all rfkill devices to RFKILL_STATE_SOFT_BLOCKED, ignoring
- * everything in its path but rfkill_mutex and rfkill->mutex.
+ * This kicks all non-suspended rfkill devices to RFKILL_STATE_SOFT_BLOCKED,
+ * ignoring everything in its path but rfkill_mutex and rfkill->mutex.
  */
 void rfkill_epo(void)
 {
@@ -372,7 +377,7 @@ static ssize_t rfkill_claim_show(struct device *dev,
 {
 	struct rfkill *rfkill = to_rfkill(dev);
 
-	return sprintf(buf, "%d", rfkill->user_claim);
+	return sprintf(buf, "%d\n", rfkill->user_claim);
 }
 
 static ssize_t rfkill_claim_store(struct device *dev,
@@ -458,13 +463,14 @@ static int rfkill_resume(struct device *dev)
 	if (dev->power.power_state.event != PM_EVENT_ON) {
 		mutex_lock(&rfkill->mutex);
 
+		dev->power.power_state.event = PM_EVENT_ON;
+
 		/* restore radio state AND notify everybody */
 		rfkill_toggle_radio(rfkill, rfkill->state, 1);
 
 		mutex_unlock(&rfkill->mutex);
 	}
 
-	dev->power.power_state = PMSG_ON;
 	return 0;
 }
 #else

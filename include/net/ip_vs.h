@@ -140,8 +140,24 @@ struct ip_vs_seq {
 
 
 /*
- *	IPVS statistics object
+ *	IPVS statistics objects
  */
+struct ip_vs_estimator {
+	struct list_head	list;
+
+	u64			last_inbytes;
+	u64			last_outbytes;
+	u32			last_conns;
+	u32			last_inpkts;
+	u32			last_outpkts;
+
+	u32			cps;
+	u32			inpps;
+	u32			outpps;
+	u32			inbps;
+	u32			outbps;
+};
+
 struct ip_vs_stats
 {
 	__u32                   conns;          /* connections scheduled */
@@ -156,7 +172,15 @@ struct ip_vs_stats
 	__u32			inbps;		/* current in byte rate */
 	__u32			outbps;		/* current out byte rate */
 
+	/*
+	 * Don't add anything before the lock, because we use memcpy() to copy
+	 * the members before the lock to struct ip_vs_stats_user in
+	 * ip_vs_ctl.c.
+	 */
+
 	spinlock_t              lock;           /* spin lock */
+
+	struct ip_vs_estimator	est;		/* estimator */
 };
 
 struct dst_entry;
@@ -440,7 +464,7 @@ struct ip_vs_app
  */
 extern const char *ip_vs_proto_name(unsigned proto);
 extern void ip_vs_init_hash_table(struct list_head *table, int rows);
-#define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table(t, sizeof(t)/sizeof(t[0]))
+#define IP_VS_INIT_HASH_TABLE(t) ip_vs_init_hash_table((t), ARRAY_SIZE((t)))
 
 #define IP_VS_APP_TYPE_FTP	1
 
@@ -620,7 +644,7 @@ extern int sysctl_ip_vs_expire_quiescent_template;
 extern int sysctl_ip_vs_sync_threshold[2];
 extern int sysctl_ip_vs_nat_icmp_send;
 extern struct ip_vs_stats ip_vs_stats;
-extern struct ctl_path net_vs_ctl_path[];
+extern const struct ctl_path net_vs_ctl_path[];
 
 extern struct ip_vs_service *
 ip_vs_service_get(__u32 fwmark, __u16 protocol, __be32 vaddr, __be16 vport);
@@ -659,7 +683,7 @@ extern void ip_vs_sync_conn(struct ip_vs_conn *cp);
 /*
  *      IPVS rate estimator prototypes (from ip_vs_est.c)
  */
-extern int ip_vs_new_estimator(struct ip_vs_stats *stats);
+extern void ip_vs_new_estimator(struct ip_vs_stats *stats);
 extern void ip_vs_kill_estimator(struct ip_vs_stats *stats);
 extern void ip_vs_zero_estimator(struct ip_vs_stats *stats);
 

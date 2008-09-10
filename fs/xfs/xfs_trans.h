@@ -210,62 +210,52 @@ typedef struct xfs_log_item_chunk {
  * lic_unused to the right value (0 matches all free).  The
  * lic_descs.lid_index values are set up as each desc is allocated.
  */
-#define	XFS_LIC_INIT(cp)	xfs_lic_init(cp)
 static inline void xfs_lic_init(xfs_log_item_chunk_t *cp)
 {
 	cp->lic_free = XFS_LIC_FREEMASK;
 }
 
-#define	XFS_LIC_INIT_SLOT(cp,slot)	xfs_lic_init_slot(cp, slot)
 static inline void xfs_lic_init_slot(xfs_log_item_chunk_t *cp, int slot)
 {
 	cp->lic_descs[slot].lid_index = (unsigned char)(slot);
 }
 
-#define	XFS_LIC_VACANCY(cp)		xfs_lic_vacancy(cp)
 static inline int xfs_lic_vacancy(xfs_log_item_chunk_t *cp)
 {
 	return cp->lic_free & XFS_LIC_FREEMASK;
 }
 
-#define	XFS_LIC_ALL_FREE(cp)		xfs_lic_all_free(cp)
 static inline void xfs_lic_all_free(xfs_log_item_chunk_t *cp)
 {
 	cp->lic_free = XFS_LIC_FREEMASK;
 }
 
-#define	XFS_LIC_ARE_ALL_FREE(cp)	xfs_lic_are_all_free(cp)
 static inline int xfs_lic_are_all_free(xfs_log_item_chunk_t *cp)
 {
 	return ((cp->lic_free & XFS_LIC_FREEMASK) == XFS_LIC_FREEMASK);
 }
 
-#define	XFS_LIC_ISFREE(cp,slot)	xfs_lic_isfree(cp,slot)
 static inline int xfs_lic_isfree(xfs_log_item_chunk_t *cp, int slot)
 {
 	return (cp->lic_free & (1 << slot));
 }
 
-#define	XFS_LIC_CLAIM(cp,slot)		xfs_lic_claim(cp,slot)
 static inline void xfs_lic_claim(xfs_log_item_chunk_t *cp, int slot)
 {
 	cp->lic_free &= ~(1 << slot);
 }
 
-#define	XFS_LIC_RELSE(cp,slot)		xfs_lic_relse(cp,slot)
 static inline void xfs_lic_relse(xfs_log_item_chunk_t *cp, int slot)
 {
 	cp->lic_free |= 1 << slot;
 }
 
-#define	XFS_LIC_SLOT(cp,slot)		xfs_lic_slot(cp,slot)
 static inline xfs_log_item_desc_t *
 xfs_lic_slot(xfs_log_item_chunk_t *cp, int slot)
 {
 	return &(cp->lic_descs[slot]);
 }
 
-#define	XFS_LIC_DESC_TO_SLOT(dp)	xfs_lic_desc_to_slot(dp)
 static inline int xfs_lic_desc_to_slot(xfs_log_item_desc_t *dp)
 {
 	return (uint)dp->lid_index;
@@ -278,7 +268,6 @@ static inline int xfs_lic_desc_to_slot(xfs_log_item_desc_t *dp)
  * All of this yields the address of the chunk, which is
  * cast to a chunk pointer.
  */
-#define	XFS_LIC_DESC_TO_CHUNK(dp)	xfs_lic_desc_to_chunk(dp)
 static inline xfs_log_item_chunk_t *
 xfs_lic_desc_to_chunk(xfs_log_item_desc_t *dp)
 {
@@ -986,6 +975,7 @@ int		_xfs_trans_commit(xfs_trans_t *,
 				  int *);
 #define xfs_trans_commit(tp, flags)	_xfs_trans_commit(tp, flags, NULL)
 void		xfs_trans_cancel(xfs_trans_t *, int);
+int		xfs_trans_roll(struct xfs_trans **, struct xfs_inode *);
 int		xfs_trans_ail_init(struct xfs_mount *);
 void		xfs_trans_ail_destroy(struct xfs_mount *);
 void		xfs_trans_push_ail(struct xfs_mount *, xfs_lsn_t);

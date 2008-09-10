@@ -30,8 +30,7 @@ struct of_device
 extern void __iomem *of_ioremap(struct resource *res, unsigned long offset, unsigned long size, char *name);
 extern void of_iounmap(struct resource *res, void __iomem *base, unsigned long size);
 
-/* These are just here during the transition */
-#include <linux/of_device.h>
+/* This is just here during the transition */
 #include <linux/of_platform.h>
 
 #endif /* __KERNEL__ */

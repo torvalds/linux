@@ -278,7 +278,7 @@ extern int hash_huge_page(struct mm_struct *mm, unsigned long access,
 			  unsigned long trap);
 
 extern int htab_bolt_mapping(unsigned long vstart, unsigned long vend,
-			     unsigned long pstart, unsigned long mode,
+			     unsigned long pstart, unsigned long prot,
 			     int psize, int ssize);
 extern void set_huge_psize(int psize);
 extern void add_gpage(unsigned long addr, unsigned long page_size,

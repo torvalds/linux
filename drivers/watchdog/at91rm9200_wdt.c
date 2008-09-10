@@ -128,7 +128,7 @@ static struct watchdog_info at91_wdt_info = {
 /*
  * Handle commands from user-space.
  */
-static long at91_wdt_ioct(struct file *file,
+static long at91_wdt_ioctl(struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
 	void __user *argp = (void __user *)arg;
@@ -241,7 +241,7 @@ static int at91wdt_resume(struct platform_device *pdev)
 {
 	if (at91wdt_busy)
 		at91_wdt_start();
-		return 0;
+	return 0;
 }
 
 #else

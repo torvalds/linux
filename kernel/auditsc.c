@@ -243,10 +243,11 @@ static inline int open_arg(int flags, int mask)
 
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
+	unsigned n;
 	if (unlikely(!ctx))
 		return 0;
 
-	unsigned n = ctx->major;
+	n = ctx->major;
 	switch (audit_classify_syscall(ctx->arch, n)) {
 	case 0:	/* native */
 		if ((mask & AUDIT_PERM_WRITE) &&

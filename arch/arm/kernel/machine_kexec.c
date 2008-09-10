@@ -71,7 +71,7 @@ void machine_kexec(struct kimage *image)
 
 
 	flush_icache_range((unsigned long) reboot_code_buffer,
-			   (unsigned long) reboot_code_buffer + KEXEC_CONTROL_CODE_SIZE);
+			   (unsigned long) reboot_code_buffer + KEXEC_CONTROL_PAGE_SIZE);
 	printk(KERN_INFO "Bye!\n");
 
 	cpu_proc_fin();

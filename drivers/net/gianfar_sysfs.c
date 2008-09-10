@@ -33,7 +33,6 @@
 
 #include <asm/uaccess.h>
 #include <linux/module.h>
-#include <linux/version.h>
 
 #include "gianfar.h"
 

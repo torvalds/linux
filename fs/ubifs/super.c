@@ -30,7 +30,6 @@
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/ctype.h>
-#include <linux/random.h>
 #include <linux/kthread.h>
 #include <linux/parser.h>
 #include <linux/seq_file.h>
@@ -149,7 +148,7 @@ struct inode *ubifs_iget(struct super_block *sb, unsigned long inum)
 	if (err)
 		goto out_invalid;
 
-	/* Disable readahead */
+	/* Disable read-ahead */
 	inode->i_mapping->backing_dev_info = &c->bdi;
 
 	switch (inode->i_mode & S_IFMT) {
@@ -278,7 +277,7 @@ static void ubifs_destroy_inode(struct inode *inode)
  */
 static int ubifs_write_inode(struct inode *inode, int wait)
 {
-	int err;
+	int err = 0;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 	struct ubifs_inode *ui = ubifs_inode(inode);
 
@@ -299,10 +298,18 @@ static int ubifs_write_inode(struct inode *inode, int wait)
 		return 0;
 	}
 
-	dbg_gen("inode %lu", inode->i_ino);
-	err = ubifs_jnl_write_inode(c, inode, 0);
-	if (err)
-		ubifs_err("can't write inode %lu, error %d", inode->i_ino, err);
+	/*
+	 * As an optimization, do not write orphan inodes to the media just
+	 * because this is not needed.
+	 */
+	dbg_gen("inode %lu, mode %#x, nlink %u",
+		inode->i_ino, (int)inode->i_mode, inode->i_nlink);
+	if (inode->i_nlink) {
+		err = ubifs_jnl_write_inode(c, inode);
+		if (err)
+			ubifs_err("can't write inode %lu, error %d",
+				  inode->i_ino, err);
+	}
 
 	ui->dirty = 0;
 	mutex_unlock(&ui->ui_mutex);
@@ -314,8 +321,9 @@ static void ubifs_delete_inode(struct inode *inode)
 {
 	int err;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
+	struct ubifs_inode *ui = ubifs_inode(inode);
 
-	if (ubifs_inode(inode)->xattr)
+	if (ui->xattr)
 		/*
 		 * Extended attribute inode deletions are fully handled in
 		 * 'ubifs_removexattr()'. These inodes are special and have
@@ -323,7 +331,7 @@ static void ubifs_delete_inode(struct inode *inode)
 		 */
 		goto out;
 
-	dbg_gen("inode %lu", inode->i_ino);
+	dbg_gen("inode %lu, mode %#x", inode->i_ino, (int)inode->i_mode);
 	ubifs_assert(!atomic_read(&inode->i_count));
 	ubifs_assert(inode->i_nlink == 0);
 
@@ -331,15 +339,19 @@ static void ubifs_delete_inode(struct inode *inode)
 	if (is_bad_inode(inode))
 		goto out;
 
-	ubifs_inode(inode)->ui_size = inode->i_size = 0;
-	err = ubifs_jnl_write_inode(c, inode, 1);
+	ui->ui_size = inode->i_size = 0;
+	err = ubifs_jnl_delete_inode(c, inode);
 	if (err)
 		/*
 		 * Worst case we have a lost orphan inode wasting space, so a
-		 * simple error message is ok here.
+		 * simple error message is OK here.
 		 */
-		ubifs_err("can't write inode %lu, error %d", inode->i_ino, err);
+		ubifs_err("can't delete inode %lu, error %d",
+			  inode->i_ino, err);
+
 out:
+	if (ui->dirty)
+		ubifs_release_dirty_inode_budget(c, ui);
 	clear_inode(inode);
 }
 
@@ -358,8 +370,9 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct ubifs_info *c = dentry->d_sb->s_fs_info;
 	unsigned long long free;
+	__le32 *uuid = (__le32 *)c->uuid;
 
-	free = ubifs_budg_get_free_space(c);
+	free = ubifs_get_free_space(c);
 	dbg_gen("free space %lld bytes (%lld blocks)",
 		free, free >> UBIFS_BLOCK_SHIFT);
 
@@ -374,7 +387,8 @@ static int ubifs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_files = 0;
 	buf->f_ffree = 0;
 	buf->f_namelen = UBIFS_MAX_NLEN;
-
+	buf->f_fsid.val[0] = le32_to_cpu(uuid[0]) ^ le32_to_cpu(uuid[2]);
+	buf->f_fsid.val[1] = le32_to_cpu(uuid[1]) ^ le32_to_cpu(uuid[3]);
 	return 0;
 }
 
@@ -518,6 +532,12 @@ static int init_constants_early(struct ubifs_info *c)
 	c->dead_wm = ALIGN(MIN_WRITE_SZ, c->min_io_size);
 	c->dark_wm = ALIGN(UBIFS_MAX_NODE_SZ, c->min_io_size);
 
+	/*
+	 * Calculate how many bytes would be wasted at the end of LEB if it was
+	 * fully filled with data nodes of maximum size. This is used in
+	 * calculations when reporting free space.
+	 */
+	c->leb_overhead = c->leb_size % UBIFS_MAX_DATA_NODE_SZ;
 	return 0;
 }
 
@@ -635,13 +655,11 @@ static int init_constants_late(struct ubifs_info *c)
 	 * internally because it does not make much sense for UBIFS, but it is
 	 * necessary to report something for the 'statfs()' call.
 	 *
-	 * Subtract the LEB reserved for GC and the LEB which is reserved for
-	 * deletions.
-	 *
-	 * Review 'ubifs_calc_available()' if changing this calculation.
+	 * Subtract the LEB reserved for GC, the LEB which is reserved for
+	 * deletions, and assume only one journal head is available.
 	 */
-	tmp64 = c->main_lebs - 2;
-	tmp64 *= (uint64_t)c->leb_size - c->dark_wm;
+	tmp64 = c->main_lebs - 2 - c->jhead_cnt + 1;
+	tmp64 *= (uint64_t)c->leb_size - c->leb_overhead;
 	tmp64 = ubifs_reported_space(c, tmp64);
 	c->block_cnt = tmp64 >> UBIFS_BLOCK_SHIFT;
 
@@ -1122,8 +1140,8 @@ static int mount_ubifs(struct ubifs_info *c)
 	if (err)
 		goto out_infos;
 
-	ubifs_msg("mounted UBI device %d, volume %d", c->vi.ubi_num,
-		  c->vi.vol_id);
+	ubifs_msg("mounted UBI device %d, volume %d, name \"%s\"",
+		  c->vi.ubi_num, c->vi.vol_id, c->vi.name);
 	if (mounted_read_only)
 		ubifs_msg("mounted read-only");
 	x = (long long)c->main_lebs * c->leb_size;
@@ -1469,6 +1487,7 @@ static void ubifs_put_super(struct super_block *sb)
 	 */
 	ubifs_assert(atomic_long_read(&c->dirty_pg_cnt) == 0);
 	ubifs_assert(c->budg_idx_growth == 0);
+	ubifs_assert(c->budg_dd_growth == 0);
 	ubifs_assert(c->budg_data_growth == 0);
 
 	/*
@@ -1657,7 +1676,6 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	INIT_LIST_HEAD(&c->orph_new);
 
 	c->highest_inum = UBIFS_FIRST_INO;
-	get_random_bytes(&c->vfs_gen, sizeof(int));
 	c->lhead_lnum = c->ltail_lnum = UBIFS_LOG_LNUM;
 
 	ubi_get_volume_info(ubi, &c->vi);
@@ -1671,10 +1689,10 @@ static int ubifs_fill_super(struct super_block *sb, void *data, int silent)
 	}
 
 	/*
-	 * UBIFS provids 'backing_dev_info' in order to disable readahead. For
+	 * UBIFS provides 'backing_dev_info' in order to disable read-ahead. For
 	 * UBIFS, I/O is not deferred, it is done immediately in readpage,
 	 * which means the user would have to wait not just for their own I/O
-	 * but the readahead I/O as well i.e. completely pointless.
+	 * but the read-ahead I/O as well i.e. completely pointless.
 	 *
 	 * Read-ahead will be disabled because @c->bdi.ra_pages is 0.
 	 */

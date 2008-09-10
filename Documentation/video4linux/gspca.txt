@@ -88,14 +88,14 @@ zc3xx		0471:0325	Philips SPC 200 NC
 zc3xx		0471:0326	Philips SPC 300 NC
 sonixj		0471:0327	Philips SPC 600 NC
 sonixj		0471:0328	Philips SPC 700 NC
-zc3xx		0471:032d	Philips spc210nc
-zc3xx		0471:032e	Philips spc315nc
-sonixj		0471:0330	Philips SPC 710NC
+zc3xx		0471:032d	Philips SPC 210 NC
+zc3xx		0471:032e	Philips SPC 315 NC
+sonixj		0471:0330	Philips SPC 710 NC
 spca501		0497:c001	Smile International
 sunplus		04a5:3003	Benq DC 1300
 sunplus		04a5:3008	Benq DC 1500
-sunplus		04a5:300a	Benq DC3410
-spca500		04a5:300c	Benq DC1016
+sunplus		04a5:300a	Benq DC 3410
+spca500		04a5:300c	Benq DC 1016
 sunplus		04f1:1001	JVC GC A50
 spca561		04fc:0561	Flexcam 100
 sunplus		04fc:500c	Sunplus CA500C
@@ -175,19 +175,21 @@ sunplus		08ca:2060	Aiptek PocketDV5300
 tv8532		0923:010f	ICM532 cams
 mars		093a:050f	Mars-Semi Pc-Camera
 pac207		093a:2460	PAC207 Qtec Webcam 100
-pac207		093a:2463	Philips spc200nc pac207
+pac207		093a:2463	Philips SPC 220 NC
 pac207		093a:2464	Labtec Webcam 1200
 pac207		093a:2468	PAC207
 pac207		093a:2470	Genius GF112
-pac207		093a:2471	PAC207 Genius VideoCam ge111
-pac207		093a:2472	PAC207 Genius VideoCam ge110
+pac207		093a:2471	Genius VideoCam ge111
+pac207		093a:2472	Genius VideoCam ge110
 pac7311		093a:2600	PAC7311 Typhoon
-pac7311		093a:2601	PAC7311 Phillips SPC610NC
+pac7311		093a:2601	Philips SPC 610 NC
 pac7311		093a:2603	PAC7312
-pac7311		093a:2608	PAC7311 Trust WB-3300p
-pac7311		093a:260e	PAC7311 Gigaware VGA PC Camera, Trust WB-3350p, SIGMA cam 2350
-pac7311		093a:260f	PAC7311 SnakeCam
+pac7311		093a:2608	Trust WB-3300p
+pac7311		093a:260e	Gigaware VGA PC Camera, Trust WB-3350p, SIGMA cam 2350
+pac7311		093a:260f	SnakeCam
 pac7311		093a:2621	PAC731x
+pac7311		093a:2624	PAC7302
+pac7311		093a:2626	Labtec 2200
 zc3xx		0ac8:0302	Z-star Vimicro zc0302
 vc032x		0ac8:0321	Vimicro generic vc0321
 vc032x		0ac8:0323	Vimicro Vc0323
@@ -220,6 +222,7 @@ sonixj		0c45:60c0	Sangha Sn535
 sonixj		0c45:60ec	SN9C105+MO4000
 sonixj		0c45:60fb	Surfer NoName
 sonixj		0c45:60fc	LG-LIC300
+sonixj		0c45:6128	Microdia/Sonix SNP325
 sonixj		0c45:612a	Avant Camera
 sonixj		0c45:612c	Typhoon Rasy Cam 1.3MPix
 sonixj		0c45:6130	Sonix Pccam
@@ -234,7 +237,7 @@ zc3xx		10fd:0128	Typhoon Webshot II USB 300k 0x0128
 spca561		10fd:7e50	FlyCam Usb 100
 zc3xx		10fd:8050	Typhoon Webshot II USB 300k
 spca501		1776:501c	Arowana 300K CMOS Camera
-t613		17a1:0128	T613/TAS5130A
+t613		17a1:0128	TASCORP JPEG Webcam, NGS Cyclops
 vc032x		17ef:4802	Lenovo Vc0323+MI1310_SOC
 pac207		2001:f115	D-Link DSB-C120
 spca500		2899:012c	Toptro Industrial

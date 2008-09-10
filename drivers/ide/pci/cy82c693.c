@@ -447,7 +447,7 @@ static struct pci_driver driver = {
 	.name		= "Cypress_IDE",
 	.id_table	= cy82c693_pci_tbl,
 	.probe		= cy82c693_init_one,
-	.remove		= cy82c693_remove,
+	.remove		= __devexit_p(cy82c693_remove),
 };
 
 static int __init cy82c693_ide_init(void)

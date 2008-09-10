@@ -162,7 +162,7 @@ xfs_qm_newmount(
 			 * mounting, and get on with the boring life
 			 * without disk quotas.
 			 */
-			xfs_qm_mount_quotas(mp, 0);
+			xfs_qm_mount_quotas(mp);
 		} else {
 			/*
 			 * Clear the quota flags, but remember them. This
@@ -184,13 +184,12 @@ STATIC int
 xfs_qm_endmount(
 	xfs_mount_t	*mp,
 	uint		needquotamount,
-	uint		quotaflags,
-	int		mfsi_flags)
+	uint		quotaflags)
 {
 	if (needquotamount) {
 		ASSERT(mp->m_qflags == 0);
 		mp->m_qflags = quotaflags;
-		xfs_qm_mount_quotas(mp, mfsi_flags);
+		xfs_qm_mount_quotas(mp);
 	}
 
 #if defined(DEBUG) && defined(XFS_LOUD_RECOVERY)

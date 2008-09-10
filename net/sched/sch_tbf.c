@@ -123,15 +123,8 @@ static int tbf_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	struct tbf_sched_data *q = qdisc_priv(sch);
 	int ret;
 
-	if (qdisc_pkt_len(skb) > q->max_size) {
-		sch->qstats.drops++;
-#ifdef CONFIG_NET_CLS_ACT
-		if (sch->reshape_fail == NULL || sch->reshape_fail(skb, sch))
-#endif
-			kfree_skb(skb);
-
-		return NET_XMIT_DROP;
-	}
+	if (qdisc_pkt_len(skb) > q->max_size)
+		return qdisc_reshape_fail(skb, sch);
 
 	ret = qdisc_enqueue(skb, q->qdisc);
 	if (ret != 0) {

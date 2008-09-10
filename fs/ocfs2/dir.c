@@ -1300,7 +1300,6 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 	di->i_size = cpu_to_le64(sb->s_blocksize);
 	di->i_ctime = di->i_mtime = cpu_to_le64(dir->i_ctime.tv_sec);
 	di->i_ctime_nsec = di->i_mtime_nsec = cpu_to_le32(dir->i_ctime.tv_nsec);
-	dir->i_blocks = ocfs2_inode_sector_count(dir);
 
 	/*
 	 * This should never fail as our extent list is empty and all
@@ -1310,8 +1309,14 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 				  NULL);
 	if (ret) {
 		mlog_errno(ret);
-		goto out;
+		goto out_commit;
 	}
+
+	/*
+	 * Set i_blocks after the extent insert for the most up to
+	 * date ip_clusters value.
+	 */
+	dir->i_blocks = ocfs2_inode_sector_count(dir);
 
 	ret = ocfs2_journal_dirty(handle, di_bh);
 	if (ret) {
@@ -1336,7 +1341,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 					  len, 0, NULL);
 		if (ret) {
 			mlog_errno(ret);
-			goto out;
+			goto out_commit;
 		}
 	}
 

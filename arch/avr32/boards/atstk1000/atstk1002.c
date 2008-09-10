@@ -96,7 +96,7 @@ static struct mtd_partition *nand_part_info(int size, int *num_partitions)
 	return nand_partitions;
 }
 
-struct atmel_nand_data atstk1006_nand_data __initdata = {
+static struct atmel_nand_data atstk1006_nand_data __initdata = {
 	.cle		= 21,
 	.ale		= 22,
 	.rdy_pin	= GPIO_PIN_PB(30),

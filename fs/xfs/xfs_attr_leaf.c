@@ -2498,9 +2498,7 @@ xfs_attr_leaf_clearflag(xfs_da_args_t *args)
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	error = xfs_attr_rolltrans(&args->trans, args->dp);
-
-	return(error);
+	return xfs_trans_roll(&args->trans, args->dp);
 }
 
 /*
@@ -2547,9 +2545,7 @@ xfs_attr_leaf_setflag(xfs_da_args_t *args)
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	error = xfs_attr_rolltrans(&args->trans, args->dp);
-
-	return(error);
+	return xfs_trans_roll(&args->trans, args->dp);
 }
 
 /*
@@ -2665,7 +2661,7 @@ xfs_attr_leaf_flipflags(xfs_da_args_t *args)
 	/*
 	 * Commit the flag value change and start the next trans in series.
 	 */
-	error = xfs_attr_rolltrans(&args->trans, args->dp);
+	error = xfs_trans_roll(&args->trans, args->dp);
 
 	return(error);
 }
@@ -2723,7 +2719,7 @@ xfs_attr_root_inactive(xfs_trans_t **trans, xfs_inode_t *dp)
 	/*
 	 * Commit the invalidate and start the next transaction.
 	 */
-	error = xfs_attr_rolltrans(trans, dp);
+	error = xfs_trans_roll(trans, dp);
 
 	return (error);
 }
@@ -2825,7 +2821,8 @@ xfs_attr_node_inactive(xfs_trans_t **trans, xfs_inode_t *dp, xfs_dabuf_t *bp,
 		/*
 		 * Atomically commit the whole invalidate stuff.
 		 */
-		if ((error = xfs_attr_rolltrans(trans, dp)))
+		error = xfs_trans_roll(trans, dp);
+		if (error)
 			return (error);
 	}
 
@@ -2964,7 +2961,8 @@ xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 			/*
 			 * Roll to next transaction.
 			 */
-			if ((error = xfs_attr_rolltrans(trans, dp)))
+			error = xfs_trans_roll(trans, dp);
+			if (error)
 				return (error);
 		}
 
@@ -2973,61 +2971,4 @@ xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 	}
 
 	return(0);
-}
-
-
-/*
- * Roll from one trans in the sequence of PERMANENT transactions to the next.
- */
-int
-xfs_attr_rolltrans(xfs_trans_t **transp, xfs_inode_t *dp)
-{
-	xfs_trans_t *trans;
-	unsigned int logres, count;
-	int	error;
-
-	/*
-	 * Ensure that the inode is always logged.
-	 */
-	trans = *transp;
-	xfs_trans_log_inode(trans, dp, XFS_ILOG_CORE);
-
-	/*
-	 * Copy the critical parameters from one trans to the next.
-	 */
-	logres = trans->t_log_res;
-	count = trans->t_log_count;
-	*transp = xfs_trans_dup(trans);
-
-	/*
-	 * Commit the current transaction.
-	 * If this commit failed, then it'd just unlock those items that
-	 * are not marked ihold. That also means that a filesystem shutdown
-	 * is in progress. The caller takes the responsibility to cancel
-	 * the duplicate transaction that gets returned.
-	 */
-	if ((error = xfs_trans_commit(trans, 0)))
-		return (error);
-
-	trans = *transp;
-
-	/*
-	 * Reserve space in the log for th next transaction.
-	 * This also pushes items in the "AIL", the list of logged items,
-	 * out to disk if they are taking up space at the tail of the log
-	 * that we want to use.  This requires that either nothing be locked
-	 * across this call, or that anything that is locked be logged in
-	 * the prior and the next transactions.
-	 */
-	error = xfs_trans_reserve(trans, 0, logres, 0,
-				  XFS_TRANS_PERM_LOG_RES, count);
-	/*
-	 *  Ensure that the inode is in the new transaction and locked.
-	 */
-	if (!error) {
-		xfs_trans_ijoin(trans, dp, XFS_ILOCK_EXCL);
-		xfs_trans_ihold(trans, dp);
-	}
-	return (error);
-
 }

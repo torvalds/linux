@@ -168,7 +168,7 @@ static const int heartbeat_tbl[] = {
 static int cards_found;
 
 /* internal variables */
-static atomic_t open_allowed = ATOMIC_INIT(1);
+static unsigned long open_allowed;
 static char expect_close;
 static int temp_panic;
 

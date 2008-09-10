@@ -52,6 +52,7 @@ EXPORT_SYMBOL(mtd_size);
 #endif
 
 char __initdata command_line[COMMAND_LINE_SIZE];
+unsigned int __initdata *__retx;
 
 /* boot memmap, for parsing "memmap=" */
 #define BFIN_MEMMAP_MAX		128 /* number of entries in bfin_memmap */
@@ -131,14 +132,14 @@ void __init bf53x_relocate_l1_mem(void)
 	dma_memcpy(_sdata_b_l1, _l1_lma_start + l1_code_length +
 			l1_data_a_length, l1_data_b_length);
 
-#ifdef L2_LENGTH
-	l2_length = _ebss_l2 - _stext_l2;
-	if (l2_length > L2_LENGTH)
-		panic("L2 SRAM Overflow\n");
+	if (L2_LENGTH != 0) {
+		l2_length = _ebss_l2 - _stext_l2;
+		if (l2_length > L2_LENGTH)
+			panic("L2 SRAM Overflow\n");
 
-	/* Copy _stext_l2 to _edata_l2 to L2 SRAM */
-	dma_memcpy(_stext_l2, _l2_lma_start, l2_length);
-#endif
+		/* Copy _stext_l2 to _edata_l2 to L2 SRAM */
+		dma_memcpy(_stext_l2, _l2_lma_start, l2_length);
+	}
 }
 
 /* add_memory_region to memmap */
@@ -738,6 +739,16 @@ void __init setup_arch(char **cmdline_p)
 
 	memory_setup();
 
+	/* Initialize Async memory banks */
+	bfin_write_EBIU_AMBCTL0(AMBCTL0VAL);
+	bfin_write_EBIU_AMBCTL1(AMBCTL1VAL);
+	bfin_write_EBIU_AMGCTL(AMGCTLVAL);
+#ifdef CONFIG_EBIU_MBSCTLVAL
+	bfin_write_EBIU_MBSCTL(CONFIG_EBIU_MBSCTLVAL);
+	bfin_write_EBIU_MODE(CONFIG_EBIU_MODEVAL);
+	bfin_write_EBIU_FCTL(CONFIG_EBIU_FCTLVAL);
+#endif
+
 	cclk = get_cclk();
 	sclk = get_sclk();
 
@@ -775,7 +786,11 @@ void __init setup_arch(char **cmdline_p)
 	bfin_write_SWRST(DOUBLE_FAULT);
 
 	if (_bfin_swrst & RESET_DOUBLE)
-		printk(KERN_INFO "Recovering from Double Fault event\n");
+		/*
+		 * don't decode the address, since you don't know if this
+		 * kernel's symbol map is the same as the crashing kernel
+		 */
+		printk(KERN_INFO "Recovering from Double Fault event at %pF\n", __retx);
 	else if (_bfin_swrst & RESET_WDOG)
 		printk(KERN_INFO "Recovering from Watchdog event\n");
 	else if (_bfin_swrst & RESET_SOFTWARE)
@@ -1049,7 +1064,7 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 		   dsup_banks, BFIN_DSUBBANKS, BFIN_DWAYS,
 		   BFIN_DLINES);
 #ifdef CONFIG_BFIN_ICACHE_LOCK
-	switch (read_iloc()) {
+	switch ((bfin_read_IMEM_CONTROL() >> 3) & WAYALL_L) {
 	case WAY0_L:
 		seq_printf(m, "Way0 Locked-Down\n");
 		break;

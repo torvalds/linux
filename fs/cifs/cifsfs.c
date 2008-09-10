@@ -175,6 +175,8 @@ out_no_root:
 	if (inode)
 		iput(inode);
 
+	cifs_umount(sb, cifs_sb);
+
 out_mount_failed:
 	if (cifs_sb) {
 #ifdef CONFIG_CIFS_DFS_UPCALL

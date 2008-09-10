@@ -46,4 +46,41 @@
 #define DMAC_DMAREQ_2		9
 #define DMAC_DMAREQ_3		10
 
+/* HSB master IDs */
+#define HMATRIX_MASTER_CPU_DCACHE		0
+#define HMATRIX_MASTER_CPU_ICACHE		1
+#define HMATRIX_MASTER_PDC			2
+#define HMATRIX_MASTER_ISI			3
+#define HMATRIX_MASTER_USBA			4
+#define HMATRIX_MASTER_LCDC			5
+#define HMATRIX_MASTER_MACB0			6
+#define HMATRIX_MASTER_MACB1			7
+#define HMATRIX_MASTER_DMACA_M0			8
+#define HMATRIX_MASTER_DMACA_M1			9
+
+/* HSB slave IDs */
+#define HMATRIX_SLAVE_SRAM0			0
+#define HMATRIX_SLAVE_SRAM1			1
+#define HMATRIX_SLAVE_PBA			2
+#define HMATRIX_SLAVE_PBB			3
+#define HMATRIX_SLAVE_EBI			4
+#define HMATRIX_SLAVE_USBA			5
+#define HMATRIX_SLAVE_LCDC			6
+#define HMATRIX_SLAVE_DMACA			7
+
+/* Bits in HMATRIX SFR4 (EBI) */
+#define HMATRIX_EBI_SDRAM_ENABLE		(1 << 1)
+#define HMATRIX_EBI_NAND_ENABLE			(1 << 3)
+#define HMATRIX_EBI_CF0_ENABLE			(1 << 4)
+#define HMATRIX_EBI_CF1_ENABLE			(1 << 5)
+#define HMATRIX_EBI_PULLUP_DISABLE		(1 << 8)
+
+/*
+ * Base addresses of controllers that may be accessed early by
+ * platform code.
+ */
+#define PM_BASE		0xfff00000
+#define HMATRIX_BASE	0xfff00800
+#define SDRAMC_BASE	0xfff03800
+
 #endif /* __ASM_ARCH_AT32AP700X_H__ */

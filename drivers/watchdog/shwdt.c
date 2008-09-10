@@ -30,7 +30,7 @@
 #include <linux/mm.h>
 #include <linux/io.h>
 #include <linux/uaccess.h>
-#include <linux/watchdog.h>
+#include <asm/watchdog.h>
 
 #define PFX "shwdt: "
 
@@ -68,7 +68,7 @@ static int clock_division_ratio = WTCSR_CKS_4096;
 static void sh_wdt_ping(unsigned long data);
 
 static unsigned long shwdt_is_open;
-static struct watchdog_info sh_wdt_info;
+static const struct watchdog_info sh_wdt_info;
 static char shwdt_expect_close;
 static DEFINE_TIMER(timer, sh_wdt_ping, 0, 0);
 static unsigned long next_heartbeat;
@@ -89,7 +89,7 @@ static void sh_wdt_start(void)
 	__u8 csr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdt_lock, flags);
+	spin_lock_irqsave(&shwdt_lock, flags);
 
 	next_heartbeat = jiffies + (heartbeat * HZ);
 	mod_timer(&timer, next_ping_period(clock_division_ratio));
@@ -127,7 +127,7 @@ static void sh_wdt_start(void)
 	csr &= ~RSTCSR_RSTS;
 	sh_wdt_write_rstcsr(csr);
 #endif
-	spin_unlock_irqrestore(&wdt_lock, flags);
+	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
 /**
@@ -139,14 +139,14 @@ static void sh_wdt_stop(void)
 	__u8 csr;
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdt_lock, flags);
+	spin_lock_irqsave(&shwdt_lock, flags);
 
 	del_timer(&timer);
 
 	csr = sh_wdt_read_csr();
 	csr &= ~WTCSR_TME;
 	sh_wdt_write_csr(csr);
-	spin_unlock_irqrestore(&wdt_lock, flags);
+	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
 /**
@@ -157,9 +157,9 @@ static inline void sh_wdt_keepalive(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdt_lock, flags);
+	spin_lock_irqsave(&shwdt_lock, flags);
 	next_heartbeat = jiffies + (heartbeat * HZ);
-	spin_unlock_irqrestore(&wdt_lock, flags);
+	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
 /**
@@ -173,9 +173,9 @@ static int sh_wdt_set_heartbeat(int t)
 	if (unlikely(t < 1 || t > 3600)) /* arbitrary upper limit */
 		return -EINVAL;
 
-	spin_lock_irqsave(&wdt_lock, flags);
+	spin_lock_irqsave(&shwdt_lock, flags);
 	heartbeat = t;
-	spin_unlock_irqrestore(&wdt_lock, flags);
+	spin_unlock_irqrestore(&shwdt_lock, flags);
 	return 0;
 }
 
@@ -189,7 +189,7 @@ static void sh_wdt_ping(unsigned long data)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&wdt_lock, flags);
+	spin_lock_irqsave(&shwdt_lock, flags);
 	if (time_before(jiffies, next_heartbeat)) {
 		__u8 csr;
 
@@ -203,7 +203,7 @@ static void sh_wdt_ping(unsigned long data)
 	} else
 		printk(KERN_WARNING PFX "Heartbeat lost! Will not ping "
 		       "the watchdog\n");
-	spin_unlock_irqrestore(&wdt_lock, flags);
+	spin_unlock_irqrestore(&shwdt_lock, flags);
 }
 
 /**

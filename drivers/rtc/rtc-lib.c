@@ -51,10 +51,11 @@ EXPORT_SYMBOL(rtc_year_days);
  */
 void rtc_time_to_tm(unsigned long time, struct rtc_time *tm)
 {
-	unsigned int days, month, year;
+	unsigned int month, year;
+	int days;
 
 	days = time / 86400;
-	time -= days * 86400;
+	time -= (unsigned int) days * 86400;
 
 	/* day of the week, 1970-01-01 was a Thursday */
 	tm->tm_wday = (days + 4) % 7;

@@ -213,6 +213,7 @@ struct ehca_wqe {
 #define WC_STATUS_ERROR_BIT 0x80000000
 #define WC_STATUS_REMOTE_ERROR_FLAGS 0x0000F800
 #define WC_STATUS_PURGE_BIT 0x10
+#define WC_SEND_RECEIVE_BIT 0x80
 
 struct ehca_cqe {
 	u64 work_request_id;

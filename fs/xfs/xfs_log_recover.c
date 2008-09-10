@@ -3940,8 +3940,7 @@ xlog_recover(
  */
 int
 xlog_recover_finish(
-	xlog_t		*log,
-	int		mfsi_flags)
+	xlog_t		*log)
 {
 	/*
 	 * Now we're ready to do the transactions needed for the
@@ -3969,9 +3968,7 @@ xlog_recover_finish(
 		xfs_log_force(log->l_mp, (xfs_lsn_t)0,
 			      (XFS_LOG_FORCE | XFS_LOG_SYNC));
 
-		if ( (mfsi_flags & XFS_MFSI_NOUNLINK) == 0 ) {
-			xlog_recover_process_iunlinks(log);
-		}
+		xlog_recover_process_iunlinks(log);
 
 		xlog_recover_check_summary(log);
 

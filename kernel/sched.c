@@ -600,7 +600,6 @@ struct rq {
 	/* BKL stats */
 	unsigned int bkl_count;
 #endif
-	struct lock_class_key rq_lock_key;
 };
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
@@ -809,9 +808,9 @@ const_debug unsigned int sysctl_sched_nr_migrate = 32;
 
 /*
  * ratelimit for updating the group shares.
- * default: 0.5ms
+ * default: 0.25ms
  */
-const_debug unsigned int sysctl_sched_shares_ratelimit = 500000;
+unsigned int sysctl_sched_shares_ratelimit = 250000;
 
 /*
  * period over which we measure -rt task cpu usage in us.
@@ -834,7 +833,7 @@ static inline u64 global_rt_period(void)
 
 static inline u64 global_rt_runtime(void)
 {
-	if (sysctl_sched_rt_period < 0)
+	if (sysctl_sched_rt_runtime < 0)
 		return RUNTIME_INF;
 
 	return (u64)sysctl_sched_rt_runtime * NSEC_PER_USEC;
@@ -2759,10 +2758,10 @@ static void double_rq_lock(struct rq *rq1, struct rq *rq2)
 	} else {
 		if (rq1 < rq2) {
 			spin_lock(&rq1->lock);
-			spin_lock(&rq2->lock);
+			spin_lock_nested(&rq2->lock, SINGLE_DEPTH_NESTING);
 		} else {
 			spin_lock(&rq2->lock);
-			spin_lock(&rq1->lock);
+			spin_lock_nested(&rq1->lock, SINGLE_DEPTH_NESTING);
 		}
 	}
 	update_rq_clock(rq1);
@@ -2805,12 +2804,19 @@ static int double_lock_balance(struct rq *this_rq, struct rq *busiest)
 		if (busiest < this_rq) {
 			spin_unlock(&this_rq->lock);
 			spin_lock(&busiest->lock);
-			spin_lock(&this_rq->lock);
+			spin_lock_nested(&this_rq->lock, SINGLE_DEPTH_NESTING);
 			ret = 1;
 		} else
-			spin_lock(&busiest->lock);
+			spin_lock_nested(&busiest->lock, SINGLE_DEPTH_NESTING);
 	}
 	return ret;
+}
+
+static void double_unlock_balance(struct rq *this_rq, struct rq *busiest)
+	__releases(busiest->lock)
+{
+	spin_unlock(&busiest->lock);
+	lock_set_subclass(&this_rq->lock.dep_map, 0, _RET_IP_);
 }
 
 /*
@@ -3637,7 +3643,7 @@ redo:
 		ld_moved = move_tasks(this_rq, this_cpu, busiest,
 					imbalance, sd, CPU_NEWLY_IDLE,
 					&all_pinned);
-		spin_unlock(&busiest->lock);
+		double_unlock_balance(this_rq, busiest);
 
 		if (unlikely(all_pinned)) {
 			cpu_clear(cpu_of(busiest), *cpus);
@@ -3752,7 +3758,7 @@ static void active_load_balance(struct rq *busiest_rq, int busiest_cpu)
 		else
 			schedstat_inc(sd, alb_failed);
 	}
-	spin_unlock(&target_rq->lock);
+	double_unlock_balance(busiest_rq, target_rq);
 }
 
 #ifdef CONFIG_NO_HZ
@@ -4170,6 +4176,65 @@ void account_steal_time(struct task_struct *p, cputime_t steal)
 			cpustat->idle = cputime64_add(cpustat->idle, tmp);
 	} else
 		cpustat->steal = cputime64_add(cpustat->steal, tmp);
+}
+
+/*
+ * Use precise platform statistics if available:
+ */
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+cputime_t task_utime(struct task_struct *p)
+{
+	return p->utime;
+}
+
+cputime_t task_stime(struct task_struct *p)
+{
+	return p->stime;
+}
+#else
+cputime_t task_utime(struct task_struct *p)
+{
+	clock_t utime = cputime_to_clock_t(p->utime),
+		total = utime + cputime_to_clock_t(p->stime);
+	u64 temp;
+
+	/*
+	 * Use CFS's precise accounting:
+	 */
+	temp = (u64)nsec_to_clock_t(p->se.sum_exec_runtime);
+
+	if (total) {
+		temp *= utime;
+		do_div(temp, total);
+	}
+	utime = (clock_t)temp;
+
+	p->prev_utime = max(p->prev_utime, clock_t_to_cputime(utime));
+	return p->prev_utime;
+}
+
+cputime_t task_stime(struct task_struct *p)
+{
+	clock_t stime;
+
+	/*
+	 * Use CFS's precise accounting. (we subtract utime from
+	 * the total, to make sure the total observed by userspace
+	 * grows monotonically - apps rely on that):
+	 */
+	stime = nsec_to_clock_t(p->se.sum_exec_runtime) -
+			cputime_to_clock_t(task_utime(p));
+
+	if (stime >= 0)
+		p->prev_stime = max(p->prev_stime, clock_t_to_cputime(stime));
+
+	return p->prev_stime;
+}
+#endif
+
+inline cputime_t task_gtime(struct task_struct *p)
+{
+	return p->gtime;
 }
 
 /*
@@ -4662,6 +4727,52 @@ int __sched wait_for_completion_killable(struct completion *x)
 	return 0;
 }
 EXPORT_SYMBOL(wait_for_completion_killable);
+
+/**
+ *	try_wait_for_completion - try to decrement a completion without blocking
+ *	@x:	completion structure
+ *
+ *	Returns: 0 if a decrement cannot be done without blocking
+ *		 1 if a decrement succeeded.
+ *
+ *	If a completion is being used as a counting completion,
+ *	attempt to decrement the counter without blocking. This
+ *	enables us to avoid waiting if the resource the completion
+ *	is protecting is not available.
+ */
+bool try_wait_for_completion(struct completion *x)
+{
+	int ret = 1;
+
+	spin_lock_irq(&x->wait.lock);
+	if (!x->done)
+		ret = 0;
+	else
+		x->done--;
+	spin_unlock_irq(&x->wait.lock);
+	return ret;
+}
+EXPORT_SYMBOL(try_wait_for_completion);
+
+/**
+ *	completion_done - Test to see if a completion has any waiters
+ *	@x:	completion structure
+ *
+ *	Returns: 0 if there are waiters (wait_for_completion() in progress)
+ *		 1 if there are no waiters.
+ *
+ */
+bool completion_done(struct completion *x)
+{
+	int ret = 1;
+
+	spin_lock_irq(&x->wait.lock);
+	if (!x->done)
+		ret = 0;
+	spin_unlock_irq(&x->wait.lock);
+	return ret;
+}
+EXPORT_SYMBOL(completion_done);
 
 static long __sched
 sleep_on_common(wait_queue_head_t *q, int state, long timeout)
@@ -5734,6 +5845,8 @@ static inline void sched_init_granularity(void)
 		sysctl_sched_latency = limit;
 
 	sysctl_sched_wakeup_granularity *= factor;
+
+	sysctl_sched_shares_ratelimit *= factor;
 }
 
 #ifdef CONFIG_SMP
@@ -7583,24 +7696,27 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  * and partition_sched_domains() will fallback to the single partition
  * 'fallback_doms', it also forces the domains to be rebuilt.
  *
+ * If doms_new==NULL it will be replaced with cpu_online_map.
+ * ndoms_new==0 is a special case for destroying existing domains.
+ * It will not create the default domain.
+ *
  * Call with hotplug lock held
  */
 void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 			     struct sched_domain_attr *dattr_new)
 {
-	int i, j;
+	int i, j, n;
 
 	mutex_lock(&sched_domains_mutex);
 
 	/* always unregister in case we don't destroy any domains */
 	unregister_sched_domain_sysctl();
 
-	if (doms_new == NULL)
-		ndoms_new = 0;
+	n = doms_new ? ndoms_new : 0;
 
 	/* Destroy deleted domains */
 	for (i = 0; i < ndoms_cur; i++) {
-		for (j = 0; j < ndoms_new; j++) {
+		for (j = 0; j < n; j++) {
 			if (cpus_equal(doms_cur[i], doms_new[j])
 			    && dattrs_equal(dattr_cur, i, dattr_new, j))
 				goto match1;
@@ -7613,7 +7729,6 @@ match1:
 
 	if (doms_new == NULL) {
 		ndoms_cur = 0;
-		ndoms_new = 1;
 		doms_new = &fallback_doms;
 		cpus_andnot(doms_new[0], cpu_online_map, cpu_isolated_map);
 		dattr_new = NULL;
@@ -7650,8 +7765,13 @@ match2:
 int arch_reinit_sched_domains(void)
 {
 	get_online_cpus();
+
+	/* Destroy domains first to force the rebuild */
+	partition_sched_domains(0, NULL, NULL);
+
 	rebuild_sched_domains();
 	put_online_cpus();
+
 	return 0;
 }
 
@@ -7735,7 +7855,7 @@ static int update_sched_domains(struct notifier_block *nfb,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		partition_sched_domains(0, NULL, NULL);
+		partition_sched_domains(1, NULL, NULL);
 		return NOTIFY_OK;
 
 	default:
@@ -8000,7 +8120,6 @@ void __init sched_init(void)
 
 		rq = cpu_rq(i);
 		spin_lock_init(&rq->lock);
-		lockdep_set_class(&rq->lock, &rq->rq_lock_key);
 		rq->nr_running = 0;
 		init_cfs_rq(&rq->cfs, rq);
 		init_rt_rq(&rq->rt, rq);
@@ -8457,8 +8576,8 @@ struct task_group *sched_create_group(struct task_group *parent)
 	WARN_ON(!parent); /* root should already exist */
 
 	tg->parent = parent;
-	list_add_rcu(&tg->siblings, &parent->children);
 	INIT_LIST_HEAD(&tg->children);
+	list_add_rcu(&tg->siblings, &parent->children);
 	spin_unlock_irqrestore(&task_group_lock, flags);
 
 	return tg;

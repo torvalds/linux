@@ -183,8 +183,14 @@ do {								\
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 # define spin_lock_nested(lock, subclass) _spin_lock_nested(lock, subclass)
+# define spin_lock_nest_lock(lock, nest_lock)				\
+	 do {								\
+		 typecheck(struct lockdep_map *, &(nest_lock)->dep_map);\
+		 _spin_lock_nest_lock(lock, &(nest_lock)->dep_map);	\
+	 } while (0)
 #else
 # define spin_lock_nested(lock, subclass) _spin_lock(lock)
+# define spin_lock_nest_lock(lock, nest_lock) _spin_lock(lock)
 #endif
 
 #define write_lock(lock)		_write_lock(lock)

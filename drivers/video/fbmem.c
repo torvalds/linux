@@ -1344,6 +1344,10 @@ fb_open(struct inode *inode, struct file *file)
 		if (res)
 			module_put(info->fbops->owner);
 	}
+#ifdef CONFIG_FB_DEFERRED_IO
+	if (info->fbdefio)
+		fb_deferred_io_open(info, inode, file);
+#endif
 out:
 	unlock_kernel();
 	return res;

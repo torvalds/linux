@@ -38,8 +38,10 @@ void free_cpu_buffers(void)
 {
 	int i;
  
-	for_each_online_cpu(i)
+	for_each_online_cpu(i) {
 		vfree(per_cpu(cpu_buffer, i).buffer);
+		per_cpu(cpu_buffer, i).buffer = NULL;
+	}
 }
 
 int alloc_cpu_buffers(void)

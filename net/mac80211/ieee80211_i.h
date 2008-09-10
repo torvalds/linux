@@ -470,6 +470,8 @@ struct ieee80211_sub_if_data {
 			struct dentry *auth_transaction;
 			struct dentry *flags;
 			struct dentry *num_beacons_sta;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
 		} sta;
 		struct {
 			struct dentry *drop_unencrypted;
@@ -483,15 +485,21 @@ struct ieee80211_sub_if_data {
 		struct {
 			struct dentry *drop_unencrypted;
 			struct dentry *peer;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
 		} wds;
 		struct {
 			struct dentry *drop_unencrypted;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
 		} vlan;
 		struct {
 			struct dentry *mode;
 		} monitor;
-		struct dentry *default_key;
 	} debugfs;
+	struct {
+		struct dentry *default_key;
+	} common_debugfs;
 
 #ifdef CONFIG_MAC80211_MESH
 	struct dentry *mesh_stats_dir;

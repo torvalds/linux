@@ -5017,7 +5017,11 @@ static void ath9k_hw_spur_mitigate(struct ath_hal *ah,
 
 	for (i = 0; i < 123; i++) {
 		if ((cur_vit_mask > lower) && (cur_vit_mask < upper)) {
-			if ((abs(cur_vit_mask - bin)) < 75)
+
+			/* workaround for gcc bug #37014 */
+			volatile int tmp = abs(cur_vit_mask - bin);
+
+			if (tmp < 75)
 				mask_amt = 1;
 			else
 				mask_amt = 0;
@@ -7281,15 +7285,15 @@ ath9k_hw_set_keycache_entry(struct ath_hal *ah, u16 entry,
 		}
 		break;
 	case ATH9K_CIPHER_WEP:
-		if (k->kv_len < 40 / NBBY) {
+		if (k->kv_len < LEN_WEP40) {
 			DPRINTF(ah->ah_sc, ATH_DBG_KEYCACHE,
 				 "%s: WEP key length %u too small\n",
 				 __func__, k->kv_len);
 			return false;
 		}
-		if (k->kv_len <= 40 / NBBY)
+		if (k->kv_len <= LEN_WEP40)
 			keyType = AR_KEYTABLE_TYPE_40;
-		else if (k->kv_len <= 104 / NBBY)
+		else if (k->kv_len <= LEN_WEP104)
 			keyType = AR_KEYTABLE_TYPE_104;
 		else
 			keyType = AR_KEYTABLE_TYPE_128;
@@ -7309,7 +7313,7 @@ ath9k_hw_set_keycache_entry(struct ath_hal *ah, u16 entry,
 	key2 = get_unaligned_le32(k->kv_val + 6) ^ xorMask;
 	key3 = (get_unaligned_le16(k->kv_val + 10) ^ xorMask) & 0xffff;
 	key4 = get_unaligned_le32(k->kv_val + 12) ^ xorMask;
-	if (k->kv_len <= 104 / NBBY)
+	if (k->kv_len <= LEN_WEP104)
 		key4 &= 0xff;
 
 	if (keyType == AR_KEYTABLE_TYPE_TKIP && ATH9K_IS_MIC_ENABLED(ah)) {

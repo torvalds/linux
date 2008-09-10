@@ -317,7 +317,6 @@ tusb6010_setup_interface(struct musb_hdrc_platform_data *data,
 		printk(error, 6, status);
 		return -ENODEV;
 	}
-	data->multipoint = 1;
 	tusb_device.dev.platform_data = data;
 
 	/* REVISIT let the driver know what DMA channels work */

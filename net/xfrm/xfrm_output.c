@@ -112,16 +112,13 @@ error_nolock:
 int xfrm_output_resume(struct sk_buff *skb, int err)
 {
 	while (likely((err = xfrm_output_one(skb, err)) == 0)) {
-		struct xfrm_state *x;
-
 		nf_reset(skb);
 
 		err = skb->dst->ops->local_out(skb);
 		if (unlikely(err != 1))
 			goto out;
 
-		x = skb->dst->xfrm;
-		if (!x)
+		if (!skb->dst->xfrm)
 			return dst_output(skb);
 
 		err = nf_hook(skb->dst->ops->family,

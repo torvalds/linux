@@ -381,6 +381,12 @@
 #define __NR_fallocate			(__NR_SYSCALL_BASE+352)
 #define __NR_timerfd_settime		(__NR_SYSCALL_BASE+353)
 #define __NR_timerfd_gettime		(__NR_SYSCALL_BASE+354)
+#define __NR_signalfd4			(__NR_SYSCALL_BASE+355)
+#define __NR_eventfd2			(__NR_SYSCALL_BASE+356)
+#define __NR_epoll_create1		(__NR_SYSCALL_BASE+357)
+#define __NR_dup3			(__NR_SYSCALL_BASE+358)
+#define __NR_pipe2			(__NR_SYSCALL_BASE+359)
+#define __NR_inotify_init1		(__NR_SYSCALL_BASE+360)
 
 /*
  * The following SWIs are ARM private.

@@ -486,17 +486,22 @@ asmlinkage long sys_capset(cap_user_header_t header, const cap_user_data_t data)
 	return ret;
 }
 
-int __capable(struct task_struct *t, int cap)
+/**
+ * capable - Determine if the current task has a superior capability in effect
+ * @cap: The capability to be tested for
+ *
+ * Return true if the current task has the given superior capability currently
+ * available for use, false if not.
+ *
+ * This sets PF_SUPERPRIV on the task if the capability is available on the
+ * assumption that it's about to be used.
+ */
+int capable(int cap)
 {
-	if (security_capable(t, cap) == 0) {
-		t->flags |= PF_SUPERPRIV;
+	if (has_capability(current, cap)) {
+		current->flags |= PF_SUPERPRIV;
 		return 1;
 	}
 	return 0;
-}
-
-int capable(int cap)
-{
-	return __capable(current, cap);
 }
 EXPORT_SYMBOL(capable);

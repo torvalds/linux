@@ -47,7 +47,7 @@ static struct eth_platform_data __initdata eth_data[2];
 static struct spi_board_info spi0_board_info[] __initdata = {
 	{
 		.modalias	= "mtd_dataflash",
-		.max_speed_hz	= 10000000,
+		.max_speed_hz	= 8000000,
 		.chip_select	= 0,
 	},
 };

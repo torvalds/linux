@@ -55,7 +55,7 @@
 #include <asm/system.h>
 
 static char mv643xx_eth_driver_name[] = "mv643xx_eth";
-static char mv643xx_eth_driver_version[] = "1.2";
+static char mv643xx_eth_driver_version[] = "1.3";
 
 #define MV643XX_ETH_CHECKSUM_OFFLOAD_TX
 #define MV643XX_ETH_NAPI
@@ -474,11 +474,19 @@ static void rxq_refill(struct rx_queue *rxq)
 		/*
 		 * Reserve 2+14 bytes for an ethernet header (the
 		 * hardware automatically prepends 2 bytes of dummy
-		 * data to each received packet), 4 bytes for a VLAN
-		 * header, and 4 bytes for the trailing FCS -- 24
-		 * bytes total.
+		 * data to each received packet), 16 bytes for up to
+		 * four VLAN tags, and 4 bytes for the trailing FCS
+		 * -- 36 bytes total.
 		 */
-		skb_size = mp->dev->mtu + 24;
+		skb_size = mp->dev->mtu + 36;
+
+		/*
+		 * Make sure that the skb size is a multiple of 8
+		 * bytes, as the lower three bits of the receive
+		 * descriptor's buffer size field are ignored by
+		 * the hardware.
+		 */
+		skb_size = (skb_size + 7) & ~7;
 
 		skb = dev_alloc_skb(skb_size + dma_get_cache_alignment() - 1);
 		if (skb == NULL)
@@ -509,10 +517,8 @@ static void rxq_refill(struct rx_queue *rxq)
 		skb_reserve(skb, 2);
 	}
 
-	if (rxq->rx_desc_count != rxq->rx_ring_size) {
-		rxq->rx_oom.expires = jiffies + (HZ / 10);
-		add_timer(&rxq->rx_oom);
-	}
+	if (rxq->rx_desc_count != rxq->rx_ring_size)
+		mod_timer(&rxq->rx_oom, jiffies + (HZ / 10));
 
 	spin_unlock_irqrestore(&mp->lock, flags);
 }
@@ -529,7 +535,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 	int rx;
 
 	rx = 0;
-	while (rx < budget) {
+	while (rx < budget && rxq->rx_desc_count) {
 		struct rx_desc *rx_desc;
 		unsigned int cmd_sts;
 		struct sk_buff *skb;
@@ -554,7 +560,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		spin_unlock_irqrestore(&mp->lock, flags);
 
 		dma_unmap_single(NULL, rx_desc->buf_ptr + 2,
-				 mp->dev->mtu + 24, DMA_FROM_DEVICE);
+				 rx_desc->buf_size, DMA_FROM_DEVICE);
 		rxq->rx_desc_count--;
 		rx++;
 
@@ -636,9 +642,9 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 				txq_reclaim(mp->txq + i, 0);
 
 		if (netif_carrier_ok(mp->dev)) {
-			spin_lock(&mp->lock);
+			spin_lock_irq(&mp->lock);
 			__txq_maybe_wake(mp->txq + mp->txq_primary);
-			spin_unlock(&mp->lock);
+			spin_unlock_irq(&mp->lock);
 		}
 	}
 #endif
@@ -650,8 +656,6 @@ static int mv643xx_eth_poll(struct napi_struct *napi, int budget)
 
 	if (rx < budget) {
 		netif_rx_complete(mp->dev, napi);
-		wrl(mp, INT_CAUSE(mp->port_num), 0);
-		wrl(mp, INT_CAUSE_EXT(mp->port_num), 0);
 		wrl(mp, INT_MASK(mp->port_num), INT_TX_END | INT_RX | INT_EXT);
 	}
 
@@ -1796,6 +1800,7 @@ static irqreturn_t mv643xx_eth_irq(int irq, void *dev_id)
 	 */
 #ifdef MV643XX_ETH_NAPI
 	if (int_cause & INT_RX) {
+		wrl(mp, INT_CAUSE(mp->port_num), ~(int_cause & INT_RX));
 		wrl(mp, INT_MASK(mp->port_num), 0x00000000);
 		rdl(mp, INT_MASK(mp->port_num));
 

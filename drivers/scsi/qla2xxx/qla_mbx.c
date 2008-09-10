@@ -2686,7 +2686,7 @@ qla24xx_report_id_acquisition(scsi_qla_host_t *ha,
 		set_bit(VP_IDX_ACQUIRED, &vha->vp_flags);
 		set_bit(VP_DPC_NEEDED, &ha->dpc_flags);
 
-		wake_up_process(ha->dpc_thread);
+		qla2xxx_wake_dpc(ha);
 	}
 }
 

@@ -248,8 +248,8 @@ IEEE80211_IF_WFILE(min_discovery_timeout,
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, sta);
-	DEBUGFS_ADD(force_unicast_rateidx, ap);
-	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+	DEBUGFS_ADD(force_unicast_rateidx, sta);
+	DEBUGFS_ADD(max_ratectrl_rateidx, sta);
 
 	DEBUGFS_ADD(state, sta);
 	DEBUGFS_ADD(bssid, sta);
@@ -283,8 +283,8 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, wds);
-	DEBUGFS_ADD(force_unicast_rateidx, ap);
-	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+	DEBUGFS_ADD(force_unicast_rateidx, wds);
+	DEBUGFS_ADD(max_ratectrl_rateidx, wds);
 
 	DEBUGFS_ADD(peer, wds);
 }
@@ -292,8 +292,8 @@ static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_ADD(drop_unencrypted, vlan);
-	DEBUGFS_ADD(force_unicast_rateidx, ap);
-	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+	DEBUGFS_ADD(force_unicast_rateidx, vlan);
+	DEBUGFS_ADD(max_ratectrl_rateidx, vlan);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -381,8 +381,8 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, sta);
-	DEBUGFS_DEL(force_unicast_rateidx, ap);
-	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+	DEBUGFS_DEL(force_unicast_rateidx, sta);
+	DEBUGFS_DEL(max_ratectrl_rateidx, sta);
 
 	DEBUGFS_DEL(state, sta);
 	DEBUGFS_DEL(bssid, sta);
@@ -416,8 +416,8 @@ static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, wds);
-	DEBUGFS_DEL(force_unicast_rateidx, ap);
-	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+	DEBUGFS_DEL(force_unicast_rateidx, wds);
+	DEBUGFS_DEL(max_ratectrl_rateidx, wds);
 
 	DEBUGFS_DEL(peer, wds);
 }
@@ -425,8 +425,8 @@ static void del_wds_files(struct ieee80211_sub_if_data *sdata)
 static void del_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
 	DEBUGFS_DEL(drop_unencrypted, vlan);
-	DEBUGFS_DEL(force_unicast_rateidx, ap);
-	DEBUGFS_DEL(max_ratectrl_rateidx, ap);
+	DEBUGFS_DEL(force_unicast_rateidx, vlan);
+	DEBUGFS_DEL(max_ratectrl_rateidx, vlan);
 }
 
 static void del_monitor_files(struct ieee80211_sub_if_data *sdata)
