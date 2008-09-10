@@ -2530,7 +2530,7 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
 	struct ieee80211_if_sta *ifsta;
 
-	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+	if (sdata && sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
 		ifsta = &sdata->u.sta;
 		if (!(ifsta->flags & IEEE80211_STA_BSSID_SET) ||
 		    (!(ifsta->state == IEEE80211_STA_MLME_IBSS_JOINED) &&

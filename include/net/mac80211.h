@@ -1124,7 +1124,9 @@ enum ieee80211_ampdu_mlme_action {
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's registered
- *	bands.
+ *	bands. When the scan finishes, ieee80211_scan_completed() must be
+ *	called; note that it also must be called when the scan cannot finish
+ *	because the hardware is turned off! Anything else is a bug!
  *
  * @get_stats: return low-level statistics
  *

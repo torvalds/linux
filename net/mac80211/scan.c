@@ -430,9 +430,20 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	struct ieee80211_sub_if_data *sdata;
 	union iwreq_data wrqu;
 
+	if (WARN_ON(!local->sta_hw_scanning && !local->sta_sw_scanning))
+		return;
+
 	local->last_scan_completed = jiffies;
 	memset(&wrqu, 0, sizeof(wrqu));
-	wireless_send_event(local->scan_sdata->dev, SIOCGIWSCAN, &wrqu, NULL);
+
+	/*
+	 * local->scan_sdata could have been NULLed by the interface
+	 * down code in case we were scanning on an interface that is
+	 * being taken down.
+	 */
+	sdata = local->scan_sdata;
+	if (sdata)
+		wireless_send_event(sdata->dev, SIOCGIWSCAN, &wrqu, NULL);
 
 	if (local->sta_hw_scanning) {
 		local->sta_hw_scanning = 0;
@@ -491,7 +502,10 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 	int skip;
 	unsigned long next_delay = 0;
 
-	if (!local->sta_sw_scanning)
+	/*
+	 * Avoid re-scheduling when the sdata is going away.
+	 */
+	if (!netif_running(sdata->dev))
 		return;
 
 	switch (local->scan_state) {
@@ -570,9 +584,8 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 		break;
 	}
 
-	if (local->sta_sw_scanning)
-		queue_delayed_work(local->hw.workqueue, &local->scan_work,
-				   next_delay);
+	queue_delayed_work(local->hw.workqueue, &local->scan_work,
+			   next_delay);
 }
 
 
@@ -609,13 +622,16 @@ int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	}
 
 	if (local->ops->hw_scan) {
-		int rc = local->ops->hw_scan(local_to_hw(local),
-					     ssid, ssid_len);
-		if (!rc) {
-			local->sta_hw_scanning = 1;
-			local->scan_sdata = scan_sdata;
+		int rc;
+
+		local->sta_hw_scanning = 1;
+		rc = local->ops->hw_scan(local_to_hw(local), ssid, ssid_len);
+		if (rc) {
+			local->sta_hw_scanning = 0;
+			return rc;
 		}
-		return rc;
+		local->scan_sdata = scan_sdata;
+		return 0;
 	}
 
 	local->sta_sw_scanning = 1;
