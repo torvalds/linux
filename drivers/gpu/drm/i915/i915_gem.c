@@ -1763,6 +1763,10 @@ i915_gem_execbuffer(struct drm_device *dev, void *data,
 		  (int) args->buffers_ptr, args->buffer_count, args->batch_len);
 #endif
 
+	if (args->buffer_count < 1) {
+		DRM_ERROR("execbuf with %d buffers\n", args->buffer_count);
+		return -EINVAL;
+	}
 	/* Copy in the exec list from userland */
 	exec_list = drm_calloc(sizeof(*exec_list), args->buffer_count,
 			       DRM_MEM_DRIVER);
