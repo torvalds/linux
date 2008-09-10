@@ -82,7 +82,8 @@ static int m48t59_rtc_read_time(struct device *dev, struct rtc_time *tm)
 	tm->tm_mday	= BCD2BIN(M48T59_READ(M48T59_MDAY));
 
 	val = M48T59_READ(M48T59_WDAY);
-	if ((val & M48T59_WDAY_CEB) && (val & M48T59_WDAY_CB)) {
+	if ((pdata->type == M48T59RTC_TYPE_M48T59) &&
+	    (val & M48T59_WDAY_CEB) && (val & M48T59_WDAY_CB)) {
 		dev_dbg(dev, "Century bit is enabled\n");
 		tm->tm_year += 100;	/* one century */
 	}
