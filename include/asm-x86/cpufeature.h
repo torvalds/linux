@@ -6,7 +6,7 @@
 
 #include <asm/required-features.h>
 
-#define NCAPINTS	8	/* N 32-bit words worth of info */
+#define NCAPINTS	9	/* N 32-bit words worth of info */
 
 /*
  * Note: If the comment begins with a quoted string, that string is used
@@ -149,6 +149,13 @@
  * CPUID levels like 0x6, 0xA etc
  */
 #define X86_FEATURE_IDA		(7*32+ 0) /* Intel Dynamic Acceleration */
+
+/* Virtualization flags: Linux defined */
+#define X86_FEATURE_TPR_SHADOW  (8*32+ 0) /* Intel TPR Shadow */
+#define X86_FEATURE_VNMI        (8*32+ 1) /* Intel Virtual NMI */
+#define X86_FEATURE_FLEXPRIORITY (8*32+ 2) /* Intel FlexPriority */
+#define X86_FEATURE_EPT         (8*32+ 3) /* Intel Extended Page Table */
+#define X86_FEATURE_VPID        (8*32+ 4) /* Intel Virtual Processor ID */
 
 #if defined(__KERNEL__) && !defined(__ASSEMBLY__)
 
