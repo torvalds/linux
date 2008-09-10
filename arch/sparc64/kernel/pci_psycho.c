@@ -17,6 +17,7 @@
 #include <asm/irq.h>
 #include <asm/starfire.h>
 #include <asm/prom.h>
+#include <asm/upa.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -24,25 +25,6 @@
 
 #define DRIVER_NAME	"psycho"
 #define PFX		DRIVER_NAME ": "
-
-/* All PSYCHO registers are 64-bits.  The following accessor
- * routines are how they are accessed.  The REG parameter
- * is a physical address.
- */
-#define psycho_read(__reg) \
-({	u64 __ret; \
-	__asm__ __volatile__("ldxa [%1] %2, %0" \
-			     : "=r" (__ret) \
-			     : "r" (__reg), "i" (ASI_PHYS_BYPASS_EC_E) \
-			     : "memory"); \
-	__ret; \
-})
-#define psycho_write(__reg, __val) \
-	__asm__ __volatile__("stxa %0, [%1] %2" \
-			     : /* no outputs */ \
-			     : "r" (__val), "r" (__reg), \
-			       "i" (ASI_PHYS_BYPASS_EC_E) \
-			     : "memory")
 
 /* Misc. PSYCHO PCI controller register offsets and definitions. */
 #define PSYCHO_CONTROL		0x0010UL
@@ -182,8 +164,8 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 	int reported;
 
 	/* Latch uncorrectable error status. */
-	afar = psycho_read(afar_reg);
-	afsr = psycho_read(afsr_reg);
+	afar = upa_readq(afar_reg);
+	afsr = upa_readq(afsr_reg);
 
 	/* Clear the primary/secondary error status bits. */
 	error_bits = afsr &
@@ -191,7 +173,7 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 		 PSYCHO_UEAFSR_SPIO | PSYCHO_UEAFSR_SDRD | PSYCHO_UEAFSR_SDWR);
 	if (!error_bits)
 		return IRQ_NONE;
-	psycho_write(afsr_reg, error_bits);
+	upa_writeq(error_bits, afsr_reg);
 
 	/* Log the error. */
 	printk("%s: Uncorrectable Error, primary error type[%s]\n",
@@ -261,8 +243,8 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 	int reported;
 
 	/* Latch error status. */
-	afar = psycho_read(afar_reg);
-	afsr = psycho_read(afsr_reg);
+	afar = upa_readq(afar_reg);
+	afsr = upa_readq(afsr_reg);
 
 	/* Clear primary/secondary error status bits. */
 	error_bits = afsr &
@@ -270,7 +252,7 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 		 PSYCHO_CEAFSR_SPIO | PSYCHO_CEAFSR_SDRD | PSYCHO_CEAFSR_SDWR);
 	if (!error_bits)
 		return IRQ_NONE;
-	psycho_write(afsr_reg, error_bits);
+	upa_writeq(error_bits, afsr_reg);
 
 	/* Log the error. */
 	printk("%s: Correctable Error, primary error type[%s]\n",
@@ -373,27 +355,26 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 		       "err=%d\n", pbm->name, err);
 
 	/* Enable UE and CE interrupts for controller. */
-	psycho_write(base + PSYCHO_ECC_CTRL,
-		     (PSYCHO_ECCCTRL_EE |
-		      PSYCHO_ECCCTRL_UE |
-		      PSYCHO_ECCCTRL_CE));
+	upa_writeq((PSYCHO_ECCCTRL_EE |
+		    PSYCHO_ECCCTRL_UE |
+		    PSYCHO_ECCCTRL_CE), base + PSYCHO_ECC_CTRL);
 
 	/* Enable PCI Error interrupts and clear error
 	 * bits for each PBM.
 	 */
-	tmp = psycho_read(base + PSYCHO_PCIA_CTRL);
+	tmp = upa_readq(base + PSYCHO_PCIA_CTRL);
 	tmp |= (PSYCHO_PCICTRL_SERR |
 		PSYCHO_PCICTRL_SBH_ERR |
 		PSYCHO_PCICTRL_EEN);
 	tmp &= ~(PSYCHO_PCICTRL_SBH_INT);
-	psycho_write(base + PSYCHO_PCIA_CTRL, tmp);
+	upa_writeq(tmp, base + PSYCHO_PCIA_CTRL);
 		     
-	tmp = psycho_read(base + PSYCHO_PCIB_CTRL);
+	tmp = upa_readq(base + PSYCHO_PCIB_CTRL);
 	tmp |= (PSYCHO_PCICTRL_SERR |
 		PSYCHO_PCICTRL_SBH_ERR |
 		PSYCHO_PCICTRL_EEN);
 	tmp &= ~(PSYCHO_PCICTRL_SBH_INT);
-	psycho_write(base + PSYCHO_PCIB_CTRL, tmp);
+	upa_writeq(tmp, base + PSYCHO_PCIB_CTRL);
 }
 
 /* PSYCHO boot time probing and initialization. */
@@ -443,28 +424,28 @@ static void psycho_controller_hwinit(struct pci_pbm_info *pbm)
 {
 	u64 tmp;
 
-	psycho_write(pbm->controller_regs + PSYCHO_IRQ_RETRY, 5);
+	upa_writeq(5, pbm->controller_regs + PSYCHO_IRQ_RETRY);
 
 	/* Enable arbiter for all PCI slots. */
-	tmp = psycho_read(pbm->controller_regs + PSYCHO_PCIA_CTRL);
+	tmp = upa_readq(pbm->controller_regs + PSYCHO_PCIA_CTRL);
 	tmp |= PSYCHO_PCICTRL_AEN;
-	psycho_write(pbm->controller_regs + PSYCHO_PCIA_CTRL, tmp);
+	upa_writeq(tmp, pbm->controller_regs + PSYCHO_PCIA_CTRL);
 
-	tmp = psycho_read(pbm->controller_regs + PSYCHO_PCIB_CTRL);
+	tmp = upa_readq(pbm->controller_regs + PSYCHO_PCIB_CTRL);
 	tmp |= PSYCHO_PCICTRL_AEN;
-	psycho_write(pbm->controller_regs + PSYCHO_PCIB_CTRL, tmp);
+	upa_writeq(tmp, pbm->controller_regs + PSYCHO_PCIB_CTRL);
 
 	/* Disable DMA write / PIO read synchronization on
 	 * both PCI bus segments.
 	 * [ U2P Erratum 1243770, STP2223BGA data sheet ]
 	 */
-	tmp = psycho_read(pbm->controller_regs + PSYCHO_PCIA_DIAG);
+	tmp = upa_readq(pbm->controller_regs + PSYCHO_PCIA_DIAG);
 	tmp |= PSYCHO_PCIDIAG_DDWSYNC;
-	psycho_write(pbm->controller_regs + PSYCHO_PCIA_DIAG, tmp);
+	upa_writeq(tmp, pbm->controller_regs + PSYCHO_PCIA_DIAG);
 
-	tmp = psycho_read(pbm->controller_regs + PSYCHO_PCIB_DIAG);
+	tmp = upa_readq(pbm->controller_regs + PSYCHO_PCIB_DIAG);
 	tmp |= PSYCHO_PCIDIAG_DDWSYNC;
-	psycho_write(pbm->controller_regs + PSYCHO_PCIB_DIAG, tmp);
+	upa_writeq(tmp, pbm->controller_regs + PSYCHO_PCIB_DIAG);
 }
 
 static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
@@ -509,7 +490,7 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 	 */
 #undef PSYCHO_STRBUF_RERUN_ENABLE
 #undef PSYCHO_STRBUF_RERUN_DISABLE
-	control = psycho_read(pbm->stc.strbuf_control);
+	control = upa_readq(pbm->stc.strbuf_control);
 	control |= PSYCHO_STRBUF_CTRL_ENAB;
 	control &= ~(PSYCHO_STRBUF_CTRL_LENAB | PSYCHO_STRBUF_CTRL_LPTR);
 #ifdef PSYCHO_STRBUF_RERUN_ENABLE
@@ -519,7 +500,7 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 	control |= PSYCHO_STRBUF_CTRL_RRDIS;
 #endif
 #endif
-	psycho_write(pbm->stc.strbuf_control, control);
+	upa_writeq(control, pbm->stc.strbuf_control);
 
 	pbm->stc.strbuf_enabled = 1;
 }

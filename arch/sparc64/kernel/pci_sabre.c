@@ -17,6 +17,7 @@
 #include <asm/iommu.h>
 #include <asm/irq.h>
 #include <asm/prom.h>
+#include <asm/upa.h>
 
 #include "pci_impl.h"
 #include "iommu_common.h"
@@ -24,25 +25,6 @@
 
 #define DRIVER_NAME	"sabre"
 #define PFX		DRIVER_NAME ": "
-
-/* All SABRE registers are 64-bits.  The following accessor
- * routines are how they are accessed.  The REG parameter
- * is a physical address.
- */
-#define sabre_read(__reg) \
-({	u64 __ret; \
-	__asm__ __volatile__("ldxa [%1] %2, %0" \
-			     : "=r" (__ret) \
-			     : "r" (__reg), "i" (ASI_PHYS_BYPASS_EC_E) \
-			     : "memory"); \
-	__ret; \
-})
-#define sabre_write(__reg, __val) \
-	__asm__ __volatile__("stxa %0, [%1] %2" \
-			     : /* no outputs */ \
-			     : "r" (__val), "r" (__reg), \
-			       "i" (ASI_PHYS_BYPASS_EC_E) \
-			     : "memory")
 
 /* SABRE PCI controller register offsets and definitions. */
 #define SABRE_UE_AFSR		0x0030UL
@@ -219,8 +201,8 @@ static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 	int reported;
 
 	/* Latch uncorrectable error status. */
-	afar = sabre_read(afar_reg);
-	afsr = sabre_read(afsr_reg);
+	afar = upa_readq(afar_reg);
+	afsr = upa_readq(afsr_reg);
 
 	/* Clear the primary/secondary error status bits. */
 	error_bits = afsr &
@@ -229,7 +211,7 @@ static irqreturn_t sabre_ue_intr(int irq, void *dev_id)
 		 SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE);
 	if (!error_bits)
 		return IRQ_NONE;
-	sabre_write(afsr_reg, error_bits);
+	upa_writeq(error_bits, afsr_reg);
 
 	/* Log the error. */
 	printk("%s: Uncorrectable Error, primary error type[%s%s]\n",
@@ -279,8 +261,8 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 	int reported;
 
 	/* Latch error status. */
-	afar = sabre_read(afar_reg);
-	afsr = sabre_read(afsr_reg);
+	afar = upa_readq(afar_reg);
+	afsr = upa_readq(afsr_reg);
 
 	/* Clear primary/secondary error status bits. */
 	error_bits = afsr &
@@ -288,7 +270,7 @@ static irqreturn_t sabre_ce_intr(int irq, void *dev_id)
 		 SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR);
 	if (!error_bits)
 		return IRQ_NONE;
-	sabre_write(afsr_reg, error_bits);
+	upa_writeq(error_bits, afsr_reg);
 
 	/* Log the error. */
 	printk("%s: Correctable Error, primary error type[%s]\n",
@@ -354,19 +336,20 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 	 * registering the handler so that we don't get spurious
 	 * interrupts.
 	 */
-	sabre_write(base + SABRE_UE_AFSR,
-		    (SABRE_UEAFSR_PDRD | SABRE_UEAFSR_PDWR |
-		     SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
-		     SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE));
+	upa_writeq((SABRE_UEAFSR_PDRD | SABRE_UEAFSR_PDWR |
+		    SABRE_UEAFSR_SDRD | SABRE_UEAFSR_SDWR |
+		    SABRE_UEAFSR_SDTE | SABRE_UEAFSR_PDTE),
+		   base + SABRE_UE_AFSR);
 
 	err = request_irq(op->irqs[1], sabre_ue_intr, 0, "SABRE_UE", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Couldn't register UE, err=%d.\n",
 		       pbm->name, err);
 
-	sabre_write(base + SABRE_CE_AFSR,
-		    (SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
-		     SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR));
+	upa_writeq((SABRE_CEAFSR_PDRD | SABRE_CEAFSR_PDWR |
+		    SABRE_CEAFSR_SDRD | SABRE_CEAFSR_SDWR),
+		   base + SABRE_CE_AFSR);
+
 
 	err = request_irq(op->irqs[2], sabre_ce_intr, 0, "SABRE_CE", pbm);
 	if (err)
@@ -378,9 +361,9 @@ static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 		printk(KERN_WARNING "%s: Couldn't register PCIERR, err=%d.\n",
 		       pbm->name, err);
 
-	tmp = sabre_read(base + SABRE_PCICTRL);
+	tmp = upa_readq(base + SABRE_PCICTRL);
 	tmp |= SABRE_PCICTRL_ERREN;
-	sabre_write(base + SABRE_PCICTRL, tmp);
+	upa_writeq(tmp, base + SABRE_PCICTRL);
 }
 
 static void apb_init(struct pci_bus *sabre_bus)
@@ -533,16 +516,16 @@ static int __devinit sabre_probe(struct of_device *op,
 
 	/* PCI first */
 	for (clear_irq = SABRE_ICLR_A_SLOT0; clear_irq < SABRE_ICLR_B_SLOT0 + 0x80; clear_irq += 8)
-		sabre_write(pbm->controller_regs + clear_irq, 0x0UL);
+		upa_writeq(0x0UL, pbm->controller_regs + clear_irq);
 
 	/* Then OBIO */
 	for (clear_irq = SABRE_ICLR_SCSI; clear_irq < SABRE_ICLR_SCSI + 0x80; clear_irq += 8)
-		sabre_write(pbm->controller_regs + clear_irq, 0x0UL);
+		upa_writeq(0x0UL, pbm->controller_regs + clear_irq);
 
 	/* Error interrupts are enabled later after the bus scan. */
-	sabre_write(pbm->controller_regs + SABRE_PCICTRL,
-		    (SABRE_PCICTRL_MRLEN   | SABRE_PCICTRL_SERR |
-		     SABRE_PCICTRL_ARBPARK | SABRE_PCICTRL_AEN));
+	upa_writeq((SABRE_PCICTRL_MRLEN   | SABRE_PCICTRL_SERR |
+		    SABRE_PCICTRL_ARBPARK | SABRE_PCICTRL_AEN),
+		   pbm->controller_regs + SABRE_PCICTRL);
 
 	/* Now map in PCI config space for entire SABRE. */
 	pbm->config_space = pbm->controller_regs + SABRE_CONFIGSPACE;
