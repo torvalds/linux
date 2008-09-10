@@ -1806,6 +1806,7 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 	memcpy(meye.video_dev, &meye_template, sizeof(meye_template));
 	meye.video_dev->parent = &meye.mchip_dev->dev;
 
+	ret = -EIO;
 	if ((ret = sony_pic_camera_command(SONY_PIC_COMMAND_SETCAMERA, 1))) {
 		printk(KERN_ERR "meye: unable to power on the camera\n");
 		printk(KERN_ERR "meye: did you enable the camera in "
@@ -1813,7 +1814,6 @@ static int __devinit meye_probe(struct pci_dev *pcidev,
 		goto outsonypienable;
 	}
 
-	ret = -EIO;
 	if ((ret = pci_enable_device(meye.mchip_dev))) {
 		printk(KERN_ERR "meye: pci_enable_device failed\n");
 		goto outenabledev;

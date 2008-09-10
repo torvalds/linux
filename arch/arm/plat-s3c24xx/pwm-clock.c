@@ -89,7 +89,7 @@ static unsigned long clk_pwm_scaler_getrate(struct clk *clk)
 
 /* TODO - add set rate calls. */
 
-struct clk clk_timer_scaler[] = {
+static struct clk clk_timer_scaler[] = {
 	[0]	= {
 		.name		= "pwm-scaler0",
 		.id		= -1,
@@ -102,7 +102,7 @@ struct clk clk_timer_scaler[] = {
 	},
 };
 
-struct clk clk_timer_tclk[] = {
+static struct clk clk_timer_tclk[] = {
 	[0]	= {
 		.name		= "pwm-tclk0",
 		.id		= -1,
@@ -232,7 +232,7 @@ static int clk_pwm_tdiv_set_rate(struct clk *clk, unsigned long rate)
 	return 0;
 }
 
-struct pwm_tdiv_clk clk_timer_tdiv[] = {
+static struct pwm_tdiv_clk clk_timer_tdiv[] = {
 	[0]	= {
 		.clk	= {
 			.name		= "pwm-tdiv",

@@ -30,7 +30,7 @@
 
 #define MAX_GAMMA 0x10		/* 0 to 15 */
 
-#define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 3)
+#define V4L2_CID_EFFECTS (V4L2_CID_PRIVATE_BASE + 0)
 
 MODULE_AUTHOR("Leandro Costantino <le_costantino@pixartargentina.com.ar>");
 MODULE_DESCRIPTION("GSPCA/T613 (JPEG Compliance) USB Camera Driver");
@@ -233,7 +233,7 @@ static char *effects_control[] = {
 static struct v4l2_pix_format vga_mode_t16[] = {
 	{160, 120, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
 		.bytesperline = 160,
-		.sizeimage = 160 * 120 * 3 / 8 + 590,
+		.sizeimage = 160 * 120 * 4 / 8 + 590,
 		.colorspace = V4L2_COLORSPACE_JPEG,
 		.priv = 4},
 	{176, 144, V4L2_PIX_FMT_JPEG, V4L2_FIELD_NONE,
@@ -391,7 +391,7 @@ static void reg_w(struct gspca_dev *gspca_dev,
 				NULL, 0, 500);
 		return;
 	}
-	if (len <= sizeof gspca_dev->usb_buf) {
+	if (len <= USB_BUF_SZ) {
 		memcpy(gspca_dev->usb_buf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -549,6 +549,13 @@ static int init_default_parameters(struct gspca_dev *gspca_dev)
 	reg_w(gspca_dev, 0x01, 0x0000, nset3, 0x12);
 	reg_w(gspca_dev, 0x01, 0x0000, nset4, 0x12);
 
+	return 0;
+}
+
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
+{
+	init_default_parameters(gspca_dev);
 	return 0;
 }
 
@@ -893,18 +900,6 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setcolors(gspca_dev);
 }
 
-static void sd_stopN(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-}
-
-static void sd_close(struct gspca_dev *gspca_dev)
-{
-}
-
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 			struct gspca_frame *frame,	/* target */
 			__u8 *data,			/* isoc packet */
@@ -972,24 +967,14 @@ static int sd_querymenu(struct gspca_dev *gspca_dev,
 	return -EINVAL;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
-{
-	init_default_parameters(gspca_dev);
-	return 0;
-}
-
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
-	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 	.querymenu = sd_querymenu,
 };
@@ -1014,6 +999,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

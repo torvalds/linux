@@ -58,7 +58,7 @@ static struct local_tlb_flush_counts {
 	unsigned int count;
 } __attribute__((__aligned__(32))) local_tlb_flush_counts[NR_CPUS];
 
-static DEFINE_PER_CPU(unsigned int, shadow_flush_counts[NR_CPUS]) ____cacheline_aligned;
+static DEFINE_PER_CPU(unsigned short, shadow_flush_counts[NR_CPUS]) ____cacheline_aligned;
 
 #define IPI_CALL_FUNC		0
 #define IPI_CPU_STOP		1
@@ -254,7 +254,7 @@ smp_local_flush_tlb(void)
 void
 smp_flush_tlb_cpumask(cpumask_t xcpumask)
 {
-	unsigned int *counts = __ia64_per_cpu_var(shadow_flush_counts);
+	unsigned short *counts = __ia64_per_cpu_var(shadow_flush_counts);
 	cpumask_t cpumask = xcpumask;
 	int mycpu, cpu, flush_mycpu = 0;
 
@@ -262,7 +262,7 @@ smp_flush_tlb_cpumask(cpumask_t xcpumask)
 	mycpu = smp_processor_id();
 
 	for_each_cpu_mask(cpu, cpumask)
-		counts[cpu] = local_tlb_flush_counts[cpu].count;
+		counts[cpu] = local_tlb_flush_counts[cpu].count & 0xffff;
 
 	mb();
 	for_each_cpu_mask(cpu, cpumask) {
@@ -276,7 +276,7 @@ smp_flush_tlb_cpumask(cpumask_t xcpumask)
 		smp_local_flush_tlb();
 
 	for_each_cpu_mask(cpu, cpumask)
-		while(counts[cpu] == local_tlb_flush_counts[cpu].count)
+		while(counts[cpu] == (local_tlb_flush_counts[cpu].count & 0xffff))
 			udelay(FLUSH_DELAY);
 
 	preempt_enable();

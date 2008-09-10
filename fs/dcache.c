@@ -1236,7 +1236,7 @@ struct dentry *d_splice_alias(struct inode *inode, struct dentry *dentry)
  * If no entry exists with the exact case name, allocate new dentry with
  * the exact case, and return the spliced entry.
  */
-struct dentry *d_add_ci(struct inode *inode, struct dentry *dentry,
+struct dentry *d_add_ci(struct dentry *dentry, struct inode *inode,
 			struct qstr *name)
 {
 	int error;

@@ -65,7 +65,7 @@ static int __iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
 	u8 *target;
 
 	tail = readl(iommu->mmio_base + MMIO_CMD_TAIL_OFFSET);
-	target = (iommu->cmd_buf + tail);
+	target = iommu->cmd_buf + tail;
 	memcpy_toio(target, cmd, sizeof(*cmd));
 	tail = (tail + sizeof(*cmd)) % iommu->cmd_buf_size;
 	head = readl(iommu->mmio_base + MMIO_CMD_HEAD_OFFSET);

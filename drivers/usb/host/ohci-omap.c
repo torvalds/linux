@@ -208,7 +208,7 @@ static int ohci_omap_init(struct usb_hcd *hcd)
 	if (cpu_is_omap16xx())
 		ocpi_enable();
 
-#ifdef	CONFIG_ARCH_OMAP_OTG
+#ifdef	CONFIG_USB_OTG
 	if (need_transceiver) {
 		ohci->transceiver = otg_get_transceiver();
 		if (ohci->transceiver) {
@@ -470,7 +470,6 @@ static const struct hc_driver ohci_omap_hc_driver = {
 	 */
 	.hub_status_data =	ohci_hub_status_data,
 	.hub_control =		ohci_hub_control,
-	.hub_irq_enable =	ohci_rhsc_enable,
 #ifdef	CONFIG_PM
 	.bus_suspend =		ohci_bus_suspend,
 	.bus_resume =		ohci_bus_resume,

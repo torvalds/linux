@@ -39,7 +39,8 @@ const char * const x86_cap_flags[NCAPINTS*32] = {
 	NULL, NULL, NULL, NULL,
 	"constant_tsc", "up", NULL, "arch_perfmon",
 	"pebs", "bts", NULL, NULL,
-	"rep_good", NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+	"rep_good", NULL, NULL, NULL,
+	"nopl", NULL, NULL, NULL,
 	NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
 
 	/* Intel-defined (#2) */

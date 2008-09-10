@@ -116,7 +116,7 @@ struct link {
 	char name[TIPC_MAX_LINK_NAME];
 	struct tipc_media_addr media_addr;
 	struct timer_list timer;
-	struct node *owner;
+	struct tipc_node *owner;
 	struct list_head link_list;
 
 	/* Management and link supervision data */

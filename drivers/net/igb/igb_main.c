@@ -61,7 +61,6 @@ static struct pci_device_id igb_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_FIBER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_SERDES), board_82575 },
-	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82576_QUAD_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_COPPER), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575EB_FIBER_SERDES), board_82575 },
 	{ PCI_VDEVICE(INTEL, E1000_DEV_ID_82575GB_QUAD_COPPER), board_82575 },
@@ -521,7 +520,7 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 			      adapter->msix_entries,
 			      numvecs);
 	if (err == 0)
-		return;
+		goto out;
 
 	igb_reset_interrupt_capability(adapter);
 
@@ -531,7 +530,7 @@ msi_only:
 	adapter->num_tx_queues = 1;
 	if (!pci_enable_msi(adapter->pdev))
 		adapter->flags |= IGB_FLAG_HAS_MSI;
-
+out:
 	/* Notify the stack of the (possibly) reduced Tx Queue count. */
 	adapter->netdev->real_num_tx_queues = adapter->num_tx_queues;
 	return;
@@ -1216,16 +1215,6 @@ static int __devinit igb_probe(struct pci_dev *pdev,
 		 * regardless of eeprom setting */
 		if (rd32(E1000_STATUS) & E1000_STATUS_FUNC_1)
 			adapter->eeprom_wol = 0;
-		break;
-	case E1000_DEV_ID_82576_QUAD_COPPER:
-		/* if quad port adapter, disable WoL on all but port A */
-		if (global_quad_port_a != 0)
-			adapter->eeprom_wol = 0;
-		else
-			adapter->flags |= IGB_FLAG_QUAD_PORT_A;
-		/* Reset for multiple quad port adapters */
-		if (++global_quad_port_a == 4)
-			global_quad_port_a = 0;
 		break;
 	}
 
@@ -2290,7 +2279,9 @@ static void igb_watchdog_task(struct work_struct *work)
 	struct igb_ring *tx_ring = adapter->tx_ring;
 	struct e1000_mac_info *mac = &adapter->hw.mac;
 	u32 link;
+	u32 eics = 0;
 	s32 ret_val;
+	int i;
 
 	if ((netif_carrier_ok(netdev)) &&
 	    (rd32(E1000_STATUS) & E1000_STATUS_LU))
@@ -2392,7 +2383,13 @@ link_up:
 	}
 
 	/* Cause software interrupt to ensure rx ring is cleaned */
-	wr32(E1000_ICS, E1000_ICS_RXDMT0);
+	if (adapter->msix_entries) {
+		for (i = 0; i < adapter->num_rx_queues; i++)
+			eics |= adapter->rx_ring[i].eims_value;
+		wr32(E1000_EICS, eics);
+	} else {
+		wr32(E1000_ICS, E1000_ICS_RXDMT0);
+	}
 
 	/* Force detection of hung controller every watchdog period */
 	tx_ring->detect_tx_hung = true;

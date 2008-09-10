@@ -1620,7 +1620,7 @@ static struct pci_driver driver = {
 	.name		= "HPT366_IDE",
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
-	.remove		= hpt366_remove,
+	.remove		= __devexit_p(hpt366_remove),
 };
 
 static int __init hpt366_ide_init(void)
