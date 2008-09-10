@@ -60,6 +60,7 @@ enum ieee80211_channel_flags {
  * with cfg80211.
  *
  * @center_freq: center frequency in MHz
+ * @max_bandwidth: maximum allowed bandwidth for this channel, in MHz
  * @hw_value: hardware-specific value for the channel
  * @flags: channel flags from &enum ieee80211_channel_flags.
  * @orig_flags: channel flags at registration time, used by regulatory
@@ -73,6 +74,7 @@ enum ieee80211_channel_flags {
 struct ieee80211_channel {
 	enum ieee80211_band band;
 	u16 center_freq;
+	u8 max_bandwidth;
 	u16 hw_value;
 	u32 flags;
 	int max_antenna_gain;
@@ -178,6 +180,7 @@ struct ieee80211_supported_band {
  * struct wiphy - wireless hardware description
  * @idx: the wiphy index assigned to this item
  * @class_dev: the class device representing /sys/class/ieee80211/<wiphy-name>
+ * @reg_notifier: the driver's regulatory notification callback
  */
 struct wiphy {
 	/* assign these fields before you register the wiphy */
@@ -196,6 +199,9 @@ struct wiphy {
 	void *privid;
 
 	struct ieee80211_supported_band *bands[IEEE80211_NUM_BANDS];
+
+	/* Lets us get back the wiphy on the callback */
+	int (*reg_notifier)(struct wiphy *wiphy, enum reg_set_by setby);
 
 	/* fields below are read-only, assigned by cfg80211 */
 
@@ -322,6 +328,58 @@ extern int ieee80211_frequency_to_channel(int freq);
  */
 extern struct ieee80211_channel *__ieee80211_get_channel(struct wiphy *wiphy,
 							 int freq);
+/**
+ * __regulatory_hint - hint to the wireless core a regulatory domain
+ * @wiphy: if a driver is providing the hint this is the driver's very
+ * 	own &struct wiphy
+ * @alpha2: the ISO/IEC 3166 alpha2 being claimed the regulatory domain
+ * 	should be in. If @rd is set this should be NULL
+ * @rd: a complete regulatory domain, if passed the caller need not worry
+ * 	about freeing it
+ *
+ * The Wireless subsystem can use this function to hint to the wireless core
+ * what it believes should be the current regulatory domain by
+ * giving it an ISO/IEC 3166 alpha2 country code it knows its regulatory
+ * domain should be in or by providing a completely build regulatory domain.
+ *
+ * Returns -EALREADY if *a regulatory domain* has already been set. Note that
+ * this could be by another driver. It is safe for drivers to continue if
+ * -EALREADY is returned, if drivers are not capable of world roaming they
+ * should not register more channels than they support. Right now we only
+ * support listening to the first driver hint. If the driver is capable
+ * of world roaming but wants to respect its own EEPROM mappings for
+ * specific regulatory domains it should register the @reg_notifier callback
+ * on the &struct wiphy. Returns 0 if the hint went through fine or through an
+ * intersection operation. Otherwise a standard error code is returned.
+ *
+ */
+extern int __regulatory_hint(struct wiphy *wiphy, enum reg_set_by set_by,
+		const char *alpha2, struct ieee80211_regdomain *rd);
+/**
+ * regulatory_hint - driver hint to the wireless core a regulatory domain
+ * @wiphy: the driver's very own &struct wiphy
+ * @alpha2: the ISO/IEC 3166 alpha2 the driver claims its regulatory domain
+ * 	should be in. If @rd is set this should be NULL. Note that if you
+ * 	set this to NULL you should still set rd->alpha2 to some accepted
+ * 	alpha2.
+ * @rd: a complete regulatory domain provided by the driver. If passed
+ * 	the driver does not need to worry about freeing it.
+ *
+ * Wireless drivers can use this function to hint to the wireless core
+ * what it believes should be the current regulatory domain by
+ * giving it an ISO/IEC 3166 alpha2 country code it knows its regulatory
+ * domain should be in or by providing a completely build regulatory domain.
+ * If the driver provides an ISO/IEC 3166 alpha2 userspace will be queried
+ * for a regulatory domain structure for the respective country. If
+ * a regulatory domain is build and passed you should set the alpha2
+ * if possible, otherwise set it to the special value of "99" which tells
+ * the wireless core it is unknown. If you pass a built regulatory domain
+ * and we return non zero you are in charge of kfree()'ing the structure.
+ *
+ * See __regulatory_hint() documentation for possible return values.
+ */
+extern int regulatory_hint(struct wiphy *wiphy,
+		const char *alpha2, struct ieee80211_regdomain *rd);
 
 /**
  * ieee80211_get_channel - get channel struct from wiphy for specified frequency

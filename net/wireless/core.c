@@ -13,12 +13,14 @@
 #include <linux/debugfs.h>
 #include <linux/notifier.h>
 #include <linux/device.h>
+#include <linux/list.h>
 #include <net/genetlink.h>
 #include <net/cfg80211.h>
 #include <net/wireless.h>
 #include "nl80211.h"
 #include "core.h"
 #include "sysfs.h"
+#include "reg.h"
 
 /* name for sysfs, %d is appended */
 #define PHY_NAME "phy"
@@ -26,6 +28,107 @@
 MODULE_AUTHOR("Johannes Berg");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("wireless configuration support");
+
+struct list_head regulatory_requests;
+
+/* Central wireless core regulatory domains, we only need two,
+ * the current one and a world regulatory domain in case we have no
+ * information to give us an alpha2 */
+struct ieee80211_regdomain *cfg80211_regdomain;
+
+/* We keep a static world regulatory domain in case of the absence of CRDA */
+const struct ieee80211_regdomain world_regdom = {
+	.n_reg_rules = 1,
+	.alpha2 =  "00",
+	.reg_rules = {
+		REG_RULE(2402, 2472, 40, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN |
+			NL80211_RRF_NO_IBSS),
+	}
+};
+
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+/* All this fucking static junk will be removed soon, so
+ * don't fucking count on it !@#$ */
+
+static char *ieee80211_regdom = "US";
+module_param(ieee80211_regdom, charp, 0444);
+MODULE_PARM_DESC(ieee80211_regdom, "IEEE 802.11 regulatory domain code");
+
+/* We assume 40 MHz bandwidth for the old regulatory work.
+ * We make emphasis we are using the exact same frequencies
+ * as before */
+
+const struct ieee80211_regdomain us_regdom = {
+	.n_reg_rules = 6,
+	.alpha2 =  "US",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..11 */
+		REG_RULE(2412-20, 2462+20, 40, 6, 27, 0),
+		/* IEEE 802.11a, channel 36 */
+		REG_RULE(5180-20, 5180+20, 40, 6, 23, 0),
+		/* IEEE 802.11a, channel 40 */
+		REG_RULE(5200-20, 5200+20, 40, 6, 23, 0),
+		/* IEEE 802.11a, channel 44 */
+		REG_RULE(5220-20, 5220+20, 40, 6, 23, 0),
+		/* IEEE 802.11a, channels 48..64 */
+		REG_RULE(5240-20, 5320+20, 40, 6, 23, 0),
+		/* IEEE 802.11a, channels 149..165, outdoor */
+		REG_RULE(5745-20, 5825+20, 40, 6, 30, 0),
+	}
+};
+
+const struct ieee80211_regdomain jp_regdom = {
+	.n_reg_rules = 3,
+	.alpha2 =  "JP",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..14 */
+		REG_RULE(2412-20, 2484+20, 40, 6, 20, 0),
+		/* IEEE 802.11a, channels 34..48 */
+		REG_RULE(5170-20, 5240+20, 40, 6, 20,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channels 52..64 */
+		REG_RULE(5260-20, 5320+20, 40, 6, 20,
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_DFS),
+	}
+};
+
+const struct ieee80211_regdomain eu_regdom = {
+	.n_reg_rules = 6,
+	/* This alpha2 is bogus, we leave it here just for stupid
+	 * backward compatibility */
+	.alpha2 =  "EU",
+	.reg_rules = {
+		/* IEEE 802.11b/g, channels 1..13 */
+		REG_RULE(2412-20, 2472+20, 40, 6, 20, 0),
+		/* IEEE 802.11a, channel 36 */
+		REG_RULE(5180-20, 5180+20, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channel 40 */
+		REG_RULE(5200-20, 5200+20, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channel 44 */
+		REG_RULE(5220-20, 5220+20, 40, 6, 23,
+			NL80211_RRF_PASSIVE_SCAN),
+		/* IEEE 802.11a, channels 48..64 */
+		REG_RULE(5240-20, 5320+20, 40, 6, 20,
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_DFS),
+		/* IEEE 802.11a, channels 100..140 */
+		REG_RULE(5500-20, 5700+20, 40, 6, 30,
+			NL80211_RRF_NO_IBSS |
+			NL80211_RRF_DFS),
+	}
+};
+
+#endif
+
+struct ieee80211_regdomain *cfg80211_world_regdom =
+	(struct ieee80211_regdomain *) &world_regdom;
+
+LIST_HEAD(regulatory_requests);
+DEFINE_MUTEX(cfg80211_reg_mutex);
 
 /* RCU might be appropriate here since we usually
  * only read the list, and that can happen quite
@@ -302,7 +405,9 @@ int wiphy_register(struct wiphy *wiphy)
 	ieee80211_set_bitrate_flags(wiphy);
 
 	/* set up regulatory info */
-	wiphy_update_regulatory(wiphy);
+	mutex_lock(&cfg80211_reg_mutex);
+	wiphy_update_regulatory(wiphy, REGDOM_SET_BY_CORE);
+	mutex_unlock(&cfg80211_reg_mutex);
 
 	mutex_lock(&cfg80211_drv_mutex);
 
@@ -409,9 +514,35 @@ static struct notifier_block cfg80211_netdev_notifier = {
 	.notifier_call = cfg80211_netdev_notifier_call,
 };
 
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+const struct ieee80211_regdomain *static_regdom(char *alpha2)
+{
+	if (alpha2[0] == 'U' && alpha2[1] == 'S')
+		return &us_regdom;
+	if (alpha2[0] == 'J' && alpha2[1] == 'P')
+		return &jp_regdom;
+	if (alpha2[0] == 'E' && alpha2[1] == 'U')
+		return &eu_regdom;
+	/* Default, as per the old rules */
+	return &us_regdom;
+}
+#endif
+
 static int cfg80211_init(void)
 {
-	int err = wiphy_sysfs_init();
+	int err;
+
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+	cfg80211_regdomain =
+		(struct ieee80211_regdomain *) static_regdom(ieee80211_regdom);
+	/* Used during reset_regdomains_static() */
+	cfg80211_world_regdom = cfg80211_regdomain;
+#else
+	cfg80211_regdomain =
+		(struct ieee80211_regdomain *) cfg80211_world_regdom;
+#endif
+
+	err = wiphy_sysfs_init();
 	if (err)
 		goto out_fail_sysfs;
 
@@ -425,8 +556,33 @@ static int cfg80211_init(void)
 
 	ieee80211_debugfs_dir = debugfs_create_dir("ieee80211", NULL);
 
+	err = regulatory_init();
+	if (err)
+		goto out_fail_reg;
+
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+	printk(KERN_INFO "cfg80211: Using old static regulatory domain:\n");
+	print_regdomain_info(cfg80211_regdomain);
+	/* The old code still requests for a new regdomain and if
+	 * you have CRDA you get it updated, otherwise you get
+	 * stuck with the static values. We ignore "EU" code as
+	 * that is not a valid ISO / IEC 3166 alpha2 */
+	if (ieee80211_regdom[0] != 'E' &&
+			ieee80211_regdom[1] != 'U')
+		err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE,
+			ieee80211_regdom, NULL);
+#else
+	err = __regulatory_hint(NULL, REGDOM_SET_BY_CORE, "00", NULL);
+	if (err)
+		printk(KERN_ERR "cfg80211: calling CRDA failed - "
+			"unable to update world regulatory domain, "
+			"using static definition\n");
+#endif
+
 	return 0;
 
+out_fail_reg:
+	debugfs_remove(ieee80211_debugfs_dir);
 out_fail_nl80211:
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 out_fail_notifier:
@@ -434,6 +590,7 @@ out_fail_notifier:
 out_fail_sysfs:
 	return err;
 }
+
 subsys_initcall(cfg80211_init);
 
 static void cfg80211_exit(void)
@@ -442,5 +599,6 @@ static void cfg80211_exit(void)
 	nl80211_exit();
 	unregister_netdevice_notifier(&cfg80211_netdev_notifier);
 	wiphy_sysfs_exit();
+	regulatory_exit();
 }
 module_exit(cfg80211_exit);

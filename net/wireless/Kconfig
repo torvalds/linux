@@ -14,6 +14,38 @@ config NL80211
 
 	  If unsure, say Y.
 
+config WIRELESS_OLD_REGULATORY
+	bool "Old wireless static regulatory defintions"
+	default n
+	---help---
+	  This option enables the old static regulatory information
+	  and uses it within the new framework. This is available
+	  temporarily as an option to help prevent immediate issues
+	  due to the switch to the new regulatory framework which
+	  does require a new userspace application which has the
+	  database of regulatory information (CRDA) and another for
+	  setting regulatory domains (iw).
+
+	  For more information see:
+
+	  http://wireless.kernel.org/en/developers/Regulatory/CRDA
+	  http://wireless.kernel.org/en/users/Documentation/iw
+
+	  It is important to note though that if you *do* have CRDA present
+	  and if this option is enabled CRDA *will* be called to update the
+	  regulatory domain (for US and JP only). Support for letting the user
+	  set the regulatory domain through iw is also supported. This option
+	  mainly exists to leave around for a kernel release some old static
+	  regulatory domains that were defined and to keep around the old
+	  ieee80211_regdom module parameter. This is being phased out and you
+	  should stop using them ASAP.
+
+	  Say N unless you cannot install a new userspace application
+	  or have one currently depending on the ieee80211_regdom module
+	  parameter and cannot port it to use the new userspace interfaces.
+
+	  This is scheduled for removal for 2.6.29.
+
 config WIRELESS_EXT
 	bool "Wireless extensions"
 	default n

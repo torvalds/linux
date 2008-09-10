@@ -833,6 +833,8 @@ struct ieee80211_hw {
 	s8 max_signal;
 };
 
+struct ieee80211_hw *wiphy_to_hw(struct wiphy *wiphy);
+
 /**
  * SET_IEEE80211_DEV - set device for 802.11 hardware
  *

@@ -287,6 +287,66 @@ struct bss_parameters {
 	int use_short_slot_time;
 };
 
+/**
+ * enum reg_set_by - Indicates who is trying to set the regulatory domain
+ * @REGDOM_SET_BY_INIT: regulatory domain was set by initialization. We will be
+ * 	using a static world regulatory domain by default.
+ * @REGDOM_SET_BY_CORE: Core queried CRDA for a dynamic world regulatory domain.
+ * @REGDOM_SET_BY_USER: User asked the wireless core to set the
+ * 	regulatory domain.
+ * @REGDOM_SET_BY_DRIVER: a wireless drivers has hinted to the wireless core
+ *	it thinks its knows the regulatory domain we should be in.
+ * @REGDOM_SET_BY_COUNTRY_IE: the wireless core has received an 802.11 country
+ *	information element with regulatory information it thinks we
+ *	should consider.
+ */
+enum reg_set_by {
+	REGDOM_SET_BY_INIT,
+	REGDOM_SET_BY_CORE,
+	REGDOM_SET_BY_USER,
+	REGDOM_SET_BY_DRIVER,
+	REGDOM_SET_BY_COUNTRY_IE,
+};
+
+struct ieee80211_freq_range {
+	u32 start_freq_khz;
+	u32 end_freq_khz;
+	u32 max_bandwidth_khz;
+};
+
+struct ieee80211_power_rule {
+	u32 max_antenna_gain;
+	u32 max_eirp;
+};
+
+struct ieee80211_reg_rule {
+	struct ieee80211_freq_range freq_range;
+	struct ieee80211_power_rule power_rule;
+	u32 flags;
+};
+
+struct ieee80211_regdomain {
+	u32 n_reg_rules;
+	char alpha2[2];
+	struct ieee80211_reg_rule reg_rules[];
+};
+
+#define MHZ_TO_KHZ(freq) (freq * 1000)
+#define KHZ_TO_MHZ(freq) (freq / 1000)
+#define DBI_TO_MBI(gain) (gain * 100)
+#define MBI_TO_DBI(gain) (gain / 100)
+#define DBM_TO_MBM(gain) (gain * 100)
+#define MBM_TO_DBM(gain) (gain / 100)
+
+#define REG_RULE(start, end, bw, gain, eirp, reg_flags) { \
+	.freq_range.start_freq_khz = (start) * 1000, \
+	.freq_range.end_freq_khz = (end) * 1000, \
+	.freq_range.max_bandwidth_khz = (bw) * 1000, \
+	.power_rule.max_antenna_gain = (gain) * 100, \
+	.power_rule.max_eirp = (eirp) * 100, \
+	.flags = reg_flags, \
+	}
+
 /* from net/wireless.h */
 struct wiphy;
 

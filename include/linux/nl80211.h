@@ -92,6 +92,20 @@
  * @NL80211_CMD_SET_BSS: Set BSS attributes for BSS identified by
  *	%NL80211_ATTR_IFINDEX.
  *
+ * @NL80211_CMD_SET_REG: Set current regulatory domain. CRDA sends this command
+ *	after being queried by the kernel. CRDA replies by sending a regulatory
+ *	domain structure which consists of %NL80211_ATTR_REG_ALPHA set to our
+ *	current alpha2 if it found a match. It also provides
+ * 	NL80211_ATTR_REG_RULE_FLAGS, and a set of regulatory rules. Each
+ * 	regulatory rule is a nested set of attributes  given by
+ * 	%NL80211_ATTR_REG_RULE_FREQ_[START|END] and
+ * 	%NL80211_ATTR_FREQ_RANGE_MAX_BW with an attached power rule given by
+ * 	%NL80211_ATTR_REG_RULE_POWER_MAX_ANT_GAIN and
+ * 	%NL80211_ATTR_REG_RULE_POWER_MAX_EIRP.
+ * @NL80211_CMD_REQ_SET_REG: ask the wireless core to set the regulatory domain
+ * 	to the the specified ISO/IEC 3166-1 alpha2 country code. The core will
+ * 	store this as a valid request and then query userspace for it.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -131,7 +145,10 @@ enum nl80211_commands {
 
 	NL80211_CMD_SET_BSS,
 
-	/* add commands here */
+	NL80211_CMD_SET_REG,
+	NL80211_CMD_REQ_SET_REG,
+
+	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
 	__NL80211_CMD_AFTER_LAST,
@@ -197,9 +214,20 @@ enum nl80211_commands {
  * 	info given for %NL80211_CMD_GET_MPATH, nested attribute described at
  *	&enum nl80211_mpath_info.
  *
- *
  * @NL80211_ATTR_MNTR_FLAGS: flags, nested element with NLA_FLAG attributes of
  *      &enum nl80211_mntr_flags.
+ *
+ * @NL80211_ATTR_REG_ALPHA2: an ISO-3166-alpha2 country code for which the
+ * 	current regulatory domain should be set to or is already set to.
+ * 	For example, 'CR', for Costa Rica. This attribute is used by the kernel
+ * 	to query the CRDA to retrieve one regulatory domain. This attribute can
+ * 	also be used by userspace to query the kernel for the currently set
+ * 	regulatory domain. We chose an alpha2 as that is also used by the
+ * 	IEEE-802.11d country information element to identify a country.
+ * 	Users can also simply ask the wireless core to set regulatory domain
+ * 	to a specific alpha2.
+ * @NL80211_ATTR_REG_RULES: a nested array of regulatory domain regulatory
+ *	rules.
  *
  * @NL80211_ATTR_BSS_CTS_PROT: whether CTS protection is enabled (u8, 0 or 1)
  * @NL80211_ATTR_BSS_SHORT_PREAMBLE: whether short preamble is enabled
@@ -265,6 +293,9 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_SUPPORTED_IFTYPES,
 
+	NL80211_ATTR_REG_ALPHA2,
+	NL80211_ATTR_REG_RULES,
+
 	/* add attributes here, update the policy in nl80211.c */
 
 	__NL80211_ATTR_AFTER_LAST,
@@ -278,6 +309,7 @@ enum nl80211_attrs {
 #define NL80211_ATTR_HT_CAPABILITY NL80211_ATTR_HT_CAPABILITY
 
 #define NL80211_MAX_SUPP_RATES			32
+#define NL80211_MAX_SUPP_REG_RULES		32
 #define NL80211_TKIP_DATA_OFFSET_ENCR_KEY	0
 #define NL80211_TKIP_DATA_OFFSET_TX_MIC_KEY	16
 #define NL80211_TKIP_DATA_OFFSET_RX_MIC_KEY	24
@@ -470,6 +502,66 @@ enum nl80211_bitrate_attr {
 	/* keep last */
 	__NL80211_BITRATE_ATTR_AFTER_LAST,
 	NL80211_BITRATE_ATTR_MAX = __NL80211_BITRATE_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_reg_rule_attr - regulatory rule attributes
+ * @NL80211_ATTR_REG_RULE_FLAGS: a set of flags which specify additional
+ * 	considerations for a given frequency range. These are the
+ * 	&enum nl80211_reg_rule_flags.
+ * @NL80211_ATTR_FREQ_RANGE_START: starting frequencry for the regulatory
+ * 	rule in KHz. This is not a center of frequency but an actual regulatory
+ * 	band edge.
+ * @NL80211_ATTR_FREQ_RANGE_END: ending frequency for the regulatory rule
+ * 	in KHz. This is not a center a frequency but an actual regulatory
+ * 	band edge.
+ * @NL80211_ATTR_FREQ_RANGE_MAX_BW: maximum allowed bandwidth for this
+ * 	frequency range, in KHz.
+ * @NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN: the maximum allowed antenna gain
+ * 	for a given frequency range. The value is in mBi (100 * dBi).
+ * 	If you don't have one then don't send this.
+ * @NL80211_ATTR_POWER_RULE_MAX_EIRP: the maximum allowed EIRP for
+ * 	a given frequency range. The value is in mBm (100 * dBm).
+ */
+enum nl80211_reg_rule_attr {
+	__NL80211_REG_RULE_ATTR_INVALID,
+	NL80211_ATTR_REG_RULE_FLAGS,
+
+	NL80211_ATTR_FREQ_RANGE_START,
+	NL80211_ATTR_FREQ_RANGE_END,
+	NL80211_ATTR_FREQ_RANGE_MAX_BW,
+
+	NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN,
+	NL80211_ATTR_POWER_RULE_MAX_EIRP,
+
+	/* keep last */
+	__NL80211_REG_RULE_ATTR_AFTER_LAST,
+	NL80211_REG_RULE_ATTR_MAX = __NL80211_REG_RULE_ATTR_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_reg_rule_flags - regulatory rule flags
+ *
+ * @NL80211_RRF_NO_OFDM: OFDM modulation not allowed
+ * @NL80211_RRF_NO_CCK: CCK modulation not allowed
+ * @NL80211_RRF_NO_INDOOR: indoor operation not allowed
+ * @NL80211_RRF_NO_OUTDOOR: outdoor operation not allowed
+ * @NL80211_RRF_DFS: DFS support is required to be used
+ * @NL80211_RRF_PTP_ONLY: this is only for Point To Point links
+ * @NL80211_RRF_PTMP_ONLY: this is only for Point To Multi Point links
+ * @NL80211_RRF_PASSIVE_SCAN: passive scan is required
+ * @NL80211_RRF_NO_IBSS: no IBSS is allowed
+ */
+enum nl80211_reg_rule_flags {
+	NL80211_RRF_NO_OFDM		= 1<<0,
+	NL80211_RRF_NO_CCK		= 1<<1,
+	NL80211_RRF_NO_INDOOR		= 1<<2,
+	NL80211_RRF_NO_OUTDOOR		= 1<<3,
+	NL80211_RRF_DFS			= 1<<4,
+	NL80211_RRF_PTP_ONLY		= 1<<5,
+	NL80211_RRF_PTMP_ONLY		= 1<<6,
+	NL80211_RRF_PASSIVE_SCAN	= 1<<7,
+	NL80211_RRF_NO_IBSS		= 1<<8,
 };
 
 /**
