@@ -640,3 +640,31 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 
 	return ret;
 }
+
+u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
+			      enum ieee80211_band band)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *bitrates;
+	u64 mandatory_rates;
+	enum ieee80211_rate_flags mandatory_flag;
+	int i;
+
+	sband = local->hw.wiphy->bands[band];
+	if (!sband) {
+		WARN_ON(1);
+		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	}
+
+	if (band == IEEE80211_BAND_2GHZ)
+		mandatory_flag = IEEE80211_RATE_MANDATORY_B;
+	else
+		mandatory_flag = IEEE80211_RATE_MANDATORY_A;
+
+	bitrates = sband->bitrates;
+	mandatory_rates = 0;
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (bitrates[i].flags & mandatory_flag)
+			mandatory_rates |= BIT(i);
+	return mandatory_rates;
+}

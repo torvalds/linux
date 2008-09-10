@@ -160,6 +160,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_ERP_PREAMBLE: preamble changed
  * @BSS_CHANGED_ERP_SLOT: slot timing changed
  * @BSS_CHANGED_HT: 802.11n parameters changed
+ * @BSS_CHANGED_BASIC_RATES: Basic rateset changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -167,6 +168,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
 	BSS_CHANGED_ERP_SLOT		= 1<<3,
 	BSS_CHANGED_HT                  = 1<<4,
+	BSS_CHANGED_BASIC_RATES		= 1<<5,
 };
 
 /**
@@ -187,6 +189,9 @@ enum ieee80211_bss_change {
  * @assoc_ht: association in HT mode
  * @ht_conf: ht capabilities
  * @ht_bss_conf: ht extended capabilities
+ * @basic_rates: bitmap of basic rates, each bit stands for an
+ *	index into the rate table configured by the driver in
+ *	the current band.
  */
 struct ieee80211_bss_conf {
 	/* association related data */
@@ -200,6 +205,7 @@ struct ieee80211_bss_conf {
 	u16 beacon_int;
 	u16 assoc_capability;
 	u64 timestamp;
+	u64 basic_rates;
 	/* ht related data */
 	bool assoc_ht;
 	struct ieee80211_ht_info *ht_conf;

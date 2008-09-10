@@ -144,7 +144,9 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 	ieee80211_setup_sdata(sdata, type);
 
 	/* reset some values that shouldn't be kept across type changes */
-	sdata->basic_rates = 0;
+	sdata->bss_conf.basic_rates =
+		ieee80211_mandatory_rates(sdata->local,
+			sdata->local->hw.conf.channel->band);
 	sdata->drop_unencrypted = 0;
 
 	return 0;

@@ -710,6 +710,12 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_led_assoc(local, 1);
 
 	sdata->bss_conf.assoc = 1;
+	/*
+	 * For now just always ask the driver to update the basic rateset
+	 * when we have associated, we aren't checking whether it actually
+	 * changed or not.
+	 */
+	changed |= BSS_CHANGED_BASIC_RATES;
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	netif_tx_start_all_queues(sdata->dev);
@@ -1296,7 +1302,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta->supp_rates[local->hw.conf.channel->band] = rates;
-	sdata->basic_rates = basic_rates;
+	sdata->bss_conf.basic_rates = basic_rates;
 
 	/* cf. IEEE 802.11 9.2.12 */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_2GHZ &&
@@ -1453,34 +1459,6 @@ static int ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	return res;
 }
 
-static u64 ieee80211_sta_get_mandatory_rates(struct ieee80211_local *local,
-					enum ieee80211_band band)
-{
-	struct ieee80211_supported_band *sband;
-	struct ieee80211_rate *bitrates;
-	u64 mandatory_rates;
-	enum ieee80211_rate_flags mandatory_flag;
-	int i;
-
-	sband = local->hw.wiphy->bands[band];
-	if (!sband) {
-		WARN_ON(1);
-		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	}
-
-	if (band == IEEE80211_BAND_2GHZ)
-		mandatory_flag = IEEE80211_RATE_MANDATORY_B;
-	else
-		mandatory_flag = IEEE80211_RATE_MANDATORY_A;
-
-	bitrates = sband->bitrates;
-	mandatory_rates = 0;
-	for (i = 0; i < sband->n_bitrates; i++)
-		if (bitrates[i].flags & mandatory_flag)
-			mandatory_rates |= BIT(i);
-	return mandatory_rates;
-}
-
 static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_mgmt *mgmt,
 				  size_t len,
@@ -1522,7 +1500,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 			prev_rates = sta->supp_rates[band];
 			/* make sure mandatory rates are always added */
 			sta->supp_rates[band] = supp_rates |
-				ieee80211_sta_get_mandatory_rates(local, band);
+				ieee80211_mandatory_rates(local, band);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 			if (sta->supp_rates[band] != prev_rates)
@@ -2361,7 +2339,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 
 	/* make sure mandatory rates are always added */
 	sta->supp_rates[band] = supp_rates |
-			ieee80211_sta_get_mandatory_rates(local, band);
+			ieee80211_mandatory_rates(local, band);
 
 	rate_control_rate_init(sta, local);
 

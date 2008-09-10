@@ -153,7 +153,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 		if (r->bitrate > txrate->bitrate)
 			break;
 
-		if (tx->sdata->basic_rates & BIT(i))
+		if (tx->sdata->bss_conf.basic_rates & BIT(i))
 			rate = r->bitrate;
 
 		switch (sband->band) {
@@ -594,7 +594,7 @@ ieee80211_tx_h_misc(struct ieee80211_tx_data *tx)
 		for (idx = 0; idx < sband->n_bitrates; idx++) {
 			if (sband->bitrates[idx].bitrate > rate->bitrate)
 				continue;
-			if (tx->sdata->basic_rates & BIT(idx) &&
+			if (tx->sdata->bss_conf.basic_rates & BIT(idx) &&
 			    (baserate < 0 ||
 			     (sband->bitrates[baserate].bitrate
 			      < sband->bitrates[idx].bitrate)))

@@ -433,11 +433,6 @@ struct ieee80211_sub_if_data {
 
 	int drop_unencrypted;
 
-	/*
-	 * basic rates of this AP or the AP we're associated to
-	 */
-	u64 basic_rates;
-
 	/* Fragment table for host-based reassembly */
 	struct ieee80211_fragment_entry	fragments[IEEE80211_FRAGMENT_MAX];
 	unsigned int fragment_next;
@@ -1017,6 +1012,8 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems);
 int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
+u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
+			      enum ieee80211_band band);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
