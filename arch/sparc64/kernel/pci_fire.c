@@ -431,21 +431,12 @@ static void pci_fire_hw_init(struct pci_pbm_info *pbm)
 	fire_write(pbm->pbm_regs + FIRE_PEC_IENAB, ~(u64)0);
 }
 
-static int __init pci_fire_pbm_init(struct pci_controller_info *p,
+static int __init pci_fire_pbm_init(struct pci_pbm_info *pbm,
 				    struct of_device *op, u32 portid)
 {
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->node;
-	struct pci_pbm_info *pbm;
 	int err;
-
-	if ((portid & 1) == 0)
-		pbm = &p->pbm_A;
-	else
-		pbm = &p->pbm_B;
-
-	pbm->next = pci_pbm_root;
-	pci_pbm_root = pbm;
 
 	pbm->numa_node = -1;
 
@@ -455,7 +446,6 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 	pbm->index = pci_num_pbms++;
 
 	pbm->portid = portid;
-	pbm->parent = p;
 	pbm->prom_node = dp;
 	pbm->name = dp->full_name;
 
@@ -481,13 +471,9 @@ static int __init pci_fire_pbm_init(struct pci_controller_info *p,
 
 	/* XXX register error interrupt handlers XXX */
 
-	return 0;
-}
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
 
-static inline int portid_compare(u32 x, u32 y)
-{
-	if (x == (y ^ 1))
-		return 1;
 	return 0;
 }
 
@@ -495,48 +481,41 @@ static int __devinit fire_probe(struct of_device *op,
 				const struct of_device_id *match)
 {
 	struct device_node *dp = op->node;
-	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	u32 portid;
 	int err;
 
 	portid = of_getintprop_default(dp, "portid", 0xff);
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (portid_compare(pbm->portid, portid))
-			return pci_fire_pbm_init(pbm->parent, op, portid);
-	}
 
 	err = -ENOMEM;
-	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Cannot allocate pci_pbminfo.\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
 	if (!iommu) {
-		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
+		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
 		goto out_free_controller;
 	}
 
-	p->pbm_A.iommu = iommu;
+	pbm->iommu = iommu;
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu) {
-		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
-		goto out_free_iommu_A;
-	}
+	err = pci_fire_pbm_init(pbm, op, portid);
+	if (err)
+		goto out_free_iommu;
 
-	p->pbm_B.iommu = iommu;
+	dev_set_drvdata(&op->dev, pbm);
 
-	return pci_fire_pbm_init(p, op, portid);
+	return 0;
 
-out_free_iommu_A:
-	kfree(p->pbm_A.iommu);
+out_free_iommu:
+	kfree(pbm->iommu);
 			
 out_free_controller:
-	kfree(p);
+	kfree(pbm);
 
 out_err:
 	return err;

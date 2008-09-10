@@ -734,8 +734,8 @@ static int sabre_iommu_init(struct pci_pbm_info *pbm,
 	return 0;
 }
 
-static void __init sabre_pbm_init(struct pci_controller_info *p,
-				  struct pci_pbm_info *pbm, struct of_device *op)
+static void __init sabre_pbm_init(struct pci_pbm_info *pbm,
+				  struct of_device *op)
 {
 	struct device_node *dp = op->node;
 
@@ -750,7 +750,6 @@ static void __init sabre_pbm_init(struct pci_controller_info *p,
 	pbm->index = pci_num_pbms++;
 
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
-	pbm->parent = p;
 	pbm->prom_node = dp;
 	pci_get_pbm_props(pbm);
 
@@ -764,7 +763,6 @@ static int __devinit sabre_probe(struct of_device *op,
 {
 	const struct linux_prom64_registers *pr_regs;
 	struct device_node *dp = op->node;
-	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	u32 upa_portid, dma_mask;
 	struct iommu *iommu;
@@ -786,25 +784,21 @@ static int __devinit sabre_probe(struct of_device *op,
 	}
 
 	err = -ENOMEM;
-	p = kzalloc(sizeof(*p), GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Cannot allocate pci_pbm_info.\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(*iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(*iommu), GFP_KERNEL);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
 		goto out_free_controller;
 	}
 
-	pbm = &p->pbm_A;
 	pbm->iommu = iommu;
 
 	upa_portid = of_getintprop_default(dp, "upa-portid", 0xff);
-
-	pbm->next = pci_pbm_root;
-	pci_pbm_root = pbm;
 
 	pbm->portid = upa_portid;
 
@@ -840,8 +834,7 @@ static int __devinit sabre_probe(struct of_device *op,
 		     SABRE_PCICTRL_ARBPARK | SABRE_PCICTRL_AEN));
 
 	/* Now map in PCI config space for entire SABRE. */
-	pbm->config_space =
-		(pbm->controller_regs + SABRE_CONFIGSPACE);
+	pbm->config_space = pbm->controller_regs + SABRE_CONFIGSPACE;
 
 	vdma = of_get_property(dp, "virtual-dma", NULL);
 	if (!vdma) {
@@ -876,14 +869,20 @@ static int __devinit sabre_probe(struct of_device *op,
 	/*
 	 * Look for APB underneath.
 	 */
-	sabre_pbm_init(p, pbm, op);
+	sabre_pbm_init(pbm, op);
+
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
+	dev_set_drvdata(&op->dev, pbm);
+
 	return 0;
 
 out_free_iommu:
-	kfree(p->pbm_A.iommu);
+	kfree(pbm->iommu);
 
 out_free_controller:
-	kfree(p);
+	kfree(pbm);
 
 out_err:
 	return err;

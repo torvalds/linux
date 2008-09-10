@@ -42,6 +42,7 @@ struct iommu_batch {
 };
 
 static DEFINE_PER_CPU(struct iommu_batch, iommu_batch);
+static int iommu_batch_initialized;
 
 /* Interrupts must be disabled.  */
 static inline void iommu_batch_start(struct device *dev, unsigned long prot, unsigned long entry)
@@ -887,20 +888,11 @@ static void pci_sun4v_msi_init(struct pci_pbm_info *pbm)
 }
 #endif /* !(CONFIG_PCI_MSI) */
 
-static int __init pci_sun4v_pbm_init(struct pci_controller_info *p,
+static int __init pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 				     struct of_device *op, u32 devhandle)
 {
 	struct device_node *dp = op->node;
-	struct pci_pbm_info *pbm;
 	int err;
-
-	if (devhandle & 0x40)
-		pbm = &p->pbm_B;
-	else
-		pbm = &p->pbm_A;
-
-	pbm->next = pci_pbm_root;
-	pci_pbm_root = pbm;
 
 	pbm->numa_node = of_node_to_nid(dp);
 
@@ -909,7 +901,6 @@ static int __init pci_sun4v_pbm_init(struct pci_controller_info *p,
 
 	pbm->index = pci_num_pbms++;
 
-	pbm->parent = p;
 	pbm->prom_node = dp;
 
 	pbm->devhandle = devhandle;
@@ -931,6 +922,9 @@ static int __init pci_sun4v_pbm_init(struct pci_controller_info *p,
 
 	pci_sun4v_scan_bus(pbm, &op->dev);
 
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
+
 	return 0;
 }
 
@@ -939,7 +933,6 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 {
 	const struct linux_prom64_registers *regs;
 	static int hvapi_negotiated = 0;
-	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	struct device_node *dp;
 	struct iommu *iommu;
@@ -972,51 +965,46 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	}
 	devhandle = (regs->phys_addr >> 32UL) & 0x0fffffff;
 
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (pbm->devhandle == (devhandle ^ 0x40)) {
-			return pci_sun4v_pbm_init(pbm->parent, op, devhandle);
-		}
-	}
-
 	err = -ENOMEM;
-	for_each_possible_cpu(i) {
-		unsigned long page = get_zeroed_page(GFP_ATOMIC);
+	if (!iommu_batch_initialized) {
+		for_each_possible_cpu(i) {
+			unsigned long page = get_zeroed_page(GFP_KERNEL);
 
-		if (!page)
-			goto out_err;
+			if (!page)
+				goto out_err;
 
-		per_cpu(iommu_batch, i).pglist = (u64 *) page;
+			per_cpu(iommu_batch, i).pglist = (u64 *) page;
+		}
+		iommu_batch_initialized = 1;
 	}
 
-	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_ERR PFX "Could not allocate pci_controller_info\n");
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Could not allocate pci_pbm_info\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
+	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
 	if (!iommu) {
-		printk(KERN_ERR PFX "Could not allocate pbm A iommu\n");
+		printk(KERN_ERR PFX "Could not allocate pbm iommu\n");
 		goto out_free_controller;
 	}
 
-	p->pbm_A.iommu = iommu;
+	pbm->iommu = iommu;
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu) {
-		printk(KERN_ERR PFX "Could not allocate pbm B iommu\n");
-		goto out_free_iommu_A;
-	}
+	err = pci_sun4v_pbm_init(pbm, op, devhandle);
+	if (err)
+		goto out_free_iommu;
 
-	p->pbm_B.iommu = iommu;
+	dev_set_drvdata(&op->dev, pbm);
 
-	return pci_sun4v_pbm_init(p, op, devhandle);
+	return 0;
 
-out_free_iommu_A:
-	kfree(p->pbm_A.iommu);
+out_free_iommu:
+	kfree(pbm->iommu);
 
 out_free_controller:
-	kfree(p);
+	kfree(pbm);
 
 out_err:
 	return err;

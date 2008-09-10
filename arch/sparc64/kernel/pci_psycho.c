@@ -146,24 +146,16 @@ static unsigned long stc_error_buf[128];
 static unsigned long stc_tag_buf[16];
 static unsigned long stc_line_buf[16];
 
-static void __psycho_check_one_stc(struct pci_pbm_info *pbm,
-				   int is_pbm_a)
+static void psycho_check_stc_error(struct pci_pbm_info *pbm)
 {
 	struct strbuf *strbuf = &pbm->stc;
-	unsigned long regbase = pbm->controller_regs;
 	unsigned long err_base, tag_base, line_base;
 	u64 control;
 	int i;
 
-	if (is_pbm_a) {
-		err_base = regbase + PSYCHO_STC_ERR_A;
-		tag_base = regbase + PSYCHO_STC_TAG_A;
-		line_base = regbase + PSYCHO_STC_LINE_A;
-	} else {
-		err_base = regbase + PSYCHO_STC_ERR_B;
-		tag_base = regbase + PSYCHO_STC_TAG_B;
-		line_base = regbase + PSYCHO_STC_LINE_B;
-	}
+	err_base = strbuf->strbuf_err_stat;
+	tag_base = strbuf->strbuf_tag_diag;
+	line_base = strbuf->strbuf_line_diag;
 
 	spin_lock(&stc_buf_lock);
 
@@ -237,15 +229,6 @@ static void __psycho_check_one_stc(struct pci_pbm_info *pbm,
 	}
 
 	spin_unlock(&stc_buf_lock);
-}
-
-static void __psycho_check_stc_error(struct pci_pbm_info *pbm,
-				     unsigned long afsr,
-				     unsigned long afar,
-				     enum psycho_error_type type)
-{
-	__psycho_check_one_stc(pbm,
-			       (pbm == &pbm->parent->pbm_A));
 }
 
 /* When an Uncorrectable Error or a PCI Error happens, we
@@ -386,7 +369,7 @@ static void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 			       (data & PSYCHO_IOMMU_DATA_PPAGE) << IOMMU_PAGE_SHIFT);
 		}
 	}
-	__psycho_check_stc_error(pbm, afsr, afar, type);
+	psycho_check_stc_error(pbm);
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
@@ -412,7 +395,6 @@ static void psycho_check_iommu_error(struct pci_pbm_info *pbm,
 static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	unsigned long afsr_reg = pbm->controller_regs + PSYCHO_UE_AFSR;
 	unsigned long afar_reg = pbm->controller_regs + PSYCHO_UE_AFAR;
 	unsigned long afsr, afar, error_bits;
@@ -465,8 +447,9 @@ static irqreturn_t psycho_ue_intr(int irq, void *dev_id)
 	printk("]\n");
 
 	/* Interrogate both IOMMUs for error status. */
-	psycho_check_iommu_error(&p->pbm_A, afsr, afar, UE_ERR);
-	psycho_check_iommu_error(&p->pbm_B, afsr, afar, UE_ERR);
+	psycho_check_iommu_error(pbm, afsr, afar, UE_ERR);
+	if (pbm->sibling)
+		psycho_check_iommu_error(pbm->sibling, afsr, afar, UE_ERR);
 
 	return IRQ_HANDLED;
 }
@@ -573,23 +556,18 @@ static irqreturn_t psycho_ce_intr(int irq, void *dev_id)
 #define PSYCHO_PCI_AFAR_A	0x2018UL
 #define PSYCHO_PCI_AFAR_B	0x4018UL
 
-static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm, int is_pbm_a)
+static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm)
 {
-	unsigned long csr_reg, csr, csr_error_bits;
+	unsigned long csr, csr_error_bits;
 	irqreturn_t ret = IRQ_NONE;
 	u16 stat;
 
-	if (is_pbm_a) {
-		csr_reg = pbm->controller_regs + PSYCHO_PCIA_CTRL;
-	} else {
-		csr_reg = pbm->controller_regs + PSYCHO_PCIB_CTRL;
-	}
-	csr = psycho_read(csr_reg);
+	csr = psycho_read(pbm->pci_csr);
 	csr_error_bits =
 		csr & (PSYCHO_PCICTRL_SBH_ERR | PSYCHO_PCICTRL_SERR);
 	if (csr_error_bits) {
 		/* Clear the errors.  */
-		psycho_write(csr_reg, csr);
+		psycho_write(pbm->pci_csr, csr);
 
 		/* Log 'em.  */
 		if (csr_error_bits & PSYCHO_PCICTRL_SBH_ERR)
@@ -616,19 +594,12 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm, int is_pbm
 static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	unsigned long afsr_reg, afar_reg;
 	unsigned long afsr, afar, error_bits;
-	int is_pbm_a, reported;
+	int reported;
 
-	is_pbm_a = (pbm == &pbm->parent->pbm_A);
-	if (is_pbm_a) {
-		afsr_reg = p->pbm_A.controller_regs + PSYCHO_PCI_AFSR_A;
-		afar_reg = p->pbm_A.controller_regs + PSYCHO_PCI_AFAR_A;
-	} else {
-		afsr_reg = p->pbm_A.controller_regs + PSYCHO_PCI_AFSR_B;
-		afar_reg = p->pbm_A.controller_regs + PSYCHO_PCI_AFAR_B;
-	}
+	afsr_reg = pbm->pci_afsr;
+	afar_reg = pbm->pci_afar;
 
 	/* Latch error status. */
 	afar = psycho_read(afar_reg);
@@ -641,7 +612,7 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 		 PSYCHO_PCIAFSR_SMA | PSYCHO_PCIAFSR_STA |
 		 PSYCHO_PCIAFSR_SRTRY | PSYCHO_PCIAFSR_SPERR);
 	if (!error_bits)
-		return psycho_pcierr_intr_other(pbm, is_pbm_a);
+		return psycho_pcierr_intr_other(pbm);
 	psycho_write(afsr_reg, error_bits);
 
 	/* Log the error. */
@@ -923,10 +894,16 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 		pbm->stc.strbuf_control  = base + PSYCHO_STRBUF_CONTROL_A;
 		pbm->stc.strbuf_pflush   = base + PSYCHO_STRBUF_FLUSH_A;
 		pbm->stc.strbuf_fsync    = base + PSYCHO_STRBUF_FSYNC_A;
+		pbm->stc.strbuf_err_stat = base + PSYCHO_STC_ERR_A;
+		pbm->stc.strbuf_tag_diag = base + PSYCHO_STC_TAG_A;
+		pbm->stc.strbuf_line_diag= base + PSYCHO_STC_LINE_A;
 	} else {
 		pbm->stc.strbuf_control  = base + PSYCHO_STRBUF_CONTROL_B;
 		pbm->stc.strbuf_pflush   = base + PSYCHO_STRBUF_FLUSH_B;
 		pbm->stc.strbuf_fsync    = base + PSYCHO_STRBUF_FSYNC_B;
+		pbm->stc.strbuf_err_stat = base + PSYCHO_STC_ERR_B;
+		pbm->stc.strbuf_tag_diag = base + PSYCHO_STC_TAG_B;
+		pbm->stc.strbuf_line_diag= base + PSYCHO_STC_LINE_B;
 	}
 	/* PSYCHO's streaming buffer lacks ctx flushing. */
 	pbm->stc.strbuf_ctxflush      = 0;
@@ -971,16 +948,10 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 #define PSYCHO_MEMSPACE_B	0x180000000UL
 #define PSYCHO_MEMSPACE_SIZE	0x07fffffffUL
 
-static void __init psycho_pbm_init(struct pci_controller_info *p,
+static void __init psycho_pbm_init(struct pci_pbm_info *pbm,
 				   struct of_device *op, int is_pbm_a)
 {
 	struct device_node *dp = op->node;
-	struct pci_pbm_info *pbm;
-
-	if (is_pbm_a)
-		pbm = &p->pbm_A;
-	else
-		pbm = &p->pbm_B;
 
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
@@ -996,7 +967,6 @@ static void __init psycho_pbm_init(struct pci_controller_info *p,
 	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
 	pbm->chip_revision = of_getintprop_default(dp, "module-revision#", 0);
 
-	pbm->parent = p;
 	pbm->prom_node = dp;
 	pbm->name = dp->full_name;
 
@@ -1013,6 +983,17 @@ static void __init psycho_pbm_init(struct pci_controller_info *p,
 	psycho_scan_bus(pbm, &op->dev);
 }
 
+static struct pci_pbm_info * __devinit psycho_find_sibling(u32 upa_portid)
+{
+	struct pci_pbm_info *pbm;
+
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
+		if (pbm->portid == upa_portid)
+			return pbm;
+	}
+	return NULL;
+}
+
 #define PSYCHO_CONFIGSPACE	0x001000000UL
 
 static int __devinit psycho_probe(struct of_device *op,
@@ -1020,7 +1001,6 @@ static int __devinit psycho_probe(struct of_device *op,
 {
 	const struct linux_prom64_registers *pr_regs;
 	struct device_node *dp = op->node;
-	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	int is_pbm_a, err;
@@ -1028,33 +1008,26 @@ static int __devinit psycho_probe(struct of_device *op,
 
 	upa_portid = of_getintprop_default(dp, "upa-portid", 0xff);
 
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		struct pci_controller_info *p = pbm->parent;
-
-		if (p->pbm_A.portid == upa_portid) {
-			is_pbm_a = (p->pbm_A.prom_node == NULL);
-			psycho_pbm_init(p, op, is_pbm_a);
-			return 0;
-		}
-	}
-
 	err = -ENOMEM;
-	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Cannot allocate pci_pbm_info.\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu) {
-		printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
-		goto out_free_controller;
+	pbm->sibling = psycho_find_sibling(upa_portid);
+	if (pbm->sibling) {
+		iommu = pbm->sibling->iommu;
+	} else {
+		iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
+		if (!iommu) {
+			printk(KERN_ERR PFX "Cannot allocate PBM iommu.\n");
+			goto out_free_controller;
+		}
 	}
 
-	p->pbm_A.iommu = p->pbm_B.iommu = iommu;
-
-	p->pbm_A.portid = upa_portid;
-	p->pbm_B.portid = upa_portid;
+	pbm->iommu = iommu;
+	pbm->portid = upa_portid;
 
 	pr_regs = of_get_property(dp, "reg", NULL);
 	err = -ENODEV;
@@ -1063,29 +1036,43 @@ static int __devinit psycho_probe(struct of_device *op,
 		goto out_free_iommu;
 	}
 
-	p->pbm_A.controller_regs = pr_regs[2].phys_addr;
-	p->pbm_B.controller_regs = pr_regs[2].phys_addr;
-
-	p->pbm_A.config_space = p->pbm_B.config_space =
-		(pr_regs[2].phys_addr + PSYCHO_CONFIGSPACE);
-
-	psycho_controller_hwinit(&p->pbm_A);
-
-	err = psycho_iommu_init(&p->pbm_A);
-	if (err)
-		goto out_free_iommu;
-
 	is_pbm_a = ((pr_regs[0].phys_addr & 0x6000) == 0x2000);
 
-	psycho_pbm_init(p, op, is_pbm_a);
+	pbm->controller_regs = pr_regs[2].phys_addr;
+	pbm->config_space = (pr_regs[2].phys_addr + PSYCHO_CONFIGSPACE);
+
+	if (is_pbm_a) {
+		pbm->pci_afsr = pbm->controller_regs + PSYCHO_PCI_AFSR_A;
+		pbm->pci_afar = pbm->controller_regs + PSYCHO_PCI_AFAR_A;
+		pbm->pci_csr  = pbm->controller_regs + PSYCHO_PCIA_CTRL;
+	} else {
+		pbm->pci_afsr = pbm->controller_regs + PSYCHO_PCI_AFSR_B;
+		pbm->pci_afar = pbm->controller_regs + PSYCHO_PCI_AFAR_B;
+		pbm->pci_csr  = pbm->controller_regs + PSYCHO_PCIB_CTRL;
+	}
+
+	psycho_controller_hwinit(pbm);
+	if (!pbm->sibling) {
+		err = psycho_iommu_init(pbm);
+		if (err)
+			goto out_free_iommu;
+	}
+
+	psycho_pbm_init(pbm, op, is_pbm_a);
+
+	if (pbm->sibling)
+		pbm->sibling->sibling = pbm;
+
+	dev_set_drvdata(&op->dev, pbm);
 
 	return 0;
 
 out_free_iommu:
-	kfree(p->pbm_A.iommu);
+	if (!pbm->sibling)
+		kfree(pbm->iommu);
 
 out_free_controller:
-	kfree(p);
+	kfree(pbm);
 
 out_err:
 	return err;

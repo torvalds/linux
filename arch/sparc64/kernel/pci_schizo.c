@@ -358,11 +358,12 @@ static void schizo_check_iommu_error_pbm(struct pci_pbm_info *pbm,
 	spin_unlock_irqrestore(&iommu->lock, flags);
 }
 
-static void schizo_check_iommu_error(struct pci_controller_info *p,
+static void schizo_check_iommu_error(struct pci_pbm_info *pbm,
 				     enum schizo_error_type type)
 {
-	schizo_check_iommu_error_pbm(&p->pbm_A, type);
-	schizo_check_iommu_error_pbm(&p->pbm_B, type);
+	schizo_check_iommu_error_pbm(pbm, type);
+	if (pbm->sibling)
+		schizo_check_iommu_error_pbm(pbm->sibling, type);
 }
 
 /* Uncorrectable ECC error status gathering. */
@@ -387,7 +388,6 @@ static void schizo_check_iommu_error(struct pci_controller_info *p,
 static irqreturn_t schizo_ue_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	unsigned long afsr_reg = pbm->controller_regs + SCHIZO_UE_AFSR;
 	unsigned long afar_reg = pbm->controller_regs + SCHIZO_UE_AFAR;
 	unsigned long afsr, afar, error_bits;
@@ -450,7 +450,7 @@ static irqreturn_t schizo_ue_intr(int irq, void *dev_id)
 	printk("]\n");
 
 	/* Interrogate IOMMU for error status. */
-	schizo_check_iommu_error(p, UE_ERR);
+	schizo_check_iommu_error(pbm, UE_ERR);
 
 	return IRQ_HANDLED;
 }
@@ -651,7 +651,6 @@ static irqreturn_t schizo_pcierr_intr_other(struct pci_pbm_info *pbm)
 static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	unsigned long afsr_reg, afar_reg, base;
 	unsigned long afsr, afar, error_bits;
 	int reported;
@@ -745,7 +744,7 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 	 * a bug in the IOMMU support code or a PCI device driver.
 	 */
 	if (error_bits & (SCHIZO_PCIAFSR_PTA | SCHIZO_PCIAFSR_STA)) {
-		schizo_check_iommu_error(p, PCI_ERR);
+		schizo_check_iommu_error(pbm, PCI_ERR);
 		pci_scan_for_target_abort(pbm, pbm->pci_bus);
 	}
 	if (error_bits & (SCHIZO_PCIAFSR_PMA | SCHIZO_PCIAFSR_SMA))
@@ -806,7 +805,6 @@ static irqreturn_t schizo_pcierr_intr(int irq, void *dev_id)
 static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id)
 {
 	struct pci_pbm_info *pbm = dev_id;
-	struct pci_controller_info *p = pbm->parent;
 	u64 errlog;
 
 	errlog = schizo_read(pbm->controller_regs + SCHIZO_SAFARI_ERRLOG);
@@ -822,7 +820,7 @@ static irqreturn_t schizo_safarierr_intr(int irq, void *dev_id)
 
 	printk("%s: Safari/JBUS interrupt, UNMAPPED error, interrogating IOMMUs.\n",
 	       pbm->name);
-	schizo_check_iommu_error(p, SAFARI_ERR);
+	schizo_check_iommu_error(pbm, SAFARI_ERR);
 
 	return IRQ_HANDLED;
 }
@@ -1329,13 +1327,12 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	}
 }
 
-static int __devinit schizo_pbm_init(struct pci_controller_info *p,
+static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 				     struct of_device *op, u32 portid,
 				     int chip_type)
 {
 	const struct linux_prom64_registers *regs;
 	struct device_node *dp = op->node;
-	struct pci_pbm_info *pbm;
 	const char *chipset_name;
 	int is_pbm_a, err;
 
@@ -1368,10 +1365,6 @@ static int __devinit schizo_pbm_init(struct pci_controller_info *p,
 	regs = of_get_property(dp, "reg", NULL);
 
 	is_pbm_a = ((regs[0].phys_addr & 0x00700000) == 0x00600000);
-	if (is_pbm_a)
-		pbm = &p->pbm_A;
-	else
-		pbm = &p->pbm_B;
 
 	pbm->next = pci_pbm_root;
 	pci_pbm_root = pbm;
@@ -1384,7 +1377,6 @@ static int __devinit schizo_pbm_init(struct pci_controller_info *p,
 	pbm->index = pci_num_pbms++;
 
 	pbm->portid = portid;
-	pbm->parent = p;
 	pbm->prom_node = dp;
 
 	pbm->chip_type = chip_type;
@@ -1430,10 +1422,21 @@ static inline int portid_compare(u32 x, u32 y, int chip_type)
 	return (x == y);
 }
 
+static struct pci_pbm_info * __devinit schizo_find_sibling(u32 portid,
+							   int chip_type)
+{
+	struct pci_pbm_info *pbm;
+
+	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
+		if (portid_compare(pbm->portid, portid, chip_type))
+			return pbm;
+	}
+	return NULL;
+}
+
 static int __devinit __schizo_init(struct of_device *op, unsigned long chip_type)
 {
 	struct device_node *dp = op->node;
-	struct pci_controller_info *p;
 	struct pci_pbm_info *pbm;
 	struct iommu *iommu;
 	u32 portid;
@@ -1442,50 +1445,37 @@ static int __devinit __schizo_init(struct of_device *op, unsigned long chip_type
 	portid = of_getintprop_default(dp, "portid", 0xff);
 
 	err = -ENOMEM;
-	for (pbm = pci_pbm_root; pbm; pbm = pbm->next) {
-		if (portid_compare(pbm->portid, portid, chip_type)) {
-			if (schizo_pbm_init(pbm->parent, op,
-					    portid, chip_type))
-				goto out_err;
-			return 0;
-		}
-	}
-
-	p = kzalloc(sizeof(struct pci_controller_info), GFP_ATOMIC);
-	if (!p) {
-		printk(KERN_ERR PFX "Cannot allocate controller info.\n");
+	pbm = kzalloc(sizeof(*pbm), GFP_KERNEL);
+	if (!pbm) {
+		printk(KERN_ERR PFX "Cannot allocate pci_pbm_info.\n");
 		goto out_err;
 	}
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
+	pbm->sibling = schizo_find_sibling(portid, chip_type);
+
+	iommu = kzalloc(sizeof(struct iommu), GFP_KERNEL);
 	if (!iommu) {
 		printk(KERN_ERR PFX "Cannot allocate PBM A iommu.\n");
-		goto out_free_controller;
+		goto out_free_pbm;
 	}
 
-	p->pbm_A.iommu = iommu;
+	pbm->iommu = iommu;
 
-	iommu = kzalloc(sizeof(struct iommu), GFP_ATOMIC);
-	if (!iommu) {
-		printk(KERN_ERR PFX "Cannot allocate PBM B iommu.\n");
-		goto out_free_iommu_A;
-	}
+	if (schizo_pbm_init(pbm, op, portid, chip_type))
+		goto out_free_iommu;
 
-	p->pbm_B.iommu = iommu;
+	if (pbm->sibling)
+		pbm->sibling->sibling = pbm;
 
-	if (schizo_pbm_init(p, op, portid, chip_type))
-		goto out_free_iommu_B;
+	dev_set_drvdata(&op->dev, pbm);
 
 	return 0;
 
-out_free_iommu_B:
-	kfree(p->pbm_B.iommu);
+out_free_iommu:
+	kfree(pbm->iommu);
 
-out_free_iommu_A:
-	kfree(p->pbm_A.iommu);
-
-out_free_controller:
-	kfree(p);
+out_free_pbm:
+	kfree(pbm);
 
 out_err:
 	return err;

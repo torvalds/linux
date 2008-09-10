@@ -977,14 +977,14 @@ int pcibus_to_node(struct pci_bus *pbus)
 EXPORT_SYMBOL(pcibus_to_node);
 #endif
 
-/* Return the domain nuber for this pci bus */
+/* Return the domain number for this pci bus */
 
 int pci_domain_nr(struct pci_bus *pbus)
 {
 	struct pci_pbm_info *pbm = pbus->sysdata;
 	int ret;
 
-	if (pbm == NULL || pbm->parent == NULL) {
+	if (!pbm) {
 		ret = -ENXIO;
 	} else {
 		ret = pbm->index;

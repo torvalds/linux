@@ -56,14 +56,10 @@ struct sparc64_msiq_cookie {
 };
 #endif
 
-struct pci_controller_info;
-
 struct pci_pbm_info {
 	struct pci_pbm_info		*next;
+	struct pci_pbm_info		*sibling;
 	int				index;
-
-	/* PCI controller we sit under. */
-	struct pci_controller_info	*parent;
 
 	/* Physical address base of controller registers. */
 	unsigned long			controller_regs;
@@ -107,6 +103,10 @@ struct pci_pbm_info {
 	/* This will be 12 on PCI-E controllers, 8 elsewhere.  */
 	unsigned long			config_space_reg_bits;
 
+	unsigned long			pci_afsr;
+	unsigned long			pci_afar;
+	unsigned long			pci_csr;
+
 	/* State of 66MHz capabilities on this PBM. */
 	int				is_66mhz_capable;
 	int				all_devs_66mhz;
@@ -149,12 +149,6 @@ struct pci_pbm_info {
 	struct pci_ops			*pci_ops;
 
 	int				numa_node;
-};
-
-struct pci_controller_info {
-	/* The PCI bus modules controlled by us. */
-	struct pci_pbm_info		pbm_A;
-	struct pci_pbm_info		pbm_B;
 };
 
 extern struct pci_pbm_info *pci_pbm_root;
