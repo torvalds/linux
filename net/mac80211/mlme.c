@@ -2594,6 +2594,13 @@ void ieee80211_sta_work(struct work_struct *work)
 	}
 }
 
+static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
+{
+	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
+	    ieee80211_vif_is_mesh(&sdata->vif))
+		ieee80211_sta_timer((unsigned long)sdata);
+}
+
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata = local->scan_sdata;
@@ -2606,4 +2613,10 @@ void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
 		    !ieee80211_sta_active_ibss(sdata)))
 			ieee80211_sta_find_ibss(sdata, ifsta);
 	}
+
+	/* Restart STA timers */
+	rcu_read_lock();
+	list_for_each_entry_rcu(sdata, &local->interfaces, list)
+		ieee80211_restart_sta_timer(sdata);
+	rcu_read_unlock();
 }
