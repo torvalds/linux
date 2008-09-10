@@ -548,6 +548,14 @@ static int ieee80211_stop(struct net_device *dev)
 		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.sta.timer);
 		/*
+		 * If the timer fired while we waited for it, it will have
+		 * requeued the work. Now the work will be running again
+		 * but will not rearm the timer again because it checks
+		 * whether the interface is running, which, at this point,
+		 * it no longer is.
+		 */
+		cancel_work_sync(&sdata->u.sta.work);
+		/*
 		 * When we get here, the interface is marked down.
 		 * Call synchronize_rcu() to wait for the RX path
 		 * should it be using the interface and enqueuing
