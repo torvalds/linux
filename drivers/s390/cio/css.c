@@ -633,6 +633,11 @@ channel_subsystem_release(struct device *dev)
 
 	css = to_css(dev);
 	mutex_destroy(&css->mutex);
+	if (css->pseudo_subchannel) {
+		/* Implies that it has been generated but never registered. */
+		css_subchannel_release(&css->pseudo_subchannel->dev);
+		css->pseudo_subchannel = NULL;
+	}
 	kfree(css);
 }
 
@@ -785,11 +790,15 @@ init_channel_subsystem (void)
 		}
 		channel_subsystems[i] = css;
 		ret = setup_css(i);
-		if (ret)
-			goto out_free;
+		if (ret) {
+			kfree(channel_subsystems[i]);
+			goto out_unregister;
+		}
 		ret = device_register(&css->device);
-		if (ret)
-			goto out_free_all;
+		if (ret) {
+			put_device(&css->device);
+			goto out_unregister;
+		}
 		if (css_chsc_characteristics.secm) {
 			ret = device_create_file(&css->device,
 						 &dev_attr_cm_enable);
@@ -802,7 +811,7 @@ init_channel_subsystem (void)
 	}
 	ret = register_reboot_notifier(&css_reboot_notifier);
 	if (ret)
-		goto out_pseudo;
+		goto out_unregister;
 	css_init_done = 1;
 
 	/* Enable default isc for I/O subchannels. */
@@ -810,18 +819,12 @@ init_channel_subsystem (void)
 
 	for_each_subchannel(__init_channel_subsystem, NULL);
 	return 0;
-out_pseudo:
-	device_unregister(&channel_subsystems[i]->pseudo_subchannel->dev);
 out_file:
-	device_remove_file(&channel_subsystems[i]->device,
-			   &dev_attr_cm_enable);
+	if (css_chsc_characteristics.secm)
+		device_remove_file(&channel_subsystems[i]->device,
+				   &dev_attr_cm_enable);
 out_device:
 	device_unregister(&channel_subsystems[i]->device);
-out_free_all:
-	kfree(channel_subsystems[i]->pseudo_subchannel->lock);
-	kfree(channel_subsystems[i]->pseudo_subchannel);
-out_free:
-	kfree(channel_subsystems[i]);
 out_unregister:
 	while (i > 0) {
 		struct channel_subsystem *css;
@@ -829,6 +832,7 @@ out_unregister:
 		i--;
 		css = channel_subsystems[i];
 		device_unregister(&css->pseudo_subchannel->dev);
+		css->pseudo_subchannel = NULL;
 		if (css_chsc_characteristics.secm)
 			device_remove_file(&css->device,
 					   &dev_attr_cm_enable);

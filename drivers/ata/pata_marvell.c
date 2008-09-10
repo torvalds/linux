@@ -20,7 +20,42 @@
 #include <linux/ata.h>
 
 #define DRV_NAME	"pata_marvell"
-#define DRV_VERSION	"0.1.4"
+#define DRV_VERSION	"0.1.6"
+
+/**
+ *	marvell_pata_active	-	check if PATA is active
+ *	@pdev: PCI device
+ *
+ *	Returns 1 if the PATA port may be active. We know how to check this
+ *	for the 6145 but not the other devices
+ */
+
+static int marvell_pata_active(struct pci_dev *pdev)
+{
+	int i;
+	u32 devices;
+	void __iomem *barp;
+
+	/* We don't yet know how to do this for other devices */
+	if (pdev->device != 0x6145)
+		return 1;	
+
+	barp = pci_iomap(pdev, 5, 0x10);
+	if (barp == NULL)
+		return -ENOMEM;
+
+	printk("BAR5:");
+	for(i = 0; i <= 0x0F; i++)
+		printk("%02X:%02X ", i, ioread8(barp + i));
+	printk("\n");
+
+	devices = ioread32(barp + 0x0C);
+	pci_iounmap(pdev, barp);
+
+	if (devices & 0x10)
+		return 1;
+	return 0;
+}
 
 /**
  *	marvell_pre_reset	-	check for 40/80 pin
@@ -34,26 +69,10 @@ static int marvell_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 devices;
-	void __iomem *barp;
-	int i;
 
-	/* Check if our port is enabled */
-
-	barp = pci_iomap(pdev, 5, 0x10);
-	if (barp == NULL)
-		return -ENOMEM;
-	printk("BAR5:");
-	for(i = 0; i <= 0x0F; i++)
-		printk("%02X:%02X ", i, ioread8(barp + i));
-	printk("\n");
-
-	devices = ioread32(barp + 0x0C);
-	pci_iounmap(pdev, barp);
-
-	if ((pdev->device == 0x6145) && (ap->port_no == 0) &&
-	    (!(devices & 0x10)))	/* PATA enable ? */
-		return -ENOENT;
+	if (pdev->device == 0x6145 && ap->port_no == 0 &&
+		!marvell_pata_active(pdev))	/* PATA enable ? */
+			return -ENOENT;
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -128,6 +147,12 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 	if (pdev->device == 0x6101)
 		ppi[1] = &ata_dummy_port_info;
 
+#if defined(CONFIG_AHCI) || defined(CONFIG_AHCI_MODULE)
+	if (!marvell_pata_active(pdev)) {
+		printk(KERN_INFO DRV_NAME ": PATA port not active, deferring to AHCI driver.\n");
+		return -ENODEV;
+	}
+#endif
 	return ata_pci_sff_init_one(pdev, ppi, &marvell_sht, NULL);
 }
 

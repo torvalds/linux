@@ -103,8 +103,10 @@ static int mmc_blk_open(struct inode *inode, struct file *filp)
 			check_disk_change(inode->i_bdev);
 		ret = 0;
 
-		if ((filp->f_mode & FMODE_WRITE) && md->read_only)
+		if ((filp->f_mode & FMODE_WRITE) && md->read_only) {
+			mmc_blk_put(md);
 			ret = -EROFS;
+		}
 	}
 
 	return ret;
