@@ -337,9 +337,12 @@ static int sbus_do_settimeofday(struct timespec *tv)
 static int set_rtc_mmss(unsigned long secs)
 {
 	struct rtc_device *rtc = rtc_class_open("rtc0");
+	int err = -1;
 
-	if (rtc)
-		return rtc_set_mmss(rtc, secs);
+	if (rtc) {
+		err = rtc_set_mmss(rtc, secs);
+		rtc_class_close(rtc);
+	}
 
-	return -1;
+	return err;
 }
