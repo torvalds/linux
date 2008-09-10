@@ -17,6 +17,7 @@ MODULE_LICENSE("GPL");
 
 struct bq4802 {
 	void __iomem		*regs;
+	unsigned long		ioport;
 	struct rtc_device	*rtc;
 	spinlock_t		lock;
 	struct resource		*r;
@@ -26,12 +27,12 @@ struct bq4802 {
 
 static u8 bq4802_read_io(struct bq4802 *p, int off)
 {
-	return inb(p->regs + off);
+	return inb(p->ioport + off);
 }
 
 static void bq4802_write_io(struct bq4802 *p, int off, u8 val)
 {
-	return outb(val, p->regs + off);
+	outb(val, p->ioport + off);
 }
 
 static u8 bq4802_read_mem(struct bq4802 *p, int off)
@@ -41,7 +42,7 @@ static u8 bq4802_read_mem(struct bq4802 *p, int off)
 
 static void bq4802_write_mem(struct bq4802 *p, int off, u8 val)
 {
-	return writeb(val, p->regs + off);
+	writeb(val, p->regs + off);
 }
 
 static int bq4802_read_time(struct device *dev, struct rtc_time *tm)
@@ -156,7 +157,7 @@ static int __devinit bq4802_probe(struct platform_device *pdev)
 			goto out_free;
 	}
 	if (p->r->flags & IORESOURCE_IO) {
-		p->regs = (void __iomem *) p->r->start;
+		p->ioport = p->r->start;
 		p->read = bq4802_read_io;
 		p->write = bq4802_write_io;
 	} else if (p->r->flags & IORESOURCE_MEM) {
