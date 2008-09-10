@@ -218,7 +218,7 @@ ip_vs_dh_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
 	IP_VS_DBG(6, "DH: destination IP address %u.%u.%u.%u "
 		  "--> server %u.%u.%u.%u:%d\n",
 		  NIPQUAD(iph->daddr),
-		  NIPQUAD(dest->addr),
+		  NIPQUAD(dest->addr.ip),
 		  ntohs(dest->port));
 
 	return dest;
@@ -234,6 +234,9 @@ static struct ip_vs_scheduler ip_vs_dh_scheduler =
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_dh_scheduler.n_list),
+#ifdef CONFIG_IP_VS_IPV6
+	.supports_ipv6 =	0,
+#endif
 	.init_service =		ip_vs_dh_init_svc,
 	.done_service =		ip_vs_dh_done_svc,
 	.update_service =	ip_vs_dh_update_svc,

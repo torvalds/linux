@@ -256,9 +256,9 @@ void ip_vs_sync_conn(struct ip_vs_conn *cp)
 	s->cport = cp->cport;
 	s->vport = cp->vport;
 	s->dport = cp->dport;
-	s->caddr = cp->caddr;
-	s->vaddr = cp->vaddr;
-	s->daddr = cp->daddr;
+	s->caddr = cp->caddr.ip;
+	s->vaddr = cp->vaddr.ip;
+	s->daddr = cp->daddr.ip;
 	s->flags = htons(cp->flags & ~IP_VS_CONN_F_HASHED);
 	s->state = htons(cp->state);
 	if (cp->flags & IP_VS_CONN_F_SEQ_MASK) {
@@ -366,21 +366,28 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 		}
 
 		if (!(flags & IP_VS_CONN_F_TEMPLATE))
-			cp = ip_vs_conn_in_get(s->protocol,
-					       s->caddr, s->cport,
-					       s->vaddr, s->vport);
+			cp = ip_vs_conn_in_get(AF_INET, s->protocol,
+					       (union nf_inet_addr *)&s->caddr,
+					       s->cport,
+					       (union nf_inet_addr *)&s->vaddr,
+					       s->vport);
 		else
-			cp = ip_vs_ct_in_get(s->protocol,
-					       s->caddr, s->cport,
-					       s->vaddr, s->vport);
+			cp = ip_vs_ct_in_get(AF_INET, s->protocol,
+					     (union nf_inet_addr *)&s->caddr,
+					     s->cport,
+					     (union nf_inet_addr *)&s->vaddr,
+					     s->vport);
 		if (!cp) {
 			/*
 			 * Find the appropriate destination for the connection.
 			 * If it is not found the connection will remain unbound
 			 * but still handled.
 			 */
-			dest = ip_vs_find_dest(s->daddr, s->dport,
-					       s->vaddr, s->vport,
+			dest = ip_vs_find_dest(AF_INET,
+					       (union nf_inet_addr *)&s->daddr,
+					       s->dport,
+					       (union nf_inet_addr *)&s->vaddr,
+					       s->vport,
 					       s->protocol);
 			/*  Set the approprite ativity flag */
 			if (s->protocol == IPPROTO_TCP) {
@@ -389,10 +396,13 @@ static void ip_vs_process_message(const char *buffer, const size_t buflen)
 				else
 					flags &= ~IP_VS_CONN_F_INACTIVE;
 			}
-			cp = ip_vs_conn_new(s->protocol,
-					    s->caddr, s->cport,
-					    s->vaddr, s->vport,
-					    s->daddr, s->dport,
+			cp = ip_vs_conn_new(AF_INET, s->protocol,
+					    (union nf_inet_addr *)&s->caddr,
+					    s->cport,
+					    (union nf_inet_addr *)&s->vaddr,
+					    s->vport,
+					    (union nf_inet_addr *)&s->daddr,
+					    s->dport,
 					    flags, dest);
 			if (dest)
 				atomic_dec(&dest->refcnt);

@@ -151,11 +151,11 @@ const char * ip_vs_state_name(__u16 proto, int state)
 }
 
 
-void
-ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
-			  const struct sk_buff *skb,
-			  int offset,
-			  const char *msg)
+static void
+ip_vs_tcpudp_debug_packet_v4(struct ip_vs_protocol *pp,
+			     const struct sk_buff *skb,
+			     int offset,
+			     const char *msg)
 {
 	char buf[128];
 	struct iphdr _iph, *ih;
@@ -187,6 +187,61 @@ ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
 	}
 
 	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
+}
+
+#ifdef CONFIG_IP_VS_IPV6
+static void
+ip_vs_tcpudp_debug_packet_v6(struct ip_vs_protocol *pp,
+			     const struct sk_buff *skb,
+			     int offset,
+			     const char *msg)
+{
+	char buf[192];
+	struct ipv6hdr _iph, *ih;
+
+	ih = skb_header_pointer(skb, offset, sizeof(_iph), &_iph);
+	if (ih == NULL)
+		sprintf(buf, "%s TRUNCATED", pp->name);
+	else if (ih->nexthdr == IPPROTO_FRAGMENT)
+		sprintf(buf, "%s " NIP6_FMT "->" NIP6_FMT " frag",
+			pp->name, NIP6(ih->saddr),
+			NIP6(ih->daddr));
+	else {
+		__be16 _ports[2], *pptr;
+
+		pptr = skb_header_pointer(skb, offset + sizeof(struct ipv6hdr),
+					  sizeof(_ports), _ports);
+		if (pptr == NULL)
+			sprintf(buf, "%s TRUNCATED " NIP6_FMT "->" NIP6_FMT,
+				pp->name,
+				NIP6(ih->saddr),
+				NIP6(ih->daddr));
+		else
+			sprintf(buf, "%s " NIP6_FMT ":%u->" NIP6_FMT ":%u",
+				pp->name,
+				NIP6(ih->saddr),
+				ntohs(pptr[0]),
+				NIP6(ih->daddr),
+				ntohs(pptr[1]));
+	}
+
+	printk(KERN_DEBUG "IPVS: %s: %s\n", msg, buf);
+}
+#endif
+
+
+void
+ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
+			  const struct sk_buff *skb,
+			  int offset,
+			  const char *msg)
+{
+#ifdef CONFIG_IP_VS_IPV6
+	if (skb->protocol == __constant_htons(ETH_P_IPV6))
+		ip_vs_tcpudp_debug_packet_v6(pp, skb, offset, msg);
+	else
+#endif
+		ip_vs_tcpudp_debug_packet_v4(pp, skb, offset, msg);
 }
 
 

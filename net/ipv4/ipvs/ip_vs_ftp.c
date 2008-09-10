@@ -140,12 +140,20 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	struct tcphdr *th;
 	char *data, *data_limit;
 	char *start, *end;
-	__be32 from;
+	union nf_inet_addr from;
 	__be16 port;
 	struct ip_vs_conn *n_cp;
 	char buf[24];		/* xxx.xxx.xxx.xxx,ppp,ppp\000 */
 	unsigned buf_len;
 	int ret;
+
+#ifdef CONFIG_IP_VS_IPV6
+	/* This application helper doesn't work with IPv6 yet,
+	 * so turn this into a no-op for IPv6 packets
+	 */
+	if (cp->af == AF_INET6)
+		return 1;
+#endif
 
 	*diff = 0;
 
@@ -166,24 +174,25 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		if (ip_vs_ftp_get_addrport(data, data_limit,
 					   SERVER_STRING,
 					   sizeof(SERVER_STRING)-1, ')',
-					   &from, &port,
+					   &from.ip, &port,
 					   &start, &end) != 1)
 			return 1;
 
 		IP_VS_DBG(7, "PASV response (%u.%u.%u.%u:%d) -> "
 			  "%u.%u.%u.%u:%d detected\n",
-			  NIPQUAD(from), ntohs(port), NIPQUAD(cp->caddr), 0);
+			  NIPQUAD(from.ip), ntohs(port),
+			  NIPQUAD(cp->caddr.ip), 0);
 
 		/*
 		 * Now update or create an connection entry for it
 		 */
-		n_cp = ip_vs_conn_out_get(iph->protocol, from, port,
-					  cp->caddr, 0);
+		n_cp = ip_vs_conn_out_get(AF_INET, iph->protocol, &from, port,
+					  &cp->caddr, 0);
 		if (!n_cp) {
-			n_cp = ip_vs_conn_new(IPPROTO_TCP,
-					      cp->caddr, 0,
-					      cp->vaddr, port,
-					      from, port,
+			n_cp = ip_vs_conn_new(AF_INET, IPPROTO_TCP,
+					      &cp->caddr, 0,
+					      &cp->vaddr, port,
+					      &from, port,
 					      IP_VS_CONN_F_NO_CPORT,
 					      cp->dest);
 			if (!n_cp)
@@ -196,9 +205,9 @@ static int ip_vs_ftp_out(struct ip_vs_app *app, struct ip_vs_conn *cp,
 		/*
 		 * Replace the old passive address with the new one
 		 */
-		from = n_cp->vaddr;
+		from.ip = n_cp->vaddr.ip;
 		port = n_cp->vport;
-		sprintf(buf,"%d,%d,%d,%d,%d,%d", NIPQUAD(from),
+		sprintf(buf, "%d,%d,%d,%d,%d,%d", NIPQUAD(from.ip),
 			(ntohs(port)>>8)&255, ntohs(port)&255);
 		buf_len = strlen(buf);
 
@@ -243,9 +252,17 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	struct tcphdr *th;
 	char *data, *data_start, *data_limit;
 	char *start, *end;
-	__be32 to;
+	union nf_inet_addr to;
 	__be16 port;
 	struct ip_vs_conn *n_cp;
+
+#ifdef CONFIG_IP_VS_IPV6
+	/* This application helper doesn't work with IPv6 yet,
+	 * so turn this into a no-op for IPv6 packets
+	 */
+	if (cp->af == AF_INET6)
+		return 1;
+#endif
 
 	/* no diff required for incoming packets */
 	*diff = 0;
@@ -291,12 +308,12 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	 */
 	if (ip_vs_ftp_get_addrport(data_start, data_limit,
 				   CLIENT_STRING, sizeof(CLIENT_STRING)-1,
-				   '\r', &to, &port,
+				   '\r', &to.ip, &port,
 				   &start, &end) != 1)
 		return 1;
 
 	IP_VS_DBG(7, "PORT %u.%u.%u.%u:%d detected\n",
-		  NIPQUAD(to), ntohs(port));
+		  NIPQUAD(to.ip), ntohs(port));
 
 	/* Passive mode off */
 	cp->app_data = NULL;
@@ -306,16 +323,16 @@ static int ip_vs_ftp_in(struct ip_vs_app *app, struct ip_vs_conn *cp,
 	 */
 	IP_VS_DBG(7, "protocol %s %u.%u.%u.%u:%d %u.%u.%u.%u:%d\n",
 		  ip_vs_proto_name(iph->protocol),
-		  NIPQUAD(to), ntohs(port), NIPQUAD(cp->vaddr), 0);
+		  NIPQUAD(to.ip), ntohs(port), NIPQUAD(cp->vaddr.ip), 0);
 
-	n_cp = ip_vs_conn_in_get(iph->protocol,
-				 to, port,
-				 cp->vaddr, htons(ntohs(cp->vport)-1));
+	n_cp = ip_vs_conn_in_get(AF_INET, iph->protocol,
+				 &to, port,
+				 &cp->vaddr, htons(ntohs(cp->vport)-1));
 	if (!n_cp) {
-		n_cp = ip_vs_conn_new(IPPROTO_TCP,
-				      to, port,
-				      cp->vaddr, htons(ntohs(cp->vport)-1),
-				      cp->daddr, htons(ntohs(cp->dport)-1),
+		n_cp = ip_vs_conn_new(AF_INET, IPPROTO_TCP,
+				      &to, port,
+				      &cp->vaddr, htons(ntohs(cp->vport)-1),
+				      &cp->daddr, htons(ntohs(cp->dport)-1),
 				      0,
 				      cp->dest);
 		if (!n_cp)

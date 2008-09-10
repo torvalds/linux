@@ -74,11 +74,11 @@ ip_vs_rr_schedule(struct ip_vs_service *svc, const struct sk_buff *skb)
   out:
 	svc->sched_data = q;
 	write_unlock(&svc->sched_lock);
-	IP_VS_DBG(6, "RR: server %u.%u.%u.%u:%u "
-		  "activeconns %d refcnt %d weight %d\n",
-		  NIPQUAD(dest->addr), ntohs(dest->port),
-		  atomic_read(&dest->activeconns),
-		  atomic_read(&dest->refcnt), atomic_read(&dest->weight));
+	IP_VS_DBG_BUF(6, "RR: server %s:%u "
+		      "activeconns %d refcnt %d weight %d\n",
+		      IP_VS_DBG_ADDR(svc->af, &dest->addr), ntohs(dest->port),
+		      atomic_read(&dest->activeconns),
+		      atomic_read(&dest->refcnt), atomic_read(&dest->weight));
 
 	return dest;
 }
@@ -89,6 +89,9 @@ static struct ip_vs_scheduler ip_vs_rr_scheduler = {
 	.refcnt =		ATOMIC_INIT(0),
 	.module =		THIS_MODULE,
 	.n_list =		LIST_HEAD_INIT(ip_vs_rr_scheduler.n_list),
+#ifdef CONFIG_IP_VS_IPV6
+	.supports_ipv6 =	1,
+#endif
 	.init_service =		ip_vs_rr_init_svc,
 	.update_service =	ip_vs_rr_update_svc,
 	.schedule =		ip_vs_rr_schedule,
