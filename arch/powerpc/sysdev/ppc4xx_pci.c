@@ -276,9 +276,16 @@ static void __init ppc4xx_probe_pci_bridge(struct device_node *np)
 	const int *bus_range;
 	int primary = 0;
 
+	/* Check if device is enabled */
+	if (!of_device_is_available(np)) {
+		printk(KERN_INFO "%s: Port disabled via device-tree\n",
+		       np->full_name);
+		return;
+	}
+
 	/* Fetch config space registers address */
 	if (of_address_to_resource(np, 0, &rsrc_cfg)) {
-		printk(KERN_ERR "%s:Can't get PCI config register base !",
+		printk(KERN_ERR "%s: Can't get PCI config register base !",
 		       np->full_name);
 		return;
 	}
