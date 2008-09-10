@@ -612,3 +612,31 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 
 	dev_queue_xmit(skb);
 }
+
+int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
+{
+	int ret = -EINVAL;
+	struct ieee80211_channel *chan;
+	struct ieee80211_local *local = sdata->local;
+
+	chan = ieee80211_get_channel(local->hw.wiphy, freqMHz);
+
+	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
+		if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
+		    chan->flags & IEEE80211_CHAN_NO_IBSS) {
+			printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
+				"%d MHz\n", sdata->dev->name, chan->center_freq);
+			return ret;
+		}
+		local->oper_channel = chan;
+
+		if (local->sta_sw_scanning || local->sta_hw_scanning)
+			ret = 0;
+		else
+			ret = ieee80211_hw_config(local);
+
+		rate_control_clear(local);
+	}
+
+	return ret;
+}

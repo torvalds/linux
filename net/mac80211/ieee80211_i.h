@@ -893,7 +893,6 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 
 /* wireless extensions */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
-int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
 
 /* STA/IBSS code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
@@ -1008,6 +1007,7 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		      int encrypt);
 void ieee802_11_parse_elems(u8 *start, size_t len,
 			    struct ieee802_11_elems *elems);
+int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
