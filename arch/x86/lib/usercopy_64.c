@@ -15,9 +15,7 @@
 #define __do_strncpy_from_user(dst,src,count,res)			   \
 do {									   \
 	long __d0, __d1, __d2;						   \
-	might_sleep();							   \
-	if (current->mm)						   \
-		might_lock_read(&current->mm->mmap_sem);		   \
+	might_fault();							   \
 	__asm__ __volatile__(						   \
 		"	testq %1,%1\n"					   \
 		"	jz 2f\n"					   \
@@ -66,9 +64,7 @@ EXPORT_SYMBOL(strncpy_from_user);
 unsigned long __clear_user(void __user *addr, unsigned long size)
 {
 	long __d0;
-	might_sleep();
-	if (current->mm)
-		might_lock_read(&current->mm->mmap_sem);
+	might_fault();
 	/* no memory constraint because it doesn't change any memory gcc knows
 	   about */
 	asm volatile(
