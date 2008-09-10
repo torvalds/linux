@@ -595,8 +595,9 @@ static irqreturn_t s3cmci_irq_cd(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-void s3cmci_dma_done_callback(struct s3c2410_dma_chan *dma_ch, void *buf_id,
-			      int size, enum s3c2410_dma_buffresult result)
+static void s3cmci_dma_done_callback(struct s3c2410_dma_chan *dma_ch,
+				     void *buf_id, int size,
+				     enum s3c2410_dma_buffresult result)
 {
 	struct s3cmci_host *host = buf_id;
 	unsigned long iflags;
@@ -740,8 +741,8 @@ request_done:
 	mmc_request_done(host->mmc, mrq);
 }
 
-
-void s3cmci_dma_setup(struct s3cmci_host *host, enum s3c2410_dmasrc source)
+static void s3cmci_dma_setup(struct s3cmci_host *host,
+			     enum s3c2410_dmasrc source)
 {
 	static enum s3c2410_dmasrc last_source = -1;
 	static int setup_ok;
@@ -1003,8 +1004,9 @@ static void s3cmci_send_request(struct mmc_host *mmc)
 	enable_irq(host->irq);
 }
 
-static int s3cmci_card_present(struct s3cmci_host *host)
+static int s3cmci_card_present(struct mmc_host *mmc)
 {
+	struct s3cmci_host *host = mmc_priv(mmc);
 	struct s3c24xx_mci_pdata *pdata = host->pdata;
 	int ret;
 
@@ -1023,7 +1025,7 @@ static void s3cmci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	host->cmd_is_stop = 0;
 	host->mrq = mrq;
 
-	if (s3cmci_card_present(host) == 0) {
+	if (s3cmci_card_present(mmc) == 0) {
 		dbg(host, dbg_err, "%s: no medium present\n", __func__);
 		host->mrq->cmd->error = -ENOMEDIUM;
 		mmc_request_done(mmc, mrq);
@@ -1138,6 +1140,7 @@ static struct mmc_host_ops s3cmci_ops = {
 	.request	= s3cmci_request,
 	.set_ios	= s3cmci_set_ios,
 	.get_ro		= s3cmci_get_ro,
+	.get_cd		= s3cmci_card_present,
 };
 
 static struct s3c24xx_mci_pdata s3cmci_def_pdata = {
@@ -1206,7 +1209,7 @@ static int __devinit s3cmci_probe(struct platform_device *pdev, int is2440)
 	}
 
 	host->base = ioremap(host->mem->start, RESSIZE(host->mem));
-	if (host->base == 0) {
+	if (!host->base) {
 		dev_err(&pdev->dev, "failed to ioremap() io memory region.\n");
 		ret = -EINVAL;
 		goto probe_free_mem_region;

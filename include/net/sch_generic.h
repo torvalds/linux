@@ -27,6 +27,7 @@ enum qdisc_state_t
 {
 	__QDISC_STATE_RUNNING,
 	__QDISC_STATE_SCHED,
+	__QDISC_STATE_DEACTIVATED,
 };
 
 struct qdisc_size_table {
@@ -60,7 +61,6 @@ struct Qdisc
 	struct gnet_stats_basic	bstats;
 	struct gnet_stats_queue	qstats;
 	struct gnet_stats_rate_est	rate_est;
-	struct rcu_head 	q_rcu;
 	int			(*reshape_fail)(struct sk_buff *skb,
 					struct Qdisc *q);
 
@@ -193,6 +193,11 @@ static inline struct Qdisc *qdisc_root(struct Qdisc *qdisc)
 	return qdisc->dev_queue->qdisc;
 }
 
+static inline struct Qdisc *qdisc_root_sleeping(struct Qdisc *qdisc)
+{
+	return qdisc->dev_queue->qdisc_sleeping;
+}
+
 /* The qdisc root lock is a mechanism by which to top level
  * of a qdisc tree can be locked from any qdisc node in the
  * forest.  This allows changing the configuration of some
@@ -212,6 +217,14 @@ static inline spinlock_t *qdisc_root_lock(struct Qdisc *qdisc)
 	return qdisc_lock(root);
 }
 
+static inline spinlock_t *qdisc_root_sleeping_lock(struct Qdisc *qdisc)
+{
+	struct Qdisc *root = qdisc_root_sleeping(qdisc);
+
+	ASSERT_RTNL();
+	return qdisc_lock(root);
+}
+
 static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 {
 	return qdisc->dev_queue->dev;
@@ -219,12 +232,12 @@ static inline struct net_device *qdisc_dev(struct Qdisc *qdisc)
 
 static inline void sch_tree_lock(struct Qdisc *q)
 {
-	spin_lock_bh(qdisc_root_lock(q));
+	spin_lock_bh(qdisc_root_sleeping_lock(q));
 }
 
 static inline void sch_tree_unlock(struct Qdisc *q)
 {
-	spin_unlock_bh(qdisc_root_lock(q));
+	spin_unlock_bh(qdisc_root_sleeping_lock(q));
 }
 
 #define tcf_tree_lock(tp)	sch_tree_lock((tp)->q)

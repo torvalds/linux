@@ -39,4 +39,5 @@ config WIRELESS_EXT_SYSFS
 	  files in /sys/class/net/*/wireless/. The same information
 	  is available via the ioctls as well.
 
-	  Say Y if you have programs using it (we don't know of any).
+	  Say Y if you have programs using it, like old versions of
+	  hal.

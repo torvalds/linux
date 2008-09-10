@@ -796,6 +796,9 @@ static unsigned long nid_range(unsigned long start, unsigned long end,
 		start += PAGE_SIZE;
 	}
 
+	if (start > end)
+		start = end;
+
 	return start;
 }
 #else
@@ -1723,8 +1726,7 @@ void __init paging_init(void)
 
 	find_ramdisk(phys_base);
 
-	if (cmdline_memory_size)
-		lmb_enforce_memory_limit(phys_base + cmdline_memory_size);
+	lmb_enforce_memory_limit(cmdline_memory_size);
 
 	lmb_analyze();
 	lmb_dump_all();
@@ -1841,7 +1843,7 @@ static int pavail_rescan_ents __initdata;
  * memory list again, and make sure it provides at least as much
  * memory as 'pavail' does.
  */
-static void setup_valid_addr_bitmap_from_pavail(void)
+static void __init setup_valid_addr_bitmap_from_pavail(void)
 {
 	int i;
 
@@ -1961,6 +1963,15 @@ void __init mem_init(void)
 void free_initmem(void)
 {
 	unsigned long addr, initend;
+	int do_free = 1;
+
+	/* If the physical memory maps were trimmed by kernel command
+	 * line options, don't even try freeing this initmem stuff up.
+	 * The kernel image could have been in the trimmed out region
+	 * and if so the freeing below will free invalid page structs.
+	 */
+	if (cmdline_memory_size)
+		do_free = 0;
 
 	/*
 	 * The init section is aligned to 8k in vmlinux.lds. Page align for >8k pagesizes.
@@ -1975,13 +1986,16 @@ void free_initmem(void)
 			((unsigned long) __va(kern_base)) -
 			((unsigned long) KERNBASE));
 		memset((void *)addr, POISON_FREE_INITMEM, PAGE_SIZE);
-		p = virt_to_page(page);
 
-		ClearPageReserved(p);
-		init_page_count(p);
-		__free_page(p);
-		num_physpages++;
-		totalram_pages++;
+		if (do_free) {
+			p = virt_to_page(page);
+
+			ClearPageReserved(p);
+			init_page_count(p);
+			__free_page(p);
+			num_physpages++;
+			totalram_pages++;
+		}
 	}
 }
 

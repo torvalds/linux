@@ -376,7 +376,7 @@ static int get_lun(struct scsi_device *sdev, struct rdac_dh_data *h)
 		if (inqp->page_id[0] != 'e' || inqp->page_id[1] != 'd' ||
 		    inqp->page_id[2] != 'i' || inqp->page_id[3] != 'd')
 			return SCSI_DH_NOSYS;
-		h->lun = scsilun_to_int((struct scsi_lun *)inqp->lun);
+		h->lun = inqp->lun[7]; /* Uses only the last byte */
 	}
 	return err;
 }
@@ -386,6 +386,7 @@ static int check_ownership(struct scsi_device *sdev, struct rdac_dh_data *h)
 	int err;
 	struct c9_inquiry *inqp;
 
+	h->lun_state = RDAC_LUN_UNOWNED;
 	err = submit_inquiry(sdev, 0xC9, sizeof(struct c9_inquiry), h);
 	if (err == SCSI_DH_OK) {
 		inqp = &h->inq.c9;

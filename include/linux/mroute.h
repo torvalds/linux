@@ -6,7 +6,6 @@
 #ifdef __KERNEL__
 #include <linux/in.h>
 #endif
-#include <linux/pim.h>
 
 /*
  *	Based on the MROUTING 3.5 defines primarily to keep
@@ -130,6 +129,7 @@ struct igmpmsg
  */
 
 #ifdef __KERNEL__
+#include <linux/pim.h>
 #include <net/sock.h>
 
 #ifdef CONFIG_IP_MROUTE

@@ -27,6 +27,7 @@
 
 #include <asm/page.h>		/* for PAGE_SIZE */
 #include <asm/div64.h>
+#include <asm/sections.h>	/* for dereference_function_descriptor() */
 
 /* Works only for digits and letters, but small and fast */
 #define TOLOWER(x) ((x) | 0x20)
@@ -511,16 +512,6 @@ static char *string(char *buf, char *end, char *s, int field_width, int precisio
 		++buf;
 	}
 	return buf;
-}
-
-void *dereference_function_descriptor(void *ptr)
-{
-#if defined(CONFIG_IA64) || defined(CONFIG_PPC64)
-	void *p;
-	if (!probe_kernel_address(ptr, p))
-		ptr = p;
-#endif
-	return ptr;
 }
 
 static char *symbol_string(char *buf, char *end, void *ptr, int field_width, int precision, int flags)

@@ -363,6 +363,11 @@ This rule exists because users of the rfkill subsystem expect to get (and set,
 when possible) the overall transmitter rfkill state, not of a particular rfkill
 line.
 
+5. During suspend, the rfkill class will attempt to soft-block the radio
+through a call to rfkill->toggle_radio, and will try to restore its previous
+state during resume.  After a rfkill class is suspended, it will *not* call
+rfkill->toggle_radio until it is resumed.
+
 Example of a WLAN wireless driver connected to the rfkill subsystem:
 --------------------------------------------------------------------
 

@@ -875,11 +875,11 @@ static int add_lock_to_list(struct lock_class *class, struct lock_class *this,
 	if (!entry)
 		return 0;
 
-	entry->class = this;
-	entry->distance = distance;
 	if (!save_trace(&entry->trace))
 		return 0;
 
+	entry->class = this;
+	entry->distance = distance;
 	/*
 	 * Since we never remove from the dependency list, the list can
 	 * be walked lockless by other CPUs, it's only allocation
@@ -2582,7 +2582,7 @@ static int __lock_acquire(struct lockdep_map *lock, unsigned int subclass,
 	hlock->trylock = trylock;
 	hlock->read = read;
 	hlock->check = check;
-	hlock->hardirqs_off = hardirqs_off;
+	hlock->hardirqs_off = !!hardirqs_off;
 #ifdef CONFIG_LOCK_STAT
 	hlock->waittime_stamp = 0;
 	hlock->holdtime_stamp = sched_clock();
@@ -3029,7 +3029,7 @@ found_it:
 
 	stats = get_lock_stats(hlock_class(hlock));
 	if (point < ARRAY_SIZE(stats->contention_point))
-		stats->contention_point[i]++;
+		stats->contention_point[point]++;
 	if (lock->cpu != smp_processor_id())
 		stats->bounces[bounce_contended + !!hlock->read]++;
 	put_lock_stats(stats);

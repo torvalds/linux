@@ -207,6 +207,9 @@ static int chk_conflict(struct memtype *new, struct memtype *entry,
 	return -EBUSY;
 }
 
+static struct memtype *cached_entry;
+static u64 cached_start;
+
 /*
  * req_type typically has one of the:
  * - _PAGE_CACHE_WB
@@ -280,11 +283,17 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 
 	spin_lock(&memtype_lock);
 
+	if (cached_entry && start >= cached_start)
+		entry = cached_entry;
+	else
+		entry = list_entry(&memtype_list, struct memtype, nd);
+
 	/* Search for existing mapping that overlaps the current range */
 	where = NULL;
-	list_for_each_entry(entry, &memtype_list, nd) {
+	list_for_each_entry_continue(entry, &memtype_list, nd) {
 		if (end <= entry->start) {
 			where = entry->nd.prev;
+			cached_entry = list_entry(where, struct memtype, nd);
 			break;
 		} else if (start <= entry->start) { /* end > entry->start */
 			err = chk_conflict(new, entry, new_type);
@@ -292,6 +301,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 				dprintk("Overlap at 0x%Lx-0x%Lx\n",
 					entry->start, entry->end);
 				where = entry->nd.prev;
+				cached_entry = list_entry(where,
+							struct memtype, nd);
 			}
 			break;
 		} else if (start < entry->end) { /* start > entry->start */
@@ -299,7 +310,20 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 			if (!err) {
 				dprintk("Overlap at 0x%Lx-0x%Lx\n",
 					entry->start, entry->end);
-				where = &entry->nd;
+				cached_entry = list_entry(entry->nd.prev,
+							struct memtype, nd);
+
+				/*
+				 * Move to right position in the linked
+				 * list to add this new entry
+				 */
+				list_for_each_entry_continue(entry,
+							&memtype_list, nd) {
+					if (start <= entry->start) {
+						where = entry->nd.prev;
+						break;
+					}
+				}
 			}
 			break;
 		}
@@ -313,6 +337,8 @@ int reserve_memtype(u64 start, u64 end, unsigned long req_type,
 		spin_unlock(&memtype_lock);
 		return err;
 	}
+
+	cached_start = start;
 
 	if (where)
 		list_add(&new->nd, where);
@@ -343,6 +369,9 @@ int free_memtype(u64 start, u64 end)
 	spin_lock(&memtype_lock);
 	list_for_each_entry(entry, &memtype_list, nd) {
 		if (entry->start == start && entry->end == end) {
+			if (cached_entry == entry || cached_start == start)
+				cached_entry = NULL;
+
 			list_del(&entry->nd);
 			kfree(entry);
 			err = 0;
@@ -361,14 +390,6 @@ int free_memtype(u64 start, u64 end)
 }
 
 
-/*
- * /dev/mem mmap interface. The memtype used for mapping varies:
- * - Use UC for mappings with O_SYNC flag
- * - Without O_SYNC flag, if there is any conflict in reserve_memtype,
- *   inherit the memtype from existing mapping.
- * - Else use UC_MINUS memtype (for backward compatibility with existing
- *   X drivers.
- */
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t vma_prot)
 {
@@ -406,14 +427,14 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 				unsigned long size, pgprot_t *vma_prot)
 {
 	u64 offset = ((u64) pfn) << PAGE_SHIFT;
-	unsigned long flags = _PAGE_CACHE_UC_MINUS;
+	unsigned long flags = -1;
 	int retval;
 
 	if (!range_is_allowed(pfn, size))
 		return 0;
 
 	if (file->f_flags & O_SYNC) {
-		flags = _PAGE_CACHE_UC;
+		flags = _PAGE_CACHE_UC_MINUS;
 	}
 
 #ifdef CONFIG_X86_32
@@ -436,13 +457,14 @@ int phys_mem_access_prot_allowed(struct file *file, unsigned long pfn,
 #endif
 
 	/*
-	 * With O_SYNC, we can only take UC mapping. Fail if we cannot.
+	 * With O_SYNC, we can only take UC_MINUS mapping. Fail if we cannot.
+	 *
 	 * Without O_SYNC, we want to get
 	 * - WB for WB-able memory and no other conflicting mappings
 	 * - UC_MINUS for non-WB-able memory with no other conflicting mappings
 	 * - Inherit from confliting mappings otherwise
 	 */
-	if (flags != _PAGE_CACHE_UC_MINUS) {
+	if (flags != -1) {
 		retval = reserve_memtype(offset, offset + size, flags, NULL);
 	} else {
 		retval = reserve_memtype(offset, offset + size, -1, &flags);

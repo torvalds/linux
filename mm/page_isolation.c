@@ -2,7 +2,6 @@
  * linux/mm/page_isolation.c
  */
 
-#include <stddef.h>
 #include <linux/mm.h>
 #include <linux/page-isolation.h>
 #include <linux/pageblock-flags.h>

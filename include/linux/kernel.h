@@ -188,7 +188,6 @@ extern int core_kernel_text(unsigned long addr);
 extern int __kernel_text_address(unsigned long addr);
 extern int kernel_text_address(unsigned long addr);
 extern int func_ptr_is_kernel_text(void *ptr);
-extern void *dereference_function_descriptor(void *ptr);
 
 struct pid;
 extern struct pid *session_of_pgrp(struct pid *pgrp);

@@ -30,6 +30,8 @@
 /* Useful macros */
 #define BUILD_BUG_ON(condition) ((void)sizeof(char[1 - 2*!!(condition)]))
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof(*(x)))
+
 extern struct setup_header hdr;
 extern struct boot_params boot_params;
 

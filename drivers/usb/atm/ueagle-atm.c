@@ -64,7 +64,6 @@
 #include <linux/ctype.h>
 #include <linux/sched.h>
 #include <linux/kthread.h>
-#include <linux/version.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 
