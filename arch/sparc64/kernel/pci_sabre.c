@@ -20,6 +20,7 @@
 
 #include "pci_impl.h"
 #include "iommu_common.h"
+#include "psycho_common.h"
 
 #define DRIVER_NAME	"sabre"
 #define PFX		DRIVER_NAME ": "
@@ -674,66 +675,6 @@ static void __init sabre_scan_bus(struct pci_pbm_info *pbm,
 	sabre_register_error_handlers(pbm);
 }
 
-static int sabre_iommu_init(struct pci_pbm_info *pbm,
-			    int tsbsize, unsigned long dvma_offset,
-			    u32 dma_mask)
-{
-	struct iommu *iommu = pbm->iommu;
-	unsigned long i;
-	u64 control;
-	int err;
-
-	/* Register addresses. */
-	iommu->iommu_control  = pbm->controller_regs + SABRE_IOMMU_CONTROL;
-	iommu->iommu_tsbbase  = pbm->controller_regs + SABRE_IOMMU_TSBBASE;
-	iommu->iommu_flush    = pbm->controller_regs + SABRE_IOMMU_FLUSH;
-	iommu->iommu_tags     = iommu->iommu_flush + (0xa580UL - 0x0210UL);
-	iommu->write_complete_reg = pbm->controller_regs + SABRE_WRSYNC;
-	/* Sabre's IOMMU lacks ctx flushing. */
-	iommu->iommu_ctxflush = 0;
-                                        
-	/* Invalidate TLB Entries. */
-	control = sabre_read(pbm->controller_regs + SABRE_IOMMU_CONTROL);
-	control |= SABRE_IOMMUCTRL_DENAB;
-	sabre_write(pbm->controller_regs + SABRE_IOMMU_CONTROL, control);
-
-	for(i = 0; i < 16; i++) {
-		sabre_write(pbm->controller_regs + SABRE_IOMMU_TAG + (i * 8UL), 0);
-		sabre_write(pbm->controller_regs + SABRE_IOMMU_DATA + (i * 8UL), 0);
-	}
-
-	/* Leave diag mode enabled for full-flushing done
-	 * in pci_iommu.c
-	 */
-	err = iommu_table_init(iommu, tsbsize * 1024 * 8,
-			       dvma_offset, dma_mask, pbm->numa_node);
-	if (err) {
-		printk(KERN_ERR PFX "iommu_table_init() failed\n");
-		return err;
-	}
-
-	sabre_write(pbm->controller_regs + SABRE_IOMMU_TSBBASE,
-		    __pa(iommu->page_table));
-
-	control = sabre_read(pbm->controller_regs + SABRE_IOMMU_CONTROL);
-	control &= ~(SABRE_IOMMUCTRL_TSBSZ | SABRE_IOMMUCTRL_TBWSZ);
-	control |= SABRE_IOMMUCTRL_ENAB;
-	switch(tsbsize) {
-	case 64:
-		control |= SABRE_IOMMU_TSBSZ_64K;
-		break;
-	case 128:
-		control |= SABRE_IOMMU_TSBSZ_128K;
-		break;
-	default:
-		printk(KERN_ERR PFX "Illegal TSB size %d\n", tsbsize);
-		return -EINVAL;
-	}
-	sabre_write(pbm->controller_regs + SABRE_IOMMU_CONTROL, control);
-
-	return 0;
-}
-
 static void __init sabre_pbm_init(struct pci_pbm_info *pbm,
 				  struct of_device *op)
 {
@@ -862,7 +803,7 @@ static int __devinit sabre_probe(struct of_device *op,
 			goto out_free_iommu;
 	}
 
-	err = sabre_iommu_init(pbm, tsbsize, vdma[0], dma_mask);
+	err = psycho_iommu_init(pbm, tsbsize, vdma[0], dma_mask, SABRE_WRSYNC);
 	if (err)
 		goto out_free_iommu;
 

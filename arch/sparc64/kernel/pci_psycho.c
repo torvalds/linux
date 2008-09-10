@@ -20,6 +20,7 @@
 
 #include "pci_impl.h"
 #include "iommu_common.h"
+#include "psycho_common.h"
 
 #define DRIVER_NAME	"psycho"
 #define PFX		DRIVER_NAME ": "
@@ -787,63 +788,6 @@ static void __init psycho_scan_bus(struct pci_pbm_info *pbm,
 	psycho_register_error_handlers(pbm);
 }
 
-static int psycho_iommu_init(struct pci_pbm_info *pbm)
-{
-	struct iommu *iommu = pbm->iommu;
-	unsigned long i;
-	u64 control;
-	int err;
-
-	/* Register addresses. */
-	iommu->iommu_control  = pbm->controller_regs + PSYCHO_IOMMU_CONTROL;
-	iommu->iommu_tsbbase  = pbm->controller_regs + PSYCHO_IOMMU_TSBBASE;
-	iommu->iommu_flush    = pbm->controller_regs + PSYCHO_IOMMU_FLUSH;
-	iommu->iommu_tags     = iommu->iommu_flush + (0xa580UL - 0x0210UL);
-
-	/* PSYCHO's IOMMU lacks ctx flushing. */
-	iommu->iommu_ctxflush = 0;
-
-	/* We use the main control register of PSYCHO as the write
-	 * completion register.
-	 */
-	iommu->write_complete_reg = pbm->controller_regs + PSYCHO_CONTROL;
-
-	/*
-	 * Invalidate TLB Entries.
-	 */
-	control = psycho_read(pbm->controller_regs + PSYCHO_IOMMU_CONTROL);
-	control |= PSYCHO_IOMMU_CTRL_DENAB;
-	psycho_write(pbm->controller_regs + PSYCHO_IOMMU_CONTROL, control);
-	for (i = 0; i < 16; i++) {
-		psycho_write(pbm->controller_regs + PSYCHO_IOMMU_TAG + (i * 8UL), 0);
-		psycho_write(pbm->controller_regs + PSYCHO_IOMMU_DATA + (i * 8UL), 0);
-	}
-
-	/* Leave diag mode enabled for full-flushing done
-	 * in pci_iommu.c
-	 */
-	err = iommu_table_init(iommu, IO_TSB_SIZE, 0xc0000000, 0xffffffff,
-			       pbm->numa_node);
-	if (err) {
-		printk(KERN_ERR PFX "iommu_table_init() fails\n");
-		return err;
-	}
-
-	psycho_write(pbm->controller_regs + PSYCHO_IOMMU_TSBBASE,
-		     __pa(iommu->page_table));
-
-	control = psycho_read(pbm->controller_regs + PSYCHO_IOMMU_CONTROL);
-	control &= ~(PSYCHO_IOMMU_CTRL_TSBSZ | PSYCHO_IOMMU_CTRL_TBWSZ);
-	control |= (PSYCHO_IOMMU_TSBSZ_128K | PSYCHO_IOMMU_CTRL_ENAB);
-	psycho_write(pbm->controller_regs + PSYCHO_IOMMU_CONTROL, control);
-
-	/* If necessary, hook us up for starfire IRQ translations. */
-	if (this_is_starfire)
-		starfire_hookup(pbm->portid);
-
-	return 0;
-}
-
 #define PSYCHO_IRQ_RETRY	0x1a00UL
 #define PSYCHO_PCIA_DIAG	0x2020UL
 #define PSYCHO_PCIB_DIAG	0x4020UL
@@ -1053,9 +997,14 @@ static int __devinit psycho_probe(struct of_device *op,
 
 	psycho_controller_hwinit(pbm);
 	if (!pbm->sibling) {
-		err = psycho_iommu_init(pbm);
+		err = psycho_iommu_init(pbm, 128, 0xc0000000,
+					0xffffffff, PSYCHO_CONTROL);
 		if (err)
 			goto out_free_iommu;
+
+		/* If necessary, hook us up for starfire IRQ translations. */
+		if (this_is_starfire)
+			starfire_hookup(pbm->portid);
 	}
 
 	psycho_pbm_init(pbm, op, is_pbm_a);

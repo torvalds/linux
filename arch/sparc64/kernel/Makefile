@@ -16,7 +16,7 @@ obj-y		:= process.o setup.o cpu.o idprom.o reboot.o \
 
 obj-$(CONFIG_DYNAMIC_FTRACE) += ftrace.o
 obj-$(CONFIG_STACKTRACE) += stacktrace.o
-obj-$(CONFIG_PCI)	 += pci.o pci_common.o \
+obj-$(CONFIG_PCI)	 += pci.o pci_common.o psycho_common.o \
 			    pci_psycho.o pci_sabre.o pci_schizo.o \
 			    pci_sun4v.o pci_sun4v_asm.o pci_fire.o
 obj-$(CONFIG_PCI_MSI)	+= pci_msi.o
