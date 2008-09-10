@@ -452,7 +452,6 @@ int sta_info_insert(struct sta_info *sta);
  * has already unlinked it.
  */
 void sta_info_unlink(struct sta_info **sta);
-void __sta_info_unlink(struct sta_info **sta);
 
 void sta_info_destroy(struct sta_info *sta);
 void sta_info_set_tim_bit(struct sta_info *sta);
@@ -464,5 +463,7 @@ void sta_info_stop(struct ieee80211_local *local);
 int sta_info_flush(struct ieee80211_local *local,
 		    struct ieee80211_sub_if_data *sdata);
 void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata);
+void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
+			  unsigned long exp_time);
 
 #endif /* STA_INFO_H */

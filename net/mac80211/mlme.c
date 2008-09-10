@@ -1913,32 +1913,6 @@ static int ieee80211_sta_active_ibss(struct ieee80211_sub_if_data *sdata)
 }
 
 
-static void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata, unsigned long exp_time)
-{
-	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta, *tmp;
-	LIST_HEAD(tmp_list);
-	DECLARE_MAC_BUF(mac);
-	unsigned long flags;
-
-	spin_lock_irqsave(&local->sta_lock, flags);
-	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
-		if (time_after(jiffies, sta->last_rx + exp_time)) {
-#ifdef CONFIG_MAC80211_IBSS_DEBUG
-			printk(KERN_DEBUG "%s: expiring inactive STA %s\n",
-			       sdata->dev->name, print_mac(mac, sta->addr));
-#endif
-			__sta_info_unlink(&sta);
-			if (sta)
-				list_add(&sta->list, &tmp_list);
-		}
-	spin_unlock_irqrestore(&local->sta_lock, flags);
-
-	list_for_each_entry_safe(sta, tmp, &tmp_list, list)
-		sta_info_destroy(sta);
-}
-
-
 static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata,
 				     struct ieee80211_if_sta *ifsta)
 {

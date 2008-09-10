@@ -424,7 +424,7 @@ void sta_info_clear_tim_bit(struct sta_info *sta)
 	spin_unlock_irqrestore(&sta->local->sta_lock, flags);
 }
 
-void __sta_info_unlink(struct sta_info **sta)
+static void __sta_info_unlink(struct sta_info **sta)
 {
 	struct ieee80211_local *local = (*sta)->local;
 	struct ieee80211_sub_if_data *sdata = (*sta)->sdata;
@@ -801,4 +801,30 @@ void sta_info_flush_delayed(struct ieee80211_sub_if_data *sdata)
 	if (work)
 		schedule_work(&local->sta_flush_work);
 	spin_unlock_irqrestore(&local->sta_lock, flags);
+}
+
+void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
+			  unsigned long exp_time)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sta_info *sta, *tmp;
+	LIST_HEAD(tmp_list);
+	DECLARE_MAC_BUF(mac);
+	unsigned long flags;
+
+	spin_lock_irqsave(&local->sta_lock, flags);
+	list_for_each_entry_safe(sta, tmp, &local->sta_list, list)
+		if (time_after(jiffies, sta->last_rx + exp_time)) {
+#ifdef CONFIG_MAC80211_IBSS_DEBUG
+			printk(KERN_DEBUG "%s: expiring inactive STA %s\n",
+			       sdata->dev->name, print_mac(mac, sta->addr));
+#endif
+			__sta_info_unlink(&sta);
+			if (sta)
+				list_add(&sta->list, &tmp_list);
+		}
+	spin_unlock_irqrestore(&local->sta_lock, flags);
+
+	list_for_each_entry_safe(sta, tmp, &tmp_list, list)
+		sta_info_destroy(sta);
 }
