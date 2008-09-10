@@ -13,21 +13,6 @@
 #ifndef _PXA2XX_PCM_H
 #define _PXA2XX_PCM_H
 
-struct pxa2xx_pcm_dma_params {
-	char *name;			/* stream identifier */
-	u32 dcmd;			/* DMA descriptor dcmd field */
-	volatile u32 *drcmr;		/* the DMA request channel to use */
-	u32 dev_addr;			/* device physical address for DMA */
-};
-
-struct pxa2xx_gpio {
-	u32 sys;
-	u32	rx;
-	u32 tx;
-	u32 clk;
-	u32 frm;
-};
-
 /* platform data */
 extern struct snd_soc_platform pxa2xx_soc_platform;
 

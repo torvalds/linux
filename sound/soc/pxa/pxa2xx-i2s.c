@@ -21,6 +21,7 @@
 #include <sound/pcm.h>
 #include <sound/initval.h>
 #include <sound/soc.h>
+#include <sound/pxa2xx-lib.h>
 
 #include <mach/hardware.h>
 #include <mach/pxa-regs.h>
@@ -29,6 +30,15 @@
 
 #include "pxa2xx-pcm.h"
 #include "pxa2xx-i2s.h"
+
+struct pxa2xx_gpio {
+	u32 sys;
+	u32	rx;
+	u32 tx;
+	u32 clk;
+	u32 frm;
+};
+
 
 struct pxa_i2s_port {
 	u32 sadiv;

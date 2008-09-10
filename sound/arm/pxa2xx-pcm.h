@@ -9,14 +9,15 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <asm/dma.h>
 
-struct pxa2xx_pcm_dma_params {
-	char *name;			/* stream identifier */
-	u32 dcmd;			/* DMA descriptor dcmd field */
-	volatile u32 *drcmr;		/* the DMA request channel to use */
-	u32 dev_addr;			/* device physical address for DMA */
+struct pxa2xx_runtime_data {
+	int dma_ch;
+	struct pxa2xx_pcm_dma_params *params;
+	pxa_dma_desc *dma_desc_array;
+	dma_addr_t dma_desc_array_phys;
 };
-	
+
 struct pxa2xx_pcm_client {
 	struct pxa2xx_pcm_dma_params *playback_params;
 	struct pxa2xx_pcm_dma_params *capture_params;
