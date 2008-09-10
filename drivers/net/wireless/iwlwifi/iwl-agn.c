@@ -3413,13 +3413,13 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 
 static int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 			     enum ieee80211_ampdu_mlme_action action,
-			     const u8 *addr, u16 tid, u16 *ssn)
+			     struct ieee80211_sta *sta, u16 tid, u16 *ssn)
 {
 	struct iwl_priv *priv = hw->priv;
 	DECLARE_MAC_BUF(mac);
 
 	IWL_DEBUG_HT("A-MPDU action on addr %s tid %d\n",
-		     print_mac(mac, addr), tid);
+		     print_mac(mac, sta->addr), tid);
 
 	if (!(priv->cfg->sku & IWL_SKU_N))
 		return -EACCES;
@@ -3427,16 +3427,16 @@ static int iwl4965_mac_ampdu_action(struct ieee80211_hw *hw,
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
 		IWL_DEBUG_HT("start Rx\n");
-		return iwl_rx_agg_start(priv, addr, tid, *ssn);
+		return iwl_rx_agg_start(priv, sta->addr, tid, *ssn);
 	case IEEE80211_AMPDU_RX_STOP:
 		IWL_DEBUG_HT("stop Rx\n");
-		return iwl_rx_agg_stop(priv, addr, tid);
+		return iwl_rx_agg_stop(priv, sta->addr, tid);
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT("start Tx\n");
-		return iwl_tx_agg_start(priv, addr, tid, ssn);
+		return iwl_tx_agg_start(priv, sta->addr, tid, ssn);
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT("stop Tx\n");
-		return iwl_tx_agg_stop(priv, addr, tid);
+		return iwl_tx_agg_stop(priv, sta->addr, tid);
 	default:
 		IWL_DEBUG_HT("unknown\n");
 		return -EINVAL;

@@ -50,7 +50,7 @@ static const struct file_operations sta_ ##name## _ops = {		\
 		STA_READ_##format(name, field)				\
 		STA_OPS(name)
 
-STA_FILE(aid, aid, D);
+STA_FILE(aid, sta.aid, D);
 STA_FILE(dev, sdata->dev->name, S);
 STA_FILE(rx_packets, rx_packets, LU);
 STA_FILE(tx_packets, tx_packets, LU);
@@ -176,7 +176,7 @@ static ssize_t sta_agg_status_write(struct file *file,
 	struct net_device *dev = sta->sdata->dev;
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hw *hw = &local->hw;
-	u8 *da = sta->addr;
+	u8 *da = sta->sta.addr;
 	static int tid_static_tx[16] = {0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0};
 	static int tid_static_rx[16] = {1, 1, 1, 1, 1, 1, 1, 1,
@@ -253,7 +253,7 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	if (!stations_dir)
 		return;
 
-	mac = print_mac(mbuf, sta->addr);
+	mac = print_mac(mbuf, sta->sta.addr);
 
 	sta->debugfs.dir = debugfs_create_dir(mac, stations_dir);
 	if (!sta->debugfs.dir)

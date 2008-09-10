@@ -274,7 +274,7 @@ void ieee80211_sta_stop_rx_ba_session(struct ieee80211_sub_if_data *sdata, u8 *r
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_STOP,
-					ra, tid, NULL);
+				       &sta->sta, tid, NULL);
 	if (ret)
 		printk(KERN_DEBUG "HW problem - can not stop rx "
 				"aggregation for tid %d\n", tid);
@@ -328,7 +328,7 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 
 	rcu_read_lock();
 
-	sta = sta_info_get(local, temp_sta->addr);
+	sta = sta_info_get(local, temp_sta->sta.addr);
 	if (!sta) {
 		rcu_read_unlock();
 		return;
@@ -354,7 +354,7 @@ static void sta_addba_resp_timer_expired(unsigned long data)
 	/* go through the state check in stop_BA_session */
 	*state = HT_AGG_STATE_OPERATIONAL;
 	spin_unlock_bh(&sta->lock);
-	ieee80211_stop_tx_ba_session(hw, temp_sta->addr, tid,
+	ieee80211_stop_tx_ba_session(hw, temp_sta->sta.addr, tid,
 				     WLAN_BACK_INITIATOR);
 
 timer_expired_exit:
@@ -465,7 +465,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_hw *hw, u8 *ra, u16 tid)
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_TX_START,
-						ra, tid, &start_seq_num);
+					       &sta->sta, tid, &start_seq_num);
 
 	if (ret) {
 		/* No need to requeue the packets in the agg queue, since we
@@ -557,7 +557,7 @@ int ieee80211_stop_tx_ba_session(struct ieee80211_hw *hw,
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_TX_STOP,
-						ra, tid, NULL);
+					       &sta->sta, tid, NULL);
 
 	/* case HW denied going back to legacy */
 	if (ret) {
@@ -767,7 +767,7 @@ static void sta_rx_agg_session_timer_expired(unsigned long data)
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "rx session timer expired on tid %d\n", (u16)*ptid);
 #endif
-	ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->addr,
+	ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->sta.addr,
 					 (u16)*ptid, WLAN_BACK_TIMER,
 					 WLAN_REASON_QSTA_TIMEOUT);
 }
@@ -874,7 +874,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 
 	if (local->ops->ampdu_action)
 		ret = local->ops->ampdu_action(hw, IEEE80211_AMPDU_RX_START,
-					       sta->addr, tid, &start_seq_num);
+					       &sta->sta, tid, &start_seq_num);
 #ifdef CONFIG_MAC80211_HT_DEBUG
 	printk(KERN_DEBUG "Rx A-MPDU request on tid %d result %d\n", tid, ret);
 #endif /* CONFIG_MAC80211_HT_DEBUG */
@@ -899,7 +899,7 @@ end:
 	spin_unlock_bh(&sta->lock);
 
 end_no_lock:
-	ieee80211_send_addba_resp(sta->sdata, sta->addr, tid,
+	ieee80211_send_addba_resp(sta->sdata, sta->sta.addr, tid,
 				  dialog_token, status, 1, buf_size, timeout);
 }
 
@@ -952,7 +952,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 		/* this will allow the state check in stop_BA_session */
 		*state = HT_AGG_STATE_OPERATIONAL;
 		spin_unlock_bh(&sta->lock);
-		ieee80211_stop_tx_ba_session(hw, sta->addr, tid,
+		ieee80211_stop_tx_ba_session(hw, sta->sta.addr, tid,
 					     WLAN_BACK_INITIATOR);
 	}
 }
@@ -979,14 +979,14 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 #endif /* CONFIG_MAC80211_HT_DEBUG */
 
 	if (initiator == WLAN_BACK_INITIATOR)
-		ieee80211_sta_stop_rx_ba_session(sdata, sta->addr, tid,
+		ieee80211_sta_stop_rx_ba_session(sdata, sta->sta.addr, tid,
 						 WLAN_BACK_INITIATOR, 0);
 	else { /* WLAN_BACK_RECIPIENT */
 		spin_lock_bh(&sta->lock);
 		sta->ampdu_mlme.tid_state_tx[tid] =
 				HT_AGG_STATE_OPERATIONAL;
 		spin_unlock_bh(&sta->lock);
-		ieee80211_stop_tx_ba_session(&local->hw, sta->addr, tid,
+		ieee80211_stop_tx_ba_session(&local->hw, sta->sta.addr, tid,
 					     WLAN_BACK_RECIPIENT);
 	}
 }

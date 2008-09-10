@@ -661,7 +661,7 @@ static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
 	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
-	       dev->name, print_mac(mac, sta->addr), sta->aid);
+	       dev->name, print_mac(mac, sta->sta.addr), sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
@@ -685,7 +685,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d exits power save mode\n",
-	       dev->name, print_mac(mac, sta->addr), sta->aid);
+	       dev->name, print_mac(mac, sta->sta.addr), sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 	/* Send all buffered frames to the station */
@@ -702,7 +702,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "%s: STA %s aid %d send PS frame "
 		       "since STA not sleeping anymore\n", dev->name,
-		       print_mac(mac, sta->addr), sta->aid);
+		       print_mac(mac, sta->sta.addr), sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		info->flags |= IEEE80211_TX_CTL_REQUEUE;
 		dev_queue_xmit(skb);
@@ -1007,7 +1007,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "STA %s aid %d: PS Poll (entries after %d)\n",
-		       print_mac(mac, rx->sta->addr), rx->sta->aid,
+		       print_mac(mac, rx->sta->sta.addr), rx->sta->sta.aid,
 		       skb_queue_len(&rx->sta->ps_tx_buf));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
@@ -1032,7 +1032,7 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 		 */
 		printk(KERN_DEBUG "%s: STA %s sent PS Poll even "
 		       "though there are no buffered frames for it\n",
-		       rx->dev->name, print_mac(mac, rx->sta->addr));
+		       rx->dev->name, print_mac(mac, rx->sta->sta.addr));
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 	}
 
@@ -2140,7 +2140,7 @@ static u8 ieee80211_rx_reorder_ampdu(struct ieee80211_local *local,
 	/* if this mpdu is fragmented - terminate rx aggregation session */
 	sc = le16_to_cpu(hdr->seq_ctrl);
 	if (sc & IEEE80211_SCTL_FRAG) {
-		ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->addr,
+		ieee80211_sta_stop_rx_ba_session(sta->sdata, sta->sta.addr,
 			tid, 0, WLAN_REASON_QSTA_REQUIRE_SETUP);
 		ret = 1;
 		goto end_reorder;

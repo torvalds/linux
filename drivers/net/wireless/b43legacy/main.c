@@ -3403,7 +3403,7 @@ out_unlock:
 }
 
 static int b43legacy_op_beacon_set_tim(struct ieee80211_hw *hw,
-				       int aid, int set)
+				       struct ieee80211_sta *sta, bool set)
 {
 	struct b43legacy_wl *wl = hw_to_b43legacy_wl(hw);
 	unsigned long flags;

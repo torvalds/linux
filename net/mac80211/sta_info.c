@@ -73,11 +73,11 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 {
 	struct sta_info *s;
 
-	s = local->sta_hash[STA_HASH(sta->addr)];
+	s = local->sta_hash[STA_HASH(sta->sta.addr)];
 	if (!s)
 		return -ENOENT;
 	if (s == sta) {
-		rcu_assign_pointer(local->sta_hash[STA_HASH(sta->addr)],
+		rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)],
 				   s->hnext);
 		return 0;
 	}
@@ -94,13 +94,13 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 
 /* protected by RCU */
 static struct sta_info *__sta_info_find(struct ieee80211_local *local,
-					u8 *addr)
+					const u8 *addr)
 {
 	struct sta_info *sta;
 
 	sta = rcu_dereference(local->sta_hash[STA_HASH(addr)]);
 	while (sta) {
-		if (compare_ether_addr(sta->addr, addr) == 0)
+		if (compare_ether_addr(sta->sta.addr, addr) == 0)
 			break;
 		sta = rcu_dereference(sta->hnext);
 	}
@@ -151,7 +151,7 @@ static void __sta_info_free(struct ieee80211_local *local,
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Destroyed STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->sta.addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	kfree(sta);
@@ -219,8 +219,8 @@ void sta_info_destroy(struct sta_info *sta)
 static void sta_info_hash_add(struct ieee80211_local *local,
 			      struct sta_info *sta)
 {
-	sta->hnext = local->sta_hash[STA_HASH(sta->addr)];
-	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->addr)], sta);
+	sta->hnext = local->sta_hash[STA_HASH(sta->sta.addr)];
+	rcu_assign_pointer(local->sta_hash[STA_HASH(sta->sta.addr)], sta);
 }
 
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
@@ -231,14 +231,14 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	int i;
 	DECLARE_MAC_BUF(mbuf);
 
-	sta = kzalloc(sizeof(*sta), gfp);
+	sta = kzalloc(sizeof(*sta) + local->hw.sta_data_size, gfp);
 	if (!sta)
 		return NULL;
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->flaglock);
 
-	memcpy(sta->addr, addr, ETH_ALEN);
+	memcpy(sta->sta.addr, addr, ETH_ALEN);
 	sta->local = local;
 	sta->sdata = sdata;
 
@@ -271,7 +271,7 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Allocated STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->addr));
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, sta->sta.addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 #ifdef CONFIG_MAC80211_MESH
@@ -300,15 +300,15 @@ int sta_info_insert(struct sta_info *sta)
 		goto out_free;
 	}
 
-	if (WARN_ON(compare_ether_addr(sta->addr, sdata->dev->dev_addr) == 0 ||
-	            is_multicast_ether_addr(sta->addr))) {
+	if (WARN_ON(compare_ether_addr(sta->sta.addr, sdata->dev->dev_addr) == 0 ||
+	            is_multicast_ether_addr(sta->sta.addr))) {
 		err = -EINVAL;
 		goto out_free;
 	}
 
 	spin_lock_irqsave(&local->sta_lock, flags);
 	/* check if STA exists already */
-	if (__sta_info_find(local, sta->addr)) {
+	if (__sta_info_find(local, sta->sta.addr)) {
 		spin_unlock_irqrestore(&local->sta_lock, flags);
 		err = -EEXIST;
 		goto out_free;
@@ -325,12 +325,12 @@ int sta_info_insert(struct sta_info *sta)
 					     u.ap);
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_ADD, sta->addr);
+				       STA_NOTIFY_ADD, &sta->sta);
 	}
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Inserted STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->addr));
+	       wiphy_name(local->hw.wiphy), print_mac(mac, sta->sta.addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	spin_unlock_irqrestore(&local->sta_lock, flags);
@@ -379,11 +379,12 @@ static void __sta_info_set_tim_bit(struct ieee80211_if_ap *bss,
 {
 	BUG_ON(!bss);
 
-	__bss_tim_set(bss, sta->aid);
+	__bss_tim_set(bss, sta->sta.aid);
 
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
-		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 1);
+		sta->local->ops->set_tim(local_to_hw(sta->local),
+					 &sta->sta, true);
 		sta->local->tim_in_locked_section = false;
 	}
 }
@@ -404,11 +405,12 @@ static void __sta_info_clear_tim_bit(struct ieee80211_if_ap *bss,
 {
 	BUG_ON(!bss);
 
-	__bss_tim_clear(bss, sta->aid);
+	__bss_tim_clear(bss, sta->sta.aid);
 
 	if (sta->local->ops->set_tim) {
 		sta->local->tim_in_locked_section = true;
-		sta->local->ops->set_tim(local_to_hw(sta->local), sta->aid, 0);
+		sta->local->ops->set_tim(local_to_hw(sta->local),
+					 &sta->sta, false);
 		sta->local->tim_in_locked_section = false;
 	}
 }
@@ -462,7 +464,7 @@ static void __sta_info_unlink(struct sta_info **sta)
 					     u.ap);
 
 		local->ops->sta_notify(local_to_hw(local), &sdata->vif,
-				       STA_NOTIFY_REMOVE, (*sta)->addr);
+				       STA_NOTIFY_REMOVE, &(*sta)->sta);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif)) {
@@ -474,7 +476,7 @@ static void __sta_info_unlink(struct sta_info **sta)
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: Removed STA %s\n",
-	       wiphy_name(local->hw.wiphy), print_mac(mbuf, (*sta)->addr));
+	       wiphy_name(local->hw.wiphy), print_mac(mbuf, (*sta)->sta.addr));
 #endif /* CONFIG_MAC80211_VERBOSE_DEBUG */
 
 	/*
@@ -570,7 +572,7 @@ static void sta_info_cleanup_expire_buffered(struct ieee80211_local *local,
 		local->total_ps_buffered--;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "Buffered frame expired (STA "
-		       "%s)\n", print_mac(mac, sta->addr));
+		       "%s)\n", print_mac(mac, sta->sta.addr));
 #endif
 		dev_kfree_skb(skb);
 
@@ -817,7 +819,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 		if (time_after(jiffies, sta->last_rx + exp_time)) {
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
 			printk(KERN_DEBUG "%s: expiring inactive STA %s\n",
-			       sdata->dev->name, print_mac(mac, sta->addr));
+			       sdata->dev->name, print_mac(mac, sta->sta.addr));
 #endif
 			__sta_info_unlink(&sta);
 			if (sta)
@@ -828,3 +830,14 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 	list_for_each_entry_safe(sta, tmp, &tmp_list, list)
 		sta_info_destroy(sta);
 }
+
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
+                                         const u8 *addr)
+{
+	struct sta_info *sta = __sta_info_find(hw_to_local(hw), addr);
+
+	if (!sta)
+		return NULL;
+	return &sta->sta;
+}
+EXPORT_SYMBOL(ieee80211_find_sta);

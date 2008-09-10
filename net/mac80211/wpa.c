@@ -256,7 +256,7 @@ ieee80211_crypto_tkip_decrypt(struct ieee80211_rx_data *rx)
 
 	res = ieee80211_tkip_decrypt_data(rx->local->wep_rx_tfm,
 					  key, skb->data + hdrlen,
-					  skb->len - hdrlen, rx->sta->addr,
+					  skb->len - hdrlen, rx->sta->sta.addr,
 					  hdr->addr1, hwaccel, rx->queue,
 					  &rx->tkip_iv32,
 					  &rx->tkip_iv16);

@@ -336,7 +336,8 @@ static int ieee80211_stop(struct net_device *dev)
 
 	list_for_each_entry_rcu(sta, &local->sta_list, list) {
 		if (sta->sdata == sdata)
-			ieee80211_sta_tear_down_BA_sessions(sdata, sta->addr);
+			ieee80211_sta_tear_down_BA_sessions(sdata,
+							    sta->sta.addr);
 	}
 
 	rcu_read_unlock();

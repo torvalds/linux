@@ -390,7 +390,8 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 
 static void mac80211_hwsim_sta_notify(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
-				      enum sta_notify_cmd cmd, const u8 *addr)
+				      enum sta_notify_cmd cmd,
+				      struct ieee80211_sta *sta)
 {
 	hwsim_check_magic(vif);
 }

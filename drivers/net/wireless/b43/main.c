@@ -4234,7 +4234,8 @@ out_unlock:
 	return err;
 }
 
-static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
+static int b43_op_beacon_set_tim(struct ieee80211_hw *hw,
+				 struct ieee80211_sta *sta, bool set)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	unsigned long flags;
@@ -4249,7 +4250,7 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 static void b43_op_sta_notify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      enum sta_notify_cmd notify_cmd,
-			      const u8 *addr)
+			      struct ieee80211_sta *sta)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 

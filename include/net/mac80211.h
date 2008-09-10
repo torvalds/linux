@@ -300,6 +300,9 @@ enum mac80211_tx_control_flags {
  *  (2) driver internal use (if applicable)
  *  (3) TX status information - driver tells mac80211 what happened
  *
+ * The TX control's sta pointer is only valid during the ->tx call,
+ * it may be NULL.
+ *
  * @flags: transmit info flags, defined above
  * @band: TBD
  * @tx_rate_idx: TBD
@@ -329,8 +332,8 @@ struct ieee80211_tx_info {
 		struct {
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
+			struct ieee80211_sta *sta;
 			unsigned long jiffies;
-			u16 aid;
 			s8 rts_cts_rate_idx, alt_retry_rate_idx;
 			u8 retry_limit;
 			u8 icv_len;
@@ -652,6 +655,29 @@ enum set_key_cmd {
 };
 
 /**
+ * struct ieee80211_sta - station table entry
+ *
+ * A station table entry represents a station we are possibly
+ * communicating with. Since stations are RCU-managed in
+ * mac80211, any ieee80211_sta pointer you get access to must
+ * either be protected by rcu_read_lock() explicitly or implicitly,
+ * or you must take good care to not use such a pointer after a
+ * call to your sta_notify callback that removed it.
+ *
+ * @addr: MAC address
+ * @aid: AID we assigned to the station if we're an AP
+ * @drv_priv: data area for driver use, will always be aligned to
+ *	sizeof(void *), size is determined in hw information.
+ */
+struct ieee80211_sta {
+	u8 addr[ETH_ALEN];
+	u16 aid;
+
+	/* must be last */
+	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
+};
+
+/**
  * enum sta_notify_cmd - sta notify command
  *
  * Used with the sta_notify() callback in &struct ieee80211_ops, this
@@ -795,6 +821,8 @@ enum ieee80211_hw_flags {
  *
  * @vif_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_vif.
+ * @sta_data_size: size (in bytes) of the drv_priv data area
+ *	within &struct ieee80211_sta.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -806,6 +834,7 @@ struct ieee80211_hw {
 	unsigned int extra_tx_headroom;
 	int channel_change_time;
 	int vif_data_size;
+	int sta_data_size;
 	u16 queues;
 	u16 ampdu_queues;
 	u16 max_listen_interval;
@@ -1089,7 +1118,7 @@ enum ieee80211_ampdu_mlme_action {
  *	This callback must be implemented and atomic.
  *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
- * 	must be set or cleared for a given AID. Must be atomic.
+ * 	must be set or cleared for a given STA. Must be atomic.
  *
  * @set_key: See the section "Hardware crypto acceleration"
  *	This callback can sleep, and is only called between add_interface
@@ -1175,7 +1204,8 @@ struct ieee80211_ops {
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
 				 int mc_count, struct dev_addr_list *mc_list);
-	int (*set_tim)(struct ieee80211_hw *hw, int aid, int set);
+	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
@@ -1192,7 +1222,7 @@ struct ieee80211_ops {
 	int (*set_retry_limit)(struct ieee80211_hw *hw,
 			       u32 short_retry, u32 long_retr);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			enum sta_notify_cmd, const u8 *addr);
+			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
@@ -1202,7 +1232,7 @@ struct ieee80211_ops {
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    enum ieee80211_ampdu_mlme_action action,
-			    const u8 *addr, u16 tid, u16 *ssn);
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 };
 
 /**
@@ -1752,4 +1782,17 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
  */
 void ieee80211_notify_mac(struct ieee80211_hw *hw,
 			  enum ieee80211_notification_types  notif_type);
+
+/**
+ * ieee80211_find_sta - find a station
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @addr: station's address
+ *
+ * This function must be called under RCU lock and the
+ * resulting pointer is only valid under RCU lock as well.
+ */
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
+					 const u8 *addr);
+
 #endif /* MAC80211_H */

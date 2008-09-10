@@ -1405,7 +1405,7 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 static void ath9k_sta_notify(struct ieee80211_hw *hw,
 			     struct ieee80211_vif *vif,
 			     enum sta_notify_cmd cmd,
-			     const u8 *addr)
+			     struct ieee80211_sta *sta)
 {
 	struct ath_softc *sc = hw->priv;
 	struct ath_node *an;
@@ -1413,19 +1413,18 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 	DECLARE_MAC_BUF(mac);
 
 	spin_lock_irqsave(&sc->node_lock, flags);
-	an = ath_node_find(sc, (u8 *) addr);
+	an = ath_node_find(sc, sta->addr);
 	spin_unlock_irqrestore(&sc->node_lock, flags);
 
 	switch (cmd) {
 	case STA_NOTIFY_ADD:
 		spin_lock_irqsave(&sc->node_lock, flags);
 		if (!an) {
-			ath_node_attach(sc, (u8 *)addr, 0);
+			ath_node_attach(sc, sta->addr, 0);
 			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Attach a node: %s\n",
-				__func__,
-				print_mac(mac, addr));
+				__func__, print_mac(mac, sta->addr));
 		} else {
-			ath_node_get(sc, (u8 *)addr);
+			ath_node_get(sc, sta->addr);
 		}
 		spin_unlock_irqrestore(&sc->node_lock, flags);
 		break;
@@ -1438,7 +1437,7 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 			ath_node_put(sc, an, ATH9K_BH_STATUS_INTACT);
 			DPRINTF(sc, ATH_DBG_CONFIG, "%s: Put a node: %s\n",
 				__func__,
-				print_mac(mac, addr));
+				print_mac(mac, sta->addr));
 		}
 		break;
 	default:
@@ -1581,45 +1580,44 @@ static void ath9k_reset_tsf(struct ieee80211_hw *hw)
 
 static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 		       enum ieee80211_ampdu_mlme_action action,
-		       const u8 *addr,
-		       u16 tid,
-		       u16 *ssn)
+		       struct ieee80211_sta *sta,
+		       u16 tid, u16 *ssn)
 {
 	struct ath_softc *sc = hw->priv;
 	int ret = 0;
 
 	switch (action) {
 	case IEEE80211_AMPDU_RX_START:
-		ret = ath_rx_aggr_start(sc, addr, tid, ssn);
+		ret = ath_rx_aggr_start(sc, sta->addr, tid, ssn);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to start RX aggregation\n",
 				__func__);
 		break;
 	case IEEE80211_AMPDU_RX_STOP:
-		ret = ath_rx_aggr_stop(sc, addr, tid);
+		ret = ath_rx_aggr_stop(sc, sta->addr, tid);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to stop RX aggregation\n",
 				__func__);
 		break;
 	case IEEE80211_AMPDU_TX_START:
-		ret = ath_tx_aggr_start(sc, addr, tid, ssn);
+		ret = ath_tx_aggr_start(sc, sta->addr, tid, ssn);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to start TX aggregation\n",
 				__func__);
 		else
-			ieee80211_start_tx_ba_cb_irqsafe(hw, (u8 *)addr, tid);
+			ieee80211_start_tx_ba_cb_irqsafe(hw, sta->addr, tid);
 		break;
 	case IEEE80211_AMPDU_TX_STOP:
-		ret = ath_tx_aggr_stop(sc, addr, tid);
+		ret = ath_tx_aggr_stop(sc, sta->addr, tid);
 		if (ret < 0)
 			DPRINTF(sc, ATH_DBG_FATAL,
 				"%s: Unable to stop TX aggregation\n",
 				__func__);
 
-		ieee80211_stop_tx_ba_cb_irqsafe(hw, (u8 *)addr, tid);
+		ieee80211_stop_tx_ba_cb_irqsafe(hw, sta->addr, tid);
 		break;
 	default:
 		DPRINTF(sc, ATH_DBG_FATAL,

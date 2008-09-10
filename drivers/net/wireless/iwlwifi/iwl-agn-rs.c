@@ -366,8 +366,8 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 	if (state == HT_AGG_STATE_IDLE &&
 	    rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT("Starting Tx agg: STA: %s tid: %d\n",
-				print_mac(mac, sta->addr), tid);
-		ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+				print_mac(mac, sta->sta.addr), tid);
+		ieee80211_start_tx_ba_session(priv->hw, sta->sta.addr, tid);
 	}
 }
 
@@ -2244,17 +2244,17 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	lq_sta->ibss_sta_added = 0;
 	if (priv->iw_mode == NL80211_IFTYPE_AP) {
-		u8 sta_id = iwl_find_station(priv, sta->addr);
+		u8 sta_id = iwl_find_station(priv, sta->sta.addr);
 		DECLARE_MAC_BUF(mac);
 
 		/* for IBSS the call are from tasklet */
 		IWL_DEBUG_RATE("LQ: ADD station %s\n",
-			     print_mac(mac, sta->addr));
+			     print_mac(mac, sta->sta.addr));
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE("LQ: ADD station %s\n",
-				       print_mac(mac, sta->addr));
-			sta_id = iwl_add_station_flags(priv, sta->addr,
+				       print_mac(mac, sta->sta.addr));
+			sta_id = iwl_add_station_flags(priv, sta->sta.addr,
 							0, CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {

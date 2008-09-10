@@ -517,7 +517,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 		spin_unlock_bh(&mpath->state_lock);
 		goto fail;
 	}
-	memcpy(next_hop, mpath->next_hop->addr, ETH_ALEN);
+	memcpy(next_hop, mpath->next_hop->sta.addr, ETH_ALEN);
 	spin_unlock_bh(&mpath->state_lock);
 	--ttl;
 	flags = PREP_IE_FLAGS(prep_elem);
@@ -529,7 +529,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mesh_path_sel_frame_tx(MPATH_PREP, flags, orig_addr,
 		cpu_to_le32(orig_dsn), 0, dst_addr,
-		cpu_to_le32(dst_dsn), mpath->next_hop->addr, hopcount, ttl,
+		cpu_to_le32(dst_dsn), mpath->next_hop->sta.addr, hopcount, ttl,
 		cpu_to_le32(lifetime), cpu_to_le32(metric),
 		0, sdata);
 	rcu_read_unlock();
@@ -557,7 +557,7 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (mpath) {
 		spin_lock_bh(&mpath->state_lock);
 		if (mpath->flags & MESH_PATH_ACTIVE &&
-		    memcmp(ta, mpath->next_hop->addr, ETH_ALEN) == 0 &&
+		    memcmp(ta, mpath->next_hop->sta.addr, ETH_ALEN) == 0 &&
 		    (!(mpath->flags & MESH_PATH_DSN_VALID) ||
 		    DSN_GT(dst_dsn, mpath->dsn))) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -799,7 +799,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			mesh_queue_preq(mpath,
 					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		}
-		memcpy(hdr->addr1, mpath->next_hop->addr,
+		memcpy(hdr->addr1, mpath->next_hop->sta.addr,
 				ETH_ALEN);
 	} else {
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {
