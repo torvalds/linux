@@ -475,7 +475,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		/* Tell AP we're back */
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
 				ieee80211_send_nullfunc(local, sdata, 0);
 				netif_tx_wake_all_queues(sdata->dev);
@@ -539,7 +539,7 @@ void ieee80211_scan_work(struct work_struct *work)
 		chan = &sband->channels[local->scan_channel_idx];
 
 		if (chan->flags & IEEE80211_CHAN_DISABLED ||
-		    (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
+		    (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
 		     chan->flags & IEEE80211_CHAN_NO_IBSS))
 			skip = 1;
 
@@ -638,7 +638,7 @@ int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
 				netif_tx_stop_all_queues(sdata->dev);
 				ieee80211_send_nullfunc(local, sdata, 1);
@@ -681,7 +681,7 @@ int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_sta *ifsta;
 
-	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return ieee80211_start_scan(sdata, ssid, ssid_len);
 
 	/*

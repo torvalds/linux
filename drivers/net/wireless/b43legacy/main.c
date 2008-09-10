@@ -888,13 +888,13 @@ generate_new:
 
 static void handle_irq_tbtt_indication(struct b43legacy_wldev *dev)
 {
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP)) {
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_AP)) {
 		/* TODO: PS TBTT */
 	} else {
 		if (1/*FIXME: the last PSpoll frame was sent successfully */)
 			b43legacy_power_saving_ctl_bits(dev, -1, -1);
 	}
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_ADHOC))
 		dev->dfq_valid = 1;
 }
 
@@ -1201,7 +1201,7 @@ static void handle_irq_beacon(struct b43legacy_wldev *dev)
 	struct b43legacy_wl *wl = dev->wl;
 	u32 cmd;
 
-	if (!b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (!b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		return;
 
 	/* This is the bottom half of the asynchronous beacon update. */
@@ -1936,9 +1936,9 @@ static void b43legacy_adjust_opmode(struct b43legacy_wldev *dev)
 	ctl &= ~B43legacy_MACCTL_BEACPROMISC;
 	ctl |= B43legacy_MACCTL_INFRA;
 
-	if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		ctl |= B43legacy_MACCTL_AP;
-	else if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_IBSS))
+	else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC))
 		ctl &= ~B43legacy_MACCTL_INFRA;
 
 	if (wl->filter_flags & FIF_CONTROL)
@@ -2646,7 +2646,7 @@ static int b43legacy_op_dev_config(struct ieee80211_hw *hw,
 	b43legacy_mgmtframe_txantenna(dev, antenna_tx);
 
 	/* Update templates for AP mode. */
-	if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP))
+	if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP))
 		b43legacy_set_beacon_int(dev, conf->beacon_int);
 
 
@@ -2733,12 +2733,12 @@ static int b43legacy_op_config_interface(struct ieee80211_hw *hw,
 	else
 		memset(wl->bssid, 0, ETH_ALEN);
 	if (b43legacy_status(dev) >= B43legacy_STAT_INITIALIZED) {
-		if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_AP)) {
-			B43legacy_WARN_ON(vif->type != IEEE80211_IF_TYPE_AP);
+		if (b43legacy_is_mode(wl, NL80211_IFTYPE_AP)) {
+			B43legacy_WARN_ON(vif->type != NL80211_IFTYPE_AP);
 			b43legacy_set_ssid(dev, conf->ssid, conf->ssid_len);
 			if (conf->changed & IEEE80211_IFCC_BEACON)
 				b43legacy_update_templates(wl);
-		} else if (b43legacy_is_mode(wl, IEEE80211_IF_TYPE_IBSS)) {
+		} else if (b43legacy_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
 			if (conf->changed & IEEE80211_IFCC_BEACON)
 				b43legacy_update_templates(wl);
 		}
@@ -3020,7 +3020,7 @@ static void b43legacy_set_synth_pu_delay(struct b43legacy_wldev *dev,
 					  bool idle) {
 	u16 pu_delay = 1050;
 
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS) || idle)
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_ADHOC) || idle)
 		pu_delay = 500;
 	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
 		pu_delay = max(pu_delay, (u16)2400);
@@ -3035,7 +3035,7 @@ static void b43legacy_set_pretbtt(struct b43legacy_wldev *dev)
 	u16 pretbtt;
 
 	/* The time value is in microseconds. */
-	if (b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
+	if (b43legacy_is_mode(dev->wl, NL80211_IFTYPE_ADHOC))
 		pretbtt = 2;
 	else
 		pretbtt = 250;
@@ -3259,10 +3259,10 @@ static int b43legacy_op_add_interface(struct ieee80211_hw *hw,
 
 	/* TODO: allow WDS/AP devices to coexist */
 
-	if (conf->type != IEEE80211_IF_TYPE_AP &&
-	    conf->type != IEEE80211_IF_TYPE_STA &&
-	    conf->type != IEEE80211_IF_TYPE_WDS &&
-	    conf->type != IEEE80211_IF_TYPE_IBSS)
+	if (conf->type != NL80211_IFTYPE_AP &&
+	    conf->type != NL80211_IFTYPE_STATION &&
+	    conf->type != NL80211_IFTYPE_WDS &&
+	    conf->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&wl->mutex);

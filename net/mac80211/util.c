@@ -43,7 +43,7 @@ const unsigned char bridge_tunnel_header[] __aligned(2) =
 
 
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			enum ieee80211_if_types type)
+			enum nl80211_iftype type)
 {
 	__le16 fc = hdr->frame_control;
 
@@ -77,10 +77,10 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 
 		if (ieee80211_is_back_req(fc)) {
 			switch (type) {
-			case IEEE80211_IF_TYPE_STA:
+			case NL80211_IFTYPE_STATION:
 				return hdr->addr2;
-			case IEEE80211_IF_TYPE_AP:
-			case IEEE80211_IF_TYPE_VLAN:
+			case NL80211_IFTYPE_AP:
+			case NL80211_IFTYPE_AP_VLAN:
 				return hdr->addr1;
 			default:
 				break; /* fall through to the return */
@@ -376,15 +376,16 @@ void ieee80211_iterate_active_interfaces(
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case IEEE80211_IF_TYPE_INVALID:
-		case IEEE80211_IF_TYPE_MNTR:
-		case IEEE80211_IF_TYPE_VLAN:
+		case __NL80211_IFTYPE_AFTER_LAST:
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case NL80211_IFTYPE_MONITOR:
+		case NL80211_IFTYPE_AP_VLAN:
 			continue;
-		case IEEE80211_IF_TYPE_AP:
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_IBSS:
-		case IEEE80211_IF_TYPE_WDS:
-		case IEEE80211_IF_TYPE_MESH_POINT:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
 			break;
 		}
 		if (netif_running(sdata->dev))
@@ -409,15 +410,16 @@ void ieee80211_iterate_active_interfaces_atomic(
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case IEEE80211_IF_TYPE_INVALID:
-		case IEEE80211_IF_TYPE_MNTR:
-		case IEEE80211_IF_TYPE_VLAN:
+		case __NL80211_IFTYPE_AFTER_LAST:
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case NL80211_IFTYPE_MONITOR:
+		case NL80211_IFTYPE_AP_VLAN:
 			continue;
-		case IEEE80211_IF_TYPE_AP:
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_IBSS:
-		case IEEE80211_IF_TYPE_WDS:
-		case IEEE80211_IF_TYPE_MESH_POINT:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
 			break;
 		}
 		if (netif_running(sdata->dev))
@@ -622,7 +624,7 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 	chan = ieee80211_get_channel(local->hw.wiphy, freqMHz);
 
 	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
+		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
 		    chan->flags & IEEE80211_CHAN_NO_IBSS) {
 			printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
 				"%d MHz\n", sdata->dev->name, chan->center_freq);

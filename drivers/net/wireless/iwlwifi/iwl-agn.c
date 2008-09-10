@@ -337,7 +337,7 @@ static int iwl4965_commit_rxon(struct iwl_priv *priv)
 	/* If we have set the ASSOC_MSK and we are in BSS mode then
 	 * add the IWL_AP_ID to the station rate table */
 	if (new_assoc) {
-		if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
+		if (priv->iw_mode == NL80211_IFTYPE_STATION) {
 			ret = iwl_rxon_add_station(priv,
 					   priv->active_rxon.bssid_addr, 1);
 			if (ret == IWL_INVALID_STATION) {
@@ -448,8 +448,8 @@ static unsigned int iwl_fill_beacon_frame(struct iwl_priv *priv,
 					  const u8 *dest, int left)
 {
 	if (!iwl_is_associated(priv) || !priv->ibss_beacon ||
-	    ((priv->iw_mode != IEEE80211_IF_TYPE_IBSS) &&
-	     (priv->iw_mode != IEEE80211_IF_TYPE_AP)))
+	    ((priv->iw_mode != NL80211_IFTYPE_ADHOC) &&
+	     (priv->iw_mode != NL80211_IFTYPE_AP)))
 		return 0;
 
 	if (priv->ibss_beacon->len > left)
@@ -672,7 +672,7 @@ static void iwl4965_setup_rxon_timing(struct iwl_priv *priv)
 	beacon_int = priv->beacon_int;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_STA) {
+	if (priv->iw_mode == NL80211_IFTYPE_STATION) {
 		if (beacon_int == 0) {
 			priv->rxon_timing.beacon_interval = cpu_to_le16(100);
 			priv->rxon_timing.beacon_init_val = cpu_to_le32(102400);
@@ -721,7 +721,7 @@ static void iwl_set_flags_for_band(struct iwl_priv *priv,
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-		if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
 		priv->staging_rxon.flags |= RXON_FLG_BAND_24G_MSK;
@@ -740,23 +740,23 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 	memset(&priv->staging_rxon, 0, sizeof(priv->staging_rxon));
 
 	switch (priv->iw_mode) {
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_AP;
 		break;
 
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_ESS;
 		priv->staging_rxon.filter_flags = RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_IBSS;
 		priv->staging_rxon.flags = RXON_FLG_SHORT_PREAMBLE_MSK;
 		priv->staging_rxon.filter_flags = RXON_FILTER_BCON_AWARE_MSK |
 						  RXON_FILTER_ACCEPT_GRP_MSK;
 		break;
 
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		priv->staging_rxon.dev_type = RXON_DEV_TYPE_SNIFFER;
 		priv->staging_rxon.filter_flags = RXON_FILTER_PROMISC_MSK |
 		    RXON_FILTER_CTL2HOST_MSK | RXON_FILTER_ACCEPT_GRP_MSK;
@@ -785,7 +785,7 @@ static void iwl4965_connection_init_rx_config(struct iwl_priv *priv)
 	 * in some case A channels are all non IBSS
 	 * in this case force B/G channel
 	 */
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !(is_channel_ibss(ch_info)))
 		ch_info = &priv->channel_info[0];
 
@@ -1182,7 +1182,7 @@ static void iwl4965_rx_beacon_notif(struct iwl_priv *priv,
 		le32_to_cpu(beacon->low_tsf), rate);
 #endif
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!test_bit(STATUS_EXIT_PENDING, &priv->status)))
 		queue_work(priv->workqueue, &priv->beacon_update);
 }
@@ -2388,7 +2388,7 @@ static void iwl4965_bg_set_monitor(struct work_struct *work)
 
 	mutex_lock(&priv->mutex);
 
-	ret = iwl4965_set_mode(priv, IEEE80211_IF_TYPE_MNTR);
+	ret = iwl4965_set_mode(priv, NL80211_IFTYPE_MONITOR);
 
 	if (ret) {
 		if (ret == -EAGAIN)
@@ -2469,7 +2469,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	DECLARE_MAC_BUF(mac);
 	unsigned long flags;
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
 		IWL_ERROR("%s Should not be called in AP mode\n", __func__);
 		return;
 	}
@@ -2524,7 +2524,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		else
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
-		if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
+		if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
 			priv->staging_rxon.flags &= ~RXON_FLG_SHORT_SLOT_MSK;
 
 	}
@@ -2532,10 +2532,10 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	iwl4965_commit_rxon(priv);
 
 	switch (priv->iw_mode) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		break;
 
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 
 		/* assume default assoc id */
 		priv->assoc_id = 1;
@@ -2551,7 +2551,7 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 		break;
 	}
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
 		priv->assoc_station_added = 1;
 
 	spin_lock_irqsave(&priv->lock, flags);
@@ -2828,7 +2828,7 @@ static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *co
 		goto out;
 	}
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS &&
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
 	    !is_channel_ibss(ch_info)) {
 		IWL_ERROR("channel %d in band %d not IBSS channel\n",
 			conf->channel->hw_value, conf->channel->band);
@@ -2943,7 +2943,7 @@ static void iwl4965_config_ap(struct iwl_priv *priv)
 				priv->staging_rxon.flags &=
 					~RXON_FLG_SHORT_SLOT_MSK;
 
-			if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS)
+			if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
 				priv->staging_rxon.flags &=
 					~RXON_FLG_SHORT_SLOT_MSK;
 		}
@@ -2982,7 +2982,7 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 		return 0;
 	}
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS &&
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC &&
 	    conf->changed & IEEE80211_IFCC_BEACON) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
 		if (!beacon)
@@ -2992,7 +2992,7 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 			return rc;
 	}
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_AP) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_AP) &&
 	    (!conf->ssid_len)) {
 		IWL_DEBUG_MAC80211
 		    ("Leaving in AP mode because HostAPD is not ready.\n");
@@ -3015,7 +3015,7 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 	    !(priv->hw->flags & IEEE80211_HW_NO_PROBE_FILTERING)) {
  */
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
 		if (!conf->bssid) {
 			conf->bssid = priv->mac_addr;
 			memcpy(priv->bssid, priv->mac_addr, ETH_ALEN);
@@ -3050,11 +3050,11 @@ static int iwl4965_mac_config_interface(struct ieee80211_hw *hw,
 		 * to verify) - jpk */
 		memcpy(priv->bssid, conf->bssid, ETH_ALEN);
 
-		if (priv->iw_mode == IEEE80211_IF_TYPE_AP)
+		if (priv->iw_mode == NL80211_IFTYPE_AP)
 			iwl4965_config_ap(priv);
 		else {
 			rc = iwl4965_commit_rxon(priv);
-			if ((priv->iw_mode == IEEE80211_IF_TYPE_STA) && rc)
+			if ((priv->iw_mode == NL80211_IFTYPE_STATION) && rc)
 				iwl_rxon_add_station(
 					priv, priv->active_rxon.bssid_addr, 1);
 		}
@@ -3090,7 +3090,7 @@ static void iwl4965_configure_filter(struct ieee80211_hw *hw,
 
 	if (changed_flags & (*total_flags) & FIF_OTHER_BSS) {
 		IWL_DEBUG_MAC80211("Enter: type %d (0x%x, 0x%x)\n",
-				   IEEE80211_IF_TYPE_MNTR,
+				   NL80211_IFTYPE_MONITOR,
 				   changed_flags, *total_flags);
 		/* queue work 'cuz mac80211 is holding a lock which
 		 * prevents us from issuing (synchronous) f/w cmds */
@@ -3204,7 +3204,7 @@ static int iwl_mac_hw_scan(struct ieee80211_hw *hw, u8 *ssid, size_t ssid_len)
 		goto out_unlock;
 	}
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {	/* APs don't scan */
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {	/* APs don't scan */
 		ret = -EIO;
 		IWL_ERROR("ERROR: APs don't scan\n");
 		goto out_unlock;
@@ -3329,7 +3329,7 @@ static int iwl4965_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	 * in 1X mode.
 	 * In legacy wep mode, we use another host command to the uCode */
 	if (key->alg == ALG_WEP && sta_id == priv->hw_params.bcast_sta_id &&
-		priv->iw_mode != IEEE80211_IF_TYPE_AP) {
+		priv->iw_mode != NL80211_IFTYPE_AP) {
 		if (cmd == SET_KEY)
 			is_default_wep_key = !priv->key_mapping_key;
 		else
@@ -3400,7 +3400,7 @@ static int iwl4965_mac_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	priv->qos_data.def_qos_parm.ac[q].reserved1 = 0;
 	priv->qos_data.qos_active = 1;
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP)
+	if (priv->iw_mode == NL80211_IFTYPE_AP)
 		iwl_activate_qos(priv, 1);
 	else if (priv->assoc_id && iwl_is_associated(priv))
 		iwl_activate_qos(priv, 0);
@@ -3518,7 +3518,7 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 
 	priv->beacon_int = priv->hw->conf.beacon_int;
 	priv->timestamp = 0;
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_STA))
+	if ((priv->iw_mode == NL80211_IFTYPE_STATION))
 		priv->beacon_int = 0;
 
 	spin_unlock_irqrestore(&priv->lock, flags);
@@ -3532,7 +3532,7 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	/* we are restarting association process
 	 * clear RXON_FILTER_ASSOC_MSK bit
 	 */
-	if (priv->iw_mode != IEEE80211_IF_TYPE_AP) {
+	if (priv->iw_mode != NL80211_IFTYPE_AP) {
 		iwl_scan_cancel_timeout(priv, 100);
 		priv->staging_rxon.filter_flags &= ~RXON_FILTER_ASSOC_MSK;
 		iwl4965_commit_rxon(priv);
@@ -3541,7 +3541,7 @@ static void iwl4965_mac_reset_tsf(struct ieee80211_hw *hw)
 	iwl_power_update_mode(priv, 0);
 
 	/* Per mac80211.h: This is only used in IBSS mode... */
-	if (priv->iw_mode != IEEE80211_IF_TYPE_IBSS) {
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 
 		/* switch to CAM during association period.
 		 * the ucode will block any association/authentication
@@ -3580,7 +3580,7 @@ static int iwl4965_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *sk
 		return -EIO;
 	}
 
-	if (priv->iw_mode != IEEE80211_IF_TYPE_IBSS) {
+	if (priv->iw_mode != NL80211_IFTYPE_ADHOC) {
 		IWL_DEBUG_MAC80211("leave - not IBSS\n");
 		mutex_unlock(&priv->mutex);
 		return -EIO;

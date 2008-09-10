@@ -113,7 +113,7 @@ struct ath5k_softc {
 	struct ieee80211_channel channels[ATH_CHAN_MAX];
 	struct ieee80211_rate	rates[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
 	u8			rate_idx[IEEE80211_NUM_BANDS][AR5K_MAX_RATES];
-	enum ieee80211_if_types	opmode;
+	enum nl80211_iftype	opmode;
 	struct ath5k_hw		*ah;		/* Atheros HW */
 
 	struct ieee80211_supported_band		*curband;

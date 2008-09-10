@@ -41,7 +41,7 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 	sdata->fragment_next = 0;
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		beacon = sdata->u.ap.beacon;
 		rcu_assign_pointer(sdata->u.ap.beacon, NULL);
 		synchronize_rcu();
@@ -53,22 +53,23 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 		}
 
 		break;
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif))
 			mesh_rmc_free(sdata);
 		break;
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		kfree(sdata->u.sta.extra_ie);
 		kfree(sdata->u.sta.assocreq_ies);
 		kfree(sdata->u.sta.assocresp_ies);
 		kfree_skb(sdata->u.sta.probe_resp);
 		break;
-	case IEEE80211_IF_TYPE_WDS:
-	case IEEE80211_IF_TYPE_VLAN:
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_MONITOR:
 		break;
-	case IEEE80211_IF_TYPE_INVALID:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case __NL80211_IFTYPE_AFTER_LAST:
 		BUG();
 		break;
 	}
@@ -81,7 +82,7 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
  * Helper function to initialise an interface to a specific type.
  */
 static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
-				  enum ieee80211_if_types type)
+				  enum nl80211_iftype type)
 {
 	/* clear type-dependent union */
 	memset(&sdata->u, 0, sizeof(sdata->u));
@@ -93,28 +94,29 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	sdata->dev->type = ARPHRD_ETHER;
 
 	switch (type) {
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		ieee80211_sta_setup_sdata(sdata);
 		break;
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif))
 			ieee80211_mesh_init_sdata(sdata);
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		sdata->dev->type = ARPHRD_IEEE80211_RADIOTAP;
 		sdata->dev->hard_start_xmit = ieee80211_monitor_start_xmit;
 		sdata->u.mntr_flags = MONITOR_FLAG_CONTROL |
 				      MONITOR_FLAG_OTHER_BSS;
 		break;
-	case IEEE80211_IF_TYPE_WDS:
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_WDS:
+	case NL80211_IFTYPE_AP_VLAN:
 		break;
-	case IEEE80211_IF_TYPE_INVALID:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case __NL80211_IFTYPE_AFTER_LAST:
 		BUG();
 		break;
 	}
@@ -123,7 +125,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
-			     enum ieee80211_if_types type)
+			     enum nl80211_iftype type)
 {
 	ASSERT_RTNL();
 
@@ -153,7 +155,7 @@ int ieee80211_if_change_type(struct ieee80211_sub_if_data *sdata,
 }
 
 int ieee80211_if_add(struct ieee80211_local *local, const char *name,
-		     struct net_device **new_dev, enum ieee80211_if_types type,
+		     struct net_device **new_dev, enum nl80211_iftype type,
 		     struct vif_params *params)
 {
 	struct net_device *ndev;

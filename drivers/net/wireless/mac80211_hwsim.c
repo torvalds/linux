@@ -267,7 +267,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
 
-	if (vif->type != IEEE80211_IF_TYPE_AP)
+	if (vif->type != NL80211_IFTYPE_AP)
 		return;
 
 	skb = ieee80211_beacon_get(hw, vif);

@@ -616,7 +616,7 @@ static int p54p_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ieee80211_hw *dev = pci_get_drvdata(pdev);
 	struct p54p_priv *priv = dev->priv;
 
-	if (priv->common.mode != IEEE80211_IF_TYPE_INVALID) {
+	if (priv->common.mode != NL80211_IFTYPE_UNSPECIFIED) {
 		ieee80211_stop_queues(dev);
 		p54p_stop(dev);
 	}
@@ -634,7 +634,7 @@ static int p54p_resume(struct pci_dev *pdev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	if (priv->common.mode != IEEE80211_IF_TYPE_INVALID) {
+	if (priv->common.mode != NL80211_IFTYPE_UNSPECIFIED) {
 		p54p_open(dev);
 		ieee80211_wake_queues(dev);
 	}

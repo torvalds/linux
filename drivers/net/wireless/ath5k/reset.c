@@ -399,7 +399,7 @@ int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial)
 /*
  * Main reset function
  */
-int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode,
+int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	struct ieee80211_channel *channel, bool change_channel)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;

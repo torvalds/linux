@@ -463,7 +463,7 @@ void iwl_init_scan_params(struct iwl_priv *priv)
 
 int iwl_scan_initiate(struct iwl_priv *priv)
 {
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
 		IWL_ERROR("APs don't scan.\n");
 		return 0;
 	}
@@ -868,7 +868,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_MNTR)
+	if (priv->iw_mode == NL80211_IFTYPE_MONITOR)
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |

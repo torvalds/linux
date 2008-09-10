@@ -140,7 +140,7 @@ static int ath_key_config(struct ath_softc *sc,
 	struct ath9k_keyval hk;
 	const u8 *mac = NULL;
 	int ret = 0;
-	enum ieee80211_if_types opmode;
+	enum nl80211_iftype opmode;
 
 	memset(&hk, 0, sizeof(hk));
 
@@ -179,14 +179,14 @@ static int ath_key_config(struct ath_softc *sc,
 	 */
 	if (is_broadcast_ether_addr(addr)) {
 		switch (opmode) {
-		case IEEE80211_IF_TYPE_STA:
+		case NL80211_IFTYPE_STATION:
 			/* default key:  could be group WPA key
 			 * or could be static WEP key */
 			mac = NULL;
 			break;
-		case IEEE80211_IF_TYPE_IBSS:
+		case NL80211_IFTYPE_ADHOC:
 			break;
-		case IEEE80211_IF_TYPE_AP:
+		case NL80211_IFTYPE_AP:
 			break;
 		default:
 			ASSERT(0);
@@ -1147,13 +1147,13 @@ static int ath9k_add_interface(struct ieee80211_hw *hw,
 		return -ENOBUFS;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		ic_opmode = ATH9K_M_STA;
 		break;
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		ic_opmode = ATH9K_M_IBSS;
 		break;
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		ic_opmode = ATH9K_M_HOSTAP;
 		break;
 	default:
@@ -1275,7 +1275,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 
 	/* TODO: Need to decide which hw opmode to use for multi-interface
 	 * cases */
-	if (vif->type == IEEE80211_IF_TYPE_AP &&
+	if (vif->type == NL80211_IFTYPE_AP &&
 	    ah->ah_opmode != ATH9K_M_HOSTAP) {
 		ah->ah_opmode = ATH9K_M_HOSTAP;
 		ath9k_hw_setopmode(ah);
@@ -1287,8 +1287,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	if ((conf->changed & IEEE80211_IFCC_BSSID) &&
 	    !is_zero_ether_addr(conf->bssid)) {
 		switch (vif->type) {
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_IBSS:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
 			/* Update ratectrl about the new state */
 			ath_rate_newstate(sc, avp);
 
@@ -1333,8 +1333,8 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	}
 
 	if ((conf->changed & IEEE80211_IFCC_BEACON) &&
-	    ((vif->type == IEEE80211_IF_TYPE_IBSS) ||
-	     (vif->type == IEEE80211_IF_TYPE_AP))) {
+	    ((vif->type == NL80211_IFTYPE_ADHOC) ||
+	     (vif->type == NL80211_IFTYPE_AP))) {
 		/*
 		 * Allocate and setup the beacon frame.
 		 *
@@ -1353,7 +1353,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	}
 
 	/* Check for WLAN_CAPABILITY_PRIVACY ? */
-	if ((avp->av_opmode != IEEE80211_IF_TYPE_STA)) {
+	if ((avp->av_opmode != NL80211_IFTYPE_STATION)) {
 		for (i = 0; i < IEEE80211_WEP_NKID; i++)
 			if (ath9k_hw_keyisvalid(sc->sc_ah, (u16)i))
 				ath9k_hw_keysetmac(sc->sc_ah,
@@ -1362,7 +1362,7 @@ static int ath9k_config_interface(struct ieee80211_hw *hw,
 	}
 
 	/* Only legacy IBSS for now */
-	if (vif->type == IEEE80211_IF_TYPE_IBSS)
+	if (vif->type == NL80211_IFTYPE_ADHOC)
 		ath_update_chainmask(sc, 0);
 
 	return 0;

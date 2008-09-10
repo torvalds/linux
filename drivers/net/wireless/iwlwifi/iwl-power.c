@@ -290,7 +290,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 		final_mode = setting->critical_power_setting;
 
 	/* driver only support CAM for non STA network */
-	if (priv->iw_mode != IEEE80211_IF_TYPE_STA)
+	if (priv->iw_mode != NL80211_IFTYPE_STATION)
 		final_mode = IWL_POWER_MODE_CAM;
 
 	if (!iwl_is_rfkill(priv) && !setting->power_disabled &&

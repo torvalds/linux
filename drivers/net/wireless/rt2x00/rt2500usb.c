@@ -384,7 +384,7 @@ static void rt2500usb_config_intf(struct rt2x00_dev *rt2x00dev,
 		rt2500usb_register_read(rt2x00dev, TXRX_CSR20, &reg);
 		rt2x00_set_field16(&reg, TXRX_CSR20_OFFSET, bcn_preload >> 6);
 		rt2x00_set_field16(&reg, TXRX_CSR20_BCN_EXPECT_WINDOW,
-				   2 * (conf->type != IEEE80211_IF_TYPE_STA));
+				   2 * (conf->type != NL80211_IFTYPE_STATION));
 		rt2500usb_register_write(rt2x00dev, TXRX_CSR20, reg);
 
 		/*

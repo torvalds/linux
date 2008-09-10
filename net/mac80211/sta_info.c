@@ -319,7 +319,7 @@ int sta_info_insert(struct sta_info *sta)
 
 	/* notify driver */
 	if (local->ops->sta_notify) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			sdata = container_of(sdata->bss,
 					     struct ieee80211_sub_if_data,
 					     u.ap);
@@ -456,7 +456,7 @@ static void __sta_info_unlink(struct sta_info **sta)
 	local->num_sta--;
 
 	if (local->ops->sta_notify) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+		if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 			sdata = container_of(sdata->bss,
 					     struct ieee80211_sub_if_data,
 					     u.ap);

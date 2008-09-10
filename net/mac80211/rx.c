@@ -295,7 +295,7 @@ ieee80211_rx_monitor(struct ieee80211_local *local, struct sk_buff *origskb,
 		if (!netif_running(sdata->dev))
 			continue;
 
-		if (sdata->vif.type != IEEE80211_IF_TYPE_MNTR)
+		if (sdata->vif.type != NL80211_IFTYPE_MONITOR)
 			continue;
 
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES)
@@ -512,7 +512,7 @@ ieee80211_rx_h_check(struct ieee80211_rx_data *rx)
 
 	if (unlikely((ieee80211_is_data(hdr->frame_control) ||
 		      ieee80211_is_pspoll(hdr->frame_control)) &&
-		     rx->sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
+		     rx->sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		     (!rx->sta || !test_sta_flags(rx->sta, WLAN_STA_ASSOC)))) {
 		if ((!ieee80211_has_fromds(hdr->frame_control) &&
 		     !ieee80211_has_tods(hdr->frame_control) &&
@@ -724,14 +724,14 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	/* Update last_rx only for IBSS packets which are for the current
 	 * BSSID to avoid keeping the current IBSS network alive in cases where
 	 * other STAs are using different BSSID. */
-	if (rx->sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+	if (rx->sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		u8 *bssid = ieee80211_get_bssid(hdr, rx->skb->len,
-						IEEE80211_IF_TYPE_IBSS);
+						NL80211_IFTYPE_ADHOC);
 		if (compare_ether_addr(bssid, rx->sdata->u.sta.bssid) == 0)
 			sta->last_rx = jiffies;
 	} else
 	if (!is_multicast_ether_addr(hdr->addr1) ||
-	    rx->sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+	    rx->sdata->vif.type == NL80211_IFTYPE_STATION) {
 		/* Update last_rx only for unicast frames in order to prevent
 		 * the Probe Request frames (the only broadcast frames from a
 		 * STA in infrastructure mode) from keeping a connection alive.
@@ -751,8 +751,8 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->last_noise = rx->status->noise;
 
 	if (!ieee80211_has_morefrags(hdr->frame_control) &&
-	    (rx->sdata->vif.type == IEEE80211_IF_TYPE_AP ||
-	     rx->sdata->vif.type == IEEE80211_IF_TYPE_VLAN)) {
+	    (rx->sdata->vif.type == NL80211_IFTYPE_AP ||
+	     rx->sdata->vif.type == NL80211_IFTYPE_AP_VLAN)) {
 		/* Change STA power saving mode only in the end of a frame
 		 * exchange sequence */
 		if (test_sta_flags(sta, WLAN_STA_PS) &&
@@ -982,8 +982,8 @@ ieee80211_rx_h_ps_poll(struct ieee80211_rx_data *rx)
 		   !(rx->flags & IEEE80211_RX_RA_MATCH)))
 		return RX_CONTINUE;
 
-	if ((sdata->vif.type != IEEE80211_IF_TYPE_AP) &&
-	    (sdata->vif.type != IEEE80211_IF_TYPE_VLAN))
+	if ((sdata->vif.type != NL80211_IFTYPE_AP) &&
+	    (sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
 		return RX_DROP_UNUSABLE;
 
 	skb = skb_dequeue(&rx->sta->tx_filtered);
@@ -1131,23 +1131,23 @@ ieee80211_data_to_8023(struct ieee80211_rx_data *rx)
 	switch (hdr->frame_control &
 		cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS)) {
 	case __constant_cpu_to_le16(IEEE80211_FCTL_TODS):
-		if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_AP &&
-			     sdata->vif.type != IEEE80211_IF_TYPE_VLAN))
+		if (unlikely(sdata->vif.type != NL80211_IFTYPE_AP &&
+			     sdata->vif.type != NL80211_IFTYPE_AP_VLAN))
 			return -1;
 		break;
 	case __constant_cpu_to_le16(IEEE80211_FCTL_TODS | IEEE80211_FCTL_FROMDS):
-		if (unlikely(sdata->vif.type != IEEE80211_IF_TYPE_WDS &&
-			     sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT))
+		if (unlikely(sdata->vif.type != NL80211_IFTYPE_WDS &&
+			     sdata->vif.type != NL80211_IFTYPE_MESH_POINT))
 			return -1;
 		break;
 	case __constant_cpu_to_le16(IEEE80211_FCTL_FROMDS):
-		if (sdata->vif.type != IEEE80211_IF_TYPE_STA ||
+		if (sdata->vif.type != NL80211_IFTYPE_STATION ||
 		    (is_multicast_ether_addr(dst) &&
 		     !compare_ether_addr(src, dev->dev_addr)))
 			return -1;
 		break;
 	case __constant_cpu_to_le16(0):
-		if (sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
+		if (sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			return -1;
 		break;
 	}
@@ -1221,8 +1221,8 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 	skb = rx->skb;
 	xmit_skb = NULL;
 
-	if ((sdata->vif.type == IEEE80211_IF_TYPE_AP ||
-	     sdata->vif.type == IEEE80211_IF_TYPE_VLAN) &&
+	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
+	     sdata->vif.type == NL80211_IFTYPE_AP_VLAN) &&
 	    !(sdata->flags & IEEE80211_SDATA_DONT_BRIDGE_PACKETS) &&
 	    (rx->flags & IEEE80211_RX_RA_MATCH)) {
 		if (is_multicast_ether_addr(ehdr->h_dest)) {
@@ -1536,8 +1536,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	 * FIXME: revisit this, I'm sure we should handle most
 	 *	  of these frames in other modes as well!
 	 */
-	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
-	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 		return RX_DROP_MONITOR;
 
 	switch (mgmt->u.action.category) {
@@ -1595,8 +1595,8 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	if (ieee80211_vif_is_mesh(&sdata->vif))
 		return ieee80211_mesh_rx_mgmt(sdata, rx->skb, rx->status);
 
-	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
-	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
+	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
+	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 		return RX_DROP_MONITOR;
 
 	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)
@@ -1632,7 +1632,7 @@ static void ieee80211_rx_michael_mic_report(struct net_device *dev,
 	if (!ieee80211_has_protected(hdr->frame_control))
 		goto ignore;
 
-	if (rx->sdata->vif.type == IEEE80211_IF_TYPE_AP && keyidx) {
+	if (rx->sdata->vif.type == NL80211_IFTYPE_AP && keyidx) {
 		/*
 		 * APs with pairwise keys should never receive Michael MIC
 		 * errors for non-zero keyidx because these are reserved for
@@ -1702,7 +1702,7 @@ static void ieee80211_rx_cooked_monitor(struct ieee80211_rx_data *rx)
 		if (!netif_running(sdata->dev))
 			continue;
 
-		if (sdata->vif.type != IEEE80211_IF_TYPE_MNTR ||
+		if (sdata->vif.type != NL80211_IFTYPE_MONITOR ||
 		    !(sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES))
 			continue;
 
@@ -1801,7 +1801,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 	int multicast = is_multicast_ether_addr(hdr->addr1);
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		if (!bssid)
 			return 0;
 		if (!ieee80211_bssid_match(bssid, sdata->u.sta.bssid)) {
@@ -1816,7 +1816,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		}
 		break;
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		if (!bssid)
 			return 0;
 		if (ieee80211_is_beacon(hdr->frame_control)) {
@@ -1837,7 +1837,7 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 						bssid, hdr->addr2,
 						BIT(rx->status->rate_idx));
 		break;
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (!multicast &&
 		    compare_ether_addr(sdata->dev->dev_addr,
 				       hdr->addr1) != 0) {
@@ -1847,8 +1847,8 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		}
 		break;
-	case IEEE80211_IF_TYPE_VLAN:
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP_VLAN:
+	case NL80211_IFTYPE_AP:
 		if (!bssid) {
 			if (compare_ether_addr(sdata->dev->dev_addr,
 					       hdr->addr1))
@@ -1860,16 +1860,17 @@ static int prepare_for_handlers(struct ieee80211_sub_if_data *sdata,
 			rx->flags &= ~IEEE80211_RX_RA_MATCH;
 		}
 		break;
-	case IEEE80211_IF_TYPE_WDS:
+	case NL80211_IFTYPE_WDS:
 		if (bssid || !ieee80211_is_data(hdr->frame_control))
 			return 0;
 		if (compare_ether_addr(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		/* take everything */
 		break;
-	case IEEE80211_IF_TYPE_INVALID:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case __NL80211_IFTYPE_AFTER_LAST:
 		/* should never get here */
 		WARN_ON(1);
 		break;
@@ -1930,7 +1931,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		if (!netif_running(sdata->dev))
 			continue;
 
-		if (sdata->vif.type == IEEE80211_IF_TYPE_MNTR)
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR)
 			continue;
 
 		bssid = ieee80211_get_bssid(hdr, skb->len, sdata->vif.type);

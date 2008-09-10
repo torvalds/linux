@@ -162,7 +162,7 @@ void b43_phy_lock(struct b43_wldev *dev)
 #endif
 	B43_WARN_ON(dev->dev->id.revision < 3);
 
-	if (!b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+	if (!b43_is_mode(dev->wl, NL80211_IFTYPE_AP))
 		b43_power_saving_ctl_bits(dev, B43_PS_AWAKE);
 }
 
@@ -174,7 +174,7 @@ void b43_phy_unlock(struct b43_wldev *dev)
 #endif
 	B43_WARN_ON(dev->dev->id.revision < 3);
 
-	if (!b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+	if (!b43_is_mode(dev->wl, NL80211_IFTYPE_AP))
 		b43_power_saving_ctl_bits(dev, 0);
 }
 

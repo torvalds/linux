@@ -682,7 +682,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	rs_sta = (void *)sta->rate_ctrl_priv;
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !rs_sta->ibss_sta_added) {
 		u8 sta_id = iwl3945_hw_find_station(priv, hdr->addr1);
 

@@ -219,7 +219,7 @@ static void lbtf_tx_work(struct work_struct *work)
 	struct sk_buff *skb = NULL;
 	int err;
 
-	if ((priv->vif->type == IEEE80211_IF_TYPE_AP) &&
+	if ((priv->vif->type == NL80211_IFTYPE_AP) &&
 	    (!skb_queue_empty(&priv->bc_ps_buf)))
 		skb = skb_dequeue(&priv->bc_ps_buf);
 	else if (priv->skb_to_tx) {
@@ -326,11 +326,11 @@ static int lbtf_op_add_interface(struct ieee80211_hw *hw,
 
 	priv->vif = conf->vif;
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_MESH_POINT:
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_AP:
 		lbtf_set_mode(priv, LBTF_AP_MODE);
 		break;
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		lbtf_set_mode(priv, LBTF_STA_MODE);
 		break;
 	default:
@@ -346,8 +346,8 @@ static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
 {
 	struct lbtf_private *priv = hw->priv;
 
-	if (priv->vif->type == IEEE80211_IF_TYPE_AP ||
-	    priv->vif->type == IEEE80211_IF_TYPE_MESH_POINT)
+	if (priv->vif->type == NL80211_IFTYPE_AP ||
+	    priv->vif->type == NL80211_IFTYPE_MESH_POINT)
 		lbtf_beacon_ctrl(priv, 0, 0);
 	lbtf_set_mode(priv, LBTF_PASSIVE_MODE);
 	lbtf_set_bssid(priv, 0, NULL);
@@ -372,8 +372,8 @@ static int lbtf_op_config_interface(struct ieee80211_hw *hw,
 	struct sk_buff *beacon;
 
 	switch (priv->vif->type) {
-	case IEEE80211_IF_TYPE_AP:
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		beacon = ieee80211_beacon_get(hw, vif);
 		if (beacon) {
 			lbtf_beacon_set(priv, beacon);
@@ -614,7 +614,7 @@ void lbtf_bcn_sent(struct lbtf_private *priv)
 {
 	struct sk_buff *skb = NULL;
 
-	if (priv->vif->type != IEEE80211_IF_TYPE_AP)
+	if (priv->vif->type != NL80211_IFTYPE_AP)
 		return;
 
 	if (skb_queue_empty(&priv->bc_ps_buf)) {

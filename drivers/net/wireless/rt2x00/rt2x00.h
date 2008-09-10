@@ -483,7 +483,7 @@ struct rt2x00intf_conf {
 	/*
 	 * Interface type
 	 */
-	enum ieee80211_if_types type;
+	enum nl80211_iftype type;
 
 	/*
 	 * TSF sync value, this is dependant on the operation type.

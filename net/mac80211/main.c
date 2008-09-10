@@ -146,7 +146,7 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 	int meshhdrlen;
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	meshhdrlen = (sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT) ? 5 : 0;
+	meshhdrlen = (sdata->vif.type == NL80211_IFTYPE_MESH_POINT) ? 5 : 0;
 
 	/* FIX: what would be proper limits for MTU?
 	 * This interface uses 802.3 frames. */
@@ -164,18 +164,16 @@ static int ieee80211_change_mtu(struct net_device *dev, int new_mtu)
 
 static inline int identical_mac_addr_allowed(int type1, int type2)
 {
-	return (type1 == IEEE80211_IF_TYPE_MNTR ||
-		type2 == IEEE80211_IF_TYPE_MNTR ||
-		(type1 == IEEE80211_IF_TYPE_AP &&
-		 type2 == IEEE80211_IF_TYPE_WDS) ||
-		(type1 == IEEE80211_IF_TYPE_WDS &&
-		 (type2 == IEEE80211_IF_TYPE_WDS ||
-		  type2 == IEEE80211_IF_TYPE_AP)) ||
-		(type1 == IEEE80211_IF_TYPE_AP &&
-		 type2 == IEEE80211_IF_TYPE_VLAN) ||
-		(type1 == IEEE80211_IF_TYPE_VLAN &&
-		 (type2 == IEEE80211_IF_TYPE_AP ||
-		  type2 == IEEE80211_IF_TYPE_VLAN)));
+	return type1 == NL80211_IFTYPE_MONITOR ||
+		type2 == NL80211_IFTYPE_MONITOR ||
+		(type1 == NL80211_IFTYPE_AP && type2 == NL80211_IFTYPE_WDS) ||
+		(type1 == NL80211_IFTYPE_WDS &&
+			(type2 == NL80211_IFTYPE_WDS ||
+			 type2 == NL80211_IFTYPE_AP)) ||
+		(type1 == NL80211_IFTYPE_AP && type2 == NL80211_IFTYPE_AP_VLAN) ||
+		(type1 == NL80211_IFTYPE_AP_VLAN &&
+			(type2 == NL80211_IFTYPE_AP ||
+			 type2 == NL80211_IFTYPE_AP_VLAN));
 }
 
 static int ieee80211_open(struct net_device *dev)
@@ -211,8 +209,8 @@ static int ieee80211_open(struct net_device *dev)
 			 * belonging to the same hardware. Then, however, we're
 			 * faced with having to adopt two different TSF timers...
 			 */
-			if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
-			    nsdata->vif.type == IEEE80211_IF_TYPE_IBSS)
+			if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+			    nsdata->vif.type == NL80211_IFTYPE_ADHOC)
 				return -EBUSY;
 
 			/*
@@ -232,37 +230,38 @@ static int ieee80211_open(struct net_device *dev)
 			/*
 			 * can only add VLANs to enabled APs
 			 */
-			if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN &&
-			    nsdata->vif.type == IEEE80211_IF_TYPE_AP)
+			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN &&
+			    nsdata->vif.type == NL80211_IFTYPE_AP)
 				sdata->bss = &nsdata->u.ap;
 		}
 	}
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_WDS:
+	case NL80211_IFTYPE_WDS:
 		if (!is_valid_ether_addr(sdata->u.wds.remote_addr))
 			return -ENOLINK;
 		break;
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		if (!sdata->bss)
 			return -ENOLINK;
 		list_add(&sdata->u.vlan.list, &sdata->bss->vlans);
 		break;
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		sdata->bss = &sdata->u.ap;
 		break;
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (!ieee80211_vif_is_mesh(&sdata->vif))
 			break;
 		/* mesh ifaces must set allmulti to forward mcast traffic */
 		atomic_inc(&local->iff_allmultis);
 		break;
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_MNTR:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_ADHOC:
 		/* no special treatment */
 		break;
-	case IEEE80211_IF_TYPE_INVALID:
+	case NL80211_IFTYPE_UNSPECIFIED:
+	case __NL80211_IFTYPE_AFTER_LAST:
 		/* cannot happen */
 		WARN_ON(1);
 		break;
@@ -309,10 +308,10 @@ static int ieee80211_open(struct net_device *dev)
 	}
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		/* no need to tell driver */
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
 			local->cooked_mntrs++;
 			break;
@@ -336,8 +335,8 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		netif_addr_unlock_bh(local->mdev);
 		break;
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		sdata->u.sta.flags &= ~IEEE80211_STA_PREV_BSSID_SET;
 		/* fall through */
 	default:
@@ -354,14 +353,14 @@ static int ieee80211_open(struct net_device *dev)
 		ieee80211_bss_info_change_notify(sdata, changed);
 		ieee80211_enable_keys(sdata);
 
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA &&
+		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
 		    !(sdata->flags & IEEE80211_SDATA_USERSPACE_MLME))
 			netif_carrier_off(dev);
 		else
 			netif_carrier_on(dev);
 	}
 
-	if (sdata->vif.type == IEEE80211_IF_TYPE_WDS) {
+	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
 		/* Create STA entry for the WDS peer */
 		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
 				     GFP_KERNEL);
@@ -417,8 +416,8 @@ static int ieee80211_open(struct net_device *dev)
 	 * yet be effective. Trigger execution of ieee80211_sta_work
 	 * to fix this.
 	 */
-	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+	    sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		struct ieee80211_if_sta *ifsta = &sdata->u.sta;
 		queue_work(local->hw.workqueue, &ifsta->work);
 	}
@@ -433,7 +432,7 @@ static int ieee80211_open(struct net_device *dev)
 		local->ops->stop(local_to_hw(local));
  err_del_bss:
 	sdata->bss = NULL;
-	if (sdata->vif.type == IEEE80211_IF_TYPE_VLAN)
+	if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		list_del(&sdata->u.vlan.list);
 	return res;
 }
@@ -496,7 +495,7 @@ static int ieee80211_stop(struct net_device *dev)
 	dev_mc_unsync(local->mdev, dev);
 
 	/* APs need special treatment */
-	if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
+	if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		struct ieee80211_sub_if_data *vlan, *tmp;
 		struct beacon_data *old_beacon = sdata->u.ap.beacon;
 
@@ -515,11 +514,11 @@ static int ieee80211_stop(struct net_device *dev)
 	local->open_count--;
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		list_del(&sdata->u.vlan.list);
 		/* no need to tell driver */
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		if (sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) {
 			local->cooked_mntrs--;
 			break;
@@ -542,8 +541,8 @@ static int ieee80211_stop(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		netif_addr_unlock_bh(local->mdev);
 		break;
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		sdata->u.sta.state = IEEE80211_STA_MLME_DISABLED;
 		memset(sdata->u.sta.bssid, 0, ETH_ALEN);
 		del_timer_sync(&sdata->u.sta.timer);
@@ -569,7 +568,7 @@ static int ieee80211_stop(struct net_device *dev)
 		sdata->u.sta.extra_ie = NULL;
 		sdata->u.sta.extra_ie_len = 0;
 		/* fall through */
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif)) {
 			/* allmulti is always set on mesh ifaces */
 			atomic_dec(&local->iff_allmultis);
@@ -698,12 +697,12 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 	memset(&conf, 0, sizeof(conf));
 	conf.changed = changed;
 
-	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-	    sdata->vif.type == IEEE80211_IF_TYPE_IBSS) {
+	if (sdata->vif.type == NL80211_IFTYPE_STATION ||
+	    sdata->vif.type == NL80211_IFTYPE_ADHOC) {
 		conf.bssid = sdata->u.sta.bssid;
 		conf.ssid = sdata->u.sta.ssid;
 		conf.ssid_len = sdata->u.sta.ssid_len;
-	} else if (sdata->vif.type == IEEE80211_IF_TYPE_AP) {
+	} else if (sdata->vif.type == NL80211_IFTYPE_AP) {
 		conf.bssid = sdata->dev->dev_addr;
 		conf.ssid = sdata->u.ap.ssid;
 		conf.ssid_len = sdata->u.ap.ssid_len;
@@ -1204,7 +1203,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_MNTR) {
+		if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
 			if (!netif_running(sdata->dev))
 				continue;
 
@@ -1450,7 +1449,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	/* add one default STA interface */
 	result = ieee80211_if_add(local, "wlan%d", NULL,
-				  IEEE80211_IF_TYPE_STA, NULL);
+				  NL80211_IFTYPE_STATION, NULL);
 	if (result)
 		printk(KERN_WARNING "%s: Failed to add default virtual iface\n",
 		       wiphy_name(local->hw.wiphy));

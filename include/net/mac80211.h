@@ -478,33 +478,6 @@ struct ieee80211_conf {
 };
 
 /**
- * enum ieee80211_if_types - types of 802.11 network interfaces
- *
- * @IEEE80211_IF_TYPE_INVALID: invalid interface type, not used
- *	by mac80211 itself
- * @IEEE80211_IF_TYPE_AP: interface in AP mode.
- * @IEEE80211_IF_TYPE_MGMT: special interface for communication with hostap
- *	daemon. Drivers should never see this type.
- * @IEEE80211_IF_TYPE_STA: interface in STA (client) mode.
- * @IEEE80211_IF_TYPE_IBSS: interface in IBSS (ad-hoc) mode.
- * @IEEE80211_IF_TYPE_MNTR: interface in monitor (rfmon) mode.
- * @IEEE80211_IF_TYPE_WDS: interface in WDS mode.
- * @IEEE80211_IF_TYPE_VLAN: VLAN interface bound to an AP, drivers
- *	will never see this type.
- * @IEEE80211_IF_TYPE_MESH_POINT: 802.11s mesh point
- */
-enum ieee80211_if_types {
-	IEEE80211_IF_TYPE_INVALID,
-	IEEE80211_IF_TYPE_AP,
-	IEEE80211_IF_TYPE_STA,
-	IEEE80211_IF_TYPE_IBSS,
-	IEEE80211_IF_TYPE_MESH_POINT,
-	IEEE80211_IF_TYPE_MNTR,
-	IEEE80211_IF_TYPE_WDS,
-	IEEE80211_IF_TYPE_VLAN,
-};
-
-/**
  * struct ieee80211_vif - per-interface data
  *
  * Data in this structure is continually present for driver
@@ -515,7 +488,7 @@ enum ieee80211_if_types {
  *	sizeof(void *).
  */
 struct ieee80211_vif {
-	enum ieee80211_if_types type;
+	enum nl80211_iftype type;
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
@@ -523,7 +496,7 @@ struct ieee80211_vif {
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
 #ifdef CONFIG_MAC80211_MESH
-	return vif->type == IEEE80211_IF_TYPE_MESH_POINT;
+	return vif->type == NL80211_IFTYPE_MESH_POINT;
 #endif
 	return false;
 }
@@ -534,7 +507,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  * @vif: pointer to a driver-use per-interface structure. The pointer
  *	itself is also used for various functions including
  *	ieee80211_beacon_get() and ieee80211_get_buffered_bc().
- * @type: one of &enum ieee80211_if_types constants. Determines the type of
+ * @type: one of &enum nl80211_iftype constants. Determines the type of
  *	added/removed interface.
  * @mac_addr: pointer to MAC address of the interface. This pointer is valid
  *	until the interface is removed (i.e. it cannot be used after
@@ -550,7 +523,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  * in pure monitor mode.
  */
 struct ieee80211_if_init_conf {
-	enum ieee80211_if_types type;
+	enum nl80211_iftype type;
 	struct ieee80211_vif *vif;
 	void *mac_addr;
 };

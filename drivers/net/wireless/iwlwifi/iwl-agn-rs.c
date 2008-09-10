@@ -821,7 +821,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added)
 		goto out;
 
@@ -2093,7 +2093,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 	i = sta->last_txrate_idx;
 
 	if ((lq_sta->lq.sta_id == 0xff) &&
-	    (priv->iw_mode == IEEE80211_IF_TYPE_IBSS))
+	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
 		goto out;
 
 	valid_tx_ant = priv->hw_params.valid_tx_ant;
@@ -2163,7 +2163,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 	i = sta->last_txrate_idx;
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added) {
 		u8 sta_id = iwl_find_station(priv, hdr->addr1);
 		DECLARE_MAC_BUF(mac);
@@ -2243,7 +2243,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	 * after assoc.. */
 
 	lq_sta->ibss_sta_added = 0;
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
 		u8 sta_id = iwl_find_station(priv, sta->addr);
 		DECLARE_MAC_BUF(mac);
 

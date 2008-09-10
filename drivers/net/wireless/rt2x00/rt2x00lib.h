@@ -88,7 +88,7 @@ void rt2x00lib_stop(struct rt2x00_dev *rt2x00dev);
  */
 void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00_intf *intf,
-			   enum ieee80211_if_types type,
+			   enum nl80211_iftype type,
 			   u8 *mac, u8 *bssid);
 void rt2x00lib_config_erp(struct rt2x00_dev *rt2x00dev,
 			  struct rt2x00_intf *intf,
