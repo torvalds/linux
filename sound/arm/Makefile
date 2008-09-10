@@ -11,5 +11,8 @@ snd-aaci-objs			:= aaci.o devdma.o
 obj-$(CONFIG_SND_PXA2XX_PCM)	+= snd-pxa2xx-pcm.o
 snd-pxa2xx-pcm-objs		:= pxa2xx-pcm.o
 
+obj-$(CONFIG_SND_PXA2XX_LIB)	+= snd-pxa2xx-lib.o
+snd-pxa2xx-lib-objs		:= pxa2xx-ac97-lib.o
+
 obj-$(CONFIG_SND_PXA2XX_AC97)	+= snd-pxa2xx-ac97.o
 snd-pxa2xx-ac97-objs		:= pxa2xx-ac97.o
