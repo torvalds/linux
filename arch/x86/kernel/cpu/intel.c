@@ -221,10 +221,11 @@ static void __cpuinit init_intel(struct cpuinfo_x86 *c)
 			set_cpu_cap(c, X86_FEATURE_BTS);
 		if (!(l1 & (1<<12)))
 			set_cpu_cap(c, X86_FEATURE_PEBS);
+		ds_init_intel(c);
 	}
 
 	if (cpu_has_bts)
-		ds_init_intel(c);
+		ptrace_bts_init_intel(c);
 
 	/*
 	 * See if we have a good local APIC by checking for buggy Pentia,
