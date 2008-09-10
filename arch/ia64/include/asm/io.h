@@ -19,6 +19,8 @@
  * Copyright (C) 1999 Don Dugger <don.dugger@intel.com>
  */
 
+#include <asm/unaligned.h>
+
 /* We don't use IO slowdowns on the ia64, but.. */
 #define __SLOW_DOWN_IO	do { } while (0)
 #define SLOW_DOWN_IO	do { } while (0)
@@ -241,7 +243,7 @@ __insw (unsigned long port, void *dst, unsigned long count)
 	unsigned short *dp = dst;
 
 	while (count--)
-		*dp++ = platform_inw(port);
+		put_unaligned(platform_inw(port), dp++);
 }
 
 static inline void
@@ -250,7 +252,7 @@ __insl (unsigned long port, void *dst, unsigned long count)
 	unsigned int *dp = dst;
 
 	while (count--)
-		*dp++ = platform_inl(port);
+		put_unaligned(platform_inl(port), dp++);
 }
 
 static inline void
@@ -268,7 +270,7 @@ __outsw (unsigned long port, const void *src, unsigned long count)
 	const unsigned short *sp = src;
 
 	while (count--)
-		platform_outw(*sp++, port);
+		platform_outw(get_unaligned(sp++), port);
 }
 
 static inline void
@@ -277,7 +279,7 @@ __outsl (unsigned long port, const void *src, unsigned long count)
 	const unsigned int *sp = src;
 
 	while (count--)
-		platform_outl(*sp++, port);
+		platform_outl(get_unaligned(sp++), port);
 }
 
 /*

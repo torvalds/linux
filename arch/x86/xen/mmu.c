@@ -746,7 +746,7 @@ static spinlock_t *xen_pte_lock(struct page *page)
 {
 	spinlock_t *ptl = NULL;
 
-#if NR_CPUS >= CONFIG_SPLIT_PTLOCK_CPUS
+#if USE_SPLIT_PTLOCKS
 	ptl = __pte_lockptr(page);
 	spin_lock(ptl);
 #endif

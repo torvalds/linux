@@ -493,7 +493,7 @@ static int usb_dsbr100_probe(struct usb_interface *intf,
 	radio->usbdev = interface_to_usbdev(intf);
 	radio->curfreq = FREQ_MIN*FREQ_MUL;
 	video_set_drvdata(radio->videodev, radio);
-	if (video_register_device(radio->videodev, VFL_TYPE_RADIO,radio_nr)) {
+	if (video_register_device(radio->videodev, VFL_TYPE_RADIO, radio_nr) < 0) {
 		warn("Could not register video device");
 		video_device_release(radio->videodev);
 		kfree(radio->transfer_buffer);

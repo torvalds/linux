@@ -47,11 +47,18 @@ static int dns_resolver_instantiate(struct key *key, const void *data,
 	return rc;
 }
 
+static void
+dns_resolver_destroy(struct key *key)
+{
+	kfree(key->payload.data);
+}
+
 struct key_type key_type_dns_resolver = {
 	.name        = "dns_resolver",
 	.def_datalen = sizeof(struct in_addr),
 	.describe    = user_describe,
 	.instantiate = dns_resolver_instantiate,
+	.destroy     = dns_resolver_destroy,
 	.match       = user_match,
 };
 

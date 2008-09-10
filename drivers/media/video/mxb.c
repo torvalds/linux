@@ -931,27 +931,29 @@ static int mxb_ioctl(struct saa7146_fh *fh, unsigned int cmd, void *arg)
 	return 0;
 }
 
-static int std_callback(struct saa7146_dev* dev, struct saa7146_standard *std)
+static int std_callback(struct saa7146_dev *dev, struct saa7146_standard *standard)
 {
-	struct mxb* mxb = (struct mxb*)dev->ext_priv;
+	struct mxb *mxb = (struct mxb *)dev->ext_priv;
 	int zero = 0;
 	int one = 1;
 
-	if(V4L2_STD_PAL_I == std->id ) {
+	if (V4L2_STD_PAL_I == standard->id) {
 		v4l2_std_id std = V4L2_STD_PAL_I;
+
 		DEB_D(("VIDIOC_S_STD: setting mxb for PAL_I.\n"));
 		/* set the 7146 gpio register -- I don't know what this does exactly */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* unset the 7111 gpio register -- I don't know what this does exactly */
-		mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_SET_GPIO, &zero);
+		mxb->saa7111a->driver->command(mxb->saa7111a, DECODER_SET_GPIO, &zero);
 		mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_STD, &std);
 	} else {
 		v4l2_std_id std = V4L2_STD_PAL_BG;
+
 		DEB_D(("VIDIOC_S_STD: setting mxb for PAL/NTSC/SECAM.\n"));
 		/* set the 7146 gpio register -- I don't know what this does exactly */
 		saa7146_write(dev, GPIO_CTRL, 0x00404050);
 		/* set the 7111 gpio register -- I don't know what this does exactly */
-		mxb->saa7111a->driver->command(mxb->saa7111a,DECODER_SET_GPIO, &one);
+		mxb->saa7111a->driver->command(mxb->saa7111a, DECODER_SET_GPIO, &one);
 		mxb->tuner->driver->command(mxb->tuner, VIDIOC_S_STD, &std);
 	}
 	return 0;

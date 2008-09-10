@@ -995,6 +995,9 @@ struct ubifs_mount_opts {
  * @max_idx_node_sz: maximum indexing node aligned on 8-bytes boundary
  * @max_inode_sz: maximum possible inode size in bytes
  * @max_znode_sz: size of znode in bytes
+ *
+ * @leb_overhead: how many bytes are wasted in an LEB when it is filled with
+ *                data nodes of maximum size - used in free space reporting
  * @dead_wm: LEB dead space watermark
  * @dark_wm: LEB dark space watermark
  * @block_cnt: count of 4KiB blocks on the FS
@@ -1028,6 +1031,8 @@ struct ubifs_mount_opts {
  * @sbuf: a buffer of LEB size used by GC and replay for scanning
  * @idx_gc: list of index LEBs that have been garbage collected
  * @idx_gc_cnt: number of elements on the idx_gc list
+ * @gc_seq: incremented for every non-index LEB garbage collected
+ * @gced_lnum: last non-index LEB that was garbage collected
  *
  * @infos_list: links all 'ubifs_info' objects
  * @umount_mutex: serializes shrinker and un-mount
@@ -1224,6 +1229,8 @@ struct ubifs_info {
 	int max_idx_node_sz;
 	long long max_inode_sz;
 	int max_znode_sz;
+
+	int leb_overhead;
 	int dead_wm;
 	int dark_wm;
 	int block_cnt;
@@ -1257,6 +1264,8 @@ struct ubifs_info {
 	void *sbuf;
 	struct list_head idx_gc;
 	int idx_gc_cnt;
+	volatile int gc_seq;
+	volatile int gced_lnum;
 
 	struct list_head infos_list;
 	struct mutex umount_mutex;
@@ -1434,9 +1443,10 @@ void ubifs_release_ino_dirty(struct ubifs_info *c, struct inode *inode,
 				struct ubifs_budget_req *req);
 void ubifs_cancel_ino_op(struct ubifs_info *c, struct inode *inode,
 			 struct ubifs_budget_req *req);
-long long ubifs_budg_get_free_space(struct ubifs_info *c);
+long long ubifs_get_free_space(struct ubifs_info *c);
 int ubifs_calc_min_idx_lebs(struct ubifs_info *c);
 void ubifs_convert_page_budget(struct ubifs_info *c);
+long long ubifs_reported_space(const struct ubifs_info *c, uint64_t free);
 long long ubifs_calc_available(const struct ubifs_info *c, int min_idx_lebs);
 
 /* find.c */
@@ -1451,8 +1461,6 @@ int ubifs_save_dirty_idx_lnums(struct ubifs_info *c);
 /* tnc.c */
 int ubifs_lookup_level0(struct ubifs_info *c, const union ubifs_key *key,
 			struct ubifs_znode **zn, int *n);
-int ubifs_tnc_lookup(struct ubifs_info *c, const union ubifs_key *key,
-		     void *node);
 int ubifs_tnc_lookup_nm(struct ubifs_info *c, const union ubifs_key *key,
 			void *node, const struct qstr *nm);
 int ubifs_tnc_locate(struct ubifs_info *c, const union ubifs_key *key,

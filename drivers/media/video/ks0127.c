@@ -679,26 +679,27 @@ static int ks0127_command(struct i2c_client *client,
 
 	case DECODER_ENABLE_OUTPUT:
 	{
+		int enable;
 
-		int *iarg = arg;
-		int enable = (*iarg != 0);
-			if (enable) {
-				dprintk("ks0127: command "
+		iarg = arg;
+		enable = (*iarg != 0);
+		if (enable) {
+			dprintk("ks0127: command "
 					"DECODER_ENABLE_OUTPUT on "
 					"(%d)\n", enable);
-				/* All output pins on */
-				ks0127_and_or(ks, KS_OFMTA, 0xcf, 0x30);
-				/* Obey the OEN pin */
-				ks0127_and_or(ks, KS_CDEM, 0x7f, 0x00);
-			} else {
-				dprintk("ks0127: command "
+			/* All output pins on */
+			ks0127_and_or(ks, KS_OFMTA, 0xcf, 0x30);
+			/* Obey the OEN pin */
+			ks0127_and_or(ks, KS_CDEM, 0x7f, 0x00);
+		} else {
+			dprintk("ks0127: command "
 					"DECODER_ENABLE_OUTPUT off "
 					"(%d)\n", enable);
-				/* Video output pins off */
-				ks0127_and_or(ks, KS_OFMTA, 0xcf, 0x00);
-				/* Ignore the OEN pin */
-				ks0127_and_or(ks, KS_CDEM, 0x7f, 0x80);
-			}
+			/* Video output pins off */
+			ks0127_and_or(ks, KS_OFMTA, 0xcf, 0x00);
+			/* Ignore the OEN pin */
+			ks0127_and_or(ks, KS_CDEM, 0x7f, 0x80);
+		}
 	}
 		break;
 

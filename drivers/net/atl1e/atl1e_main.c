@@ -2232,10 +2232,11 @@ static int atl1e_resume(struct pci_dev *pdev)
 
 	AT_WRITE_REG(&adapter->hw, REG_WOL_CTRL, 0);
 
-	if (netif_running(netdev))
+	if (netif_running(netdev)) {
 		err = atl1e_request_irq(adapter);
 		if (err)
 			return err;
+	}
 
 	atl1e_reset_hw(&adapter->hw);
 

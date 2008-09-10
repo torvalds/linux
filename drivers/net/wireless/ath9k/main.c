@@ -206,7 +206,8 @@ static int ath_key_config(struct ath_softc *sc,
 	if (!ret)
 		return -EIO;
 
-	sc->sc_keytype = hk.kv_type;
+	if (mac)
+		sc->sc_keytype = hk.kv_type;
 	return 0;
 }
 
@@ -756,7 +757,8 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 			key->hw_key_idx = key->keyidx;
 			/* push IV and Michael MIC generation to stack */
 			key->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-			key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
+			if (key->alg == ALG_TKIP)
+				key->flags |= IEEE80211_KEY_FLAG_GENERATE_MMIC;
 		}
 		break;
 	case DISABLE_KEY:
@@ -1065,8 +1067,16 @@ void ath_tx_complete(struct ath_softc *sc, struct sk_buff *skb,
 		tx_info->flags |= IEEE80211_TX_STAT_AMPDU_NO_BACK;
 		tx_status->flags &= ~ATH_TX_BAR;
 	}
-	if (tx_status->flags)
-		tx_info->status.excessive_retries = 1;
+
+	if (tx_status->flags & (ATH_TX_ERROR | ATH_TX_XRETRY)) {
+		if (!(tx_info->flags & IEEE80211_TX_CTL_NO_ACK)) {
+			/* Frame was not ACKed, but an ACK was expected */
+			tx_info->status.excessive_retries = 1;
+		}
+	} else {
+		/* Frame was ACKed */
+		tx_info->flags |= IEEE80211_TX_STAT_ACK;
+	}
 
 	tx_info->status.retry_count = tx_status->retries;
 

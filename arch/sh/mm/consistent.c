@@ -101,7 +101,7 @@ static int __init memchunk_setup(char *str)
 }
 __setup("memchunk.", memchunk_setup);
 
-static void memchunk_cmdline_override(char *name, unsigned long *sizep)
+static void __init memchunk_cmdline_override(char *name, unsigned long *sizep)
 {
 	char *p = boot_command_line;
 	int k = strlen(name);
@@ -118,8 +118,8 @@ static void memchunk_cmdline_override(char *name, unsigned long *sizep)
 	}
 }
 
-int platform_resource_setup_memory(struct platform_device *pdev,
-				   char *name, unsigned long memsize)
+int __init platform_resource_setup_memory(struct platform_device *pdev,
+					  char *name, unsigned long memsize)
 {
 	struct resource *r;
 	dma_addr_t dma_handle;
