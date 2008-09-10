@@ -2448,6 +2448,13 @@ L:	kvm@vger.kernel.org
 W:	http://kvm.qumranet.com
 S:	Supported
 
+KERNEL VIRTUAL MACHINE (KVM) FOR AMD-V
+P:	Joerg Roedel
+M:	joerg.roedel@amd.com
+L:	kvm@vger.kernel.org
+W:	http://kvm.qumranet.com
+S:	Supported
+
 KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
 P:	Hollis Blanchard
 M:	hollisb@us.ibm.com
