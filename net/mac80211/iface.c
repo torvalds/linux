@@ -83,8 +83,6 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 				  enum ieee80211_if_types type)
 {
-	struct ieee80211_if_sta *ifsta;
-
 	/* clear type-dependent union */
 	memset(&sdata->u, 0, sizeof(sdata->u));
 
@@ -101,20 +99,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
-		ifsta = &sdata->u.sta;
-		INIT_WORK(&ifsta->work, ieee80211_sta_work);
-		setup_timer(&ifsta->timer, ieee80211_sta_timer,
-			    (unsigned long) sdata);
-		skb_queue_head_init(&ifsta->skb_queue);
-
-		ifsta->capab = WLAN_CAPABILITY_ESS;
-		ifsta->auth_algs = IEEE80211_AUTH_ALG_OPEN |
-			IEEE80211_AUTH_ALG_SHARED_KEY;
-		ifsta->flags |= IEEE80211_STA_CREATE_IBSS |
-			IEEE80211_STA_AUTO_BSSID_SEL |
-			IEEE80211_STA_AUTO_CHANNEL_SEL;
-		if (ieee80211_num_regular_queues(&sdata->local->hw) >= 4)
-			ifsta->flags |= IEEE80211_STA_WMM_ENABLED;
+		ieee80211_sta_setup_sdata(sdata);
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif))

@@ -882,30 +882,43 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 }
 
 
-/* ieee80211.c */
 int ieee80211_hw_config(struct ieee80211_local *local);
 int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed);
 void ieee80211_tx_set_protected(struct ieee80211_tx_data *tx);
 u32 ieee80211_handle_ht(struct ieee80211_local *local, int enable_ht,
 			struct ieee80211_ht_info *req_ht_cap,
 			struct ieee80211_ht_bss_info *req_bss_cap);
+void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
+				      u32 changed);
 
-/* ieee80211_ioctl.c */
+/* wireless extensions */
 extern const struct iw_handler_def ieee80211_iw_handler_def;
 int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freq);
 
-/* ieee80211_sta.c */
-void ieee80211_sta_timer(unsigned long data);
-void ieee80211_sta_work(struct work_struct *work);
+/* STA/IBSS code */
+void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
 void ieee80211_sta_scan_work(struct work_struct *work);
 void ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 			   struct ieee80211_rx_status *rx_status);
 int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len);
 int ieee80211_sta_get_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t *len);
 int ieee80211_sta_set_bssid(struct ieee80211_sub_if_data *sdata, u8 *bssid);
-int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t ssid_len);
 void ieee80211_sta_req_auth(struct ieee80211_sub_if_data *sdata,
 			    struct ieee80211_if_sta *ifsta);
+struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
+					struct sk_buff *skb, u8 *bssid,
+					u8 *addr, u64 supp_rates);
+int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason);
+int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);
+u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
+u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
+			    struct ieee802_11_elems *elems,
+			    enum ieee80211_band band);
+void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
+			      u8 *ssid, size_t ssid_len);
+
+/* scan/BSS handling */
+int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t ssid_len);
 int ieee80211_sta_scan_results(struct ieee80211_local *local,
 			       struct iw_request_info *info,
 			       char *buf, size_t len);
@@ -915,21 +928,7 @@ ieee80211_rx_result ieee80211_sta_rx_scan(
 void ieee80211_rx_bss_list_init(struct ieee80211_local *local);
 void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local);
 int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata, char *ie, size_t len);
-struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
-					struct sk_buff *skb, u8 *bssid,
-					u8 *addr, u64 supp_rates);
-int ieee80211_sta_deauthenticate(struct ieee80211_sub_if_data *sdata, u16 reason);
-int ieee80211_sta_disassociate(struct ieee80211_sub_if_data *sdata, u16 reason);
-void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
-				      u32 changed);
-u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
-u64 ieee80211_sta_get_rates(struct ieee80211_local *local,
-			    struct ieee802_11_elems *elems,
-			    enum ieee80211_band band);
-void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
-			      u8 *ssid, size_t ssid_len);
-void ieee802_11_parse_elems(u8 *start, size_t len,
-			    struct ieee802_11_elems *elems);
+
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
 int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 			     u8 *ssid, size_t ssid_len);
@@ -1007,6 +1006,8 @@ void mac80211_ev_michael_mic_failure(struct ieee80211_sub_if_data *sdata, int ke
 void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata);
 void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 		      int encrypt);
+void ieee802_11_parse_elems(u8 *start, size_t len,
+			    struct ieee802_11_elems *elems);
 
 #ifdef CONFIG_MAC80211_NOINLINE
 #define debug_noinline noinline
