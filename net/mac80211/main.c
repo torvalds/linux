@@ -156,6 +156,9 @@ int ieee80211_if_config(struct ieee80211_sub_if_data *sdata, u32 changed)
 	if (WARN_ON(!netif_running(sdata->dev)))
 		return 0;
 
+	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
+		return -EINVAL;
+
 	if (!local->ops->config_interface)
 		return 0;
 
@@ -320,6 +323,9 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 				      u32 changed)
 {
 	struct ieee80211_local *local = sdata->local;
+
+	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
+		return;
 
 	if (!changed)
 		return;
