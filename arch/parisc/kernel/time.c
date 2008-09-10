@@ -23,6 +23,7 @@
 #include <linux/smp.h>
 #include <linux/profile.h>
 #include <linux/clocksource.h>
+#include <linux/platform_device.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
@@ -215,6 +216,24 @@ void __init start_cpu_itimer(void)
 	cpu_data[cpu].it_value = next_tick;
 }
 
+struct platform_device rtc_parisc_dev = {
+	.name = "rtc-parisc",
+	.id = -1,
+};
+
+static int __init rtc_init(void)
+{
+	int ret;
+
+	ret = platform_device_register(&rtc_parisc_dev);
+	if (ret < 0)
+		printk(KERN_ERR "unable to register rtc device...\n");
+
+	/* not necessarily an error */
+	return 0;
+}
+module_init(rtc_init);
+
 void __init time_init(void)
 {
 	static struct pdc_tod tod_data;
@@ -245,4 +264,3 @@ void __init time_init(void)
 		xtime.tv_nsec = 0;
 	}
 }
-
