@@ -651,7 +651,7 @@ int omap_mcbsp_xmit_buffer(unsigned int id, dma_addr_t buffer,
 	omap_set_dma_dest_params(mcbsp[id].dma_tx_lch,
 				 src_port,
 				 OMAP_DMA_AMODE_CONSTANT,
-				 mcbsp[id].io_base + OMAP_MCBSP_REG_DXR1,
+				 mcbsp[id].phys_base + OMAP_MCBSP_REG_DXR1,
 				 0, 0);
 
 	omap_set_dma_src_params(mcbsp[id].dma_tx_lch,
@@ -712,7 +712,7 @@ int omap_mcbsp_recv_buffer(unsigned int id, dma_addr_t buffer,
 	omap_set_dma_src_params(mcbsp[id].dma_rx_lch,
 				src_port,
 				OMAP_DMA_AMODE_CONSTANT,
-				mcbsp[id].io_base + OMAP_MCBSP_REG_DRR1,
+				mcbsp[id].phys_base + OMAP_MCBSP_REG_DRR1,
 				0, 0);
 
 	omap_set_dma_dest_params(mcbsp[id].dma_rx_lch,
@@ -830,6 +830,7 @@ static int __init omap_mcbsp_probe(struct platform_device *pdev)
 	mcbsp[id].dma_tx_lch = -1;
 	mcbsp[id].dma_rx_lch = -1;
 
+	mcbsp[id].phys_base = pdata->phys_base;
 	mcbsp[id].io_base = pdata->virt_base;
 	/* Default I/O is IRQ based */
 	mcbsp[id].io_type = OMAP_MCBSP_IRQ_IO;
