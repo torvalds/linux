@@ -29,9 +29,6 @@
 #include "key.h"
 #include "sta_info.h"
 
-/* ieee80211.o internal definitions, etc. These are not included into
- * low-level drivers. */
-
 struct ieee80211_local;
 
 /* Maximum number of broadcast/multicast frames to buffer when some of the
@@ -293,13 +290,13 @@ struct mesh_config {
 #define IEEE80211_STA_AUTO_BSSID_SEL	BIT(11)
 #define IEEE80211_STA_AUTO_CHANNEL_SEL	BIT(12)
 #define IEEE80211_STA_PRIVACY_INVOKED	BIT(13)
-/* flags for  MLME request*/
+/* flags for MLME request */
 #define IEEE80211_STA_REQ_SCAN 0
 #define IEEE80211_STA_REQ_DIRECT_PROBE 1
 #define IEEE80211_STA_REQ_AUTH 2
 #define IEEE80211_STA_REQ_RUN  3
 
-/* flags used for setting mlme state */
+/* STA/IBSS MLME states */
 enum ieee80211_sta_mlme_state {
 	IEEE80211_STA_MLME_DISABLED,
 	IEEE80211_STA_MLME_DIRECT_PROBE,
