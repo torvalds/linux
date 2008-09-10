@@ -50,6 +50,7 @@
 #include <asm/mach/sharpsl_param.h>
 
 #include "generic.h"
+#include "clock.h"
 #include "devices.h"
 
 static unsigned long tosa_pin_config[] = {
@@ -791,6 +792,8 @@ static void __init tosa_init(void)
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
 	pxa_set_i2c_info(NULL);
 	platform_scoop_config = &tosa_pcmcia_config;
+
+	clk_add_alias("CLK_CK3P6MI", &tc6393xb_device.dev, "GPIO11_CLK", NULL);
 
 	platform_add_devices(devices, ARRAY_SIZE(devices));
 }
