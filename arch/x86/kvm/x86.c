@@ -3959,6 +3959,12 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
 	kvm_set_segment(vcpu, &sregs->tr, VCPU_SREG_TR);
 	kvm_set_segment(vcpu, &sregs->ldt, VCPU_SREG_LDTR);
 
+	/* Older userspace won't unhalt the vcpu on reset. */
+	if (vcpu->vcpu_id == 0 && kvm_rip_read(vcpu) == 0xfff0 &&
+	    sregs->cs.selector == 0xf000 && sregs->cs.base == 0xffff0000 &&
+	    !(vcpu->arch.cr0 & X86_CR0_PE))
+		vcpu->arch.mp_state = KVM_MP_STATE_RUNNABLE;
+
 	vcpu_put(vcpu);
 
 	return 0;
