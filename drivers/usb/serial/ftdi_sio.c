@@ -2459,5 +2459,5 @@ module_param(vendor, ushort, 0);
 MODULE_PARM_DESC(vendor, "User specified vendor ID (default="
 		__MODULE_STRING(FTDI_VID)")");
 module_param(product, ushort, 0);
-MODULE_PARM_DESC(vendor, "User specified product ID");
+MODULE_PARM_DESC(product, "User specified product ID");
 
