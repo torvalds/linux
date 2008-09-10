@@ -120,9 +120,11 @@ extern struct mutex xfrm_cfg_mutex;
 /* Full description of state of transformer. */
 struct xfrm_state
 {
-	/* Note: bydst is re-used during gc */
 	struct list_head	all;
-	struct hlist_node	bydst;
+	union {
+		struct list_head	gclist;
+		struct hlist_node	bydst;
+	};
 	struct hlist_node	bysrc;
 	struct hlist_node	byspi;
 
@@ -1286,16 +1288,9 @@ static inline void xfrm_state_walk_init(struct xfrm_state_walk *walk, u8 proto)
 	walk->count = 0;
 }
 
-static inline void xfrm_state_walk_done(struct xfrm_state_walk *walk)
-{
-	if (walk->state != NULL) {
-		xfrm_state_put(walk->state);
-		walk->state = NULL;
-	}
-}
-
 extern int xfrm_state_walk(struct xfrm_state_walk *walk,
 			   int (*func)(struct xfrm_state *, int, void*), void *);
+extern void xfrm_state_walk_done(struct xfrm_state_walk *walk);
 extern struct xfrm_state *xfrm_state_alloc(void);
 extern struct xfrm_state *xfrm_state_find(xfrm_address_t *daddr, xfrm_address_t *saddr, 
 					  struct flowi *fl, struct xfrm_tmpl *tmpl,
