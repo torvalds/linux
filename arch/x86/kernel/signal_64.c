@@ -338,39 +338,40 @@ handle_signal(unsigned long sig, siginfo_t *info, struct k_sigaction *ka,
 
 	ret = setup_rt_frame(sig, ka, info, oldset, regs);
 
-	if (ret == 0) {
-		/*
-		 * This has nothing to do with segment registers,
-		 * despite the name.  This magic affects uaccess.h
-		 * macros' behavior.  Reset it to the normal setting.
-		 */
-		set_fs(USER_DS);
+	if (ret)
+		return ret;
 
-		/*
-		 * Clear the direction flag as per the ABI for function entry.
-		 */
-		regs->flags &= ~X86_EFLAGS_DF;
+	/*
+	 * This has nothing to do with segment registers,
+	 * despite the name.  This magic affects uaccess.h
+	 * macros' behavior.  Reset it to the normal setting.
+	 */
+	set_fs(USER_DS);
 
-		/*
-		 * Clear TF when entering the signal handler, but
-		 * notify any tracer that was single-stepping it.
-		 * The tracer may want to single-step inside the
-		 * handler too.
-		 */
-		regs->flags &= ~X86_EFLAGS_TF;
+	/*
+	 * Clear the direction flag as per the ABI for function entry.
+	 */
+	regs->flags &= ~X86_EFLAGS_DF;
 
-		spin_lock_irq(&current->sighand->siglock);
-		sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
-		if (!(ka->sa.sa_flags & SA_NODEFER))
-			sigaddset(&current->blocked, sig);
-		recalc_sigpending();
-		spin_unlock_irq(&current->sighand->siglock);
+	/*
+	 * Clear TF when entering the signal handler, but
+	 * notify any tracer that was single-stepping it.
+	 * The tracer may want to single-step inside the
+	 * handler too.
+	 */
+	regs->flags &= ~X86_EFLAGS_TF;
 
-		tracehook_signal_handler(sig, info, ka, regs,
-					 test_thread_flag(TIF_SINGLESTEP));
-	}
+	spin_lock_irq(&current->sighand->siglock);
+	sigorsets(&current->blocked, &current->blocked, &ka->sa.sa_mask);
+	if (!(ka->sa.sa_flags & SA_NODEFER))
+		sigaddset(&current->blocked, sig);
+	recalc_sigpending();
+	spin_unlock_irq(&current->sighand->siglock);
 
-	return ret;
+	tracehook_signal_handler(sig, info, ka, regs,
+				 test_thread_flag(TIF_SINGLESTEP));
+
+	return 0;
 }
 
 #define NR_restart_syscall	\
