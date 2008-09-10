@@ -14,12 +14,29 @@
 
 /*
  * OMAP2/3-common clockdomains
+ *
+ * Even though the 2420 has a single PRCM module from the
+ * interconnect's perspective, internally it does appear to have
+ * separate PRM and CM clockdomains.  The usual test case is
+ * sys_clkout/sys_clkout2.
  */
 
 /* This is an implicit clockdomain - it is never defined as such in TRM */
 static struct clockdomain wkup_clkdm = {
 	.name		= "wkup_clkdm",
 	.pwrdm		= { .name = "wkup_pwrdm" },
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
+};
+
+static struct clockdomain prm_clkdm = {
+	.name		= "prm_clkdm",
+	.pwrdm		= { .name = "wkup_pwrdm" },
+	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
+};
+
+static struct clockdomain cm_clkdm = {
+	.name		= "cm_clkdm",
+	.pwrdm		= { .name = "core_pwrdm" },
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP24XX | CHIP_IS_OMAP3430),
 };
 
@@ -266,6 +283,8 @@ static struct clkdm_pwrdm_autodep clkdm_pwrdm_autodeps[] = {
 static struct clockdomain *clockdomains_omap[] = {
 
 	&wkup_clkdm,
+	&cm_clkdm,
+	&prm_clkdm,
 
 #ifdef CONFIG_ARCH_OMAP2420
 	&mpu_2420_clkdm,

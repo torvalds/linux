@@ -50,9 +50,9 @@
 
 /*
  * Maximum number of clockdomains that can be associated with a powerdomain.
- * CORE powerdomain is probably the worst case.
+ * CORE powerdomain on OMAP3 is the worst case
  */
-#define PWRDM_MAX_CLKDMS	3
+#define PWRDM_MAX_CLKDMS	4
 
 /* XXX A completely arbitrary number. What is reasonable here? */
 #define PWRDM_TRANSITION_BAILOUT 100000
