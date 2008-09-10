@@ -598,7 +598,7 @@ static int ieee80211_stop(struct net_device *dev)
 			 * the scan_sdata is NULL already don't send out a
 			 * scan event to userspace -- the scan is incomplete.
 			 */
-			if (local->sta_sw_scanning)
+			if (local->sw_scanning)
 				ieee80211_scan_completed(&local->hw);
 		}
 
@@ -732,7 +732,7 @@ int ieee80211_hw_config(struct ieee80211_local *local)
 	struct ieee80211_channel *chan;
 	int ret = 0;
 
-	if (local->sta_sw_scanning)
+	if (local->sw_scanning)
 		chan = local->scan_channel;
 	else
 		chan = local->oper_channel;
@@ -1290,7 +1290,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 
 	spin_lock_init(&local->key_lock);
 
-	INIT_DELAYED_WORK(&local->scan_work, ieee80211_sta_scan_work);
+	INIT_DELAYED_WORK(&local->scan_work, ieee80211_scan_work);
 
 	sta_info_init(local);
 

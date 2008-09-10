@@ -630,7 +630,7 @@ int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
 		}
 		local->oper_channel = chan;
 
-		if (local->sta_sw_scanning || local->sta_hw_scanning)
+		if (local->sw_scanning || local->hw_scanning)
 			ret = 0;
 		else
 			ret = ieee80211_hw_config(local);

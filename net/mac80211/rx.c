@@ -403,12 +403,12 @@ ieee80211_rx_h_passive_scan(struct ieee80211_rx_data *rx)
 	struct ieee80211_local *local = rx->local;
 	struct sk_buff *skb = rx->skb;
 
-	if (unlikely(local->sta_hw_scanning))
-		return ieee80211_sta_rx_scan(rx->sdata, skb, rx->status);
+	if (unlikely(local->hw_scanning))
+		return ieee80211_scan_rx(rx->sdata, skb, rx->status);
 
-	if (unlikely(local->sta_sw_scanning)) {
+	if (unlikely(local->sw_scanning)) {
 		/* drop all the other packets during a software scan anyway */
-		if (ieee80211_sta_rx_scan(rx->sdata, skb, rx->status)
+		if (ieee80211_scan_rx(rx->sdata, skb, rx->status)
 		    != RX_QUEUED)
 			dev_kfree_skb(skb);
 		return RX_QUEUED;
@@ -1918,7 +1918,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 		return;
 	}
 
-	if (unlikely(local->sta_sw_scanning || local->sta_hw_scanning))
+	if (unlikely(local->sw_scanning || local->hw_scanning))
 		rx.flags |= IEEE80211_RX_IN_SCAN;
 
 	ieee80211_parse_qos(&rx);

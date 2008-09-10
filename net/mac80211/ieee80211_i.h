@@ -71,9 +71,9 @@ struct ieee80211_fragment_entry {
 };
 
 
-struct ieee80211_sta_bss {
+struct ieee80211_bss {
 	struct list_head list;
-	struct ieee80211_sta_bss *hnext;
+	struct ieee80211_bss *hnext;
 	size_t ssid_len;
 
 	atomic_t users;
@@ -112,7 +112,7 @@ struct ieee80211_sta_bss {
 	u8 erp_value;
 };
 
-static inline u8 *bss_mesh_cfg(struct ieee80211_sta_bss *bss)
+static inline u8 *bss_mesh_cfg(struct ieee80211_bss *bss)
 {
 #ifdef CONFIG_MAC80211_MESH
 	return bss->mesh_cfg;
@@ -120,7 +120,7 @@ static inline u8 *bss_mesh_cfg(struct ieee80211_sta_bss *bss)
 	return NULL;
 }
 
-static inline u8 *bss_mesh_id(struct ieee80211_sta_bss *bss)
+static inline u8 *bss_mesh_id(struct ieee80211_bss *bss)
 {
 #ifdef CONFIG_MAC80211_MESH
 	return bss->mesh_id;
@@ -128,7 +128,7 @@ static inline u8 *bss_mesh_id(struct ieee80211_sta_bss *bss)
 	return NULL;
 }
 
-static inline u8 bss_mesh_id_len(struct ieee80211_sta_bss *bss)
+static inline u8 bss_mesh_id_len(struct ieee80211_bss *bss)
 {
 #ifdef CONFIG_MAC80211_MESH
 	return bss->mesh_id_len;
@@ -658,8 +658,8 @@ struct ieee80211_local {
 	spinlock_t key_lock;
 
 
-	bool sta_sw_scanning;
-	bool sta_hw_scanning;
+	/* Scanning and BSS list */
+	bool sw_scanning, hw_scanning;
 	int scan_channel_idx;
 	enum ieee80211_band scan_band;
 
@@ -670,9 +670,9 @@ struct ieee80211_local {
 	struct ieee80211_channel *oper_channel, *scan_channel;
 	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
 	size_t scan_ssid_len;
-	struct list_head sta_bss_list;
-	struct ieee80211_sta_bss *sta_bss_hash[STA_HASH_SIZE];
-	spinlock_t sta_bss_lock;
+	struct list_head bss_list;
+	struct ieee80211_bss *bss_hash[STA_HASH_SIZE];
+	spinlock_t bss_lock;
 
 	/* SNMP counters */
 	/* dot11CountersTable */
@@ -905,7 +905,7 @@ extern const struct iw_handler_def ieee80211_iw_handler_def;
 
 /* STA/IBSS code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
-void ieee80211_sta_scan_work(struct work_struct *work);
+void ieee80211_scan_work(struct work_struct *work);
 void ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 			   struct ieee80211_rx_status *rx_status);
 int ieee80211_sta_set_ssid(struct ieee80211_sub_if_data *sdata, char *ssid, size_t len);
@@ -926,35 +926,38 @@ void ieee80211_send_probe_req(struct ieee80211_sub_if_data *sdata, u8 *dst,
 			      u8 *ssid, size_t ssid_len);
 
 /* scan/BSS handling */
-int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t ssid_len);
-int ieee80211_sta_scan_results(struct ieee80211_local *local,
-			       struct iw_request_info *info,
-			       char *buf, size_t len);
-ieee80211_rx_result ieee80211_sta_rx_scan(
-	struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-	struct ieee80211_rx_status *rx_status);
+int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
+			   u8 *ssid, size_t ssid_len);
+int ieee80211_scan_results(struct ieee80211_local *local,
+			   struct iw_request_info *info,
+			   char *buf, size_t len);
+ieee80211_rx_result
+ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata,
+		  struct sk_buff *skb,
+		  struct ieee80211_rx_status *rx_status);
 void ieee80211_rx_bss_list_init(struct ieee80211_local *local);
 void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local);
-int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata, char *ie, size_t len);
+int ieee80211_sta_set_extra_ie(struct ieee80211_sub_if_data *sdata,
+			       char *ie, size_t len);
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local);
-int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
-			     u8 *ssid, size_t ssid_len);
-struct ieee80211_sta_bss *
+int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
+			 u8 *ssid, size_t ssid_len);
+struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
 			  struct ieee80211_mgmt *mgmt,
 			  size_t len,
 			  struct ieee802_11_elems *elems,
 			  int freq, bool beacon);
-struct ieee80211_sta_bss *
+struct ieee80211_bss *
 ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
-struct ieee80211_sta_bss *
+struct ieee80211_bss *
 ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
-			  struct ieee80211_sta_bss *bss);
+			  struct ieee80211_bss *bss);
 
 /* interface handling */
 void ieee80211_if_setup(struct net_device *dev);

@@ -566,7 +566,7 @@ static void ieee80211_mesh_work(struct work_struct *work)
 	if (!netif_running(sdata->dev))
 		return;
 
-	if (local->sta_sw_scanning || local->sta_hw_scanning)
+	if (local->sw_scanning || local->hw_scanning)
 		return;
 
 	while ((skb = skb_dequeue(&ifmsh->skb_queue)))

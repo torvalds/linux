@@ -222,7 +222,7 @@ ieee80211_tx_h_check_assoc(struct ieee80211_tx_data *tx)
 	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED))
 		return TX_CONTINUE;
 
-	if (unlikely(tx->local->sta_sw_scanning) &&
+	if (unlikely(tx->local->sw_scanning) &&
 	    !ieee80211_is_probe_req(hdr->frame_control))
 		return TX_DROP;
 

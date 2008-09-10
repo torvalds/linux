@@ -552,7 +552,7 @@ static int ieee80211_ioctl_siwscan(struct net_device *dev,
 		ssid_len = req->essid_len;
 	}
 
-	return ieee80211_sta_req_scan(sdata, ssid, ssid_len);
+	return ieee80211_request_scan(sdata, ssid, ssid_len);
 }
 
 
@@ -566,10 +566,10 @@ static int ieee80211_ioctl_giwscan(struct net_device *dev,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	if (local->sta_sw_scanning || local->sta_hw_scanning)
+	if (local->sw_scanning || local->hw_scanning)
 		return -EAGAIN;
 
-	res = ieee80211_sta_scan_results(local, info, extra, data->length);
+	res = ieee80211_scan_results(local, info, extra, data->length);
 	if (res >= 0) {
 		data->length = res;
 		return 0;
