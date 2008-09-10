@@ -271,7 +271,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 		break;
 
-	case CMD_RET(CMD_802_11_RESET):
 	case CMD_RET(CMD_802_11_AUTHENTICATE):
 	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;

@@ -439,11 +439,10 @@ static int if_usb_reset_device(struct if_usb_card *cardp)
 	*(__le32 *)cardp->ep_out_buf = cpu_to_le32(CMD_TYPE_REQUEST);
 
 	cmd->command = cpu_to_le16(CMD_802_11_RESET);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_reset) + S_DS_GEN);
+	cmd->size = cpu_to_le16(sizeof(struct cmd_header));
 	cmd->result = cpu_to_le16(0);
 	cmd->seqnum = cpu_to_le16(0x5a5a);
-	cmd->params.reset.action = cpu_to_le16(CMD_ACT_HALT);
-	usb_tx_block(cardp, cardp->ep_out_buf, 4 + S_DS_GEN + sizeof(struct cmd_ds_802_11_reset));
+	usb_tx_block(cardp, cardp->ep_out_buf, 4 + sizeof(struct cmd_header));
 
 	msleep(100);
 	ret = usb_reset_device(cardp->udev);

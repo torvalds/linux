@@ -480,20 +480,6 @@ int lbs_cmd_802_11_key_material(struct lbs_private *priv, uint16_t cmd_action,
 	return ret;
 }
 
-static int lbs_cmd_802_11_reset(struct cmd_ds_command *cmd, int cmd_action)
-{
-	struct cmd_ds_802_11_reset *reset = &cmd->params.reset;
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	cmd->command = cpu_to_le16(CMD_802_11_RESET);
-	cmd->size = cpu_to_le16(sizeof(struct cmd_ds_802_11_reset) + S_DS_GEN);
-	reset->action = cpu_to_le16(cmd_action);
-
-	lbs_deb_leave(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_cmd_802_11_snmp_mib(struct lbs_private *priv,
 				    struct cmd_ds_command *cmd,
 				    int cmd_action,
@@ -1417,10 +1403,6 @@ int lbs_prepare_and_send_command(struct lbs_private *priv,
 	case CMD_802_11_ASSOCIATE:
 	case CMD_802_11_REASSOCIATE:
 		ret = lbs_cmd_80211_associate(priv, cmdptr, pdata_buf);
-		break;
-
-	case CMD_802_11_RESET:
-		ret = lbs_cmd_802_11_reset(cmdptr, cmd_action);
 		break;
 
 	case CMD_802_11_AUTHENTICATE:
