@@ -33,6 +33,8 @@ static inline int __movsl_is_ok(unsigned long a1, unsigned long a2, unsigned lon
 do {									   \
 	int __d0, __d1, __d2;						   \
 	might_sleep();							   \
+	if (current->mm)						   \
+		might_lock_read(&current->mm->mmap_sem);		   \
 	__asm__ __volatile__(						   \
 		"	testl %1,%1\n"					   \
 		"	jz 2f\n"					   \
@@ -120,6 +122,8 @@ EXPORT_SYMBOL(strncpy_from_user);
 do {									\
 	int __d0;							\
 	might_sleep();							\
+	if (current->mm)						\
+		might_lock_read(&current->mm->mmap_sem);		\
 	__asm__ __volatile__(						\
 		"0:	rep; stosl\n"					\
 		"	movl %2,%0\n"					\
@@ -148,7 +152,6 @@ do {									\
 unsigned long
 clear_user(void __user *to, unsigned long n)
 {
-	might_sleep();
 	if (access_ok(VERIFY_WRITE, to, n))
 		__do_clear_user(to, n);
 	return n;
@@ -191,6 +194,8 @@ long strnlen_user(const char __user *s, long n)
 	unsigned long res, tmp;
 
 	might_sleep();
+	if (current->mm)
+		might_lock_read(&current->mm->mmap_sem);
 
 	__asm__ __volatile__(
 		"	testl %0, %0\n"

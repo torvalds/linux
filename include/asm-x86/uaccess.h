@@ -8,6 +8,8 @@
 #include <linux/thread_info.h>
 #include <linux/prefetch.h>
 #include <linux/string.h>
+#include <linux/lockdep.h>
+#include <linux/sched.h>
 #include <asm/asm.h>
 #include <asm/page.h>
 
@@ -157,6 +159,9 @@ extern int __get_user_bad(void);
 	int __ret_gu;							\
 	unsigned long __val_gu;						\
 	__chk_user_ptr(ptr);						\
+	might_sleep();							\
+	if (current->mm)						\
+		might_lock_read(&current->mm->mmap_sem);		\
 	switch (sizeof(*(ptr))) {					\
 	case 1:								\
 		__get_user_x(1, __ret_gu, __val_gu, ptr);		\
@@ -241,6 +246,9 @@ extern void __put_user_8(void);
 	int __ret_pu;						\
 	__typeof__(*(ptr)) __pu_val;				\
 	__chk_user_ptr(ptr);					\
+	might_sleep();						\
+	if (current->mm)					\
+		might_lock_read(&current->mm->mmap_sem);	\
 	__pu_val = x;						\
 	switch (sizeof(*(ptr))) {				\
 	case 1:							\
@@ -265,6 +273,9 @@ extern void __put_user_8(void);
 #define __put_user_size(x, ptr, size, retval, errret)			\
 do {									\
 	retval = 0;							\
+	might_sleep();							\
+	if (current->mm)						\
+		might_lock_read(&current->mm->mmap_sem);		\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
@@ -317,6 +328,9 @@ do {									\
 #define __get_user_size(x, ptr, size, retval, errret)			\
 do {									\
 	retval = 0;							\
+	might_sleep();							\
+	if (current->mm)						\
+		might_lock_read(&current->mm->mmap_sem);		\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
