@@ -672,6 +672,209 @@ fail:
 	ath_deinit_leds(sc);
 }
 
+#ifdef CONFIG_RFKILL
+/*******************/
+/*	Rfkill	   */
+/*******************/
+
+static void ath_radio_enable(struct ath_softc *sc)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	int status;
+
+	spin_lock_bh(&sc->sc_resetlock);
+	if (!ath9k_hw_reset(ah, ah->ah_curchan,
+			    sc->sc_ht_info.tx_chan_width,
+			    sc->sc_tx_chainmask,
+			    sc->sc_rx_chainmask,
+			    sc->sc_ht_extprotspacing,
+			    false, &status)) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"%s: unable to reset channel %u (%uMhz) "
+			"flags 0x%x hal status %u\n", __func__,
+			ath9k_hw_mhz2ieee(ah,
+					  ah->ah_curchan->channel,
+					  ah->ah_curchan->channelFlags),
+			ah->ah_curchan->channel,
+			ah->ah_curchan->channelFlags, status);
+	}
+	spin_unlock_bh(&sc->sc_resetlock);
+
+	ath_update_txpow(sc);
+	if (ath_startrecv(sc) != 0) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"%s: unable to restart recv logic\n", __func__);
+		return;
+	}
+
+	if (sc->sc_flags & SC_OP_BEACONS)
+		ath_beacon_config(sc, ATH_IF_ID_ANY);	/* restart beacons */
+
+	/* Re-Enable  interrupts */
+	ath9k_hw_set_interrupts(ah, sc->sc_imask);
+
+	/* Enable LED */
+	ath9k_hw_cfg_output(ah, ATH_LED_PIN,
+			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+	ath9k_hw_set_gpio(ah, ATH_LED_PIN, 0);
+
+	ieee80211_wake_queues(sc->hw);
+}
+
+static void ath_radio_disable(struct ath_softc *sc)
+{
+	struct ath_hal *ah = sc->sc_ah;
+	int status;
+
+
+	ieee80211_stop_queues(sc->hw);
+
+	/* Disable LED */
+	ath9k_hw_set_gpio(ah, ATH_LED_PIN, 1);
+	ath9k_hw_cfg_gpio_input(ah, ATH_LED_PIN);
+
+	/* Disable interrupts */
+	ath9k_hw_set_interrupts(ah, 0);
+
+	ath_draintxq(sc, false);	/* clear pending tx frames */
+	ath_stoprecv(sc);		/* turn off frame recv */
+	ath_flushrecv(sc);		/* flush recv queue */
+
+	spin_lock_bh(&sc->sc_resetlock);
+	if (!ath9k_hw_reset(ah, ah->ah_curchan,
+			    sc->sc_ht_info.tx_chan_width,
+			    sc->sc_tx_chainmask,
+			    sc->sc_rx_chainmask,
+			    sc->sc_ht_extprotspacing,
+			    false, &status)) {
+		DPRINTF(sc, ATH_DBG_FATAL,
+			"%s: unable to reset channel %u (%uMhz) "
+			"flags 0x%x hal status %u\n", __func__,
+			ath9k_hw_mhz2ieee(ah,
+				ah->ah_curchan->channel,
+				ah->ah_curchan->channelFlags),
+			ah->ah_curchan->channel,
+			ah->ah_curchan->channelFlags, status);
+	}
+	spin_unlock_bh(&sc->sc_resetlock);
+
+	ath9k_hw_phy_disable(ah);
+	ath9k_hw_setpower(ah, ATH9K_PM_FULL_SLEEP);
+}
+
+static bool ath_is_rfkill_set(struct ath_softc *sc)
+{
+	struct ath_hal *ah = sc->sc_ah;
+
+	return ath9k_hw_gpio_get(ah, ah->ah_rfkill_gpio) ==
+				  ah->ah_rfkill_polarity;
+}
+
+/* h/w rfkill poll function */
+static void ath_rfkill_poll(struct work_struct *work)
+{
+	struct ath_softc *sc = container_of(work, struct ath_softc,
+					    rf_kill.rfkill_poll.work);
+	bool radio_on;
+
+	if (sc->sc_flags & SC_OP_INVALID)
+		return;
+
+	radio_on = !ath_is_rfkill_set(sc);
+
+	/*
+	 * enable/disable radio only when there is a
+	 * state change in RF switch
+	 */
+	if (radio_on == !!(sc->sc_flags & SC_OP_RFKILL_HW_BLOCKED)) {
+		enum rfkill_state state;
+
+		if (sc->sc_flags & SC_OP_RFKILL_SW_BLOCKED) {
+			state = radio_on ? RFKILL_STATE_SOFT_BLOCKED
+				: RFKILL_STATE_HARD_BLOCKED;
+		} else if (radio_on) {
+			ath_radio_enable(sc);
+			state = RFKILL_STATE_UNBLOCKED;
+		} else {
+			ath_radio_disable(sc);
+			state = RFKILL_STATE_HARD_BLOCKED;
+		}
+
+		if (state == RFKILL_STATE_HARD_BLOCKED)
+			sc->sc_flags |= SC_OP_RFKILL_HW_BLOCKED;
+		else
+			sc->sc_flags &= ~SC_OP_RFKILL_HW_BLOCKED;
+
+		rfkill_force_state(sc->rf_kill.rfkill, state);
+	}
+
+	queue_delayed_work(sc->hw->workqueue, &sc->rf_kill.rfkill_poll,
+			   msecs_to_jiffies(ATH_RFKILL_POLL_INTERVAL));
+}
+
+/* s/w rfkill handler */
+static int ath_sw_toggle_radio(void *data, enum rfkill_state state)
+{
+	struct ath_softc *sc = data;
+
+	switch (state) {
+	case RFKILL_STATE_SOFT_BLOCKED:
+		if (!(sc->sc_flags & (SC_OP_RFKILL_HW_BLOCKED |
+		    SC_OP_RFKILL_SW_BLOCKED)))
+			ath_radio_disable(sc);
+		sc->sc_flags |= SC_OP_RFKILL_SW_BLOCKED;
+		return 0;
+	case RFKILL_STATE_UNBLOCKED:
+		if ((sc->sc_flags & SC_OP_RFKILL_SW_BLOCKED)) {
+			sc->sc_flags &= ~SC_OP_RFKILL_SW_BLOCKED;
+			if (sc->sc_flags & SC_OP_RFKILL_HW_BLOCKED) {
+				DPRINTF(sc, ATH_DBG_FATAL, "Can't turn on the"
+					"radio as it is disabled by h/w \n");
+				return -EPERM;
+			}
+			ath_radio_enable(sc);
+		}
+		return 0;
+	default:
+		return -EINVAL;
+	}
+}
+
+/* Init s/w rfkill */
+static int ath_init_sw_rfkill(struct ath_softc *sc)
+{
+	sc->rf_kill.rfkill = rfkill_allocate(wiphy_dev(sc->hw->wiphy),
+					     RFKILL_TYPE_WLAN);
+	if (!sc->rf_kill.rfkill) {
+		DPRINTF(sc, ATH_DBG_FATAL, "Failed to allocate rfkill\n");
+		return -ENOMEM;
+	}
+
+	snprintf(sc->rf_kill.rfkill_name, sizeof(sc->rf_kill.rfkill_name),
+		"ath9k-%s:rfkill", wiphy_name(sc->hw->wiphy));
+	sc->rf_kill.rfkill->name = sc->rf_kill.rfkill_name;
+	sc->rf_kill.rfkill->data = sc;
+	sc->rf_kill.rfkill->toggle_radio = ath_sw_toggle_radio;
+	sc->rf_kill.rfkill->state = RFKILL_STATE_UNBLOCKED;
+	sc->rf_kill.rfkill->user_claim_unsupported = 1;
+
+	return 0;
+}
+
+/* Deinitialize rfkill */
+static void ath_deinit_rfkill(struct ath_softc *sc)
+{
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
+
+	if (sc->sc_flags & SC_OP_RFKILL_REGISTERED) {
+		rfkill_unregister(sc->rf_kill.rfkill);
+		sc->sc_flags &= ~SC_OP_RFKILL_REGISTERED;
+		sc->rf_kill.rfkill = NULL;
+	}
+}
+#endif /* CONFIG_RFKILL */
+
 static int ath_detach(struct ath_softc *sc)
 {
 	struct ieee80211_hw *hw = sc->hw;
@@ -680,6 +883,11 @@ static int ath_detach(struct ath_softc *sc)
 
 	/* Deinit LED control */
 	ath_deinit_leds(sc);
+
+#ifdef CONFIG_RFKILL
+	/* deinit rfkill */
+	ath_deinit_rfkill(sc);
+#endif
 
 	/* Unregister hw */
 
@@ -777,6 +985,16 @@ static int ath_attach(u16 devid,
 	/* Initialize LED control */
 	ath_init_leds(sc);
 
+#ifdef CONFIG_RFKILL
+	/* Initialze h/w Rfkill */
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		INIT_DELAYED_WORK(&sc->rf_kill.rfkill_poll, ath_rfkill_poll);
+
+	/* Initialize s/w rfkill */
+	if (ath_init_sw_rfkill(sc))
+		goto detach;
+#endif
+
 	/* initialize tx/rx engine */
 
 	error = ath_tx_init(sc, ATH_TXBUF);
@@ -821,6 +1039,33 @@ static int ath9k_start(struct ieee80211_hw *hw)
 			"%s: Unable to complete ath_open\n", __func__);
 		return error;
 	}
+
+#ifdef CONFIG_RFKILL
+	/* Start rfkill polling */
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		queue_delayed_work(sc->hw->workqueue,
+				   &sc->rf_kill.rfkill_poll, 0);
+
+	if (!(sc->sc_flags & SC_OP_RFKILL_REGISTERED)) {
+		if (rfkill_register(sc->rf_kill.rfkill)) {
+			DPRINTF(sc, ATH_DBG_FATAL,
+					"Unable to register rfkill\n");
+			rfkill_free(sc->rf_kill.rfkill);
+
+			/* Deinitialize the device */
+			if (sc->pdev->irq)
+				free_irq(sc->pdev->irq, sc);
+			ath_detach(sc);
+			pci_iounmap(sc->pdev, sc->mem);
+			pci_release_region(sc->pdev, 0);
+			pci_disable_device(sc->pdev);
+			ieee80211_free_hw(hw);
+			return -EIO;
+		} else {
+			sc->sc_flags |= SC_OP_RFKILL_REGISTERED;
+		}
+	}
+#endif
 
 	ieee80211_wake_queues(hw);
 	return 0;
@@ -883,6 +1128,11 @@ static void ath9k_stop(struct ieee80211_hw *hw)
 			"%s: Device is no longer present\n", __func__);
 
 	ieee80211_stop_queues(hw);
+
+#ifdef CONFIG_RFKILL
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
+#endif
 }
 
 static int ath9k_add_interface(struct ieee80211_hw *hw,
@@ -1554,6 +1804,12 @@ static int ath_pci_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct ath_softc *sc = hw->priv;
 
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+
+#ifdef CONFIG_RFKILL
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		cancel_delayed_work_sync(&sc->rf_kill.rfkill_poll);
+#endif
+
 	pci_save_state(pdev);
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, 3);
@@ -1585,6 +1841,16 @@ static int ath_pci_resume(struct pci_dev *pdev)
 	ath9k_hw_cfg_output(sc->sc_ah, ATH_LED_PIN,
 			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
 	ath9k_hw_set_gpio(sc->sc_ah, ATH_LED_PIN, 1);
+
+#ifdef CONFIG_RFKILL
+	/*
+	 * check the h/w rfkill state on resume
+	 * and start the rfkill poll timer
+	 */
+	if (sc->sc_ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		queue_delayed_work(sc->hw->workqueue,
+				   &sc->rf_kill.rfkill_poll, 0);
+#endif
 
 	return 0;
 }

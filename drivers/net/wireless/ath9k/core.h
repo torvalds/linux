@@ -40,6 +40,7 @@
 #include <asm/page.h>
 #include <net/mac80211.h>
 #include <linux/leds.h>
+#include <linux/rfkill.h>
 
 #include "ath9k.h"
 #include "rc.h"
@@ -823,6 +824,15 @@ struct ath_led {
 	bool registered;
 };
 
+/* Rfkill */
+#define ATH_RFKILL_POLL_INTERVAL	2000 /* msecs */
+
+struct ath_rfkill {
+	struct rfkill *rfkill;
+	struct delayed_work rfkill_poll;
+	char rfkill_name[32];
+};
+
 /********************/
 /* Main driver core */
 /********************/
@@ -906,6 +916,9 @@ struct ath_ht_info {
 #define SC_OP_PROTECT_ENABLE	BIT(8)
 #define SC_OP_RXFLUSH		BIT(9)
 #define SC_OP_LED_ASSOCIATED	BIT(10)
+#define SC_OP_RFKILL_REGISTERED	BIT(11)
+#define SC_OP_RFKILL_SW_BLOCKED	BIT(12)
+#define SC_OP_RFKILL_HW_BLOCKED	BIT(13)
 
 struct ath_softc {
 	struct ieee80211_hw *hw;
@@ -1015,6 +1028,9 @@ struct ath_softc {
 	struct ath_led assoc_led;
 	struct ath_led tx_led;
 	struct ath_led rx_led;
+
+	/* Rfkill */
+	struct ath_rfkill rf_kill;
 };
 
 int ath_init(u16 devid, struct ath_softc *sc);

@@ -798,10 +798,11 @@ struct ath_hal {
 	struct ath9k_channel *ah_curchan;
 	u32 ah_nchan;
 
-	u16 ah_rfsilent;
-	bool ah_rfkillEnabled;
 	bool ah_isPciExpress;
 	u16 ah_txTrigLevel;
+	u16 ah_rfsilent;
+	u32 ah_rfkill_gpio;
+	u32 ah_rfkill_polarity;
 
 #ifndef ATH_NF_PER_CHAN
 	struct ath9k_nfcal_hist nfCalHist[NUM_NF_READINGS];
@@ -1003,4 +1004,6 @@ bool ath9k_get_channel_edges(struct ath_hal *ah,
 void ath9k_hw_cfg_output(struct ath_hal *ah, u32 gpio,
 			u32 ah_signal_type);
 void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 value);
+u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio);
+void ath9k_hw_cfg_gpio_input(struct ath_hal *ah, u32 gpio);
 #endif
