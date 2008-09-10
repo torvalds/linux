@@ -402,11 +402,25 @@ struct ieee80211_if_mesh {
 	do { } while (0)
 #endif
 
-/* flags used in struct ieee80211_sub_if_data.flags */
-#define IEEE80211_SDATA_ALLMULTI	BIT(0)
-#define IEEE80211_SDATA_PROMISC		BIT(1)
-#define IEEE80211_SDATA_USERSPACE_MLME	BIT(2)
-#define IEEE80211_SDATA_OPERATING_GMODE	BIT(3)
+/**
+ * enum ieee80211_sub_if_data_flags - virtual interface flags
+ *
+ * @IEEE80211_SDATA_ALLMULTI: interface wants all multicast packets
+ * @IEEE80211_SDATA_PROMISC: interface is promisc
+ * @IEEE80211_SDATA_USERSPACE_MLME: userspace MLME is active
+ * @IEEE80211_SDATA_OPERATING_GMODE: operating in G-only mode
+ * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
+ *	associated stations and deliver multicast frames both
+ *	back to wireless media and to the local net stack.
+ */
+enum ieee80211_sub_if_data_flags {
+	IEEE80211_SDATA_ALLMULTI		= BIT(0),
+	IEEE80211_SDATA_PROMISC			= BIT(1),
+	IEEE80211_SDATA_USERSPACE_MLME		= BIT(2),
+	IEEE80211_SDATA_OPERATING_GMODE		= BIT(3),
+	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(4),
+};
+
 struct ieee80211_sub_if_data {
 	struct list_head list;
 
@@ -635,10 +649,6 @@ struct ieee80211_local {
 	struct crypto_blkcipher *wep_rx_tfm;
 	u32 wep_iv;
 
-	int bridge_packets; /* bridge packets between associated stations and
-			     * deliver multicast frames both back to wireless
-			     * media and to the local net stack */
-
 	struct list_head interfaces;
 
 	/*
@@ -726,7 +736,6 @@ struct ieee80211_local {
 		struct dentry *frequency;
 		struct dentry *antenna_sel_tx;
 		struct dentry *antenna_sel_rx;
-		struct dentry *bridge_packets;
 		struct dentry *rts_threshold;
 		struct dentry *fragmentation_threshold;
 		struct dentry *short_retry_limit;
