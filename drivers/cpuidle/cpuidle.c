@@ -16,6 +16,7 @@
 #include <linux/cpu.h>
 #include <linux/cpuidle.h>
 #include <linux/ktime.h>
+#include <linux/hrtimer.h>
 
 #include "cpuidle.h"
 
@@ -59,6 +60,12 @@ static void cpuidle_idle_call(void)
 			local_irq_enable();
 		return;
 	}
+
+	/*
+	 * run any timers that can be run now, at this point
+	 * before calculating the idle duration etc.
+	 */
+	hrtimer_peek_ahead_timers();
 
 	/* ask the governor for the next state */
 	next_state = cpuidle_curr_governor->select(dev);
