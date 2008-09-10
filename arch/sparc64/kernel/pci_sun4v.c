@@ -550,7 +550,7 @@ static void __init pci_sun4v_scan_bus(struct pci_pbm_info *pbm,
 	struct property *prop;
 	struct device_node *dp;
 
-	dp = pbm->prom_node;
+	dp = pbm->op->node;
 	prop = of_find_property(dp, "66mhz-capable", NULL);
 	pbm->is_66mhz_capable = (prop != NULL);
 	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
@@ -594,7 +594,7 @@ static int __init pci_sun4v_iommu_init(struct pci_pbm_info *pbm)
 	u32 dma_mask, dma_offset;
 	const u32 *vdma;
 
-	vdma = of_get_property(pbm->prom_node, "virtual-dma", NULL);
+	vdma = of_get_property(pbm->op->node, "virtual-dma", NULL);
 	if (!vdma)
 		vdma = vdma_default;
 
@@ -901,7 +901,7 @@ static int __init pci_sun4v_pbm_init(struct pci_pbm_info *pbm,
 
 	pbm->index = pci_num_pbms++;
 
-	pbm->prom_node = dp;
+	pbm->op = op;
 
 	pbm->devhandle = devhandle;
 

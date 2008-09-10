@@ -10,6 +10,7 @@
 #include <linux/spinlock.h>
 #include <linux/pci.h>
 #include <linux/msi.h>
+#include <linux/of_device.h>
 #include <asm/io.h>
 #include <asm/prom.h>
 #include <asm/iommu.h>
@@ -90,7 +91,7 @@ struct pci_pbm_info {
 	char				*name;
 
 	/* OBP specific information. */
-	struct device_node		*prom_node;
+	struct of_device		*op;
 	u64				ino_bitmap;
 
 	/* PBM I/O and Memory space resources. */

@@ -690,7 +690,7 @@ static irqreturn_t psycho_pcierr_intr(int irq, void *dev_id)
 #define  PSYCHO_ECCCTRL_CE	 0x2000000000000000UL /* Enable CE INterrupts */
 static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->prom_node);
+	struct of_device *op = of_find_device_by_node(pbm->op->node);
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
 	int err;
@@ -967,7 +967,7 @@ static void __init psycho_pbm_init(struct pci_pbm_info *pbm,
 	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
 	pbm->chip_revision = of_getintprop_default(dp, "module-revision#", 0);
 
-	pbm->prom_node = dp;
+	pbm->op = op;
 	pbm->name = dp->full_name;
 
 	printk(KERN_INFO "%s: PSYCHO PCI Bus Module ver[%x:%x]\n",

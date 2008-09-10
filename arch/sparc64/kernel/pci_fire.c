@@ -446,7 +446,7 @@ static int __init pci_fire_pbm_init(struct pci_pbm_info *pbm,
 	pbm->index = pci_num_pbms++;
 
 	pbm->portid = portid;
-	pbm->prom_node = dp;
+	pbm->op = op;
 	pbm->name = dp->full_name;
 
 	regs = of_get_property(dp, "reg", NULL);

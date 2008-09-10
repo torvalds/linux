@@ -862,7 +862,7 @@ static int pbm_routes_this_ino(struct pci_pbm_info *pbm, u32 ino)
  */
 static void tomatillo_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->prom_node);
+	struct of_device *op = of_find_device_by_node(pbm->op->node);
 	u64 tmp, err_mask, err_no_mask;
 	int err;
 
@@ -958,7 +958,7 @@ static void tomatillo_register_error_handlers(struct pci_pbm_info *pbm)
 
 static void schizo_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct of_device *op = of_find_device_by_node(pbm->prom_node);
+	struct of_device *op = of_find_device_by_node(pbm->op->node);
 	u64 tmp, err_mask, err_no_mask;
 	int err;
 
@@ -1088,7 +1088,7 @@ static void __devinit schizo_scan_bus(struct pci_pbm_info *pbm,
 {
 	pbm_config_busmastering(pbm);
 	pbm->is_66mhz_capable =
-		(of_find_property(pbm->prom_node, "66mhz-capable", NULL)
+		(of_find_property(pbm->op->node, "66mhz-capable", NULL)
 		 != NULL);
 
 	pbm->pci_bus = pci_scan_one_pbm(pbm, parent);
@@ -1158,7 +1158,7 @@ static int schizo_pbm_iommu_init(struct pci_pbm_info *pbm)
 	u32 dma_mask;
 	u64 control;
 
-	vdma = of_get_property(pbm->prom_node, "virtual-dma", NULL);
+	vdma = of_get_property(pbm->op->node, "virtual-dma", NULL);
 	if (!vdma)
 		vdma = vdma_default;
 
@@ -1288,7 +1288,7 @@ static void schizo_pbm_hw_init(struct pci_pbm_info *pbm)
 	    pbm->chip_version >= 0x2)
 		tmp |= 0x3UL << SCHIZO_PCICTRL_PTO_SHIFT;
 
-	if (!of_find_property(pbm->prom_node, "no-bus-parking", NULL))
+	if (!of_find_property(pbm->op->node, "no-bus-parking", NULL))
 		tmp |= SCHIZO_PCICTRL_PARK;
 	else
 		tmp &= ~SCHIZO_PCICTRL_PARK;
@@ -1377,7 +1377,7 @@ static int __devinit schizo_pbm_init(struct pci_pbm_info *pbm,
 	pbm->index = pci_num_pbms++;
 
 	pbm->portid = portid;
-	pbm->prom_node = dp;
+	pbm->op = op;
 
 	pbm->chip_type = chip_type;
 	pbm->chip_version = of_getintprop_default(dp, "version#", 0);

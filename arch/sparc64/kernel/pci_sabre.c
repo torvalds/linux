@@ -543,7 +543,7 @@ static irqreturn_t sabre_pcierr_intr(int irq, void *dev_id)
 
 static void sabre_register_error_handlers(struct pci_pbm_info *pbm)
 {
-	struct device_node *dp = pbm->prom_node;
+	struct device_node *dp = pbm->op->node;
 	struct of_device *op;
 	unsigned long base = pbm->controller_regs;
 	u64 tmp;
@@ -750,7 +750,7 @@ static void __init sabre_pbm_init(struct pci_pbm_info *pbm,
 	pbm->index = pci_num_pbms++;
 
 	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
-	pbm->prom_node = dp;
+	pbm->op = op;
 	pci_get_pbm_props(pbm);
 
 	pci_determine_mem_io_space(pbm);
