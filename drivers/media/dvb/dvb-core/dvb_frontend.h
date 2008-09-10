@@ -220,6 +220,8 @@ struct dvb_frontend {
 	void *sec_priv;
 	void *analog_demod_priv;
 	struct dtv_frontend_properties dtv_property_cache;
+#define DVB_FRONTEND_COMPONENT_TUNER 0
+	int (*callback)(void *adapter_priv, int component, int cmd, int arg);
 };
 
 extern int dvb_register_frontend(struct dvb_adapter *dvb,
