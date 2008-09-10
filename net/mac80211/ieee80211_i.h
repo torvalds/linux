@@ -308,7 +308,6 @@ enum ieee80211_sta_mlme_state {
 	IEEE80211_STA_MLME_ASSOCIATED,
 	IEEE80211_STA_MLME_IBSS_SEARCH,
 	IEEE80211_STA_MLME_IBSS_JOINED,
-	IEEE80211_STA_MLME_MESH_UP
 };
 
 /* bitfield of allowed auth algs */
@@ -325,34 +324,6 @@ struct ieee80211_if_sta {
 	size_t ssid_len;
 	u8 scan_ssid[IEEE80211_MAX_SSID_LEN];
 	size_t scan_ssid_len;
-#ifdef CONFIG_MAC80211_MESH
-	struct timer_list mesh_path_timer;
-	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
-	size_t mesh_id_len;
-	/* Active Path Selection Protocol Identifier */
-	u8 mesh_pp_id[4];
-	/* Active Path Selection Metric Identifier */
-	u8 mesh_pm_id[4];
-	/* Congestion Control Mode Identifier */
-	u8 mesh_cc_id[4];
-	/* Local mesh Destination Sequence Number */
-	u32 dsn;
-	/* Last used PREQ ID */
-	u32 preq_id;
-	atomic_t mpaths;
-	/* Timestamp of last DSN update */
-	unsigned long last_dsn_update;
-	/* Timestamp of last DSN sent */
-	unsigned long last_preq;
-	struct mesh_rmc *rmc;
-	spinlock_t mesh_preq_queue_lock;
-	struct mesh_preq_queue preq_queue;
-	int preq_queue_len;
-	struct mesh_stats mshstats;
-	struct mesh_config mshcfg;
-	u32 mesh_seqnum;
-	bool accepting_plinks;
-#endif
 	u16 aid;
 	u16 ap_capab, capab;
 	u8 *extra_ie; /* to be added to the end of AssocReq */
@@ -387,20 +358,47 @@ struct ieee80211_if_sta {
 	int num_beacons; /* number of TXed beacon frames by this STA */
 };
 
-static inline void ieee80211_if_sta_set_mesh_id(struct ieee80211_if_sta *ifsta,
-						u8 mesh_id_len, u8 *mesh_id)
-{
-#ifdef CONFIG_MAC80211_MESH
-	ifsta->mesh_id_len = mesh_id_len;
-	memcpy(ifsta->mesh_id, mesh_id, mesh_id_len);
-#endif
-}
+struct ieee80211_if_mesh {
+	struct work_struct work;
+	struct timer_list housekeeping_timer;
+	struct timer_list mesh_path_timer;
+	struct sk_buff_head skb_queue;
+
+	bool housekeeping;
+
+	u8 mesh_id[IEEE80211_MAX_MESH_ID_LEN];
+	size_t mesh_id_len;
+	/* Active Path Selection Protocol Identifier */
+	u8 mesh_pp_id[4];
+	/* Active Path Selection Metric Identifier */
+	u8 mesh_pm_id[4];
+	/* Congestion Control Mode Identifier */
+	u8 mesh_cc_id[4];
+	/* Local mesh Destination Sequence Number */
+	u32 dsn;
+	/* Last used PREQ ID */
+	u32 preq_id;
+	atomic_t mpaths;
+	/* Timestamp of last DSN update */
+	unsigned long last_dsn_update;
+	/* Timestamp of last DSN sent */
+	unsigned long last_preq;
+	struct mesh_rmc *rmc;
+	spinlock_t mesh_preq_queue_lock;
+	struct mesh_preq_queue preq_queue;
+	int preq_queue_len;
+	struct mesh_stats mshstats;
+	struct mesh_config mshcfg;
+	u32 mesh_seqnum;
+	bool accepting_plinks;
+	int num_beacons;
+};
 
 #ifdef CONFIG_MAC80211_MESH
-#define IEEE80211_IFSTA_MESH_CTR_INC(sta, name)	\
-	do { (sta)->mshstats.name++; } while (0)
+#define IEEE80211_IFSTA_MESH_CTR_INC(msh, name)	\
+	do { (msh)->mshstats.name++; } while (0)
 #else
-#define IEEE80211_IFSTA_MESH_CTR_INC(sta, name) \
+#define IEEE80211_IFSTA_MESH_CTR_INC(msh, name) \
 	do { } while (0)
 #endif
 
@@ -455,6 +453,9 @@ struct ieee80211_sub_if_data {
 		struct ieee80211_if_wds wds;
 		struct ieee80211_if_vlan vlan;
 		struct ieee80211_if_sta sta;
+#ifdef CONFIG_MAC80211_MESH
+		struct ieee80211_if_mesh mesh;
+#endif
 		u32 mntr_flags;
 	} u;
 
@@ -546,6 +547,19 @@ static inline
 struct ieee80211_sub_if_data *vif_to_sdata(struct ieee80211_vif *p)
 {
 	return container_of(p, struct ieee80211_sub_if_data, vif);
+}
+
+static inline void
+ieee80211_sdata_set_mesh_id(struct ieee80211_sub_if_data *sdata,
+			    u8 mesh_id_len, u8 *mesh_id)
+{
+#ifdef CONFIG_MAC80211_MESH
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
+	ifmsh->mesh_id_len = mesh_id_len;
+	memcpy(ifmsh->mesh_id, mesh_id, mesh_id_len);
+#else
+	WARN_ON(1);
+#endif
 }
 
 enum {
@@ -934,13 +948,6 @@ ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len);
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
 			  struct ieee80211_sta_bss *bss);
-
-#ifdef CONFIG_MAC80211_MESH
-void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
-#else
-static inline void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
-{}
-#endif
 
 /* interface handling */
 void ieee80211_if_setup(struct net_device *dev);

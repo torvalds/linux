@@ -116,9 +116,9 @@ static int ieee80211_change_iface(struct wiphy *wiphy, int ifindex,
 		return ret;
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && params->mesh_id_len)
-		ieee80211_if_sta_set_mesh_id(&sdata->u.sta,
-					     params->mesh_id_len,
-					     params->mesh_id);
+		ieee80211_sdata_set_mesh_id(sdata,
+					    params->mesh_id_len,
+					    params->mesh_id);
 
 	if (sdata->vif.type != IEEE80211_IF_TYPE_MNTR || !flags)
 		return 0;

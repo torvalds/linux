@@ -476,6 +476,7 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 
  done:
 	ieee80211_mlme_notify_scan_completed(local);
+	ieee80211_mesh_notify_scan_completed(local);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
 

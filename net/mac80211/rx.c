@@ -1404,7 +1404,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 
 	if (rx->flags & IEEE80211_RX_RA_MATCH) {
 		if (!mesh_hdr->ttl)
-			IEEE80211_IFSTA_MESH_CTR_INC(&rx->sdata->u.sta,
+			IEEE80211_IFSTA_MESH_CTR_INC(&rx->sdata->u.mesh,
 						     dropped_frames_ttl);
 		else {
 			struct ieee80211_hdr *fwd_hdr;
@@ -1591,9 +1591,11 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 	if (!(rx->flags & IEEE80211_RX_RA_MATCH))
 		return RX_DROP_MONITOR;
 
+	if (ieee80211_vif_is_mesh(&sdata->vif))
+		return ieee80211_mesh_rx_mgmt(sdata, rx->skb, rx->status);
+
 	if (sdata->vif.type != IEEE80211_IF_TYPE_STA &&
-	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
-	    sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT)
+	    sdata->vif.type != IEEE80211_IF_TYPE_IBSS)
 		return RX_DROP_MONITOR;
 
 	if (sdata->flags & IEEE80211_SDATA_USERSPACE_MLME)

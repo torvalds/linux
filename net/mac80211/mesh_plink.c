@@ -36,11 +36,11 @@
 #define MESH_SECURITY_AUTHENTICATION_IMPOSSIBLE	9
 #define MESH_SECURITY_FAILED_VERIFICATION	10
 
-#define dot11MeshMaxRetries(s) (s->u.sta.mshcfg.dot11MeshMaxRetries)
-#define dot11MeshRetryTimeout(s) (s->u.sta.mshcfg.dot11MeshRetryTimeout)
-#define dot11MeshConfirmTimeout(s) (s->u.sta.mshcfg.dot11MeshConfirmTimeout)
-#define dot11MeshHoldingTimeout(s) (s->u.sta.mshcfg.dot11MeshHoldingTimeout)
-#define dot11MeshMaxPeerLinks(s) (s->u.sta.mshcfg.dot11MeshMaxPeerLinks)
+#define dot11MeshMaxRetries(s) (s->u.mesh.mshcfg.dot11MeshMaxRetries)
+#define dot11MeshRetryTimeout(s) (s->u.mesh.mshcfg.dot11MeshRetryTimeout)
+#define dot11MeshConfirmTimeout(s) (s->u.mesh.mshcfg.dot11MeshConfirmTimeout)
+#define dot11MeshHoldingTimeout(s) (s->u.mesh.mshcfg.dot11MeshHoldingTimeout)
+#define dot11MeshMaxPeerLinks(s) (s->u.mesh.mshcfg.dot11MeshMaxPeerLinks)
 
 enum plink_frame_type {
 	PLINK_OPEN = 0,
@@ -63,14 +63,14 @@ enum plink_event {
 static inline
 void mesh_plink_inc_estab_count(struct ieee80211_sub_if_data *sdata)
 {
-	atomic_inc(&sdata->u.sta.mshstats.estab_plinks);
+	atomic_inc(&sdata->u.mesh.mshstats.estab_plinks);
 	mesh_accept_plinks_update(sdata);
 }
 
 static inline
 void mesh_plink_dec_estab_count(struct ieee80211_sub_if_data *sdata)
 {
-	atomic_dec(&sdata->u.sta.mshstats.estab_plinks);
+	atomic_dec(&sdata->u.mesh.mshstats.estab_plinks);
 	mesh_accept_plinks_update(sdata);
 }
 
@@ -245,8 +245,8 @@ void mesh_neighbour_update(u8 *hw_addr, u64 rates, struct ieee80211_sub_if_data 
 	sta->last_rx = jiffies;
 	sta->supp_rates[local->hw.conf.channel->band] = rates;
 	if (peer_accepting_plinks && sta->plink_state == PLINK_LISTEN &&
-			sdata->u.sta.accepting_plinks &&
-			sdata->u.sta.mshcfg.auto_open_plinks)
+			sdata->u.mesh.accepting_plinks &&
+			sdata->u.mesh.mshcfg.auto_open_plinks)
 		mesh_plink_open(sta);
 
 	rcu_read_unlock();

@@ -252,6 +252,8 @@ static int ieee80211_open(struct net_device *dev)
 		sdata->bss = &sdata->u.ap;
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
+		if (!ieee80211_vif_is_mesh(&sdata->vif))
+			break;
 		/* mesh ifaces must set allmulti to forward mcast traffic */
 		atomic_inc(&local->iff_allmultis);
 		break;
@@ -540,10 +542,6 @@ static int ieee80211_stop(struct net_device *dev)
 		ieee80211_configure_filter(local);
 		netif_addr_unlock_bh(local->mdev);
 		break;
-	case IEEE80211_IF_TYPE_MESH_POINT:
-		/* allmulti is always set on mesh ifaces */
-		atomic_dec(&local->iff_allmultis);
-		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_STA_MLME_DISABLED;
@@ -570,6 +568,13 @@ static int ieee80211_stop(struct net_device *dev)
 		kfree(sdata->u.sta.extra_ie);
 		sdata->u.sta.extra_ie = NULL;
 		sdata->u.sta.extra_ie_len = 0;
+		/* fall through */
+	case IEEE80211_IF_TYPE_MESH_POINT:
+		if (ieee80211_vif_is_mesh(&sdata->vif)) {
+			/* allmulti is always set on mesh ifaces */
+			atomic_dec(&local->iff_allmultis);
+			ieee80211_stop_mesh(sdata);
+		}
 		/* fall through */
 	default:
 		conf.vif = &sdata->vif;

@@ -22,11 +22,11 @@
 #include <linux/rtnetlink.h>
 #include <net/iw_handler.h>
 #include <net/mac80211.h>
+#include <asm/unaligned.h>
 
 #include "ieee80211_i.h"
 #include "rate.h"
 #include "led.h"
-#include "mesh.h"
 
 #define IEEE80211_ASSOC_SCANS_MAX_TRIES 2
 #define IEEE80211_AUTH_TIMEOUT (HZ / 5)
@@ -34,7 +34,6 @@
 #define IEEE80211_ASSOC_TIMEOUT (HZ / 5)
 #define IEEE80211_ASSOC_MAX_TRIES 3
 #define IEEE80211_MONITORING_INTERVAL (2 * HZ)
-#define IEEE80211_MESH_HOUSEKEEPING_INTERVAL (60 * HZ)
 #define IEEE80211_PROBE_INTERVAL (60 * HZ)
 #define IEEE80211_RETRY_AUTH_INTERVAL (1 * HZ)
 #define IEEE80211_SCAN_INTERVAL (2 * HZ)
@@ -43,7 +42,6 @@
 
 #define IEEE80211_IBSS_MERGE_INTERVAL (30 * HZ)
 #define IEEE80211_IBSS_INACTIVITY_LIMIT (60 * HZ)
-#define IEEE80211_MESH_PEER_INACTIVITY_LIMIT (1800 * HZ)
 
 #define IEEE80211_IBSS_MAX_STA_ENTRIES 128
 
@@ -1508,14 +1506,6 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 	if (!channel || channel->flags & IEEE80211_CHAN_DISABLED)
 		return;
 
-	if (ieee80211_vif_is_mesh(&sdata->vif) && elems->mesh_id &&
-	    elems->mesh_config && mesh_matches_local(elems, sdata)) {
-		supp_rates = ieee80211_sta_get_rates(local, elems, band);
-
-		mesh_neighbour_update(mgmt->sa, supp_rates, sdata,
-				      mesh_peer_accepts_plinks(elems));
-	}
-
 	if (sdata->vif.type == IEEE80211_IF_TYPE_IBSS && elems->supp_rates &&
 	    memcmp(mgmt->bssid, sdata->u.sta.bssid, ETH_ALEN) == 0) {
 		supp_rates = ieee80211_sta_get_rates(local, elems, band);
@@ -1785,26 +1775,6 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb, 0);
 }
 
-static void ieee80211_rx_mgmt_action(struct ieee80211_sub_if_data *sdata,
-				     struct ieee80211_if_sta *ifsta,
-				     struct ieee80211_mgmt *mgmt,
-				     size_t len,
-				     struct ieee80211_rx_status *rx_status)
-{
-	/* currently we only handle mesh interface action frames here */
-	if (!ieee80211_vif_is_mesh(&sdata->vif))
-		return;
-
-	switch (mgmt->u.action.category) {
-	case PLINK_CATEGORY:
-		mesh_rx_plink_frame(sdata, mgmt, len, rx_status);
-		break;
-	case MESH_PATH_SEL_CATEGORY:
-		mesh_rx_path_sel_frame(sdata, mgmt, len);
-		break;
-	}
-}
-
 void ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 			   struct ieee80211_rx_status *rx_status)
 {
@@ -1825,7 +1795,6 @@ void ieee80211_sta_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *
 	case IEEE80211_STYPE_PROBE_REQ:
 	case IEEE80211_STYPE_PROBE_RESP:
 	case IEEE80211_STYPE_BEACON:
-	case IEEE80211_STYPE_ACTION:
 		memcpy(skb->cb, rx_status, sizeof(*rx_status));
 	case IEEE80211_STYPE_AUTH:
 	case IEEE80211_STYPE_ASSOC_RESP:
@@ -1881,9 +1850,6 @@ static void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 	case IEEE80211_STYPE_DISASSOC:
 		ieee80211_rx_mgmt_disassoc(sdata, ifsta, mgmt, skb->len);
 		break;
-	case IEEE80211_STYPE_ACTION:
-		ieee80211_rx_mgmt_action(sdata, ifsta, mgmt, skb->len, rx_status);
-		break;
 	}
 
 	kfree_skb(skb);
@@ -1926,35 +1892,6 @@ static void ieee80211_sta_merge_ibss(struct ieee80211_sub_if_data *sdata,
 	       "IBSS networks with same SSID (merge)\n", sdata->dev->name);
 	ieee80211_sta_req_scan(sdata, ifsta->ssid, ifsta->ssid_len);
 }
-
-
-#ifdef CONFIG_MAC80211_MESH
-static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
-			   struct ieee80211_if_sta *ifsta)
-{
-	bool free_plinks;
-
-	ieee80211_sta_expire(sdata, IEEE80211_MESH_PEER_INACTIVITY_LIMIT);
-	mesh_path_expire(sdata);
-
-	free_plinks = mesh_plink_availables(sdata);
-	if (free_plinks != sdata->u.sta.accepting_plinks)
-		ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
-
-	mod_timer(&ifsta->timer, jiffies +
-			IEEE80211_MESH_HOUSEKEEPING_INTERVAL);
-}
-
-
-void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata)
-{
-	struct ieee80211_if_sta *ifsta;
-	ifsta = &sdata->u.sta;
-	ifsta->state = IEEE80211_STA_MLME_MESH_UP;
-	ieee80211_sta_timer((unsigned long)sdata);
-	ieee80211_if_config(sdata, IEEE80211_IFCC_BEACON);
-}
-#endif
 
 
 void ieee80211_sta_timer(unsigned long data)
@@ -2524,20 +2461,12 @@ void ieee80211_sta_work(struct work_struct *work)
 		return;
 
 	if (WARN_ON(sdata->vif.type != IEEE80211_IF_TYPE_STA &&
-		    sdata->vif.type != IEEE80211_IF_TYPE_IBSS &&
-		    sdata->vif.type != IEEE80211_IF_TYPE_MESH_POINT))
+		    sdata->vif.type != IEEE80211_IF_TYPE_IBSS))
 		return;
 	ifsta = &sdata->u.sta;
 
 	while ((skb = skb_dequeue(&ifsta->skb_queue)))
 		ieee80211_sta_rx_queued_mgmt(sdata, skb);
-
-#ifdef CONFIG_MAC80211_MESH
-	if (ifsta->preq_queue_len &&
-	    time_after(jiffies,
-		       ifsta->last_preq + msecs_to_jiffies(ifsta->mshcfg.dot11MeshHWMPpreqMinInterval)))
-		mesh_path_start_discovery(sdata);
-#endif
 
 	if (ifsta->state != IEEE80211_STA_MLME_DIRECT_PROBE &&
 	    ifsta->state != IEEE80211_STA_MLME_AUTHENTICATE &&
@@ -2575,11 +2504,6 @@ void ieee80211_sta_work(struct work_struct *work)
 	case IEEE80211_STA_MLME_IBSS_JOINED:
 		ieee80211_sta_merge_ibss(sdata, ifsta);
 		break;
-#ifdef CONFIG_MAC80211_MESH
-	case IEEE80211_STA_MLME_MESH_UP:
-		ieee80211_mesh_housekeeping(sdata, ifsta);
-		break;
-#endif
 	default:
 		WARN_ON(1);
 		break;
@@ -2596,8 +2520,7 @@ void ieee80211_sta_work(struct work_struct *work)
 
 static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 {
-	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-	    ieee80211_vif_is_mesh(&sdata->vif))
+	if (sdata->vif.type == IEEE80211_IF_TYPE_STA)
 		queue_work(sdata->local->hw.workqueue,
 			   &sdata->u.sta.work);
 }

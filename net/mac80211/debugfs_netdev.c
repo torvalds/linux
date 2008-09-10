@@ -207,37 +207,37 @@ IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
 #ifdef CONFIG_MAC80211_MESH
 /* Mesh stats attributes */
-IEEE80211_IF_FILE(fwded_frames, u.sta.mshstats.fwded_frames, DEC);
-IEEE80211_IF_FILE(dropped_frames_ttl, u.sta.mshstats.dropped_frames_ttl, DEC);
+IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
+IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
 IEEE80211_IF_FILE(dropped_frames_no_route,
-		u.sta.mshstats.dropped_frames_no_route, DEC);
-IEEE80211_IF_FILE(estab_plinks, u.sta.mshstats.estab_plinks, ATOMIC);
+		u.mesh.mshstats.dropped_frames_no_route, DEC);
+IEEE80211_IF_FILE(estab_plinks, u.mesh.mshstats.estab_plinks, ATOMIC);
 
 /* Mesh parameters */
 IEEE80211_IF_WFILE(dot11MeshMaxRetries,
-		u.sta.mshcfg.dot11MeshMaxRetries, DEC, u8);
+		u.mesh.mshcfg.dot11MeshMaxRetries, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshRetryTimeout,
-		u.sta.mshcfg.dot11MeshRetryTimeout, DEC, u16);
+		u.mesh.mshcfg.dot11MeshRetryTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshConfirmTimeout,
-		u.sta.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
+		u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHoldingTimeout,
-		u.sta.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshTTL, u.sta.mshcfg.dot11MeshTTL, DEC, u8);
-IEEE80211_IF_WFILE(auto_open_plinks, u.sta.mshcfg.auto_open_plinks, DEC, u8);
+		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC, u8);
+IEEE80211_IF_WFILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshMaxPeerLinks,
-		u.sta.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
+		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPactivePathTimeout,
-		u.sta.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
+		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
 IEEE80211_IF_WFILE(dot11MeshHWMPpreqMinInterval,
-		u.sta.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
+		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPnetDiameterTraversalTime,
-		u.sta.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
+		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPmaxPREQretries,
-		u.sta.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
+		u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
 IEEE80211_IF_WFILE(path_refresh_time,
-		u.sta.mshcfg.path_refresh_time, DEC, u32);
+		u.mesh.mshcfg.path_refresh_time, DEC, u32);
 IEEE80211_IF_WFILE(min_discovery_timeout,
-		u.sta.mshcfg.min_discovery_timeout, DEC, u16);
+		u.mesh.mshcfg.min_discovery_timeout, DEC, u16);
 #endif
 
 
@@ -350,7 +350,7 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		add_mesh_stats(sdata);
 		add_mesh_config(sdata);
 #endif
-		/* fall through */
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		add_sta_files(sdata);
@@ -487,7 +487,7 @@ static void del_files(struct ieee80211_sub_if_data *sdata)
 		del_mesh_stats(sdata);
 		del_mesh_config(sdata);
 #endif
-		/* fall through */
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		del_sta_files(sdata);

@@ -54,10 +54,9 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
-		/* Allow compiler to elide mesh_rmc_free call. */
 		if (ieee80211_vif_is_mesh(&sdata->vif))
 			mesh_rmc_free(sdata);
-		/* fall through */
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		kfree(sdata->u.sta.extra_ie);
@@ -100,7 +99,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		skb_queue_head_init(&sdata->u.ap.ps_bc_buf);
 		INIT_LIST_HEAD(&sdata->u.ap.vlans);
 		break;
-	case IEEE80211_IF_TYPE_MESH_POINT:
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		ifsta = &sdata->u.sta;
@@ -117,7 +115,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 			IEEE80211_STA_AUTO_CHANNEL_SEL;
 		if (ieee80211_num_regular_queues(&sdata->local->hw) >= 4)
 			ifsta->flags |= IEEE80211_STA_WMM_ENABLED;
-
+		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
 		if (ieee80211_vif_is_mesh(&sdata->vif))
 			ieee80211_mesh_init_sdata(sdata);
 		break;
@@ -225,9 +224,9 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) &&
 	    params && params->mesh_id_len)
-		ieee80211_if_sta_set_mesh_id(&sdata->u.sta,
-					     params->mesh_id_len,
-					     params->mesh_id);
+		ieee80211_sdata_set_mesh_id(sdata,
+					    params->mesh_id_len,
+					    params->mesh_id);
 
 	list_add_tail_rcu(&sdata->list, &local->interfaces);
 

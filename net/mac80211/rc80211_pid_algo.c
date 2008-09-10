@@ -148,9 +148,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 				    struct ieee80211_local *local,
 				    struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_MESH
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-#endif
 	struct rc_pid_sta_info *spinfo = sta->rate_ctrl_priv;
 	struct rc_pid_rateinfo *rinfo = pinfo->rinfo;
 	struct ieee80211_supported_band *sband;
@@ -181,11 +179,8 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 		pf = spinfo->last_pf;
 	else {
 		pf = spinfo->tx_num_failed * 100 / spinfo->tx_num_xmit;
-#ifdef CONFIG_MAC80211_MESH
-		if (pf == 100 &&
-		    sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		if (ieee80211_vif_is_mesh(&sdata->vif) && pf == 100)
 			mesh_plink_broken(sta);
-#endif
 		pf <<= RC_PID_ARITH_SHIFT;
 		sta->fail_avg = ((pf + (spinfo->last_pf << 3)) / 9)
 					>> RC_PID_ARITH_SHIFT;
