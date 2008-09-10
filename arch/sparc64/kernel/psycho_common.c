@@ -91,3 +91,25 @@ int psycho_iommu_init(struct pci_pbm_info *pbm, int tsbsize,
 	return 0;
 
 }
+
+void psycho_pbm_init_common(struct pci_pbm_info *pbm, struct of_device *op,
+			    const char *chip_name, int chip_type)
+{
+	struct device_node *dp = op->node;
+
+	pbm->name = dp->full_name;
+	pbm->numa_node = -1;
+	pbm->chip_type = chip_type;
+	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
+	pbm->chip_revision = of_getintprop_default(dp, "module-revision#", 0);
+	pbm->op = op;
+	pbm->pci_ops = &sun4u_pci_ops;
+	pbm->config_space_reg_bits = 8;
+	pbm->index = pci_num_pbms++;
+	pci_get_pbm_props(pbm);
+	pci_determine_mem_io_space(pbm);
+
+	printk(KERN_INFO "%s: %s PCI Bus Module ver[%x:%x]\n",
+	       pbm->name, chip_name,
+	       pbm->chip_version, pbm->chip_revision);
+}

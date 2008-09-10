@@ -895,35 +895,8 @@ static void psycho_pbm_strbuf_init(struct pci_pbm_info *pbm,
 static void __init psycho_pbm_init(struct pci_pbm_info *pbm,
 				   struct of_device *op, int is_pbm_a)
 {
-	struct device_node *dp = op->node;
-
-	pbm->next = pci_pbm_root;
-	pci_pbm_root = pbm;
-
-	pbm->numa_node = -1;
-
-	pbm->pci_ops = &sun4u_pci_ops;
-	pbm->config_space_reg_bits = 8;
-
-	pbm->index = pci_num_pbms++;
-
-	pbm->chip_type = PBM_CHIP_TYPE_PSYCHO;
-	pbm->chip_version = of_getintprop_default(dp, "version#", 0);
-	pbm->chip_revision = of_getintprop_default(dp, "module-revision#", 0);
-
-	pbm->op = op;
-	pbm->name = dp->full_name;
-
-	printk(KERN_INFO "%s: PSYCHO PCI Bus Module ver[%x:%x]\n",
-	       pbm->name,
-	       pbm->chip_version, pbm->chip_revision);
-
-	pci_determine_mem_io_space(pbm);
-
-	pci_get_pbm_props(pbm);
-
+	psycho_pbm_init_common(pbm, op, "PSYCHO", PBM_CHIP_TYPE_PSYCHO);
 	psycho_pbm_strbuf_init(pbm, is_pbm_a);
-
 	psycho_scan_bus(pbm, &op->dev);
 }
 
@@ -1008,6 +981,9 @@ static int __devinit psycho_probe(struct of_device *op,
 	}
 
 	psycho_pbm_init(pbm, op, is_pbm_a);
+
+	pbm->next = pci_pbm_root;
+	pci_pbm_root = pbm;
 
 	if (pbm->sibling)
 		pbm->sibling->sibling = pbm;

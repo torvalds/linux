@@ -678,24 +678,7 @@ static void __init sabre_scan_bus(struct pci_pbm_info *pbm,
 static void __init sabre_pbm_init(struct pci_pbm_info *pbm,
 				  struct of_device *op)
 {
-	struct device_node *dp = op->node;
-
-	pbm->name = dp->full_name;
-	printk("%s: SABRE PCI Bus Module\n", pbm->name);
-
-	pbm->numa_node = -1;
-
-	pbm->pci_ops = &sun4u_pci_ops;
-	pbm->config_space_reg_bits = 8;
-
-	pbm->index = pci_num_pbms++;
-
-	pbm->chip_type = PBM_CHIP_TYPE_SABRE;
-	pbm->op = op;
-	pci_get_pbm_props(pbm);
-
-	pci_determine_mem_io_space(pbm);
-
+	psycho_pbm_init_common(pbm, op, "SABRE", PBM_CHIP_TYPE_SABRE);
 	sabre_scan_bus(pbm, &op->dev);
 }
 
