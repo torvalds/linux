@@ -65,11 +65,6 @@ static struct pxa2xx_gpio gpio_bus[] = {
 		.frm = GPIO31_SYNC_I2S_MD,
 	},
 	{ /* I2S SoC Master */
-#ifdef CONFIG_PXA27x
-		.sys = GPIO113_I2S_SYSCLK_MD,
-#else
-		.sys = GPIO32_SYSCLK_I2S_MD,
-#endif
 		.rx = GPIO29_SDATA_IN_I2S_MD,
 		.tx = GPIO30_SDATA_OUT_I2S_MD,
 		.clk = GPIO28_BITCLK_OUT_I2S_MD,
@@ -343,6 +338,11 @@ static struct platform_driver pxa2xx_i2s_driver = {
 
 static int __init pxa2xx_i2s_init(void)
 {
+	if (cpu_is_pxa27x())
+		gpio_bus[1].sys = GPIO113_I2S_SYSCLK_MD;
+	else
+		gpio_bus[1].sys = GPIO32_SYSCLK_I2S_MD;
+
 	clk_i2s = ERR_PTR(-ENOENT);
 	return platform_driver_register(&pxa2xx_i2s_driver);
 }
