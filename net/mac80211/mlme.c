@@ -2598,7 +2598,8 @@ static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
 {
 	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
 	    ieee80211_vif_is_mesh(&sdata->vif))
-		ieee80211_sta_timer((unsigned long)sdata);
+		queue_work(sdata->local->hw.workqueue,
+			   &sdata->u.sta.work);
 }
 
 void ieee80211_mlme_notify_scan_completed(struct ieee80211_local *local)
