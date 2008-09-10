@@ -28,7 +28,6 @@
 
 #include "zd_def.h"
 #include "zd_chip.h"
-#include "zd_ieee80211.h"
 #include "zd_mac.h"
 #include "zd_rf.h"
 

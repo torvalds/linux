@@ -3,7 +3,7 @@
  * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2006-2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright (c) 2007 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
+ * Copyright (C) 2007-2008 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,22 @@
 #include "zd_def.h"
 #include "zd_chip.h"
 #include "zd_mac.h"
-#include "zd_ieee80211.h"
 #include "zd_rf.h"
+
+struct zd_reg_alpha2_map {
+	u32 reg;
+	char alpha2[2];
+};
+
+static struct zd_reg_alpha2_map reg_alpha2_map[] = {
+	{ ZD_REGDOMAIN_FCC, "US" },
+	{ ZD_REGDOMAIN_IC, "CA" },
+	{ ZD_REGDOMAIN_ETSI, "DE" }, /* Generic ETSI, use most restrictive */
+	{ ZD_REGDOMAIN_JAPAN, "JP" },
+	{ ZD_REGDOMAIN_JAPAN_ADD, "JP" },
+	{ ZD_REGDOMAIN_SPAIN, "ES" },
+	{ ZD_REGDOMAIN_FRANCE, "FR" },
+};
 
 /* This table contains the hardware specific values for the modulation rates. */
 static const struct ieee80211_rate zd_rates[] = {
@@ -95,6 +109,21 @@ static void housekeeping_init(struct zd_mac *mac);
 static void housekeeping_enable(struct zd_mac *mac);
 static void housekeeping_disable(struct zd_mac *mac);
 
+static int zd_reg2alpha2(u8 regdomain, char *alpha2)
+{
+	unsigned int i;
+	struct zd_reg_alpha2_map *reg_map;
+	for (i = 0; i < ARRAY_SIZE(reg_alpha2_map); i++) {
+		reg_map = &reg_alpha2_map[i];
+		if (regdomain == reg_map->reg) {
+			alpha2[0] = reg_map->alpha2[0];
+			alpha2[1] = reg_map->alpha2[1];
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int zd_mac_preinit_hw(struct ieee80211_hw *hw)
 {
 	int r;
@@ -115,6 +144,7 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 	int r;
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct zd_chip *chip = &mac->chip;
+	char alpha2[2];
 	u8 default_regdomain;
 
 	r = zd_chip_enable_int(chip);
@@ -139,7 +169,9 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 	if (r)
 		goto disable_int;
 
-	zd_geo_init(hw, mac->regdomain);
+	r = zd_reg2alpha2(mac->regdomain, alpha2);
+	if (!r)
+		regulatory_hint(hw->wiphy, alpha2, NULL);
 
 	r = 0;
 disable_int:
@@ -753,7 +785,7 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
-void zd_process_intr(struct work_struct *work)
+static void zd_process_intr(struct work_struct *work)
 {
 	u16 int_status;
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
