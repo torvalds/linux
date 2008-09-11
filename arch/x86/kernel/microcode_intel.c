@@ -155,15 +155,15 @@ static int collect_cpu_info(int cpu_num, struct cpu_signature *csig)
 	return 0;
 }
 
-static inline int microcode_update_match(int cpu_num,
-	struct microcode_header_intel *mc_header, int sig, int pf)
+static inline int update_match_cpu(struct cpu_signature *csig, int sig, int pf)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
+	return (!sigmatch(sig, csig->sig, pf, csig->pf)) ? 0 : 1;
+}
 
-	if (!sigmatch(sig, uci->cpu_sig.sig, pf, uci->cpu_sig.pf)
-		|| mc_header->rev <= uci->cpu_sig.rev)
-		return 0;
-	return 1;
+static inline int 
+update_match_revision(struct microcode_header_intel *mc_header,	int rev)
+{
+	return (mc_header->rev <= rev) ? 0 : 1;
 }
 
 static int microcode_sanity_check(void *mc)
@@ -248,51 +248,36 @@ static int microcode_sanity_check(void *mc)
 /*
  * return 0 - no update found
  * return 1 - found update
- * return < 0 - error
  */
-static int get_matching_microcode(void *mc, int cpu)
+static int
+get_matching_microcode(struct cpu_signature *cpu_sig, void *mc, int rev)
 {
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	struct microcode_header_intel *mc_header = mc;
 	struct extended_sigtable *ext_header;
 	unsigned long total_size = get_totalsize(mc_header);
 	int ext_sigcount, i;
 	struct extended_signature *ext_sig;
-	void *new_mc;
 
-	if (microcode_update_match(cpu, mc_header,
-			mc_header->sig, mc_header->pf))
-		goto find;
+	if (!update_match_revision(mc_header, rev))
+		return 0;
 
+	if (update_match_cpu(cpu_sig, mc_header->sig, mc_header->pf))
+		return 1;
+
+	/* Look for ext. headers: */
 	if (total_size <= get_datasize(mc_header) + MC_HEADER_SIZE)
 		return 0;
 
 	ext_header = mc + get_datasize(mc_header) + MC_HEADER_SIZE;
 	ext_sigcount = ext_header->count;
 	ext_sig = (void *)ext_header + EXT_HEADER_SIZE;
+
 	for (i = 0; i < ext_sigcount; i++) {
-		if (microcode_update_match(cpu, mc_header,
-				ext_sig->sig, ext_sig->pf))
-			goto find;
+		if (update_match_cpu(cpu_sig, ext_sig->sig, ext_sig->pf))
+			return 1;
 		ext_sig++;
 	}
 	return 0;
-find:
-	pr_debug("microcode: CPU%d found a matching microcode update with"
-		 " version 0x%x (current=0x%x)\n",
-		 cpu, mc_header->rev, uci->cpu_sig.rev);
-	new_mc = vmalloc(total_size);
-	if (!new_mc) {
-		printk(KERN_ERR "microcode: error! Can not allocate memory\n");
-		return -ENOMEM;
-	}
-
-	/* free previous update file */
-	vfree(uci->mc.mc_intel);
-
-	memcpy(new_mc, mc, total_size);
-	uci->mc.mc_intel = new_mc;
-	return 1;
 }
 
 static void apply_microcode(int cpu)
@@ -300,7 +285,7 @@ static void apply_microcode(int cpu)
 	unsigned long flags;
 	unsigned int val[2];
 	int cpu_num = raw_smp_processor_id();
-	struct ucode_cpu_info *uci = ucode_cpu_info + cpu_num;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu_num != cpu);
@@ -338,116 +323,105 @@ static void apply_microcode(int cpu)
 	uci->cpu_sig.rev = val[1];
 }
 
-#ifdef CONFIG_MICROCODE_OLD_INTERFACE
-extern void __user *user_buffer;        /* user area microcode data buffer */
-extern unsigned int user_buffer_size;   /* it's size */
-
-static long get_next_ucode(void **mc, long offset)
+static int generic_load_microcode(int cpu, void *data, size_t size,
+		int (*get_ucode_data)(void *, const void *, size_t))
 {
-	struct microcode_header_intel mc_header;
-	unsigned long total_size;
+	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	u8 *ucode_ptr = data, *new_mc = NULL, *mc;
+	int new_rev = uci->cpu_sig.rev;
+	unsigned int leftover = size;
 
-	/* No more data */
-	if (offset >= user_buffer_size)
-		return 0;
-	if (copy_from_user(&mc_header, user_buffer + offset, MC_HEADER_SIZE)) {
-		printk(KERN_ERR "microcode: error! Can not read user data\n");
-		return -EFAULT;
-	}
-	total_size = get_totalsize(&mc_header);
-	if (offset + total_size > user_buffer_size) {
-		printk(KERN_ERR "microcode: error! Bad total size in microcode "
-				"data file\n");
-		return -EINVAL;
-	}
-	*mc = vmalloc(total_size);
-	if (!*mc)
-		return -ENOMEM;
-	if (copy_from_user(*mc, user_buffer + offset, total_size)) {
-		printk(KERN_ERR "microcode: error! Can not read user data\n");
-		vfree(*mc);
-		return -EFAULT;
-	}
-	return offset + total_size;
-}
-#endif
+	while (leftover) {
+		struct microcode_header_intel mc_header;
+		unsigned int mc_size;
 
-static long get_next_ucode_from_buffer(void **mc, const u8 *buf,
-	unsigned long size, long offset)
-{
-	struct microcode_header_intel *mc_header;
-	unsigned long total_size;
+		if (get_ucode_data(&mc_header, ucode_ptr, sizeof(mc_header)))
+			break;
 
-	/* No more data */
-	if (offset >= size)
-		return 0;
-	mc_header = (struct microcode_header_intel *)(buf + offset);
-	total_size = get_totalsize(mc_header);
+		mc_size = get_totalsize(&mc_header);
+		if (!mc_size || mc_size > leftover) {
+			printk(KERN_ERR "microcode: error!"
+					"Bad data in microcode data file\n");
+			break;
+		}
 
-	if (offset + total_size > size) {
-		printk(KERN_ERR "microcode: error! Bad data in microcode data file\n");
-		return -EINVAL;
+		mc = vmalloc(mc_size);
+		if (!mc)
+			break;
+
+		if (get_ucode_data(mc, ucode_ptr, mc_size) ||
+		    microcode_sanity_check(mc) < 0) {
+			vfree(mc);
+			break;
+		}
+
+		if (get_matching_microcode(&uci->cpu_sig, mc, new_rev)) {
+			new_rev = mc_header.rev;
+			new_mc  = mc;
+		} else
+			vfree(mc);
+
+		ucode_ptr += mc_size;
+		leftover  -= mc_size;
 	}
 
-	*mc = vmalloc(total_size);
-	if (!*mc) {
-		printk(KERN_ERR "microcode: error! Can not allocate memory\n");
-		return -ENOMEM;
+	if (new_mc) {
+		if (!leftover) {
+			if (uci->mc.mc_intel)
+				vfree(uci->mc.mc_intel);
+			uci->mc.mc_intel = (struct microcode_intel *)new_mc;
+			pr_debug("microcode: CPU%d found a matching microcode update with"
+				 " version 0x%x (current=0x%x)\n",
+				cpu, uci->mc.mc_intel->hdr.rev, uci->cpu_sig.rev);
+		} else
+			vfree(new_mc);
 	}
-	memcpy(*mc, buf + offset, total_size);
-	return offset + total_size;
+
+	return (int)leftover;
 }
 
-/* fake device for request_firmware */
-extern struct platform_device *microcode_pdev;
+static int get_ucode_fw(void *to, const void *from, size_t n)
+{
+	memcpy(to, from, n);
+	return 0;
+}
 
-static int cpu_request_microcode(int cpu)
+static int request_microcode_fw(int cpu, struct device *device)
 {
 	char name[30];
 	struct cpuinfo_x86 *c = &cpu_data(cpu);
 	const struct firmware *firmware;
-	const u8 *buf;
-	unsigned long size;
-	long offset = 0;
-	int error;
-	void *mc;
+	int ret;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(cpu != raw_smp_processor_id());
 	sprintf(name, "intel-ucode/%02x-%02x-%02x",
 		c->x86, c->x86_model, c->x86_mask);
-	error = request_firmware(&firmware, name, &microcode_pdev->dev);
-	if (error) {
+	ret = request_firmware(&firmware, name, device);
+	if (ret) {
 		pr_debug("microcode: data file %s load failed\n", name);
-		return error;
+		return ret;
 	}
-	buf = firmware->data;
-	size = firmware->size;
-	while ((offset = get_next_ucode_from_buffer(&mc, buf, size, offset))
-			> 0) {
-		error = microcode_sanity_check(mc);
-		if (error)
-			break;
-		error = get_matching_microcode(mc, cpu);
-		if (error < 0)
-			break;
-		/*
-		 * It's possible the data file has multiple matching ucode,
-		 * lets keep searching till the latest version
-		 */
-		if (error == 1) {
-			apply_microcode(cpu);
-			error = 0;
-		}
-		vfree(mc);
-	}
-	if (offset > 0)
-		vfree(mc);
-	if (offset < 0)
-		error = offset;
+
+	ret = generic_load_microcode(cpu, (void*)firmware->data, firmware->size,
+			&get_ucode_fw);
+
 	release_firmware(firmware);
 
-	return error;
+	return ret;
+}
+
+static int get_ucode_user(void *to, const void *from, size_t n)
+{
+	return copy_from_user(to, from, n);
+}
+
+static int request_microcode_user(int cpu, const void __user *buf, size_t size)
+{
+	/* We should bind the task to the CPU */
+	BUG_ON(cpu != raw_smp_processor_id());
+
+	return generic_load_microcode(cpu, (void*)buf, size, &get_ucode_user);
 }
 
 static void microcode_fini_cpu(int cpu)
@@ -459,10 +433,8 @@ static void microcode_fini_cpu(int cpu)
 }
 
 static struct microcode_ops microcode_intel_ops = {
-	.get_next_ucode                   = get_next_ucode,
-	.get_matching_microcode           = get_matching_microcode,
-	.microcode_sanity_check           = microcode_sanity_check,
-	.cpu_request_microcode            = cpu_request_microcode,
+	.request_microcode_user		  = request_microcode_user,
+	.request_microcode_fw             = request_microcode_fw,
 	.collect_cpu_info                 = collect_cpu_info,
 	.apply_microcode                  = apply_microcode,
 	.microcode_fini_cpu               = microcode_fini_cpu,

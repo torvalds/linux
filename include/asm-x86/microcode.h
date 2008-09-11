@@ -5,17 +5,16 @@ extern int microcode_init(void *opaque, struct module *module);
 extern void microcode_exit(void);
 
 struct cpu_signature;
+struct device;
 
 struct microcode_ops {
-	long (*get_next_ucode)(void **mc, long offset);
-	long (*microcode_get_next_ucode)(void **mc, long offset);
-	int (*get_matching_microcode)(void *mc, int cpu);
-	int (*microcode_sanity_check)(void *mc);
-	int (*cpu_request_microcode)(int cpu);
-	int (*collect_cpu_info)(int cpu_num, struct cpu_signature *csig);
-	void (*apply_microcode)(int cpu);
-	void (*microcode_fini_cpu)(int cpu);
-	void (*clear_patch)(void *data);
+	int  (*request_microcode_user) (int cpu, const void __user *buf, size_t size);
+	int  (*request_microcode_fw) (int cpu, struct device *device);
+
+	void (*apply_microcode) (int cpu);
+
+	int  (*collect_cpu_info) (int cpu, struct cpu_signature *csig);
+	void (*microcode_fini_cpu) (int cpu);
 };
 
 struct microcode_header_intel {

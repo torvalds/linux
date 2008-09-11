@@ -110,50 +110,28 @@ struct ucode_cpu_info ucode_cpu_info[NR_CPUS];
 EXPORT_SYMBOL_GPL(ucode_cpu_info);
 
 #ifdef CONFIG_MICROCODE_OLD_INTERFACE
-void __user *user_buffer;		/* user area microcode data buffer */
-EXPORT_SYMBOL_GPL(user_buffer);
-unsigned int user_buffer_size;		/* it's size */
-EXPORT_SYMBOL_GPL(user_buffer_size);
-
-static int do_microcode_update(void)
+static int do_microcode_update(const void __user *buf, size_t size)
 {
-	long cursor = 0;
-	int error = 0;
-	void *new_mc = NULL;
-	int cpu;
 	cpumask_t old;
+	int error = 0;
+	int cpu;
 
 	old = current->cpus_allowed;
 
-	while ((cursor = microcode_ops->get_next_ucode(&new_mc, cursor)) > 0) {
-		if (microcode_ops->microcode_sanity_check != NULL)
-			error = microcode_ops->microcode_sanity_check(new_mc);
-		if (error)
-			goto out;
-		/*
-		 * It's possible the data file has multiple matching ucode,
-		 * lets keep searching till the latest version
-		 */
-		for_each_online_cpu(cpu) {
-			struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	for_each_online_cpu(cpu) {
+		struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 
-			if (!uci->valid)
-				continue;
-			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
-			error = microcode_ops->get_matching_microcode(new_mc,
-								      cpu);
-			if (error < 0)
-				goto out;
-			if (error == 1)
-				microcode_ops->apply_microcode(cpu);
-		}
-		vfree(new_mc);
+		if (!uci->valid)
+			continue;
+
+		set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
+		error = microcode_ops->request_microcode_user(cpu, buf, size);
+		if (error < 0)
+			goto out;
+		if (!error)
+			microcode_ops->apply_microcode(cpu);
 	}
 out:
-	if (cursor > 0)
-		vfree(new_mc);
-	if (cursor < 0)
-		error = cursor;
 	set_cpus_allowed_ptr(current, &old);
 	return error;
 }
@@ -178,10 +156,7 @@ static ssize_t microcode_write(struct file *file, const char __user *buf,
 	get_online_cpus();
 	mutex_lock(&microcode_mutex);
 
-	user_buffer = (void __user *) buf;
-	user_buffer_size = (int) len;
-
-	ret = do_microcode_update();
+	ret = do_microcode_update(buf, len);
 	if (!ret)
 		ret = (ssize_t)len;
 
@@ -231,7 +206,6 @@ MODULE_ALIAS_MISCDEV(MICROCODE_MINOR);
 
 /* fake device for request_firmware */
 struct platform_device *microcode_pdev;
-EXPORT_SYMBOL_GPL(microcode_pdev);
 
 static ssize_t reload_store(struct sys_device *dev,
 			    struct sysdev_attribute *attr,
@@ -252,8 +226,12 @@ static ssize_t reload_store(struct sys_device *dev,
 		if (cpu_online(cpu)) {
 			set_cpus_allowed_ptr(current, &cpumask_of_cpu(cpu));
 			mutex_lock(&microcode_mutex);
-			if (uci->valid)
-				err = microcode_ops->cpu_request_microcode(cpu);
+			if (uci->valid) {
+				err = microcode_ops->request_microcode_fw(cpu,
+						&microcode_pdev->dev);
+				if (!err)
+					microcode_ops->apply_microcode(cpu);
+			}
 			mutex_unlock(&microcode_mutex);
 			set_cpus_allowed_ptr(current, &old);
 		}
@@ -315,7 +293,7 @@ static void collect_cpu_info(int cpu)
 		uci->valid = 1;
 }
 
-static void microcode_resume_cpu(int cpu)
+static int microcode_resume_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
 	struct cpu_signature nsig;
@@ -323,7 +301,7 @@ static void microcode_resume_cpu(int cpu)
 	pr_debug("microcode: CPU%d resumed\n", cpu);
 
 	if (!uci->mc.valid_mc)
-		return;
+		return 1;
 
 	/*
 	 * Let's verify that the 'cached' ucode does belong
@@ -331,21 +309,22 @@ static void microcode_resume_cpu(int cpu)
 	 */
 	if (microcode_ops->collect_cpu_info(cpu, &nsig)) {
 		microcode_fini_cpu(cpu);
-		return;
+		return -1;
 	}
 
 	if (memcmp(&nsig, &uci->cpu_sig, sizeof(nsig))) {
 		microcode_fini_cpu(cpu);
 		/* Should we look for a new ucode here? */
-		return;
+		return 1;
 	}
 
-	microcode_ops->apply_microcode(cpu);
+	return 0;
 }
 
 void microcode_update_cpu(int cpu)
 {
 	struct ucode_cpu_info *uci = ucode_cpu_info + cpu;
+	int err = 0;
 
 	/* We should bind the task to the CPU */
 	BUG_ON(raw_smp_processor_id() != cpu);
@@ -356,12 +335,17 @@ void microcode_update_cpu(int cpu)
 	 * otherwise just request a firmware:
 	 */
 	if (uci->valid) {
-		microcode_resume_cpu(cpu);
+		err = microcode_resume_cpu(cpu);
 	} else {	
 		collect_cpu_info(cpu);
 		if (uci->valid && system_state == SYSTEM_RUNNING)
-			microcode_ops->cpu_request_microcode(cpu);
+			err = microcode_ops->request_microcode_fw(cpu,
+					&microcode_pdev->dev);
 	}
+
+	if (!err)
+		microcode_ops->apply_microcode(cpu);
+
 	mutex_unlock(&microcode_mutex);
 }
 
@@ -414,7 +398,7 @@ static int mc_sysdev_resume(struct sys_device *dev)
 		return 0;
 	pr_debug("microcode: CPU%d resumed\n", cpu);
 	/* only CPU 0 will apply ucode here */
-	microcode_ops->apply_microcode(0);
+	microcode_update_cpu(0);
 	return 0;
 }
 
