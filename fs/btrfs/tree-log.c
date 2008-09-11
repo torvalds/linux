@@ -1027,6 +1027,7 @@ static noinline int fixup_inode_link_count(struct btrfs_trans_handle *trans,
 		inode->i_nlink = nlink;
 		btrfs_update_inode(trans, root, inode);
 	}
+	BTRFS_I(inode)->index_cnt = (u64)-1;
 
 	return 0;
 }
@@ -2714,6 +2715,7 @@ int btrfs_recover_log_trees(struct btrfs_root *log_root_tree)
 	struct btrfs_key tmp_key;
 	struct btrfs_root *log;
 	struct btrfs_fs_info *fs_info = log_root_tree->fs_info;
+	u64 highest_inode;
 	struct walk_control wc = {
 		.process_func = process_one_buffer,
 		.stage = 0,
@@ -2771,6 +2773,11 @@ again:
 			ret = fixup_inode_link_counts(trans, wc.replay_dest,
 						      path);
 			BUG_ON(ret);
+		}
+		ret = btrfs_find_highest_inode(wc.replay_dest, &highest_inode);
+		if (ret == 0) {
+			wc.replay_dest->highest_inode = highest_inode;
+			wc.replay_dest->last_inode_alloc = highest_inode;
 		}
 
 		key.offset = found_key.offset - 1;

@@ -2239,8 +2239,9 @@ static int btrfs_set_inode_index(struct inode *dir, struct inode *inode,
 
 	if (BTRFS_I(dir)->index_cnt == (u64)-1) {
 		ret = btrfs_set_inode_index_count(dir);
-		if (ret)
+		if (ret) {
 			return ret;
+		}
 	}
 
 	*index = BTRFS_I(dir)->index_cnt;
