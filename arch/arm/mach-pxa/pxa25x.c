@@ -348,10 +348,6 @@ static int __init pxa25x_init(void)
 {
 	int i, ret = 0;
 
-	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
-	if (cpu_is_pxa255())
-		clks_register(&pxa25x_hwuart_clk, 1);
-
 	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
 
 		reset_status = RCSR;
@@ -375,9 +371,11 @@ static int __init pxa25x_init(void)
 			return ret;
 	}
 
-	/* Only add HWUART for PXA255/26x; PXA210/250/27x do not have it. */
-	if (cpu_is_pxa255())
+	/* Only add HWUART for PXA255/26x; PXA210/250 do not have it. */
+	if (cpu_is_pxa255()) {
+		clks_register(&pxa25x_hwuart_clk, 1);
 		ret = platform_device_register(&pxa_device_hwuart);
+	}
 
 	return ret;
 }
