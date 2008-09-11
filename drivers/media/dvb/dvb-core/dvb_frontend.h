@@ -170,8 +170,8 @@ struct dvb_frontend_ops {
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
 
-	int (*set_property)(struct dvb_frontend* fe, dtv_property_t* tvp);
-	int (*get_property)(struct dvb_frontend* fe, dtv_property_t* tvp);
+	int (*set_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
+	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 	int (*set_params)(struct dvb_frontend* fe);
 };
 

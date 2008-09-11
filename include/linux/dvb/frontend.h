@@ -251,11 +251,8 @@ struct dvb_frontend_event {
  * binary compatability.
  */
 typedef enum dtv_cmd_types {
-	DTV_SEQ_UNDEFINED,
-	DTV_SEQ_START,
-	DTV_SEQ_CONTINUE,
-	DTV_SEQ_COMPLETE,
-	DTV_SEQ_TERMINATE,
+	DTV_TUNE,
+	DTV_CLEAR,
 
 	DTV_SET_FREQUENCY,
 	DTV_SET_MODULATION,
@@ -348,22 +345,32 @@ struct dtv_cmds_h {
 	__u32	reserved:30;	/* Align */
 };
 
-typedef struct {
+struct dtv_property {
 	__u32 cmd;
+	__u32 reserved[3];
 	union {
+		__s32 valuemin;
+		__s32 valuemax;
 		__u32 data;
 		struct {
 			__u8 data[32];
 			__u32 len;
+			__u32 reserved1[3];
+			void *reserved2;
 		} buffer;
 	} u;
-} dtv_property_t;
+} __attribute__ ((packed));
 
 /* No more than 16 properties during any given ioctl */
-typedef dtv_property_t dtv_properties_t[16];
+struct dtv_properties {
+	__u32 num;
+	struct dtv_property *props;
+};
 
-#define FE_SET_PROPERTY		   _IOW('o', 82, dtv_properties_t)
-#define FE_GET_PROPERTY		   _IOR('o', 83, dtv_properties_t)
+#define DTV_IOCTL_MAX_MSGS 64
+
+#define FE_SET_PROPERTY		   _IOW('o', 82, struct dtv_properties)
+#define FE_GET_PROPERTY		   _IOR('o', 83, struct dtv_properties)
 
 
 /**

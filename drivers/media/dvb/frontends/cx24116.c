@@ -796,7 +796,7 @@ static int cx24116_initfe(struct dvb_frontend* fe)
 	return cx24116_diseqc_init(fe);
 }
 
-static int cx24116_set_property(struct dvb_frontend *fe, dtv_property_t* tvp)
+static int cx24116_set_property(struct dvb_frontend *fe, struct dtv_property* tvp)
 {
 	dprintk("%s(..)\n", __func__);
 	return 0;

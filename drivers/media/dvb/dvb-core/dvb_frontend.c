@@ -756,29 +756,14 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 }
 
 struct dtv_cmds_h dtv_cmds[] = {
-	[DTV_SEQ_UNDEFINED] = {
-		.name	= "DTV_SEQ_UNDEFINED",
-		.cmd	= DTV_SEQ_UNDEFINED,
+	[DTV_TUNE] = {
+		.name	= "DTV_TUNE",
+		.cmd	= DTV_TUNE,
 		.set	= 1,
 	},
-	[DTV_SEQ_START] = {
-		.name	= "DTV_SEQ_START",
-		.cmd	= DTV_SEQ_START,
-		.set	= 1,
-	},
-	[DTV_SEQ_CONTINUE] = {
-		.name	= "DTV_SEQ_CONTINUE",
-		.cmd	= DTV_SEQ_CONTINUE,
-		.set	= 1,
-	},
-	[DTV_SEQ_COMPLETE] = {
-		.name	= "DTV_SEQ_COMPLETE",
-		.cmd	= DTV_SEQ_COMPLETE,
-		.set	= 1,
-	},
-	[DTV_SEQ_TERMINATE] = {
-		.name	= "DTV_SEQ_TERMINATE",
-		.cmd	= DTV_SEQ_TERMINATE,
+	[DTV_CLEAR] = {
+		.name	= "DTV_CLEAR",
+		.cmd	= DTV_CLEAR,
 		.set	= 1,
 	},
 
@@ -974,7 +959,7 @@ struct dtv_cmds_h dtv_cmds[] = {
 	},
 };
 
-void dtv_property_dump(dtv_property_t *tvp)
+void dtv_property_dump(struct dtv_property *tvp)
 {
 	int i;
 
@@ -1044,6 +1029,7 @@ int dtv_property_cache_submit(struct dvb_frontend *fe)
 
 	/* For legacy delivery systems we don't need the delivery_system to be specified */
 	if(is_legacy_delivery_system(c->delivery_system)) {
+		printk("%s() legacy, modulation = %d\n", __FUNCTION__, c->modulation);
 		switch(c->modulation) {
 		case QPSK:
 			printk("%s() Preparing QPSK req\n", __FUNCTION__);
@@ -1161,7 +1147,7 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg);
 
-int dtv_property_process(struct dvb_frontend *fe, dtv_property_t *tvp,
+int dtv_property_process(struct dvb_frontend *fe, struct dtv_property *tvp,
 	struct inode *inode, struct file *file)
 {
 	int r = 0;
@@ -1170,23 +1156,22 @@ int dtv_property_process(struct dvb_frontend *fe, dtv_property_t *tvp,
 	dtv_property_dump(tvp);
 
 	switch(tvp->cmd) {
-	case DTV_SEQ_START:
-	case DTV_SEQ_TERMINATE:
+	case DTV_CLEAR:
 		/* Reset a cache of data specific to the frontend here. This does
 		 * not effect hardware.
 		 */
 		printk("%s() Flushing property cache\n", __FUNCTION__);
 		memset(&fe->dtv_property_cache, 0, sizeof(struct dtv_frontend_properties));
-		fe->dtv_property_cache.state = DTV_SEQ_START;
+		fe->dtv_property_cache.state = tvp->cmd;
 		fe->dtv_property_cache.delivery_system = SYS_UNDEFINED;
 		break;
-	case DTV_SEQ_COMPLETE:
+	case DTV_TUNE:
 		/* interpret the cache of data, build either a traditional frontend
 		 * tunerequest and submit it to a subset of the ioctl handler,
 		 * or, call a new undefined method on the frontend to deal with
 		 * all new tune requests.
 		 */
-		fe->dtv_property_cache.state = DTV_SEQ_COMPLETE;
+		fe->dtv_property_cache.state = tvp->cmd;
 		printk("%s() Finalised property cache\n", __FUNCTION__);
 		r |= dtv_property_cache_submit(fe);
 		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
@@ -1344,30 +1329,48 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
 	int err = -EOPNOTSUPP;
-	dtv_property_t *tvp;
+
+	struct dtv_properties *tvps = NULL;
+	struct dtv_property *tvp = NULL;
+	int i;
 
 	dprintk("%s\n", __func__);
 
 	if(cmd == FE_SET_PROPERTY) {
 		printk("%s() FE_SET_PROPERTY\n", __FUNCTION__);
 
-		/* TODO: basic property validation here */
+		tvps = (struct dtv_properties __user *)parg;
 
-		/* TODO: ioctl userdata out of range check here */
-		tvp = parg;
-		while(tvp->cmd != DTV_SEQ_UNDEFINED) {
-			dtv_property_process(fe, tvp, inode, file);
-			if( (tvp->cmd == DTV_SEQ_TERMINATE) || (tvp->cmd == DTV_SEQ_COMPLETE) )
-				break;
-			tvp++;
+		printk("%s() properties.num = %d\n", __FUNCTION__, tvps->num);
+		printk("%s() properties.props = %p\n", __FUNCTION__, tvps->props);
+
+		/* Put an arbitrary limit on the number of messages that can
+		 * be sent at once */
+		if (tvps->num > DTV_IOCTL_MAX_MSGS)
+			return -EINVAL;
+
+		tvp = (struct dtv_property *) kmalloc(tvps->num *
+			sizeof(struct dtv_property), GFP_KERNEL);
+		if (!tvp) {
+			err = -ENOMEM;
+			goto out;
 		}
 
-		if(fe->dtv_property_cache.state == DTV_SEQ_COMPLETE) {
+		if (copy_from_user(tvp, tvps->props, tvps->num * sizeof(struct dtv_property))) {
+			err = -EFAULT;
+			goto out;
+		}
+
+		for (i = 0; i < tvps->num; i++)
+			dtv_property_process(fe, tvp + i, inode, file);
+
+		if(fe->dtv_property_cache.state == DTV_TUNE) {
 			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
 		}
 		err = 0;
 	}
-
+out:
+	kfree(tvp);
 	return err;
 }
 
@@ -1545,7 +1548,7 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 	case FE_SET_FRONTEND: {
 		struct dvb_frontend_tune_settings fetunesettings;
 
-		if(fe->dtv_property_cache.state == DTV_SEQ_COMPLETE) {
+		if(fe->dtv_property_cache.state == DTV_TUNE) {
 			if (dvb_frontend_check_parameters(fe, &fepriv->parameters) < 0) {
 				err = -EINVAL;
 				break;
