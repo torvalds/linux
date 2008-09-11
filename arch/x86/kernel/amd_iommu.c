@@ -1176,11 +1176,11 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	if (!get_device_resources(dev, &iommu, &domain, &devid))
 		flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
 
+	flag |= __GFP_ZERO;
 	virt_addr = (void *)__get_free_pages(flag, get_order(size));
 	if (!virt_addr)
 		return 0;
 
-	memset(virt_addr, 0, size);
 	paddr = virt_to_phys(virt_addr);
 
 	if (!iommu || !domain) {
