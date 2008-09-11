@@ -485,6 +485,8 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 
 	if (likely(tx->rate_idx < 0)) {
 		rate_control_get_rate(tx->dev, sband, tx->skb, &rsel);
+		if (tx->sta)
+			tx->sta->last_txrate_idx = rsel.rate_idx;
 		tx->rate_idx = rsel.rate_idx;
 		if (unlikely(rsel.probe_idx >= 0)) {
 			info->flags |= IEEE80211_TX_CTL_RATE_CTRL_PROBE;

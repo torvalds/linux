@@ -2039,7 +2039,6 @@ static void ath_rate_init(void *priv, void *priv_sta,
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	sta->txrate_idx = rate_lowest_index(local, sband, sta);
 
 	ath_setup_rates(local, sta);
 	if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {

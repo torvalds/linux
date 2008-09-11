@@ -636,8 +636,8 @@ static int ieee80211_ioctl_giwrate(struct net_device *dev,
 
 	sta = sta_info_get(local, sdata->u.sta.bssid);
 
-	if (sta && sta->txrate_idx < sband->n_bitrates)
-		rate->value = sband->bitrates[sta->txrate_idx].bitrate;
+	if (sta && sta->last_txrate_idx < sband->n_bitrates)
+		rate->value = sband->bitrates[sta->last_txrate_idx].bitrate;
 	else
 		rate->value = 0;
 

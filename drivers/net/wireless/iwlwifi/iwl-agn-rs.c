@@ -2064,14 +2064,6 @@ out:
 	i = index;
 	lq_sta->last_txrate_idx = i;
 
-	/* sta->txrate_idx is an index to A mode rates which start
-	 * at IWL_FIRST_OFDM_RATE
-	 */
-	if (lq_sta->band == IEEE80211_BAND_5GHZ)
-		sta->txrate_idx = i - IWL_FIRST_OFDM_RATE;
-	else
-		sta->txrate_idx = i;
-
 	return;
 }
 
@@ -2234,7 +2226,6 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	lq_sta->flush_timer = 0;
 	lq_sta->supp_rates = sta->sta.supp_rates[sband->band];
-	sta->txrate_idx = 3;
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
 			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
@@ -2269,11 +2260,11 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	}
 
 	/* Find highest tx rate supported by hardware and destination station */
+	lq_sta->last_txrate_idx = 3;
 	for (i = 0; i < sband->n_bitrates; i++)
 		if (sta->sta.supp_rates[sband->band] & BIT(i))
-			sta->txrate_idx = i;
+			lq_sta->last_txrate_idx = i;
 
-	lq_sta->last_txrate_idx = sta->txrate_idx;
 	/* For MODE_IEEE80211A, skip over cck rates in global rate table */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
 		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;

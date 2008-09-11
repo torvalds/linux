@@ -334,12 +334,10 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	for (i = IWL_RATE_COUNT - 1; i >= 0; i--) {
 		if (sta->sta.supp_rates[local->hw.conf.channel->band] & (1 << i)) {
-			sta->txrate_idx = i;
+			rs_sta->last_txrate_idx = i;
 			break;
 		}
 	}
-
-	rs_sta->last_txrate_idx = sta->txrate_idx;
 
 	/* For 5 GHz band it start at IWL_FIRST_OFDM_RATE */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
@@ -809,15 +807,13 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	rs_sta->last_txrate_idx = index;
 	if (sband->band == IEEE80211_BAND_5GHZ)
-		sta->txrate_idx = rs_sta->last_txrate_idx - IWL_FIRST_OFDM_RATE;
+		sel->rate_idx = rs_sta->last_txrate_idx - IWL_FIRST_OFDM_RATE;
 	else
-		sta->txrate_idx = rs_sta->last_txrate_idx;
+		sel->rate_idx = rs_sta->last_txrate_idx;
 
 	rcu_read_unlock();
 
 	IWL_DEBUG_RATE("leave: %d\n", index);
-
-	sel->rate_idx = sta->txrate_idx;
 }
 
 static struct rate_control_ops rs_ops = {
