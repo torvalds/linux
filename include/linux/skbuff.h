@@ -146,8 +146,14 @@ struct skb_shared_info {
 	unsigned short	gso_segs;
 	unsigned short  gso_type;
 	__be32          ip6_frag_id;
+#ifdef CONFIG_HAS_DMA
+	unsigned int	num_dma_maps;
+#endif
 	struct sk_buff	*frag_list;
 	skb_frag_t	frags[MAX_SKB_FRAGS];
+#ifdef CONFIG_HAS_DMA
+	dma_addr_t	dma_maps[MAX_SKB_FRAGS + 1];
+#endif
 };
 
 /* We divide dataref into two halves.  The higher 16 bits hold references
