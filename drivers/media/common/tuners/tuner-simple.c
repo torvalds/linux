@@ -1040,7 +1040,6 @@ struct dvb_frontend *simple_tuner_attach(struct dvb_frontend *fe,
 	case 0:
 		mutex_unlock(&tuner_simple_list_mutex);
 		return NULL;
-		break;
 	case 1:
 		fe->tuner_priv = priv;
 
