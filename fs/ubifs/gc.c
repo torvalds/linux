@@ -96,6 +96,48 @@ static int switch_gc_head(struct ubifs_info *c)
 }
 
 /**
+ * joinup - bring data nodes for an inode together.
+ * @c: UBIFS file-system description object
+ * @sleb: describes scanned LEB
+ * @inum: inode number
+ * @blk: block number
+ * @data: list to which to add data nodes
+ *
+ * This function looks at the first few nodes in the scanned LEB @sleb and adds
+ * them to @data if they are data nodes from @inum and have a larger block
+ * number than @blk. This function returns %0 on success and a negative error
+ * code on failure.
+ */
+static int joinup(struct ubifs_info *c, struct ubifs_scan_leb *sleb, ino_t inum,
+		  unsigned int blk, struct list_head *data)
+{
+	int err, cnt = 6, lnum = sleb->lnum, offs;
+	struct ubifs_scan_node *snod, *tmp;
+	union ubifs_key *key;
+
+	list_for_each_entry_safe(snod, tmp, &sleb->nodes, list) {
+		key = &snod->key;
+		if (key_inum(c, key) == inum &&
+		    key_type(c, key) == UBIFS_DATA_KEY &&
+		    key_block(c, key) > blk) {
+			offs = snod->offs;
+			err = ubifs_tnc_has_node(c, key, 0, lnum, offs, 0);
+			if (err < 0)
+				return err;
+			list_del(&snod->list);
+			if (err) {
+				list_add_tail(&snod->list, data);
+				blk = key_block(c, key);
+			} else
+				kfree(snod);
+			cnt = 6;
+		} else if (--cnt == 0)
+			break;
+	}
+	return 0;
+}
+
+/**
  * move_nodes - move nodes.
  * @c: UBIFS file-system description object
  * @sleb: describes nodes to move
@@ -116,16 +158,21 @@ static int switch_gc_head(struct ubifs_info *c)
 static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 {
 	struct ubifs_scan_node *snod, *tmp;
-	struct list_head large, medium, small;
+	struct list_head data, large, medium, small;
 	struct ubifs_wbuf *wbuf = &c->jheads[GCHD].wbuf;
 	int avail, err, min = INT_MAX;
+	unsigned int blk = 0;
+	ino_t inum = 0;
 
+	INIT_LIST_HEAD(&data);
 	INIT_LIST_HEAD(&large);
 	INIT_LIST_HEAD(&medium);
 	INIT_LIST_HEAD(&small);
 
-	list_for_each_entry_safe(snod, tmp, &sleb->nodes, list) {
-		struct list_head *lst;
+	while (!list_empty(&sleb->nodes)) {
+		struct list_head *lst = sleb->nodes.next;
+
+		snod = list_entry(lst, struct ubifs_scan_node, list);
 
 		ubifs_assert(snod->type != UBIFS_IDX_NODE);
 		ubifs_assert(snod->type != UBIFS_REF_NODE);
@@ -136,7 +183,6 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 		if (err < 0)
 			goto out;
 
-		lst = &snod->list;
 		list_del(lst);
 		if (!err) {
 			/* The node is obsolete, remove it from the list */
@@ -145,15 +191,30 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 		}
 
 		/*
-		 * Sort the list of nodes so that large nodes go first, and
-		 * small nodes go last.
+		 * Sort the list of nodes so that data nodes go first, large
+		 * nodes go second, and small nodes go last.
 		 */
-		if (snod->len > MEDIUM_NODE_WM)
-			list_add(lst, &large);
+		if (key_type(c, &snod->key) == UBIFS_DATA_KEY) {
+			if (inum != key_inum(c, &snod->key)) {
+				if (inum) {
+					/*
+					 * Try to move data nodes from the same
+					 * inode together.
+					 */
+					err = joinup(c, sleb, inum, blk, &data);
+					if (err)
+						goto out;
+				}
+				inum = key_inum(c, &snod->key);
+				blk = key_block(c, &snod->key);
+			}
+			list_add_tail(lst, &data);
+		} else if (snod->len > MEDIUM_NODE_WM)
+			list_add_tail(lst, &large);
 		else if (snod->len > SMALL_NODE_WM)
-			list_add(lst, &medium);
+			list_add_tail(lst, &medium);
 		else
-			list_add(lst, &small);
+			list_add_tail(lst, &small);
 
 		/* And find the smallest node */
 		if (snod->len < min)
@@ -164,6 +225,7 @@ static int move_nodes(struct ubifs_info *c, struct ubifs_scan_leb *sleb)
 	 * Join the tree lists so that we'd have one roughly sorted list
 	 * ('large' will be the head of the joined list).
 	 */
+	list_splice(&data, &large);
 	list_splice(&medium, large.prev);
 	list_splice(&small, large.prev);
 
