@@ -332,12 +332,13 @@ static void blkdev_discard_end_io(struct bio *bio, int err)
  * @bdev:	blockdev to issue discard for
  * @sector:	start sector
  * @nr_sects:	number of sectors to discard
+ * @gfp_mask:	memory allocation flags (for bio_alloc)
  *
  * Description:
  *    Issue a discard request for the sectors in question. Does not wait.
  */
-int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
-			 unsigned nr_sects)
+int blkdev_issue_discard(struct block_device *bdev,
+			 sector_t sector, sector_t nr_sects, gfp_t gfp_mask)
 {
 	struct request_queue *q;
 	struct bio *bio;
@@ -354,7 +355,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		return -EOPNOTSUPP;
 
 	while (nr_sects && !ret) {
-		bio = bio_alloc(GFP_KERNEL, 0);
+		bio = bio_alloc(gfp_mask, 0);
 		if (!bio)
 			return -ENOMEM;
 

@@ -16,6 +16,7 @@
 #include <linux/bio.h>
 #include <linux/module.h>
 #include <linux/stringify.h>
+#include <linux/gfp.h>
 #include <linux/bsg.h>
 #include <linux/smp.h>
 
@@ -873,15 +874,15 @@ static inline struct request *blk_map_queue_find_tag(struct blk_queue_tag *bqt,
 }
 
 extern int blkdev_issue_flush(struct block_device *, sector_t *);
-extern int blkdev_issue_discard(struct block_device *, sector_t sector,
-				unsigned nr_sects);
+extern int blkdev_issue_discard(struct block_device *,
+				sector_t sector, sector_t nr_sects, gfp_t);
 
 static inline int sb_issue_discard(struct super_block *sb,
-				   sector_t block, unsigned nr_blocks)
+				   sector_t block, sector_t nr_blocks)
 {
 	block <<= (sb->s_blocksize_bits - 9);
 	nr_blocks <<= (sb->s_blocksize_bits - 9);
-	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks);
+	return blkdev_issue_discard(sb->s_bdev, block, nr_blocks, GFP_KERNEL);
 }
 
 /*
