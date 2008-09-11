@@ -3135,11 +3135,8 @@ static void vmx_complete_interrupts(struct vcpu_vmx *vmx)
 
 static void vmx_intr_assist(struct kvm_vcpu *vcpu)
 {
-	u32 intr_info_field;
-
 	update_tpr_threshold(vcpu);
 
-	intr_info_field = vmcs_read32(VM_ENTRY_INTR_INFO_FIELD);
 	if (cpu_has_virtual_nmis()) {
 		if (vcpu->arch.nmi_pending && !vcpu->arch.nmi_injected) {
 			if (vmx_nmi_enabled(vcpu)) {
