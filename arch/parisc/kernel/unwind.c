@@ -170,7 +170,7 @@ void unwind_table_remove(struct unwind_table *table)
 }
 
 /* Called from setup_arch to import the kernel unwind info */
-static int unwind_init(void)
+int unwind_init(void)
 {
 	long start, stop;
 	register unsigned long gp __asm__ ("r27");
@@ -417,5 +417,3 @@ int unwind_to_user(struct unwind_frame_info *info)
 
 	return ret;
 }
-
-module_init(unwind_init);

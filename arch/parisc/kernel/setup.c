@@ -44,6 +44,7 @@
 #include <asm/pdc_chassis.h>
 #include <asm/io.h>
 #include <asm/setup.h>
+#include <asm/unwind.h>
 
 static char __initdata command_line[COMMAND_LINE_SIZE];
 
@@ -123,6 +124,7 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_64BIT
 	extern int parisc_narrow_firmware;
 #endif
+	unwind_init();
 
 	init_per_cpu(smp_processor_id());	/* Set Modes & Enable FP */
 
