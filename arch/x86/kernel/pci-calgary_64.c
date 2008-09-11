@@ -491,6 +491,8 @@ static void* calgary_alloc_coherent(struct device *dev, size_t size,
 	npages = size >> PAGE_SHIFT;
 	order = get_order(size);
 
+	flag &= ~(__GFP_DMA | __GFP_HIGHMEM | __GFP_DMA32);
+
 	/* alloc enough pages (and possibly more) */
 	ret = (void *)__get_free_pages(flag, order);
 	if (!ret)
