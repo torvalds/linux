@@ -37,6 +37,7 @@
 /* Capability offsets used by the driver */
 #define MMIO_CAP_HDR_OFFSET	0x00
 #define MMIO_RANGE_OFFSET	0x0c
+#define MMIO_MISC_OFFSET	0x10
 
 /* Masks, shifts and macros to parse the device range capability */
 #define MMIO_RANGE_LD_MASK	0xff000000
@@ -48,6 +49,7 @@
 #define MMIO_GET_LD(x)  (((x) & MMIO_RANGE_LD_MASK) >> MMIO_RANGE_LD_SHIFT)
 #define MMIO_GET_FD(x)  (((x) & MMIO_RANGE_FD_MASK) >> MMIO_RANGE_FD_SHIFT)
 #define MMIO_GET_BUS(x) (((x) & MMIO_RANGE_BUS_MASK) >> MMIO_RANGE_BUS_SHIFT)
+#define MMIO_MSI_NUM(x)	((x) & 0x1f)
 
 /* Flag masks for the AMD IOMMU exclusion range */
 #define MMIO_EXCL_ENABLE_MASK 0x01ULL
@@ -255,9 +257,14 @@ struct amd_iommu {
 	u8 *evt_buf;
 	/* size of event buffer */
 	u32 evt_buf_size;
+	/* MSI number for event interrupt */
+	u16 evt_msi_num;
 
 	/* if one, we need to send a completion wait command */
 	int need_sync;
+
+	/* true if interrupts for this IOMMU are already enabled */
+	bool int_enabled;
 
 	/* default dma_ops domain for that IOMMU */
 	struct dma_ops_domain *default_dom;
