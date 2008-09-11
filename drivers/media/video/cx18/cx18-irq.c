@@ -61,7 +61,7 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_mailbox *mb)
 		CX18_WARN("Ack struct = %d for %s\n",
 			mb->args[2], s->name);
 	id = read_enc(off);
-	buf = cx18_queue_find_buf(s, id, read_enc(off + 4));
+	buf = cx18_queue_get_buf_irq(s, id, read_enc(off + 4));
 	CX18_DEBUG_HI_DMA("DMA DONE for %s (buffer %d)\n", s->name, id);
 	if (buf) {
 		cx18_buf_sync_for_cpu(s, buf);

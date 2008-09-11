@@ -134,6 +134,7 @@ static struct omap_mcbsp_ops omap2_mcbsp_ops = {
 #ifdef CONFIG_ARCH_OMAP24XX
 static struct omap_mcbsp_platform_data omap24xx_mcbsp_pdata[] = {
 	{
+		.phys_base	= OMAP24XX_MCBSP1_BASE,
 		.virt_base	= IO_ADDRESS(OMAP24XX_MCBSP1_BASE),
 		.dma_rx_sync	= OMAP24XX_DMA_MCBSP1_RX,
 		.dma_tx_sync	= OMAP24XX_DMA_MCBSP1_TX,
@@ -143,6 +144,7 @@ static struct omap_mcbsp_platform_data omap24xx_mcbsp_pdata[] = {
 		.clk_name	= "mcbsp_clk",
 	},
 	{
+		.phys_base	= OMAP24XX_MCBSP2_BASE,
 		.virt_base	= IO_ADDRESS(OMAP24XX_MCBSP2_BASE),
 		.dma_rx_sync	= OMAP24XX_DMA_MCBSP2_RX,
 		.dma_tx_sync	= OMAP24XX_DMA_MCBSP2_TX,
@@ -161,6 +163,7 @@ static struct omap_mcbsp_platform_data omap24xx_mcbsp_pdata[] = {
 #ifdef CONFIG_ARCH_OMAP34XX
 static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 	{
+		.phys_base	= OMAP34XX_MCBSP1_BASE,
 		.virt_base	= IO_ADDRESS(OMAP34XX_MCBSP1_BASE),
 		.dma_rx_sync	= OMAP24XX_DMA_MCBSP1_RX,
 		.dma_tx_sync	= OMAP24XX_DMA_MCBSP1_TX,
@@ -170,6 +173,7 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 		.clk_name	= "mcbsp_clk",
 	},
 	{
+		.phys_base	= OMAP34XX_MCBSP2_BASE,
 		.virt_base	= IO_ADDRESS(OMAP34XX_MCBSP2_BASE),
 		.dma_rx_sync	= OMAP24XX_DMA_MCBSP2_RX,
 		.dma_tx_sync	= OMAP24XX_DMA_MCBSP2_TX,

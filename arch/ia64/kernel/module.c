@@ -31,9 +31,11 @@
 #include <linux/elf.h>
 #include <linux/moduleloader.h>
 #include <linux/string.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 
 #include <asm/patch.h>
+#include <asm/sections.h>
 #include <asm/unaligned.h>
 
 #define ARCH_MODULE_DEBUG 0
@@ -940,4 +942,14 @@ module_arch_cleanup (struct module *mod)
 		unw_remove_unwind_table(mod->arch.init_unw_table);
 	if (mod->arch.core_unw_table)
 		unw_remove_unwind_table(mod->arch.core_unw_table);
+}
+
+void *dereference_function_descriptor(void *ptr)
+{
+	struct fdesc *desc = ptr;
+	void *p;
+
+	if (!probe_kernel_address(&desc->ip, p))
+		ptr = p;
+	return ptr;
 }

@@ -1,7 +1,7 @@
 /*
  *  Driver for the Conexant CX23885 PCIe bridge
  *
- *  Copyright (c) 2007 Steven Toth <stoth@hauppauge.com>
+ *  Copyright (c) 2007 Steven Toth <stoth@linuxtv.org>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@
 #endif
 
 MODULE_DESCRIPTION("v4l2 driver module for cx23885 based TV cards");
-MODULE_AUTHOR("Steven Toth <stoth@hauppauge.com>");
+MODULE_AUTHOR("Steven Toth <stoth@linuxtv.org>");
 MODULE_LICENSE("GPL");
 
 /* ------------------------------------------------------------------ */
