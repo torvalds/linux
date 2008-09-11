@@ -975,7 +975,7 @@ static int gfs2_ok_for_dio(struct gfs2_inode *ip, int rw, loff_t offset)
 	if (gfs2_is_stuffed(ip))
 		return 0;
 
-	if (offset > i_size_read(&ip->i_inode))
+	if (offset >= i_size_read(&ip->i_inode))
 		return 0;
 	return 1;
 }
