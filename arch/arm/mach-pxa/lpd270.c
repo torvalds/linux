@@ -40,7 +40,7 @@
 
 #include <mach/pxa-regs.h>
 #include <mach/pxa2xx-regs.h>
-#include <mach/pxa2xx-gpio.h>
+#include <mach/mfp-pxa27x.h>
 #include <mach/lpd270.h>
 #include <mach/audio.h>
 #include <mach/pxafb.h>
@@ -51,6 +51,43 @@
 #include "generic.h"
 #include "devices.h"
 
+static unsigned long lpd270_pin_config[] __initdata = {
+	/* Chip Selects */
+	GPIO15_nCS_1,	/* Mainboard Flash */
+	GPIO78_nCS_2,	/* CPLD + Ethernet */
+
+	/* LCD - 16bpp Active TFT */
+	GPIO58_LCD_LDD_0,
+	GPIO59_LCD_LDD_1,
+	GPIO60_LCD_LDD_2,
+	GPIO61_LCD_LDD_3,
+	GPIO62_LCD_LDD_4,
+	GPIO63_LCD_LDD_5,
+	GPIO64_LCD_LDD_6,
+	GPIO65_LCD_LDD_7,
+	GPIO66_LCD_LDD_8,
+	GPIO67_LCD_LDD_9,
+	GPIO68_LCD_LDD_10,
+	GPIO69_LCD_LDD_11,
+	GPIO70_LCD_LDD_12,
+	GPIO71_LCD_LDD_13,
+	GPIO72_LCD_LDD_14,
+	GPIO73_LCD_LDD_15,
+	GPIO74_LCD_FCLK,
+	GPIO75_LCD_LCLK,
+	GPIO76_LCD_PCLK,
+	GPIO77_LCD_BIAS,
+	GPIO16_PWM0_OUT,	/* Backlight */
+
+	/* USB Host */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+
+	/* AC97 */
+	GPIO45_AC97_SYSCLK,
+
+	GPIO1_GPIO | WAKEUP_ON_EDGE_BOTH,
+};
 
 static unsigned int lpd270_irq_enabled;
 
@@ -413,10 +450,6 @@ static struct platform_device *platform_devices[] __initdata = {
 
 static int lpd270_ohci_init(struct device *dev)
 {
-	/* setup Port1 GPIO pin. */
-	pxa_gpio_mode(88 | GPIO_ALT_FN_1_IN);	/* USBHPWR1 */
-	pxa_gpio_mode(89 | GPIO_ALT_FN_2_OUT);	/* USBHPEN1 */
-
 	/* Set the Power Control Polarity Low and Power Sense
 	   Polarity Low to active low. */
 	UHCHR = (UHCHR | UHCHR_PCPL | UHCHR_PSPL) &
@@ -432,6 +465,8 @@ static struct pxaohci_platform_data lpd270_ohci_platform_data = {
 
 static void __init lpd270_init(void)
 {
+	pxa2xx_mfp_config(ARRAY_AND_SIZE(lpd270_pin_config));
+
 	lpd270_flash_data[0].width = (BOOT_DEF & 1) ? 2 : 4;
 	lpd270_flash_data[1].width = 4;
 
@@ -441,12 +476,6 @@ static void __init lpd270_init(void)
 	 * - LCD_wt:DMA_wt:CORE_Wt = 2:3:4
 	 */
 	ARB_CNTRL = ARB_CORE_PARK | 0x234;
-
-	/*
-	 * On LogicPD PXA270, we route AC97_SYSCLK via GPIO45.
-	 */
-	pxa_gpio_mode(GPIO45_SYSCLK_AC97_MD);
-	pxa_gpio_mode(GPIO16_PWM0_MD);
 
 	platform_add_devices(platform_devices, ARRAY_SIZE(platform_devices));
 
@@ -472,15 +501,6 @@ static void __init lpd270_map_io(void)
 {
 	pxa_map_io();
 	iotable_init(lpd270_io_desc, ARRAY_SIZE(lpd270_io_desc));
-
-	/* initialize sleep mode regs (wake-up sources, etc) */
-	PGSR0 = 0x00008800;
-	PGSR1 = 0x00000002;
-	PGSR2 = 0x0001FC00;
-	PGSR3 = 0x00001F81;
-	PWER  = 0xC0000002;
-	PRER  = 0x00000002;
-	PFER  = 0x00000002;
 
 	/* for use I SRAM as framebuffer.  */
 	PSLR |= 0x00000F04;
