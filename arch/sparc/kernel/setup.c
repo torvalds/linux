@@ -213,6 +213,7 @@ void __init setup_arch(char **cmdline_p)
 	/* Initialize PROM console and command line. */
 	*cmdline_p = prom_getbootargs();
 	strcpy(boot_command_line, *cmdline_p);
+	parse_early_param();
 
 	/* Set sparc_cpu_model */
 	sparc_cpu_model = sun_unknown;
