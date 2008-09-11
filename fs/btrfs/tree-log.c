@@ -2452,6 +2452,94 @@ static int drop_objectid_items(struct btrfs_trans_handle *trans,
 	return 0;
 }
 
+static noinline int copy_items(struct btrfs_trans_handle *trans,
+			       struct btrfs_root *log,
+			       struct btrfs_path *dst_path,
+			       struct extent_buffer *src,
+			       int start_slot, int nr, int inode_only)
+{
+	unsigned long src_offset;
+	unsigned long dst_offset;
+	struct btrfs_file_extent_item *extent;
+	struct btrfs_inode_item *inode_item;
+	int ret;
+	struct btrfs_key *ins_keys;
+	u32 *ins_sizes;
+	char *ins_data;
+	int i;
+
+	ins_data = kmalloc(nr * sizeof(struct btrfs_key) +
+			   nr * sizeof(u32), GFP_NOFS);
+	ins_sizes = (u32 *)ins_data;
+	ins_keys = (struct btrfs_key *)(ins_data + nr * sizeof(u32));
+
+	for (i = 0; i < nr; i++) {
+		ins_sizes[i] = btrfs_item_size_nr(src, i + start_slot);
+		btrfs_item_key_to_cpu(src, ins_keys + i, i + start_slot);
+	}
+	ret = btrfs_insert_empty_items(trans, log, dst_path,
+				       ins_keys, ins_sizes, nr);
+	BUG_ON(ret);
+
+	for (i = 0; i < nr; i++) {
+		dst_offset = btrfs_item_ptr_offset(dst_path->nodes[0],
+						   dst_path->slots[0]);
+
+		src_offset = btrfs_item_ptr_offset(src, start_slot + i);
+
+		copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
+				   src_offset, ins_sizes[i]);
+
+		if (inode_only == LOG_INODE_EXISTS &&
+		    ins_keys[i].type == BTRFS_INODE_ITEM_KEY) {
+			inode_item = btrfs_item_ptr(dst_path->nodes[0],
+						    dst_path->slots[0],
+						    struct btrfs_inode_item);
+			btrfs_set_inode_size(dst_path->nodes[0], inode_item, 0);
+
+			/* set the generation to zero so the recover code
+			 * can tell the difference between an logging
+			 * just to say 'this inode exists' and a logging
+			 * to say 'update this inode with these values'
+			 */
+			btrfs_set_inode_generation(dst_path->nodes[0],
+						   inode_item, 0);
+		}
+		/* take a reference on file data extents so that truncates
+		 * or deletes of this inode don't have to relog the inode
+		 * again
+		 */
+		if (btrfs_key_type(ins_keys + i) == BTRFS_EXTENT_DATA_KEY) {
+			int found_type;
+			extent = btrfs_item_ptr(src, start_slot + i,
+						struct btrfs_file_extent_item);
+
+			found_type = btrfs_file_extent_type(src, extent);
+			if (found_type == BTRFS_FILE_EXTENT_REG) {
+				u64 ds = btrfs_file_extent_disk_bytenr(src,
+								   extent);
+				u64 dl = btrfs_file_extent_disk_num_bytes(src,
+								      extent);
+				/* ds == 0 is a hole */
+				if (ds != 0) {
+					ret = btrfs_inc_extent_ref(trans, log,
+						   ds, dl,
+						   BTRFS_TREE_LOG_OBJECTID,
+						   0, ins_keys[i].objectid,
+						   ins_keys[i].offset);
+					BUG_ON(ret);
+				}
+			}
+		}
+		dst_path->slots[0]++;
+	}
+
+	btrfs_mark_buffer_dirty(dst_path->nodes[0]);
+	btrfs_release_path(log, dst_path);
+	kfree(ins_data);
+	return 0;
+}
+
 /* log a single inode in the tree log.
  * At least one parent directory for this inode must exist in the tree
  * or be logged already.
@@ -2475,14 +2563,12 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_key min_key;
 	struct btrfs_key max_key;
 	struct btrfs_root *log = root->log_root;
-	unsigned long src_offset;
-	unsigned long dst_offset;
-	struct extent_buffer *src;
-	struct btrfs_file_extent_item *extent;
-	struct btrfs_inode_item *inode_item;
+	struct extent_buffer *src = NULL;
 	u32 size;
 	int ret;
 	int nritems;
+	int ins_start_slot = 0;
+	int ins_nr;
 
 	log = root->log_root;
 
@@ -2536,75 +2622,35 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 	path->keep_locks = 1;
 
 	while(1) {
+		ins_nr = 0;
 		ret = btrfs_search_forward(root, &min_key, &max_key,
 					   path, 0, trans->transid);
 		if (ret != 0)
 			break;
 again:
+		/* note, ins_nr might be > 0 here, cleanup outside the loop */
 		if (min_key.objectid != inode->i_ino)
 			break;
 		if (min_key.type > max_key.type)
 			break;
+
 		src = path->nodes[0];
 		size = btrfs_item_size_nr(src, path->slots[0]);
-		ret = btrfs_insert_empty_item(trans, log, dst_path, &min_key,
-					      size);
-		if (ret)
-			BUG();
-
-		dst_offset = btrfs_item_ptr_offset(dst_path->nodes[0],
-						   dst_path->slots[0]);
-
-		src_offset = btrfs_item_ptr_offset(src, path->slots[0]);
-
-		copy_extent_buffer(dst_path->nodes[0], src, dst_offset,
-				   src_offset, size);
-
-		if (inode_only == LOG_INODE_EXISTS &&
-		    min_key.type == BTRFS_INODE_ITEM_KEY) {
-			inode_item = btrfs_item_ptr(dst_path->nodes[0],
-						    dst_path->slots[0],
-						    struct btrfs_inode_item);
-			btrfs_set_inode_size(dst_path->nodes[0], inode_item, 0);
-
-			/* set the generation to zero so the recover code
-			 * can tell the difference between an logging
-			 * just to say 'this inode exists' and a logging
-			 * to say 'update this inode with these values'
-			 */
-			btrfs_set_inode_generation(dst_path->nodes[0],
-						   inode_item, 0);
-		}
-		/* take a reference on file data extents so that truncates
-		 * or deletes of this inode don't have to relog the inode
-		 * again
-		 */
-		if (btrfs_key_type(&min_key) == BTRFS_EXTENT_DATA_KEY) {
-			int found_type;
-			extent = btrfs_item_ptr(src, path->slots[0],
-						struct btrfs_file_extent_item);
-
-			found_type = btrfs_file_extent_type(src, extent);
-			if (found_type == BTRFS_FILE_EXTENT_REG) {
-				u64 ds = btrfs_file_extent_disk_bytenr(src,
-								   extent);
-				u64 dl = btrfs_file_extent_disk_num_bytes(src,
-								      extent);
-				/* ds == 0 is a hole */
-				if (ds != 0) {
-					ret = btrfs_inc_extent_ref(trans, log,
-						   ds, dl,
-						   log->root_key.objectid,
-						   0,
-						   inode->i_ino,
-						   min_key.offset);
-					BUG_ON(ret);
-				}
-			}
+		if (ins_nr && ins_start_slot + ins_nr == path->slots[0]) {
+			ins_nr++;
+			goto next_slot;
+		} else if (!ins_nr) {
+			ins_start_slot = path->slots[0];
+			ins_nr = 1;
+			goto next_slot;
 		}
 
-		btrfs_mark_buffer_dirty(dst_path->nodes[0]);
-		btrfs_release_path(log, dst_path);
+		ret = copy_items(trans, log, dst_path, src, ins_start_slot,
+				 ins_nr, inode_only);
+		BUG_ON(ret);
+		ins_nr = 1;
+		ins_start_slot = path->slots[0];
+next_slot:
 
 		nritems = btrfs_header_nritems(path->nodes[0]);
 		path->slots[0]++;
@@ -2612,6 +2658,13 @@ again:
 			btrfs_item_key_to_cpu(path->nodes[0], &min_key,
 					      path->slots[0]);
 			goto again;
+		}
+		if (ins_nr) {
+			ret = copy_items(trans, log, dst_path, src,
+					 ins_start_slot,
+					 ins_nr, inode_only);
+			BUG_ON(ret);
+			ins_nr = 0;
 		}
 		btrfs_release_path(root, path);
 
@@ -2624,6 +2677,14 @@ again:
 		else
 			break;
 	}
+	if (ins_nr) {
+		ret = copy_items(trans, log, dst_path, src,
+				 ins_start_slot,
+				 ins_nr, inode_only);
+		BUG_ON(ret);
+		ins_nr = 0;
+	}
+	WARN_ON(ins_nr);
 	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode) &&
 	    BTRFS_I(inode)->log_dirty_trans >= trans->transid) {
 		btrfs_release_path(root, path);
