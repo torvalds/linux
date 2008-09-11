@@ -1933,7 +1933,6 @@ static void ide_cd_remove(ide_drive_t *drive)
 
 	ide_proc_unregister_driver(drive, info->driver);
 
-	blk_unregister_filter(info->disk);
 	del_gendisk(info->disk);
 
 	ide_cd_put(info);
@@ -2159,7 +2158,6 @@ static int ide_cd_probe(ide_drive_t *drive)
 	g->fops = &idecd_ops;
 	g->flags |= GENHD_FL_REMOVABLE;
 	add_disk(g);
-	blk_register_filter(g);
 	return 0;
 
 out_free_cd:

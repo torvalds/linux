@@ -656,7 +656,6 @@ static int sr_probe(struct device *dev)
 	dev_set_drvdata(dev, cd);
 	disk->flags |= GENHD_FL_REMOVABLE;
 	add_disk(disk);
-	blk_register_filter(disk);
 
 	sdev_printk(KERN_DEBUG, sdev,
 		    "Attached scsi CD-ROM %s\n", cd->cdi.name);
@@ -895,7 +894,6 @@ static int sr_remove(struct device *dev)
 {
 	struct scsi_cd *cd = dev_get_drvdata(dev);
 
-	blk_unregister_filter(cd->disk);
 	del_gendisk(cd->disk);
 
 	mutex_lock(&sr_ref_mutex);
