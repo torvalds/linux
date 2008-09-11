@@ -35,6 +35,7 @@
 #include "ocfs2.h"
 
 #include "alloc.h"
+#include "blockcheck.h"
 #include "dir.h"
 #include "dlmglue.h"
 #include "extent_map.h"
@@ -369,10 +370,110 @@ bail:
 	return status;
 }
 
-int ocfs2_journal_access(handle_t *handle,
-			 struct inode *inode,
-			 struct buffer_head *bh,
-			 int type)
+struct ocfs2_triggers {
+	struct jbd2_buffer_trigger_type	ot_triggers;
+	int				ot_offset;
+};
+
+static inline struct ocfs2_triggers *to_ocfs2_trigger(struct jbd2_buffer_trigger_type *triggers)
+{
+	return container_of(triggers, struct ocfs2_triggers, ot_triggers);
+}
+
+static void ocfs2_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+				 struct buffer_head *bh,
+				 void *data, size_t size)
+{
+	struct ocfs2_triggers *ot = to_ocfs2_trigger(triggers);
+
+	/*
+	 * We aren't guaranteed to have the superblock here, so we
+	 * must unconditionally compute the ecc data.
+	 * __ocfs2_journal_access() will only set the triggers if
+	 * metaecc is enabled.
+	 */
+	ocfs2_block_check_compute(data, size, data + ot->ot_offset);
+}
+
+/*
+ * Quota blocks have their own trigger because the struct ocfs2_block_check
+ * offset depends on the blocksize.
+ */
+static void ocfs2_dq_commit_trigger(struct jbd2_buffer_trigger_type *triggers,
+				 struct buffer_head *bh,
+				 void *data, size_t size)
+{
+	struct ocfs2_disk_dqtrailer *dqt =
+		ocfs2_block_dqtrailer(size, data);
+
+	/*
+	 * We aren't guaranteed to have the superblock here, so we
+	 * must unconditionally compute the ecc data.
+	 * __ocfs2_journal_access() will only set the triggers if
+	 * metaecc is enabled.
+	 */
+	ocfs2_block_check_compute(data, size, &dqt->dq_check);
+}
+
+static void ocfs2_abort_trigger(struct jbd2_buffer_trigger_type *triggers,
+				struct buffer_head *bh)
+{
+	mlog(ML_ERROR,
+	     "ocfs2_abort_trigger called by JBD2.  bh = 0x%lx, "
+	     "bh->b_blocknr = %llu\n",
+	     (unsigned long)bh,
+	     (unsigned long long)bh->b_blocknr);
+
+	/* We aren't guaranteed to have the superblock here - but if we
+	 * don't, it'll just crash. */
+	ocfs2_error(bh->b_assoc_map->host->i_sb,
+		    "JBD2 has aborted our journal, ocfs2 cannot continue\n");
+}
+
+static struct ocfs2_triggers di_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_dinode, i_check),
+};
+
+static struct ocfs2_triggers eb_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_extent_block, h_check),
+};
+
+static struct ocfs2_triggers gd_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_group_desc, bg_check),
+};
+
+static struct ocfs2_triggers xb_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+	.ot_offset	= offsetof(struct ocfs2_xattr_block, xb_check),
+};
+
+static struct ocfs2_triggers dq_triggers = {
+	.ot_triggers = {
+		.t_commit = ocfs2_dq_commit_trigger,
+		.t_abort = ocfs2_abort_trigger,
+	},
+};
+
+static int __ocfs2_journal_access(handle_t *handle,
+				  struct inode *inode,
+				  struct buffer_head *bh,
+				  struct ocfs2_triggers *triggers,
+				  int type)
 {
 	int status;
 
@@ -418,6 +519,8 @@ int ocfs2_journal_access(handle_t *handle,
 		status = -EINVAL;
 		mlog(ML_ERROR, "Uknown access type!\n");
 	}
+	if (!status && ocfs2_meta_ecc(OCFS2_SB(inode->i_sb)) && triggers)
+		jbd2_journal_set_triggers(bh, &triggers->ot_triggers);
 	mutex_unlock(&OCFS2_I(inode)->ip_io_mutex);
 
 	if (status < 0)
@@ -426,6 +529,54 @@ int ocfs2_journal_access(handle_t *handle,
 
 	mlog_exit(status);
 	return status;
+}
+
+int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
+			       struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &di_triggers,
+				      type);
+}
+
+int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &eb_triggers,
+				      type);
+}
+
+int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &gd_triggers,
+				      type);
+}
+
+int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	/* Right now, nothing for dirblocks */
+	return __ocfs2_journal_access(handle, inode, bh, NULL, type);
+}
+
+int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &xb_triggers,
+				      type);
+}
+
+int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, &dq_triggers,
+				      type);
+}
+
+int ocfs2_journal_access(handle_t *handle, struct inode *inode,
+			 struct buffer_head *bh, int type)
+{
+	return __ocfs2_journal_access(handle, inode, bh, NULL, type);
 }
 
 int ocfs2_journal_dirty(handle_t *handle,

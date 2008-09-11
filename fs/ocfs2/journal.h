@@ -212,9 +212,12 @@ static inline void ocfs2_checkpoint_inode(struct inode *inode)
  *  ocfs2_extend_trans     - Extend a handle by nblocks credits. This may
  *                          commit the handle to disk in the process, but will
  *                          not release any locks taken during the transaction.
- *  ocfs2_journal_access   - Notify the handle that we want to journal this
+ *  ocfs2_journal_access* - Notify the handle that we want to journal this
  *                          buffer. Will have to call ocfs2_journal_dirty once
  *                          we've actually dirtied it. Type is one of . or .
+ *                          Always call the specific flavor of
+ *                          ocfs2_journal_access_*() unless you intend to
+ *                          manage the checksum by hand.
  *  ocfs2_journal_dirty    - Mark a journalled buffer as having dirty data.
  *  ocfs2_jbd2_file_inode  - Mark an inode so that its data goes out before
  *                           the current handle commits.
@@ -244,10 +247,28 @@ int			     ocfs2_extend_trans(handle_t *handle, int nblocks);
 #define OCFS2_JOURNAL_ACCESS_WRITE  1
 #define OCFS2_JOURNAL_ACCESS_UNDO   2
 
-int                  ocfs2_journal_access(handle_t *handle,
-					  struct inode *inode,
-					  struct buffer_head *bh,
-					  int type);
+/* ocfs2_inode */
+int ocfs2_journal_access_di(handle_t *handle, struct inode *inode,
+			       struct buffer_head *bh, int type);
+/* ocfs2_extent_block */
+int ocfs2_journal_access_eb(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* ocfs2_group_desc */
+int ocfs2_journal_access_gd(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* ocfs2_xattr_block */
+int ocfs2_journal_access_xb(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* quota blocks */
+int ocfs2_journal_access_dq(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* dirblock */
+int ocfs2_journal_access_db(handle_t *handle, struct inode *inode,
+			    struct buffer_head *bh, int type);
+/* Anything that has no ecc */
+int ocfs2_journal_access(handle_t *handle, struct inode *inode,
+			 struct buffer_head *bh, int type);
+
 /*
  * A word about the journal_access/journal_dirty "dance". It is
  * entirely legal to journal_access a buffer more than once (as long
