@@ -267,7 +267,6 @@ extern void __put_user_8(void);
 #define __put_user_size(x, ptr, size, retval, errret)			\
 do {									\
 	retval = 0;							\
-	might_fault();							\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\
@@ -320,7 +319,6 @@ do {									\
 #define __get_user_size(x, ptr, size, retval, errret)			\
 do {									\
 	retval = 0;							\
-	might_fault();							\
 	__chk_user_ptr(ptr);						\
 	switch (size) {							\
 	case 1:								\

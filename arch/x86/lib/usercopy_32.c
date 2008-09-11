@@ -148,6 +148,7 @@ do {									\
 unsigned long
 clear_user(void __user *to, unsigned long n)
 {
+	might_fault();
 	if (access_ok(VERIFY_WRITE, to, n))
 		__do_clear_user(to, n);
 	return n;
