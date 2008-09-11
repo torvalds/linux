@@ -195,9 +195,6 @@ struct sta_ampdu_mlme {
  * @tx_filtered_count: TBD
  * @tx_retry_failed: TBD
  * @tx_retry_count: TBD
- * @tx_num_consecutive_failures: TBD
- * @tx_num_mpdu_ok: TBD
- * @tx_num_mpdu_fail: TBD
  * @fail_avg: moving percentage of failed MSDUs
  * @tx_packets: number of RX/TX MSDUs
  * @tx_bytes: TBD
@@ -273,10 +270,6 @@ struct sta_info {
 	/* Updated from TX status path only, no locking requirements */
 	unsigned long tx_filtered_count;
 	unsigned long tx_retry_failed, tx_retry_count;
-	/* TODO: update in generic code not rate control? */
-	u32 tx_num_consecutive_failures;
-	u32 tx_num_mpdu_ok;
-	u32 tx_num_mpdu_fail;
 	/* moving percentage of failed MSDUs */
 	unsigned int fail_avg;
 

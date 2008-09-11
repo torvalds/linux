@@ -282,17 +282,6 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 		spinfo->tx_num_xmit++;
 	}
 
-	if (info->status.excessive_retries) {
-		sta->tx_retry_failed++;
-		sta->tx_num_consecutive_failures++;
-		sta->tx_num_mpdu_fail++;
-	} else {
-		sta->tx_num_consecutive_failures = 0;
-		sta->tx_num_mpdu_ok++;
-	}
-	sta->tx_retry_count += info->status.retry_count;
-	sta->tx_num_mpdu_fail += info->status.retry_count;
-
 	/* Update PID controller state. */
 	period = (HZ * pinfo->sampling_period + 500) / 1000;
 	if (!period)

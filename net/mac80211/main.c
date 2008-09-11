@@ -546,29 +546,27 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	rcu_read_lock();
 
-	if (info->status.excessive_retries) {
-		sta = sta_info_get(local, hdr->addr1);
-		if (sta) {
-			if (test_sta_flags(sta, WLAN_STA_PS)) {
-				/*
-				 * The STA is in power save mode, so assume
-				 * that this TX packet failed because of that.
-				 */
-				ieee80211_handle_filtered_frame(local, sta, skb);
-				rcu_read_unlock();
-				return;
-			}
+	sta = sta_info_get(local, hdr->addr1);
+
+	if (sta) {
+		if (info->status.excessive_retries &&
+		    test_sta_flags(sta, WLAN_STA_PS)) {
+			/*
+			 * The STA is in power save mode, so assume
+			 * that this TX packet failed because of that.
+			 */
+			ieee80211_handle_filtered_frame(local, sta, skb);
+			rcu_read_unlock();
+			return;
 		}
-	}
 
-	fc = hdr->frame_control;
+		fc = hdr->frame_control;
 
-	if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
-	    (ieee80211_is_data_qos(fc))) {
-		u16 tid, ssn;
-		u8 *qc;
-		sta = sta_info_get(local, hdr->addr1);
-		if (sta) {
+		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
+		    (ieee80211_is_data_qos(fc))) {
+			u16 tid, ssn;
+			u8 *qc;
+
 			qc = ieee80211_get_qos_ctl(hdr);
 			tid = qc[0] & 0xf;
 			ssn = ((le16_to_cpu(hdr->seq_ctrl) + 0x10)
@@ -576,17 +574,19 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			ieee80211_send_bar(sta->sdata, hdr->addr1,
 					   tid, ssn);
 		}
-	}
 
-	if (info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
-		sta = sta_info_get(local, hdr->addr1);
-		if (sta) {
+		if (info->flags & IEEE80211_TX_STAT_TX_FILTERED) {
 			ieee80211_handle_filtered_frame(local, sta, skb);
 			rcu_read_unlock();
 			return;
+		} else {
+			if (info->status.excessive_retries)
+				sta->tx_retry_failed++;
+			sta->tx_retry_count += info->status.retry_count;
 		}
-	} else
+
 		rate_control_tx_status(local->mdev, skb);
+	}
 
 	rcu_read_unlock();
 
