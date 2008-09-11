@@ -505,15 +505,23 @@ gart_alloc_coherent(struct device *dev, size_t size, dma_addr_t *dma_addr,
 		    gfp_t flag)
 {
 	void *vaddr;
+	dma_addr_t paddr;
 	unsigned long align_mask;
+	u64 dma_mask = dma_alloc_coherent_mask(dev, flag);
 
 	vaddr = (void *)__get_free_pages(flag | __GFP_ZERO, get_order(size));
 	if (!vaddr)
 		return NULL;
 
+	paddr = virt_to_phys(vaddr);
+	if (is_buffer_dma_capable(dma_mask, paddr, size)) {
+		*dma_addr = paddr;
+		return vaddr;
+	}
+
 	align_mask = (1UL << get_order(size)) - 1;
 
-	*dma_addr = dma_map_area(dev, __pa(vaddr), size, DMA_BIDIRECTIONAL,
+	*dma_addr = dma_map_area(dev, paddr, size, DMA_BIDIRECTIONAL,
 				 align_mask, dma_mask);
 	flush_gart();
 
