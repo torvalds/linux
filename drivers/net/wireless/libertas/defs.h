@@ -189,6 +189,15 @@ static inline void lbs_deb_hex(unsigned int grp, const char *prompt, u8 *buf, in
 #define MRVDRV_CMD_UPLD_RDY		0x0008
 #define MRVDRV_CARDEVENT		0x0010
 
+
+/* Automatic TX control default levels */
+#define POW_ADAPT_DEFAULT_P0 13
+#define POW_ADAPT_DEFAULT_P1 15
+#define POW_ADAPT_DEFAULT_P2 18
+#define TPC_DEFAULT_P0 5
+#define TPC_DEFAULT_P1 10
+#define TPC_DEFAULT_P2 13
+
 /** TxPD status */
 
 /*	Station firmware use TxPD status field to report final Tx transmit

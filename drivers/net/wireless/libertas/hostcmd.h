@@ -607,13 +607,27 @@ struct cmd_ds_802_11_eeprom_access {
 } __attribute__ ((packed));
 
 struct cmd_ds_802_11_tpc_cfg {
+	struct cmd_header hdr;
+
 	__le16 action;
-	u8 enable;
-	s8 P0;
-	s8 P1;
-	s8 P2;
-	u8 usesnr;
+	uint8_t enable;
+	int8_t P0;
+	int8_t P1;
+	int8_t P2;
+	uint8_t usesnr;
 } __attribute__ ((packed));
+
+
+struct cmd_ds_802_11_pa_cfg {
+	struct cmd_header hdr;
+
+	__le16 action;
+	uint8_t enable;
+	int8_t P0;
+	int8_t P1;
+	int8_t P2;
+} __attribute__ ((packed));
+
 
 struct cmd_ds_802_11_led_ctrl {
 	__le16 action;

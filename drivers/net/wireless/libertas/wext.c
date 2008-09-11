@@ -1820,7 +1820,21 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 	}
 
 	if (vwrq->fixed == 0) {
-		/* Auto power control */
+		/* User requests automatic tx power control, however there are
+		 * many auto tx settings.  For now use firmware defaults until
+		 * we come up with a good way to expose these to the user. */
+		if (priv->fwrelease < 0x09000000) {
+			ret = lbs_set_power_adapt_cfg(priv, 1,
+					POW_ADAPT_DEFAULT_P0,
+					POW_ADAPT_DEFAULT_P1,
+					POW_ADAPT_DEFAULT_P2);
+			if (ret)
+				goto out;
+		}
+		ret = lbs_set_tpc_cfg(priv, 0, TPC_DEFAULT_P0, TPC_DEFAULT_P1,
+				TPC_DEFAULT_P2, 1);
+		if (ret)
+			goto out;
 		dbm = priv->txpower_max;
 	} else {
 		/* Userspace check in iwrange if it should use dBm or mW,
@@ -1830,7 +1844,8 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 			goto out;
 		}
 
-		/* Validate requested power level against firmware allowed levels */
+		/* Validate requested power level against firmware allowed
+		 * levels */
 		if (priv->txpower_min && (dbm < priv->txpower_min)) {
 			ret = -EINVAL;
 			goto out;
@@ -1840,6 +1855,18 @@ static int lbs_set_txpow(struct net_device *dev, struct iw_request_info *info,
 			ret = -EINVAL;
 			goto out;
 		}
+		if (priv->fwrelease < 0x09000000) {
+			ret = lbs_set_power_adapt_cfg(priv, 0,
+					POW_ADAPT_DEFAULT_P0,
+					POW_ADAPT_DEFAULT_P1,
+					POW_ADAPT_DEFAULT_P2);
+			if (ret)
+				goto out;
+		}
+		ret = lbs_set_tpc_cfg(priv, 0, TPC_DEFAULT_P0, TPC_DEFAULT_P1,
+				TPC_DEFAULT_P2, 1);
+		if (ret)
+			goto out;
 	}
 
 	/* If the radio was off, turn it on */
