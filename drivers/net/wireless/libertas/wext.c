@@ -30,6 +30,14 @@ static inline void lbs_postpone_association_work(struct lbs_private *priv)
 	queue_delayed_work(priv->work_thread, &priv->assoc_work, HZ / 2);
 }
 
+static inline void lbs_do_association_work(struct lbs_private *priv)
+{
+	if (priv->surpriseremoved)
+		return;
+	cancel_delayed_work(&priv->assoc_work);
+	queue_delayed_work(priv->work_thread, &priv->assoc_work, 0);
+}
+
 static inline void lbs_cancel_association_work(struct lbs_private *priv)
 {
 	cancel_delayed_work(&priv->assoc_work);
@@ -1585,12 +1593,14 @@ static int lbs_set_encodeext(struct net_device *dev,
 			set_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags);
 		}
 
-		disable_wep (assoc_req);
+		/* Only disable wep if necessary: can't waste time here. */
+		if (priv->mac_control & CMD_ACT_MAC_WEP_ENABLE)
+			disable_wep(assoc_req);
 	}
 
 out:
-	if (ret == 0) {
-		lbs_postpone_association_work(priv);
+	if (ret == 0) {  /* key installation is time critical: postpone not! */
+		lbs_do_association_work(priv);
 	} else {
 		lbs_cancel_association_work(priv);
 	}
