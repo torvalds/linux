@@ -21,6 +21,7 @@
 #ifndef __LINUX_MFD_WM8400_PRIV_H
 #define __LINUX_MFD_WM8400_PRIV_H
 
+#include <linux/mfd/wm8400.h>
 #include <linux/mutex.h>
 #include <linux/platform_device.h>
 
