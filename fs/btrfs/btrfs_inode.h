@@ -56,6 +56,9 @@ struct btrfs_inode {
 	 * transid that last logged this inode
 	 */
 	u64 logged_trans;
+
+	/* trans that last made a change that should be fully fsync'd */
+	u64 log_dirty_trans;
 	u64 delalloc_bytes;
 	u64 disk_i_size;
 	u32 flags;

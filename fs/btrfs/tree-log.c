@@ -1973,10 +1973,10 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	atomic_set(&log->fs_info->tree_log_commit, 1);
 
 	while(1) {
+		batch = log->fs_info->tree_log_batch;
 		mutex_unlock(&log->fs_info->tree_log_mutex);
 		schedule_timeout_uninterruptible(1);
 		mutex_lock(&log->fs_info->tree_log_mutex);
-		batch = log->fs_info->tree_log_batch;
 
 		while(atomic_read(&log->fs_info->tree_log_writers)) {
 			DEFINE_WAIT(wait);
@@ -2189,8 +2189,6 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	mutex_unlock(&BTRFS_I(inode)->log_mutex);
 	end_log_trans(root);
 
-	if (ret == 0 || ret == -ENOENT)
-		return 0;
 	return ret;
 }
 
@@ -2620,9 +2618,11 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 		else
 			break;
 	}
-	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode)) {
+	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode) &&
+	    BTRFS_I(inode)->log_dirty_trans >= trans->transid) {
 		btrfs_release_path(root, path);
 		btrfs_release_path(log, dst_path);
+		BTRFS_I(inode)->log_dirty_trans = 0;
 		ret = log_directory_changes(trans, root, inode, path, dst_path);
 		BUG_ON(ret);
 	}

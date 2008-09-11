@@ -1187,7 +1187,9 @@ int btrfs_unlink_inode(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_del_inode_ref_in_log(trans, root, name, name_len,
 					 inode, dir->i_ino);
-	BUG_ON(ret);
+	BUG_ON(ret != 0 && ret != -ENOENT);
+	if (ret != -ENOENT)
+		BTRFS_I(dir)->log_dirty_trans = trans->transid;
 
 	ret = btrfs_del_dir_entries_in_log(trans, root, name, name_len,
 					   dir, index);
@@ -1790,6 +1792,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	bi->disk_i_size = 0;
 	bi->flags = 0;
 	bi->index_cnt = (u64)-1;
+	bi->log_dirty_trans = 0;
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 			     inode->i_mapping, GFP_NOFS);

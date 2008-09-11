@@ -1061,7 +1061,9 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	}
 	mutex_unlock(&root->fs_info->trans_mutex);
 
+	root->fs_info->tree_log_batch++;
 	filemap_fdatawait(inode->i_mapping);
+	root->fs_info->tree_log_batch++;
 
 	/*
 	 * ok we haven't committed the transaction yet, lets do a commit
@@ -1076,14 +1078,29 @@ int btrfs_sync_file(struct file *file, struct dentry *dentry, int datasync)
 	}
 
 	ret = btrfs_log_dentry_safe(trans, root, file->f_dentry);
-	if (ret < 0)
+	if (ret < 0) {
 		goto out;
+	}
+
+	/* we've logged all the items and now have a consistent
+	 * version of the file in the log.  It is possible that
+	 * someone will come in and modify the file, but that's
+	 * fine because the log is consistent on disk, and we
+	 * have references to all of the file's extents
+	 *
+	 * It is possible that someone will come in and log the
+	 * file again, but that will end up using the synchronization
+	 * inside btrfs_sync_log to keep things safe.
+	 */
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
+
 	if (ret > 0) {
 		ret = btrfs_commit_transaction(trans, root);
 	} else {
 		btrfs_sync_log(trans, root);
 		ret = btrfs_end_transaction(trans, root);
 	}
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 out:
 	return ret > 0 ? EIO : ret;
 }
