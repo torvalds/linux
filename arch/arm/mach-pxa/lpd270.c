@@ -302,8 +302,8 @@ static struct pxafb_mode_info sharp_lq057q3dc02_mode = {
 static struct pxafb_mach_info sharp_lq057q3dc02 = {
 	.modes			= &sharp_lq057q3dc02_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 12.1" TFT SVGA (LoLo display number 2) */
@@ -324,8 +324,8 @@ static struct pxafb_mode_info sharp_lq121s1dg31_mode = {
 static struct pxafb_mach_info sharp_lq121s1dg31 = {
 	.modes			= &sharp_lq121s1dg31_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 3.6" TFT QVGA (LoLo display number 3) */
@@ -346,8 +346,8 @@ static struct pxafb_mode_info sharp_lq036q1da01_mode = {
 static struct pxafb_mach_info sharp_lq036q1da01 = {
 	.modes			= &sharp_lq036q1da01_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 6.4" TFT VGA (LoLo display number 5) */
@@ -368,8 +368,8 @@ static struct pxafb_mode_info sharp_lq64d343_mode = {
 static struct pxafb_mach_info sharp_lq64d343 = {
 	.modes			= &sharp_lq64d343_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 10.4" TFT VGA (LoLo display number 7) */
@@ -390,8 +390,8 @@ static struct pxafb_mode_info sharp_lq10d368_mode = {
 static struct pxafb_mach_info sharp_lq10d368 = {
 	.modes			= &sharp_lq10d368_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 /* 3.5" TFT QVGA (LoLo display number 8) */
@@ -412,8 +412,8 @@ static struct pxafb_mode_info sharp_lq035q7db02_20_mode = {
 static struct pxafb_mach_info sharp_lq035q7db02_20 = {
 	.modes			= &sharp_lq035q7db02_20_mode,
 	.num_modes		= 1,
-	.lccr0			= 0x07800080,
-	.lccr3			= 0x00400000,
+	.lcd_conn		= LCD_COLOR_TFT_16BPP | LCD_PCLK_EDGE_FALL |
+				  LCD_ALTERNATE_MAPPING,
 };
 
 static struct pxafb_mach_info *lpd270_lcd_to_use;
