@@ -56,10 +56,10 @@ config BATTERY_TOSA
 	  Say Y to enable support for the battery on the Sharp Zaurus
 	  SL-6000 (tosa) models.
 
-config BATTERY_PALMTX
-	tristate "Palm T|X battery"
-	depends on MACH_PALMTX
+config BATTERY_WM97XX
+	bool "WM97xx generic battery driver"
+	depends on TOUCHSCREEN_WM97XX
 	help
-	  Say Y to enable support for the battery in Palm T|X.
+	  Say Y to enable support for battery measured by WM97xx aux port.
 
 endif # POWER_SUPPLY
