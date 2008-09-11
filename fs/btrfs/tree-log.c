@@ -2686,8 +2686,7 @@ next_slot:
 		ins_nr = 0;
 	}
 	WARN_ON(ins_nr);
-	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode) &&
-	    BTRFS_I(inode)->log_dirty_trans >= trans->transid) {
+	if (inode_only == LOG_INODE_ALL && S_ISDIR(inode->i_mode)) {
 		btrfs_release_path(root, path);
 		btrfs_release_path(log, dst_path);
 		BTRFS_I(inode)->log_dirty_trans = 0;
