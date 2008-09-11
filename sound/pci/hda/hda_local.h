@@ -418,4 +418,13 @@ int snd_hda_check_amp_list_power(struct hda_codec *codec,
 				 hda_nid_t nid);
 #endif /* CONFIG_SND_HDA_POWER_SAVE */
 
+/*
+ * AMP control callbacks
+ */
+/* retrieve parameters from private_value */
+#define get_amp_nid(kc)		((kc)->private_value & 0xffff)
+#define get_amp_channels(kc)	(((kc)->private_value >> 16) & 0x3)
+#define get_amp_direction(kc)	(((kc)->private_value >> 18) & 0x1)
+#define get_amp_index(kc)	(((kc)->private_value >> 19) & 0xf)
+
 #endif /* __SOUND_HDA_LOCAL_H */
