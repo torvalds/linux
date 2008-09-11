@@ -60,25 +60,46 @@ struct bio_vec *bvec_alloc_bs(gfp_t gfp_mask, int nr, unsigned long *idx, struct
 	struct bio_vec *bvl;
 
 	/*
-	 * see comment near bvec_array define!
+	 * If 'bs' is given, lookup the pool and do the mempool alloc.
+	 * If not, this is a bio_kmalloc() allocation and just do a
+	 * kzalloc() for the exact number of vecs right away.
 	 */
-	switch (nr) {
-		case   1        : *idx = 0; break;
-		case   2 ...   4: *idx = 1; break;
-		case   5 ...  16: *idx = 2; break;
-		case  17 ...  64: *idx = 3; break;
-		case  65 ... 128: *idx = 4; break;
-		case 129 ... BIO_MAX_PAGES: *idx = 5; break;
+	if (bs) {
+		/*
+		 * see comment near bvec_array define!
+		 */
+		switch (nr) {
+		case 1:
+			*idx = 0;
+			break;
+		case 2 ... 4:
+			*idx = 1;
+			break;
+		case 5 ... 16:
+			*idx = 2;
+			break;
+		case 17 ... 64:
+			*idx = 3;
+			break;
+		case 65 ... 128:
+			*idx = 4;
+			break;
+		case 129 ... BIO_MAX_PAGES:
+			*idx = 5;
+			break;
 		default:
 			return NULL;
-	}
-	/*
-	 * idx now points to the pool we want to allocate from
-	 */
+		}
 
-	bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
-	if (bvl)
-		memset(bvl, 0, bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
+		/*
+		 * idx now points to the pool we want to allocate from
+		 */
+		bvl = mempool_alloc(bs->bvec_pools[*idx], gfp_mask);
+		if (bvl)
+			memset(bvl, 0,
+				bvec_nr_vecs(*idx) * sizeof(struct bio_vec));
+	} else
+		bvl = kzalloc(nr * sizeof(struct bio_vec), gfp_mask);
 
 	return bvl;
 }
@@ -107,6 +128,12 @@ static void bio_fs_destructor(struct bio *bio)
 	bio_free(bio, fs_bio_set);
 }
 
+static void bio_kmalloc_destructor(struct bio *bio)
+{
+	kfree(bio->bi_io_vec);
+	kfree(bio);
+}
+
 void bio_init(struct bio *bio)
 {
 	memset(bio, 0, sizeof(*bio));
@@ -119,19 +146,25 @@ void bio_init(struct bio *bio)
  * bio_alloc_bioset - allocate a bio for I/O
  * @gfp_mask:   the GFP_ mask given to the slab allocator
  * @nr_iovecs:	number of iovecs to pre-allocate
- * @bs:		the bio_set to allocate from
+ * @bs:		the bio_set to allocate from. If %NULL, just use kmalloc
  *
  * Description:
- *   bio_alloc_bioset will first try it's on mempool to satisfy the allocation.
+ *   bio_alloc_bioset will first try its own mempool to satisfy the allocation.
  *   If %__GFP_WAIT is set then we will block on the internal pool waiting
- *   for a &struct bio to become free.
+ *   for a &struct bio to become free. If a %NULL @bs is passed in, we will
+ *   fall back to just using @kmalloc to allocate the required memory.
  *
  *   allocate bio and iovecs from the memory pools specified by the
- *   bio_set structure.
+ *   bio_set structure, or @kmalloc if none given.
  **/
 struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 {
-	struct bio *bio = mempool_alloc(bs->bio_pool, gfp_mask);
+	struct bio *bio;
+
+	if (bs)
+		bio = mempool_alloc(bs->bio_pool, gfp_mask);
+	else
+		bio = kmalloc(sizeof(*bio), gfp_mask);
 
 	if (likely(bio)) {
 		struct bio_vec *bvl = NULL;
@@ -142,7 +175,10 @@ struct bio *bio_alloc_bioset(gfp_t gfp_mask, int nr_iovecs, struct bio_set *bs)
 
 			bvl = bvec_alloc_bs(gfp_mask, nr_iovecs, &idx, bs);
 			if (unlikely(!bvl)) {
-				mempool_free(bio, bs->bio_pool);
+				if (bs)
+					mempool_free(bio, bs->bio_pool);
+				else
+					kfree(bio);
 				bio = NULL;
 				goto out;
 			}
@@ -161,6 +197,23 @@ struct bio *bio_alloc(gfp_t gfp_mask, int nr_iovecs)
 
 	if (bio)
 		bio->bi_destructor = bio_fs_destructor;
+
+	return bio;
+}
+
+/*
+ * Like bio_alloc(), but doesn't use a mempool backing. This means that
+ * it CAN fail, but while bio_alloc() can only be used for allocations
+ * that have a short (finite) life span, bio_kmalloc() should be used
+ * for more permanent bio allocations (like allocating some bio's for
+ * initalization or setup purposes).
+ */
+struct bio *bio_kmalloc(gfp_t gfp_mask, int nr_iovecs)
+{
+	struct bio *bio = bio_alloc_bioset(gfp_mask, nr_iovecs, NULL);
+
+	if (bio)
+		bio->bi_destructor = bio_kmalloc_destructor;
 
 	return bio;
 }
@@ -1349,6 +1402,7 @@ static int __init init_bio(void)
 subsys_initcall(init_bio);
 
 EXPORT_SYMBOL(bio_alloc);
+EXPORT_SYMBOL(bio_kmalloc);
 EXPORT_SYMBOL(bio_put);
 EXPORT_SYMBOL(bio_free);
 EXPORT_SYMBOL(bio_endio);
