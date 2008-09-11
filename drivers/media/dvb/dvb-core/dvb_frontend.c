@@ -755,235 +755,235 @@ static int dvb_frontend_check_parameters(struct dvb_frontend *fe,
 	return 0;
 }
 
-struct tv_cmds_h tv_cmds[] = {
-	[TV_SEQ_UNDEFINED] = {
-		.name	= "TV_SEQ_UNDEFINED",
-		.cmd	= TV_SEQ_UNDEFINED,
+struct dtv_cmds_h dtv_cmds[] = {
+	[DTV_SEQ_UNDEFINED] = {
+		.name	= "DTV_SEQ_UNDEFINED",
+		.cmd	= DTV_SEQ_UNDEFINED,
 		.set	= 1,
 	},
-	[TV_SEQ_START] = {
-		.name	= "TV_SEQ_START",
-		.cmd	= TV_SEQ_START,
+	[DTV_SEQ_START] = {
+		.name	= "DTV_SEQ_START",
+		.cmd	= DTV_SEQ_START,
 		.set	= 1,
 	},
-	[TV_SEQ_CONTINUE] = {
-		.name	= "TV_SEQ_CONTINUE",
-		.cmd	= TV_SEQ_CONTINUE,
+	[DTV_SEQ_CONTINUE] = {
+		.name	= "DTV_SEQ_CONTINUE",
+		.cmd	= DTV_SEQ_CONTINUE,
 		.set	= 1,
 	},
-	[TV_SEQ_COMPLETE] = {
-		.name	= "TV_SEQ_COMPLETE",
-		.cmd	= TV_SEQ_COMPLETE,
+	[DTV_SEQ_COMPLETE] = {
+		.name	= "DTV_SEQ_COMPLETE",
+		.cmd	= DTV_SEQ_COMPLETE,
 		.set	= 1,
 	},
-	[TV_SEQ_TERMINATE] = {
-		.name	= "TV_SEQ_TERMINATE",
-		.cmd	= TV_SEQ_TERMINATE,
+	[DTV_SEQ_TERMINATE] = {
+		.name	= "DTV_SEQ_TERMINATE",
+		.cmd	= DTV_SEQ_TERMINATE,
 		.set	= 1,
 	},
 
 	/* Set */
-	[TV_SET_FREQUENCY] = {
-		.name	= "TV_SET_FREQUENCY",
-		.cmd	= TV_SET_FREQUENCY,
+	[DTV_SET_FREQUENCY] = {
+		.name	= "DTV_SET_FREQUENCY",
+		.cmd	= DTV_SET_FREQUENCY,
 		.set	= 1,
 	},
-	[TV_SET_BANDWIDTH] = {
-		.name	= "TV_SET_BANDWIDTH",
-		.cmd	= TV_SET_BANDWIDTH,
+	[DTV_SET_BANDWIDTH] = {
+		.name	= "DTV_SET_BANDWIDTH",
+		.cmd	= DTV_SET_BANDWIDTH,
 		.set	= 1,
 	},
-	[TV_SET_MODULATION] = {
-		.name	= "TV_SET_MODULATION",
-		.cmd	= TV_SET_MODULATION,
+	[DTV_SET_MODULATION] = {
+		.name	= "DTV_SET_MODULATION",
+		.cmd	= DTV_SET_MODULATION,
 		.set	= 1,
 	},
-	[TV_SET_INVERSION] = {
-		.name	= "TV_SET_INVERSION",
-		.cmd	= TV_SET_INVERSION,
+	[DTV_SET_INVERSION] = {
+		.name	= "DTV_SET_INVERSION",
+		.cmd	= DTV_SET_INVERSION,
 		.set	= 1,
 	},
-	[TV_SET_DISEQC_MASTER] = {
-		.name	= "TV_SET_DISEQC_MASTER",
-		.cmd	= TV_SET_DISEQC_MASTER,
+	[DTV_SET_DISEQC_MASTER] = {
+		.name	= "DTV_SET_DISEQC_MASTER",
+		.cmd	= DTV_SET_DISEQC_MASTER,
 		.set	= 1,
 		.buffer	= 1,
 	},
-	[TV_SET_SYMBOLRATE] = {
-		.name	= "TV_SET_SYMBOLRATE",
-		.cmd	= TV_SET_SYMBOLRATE,
+	[DTV_SET_SYMBOLRATE] = {
+		.name	= "DTV_SET_SYMBOLRATE",
+		.cmd	= DTV_SET_SYMBOLRATE,
 		.set	= 1,
 	},
-	[TV_SET_INNERFEC] = {
-		.name	= "TV_SET_INNERFEC",
-		.cmd	= TV_SET_INNERFEC,
+	[DTV_SET_INNERFEC] = {
+		.name	= "DTV_SET_INNERFEC",
+		.cmd	= DTV_SET_INNERFEC,
 		.set	= 1,
 	},
-	[TV_SET_VOLTAGE] = {
-		.name	= "TV_SET_VOLTAGE",
-		.cmd	= TV_SET_VOLTAGE,
+	[DTV_SET_VOLTAGE] = {
+		.name	= "DTV_SET_VOLTAGE",
+		.cmd	= DTV_SET_VOLTAGE,
 		.set	= 1,
 	},
-	[TV_SET_TONE] = {
-		.name	= "TV_SET_TONE",
-		.cmd	= TV_SET_TONE,
+	[DTV_SET_TONE] = {
+		.name	= "DTV_SET_TONE",
+		.cmd	= DTV_SET_TONE,
 		.set	= 1,
 	},
-	[TV_SET_PILOT] = {
-		.name	= "TV_SET_PILOT",
-		.cmd	= TV_SET_PILOT,
+	[DTV_SET_PILOT] = {
+		.name	= "DTV_SET_PILOT",
+		.cmd	= DTV_SET_PILOT,
 		.set	= 1,
 	},
-	[TV_SET_ROLLOFF] = {
-		.name	= "TV_SET_ROLLOFF",
-		.cmd	= TV_SET_ROLLOFF,
+	[DTV_SET_ROLLOFF] = {
+		.name	= "DTV_SET_ROLLOFF",
+		.cmd	= DTV_SET_ROLLOFF,
 		.set	= 1,
 	},
-	[TV_SET_DELIVERY_SYSTEM] = {
-		.name	= "TV_SET_DELIVERY_SYSTEM",
-		.cmd	= TV_SET_DELIVERY_SYSTEM,
+	[DTV_SET_DELIVERY_SYSTEM] = {
+		.name	= "DTV_SET_DELIVERY_SYSTEM",
+		.cmd	= DTV_SET_DELIVERY_SYSTEM,
 		.set	= 1,
 	},
-	[TV_SET_ISDB_SEGMENT_NUM] = {
-		.name	= "TV_SET_ISDB_SEGMENT_NUM",
-		.cmd	= TV_SET_ISDB_SEGMENT_NUM,
+	[DTV_SET_ISDB_SEGMENT_NUM] = {
+		.name	= "DTV_SET_ISDB_SEGMENT_NUM",
+		.cmd	= DTV_SET_ISDB_SEGMENT_NUM,
 		.set	= 1,
 	},
-	[TV_SET_ISDB_SEGMENT_WIDTH] = {
-		.name	= "TV_SET_ISDB_SEGMENT_WIDTH",
-		.cmd	= TV_SET_ISDB_SEGMENT_WIDTH,
+	[DTV_SET_ISDB_SEGMENT_WIDTH] = {
+		.name	= "DTV_SET_ISDB_SEGMENT_WIDTH",
+		.cmd	= DTV_SET_ISDB_SEGMENT_WIDTH,
 		.set	= 1,
 	},
 
 	/* Get */
-	[TV_GET_FREQUENCY] = {
-		.name	= "TV_GET_FREQUENCY",
-		.cmd	= TV_GET_FREQUENCY,
+	[DTV_GET_FREQUENCY] = {
+		.name	= "DTV_GET_FREQUENCY",
+		.cmd	= DTV_GET_FREQUENCY,
 		.set	= 0,
 	},
-	[TV_GET_BANDWIDTH] = {
-		.name	= "TV_GET_BANDWIDTH",
-		.cmd	= TV_GET_BANDWIDTH,
+	[DTV_GET_BANDWIDTH] = {
+		.name	= "DTV_GET_BANDWIDTH",
+		.cmd	= DTV_GET_BANDWIDTH,
 		.set	= 0,
 	},
-	[TV_GET_MODULATION] = {
-		.name	= "TV_GET_MODULATION",
-		.cmd	= TV_GET_MODULATION,
+	[DTV_GET_MODULATION] = {
+		.name	= "DTV_GET_MODULATION",
+		.cmd	= DTV_GET_MODULATION,
 		.set	= 0,
 	},
-	[TV_GET_INVERSION] = {
-		.name	= "TV_GET_INVERSION",
-		.cmd	= TV_GET_INVERSION,
+	[DTV_GET_INVERSION] = {
+		.name	= "DTV_GET_INVERSION",
+		.cmd	= DTV_GET_INVERSION,
 		.set	= 0,
 	},
-	[TV_GET_DISEQC_SLAVE_REPLY] = {
-		.name	= "TV_GET_DISEQC_SLAVE_REPLY",
-		.cmd	= TV_GET_DISEQC_SLAVE_REPLY,
+	[DTV_GET_DISEQC_SLAVE_REPLY] = {
+		.name	= "DTV_GET_DISEQC_SLAVE_REPLY",
+		.cmd	= DTV_GET_DISEQC_SLAVE_REPLY,
 		.set	= 0,
 		.buffer	= 1,
 	},
-	[TV_GET_SYMBOLRATE] = {
-		.name	= "TV_GET_SYMBOLRATE",
-		.cmd	= TV_GET_SYMBOLRATE,
+	[DTV_GET_SYMBOLRATE] = {
+		.name	= "DTV_GET_SYMBOLRATE",
+		.cmd	= DTV_GET_SYMBOLRATE,
 		.set	= 0,
 	},
-	[TV_GET_INNERFEC] = {
-		.name	= "TV_GET_INNERFEC",
-		.cmd	= TV_GET_INNERFEC,
+	[DTV_GET_INNERFEC] = {
+		.name	= "DTV_GET_INNERFEC",
+		.cmd	= DTV_GET_INNERFEC,
 		.set	= 0,
 	},
-	[TV_GET_VOLTAGE] = {
-		.name	= "TV_GET_VOLTAGE",
-		.cmd	= TV_GET_VOLTAGE,
+	[DTV_GET_VOLTAGE] = {
+		.name	= "DTV_GET_VOLTAGE",
+		.cmd	= DTV_GET_VOLTAGE,
 		.set	= 0,
 	},
-	[TV_GET_TONE] = {
-		.name	= "TV_GET_TONE",
-		.cmd	= TV_GET_TONE,
+	[DTV_GET_TONE] = {
+		.name	= "DTV_GET_TONE",
+		.cmd	= DTV_GET_TONE,
 		.set	= 0,
 	},
-	[TV_GET_PILOT] = {
-		.name	= "TV_GET_PILOT",
-		.cmd	= TV_GET_PILOT,
+	[DTV_GET_PILOT] = {
+		.name	= "DTV_GET_PILOT",
+		.cmd	= DTV_GET_PILOT,
 		.set	= 0,
 	},
-	[TV_GET_ROLLOFF] = {
-		.name	= "TV_GET_ROLLOFF",
-		.cmd	= TV_GET_ROLLOFF,
+	[DTV_GET_ROLLOFF] = {
+		.name	= "DTV_GET_ROLLOFF",
+		.cmd	= DTV_GET_ROLLOFF,
 		.set	= 0,
 	},
-	[TV_GET_DELIVERY_SYSTEM] = {
-		.name	= "TV_GET_DELIVERY_SYSTEM",
-		.cmd	= TV_GET_DELIVERY_SYSTEM,
+	[DTV_GET_DELIVERY_SYSTEM] = {
+		.name	= "DTV_GET_DELIVERY_SYSTEM",
+		.cmd	= DTV_GET_DELIVERY_SYSTEM,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_SEGMENT_NUM] = {
-		.name	= "TV_GET_ISDB_SEGMENT_NUM",
-		.cmd	= TV_GET_ISDB_SEGMENT_NUM,
+	[DTV_GET_ISDB_SEGMENT_NUM] = {
+		.name	= "DTV_GET_ISDB_SEGMENT_NUM",
+		.cmd	= DTV_GET_ISDB_SEGMENT_NUM,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_SEGMENT_WIDTH] = {
-		.name	= "TV_GET_ISDB_SEGMENT_WIDTH",
-		.cmd	= TV_GET_ISDB_SEGMENT_WIDTH,
+	[DTV_GET_ISDB_SEGMENT_WIDTH] = {
+		.name	= "DTV_GET_ISDB_SEGMENT_WIDTH",
+		.cmd	= DTV_GET_ISDB_SEGMENT_WIDTH,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERA_FEC] = {
-		.name	= "TV_GET_ISDB_LAYERA_FEC",
-		.cmd	= TV_GET_ISDB_LAYERA_FEC,
+	[DTV_GET_ISDB_LAYERA_FEC] = {
+		.name	= "DTV_GET_ISDB_LAYERA_FEC",
+		.cmd	= DTV_GET_ISDB_LAYERA_FEC,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERA_MODULATION] = {
-		.name	= "TV_GET_ISDB_LAYERA_MODULATION",
-		.cmd	= TV_GET_ISDB_LAYERA_MODULATION,
+	[DTV_GET_ISDB_LAYERA_MODULATION] = {
+		.name	= "DTV_GET_ISDB_LAYERA_MODULATION",
+		.cmd	= DTV_GET_ISDB_LAYERA_MODULATION,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERA_SEGMENT_WIDTH] = {
-		.name	= "TV_GET_ISDB_LAYERA_SEGMENT_WIDTH",
-		.cmd	= TV_GET_ISDB_LAYERA_SEGMENT_WIDTH,
+	[DTV_GET_ISDB_LAYERA_SEGMENT_WIDTH] = {
+		.name	= "DTV_GET_ISDB_LAYERA_SEGMENT_WIDTH",
+		.cmd	= DTV_GET_ISDB_LAYERA_SEGMENT_WIDTH,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERB_FEC] = {
-		.name	= "TV_GET_ISDB_LAYERB_FEC",
-		.cmd	= TV_GET_ISDB_LAYERB_FEC,
+	[DTV_GET_ISDB_LAYERB_FEC] = {
+		.name	= "DTV_GET_ISDB_LAYERB_FEC",
+		.cmd	= DTV_GET_ISDB_LAYERB_FEC,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERB_MODULATION] = {
-		.name	= "TV_GET_ISDB_LAYERB_MODULATION",
-		.cmd	= TV_GET_ISDB_LAYERB_MODULATION,
+	[DTV_GET_ISDB_LAYERB_MODULATION] = {
+		.name	= "DTV_GET_ISDB_LAYERB_MODULATION",
+		.cmd	= DTV_GET_ISDB_LAYERB_MODULATION,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERB_SEGMENT_WIDTH] = {
-		.name	= "TV_GET_ISDB_LAYERB_SEGMENT_WIDTH",
-		.cmd	= TV_GET_ISDB_LAYERB_SEGMENT_WIDTH,
+	[DTV_GET_ISDB_LAYERB_SEGMENT_WIDTH] = {
+		.name	= "DTV_GET_ISDB_LAYERB_SEGMENT_WIDTH",
+		.cmd	= DTV_GET_ISDB_LAYERB_SEGMENT_WIDTH,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERC_FEC] = {
-		.name	= "TV_GET_ISDB_LAYERC_FEC",
-		.cmd	= TV_GET_ISDB_LAYERC_FEC,
+	[DTV_GET_ISDB_LAYERC_FEC] = {
+		.name	= "DTV_GET_ISDB_LAYERC_FEC",
+		.cmd	= DTV_GET_ISDB_LAYERC_FEC,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERC_MODULATION] = {
-		.name	= "TV_GET_ISDB_LAYERC_MODULATION",
-		.cmd	= TV_GET_ISDB_LAYERC_MODULATION,
+	[DTV_GET_ISDB_LAYERC_MODULATION] = {
+		.name	= "DTV_GET_ISDB_LAYERC_MODULATION",
+		.cmd	= DTV_GET_ISDB_LAYERC_MODULATION,
 		.set	= 0,
 	},
-	[TV_GET_ISDB_LAYERC_SEGMENT_WIDTH] = {
-		.name	= "TV_GET_ISDB_LAYERC_SEGMENT_WIDTH",
-		.cmd	= TV_GET_ISDB_LAYERC_SEGMENT_WIDTH,
+	[DTV_GET_ISDB_LAYERC_SEGMENT_WIDTH] = {
+		.name	= "DTV_GET_ISDB_LAYERC_SEGMENT_WIDTH",
+		.cmd	= DTV_GET_ISDB_LAYERC_SEGMENT_WIDTH,
 		.set	= 0,
 	},
 };
 
-void tv_property_dump(tv_property_t *tvp)
+void dtv_property_dump(dtv_property_t *tvp)
 {
 	int i;
 
 	printk("%s() tvp.cmd    = 0x%08x (%s)\n"
 		,__FUNCTION__
 		,tvp->cmd
-		,tv_cmds[ tvp->cmd ].name);
+		,dtv_cmds[ tvp->cmd ].name);
 
-	if(tv_cmds[ tvp->cmd ].buffer) {
+	if(dtv_cmds[ tvp->cmd ].buffer) {
 
 		printk("%s() tvp.u.buffer.len = 0x%02x\n"
 			,__FUNCTION__
@@ -1008,7 +1008,7 @@ int is_legacy_delivery_system(fe_delivery_system_t s)
 	return 0;
 }
 
-int tv_property_cache_submit(struct dvb_frontend *fe)
+int dtv_property_cache_submit(struct dvb_frontend *fe)
 {
 
 	/* We have to do one of two things:
@@ -1036,7 +1036,7 @@ int tv_property_cache_submit(struct dvb_frontend *fe)
 
 	int r;
 
-	struct tv_frontend_properties *c = &fe->tv_property_cache;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	struct dvb_frontend_parameters p;
 
@@ -1115,7 +1115,7 @@ int tv_property_cache_submit(struct dvb_frontend *fe)
 		case _16APSK:
 		case NBC_QPSK:
 			/* Just post a notification to the demod driver and let it pull
-			 * the specific values it wants from its tv_property_cache.
+			 * the specific values it wants from its dtv_property_cache.
 			 * It can decide how best to use those parameters.
 			 * IOCTL will call set_frontend (by default) due to zigzag
 			 * support etc.
@@ -1161,147 +1161,147 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 			unsigned int cmd, void *parg);
 
-int tv_property_process(struct dvb_frontend *fe, tv_property_t *tvp,
+int dtv_property_process(struct dvb_frontend *fe, dtv_property_t *tvp,
 	struct inode *inode, struct file *file)
 {
 	int r = 0;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	printk("%s()\n", __FUNCTION__);
-	tv_property_dump(tvp);
+	dtv_property_dump(tvp);
 
 	switch(tvp->cmd) {
-	case TV_SEQ_START:
-	case TV_SEQ_TERMINATE:
+	case DTV_SEQ_START:
+	case DTV_SEQ_TERMINATE:
 		/* Reset a cache of data specific to the frontend here. This does
 		 * not effect hardware.
 		 */
 		printk("%s() Flushing property cache\n", __FUNCTION__);
-		memset(&fe->tv_property_cache, 0, sizeof(struct tv_frontend_properties));
-		fe->tv_property_cache.state = TV_SEQ_START;
-		fe->tv_property_cache.delivery_system = SYS_UNDEFINED;
+		memset(&fe->dtv_property_cache, 0, sizeof(struct dtv_frontend_properties));
+		fe->dtv_property_cache.state = DTV_SEQ_START;
+		fe->dtv_property_cache.delivery_system = SYS_UNDEFINED;
 		break;
-	case TV_SEQ_COMPLETE:
+	case DTV_SEQ_COMPLETE:
 		/* interpret the cache of data, build either a traditional frontend
 		 * tunerequest and submit it to a subset of the ioctl handler,
 		 * or, call a new undefined method on the frontend to deal with
 		 * all new tune requests.
 		 */
-		fe->tv_property_cache.state = TV_SEQ_COMPLETE;
+		fe->dtv_property_cache.state = DTV_SEQ_COMPLETE;
 		printk("%s() Finalised property cache\n", __FUNCTION__);
-		r |= tv_property_cache_submit(fe);
+		r |= dtv_property_cache_submit(fe);
 		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
 			&fepriv->parameters);
 		break;
-	case TV_SET_FREQUENCY:
-		fe->tv_property_cache.frequency = tvp->u.data;
+	case DTV_SET_FREQUENCY:
+		fe->dtv_property_cache.frequency = tvp->u.data;
 		break;
-	case TV_GET_FREQUENCY:
-		tvp->u.data = fe->tv_property_cache.frequency;
+	case DTV_GET_FREQUENCY:
+		tvp->u.data = fe->dtv_property_cache.frequency;
 		break;
-	case TV_SET_MODULATION:
-		fe->tv_property_cache.modulation = tvp->u.data;
+	case DTV_SET_MODULATION:
+		fe->dtv_property_cache.modulation = tvp->u.data;
 		break;
-	case TV_GET_MODULATION:
-		tvp->u.data = fe->tv_property_cache.modulation;
+	case DTV_GET_MODULATION:
+		tvp->u.data = fe->dtv_property_cache.modulation;
 		break;
-	case TV_SET_BANDWIDTH:
-		fe->tv_property_cache.bandwidth = tvp->u.data;
+	case DTV_SET_BANDWIDTH:
+		fe->dtv_property_cache.bandwidth = tvp->u.data;
 		break;
-	case TV_GET_BANDWIDTH:
-		tvp->u.data = fe->tv_property_cache.bandwidth;
+	case DTV_GET_BANDWIDTH:
+		tvp->u.data = fe->dtv_property_cache.bandwidth;
 		break;
-	case TV_SET_INVERSION:
-		fe->tv_property_cache.inversion = tvp->u.data;
+	case DTV_SET_INVERSION:
+		fe->dtv_property_cache.inversion = tvp->u.data;
 		break;
-	case TV_GET_INVERSION:
-		tvp->u.data = fe->tv_property_cache.inversion;
+	case DTV_GET_INVERSION:
+		tvp->u.data = fe->dtv_property_cache.inversion;
 		break;
-	case TV_SET_SYMBOLRATE:
-		fe->tv_property_cache.symbol_rate = tvp->u.data;
+	case DTV_SET_SYMBOLRATE:
+		fe->dtv_property_cache.symbol_rate = tvp->u.data;
 		break;
-	case TV_GET_SYMBOLRATE:
-		tvp->u.data = fe->tv_property_cache.symbol_rate;
+	case DTV_GET_SYMBOLRATE:
+		tvp->u.data = fe->dtv_property_cache.symbol_rate;
 		break;
-	case TV_SET_INNERFEC:
-		fe->tv_property_cache.fec_inner = tvp->u.data;
+	case DTV_SET_INNERFEC:
+		fe->dtv_property_cache.fec_inner = tvp->u.data;
 		break;
-	case TV_GET_INNERFEC:
-		tvp->u.data = fe->tv_property_cache.fec_inner;
+	case DTV_GET_INNERFEC:
+		tvp->u.data = fe->dtv_property_cache.fec_inner;
 		break;
-	case TV_SET_PILOT:
-		fe->tv_property_cache.pilot = tvp->u.data;
+	case DTV_SET_PILOT:
+		fe->dtv_property_cache.pilot = tvp->u.data;
 		break;
-	case TV_GET_PILOT:
-		tvp->u.data = fe->tv_property_cache.pilot;
+	case DTV_GET_PILOT:
+		tvp->u.data = fe->dtv_property_cache.pilot;
 		break;
-	case TV_SET_ROLLOFF:
-		fe->tv_property_cache.rolloff = tvp->u.data;
+	case DTV_SET_ROLLOFF:
+		fe->dtv_property_cache.rolloff = tvp->u.data;
 		break;
-	case TV_GET_ROLLOFF:
-		tvp->u.data = fe->tv_property_cache.rolloff;
+	case DTV_GET_ROLLOFF:
+		tvp->u.data = fe->dtv_property_cache.rolloff;
 		break;
-	case TV_SET_DELIVERY_SYSTEM:
-		fe->tv_property_cache.delivery_system = tvp->u.data;
+	case DTV_SET_DELIVERY_SYSTEM:
+		fe->dtv_property_cache.delivery_system = tvp->u.data;
 		break;
-	case TV_GET_DELIVERY_SYSTEM:
-		tvp->u.data = fe->tv_property_cache.delivery_system;
+	case DTV_GET_DELIVERY_SYSTEM:
+		tvp->u.data = fe->dtv_property_cache.delivery_system;
 		break;
 
 	/* ISDB-T Support here */
-	case TV_SET_ISDB_SEGMENT_NUM:
-		fe->tv_property_cache.isdb_segment_num = tvp->u.data;
+	case DTV_SET_ISDB_SEGMENT_NUM:
+		fe->dtv_property_cache.isdb_segment_num = tvp->u.data;
 		break;
-	case TV_GET_ISDB_SEGMENT_NUM:
-		tvp->u.data = fe->tv_property_cache.isdb_segment_num;
+	case DTV_GET_ISDB_SEGMENT_NUM:
+		tvp->u.data = fe->dtv_property_cache.isdb_segment_num;
 		break;
-	case TV_SET_ISDB_SEGMENT_WIDTH:
-		fe->tv_property_cache.isdb_segment_width = tvp->u.data;
+	case DTV_SET_ISDB_SEGMENT_WIDTH:
+		fe->dtv_property_cache.isdb_segment_width = tvp->u.data;
 		break;
-	case TV_GET_ISDB_SEGMENT_WIDTH:
-		tvp->u.data = fe->tv_property_cache.isdb_segment_width;
+	case DTV_GET_ISDB_SEGMENT_WIDTH:
+		tvp->u.data = fe->dtv_property_cache.isdb_segment_width;
 		break;
-	case TV_GET_ISDB_LAYERA_FEC:
-		tvp->u.data = fe->tv_property_cache.isdb_layera_fec;
+	case DTV_GET_ISDB_LAYERA_FEC:
+		tvp->u.data = fe->dtv_property_cache.isdb_layera_fec;
 		break;
-	case TV_GET_ISDB_LAYERA_MODULATION:
-		tvp->u.data = fe->tv_property_cache.isdb_layera_modulation;
+	case DTV_GET_ISDB_LAYERA_MODULATION:
+		tvp->u.data = fe->dtv_property_cache.isdb_layera_modulation;
 		break;
-	case TV_GET_ISDB_LAYERA_SEGMENT_WIDTH:
-		tvp->u.data = fe->tv_property_cache.isdb_layera_segment_width;
+	case DTV_GET_ISDB_LAYERA_SEGMENT_WIDTH:
+		tvp->u.data = fe->dtv_property_cache.isdb_layera_segment_width;
 		break;
-	case TV_GET_ISDB_LAYERB_FEC:
-		tvp->u.data = fe->tv_property_cache.isdb_layerb_fec;
+	case DTV_GET_ISDB_LAYERB_FEC:
+		tvp->u.data = fe->dtv_property_cache.isdb_layerb_fec;
 		break;
-	case TV_GET_ISDB_LAYERB_MODULATION:
-		tvp->u.data = fe->tv_property_cache.isdb_layerb_modulation;
+	case DTV_GET_ISDB_LAYERB_MODULATION:
+		tvp->u.data = fe->dtv_property_cache.isdb_layerb_modulation;
 		break;
-	case TV_GET_ISDB_LAYERB_SEGMENT_WIDTH:
-		tvp->u.data = fe->tv_property_cache.isdb_layerb_segment_width;
+	case DTV_GET_ISDB_LAYERB_SEGMENT_WIDTH:
+		tvp->u.data = fe->dtv_property_cache.isdb_layerb_segment_width;
 		break;
-	case TV_GET_ISDB_LAYERC_FEC:
-		tvp->u.data = fe->tv_property_cache.isdb_layerc_fec;
+	case DTV_GET_ISDB_LAYERC_FEC:
+		tvp->u.data = fe->dtv_property_cache.isdb_layerc_fec;
 		break;
-	case TV_GET_ISDB_LAYERC_MODULATION:
-		tvp->u.data = fe->tv_property_cache.isdb_layerc_modulation;
+	case DTV_GET_ISDB_LAYERC_MODULATION:
+		tvp->u.data = fe->dtv_property_cache.isdb_layerc_modulation;
 		break;
-	case TV_GET_ISDB_LAYERC_SEGMENT_WIDTH:
-		tvp->u.data = fe->tv_property_cache.isdb_layerc_segment_width;
+	case DTV_GET_ISDB_LAYERC_SEGMENT_WIDTH:
+		tvp->u.data = fe->dtv_property_cache.isdb_layerc_segment_width;
 		break;
-	case TV_SET_VOLTAGE:
-		fe->tv_property_cache.voltage = tvp->u.data;
+	case DTV_SET_VOLTAGE:
+		fe->dtv_property_cache.voltage = tvp->u.data;
 		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_VOLTAGE,
-			(void *)fe->tv_property_cache.voltage);
+			(void *)fe->dtv_property_cache.voltage);
 		break;
-	case TV_GET_VOLTAGE:
-		tvp->u.data = fe->tv_property_cache.voltage;
+	case DTV_GET_VOLTAGE:
+		tvp->u.data = fe->dtv_property_cache.voltage;
 		break;
-	case TV_SET_TONE:
-		fe->tv_property_cache.sectone = tvp->u.data;
+	case DTV_SET_TONE:
+		fe->dtv_property_cache.sectone = tvp->u.data;
 		r = dvb_frontend_ioctl_legacy(inode, file, FE_SET_TONE,
-			(void *)fe->tv_property_cache.sectone);
+			(void *)fe->dtv_property_cache.sectone);
 		break;
-	case TV_GET_TONE:
-		tvp->u.data = fe->tv_property_cache.sectone;
+	case DTV_GET_TONE:
+		tvp->u.data = fe->dtv_property_cache.sectone;
 		break;
 	}
 
@@ -1344,7 +1344,7 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
 	int err = -EOPNOTSUPP;
-	tv_property_t *tvp;
+	dtv_property_t *tvp;
 
 	dprintk("%s\n", __func__);
 
@@ -1355,14 +1355,14 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 
 		/* TODO: ioctl userdata out of range check here */
 		tvp = parg;
-		while(tvp->cmd != TV_SEQ_UNDEFINED) {
-			tv_property_process(fe, tvp, inode, file);
-			if( (tvp->cmd == TV_SEQ_TERMINATE) || (tvp->cmd == TV_SEQ_COMPLETE) )
+		while(tvp->cmd != DTV_SEQ_UNDEFINED) {
+			dtv_property_process(fe, tvp, inode, file);
+			if( (tvp->cmd == DTV_SEQ_TERMINATE) || (tvp->cmd == DTV_SEQ_COMPLETE) )
 				break;
 			tvp++;
 		}
 
-		if(fe->tv_property_cache.state == TV_SEQ_COMPLETE) {
+		if(fe->dtv_property_cache.state == DTV_SEQ_COMPLETE) {
 			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
 		}
 		err = 0;
@@ -1545,7 +1545,7 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 	case FE_SET_FRONTEND: {
 		struct dvb_frontend_tune_settings fetunesettings;
 
-		if(fe->tv_property_cache.state == TV_SEQ_COMPLETE) {
+		if(fe->dtv_property_cache.state == DTV_SEQ_COMPLETE) {
 			if (dvb_frontend_check_parameters(fe, &fepriv->parameters) < 0) {
 				err = -EINVAL;
 				break;

@@ -776,7 +776,7 @@ error:
 static int cx24116_get_params(struct dvb_frontend* fe)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
-	struct tv_frontend_properties *cache = &fe->tv_property_cache;
+	struct dtv_frontend_properties *cache = &fe->dtv_property_cache;
 
 	dprintk("%s()\n",__func__);
 
@@ -796,7 +796,7 @@ static int cx24116_initfe(struct dvb_frontend* fe)
 	return cx24116_diseqc_init(fe);
 }
 
-static int cx24116_set_property(struct dvb_frontend *fe, tv_property_t* tvp)
+static int cx24116_set_property(struct dvb_frontend *fe, dtv_property_t* tvp)
 {
 	dprintk("%s(..)\n", __func__);
 	return 0;
@@ -814,7 +814,7 @@ static int cx24116_set_params(struct dvb_frontend *fe)
 static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_parameters *p)
 {
 	struct cx24116_state *state = fe->demodulator_priv;
-	struct tv_frontend_properties *c = &fe->tv_property_cache;
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct cx24116_cmd cmd;
 	fe_status_t tunerstat;
 	int ret, above30msps;

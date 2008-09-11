@@ -170,8 +170,8 @@ struct dvb_frontend_ops {
 	struct dvb_tuner_ops tuner_ops;
 	struct analog_demod_ops analog_ops;
 
-	int (*set_property)(struct dvb_frontend* fe, tv_property_t* tvp);
-	int (*get_property)(struct dvb_frontend* fe, tv_property_t* tvp);
+	int (*set_property)(struct dvb_frontend* fe, dtv_property_t* tvp);
+	int (*get_property)(struct dvb_frontend* fe, dtv_property_t* tvp);
 	int (*set_params)(struct dvb_frontend* fe);
 };
 
@@ -186,7 +186,7 @@ struct dvb_fe_events {
 	struct mutex		  mtx;
 };
 
-struct tv_frontend_properties {
+struct dtv_frontend_properties {
 
 	/* Cache State */
 	u32			state;
@@ -233,7 +233,7 @@ struct dvb_frontend {
 	void *frontend_priv;
 	void *sec_priv;
 	void *analog_demod_priv;
-	struct tv_frontend_properties tv_property_cache;
+	struct dtv_frontend_properties dtv_property_cache;
 };
 
 extern int dvb_register_frontend(struct dvb_adapter *dvb,
