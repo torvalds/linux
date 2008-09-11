@@ -110,7 +110,6 @@ static int kvmppc_44x_tlbe_is_writable(struct tlbe *tlbe)
 	return tlbe->word2 & (PPC44x_TLB_SW|PPC44x_TLB_UW);
 }
 
-/* Must be called with mmap_sem locked for writing. */
 static void kvmppc_44x_shadow_release(struct kvm_vcpu *vcpu,
                                       unsigned int index)
 {
@@ -150,17 +149,16 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	/* Get reference to new page. */
 	down_read(&current->mm->mmap_sem);
 	new_page = gfn_to_page(vcpu->kvm, gfn);
+	up_read(&current->mm->mmap_sem);
 	if (is_error_page(new_page)) {
 		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
 		kvm_release_page_clean(new_page);
-		up_read(&current->mm->mmap_sem);
 		return;
 	}
 	hpaddr = page_to_phys(new_page);
 
 	/* Drop reference to old page. */
 	kvmppc_44x_shadow_release(vcpu, victim);
-	up_read(&current->mm->mmap_sem);
 
 	vcpu->arch.shadow_pages[victim] = new_page;
 
@@ -194,7 +192,6 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 	int i;
 
 	/* XXX Replace loop with fancy data structures. */
-	down_write(&current->mm->mmap_sem);
 	for (i = 0; i <= tlb_44x_hwater; i++) {
 		struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
 		unsigned int tid;
@@ -219,7 +216,6 @@ void kvmppc_mmu_invalidate(struct kvm_vcpu *vcpu, gva_t eaddr,
 				stlbe->tid, stlbe->word0, stlbe->word1,
 				stlbe->word2, handler);
 	}
-	up_write(&current->mm->mmap_sem);
 }
 
 /* Invalidate all mappings on the privilege switch after PID has been changed.
@@ -231,7 +227,6 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 
 	if (vcpu->arch.swap_pid) {
 		/* XXX Replace loop with fancy data structures. */
-		down_write(&current->mm->mmap_sem);
 		for (i = 0; i <= tlb_44x_hwater; i++) {
 			struct tlbe *stlbe = &vcpu->arch.shadow_tlb[i];
 
@@ -243,7 +238,6 @@ void kvmppc_mmu_priv_switch(struct kvm_vcpu *vcpu, int usermode)
 			            stlbe->tid, stlbe->word0, stlbe->word1,
 			            stlbe->word2, handler);
 		}
-		up_write(&current->mm->mmap_sem);
 		vcpu->arch.swap_pid = 0;
 	}
 
