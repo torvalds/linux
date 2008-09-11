@@ -1982,7 +1982,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 			DEFINE_WAIT(wait);
 			prepare_to_wait(&log->fs_info->tree_log_wait, &wait,
 					TASK_UNINTERRUPTIBLE);
-			batch = log->fs_info->tree_log_batch;
 			mutex_unlock(&log->fs_info->tree_log_mutex);
 			if (atomic_read(&log->fs_info->tree_log_writers))
 				schedule();
@@ -2024,8 +2023,7 @@ out:
 
 }
 
-/*
- * free all the extents used by the tree log.  This should be called
+/* * free all the extents used by the tree log.  This should be called
  * at commit time of the full transaction
  */
 int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
@@ -2107,6 +2105,9 @@ int btrfs_del_dir_entries_in_log(struct btrfs_trans_handle *trans,
 	int ret;
 	int bytes_del = 0;
 
+	if (BTRFS_I(dir)->logged_trans < trans->transid)
+		return 0;
+
 	ret = join_running_log_trans(root);
 	if (ret)
 		return 0;
@@ -2177,6 +2178,9 @@ int btrfs_del_inode_ref_in_log(struct btrfs_trans_handle *trans,
 	struct btrfs_root *log;
 	u64 index;
 	int ret;
+
+	if (BTRFS_I(inode)->logged_trans < trans->transid)
+		return 0;
 
 	ret = join_running_log_trans(root);
 	if (ret)
@@ -2484,6 +2488,7 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 	struct btrfs_inode_item *inode_item;
 	u32 size;
 	int ret;
+	int nritems;
 
 	log = root->log_root;
 
@@ -2541,12 +2546,11 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 					   path, 0, trans->transid);
 		if (ret != 0)
 			break;
-
+again:
 		if (min_key.objectid != inode->i_ino)
 			break;
 		if (min_key.type > max_key.type)
 			break;
-
 		src = path->nodes[0];
 		size = btrfs_item_size_nr(src, path->slots[0]);
 		ret = btrfs_insert_empty_item(trans, log, dst_path, &min_key,
@@ -2606,8 +2610,16 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 		}
 
 		btrfs_mark_buffer_dirty(dst_path->nodes[0]);
-		btrfs_release_path(root, path);
 		btrfs_release_path(log, dst_path);
+
+		nritems = btrfs_header_nritems(path->nodes[0]);
+		path->slots[0]++;
+		if (path->slots[0] < nritems) {
+			btrfs_item_key_to_cpu(path->nodes[0], &min_key,
+					      path->slots[0]);
+			goto again;
+		}
+		btrfs_release_path(root, path);
 
 		if (min_key.offset < (u64)-1)
 			min_key.offset++;
@@ -2626,6 +2638,7 @@ static int __btrfs_log_inode(struct btrfs_trans_handle *trans,
 		ret = log_directory_changes(trans, root, inode, path, dst_path);
 		BUG_ON(ret);
 	}
+	BTRFS_I(inode)->logged_trans = trans->transid;
 	mutex_unlock(&BTRFS_I(inode)->log_mutex);
 
 	btrfs_free_path(path);
