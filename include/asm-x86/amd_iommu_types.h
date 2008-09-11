@@ -227,6 +227,12 @@ struct dma_ops_domain {
 
 	/* This will be set to true when TLB needs to be flushed */
 	bool need_flush;
+
+	/*
+	 * if this is a preallocated domain, keep the device for which it was
+	 * preallocated in this variable
+	 */
+	u16 target_dev;
 };
 
 /*

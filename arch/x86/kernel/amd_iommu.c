@@ -33,6 +33,10 @@
 
 static DEFINE_RWLOCK(amd_iommu_devtable_lock);
 
+/* A list of preallocated protection domains */
+static LIST_HEAD(iommu_pd_list);
+static DEFINE_SPINLOCK(iommu_pd_list_lock);
+
 /*
  * general struct to manage commands send to an IOMMU
  */
@@ -663,6 +667,7 @@ static struct dma_ops_domain *dma_ops_domain_alloc(struct amd_iommu *iommu,
 	dma_dom->next_bit = 0;
 
 	dma_dom->need_flush = false;
+	dma_dom->target_dev = 0xffff;
 
 	/* Intialize the exclusion range if necessary */
 	if (iommu->exclusion_start &&
@@ -769,6 +774,33 @@ static bool check_device(struct device *dev)
 }
 
 /*
+ * In this function the list of preallocated protection domains is traversed to
+ * find the domain for a specific device
+ */
+static struct dma_ops_domain *find_protection_domain(u16 devid)
+{
+	struct dma_ops_domain *entry, *ret = NULL;
+	unsigned long flags;
+
+	if (list_empty(&iommu_pd_list))
+		return NULL;
+
+	spin_lock_irqsave(&iommu_pd_list_lock, flags);
+
+	list_for_each_entry(entry, &iommu_pd_list, list) {
+		if (entry->target_dev == devid) {
+			ret = entry;
+			list_del(&ret->list);
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&iommu_pd_list_lock, flags);
+
+	return ret;
+}
+
+/*
  * In the dma_ops path we only have the struct device. This function
  * finds the corresponding IOMMU, the protection domain and the
  * requestor id for a given device.
@@ -803,9 +835,11 @@ static int get_device_resources(struct device *dev,
 	*iommu = amd_iommu_rlookup_table[*bdf];
 	if (*iommu == NULL)
 		return 0;
-	dma_dom = (*iommu)->default_dom;
 	*domain = domain_for_device(*bdf);
 	if (*domain == NULL) {
+		dma_dom = find_protection_domain(*bdf);
+		if (!dma_dom)
+			dma_dom = (*iommu)->default_dom;
 		*domain = &dma_dom->domain;
 		set_device_domain(*iommu, *domain, *bdf);
 		printk(KERN_INFO "AMD IOMMU: Using protection domain %d for "
@@ -1257,10 +1291,9 @@ void prealloc_protection_domains(void)
 		if (!dma_dom)
 			continue;
 		init_unity_mappings_for_device(dma_dom, devid);
-		set_device_domain(iommu, &dma_dom->domain, devid);
-		printk(KERN_INFO "AMD IOMMU: Allocated domain %d for device ",
-		       dma_dom->domain.id);
-		print_devid(devid, 1);
+		dma_dom->target_dev = devid;
+
+		list_add_tail(&dma_dom->list, &iommu_pd_list);
 	}
 }
 
