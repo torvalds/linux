@@ -794,14 +794,14 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.set	= 1,
 		.buffer	= 1,
 	},
-	[DTV_SET_SYMBOLRATE] = {
-		.name	= "DTV_SET_SYMBOLRATE",
-		.cmd	= DTV_SET_SYMBOLRATE,
+	[DTV_SET_SYMBOL_RATE] = {
+		.name	= "DTV_SET_SYMBOL_RATE",
+		.cmd	= DTV_SET_SYMBOL_RATE,
 		.set	= 1,
 	},
-	[DTV_SET_INNERFEC] = {
-		.name	= "DTV_SET_INNERFEC",
-		.cmd	= DTV_SET_INNERFEC,
+	[DTV_SET_INNER_FEC] = {
+		.name	= "DTV_SET_INNER_FEC",
+		.cmd	= DTV_SET_INNER_FEC,
 		.set	= 1,
 	},
 	[DTV_SET_VOLTAGE] = {
@@ -867,14 +867,14 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.set	= 0,
 		.buffer	= 1,
 	},
-	[DTV_GET_SYMBOLRATE] = {
-		.name	= "DTV_GET_SYMBOLRATE",
-		.cmd	= DTV_GET_SYMBOLRATE,
+	[DTV_GET_SYMBOL_RATE] = {
+		.name	= "DTV_GET_SYMBOL_RATE",
+		.cmd	= DTV_GET_SYMBOL_RATE,
 		.set	= 0,
 	},
-	[DTV_GET_INNERFEC] = {
-		.name	= "DTV_GET_INNERFEC",
-		.cmd	= DTV_GET_INNERFEC,
+	[DTV_GET_INNER_FEC] = {
+		.name	= "DTV_GET_INNER_FEC",
+		.cmd	= DTV_GET_INNER_FEC,
 		.set	= 0,
 	},
 	[DTV_GET_VOLTAGE] = {
@@ -1201,16 +1201,16 @@ int dtv_property_process(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_GET_INVERSION:
 		tvp->u.data = fe->dtv_property_cache.inversion;
 		break;
-	case DTV_SET_SYMBOLRATE:
+	case DTV_SET_SYMBOL_RATE:
 		fe->dtv_property_cache.symbol_rate = tvp->u.data;
 		break;
-	case DTV_GET_SYMBOLRATE:
+	case DTV_GET_SYMBOL_RATE:
 		tvp->u.data = fe->dtv_property_cache.symbol_rate;
 		break;
-	case DTV_SET_INNERFEC:
+	case DTV_SET_INNER_FEC:
 		fe->dtv_property_cache.fec_inner = tvp->u.data;
 		break;
-	case DTV_GET_INNERFEC:
+	case DTV_GET_INNER_FEC:
 		tvp->u.data = fe->dtv_property_cache.fec_inner;
 		break;
 	case DTV_SET_PILOT:
