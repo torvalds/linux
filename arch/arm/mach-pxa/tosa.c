@@ -522,6 +522,14 @@ static struct gpio_keys_button tosa_gpio_keys[] = {
 		.wakeup	= 1,
 		.active_low = 1,
 	},
+	{
+		.type	= EV_SW,
+		.code	= SW_HEADPHONE_INSERT,
+		.gpio	= TOSA_GPIO_EAR_IN,
+		.desc	= "HeadPhone insert",
+		.active_low = 1,
+		.debounce_interval = 300,
+	},
 };
 
 static struct gpio_keys_platform_data tosa_gpio_keys_platform_data = {
