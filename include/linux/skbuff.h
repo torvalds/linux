@@ -359,6 +359,14 @@ struct sk_buff {
 
 #include <asm/system.h>
 
+#ifdef CONFIG_HAS_DMA
+#include <linux/dma-mapping.h>
+extern int skb_dma_map(struct device *dev, struct sk_buff *skb,
+		       enum dma_data_direction dir);
+extern void skb_dma_unmap(struct device *dev, struct sk_buff *skb,
+			  enum dma_data_direction dir);
+#endif
+
 extern void kfree_skb(struct sk_buff *skb);
 extern void	       __kfree_skb(struct sk_buff *skb);
 extern struct sk_buff *__alloc_skb(unsigned int size,
