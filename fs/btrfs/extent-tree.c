@@ -1872,8 +1872,15 @@ static int __btrfs_free_extent(struct btrfs_trans_handle *trans,
 		return 0;
 	}
 	/* if metadata always pin */
-	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID)
+	if (owner_objectid < BTRFS_FIRST_FREE_OBJECTID) {
+		if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
+			/* btrfs_free_reserved_extent */
+			set_extent_dirty(&root->fs_info->free_space_cache,
+				 bytenr, bytenr + num_bytes - 1, GFP_NOFS);
+			return 0;
+		}
 		pin = 1;
+	}
 
 	/* if data pin when any transaction has committed this */
 	if (ref_generation != trans->transid)
@@ -2361,11 +2368,13 @@ int btrfs_alloc_extent(struct btrfs_trans_handle *trans,
 				     min_alloc_size, empty_size, hint_byte,
 				     search_end, ins, data);
 	BUG_ON(ret);
-	ret = __btrfs_alloc_reserved_extent(trans, root, root_objectid,
-					    ref_generation, owner,
-					    owner_offset, ins);
-	BUG_ON(ret);
+	if (root_objectid != BTRFS_TREE_LOG_OBJECTID) {
+		ret = __btrfs_alloc_reserved_extent(trans, root, root_objectid,
+						    ref_generation, owner,
+						    owner_offset, ins);
+		BUG_ON(ret);
 
+	}
 	maybe_unlock_mutex(root);
 	return ret;
 }

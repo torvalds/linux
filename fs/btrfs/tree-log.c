@@ -1728,9 +1728,8 @@ static int noinline walk_down_log_tree(struct btrfs_trans_handle *trans,
 
 				WARN_ON(root_owner !=
 					BTRFS_TREE_LOG_OBJECTID);
-				ret = btrfs_free_extent(trans, root, bytenr,
-							blocksize, root_owner,
-							root_gen, 0, 0, 1);
+				ret = btrfs_free_reserved_extent(root,
+							 bytenr, blocksize);
 				BUG_ON(ret);
 			}
 			free_extent_buffer(next);
@@ -1775,8 +1774,7 @@ static int noinline walk_down_log_tree(struct btrfs_trans_handle *trans,
 			BUG_ON(ret);
 		}
 		WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
-		ret = btrfs_free_extent(trans, root, bytenr, blocksize,
-					  root_owner, root_gen, 0, 0, 1);
+		ret = btrfs_free_reserved_extent(root, bytenr, blocksize);
 		BUG_ON(ret);
 	}
 	free_extent_buffer(path->nodes[*level]);
@@ -1837,10 +1835,9 @@ static int noinline walk_up_log_tree(struct btrfs_trans_handle *trans,
 				}
 
 				WARN_ON(root_owner != BTRFS_TREE_LOG_OBJECTID);
-				ret = btrfs_free_extent(trans, root,
+				ret = btrfs_free_reserved_extent(root,
 						path->nodes[*level]->start,
-						path->nodes[*level]->len,
-						root_owner, root_gen, 0, 0, 1);
+						path->nodes[*level]->len);
 				BUG_ON(ret);
 			}
 			free_extent_buffer(path->nodes[*level]);
@@ -1910,11 +1907,8 @@ static int walk_log_tree(struct btrfs_trans_handle *trans,
 			}
 			WARN_ON(log->root_key.objectid !=
 				BTRFS_TREE_LOG_OBJECTID);
-			ret = btrfs_free_extent(trans, log,
-						next->start, next->len,
-						log->root_key.objectid,
-						btrfs_header_generation(next),
-						0, 0, 1);
+			ret = btrfs_free_reserved_extent(log, next->start,
+							 next->len);
 			BUG_ON(ret);
 		}
 	}

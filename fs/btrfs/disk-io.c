@@ -829,9 +829,8 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 	WARN_ON(btrfs_header_level(eb) != 0);
 	WARN_ON(btrfs_header_nritems(eb) != 0);
 
-	ret = btrfs_free_extent(trans, fs_info->tree_root,
-				eb->start, eb->len,
-				BTRFS_TREE_LOG_OBJECTID, 0, 0, 0, 1);
+	ret = btrfs_free_reserved_extent(fs_info->tree_root,
+				eb->start, eb->len);
 	BUG_ON(ret);
 
 	free_extent_buffer(eb);
