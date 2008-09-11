@@ -134,7 +134,7 @@ static inline int rate_supported(struct sta_info *sta,
 				 enum ieee80211_band band,
 				 int index)
 {
-	return (sta == NULL || sta->supp_rates[band] & BIT(index));
+	return (sta == NULL || sta->sta.supp_rates[band] & BIT(index));
 }
 
 static inline s8

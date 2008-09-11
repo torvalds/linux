@@ -168,7 +168,6 @@ struct sta_ampdu_mlme {
  *	in the header file.
  * @flaglock: spinlock for flags accesses
  * @ht_info: HT capabilities of this STA
- * @supp_rates: Bitmap of supported rates (per band)
  * @addr: MAC address of this STA
  * @aid: STA's unique AID (1..2007, 0 = not assigned yet),
  *	only used in AP (and IBSS?) mode
@@ -228,7 +227,6 @@ struct sta_info {
 	spinlock_t lock;
 	spinlock_t flaglock;
 	struct ieee80211_ht_info ht_info;
-	u64 supp_rates[IEEE80211_NUM_BANDS];
 
 	u16 listen_interval;
 

@@ -1301,7 +1301,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		}
 	}
 
-	sta->supp_rates[local->hw.conf.channel->band] = rates;
+	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
 	sdata->bss_conf.basic_rates = basic_rates;
 
 	/* cf. IEEE 802.11 9.2.12 */
@@ -1497,13 +1497,13 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		if (sta) {
 			u64 prev_rates;
 
-			prev_rates = sta->supp_rates[band];
+			prev_rates = sta->sta.supp_rates[band];
 			/* make sure mandatory rates are always added */
-			sta->supp_rates[band] = supp_rates |
+			sta->sta.supp_rates[band] = supp_rates |
 				ieee80211_mandatory_rates(local, band);
 
 #ifdef CONFIG_MAC80211_IBSS_DEBUG
-			if (sta->supp_rates[band] != prev_rates)
+			if (sta->sta.supp_rates[band] != prev_rates)
 				printk(KERN_DEBUG "%s: updated supp_rates set "
 				    "for %s based on beacon info (0x%llx | "
 				    "0x%llx -> 0x%llx)\n",
@@ -1511,7 +1511,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				    print_mac(mac, sta->sta.addr),
 				    (unsigned long long) prev_rates,
 				    (unsigned long long) supp_rates,
-				    (unsigned long long) sta->supp_rates[band]);
+				    (unsigned long long) sta->sta.supp_rates[band]);
 #endif
 		} else {
 			ieee80211_ibss_add_sta(sdata, NULL, mgmt->bssid,
@@ -2339,7 +2339,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	set_sta_flags(sta, WLAN_STA_AUTHORIZED);
 
 	/* make sure mandatory rates are always added */
-	sta->supp_rates[band] = supp_rates |
+	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(local, band);
 
 	rate_control_rate_init(sta, local);

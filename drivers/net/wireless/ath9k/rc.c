@@ -1825,7 +1825,7 @@ static void ath_setup_rates(struct ieee80211_local *local, struct sta_info *sta)
 
 	sband =  local->hw.wiphy->bands[local->hw.conf.channel->band];
 	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sta->supp_rates[local->hw.conf.channel->band] & BIT(i)) {
+		if (sta->sta.supp_rates[local->hw.conf.channel->band] & BIT(i)) {
 			rc_priv->neg_rates.rs_rates[j]
 				= (sband->bitrates[i].bitrate * 2) / 10;
 			j++;

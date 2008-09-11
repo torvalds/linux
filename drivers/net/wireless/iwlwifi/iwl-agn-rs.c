@@ -1731,7 +1731,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		return;
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
-	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
+	lq_sta->supp_rates = sta->sta.supp_rates[lq_sta->band];
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
 
@@ -2233,7 +2233,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	lq_sta->flush_timer = 0;
-	lq_sta->supp_rates = sta->supp_rates[sband->band];
+	lq_sta->supp_rates = sta->sta.supp_rates[sband->band];
 	sta->txrate_idx = 3;
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
@@ -2270,7 +2270,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 
 	/* Find highest tx rate supported by hardware and destination station */
 	for (i = 0; i < sband->n_bitrates; i++)
-		if (sta->supp_rates[sband->band] & BIT(i))
+		if (sta->sta.supp_rates[sband->band] & BIT(i))
 			sta->txrate_idx = i;
 
 	lq_sta->last_txrate_idx = sta->txrate_idx;

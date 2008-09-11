@@ -667,7 +667,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 					rates |= BIT(j);
 			}
 		}
-		sta->supp_rates[local->oper_channel->band] = rates;
+		sta->sta.supp_rates[local->oper_channel->band] = rates;
 	}
 
 	if (params->ht_capa) {

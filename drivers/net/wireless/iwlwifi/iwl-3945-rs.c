@@ -333,7 +333,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	 * after assoc.. */
 
 	for (i = IWL_RATE_COUNT - 1; i >= 0; i--) {
-		if (sta->supp_rates[local->hw.conf.channel->band] & (1 << i)) {
+		if (sta->sta.supp_rates[local->hw.conf.channel->band] & (1 << i)) {
 			sta->txrate_idx = i;
 			break;
 		}
@@ -680,7 +680,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
 	rs_sta = (void *)sta->rate_ctrl_priv;
 
-	rate_mask = sta->supp_rates[sband->band];
+	rate_mask = sta->sta.supp_rates[sband->band];
 	index = min(rs_sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT - 1);
 
 	if (sband->band == IEEE80211_BAND_5GHZ)
