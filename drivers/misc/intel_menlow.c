@@ -71,6 +71,9 @@ static int memory_get_int_max_bandwidth(struct thermal_cooling_device *cdev,
 	if (ACPI_FAILURE(status))
 		return -EFAULT;
 
+	if (!value)
+		return -EINVAL;
+
 	*max_state = value - 1;
 	return 0;
 }
@@ -121,7 +124,7 @@ static int memory_set_cur_bandwidth(struct thermal_cooling_device *cdev,
 	if (memory_get_int_max_bandwidth(cdev, &max_state))
 		return -EFAULT;
 
-	if (max_state < 0 || state > max_state)
+	if (state > max_state)
 		return -EINVAL;
 
 	arg_list.count = 1;
