@@ -28,6 +28,29 @@ static int radios = 2;
 module_param(radios, int, 0444);
 MODULE_PARM_DESC(radios, "Number of simulated radios");
 
+struct hwsim_vif_priv {
+	u32 magic;
+};
+
+#define HWSIM_VIF_MAGIC	0x69537748
+
+static inline void hwsim_check_magic(struct ieee80211_vif *vif)
+{
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+	WARN_ON(vp->magic != HWSIM_VIF_MAGIC);
+}
+
+static inline void hwsim_set_magic(struct ieee80211_vif *vif)
+{
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+	vp->magic = HWSIM_VIF_MAGIC;
+}
+
+static inline void hwsim_clear_magic(struct ieee80211_vif *vif)
+{
+	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
+	vp->magic = 0;
+}
 
 static struct class *hwsim_class;
 
@@ -210,6 +233,9 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	ack = mac80211_hwsim_tx_frame(hw, skb);
 
 	txi = IEEE80211_SKB_CB(skb);
+
+	hwsim_check_magic(txi->control.vif);
+
 	memset(&txi->status, 0, sizeof(txi->status));
 	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK)) {
 		if (ack)
@@ -246,6 +272,7 @@ static int mac80211_hwsim_add_interface(struct ieee80211_hw *hw,
 	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%s)\n",
 	       wiphy_name(hw->wiphy), __func__, conf->type,
 	       print_mac(mac, conf->mac_addr));
+	hwsim_set_magic(conf->vif);
 	return 0;
 }
 
@@ -257,6 +284,8 @@ static void mac80211_hwsim_remove_interface(
 	printk(KERN_DEBUG "%s:%s (type=%d mac_addr=%s)\n",
 	       wiphy_name(hw->wiphy), __func__, conf->type,
 	       print_mac(mac, conf->mac_addr));
+	hwsim_check_magic(conf->vif);
+	hwsim_clear_magic(conf->vif);
 }
 
 
@@ -266,6 +295,8 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	struct ieee80211_hw *hw = arg;
 	struct sk_buff *skb;
 	struct ieee80211_tx_info *info;
+
+	hwsim_check_magic(vif);
 
 	if (vif->type != NL80211_IFTYPE_AP)
 		return;
@@ -341,7 +372,28 @@ static void mac80211_hwsim_configure_filter(struct ieee80211_hw *hw,
 	*total_flags = data->rx_filter;
 }
 
+static int mac80211_hwsim_config_interface(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_if_conf *conf)
+{
+	hwsim_check_magic(vif);
+	return 0;
+}
 
+static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
+					    struct ieee80211_vif *vif,
+					    struct ieee80211_bss_conf *info,
+					    u32 changed)
+{
+	hwsim_check_magic(vif);
+}
+
+static void mac80211_hwsim_sta_notify(struct ieee80211_hw *hw,
+				      struct ieee80211_vif *vif,
+				      enum sta_notify_cmd cmd, const u8 *addr)
+{
+	hwsim_check_magic(vif);
+}
 
 static const struct ieee80211_ops mac80211_hwsim_ops =
 {
@@ -352,6 +404,9 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.remove_interface = mac80211_hwsim_remove_interface,
 	.config = mac80211_hwsim_config,
 	.configure_filter = mac80211_hwsim_configure_filter,
+	.config_interface = mac80211_hwsim_config_interface,
+	.bss_info_changed = mac80211_hwsim_bss_info_changed,
+	.sta_notify = mac80211_hwsim_sta_notify,
 };
 
 
@@ -451,6 +506,9 @@ static int __init init_mac80211_hwsim(void)
 			BIT(NL80211_IFTYPE_STATION) |
 			BIT(NL80211_IFTYPE_AP);
 		hw->ampdu_queues = 1;
+
+		/* ask mac80211 to reserve space for magic */
+		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
 
 		memcpy(data->channels, hwsim_channels, sizeof(hwsim_channels));
 		memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
