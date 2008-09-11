@@ -12,6 +12,8 @@
 
 typedef unsigned int		tid_t;		/* Unique transaction ID */
 typedef struct transaction_s	transaction_t;	/* Compound transaction type */
+
+
 struct buffer_head;
 
 struct journal_head {
@@ -87,6 +89,12 @@ struct journal_head {
 	 * [j_list_lock]
 	 */
 	struct journal_head *b_cpnext, *b_cpprev;
+
+	/* Trigger type */
+	struct jbd2_buffer_trigger_type *b_triggers;
+
+	/* Trigger type for the committing transaction's frozen data */
+	struct jbd2_buffer_trigger_type *b_frozen_triggers;
 };
 
 #endif		/* JOURNAL_HEAD_H_INCLUDED */

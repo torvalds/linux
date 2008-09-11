@@ -741,6 +741,12 @@ done:
 		source = kmap_atomic(page, KM_USER0);
 		memcpy(jh->b_frozen_data, source+offset, jh2bh(jh)->b_size);
 		kunmap_atomic(source, KM_USER0);
+
+		/*
+		 * Now that the frozen data is saved off, we need to store
+		 * any matching triggers.
+		 */
+		jh->b_frozen_triggers = jh->b_triggers;
 	}
 	jbd_unlock_bh_state(bh);
 
@@ -942,6 +948,47 @@ out:
 		jbd2_free(committed_data, bh->b_size);
 	return err;
 }
+
+/**
+ * void jbd2_journal_set_triggers() - Add triggers for commit writeout
+ * @bh: buffer to trigger on
+ * @type: struct jbd2_buffer_trigger_type containing the trigger(s).
+ *
+ * Set any triggers on this journal_head.  This is always safe, because
+ * triggers for a committing buffer will be saved off, and triggers for
+ * a running transaction will match the buffer in that transaction.
+ *
+ * Call with NULL to clear the triggers.
+ */
+void jbd2_journal_set_triggers(struct buffer_head *bh,
+			       struct jbd2_buffer_trigger_type *type)
+{
+	struct journal_head *jh = bh2jh(bh);
+
+	jh->b_triggers = type;
+}
+
+void jbd2_buffer_commit_trigger(struct journal_head *jh, void *mapped_data,
+				struct jbd2_buffer_trigger_type *triggers)
+{
+	struct buffer_head *bh = jh2bh(jh);
+
+	if (!triggers || !triggers->t_commit)
+		return;
+
+	triggers->t_commit(triggers, bh, mapped_data, bh->b_size);
+}
+
+void jbd2_buffer_abort_trigger(struct journal_head *jh,
+			       struct jbd2_buffer_trigger_type *triggers)
+{
+	if (!triggers || !triggers->t_abort)
+		return;
+
+	triggers->t_abort(triggers, jh2bh(jh));
+}
+
+
 
 /**
  * int jbd2_journal_dirty_metadata() -  mark a buffer as containing dirty metadata
