@@ -200,7 +200,6 @@ struct sta_ampdu_mlme {
  * @tx_bytes: TBD
  * @tx_fragments: number of transmitted MPDUs
  * @txrate_idx: TBD
- * @last_txrate_idx: TBD
  * @tid_seq: TBD
  * @wme_tx_queue: TBD
  * @ampdu_mlme: TBD
@@ -278,7 +277,6 @@ struct sta_info {
 	unsigned long tx_bytes;
 	unsigned long tx_fragments;
 	int txrate_idx;
-	int last_txrate_idx;
 	u16 tid_seq[IEEE80211_QOS_CTL_TID_MASK + 1];
 #ifdef CONFIG_MAC80211_DEBUG_COUNTERS
 	unsigned int wme_tx_queue[NUM_RX_DATA_QUEUES];

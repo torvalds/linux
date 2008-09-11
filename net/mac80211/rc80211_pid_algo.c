@@ -329,8 +329,6 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	if (rateidx >= sband->n_bitrates)
 		rateidx = sband->n_bitrates - 1;
 
-	sta->last_txrate_idx = rateidx;
-
 	rcu_read_unlock();
 
 	sel->rate_idx = rateidx;

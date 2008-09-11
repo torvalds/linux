@@ -163,6 +163,9 @@ struct iwl_lq_sta {
 	u32 dbg_fixed_rate;
 #endif
 	struct iwl_priv *drv;
+
+	/* used to be in sta_info */
+	int last_txrate_idx;
 };
 
 static void rs_rate_scale_perform(struct iwl_priv *priv,
@@ -1746,7 +1749,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
-	index = sta->last_txrate_idx;
+	index = lq_sta->last_txrate_idx;
 
 	IWL_DEBUG_RATE("Rate scale index %d for type %d\n", index,
 		       tbl->lq_type);
@@ -2059,7 +2062,7 @@ lq_update:
 out:
 	tbl->current_rate = rate_n_flags_from_tbl(tbl, index, is_green);
 	i = index;
-	sta->last_txrate_idx = i;
+	lq_sta->last_txrate_idx = i;
 
 	/* sta->txrate_idx is an index to A mode rates which start
 	 * at IWL_FIRST_OFDM_RATE
@@ -2090,7 +2093,7 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 		goto out;
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
-	i = sta->last_txrate_idx;
+	i = lq_sta->last_txrate_idx;
 
 	if ((lq_sta->lq.sta_id == 0xff) &&
 	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
@@ -2161,7 +2164,7 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	}
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
-	i = sta->last_txrate_idx;
+	i = lq_sta->last_txrate_idx;
 
 	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added) {
@@ -2270,10 +2273,10 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 		if (sta->supp_rates[sband->band] & BIT(i))
 			sta->txrate_idx = i;
 
-	sta->last_txrate_idx = sta->txrate_idx;
+	lq_sta->last_txrate_idx = sta->txrate_idx;
 	/* For MODE_IEEE80211A, skip over cck rates in global rate table */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
-		sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
+		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	lq_sta->is_dup = 0;
 	lq_sta->is_green = rs_use_green(priv, conf);

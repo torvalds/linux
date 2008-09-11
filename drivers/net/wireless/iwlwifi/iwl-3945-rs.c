@@ -65,6 +65,9 @@ struct iwl3945_rs_sta {
 	u8 ibss_sta_added;
 	struct timer_list rate_scale_flush;
 	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT];
+
+	/* used to be in sta_info */
+	int last_txrate_idx;
 };
 
 static s32 iwl3945_expected_tpt_g[IWL_RATE_COUNT] = {
@@ -319,6 +322,7 @@ static void iwl3945_collect_tx_data(struct iwl3945_rs_sta *rs_sta,
 static void rs_rate_init(void *priv_rate, void *priv_sta,
 			 struct ieee80211_local *local, struct sta_info *sta)
 {
+	struct iwl3945_rs_sta *rs_sta = (void *)sta->rate_ctrl_priv;
 	int i;
 
 	IWL_DEBUG_RATE("enter\n");
@@ -335,11 +339,11 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 		}
 	}
 
-	sta->last_txrate_idx = sta->txrate_idx;
+	rs_sta->last_txrate_idx = sta->txrate_idx;
 
 	/* For 5 GHz band it start at IWL_FIRST_OFDM_RATE */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
-		sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
+		rs_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	IWL_DEBUG_RATE("leave\n");
 }
@@ -674,13 +678,13 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 		return;
 	}
 
+	rs_sta = (void *)sta->rate_ctrl_priv;
+
 	rate_mask = sta->supp_rates[sband->band];
-	index = min(sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT - 1);
+	index = min(rs_sta->last_txrate_idx & 0xffff, IWL_RATE_COUNT - 1);
 
 	if (sband->band == IEEE80211_BAND_5GHZ)
 		rate_mask = rate_mask << IWL_FIRST_OFDM_RATE;
-
-	rs_sta = (void *)sta->rate_ctrl_priv;
 
 	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !rs_sta->ibss_sta_added) {
@@ -803,11 +807,11 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 
  out:
 
-	sta->last_txrate_idx = index;
+	rs_sta->last_txrate_idx = index;
 	if (sband->band == IEEE80211_BAND_5GHZ)
-		sta->txrate_idx = sta->last_txrate_idx - IWL_FIRST_OFDM_RATE;
+		sta->txrate_idx = rs_sta->last_txrate_idx - IWL_FIRST_OFDM_RATE;
 	else
-		sta->txrate_idx = sta->last_txrate_idx;
+		sta->txrate_idx = rs_sta->last_txrate_idx;
 
 	rcu_read_unlock();
 
