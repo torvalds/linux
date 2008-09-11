@@ -8376,6 +8376,8 @@ static void __exit iwl3945_exit(void)
 	iwl3945_rate_control_unregister();
 }
 
+MODULE_FIRMWARE("iwlwifi-3945" IWL3945_UCODE_API ".ucode");
+
 module_param_named(antenna, iwl3945_param_antenna, int, 0444);
 MODULE_PARM_DESC(antenna, "select antenna (1=Main, 2=Aux, default 0 [both])");
 module_param_named(disable, iwl3945_param_disable, int, 0444);
