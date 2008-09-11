@@ -202,6 +202,8 @@
 		__cpu_is_pxa25x(read_cpuid_id());	\
 	})
 
+extern int cpu_is_pxa26x(void);
+
 #define cpu_is_pxa27x()					\
 	({						\
 		__cpu_is_pxa27x(read_cpuid_id());	\
