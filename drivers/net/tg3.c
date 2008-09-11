@@ -4631,6 +4631,9 @@ static int tigon3_dma_hwbug_workaround(struct tg3 *tp, struct sk_buff *skb,
 		 * Drop the packet if it does.
 		 */
 		if (ret || tg3_4g_overflow_test(new_addr, new_skb->len)) {
+			if (!ret)
+				skb_dma_unmap(&tp->pdev->dev, new_skb,
+					      DMA_TO_DEVICE);
 			ret = -1;
 			dev_kfree_skb(new_skb);
 			new_skb = NULL;
