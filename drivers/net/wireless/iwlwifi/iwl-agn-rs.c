@@ -359,15 +359,9 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				      struct iwl_lq_sta *lq_data, u8 tid,
 				      struct sta_info *sta)
 {
-	unsigned long state;
 	DECLARE_MAC_BUF(mac);
 
-	spin_lock_bh(&sta->lock);
-	state = sta->ampdu_mlme.tid_state_tx[tid];
-	spin_unlock_bh(&sta->lock);
-
-	if (state == HT_AGG_STATE_IDLE &&
-	    rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
+	if (rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT("Starting Tx agg: STA: %s tid: %d\n",
 				print_mac(mac, sta->sta.addr), tid);
 		ieee80211_start_tx_ba_session(priv->hw, sta->sta.addr, tid);
