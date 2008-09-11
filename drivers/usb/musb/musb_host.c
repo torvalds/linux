@@ -1873,7 +1873,11 @@ static int musb_urb_enqueue(
 			/* set up tt info if needed */
 			if (urb->dev->tt) {
 				qh->h_port_reg = (u8) urb->dev->ttport;
-				qh->h_addr_reg |= 0x80;
+				if (urb->dev->tt->hub)
+					qh->h_addr_reg =
+						(u8) urb->dev->tt->hub->devnum;
+				if (urb->dev->tt->multi)
+					qh->h_addr_reg |= 0x80;
 			}
 		}
 	}
