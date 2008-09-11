@@ -2197,7 +2197,6 @@ struct ring_info {
 
 struct tx_ring_info {
 	struct sk_buff			*skb;
-	DECLARE_PCI_UNMAP_ADDR(mapping)
 	u32				prev_vlan_tag;
 };
 
