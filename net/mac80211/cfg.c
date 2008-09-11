@@ -672,7 +672,7 @@ static void sta_apply_parameters(struct ieee80211_local *local,
 
 	if (params->ht_capa) {
 		ieee80211_ht_cap_ie_to_ht_info(params->ht_capa,
-					       &sta->ht_info);
+					       &sta->sta.ht_info);
 	}
 
 	if (ieee80211_vif_is_mesh(&sdata->vif) && params->plink_action) {

@@ -1154,10 +1154,10 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	s8 is_green = lq_sta->is_green;
 
 	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
-	    !sta->ht_info.ht_supported)
+	    !sta->sta.ht_info.ht_supported)
 		return -1;
 
-	if (((sta->ht_info.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
+	if (((sta->sta.ht_info.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
 						== WLAN_HT_CAP_SM_PS_STATIC)
 		return -1;
 
@@ -1222,7 +1222,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	s32 rate;
 
 	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
-	    !sta->ht_info.ht_supported)
+	    !sta->sta.ht_info.ht_supported)
 		return -1;
 
 	IWL_DEBUG_RATE("LQ: try to switch to SISO\n");
