@@ -739,12 +739,13 @@ static void set_device_domain(struct amd_iommu *iommu,
 
 	u64 pte_root = virt_to_phys(domain->pt_root);
 
-	pte_root |= (domain->mode & 0x07) << 9;
-	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | 2;
+	pte_root |= (domain->mode & DEV_ENTRY_MODE_MASK)
+		    << DEV_ENTRY_MODE_SHIFT;
+	pte_root |= IOMMU_PTE_IR | IOMMU_PTE_IW | IOMMU_PTE_P | IOMMU_PTE_TV;
 
 	write_lock_irqsave(&amd_iommu_devtable_lock, flags);
-	amd_iommu_dev_table[devid].data[0] = pte_root;
-	amd_iommu_dev_table[devid].data[1] = pte_root >> 32;
+	amd_iommu_dev_table[devid].data[0] = lower_32_bits(pte_root);
+	amd_iommu_dev_table[devid].data[1] = upper_32_bits(pte_root);
 	amd_iommu_dev_table[devid].data[2] = domain->id;
 
 	amd_iommu_pd_table[devid] = domain;

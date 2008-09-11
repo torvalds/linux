@@ -130,6 +130,8 @@
 #define DEV_ENTRY_NMI_PASS      0xba
 #define DEV_ENTRY_LINT0_PASS    0xbe
 #define DEV_ENTRY_LINT1_PASS    0xbf
+#define DEV_ENTRY_MODE_MASK	0x07
+#define DEV_ENTRY_MODE_SHIFT	0x09
 
 /* constants to configure the command buffer */
 #define CMD_BUFFER_SIZE    8192
@@ -159,6 +161,7 @@
 #define IOMMU_MAP_SIZE_L3 (1ULL << 39)
 
 #define IOMMU_PTE_P  (1ULL << 0)
+#define IOMMU_PTE_TV (1ULL << 1)
 #define IOMMU_PTE_U  (1ULL << 59)
 #define IOMMU_PTE_FC (1ULL << 60)
 #define IOMMU_PTE_IR (1ULL << 61)
