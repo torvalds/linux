@@ -291,6 +291,7 @@ __acquires(musb->lock)
 			urb->actual_length, urb->transfer_buffer_length
 			);
 
+	usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
 	spin_unlock(&musb->lock);
 	usb_hcd_giveback_urb(musb_to_hcd(musb), urb, status);
 	spin_lock(&musb->lock);
@@ -352,8 +353,6 @@ musb_giveback(struct musb_qh *qh, struct urb *urb, int status)
 			status = -EXDEV;
 		break;
 	}
-
-	usb_hcd_unlink_urb_from_ep(musb_to_hcd(musb), urb);
 
 	qh->is_ready = 0;
 	__musb_giveback(musb, urb, status);
@@ -1791,7 +1790,9 @@ static int musb_urb_enqueue(
 	 */
 	qh = kzalloc(sizeof *qh, mem_flags);
 	if (!qh) {
+		spin_lock_irqsave(&musb->lock, flags);
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
+		spin_unlock_irqrestore(&musb->lock, flags);
 		return -ENOMEM;
 	}
 
@@ -1907,7 +1908,9 @@ static int musb_urb_enqueue(
 
 done:
 	if (ret != 0) {
+		spin_lock_irqsave(&musb->lock, flags);
 		usb_hcd_unlink_urb_from_ep(hcd, urb);
+		spin_unlock_irqrestore(&musb->lock, flags);
 		kfree(qh);
 	}
 	return ret;
