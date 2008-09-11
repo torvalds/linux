@@ -348,7 +348,7 @@ static int __init pxa25x_init(void)
 {
 	int i, ret = 0;
 
-	if (cpu_is_pxa21x() || cpu_is_pxa25x()) {
+	if (cpu_is_pxa25x()) {
 
 		reset_status = RCSR;
 
