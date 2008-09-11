@@ -292,7 +292,7 @@ static const struct rt2x00debug rt73usb_rt2x00debug = {
 };
 #endif /* CONFIG_RT2X00_LIB_DEBUGFS */
 
-#ifdef CONFIG_RT73USB_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 static void rt73usb_brightness_set(struct led_classdev *led_cdev,
 				   enum led_brightness brightness)
 {
@@ -359,7 +359,7 @@ static void rt73usb_init_led(struct rt2x00_dev *rt2x00dev,
 	led->led_dev.blink_set = rt73usb_blink_set;
 	led->flags = LED_INITIALIZED;
 }
-#endif /* CONFIG_RT73USB_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 /*
  * Configuration handlers.
@@ -1572,7 +1572,6 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	unsigned int beacon_base;
 	u32 reg;
-	u32 word, len;
 
 	/*
 	 * Add the descriptor in front of the skb.
@@ -1580,17 +1579,6 @@ static void rt73usb_write_beacon(struct queue_entry *entry)
 	skb_push(entry->skb, entry->queue->desc_size);
 	memcpy(entry->skb->data, skbdesc->desc, skbdesc->desc_len);
 	skbdesc->desc = entry->skb->data;
-
-	/*
-	 * Adjust the beacon databyte count. The current number is
-	 * calculated before this function gets called, but falsely
-	 * assumes that the descriptor was already present in the SKB.
-	 */
-	rt2x00_desc_read(skbdesc->desc, 0, &word);
-	len  = rt2x00_get_field32(word, TXD_W0_DATABYTE_COUNT);
-	len += skbdesc->desc_len;
-	rt2x00_set_field32(&word, TXD_W0_DATABYTE_COUNT, len);
-	rt2x00_desc_write(skbdesc->desc, 0, word);
 
 	/*
 	 * Disable beaconing while we are reloading the beacon data,
@@ -1944,7 +1932,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Store led settings, for correct led behaviour.
 	 */
-#ifdef CONFIG_RT73USB_LEDS
+#ifdef CONFIG_RT2X00_LIB_LEDS
 	rt2x00_eeprom_read(rt2x00dev, EEPROM_LED, &eeprom);
 
 	rt73usb_init_led(rt2x00dev, &rt2x00dev->led_radio, LED_TYPE_RADIO);
@@ -1977,7 +1965,7 @@ static int rt73usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&rt2x00dev->led_mcu_reg, MCU_LEDCS_POLARITY_READY_A,
 			   rt2x00_get_field16(eeprom,
 					      EEPROM_LED_POLARITY_RDY_A));
-#endif /* CONFIG_RT73USB_LEDS */
+#endif /* CONFIG_RT2X00_LIB_LEDS */
 
 	return 0;
 }

@@ -485,7 +485,7 @@ static u8 iwl4965_rate_get_lowest_plcp(struct iwl_priv *priv)
 		return IWL_RATE_6M_PLCP;
 }
 
-unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
+static unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
 				       struct iwl_frame *frame, u8 rate)
 {
 	struct iwl_tx_beacon_cmd *tx_beacon_cmd;
@@ -564,8 +564,6 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 	if (!iwl_conf->is_ht)
 		return;
 
-	priv->ps_mode = (u8)((ht_conf->cap & IEEE80211_HT_CAP_MIMO_PS) >> 2);
-
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_20)
 		iwl_conf->sgf |= HT_SHORT_GI_20MHZ;
 	if (ht_conf->cap & IEEE80211_HT_CAP_SGI_40)
@@ -585,6 +583,8 @@ static void iwl4965_ht_conf(struct iwl_priv *priv,
 		iwl_conf->extension_chan_offset = IEEE80211_HT_IE_CHA_SEC_NONE;
 		iwl_conf->supported_chan_width = 0;
 	}
+
+	iwl_conf->sm_ps = (u8)((ht_conf->cap & IEEE80211_HT_CAP_SM_PS) >> 2);
 
 	memcpy(iwl_conf->supp_mcs_set, ht_conf->supp_mcs_set, 16);
 
@@ -2558,7 +2558,11 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	iwl_activate_qos(priv, 0);
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	iwl_power_enable_management(priv);
+	/* the chain noise calibration will enabled PM upon completion
+	 * If chain noise has already been run, then we need to enable
+	 * power management here */
+	if (priv->chain_noise_data.state == IWL_CHAIN_NOISE_DONE)
+		iwl_power_enable_management(priv);
 
 	/* Enable Rx differential gain and sensitivity calibrations */
 	iwl_chain_noise_reset(priv);

@@ -80,6 +80,7 @@ struct p54_common {
 	struct pda_channel_output_limit *output_limit;
 	unsigned int output_limit_len;
 	struct pda_pa_curve_data *curve_data;
+	unsigned int filter_flags;
 	u16 rxhw;
 	u8 version;
 	u8 rx_antenna;
@@ -87,7 +88,15 @@ struct p54_common {
 	void *cached_vdcf;
 	unsigned int fw_var;
 	unsigned int fw_interface;
+	unsigned int output_power;
+	u32 tsf_low32;
+	u32 tsf_high32;
 	struct ieee80211_tx_queue_stats tx_stats[8];
+	struct ieee80211_low_level_stats stats;
+	struct timer_list stats_timer;
+	struct completion stats_comp;
+	void *cached_stats;
+	int noise;
 	void *eeprom;
 	struct completion eeprom_comp;
 };

@@ -1607,8 +1607,8 @@ static int iwl4965_send_rxon_assoc(struct iwl_priv *priv)
 	return ret;
 }
 
-
-int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
+#ifdef IEEE80211_CONF_CHANNEL_SWITCH
+static int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
 	int rc;
 	u8 band = 0;
@@ -1648,6 +1648,7 @@ int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	rc = iwl_send_cmd_pdu(priv, REPLY_CHANNEL_SWITCH, sizeof(cmd), &cmd);
 	return rc;
 }
+#endif
 
 static int iwl4965_shared_mem_rx_idx(struct iwl_priv *priv)
 {

@@ -27,7 +27,7 @@ MODULE_DESCRIPTION("Softmac Prism54 common code");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("prism54common");
 
-static struct ieee80211_rate p54_rates[] = {
+static struct ieee80211_rate p54_bgrates[] = {
 	{ .bitrate = 10, .hw_value = 0, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 20, .hw_value = 1, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
 	{ .bitrate = 55, .hw_value = 2, .flags = IEEE80211_RATE_SHORT_PREAMBLE },
@@ -42,7 +42,7 @@ static struct ieee80211_rate p54_rates[] = {
 	{ .bitrate = 540, .hw_value = 11, },
 };
 
-static struct ieee80211_channel p54_channels[] = {
+static struct ieee80211_channel p54_bgchannels[] = {
 	{ .center_freq = 2412, .hw_value = 1, },
 	{ .center_freq = 2417, .hw_value = 2, },
 	{ .center_freq = 2422, .hw_value = 3, },
@@ -60,10 +60,66 @@ static struct ieee80211_channel p54_channels[] = {
 };
 
 static struct ieee80211_supported_band band_2GHz = {
-	.channels = p54_channels,
-	.n_channels = ARRAY_SIZE(p54_channels),
-	.bitrates = p54_rates,
-	.n_bitrates = ARRAY_SIZE(p54_rates),
+	.channels = p54_bgchannels,
+	.n_channels = ARRAY_SIZE(p54_bgchannels),
+	.bitrates = p54_bgrates,
+	.n_bitrates = ARRAY_SIZE(p54_bgrates),
+};
+
+static struct ieee80211_rate p54_arates[] = {
+	{ .bitrate = 60, .hw_value = 4, },
+	{ .bitrate = 90, .hw_value = 5, },
+	{ .bitrate = 120, .hw_value = 6, },
+	{ .bitrate = 180, .hw_value = 7, },
+	{ .bitrate = 240, .hw_value = 8, },
+	{ .bitrate = 360, .hw_value = 9, },
+	{ .bitrate = 480, .hw_value = 10, },
+	{ .bitrate = 540, .hw_value = 11, },
+};
+
+static struct ieee80211_channel p54_achannels[] = {
+	{ .center_freq = 4920 },
+	{ .center_freq = 4940 },
+	{ .center_freq = 4960 },
+	{ .center_freq = 4980 },
+	{ .center_freq = 5040 },
+	{ .center_freq = 5060 },
+	{ .center_freq = 5080 },
+	{ .center_freq = 5170 },
+	{ .center_freq = 5180 },
+	{ .center_freq = 5190 },
+	{ .center_freq = 5200 },
+	{ .center_freq = 5210 },
+	{ .center_freq = 5220 },
+	{ .center_freq = 5230 },
+	{ .center_freq = 5240 },
+	{ .center_freq = 5260 },
+	{ .center_freq = 5280 },
+	{ .center_freq = 5300 },
+	{ .center_freq = 5320 },
+	{ .center_freq = 5500 },
+	{ .center_freq = 5520 },
+	{ .center_freq = 5540 },
+	{ .center_freq = 5560 },
+	{ .center_freq = 5580 },
+	{ .center_freq = 5600 },
+	{ .center_freq = 5620 },
+	{ .center_freq = 5640 },
+	{ .center_freq = 5660 },
+	{ .center_freq = 5680 },
+	{ .center_freq = 5700 },
+	{ .center_freq = 5745 },
+	{ .center_freq = 5765 },
+	{ .center_freq = 5785 },
+	{ .center_freq = 5805 },
+	{ .center_freq = 5825 },
+};
+
+static struct ieee80211_supported_band band_5GHz = {
+	.channels = p54_achannels,
+	.n_channels = ARRAY_SIZE(p54_achannels),
+	.bitrates = p54_arates,
+	.n_bitrates = ARRAY_SIZE(p54_arates),
 };
 
 int p54_parse_firmware(struct ieee80211_hw *dev, const struct firmware *fw)
@@ -252,6 +308,7 @@ static int p54_convert_rev1(struct ieee80211_hw *dev,
 
 const char* p54_rf_chips[] = { "NULL", "Indigo?", "Duette",
                               "Frisbee", "Xbow", "Longbow" };
+static int p54_init_xbow_synth(struct ieee80211_hw *dev);
 
 int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 {
@@ -371,20 +428,20 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 	}
 
 	switch (priv->rxhw) {
-		case 4: /* XBow */
-		case 1: /* Indigo? */
-		case 2: /* Duette */
-			/* TODO: 5GHz initialization goes here */
-
-		case 3: /* Frisbee */
-		case 5: /* Longbow */
-			dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
-			break;
-		default:
-			printk(KERN_ERR "%s: unsupported RF-Chip\n",
-				wiphy_name(dev->wiphy));
-			err = -EINVAL;
-			goto err;
+	case 4: /* XBow */
+		p54_init_xbow_synth(dev);
+	case 1: /* Indigo? */
+	case 2: /* Duette */
+		dev->wiphy->bands[IEEE80211_BAND_5GHZ] = &band_5GHz;
+	case 3: /* Frisbee */
+	case 5: /* Longbow */
+		dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &band_2GHz;
+		break;
+	default:
+		printk(KERN_ERR "%s: unsupported RF-Chip\n",
+			wiphy_name(dev->wiphy));
+		err = -EINVAL;
+		goto err;
 	}
 
 	if (!is_valid_ether_addr(dev->wiphy->perm_addr)) {
@@ -424,21 +481,43 @@ int p54_parse_eeprom(struct ieee80211_hw *dev, void *eeprom, int len)
 }
 EXPORT_SYMBOL_GPL(p54_parse_eeprom);
 
+static int p54_rssi_to_dbm(struct ieee80211_hw *dev, int rssi)
+{
+	/* TODO: get the rssi_add & rssi_mul data from the eeprom */
+	return ((rssi * 0x83) / 64 - 400) / 4;
+}
+
 static int p54_rx_data(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
+	struct p54_common *priv = dev->priv;
 	struct p54_rx_hdr *hdr = (struct p54_rx_hdr *) skb->data;
 	struct ieee80211_rx_status rx_status = {0};
 	u16 freq = le16_to_cpu(hdr->freq);
 	size_t header_len = sizeof(*hdr);
+	u32 tsf32;
 
-	rx_status.signal = hdr->rssi;
+	if (!(hdr->magic & cpu_to_le16(0x0001))) {
+		if (priv->filter_flags & FIF_FCSFAIL)
+			rx_status.flag |= RX_FLAG_FAILED_FCS_CRC;
+		else
+			return 0;
+	}
+
+	rx_status.signal = p54_rssi_to_dbm(dev, hdr->rssi);
+	rx_status.noise = priv->noise;
 	/* XX correct? */
 	rx_status.qual = (100 * hdr->rssi) / 127;
 	rx_status.rate_idx = hdr->rate & 0xf;
 	rx_status.freq = freq;
 	rx_status.band = IEEE80211_BAND_2GHZ;
 	rx_status.antenna = hdr->antenna;
-	rx_status.mactime = le64_to_cpu(hdr->timestamp);
+
+	tsf32 = le32_to_cpu(hdr->tsf32);
+	if (tsf32 < priv->tsf_low32)
+		priv->tsf_high32++;
+	rx_status.mactime = ((u64)priv->tsf_high32) << 32 | tsf32;
+	priv->tsf_low32 = tsf32;
+
 	rx_status.flag |= RX_FLAG_TSFT;
 
 	if (hdr->magic & cpu_to_le16(0x4000))
@@ -511,7 +590,8 @@ static void p54_rx_frame_sent(struct ieee80211_hw *dev, struct sk_buff *skb)
 					info->status.excessive_retries = 1;
 			}
 			info->status.retry_count = payload->retries - 1;
-			info->status.ack_signal = le16_to_cpu(payload->ack_rssi);
+			info->status.ack_signal = p54_rssi_to_dbm(dev,
+					le16_to_cpu(payload->ack_rssi));
 			skb_pull(entry, sizeof(*hdr) + pad + sizeof(*entry_data));
 			ieee80211_tx_status_irqsafe(dev, entry);
 			goto out;
@@ -542,6 +622,27 @@ static void p54_rx_eeprom_readback(struct ieee80211_hw *dev,
 	complete(&priv->eeprom_comp);
 }
 
+static void p54_rx_stats(struct ieee80211_hw *dev, struct sk_buff *skb)
+{
+	struct p54_common *priv = dev->priv;
+	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
+	struct p54_statistics *stats = (struct p54_statistics *) hdr->data;
+	u32 tsf32 = le32_to_cpu(stats->tsf32);
+
+	if (tsf32 < priv->tsf_low32)
+		priv->tsf_high32++;
+	priv->tsf_low32 = tsf32;
+
+	priv->stats.dot11RTSFailureCount = le32_to_cpu(stats->rts_fail);
+	priv->stats.dot11RTSSuccessCount = le32_to_cpu(stats->rts_success);
+	priv->stats.dot11FCSErrorCount = le32_to_cpu(stats->rx_bad_fcs);
+
+	priv->noise = p54_rssi_to_dbm(dev, le32_to_cpu(stats->noise));
+	complete(&priv->stats_comp);
+
+	mod_timer(&priv->stats_timer, jiffies + 5 * HZ);
+}
+
 static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 {
 	struct p54_control_hdr *hdr = (struct p54_control_hdr *) skb->data;
@@ -551,6 +652,9 @@ static int p54_rx_control(struct ieee80211_hw *dev, struct sk_buff *skb)
 		p54_rx_frame_sent(dev, skb);
 		break;
 	case P54_CONTROL_TYPE_BBP:
+		break;
+	case P54_CONTROL_TYPE_STAT_READBACK:
+		p54_rx_stats(dev, skb);
 		break;
 	case P54_CONTROL_TYPE_EEPROM_READBACK:
 		p54_rx_eeprom_readback(dev, skb);
@@ -753,7 +857,7 @@ static int p54_tx(struct ieee80211_hw *dev, struct sk_buff *skb)
 	txhdr->hw_queue = skb_get_queue_mapping(skb) + 4;
 	txhdr->tx_antenna = (info->antenna_sel_tx == 0) ?
 		2 : info->antenna_sel_tx - 1;
-	txhdr->output_power = 0x7f; // HW Maximum
+	txhdr->output_power = priv->output_power;
 	txhdr->cts_rate = (info->flags & IEEE80211_TX_CTL_NO_ACK) ?
 			  0 : cts_rate;
 	if (padding)
@@ -1021,12 +1125,25 @@ static int p54_start(struct ieee80211_hw *dev)
 			return -ENOMEM;
 	}
 
+	if (!priv->cached_stats) {
+		priv->cached_stats = kzalloc(sizeof(struct p54_statistics) +
+			priv->tx_hdr_len + sizeof(struct p54_control_hdr),
+			GFP_KERNEL);
+
+		if (!priv->cached_stats) {
+			kfree(priv->cached_vdcf);
+			priv->cached_vdcf = NULL;
+			return -ENOMEM;
+		}
+	}
+
 	err = priv->open(dev);
 	if (!err)
 		priv->mode = IEEE80211_IF_TYPE_MNTR;
 
 	p54_init_vdcf(dev);
 
+	mod_timer(&priv->stats_timer, jiffies + HZ);
 	return err;
 }
 
@@ -1034,9 +1151,12 @@ static void p54_stop(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
 	struct sk_buff *skb;
+
+	del_timer(&priv->stats_timer);
 	while ((skb = skb_dequeue(&priv->tx_queue)))
 		kfree_skb(skb);
 	priv->stop(dev);
+	priv->tsf_high32 = priv->tsf_low32 = 0;
 	priv->mode = IEEE80211_IF_TYPE_INVALID;
 }
 
@@ -1091,6 +1211,7 @@ static int p54_config(struct ieee80211_hw *dev, struct ieee80211_conf *conf)
 	mutex_lock(&priv->conf_mutex);
 	priv->rx_antenna = (conf->antenna_sel_rx == 0) ?
 		2 : conf->antenna_sel_tx - 1;
+	priv->output_power = conf->power_level << 2;
 	ret = p54_set_freq(dev, cpu_to_le16(conf->channel->center_freq));
 	p54_set_vdcf(dev);
 	mutex_unlock(&priv->conf_mutex);
@@ -1118,13 +1239,26 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	*total_flags &= FIF_BCN_PRBRESP_PROMISC;
+	*total_flags &= FIF_BCN_PRBRESP_PROMISC |
+			FIF_PROMISC_IN_BSS |
+			FIF_FCSFAIL;
+
+	priv->filter_flags = *total_flags;
 
 	if (changed_flags & FIF_BCN_PRBRESP_PROMISC) {
 		if (*total_flags & FIF_BCN_PRBRESP_PROMISC)
-			p54_set_filter(dev, 0, NULL);
+			p54_set_filter(dev, priv->filter_type, NULL);
 		else
-			p54_set_filter(dev, 0, priv->bssid);
+			p54_set_filter(dev, priv->filter_type, priv->bssid);
+	}
+
+	if (changed_flags & FIF_PROMISC_IN_BSS) {
+		if (*total_flags & FIF_PROMISC_IN_BSS)
+			p54_set_filter(dev, priv->filter_type |
+				cpu_to_le16(0x8), NULL);
+		else
+			p54_set_filter(dev, priv->filter_type &
+				~cpu_to_le16(0x8), priv->bssid);
 	}
 }
 
@@ -1148,10 +1282,67 @@ static int p54_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	return 0;
 }
 
+static int p54_init_xbow_synth(struct ieee80211_hw *dev)
+{
+	struct p54_common *priv = dev->priv;
+	struct p54_control_hdr *hdr;
+	struct p54_tx_control_xbow_synth *xbow;
+
+	hdr = kzalloc(sizeof(*hdr) + sizeof(*xbow) +
+		      priv->tx_hdr_len, GFP_KERNEL);
+	if (!hdr)
+		return -ENOMEM;
+
+	hdr = (void *)hdr + priv->tx_hdr_len;
+	hdr->magic1 = cpu_to_le16(0x8001);
+	hdr->len = cpu_to_le16(sizeof(*xbow));
+	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_XBOW_SYNTH_CFG);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*xbow));
+
+	xbow = (struct p54_tx_control_xbow_synth *) hdr->data;
+	xbow->magic1 = cpu_to_le16(0x1);
+	xbow->magic2 = cpu_to_le16(0x2);
+	xbow->freq = cpu_to_le16(5390);
+
+	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*xbow), 1);
+
+	return 0;
+}
+
+static void p54_statistics_timer(unsigned long data)
+{
+	struct ieee80211_hw *dev = (struct ieee80211_hw *) data;
+	struct p54_common *priv = dev->priv;
+	struct p54_control_hdr *hdr;
+	struct p54_statistics *stats;
+
+	BUG_ON(!priv->cached_stats);
+
+	hdr = (void *)priv->cached_stats + priv->tx_hdr_len;
+	hdr->magic1 = cpu_to_le16(0x8000);
+	hdr->len = cpu_to_le16(sizeof(*stats));
+	hdr->type = cpu_to_le16(P54_CONTROL_TYPE_STAT_READBACK);
+	p54_assign_address(dev, NULL, hdr, sizeof(*hdr) + sizeof(*stats));
+
+	priv->tx(dev, hdr, sizeof(*hdr) + sizeof(*stats), 0);
+}
+
 static int p54_get_stats(struct ieee80211_hw *dev,
 			 struct ieee80211_low_level_stats *stats)
 {
-	/* TODO */
+	struct p54_common *priv = dev->priv;
+
+	del_timer(&priv->stats_timer);
+	p54_statistics_timer((unsigned long)dev);
+
+	if (!wait_for_completion_interruptible_timeout(&priv->stats_comp, HZ)) {
+		printk(KERN_ERR "%s: device does not respond!\n",
+			wiphy_name(dev->wiphy));
+		return -EBUSY;
+	}
+
+	memcpy(stats, &priv->stats, sizeof(*stats));
+
 	return 0;
 }
 
@@ -1193,12 +1384,12 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
 		     IEEE80211_HW_RX_INCLUDES_FCS |
-		     IEEE80211_HW_SIGNAL_UNSPEC;
+		     IEEE80211_HW_SIGNAL_DBM |
+		     IEEE80211_HW_NOISE_DBM;
 
 	dev->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION);
 
 	dev->channel_change_time = 1000;	/* TODO: find actual value */
-	dev->max_signal = 127;
 
 	priv->tx_stats[0].limit = 1;
 	priv->tx_stats[1].limit = 1;
@@ -1206,11 +1397,15 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 	priv->tx_stats[3].limit = 1;
 	priv->tx_stats[4].limit = 5;
 	dev->queues = 1;
+	priv->noise = -94;
 	dev->extra_tx_headroom = sizeof(struct p54_control_hdr) + 4 +
 				 sizeof(struct p54_tx_control_allocdata);
 
 	mutex_init(&priv->conf_mutex);
 	init_completion(&priv->eeprom_comp);
+	init_completion(&priv->stats_comp);
+	setup_timer(&priv->stats_timer, p54_statistics_timer,
+		(unsigned long)dev);
 
 	return dev;
 }
@@ -1219,6 +1414,7 @@ EXPORT_SYMBOL_GPL(p54_init_common);
 void p54_free_common(struct ieee80211_hw *dev)
 {
 	struct p54_common *priv = dev->priv;
+	kfree(priv->cached_stats);
 	kfree(priv->iq_autocal);
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);

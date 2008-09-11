@@ -185,7 +185,8 @@ struct p54_rx_hdr {
 	u8 rssi;
 	u8 quality;
 	u16 unknown2;
-	__le64 timestamp;
+	__le32 tsf32;
+	__le32 unalloc0;
 	u8 align[0];
 } __attribute__ ((packed));
 
@@ -298,6 +299,26 @@ struct p54_tx_control_vdcf {
 	struct p54_tx_vdcf_queues queue[8];
 	u8 pad2[4];
 	__le16 frameburst;
+} __attribute__ ((packed));
+
+struct p54_statistics {
+	__le32 rx_success;
+	__le32 rx_bad_fcs;
+	__le32 rx_abort;
+	__le32 rx_abort_phy;
+	__le32 rts_success;
+	__le32 rts_fail;
+	__le32 tsf32;
+	__le32 airtime;
+	__le32 noise;
+	__le32 unkn[10]; /* CCE / CCA / RADAR */
+} __attribute__ ((packed));
+
+struct p54_tx_control_xbow_synth {
+	__le16 magic1;
+	__le16 magic2;
+	__le16 freq;
+	u32 padding[5];
 } __attribute__ ((packed));
 
 #endif /* P54COMMON_H */

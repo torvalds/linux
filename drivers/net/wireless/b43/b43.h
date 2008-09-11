@@ -585,8 +585,6 @@ enum {
 struct b43_qos_params {
 	/* The QOS parameters */
 	struct ieee80211_tx_queue_params p;
-	/* Does this need to get uploaded to hardware? */
-	bool need_hw_update;
 };
 
 struct b43_wldev;
@@ -648,11 +646,8 @@ struct b43_wl {
 	bool beacon_templates_virgin; /* Never wrote the templates? */
 	struct work_struct beacon_update_trigger;
 
-	/* The current QOS parameters for the 4 queues.
-	 * This is protected by the irq_lock. */
+	/* The current QOS parameters for the 4 queues. */
 	struct b43_qos_params qos_params[4];
-	/* Workqueue for updating QOS parameters in hardware. */
-	struct work_struct qos_update_work;
 
 	/* Work for adjustment of the transmission power.
 	 * This is scheduled when we determine that the actual TX output

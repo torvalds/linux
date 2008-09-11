@@ -250,17 +250,26 @@ static int iwl_update_power_command(struct iwl_priv *priv,
 
 
 /*
- * calucaute the final power mode index
+ * compute the final power mode index
  */
-int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
+int iwl_power_update_mode(struct iwl_priv *priv, bool force)
 {
 	struct iwl_power_mgr *setting = &(priv->power_data);
 	int ret = 0;
 	u16 uninitialized_var(final_mode);
 
-       /* If on battery, set to 3,
-	* if plugged into AC power, set to CAM ("continuously aware mode"),
-	* else user level */
+	/* Don't update the RX chain when chain noise calibration is running */
+	if (priv->chain_noise_data.state != IWL_CHAIN_NOISE_DONE &&
+	    priv->chain_noise_data.state != IWL_CHAIN_NOISE_ALIVE) {
+		IWL_DEBUG_POWER("Cannot update the power, chain noise "
+			"calibration running: %d\n",
+			priv->chain_noise_data.state);
+		return -EAGAIN;
+	}
+
+	/* If on battery, set to 3,
+	 * if plugged into AC power, set to CAM ("continuously aware mode"),
+	 * else user level */
 
 	switch (setting->system_power_setting) {
 	case IWL_POWER_SYS_AUTO:
@@ -285,7 +294,7 @@ int iwl_power_update_mode(struct iwl_priv *priv, u8 refresh)
 		final_mode = IWL_POWER_MODE_CAM;
 
 	if (!iwl_is_rfkill(priv) && !setting->power_disabled &&
-	    ((setting->power_mode != final_mode) || refresh)) {
+	    ((setting->power_mode != final_mode) || force)) {
 		struct iwl_powertable_cmd cmd;
 
 		if (final_mode != IWL_POWER_MODE_CAM)
@@ -359,35 +368,26 @@ EXPORT_SYMBOL(iwl_power_enable_management);
 /* set user_power_setting */
 int iwl_power_set_user_mode(struct iwl_priv *priv, u16 mode)
 {
-	int ret = 0;
-
 	if (mode > IWL_POWER_LIMIT)
 		return -EINVAL;
 
 	priv->power_data.user_power_setting = mode;
 
-	ret = iwl_power_update_mode(priv, 0);
-
-	return ret;
+	return iwl_power_update_mode(priv, 0);
 }
 EXPORT_SYMBOL(iwl_power_set_user_mode);
-
 
 /* set system_power_setting. This should be set by over all
  * PM application.
  */
 int iwl_power_set_system_mode(struct iwl_priv *priv, u16 mode)
 {
-	int ret = 0;
-
 	if (mode > IWL_POWER_LIMIT)
 		return -EINVAL;
 
 	priv->power_data.system_power_setting = mode;
 
-	ret = iwl_power_update_mode(priv, 0);
-
-	return ret;
+	return iwl_power_update_mode(priv, 0);
 }
 EXPORT_SYMBOL(iwl_power_set_system_mode);
 

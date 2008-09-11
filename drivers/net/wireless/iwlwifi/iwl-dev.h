@@ -406,6 +406,7 @@ struct iwl_ht_info {
 	/* self configuration data */
 	u8 is_ht;
 	u8 supported_chan_width;
+	u8 sm_ps;
 	u8 is_green_field;
 	u8 sgf;			/* HT_SHORT_GI_* short guard interval */
 	u8 max_amsdu_size;
@@ -564,50 +565,31 @@ struct iwl_hw_params {
 #define IWL_RX_STATS(x) (&x->u.rx_frame.stats)
 #define IWL_RX_DATA(x) (IWL_RX_HDR(x)->payload)
 
-
 /******************************************************************************
  *
- * Functions implemented in iwl-base.c which are forward declared here
- * for use by iwl-*.c
+ * Functions implemented in core module which are forward declared here
+ * for use by iwl-[4-5].c
  *
- *****************************************************************************/
-struct iwl_addsta_cmd;
-extern int iwl_send_add_sta(struct iwl_priv *priv,
-			    struct iwl_addsta_cmd *sta, u8 flags);
-u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr, int is_ap,
-			 u8 flags, struct ieee80211_ht_info *ht_info);
-extern unsigned int iwl4965_fill_beacon_frame(struct iwl_priv *priv,
-					struct ieee80211_hdr *hdr,
-					const u8 *dest, int left);
-extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
-int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
-extern int iwl4965_set_power(struct iwl_priv *priv, void *cmd);
-
-extern const u8 iwl_bcast_addr[ETH_ALEN];
-
-/******************************************************************************
- *
- * Functions implemented in iwl-[34]*.c which are forward declared here
- * for use by iwl-base.c
- *
- * NOTE:  The implementation of these functions are hardware specific
- * which is why they are in the hardware specific files (vs. iwl-base.c)
+ * NOTE:  The implementation of these functions are not hardware specific
+ * which is why they are in the core module files.
  *
  * Naming convention --
- * iwl4965_         <-- Its part of iwlwifi (should be changed to iwl4965_)
- * iwl4965_hw_      <-- Hardware specific (implemented in iwl-XXXX.c by all HW)
+ * iwl_         <-- Is part of iwlwifi
  * iwlXXXX_     <-- Hardware specific (implemented in iwl-XXXX.c for XXXX)
  * iwl4965_bg_      <-- Called from work queue context
  * iwl4965_mac_     <-- mac80211 callback
  *
  ****************************************************************************/
+struct iwl_addsta_cmd;
+extern int iwl_send_add_sta(struct iwl_priv *priv,
+			    struct iwl_addsta_cmd *sta, u8 flags);
+extern u8 iwl_add_station_flags(struct iwl_priv *priv, const u8 *addr,
+			int is_ap, u8 flags, struct ieee80211_ht_info *ht_info);
+extern void iwl4965_update_chain_flags(struct iwl_priv *priv);
+extern int iwl4965_set_pwr_src(struct iwl_priv *priv, enum iwl_pwr_src src);
+extern const u8 iwl_bcast_addr[ETH_ALEN];
 extern int iwl_rxq_stop(struct iwl_priv *priv);
 extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
-extern unsigned int iwl4965_hw_get_beacon_cmd(struct iwl_priv *priv,
-				 struct iwl_frame *frame, u8 rate);
-extern void iwl4965_disable_events(struct iwl_priv *priv);
-
-extern int iwl4965_hw_channel_switch(struct iwl_priv *priv, u16 channel);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
@@ -643,11 +625,6 @@ struct iwl_kw {
 
 #define IWL_CHANNEL_WIDTH_20MHZ   0
 #define IWL_CHANNEL_WIDTH_40MHZ   1
-
-#define IWL_MIMO_PS_STATIC        0
-#define IWL_MIMO_PS_NONE          3
-#define IWL_MIMO_PS_DYNAMIC       1
-#define IWL_MIMO_PS_INVALID       2
 
 #define IWL_OPERATION_MODE_AUTO     0
 #define IWL_OPERATION_MODE_HT_ONLY  1
@@ -703,8 +680,9 @@ enum iwl4965_false_alarm_state {
 
 enum iwl4965_chain_noise_state {
 	IWL_CHAIN_NOISE_ALIVE = 0,  /* must be 0 */
-	IWL_CHAIN_NOISE_ACCUMULATE = 1,
-	IWL_CHAIN_NOISE_CALIBRATED = 2,
+	IWL_CHAIN_NOISE_ACCUMULATE,
+	IWL_CHAIN_NOISE_CALIBRATED,
+	IWL_CHAIN_NOISE_DONE,
 };
 
 enum iwl4965_calib_enabled_state {
@@ -762,17 +740,18 @@ struct iwl_sensitivity_data {
 
 /* Chain noise (differential Rx gain) calib data */
 struct iwl_chain_noise_data {
-	u8 state;
-	u16 beacon_count;
+	u32 active_chains;
 	u32 chain_noise_a;
 	u32 chain_noise_b;
 	u32 chain_noise_c;
 	u32 chain_signal_a;
 	u32 chain_signal_b;
 	u32 chain_signal_c;
+	u16 beacon_count;
 	u8 disconn_array[NUM_RX_CHAINS];
 	u8 delta_gain_code[NUM_RX_CHAINS];
 	u8 radio_write;
+	u8 state;
 };
 
 #define	EEPROM_SEM_TIMEOUT 10		/* milliseconds */
@@ -995,7 +974,6 @@ struct iwl_priv {
 	 * hardware */
 	u16 assoc_id;
 	u16 assoc_capability;
-	u8 ps_mode;
 
 	struct iwl_qos_info qos_data;
 

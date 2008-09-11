@@ -808,12 +808,10 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 		}
 	}
 
+	/* Save for use within RXON, TX, SCAN commands, etc. */
+	priv->chain_noise_data.active_chains = active_chains;
 	IWL_DEBUG_CALIB("active_chains (bitwise) = 0x%x\n",
 			active_chains);
-
-	/* Save for use within RXON, TX, SCAN commands, etc. */
-	/*priv->valid_antenna = active_chains;*/
-	/*FIXME: should be reflected in RX chains in RXON */
 
 	/* Analyze noise for rx balance */
 	average_noise[0] = ((data->chain_noise_a)/CAL_NUM_OF_BEACONS);
@@ -839,6 +837,15 @@ void iwl_chain_noise_calibration(struct iwl_priv *priv,
 
 	priv->cfg->ops->utils->gain_computation(priv, average_noise,
 		min_average_noise_antenna_i, min_average_noise);
+
+	/* Some power changes may have been made during the calibration.
+	 * Update and commit the RXON
+	 */
+	if (priv->cfg->ops->lib->update_chain_flags)
+		priv->cfg->ops->lib->update_chain_flags(priv);
+
+	data->state = IWL_CHAIN_NOISE_DONE;
+	iwl_power_enable_management(priv);
 }
 EXPORT_SYMBOL(iwl_chain_noise_calibration);
 

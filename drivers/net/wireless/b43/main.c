@@ -3059,36 +3059,31 @@ static void b43_qos_params_upload(struct b43_wldev *dev,
 	}
 }
 
-/* Update the QOS parameters in hardware. */
-static void b43_qos_update(struct b43_wldev *dev)
+/* Mapping of mac80211 queue numbers to b43 QoS SHM offsets. */
+static const u16 b43_qos_shm_offsets[] = {
+	/* [mac80211-queue-nr] = SHM_OFFSET, */
+	[0] = B43_QOS_VOICE,
+	[1] = B43_QOS_VIDEO,
+	[2] = B43_QOS_BESTEFFORT,
+	[3] = B43_QOS_BACKGROUND,
+};
+
+/* Update all QOS parameters in hardware. */
+static void b43_qos_upload_all(struct b43_wldev *dev)
 {
 	struct b43_wl *wl = dev->wl;
 	struct b43_qos_params *params;
-	unsigned long flags;
 	unsigned int i;
 
-	/* Mapping of mac80211 queues to b43 SHM offsets. */
-	static const u16 qos_shm_offsets[] = {
-		[0] = B43_QOS_VOICE,
-		[1] = B43_QOS_VIDEO,
-		[2] = B43_QOS_BESTEFFORT,
-		[3] = B43_QOS_BACKGROUND,
-	};
-	BUILD_BUG_ON(ARRAY_SIZE(qos_shm_offsets) != ARRAY_SIZE(wl->qos_params));
+	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+		     ARRAY_SIZE(wl->qos_params));
 
 	b43_mac_suspend(dev);
-	spin_lock_irqsave(&wl->irq_lock, flags);
-
 	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++) {
 		params = &(wl->qos_params[i]);
-		if (params->need_hw_update) {
-			b43_qos_params_upload(dev, &(params->p),
-					      qos_shm_offsets[i]);
-			params->need_hw_update = 0;
-		}
+		b43_qos_params_upload(dev, &(params->p),
+				      b43_qos_shm_offsets[i]);
 	}
-
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
 	b43_mac_enable(dev);
 }
 
@@ -3097,25 +3092,50 @@ static void b43_qos_clear(struct b43_wl *wl)
 	struct b43_qos_params *params;
 	unsigned int i;
 
+	/* Initialize QoS parameters to sane defaults. */
+
+	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+		     ARRAY_SIZE(wl->qos_params));
+
 	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++) {
 		params = &(wl->qos_params[i]);
 
-		memset(&(params->p), 0, sizeof(params->p));
-		params->p.aifs = -1;
-		params->need_hw_update = 1;
+		switch (b43_qos_shm_offsets[i]) {
+		case B43_QOS_VOICE:
+			params->p.txop = 0;
+			params->p.aifs = 2;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x0001;
+			break;
+		case B43_QOS_VIDEO:
+			params->p.txop = 0;
+			params->p.aifs = 2;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x0001;
+			break;
+		case B43_QOS_BESTEFFORT:
+			params->p.txop = 0;
+			params->p.aifs = 3;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x03FF;
+			break;
+		case B43_QOS_BACKGROUND:
+			params->p.txop = 0;
+			params->p.aifs = 7;
+			params->p.cw_min = 0x0001;
+			params->p.cw_max = 0x03FF;
+			break;
+		default:
+			B43_WARN_ON(1);
+		}
 	}
 }
 
 /* Initialize the core's QOS capabilities */
 static void b43_qos_init(struct b43_wldev *dev)
 {
-	struct b43_wl *wl = dev->wl;
-	unsigned int i;
-
 	/* Upload the current QOS parameters. */
-	for (i = 0; i < ARRAY_SIZE(wl->qos_params); i++)
-		wl->qos_params[i].need_hw_update = 1;
-	b43_qos_update(dev);
+	b43_qos_upload_all(dev);
 
 	/* Enable QOS support. */
 	b43_hf_write(dev, b43_hf_read(dev) | B43_HF_EDCF);
@@ -3124,25 +3144,13 @@ static void b43_qos_init(struct b43_wldev *dev)
 		    | B43_MMIO_IFSCTL_USE_EDCF);
 }
 
-static void b43_qos_update_work(struct work_struct *work)
-{
-	struct b43_wl *wl = container_of(work, struct b43_wl, qos_update_work);
-	struct b43_wldev *dev;
-
-	mutex_lock(&wl->mutex);
-	dev = wl->current_dev;
-	if (likely(dev && (b43_status(dev) >= B43_STAT_INITIALIZED)))
-		b43_qos_update(dev);
-	mutex_unlock(&wl->mutex);
-}
-
 static int b43_op_conf_tx(struct ieee80211_hw *hw, u16 _queue,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
-	unsigned long flags;
+	struct b43_wldev *dev;
 	unsigned int queue = (unsigned int)_queue;
-	struct b43_qos_params *p;
+	int err = -ENODEV;
 
 	if (queue >= ARRAY_SIZE(wl->qos_params)) {
 		/* Queue not available or don't support setting
@@ -3150,16 +3158,25 @@ static int b43_op_conf_tx(struct ieee80211_hw *hw, u16 _queue,
 		 * confuse mac80211. */
 		return 0;
 	}
+	BUILD_BUG_ON(ARRAY_SIZE(b43_qos_shm_offsets) !=
+		     ARRAY_SIZE(wl->qos_params));
 
-	spin_lock_irqsave(&wl->irq_lock, flags);
-	p = &(wl->qos_params[queue]);
-	memcpy(&(p->p), params, sizeof(p->p));
-	p->need_hw_update = 1;
-	spin_unlock_irqrestore(&wl->irq_lock, flags);
+	mutex_lock(&wl->mutex);
+	dev = wl->current_dev;
+	if (unlikely(!dev || (b43_status(dev) < B43_STAT_INITIALIZED)))
+		goto out_unlock;
 
-	queue_work(hw->workqueue, &wl->qos_update_work);
+	memcpy(&(wl->qos_params[queue].p), params, sizeof(*params));
+	b43_mac_suspend(dev);
+	b43_qos_params_upload(dev, &(wl->qos_params[queue].p),
+			      b43_qos_shm_offsets[queue]);
+	b43_mac_enable(dev);
+	err = 0;
 
-	return 0;
+out_unlock:
+	mutex_unlock(&wl->mutex);
+
+	return err;
 }
 
 static int b43_op_get_tx_stats(struct ieee80211_hw *hw,
@@ -4186,7 +4203,6 @@ static void b43_op_stop(struct ieee80211_hw *hw)
 	struct b43_wldev *dev = wl->current_dev;
 
 	b43_rfkill_exit(dev);
-	cancel_work_sync(&(wl->qos_update_work));
 	cancel_work_sync(&(wl->beacon_update_trigger));
 
 	mutex_lock(&wl->mutex);
@@ -4585,7 +4601,6 @@ static int b43_wireless_init(struct ssb_device *dev)
 	spin_lock_init(&wl->shm_lock);
 	mutex_init(&wl->mutex);
 	INIT_LIST_HEAD(&wl->devlist);
-	INIT_WORK(&wl->qos_update_work, b43_qos_update_work);
 	INIT_WORK(&wl->beacon_update_trigger, b43_beacon_update_trigger_work);
 	INIT_WORK(&wl->txpower_adjust_work, b43_phy_txpower_adjust_work);
 

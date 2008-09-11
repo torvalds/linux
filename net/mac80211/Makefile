@@ -7,6 +7,8 @@ mac80211-y := \
 	sta_info.o \
 	wep.o \
 	wpa.o \
+	scan.o \
+	ht.o \
 	mlme.o \
 	iface.o \
 	rate.o \
@@ -15,6 +17,7 @@ mac80211-y := \
 	aes_ccm.o \
 	cfg.o \
 	rx.o \
+	spectmgmt.o \
 	tx.o \
 	key.o \
 	util.o \

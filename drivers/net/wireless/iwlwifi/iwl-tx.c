@@ -63,7 +63,7 @@ static const u16 default_tid_to_tx_fifo[] = {
  * Does NOT advance any TFD circular buffer read/write indexes
  * Does NOT free the TFD itself (which is within circular buffer)
  */
-int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
+static int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 {
 	struct iwl_tfd_frame *bd_tmp = (struct iwl_tfd_frame *)&txq->bd[0];
 	struct iwl_tfd_frame *bd = &bd_tmp[txq->q.read_ptr];
@@ -115,10 +115,8 @@ int iwl_hw_txq_free_tfd(struct iwl_priv *priv, struct iwl_tx_queue *txq)
 	}
 	return 0;
 }
-EXPORT_SYMBOL(iwl_hw_txq_free_tfd);
 
-
-int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
+static int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 				 dma_addr_t addr, u16 len)
 {
 	int index, is_odd;
@@ -151,7 +149,6 @@ int iwl_hw_txq_attach_buf_to_tfd(struct iwl_priv *priv, void *ptr,
 
 	return 0;
 }
-EXPORT_SYMBOL(iwl_hw_txq_attach_buf_to_tfd);
 
 /**
  * iwl_txq_update_write_ptr - Send new write index to hardware
@@ -478,7 +475,6 @@ void iwl_hw_txq_ctx_free(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_hw_txq_ctx_free);
 
-
 /**
  * iwl_txq_ctx_reset - Reset TX queue context
  * Destroys all DMA structures and initialise them again
@@ -545,6 +541,7 @@ int iwl_txq_ctx_reset(struct iwl_priv *priv)
  error_kw:
 	return ret;
 }
+
 /**
  * iwl_txq_ctx_stop - Stop all Tx DMA channels, free Tx queue memory
  */

@@ -1971,6 +1971,70 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 }
 
 
+/**
+ * @brief Configures the transmission power control functionality.
+ *
+ * @param priv		A pointer to struct lbs_private structure
+ * @param enable	Transmission power control enable
+ * @param p0		Power level when link quality is good (dBm).
+ * @param p1		Power level when link quality is fair (dBm).
+ * @param p2		Power level when link quality is poor (dBm).
+ * @param usesnr	Use Signal to Noise Ratio in TPC
+ *
+ * @return 0 on success
+ */
+int lbs_set_tpc_cfg(struct lbs_private *priv, int enable, int8_t p0, int8_t p1,
+		int8_t p2, int usesnr)
+{
+	struct cmd_ds_802_11_tpc_cfg cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.enable = !!enable;
+	cmd.usesnr = !!enable;
+	cmd.P0 = p0;
+	cmd.P1 = p1;
+	cmd.P2 = p2;
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_TPC_CFG, &cmd);
+
+	return ret;
+}
+
+/**
+ * @brief Configures the power adaptation settings.
+ *
+ * @param priv		A pointer to struct lbs_private structure
+ * @param enable	Power adaptation enable
+ * @param p0		Power level for 1, 2, 5.5 and 11 Mbps (dBm).
+ * @param p1		Power level for 6, 9, 12, 18, 22, 24 and 36 Mbps (dBm).
+ * @param p2		Power level for 48 and 54 Mbps (dBm).
+ *
+ * @return 0 on Success
+ */
+
+int lbs_set_power_adapt_cfg(struct lbs_private *priv, int enable, int8_t p0,
+		int8_t p1, int8_t p2)
+{
+	struct cmd_ds_802_11_pa_cfg cmd;
+	int ret;
+
+	memset(&cmd, 0, sizeof(cmd));
+	cmd.hdr.size = cpu_to_le16(sizeof(cmd));
+	cmd.action = cpu_to_le16(CMD_ACT_SET);
+	cmd.enable = !!enable;
+	cmd.P0 = p0;
+	cmd.P1 = p1;
+	cmd.P2 = p2;
+
+	ret = lbs_cmd_with_response(priv, CMD_802_11_PA_CFG , &cmd);
+
+	return ret;
+}
+
+
 static struct cmd_ctrl_node *__lbs_cmd_async(struct lbs_private *priv,
 	uint16_t command, struct cmd_header *in_cmd, int in_cmd_size,
 	int (*callback)(struct lbs_private *, unsigned long, struct cmd_header *),
