@@ -108,7 +108,7 @@ static void musb_ep_program(struct musb *musb, u8 epnum,
 /*
  * Clear TX fifo. Needed to avoid BABBLE errors.
  */
-static inline void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
+static void musb_h_tx_flush_fifo(struct musb_hw_ep *ep)
 {
 	void __iomem	*epio = ep->regs;
 	u16		csr;
@@ -435,7 +435,7 @@ musb_advance_schedule(struct musb *musb, struct urb *urb,
 	}
 }
 
-static inline u16 musb_h_flush_rxfifo(struct musb_hw_ep *hw_ep, u16 csr)
+static u16 musb_h_flush_rxfifo(struct musb_hw_ep *hw_ep, u16 csr)
 {
 	/* we don't want fifo to fill itself again;
 	 * ignore dma (various models),
@@ -1004,7 +1004,7 @@ static bool musb_h_ep0_continue(struct musb *musb, u16 len, struct urb *urb)
 
 /*
  * Handle default endpoint interrupt as host. Only called in IRQ time
- * from the LinuxIsr() interrupt service routine.
+ * from musb_interrupt().
  *
  * called with controller irqlocked
  */
