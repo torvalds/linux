@@ -346,7 +346,7 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
 
 	found_start = btrfs_header_bytenr(eb);
-	if (found_start != start) {
+	if (0 && found_start != start) {
 		printk("bad tree block start %llu %llu\n",
 		       (unsigned long long)found_start,
 		       (unsigned long long)eb->start);
@@ -591,6 +591,9 @@ static int btree_releasepage(struct page *page, gfp_t gfp_flags)
 	struct extent_io_tree *tree;
 	struct extent_map_tree *map;
 	int ret;
+
+	if (PageWriteback(page) || PageDirty(page))
+	    return 0;
 
 	tree = &BTRFS_I(page->mapping->host)->io_tree;
 	map = &BTRFS_I(page->mapping->host)->extent_tree;
