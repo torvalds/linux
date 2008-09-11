@@ -52,6 +52,30 @@ static inline void hwsim_clear_magic(struct ieee80211_vif *vif)
 	vp->magic = 0;
 }
 
+struct hwsim_sta_priv {
+	u32 magic;
+};
+
+#define HWSIM_STA_MAGIC	0x6d537748
+
+static inline void hwsim_check_sta_magic(struct ieee80211_sta *sta)
+{
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+	WARN_ON(sp->magic != HWSIM_VIF_MAGIC);
+}
+
+static inline void hwsim_set_sta_magic(struct ieee80211_sta *sta)
+{
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+	sp->magic = HWSIM_VIF_MAGIC;
+}
+
+static inline void hwsim_clear_sta_magic(struct ieee80211_sta *sta)
+{
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
+	sp->magic = 0;
+}
+
 static struct class *hwsim_class;
 
 static struct ieee80211_hw **hwsim_radios;
@@ -235,6 +259,8 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	txi = IEEE80211_SKB_CB(skb);
 
 	hwsim_check_magic(txi->control.vif);
+	if (txi->control.sta)
+		hwsim_check_sta_magic(txi->control.sta);
 
 	memset(&txi->status, 0, sizeof(txi->status));
 	if (!(txi->flags & IEEE80211_TX_CTL_NO_ACK)) {
@@ -394,6 +420,22 @@ static void mac80211_hwsim_sta_notify(struct ieee80211_hw *hw,
 				      struct ieee80211_sta *sta)
 {
 	hwsim_check_magic(vif);
+	switch (cmd) {
+	case STA_NOTIFY_ADD:
+		hwsim_set_sta_magic(sta);
+		break;
+	case STA_NOTIFY_REMOVE:
+		hwsim_clear_sta_magic(sta);
+		break;
+	}
+}
+
+static int mac80211_hwsim_set_tim(struct ieee80211_hw *hw,
+				  struct ieee80211_sta *sta,
+				  bool set)
+{
+	hwsim_check_sta_magic(sta);
+	return 0;
 }
 
 static const struct ieee80211_ops mac80211_hwsim_ops =
@@ -408,6 +450,7 @@ static const struct ieee80211_ops mac80211_hwsim_ops =
 	.config_interface = mac80211_hwsim_config_interface,
 	.bss_info_changed = mac80211_hwsim_bss_info_changed,
 	.sta_notify = mac80211_hwsim_sta_notify,
+	.set_tim = mac80211_hwsim_set_tim,
 };
 
 
@@ -510,6 +553,7 @@ static int __init init_mac80211_hwsim(void)
 
 		/* ask mac80211 to reserve space for magic */
 		hw->vif_data_size = sizeof(struct hwsim_vif_priv);
+		hw->sta_data_size = sizeof(struct hwsim_sta_priv);
 
 		memcpy(data->channels, hwsim_channels, sizeof(hwsim_channels));
 		memcpy(data->rates, hwsim_rates, sizeof(hwsim_rates));
