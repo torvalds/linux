@@ -1954,10 +1954,6 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 	int ret;
 	unsigned long batch;
 	struct btrfs_root *log = root->log_root;
-	struct walk_control wc = {
-		.write = 1,
-		.process_func = process_one_buffer
-	};
 
 	mutex_lock(&log->fs_info->tree_log_mutex);
 	if (atomic_read(&log->fs_info->tree_log_commit)) {
@@ -1985,18 +1981,11 @@ int btrfs_sync_log(struct btrfs_trans_handle *trans,
 		if (batch == log->fs_info->tree_log_batch)
 			break;
 	}
-	ret = walk_log_tree(trans, log, &wc);
+
+	ret = btrfs_write_and_wait_marked_extents(log, &log->dirty_log_pages);
 	BUG_ON(ret);
-
-	ret = walk_log_tree(trans, log->fs_info->log_root_tree, &wc);
-	BUG_ON(ret);
-
-	wc.wait = 1;
-
-	ret = walk_log_tree(trans, log, &wc);
-	BUG_ON(ret);
-
-	ret = walk_log_tree(trans, log->fs_info->log_root_tree, &wc);
+	ret = btrfs_write_and_wait_marked_extents(root->fs_info->log_root_tree,
+			       &root->fs_info->log_root_tree->dirty_log_pages);
 	BUG_ON(ret);
 
 	btrfs_set_super_log_root(&root->fs_info->super_for_commit,
@@ -2025,6 +2014,8 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 	int ret;
 	struct btrfs_root *log;
 	struct key;
+	u64 start;
+	u64 end;
 	struct walk_control wc = {
 		.free = 1,
 		.process_func = process_one_buffer
@@ -2036,6 +2027,16 @@ int btrfs_free_log(struct btrfs_trans_handle *trans, struct btrfs_root *root)
 	log = root->log_root;
 	ret = walk_log_tree(trans, log, &wc);
 	BUG_ON(ret);
+
+	while(1) {
+		ret = find_first_extent_bit(&log->dirty_log_pages,
+				    0, &start, &end, EXTENT_DIRTY);
+		if (ret)
+			break;
+
+		clear_extent_dirty(&log->dirty_log_pages,
+				   start, end, GFP_NOFS);
+	}
 
 	log = root->log_root;
 	ret = btrfs_del_root(trans, root->fs_info->log_root_tree,

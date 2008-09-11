@@ -668,6 +668,8 @@ struct btrfs_root {
 	struct btrfs_key root_key;
 	struct btrfs_fs_info *fs_info;
 	struct inode *inode;
+	struct extent_io_tree dirty_log_pages;
+
 	struct kobject root_kobj;
 	struct completion kobj_unregister;
 	struct mutex objectid_mutex;

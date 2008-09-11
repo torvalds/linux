@@ -302,23 +302,18 @@ int btrfs_end_transaction_throttle(struct btrfs_trans_handle *trans,
 }
 
 
-int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
-				     struct btrfs_root *root)
+int btrfs_write_and_wait_marked_extents(struct btrfs_root *root,
+					struct extent_io_tree *dirty_pages)
 {
 	int ret;
 	int err = 0;
 	int werr = 0;
-	struct extent_io_tree *dirty_pages;
 	struct page *page;
 	struct inode *btree_inode = root->fs_info->btree_inode;
 	u64 start = 0;
 	u64 end;
 	unsigned long index;
 
-	if (!trans || !trans->transaction) {
-		return filemap_write_and_wait(btree_inode->i_mapping);
-	}
-	dirty_pages = &trans->transaction->dirty_pages;
 	while(1) {
 		ret = find_first_extent_bit(dirty_pages, start, &start, &end,
 					    EXTENT_DIRTY);
@@ -383,6 +378,18 @@ int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
 	if (err)
 		werr = err;
 	return werr;
+}
+
+int btrfs_write_and_wait_transaction(struct btrfs_trans_handle *trans,
+				     struct btrfs_root *root)
+{
+	if (!trans || !trans->transaction) {
+		struct inode *btree_inode;
+		btree_inode = root->fs_info->btree_inode;
+		return filemap_write_and_wait(btree_inode->i_mapping);
+	}
+	return btrfs_write_and_wait_marked_extents(root,
+					   &trans->transaction->dirty_pages);
 }
 
 static int update_cowonly_root(struct btrfs_trans_handle *trans,

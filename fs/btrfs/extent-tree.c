@@ -2392,8 +2392,13 @@ struct extent_buffer *btrfs_init_new_buffer(struct btrfs_trans_handle *trans,
 	btrfs_tree_lock(buf);
 	clean_tree_block(trans, root, buf);
 	btrfs_set_buffer_uptodate(buf);
-	set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
+	if (root->root_key.objectid == BTRFS_TREE_LOG_OBJECTID) {
+		set_extent_dirty(&root->dirty_log_pages, buf->start,
 			 buf->start + buf->len - 1, GFP_NOFS);
+	} else {
+		set_extent_dirty(&trans->transaction->dirty_pages, buf->start,
+			 buf->start + buf->len - 1, GFP_NOFS);
+	}
 	trans->blocks_used++;
 	return buf;
 }

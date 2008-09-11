@@ -777,6 +777,8 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	spin_lock_init(&root->list_lock);
 	mutex_init(&root->objectid_mutex);
 	mutex_init(&root->log_mutex);
+	extent_io_tree_init(&root->dirty_log_pages,
+			     fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	btrfs_leaf_ref_tree_init(&root->ref_tree_struct);
 	root->ref_tree = &root->ref_tree_struct;
@@ -819,11 +821,23 @@ int btrfs_free_log_root_tree(struct btrfs_trans_handle *trans,
 			     struct btrfs_fs_info *fs_info)
 {
 	struct extent_buffer *eb;
+	struct btrfs_root *log_root_tree = fs_info->log_root_tree;
+	u64 start = 0;
+	u64 end = 0;
 	int ret;
 
-	if (!fs_info->log_root_tree)
+	if (!log_root_tree)
 		return 0;
 
+	while(1) {
+		ret = find_first_extent_bit(&log_root_tree->dirty_log_pages,
+				    0, &start, &end, EXTENT_DIRTY);
+		if (ret)
+			break;
+
+		clear_extent_dirty(&log_root_tree->dirty_log_pages,
+				   start, end, GFP_NOFS);
+	}
 	eb = fs_info->log_root_tree->node;
 
 	WARN_ON(btrfs_header_level(eb) != 0);
@@ -1412,7 +1426,6 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	memset(&BTRFS_I(fs_info->btree_inode)->location, 0,
 	       sizeof(struct btrfs_key));
 	insert_inode_hash(fs_info->btree_inode);
-	mapping_set_gfp_mask(fs_info->btree_inode->i_mapping, GFP_NOFS);
 
 	mutex_init(&fs_info->trans_mutex);
 	mutex_init(&fs_info->tree_log_mutex);
