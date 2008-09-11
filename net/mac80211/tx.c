@@ -1351,6 +1351,10 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		return 0;
 	}
 
+	if (osdata->vif.type == NL80211_IFTYPE_AP_VLAN)
+		osdata = container_of(osdata->bss,
+				      struct ieee80211_sub_if_data,
+				      u.ap);
 	info->control.vif = &osdata->vif;
 	ret = ieee80211_tx(odev, skb);
 	dev_put(odev);
