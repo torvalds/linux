@@ -569,7 +569,7 @@ struct b43_key {
 #define B43_QOS_VOICE		B43_QOS_PARAMS(3)
 
 /* QOS parameter hardware data structure offsets. */
-#define B43_NR_QOSPARAMS	22
+#define B43_NR_QOSPARAMS	16
 enum {
 	B43_QOSPARAM_TXOP = 0,
 	B43_QOSPARAM_CWMIN,
