@@ -1276,12 +1276,10 @@ void __init e820_reserve_resources(void)
 	res = alloc_bootmem_low(sizeof(struct resource) * e820.nr_map);
 	for (i = 0; i < e820.nr_map; i++) {
 		end = e820.map[i].addr + e820.map[i].size - 1;
-#ifndef CONFIG_RESOURCES_64BIT
-		if (end > 0x100000000ULL) {
+		if (end != (resource_size_t)end) {
 			res++;
 			continue;
 		}
-#endif
 		res->name = e820_type_to_string(e820.map[i].type);
 		res->start = e820.map[i].addr;
 		res->end = end;

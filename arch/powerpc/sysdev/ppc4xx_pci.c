@@ -41,13 +41,10 @@ extern unsigned long total_memory;
 #define U64_TO_U32_LOW(val)	((u32)((val) & 0x00000000ffffffffULL))
 #define U64_TO_U32_HIGH(val)	((u32)((val) >> 32))
 
-#ifdef CONFIG_RESOURCES_64BIT
-#define RES_TO_U32_LOW(val)	U64_TO_U32_LOW(val)
-#define RES_TO_U32_HIGH(val)	U64_TO_U32_HIGH(val)
-#else
-#define RES_TO_U32_LOW(val)	(val)
-#define RES_TO_U32_HIGH(val)	(0)
-#endif
+#define RES_TO_U32_LOW(val)	\
+	((sizeof(resource_size_t) > sizeof(u32)) ? U64_TO_U32_LOW(val) : (val))
+#define RES_TO_U32_HIGH(val)	\
+	((sizeof(resource_size_t) > sizeof(u32)) ? U64_TO_U32_HIGH(val) : (0))
 
 static inline int ppc440spe_revA(void)
 {
@@ -145,12 +142,11 @@ static int __init ppc4xx_parse_dma_ranges(struct pci_controller *hose,
 
 		/* Use that */
 		res->start = pci_addr;
-#ifndef CONFIG_RESOURCES_64BIT
 		/* Beware of 32 bits resources */
-		if ((pci_addr + size) > 0x100000000ull)
+		if (sizeof(resource_size_t) == sizeof(u32) &&
+		    (pci_addr + size) > 0x100000000ull)
 			res->end = 0xffffffff;
 		else
-#endif
 			res->end = res->start + size - 1;
 		break;
 	}
