@@ -589,7 +589,7 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 		    "scsi(%ld): RSCN database changed -- %04x %04x %04x.\n",
 		    ha->host_no, mb[1], mb[2], mb[3]));
 
-		rscn_entry = (mb[1] << 16) | mb[2];
+		rscn_entry = ((mb[1] & 0xff) << 16) | mb[2];
 		host_pid = (ha->d_id.b.domain << 16) | (ha->d_id.b.area << 8) |
 		    ha->d_id.b.al_pa;
 		if (rscn_entry == host_pid) {
@@ -600,6 +600,8 @@ qla2x00_async_event(scsi_qla_host_t *ha, uint16_t *mb)
 			break;
 		}
 
+		/* Ignore reserved bits from RSCN-payload. */
+		rscn_entry = ((mb[1] & 0x3ff) << 16) | mb[2];
 		rscn_queue_index = ha->rscn_in_ptr + 1;
 		if (rscn_queue_index == MAX_RSCN_COUNT)
 			rscn_queue_index = 0;
