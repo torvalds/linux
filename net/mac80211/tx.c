@@ -1864,7 +1864,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	struct rate_selection rsel;
 	struct beacon_data *beacon;
 	struct ieee80211_supported_band *sband;
-	int *num_beacons;
 	enum ieee80211_band band = local->hw.conf.channel->band;
 
 	sband = local->hw.wiphy->bands[band];
@@ -1912,8 +1911,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 			if (beacon->tail)
 				memcpy(skb_put(skb, beacon->tail_len),
 				       beacon->tail, beacon->tail_len);
-
-			num_beacons = &ap->num_beacons;
 		} else
 			goto out;
 	} else if (sdata->vif.type == NL80211_IFTYPE_ADHOC) {
@@ -1931,8 +1928,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						 IEEE80211_STYPE_BEACON);
 
-		num_beacons = &ifsta->num_beacons;
-#ifdef CONFIG_MAC80211_MESH
 	} else if (ieee80211_vif_is_mesh(&sdata->vif)) {
 		struct ieee80211_mgmt *mgmt;
 		u8 *pos;
@@ -1960,9 +1955,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 		*pos++ = 0x0;
 
 		mesh_mgmt_ies_add(skb, sdata);
-
-		num_beacons = &sdata->u.mesh.num_beacons;
-#endif
 	} else {
 		WARN_ON(1);
 		goto out;
@@ -1999,7 +1991,6 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	info->antenna_sel_tx = local->hw.conf.antenna_sel_tx;
 	info->control.retry_limit = 1;
 
-	(*num_beacons)++;
 out:
 	rcu_read_unlock();
 	return skb;

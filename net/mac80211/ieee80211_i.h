@@ -229,7 +229,6 @@ struct ieee80211_if_ap {
 	struct sk_buff_head ps_bc_buf;
 	atomic_t num_sta_ps; /* number of stations in PS mode */
 	int dtim_count;
-	int num_beacons; /* number of TXed beacon frames for this BSS */
 };
 
 struct ieee80211_if_wds {
@@ -352,7 +351,6 @@ struct ieee80211_if_sta {
 	u32 supp_rates_bits[IEEE80211_NUM_BANDS];
 
 	int wmm_last_param_set;
-	int num_beacons; /* number of TXed beacon frames by this STA */
 };
 
 struct ieee80211_if_mesh {
@@ -388,7 +386,6 @@ struct ieee80211_if_mesh {
 	struct mesh_config mshcfg;
 	u32 mesh_seqnum;
 	bool accepting_plinks;
-	int num_beacons;
 };
 
 #ifdef CONFIG_MAC80211_MESH
@@ -484,7 +481,6 @@ struct ieee80211_sub_if_data {
 			struct dentry *auth_alg;
 			struct dentry *auth_transaction;
 			struct dentry *flags;
-			struct dentry *num_beacons_sta;
 			struct dentry *force_unicast_rateidx;
 			struct dentry *max_ratectrl_rateidx;
 		} sta;
@@ -492,7 +488,6 @@ struct ieee80211_sub_if_data {
 			struct dentry *drop_unencrypted;
 			struct dentry *num_sta_ps;
 			struct dentry *dtim_count;
-			struct dentry *num_beacons;
 			struct dentry *force_unicast_rateidx;
 			struct dentry *max_ratectrl_rateidx;
 			struct dentry *num_buffered_multicast;
