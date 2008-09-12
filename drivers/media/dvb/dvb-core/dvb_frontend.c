@@ -993,6 +993,42 @@ int is_legacy_delivery_system(fe_delivery_system_t s)
 	return 0;
 }
 
+/* Synchronise the legacy tuning parameters into the cache, so that demodulator
+ * drivers can use a single set_frontend tuning function, regardless of whether
+ * it's being used for the legacy or new API, reducing code and complexity.
+ */
+void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parameters *p)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	c->frequency = p->frequency;
+	c->inversion = p->inversion;
+
+	switch (fe->ops.info.type) {
+	case FE_QPSK:
+		c->symbol_rate = p->u.qpsk.symbol_rate;
+		c->fec_inner = p->u.qpsk.fec_inner;
+		break;
+	case FE_QAM:
+		c->symbol_rate = p->u.qam.symbol_rate;
+		c->fec_inner = p->u.qam.fec_inner;
+		c->modulation = p->u.qam.modulation;
+		break;
+	case FE_OFDM:
+		c->bandwidth = p->u.ofdm.bandwidth;
+		c->code_rate_HP = p->u.ofdm.code_rate_HP;
+		c->code_rate_LP = p->u.ofdm.code_rate_LP;
+		c->modulation = p->u.ofdm.constellation;
+		c->transmission_mode = p->u.ofdm.transmission_mode;
+		c->guard_interval = p->u.ofdm.guard_interval;
+		c->hierarchy = p->u.ofdm.hierarchy_information;
+		break;
+	case FE_ATSC:
+		c->modulation = p->u.vsb.modulation;
+		break;
+	}
+}
+
 int dtv_property_cache_submit(struct dvb_frontend *fe)
 {
 
@@ -1547,6 +1583,8 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 
 	case FE_SET_FRONTEND: {
 		struct dvb_frontend_tune_settings fetunesettings;
+
+		dtv_property_cache_sync(fe, &fepriv->parameters);
 
 		if(fe->dtv_property_cache.state == DTV_TUNE) {
 			if (dvb_frontend_check_parameters(fe, &fepriv->parameters) < 0) {
