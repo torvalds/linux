@@ -267,95 +267,88 @@ static void sun4m_set_udt(int cpu)
 }
 #endif
 
+struct sun4m_timer_percpu {
+	u32		l14_limit;
+	u32		l14_count;
+	u32		l14_limit_noclear;
+	u32		user_timer_start_stop;
+};
+
+static struct sun4m_timer_percpu __iomem *timers_percpu[SUN4M_NCPUS];
+
+struct sun4m_timer_global {
+	u32		l10_limit;
+	u32		l10_count;
+	u32		l10_limit_noclear;
+	u32		reserved;
+	u32		timer_config;
+};
+
+static struct sun4m_timer_global __iomem *timers_global;
+
 #define OBIO_INTR	0x20
 #define TIMER_IRQ  	(OBIO_INTR | 10)
-#define PROFILE_IRQ	(OBIO_INTR | 14)
 
-static struct sun4m_timer_regs *sun4m_timers;
 unsigned int lvl14_resolution = (((1000000/HZ) + 1) << 10);
 
 static void sun4m_clear_clock_irq(void)
 {
-	volatile unsigned int clear_intr;
-	clear_intr = sun4m_timers->l10_timer_limit;
+	sbus_readl(&timers_global->l10_limit);
 }
 
 static void sun4m_clear_profile_irq(int cpu)
 {
-	volatile unsigned int clear;
-    
-	clear = sun4m_timers->cpu_timers[cpu].l14_timer_limit;
+	sbus_readl(&timers_percpu[cpu]->l14_limit);
 }
 
 static void sun4m_load_profile_irq(int cpu, unsigned int limit)
 {
-	sun4m_timers->cpu_timers[cpu].l14_timer_limit = limit;
+	sbus_writel(limit, &timers_percpu[cpu]->l14_limit);
 }
 
 static void __init sun4m_init_timers(irq_handler_t counter_fn)
 {
-	int reg_count, irq, cpu;
-	struct linux_prom_registers cnt_regs[PROMREG_MAX];
-	int obio_node, cnt_node;
-	struct resource r;
+	struct device_node *dp = of_find_node_by_name(NULL, "counter");
+	int i, err, len, num_cpu_timers;
+	const u32 *addr;
 
-	cnt_node = 0;
-	if((obio_node =
-	    prom_searchsiblings (prom_getchild(prom_root_node), "obio")) == 0 ||
-	   (obio_node = prom_getchild (obio_node)) == 0 ||
-	   (cnt_node = prom_searchsiblings (obio_node, "counter")) == 0) {
-		prom_printf("Cannot find /obio/counter node\n");
-		prom_halt();
-	}
-	reg_count = prom_getproperty(cnt_node, "reg",
-				     (void *) cnt_regs, sizeof(cnt_regs));
-	reg_count = (reg_count/sizeof(struct linux_prom_registers));
-    
-	/* Apply the obio ranges to the timer registers. */
-	prom_apply_obio_ranges(cnt_regs, reg_count);
-    
-	cnt_regs[4].phys_addr = cnt_regs[reg_count-1].phys_addr;
-	cnt_regs[4].reg_size = cnt_regs[reg_count-1].reg_size;
-	cnt_regs[4].which_io = cnt_regs[reg_count-1].which_io;
-	for(obio_node = 1; obio_node < 4; obio_node++) {
-		cnt_regs[obio_node].phys_addr =
-			cnt_regs[obio_node-1].phys_addr + PAGE_SIZE;
-		cnt_regs[obio_node].reg_size = cnt_regs[obio_node-1].reg_size;
-		cnt_regs[obio_node].which_io = cnt_regs[obio_node-1].which_io;
+	if (!dp) {
+		printk(KERN_ERR "sun4m_init_timers: No 'counter' node.\n");
+		return;
 	}
 
-	memset((char*)&r, 0, sizeof(struct resource));
-	/* Map the per-cpu Counter registers. */
-	r.flags = cnt_regs[0].which_io;
-	r.start = cnt_regs[0].phys_addr;
-	sun4m_timers = (struct sun4m_timer_regs *) of_ioremap(&r, 0,
-	    PAGE_SIZE*SUN4M_NCPUS, "sun4m_cpu_cnt");
-	/* Map the system Counter register. */
-	/* XXX Here we expect consequent calls to yeld adjusent maps. */
-	r.flags = cnt_regs[4].which_io;
-	r.start = cnt_regs[4].phys_addr;
-	of_ioremap(&r, 0, cnt_regs[4].reg_size, "sun4m_sys_cnt");
-
-	sun4m_timers->l10_timer_limit =  (((1000000/HZ) + 1) << 10);
-	master_l10_counter = &sun4m_timers->l10_cur_count;
-	master_l10_limit = &sun4m_timers->l10_timer_limit;
-
-	irq = request_irq(TIMER_IRQ,
-			  counter_fn,
-			  (IRQF_DISABLED | SA_STATIC_ALLOC),
-			  "timer", NULL);
-	if (irq) {
-		prom_printf("time_init: unable to attach IRQ%d\n",TIMER_IRQ);
-		prom_halt();
+	addr = of_get_property(dp, "address", &len);
+	if (!addr) {
+		printk(KERN_ERR "sun4m_init_timers: No 'address' prop.\n");
+		return;
 	}
-   
-	if (!cpu_find_by_instance(1, NULL, NULL)) {
-		for(cpu = 0; cpu < 4; cpu++)
-			sun4m_timers->cpu_timers[cpu].l14_timer_limit = 0;
-		sun4m_interrupts->set = SUN4M_INT_E14;
-	} else {
-		sun4m_timers->cpu_timers[0].l14_timer_limit = 0;
+
+	num_cpu_timers = (len / sizeof(u32)) - 1;
+	for (i = 0; i < num_cpu_timers; i++) {
+		timers_percpu[i] = (void __iomem *)
+			(unsigned long) addr[i];
 	}
+	timers_global = (void __iomem *)
+		(unsigned long) addr[num_cpu_timers];
+
+	sbus_writel((((1000000/HZ) + 1) << 10), &timers_global->l10_limit);
+
+	master_l10_counter = &timers_global->l10_count;
+	master_l10_limit = &timers_global->l10_limit;
+
+	err = request_irq(TIMER_IRQ, counter_fn,
+			  (IRQF_DISABLED | SA_STATIC_ALLOC), "timer", NULL);
+	if (err) {
+		printk(KERN_ERR "sun4m_init_timers: Register IRQ error %d.\n",
+			err);
+		return;
+	}
+
+	for (i = 0; i < num_cpu_timers; i++)
+		sbus_writel(0, &timers_percpu[i]->l14_limit);
+	if (num_cpu_timers == 4)
+		sbus_writel(SUN4M_INT_E14, &sun4m_interrupts->set);
+
 #ifdef CONFIG_SMP
 	{
 		unsigned long flags;

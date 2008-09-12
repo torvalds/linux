@@ -35,49 +35,6 @@ struct sun4c_timer_info {
 
 #define SUN_TIMER_PHYSADDR   0xf3000000
 
-/* A sun4m has two blocks of registers which are probably of the same
- * structure. LSI Logic's L64851 is told to _decrement_ from the limit
- * value. Aurora behaves similarly but its limit value is compacted in
- * other fashion (it's wider). Documented fields are defined here.
- */
-
-/* As with the interrupt register, we have two classes of timer registers
- * which are per-cpu and master.  Per-cpu timers only hit that cpu and are
- * only level 14 ticks, master timer hits all cpus and is level 10.
- */
-
-#define SUN4M_PRM_CNT_L       0x80000000
-#define SUN4M_PRM_CNT_LVALUE  0x7FFFFC00
-
-struct sun4m_timer_percpu_info {
-  __volatile__ unsigned int l14_timer_limit;    /* Initial value is 0x009c4000 */
-  __volatile__ unsigned int l14_cur_count;
-
-  /* This register appears to be write only and/or inaccessible
-   * on Uni-Processor sun4m machines.
-   */
-  __volatile__ unsigned int l14_limit_noclear;  /* Data access error is here */
-
-  __volatile__ unsigned int cntrl;            /* =1 after POST on Aurora */
-  __volatile__ unsigned char space[PAGE_SIZE - 16];
-};
-
-struct sun4m_timer_regs {
-	struct sun4m_timer_percpu_info cpu_timers[SUN4M_NCPUS];
-	volatile unsigned int l10_timer_limit;
-	volatile unsigned int l10_cur_count;
-
-	/* Again, this appears to be write only and/or inaccessible
-	 * on uni-processor sun4m machines.
-	 */
-	volatile unsigned int l10_limit_noclear;
-
-	/* This register too, it must be magic. */
-	volatile unsigned int foobar;
-
-	volatile unsigned int cfg;     /* equals zero at boot time... */
-};
-
 #define SUN4D_PRM_CNT_L       0x80000000
 #define SUN4D_PRM_CNT_LVALUE  0x7FFFFC00
 
