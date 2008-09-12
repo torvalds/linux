@@ -309,6 +309,12 @@ struct ixgbe_adapter {
 	u64 lro_aggregated;
 	u64 lro_flushed;
 	u64 lro_no_desc;
+
+	u32 link_speed;
+	bool link_up;
+	unsigned long link_check_timeout;
+
+	struct work_struct watchdog_task;
 };
 
 enum ixbge_state_t {

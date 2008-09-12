@@ -703,6 +703,7 @@
 #define IXGBE_LINKS_TL_FAULT    0x00001000
 #define IXGBE_LINKS_SIGNAL      0x00000F00
 
+#define IXGBE_LINK_UP_TIME      90 /* 9.0 Seconds */
 #define IXGBE_AUTO_NEG_TIME     45 /* 4.5 Seconds */
 
 /* SW Semaphore Register bitmasks */
@@ -1249,7 +1250,7 @@ struct ixgbe_mac_operations {
 	s32 (*reset)(struct ixgbe_hw *);
 	enum ixgbe_media_type (*get_media_type)(struct ixgbe_hw *);
 	s32 (*setup_link)(struct ixgbe_hw *);
-	s32 (*check_link)(struct ixgbe_hw *, u32 *, bool *);
+	s32 (*check_link)(struct ixgbe_hw *, u32 *, bool *, bool);
 	s32 (*setup_link_speed)(struct ixgbe_hw *, u32, bool, bool);
 	s32 (*get_link_settings)(struct ixgbe_hw *, u32 *, bool *);
 };

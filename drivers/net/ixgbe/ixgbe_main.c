@@ -902,6 +902,20 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 	return;
 }
 
+
+static void ixgbe_check_lsc(struct ixgbe_adapter *adapter)
+{
+	struct ixgbe_hw *hw = &adapter->hw;
+
+	adapter->lsc_int++;
+	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
+	adapter->link_check_timeout = jiffies;
+	if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
+		IXGBE_WRITE_REG(hw, IXGBE_EIMC, IXGBE_EIMC_LSC);
+		schedule_work(&adapter->watchdog_task);
+	}
+}
+
 static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 {
 	struct net_device *netdev = data;
@@ -909,11 +923,8 @@ static irqreturn_t ixgbe_msix_lsc(int irq, void *data)
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
 
-	if (eicr & IXGBE_EICR_LSC) {
-		adapter->lsc_int++;
-		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			mod_timer(&adapter->watchdog_timer, jiffies);
-	}
+	if (eicr & IXGBE_EICR_LSC)
+		ixgbe_check_lsc(adapter);
 
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
 		IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMS_OTHER);
@@ -1237,12 +1248,8 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	if (!eicr)
 		return IRQ_NONE;	/* Not our interrupt */
 
-	if (eicr & IXGBE_EICR_LSC) {
-		adapter->lsc_int++;
-		if (!test_bit(__IXGBE_DOWN, &adapter->state))
-			mod_timer(&adapter->watchdog_timer, jiffies);
-	}
-
+	if (eicr & IXGBE_EICR_LSC)
+		ixgbe_check_lsc(adapter);
 
 	if (netif_rx_schedule_prep(netdev, &adapter->q_vector[0].napi)) {
 		adapter->tx_ring[0].total_packets = 0;
@@ -1897,6 +1904,8 @@ static int ixgbe_up_complete(struct ixgbe_adapter *adapter)
 
 	/* bring the link up in the watchdog, this could race with our first
 	 * link up interrupt but shouldn't be a problem */
+	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
+	adapter->link_check_timeout = jiffies;
 	mod_timer(&adapter->watchdog_timer, jiffies);
 	return 0;
 }
@@ -2098,6 +2107,7 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	ixgbe_napi_disable_all(adapter);
 	del_timer_sync(&adapter->watchdog_timer);
+	cancel_work_sync(&adapter->watchdog_task);
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);
@@ -3010,27 +3020,74 @@ void ixgbe_update_stats(struct ixgbe_adapter *adapter)
 static void ixgbe_watchdog(unsigned long data)
 {
 	struct ixgbe_adapter *adapter = (struct ixgbe_adapter *)data;
-	struct net_device *netdev = adapter->netdev;
-	bool link_up;
-	u32 link_speed = 0;
+	struct ixgbe_hw *hw = &adapter->hw;
 
-	adapter->hw.mac.ops.check_link(&adapter->hw, &(link_speed), &link_up);
+	/* Do the watchdog outside of interrupt context due to the lovely
+	 * delays that some of the newer hardware requires */
+	if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
+		/* Cause software interrupt to ensure rx rings are cleaned */
+		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
+			u32 eics =
+			 (1 << (adapter->num_msix_vectors - NON_Q_VECTORS)) - 1;
+			IXGBE_WRITE_REG(hw, IXGBE_EICS, eics);
+		} else {
+			/* For legacy and MSI interrupts don't set any bits that
+			 * are enabled for EIAM, because this operation would
+			 * set *both* EIMS and EICS for any bit in EIAM */
+			IXGBE_WRITE_REG(hw, IXGBE_EICS,
+                                    (IXGBE_EICS_TCP_TIMER | IXGBE_EICS_OTHER));
+		}
+		/* Reset the timer */
+		mod_timer(&adapter->watchdog_timer,
+		          round_jiffies(jiffies + 2 * HZ));
+	}
+
+	schedule_work(&adapter->watchdog_task);
+}
+
+/**
+ *  ixgbe_watchdog_task - worker thread to bring link up
+ *  @work: pointer to work_struct containing our data
+ **/
+static void ixgbe_watchdog_task(struct work_struct *work)
+{
+	struct ixgbe_adapter *adapter = container_of(work,
+	                                             struct ixgbe_adapter,
+	                                             watchdog_task);
+	struct net_device *netdev = adapter->netdev;
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 link_speed = adapter->link_speed;
+	bool link_up = adapter->link_up;
+
+	adapter->flags |= IXGBE_FLAG_IN_WATCHDOG_TASK;
+
+	if (adapter->flags & IXGBE_FLAG_NEED_LINK_UPDATE) {
+		hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
+		if (link_up ||
+		    time_after(jiffies, (adapter->link_check_timeout +
+		                         IXGBE_TRY_LINK_TIMEOUT))) {
+			IXGBE_WRITE_REG(hw, IXGBE_EIMS, IXGBE_EIMC_LSC);
+			adapter->flags &= ~IXGBE_FLAG_NEED_LINK_UPDATE;
+		}
+		adapter->link_up = link_up;
+		adapter->link_speed = link_speed;
+	}
 
 	if (link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			u32 frctl = IXGBE_READ_REG(&adapter->hw, IXGBE_FCTRL);
-			u32 rmcs = IXGBE_READ_REG(&adapter->hw, IXGBE_RMCS);
+			u32 frctl = IXGBE_READ_REG(hw, IXGBE_FCTRL);
+			u32 rmcs = IXGBE_READ_REG(hw, IXGBE_RMCS);
 #define FLOW_RX (frctl & IXGBE_FCTRL_RFCE)
 #define FLOW_TX (rmcs & IXGBE_RMCS_TFCE_802_3X)
 			DPRINTK(LINK, INFO, "NIC Link is Up %s, "
-				"Flow Control: %s\n",
-				(link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
-				 "10 Gbps" :
-				 (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
-				  "1 Gbps" : "unknown speed")),
-				((FLOW_RX && FLOW_TX) ? "RX/TX" :
-				 (FLOW_RX ? "RX" :
-				 (FLOW_TX ? "TX" : "None"))));
+			        "Flow Control: %s\n",
+			        (link_speed == IXGBE_LINK_SPEED_10GB_FULL ?
+			         "10 Gbps" :
+			         (link_speed == IXGBE_LINK_SPEED_1GB_FULL ?
+			          "1 Gbps" : "unknown speed")),
+			        ((FLOW_RX && FLOW_TX) ? "RX/TX" :
+			         (FLOW_RX ? "RX" :
+			         (FLOW_TX ? "TX" : "None"))));
 
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
@@ -3039,6 +3096,8 @@ static void ixgbe_watchdog(unsigned long data)
 			adapter->detect_tx_hung = true;
 		}
 	} else {
+		adapter->link_up = false;
+		adapter->link_speed = 0;
 		if (netif_carrier_ok(netdev)) {
 			DPRINTK(LINK, INFO, "NIC Link is Down\n");
 			netif_carrier_off(netdev);
@@ -3047,24 +3106,7 @@ static void ixgbe_watchdog(unsigned long data)
 	}
 
 	ixgbe_update_stats(adapter);
-
-	if (!test_bit(__IXGBE_DOWN, &adapter->state)) {
-		/* Cause software interrupt to ensure rx rings are cleaned */
-		if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {
-			u32 eics =
-			 (1 << (adapter->num_msix_vectors - NON_Q_VECTORS)) - 1;
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS, eics);
-		} else {
-			/* for legacy and MSI interrupts don't set any bits that
-			 * are enabled for EIAM, because this operation would
-			 * set *both* EIMS and EICS for any bit in EIAM */
-			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EICS,
-				     (IXGBE_EICS_TCP_TIMER | IXGBE_EICS_OTHER));
-		}
-		/* Reset the timer */
-		mod_timer(&adapter->watchdog_timer,
-			  round_jiffies(jiffies + 2 * HZ));
-	}
+	adapter->flags &= ~IXGBE_FLAG_IN_WATCHDOG_TASK;
 }
 
 static int ixgbe_tso(struct ixgbe_adapter *adapter,
@@ -3707,6 +3749,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 
 	INIT_WORK(&adapter->reset_task, ixgbe_reset_task);
+	INIT_WORK(&adapter->watchdog_task, ixgbe_watchdog_task);
 
 	err = ixgbe_init_interrupt_scheme(adapter);
 	if (err)

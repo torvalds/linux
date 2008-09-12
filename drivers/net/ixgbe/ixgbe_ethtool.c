@@ -130,7 +130,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->port = PORT_FIBRE;
 	}
 
-	adapter->hw.mac.ops.check_link(hw, &(link_speed), &link_up);
+	adapter->hw.mac.ops.check_link(hw, &(link_speed), &link_up, false);
 	if (link_up) {
 		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
 				SPEED_10000 : SPEED_1000;

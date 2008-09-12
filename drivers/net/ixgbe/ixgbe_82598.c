@@ -47,7 +47,8 @@ static s32 ixgbe_get_copper_link_settings_82598(struct ixgbe_hw *hw,
 static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw);
 static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw);
 static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, u32 *speed,
-				      bool *link_up);
+                                      bool *link_up,
+                                      bool link_up_wait_to_complete);
 static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw, u32 speed,
 					    bool autoneg,
 					    bool autoneg_wait_to_complete);
@@ -277,20 +278,36 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
  *  @hw: pointer to hardware structure
  *  @speed: pointer to link speed
  *  @link_up: true is link is up, false otherwise
+ *  @link_up_wait_to_complete: bool used to wait for link up or not
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
 static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, u32 *speed,
-				      bool *link_up)
+                                      bool *link_up,
+                                      bool link_up_wait_to_complete)
 {
 	u32 links_reg;
+	u32 i;
 
 	links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
 
-	if (links_reg & IXGBE_LINKS_UP)
-		*link_up = true;
-	else
-		*link_up = false;
+	if (link_up_wait_to_complete) {
+		for (i = 0; i < IXGBE_LINK_UP_TIME; i++) {
+			if (links_reg & IXGBE_LINKS_UP) {
+				*link_up = true;
+				break;
+			} else {
+				*link_up = false;
+			}
+			msleep(100);
+			links_reg = IXGBE_READ_REG(hw, IXGBE_LINKS);
+		}
+	} else {
+		if (links_reg & IXGBE_LINKS_UP)
+			*link_up = true;
+		else
+			*link_up = false;
+	}
 
 	if (links_reg & IXGBE_LINKS_SPEED)
 		*speed = IXGBE_LINK_SPEED_10GB_FULL;
