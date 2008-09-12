@@ -913,7 +913,7 @@ dispatch_ioctl(struct client *client, unsigned int cmd, void __user *arg)
 			return -EFAULT;
 	}
 
-	return 0;
+	return retval;
 }
 
 static long
