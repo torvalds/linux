@@ -1001,6 +1001,8 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 {
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 
+	printk("%s()\n", __FUNCTION__);
+
 	c->frequency = p->frequency;
 	c->inversion = p->inversion;
 
@@ -1029,153 +1031,114 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 	}
 }
 
-int dtv_property_cache_submit(struct dvb_frontend *fe)
+/* Ensure the cached values are set correctly in the frontend
+ * legacy tuning structures, for the advanced tuning API.
+ */
+void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 {
-
-	/* We have to do one of two things:
-	 * To support legacy devices using the new API we take values from
-	 * the tv_cache and generate a legacy truning structure.
-	 *
-	 * Or,
-	 *
-	 * To support advanced tuning devices with the new API we
-	 * notify the new advance driver type that a tuning operation is required
-	 * and let it pull values from the cache as is, we don't need to
-	 * pass structures.
-	 *
-	 * We'll use the modulation type to assess how this is handled. as the API
-	 * progresses we'll probably want to have a flag in dvb_frontend_ops
-	 * to allow the frontend driver to dictate how it likes to be tuned.
-	 *
-	 * Because of how this is attached to the ioctl handler for legacy support,
-	 * it's important to return an appropriate result code with atleast the following
-	 * three meanings:
-	 * < 0 = processing error
-	 *   0 = lecagy ioctl handler to submit a traditional set_frontend() call.
-	 *   1 = lecagy ioctl handler should NOT submit a traditional set_frontend() call.
-	 */
-
-	int r;
-
 	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
-	struct dvb_frontend_parameters p;
+	struct dvb_frontend_parameters *p = &fepriv->parameters;
 
 	printk("%s()\n", __FUNCTION__);
 
-	/* For legacy delivery systems we don't need the delivery_system to be specified */
+	p->frequency = c->frequency;
+	p->inversion = c->inversion;
+
+	switch (fe->ops.info.type) {
+	case FE_QPSK:
+		printk("%s() Preparing QPSK req\n", __FUNCTION__);
+		p->u.qpsk.symbol_rate = c->symbol_rate;
+		p->u.qpsk.fec_inner = c->fec_inner;
+		break;
+	case FE_QAM:
+		printk("%s() Preparing QAM req\n", __FUNCTION__);
+		p->u.qam.symbol_rate = c->symbol_rate;
+		p->u.qam.fec_inner = c->fec_inner;
+		p->u.qam.modulation = c->modulation;
+		break;
+	case FE_OFDM:
+		printk("%s() Preparing OFDM req\n", __FUNCTION__);
+		p->u.ofdm.bandwidth = c->bandwidth;
+		p->u.ofdm.code_rate_HP = c->code_rate_HP;
+		p->u.ofdm.code_rate_LP = c->code_rate_LP;
+		p->u.ofdm.constellation = c->modulation;
+		p->u.ofdm.transmission_mode = c->transmission_mode;
+		p->u.ofdm.guard_interval = c->guard_interval;
+		p->u.ofdm.hierarchy_information = c->hierarchy;
+		break;
+	case FE_ATSC:
+		printk("%s() Preparing VSB req\n", __FUNCTION__);
+		p->u.vsb.modulation = c->modulation;
+		break;
+	}
+}
+
+/* Ensure the cached values are set correctly in the frontend
+ * legacy tuning structures, for the legacy tuning API.
+ */
+void dtv_property_adv_params_sync(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+	struct dvb_frontend_private *fepriv = fe->frontend_priv;
+	struct dvb_frontend_parameters *p = &fepriv->parameters;
+
+	printk("%s()\n", __FUNCTION__);
+
+	p->frequency = c->frequency;
+	p->inversion = c->inversion;
+
+	switch(c->modulation) {
+	case _8PSK:
+	case _16APSK:
+	case NBC_QPSK:
+		p->u.qpsk.symbol_rate = c->symbol_rate;
+		p->u.qpsk.fec_inner = c->fec_inner;
+		break;
+	default:
+		break;
+	}
+
+	if(c->delivery_system == SYS_ISDBT) {
+		/* Fake out a generic DVB-T request so we pass validation in the ioctl */
+		p->frequency = c->frequency;
+		p->inversion = INVERSION_AUTO;
+		p->u.ofdm.constellation = QAM_AUTO;
+		p->u.ofdm.code_rate_HP = FEC_AUTO;
+		p->u.ofdm.code_rate_LP = FEC_AUTO;
+		p->u.ofdm.bandwidth = BANDWIDTH_AUTO;
+		p->u.ofdm.transmission_mode = TRANSMISSION_MODE_AUTO;
+		p->u.ofdm.guard_interval = GUARD_INTERVAL_AUTO;
+		p->u.ofdm.hierarchy_information = HIERARCHY_AUTO;
+	}
+}
+
+void dtv_property_cache_submit(struct dvb_frontend *fe)
+{
+	struct dtv_frontend_properties *c = &fe->dtv_property_cache;
+
+	printk("%s()\n", __FUNCTION__);
+
+	/* For legacy delivery systems we don't need the delivery_system to
+	 * be specified, but we populate the older structures from the cache
+	 * so we can call set_frontend on older drivers.
+	 */
 	if(is_legacy_delivery_system(c->delivery_system)) {
+
 		printk("%s() legacy, modulation = %d\n", __FUNCTION__, c->modulation);
-		switch(c->modulation) {
-		case QPSK:
-			printk("%s() Preparing QPSK req\n", __FUNCTION__);
-			p.frequency = c->frequency;
-			p.inversion = c->inversion;
-			p.u.qpsk.symbol_rate = c->symbol_rate;
-			p.u.qpsk.fec_inner = c->fec_inner;
-			memcpy(&fepriv->parameters, &p,
-				sizeof (struct dvb_frontend_parameters));
+		dtv_property_legacy_params_sync(fe);
 
-			/* Call the traditional tuning mechanisms. */
-
-			r = 0;
-			break;
-		case QAM_16:
-		case QAM_32:
-		case QAM_64:
-		case QAM_128:
-		case QAM_256:
-		case QAM_AUTO:
-			printk("%s() Preparing QAM req\n", __FUNCTION__);
-			p.frequency = c->frequency;
-			p.inversion = c->inversion;
-			p.u.qam.symbol_rate = c->symbol_rate;
-			p.u.vsb.modulation = c->modulation;
-			printk("%s() frequency = %d\n", __FUNCTION__, p.frequency);
-			printk("%s() QAM       = %d\n", __FUNCTION__, p.u.vsb.modulation);
-			memcpy(&fepriv->parameters, &p,
-				sizeof (struct dvb_frontend_parameters));
-
-			/* At this point we're fully formed for backwards
-			 * compatability and we need to return this
-			 * via the ioctl handler as SET_FRONTEND (arg).
-			 * We've already patched the new values into the
-			 * frontends tuning structures so the ioctl code just
-			 * continues as if a legacy tune structure was passed
-			 * from userspace.
-			 */
-
-			r = 0;
-			break;
-		case VSB_8:
-		case VSB_16:
-			printk("%s() Preparing VSB req\n", __FUNCTION__);
-			p.frequency = c->frequency;
-			p.u.vsb.modulation = c->modulation;
-			memcpy(&fepriv->parameters, &p,
-				sizeof (struct dvb_frontend_parameters));
-
-			/* Call the traditional tuning mechanisms. */
-
-			r = 0;
-			break;
-		/* TODO: Add any missing modulation types */
-		default:
-			r = -1;
-		}
 	} else {
+		printk("%s() adv, modulation = %d\n", __FUNCTION__, c->modulation);
+
 		/* For advanced delivery systems / modulation types ...
 		 * we seed the lecacy dvb_frontend_parameters structure
 		 * so that the sanity checking code later in the IOCTL processing
 		 * can validate our basic frequency ranges, symbolrates, modulation
 		 * etc.
 		 */
-		r = -1;
-
-		switch(c->modulation) {
-		case _8PSK:
-		case _16APSK:
-		case NBC_QPSK:
-			/* Just post a notification to the demod driver and let it pull
-			 * the specific values it wants from its dtv_property_cache.
-			 * It can decide how best to use those parameters.
-			 * IOCTL will call set_frontend (by default) due to zigzag
-			 * support etc.
-			 */
-			if (fe->ops.set_params)
-				r = fe->ops.set_params(fe);
-
-			p.frequency = c->frequency;
-			p.inversion = c->inversion;
-			p.u.qpsk.symbol_rate = c->symbol_rate;
-			p.u.qpsk.fec_inner = c->fec_inner;
-			memcpy(&fepriv->parameters, &p,
-				sizeof (struct dvb_frontend_parameters));
-
-			r = 0;
-			break;
-		default:
-			r = -1;
-		}
-
-		if(c->delivery_system == SYS_ISDBT) {
-			/* Fake out a generic DVB-T request so we pass validation in the ioctl */
-			p.frequency = c->frequency;
-			p.inversion = INVERSION_AUTO;
-			p.u.ofdm.constellation = QAM_AUTO;
-			p.u.ofdm.code_rate_HP = FEC_AUTO;
-			p.u.ofdm.code_rate_LP = FEC_AUTO;
-			p.u.ofdm.bandwidth = BANDWIDTH_AUTO;
-			p.u.ofdm.transmission_mode = TRANSMISSION_MODE_AUTO;
-			p.u.ofdm.guard_interval = GUARD_INTERVAL_AUTO;
-			p.u.ofdm.hierarchy_information = HIERARCHY_AUTO;
-			memcpy(&fepriv->parameters, &p,
-				sizeof (struct dvb_frontend_parameters));
-
-			r = 0;
-		}
+		dtv_property_adv_params_sync(fe);
 	}
-	return r;
 }
 
 static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
@@ -1203,13 +1166,13 @@ int dtv_property_process(struct dvb_frontend *fe, struct dtv_property *tvp,
 		break;
 	case DTV_TUNE:
 		/* interpret the cache of data, build either a traditional frontend
-		 * tunerequest and submit it to a subset of the ioctl handler,
-		 * or, call a new undefined method on the frontend to deal with
-		 * all new tune requests.
+		 * tunerequest so we can pass validation in the FE_SET_FRONTEND
+		 * ioctl.
 		 */
 		fe->dtv_property_cache.state = tvp->cmd;
 		printk("%s() Finalised property cache\n", __FUNCTION__);
-		r |= dtv_property_cache_submit(fe);
+		dtv_property_cache_submit(fe);
+
 		r |= dvb_frontend_ioctl_legacy(inode, file, FE_SET_FRONTEND,
 			&fepriv->parameters);
 		break;
