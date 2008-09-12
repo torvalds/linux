@@ -20,6 +20,75 @@
 #define ACCE_MOV_TO_PSR
 #define ACCE_THASH
 
+ENTRY(kvm_vps_entry)
+	adds r29 = VMM_VCPU_VSA_BASE_OFFSET,r21
+	;;
+	ld8 r29 = [r29]
+	;;
+	add r29 = r29, r30
+	;;
+	mov b0 = r29
+	br.sptk.many b0
+END(kvm_vps_entry)
+
+/*
+ *	Inputs:
+ *	r24 : return address
+ *  	r25 : vpd
+ *	r29 : scratch
+ *
+ */
+GLOBAL_ENTRY(kvm_vps_sync_read)
+	movl r30 = PAL_VPS_SYNC_READ
+	;;
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_sync_read)
+
+/*
+ *	Inputs:
+ *	r24 : return address
+ *  	r25 : vpd
+ *	r29 : scratch
+ *
+ */
+GLOBAL_ENTRY(kvm_vps_sync_write)
+	movl r30 = PAL_VPS_SYNC_WRITE
+	;;
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_sync_write)
+
+/*
+ *	Inputs:
+ *	r23 : pr
+ *	r24 : guest b0
+ *  	r25 : vpd
+ *
+ */
+GLOBAL_ENTRY(kvm_vps_resume_normal)
+	movl r30 = PAL_VPS_RESUME_NORMAL
+	;;
+	mov pr=r23,-2
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_resume_normal)
+
+/*
+ *	Inputs:
+ *	r23 : pr
+ *	r24 : guest b0
+ *  	r25 : vpd
+ *	r17 : isr
+ */
+GLOBAL_ENTRY(kvm_vps_resume_handler)
+	movl r30 = PAL_VPS_RESUME_HANDLER
+	;;
+	ld8 r27=[r25]
+	shr r17=r17,IA64_ISR_IR_BIT
+	;;
+	dep r27=r17,r27,63,1   // bit 63 of r27 indicate whether enable CFLE
+	mov pr=r23,-2
+	br.sptk.many kvm_vps_entry
+END(kvm_vps_resume_handler)
+
 //mov r1=ar3
 GLOBAL_ENTRY(kvm_asm_mov_from_ar)
 #ifndef ACCE_MOV_FROM_AR
