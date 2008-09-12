@@ -942,9 +942,9 @@ static int __devinit pci_sun4v_probe(struct of_device *op,
 	dp = op->node;
 
 	if (!hvapi_negotiated++) {
-		int err = sun4v_hvapi_register(HV_GRP_PCI,
-					       vpci_major,
-					       &vpci_minor);
+		err = sun4v_hvapi_register(HV_GRP_PCI,
+					   vpci_major,
+					   &vpci_minor);
 
 		if (err) {
 			printk(KERN_ERR PFX "Could not register hvapi, "
