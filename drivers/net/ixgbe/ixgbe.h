@@ -56,10 +56,6 @@
 #define IXGBE_MAX_RXD			   4096
 #define IXGBE_MIN_RXD			     64
 
-#define IXGBE_DEFAULT_RXQ			   1
-#define IXGBE_MAX_RXQ				   1
-#define IXGBE_MIN_RXQ				   1
-
 /* flow control */
 #define IXGBE_DEFAULT_FCRTL		0x10000
 #define IXGBE_MIN_FCRTL			   0x40
@@ -80,9 +76,6 @@
 #define IXGBE_RX_HDR_SIZE IXGBE_RXBUFFER_256
 
 #define MAXIMUM_ETHERNET_VLAN_SIZE (ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
-
-/* How many Tx Descriptors do we need to call netif_wake_queue? */
-#define IXGBE_TX_QUEUE_WAKE 16
 
 /* How many Rx Buffers do we bundle into one write to the hardware ? */
 #define IXGBE_RX_BUFFER_WRITE	16	/* Must be power of 2 */
