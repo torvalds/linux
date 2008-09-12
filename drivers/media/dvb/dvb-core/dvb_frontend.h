@@ -212,7 +212,7 @@ struct dtv_frontend_properties {
 	fe_delivery_system_t	delivery_system;
 
 	/* ISDB-T specifics */
-	u32			isdb_segment_num;
+	u32			isdb_segment_idx;
 	u32			isdb_segment_width;
 	fe_code_rate_t		isdb_layera_fec;
 	fe_modulation_t		isdb_layera_modulation;

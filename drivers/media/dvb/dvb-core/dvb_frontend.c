@@ -829,9 +829,9 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_SET_DELIVERY_SYSTEM,
 		.set	= 1,
 	},
-	[DTV_SET_ISDB_SEGMENT_NUM] = {
-		.name	= "DTV_SET_ISDB_SEGMENT_NUM",
-		.cmd	= DTV_SET_ISDB_SEGMENT_NUM,
+	[DTV_SET_ISDB_SEGMENT_IDX] = {
+		.name	= "DTV_SET_ISDB_SEGMENT_IDX",
+		.cmd	= DTV_SET_ISDB_SEGMENT_IDX,
 		.set	= 1,
 	},
 	[DTV_SET_ISDB_SEGMENT_WIDTH] = {
@@ -902,9 +902,9 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_GET_DELIVERY_SYSTEM,
 		.set	= 0,
 	},
-	[DTV_GET_ISDB_SEGMENT_NUM] = {
-		.name	= "DTV_GET_ISDB_SEGMENT_NUM",
-		.cmd	= DTV_GET_ISDB_SEGMENT_NUM,
+	[DTV_GET_ISDB_SEGMENT_IDX] = {
+		.name	= "DTV_GET_ISDB_SEGMENT_IDX",
+		.cmd	= DTV_GET_ISDB_SEGMENT_IDX,
 		.set	= 0,
 	},
 	[DTV_GET_ISDB_SEGMENT_WIDTH] = {
@@ -1232,11 +1232,11 @@ int dtv_property_process(struct dvb_frontend *fe, struct dtv_property *tvp,
 		break;
 
 	/* ISDB-T Support here */
-	case DTV_SET_ISDB_SEGMENT_NUM:
-		fe->dtv_property_cache.isdb_segment_num = tvp->u.data;
+	case DTV_SET_ISDB_SEGMENT_IDX:
+		fe->dtv_property_cache.isdb_segment_idx = tvp->u.data;
 		break;
-	case DTV_GET_ISDB_SEGMENT_NUM:
-		tvp->u.data = fe->dtv_property_cache.isdb_segment_num;
+	case DTV_GET_ISDB_SEGMENT_IDX:
+		tvp->u.data = fe->dtv_property_cache.isdb_segment_idx;
 		break;
 	case DTV_SET_ISDB_SEGMENT_WIDTH:
 		fe->dtv_property_cache.isdb_segment_width = tvp->u.data;
