@@ -490,37 +490,43 @@ give_sigsegv:
 	return -EFAULT;
 }
 
+static inline void
+handle_syscall_restart(unsigned long save_r0, struct pt_regs *regs,
+		       struct sigaction *sa)
+{
+	/* If we're not from a syscall, bail out */
+	if (regs->tra < 0)
+		return;
+
+	/* check for system call restart.. */
+	switch (regs->regs[0]) {
+		case -ERESTART_RESTARTBLOCK:
+		case -ERESTARTNOHAND:
+		no_system_call_restart:
+			regs->regs[0] = -EINTR;
+			regs->sr |= 1;
+			break;
+
+		case -ERESTARTSYS:
+			if (!(sa->sa_flags & SA_RESTART))
+				goto no_system_call_restart;
+		/* fallthrough */
+		case -ERESTARTNOINTR:
+			regs->regs[0] = save_r0;
+			regs->pc -= instruction_size(ctrl_inw(regs->pc - 4));
+			break;
+	}
+}
+
 /*
  * OK, we're invoking a handler
  */
-
 static int
 handle_signal(unsigned long sig, struct k_sigaction *ka, siginfo_t *info,
 	      sigset_t *oldset, struct pt_regs *regs, unsigned int save_r0)
 {
 	int ret;
 
-	/* Are we from a system call? */
-	if (regs->tra >= 0) {
-		/* If so, check system call restarting.. */
-		switch (regs->regs[0]) {
-			case -ERESTART_RESTARTBLOCK:
-			case -ERESTARTNOHAND:
-			no_system_call_restart:
-				regs->regs[0] = -EINTR;
-				break;
-
-			case -ERESTARTSYS:
-				if (!(ka->sa.sa_flags & SA_RESTART))
-					goto no_system_call_restart;
-			/* fallthrough */
-			case -ERESTARTNOINTR:
-				regs->regs[0] = save_r0;
-				regs->pc -= instruction_size(
-						ctrl_inw(regs->pc - 4));
-				break;
-		}
-	}
 
 	/* Set up the stack frame */
 	if (ka->sa.sa_flags & SA_SIGINFO)
@@ -578,6 +584,9 @@ static void do_signal(struct pt_regs *regs, unsigned int save_r0)
 
 	signr = get_signal_to_deliver(&info, &ka, regs, NULL);
 	if (signr > 0) {
+		if (regs->sr & 1)
+			handle_syscall_restart(save_r0, regs, &ka.sa);
+
 		/* Whee!  Actually deliver the signal.  */
 		if (handle_signal(signr, &ka, &info, oldset,
 				  regs, save_r0) == 0) {
