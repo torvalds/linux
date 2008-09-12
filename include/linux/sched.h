@@ -2134,7 +2134,6 @@ static inline int thread_group_cputime_clone_thread(struct task_struct *curr)
 	return thread_group_cputime_alloc(curr);
 }
 
-
 static inline void thread_group_cputime_free(struct signal_struct *sig)
 {
 	free_percpu(sig->cputime.totals);

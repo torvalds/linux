@@ -4046,7 +4046,6 @@ unsigned long long task_delta_exec(struct task_struct *p)
 	unsigned long flags;
 	u64 ns = 0;
 
-	rq = task_rq_lock(p, &flags);
 	if (task_current(rq, p)) {
 		u64 delta_exec;
 

@@ -276,133 +276,83 @@ sched_info_switch(struct task_struct *prev, struct task_struct *next)
  * on CONFIG_SCHEDSTATS.
  */
 
-#ifdef CONFIG_SMP
-
 /**
- * thread_group_cputime_account_user - Maintain utime for a thread group.
+ * account_group_user_time - Maintain utime for a thread group.
  *
- * @tgtimes:	Pointer to thread_group_cputime structure.
- * @cputime:	Time value by which to increment the utime field of that
- *		structure.
+ * @tsk:	Pointer to task structure.
+ * @cputime:	Time value by which to increment the utime field of the
+ *		thread_group_cputime structure.
  *
  * If thread group time is being maintained, get the structure for the
  * running CPU and update the utime field there.
  */
-static inline void thread_group_cputime_account_user(
-	struct thread_group_cputime *tgtimes,
-	cputime_t cputime)
+static inline void account_group_user_time(struct task_struct *tsk,
+					   cputime_t cputime)
 {
-	if (tgtimes->totals) {
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (unlikely(!sig))
+		return;
+	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
-		times = per_cpu_ptr(tgtimes->totals, get_cpu());
+		times = per_cpu_ptr(sig->cputime.totals, get_cpu());
 		times->utime = cputime_add(times->utime, cputime);
 		put_cpu_no_resched();
 	}
 }
 
 /**
- * thread_group_cputime_account_system - Maintain stime for a thread group.
+ * account_group_system_time - Maintain stime for a thread group.
  *
- * @tgtimes:	Pointer to thread_group_cputime structure.
- * @cputime:	Time value by which to increment the stime field of that
- *		structure.
+ * @tsk:	Pointer to task structure.
+ * @cputime:	Time value by which to increment the stime field of the
+ *		thread_group_cputime structure.
  *
  * If thread group time is being maintained, get the structure for the
  * running CPU and update the stime field there.
  */
-static inline void thread_group_cputime_account_system(
-	struct thread_group_cputime *tgtimes,
-	cputime_t cputime)
+static inline void account_group_system_time(struct task_struct *tsk,
+					     cputime_t cputime)
 {
-	if (tgtimes->totals) {
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (unlikely(!sig))
+		return;
+	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
-		times = per_cpu_ptr(tgtimes->totals, get_cpu());
+		times = per_cpu_ptr(sig->cputime.totals, get_cpu());
 		times->stime = cputime_add(times->stime, cputime);
 		put_cpu_no_resched();
 	}
 }
 
 /**
- * thread_group_cputime_account_exec_runtime - Maintain exec runtime for a
- *						thread group.
+ * account_group_exec_runtime - Maintain exec runtime for a thread group.
  *
- * @tgtimes:	Pointer to thread_group_cputime structure.
+ * @tsk:	Pointer to task structure.
  * @ns:		Time value by which to increment the sum_exec_runtime field
- *		of that structure.
+ *		of the thread_group_cputime structure.
  *
  * If thread group time is being maintained, get the structure for the
  * running CPU and update the sum_exec_runtime field there.
  */
-static inline void thread_group_cputime_account_exec_runtime(
-	struct thread_group_cputime *tgtimes,
-	unsigned long long ns)
+static inline void account_group_exec_runtime(struct task_struct *tsk,
+					      unsigned long long ns)
 {
-	if (tgtimes->totals) {
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (unlikely(!sig))
+		return;
+	if (sig->cputime.totals) {
 		struct task_cputime *times;
 
-		times = per_cpu_ptr(tgtimes->totals, get_cpu());
+		times = per_cpu_ptr(sig->cputime.totals, get_cpu());
 		times->sum_exec_runtime += ns;
 		put_cpu_no_resched();
 	}
-}
-
-#else /* CONFIG_SMP */
-
-static inline void thread_group_cputime_account_user(
-	struct thread_group_cputime *tgtimes,
-	cputime_t cputime)
-{
-	tgtimes->totals->utime = cputime_add(tgtimes->totals->utime, cputime);
-}
-
-static inline void thread_group_cputime_account_system(
-	struct thread_group_cputime *tgtimes,
-	cputime_t cputime)
-{
-	tgtimes->totals->stime = cputime_add(tgtimes->totals->stime, cputime);
-}
-
-static inline void thread_group_cputime_account_exec_runtime(
-	struct thread_group_cputime *tgtimes,
-	unsigned long long ns)
-{
-	tgtimes->totals->sum_exec_runtime += ns;
-}
-
-#endif /* CONFIG_SMP */
-
-/*
- * These are the generic time-accounting routines that use the above
- * functions.  They are the functions actually called by the scheduler.
- */
-static inline void account_group_user_time(struct task_struct *tsk,
-					    cputime_t cputime)
-{
-	struct signal_struct *sig;
-
-	sig = tsk->signal;
-	if (likely(sig))
-		thread_group_cputime_account_user(&sig->cputime, cputime);
-}
-
-static inline void account_group_system_time(struct task_struct *tsk,
-					      cputime_t cputime)
-{
-	struct signal_struct *sig;
-
-	sig = tsk->signal;
-	if (likely(sig))
-		thread_group_cputime_account_system(&sig->cputime, cputime);
-}
-
-static inline void account_group_exec_runtime(struct task_struct *tsk,
-					       unsigned long long ns)
-{
-	struct signal_struct *sig;
-
-	sig = tsk->signal;
-	if (likely(sig))
-		thread_group_cputime_account_exec_runtime(&sig->cputime, ns);
 }
