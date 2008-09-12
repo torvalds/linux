@@ -278,18 +278,12 @@
 #define IXGBE_RDSTATCTL 0x02C20
 #define IXGBE_RDSTAT(_i) (0x02C00 + ((_i) * 4)) /* 0x02C00-0x02C1C */
 #define IXGBE_RDHMPN    0x02F08
-#define IXGBE_RIC_DW0   0x02F10
-#define IXGBE_RIC_DW1   0x02F14
-#define IXGBE_RIC_DW2   0x02F18
-#define IXGBE_RIC_DW3   0x02F1C
+#define IXGBE_RIC_DW(_i)  (0x02F10 + ((_i) * 4))
 #define IXGBE_RDPROBE   0x02F20
 #define IXGBE_TDSTATCTL 0x07C20
 #define IXGBE_TDSTAT(_i) (0x07C00 + ((_i) * 4)) /* 0x07C00 - 0x07C1C */
 #define IXGBE_TDHMPN    0x07F08
-#define IXGBE_TIC_DW0   0x07F10
-#define IXGBE_TIC_DW1   0x07F14
-#define IXGBE_TIC_DW2   0x07F18
-#define IXGBE_TIC_DW3   0x07F1C
+#define IXGBE_TIC_DW(_i)  (0x07F10 + ((_i) * 4))
 #define IXGBE_TDPROBE   0x07F20
 #define IXGBE_TXBUFCTRL 0x0C600
 #define IXGBE_TXBUFDATA0  0x0C610

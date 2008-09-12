@@ -315,7 +315,9 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[17] = IXGBE_READ_REG(hw, IXGBE_GRC);
 
 	/* Interrupt */
-	regs_buff[18] = IXGBE_READ_REG(hw, IXGBE_EICR);
+	/* don't read EICR because it can clear interrupt causes, instead
+	 * read EICS which is a shadow but doesn't clear EICR */
+	regs_buff[18] = IXGBE_READ_REG(hw, IXGBE_EICS);
 	regs_buff[19] = IXGBE_READ_REG(hw, IXGBE_EICS);
 	regs_buff[20] = IXGBE_READ_REG(hw, IXGBE_EIMS);
 	regs_buff[21] = IXGBE_READ_REG(hw, IXGBE_EIMC);
@@ -419,7 +421,6 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[827] = IXGBE_READ_REG(hw, IXGBE_WUPM);
 	regs_buff[828] = IXGBE_READ_REG(hw, IXGBE_FHFT);
 
-	/* DCE */
 	regs_buff[829] = IXGBE_READ_REG(hw, IXGBE_RMCS);
 	regs_buff[830] = IXGBE_READ_REG(hw, IXGBE_DPMCS);
 	regs_buff[831] = IXGBE_READ_REG(hw, IXGBE_PDPMCS);
@@ -539,21 +540,17 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	/* Diagnostic */
 	regs_buff[1071] = IXGBE_READ_REG(hw, IXGBE_RDSTATCTL);
 	for (i = 0; i < 8; i++)
-		regs_buff[1072] = IXGBE_READ_REG(hw, IXGBE_RDSTAT(i));
+		regs_buff[1072 + i] = IXGBE_READ_REG(hw, IXGBE_RDSTAT(i));
 	regs_buff[1080] = IXGBE_READ_REG(hw, IXGBE_RDHMPN);
-	regs_buff[1081] = IXGBE_READ_REG(hw, IXGBE_RIC_DW0);
-	regs_buff[1082] = IXGBE_READ_REG(hw, IXGBE_RIC_DW1);
-	regs_buff[1083] = IXGBE_READ_REG(hw, IXGBE_RIC_DW2);
-	regs_buff[1084] = IXGBE_READ_REG(hw, IXGBE_RIC_DW3);
+	for (i = 0; i < 4; i++)
+		regs_buff[1081 + i] = IXGBE_READ_REG(hw, IXGBE_RIC_DW(i));
 	regs_buff[1085] = IXGBE_READ_REG(hw, IXGBE_RDPROBE);
 	regs_buff[1086] = IXGBE_READ_REG(hw, IXGBE_TDSTATCTL);
 	for (i = 0; i < 8; i++)
-		regs_buff[1087] = IXGBE_READ_REG(hw, IXGBE_TDSTAT(i));
+		regs_buff[1087 + i] = IXGBE_READ_REG(hw, IXGBE_TDSTAT(i));
 	regs_buff[1095] = IXGBE_READ_REG(hw, IXGBE_TDHMPN);
-	regs_buff[1096] = IXGBE_READ_REG(hw, IXGBE_TIC_DW0);
-	regs_buff[1097] = IXGBE_READ_REG(hw, IXGBE_TIC_DW1);
-	regs_buff[1098] = IXGBE_READ_REG(hw, IXGBE_TIC_DW2);
-	regs_buff[1099] = IXGBE_READ_REG(hw, IXGBE_TIC_DW3);
+	for (i = 0; i < 4; i++)
+		regs_buff[1096 + i] = IXGBE_READ_REG(hw, IXGBE_TIC_DW(i));
 	regs_buff[1100] = IXGBE_READ_REG(hw, IXGBE_TDPROBE);
 	regs_buff[1101] = IXGBE_READ_REG(hw, IXGBE_TXBUFCTRL);
 	regs_buff[1102] = IXGBE_READ_REG(hw, IXGBE_TXBUFDATA0);
@@ -566,7 +563,7 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[1109] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA2);
 	regs_buff[1110] = IXGBE_READ_REG(hw, IXGBE_RXBUFDATA3);
 	for (i = 0; i < 8; i++)
-		regs_buff[1111] = IXGBE_READ_REG(hw, IXGBE_PCIE_DIAG(i));
+		regs_buff[1111 + i] = IXGBE_READ_REG(hw, IXGBE_PCIE_DIAG(i));
 	regs_buff[1119] = IXGBE_READ_REG(hw, IXGBE_RFVAL);
 	regs_buff[1120] = IXGBE_READ_REG(hw, IXGBE_MDFTC1);
 	regs_buff[1121] = IXGBE_READ_REG(hw, IXGBE_MDFTC2);
