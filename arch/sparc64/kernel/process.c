@@ -215,7 +215,6 @@ static void __global_reg_self(struct thread_info *tp, struct pt_regs *regs,
 	global_reg_snapshot[this_cpu].o7 = regs->u_regs[UREG_I7];
 
 	if (regs->tstate & TSTATE_PRIV) {
-		struct thread_info *tp = current_thread_info();
 		struct reg_window *rw;
 
 		rw = (struct reg_window *)
@@ -271,7 +270,6 @@ void __trigger_all_cpu_backtrace(void)
 
 	for_each_online_cpu(cpu) {
 		struct global_reg_snapshot *gp = &global_reg_snapshot[cpu];
-		struct thread_info *tp;
 
 		__global_reg_poll(gp);
 
