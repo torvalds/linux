@@ -114,6 +114,7 @@ struct ixgbe_rx_buffer {
 	dma_addr_t dma;
 	struct page *page;
 	dma_addr_t page_dma;
+	unsigned int page_offset;
 };
 
 struct ixgbe_queue_stats {
