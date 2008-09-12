@@ -2270,7 +2270,6 @@ void die_if_kernel(char *str, struct pt_regs *regs)
 
 extern int handle_popc(u32 insn, struct pt_regs *regs);
 extern int handle_ldf_stq(u32 insn, struct pt_regs *regs);
-extern int vis_emul(struct pt_regs *, unsigned int);
 
 void do_illegal_instruction(struct pt_regs *regs)
 {

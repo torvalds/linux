@@ -243,7 +243,7 @@ static inline unsigned int *fps_regaddr(struct fpustate *f,
 struct edge_tab {
 	u16 left, right;
 };
-struct edge_tab edge8_tab[8] = {
+static struct edge_tab edge8_tab[8] = {
 	{ 0xff, 0x80 },
 	{ 0x7f, 0xc0 },
 	{ 0x3f, 0xe0 },
@@ -253,7 +253,7 @@ struct edge_tab edge8_tab[8] = {
 	{ 0x03, 0xfe },
 	{ 0x01, 0xff },
 };
-struct edge_tab edge8_tab_l[8] = {
+static struct edge_tab edge8_tab_l[8] = {
 	{ 0xff, 0x01 },
 	{ 0xfe, 0x03 },
 	{ 0xfc, 0x07 },
@@ -263,23 +263,23 @@ struct edge_tab edge8_tab_l[8] = {
 	{ 0xc0, 0x7f },
 	{ 0x80, 0xff },
 };
-struct edge_tab edge16_tab[4] = {
+static struct edge_tab edge16_tab[4] = {
 	{ 0xf, 0x8 },
 	{ 0x7, 0xc },
 	{ 0x3, 0xe },
 	{ 0x1, 0xf },
 };
-struct edge_tab edge16_tab_l[4] = {
+static struct edge_tab edge16_tab_l[4] = {
 	{ 0xf, 0x1 },
 	{ 0xe, 0x3 },
 	{ 0xc, 0x7 },
 	{ 0x8, 0xf },
 };
-struct edge_tab edge32_tab[2] = {
+static struct edge_tab edge32_tab[2] = {
 	{ 0x3, 0x2 },
 	{ 0x1, 0x3 },
 };
-struct edge_tab edge32_tab_l[2] = {
+static struct edge_tab edge32_tab_l[2] = {
 	{ 0x3, 0x1 },
 	{ 0x2, 0x3 },
 };
