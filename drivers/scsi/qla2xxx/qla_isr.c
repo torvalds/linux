@@ -1834,7 +1834,6 @@ clear_risc_ints:
 		WRT_REG_WORD(&reg->isp.hccr, HCCR_CLR_HOST_INT);
 	}
 	spin_unlock_irq(&ha->hardware_lock);
-	ha->isp_ops->enable_intrs(ha);
 
 fail:
 	return ret;
