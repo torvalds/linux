@@ -145,11 +145,50 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
+#ifdef CONFIG_SH_DSP
+static int dspregs_get(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       void *kbuf, void __user *ubuf)
+{
+	const struct pt_dspregs *regs = task_pt_dspregs(target);
+	int ret;
+
+	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf, regs,
+				  0, sizeof(struct pt_dspregs));
+	if (!ret)
+		ret = user_regset_copyout_zero(&pos, &count, &kbuf, &ubuf,
+					       sizeof(struct pt_dspregs), -1);
+
+	return ret;
+}
+
+static int dspregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	struct pt_dspregs *regs = task_pt_dspregs(target);
+	int ret;
+
+	ret = user_regset_copyin(&pos, &count, &kbuf, &ubuf, regs,
+				 0, sizeof(struct pt_dspregs));
+	if (!ret)
+		ret = user_regset_copyin_ignore(&pos, &count, &kbuf, &ubuf,
+						sizeof(struct pt_dspregs), -1);
+
+	return ret;
+}
+#endif
+
 /*
  * These are our native regset flavours.
  */
 enum sh_regset {
 	REGSET_GENERAL,
+#ifdef CONFIG_SH_DSP
+	REGSET_DSP,
+#endif
 };
 
 static const struct user_regset sh_regsets[] = {
@@ -166,6 +205,16 @@ static const struct user_regset sh_regsets[] = {
 		.get		= genregs_get,
 		.set		= genregs_set,
 	},
+
+#ifdef CONFIG_SH_DSP
+	[REGSET_DSP] = {
+		.n		= sizeof(struct pt_dspregs) / sizeof(long),
+		.size		= sizeof(long),
+		.align		= sizeof(long),
+		.get		= dspregs_get,
+		.set		= dspregs_set,
+	},
+#endif
 };
 
 static const struct user_regset_view user_sh_native_view = {
@@ -242,33 +291,16 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     0, sizeof(struct pt_regs),
 					     (const void __user *)data);
 #ifdef CONFIG_SH_DSP
-	case PTRACE_GETDSPREGS: {
-		unsigned long dp;
-
-		ret = -EIO;
-		dp = ((unsigned long) child) + THREAD_SIZE -
-			 sizeof(struct pt_dspregs);
-		if (*((int *) (dp - 4)) == SR_FD) {
-			copy_to_user((void *)addr, (void *) dp,
-				sizeof(struct pt_dspregs));
-			ret = 0;
-		}
-		break;
-	}
-
-	case PTRACE_SETDSPREGS: {
-		unsigned long dp;
-
-		ret = -EIO;
-		dp = ((unsigned long) child) + THREAD_SIZE -
-			 sizeof(struct pt_dspregs);
-		if (*((int *) (dp - 4)) == SR_FD) {
-			copy_from_user((void *) dp, (void *)addr,
-				sizeof(struct pt_dspregs));
-			ret = 0;
-		}
-		break;
-	}
+	case PTRACE_GETDSPREGS:
+		return copy_regset_to_user(child, &user_sh_native_view,
+					   REGSET_DSP,
+					   0, sizeof(struct pt_dspregs),
+					   (void __user *)data);
+	case PTRACE_SETDSPREGS:
+		return copy_regset_from_user(child, &user_sh_native_view,
+					     REGSET_DSP,
+					     0, sizeof(struct pt_dspregs),
+					     (const void __user *)data);
 #endif
 #ifdef CONFIG_BINFMT_ELF_FDPIC
 	case PTRACE_GETFDPIC: {

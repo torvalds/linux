@@ -123,6 +123,9 @@ extern void user_disable_single_step(struct task_struct *);
 #define task_pt_regs(task) \
 	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
 		 - sizeof(struct pt_dspregs) - sizeof(unsigned long)) - 1)
+#define task_pt_dspregs(task) \
+	((struct pt_dspregs *) (task_stack_page(task) + THREAD_SIZE \
+		 - sizeof(unsigned long)) - 1)
 #else
 #define task_pt_regs(task) \
 	((struct pt_regs *) (task_stack_page(task) + THREAD_SIZE \
