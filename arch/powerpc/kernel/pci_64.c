@@ -52,35 +52,6 @@ EXPORT_SYMBOL(pci_io_base);
 
 LIST_HEAD(hose_list);
 
-static struct dma_mapping_ops *pci_dma_ops;
-
-void set_pci_dma_ops(struct dma_mapping_ops *dma_ops)
-{
-	pci_dma_ops = dma_ops;
-}
-
-struct dma_mapping_ops *get_pci_dma_ops(void)
-{
-	return pci_dma_ops;
-}
-EXPORT_SYMBOL(get_pci_dma_ops);
-
-
-int pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	return dma_set_mask(&dev->dev, mask);
-}
-
-int pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	int rc;
-
-	rc = dma_set_mask(&dev->dev, mask);
-	dev->dev.coherent_dma_mask = dev->dma_mask;
-
-	return rc;
-}
-
 static void fixup_broken_pcnet32(struct pci_dev* dev)
 {
 	if ((dev->class>>8 == PCI_CLASS_NETWORK_ETHERNET)) {
@@ -547,23 +518,6 @@ int __devinit pcibios_map_io_space(struct pci_bus *bus)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(pcibios_map_io_space);
-
-void __devinit pcibios_setup_new_device(struct pci_dev *dev)
-{
-	struct dev_archdata *sd = &dev->dev.archdata;
-
-	sd->of_node = pci_device_to_OF_node(dev);
-
-	DBG("PCI: device %s OF node: %s\n", pci_name(dev),
-	    sd->of_node ? sd->of_node->full_name : "<none>");
-
-	sd->dma_ops = pci_dma_ops;
-	set_dev_node(&dev->dev, pcibus_to_node(dev->bus));
-
-	if (ppc_md.pci_dma_dev_setup)
-		ppc_md.pci_dma_dev_setup(dev);
-}
-EXPORT_SYMBOL(pcibios_setup_new_device);
 
 void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 {

@@ -16,20 +16,29 @@
  * This implementation supports a per-device offset that can be applied if
  * the address at which memory is visible to devices is not 0. Platform code
  * can set archdata.dma_data to an unsigned long holding the offset. By
- * default the offset is zero.
+ * default the offset is PCI_DRAM_OFFSET.
  */
 
 static unsigned long get_dma_direct_offset(struct device *dev)
 {
-	return (unsigned long)dev->archdata.dma_data;
+	if (dev)
+		return (unsigned long)dev->archdata.dma_data;
+
+	return PCI_DRAM_OFFSET;
 }
 
-static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
-				       dma_addr_t *dma_handle, gfp_t flag)
+void *dma_direct_alloc_coherent(struct device *dev, size_t size,
+				dma_addr_t *dma_handle, gfp_t flag)
 {
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	return __dma_alloc_coherent(size, dma_handle, flag);
+#else
 	struct page *page;
 	void *ret;
 	int node = dev_to_node(dev);
+
+	/* ignore region specifiers */
+	flag  &= ~(__GFP_HIGHMEM);
 
 	page = alloc_pages_node(node, flag, get_order(size));
 	if (page == NULL)
@@ -39,27 +48,17 @@ static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 	*dma_handle = virt_to_abs(ret) + get_dma_direct_offset(dev);
 
 	return ret;
+#endif
 }
 
-static void dma_direct_free_coherent(struct device *dev, size_t size,
-				     void *vaddr, dma_addr_t dma_handle)
+void dma_direct_free_coherent(struct device *dev, size_t size,
+			      void *vaddr, dma_addr_t dma_handle)
 {
+#ifdef CONFIG_NOT_COHERENT_CACHE
+	__dma_free_coherent(size, vaddr);
+#else
 	free_pages((unsigned long)vaddr, get_order(size));
-}
-
-static dma_addr_t dma_direct_map_single(struct device *dev, void *ptr,
-					size_t size,
-					enum dma_data_direction direction,
-					struct dma_attrs *attrs)
-{
-	return virt_to_abs(ptr) + get_dma_direct_offset(dev);
-}
-
-static void dma_direct_unmap_single(struct device *dev, dma_addr_t dma_addr,
-				    size_t size,
-				    enum dma_data_direction direction,
-				    struct dma_attrs *attrs)
-{
+#endif
 }
 
 static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
@@ -85,20 +84,44 @@ static void dma_direct_unmap_sg(struct device *dev, struct scatterlist *sg,
 
 static int dma_direct_dma_supported(struct device *dev, u64 mask)
 {
+#ifdef CONFIG_PPC64
 	/* Could be improved to check for memory though it better be
 	 * done via some global so platforms can set the limit in case
 	 * they have limited DMA windows
 	 */
 	return mask >= DMA_32BIT_MASK;
+#else
+	return 1;
+#endif
+}
+
+static inline dma_addr_t dma_direct_map_page(struct device *dev,
+					     struct page *page,
+					     unsigned long offset,
+					     size_t size,
+					     enum dma_data_direction dir,
+					     struct dma_attrs *attrs)
+{
+	BUG_ON(dir == DMA_NONE);
+	__dma_sync_page(page, offset, size, dir);
+	return page_to_phys(page) + offset + get_dma_direct_offset(dev);
+}
+
+static inline void dma_direct_unmap_page(struct device *dev,
+					 dma_addr_t dma_address,
+					 size_t size,
+					 enum dma_data_direction direction,
+					 struct dma_attrs *attrs)
+{
 }
 
 struct dma_mapping_ops dma_direct_ops = {
 	.alloc_coherent	= dma_direct_alloc_coherent,
 	.free_coherent	= dma_direct_free_coherent,
-	.map_single	= dma_direct_map_single,
-	.unmap_single	= dma_direct_unmap_single,
 	.map_sg		= dma_direct_map_sg,
 	.unmap_sg	= dma_direct_unmap_sg,
 	.dma_supported	= dma_direct_dma_supported,
+	.map_page	= dma_direct_map_page,
+	.unmap_page	= dma_direct_unmap_page,
 };
 EXPORT_SYMBOL(dma_direct_ops);

@@ -424,6 +424,7 @@ void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 	unsigned long io_offset;
 	struct resource *res;
 	int i;
+	struct pci_dev *dev;
 
 	/* Hookup PHB resources */
 	io_offset = (unsigned long)hose->io_base_virt - isa_io_base;
@@ -457,6 +458,12 @@ void __devinit pcibios_do_bus_setup(struct pci_bus *bus)
 			bus->resource[i+1] = res;
 		}
 	}
+
+	if (ppc_md.pci_dma_bus_setup)
+		ppc_md.pci_dma_bus_setup(bus);
+
+	list_for_each_entry(dev, &bus->devices, bus_list)
+		pcibios_setup_new_device(dev);
 }
 
 /* the next one is stolen from the alpha port... */
