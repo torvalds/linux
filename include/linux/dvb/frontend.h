@@ -251,6 +251,7 @@ struct dvb_frontend_event {
  * binary compatability.
  */
 typedef enum dtv_cmd_types {
+	DTV_UNDEFINED,
 	DTV_TUNE,
 	DTV_CLEAR,
 
