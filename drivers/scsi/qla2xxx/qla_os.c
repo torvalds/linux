@@ -1517,6 +1517,7 @@ qla2xxx_scan_start(struct Scsi_Host *shost)
 	set_bit(LOOP_RESYNC_NEEDED, &ha->dpc_flags);
 	set_bit(LOCAL_LOOP_UPDATE, &ha->dpc_flags);
 	set_bit(RSCN_UPDATE, &ha->dpc_flags);
+	set_bit(NPIV_CONFIG_NEEDED, &ha->dpc_flags);
 }
 
 static int
@@ -2429,6 +2430,12 @@ qla2x00_do_dpc(void *data)
 
 			DEBUG(printk("scsi(%ld): qla2x00_loop_resync - end\n",
 			    ha->host_no));
+		}
+
+		if (test_bit(NPIV_CONFIG_NEEDED, &ha->dpc_flags) &&
+		    atomic_read(&ha->loop_state) == LOOP_READY) {
+			clear_bit(NPIV_CONFIG_NEEDED, &ha->dpc_flags);
+			qla2xxx_flash_npiv_conf(ha);
 		}
 
 		if (!ha->interrupts_on)

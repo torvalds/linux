@@ -2239,6 +2239,7 @@ typedef struct scsi_qla_host {
 #define FCPORT_UPDATE_NEEDED	27
 #define VP_DPC_NEEDED		28	/* wake up for VP dpc handling */
 #define UNLOADING		29
+#define NPIV_CONFIG_NEEDED	30
 
 	uint32_t	device_flags;
 #define DFLG_LOCAL_DEVICES		BIT_0
@@ -2559,6 +2560,7 @@ typedef struct scsi_qla_host {
 	uint32_t	flt_region_fw;
 	uint32_t	flt_region_vpd_nvram;
 	uint32_t	flt_region_hw_event;
+	uint32_t	flt_region_npiv_conf;
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;

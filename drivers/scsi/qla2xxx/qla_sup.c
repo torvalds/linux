@@ -686,6 +686,14 @@ qla2xxx_get_flt_info(scsi_qla_host_t *ha, uint32_t flt_addr)
 			if (PCI_FUNC(ha->pdev->devfn))
 				ha->flt_region_hw_event = start;
 			break;
+		case FLT_REG_NPIV_CONF_0:
+			if (!PCI_FUNC(ha->pdev->devfn))
+				ha->flt_region_npiv_conf = start;
+			break;
+		case FLT_REG_NPIV_CONF_1:
+			if (PCI_FUNC(ha->pdev->devfn))
+				ha->flt_region_npiv_conf = start;
+			break;
 		}
 	}
 	goto done;
@@ -700,11 +708,15 @@ no_flash_data:
 	    FA_FLASH_DESCR_ADDR;
 	ha->flt_region_hw_event = !PCI_FUNC(ha->pdev->devfn) ?
 	    FA_HW_EVENT0_ADDR: FA_HW_EVENT1_ADDR;
+	ha->flt_region_npiv_conf = !PCI_FUNC(ha->pdev->devfn) ?
+	    (IS_QLA24XX_TYPE(ha) ? FA_NPIV_CONF0_ADDR_24: FA_NPIV_CONF0_ADDR):
+	    (IS_QLA24XX_TYPE(ha) ? FA_NPIV_CONF1_ADDR_24: FA_NPIV_CONF1_ADDR);
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
-	    "vpd_nvram=0x%x fdt=0x%x flt=0x%x hwe=0x%x.\n", loc,
+	    "vpd_nvram=0x%x fdt=0x%x flt=0x%x hwe=0x%x npiv=0x%x.\n", loc,
 	    ha->flt_region_boot, ha->flt_region_fw, ha->flt_region_vpd_nvram,
-	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_hw_event));
+	    ha->flt_region_fdt, ha->flt_region_flt, ha->flt_region_hw_event,
+	    ha->flt_region_npiv_conf));
 }
 
 static void
@@ -812,6 +824,88 @@ qla2xxx_get_flash_info(scsi_qla_host_t *ha)
 	qla2xxx_get_fdt_info(ha);
 
 	return QLA_SUCCESS;
+}
+
+void
+qla2xxx_flash_npiv_conf(scsi_qla_host_t *ha)
+{
+#define NPIV_CONFIG_SIZE	(16*1024)
+	void *data;
+	uint16_t *wptr;
+	uint16_t cnt, chksum;
+	struct qla_npiv_header hdr;
+	struct qla_npiv_entry *entry;
+
+	if (!IS_QLA24XX_TYPE(ha) && !IS_QLA25XX(ha))
+		return;
+
+	ha->isp_ops->read_optrom(ha, (uint8_t *)&hdr,
+	    ha->flt_region_npiv_conf << 2, sizeof(struct qla_npiv_header));
+	if (hdr.version == __constant_cpu_to_le16(0xffff))
+		return;
+	if (hdr.version != __constant_cpu_to_le16(1)) {
+		DEBUG2(qla_printk(KERN_INFO, ha, "Unsupported NPIV-Config "
+		    "detected: version=0x%x entries=0x%x checksum=0x%x.\n",
+		    le16_to_cpu(hdr.version), le16_to_cpu(hdr.entries),
+		    le16_to_cpu(hdr.checksum)));
+		return;
+	}
+
+	data = kmalloc(NPIV_CONFIG_SIZE, GFP_KERNEL);
+	if (!data) {
+		DEBUG2(qla_printk(KERN_INFO, ha, "NPIV-Config: Unable to "
+		    "allocate memory.\n"));
+		return;
+	}
+
+	ha->isp_ops->read_optrom(ha, (uint8_t *)data,
+	    ha->flt_region_npiv_conf << 2, NPIV_CONFIG_SIZE);
+
+	cnt = (sizeof(struct qla_npiv_header) + le16_to_cpu(hdr.entries) *
+	    sizeof(struct qla_npiv_entry)) >> 1;
+	for (wptr = data, chksum = 0; cnt; cnt--)
+		chksum += le16_to_cpu(*wptr++);
+	if (chksum) {
+		DEBUG2(qla_printk(KERN_INFO, ha, "Inconsistent NPIV-Config "
+		    "detected: version=0x%x entries=0x%x checksum=0x%x.\n",
+		    le16_to_cpu(hdr.version), le16_to_cpu(hdr.entries),
+		    chksum));
+		goto done;
+	}
+
+	entry = data + sizeof(struct qla_npiv_header);
+	cnt = le16_to_cpu(hdr.entries);
+	for ( ; cnt; cnt--, entry++) {
+		uint16_t flags;
+		struct fc_vport_identifiers vid;
+		struct fc_vport *vport;
+
+		flags = le16_to_cpu(entry->flags);
+		if (flags == 0xffff)
+			continue;
+		if ((flags & BIT_0) == 0)
+			continue;
+
+		memset(&vid, 0, sizeof(vid));
+		vid.roles = FC_PORT_ROLE_FCP_INITIATOR;
+		vid.vport_type = FC_PORTTYPE_NPIV;
+		vid.disable = false;
+		vid.port_name = wwn_to_u64(entry->port_name);
+		vid.node_name = wwn_to_u64(entry->node_name);
+
+		DEBUG2(qla_printk(KERN_DEBUG, ha, "NPIV[%02x]: wwpn=%llx "
+		    "wwnn=%llx vf_id=0x%x qos=0x%x.\n", cnt, vid.port_name,
+		    vid.node_name, le16_to_cpu(entry->vf_id),
+		    le16_to_cpu(entry->qos)));
+
+		vport = fc_vport_create(ha->host, 0, &vid);
+		if (!vport)
+			qla_printk(KERN_INFO, ha, "NPIV-Config: Failed to "
+			    "create vport [%02x]: wwpn=%llx wwnn=%llx.\n", cnt,
+			    vid.port_name, vid.node_name);
+	}
+done:
+	kfree(data);
 }
 
 static void

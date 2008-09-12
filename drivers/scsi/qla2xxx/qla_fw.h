@@ -791,6 +791,8 @@ struct device_reg_24xx {
 
 #define FA_FLASH_DESCR_ADDR_24	0x11000
 #define FA_FLASH_LAYOUT_ADDR_24	0x11400
+#define FA_NPIV_CONF0_ADDR_24	0x16000
+#define FA_NPIV_CONF1_ADDR_24	0x17000
 
 #define FA_FW_AREA_ADDR		0x40000
 #define FA_VPD_NVRAM_ADDR	0x48000
@@ -801,6 +803,9 @@ struct device_reg_24xx {
 #define FA_HW_EVENT1_ADDR	0x54400
 #define FA_HW_EVENT_SIZE	0x200
 #define FA_HW_EVENT_ENTRY_SIZE	4
+#define FA_NPIV_CONF0_ADDR	0x5C000
+#define FA_NPIV_CONF1_ADDR	0x5D000
+
 /*
  * Flash Error Log Event Codes.
  */
@@ -1230,12 +1235,33 @@ struct qla_flt_header {
 #define FLT_REG_FLT		0x1c
 #define FLT_REG_HW_EVENT_0	0x1d
 #define FLT_REG_HW_EVENT_1	0x1f
+#define FLT_REG_NPIV_CONF_0	0x29
+#define FLT_REG_NPIV_CONF_1	0x2a
 
 struct qla_flt_region {
 	uint32_t code;
 	uint32_t size;
 	uint32_t start;
 	uint32_t end;
+};
+
+/* Flash NPIV Configuration Table ********************************************/
+
+struct qla_npiv_header {
+	uint8_t sig[2];
+	uint16_t version;
+	uint16_t entries;
+	uint16_t unused[4];
+	uint16_t checksum;
+};
+
+struct qla_npiv_entry {
+	uint16_t flags;
+	uint16_t vf_id;
+	uint16_t qos;
+	uint16_t unused1;
+	uint8_t port_name[WWN_SIZE];
+	uint8_t node_name[WWN_SIZE];
 };
 
 /* 84XX Support **************************************************************/
