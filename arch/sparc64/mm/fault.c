@@ -51,43 +51,6 @@ static inline int notify_page_fault(struct pt_regs *regs)
 }
 #endif
 
-/*
- * To debug kernel to catch accesses to certain virtual/physical addresses.
- * Mode = 0 selects physical watchpoints, mode = 1 selects virtual watchpoints.
- * flags = VM_READ watches memread accesses, flags = VM_WRITE watches memwrite accesses.
- * Caller passes in a 64bit aligned addr, with mask set to the bytes that need to be
- * watched. This is only useful on a single cpu machine for now. After the watchpoint
- * is detected, the process causing it will be killed, thus preventing an infinite loop.
- */
-void set_brkpt(unsigned long addr, unsigned char mask, int flags, int mode)
-{
-	unsigned long lsubits;
-
-	__asm__ __volatile__("ldxa [%%g0] %1, %0"
-			     : "=r" (lsubits)
-			     : "i" (ASI_LSU_CONTROL));
-	lsubits &= ~(LSU_CONTROL_PM | LSU_CONTROL_VM |
-		     LSU_CONTROL_PR | LSU_CONTROL_VR |
-		     LSU_CONTROL_PW | LSU_CONTROL_VW);
-
-	__asm__ __volatile__("stxa	%0, [%1] %2\n\t"
-			     "membar	#Sync"
-			     : /* no outputs */
-			     : "r" (addr), "r" (mode ? VIRT_WATCHPOINT : PHYS_WATCHPOINT),
-			       "i" (ASI_DMMU));
-
-	lsubits |= ((unsigned long)mask << (mode ? 25 : 33));
-	if (flags & VM_READ)
-		lsubits |= (mode ? LSU_CONTROL_VR : LSU_CONTROL_PR);
-	if (flags & VM_WRITE)
-		lsubits |= (mode ? LSU_CONTROL_VW : LSU_CONTROL_PW);
-	__asm__ __volatile__("stxa %0, [%%g0] %1\n\t"
-			     "membar #Sync"
-			     : /* no outputs */
-			     : "r" (lsubits), "i" (ASI_LSU_CONTROL)
-			     : "memory");
-}
-
 static void __kprobes unhandled_fault(unsigned long address,
 				      struct task_struct *tsk,
 				      struct pt_regs *regs)
