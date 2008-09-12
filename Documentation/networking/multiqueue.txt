@@ -66,7 +66,14 @@ band 3 => queue 3
 Traffic will begin flowing through each queue if your base device has either
 the default simple_tx_hash or a custom netdev->select_queue() defined.
 
-The behavior of tc filters remains the same.
+The behavior of tc filters remains the same.  However a new tc action,
+skbedit, has been added.  Assuming you wanted to route all traffic to a
+specific host, for example 192.168.0.3, though a specific queue you could use
+this action and establish a filter such as:
+
+tc filter add dev eth0 parent 1: protocol ip prio 1 u32 \
+	match ip dst 192.168.0.3 \
+	action skbedit queue_mapping 3
 
 Author: Alexander Duyck <alexander.h.duyck@intel.com>
 Original Author: Peter P. Waskiewicz Jr. <peter.p.waskiewicz.jr@intel.com>
