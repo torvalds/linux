@@ -851,7 +851,7 @@ config_desc = {
 	.bConfigurationValue =	CONFIG_VALUE,
 	.iConfiguration =	STRING_CONFIG,
 	.bmAttributes =		USB_CONFIG_ATT_ONE | USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower =		1,	// self-powered
+	.bMaxPower =		CONFIG_USB_GADGET_VBUS_DRAW / 2,
 };
 
 static struct usb_otg_descriptor

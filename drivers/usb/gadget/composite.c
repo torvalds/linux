@@ -245,7 +245,7 @@ static int config_buf(struct usb_configuration *config,
 	c->bConfigurationValue = config->bConfigurationValue;
 	c->iConfiguration = config->iConfiguration;
 	c->bmAttributes = USB_CONFIG_ATT_ONE | config->bmAttributes;
-	c->bMaxPower = config->bMaxPower;
+	c->bMaxPower = config->bMaxPower ? : (CONFIG_USB_GADGET_VBUS_DRAW / 2);
 
 	/* There may be e.g. OTG descriptors */
 	if (config->descriptors) {
@@ -432,7 +432,7 @@ static int set_config(struct usb_composite_dev *cdev,
 	}
 
 	/* when we return, be sure our power usage is valid */
-	power = 2 * c->bMaxPower;
+	power = c->bMaxPower ? (2 * c->bMaxPower) : CONFIG_USB_GADGET_VBUS_DRAW;
 done:
 	usb_gadget_vbus_draw(gadget, power);
 	return result;

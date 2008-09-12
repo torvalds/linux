@@ -45,7 +45,7 @@ if USB_GADGET
 
 config USB_GADGET_DEBUG
 	boolean "Debugging messages (DEVELOPMENT)"
-	depends on USB_GADGET && DEBUG_KERNEL
+	depends on DEBUG_KERNEL
 	help
 	   Many controller and gadget drivers will print some debugging
 	   messages if you use this option to ask for those messages.
@@ -59,7 +59,7 @@ config USB_GADGET_DEBUG
 
 config USB_GADGET_DEBUG_FILES
 	boolean "Debugging information files (DEVELOPMENT)"
-	depends on USB_GADGET && PROC_FS
+	depends on PROC_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
 	   debugging information in files such as /proc/driver/udc
@@ -70,7 +70,7 @@ config USB_GADGET_DEBUG_FILES
 
 config USB_GADGET_DEBUG_FS
 	boolean "Debugging information files in debugfs (DEVELOPMENT)"
-	depends on USB_GADGET && DEBUG_FS
+	depends on DEBUG_FS
 	help
 	   Some of the drivers in the "gadget" framework can expose
 	   debugging information in files under /sys/kernel/debug/.
@@ -78,6 +78,23 @@ config USB_GADGET_DEBUG_FS
 	   troubleshooting or bringing up a driver on a new board.
 	   Enable these files by choosing "Y" here.  If in doubt, or
 	   to conserve kernel memory, say "N".
+
+config USB_GADGET_VBUS_DRAW
+	int "Maximum VBUS Power usage (2-500 mA)"
+	range 2 500
+	default 2
+	help
+	   Some devices need to draw power from USB when they are
+	   configured, perhaps to operate circuitry or to recharge
+	   batteries.  This is in addition to any local power supply,
+	   such as an AC adapter or batteries.
+
+	   Enter the maximum power your device draws through USB, in
+	   milliAmperes.  The permitted range of values is 2 - 500 mA;
+	   0 mA would be legal, but can make some hosts misbehave.
+
+	   This value will be used except for system-specific gadget
+	   drivers that have more specific information.
 
 config	USB_GADGET_SELECTED
 	boolean

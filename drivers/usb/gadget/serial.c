@@ -159,7 +159,6 @@ static struct usb_configuration serial_config_driver = {
 	/* .bConfigurationValue = f(use_acm) */
 	/* .iConfiguration = DYNAMIC */
 	.bmAttributes	= USB_CONFIG_ATT_SELFPOWER,
-	.bMaxPower	= 1,	/* 2 mA, minimal */
 };
 
 static int __init gs_bind(struct usb_composite_dev *cdev)
