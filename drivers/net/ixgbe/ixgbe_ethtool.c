@@ -241,7 +241,7 @@ static int ixgbe_set_tx_csum(struct net_device *netdev, u32 data)
 	if (data)
 		netdev->features |= (NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 	else
-		netdev->features &= ~NETIF_F_IP_CSUM;
+		netdev->features &= ~(NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM);
 
 	return 0;
 }
