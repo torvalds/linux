@@ -4777,14 +4777,14 @@ static int orinoco_ioctl_get_encodeext(struct net_device *dev,
 		encoding->flags |= IW_ENCODE_DISABLED;
 		break;
 	case IW_ENCODE_ALG_WEP:
-		ext->key_len = min(le16_to_cpu(priv->keys[idx].len),
-				   (u16) max_key_len);
+		ext->key_len = min_t(u16, le16_to_cpu(priv->keys[idx].len),
+				     max_key_len);
 		memcpy(ext->key, priv->keys[idx].data, ext->key_len);
 		encoding->flags |= IW_ENCODE_ENABLED;
 		break;
 	case IW_ENCODE_ALG_TKIP:
-		ext->key_len = min((u16) sizeof(struct orinoco_tkip_key),
-				   (u16) max_key_len);
+		ext->key_len = min_t(u16, sizeof(struct orinoco_tkip_key),
+				     max_key_len);
 		memcpy(ext->key, &priv->tkip_key[idx], ext->key_len);
 		encoding->flags |= IW_ENCODE_ENABLED;
 		break;
@@ -5686,9 +5686,9 @@ static inline char *orinoco_translate_ext_scan(struct net_device *dev,
 
 	/* Timestamp */
 	iwe.cmd = IWEVCUSTOM;
-	iwe.u.data.length = snprintf(custom, MAX_CUSTOM_LEN,
-				     "tsf=%016llx",
-				     le64_to_cpu(bss->timestamp));
+	iwe.u.data.length =
+		snprintf(custom, MAX_CUSTOM_LEN, "tsf=%016llx",
+			 (unsigned long long) le64_to_cpu(bss->timestamp));
 	if (iwe.u.data.length)
 		current_ev = iwe_stream_add_point(info, current_ev, end_buf,
 						  &iwe, custom);
