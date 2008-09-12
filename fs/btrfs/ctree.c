@@ -2737,8 +2737,7 @@ int btrfs_insert_empty_items(struct btrfs_trans_handle *trans,
 	nritems = btrfs_header_nritems(leaf);
 	data_end = leaf_data_end(root, leaf);
 
-	if (btrfs_leaf_free_space(root, leaf) <
-	    sizeof(struct btrfs_item) + total_size) {
+	if (btrfs_leaf_free_space(root, leaf) < total_size) {
 		btrfs_print_leaf(root, leaf);
 		printk("not enough freespace need %u have %d\n",
 		       total_size, btrfs_leaf_free_space(root, leaf));
