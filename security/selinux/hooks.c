@@ -75,6 +75,7 @@
 #include <linux/string.h>
 #include <linux/selinux.h>
 #include <linux/mutex.h>
+#include <linux/posix-timers.h>
 
 #include "avc.h"
 #include "objsec.h"
@@ -2321,13 +2322,7 @@ static void selinux_bprm_post_apply_creds(struct linux_binprm *bprm)
 			initrlim = init_task.signal->rlim+i;
 			rlim->rlim_cur = min(rlim->rlim_max, initrlim->rlim_cur);
 		}
-		if (current->signal->rlim[RLIMIT_CPU].rlim_cur != RLIM_INFINITY) {
-			/*
-			 * This will cause RLIMIT_CPU calculations
-			 * to be refigured.
-			 */
-			current->it_prof_expires = jiffies_to_cputime(1);
-		}
+		update_rlimit_cpu(rlim->rlim_cur);
 	}
 
 	/* Wake up the parent if it is waiting so that it can

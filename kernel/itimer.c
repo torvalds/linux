@@ -55,17 +55,15 @@ int do_getitimer(int which, struct itimerval *value)
 		spin_unlock_irq(&tsk->sighand->siglock);
 		break;
 	case ITIMER_VIRTUAL:
-		read_lock(&tasklist_lock);
 		spin_lock_irq(&tsk->sighand->siglock);
 		cval = tsk->signal->it_virt_expires;
 		cinterval = tsk->signal->it_virt_incr;
 		if (!cputime_eq(cval, cputime_zero)) {
-			struct task_struct *t = tsk;
-			cputime_t utime = tsk->signal->utime;
-			do {
-				utime = cputime_add(utime, t->utime);
-				t = next_thread(t);
-			} while (t != tsk);
+			struct task_cputime cputime;
+			cputime_t utime;
+
+			thread_group_cputime(tsk, &cputime);
+			utime = cputime.utime;
 			if (cputime_le(cval, utime)) { /* about to fire */
 				cval = jiffies_to_cputime(1);
 			} else {
@@ -73,25 +71,19 @@ int do_getitimer(int which, struct itimerval *value)
 			}
 		}
 		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
 		cputime_to_timeval(cval, &value->it_value);
 		cputime_to_timeval(cinterval, &value->it_interval);
 		break;
 	case ITIMER_PROF:
-		read_lock(&tasklist_lock);
 		spin_lock_irq(&tsk->sighand->siglock);
 		cval = tsk->signal->it_prof_expires;
 		cinterval = tsk->signal->it_prof_incr;
 		if (!cputime_eq(cval, cputime_zero)) {
-			struct task_struct *t = tsk;
-			cputime_t ptime = cputime_add(tsk->signal->utime,
-						      tsk->signal->stime);
-			do {
-				ptime = cputime_add(ptime,
-						    cputime_add(t->utime,
-								t->stime));
-				t = next_thread(t);
-			} while (t != tsk);
+			struct task_cputime times;
+			cputime_t ptime;
+
+			thread_group_cputime(tsk, &times);
+			ptime = cputime_add(times.utime, times.stime);
 			if (cputime_le(cval, ptime)) { /* about to fire */
 				cval = jiffies_to_cputime(1);
 			} else {
@@ -99,7 +91,6 @@ int do_getitimer(int which, struct itimerval *value)
 			}
 		}
 		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
 		cputime_to_timeval(cval, &value->it_value);
 		cputime_to_timeval(cinterval, &value->it_interval);
 		break;
@@ -185,7 +176,6 @@ again:
 	case ITIMER_VIRTUAL:
 		nval = timeval_to_cputime(&value->it_value);
 		ninterval = timeval_to_cputime(&value->it_interval);
-		read_lock(&tasklist_lock);
 		spin_lock_irq(&tsk->sighand->siglock);
 		cval = tsk->signal->it_virt_expires;
 		cinterval = tsk->signal->it_virt_incr;
@@ -200,7 +190,6 @@ again:
 		tsk->signal->it_virt_expires = nval;
 		tsk->signal->it_virt_incr = ninterval;
 		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
 		if (ovalue) {
 			cputime_to_timeval(cval, &ovalue->it_value);
 			cputime_to_timeval(cinterval, &ovalue->it_interval);
@@ -209,7 +198,6 @@ again:
 	case ITIMER_PROF:
 		nval = timeval_to_cputime(&value->it_value);
 		ninterval = timeval_to_cputime(&value->it_interval);
-		read_lock(&tasklist_lock);
 		spin_lock_irq(&tsk->sighand->siglock);
 		cval = tsk->signal->it_prof_expires;
 		cinterval = tsk->signal->it_prof_incr;
@@ -224,7 +212,6 @@ again:
 		tsk->signal->it_prof_expires = nval;
 		tsk->signal->it_prof_incr = ninterval;
 		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
 		if (ovalue) {
 			cputime_to_timeval(cval, &ovalue->it_value);
 			cputime_to_timeval(cinterval, &ovalue->it_interval);

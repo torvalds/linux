@@ -759,15 +759,44 @@ void __cleanup_sighand(struct sighand_struct *sighand)
 		kmem_cache_free(sighand_cachep, sighand);
 }
 
+
+/*
+ * Initialize POSIX timer handling for a thread group.
+ */
+static void posix_cpu_timers_init_group(struct signal_struct *sig)
+{
+	/* Thread group counters. */
+	thread_group_cputime_init(sig);
+
+	/* Expiration times and increments. */
+	sig->it_virt_expires = cputime_zero;
+	sig->it_virt_incr = cputime_zero;
+	sig->it_prof_expires = cputime_zero;
+	sig->it_prof_incr = cputime_zero;
+
+	/* Cached expiration times. */
+	sig->cputime_expires.prof_exp = cputime_zero;
+	sig->cputime_expires.virt_exp = cputime_zero;
+	sig->cputime_expires.sched_exp = 0;
+
+	/* The timer lists. */
+	INIT_LIST_HEAD(&sig->cpu_timers[0]);
+	INIT_LIST_HEAD(&sig->cpu_timers[1]);
+	INIT_LIST_HEAD(&sig->cpu_timers[2]);
+}
+
 static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 {
 	struct signal_struct *sig;
 	int ret;
 
 	if (clone_flags & CLONE_THREAD) {
-		atomic_inc(&current->signal->count);
-		atomic_inc(&current->signal->live);
-		return 0;
+		ret = thread_group_cputime_clone_thread(current, tsk);
+		if (likely(!ret)) {
+			atomic_inc(&current->signal->count);
+			atomic_inc(&current->signal->live);
+		}
+		return ret;
 	}
 	sig = kmem_cache_alloc(signal_cachep, GFP_KERNEL);
 	tsk->signal = sig;
@@ -795,15 +824,10 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	sig->it_real_incr.tv64 = 0;
 	sig->real_timer.function = it_real_fn;
 
-	sig->it_virt_expires = cputime_zero;
-	sig->it_virt_incr = cputime_zero;
-	sig->it_prof_expires = cputime_zero;
-	sig->it_prof_incr = cputime_zero;
-
 	sig->leader = 0;	/* session leadership doesn't inherit */
 	sig->tty_old_pgrp = NULL;
 
-	sig->utime = sig->stime = sig->cutime = sig->cstime = cputime_zero;
+	sig->cutime = sig->cstime = cputime_zero;
 	sig->gtime = cputime_zero;
 	sig->cgtime = cputime_zero;
 	sig->nvcsw = sig->nivcsw = sig->cnvcsw = sig->cnivcsw = 0;
@@ -820,14 +844,8 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 	memcpy(sig->rlim, current->signal->rlim, sizeof sig->rlim);
 	task_unlock(current->group_leader);
 
-	if (sig->rlim[RLIMIT_CPU].rlim_cur != RLIM_INFINITY) {
-		/*
-		 * New sole thread in the process gets an expiry time
-		 * of the whole CPU time limit.
-		 */
-		tsk->it_prof_expires =
-			secs_to_cputime(sig->rlim[RLIMIT_CPU].rlim_cur);
-	}
+	posix_cpu_timers_init_group(sig);
+
 	acct_init_pacct(&sig->pacct);
 
 	tty_audit_fork(sig);
@@ -837,6 +855,7 @@ static int copy_signal(unsigned long clone_flags, struct task_struct *tsk)
 
 void __cleanup_signal(struct signal_struct *sig)
 {
+	thread_group_cputime_free(sig);
 	exit_thread_group_keys(sig);
 	kmem_cache_free(signal_cachep, sig);
 }
@@ -884,6 +903,19 @@ void mm_init_owner(struct mm_struct *mm, struct task_struct *p)
 	mm->owner = p;
 }
 #endif /* CONFIG_MM_OWNER */
+
+/*
+ * Initialize POSIX timer handling for a single task.
+ */
+static void posix_cpu_timers_init(struct task_struct *tsk)
+{
+	tsk->cputime_expires.prof_exp = cputime_zero;
+	tsk->cputime_expires.virt_exp = cputime_zero;
+	tsk->cputime_expires.sched_exp = 0;
+	INIT_LIST_HEAD(&tsk->cpu_timers[0]);
+	INIT_LIST_HEAD(&tsk->cpu_timers[1]);
+	INIT_LIST_HEAD(&tsk->cpu_timers[2]);
+}
 
 /*
  * This creates a new process as a copy of the old one,
@@ -995,12 +1027,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	task_io_accounting_init(&p->ioac);
 	acct_clear_integrals(p);
 
-	p->it_virt_expires = cputime_zero;
-	p->it_prof_expires = cputime_zero;
-	p->it_sched_expires = 0;
-	INIT_LIST_HEAD(&p->cpu_timers[0]);
-	INIT_LIST_HEAD(&p->cpu_timers[1]);
-	INIT_LIST_HEAD(&p->cpu_timers[2]);
+	posix_cpu_timers_init(p);
 
 	p->lock_depth = -1;		/* -1 = no lock */
 	do_posix_clock_monotonic_gettime(&p->start_time);
@@ -1201,21 +1228,6 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 	if (clone_flags & CLONE_THREAD) {
 		p->group_leader = current->group_leader;
 		list_add_tail_rcu(&p->thread_group, &p->group_leader->thread_group);
-
-		if (!cputime_eq(current->signal->it_virt_expires,
-				cputime_zero) ||
-		    !cputime_eq(current->signal->it_prof_expires,
-				cputime_zero) ||
-		    current->signal->rlim[RLIMIT_CPU].rlim_cur != RLIM_INFINITY ||
-		    !list_empty(&current->signal->cpu_timers[0]) ||
-		    !list_empty(&current->signal->cpu_timers[1]) ||
-		    !list_empty(&current->signal->cpu_timers[2])) {
-			/*
-			 * Have child wake up on its first tick to check
-			 * for process CPU timers.
-			 */
-			p->it_prof_expires = jiffies_to_cputime(1);
-		}
 	}
 
 	if (likely(p->pid)) {

@@ -483,6 +483,8 @@ static void update_curr_rt(struct rq *rq)
 	schedstat_set(curr->se.exec_max, max(curr->se.exec_max, delta_exec));
 
 	curr->se.sum_exec_runtime += delta_exec;
+	account_group_exec_runtime(curr, delta_exec);
+
 	curr->se.exec_start = rq->clock;
 	cpuacct_charge(curr, delta_exec);
 
@@ -1412,7 +1414,7 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 		p->rt.timeout++;
 		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
 		if (p->rt.timeout > next)
-			p->it_sched_expires = p->se.sum_exec_runtime;
+			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;
 	}
 }
 

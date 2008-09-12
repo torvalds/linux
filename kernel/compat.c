@@ -23,6 +23,7 @@
 #include <linux/timex.h>
 #include <linux/migrate.h>
 #include <linux/posix-timers.h>
+#include <linux/times.h>
 
 #include <asm/uaccess.h>
 
@@ -150,49 +151,23 @@ asmlinkage long compat_sys_setitimer(int which,
 	return 0;
 }
 
+static compat_clock_t clock_t_to_compat_clock_t(clock_t x)
+{
+	return compat_jiffies_to_clock_t(clock_t_to_jiffies(x));
+}
+
 asmlinkage long compat_sys_times(struct compat_tms __user *tbuf)
 {
-	/*
-	 *	In the SMP world we might just be unlucky and have one of
-	 *	the times increment as we use it. Since the value is an
-	 *	atomically safe type this is just fine. Conceptually its
-	 *	as if the syscall took an instant longer to occur.
-	 */
 	if (tbuf) {
+		struct tms tms;
 		struct compat_tms tmp;
-		struct task_struct *tsk = current;
-		struct task_struct *t;
-		cputime_t utime, stime, cutime, cstime;
 
-		read_lock(&tasklist_lock);
-		utime = tsk->signal->utime;
-		stime = tsk->signal->stime;
-		t = tsk;
-		do {
-			utime = cputime_add(utime, t->utime);
-			stime = cputime_add(stime, t->stime);
-			t = next_thread(t);
-		} while (t != tsk);
-
-		/*
-		 * While we have tasklist_lock read-locked, no dying thread
-		 * can be updating current->signal->[us]time.  Instead,
-		 * we got their counts included in the live thread loop.
-		 * However, another thread can come in right now and
-		 * do a wait call that updates current->signal->c[us]time.
-		 * To make sure we always see that pair updated atomically,
-		 * we take the siglock around fetching them.
-		 */
-		spin_lock_irq(&tsk->sighand->siglock);
-		cutime = tsk->signal->cutime;
-		cstime = tsk->signal->cstime;
-		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
-
-		tmp.tms_utime = compat_jiffies_to_clock_t(cputime_to_jiffies(utime));
-		tmp.tms_stime = compat_jiffies_to_clock_t(cputime_to_jiffies(stime));
-		tmp.tms_cutime = compat_jiffies_to_clock_t(cputime_to_jiffies(cutime));
-		tmp.tms_cstime = compat_jiffies_to_clock_t(cputime_to_jiffies(cstime));
+		do_sys_times(&tms);
+		/* Convert our struct tms to the compat version. */
+		tmp.tms_utime = clock_t_to_compat_clock_t(tms.tms_utime);
+		tmp.tms_stime = clock_t_to_compat_clock_t(tms.tms_stime);
+		tmp.tms_cutime = clock_t_to_compat_clock_t(tms.tms_cutime);
+		tmp.tms_cstime = clock_t_to_compat_clock_t(tms.tms_cstime);
 		if (copy_to_user(tbuf, &tmp, sizeof(tmp)))
 			return -EFAULT;
 	}

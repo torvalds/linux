@@ -395,20 +395,20 @@ static int do_task_stat(struct seq_file *m, struct pid_namespace *ns,
 
 		/* add up live thread stats at the group level */
 		if (whole) {
+			struct task_cputime cputime;
 			struct task_struct *t = task;
 			do {
 				min_flt += t->min_flt;
 				maj_flt += t->maj_flt;
-				utime = cputime_add(utime, task_utime(t));
-				stime = cputime_add(stime, task_stime(t));
 				gtime = cputime_add(gtime, task_gtime(t));
 				t = next_thread(t);
 			} while (t != task);
 
 			min_flt += sig->min_flt;
 			maj_flt += sig->maj_flt;
-			utime = cputime_add(utime, sig->utime);
-			stime = cputime_add(stime, sig->stime);
+			thread_group_cputime(task, &cputime);
+			utime = cputime.utime;
+			stime = cputime.stime;
 			gtime = cputime_add(gtime, sig->gtime);
 		}
 

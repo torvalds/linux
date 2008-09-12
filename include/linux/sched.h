@@ -425,6 +425,45 @@ struct pacct_struct {
 	unsigned long		ac_minflt, ac_majflt;
 };
 
+/**
+ * struct task_cputime - collected CPU time counts
+ * @utime:		time spent in user mode, in &cputime_t units
+ * @stime:		time spent in kernel mode, in &cputime_t units
+ * @sum_exec_runtime:	total time spent on the CPU, in nanoseconds
+ * 
+ * This structure groups together three kinds of CPU time that are
+ * tracked for threads and thread groups.  Most things considering
+ * CPU time want to group these counts together and treat all three
+ * of them in parallel.
+ */
+struct task_cputime {
+	cputime_t utime;
+	cputime_t stime;
+	unsigned long long sum_exec_runtime;
+};
+/* Alternate field names when used to cache expirations. */
+#define prof_exp	stime
+#define virt_exp	utime
+#define sched_exp	sum_exec_runtime
+
+/**
+ * struct thread_group_cputime - thread group interval timer counts
+ * @totals:		thread group interval timers; substructure for
+ *			uniprocessor kernel, per-cpu for SMP kernel.
+ *
+ * This structure contains the version of task_cputime, above, that is
+ * used for thread group CPU clock calculations.
+ */
+#ifdef CONFIG_SMP
+struct thread_group_cputime {
+	struct task_cputime *totals;
+};
+#else
+struct thread_group_cputime {
+	struct task_cputime totals;
+};
+#endif
+
 /*
  * NOTE! "signal_struct" does not have it's own
  * locking, because a shared signal_struct always
@@ -470,6 +509,17 @@ struct signal_struct {
 	cputime_t it_prof_expires, it_virt_expires;
 	cputime_t it_prof_incr, it_virt_incr;
 
+	/*
+	 * Thread group totals for process CPU clocks.
+	 * See thread_group_cputime(), et al, for details.
+	 */
+	struct thread_group_cputime cputime;
+
+	/* Earliest-expiration cache. */
+	struct task_cputime cputime_expires;
+
+	struct list_head cpu_timers[3];
+
 	/* job control IDs */
 
 	/*
@@ -500,21 +550,13 @@ struct signal_struct {
 	 * Live threads maintain their own counters and add to these
 	 * in __exit_signal, except for the group leader.
 	 */
-	cputime_t utime, stime, cutime, cstime;
+	cputime_t cutime, cstime;
 	cputime_t gtime;
 	cputime_t cgtime;
 	unsigned long nvcsw, nivcsw, cnvcsw, cnivcsw;
 	unsigned long min_flt, maj_flt, cmin_flt, cmaj_flt;
 	unsigned long inblock, oublock, cinblock, coublock;
 	struct task_io_accounting ioac;
-
-	/*
-	 * Cumulative ns of scheduled CPU time for dead threads in the
-	 * group, not including a zombie group leader.  (This only differs
-	 * from jiffies_to_ns(utime + stime) if sched_clock uses something
-	 * other than jiffies.)
-	 */
-	unsigned long long sum_sched_runtime;
 
 	/*
 	 * We don't bother to synchronize most readers of this at all,
@@ -526,8 +568,6 @@ struct signal_struct {
 	 * have no need to disable irqs.
 	 */
 	struct rlimit rlim[RLIM_NLIMITS];
-
-	struct list_head cpu_timers[3];
 
 	/* keep the process-shared keyrings here so that they do the right
 	 * thing in threads created with CLONE_THREAD */
@@ -1134,8 +1174,7 @@ struct task_struct {
 /* mm fault and swap info: this can arguably be seen as either mm-specific or thread-specific */
 	unsigned long min_flt, maj_flt;
 
-  	cputime_t it_prof_expires, it_virt_expires;
-	unsigned long long it_sched_expires;
+	struct task_cputime cputime_expires;
 	struct list_head cpu_timers[3];
 
 /* process credentials */
@@ -1585,6 +1624,7 @@ extern unsigned long long cpu_clock(int cpu);
 
 extern unsigned long long
 task_sched_runtime(struct task_struct *task);
+extern unsigned long long thread_group_sched_runtime(struct task_struct *task);
 
 /* sched_exec is called by processes performing an exec */
 #ifdef CONFIG_SMP
@@ -2079,6 +2119,197 @@ static inline int spin_needbreak(spinlock_t *lock)
 #else
 	return 0;
 #endif
+}
+
+/*
+ * Thread group CPU time accounting.
+ */
+#ifdef CONFIG_SMP
+
+extern int thread_group_cputime_alloc_smp(struct task_struct *);
+extern void thread_group_cputime_smp(struct task_struct *, struct task_cputime *);
+
+static inline void thread_group_cputime_init(struct signal_struct *sig)
+{
+	sig->cputime.totals = NULL;
+}
+
+static inline int thread_group_cputime_clone_thread(struct task_struct *curr,
+						    struct task_struct *new)
+{
+	if (curr->signal->cputime.totals)
+		return 0;
+	return thread_group_cputime_alloc_smp(curr);
+}
+
+static inline void thread_group_cputime_free(struct signal_struct *sig)
+{
+	free_percpu(sig->cputime.totals);
+}
+
+/**
+ * thread_group_cputime - Sum the thread group time fields across all CPUs.
+ *
+ * This is a wrapper for the real routine, thread_group_cputime_smp().  See
+ * that routine for details.
+ */
+static inline void thread_group_cputime(
+	struct task_struct *tsk,
+	struct task_cputime *times)
+{
+	thread_group_cputime_smp(tsk, times);
+}
+
+/**
+ * thread_group_cputime_account_user - Maintain utime for a thread group.
+ *
+ * @tgtimes:	Pointer to thread_group_cputime structure.
+ * @cputime:	Time value by which to increment the utime field of that
+ *		structure.
+ *
+ * If thread group time is being maintained, get the structure for the
+ * running CPU and update the utime field there.
+ */
+static inline void thread_group_cputime_account_user(
+	struct thread_group_cputime *tgtimes,
+	cputime_t cputime)
+{
+	if (tgtimes->totals) {
+		struct task_cputime *times;
+
+		times = per_cpu_ptr(tgtimes->totals, get_cpu());
+		times->utime = cputime_add(times->utime, cputime);
+		put_cpu_no_resched();
+	}
+}
+
+/**
+ * thread_group_cputime_account_system - Maintain stime for a thread group.
+ *
+ * @tgtimes:	Pointer to thread_group_cputime structure.
+ * @cputime:	Time value by which to increment the stime field of that
+ *		structure.
+ *
+ * If thread group time is being maintained, get the structure for the
+ * running CPU and update the stime field there.
+ */
+static inline void thread_group_cputime_account_system(
+	struct thread_group_cputime *tgtimes,
+	cputime_t cputime)
+{
+	if (tgtimes->totals) {
+		struct task_cputime *times;
+
+		times = per_cpu_ptr(tgtimes->totals, get_cpu());
+		times->stime = cputime_add(times->stime, cputime);
+		put_cpu_no_resched();
+	}
+}
+
+/**
+ * thread_group_cputime_account_exec_runtime - Maintain exec runtime for a
+ *						thread group.
+ *
+ * @tgtimes:	Pointer to thread_group_cputime structure.
+ * @ns:		Time value by which to increment the sum_exec_runtime field
+ *		of that structure.
+ *
+ * If thread group time is being maintained, get the structure for the
+ * running CPU and update the sum_exec_runtime field there.
+ */
+static inline void thread_group_cputime_account_exec_runtime(
+	struct thread_group_cputime *tgtimes,
+	unsigned long long ns)
+{
+	if (tgtimes->totals) {
+		struct task_cputime *times;
+
+		times = per_cpu_ptr(tgtimes->totals, get_cpu());
+		times->sum_exec_runtime += ns;
+		put_cpu_no_resched();
+	}
+}
+
+#else /* CONFIG_SMP */
+
+static inline void thread_group_cputime_init(struct signal_struct *sig)
+{
+	sig->cputime.totals.utime = cputime_zero;
+	sig->cputime.totals.stime = cputime_zero;
+	sig->cputime.totals.sum_exec_runtime = 0;
+}
+
+static inline int thread_group_cputime_alloc(struct task_struct *tsk)
+{
+	return 0;
+}
+
+static inline void thread_group_cputime_free(struct signal_struct *sig)
+{
+}
+
+static inline int thread_group_cputime_clone_thread(struct task_struct *curr,
+						     struct task_struct *tsk)
+{
+}
+
+static inline void thread_group_cputime(struct task_struct *tsk,
+					 struct task_cputime *cputime)
+{
+	*cputime = tsk->signal->cputime.totals;
+}
+
+static inline void thread_group_cputime_account_user(
+	struct thread_group_cputime *tgtimes,
+	cputime_t cputime)
+{
+	tgtimes->totals->utime = cputime_add(tgtimes->totals->utime, cputime);
+}
+
+static inline void thread_group_cputime_account_system(
+	struct thread_group_cputime *tgtimes,
+	cputime_t cputime)
+{
+	tgtimes->totals->stime = cputime_add(tgtimes->totals->stime, cputime);
+}
+
+static inline void thread_group_cputime_account_exec_runtime(
+	struct thread_group_cputime *tgtimes,
+	unsigned long long ns)
+{
+	tgtimes->totals->sum_exec_runtime += ns;
+}
+
+#endif /* CONFIG_SMP */
+
+static inline void account_group_user_time(struct task_struct *tsk,
+					    cputime_t cputime)
+{
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (likely(sig))
+		thread_group_cputime_account_user(&sig->cputime, cputime);
+}
+
+static inline void account_group_system_time(struct task_struct *tsk,
+					      cputime_t cputime)
+{
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (likely(sig))
+		thread_group_cputime_account_system(&sig->cputime, cputime);
+}
+
+static inline void account_group_exec_runtime(struct task_struct *tsk,
+					       unsigned long long ns)
+{
+	struct signal_struct *sig;
+
+	sig = tsk->signal;
+	if (likely(sig))
+		thread_group_cputime_account_exec_runtime(&sig->cputime, ns);
 }
 
 /*
