@@ -744,12 +744,12 @@ static void ixgbe_configure_msix(struct ixgbe_adapter *adapter)
 					      r_idx + 1);
 		}
 
-		/* if this is a tx only vector use half the irq (tx) rate */
+		/* if this is a tx only vector halve the interrupt rate */
 		if (q_vector->txr_count && !q_vector->rxr_count)
-			q_vector->eitr = adapter->tx_eitr;
+			q_vector->eitr = (adapter->eitr_param >> 1);
 		else
-			/* rx only or mixed */
-			q_vector->eitr = adapter->rx_eitr;
+			/* rx only */
+			q_vector->eitr = adapter->eitr_param;
 
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_EITR(v_idx),
 				EITR_INTS_PER_SEC_TO_REG(q_vector->eitr));
@@ -845,13 +845,13 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 	for (i = 0; i < q_vector->txr_count; i++) {
 		tx_ring = &(adapter->tx_ring[r_idx]);
 		ret_itr = ixgbe_update_itr(adapter, q_vector->eitr,
-					   q_vector->tx_eitr,
+					   q_vector->tx_itr,
 					   tx_ring->total_packets,
 					   tx_ring->total_bytes);
 		/* if the result for this queue would decrease interrupt
 		 * rate for this vector then use that result */
-		q_vector->tx_eitr = ((q_vector->tx_eitr > ret_itr) ?
-				    q_vector->tx_eitr - 1 : ret_itr);
+		q_vector->tx_itr = ((q_vector->tx_itr > ret_itr) ?
+				    q_vector->tx_itr - 1 : ret_itr);
 		r_idx = find_next_bit(q_vector->txr_idx, adapter->num_tx_queues,
 				      r_idx + 1);
 	}
@@ -860,18 +860,18 @@ static void ixgbe_set_itr_msix(struct ixgbe_q_vector *q_vector)
 	for (i = 0; i < q_vector->rxr_count; i++) {
 		rx_ring = &(adapter->rx_ring[r_idx]);
 		ret_itr = ixgbe_update_itr(adapter, q_vector->eitr,
-					   q_vector->rx_eitr,
+					   q_vector->rx_itr,
 					   rx_ring->total_packets,
 					   rx_ring->total_bytes);
 		/* if the result for this queue would decrease interrupt
 		 * rate for this vector then use that result */
-		q_vector->rx_eitr = ((q_vector->rx_eitr > ret_itr) ?
-				    q_vector->rx_eitr - 1 : ret_itr);
+		q_vector->rx_itr = ((q_vector->rx_itr > ret_itr) ?
+				    q_vector->rx_itr - 1 : ret_itr);
 		r_idx = find_next_bit(q_vector->rxr_idx, adapter->num_rx_queues,
 				      r_idx + 1);
 	}
 
-	current_itr = max(q_vector->rx_eitr, q_vector->tx_eitr);
+	current_itr = max(q_vector->rx_itr, q_vector->tx_itr);
 
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
@@ -970,16 +970,24 @@ static irqreturn_t ixgbe_msix_clean_rx(int irq, void *data)
 	struct ixgbe_adapter  *adapter = q_vector->adapter;
 	struct ixgbe_ring  *rx_ring;
 	int r_idx;
+	int i;
 
 	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
+	for (i = 0;  i < q_vector->rxr_count; i++) {
+		rx_ring = &(adapter->rx_ring[r_idx]);
+		rx_ring->total_bytes = 0;
+		rx_ring->total_packets = 0;
+		r_idx = find_next_bit(q_vector->rxr_idx, adapter->num_rx_queues,
+		                      r_idx + 1);
+	}
+
 	if (!q_vector->rxr_count)
 		return IRQ_HANDLED;
 
+	r_idx = find_first_bit(q_vector->rxr_idx, adapter->num_rx_queues);
 	rx_ring = &(adapter->rx_ring[r_idx]);
 	/* disable interrupts on this vector only */
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMC, rx_ring->v_idx);
-	rx_ring->total_bytes = 0;
-	rx_ring->total_packets = 0;
 	netif_rx_schedule(adapter->netdev, &q_vector->napi);
 
 	return IRQ_HANDLED;
@@ -1020,7 +1028,7 @@ static int ixgbe_clean_rxonly(struct napi_struct *napi, int budget)
 	/* If all Rx work done, exit the polling mode */
 	if (work_done < budget) {
 		netif_rx_complete(adapter->netdev, napi);
-		if (adapter->rx_eitr < IXGBE_MIN_ITR_USECS)
+		if (adapter->itr_setting & 3)
 			ixgbe_set_itr_msix(q_vector);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			IXGBE_WRITE_REG(&adapter->hw, IXGBE_EIMS, rx_ring->v_idx);
@@ -1187,16 +1195,16 @@ static void ixgbe_set_itr(struct ixgbe_adapter *adapter)
 	struct ixgbe_ring *rx_ring = &adapter->rx_ring[0];
 	struct ixgbe_ring *tx_ring = &adapter->tx_ring[0];
 
-	q_vector->tx_eitr = ixgbe_update_itr(adapter, new_itr,
-					     q_vector->tx_eitr,
-					     tx_ring->total_packets,
-					     tx_ring->total_bytes);
-	q_vector->rx_eitr = ixgbe_update_itr(adapter, new_itr,
-					     q_vector->rx_eitr,
-					     rx_ring->total_packets,
-					     rx_ring->total_bytes);
+	q_vector->tx_itr = ixgbe_update_itr(adapter, new_itr,
+					    q_vector->tx_itr,
+					    tx_ring->total_packets,
+					    tx_ring->total_bytes);
+	q_vector->rx_itr = ixgbe_update_itr(adapter, new_itr,
+					    q_vector->rx_itr,
+					    rx_ring->total_packets,
+					    rx_ring->total_bytes);
 
-	current_itr = max(q_vector->rx_eitr, q_vector->tx_eitr);
+	current_itr = max(q_vector->rx_itr, q_vector->tx_itr);
 
 	switch (current_itr) {
 	/* counts and packets in update_itr are dependent on these numbers */
@@ -1371,7 +1379,7 @@ static void ixgbe_configure_msi_and_legacy(struct ixgbe_adapter *adapter)
 	struct ixgbe_hw *hw = &adapter->hw;
 
 	IXGBE_WRITE_REG(hw, IXGBE_EITR(0),
-			EITR_INTS_PER_SEC_TO_REG(adapter->rx_eitr));
+	                EITR_INTS_PER_SEC_TO_REG(adapter->eitr_param));
 
 	ixgbe_set_ivar(adapter, IXGBE_IVAR_RX_QUEUE(0), 0);
 	ixgbe_set_ivar(adapter, IXGBE_IVAR_TX_QUEUE(0), 0);
@@ -2209,7 +2217,7 @@ static int ixgbe_poll(struct napi_struct *napi, int budget)
 	/* If budget not fully consumed, exit the polling mode */
 	if (work_done < budget) {
 		netif_rx_complete(adapter->netdev, napi);
-		if (adapter->rx_eitr < IXGBE_MIN_ITR_USECS)
+		if (adapter->itr_setting & 3)
 			ixgbe_set_itr(adapter);
 		if (!test_bit(__IXGBE_DOWN, &adapter->state))
 			ixgbe_irq_enable(adapter);
@@ -2421,12 +2429,6 @@ static int __devinit ixgbe_set_interrupt_capability(struct ixgbe_adapter
 	int vector, v_budget;
 
 	/*
-	 * Set the default interrupt throttle rate.
-	 */
-	adapter->rx_eitr = (1000000 / IXGBE_DEFAULT_ITR_RX_USECS);
-	adapter->tx_eitr = (1000000 / IXGBE_DEFAULT_ITR_TX_USECS);
-
-	/*
 	 * It's easy to be greedy for MSI-X vectors, but it really
 	 * doesn't do us much good if we have a lot more vectors
 	 * than CPU's.  So let's be conservative and only ask for
@@ -2567,10 +2569,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->ring_feature[RING_F_RSS].indices = rss;
 	adapter->flags |= IXGBE_FLAG_RSS_ENABLED;
 
-	/* Enable Dynamic interrupt throttling by default */
-	adapter->rx_eitr = 1;
-	adapter->tx_eitr = 1;
-
 	/* default flow control settings */
 	hw->fc.original_type = ixgbe_fc_none;
 	hw->fc.type = ixgbe_fc_none;
@@ -2590,6 +2588,18 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 		dev_err(&pdev->dev, "Link Speed setup failed\n");
 		return -EIO;
 	}
+
+	/* enable itr by default in dynamic mode */
+	adapter->itr_setting = 1;
+	adapter->eitr_param = 20000;
+
+	/* set defaults for eitr in MegaBytes */
+	adapter->eitr_low = 10;
+	adapter->eitr_high = 20;
+
+	/* set default ring sizes */
+	adapter->tx_ring_count = IXGBE_DEFAULT_TXD;
+	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
 
 	/* initialize eeprom parameters */
 	if (ixgbe_init_eeprom(hw)) {

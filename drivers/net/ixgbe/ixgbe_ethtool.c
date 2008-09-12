@@ -880,17 +880,23 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
-	if (adapter->rx_eitr < IXGBE_MIN_ITR_USECS)
-		ec->rx_coalesce_usecs = adapter->rx_eitr;
-	else
-		ec->rx_coalesce_usecs = 1000000 / adapter->rx_eitr;
-
-	if (adapter->tx_eitr < IXGBE_MIN_ITR_USECS)
-		ec->tx_coalesce_usecs = adapter->tx_eitr;
-	else
-		ec->tx_coalesce_usecs = 1000000 / adapter->tx_eitr;
-
 	ec->tx_max_coalesced_frames_irq = adapter->tx_ring[0].work_limit;
+
+	/* only valid if in constant ITR mode */
+	switch (adapter->itr_setting) {
+	case 0:
+		/* throttling disabled */
+		ec->rx_coalesce_usecs = 0;
+		break;
+	case 1:
+		/* dynamic ITR mode */
+		ec->rx_coalesce_usecs = 1;
+		break;
+	default:
+		/* fixed interrupt rate mode */
+		ec->rx_coalesce_usecs = 1000000/adapter->eitr_param;
+		break;
+	}
 	return 0;
 }
 
@@ -898,38 +904,40 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 			      struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-
-	if ((ec->rx_coalesce_usecs > IXGBE_MAX_ITR_USECS) ||
-	    ((ec->rx_coalesce_usecs != 0) &&
-	     (ec->rx_coalesce_usecs != 1) &&
-	     (ec->rx_coalesce_usecs != 3) &&
-	     (ec->rx_coalesce_usecs < IXGBE_MIN_ITR_USECS)))
-		return -EINVAL;
-	if ((ec->tx_coalesce_usecs > IXGBE_MAX_ITR_USECS) ||
-	    ((ec->tx_coalesce_usecs != 0) &&
-	     (ec->tx_coalesce_usecs != 1) &&
-	     (ec->tx_coalesce_usecs != 3) &&
-	     (ec->tx_coalesce_usecs < IXGBE_MIN_ITR_USECS)))
-		return -EINVAL;
-
-	/* convert to rate of irq's per second */
-	if (ec->rx_coalesce_usecs < IXGBE_MIN_ITR_USECS)
-		adapter->rx_eitr = ec->rx_coalesce_usecs;
-	else
-		adapter->rx_eitr = (1000000 / ec->rx_coalesce_usecs);
-
-	if (ec->tx_coalesce_usecs < IXGBE_MIN_ITR_USECS)
-		adapter->tx_eitr = ec->rx_coalesce_usecs;
-	else
-		adapter->tx_eitr = (1000000 / ec->tx_coalesce_usecs);
+	struct ixgbe_hw *hw = &adapter->hw;
+	int i;
 
 	if (ec->tx_max_coalesced_frames_irq)
-		adapter->tx_ring[0].work_limit =
-					ec->tx_max_coalesced_frames_irq;
+		adapter->tx_ring[0].work_limit = ec->tx_max_coalesced_frames_irq;
 
-	if (netif_running(netdev)) {
-		ixgbe_down(adapter);
-		ixgbe_up(adapter);
+	if (ec->rx_coalesce_usecs > 1) {
+		/* store the value in ints/second */
+		adapter->eitr_param = 1000000/ec->rx_coalesce_usecs;
+
+		/* static value of interrupt rate */
+		adapter->itr_setting = adapter->eitr_param;
+		/* clear the lower bit */
+		adapter->itr_setting &= ~1;
+	} else if (ec->rx_coalesce_usecs == 1) {
+		/* 1 means dynamic mode */
+		adapter->eitr_param = 20000;
+		adapter->itr_setting = 1;
+	} else {
+		/* any other value means disable eitr, which is best
+		 * served by setting the interrupt rate very high */
+		adapter->eitr_param = 3000000;
+		adapter->itr_setting = 0;
+	}
+
+	for (i = 0; i < adapter->num_msix_vectors - NON_Q_VECTORS; i++) {
+		struct ixgbe_q_vector *q_vector = &adapter->q_vector[i];
+		if (q_vector->txr_count && !q_vector->rxr_count)
+			q_vector->eitr = (adapter->eitr_param >> 1);
+		else
+			/* rx only or mixed */
+			q_vector->eitr = adapter->eitr_param;
+		IXGBE_WRITE_REG(hw, IXGBE_EITR(i),
+		                EITR_INTS_PER_SEC_TO_REG(q_vector->eitr));
 	}
 
 	return 0;
