@@ -394,6 +394,7 @@ static void vlan_transfer_features(struct net_device *dev,
 
 	vlandev->features &= ~dev->vlan_features;
 	vlandev->features |= dev->features & dev->vlan_features;
+	vlandev->gso_max_size = dev->gso_max_size;
 
 	if (old_features != vlandev->features)
 		netdev_features_change(vlandev);
