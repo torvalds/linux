@@ -52,7 +52,7 @@ to_qla_parent(scsi_qla_host_t *ha)
  * @ha: HA context
  * @ha_locked: is function called with the hardware lock
  *
- * Returns non-zero if a failure occured, else zero.
+ * Returns non-zero if a failure occurred, else zero.
  */
 static inline int
 qla2x00_issue_marker(scsi_qla_host_t *ha, int ha_locked)
