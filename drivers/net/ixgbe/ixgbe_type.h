@@ -40,6 +40,7 @@
 #define IXGBE_DEV_ID_82598AT_DUAL_PORT   0x10C8
 #define IXGBE_DEV_ID_82598EB_CX4         0x10DD
 #define IXGBE_DEV_ID_82598_CX4_DUAL_PORT 0x10EC
+#define IXGBE_DEV_ID_82598EB_XF_LR       0x10F4
 
 /* General Registers */
 #define IXGBE_CTRL      0x00000
