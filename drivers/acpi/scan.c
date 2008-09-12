@@ -744,6 +744,16 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	if (!acpi_match_device_ids(device, button_device_ids))
 		device->wakeup.flags.run_wake = 1;
 
+	/*
+	 * Don't set Power button GPE as run_wake
+	 * if Fixed Power button is used
+	 */
+	if (!strcmp(device->pnp.hardware_id, "PNP0C0C") &&
+		!(acpi_gbl_FADT.flags & ACPI_FADT_POWER_BUTTON)) {
+		device->wakeup.flags.run_wake = 0;
+		device->wakeup.flags.valid = 0;
+	}
+
       end:
 	if (ACPI_FAILURE(status))
 		device->flags.wake_capable = 0;
