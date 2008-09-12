@@ -109,7 +109,8 @@ static void do_calc_lpt_geom(struct ubifs_info *c)
 	c->lpt_sz = (long long)c->pnode_cnt * c->pnode_sz;
 	c->lpt_sz += (long long)c->nnode_cnt * c->nnode_sz;
 	c->lpt_sz += c->ltab_sz;
-	c->lpt_sz += c->lsave_sz;
+	if (c->big_lpt)
+		c->lpt_sz += c->lsave_sz;
 
 	/* Add wastage */
 	sz = c->lpt_sz;

@@ -943,7 +943,6 @@ struct ubifs_mount_opts {
  *
  * @fast_unmount: do not run journal commit before un-mounting
  * @big_lpt: flag that LPT is too big to write whole during commit
- * @check_lpt_free: flag that indicates LPT GC may be needed
  * @no_chk_data_crc: do not check CRCs when reading data nodes (except during
  *                   recovery)
  * @bulk_read: enable bulk-reads
@@ -1102,6 +1101,7 @@ struct ubifs_mount_opts {
  * @lpt_drty_flgs: dirty flags for LPT special nodes e.g. ltab
  * @dirty_nn_cnt: number of dirty nnodes
  * @dirty_pn_cnt: number of dirty pnodes
+ * @check_lpt_free: flag that indicates LPT GC may be needed
  * @lpt_sz: LPT size
  * @lpt_nod_buf: buffer for an on-flash nnode or pnode
  * @lpt_buf: buffer of LEB size used by LPT
@@ -1191,7 +1191,6 @@ struct ubifs_info {
 
 	unsigned int fast_unmount:1;
 	unsigned int big_lpt:1;
-	unsigned int check_lpt_free:1;
 	unsigned int no_chk_data_crc:1;
 	unsigned int bulk_read:1;
 
@@ -1340,6 +1339,7 @@ struct ubifs_info {
 	int lpt_drty_flgs;
 	int dirty_nn_cnt;
 	int dirty_pn_cnt;
+	int check_lpt_free;
 	long long lpt_sz;
 	void *lpt_nod_buf;
 	void *lpt_buf;
@@ -1394,6 +1394,12 @@ struct ubifs_info {
 	unsigned long fail_timeout;
 	unsigned int fail_cnt;
 	unsigned int fail_cnt_max;
+	long long chk_lpt_sz;
+	long long chk_lpt_sz2;
+	long long chk_lpt_wastage;
+	int chk_lpt_lebs;
+	int new_nhead_lnum;
+	int new_nhead_offs;
 #endif
 };
 

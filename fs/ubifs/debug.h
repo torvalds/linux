@@ -224,6 +224,7 @@ void dbg_dump_lstats(const struct ubifs_lp_stats *lst);
 void dbg_dump_budg(struct ubifs_info *c);
 void dbg_dump_lprop(const struct ubifs_info *c, const struct ubifs_lprops *lp);
 void dbg_dump_lprops(struct ubifs_info *c);
+void dbg_dump_lpt_info(struct ubifs_info *c);
 void dbg_dump_leb(const struct ubifs_info *c, int lnum);
 void dbg_dump_znode(const struct ubifs_info *c,
 		    const struct ubifs_znode *znode);
@@ -249,6 +250,8 @@ int dbg_old_index_check_init(struct ubifs_info *c, struct ubifs_zbranch *zroot);
 int dbg_check_old_index(struct ubifs_info *c, struct ubifs_zbranch *zroot);
 int dbg_check_cats(struct ubifs_info *c);
 int dbg_check_ltab(struct ubifs_info *c);
+int dbg_chk_lpt_free_spc(struct ubifs_info *c);
+int dbg_chk_lpt_sz(struct ubifs_info *c, int action, int len);
 int dbg_check_synced_i_size(struct inode *inode);
 int dbg_check_dir_size(struct ubifs_info *c, const struct inode *dir);
 int dbg_check_tnc(struct ubifs_info *c, int extra);
@@ -367,6 +370,7 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define dbg_dump_budg(c)                      ({})
 #define dbg_dump_lprop(c, lp)                 ({})
 #define dbg_dump_lprops(c)                    ({})
+#define dbg_dump_lpt_info(c)                  ({})
 #define dbg_dump_leb(c, lnum)                 ({})
 #define dbg_dump_znode(c, znode)              ({})
 #define dbg_dump_heap(c, heap, cat)           ({})
@@ -379,6 +383,8 @@ static inline int dbg_change(struct ubi_volume_desc *desc, int lnum,
 #define dbg_check_old_index(c, zroot)              0
 #define dbg_check_cats(c)                          0
 #define dbg_check_ltab(c)                          0
+#define dbg_chk_lpt_free_spc(c)                    0
+#define dbg_chk_lpt_sz(c, action, len)             0
 #define dbg_check_synced_i_size(inode)             0
 #define dbg_check_dir_size(c, dir)                 0
 #define dbg_check_tnc(c, x)                        0

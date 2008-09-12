@@ -655,6 +655,43 @@ void dbg_dump_lprops(struct ubifs_info *c)
 	}
 }
 
+void dbg_dump_lpt_info(struct ubifs_info *c)
+{
+	int i;
+
+	spin_lock(&dbg_lock);
+	printk(KERN_DEBUG "\tlpt_sz:        %lld\n", c->lpt_sz);
+	printk(KERN_DEBUG "\tpnode_sz:      %d\n", c->pnode_sz);
+	printk(KERN_DEBUG "\tnnode_sz:      %d\n", c->nnode_sz);
+	printk(KERN_DEBUG "\tltab_sz:       %d\n", c->ltab_sz);
+	printk(KERN_DEBUG "\tlsave_sz:      %d\n", c->lsave_sz);
+	printk(KERN_DEBUG "\tbig_lpt:       %d\n", c->big_lpt);
+	printk(KERN_DEBUG "\tlpt_hght:      %d\n", c->lpt_hght);
+	printk(KERN_DEBUG "\tpnode_cnt:     %d\n", c->pnode_cnt);
+	printk(KERN_DEBUG "\tnnode_cnt:     %d\n", c->nnode_cnt);
+	printk(KERN_DEBUG "\tdirty_pn_cnt:  %d\n", c->dirty_pn_cnt);
+	printk(KERN_DEBUG "\tdirty_nn_cnt:  %d\n", c->dirty_nn_cnt);
+	printk(KERN_DEBUG "\tlsave_cnt:     %d\n", c->lsave_cnt);
+	printk(KERN_DEBUG "\tspace_bits:    %d\n", c->space_bits);
+	printk(KERN_DEBUG "\tlpt_lnum_bits: %d\n", c->lpt_lnum_bits);
+	printk(KERN_DEBUG "\tlpt_offs_bits: %d\n", c->lpt_offs_bits);
+	printk(KERN_DEBUG "\tlpt_spc_bits:  %d\n", c->lpt_spc_bits);
+	printk(KERN_DEBUG "\tpcnt_bits:     %d\n", c->pcnt_bits);
+	printk(KERN_DEBUG "\tlnum_bits:     %d\n", c->lnum_bits);
+	printk(KERN_DEBUG "\tLPT root is at %d:%d\n", c->lpt_lnum, c->lpt_offs);
+	printk(KERN_DEBUG "\tLPT head is at %d:%d\n",
+	       c->nhead_lnum, c->nhead_offs);
+	printk(KERN_DEBUG "\tLPT ltab is at %d:%d\n", c->ltab_lnum, c->ltab_offs);
+	if (c->big_lpt)
+		printk(KERN_DEBUG "\tLPT lsave is at %d:%d\n",
+		       c->lsave_lnum, c->lsave_offs);
+	for (i = 0; i < c->lpt_lebs; i++)
+		printk(KERN_DEBUG "\tLPT LEB %d free %d dirty %d tgc %d "
+		       "cmt %d\n", i + c->lpt_first, c->ltab[i].free,
+		       c->ltab[i].dirty, c->ltab[i].tgc, c->ltab[i].cmt);
+	spin_unlock(&dbg_lock);
+}
+
 void dbg_dump_leb(const struct ubifs_info *c, int lnum)
 {
 	struct ubifs_scan_leb *sleb;
