@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,6 @@
   the file called "COPYING".
 
   Contact Information:
-  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -42,33 +41,11 @@
 static s32 ixgbe_get_copper_link_capabilities_82598(struct ixgbe_hw *hw,
                                              ixgbe_link_speed *speed,
                                              bool *autoneg);
-static enum ixgbe_media_type ixgbe_get_media_type_82598(struct ixgbe_hw *hw);
-static s32 ixgbe_setup_fc_82598(struct ixgbe_hw *hw, s32 packetbuf_num);
-static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw);
-static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
-                               ixgbe_link_speed *speed,
-                               bool *link_up, bool link_up_wait_to_complete);
-static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw,
-                                            ixgbe_link_speed speed,
-                                            bool autoneg,
-                                            bool autoneg_wait_to_complete);
 static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw);
 static s32 ixgbe_setup_copper_link_speed_82598(struct ixgbe_hw *hw,
                                                ixgbe_link_speed speed,
                                                bool autoneg,
                                                bool autoneg_wait_to_complete);
-static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw);
-static s32 ixgbe_set_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-static s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq);
-static s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan,
-                         u32 vind, bool vlan_on);
-static s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw);
-static s32 ixgbe_blink_led_stop_82598(struct ixgbe_hw *hw, u32 index);
-static s32 ixgbe_blink_led_start_82598(struct ixgbe_hw *hw, u32 index);
-static s32 ixgbe_read_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 *val);
-static s32 ixgbe_write_analog_reg8_82598(struct ixgbe_hw *hw, u32 reg, u8 val);
-static s32 ixgbe_get_supported_physical_layer_82598(struct ixgbe_hw *hw);
-static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw);
 
 /**
  */
@@ -112,8 +89,8 @@ static s32 ixgbe_get_invariants_82598(struct ixgbe_hw *hw)
  *  Determines the link capabilities by reading the AUTOC register.
  **/
 static s32 ixgbe_get_link_capabilities_82598(struct ixgbe_hw *hw,
-                                      ixgbe_link_speed *speed,
-					 bool *autoneg)
+                                             ixgbe_link_speed *speed,
+                                             bool *autoneg)
 {
 	s32 status = 0;
 	s32 autoc_reg;
@@ -180,8 +157,8 @@ s32 ixgbe_get_copper_link_capabilities_82598(struct ixgbe_hw *hw,
 	*autoneg = true;
 
 	status = hw->phy.ops.read_reg(hw, IXGBE_MDIO_PHY_SPEED_ABILITY,
-				    IXGBE_MDIO_PMA_PMD_DEV_TYPE,
-				    &speed_ability);
+	                              IXGBE_MDIO_PMA_PMD_DEV_TYPE,
+	                              &speed_ability);
 
 	if (status == 0) {
 		if (speed_ability & IXGBE_MDIO_PHY_SPEED_10G)
@@ -408,8 +385,9 @@ static s32 ixgbe_setup_mac_link_82598(struct ixgbe_hw *hw)
  *
  *  Reads the links register to determine if link is up and the current speed
  **/
-static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, ixgbe_link_speed *speed,
-                               bool *link_up, bool link_up_wait_to_complete)
+static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw,
+                                      ixgbe_link_speed *speed, bool *link_up,
+                                      bool link_up_wait_to_complete)
 {
 	u32 links_reg;
 	u32 i;
@@ -452,8 +430,8 @@ static s32 ixgbe_check_mac_link_82598(struct ixgbe_hw *hw, ixgbe_link_speed *spe
  *  Set the link speed in the AUTOC register and restarts link.
  **/
 static s32 ixgbe_setup_mac_link_speed_82598(struct ixgbe_hw *hw,
-					    ixgbe_link_speed speed, bool autoneg,
-					    bool autoneg_wait_to_complete)
+                                            ixgbe_link_speed speed, bool autoneg,
+                                            bool autoneg_wait_to_complete)
 {
 	s32 status = 0;
 
@@ -525,15 +503,15 @@ static s32 ixgbe_setup_copper_link_82598(struct ixgbe_hw *hw)
  *  Sets the link speed in the AUTOC register in the MAC and restarts link.
  **/
 static s32 ixgbe_setup_copper_link_speed_82598(struct ixgbe_hw *hw,
-					       ixgbe_link_speed speed,
-					       bool autoneg,
-					       bool autoneg_wait_to_complete)
+                                               ixgbe_link_speed speed,
+                                               bool autoneg,
+                                               bool autoneg_wait_to_complete)
 {
 	s32 status;
 
 	/* Setup the PHY according to input speed */
-		status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
-						autoneg_wait_to_complete);
+	status = hw->phy.ops.setup_link_speed(hw, speed, autoneg,
+	                                      autoneg_wait_to_complete);
 
 	/* Set MAC to KX/KX4 autoneg, which defaults to Parallel detection */
 	hw->mac.link_attach_type = (IXGBE_AUTOC_10G_KX4 | IXGBE_AUTOC_1G_KX);
@@ -653,7 +631,7 @@ static s32 ixgbe_reset_hw_82598(struct ixgbe_hw *hw)
 		IXGBE_WRITE_REG(hw, IXGBE_AUTOC, autoc);
 	} else {
 		hw->mac.link_attach_type =
-					 (autoc & IXGBE_AUTOC_LMS_ATTACH_TYPE);
+		                         (autoc & IXGBE_AUTOC_LMS_ATTACH_TYPE);
 		hw->mac.link_mode_select = (autoc & IXGBE_AUTOC_LMS_MASK);
 		hw->mac.link_settings_loaded = true;
 	}
@@ -715,7 +693,7 @@ static s32 ixgbe_clear_vmdq_82598(struct ixgbe_hw *hw, u32 rar, u32 vmdq)
  *  Turn on/off specified VLAN in the VLAN filter table.
  **/
 s32 ixgbe_set_vfta_82598(struct ixgbe_hw *hw, u32 vlan, u32 vind,
-	                                              bool vlan_on)
+                         bool vlan_on)
 {
 	u32 regindex;
 	u32 bitindex;
@@ -770,7 +748,7 @@ static s32 ixgbe_clear_vfta_82598(struct ixgbe_hw *hw)
 	for (vlanbyte = 0; vlanbyte < 4; vlanbyte++)
 		for (offset = 0; offset < hw->mac.vft_size; offset++)
 			IXGBE_WRITE_REG(hw, IXGBE_VFTAVIND(vlanbyte, offset),
-			                                                  0);
+			                0);
 
 	return 0;
 }

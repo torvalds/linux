@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,6 @@
   the file called "COPYING".
 
   Contact Information:
-  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -48,7 +47,7 @@ struct ixgbe_stats {
 };
 
 #define IXGBE_STAT(m) sizeof(((struct ixgbe_adapter *)0)->m), \
-		      offsetof(struct ixgbe_adapter, m)
+                             offsetof(struct ixgbe_adapter, m)
 static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 	{"rx_packets", IXGBE_STAT(net_stats.rx_packets)},
 	{"tx_packets", IXGBE_STAT(net_stats.tx_packets)},
@@ -95,14 +94,15 @@ static struct ixgbe_stats ixgbe_gstrings_stats[] = {
 };
 
 #define IXGBE_QUEUE_STATS_LEN \
-		((((struct ixgbe_adapter *)netdev->priv)->num_tx_queues + \
-		 ((struct ixgbe_adapter *)netdev->priv)->num_rx_queues) * \
-		 (sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
-#define IXGBE_GLOBAL_STATS_LEN	ARRAY_SIZE(ixgbe_gstrings_stats)
+                ((((struct ixgbe_adapter *)netdev->priv)->num_tx_queues + \
+                 ((struct ixgbe_adapter *)netdev->priv)->num_rx_queues) * \
+                 (sizeof(struct ixgbe_queue_stats) / sizeof(u64)))
+#define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
+#define IXGBE_GLOBAL_STATS_LEN ARRAY_SIZE(ixgbe_gstrings_stats)
 #define IXGBE_STATS_LEN (IXGBE_GLOBAL_STATS_LEN + IXGBE_QUEUE_STATS_LEN)
 
 static int ixgbe_get_settings(struct net_device *netdev,
-			      struct ethtool_cmd *ecmd)
+                              struct ethtool_cmd *ecmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -114,7 +114,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	ecmd->transceiver = XCVR_EXTERNAL;
 	if (hw->phy.media_type == ixgbe_media_type_copper) {
 		ecmd->supported |= (SUPPORTED_1000baseT_Full |
-				    SUPPORTED_TP | SUPPORTED_Autoneg);
+		                    SUPPORTED_TP | SUPPORTED_Autoneg);
 
 		ecmd->advertising = (ADVERTISED_TP | ADVERTISED_Autoneg);
 		if (hw->phy.autoneg_advertised & IXGBE_LINK_SPEED_10GB_FULL)
@@ -126,7 +126,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	} else {
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising = (ADVERTISED_10000baseT_Full |
-				     ADVERTISED_FIBRE);
+		                     ADVERTISED_FIBRE);
 		ecmd->port = PORT_FIBRE;
 		ecmd->autoneg = AUTONEG_DISABLE;
 	}
@@ -134,7 +134,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 	if (link_up) {
 		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-				SPEED_10000 : SPEED_1000;
+		               SPEED_10000 : SPEED_1000;
 		ecmd->duplex = DUPLEX_FULL;
 	} else {
 		ecmd->speed = -1;
@@ -145,7 +145,7 @@ static int ixgbe_get_settings(struct net_device *netdev,
 }
 
 static int ixgbe_set_settings(struct net_device *netdev,
-			      struct ethtool_cmd *ecmd)
+                              struct ethtool_cmd *ecmd)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -165,7 +165,7 @@ static int ixgbe_set_settings(struct net_device *netdev,
 }
 
 static void ixgbe_get_pauseparam(struct net_device *netdev,
-				 struct ethtool_pauseparam *pause)
+                                 struct ethtool_pauseparam *pause)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -183,7 +183,7 @@ static void ixgbe_get_pauseparam(struct net_device *netdev,
 }
 
 static int ixgbe_set_pauseparam(struct net_device *netdev,
-				struct ethtool_pauseparam *pause)
+                                struct ethtool_pauseparam *pause)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -282,7 +282,7 @@ static int ixgbe_get_regs_len(struct net_device *netdev)
 #define IXGBE_GET_STAT(_A_, _R_) _A_->stats._R_
 
 static void ixgbe_get_regs(struct net_device *netdev,
-			   struct ethtool_regs *regs, void *p)
+                           struct ethtool_regs *regs, void *p)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -583,7 +583,7 @@ static int ixgbe_get_eeprom_len(struct net_device *netdev)
 }
 
 static int ixgbe_get_eeprom(struct net_device *netdev,
-			    struct ethtool_eeprom *eeprom, u8 *bytes)
+                            struct ethtool_eeprom *eeprom, u8 *bytes)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -607,7 +607,7 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 
 	for (i = 0; i < eeprom_len; i++) {
 		if ((ret_val = hw->eeprom.ops.read(hw, first_word + i,
-						   &eeprom_buff[i])))
+		    &eeprom_buff[i])))
 			break;
 	}
 
@@ -622,7 +622,7 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 }
 
 static void ixgbe_get_drvinfo(struct net_device *netdev,
-			      struct ethtool_drvinfo *drvinfo)
+                              struct ethtool_drvinfo *drvinfo)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -635,7 +635,7 @@ static void ixgbe_get_drvinfo(struct net_device *netdev,
 }
 
 static void ixgbe_get_ringparam(struct net_device *netdev,
-				struct ethtool_ringparam *ring)
+                                struct ethtool_ringparam *ring)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *tx_ring = adapter->tx_ring;
@@ -652,7 +652,7 @@ static void ixgbe_get_ringparam(struct net_device *netdev,
 }
 
 static int ixgbe_set_ringparam(struct net_device *netdev,
-			       struct ethtool_ringparam *ring)
+                               struct ethtool_ringparam *ring)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_ring *temp_ring;
@@ -706,7 +706,8 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			if (err) {
 				while (i) {
 					i--;
-					ixgbe_free_tx_resources(adapter, &temp_ring[i]);
+					ixgbe_free_tx_resources(adapter,
+					                        &temp_ring[i]);
 				}
 				goto err_setup;
 			}
@@ -731,7 +732,8 @@ static int ixgbe_set_ringparam(struct net_device *netdev,
 			if (err) {
 				while (i) {
 					i--;
-					ixgbe_free_rx_resources(adapter, &temp_ring[i]);
+					ixgbe_free_rx_resources(adapter,
+					                        &temp_ring[i]);
 				}
 				goto err_setup;
 			}
@@ -767,7 +769,7 @@ static int ixgbe_get_sset_count(struct net_device *netdev, int sset)
 }
 
 static void ixgbe_get_ethtool_stats(struct net_device *netdev,
-				    struct ethtool_stats *stats, u64 *data)
+                                    struct ethtool_stats *stats, u64 *data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	u64 *queue_stat;
@@ -788,7 +790,7 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 	for (i = 0; i < IXGBE_GLOBAL_STATS_LEN; i++) {
 		char *p = (char *)adapter + ixgbe_gstrings_stats[i].stat_offset;
 		data[i] = (ixgbe_gstrings_stats[i].sizeof_stat ==
-			   sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
+		           sizeof(u64)) ? *(u64 *)p : *(u32 *)p;
 	}
 	for (j = 0; j < adapter->num_tx_queues; j++) {
 		queue_stat = (u64 *)&adapter->tx_ring[j].stats;
@@ -805,7 +807,7 @@ static void ixgbe_get_ethtool_stats(struct net_device *netdev,
 }
 
 static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
-			      u8 *data)
+                              u8 *data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	char *p = (char *)data;
@@ -830,14 +832,14 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			sprintf(p, "rx_queue_%u_bytes", i);
 			p += ETH_GSTRING_LEN;
 		}
-/*		BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
+		/* BUG_ON(p - data != IXGBE_STATS_LEN * ETH_GSTRING_LEN); */
 		break;
 	}
 }
 
 
 static void ixgbe_get_wol(struct net_device *netdev,
-			  struct ethtool_wolinfo *wol)
+                          struct ethtool_wolinfo *wol)
 {
 	wol->supported = 0;
 	wol->wolopts = 0;
@@ -879,7 +881,7 @@ static int ixgbe_phys_id(struct net_device *netdev, u32 data)
 }
 
 static int ixgbe_get_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *ec)
+                              struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 
@@ -904,7 +906,7 @@ static int ixgbe_get_coalesce(struct net_device *netdev,
 }
 
 static int ixgbe_set_coalesce(struct net_device *netdev,
-			      struct ethtool_coalesce *ec)
+                              struct ethtool_coalesce *ec)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
@@ -974,7 +976,7 @@ static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.set_tso                = ixgbe_set_tso,
 	.get_strings            = ixgbe_get_strings,
 	.phys_id                = ixgbe_phys_id,
-	.get_sset_count		= ixgbe_get_sset_count,
+	.get_sset_count         = ixgbe_get_sset_count,
 	.get_ethtool_stats      = ixgbe_get_ethtool_stats,
 	.get_coalesce           = ixgbe_get_coalesce,
 	.set_coalesce           = ixgbe_set_coalesce,

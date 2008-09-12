@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2007 Intel Corporation.
+  Copyright(c) 1999 - 2008 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -20,7 +20,6 @@
   the file called "COPYING".
 
   Contact Information:
-  Linux NICS <linux.nics@intel.com>
   e1000-devel Mailing List <e1000-devel@lists.sourceforge.net>
   Intel Corporation, 5200 N.E. Elam Young Parkway, Hillsboro, OR 97124-6497
 
@@ -481,7 +480,7 @@ s32 ixgbe_read_eeprom_generic(struct ixgbe_hw *hw, u16 offset, u16 *data)
 
 	if (status == 0)
 		*data = (IXGBE_READ_REG(hw, IXGBE_EERD) >>
-			IXGBE_EEPROM_READ_REG_DATA);
+		         IXGBE_EEPROM_READ_REG_DATA);
 	else
 		hw_dbg(hw, "Eeprom read timed out\n");
 
@@ -620,7 +619,7 @@ static s32 ixgbe_get_eeprom_semaphore(struct ixgbe_hw *hw)
 		 */
 		if (i >= timeout) {
 			hw_dbg(hw, "Driver can't access the Eeprom - Semaphore "
-				 "not granted.\n");
+			       "not granted.\n");
 			ixgbe_release_eeprom_semaphore(hw);
 			status = IXGBE_ERR_EEPROM;
 		}
@@ -1018,14 +1017,14 @@ s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 
 	/* Make sure we are using a valid rar index range */
 	if (index < rar_entries) {
-	/*
+		/*
 		 * HW expects these in little endian so we reverse the byte
 		 * order from network order (big endian) to little endian
-	 */
-	rar_low = ((u32)addr[0] |
-		   ((u32)addr[1] << 8) |
-		   ((u32)addr[2] << 16) |
-		   ((u32)addr[3] << 24));
+		 */
+		rar_low = ((u32)addr[0] |
+		           ((u32)addr[1] << 8) |
+		           ((u32)addr[2] << 16) |
+		           ((u32)addr[3] << 24));
 		/*
 		 * Some parts put the VMDq setting in the extra RAH bits,
 		 * so save everything except the lower 16 bits that hold part
@@ -1035,11 +1034,11 @@ s32 ixgbe_set_rar_generic(struct ixgbe_hw *hw, u32 index, u8 *addr, u32 vmdq,
 		rar_high &= ~(0x0000FFFF | IXGBE_RAH_AV);
 		rar_high |= ((u32)addr[4] | ((u32)addr[5] << 8));
 
-	if (enable_addr != 0)
-		rar_high |= IXGBE_RAH_AV;
+		if (enable_addr != 0)
+			rar_high |= IXGBE_RAH_AV;
 
-	IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
-	IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
+		IXGBE_WRITE_REG(hw, IXGBE_RAL(index), rar_low);
+		IXGBE_WRITE_REG(hw, IXGBE_RAH(index), rar_high);
 	} else {
 		hw_dbg(hw, "RAR index %d is out of range.\n", index);
 	}
@@ -1137,18 +1136,18 @@ s32 ixgbe_init_rx_addrs_generic(struct ixgbe_hw *hw)
 		hw->mac.ops.get_mac_addr(hw, hw->mac.addr);
 
 		hw_dbg(hw, " Keeping Current RAR0 Addr =%.2X %.2X %.2X ",
-			  hw->mac.addr[0], hw->mac.addr[1],
-			  hw->mac.addr[2]);
+		       hw->mac.addr[0], hw->mac.addr[1],
+		       hw->mac.addr[2]);
 		hw_dbg(hw, "%.2X %.2X %.2X\n", hw->mac.addr[3],
-			  hw->mac.addr[4], hw->mac.addr[5]);
+		       hw->mac.addr[4], hw->mac.addr[5]);
 	} else {
 		/* Setup the receive address. */
 		hw_dbg(hw, "Overriding MAC Address in RAR[0]\n");
 		hw_dbg(hw, " New MAC Addr =%.2X %.2X %.2X ",
-			  hw->mac.addr[0], hw->mac.addr[1],
-			  hw->mac.addr[2]);
+		       hw->mac.addr[0], hw->mac.addr[1],
+		       hw->mac.addr[2]);
 		hw_dbg(hw, "%.2X %.2X %.2X\n", hw->mac.addr[3],
-			  hw->mac.addr[4], hw->mac.addr[5]);
+		       hw->mac.addr[4], hw->mac.addr[5]);
 
 		hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
 	}
@@ -1296,19 +1295,19 @@ static s32 ixgbe_mta_vector(struct ixgbe_hw *hw, u8 *mc_addr)
 	u32 vector = 0;
 
 	switch (hw->mac.mc_filter_type) {
-	case 0:	  /* use bits [47:36] of the address */
+	case 0:   /* use bits [47:36] of the address */
 		vector = ((mc_addr[4] >> 4) | (((u16)mc_addr[5]) << 4));
 		break;
-	case 1:	  /* use bits [46:35] of the address */
+	case 1:   /* use bits [46:35] of the address */
 		vector = ((mc_addr[4] >> 3) | (((u16)mc_addr[5]) << 5));
 		break;
-	case 2:	  /* use bits [45:34] of the address */
+	case 2:   /* use bits [45:34] of the address */
 		vector = ((mc_addr[4] >> 2) | (((u16)mc_addr[5]) << 6));
 		break;
-	case 3:	  /* use bits [43:32] of the address */
+	case 3:   /* use bits [43:32] of the address */
 		vector = ((mc_addr[4]) | (((u16)mc_addr[5]) << 8));
 		break;
-	default:	 /* Invalid mc_filter_type */
+	default:  /* Invalid mc_filter_type */
 		hw_dbg(hw, "MC filter type param set incorrectly\n");
 		break;
 	}
@@ -1366,8 +1365,8 @@ static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
 	u32 rar;
 
 	hw_dbg(hw, " MC Addr =%.2X %.2X %.2X %.2X %.2X %.2X\n",
-		  mc_addr[0], mc_addr[1], mc_addr[2],
-		  mc_addr[3], mc_addr[4], mc_addr[5]);
+	       mc_addr[0], mc_addr[1], mc_addr[2],
+	       mc_addr[3], mc_addr[4], mc_addr[5]);
 
 	/*
 	 * Place this multicast address in the RAR if there is room,
@@ -1400,7 +1399,7 @@ static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
  *  multicast table.
  **/
 s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
-			      u32 mc_addr_count, ixgbe_mc_addr_itr next)
+                                      u32 mc_addr_count, ixgbe_mc_addr_itr next)
 {
 	u32 i;
 	u32 rar_entries = hw->mac.num_rar_entries;
@@ -1437,7 +1436,7 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
 	/* Enable mta */
 	if (hw->addr_ctrl.mta_in_use > 0)
 		IXGBE_WRITE_REG(hw, IXGBE_MCSTCTRL,
-				IXGBE_MCSTCTRL_MFE | hw->mac.mc_filter_type);
+		                IXGBE_MCSTCTRL_MFE | hw->mac.mc_filter_type);
 
 	hw_dbg(hw, "ixgbe_update_mc_addr_list_generic Complete\n");
 	return 0;
