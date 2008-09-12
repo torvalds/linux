@@ -336,5 +336,9 @@ extern int ixgbe_setup_rx_resources(struct ixgbe_adapter *adapter,
 				    struct ixgbe_ring *rxdr);
 extern int ixgbe_setup_tx_resources(struct ixgbe_adapter *adapter,
 				    struct ixgbe_ring *txdr);
+extern void ixgbe_free_rx_resources(struct ixgbe_adapter *adapter,
+                                    struct ixgbe_ring *rxdr);
+extern void ixgbe_free_tx_resources(struct ixgbe_adapter *adapter,
+                                    struct ixgbe_ring *txdr);
 
 #endif /* _IXGBE_H_ */

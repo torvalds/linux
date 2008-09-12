@@ -2731,8 +2731,8 @@ alloc_failed:
  *
  * Free all transmit software resources
  **/
-static void ixgbe_free_tx_resources(struct ixgbe_adapter *adapter,
-                                    struct ixgbe_ring *tx_ring)
+void ixgbe_free_tx_resources(struct ixgbe_adapter *adapter,
+                             struct ixgbe_ring *tx_ring)
 {
 	struct pci_dev *pdev = adapter->pdev;
 
@@ -2761,14 +2761,14 @@ static void ixgbe_free_all_tx_resources(struct ixgbe_adapter *adapter)
 }
 
 /**
- * ixgbe_free_rx_resources - Free Rx Resources
+ * ixgbe_ree_rx_resources - Free Rx Resources
  * @adapter: board private structure
  * @rx_ring: ring to clean the resources from
  *
  * Free all receive software resources
  **/
-static void ixgbe_free_rx_resources(struct ixgbe_adapter *adapter,
-				    struct ixgbe_ring *rx_ring)
+void ixgbe_free_rx_resources(struct ixgbe_adapter *adapter,
+                             struct ixgbe_ring *rx_ring)
 {
 	struct pci_dev *pdev = adapter->pdev;
 
