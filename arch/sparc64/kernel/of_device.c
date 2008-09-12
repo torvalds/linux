@@ -401,8 +401,7 @@ static int __init build_one_resource(struct device_node *parent,
 				     int na, int ns, int pna)
 {
 	const u32 *ranges;
-	unsigned int rlen;
-	int rone;
+	int rone, rlen;
 
 	ranges = of_get_property(parent, "ranges", &rlen);
 	if (ranges == NULL || rlen == 0) {
