@@ -1060,8 +1060,9 @@ static void myri10ge_setup_dca(struct myri10ge_priv *mgp)
 	}
 	err = dca_add_requester(&pdev->dev);
 	if (err) {
-		dev_err(&pdev->dev,
-			"dca_add_requester() failed, err=%d\n", err);
+		if (err != -ENODEV)
+			dev_err(&pdev->dev,
+				"dca_add_requester() failed, err=%d\n", err);
 		return;
 	}
 	mgp->dca_enabled = 1;
