@@ -106,6 +106,15 @@ config NET_SCH_PRIO
 	  To compile this code as a module, choose M here: the
 	  module will be called sch_prio.
 
+config NET_SCH_MULTIQ
+	tristate "Hardware Multiqueue-aware Multi Band Queuing (MULTIQ)"
+	---help---
+	  Say Y here if you want to use an n-band queue packet scheduler
+	  to support devices that have multiple hardware transmit queues.
+
+	  To compile this code as a module, choose M here: the
+	  module will be called sch_multiq.
+
 config NET_SCH_RED
 	tristate "Random Early Detection (RED)"
 	---help---
