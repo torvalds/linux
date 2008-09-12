@@ -224,6 +224,11 @@ static const struct user_regset_view user_sh_native_view = {
 	.n		= ARRAY_SIZE(sh_regsets),
 };
 
+const struct user_regset_view *task_user_regset_view(struct task_struct *task)
+{
+	return &user_sh_native_view;
+}
+
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 {
 	struct user * dummy = NULL;
