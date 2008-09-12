@@ -1245,8 +1245,13 @@ static irqreturn_t ixgbe_intr(int irq, void *data)
 	/* for NAPI, using EIAM to auto-mask tx/rx interrupt bits on read
 	 * therefore no explict interrupt disable is necessary */
 	eicr = IXGBE_READ_REG(hw, IXGBE_EICR);
-	if (!eicr)
+	if (!eicr) {
+		/* shared interrupt alert!
+		 * make sure interrupts are enabled because the read will
+		 * have disabled interrupts due to EIAM */
+		ixgbe_irq_enable(adapter);
 		return IRQ_NONE;	/* Not our interrupt */
+	}
 
 	if (eicr & IXGBE_EICR_LSC)
 		ixgbe_check_lsc(adapter);
