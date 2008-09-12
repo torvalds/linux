@@ -267,6 +267,8 @@ extern unsigned long get_wchan(struct task_struct *p);
 #define KSTK_EIP(tsk)  ((tsk)->thread.pc)
 #define KSTK_ESP(tsk)  ((tsk)->thread.sp)
 
+#define user_stack_pointer(regs)	((regs)->sp)
+
 #define cpu_relax()	barrier()
 
 #endif	/* __ASSEMBLY__ */
