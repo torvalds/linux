@@ -1,7 +1,7 @@
 #ifndef _SH_SETUP_H
 #define _SH_SETUP_H
 
-#include <asm/mmzone.h>
+#include <linux/mmzone.h>
 
 #define COMMAND_LINE_SIZE 256
 
