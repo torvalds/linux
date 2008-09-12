@@ -1311,7 +1311,7 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 {
 	struct dvb_device *dvbdev = file->private_data;
 	struct dvb_frontend *fe = dvbdev->priv;
-	int err = -EOPNOTSUPP;
+	int err = 0;
 
 	struct dtv_properties *tvps = NULL;
 	struct dtv_property *tvp = NULL;
