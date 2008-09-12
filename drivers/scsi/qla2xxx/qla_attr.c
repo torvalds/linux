@@ -1065,6 +1065,8 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 		pfc_host_stat->dumped_frames = stats->dumped_frames;
 		pfc_host_stat->nos_count = stats->nos_rcvd;
 	}
+	pfc_host_stat->fcp_input_megabytes = ha->qla_stats.input_bytes >> 20;
+	pfc_host_stat->fcp_output_megabytes = ha->qla_stats.output_bytes >> 20;
 
 done_free:
         dma_pool_free(ha->s_dma_pool, stats, stats_dma);

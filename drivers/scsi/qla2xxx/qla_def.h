@@ -2156,6 +2156,8 @@ struct qla_chip_state_84xx {
 
 struct qla_statistics {
 	uint32_t total_isp_aborts;
+	uint64_t input_bytes;
+	uint64_t output_bytes;
 };
 
 /*
