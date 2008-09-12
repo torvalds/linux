@@ -87,12 +87,18 @@ struct pt_dspregs {
 	unsigned long	mod;
 };
 
+#define PTRACE_GETREGS		12	/* General registers */
+#define PTRACE_SETREGS		13
+
+#define PTRACE_GETFPREGS	14	/* FPU registers */
+#define PTRACE_SETFPREGS	15
+
 #define PTRACE_GETFDPIC		31	/* get the ELF fdpic loadmap address */
 
 #define PTRACE_GETFDPIC_EXEC	0	/* [addr] request the executable loadmap */
 #define PTRACE_GETFDPIC_INTERP	1	/* [addr] request the interpreter loadmap */
 
-#define	PTRACE_GETDSPREGS	55
+#define	PTRACE_GETDSPREGS	55	/* DSP registers */
 #define	PTRACE_SETDSPREGS	56
 #endif
 
