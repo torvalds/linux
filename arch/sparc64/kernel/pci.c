@@ -242,9 +242,9 @@ static void pci_parse_of_addrs(struct of_device *op,
 	}
 }
 
-struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
-				  struct device_node *node,
-				  struct pci_bus *bus, int devfn)
+static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
+					 struct device_node *node,
+					 struct pci_bus *bus, int devfn)
 {
 	struct dev_archdata *sd;
 	struct of_device *op;
@@ -998,7 +998,7 @@ EXPORT_SYMBOL(pci_domain_nr);
 int arch_setup_msi_irq(struct pci_dev *pdev, struct msi_desc *desc)
 {
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
-	int virt_irq;
+	unsigned int virt_irq;
 
 	if (!pbm->setup_msi_irq)
 		return -EINVAL;
@@ -1012,10 +1012,8 @@ void arch_teardown_msi_irq(unsigned int virt_irq)
 	struct pci_dev *pdev = entry->dev;
 	struct pci_pbm_info *pbm = pdev->dev.archdata.host_controller;
 
-	if (!pbm->teardown_msi_irq)
-		return;
-
-	return pbm->teardown_msi_irq(virt_irq, pdev);
+	if (pbm->teardown_msi_irq)
+		pbm->teardown_msi_irq(virt_irq, pdev);
 }
 #endif /* !(CONFIG_PCI_MSI) */
 

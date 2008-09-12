@@ -178,4 +178,8 @@ extern void pci_config_write32(u32 *addr, u32 val);
 extern struct pci_ops sun4u_pci_ops;
 extern struct pci_ops sun4v_pci_ops;
 
+extern volatile int pci_poke_in_progress;
+extern volatile int pci_poke_cpu;
+extern volatile int pci_poke_faulted;
+
 #endif /* !(PCI_IMPL_H) */

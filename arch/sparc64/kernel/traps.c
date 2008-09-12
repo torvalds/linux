@@ -341,10 +341,7 @@ void sun4v_data_access_exception_tl1(struct pt_regs *regs, unsigned long addr, u
 }
 
 #ifdef CONFIG_PCI
-/* This is really pathetic... */
-extern volatile int pci_poke_in_progress;
-extern volatile int pci_poke_cpu;
-extern volatile int pci_poke_faulted;
+#include "pci_impl.h"
 #endif
 
 /* When access exceptions happen, we must do this. */
