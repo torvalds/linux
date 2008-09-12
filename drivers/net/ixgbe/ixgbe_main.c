@@ -2333,6 +2333,46 @@ static void ixgbe_reset_task(struct work_struct *work)
 	ixgbe_reinit_locked(adapter);
 }
 
+static void ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
+{
+	int nrq = 1, ntq = 1;
+	int feature_mask = 0, rss_i, rss_m;
+
+	/* Number of supported queues */
+	switch (adapter->hw.mac.type) {
+	case ixgbe_mac_82598EB:
+		rss_i = adapter->ring_feature[RING_F_RSS].indices;
+		rss_m = 0;
+		feature_mask |= IXGBE_FLAG_RSS_ENABLED;
+
+		switch (adapter->flags & feature_mask) {
+		case (IXGBE_FLAG_RSS_ENABLED):
+			rss_m = 0xF;
+			nrq = rss_i;
+			ntq = rss_i;
+			break;
+		case 0:
+		default:
+			rss_i = 0;
+			rss_m = 0;
+			nrq = 1;
+			ntq = 1;
+			break;
+		}
+
+		adapter->ring_feature[RING_F_RSS].indices = rss_i;
+		adapter->ring_feature[RING_F_RSS].mask = rss_m;
+		break;
+	default:
+		nrq = 1;
+		ntq = 1;
+		break;
+	}
+
+	adapter->num_rx_queues = nrq;
+	adapter->num_tx_queues = ntq;
+}
+
 static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 				       int vectors)
 {
@@ -2372,52 +2412,11 @@ static void ixgbe_acquire_msix_vectors(struct ixgbe_adapter *adapter,
 		kfree(adapter->msix_entries);
 		adapter->msix_entries = NULL;
 		adapter->flags &= ~IXGBE_FLAG_RSS_ENABLED;
-		adapter->num_tx_queues = 1;
-		adapter->num_rx_queues = 1;
+		ixgbe_set_num_queues(adapter);
 	} else {
 		adapter->flags |= IXGBE_FLAG_MSIX_ENABLED; /* Woot! */
 		adapter->num_msix_vectors = vectors;
 	}
-}
-
-static void __devinit ixgbe_set_num_queues(struct ixgbe_adapter *adapter)
-{
-	int nrq, ntq;
-	int feature_mask = 0, rss_i, rss_m;
-
-	/* Number of supported queues */
-	switch (adapter->hw.mac.type) {
-	case ixgbe_mac_82598EB:
-		rss_i = adapter->ring_feature[RING_F_RSS].indices;
-		rss_m = 0;
-		feature_mask |= IXGBE_FLAG_RSS_ENABLED;
-
-		switch (adapter->flags & feature_mask) {
-		case (IXGBE_FLAG_RSS_ENABLED):
-			rss_m = 0xF;
-			nrq = rss_i;
-			ntq = rss_i;
-			break;
-		case 0:
-		default:
-			rss_i = 0;
-			rss_m = 0;
-			nrq = 1;
-			ntq = 1;
-			break;
-		}
-
-		adapter->ring_feature[RING_F_RSS].indices = rss_i;
-		adapter->ring_feature[RING_F_RSS].mask = rss_m;
-		break;
-	default:
-		nrq = 1;
-		ntq = 1;
-		break;
-	}
-
-	adapter->num_rx_queues = nrq;
-	adapter->num_tx_queues = ntq;
 }
 
 /**
@@ -2482,11 +2481,12 @@ static int __devinit ixgbe_alloc_queues(struct ixgbe_adapter *adapter)
 		goto err_rx_ring_allocation;
 
 	for (i = 0; i < adapter->num_tx_queues; i++) {
-		adapter->tx_ring[i].count = IXGBE_DEFAULT_TXD;
+		adapter->tx_ring[i].count = adapter->tx_ring_count;
 		adapter->tx_ring[i].queue_index = i;
 	}
+
 	for (i = 0; i < adapter->num_rx_queues; i++) {
-		adapter->rx_ring[i].count = IXGBE_DEFAULT_RXD;
+		adapter->rx_ring[i].count = adapter->rx_ring_count;
 		adapter->rx_ring[i].queue_index = i;
 	}
 

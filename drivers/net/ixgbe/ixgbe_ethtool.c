@@ -947,7 +947,7 @@ static int ixgbe_set_coalesce(struct net_device *netdev,
 }
 
 
-static struct ethtool_ops ixgbe_ethtool_ops = {
+static const struct ethtool_ops ixgbe_ethtool_ops = {
 	.get_settings           = ixgbe_get_settings,
 	.set_settings           = ixgbe_set_settings,
 	.get_drvinfo            = ixgbe_get_drvinfo,
