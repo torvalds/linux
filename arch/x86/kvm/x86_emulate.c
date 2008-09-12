@@ -96,7 +96,7 @@ static u16 opcode_table[256] = {
 	/* 0x20 - 0x27 */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	SrcImmByte, SrcImm, 0, 0,
+	DstAcc | SrcImmByte, DstAcc | SrcImm, 0, 0,
 	/* 0x28 - 0x2F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
@@ -1392,27 +1392,10 @@ special_insn:
 	      sbb:		/* sbb */
 		emulate_2op_SrcV("sbb", c->src, c->dst, ctxt->eflags);
 		break;
-	case 0x20 ... 0x23:
+	case 0x20 ... 0x25:
 	      and:		/* and */
 		emulate_2op_SrcV("and", c->src, c->dst, ctxt->eflags);
 		break;
-	case 0x24:              /* and al imm8 */
-		c->dst.type = OP_REG;
-		c->dst.ptr = &c->regs[VCPU_REGS_RAX];
-		c->dst.val = *(u8 *)c->dst.ptr;
-		c->dst.bytes = 1;
-		c->dst.orig_val = c->dst.val;
-		goto and;
-	case 0x25:              /* and ax imm16, or eax imm32 */
-		c->dst.type = OP_REG;
-		c->dst.bytes = c->op_bytes;
-		c->dst.ptr = &c->regs[VCPU_REGS_RAX];
-		if (c->op_bytes == 2)
-			c->dst.val = *(u16 *)c->dst.ptr;
-		else
-			c->dst.val = *(u32 *)c->dst.ptr;
-		c->dst.orig_val = c->dst.val;
-		goto and;
 	case 0x28 ... 0x2d:
 	      sub:		/* sub */
 		emulate_2op_SrcV("sub", c->src, c->dst, ctxt->eflags);
