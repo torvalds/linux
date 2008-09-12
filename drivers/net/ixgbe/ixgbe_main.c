@@ -3377,7 +3377,7 @@ static int __ixgbe_maybe_stop_tx(struct net_device *netdev,
 		return -EBUSY;
 
 	/* A reprieve! - use start_queue because it doesn't call schedule */
-	netif_wake_subqueue(netdev, tx_ring->queue_index);
+	netif_start_subqueue(netdev, tx_ring->queue_index);
 	++adapter->restart_queue;
 	return 0;
 }
