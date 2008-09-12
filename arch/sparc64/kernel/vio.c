@@ -152,7 +152,7 @@ show_pciobppath_attr(struct device *dev, struct device_attribute *attr,
 static DEVICE_ATTR(obppath, S_IRUSR | S_IRGRP | S_IROTH,
 		   show_pciobppath_attr, NULL);
 
-struct device_node *cdev_node;
+static struct device_node *cdev_node;
 
 static struct vio_dev *root_vdev;
 static u64 cdev_cfg_handle;
@@ -371,9 +371,9 @@ static struct mdesc_notifier_client vio_ds_notifier = {
 	.node_name	= "domain-services-port",
 };
 
-const char *channel_devices_node = "channel-devices";
-const char *channel_devices_compat = "SUNW,sun4v-channel-devices";
-const char *cfg_handle_prop = "cfg-handle";
+static const char *channel_devices_node = "channel-devices";
+static const char *channel_devices_compat = "SUNW,sun4v-channel-devices";
+static const char *cfg_handle_prop = "cfg-handle";
 
 static int __init vio_init(void)
 {
