@@ -108,7 +108,8 @@ static u16 opcode_table[256] = {
 	/* 0x38 - 0x3F */
 	ByteOp | DstMem | SrcReg | ModRM, DstMem | SrcReg | ModRM,
 	ByteOp | DstReg | SrcMem | ModRM, DstReg | SrcMem | ModRM,
-	0, 0, 0, 0,
+	ByteOp | DstAcc | SrcImm, DstAcc | SrcImm,
+	0, 0,
 	/* 0x40 - 0x47 */
 	DstReg, DstReg, DstReg, DstReg, DstReg, DstReg, DstReg, DstReg,
 	/* 0x48 - 0x4F */
