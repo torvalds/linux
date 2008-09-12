@@ -595,7 +595,7 @@ out:
 static int populate_page(struct ubifs_info *c, struct page *page,
 			 struct bu_info *bu, int *n)
 {
-	int i = 0, nn = *n, offs = bu->zbranch[0].offs, hole = 1, read = 0;
+	int i = 0, nn = *n, offs = bu->zbranch[0].offs, hole = 0, read = 0;
 	struct inode *inode = page->mapping->host;
 	loff_t i_size = i_size_read(inode);
 	unsigned int page_block;
@@ -609,6 +609,7 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 
 	end_index = (i_size - 1) >> PAGE_CACHE_SHIFT;
 	if (!i_size || page->index > end_index) {
+		hole = 1;
 		memset(addr, 0, PAGE_CACHE_SIZE);
 		goto out_hole;
 	}
@@ -617,10 +618,10 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 	while (1) {
 		int err, len, out_len, dlen;
 
-		if (nn >= bu->cnt ||
-		    key_block(c, &bu->zbranch[nn].key) != page_block)
+		if (nn >= bu->cnt) {
+			hole = 1;
 			memset(addr, 0, UBIFS_BLOCK_SIZE);
-		else {
+		} else if (key_block(c, &bu->zbranch[nn].key) == page_block) {
 			struct ubifs_data_node *dn;
 
 			dn = bu->buf + (bu->zbranch[nn].offs - offs);
@@ -643,8 +644,13 @@ static int populate_page(struct ubifs_info *c, struct page *page,
 				memset(addr + len, 0, UBIFS_BLOCK_SIZE - len);
 
 			nn += 1;
-			hole = 0;
 			read = (i << UBIFS_BLOCK_SHIFT) + len;
+		} else if (key_block(c, &bu->zbranch[nn].key) < page_block) {
+			nn += 1;
+			continue;
+		} else {
+			hole = 1;
+			memset(addr, 0, UBIFS_BLOCK_SIZE);
 		}
 		if (++i >= UBIFS_BLOCKS_PER_PAGE)
 			break;
