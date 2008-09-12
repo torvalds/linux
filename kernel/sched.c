@@ -4039,55 +4039,22 @@ EXPORT_PER_CPU_SYMBOL(kstat);
 /*
  * Return any ns on the sched_clock that have not yet been banked in
  * @p in case that task is currently running.
- *
- * Called with task_rq_lock() held on @rq.
  */
-static unsigned long long task_delta_exec(struct task_struct *p, struct rq *rq)
+unsigned long long task_delta_exec(struct task_struct *p)
 {
+	struct rq *rq;
+	unsigned long flags;
+	u64 ns = 0;
+
+	rq = task_rq_lock(p, &flags);
 	if (task_current(rq, p)) {
 		u64 delta_exec;
 
 		update_rq_clock(rq);
 		delta_exec = rq->clock - p->se.exec_start;
 		if ((s64)delta_exec > 0)
-			return delta_exec;
+			ns = delta_exec;
 	}
-	return 0;
-}
-
-/*
- * Return p->sum_exec_runtime plus any more ns on the sched_clock
- * that have not yet been banked in case the task is currently running.
- */
-unsigned long long task_sched_runtime(struct task_struct *p)
-{
-	unsigned long flags;
-	u64 ns;
-	struct rq *rq;
-
-	rq = task_rq_lock(p, &flags);
-	ns = p->se.sum_exec_runtime + task_delta_exec(p, rq);
-	task_rq_unlock(rq, &flags);
-
-	return ns;
-}
-
-/*
- * Return sum_exec_runtime for the thread group plus any more ns on the
- * sched_clock that have not yet been banked in case the task is currently
- * running.
- */
-unsigned long long thread_group_sched_runtime(struct task_struct *p)
-{
-	unsigned long flags;
-	u64 ns;
-	struct rq *rq;
-	struct task_cputime totals;
-
-	rq = task_rq_lock(p, &flags);
-	thread_group_cputime(p, &totals);
-	ns = totals.sum_exec_runtime + task_delta_exec(p, rq);
-	task_rq_unlock(rq, &flags);
 
 	return ns;
 }

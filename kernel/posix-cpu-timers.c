@@ -7,50 +7,46 @@
 #include <linux/errno.h>
 #include <linux/math64.h>
 #include <asm/uaccess.h>
+#include <linux/kernel_stat.h>
 
-#ifdef CONFIG_SMP
 /*
- * Allocate the thread_group_cputime structure appropriately for SMP kernels
- * and fill in the current values of the fields.  Called from copy_signal()
- * via thread_group_cputime_clone_thread() when adding a second or subsequent
+ * Allocate the thread_group_cputime structure appropriately and fill in the
+ * current values of the fields.  Called from copy_signal() via
+ * thread_group_cputime_clone_thread() when adding a second or subsequent
  * thread to a thread group.  Assumes interrupts are enabled when called.
  */
-int thread_group_cputime_alloc_smp(struct task_struct *tsk)
+int thread_group_cputime_alloc(struct task_struct *tsk)
 {
 	struct signal_struct *sig = tsk->signal;
 	struct task_cputime *cputime;
 
 	/*
 	 * If we have multiple threads and we don't already have a
-	 * per-CPU task_cputime struct, allocate one and fill it in with
-	 * the times accumulated so far.
+	 * per-CPU task_cputime struct (checked in the caller), allocate
+	 * one and fill it in with the times accumulated so far.  We may
+	 * race with another thread so recheck after we pick up the sighand
+	 * lock.
 	 */
-	if (sig->cputime.totals)
-		return 0;
 	cputime = alloc_percpu(struct task_cputime);
 	if (cputime == NULL)
 		return -ENOMEM;
-	read_lock(&tasklist_lock);
 	spin_lock_irq(&tsk->sighand->siglock);
 	if (sig->cputime.totals) {
 		spin_unlock_irq(&tsk->sighand->siglock);
-		read_unlock(&tasklist_lock);
 		free_percpu(cputime);
 		return 0;
 	}
 	sig->cputime.totals = cputime;
-	cputime = per_cpu_ptr(sig->cputime.totals, get_cpu());
+	cputime = per_cpu_ptr(sig->cputime.totals, smp_processor_id());
 	cputime->utime = tsk->utime;
 	cputime->stime = tsk->stime;
 	cputime->sum_exec_runtime = tsk->se.sum_exec_runtime;
-	put_cpu_no_resched();
 	spin_unlock_irq(&tsk->sighand->siglock);
-	read_unlock(&tasklist_lock);
 	return 0;
 }
 
 /**
- * thread_group_cputime_smp - Sum the thread group time fields across all CPUs.
+ * thread_group_cputime - Sum the thread group time fields across all CPUs.
  *
  * @tsk:	The task we use to identify the thread group.
  * @times:	task_cputime structure in which we return the summed fields.
@@ -58,7 +54,7 @@ int thread_group_cputime_alloc_smp(struct task_struct *tsk)
  * Walk the list of CPUs to sum the per-CPU time fields in the thread group
  * time structure.
  */
-void thread_group_cputime_smp(
+void thread_group_cputime(
 	struct task_struct *tsk,
 	struct task_cputime *times)
 {
@@ -82,8 +78,6 @@ void thread_group_cputime_smp(
 		times->sum_exec_runtime += tot->sum_exec_runtime;
 	}
 }
-
-#endif /* CONFIG_SMP */
 
 /*
  * Called after updating RLIMIT_CPU to set timer expiration if necessary.
@@ -300,35 +294,7 @@ static int cpu_clock_sample(const clockid_t which_clock, struct task_struct *p,
 		cpu->cpu = virt_ticks(p);
 		break;
 	case CPUCLOCK_SCHED:
-		cpu->sched = task_sched_runtime(p);
-		break;
-	}
-	return 0;
-}
-
-/*
- * Sample a process (thread group) clock for the given group_leader task.
- * Must be called with tasklist_lock held for reading.
- * Must be called with tasklist_lock held for reading, and p->sighand->siglock.
- */
-static int cpu_clock_sample_group_locked(unsigned int clock_idx,
-					 struct task_struct *p,
-					 union cpu_time_count *cpu)
-{
-	struct task_cputime cputime;
-
-	thread_group_cputime(p, &cputime);
-	switch (clock_idx) {
-	default:
-		return -EINVAL;
-	case CPUCLOCK_PROF:
-		cpu->cpu = cputime_add(cputime.utime, cputime.stime);
-		break;
-	case CPUCLOCK_VIRT:
-		cpu->cpu = cputime.utime;
-		break;
-	case CPUCLOCK_SCHED:
-		cpu->sched = thread_group_sched_runtime(p);
+		cpu->sched = p->se.sum_exec_runtime + task_delta_exec(p);
 		break;
 	}
 	return 0;
@@ -342,13 +308,23 @@ static int cpu_clock_sample_group(const clockid_t which_clock,
 				  struct task_struct *p,
 				  union cpu_time_count *cpu)
 {
-	int ret;
-	unsigned long flags;
-	spin_lock_irqsave(&p->sighand->siglock, flags);
-	ret = cpu_clock_sample_group_locked(CPUCLOCK_WHICH(which_clock), p,
-					    cpu);
-	spin_unlock_irqrestore(&p->sighand->siglock, flags);
-	return ret;
+	struct task_cputime cputime;
+
+	thread_group_cputime(p, &cputime);
+	switch (which_clock) {
+	default:
+		return -EINVAL;
+	case CPUCLOCK_PROF:
+		cpu->cpu = cputime_add(cputime.utime, cputime.stime);
+		break;
+	case CPUCLOCK_VIRT:
+		cpu->cpu = cputime.utime;
+		break;
+	case CPUCLOCK_SCHED:
+		cpu->sched = cputime.sum_exec_runtime + task_delta_exec(p);
+		break;
+	}
+	return 0;
 }
 
 
@@ -1324,29 +1300,37 @@ static inline int task_cputime_expired(const struct task_cputime *sample,
  * fastpath_timer_check - POSIX CPU timers fast path.
  *
  * @tsk:	The task (thread) being checked.
- * @sig:	The signal pointer for that task.
  *
- * If there are no timers set return false.  Otherwise snapshot the task and
- * thread group timers, then compare them with the corresponding expiration
- # times.  Returns true if a timer has expired, else returns false.
+ * Check the task and thread group timers.  If both are zero (there are no
+ * timers set) return false.  Otherwise snapshot the task and thread group
+ * timers and compare them with the corresponding expiration times.  Return
+ * true if a timer has expired, else return false.
  */
-static inline int fastpath_timer_check(struct task_struct *tsk,
-					struct signal_struct *sig)
+static inline int fastpath_timer_check(struct task_struct *tsk)
 {
-	struct task_cputime task_sample = {
-		.utime = tsk->utime,
-		.stime = tsk->stime,
-		.sum_exec_runtime = tsk->se.sum_exec_runtime
-	};
-	struct task_cputime group_sample;
+	struct signal_struct *sig = tsk->signal;
 
-	if (task_cputime_zero(&tsk->cputime_expires) &&
-	    task_cputime_zero(&sig->cputime_expires))
+	if (unlikely(!sig))
 		return 0;
-	if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
-		return 1;
-	thread_group_cputime(tsk, &group_sample);
-	return task_cputime_expired(&group_sample, &sig->cputime_expires);
+
+	if (!task_cputime_zero(&tsk->cputime_expires)) {
+		struct task_cputime task_sample = {
+			.utime = tsk->utime,
+			.stime = tsk->stime,
+			.sum_exec_runtime = tsk->se.sum_exec_runtime
+		};
+
+		if (task_cputime_expired(&task_sample, &tsk->cputime_expires))
+			return 1;
+	}
+	if (!task_cputime_zero(&sig->cputime_expires)) {
+		struct task_cputime group_sample;
+
+		thread_group_cputime(tsk, &group_sample);
+		if (task_cputime_expired(&group_sample, &sig->cputime_expires))
+			return 1;
+	}
+	return 0;
 }
 
 /*
@@ -1358,43 +1342,34 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 {
 	LIST_HEAD(firing);
 	struct k_itimer *timer, *next;
-	struct signal_struct *sig;
-	struct sighand_struct *sighand;
-	unsigned long flags;
 
 	BUG_ON(!irqs_disabled());
 
-	/* Pick up tsk->signal and make sure it's valid. */
-	sig = tsk->signal;
 	/*
 	 * The fast path checks that there are no expired thread or thread
-	 * group timers.  If that's so, just return.  Also check that
-	 * tsk->signal is non-NULL; this probably can't happen but cover the
-	 * possibility anyway.
+	 * group timers.  If that's so, just return.
 	 */
-	if (unlikely(!sig) || !fastpath_timer_check(tsk, sig))
+	if (!fastpath_timer_check(tsk))
 		return;
 
-	sighand = lock_task_sighand(tsk, &flags);
-	if (likely(sighand)) {
-		/*
-		 * Here we take off tsk->signal->cpu_timers[N] and
-		 * tsk->cpu_timers[N] all the timers that are firing, and
-		 * put them on the firing list.
-		 */
-		check_thread_timers(tsk, &firing);
-		check_process_timers(tsk, &firing);
+	spin_lock(&tsk->sighand->siglock);
+	/*
+	 * Here we take off tsk->signal->cpu_timers[N] and
+	 * tsk->cpu_timers[N] all the timers that are firing, and
+	 * put them on the firing list.
+	 */
+	check_thread_timers(tsk, &firing);
+	check_process_timers(tsk, &firing);
 
-		/*
-		 * We must release these locks before taking any timer's lock.
-		 * There is a potential race with timer deletion here, as the
-		 * siglock now protects our private firing list.  We have set
-		 * the firing flag in each timer, so that a deletion attempt
-		 * that gets the timer lock before we do will give it up and
-		 * spin until we've taken care of that timer below.
-		 */
-	}
-	unlock_task_sighand(tsk, &flags);
+	/*
+	 * We must release these locks before taking any timer's lock.
+	 * There is a potential race with timer deletion here, as the
+	 * siglock now protects our private firing list.  We have set
+	 * the firing flag in each timer, so that a deletion attempt
+	 * that gets the timer lock before we do will give it up and
+	 * spin until we've taken care of that timer below.
+	 */
+	spin_unlock(&tsk->sighand->siglock);
 
 	/*
 	 * Now that all the timers on our list have the firing flag,
@@ -1433,7 +1408,7 @@ void set_process_cpu_timer(struct task_struct *tsk, unsigned int clock_idx,
 	struct list_head *head;
 
 	BUG_ON(clock_idx == CPUCLOCK_SCHED);
-	cpu_clock_sample_group_locked(clock_idx, tsk, &now);
+	cpu_clock_sample_group(clock_idx, tsk, &now);
 
 	if (oldval) {
 		if (!cputime_eq(*oldval, cputime_zero)) {
