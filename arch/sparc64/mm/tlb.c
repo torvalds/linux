@@ -19,7 +19,7 @@
 
 /* Heavily inspired by the ppc64 code.  */
 
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers) = { 0, };
+DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 void flush_tlb_pending(void)
 {
