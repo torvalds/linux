@@ -346,7 +346,7 @@ int btree_readpage_end_io_hook(struct page *page, u64 start, u64 end,
 	eb = alloc_extent_buffer(tree, start, len, page, GFP_NOFS);
 
 	found_start = btrfs_header_bytenr(eb);
-	if (0 && found_start != start) {
+	if (found_start != start) {
 		printk("bad tree block start %llu %llu\n",
 		       (unsigned long long)found_start,
 		       (unsigned long long)eb->start);
