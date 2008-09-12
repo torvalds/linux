@@ -653,7 +653,7 @@ extern struct pci_device_id __devinitdata saa7134_pci_tbl[];
 
 extern int saa7134_board_init1(struct saa7134_dev *dev);
 extern int saa7134_board_init2(struct saa7134_dev *dev);
-int saa7134_tuner_callback(void *priv, int command, int arg);
+int saa7134_tuner_callback(void *priv, int component, int command, int arg);
 
 
 /* ----------------------------------------------------------- */

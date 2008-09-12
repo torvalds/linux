@@ -46,7 +46,7 @@ struct au0828_board au0828_boards[] = {
 /* Tuner callback function for au0828 boards. Currently only needed
  * for HVR1500Q, which has an xc5000 tuner.
  */
-int au0828_tuner_callback(void *priv, int command, int arg)
+int au0828_tuner_callback(void *priv, int component, int command, int arg)
 {
 	struct au0828_dev *dev = priv;
 

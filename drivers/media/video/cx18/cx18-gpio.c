@@ -152,7 +152,7 @@ void cx18_gpio_init(struct cx18 *cx)
 }
 
 /* Xceive tuner reset function */
-int cx18_reset_tuner_gpio(void *dev, int cmd, int value)
+int cx18_reset_tuner_gpio(void *dev, int component, int cmd, int value)
 {
 	struct i2c_algo_bit_data *algo = dev;
 	struct cx18_i2c_algo_callback_data *cb_data = algo->data;

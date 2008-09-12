@@ -368,7 +368,8 @@ static struct dib7000p_config stk7700ph_dib7700_xc3028_config = {
 	.gpio_pwm_pos = DIB7000P_GPIO_DEFAULT_PWM_POS,
 };
 
-static int stk7700ph_xc3028_callback(void *ptr, int command, int arg)
+static int stk7700ph_xc3028_callback(void *ptr, int component,
+				     int command, int arg)
 {
 	struct dvb_usb_adapter *adap = ptr;
 
@@ -396,7 +397,6 @@ static struct xc2028_ctrl stk7700ph_xc3028_ctrl = {
 
 static struct xc2028_config stk7700ph_xc3028_config = {
 	.i2c_addr = 0x61,
-	.callback = stk7700ph_xc3028_callback,
 	.ctrl = &stk7700ph_xc3028_ctrl,
 };
 
@@ -437,7 +437,9 @@ static int stk7700ph_tuner_attach(struct dvb_usb_adapter *adap)
 		DIBX000_I2C_INTERFACE_TUNER, 1);
 
 	stk7700ph_xc3028_config.i2c_adap = tun_i2c;
-	stk7700ph_xc3028_config.video_dev = adap;
+
+	/* FIXME: generalize & move to common area */
+	adap->fe->callback = stk7700ph_xc3028_callback;
 
 	return dvb_attach(xc2028_attach, adap->fe, &stk7700ph_xc3028_config)
 		== NULL ? -ENODEV : 0;

@@ -337,7 +337,7 @@ static void hauppauge_eeprom(struct cx23885_dev *dev, u8 *eeprom_data)
 			dev->name, tv.model);
 }
 
-int cx23885_tuner_callback(void *priv, int command, int arg)
+int cx23885_tuner_callback(void *priv, int component, int command, int arg)
 {
 	struct cx23885_tsport *port = priv;
 	struct cx23885_dev *dev = port->dev;

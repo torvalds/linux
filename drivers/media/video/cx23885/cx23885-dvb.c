@@ -189,13 +189,11 @@ static struct s5h1411_config dvico_s5h1411_config = {
 static struct xc5000_config hauppauge_hvr1500q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 5380,
-	.tuner_callback   = cx23885_tuner_callback,
 };
 
 static struct xc5000_config dvico_xc5000_tunerconfig = {
 	.i2c_address      = 0x64,
 	.if_khz           = 5380,
-	.tuner_callback   = cx23885_tuner_callback,
 };
 
 static struct tda829x_config tda829x_no_probe = {
@@ -403,8 +401,6 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
 				.i2c_addr  = 0x61,
-				.video_dev = port,
-				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = XC2028_DEFAULT_FIRMWARE,
@@ -443,8 +439,6 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &dev->i2c_bus[1].i2c_adap,
 				.i2c_addr  = 0x64,
-				.video_dev = port,
-				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname   = XC3028L_DEFAULT_FIRMWARE,
@@ -485,8 +479,6 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config	  cfg = {
 				.i2c_adap  = &i2c_bus->i2c_adap,
 				.i2c_addr  = 0x61,
-				.video_dev = port,
-				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = XC2028_DEFAULT_FIRMWARE,
@@ -512,8 +504,6 @@ static int dvb_register(struct cx23885_tsport *port)
 			struct xc2028_config	  cfg = {
 				.i2c_adap  = &dev->i2c_bus[1].i2c_adap,
 				.i2c_addr  = 0x61,
-				.video_dev = port,
-				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = XC2028_DEFAULT_FIRMWARE,
@@ -536,6 +526,8 @@ static int dvb_register(struct cx23885_tsport *port)
 		printk("%s: frontend initialization failed\n", dev->name);
 		return -1;
 	}
+	/* define general-purpose callback pointer */
+	port->dvb.frontend->callback = cx23885_tuner_callback;
 
 	/* Put the analog decoder in standby to keep it quiet */
 	cx23885_call_i2c_clients(i2c_bus, TUNER_SET_STANDBY, NULL);

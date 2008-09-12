@@ -179,7 +179,7 @@ struct tuner_setup {
 	unsigned int	type;   /* Tuner type */
 	unsigned int	mode_mask;  /* Allowed tuner modes */
 	unsigned int	config; /* configuraion for more complex tuners */
-	int (*tuner_callback) (void *dev, int command,int arg);
+	int (*tuner_callback) (void *dev, int component, int cmd, int arg);
 };
 
 #endif /* __KERNEL__ */

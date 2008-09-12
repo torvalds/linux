@@ -607,7 +607,7 @@ extern void cx88_call_i2c_clients(struct cx88_core *core,
 /* ----------------------------------------------------------- */
 /* cx88-cards.c                                                */
 
-extern int cx88_tuner_callback(void *dev, int command, int arg);
+extern int cx88_tuner_callback(void *dev, int component, int command, int arg);
 extern int cx88_get_resources(const struct cx88_core *core,
 			      struct pci_dev *pci);
 extern struct cx88_core *cx88_core_create(struct pci_dev *pci, int nr);

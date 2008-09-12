@@ -2308,9 +2308,21 @@ static int cx88_dvico_xc2028_callback(struct cx88_core *core,
 {
 	switch (command) {
 	case XC2028_TUNER_RESET:
-		cx_write(MO_GP0_IO, 0x101000);
-		mdelay(5);
-		cx_set(MO_GP0_IO, 0x101010);
+		switch (core->boardnr) {
+		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
+			/* GPIO-4 xc3028 tuner */
+
+			cx_set(MO_GP0_IO, 0x00001000);
+			cx_clear(MO_GP0_IO, 0x00000010);
+			msleep(100);
+			cx_set(MO_GP0_IO, 0x00000010);
+			msleep(100);
+			break;
+		default:
+			cx_write(MO_GP0_IO, 0x101000);
+			mdelay(5);
+			cx_set(MO_GP0_IO, 0x101010);
+		}
 		break;
 	default:
 		return -EINVAL;
@@ -2419,6 +2431,7 @@ static int cx88_xc2028_tuner_callback(struct cx88_core *core,
 	case CX88_BOARD_PROLINK_PV_8000GT:
 		return cx88_pv_8000gt_callback(core, command, arg);
 	case CX88_BOARD_DVICO_FUSIONHDTV_DVB_T_PRO:
+	case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
 		return cx88_dvico_xc2028_callback(core, command, arg);
 	}
 
@@ -2486,7 +2499,7 @@ static int cx88_xc5000_tuner_callback(struct cx88_core *core,
 	return 0; /* Should never be here */
 }
 
-int cx88_tuner_callback(void *priv, int command, int arg)
+int cx88_tuner_callback(void *priv, int component, int command, int arg)
 {
 	struct i2c_algo_bit_data *i2c_algo = priv;
 	struct cx88_core *core;
@@ -2502,6 +2515,9 @@ int cx88_tuner_callback(void *priv, int command, int arg)
 		printk(KERN_ERR "cx88: Error - device struct undefined.\n");
 		return -EINVAL;
 	}
+
+	if (component != DVB_FRONTEND_COMPONENT_TUNER)
+		return -EINVAL;
 
 	switch (core->board.tuner_type) {
 		case TUNER_XC2028:

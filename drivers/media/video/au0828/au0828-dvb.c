@@ -53,7 +53,6 @@ static struct au8522_config hauppauge_woodbury_config = {
 static struct xc5000_config hauppauge_hvr950q_tunerconfig = {
 	.i2c_address      = 0x61,
 	.if_khz           = 6000,
-	.tuner_callback   = au0828_tuner_callback
 };
 
 static struct mxl5007t_config mxl5007t_hvr950q_config = {
@@ -389,6 +388,8 @@ int au0828_dvb_register(struct au0828_dev *dev)
 		       __func__);
 		return -1;
 	}
+	/* define general-purpose callback pointer */
+	dvb->frontend->callback = au0828_tuner_callback;
 
 	/* register everything */
 	ret = dvb_register(dev);

@@ -71,9 +71,6 @@ struct firmware_properties {
 struct xc2028_data {
 	struct list_head        hybrid_tuner_instance_list;
 	struct tuner_i2c_props  i2c_props;
-	int                     (*tuner_callback) (void *dev,
-						   int command, int arg);
-	void			*video_dev;
 	__u32			frequency;
 
 	struct firmware_description *firm;
@@ -492,6 +489,23 @@ ret:
 	return i;
 }
 
+static inline int do_tuner_callback(struct dvb_frontend *fe, int cmd, int arg)
+{
+	struct xc2028_data *priv = fe->tuner_priv;
+
+	/* analog side (tuner-core) uses i2c_adap->algo_data.
+	 * digital side is not guaranteed to have algo_data defined.
+	 *
+	 * digital side will always have fe->dvb defined.
+	 * analog side (tuner-core) doesn't (yet) define fe->dvb.
+	 */
+
+	return (!fe->callback) ? -EINVAL :
+		fe->callback(((fe->dvb) && (fe->dvb->priv)) ?
+				fe->dvb->priv : priv->i2c_props.adap->algo_data,
+			     DVB_FRONTEND_COMPONENT_TUNER, cmd, arg);
+}
+
 static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 			 v4l2_std_id *id)
 {
@@ -530,8 +544,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 
 		if (!size) {
 			/* Special callback command received */
-			rc = priv->tuner_callback(priv->video_dev,
-						  XC2028_TUNER_RESET, 0);
+			rc = do_tuner_callback(fe, XC2028_TUNER_RESET, 0);
 			if (rc < 0) {
 				tuner_err("Error at RESET code %d\n",
 					   (*p) & 0x7f);
@@ -542,8 +555,7 @@ static int load_firmware(struct dvb_frontend *fe, unsigned int type,
 		if (size >= 0xff00) {
 			switch (size) {
 			case 0xff00:
-				rc = priv->tuner_callback(priv->video_dev,
-							XC2028_RESET_CLK, 0);
+				rc = do_tuner_callback(fe, XC2028_RESET_CLK, 0);
 				if (rc < 0) {
 					tuner_err("Error at RESET code %d\n",
 						  (*p) & 0x7f);
@@ -715,8 +727,7 @@ retry:
 	memset(&priv->cur_fw, 0, sizeof(priv->cur_fw));
 
 	/* Reset is needed before loading firmware */
-	rc = priv->tuner_callback(priv->video_dev,
-				  XC2028_TUNER_RESET, 0);
+	rc = do_tuner_callback(fe, XC2028_TUNER_RESET, 0);
 	if (rc < 0)
 		goto fail;
 
@@ -933,7 +944,7 @@ static int generic_set_freq(struct dvb_frontend *fe, u32 freq /* in HZ */,
 	   The reset CLK is needed only with tm6000.
 	   Driver should work fine even if this fails.
 	 */
-	priv->tuner_callback(priv->video_dev, XC2028_RESET_CLK, 1);
+	do_tuner_callback(fe, XC2028_RESET_CLK, 1);
 
 	msleep(10);
 
@@ -1177,19 +1188,9 @@ struct dvb_frontend *xc2028_attach(struct dvb_frontend *fe,
 		break;
 	case 1:
 		/* new tuner instance */
-		priv->tuner_callback = cfg->callback;
 		priv->ctrl.max_len = 13;
 
 		mutex_init(&priv->lock);
-
-		/* analog side (tuner-core) uses i2c_adap->algo_data.
-		 * digital side is not guaranteed to have algo_data defined.
-		 *
-		 * digital side will always have fe->dvb defined.
-		 * analog side (tuner-core) doesn't (yet) define fe->dvb.
-		 */
-		priv->video_dev = ((fe->dvb) && (fe->dvb->priv)) ?
-				   fe->dvb->priv : cfg->i2c_adap->algo_data;
 
 		fe->tuner_priv = priv;
 		break;

@@ -553,7 +553,6 @@ static int configure_tda827x_fe(struct saa7134_dev *dev,
 /* ------------------------------------------------------------------ */
 
 static struct tda827x_config tda827x_cfg_0 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 0,
@@ -561,7 +560,6 @@ static struct tda827x_config tda827x_cfg_0 = {
 };
 
 static struct tda827x_config tda827x_cfg_1 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 1,
@@ -569,7 +567,6 @@ static struct tda827x_config tda827x_cfg_1 = {
 };
 
 static struct tda827x_config tda827x_cfg_2 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 2,
@@ -577,7 +574,6 @@ static struct tda827x_config tda827x_cfg_2 = {
 };
 
 static struct tda827x_config tda827x_cfg_2_sw42 = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = philips_tda827x_tuner_init,
 	.sleep = philips_tda827x_tuner_sleep,
 	.config = 2,
@@ -836,7 +832,6 @@ static int ads_duo_tuner_sleep(struct dvb_frontend *fe)
 }
 
 static struct tda827x_config ads_duo_cfg = {
-	.tuner_callback = saa7134_tuner_callback,
 	.init = ads_duo_tuner_init,
 	.sleep = ads_duo_tuner_sleep,
 	.config = 0
@@ -1366,6 +1361,8 @@ static int dvb_init(struct saa7134_dev *dev)
 		printk(KERN_ERR "%s/dvb: frontend initialization failed\n", dev->name);
 		return -1;
 	}
+	/* define general-purpose callback pointer */
+	dev->dvb.frontend->callback = saa7134_tuner_callback;
 
 	/* register everything else */
 	ret = videobuf_dvb_register(&dev->dvb, THIS_MODULE, dev, &dev->pci->dev,

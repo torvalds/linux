@@ -405,40 +405,6 @@ static int tevii_dvbs_set_voltage(struct dvb_frontend *fe,
 	return 0;
 }
 
-static int cx88_pci_nano_callback(void *ptr, int command, int arg)
-{
-	struct cx88_core *core = ptr;
-
-	switch (command) {
-	case XC2028_TUNER_RESET:
-		/* Send the tuner in then out of reset */
-		dprintk(1, "%s: XC2028_TUNER_RESET %d\n", __func__, arg);
-
-		switch (core->boardnr) {
-		case CX88_BOARD_DVICO_FUSIONHDTV_5_PCI_NANO:
-			/* GPIO-4 xc3028 tuner */
-
-			cx_set(MO_GP0_IO, 0x00001000);
-			cx_clear(MO_GP0_IO, 0x00000010);
-			msleep(100);
-			cx_set(MO_GP0_IO, 0x00000010);
-			msleep(100);
-			break;
-		}
-
-		break;
-	case XC2028_RESET_CLK:
-		dprintk(1, "%s: XC2028_RESET_CLK %d\n", __func__, arg);
-		break;
-	default:
-		dprintk(1, "%s: unknown command %d, arg %d\n", __func__,
-			command, arg);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static struct cx24123_config geniatech_dvbs_config = {
 	.demod_address = 0x55,
 	.set_ts_params = cx24123_set_ts_param,
@@ -486,7 +452,6 @@ static struct s5h1409_config kworld_atsc_120_config = {
 static struct xc5000_config pinnacle_pctv_hd_800i_tuner_config = {
 	.i2c_address	= 0x64,
 	.if_khz		= 5380,
-	.tuner_callback	= cx88_tuner_callback,
 };
 
 static struct zl10353_config cx88_geniatech_x8000_mt = {
@@ -507,7 +472,6 @@ static struct s5h1411_config dvico_fusionhdtv7_config = {
 static struct xc5000_config dvico_fusionhdtv7_tuner_config = {
 	.i2c_address    = 0xc2 >> 1,
 	.if_khz         = 5380,
-	.tuner_callback = cx88_tuner_callback,
 };
 
 static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
@@ -518,7 +482,6 @@ static int attach_xc3028(u8 addr, struct cx8802_dev *dev)
 		.i2c_adap  = &dev->core->i2c_adap,
 		.i2c_addr  = addr,
 		.ctrl      = &ctl,
-		.callback  = cx88_tuner_callback,
 	};
 
 	if (!dev->dvb.frontend) {
@@ -912,7 +875,6 @@ static int dvb_register(struct cx8802_dev *dev)
 			struct xc2028_config cfg = {
 				.i2c_adap  = &core->i2c_adap,
 				.i2c_addr  = 0x61,
-				.callback  = cx88_pci_nano_callback,
 			};
 			static struct xc2028_ctrl ctl = {
 				.fname       = XC2028_DEFAULT_FIRMWARE,
@@ -1035,6 +997,8 @@ static int dvb_register(struct cx8802_dev *dev)
 		       core->name);
 		return -EINVAL;
 	}
+	/* define general-purpose callback pointer */
+	dev->dvb.frontend->callback = cx88_tuner_callback;
 
 	/* Ensure all frontends negotiate bus access */
 	dev->dvb.frontend->ops.ts_bus_ctrl = cx88_dvb_bus_ctrl;

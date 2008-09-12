@@ -5576,7 +5576,7 @@ static int saa7134_tda8290_callback(struct saa7134_dev *dev,
 	return 0;
 }
 
-int saa7134_tuner_callback(void *priv, int command, int arg)
+int saa7134_tuner_callback(void *priv, int component, int command, int arg)
 {
 	struct saa7134_dev *dev = priv;
 	if (dev != NULL) {

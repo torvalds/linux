@@ -249,7 +249,6 @@ static int attach_xc3028(u8 addr, struct em28xx *dev)
 	memset(&cfg, 0, sizeof(cfg));
 	cfg.i2c_adap  = &dev->i2c_adap;
 	cfg.i2c_addr  = addr;
-	cfg.callback  = em28xx_tuner_callback;
 
 	if (!dev->dvb->frontend) {
 		printk(KERN_ERR "%s/2: dvb frontend not attached. "
@@ -474,6 +473,8 @@ static int dvb_init(struct em28xx *dev)
 		result = -EINVAL;
 		goto out_free;
 	}
+	/* define general-purpose callback pointer */
+	dvb->frontend->callback = em28xx_tuner_callback;
 
 	/* register everything */
 	result = register_dvb(dvb, THIS_MODULE, dev, &dev->udev->dev);

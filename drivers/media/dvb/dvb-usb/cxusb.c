@@ -742,7 +742,8 @@ static int cxusb_lgh064f_tuner_attach(struct dvb_usb_adapter *adap)
 	return 0;
 }
 
-static int dvico_bluebird_xc2028_callback(void *ptr, int command, int arg)
+static int dvico_bluebird_xc2028_callback(void *ptr, int component,
+					  int command, int arg)
 {
 	struct dvb_usb_adapter *adap = ptr;
 	struct dvb_usb_device *d = adap->dev;
@@ -770,13 +771,15 @@ static int cxusb_dvico_xc3028_tuner_attach(struct dvb_usb_adapter *adap)
 	struct xc2028_config	  cfg = {
 		.i2c_adap  = &adap->dev->i2c_adap,
 		.i2c_addr  = 0x61,
-		.callback  = dvico_bluebird_xc2028_callback,
 	};
 	static struct xc2028_ctrl ctl = {
 		.fname       = XC2028_DEFAULT_FIRMWARE,
 		.max_len     = 64,
 		.demod       = XC3028_FE_ZARLINK456,
 	};
+
+	/* FIXME: generalize & move to common area */
+	adap->fe->callback = dvico_bluebird_xc2028_callback;
 
 	fe = dvb_attach(xc2028_attach, adap->fe, &cfg);
 	if (fe == NULL || fe->ops.tuner_ops.set_config == NULL)

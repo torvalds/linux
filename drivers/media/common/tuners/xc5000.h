@@ -30,8 +30,6 @@ struct i2c_adapter;
 struct xc5000_config {
 	u8   i2c_address;
 	u32  if_khz;
-
-	int  (*tuner_callback) (void *priv, int command, int arg);
 };
 
 /* xc5000 callback command */
