@@ -1065,10 +1065,10 @@ static int scsi_eh_target_reset(struct Scsi_Host *shost,
 				struct list_head *done_q)
 {
 	struct scsi_cmnd *scmd, *tgtr_scmd, *next;
-	unsigned int id;
+	unsigned int id = 0;
 	int rtn;
 
-	for (id = 0; id <= shost->max_id; id++) {
+	do {
 		tgtr_scmd = NULL;
 		list_for_each_entry(scmd, work_q, eh_entry) {
 			if (id == scmd_id(scmd)) {
@@ -1076,8 +1076,18 @@ static int scsi_eh_target_reset(struct Scsi_Host *shost,
 				break;
 			}
 		}
+		if (!tgtr_scmd) {
+			/* not one exactly equal; find the next highest */
+			list_for_each_entry(scmd, work_q, eh_entry) {
+				if (scmd_id(scmd) > id &&
+				    (!tgtr_scmd ||
+				     scmd_id(tgtr_scmd) > scmd_id(scmd)))
+						tgtr_scmd = scmd;
+			}
+		}
 		if (!tgtr_scmd)
-			continue;
+			/* no more commands, that's it */
+			break;
 
 		SCSI_LOG_ERROR_RECOVERY(3, printk("%s: Sending target reset "
 						  "to target %d\n",
@@ -1096,7 +1106,8 @@ static int scsi_eh_target_reset(struct Scsi_Host *shost,
 							  " failed target: "
 							  "%d\n",
 							  current->comm, id));
-	}
+		id++;
+	} while(id != 0);
 
 	return list_empty(work_q);
 }
