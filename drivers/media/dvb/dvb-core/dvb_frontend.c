@@ -1104,6 +1104,13 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 
 	dtv_property_dump(tvp);
 
+	/* Allow the frontend to validate incoming properties */
+	if (fe->ops.get_property)
+		r = fe->ops.get_property(fe, tvp);
+
+	if (r < 0)
+		return r;
+
 	switch(tvp->cmd) {
 	case DTV_FREQUENCY:
 		tvp->u.data = fe->dtv_property_cache.frequency;
@@ -1187,6 +1194,13 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 	struct dvb_frontend_private *fepriv = fe->frontend_priv;
 	printk("%s()\n", __FUNCTION__);
 	dtv_property_dump(tvp);
+
+	/* Allow the frontend to validate incoming properties */
+	if (fe->ops.set_property)
+		r = fe->ops.set_property(fe, tvp);
+
+	if (r < 0)
+		return r;
 
 	switch(tvp->cmd) {
 	case DTV_CLEAR:
@@ -1331,12 +1345,12 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 		}
 
 		for (i = 0; i < tvps->num; i++)
-			dtv_property_process_set(fe, tvp + i, inode, file);
+			err |= dtv_property_process_set(fe, tvp + i, inode, file);
 
 		if(fe->dtv_property_cache.state == DTV_TUNE) {
 			printk("%s() Property cache is full, tuning\n", __FUNCTION__);
 		}
-		err = 0;
+
 	} else
 	if(cmd == FE_GET_PROPERTY) {
 		printk("%s() FE_GET_PROPERTY\n", __FUNCTION__);
@@ -1364,14 +1378,13 @@ static int dvb_frontend_ioctl_properties(struct inode *inode, struct file *file,
 		}
 
 		for (i = 0; i < tvps->num; i++)
-			dtv_property_process_get(fe, tvp + i, inode, file);
+			err |= dtv_property_process_get(fe, tvp + i, inode, file);
 
 		if (copy_to_user(tvps->props, tvp, tvps->num * sizeof(struct dtv_property))) {
 			err = -EFAULT;
 			goto out;
 		}
 
-		err = 0;
 	} else
 		err = -EOPNOTSUPP;
 

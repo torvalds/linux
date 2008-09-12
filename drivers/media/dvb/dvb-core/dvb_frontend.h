@@ -172,7 +172,6 @@ struct dvb_frontend_ops {
 
 	int (*set_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
 	int (*get_property)(struct dvb_frontend* fe, struct dtv_property* tvp);
-	int (*set_params)(struct dvb_frontend* fe);
 };
 
 #define MAX_EVENT 8

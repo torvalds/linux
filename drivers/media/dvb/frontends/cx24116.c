@@ -802,9 +802,9 @@ static int cx24116_set_property(struct dvb_frontend *fe, struct dtv_property* tv
 	return 0;
 }
 
-static int cx24116_set_params(struct dvb_frontend *fe)
+static int cx24116_get_property(struct dvb_frontend *fe, struct dtv_property* tvp)
 {
-	dprintk("%s(..) We were notified that a tune request may occur\n", __func__);
+	dprintk("%s(..)\n", __func__);
 	return 0;
 }
 
@@ -964,7 +964,7 @@ static struct dvb_frontend_ops cx24116_ops = {
 	.diseqc_send_burst = cx24116_diseqc_send_burst,
 
 	.set_property = cx24116_set_property,
-	.set_params = cx24116_set_params,
+	.get_property = cx24116_get_property,
 	.set_frontend = cx24116_set_frontend,
 };
 
