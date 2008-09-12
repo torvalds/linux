@@ -1010,11 +1010,13 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 	case FE_QPSK:
 		c->symbol_rate = p->u.qpsk.symbol_rate;
 		c->fec_inner = p->u.qpsk.fec_inner;
+		c->delivery_system = SYS_DVBS;
 		break;
 	case FE_QAM:
 		c->symbol_rate = p->u.qam.symbol_rate;
 		c->fec_inner = p->u.qam.fec_inner;
 		c->modulation = p->u.qam.modulation;
+		c->delivery_system = SYS_DVBC_ANNEX_AC;
 		break;
 	case FE_OFDM:
 		c->bandwidth = p->u.ofdm.bandwidth;
@@ -1024,9 +1026,14 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 		c->transmission_mode = p->u.ofdm.transmission_mode;
 		c->guard_interval = p->u.ofdm.guard_interval;
 		c->hierarchy = p->u.ofdm.hierarchy_information;
+		c->delivery_system = SYS_DVBT;
 		break;
 	case FE_ATSC:
 		c->modulation = p->u.vsb.modulation;
+		if ((c->modulation == VSB_8) || (c->modulation == VSB_16))
+			c->delivery_system = SYS_ATSC;
+		else
+			c->delivery_system = SYS_DVBC_ANNEX_B;
 		break;
 	}
 }
@@ -1050,12 +1057,14 @@ void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 		printk("%s() Preparing QPSK req\n", __FUNCTION__);
 		p->u.qpsk.symbol_rate = c->symbol_rate;
 		p->u.qpsk.fec_inner = c->fec_inner;
+		c->delivery_system = SYS_DVBS;
 		break;
 	case FE_QAM:
 		printk("%s() Preparing QAM req\n", __FUNCTION__);
 		p->u.qam.symbol_rate = c->symbol_rate;
 		p->u.qam.fec_inner = c->fec_inner;
 		p->u.qam.modulation = c->modulation;
+		c->delivery_system = SYS_DVBC_ANNEX_AC;
 		break;
 	case FE_OFDM:
 		printk("%s() Preparing OFDM req\n", __FUNCTION__);
@@ -1066,10 +1075,15 @@ void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 		p->u.ofdm.transmission_mode = c->transmission_mode;
 		p->u.ofdm.guard_interval = c->guard_interval;
 		p->u.ofdm.hierarchy_information = c->hierarchy;
+		c->delivery_system = SYS_DVBT;
 		break;
 	case FE_ATSC:
 		printk("%s() Preparing VSB req\n", __FUNCTION__);
 		p->u.vsb.modulation = c->modulation;
+		if ((c->modulation == VSB_8) || (c->modulation == VSB_16))
+			c->delivery_system = SYS_ATSC;
+		else
+			c->delivery_system = SYS_DVBC_ANNEX_B;
 		break;
 	}
 }
