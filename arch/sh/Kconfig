@@ -12,6 +12,7 @@ config SUPERH
 	select HAVE_IDE
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_IOREMAP_PROT
 	help
 	  The SuperH is a RISC processor targeted for use in embedded systems
 	  and consumer electronics; it was also used in the Sega Dreamcast

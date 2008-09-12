@@ -347,6 +347,8 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	__ioremap_mode((offset), (size), _PAGE_CACHABLE)
 #define p3_ioremap(offset, size, flags)			\
 	__ioremap((offset), (size), (flags))
+#define ioremap_prot(offset, size, flags)		\
+	__ioremap_mode((offset), (size), (flags))
 #define iounmap(addr)					\
 	__iounmap((addr))
 
