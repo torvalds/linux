@@ -1009,7 +1009,7 @@ static int qe_uart_request_port(struct uart_port *port)
 	rx_size = L1_CACHE_ALIGN(qe_port->rx_nrfifos * qe_port->rx_fifosize);
 	tx_size = L1_CACHE_ALIGN(qe_port->tx_nrfifos * qe_port->tx_fifosize);
 
-	bd_virt = dma_alloc_coherent(NULL, rx_size + tx_size, &bd_dma_addr,
+	bd_virt = dma_alloc_coherent(port->dev, rx_size + tx_size, &bd_dma_addr,
 		GFP_KERNEL);
 	if (!bd_virt) {
 		dev_err(port->dev, "could not allocate buffer descriptors\n");
@@ -1051,7 +1051,7 @@ static void qe_uart_release_port(struct uart_port *port)
 		container_of(port, struct uart_qe_port, port);
 	struct ucc_slow_private *uccs = qe_port->us_private;
 
-	dma_free_coherent(NULL, qe_port->bd_size, qe_port->bd_virt,
+	dma_free_coherent(port->dev, qe_port->bd_size, qe_port->bd_virt,
 			  qe_port->bd_dma_addr);
 
 	ucc_slow_free(uccs);

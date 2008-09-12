@@ -136,7 +136,7 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 		dma_addr = virt_to_bus(mem_addr);
 	}
 	else
-		mem_addr = dma_alloc_coherent(NULL, memsz, &dma_addr,
+		mem_addr = dma_alloc_coherent(pinfo->port.dev, memsz, &dma_addr,
 					      GFP_KERNEL);
 
 	if (mem_addr == NULL) {
@@ -163,8 +163,8 @@ int cpm_uart_allocbuf(struct uart_cpm_port *pinfo, unsigned int is_con)
 
 void cpm_uart_freebuf(struct uart_cpm_port *pinfo)
 {
-	dma_free_coherent(NULL, L1_CACHE_ALIGN(pinfo->rx_nrfifos *
-					       pinfo->rx_fifosize) +
+	dma_free_coherent(pinfo->port.dev, L1_CACHE_ALIGN(pinfo->rx_nrfifos *
+							  pinfo->rx_fifosize) +
 			  L1_CACHE_ALIGN(pinfo->tx_nrfifos *
 					 pinfo->tx_fifosize), (void __force *)pinfo->mem_addr,
 			  pinfo->dma_addr);
