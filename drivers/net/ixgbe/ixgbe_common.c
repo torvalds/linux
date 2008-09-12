@@ -896,6 +896,7 @@ static void ixgbe_set_mta(struct ixgbe_hw *hw, u8 *mc_addr)
 static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
 {
 	u32 rar_entries = hw->mac.num_rar_entries;
+	u32 rar;
 
 	hw_dbg(hw, " MC Addr =%.2X %.2X %.2X %.2X %.2X %.2X\n",
 		  mc_addr[0], mc_addr[1], mc_addr[2],
@@ -906,8 +907,8 @@ static void ixgbe_add_mc_addr(struct ixgbe_hw *hw, u8 *mc_addr)
 	 * else put it in the MTA
 	 */
 	if (hw->addr_ctrl.rar_used_count < rar_entries) {
-		ixgbe_set_rar(hw, hw->addr_ctrl.rar_used_count,
-			      mc_addr, 0, IXGBE_RAH_AV);
+		rar = rar_entries - hw->addr_ctrl.mc_addr_in_rar_count - 1;
+		ixgbe_set_rar(hw, rar, mc_addr, 0, IXGBE_RAH_AV);
 		hw_dbg(hw, "Added a multicast address to RAR[%d]\n",
 			  hw->addr_ctrl.rar_used_count);
 		hw->addr_ctrl.rar_used_count++;
