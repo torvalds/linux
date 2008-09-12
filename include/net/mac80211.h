@@ -330,6 +330,7 @@ struct ieee80211_tx_info {
 
 	union {
 		struct {
+			/* NB: vif can be NULL for injected frames */
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
 			struct ieee80211_sta *sta;

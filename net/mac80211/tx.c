@@ -624,7 +624,14 @@ ieee80211_tx_h_sequence(struct ieee80211_tx_data *tx)
 	u8 *qc;
 	int tid;
 
-	/* only for injected frames */
+	/*
+	 * Packet injection may want to control the sequence
+	 * number, if we have no matching interface then we
+	 * neither assign one ourselves nor ask the driver to.
+	 */
+	if (unlikely(!info->control.vif))
+		return TX_CONTINUE;
+
 	if (unlikely(ieee80211_is_ctl(hdr->frame_control)))
 		return TX_CONTINUE;
 
@@ -849,7 +856,6 @@ __ieee80211_parse_tx_radiotap(struct ieee80211_tx_data *tx,
 	sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
 	skb->do_not_encrypt = 1;
-	info->flags |= IEEE80211_TX_CTL_INJECTED;
 	tx->flags &= ~IEEE80211_TX_FRAGMENTED;
 
 	/*
@@ -981,7 +987,7 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 
 	/* process and remove the injection radiotap header */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
-	if (unlikely(sdata->vif.type == NL80211_IFTYPE_MONITOR)) {
+	if (unlikely(info->flags & IEEE80211_TX_CTL_INJECTED)) {
 		if (__ieee80211_parse_tx_radiotap(tx, skb) == TX_DROP)
 			return TX_DROP;
 
@@ -1300,6 +1306,11 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 	struct ieee80211_sub_if_data *osdata;
 	int headroom;
 	bool may_encrypt;
+	enum {
+		NOT_MONITOR,
+		FOUND_SDATA,
+		UNKNOWN_ADDRESS,
+	} monitor_iface = NOT_MONITOR;
 	int ret;
 
 	if (skb->iif)
@@ -1335,6 +1346,50 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 				IEEE80211_IFSTA_MESH_CTR_INC(&osdata->u.mesh,
 							     fwded_frames);
 		}
+	} else if (unlikely(osdata->vif.type == NL80211_IFTYPE_MONITOR)) {
+		struct ieee80211_sub_if_data *sdata;
+		struct ieee80211_local *local = osdata->local;
+		struct ieee80211_hdr *hdr;
+		int hdrlen;
+		u16 len_rthdr;
+
+		info->flags |= IEEE80211_TX_CTL_INJECTED;
+		monitor_iface = UNKNOWN_ADDRESS;
+
+		len_rthdr = ieee80211_get_radiotap_len(skb->data);
+		hdr = (struct ieee80211_hdr *)skb->data + len_rthdr;
+		hdrlen = ieee80211_hdrlen(hdr->frame_control);
+
+		/* check the header is complete in the frame */
+		if (likely(skb->len >= len_rthdr + hdrlen)) {
+			/*
+			 * We process outgoing injected frames that have a
+			 * local address we handle as though they are our
+			 * own frames.
+			 * This code here isn't entirely correct, the local
+			 * MAC address is not necessarily enough to find
+			 * the interface to use; for that proper VLAN/WDS
+			 * support we will need a different mechanism.
+			 */
+
+			rcu_read_lock();
+			list_for_each_entry_rcu(sdata, &local->interfaces,
+						list) {
+				if (!netif_running(sdata->dev))
+					continue;
+				if (compare_ether_addr(sdata->dev->dev_addr,
+						       hdr->addr2)) {
+					dev_hold(sdata->dev);
+					dev_put(odev);
+					osdata = sdata;
+					odev = osdata->dev;
+					skb->iif = sdata->dev->ifindex;
+					monitor_iface = FOUND_SDATA;
+					break;
+				}
+			}
+			rcu_read_unlock();
+		}
 	}
 
 	may_encrypt = !skb->do_not_encrypt;
@@ -1355,7 +1410,8 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 		osdata = container_of(osdata->bss,
 				      struct ieee80211_sub_if_data,
 				      u.ap);
-	info->control.vif = &osdata->vif;
+	if (likely(monitor_iface != UNKNOWN_ADDRESS))
+		info->control.vif = &osdata->vif;
 	ret = ieee80211_tx(odev, skb);
 	dev_put(odev);
 

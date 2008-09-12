@@ -231,16 +231,21 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_rate *rate)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
 	u16 dur;
 	int erp;
+	bool short_preamble = false;
 
 	erp = 0;
-	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
-		erp = rate->flags & IEEE80211_RATE_ERP_G;
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		short_preamble = sdata->bss_conf.use_short_preamble;
+		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			erp = rate->flags & IEEE80211_RATE_ERP_G;
+	}
 
 	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate, erp,
-				       sdata->bss_conf.use_short_preamble);
+				       short_preamble);
 
 	return cpu_to_le16(dur);
 }
@@ -252,7 +257,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
 	bool short_preamble;
 	int erp;
 	u16 dur;
@@ -260,13 +265,17 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	short_preamble = sdata->bss_conf.use_short_preamble;
+	short_preamble = false;
 
 	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 
 	erp = 0;
-	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
-		erp = rate->flags & IEEE80211_RATE_ERP_G;
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		short_preamble = sdata->bss_conf.use_short_preamble;
+		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			erp = rate->flags & IEEE80211_RATE_ERP_G;
+	}
 
 	/* CTS duration */
 	dur = ieee80211_frame_duration(local, 10, rate->bitrate,
@@ -289,7 +298,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
 	bool short_preamble;
 	int erp;
 	u16 dur;
@@ -297,12 +306,16 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	short_preamble = sdata->bss_conf.use_short_preamble;
+	short_preamble = false;
 
 	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 	erp = 0;
-	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
-		erp = rate->flags & IEEE80211_RATE_ERP_G;
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		short_preamble = sdata->bss_conf.use_short_preamble;
+		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			erp = rate->flags & IEEE80211_RATE_ERP_G;
+	}
 
 	/* Data frame duration */
 	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate,

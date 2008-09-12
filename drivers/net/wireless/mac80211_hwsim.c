@@ -258,7 +258,8 @@ static int mac80211_hwsim_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	txi = IEEE80211_SKB_CB(skb);
 
-	hwsim_check_magic(txi->control.vif);
+	if (txi->control.vif)
+		hwsim_check_magic(txi->control.vif);
 	if (txi->control.sta)
 		hwsim_check_sta_magic(txi->control.sta);
 
