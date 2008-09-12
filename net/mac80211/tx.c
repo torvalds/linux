@@ -38,43 +38,6 @@
 
 /* misc utils */
 
-#ifdef CONFIG_MAC80211_LOWTX_FRAME_DUMP
-static void ieee80211_dump_frame(const char *ifname, const char *title,
-				 const struct sk_buff *skb)
-{
-	const struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	unsigned int hdrlen;
-	DECLARE_MAC_BUF(mac);
-
-	printk(KERN_DEBUG "%s: %s (len=%d)", ifname, title, skb->len);
-	if (skb->len < 4) {
-		printk("\n");
-		return;
-	}
-
-	hdrlen = ieee80211_hdrlen(hdr->frame_control);
-	if (hdrlen > skb->len)
-		hdrlen = skb->len;
-	if (hdrlen >= 4)
-		printk(" FC=0x%04x DUR=0x%04x",
-		    le16_to_cpu(hdr->frame_control), le16_to_cpu(hdr->duration_id));
-	if (hdrlen >= 10)
-		printk(" A1=%s", print_mac(mac, hdr->addr1));
-	if (hdrlen >= 16)
-		printk(" A2=%s", print_mac(mac, hdr->addr2));
-	if (hdrlen >= 24)
-		printk(" A3=%s", print_mac(mac, hdr->addr3));
-	if (hdrlen >= 30)
-		printk(" A4=%s", print_mac(mac, hdr->addr4));
-	printk("\n");
-}
-#else /* CONFIG_MAC80211_LOWTX_FRAME_DUMP */
-static inline void ieee80211_dump_frame(const char *ifname, const char *title,
-					struct sk_buff *skb)
-{
-}
-#endif /* CONFIG_MAC80211_LOWTX_FRAME_DUMP */
-
 static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 				 int next_frag_len)
 {
@@ -1068,8 +1031,6 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 			return IEEE80211_TX_AGAIN;
 		info =  IEEE80211_SKB_CB(skb);
 
-		ieee80211_dump_frame(wiphy_name(local->hw.wiphy),
-				     "TX to low-level driver", skb);
 		ret = local->ops->tx(local_to_hw(local), skb);
 		if (ret)
 			return IEEE80211_TX_AGAIN;
@@ -1099,9 +1060,6 @@ static int __ieee80211_tx(struct ieee80211_local *local, struct sk_buff *skb,
 						~IEEE80211_TX_CTL_RATE_CTRL_PROBE;
 			}
 
-			ieee80211_dump_frame(wiphy_name(local->hw.wiphy),
-					     "TX to low-level driver",
-					     tx->extra_frag[i]);
 			ret = local->ops->tx(local_to_hw(local),
 					    tx->extra_frag[i]);
 			if (ret)

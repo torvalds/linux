@@ -179,19 +179,6 @@ config MAC80211_VERBOSE_MPL_DEBUG
 
 	  Do not select this option.
 
-config MAC80211_LOWTX_FRAME_DUMP
-	bool "Debug frame dumping"
-	depends on MAC80211_DEBUG_MENU
-	---help---
-	  Selecting this option will cause the stack to
-	  print a message for each frame that is handed
-	  to the lowlevel driver for transmission. This
-	  message includes all MAC addresses and the
-	  frame control field.
-
-	  If unsure, say N and insert the debugging code
-	  you require into the driver you are debugging.
-
 config MAC80211_DEBUG_COUNTERS
 	bool "Extra statistics for TX/RX debugging"
 	depends on MAC80211_DEBUG_MENU
