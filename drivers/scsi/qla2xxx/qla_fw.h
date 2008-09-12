@@ -789,12 +789,16 @@ struct device_reg_24xx {
 #define FA_RISC_CODE_ADDR	0x20000
 #define FA_RISC_CODE_SEGMENTS	2
 
+#define FA_FLASH_DESCR_ADDR_24	0x11000
+#define FA_FLASH_LAYOUT_ADDR_24	0x11400
+
 #define FA_FW_AREA_ADDR		0x40000
 #define FA_VPD_NVRAM_ADDR	0x48000
 #define FA_FEATURE_ADDR		0x4C000
 #define FA_FLASH_DESCR_ADDR	0x50000
+#define FA_FLASH_LAYOUT_ADDR	0x50400
 #define FA_HW_EVENT0_ADDR	0x54000
-#define FA_HW_EVENT1_ADDR	0x54200
+#define FA_HW_EVENT1_ADDR	0x54400
 #define FA_HW_EVENT_SIZE	0x200
 #define FA_HW_EVENT_ENTRY_SIZE	4
 /*
@@ -805,10 +809,6 @@ struct device_reg_24xx {
 #define HW_EVENT_PARITY_ERR	0xF022
 #define HW_EVENT_NVRAM_CHKSUM_ERR	0xF023
 #define HW_EVENT_FLASH_FW_ERR	0xF024
-
-#define FA_BOOT_LOG_ADDR	0x58000
-#define FA_FW_DUMP0_ADDR	0x60000
-#define FA_FW_DUMP1_ADDR	0x70000
 
 	uint32_t flash_data;		/* Flash/NVRAM BIOS data. */
 
@@ -1201,6 +1201,41 @@ struct qla_fdt_layout {
 	uint16_t read_timeout;
 	uint8_t protect_sec_cmd;
 	uint8_t unused2[65];
+};
+
+/* Flash Layout Table ********************************************************/
+
+struct qla_flt_location {
+	uint8_t sig[4];
+	uint32_t start_lo;
+	uint32_t start_hi;
+	uint16_t unused;
+	uint16_t checksum;
+};
+
+struct qla_flt_header {
+	uint16_t version;
+	uint16_t length;
+	uint16_t checksum;
+	uint16_t unused;
+};
+
+#define FLT_REG_FW		0x01
+#define FLT_REG_BOOT_CODE	0x07
+#define FLT_REG_VPD_0		0x14
+#define FLT_REG_NVRAM_0		0x15
+#define FLT_REG_VPD_1		0x16
+#define FLT_REG_NVRAM_1		0x17
+#define FLT_REG_FDT		0x1a
+#define FLT_REG_FLT		0x1c
+#define FLT_REG_HW_EVENT_0	0x1d
+#define FLT_REG_HW_EVENT_1	0x1f
+
+struct qla_flt_region {
+	uint32_t code;
+	uint32_t size;
+	uint32_t start;
+	uint32_t end;
 };
 
 /* 84XX Support **************************************************************/

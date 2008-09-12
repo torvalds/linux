@@ -292,10 +292,11 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 		valid = 0;
 		if (ha->optrom_size == OPTROM_SIZE_2300 && start == 0)
 			valid = 1;
-		else if (start == (FA_BOOT_CODE_ADDR*4) ||
-		    start == (FA_RISC_CODE_ADDR*4))
+		else if (start == (ha->flt_region_boot * 4) ||
+		    start == (ha->flt_region_fw * 4))
 			valid = 1;
-		else if (IS_QLA25XX(ha) && start == (FA_VPD_NVRAM_ADDR*4))
+		else if (IS_QLA25XX(ha) &&
+		    start == (ha->flt_region_vpd_nvram * 4))
 		    valid = 1;
 		if (!valid) {
 			qla_printk(KERN_WARNING, ha,

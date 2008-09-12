@@ -2508,7 +2508,6 @@ typedef struct scsi_qla_host {
 	uint64_t	fce_wr, fce_rd;
 	struct mutex	fce_mutex;
 
-	uint32_t	hw_event_start;
 	uint32_t	hw_event_ptr;
 	uint32_t	hw_event_pause_errors;
 
@@ -2553,6 +2552,13 @@ typedef struct scsi_qla_host {
 	uint32_t	fdt_block_size;
 	uint32_t	fdt_unprotect_sec_cmd;
 	uint32_t	fdt_protect_sec_cmd;
+
+	uint32_t	flt_region_flt;
+	uint32_t	flt_region_fdt;
+	uint32_t	flt_region_boot;
+	uint32_t	flt_region_fw;
+	uint32_t	flt_region_vpd_nvram;
+	uint32_t	flt_region_hw_event;
 
 	/* Needed for BEACON */
 	uint16_t	beacon_blink_led;

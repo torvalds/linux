@@ -83,6 +83,13 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 
 	ha->isp_ops->reset_chip(ha);
 
+	rval = qla2xxx_get_flash_info(ha);
+	if (rval) {
+		DEBUG2(printk("scsi(%ld): Unable to validate FLASH data.\n",
+		    ha->host_no));
+		return (rval);
+	}
+
 	ha->isp_ops->get_flash_version(ha, ha->request_ring);
 
 	qla_printk(KERN_INFO, ha, "Configure NVRAM parameters...\n");
@@ -109,7 +116,6 @@ qla2x00_initialize_adapter(scsi_qla_host_t *ha)
 		rval = qla2x00_setup_chip(ha);
 		if (rval)
 			return (rval);
-		qla2xxx_get_flash_info(ha);
 	}
 	if (IS_QLA84XX(ha)) {
 		ha->cs84xx = qla84xx_get_chip(ha);
@@ -3751,7 +3757,7 @@ qla24xx_load_risc_flash(scsi_qla_host_t *ha, uint32_t *srisc_addr)
 	rval = QLA_SUCCESS;
 
 	segments = FA_RISC_CODE_SEGMENTS;
-	faddr = FA_RISC_CODE_ADDR;
+	faddr = ha->flt_region_fw;
 	dcode = (uint32_t *)ha->request_ring;
 	*srisc_addr = 0;
 

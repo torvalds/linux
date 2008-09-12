@@ -1663,8 +1663,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		ha->gid_list_info_size = 8;
 		ha->optrom_size = OPTROM_SIZE_25XX;
 		ha->isp_ops = &qla25xx_isp_ops;
-		ha->hw_event_start = PCI_FUNC(pdev->devfn) ?
-		    FA_HW_EVENT1_ADDR: FA_HW_EVENT0_ADDR;
 	}
 	host->can_queue = ha->request_q_length + 128;
 
