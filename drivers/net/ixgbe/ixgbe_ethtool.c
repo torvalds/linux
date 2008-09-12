@@ -128,9 +128,10 @@ static int ixgbe_get_settings(struct net_device *netdev,
 		ecmd->advertising = (ADVERTISED_10000baseT_Full |
 				     ADVERTISED_FIBRE);
 		ecmd->port = PORT_FIBRE;
+		ecmd->autoneg = AUTONEG_DISABLE;
 	}
 
-	adapter->hw.mac.ops.check_link(hw, &(link_speed), &link_up, false);
+	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
 	if (link_up) {
 		ecmd->speed = (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
 				SPEED_10000 : SPEED_1000;
@@ -327,7 +328,7 @@ static void ixgbe_get_regs(struct net_device *netdev,
 	regs_buff[25] = IXGBE_READ_REG(hw, IXGBE_IVAR(0));
 	regs_buff[26] = IXGBE_READ_REG(hw, IXGBE_MSIXT);
 	regs_buff[27] = IXGBE_READ_REG(hw, IXGBE_MSIXPBA);
-	regs_buff[28] = IXGBE_READ_REG(hw, IXGBE_PBACL);
+	regs_buff[28] = IXGBE_READ_REG(hw, IXGBE_PBACL(0));
 	regs_buff[29] = IXGBE_READ_REG(hw, IXGBE_GPIE);
 
 	/* Flow Control */
@@ -373,7 +374,7 @@ static void ixgbe_get_regs(struct net_device *netdev,
 		regs_buff[482 + i] = IXGBE_READ_REG(hw, IXGBE_RAL(i));
 	for (i = 0; i < 16; i++)
 		regs_buff[498 + i] = IXGBE_READ_REG(hw, IXGBE_RAH(i));
-	regs_buff[514] = IXGBE_READ_REG(hw, IXGBE_PSRTYPE);
+	regs_buff[514] = IXGBE_READ_REG(hw, IXGBE_PSRTYPE(0));
 	regs_buff[515] = IXGBE_READ_REG(hw, IXGBE_FCTRL);
 	regs_buff[516] = IXGBE_READ_REG(hw, IXGBE_VLNCTRL);
 	regs_buff[517] = IXGBE_READ_REG(hw, IXGBE_MCSTCTRL);
@@ -605,8 +606,8 @@ static int ixgbe_get_eeprom(struct net_device *netdev,
 		return -ENOMEM;
 
 	for (i = 0; i < eeprom_len; i++) {
-		if ((ret_val = ixgbe_read_eeprom(hw, first_word + i,
-						 &eeprom_buff[i])))
+		if ((ret_val = hw->eeprom.ops.read(hw, first_word + i,
+						   &eeprom_buff[i])))
 			break;
 	}
 
@@ -807,7 +808,7 @@ static void ixgbe_get_strings(struct net_device *netdev, u32 stringset,
 			      u8 *data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u8 *p = data;
+	char *p = (char *)data;
 	int i;
 
 	switch (stringset) {
@@ -857,16 +858,17 @@ static int ixgbe_nway_reset(struct net_device *netdev)
 static int ixgbe_phys_id(struct net_device *netdev, u32 data)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
-	u32 led_reg = IXGBE_READ_REG(&adapter->hw, IXGBE_LEDCTL);
+	struct ixgbe_hw *hw = &adapter->hw;
+	u32 led_reg = IXGBE_READ_REG(hw, IXGBE_LEDCTL);
 	u32 i;
 
 	if (!data || data > 300)
 		data = 300;
 
 	for (i = 0; i < (data * 1000); i += 400) {
-		ixgbe_led_on(&adapter->hw, IXGBE_LED_ON);
+		hw->mac.ops.led_on(hw, IXGBE_LED_ON);
 		msleep_interruptible(200);
-		ixgbe_led_off(&adapter->hw, IXGBE_LED_ON);
+		hw->mac.ops.led_off(hw, IXGBE_LED_ON);
 		msleep_interruptible(200);
 	}
 

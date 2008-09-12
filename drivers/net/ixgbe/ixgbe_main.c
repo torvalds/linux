@@ -1749,14 +1749,16 @@ static void ixgbe_vlan_rx_register(struct net_device *netdev,
 static void ixgbe_vlan_rx_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	/* add VID to filter table */
-	ixgbe_set_vfta(&adapter->hw, vid, 0, true);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, 0, true);
 }
 
 static void ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
+	struct ixgbe_hw *hw = &adapter->hw;
 
 	if (!test_bit(__IXGBE_DOWN, &adapter->state))
 		ixgbe_irq_disable(adapter);
@@ -1767,7 +1769,7 @@ static void ixgbe_vlan_rx_kill_vid(struct net_device *netdev, u16 vid)
 		ixgbe_irq_enable(adapter);
 
 	/* remove VID from filter table */
-	ixgbe_set_vfta(&adapter->hw, vid, 0, false);
+	hw->mac.ops.set_vfta(&adapter->hw, vid, 0, false);
 }
 
 static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
@@ -1843,15 +1845,15 @@ static void ixgbe_set_rx_mode(struct net_device *netdev)
 	addr_count = netdev->uc_count;
 	if (addr_count)
 		addr_list = netdev->uc_list->dmi_addr;
-	ixgbe_update_uc_addr_list(hw, addr_list, addr_count,
-	                          ixgbe_addr_list_itr);
+	hw->mac.ops.update_uc_addr_list(hw, addr_list, addr_count,
+	                                  ixgbe_addr_list_itr);
 
 	/* reprogram multicast list */
 	addr_count = netdev->mc_count;
 	if (addr_count)
 		addr_list = netdev->mc_list->dmi_addr;
-	ixgbe_update_mc_addr_list(hw, addr_list, addr_count,
-	                          ixgbe_addr_list_itr);
+	hw->mac.ops.update_mc_addr_list(hw, addr_list, addr_count,
+	                                ixgbe_addr_list_itr);
 }
 
 static void ixgbe_napi_enable_all(struct ixgbe_adapter *adapter)
@@ -2016,11 +2018,12 @@ int ixgbe_up(struct ixgbe_adapter *adapter)
 
 void ixgbe_reset(struct ixgbe_adapter *adapter)
 {
-	if (ixgbe_init_hw(&adapter->hw))
-		DPRINTK(PROBE, ERR, "Hardware Error\n");
+	struct ixgbe_hw *hw = &adapter->hw;
+	if (hw->mac.ops.init_hw(hw))
+		dev_err(&adapter->pdev->dev, "Hardware Error\n");
 
 	/* reprogram the RAR[0] in case user changed it. */
-	ixgbe_set_rar(&adapter->hw, 0, adapter->hw.mac.addr, 0, IXGBE_RAH_AV);
+	hw->mac.ops.set_rar(hw, 0, hw->mac.addr, 0, IXGBE_RAH_AV);
 
 }
 
@@ -2637,6 +2640,14 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	struct pci_dev *pdev = adapter->pdev;
 	unsigned int rss;
 
+	/* PCI config space info */
+
+	hw->vendor_id = pdev->vendor;
+	hw->device_id = pdev->device;
+	hw->revision_id = pdev->revision;
+	hw->subsystem_vendor_id = pdev->subsystem_vendor;
+	hw->subsystem_device_id = pdev->subsystem_device;
+
 	/* Set capability flags */
 	rss = min(IXGBE_MAX_RSS_INDICES, (int)num_online_cpus());
 	adapter->ring_feature[RING_F_RSS].indices = rss;
@@ -2652,15 +2663,6 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 
 	/* select 10G link by default */
 	hw->mac.link_mode_select = IXGBE_AUTOC_LMS_10G_LINK_NO_AN;
-	if (hw->mac.ops.reset(hw)) {
-		dev_err(&pdev->dev, "HW Init failed\n");
-		return -EIO;
-	}
-	if (hw->mac.ops.setup_link_speed(hw, IXGBE_LINK_SPEED_10GB_FULL, true,
-					 false)) {
-		dev_err(&pdev->dev, "Link Speed setup failed\n");
-		return -EIO;
-	}
 
 	/* enable itr by default in dynamic mode */
 	adapter->itr_setting = 1;
@@ -2675,7 +2677,7 @@ static int __devinit ixgbe_sw_init(struct ixgbe_adapter *adapter)
 	adapter->rx_ring_count = IXGBE_DEFAULT_RXD;
 
 	/* initialize eeprom parameters */
-	if (ixgbe_init_eeprom(hw)) {
+	if (ixgbe_init_eeprom_params_generic(hw)) {
 		dev_err(&pdev->dev, "EEPROM initialization failed\n");
 		return -EIO;
 	}
@@ -3622,7 +3624,7 @@ static int ixgbe_set_mac(struct net_device *netdev, void *p)
 	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
 	memcpy(adapter->hw.mac.addr, addr->sa_data, netdev->addr_len);
 
-	ixgbe_set_rar(&adapter->hw, 0, adapter->hw.mac.addr, 0, IXGBE_RAH_AV);
+	adapter->hw.mac.ops.set_rar(&adapter->hw, 0, adapter->hw.mac.addr, 0, IXGBE_RAH_AV);
 
 	return 0;
 }
@@ -3644,6 +3646,22 @@ static void ixgbe_netpoll(struct net_device *netdev)
 	enable_irq(adapter->pdev->irq);
 }
 #endif
+
+/**
+ * ixgbe_link_config - set up initial link with default speed and duplex
+ * @hw: pointer to private hardware struct
+ *
+ * Returns 0 on success, negative on failure
+ **/
+static int ixgbe_link_config(struct ixgbe_hw *hw)
+{
+	u32 autoneg = IXGBE_LINK_SPEED_10GB_FULL;
+
+	/* must always autoneg for both 1G and 10G link */
+	hw->mac.autoneg = true;
+
+	return hw->mac.ops.setup_link_speed(hw, autoneg, true, true);
+}
 
 /**
  * ixgbe_napi_add_all - prep napi structs for use
@@ -3691,7 +3709,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	static int cards_found;
 	int i, err, pci_using_dac;
 	u16 link_status, link_speed, link_width;
-	u32 part_num;
+	u32 part_num, eec;
 
 	err = pci_enable_device(pdev);
 	if (err)
@@ -3705,8 +3723,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		if (err) {
 			err = pci_set_consistent_dma_mask(pdev, DMA_32BIT_MASK);
 			if (err) {
-				dev_err(&pdev->dev, "No usable DMA "
-					"configuration, aborting\n");
+				dev_err(&pdev->dev, "No usable DMA configuration, "
+				          "aborting\n");
 				goto err_dma;
 			}
 		}
@@ -3772,16 +3790,20 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 
 	adapter->bd_number = cards_found;
 
-	/* PCI config space info */
-	hw->vendor_id = pdev->vendor;
-	hw->device_id = pdev->device;
-	hw->revision_id = pdev->revision;
-	hw->subsystem_vendor_id = pdev->subsystem_vendor;
-	hw->subsystem_device_id = pdev->subsystem_device;
-
 	/* Setup hw api */
 	memcpy(&hw->mac.ops, ii->mac_ops, sizeof(hw->mac.ops));
 	hw->mac.type  = ii->mac;
+
+	/* EEPROM */
+	memcpy(&hw->eeprom.ops, ii->eeprom_ops, sizeof(hw->eeprom.ops));
+	eec = IXGBE_READ_REG(hw, IXGBE_EEC);
+	/* If EEPROM is valid (bit 8 = 1), use default otherwise use bit bang */
+	if (!(eec & (1 << 8)))
+		hw->eeprom.ops.read = &ixgbe_read_eeprom_bit_bang_generic;
+
+	/* PHY */
+	memcpy(&hw->phy.ops, ii->phy_ops, sizeof(hw->phy.ops));
+	/* phy->sfp_type = ixgbe_sfp_type_unknown; */
 
 	err = ii->get_invariants(hw);
 	if (err)
@@ -3791,6 +3813,13 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	err = ixgbe_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
+
+	/* reset_hw fills in the perm_addr as well */
+	err = hw->mac.ops.reset_hw(hw);
+	if (err) {
+		dev_err(&adapter->pdev->dev, "HW Init failed: %d\n", err);
+		goto err_sw_init;
+	}
 
 	netdev->features = NETIF_F_SG |
 			   NETIF_F_IP_CSUM |
@@ -3812,7 +3841,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		netdev->features |= NETIF_F_HIGHDMA;
 
 	/* make sure the EEPROM is good */
-	if (ixgbe_validate_eeprom_checksum(hw, NULL) < 0) {
+	if (hw->eeprom.ops.validate_checksum(hw, NULL) < 0) {
 		dev_err(&pdev->dev, "The EEPROM Checksum Is Not Valid\n");
 		err = -EIO;
 		goto err_eeprom;
@@ -3821,7 +3850,8 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	memcpy(netdev->dev_addr, hw->mac.perm_addr, netdev->addr_len);
 	memcpy(netdev->perm_addr, hw->mac.perm_addr, netdev->addr_len);
 
-	if (ixgbe_validate_mac_addr(netdev->dev_addr)) {
+	if (ixgbe_validate_mac_addr(netdev->perm_addr)) {
+		dev_err(&pdev->dev, "invalid MAC address\n");
 		err = -EIO;
 		goto err_eeprom;
 	}
@@ -3853,7 +3883,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 		 "Unknown"),
 		netdev->dev_addr[0], netdev->dev_addr[1], netdev->dev_addr[2],
 		netdev->dev_addr[3], netdev->dev_addr[4], netdev->dev_addr[5]);
-	ixgbe_read_part_num(hw, &part_num);
+	ixgbe_read_pba_num_generic(hw, &part_num);
 	dev_info(&pdev->dev, "MAC: %d, PHY: %d, PBA No: %06x-%03x\n",
 		 hw->mac.type, hw->phy.type,
 		 (part_num >> 8), (part_num & 0xff));
@@ -3867,7 +3897,14 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	}
 
 	/* reset the hardware with the new settings */
-	ixgbe_start_hw(hw);
+	hw->mac.ops.start_hw(hw);
+
+	/* link_config depends on start_hw being called at least once */
+	err = ixgbe_link_config(hw);
+	if (err) {
+		dev_err(&pdev->dev, "setup_link_speed FAILED %d\n", err);
+		goto err_register;
+	}
 
 	netif_carrier_off(netdev);
 	netif_tx_stop_all_queues(netdev);

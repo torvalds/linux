@@ -41,8 +41,6 @@
 #include <linux/dca.h>
 #endif
 
-#define IXGBE_ERR(args...) printk(KERN_ERR "ixgbe: " args)
-
 #define PFX "ixgbe: "
 #define DPRINTK(nlevel, klevel, fmt, args...) \
 	((void)((NETIF_MSG_##nlevel & adapter->msg_enable) && \
