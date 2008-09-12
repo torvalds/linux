@@ -179,6 +179,14 @@ static int dspregs_set(struct task_struct *target,
 
 	return ret;
 }
+
+static int dspregs_active(struct task_struct *target,
+			  const struct user_regset *regset)
+{
+	struct pt_regs *regs = task_pt_regs(target);
+
+	return regs->sr & SR_DSP ? regset->n : 0;
+}
 #endif
 
 /*
@@ -213,6 +221,7 @@ static const struct user_regset sh_regsets[] = {
 		.align		= sizeof(long),
 		.get		= dspregs_get,
 		.set		= dspregs_set,
+		.active		= dspregs_active,
 	},
 #endif
 };
