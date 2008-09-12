@@ -80,6 +80,7 @@ enum {
 	STAC_92HD71BXX_REF,
 	STAC_DELL_M4_1,
 	STAC_DELL_M4_2,
+	STAC_HP_M4,
 	STAC_92HD71BXX_MODELS
 };
 
@@ -1527,12 +1528,14 @@ static unsigned int *stac92hd71bxx_brd_tbl[STAC_92HD71BXX_MODELS] = {
 	[STAC_92HD71BXX_REF] = ref92hd71bxx_pin_configs,
 	[STAC_DELL_M4_1]	= dell_m4_1_pin_configs,
 	[STAC_DELL_M4_2]	= dell_m4_2_pin_configs,
+	[STAC_HP_M4]		= NULL,
 };
 
 static const char *stac92hd71bxx_models[STAC_92HD71BXX_MODELS] = {
 	[STAC_92HD71BXX_REF] = "ref",
 	[STAC_DELL_M4_1] = "dell-m4-1",
 	[STAC_DELL_M4_2] = "dell-m4-2",
+	[STAC_HP_M4] = "hp-m4",
 };
 
 static struct snd_pci_quirk stac92hd71bxx_cfg_tbl[] = {
@@ -4204,9 +4207,23 @@ again:
 
 	spec->num_muxes = ARRAY_SIZE(stac92hd71bxx_mux_nids);
 	spec->num_adcs = ARRAY_SIZE(stac92hd71bxx_adc_nids);
-	spec->num_dmics = STAC92HD71BXX_NUM_DMICS;
-	spec->num_smuxes = ARRAY_SIZE(stac92hd71bxx_smux_nids);
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+
+	switch (spec->board_config) {
+	case STAC_HP_M4:
+		spec->num_dmics = 0;
+		spec->num_smuxes = 1;
+		spec->num_dmuxes = 0;
+
+		/* enable internal microphone */
+		snd_hda_codec_write_cache(codec, 0x0e, 0,
+			AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_VREF80);
+		break;
+	default:
+		spec->num_dmics = STAC92HD71BXX_NUM_DMICS;
+		spec->num_smuxes = ARRAY_SIZE(stac92hd71bxx_smux_nids);
+		spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
+	};
 
 	spec->multiout.num_dacs = 1;
 	spec->multiout.hp_nid = 0x11;
