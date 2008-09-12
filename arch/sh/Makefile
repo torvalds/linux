@@ -76,8 +76,10 @@ KBUILD_IMAGE		:= $(defaultimage-y)
 # error messages during linking.
 #
 ifdef CONFIG_SUPERH32
+UTS_MACHINE	:= sh
 LDFLAGS_vmlinux	+= -e _stext
 else
+UTS_MACHINE	:= sh64
 LDFLAGS_vmlinux	+= --defsym phys_stext=_stext-$(CONFIG_PAGE_OFFSET) \
 		   --defsym phys_stext_shmedia=phys_stext+1 \
 		   -e phys_stext_shmedia
