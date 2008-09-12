@@ -49,6 +49,7 @@ extern unsigned long empty_zero_page;
 extern void sun_do_break(void);
 extern int serial_console;
 extern int stop_a_enabled;
+extern int scons_pwroff;
 
 static inline int con_is_present(void)
 {

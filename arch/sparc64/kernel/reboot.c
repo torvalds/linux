@@ -7,6 +7,7 @@
 #include <linux/module.h>
 #include <linux/pm.h>
 
+#include <asm/system.h>
 #include <asm/oplib.h>
 #include <asm/prom.h>
 

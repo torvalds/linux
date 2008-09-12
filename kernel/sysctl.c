@@ -119,9 +119,7 @@ extern int sg_big_buff;
 #endif
 
 #ifdef CONFIG_SPARC
-extern char reboot_command [];
-extern int stop_a_enabled;
-extern int scons_pwroff;
+#include <asm/system.h>
 #endif
 
 #ifdef __hppa__
