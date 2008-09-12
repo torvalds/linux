@@ -152,9 +152,9 @@ struct ixgbe_ring {
 	struct net_lro_mgr lro_mgr;
 	bool lro_used;
 	struct ixgbe_queue_stats stats;
-	u8 v_idx; /* maps directly to the index for this ring in the hardware
-		   * vector array, can also be used for finding the bit in EICR
-		   * and friends that represents the vector for this ring */
+	u16 v_idx; /* maps directly to the index for this ring in the hardware
+	           * vector array, can also be used for finding the bit in EICR
+	           * and friends that represents the vector for this ring */
 
 
 	u16 work_limit;                /* max work per interrupt */
