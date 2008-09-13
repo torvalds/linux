@@ -729,8 +729,8 @@ static struct hda_verb dell_eq_core_init[] = {
 	{ 0x1f, AC_VERB_SET_VOLUME_KNOB_CONTROL, 0xec},
 	/* setup audio connections */
 	{ 0x0d, AC_VERB_SET_CONNECT_SEL, 0x00},
-	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x02},
+	{ 0x0a, AC_VERB_SET_CONNECT_SEL, 0x02},
+	{ 0x0f, AC_VERB_SET_CONNECT_SEL, 0x01},
 	/* setup adcs to point to mixer */
 	{ 0x20, AC_VERB_SET_CONNECT_SEL, 0x0b},
 	{ 0x21, AC_VERB_SET_CONNECT_SEL, 0x0b},
