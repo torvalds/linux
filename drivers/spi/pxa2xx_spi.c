@@ -144,7 +144,6 @@ struct driver_data {
 	size_t tx_map_len;
 	u8 n_bytes;
 	u32 dma_width;
-	int cs_change;
 	int (*write)(struct driver_data *drv_data);
 	int (*read)(struct driver_data *drv_data);
 	irqreturn_t (*transfer_handler)(struct driver_data *drv_data);
@@ -406,8 +405,45 @@ static void giveback(struct driver_data *drv_data)
 					struct spi_transfer,
 					transfer_list);
 
+	/* Delay if requested before any change in chip select */
+	if (last_transfer->delay_usecs)
+		udelay(last_transfer->delay_usecs);
+
+	/* Drop chip select UNLESS cs_change is true or we are returning
+	 * a message with an error, or next message is for another chip
+	 */
 	if (!last_transfer->cs_change)
 		drv_data->cs_control(PXA2XX_CS_DEASSERT);
+	else {
+		struct spi_message *next_msg;
+
+		/* Holding of cs was hinted, but we need to make sure
+		 * the next message is for the same chip.  Don't waste
+		 * time with the following tests unless this was hinted.
+		 *
+		 * We cannot postpone this until pump_messages, because
+		 * after calling msg->complete (below) the driver that
+		 * sent the current message could be unloaded, which
+		 * could invalidate the cs_control() callback...
+		 */
+
+		/* get a pointer to the next message, if any */
+		spin_lock_irqsave(&drv_data->lock, flags);
+		if (list_empty(&drv_data->queue))
+			next_msg = NULL;
+		else
+			next_msg = list_entry(drv_data->queue.next,
+					struct spi_message, queue);
+		spin_unlock_irqrestore(&drv_data->lock, flags);
+
+		/* see if the next and current messages point
+		 * to the same chip
+		 */
+		if (next_msg && next_msg->spi != msg->spi)
+			next_msg = NULL;
+		if (!next_msg || msg->state == ERROR_STATE)
+			drv_data->cs_control(PXA2XX_CS_DEASSERT);
+	}
 
 	msg->state = NULL;
 	if (msg->complete)
@@ -490,10 +526,9 @@ static void dma_transfer_complete(struct driver_data *drv_data)
 	msg->actual_length += drv_data->len -
 				(drv_data->rx_end - drv_data->rx);
 
-	/* Release chip select if requested, transfer delays are
-	 * handled in pump_transfers */
-	if (drv_data->cs_change)
-		drv_data->cs_control(PXA2XX_CS_DEASSERT);
+	/* Transfer delays and chip select release are
+	 * handled in pump_transfers or giveback
+	 */
 
 	/* Move to next transfer */
 	msg->state = next_transfer(drv_data);
@@ -602,10 +637,9 @@ static void int_transfer_complete(struct driver_data *drv_data)
 	drv_data->cur_msg->actual_length += drv_data->len -
 				(drv_data->rx_end - drv_data->rx);
 
-	/* Release chip select if requested, transfer delays are
-	 * handled in pump_transfers */
-	if (drv_data->cs_change)
-		drv_data->cs_control(PXA2XX_CS_DEASSERT);
+	/* Transfer delays and chip select release are
+	 * handled in pump_transfers or giveback
+	 */
 
 	/* Move to next transfer */
 	drv_data->cur_msg->state = next_transfer(drv_data);
@@ -840,13 +874,17 @@ static void pump_transfers(unsigned long data)
 		return;
 	}
 
-	/* Delay if requested at end of transfer*/
+	/* Delay if requested at end of transfer before CS change */
 	if (message->state == RUNNING_STATE) {
 		previous = list_entry(transfer->transfer_list.prev,
 					struct spi_transfer,
 					transfer_list);
 		if (previous->delay_usecs)
 			udelay(previous->delay_usecs);
+
+		/* Drop chip select only if cs_change is requested */
+		if (previous->cs_change)
+			drv_data->cs_control(PXA2XX_CS_DEASSERT);
 	}
 
 	/* Check transfer length */
@@ -878,7 +916,6 @@ static void pump_transfers(unsigned long data)
 	drv_data->len = transfer->len & DCMD_LENGTH;
 	drv_data->write = drv_data->tx ? chip->write : null_writer;
 	drv_data->read = drv_data->rx ? chip->read : null_reader;
-	drv_data->cs_change = transfer->cs_change;
 
 	/* Change speed and bit per word on a per transfer */
 	cr0 = chip->cr0;
