@@ -1541,6 +1541,11 @@ static void __init setup_IO_APIC_irqs(void)
 						pin);
 				continue;
 			}
+			if (notcon) {
+				apic_printk(APIC_VERBOSE,
+					" (apicid-pin) not connected\n");
+				notcon = 0;
+			}
 
 			irq = pin_2_irq(idx, apic, pin);
 #ifdef CONFIG_X86_32
@@ -1551,11 +1556,6 @@ static void __init setup_IO_APIC_irqs(void)
 
 			setup_IO_APIC_irq(apic, pin, irq,
 					irq_trigger(idx), irq_polarity(idx));
-		}
-		if (notcon) {
-			apic_printk(APIC_VERBOSE,
-				" (apicid-pin) not connected\n");
-			notcon = 0;
 		}
 	}
 
