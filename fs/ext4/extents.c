@@ -2878,10 +2878,11 @@ static void ext4_falloc_update_inode(struct inode *inode,
 	 * Update only when preallocation was requested beyond
 	 * the file size.
 	 */
-	if (!(mode & FALLOC_FL_KEEP_SIZE) &&
-				new_size > i_size_read(inode)) {
-		i_size_write(inode, new_size);
-		EXT4_I(inode)->i_disksize = new_size;
+	if (!(mode & FALLOC_FL_KEEP_SIZE)) {
+		if (new_size > i_size_read(inode))
+			i_size_write(inode, new_size);
+		if (new_size > EXT4_I(inode)->i_disksize)
+			ext4_update_i_disksize(inode, new_size);
 	}
 
 }

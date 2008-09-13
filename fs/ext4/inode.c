@@ -1434,16 +1434,18 @@ static int ext4_ordered_write_end(struct file *file,
 	ret = ext4_jbd2_file_inode(handle, inode);
 
 	if (ret == 0) {
-		/*
-		 * generic_write_end() will run mark_inode_dirty() if i_size
-		 * changes.  So let's piggyback the i_disksize mark_inode_dirty
-		 * into that.
-		 */
 		loff_t new_i_size;
 
 		new_i_size = pos + copied;
-		if (new_i_size > EXT4_I(inode)->i_disksize)
-			EXT4_I(inode)->i_disksize = new_i_size;
+		if (new_i_size > EXT4_I(inode)->i_disksize) {
+			ext4_update_i_disksize(inode, new_i_size);
+			/* We need to mark inode dirty even if
+			 * new_i_size is less that inode->i_size
+			 * bu greater than i_disksize.(hint delalloc)
+			 */
+			ext4_mark_inode_dirty(handle, inode);
+		}
+
 		ret2 = generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
 		copied = ret2;
@@ -1468,8 +1470,14 @@ static int ext4_writeback_write_end(struct file *file,
 	loff_t new_i_size;
 
 	new_i_size = pos + copied;
-	if (new_i_size > EXT4_I(inode)->i_disksize)
-		EXT4_I(inode)->i_disksize = new_i_size;
+	if (new_i_size > EXT4_I(inode)->i_disksize) {
+		ext4_update_i_disksize(inode, new_i_size);
+		/* We need to mark inode dirty even if
+		 * new_i_size is less that inode->i_size
+		 * bu greater than i_disksize.(hint delalloc)
+		 */
+		ext4_mark_inode_dirty(handle, inode);
+	}
 
 	ret2 = generic_write_end(file, mapping, pos, len, copied,
 							page, fsdata);
@@ -1494,6 +1502,7 @@ static int ext4_journalled_write_end(struct file *file,
 	int ret = 0, ret2;
 	int partial = 0;
 	unsigned from, to;
+	loff_t new_i_size;
 
 	from = pos & (PAGE_CACHE_SIZE - 1);
 	to = from + len;
@@ -1508,11 +1517,12 @@ static int ext4_journalled_write_end(struct file *file,
 				to, &partial, write_end_fn);
 	if (!partial)
 		SetPageUptodate(page);
-	if (pos+copied > inode->i_size)
+	new_i_size = pos + copied;
+	if (new_i_size > inode->i_size)
 		i_size_write(inode, pos+copied);
 	EXT4_I(inode)->i_state |= EXT4_STATE_JDATA;
-	if (inode->i_size > EXT4_I(inode)->i_disksize) {
-		EXT4_I(inode)->i_disksize = inode->i_size;
+	if (new_i_size > EXT4_I(inode)->i_disksize) {
+		ext4_update_i_disksize(inode, new_i_size);
 		ret2 = ext4_mark_inode_dirty(handle, inode);
 		if (!ret)
 			ret = ret2;
@@ -2227,18 +2237,9 @@ static int ext4_da_get_block_write(struct inode *inode, sector_t iblock,
 		if (disksize > i_size_read(inode))
 			disksize = i_size_read(inode);
 		if (disksize > EXT4_I(inode)->i_disksize) {
-			/*
-			 * XXX: replace with spinlock if seen contended -bzzz
-			 */
-			down_write(&EXT4_I(inode)->i_data_sem);
-			if (disksize > EXT4_I(inode)->i_disksize)
-				EXT4_I(inode)->i_disksize = disksize;
-			up_write(&EXT4_I(inode)->i_data_sem);
-
-			if (EXT4_I(inode)->i_disksize == disksize) {
-				ret = ext4_mark_inode_dirty(handle, inode);
-				return ret;
-			}
+			ext4_update_i_disksize(inode, disksize);
+			ret = ext4_mark_inode_dirty(handle, inode);
+			return ret;
 		}
 		ret = 0;
 	}
@@ -2654,6 +2655,11 @@ static int ext4_da_write_end(struct file *file,
 				EXT4_I(inode)->i_disksize = new_i_size;
 			}
 			up_write(&EXT4_I(inode)->i_data_sem);
+			/* We need to mark inode dirty even if
+			 * new_i_size is less that inode->i_size
+			 * bu greater than i_disksize.(hint delalloc)
+			 */
+			ext4_mark_inode_dirty(handle, inode);
 		}
 	}
 	ret2 = generic_write_end(file, mapping, pos, len, copied,
