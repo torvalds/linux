@@ -36,7 +36,7 @@ comment "Supported Pluto2 Adapters"
 source "drivers/media/dvb/pluto2/Kconfig"
 
 comment "Supported SDMC DM1105 Adapters"
-        depends on DVB_CORE && PCI && I2C
+	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/dm1105/Kconfig"
 
 comment "Supported DVB Frontends"
