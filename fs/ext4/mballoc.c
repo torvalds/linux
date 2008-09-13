@@ -2541,17 +2541,16 @@ int ext4_mb_init(struct super_block *sb, int needs_recovery)
 	sbi->s_mb_history_filter = EXT4_MB_HISTORY_DEFAULT;
 	sbi->s_mb_group_prealloc = MB_DEFAULT_GROUP_PREALLOC;
 
-	i = sizeof(struct ext4_locality_group) * nr_cpu_ids;
-	sbi->s_locality_groups = kmalloc(i, GFP_KERNEL);
+	sbi->s_locality_groups = alloc_percpu(struct ext4_locality_group);
 	if (sbi->s_locality_groups == NULL) {
 		clear_opt(sbi->s_mount_opt, MBALLOC);
 		kfree(sbi->s_mb_offsets);
 		kfree(sbi->s_mb_maxs);
 		return -ENOMEM;
 	}
-	for (i = 0; i < nr_cpu_ids; i++) {
+	for_each_possible_cpu(i) {
 		struct ext4_locality_group *lg;
-		lg = &sbi->s_locality_groups[i];
+		lg = per_cpu_ptr(sbi->s_locality_groups, i);
 		mutex_init(&lg->lg_mutex);
 		for (j = 0; j < PREALLOC_TB_SIZE; j++)
 			INIT_LIST_HEAD(&lg->lg_prealloc_list[j]);
@@ -2648,8 +2647,7 @@ int ext4_mb_release(struct super_block *sb)
 				atomic_read(&sbi->s_mb_discarded));
 	}
 
-	kfree(sbi->s_locality_groups);
-
+	free_percpu(sbi->s_locality_groups);
 	ext4_mb_history_release(sb);
 	ext4_mb_destroy_per_dev_proc(sb);
 
@@ -4106,8 +4104,7 @@ static void ext4_mb_group_or_file(struct ext4_allocation_context *ac)
 	 * per cpu locality group is to reduce the contention between block
 	 * request from multiple CPUs.
 	 */
-	ac->ac_lg = &sbi->s_locality_groups[get_cpu()];
-	put_cpu();
+	ac->ac_lg = per_cpu_ptr(sbi->s_locality_groups, raw_smp_processor_id());
 
 	/* we're going to use group allocation */
 	ac->ac_flags |= EXT4_MB_HINT_GROUP_ALLOC;
