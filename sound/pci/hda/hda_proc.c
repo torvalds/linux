@@ -216,7 +216,7 @@ static void print_pin_caps(struct snd_info_buffer *buffer,
 	unsigned int caps, val;
 
 	caps = snd_hda_param_read(codec, nid, AC_PAR_PIN_CAP);
-	snd_iprintf(buffer, "  Pincap 0x08%x:", caps);
+	snd_iprintf(buffer, "  Pincap 0x%08x:", caps);
 	if (caps & AC_PINCAP_IN)
 		snd_iprintf(buffer, " IN");
 	if (caps & AC_PINCAP_OUT)
