@@ -21,6 +21,7 @@
 
 #include <mach/tc.h>
 #include <mach/board.h>
+#include <mach/mmc.h>
 #include <mach/mux.h>
 #include <mach/gpio.h>
 #include <mach/menelaus.h>
@@ -194,25 +195,38 @@ void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 
 /*-------------------------------------------------------------------------*/
 
-#if	defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE)
+#if	defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
+	defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
 #define	OMAP_MMC1_BASE		0x4809c000
-#define OMAP_MMC1_INT		INT_24XX_MMC_IRQ
-#else
-#define	OMAP_MMC1_BASE		0xfffb7800
-#define OMAP_MMC1_INT		INT_MMC
-#endif
-#define	OMAP_MMC2_BASE		0xfffb7c00	/* omap16xx only */
+#define	OMAP_MMC1_END		(OMAP_MMC1_BASE + 0x1fc)
+#define	OMAP_MMC1_INT		INT_24XX_MMC_IRQ
 
-static struct omap_mmc_conf mmc1_conf;
+#define	OMAP_MMC2_BASE		0x480b4000
+#define	OMAP_MMC2_END		(OMAP_MMC2_BASE + 0x1fc)
+#define	OMAP_MMC2_INT		INT_24XX_MMC2_IRQ
+
+#else
+
+#define	OMAP_MMC1_BASE		0xfffb7800
+#define	OMAP_MMC1_END		(OMAP_MMC1_BASE + 0x7f)
+#define OMAP_MMC1_INT		INT_MMC
+
+#define	OMAP_MMC2_BASE		0xfffb7c00	/* omap16xx only */
+#define	OMAP_MMC2_END		(OMAP_MMC2_BASE + 0x7f)
+#define	OMAP_MMC2_INT		INT_1610_MMC2
+
+#endif
+
+static struct omap_mmc_platform_data mmc1_data;
 
 static u64 mmc1_dmamask = 0xffffffff;
 
 static struct resource mmc1_resources[] = {
 	{
 		.start		= OMAP_MMC1_BASE,
-		.end		= OMAP_MMC1_BASE + 0x7f,
+		.end		= OMAP_MMC1_END,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
@@ -226,26 +240,27 @@ static struct platform_device mmc_omap_device1 = {
 	.id		= 1,
 	.dev = {
 		.dma_mask	= &mmc1_dmamask,
-		.platform_data	= &mmc1_conf,
+		.platform_data	= &mmc1_data,
 	},
 	.num_resources	= ARRAY_SIZE(mmc1_resources),
 	.resource	= mmc1_resources,
 };
 
-#ifdef	CONFIG_ARCH_OMAP16XX
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2430) || \
+	defined(CONFIG_ARCH_OMAP34XX)
 
-static struct omap_mmc_conf mmc2_conf;
+static struct omap_mmc_platform_data mmc2_data;
 
 static u64 mmc2_dmamask = 0xffffffff;
 
 static struct resource mmc2_resources[] = {
 	{
 		.start		= OMAP_MMC2_BASE,
-		.end		= OMAP_MMC2_BASE + 0x7f,
+		.end		= OMAP_MMC2_END,
 		.flags		= IORESOURCE_MEM,
 	},
 	{
-		.start		= INT_1610_MMC2,
+		.start		= OMAP_MMC2_INT,
 		.flags		= IORESOURCE_IRQ,
 	},
 };
@@ -255,26 +270,19 @@ static struct platform_device mmc_omap_device2 = {
 	.id		= 2,
 	.dev = {
 		.dma_mask	= &mmc2_dmamask,
-		.platform_data	= &mmc2_conf,
+		.platform_data	= &mmc2_data,
 	},
 	.num_resources	= ARRAY_SIZE(mmc2_resources),
 	.resource	= mmc2_resources,
 };
 #endif
 
-static void __init omap_init_mmc(void)
+static inline void omap_init_mmc_conf(const struct omap_mmc_config *mmc_conf)
 {
-	const struct omap_mmc_config	*mmc_conf;
-	const struct omap_mmc_conf	*mmc;
-
-	/* NOTE:  assumes MMC was never (wrongly) enabled */
-	mmc_conf = omap_get_config(OMAP_TAG_MMC, struct omap_mmc_config);
-	if (!mmc_conf)
+	if (cpu_is_omap2430() || cpu_is_omap34xx())
 		return;
 
-	/* block 1 is always available and has just one pinout option */
-	mmc = &mmc_conf->mmc[0];
-	if (mmc->enabled) {
+	if (mmc_conf->mmc[0].enabled) {
 		if (cpu_is_omap24xx()) {
 			omap_cfg_reg(H18_24XX_MMC_CMD);
 			omap_cfg_reg(H15_24XX_MMC_CLKI);
@@ -292,7 +300,7 @@ static void __init omap_init_mmc(void)
 				omap_cfg_reg(P20_1710_MMC_DATDIR0);
 			}
 		}
-		if (mmc->wire4) {
+		if (mmc_conf->mmc[0].wire4) {
 			if (cpu_is_omap24xx()) {
 				omap_cfg_reg(H14_24XX_MMC_DAT1);
 				omap_cfg_reg(E19_24XX_MMC_DAT2);
@@ -303,25 +311,35 @@ static void __init omap_init_mmc(void)
 			} else {
 				omap_cfg_reg(MMC_DAT1);
 				/* NOTE:  DAT2 can be on W10 (here) or M15 */
-				if (!mmc->nomux)
+				if (!mmc_conf->mmc[0].nomux)
 					omap_cfg_reg(MMC_DAT2);
 				omap_cfg_reg(MMC_DAT3);
 			}
 		}
-		mmc1_conf = *mmc;
-		(void) platform_device_register(&mmc_omap_device1);
+#if defined(CONFIG_ARCH_OMAP2420)
+		if (mmc_conf->mmc[0].internal_clock) {
+			/*
+			 * Use internal loop-back in MMC/SDIO
+			 * Module Input Clock selection
+			 */
+			if (cpu_is_omap24xx()) {
+				u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
+				v |= (1 << 24); /* not used in 243x */
+				omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
+			}
+		}
+#endif
 	}
 
 #ifdef	CONFIG_ARCH_OMAP16XX
 	/* block 2 is on newer chips, and has many pinout options */
-	mmc = &mmc_conf->mmc[1];
-	if (mmc->enabled) {
-		if (!mmc->nomux) {
+	if (mmc_conf->mmc[1].enabled) {
+		if (!mmc_conf->mmc[1].nomux) {
 			omap_cfg_reg(Y8_1610_MMC2_CMD);
 			omap_cfg_reg(Y10_1610_MMC2_CLK);
 			omap_cfg_reg(R18_1610_MMC2_CLKIN);
 			omap_cfg_reg(W8_1610_MMC2_DAT0);
-			if (mmc->wire4) {
+			if (mmc_conf->mmc[1].wire4) {
 				omap_cfg_reg(V8_1610_MMC2_DAT1);
 				omap_cfg_reg(W15_1610_MMC2_DAT2);
 				omap_cfg_reg(R10_1610_MMC2_DAT3);
@@ -337,14 +355,55 @@ static void __init omap_init_mmc(void)
 		if (cpu_is_omap1710())
 			omap_writel(omap_readl(MOD_CONF_CTRL_1) | (1 << 24),
 				     MOD_CONF_CTRL_1);
-		mmc2_conf = *mmc;
+	}
+#endif
+}
+
+static void __init omap_init_mmc(void)
+{
+	const struct omap_mmc_config	*mmc_conf;
+
+	/* NOTE:  assumes MMC was never (wrongly) enabled */
+	mmc_conf = omap_get_config(OMAP_TAG_MMC, struct omap_mmc_config);
+	if (!mmc_conf)
+		return;
+
+	omap_init_mmc_conf(mmc_conf);
+
+	if (mmc_conf->mmc[0].enabled) {
+		mmc1_data.conf = mmc_conf->mmc[0];
+		(void) platform_device_register(&mmc_omap_device1);
+	}
+
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2430) || \
+	defined(CONFIG_ARCH_OMAP34XX)
+	if (mmc_conf->mmc[1].enabled) {
+		mmc2_data.conf = mmc_conf->mmc[1];
 		(void) platform_device_register(&mmc_omap_device2);
 	}
 #endif
-	return;
 }
+
+void omap_set_mmc_info(int host, const struct omap_mmc_platform_data *info)
+{
+	switch (host) {
+	case 1:
+		mmc1_data = *info;
+		break;
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2430) || \
+	defined(CONFIG_ARCH_OMAP34XX)
+	case 2:
+		mmc2_data = *info;
+		break;
+#endif
+	default:
+		BUG();
+	}
+}
+
 #else
 static inline void omap_init_mmc(void) {}
+void omap_set_mmc_info(int host, const struct omap_mmc_platform_data *info) {}
 #endif
 
 /*-------------------------------------------------------------------------*/
