@@ -59,4 +59,16 @@ static inline int queue_congestion_off_threshold(struct request_queue *q)
 
 #endif /* BLK_DEV_INTEGRITY */
 
+static inline int blk_cpu_to_group(int cpu)
+{
+#ifdef CONFIG_SCHED_MC
+	cpumask_t mask = cpu_coregroup_map(cpu);
+	return first_cpu(mask);
+#elif defined(CONFIG_SCHED_SMT)
+	return first_cpu(per_cpu(cpu_sibling_map, cpu));
+#else
+	return cpu;
+#endif
+}
+
 #endif

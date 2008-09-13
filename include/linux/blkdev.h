@@ -17,6 +17,7 @@
 #include <linux/module.h>
 #include <linux/stringify.h>
 #include <linux/bsg.h>
+#include <linux/smp.h>
 
 #include <asm/scatterlist.h>
 
@@ -139,7 +140,8 @@ enum rq_flag_bits {
  */
 struct request {
 	struct list_head queuelist;
-	struct list_head donelist;
+	struct call_single_data csd;
+	int cpu;
 
 	struct request_queue *q;
 
@@ -420,6 +422,7 @@ struct request_queue
 #define QUEUE_FLAG_ELVSWITCH	8	/* don't use elevator, just do FIFO */
 #define QUEUE_FLAG_BIDI		9	/* queue supports bidi requests */
 #define QUEUE_FLAG_NOMERGES    10	/* disable merge attempts */
+#define QUEUE_FLAG_SAME_COMP   11	/* force complete on same CPU */
 
 static inline int queue_is_locked(struct request_queue *q)
 {

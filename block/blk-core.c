@@ -110,7 +110,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	memset(rq, 0, sizeof(*rq));
 
 	INIT_LIST_HEAD(&rq->queuelist);
-	INIT_LIST_HEAD(&rq->donelist);
+	rq->cpu = -1;
 	rq->q = q;
 	rq->sector = rq->hard_sector = (sector_t) -1;
 	INIT_HLIST_NODE(&rq->hash);
@@ -322,6 +322,21 @@ void blk_unplug(struct request_queue *q)
 }
 EXPORT_SYMBOL(blk_unplug);
 
+static void blk_invoke_request_fn(struct request_queue *q)
+{
+	/*
+	 * one level of recursion is ok and is much faster than kicking
+	 * the unplug handling
+	 */
+	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
+		q->request_fn(q);
+		queue_flag_clear(QUEUE_FLAG_REENTER, q);
+	} else {
+		queue_flag_set(QUEUE_FLAG_PLUGGED, q);
+		kblockd_schedule_work(q, &q->unplug_work);
+	}
+}
+
 /**
  * blk_start_queue - restart a previously stopped queue
  * @q:    The &struct request_queue in question
@@ -336,18 +351,7 @@ void blk_start_queue(struct request_queue *q)
 	WARN_ON(!irqs_disabled());
 
 	queue_flag_clear(QUEUE_FLAG_STOPPED, q);
-
-	/*
-	 * one level of recursion is ok and is much faster than kicking
-	 * the unplug handling
-	 */
-	if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
-		q->request_fn(q);
-		queue_flag_clear(QUEUE_FLAG_REENTER, q);
-	} else {
-		blk_plug_device(q);
-		kblockd_schedule_work(q, &q->unplug_work);
-	}
+	blk_invoke_request_fn(q);
 }
 EXPORT_SYMBOL(blk_start_queue);
 
@@ -405,15 +409,8 @@ void __blk_run_queue(struct request_queue *q)
 	 * Only recurse once to avoid overrunning the stack, let the unplug
 	 * handling reinvoke the handler shortly if we already got there.
 	 */
-	if (!elv_queue_empty(q)) {
-		if (!queue_flag_test_and_set(QUEUE_FLAG_REENTER, q)) {
-			q->request_fn(q);
-			queue_flag_clear(QUEUE_FLAG_REENTER, q);
-		} else {
-			blk_plug_device(q);
-			kblockd_schedule_work(q, &q->unplug_work);
-		}
-	}
+	if (!elv_queue_empty(q))
+		blk_invoke_request_fn(q);
 }
 EXPORT_SYMBOL(__blk_run_queue);
 
@@ -1056,6 +1053,7 @@ EXPORT_SYMBOL(blk_put_request);
 
 void init_request_from_bio(struct request *req, struct bio *bio)
 {
+	req->cpu = bio->bi_comp_cpu;
 	req->cmd_type = REQ_TYPE_FS;
 
 	/*
@@ -1198,13 +1196,15 @@ get_rq:
 	init_request_from_bio(req, bio);
 
 	spin_lock_irq(q->queue_lock);
+	if (test_bit(QUEUE_FLAG_SAME_COMP, &q->queue_flags) ||
+	    bio_flagged(bio, BIO_CPU_AFFINE))
+		req->cpu = blk_cpu_to_group(smp_processor_id());
 	if (elv_queue_empty(q))
 		blk_plug_device(q);
 	add_request(q, req);
 out:
 	if (sync)
 		__generic_unplug_device(q);
-
 	spin_unlock_irq(q->queue_lock);
 	return 0;
 

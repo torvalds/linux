@@ -81,6 +81,8 @@ struct bio {
 
 	unsigned int		bi_max_vecs;	/* max bvl_vecs we can hold */
 
+	unsigned int		bi_comp_cpu;	/* completion CPU */
+
 	struct bio_vec		*bi_io_vec;	/* the actual vec list */
 
 	bio_end_io_t		*bi_end_io;
@@ -105,6 +107,7 @@ struct bio {
 #define BIO_BOUNCED	5	/* bio is a bounce bio */
 #define BIO_USER_MAPPED 6	/* contains user pages */
 #define BIO_EOPNOTSUPP	7	/* not supported */
+#define BIO_CPU_AFFINE	8	/* complete bio on same CPU as submitted */
 #define bio_flagged(bio, flag)	((bio)->bi_flags & (1 << (flag)))
 
 /*
@@ -341,6 +344,14 @@ extern int bio_uncopy_user(struct bio *);
 void zero_fill_bio(struct bio *bio);
 extern struct bio_vec *bvec_alloc_bs(gfp_t, int, unsigned long *, struct bio_set *);
 extern unsigned int bvec_nr_vecs(unsigned short idx);
+
+/*
+ * Allow queuer to specify a completion CPU for this bio
+ */
+static inline void bio_set_completion_cpu(struct bio *bio, unsigned int cpu)
+{
+	bio->bi_comp_cpu = cpu;
+}
 
 /*
  * bio_set is used to allow other portions of the IO system to
