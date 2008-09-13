@@ -5291,7 +5291,7 @@ static int orinoco_ioctl_getrid(struct net_device *dev,
 /* Trigger a scan (look for other cells in the vicinity) */
 static int orinoco_ioctl_setscan(struct net_device *dev,
 				 struct iw_request_info *info,
-				 struct iw_param *srq,
+				 struct iw_point *srq,
 				 char *extra)
 {
 	struct orinoco_private *priv = netdev_priv(dev);

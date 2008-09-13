@@ -7107,7 +7107,7 @@ static int airo_get_aplist(struct net_device *dev,
  */
 static int airo_set_scan(struct net_device *dev,
 			 struct iw_request_info *info,
-			 struct iw_param *vwrq,
+			 struct iw_point *dwrq,
 			 char *extra)
 {
 	struct airo_info *ai = dev->priv;
