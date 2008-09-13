@@ -1299,8 +1299,10 @@ static int dvb_frontend_ioctl(struct inode *inode, struct file *file,
 
 	if ((cmd == FE_SET_PROPERTY) || (cmd == FE_GET_PROPERTY))
 		err = dvb_frontend_ioctl_properties(inode, file, cmd, parg);
-	else
+	else {
+		fe->dtv_property_cache.state = DTV_UNDEFINED;
 		err = dvb_frontend_ioctl_legacy(inode, file, cmd, parg);
+	}
 
 	up(&fepriv->sem);
 	return err;
@@ -1567,8 +1569,6 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 	case FE_SET_FRONTEND: {
 		struct dvb_frontend_tune_settings fetunesettings;
 
-		dtv_property_cache_sync(fe, &fepriv->parameters);
-
 		if(fe->dtv_property_cache.state == DTV_TUNE) {
 			if (dvb_frontend_check_parameters(fe, &fepriv->parameters) < 0) {
 				err = -EINVAL;
@@ -1580,6 +1580,7 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 				break;
 			}
 
+			dtv_property_cache_sync(fe, &fepriv->parameters);
 			memcpy (&fepriv->parameters, parg,
 				sizeof (struct dvb_frontend_parameters));
 		}
