@@ -198,7 +198,7 @@ struct dtv_frontend_properties {
 	fe_spectral_inversion_t	inversion;
 	fe_code_rate_t		fec_inner;
 	fe_transmit_mode_t	transmission_mode;
-	fe_bandwidth_t		bandwidth;
+	u32			bandwidth_hz;	/* 0 = AUTO */
 	fe_guard_interval_t	guard_interval;
 	fe_hierarchy_t		hierarchy;
 	u32			symbol_rate;

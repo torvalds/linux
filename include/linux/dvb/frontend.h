@@ -257,7 +257,12 @@ typedef enum dtv_cmd_types {
 
 	DTV_FREQUENCY,
 	DTV_MODULATION,
-	DTV_BANDWIDTH,
+
+	/* XXX PB: I would like to have field which describes the
+	 * bandwidth of a channel in Hz or kHz - maybe we can remove the
+	 * DTV_BANDWIDTH now and put a compat layer */
+	DTV_BANDWIDTH_HZ,
+
 	DTV_INVERSION,
 	DTV_DISEQC_MASTER,
 	DTV_SYMBOL_RATE,
@@ -276,18 +281,34 @@ typedef enum dtv_cmd_types {
 	/* New commands are always appended */
 	DTV_DELIVERY_SYSTEM,
 
-	/* ISDB-T */
+	/* ISDB */
+	/* maybe a dup of DTV_ISDB_SOUND_BROADCASTING_SUBCHANNEL_ID ??? */
 	DTV_ISDB_SEGMENT_IDX,
-	DTV_ISDB_SEGMENT_WIDTH,
+	DTV_ISDB_SEGMENT_WIDTH, /* 1, 3 or 13 ??? */
+
+	/* the central segment can be received independently or 1/3 seg in SB-mode */
+	DTV_ISDB_PARTIAL_RECEPTION,
+	/* sound broadcasting is used 0 = 13segment, 1 = 1 or 3 see DTV_ISDB_PARTIAL_RECEPTION */
+	DTV_ISDB_SOUND_BROADCASTING,
+
+	/* only used in SB */
+	/* determines the initial PRBS of the segment (to match with 13seg channel) */
+	DTV_ISDB_SOUND_BROADCASTING_SUBCHANNEL_ID,
+
 	DTV_ISDB_LAYERA_FEC,
 	DTV_ISDB_LAYERA_MODULATION,
 	DTV_ISDB_LAYERA_SEGMENT_WIDTH,
+	DTV_ISDB_LAYERA_TIME_INTERLEAVER,
+
 	DTV_ISDB_LAYERB_FEC,
 	DTV_ISDB_LAYERB_MODULATION,
 	DTV_ISDB_LAYERB_SEGMENT_WIDTH,
+	DTV_ISDB_LAYERB_TIME_INTERLEAVING,
+
 	DTV_ISDB_LAYERC_FEC,
 	DTV_ISDB_LAYERC_MODULATION,
 	DTV_ISDB_LAYERC_SEGMENT_WIDTH,
+	DTV_ISDB_LAYERC_TIME_INTERLEAVING,
 
 } dtv_cmd_types_t;
 

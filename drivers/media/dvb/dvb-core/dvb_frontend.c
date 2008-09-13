@@ -773,9 +773,9 @@ struct dtv_cmds_h dtv_cmds[] = {
 		.cmd	= DTV_FREQUENCY,
 		.set	= 1,
 	},
-	[DTV_BANDWIDTH] = {
-		.name	= "DTV_BANDWIDTH",
-		.cmd	= DTV_BANDWIDTH,
+	[DTV_BANDWIDTH_HZ] = {
+		.name	= "DTV_BANDWIDTH_HZ",
+		.cmd	= DTV_BANDWIDTH_HZ,
 		.set	= 1,
 	},
 	[DTV_MODULATION] = {
@@ -954,7 +954,15 @@ void dtv_property_cache_sync(struct dvb_frontend *fe, struct dvb_frontend_parame
 		c->delivery_system = SYS_DVBC_ANNEX_AC;
 		break;
 	case FE_OFDM:
-		c->bandwidth = p->u.ofdm.bandwidth;
+		if (p->u.ofdm.bandwidth == BANDWIDTH_6_MHZ)
+			c->bandwidth_hz = 6000000;
+		else if (p->u.ofdm.bandwidth == BANDWIDTH_7_MHZ)
+			c->bandwidth_hz = 7000000;
+		else if (p->u.ofdm.bandwidth == BANDWIDTH_8_MHZ)
+			c->bandwidth_hz = 8000000;
+		else
+			/* Including BANDWIDTH_AUTO */
+			c->bandwidth_hz = 0;
 		c->code_rate_HP = p->u.ofdm.code_rate_HP;
 		c->code_rate_LP = p->u.ofdm.code_rate_LP;
 		c->modulation = p->u.ofdm.constellation;
@@ -1003,7 +1011,14 @@ void dtv_property_legacy_params_sync(struct dvb_frontend *fe)
 		break;
 	case FE_OFDM:
 		printk("%s() Preparing OFDM req\n", __FUNCTION__);
-		p->u.ofdm.bandwidth = c->bandwidth;
+		if (c->bandwidth_hz == 6000000)
+			p->u.ofdm.bandwidth = BANDWIDTH_6_MHZ;
+		else if (c->bandwidth_hz == 7000000)
+			p->u.ofdm.bandwidth = BANDWIDTH_7_MHZ;
+		else if (c->bandwidth_hz == 8000000)
+			p->u.ofdm.bandwidth = BANDWIDTH_8_MHZ;
+		else
+			p->u.ofdm.bandwidth = BANDWIDTH_AUTO;
 		p->u.ofdm.code_rate_HP = c->code_rate_HP;
 		p->u.ofdm.code_rate_LP = c->code_rate_LP;
 		p->u.ofdm.constellation = c->modulation;
@@ -1118,8 +1133,8 @@ int dtv_property_process_get(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_MODULATION:
 		tvp->u.data = fe->dtv_property_cache.modulation;
 		break;
-	case DTV_BANDWIDTH:
-		tvp->u.data = fe->dtv_property_cache.bandwidth;
+	case DTV_BANDWIDTH_HZ:
+		tvp->u.data = fe->dtv_property_cache.bandwidth_hz;
 		break;
 	case DTV_INVERSION:
 		tvp->u.data = fe->dtv_property_cache.inversion;
@@ -1230,8 +1245,8 @@ int dtv_property_process_set(struct dvb_frontend *fe, struct dtv_property *tvp,
 	case DTV_MODULATION:
 		fe->dtv_property_cache.modulation = tvp->u.data;
 		break;
-	case DTV_BANDWIDTH:
-		fe->dtv_property_cache.bandwidth = tvp->u.data;
+	case DTV_BANDWIDTH_HZ:
+		fe->dtv_property_cache.bandwidth_hz = tvp->u.data;
 		break;
 	case DTV_INVERSION:
 		fe->dtv_property_cache.inversion = tvp->u.data;
