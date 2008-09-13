@@ -866,8 +866,6 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		struct tx_desc *desc;
 		u32 cmd_sts;
 		struct sk_buff *skb;
-		dma_addr_t addr;
-		int count;
 
 		tx_index = txq->tx_used_desc;
 		desc = &txq->tx_desc_area[tx_index];
@@ -886,8 +884,6 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 		reclaimed++;
 		txq->tx_desc_count--;
 
-		addr = desc->buf_ptr;
-		count = desc->byte_cnt;
 		skb = txq->tx_skb[tx_index];
 		txq->tx_skb[tx_index] = NULL;
 
@@ -896,20 +892,16 @@ static int txq_reclaim(struct tx_queue *txq, int budget, int force)
 			mp->dev->stats.tx_errors++;
 		}
 
-		/*
-		 * Drop tx queue lock while we free the skb.
-		 */
-		__netif_tx_unlock(nq);
-
-		if (cmd_sts & TX_FIRST_DESC)
-			dma_unmap_single(NULL, addr, count, DMA_TO_DEVICE);
-		else
-			dma_unmap_page(NULL, addr, count, DMA_TO_DEVICE);
+		if (cmd_sts & TX_FIRST_DESC) {
+			dma_unmap_single(NULL, desc->buf_ptr,
+					 desc->byte_cnt, DMA_TO_DEVICE);
+		} else {
+			dma_unmap_page(NULL, desc->buf_ptr,
+				       desc->byte_cnt, DMA_TO_DEVICE);
+		}
 
 		if (skb)
 			dev_kfree_skb(skb);
-
-		__netif_tx_lock(nq, smp_processor_id());
 	}
 
 	__netif_tx_unlock(nq);
