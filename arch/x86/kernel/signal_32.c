@@ -349,21 +349,21 @@ __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err = __put_user(sig, &frame->sig);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err = setup_sigcontext(&frame->sc, fpstate, regs, set->sig[0]);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	if (_NSIG_WORDS > 1) {
 		err = __copy_to_user(&frame->extramask, &set->sig[1],
 				      sizeof(frame->extramask));
 		if (err)
-			goto give_sigsegv;
+			return -EFAULT;
 	}
 
 	if (current->mm->context.vdso)
@@ -388,7 +388,7 @@ __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+6));
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->sp = (unsigned long)frame;
@@ -403,10 +403,6 @@ __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	regs->cs = __USER_CS;
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
@@ -420,14 +416,14 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	frame = get_sigframe(ka, regs, sizeof(*frame), &fpstate);
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	err |= __put_user(sig, &frame->sig);
 	err |= __put_user(&frame->info, &frame->pinfo);
 	err |= __put_user(&frame->uc, &frame->puc);
 	err |= copy_siginfo_to_user(&frame->info, info);
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Create the ucontext.  */
 	if (cpu_has_xsave)
@@ -443,7 +439,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 				regs, set->sig[0]);
 	err |= __copy_to_user(&frame->uc.uc_sigmask, set, sizeof(*set));
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up to return from userspace.  */
 	restorer = VDSO32_SYMBOL(current->mm->context.vdso, rt_sigreturn);
@@ -463,7 +459,7 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	err |= __put_user(0x80cd, (short __user *)(frame->retcode+5));
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->sp = (unsigned long)frame;
@@ -478,10 +474,6 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->cs = __USER_CS;
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 /*
@@ -505,6 +497,11 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		ret = __setup_rt_frame(usig, ka, info, set, regs);
 	else
 		ret = __setup_frame(usig, ka, set, regs);
+
+	if (ret) {
+		force_sigsegv(sig, current);
+		return -EFAULT;
+	}
 
 	return ret;
 }

@@ -215,12 +215,12 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		frame = get_stack(ka, regs, sizeof(struct rt_sigframe)) - 8;
 
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
-		goto give_sigsegv;
+		return -EFAULT;
 
 	if (ka->sa.sa_flags & SA_SIGINFO) {
 		err |= copy_siginfo_to_user(&frame->info, info);
 		if (err)
-			goto give_sigsegv;
+			return -EFAULT;
 	}
 
 	/* Create the ucontext.  */
@@ -248,11 +248,11 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 		err |= __put_user(ka->sa.sa_restorer, &frame->pretcode);
 	} else {
 		/* could use a vstub here */
-		goto give_sigsegv;
+		return -EFAULT;
 	}
 
 	if (err)
-		goto give_sigsegv;
+		return -EFAULT;
 
 	/* Set up registers for signal handler */
 	regs->di = sig;
@@ -272,10 +272,6 @@ static int __setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	regs->cs = __USER_CS;
 
 	return 0;
-
-give_sigsegv:
-	force_sigsegv(sig, current);
-	return -EFAULT;
 }
 
 /*
@@ -296,6 +292,11 @@ setup_rt_frame(int sig, struct k_sigaction *ka, siginfo_t *info,
 	} else
 #endif
 	ret = __setup_rt_frame(sig, ka, info, set, regs);
+
+	if (ret) {
+		force_sigsegv(sig, current);
+		return -EFAULT;
+	}
 
 	return ret;
 }
