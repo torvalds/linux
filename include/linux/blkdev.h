@@ -788,6 +788,7 @@ extern int blk_end_request_callback(struct request *rq, int error,
 extern void blk_complete_request(struct request *);
 extern void __blk_complete_request(struct request *);
 extern void blk_abort_request(struct request *);
+extern void blk_abort_queue(struct request_queue *);
 
 /*
  * blk_end_request() takes bytes instead of sectors as a complete size.

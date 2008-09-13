@@ -914,6 +914,19 @@ int elv_may_queue(struct request_queue *q, int rw)
 	return ELV_MQUEUE_MAY;
 }
 
+void elv_abort_queue(struct request_queue *q)
+{
+	struct request *rq;
+
+	while (!list_empty(&q->queue_head)) {
+		rq = list_entry_rq(q->queue_head.next);
+		rq->cmd_flags |= REQ_QUIET;
+		blk_add_trace_rq(q, rq, BLK_TA_ABORT);
+		end_queued_request(rq, 0);
+	}
+}
+EXPORT_SYMBOL(elv_abort_queue);
+
 void elv_completed_request(struct request_queue *q, struct request *rq)
 {
 	elevator_t *e = q->elevator;

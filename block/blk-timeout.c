@@ -153,3 +153,25 @@ void blk_add_timer(struct request *req)
 	    time_before(expiry, q->timeout.expires))
 		mod_timer(&q->timeout, expiry);
 }
+
+/**
+ * blk_abort_queue -- Abort all request on given queue
+ * @queue:	pointer to queue
+ *
+ */
+void blk_abort_queue(struct request_queue *q)
+{
+	unsigned long flags;
+	struct request *rq, *tmp;
+
+	spin_lock_irqsave(q->queue_lock, flags);
+
+	elv_abort_queue(q);
+
+	list_for_each_entry_safe(rq, tmp, &q->timeout_list, timeout_list)
+		blk_abort_request(rq);
+
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+}
+EXPORT_SYMBOL_GPL(blk_abort_queue);
