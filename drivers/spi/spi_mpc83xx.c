@@ -267,16 +267,13 @@ int mpc83xx_spi_setup_transfer(struct spi_device *spi, struct spi_transfer *t)
 	cs->hw_mode |= SPMODE_LEN(bits_per_word);
 
 	if ((mpc83xx_spi->spibrg / hz) > 64) {
+		cs->hw_mode |= SPMODE_DIV16;
 		pm = mpc83xx_spi->spibrg / (hz * 64);
 		if (pm > 16) {
-			cs->hw_mode |= SPMODE_DIV16;
-			pm /= 16;
-			if (pm > 16) {
-				dev_err(&spi->dev, "Requested speed is too "
-					"low: %d Hz. Will use %d Hz instead.\n",
-					hz, mpc83xx_spi->spibrg / 1024);
-				pm = 16;
-			}
+			dev_err(&spi->dev, "Requested speed is too "
+				"low: %d Hz. Will use %d Hz instead.\n",
+				hz, mpc83xx_spi->spibrg / 1024);
+			pm = 16;
 		}
 	} else
 		pm = mpc83xx_spi->spibrg / (hz * 4);
