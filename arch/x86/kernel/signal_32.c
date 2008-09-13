@@ -215,9 +215,8 @@ badframe:
 	return 0;
 }
 
-asmlinkage int sys_rt_sigreturn(unsigned long __unused)
+static long do_rt_sigreturn(struct pt_regs *regs)
 {
-	struct pt_regs *regs = (struct pt_regs *)&__unused;
 	struct rt_sigframe __user *frame;
 	unsigned long ax;
 	sigset_t set;
@@ -243,8 +242,15 @@ asmlinkage int sys_rt_sigreturn(unsigned long __unused)
 	return ax;
 
 badframe:
-	signal_fault(regs, frame, "rt sigreturn");
+	signal_fault(regs, frame, "rt_sigreturn");
 	return 0;
+}
+
+asmlinkage int sys_rt_sigreturn(unsigned long __unused)
+{
+	struct pt_regs *regs = (struct pt_regs *)&__unused;
+
+	return do_rt_sigreturn(regs);
 }
 
 /*
