@@ -1595,9 +1595,9 @@ static int dvb_frontend_ioctl_legacy(struct inode *inode, struct file *file,
 				break;
 			}
 
-			dtv_property_cache_sync(fe, &fepriv->parameters);
 			memcpy (&fepriv->parameters, parg,
 				sizeof (struct dvb_frontend_parameters));
+			dtv_property_cache_sync(fe, &fepriv->parameters);
 		}
 
 		memset(&fetunesettings, 0, sizeof(struct dvb_frontend_tune_settings));
