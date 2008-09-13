@@ -711,7 +711,8 @@ int do_one_initcall(initcall_t fn)
 	int result;
 
 	if (initcall_debug) {
-		printk("calling  %pF\n", fn);
+		printk("calling  %pF", fn);
+		printk(" @ %i\n",  task_pid_nr(current));
 		t0 = ktime_get();
 	}
 
