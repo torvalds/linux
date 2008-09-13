@@ -1462,14 +1462,15 @@ static int snd_hda_spdif_default_put(struct snd_kcontrol *kcontrol,
 					  AC_VERB_SET_DIGI_CONVERT_2,
 					  val >> 8);
 
-		for (d = codec->slave_dig_outs; *d; d++) {
-			snd_hda_codec_write_cache(codec, *d, 0,
+		if (codec->slave_dig_outs)
+			for (d = codec->slave_dig_outs; *d; d++) {
+				snd_hda_codec_write_cache(codec, *d, 0,
 					  AC_VERB_SET_DIGI_CONVERT_1,
 					  val & 0xff);
-			snd_hda_codec_write_cache(codec, *d, 0,
+				snd_hda_codec_write_cache(codec, *d, 0,
 					  AC_VERB_SET_DIGI_CONVERT_2,
 					  val >> 8);
-		}
+			}
 	}
 
 	mutex_unlock(&codec->spdif_mutex);
@@ -1507,8 +1508,9 @@ static int snd_hda_spdif_out_switch_put(struct snd_kcontrol *kcontrol,
 					  AC_VERB_SET_DIGI_CONVERT_1,
 					  val & 0xff);
 
-		for (d = codec->slave_dig_outs; *d; d++)
-			snd_hda_codec_write_cache(codec, *d, 0,
+		if (codec->slave_dig_outs)
+			for (d = codec->slave_dig_outs; *d; d++)
+				snd_hda_codec_write_cache(codec, *d, 0,
 					  AC_VERB_SET_DIGI_CONVERT_1,
 					  val & 0xff);
 		/* unmute amp switch (if any) */
@@ -1664,8 +1666,9 @@ static int snd_hda_spdif_in_switch_put(struct snd_kcontrol *kcontrol,
 		snd_hda_codec_write_cache(codec, nid, 0,
 					  AC_VERB_SET_DIGI_CONVERT_1, val);
 
-		for (d = codec->slave_dig_outs; *d; d++)
-			snd_hda_codec_write_cache(codec, *d, 0,
+		if (codec->slave_dig_outs)
+			for (d = codec->slave_dig_outs; *d; d++)
+				snd_hda_codec_write_cache(codec, *d, 0,
 					  AC_VERB_SET_DIGI_CONVERT_1, val);
 	}
 	mutex_unlock(&codec->spdif_mutex);
@@ -2617,9 +2620,10 @@ static void setup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid,
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
 			    codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
 
-		for (d = codec->slave_dig_outs; *d; d++)
-			snd_hda_codec_write(codec, *d, 0,
-					AC_VERB_SET_DIGI_CONVERT_1,
+		if (codec->slave_dig_outs)
+			for (d = codec->slave_dig_outs; *d; d++)
+				snd_hda_codec_write(codec, *d, 0,
+				    AC_VERB_SET_DIGI_CONVERT_1,
 				    codec->spdif_ctls & ~AC_DIG1_ENABLE & 0xff);
 	}
 	snd_hda_codec_setup_stream(codec, nid, stream_tag, 0, format);
@@ -2628,9 +2632,10 @@ static void setup_dig_out_stream(struct hda_codec *codec, hda_nid_t nid,
 		snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_DIGI_CONVERT_1,
 				    codec->spdif_ctls & 0xff);
 
-		for (d = codec->slave_dig_outs; *d; d++)
-			snd_hda_codec_write(codec, *d, 0,
-					AC_VERB_SET_DIGI_CONVERT_1,
+		if (codec->slave_dig_outs)
+			for (d = codec->slave_dig_outs; *d; d++)
+				snd_hda_codec_write(codec, *d, 0,
+				    AC_VERB_SET_DIGI_CONVERT_1,
 				    codec->spdif_ctls & 0xff);
 	}
 
