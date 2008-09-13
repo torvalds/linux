@@ -258,7 +258,7 @@ static int pcie_poll_cmd(struct controller *ctrl)
 			return 1;
 		}
 	}
-	while (timeout > 1000) {
+	while (timeout > 0) {
 		msleep(10);
 		timeout -= 10;
 		if (!pciehp_readw(ctrl, SLOTSTATUS, &slot_status)) {
