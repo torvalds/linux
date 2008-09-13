@@ -214,8 +214,8 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 	sch_tree_lock(sch);
 	q->bands = qopt->bands;
 	for (i = q->bands; i < q->max_bands; i++) {
-		struct Qdisc *child = xchg(&q->queues[i], &noop_qdisc);
-		if (child != &noop_qdisc) {
+		if (q->queues[i] != &noop_qdisc) {
+			struct Qdisc *child = xchg(&q->queues[i], &noop_qdisc);
 			qdisc_tree_decrease_qlen(child, child->q.qlen);
 			qdisc_destroy(child);
 		}
@@ -250,7 +250,7 @@ static int multiq_tune(struct Qdisc *sch, struct nlattr *opt)
 static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct multiq_sched_data *q = qdisc_priv(sch);
-	int i;
+	int i, err;
 
 	q->queues = NULL;
 
@@ -265,7 +265,12 @@ static int multiq_init(struct Qdisc *sch, struct nlattr *opt)
 	for (i = 0; i < q->max_bands; i++)
 		q->queues[i] = &noop_qdisc;
 
-	return multiq_tune(sch, opt);
+	err = multiq_tune(sch,opt);
+
+	if (err)
+		kfree(q->queues);
+
+	return err;
 }
 
 static int multiq_dump(struct Qdisc *sch, struct sk_buff *skb)

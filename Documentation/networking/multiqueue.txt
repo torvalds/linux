@@ -29,15 +29,15 @@ Section 2: Qdisc support for multiqueue devices
 
 -----------------------------------------------
 
-Currently two qdiscs support multiqueue devices.  The first is the default
-pfifo_fast qdisc.  This qdisc supports one qdisc per hardware queue.  A new
-round-robin qdisc, sch_multiq also supports multiple hardware queues. The
+Currently two qdiscs are optimized for multiqueue devices.  The first is the
+default pfifo_fast qdisc.  This qdisc supports one qdisc per hardware queue.
+A new round-robin qdisc, sch_multiq also supports multiple hardware queues. The
 qdisc is responsible for classifying the skb's and then directing the skb's to
 bands and queues based on the value in skb->queue_mapping.  Use this field in
 the base driver to determine which queue to send the skb to.
 
-sch_multiq has been added for hardware that wishes to avoid unnecessary
-requeuing.  It will cycle though the bands and verify that the hardware queue
+sch_multiq has been added for hardware that wishes to avoid head-of-line
+blocking.  It will cycle though the bands and verify that the hardware queue
 associated with the band is not stopped prior to dequeuing a packet.
 
 On qdisc load, the number of bands is based on the number of queues on the
@@ -63,8 +63,8 @@ band 1 => queue 1
 band 2 => queue 2
 band 3 => queue 3
 
-Traffic will begin flowing through each queue if your base device has either
-the default simple_tx_hash or a custom netdev->select_queue() defined.
+Traffic will begin flowing through each queue based on either the simple_tx_hash
+function or based on netdev->select_queue() if you have it defined.
 
 The behavior of tc filters remains the same.  However a new tc action,
 skbedit, has been added.  Assuming you wanted to route all traffic to a
