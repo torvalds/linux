@@ -68,7 +68,7 @@ the default simple_tx_hash or a custom netdev->select_queue() defined.
 
 The behavior of tc filters remains the same.  However a new tc action,
 skbedit, has been added.  Assuming you wanted to route all traffic to a
-specific host, for example 192.168.0.3, though a specific queue you could use
+specific host, for example 192.168.0.3, through a specific queue you could use
 this action and establish a filter such as:
 
 tc filter add dev eth0 parent 1: protocol ip prio 1 u32 \
