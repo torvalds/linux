@@ -847,7 +847,7 @@ static int dvb_register(struct cx8802_dev *dev)
 					       &core->i2c_adap);
 		if (dev->dvb.frontend) {
 			if (!dvb_attach(isl6421_attach, dev->dvb.frontend,
-					&core->i2c_adap, 0x08, 0x00, 0x00))
+					&core->i2c_adap, 0x08, ISL6421_DCL, 0x00))
 				goto frontend_detach;
 		}
 		break;
@@ -950,7 +950,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		}
 		break;
 	case CX88_BOARD_TEVII_S460:
-	        dev->dvb.frontend = dvb_attach(cx24116_attach,
+		dev->dvb.frontend = dvb_attach(cx24116_attach,
 					       &tevii_s460_config,
 					       &core->i2c_adap);
 		if (dev->dvb.frontend != NULL) {
