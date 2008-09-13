@@ -22,6 +22,7 @@
 
 #include <net/ip_vs.h>
 #include <net/ip.h>
+#include <net/ip6_checksum.h>
 
 static struct ip_vs_conn *
 udp_conn_in_get(int af, const struct sk_buff *skb, struct ip_vs_protocol *pp,
