@@ -2249,8 +2249,12 @@ static struct hda_verb ad1988_spdif_init_verbs[] = {
 
 /* AD1989 has no ADC -> SPDIF route */
 static struct hda_verb ad1989_spdif_init_verbs[] = {
-	/* SPDIF out pin */
+	/* SPDIF-1 out pin */
+	{0x1b, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
 	{0x1b, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x27}, /* 0dB */
+	/* SPDIF-2/HDMI out pin */
+	{0x1d, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT },
+	{0x1d, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE | 0x27}, /* 0dB */
 	{ }
 };
 
