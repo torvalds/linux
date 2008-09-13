@@ -351,18 +351,15 @@ __setup_frame(int sig, struct k_sigaction *ka, sigset_t *set,
 	if (!access_ok(VERIFY_WRITE, frame, sizeof(*frame)))
 		return -EFAULT;
 
-	err = __put_user(sig, &frame->sig);
-	if (err)
+	if (__put_user(sig, &frame->sig))
 		return -EFAULT;
 
-	err = setup_sigcontext(&frame->sc, fpstate, regs, set->sig[0]);
-	if (err)
+	if (setup_sigcontext(&frame->sc, fpstate, regs, set->sig[0]))
 		return -EFAULT;
 
 	if (_NSIG_WORDS > 1) {
-		err = __copy_to_user(&frame->extramask, &set->sig[1],
-				      sizeof(frame->extramask));
-		if (err)
+		if (__copy_to_user(&frame->extramask, &set->sig[1],
+				   sizeof(frame->extramask)))
 			return -EFAULT;
 	}
 
