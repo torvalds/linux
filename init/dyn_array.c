@@ -17,10 +17,9 @@ void __init pre_alloc_dyn_array(void)
 	for (daa = __dyn_array_start ; daa < __dyn_array_end; daa++) {
 		struct dyn_array *da = *daa;
 
+		printk(KERN_DEBUG "dyn_array %pF size:%#lx nr:%d align:%#lx\n",
+			da->name, da->size, *da->nr, da->align);
 		size = da->size * (*da->nr);
-		print_fn_descriptor_symbol("dyn_array %s ", da->name);
-		printk(KERN_CONT "size:%#lx nr:%d align:%#lx\n",
-			da->size, *da->nr, da->align);
 		total_size += roundup(size, da->align);
 		if (da->align > max_align)
 			max_align = da->align;
@@ -40,11 +39,10 @@ void __init pre_alloc_dyn_array(void)
 		struct dyn_array *da = *daa;
 
 		size = da->size * (*da->nr);
-		print_fn_descriptor_symbol("dyn_array %s ", da->name);
-
 		phys = roundup(phys, da->align);
+		printk(KERN_DEBUG "dyn_array %pF ==> [%#lx - %#lx]\n",
+			da->name, phys, phys + size);
 		*da->name = phys_to_virt(phys);
-		printk(KERN_CONT " ==> [%#lx - %#lx]\n", phys, phys + size);
 
 		phys += size;
 
@@ -72,10 +70,9 @@ unsigned long __init per_cpu_dyn_array_size(unsigned long *align)
 	for (daa = __per_cpu_dyn_array_start ; daa < __per_cpu_dyn_array_end; daa++) {
 		struct dyn_array *da = *daa;
 
+		printk(KERN_DEBUG "per_cpu_dyn_array %pF size:%#lx nr:%d align:%#lx\n",
+			da->name, da->size, *da->nr, da->align);
 		size = da->size * (*da->nr);
-		print_fn_descriptor_symbol("per_cpu_dyn_array %s ", da->name);
-		printk(KERN_CONT "size:%#lx nr:%d align:%#lx\n",
-			da->size, *da->nr, da->align);
 		total_size += roundup(size, da->align);
 		if (da->align > max_align)
 			max_align = da->align;
@@ -103,15 +100,15 @@ void __init per_cpu_alloc_dyn_array(int cpu, char *ptr)
 		struct dyn_array *da = *daa;
 
 		size = da->size * (*da->nr);
-		print_fn_descriptor_symbol("per_cpu_dyn_array %s ", da->name);
-
 		phys = roundup(phys, da->align);
+		printk(KERN_DEBUG "per_cpu_dyn_array %pF ==> [%#lx - %#lx]\n",
+			da->name, phys, phys + size);
+
 		addr = (unsigned long)da->name;
 		addr += per_cpu_offset(cpu);
 		array = (void **)addr;
 		*array = phys_to_virt(phys);
 		*da->name = *array; /* so init_work could use it directly */
-		printk(KERN_CONT " ==> [%#lx - %#lx]\n", phys, phys + size);
 
 		phys += size;
 
