@@ -52,9 +52,9 @@
 # define start_critical_timings() do { } while (0)
 #endif
 
-#include <asm/irqflags.h>
-
 #ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
+
+#include <asm/irqflags.h>
 
 #define local_irq_enable() \
 	do { trace_hardirqs_on(); raw_local_irq_enable(); } while (0)
@@ -84,20 +84,21 @@
  * The local_irq_*() APIs are equal to the raw_local_irq*()
  * if !TRACE_IRQFLAGS.
  */
-#define local_irq_disable()		raw_local_irq_disable()
-#define local_irq_enable()		raw_local_irq_enable()
-#define local_irq_save(flags)				\
+# define raw_local_irq_disable()	local_irq_disable()
+# define raw_local_irq_enable()		local_irq_enable()
+# define raw_local_irq_save(flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		raw_local_irq_save(flags);		\
+		local_irq_save(flags);			\
 	} while (0)
-# define local_irq_restore(flags)			\
+# define raw_local_irq_restore(flags)			\
 	do {						\
 		typecheck(unsigned long, flags);	\
-		raw_local_irq_restore(flags);		\
+		local_irq_restore(flags);		\
 	} while (0)
 #endif /* CONFIG_TRACE_IRQFLAGS_SUPPORT */
 
+#ifdef CONFIG_TRACE_IRQFLAGS_SUPPORT
 #define safe_halt()						\
 	do {							\
 		trace_hardirqs_on();				\
@@ -123,5 +124,6 @@
 	typecheck(unsigned long, flags);	\
 	raw_irqs_disabled_flags(flags);		\
 })
+#endif		/* CONFIG_X86 */
 
 #endif
