@@ -40,6 +40,7 @@
 my %start, %end;
 my $done = 0;
 my $maxtime = 0;
+my $firsttime = 100;
 my $count = 0;
 my %pids;
 
@@ -49,6 +50,9 @@ while (<>) {
 		my $func = $2;
 		if ($done == 0) {
 			$start{$func} = $1;
+			if ($1 < $firsttime) {
+				$firsttime = $1;
+			}
 		}
 		if ($line =~ /\@ ([0-9]+)/) {
 			$pids{$func} = $1;
@@ -63,6 +67,9 @@ while (<>) {
 		}
 	}
 	if ($line =~ /Write protecting the/) {
+		$done = 1;
+	}
+	if ($line =~ /Freeing unused kernel memory/) {
 		$done = 1;
 	}
 }
@@ -93,8 +100,8 @@ $styles[9] = "fill:rgb(255,255,128);fill-opacity:0.5;stroke-width:1;stroke:rgb(0
 $styles[10] = "fill:rgb(255,128,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(0,0,0)";
 $styles[11] = "fill:rgb(128,255,255);fill-opacity:0.5;stroke-width:1;stroke:rgb(0,0,0)";
 
-my $mult = 950.0 / $maxtime;
-my $threshold = 0.0500 / $maxtime;
+my $mult = 950.0 / ($maxtime - $firsttime);
+my $threshold = ($maxtime - $firsttime) / 60.0;
 my $stylecounter = 0;
 my %rows;
 my $rowscount = 1;
@@ -103,15 +110,9 @@ while (($key,$value) = each %start) {
 
 	if ($duration >= $threshold) {
 		my $s, $s2, $e, $y;
-		$pid = $pids{$key};
-
-		if (!defined($rows{$pid})) {
-			$rows{$pid} = $rowscount;
-			$rowscount = $rowscount + 1;
-		}
 		$s = ($value - $firsttime) * $mult;
 		$s2 = $s + 6;
-		$e = $end{$key} * $mult;
+		$e = ($end{$key} - $firsttime) * $mult;
 		$w = $e - $s;
 
 		$y = $rows{$pid} * 150;
@@ -130,11 +131,13 @@ while (($key,$value) = each %start) {
 
 
 # print the time line on top
-my $time = 0.0;
+my $time = $firsttime;
+my $step = ($maxtime - $firsttime) / 15;
 while ($time < $maxtime) {
-	my $s2 = $time * $mult;
-	print "<text transform=\"translate($s2,89) rotate(90)\">$time</text>\n";
-	$time = $time + 0.1;
+	my $s2 = ($time - $firsttime) * $mult;
+	my $tm = int($time * 100) / 100.0;
+	print "<text transform=\"translate($s2,89) rotate(90)\">$tm</text>\n";
+	$time = $time + $step;
 }
 
 print "</svg>\n";
