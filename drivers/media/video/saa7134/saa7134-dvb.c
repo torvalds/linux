@@ -799,6 +799,20 @@ static struct tda1004x_config twinhan_dtv_dvb_3056_config = {
 	.request_firmware = philips_tda1004x_request_firmware
 };
 
+static struct tda1004x_config asus_tiger_3in1_config = {
+	.demod_address = 0x0b,
+	.invert        = 1,
+	.invert_oclk   = 0,
+	.xtal_freq     = TDA10046_XTAL_16M,
+	.agc_config    = TDA10046_AGC_TDA827X,
+	.gpio_config   = TDA10046_GP11_I,
+	.if_freq       = TDA10046_FREQ_045,
+	.i2c_gate      = 0x4b,
+	.tuner_address = 0x61,
+	.antenna_switch = 1,
+	.request_firmware = philips_tda1004x_request_firmware
+};
+
 /* ------------------------------------------------------------------
  * special case: this card uses saa713x GPIO22 for the mode switch
  */
@@ -1299,6 +1313,31 @@ static int dvb_init(struct saa7134_dev *dev)
 						&avermedia_xc3028_mt352_dev,
 						&dev->i2c_adap);
 		attach_xc3028 = 1;
+		break;
+	case SAA7134_BOARD_ASUSTeK_TIGER_3IN1:
+		if (!use_frontend) {     /* terrestrial */
+			if (configure_tda827x_fe(dev, &asus_tiger_3in1_config,
+							&tda827x_cfg_2) < 0)
+				goto dettach_frontend;
+		} else {  		/* satellite */
+			dev->dvb.frontend = dvb_attach(tda10086_attach,
+						&flydvbs, &dev->i2c_adap);
+			if (dev->dvb.frontend) {
+				if (dvb_attach(tda826x_attach,
+						dev->dvb.frontend, 0x60,
+						&dev->i2c_adap, 0) == NULL) {
+					wprintk("%s: Asus Tiger 3in1, no "
+						"tda826x found!\n", __func__);
+					goto dettach_frontend;
+				}
+				if (dvb_attach(lnbp21_attach, dev->dvb.frontend,
+						&dev->i2c_adap, 0, 0) == NULL) {
+					wprintk("%s: Asus Tiger 3in1, no lnbp21"
+						" found!\n", __func__);
+					goto dettach_frontend;
+				}
+			}
+		}
 		break;
 	default:
 		wprintk("Huh? unknown DVB card?\n");
