@@ -946,7 +946,7 @@ static int dvb_register(struct cx8802_dev *dev)
 		if (dev->dvb.frontend) {
 			dvb_attach(isl6421_attach, dev->dvb.frontend,
 				&dev->core->i2c_adap,
-				0x08, 0x00, 0x00);
+				0x08, ISL6421_DCL, 0x00);
 		}
 		break;
 	case CX88_BOARD_TEVII_S460:

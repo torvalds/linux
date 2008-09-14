@@ -36,7 +36,6 @@
 #include <linux/moduleparam.h>
 #include <linux/init.h>
 #include <linux/firmware.h>
-#include <linux/sysctl.h>
 
 #include "dvb_frontend.h"
 #include "cx24116.h"
@@ -107,70 +106,6 @@ static int debug = 0;
 
 /* DiSEqC tone burst */
 static int toneburst = 1;
-
-/* debug & toneburst sysctl */
-static struct ctl_table_header *kernel_table_header;
-static ctl_table toneburst_table[] = {
-{
-	.ctl_name       = 0,
-	.procname       = "toneburst",
-	.data           = &toneburst,
-	.maxlen         = sizeof(int),
-	.mode           = 0666,
-	.child          = NULL,
-	.parent         = NULL,
-	.proc_handler   = &proc_dointvec,
-	.strategy       = NULL,
-	.extra1         = NULL,
-	.extra2         = NULL,
-},
-{
-	.ctl_name       = 0,
-	.procname       = "debug",
-	.data           = &debug,
-	.maxlen         = sizeof(int),
-	.mode           = 0666,
-	.child          = NULL,
-	.parent         = NULL,
-	.proc_handler   = &proc_dointvec,
-	.strategy       = NULL,
-	.extra1         = NULL,
-	.extra2         = NULL,
-	},
-	{0},
-};
-static ctl_table cx24116_table[] = {
-{
-	.ctl_name       = 0,
-	.procname       = "cx24116",
-	.data           = NULL,
-	.maxlen         = 0,
-	.mode           = 0555,
-	.child          = toneburst_table,
-	.parent         = NULL,
-	.proc_handler   = NULL,
-	.strategy       = NULL,
-	.extra1         = NULL,
-	.extra2         = NULL,
-	},
-	{0},
-};
-static ctl_table kernel_table[] = {
-{
-	.ctl_name       = CTL_DEV,
-	.procname       = "dev",
-	.data           = NULL,
-	.maxlen         = 0,
-	.mode           = 0555,
-	.child          = cx24116_table,
-	.parent         = NULL,
-	.proc_handler   = NULL,
-	.strategy       = NULL,
-	.extra1         = NULL,
-	.extra2         = NULL,
-	},
-	{0},
-};
 
 enum cmds
 {
@@ -964,7 +899,7 @@ static int cx24116_send_diseqc_msg(struct dvb_frontend* fe, struct dvb_diseqc_ma
 		 * 2/C/A: E0 10 38 F8..FB
 		 * 3/D/B: E0 10 38 FC..FF
 		 *
-		 * datebyte[3]= 8421:8421
+		 * databyte[3]= 8421:8421
 		 *              ABCD:WXYZ
 		 *              CLR :SET
 		 *
@@ -1061,7 +996,6 @@ static void cx24116_release(struct dvb_frontend* fe)
 	struct cx24116_state* state = fe->demodulator_priv;
 	dprintk("%s\n",__func__);
 	kfree(state);
-	unregister_sysctl_table(kernel_table_header);
 }
 
 static struct dvb_frontend_ops cx24116_ops;
@@ -1074,15 +1008,11 @@ struct dvb_frontend* cx24116_attach(const struct cx24116_config* config,
 
 	dprintk("%s\n",__func__);
 
-	kernel_table_header = register_sysctl_table(kernel_table);
-	if(!kernel_table_header)
-		goto error1;
-
 	/* allocate memory for the internal state */
 	state = kmalloc(sizeof(struct cx24116_state), GFP_KERNEL);
 	if (state == NULL) {
 		printk("Unable to kmalloc\n");
-		goto error2;
+		goto error1;
 	}
 
 	/* setup the state */
@@ -1095,7 +1025,7 @@ struct dvb_frontend* cx24116_attach(const struct cx24116_config* config,
 	ret = (cx24116_readreg(state, 0xFF) << 8) | cx24116_readreg(state, 0xFE);
 	if (ret != 0x0501) {
 		printk("Invalid probe, probably not a CX24116 device\n");
-		goto error3;
+		goto error2;
 	}
 
 	/* create dvb_frontend */
@@ -1103,8 +1033,7 @@ struct dvb_frontend* cx24116_attach(const struct cx24116_config* config,
 	state->frontend.demodulator_priv = state;
 	return &state->frontend;
 
-error3: kfree(state);
-error2: unregister_sysctl_table(kernel_table_header);
+error2: kfree(state);
 error1: return NULL;
 }
 /*
@@ -1195,7 +1124,8 @@ static int cx24116_set_frontend(struct dvb_frontend* fe, struct dvb_frontend_par
 		case SYS_DVBS:
 			dprintk("%s: DVB-S delivery system selected\n",__func__);
 			state->dnxt.pilot = PILOT_OFF;
-			state->dnxt.rolloff = CX24116_ROLLOFF_035;
+			state->dnxt.rolloff_val = CX24116_ROLLOFF_035;
+			state->dnxt.rolloff = c->rolloff;
 			break;
 		case SYS_DVBS2:
 			dprintk("%s: DVB-S2 delivery system selected\n",__func__);
