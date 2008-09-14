@@ -98,7 +98,6 @@ void __init kirkwood_ehci_init(void)
  * GE00
  ****************************************************************************/
 struct mv643xx_eth_shared_platform_data kirkwood_ge00_shared_data = {
-	.t_clk		= KIRKWOOD_TCLK,
 	.dram		= &kirkwood_mbus_dram_info,
 };
 
@@ -206,7 +205,6 @@ void __init kirkwood_sata_init(struct mv_sata_platform_data *sata_data)
  * SPI
  ****************************************************************************/
 static struct orion_spi_info kirkwood_spi_plat_data = {
-	.tclk		= KIRKWOOD_TCLK,
 };
 
 static struct resource kirkwood_spi_resources[] = {
@@ -244,7 +242,7 @@ static struct plat_serial8250_port kirkwood_uart0_data[] = {
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= KIRKWOOD_TCLK,
+		.uartclk	= 0,
 	}, {
 	},
 };
@@ -288,7 +286,7 @@ static struct plat_serial8250_port kirkwood_uart1_data[] = {
 		.flags		= UPF_SKIP_TEST | UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
 		.regshift	= 2,
-		.uartclk	= KIRKWOOD_TCLK,
+		.uartclk	= 0,
 	}, {
 	},
 };
@@ -530,9 +528,17 @@ void __init kirkwood_xor1_init(void)
 /*****************************************************************************
  * Time handling
  ****************************************************************************/
+int kirkwood_tclk;
+
+int __init kirkwood_find_tclk(void)
+{
+	return 166666667;
+}
+
 static void kirkwood_timer_init(void)
 {
-	orion_time_init(IRQ_KIRKWOOD_BRIDGE, KIRKWOOD_TCLK);
+	kirkwood_tclk = kirkwood_find_tclk();
+	orion_time_init(IRQ_KIRKWOOD_BRIDGE, kirkwood_tclk);
 }
 
 struct sys_timer kirkwood_timer = {
@@ -565,7 +571,11 @@ static int __init is_l2_writethrough(void)
 void __init kirkwood_init(void)
 {
 	printk(KERN_INFO "Kirkwood: %s, TCLK=%d.\n",
-		kirkwood_id(), KIRKWOOD_TCLK);
+		kirkwood_id(), kirkwood_tclk);
+	kirkwood_ge00_shared_data.t_clk = kirkwood_tclk;
+	kirkwood_spi_plat_data.tclk = kirkwood_tclk;
+	kirkwood_uart0_data[0].uartclk = kirkwood_tclk;
+	kirkwood_uart1_data[0].uartclk = kirkwood_tclk;
 
 	kirkwood_setup_cpu_mbus();
 
