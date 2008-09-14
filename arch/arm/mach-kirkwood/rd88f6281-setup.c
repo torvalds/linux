@@ -90,7 +90,6 @@ static void __init rd88f6281_init(void)
 	kirkwood_rtc_init();
 	kirkwood_sata_init(&rd88f6281_sata_data);
 	kirkwood_uart0_init();
-	kirkwood_uart1_init();
 
 	platform_device_register(&rd88f6281_nand_flash);
 }
