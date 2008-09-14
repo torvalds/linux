@@ -92,7 +92,7 @@ static int get_matching_microcode(int cpu, void *mc, int rev)
 	unsigned int i = 0;
 
 	/*
-	 * dimm: do we need this? Why an update via /dev/... is different
+	 * FIXME! dimm: do we need this? Why an update via /dev/... is different
 	 * from the one via firmware?
 	 *
 	 * This is a tricky part. We might be called from a write operation
@@ -246,7 +246,7 @@ static void * get_next_ucode(u8 *buf, unsigned int size,
 		return NULL;
 	}
 
-	/* Why not by means of get_totalsize(hdr)? */
+	/* FIXME! dimm: Why not by means of get_totalsize(hdr)? */
 	total_size = (unsigned long) (hdr[4] + (hdr[5] << 8));
 
 	printk(KERN_INFO "microcode: size %u, total_size %u\n",
@@ -342,6 +342,8 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 
 		mc_header = (struct microcode_header_amd *)mc;
 		if (get_matching_microcode(cpu, mc, new_rev)) {
+			if (new_mc)
+				vfree(new_mc);
 			new_rev = mc_header->patch_id;
 			new_mc  = mc;
 		} else 

@@ -70,8 +70,6 @@
  *		Fix sigmatch() macro to handle old CPUs with pf == 0.
  *		Thanks to Stuart Swales for pointing out this bug.
  */
-
-/* #define DEBUG pr_debug */
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -396,7 +394,7 @@ static int mc_sysdev_resume(struct sys_device *dev)
 
 	if (!cpu_online(cpu))
 		return 0;
-	pr_debug("microcode: CPU%d resumed\n", cpu);
+
 	/* only CPU 0 will apply ucode here */
 	microcode_update_cpu(0);
 	return 0;

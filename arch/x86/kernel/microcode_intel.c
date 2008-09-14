@@ -70,8 +70,6 @@
  *		Fix sigmatch() macro to handle old CPUs with pf == 0.
  *		Thanks to Stuart Swales for pointing out this bug.
  */
-
-/* #define DEBUG */ /* pr_debug */
 #include <linux/capability.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
@@ -356,6 +354,8 @@ static int generic_load_microcode(int cpu, void *data, size_t size,
 		}
 
 		if (get_matching_microcode(&uci->cpu_sig, mc, new_rev)) {
+			if (new_mc)
+				vfree(new_mc);
 			new_rev = mc_header.rev;
 			new_mc  = mc;
 		} else
