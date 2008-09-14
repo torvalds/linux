@@ -264,7 +264,8 @@ static void sun4m_clear_clock_irq(void)
 	sbus_readl(&timers_global->l10_limit);
 }
 
-static void sun4m_clear_profile_irq(int cpu)
+/* Exported for sun4m_smp.c */
+void sun4m_clear_profile_irq(int cpu)
 {
 	sbus_readl(&timers_percpu[cpu]->l14_limit);
 }
