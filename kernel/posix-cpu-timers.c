@@ -94,7 +94,7 @@ void update_rlimit_cpu(unsigned long rlim_new)
 
 	cputime = secs_to_cputime(rlim_new);
 	if (cputime_eq(current->signal->it_prof_expires, cputime_zero) ||
-            cputime_lt(current->signal->it_prof_expires, cputime)) {
+	    cputime_lt(current->signal->it_prof_expires, cputime)) {
 		spin_lock_irq(&current->sighand->siglock);
 		set_process_cpu_timer(current, CPUCLOCK_PROF, &cputime, NULL);
 		spin_unlock_irq(&current->sighand->siglock);
@@ -1372,9 +1372,9 @@ void run_posix_cpu_timers(struct task_struct *tsk)
 	 * tsk->signal is non-NULL; this probably can't happen but cover the
 	 * possibility anyway.
 	 */
-	if (unlikely(!sig) || !fastpath_timer_check(tsk, sig)) {
+	if (unlikely(!sig) || !fastpath_timer_check(tsk, sig))
 		return;
-	}
+
 	sighand = lock_task_sighand(tsk, &flags);
 	if (likely(sighand)) {
 		/*
