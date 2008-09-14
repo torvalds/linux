@@ -4520,10 +4520,11 @@ S:	Maintained
 
 VOLTAGE AND CURRENT REGULATOR FRAMEWORK
 P:	Liam Girdwood
-M:	lg@opensource.wolfsonmicro.com
+M:	lrg@slimlogic.co.uk
 P:	Mark Brown
 M:	broonie@opensource.wolfsonmicro.com
 W:	http://opensource.wolfsonmicro.com/node/15
+W:	http://www.slimlogic.co.uk/?page_id=5
 T:	git kernel.org/pub/scm/linux/kernel/git/lrg/voltage-2.6.git
 S:	Supported
 
