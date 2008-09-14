@@ -63,7 +63,7 @@ static void release_buffer_page(struct buffer_head *bh)
 		goto nope;
 
 	/* OK, it's a truncated page */
-	if (TestSetPageLocked(page))
+	if (!trylock_page(page))
 		goto nope;
 
 	page_cache_get(page);
@@ -221,7 +221,7 @@ write_out_data:
 		 * blocking lock_buffer().
 		 */
 		if (buffer_dirty(bh)) {
-			if (test_set_buffer_locked(bh)) {
+			if (!trylock_buffer(bh)) {
 				BUFFER_TRACE(bh, "needs blocking lock");
 				spin_unlock(&journal->j_list_lock);
 				/* Write out all data to prevent deadlocks */
@@ -446,7 +446,7 @@ void journal_commit_transaction(journal_t *journal)
 			spin_lock(&journal->j_list_lock);
 		}
 		if (unlikely(!buffer_uptodate(bh))) {
-			if (TestSetPageLocked(bh->b_page)) {
+			if (!trylock_page(bh->b_page)) {
 				spin_unlock(&journal->j_list_lock);
 				lock_page(bh->b_page);
 				spin_lock(&journal->j_list_lock);

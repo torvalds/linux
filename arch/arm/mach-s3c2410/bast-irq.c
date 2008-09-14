@@ -28,15 +28,15 @@
 
 #include <asm/mach-types.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/io.h>
 
 #include <asm/mach/irq.h>
 
-#include <asm/arch/regs-irq.h>
-#include <asm/arch/bast-map.h>
-#include <asm/arch/bast-irq.h>
+#include <mach/regs-irq.h>
+#include <mach/bast-map.h>
+#include <mach/bast-irq.h>
 
 #include <asm/plat-s3c24xx/irq.h>
 

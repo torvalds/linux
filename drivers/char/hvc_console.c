@@ -322,11 +322,10 @@ static int hvc_open(struct tty_struct *tty, struct file * filp)
 
 	hp->tty = tty;
 
-	if (hp->ops->notifier_add)
-		rc = hp->ops->notifier_add(hp, hp->data);
-
 	spin_unlock_irqrestore(&hp->lock, flags);
 
+	if (hp->ops->notifier_add)
+		rc = hp->ops->notifier_add(hp, hp->data);
 
 	/*
 	 * If the notifier fails we return an error.  The tty layer

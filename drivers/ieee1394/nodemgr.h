@@ -97,7 +97,7 @@ struct node_entry {
 	struct hpsb_host *host;		/* Host this node is attached to */
 	nodeid_t nodeid;		/* NodeID */
 	struct bus_options busopt;	/* Bus Options */
-	int needs_probe;
+	bool needs_probe;
 	unsigned int generation;	/* Synced with hpsb generation */
 
 	/* The following is read from the config rom */

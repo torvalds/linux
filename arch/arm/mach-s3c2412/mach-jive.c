@@ -26,9 +26,6 @@
 
 #include <linux/spi/spi.h>
 
-#include <linux/mtd/mtd.h>
-#include <linux/mtd/partitions.h>
-
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
@@ -37,12 +34,12 @@
 #include <asm/plat-s3c/nand.h>
 #include <asm/plat-s3c/iic.h>
 
-#include <asm/arch/regs-power.h>
-#include <asm/arch/regs-gpio.h>
-#include <asm/arch/regs-mem.h>
-#include <asm/arch/regs-lcd.h>
-#include <asm/arch/spi-gpio.h>
-#include <asm/arch/fb.h>
+#include <mach/regs-power.h>
+#include <mach/regs-gpio.h>
+#include <mach/regs-mem.h>
+#include <mach/regs-lcd.h>
+#include <mach/spi-gpio.h>
+#include <mach/fb.h>
 
 #include <asm/mach-types.h>
 
@@ -398,7 +395,7 @@ static void jive_lcd_spi_chipselect(struct s3c2410_spigpio_info *spi, int cs)
 }
 
 static struct s3c2410_spigpio_info jive_lcd_spi = {
-	.bus_num	= 0,
+	.bus_num	= 1,
 	.pin_clk	= S3C2410_GPG8,
 	.pin_mosi	= S3C2410_GPB8,
 	.chip_select	= jive_lcd_spi_chipselect,

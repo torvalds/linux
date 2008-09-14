@@ -104,10 +104,23 @@ config MTD_NAND_BF5XX
 
 config MTD_NAND_BF5XX_HWECC
 	bool "BF5XX NAND Hardware ECC"
+	default y
 	depends on MTD_NAND_BF5XX
 	help
 	  Enable the use of the BF5XX's internal ECC generator when
 	  using NAND.
+
+config MTD_NAND_BF5XX_BOOTROM_ECC
+	bool "Use Blackfin BootROM ECC Layout"
+	default n
+	depends on MTD_NAND_BF5XX_HWECC
+	help
+	  If you wish to modify NAND pages and allow the Blackfin on-chip
+	  BootROM to boot from them, say Y here.  This is only necessary
+	  if you are booting U-Boot out of NAND and you wish to update
+	  U-Boot from Linux' userspace.  Otherwise, you should say N here.
+
+	  If unsure, say N.
 
 config MTD_NAND_RTC_FROM4
 	tristate "Renesas Flash ROM 4-slot interface board (FROM_BOARD4)"
@@ -337,6 +350,13 @@ config MTD_NAND_PASEMI
 	help
 	  Enables support for NAND Flash interface on PA Semi PWRficient
 	  based boards
+
+config MTD_NAND_TMIO
+	tristate "NAND Flash device on Toshiba Mobile IO Controller"
+	depends on MTD_NAND && MFD_TMIO
+	help
+	  Support for NAND flash connected to a Toshiba Mobile IO
+	  Controller in some PDAs, including the Sharp SL6000x.
 
 config MTD_NAND_NANDSIM
 	tristate "Support for NAND Flash Simulator"

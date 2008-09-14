@@ -14,8 +14,8 @@
 #include <linux/i2c-pnx.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
-#include <asm/arch/platform.h>
-#include <asm/arch/i2c.h>
+#include <mach/platform.h>
+#include <mach/i2c.h>
 
 static int set_clock_run(struct platform_device *pdev)
 {

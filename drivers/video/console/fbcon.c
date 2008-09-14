@@ -1311,6 +1311,9 @@ static void fbcon_clear(struct vc_data *vc, int sy, int sx, int height,
 	if (!height || !width)
 		return;
 
+	if (sy < vc->vc_top && vc->vc_top == logo_lines)
+		vc->vc_top = 0;
+
 	/* Split blits that cross physical y_wrap boundary */
 
 	y_break = p->vrows - p->yscroll;
@@ -2515,7 +2518,7 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 			c = vc->vc_video_erase_char;
 			vc->vc_video_erase_char =
 			    ((c & 0xfe00) >> 1) | (c & 0xff);
-			c = vc->vc_def_color;
+			c = vc->vc_scrl_erase_char;
 			vc->vc_scrl_erase_char =
 			    ((c & 0xFE00) >> 1) | (c & 0xFF);
 			vc->vc_attr >>= 1;
@@ -2548,7 +2551,7 @@ static int fbcon_do_set_font(struct vc_data *vc, int w, int h,
 			if (vc->vc_can_do_color) {
 				vc->vc_video_erase_char =
 				    ((c & 0xff00) << 1) | (c & 0xff);
-				c = vc->vc_def_color;
+				c = vc->vc_scrl_erase_char;
 				vc->vc_scrl_erase_char =
 				    ((c & 0xFF00) << 1) | (c & 0xFF);
 				vc->vc_attr <<= 1;

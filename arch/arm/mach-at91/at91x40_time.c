@@ -23,10 +23,10 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/time.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/mach/time.h>
-#include <asm/arch/at91_tc.h>
+#include <mach/at91_tc.h>
 
 /*
  *	3 counter/timer units present.

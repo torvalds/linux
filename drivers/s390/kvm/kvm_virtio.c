@@ -352,7 +352,7 @@ static __init int early_put_chars(u32 vtermno, const char *buf, int count)
 	return len;
 }
 
-void s390_virtio_console_init(void)
+void __init s390_virtio_console_init(void)
 {
 	virtio_cons_early_init(early_put_chars);
 }

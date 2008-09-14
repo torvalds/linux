@@ -163,7 +163,7 @@ static inline int Page##uname(struct page *page) 			\
 
 struct page;	/* forward declaration */
 
-PAGEFLAG(Locked, locked) TESTSCFLAG(Locked, locked)
+TESTPAGEFLAG(Locked, locked)
 PAGEFLAG(Error, error)
 PAGEFLAG(Referenced, referenced) TESTCLEARFLAG(Referenced, referenced)
 PAGEFLAG(Dirty, dirty) TESTSCFLAG(Dirty, dirty) __CLEARPAGEFLAG(Dirty, dirty)
@@ -239,9 +239,6 @@ static inline void __SetPageUptodate(struct page *page)
 {
 	smp_wmb();
 	__set_bit(PG_uptodate, &(page)->flags);
-#ifdef CONFIG_S390
-	page_clear_dirty(page);
-#endif
 }
 
 static inline void SetPageUptodate(struct page *page)

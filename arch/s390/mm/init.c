@@ -179,7 +179,7 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	int rc;
 
 	pgdat = NODE_DATA(nid);
-	zone = pgdat->node_zones + ZONE_NORMAL;
+	zone = pgdat->node_zones + ZONE_MOVABLE;
 	rc = vmem_add_mapping(start, size);
 	if (rc)
 		return rc;
@@ -189,3 +189,14 @@ int arch_add_memory(int nid, u64 start, u64 size)
 	return rc;
 }
 #endif /* CONFIG_MEMORY_HOTPLUG */
+
+#ifdef CONFIG_MEMORY_HOTREMOVE
+int remove_memory(u64 start, u64 size)
+{
+	unsigned long start_pfn, end_pfn;
+
+	start_pfn = PFN_DOWN(start);
+	end_pfn = start_pfn + PFN_DOWN(size);
+	return offline_pages(start_pfn, end_pfn, 120 * HZ);
+}
+#endif /* CONFIG_MEMORY_HOTREMOVE */

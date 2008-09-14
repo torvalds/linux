@@ -38,7 +38,6 @@
 #include <asm/io.h>
 #include <linux/netdevice.h>
 #include <linux/ethtool.h>
-#include <linux/version.h>
 
 #include "netxen_nic.h"
 #include "netxen_nic_hw.h"
@@ -140,18 +139,33 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		if (netif_running(dev)) {
 			ecmd->speed = adapter->link_speed;
 			ecmd->duplex = adapter->link_duplex;
-		} else
-			return -EIO;	/* link absent */
+			ecmd->autoneg = adapter->link_autoneg;
+		}
+
 	} else if (adapter->ahw.board_type == NETXEN_NIC_XGBE) {
-		ecmd->supported = (SUPPORTED_TP |
-				   SUPPORTED_1000baseT_Full |
-				   SUPPORTED_10000baseT_Full);
-		ecmd->advertising = (ADVERTISED_TP |
-				     ADVERTISED_1000baseT_Full |
-				     ADVERTISED_10000baseT_Full);
+		u32 val;
+
+		adapter->hw_read_wx(adapter, NETXEN_PORT_MODE_ADDR, &val, 4);
+		if (val == NETXEN_PORT_MODE_802_3_AP) {
+			ecmd->supported = SUPPORTED_1000baseT_Full;
+			ecmd->advertising = ADVERTISED_1000baseT_Full;
+		} else {
+			ecmd->supported = SUPPORTED_10000baseT_Full;
+			ecmd->advertising = ADVERTISED_10000baseT_Full;
+		}
+
 		ecmd->port = PORT_TP;
 
-		ecmd->speed = SPEED_10000;
+		if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+			u16 pcifn = adapter->ahw.pci_func;
+
+			adapter->hw_read_wx(adapter,
+				P3_LINK_SPEED_REG(pcifn), &val, 4);
+			ecmd->speed = P3_LINK_SPEED_MHZ *
+					P3_LINK_SPEED_VAL(pcifn, val);
+		} else
+			ecmd->speed = SPEED_10000;
+
 		ecmd->duplex = DUPLEX_FULL;
 		ecmd->autoneg = AUTONEG_DISABLE;
 	} else
@@ -192,6 +206,8 @@ netxen_nic_get_settings(struct net_device *dev, struct ethtool_cmd *ecmd)
 		break;
 	case NETXEN_BRDTYPE_P2_SB31_10G:
 	case NETXEN_BRDTYPE_P3_10G_SFP_PLUS:
+	case NETXEN_BRDTYPE_P3_10G_SFP_CT:
+	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 		ecmd->supported |= SUPPORTED_FIBRE;
 		ecmd->advertising |= ADVERTISED_FIBRE;

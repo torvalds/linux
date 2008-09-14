@@ -24,8 +24,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <asm/arch/jornada720.h>
-#include <asm/hardware.h>
+#include <mach/jornada720.h>
+#include <mach/hardware.h>
 
 MODULE_AUTHOR("Kristoffer Ericson <Kristoffer.Ericson@gmail.com>");
 MODULE_DESCRIPTION("HP Jornada 710/720/728 keyboard driver");

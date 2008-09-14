@@ -22,7 +22,7 @@
 #include <linux/io.h>
 #include <asm/page.h>
 #include <asm/cacheflush.h>
-#include <asm/cpu/sq.h>
+#include <cpu/sq.h>
 
 struct sq_mapping;
 
@@ -199,7 +199,7 @@ EXPORT_SYMBOL(sq_remap);
 
 /**
  * sq_unmap - Unmap a Store Queue allocation
- * @map: Pre-allocated Store Queue mapping.
+ * @vaddr: Pre-allocated Store Queue mapping.
  *
  * Unmaps the store queue allocation @map that was previously created by
  * sq_remap(). Also frees up the pte that was previously inserted into

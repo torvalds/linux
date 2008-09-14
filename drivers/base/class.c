@@ -198,6 +198,7 @@ static void class_create_release(struct class *cls)
  * class_create - create a struct class structure
  * @owner: pointer to the module that is to "own" this struct class
  * @name: pointer to a string for the name of this class.
+ * @key: the lock_class_key for this class; used by mutex lock debugging
  *
  * This is used to create a struct class pointer that can then be used
  * in calls to device_create().
@@ -294,6 +295,12 @@ int class_for_each_device(struct class *class, struct device *start,
 
 	if (!class)
 		return -EINVAL;
+	if (!class->p) {
+		WARN(1, "%s called for class '%s' before it was initialized",
+		     __func__, class->name);
+		return -EINVAL;
+	}
+
 	mutex_lock(&class->p->class_mutex);
 	list_for_each_entry(dev, &class->p->class_devices, node) {
 		if (start) {
@@ -343,6 +350,11 @@ struct device *class_find_device(struct class *class, struct device *start,
 
 	if (!class)
 		return NULL;
+	if (!class->p) {
+		WARN(1, "%s called for class '%s' before it was initialized",
+		     __func__, class->name);
+		return NULL;
+	}
 
 	mutex_lock(&class->p->class_mutex);
 	list_for_each_entry(dev, &class->p->class_devices, node) {

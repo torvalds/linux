@@ -31,10 +31,10 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
-#include <asm/arch/ssp.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/regs-ssp.h>
+#include <mach/hardware.h>
+#include <mach/ssp.h>
+#include <mach/pxa-regs.h>
+#include <mach/regs-ssp.h>
 
 #define TIMEOUT 100000
 

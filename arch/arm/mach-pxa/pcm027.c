@@ -29,12 +29,12 @@
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <asm/arch/hardware.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/pxa2xx_spi.h>
-#include <asm/arch/pcm027.h>
+#include <mach/hardware.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/pxa2xx_spi.h>
+#include <mach/pcm027.h>
 #include "generic.h"
 
 /*

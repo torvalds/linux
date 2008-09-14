@@ -394,7 +394,7 @@ config LOCKDEP
 	bool
 	depends on DEBUG_KERNEL && TRACE_IRQFLAGS_SUPPORT && STACKTRACE_SUPPORT && LOCKDEP_SUPPORT
 	select STACKTRACE
-	select FRAME_POINTER if !X86 && !MIPS
+	select FRAME_POINTER if !X86 && !MIPS && !PPC
 	select KALLSYMS
 	select KALLSYMS_ALL
 
@@ -676,13 +676,13 @@ config FAULT_INJECTION_STACKTRACE_FILTER
 	depends on FAULT_INJECTION_DEBUG_FS && STACKTRACE_SUPPORT
 	depends on !X86_64
 	select STACKTRACE
-	select FRAME_POINTER
+	select FRAME_POINTER if !PPC
 	help
 	  Provide stacktrace filter for fault-injection capabilities
 
 config LATENCYTOP
 	bool "Latency measuring infrastructure"
-	select FRAME_POINTER if !MIPS
+	select FRAME_POINTER if !MIPS && !PPC
 	select KALLSYMS
 	select KALLSYMS_ALL
 	select STACKTRACE
@@ -692,6 +692,14 @@ config LATENCYTOP
 	help
 	  Enable this option if you want to use the LatencyTOP tool
 	  to find out which userspace is blocking on what kernel operations.
+
+config SYSCTL_SYSCALL_CHECK
+	bool "Sysctl checks"
+	depends on SYSCTL_SYSCALL
+	---help---
+	  sys_sysctl uses binary paths that have been found challenging
+	  to properly maintain and use. This enables checks that help
+	  you to keep things correct.
 
 source kernel/trace/Kconfig
 
@@ -734,6 +742,15 @@ config FIREWIRE_OHCI_REMOTE_DMA
 	  See Documentation/debugging-via-ohci1394.txt for more information.
 
 	  If unsure, say N.
+
+menuconfig BUILD_DOCSRC
+	bool "Build targets in Documentation/ tree"
+	depends on HEADERS_CHECK
+	help
+	  This option attempts to build objects from the source files in the
+	  kernel Documentation/ tree.
+
+	  Say N if you are unsure.
 
 source "samples/Kconfig"
 

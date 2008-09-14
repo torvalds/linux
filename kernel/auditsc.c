@@ -243,7 +243,11 @@ static inline int open_arg(int flags, int mask)
 
 static int audit_match_perm(struct audit_context *ctx, int mask)
 {
-	unsigned n = ctx->major;
+	unsigned n;
+	if (unlikely(!ctx))
+		return 0;
+
+	n = ctx->major;
 	switch (audit_classify_syscall(ctx->arch, n)) {
 	case 0:	/* native */
 		if ((mask & AUDIT_PERM_WRITE) &&
@@ -284,6 +288,10 @@ static int audit_match_filetype(struct audit_context *ctx, int which)
 {
 	unsigned index = which & ~S_IFMT;
 	mode_t mode = which & S_IFMT;
+
+	if (unlikely(!ctx))
+		return 0;
+
 	if (index >= ctx->name_count)
 		return 0;
 	if (ctx->names[index].ino == -1)
@@ -610,7 +618,7 @@ static int audit_filter_rules(struct task_struct *tsk,
 		if (!result)
 			return 0;
 	}
-	if (rule->filterkey)
+	if (rule->filterkey && ctx)
 		ctx->filterkey = kstrdup(rule->filterkey, GFP_ATOMIC);
 	switch (rule->action) {
 	case AUDIT_NEVER:    *state = AUDIT_DISABLED;	    break;
@@ -2375,7 +2383,7 @@ int __audit_signal_info(int sig, struct task_struct *t)
 	struct audit_context *ctx = tsk->audit_context;
 
 	if (audit_pid && t->tgid == audit_pid) {
-		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1) {
+		if (sig == SIGTERM || sig == SIGHUP || sig == SIGUSR1 || sig == SIGUSR2) {
 			audit_sig_pid = tsk->pid;
 			if (tsk->loginuid != -1)
 				audit_sig_uid = tsk->loginuid;

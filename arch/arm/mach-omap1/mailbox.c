@@ -13,8 +13,8 @@
 #include <linux/resource.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
-#include <asm/arch/mailbox.h>
-#include <asm/arch/irqs.h>
+#include <mach/mailbox.h>
+#include <mach/irqs.h>
 #include <asm/io.h>
 
 #define MAILBOX_ARM2DSP1		0x00

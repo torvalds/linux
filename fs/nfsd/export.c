@@ -1023,7 +1023,7 @@ exp_export(struct nfsctl_export *nxp)
 	/* Look up the dentry */
 	err = path_lookup(nxp->ex_path, 0, &nd);
 	if (err)
-		goto out_unlock;
+		goto out_put_clp;
 	err = -EINVAL;
 
 	exp = exp_get_by_name(clp, nd.path.mnt, nd.path.dentry, NULL);
@@ -1090,9 +1090,9 @@ finish:
 		exp_put(exp);
 	if (fsid_key && !IS_ERR(fsid_key))
 		cache_put(&fsid_key->h, &svc_expkey_cache);
-	if (clp)
-		auth_domain_put(clp);
 	path_put(&nd.path);
+out_put_clp:
+	auth_domain_put(clp);
 out_unlock:
 	exp_writeunlock();
 out:

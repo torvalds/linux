@@ -43,6 +43,8 @@ int dquot_mark_dquot_dirty(struct dquot *dquot);
 
 int vfs_quota_on(struct super_block *sb, int type, int format_id,
  	char *path, int remount);
+int vfs_quota_on_path(struct super_block *sb, int type, int format_id,
+ 	struct path *path);
 int vfs_quota_on_mount(struct super_block *sb, char *qf_name,
  	int format_id, int type);
 int vfs_quota_off(struct super_block *sb, int type, int remount);

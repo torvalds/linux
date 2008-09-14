@@ -19,7 +19,7 @@
 
 #include <linux/irq.h>
 #include <asm/io.h>
-#include <asm/arch/common.h>
+#include <mach/common.h>
 
 #define AVIC_BASE		IO_ADDRESS(AVIC_BASE_ADDR)
 #define AVIC_INTCNTL		(AVIC_BASE + 0x00)	/* int control reg */

@@ -245,10 +245,13 @@ static int ieee80211_open(struct net_device *dev)
 	case IEEE80211_IF_TYPE_AP:
 		sdata->bss = &sdata->u.ap;
 		break;
+	case IEEE80211_IF_TYPE_MESH_POINT:
+		/* mesh ifaces must set allmulti to forward mcast traffic */
+		atomic_inc(&local->iff_allmultis);
+		break;
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_MNTR:
 	case IEEE80211_IF_TYPE_IBSS:
-	case IEEE80211_IF_TYPE_MESH_POINT:
 		/* no special treatment */
 		break;
 	case IEEE80211_IF_TYPE_INVALID:
@@ -495,6 +498,9 @@ static int ieee80211_stop(struct net_device *dev)
 		netif_addr_unlock_bh(local->mdev);
 		break;
 	case IEEE80211_IF_TYPE_MESH_POINT:
+		/* allmulti is always set on mesh ifaces */
+		atomic_dec(&local->iff_allmultis);
+		/* fall through */
 	case IEEE80211_IF_TYPE_STA:
 	case IEEE80211_IF_TYPE_IBSS:
 		sdata->u.sta.state = IEEE80211_DISABLED;
@@ -1233,18 +1239,12 @@ static void ieee80211_tasklet_handler(unsigned long data)
 /* Remove added headers (e.g., QoS control), encryption header/MIC, etc. to
  * make a prepared TX frame (one that has been given to hw) to look like brand
  * new IEEE 802.11 frame that is ready to go through TX processing again.
- * Also, tx_packet_data in cb is restored from tx_control. */
+ */
 static void ieee80211_remove_tx_extra(struct ieee80211_local *local,
 				      struct ieee80211_key *key,
 				      struct sk_buff *skb)
 {
 	int hdrlen, iv_len, mic_len;
-	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-
-	info->flags &=	IEEE80211_TX_CTL_REQ_TX_STATUS |
-			IEEE80211_TX_CTL_DO_NOT_ENCRYPT |
-			IEEE80211_TX_CTL_REQUEUE |
-			IEEE80211_TX_CTL_EAPOL_FRAME;
 
 	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
 
@@ -1695,6 +1695,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (local->hw.conf.beacon_int < 10)
 		local->hw.conf.beacon_int = 100;
 
+	if (local->hw.max_listen_interval == 0)
+		local->hw.max_listen_interval = 1;
+
+	local->hw.conf.listen_interval = local->hw.max_listen_interval;
+
 	local->wstats_flags |= local->hw.flags & (IEEE80211_HW_SIGNAL_UNSPEC |
 						  IEEE80211_HW_SIGNAL_DB |
 						  IEEE80211_HW_SIGNAL_DBM) ?
@@ -1731,8 +1736,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	result = ieee80211_wep_init(local);
 
 	if (result < 0) {
-		printk(KERN_DEBUG "%s: Failed to initialize wep\n",
-		       wiphy_name(local->hw.wiphy));
+		printk(KERN_DEBUG "%s: Failed to initialize wep: %d\n",
+		       wiphy_name(local->hw.wiphy), result);
 		goto fail_wep;
 	}
 

@@ -20,10 +20,10 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
-#include <asm/hardware.h>
-#include <asm/arch/map.h>
+#include <mach/hardware.h>
+#include <mach/map.h>
 
-#include <asm/arch/regs-gpio.h>
+#include <mach/regs-gpio.h>
 
 	.text
 	.global	h1940_pm_return

@@ -105,7 +105,8 @@ extern struct vfsmount *vfs_kern_mount(struct file_system_type *type,
 
 struct nameidata;
 
-extern int do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
+struct path;
+extern int do_add_mount(struct vfsmount *newmnt, struct path *path,
 			int mnt_flags, struct list_head *fslist);
 
 extern void mark_mounts_for_expiry(struct list_head *mounts);

@@ -39,7 +39,7 @@
 
 #include <linux/i2c/tps65010.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/gpio.h>
 
 #include <asm/mach-types.h>
@@ -47,12 +47,12 @@
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/usb.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/tc.h>
-#include <asm/arch/common.h>
-#include <asm/arch/mcbsp.h>
-#include <asm/arch/omap-alsa.h>
+#include <mach/usb.h>
+#include <mach/mux.h>
+#include <mach/tc.h>
+#include <mach/common.h>
+#include <mach/mcbsp.h>
+#include <mach/omap-alsa.h>
 
 static struct mtd_partition osk_partitions[] = {
 	/* bootloader (U-Boot, etc) in first sector */
@@ -340,7 +340,7 @@ static struct omap_board_config_kernel osk_config[] __initdata = {
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
-#include <asm/arch/keypad.h>
+#include <mach/keypad.h>
 
 static const int osk_keymap[] = {
 	/* KEY(col, row, code) */

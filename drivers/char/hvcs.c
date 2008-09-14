@@ -114,7 +114,7 @@
  * the hvcs_final_close() function in order to get it out of the spinlock.
  * Rearranged hvcs_close().  Cleaned up some printks and did some housekeeping
  * on the changelog.  Removed local CLC_LENGTH and used HVCS_CLC_LENGTH from
- * include/asm-powerpc/hvcserver.h 
+ * arch/powerepc/include/asm/hvcserver.h
  *
  * 1.3.2 -> 1.3.3 Replaced yield() in hvcs_close() with tty_wait_until_sent() to
  * prevent possible lockup with realtime scheduling as similarily pointed out by

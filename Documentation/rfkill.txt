@@ -363,6 +363,11 @@ This rule exists because users of the rfkill subsystem expect to get (and set,
 when possible) the overall transmitter rfkill state, not of a particular rfkill
 line.
 
+5. During suspend, the rfkill class will attempt to soft-block the radio
+through a call to rfkill->toggle_radio, and will try to restore its previous
+state during resume.  After a rfkill class is suspended, it will *not* call
+rfkill->toggle_radio until it is resumed.
+
 Example of a WLAN wireless driver connected to the rfkill subsystem:
 --------------------------------------------------------------------
 
@@ -390,9 +395,10 @@ rfkill lines are inactive, it must return RFKILL_STATE_SOFT_BLOCKED if its soft
 rfkill input line is active.  Only if none of the rfkill input lines are
 active, will it return RFKILL_STATE_UNBLOCKED.
 
-If it doesn't implement the get_state() hook, it must make sure that its calls
-to rfkill_force_state() are enough to keep the status always up-to-date, and it
-must do a rfkill_force_state() on resume from sleep.
+Since the device has a hardware rfkill line, it IS subject to state changes
+external to rfkill.  Therefore, the driver must make sure that it calls
+rfkill_force_state() to keep the status always up-to-date, and it must do a
+rfkill_force_state() on resume from sleep.
 
 Every time the driver gets a notification from the card that one of its rfkill
 lines changed state (polling might be needed on badly designed cards that don't
@@ -422,12 +428,23 @@ of the hardware is unknown), or read-write (where the hardware can be queried
 about its current state).
 
 The rfkill class will call the get_state hook of a device every time it needs
-to know the *real* current state of the hardware.  This can happen often.
+to know the *real* current state of the hardware.  This can happen often, but
+it does not do any polling, so it is not enough on hardware that is subject
+to state changes outside of the rfkill subsystem.
+
+Therefore, calling rfkill_force_state() when a state change happens is
+mandatory when the device has a hardware rfkill line, or when something else
+like the firmware could cause its state to be changed without going through the
+rfkill class.
 
 Some hardware provides events when its status changes.  In these cases, it is
 best for the driver to not provide a get_state hook, and instead register the
 rfkill class *already* with the correct status, and keep it updated using
 rfkill_force_state() when it gets an event from the hardware.
+
+rfkill_force_state() must be used on the device resume handlers to update the
+rfkill status, should there be any chance of the device status changing during
+the sleep.
 
 There is no provision for a statically-allocated rfkill struct.  You must
 use rfkill_allocate() to allocate one.

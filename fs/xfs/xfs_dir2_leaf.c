@@ -263,20 +263,21 @@ xfs_dir2_leaf_addname(
 	 * If we don't have enough free bytes but we can make enough
 	 * by compacting out stale entries, we'll do that.
 	 */
-	if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] < needbytes &&
-	    be16_to_cpu(leaf->hdr.stale) > 1) {
+	if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] <
+				needbytes && be16_to_cpu(leaf->hdr.stale) > 1) {
 		compact = 1;
 	}
 	/*
 	 * Otherwise if we don't have enough free bytes we need to
 	 * convert to node form.
 	 */
-	else if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(leaf->hdr.count)] <
-		 needbytes) {
+	else if ((char *)bestsp - (char *)&leaf->ents[be16_to_cpu(
+						leaf->hdr.count)] < needbytes) {
 		/*
 		 * Just checking or no space reservation, give up.
 		 */
-		if (args->justcheck || args->total == 0) {
+		if ((args->op_flags & XFS_DA_OP_JUSTCHECK) ||
+							args->total == 0) {
 			xfs_da_brelse(tp, lbp);
 			return XFS_ERROR(ENOSPC);
 		}
@@ -301,7 +302,7 @@ xfs_dir2_leaf_addname(
 	 * If just checking, then it will fit unless we needed to allocate
 	 * a new data block.
 	 */
-	if (args->justcheck) {
+	if (args->op_flags & XFS_DA_OP_JUSTCHECK) {
 		xfs_da_brelse(tp, lbp);
 		return use_block == -1 ? XFS_ERROR(ENOSPC) : 0;
 	}
@@ -1110,7 +1111,7 @@ xfs_dir2_leaf_getdents(
 		*offset = XFS_DIR2_MAX_DATAPTR;
 	else
 		*offset = xfs_dir2_byte_to_dataptr(mp, curoff);
-	kmem_free(map, map_size * sizeof(*map));
+	kmem_free(map);
 	if (bp)
 		xfs_da_brelse(NULL, bp);
 	return error;
@@ -1298,12 +1299,13 @@ xfs_dir2_leaf_lookup(
 	      ((char *)dbp->data +
 	       xfs_dir2_dataptr_to_off(dp->i_mount, be32_to_cpu(lep->address)));
 	/*
-	 * Return the found inode number.
+	 * Return the found inode number & CI name if appropriate
 	 */
 	args->inumber = be64_to_cpu(dep->inumber);
+	error = xfs_dir_cilookup_result(args, dep->name, dep->namelen);
 	xfs_da_brelse(tp, dbp);
 	xfs_da_brelse(tp, lbp);
-	return XFS_ERROR(EEXIST);
+	return XFS_ERROR(error);
 }
 
 /*
@@ -1319,8 +1321,8 @@ xfs_dir2_leaf_lookup_int(
 	int			*indexp,	/* out: index in leaf block */
 	xfs_dabuf_t		**dbpp)		/* out: data buffer */
 {
-	xfs_dir2_db_t		curdb;		/* current data block number */
-	xfs_dabuf_t		*dbp;		/* data buffer */
+	xfs_dir2_db_t		curdb = -1;	/* current data block number */
+	xfs_dabuf_t		*dbp = NULL;	/* data buffer */
 	xfs_dir2_data_entry_t	*dep;		/* data entry */
 	xfs_inode_t		*dp;		/* incore directory inode */
 	int			error;		/* error return code */
@@ -1331,6 +1333,8 @@ xfs_dir2_leaf_lookup_int(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_dir2_db_t		newdb;		/* new data block number */
 	xfs_trans_t		*tp;		/* transaction pointer */
+	xfs_dir2_db_t		cidb = -1;	/* case match data block no. */
+	enum xfs_dacmp		cmp;		/* name compare result */
 
 	dp = args->dp;
 	tp = args->trans;
@@ -1338,11 +1342,10 @@ xfs_dir2_leaf_lookup_int(
 	/*
 	 * Read the leaf block into the buffer.
 	 */
-	if ((error =
-	    xfs_da_read_buf(tp, dp, mp->m_dirleafblk, -1, &lbp,
-		    XFS_DATA_FORK))) {
+	error = xfs_da_read_buf(tp, dp, mp->m_dirleafblk, -1, &lbp,
+							XFS_DATA_FORK);
+	if (error)
 		return error;
-	}
 	*lbpp = lbp;
 	leaf = lbp->data;
 	xfs_dir2_leaf_check(dp, lbp);
@@ -1354,9 +1357,9 @@ xfs_dir2_leaf_lookup_int(
 	 * Loop over all the entries with the right hash value
 	 * looking to match the name.
 	 */
-	for (lep = &leaf->ents[index], dbp = NULL, curdb = -1;
-	     index < be16_to_cpu(leaf->hdr.count) && be32_to_cpu(lep->hashval) == args->hashval;
-	     lep++, index++) {
+	for (lep = &leaf->ents[index]; index < be16_to_cpu(leaf->hdr.count) &&
+				be32_to_cpu(lep->hashval) == args->hashval;
+				lep++, index++) {
 		/*
 		 * Skip over stale leaf entries.
 		 */
@@ -1373,10 +1376,10 @@ xfs_dir2_leaf_lookup_int(
 		if (newdb != curdb) {
 			if (dbp)
 				xfs_da_brelse(tp, dbp);
-			if ((error =
-			    xfs_da_read_buf(tp, dp,
-				    xfs_dir2_db_to_da(mp, newdb), -1, &dbp,
-				    XFS_DATA_FORK))) {
+			error = xfs_da_read_buf(tp, dp,
+						xfs_dir2_db_to_da(mp, newdb),
+						-1, &dbp, XFS_DATA_FORK);
+			if (error) {
 				xfs_da_brelse(tp, lbp);
 				return error;
 			}
@@ -1386,24 +1389,50 @@ xfs_dir2_leaf_lookup_int(
 		/*
 		 * Point to the data entry.
 		 */
-		dep = (xfs_dir2_data_entry_t *)
-		      ((char *)dbp->data +
-		       xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
+		dep = (xfs_dir2_data_entry_t *)((char *)dbp->data +
+			xfs_dir2_dataptr_to_off(mp, be32_to_cpu(lep->address)));
 		/*
-		 * If it matches then return it.
+		 * Compare name and if it's an exact match, return the index
+		 * and buffer. If it's the first case-insensitive match, store
+		 * the index and buffer and continue looking for an exact match.
 		 */
-		if (dep->namelen == args->namelen &&
-		    dep->name[0] == args->name[0] &&
-		    memcmp(dep->name, args->name, args->namelen) == 0) {
-			*dbpp = dbp;
+		cmp = mp->m_dirnameops->compname(args, dep->name, dep->namelen);
+		if (cmp != XFS_CMP_DIFFERENT && cmp != args->cmpresult) {
+			args->cmpresult = cmp;
 			*indexp = index;
-			return 0;
+			/* case exact match: return the current buffer. */
+			if (cmp == XFS_CMP_EXACT) {
+				*dbpp = dbp;
+				return 0;
+			}
+			cidb = curdb;
 		}
+	}
+	ASSERT(args->op_flags & XFS_DA_OP_OKNOENT);
+	/*
+	 * Here, we can only be doing a lookup (not a rename or remove).
+	 * If a case-insensitive match was found earlier, re-read the
+	 * appropriate data block if required and return it.
+	 */
+	if (args->cmpresult == XFS_CMP_CASE) {
+		ASSERT(cidb != -1);
+		if (cidb != curdb) {
+			xfs_da_brelse(tp, dbp);
+			error = xfs_da_read_buf(tp, dp,
+						xfs_dir2_db_to_da(mp, cidb),
+						-1, &dbp, XFS_DATA_FORK);
+			if (error) {
+				xfs_da_brelse(tp, lbp);
+				return error;
+			}
+		}
+		*dbpp = dbp;
+		return 0;
 	}
 	/*
 	 * No match found, return ENOENT.
 	 */
-	ASSERT(args->oknoent);
+	ASSERT(cidb == -1);
 	if (dbp)
 		xfs_da_brelse(tp, dbp);
 	xfs_da_brelse(tp, lbp);

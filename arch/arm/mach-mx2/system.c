@@ -23,7 +23,7 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/proc-fns.h>
 #include <asm/system.h>
 

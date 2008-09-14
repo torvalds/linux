@@ -181,7 +181,7 @@ ENTRY(lookup_processor_type)
 	ldmfd	sp!, {r4 - r7, r9, pc}
 
 /*
- * Look in include/asm-arm/procinfo.h and arch/arm/kernel/arch.[ch] for
+ * Look in <asm/procinfo.h> and arch/arm/kernel/arch.[ch] for
  * more information about the __proc_info and __arch_info structures.
  */
 	.long	__proc_info_begin

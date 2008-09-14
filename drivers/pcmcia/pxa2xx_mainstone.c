@@ -21,12 +21,12 @@
 
 #include <pcmcia/ss.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/mainstone.h>
+#include <mach/pxa-regs.h>
+#include <mach/mainstone.h>
 
 #include "soc_common.h"
 

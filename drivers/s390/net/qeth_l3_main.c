@@ -2604,6 +2604,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int tx_bytes = skb->len;
 	enum qeth_large_send_types large_send = QETH_LARGE_SEND_NO;
 	struct qeth_eddp_context *ctx = NULL;
+	int data_offset = -1;
 
 	if ((card->info.type == QETH_CARD_TYPE_IQD) &&
 	    (skb->protocol != htons(ETH_P_IPV6)) &&
@@ -2624,14 +2625,28 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		card->perf_stats.outbound_start_time = qeth_get_micros();
 	}
 
-	/* create a clone with writeable headroom */
-	new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr_tso) +
-					VLAN_HLEN);
-	if (!new_skb)
-		goto tx_drop;
+	if (skb_is_gso(skb))
+		large_send = card->options.large_send;
+
+	if ((card->info.type == QETH_CARD_TYPE_IQD) && (!large_send) &&
+	    (skb_shinfo(skb)->nr_frags == 0)) {
+		new_skb = skb;
+		data_offset = ETH_HLEN;
+		hdr = kmem_cache_alloc(qeth_core_header_cache, GFP_ATOMIC);
+		if (!hdr)
+			goto tx_drop;
+		elements_needed++;
+	} else {
+		/* create a clone with writeable headroom */
+		new_skb = skb_realloc_headroom(skb, sizeof(struct qeth_hdr_tso)
+					+ VLAN_HLEN);
+		if (!new_skb)
+			goto tx_drop;
+	}
 
 	if (card->info.type == QETH_CARD_TYPE_IQD) {
-		skb_pull(new_skb, ETH_HLEN);
+		if (data_offset < 0)
+			skb_pull(new_skb, ETH_HLEN);
 	} else {
 		if (new_skb->protocol == htons(ETH_P_IP)) {
 			if (card->dev->type == ARPHRD_IEEE802_TR)
@@ -2657,9 +2672,6 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 	netif_stop_queue(dev);
 
-	if (skb_is_gso(new_skb))
-		large_send = card->options.large_send;
-
 	/* fix hardware limitation: as long as we do not have sbal
 	 * chaining we can not send long frag lists so we temporary
 	 * switch to EDDP
@@ -2677,9 +2689,16 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		qeth_tso_fill_header(card, hdr, new_skb);
 		elements_needed++;
 	} else {
-		hdr = (struct qeth_hdr *)skb_push(new_skb,
+		if (data_offset < 0) {
+			hdr = (struct qeth_hdr *)skb_push(new_skb,
 						sizeof(struct qeth_hdr));
-		qeth_l3_fill_header(card, hdr, new_skb, ipv, cast_type);
+			qeth_l3_fill_header(card, hdr, new_skb, ipv,
+						cast_type);
+		} else {
+			qeth_l3_fill_header(card, hdr, new_skb, ipv,
+						cast_type);
+			hdr->hdr.l3.length = new_skb->len - data_offset;
+		}
 	}
 
 	if (large_send == QETH_LARGE_SEND_EDDP) {
@@ -2695,8 +2714,11 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		int elems = qeth_get_elements_no(card, (void *)hdr, new_skb,
 						 elements_needed);
-		if (!elems)
+		if (!elems) {
+			if (data_offset >= 0)
+				kmem_cache_free(qeth_core_header_cache, hdr);
 			goto tx_drop;
+		}
 		elements_needed += elems;
 	}
 
@@ -2709,7 +2731,7 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 					 elements_needed, ctx);
 	else
 		rc = qeth_do_send_packet_fast(card, queue, new_skb, hdr,
-					      elements_needed, ctx);
+					elements_needed, ctx, data_offset, 0);
 
 	if (!rc) {
 		card->stats.tx_packets++;
@@ -2736,6 +2758,9 @@ static int qeth_l3_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	} else {
 		if (ctx != NULL)
 			qeth_eddp_put_context(ctx);
+
+		if (data_offset >= 0)
+			kmem_cache_free(qeth_core_header_cache, hdr);
 
 		if (rc == -EBUSY) {
 			if (new_skb != skb)

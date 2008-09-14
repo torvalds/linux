@@ -25,12 +25,12 @@
 
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <asm/arch/pxa2xx_spi.h>
+#include <mach/pxa2xx_spi.h>
 
 #include <asm/setup.h>
 #include <asm/memory.h>
 #include <asm/mach-types.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/sizes.h>
 
@@ -41,17 +41,18 @@
 
 #include <asm/hardware/sa1111.h>
 
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa25x.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/lubbock.h>
-#include <asm/arch/udc.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/mmc.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa25x.h>
+#include <mach/audio.h>
+#include <mach/lubbock.h>
+#include <mach/udc.h>
+#include <mach/irda.h>
+#include <mach/pxafb.h>
+#include <mach/mmc.h>
 
 #include "generic.h"
+#include "clock.h"
 #include "devices.h"
 
 static unsigned long lubbock_pin_config[] __initdata = {
@@ -224,7 +225,7 @@ static struct platform_device sa1111_device = {
  * for the temperature sensors.
  */
 static struct pxa2xx_spi_master pxa_ssp_master_info = {
-	.num_chipselect	= 0,
+	.num_chipselect	= 1,
 };
 
 static int lubbock_ads7846_pendown_state(void)
@@ -485,6 +486,7 @@ static void __init lubbock_init(void)
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(lubbock_pin_config));
 
+	clk_add_alias("SA1111_CLK", NULL, "GPIO11_CLK", NULL);
 	pxa_set_udc_info(&udc_info);
 	set_pxa_fb_info(&sharp_lm8v31);
 	pxa_set_mci_info(&lubbock_mci_platform_data);

@@ -410,16 +410,20 @@ static int mtd_ioctl(struct inode *inode, struct file *file,
 
 	case MEMGETREGIONINFO:
 	{
-		struct region_info_user ur;
+		uint32_t ur_idx;
+		struct mtd_erase_region_info *kr;
+		struct region_info_user *ur = (struct region_info_user *) argp;
 
-		if (copy_from_user(&ur, argp, sizeof(struct region_info_user)))
+		if (get_user(ur_idx, &(ur->regionindex)))
 			return -EFAULT;
 
-		if (ur.regionindex >= mtd->numeraseregions)
-			return -EINVAL;
-		if (copy_to_user(argp, &(mtd->eraseregions[ur.regionindex]),
-				sizeof(struct mtd_erase_region_info)))
+		kr = &(mtd->eraseregions[ur_idx]);
+
+		if (put_user(kr->offset, &(ur->offset))
+		    || put_user(kr->erasesize, &(ur->erasesize))
+		    || put_user(kr->numblocks, &(ur->numblocks)))
 			return -EFAULT;
+
 		break;
 	}
 

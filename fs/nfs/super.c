@@ -1279,6 +1279,12 @@ static int nfs_parse_mount_options(char *raw,
 		}
 	}
 
+	if (errors > 0) {
+		dfprintk(MOUNT, "NFS: parsing encountered %d error%s\n",
+				errors, (errors == 1 ? "" : "s"));
+		if (!sloppy)
+			return 0;
+	}
 	return 1;
 
 out_nomem:

@@ -68,7 +68,7 @@ OBJCOPYFLAGS	:= -O binary -R .note -R .note.gnu.build-id -R .comment \
 defaultimage-$(CONFIG_SUPERH32)	:= zImage
 
 # Set some sensible Kbuild defaults
-KBUILD_DEFCONFIG	:= r7780mp_defconfig
+KBUILD_DEFCONFIG	:= shx3_defconfig
 KBUILD_IMAGE		:= $(defaultimage-y)
 
 #
@@ -91,51 +91,32 @@ LDFLAGS_vmlinux		+= --defsym 'jiffies=jiffies_64+4'
 LDFLAGS			+= -EB
 endif
 
-KBUILD_CFLAGS		+= -pipe $(cflags-y)
-KBUILD_AFLAGS		+= $(cflags-y)
-
 head-y			:= arch/sh/kernel/init_task.o
 head-$(CONFIG_SUPERH32)	+= arch/sh/kernel/head_32.o
 head-$(CONFIG_SUPERH64)	+= arch/sh/kernel/head_64.o
 
-LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
-
-core-y				+= arch/sh/kernel/ arch/sh/mm/
+core-y				+= arch/sh/kernel/ arch/sh/mm/ arch/sh/boards/
 core-$(CONFIG_SH_FPU_EMU)	+= arch/sh/math-emu/
 
-# Boards
-machdir-$(CONFIG_SH_SOLUTION_ENGINE)		+= se/770x
-machdir-$(CONFIG_SH_7722_SOLUTION_ENGINE)	+= se/7722
-machdir-$(CONFIG_SH_7751_SOLUTION_ENGINE)	+= se/7751
-machdir-$(CONFIG_SH_7780_SOLUTION_ENGINE)	+= se/7780
-machdir-$(CONFIG_SH_7343_SOLUTION_ENGINE)	+= se/7343
-machdir-$(CONFIG_SH_7721_SOLUTION_ENGINE)	+= se/7721
-machdir-$(CONFIG_SH_HP6XX)			+= hp6xx
-machdir-$(CONFIG_SH_DREAMCAST)			+= dreamcast
-machdir-$(CONFIG_SH_SH03)			+= sh03
-machdir-$(CONFIG_SH_SECUREEDGE5410)		+= snapgear
-machdir-$(CONFIG_SH_RTS7751R2D)			+= renesas/rts7751r2d
-machdir-$(CONFIG_SH_7751_SYSTEMH)		+= renesas/systemh
-machdir-$(CONFIG_SH_EDOSK7705)			+= renesas/edosk7705
-machdir-$(CONFIG_SH_HIGHLANDER)			+= renesas/r7780rp
-machdir-$(CONFIG_SH_MIGOR)			+= renesas/migor
-machdir-$(CONFIG_SH_SDK7780)			+= renesas/sdk7780
-machdir-$(CONFIG_SH_X3PROTO)			+= renesas/x3proto
-machdir-$(CONFIG_SH_RSK7203)			+= renesas/rsk7203
-machdir-$(CONFIG_SH_AP325RXA)			+= renesas/ap325rxa
-machdir-$(CONFIG_SH_SH7763RDP)			+= renesas/sh7763rdp
-machdir-$(CONFIG_SH_SH7785LCR)			+= renesas/sh7785lcr
-machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= superh/microdev
-machdir-$(CONFIG_SH_LANDISK)			+= landisk
-machdir-$(CONFIG_SH_TITAN)			+= titan
-machdir-$(CONFIG_SH_SHMIN)			+= shmin
-machdir-$(CONFIG_SH_7206_SOLUTION_ENGINE)	+= se/7206
-machdir-$(CONFIG_SH_7619_SOLUTION_ENGINE)	+= se/7619
-machdir-$(CONFIG_SH_LBOX_RE2)			+= lboxre2
-machdir-$(CONFIG_SH_MAGIC_PANEL_R2)		+= magicpanelr2
-machdir-$(CONFIG_SH_CAYMAN)			+= cayman
-
-incdir-y	:= $(notdir $(machdir-y))
+# Mach groups
+machdir-$(CONFIG_SOLUTION_ENGINE)		+= mach-se
+machdir-$(CONFIG_SH_HP6XX)			+= mach-hp6xx
+machdir-$(CONFIG_SH_DREAMCAST)			+= mach-dreamcast
+machdir-$(CONFIG_SH_SH03)			+= mach-sh03
+machdir-$(CONFIG_SH_SECUREEDGE5410)		+= mach-snapgear
+machdir-$(CONFIG_SH_RTS7751R2D)			+= mach-r2d
+machdir-$(CONFIG_SH_7751_SYSTEMH)		+= mach-systemh
+machdir-$(CONFIG_SH_EDOSK7705)			+= mach-edosk7705
+machdir-$(CONFIG_SH_HIGHLANDER)			+= mach-highlander
+machdir-$(CONFIG_SH_MIGOR)			+= mach-migor
+machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
+machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
+machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
+machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
+machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
+machdir-$(CONFIG_SH_TITAN)			+= mach-titan
+machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
+machdir-$(CONFIG_SH_CAYMAN)			+= mach-cayman
 
 ifneq ($(machdir-y),)
 core-y	+= $(addprefix arch/sh/boards/, \
@@ -145,67 +126,40 @@ endif
 # Companion chips
 core-$(CONFIG_HD6446X_SERIES)	+= arch/sh/cchips/hd6446x/
 
-cpuincdir-$(CONFIG_CPU_SH2)	:= cpu-sh2
-cpuincdir-$(CONFIG_CPU_SH2A)	:= cpu-sh2a
-cpuincdir-$(CONFIG_CPU_SH3)	:= cpu-sh3
-cpuincdir-$(CONFIG_CPU_SH4)	:= cpu-sh4
-cpuincdir-$(CONFIG_CPU_SH5)	:= cpu-sh5
-
-libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
-libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
-libs-y				+= $(LIBGCC)
+#
+# CPU header paths
+#
+# These are ordered by optimization level. A CPU family that is a subset
+# of another (ie, SH-2A / SH-2), is picked up first, with increasing
+# levels of genericness if nothing more suitable is situated in the
+# hierarchy.
+#
+# As an example, in order of preference, SH-2A > SH-2 > common definitions.
+#
+cpuincdir-$(CONFIG_CPU_SH2A)	+= cpu-sh2a
+cpuincdir-$(CONFIG_CPU_SH2)	+= cpu-sh2
+cpuincdir-$(CONFIG_CPU_SH3)	+= cpu-sh3
+cpuincdir-$(CONFIG_CPU_SH4)	+= cpu-sh4
+cpuincdir-$(CONFIG_CPU_SH5)	+= cpu-sh5
+cpuincdir-y			+= cpu-common	# Must be last
 
 drivers-y			+= arch/sh/drivers/
 drivers-$(CONFIG_OPROFILE)	+= arch/sh/oprofile/
 
 boot := arch/sh/boot
 
-ifneq ($(KBUILD_SRC),)
-incdir-prefix	:= $(srctree)/include/asm-sh/
-else
-incdir-prefix	:=
-endif
+cflags-y	+= $(foreach d, $(cpuincdir-y), -Iarch/sh/include/$(d)) \
+		   $(foreach d, $(machdir-y), -Iarch/sh/include/$(d))
 
-#	Update machine arch and proc symlinks if something which affects
-#	them changed.  We use .arch and .mach to indicate when they were
-#	updated last, otherwise make uses the target directory mtime.
+KBUILD_CFLAGS		+= -pipe $(cflags-y)
+KBUILD_CPPFLAGS		+= $(cflags-y)
+KBUILD_AFLAGS		+= $(cflags-y)
 
-include/asm-sh/.cpu: $(wildcard include/config/cpu/*.h) \
-		     include/config/auto.conf FORCE
-	@echo '  SYMLINK include/asm-sh/cpu -> include/asm-sh/$(cpuincdir-y)'
-	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
-	$(Q)ln -fsn $(incdir-prefix)$(cpuincdir-y) include/asm-sh/cpu
-	@touch $@
+LIBGCC := $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
-#	Most boards have their own mach directories.  For the ones that
-#	don't, just reference the parent directory so the semantics are
-#	kept roughly the same.
-#
-#	When multiple boards are compiled in at the same time, preference
-#	for the mach link is given to whichever has a directory for its
-#	headers. However, this is only a workaround until platforms that
-#	can live in the same kernel image back away from relying on the
-#	mach link.
-
-include/asm-sh/.mach: $(wildcard include/config/sh/*.h) \
-		      include/config/auto.conf FORCE
-	$(Q)if [ ! -d include/asm-sh ]; then mkdir -p include/asm-sh; fi
-	$(Q)rm -f include/asm-sh/mach
-	$(Q)for i in $(incdir-y); do \
-	if [ -d $(srctree)/include/asm-sh/$$i ]; then \
-		echo -n '  SYMLINK include/asm-sh/mach -> '; \
-		echo -e "include/asm-sh/$$i"; \
-		ln -fsn $(incdir-prefix)$$i \
-			include/asm-sh/mach; \
-	else \
-		if [ ! -d include/asm-sh/mach ]; then \
-			echo -n '  SYMLINK include/asm-sh/mach -> '; \
-			echo -e 'include/asm-sh'; \
-			ln -fsn $(incdir-prefix)../asm-sh include/asm-sh/mach; \
-		fi; \
-	fi; \
-	done
-	@touch $@
+libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
+libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
+libs-y				+= $(LIBGCC)
 
 PHONY += maketools FORCE
 
@@ -219,8 +173,7 @@ zImage uImage uImage.srec vmlinux.srec: vmlinux
 
 compressed: zImage
 
-archprepare: include/asm-sh/.cpu include/asm-sh/.mach maketools \
-	     arch/sh/lib64/syscalltab.h
+archprepare: maketools arch/sh/lib64/syscalltab.h
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
@@ -262,6 +215,4 @@ arch/sh/lib64/syscalltab.h: arch/sh/kernel/syscalls_64.S
 	$(call filechk,gen-syscalltab)
 
 CLEAN_FILES += arch/sh/lib64/syscalltab.h \
-	       include/asm-sh/machtypes.h \
-	       include/asm-sh/cpu include/asm-sh/.cpu \
-	       include/asm-sh/mach include/asm-sh/.mach
+	       include/asm-sh/machtypes.h

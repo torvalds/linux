@@ -204,18 +204,22 @@ static struct sock *icmp_sk(struct net *net)
 	return net->ipv4.icmp_sk[smp_processor_id()];
 }
 
-static inline int icmp_xmit_lock(struct sock *sk)
+static inline struct sock *icmp_xmit_lock(struct net *net)
 {
+	struct sock *sk;
+
 	local_bh_disable();
+
+	sk = icmp_sk(net);
 
 	if (unlikely(!spin_trylock(&sk->sk_lock.slock))) {
 		/* This can happen if the output path signals a
 		 * dst_link_failure() for an outgoing ICMP packet.
 		 */
 		local_bh_enable();
-		return 1;
+		return NULL;
 	}
-	return 0;
+	return sk;
 }
 
 static inline void icmp_xmit_unlock(struct sock *sk)
@@ -354,15 +358,17 @@ static void icmp_reply(struct icmp_bxm *icmp_param, struct sk_buff *skb)
 	struct ipcm_cookie ipc;
 	struct rtable *rt = skb->rtable;
 	struct net *net = dev_net(rt->u.dst.dev);
-	struct sock *sk = icmp_sk(net);
-	struct inet_sock *inet = inet_sk(sk);
+	struct sock *sk;
+	struct inet_sock *inet;
 	__be32 daddr;
 
 	if (ip_options_echo(&icmp_param->replyopts, skb))
 		return;
 
-	if (icmp_xmit_lock(sk))
+	sk = icmp_xmit_lock(net);
+	if (sk == NULL)
 		return;
+	inet = inet_sk(sk);
 
 	icmp_param->data.icmph.checksum = 0;
 
@@ -419,7 +425,6 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 	if (!rt)
 		goto out;
 	net = dev_net(rt->u.dst.dev);
-	sk = icmp_sk(net);
 
 	/*
 	 *	Find the original header. It is expected to be valid, of course.
@@ -483,7 +488,8 @@ void icmp_send(struct sk_buff *skb_in, int type, int code, __be32 info)
 		}
 	}
 
-	if (icmp_xmit_lock(sk))
+	sk = icmp_xmit_lock(net);
+	if (sk == NULL)
 		return;
 
 	/*

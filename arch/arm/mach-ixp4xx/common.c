@@ -29,8 +29,8 @@
 #include <linux/clocksource.h>
 #include <linux/clockchips.h>
 
-#include <asm/arch/udc.h>
-#include <asm/hardware.h>
+#include <mach/udc.h>
+#include <mach/hardware.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/pgtable.h>

@@ -97,6 +97,7 @@ header-y += ioctl.h
 header-y += ip6_tunnel.h
 header-y += ipmi_msgdefs.h
 header-y += ipsec.h
+header-y += ip_vs.h
 header-y += ipx.h
 header-y += irda.h
 header-y += iso_fs.h
@@ -166,7 +167,8 @@ unifdef-y += acct.h
 unifdef-y += adb.h
 unifdef-y += adfs_fs.h
 unifdef-y += agpgart.h
-ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/a.out.h \
+      		  $(srctree)/include/asm-$(SRCARCH)/a.out.h),)
 unifdef-y += a.out.h
 endif
 unifdef-y += apm_bios.h
@@ -249,13 +251,16 @@ unifdef-y += isdn.h
 unifdef-y += isdnif.h
 unifdef-y += isdn_divertif.h
 unifdef-y += isdn_ppp.h
+unifdef-y += ivtv.h
+unifdef-y += ivtvfb.h
 unifdef-y += joystick.h
 unifdef-y += kdev_t.h
 unifdef-y += kd.h
 unifdef-y += kernelcapi.h
 unifdef-y += kernel.h
 unifdef-y += keyboard.h
-ifneq ($(wildcard $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
+ifneq ($(wildcard $(srctree)/arch/$(SRCARCH)/include/asm/kvm.h \
+      		  $(srctree)/include/asm-$(SRCARCH)/kvm.h),)
 unifdef-y += kvm.h
 endif
 unifdef-y += llc.h
@@ -294,7 +299,6 @@ unifdef-y += parport.h
 unifdef-y += patchkey.h
 unifdef-y += pci.h
 unifdef-y += personality.h
-unifdef-y += pim.h
 unifdef-y += pktcdvd.h
 unifdef-y += pmu.h
 unifdef-y += poll.h
@@ -355,6 +359,7 @@ unifdef-y += virtio_balloon.h
 unifdef-y += virtio_console.h
 unifdef-y += virtio_pci.h
 unifdef-y += virtio_ring.h
+unifdef-y += virtio_rng.h
 unifdef-y += vt.h
 unifdef-y += wait.h
 unifdef-y += wanrouter.h

@@ -96,8 +96,8 @@ struct bcbearer {
 	struct media media;
 	struct bcbearer_pair bpairs[MAX_BEARERS];
 	struct bcbearer_pair bpairs_temp[TIPC_MAX_LINK_PRI + 1];
-	struct node_map remains;
-	struct node_map remains_new;
+	struct tipc_node_map remains;
+	struct tipc_node_map remains_new;
 };
 
 /**
@@ -110,7 +110,7 @@ struct bcbearer {
 
 struct bclink {
 	struct link link;
-	struct node node;
+	struct tipc_node node;
 };
 
 
@@ -149,7 +149,7 @@ static void bcbuf_decr_acks(struct sk_buff *buf)
  * Called with 'node' locked, bc_lock unlocked
  */
 
-static void bclink_set_gap(struct node *n_ptr)
+static void bclink_set_gap(struct tipc_node *n_ptr)
 {
 	struct sk_buff *buf = n_ptr->bclink.deferred_head;
 
@@ -202,7 +202,7 @@ static void bclink_retransmit_pkt(u32 after, u32 to)
  * Node is locked, bc_lock unlocked.
  */
 
-void tipc_bclink_acknowledge(struct node *n_ptr, u32 acked)
+void tipc_bclink_acknowledge(struct tipc_node *n_ptr, u32 acked)
 {
 	struct sk_buff *crs;
 	struct sk_buff *next;
@@ -250,7 +250,7 @@ void tipc_bclink_acknowledge(struct node *n_ptr, u32 acked)
  * tipc_net_lock and node lock set
  */
 
-static void bclink_send_ack(struct node *n_ptr)
+static void bclink_send_ack(struct tipc_node *n_ptr)
 {
 	struct link *l_ptr = n_ptr->active_links[n_ptr->addr & 1];
 
@@ -264,7 +264,7 @@ static void bclink_send_ack(struct node *n_ptr)
  * tipc_net_lock and node lock set
  */
 
-static void bclink_send_nack(struct node *n_ptr)
+static void bclink_send_nack(struct tipc_node *n_ptr)
 {
 	struct sk_buff *buf;
 	struct tipc_msg *msg;
@@ -308,7 +308,7 @@ static void bclink_send_nack(struct node *n_ptr)
  * tipc_net_lock and node lock set
  */
 
-void tipc_bclink_check_gap(struct node *n_ptr, u32 last_sent)
+void tipc_bclink_check_gap(struct tipc_node *n_ptr, u32 last_sent)
 {
 	if (!n_ptr->bclink.supported ||
 	    less_eq(last_sent, mod(n_ptr->bclink.last_in)))
@@ -328,7 +328,7 @@ void tipc_bclink_check_gap(struct node *n_ptr, u32 last_sent)
 
 static void tipc_bclink_peek_nack(u32 dest, u32 sender_tag, u32 gap_after, u32 gap_to)
 {
-	struct node *n_ptr = tipc_node_find(dest);
+	struct tipc_node *n_ptr = tipc_node_find(dest);
 	u32 my_after, my_to;
 
 	if (unlikely(!n_ptr || !tipc_node_is_up(n_ptr)))
@@ -418,7 +418,7 @@ void tipc_bclink_recv_pkt(struct sk_buff *buf)
 	static int rx_count = 0;
 #endif
 	struct tipc_msg *msg = buf_msg(buf);
-	struct node* node = tipc_node_find(msg_prevnode(msg));
+	struct tipc_node* node = tipc_node_find(msg_prevnode(msg));
 	u32 next_in;
 	u32 seqno;
 	struct sk_buff *deferred;
@@ -538,7 +538,7 @@ u32 tipc_bclink_get_last_sent(void)
 	return last_sent;
 }
 
-u32 tipc_bclink_acks_missing(struct node *n_ptr)
+u32 tipc_bclink_acks_missing(struct tipc_node *n_ptr)
 {
 	return (n_ptr->bclink.supported &&
 		(tipc_bclink_get_last_sent() != n_ptr->bclink.acked));

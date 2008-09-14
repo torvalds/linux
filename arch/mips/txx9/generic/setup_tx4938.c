@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/serial_core.h>
 #include <linux/param.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
@@ -21,12 +20,17 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4938.h>
 
-void __init tx4938_wdr_init(void)
+static void __init tx4938_wdr_init(void)
 {
 	/* clear WatchDogReset (W1C) */
 	tx4938_ccfg_set(TX4938_CCFG_WDRST);
 	/* do reset on watchdog */
 	tx4938_ccfg_set(TX4938_CCFG_WR);
+}
+
+void __init tx4938_wdt_init(void)
+{
+	txx9_wdt_init(TX4938_TMR_REG(2) & 0xfffffffffULL);
 }
 
 static struct resource tx4938_sdram_resource[4];
@@ -233,11 +237,9 @@ void __init tx4938_time_init(unsigned int tmrnr)
 				     TXX9_IMCLK);
 }
 
-void __init tx4938_setup_serial(void)
+void __init tx4938_sio_init(unsigned int sclk, unsigned int cts_mask)
 {
-#ifdef CONFIG_SERIAL_TXX9
 	int i;
-	struct uart_port req;
 	unsigned int ch_mask = 0;
 
 	if (__raw_readq(&tx4938_ccfgptr->pcfg) & TX4938_PCFG_ETH0_SEL)
@@ -245,15 +247,24 @@ void __init tx4938_setup_serial(void)
 	for (i = 0; i < 2; i++) {
 		if ((1 << i) & ch_mask)
 			continue;
-		memset(&req, 0, sizeof(req));
-		req.line = i;
-		req.iotype = UPIO_MEM;
-		req.membase = (unsigned char __iomem *)TX4938_SIO_REG(i);
-		req.mapbase = TX4938_SIO_REG(i) & 0xfffffffffULL;
-		req.irq = TXX9_IRQ_BASE + TX4938_IR_SIO(i);
-		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-		req.uartclk = TXX9_IMCLK;
-		early_serial_txx9_setup(&req);
+		txx9_sio_init(TX4938_SIO_REG(i) & 0xfffffffffULL,
+			      TXX9_IRQ_BASE + TX4938_IR_SIO(i),
+			      i, sclk, (1 << i) & cts_mask);
 	}
-#endif /* CONFIG_SERIAL_TXX9 */
+}
+
+void __init tx4938_spi_init(int busid)
+{
+	txx9_spi_init(busid, TX4938_SPI_REG & 0xfffffffffULL,
+		      TXX9_IRQ_BASE + TX4938_IR_SPI);
+}
+
+void __init tx4938_ethaddr_init(unsigned char *addr0, unsigned char *addr1)
+{
+	u64 pcfg = __raw_readq(&tx4938_ccfgptr->pcfg);
+
+	if (addr0 && (pcfg & TX4938_PCFG_ETH0_SEL))
+		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH0, addr0);
+	if (addr1 && (pcfg & TX4938_PCFG_ETH1_SEL))
+		txx9_ethaddr_init(TXX9_IRQ_BASE + TX4938_IR_ETH1, addr1);
 }

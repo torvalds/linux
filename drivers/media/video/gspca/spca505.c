@@ -61,27 +61,27 @@ static struct ctrl sd_ctrls[] = {
 
 static struct v4l2_pix_format vga_mode[] = {
 	{160, 120, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
-		.bytesperline = 160 * 3,
+		.bytesperline = 160,
 		.sizeimage = 160 * 120 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 5},
 	{176, 144, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
-		.bytesperline = 176 * 3,
+		.bytesperline = 176,
 		.sizeimage = 176 * 144 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 4},
 	{320, 240, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
-		.bytesperline = 320 * 3,
+		.bytesperline = 320,
 		.sizeimage = 320 * 240 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 2},
 	{352, 288, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
-		.bytesperline = 352 * 3,
+		.bytesperline = 352,
 		.sizeimage = 352 * 288 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 1},
 	{640, 480, V4L2_PIX_FMT_SPCA505, V4L2_FIELD_NONE,
-		.bytesperline = 640 * 3,
+		.bytesperline = 640,
 		.sizeimage = 640 * 480 * 3 / 2,
 		.colorspace = V4L2_COLORSPACE_SRGB,
 		.priv = 0},
@@ -655,8 +655,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	return 0;
 }
 
-/* this function is called at open time */
-static int sd_open(struct gspca_dev *gspca_dev)
+/* this function is called at probe and resume time */
+static int sd_init(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int ret;
@@ -743,11 +743,6 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 static void sd_stop0(struct gspca_dev *gspca_dev)
 {
-}
-
-/* this function is called at close time */
-static void sd_close(struct gspca_dev *gspca_dev)
-{
 	/* This maybe reset or power control */
 	reg_write(gspca_dev->dev, 0x03, 0x03, 0x20);
 	reg_write(gspca_dev->dev, 0x03, 0x01, 0x0);
@@ -776,7 +771,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	default:
 		data += 1;
 		len -= 1;
-		gspca_frame_add(gspca_dev, FIRST_PACKET, frame,
+		gspca_frame_add(gspca_dev, INTER_PACKET, frame,
 				data, len);
 		break;
 	}
@@ -825,11 +820,10 @@ static const struct sd_desc sd_desc = {
 	.ctrls = sd_ctrls,
 	.nctrls = ARRAY_SIZE(sd_ctrls),
 	.config = sd_config,
-	.open = sd_open,
+	.init = sd_init,
 	.start = sd_start,
 	.stopN = sd_stopN,
 	.stop0 = sd_stop0,
-	.close = sd_close,
 	.pkt_scan = sd_pkt_scan,
 };
 
@@ -855,6 +849,10 @@ static struct usb_driver sd_driver = {
 	.id_table = device_table,
 	.probe = sd_probe,
 	.disconnect = gspca_disconnect,
+#ifdef CONFIG_PM
+	.suspend = gspca_suspend,
+	.resume = gspca_resume,
+#endif
 };
 
 /* -- module insert / remove -- */

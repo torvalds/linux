@@ -39,7 +39,7 @@ static int debug;
 
 module_param(debug, bool, 0644);
 
-MODULE_PARM_DESC(debug, "Debugging messages\n\t\t\t0=Off (default), 1=On");
+MODULE_PARM_DESC(debug, "Debugging messages, 0=Off (default), 1=On");
 
 static unsigned short normal_i2c[] = { 0x22 >> 1, I2C_CLIENT_END };
 

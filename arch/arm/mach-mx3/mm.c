@@ -22,10 +22,10 @@
 
 #include <linux/mm.h>
 #include <linux/init.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
-#include <asm/arch/common.h>
+#include <mach/common.h>
 
 /*!
  * @file mm.c

@@ -22,12 +22,12 @@
 #include <linux/platform_device.h>
 #include <linux/apm-emulation.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
-#include <asm/arch/pm.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/pxa2xx-gpio.h>
-#include <asm/arch/sharpsl.h>
+#include <mach/pm.h>
+#include <mach/pxa-regs.h>
+#include <mach/pxa2xx-gpio.h>
+#include <mach/sharpsl.h>
 #include "sharpsl.h"
 
 struct battery_thresh spitz_battery_levels_acin[] = {

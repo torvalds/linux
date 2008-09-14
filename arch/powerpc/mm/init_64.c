@@ -206,12 +206,9 @@ static int __meminit vmemmap_populated(unsigned long start, int page_size)
 int __meminit vmemmap_populate(struct page *start_page,
 			       unsigned long nr_pages, int node)
 {
-	unsigned long mode_rw;
 	unsigned long start = (unsigned long)start_page;
 	unsigned long end = (unsigned long)(start_page + nr_pages);
 	unsigned long page_size = 1 << mmu_psize_defs[mmu_vmemmap_psize].shift;
-
-	mode_rw = _PAGE_ACCESSED | _PAGE_DIRTY | _PAGE_COHERENT | PP_RWXX;
 
 	/* Align to the page size of the linear mapping. */
 	start = _ALIGN_DOWN(start, page_size);
@@ -230,9 +227,9 @@ int __meminit vmemmap_populate(struct page *start_page,
 		pr_debug("vmemmap %08lx allocated at %p, physical %08lx.\n",
 			start, p, __pa(p));
 
-		mapped = htab_bolt_mapping(start, start + page_size,
-					__pa(p), mode_rw, mmu_vmemmap_psize,
-					mmu_kernel_ssize);
+		mapped = htab_bolt_mapping(start, start + page_size, __pa(p),
+					   PAGE_KERNEL, mmu_vmemmap_psize,
+					   mmu_kernel_ssize);
 		BUG_ON(mapped < 0);
 	}
 

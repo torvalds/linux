@@ -6417,7 +6417,7 @@ static int niu_ethflow_to_class(int flow_type, u64 *class)
 		*class = CLASS_CODE_SCTP_IPV6;
 		break;
 	default:
-		return -1;
+		return 0;
 	}
 
 	return 1;

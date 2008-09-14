@@ -899,7 +899,7 @@ static void hrtick_start_fair(struct rq *rq, struct task_struct *p)
 		 * doesn't make sense. Rely on vruntime for fairness.
 		 */
 		if (rq->curr != p)
-			delta = max(10000LL, delta);
+			delta = max_t(s64, 10000LL, delta);
 
 		hrtick_start(rq, delta);
 	}
@@ -1442,18 +1442,23 @@ __load_balance_iterator(struct cfs_rq *cfs_rq, struct list_head *next)
 	struct task_struct *p = NULL;
 	struct sched_entity *se;
 
-	while (next != &cfs_rq->tasks) {
+	if (next == &cfs_rq->tasks)
+		return NULL;
+
+	/* Skip over entities that are not tasks */
+	do {
 		se = list_entry(next, struct sched_entity, group_node);
 		next = next->next;
+	} while (next != &cfs_rq->tasks && !entity_is_task(se));
 
-		/* Skip over entities that are not tasks */
-		if (entity_is_task(se)) {
-			p = task_of(se);
-			break;
-		}
-	}
+	if (next == &cfs_rq->tasks)
+		return NULL;
 
 	cfs_rq->balance_iterator = next;
+
+	if (entity_is_task(se))
+		p = task_of(se);
+
 	return p;
 }
 

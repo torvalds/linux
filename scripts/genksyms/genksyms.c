@@ -545,6 +545,8 @@ int main(int argc, char **argv)
 			}
 			fputs(sym->name, dumpfile);
 			putc(' ', dumpfile);
+			if (sym->is_extern)
+				fputs("extern ", dumpfile);
 			print_list(dumpfile, sym->defn);
 			putc('\n', dumpfile);
 

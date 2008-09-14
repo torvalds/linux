@@ -21,7 +21,7 @@
 
 #include <asm/div64.h>
 #include <asm/cnt32_to_63.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/system.h>
 #include <asm/pgtable.h>
 #include <asm/mach/map.h>
@@ -30,6 +30,9 @@
 #include <asm/gpio.h>
 
 #include "generic.h"
+
+unsigned int reset_status;
+EXPORT_SYMBOL(reset_status);
 
 #define NR_FREQS	16
 

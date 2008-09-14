@@ -192,6 +192,9 @@ static struct quirk_entry *quirks;
 
 static void set_quirks(void)
 {
+	if (!interface)
+		return;
+
 	if (quirks->mailled)
 		interface->capability |= ACER_CAP_MAILLED;
 
@@ -803,11 +806,30 @@ static acpi_status get_u32(u32 *value, u32 cap)
 
 static acpi_status set_u32(u32 value, u32 cap)
 {
+	acpi_status status;
+
 	if (interface->capability & cap) {
 		switch (interface->type) {
 		case ACER_AMW0:
 			return AMW0_set_u32(value, cap, interface);
 		case ACER_AMW0_V2:
+			if (cap == ACER_CAP_MAILLED)
+				return AMW0_set_u32(value, cap, interface);
+
+			/*
+			 * On some models, some WMID methods don't toggle
+			 * properly. For those cases, we want to run the AMW0
+			 * method afterwards to be certain we've really toggled
+			 * the device state.
+			 */
+			if (cap == ACER_CAP_WIRELESS ||
+				cap == ACER_CAP_BLUETOOTH) {
+				status = WMID_set_u32(value, cap, interface);
+				if (ACPI_FAILURE(status))
+					return status;
+
+				return AMW0_set_u32(value, cap, interface);
+			}
 		case ACER_WMID:
 			return WMID_set_u32(value, cap, interface);
 		default:
@@ -1167,7 +1189,7 @@ static int create_debugfs(void)
 	return 0;
 
 error_debugfs:
-		remove_debugfs();
+	remove_debugfs();
 	return -ENOMEM;
 }
 
@@ -1218,6 +1240,8 @@ static int __init acer_wmi_init(void)
 		return -ENODEV;
 	}
 
+	set_quirks();
+
 	if (platform_driver_register(&acer_platform_driver)) {
 		printk(ACER_ERR "Unable to register platform driver.\n");
 		goto error_platform_register;
@@ -1248,6 +1272,7 @@ error_platform_register:
 static void __exit acer_wmi_exit(void)
 {
 	remove_sysfs(acer_platform_device);
+	remove_debugfs();
 	platform_device_del(acer_platform_device);
 	platform_driver_unregister(&acer_platform_driver);
 

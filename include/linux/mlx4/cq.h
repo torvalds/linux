@@ -39,17 +39,18 @@
 #include <linux/mlx4/doorbell.h>
 
 struct mlx4_cqe {
-	__be32			my_qpn;
+	__be32			vlan_my_qpn;
 	__be32			immed_rss_invalid;
 	__be32			g_mlpath_rqpn;
-	u8			sl;
-	u8			reserved1;
+	__be16			sl_vid;
 	__be16			rlid;
-	__be32			ipoib_status;
+	__be16			status;
+	u8			ipv6_ext_mask;
+	u8			badfcs_enc;
 	__be32			byte_cnt;
 	__be16			wqe_index;
 	__be16			checksum;
-	u8			reserved2[3];
+	u8			reserved[3];
 	u8			owner_sr_opcode;
 };
 
@@ -61,6 +62,11 @@ struct mlx4_err_cqe {
 	u8			syndrome;
 	u8			reserved2[3];
 	u8			owner_sr_opcode;
+};
+
+enum {
+	MLX4_CQE_VLAN_PRESENT_MASK	= 1 << 29,
+	MLX4_CQE_QPN_MASK		= 0xffffff,
 };
 
 enum {
@@ -86,13 +92,19 @@ enum {
 };
 
 enum {
-	MLX4_CQE_IPOIB_STATUS_IPV4			= 1 << 22,
-	MLX4_CQE_IPOIB_STATUS_IPV4F			= 1 << 23,
-	MLX4_CQE_IPOIB_STATUS_IPV6			= 1 << 24,
-	MLX4_CQE_IPOIB_STATUS_IPV4OPT			= 1 << 25,
-	MLX4_CQE_IPOIB_STATUS_TCP			= 1 << 26,
-	MLX4_CQE_IPOIB_STATUS_UDP			= 1 << 27,
-	MLX4_CQE_IPOIB_STATUS_IPOK			= 1 << 28,
+	MLX4_CQE_STATUS_IPV4		= 1 << 6,
+	MLX4_CQE_STATUS_IPV4F		= 1 << 7,
+	MLX4_CQE_STATUS_IPV6		= 1 << 8,
+	MLX4_CQE_STATUS_IPV4OPT		= 1 << 9,
+	MLX4_CQE_STATUS_TCP		= 1 << 10,
+	MLX4_CQE_STATUS_UDP		= 1 << 11,
+	MLX4_CQE_STATUS_IPOK		= 1 << 12,
+};
+
+enum {
+	MLX4_CQE_LLC                     = 1,
+	MLX4_CQE_SNAP                    = 1 << 1,
+	MLX4_CQE_BAD_FCS                 = 1 << 4,
 };
 
 static inline void mlx4_cq_arm(struct mlx4_cq *cq, u32 cmd,

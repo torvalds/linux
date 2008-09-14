@@ -585,12 +585,16 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	struct uvc_control_mapping *mapping;
 	struct uvc_menu_info *menu;
 	unsigned int i;
-	__u8 data[8];
+	__u8 *data;
 	int ret;
 
 	ctrl = uvc_find_control(video, v4l2_ctrl->id, &mapping);
 	if (ctrl == NULL)
 		return -EINVAL;
+
+	data = kmalloc(8, GFP_KERNEL);
+	if (data == NULL)
+		return -ENOMEM;
 
 	memset(v4l2_ctrl, 0, sizeof *v4l2_ctrl);
 	v4l2_ctrl->id = mapping->id;
@@ -604,8 +608,8 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	if (ctrl->info->flags & UVC_CONTROL_GET_DEF) {
 		if ((ret = uvc_query_ctrl(video->dev, GET_DEF, ctrl->entity->id,
 				video->dev->intfnum, ctrl->info->selector,
-				&data, ctrl->info->size)) < 0)
-			return ret;
+				data, ctrl->info->size)) < 0)
+			goto out;
 		v4l2_ctrl->default_value = uvc_get_le_value(data, mapping);
 	}
 
@@ -623,13 +627,15 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 			}
 		}
 
-		return 0;
+		ret = 0;
+		goto out;
 
 	case V4L2_CTRL_TYPE_BOOLEAN:
 		v4l2_ctrl->minimum = 0;
 		v4l2_ctrl->maximum = 1;
 		v4l2_ctrl->step = 1;
-		return 0;
+		ret = 0;
+		goto out;
 
 	default:
 		break;
@@ -638,26 +644,29 @@ int uvc_query_v4l2_ctrl(struct uvc_video_device *video,
 	if (ctrl->info->flags & UVC_CONTROL_GET_MIN) {
 		if ((ret = uvc_query_ctrl(video->dev, GET_MIN, ctrl->entity->id,
 				video->dev->intfnum, ctrl->info->selector,
-				&data, ctrl->info->size)) < 0)
-			return ret;
+				data, ctrl->info->size)) < 0)
+			goto out;
 		v4l2_ctrl->minimum = uvc_get_le_value(data, mapping);
 	}
 	if (ctrl->info->flags & UVC_CONTROL_GET_MAX) {
 		if ((ret = uvc_query_ctrl(video->dev, GET_MAX, ctrl->entity->id,
 				video->dev->intfnum, ctrl->info->selector,
-				&data, ctrl->info->size)) < 0)
-			return ret;
+				data, ctrl->info->size)) < 0)
+			goto out;
 		v4l2_ctrl->maximum = uvc_get_le_value(data, mapping);
 	}
 	if (ctrl->info->flags & UVC_CONTROL_GET_RES) {
 		if ((ret = uvc_query_ctrl(video->dev, GET_RES, ctrl->entity->id,
 				video->dev->intfnum, ctrl->info->selector,
-				&data, ctrl->info->size)) < 0)
-			return ret;
+				data, ctrl->info->size)) < 0)
+			goto out;
 		v4l2_ctrl->step = uvc_get_le_value(data, mapping);
 	}
 
-	return 0;
+	ret = 0;
+out:
+	kfree(data);
+	return ret;
 }
 
 

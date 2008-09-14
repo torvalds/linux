@@ -222,11 +222,13 @@ int video_register_device(struct video_device *vfd, int type, int nr)
 EXPORT_SYMBOL(video_register_device);
 
 /**
- *	video_register_device - register video4linux devices
+ *	video_register_device_index - register video4linux devices
  *	@vfd:  video device structure we want to register
  *	@type: type of device to register
  *	@nr:   which device number (0 == /dev/video0, 1 == /dev/video1, ...
  *             -1 == first free)
+ *	@index: stream number based on parent device;
+ *		-1 if auto assign, requested number otherwise
  *
  *	The registration code assigns minor numbers based on the type
  *	requested. -ENFILE is returned in all the device slots for this
@@ -255,6 +257,9 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	int ret;
 	char *name_base;
 
+	if (vfd == NULL)
+		return -EINVAL;
+
 	switch (type) {
 	case VFL_TYPE_GRABBER:
 		base = MINOR_VFL_TYPE_GRABBER_MIN;
@@ -279,7 +284,7 @@ int video_register_device_index(struct video_device *vfd, int type, int nr,
 	default:
 		printk(KERN_ERR "%s called with unknown type: %d\n",
 		       __func__, type);
-		return -1;
+		return -EINVAL;
 	}
 
 	/* pick a minor number */

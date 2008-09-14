@@ -25,7 +25,7 @@
 #include <asm/gpio.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/pci.h>
-#include <asm/arch/orion5x.h>
+#include <mach/orion5x.h>
 #include "common.h"
 #include "mpp.h"
 
@@ -245,12 +245,8 @@ static struct orion5x_mpp_mode dns323_mpp_modes[] __initdata = {
 static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	{
 		I2C_BOARD_INFO("g760a", 0x3e),
-#if 0
-	/* this entry requires the new-style driver model lm75 driver,
-	 * for the meantime "insmod lm75.ko force_lm75=0,0x48" is needed */
 	}, {
-		I2C_BOARD_INFO("g751", 0x48),
-#endif
+		I2C_BOARD_INFO("lm75", 0x48),
 	}, {
 		I2C_BOARD_INFO("m41t80", 0x68),
 	},

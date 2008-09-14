@@ -71,12 +71,8 @@ enum rdma_port_space {
 };
 
 struct rdma_addr {
-	struct sockaddr src_addr;
-	u8		src_pad[sizeof(struct sockaddr_in6) -
-				sizeof(struct sockaddr)];
-	struct sockaddr dst_addr;
-	u8		dst_pad[sizeof(struct sockaddr_in6) -
-				sizeof(struct sockaddr)];
+	struct sockaddr_storage src_addr;
+	struct sockaddr_storage dst_addr;
 	struct rdma_dev_addr dev_addr;
 };
 

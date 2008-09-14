@@ -78,9 +78,9 @@ MODULE_LICENSE("GPL");
 static uid_t asus_uid;
 static gid_t asus_gid;
 module_param(asus_uid, uint, 0);
-MODULE_PARM_DESC(asus_uid, "UID for entries in /proc/acpi/asus.\n");
+MODULE_PARM_DESC(asus_uid, "UID for entries in /proc/acpi/asus");
 module_param(asus_gid, uint, 0);
-MODULE_PARM_DESC(asus_gid, "GID for entries in /proc/acpi/asus.\n");
+MODULE_PARM_DESC(asus_gid, "GID for entries in /proc/acpi/asus");
 
 /* For each model, all features implemented, 
  * those marked with R are relative to HOTK, A for absolute */

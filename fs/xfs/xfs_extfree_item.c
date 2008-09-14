@@ -41,8 +41,7 @@ xfs_efi_item_free(xfs_efi_log_item_t *efip)
 	int nexts = efip->efi_format.efi_nextents;
 
 	if (nexts > XFS_EFI_MAX_FAST_EXTENTS) {
-		kmem_free(efip, sizeof(xfs_efi_log_item_t) +
-				(nexts - 1) * sizeof(xfs_extent_t));
+		kmem_free(efip);
 	} else {
 		kmem_zone_free(xfs_efi_zone, efip);
 	}
@@ -374,8 +373,7 @@ xfs_efd_item_free(xfs_efd_log_item_t *efdp)
 	int nexts = efdp->efd_format.efd_nextents;
 
 	if (nexts > XFS_EFD_MAX_FAST_EXTENTS) {
-		kmem_free(efdp, sizeof(xfs_efd_log_item_t) +
-				(nexts - 1) * sizeof(xfs_extent_t));
+		kmem_free(efdp);
 	} else {
 		kmem_zone_free(xfs_efd_zone, efdp);
 	}

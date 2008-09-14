@@ -23,14 +23,14 @@
 #include <asm/mach-types.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/pxa2xx-regs.h>
-#include <asm/arch/mfp-pxa27x.h>
-#include <asm/arch/pxa-regs.h>
-#include <asm/arch/audio.h>
-#include <asm/arch/pxafb.h>
-#include <asm/arch/ohci.h>
-#include <asm/arch/mmc.h>
-#include <asm/arch/bitfield.h>
+#include <mach/pxa2xx-regs.h>
+#include <mach/mfp-pxa27x.h>
+#include <mach/pxa-regs.h>
+#include <mach/audio.h>
+#include <mach/pxafb.h>
+#include <mach/ohci.h>
+#include <mach/mmc.h>
+#include <mach/bitfield.h>
 
 #include <asm/hardware/it8152.h>
 

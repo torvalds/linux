@@ -1032,10 +1032,10 @@ void nf_conntrack_cleanup(void)
 	nf_ct_free_hashtable(nf_conntrack_hash, nf_conntrack_vmalloc,
 			     nf_conntrack_htable_size);
 
-	nf_conntrack_proto_fini();
-	nf_conntrack_helper_fini();
-	nf_conntrack_expect_fini();
 	nf_conntrack_acct_fini();
+	nf_conntrack_expect_fini();
+	nf_conntrack_helper_fini();
+	nf_conntrack_proto_fini();
 }
 
 struct hlist_head *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced)

@@ -272,7 +272,11 @@ static inline void mtd_erase_callback(struct erase_info *instr)
 			printk(KERN_INFO args);		\
 	} while(0)
 #else /* CONFIG_MTD_DEBUG */
-#define DEBUG(n, args...) do { } while(0)
+#define DEBUG(n, args...)				\
+	do {						\
+		if (0)					\
+			printk(KERN_INFO args);		\
+	} while(0)
 
 #endif /* CONFIG_MTD_DEBUG */
 

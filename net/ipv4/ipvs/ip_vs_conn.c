@@ -965,7 +965,7 @@ static void ip_vs_conn_flush(void)
 }
 
 
-int ip_vs_conn_init(void)
+int __init ip_vs_conn_init(void)
 {
 	int idx;
 

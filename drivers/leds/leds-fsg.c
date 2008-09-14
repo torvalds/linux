@@ -19,7 +19,7 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 #include <linux/leds.h>
-#include <asm/arch/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 
 static short __iomem *latch_address;

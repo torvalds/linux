@@ -155,9 +155,7 @@ struct cma_multicast {
 	} multicast;
 	struct list_head	list;
 	void			*context;
-	struct sockaddr		addr;
-	u8			pad[sizeof(struct sockaddr_in6) -
-				    sizeof(struct sockaddr)];
+	struct sockaddr_storage	addr;
 };
 
 struct cma_work {
@@ -786,8 +784,8 @@ static void cma_cancel_operation(struct rdma_id_private *id_priv,
 		cma_cancel_route(id_priv);
 		break;
 	case CMA_LISTEN:
-		if (cma_any_addr(&id_priv->id.route.addr.src_addr) &&
-		    !id_priv->cma_dev)
+		if (cma_any_addr((struct sockaddr *) &id_priv->id.route.addr.src_addr)
+				&& !id_priv->cma_dev)
 			cma_cancel_listens(id_priv);
 		break;
 	default:
@@ -1026,7 +1024,7 @@ static struct rdma_id_private *cma_new_conn_id(struct rdma_cm_id *listen_id,
 		rt->path_rec[1] = *ib_event->param.req_rcvd.alternate_path;
 
 	ib_addr_set_dgid(&rt->addr.dev_addr, &rt->path_rec[0].dgid);
-	ret = rdma_translate_ip(&id->route.addr.src_addr,
+	ret = rdma_translate_ip((struct sockaddr *) &id->route.addr.src_addr,
 				&id->route.addr.dev_addr);
 	if (ret)
 		goto destroy_id;
@@ -1064,7 +1062,7 @@ static struct rdma_id_private *cma_new_udp_id(struct rdma_cm_id *listen_id,
 	cma_save_net_info(&id->route.addr, &listen_id->route.addr,
 			  ip_ver, port, src, dst);
 
-	ret = rdma_translate_ip(&id->route.addr.src_addr,
+	ret = rdma_translate_ip((struct sockaddr *) &id->route.addr.src_addr,
 				&id->route.addr.dev_addr);
 	if (ret)
 		goto err;
@@ -1377,7 +1375,7 @@ static int cma_ib_listen(struct rdma_id_private *id_priv)
 	if (IS_ERR(id_priv->cm_id.ib))
 		return PTR_ERR(id_priv->cm_id.ib);
 
-	addr = &id_priv->id.route.addr.src_addr;
+	addr = (struct sockaddr *) &id_priv->id.route.addr.src_addr;
 	svc_id = cma_get_service_id(id_priv->id.ps, addr);
 	if (cma_any_addr(addr))
 		ret = ib_cm_listen(id_priv->cm_id.ib, svc_id, 0, NULL);
@@ -1443,7 +1441,7 @@ static void cma_listen_on_dev(struct rdma_id_private *id_priv,
 
 	dev_id_priv->state = CMA_ADDR_BOUND;
 	memcpy(&id->route.addr.src_addr, &id_priv->id.route.addr.src_addr,
-	       ip_addr_size(&id_priv->id.route.addr.src_addr));
+	       ip_addr_size((struct sockaddr *) &id_priv->id.route.addr.src_addr));
 
 	cma_attach_to_dev(dev_id_priv, cma_dev);
 	list_add_tail(&dev_id_priv->listen_list, &id_priv->listen_list);
@@ -1563,13 +1561,14 @@ static int cma_query_ib_route(struct rdma_id_private *id_priv, int timeout_ms,
 	path_rec.pkey = cpu_to_be16(ib_addr_get_pkey(&addr->dev_addr));
 	path_rec.numb_path = 1;
 	path_rec.reversible = 1;
-	path_rec.service_id = cma_get_service_id(id_priv->id.ps, &addr->dst_addr);
+	path_rec.service_id = cma_get_service_id(id_priv->id.ps,
+							(struct sockaddr *) &addr->dst_addr);
 
 	comp_mask = IB_SA_PATH_REC_DGID | IB_SA_PATH_REC_SGID |
 		    IB_SA_PATH_REC_PKEY | IB_SA_PATH_REC_NUMB_PATH |
 		    IB_SA_PATH_REC_REVERSIBLE | IB_SA_PATH_REC_SERVICE_ID;
 
-	if (addr->src_addr.sa_family == AF_INET) {
+	if (addr->src_addr.ss_family == AF_INET) {
 		path_rec.qos_class = cpu_to_be16((u16) id_priv->tos);
 		comp_mask |= IB_SA_PATH_REC_QOS_CLASS;
 	} else {
@@ -1848,7 +1847,7 @@ static int cma_resolve_loopback(struct rdma_id_private *id_priv)
 	ib_addr_get_sgid(&id_priv->id.route.addr.dev_addr, &gid);
 	ib_addr_set_dgid(&id_priv->id.route.addr.dev_addr, &gid);
 
-	if (cma_zero_addr(&id_priv->id.route.addr.src_addr)) {
+	if (cma_zero_addr((struct sockaddr *) &id_priv->id.route.addr.src_addr)) {
 		src_in = (struct sockaddr_in *)&id_priv->id.route.addr.src_addr;
 		dst_in = (struct sockaddr_in *)&id_priv->id.route.addr.dst_addr;
 		src_in->sin_family = dst_in->sin_family;
@@ -1897,7 +1896,7 @@ int rdma_resolve_addr(struct rdma_cm_id *id, struct sockaddr *src_addr,
 	if (cma_any_addr(dst_addr))
 		ret = cma_resolve_loopback(id_priv);
 	else
-		ret = rdma_resolve_ip(&addr_client, &id->route.addr.src_addr,
+		ret = rdma_resolve_ip(&addr_client, (struct sockaddr *) &id->route.addr.src_addr,
 				      dst_addr, &id->route.addr.dev_addr,
 				      timeout_ms, addr_handler, id_priv);
 	if (ret)
@@ -2021,11 +2020,11 @@ static int cma_use_port(struct idr *ps, struct rdma_id_private *id_priv)
 	 * We don't support binding to any address if anyone is bound to
 	 * a specific address on the same port.
 	 */
-	if (cma_any_addr(&id_priv->id.route.addr.src_addr))
+	if (cma_any_addr((struct sockaddr *) &id_priv->id.route.addr.src_addr))
 		return -EADDRNOTAVAIL;
 
 	hlist_for_each_entry(cur_id, node, &bind_list->owners, node) {
-		if (cma_any_addr(&cur_id->id.route.addr.src_addr))
+		if (cma_any_addr((struct sockaddr *) &cur_id->id.route.addr.src_addr))
 			return -EADDRNOTAVAIL;
 
 		cur_sin = (struct sockaddr_in *) &cur_id->id.route.addr.src_addr;
@@ -2060,7 +2059,7 @@ static int cma_get_port(struct rdma_id_private *id_priv)
 	}
 
 	mutex_lock(&lock);
-	if (cma_any_port(&id_priv->id.route.addr.src_addr))
+	if (cma_any_port((struct sockaddr *) &id_priv->id.route.addr.src_addr))
 		ret = cma_alloc_any_port(ps, id_priv);
 	else
 		ret = cma_use_port(ps, id_priv);
@@ -2232,7 +2231,7 @@ static int cma_resolve_ib_udp(struct rdma_id_private *id_priv,
 
 	req.path = route->path_rec;
 	req.service_id = cma_get_service_id(id_priv->id.ps,
-					    &route->addr.dst_addr);
+					    (struct sockaddr *) &route->addr.dst_addr);
 	req.timeout_ms = 1 << (CMA_CM_RESPONSE_TIMEOUT - 8);
 	req.max_cm_retries = CMA_MAX_CM_RETRIES;
 
@@ -2283,7 +2282,7 @@ static int cma_connect_ib(struct rdma_id_private *id_priv,
 		req.alternate_path = &route->path_rec[1];
 
 	req.service_id = cma_get_service_id(id_priv->id.ps,
-					    &route->addr.dst_addr);
+					    (struct sockaddr *) &route->addr.dst_addr);
 	req.qp_num = id_priv->qp_num;
 	req.qp_type = IB_QPT_RC;
 	req.starting_psn = id_priv->seq_num;
@@ -2667,7 +2666,7 @@ static int cma_join_ib_multicast(struct rdma_id_private *id_priv,
 	if (ret)
 		return ret;
 
-	cma_set_mgid(id_priv, &mc->addr, &rec.mgid);
+	cma_set_mgid(id_priv, (struct sockaddr *) &mc->addr, &rec.mgid);
 	if (id_priv->id.ps == RDMA_PS_UDP)
 		rec.qkey = cpu_to_be32(RDMA_UDP_QKEY);
 	ib_addr_get_sgid(dev_addr, &rec.port_gid);

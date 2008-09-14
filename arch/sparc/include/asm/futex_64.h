@@ -59,7 +59,7 @@ static inline int futex_atomic_op_inuser(int encoded_op, int __user *uaddr)
 		__futex_cas_op("or\t%2, %4, %1", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_ANDN:
-		__futex_cas_op("and\t%2, %4, %1", ret, oldval, uaddr, oparg);
+		__futex_cas_op("andn\t%2, %4, %1", ret, oldval, uaddr, oparg);
 		break;
 	case FUTEX_OP_XOR:
 		__futex_cas_op("xor\t%2, %4, %1", ret, oldval, uaddr, oparg);

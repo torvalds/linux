@@ -39,7 +39,6 @@
 int shpchp_debug;
 int shpchp_poll_mode;
 int shpchp_poll_time;
-static int shpchp_slot_with_bus;
 struct workqueue_struct *shpchp_wq;
 
 #define DRIVER_VERSION	"0.4"
@@ -53,11 +52,9 @@ MODULE_LICENSE("GPL");
 module_param(shpchp_debug, bool, 0644);
 module_param(shpchp_poll_mode, bool, 0644);
 module_param(shpchp_poll_time, int, 0644);
-module_param(shpchp_slot_with_bus, bool, 0644);
 MODULE_PARM_DESC(shpchp_debug, "Debugging mode enabled or not");
 MODULE_PARM_DESC(shpchp_poll_mode, "Using polling mechanism for hot-plug events or not");
 MODULE_PARM_DESC(shpchp_poll_time, "Polling mechanism frequency, in seconds");
-MODULE_PARM_DESC(shpchp_slot_with_bus, "Use bus number in the slot name");
 
 #define SHPC_MODULE_NAME "shpchp"
 
@@ -99,23 +96,13 @@ static void release_slot(struct hotplug_slot *hotplug_slot)
 	kfree(slot);
 }
 
-static void make_slot_name(struct slot *slot)
-{
-	if (shpchp_slot_with_bus)
-		snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%04d_%04d",
-			 slot->bus, slot->number);
-	else
-		snprintf(slot->hotplug_slot->name, SLOT_NAME_SIZE, "%d",
-			 slot->number);
-}
-
 static int init_slots(struct controller *ctrl)
 {
 	struct slot *slot;
 	struct hotplug_slot *hotplug_slot;
 	struct hotplug_slot_info *info;
 	int retval = -ENOMEM;
-	int i;
+	int i, len, dup = 1;
 
 	for (i = 0; i < ctrl->num_slots; i++) {
 		slot = kzalloc(sizeof(*slot), GFP_KERNEL);
@@ -146,7 +133,7 @@ static int init_slots(struct controller *ctrl)
 		/* register this slot with the hotplug pci core */
 		hotplug_slot->private = slot;
 		hotplug_slot->release = &release_slot;
-		make_slot_name(slot);
+		snprintf(slot->name, SLOT_NAME_SIZE, "%d", slot->number);
 		hotplug_slot->ops = &shpchp_hotplug_slot_ops;
 
 		get_power_status(hotplug_slot, &info->power_status);
@@ -157,14 +144,23 @@ static int init_slots(struct controller *ctrl)
 		dbg("Registering bus=%x dev=%x hp_slot=%x sun=%x "
 		    "slot_device_offset=%x\n", slot->bus, slot->device,
 		    slot->hp_slot, slot->number, ctrl->slot_device_offset);
+duplicate_name:
 		retval = pci_hp_register(slot->hotplug_slot,
 				ctrl->pci_dev->subordinate, slot->device);
 		if (retval) {
+			/*
+			 * If slot N already exists, we'll try to create
+			 * slot N-1, N-2 ... N-M, until we overflow.
+			 */
+			if (retval == -EEXIST) {
+				len = snprintf(slot->name, SLOT_NAME_SIZE,
+					       "%d-%d", slot->number, dup++);
+				if (len < SLOT_NAME_SIZE)
+					goto duplicate_name;
+				else
+					err("duplicate slot name overflow\n");
+			}
 			err("pci_hp_register failed with error %d\n", retval);
-			if (retval == -EEXIST)
-				err("Failed to register slot because of name "
-                                    "collision. Try \'shpchp_slot_with_bus\' "
-				    "module option.\n");
 			goto error_info;
 		}
 

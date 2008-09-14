@@ -105,6 +105,7 @@ const char gfar_driver_version[] = "1.3";
 
 static int gfar_enet_open(struct net_device *dev);
 static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev);
+static void gfar_reset_task(struct work_struct *work);
 static void gfar_timeout(struct net_device *dev);
 static int gfar_close(struct net_device *dev);
 struct sk_buff *gfar_new_skb(struct net_device *dev);
@@ -134,9 +135,7 @@ static int gfar_process_frame(struct net_device *dev, struct sk_buff *skb, int l
 static void gfar_vlan_rx_register(struct net_device *netdev,
 		                struct vlan_group *grp);
 void gfar_halt(struct net_device *dev);
-#ifdef CONFIG_PM
 static void gfar_halt_nodisable(struct net_device *dev);
-#endif
 void gfar_start(struct net_device *dev);
 static void gfar_clear_exact_match(struct net_device *dev);
 static void gfar_set_mac_for_addr(struct net_device *dev, int num, u8 *addr);
@@ -211,6 +210,7 @@ static int gfar_probe(struct platform_device *pdev)
 	spin_lock_init(&priv->txlock);
 	spin_lock_init(&priv->rxlock);
 	spin_lock_init(&priv->bflock);
+	INIT_WORK(&priv->reset_task, gfar_reset_task);
 
 	platform_set_drvdata(pdev, dev);
 
@@ -414,9 +414,7 @@ static int gfar_suspend(struct platform_device *pdev, pm_message_t state)
 		spin_unlock(&priv->rxlock);
 		spin_unlock_irqrestore(&priv->txlock, flags);
 
-#ifdef CONFIG_GFAR_NAPI
 		napi_disable(&priv->napi);
-#endif
 
 		if (magic_packet) {
 			/* Enable interrupt on Magic Packet */
@@ -469,9 +467,7 @@ static int gfar_resume(struct platform_device *pdev)
 
 	netif_device_attach(dev);
 
-#ifdef CONFIG_GFAR_NAPI
 	napi_enable(&priv->napi);
-#endif
 
 	return 0;
 }
@@ -635,7 +631,6 @@ static void init_registers(struct net_device *dev)
 }
 
 
-#ifdef CONFIG_PM
 /* Halt the receive and transmit queues */
 static void gfar_halt_nodisable(struct net_device *dev)
 {
@@ -661,7 +656,6 @@ static void gfar_halt_nodisable(struct net_device *dev)
 			cpu_relax();
 	}
 }
-#endif
 
 /* Halt the receive and transmit queues */
 void gfar_halt(struct net_device *dev)
@@ -669,6 +663,8 @@ void gfar_halt(struct net_device *dev)
 	struct gfar_private *priv = netdev_priv(dev);
 	struct gfar __iomem *regs = priv->regs;
 	u32 tempval;
+
+	gfar_halt_nodisable(dev);
 
 	/* Disable Rx and Tx */
 	tempval = gfar_read(&regs->maccfg1);
@@ -1218,6 +1214,7 @@ static int gfar_close(struct net_device *dev)
 
 	napi_disable(&priv->napi);
 
+	cancel_work_sync(&priv->reset_task);
 	stop_gfar(dev);
 
 	/* Disconnect from the PHY */
@@ -1332,13 +1329,16 @@ static int gfar_change_mtu(struct net_device *dev, int new_mtu)
 	return 0;
 }
 
-/* gfar_timeout gets called when a packet has not been
+/* gfar_reset_task gets scheduled when a packet has not been
  * transmitted after a set amount of time.
  * For now, assume that clearing out all the structures, and
- * starting over will fix the problem. */
-static void gfar_timeout(struct net_device *dev)
+ * starting over will fix the problem.
+ */
+static void gfar_reset_task(struct work_struct *work)
 {
-	dev->stats.tx_errors++;
+	struct gfar_private *priv = container_of(work, struct gfar_private,
+			reset_task);
+	struct net_device *dev = priv->dev;
 
 	if (dev->flags & IFF_UP) {
 		stop_gfar(dev);
@@ -1346,6 +1346,14 @@ static void gfar_timeout(struct net_device *dev)
 	}
 
 	netif_tx_schedule_all(dev);
+}
+
+static void gfar_timeout(struct net_device *dev)
+{
+	struct gfar_private *priv = netdev_priv(dev);
+
+	dev->stats.tx_errors++;
+	schedule_work(&priv->reset_task);
 }
 
 /* Interrupt Handler for Transmit complete */

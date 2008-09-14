@@ -23,7 +23,7 @@
 #include <linux/string.h>
 #include <linux/mm.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/sizes.h>
 #include <asm/io.h>
 #include <asm/setup.h>
@@ -33,7 +33,7 @@
 #include <asm/page.h>
 
 #include <asm/mach/map.h>
-#include <asm/arch/autcpu12.h>
+#include <mach/autcpu12.h>
 
 #include "common.h"
 

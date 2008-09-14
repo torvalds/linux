@@ -1,4 +1,4 @@
-PM quality of Service interface.
+PM Quality Of Service Interface.
 
 This interface provides a kernel and user mode interface for registering
 performance expectations by drivers, subsystems and user space applications on
@@ -6,6 +6,11 @@ one of the parameters.
 
 Currently we have {cpu_dma_latency, network_latency, network_throughput} as the
 initial set of pm_qos parameters.
+
+Each parameters have defined units:
+ * latency: usec
+ * timeout: usec
+ * throughput: kbs (kilo bit / sec)
 
 The infrastructure exposes multiple misc device nodes one per implemented
 parameter.  The set of parameters implement is defined by pm_qos_power_init()

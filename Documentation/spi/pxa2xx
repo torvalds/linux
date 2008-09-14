@@ -19,7 +19,7 @@ Declaring PXA2xx Master Controllers
 -----------------------------------
 Typically a SPI master is defined in the arch/.../mach-*/board-*.c as a
 "platform device".  The master configuration is passed to the driver via a table
-found in include/asm-arm/arch-pxa/pxa2xx_spi.h:
+found in arch/arm/mach-pxa/include/mach/pxa2xx_spi.h:
 
 struct pxa2xx_spi_master {
 	enum pxa_ssp_type ssp_type;
@@ -94,7 +94,7 @@ using the "spi_board_info" structure found in "linux/spi/spi.h". See
 
 Each slave device attached to the PXA must provide slave specific configuration
 information via the structure "pxa2xx_spi_chip" found in
-"include/asm-arm/arch-pxa/pxa2xx_spi.h".  The pxa2xx_spi master controller driver
+"arch/arm/mach-pxa/include/mach/pxa2xx_spi.h".  The pxa2xx_spi master controller driver
 will uses the configuration whenever the driver communicates with the slave
 device.
 

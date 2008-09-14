@@ -262,7 +262,7 @@
  */
 #define CIFS_NO_HANDLE        0xFFFF
 
-#define NO_CHANGE_64          cpu_to_le64(0xFFFFFFFFFFFFFFFFULL)
+#define NO_CHANGE_64          0xFFFFFFFFFFFFFFFFULL
 #define NO_CHANGE_32          0xFFFFFFFFUL
 
 /* IPC$ in ASCII */

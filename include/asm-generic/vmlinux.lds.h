@@ -333,9 +333,9 @@
 #define BUG_TABLE							\
 	. = ALIGN(8);							\
 	__bug_table : AT(ADDR(__bug_table) - LOAD_OFFSET) {		\
-		__start___bug_table = .;				\
+		VMLINUX_SYMBOL(__start___bug_table) = .;		\
 		*(__bug_table)						\
-		__stop___bug_table = .;					\
+		VMLINUX_SYMBOL(__stop___bug_table) = .;			\
 	}
 #else
 #define BUG_TABLE
@@ -345,9 +345,9 @@
 #define TRACEDATA							\
 	. = ALIGN(4);							\
 	.tracedata : AT(ADDR(.tracedata) - LOAD_OFFSET) {		\
-	  	__tracedata_start = .;					\
+		VMLINUX_SYMBOL(__tracedata_start) = .;			\
 		*(.tracedata)						\
-	  	__tracedata_end = .;					\
+		VMLINUX_SYMBOL(__tracedata_end) = .;			\
 	}
 #else
 #define TRACEDATA
@@ -362,7 +362,7 @@
 
 #define INITCALLS							\
 	*(.initcallearly.init)						\
-	__early_initcall_end = .;					\
+	VMLINUX_SYMBOL(__early_initcall_end) = .;			\
   	*(.initcall0.init)						\
   	*(.initcall0s.init)						\
   	*(.initcall1.init)						\
@@ -383,9 +383,9 @@
 
 #define PERCPU(align)							\
 	. = ALIGN(align);						\
-	__per_cpu_start = .;						\
+	VMLINUX_SYMBOL(__per_cpu_start) = .;				\
 	.data.percpu  : AT(ADDR(.data.percpu) - LOAD_OFFSET) {		\
 		*(.data.percpu)						\
 		*(.data.percpu.shared_aligned)				\
 	}								\
-	__per_cpu_end = .;
+	VMLINUX_SYMBOL(__per_cpu_end) = .;

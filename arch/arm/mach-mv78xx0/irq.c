@@ -11,8 +11,8 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <asm/arch/mv78xx0.h>
-#include <asm/plat-orion/irq.h>
+#include <mach/mv78xx0.h>
+#include <plat/irq.h>
 #include "common.h"
 
 void __init mv78xx0_init_irq(void)

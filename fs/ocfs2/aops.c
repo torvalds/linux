@@ -1073,12 +1073,15 @@ static void ocfs2_write_failure(struct inode *inode,
 	for(i = 0; i < wc->w_num_pages; i++) {
 		tmppage = wc->w_pages[i];
 
-		if (ocfs2_should_order_data(inode))
-			walk_page_buffers(wc->w_handle, page_buffers(tmppage),
-					  from, to, NULL,
-					  ocfs2_journal_dirty_data);
+		if (page_has_buffers(tmppage)) {
+			if (ocfs2_should_order_data(inode))
+				walk_page_buffers(wc->w_handle,
+						  page_buffers(tmppage),
+						  from, to, NULL,
+						  ocfs2_journal_dirty_data);
 
-		block_commit_write(tmppage, from, to);
+			block_commit_write(tmppage, from, to);
+		}
 	}
 }
 
@@ -1901,12 +1904,14 @@ int ocfs2_write_end_nolock(struct address_space *mapping,
 			to = PAGE_CACHE_SIZE;
 		}
 
-		if (ocfs2_should_order_data(inode))
-			walk_page_buffers(wc->w_handle, page_buffers(tmppage),
-					  from, to, NULL,
-					  ocfs2_journal_dirty_data);
-
-		block_commit_write(tmppage, from, to);
+		if (page_has_buffers(tmppage)) {
+			if (ocfs2_should_order_data(inode))
+				walk_page_buffers(wc->w_handle,
+						  page_buffers(tmppage),
+						  from, to, NULL,
+						  ocfs2_journal_dirty_data);
+			block_commit_write(tmppage, from, to);
+		}
 	}
 
 out_write_size:

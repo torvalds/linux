@@ -276,10 +276,8 @@ int set_dabr(unsigned long dabr)
 {
 	__get_cpu_var(current_dabr) = dabr;
 
-#ifdef CONFIG_PPC_MERGE		/* XXX for now */
 	if (ppc_md.set_dabr)
 		return ppc_md.set_dabr(dabr);
-#endif
 
 	/* XXX should we have a CPU_FTR_HAS_DABR ? */
 #if defined(CONFIG_PPC64) || defined(CONFIG_6xx)

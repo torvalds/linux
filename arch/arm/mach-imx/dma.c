@@ -30,9 +30,9 @@
 
 #include <asm/system.h>
 #include <asm/irq.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/dma.h>
-#include <asm/arch/imx-dma.h>
+#include <mach/imx-dma.h>
 
 struct imx_dma_channel imx_dma_channels[IMX_DMA_CHANNELS];
 

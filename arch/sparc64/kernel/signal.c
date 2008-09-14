@@ -2,7 +2,7 @@
  *  arch/sparc64/kernel/signal.c
  *
  *  Copyright (C) 1991, 1992  Linus Torvalds
- *  Copyright (C) 1995 David S. Miller (davem@caip.rutgers.edu)
+ *  Copyright (C) 1995, 2008 David S. Miller (davem@davemloft.net)
  *  Copyright (C) 1996 Miguel de Icaza (miguel@nuclecu.unam.mx)
  *  Copyright (C) 1997 Eddie C. Dost   (ecd@skynet.be)
  *  Copyright (C) 1997,1998 Jakub Jelinek   (jj@sunsite.mff.cuni.cz)
@@ -23,7 +23,6 @@
 #include <linux/tty.h>
 #include <linux/binfmts.h>
 #include <linux/bitops.h>
-#include <linux/tracehook.h>
 
 #include <asm/uaccess.h>
 #include <asm/ptrace.h>
@@ -91,7 +90,9 @@ asmlinkage void sparc64_set_context(struct pt_regs *regs)
 	err |= __get_user(regs->u_regs[UREG_G4], (&(*grp)[MC_G4]));
 	err |= __get_user(regs->u_regs[UREG_G5], (&(*grp)[MC_G5]));
 	err |= __get_user(regs->u_regs[UREG_G6], (&(*grp)[MC_G6]));
-	err |= __get_user(regs->u_regs[UREG_G7], (&(*grp)[MC_G7]));
+
+	/* Skip %g7 as that's the thread register in userspace.  */
+
 	err |= __get_user(regs->u_regs[UREG_I0], (&(*grp)[MC_O0]));
 	err |= __get_user(regs->u_regs[UREG_I1], (&(*grp)[MC_O1]));
 	err |= __get_user(regs->u_regs[UREG_I2], (&(*grp)[MC_O2]));

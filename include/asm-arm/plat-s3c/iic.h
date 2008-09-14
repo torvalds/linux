@@ -1,4 +1,4 @@
-/* linux/include/asm-arm/arch-s3c2410/iic.h
+/* arch/arm/mach-s3c2410/include/mach/iic.h
  *
  * Copyright (c) 2004 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>

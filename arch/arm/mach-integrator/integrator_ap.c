@@ -28,14 +28,14 @@
 #include <linux/amba/bus.h>
 #include <linux/amba/kmi.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/setup.h>
 #include <asm/param.h>		/* HZ */
 #include <asm/mach-types.h>
 
-#include <asm/arch/lm.h>
+#include <mach/lm.h>
 
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>

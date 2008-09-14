@@ -45,7 +45,6 @@
 #include <linux/in.h>
 #include <linux/tcp.h>
 #include <linux/skbuff.h>
-#include <linux/version.h>
 
 #include <linux/ethtool.h>
 #include <linux/mii.h>
@@ -66,8 +65,8 @@
 
 #define _NETXEN_NIC_LINUX_MAJOR 4
 #define _NETXEN_NIC_LINUX_MINOR 0
-#define _NETXEN_NIC_LINUX_SUBVERSION 0
-#define NETXEN_NIC_LINUX_VERSIONID  "4.0.0"
+#define _NETXEN_NIC_LINUX_SUBVERSION 11
+#define NETXEN_NIC_LINUX_VERSIONID  "4.0.11"
 
 #define NETXEN_VERSION_CODE(a, b, c)	(((a) << 16) + ((b) << 8) + (c))
 
@@ -508,6 +507,8 @@ typedef enum {
 	NETXEN_BRDTYPE_P3_10000_BASE_T = 0x0027,
 	NETXEN_BRDTYPE_P3_XG_LOM = 0x0028,
 	NETXEN_BRDTYPE_P3_4_GB_MM = 0x0029,
+	NETXEN_BRDTYPE_P3_10G_SFP_CT = 0x002a,
+	NETXEN_BRDTYPE_P3_10G_SFP_QT = 0x002b,
 	NETXEN_BRDTYPE_P3_10G_CX4 = 0x0031,
 	NETXEN_BRDTYPE_P3_10G_XFP = 0x0032
 
@@ -1170,6 +1171,36 @@ typedef struct {
 	nx_nic_intr_coalesce_data_t	irq;
 } nx_nic_intr_coalesce_t;
 
+#define NX_HOST_REQUEST		0x13
+#define NX_NIC_REQUEST		0x14
+
+#define NX_MAC_EVENT		0x1
+
+enum {
+	NX_NIC_H2C_OPCODE_START = 0,
+	NX_NIC_H2C_OPCODE_CONFIG_RSS,
+	NX_NIC_H2C_OPCODE_CONFIG_RSS_TBL,
+	NX_NIC_H2C_OPCODE_CONFIG_INTR_COALESCE,
+	NX_NIC_H2C_OPCODE_CONFIG_LED,
+	NX_NIC_H2C_OPCODE_CONFIG_PROMISCUOUS,
+	NX_NIC_H2C_OPCODE_CONFIG_L2_MAC,
+	NX_NIC_H2C_OPCODE_LRO_REQUEST,
+	NX_NIC_H2C_OPCODE_GET_SNMP_STATS,
+	NX_NIC_H2C_OPCODE_PROXY_START_REQUEST,
+	NX_NIC_H2C_OPCODE_PROXY_STOP_REQUEST,
+	NX_NIC_H2C_OPCODE_PROXY_SET_MTU,
+	NX_NIC_H2C_OPCODE_PROXY_SET_VPORT_MISS_MODE,
+	NX_H2P_OPCODE_GET_FINGER_PRINT_REQUEST,
+	NX_H2P_OPCODE_INSTALL_LICENSE_REQUEST,
+	NX_H2P_OPCODE_GET_LICENSE_CAPABILITY_REQUEST,
+	NX_NIC_H2C_OPCODE_GET_NET_STATS,
+	NX_NIC_H2C_OPCODE_LAST
+};
+
+#define VPORT_MISS_MODE_DROP		0 /* drop all unmatched */
+#define VPORT_MISS_MODE_ACCEPT_ALL	1 /* accept all packets */
+#define VPORT_MISS_MODE_ACCEPT_MULTI	2 /* accept unmatched multicast */
+
 typedef struct {
 	u64 qhdr;
 	u64 req_hdr;
@@ -1288,7 +1319,7 @@ struct netxen_adapter {
 	int (*disable_phy_interrupts) (struct netxen_adapter *);
 	int (*macaddr_set) (struct netxen_adapter *, netxen_ethernet_macaddr_t);
 	int (*set_mtu) (struct netxen_adapter *, int);
-	int (*set_promisc) (struct netxen_adapter *, netxen_niu_prom_mode_t);
+	int (*set_promisc) (struct netxen_adapter *, u32);
 	int (*phy_read) (struct netxen_adapter *, long reg, u32 *);
 	int (*phy_write) (struct netxen_adapter *, long reg, u32 val);
 	int (*init_port) (struct netxen_adapter *, int);
@@ -1465,9 +1496,10 @@ int netxen_process_cmd_ring(struct netxen_adapter *adapter);
 u32 netxen_process_rcv_ring(struct netxen_adapter *adapter, int ctx, int max);
 void netxen_p2_nic_set_multi(struct net_device *netdev);
 void netxen_p3_nic_set_multi(struct net_device *netdev);
+int netxen_p3_nic_set_promisc(struct netxen_adapter *adapter, u32);
 int netxen_config_intr_coalesce(struct netxen_adapter *adapter);
 
-u32 nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, u32 mtu);
+int nx_fw_cmd_set_mtu(struct netxen_adapter *adapter, int mtu);
 int netxen_nic_change_mtu(struct net_device *netdev, int new_mtu);
 
 int netxen_nic_set_mac(struct net_device *netdev, void *p);
@@ -1502,7 +1534,9 @@ static const struct netxen_brdinfo netxen_boards[] = {
 	{NETXEN_BRDTYPE_P3_10G_SFP_PLUS, 2, "Dual XGb SFP+ LP"},
 	{NETXEN_BRDTYPE_P3_10000_BASE_T, 1, "XGB 10G BaseT LP"},
 	{NETXEN_BRDTYPE_P3_XG_LOM,  2, "Dual XGb LOM"},
-	{NETXEN_BRDTYPE_P3_4_GB_MM, 4, "Quad GB - March Madness"},
+	{NETXEN_BRDTYPE_P3_4_GB_MM, 4, "NX3031 Gigabit Ethernet"},
+	{NETXEN_BRDTYPE_P3_10G_SFP_CT, 2, "NX3031 10 Gigabit Ethernet"},
+	{NETXEN_BRDTYPE_P3_10G_SFP_QT, 2, "Quanta Dual XGb SFP+"},
 	{NETXEN_BRDTYPE_P3_10G_CX4, 2, "Reference Dual CX4 Option"},
 	{NETXEN_BRDTYPE_P3_10G_XFP, 1, "Reference Single XFP Option"}
 };
@@ -1580,7 +1614,8 @@ dma_watchdog_wakeup(struct netxen_adapter *adapter)
 
 
 int netxen_is_flash_supported(struct netxen_adapter *adapter);
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 mac[]);
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
+int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);
 extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 				int *valp);

@@ -17,16 +17,16 @@
 #include <linux/init.h>
 #include <linux/platform_device.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/board.h>
+#include <mach/common.h>
 
 static void __init omap_generic_init_irq(void)
 {

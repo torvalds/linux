@@ -25,7 +25,6 @@
 
 #include <linux/kernel.h>
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/pci.h>
 #include <linux/dma-mapping.h>
@@ -93,6 +92,13 @@ static int iwl5000_apm_init(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_GIO_CHICKEN_BITS,
 		    CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX);
 
+	/* Set FH wait treshold to maximum (HW error during stress W/A) */
+	iwl_set_bit(priv, CSR_DBG_HPET_MEM_REG, CSR_DBG_HPET_MEM_REG_VAL);
+
+	/* enable HAP INTA to move device L1a -> L0s */
+	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
+		    CSR_HW_IF_CONFIG_REG_BIT_HAP_WAKE_L1A);
+
 	iwl_set_bit(priv, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
 	/* set "initialization complete" bit to move adapter
@@ -139,7 +145,8 @@ static void iwl5000_apm_stop(struct iwl_priv *priv)
 
 	udelay(10);
 
-	iwl_set_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
+	/* clear "init complete"  move adapter D0A* --> D0U state */
+	iwl_clear_bit(priv, CSR_GP_CNTRL, CSR_GP_CNTRL_REG_FLAG_INIT_DONE);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -229,6 +236,16 @@ static void iwl5000_nic_config(struct iwl_priv *priv)
 	iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
 		    CSR_HW_IF_CONFIG_REG_BIT_RADIO_SI |
 		    CSR_HW_IF_CONFIG_REG_BIT_MAC_SI);
+
+	/* W/A : NIC is stuck in a reset state after Early PCIe power off
+	 * (PCIe power is lost before PERST# is asserted),
+	 * causing ME FW to lose ownership and not being able to obtain it back.
+	 */
+	iwl_grab_nic_access(priv);
+	iwl_set_bits_mask_prph(priv, APMG_PS_CTRL_REG,
+				APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS,
+				~APMG_PS_CTRL_EARLY_PWR_OFF_RESET_DIS);
+	iwl_release_nic_access(priv);
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 }
@@ -561,14 +578,11 @@ static int iwl5000_load_section(struct iwl_priv *priv,
 		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
 		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
 
-	/* FIME: write the MSB of the phy_addr in CTRL1
-	 * iwl_write_direct32(priv,
-		IWL_FH_TFDIB_CTRL1_REG(IWL_FH_SRVC_CHNL),
-		((phy_addr & MSB_MSK)
-			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_count);
-	 */
 	iwl_write_direct32(priv,
-		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL), byte_cnt);
+		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
+		(iwl_get_dma_hi_address(phy_addr)
+			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+
 	iwl_write_direct32(priv,
 		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
 		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
@@ -924,8 +938,8 @@ static void iwl5000_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 	len = byte_cnt + IWL_TX_CRC_SIZE + IWL_TX_DELIMITER_SIZE;
 
 	if (txq_id != IWL_CMD_QUEUE_NUM) {
-		sta = txq->cmd[txq->q.write_ptr].cmd.tx.sta_id;
-		sec_ctl = txq->cmd[txq->q.write_ptr].cmd.tx.sec_ctl;
+		sta = txq->cmd[txq->q.write_ptr]->cmd.tx.sta_id;
+		sec_ctl = txq->cmd[txq->q.write_ptr]->cmd.tx.sec_ctl;
 
 		switch (sec_ctl & TX_CMD_SEC_MSK) {
 		case TX_CMD_SEC_CCM:
@@ -964,7 +978,7 @@ static void iwl5000_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 	u8 sta = 0;
 
 	if (txq_id != IWL_CMD_QUEUE_NUM)
-		sta = txq->cmd[txq->q.read_ptr].cmd.tx.sta_id;
+		sta = txq->cmd[txq->q.read_ptr]->cmd.tx.sta_id;
 
 	shared_data->queues_byte_cnt_tbls[txq_id].tfd_offset[txq->q.read_ptr].
 					val = cpu_to_le16(1 | (sta << 12));
@@ -1131,7 +1145,7 @@ static void iwl5000_txq_set_sched(struct iwl_priv *priv, u32 mask)
 
 static inline u32 iwl5000_get_scd_ssn(struct iwl5000_tx_resp *tx_resp)
 {
-	return le32_to_cpup((__le32*)&tx_resp->status +
+	return le32_to_cpup((__le32 *)&tx_resp->status +
 			    tx_resp->frame_count) & MAX_SN;
 }
 
@@ -1228,9 +1242,9 @@ static int iwl5000_tx_status_reply_tx(struct iwl_priv *priv,
 				bitmap = bitmap << sh;
 				sh = 0;
 			}
-			bitmap |= (1 << sh);
-			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%x\n",
-					   start, (u32)(bitmap & 0xFFFFFFFF));
+			bitmap |= 1ULL << sh;
+			IWL_DEBUG_TX_REPLY("start=%d bitmap=0x%llx\n",
+					   start, (unsigned long long)bitmap);
 		}
 
 		agg->bitmap = bitmap;
@@ -1444,6 +1458,44 @@ static void iwl5000_temperature(struct iwl_priv *priv)
 	priv->temperature = le32_to_cpu(priv->statistics.general.temperature);
 }
 
+/* Calc max signal level (dBm) among 3 possible receivers */
+static int iwl5000_calc_rssi(struct iwl_priv *priv,
+			     struct iwl_rx_phy_res *rx_resp)
+{
+	/* data from PHY/DSP regarding signal strength, etc.,
+	 *   contents are always there, not configurable by host
+	 */
+	struct iwl5000_non_cfg_phy *ncphy =
+		(struct iwl5000_non_cfg_phy *)rx_resp->non_cfg_phy_buf;
+	u32 val, rssi_a, rssi_b, rssi_c, max_rssi;
+	u8 agc;
+
+	val  = le32_to_cpu(ncphy->non_cfg_phy[IWL50_RX_RES_AGC_IDX]);
+	agc = (val & IWL50_OFDM_AGC_MSK) >> IWL50_OFDM_AGC_BIT_POS;
+
+	/* Find max rssi among 3 possible receivers.
+	 * These values are measured by the digital signal processor (DSP).
+	 * They should stay fairly constant even as the signal strength varies,
+	 *   if the radio's automatic gain control (AGC) is working right.
+	 * AGC value (see below) will provide the "interesting" info.
+	 */
+	val = le32_to_cpu(ncphy->non_cfg_phy[IWL50_RX_RES_RSSI_AB_IDX]);
+	rssi_a = (val & IWL50_OFDM_RSSI_A_MSK) >> IWL50_OFDM_RSSI_A_BIT_POS;
+	rssi_b = (val & IWL50_OFDM_RSSI_B_MSK) >> IWL50_OFDM_RSSI_B_BIT_POS;
+	val = le32_to_cpu(ncphy->non_cfg_phy[IWL50_RX_RES_RSSI_C_IDX]);
+	rssi_c = (val & IWL50_OFDM_RSSI_C_MSK) >> IWL50_OFDM_RSSI_C_BIT_POS;
+
+	max_rssi = max_t(u32, rssi_a, rssi_b);
+	max_rssi = max_t(u32, max_rssi, rssi_c);
+
+	IWL_DEBUG_STATS("Rssi In A %d B %d C %d Max %d AGC dB %d\n",
+		rssi_a, rssi_b, rssi_c, max_rssi, agc);
+
+	/* dBm = max_rssi dB - agc dB - constant.
+	 * Higher AGC (higher radio gain) means lower signal. */
+	return max_rssi - agc - IWL_RSSI_OFFSET;
+}
+
 static struct iwl_hcmd_ops iwl5000_hcmd = {
 	.rxon_assoc = iwl5000_send_rxon_assoc,
 };
@@ -1454,6 +1506,7 @@ static struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.gain_computation = iwl5000_gain_computation,
 	.chain_noise_reset = iwl5000_chain_noise_reset,
 	.rts_tx_cmd_flag = iwl5000_rts_tx_cmd_flag,
+	.calc_rssi = iwl5000_calc_rssi,
 };
 
 static struct iwl_lib_ops iwl5000_lib = {
@@ -1474,6 +1527,7 @@ static struct iwl_lib_ops iwl5000_lib = {
 	.alive_notify = iwl5000_alive_notify,
 	.send_tx_power = iwl5000_send_tx_power,
 	.temperature = iwl5000_temperature,
+	.update_chain_flags = iwl4965_update_chain_flags,
 	.apm_ops = {
 		.init =	iwl5000_apm_init,
 		.reset = iwl5000_apm_reset,

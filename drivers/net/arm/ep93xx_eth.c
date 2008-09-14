@@ -20,8 +20,8 @@
 #include <linux/moduleparam.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
-#include <asm/arch/ep93xx-regs.h>
-#include <asm/arch/platform.h>
+#include <mach/ep93xx-regs.h>
+#include <mach/platform.h>
 #include <asm/io.h>
 
 #define DRV_MODULE_NAME		"ep93xx-eth"

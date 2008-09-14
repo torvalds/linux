@@ -28,9 +28,9 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 
-#include <asm/arch/msm_iomap.h>
+#include <mach/msm_iomap.h>
 
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 struct flash_platform_data msm_nand_data = {
 	.parts		= 0,

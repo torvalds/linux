@@ -82,6 +82,7 @@ struct ieee80211_sta_bss {
 
 	u8 bssid[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
+	u8 dtim_period;
 	u16 capability; /* host byte order */
 	enum ieee80211_band band;
 	int freq;
@@ -469,6 +470,8 @@ struct ieee80211_sub_if_data {
 			struct dentry *auth_transaction;
 			struct dentry *flags;
 			struct dentry *num_beacons_sta;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
 		} sta;
 		struct {
 			struct dentry *drop_unencrypted;
@@ -482,15 +485,21 @@ struct ieee80211_sub_if_data {
 		struct {
 			struct dentry *drop_unencrypted;
 			struct dentry *peer;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
 		} wds;
 		struct {
 			struct dentry *drop_unencrypted;
+			struct dentry *force_unicast_rateidx;
+			struct dentry *max_ratectrl_rateidx;
 		} vlan;
 		struct {
 			struct dentry *mode;
 		} monitor;
-		struct dentry *default_key;
 	} debugfs;
+	struct {
+		struct dentry *default_key;
+	} common_debugfs;
 
 #ifdef CONFIG_MAC80211_MESH
 	struct dentry *mesh_stats_dir;
@@ -586,6 +595,7 @@ struct ieee80211_local {
 	struct timer_list sta_cleanup;
 
 	unsigned long queues_pending[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
+	unsigned long queues_pending_run[BITS_TO_LONGS(IEEE80211_MAX_QUEUES)];
 	struct ieee80211_tx_stored_packet pending_packet[IEEE80211_MAX_QUEUES];
 	struct tasklet_struct tx_pending_tasklet;
 

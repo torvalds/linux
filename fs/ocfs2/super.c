@@ -1442,6 +1442,15 @@ static int ocfs2_initialize_super(struct super_block *sb,
 	}
 	mlog(0, "max_slots for this device: %u\n", osb->max_slots);
 
+	osb->slot_recovery_generations =
+		kcalloc(osb->max_slots, sizeof(*osb->slot_recovery_generations),
+			GFP_KERNEL);
+	if (!osb->slot_recovery_generations) {
+		status = -ENOMEM;
+		mlog_errno(status);
+		goto bail;
+	}
+
 	init_waitqueue_head(&osb->osb_wipe_event);
 	osb->osb_orphan_wipes = kcalloc(osb->max_slots,
 					sizeof(*osb->osb_orphan_wipes),
@@ -1703,7 +1712,7 @@ static int ocfs2_check_volume(struct ocfs2_super *osb)
 	local = ocfs2_mount_local(osb);
 
 	/* will play back anything left in the journal. */
-	status = ocfs2_journal_load(osb->journal, local);
+	status = ocfs2_journal_load(osb->journal, local, dirty);
 	if (status < 0) {
 		mlog(ML_ERROR, "ocfs2 journal load failed! %d\n", status);
 		goto finally;
@@ -1768,6 +1777,7 @@ static void ocfs2_delete_osb(struct ocfs2_super *osb)
 	ocfs2_free_slot_info(osb);
 
 	kfree(osb->osb_orphan_wipes);
+	kfree(osb->slot_recovery_generations);
 	/* FIXME
 	 * This belongs in journal shutdown, but because we have to
 	 * allocate osb->journal at the start of ocfs2_initalize_osb(),

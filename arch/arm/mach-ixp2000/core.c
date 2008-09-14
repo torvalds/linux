@@ -29,7 +29,7 @@
 #include <asm/types.h>
 #include <asm/setup.h>
 #include <asm/memory.h>
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/irq.h>
 #include <asm/system.h>
 #include <asm/tlbflush.h>
@@ -39,7 +39,7 @@
 #include <asm/mach/time.h>
 #include <asm/mach/irq.h>
 
-#include <asm/arch/gpio.h>
+#include <mach/gpio.h>
 
 static DEFINE_SPINLOCK(ixp2000_slowport_lock);
 static unsigned long ixp2000_slowport_irq_flags;

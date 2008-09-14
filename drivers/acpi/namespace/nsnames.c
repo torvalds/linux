@@ -56,13 +56,14 @@ ACPI_MODULE_NAME("nsnames")
  *              Size            - Size of the pathname
  *              *name_buffer    - Where to return the pathname
  *
- * RETURN:      Places the pathname into the name_buffer, in external format
+ * RETURN:      Status
+ *              Places the pathname into the name_buffer, in external format
  *              (name segments separated by path separators)
  *
  * DESCRIPTION: Generate a full pathaname
  *
  ******************************************************************************/
-void
+acpi_status
 acpi_ns_build_external_path(struct acpi_namespace_node *node,
 			    acpi_size size, char *name_buffer)
 {
@@ -77,7 +78,7 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 	if (index < ACPI_NAME_SIZE) {
 		name_buffer[0] = AML_ROOT_PREFIX;
 		name_buffer[1] = 0;
-		return;
+		return (AE_OK);
 	}
 
 	/* Store terminator byte, then build name backwards */
@@ -105,11 +106,13 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 
 	if (index != 0) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not construct pathname; index=%X, size=%X, Path=%s",
+			    "Could not construct external pathname; index=%X, size=%X, Path=%s",
 			    (u32) index, (u32) size, &name_buffer[size]));
+
+		return (AE_BAD_PARAMETER);
 	}
 
-	return;
+	return (AE_OK);
 }
 
 #ifdef ACPI_DEBUG_OUTPUT
@@ -129,6 +132,7 @@ acpi_ns_build_external_path(struct acpi_namespace_node *node,
 
 char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 {
+	acpi_status status;
 	char *name_buffer;
 	acpi_size size;
 
@@ -138,8 +142,7 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	size = acpi_ns_get_pathname_length(node);
 	if (!size) {
-		ACPI_ERROR((AE_INFO, "Invalid node failure"));
-		return_PTR(NULL);
+		return (NULL);
 	}
 
 	/* Allocate a buffer to be returned to caller */
@@ -152,7 +155,11 @@ char *acpi_ns_get_external_pathname(struct acpi_namespace_node *node)
 
 	/* Build the path in the allocated buffer */
 
-	acpi_ns_build_external_path(node, size, name_buffer);
+	status = acpi_ns_build_external_path(node, size, name_buffer);
+	if (ACPI_FAILURE(status)) {
+		return (NULL);
+	}
+
 	return_PTR(name_buffer);
 }
 #endif
@@ -186,7 +193,7 @@ acpi_size acpi_ns_get_pathname_length(struct acpi_namespace_node *node)
 	while (next_node && (next_node != acpi_gbl_root_node)) {
 		if (ACPI_GET_DESCRIPTOR_TYPE(next_node) != ACPI_DESC_TYPE_NAMED) {
 			ACPI_ERROR((AE_INFO,
-				    "Invalid NS Node (%p) while traversing path",
+				    "Invalid Namespace Node (%p) while traversing namespace",
 				    next_node));
 			return 0;
 		}
@@ -234,8 +241,7 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	required_size = acpi_ns_get_pathname_length(node);
 	if (!required_size) {
-		ACPI_ERROR((AE_INFO, "Invalid node failure"));
-		return_ACPI_STATUS(AE_ERROR);
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
 	}
 
 	/* Validate/Allocate/Clear caller buffer */
@@ -247,7 +253,11 @@ acpi_ns_handle_to_pathname(acpi_handle target_handle,
 
 	/* Build the path in the caller buffer */
 
-	acpi_ns_build_external_path(node, required_size, buffer->pointer);
+	status =
+	    acpi_ns_build_external_path(node, required_size, buffer->pointer);
+	if (ACPI_FAILURE(status)) {
+		return_ACPI_STATUS(status);
+	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_EXEC, "%s [%X]\n",
 			  (char *)buffer->pointer, (u32) required_size));

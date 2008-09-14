@@ -1309,14 +1309,14 @@ void tty_write_message(struct tty_struct *tty, char *msg)
 
 #if defined CONFIG_PRINTK
 
-DEFINE_RATELIMIT_STATE(printk_ratelimit_state, 5 * HZ, 10);
 /*
  * printk rate limiting, lifted from the networking subsystem.
  *
- * This enforces a rate limit: not more than one kernel message
- * every printk_ratelimit_jiffies to make a denial-of-service
- * attack impossible.
+ * This enforces a rate limit: not more than 10 kernel messages
+ * every 5s to make a denial-of-service attack impossible.
  */
+DEFINE_RATELIMIT_STATE(printk_ratelimit_state, 5 * HZ, 10);
+
 int printk_ratelimit(void)
 {
 	return __ratelimit(&printk_ratelimit_state);

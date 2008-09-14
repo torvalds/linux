@@ -77,15 +77,14 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 {
 	struct dma_coherent_mem *mem = dev->dma_mem;
 	int pos, err;
-	int pages = (size + (device_addr & ~PAGE_MASK) + PAGE_SIZE - 1);
 
-	pages >>= PAGE_SHIFT;
+	size += device_addr & ~PAGE_MASK;
 
 	if (!mem)
 		return ERR_PTR(-EINVAL);
 
 	pos = (device_addr - mem->device_base) >> PAGE_SHIFT;
-	err = bitmap_allocate_region(mem->bitmap, pos, get_order(pages));
+	err = bitmap_allocate_region(mem->bitmap, pos, get_order(size));
 	if (err != 0)
 		return ERR_PTR(err);
 	return mem->virt_base + (pos << PAGE_SHIFT);
@@ -93,7 +92,7 @@ void *dma_mark_declared_memory_occupied(struct device *dev,
 EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
 
 /**
- * Try to allocate memory from the per-device coherent area.
+ * dma_alloc_from_coherent() - try to allocate memory from the per-device coherent area
  *
  * @dev:	device from which we allocate memory
  * @size:	size of requested memory area
@@ -101,11 +100,11 @@ EXPORT_SYMBOL(dma_mark_declared_memory_occupied);
  * @ret:	This pointer will be filled with the virtual address
  * 		to allocated area.
  *
- * This function should be only called from per-arch %dma_alloc_coherent()
+ * This function should be only called from per-arch dma_alloc_coherent()
  * to support allocation from per-device coherent memory pools.
  *
  * Returns 0 if dma_alloc_coherent should continue with allocating from
- * generic memory areas, or !0 if dma_alloc_coherent should return %ret.
+ * generic memory areas, or !0 if dma_alloc_coherent should return @ret.
  */
 int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 				       dma_addr_t *dma_handle, void **ret)
@@ -127,7 +126,7 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
 }
 
 /**
- * Try to free the memory allocated from per-device coherent memory pool.
+ * dma_release_from_coherent() - try to free the memory allocated from per-device coherent memory pool
  * @dev:	device from which the memory was allocated
  * @order:	the order of pages allocated
  * @vaddr:	virtual address of allocated pages
@@ -136,7 +135,7 @@ int dma_alloc_from_coherent(struct device *dev, ssize_t size,
  * coherent memory pool and if so, releases that memory.
  *
  * Returns 1 if we correctly released the memory, or 0 if
- * %dma_release_coherent() should proceed with releasing memory from
+ * dma_release_coherent() should proceed with releasing memory from
  * generic pools.
  */
 int dma_release_from_coherent(struct device *dev, int order, void *vaddr)

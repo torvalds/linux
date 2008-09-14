@@ -117,7 +117,7 @@ static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
 }
 
-static u8 __devinit pdc2026x_cable_detect(ide_hwif_t *hwif)
+static u8 pdc2026x_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u16 CIS, mask = hwif->channel ? (1 << 11) : (1 << 10);

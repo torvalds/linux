@@ -328,7 +328,11 @@ EXPORT_SYMBOL(PCIBIOS_MIN_IO);
 EXPORT_SYMBOL(PCIBIOS_MIN_MEM);
 #endif
 
-char *pcibios_setup(char *str)
+char * (*pcibios_plat_setup)(char *str) __devinitdata;
+
+char *__devinit pcibios_setup(char *str)
 {
+	if (pcibios_plat_setup)
+		return pcibios_plat_setup(str);
 	return str;
 }

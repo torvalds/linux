@@ -470,6 +470,7 @@ int dapm_reg_event(struct snd_soc_dapm_widget *w,
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(dapm_reg_event);
 
 /*
  * Scan each dapm widget for complete audio path.

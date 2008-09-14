@@ -1612,8 +1612,10 @@ static int mxser_ioctl_special(unsigned int cmd, void __user *argp)
 
 	switch (cmd) {
 	case MOXA_GET_MAJOR:
-		printk(KERN_WARNING "mxser: '%s' uses deprecated ioctl %x, fix "
-				"your userspace\n", current->comm, cmd);
+		if (printk_ratelimit())
+			printk(KERN_WARNING "mxser: '%s' uses deprecated ioctl "
+					"%x (GET_MAJOR), fix your userspace\n",
+					current->comm, cmd);
 		return put_user(ttymajor, (int __user *)argp);
 
 	case MOXA_CHKPORTENABLE:

@@ -451,19 +451,21 @@ SCIx_FNS(SCxSR,  0x08,  8, 0x10,  8, 0x08, 16, 0x10, 16, 0x04,  8)
 SCIx_FNS(SCxRDR, 0x0a,  8, 0x14,  8, 0x0A,  8, 0x14,  8, 0x05,  8)
 SCIF_FNS(SCFCR,                      0x0c,  8, 0x18, 16)
 #if defined(CONFIG_CPU_SUBTYPE_SH7760) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7763) || \
     defined(CONFIG_CPU_SUBTYPE_SH7780) || \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
+SCIF_FNS(SCFDR,			     0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCTFDR,		     0x0e, 16, 0x1C, 16)
 SCIF_FNS(SCRFDR,		     0x0e, 16, 0x20, 16)
 SCIF_FNS(SCSPTR,			0,  0, 0x24, 16)
 SCIF_FNS(SCLSR,				0,  0, 0x28, 16)
-#if defined(CONFIG_CPU_SUBTYPE_SH7763)
-/* SH7763 SCIF2 */
+#elif defined(CONFIG_CPU_SUBTYPE_SH7763)
 SCIF_FNS(SCFDR,				0,  0, 0x1C, 16)
 SCIF_FNS(SCSPTR2,			0,  0, 0x20, 16)
-SCIF_FNS(SCLSR2, 			0,  0, 0x24, 16)
-#endif /* CONFIG_CPU_SUBTYPE_SH7763 */
+SCIF_FNS(SCLSR2,			0,  0, 0x24, 16)
+SCIF_FNS(SCTFDR,		     0x0e, 16, 0x1C, 16)
+SCIF_FNS(SCRFDR,		     0x0e, 16, 0x20, 16)
+SCIF_FNS(SCSPTR,			0,  0, 0x24, 16)
+SCIF_FNS(SCLSR,				0,  0, 0x28, 16)
 #else
 SCIF_FNS(SCFDR,                      0x0e, 16, 0x1C, 16)
 #if defined(CONFIG_CPU_SUBTYPE_SH7722)

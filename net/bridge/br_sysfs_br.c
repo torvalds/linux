@@ -29,11 +29,12 @@
  */
 static ssize_t store_bridge_parm(struct device *d,
 				 const char *buf, size_t len,
-				 void (*set)(struct net_bridge *, unsigned long))
+				 int (*set)(struct net_bridge *, unsigned long))
 {
 	struct net_bridge *br = to_bridge(d);
 	char *endp;
 	unsigned long val;
+	int err;
 
 	if (!capable(CAP_NET_ADMIN))
 		return -EPERM;
@@ -43,9 +44,9 @@ static ssize_t store_bridge_parm(struct device *d,
 		return -EINVAL;
 
 	spin_lock_bh(&br->lock);
-	(*set)(br, val);
+	err = (*set)(br, val);
 	spin_unlock_bh(&br->lock);
-	return len;
+	return err ? err : len;
 }
 
 
@@ -56,12 +57,13 @@ static ssize_t show_forward_delay(struct device *d,
 	return sprintf(buf, "%lu\n", jiffies_to_clock_t(br->forward_delay));
 }
 
-static void set_forward_delay(struct net_bridge *br, unsigned long val)
+static int set_forward_delay(struct net_bridge *br, unsigned long val)
 {
 	unsigned long delay = clock_t_to_jiffies(val);
 	br->forward_delay = delay;
 	if (br_is_root_bridge(br))
 		br->bridge_forward_delay = delay;
+	return 0;
 }
 
 static ssize_t store_forward_delay(struct device *d,
@@ -80,12 +82,17 @@ static ssize_t show_hello_time(struct device *d, struct device_attribute *attr,
 		       jiffies_to_clock_t(to_bridge(d)->hello_time));
 }
 
-static void set_hello_time(struct net_bridge *br, unsigned long val)
+static int set_hello_time(struct net_bridge *br, unsigned long val)
 {
 	unsigned long t = clock_t_to_jiffies(val);
+
+	if (t < HZ)
+		return -EINVAL;
+
 	br->hello_time = t;
 	if (br_is_root_bridge(br))
 		br->bridge_hello_time = t;
+	return 0;
 }
 
 static ssize_t store_hello_time(struct device *d,
@@ -104,12 +111,13 @@ static ssize_t show_max_age(struct device *d, struct device_attribute *attr,
 		       jiffies_to_clock_t(to_bridge(d)->max_age));
 }
 
-static void set_max_age(struct net_bridge *br, unsigned long val)
+static int set_max_age(struct net_bridge *br, unsigned long val)
 {
 	unsigned long t = clock_t_to_jiffies(val);
 	br->max_age = t;
 	if (br_is_root_bridge(br))
 		br->bridge_max_age = t;
+	return 0;
 }
 
 static ssize_t store_max_age(struct device *d, struct device_attribute *attr,
@@ -126,9 +134,10 @@ static ssize_t show_ageing_time(struct device *d,
 	return sprintf(buf, "%lu\n", jiffies_to_clock_t(br->ageing_time));
 }
 
-static void set_ageing_time(struct net_bridge *br, unsigned long val)
+static int set_ageing_time(struct net_bridge *br, unsigned long val)
 {
 	br->ageing_time = clock_t_to_jiffies(val);
+	return 0;
 }
 
 static ssize_t store_ageing_time(struct device *d,
@@ -180,9 +189,10 @@ static ssize_t show_priority(struct device *d, struct device_attribute *attr,
 		       (br->bridge_id.prio[0] << 8) | br->bridge_id.prio[1]);
 }
 
-static void set_priority(struct net_bridge *br, unsigned long val)
+static int set_priority(struct net_bridge *br, unsigned long val)
 {
 	br_stp_set_bridge_priority(br, (u16) val);
+	return 0;
 }
 
 static ssize_t store_priority(struct device *d, struct device_attribute *attr,

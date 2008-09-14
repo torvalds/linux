@@ -22,24 +22,24 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/control.h>
-#include <asm/arch/gpio.h>
-#include <asm/arch/gpioexpander.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/irda.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
-#include <asm/arch/keypad.h>
-#include <asm/arch/menelaus.h>
-#include <asm/arch/dma.h>
-#include <asm/arch/gpmc.h>
+#include <mach/control.h>
+#include <mach/gpio.h>
+#include <mach/gpioexpander.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/irda.h>
+#include <mach/board.h>
+#include <mach/common.h>
+#include <mach/keypad.h>
+#include <mach/menelaus.h>
+#include <mach/dma.h>
+#include <mach/gpmc.h>
 
 #include <asm/io.h>
 

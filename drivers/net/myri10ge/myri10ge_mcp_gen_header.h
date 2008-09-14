@@ -35,7 +35,7 @@ struct mcp_gen_header {
 	unsigned char mcp_index;
 	unsigned char disable_rabbit;
 	unsigned char unaligned_tlp;
-	unsigned char pad1;
+	unsigned char pcie_link_algo;
 	unsigned counters_addr;
 	unsigned copy_block_info;	/* for small mcps loaded with "lload -d" */
 	unsigned short handoff_id_major;	/* must be equal */

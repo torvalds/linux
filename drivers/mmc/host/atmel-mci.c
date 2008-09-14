@@ -28,7 +28,7 @@
 #include <asm/io.h>
 #include <asm/unaligned.h>
 
-#include <asm/arch/board.h>
+#include <mach/board.h>
 
 #include "atmel-mci-regs.h"
 

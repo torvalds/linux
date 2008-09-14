@@ -149,80 +149,18 @@ static uint32_t msi_tgt_status[8] = {
 
 static struct netxen_legacy_intr_set legacy_intr[] = NX_LEGACY_INTR_CONFIG;
 
-static void netxen_nic_disable_int(struct netxen_adapter *adapter)
+static inline void netxen_nic_disable_int(struct netxen_adapter *adapter)
 {
-	u32 mask = 0x7ff;
-	int retries = 32;
-	int pci_fn = adapter->ahw.pci_func;
-
-	if (adapter->msi_mode != MSI_MODE_MULTIFUNC)
-		adapter->pci_write_normalize(adapter,
-				adapter->crb_intr_mask, 0);
-
-	if (adapter->intr_scheme != -1 &&
-	    adapter->intr_scheme != INTR_SCHEME_PERPORT)
-		adapter->pci_write_immediate(adapter, ISR_INT_MASK, mask);
-
-	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
-		do {
-			adapter->pci_write_immediate(adapter,
-					ISR_INT_TARGET_STATUS, 0xffffffff);
-			mask = adapter->pci_read_immediate(adapter,
-					ISR_INT_VECTOR);
-			if (!(mask & 0x80))
-				break;
-			udelay(10);
-		} while (--retries);
-
-		if (!retries) {
-			printk(KERN_NOTICE "%s: Failed to disable interrupt completely\n",
-					netxen_nic_driver_name);
-		}
-	} else {
-		if (adapter->msi_mode == MSI_MODE_MULTIFUNC) {
-			adapter->pci_write_immediate(adapter,
-					msi_tgt_status[pci_fn], 0xffffffff);
-		}
-	}
+	adapter->pci_write_normalize(adapter, adapter->crb_intr_mask, 0);
 }
 
-static void netxen_nic_enable_int(struct netxen_adapter *adapter)
+static inline void netxen_nic_enable_int(struct netxen_adapter *adapter)
 {
-	u32 mask;
-
-	DPRINTK(1, INFO, "Entered ISR Enable \n");
-
-	if (adapter->intr_scheme != -1 &&
-		adapter->intr_scheme != INTR_SCHEME_PERPORT) {
-		switch (adapter->ahw.board_type) {
-		case NETXEN_NIC_GBE:
-			mask  =  0x77b;
-			break;
-		case NETXEN_NIC_XGBE:
-			mask  =  0x77f;
-			break;
-		default:
-			mask  =  0x7ff;
-			break;
-		}
-
-		adapter->pci_write_immediate(adapter, ISR_INT_MASK, mask);
-	}
-
 	adapter->pci_write_normalize(adapter, adapter->crb_intr_mask, 0x1);
 
-	if (!NETXEN_IS_MSI_FAMILY(adapter)) {
-		mask = 0xbff;
-		if (adapter->intr_scheme != -1 &&
-			adapter->intr_scheme != INTR_SCHEME_PERPORT) {
-			adapter->pci_write_normalize(adapter,
-					CRB_INT_VECTOR, 0);
-		}
+	if (!NETXEN_IS_MSI_FAMILY(adapter))
 		adapter->pci_write_immediate(adapter,
-				ISR_INT_TARGET_MASK, mask);
-	}
-
-	DPRINTK(1, INFO, "Done with enable Int\n");
+				adapter->legacy_intr.tgt_mask_reg, 0xfbff);
 }
 
 static int nx_set_dma_mask(struct netxen_adapter *adapter, uint8_t revision_id)
@@ -284,6 +222,8 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_10G_CX4_LP:
 	case NETXEN_BRDTYPE_P3_IMEZ:
 	case NETXEN_BRDTYPE_P3_10G_SFP_PLUS:
+	case NETXEN_BRDTYPE_P3_10G_SFP_QT:
+	case NETXEN_BRDTYPE_P3_10G_SFP_CT:
 	case NETXEN_BRDTYPE_P3_10G_XFP:
 	case NETXEN_BRDTYPE_P3_10000_BASE_T:
 		adapter->msix_supported = !!use_msi_x;
@@ -301,6 +241,10 @@ static void netxen_check_options(struct netxen_adapter *adapter)
 	case NETXEN_BRDTYPE_P3_REF_QG:
 	case NETXEN_BRDTYPE_P3_4_GB:
 	case NETXEN_BRDTYPE_P3_4_GB_MM:
+		adapter->msix_supported = 0;
+		adapter->max_rx_desc_count = MAX_RCV_DESCRIPTORS_10G;
+		break;
+
 	case NETXEN_BRDTYPE_P2_SB35_4G:
 	case NETXEN_BRDTYPE_P2_SB31_2G:
 		adapter->msix_supported = 0;
@@ -415,16 +359,6 @@ static void netxen_pcie_strap_init(struct netxen_adapter *adapter)
 	int i, pos;
 	struct pci_dev *pdev;
 
-	pdev = pci_get_device(0x1166, 0x0140, NULL);
-	if (pdev) {
-		pci_dev_put(pdev);
-		adapter->hw_read_wx(adapter,
-			NETXEN_PCIE_REG(PCIE_TGT_SPLIT_CHICKEN), &chicken, 4);
-		chicken |= 0x4000;
-		adapter->hw_write_wx(adapter,
-			NETXEN_PCIE_REG(PCIE_TGT_SPLIT_CHICKEN), &chicken, 4);
-	}
-
 	pdev = adapter->pdev;
 
 	adapter->hw_read_wx(adapter,
@@ -499,6 +433,44 @@ static void netxen_init_msix_entries(struct netxen_adapter *adapter)
 		adapter->msix_entries[i].entry = i;
 }
 
+static int
+netxen_read_mac_addr(struct netxen_adapter *adapter)
+{
+	int i;
+	unsigned char *p;
+	__le64 mac_addr;
+	DECLARE_MAC_BUF(mac);
+	struct net_device *netdev = adapter->netdev;
+	struct pci_dev *pdev = adapter->pdev;
+
+	if (netxen_is_flash_supported(adapter) != 0)
+		return -EIO;
+
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		if (netxen_p3_get_mac_addr(adapter, &mac_addr) != 0)
+			return -EIO;
+	} else {
+		if (netxen_get_flash_mac_addr(adapter, &mac_addr) != 0)
+			return -EIO;
+	}
+
+	p = (unsigned char *)&mac_addr;
+	for (i = 0; i < 6; i++)
+		netdev->dev_addr[i] = *(p + 5 - i);
+
+	memcpy(netdev->perm_addr, netdev->dev_addr, netdev->addr_len);
+
+	/* set station address */
+
+	if (!is_valid_ether_addr(netdev->perm_addr)) {
+		dev_warn(&pdev->dev, "Bad MAC address %s.\n",
+				print_mac(mac, netdev->dev_addr));
+	} else
+		adapter->macaddr_set(adapter, netdev->dev_addr);
+
+	return 0;
+}
+
 /*
  * netxen_nic_probe()
  *
@@ -527,10 +499,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long mem_base, mem_len, db_base, db_len, pci_len0 = 0;
 	int i = 0, err;
 	int first_driver, first_boot;
-	__le64 mac_addr[FLASH_NUM_PORTS + 1];
 	u32 val;
 	int pci_func_id = PCI_FUNC(pdev->devfn);
-	DECLARE_MAC_BUF(mac);
 	struct netxen_legacy_intr_set *legacy_intrp;
 	uint8_t revision_id;
 
@@ -540,6 +510,13 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (pdev->class != 0x020000) {
 		printk(KERN_DEBUG "NetXen function %d, class %x will not "
 				"be enabled.\n",pci_func_id, pdev->class);
+		return -ENODEV;
+	}
+
+	if (pdev->revision >= NX_P3_A0 && pdev->revision < NX_P3_B1) {
+		printk(KERN_WARNING "NetXen chip revisions between 0x%x-0x%x"
+				"will not be enabled.\n",
+				NX_P3_A0, NX_P3_B1);
 		return -ENODEV;
 	}
 
@@ -700,13 +677,10 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	adapter->status   &= ~NETXEN_NETDEV_STATUS;
 	adapter->rx_csum = 1;
 	adapter->mc_enabled = 0;
-	if (NX_IS_REVISION_P3(revision_id)) {
+	if (NX_IS_REVISION_P3(revision_id))
 		adapter->max_mc_count = 38;
-		adapter->max_rds_rings = 2;
-	} else {
+	else
 		adapter->max_mc_count = 16;
-		adapter->max_rds_rings = 3;
-	}
 
 	netdev->open		   = netxen_nic_open;
 	netdev->stop		   = netxen_nic_close;
@@ -779,10 +753,6 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		if (adapter->portnum == 0)
 			first_driver = 1;
 	}
-	adapter->crb_addr_cmd_producer = crb_cmd_producer[adapter->portnum];
-	adapter->crb_addr_cmd_consumer = crb_cmd_consumer[adapter->portnum];
-	netxen_nic_update_cmd_producer(adapter, 0);
-	netxen_nic_update_cmd_consumer(adapter, 0);
 
 	if (first_driver) {
 		first_boot = adapter->pci_read_normalize(adapter,
@@ -903,34 +873,14 @@ request_msi:
 		goto err_out_disable_msi;
 
 	init_timer(&adapter->watchdog_timer);
-	adapter->ahw.linkup = 0;
 	adapter->watchdog_timer.function = &netxen_watchdog;
 	adapter->watchdog_timer.data = (unsigned long)adapter;
 	INIT_WORK(&adapter->watchdog_task, netxen_watchdog_task);
 	INIT_WORK(&adapter->tx_timeout_task, netxen_tx_timeout_task);
 
-	if (netxen_is_flash_supported(adapter) == 0 &&
-			netxen_get_flash_mac_addr(adapter, mac_addr) == 0) {
-		unsigned char *p;
-
-		p = (unsigned char *)&mac_addr[adapter->portnum];
-		netdev->dev_addr[0] = *(p + 5);
-		netdev->dev_addr[1] = *(p + 4);
-		netdev->dev_addr[2] = *(p + 3);
-		netdev->dev_addr[3] = *(p + 2);
-		netdev->dev_addr[4] = *(p + 1);
-		netdev->dev_addr[5] = *(p + 0);
-
-		memcpy(netdev->perm_addr, netdev->dev_addr,
-			netdev->addr_len);
-		if (!is_valid_ether_addr(netdev->perm_addr)) {
-			printk(KERN_ERR "%s: Bad MAC address %s.\n",
-					netxen_nic_driver_name,
-					print_mac(mac, netdev->dev_addr));
-		} else {
-			adapter->macaddr_set(adapter, netdev->dev_addr);
-		}
-	}
+	err = netxen_read_mac_addr(adapter);
+	if (err)
+		dev_warn(&pdev->dev, "failed to read mac addr\n");
 
 	netif_carrier_off(netdev);
 	netif_stop_queue(netdev);
@@ -1005,6 +955,7 @@ static void __devexit netxen_nic_remove(struct pci_dev *pdev)
 
 	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
 		netxen_free_hw_resources(adapter);
+		netxen_release_rx_buffers(adapter);
 		netxen_free_sw_resources(adapter);
 	}
 
@@ -1053,6 +1004,11 @@ static int netxen_nic_open(struct net_device *netdev)
 			return -EIO;
 		}
 
+		if (adapter->fw_major < 4)
+			adapter->max_rds_rings = 3;
+		else
+			adapter->max_rds_rings = 2;
+
 		err = netxen_alloc_sw_resources(adapter);
 		if (err) {
 			printk(KERN_ERR "%s: Error in setting sw resources\n",
@@ -1069,15 +1025,24 @@ static int netxen_nic_open(struct net_device *netdev)
 			goto err_out_free_sw;
 		}
 
+		if ((adapter->msi_mode != MSI_MODE_MULTIFUNC) ||
+			(adapter->intr_scheme != INTR_SCHEME_PERPORT)) {
+			printk(KERN_ERR "%s: Firmware interrupt scheme is "
+					"incompatible with driver\n",
+					netdev->name);
+			adapter->driver_mismatch = 1;
+			goto err_out_free_hw;
+		}
+
 		if (adapter->fw_major < 4) {
 			adapter->crb_addr_cmd_producer =
 				crb_cmd_producer[adapter->portnum];
 			adapter->crb_addr_cmd_consumer =
 				crb_cmd_consumer[adapter->portnum];
-		}
 
-		netxen_nic_update_cmd_producer(adapter, 0);
-		netxen_nic_update_cmd_consumer(adapter, 0);
+			netxen_nic_update_cmd_producer(adapter, 0);
+			netxen_nic_update_cmd_consumer(adapter, 0);
+		}
 
 		for (ctx = 0; ctx < MAX_RCV_CTX; ++ctx) {
 			for (ring = 0; ring < adapter->max_rds_rings; ring++)
@@ -1094,7 +1059,7 @@ static int netxen_nic_open(struct net_device *netdev)
 				  flags, netdev->name, adapter);
 		if (err) {
 			printk(KERN_ERR "request_irq failed with: %d\n", err);
-			goto err_out_free_hw;
+			goto err_out_free_rxbuf;
 		}
 
 		adapter->is_up = NETXEN_ADAPTER_UP_MAGIC;
@@ -1113,11 +1078,10 @@ static int netxen_nic_open(struct net_device *netdev)
 	netxen_nic_set_link_parameters(adapter);
 
 	netdev->set_multicast_list(netdev);
-	if (NX_IS_REVISION_P3(adapter->ahw.revision_id))
-		nx_fw_cmd_set_mtu(adapter, netdev->mtu);
-	else
+	if (adapter->set_mtu)
 		adapter->set_mtu(adapter, netdev->mtu);
 
+	adapter->ahw.linkup = 0;
 	mod_timer(&adapter->watchdog_timer, jiffies);
 
 	napi_enable(&adapter->napi);
@@ -1129,6 +1093,8 @@ static int netxen_nic_open(struct net_device *netdev)
 
 err_out_free_irq:
 	free_irq(adapter->irq, adapter);
+err_out_free_rxbuf:
+	netxen_release_rx_buffers(adapter);
 err_out_free_hw:
 	netxen_free_hw_resources(adapter);
 err_out_free_sw:
@@ -1154,10 +1120,8 @@ static int netxen_nic_close(struct net_device *netdev)
 
 	netxen_release_tx_buffers(adapter);
 
-	if (adapter->is_up == NETXEN_ADAPTER_UP_MAGIC) {
-		FLUSH_SCHEDULED_WORK();
-		del_timer_sync(&adapter->watchdog_timer);
-	}
+	FLUSH_SCHEDULED_WORK();
+	del_timer_sync(&adapter->watchdog_timer);
 
 	return 0;
 }
@@ -1410,20 +1374,17 @@ static void netxen_nic_handle_phy_intr(struct netxen_adapter *adapter)
 
 	port = adapter->physical_port;
 
-	if (adapter->ahw.board_type == NETXEN_NIC_GBE) {
-		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
-		linkup = (val >> port) & 1;
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE_P3);
+		val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
+		linkup = (val == XG_LINK_UP_P3);
 	} else {
-		if (adapter->fw_major < 4) {
-			val = adapter->pci_read_normalize(adapter,
-					CRB_XG_STATE);
+		val = adapter->pci_read_normalize(adapter, CRB_XG_STATE);
+		if (adapter->ahw.board_type == NETXEN_NIC_GBE)
+			linkup = (val >> port) & 1;
+		else {
 			val = (val >> port*8) & 0xff;
 			linkup = (val == XG_LINK_UP);
-		} else {
-			val = adapter->pci_read_normalize(adapter,
-				CRB_XG_STATE_P3);
-			val = XG_LINK_STATE_P3(adapter->ahw.pci_func, val);
-			linkup = (val == XG_LINK_UP_P3);
 		}
 	}
 
@@ -1463,7 +1424,8 @@ void netxen_watchdog_task(struct work_struct *work)
 
 	netxen_nic_handle_phy_intr(adapter);
 
-	mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
+	if (netif_running(adapter->netdev))
+		mod_timer(&adapter->watchdog_timer, jiffies + 2 * HZ);
 }
 
 static void netxen_tx_timeout(struct net_device *netdev)
@@ -1523,30 +1485,49 @@ struct net_device_stats *netxen_nic_get_stats(struct net_device *netdev)
 	return stats;
 }
 
-static inline void
-netxen_handle_int(struct netxen_adapter *adapter)
-{
-	netxen_nic_disable_int(adapter);
-	napi_schedule(&adapter->napi);
-}
-
 static irqreturn_t netxen_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter = data;
-	u32 our_int = 0;
+	u32 status = 0;
 
-	our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
-	/* not our interrupt */
-	if ((our_int & (0x80 << adapter->portnum)) == 0)
+	status = adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+
+	if (!(status & adapter->legacy_intr.int_vec_bit))
 		return IRQ_NONE;
 
-	if (adapter->intr_scheme == INTR_SCHEME_PERPORT) {
+	if (adapter->ahw.revision_id >= NX_P3_B1) {
+		/* check interrupt state machine, to be sure */
+		status = adapter->pci_read_immediate(adapter,
+				ISR_INT_STATE_REG);
+		if (!ISR_LEGACY_INT_TRIGGERED(status))
+			return IRQ_NONE;
+
+	} else {
+		unsigned long our_int = 0;
+
+		our_int = adapter->pci_read_normalize(adapter, CRB_INT_VECTOR);
+
+		/* not our interrupt */
+		if (!test_and_clear_bit((7 + adapter->portnum), &our_int))
+			return IRQ_NONE;
+
 		/* claim interrupt */
-		adapter->pci_write_normalize(adapter, CRB_INT_VECTOR,
-				our_int & ~((u32)(0x80 << adapter->portnum)));
+		adapter->pci_write_normalize(adapter,
+				CRB_INT_VECTOR, (our_int & 0xffffffff));
 	}
 
-	netxen_handle_int(adapter);
+	/* clear interrupt */
+	if (adapter->fw_major < 4)
+		netxen_nic_disable_int(adapter);
+
+	adapter->pci_write_immediate(adapter,
+			adapter->legacy_intr.tgt_status_reg,
+			0xffffffff);
+	/* read twice to ensure write is flushed */
+	adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+	adapter->pci_read_immediate(adapter, ISR_INT_VECTOR);
+
+	napi_schedule(&adapter->napi);
 
 	return IRQ_HANDLED;
 }
@@ -1555,7 +1536,11 @@ static irqreturn_t netxen_msi_intr(int irq, void *data)
 {
 	struct netxen_adapter *adapter = data;
 
-	netxen_handle_int(adapter);
+	/* clear interrupt */
+	adapter->pci_write_immediate(adapter,
+			msi_tgt_status[adapter->ahw.pci_func], 0xffffffff);
+
+	napi_schedule(&adapter->napi);
 	return IRQ_HANDLED;
 }
 

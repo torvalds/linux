@@ -43,7 +43,7 @@
 #include <linux/spinlock.h>
 #include <linux/cpufreq.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/io.h>
 #include <asm/system.h>
 
@@ -51,7 +51,7 @@
 
 /* FIXME: platform dependent resource declaration has to move out of this file */
 #ifdef CONFIG_ARCH_PXA
-#include <asm/arch/pxa-regs.h>
+#include <mach/pxa-regs.h>
 #endif
 
 #ifdef DEBUG

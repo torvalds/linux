@@ -26,8 +26,8 @@
 #include <linux/io.h>
 #include <linux/limits.h>
 
-#include <asm/arch/clock.h>
-#include <asm/arch/sram.h>
+#include <mach/clock.h>
+#include <mach/sram.h>
 #include <asm/div64.h>
 #include <asm/bitops.h>
 

@@ -313,6 +313,8 @@ static int fat_allow_set_time(struct msdos_sb_info *sbi, struct inode *inode)
 	return 0;
 }
 
+#define TIMES_SET_FLAGS	(ATTR_MTIME_SET | ATTR_ATIME_SET | ATTR_TIMES_SET)
+
 int fat_setattr(struct dentry *dentry, struct iattr *attr)
 {
 	struct msdos_sb_info *sbi = MSDOS_SB(dentry->d_sb);
@@ -336,9 +338,9 @@ int fat_setattr(struct dentry *dentry, struct iattr *attr)
 
 	/* Check for setting the inode time. */
 	ia_valid = attr->ia_valid;
-	if (ia_valid & (ATTR_MTIME_SET | ATTR_ATIME_SET)) {
+	if (ia_valid & TIMES_SET_FLAGS) {
 		if (fat_allow_set_time(sbi, inode))
-			attr->ia_valid &= ~(ATTR_MTIME_SET | ATTR_ATIME_SET);
+			attr->ia_valid &= ~TIMES_SET_FLAGS;
 	}
 
 	error = inode_change_ok(inode, attr);

@@ -103,7 +103,6 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/delay.h>
-#include <net/syncppp.h>
 #include <linux/hdlc.h>
 #include <linux/mutex.h>
 

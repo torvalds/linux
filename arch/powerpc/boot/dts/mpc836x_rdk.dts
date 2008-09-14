@@ -149,18 +149,14 @@
 		};
 
 		crypto@30000 {
-			compatible = "fsl,sec2-crypto";
+			compatible = "fsl,sec2.0";
 			reg = <0x30000 0x10000>;
-			interrupts = <11 8>;
+			interrupts = <11 0x8>;
 			interrupt-parent = <&ipic>;
-			num-channels = <4>;
-			channel-fifo-len = <24>;
-			exec-units-mask = <0x7e>;
-			/*
-			 * desc mask is for rev1.x, we need runtime fixup
-			 * for >=2.x
-			 */
-			descriptor-types-mask = <0x1010ebf>;
+			fsl,num-channels = <4>;
+			fsl,channel-fifo-len = <24>;
+			fsl,exec-units-mask = <0x7e>;
+			fsl,descriptor-types-mask = <0x01010ebf>;
 		};
 
 		ipic: interrupt-controller@700 {

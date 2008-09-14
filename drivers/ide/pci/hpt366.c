@@ -1214,7 +1214,7 @@ static unsigned int __devinit init_chipset_hpt366(struct pci_dev *dev)
 	return dev->irq;
 }
 
-static u8 __devinit hpt3xx_cable_detect(ide_hwif_t *hwif)
+static u8 hpt3xx_cable_detect(ide_hwif_t *hwif)
 {
 	struct pci_dev	*dev	= to_pci_dev(hwif->dev);
 	struct ide_host *host	= pci_get_drvdata(dev);
@@ -1620,7 +1620,7 @@ static struct pci_driver driver = {
 	.name		= "HPT366_IDE",
 	.id_table	= hpt366_pci_tbl,
 	.probe		= hpt366_init_one,
-	.remove		= hpt366_remove,
+	.remove		= __devexit_p(hpt366_remove),
 };
 
 static int __init hpt366_ide_init(void)

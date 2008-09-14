@@ -100,7 +100,7 @@ static inline void load_eaddr(struct net_device *dev)
 	DPRINTK("Loading MAC Address: %s\n", print_mac(mac, dev->dev_addr));
 	macaddr = 0;
 	for (i = 0; i < 6; i++)
-		macaddr |= dev->dev_addr[i] << ((5 - i) * 8);
+		macaddr |= (u64)dev->dev_addr[i] << ((5 - i) * 8);
 
 	mace->eth.mac_addr = macaddr;
 }

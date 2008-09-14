@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
-#include <linux/serial_core.h>
 #include <linux/param.h>
 #include <asm/txx9irq.h>
 #include <asm/txx9tmr.h>
@@ -21,12 +20,17 @@
 #include <asm/txx9/generic.h>
 #include <asm/txx9/tx4927.h>
 
-void __init tx4927_wdr_init(void)
+static void __init tx4927_wdr_init(void)
 {
 	/* clear WatchDogReset (W1C) */
 	tx4927_ccfg_set(TX4927_CCFG_WDRST);
 	/* do reset on watchdog */
 	tx4927_ccfg_set(TX4927_CCFG_WR);
+}
+
+void __init tx4927_wdt_init(void)
+{
+	txx9_wdt_init(TX4927_TMR_REG(2) & 0xfffffffffULL);
 }
 
 static struct resource tx4927_sdram_resource[4];
@@ -173,22 +177,12 @@ void __init tx4927_time_init(unsigned int tmrnr)
 				     TXX9_IMCLK);
 }
 
-void __init tx4927_setup_serial(void)
+void __init tx4927_sio_init(unsigned int sclk, unsigned int cts_mask)
 {
-#ifdef CONFIG_SERIAL_TXX9
 	int i;
-	struct uart_port req;
 
-	for (i = 0; i < 2; i++) {
-		memset(&req, 0, sizeof(req));
-		req.line = i;
-		req.iotype = UPIO_MEM;
-		req.membase = (unsigned char __iomem *)TX4927_SIO_REG(i);
-		req.mapbase = TX4927_SIO_REG(i) & 0xfffffffffULL;
-		req.irq = TXX9_IRQ_BASE + TX4927_IR_SIO(i);
-		req.flags |= UPF_BUGGY_UART /*HAVE_CTS_LINE*/;
-		req.uartclk = TXX9_IMCLK;
-		early_serial_txx9_setup(&req);
-	}
-#endif /* CONFIG_SERIAL_TXX9 */
+	for (i = 0; i < 2; i++)
+		txx9_sio_init(TX4927_SIO_REG(i) & 0xfffffffffULL,
+			      TXX9_IRQ_BASE + TX4927_IR_SIO(i),
+			      i, sclk, (1 << i) & cts_mask);
 }

@@ -482,7 +482,7 @@ isl1208_sysfs_register(struct device *dev)
 static int
 isl1208_sysfs_unregister(struct device *dev)
 {
-	device_remove_file(dev, &dev_attr_atrim);
+	device_remove_file(dev, &dev_attr_dtrim);
 	device_remove_file(dev, &dev_attr_atrim);
 	device_remove_file(dev, &dev_attr_usr);
 

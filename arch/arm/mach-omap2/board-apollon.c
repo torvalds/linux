@@ -29,19 +29,19 @@
 #include <linux/err.h>
 #include <linux/clk.h>
 
-#include <asm/hardware.h>
+#include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/led.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/usb.h>
-#include <asm/arch/board.h>
-#include <asm/arch/common.h>
-#include <asm/arch/gpmc.h>
-#include <asm/arch/control.h>
+#include <mach/gpio.h>
+#include <mach/led.h>
+#include <mach/mux.h>
+#include <mach/usb.h>
+#include <mach/board.h>
+#include <mach/common.h>
+#include <mach/gpmc.h>
+#include <mach/control.h>
 
 /* LED & Switch macros */
 #define LED0_GPIO13		13

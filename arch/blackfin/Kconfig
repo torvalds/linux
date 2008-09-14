@@ -249,7 +249,7 @@ config MEM_MT48LC8M32B2B5_7
 
 config MEM_MT48LC32M16A2TG_75
 	bool
-	depends on (BFIN527_EZKIT || BFIN532_IP0X)
+	depends on (BFIN527_EZKIT || BFIN532_IP0X || BLACKSTAMP)
 	default y
 
 source "arch/blackfin/mach-bf527/Kconfig"
@@ -292,7 +292,7 @@ config CLKIN_HZ
 	int "Frequency of the crystal on the board in Hz"
 	default "11059200" if BFIN533_STAMP
 	default "27000000" if BFIN533_EZKIT
-	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS)
+	default "25000000" if (BFIN537_STAMP || BFIN527_EZKIT || H8606_HVSISTEMAS || BLACKSTAMP)
 	default "30000000" if BFIN561_EZKIT
 	default "24576000" if PNAV10
 	default "10000000" if BFIN532_IP0X
@@ -332,7 +332,7 @@ config VCO_MULT
 	default "22" if BFIN533_BLUETECHNIX_CM
 	default "20" if (BFIN537_BLUETECHNIX_CM || BFIN527_BLUETECHNIX_CM || BFIN561_BLUETECHNIX_CM)
 	default "20" if BFIN561_EZKIT
-	default "16" if H8606_HVSISTEMAS
+	default "16" if (H8606_HVSISTEMAS || BLACKSTAMP)
 	help
 	  This controls the frequency of the on-chip PLL. This can be between 1 and 64.
 	  PLL Frequency = (Crystal Frequency) * (this setting)
@@ -622,6 +622,33 @@ config CPLB_SWITCH_TAB_L1
 	  If enabled, the CPLB Switch Tables are linked
 	  into L1 data memory. (less latency)
 
+comment "Speed Optimizations"
+config BFIN_INS_LOWOVERHEAD
+	bool "ins[bwl] low overhead, higher interrupt latency"
+	default y
+	help
+	  Reads on the Blackfin are speculative. In Blackfin terms, this means
+	  they can be interrupted at any time (even after they have been issued
+	  on to the external bus), and re-issued after the interrupt occurs.
+	  For memory - this is not a big deal, since memory does not change if
+	  it sees a read.
+
+	  If a FIFO is sitting on the end of the read, it will see two reads,
+	  when the core only sees one since the FIFO receives both the read
+	  which is cancelled (and not delivered to the core) and the one which
+	  is re-issued (which is delivered to the core).
+
+	  To solve this, interrupts are turned off before reads occur to
+	  I/O space. This option controls which the overhead/latency of
+	  controlling interrupts during this time
+	   "n" turns interrupts off every read
+		(higher overhead, but lower interrupt latency)
+	   "y" turns interrupts off every loop
+		(low overhead, but longer interrupt latency)
+
+	  default behavior is to leave this set to on (type "Y"). If you are experiencing
+	  interrupt latency issues, it is safe and OK to turn this off.
+
 endmenu
 
 
@@ -828,6 +855,7 @@ menu "Bus options (PCI, PCMCIA, EISA, MCA, ISA)"
 
 config PCI
 	bool "PCI support"
+	depends on BROKEN
 	help
 	  Support for PCI bus.
 
@@ -933,13 +961,6 @@ endchoice
 comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
 	depends on PM
 
-config PM_BFIN_WAKE_RTC
-	bool "Allow Wake-Up from RESET and on-chip RTC"
-	depends on PM
-	default n
-	help
-	  Enable RTC Wake-Up (Voltage Regulator Power-Up)
-
 config PM_BFIN_WAKE_PH6
 	bool "Allow Wake-Up from on-chip PHY or PH6 GP"
 	depends on PM && (BF52x || BF534 || BF536 || BF537)
@@ -947,41 +968,12 @@ config PM_BFIN_WAKE_PH6
 	help
 	  Enable PHY and PH6 GP Wake-Up (Voltage Regulator Power-Up)
 
-config PM_BFIN_WAKE_CAN
-	bool "Allow Wake-Up from on-chip CAN0/1"
-	depends on PM && (BF54x || BF534 || BF536 || BF537)
-	default n
-	help
-	  Enable CAN0/1 Wake-Up (Voltage Regulator Power-Up)
-
 config PM_BFIN_WAKE_GP
 	bool "Allow Wake-Up from GPIOs"
 	depends on PM && BF54x
 	default n
 	help
 	  Enable General-Purpose Wake-Up (Voltage Regulator Power-Up)
-
-config PM_BFIN_WAKE_USB
-	bool "Allow Wake-Up from on-chip USB"
-	depends on PM && (BF54x || BF52x)
-	default n
-	help
-	  Enable USB Wake-Up (Voltage Regulator Power-Up)
-
-config PM_BFIN_WAKE_KEYPAD
-	bool "Allow Wake-Up from on-chip Keypad"
-	depends on PM && BF54x
-	default n
-	help
-	  Enable Keypad Wake-Up (Voltage Regulator Power-Up)
-
-config PM_BFIN_WAKE_ROTARY
-	bool "Allow Wake-Up from on-chip Rotary"
-	depends on PM && BF54x
-	default n
-	help
-	  Enable Rotary Wake-Up (Voltage Regulator Power-Up)
-
 endmenu
 
 menu "CPU Frequency scaling"

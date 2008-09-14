@@ -26,7 +26,7 @@
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/mach/pci.h>
+#include <mach/pci.h>
 
 static struct resource gapspci_io_resource = {
 	.name	= "GAPSPCI IO",

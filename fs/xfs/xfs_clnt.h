@@ -78,6 +78,7 @@ struct xfs_mount_args {
 #define XFSMNT_IOSIZE		0x00002000	/* optimize for I/O size */
 #define XFSMNT_OSYNCISOSYNC	0x00004000	/* o_sync is REALLY o_sync */
 						/* (osyncisdsync is default) */
+#define XFSMNT_NOATTR2		0x00008000	/* turn off ATTR2 EA format */
 #define XFSMNT_32BITINODES	0x00200000	/* restrict inodes to 32
 						 * bits of address space */
 #define XFSMNT_GQUOTA		0x00400000	/* group quota accounting */

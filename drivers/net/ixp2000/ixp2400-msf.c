@@ -13,8 +13,8 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
-#include <asm/hardware.h>
-#include <asm/arch/ixp2000-regs.h>
+#include <mach/hardware.h>
+#include <mach/ixp2000-regs.h>
 #include <asm/delay.h>
 #include <asm/io.h>
 #include "ixp2400-msf.h"

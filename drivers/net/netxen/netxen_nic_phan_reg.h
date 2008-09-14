@@ -95,8 +95,8 @@
 #define CRB_HOST_STS_PROD           NETXEN_NIC_REG(0xdc)
 #define CRB_HOST_STS_CONS           NETXEN_NIC_REG(0xe0)
 #define CRB_PEG_CMD_PROD            NETXEN_NIC_REG(0xe4)
-#define CRB_PEG_CMD_CONS            NETXEN_NIC_REG(0xe8)
-#define CRB_HOST_BUFFER_PROD        NETXEN_NIC_REG(0xec)
+#define CRB_PF_LINK_SPEED_1         NETXEN_NIC_REG(0xe8)
+#define CRB_PF_LINK_SPEED_2         NETXEN_NIC_REG(0xec)
 #define CRB_HOST_BUFFER_CONS        NETXEN_NIC_REG(0xf0)
 #define CRB_JUMBO_BUFFER_PROD       NETXEN_NIC_REG(0xf4)
 #define CRB_JUMBO_BUFFER_CONS       NETXEN_NIC_REG(0xf8)
@@ -124,6 +124,8 @@
 #define CRB_SW_INT_MASK_1	   NETXEN_NIC_REG(0x1e0)
 #define CRB_SW_INT_MASK_2	   NETXEN_NIC_REG(0x1e4)
 #define CRB_SW_INT_MASK_3	   NETXEN_NIC_REG(0x1e8)
+
+#define CRB_MAC_BLOCK_START        NETXEN_CAM_RAM(0x1c0)
 
 /*
  * capabilities register, can be used to selectively enable/disable features

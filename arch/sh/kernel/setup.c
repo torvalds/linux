@@ -25,6 +25,7 @@
 #include <linux/smp.h>
 #include <linux/err.h>
 #include <linux/debugfs.h>
+#include <linux/crash_dump.h>
 #include <asm/uaccess.h>
 #include <asm/io.h>
 #include <asm/page.h>
@@ -170,6 +171,7 @@ static void __init reserve_crashkernel(void)
 				(unsigned long)(free_mem >> 20));
 		crashk_res.start = crash_base;
 		crashk_res.end   = crash_base + crash_size - 1;
+		insert_resource(&iomem_resource, &crashk_res);
 	}
 }
 #else
@@ -202,11 +204,6 @@ void __init __add_active_range(unsigned int nid, unsigned long start_pfn,
 	request_resource(res, &code_resource);
 	request_resource(res, &data_resource);
 	request_resource(res, &bss_resource);
-
-#ifdef CONFIG_KEXEC
-	if (crashk_res.start != crashk_res.end)
-		request_resource(res, &crashk_res);
-#endif
 
 	add_active_range(nid, start_pfn, end_pfn);
 }
@@ -284,6 +281,25 @@ static void __init setup_memory(void)
 }
 #else
 extern void __init setup_memory(void);
+#endif
+
+/*
+ * Note: elfcorehdr_addr is not just limited to vmcore. It is also used by
+ * is_kdump_kernel() to determine if we are booting after a panic. Hence
+ * ifdef it under CONFIG_CRASH_DUMP and not CONFIG_PROC_VMCORE.
+ */
+#ifdef CONFIG_CRASH_DUMP
+/* elfcorehdr= specifies the location of elf core header
+ * stored by the crashed kernel.
+ */
+static int __init parse_elfcorehdr(char *arg)
+{
+	if (!arg)
+		return -EINVAL;
+	elfcorehdr_addr = memparse(arg, &arg);
+	return 0;
+}
+early_param("elfcorehdr", parse_elfcorehdr);
 #endif
 
 void __init setup_arch(char **cmdline_p)

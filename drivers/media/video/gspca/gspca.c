@@ -47,7 +47,7 @@ MODULE_LICENSE("GPL");
 
 static int video_nr = -1;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 int gspca_debug = D_ERR | D_PROBE;
 EXPORT_SYMBOL(gspca_debug);
 
@@ -114,7 +114,10 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	cam_pkt_op pkt_scan;
 
 	if (urb->status != 0) {
-		PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
+#ifdef CONFIG_PM
+		if (!gspca_dev->frozen)
+#endif
+			PDEBUG(D_ERR|D_PACK, "urb status: %d", urb->status);
 		return;		/* disconnection ? */
 	}
 	pkt_scan = gspca_dev->sd_desc->pkt_scan;
@@ -555,10 +558,12 @@ static void gspca_stream_off(struct gspca_dev *gspca_dev)
 	gspca_dev->streaming = 0;
 	atomic_set(&gspca_dev->nevent, 0);
 	if (gspca_dev->present) {
-		gspca_dev->sd_desc->stopN(gspca_dev);
+		if (gspca_dev->sd_desc->stopN)
+			gspca_dev->sd_desc->stopN(gspca_dev);
 		destroy_urbs(gspca_dev);
 		gspca_set_alt0(gspca_dev);
-		gspca_dev->sd_desc->stop0(gspca_dev);
+		if (gspca_dev->sd_desc->stop0)
+			gspca_dev->sd_desc->stop0(gspca_dev);
 		PDEBUG(D_STREAM, "stream off OK");
 	}
 }
@@ -677,7 +682,7 @@ static int try_fmt_vid_cap(struct gspca_dev *gspca_dev,
 	w = fmt->fmt.pix.width;
 	h = fmt->fmt.pix.height;
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (gspca_debug & D_CONF)
 		PDEBUG_MODE("try fmt cap", fmt->fmt.pix.pixelformat, w, h);
 #endif
@@ -767,31 +772,20 @@ static int dev_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	/* if not done yet, initialize the sensor */
-	if (gspca_dev->users == 0) {
-		if (mutex_lock_interruptible(&gspca_dev->usb_lock)) {
-			ret = -ERESTARTSYS;
-			goto out;
-		}
-		ret = gspca_dev->sd_desc->open(gspca_dev);
-		mutex_unlock(&gspca_dev->usb_lock);
-		if (ret != 0) {
-			PDEBUG(D_ERR|D_CONF, "init device failed %d", ret);
-			goto out;
-		}
-	} else if (gspca_dev->users > 4) {	/* (arbitrary value) */
+	if (gspca_dev->users > 4) {	/* (arbitrary value) */
 		ret = -EBUSY;
 		goto out;
 	}
 	gspca_dev->users++;
 	file->private_data = gspca_dev;
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
 		gspca_dev->vdev.debug |= 3;
 	else
 		gspca_dev->vdev.debug &= ~3;
 #endif
+	ret = 0;
 out:
 	mutex_unlock(&gspca_dev->queue_lock);
 	if (ret != 0)
@@ -812,11 +806,11 @@ static int dev_close(struct inode *inode, struct file *file)
 
 	/* if the file did the capture, free the streaming resources */
 	if (gspca_dev->capt_file == file) {
-		mutex_lock(&gspca_dev->usb_lock);
-		if (gspca_dev->streaming)
+		if (gspca_dev->streaming) {
+			mutex_lock(&gspca_dev->usb_lock);
 			gspca_stream_off(gspca_dev);
-		gspca_dev->sd_desc->close(gspca_dev);
-		mutex_unlock(&gspca_dev->usb_lock);
+			mutex_unlock(&gspca_dev->usb_lock);
+		}
 		frame_free(gspca_dev);
 		gspca_dev->capt_file = NULL;
 		gspca_dev->memory = GSPCA_MEMORY_NO;
@@ -853,42 +847,44 @@ static int vidioc_querycap(struct file *file, void  *priv,
 	return 0;
 }
 
-/* the use of V4L2_CTRL_FLAG_NEXT_CTRL asks for the controls to be sorted */
 static int vidioc_queryctrl(struct file *file, void *priv,
 			   struct v4l2_queryctrl *q_ctrl)
 {
 	struct gspca_dev *gspca_dev = priv;
-	int i;
+	int i, ix;
 	u32 id;
 
+	ix = -1;
 	id = q_ctrl->id;
 	if (id & V4L2_CTRL_FLAG_NEXT_CTRL) {
 		id &= V4L2_CTRL_ID_MASK;
 		id++;
 		for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
-			if (id >= gspca_dev->sd_desc->ctrls[i].qctrl.id) {
-				memcpy(q_ctrl,
-					&gspca_dev->sd_desc->ctrls[i].qctrl,
-					sizeof *q_ctrl);
-				return 0;
+			if (gspca_dev->sd_desc->ctrls[i].qctrl.id < id)
+				continue;
+			if (ix < 0) {
+				ix = i;
+				continue;
 			}
+			if (gspca_dev->sd_desc->ctrls[i].qctrl.id
+				    > gspca_dev->sd_desc->ctrls[ix].qctrl.id)
+				continue;
+			ix = i;
 		}
-		return -EINVAL;
 	}
 	for (i = 0; i < gspca_dev->sd_desc->nctrls; i++) {
 		if (id == gspca_dev->sd_desc->ctrls[i].qctrl.id) {
-			memcpy(q_ctrl,
-				&gspca_dev->sd_desc->ctrls[i].qctrl,
-				sizeof *q_ctrl);
-			return 0;
+			ix = i;
+			break;
 		}
 	}
-	if (id >= V4L2_CID_BASE
-	    && id <= V4L2_CID_LASTP1) {
+	if (ix < 0)
+		return -EINVAL;
+	memcpy(q_ctrl, &gspca_dev->sd_desc->ctrls[ix].qctrl,
+		sizeof *q_ctrl);
+	if (gspca_dev->ctrl_dis & (1 << ix))
 		q_ctrl->flags |= V4L2_CTRL_FLAG_DISABLED;
-		return 0;
-	}
-	return -EINVAL;
+	return 0;
 }
 
 static int vidioc_s_ctrl(struct file *file, void *priv,
@@ -903,8 +899,10 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 	     i++, ctrls++) {
 		if (ctrl->id != ctrls->qctrl.id)
 			continue;
+		if (gspca_dev->ctrl_dis & (1 << i))
+			return -EINVAL;
 		if (ctrl->value < ctrls->qctrl.minimum
-		    && ctrl->value > ctrls->qctrl.maximum)
+		    || ctrl->value > ctrls->qctrl.maximum)
 			return -ERANGE;
 		PDEBUG(D_CONF, "set ctrl [%08x] = %d", ctrl->id, ctrl->value);
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
@@ -929,6 +927,8 @@ static int vidioc_g_ctrl(struct file *file, void *priv,
 	     i++, ctrls++) {
 		if (ctrl->id != ctrls->qctrl.id)
 			continue;
+		if (gspca_dev->ctrl_dis & (1 << i))
+			return -EINVAL;
 		if (mutex_lock_interruptible(&gspca_dev->usb_lock))
 			return -ERESTARTSYS;
 		ret = ctrls->get(gspca_dev, &ctrl->value);
@@ -1080,7 +1080,7 @@ static int vidioc_streamon(struct file *file, void *priv,
 		if (ret < 0)
 			goto out;
 	}
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 	if (gspca_debug & D_STREAM) {
 		PDEBUG_MODE("stream on OK",
 			gspca_dev->pixfmt,
@@ -1403,7 +1403,7 @@ static int vidioc_dqbuf(struct file *file, void *priv,
 	i = ret;				/* frame index */
 	frame = &gspca_dev->frame[i];
 	if (gspca_dev->memory == V4L2_MEMORY_USERPTR) {
-		if (copy_to_user((__u8 *) frame->v4l2_buf.m.userptr,
+		if (copy_to_user((__u8 __user *) frame->v4l2_buf.m.userptr,
 				 frame->data,
 				 frame->v4l2_buf.bytesused)) {
 			PDEBUG(D_ERR|D_STREAM,
@@ -1731,6 +1731,12 @@ int gspca_dev_probe(struct usb_interface *intf,
 		err("couldn't kzalloc gspca struct");
 		return -EIO;
 	}
+	gspca_dev->usb_buf = kmalloc(USB_BUF_SZ, GFP_KERNEL);
+	if (!gspca_dev->usb_buf) {
+		err("out of memory");
+		ret = -EIO;
+		goto out;
+	}
 	gspca_dev->dev = dev;
 	gspca_dev->iface = interface->bInterfaceNumber;
 	gspca_dev->nbalt = intf->num_altsetting;
@@ -1738,8 +1744,11 @@ int gspca_dev_probe(struct usb_interface *intf,
 /*	gspca_dev->users = 0;			(done by kzalloc) */
 	gspca_dev->nbufread = 2;
 
-	/* configure the subdriver */
+	/* configure the subdriver and initialize the USB device */
 	ret = gspca_dev->sd_desc->config(gspca_dev, id);
+	if (ret < 0)
+		goto out;
+	ret = gspca_dev->sd_desc->init(gspca_dev);
 	if (ret < 0)
 		goto out;
 	ret = gspca_set_alt0(gspca_dev);
@@ -1771,6 +1780,7 @@ int gspca_dev_probe(struct usb_interface *intf,
 	PDEBUG(D_PROBE, "probe ok");
 	return 0;
 out:
+	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	return ret;
 }
@@ -1803,11 +1813,42 @@ void gspca_disconnect(struct usb_interface *intf)
 /* We don't want people trying to open up the device */
 	video_unregister_device(&gspca_dev->vdev);
 /* Free the memory */
+	kfree(gspca_dev->usb_buf);
 	kfree(gspca_dev);
 	PDEBUG(D_PROBE, "disconnect complete");
 }
 EXPORT_SYMBOL(gspca_disconnect);
 
+#ifdef CONFIG_PM
+int gspca_suspend(struct usb_interface *intf, pm_message_t message)
+{
+	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+
+	if (!gspca_dev->streaming)
+		return 0;
+	gspca_dev->frozen = 1;		/* avoid urb error messages */
+	if (gspca_dev->sd_desc->stopN)
+		gspca_dev->sd_desc->stopN(gspca_dev);
+	destroy_urbs(gspca_dev);
+	gspca_set_alt0(gspca_dev);
+	if (gspca_dev->sd_desc->stop0)
+		gspca_dev->sd_desc->stop0(gspca_dev);
+	return 0;
+}
+EXPORT_SYMBOL(gspca_suspend);
+
+int gspca_resume(struct usb_interface *intf)
+{
+	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
+
+	gspca_dev->frozen = 0;
+	gspca_dev->sd_desc->init(gspca_dev);
+	if (gspca_dev->streaming)
+		return gspca_init_transfer(gspca_dev);
+	return 0;
+}
+EXPORT_SYMBOL(gspca_resume);
+#endif
 /* -- cam driver utility functions -- */
 
 /* auto gain and exposure algorithm based on the knee algorithm described here:
@@ -1913,7 +1954,7 @@ static void __exit gspca_exit(void)
 module_init(gspca_init);
 module_exit(gspca_exit);
 
-#ifdef CONFIG_VIDEO_ADV_DEBUG
+#ifdef GSPCA_DEBUG
 module_param_named(debug, gspca_debug, int, 0644);
 MODULE_PARM_DESC(debug,
 		"Debug (bit) 0x01:error 0x02:probe 0x04:config"

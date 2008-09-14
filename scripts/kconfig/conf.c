@@ -596,7 +596,7 @@ int main(int ac, char **av)
 		break;
 	}
 
-	if (conf_get_changed() && conf_write(NULL)) {
+	if (conf_write(NULL)) {
 		fprintf(stderr, _("\n*** Error during writing of the kernel configuration.\n\n"));
 		exit(1);
 	}

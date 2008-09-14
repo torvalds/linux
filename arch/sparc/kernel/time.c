@@ -28,6 +28,7 @@
 #include <linux/pci.h>
 #include <linux/ioport.h>
 #include <linux/profile.h>
+#include <linux/of_device.h>
 
 #include <asm/oplib.h>
 #include <asm/timer.h>
@@ -40,7 +41,6 @@
 #include <asm/sun4paddr.h>
 #include <asm/page.h>
 #include <asm/pcic.h>
-#include <asm/of_device.h>
 #include <asm/irq_regs.h>
 
 #include "irq.h"

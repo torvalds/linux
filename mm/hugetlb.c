@@ -565,7 +565,7 @@ static struct page *alloc_fresh_huge_page_node(struct hstate *h, int nid)
 		huge_page_order(h));
 	if (page) {
 		if (arch_prepare_hugepage(page)) {
-			__free_pages(page, HUGETLB_PAGE_ORDER);
+			__free_pages(page, huge_page_order(h));
 			return NULL;
 		}
 		prep_new_huge_page(h, page, nid);
@@ -664,6 +664,11 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
 	page = alloc_pages(htlb_alloc_mask|__GFP_COMP|
 					__GFP_REPEAT|__GFP_NOWARN,
 					huge_page_order(h));
+
+	if (page && arch_prepare_hugepage(page)) {
+		__free_pages(page, huge_page_order(h));
+		return NULL;
+	}
 
 	spin_lock(&hugetlb_lock);
 	if (page) {
@@ -1283,7 +1288,12 @@ module_exit(hugetlb_exit);
 
 static int __init hugetlb_init(void)
 {
-	BUILD_BUG_ON(HPAGE_SHIFT == 0);
+	/* Some platform decide whether they support huge pages at boot
+	 * time. On these, such as powerpc, HPAGE_SHIFT is set to 0 when
+	 * there is no such support
+	 */
+	if (HPAGE_SHIFT == 0)
+		return 0;
 
 	if (!size_to_hstate(default_hstate_size)) {
 		default_hstate_size = HPAGE_SIZE;
@@ -1932,6 +1942,18 @@ retry:
 			lock_page(page);
 	}
 
+	/*
+	 * If we are going to COW a private mapping later, we examine the
+	 * pending reservations for this page now. This will ensure that
+	 * any allocations necessary to record that reservation occur outside
+	 * the spinlock.
+	 */
+	if (write_access && !(vma->vm_flags & VM_SHARED))
+		if (vma_needs_reservation(h, vma, address) < 0) {
+			ret = VM_FAULT_OOM;
+			goto backout_unlocked;
+		}
+
 	spin_lock(&mm->page_table_lock);
 	size = i_size_read(mapping->host) >> huge_page_shift(h);
 	if (idx >= size)
@@ -1957,6 +1979,7 @@ out:
 
 backout:
 	spin_unlock(&mm->page_table_lock);
+backout_unlocked:
 	unlock_page(page);
 	put_page(page);
 	goto out;
@@ -1968,6 +1991,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte_t *ptep;
 	pte_t entry;
 	int ret;
+	struct page *pagecache_page = NULL;
 	static DEFINE_MUTEX(hugetlb_instantiation_mutex);
 	struct hstate *h = hstate_vma(vma);
 
@@ -1984,25 +2008,44 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	entry = huge_ptep_get(ptep);
 	if (huge_pte_none(entry)) {
 		ret = hugetlb_no_page(mm, vma, address, ptep, write_access);
-		mutex_unlock(&hugetlb_instantiation_mutex);
-		return ret;
+		goto out_unlock;
 	}
 
 	ret = 0;
 
+	/*
+	 * If we are going to COW the mapping later, we examine the pending
+	 * reservations for this page now. This will ensure that any
+	 * allocations necessary to record that reservation occur outside the
+	 * spinlock. For private mappings, we also lookup the pagecache
+	 * page now as it is used to determine if a reservation has been
+	 * consumed.
+	 */
+	if (write_access && !pte_write(entry)) {
+		if (vma_needs_reservation(h, vma, address) < 0) {
+			ret = VM_FAULT_OOM;
+			goto out_unlock;
+		}
+
+		if (!(vma->vm_flags & VM_SHARED))
+			pagecache_page = hugetlbfs_pagecache_page(h,
+								vma, address);
+	}
+
 	spin_lock(&mm->page_table_lock);
 	/* Check for a racing update before calling hugetlb_cow */
 	if (likely(pte_same(entry, huge_ptep_get(ptep))))
-		if (write_access && !pte_write(entry)) {
-			struct page *page;
-			page = hugetlbfs_pagecache_page(h, vma, address);
-			ret = hugetlb_cow(mm, vma, address, ptep, entry, page);
-			if (page) {
-				unlock_page(page);
-				put_page(page);
-			}
-		}
+		if (write_access && !pte_write(entry))
+			ret = hugetlb_cow(mm, vma, address, ptep, entry,
+							pagecache_page);
 	spin_unlock(&mm->page_table_lock);
+
+	if (pagecache_page) {
+		unlock_page(pagecache_page);
+		put_page(pagecache_page);
+	}
+
+out_unlock:
 	mutex_unlock(&hugetlb_instantiation_mutex);
 
 	return ret;

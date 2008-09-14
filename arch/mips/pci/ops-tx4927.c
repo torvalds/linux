@@ -16,6 +16,8 @@
  * option) any later version.
  */
 #include <linux/kernel.h>
+#include <linux/interrupt.h>
+#include <asm/txx9/pci.h>
 #include <asm/txx9/tx4927pcic.h>
 
 static struct {
@@ -85,6 +87,8 @@ static int check_abort(struct tx4927_pcic_reg __iomem *pcicptr)
 		__raw_writel((__raw_readl(&pcicptr->pcistatus) & 0x0000ffff)
 			     | (PCI_STATUS_REC_MASTER_ABORT << 16),
 			     &pcicptr->pcistatus);
+		/* flush write buffer */
+		iob();
 		code = PCIBIOS_DEVICE_NOT_FOUND;
 	}
 	return code;
@@ -191,6 +195,28 @@ static struct {
 	.retryto = 0,
 	.gbwc = 0xfe0,	/* 4064 GBUSCLK for CCFG.GTOT=0b11 */
 };
+
+char *__devinit tx4927_pcibios_setup(char *str)
+{
+	unsigned long val;
+
+	if (!strncmp(str, "trdyto=", 7)) {
+		if (strict_strtoul(str + 7, 0, &val) == 0)
+			tx4927_pci_opts.trdyto = val;
+		return NULL;
+	}
+	if (!strncmp(str, "retryto=", 8)) {
+		if (strict_strtoul(str + 8, 0, &val) == 0)
+			tx4927_pci_opts.retryto = val;
+		return NULL;
+	}
+	if (!strncmp(str, "gbwc=", 5)) {
+		if (strict_strtoul(str + 5, 0, &val) == 0)
+			tx4927_pci_opts.gbwc = val;
+		return NULL;
+	}
+	return str;
+}
 
 void __init tx4927_pcic_setup(struct tx4927_pcic_reg __iomem *pcicptr,
 			      struct pci_controller *channel, int extarb)
@@ -406,3 +432,95 @@ void tx4927_report_pcic_status(void)
 			tx4927_report_pcic_status1(pcicptrs[i].pcicptr);
 	}
 }
+
+static void tx4927_dump_pcic_settings1(struct tx4927_pcic_reg __iomem *pcicptr)
+{
+	int i;
+	__u32 __iomem *preg = (__u32 __iomem *)pcicptr;
+
+	printk(KERN_INFO "tx4927 pcic (0x%p) settings:", pcicptr);
+	for (i = 0; i < sizeof(struct tx4927_pcic_reg); i += 4, preg++) {
+		if (i % 32 == 0) {
+			printk(KERN_CONT "\n");
+			printk(KERN_INFO "%04x:", i);
+		}
+		/* skip registers with side-effects */
+		if (i == offsetof(struct tx4927_pcic_reg, g2pintack)
+		    || i == offsetof(struct tx4927_pcic_reg, g2pspc)
+		    || i == offsetof(struct tx4927_pcic_reg, g2pcfgadrs)
+		    || i == offsetof(struct tx4927_pcic_reg, g2pcfgdata)) {
+			printk(KERN_CONT " XXXXXXXX");
+			continue;
+		}
+		printk(KERN_CONT " %08x", __raw_readl(preg));
+	}
+	printk(KERN_CONT "\n");
+}
+
+void tx4927_dump_pcic_settings(void)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pcicptrs); i++) {
+		if (pcicptrs[i].pcicptr)
+			tx4927_dump_pcic_settings1(pcicptrs[i].pcicptr);
+	}
+}
+
+irqreturn_t tx4927_pcierr_interrupt(int irq, void *dev_id)
+{
+	struct pt_regs *regs = get_irq_regs();
+	struct tx4927_pcic_reg __iomem *pcicptr =
+		(struct tx4927_pcic_reg __iomem *)(unsigned long)dev_id;
+
+	if (txx9_pci_err_action != TXX9_PCI_ERR_IGNORE) {
+		printk(KERN_WARNING "PCIERR interrupt at 0x%0*lx\n",
+		       (int)(2 * sizeof(unsigned long)), regs->cp0_epc);
+		tx4927_report_pcic_status1(pcicptr);
+	}
+	if (txx9_pci_err_action != TXX9_PCI_ERR_PANIC) {
+		/* clear all pci errors */
+		__raw_writel((__raw_readl(&pcicptr->pcistatus) & 0x0000ffff)
+			     | (TX4927_PCIC_PCISTATUS_ALL << 16),
+			     &pcicptr->pcistatus);
+		__raw_writel(TX4927_PCIC_G2PSTATUS_ALL, &pcicptr->g2pstatus);
+		__raw_writel(TX4927_PCIC_PBASTATUS_ALL, &pcicptr->pbastatus);
+		__raw_writel(TX4927_PCIC_PCICSTATUS_ALL, &pcicptr->pcicstatus);
+		return IRQ_HANDLED;
+	}
+	console_verbose();
+	tx4927_dump_pcic_settings1(pcicptr);
+	panic("PCI error.");
+}
+
+#ifdef CONFIG_TOSHIBA_FPCIB0
+static void __init tx4927_quirk_slc90e66_bridge(struct pci_dev *dev)
+{
+	struct tx4927_pcic_reg __iomem *pcicptr = pci_bus_to_pcicptr(dev->bus);
+
+	if (!pcicptr)
+		return;
+	if (__raw_readl(&pcicptr->pbacfg) & TX4927_PCIC_PBACFG_PBAEN) {
+		/* Reset Bus Arbiter */
+		__raw_writel(TX4927_PCIC_PBACFG_RPBA, &pcicptr->pbacfg);
+		/*
+		 * swap reqBP and reqXP (raise priority of SLC90E66).
+		 * SLC90E66(PCI-ISA bridge) is connected to REQ2 on
+		 * PCI Backplane board.
+		 */
+		__raw_writel(0x72543610, &pcicptr->pbareqport);
+		__raw_writel(0, &pcicptr->pbabm);
+		/* Use Fixed ParkMaster (required by SLC90E66) */
+		__raw_writel(TX4927_PCIC_PBACFG_FIXPA, &pcicptr->pbacfg);
+		/* Enable Bus Arbiter */
+		__raw_writel(TX4927_PCIC_PBACFG_FIXPA |
+			     TX4927_PCIC_PBACFG_PBAEN,
+			     &pcicptr->pbacfg);
+		printk(KERN_INFO "PCI: Use Fixed Park Master (REQPORT %08x)\n",
+		       __raw_readl(&pcicptr->pbareqport));
+	}
+}
+#define PCI_DEVICE_ID_EFAR_SLC90E66_0 0x9460
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_EFAR, PCI_DEVICE_ID_EFAR_SLC90E66_0,
+	tx4927_quirk_slc90e66_bridge);
+#endif

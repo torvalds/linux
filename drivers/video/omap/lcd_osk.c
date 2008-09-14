@@ -23,9 +23,9 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <asm/arch/gpio.h>
-#include <asm/arch/mux.h>
-#include <asm/arch/omapfb.h>
+#include <mach/gpio.h>
+#include <mach/mux.h>
+#include <mach/omapfb.h>
 
 static int osk_panel_init(struct lcd_panel *panel, struct omapfb_device *fbdev)
 {

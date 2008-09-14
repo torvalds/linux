@@ -18,7 +18,7 @@
 #include <asm/sysreg.h>
 #include <asm/ocd.h>
 
-#include <asm/arch/pm.h>
+#include <mach/pm.h>
 
 void (*pm_power_off)(void) = NULL;
 EXPORT_SYMBOL(pm_power_off);

@@ -37,9 +37,8 @@
 #include <linux/proc_fs.h>
 #include <linux/semaphore.h>
 #include <linux/string.h>
-#include <linux/version.h>
 
-#include <asm/arch/clock.h>
+#include <mach/clock.h>
 
 static LIST_HEAD(clocks);
 static DEFINE_MUTEX(clocks_mutex);

@@ -161,7 +161,7 @@ teql_destroy(struct Qdisc* sch)
 						txq = netdev_get_tx_queue(master->dev, 0);
 						master->slaves = NULL;
 
-						root_lock = qdisc_root_lock(txq->qdisc);
+						root_lock = qdisc_root_sleeping_lock(txq->qdisc);
 						spin_lock_bh(root_lock);
 						qdisc_reset(txq->qdisc);
 						spin_unlock_bh(root_lock);
@@ -305,10 +305,11 @@ restart:
 
 		switch (teql_resolve(skb, skb_res, slave)) {
 		case 0:
-			if (netif_tx_trylock(slave)) {
-				if (!__netif_subqueue_stopped(slave, subq) &&
+			if (__netif_tx_trylock(slave_txq)) {
+				if (!netif_tx_queue_stopped(slave_txq) &&
+				    !netif_tx_queue_frozen(slave_txq) &&
 				    slave->hard_start_xmit(skb, slave) == 0) {
-					netif_tx_unlock(slave);
+					__netif_tx_unlock(slave_txq);
 					master->slaves = NEXT_SLAVE(q);
 					netif_wake_queue(dev);
 					master->stats.tx_packets++;
@@ -316,7 +317,7 @@ restart:
 						qdisc_pkt_len(skb);
 					return 0;
 				}
-				netif_tx_unlock(slave);
+				__netif_tx_unlock(slave_txq);
 			}
 			if (netif_queue_stopped(dev))
 				busy = 1;

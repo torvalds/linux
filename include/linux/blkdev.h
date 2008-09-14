@@ -280,6 +280,15 @@ struct blk_queue_tag {
 	atomic_t refcnt;		/* map can be shared */
 };
 
+#define BLK_SCSI_MAX_CMDS	(256)
+#define BLK_SCSI_CMD_PER_LONG	(BLK_SCSI_MAX_CMDS / (sizeof(long) * 8))
+
+struct blk_cmd_filter {
+	unsigned long read_ok[BLK_SCSI_CMD_PER_LONG];
+	unsigned long write_ok[BLK_SCSI_CMD_PER_LONG];
+	struct kobject kobj;
+};
+
 struct request_queue
 {
 	/*
@@ -398,6 +407,7 @@ struct request_queue
 #if defined(CONFIG_BLK_DEV_BSG)
 	struct bsg_class_device bsg_dev;
 #endif
+	struct blk_cmd_filter cmd_filter;
 };
 
 #define QUEUE_FLAG_CLUSTER	0	/* cluster several segments into 1 */
@@ -655,6 +665,7 @@ extern struct request *blk_get_request(struct request_queue *, int, gfp_t);
 extern void blk_insert_request(struct request_queue *, struct request *, int, void *);
 extern void blk_requeue_request(struct request_queue *, struct request *);
 extern void blk_plug_device(struct request_queue *);
+extern void blk_plug_device_unlocked(struct request_queue *);
 extern int blk_remove_plug(struct request_queue *);
 extern void blk_recount_segments(struct request_queue *, struct bio *);
 extern int scsi_cmd_ioctl(struct file *, struct request_queue *,
@@ -806,8 +817,6 @@ extern void blk_put_queue(struct request_queue *);
 /*
  * tag stuff
  */
-#define blk_queue_tag_depth(q)		((q)->queue_tags->busy)
-#define blk_queue_tag_queue(q)		((q)->queue_tags->busy < (q)->queue_tags->max_depth)
 #define blk_rq_tagged(rq)		((rq)->cmd_flags & REQ_QUEUED)
 extern int blk_queue_start_tag(struct request_queue *, struct request *);
 extern struct request *blk_queue_find_tag(struct request_queue *, int);
@@ -832,11 +841,11 @@ extern int blkdev_issue_flush(struct block_device *, sector_t *);
 /*
 * command filter functions
 */
-extern int blk_verify_command(struct file *file, unsigned char *cmd);
-extern int blk_cmd_filter_verify_command(struct blk_scsi_cmd_filter *filter,
-					 unsigned char *cmd, mode_t *f_mode);
+extern int blk_verify_command(struct blk_cmd_filter *filter,
+			      unsigned char *cmd, int has_write_perm);
 extern int blk_register_filter(struct gendisk *disk);
 extern void blk_unregister_filter(struct gendisk *disk);
+extern void blk_set_cmd_filter_defaults(struct blk_cmd_filter *filter);
 
 #define MAX_PHYS_SEGMENTS 128
 #define MAX_HW_SEGMENTS 128

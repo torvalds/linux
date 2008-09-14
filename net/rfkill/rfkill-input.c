@@ -109,6 +109,25 @@ static DEFINE_RFKILL_TASK(rfkill_uwb, RFKILL_TYPE_UWB);
 static DEFINE_RFKILL_TASK(rfkill_wimax, RFKILL_TYPE_WIMAX);
 static DEFINE_RFKILL_TASK(rfkill_wwan, RFKILL_TYPE_WWAN);
 
+static void rfkill_schedule_evsw_rfkillall(int state)
+{
+	/* EVERY radio type. state != 0 means radios ON */
+	/* handle EPO (emergency power off) through shortcut */
+	if (state) {
+		rfkill_schedule_set(&rfkill_wwan,
+				    RFKILL_STATE_UNBLOCKED);
+		rfkill_schedule_set(&rfkill_wimax,
+				    RFKILL_STATE_UNBLOCKED);
+		rfkill_schedule_set(&rfkill_uwb,
+				    RFKILL_STATE_UNBLOCKED);
+		rfkill_schedule_set(&rfkill_bt,
+				    RFKILL_STATE_UNBLOCKED);
+		rfkill_schedule_set(&rfkill_wlan,
+				    RFKILL_STATE_UNBLOCKED);
+	} else
+		rfkill_schedule_epo();
+}
+
 static void rfkill_event(struct input_handle *handle, unsigned int type,
 			unsigned int code, int data)
 {
@@ -132,21 +151,7 @@ static void rfkill_event(struct input_handle *handle, unsigned int type,
 	} else if (type == EV_SW) {
 		switch (code) {
 		case SW_RFKILL_ALL:
-			/* EVERY radio type. data != 0 means radios ON */
-			/* handle EPO (emergency power off) through shortcut */
-			if (data) {
-				rfkill_schedule_set(&rfkill_wwan,
-						    RFKILL_STATE_UNBLOCKED);
-				rfkill_schedule_set(&rfkill_wimax,
-						    RFKILL_STATE_UNBLOCKED);
-				rfkill_schedule_set(&rfkill_uwb,
-						    RFKILL_STATE_UNBLOCKED);
-				rfkill_schedule_set(&rfkill_bt,
-						    RFKILL_STATE_UNBLOCKED);
-				rfkill_schedule_set(&rfkill_wlan,
-						    RFKILL_STATE_UNBLOCKED);
-			} else
-				rfkill_schedule_epo();
+			rfkill_schedule_evsw_rfkillall(data);
 			break;
 		default:
 			break;
@@ -168,6 +173,7 @@ static int rfkill_connect(struct input_handler *handler, struct input_dev *dev,
 	handle->handler = handler;
 	handle->name = "rfkill";
 
+	/* causes rfkill_start() to be called */
 	error = input_register_handle(handle);
 	if (error)
 		goto err_free_handle;
@@ -183,6 +189,23 @@ static int rfkill_connect(struct input_handler *handler, struct input_dev *dev,
  err_free_handle:
 	kfree(handle);
 	return error;
+}
+
+static void rfkill_start(struct input_handle *handle)
+{
+	/* Take event_lock to guard against configuration changes, we
+	 * should be able to deal with concurrency with rfkill_event()
+	 * just fine (which event_lock will also avoid). */
+	spin_lock_irq(&handle->dev->event_lock);
+
+	if (test_bit(EV_SW, handle->dev->evbit)) {
+		if (test_bit(SW_RFKILL_ALL, handle->dev->swbit))
+			rfkill_schedule_evsw_rfkillall(test_bit(SW_RFKILL_ALL,
+							handle->dev->sw));
+		/* add resync for further EV_SW events here */
+	}
+
+	spin_unlock_irq(&handle->dev->event_lock);
 }
 
 static void rfkill_disconnect(struct input_handle *handle)
@@ -225,6 +248,7 @@ static struct input_handler rfkill_handler = {
 	.event =	rfkill_event,
 	.connect =	rfkill_connect,
 	.disconnect =	rfkill_disconnect,
+	.start =	rfkill_start,
 	.name =		"rfkill",
 	.id_table =	rfkill_ids,
 };

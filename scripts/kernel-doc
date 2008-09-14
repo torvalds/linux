@@ -1403,7 +1403,7 @@ sub dump_struct($$) {
 	my $members = $3;
 
 	# ignore embedded structs or unions
-	$members =~ s/{.*?}//g;
+	$members =~ s/{.*}//g;
 
 	# ignore members marked private:
 	$members =~ s/\/\*.*?private:.*?public:.*?\*\///gos;
