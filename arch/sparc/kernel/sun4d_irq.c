@@ -448,11 +448,6 @@ static void sun4d_clear_clock_irq(void)
 	sbus_readl(&sun4d_timers->l10_timer_limit);
 }
 
-static void sun4d_clear_profile_irq(int cpu)
-{
-	bw_get_prof_limit(cpu);
-}
-
 static void sun4d_load_profile_irq(int cpu, unsigned int limit)
 {
 	bw_set_prof_limit(cpu, limit);
@@ -585,7 +580,6 @@ void __init sun4d_init_IRQ(void)
 	BTFIXUPSET_CALL(enable_irq, sun4d_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, sun4d_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_clock_irq, sun4d_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_profile_irq, sun4d_clear_profile_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, sun4d_load_profile_irq, BTFIXUPCALL_NORM);
 	sparc_init_timers = sun4d_init_timers;
 #ifdef CONFIG_SMP

@@ -131,11 +131,6 @@ static void sun4c_clear_clock_irq(void)
 	clear_intr = sun4c_timers->timer_limit10;
 }
 
-static void sun4c_clear_profile_irq(int cpu)
-{
-	/* Errm.. not sure how to do this.. */
-}
-
 static void sun4c_load_profile_irq(int cpu, unsigned int limit)
 {
 	/* Errm.. not sure how to do this.. */
@@ -204,7 +199,6 @@ void __init sun4c_init_IRQ(void)
 	BTFIXUPSET_CALL(enable_pil_irq, sun4c_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_pil_irq, sun4c_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_clock_irq, sun4c_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_profile_irq, sun4c_clear_profile_irq, BTFIXUPCALL_NOP);
 	BTFIXUPSET_CALL(load_profile_irq, sun4c_load_profile_irq, BTFIXUPCALL_NOP);
 	sparc_init_timers = sun4c_init_timers;
 #ifdef CONFIG_SMP

@@ -897,11 +897,6 @@ static void pcic_enable_irq(unsigned int irq_nr)
 	local_irq_restore(flags);
 }
 
-static void pcic_clear_profile_irq(int cpu)
-{
-	printk("PCIC: unimplemented code: FILE=%s LINE=%d", __FILE__, __LINE__);
-}
-
 static void pcic_load_profile_irq(int cpu, unsigned int limit)
 {
 	printk("PCIC: unimplemented code: FILE=%s LINE=%d", __FILE__, __LINE__);
@@ -927,7 +922,6 @@ void __init sun4m_pci_init_IRQ(void)
 	BTFIXUPSET_CALL(enable_pil_irq, pcic_enable_pil_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_pil_irq, pcic_disable_pil_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(clear_clock_irq, pcic_clear_clock_irq, BTFIXUPCALL_NORM);
-	BTFIXUPSET_CALL(clear_profile_irq, pcic_clear_profile_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(load_profile_irq, pcic_load_profile_irq, BTFIXUPCALL_NORM);
 }
 
