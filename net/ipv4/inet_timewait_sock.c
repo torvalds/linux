@@ -409,3 +409,38 @@ out:
 }
 
 EXPORT_SYMBOL_GPL(inet_twdr_twcal_tick);
+
+void inet_twsk_purge(struct net *net, struct inet_hashinfo *hashinfo,
+		     struct inet_timewait_death_row *twdr, int family)
+{
+	struct inet_timewait_sock *tw;
+	struct sock *sk;
+	struct hlist_node *node;
+	int h;
+
+	local_bh_disable();
+	for (h = 0; h < (hashinfo->ehash_size); h++) {
+		struct inet_ehash_bucket *head =
+			inet_ehash_bucket(hashinfo, h);
+		rwlock_t *lock = inet_ehash_lockp(hashinfo, h);
+restart:
+		write_lock(lock);
+		sk_for_each(sk, node, &head->twchain) {
+
+			tw = inet_twsk(sk);
+			if (!net_eq(twsk_net(tw), net) ||
+			    tw->tw_family != family)
+				continue;
+
+			atomic_inc(&tw->tw_refcnt);
+			write_unlock(lock);
+			inet_twsk_deschedule(tw, twdr);
+			inet_twsk_put(tw);
+
+			goto restart;
+		}
+		write_unlock(lock);
+	}
+	local_bh_enable();
+}
+EXPORT_SYMBOL_GPL(inet_twsk_purge);

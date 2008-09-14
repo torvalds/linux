@@ -915,7 +915,8 @@ struct dvb_frontend *s5h1420_attach(const struct s5h1420_config *config,
 	state->frontend.demodulator_priv = state;
 
 	/* create tuner i2c adapter */
-	strncpy(state->tuner_i2c_adapter.name, "S5H1420-PN1010 tuner I2C bus", I2C_NAME_SIZE);
+	strlcpy(state->tuner_i2c_adapter.name, "S5H1420-PN1010 tuner I2C bus",
+		sizeof(state->tuner_i2c_adapter.name));
 	state->tuner_i2c_adapter.class     = I2C_CLASS_TV_DIGITAL,
 	state->tuner_i2c_adapter.algo      = &s5h1420_tuner_i2c_algo;
 	state->tuner_i2c_adapter.algo_data = NULL;

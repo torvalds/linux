@@ -267,8 +267,7 @@ unsigned long native_calibrate_tsc(void)
 	 */
 	if (tsc_pit_min == ULONG_MAX) {
 		/* PIT gave no useful value */
-		printk(KERN_WARNING "TSC: PIT calibration failed due to "
-		       "SMI disturbance.\n");
+		printk(KERN_WARNING "TSC: Unable to calibrate against PIT\n");
 
 		/* We don't have an alternative source, disable TSC */
 		if (!hpet && !pm1 && !pm2) {
