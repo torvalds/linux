@@ -13,7 +13,8 @@
 	    Some clean ups.
     Copyright (C) 2008 Igor Liplianin
 	September, 9th 2008
-	Fixed locking on high symbol rates (>30000).
+	    Fixed locking on high symbol rates (>30000).
+	    Implement MPEG initialization parameter.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
