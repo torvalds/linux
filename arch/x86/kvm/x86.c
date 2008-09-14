@@ -35,6 +35,7 @@
 #include <linux/module.h>
 #include <linux/mman.h>
 #include <linux/highmem.h>
+#include <linux/intel-iommu.h>
 
 #include <asm/uaccess.h>
 #include <asm/msr.h>
@@ -277,9 +278,18 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 
 	list_add(&match->list, &kvm->arch.assigned_dev_head);
 
+	if (assigned_dev->flags & KVM_DEV_ASSIGN_ENABLE_IOMMU) {
+		r = kvm_iommu_map_guest(kvm, match);
+		if (r)
+			goto out_list_del;
+	}
+
 out:
 	mutex_unlock(&kvm->lock);
 	return r;
+out_list_del:
+	list_del(&match->list);
+	pci_release_regions(dev);
 out_disable:
 	pci_disable_device(dev);
 out_put:
@@ -1146,6 +1156,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 		break;
 	case KVM_CAP_PV_MMU:
 		r = !tdp_enabled;
+		break;
+	case KVM_CAP_IOMMU:
+		r = intel_iommu_found();
 		break;
 	default:
 		r = 0;
@@ -4282,6 +4295,7 @@ static void kvm_free_vcpus(struct kvm *kvm)
 
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
+	kvm_iommu_unmap_guest(kvm);
 	kvm_free_assigned_devices(kvm);
 	kvm_free_pit(kvm);
 	kfree(kvm->arch.vpic);

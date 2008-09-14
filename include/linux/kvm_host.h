@@ -286,6 +286,53 @@ int kvm_cpu_has_interrupt(struct kvm_vcpu *v);
 int kvm_cpu_has_pending_timer(struct kvm_vcpu *vcpu);
 void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
 
+struct kvm_irq_ack_notifier {
+	struct hlist_node link;
+	unsigned gsi;
+	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
+};
+
+struct kvm_assigned_dev_kernel {
+	struct kvm_irq_ack_notifier ack_notifier;
+	struct work_struct interrupt_work;
+	struct list_head list;
+	int assigned_dev_id;
+	int host_busnr;
+	int host_devfn;
+	int host_irq;
+	int guest_irq;
+	int irq_requested;
+	struct pci_dev *dev;
+	struct kvm *kvm;
+};
+
+#ifdef CONFIG_DMAR
+int kvm_iommu_map_pages(struct kvm *kvm, gfn_t base_gfn,
+			unsigned long npages);
+int kvm_iommu_map_guest(struct kvm *kvm,
+			struct kvm_assigned_dev_kernel *assigned_dev);
+int kvm_iommu_unmap_guest(struct kvm *kvm);
+#else /* CONFIG_DMAR */
+static inline int kvm_iommu_map_pages(struct kvm *kvm,
+				      gfn_t base_gfn,
+				      unsigned long npages)
+{
+	return 0;
+}
+
+static inline int kvm_iommu_map_guest(struct kvm *kvm,
+				      struct kvm_assigned_dev_kernel
+				      *assigned_dev)
+{
+	return -ENODEV;
+}
+
+static inline int kvm_iommu_unmap_guest(struct kvm *kvm)
+{
+	return 0;
+}
+#endif /* CONFIG_DMAR */
+
 static inline void kvm_guest_enter(void)
 {
 	account_system_vtime(current);
@@ -306,6 +353,11 @@ static inline int memslot_id(struct kvm *kvm, struct kvm_memory_slot *slot)
 static inline gpa_t gfn_to_gpa(gfn_t gfn)
 {
 	return (gpa_t)gfn << PAGE_SHIFT;
+}
+
+static inline hpa_t pfn_to_hpa(pfn_t pfn)
+{
+	return (hpa_t)pfn << PAGE_SHIFT;
 }
 
 static inline void kvm_migrate_timers(struct kvm_vcpu *vcpu)

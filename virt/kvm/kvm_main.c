@@ -41,6 +41,7 @@
 #include <linux/pagemap.h>
 #include <linux/mman.h>
 #include <linux/swap.h>
+#include <linux/intel-iommu.h>
 
 #include <asm/processor.h>
 #include <asm/io.h>
@@ -76,7 +77,7 @@ static inline int valid_vcpu(int n)
 	return likely(n >= 0 && n < KVM_MAX_VCPUS);
 }
 
-static inline int is_mmio_pfn(pfn_t pfn)
+inline int is_mmio_pfn(pfn_t pfn)
 {
 	if (pfn_valid(pfn))
 		return PageReserved(pfn_to_page(pfn));
@@ -578,6 +579,12 @@ int __kvm_set_memory_region(struct kvm *kvm,
 	}
 
 	kvm_free_physmem_slot(&old, &new);
+
+	/* map the pages in iommu page table */
+	r = kvm_iommu_map_pages(kvm, base_gfn, npages);
+	if (r)
+		goto out;
+
 	return 0;
 
 out_free:

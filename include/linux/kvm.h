@@ -384,6 +384,7 @@ struct kvm_trace_rec {
 #define KVM_CAP_COALESCED_MMIO 15
 #define KVM_CAP_SYNC_MMU 16  /* Changes to host mmap are reflected in guest */
 #define KVM_CAP_DEVICE_ASSIGNMENT 17
+#define KVM_CAP_IOMMU 18
 
 /*
  * ioctls for VM fds
@@ -494,5 +495,7 @@ struct kvm_assigned_irq {
 	__u32 guest_irq;
 	__u32 flags;
 };
+
+#define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 
 #endif

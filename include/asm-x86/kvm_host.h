@@ -331,26 +331,6 @@ struct kvm_mem_alias {
 	gfn_t target_gfn;
 };
 
-struct kvm_irq_ack_notifier {
-	struct hlist_node link;
-	unsigned gsi;
-	void (*irq_acked)(struct kvm_irq_ack_notifier *kian);
-};
-
-struct kvm_assigned_dev_kernel {
-	struct kvm_irq_ack_notifier ack_notifier;
-	struct work_struct interrupt_work;
-	struct list_head list;
-	int assigned_dev_id;
-	int host_busnr;
-	int host_devfn;
-	int host_irq;
-	int guest_irq;
-	int irq_requested;
-	struct pci_dev *dev;
-	struct kvm *kvm;
-};
-
 struct kvm_arch{
 	int naliases;
 	struct kvm_mem_alias aliases[KVM_ALIAS_SLOTS];
@@ -364,6 +344,7 @@ struct kvm_arch{
 	 */
 	struct list_head active_mmu_pages;
 	struct list_head assigned_dev_head;
+	struct dmar_domain *intel_iommu_domain;
 	struct kvm_pic *vpic;
 	struct kvm_ioapic *vioapic;
 	struct kvm_pit *vpit;
@@ -513,6 +494,8 @@ int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa,
 			  const void *val, int bytes);
 int kvm_pv_mmu_op(struct kvm_vcpu *vcpu, unsigned long bytes,
 		  gpa_t addr, unsigned long *ret);
+
+int is_mmio_pfn(pfn_t pfn);
 
 extern bool tdp_enabled;
 
