@@ -59,9 +59,6 @@ struct sun4m_irq_global {
 struct sun4m_irq_percpu __iomem *sun4m_irq_percpu[SUN4M_NCPUS];
 struct sun4m_irq_global __iomem *sun4m_irq_global;
 
-static unsigned long dummy;
-unsigned long *irq_rcvreg = &dummy;
-
 /* Dave Redman (djhr@tadpole.co.uk)
  * The sun4m interrupt registers.
  */
@@ -369,10 +366,9 @@ void __init sun4m_init_IRQ(void)
 	for (i = 0; !cpu_find_by_instance(i, NULL, &mid); i++)
 		sbus_writel(~0x17fff, &sun4m_irq_percpu[mid]->clear);
 
-	if (num_cpu_iregs == 4) {
-		irq_rcvreg = (unsigned long *) &sun4m_irq_global->interrupt_target;
+	if (num_cpu_iregs == 4)
 		sbus_writel(0, &sun4m_irq_global->interrupt_target);
-	}
+
 	BTFIXUPSET_CALL(enable_irq, sun4m_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, sun4m_disable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(enable_pil_irq, sun4m_enable_pil_irq, BTFIXUPCALL_NORM);
