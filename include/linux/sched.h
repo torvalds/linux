@@ -2251,6 +2251,7 @@ static inline void thread_group_cputime_free(struct signal_struct *sig)
 static inline int thread_group_cputime_clone_thread(struct task_struct *curr,
 						     struct task_struct *tsk)
 {
+	return 0;
 }
 
 static inline void thread_group_cputime(struct task_struct *tsk,
@@ -2263,21 +2264,21 @@ static inline void thread_group_cputime_account_user(
 	struct thread_group_cputime *tgtimes,
 	cputime_t cputime)
 {
-	tgtimes->totals->utime = cputime_add(tgtimes->totals->utime, cputime);
+	tgtimes->totals.utime = cputime_add(tgtimes->totals.utime, cputime);
 }
 
 static inline void thread_group_cputime_account_system(
 	struct thread_group_cputime *tgtimes,
 	cputime_t cputime)
 {
-	tgtimes->totals->stime = cputime_add(tgtimes->totals->stime, cputime);
+	tgtimes->totals.stime = cputime_add(tgtimes->totals.stime, cputime);
 }
 
 static inline void thread_group_cputime_account_exec_runtime(
 	struct thread_group_cputime *tgtimes,
 	unsigned long long ns)
 {
-	tgtimes->totals->sum_exec_runtime += ns;
+	tgtimes->totals.sum_exec_runtime += ns;
 }
 
 #endif /* CONFIG_SMP */
