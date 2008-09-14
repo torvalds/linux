@@ -477,6 +477,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		struct rx_desc *rx_desc;
 		unsigned int cmd_sts;
 		struct sk_buff *skb;
+		u16 byte_cnt;
 
 		rx_desc = &rxq->rx_desc_area[rxq->rx_curr_desc];
 
@@ -499,6 +500,8 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 
 		mp->work_rx_refill |= 1 << rxq->index;
 
+		byte_cnt = rx_desc->byte_cnt;
+
 		/*
 		 * Update statistics.
 		 *
@@ -508,7 +511,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 		 * byte CRC at the end of the packet (which we do count).
 		 */
 		stats->rx_packets++;
-		stats->rx_bytes += rx_desc->byte_cnt - 2;
+		stats->rx_bytes += byte_cnt - 2;
 
 		/*
 		 * In case we received a packet without first / last bits
@@ -537,7 +540,7 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 			 * The -4 is for the CRC in the trailer of the
 			 * received packet
 			 */
-			skb_put(skb, rx_desc->byte_cnt - 2 - 4);
+			skb_put(skb, byte_cnt - 2 - 4);
 
 			if (cmd_sts & LAYER_4_CHECKSUM_OK) {
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
