@@ -163,7 +163,7 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 		prom_halt();
 	}
     
-	claim_ticker14(NULL, PROFILE_IRQ, 0);
+	sun4c_disable_irq(PROFILE_IRQ);
 }
 
 #ifdef CONFIG_SMP
