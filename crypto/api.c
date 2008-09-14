@@ -300,8 +300,8 @@ static void crypto_exit_ops(struct crypto_tfm *tfm)
 	const struct crypto_type *type = tfm->__crt_alg->cra_type;
 
 	if (type) {
-		if (type->exit)
-			type->exit(tfm);
+		if (tfm->exit)
+			tfm->exit(tfm);
 		return;
 	}
 
@@ -379,17 +379,16 @@ struct crypto_tfm *__crypto_alloc_tfm(struct crypto_alg *alg, u32 type,
 	if (err)
 		goto out_free_tfm;
 
-	if (alg->cra_init && (err = alg->cra_init(tfm))) {
-		if (err == -EAGAIN)
-			crypto_shoot_alg(alg);
+	if (!tfm->exit && alg->cra_init && (err = alg->cra_init(tfm)))
 		goto cra_init_failed;
-	}
 
 	goto out;
 
 cra_init_failed:
 	crypto_exit_ops(tfm);
 out_free_tfm:
+	if (err == -EAGAIN)
+		crypto_shoot_alg(alg);
 	kfree(tfm);
 out_err:
 	tfm = ERR_PTR(err);
@@ -469,7 +468,7 @@ void crypto_free_tfm(struct crypto_tfm *tfm)
 	alg = tfm->__crt_alg;
 	size = sizeof(*tfm) + alg->cra_ctxsize;
 
-	if (alg->cra_exit)
+	if (!tfm->exit && alg->cra_exit)
 		alg->cra_exit(tfm);
 	crypto_exit_ops(tfm);
 	crypto_mod_put(alg);

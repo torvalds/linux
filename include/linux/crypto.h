@@ -480,6 +480,8 @@ struct crypto_tfm {
 		struct compress_tfm compress;
 		struct rng_tfm rng;
 	} crt_u;
+
+	void (*exit)(struct crypto_tfm *tfm);
 	
 	struct crypto_alg *__crt_alg;
 
