@@ -74,8 +74,7 @@ struct dentry *efs_lookup(struct inode *dir, struct dentry *dentry, struct namei
 	}
 	unlock_kernel();
 
-	d_add(dentry, inode);
-	return NULL;
+	return d_splice_alias(inode, dentry);
 }
 
 static struct inode *efs_nfs_get_inode(struct super_block *sb, u64 ino,

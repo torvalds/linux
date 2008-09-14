@@ -686,7 +686,7 @@ static struct pci_driver driver = {
 	.name		= "ITE821x IDE",
 	.id_table	= it821x_pci_tbl,
 	.probe		= it821x_init_one,
-	.remove		= it821x_remove,
+	.remove		= __devexit_p(it821x_remove),
 };
 
 static int __init it821x_ide_init(void)

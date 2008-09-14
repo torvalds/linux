@@ -111,10 +111,10 @@ void tipc_zone_send_external_routes(struct _zone *z_ptr, u32 dest)
 	}
 }
 
-struct node *tipc_zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref)
+struct tipc_node *tipc_zone_select_remote_node(struct _zone *z_ptr, u32 addr, u32 ref)
 {
 	struct cluster *c_ptr;
-	struct node *n_ptr;
+	struct tipc_node *n_ptr;
 	u32 c_num;
 
 	if (!z_ptr)

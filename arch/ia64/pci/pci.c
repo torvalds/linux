@@ -324,7 +324,6 @@ pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
 struct pci_bus * __devinit
 pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 {
-	struct pci_root_info info;
 	struct pci_controller *controller;
 	unsigned int windows = 0;
 	struct pci_bus *pbus;
@@ -346,22 +345,24 @@ pci_acpi_scan_root(struct acpi_device *device, int domain, int bus)
 	acpi_walk_resources(device->handle, METHOD_NAME__CRS, count_window,
 			&windows);
 	if (windows) {
+		struct pci_root_info info;
+
 		controller->window =
 			kmalloc_node(sizeof(*controller->window) * windows,
 				     GFP_KERNEL, controller->node);
 		if (!controller->window)
 			goto out2;
+
+		name = kmalloc(16, GFP_KERNEL);
+		if (!name)
+			goto out3;
+
+		sprintf(name, "PCI Bus %04x:%02x", domain, bus);
+		info.controller = controller;
+		info.name = name;
+		acpi_walk_resources(device->handle, METHOD_NAME__CRS,
+			add_window, &info);
 	}
-
-	name = kmalloc(16, GFP_KERNEL);
-	if (!name)
-		goto out3;
-
-	sprintf(name, "PCI Bus %04x:%02x", domain, bus);
-	info.controller = controller;
-	info.name = name;
-	acpi_walk_resources(device->handle, METHOD_NAME__CRS, add_window,
-			&info);
 	/*
 	 * See arch/x86/pci/acpi.c.
 	 * The desired pci bus might already be scanned in a quirk. We

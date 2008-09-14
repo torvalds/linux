@@ -1622,7 +1622,7 @@ int usb_gadget_register_driver(struct usb_gadget_driver *driver)
 	struct pxa_udc *udc = the_controller;
 	int retval;
 
-	if (!driver || driver->speed != USB_SPEED_FULL || !driver->bind
+	if (!driver || driver->speed < USB_SPEED_FULL || !driver->bind
 			|| !driver->disconnect || !driver->setup)
 		return -EINVAL;
 	if (!udc)

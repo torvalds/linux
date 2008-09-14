@@ -20,7 +20,6 @@
  *  the file called "COPYING".
  */
 
-#include <linux/version.h>
 #include <linux/init.h>
 #include <linux/dma-mapping.h>
 #include <linux/etherdevice.h>

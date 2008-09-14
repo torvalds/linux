@@ -118,7 +118,7 @@
 DEFINE_RWLOCK(tipc_net_lock);
 struct network tipc_net = { NULL };
 
-struct node *tipc_net_select_remote_node(u32 addr, u32 ref)
+struct tipc_node *tipc_net_select_remote_node(u32 addr, u32 ref)
 {
 	return tipc_zone_select_remote_node(tipc_net.zones[tipc_zone(addr)], addr, ref);
 }

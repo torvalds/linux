@@ -866,7 +866,7 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 	cam->udev = dev;
 	cam->bulkEndpoint = bulkEndpoint;
 
-	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1) == -1) {
+	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1) < 0) {
 		kfree(cam);
 		printk(KERN_WARNING "video_register_device failed\n");
 		return -EIO;

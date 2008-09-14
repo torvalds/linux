@@ -107,6 +107,7 @@ struct rt6_rtnl_dump_arg
 {
 	struct sk_buff *skb;
 	struct netlink_callback *cb;
+	struct net *net;
 };
 
 extern int rt6_dump_route(struct rt6_info *rt, void *p_arg);

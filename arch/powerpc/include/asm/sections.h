@@ -16,6 +16,9 @@ static inline int in_kernel_text(unsigned long addr)
 	return 0;
 }
 
+#undef dereference_function_descriptor
+void *dereference_function_descriptor(void *);
+
 #endif
 
 #endif /* __KERNEL__ */

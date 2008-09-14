@@ -36,12 +36,7 @@ int aer_osc_setup(struct pcie_device *pciedev)
 	if (acpi_pci_disabled)
 		return -1;
 
-	/* Find root host bridge */
-	while (pdev->bus->self)
-		pdev = pdev->bus->self;
-	handle = acpi_get_pci_rootbridge_handle(
-		pci_domain_nr(pdev->bus), pdev->bus->number);
-
+	handle = acpi_find_root_bridge_handle(pdev);
 	if (handle) {
 		pcie_osc_support_set(OSC_EXT_PCI_CONFIG_SUPPORT);
 		status = pci_osc_control_set(handle,

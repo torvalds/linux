@@ -18,13 +18,13 @@ struct map_desc {
 	unsigned int type;
 };
 
-/* types 0-3 are defined in asm/io.h */
-#define MT_CACHECLEAN		4
-#define MT_MINICLEAN		5
-#define MT_LOW_VECTORS		6
-#define MT_HIGH_VECTORS		7
-#define MT_MEMORY		8
-#define MT_ROM			9
+/* types 0-4 are defined in asm/io.h */
+#define MT_CACHECLEAN		5
+#define MT_MINICLEAN		6
+#define MT_LOW_VECTORS		7
+#define MT_HIGH_VECTORS		8
+#define MT_MEMORY		9
+#define MT_ROM			10
 
 #define MT_NONSHARED_DEVICE	MT_DEVICE_NONSHARED
 #define MT_IXP2000_DEVICE	MT_DEVICE_IXP2000

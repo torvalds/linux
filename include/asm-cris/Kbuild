@@ -1,6 +1,5 @@
 include include/asm-generic/Kbuild.asm
 
-header-y += arch/
 header-y += arch-v10/
 header-y += arch-v32/
 

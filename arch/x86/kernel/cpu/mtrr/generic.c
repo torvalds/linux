@@ -401,7 +401,12 @@ static void generic_get_mtrr(unsigned int reg, unsigned long *base,
 		tmp |= ~((1<<(hi - 1)) - 1);
 
 		if (tmp != mask_lo) {
-			WARN_ON("mtrr: your BIOS has set up an incorrect mask, fixing it up.\n");
+			static int once = 1;
+
+			if (once) {
+				printk(KERN_INFO "mtrr: your BIOS has set up an incorrect mask, fixing it up.\n");
+				once = 0;
+			}
 			mask_lo = tmp;
 		}
 	}
