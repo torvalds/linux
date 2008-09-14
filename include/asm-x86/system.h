@@ -64,7 +64,10 @@ do {									\
 		       							\
 		       /* regparm parameters for __switch_to(): */	\
 		       [prev]     "a" (prev),				\
-		       [next]     "d" (next));				\
+		       [next]     "d" (next)				\
+									\
+		     : /* reloaded segment registers */			\
+			"memory");					\
 } while (0)
 
 /*
