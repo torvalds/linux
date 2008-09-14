@@ -526,7 +526,6 @@ static void __init sun4d_init_timers(irq_handler_t counter_fn)
 	sbus_writel((((1000000/HZ) + 1) << 10), &sun4d_timers->l10_timer_limit);
 
 	master_l10_counter = &sun4d_timers->l10_cur_count;
-	master_l10_limit = &sun4d_timers->l10_timer_limit;
 
 	err = request_irq(TIMER_IRQ, counter_fn,
 			  (IRQF_DISABLED | SA_STATIC_ALLOC),

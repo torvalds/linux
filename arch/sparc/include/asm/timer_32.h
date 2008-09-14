@@ -12,7 +12,6 @@
 #include <asm/btfixup.h>
 
 extern __volatile__ unsigned int *master_l10_counter;
-extern __volatile__ unsigned int *master_l10_limit;
 
 /* FIXME: Make do_[gs]ettimeofday btfixup calls */
 BTFIXUPDEF_CALL(int, bus_do_settimeofday, struct timespec *tv)

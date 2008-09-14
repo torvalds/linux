@@ -172,7 +172,6 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 	sbus_writel((((1000000/HZ) + 1) << 10), &sun4c_timers->l10_limit);
 
 	master_l10_counter = &sun4c_timers->l10_count;
-	master_l10_limit = &sun4c_timers->l10_limit;
 
 	err = request_irq(irq[0].pri, counter_fn,
 			  (IRQF_DISABLED | SA_STATIC_ALLOC),

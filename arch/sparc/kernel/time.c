@@ -73,7 +73,6 @@ unsigned long profile_pc(struct pt_regs *regs)
 EXPORT_SYMBOL(profile_pc);
 
 __volatile__ unsigned int *master_l10_counter;
-__volatile__ unsigned int *master_l10_limit;
 
 /*
  * timer_interrupt() needs to keep up the real-time clock,
