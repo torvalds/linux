@@ -36,11 +36,6 @@
 #include <asm/idprom.h>
 #include <asm/machines.h>
 
-#if 0
-static struct resource sun4c_timer_eb = { "sun4c_timer" };
-static struct resource sun4c_intr_eb = { "sun4c_intr" };
-#endif
-
 /*
  * Bit field defines for the interrupt registers on various
  * Sparc machines.
@@ -173,10 +168,6 @@ static void __init sun4c_init_timers(irq_handler_t counter_fn)
 		prom_halt();
 	}
     
-#if 0
-	/* This does not work on 4/330 */
-	sun4c_enable_irq(10);
-#endif
 	claim_ticker14(NULL, PROFILE_IRQ, 0);
 }
 
