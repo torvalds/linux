@@ -616,16 +616,22 @@ static inline void __init early_clear_fixmap(enum fixed_addresses idx)
 		__early_set_fixmap(idx, 0, __pgprot(0));
 }
 
-
-static int __initdata early_ioremap_nested;
-
+static void *prev_map[FIX_BTMAPS_SLOTS] __initdata;
+static unsigned long prev_size[FIX_BTMAPS_SLOTS] __initdata;
 static int __init check_early_ioremap_leak(void)
 {
-	if (!early_ioremap_nested)
+	int count = 0;
+	int i;
+
+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++)
+		if (prev_map[i])
+			count++;
+
+	if (!count)
 		return 0;
 	WARN(1, KERN_WARNING
 	       "Debug warning: early ioremap leak of %d areas detected.\n",
-		early_ioremap_nested);
+		count);
 	printk(KERN_WARNING
 		"please boot with early_ioremap_debug and report the dmesg.\n");
 
@@ -636,15 +642,30 @@ late_initcall(check_early_ioremap_leak);
 static void __init *__early_ioremap(unsigned long phys_addr, unsigned long size, pgprot_t prot)
 {
 	unsigned long offset, last_addr;
-	unsigned int nrpages, nesting;
+	unsigned int nrpages;
 	enum fixed_addresses idx0, idx;
+	int i, slot;
 
 	WARN_ON(system_state != SYSTEM_BOOTING);
 
-	nesting = early_ioremap_nested;
+	slot = -1;
+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
+		if (!prev_map[i]) {
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot < 0) {
+		printk(KERN_INFO "early_iomap(%08lx, %08lx) not found slot\n",
+			 phys_addr, size);
+		WARN_ON(1);
+		return NULL;
+	}
+
 	if (early_ioremap_debug) {
 		printk(KERN_INFO "early_ioremap(%08lx, %08lx) [%d] => ",
-		       phys_addr, size, nesting);
+		       phys_addr, size, slot);
 		dump_stack();
 	}
 
@@ -655,11 +676,7 @@ static void __init *__early_ioremap(unsigned long phys_addr, unsigned long size,
 		return NULL;
 	}
 
-	if (nesting >= FIX_BTMAPS_NESTING) {
-		WARN_ON(1);
-		return NULL;
-	}
-	early_ioremap_nested++;
+	prev_size[slot] = size;
 	/*
 	 * Mappings have to be page-aligned
 	 */
@@ -679,7 +696,7 @@ static void __init *__early_ioremap(unsigned long phys_addr, unsigned long size,
 	/*
 	 * Ok, go for it..
 	 */
-	idx0 = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*nesting;
+	idx0 = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
 	idx = idx0;
 	while (nrpages > 0) {
 		early_set_fixmap(idx, phys_addr, prot);
@@ -690,7 +707,8 @@ static void __init *__early_ioremap(unsigned long phys_addr, unsigned long size,
 	if (early_ioremap_debug)
 		printk(KERN_CONT "%08lx + %08lx\n", offset, fix_to_virt(idx0));
 
-	return (void *) (offset + fix_to_virt(idx0));
+	prev_map[slot] = (void *) (offset + fix_to_virt(idx0));
+	return prev_map[slot];
 }
 
 /* Remap an IO device */
@@ -711,15 +729,33 @@ void __init early_iounmap(void *addr, unsigned long size)
 	unsigned long offset;
 	unsigned int nrpages;
 	enum fixed_addresses idx;
-	int nesting;
+	int i, slot;
 
-	nesting = --early_ioremap_nested;
-	if (WARN_ON(nesting < 0))
+	slot = -1;
+	for (i = 0; i < FIX_BTMAPS_SLOTS; i++) {
+		if (prev_map[i] == addr) {
+			slot = i;
+			break;
+		}
+	}
+
+	if (slot < 0) {
+		printk(KERN_INFO "early_iounmap(%p, %08lx) not found slot\n",
+			 addr, size);
+		WARN_ON(1);
 		return;
+	}
+
+	if (prev_size[slot] != size) {
+		printk(KERN_INFO "early_iounmap(%p, %08lx) [%d] size not consistent %08lx\n",
+			 addr, size, slot, prev_size[slot]);
+		WARN_ON(1);
+		return;
+	}
 
 	if (early_ioremap_debug) {
 		printk(KERN_INFO "early_iounmap(%p, %08lx) [%d]\n", addr,
-		       size, nesting);
+		       size, slot);
 		dump_stack();
 	}
 
@@ -731,12 +767,13 @@ void __init early_iounmap(void *addr, unsigned long size)
 	offset = virt_addr & ~PAGE_MASK;
 	nrpages = PAGE_ALIGN(offset + size - 1) >> PAGE_SHIFT;
 
-	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*nesting;
+	idx = FIX_BTMAP_BEGIN - NR_FIX_BTMAPS*slot;
 	while (nrpages > 0) {
 		early_clear_fixmap(idx);
 		--idx;
 		--nrpages;
 	}
+	prev_map[slot] = 0;
 }
 
 void __this_fixmap_does_not_exist(void)
