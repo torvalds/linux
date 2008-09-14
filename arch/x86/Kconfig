@@ -1786,7 +1786,7 @@ config COMPAT_FOR_U64_ALIGNMENT
 
 config SYSVIPC_COMPAT
 	def_bool y
-	depends on X86_64 && COMPAT && SYSVIPC
+	depends on COMPAT && SYSVIPC
 
 endmenu
 
