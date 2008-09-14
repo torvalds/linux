@@ -529,7 +529,7 @@ static void __init early_identify_cpu(struct cpuinfo_x86 *c)
 		identify_cpu_without_cpuid(c);
 
 	/* cyrix could have cpuid enabled via c_identify()*/
-	if (!have_cpuid())
+	if (!have_cpuid_p())
 		return;
 
 	cpu_detect(c);
@@ -611,7 +611,7 @@ static void __cpuinit generic_identify(struct cpuinfo_x86 *c)
 		identify_cpu_without_cpuid(c);
 
 	/* cyrix could have cpuid enabled via c_identify()*/
-	if (!have_cpuid())
+	if (!have_cpuid_p())
 		return;
 
 	cpu_detect(c);
