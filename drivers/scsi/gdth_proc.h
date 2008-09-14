@@ -20,9 +20,6 @@ static char *gdth_ioctl_alloc(gdth_ha_str *ha, int size, int scratch,
                               ulong64 *paddr);
 static void gdth_ioctl_free(gdth_ha_str *ha, int size, char *buf, ulong64 paddr);
 static void gdth_wait_completion(gdth_ha_str *ha, int busnum, int id);
-static void gdth_stop_timeout(gdth_ha_str *ha, int busnum, int id);
-static void gdth_start_timeout(gdth_ha_str *ha, int busnum, int id);
-static int gdth_update_timeout(Scsi_Cmnd *scp, int timeout);
 
 #endif
 

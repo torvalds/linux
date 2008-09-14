@@ -110,6 +110,7 @@ void blk_rq_init(struct request_queue *q, struct request *rq)
 	memset(rq, 0, sizeof(*rq));
 
 	INIT_LIST_HEAD(&rq->queuelist);
+	INIT_LIST_HEAD(&rq->timeout_list);
 	rq->cpu = -1;
 	rq->q = q;
 	rq->sector = rq->hard_sector = (sector_t) -1;
@@ -490,6 +491,8 @@ struct request_queue *blk_alloc_queue_node(gfp_t gfp_mask, int node_id)
 	}
 
 	init_timer(&q->unplug_timer);
+	setup_timer(&q->timeout, blk_rq_timed_out_timer, (unsigned long) q);
+	INIT_LIST_HEAD(&q->timeout_list);
 
 	kobject_init(&q->kobj, &blk_queue_ktype);
 
@@ -897,6 +900,8 @@ EXPORT_SYMBOL(blk_start_queueing);
  */
 void blk_requeue_request(struct request_queue *q, struct request *rq)
 {
+	blk_delete_timer(rq);
+	blk_clear_rq_complete(rq);
 	blk_add_trace_rq(q, rq, BLK_TA_REQUEUE);
 
 	if (blk_rq_tagged(rq))
@@ -1649,6 +1654,8 @@ static int __end_that_request_first(struct request *req, int error,
 static void end_that_request_last(struct request *req, int error)
 {
 	struct gendisk *disk = req->rq_disk;
+
+	blk_delete_timer(req);
 
 	if (blk_rq_tagged(req))
 		blk_queue_end_tag(req->q, req);

@@ -75,7 +75,6 @@ struct scsi_cmnd {
 
 	int retries;
 	int allowed;
-	int timeout_per_command;
 
 	unsigned char prot_op;
 	unsigned char prot_type;
@@ -86,7 +85,6 @@ struct scsi_cmnd {
 	/* These elements define the operation we are about to perform */
 	unsigned char *cmnd;
 
-	struct timer_list eh_timeout;	/* Used to time out the command. */
 
 	/* These elements define the operation we ultimately want to perform */
 	struct scsi_data_buffer sdb;
@@ -139,7 +137,6 @@ extern void scsi_put_command(struct scsi_cmnd *);
 extern void __scsi_put_command(struct Scsi_Host *, struct scsi_cmnd *,
 			       struct device *);
 extern void scsi_finish_command(struct scsi_cmnd *cmd);
-extern void scsi_req_abort_cmd(struct scsi_cmnd *cmd);
 
 extern void *scsi_kmap_atomic_sg(struct scatterlist *sg, int sg_count,
 				 size_t *offset, size_t *len);

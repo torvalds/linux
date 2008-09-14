@@ -21,6 +21,7 @@
 #define SCSI_TRANSPORT_H
 
 #include <linux/transport_class.h>
+#include <linux/blkdev.h>
 #include <scsi/scsi_host.h>
 #include <scsi/scsi_device.h>
 
@@ -64,7 +65,7 @@ struct scsi_transport_template {
 	 *			begin counting again
 	 * EH_NOT_HANDLED	Begin normal error recovery
 	 */
-	enum scsi_eh_timer_return (* eh_timed_out)(struct scsi_cmnd *);
+	enum blk_eh_timer_return (*eh_timed_out)(struct scsi_cmnd *);
 
 	/*
 	 * Used as callback for the completion of i_t_nexus request

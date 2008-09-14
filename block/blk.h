@@ -17,6 +17,30 @@ void __blk_queue_free_tags(struct request_queue *q);
 
 void blk_unplug_work(struct work_struct *work);
 void blk_unplug_timeout(unsigned long data);
+void blk_rq_timed_out_timer(unsigned long data);
+void blk_delete_timer(struct request *);
+void blk_add_timer(struct request *);
+
+/*
+ * Internal atomic flags for request handling
+ */
+enum rq_atomic_flags {
+	REQ_ATOM_COMPLETE = 0,
+};
+
+/*
+ * EH timer and IO completion will both attempt to 'grab' the request, make
+ * sure that only one of them suceeds
+ */
+static inline int blk_mark_rq_complete(struct request *rq)
+{
+	return test_and_set_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+}
+
+static inline void blk_clear_rq_complete(struct request *rq)
+{
+	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
+}
 
 struct io_context *current_io_context(gfp_t gfp_flags, int node);
 

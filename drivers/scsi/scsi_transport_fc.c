@@ -1950,15 +1950,15 @@ static int fc_vport_match(struct attribute_container *cont,
  * Notes:
  *	This routine assumes no locks are held on entry.
  */
-static enum scsi_eh_timer_return
+static enum blk_eh_timer_return
 fc_timed_out(struct scsi_cmnd *scmd)
 {
 	struct fc_rport *rport = starget_to_rport(scsi_target(scmd->device));
 
 	if (rport->port_state == FC_PORTSTATE_BLOCKED)
-		return EH_RESET_TIMER;
+		return BLK_EH_RESET_TIMER;
 
-	return EH_NOT_HANDLED;
+	return BLK_EH_NOT_HANDLED;
 }
 
 /*

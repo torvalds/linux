@@ -331,7 +331,7 @@ static int sr_done(struct scsi_cmnd *SCpnt)
 
 static int sr_prep_fn(struct request_queue *q, struct request *rq)
 {
-	int block=0, this_count, s_size, timeout = SR_TIMEOUT;
+	int block = 0, this_count, s_size;
 	struct scsi_cd *cd;
 	struct scsi_cmnd *SCpnt;
 	struct scsi_device *sdp = q->queuedata;
@@ -461,7 +461,6 @@ static int sr_prep_fn(struct request_queue *q, struct request *rq)
 	SCpnt->transfersize = cd->device->sector_size;
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = MAX_RETRIES;
-	SCpnt->timeout_per_command = timeout;
 
 	/*
 	 * This indicates that the command is ready from our end to be
@@ -619,6 +618,8 @@ static int sr_probe(struct device *dev)
 	sprintf(disk->disk_name, "sr%d", minor);
 	disk->fops = &sr_bdops;
 	disk->flags = GENHD_FL_CD;
+
+	blk_queue_rq_timeout(sdev->request_queue, SR_TIMEOUT);
 
 	cd->device = sdev;
 	cd->disk = disk;

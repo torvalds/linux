@@ -77,6 +77,18 @@ void blk_queue_softirq_done(struct request_queue *q, softirq_done_fn *fn)
 }
 EXPORT_SYMBOL(blk_queue_softirq_done);
 
+void blk_queue_rq_timeout(struct request_queue *q, unsigned int timeout)
+{
+	q->rq_timeout = timeout;
+}
+EXPORT_SYMBOL_GPL(blk_queue_rq_timeout);
+
+void blk_queue_rq_timed_out(struct request_queue *q, rq_timed_out_fn *fn)
+{
+	q->rq_timed_out_fn = fn;
+}
+EXPORT_SYMBOL_GPL(blk_queue_rq_timed_out);
+
 /**
  * blk_queue_make_request - define an alternate make_request function for a device
  * @q:  the request queue for the device to be affected

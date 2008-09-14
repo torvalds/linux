@@ -383,7 +383,6 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	sector_t block = rq->sector;
 	sector_t threshold;
 	unsigned int this_count = rq->nr_sectors;
-	unsigned int timeout = sdp->timeout;
 	int ret;
 
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
@@ -584,7 +583,6 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	SCpnt->transfersize = sdp->sector_size;
 	SCpnt->underflow = this_count << 9;
 	SCpnt->allowed = SD_MAX_RETRIES;
-	SCpnt->timeout_per_command = timeout;
 
 	/*
 	 * This indicates that the command is ready from our end to be
@@ -1878,11 +1876,12 @@ static int sd_probe(struct device *dev)
 	sdkp->openers = 0;
 	sdkp->previous_state = 1;
 
-	if (!sdp->timeout) {
+	if (!sdp->request_queue->rq_timeout) {
 		if (sdp->type != TYPE_MOD)
-			sdp->timeout = SD_TIMEOUT;
+			blk_queue_rq_timeout(sdp->request_queue, SD_TIMEOUT);
 		else
-			sdp->timeout = SD_MOD_TIMEOUT;
+			blk_queue_rq_timeout(sdp->request_queue,
+					     SD_MOD_TIMEOUT);
 	}
 
 	device_initialize(&sdkp->dev);

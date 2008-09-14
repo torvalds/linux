@@ -398,7 +398,7 @@ void sas_ata_task_abort(struct sas_task *task)
 
 	/* Bounce SCSI-initiated commands to the SCSI EH */
 	if (qc->scsicmd) {
-		scsi_req_abort_cmd(qc->scsicmd);
+		blk_abort_request(qc->scsicmd->request);
 		scsi_schedule_eh(qc->scsicmd->device->host);
 		return;
 	}
