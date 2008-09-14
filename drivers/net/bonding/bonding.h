@@ -333,5 +333,13 @@ void bond_change_active_slave(struct bonding *bond, struct slave *new_active);
 void bond_register_arp(struct bonding *);
 void bond_unregister_arp(struct bonding *);
 
+/* exported from bond_main.c */
+extern struct list_head bond_dev_list;
+extern struct bond_parm_tbl bond_lacp_tbl[];
+extern struct bond_parm_tbl bond_mode_tbl[];
+extern struct bond_parm_tbl xmit_hashtype_tbl[];
+extern struct bond_parm_tbl arp_validate_tbl[];
+extern struct bond_parm_tbl fail_over_mac_tbl[];
+
 #endif /* _LINUX_BONDING_H */
 
