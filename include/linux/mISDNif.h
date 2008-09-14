@@ -204,9 +204,9 @@
 #define ISDN_P_NT_UP0		0x06
 
 #define IS_ISDN_P_TE(p) ((p == ISDN_P_TE_S0) || (p == ISDN_P_TE_E1) || \
-				(p == ISDN_P_TE_UP0))
+				(p == ISDN_P_TE_UP0) || (p == ISDN_P_LAPD_TE))
 #define IS_ISDN_P_NT(p) ((p == ISDN_P_NT_S0) || (p == ISDN_P_NT_E1) || \
-				(p == ISDN_P_NT_UP0))
+				(p == ISDN_P_NT_UP0) || (p == ISDN_P_LAPD_NT))
 #define IS_ISDN_P_S0(p) ((p == ISDN_P_TE_S0) || (p == ISDN_P_NT_S0))
 #define IS_ISDN_P_E1(p) ((p == ISDN_P_TE_E1) || (p == ISDN_P_NT_E1))
 #define IS_ISDN_P_UP0(p) ((p == ISDN_P_TE_UP0) || (p == ISDN_P_NT_UP0))
@@ -333,6 +333,7 @@ clear_channelmap(u_int nr, u_char *map)
 #define MISDN_CTRL_UNSETPEER		0x0080
 #define MISDN_CTRL_RX_OFF		0x0100
 #define MISDN_CTRL_FILL_EMPTY		0x0200
+#define MISDN_CTRL_GETPEER		0x0400
 #define MISDN_CTRL_HW_FEATURES_OP	0x2000
 #define MISDN_CTRL_HW_FEATURES		0x2001
 #define MISDN_CTRL_HFC_OP		0x4000

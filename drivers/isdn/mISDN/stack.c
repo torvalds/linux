@@ -440,15 +440,6 @@ connect_layer1(struct mISDNdevice *dev, struct mISDNchannel *ch,
 	case ISDN_P_NT_E1:
 	case ISDN_P_TE_S0:
 	case ISDN_P_TE_E1:
-#ifdef PROTOCOL_CHECK
-		/* this should be enhanced */
-		if (!list_empty(&dev->D.st->layer2)
-			&& dev->D.protocol != protocol)
-			return -EBUSY;
-		if (!hlist_empty(&dev->D.st->l1sock.head)
-			&& dev->D.protocol != protocol)
-			return -EBUSY;
-#endif
 		ch->recv = mISDN_queue_message;
 		ch->peer = &dev->D.st->own;
 		ch->st = dev->D.st;
@@ -546,15 +537,6 @@ create_l2entity(struct mISDNdevice *dev, struct mISDNchannel *ch,
 		if (dev->Dprotocols & (1 << ISDN_P_NT_E1))
 			rq.protocol = ISDN_P_NT_E1;
 	case ISDN_P_LAPD_TE:
-#ifdef PROTOCOL_CHECK
-		/* this should be enhanced */
-		if (!list_empty(&dev->D.st->layer2)
-			&& dev->D.protocol != protocol)
-			return -EBUSY;
-		if (!hlist_empty(&dev->D.st->l1sock.head)
-			&& dev->D.protocol != protocol)
-			return -EBUSY;
-#endif
 		ch->recv = mISDN_queue_message;
 		ch->peer = &dev->D.st->own;
 		ch->st = dev->D.st;
