@@ -446,7 +446,8 @@ connect_layer1(struct mISDNdevice *dev, struct mISDNchannel *ch,
 		rq.protocol = protocol;
 		rq.adr.channel = adr->channel;
 		err = dev->D.ctrl(&dev->D, OPEN_CHANNEL, &rq);
-		printk(KERN_DEBUG "%s: ret 1 %d\n", __func__, err);
+		printk(KERN_DEBUG "%s: ret %d (dev %d)\n", __func__, err,
+			dev->id);
 		if (err)
 			return err;
 		write_lock_bh(&dev->D.st->l1sock.lock);

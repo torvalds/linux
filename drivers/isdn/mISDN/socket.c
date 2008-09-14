@@ -483,22 +483,24 @@ data_sock_bind(struct socket *sock, struct sockaddr *addr, int addr_len)
 		goto done;
 	}
 
-	read_lock_bh(&data_sockets.lock);
-	sk_for_each(csk, node, &data_sockets.head) {
-		if (sk == csk)
-			continue;
-		if (_pms(csk)->dev != _pms(sk)->dev)
-			continue;
-		if (csk->sk_protocol >= ISDN_P_B_START)
-			continue;
-		if (IS_ISDN_P_TE(csk->sk_protocol)
-				== IS_ISDN_P_TE(sk->sk_protocol))
-			continue;
+	if (sk->sk_protocol < ISDN_P_B_START) {
+		read_lock_bh(&data_sockets.lock);
+		sk_for_each(csk, node, &data_sockets.head) {
+			if (sk == csk)
+				continue;
+			if (_pms(csk)->dev != _pms(sk)->dev)
+				continue;
+			if (csk->sk_protocol >= ISDN_P_B_START)
+				continue;
+			if (IS_ISDN_P_TE(csk->sk_protocol)
+					== IS_ISDN_P_TE(sk->sk_protocol))
+				continue;
+			read_unlock_bh(&data_sockets.lock);
+			err = -EBUSY;
+			goto done;
+		}
 		read_unlock_bh(&data_sockets.lock);
-		err = -EBUSY;
-		goto done;
 	}
-	read_unlock_bh(&data_sockets.lock);
 
 	_pms(sk)->ch.send = mISDN_send;
 	_pms(sk)->ch.ctrl = mISDN_ctrl;
