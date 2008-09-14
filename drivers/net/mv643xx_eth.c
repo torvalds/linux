@@ -165,8 +165,8 @@ static char mv643xx_eth_driver_version[] = "1.3";
 #define FORCE_LINK_PASS				(1 << 1)
 #define SERIAL_PORT_ENABLE			(1 << 0)
 
-#define DEFAULT_RX_QUEUE_SIZE		400
-#define DEFAULT_TX_QUEUE_SIZE		800
+#define DEFAULT_RX_QUEUE_SIZE		128
+#define DEFAULT_TX_QUEUE_SIZE		256
 
 
 /*
