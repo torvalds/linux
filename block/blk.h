@@ -42,6 +42,18 @@ static inline void blk_clear_rq_complete(struct request *rq)
 	clear_bit(REQ_ATOM_COMPLETE, &rq->atomic_flags);
 }
 
+#ifdef CONFIG_FAIL_IO_TIMEOUT
+int blk_should_fake_timeout(struct request_queue *);
+ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
+ssize_t part_timeout_store(struct device *, struct device_attribute *,
+				const char *, size_t);
+#else
+static inline int blk_should_fake_timeout(struct request_queue *q)
+{
+	return 0;
+}
+#endif
+
 struct io_context *current_io_context(gfp_t gfp_flags, int node);
 
 int ll_back_merge_fn(struct request_queue *q, struct request *req,

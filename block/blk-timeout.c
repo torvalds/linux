@@ -4,8 +4,67 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/blkdev.h>
+#include <linux/fault-inject.h>
 
 #include "blk.h"
+
+#ifdef CONFIG_FAIL_IO_TIMEOUT
+
+static DECLARE_FAULT_ATTR(fail_io_timeout);
+
+static int __init setup_fail_io_timeout(char *str)
+{
+	return setup_fault_attr(&fail_io_timeout, str);
+}
+__setup("fail_io_timeout=", setup_fail_io_timeout);
+
+int blk_should_fake_timeout(struct request_queue *q)
+{
+	if (!test_bit(QUEUE_FLAG_FAIL_IO, &q->queue_flags))
+		return 0;
+
+	return should_fail(&fail_io_timeout, 1);
+}
+
+static int __init fail_io_timeout_debugfs(void)
+{
+	return init_fault_attr_dentries(&fail_io_timeout, "fail_io_timeout");
+}
+
+late_initcall(fail_io_timeout_debugfs);
+
+ssize_t part_timeout_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	int set = test_bit(QUEUE_FLAG_FAIL_IO, &disk->queue->queue_flags);
+
+	return sprintf(buf, "%d\n", set != 0);
+}
+
+ssize_t part_timeout_store(struct device *dev, struct device_attribute *attr,
+			   const char *buf, size_t count)
+{
+	struct gendisk *disk = dev_to_disk(dev);
+	int val;
+
+	if (count) {
+		struct request_queue *q = disk->queue;
+		char *p = (char *) buf;
+
+		val = simple_strtoul(p, &p, 10);
+		spin_lock_irq(q->queue_lock);
+		if (val)
+			queue_flag_set(QUEUE_FLAG_FAIL_IO, q);
+		else
+			queue_flag_clear(QUEUE_FLAG_FAIL_IO, q);
+		spin_unlock_irq(q->queue_lock);
+	}
+
+	return count;
+}
+
+#endif /* CONFIG_FAIL_IO_TIMEOUT */
 
 /*
  * blk_delete_timer - Delete/cancel timer for a given function.

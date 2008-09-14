@@ -440,6 +440,7 @@ struct request_queue
 #define QUEUE_FLAG_BIDI		9	/* queue supports bidi requests */
 #define QUEUE_FLAG_NOMERGES    10	/* disable merge attempts */
 #define QUEUE_FLAG_SAME_COMP   11	/* force complete on same CPU */
+#define QUEUE_FLAG_FAIL_IO     12	/* fake timeout */
 
 static inline int queue_is_locked(struct request_queue *q)
 {

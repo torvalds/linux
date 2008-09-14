@@ -817,6 +817,11 @@ static DEVICE_ATTR(stat, S_IRUGO, part_stat_show, NULL);
 static struct device_attribute dev_attr_fail =
 	__ATTR(make-it-fail, S_IRUGO|S_IWUSR, part_fail_show, part_fail_store);
 #endif
+#ifdef CONFIG_FAIL_IO_TIMEOUT
+static struct device_attribute dev_attr_fail_timeout =
+	__ATTR(io-timeout-fail,  S_IRUGO|S_IWUSR, part_timeout_show,
+		part_timeout_store);
+#endif
 
 static struct attribute *disk_attrs[] = {
 	&dev_attr_range.attr,
@@ -828,6 +833,9 @@ static struct attribute *disk_attrs[] = {
 	&dev_attr_stat.attr,
 #ifdef CONFIG_FAIL_MAKE_REQUEST
 	&dev_attr_fail.attr,
+#endif
+#ifdef CONFIG_FAIL_IO_TIMEOUT
+	&dev_attr_fail_timeout.attr,
 #endif
 	NULL
 };
