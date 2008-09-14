@@ -35,19 +35,6 @@ struct sun4c_timer_info {
 
 #define SUN_TIMER_PHYSADDR   0xf3000000
 
-#define SUN4D_PRM_CNT_L       0x80000000
-#define SUN4D_PRM_CNT_LVALUE  0x7FFFFC00
-
-struct sun4d_timer_regs {
-	volatile unsigned int l10_timer_limit;
-	volatile unsigned int l10_cur_countx;
-	volatile unsigned int l10_limit_noclear;
-	volatile unsigned int ctrl;
-	volatile unsigned int l10_cur_count;
-};
-
-extern struct sun4d_timer_regs *sun4d_timers;
-
 extern __volatile__ unsigned int *master_l10_counter;
 extern __volatile__ unsigned int *master_l10_limit;
 
