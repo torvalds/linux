@@ -532,6 +532,12 @@ int kirkwood_tclk;
 
 int __init kirkwood_find_tclk(void)
 {
+	u32 dev, rev;
+
+	kirkwood_pcie_id(&dev, &rev);
+	if (dev == MV88F6281_DEV_ID && rev == MV88F6281_REV_A0)
+		return 200000000;
+
 	return 166666667;
 }
 
@@ -549,18 +555,37 @@ struct sys_timer kirkwood_timer = {
 /*****************************************************************************
  * General
  ****************************************************************************/
+/*
+ * Identify device ID and revision.
+ */
 static char * __init kirkwood_id(void)
 {
-	switch (readl(DEVICE_ID) & 0x3) {
-	case 0:
-		return "88F6180";
-	case 1:
-		return "88F6192";
-	case 2:
-		return "88F6281";
-	}
+	u32 dev, rev;
 
-	return "unknown 88F6000 variant";
+	kirkwood_pcie_id(&dev, &rev);
+
+	if (dev == MV88F6281_DEV_ID) {
+		if (rev == MV88F6281_REV_Z0)
+			return "MV88F6281-Z0";
+		else if (rev == MV88F6281_REV_A0)
+			return "MV88F6281-A0";
+		else
+			return "MV88F6281-Rev-Unsupported";
+	} else if (dev == MV88F6192_DEV_ID) {
+		if (rev == MV88F6192_REV_Z0)
+			return "MV88F6192-Z0";
+		else if (rev == MV88F6192_REV_A0)
+			return "MV88F6192-A0";
+		else
+			return "MV88F6192-Rev-Unsupported";
+	} else if (dev == MV88F6180_DEV_ID) {
+		if (rev == MV88F6180_REV_A0)
+			return "MV88F6180-Rev-A0";
+		else
+			return "MV88F6180-Rev-Unsupported";
+	} else {
+		return "Device-Unknown";
+	}
 }
 
 static int __init is_l2_writethrough(void)

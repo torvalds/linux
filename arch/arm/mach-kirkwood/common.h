@@ -28,6 +28,8 @@ void kirkwood_setup_pcie_io_win(int window, u32 base, u32 size,
 void kirkwood_setup_pcie_mem_win(int window, u32 base, u32 size,
 				 int maj, int min);
 
+void kirkwood_pcie_id(u32 *dev, u32 *rev);
+
 void kirkwood_ehci_init(void);
 void kirkwood_ge00_init(struct mv643xx_eth_platform_data *eth_data);
 void kirkwood_pcie_init(void);
