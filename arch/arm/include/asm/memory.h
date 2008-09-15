@@ -44,11 +44,18 @@
  * The module space lives between the addresses given by TASK_SIZE
  * and PAGE_OFFSET - it must be within 32MB of the kernel text.
  */
-#define MODULES_END		(PAGE_OFFSET)
-#define MODULES_VADDR		(MODULES_END - 16*1048576)
-
+#define MODULES_VADDR		(PAGE_OFFSET - 16*1024*1024)
 #if TASK_SIZE > MODULES_VADDR
 #error Top of user space clashes with start of module space
+#endif
+
+/*
+ * The highmem pkmap virtual space shares the end of the module area.
+ */
+#ifdef CONFIG_HIGHMEM
+#define MODULES_END		(PAGE_OFFSET - PMD_SIZE)
+#else
+#define MODULES_END		(PAGE_OFFSET)
 #endif
 
 /*
