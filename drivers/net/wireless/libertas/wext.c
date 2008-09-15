@@ -281,7 +281,7 @@ static int lbs_set_rts(struct net_device *dev, struct iw_request_info *info,
 	if (vwrq->disabled)
 		val = MRVDRV_RTS_MAX_VALUE;
 
-	if (val < MRVDRV_RTS_MIN_VALUE || val > MRVDRV_RTS_MAX_VALUE)
+	if (val > MRVDRV_RTS_MAX_VALUE) /* min rts value is 0 */
 		return -EINVAL;
 
 	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_RTS_THRESHOLD, (u16) val);
@@ -304,8 +304,7 @@ static int lbs_get_rts(struct net_device *dev, struct iw_request_info *info,
 		goto out;
 
 	vwrq->value = val;
-	vwrq->disabled = ((val < MRVDRV_RTS_MIN_VALUE)
-			  || (val > MRVDRV_RTS_MAX_VALUE));
+	vwrq->disabled = val > MRVDRV_RTS_MAX_VALUE; /* min rts value is 0 */
 	vwrq->fixed = 1;
 
 out:
