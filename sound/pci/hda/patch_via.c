@@ -1303,7 +1303,8 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 
 	spec->input_mux = &spec->private_imux[0];
 
-	spec->mixers[spec->num_mixers++] = via_hp_mixer;
+	if (spec->hp_mux)
+		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
 	return 1;
 }
@@ -1772,6 +1773,9 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 		spec->mixers[spec->num_mixers++] = spec->kctl_alloc;
 
 	spec->input_mux = &spec->private_imux[0];
+
+	if (spec->hp_mux)
+		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
 	return 1;
 }
@@ -2314,7 +2318,8 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 
 	spec->input_mux = &spec->private_imux[0];
 
-	spec->mixers[spec->num_mixers++] = via_hp_mixer;
+	if (spec->hp_mux)
+		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
 	return 1;
 }
@@ -2770,7 +2775,8 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 
 	spec->input_mux = &spec->private_imux[0];
 
-	spec->mixers[spec->num_mixers++] = via_hp_mixer;
+	if (spec->hp_mux)
+		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
 	return 1;
 }
@@ -3100,7 +3106,8 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 
 	spec->input_mux = &spec->private_imux[0];
 
-	spec->mixers[spec->num_mixers++] = via_hp_mixer;
+	if (spec->hp_mux)
+		spec->mixers[spec->num_mixers++] = via_hp_mixer;
 
 	return 1;
 }
