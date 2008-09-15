@@ -398,4 +398,10 @@ config DVB_DUMMY_FE
 	tristate "Dummy frontend driver"
 	default n
 
+config DVB_AF9013
+	tristate "Afatech AF9013 demodulator"
+	depends on DVB_CORE && I2C
+	default m if DVB_FE_CUSTOMISE
+	help
+	  Say Y when you want to support this frontend.
 endmenu
