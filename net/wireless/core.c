@@ -41,7 +41,7 @@ const struct ieee80211_regdomain world_regdom = {
 	.n_reg_rules = 1,
 	.alpha2 =  "00",
 	.reg_rules = {
-		REG_RULE(2402, 2472, 40, 6, 20,
+		REG_RULE(2412-10, 2462+10, 40, 6, 20,
 			NL80211_RRF_PASSIVE_SCAN |
 			NL80211_RRF_NO_IBSS),
 	}
@@ -64,17 +64,17 @@ const struct ieee80211_regdomain us_regdom = {
 	.alpha2 =  "US",
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..11 */
-		REG_RULE(2412-20, 2462+20, 40, 6, 27, 0),
+		REG_RULE(2412-10, 2462+10, 40, 6, 27, 0),
 		/* IEEE 802.11a, channel 36 */
-		REG_RULE(5180-20, 5180+20, 40, 6, 23, 0),
+		REG_RULE(5180-10, 5180+10, 40, 6, 23, 0),
 		/* IEEE 802.11a, channel 40 */
-		REG_RULE(5200-20, 5200+20, 40, 6, 23, 0),
+		REG_RULE(5200-10, 5200+10, 40, 6, 23, 0),
 		/* IEEE 802.11a, channel 44 */
-		REG_RULE(5220-20, 5220+20, 40, 6, 23, 0),
+		REG_RULE(5220-10, 5220+10, 40, 6, 23, 0),
 		/* IEEE 802.11a, channels 48..64 */
-		REG_RULE(5240-20, 5320+20, 40, 6, 23, 0),
+		REG_RULE(5240-10, 5320+10, 40, 6, 23, 0),
 		/* IEEE 802.11a, channels 149..165, outdoor */
-		REG_RULE(5745-20, 5825+20, 40, 6, 30, 0),
+		REG_RULE(5745-10, 5825+10, 40, 6, 30, 0),
 	}
 };
 
@@ -83,12 +83,12 @@ const struct ieee80211_regdomain jp_regdom = {
 	.alpha2 =  "JP",
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..14 */
-		REG_RULE(2412-20, 2484+20, 40, 6, 20, 0),
+		REG_RULE(2412-10, 2484+10, 40, 6, 20, 0),
 		/* IEEE 802.11a, channels 34..48 */
-		REG_RULE(5170-20, 5240+20, 40, 6, 20,
+		REG_RULE(5170-10, 5240+10, 40, 6, 20,
 			NL80211_RRF_PASSIVE_SCAN),
 		/* IEEE 802.11a, channels 52..64 */
-		REG_RULE(5260-20, 5320+20, 40, 6, 20,
+		REG_RULE(5260-10, 5320+10, 40, 6, 20,
 			NL80211_RRF_NO_IBSS |
 			NL80211_RRF_DFS),
 	}
@@ -101,22 +101,22 @@ const struct ieee80211_regdomain eu_regdom = {
 	.alpha2 =  "EU",
 	.reg_rules = {
 		/* IEEE 802.11b/g, channels 1..13 */
-		REG_RULE(2412-20, 2472+20, 40, 6, 20, 0),
+		REG_RULE(2412-10, 2472+10, 40, 6, 20, 0),
 		/* IEEE 802.11a, channel 36 */
-		REG_RULE(5180-20, 5180+20, 40, 6, 23,
+		REG_RULE(5180-10, 5180+10, 40, 6, 23,
 			NL80211_RRF_PASSIVE_SCAN),
 		/* IEEE 802.11a, channel 40 */
-		REG_RULE(5200-20, 5200+20, 40, 6, 23,
+		REG_RULE(5200-10, 5200+10, 40, 6, 23,
 			NL80211_RRF_PASSIVE_SCAN),
 		/* IEEE 802.11a, channel 44 */
-		REG_RULE(5220-20, 5220+20, 40, 6, 23,
+		REG_RULE(5220-10, 5220+10, 40, 6, 23,
 			NL80211_RRF_PASSIVE_SCAN),
 		/* IEEE 802.11a, channels 48..64 */
-		REG_RULE(5240-20, 5320+20, 40, 6, 20,
+		REG_RULE(5240-10, 5320+10, 40, 6, 20,
 			NL80211_RRF_NO_IBSS |
 			NL80211_RRF_DFS),
 		/* IEEE 802.11a, channels 100..140 */
-		REG_RULE(5500-20, 5700+20, 40, 6, 30,
+		REG_RULE(5500-10, 5700+10, 40, 6, 30,
 			NL80211_RRF_NO_IBSS |
 			NL80211_RRF_DFS),
 	}
