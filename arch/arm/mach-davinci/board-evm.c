@@ -124,7 +124,7 @@ static __init void davinci_evm_irq_init(void)
 MACHINE_START(DAVINCI_EVM, "DaVinci EVM")
 	/* Maintainer: MontaVista Software <source@mvista.com> */
 	.phys_io      = IO_PHYS,
-	.io_pg_offst  = (io_p2v(IO_PHYS) >> 18) & 0xfffc,
+	.io_pg_offst  = (__IO_ADDRESS(IO_PHYS) >> 18) & 0xfffc,
 	.boot_params  = (DAVINCI_DDR_BASE + 0x100),
 	.map_io	      = davinci_evm_map_io,
 	.init_irq     = davinci_evm_irq_init,
