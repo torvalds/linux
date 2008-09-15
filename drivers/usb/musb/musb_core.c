@@ -1806,6 +1806,7 @@ allocate_instance(struct device *dev,
 	musb->ctrl_base = mbase;
 	musb->nIrq = -ENODEV;
 	musb->config = config;
+	BUG_ON(musb->config->num_eps > MUSB_C_NUM_EPS);
 	for (epnum = 0, ep = musb->endpoints;
 			epnum < musb->config->num_eps;
 			epnum++, ep++) {
