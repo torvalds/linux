@@ -2467,7 +2467,7 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_ADAPTATION_LAYER_IND:
-		asoc->peer.adaptation_ind = param.aind->adaptation_ind;
+		asoc->peer.adaptation_ind = ntohl(param.aind->adaptation_ind);
 		break;
 
 	case SCTP_PARAM_SET_PRIMARY:
