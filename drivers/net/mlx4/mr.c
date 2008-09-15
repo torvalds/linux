@@ -71,8 +71,6 @@ struct mlx4_mpt_entry {
 #define MLX4_MPT_PD_FLAG_RAE	    (1 << 28)
 #define MLX4_MPT_PD_FLAG_EN_INV	    (3 << 24)
 
-#define MLX4_MTT_FLAG_PRESENT		1
-
 #define MLX4_MPT_STATUS_SW		0xF0
 #define MLX4_MPT_STATUS_HW		0x00
 
