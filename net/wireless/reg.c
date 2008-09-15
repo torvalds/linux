@@ -174,32 +174,27 @@ static bool is_old_static_regdom(const struct ieee80211_regdomain *rd)
 		return true;
 	return false;
 }
-
-/* The old crap never deals with a world regulatory domain, it only
- * deals with the static regulatory domain passed and if possible
- * an updated "US" or "JP" regulatory domain. We do however store the
- * old static regulatory domain in cfg80211_world_regdom for convenience
- * of use here */
-static void reset_regdomains_static(void)
-{
-	if (!is_old_static_regdom(cfg80211_regdomain))
-		kfree(cfg80211_regdomain);
-	/* This is setting the regdom to the old static regdom */
-	cfg80211_regdomain =
-		(struct ieee80211_regdomain *) cfg80211_world_regdom;
-}
 #else
+static inline bool is_old_static_regdom(const struct ieee80211_regdomain *rd)
+{
+	return false;
+}
+#endif
+
 static void reset_regdomains(void)
 {
-	if (cfg80211_world_regdom && cfg80211_world_regdom != &world_regdom) {
-		if (cfg80211_world_regdom == cfg80211_regdomain) {
-			kfree(cfg80211_regdomain);
-		} else {
-			kfree(cfg80211_world_regdom);
-			kfree(cfg80211_regdomain);
-		}
-	} else if (cfg80211_regdomain && cfg80211_regdomain != &world_regdom)
-		kfree(cfg80211_regdomain);
+	/* avoid freeing static information or freeing something twice */
+	if (cfg80211_regdomain == cfg80211_world_regdom)
+		cfg80211_regdomain = NULL;
+	if (cfg80211_world_regdom == &world_regdom)
+		cfg80211_world_regdom = NULL;
+	if (cfg80211_regdomain == &world_regdom)
+		cfg80211_regdomain = NULL;
+	if (is_old_static_regdom(cfg80211_regdomain))
+		cfg80211_regdomain = NULL;
+
+	kfree(cfg80211_regdomain);
+	kfree(cfg80211_world_regdom);
 
 	cfg80211_world_regdom = &world_regdom;
 	cfg80211_regdomain = NULL;
@@ -216,7 +211,6 @@ static void update_world_regdomain(const struct ieee80211_regdomain *rd)
 	cfg80211_world_regdom = rd;
 	cfg80211_regdomain = rd;
 }
-#endif
 
 bool is_world_regdom(const char *alpha2)
 {
@@ -297,12 +291,8 @@ static int call_crda(const char *alpha2)
 		printk(KERN_INFO "cfg80211: Calling CRDA for country: %c%c\n",
 			alpha2[0], alpha2[1]);
 	else
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-		return -EINVAL;
-#else
 		printk(KERN_INFO "cfg80211: Calling CRDA to update world "
 			"regulatory domain\n");
-#endif
 
 	country_env[8] = alpha2[0];
 	country_env[9] = alpha2[1];
@@ -728,20 +718,12 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 
 	/* Some basic sanity checks first */
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	/* We ignore the world regdom with the old static regdomains setup
-	 * as there is no point to it with static regulatory definitions :(
-	 * Don't worry this shit will be removed soon... */
-	if (is_world_regdom(rd->alpha2))
-		return -EINVAL;
-#else
 	if (is_world_regdom(rd->alpha2)) {
 		if (WARN_ON(!__reg_is_valid_request(rd->alpha2, &request)))
 			return -EINVAL;
 		update_world_regdomain(rd);
 		return 0;
 	}
-#endif
 
 	if (!is_alpha2_set(rd->alpha2) && !is_an_alpha2(rd->alpha2) &&
 			!is_unknown_alpha2(rd->alpha2))
@@ -750,15 +732,10 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	if (list_empty(&regulatory_requests))
 		return -EINVAL;
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	/* Static "US" and "JP" will be overridden, but just once */
+	/* allow overriding the static definitions if CRDA is present */
 	if (!is_old_static_regdom(cfg80211_regdomain) &&
-			!regdom_changed(rd->alpha2))
+	    !regdom_changed(rd->alpha2))
 		return -EINVAL;
-#else
-	if (!regdom_changed(rd->alpha2))
-		return -EINVAL;
-#endif
 
 	/* Now lets set the regulatory domain, update all driver channels
 	 * and finally inform them of what we have done, in case they want
@@ -768,11 +745,7 @@ static int __set_regdom(const struct ieee80211_regdomain *rd)
 	if (WARN_ON(!__reg_is_valid_request(rd->alpha2, &request)))
 		return -EINVAL;
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	reset_regdomains_static();
-#else
 	reset_regdomains();
-#endif
 
 	/* Country IE parsing coming soon */
 	switch (request->initiator) {
@@ -858,10 +831,8 @@ int regulatory_init(void)
 
 #ifdef CONFIG_WIRELESS_OLD_REGULATORY
 	cfg80211_regdomain = static_regdom(ieee80211_regdom);
-	/* Used during reset_regdomains_static() */
-	cfg80211_world_regdom = cfg80211_regdomain;
 
-	printk(KERN_INFO "cfg80211: Using old static regulatory domain:\n");
+	printk(KERN_INFO "cfg80211: Using static regulatory domain info\n");
 	print_regdomain_info(cfg80211_regdomain);
 	/* The old code still requests for a new regdomain and if
 	 * you have CRDA you get it updated, otherwise you get
@@ -889,11 +860,7 @@ void regulatory_exit(void)
 
 	mutex_lock(&cfg80211_drv_mutex);
 
-#ifdef CONFIG_WIRELESS_OLD_REGULATORY
-	reset_regdomains_static();
-#else
 	reset_regdomains();
-#endif
 
 	list_for_each_entry_safe(req, req_tmp, &regulatory_requests, list) {
 		list_del(&req->list);
