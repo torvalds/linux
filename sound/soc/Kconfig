@@ -5,6 +5,7 @@
 menuconfig SND_SOC
 	tristate "ALSA for SoC audio support"
 	select SND_PCM
+	select AC97_BUS if SND_SOC_AC97_BUS
 	---help---
 
 	  If you want ASoC support, you should say Y here and also to the
