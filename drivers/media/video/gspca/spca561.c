@@ -152,7 +152,7 @@ static void reg_w_val(struct usb_device *dev, __u16 index, __u8 value)
 
 	ret = usb_control_msg(dev, usb_sndctrlpipe(dev, 0),
 			      0,		/* request */
-			      USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			      value, index, NULL, 0, 500);
 	PDEBUG(D_USBO, "reg write: 0x%02x:0x%02x", index, value);
 	if (ret < 0)
