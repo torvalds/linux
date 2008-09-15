@@ -96,7 +96,7 @@ i915_gem_detect_bit_6_swizzle(struct drm_device *dev)
 		 */
 		swizzle_x = I915_BIT_6_SWIZZLE_NONE;
 		swizzle_y = I915_BIT_6_SWIZZLE_NONE;
-	} else if (!IS_I965G(dev) || IS_I965GM(dev)) {
+	} else if ((!IS_I965G(dev) && !IS_G33(dev)) || IS_I965GM(dev)) {
 		uint32_t dcc;
 
 		/* On 915-945 and GM965, channel interleave by the CPU is
