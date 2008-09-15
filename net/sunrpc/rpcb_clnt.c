@@ -20,6 +20,7 @@
 #include <linux/in6.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
+#include <net/ipv6.h>
 
 #include <linux/sunrpc/clnt.h>
 #include <linux/sunrpc/sched.h>
@@ -304,10 +305,13 @@ static int rpcb_register_netid6(struct sockaddr_in6 *address_to_register,
 	char buf[64];
 
 	/* Construct AF_INET6 universal address */
-	snprintf(buf, sizeof(buf),
-			NIP6_FMT".%u.%u",
-			NIP6(address_to_register->sin6_addr),
-			port >> 8, port & 0xff);
+	if (ipv6_addr_any(&address_to_register->sin6_addr))
+		snprintf(buf, sizeof(buf), "::.%u.%u",
+				port >> 8, port & 0xff);
+	else
+		snprintf(buf, sizeof(buf), NIP6_FMT".%u.%u",
+				NIP6(address_to_register->sin6_addr),
+				port >> 8, port & 0xff);
 	map->r_addr = buf;
 
 	dprintk("RPC:       %sregistering [%u, %u, %s, '%s'] with "
