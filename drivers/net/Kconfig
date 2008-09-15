@@ -2388,6 +2388,13 @@ config EHEA
 	  To compile the driver as a module, choose M here. The module
 	  will be called ehea.
 
+config ENIC
+	tristate "E, the Cisco 10G Ethernet NIC"
+	depends on PCI && INET
+	select INET_LRO
+	help
+	  This enables the support for the Cisco 10G Ethernet card.
+
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
 	depends on PCI && INET
