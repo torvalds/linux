@@ -720,69 +720,125 @@ svc_exit_thread(struct svc_rqst *rqstp)
 EXPORT_SYMBOL(svc_exit_thread);
 
 #ifdef CONFIG_SUNRPC_REGISTER_V4
+
 /*
- * Registering kernel RPC services with rpcbind version 2 will work
- * over either IPv4 or IPv6, since the Linux kernel always registers
- * services for the "any" address.
+ * Register an "inet" protocol family netid with the local
+ * rpcbind daemon via an rpcbind v4 SET request.
  *
- * However, the local rpcbind daemon listens on either only AF_INET
- * or AF_INET6 (never both).  When it listens on AF_INET6, an rpcbind
- * version 2 registration will result in registering the service at
- * IN6ADDR_ANY, even if the RPC service being registered is not
- * IPv6-enabled.
+ * No netconfig infrastructure is available in the kernel, so
+ * we map IP_ protocol numbers to netids by hand.
  *
- * Rpcbind version 4 allows us to be a little more specific.  Kernel
- * RPC services that don't yet support AF_INET6 can register
- * themselves as IPv4-only with the local rpcbind daemon, even if the
- * daemon is listening only on AF_INET6.
- *
- * And, registering IPv6-enabled kernel RPC services via AF_INET6
- * verifies that the local user space rpcbind daemon is properly
- * configured to support remote AF_INET6 rpcbind requests.
- *
- * An AF_INET6 registration request will fail if the local rpcbind
- * daemon is not set up to listen on AF_INET6.  Likewise, we fail
- * AF_INET6 registration requests if svc_register() is configured to
- * support only rpcbind version 2.
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
  */
-static int __svc_register(const u32 program, const u32 version,
-			  const sa_family_t family,
-			  const unsigned short protocol,
-			  const unsigned short port)
+static int __svc_rpcb_register4(const u32 program, const u32 version,
+				const unsigned short protocol,
+				const unsigned short port)
 {
 	struct sockaddr_in sin = {
 		.sin_family		= AF_INET,
 		.sin_addr.s_addr	= htonl(INADDR_ANY),
 		.sin_port		= htons(port),
 	};
+	char *netid;
+
+	switch (protocol) {
+	case IPPROTO_UDP:
+		netid = RPCBIND_NETID_UDP;
+		break;
+	case IPPROTO_TCP:
+		netid = RPCBIND_NETID_TCP;
+		break;
+	default:
+		return -EPROTONOSUPPORT;
+	}
+
+	return rpcb_v4_register(program, version,
+				(struct sockaddr *)&sin, netid);
+}
+
+/*
+ * Register an "inet6" protocol family netid with the local
+ * rpcbind daemon via an rpcbind v4 SET request.
+ *
+ * No netconfig infrastructure is available in the kernel, so
+ * we map IP_ protocol numbers to netids by hand.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
+ */
+static int __svc_rpcb_register6(const u32 program, const u32 version,
+				const unsigned short protocol,
+				const unsigned short port)
+{
 	struct sockaddr_in6 sin6 = {
 		.sin6_family		= AF_INET6,
 		.sin6_addr		= IN6ADDR_ANY_INIT,
 		.sin6_port		= htons(port),
 	};
-	struct sockaddr *sap;
 	char *netid;
+
+	switch (protocol) {
+	case IPPROTO_UDP:
+		netid = RPCBIND_NETID_UDP6;
+		break;
+	case IPPROTO_TCP:
+		netid = RPCBIND_NETID_TCP6;
+		break;
+	default:
+		return -EPROTONOSUPPORT;
+	}
+
+	return rpcb_v4_register(program, version,
+				(struct sockaddr *)&sin6, netid);
+}
+
+/*
+ * Register a kernel RPC service via rpcbind version 4.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
+ */
+static int __svc_register(const u32 program, const u32 version,
+			  const sa_family_t family,
+			  const unsigned short protocol,
+			  const unsigned short port)
+{
+	int error;
 
 	switch (family) {
 	case AF_INET:
-		sap = (struct sockaddr *)&sin;
-		netid = RPCBIND_NETID_TCP;
-		if (protocol == IPPROTO_UDP)
-			netid = RPCBIND_NETID_UDP;
-		break;
+		return __svc_rpcb_register4(program, version,
+						protocol, port);
 	case AF_INET6:
-		sap = (struct sockaddr *)&sin6;
-		netid = RPCBIND_NETID_TCP6;
-		if (protocol == IPPROTO_UDP)
-			netid = RPCBIND_NETID_UDP6;
-		break;
-	default:
-		return -EAFNOSUPPORT;
+		error = __svc_rpcb_register6(program, version,
+						protocol, port);
+		if (error < 0)
+			return error;
+
+		/*
+		 * Work around bug in some versions of Linux rpcbind
+		 * which don't allow registration of both inet and
+		 * inet6 netids.
+		 *
+		 * Error return ignored for now.
+		 */
+		__svc_rpcb_register4(program, version,
+						protocol, port);
+		return 0;
 	}
 
-	return rpcb_v4_register(program, version, sap, netid);
+	return -EAFNOSUPPORT;
 }
-#else
+
+#else	/* CONFIG_SUNRPC_REGISTER_V4 */
+
+/*
+ * Register a kernel RPC service via rpcbind version 2.
+ *
+ * Returns zero on success; a negative errno value is returned
+ * if any error occurs.
+ */
 static int __svc_register(const u32 program, const u32 version,
 			  sa_family_t family,
 			  const unsigned short protocol,
@@ -793,7 +849,8 @@ static int __svc_register(const u32 program, const u32 version,
 
 	return rpcb_register(program, version, protocol, port);
 }
-#endif
+
+#endif /* CONFIG_SUNRPC_REGISTER_V4 */
 
 /**
  * svc_register - register an RPC service with the local portmapper
@@ -817,12 +874,12 @@ int svc_register(const struct svc_serv *serv, const unsigned short proto,
 			if (progp->pg_vers[i] == NULL)
 				continue;
 
-			dprintk("svc: svc_register(%s, %u, %s, %u, %d)%s\n",
+			dprintk("svc: svc_register(%sv%d, %s, %u, %u)%s\n",
 					progp->pg_name,
-					serv->sv_family,
+					i,
 					proto == IPPROTO_UDP?  "udp" : "tcp",
 					port,
-					i,
+					serv->sv_family,
 					progp->pg_vers[i]->vs_hidden?
 						" (but not telling portmap)" : "");
 
