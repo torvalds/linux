@@ -18,8 +18,6 @@ mpc52xx.txt
 	- Linux 2.6.x on MPC52xx family
 mpc52xx-device-tree-bindings.txt
 	- MPC5200 Device Tree Bindings
-ppc_htab.txt
-	- info about the Linux/PPC /proc/ppc_htab entry
 smp.txt
 	- use and state info about Linux/PPC on MP machines
 sound.txt
