@@ -824,7 +824,6 @@ struct drm_device {
 
 	/** \name Context support */
 	/*@{ */
-	int irq;			/**< Interrupt used by board */
 	int irq_enabled;		/**< True if irq handler is enabled */
 	__volatile__ long context_flag;	/**< Context swapping flag */
 	__volatile__ long interrupt_flag; /**< Interruption handler flag */
@@ -914,6 +913,11 @@ struct drm_device {
 	/*@} */
 
 };
+
+static inline int drm_dev_to_irq(struct drm_device *dev)
+{
+	return dev->pdev->irq;
+}
 
 static __inline__ int drm_core_check_feature(struct drm_device *dev,
 					     int feature)

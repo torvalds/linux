@@ -228,12 +228,9 @@ int drm_irq_install(struct drm_device *dev)
 	if (drm_core_check_feature(dev, DRIVER_IRQ_SHARED))
 		sh_flags = IRQF_SHARED;
 
-	ret = request_irq(dev->pdev->irq, dev->driver->irq_handler,
+	ret = request_irq(drm_dev_to_irq(dev), dev->driver->irq_handler,
 			  sh_flags, dev->devname, dev);
-	/* Expose the device irq number to drivers that want to export it for
-	 * whatever reason.
-	 */
-	dev->irq = dev->pdev->irq;
+
 	if (ret < 0) {
 		mutex_lock(&dev->struct_mutex);
 		dev->irq_enabled = 0;

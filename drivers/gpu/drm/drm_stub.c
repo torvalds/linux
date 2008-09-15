@@ -107,7 +107,6 @@ static int drm_fill_in_dev(struct drm_device * dev, struct pci_dev *pdev,
 #ifdef __alpha__
 	dev->hose = pdev->sysdata;
 #endif
-	dev->irq = pdev->irq;
 
 	if (drm_ht_create(&dev->map_hash, 12)) {
 		return -ENOMEM;

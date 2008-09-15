@@ -354,9 +354,6 @@ int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv)
 	drm_via_irq_t *cur_irq = dev_priv->via_irqs;
 	int force_sequence;
 
-	if (!dev->irq)
-		return -EINVAL;
-
 	if (irqwait->request.irq >= dev_priv->num_irqs) {
 		DRM_ERROR("Trying to wait on unknown irq %d\n",
 			  irqwait->request.irq);
