@@ -100,11 +100,36 @@ ENTRY(cpu_v7_switch_mm)
  *	- pte   - PTE value to store
  *	- ext	- value for extended PTE bits
  */
-	armv6_mt_table cpu_v7
-
 ENTRY(cpu_v7_set_pte_ext)
 #ifdef CONFIG_MMU
-	armv6_set_pte_ext cpu_v7
+	str	r1, [r0], #-2048		@ linux version
+
+	bic	r3, r1, #0x000003f0
+	bic	r3, r3, #PTE_TYPE_MASK
+	orr	r3, r3, r2
+	orr	r3, r3, #PTE_EXT_AP0 | 2
+
+	tst	r2, #1 << 4
+	orrne	r3, r3, #PTE_EXT_TEX(1)
+
+	tst	r1, #L_PTE_WRITE
+	tstne	r1, #L_PTE_DIRTY
+	orreq	r3, r3, #PTE_EXT_APX
+
+	tst	r1, #L_PTE_USER
+	orrne	r3, r3, #PTE_EXT_AP1
+	tstne	r3, #PTE_EXT_APX
+	bicne	r3, r3, #PTE_EXT_APX | PTE_EXT_AP0
+
+	tst	r1, #L_PTE_EXEC
+	orreq	r3, r3, #PTE_EXT_XN
+
+	tst	r1, #L_PTE_YOUNG
+	tstne	r1, #L_PTE_PRESENT
+	moveq	r3, #0
+
+	str	r3, [r0]
+	mcr	p15, 0, r0, c7, c10, 1		@ flush_pte
 #endif
 	mov	pc, lr
 
@@ -148,6 +173,10 @@ __v7_setup:
 	mov	r10, #0x1f			@ domains 0, 1 = manager
 	mcr	p15, 0, r10, c3, c0, 0		@ load domain access register
 #endif
+	ldr	r5, =0x40e040e0
+	ldr	r6, =0xff0aa1a8
+	mcr	p15, 0, r5, c10, c2, 0		@ write PRRR
+	mcr	p15, 0, r6, c10, c2, 1		@ write NMRR
 	adr	r5, v7_crval
 	ldmia	r5, {r5, r6}
    	mrc	p15, 0, r0, c1, c0, 0		@ read control register
@@ -163,7 +192,7 @@ __v7_setup:
 	 */
 	.type	v7_crval, #object
 v7_crval:
-	crval	clear=0x0120c302, mmuset=0x00c0387d, ucset=0x00c0187c
+	crval	clear=0x0120c302, mmuset=0x10c0387d, ucset=0x00c0187c
 
 __v7_setup_stack:
 	.space	4 * 11				@ 11 registers
