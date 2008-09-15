@@ -2326,6 +2326,12 @@ L:	video4linux-list@redhat.com
 W:	http://www.ivtvdriver.org
 S:	Maintained
 
+JME NETWORK DRIVER
+P:	Guo-Fu Tseng
+M:	cooldavid@cooldavid.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 JOURNALLING FLASH FILE SYSTEM V2 (JFFS2)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
