@@ -90,14 +90,15 @@ static int misrouted_irq(int irq)
 {
 	int i;
 	int ok = 0;
+	struct irq_desc *desc;
 
-	for (i = 1; i < nr_irqs; i++) {
-		struct irq_desc *desc;
+	for_each_irq_desc(i, desc) {
+		if (!i)
+			 continue;
 
 		if (i == irq)	/* Already tried */
 			continue;
 
-		desc = irq_to_desc(i);
 		if (try_one_irq(i, desc))
 			ok = 1;
 	}
@@ -108,9 +109,13 @@ static int misrouted_irq(int irq)
 static void poll_spurious_irqs(unsigned long dummy)
 {
 	int i;
-	for (i = 1; i < nr_irqs; i++) {
-		struct irq_desc *desc = irq_to_desc(i);
+	struct irq_desc *desc;
+
+	for_each_irq_desc(i, desc) {
 		unsigned int status;
+
+		if (!i)
+			 continue;
 
 		/* Racy but it doesn't matter */
 		status = desc->status;
@@ -278,7 +283,7 @@ static int __init irqfixup_setup(char *str)
 
 __setup("irqfixup", irqfixup_setup);
 module_param(irqfixup, int, 0644);
-MODULE_PARM_DESC("irqfixup", "0: No fixup, 1: irqfixup mode 2: irqpoll mode");
+MODULE_PARM_DESC("irqfixup", "0: No fixup, 1: irqfixup mode, 2: irqpoll mode");
 
 static int __init irqpoll_setup(char *str)
 {
