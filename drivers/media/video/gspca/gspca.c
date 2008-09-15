@@ -843,9 +843,11 @@ static int dev_open(struct inode *inode, struct file *file)
 #ifdef GSPCA_DEBUG
 	/* activate the v4l2 debug */
 	if (gspca_debug & D_V4L2)
-		gspca_dev->vdev.debug |= 3;
+		gspca_dev->vdev.debug |= V4L2_DEBUG_IOCTL
+					| V4L2_DEBUG_IOCTL_ARG;
 	else
-		gspca_dev->vdev.debug &= ~3;
+		gspca_dev->vdev.debug &= ~(V4L2_DEBUG_IOCTL
+					| V4L2_DEBUG_IOCTL_ARG);
 #endif
 	ret = 0;
 out:
