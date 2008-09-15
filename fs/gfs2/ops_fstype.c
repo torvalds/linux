@@ -1237,14 +1237,17 @@ static int gfs2_get_sb_meta(struct file_system_type *fs_type, int flags,
 static void gfs2_kill_sb(struct super_block *sb)
 {
 	struct gfs2_sbd *sdp = sb->s_fs_info;
-	gfs2_meta_syncfs(sdp);
-	dput(sdp->sd_root_dir);
-	dput(sdp->sd_master_dir);
-	sdp->sd_root_dir = NULL;
-	sdp->sd_master_dir = NULL;
+	if (sdp) {
+		gfs2_meta_syncfs(sdp);
+		dput(sdp->sd_root_dir);
+		dput(sdp->sd_master_dir);
+		sdp->sd_root_dir = NULL;
+		sdp->sd_master_dir = NULL;
+	}
 	shrink_dcache_sb(sb);
 	kill_block_super(sb);
-	gfs2_delete_debugfs_file(sdp);
+	if (sdp)
+		gfs2_delete_debugfs_file(sdp);
 }
 
 struct file_system_type gfs2_fs_type = {
