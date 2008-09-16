@@ -363,7 +363,7 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	/* Every X number of frames a VBI interrupt arrives (frames as in 25 or 30 fps) */
 	data[1] = 1;
 	/* The VBI frames are stored in a ringbuffer with this size (with a VBI frame as unit) */
-	data[2] = raw ? 4 : 8;
+	data[2] = raw ? 4 : 4 * (itv->vbi.raw_size / itv->vbi.enc_size);
 	/* The start/stop codes determine which VBI lines end up in the raw VBI data area.
 	   The codes are from table 24 in the saa7115 datasheet. Each raw/sliced/video line
 	   is framed with codes FF0000XX where XX is the SAV/EAV (Start/End of Active Video)

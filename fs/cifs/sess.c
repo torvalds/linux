@@ -409,6 +409,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 		char lnm_session_key[CIFS_SESS_KEY_SIZE];
 
+		pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
+
 		/* no capabilities flags in old lanman negotiation */
 
 		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);
@@ -505,7 +507,7 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 			unicode_ssetup_strings(&bcc_ptr, ses, nls_cp);
 		} else
 			ascii_ssetup_strings(&bcc_ptr, ses, nls_cp);
-	} else if (type == Kerberos) {
+	} else if (type == Kerberos || type == MSKerberos) {
 #ifdef CONFIG_CIFS_UPCALL
 		struct cifs_spnego_msg *msg;
 		spnego_key = cifs_get_spnego_key(ses);
@@ -516,6 +518,15 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 		}
 
 		msg = spnego_key->payload.data;
+		/* check version field to make sure that cifs.upcall is
+		   sending us a response in an expected form */
+		if (msg->version != CIFS_SPNEGO_UPCALL_VERSION) {
+			cERROR(1, ("incorrect version of cifs.upcall (expected"
+				   " %d but got %d)",
+				   CIFS_SPNEGO_UPCALL_VERSION, msg->version));
+			rc = -EKEYREJECTED;
+			goto ssetup_exit;
+		}
 		/* bail out if key is too long */
 		if (msg->sesskey_len >
 		    sizeof(ses->server->mac_signing_key.data.krb5)) {

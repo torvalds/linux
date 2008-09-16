@@ -52,33 +52,6 @@
 #define  PSYCHO_PCICTRL_RESV4	 0x00000000000000c0UL /* Reserved                     */
 #define  PSYCHO_PCICTRL_AEN	 0x000000000000003fUL /* PCI DVMA Arbitration Enable  */
 
-/* U2P Programmer's Manual, page 13-55, configuration space
- * address format:
- * 
- *  32             24 23 16 15    11 10       8 7   2  1 0
- * ---------------------------------------------------------
- * |0 0 0 0 0 0 0 0 1| bus | device | function | reg | 0 0 |
- * ---------------------------------------------------------
- */
-#define PSYCHO_CONFIG_BASE(PBM)	\
-	((PBM)->config_space | (1UL << 24))
-#define PSYCHO_CONFIG_ENCODE(BUS, DEVFN, REG)	\
-	(((unsigned long)(BUS)   << 16) |	\
-	 ((unsigned long)(DEVFN) << 8)  |	\
-	 ((unsigned long)(REG)))
-
-static void *psycho_pci_config_mkaddr(struct pci_pbm_info *pbm,
-				      unsigned char bus,
-				      unsigned int devfn,
-				      int where)
-{
-	if (!pbm)
-		return NULL;
-	return (void *)
-		(PSYCHO_CONFIG_BASE(pbm) |
-		 PSYCHO_CONFIG_ENCODE(bus, devfn, where));
-}
-
 /* PSYCHO error handling support. */
 
 /* Helper function of IOMMU error checking, which checks out
@@ -339,16 +312,16 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	 * the second will just error out since we do not pass in
 	 * IRQF_SHARED.
 	 */
-	err = request_irq(op->irqs[1], psycho_ue_intr, 0,
+	err = request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED,
 			  "PSYCHO_UE", pbm);
-	err = request_irq(op->irqs[2], psycho_ce_intr, 0,
+	err = request_irq(op->irqs[2], psycho_ce_intr, IRQF_SHARED,
 			  "PSYCHO_CE", pbm);
 
 	/* This one, however, ought not to fail.  We can just warn
 	 * about it since the system can still operate properly even
 	 * if this fails.
 	 */
-	err = request_irq(op->irqs[0], psycho_pcierr_intr, 0,
+	err = request_irq(op->irqs[0], psycho_pcierr_intr, IRQF_SHARED,
 			  "PSYCHO_PCIERR", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Could not register PCIERR, "

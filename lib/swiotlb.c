@@ -491,7 +491,7 @@ swiotlb_alloc_coherent(struct device *hwdev, size_t size,
 		 * the lowest available address range.
 		 */
 		dma_addr_t handle;
-		handle = swiotlb_map_single(NULL, NULL, size, DMA_FROM_DEVICE);
+		handle = swiotlb_map_single(hwdev, NULL, size, DMA_FROM_DEVICE);
 		if (swiotlb_dma_mapping_error(hwdev, handle))
 			return NULL;
 

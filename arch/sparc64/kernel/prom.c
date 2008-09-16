@@ -162,55 +162,11 @@ static unsigned long psycho_pcislot_imap_offset(unsigned long ino)
 		return PSYCHO_IMAP_B_SLOT0 + (slot * 8);
 }
 
-#define PSYCHO_IMAP_SCSI	0x1000UL
-#define PSYCHO_IMAP_ETH		0x1008UL
-#define PSYCHO_IMAP_BPP		0x1010UL
-#define PSYCHO_IMAP_AU_REC	0x1018UL
-#define PSYCHO_IMAP_AU_PLAY	0x1020UL
-#define PSYCHO_IMAP_PFAIL	0x1028UL
-#define PSYCHO_IMAP_KMS		0x1030UL
-#define PSYCHO_IMAP_FLPY	0x1038UL
-#define PSYCHO_IMAP_SHW		0x1040UL
-#define PSYCHO_IMAP_KBD		0x1048UL
-#define PSYCHO_IMAP_MS		0x1050UL
-#define PSYCHO_IMAP_SER		0x1058UL
-#define PSYCHO_IMAP_TIM0	0x1060UL
-#define PSYCHO_IMAP_TIM1	0x1068UL
-#define PSYCHO_IMAP_UE		0x1070UL
-#define PSYCHO_IMAP_CE		0x1078UL
-#define PSYCHO_IMAP_A_ERR	0x1080UL
-#define PSYCHO_IMAP_B_ERR	0x1088UL
-#define PSYCHO_IMAP_PMGMT	0x1090UL
-#define PSYCHO_IMAP_GFX		0x1098UL
-#define PSYCHO_IMAP_EUPA	0x10a0UL
+#define PSYCHO_OBIO_IMAP_BASE	0x1000UL
 
-static unsigned long __psycho_onboard_imap_off[] = {
-/*0x20*/	PSYCHO_IMAP_SCSI,
-/*0x21*/	PSYCHO_IMAP_ETH,
-/*0x22*/	PSYCHO_IMAP_BPP,
-/*0x23*/	PSYCHO_IMAP_AU_REC,
-/*0x24*/	PSYCHO_IMAP_AU_PLAY,
-/*0x25*/	PSYCHO_IMAP_PFAIL,
-/*0x26*/	PSYCHO_IMAP_KMS,
-/*0x27*/	PSYCHO_IMAP_FLPY,
-/*0x28*/	PSYCHO_IMAP_SHW,
-/*0x29*/	PSYCHO_IMAP_KBD,
-/*0x2a*/	PSYCHO_IMAP_MS,
-/*0x2b*/	PSYCHO_IMAP_SER,
-/*0x2c*/	PSYCHO_IMAP_TIM0,
-/*0x2d*/	PSYCHO_IMAP_TIM1,
-/*0x2e*/	PSYCHO_IMAP_UE,
-/*0x2f*/	PSYCHO_IMAP_CE,
-/*0x30*/	PSYCHO_IMAP_A_ERR,
-/*0x31*/	PSYCHO_IMAP_B_ERR,
-/*0x32*/	PSYCHO_IMAP_PMGMT,
-/*0x33*/	PSYCHO_IMAP_GFX,
-/*0x34*/	PSYCHO_IMAP_EUPA,
-};
 #define PSYCHO_ONBOARD_IRQ_BASE		0x20
-#define PSYCHO_ONBOARD_IRQ_LAST		0x34
 #define psycho_onboard_imap_offset(__ino) \
-	__psycho_onboard_imap_off[(__ino) - PSYCHO_ONBOARD_IRQ_BASE]
+	(PSYCHO_OBIO_IMAP_BASE + (((__ino) & 0x1f) << 3))
 
 #define PSYCHO_ICLR_A_SLOT0	0x1400UL
 #define PSYCHO_ICLR_SCSI	0x1800UL
@@ -234,10 +190,6 @@ static unsigned int psycho_irq_build(struct device_node *dp,
 		imap_off = psycho_pcislot_imap_offset(ino);
 	} else {
 		/* Onboard device */
-		if (ino > PSYCHO_ONBOARD_IRQ_LAST) {
-			prom_printf("psycho_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
 		imap_off = psycho_onboard_imap_offset(ino);
 	}
 
@@ -324,23 +276,6 @@ static void sabre_wsync_handler(unsigned int ino, void *_arg1, void *_arg2)
 
 #define SABRE_IMAP_A_SLOT0	0x0c00UL
 #define SABRE_IMAP_B_SLOT0	0x0c20UL
-#define SABRE_IMAP_SCSI		0x1000UL
-#define SABRE_IMAP_ETH		0x1008UL
-#define SABRE_IMAP_BPP		0x1010UL
-#define SABRE_IMAP_AU_REC	0x1018UL
-#define SABRE_IMAP_AU_PLAY	0x1020UL
-#define SABRE_IMAP_PFAIL	0x1028UL
-#define SABRE_IMAP_KMS		0x1030UL
-#define SABRE_IMAP_FLPY		0x1038UL
-#define SABRE_IMAP_SHW		0x1040UL
-#define SABRE_IMAP_KBD		0x1048UL
-#define SABRE_IMAP_MS		0x1050UL
-#define SABRE_IMAP_SER		0x1058UL
-#define SABRE_IMAP_UE		0x1070UL
-#define SABRE_IMAP_CE		0x1078UL
-#define SABRE_IMAP_PCIERR	0x1080UL
-#define SABRE_IMAP_GFX		0x1098UL
-#define SABRE_IMAP_EUPA		0x10a0UL
 #define SABRE_ICLR_A_SLOT0	0x1400UL
 #define SABRE_ICLR_B_SLOT0	0x1480UL
 #define SABRE_ICLR_SCSI		0x1800UL
@@ -370,33 +305,10 @@ static unsigned long sabre_pcislot_imap_offset(unsigned long ino)
 		return SABRE_IMAP_B_SLOT0 + (slot * 8);
 }
 
-static unsigned long __sabre_onboard_imap_off[] = {
-/*0x20*/	SABRE_IMAP_SCSI,
-/*0x21*/	SABRE_IMAP_ETH,
-/*0x22*/	SABRE_IMAP_BPP,
-/*0x23*/	SABRE_IMAP_AU_REC,
-/*0x24*/	SABRE_IMAP_AU_PLAY,
-/*0x25*/	SABRE_IMAP_PFAIL,
-/*0x26*/	SABRE_IMAP_KMS,
-/*0x27*/	SABRE_IMAP_FLPY,
-/*0x28*/	SABRE_IMAP_SHW,
-/*0x29*/	SABRE_IMAP_KBD,
-/*0x2a*/	SABRE_IMAP_MS,
-/*0x2b*/	SABRE_IMAP_SER,
-/*0x2c*/	0 /* reserved */,
-/*0x2d*/	0 /* reserved */,
-/*0x2e*/	SABRE_IMAP_UE,
-/*0x2f*/	SABRE_IMAP_CE,
-/*0x30*/	SABRE_IMAP_PCIERR,
-/*0x31*/	0 /* reserved */,
-/*0x32*/	0 /* reserved */,
-/*0x33*/	SABRE_IMAP_GFX,
-/*0x34*/	SABRE_IMAP_EUPA,
-};
-#define SABRE_ONBOARD_IRQ_BASE		0x20
-#define SABRE_ONBOARD_IRQ_LAST		0x30
+#define SABRE_OBIO_IMAP_BASE	0x1000UL
+#define SABRE_ONBOARD_IRQ_BASE	0x20
 #define sabre_onboard_imap_offset(__ino) \
-	__sabre_onboard_imap_off[(__ino) - SABRE_ONBOARD_IRQ_BASE]
+	(SABRE_OBIO_IMAP_BASE + (((__ino) & 0x1f) << 3))
 
 #define sabre_iclr_offset(ino)					      \
 	((ino & 0x20) ? (SABRE_ICLR_SCSI + (((ino) & 0x1f) << 3)) :  \
@@ -459,10 +371,6 @@ static unsigned int sabre_irq_build(struct device_node *dp,
 		imap_off = sabre_pcislot_imap_offset(ino);
 	} else {
 		/* onboard device */
-		if (ino > SABRE_ONBOARD_IRQ_LAST) {
-			prom_printf("sabre_irq_build: Wacky INO [%x]\n", ino);
-			prom_halt();
-		}
 		imap_off = sabre_onboard_imap_offset(ino);
 	}
 

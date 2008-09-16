@@ -44,7 +44,7 @@ detailed description):
 	- LCD brightness control
 	- Volume control
 	- Fan control and monitoring: fan speed, fan enable/disable
-	- Experimental: WAN enable and disable
+	- WAN enable and disable
 
 A compatibility table by model and feature is maintained on the web
 site, http://ibm-acpi.sf.net/. I appreciate any success or failure
@@ -1375,17 +1375,12 @@ with EINVAL, try to set pwm1_enable to 1 and pwm1 to at least 128 (255
 would be the safest choice, though).
 
 
-EXPERIMENTAL: WAN
------------------
+WAN
+---
 
 procfs: /proc/acpi/ibm/wan
 sysfs device attribute: wwan_enable (deprecated)
 sysfs rfkill class: switch "tpacpi_wwan_sw"
-
-This feature is marked EXPERIMENTAL because the implementation
-directly accesses hardware registers and may not work as expected. USE
-WITH CAUTION! To use this feature, you need to supply the
-experimental=1 parameter when loading the module.
 
 This feature shows the presence and current state of a W-WAN (Sierra
 Wireless EV-DO) device.

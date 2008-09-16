@@ -252,7 +252,7 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm)
 {
 	irqreturn_t ret = IRQ_NONE;
 	u64 csr, csr_error_bits;
-	u16 stat;
+	u16 stat, *addr;
 
 	csr = upa_readq(pbm->pci_csr);
 	csr_error_bits = csr & (PSYCHO_PCICTRL_SBH_ERR | PSYCHO_PCICTRL_SERR);
@@ -269,7 +269,9 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm)
 			       pbm->name);
 		ret = IRQ_HANDLED;
 	}
-	pci_read_config_word(pbm->pci_bus->self, PCI_STATUS, &stat);
+	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busno,
+					0, PCI_STATUS);
+	pci_config_read16(addr, &stat);
 	if (stat & (PCI_STATUS_PARITY |
 		    PCI_STATUS_SIG_TARGET_ABORT |
 		    PCI_STATUS_REC_TARGET_ABORT |
@@ -277,7 +279,7 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm)
 		    PCI_STATUS_SIG_SYSTEM_ERROR)) {
 		printk(KERN_ERR "%s: PCI bus error, PCI_STATUS[%04x]\n",
 		       pbm->name, stat);
-		pci_write_config_word(pbm->pci_bus->self, PCI_STATUS, 0xffff);
+		pci_config_write16(addr, 0xffff);
 		ret = IRQ_HANDLED;
 	}
 	return ret;

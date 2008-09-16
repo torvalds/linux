@@ -42,6 +42,7 @@ struct user_regs_struct32
 	u32 gprs[NUM_GPRS];
 	u32 acrs[NUM_ACRS];
 	u32 orig_gpr2;
+	/* nb: there's a 4-byte hole here */
 	s390_fp_regs fp_regs;
 	/*
 	 * These per registers are in here so that gdb can modify them

@@ -463,6 +463,13 @@ static struct dmi_system_id __initdata fujitsu_dmi_table[] = {
 		     DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK S6410"),
 		     },
 	 .callback = dmi_check_cb_s6410},
+	{
+	 .ident = "FUJITSU LifeBook P8010",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook P8010"),
+		    },
+	 .callback = dmi_check_cb_s6410},
 	{}
 };
 

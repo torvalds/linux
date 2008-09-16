@@ -216,7 +216,7 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 	wakeup |= KPADWE;
 	break;
 #endif
-#ifdef IRQ_CNT
+#ifdef CONFIG_BF54x
 	case IRQ_CNT:
 	wakeup |= ROTWE;
 	break;
@@ -983,7 +983,7 @@ int __init init_arch_irq(void)
 
 	local_irq_disable();
 
-#if defined(CONFIG_BF527) || defined(CONFIG_BF536) || defined(CONFIG_BF537)
+#if (defined(CONFIG_BF537) || defined(CONFIG_BF536))
 	/* Clear EMAC Interrupt Status bits so we can demux it later */
 	bfin_write_EMAC_SYSTAT(-1);
 #endif

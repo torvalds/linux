@@ -626,9 +626,9 @@ ov511_i2c_write_internal(struct usb_ov511 *ov,
 			break;
 
 		/* Retry until idle */
-		do
+		do {
 			rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0));
+		} while (rc > 0 && ((rc&1) == 0));
 		if (rc < 0)
 			break;
 
@@ -703,9 +703,9 @@ ov511_i2c_read_internal(struct usb_ov511 *ov, unsigned char reg)
 			return rc;
 
 		/* Retry until idle */
-		do
-			 rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0));
+		do {
+			rc = reg_r(ov, R511_I2C_CTL);
+		} while (rc > 0 && ((rc & 1) == 0));
 		if (rc < 0)
 			return rc;
 
@@ -729,9 +729,9 @@ ov511_i2c_read_internal(struct usb_ov511 *ov, unsigned char reg)
 			return rc;
 
 		/* Retry until idle */
-		do
+		do {
 			rc = reg_r(ov, R511_I2C_CTL);
-		while (rc > 0 && ((rc&1) == 0));
+		} while (rc > 0 && ((rc&1) == 0));
 		if (rc < 0)
 			return rc;
 
