@@ -1401,25 +1401,29 @@ ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *dev
 
 	psmouse = serio_get_drvdata(serio);
 
-	if (psmouse->state == PSMOUSE_IGNORE) {
-		retval = -ENODEV;
-		goto out_unlock;
-	}
+	if (attr->protect) {
+		if (psmouse->state == PSMOUSE_IGNORE) {
+			retval = -ENODEV;
+			goto out_unlock;
+		}
 
-	if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
-		parent = serio_get_drvdata(serio->parent);
-		psmouse_deactivate(parent);
-	}
+		if (serio->parent && serio->id.type == SERIO_PS_PSTHRU) {
+			parent = serio_get_drvdata(serio->parent);
+			psmouse_deactivate(parent);
+		}
 
-	psmouse_deactivate(psmouse);
+		psmouse_deactivate(psmouse);
+	}
 
 	retval = attr->set(psmouse, attr->data, buf, count);
 
-	if (retval != -ENODEV)
-		psmouse_activate(psmouse);
+	if (attr->protect) {
+		if (retval != -ENODEV)
+			psmouse_activate(psmouse);
 
-	if (parent)
-		psmouse_activate(parent);
+		if (parent)
+			psmouse_activate(parent);
+	}
 
  out_unlock:
 	mutex_unlock(&psmouse_mutex);
