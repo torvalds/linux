@@ -124,6 +124,10 @@ struct trace_entry {
 };
 
 #define TRACE_ENTRY_SIZE	sizeof(struct trace_entry)
+#define TRACE_BUF_SIZE		1024
+#define TRACE_PRINT_BUF_SIZE \
+	(sizeof(struct trace_field) - offsetof(struct trace_field, print.buf))
+#define TRACE_CONT_BUF_SIZE	sizeof(struct trace_field)
 
 /*
  * The CPU trace array - it consists of thousands of trace entries

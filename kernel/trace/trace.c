@@ -2879,6 +2879,66 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
+static int tracing_open_mark(struct inode *inode, struct file *filp)
+{
+	int ret;
+
+	ret = tracing_open_generic(inode, filp);
+	if (ret)
+		return ret;
+
+	if (current_trace == &no_tracer)
+		return -ENODEV;
+
+	return 0;
+}
+
+static int mark_printk(const char *fmt, ...)
+{
+	int ret;
+	va_list args;
+	va_start(args, fmt);
+	ret = trace_vprintk(0, fmt, args);
+	va_end(args);
+	return ret;
+}
+
+static ssize_t
+tracing_mark_write(struct file *filp, const char __user *ubuf,
+					size_t cnt, loff_t *fpos)
+{
+	char *buf;
+	char *end;
+	struct trace_array *tr = &global_trace;
+
+	if (current_trace == &no_tracer || !tr->ctrl || tracing_disabled)
+		return -EINVAL;
+
+	if (cnt > TRACE_BUF_SIZE)
+		cnt = TRACE_BUF_SIZE;
+
+	buf = kmalloc(cnt + 1, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, ubuf, cnt)) {
+		kfree(buf);
+		return -EFAULT;
+	}
+
+	/* Cut from the first nil or newline. */
+	buf[cnt] = '\0';
+	end = strchr(buf, '\n');
+	if (end)
+		*end = '\0';
+
+	cnt = mark_printk("%s\n", buf);
+	kfree(buf);
+	*fpos += cnt;
+
+	return cnt;
+}
+
 static struct file_operations tracing_max_lat_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_max_lat_read,
@@ -2908,6 +2968,11 @@ static struct file_operations tracing_entries_fops = {
 	.open		= tracing_open_generic,
 	.read		= tracing_entries_read,
 	.write		= tracing_entries_write,
+};
+
+static struct file_operations tracing_mark_fops = {
+	.open		= tracing_open_mark,
+	.write		= tracing_mark_write,
 };
 
 #ifdef CONFIG_DYNAMIC_FTRACE
@@ -3027,6 +3092,12 @@ static __init void tracer_init_debugfs(void)
 		pr_warning("Could not create debugfs "
 			   "'trace_entries' entry\n");
 
+	entry = debugfs_create_file("trace_marker", 0220, d_tracer,
+				    NULL, &tracing_mark_fops);
+	if (!entry)
+		pr_warning("Could not create debugfs "
+			   "'trace_marker' entry\n");
+
 #ifdef CONFIG_DYNAMIC_FTRACE
 	entry = debugfs_create_file("dyn_ftrace_total_info", 0444, d_tracer,
 				    &ftrace_update_tot_cnt,
@@ -3039,11 +3110,6 @@ static __init void tracer_init_debugfs(void)
 	init_tracer_sysprof_debugfs(d_tracer);
 #endif
 }
-
-#define TRACE_BUF_SIZE 1024
-#define TRACE_PRINT_BUF_SIZE \
-	(sizeof(struct trace_field) - offsetof(struct trace_field, print.buf))
-#define TRACE_CONT_BUF_SIZE sizeof(struct trace_field)
 
 int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
