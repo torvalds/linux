@@ -167,7 +167,7 @@ ah_esp_debug_packet(struct ip_vs_protocol *pp, const struct sk_buff *skb,
 		    int offset, const char *msg)
 {
 #ifdef CONFIG_IP_VS_IPV6
-	if (skb->protocol == __constant_htons(ETH_P_IPV6))
+	if (skb->protocol == htons(ETH_P_IPV6))
 		ah_esp_debug_packet_v6(pp, skb, offset, msg);
 	else
 #endif

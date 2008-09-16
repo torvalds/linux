@@ -237,7 +237,7 @@ ip_vs_tcpudp_debug_packet(struct ip_vs_protocol *pp,
 			  const char *msg)
 {
 #ifdef CONFIG_IP_VS_IPV6
-	if (skb->protocol == __constant_htons(ETH_P_IPV6))
+	if (skb->protocol == htons(ETH_P_IPV6))
 		ip_vs_tcpudp_debug_packet_v6(pp, skb, offset, msg);
 	else
 #endif
