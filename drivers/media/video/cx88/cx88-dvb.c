@@ -831,7 +831,7 @@ static int dvb_register(struct cx8802_dev *dev)
 				.callback  = cx88_pci_nano_callback,
 			};
 			static struct xc2028_ctrl ctl = {
-				.fname       = "xc3028-v27.fw",
+				.fname       = XC2028_DEFAULT_FIRMWARE,
 				.max_len     = 64,
 				.scode_table = XC3028_FE_OREN538,
 			};

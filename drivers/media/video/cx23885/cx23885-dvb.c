@@ -407,7 +407,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
-				.fname       = "xc3028-v27.fw",
+				.fname       = XC2028_DEFAULT_FIRMWARE,
 				.max_len     = 64,
 				.scode_table = XC3028_FE_OREN538,
 			};
@@ -447,7 +447,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
-				.fname   = "xc3028L-v36.fw",
+				.fname   = XC3028L_DEFAULT_FIRMWARE,
 				.max_len = 64,
 				.demod   = 5000,
 				.d2633   = 1
@@ -489,7 +489,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
-				.fname       = "xc3028-v27.fw",
+				.fname       = XC2028_DEFAULT_FIRMWARE,
 				.max_len     = 64,
 				.demod       = XC3028_FE_ZARLINK456,
 			};
@@ -516,7 +516,7 @@ static int dvb_register(struct cx23885_tsport *port)
 				.callback  = cx23885_tuner_callback,
 			};
 			static struct xc2028_ctrl ctl = {
-				.fname       = "xc3028-v27.fw",
+				.fname       = XC2028_DEFAULT_FIRMWARE,
 				.max_len     = 64,
 				.demod       = XC3028_FE_ZARLINK456,
 			};
