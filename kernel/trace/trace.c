@@ -200,23 +200,6 @@ unsigned long nsecs_to_usecs(unsigned long nsecs)
 }
 
 /*
- * trace_flag_type is an enumeration that holds different
- * states when a trace occurs. These are:
- *  IRQS_OFF	- interrupts were disabled
- *  NEED_RESCED - reschedule is requested
- *  HARDIRQ	- inside an interrupt handler
- *  SOFTIRQ	- inside a softirq handler
- *  CONT	- multiple entries hold the trace item
- */
-enum trace_flag_type {
-	TRACE_FLAG_IRQS_OFF		= 0x01,
-	TRACE_FLAG_NEED_RESCHED		= 0x02,
-	TRACE_FLAG_HARDIRQ		= 0x04,
-	TRACE_FLAG_SOFTIRQ		= 0x08,
-	TRACE_FLAG_CONT			= 0x10,
-};
-
-/*
  * TRACE_ITER_SYM_MASK masks the options in trace_flags that
  * control the output of kernel symbols.
  */
@@ -1517,12 +1500,16 @@ lat_print_timestamp(struct trace_seq *s, unsigned long long abs_usecs,
 
 static const char state_to_char[] = TASK_STATE_TO_CHAR_STR;
 
-static void
-trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
+/*
+ * The message is supposed to contain an ending newline.
+ * If the printing stops prematurely, try to add a newline of our own.
+ */
+void trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 {
 	struct trace_array *tr = iter->tr;
 	struct trace_array_cpu *data = tr->data[iter->cpu];
 	struct trace_entry *ent;
+	bool ok = true;
 
 	ent = trace_entry_idx(tr, data, iter, iter->cpu);
 	if (!ent || ent->type != TRACE_CONT) {
@@ -1531,10 +1518,14 @@ trace_seq_print_cont(struct trace_seq *s, struct trace_iterator *iter)
 	}
 
 	do {
-		trace_seq_printf(s, "%s", ent->cont.buf);
+		if (ok)
+			ok = (trace_seq_printf(s, "%s", ent->cont.buf) > 0);
 		__trace_iterator_increment(iter, iter->cpu);
 		ent = trace_entry_idx(tr, data, iter, iter->cpu);
 	} while (ent && ent->type == TRACE_CONT);
+
+	if (!ok)
+		trace_seq_putc(s, '\n');
 }
 
 static int

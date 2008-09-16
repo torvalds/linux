@@ -245,6 +245,27 @@ static int mmio_print_map(struct trace_iterator *iter)
 	return 0;
 }
 
+static int mmio_print_mark(struct trace_iterator *iter)
+{
+	struct trace_entry *entry = iter->ent;
+	const char *msg		= entry->field.print.buf;
+	struct trace_seq *s	= &iter->seq;
+	unsigned long long t	= ns2usecs(entry->field.t);
+	unsigned long usec_rem	= do_div(t, 1000000ULL);
+	unsigned secs		= (unsigned long)t;
+	int ret;
+
+	/* The trailing newline must be in the message. */
+	ret = trace_seq_printf(s, "MARK %lu.%06lu %s", secs, usec_rem, msg);
+	if (!ret)
+		return 0;
+
+	if (entry->field.flags & TRACE_FLAG_CONT)
+		trace_seq_print_cont(s, iter);
+
+	return 1;
+}
+
 /* return 0 to abort printing without consuming current entry in pipe mode */
 static int mmio_print_line(struct trace_iterator *iter)
 {
@@ -253,6 +274,8 @@ static int mmio_print_line(struct trace_iterator *iter)
 		return mmio_print_rw(iter);
 	case TRACE_MMIO_MAP:
 		return mmio_print_map(iter);
+	case TRACE_PRINT:
+		return mmio_print_mark(iter);
 	default:
 		return 1; /* ignore unknown entries */
 	}

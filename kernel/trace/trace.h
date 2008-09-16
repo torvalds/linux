@@ -72,6 +72,23 @@ struct print_entry {
 };
 
 /*
+ * trace_flag_type is an enumeration that holds different
+ * states when a trace occurs. These are:
+ *  IRQS_OFF	- interrupts were disabled
+ *  NEED_RESCED - reschedule is requested
+ *  HARDIRQ	- inside an interrupt handler
+ *  SOFTIRQ	- inside a softirq handler
+ *  CONT	- multiple entries hold the trace item
+ */
+enum trace_flag_type {
+	TRACE_FLAG_IRQS_OFF		= 0x01,
+	TRACE_FLAG_NEED_RESCHED		= 0x02,
+	TRACE_FLAG_HARDIRQ		= 0x04,
+	TRACE_FLAG_SOFTIRQ		= 0x08,
+	TRACE_FLAG_CONT			= 0x10,
+};
+
+/*
  * The trace field - the most basic unit of tracing. This is what
  * is printed in the end as a single line in the trace output, such as:
  *
@@ -330,6 +347,8 @@ extern int trace_selftest_startup_sysprof(struct tracer *trace,
 
 extern void *head_page(struct trace_array_cpu *data);
 extern int trace_seq_printf(struct trace_seq *s, const char *fmt, ...);
+extern void trace_seq_print_cont(struct trace_seq *s,
+				 struct trace_iterator *iter);
 extern ssize_t trace_seq_to_user(struct trace_seq *s, char __user *ubuf,
 				 size_t cnt);
 extern long ns2usecs(cycle_t nsec);
