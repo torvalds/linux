@@ -166,6 +166,43 @@ static void kvm_assigned_dev_ack_irq(struct kvm_irq_ack_notifier *kian)
 	enable_irq(dev->host_irq);
 }
 
+static void kvm_free_assigned_device(struct kvm *kvm,
+				     struct kvm_assigned_dev_kernel
+				     *assigned_dev)
+{
+	if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested)
+		free_irq(assigned_dev->host_irq, (void *)assigned_dev);
+
+	kvm_unregister_irq_ack_notifier(kvm, &assigned_dev->ack_notifier);
+
+	if (cancel_work_sync(&assigned_dev->interrupt_work))
+		/* We had pending work. That means we will have to take
+		 * care of kvm_put_kvm.
+		 */
+		kvm_put_kvm(kvm);
+
+	pci_release_regions(assigned_dev->dev);
+	pci_disable_device(assigned_dev->dev);
+	pci_dev_put(assigned_dev->dev);
+
+	list_del(&assigned_dev->list);
+	kfree(assigned_dev);
+}
+
+static void kvm_free_all_assigned_devices(struct kvm *kvm)
+{
+	struct list_head *ptr, *ptr2;
+	struct kvm_assigned_dev_kernel *assigned_dev;
+
+	list_for_each_safe(ptr, ptr2, &kvm->arch.assigned_dev_head) {
+		assigned_dev = list_entry(ptr,
+					  struct kvm_assigned_dev_kernel,
+					  list);
+
+		kvm_free_assigned_device(kvm, assigned_dev);
+	}
+}
+
 static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 				   struct kvm_assigned_irq
 				   *assigned_irq)
@@ -194,8 +231,8 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 
 	if (irqchip_in_kernel(kvm)) {
 		if (!capable(CAP_SYS_RAWIO)) {
-			return -EPERM;
-			goto out;
+			r = -EPERM;
+			goto out_release;
 		}
 
 		if (assigned_irq->host_irq)
@@ -214,16 +251,17 @@ static int kvm_vm_ioctl_assign_irq(struct kvm *kvm,
 		 */
 		if (request_irq(match->host_irq, kvm_assigned_dev_intr, 0,
 				"kvm_assigned_device", (void *)match)) {
-			printk(KERN_INFO "%s: couldn't allocate irq for pv "
-			       "device\n", __func__);
 			r = -EIO;
-			goto out;
+			goto out_release;
 		}
 	}
 
 	match->irq_requested = true;
-out:
 	mutex_unlock(&kvm->lock);
+	return r;
+out_release:
+	mutex_unlock(&kvm->lock);
+	kvm_free_assigned_device(kvm, match);
 	return r;
 }
 
@@ -298,40 +336,6 @@ out_free:
 	kfree(match);
 	mutex_unlock(&kvm->lock);
 	return r;
-}
-
-static void kvm_free_assigned_devices(struct kvm *kvm)
-{
-	struct list_head *ptr, *ptr2;
-	struct kvm_assigned_dev_kernel *assigned_dev;
-
-	list_for_each_safe(ptr, ptr2, &kvm->arch.assigned_dev_head) {
-		assigned_dev = list_entry(ptr,
-					  struct kvm_assigned_dev_kernel,
-					  list);
-
-		if (irqchip_in_kernel(kvm) && assigned_dev->irq_requested) {
-			free_irq(assigned_dev->host_irq,
-				 (void *)assigned_dev);
-
-			kvm_unregister_irq_ack_notifier(kvm,
-							&assigned_dev->
-							ack_notifier);
-		}
-
-		if (cancel_work_sync(&assigned_dev->interrupt_work))
-			/* We had pending work. That means we will have to take
-			 * care of kvm_put_kvm.
-			 */
-			kvm_put_kvm(kvm);
-
-		pci_release_regions(assigned_dev->dev);
-		pci_disable_device(assigned_dev->dev);
-		pci_dev_put(assigned_dev->dev);
-
-		list_del(&assigned_dev->list);
-		kfree(assigned_dev);
-	}
 }
 
 unsigned long segment_base(u16 selector)
@@ -4296,7 +4300,7 @@ static void kvm_free_vcpus(struct kvm *kvm)
 void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvm_iommu_unmap_guest(kvm);
-	kvm_free_assigned_devices(kvm);
+	kvm_free_all_assigned_devices(kvm);
 	kvm_free_pit(kvm);
 	kfree(kvm->arch.vpic);
 	kfree(kvm->arch.vioapic);
