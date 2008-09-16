@@ -79,12 +79,12 @@ LEAF(save_and_sleep)
 /* Put SDRAM into self refresh.  Preload instructions into cache,
  * issue a precharge, then auto refresh, then sleep commands to it.
  */
- 	la	t0, sdsleep
+	la	t0, sdsleep
 	.set	mips3
- 	cache	0x14, 0(t0)
- 	cache	0x14, 32(t0)
- 	cache	0x14, 64(t0)
- 	cache	0x14, 96(t0)
+	cache	0x14, 0(t0)
+	cache	0x14, 32(t0)
+	cache	0x14, 64(t0)
+	cache	0x14, 96(t0)
 	.set	mips0
 
 sdsleep:

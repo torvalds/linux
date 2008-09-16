@@ -598,7 +598,7 @@ config WR_PPMC
 
 endchoice
 
-source "arch/mips/au1000/Kconfig"
+source "arch/mips/alchemy/Kconfig"
 source "arch/mips/basler/excite/Kconfig"
 source "arch/mips/jazz/Kconfig"
 source "arch/mips/lasat/Kconfig"
