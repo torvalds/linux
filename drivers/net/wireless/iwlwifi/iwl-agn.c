@@ -2568,8 +2568,6 @@ static void iwl4965_post_associate(struct iwl_priv *priv)
 	iwl_chain_noise_reset(priv);
 	priv->start_calib = 1;
 
-	/* we have just associated, don't start scan too early */
-	priv->next_scan_jiffies = jiffies + IWL_DELAY_NEXT_SCAN;
 }
 
 static int iwl4965_mac_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf);
@@ -3171,6 +3169,10 @@ static void iwl4965_bss_info_changed(struct ieee80211_hw *hw,
 			priv->power_data.dtim_period = bss_conf->dtim_period;
 			priv->timestamp = bss_conf->timestamp;
 			priv->assoc_capability = bss_conf->assoc_capability;
+
+			/* we have just associated, don't start scan too early
+			 * leave time for EAPOL exchange to complete
+			 */
 			priv->next_scan_jiffies = jiffies +
 					IWL_DELAY_NEXT_SCAN_AFTER_ASSOC;
 			mutex_lock(&priv->mutex);
