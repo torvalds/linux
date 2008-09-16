@@ -1089,6 +1089,26 @@ config X86_BOOTPARAM_MEMORY_CORRUPTION_CHECK
 	 Set whether the default state of memory_corruption_check is
 	 on or off.
 
+config X86_RESERVE_LOW_64K
+        bool "Reserve low 64K of RAM on AMI/Phoenix BIOSen"
+	default y
+	help
+	 Reserve the first 64K of physical RAM on BIOSes that are known
+	 to potentially corrupt that memory range. A numbers of BIOSes are
+	 known to utilize this area during suspend/resume, so it must not
+	 be used by the kernel.
+
+	 Set this to N if you are absolutely sure that you trust the BIOS
+	 to get all its memory reservations and usages right.
+
+	 If you have doubts about the BIOS (e.g. suspend/resume does not
+	 work or there's kernel crashes after certain hardware hotplug
+	 events) and it's not AMI or Phoenix, then you might want to enable
+	 X86_CHECK_BIOS_CORRUPTION=y to allow the kernel to check typical
+	 corruption patterns.
+
+	 Say Y if unsure.
+
 config MATH_EMULATION
 	bool
 	prompt "Math emulation" if X86_32

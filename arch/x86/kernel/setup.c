@@ -735,13 +735,14 @@ static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 		"%s detected: BIOS may corrupt low RAM, working it around.\n",
 		d->ident);
 
-	reserve_early(0x0, 0x10000, "BIOS quirk");
+	reserve_early_overlap_ok(0x0, 0x10000, "BIOS quirk");
 
 	return 0;
 }
 
 /* List of systems that have known low memory corruption BIOS problems */
 static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
+#ifdef CONFIG_X86_RESERVE_LOW_64K
 	{
 		.callback = dmi_low_memory_corruption,
 		.ident = "AMI BIOS",
@@ -757,6 +758,7 @@ static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
 		},
 	},
 	{}
+#endif
 };
 
 /*
