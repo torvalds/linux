@@ -17,31 +17,31 @@
 
 #include "../kernel/cpu/capflags.c"
 
-#if NCAPFLAGS > 8
-# error "Need to adjust the boot code handling of CPUID strings"
-#endif
-
 int main(void)
 {
-	int i;
+	int i, j;
 	const char *str;
 
 	printf("static const char x86_cap_strs[] = \n");
 
-	for (i = 0; i < NCAPINTS*32; i++) {
-		str = x86_cap_flags[i];
+	for (i = 0; i < NCAPINTS; i++) {
+		for (j = 0; j < 32; j++) {
+			str = x86_cap_flags[i*32+j];
 
-		if (i == NCAPINTS*32-1) {
-			/* The last entry must be unconditional; this
-			   also consumes the compiler-added null character */
-			if (!str)
-				str = "";
-			printf("\t\"\\x%02x\"\"%s\"\n", i, str);
-		} else if (str) {
-			printf("#if REQUIRED_MASK%d & (1 << %d)\n"
-			       "\t\"\\x%02x\"\"%s\\0\"\n"
-			       "#endif\n",
-			       i >> 5, i & 31, i, str);
+			if (i == NCAPINTS-1 && j == 31) {
+				/* The last entry must be unconditional; this
+				   also consumes the compiler-added null
+				   character */
+				if (!str)
+					str = "";
+				printf("\t\"\\x%02x\\x%02x\"\"%s\"\n",
+				       i, j, str);
+			} else if (str) {
+				printf("#if REQUIRED_MASK%d & (1 << %d)\n"
+				       "\t\"\\x%02x\\x%02x\"\"%s\\0\"\n"
+				       "#endif\n",
+				       i, j, i, j, str);
+			}
 		}
 	}
 	printf("\t;\n");
