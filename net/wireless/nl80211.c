@@ -422,18 +422,19 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 
 	memset(&params, 0, sizeof(params));
 
-	if (info->attrs[NL80211_ATTR_IFTYPE]) {
-		type = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
-		if (type > NL80211_IFTYPE_MAX)
-			return -EINVAL;
-	} else
-		return -EINVAL;
-
 	err = get_drv_dev_by_info_ifindex(info->attrs, &drv, &dev);
 	if (err)
 		return err;
 	ifindex = dev->ifindex;
+	type = dev->ieee80211_ptr->iftype;
 	dev_put(dev);
+
+	err = -EINVAL;
+	if (info->attrs[NL80211_ATTR_IFTYPE]) {
+		type = nla_get_u32(info->attrs[NL80211_ATTR_IFTYPE]);
+		if (type > NL80211_IFTYPE_MAX)
+			goto unlock;
+	}
 
 	if (!drv->ops->change_virtual_intf ||
 	    !(drv->wiphy.interface_modes & (1 << type))) {
