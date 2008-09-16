@@ -842,10 +842,6 @@ static int uvc_v4l2_do_ioctl(struct inode *inode, struct file *file,
 		if (ret < 0)
 			return ret;
 
-		if (!(video->streaming->cur_format->flags &
-		    UVC_FMT_FLAG_COMPRESSED))
-			video->queue.flags |= UVC_QUEUE_DROP_INCOMPLETE;
-
 		rb->count = ret;
 		ret = 0;
 		break;
