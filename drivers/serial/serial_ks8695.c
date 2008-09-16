@@ -63,8 +63,44 @@
 #define UART_DUMMY_LSR_RX	0x100
 #define UART_PORT_SIZE		(KS8695_USR - KS8695_URRB + 4)
 
-#define tx_enabled(port) ((port)->unused[0])
-#define rx_enabled(port) ((port)->unused[1])
+static inline int tx_enabled(struct uart_port *port)
+{
+	return port->unused[0] & 1;
+}
+
+static inline int rx_enabled(struct uart_port *port)
+{
+	return port->unused[0] & 2;
+}
+
+static inline int ms_enabled(struct uart_port *port)
+{
+	return port->unused[0] & 4;
+}
+
+static inline void ms_enable(struct uart_port *port, int enabled)
+{
+	if(enabled)
+		port->unused[0] |= 4;
+	else
+		port->unused[0] &= ~4;
+}
+
+static inline void rx_enable(struct uart_port *port, int enabled)
+{
+	if(enabled)
+		port->unused[0] |= 2;
+	else
+		port->unused[0] &= ~2;
+}
+
+static inline void tx_enable(struct uart_port *port, int enabled)
+{
+	if(enabled)
+		port->unused[0] |= 1;
+	else
+		port->unused[0] &= ~1;
+}
 
 
 #ifdef SUPPORT_SYSRQ
@@ -75,7 +111,7 @@ static void ks8695uart_stop_tx(struct uart_port *port)
 {
 	if (tx_enabled(port)) {
 		disable_irq(KS8695_IRQ_UART_TX);
-		tx_enabled(port) = 0;
+		tx_enable(port, 0);
 	}
 }
 
@@ -83,7 +119,7 @@ static void ks8695uart_start_tx(struct uart_port *port)
 {
 	if (!tx_enabled(port)) {
 		enable_irq(KS8695_IRQ_UART_TX);
-		tx_enabled(port) = 1;
+		tx_enable(port, 1);
 	}
 }
 
@@ -91,18 +127,24 @@ static void ks8695uart_stop_rx(struct uart_port *port)
 {
 	if (rx_enabled(port)) {
 		disable_irq(KS8695_IRQ_UART_RX);
-		rx_enabled(port) = 0;
+		rx_enable(port, 0);
 	}
 }
 
 static void ks8695uart_enable_ms(struct uart_port *port)
 {
-	enable_irq(KS8695_IRQ_UART_MODEM_STATUS);
+	if (!ms_enabled(port)) {
+		enable_irq(KS8695_IRQ_UART_MODEM_STATUS);
+		ms_enable(port,1);
+	}
 }
 
 static void ks8695uart_disable_ms(struct uart_port *port)
 {
-	disable_irq(KS8695_IRQ_UART_MODEM_STATUS);
+	if (ms_enabled(port)) {
+		disable_irq(KS8695_IRQ_UART_MODEM_STATUS);
+		ms_enable(port,0);
+	}
 }
 
 static irqreturn_t ks8695uart_rx_chars(int irq, void *dev_id)
@@ -285,8 +327,9 @@ static int ks8695uart_startup(struct uart_port *port)
 	int retval;
 
 	set_irq_flags(KS8695_IRQ_UART_TX, IRQF_VALID | IRQF_NOAUTOEN);
-	tx_enabled(port) = 0;
-	rx_enabled(port) = 1;
+	tx_enable(port, 0);
+	rx_enable(port, 1);
+	ms_enable(port, 1);
 
 	/*
 	 * Allocate the IRQ
