@@ -67,8 +67,7 @@ enum mm_io_opcode {
 	MMIO_WRITE = 0x2,    /* struct mmiotrace_rw */
 	MMIO_PROBE = 0x3,    /* struct mmiotrace_map */
 	MMIO_UNPROBE = 0x4,  /* struct mmiotrace_map */
-	MMIO_MARKER = 0x5,   /* raw char data */
-	MMIO_UNKNOWN_OP = 0x6, /* struct mmiotrace_rw */
+	MMIO_UNKNOWN_OP = 0x5, /* struct mmiotrace_rw */
 };
 
 struct mmiotrace_rw {
