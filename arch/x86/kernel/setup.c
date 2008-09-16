@@ -729,6 +729,29 @@ void start_periodic_check_for_corruption(void)
 }
 #endif
 
+static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
+{
+	printk(KERN_NOTICE
+		"%s detected: BIOS corrupts 0xc000, working it around.\n",
+		d->ident);
+
+	reserve_early(0xc000, 0xc400, "BIOS quirk");
+
+	return 0;
+}
+
+/* List of systems that have known low memory corruption BIOS problems */
+static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
+	{
+		.callback = dmi_low_memory_corruption,
+		.ident = "AMI BIOS",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
+		},
+	},
+	{}
+};
+
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
  * passed the efi memmap, systab, etc., so we should use these data structures
@@ -751,6 +774,8 @@ void __init setup_arch(char **cmdline_p)
 #else
 	printk(KERN_INFO "Command line: %s\n", boot_command_line);
 #endif
+
+	dmi_check_system(bad_bios_dmi_table);
 
 	early_cpu_init();
 	early_ioremap_init();
@@ -1037,3 +1062,5 @@ void __init setup_arch(char **cmdline_p)
 #endif
 #endif
 }
+
+
