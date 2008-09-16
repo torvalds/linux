@@ -697,8 +697,12 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 }
 EXPORT_SYMBOL(iwl_set_rxon_ht);
 
-/*
- * Determine how many receiver/antenna chains to use.
+#define IWL_NUM_RX_CHAINS_MULTIPLE	3
+#define IWL_NUM_RX_CHAINS_SINGLE	2
+#define IWL_NUM_IDLE_CHAINS_DUAL	2
+#define IWL_NUM_IDLE_CHAINS_SINGLE	1
+
+/* Determine how many receiver/antenna chains to use.
  * More provides better reception via diversity.  Fewer saves power.
  * MIMO (dual stream) requires at least 2, but works better with 3.
  * This does not determine *which* chains to use, just how many.
@@ -711,9 +715,9 @@ static int iwl_get_active_rx_chain_count(struct iwl_priv *priv)
 	/* # of Rx chains to use when expecting MIMO. */
 	if (is_single || (!is_cam && (priv->current_ht_config.sm_ps ==
 						 WLAN_HT_CAP_SM_PS_STATIC)))
-		return 2;
+		return IWL_NUM_RX_CHAINS_SINGLE;
 	else
-		return 3;
+		return IWL_NUM_RX_CHAINS_MULTIPLE;
 }
 
 static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
@@ -724,10 +728,11 @@ static int iwl_get_idle_rx_chain_count(struct iwl_priv *priv, int active_cnt)
 	switch (priv->current_ht_config.sm_ps) {
 	case WLAN_HT_CAP_SM_PS_STATIC:
 	case WLAN_HT_CAP_SM_PS_DYNAMIC:
-		idle_cnt = (is_cam) ? 2 : 1;
+		idle_cnt = (is_cam) ? IWL_NUM_IDLE_CHAINS_DUAL :
+					IWL_NUM_IDLE_CHAINS_SINGLE;
 		break;
 	case WLAN_HT_CAP_SM_PS_DISABLED:
-		idle_cnt = (is_cam) ? active_cnt : 1;
+		idle_cnt = (is_cam) ? active_cnt : IWL_NUM_IDLE_CHAINS_SINGLE;
 		break;
 	case WLAN_HT_CAP_SM_PS_INVALID:
 	default:
@@ -796,7 +801,7 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 
 	priv->staging_rxon.rx_chain = cpu_to_le16(rx_chain);
 
-	if (!is_single && (active_rx_cnt >= 2) && is_cam)
+	if (!is_single && (active_rx_cnt >= IWL_NUM_RX_CHAINS_SINGLE) && is_cam)
 		priv->staging_rxon.rx_chain |= RXON_RX_CHAIN_MIMO_FORCE_MSK;
 	else
 		priv->staging_rxon.rx_chain &= ~RXON_RX_CHAIN_MIMO_FORCE_MSK;
