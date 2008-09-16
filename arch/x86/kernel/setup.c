@@ -732,10 +732,10 @@ void start_periodic_check_for_corruption(void)
 static int __init dmi_low_memory_corruption(const struct dmi_system_id *d)
 {
 	printk(KERN_NOTICE
-		"%s detected: BIOS corrupts 0xc000, working it around.\n",
+		"%s detected: BIOS may corrupt low RAM, working it around.\n",
 		d->ident);
 
-	reserve_early(0xc000, 0xc400, "BIOS quirk");
+	reserve_early(0x0, 0x10000, "BIOS quirk");
 
 	return 0;
 }
@@ -747,6 +747,13 @@ static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
 		.ident = "AMI BIOS",
 		.matches = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "American Megatrends Inc."),
+		},
+	},
+	{
+		.callback = dmi_low_memory_corruption,
+		.ident = "Phoenix BIOS",
+		.matches = {
+			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix Technologies, LTD"),
 		},
 	},
 	{}
