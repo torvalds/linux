@@ -201,6 +201,12 @@ static psmouse_ret_t psmouse_process_byte(struct psmouse *psmouse)
 	return PSMOUSE_FULL_PACKET;
 }
 
+void psmouse_queue_work(struct psmouse *psmouse, struct delayed_work *work,
+		unsigned long delay)
+{
+	queue_delayed_work(kpsmoused_wq, work, delay);
+}
+
 /*
  * __psmouse_set_state() sets new psmouse state and resets all flags.
  */
@@ -305,7 +311,7 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 		       psmouse->name, psmouse->phys, psmouse->pktcnt);
 		psmouse->badbyte = psmouse->packet[0];
 		__psmouse_set_state(psmouse, PSMOUSE_RESYNCING);
-		queue_work(kpsmoused_wq, &psmouse->resync_work);
+		psmouse_queue_work(psmouse, &psmouse->resync_work, 0);
 		goto out;
 	}
 
@@ -342,7 +348,7 @@ static irqreturn_t psmouse_interrupt(struct serio *serio,
 	    time_after(jiffies, psmouse->last + psmouse->resync_time * HZ)) {
 		psmouse->badbyte = psmouse->packet[0];
 		__psmouse_set_state(psmouse, PSMOUSE_RESYNCING);
-		queue_work(kpsmoused_wq, &psmouse->resync_work);
+		psmouse_queue_work(psmouse, &psmouse->resync_work, 0);
 		goto out;
 	}
 
@@ -935,7 +941,7 @@ static int psmouse_poll(struct psmouse *psmouse)
 static void psmouse_resync(struct work_struct *work)
 {
 	struct psmouse *parent = NULL, *psmouse =
-		container_of(work, struct psmouse, resync_work);
+		container_of(work, struct psmouse, resync_work.work);
 	struct serio *serio = psmouse->ps2dev.serio;
 	psmouse_ret_t rc = PSMOUSE_GOOD_DATA;
 	int failed = 0, enabled = 0;
@@ -1194,7 +1200,7 @@ static int psmouse_connect(struct serio *serio, struct serio_driver *drv)
 		goto err_free;
 
 	ps2_init(&psmouse->ps2dev, serio);
-	INIT_WORK(&psmouse->resync_work, psmouse_resync);
+	INIT_DELAYED_WORK(&psmouse->resync_work, psmouse_resync);
 	psmouse->dev = input_dev;
 	snprintf(psmouse->phys, sizeof(psmouse->phys), "%s/input0", serio->phys);
 

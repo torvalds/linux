@@ -39,7 +39,7 @@ struct psmouse {
 	void *private;
 	struct input_dev *dev;
 	struct ps2dev ps2dev;
-	struct work_struct resync_work;
+	struct delayed_work resync_work;
 	char *vendor;
 	char *name;
 	unsigned char packet[8];
@@ -92,6 +92,8 @@ enum psmouse_type {
 	PSMOUSE_AUTO		/* This one should always be last */
 };
 
+void psmouse_queue_work(struct psmouse *psmouse, struct delayed_work *work,
+		unsigned long delay);
 int psmouse_sliced_command(struct psmouse *psmouse, unsigned char command);
 int psmouse_reset(struct psmouse *psmouse);
 void psmouse_set_state(struct psmouse *psmouse, enum psmouse_state new_state);
