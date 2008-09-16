@@ -665,6 +665,101 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 	return inode;
 }
 
+static int
+cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
+		    char *full_path, __u32 dosattr)
+{
+	int rc;
+	int oplock = 0;
+	__u16 netfid;
+	__u32 netpid;
+	bool set_time = false;
+	struct cifsFileInfo *open_file;
+	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
+	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
+	struct cifsTconInfo *pTcon = cifs_sb->tcon;
+	FILE_BASIC_INFO	info_buf;
+
+	if (attrs->ia_valid & ATTR_ATIME) {
+		set_time = true;
+		info_buf.LastAccessTime =
+			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
+	} else
+		info_buf.LastAccessTime = 0;
+
+	if (attrs->ia_valid & ATTR_MTIME) {
+		set_time = true;
+		info_buf.LastWriteTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
+	} else
+		info_buf.LastWriteTime = 0;
+
+	/*
+	 * Samba throws this field away, but windows may actually use it.
+	 * Do not set ctime unless other time stamps are changed explicitly
+	 * (i.e. by utimes()) since we would then have a mix of client and
+	 * server times.
+	 */
+	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
+		cFYI(1, ("CIFS - CTIME changed"));
+		info_buf.ChangeTime =
+		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
+	} else
+		info_buf.ChangeTime = 0;
+
+	info_buf.CreationTime = 0;	/* don't change */
+	info_buf.Attributes = cpu_to_le32(dosattr);
+
+	/*
+	 * If the file is already open for write, just use that fileid
+	 */
+	open_file = find_writable_file(cifsInode);
+	if (open_file) {
+		netfid = open_file->netfid;
+		netpid = open_file->pid;
+		goto set_via_filehandle;
+	}
+
+	/*
+	 * NT4 apparently returns success on this call, but it doesn't
+	 * really work.
+	 */
+	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
+		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
+				     &info_buf, cifs_sb->local_nls,
+				     cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
+		if (rc != -EOPNOTSUPP && rc != -EINVAL)
+			goto out;
+	}
+
+	cFYI(1, ("calling SetFileInfo since SetPathInfo for "
+		 "times not supported by this server"));
+	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
+			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
+			 CREATE_NOT_DIR, &netfid, &oplock,
+			 NULL, cifs_sb->local_nls,
+			 cifs_sb->mnt_cifs_flags &
+				CIFS_MOUNT_MAP_SPECIAL_CHR);
+
+	if (rc != 0) {
+		if (rc == -EIO)
+			rc = -EINVAL;
+		goto out;
+	}
+
+	netpid = current->tgid;
+
+set_via_filehandle:
+	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
+	if (open_file == NULL)
+		CIFSSMBClose(xid, pTcon, netfid);
+	else
+		atomic_dec(&open_file->wrtPending);
+out:
+	return rc;
+}
+
 int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
@@ -675,7 +770,8 @@ int cifs_unlink(struct inode *dir, struct dentry *dentry)
 	struct super_block *sb = dir->i_sb;
 	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
 	struct cifsTconInfo *tcon = cifs_sb->tcon;
-	FILE_BASIC_INFO *pinfo_buf;
+	struct iattr *attrs;
+	__u32 dosattr;
 
 	cFYI(1, ("cifs_unlink, dir=0x%p, dentry=0x%p", dir, dentry));
 
@@ -728,84 +824,55 @@ psx_del_no_retry:
 		}
 	} else if (rc == -EACCES) {
 		/* try only if r/o attribute set in local lookup data? */
-		pinfo_buf = kzalloc(sizeof(FILE_BASIC_INFO), GFP_KERNEL);
-		if (pinfo_buf) {
-			/* ATTRS set to normal clears r/o bit */
-			pinfo_buf->Attributes = cpu_to_le32(ATTR_NORMAL);
-			if (!(tcon->ses->flags & CIFS_SES_NT4))
-				rc = CIFSSMBSetPathInfo(xid, tcon, full_path,
-						     pinfo_buf,
-						     cifs_sb->local_nls,
-						     cifs_sb->mnt_cifs_flags &
-							CIFS_MOUNT_MAP_SPECIAL_CHR);
-			else
-				rc = -EOPNOTSUPP;
-
-			if (rc == -EOPNOTSUPP) {
-				int oplock = 0;
-				__u16 netfid;
-			/*	rc = CIFSSMBSetAttrLegacy(xid, tcon,
-							  full_path,
-							  (__u16)ATTR_NORMAL,
-							  cifs_sb->local_nls);
-			   For some strange reason it seems that NT4 eats the
-			   old setattr call without actually setting the
-			   attributes so on to the third attempted workaround
-			   */
-
-			/* BB could scan to see if we already have it open
-			   and pass in pid of opener to function */
-				rc = CIFSSMBOpen(xid, tcon, full_path,
-						 FILE_OPEN, SYNCHRONIZE |
-						 FILE_WRITE_ATTRIBUTES, 0,
-						 &netfid, &oplock, NULL,
-						 cifs_sb->local_nls,
-						 cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if (rc == 0) {
-					rc = CIFSSMBSetFileInfo(xid, tcon,
-								pinfo_buf,
-								netfid,
-								current->tgid);
-					CIFSSMBClose(xid, tcon, netfid);
-				}
-			}
-			kfree(pinfo_buf);
+		attrs = kzalloc(sizeof(*attrs), GFP_KERNEL);
+		if (attrs == NULL) {
+			rc = -ENOMEM;
+			goto out_reval;
 		}
+
+		/* try to reset dos attributes */
+		cifsInode = CIFS_I(inode);
+		dosattr = cifsInode->cifsAttrs & ~ATTR_READONLY;
+		if (dosattr == 0)
+			dosattr |= ATTR_NORMAL;
+		dosattr |= ATTR_HIDDEN;
+
+		rc = cifs_set_file_info(inode, attrs, xid, full_path, dosattr);
+		kfree(attrs);
+		if (rc != 0)
+			goto out_reval;
+		rc = CIFSSMBDelFile(xid, tcon, full_path, cifs_sb->local_nls,
+				    cifs_sb->mnt_cifs_flags &
+					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc == 0) {
-			rc = CIFSSMBDelFile(xid, tcon, full_path,
-					    cifs_sb->local_nls,
-					    cifs_sb->mnt_cifs_flags &
-						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			if (!rc) {
+			if (inode)
+				drop_nlink(inode);
+		} else if (rc == -ETXTBSY) {
+			int oplock = 0;
+			__u16 netfid;
+
+			rc = CIFSSMBOpen(xid, tcon, full_path,
+					 FILE_OPEN, DELETE,
+					 CREATE_NOT_DIR |
+					 CREATE_DELETE_ON_CLOSE,
+					 &netfid, &oplock, NULL,
+					 cifs_sb->local_nls,
+					 cifs_sb->mnt_cifs_flags &
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+			if (rc == 0) {
+				CIFSSMBRenameOpenFile(xid, tcon,
+					netfid, NULL,
+					cifs_sb->local_nls,
+					cifs_sb->mnt_cifs_flags &
+					    CIFS_MOUNT_MAP_SPECIAL_CHR);
+				CIFSSMBClose(xid, tcon, netfid);
 				if (inode)
 					drop_nlink(inode);
-			} else if (rc == -ETXTBSY) {
-				int oplock = 0;
-				__u16 netfid;
-
-				rc = CIFSSMBOpen(xid, tcon, full_path,
-						 FILE_OPEN, DELETE,
-						 CREATE_NOT_DIR |
-						 CREATE_DELETE_ON_CLOSE,
-						 &netfid, &oplock, NULL,
-						 cifs_sb->local_nls,
-						 cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-				if (rc == 0) {
-					CIFSSMBRenameOpenFile(xid, tcon,
-						netfid, NULL,
-						cifs_sb->local_nls,
-						cifs_sb->mnt_cifs_flags &
-						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-					CIFSSMBClose(xid, tcon, netfid);
-					if (inode)
-						drop_nlink(inode);
-				}
-			/* BB if rc = -ETXTBUSY goto the rename logic BB */
 			}
+		/* BB if rc = -ETXTBUSY goto the rename logic BB */
 		}
 	}
+out_reval:
 	if (inode) {
 		cifsInode = CIFS_I(inode);
 		cifsInode->time = 0;	/* will force revalidate to get info
@@ -1495,101 +1562,6 @@ cifs_set_file_size(struct inode *inode, struct iattr *attrs,
 		cifs_truncate_page(inode->i_mapping, inode->i_size);
 	}
 
-	return rc;
-}
-
-static int
-cifs_set_file_info(struct inode *inode, struct iattr *attrs, int xid,
-		    char *full_path, __u32 dosattr)
-{
-	int rc;
-	int oplock = 0;
-	__u16 netfid;
-	__u32 netpid;
-	bool set_time = false;
-	struct cifsFileInfo *open_file;
-	struct cifsInodeInfo *cifsInode = CIFS_I(inode);
-	struct cifs_sb_info *cifs_sb = CIFS_SB(inode->i_sb);
-	struct cifsTconInfo *pTcon = cifs_sb->tcon;
-	FILE_BASIC_INFO	info_buf;
-
-	if (attrs->ia_valid & ATTR_ATIME) {
-		set_time = true;
-		info_buf.LastAccessTime =
-			cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_atime));
-	} else
-		info_buf.LastAccessTime = 0;
-
-	if (attrs->ia_valid & ATTR_MTIME) {
-		set_time = true;
-		info_buf.LastWriteTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_mtime));
-	} else
-		info_buf.LastWriteTime = 0;
-
-	/*
-	 * Samba throws this field away, but windows may actually use it.
-	 * Do not set ctime unless other time stamps are changed explicitly
-	 * (i.e. by utimes()) since we would then have a mix of client and
-	 * server times.
-	 */
-	if (set_time && (attrs->ia_valid & ATTR_CTIME)) {
-		cFYI(1, ("CIFS - CTIME changed"));
-		info_buf.ChangeTime =
-		    cpu_to_le64(cifs_UnixTimeToNT(attrs->ia_ctime));
-	} else
-		info_buf.ChangeTime = 0;
-
-	info_buf.CreationTime = 0;	/* don't change */
-	info_buf.Attributes = cpu_to_le32(dosattr);
-
-	/*
-	 * If the file is already open for write, just use that fileid
-	 */
-	open_file = find_writable_file(cifsInode);
-	if (open_file) {
-		netfid = open_file->netfid;
-		netpid = open_file->pid;
-		goto set_via_filehandle;
-	}
-
-	/*
-	 * NT4 apparently returns success on this call, but it doesn't
-	 * really work.
-	 */
-	if (!(pTcon->ses->flags & CIFS_SES_NT4)) {
-		rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
-				     &info_buf, cifs_sb->local_nls,
-				     cifs_sb->mnt_cifs_flags &
-					CIFS_MOUNT_MAP_SPECIAL_CHR);
-		if (rc != -EOPNOTSUPP && rc != -EINVAL)
-			goto out;
-	}
-
-	cFYI(1, ("calling SetFileInfo since SetPathInfo for "
-		 "times not supported by this server"));
-	rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN,
-			 SYNCHRONIZE | FILE_WRITE_ATTRIBUTES,
-			 CREATE_NOT_DIR, &netfid, &oplock,
-			 NULL, cifs_sb->local_nls,
-			 cifs_sb->mnt_cifs_flags &
-				CIFS_MOUNT_MAP_SPECIAL_CHR);
-
-	if (rc != 0) {
-		if (rc == -EIO)
-			rc = -EINVAL;
-		goto out;
-	}
-
-	netpid = current->tgid;
-
-set_via_filehandle:
-	rc = CIFSSMBSetFileInfo(xid, pTcon, &info_buf, netfid, netpid);
-	if (open_file == NULL)
-		CIFSSMBClose(xid, pTcon, netfid);
-	else
-		atomic_dec(&open_file->wrtPending);
-out:
 	return rc;
 }
 
