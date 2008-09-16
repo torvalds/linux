@@ -7,6 +7,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/linkage.h>
 #include <linux/ptrace.h>
 #include <linux/errno.h>
 #include <linux/kernel_stat.h>
@@ -866,7 +867,7 @@ static void kill_prom_timer(void)
 	: "g1", "g2");
 }
 
-void init_irqwork_curcpu(void)
+void notrace init_irqwork_curcpu(void)
 {
 	int cpu = hard_smp_processor_id();
 
@@ -897,7 +898,7 @@ static void __cpuinit register_one_mondo(unsigned long paddr, unsigned long type
 	}
 }
 
-void __cpuinit sun4v_register_mondo_queues(int this_cpu)
+void __cpuinit notrace sun4v_register_mondo_queues(int this_cpu)
 {
 	struct trap_per_cpu *tb = &trap_block[this_cpu];
 
