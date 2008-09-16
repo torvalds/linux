@@ -276,11 +276,53 @@ __init static int init_mmio_trace(void)
 }
 device_initcall(init_mmio_trace);
 
+static void __trace_mmiotrace_rw(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct mmiotrace_rw *rw)
+{
+	struct trace_entry *entry;
+	unsigned long irq_flags;
+
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
+
+	entry				= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, 0);
+	entry->type			= TRACE_MMIO_RW;
+	entry->field.mmiorw		= *rw;
+
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
+
+	trace_wake_up();
+}
+
 void mmio_trace_rw(struct mmiotrace_rw *rw)
 {
 	struct trace_array *tr = mmio_trace_array;
 	struct trace_array_cpu *data = tr->data[smp_processor_id()];
 	__trace_mmiotrace_rw(tr, data, rw);
+}
+
+static void __trace_mmiotrace_map(struct trace_array *tr,
+				struct trace_array_cpu *data,
+				struct mmiotrace_map *map)
+{
+	struct trace_entry *entry;
+	unsigned long irq_flags;
+
+	raw_local_irq_save(irq_flags);
+	__raw_spin_lock(&data->lock);
+
+	entry				= tracing_get_trace_entry(tr, data);
+	tracing_generic_entry_update(entry, 0);
+	entry->type			= TRACE_MMIO_MAP;
+	entry->field.mmiomap		= *map;
+
+	__raw_spin_unlock(&data->lock);
+	raw_local_irq_restore(irq_flags);
+
+	trace_wake_up();
 }
 
 void mmio_trace_mapping(struct mmiotrace_map *map)

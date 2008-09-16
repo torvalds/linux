@@ -213,10 +213,16 @@ struct trace_iterator {
 	long			idx;
 };
 
+void trace_wake_up(void);
 void tracing_reset(struct trace_array_cpu *data);
 int tracing_open_generic(struct inode *inode, struct file *filp);
 struct dentry *tracing_init_dentry(void);
 void init_tracer_sysprof_debugfs(struct dentry *d_tracer);
+
+struct trace_entry *tracing_get_trace_entry(struct trace_array *tr,
+						struct trace_array_cpu *data);
+void tracing_generic_entry_update(struct trace_entry *entry,
+						unsigned long flags);
 
 void ftrace(struct trace_array *tr,
 			    struct trace_array_cpu *data,
@@ -289,15 +295,6 @@ struct tracer_switch_ops {
 extern unsigned long ftrace_update_tot_cnt;
 #define DYN_FTRACE_TEST_NAME trace_selftest_dynamic_test_func
 extern int DYN_FTRACE_TEST_NAME(void);
-#endif
-
-#ifdef CONFIG_MMIOTRACE
-extern void __trace_mmiotrace_rw(struct trace_array *tr,
-				struct trace_array_cpu *data,
-				struct mmiotrace_rw *rw);
-extern void __trace_mmiotrace_map(struct trace_array *tr,
-				struct trace_array_cpu *data,
-				struct mmiotrace_map *map);
 #endif
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
