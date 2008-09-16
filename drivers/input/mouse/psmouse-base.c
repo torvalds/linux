@@ -25,6 +25,7 @@
 #include "synaptics.h"
 #include "logips2pp.h"
 #include "alps.h"
+#include "hgpk.h"
 #include "lifebook.h"
 #include "trackpoint.h"
 #include "touchkit_ps2.h"
@@ -636,8 +637,20 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		}
 	}
 
-	if (max_proto > PSMOUSE_IMEX) {
+/*
+ * Try OLPC HGPK touchpad.
+ */
+	if (max_proto > PSMOUSE_IMEX &&
+			hgpk_detect(psmouse, set_properties) == 0) {
+		if (!set_properties || hgpk_init(psmouse) == 0)
+			return PSMOUSE_HGPK;
+/*
+ * Init failed, try basic relative protocols
+ */
+		max_proto = PSMOUSE_IMEX;
+	}
 
+	if (max_proto > PSMOUSE_IMEX) {
 		if (genius_detect(psmouse, set_properties) == 0)
 			return PSMOUSE_GENPS;
 
@@ -766,6 +779,14 @@ static const struct psmouse_protocol psmouse_protocols[] = {
 		.name		= "touchkitPS/2",
 		.alias		= "touchkit",
 		.detect		= touchkit_ps2_detect,
+	},
+#endif
+#ifdef CONFIG_MOUSE_PS2_OLPC
+	{
+		.type		= PSMOUSE_HGPK,
+		.name		= "OLPC HGPK",
+		.alias		= "hgpk",
+		.detect		= hgpk_detect,
 	},
 #endif
 	{

@@ -96,6 +96,16 @@ config MOUSE_PS2_TOUCHKIT
 
 	  If unsure, say N.
 
+config MOUSE_PS2_OLPC
+	bool "OLPC PS/2 mouse protocol extension"
+	depends on MOUSE_PS2 && OLPC
+	help
+	  Say Y here if you have an OLPC XO-1 laptop (with built-in
+	  PS/2 touchpad/tablet device).  The manufacturer calls the
+	  touchpad an HGPK.
+
+	  If unsure, say N.
+
 config MOUSE_SERIAL
 	tristate "Serial mouse"
 	select SERIO

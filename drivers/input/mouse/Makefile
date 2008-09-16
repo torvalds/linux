@@ -20,6 +20,7 @@ obj-$(CONFIG_MOUSE_GPIO)	+= gpio_mouse.o
 psmouse-objs := psmouse-base.o synaptics.o
 
 psmouse-$(CONFIG_MOUSE_PS2_ALPS)	+= alps.o
+psmouse-$(CONFIG_MOUSE_PS2_OLPC)	+= hgpk.o
 psmouse-$(CONFIG_MOUSE_PS2_LOGIPS2PP)	+= logips2pp.o
 psmouse-$(CONFIG_MOUSE_PS2_LIFEBOOK)	+= lifebook.o
 psmouse-$(CONFIG_MOUSE_PS2_TRACKPOINT)	+= trackpoint.o
