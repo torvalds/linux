@@ -1394,17 +1394,22 @@ out:
 
 static int kvm_vm_fault(struct vm_area_struct *vma, struct vm_fault *vmf)
 {
+	struct page *page[1];
+	unsigned long addr;
+	int npages;
+	gfn_t gfn = vmf->pgoff;
 	struct kvm *kvm = vma->vm_file->private_data;
-	struct page *page;
 
-	if (!kvm_is_visible_gfn(kvm, vmf->pgoff))
+	addr = gfn_to_hva(kvm, gfn);
+	if (kvm_is_error_hva(addr))
 		return VM_FAULT_SIGBUS;
-	page = gfn_to_page(kvm, vmf->pgoff);
-	if (is_error_page(page)) {
-		kvm_release_page_clean(page);
+
+	npages = get_user_pages(current, current->mm, addr, 1, 1, 0, page,
+				NULL);
+	if (unlikely(npages != 1))
 		return VM_FAULT_SIGBUS;
-	}
-	vmf->page = page;
+
+	vmf->page = page[0];
 	return 0;
 }
 
