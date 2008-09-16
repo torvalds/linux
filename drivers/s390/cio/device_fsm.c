@@ -658,6 +658,13 @@ ccw_device_offline(struct ccw_device *cdev)
 {
 	struct subchannel *sch;
 
+	/* Allow ccw_device_offline while disconnected. */
+	if (cdev->private->state == DEV_STATE_DISCONNECTED ||
+	    cdev->private->state == DEV_STATE_NOT_OPER) {
+		cdev->private->flags.donotify = 0;
+		ccw_device_done(cdev, DEV_STATE_NOT_OPER);
+		return 0;
+	}
 	if (ccw_device_is_orphan(cdev)) {
 		ccw_device_done(cdev, DEV_STATE_OFFLINE);
 		return 0;

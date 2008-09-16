@@ -792,6 +792,8 @@ void fixup_irqs(void)
 		}
 		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}
+
+	tick_ops->disable_irq();
 }
 #endif
 

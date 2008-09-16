@@ -21,8 +21,9 @@
 #include <linux/err.h>
 #include <linux/vmalloc.h>
 #include <linux/bug.h>
+#include <linux/uaccess.h>
 #include <asm/module.h>
-#include <asm/uaccess.h>
+#include <asm/sections.h>
 #include <asm/firmware.h>
 #include <asm/code-patching.h>
 #include <linux/sort.h>
@@ -450,4 +451,14 @@ int apply_relocate_add(Elf64_Shdr *sechdrs,
 	}
 
 	return 0;
+}
+
+void *dereference_function_descriptor(void *ptr)
+{
+	struct ppc64_opd_entry *desc = ptr;
+	void *p;
+
+	if (!probe_kernel_address(&desc->funcaddr, p))
+		ptr = p;
+	return ptr;
 }
