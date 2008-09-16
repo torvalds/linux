@@ -40,8 +40,8 @@
 
 #include "stv0299.h"
 /*#include "stv0288.h"
- *#include "si21xx.h"
  *#include "stb6000.h"*/
+#include "si21xx.h"
 #include "cx24116.h"
 #include "z0194a.h"
 
@@ -600,12 +600,12 @@ static struct stv0288_config earda_config = {
 	.min_delay_ms = 100,
 };
 
+#endif /* keep */
 static struct si21xx_config serit_config = {
 	.demod_address = 0x68,
 	.min_delay_ms = 100,
 
 };
-#endif /* keep */
 
 static struct cx24116_config serit_sp2633_config = {
 	.demod_address = 0x55,
@@ -639,7 +639,7 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 						&dm1105dvb->i2c_adap);
 			}
 		}
-
+#endif /* keep */
 		if (!dm1105dvb->fe) {
 			dm1105dvb->fe = dvb_attach(
 				si21xx_attach, &serit_config,
@@ -648,7 +648,6 @@ static int __devinit frontend_init(struct dm1105dvb *dm1105dvb)
 				dm1105dvb->fe->ops.set_voltage =
 							dm1105dvb_set_voltage;
 		}
-#endif /* keep */
 		break;
 	case PCI_DEVICE_ID_DW2004:
 		dm1105dvb->fe = dvb_attach(
