@@ -597,13 +597,9 @@ int jbd2_journal_bmap(journal_t *journal, unsigned long blocknr,
 		if (ret)
 			*retp = ret;
 		else {
-			char b[BDEVNAME_SIZE];
-
 			printk(KERN_ALERT "%s: journal block not found "
 					"at offset %lu on %s\n",
-				__func__,
-				blocknr,
-				bdevname(journal->j_dev, b));
+			       __func__, blocknr, journal->j_devname);
 			err = -EIO;
 			__journal_abort_soft(journal, err);
 		}
@@ -901,10 +897,7 @@ static struct proc_dir_entry *proc_jbd2_stats;
 
 static void jbd2_stats_proc_init(journal_t *journal)
 {
-	char name[BDEVNAME_SIZE];
-
-	bdevname(journal->j_dev, name);
-	journal->j_proc_entry = proc_mkdir(name, proc_jbd2_stats);
+	journal->j_proc_entry = proc_mkdir(journal->j_devname, proc_jbd2_stats);
 	if (journal->j_proc_entry) {
 		proc_create_data("history", S_IRUGO, journal->j_proc_entry,
 				 &jbd2_seq_history_fops, journal);
@@ -915,12 +908,9 @@ static void jbd2_stats_proc_init(journal_t *journal)
 
 static void jbd2_stats_proc_exit(journal_t *journal)
 {
-	char name[BDEVNAME_SIZE];
-
-	bdevname(journal->j_dev, name);
 	remove_proc_entry("info", journal->j_proc_entry);
 	remove_proc_entry("history", journal->j_proc_entry);
-	remove_proc_entry(name, proc_jbd2_stats);
+	remove_proc_entry(journal->j_devname, proc_jbd2_stats);
 }
 
 static void journal_init_stats(journal_t *journal)
@@ -1018,6 +1008,7 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 {
 	journal_t *journal = journal_init_common();
 	struct buffer_head *bh;
+	char *p;
 	int n;
 
 	if (!journal)
@@ -1039,6 +1030,10 @@ journal_t * jbd2_journal_init_dev(struct block_device *bdev,
 	journal->j_fs_dev = fs_dev;
 	journal->j_blk_offset = start;
 	journal->j_maxlen = len;
+	bdevname(journal->j_dev, journal->j_devname);
+	p = journal->j_devname;
+	while ((p = strchr(p, '/')))
+		*p = '!';
 	jbd2_stats_proc_init(journal);
 
 	bh = __getblk(journal->j_dev, start, journal->j_blocksize);
@@ -1061,6 +1056,7 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 {
 	struct buffer_head *bh;
 	journal_t *journal = journal_init_common();
+	char *p;
 	int err;
 	int n;
 	unsigned long long blocknr;
@@ -1070,6 +1066,12 @@ journal_t * jbd2_journal_init_inode (struct inode *inode)
 
 	journal->j_dev = journal->j_fs_dev = inode->i_sb->s_bdev;
 	journal->j_inode = inode;
+	bdevname(journal->j_dev, journal->j_devname);
+	p = journal->j_devname;
+	while ((p = strchr(p, '/')))
+		*p = '!';
+	p = journal->j_devname + strlen(journal->j_devname);
+	sprintf(p, ":%lu", journal->j_inode->i_ino);
 	jbd_debug(1,
 		  "journal %p: inode %s/%ld, size %Ld, bits %d, blksize %ld\n",
 		  journal, inode->i_sb->s_id, inode->i_ino,
@@ -1761,23 +1763,6 @@ int jbd2_journal_wipe(journal_t *journal, int write)
 }
 
 /*
- * journal_dev_name: format a character string to describe on what
- * device this journal is present.
- */
-
-static const char *journal_dev_name(journal_t *journal, char *buffer)
-{
-	struct block_device *bdev;
-
-	if (journal->j_inode)
-		bdev = journal->j_inode->i_sb->s_bdev;
-	else
-		bdev = journal->j_dev;
-
-	return bdevname(bdev, buffer);
-}
-
-/*
  * Journal abort has very specific semantics, which we describe
  * for journal abort.
  *
@@ -1793,13 +1778,12 @@ static const char *journal_dev_name(journal_t *journal, char *buffer)
 void __jbd2_journal_abort_hard(journal_t *journal)
 {
 	transaction_t *transaction;
-	char b[BDEVNAME_SIZE];
 
 	if (journal->j_flags & JBD2_ABORT)
 		return;
 
 	printk(KERN_ERR "Aborting journal on device %s.\n",
-		journal_dev_name(journal, b));
+	       journal->j_devname);
 
 	spin_lock(&journal->j_state_lock);
 	journal->j_flags |= JBD2_ABORT;

@@ -147,12 +147,9 @@ static int journal_submit_commit_record(journal_t *journal,
 	 * to remember if we sent a barrier request
 	 */
 	if (ret == -EOPNOTSUPP && barrier_done) {
-		char b[BDEVNAME_SIZE];
-
 		printk(KERN_WARNING
-			"JBD: barrier-based sync failed on %s - "
-			"disabling barriers\n",
-			bdevname(journal->j_dev, b));
+		       "JBD: barrier-based sync failed on %s - "
+		       "disabling barriers\n", journal->j_devname);
 		spin_lock(&journal->j_state_lock);
 		journal->j_flags &= ~JBD2_BARRIER;
 		spin_unlock(&journal->j_state_lock);
@@ -681,11 +678,9 @@ start_journal_io:
 	 */
 	err = journal_finish_inode_data_buffers(journal, commit_transaction);
 	if (err) {
-		char b[BDEVNAME_SIZE];
-
 		printk(KERN_WARNING
 			"JBD2: Detected IO errors while flushing file data "
-			"on %s\n", bdevname(journal->j_fs_dev, b));
+		       "on %s\n", journal->j_devname);
 		err = 0;
 	}
 

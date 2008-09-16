@@ -1476,15 +1476,9 @@ static int ext4_setup_super(struct super_block *sb, struct ext4_super_block *es,
 			EXT4_INODES_PER_GROUP(sb),
 			sbi->s_mount_opt);
 
-	if (EXT4_SB(sb)->s_journal->j_inode == NULL) {
-		char b[BDEVNAME_SIZE];
-
-		printk(KERN_INFO "EXT4 FS on %s, external journal on %s\n",
-		       sb->s_id, bdevname(EXT4_SB(sb)->s_journal->j_dev, b));
-	} else {
-		printk(KERN_INFO "EXT4 FS on %s, internal journal\n",
-		       sb->s_id);
-	}
+	printk(KERN_INFO "EXT4 FS on %s, %s journal on %s\n",
+	       sb->s_id, EXT4_SB(sb)->s_journal->j_inode ? "internal" :
+	       "external", EXT4_SB(sb)->s_journal->j_devname);
 	return res;
 }
 
