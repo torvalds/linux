@@ -19,6 +19,7 @@
 #include <linux/pm.h>
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
+#include <linux/spi/spi.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -841,7 +842,7 @@ static struct snd_soc_device *wm8750_socdev;
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 
 /*
- * WM8731 2 wire address is determined by GPIO5
+ * WM8750 2 wire address is determined by GPIO5
  * state during powerup.
  *    low  = 0x1a
  *    high = 0x1b
@@ -928,6 +929,62 @@ err_driver:
 }
 #endif
 
+#if defined(CONFIG_SPI_MASTER)
+static int __devinit wm8750_spi_probe(struct spi_device *spi)
+{
+	struct snd_soc_device *socdev = wm8750_socdev;
+	struct snd_soc_codec *codec = socdev->codec;
+	int ret;
+
+	codec->control_data = spi;
+
+	ret = wm8750_init(socdev);
+	if (ret < 0)
+		dev_err(&spi->dev, "failed to initialise WM8750\n");
+
+	return ret;
+}
+
+static int __devexit wm8750_spi_remove(struct spi_device *spi)
+{
+	return 0;
+}
+
+static struct spi_driver wm8750_spi_driver = {
+	.driver = {
+		.name	= "wm8750",
+		.bus	= &spi_bus_type,
+		.owner	= THIS_MODULE,
+	},
+	.probe		= wm8750_spi_probe,
+	.remove		= __devexit_p(wm8750_spi_remove),
+};
+
+static int wm8750_spi_write(struct spi_device *spi, const char *data, int len)
+{
+	struct spi_transfer t;
+	struct spi_message m;
+	u8 msg[2];
+
+	if (len <= 0)
+		return 0;
+
+	msg[0] = data[0];
+	msg[1] = data[1];
+
+	spi_message_init(&m);
+	memset(&t, 0, (sizeof t));
+
+	t.tx_buf = &msg[0];
+	t.len = len;
+
+	spi_message_add_tail(&t, &m);
+	spi_sync(spi, &m);
+
+	return len;
+}
+#endif
+
 static int wm8750_probe(struct platform_device *pdev)
 {
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
@@ -961,6 +1018,14 @@ static int wm8750_probe(struct platform_device *pdev)
 	if (setup->i2c_address) {
 		codec->hw_write = (hw_write_t)i2c_master_send;
 		ret = wm8750_add_i2c_device(pdev, setup);
+	}
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	if (setup->spi) {
+		codec->hw_write = (hw_write_t)wm8750_spi_write;
+		ret = spi_register_driver(&wm8750_spi_driver);
+		if (ret != 0)
+			printk(KERN_ERR "can't add spi driver");
 	}
 #endif
 
@@ -1004,6 +1069,9 @@ static int wm8750_remove(struct platform_device *pdev)
 #if defined(CONFIG_I2C) || defined(CONFIG_I2C_MODULE)
 	i2c_unregister_device(codec->control_data);
 	i2c_del_driver(&wm8750_i2c_driver);
+#endif
+#if defined(CONFIG_SPI_MASTER)
+	spi_unregister_driver(&wm8750_spi_driver);
 #endif
 	kfree(codec->private_data);
 	kfree(codec);
