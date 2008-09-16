@@ -61,7 +61,6 @@ led-y := leds.o
 led-$(CONFIG_ARCH_LUBBOCK)	+= leds-lubbock.o
 led-$(CONFIG_MACH_MAINSTONE)	+= leds-mainstone.o
 led-$(CONFIG_ARCH_PXA_IDP)	+= leds-idp.o
-led-$(CONFIG_MACH_TRIZEPS4)	+= leds-trizeps4.o
 
 obj-$(CONFIG_LEDS)		+= $(led-y)
 
