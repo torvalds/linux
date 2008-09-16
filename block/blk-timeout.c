@@ -158,6 +158,8 @@ void blk_rq_timed_out_timer(unsigned long data)
  */
 void blk_abort_request(struct request *req)
 {
+	if (blk_mark_rq_complete(req))
+		return;
 	blk_delete_timer(req);
 	blk_rq_timed_out(req);
 }
