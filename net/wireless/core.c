@@ -384,6 +384,8 @@ static int cfg80211_netdev_notifier_call(struct notifier_block * nb,
 
 	rdev = wiphy_to_dev(dev->ieee80211_ptr->wiphy);
 
+	WARN_ON(dev->ieee80211_ptr->iftype == NL80211_IFTYPE_UNSPECIFIED);
+
 	switch (state) {
 	case NETDEV_REGISTER:
 		mutex_lock(&rdev->devlist_mtx);

@@ -299,7 +299,7 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 pid, u32 seq, int flags,
 
 	NLA_PUT_U32(msg, NL80211_ATTR_IFINDEX, dev->ifindex);
 	NLA_PUT_STRING(msg, NL80211_ATTR_IFNAME, dev->name);
-	/* TODO: interface type */
+	NLA_PUT_U32(msg, NL80211_ATTR_IFTYPE, dev->ieee80211_ptr->iftype);
 	return genlmsg_end(msg, hdr);
 
  nla_put_failure:
@@ -453,6 +453,10 @@ static int nl80211_set_interface(struct sk_buff *skb, struct genl_info *info)
 				  &flags);
 	err = drv->ops->change_virtual_intf(&drv->wiphy, ifindex,
 					    type, err ? NULL : &flags, &params);
+
+	dev = __dev_get_by_index(&init_net, ifindex);
+	WARN_ON(!dev || (!err && dev->ieee80211_ptr->iftype != type));
+
 	rtnl_unlock();
 
  unlock:

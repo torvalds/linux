@@ -625,6 +625,7 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	/* and set some type-dependent values */
 	sdata->vif.type = type;
 	sdata->dev->hard_start_xmit = ieee80211_subif_start_xmit;
+	sdata->wdev.iftype = type;
 
 	/* only monitor differs */
 	sdata->dev->type = ARPHRD_ETHER;
