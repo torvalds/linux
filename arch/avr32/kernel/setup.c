@@ -283,6 +283,25 @@ static int __init early_parse_fbmem(char *p)
 }
 early_param("fbmem", early_parse_fbmem);
 
+/*
+ * Pick out the memory size.  We look for mem=size@start,
+ * where start and size are "size[KkMmGg]"
+ */
+static int __init early_mem(char *p)
+{
+	resource_size_t size, start;
+
+	start = system_ram->start;
+	size  = memparse(p, &p);
+	if (*p == '@')
+		start = memparse(p + 1, &p);
+
+	system_ram->start = start;
+	system_ram->end = system_ram->start + size - 1;
+	return 0;
+}
+early_param("mem", early_mem);
+
 static int __init parse_tag_core(struct tag *tag)
 {
 	if (tag->hdr.size > 2) {
