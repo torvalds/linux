@@ -2010,9 +2010,7 @@ static int alloc_apic_access_page(struct kvm *kvm)
 	if (r)
 		goto out;
 
-	down_read(&current->mm->mmap_sem);
 	kvm->arch.apic_access_page = gfn_to_page(kvm, 0xfee00);
-	up_read(&current->mm->mmap_sem);
 out:
 	up_write(&kvm->slots_lock);
 	return r;
@@ -2034,10 +2032,8 @@ static int alloc_identity_pagetable(struct kvm *kvm)
 	if (r)
 		goto out;
 
-	down_read(&current->mm->mmap_sem);
 	kvm->arch.ept_identity_pagetable = gfn_to_page(kvm,
 			VMX_EPT_IDENTITY_PAGETABLE_ADDR >> PAGE_SHIFT);
-	up_read(&current->mm->mmap_sem);
 out:
 	up_write(&kvm->slots_lock);
 	return r;

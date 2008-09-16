@@ -147,9 +147,7 @@ void kvmppc_mmu_map(struct kvm_vcpu *vcpu, u64 gvaddr, gfn_t gfn, u64 asid,
 	stlbe = &vcpu->arch.shadow_tlb[victim];
 
 	/* Get reference to new page. */
-	down_read(&current->mm->mmap_sem);
 	new_page = gfn_to_page(vcpu->kvm, gfn);
-	up_read(&current->mm->mmap_sem);
 	if (is_error_page(new_page)) {
 		printk(KERN_ERR "Couldn't get guest page for gfn %lx!\n", gfn);
 		kvm_release_page_clean(new_page);

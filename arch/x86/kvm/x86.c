@@ -946,10 +946,8 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, u32 msr, u64 data)
 		/* ...but clean it before doing the actual write */
 		vcpu->arch.time_offset = data & ~(PAGE_MASK | 1);
 
-		down_read(&current->mm->mmap_sem);
 		vcpu->arch.time_page =
 				gfn_to_page(vcpu->kvm, data >> PAGE_SHIFT);
-		up_read(&current->mm->mmap_sem);
 
 		if (is_error_page(vcpu->arch.time_page)) {
 			kvm_release_page_clean(vcpu->arch.time_page);
@@ -2322,9 +2320,7 @@ static int emulator_cmpxchg_emulated(unsigned long addr,
 
 		val = *(u64 *)new;
 
-		down_read(&current->mm->mmap_sem);
 		page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
-		up_read(&current->mm->mmap_sem);
 
 		kaddr = kmap_atomic(page, KM_USER0);
 		set_64bit((u64 *)(kaddr + offset_in_page(gpa)), val);
@@ -3089,9 +3085,7 @@ static void vapic_enter(struct kvm_vcpu *vcpu)
 	if (!apic || !apic->vapic_addr)
 		return;
 
-	down_read(&current->mm->mmap_sem);
 	page = gfn_to_page(vcpu->kvm, apic->vapic_addr >> PAGE_SHIFT);
-	up_read(&current->mm->mmap_sem);
 
 	vcpu->arch.apic->vapic_page = page;
 }

@@ -723,9 +723,6 @@ unsigned long gfn_to_hva(struct kvm *kvm, gfn_t gfn)
 }
 EXPORT_SYMBOL_GPL(gfn_to_hva);
 
-/*
- * Requires current->mm->mmap_sem to be held
- */
 pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 {
 	struct page *page[1];
@@ -741,20 +738,23 @@ pfn_t gfn_to_pfn(struct kvm *kvm, gfn_t gfn)
 		return page_to_pfn(bad_page);
 	}
 
-	npages = get_user_pages(current, current->mm, addr, 1, 1, 0, page,
-				NULL);
+	npages = get_user_pages_fast(addr, 1, 1, page);
 
 	if (unlikely(npages != 1)) {
 		struct vm_area_struct *vma;
 
+		down_read(&current->mm->mmap_sem);
 		vma = find_vma(current->mm, addr);
+
 		if (vma == NULL || addr < vma->vm_start ||
 		    !(vma->vm_flags & VM_PFNMAP)) {
+			up_read(&current->mm->mmap_sem);
 			get_page(bad_page);
 			return page_to_pfn(bad_page);
 		}
 
 		pfn = ((addr - vma->vm_start) >> PAGE_SHIFT) + vma->vm_pgoff;
+		up_read(&current->mm->mmap_sem);
 		BUG_ON(!is_mmio_pfn(pfn));
 	} else
 		pfn = page_to_pfn(page[0]);

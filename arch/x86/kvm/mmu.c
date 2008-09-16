@@ -405,16 +405,19 @@ static int host_largepage_backed(struct kvm *kvm, gfn_t gfn)
 {
 	struct vm_area_struct *vma;
 	unsigned long addr;
+	int ret = 0;
 
 	addr = gfn_to_hva(kvm, gfn);
 	if (kvm_is_error_hva(addr))
-		return 0;
+		return ret;
 
+	down_read(&current->mm->mmap_sem);
 	vma = find_vma(current->mm, addr);
 	if (vma && is_vm_hugetlb_page(vma))
-		return 1;
+		ret = 1;
+	up_read(&current->mm->mmap_sem);
 
-	return 0;
+	return ret;
 }
 
 static int is_largepage_backed(struct kvm_vcpu *vcpu, gfn_t large_gfn)
@@ -1140,9 +1143,7 @@ struct page *gva_to_page(struct kvm_vcpu *vcpu, gva_t gva)
 	if (gpa == UNMAPPED_GVA)
 		return NULL;
 
-	down_read(&current->mm->mmap_sem);
 	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
-	up_read(&current->mm->mmap_sem);
 
 	return page;
 }
@@ -1330,16 +1331,14 @@ static int nonpaging_map(struct kvm_vcpu *vcpu, gva_t v, int write, gfn_t gfn)
 	pfn_t pfn;
 	unsigned long mmu_seq;
 
-	down_read(&current->mm->mmap_sem);
 	if (is_largepage_backed(vcpu, gfn & ~(KVM_PAGES_PER_HPAGE-1))) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
 		largepage = 1;
 	}
 
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-	/* implicit mb(), we'll read before PT lock is unlocked */
+	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
-	up_read(&current->mm->mmap_sem);
 
 	/* mmio */
 	if (is_error_pfn(pfn)) {
@@ -1488,15 +1487,13 @@ static int tdp_page_fault(struct kvm_vcpu *vcpu, gva_t gpa,
 	if (r)
 		return r;
 
-	down_read(&current->mm->mmap_sem);
 	if (is_largepage_backed(vcpu, gfn & ~(KVM_PAGES_PER_HPAGE-1))) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
 		largepage = 1;
 	}
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-	/* implicit mb(), we'll read before PT lock is unlocked */
+	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
-	up_read(&current->mm->mmap_sem);
 	if (is_error_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);
 		return 1;
@@ -1809,15 +1806,13 @@ static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
 
-	down_read(&current->mm->mmap_sem);
 	if (is_large_pte(gpte) && is_largepage_backed(vcpu, gfn)) {
 		gfn &= ~(KVM_PAGES_PER_HPAGE-1);
 		vcpu->arch.update_pte.largepage = 1;
 	}
 	vcpu->arch.update_pte.mmu_seq = vcpu->kvm->mmu_notifier_seq;
-	/* implicit mb(), we'll read before PT lock is unlocked */
+	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, gfn);
-	up_read(&current->mm->mmap_sem);
 
 	if (is_error_pfn(pfn)) {
 		kvm_release_pfn_clean(pfn);

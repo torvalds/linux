@@ -102,14 +102,10 @@ static bool FNAME(cmpxchg_gpte)(struct kvm *kvm,
 	pt_element_t *table;
 	struct page *page;
 
-	down_read(&current->mm->mmap_sem);
 	page = gfn_to_page(kvm, table_gfn);
-	up_read(&current->mm->mmap_sem);
 
 	table = kmap_atomic(page, KM_USER0);
-
 	ret = CMPXCHG(&table[index], orig_pte, new_pte);
-
 	kunmap_atomic(table, KM_USER0);
 
 	kvm_release_page_dirty(page);
@@ -418,7 +414,6 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		return 0;
 	}
 
-	down_read(&current->mm->mmap_sem);
 	if (walker.level == PT_DIRECTORY_LEVEL) {
 		gfn_t large_gfn;
 		large_gfn = walker.gfn & ~(KVM_PAGES_PER_HPAGE-1);
@@ -428,9 +423,8 @@ static int FNAME(page_fault)(struct kvm_vcpu *vcpu, gva_t addr,
 		}
 	}
 	mmu_seq = vcpu->kvm->mmu_notifier_seq;
-	/* implicit mb(), we'll read before PT lock is unlocked */
+	smp_rmb();
 	pfn = gfn_to_pfn(vcpu->kvm, walker.gfn);
-	up_read(&current->mm->mmap_sem);
 
 	/* mmio */
 	if (is_error_pfn(pfn)) {
