@@ -335,3 +335,8 @@ void mmio_trace_mapping(struct mmiotrace_map *map)
 	__trace_mmiotrace_map(tr, data, map);
 	preempt_enable();
 }
+
+int mmio_trace_printk(const char *fmt, va_list args)
+{
+	return trace_vprintk(0, fmt, args);
+}

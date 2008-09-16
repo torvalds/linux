@@ -75,7 +75,7 @@ static LIST_HEAD(trace_list);		/* struct remap_trace */
  *   and trace_lock.
  * - Routines depending on is_enabled() must take trace_lock.
  * - trace_list users must hold trace_lock.
- * - is_enabled() guarantees that mmio_trace_record is allowed.
+ * - is_enabled() guarantees that mmio_trace_{rw,mapping} are allowed.
  * - pre/post callbacks assume the effect of is_enabled() being true.
  */
 
@@ -378,6 +378,23 @@ void mmiotrace_iounmap(volatile void __iomem *addr)
 	if (is_enabled()) /* recheck and proper locking in *_core() */
 		iounmap_trace_core(addr);
 }
+
+int mmiotrace_printk(const char *fmt, ...)
+{
+	int ret = 0;
+	va_list args;
+	unsigned long flags;
+	va_start(args, fmt);
+
+	spin_lock_irqsave(&trace_lock, flags);
+	if (is_enabled())
+		ret = mmio_trace_printk(fmt, args);
+	spin_unlock_irqrestore(&trace_lock, flags);
+
+	va_end(args);
+	return ret;
+}
+EXPORT_SYMBOL(mmiotrace_printk);
 
 static void clear_trace_list(void)
 {

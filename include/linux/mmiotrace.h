@@ -34,11 +34,15 @@ extern void unregister_kmmio_probe(struct kmmio_probe *p);
 /* Called from page fault handler. */
 extern int kmmio_handler(struct pt_regs *regs, unsigned long addr);
 
-/* Called from ioremap.c */
 #ifdef CONFIG_MMIOTRACE
+/* Called from ioremap.c */
 extern void mmiotrace_ioremap(resource_size_t offset, unsigned long size,
 							void __iomem *addr);
 extern void mmiotrace_iounmap(volatile void __iomem *addr);
+
+/* For anyone to insert markers. Remember trailing newline. */
+extern int mmiotrace_printk(const char *fmt, ...)
+				__attribute__ ((format (printf, 1, 2)));
 #else
 static inline void mmiotrace_ioremap(resource_size_t offset,
 					unsigned long size, void __iomem *addr)
@@ -48,7 +52,15 @@ static inline void mmiotrace_ioremap(resource_size_t offset,
 static inline void mmiotrace_iounmap(volatile void __iomem *addr)
 {
 }
-#endif /* CONFIG_MMIOTRACE_HOOKS */
+
+static inline int mmiotrace_printk(const char *fmt, ...)
+				__attribute__ ((format (printf, 1, 0)));
+
+static inline int mmiotrace_printk(const char *fmt, ...)
+{
+	return 0;
+}
+#endif /* CONFIG_MMIOTRACE */
 
 enum mm_io_opcode {
 	MMIO_READ = 0x1,     /* struct mmiotrace_rw */
@@ -81,5 +93,6 @@ extern void enable_mmiotrace(void);
 extern void disable_mmiotrace(void);
 extern void mmio_trace_rw(struct mmiotrace_rw *rw);
 extern void mmio_trace_mapping(struct mmiotrace_map *map);
+extern int mmio_trace_printk(const char *fmt, va_list args);
 
 #endif /* MMIOTRACE_H */
