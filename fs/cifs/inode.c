@@ -665,40 +665,34 @@ struct inode *cifs_iget(struct super_block *sb, unsigned long ino)
 	return inode;
 }
 
-int cifs_unlink(struct inode *inode, struct dentry *direntry)
+int cifs_unlink(struct inode *dir, struct dentry *dentry)
 {
 	int rc = 0;
 	int xid;
-	struct cifs_sb_info *cifs_sb;
-	struct cifsTconInfo *pTcon;
 	char *full_path = NULL;
+	struct inode *inode = dentry->d_inode;
 	struct cifsInodeInfo *cifsInode;
+	struct super_block *sb = dir->i_sb;
+	struct cifs_sb_info *cifs_sb = CIFS_SB(sb);
+	struct cifsTconInfo *tcon = cifs_sb->tcon;
 	FILE_BASIC_INFO *pinfo_buf;
 
-	cFYI(1, ("cifs_unlink, inode = 0x%p", inode));
+	cFYI(1, ("cifs_unlink, dir=0x%p, dentry=0x%p", dir, dentry));
 
 	xid = GetXid();
 
-	if (inode)
-		cifs_sb = CIFS_SB(inode->i_sb);
-	else
-		cifs_sb = CIFS_SB(direntry->d_sb);
-	pTcon = cifs_sb->tcon;
-
-	/* Unlink can be called from rename so we can not grab the sem here
-	   since we deadlock otherwise */
-/*	mutex_lock(&direntry->d_sb->s_vfs_rename_mutex);*/
-	full_path = build_path_from_dentry(direntry);
-/*	mutex_unlock(&direntry->d_sb->s_vfs_rename_mutex);*/
+	/* Unlink can be called from rename so we can not take the
+	 * sb->s_vfs_rename_mutex here */
+	full_path = build_path_from_dentry(dentry);
 	if (full_path == NULL) {
 		FreeXid(xid);
 		return -ENOMEM;
 	}
 
-	if ((pTcon->ses->capabilities & CAP_UNIX) &&
+	if ((tcon->ses->capabilities & CAP_UNIX) &&
 		(CIFS_UNIX_POSIX_PATH_OPS_CAP &
-			le64_to_cpu(pTcon->fsUnixInfo.Capability))) {
-		rc = CIFSPOSIXDelFile(xid, pTcon, full_path,
+			le64_to_cpu(tcon->fsUnixInfo.Capability))) {
+		rc = CIFSPOSIXDelFile(xid, tcon, full_path,
 			SMB_POSIX_UNLINK_FILE_TARGET, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 		cFYI(1, ("posix del rc %d", rc));
@@ -706,31 +700,31 @@ int cifs_unlink(struct inode *inode, struct dentry *direntry)
 			goto psx_del_no_retry;
 	}
 
-	rc = CIFSSMBDelFile(xid, pTcon, full_path, cifs_sb->local_nls,
+	rc = CIFSSMBDelFile(xid, tcon, full_path, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 psx_del_no_retry:
 	if (!rc) {
-		if (direntry->d_inode)
-			drop_nlink(direntry->d_inode);
+		if (inode)
+			drop_nlink(inode);
 	} else if (rc == -ENOENT) {
-		d_drop(direntry);
+		d_drop(dentry);
 	} else if (rc == -ETXTBSY) {
 		int oplock = 0;
 		__u16 netfid;
 
-		rc = CIFSSMBOpen(xid, pTcon, full_path, FILE_OPEN, DELETE,
+		rc = CIFSSMBOpen(xid, tcon, full_path, FILE_OPEN, DELETE,
 				 CREATE_NOT_DIR | CREATE_DELETE_ON_CLOSE,
 				 &netfid, &oplock, NULL, cifs_sb->local_nls,
 				 cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 		if (rc == 0) {
-			CIFSSMBRenameOpenFile(xid, pTcon, netfid, NULL,
+			CIFSSMBRenameOpenFile(xid, tcon, netfid, NULL,
 					      cifs_sb->local_nls,
 					      cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
-			CIFSSMBClose(xid, pTcon, netfid);
-			if (direntry->d_inode)
-				drop_nlink(direntry->d_inode);
+			CIFSSMBClose(xid, tcon, netfid);
+			if (inode)
+				drop_nlink(inode);
 		}
 	} else if (rc == -EACCES) {
 		/* try only if r/o attribute set in local lookup data? */
@@ -738,8 +732,8 @@ psx_del_no_retry:
 		if (pinfo_buf) {
 			/* ATTRS set to normal clears r/o bit */
 			pinfo_buf->Attributes = cpu_to_le32(ATTR_NORMAL);
-			if (!(pTcon->ses->flags & CIFS_SES_NT4))
-				rc = CIFSSMBSetPathInfo(xid, pTcon, full_path,
+			if (!(tcon->ses->flags & CIFS_SES_NT4))
+				rc = CIFSSMBSetPathInfo(xid, tcon, full_path,
 						     pinfo_buf,
 						     cifs_sb->local_nls,
 						     cifs_sb->mnt_cifs_flags &
@@ -750,7 +744,7 @@ psx_del_no_retry:
 			if (rc == -EOPNOTSUPP) {
 				int oplock = 0;
 				__u16 netfid;
-			/*	rc = CIFSSMBSetAttrLegacy(xid, pTcon,
+			/*	rc = CIFSSMBSetAttrLegacy(xid, tcon,
 							  full_path,
 							  (__u16)ATTR_NORMAL,
 							  cifs_sb->local_nls);
@@ -761,7 +755,7 @@ psx_del_no_retry:
 
 			/* BB could scan to see if we already have it open
 			   and pass in pid of opener to function */
-				rc = CIFSSMBOpen(xid, pTcon, full_path,
+				rc = CIFSSMBOpen(xid, tcon, full_path,
 						 FILE_OPEN, SYNCHRONIZE |
 						 FILE_WRITE_ATTRIBUTES, 0,
 						 &netfid, &oplock, NULL,
@@ -769,28 +763,28 @@ psx_del_no_retry:
 						 cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc == 0) {
-					rc = CIFSSMBSetFileInfo(xid, pTcon,
+					rc = CIFSSMBSetFileInfo(xid, tcon,
 								pinfo_buf,
 								netfid,
 								current->tgid);
-					CIFSSMBClose(xid, pTcon, netfid);
+					CIFSSMBClose(xid, tcon, netfid);
 				}
 			}
 			kfree(pinfo_buf);
 		}
 		if (rc == 0) {
-			rc = CIFSSMBDelFile(xid, pTcon, full_path,
+			rc = CIFSSMBDelFile(xid, tcon, full_path,
 					    cifs_sb->local_nls,
 					    cifs_sb->mnt_cifs_flags &
 						CIFS_MOUNT_MAP_SPECIAL_CHR);
 			if (!rc) {
-				if (direntry->d_inode)
-					drop_nlink(direntry->d_inode);
+				if (inode)
+					drop_nlink(inode);
 			} else if (rc == -ETXTBSY) {
 				int oplock = 0;
 				__u16 netfid;
 
-				rc = CIFSSMBOpen(xid, pTcon, full_path,
+				rc = CIFSSMBOpen(xid, tcon, full_path,
 						 FILE_OPEN, DELETE,
 						 CREATE_NOT_DIR |
 						 CREATE_DELETE_ON_CLOSE,
@@ -799,30 +793,28 @@ psx_del_no_retry:
 						 cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
 				if (rc == 0) {
-					CIFSSMBRenameOpenFile(xid, pTcon,
+					CIFSSMBRenameOpenFile(xid, tcon,
 						netfid, NULL,
 						cifs_sb->local_nls,
 						cifs_sb->mnt_cifs_flags &
 						    CIFS_MOUNT_MAP_SPECIAL_CHR);
-					CIFSSMBClose(xid, pTcon, netfid);
-					if (direntry->d_inode)
-						drop_nlink(direntry->d_inode);
+					CIFSSMBClose(xid, tcon, netfid);
+					if (inode)
+						drop_nlink(inode);
 				}
 			/* BB if rc = -ETXTBUSY goto the rename logic BB */
 			}
 		}
 	}
-	if (direntry->d_inode) {
-		cifsInode = CIFS_I(direntry->d_inode);
+	if (inode) {
+		cifsInode = CIFS_I(inode);
 		cifsInode->time = 0;	/* will force revalidate to get info
 					   when needed */
-		direntry->d_inode->i_ctime = current_fs_time(inode->i_sb);
+		inode->i_ctime = current_fs_time(sb);
 	}
-	if (inode) {
-		inode->i_ctime = inode->i_mtime = current_fs_time(inode->i_sb);
-		cifsInode = CIFS_I(inode);
-		cifsInode->time = 0;	/* force revalidate of dir as well */
-	}
+	dir->i_ctime = dir->i_mtime = current_fs_time(sb);
+	cifsInode = CIFS_I(dir);
+	cifsInode->time = 0;	/* force revalidate of dir as well */
 
 	kfree(full_path);
 	FreeXid(xid);
