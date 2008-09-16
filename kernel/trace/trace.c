@@ -3054,7 +3054,7 @@ static __init void tracer_init_debugfs(void)
 	(sizeof(struct trace_field) - offsetof(struct trace_field, print.buf))
 #define TRACE_CONT_BUF_SIZE sizeof(struct trace_field)
 
-int __ftrace_printk(unsigned long ip, const char *fmt, ...)
+int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 {
 	static DEFINE_SPINLOCK(trace_buf_lock);
 	static char trace_buf[TRACE_BUF_SIZE];
@@ -3064,10 +3064,9 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	struct trace_entry *entry;
 	unsigned long flags;
 	long disabled;
-	va_list ap;
 	int cpu, len = 0, write, written = 0;
 
-	if (!(trace_flags & TRACE_ITER_PRINTK) || !tr->ctrl || tracing_disabled)
+	if (current_trace == &no_tracer || !tr->ctrl || tracing_disabled)
 		return 0;
 
 	local_irq_save(flags);
@@ -3079,9 +3078,7 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 		goto out;
 
 	spin_lock(&trace_buf_lock);
-	va_start(ap, fmt);
-	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, ap);
-	va_end(ap);
+	len = vsnprintf(trace_buf, TRACE_BUF_SIZE, fmt, args);
 
 	len = min(len, TRACE_BUF_SIZE-1);
 	trace_buf[len] = 0;
@@ -3119,6 +3116,21 @@ int __ftrace_printk(unsigned long ip, const char *fmt, ...)
 	local_irq_restore(flags);
 
 	return len;
+}
+EXPORT_SYMBOL_GPL(trace_vprintk);
+
+int __ftrace_printk(unsigned long ip, const char *fmt, ...)
+{
+	int ret;
+	va_list ap;
+
+	if (!(trace_flags & TRACE_ITER_PRINTK))
+		return 0;
+
+	va_start(ap, fmt);
+	ret = trace_vprintk(ip, fmt, ap);
+	va_end(ap);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(__ftrace_printk);
 
