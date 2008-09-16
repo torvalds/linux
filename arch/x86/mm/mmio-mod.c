@@ -307,8 +307,10 @@ static void ioremap_trace_core(resource_size_t offset, unsigned long size,
 	map.map_id = trace->id;
 
 	spin_lock_irq(&trace_lock);
-	if (!is_enabled())
+	if (!is_enabled()) {
+		kfree(trace);
 		goto not_enabled;
+	}
 
 	mmio_trace_mapping(&map);
 	list_add_tail(&trace->list, &trace_list);
