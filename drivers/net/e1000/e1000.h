@@ -155,8 +155,6 @@ do {									\
 #endif
 
 #define E1000_MNG_VLAN_NONE (-1)
-/* Number of packet split data buffers (not including the header buffer) */
-#define PS_PAGE_BUFFERS (MAX_PS_BUFFERS - 1)
 
 /* wrapper around a pointer to a socket buffer,
  * so a DMA handle can be stored along with the buffer */
@@ -166,14 +164,6 @@ struct e1000_buffer {
 	unsigned long time_stamp;
 	u16 length;
 	u16 next_to_watch;
-};
-
-struct e1000_ps_page {
-	struct page *ps_page[PS_PAGE_BUFFERS];
-};
-
-struct e1000_ps_page_dma {
-	u64 ps_page_dma[PS_PAGE_BUFFERS];
 };
 
 struct e1000_tx_ring {
@@ -213,9 +203,6 @@ struct e1000_rx_ring {
 	unsigned int next_to_clean;
 	/* array of buffer information structs */
 	struct e1000_buffer *buffer_info;
-	/* arrays of page information for packet split */
-	struct e1000_ps_page *ps_page;
-	struct e1000_ps_page_dma *ps_page_dma;
 
 	/* cpu for rx queue */
 	int cpu;
@@ -228,8 +215,6 @@ struct e1000_rx_ring {
 	((((R)->next_to_clean > (R)->next_to_use)			\
 	  ? 0 : (R)->count) + (R)->next_to_clean - (R)->next_to_use - 1)
 
-#define E1000_RX_DESC_PS(R, i)						\
-	(&(((union e1000_rx_desc_packet_split *)((R).desc))[i]))
 #define E1000_RX_DESC_EXT(R, i)						\
 	(&(((union e1000_rx_desc_extended *)((R).desc))[i]))
 #define E1000_GET_DESC(R, i, type)	(&(((struct type *)((R).desc))[i]))
@@ -311,10 +296,8 @@ struct e1000_adapter {
 	u32 rx_int_delay;
 	u32 rx_abs_int_delay;
 	bool rx_csum;
-	unsigned int rx_ps_pages;
 	u32 gorcl;
 	u64 gorcl_old;
-	u16 rx_ps_bsize0;
 
 	/* OS defined structs */
 	struct net_device *netdev;
