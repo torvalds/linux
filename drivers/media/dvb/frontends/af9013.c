@@ -941,7 +941,6 @@ static int af9013_update_ber_unc(struct dvb_frontend *fe)
 	u32 error_bit_count = 0;
 	u32 total_bit_count = 0;
 	u32 abort_packet_count = 0;
-	u64 numerator, denominator;
 
 	state->ber = 0;
 
@@ -979,11 +978,8 @@ static int af9013_update_ber_unc(struct dvb_frontend *fe)
 	total_bit_count = total_bit_count - abort_packet_count;
 	total_bit_count = total_bit_count * 204 * 8;
 
-	if (total_bit_count) {
-		numerator = error_bit_count * 1000000000;
-		denominator = total_bit_count;
-		state->ber = numerator / denominator;
-	}
+	if (total_bit_count)
+		state->ber = error_bit_count * 1000000000 / total_bit_count;
 
 	state->ucblocks += abort_packet_count;
 
