@@ -165,11 +165,10 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx, int group_addr,
 	return cpu_to_le16(dur);
 }
 
-static int inline is_ieee80211_device(struct net_device *dev,
-				      struct net_device *master)
+static int inline is_ieee80211_device(struct ieee80211_local *local,
+				      struct net_device *dev)
 {
-	return (wdev_priv(dev->ieee80211_ptr) ==
-		wdev_priv(master->ieee80211_ptr));
+	return local == wdev_priv(dev->ieee80211_ptr);
 }
 
 /* tx handlers */
@@ -1001,14 +1000,14 @@ __ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
 /*
  * NB: @tx is uninitialised when passed in here
  */
-static int ieee80211_tx_prepare(struct ieee80211_tx_data *tx,
-				struct sk_buff *skb,
-				struct net_device *mdev)
+static int ieee80211_tx_prepare(struct ieee80211_local *local,
+				struct ieee80211_tx_data *tx,
+				struct sk_buff *skb)
 {
 	struct net_device *dev;
 
 	dev = dev_get_by_index(&init_net, skb->iif);
-	if (unlikely(dev && !is_ieee80211_device(dev, mdev))) {
+	if (unlikely(dev && !is_ieee80211_device(local, dev))) {
 		dev_put(dev);
 		dev = NULL;
 	}
@@ -1258,6 +1257,8 @@ static int ieee80211_skb_resize(struct ieee80211_local *local,
 int ieee80211_master_start_xmit(struct sk_buff *skb,
 				struct net_device *dev)
 {
+	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
+	struct ieee80211_local *local = mpriv->local;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct net_device *odev = NULL;
@@ -1273,7 +1274,7 @@ int ieee80211_master_start_xmit(struct sk_buff *skb,
 
 	if (skb->iif)
 		odev = dev_get_by_index(&init_net, skb->iif);
-	if (unlikely(odev && !is_ieee80211_device(odev, dev))) {
+	if (unlikely(odev && !is_ieee80211_device(local, odev))) {
 		dev_put(odev);
 		odev = NULL;
 	}
@@ -1449,8 +1450,8 @@ fail:
 int ieee80211_subif_start_xmit(struct sk_buff *skb,
 			       struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
 	int ret = 1, head_need;
 	u16 ethertype, hdrlen,  meshhdrlen = 0;
 	__le16 fc;
@@ -1462,7 +1463,6 @@ int ieee80211_subif_start_xmit(struct sk_buff *skb,
 	struct sta_info *sta;
 	u32 sta_flags = 0;
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	if (unlikely(skb->len < ETH_HLEN)) {
 		ret = 0;
 		goto fail;
@@ -2032,7 +2032,7 @@ ieee80211_get_buffered_bc(struct ieee80211_hw *hw,
 				cpu_to_le16(IEEE80211_FCTL_MOREDATA);
 		}
 
-		if (!ieee80211_tx_prepare(&tx, skb, local->mdev))
+		if (!ieee80211_tx_prepare(local, &tx, skb))
 			break;
 		dev_kfree_skb_any(skb);
 	}

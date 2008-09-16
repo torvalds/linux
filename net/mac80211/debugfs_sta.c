@@ -173,8 +173,7 @@ static ssize_t sta_agg_status_write(struct file *file,
 		const char __user *user_buf, size_t count, loff_t *ppos)
 {
 	struct sta_info *sta = file->private_data;
-	struct net_device *dev = sta->sdata->dev;
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_local *local = sta->sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
 	u8 *da = sta->sta.addr;
 	static int tid_static_tx[16] = {0, 0, 0, 0, 0, 0, 0, 0,

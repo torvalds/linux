@@ -650,31 +650,27 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	return result;
 }
 
-static void ap_sta_ps_start(struct net_device *dev, struct sta_info *sta)
+static void ap_sta_ps_start(struct sta_info *sta)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	DECLARE_MAC_BUF(mac);
-
-	sdata = sta->sdata;
 
 	atomic_inc(&sdata->bss->num_sta_ps);
 	set_and_clear_sta_flags(sta, WLAN_STA_PS, WLAN_STA_PSPOLL);
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d enters power save mode\n",
-	       dev->name, print_mac(mac, sta->sta.addr), sta->sta.aid);
+	       sdata->dev->name, print_mac(mac, sta->sta.addr), sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 }
 
-static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
+static int ap_sta_ps_end(struct sta_info *sta)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	int sent = 0;
-	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_tx_info *info;
 	DECLARE_MAC_BUF(mac);
-
-	sdata = sta->sdata;
 
 	atomic_dec(&sdata->bss->num_sta_ps);
 
@@ -685,7 +681,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 	printk(KERN_DEBUG "%s: STA %s aid %d exits power save mode\n",
-	       dev->name, print_mac(mac, sta->sta.addr), sta->sta.aid);
+	       sdata->dev->name, print_mac(mac, sta->sta.addr), sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 
 	/* Send all buffered frames to the station */
@@ -701,7 +697,7 @@ static int ap_sta_ps_end(struct net_device *dev, struct sta_info *sta)
 		sent++;
 #ifdef CONFIG_MAC80211_VERBOSE_PS_DEBUG
 		printk(KERN_DEBUG "%s: STA %s aid %d send PS frame "
-		       "since STA not sleeping anymore\n", dev->name,
+		       "since STA not sleeping anymore\n", sdata->dev->name,
 		       print_mac(mac, sta->sta.addr), sta->sta.aid);
 #endif /* CONFIG_MAC80211_VERBOSE_PS_DEBUG */
 		info->flags |= IEEE80211_TX_CTL_REQUEUE;
@@ -715,7 +711,6 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 {
 	struct sta_info *sta = rx->sta;
-	struct net_device *dev = rx->dev;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 
 	if (!sta)
@@ -757,10 +752,10 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		 * exchange sequence */
 		if (test_sta_flags(sta, WLAN_STA_PS) &&
 		    !ieee80211_has_pm(hdr->frame_control))
-			rx->sent_ps_buffered += ap_sta_ps_end(dev, sta);
+			rx->sent_ps_buffered += ap_sta_ps_end(sta);
 		else if (!test_sta_flags(sta, WLAN_STA_PS) &&
 			 ieee80211_has_pm(hdr->frame_control))
-			ap_sta_ps_start(dev, sta);
+			ap_sta_ps_start(sta);
 	}
 
 	/* Drop data::nullfunc frames silently, since they are used only to

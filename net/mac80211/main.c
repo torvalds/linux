@@ -106,7 +106,8 @@ static const struct header_ops ieee80211_header_ops = {
 
 static int ieee80211_master_open(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
+	struct ieee80211_local *local = mpriv->local;
 	struct ieee80211_sub_if_data *sdata;
 	int res = -EOPNOTSUPP;
 
@@ -128,7 +129,8 @@ static int ieee80211_master_open(struct net_device *dev)
 
 static int ieee80211_master_stop(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
+	struct ieee80211_local *local = mpriv->local;
 	struct ieee80211_sub_if_data *sdata;
 
 	/* we hold the RTNL here so can safely walk the list */
@@ -141,7 +143,8 @@ static int ieee80211_master_stop(struct net_device *dev)
 
 static void ieee80211_master_set_multicast_list(struct net_device *dev)
 {
-	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	struct ieee80211_master_priv *mpriv = netdev_priv(dev);
+	struct ieee80211_local *local = mpriv->local;
 
 	ieee80211_configure_filter(local);
 }
@@ -787,7 +790,7 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	int result;
 	enum ieee80211_band band;
 	struct net_device *mdev;
-	struct wireless_dev *mwdev;
+	struct ieee80211_master_priv *mpriv;
 
 	/*
 	 * generic code guarantees at least one band,
@@ -829,16 +832,14 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	if (hw->queues < 4)
 		hw->ampdu_queues = 0;
 
-	mdev = alloc_netdev_mq(sizeof(struct wireless_dev),
+	mdev = alloc_netdev_mq(sizeof(struct ieee80211_master_priv),
 			       "wmaster%d", ether_setup,
 			       ieee80211_num_queues(hw));
 	if (!mdev)
 		goto fail_mdev_alloc;
 
-	mwdev = netdev_priv(mdev);
-	mdev->ieee80211_ptr = mwdev;
-	mwdev->wiphy = local->hw.wiphy;
-
+	mpriv = netdev_priv(mdev);
+	mpriv->local = local;
 	local->mdev = mdev;
 
 	ieee80211_rx_bss_list_init(local);
