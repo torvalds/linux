@@ -175,10 +175,10 @@ typedef union hubii_wid_u {
 	u64	wid_reg_value;
 	struct {
 		u64 	wid_rsvd: 	32,	/* unused */
-                   	wid_rev_num:	 4,	/* revision number */
-                   	wid_part_num:	16,	/* the widget type: hub=c101 */
-                   	wid_mfg_num:	11,	/* Manufacturer id (IBM) */
-                   	wid_rsvd1:	 1;	/* Reserved */
+			wid_rev_num:	 4,	/* revision number */
+			wid_part_num:	16,	/* the widget type: hub=c101 */
+			wid_mfg_num:	11,	/* Manufacturer id (IBM) */
+			wid_rsvd1:	 1;	/* Reserved */
         } wid_fields_s;
 } hubii_wid_t;
 
@@ -187,13 +187,13 @@ typedef union hubii_wcr_u {
 	u64	wcr_reg_value;
 	struct {
 		u64 	wcr_rsvd: 	41,	/* unused */
-                   	wcr_e_thresh:	 5,	/* elasticity threshold */
+			wcr_e_thresh:	 5,	/* elasticity threshold */
 			wcr_dir_con:	 1,	/* widget direct connect */
-                   	wcr_f_bad_pkt:	 1,	/* Force bad llp pkt enable */
-                   	wcr_xbar_crd:	 3,	/* LLP crossbar credit */
-                   	wcr_rsvd1:	 8,	/* Reserved */
+			wcr_f_bad_pkt:	 1,	/* Force bad llp pkt enable */
+			wcr_xbar_crd:	 3,	/* LLP crossbar credit */
+			wcr_rsvd1:	 8,	/* Reserved */
 			wcr_tag_mode:    1,	/* Tag mode */
-                   	wcr_widget_id:	 4;	/* LLP crossbar credit */
+			wcr_widget_id:	 4;	/* LLP crossbar credit */
         } wcr_fields_s;
 } hubii_wcr_t;
 
@@ -220,14 +220,14 @@ typedef union hubii_ilcsr_u {
 	u64	icsr_reg_value;
 	struct {
 		u64 	icsr_rsvd: 	22,	/* unused */
-                   	icsr_max_burst:	10,	/* max burst */
+			icsr_max_burst:	10,	/* max burst */
                         icsr_rsvd4:	 6,	/* reserved */
-                   	icsr_max_retry:	10,	/* max retry */
+			icsr_max_retry:	10,	/* max retry */
                         icsr_rsvd3:	 2,	/* reserved */
                         icsr_lnk_stat:	 2,	/* link status */
                         icsr_bm8:	 1,	/* Bit mode 8 */
                         icsr_llp_en:	 1,	/* LLP enable bit */
-                 	icsr_rsvd2:	 1,     /* reserver */
+			icsr_rsvd2:	 1,     /* reserver */
                         icsr_wrm_reset:	 1,	/* Warm reset bit */
 			icsr_rsvd1:	 2,	/* Data ready offset */
                         icsr_null_to:	 6;	/* Null timeout   */
@@ -240,9 +240,9 @@ typedef union hubii_iowa_u {
 	u64	iowa_reg_value;
 	struct {
 		u64 	iowa_rsvd: 	48,	/* unused */
-                       	iowa_wxoac:	 8,	/* xtalk widget access bits */
-                   	iowa_rsvd1:	 7,	/* xtalk widget access bits */
-                  	iowa_w0oac:	 1;	/* xtalk widget access bits */
+			iowa_wxoac:	 8,	/* xtalk widget access bits */
+			iowa_rsvd1:	 7,	/* xtalk widget access bits */
+			iowa_w0oac:	 1;	/* xtalk widget access bits */
         } iowa_fields_s;
 } hubii_iowa_t;
 
@@ -261,7 +261,7 @@ typedef union	hubii_illr_u {
 	struct {
 		u64 	illr_rsvd: 	32,	/* unused */
 			illr_cb_cnt:	16,	/* checkbit error count */
-                   	illr_sn_cnt:	16;	/* sequence number count */
+			illr_sn_cnt:	16;	/* sequence number count */
         } illr_fields_s;
 } hubii_illr_t;
 
@@ -275,7 +275,7 @@ typedef union io_perf_sel {
 	struct {
 		u64 	perf_rsvd  : 48,
 			perf_icct  :  8,
-		 	perf_ippr1 :  4,
+			perf_ippr1 :  4,
 			perf_ippr0 :  4;
 	} perf_sel_bits;
 } io_perf_sel_t;
@@ -733,7 +733,7 @@ typedef union hubii_ifdr_u {
 		u64	ifdr_rsvd:	49,
 	                ifdr_maxrp:	 7,
 	                ifdr_rsvd1:	 1,
-                      	ifdr_maxrq:	 7;
+			ifdr_maxrq:	 7;
 	} hi_ifdr_fields;
 } hubii_ifdr_t;
 

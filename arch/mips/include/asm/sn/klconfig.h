@@ -425,7 +425,7 @@ typedef struct lboard_s {
 	unsigned char 	brd_sversion;     /* version of this structure */
         unsigned char 	brd_brevision;    /* board revision */
         unsigned char 	brd_promver;      /* board prom version, if any */
- 	unsigned char 	brd_flags;        /* Enabled, Disabled etc */
+	unsigned char 	brd_flags;        /* Enabled, Disabled etc */
 	unsigned char 	brd_slot;         /* slot number */
 	unsigned short	brd_debugsw;      /* Debug switches */
 	moduleid_t	brd_module;       /* module to which it belongs */
@@ -595,9 +595,9 @@ typedef struct klcpu_s {                          /* CPU */
 	klinfo_t 	cpu_info;
 	unsigned short 	cpu_prid;	/* Processor PRID value */
 	unsigned short 	cpu_fpirr;	/* FPU IRR value */
-    	unsigned short 	cpu_speed;	/* Speed in MHZ */
-    	unsigned short 	cpu_scachesz;	/* secondary cache size in MB */
-    	unsigned short 	cpu_scachespeed;/* secondary cache speed in MHz */
+	unsigned short 	cpu_speed;	/* Speed in MHZ */
+	unsigned short 	cpu_scachesz;	/* secondary cache size in MB */
+	unsigned short 	cpu_scachespeed;/* secondary cache speed in MHz */
 } klcpu_t ;
 
 #define CPU_STRUCT_VERSION   2
@@ -621,7 +621,7 @@ typedef struct klhub_uart_s {			/* HUB */
 
 typedef struct klmembnk_s {			/* MEMORY BANK */
 	klinfo_t 	membnk_info;
-    	short 		membnk_memsz;		/* Total memory in megabytes */
+	short 		membnk_memsz;		/* Total memory in megabytes */
 	short		membnk_dimm_select; /* bank to physical addr mapping*/
 	short		membnk_bnksz[MD_MEM_BANKS]; /* Memory bank sizes */
 	short		membnk_attr;
@@ -657,7 +657,7 @@ typedef struct klmod_serial_num_s {
 
 typedef struct klxbow_s {                          /* XBOW */
 	klinfo_t 	xbow_info ;
-    	klport_t	xbow_port_info[MAX_XBOW_LINKS] ; /* Module number */
+	klport_t	xbow_port_info[MAX_XBOW_LINKS] ; /* Module number */
         int		xbow_master_hub_link;
         /* type of brd connected+component struct ptr+flags */
 } klxbow_t ;
@@ -673,9 +673,9 @@ typedef struct klpci_device_s {
 
 typedef struct klbri_s {                          /* BRIDGE */
 	klinfo_t 	bri_info ;
-    	unsigned char	bri_eprominfo ;    /* IO6prom connected to bridge */
-    	unsigned char	bri_bustype ;      /* PCI/VME BUS bridge/GIO */
-    	pci_t    	pci_specific  ;    /* PCI Board config info */
+	unsigned char	bri_eprominfo ;    /* IO6prom connected to bridge */
+	unsigned char	bri_bustype ;      /* PCI/VME BUS bridge/GIO */
+	pci_t    	pci_specific  ;    /* PCI Board config info */
 	klpci_device_t	bri_devices[MAX_PCI_DEVS] ;	/* PCI IDs */
 	klconf_off_t	bri_mfg_nic ;
 } klbri_t ;
@@ -684,9 +684,9 @@ typedef struct klbri_s {                          /* BRIDGE */
 
 typedef struct klioc3_s {                          /* IOC3 */
 	klinfo_t 	ioc3_info ;
-    	unsigned char	ioc3_ssram ;        /* Info about ssram */
-    	unsigned char	ioc3_nvram ;        /* Info about nvram */
-    	klinfo_t	ioc3_superio ;      /* Info about superio */
+	unsigned char	ioc3_ssram ;        /* Info about ssram */
+	unsigned char	ioc3_nvram ;        /* Info about nvram */
+	klinfo_t	ioc3_superio ;      /* Info about superio */
 	klconf_off_t	ioc3_tty_off ;
 	klinfo_t	ioc3_enet ;
 	klconf_off_t	ioc3_enet_off ;
@@ -698,13 +698,13 @@ typedef struct klioc3_s {                          /* IOC3 */
 typedef struct klvmeb_s {                          /* VME BRIDGE - PCI CTLR */
 	klinfo_t 	vmeb_info ;
 	vmeb_t		vmeb_specific ;
-    	klconf_off_t   	vmeb_brdinfo[MAX_VME_SLOTS]   ;    /* VME Board config info */
+	klconf_off_t   	vmeb_brdinfo[MAX_VME_SLOTS]   ;    /* VME Board config info */
 } klvmeb_t ;
 
 typedef struct klvmed_s {                          /* VME DEVICE - VME BOARD */
 	klinfo_t	vmed_info ;
 	vmed_t		vmed_specific ;
-    	klconf_off_t   	vmed_brdinfo[MAX_VME_SLOTS]   ;    /* VME Board config info */
+	klconf_off_t   	vmed_brdinfo[MAX_VME_SLOTS]   ;    /* VME Board config info */
 } klvmed_t ;
 
 #define ROUTER_VECTOR_VERS	2
@@ -714,7 +714,7 @@ typedef struct klrou_s {                          /* ROUTER */
 	klinfo_t 	rou_info ;
 	unsigned int		rou_flags ;           /* PCFG_ROUTER_xxx flags */
 	nic_t		rou_box_nic ;         /* nic of the containing module */
-    	klport_t 	rou_port[MAX_ROUTER_PORTS + 1] ; /* array index 1 to 6 */
+	klport_t 	rou_port[MAX_ROUTER_PORTS + 1] ; /* array index 1 to 6 */
 	klconf_off_t	rou_mfg_nic ;     /* MFG NIC string */
 	u64	rou_vector;	  /* vector from master node */
 } klrou_t ;
@@ -769,7 +769,7 @@ typedef struct klgsn_s {                     /* GSN board */
 
 typedef struct klscsi_s {                          /* SCSI Controller */
 	klinfo_t 	scsi_info ;
-    	scsi_t       	scsi_specific   ;
+	scsi_t       	scsi_specific   ;
 	unsigned char 	scsi_numdevs ;
 	klconf_off_t	scsi_devinfo[MAX_SCSI_DEVS] ;
 } klscsi_t ;
@@ -803,13 +803,13 @@ typedef struct klmsdev_s {                          /* mouse device */
 
 typedef struct klfddi_s {                          /* FDDI */
 	klinfo_t 	fddi_info ;
-    	fddi_t        	fddi_specific ;
+	fddi_t        	fddi_specific ;
 	klconf_off_t	fddi_devinfo[MAX_FDDI_DEVS] ;
 } klfddi_t ;
 
 typedef struct klmio_s {                          /* MIO */
 	klinfo_t 	mio_info ;
-    	mio_t       	mio_specific   ;
+	mio_t       	mio_specific   ;
 } klmio_t ;
 
 

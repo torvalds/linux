@@ -220,8 +220,8 @@ activate_mm(struct mm_struct *prev, struct mm_struct *next)
 	oldasid = read_c0_entryhi() & ASID_MASK;
 	if(smtc_live_asid[mytlb][oldasid]) {
 		smtc_live_asid[mytlb][oldasid] &= ~(0x1 << cpu);
-       		if(smtc_live_asid[mytlb][oldasid] == 0)
-               		 smtc_flush_tlb_asid(oldasid);
+		if(smtc_live_asid[mytlb][oldasid] == 0)
+			 smtc_flush_tlb_asid(oldasid);
 	}
 	/* See comments for similar code above */
 	write_c0_entryhi((read_c0_entryhi() & ~HW_ASID_MASK) |
@@ -285,8 +285,8 @@ drop_mmu_context(struct mm_struct *mm, unsigned cpu)
 
 		/* SMTC shares the TLB (and ASIDs) across VPEs */
 		for_each_online_cpu(i) {
-	    	    if((smtc_status & SMTC_TLB_SHARED)
-	    	    || (cpu_data[i].vpe_id == cpu_data[cpu].vpe_id))
+		    if((smtc_status & SMTC_TLB_SHARED)
+		    || (cpu_data[i].vpe_id == cpu_data[cpu].vpe_id))
 			cpu_context(i, mm) = 0;
 		}
 #endif /* CONFIG_MIPS_MT_SMTC */
