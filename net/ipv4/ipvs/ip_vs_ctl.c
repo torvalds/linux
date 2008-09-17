@@ -1305,7 +1305,7 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 		 */
 		if ((ret = ip_vs_unbind_scheduler(svc))) {
 			old_sched = sched;
-			goto out;
+			goto out_unlock;
 		}
 
 		/*
@@ -1324,12 +1324,13 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 			 */
 			ip_vs_bind_scheduler(svc, old_sched);
 			old_sched = sched;
-			goto out;
+			goto out_unlock;
 		}
 	}
 
-  out:
+  out_unlock:
 	write_unlock_bh(&__ip_vs_svc_lock);
+  out:
 
 	if (old_sched)
 		ip_vs_scheduler_put(old_sched);
