@@ -958,6 +958,15 @@ static int dvb_register(struct cx8802_dev *dev)
 			dev->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
 		}
 		break;
+	case CX88_BOARD_OMICOM_SS4_PCI:
+		dev->dvb.frontend = dvb_attach(cx24116_attach,
+					       &hauppauge_hvr4000_config,
+					       &core->i2c_adap);
+		if (dev->dvb.frontend != NULL) {
+			core->prev_set_voltage = dev->dvb.frontend->ops.set_voltage;
+			dev->dvb.frontend->ops.set_voltage = tevii_dvbs_set_voltage;
+		}
+		break;
 	default:
 		printk(KERN_ERR "%s/2: The frontend of your DVB/ATSC card isn't supported yet\n",
 		       core->name);
