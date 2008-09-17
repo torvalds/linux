@@ -1733,6 +1733,18 @@ static const struct cx88_board cx88_boards[] = {
 		} },
 		.mpeg           = CX88_MPEG_DVB,
 	},
+	[CX88_BOARD_TBS_8920] = {
+		.name           = "TBS 8920 DVB-S/S2",
+		.tuner_type     = TUNER_ABSENT,
+		.radio_type     = UNSET,
+		.tuner_addr     = ADDR_UNSET,
+		.radio_addr     = ADDR_UNSET,
+		.input          = {{
+			.type   = CX88_VMUX_DVB,
+			.vmux   = 1,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 };
 
 /* ------------------------------------------------------------------ */
@@ -2110,6 +2122,10 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0xA044,
 		.subdevice = 0x2011,
 		.card      = CX88_BOARD_OMICOM_SS4_PCI,
+	}, {
+		.subvendor = 0x8920,
+		.subdevice = 0x8888,
+		.card      = CX88_BOARD_TBS_8920,
 	},
 };
 
@@ -2690,6 +2706,12 @@ static void cx88_card_setup(struct cx88_core *core)
 		msleep(100);
 		break;
 	case  CX88_BOARD_OMICOM_SS4_PCI:
+		cx_write(MO_SRST_IO, 0);
+		msleep(100);
+		cx_write(MO_SRST_IO, 1);
+		msleep(100);
+		break;
+	case  CX88_BOARD_TBS_8920:
 		cx_write(MO_SRST_IO, 0);
 		msleep(100);
 		cx_write(MO_SRST_IO, 1);
