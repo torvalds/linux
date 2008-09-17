@@ -76,4 +76,14 @@ config UWB_I1480U
          To compile this driver select Y (built in) or M (module). It
          is safe to select any even if you do not have the hardware.
 
+config UWB_I1480U_WLP
+        tristate "Support for Intel Wireless UWB Link 1480 HWA's WLP interface"
+        depends on UWB_I1480U &&  UWB_WLP && NET
+        help
+         This driver enables WLP support for the i1480 when connected via
+         USB. WLP is the WiMedia Link Protocol, or IP over UWB.
+
+         To compile this driver select Y (built in) or M (module). It
+         is safe to select any even if you don't have the hardware.
+
 endif # UWB
