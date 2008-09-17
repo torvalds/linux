@@ -297,6 +297,14 @@ static void __init iommu_unmap_mmio_space(struct amd_iommu *iommu)
  ****************************************************************************/
 
 /*
+ * This function calculates the length of a given IVHD entry
+ */
+static inline int ivhd_entry_length(u8 *ivhd)
+{
+	return 0x04 << (*ivhd >> 6);
+}
+
+/*
  * This function reads the last device id the IOMMU has to handle from the PCI
  * capability header for this IOMMU
  */
@@ -340,7 +348,7 @@ static int __init find_last_devid_from_ivhd(struct ivhd_header *h)
 		default:
 			break;
 		}
-		p += 0x04 << (*p >> 6);
+		p += ivhd_entry_length(p);
 	}
 
 	WARN_ON(p != end);
@@ -641,7 +649,7 @@ static void __init init_iommu_from_acpi(struct amd_iommu *iommu,
 			break;
 		}
 
-		p += 0x04 << (e->type >> 6);
+		p += ivhd_entry_length(p);
 	}
 }
 
