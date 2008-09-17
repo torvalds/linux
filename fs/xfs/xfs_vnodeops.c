@@ -1838,6 +1838,12 @@ again:
 #endif
 }
 
+/*
+ * xfs_lock_two_inodes() can only be used to lock one type of lock
+ * at a time - the iolock or the ilock, but not both at once. If
+ * we lock both at once, lockdep will report false positives saying
+ * we have violated locking orders.
+ */
 void
 xfs_lock_two_inodes(
 	xfs_inode_t		*ip0,
@@ -1848,6 +1854,8 @@ xfs_lock_two_inodes(
 	int			attempts = 0;
 	xfs_log_item_t		*lp;
 
+	if (lock_mode & (XFS_IOLOCK_SHARED|XFS_IOLOCK_EXCL))
+		ASSERT((lock_mode & (XFS_ILOCK_SHARED|XFS_ILOCK_EXCL)) == 0);
 	ASSERT(ip0->i_ino != ip1->i_ino);
 
 	if (ip0->i_ino > ip1->i_ino) {
