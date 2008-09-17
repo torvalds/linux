@@ -235,7 +235,7 @@ static void __init iommu_feature_disable(struct amd_iommu *iommu, u8 bit)
 {
 	u32 ctrl;
 
-	ctrl = (u64)readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
+	ctrl = readl(iommu->mmio_base + MMIO_CONTROL_OFFSET);
 	ctrl &= ~(1 << bit);
 	writel(ctrl, iommu->mmio_base + MMIO_CONTROL_OFFSET);
 }
