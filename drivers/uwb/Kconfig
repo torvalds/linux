@@ -3,7 +3,8 @@
 #
 
 menuconfig UWB
-	tristate "Ultra Wide Band devices"
+	tristate "Ultra Wideband devices (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
 	depends on PCI
 	default n
 	help
