@@ -395,7 +395,7 @@ ssize_t uwb_est_get_size(struct uwb_rc *uwb_rc, struct uwb_est *est,
 		case UWB_EST_8:   type_size = sizeof(u8);     break;
 		default: 	 BUG();
 		}
-		if (offset + type_size >= rceb_size) {
+		if (offset + type_size > rceb_size) {
 			if (printk_ratelimit())
 				dev_err(dev, "EST %p 0x%04x/%04x/%04x[%u]: "
 					"not enough data to read extra size\n",
