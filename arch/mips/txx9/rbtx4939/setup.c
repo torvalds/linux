@@ -264,6 +264,7 @@ static void __init rbtx4939_device_init(void)
 #endif
 	rbtx4939_led_setup();
 	tx4939_wdt_init();
+	tx4939_ata_init();
 }
 
 static void __init rbtx4939_setup(void)

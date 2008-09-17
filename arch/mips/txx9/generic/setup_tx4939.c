@@ -20,6 +20,7 @@
 #include <linux/param.h>
 #include <linux/ptrace.h>
 #include <linux/mtd/physmap.h>
+#include <linux/platform_device.h>
 #include <asm/bootinfo.h>
 #include <asm/reboot.h>
 #include <asm/traps.h>
@@ -387,6 +388,51 @@ void __init tx4939_mtd_init(int ch)
 	if (!(TX4939_EBUSC_CR(ch) & 0x8))
 		return;	/* disabled */
 	txx9_physmap_flash_init(ch, start, size, &pdata);
+}
+
+#define TX4939_ATA_REG_PHYS(ch) (TX4939_ATA_REG(ch) & 0xfffffffffULL)
+void __init tx4939_ata_init(void)
+{
+	static struct resource ata0_res[] = {
+		{
+			.start = TX4939_ATA_REG_PHYS(0),
+			.end = TX4939_ATA_REG_PHYS(0) + 0x1000 - 1,
+			.flags = IORESOURCE_MEM,
+		}, {
+			.start = TXX9_IRQ_BASE + TX4939_IR_ATA(0),
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+	static struct resource ata1_res[] = {
+		{
+			.start = TX4939_ATA_REG_PHYS(1),
+			.end = TX4939_ATA_REG_PHYS(1) + 0x1000 - 1,
+			.flags = IORESOURCE_MEM,
+		}, {
+			.start = TXX9_IRQ_BASE + TX4939_IR_ATA(1),
+			.flags = IORESOURCE_IRQ,
+		},
+	};
+	static struct platform_device ata0_dev = {
+		.name = "tx4939ide",
+		.id = 0,
+		.num_resources = ARRAY_SIZE(ata0_res),
+		.resource = ata0_res,
+	};
+	static struct platform_device ata1_dev = {
+		.name = "tx4939ide",
+		.id = 1,
+		.num_resources = ARRAY_SIZE(ata1_res),
+		.resource = ata1_res,
+	};
+	__u64 pcfg = __raw_readq(&tx4939_ccfgptr->pcfg);
+
+	if (pcfg & TX4939_PCFG_ATA0MODE)
+		platform_device_register(&ata0_dev);
+	if ((pcfg & (TX4939_PCFG_ATA1MODE |
+		     TX4939_PCFG_ET1MODE |
+		     TX4939_PCFG_ET0MODE)) == TX4939_PCFG_ATA1MODE)
+		platform_device_register(&ata1_dev);
 }
 
 static void __init tx4939_stop_unused_modules(void)
