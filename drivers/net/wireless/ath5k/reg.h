@@ -820,8 +820,6 @@
 #define AR5K_RESET_CTL_MAC	0x00000004	/* MAC reset (PCU+Baseband ?) [5210] */
 #define AR5K_RESET_CTL_PHY	0x00000008	/* PHY reset [5210] */
 #define AR5K_RESET_CTL_PCI	0x00000010	/* PCI Core reset (interrupts etc) */
-#define AR5K_RESET_CTL_CHIP	(AR5K_RESET_CTL_PCU | AR5K_RESET_CTL_DMA |	\
-				AR5K_RESET_CTL_MAC | AR5K_RESET_CTL_PHY)
 
 /*
  * Sleep control register

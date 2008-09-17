@@ -2124,7 +2124,7 @@ static int ath5k_hw_rf5110_calibrate(struct ath5k_hw *ah,
 	beacon = ath5k_hw_reg_read(ah, AR5K_BEACON_5210);
 	ath5k_hw_reg_write(ah, beacon & ~AR5K_BEACON_ENABLE, AR5K_BEACON_5210);
 
-	udelay(2300);
+	mdelay(2);
 
 	/*
 	 * Set the channel (with AGC turned off)
