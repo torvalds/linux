@@ -1144,7 +1144,8 @@ out:
 	return ret;
 
 free:
-	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap, 1);
+	free_pages((unsigned long)amd_iommu_pd_alloc_bitmap,
+		   get_order(MAX_DOMAIN_ID/8));
 
 	free_pages((unsigned long)amd_iommu_pd_table,
 		   get_order(rlookup_table_size));
