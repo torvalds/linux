@@ -8,6 +8,8 @@ endif
 
 isp1760-objs := isp1760-hcd.o isp1760-if.o
 
+obj-$(CONFIG_USB_WHCI_HCD)	+= whci/
+
 obj-$(CONFIG_PCI)		+= pci-quirks.o
 
 obj-$(CONFIG_USB_EHCI_HCD)	+= ehci-hcd.o
