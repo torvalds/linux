@@ -57,4 +57,11 @@ config UWB_WHCI
           To compile this driver select Y (built in) or M (module). It
           is safe to select any even if you do not have the hardware.
 
+config UWB_WLP
+	tristate "Support WiMedia Link Protocol (Ethernet/IP over UWB)"
+	depends on UWB && NET
+	help
+	  This is a common library for drivers that implement
+	  networking over UWB.
+
 endif # UWB
