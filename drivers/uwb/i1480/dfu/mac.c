@@ -507,8 +507,8 @@ int i1480_mac_fw_upload(struct i1480 *i1480)
 		goto error_size;
 	}
 	result = -EIO;
-	if (rcebe->rceb.bEventType != i1480_CET_VS1
-	    || le16_to_cpu(rcebe->rceb.wEvent) != i1480_EVT_RM_INIT_DONE) {
+	if (i1480_rceb_check(i1480, &rcebe->rceb, NULL, 0, i1480_CET_VS1,
+			     i1480_EVT_RM_INIT_DONE) < 0) {
 		dev_err(i1480->dev, "wrong initialization event 0x%02x/%04x/%02x "
 			"received; expected 0x%02x/%04x/00\n",
 			rcebe->rceb.bEventType, le16_to_cpu(rcebe->rceb.wEvent),

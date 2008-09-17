@@ -145,7 +145,7 @@ extern int i1480_phy_fw_upload(struct i1480 *);
 extern ssize_t i1480_cmd(struct i1480 *, const char *, size_t, size_t);
 extern int i1480_rceb_check(const struct i1480 *,
 			    const struct uwb_rceb *, const char *, u8,
-			    unsigned, unsigned);
+			    u8, unsigned);
 
 enum {
 	/* Vendor specific command type */

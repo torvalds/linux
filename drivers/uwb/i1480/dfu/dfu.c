@@ -37,29 +37,45 @@
 #define D_LOCAL 0
 #include <linux/uwb/debug.h>
 
-/** @return 0 if If @evt is a valid reply event; otherwise complain */
+/**
+ * i1480_rceb_check - Check RCEB for expected field values
+ * @i1480: pointer to device for which RCEB is being checked
+ * @rceb: RCEB being checked
+ * @cmd: which command the RCEB is related to
+ * @context: expected context
+ * @expected_type: expected event type
+ * @expected_event: expected event
+ *
+ * If @cmd is NULL, do not print error messages, but still return an error
+ * code.
+ *
+ * Return 0 if @rceb matches the expected values, -EINVAL otherwise.
+ */
 int i1480_rceb_check(const struct i1480 *i1480, const struct uwb_rceb *rceb,
-		     const char *cmd, u8 context,
-		     unsigned expected_type, unsigned expected_event)
+		     const char *cmd, u8 context, u8 expected_type,
+		     unsigned expected_event)
 {
 	int result = 0;
 	struct device *dev = i1480->dev;
 	if (rceb->bEventContext != context) {
-		dev_err(dev, "%s: "
-			"unexpected context id 0x%02x (expected 0x%02x)\n",
-			cmd, rceb->bEventContext, context);
+		if (cmd)
+			dev_err(dev, "%s: unexpected context id 0x%02x "
+				"(expected 0x%02x)\n", cmd,
+				rceb->bEventContext, context);
 		result = -EINVAL;
 	}
 	if (rceb->bEventType != expected_type) {
-		dev_err(dev, "%s: "
-			"unexpected event type 0x%02x (expected 0x%02x)\n",
-			cmd, rceb->bEventType, expected_type);
+		if (cmd)
+			dev_err(dev, "%s: unexpected event type 0x%02x "
+				"(expected 0x%02x)\n", cmd,
+				rceb->bEventType, expected_type);
 		result = -EINVAL;
 	}
 	if (le16_to_cpu(rceb->wEvent) != expected_event) {
-		dev_err(dev, "%s: "
-			"unexpected event 0x%04x (expected 0x%04x)\n",
-			cmd, le16_to_cpu(rceb->wEvent), expected_event);
+		if (cmd)
+			dev_err(dev, "%s: unexpected event 0x%04x "
+				"(expected 0x%04x)\n", cmd,
+				le16_to_cpu(rceb->wEvent), expected_event);
 		result = -EINVAL;
 	}
 	return result;
@@ -109,6 +125,20 @@ ssize_t i1480_cmd(struct i1480 *i1480, const char *cmd_name, size_t cmd_size,
 		dev_err(i1480->dev, "%s: command reply reception failed: %zd\n",
 			cmd_name, result);
 		goto error;
+	}
+	/*
+	 * Firmware versions >= 1.4.12224 for IOGear GUWA100U generate a
+	 * spurious notification after firmware is downloaded. So check whether
+	 * the receibed RCEB is such notification before assuming that the
+	 * command has failed.
+	 */
+	if (i1480_rceb_check(i1480, i1480->evt_buf, NULL,
+			     0, 0xfd, 0x0022) == 0) {
+		/* Now wait for the actual RCEB for this command. */
+		result = i1480->wait_init_done(i1480);
+		if (result < 0)
+			goto error;
+		result = i1480->evt_result;
 	}
 	if (result != reply_size) {
 		dev_err(i1480->dev, "%s returned only %zu bytes, %zu expected\n",
