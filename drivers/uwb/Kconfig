@@ -29,6 +29,18 @@ menuconfig UWB
 
 if UWB
 
+config UWB_HWA
+	tristate "UWB Radio Control driver for WUSB-compliant USB dongles (HWA)"
+	depends on USB
+	help
+	  This driver enables the radio controller for HWA USB
+	  devices. HWA stands for Host Wire Adapter, and it is a UWB
+	  Radio Controller connected to your system via USB. Most of
+	  them come with a Wireless USB host controller also.
+
+	  To compile this driver select Y (built in) or M (module). It
+	  is safe to select any even if you do not have the hardware.
+
 config UWB_WHCI
         tristate "UWB Radio Control driver for WHCI-compliant cards"
         depends on PCI
