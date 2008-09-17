@@ -127,98 +127,6 @@ error:
 EXPORT_SYMBOL_GPL(i1480_cmd);
 
 
-/**
- * Get information about the MAC and PHY
- *
- * @wa:      Wired adaptor
- * @neh:     Notification/event handler
- * @reply:   Pointer to the reply event buffer
- * @returns: 0 if ok, < 0 errno code on error.
- */
-static
-int i1480_cmd_get_mac_phy_info(struct i1480 *i1480)
-{
-	int result;
-	struct uwb_rccb *cmd = i1480->cmd_buf;
-	struct i1480_evt_confirm_GMPI *reply = i1480->evt_buf;
-
-	cmd->bCommandType = i1480_CET_VS1;
-	cmd->wCommand = cpu_to_le16(i1480_CMD_GET_MAC_PHY_INFO);
-	reply->rceb.bEventType = i1480_CET_VS1;
-	reply->rceb.wEvent = i1480_EVT_GET_MAC_PHY_INFO;
-	result = i1480_cmd(i1480, "GET_MAC_PHY_INFO", sizeof(*cmd),
-			   sizeof(*reply));
-	if (result < 0)
-		goto out;
-	if (le16_to_cpu(reply->status) != 0x00) {
-		dev_err(i1480->dev,
-			"GET_MAC_PHY_INFO: command execution failed: %d\n",
-			reply->status);
-		result = -EIO;
-	}
-out:
-	return result;
-}
-
-
-/**
- * Get i1480's info and print it
- *
- * @wa:      Wire Adapter
- * @neh:     Notification/event handler
- * @returns: 0 if ok, < 0 errno code on error.
- */
-static
-int i1480_check_info(struct i1480 *i1480)
-{
-	struct i1480_evt_confirm_GMPI *reply = i1480->evt_buf;
-	int result;
-	unsigned mac_fw_rev;
-#if i1480_FW <= 0x00000302
-	unsigned phy_fw_rev;
-#endif
-	if (i1480->quirk_no_check_info) {
-		dev_err(i1480->dev, "firmware info check disabled\n");
-		return 0;
-	}
-
-	result = i1480_cmd_get_mac_phy_info(i1480);
-	if (result < 0) {
-		dev_err(i1480->dev, "Cannot get MAC & PHY information: %d\n",
-			result);
-		goto out;
-	}
-	mac_fw_rev = le16_to_cpu(reply->mac_fw_rev);
-#if i1480_FW > 0x00000302
-	dev_info(i1480->dev,
-		 "HW v%02hx  "
-		 "MAC FW v%02hx.%02hx caps %04hx  "
-		 "PHY type %02hx v%02hx caps %02hx %02hx %02hx\n",
-		 reply->hw_rev, mac_fw_rev >> 8, mac_fw_rev & 0xff,
-		 le16_to_cpu(reply->mac_caps),
-		 reply->phy_vendor, reply->phy_rev,
-		 reply->phy_caps[0], reply->phy_caps[1], reply->phy_caps[2]);
-#else
-	phy_fw_rev = le16_to_cpu(reply->phy_fw_rev);
-	dev_info(i1480->dev, "MAC FW v%02hx.%02hx caps %04hx "
-		 " PHY FW v%02hx.%02hx caps %04hx\n",
-		 mac_fw_rev >> 8, mac_fw_rev & 0xff,
-		 le16_to_cpu(reply->mac_caps),
-		 phy_fw_rev >> 8, phy_fw_rev & 0xff,
-		 le16_to_cpu(reply->phy_caps));
-#endif
-	dev_dbg(i1480->dev,
-		"key-stores:%hu mcast-addr-stores:%hu sec-modes:%hu\n",
-		(unsigned short) reply->key_stores,
-		le16_to_cpu(reply->mcast_addr_stores),
-		(unsigned short) reply->sec_mode_supported);
-	/* FIXME: complain if fw version too low -- pending for
-	 * numbering to stabilize */
-out:
-	return result;
-}
-
-
 static
 int i1480_print_state(struct i1480 *i1480)
 {
@@ -264,12 +172,10 @@ int i1480_fw_upload(struct i1480 *i1480)
 		i1480_print_state(i1480);
 		goto error_rc_release;
 	}
-	result = i1480_check_info(i1480);
-	if (result < 0) {
-		dev_warn(i1480->dev, "Warning! Cannot check firmware info: %d\n",
-			 result);
-		result = 0;
-	}
+	/*
+	 * FIXME: find some reliable way to check whether firmware is running
+	 * properly. Maybe use some standard request that has no side effects?
+	 */
 	dev_info(i1480->dev, "firmware uploaded successfully\n");
 error_rc_release:
 	if (i1480->rc_release)

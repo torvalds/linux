@@ -56,7 +56,6 @@
  *       request_firmware()
  *       i1480_mpi_write()
  *         i1480->cmd()           [i1480_{usb,pci}_cmd()]
- *       i1480_check_info()
  *
  * Once the probe function enumerates the device and uploads the
  * firmware, we just exit with -ENODEV, as we don't really want to
@@ -130,8 +129,6 @@ struct i1480 {
 	void *evt_buf, *cmd_buf;
 	ssize_t evt_result;
 	struct completion evt_complete;
-
-	u8 quirk_no_check_info:1;
 };
 
 static inline
