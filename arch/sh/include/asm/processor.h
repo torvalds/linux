@@ -3,6 +3,7 @@
 
 #include <asm/cpu-features.h>
 #include <asm/segment.h>
+#include <asm/cache.h>
 
 #ifndef __ASSEMBLY__
 /*
@@ -43,8 +44,45 @@ enum cpu_type {
 	CPU_SH_NONE
 };
 
+/*
+ * TLB information structure
+ *
+ * Defined for both I and D tlb, per-processor.
+ */
+struct tlb_info {
+	unsigned long long next;
+	unsigned long long first;
+	unsigned long long last;
+
+	unsigned int entries;
+	unsigned int step;
+
+	unsigned long flags;
+};
+
+struct sh_cpuinfo {
+	unsigned int type;
+	int cut_major, cut_minor;
+	unsigned long loops_per_jiffy;
+	unsigned long asid_cache;
+
+	struct cache_info icache;	/* Primary I-cache */
+	struct cache_info dcache;	/* Primary D-cache */
+	struct cache_info scache;	/* Secondary cache */
+
+	/* TLB info */
+	struct tlb_info itlb;
+	struct tlb_info dtlb;
+
+	unsigned long flags;
+} __attribute__ ((aligned(L1_CACHE_BYTES)));
+
+extern struct sh_cpuinfo cpu_data[];
+#define boot_cpu_data cpu_data[0]
+#define current_cpu_data cpu_data[smp_processor_id()]
+#define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
+
 /* Forward decl */
-struct sh_cpuinfo;
 struct seq_operations;
 
 extern struct pt_regs fake_swapper_regs;

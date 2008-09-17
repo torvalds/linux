@@ -17,7 +17,6 @@
 #include <linux/compiler.h>
 #include <asm/page.h>
 #include <asm/types.h>
-#include <asm/cache.h>
 #include <asm/ptrace.h>
 #include <cpu/registers.h>
 
@@ -35,46 +34,6 @@ __asm__("gettr	tr0, %1\n\t" \
 	:"=r" (pc), "=r" (__dummy) \
 	: "1" (__dummy)); \
 pc; })
-
-/*
- * TLB information structure
- *
- * Defined for both I and D tlb, per-processor.
- */
-struct tlb_info {
-	unsigned long long next;
-	unsigned long long first;
-	unsigned long long last;
-
-	unsigned int entries;
-	unsigned int step;
-
-	unsigned long flags;
-};
-
-struct sh_cpuinfo {
-	enum cpu_type type;
-	unsigned long loops_per_jiffy;
-	unsigned long asid_cache;
-
-	unsigned int cpu_clock, master_clock, bus_clock, module_clock;
-
-	/* Cache info */
-	struct cache_info icache;
-	struct cache_info dcache;
-	struct cache_info scache;
-
-	/* TLB info */
-	struct tlb_info itlb;
-	struct tlb_info dtlb;
-
-	unsigned long flags;
-};
-
-extern struct sh_cpuinfo cpu_data[];
-#define boot_cpu_data cpu_data[0]
-#define current_cpu_data cpu_data[smp_processor_id()]
-#define raw_current_cpu_data cpu_data[raw_smp_processor_id()]
 
 #endif
 
