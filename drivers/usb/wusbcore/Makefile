@@ -1,4 +1,4 @@
-obj-$(CONFIG_USB_WUSB)		+= wusbcore.o
+obj-$(CONFIG_USB_WUSB)		+= wusbcore.o wusb-cbaf.o
 
 wusbcore-objs := 	\
 	crypto.o	\
@@ -10,3 +10,5 @@ wusbcore-objs := 	\
 	reservation.o	\
 	security.o	\
 	wusbhc.o
+
+wusb-cbaf-objs := cbaf.o
