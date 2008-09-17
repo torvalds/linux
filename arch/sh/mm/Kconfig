@@ -132,11 +132,11 @@ config ARCH_SELECT_MEMORY_MODEL
 
 config ARCH_ENABLE_MEMORY_HOTPLUG
 	def_bool y
-	depends on SPARSEMEM
+	depends on SPARSEMEM && MMU
 
 config ARCH_ENABLE_MEMORY_HOTREMOVE
 	def_bool y
-	depends on SPARSEMEM
+	depends on SPARSEMEM && MMU
 
 config ARCH_MEMORY_PROBE
 	def_bool y
