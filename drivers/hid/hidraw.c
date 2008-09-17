@@ -113,7 +113,7 @@ static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t
 	if (!dev->hid_output_raw_report)
 		return -ENODEV;
 
-	if (count > HID_MIN_BUFFER_SIZE) {
+	if (count > HID_MAX_BUFFER_SIZE) {
 		printk(KERN_WARNING "hidraw: pid %d passed too large report\n",
 				task_pid_nr(current));
 		return -EINVAL;
