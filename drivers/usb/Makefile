@@ -19,6 +19,8 @@ obj-$(CONFIG_USB_R8A66597_HCD)	+= host/
 
 obj-$(CONFIG_USB_C67X00_HCD)	+= c67x00/
 
+obj-$(CONFIG_USB_WUSB)		+= wusbcore/
+
 obj-$(CONFIG_USB_ACM)		+= class/
 obj-$(CONFIG_USB_PRINTER)	+= class/
 

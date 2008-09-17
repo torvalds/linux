@@ -1,0 +1,17 @@
+#
+# Wireless USB Core configuration
+#
+config USB_WUSB
+	tristate "Enable Wireless USB extensions"
+	depends on USB
+        select UWB
+        select CRYPTO
+        select CRYPTO_BLKCIPHER
+        select CRYPTO_CBC
+        select CRYPTO_MANAGER
+        select CRYPTO_AES
+	help
+	  Enable the host-side support for Wireless USB.
+
+          To compile this support select Y (built in). It is safe to
+	  select even if you don't have the hardware.
