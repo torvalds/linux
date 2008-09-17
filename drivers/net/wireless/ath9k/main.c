@@ -206,8 +206,6 @@ static int ath_key_config(struct ath_softc *sc,
 	if (!ret)
 		return -EIO;
 
-	if (mac)
-		sc->sc_keytype = hk.kv_type;
 	return 0;
 }
 
@@ -778,7 +776,6 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 	case DISABLE_KEY:
 		ath_key_delete(sc, key);
 		clear_bit(key->keyidx, sc->sc_keymap);
-		sc->sc_keytype = ATH9K_CIPHER_CLR;
 		break;
 	default:
 		ret = -EINVAL;
