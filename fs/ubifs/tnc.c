@@ -1600,7 +1600,7 @@ out:
 	 * An enormous hole could cause bulk-read to encompass too many
 	 * page cache pages, so limit the number here.
 	 */
-	if (bu->blk_cnt >= UBIFS_MAX_BULK_READ)
+	if (bu->blk_cnt > UBIFS_MAX_BULK_READ)
 		bu->blk_cnt = UBIFS_MAX_BULK_READ;
 	/*
 	 * Ensure that bulk-read covers a whole number of page cache
