@@ -742,15 +742,13 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 				struct pt_regs __regs)
 {
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
-	unsigned long error_code;
+	unsigned long inst;
 	struct task_struct *tsk = current;
 
 	if (kprobe_handle_illslot(regs->pc) == 0)
 		return;
 
 #ifdef CONFIG_SH_FPU_EMU
-	unsigned short inst = 0;
-
 	get_user(inst, (unsigned short *)regs->pc + 1);
 	if (!do_fpu_inst(inst, regs)) {
 		get_user(inst, (unsigned short *)regs->pc);
@@ -761,12 +759,12 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	/* not a FPU inst. */
 #endif
 
-	lookup_exception_vector(error_code);
+	lookup_exception_vector(inst);
 
 	local_irq_enable();
 	CHK_REMOTE_DEBUG(regs);
 	force_sig(SIGILL, tsk);
-	die_if_no_fixup("illegal slot instruction", regs, error_code);
+	die_if_no_fixup("illegal slot instruction", regs, inst);
 }
 
 asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
