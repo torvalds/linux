@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2006 Intel Corporation
  * Inaky Perez-Gonzalez <inaky.perez-gonzalez@intel.com>
+ * Copyright (C) 2008 Cambridge Silicon Radio Ltd.
  *
  * This program is free software; you can redistribute it and/or
  * modify it under the terms of the GNU General Public License version
@@ -20,14 +21,13 @@
  * 02110-1301, USA.
  *
  *
- * WUSB devices have to be paired (authenticated in WUSB lingo) so
+ * WUSB devices have to be paired (associated in WUSB lingo) so
  * that they can connect to the system.
  *
- * One way of pairing is using CBA-Cable Based Authentication, devices
- * that can connect via wired or wireless USB. First time you plug
- * them with a cable, pairing is done between host and device and
- * subsequent times, you can connect wirelessly without having to
- * pair. That's the idea.
+ * One way of pairing is using CBA-Cable Based Association. First
+ * time you plug the device with a cable, association is done between
+ * host and device and subsequent times, you can connect wirelessly
+ * without having to associate again. That's the idea.
  *
  * This driver does nothing Earth shattering. It just provides an
  * interface to chat with the wire-connected device so we can get a
@@ -42,56 +42,49 @@
  *
  * The process goes like this:
  *
- * 1. device plugs, cbaf is loaded, notifications happen
+ * 1. Device plugs, cbaf is loaded, notifications happen.
  *
- * 2. the connection manager sees a device with CBAF capability (the
- *    wusb_{host_info,cdid,cc} files are in /sys/device/blah/OURDEVICE).
+ * 2. The connection manager (CM) sees a device with CBAF capability
+ *    (the wusb_chid etc. files in /sys/devices/blah/OURDEVICE).
  *
- * 3. CM (connection manager) writes the CHID (host ID) and a host
- *    name into the wusb_host_info file. This gets sent to the device.
+ * 3. The CM writes the host name, supported band groups, and the CHID
+ *    (host ID) into the wusb_host_name, wusb_host_band_groups and
+ *    wusb_chid files. These get sent to the device and the CDID (if
+ *    any) for this host is requested.
  *
- * 4. CM cats the wusb_cdid file; this asks the device if it has any
- *    CDID associated to the CHDI we just wrote before. If it does, it
- *    is printed, along with the device 'friendly name' and the band
- *    groups the device supports.
+ * 4. The CM can verify that the device's supported band groups
+ *    (wusb_device_band_groups) are compatible with the host.
  *
- * 5. CM looks up its database
+ * 5. The CM reads the wusb_cdid file.
  *
- * 5.1  If it has a matching CHID,CDID entry, the device has been
- *      authorized before (paired). Now we can optionally ask the user
- *      if he wants to allow the device to connect. Then we generate a
- *      new CDID and CK, send it to the device and update the database
- *      (writing to the wusb_cc file so they are uploaded to the device).
+ * 6. The CM looks up its database
  *
- * 5.2  If the CDID is zero (or we didn't find a matching CDID in our
- *      database), we assume the device is not known. We ask the user
- *      if s/he wants to allow the device to be connected wirelessly
- *      to the system. If nope, nothing else is done (FIXME: maybe
- *      send a zero CDID to clean up our CHID?). If yes, we generate
- *      random CDID and CKs (and write them to the wusb_cc file so
- *      they are uploaded to the device).
+ * 6.1 If it has a matching CHID,CDID entry, the device has been
+ *     authorized before (paired) and nothing further needs to be
+ *     done.
  *
- * 6. device is unplugged
+ * 6.2 If the CDID is zero (or the CM doesn't find a matching CDID in
+ *     its database), the device is assumed to be not known.  The CM
+ *     may associate the host with device by: writing a randomly
+ *     generated CDID to wusb_cdid and then a random CK to wusb_ck
+ *     (this uploads the new CC to the device).
  *
- * When the device tries to connect wirelessly, it will present it's
- * CDID to the WUSB host controller with ID CHID, which will query the
- * database. If found, the host will (with a 4way handshake) challenge
- * the device to demonstrate it has the CK secret key (from our
- * database) without actually exchanging it. Once satisfied, crypto
- * keys are derived from the CK, the device is connected and all
- * communication is crypted.
+ *     CMD may choose to prompt the user before associating with a new
+ *     device.
  *
+ * 7. Device is unplugged.
  *
- * NOTES ABOUT THE IMPLEMENTATION
+ * When the device tries to connect wirelessly, it will present its
+ * CDID to the WUSB host controller.  The CM will query the
+ * database. If the CHID/CDID pair found, it will (with a 4-way
+ * handshake) challenge the device to demonstrate it has the CK secret
+ * key (from our database) without actually exchanging it. Once
+ * satisfied, crypto keys are derived from the CK, the device is
+ * connected and all communication is encrypted.
  *
- * The descriptors sent back and forth use this horrible format from
- * hell on which each field is actually a field ID, field length and
- * then the field itself. How stupid can that get, taking into account
- * the structures are defined by the spec?? oh well.
- *
- *
- * FIXME: we don't provide a way to tell the device the pairing failed
- *        (ie: send a CC_DATA_FAIL). Should add some day.
+ * References:
+ *   [WUSB-AM] Association Models Supplement to the Certified Wireless
+ *             Universal Serial Bus Specification, version 1.0.
  */
 #include <linux/module.h>
 #include <linux/ctype.h>
@@ -105,9 +98,7 @@
 #include <linux/usb/wusb.h>
 #include <linux/usb/association.h>
 
-#undef D_LOCAL
-#define D_LOCAL 6
-#include <linux/uwb/debug.h>
+#define CBA_NAME_LEN 0x40 /* [WUSB-AM] table 4-7 */
 
 /* An instance of a Cable-Based-Association-Framework device */
 struct cbaf {
@@ -116,24 +107,27 @@ struct cbaf {
 	void *buffer;
 	size_t buffer_size;
 
-	struct wusb_ckhdid chid;/* Host Information */
-	char host_name[65];	/* max length:
-					Assoc Models Suplement 1.0[T4-7] */
+	struct wusb_ckhdid chid;
+	char host_name[CBA_NAME_LEN];
 	u16 host_band_groups;
 
-	struct wusb_ckhdid cdid;/* Device Information */
-	char device_name[65];	/* max length:
-					Assoc Models Suplement 1.0[T4-7] */
+	struct wusb_ckhdid cdid;
+	char device_name[CBA_NAME_LEN];
 	u16 device_band_groups;
-	struct wusb_ckhdid ck;	/* Connection Key */
+
+	struct wusb_ckhdid ck;
 };
 
 /*
  * Verify that a CBAF USB-interface has what we need
  *
- * (like we care, we are going to fail the enumeration if not :)
+ * According to [WUSB-AM], CBA devices should provide at least two
+ * interfaces:
+ *  - RETRIEVE_HOST_INFO
+ *  - ASSOCIATE
  *
- * FIXME: ugly function, need to split
+ * If the device doesn't provide these interfaces, we do not know how
+ * to deal with it.
  */
 static int cbaf_check(struct cbaf *cbaf)
 {
@@ -143,8 +137,7 @@ static int cbaf_check(struct cbaf *cbaf)
 	struct wusb_cbaf_assoc_request *assoc_request;
 	size_t assoc_size;
 	void *itr, *top;
-	unsigned ar_index;
-	int ar_rhi_idx = -1, ar_assoc_idx = -1;
+	int ar_rhi = 0, ar_assoc = 0;
 
 	result = usb_control_msg(
 		cbaf->usb_dev, usb_rcvctrlpipe(cbaf->usb_dev, 0),
@@ -153,93 +146,91 @@ static int cbaf_check(struct cbaf *cbaf)
 		0, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 		cbaf->buffer, cbaf->buffer_size, 1000 /* FIXME: arbitrary */);
 	if (result < 0) {
-		dev_err(dev, "cannot get available association types: %d\n",
+		dev_err(dev, "Cannot get available association types: %d\n",
 			result);
-		goto error_get_assoc_types;
+		return result;
 	}
+
 	assoc_info = cbaf->buffer;
 	if (result < sizeof(*assoc_info)) {
-		dev_err(dev, "not enough data to decode association info "
+		dev_err(dev, "Not enough data to decode association info "
 			"header (%zu vs %zu bytes required)\n",
 			(size_t)result, sizeof(*assoc_info));
-		goto error_bad_header;
+		return result;
 	}
+
 	assoc_size = le16_to_cpu(assoc_info->Length);
 	if (result < assoc_size) {
-		dev_err(dev, "not enough data to decode association info "
+		dev_err(dev, "Not enough data to decode association info "
 			"(%zu vs %zu bytes required)\n",
 			(size_t)assoc_size, sizeof(*assoc_info));
-		goto error_bad_data;
+		return result;
 	}
 	/*
 	 * From now on, we just verify, but won't error out unless we
 	 * don't find the AR_TYPE_WUSB_{RETRIEVE_HOST_INFO,ASSOCIATE}
 	 * types.
 	 */
-	ar_index = 0;
 	itr = cbaf->buffer + sizeof(*assoc_info);
 	top = cbaf->buffer + assoc_size;
-	d_printf(1, dev, "Found %u association requests (%zu bytes)\n",
+	dev_dbg(dev, "Found %u association requests (%zu bytes)\n",
 		 assoc_info->NumAssociationRequests, assoc_size);
+
 	while (itr < top) {
 		u16 ar_type, ar_subtype;
 		u32 ar_size;
 		const char *ar_name;
 
 		assoc_request = itr;
+
 		if (top - itr < sizeof(*assoc_request)) {
-			dev_err(dev, "not enough data to decode associaton "
+			dev_err(dev, "Not enough data to decode associaton "
 				"request (%zu vs %zu bytes needed)\n",
 				top - itr, sizeof(*assoc_request));
 			break;
 		}
+
 		ar_type = le16_to_cpu(assoc_request->AssociationTypeId);
 		ar_subtype = le16_to_cpu(assoc_request->AssociationSubTypeId);
 		ar_size = le32_to_cpu(assoc_request->AssociationTypeInfoSize);
+		ar_name = "unknown";
+
 		switch (ar_type) {
 		case AR_TYPE_WUSB:
-			/* Verify we have what is mandated by AMS1.0 */
+			/* Verify we have what is mandated by [WUSB-AM]. */
 			switch (ar_subtype) {
 			case AR_TYPE_WUSB_RETRIEVE_HOST_INFO:
-				ar_name = "retrieve_host_info";
-				ar_rhi_idx = ar_index;
+				ar_name = "RETRIEVE_HOST_INFO";
+				ar_rhi = 1;
 				break;
 			case AR_TYPE_WUSB_ASSOCIATE:
 				/* send assoc data */
-				ar_name = "associate";
-				ar_assoc_idx = ar_index;
+				ar_name = "ASSOCIATE";
+				ar_assoc = 1;
 				break;
-			default:
-				ar_name = "unknown";
 			};
 			break;
-		default:
-			ar_name = "unknown";
 		};
-		d_printf(1, dev, "association request #%02u: 0x%04x/%04x "
+
+		dev_dbg(dev, "Association request #%02u: 0x%04x/%04x "
 			 "(%zu bytes): %s\n",
 			 assoc_request->AssociationDataIndex, ar_type,
 			 ar_subtype, (size_t)ar_size, ar_name);
 
 		itr += sizeof(*assoc_request);
-		ar_index++;
 	}
-	if (ar_rhi_idx == -1) {
+
+	if (!ar_rhi) {
 		dev_err(dev, "Missing RETRIEVE_HOST_INFO association "
 			"request\n");
-		goto error_bad_reqs;
+		return -EINVAL;
 	}
-	if (ar_assoc_idx == -1) {
+	if (!ar_assoc) {
 		dev_err(dev, "Missing ASSOCIATE association request\n");
-		goto error_bad_reqs;
+		return -EINVAL;
 	}
-	return 0;
 
-error_bad_header:
-error_bad_data:
-error_bad_reqs:
-error_get_assoc_types:
-	return -EINVAL;
+	return 0;
 }
 
 static const struct wusb_cbaf_host_info cbaf_host_info_defaults = {
@@ -256,6 +247,7 @@ static const struct wusb_cbaf_host_info cbaf_host_info_defaults = {
 static int cbaf_send_host_info(struct cbaf *cbaf)
 {
 	struct wusb_cbaf_host_info *hi;
+	size_t name_len;
 	size_t hi_size;
 
 	hi = cbaf->buffer;
@@ -263,11 +255,11 @@ static int cbaf_send_host_info(struct cbaf *cbaf)
 	*hi = cbaf_host_info_defaults;
 	hi->CHID = cbaf->chid;
 	hi->LangID = 0;	/* FIXME: I guess... */
-	strncpy(hi->HostFriendlyName, cbaf->host_name,
-		hi->HostFriendlyName_hdr.len);
-	hi->HostFriendlyName_hdr.len =
-				cpu_to_le16(strlen(hi->HostFriendlyName));
-	hi_size = sizeof(*hi) + strlen(hi->HostFriendlyName);
+	strlcpy(hi->HostFriendlyName, cbaf->host_name, CBA_NAME_LEN);
+	name_len = strlen(cbaf->host_name);
+	hi->HostFriendlyName_hdr.len = cpu_to_le16(name_len);
+	hi_size = sizeof(*hi) + name_len;
+
 	return usb_control_msg(cbaf->usb_dev, usb_sndctrlpipe(cbaf->usb_dev, 0),
 			CBAF_REQ_SET_ASSOCIATION_RESPONSE,
 			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
@@ -275,74 +267,6 @@ static int cbaf_send_host_info(struct cbaf *cbaf)
 			cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 			hi, hi_size, 1000 /* FIXME: arbitrary */);
 }
-
-/* Show current CHID info we have set from user space */
-static ssize_t cbaf_wusb_host_info_show(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
-{
-	struct usb_interface *iface = to_usb_interface(dev);
-	struct cbaf *cbaf = usb_get_intfdata(iface);
-	char pr_chid[WUSB_CKHDID_STRSIZE];
-
-	ckhdid_printf(pr_chid, sizeof(pr_chid), &cbaf->chid);
-	return scnprintf(buf, PAGE_SIZE, "CHID: %s\nName: %s\n",
-			 pr_chid, cbaf->host_name);
-}
-
-/*
- * Get a host info CHID from user space and send it to the device.
- *
- * The user can recover a CC from the device associated to that CHID
- * by cat'ing wusb_connection_context.
- */
-static ssize_t cbaf_wusb_host_info_store(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t size)
-{
-	ssize_t result;
-	struct usb_interface *iface = to_usb_interface(dev);
-	struct cbaf *cbaf = usb_get_intfdata(iface);
-
-	result = sscanf(buf,
-			"%02hhx %02hhx %02hhx %02hhx "
-			"%02hhx %02hhx %02hhx %02hhx "
-			"%02hhx %02hhx %02hhx %02hhx "
-			"%02hhx %02hhx %02hhx %02hhx "
-			"%04hx %64s\n",
-			&cbaf->chid.data[0] , &cbaf->chid.data[1],
-			&cbaf->chid.data[2] , &cbaf->chid.data[3],
-			&cbaf->chid.data[4] , &cbaf->chid.data[5],
-			&cbaf->chid.data[6] , &cbaf->chid.data[7],
-			&cbaf->chid.data[8] , &cbaf->chid.data[9],
-			&cbaf->chid.data[10], &cbaf->chid.data[11],
-			&cbaf->chid.data[12], &cbaf->chid.data[13],
-			&cbaf->chid.data[14], &cbaf->chid.data[15],
-			&cbaf->host_band_groups, cbaf->host_name);
-	if (result != 18) {
-		dev_err(dev, "Unrecognized CHID (need 16 8-bit hex digits, "
-			"a 16 bit hex band group mask "
-			"and a host name, got only %d)\n", (int)result);
-		return -EINVAL;
-	}
-	result = cbaf_send_host_info(cbaf);
-	if (result < 0)
-		dev_err(dev, "Couldn't send host information to device: %d\n",
-			(int)result);
-	else
-		d_printf(1, dev, "HI sent, wusb_cc can be read now\n");
-	return result < 0 ? result : size;
-}
-static DEVICE_ATTR(wusb_host_info, 0600, cbaf_wusb_host_info_show,
-					 cbaf_wusb_host_info_store);
-
-static const struct wusb_cbaf_device_info cbaf_device_info_defaults = {
-	.Length_hdr               = WUSB_AR_Length,
-	.CDID_hdr                 = WUSB_AR_CDID,
-	.BandGroups_hdr           = WUSB_AR_BandGroups,
-	.LangID_hdr               = WUSB_AR_LangID,
-	.DeviceFriendlyName_hdr   = WUSB_AR_DeviceFriendlyName,
-};
 
 /*
  * Get device's information (CDID) associated to CHID
@@ -356,7 +280,7 @@ static int cbaf_cdid_get(struct cbaf *cbaf)
 	int result;
 	struct device *dev = &cbaf->usb_iface->dev;
 	struct wusb_cbaf_device_info *di;
-	size_t needed, dev_name_size;
+	size_t needed;
 
 	di = cbaf->buffer;
 	result = usb_control_msg(
@@ -367,54 +291,203 @@ static int cbaf_cdid_get(struct cbaf *cbaf)
 		di, cbaf->buffer_size, 1000 /* FIXME: arbitrary */);
 	if (result < 0) {
 		dev_err(dev, "Cannot request device information: %d\n", result);
-		goto error_req_di;
+		return result;
 	}
+
 	needed = result < sizeof(*di) ? sizeof(*di) : le32_to_cpu(di->Length);
 	if (result < needed) {
 		dev_err(dev, "Not enough data in DEVICE_INFO reply (%zu vs "
 			"%zu bytes needed)\n", (size_t)result, needed);
-		goto error_bad_di;
+		return result;
 	}
+
+	strlcpy(cbaf->device_name, di->DeviceFriendlyName, CBA_NAME_LEN);
 	cbaf->cdid = di->CDID;
-	dev_name_size = le16_to_cpu(di->DeviceFriendlyName_hdr.len);
-	dev_name_size = dev_name_size > 65 - 1 ? 65 - 1 : dev_name_size;
-	memcpy(cbaf->device_name, di->DeviceFriendlyName, dev_name_size);
-	cbaf->device_name[dev_name_size] = 0;
 	cbaf->device_band_groups = le16_to_cpu(di->BandGroups);
-	result = 0;
-error_req_di:
-error_bad_di:
-	return result;
+
+	return 0;
 }
 
-/*
- * Get device information and print it to sysfs
- *
- * See cbaf_cdid_get()
- */
-static ssize_t cbaf_wusb_cdid_show(struct device *dev,
-				   struct device_attribute *attr, char *buf)
+static ssize_t cbaf_wusb_chid_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+	char pr_chid[WUSB_CKHDID_STRSIZE];
+
+	ckhdid_printf(pr_chid, sizeof(pr_chid), &cbaf->chid);
+	return scnprintf(buf, PAGE_SIZE, "%s\n", pr_chid);
+}
+
+static ssize_t cbaf_wusb_chid_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t size)
 {
 	ssize_t result;
 	struct usb_interface *iface = to_usb_interface(dev);
 	struct cbaf *cbaf = usb_get_intfdata(iface);
+
+	result = sscanf(buf,
+			"%02hhx %02hhx %02hhx %02hhx "
+			"%02hhx %02hhx %02hhx %02hhx "
+			"%02hhx %02hhx %02hhx %02hhx "
+			"%02hhx %02hhx %02hhx %02hhx",
+			&cbaf->chid.data[0] , &cbaf->chid.data[1],
+			&cbaf->chid.data[2] , &cbaf->chid.data[3],
+			&cbaf->chid.data[4] , &cbaf->chid.data[5],
+			&cbaf->chid.data[6] , &cbaf->chid.data[7],
+			&cbaf->chid.data[8] , &cbaf->chid.data[9],
+			&cbaf->chid.data[10], &cbaf->chid.data[11],
+			&cbaf->chid.data[12], &cbaf->chid.data[13],
+			&cbaf->chid.data[14], &cbaf->chid.data[15]);
+
+	if (result != 16)
+		return -EINVAL;
+
+	result = cbaf_send_host_info(cbaf);
+	if (result < 0)
+		return result;
+	result = cbaf_cdid_get(cbaf);
+	if (result < 0)
+		return -result;
+	return size;
+}
+static DEVICE_ATTR(wusb_chid, 0600, cbaf_wusb_chid_show, cbaf_wusb_chid_store);
+
+static ssize_t cbaf_wusb_host_name_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", cbaf->host_name);
+}
+
+static ssize_t cbaf_wusb_host_name_store(struct device *dev,
+					 struct device_attribute *attr,
+					 const char *buf, size_t size)
+{
+	ssize_t result;
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+
+	result = sscanf(buf, "%63s", cbaf->host_name);
+	if (result != 1)
+		return -EINVAL;
+
+	return size;
+}
+static DEVICE_ATTR(wusb_host_name, 0600, cbaf_wusb_host_name_show,
+					 cbaf_wusb_host_name_store);
+
+static ssize_t cbaf_wusb_host_band_groups_show(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%04x\n", cbaf->host_band_groups);
+}
+
+static ssize_t cbaf_wusb_host_band_groups_store(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t size)
+{
+	ssize_t result;
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+	u16 band_groups = 0;
+
+	result = sscanf(buf, "%04hx", &band_groups);
+	if (result != 1)
+		return -EINVAL;
+
+	cbaf->host_band_groups = band_groups;
+
+	return size;
+}
+
+static DEVICE_ATTR(wusb_host_band_groups, 0600,
+		   cbaf_wusb_host_band_groups_show,
+		   cbaf_wusb_host_band_groups_store);
+
+static const struct wusb_cbaf_device_info cbaf_device_info_defaults = {
+	.Length_hdr               = WUSB_AR_Length,
+	.CDID_hdr                 = WUSB_AR_CDID,
+	.BandGroups_hdr           = WUSB_AR_BandGroups,
+	.LangID_hdr               = WUSB_AR_LangID,
+	.DeviceFriendlyName_hdr   = WUSB_AR_DeviceFriendlyName,
+};
+
+static ssize_t cbaf_wusb_cdid_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
 	char pr_cdid[WUSB_CKHDID_STRSIZE];
 
-	result = cbaf_cdid_get(cbaf);
-	if (result < 0) {
-		dev_err(dev, "Cannot read device information: %d\n",
-			(int)result);
-		goto error_get_di;
-	}
 	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &cbaf->cdid);
-	result = scnprintf(buf, PAGE_SIZE,
-			   "CDID: %s\nName: %s\nBand_groups: 0x%04x\n",
-			   pr_cdid, cbaf->device_name,
-			   cbaf->device_band_groups);
-error_get_di:
-	return result;
+	return scnprintf(buf, PAGE_SIZE, "%s\n", pr_cdid);
 }
-static DEVICE_ATTR(wusb_cdid, 0600, cbaf_wusb_cdid_show, NULL);
+
+static ssize_t cbaf_wusb_cdid_store(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t size)
+{
+	ssize_t result;
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+	struct wusb_ckhdid cdid;
+
+	result = sscanf(buf,
+			"%02hhx %02hhx %02hhx %02hhx "
+			"%02hhx %02hhx %02hhx %02hhx "
+			"%02hhx %02hhx %02hhx %02hhx "
+			"%02hhx %02hhx %02hhx %02hhx",
+			&cdid.data[0] , &cdid.data[1],
+			&cdid.data[2] , &cdid.data[3],
+			&cdid.data[4] , &cdid.data[5],
+			&cdid.data[6] , &cdid.data[7],
+			&cdid.data[8] , &cdid.data[9],
+			&cdid.data[10], &cdid.data[11],
+			&cdid.data[12], &cdid.data[13],
+			&cdid.data[14], &cdid.data[15]);
+	if (result != 16)
+		return -EINVAL;
+
+	cbaf->cdid = cdid;
+
+	return size;
+}
+static DEVICE_ATTR(wusb_cdid, 0600, cbaf_wusb_cdid_show, cbaf_wusb_cdid_store);
+
+static ssize_t cbaf_wusb_device_band_groups_show(struct device *dev,
+						 struct device_attribute *attr,
+						 char *buf)
+{
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+
+	return scnprintf(buf, PAGE_SIZE, "0x%04x\n", cbaf->device_band_groups);
+}
+
+static DEVICE_ATTR(wusb_device_band_groups, 0600,
+		   cbaf_wusb_device_band_groups_show,
+		   NULL);
+
+static ssize_t cbaf_wusb_device_name_show(struct device *dev,
+					struct device_attribute *attr,
+					char *buf)
+{
+	struct usb_interface *iface = to_usb_interface(dev);
+	struct cbaf *cbaf = usb_get_intfdata(iface);
+
+	return scnprintf(buf, PAGE_SIZE, "%s\n", cbaf->device_name);
+}
+static DEVICE_ATTR(wusb_device_name, 0600, cbaf_wusb_device_name_show, NULL);
 
 static const struct wusb_cbaf_cc_data cbaf_cc_data_defaults = {
 	.AssociationTypeId_hdr    = WUSB_AR_AssociationTypeId,
@@ -435,9 +508,7 @@ static const struct wusb_cbaf_cc_data_fail cbaf_cc_data_fail_defaults = {
 };
 
 /*
- * Send a new CC to the device
- *
- * So we update the CK and send the whole thing to the device
+ * Send a new CC to the device.
  */
 static int cbaf_cc_upload(struct cbaf *cbaf)
 {
@@ -452,30 +523,25 @@ static int cbaf_cc_upload(struct cbaf *cbaf)
 	ccd->CDID = cbaf->cdid;
 	ccd->CK = cbaf->ck;
 	ccd->BandGroups = cpu_to_le16(cbaf->host_band_groups);
+
+	dev_dbg(dev, "Trying to upload CC:\n");
+	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &ccd->CHID);
+	dev_dbg(dev, "  CHID       %s\n", pr_cdid);
+	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &ccd->CDID);
+	dev_dbg(dev, "  CDID       %s\n", pr_cdid);
+	dev_dbg(dev, "  Bandgroups 0x%04x\n", cbaf->host_band_groups);
+
 	result = usb_control_msg(
 		cbaf->usb_dev, usb_sndctrlpipe(cbaf->usb_dev, 0),
 		CBAF_REQ_SET_ASSOCIATION_RESPONSE,
 		USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_INTERFACE,
 		0x0201, cbaf->usb_iface->cur_altsetting->desc.bInterfaceNumber,
 		ccd, sizeof(*ccd), 1000 /* FIXME: arbitrary */);
-	d_printf(1, dev, "Uploaded CC:\n");
-	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &ccd->CHID);
-	d_printf(1, dev, "  CHID       %s\n", pr_cdid);
-	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &ccd->CDID);
-	d_printf(1, dev, "  CDID       %s\n", pr_cdid);
-	ckhdid_printf(pr_cdid, sizeof(pr_cdid), &ccd->CK);
-	d_printf(1, dev, "  CK         %s\n", pr_cdid);
-	d_printf(1, dev, "  bandgroups 0x%04x\n", cbaf->host_band_groups);
+
 	return result;
 }
 
-/*
- * Send a new CC to the device
- *
- * We take the CDID and CK from user space, the rest from the info we
- * set with host_info.
- */
-static ssize_t cbaf_wusb_cc_store(struct device *dev,
+static ssize_t cbaf_wusb_ck_store(struct device *dev,
 				  struct device_attribute *attr,
 				  const char *buf, size_t size)
 {
@@ -484,23 +550,10 @@ static ssize_t cbaf_wusb_cc_store(struct device *dev,
 	struct cbaf *cbaf = usb_get_intfdata(iface);
 
 	result = sscanf(buf,
-			"CDID: %02hhx %02hhx %02hhx %02hhx "
 			"%02hhx %02hhx %02hhx %02hhx "
 			"%02hhx %02hhx %02hhx %02hhx "
-			"%02hhx %02hhx %02hhx %02hhx\n"
-			"CK: %02hhx %02hhx %02hhx %02hhx "
 			"%02hhx %02hhx %02hhx %02hhx "
-			"%02hhx %02hhx %02hhx %02hhx "
-			"%02hhx %02hhx %02hhx %02hhx\n",
-			&cbaf->cdid.data[0] , &cbaf->cdid.data[1],
-			&cbaf->cdid.data[2] , &cbaf->cdid.data[3],
-			&cbaf->cdid.data[4] , &cbaf->cdid.data[5],
-			&cbaf->cdid.data[6] , &cbaf->cdid.data[7],
-			&cbaf->cdid.data[8] , &cbaf->cdid.data[9],
-			&cbaf->cdid.data[10], &cbaf->cdid.data[11],
-			&cbaf->cdid.data[12], &cbaf->cdid.data[13],
-			&cbaf->cdid.data[14], &cbaf->cdid.data[15],
-
+			"%02hhx %02hhx %02hhx %02hhx",
 			&cbaf->ck.data[0] , &cbaf->ck.data[1],
 			&cbaf->ck.data[2] , &cbaf->ck.data[3],
 			&cbaf->ck.data[4] , &cbaf->ck.data[5],
@@ -509,25 +562,25 @@ static ssize_t cbaf_wusb_cc_store(struct device *dev,
 			&cbaf->ck.data[10], &cbaf->ck.data[11],
 			&cbaf->ck.data[12], &cbaf->ck.data[13],
 			&cbaf->ck.data[14], &cbaf->ck.data[15]);
-	if (result != 32) {
-		dev_err(dev, "Unrecognized CHID/CK (need 32 8-bit "
-			"hex digits, got only %d)\n", (int)result);
+	if (result != 16)
 		return -EINVAL;
-	}
+
 	result = cbaf_cc_upload(cbaf);
 	if (result < 0)
-		dev_err(dev, "Couldn't upload connection context: %d\n",
-			(int)result);
-	else
-		d_printf(1, dev, "Connection context uploaded\n");
-	return result < 0 ? result : size;
+		return result;
+
+	return size;
 }
-static DEVICE_ATTR(wusb_cc, 0600, NULL, cbaf_wusb_cc_store);
+static DEVICE_ATTR(wusb_ck, 0600, NULL, cbaf_wusb_ck_store);
 
 static struct attribute *cbaf_dev_attrs[] = {
-	&dev_attr_wusb_host_info.attr,
+	&dev_attr_wusb_host_name.attr,
+	&dev_attr_wusb_host_band_groups.attr,
+	&dev_attr_wusb_chid.attr,
 	&dev_attr_wusb_cdid.attr,
-	&dev_attr_wusb_cc.attr,
+	&dev_attr_wusb_device_name.attr,
+	&dev_attr_wusb_device_band_groups.attr,
+	&dev_attr_wusb_ck.attr,
 	NULL,
 };
 
@@ -539,32 +592,33 @@ static struct attribute_group cbaf_dev_attr_group = {
 static int cbaf_probe(struct usb_interface *iface,
 		      const struct usb_device_id *id)
 {
-	int result;
 	struct cbaf *cbaf;
 	struct device *dev = &iface->dev;
+	int result = -ENOMEM;
 
-	result = -ENOMEM;
 	cbaf = kzalloc(sizeof(*cbaf), GFP_KERNEL);
-	if (cbaf == NULL) {
-		dev_err(dev, "Unable to allocate instance\n");
+	if (cbaf == NULL)
 		goto error_kzalloc;
-	}
 	cbaf->buffer = kmalloc(512, GFP_KERNEL);
 	if (cbaf->buffer == NULL)
 		goto error_kmalloc_buffer;
+
 	cbaf->buffer_size = 512;
 	cbaf->usb_dev = usb_get_dev(interface_to_usbdev(iface));
 	cbaf->usb_iface = usb_get_intf(iface);
 	result = cbaf_check(cbaf);
-	if (result < 0)
+	if (result < 0) {
+		dev_err(dev, "This device is not WUSB-CBAF compliant"
+			"and is not supported yet.\n");
 		goto error_check;
+	}
+
 	result = sysfs_create_group(&dev->kobj, &cbaf_dev_attr_group);
 	if (result < 0) {
 		dev_err(dev, "Can't register sysfs attr group: %d\n", result);
 		goto error_create_group;
 	}
 	usb_set_intfdata(iface, cbaf);
-	d_printf(2, dev, "CBA attached\n");
 	return 0;
 
 error_create_group:
@@ -587,7 +641,6 @@ static void cbaf_disconnect(struct usb_interface *iface)
 	/* paranoia: clean up crypto keys */
 	memset(cbaf, 0, sizeof(*cbaf));
 	kfree(cbaf);
-	d_printf(1, dev, "CBA detached\n");
 }
 
 static struct usb_device_id cbaf_id_table[] = {
