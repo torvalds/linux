@@ -64,4 +64,16 @@ config UWB_WLP
 	  This is a common library for drivers that implement
 	  networking over UWB.
 
+config UWB_I1480U
+        tristate "Support for Intel Wireless UWB Link 1480 HWA"
+        depends on UWB_HWA
+        select FW_LOADER
+        help
+         This driver enables support for the i1480 when connected via
+         USB. It consists of a firmware uploader that will enable it
+         to behave as an HWA device.
+
+         To compile this driver select Y (built in) or M (module). It
+         is safe to select any even if you do not have the hardware.
+
 endif # UWB
