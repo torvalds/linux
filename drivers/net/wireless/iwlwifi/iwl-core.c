@@ -646,8 +646,14 @@ void iwl_set_rxon_ht(struct iwl_priv *priv, struct iwl_ht_info *ht_info)
 	struct iwl_rxon_cmd *rxon = &priv->staging_rxon;
 	u32 val;
 
-	if (!ht_info->is_ht)
+	if (!ht_info->is_ht) {
+		rxon->flags &= ~(RXON_FLG_CHANNEL_MODE_MIXED_MSK |
+			RXON_FLG_CHANNEL_MODE_PURE_40_MSK |
+			RXON_FLG_CTRL_CHANNEL_LOC_HI_MSK |
+			RXON_FLG_FAT_PROT_MSK |
+			RXON_FLG_HT_PROT_MSK);
 		return;
+	}
 
 	/* Set up channel bandwidth:  20 MHz only, or 20/40 mixed if fat ok */
 	if (iwl_is_fat_tx_allowed(priv, NULL))
