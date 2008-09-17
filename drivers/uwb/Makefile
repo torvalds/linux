@@ -1,4 +1,5 @@
 obj-$(CONFIG_UWB)		+= uwb.o
+obj-$(CONFIG_UWB_WHCI)		+= umc.o
 
 uwb-objs :=		\
 	address.o	\
@@ -18,3 +19,8 @@ uwb-objs :=		\
 	scan.o		\
 	uwb-debug.o	\
 	uwbd.o
+
+umc-objs :=		\
+	umc-bus.o	\
+	umc-dev.o	\
+	umc-drv.o
