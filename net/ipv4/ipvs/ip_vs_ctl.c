@@ -1787,6 +1787,7 @@ static struct ip_vs_service *ip_vs_info_array(struct seq_file *seq, loff_t pos)
 }
 
 static void *ip_vs_info_seq_start(struct seq_file *seq, loff_t *pos)
+__acquires(__ip_vs_svc_lock)
 {
 
 	read_lock_bh(&__ip_vs_svc_lock);
@@ -1840,6 +1841,7 @@ static void *ip_vs_info_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 }
 
 static void ip_vs_info_seq_stop(struct seq_file *seq, void *v)
+__releases(__ip_vs_svc_lock)
 {
 	read_unlock_bh(&__ip_vs_svc_lock);
 }
