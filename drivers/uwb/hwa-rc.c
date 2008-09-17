@@ -62,6 +62,9 @@
 #define D_LOCAL 1
 #include <linux/uwb/debug.h>
 
+/* The device uses commands and events from the WHCI specification, although
+ * reporting itself as WUSB compliant. */
+#define WUSB_QUIRK_WHCI_CMD_EVT		0x01
 
 /**
  * Descriptor for an instance of the UWB Radio Control Driver that
@@ -835,8 +838,13 @@ static int hwarc_probe(struct usb_interface *iface,
 	uwb_rc->stop  = hwarc_neep_release;
 	uwb_rc->cmd   = hwarc_cmd;
 	uwb_rc->reset = hwarc_reset;
-	uwb_rc->filter_cmd   = hwarc_filter_cmd;
-	uwb_rc->filter_event = hwarc_filter_event;
+	if (id->driver_info & WUSB_QUIRK_WHCI_CMD_EVT) {
+		uwb_rc->filter_cmd   = NULL;
+		uwb_rc->filter_event = NULL;
+	} else {
+		uwb_rc->filter_cmd   = hwarc_filter_cmd;
+		uwb_rc->filter_event = hwarc_filter_event;
+	}
 
 	result = uwb_rc_add(uwb_rc, dev, hwarc);
 	if (result < 0)
@@ -876,6 +884,10 @@ static void hwarc_disconnect(struct usb_interface *iface)
 
 /** USB device ID's that we handle */
 static struct usb_device_id hwarc_id_table[] = {
+	/* D-Link DUB-1210 */
+	{ USB_DEVICE_AND_INTERFACE_INFO(0x07d1, 0x3d02, 0xe0, 0x01, 0x02),
+	  .driver_info = WUSB_QUIRK_WHCI_CMD_EVT },
+	/* Generic match for the Radio Control interface */
 	{ USB_INTERFACE_INFO(0xe0, 0x01, 0x02), },
 	{ },
 };
