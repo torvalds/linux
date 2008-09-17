@@ -548,7 +548,7 @@ void rpipe_ep_disable(struct wahc *wa, struct usb_host_endpoint *ep)
 		result = usb_control_msg(
 			wa->usb_dev, usb_rcvctrlpipe(wa->usb_dev, 0),
 			USB_REQ_RPIPE_ABORT,
-			USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_RPIPE,
+			USB_DIR_OUT | USB_TYPE_CLASS | USB_RECIP_RPIPE,
 			0, index, NULL, 0, 1000 /* FIXME: arbitrary */);
 		if (result < 0 && result != -ENODEV /* dev is gone */)
 			d_printf(1, dev, "(wa %p rpipe %u): abort failed: %d\n",
