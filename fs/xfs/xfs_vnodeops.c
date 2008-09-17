@@ -3160,6 +3160,13 @@ error1:	/* Just cancel transaction */
 /*
  * Zero file bytes between startoff and endoff inclusive.
  * The iolock is held exclusive and no blocks are buffered.
+ *
+ * This function is used by xfs_free_file_space() to zero
+ * partial blocks when the range to free is not block aligned.
+ * When unreserving space with boundaries that are not block
+ * aligned we round up the start and round down the end
+ * boundaries and then use this function to zero the parts of
+ * the blocks that got dropped during the rounding.
  */
 STATIC int
 xfs_zero_remaining_bytes(
@@ -3175,6 +3182,17 @@ xfs_zero_remaining_bytes(
 	xfs_mount_t		*mp = ip->i_mount;
 	int			nimap;
 	int			error = 0;
+
+	/*
+	 * Avoid doing I/O beyond eof - it's not necessary
+	 * since nothing can read beyond eof.  The space will
+	 * be zeroed when the file is extended anyway.
+	 */
+	if (startoff >= ip->i_size)
+		return 0;
+
+	if (endoff > ip->i_size)
+		endoff = ip->i_size;
 
 	bp = xfs_buf_get_noaddr(mp->m_sb.sb_blocksize,
 				XFS_IS_REALTIME_INODE(ip) ?
