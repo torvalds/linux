@@ -1,0 +1,28 @@
+#
+# UWB device configuration
+#
+
+menuconfig UWB
+	tristate "Ultra Wide Band devices"
+	depends on PCI
+	default n
+	help
+	  UWB is a high-bandwidth, low-power, point-to-point radio
+	  technology using a wide spectrum (3.1-10.6GHz). It is
+	  optimized for in-room use (480Mbps at 2 meters, 110Mbps at
+	  10m). It serves as the transport layer for other protocols,
+	  such as Wireless USB (WUSB), IP (WLP) and upcoming
+	  Bluetooth and 1394
+
+	  The topology is peer to peer; however, higher level
+	  protocols (such as WUSB) might impose a master/slave
+	  relationship.
+
+	  Say Y here if your computer has UWB radio controllers (USB or PCI)
+	  based. You will need to enable the radio controllers
+	  below.  It is ok to select all of them, no harm done.
+
+	  For more help check the UWB and WUSB related files in
+	  <file:Documentation/usb/>.
+
+	  To compile the UWB stack as a module, choose M here.
