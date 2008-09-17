@@ -394,20 +394,22 @@ void __init bootmem_init(void)
 	max_pfn = max_low_pfn = memend_pfn - PHYS_PFN_OFFSET;
 }
 
-static inline void free_area(unsigned long addr, unsigned long end, char *s)
+static inline int free_area(unsigned long pfn, unsigned long end, char *s)
 {
-	unsigned int size = (end - addr) >> 10;
+	unsigned int pages = 0, size = (end - pfn) << (PAGE_SHIFT - 10);
 
-	for (; addr < end; addr += PAGE_SIZE) {
-		struct page *page = virt_to_page(addr);
+	for (; pfn < end; pfn++) {
+		struct page *page = pfn_to_page(pfn);
 		ClearPageReserved(page);
 		init_page_count(page);
-		free_page(addr);
-		totalram_pages++;
+		__free_page(page);
+		pages++;
 	}
 
 	if (size && s)
 		printk(KERN_INFO "Freeing %s memory: %dK\n", s, size);
+
+	return pages;
 }
 
 static inline void
@@ -478,12 +480,8 @@ static void __init free_unused_memmap_node(int node, struct meminfo *mi)
  */
 void __init mem_init(void)
 {
-	unsigned int codepages, datapages, initpages;
+	unsigned int codesize, datasize, initsize;
 	int i, node;
-
-	codepages = &_etext - &_text;
-	datapages = &_end - &__data_start;
-	initpages = &__init_end - &__init_begin;
 
 #ifndef CONFIG_DISCONTIGMEM
 	max_mapnr   = virt_to_page(high_memory) - mem_map;
@@ -501,7 +499,8 @@ void __init mem_init(void)
 
 #ifdef CONFIG_SA1111
 	/* now that our DMA memory is actually so designated, we can free it */
-	free_area(PAGE_OFFSET, (unsigned long)swapper_pg_dir, NULL);
+	totalram_pages += free_area(PHYS_PFN_OFFSET,
+				    __phys_to_pfn(__pa(swapper_pg_dir)), NULL);
 #endif
 
 	/*
@@ -509,18 +508,21 @@ void __init mem_init(void)
 	 * real number of pages we have in this system
 	 */
 	printk(KERN_INFO "Memory:");
-
 	num_physpages = 0;
 	for (i = 0; i < meminfo.nr_banks; i++) {
 		num_physpages += bank_pfn_size(&meminfo.bank[i]);
 		printk(" %ldMB", bank_phys_size(&meminfo.bank[i]) >> 20);
 	}
-
 	printk(" = %luMB total\n", num_physpages >> (20 - PAGE_SHIFT));
+
+	codesize = &_etext - &_text;
+	datasize = &_end - &__data_start;
+	initsize = &__init_end - &__init_begin;
+
 	printk(KERN_NOTICE "Memory: %luKB available (%dK code, "
 		"%dK data, %dK init)\n",
 		(unsigned long) nr_free_pages() << (PAGE_SHIFT-10),
-		codepages >> 10, datapages >> 10, initpages >> 10);
+		codesize >> 10, datasize >> 10, initsize >> 10);
 
 	if (PAGE_SIZE >= 16384 && num_physpages <= 128) {
 		extern int sysctl_overcommit_memory;
@@ -535,11 +537,10 @@ void __init mem_init(void)
 
 void free_initmem(void)
 {
-	if (!machine_is_integrator() && !machine_is_cintegrator()) {
-		free_area((unsigned long)(&__init_begin),
-			  (unsigned long)(&__init_end),
-			  "init");
-	}
+	if (!machine_is_integrator() && !machine_is_cintegrator())
+		totalram_pages += free_area(__phys_to_pfn(__pa(&__init_begin)),
+					    __phys_to_pfn(__pa(&__init_end)),
+					    "init");
 }
 
 #ifdef CONFIG_BLK_DEV_INITRD
@@ -549,7 +550,9 @@ static int keep_initrd;
 void free_initrd_mem(unsigned long start, unsigned long end)
 {
 	if (!keep_initrd)
-		free_area(start, end, "initrd");
+		totalram_pages += free_area(__phys_to_pfn(__pa(start)),
+					    __phys_to_pfn(__pa(end)),
+					    "initrd");
 }
 
 static int __init keepinitrd_setup(char *__unused)
