@@ -317,3 +317,17 @@ config USB_WHCI_HCD
 
 	  To compile this driver a module, choose M here: the module
 	  will be called "whci-hcd".
+
+config USB_HWA_HCD
+        tristate "Host Wire Adapter (HWA) driver"
+	depends on USB
+	select USB_WUSB
+	select UWB_HWA
+	help
+	  This driver enables you to connect Wireless USB devices to
+	  your system using a Host Wire Adaptor USB dongle. This is an
+	  UWB Radio Controller and WUSB Host Controller connected to
+	  your machine via USB (specified in WUSB1.0).
+
+	  To compile this driver a module, choose M here: the module
+	  will be called "hwa-hc".
