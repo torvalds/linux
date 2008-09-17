@@ -26,3 +26,23 @@ menuconfig UWB
 	  <file:Documentation/usb/>.
 
 	  To compile the UWB stack as a module, choose M here.
+
+if UWB
+
+config UWB_WHCI
+        tristate "UWB Radio Control driver for WHCI-compliant cards"
+        depends on PCI
+        help
+          This driver enables the radio controller for WHCI cards.
+
+          WHCI is an specification developed by Intel
+          (http://www.intel.com/technology/comms/wusb/whci.htm) much
+          in the spirit of USB's EHCI, but for UWB and Wireless USB
+          radio/host controllers connected via memmory mapping (eg:
+          PCI). Most of these cards come also with a Wireless USB host
+          controller.
+
+          To compile this driver select Y (built in) or M (module). It
+          is safe to select any even if you do not have the hardware.
+
+endif # UWB
