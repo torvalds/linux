@@ -130,6 +130,7 @@ extern void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 extern int bitmap_find_free_region(unsigned long *bitmap, int bits, int order);
 extern void bitmap_release_region(unsigned long *bitmap, int pos, int order);
 extern int bitmap_allocate_region(unsigned long *bitmap, int pos, int order);
+extern void bitmap_copy_le(void *dst, const unsigned long *src, int nbits);
 
 #define BITMAP_LAST_WORD_MASK(nbits)					\
 (									\
