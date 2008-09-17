@@ -539,32 +539,3 @@ int uwb_rc_ie_rm(struct uwb_rc *uwb_rc, enum uwb_ie element_id)
 	return result;
 }
 EXPORT_SYMBOL_GPL(uwb_rc_ie_rm);
-
-
-/**
- * Create and set new Identification IE
- *
- * Currently only sets the Vendor ID. The Vendor ID is set from the OUI,
- * which is obtained from the first three bytes from the MAC address.
- */
-int uwb_rc_set_identification_ie(struct uwb_rc *uwb_rc)
-{
-	struct {
-		struct uwb_identification_ie id_ie;
-		struct uwb_dev_info dev_info;
-		struct uwb_vendor_id vendor_id;
-	} ie_data;
-
-	ie_data.id_ie.hdr.element_id = UWB_IDENTIFICATION_IE;
-	ie_data.id_ie.hdr.length = sizeof(struct uwb_dev_info) +
-				   sizeof(struct uwb_vendor_id);
-
-	ie_data.dev_info.type = UWB_DEV_INFO_VENDOR_ID;
-	ie_data.dev_info.length = sizeof(struct uwb_vendor_id);
-
-	ie_data.vendor_id.data[0] = uwb_rc->uwb_dev.mac_addr.data[0];
-	ie_data.vendor_id.data[1] = uwb_rc->uwb_dev.mac_addr.data[1];
-	ie_data.vendor_id.data[2] = uwb_rc->uwb_dev.mac_addr.data[2];
-
-	return uwb_rc_ie_add(uwb_rc, &ie_data.id_ie.hdr, sizeof(ie_data));
-}

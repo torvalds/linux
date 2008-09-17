@@ -211,12 +211,6 @@ static int uwb_rc_setup(struct uwb_rc *rc)
 		dev_err(dev, "cannot setup IE subsystem: %d\n", result);
 		goto error_ie_setup;
 	}
-	result = uwb_rc_set_identification_ie(rc);
-	if (result < 0) {
-		dev_err(dev, "cannot set Identification IE: %d\n",
-			result);
-		goto error_set_id_ie;
-	}
 	result = uwb_rsv_setup(rc);
 	if (result < 0) {
 		dev_err(dev, "cannot setup reservation subsystem: %d\n", result);

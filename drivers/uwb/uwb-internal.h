@@ -74,7 +74,6 @@ extern void uwb_rc_ie_release(struct uwb_rc *);
 extern int uwb_rc_ie_add(struct uwb_rc *,
 			 const struct uwb_ie_hdr *, size_t);
 extern int uwb_rc_ie_rm(struct uwb_rc *, enum uwb_ie);
-extern int uwb_rc_set_identification_ie(struct uwb_rc *);
 
 extern const char *uwb_rc_strerror(unsigned code);
 
