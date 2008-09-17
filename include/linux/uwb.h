@@ -361,6 +361,9 @@ struct uwb_rc {
 
 /**
  * struct uwb_pal - a UWB PAL
+ * @name:    descriptive name for this PAL (wushc, wlp, etc.).
+ * @device:  a device for the PAL.  Used to link the PAL and the radio
+ *           controller in sysfs.
  * @new_rsv: called when a peer requests a reservation (may be NULL if
  *           the PAL cannot accept reservation requests).
  *
@@ -379,7 +382,8 @@ struct uwb_rc {
  */
 struct uwb_pal {
 	struct list_head node;
-
+	const char *name;
+	struct device *device;
 	void (*new_rsv)(struct uwb_rsv *rsv);
 };
 

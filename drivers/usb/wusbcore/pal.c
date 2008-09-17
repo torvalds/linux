@@ -26,6 +26,9 @@ int wusbhc_pal_register(struct wusbhc *wusbhc)
 {
 	uwb_pal_init(&wusbhc->pal);
 
+	wusbhc->pal.name   = "wusbhc";
+	wusbhc->pal.device = wusbhc->usb_hcd.self.controller;
+
 	return uwb_pal_register(wusbhc->uwb_rc, &wusbhc->pal);
 }
 

@@ -39,6 +39,21 @@ EXPORT_SYMBOL_GPL(uwb_pal_init);
  */
 int uwb_pal_register(struct uwb_rc *rc, struct uwb_pal *pal)
 {
+	int ret;
+
+	if (pal->device) {
+		ret = sysfs_create_link(&pal->device->kobj,
+					&rc->uwb_dev.dev.kobj, "uwb_rc");
+		if (ret < 0)
+			return ret;
+		ret = sysfs_create_link(&rc->uwb_dev.dev.kobj,
+					&pal->device->kobj, pal->name);
+		if (ret < 0) {
+			sysfs_remove_link(&pal->device->kobj, "uwb_rc");
+			return ret;
+		}
+	}
+
 	spin_lock(&rc->pal_lock);
 	list_add(&pal->node, &rc->pals);
 	spin_unlock(&rc->pal_lock);
@@ -57,6 +72,11 @@ void uwb_pal_unregister(struct uwb_rc *rc, struct uwb_pal *pal)
 	spin_lock(&rc->pal_lock);
 	list_del(&pal->node);
 	spin_unlock(&rc->pal_lock);
+
+	if (pal->device) {
+		sysfs_remove_link(&rc->uwb_dev.dev.kobj, pal->name);
+		sysfs_remove_link(&pal->device->kobj, "uwb_rc");
+	}
 }
 EXPORT_SYMBOL_GPL(uwb_pal_unregister);
 

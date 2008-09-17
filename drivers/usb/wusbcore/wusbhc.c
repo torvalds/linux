@@ -192,13 +192,8 @@ int wusbhc_create(struct wusbhc *wusbhc)
 	result = wusbhc_sec_create(wusbhc);
 	if (result < 0)
 		goto error_sec_create;
-	result = wusbhc_pal_register(wusbhc);
-	if (result < 0)
-		goto error_pal_register;
 	return 0;
 
-error_pal_register:
-	wusbhc_sec_destroy(wusbhc);
 error_sec_create:
 	wusbhc_rh_destroy(wusbhc);
 error_rh_create:
@@ -235,7 +230,14 @@ int wusbhc_b_create(struct wusbhc *wusbhc)
 		dev_err(dev, "Cannot register WUSBHC attributes: %d\n", result);
 		goto error_create_attr_group;
 	}
-	/* Yep, I plan to add stuff here... */
+
+	result = wusbhc_pal_register(wusbhc);
+	if (result < 0)
+		goto error_pal_register;
+	return 0;
+
+error_pal_register:
+	sysfs_remove_group(wusbhc_kobj(wusbhc), &wusbhc_attr_group);
 error_create_attr_group:
 	return result;
 }
@@ -243,13 +245,13 @@ EXPORT_SYMBOL_GPL(wusbhc_b_create);
 
 void wusbhc_b_destroy(struct wusbhc *wusbhc)
 {
+	wusbhc_pal_unregister(wusbhc);
 	sysfs_remove_group(wusbhc_kobj(wusbhc), &wusbhc_attr_group);
 }
 EXPORT_SYMBOL_GPL(wusbhc_b_destroy);
 
 void wusbhc_destroy(struct wusbhc *wusbhc)
 {
-	wusbhc_pal_unregister(wusbhc);
 	wusbhc_sec_destroy(wusbhc);
 	wusbhc_rh_destroy(wusbhc);
 	wusbhc_devconnect_destroy(wusbhc);
