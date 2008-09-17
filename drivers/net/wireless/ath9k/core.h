@@ -1001,6 +1001,7 @@ struct ath_softc {
 	u32 sc_bhalq;
 	u32 sc_bmisscount;
 	u32 ast_be_xmit;	/* beacons transmitted */
+	u64 bc_tstamp;
 
 	/* Rate */
 	struct ieee80211_rate rates[IEEE80211_NUM_BANDS][ATH_RATE_MAX];
