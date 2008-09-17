@@ -472,8 +472,7 @@ static int init_unity_mappings_for_device(struct dma_ops_domain *dma_dom,
  ****************************************************************************/
 static unsigned long dma_mask_to_pages(unsigned long mask)
 {
-	return (mask >> PAGE_SHIFT) +
-		(PAGE_ALIGN(mask & ~PAGE_MASK) >> PAGE_SHIFT);
+	return PAGE_ALIGN(mask) >> PAGE_SHIFT;
 }
 
 /*
