@@ -304,12 +304,12 @@ static void * get_next_ucode(u8 *buf, unsigned int size,
 static int install_equiv_cpu_table(u8 *buf,
 		int (*get_ucode_data)(void *, const void *, size_t))
 {
-#define UCODE_HEADER_SIZE	12
-	u8 *hdr[UCODE_HEADER_SIZE];
-	unsigned int *buf_pos = (unsigned int *)hdr;
+#define UCODE_CONTAINER_HEADER_SIZE	12
+	u8 *container_hdr[UCODE_CONTAINER_HEADER_SIZE];
+	unsigned int *buf_pos = (unsigned int *)container_hdr;
 	unsigned long size;
 
-	if (get_ucode_data(&hdr, buf, UCODE_HEADER_SIZE))
+	if (get_ucode_data(&container_hdr, buf, UCODE_CONTAINER_HEADER_SIZE))
 		return 0;
 
 	size = buf_pos[2];
@@ -326,14 +326,14 @@ static int install_equiv_cpu_table(u8 *buf,
 		return 0;
 	}
 
-	buf += UCODE_HEADER_SIZE;
+	buf += UCODE_CONTAINER_HEADER_SIZE;
 	if (get_ucode_data(equiv_cpu_table, buf, size)) {
 		vfree(equiv_cpu_table);
 		return 0;
 	}
 
-	return size + UCODE_HEADER_SIZE; /* add header length */
-#undef UCODE_HEADER_SIZE
+	return size + UCODE_CONTAINER_HEADER_SIZE; /* add header length */
+#undef UCODE_CONTAINER_HEADER_SIZE
 }
 
 static void free_equiv_cpu_table(void)
