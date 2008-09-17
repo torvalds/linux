@@ -57,6 +57,7 @@ void __init kirkwood_map_io(void)
  ****************************************************************************/
 static struct orion_ehci_data kirkwood_ehci_data = {
 	.dram		= &kirkwood_mbus_dram_info,
+	.phy_version	= EHCI_PHY_NA,
 };
 
 static u64 ehci_dmamask = 0xffffffffUL;
