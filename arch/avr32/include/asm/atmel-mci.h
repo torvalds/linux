@@ -1,6 +1,8 @@
 #ifndef __ASM_AVR32_ATMEL_MCI_H
 #define __ASM_AVR32_ATMEL_MCI_H
 
+#define ATMEL_MCI_MAX_NR_SLOTS	2
+
 /**
  * struct mci_slot_pdata - board-specific per-slot configuration
  * @bus_width: Number of data lines wired up the slot
@@ -11,6 +13,10 @@
  * set to 0. The other fields are ignored in this case.
  *
  * Any pins that aren't available should be set to a negative value.
+ *
+ * Note that support for multiple slots is experimental -- some cards
+ * might get upset if we don't get the clock management exactly right.
+ * But in most cases, it should work just fine.
  */
 struct mci_slot_pdata {
 	unsigned int		bus_width;
@@ -23,7 +29,7 @@ struct mci_slot_pdata {
  * @slot: Per-slot configuration data.
  */
 struct mci_platform_data {
-	struct mci_slot_pdata	slot[2];
+	struct mci_slot_pdata	slot[ATMEL_MCI_MAX_NR_SLOTS];
 };
 
 #endif /* __ASM_AVR32_ATMEL_MCI_H */
