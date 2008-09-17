@@ -101,10 +101,10 @@ static int iommu_queue_command(struct amd_iommu *iommu, struct iommu_cmd *cmd)
  */
 static int iommu_completion_wait(struct amd_iommu *iommu)
 {
-	int ret, ready = 0;
+	int ret = 0, ready = 0;
 	unsigned status = 0;
 	struct iommu_cmd cmd;
-	unsigned long i = 0;
+	unsigned long flags, i = 0;
 
 	memset(&cmd, 0, sizeof(cmd));
 	cmd.data[0] = CMD_COMPL_WAIT_INT_MASK;
@@ -112,10 +112,12 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	iommu->need_sync = 0;
 
-	ret = iommu_queue_command(iommu, &cmd);
+	spin_lock_irqsave(&iommu->lock, flags);
+
+	ret = __iommu_queue_command(iommu, &cmd);
 
 	if (ret)
-		return ret;
+		goto out;
 
 	while (!ready && (i < EXIT_LOOP_COUNT)) {
 		++i;
@@ -130,6 +132,8 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 
 	if (unlikely((i == EXIT_LOOP_COUNT) && printk_ratelimit()))
 		printk(KERN_WARNING "AMD IOMMU: Completion wait loop failed\n");
+out:
+	spin_unlock_irqrestore(&iommu->lock, flags);
 
 	return 0;
 }
