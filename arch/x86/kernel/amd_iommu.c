@@ -140,6 +140,7 @@ static int iommu_completion_wait(struct amd_iommu *iommu)
 static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 {
 	struct iommu_cmd cmd;
+	int ret;
 
 	BUG_ON(iommu == NULL);
 
@@ -147,9 +148,11 @@ static int iommu_queue_inv_dev_entry(struct amd_iommu *iommu, u16 devid)
 	CMD_SET_TYPE(&cmd, CMD_INV_DEV_ENTRY);
 	cmd.data[0] = devid;
 
+	ret = iommu_queue_command(iommu, &cmd);
+
 	iommu->need_sync = 1;
 
-	return iommu_queue_command(iommu, &cmd);
+	return ret;
 }
 
 /*
@@ -159,6 +162,7 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 		u64 address, u16 domid, int pde, int s)
 {
 	struct iommu_cmd cmd;
+	int ret;
 
 	memset(&cmd, 0, sizeof(cmd));
 	address &= PAGE_MASK;
@@ -171,9 +175,11 @@ static int iommu_queue_inv_iommu_pages(struct amd_iommu *iommu,
 	if (pde) /* PDE bit - we wan't flush everything not only the PTEs */
 		cmd.data[2] |= CMD_INV_IOMMU_PAGES_PDE_MASK;
 
+	ret = iommu_queue_command(iommu, &cmd);
+
 	iommu->need_sync = 1;
 
-	return iommu_queue_command(iommu, &cmd);
+	return ret;
 }
 
 /*
