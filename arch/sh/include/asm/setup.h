@@ -1,12 +1,9 @@
 #ifndef _SH_SETUP_H
 #define _SH_SETUP_H
 
-#include <linux/mmzone.h>
-
 #define COMMAND_LINE_SIZE 256
 
 #ifdef __KERNEL__
-
 /*
  * This is set up by the setup-routine at boot-time
  */
