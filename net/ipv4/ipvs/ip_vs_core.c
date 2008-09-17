@@ -457,6 +457,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 	if (sysctl_ip_vs_cache_bypass && svc->fwmark && unicast) {
 		int ret, cs;
 		struct ip_vs_conn *cp;
+		union nf_inet_addr daddr =  { .all = { 0, 0, 0, 0 } };
 
 		ip_vs_service_put(svc);
 
@@ -465,7 +466,7 @@ int ip_vs_leave(struct ip_vs_service *svc, struct sk_buff *skb,
 		cp = ip_vs_conn_new(svc->af, iph.protocol,
 				    &iph.saddr, pptr[0],
 				    &iph.daddr, pptr[1],
-				    0, 0,
+				    &daddr, 0,
 				    IP_VS_CONN_F_BYPASS,
 				    NULL);
 		if (cp == NULL)
