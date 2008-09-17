@@ -239,8 +239,8 @@ static struct wusb_dev *wusbhc_cack_add(struct wusbhc *wusbhc,
 			"port %u\n", dev_addr, port_idx);
 
 		result = wusb_set_dev_addr(wusbhc, wusb_dev, dev_addr);
-		if (result)
-			return  NULL;
+		if (result < 0)
+			return NULL;
 	}
 	wusb_dev->entry_ts = jiffies;
 	list_add_tail(&wusb_dev->cack_node, &wusbhc->cack_list);
@@ -1301,7 +1301,7 @@ int wusb_set_dev_addr(struct wusbhc *wusbhc, struct wusb_dev *wusb_dev, u8 addr)
 
 	wusb_dev->addr = addr;
 	result = wusbhc->dev_info_set(wusbhc, wusb_dev);
-	if (result)
+	if (result < 0)
 		dev_err(wusbhc->dev, "device %d: failed to set device "
 			"address\n", wusb_dev->port_idx);
 	else
