@@ -5598,7 +5598,7 @@ bnx2_5706_serdes_timer(struct bnx2 *bp)
 	} else if ((bp->link_up == 0) && (bp->autoneg & AUTONEG_SPEED)) {
 		u32 bmcr;
 
-		bp->current_interval = bp->timer_interval;
+		bp->current_interval = BNX2_TIMER_INTERVAL;
 
 		bnx2_read_phy(bp, bp->mii_bmcr, &bmcr);
 
@@ -5627,7 +5627,7 @@ bnx2_5706_serdes_timer(struct bnx2 *bp)
 			bp->phy_flags &= ~BNX2_PHY_FLAG_PARALLEL_DETECT;
 		}
 	} else
-		bp->current_interval = bp->timer_interval;
+		bp->current_interval = BNX2_TIMER_INTERVAL;
 
 	if (check_link) {
 		u32 val;
@@ -5672,11 +5672,11 @@ bnx2_5708_serdes_timer(struct bnx2 *bp)
 		} else {
 			bnx2_disable_forced_2g5(bp);
 			bp->serdes_an_pending = 2;
-			bp->current_interval = bp->timer_interval;
+			bp->current_interval = BNX2_TIMER_INTERVAL;
 		}
 
 	} else
-		bp->current_interval = bp->timer_interval;
+		bp->current_interval = BNX2_TIMER_INTERVAL;
 
 	spin_unlock(&bp->phy_lock);
 }
@@ -7514,8 +7514,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 
 	bp->stats_ticks = USEC_PER_SEC & BNX2_HC_STATS_TICKS_HC_STAT_TICKS;
 
-	bp->timer_interval =  HZ;
-	bp->current_interval =  HZ;
+	bp->current_interval = BNX2_TIMER_INTERVAL;
 
 	bp->phy_addr = 1;
 
@@ -7605,7 +7604,7 @@ bnx2_init_board(struct pci_dev *pdev, struct net_device *dev)
 	bp->req_flow_ctrl = FLOW_CTRL_RX | FLOW_CTRL_TX;
 
 	init_timer(&bp->timer);
-	bp->timer.expires = RUN_AT(bp->timer_interval);
+	bp->timer.expires = RUN_AT(BNX2_TIMER_INTERVAL);
 	bp->timer.data = (unsigned long) bp;
 	bp->timer.function = bnx2_timer;
 

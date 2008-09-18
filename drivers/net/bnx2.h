@@ -6654,6 +6654,8 @@ struct bnx2_napi {
 	struct bnx2_tx_ring_info	tx_ring;
 };
 
+#define BNX2_TIMER_INTERVAL			HZ
+
 struct bnx2 {
 	/* Fields used in the tx and intr/napi performance paths are grouped */
 	/* together in the beginning of the structure. */
@@ -6701,7 +6703,6 @@ struct bnx2 {
 
 	/* End of fields used in the performance code paths. */
 
-	int			timer_interval;
 	int			current_interval;
 	struct			timer_list timer;
 	struct work_struct	reset_task;
