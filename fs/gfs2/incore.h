@@ -386,21 +386,21 @@ struct gfs2_statfs_change_host {
 #define GFS2_DATA_ORDERED	2
 
 struct gfs2_args {
-	char ar_lockproto[GFS2_LOCKNAME_LEN]; /* Name of the Lock Protocol */
-	char ar_locktable[GFS2_LOCKNAME_LEN]; /* Name of the Lock Table */
-	char ar_hostdata[GFS2_LOCKNAME_LEN]; /* Host specific data */
-	int ar_spectator; /* Don't get a journal because we're always RO */
-	int ar_ignore_local_fs; /* Don't optimize even if local_fs is 1 */
-	int ar_localflocks; /* Let the VFS do flock|fcntl locks for us */
-	int ar_localcaching; /* Local-style caching (dangerous on multihost) */
-	int ar_debug; /* Oops on errors instead of trying to be graceful */
-	int ar_upgrade; /* Upgrade ondisk/multihost format */
-	unsigned int ar_num_glockd; /* Number of glockd threads */
-	int ar_posix_acl; /* Enable posix acls */
-	int ar_quota; /* off/account/on */
-	int ar_suiddir; /* suiddir support */
-	int ar_data; /* ordered/writeback */
-	int ar_meta; /* mount metafs */
+	char ar_lockproto[GFS2_LOCKNAME_LEN];	/* Name of the Lock Protocol */
+	char ar_locktable[GFS2_LOCKNAME_LEN];	/* Name of the Lock Table */
+	char ar_hostdata[GFS2_LOCKNAME_LEN];	/* Host specific data */
+	unsigned int ar_spectator:1;		/* Don't get a journal */
+	unsigned int ar_ignore_local_fs:1;	/* Ignore optimisations */
+	unsigned int ar_localflocks:1;		/* Let the VFS do flock|fcntl */
+	unsigned int ar_localcaching:1;		/* Local caching */
+	unsigned int ar_debug:1;		/* Oops on errors */
+	unsigned int ar_upgrade:1;		/* Upgrade ondisk format */
+	unsigned int ar_posix_acl:1;		/* Enable posix acls */
+	unsigned int ar_quota:2;		/* off/account/on */
+	unsigned int ar_suiddir:1;		/* suiddir support */
+	unsigned int ar_data:2;			/* ordered/writeback */
+	unsigned int ar_meta:1;			/* mount metafs */
+	unsigned int ar_num_glockd;		/* Number of glockd threads */
 };
 
 struct gfs2_tune {
