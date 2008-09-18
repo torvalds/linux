@@ -67,6 +67,11 @@ static ssize_t map_size_show(struct uio_mem *mem, char *buf)
 	return sprintf(buf, "0x%lx\n", mem->size);
 }
 
+static ssize_t map_offset_show(struct uio_mem *mem, char *buf)
+{
+	return sprintf(buf, "0x%lx\n", mem->addr & ~PAGE_MASK);
+}
+
 struct uio_sysfs_entry {
 	struct attribute attr;
 	ssize_t (*show)(struct uio_mem *, char *);
@@ -77,10 +82,13 @@ static struct uio_sysfs_entry addr_attribute =
 	__ATTR(addr, S_IRUGO, map_addr_show, NULL);
 static struct uio_sysfs_entry size_attribute =
 	__ATTR(size, S_IRUGO, map_size_show, NULL);
+static struct uio_sysfs_entry offset_attribute =
+	__ATTR(offset, S_IRUGO, map_offset_show, NULL);
 
 static struct attribute *attrs[] = {
 	&addr_attribute.attr,
 	&size_attribute.attr,
+	&offset_attribute.attr,
 	NULL,	/* need to NULL terminate the list of attributes */
 };
 
