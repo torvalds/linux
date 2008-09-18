@@ -50,10 +50,6 @@ struct hid_ff_initializer {
  * be a PID device
  */
 static struct hid_ff_initializer inits[] = {
-#ifdef CONFIG_ZEROPLUS_FF
-	{ 0xc12, 0x0005, hid_zpff_init },
-	{ 0xc12, 0x0030, hid_zpff_init },
-#endif
 	{ 0,	 0,	 hid_pidff_init}  /* Matches anything */
 };
 

@@ -58,6 +58,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_THRUSTMASTER_FF_MODULE
 	HID_COMPAT_CALL_DRIVER(thrustmaster);
 #endif
+#ifdef CONFIG_ZEROPLUS_FF_MODULE
+	HID_COMPAT_CALL_DRIVER(zeroplus);
+#endif
 
 	return -EIO;
 }

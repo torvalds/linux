@@ -252,6 +252,14 @@ config THRUSTMASTER_FF
 	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
 	  a THRUSTMASTER Ferrari GT Rumble Force or Force Feedback Wheel.
 
+config ZEROPLUS_FF
+	tristate "Zeroplus based game controller support"
+	default m
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a Zeroplus based game controller.
+
 endmenu
 
 endif # HID_SUPPORT
