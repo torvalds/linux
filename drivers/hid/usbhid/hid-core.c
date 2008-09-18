@@ -935,7 +935,7 @@ static int hid_probe(struct usb_interface *intf, const struct usb_device_id *id)
 	usb_set_intfdata(intf, hid);
 	hid->ll_driver = &usb_hid_driver;
 	hid->hid_output_raw_report = usbhid_output_raw_report;
-	hid->ff_init = hid_ff_init;
+	hid->ff_init = hid_pidff_init;
 #ifdef CONFIG_USB_HIDDEV
 	hid->hiddev_connect = hiddev_connect;
 	hid->hiddev_hid_event = hiddev_hid_event;

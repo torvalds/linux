@@ -24,21 +24,8 @@ config USB_HID
 comment "Input core support is needed for USB HID input layer or HIDBP support"
 	depends on USB_HID && INPUT=n
 
-config HID_FF
-	bool "Force feedback support (EXPERIMENTAL)"
-	depends on USB_HID && EXPERIMENTAL
-	help
-	  Say Y here is you want force feedback support for a few HID devices.
-	  See below for a list of supported devices.
-
-	  See <file:Documentation/input/ff.txt> for a description of the force
-	  feedback API.
-
-	  If unsure, say N.
-
 config HID_PID
 	bool "PID device support"
-	depends on HID_FF
 	help
 	  Say Y here if you have a PID-compliant device and wish to enable force
 	  feedback for it. Microsoft Sidewinder Force Feedback 2 is one of such

@@ -757,17 +757,10 @@ int usbhid_quirks_init(char **quirks_param);
 void usbhid_quirks_exit(void);
 void usbhid_set_leds(struct hid_device *hid);
 
-#ifdef CONFIG_HID_FF
-int hid_ff_init(struct hid_device *hid);
-
 #ifdef CONFIG_HID_PID
 int hid_pidff_init(struct hid_device *hid);
 #else
-static inline int hid_pidff_init(struct hid_device *hid) { return -ENODEV; }
-#endif
-
-#else
-#define hid_ff_init	NULL
+#define hid_pidff_init NULL
 #endif
 
 #ifdef CONFIG_HID_DEBUG
