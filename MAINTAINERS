@@ -3396,6 +3396,13 @@ M:	linux-driver@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
 
+QLOGIC QLGE 10Gb ETHERNET DRIVER
+P:	Ron Mercer
+M:	linux-driver@qlogic.com
+M:	ron.mercer@qlogic.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
 QNX4 FILESYSTEM
 P:	Anders Larsen
 M:	al@alarsen.net
