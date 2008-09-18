@@ -1089,12 +1089,11 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 
 	r = kvm_arch_vcpu_setup(vcpu);
 	if (r)
-		goto vcpu_destroy;
+		return r;
 
 	mutex_lock(&kvm->lock);
 	if (kvm->vcpus[n]) {
 		r = -EEXIST;
-		mutex_unlock(&kvm->lock);
 		goto vcpu_destroy;
 	}
 	kvm->vcpus[n] = vcpu;
@@ -1110,8 +1109,8 @@ static int kvm_vm_ioctl_create_vcpu(struct kvm *kvm, int n)
 unlink:
 	mutex_lock(&kvm->lock);
 	kvm->vcpus[n] = NULL;
-	mutex_unlock(&kvm->lock);
 vcpu_destroy:
+	mutex_unlock(&kvm->lock);
 	kvm_arch_vcpu_destroy(vcpu);
 	return r;
 }
