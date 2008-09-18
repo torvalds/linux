@@ -265,21 +265,6 @@ static int blkdev_locked_ioctl(struct file *file, struct block_device *bdev,
 	return -ENOIOCTLCMD;
 }
 
-int blkdev_driver_ioctl(struct inode *inode, struct file *file,
-			struct gendisk *disk, unsigned cmd, unsigned long arg)
-{
-	int ret;
-	fmode_t mode = 0;
-	if (file) {
-		mode = file->f_mode;
-		if (file->f_flags & O_NDELAY)
-			mode |= FMODE_NDELAY_NOW;
-	}
-
-	return __blkdev_driver_ioctl(inode->i_bdev, mode, cmd, arg);
-}
-EXPORT_SYMBOL_GPL(blkdev_driver_ioctl);
-
 int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned cmd, unsigned long arg)
 {
@@ -315,13 +300,19 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	struct block_device *bdev = inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	int ret, n;
+	fmode_t mode = 0;
+	if (file) {
+		mode = file->f_mode;
+		if (file->f_flags & O_NDELAY)
+			mode |= FMODE_NDELAY_NOW;
+	}
 
 	switch(cmd) {
 	case BLKFLSBUF:
 		if (!capable(CAP_SYS_ADMIN))
 			return -EACCES;
 
-		ret = blkdev_driver_ioctl(inode, file, disk, cmd, arg);
+		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 		/* -EINVAL to handle old uncorrected drivers */
 		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
@@ -333,7 +324,7 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 		return 0;
 
 	case BLKROSET:
-		ret = blkdev_driver_ioctl(inode, file, disk, cmd, arg);
+		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 		/* -EINVAL to handle old uncorrected drivers */
 		if (ret != -EINVAL && ret != -ENOTTY)
 			return ret;
@@ -349,7 +340,7 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	case BLKDISCARD: {
 		uint64_t range[2];
 
-		if (!(file->f_mode & FMODE_WRITE))
+		if (!(mode & FMODE_WRITE))
 			return -EBADF;
 
 		if (copy_from_user(range, (void __user *)arg, sizeof(range)))
@@ -387,6 +378,6 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 	if (ret != -ENOIOCTLCMD)
 		return ret;
 
-	return blkdev_driver_ioctl(inode, file, disk, cmd, arg);
+	ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
 EXPORT_SYMBOL_GPL(blkdev_ioctl);
