@@ -441,6 +441,7 @@ struct request_queue
 #define QUEUE_FLAG_NOMERGES    10	/* disable merge attempts */
 #define QUEUE_FLAG_SAME_COMP   11	/* force complete on same CPU */
 #define QUEUE_FLAG_FAIL_IO     12	/* fake timeout */
+#define QUEUE_FLAG_STACKABLE   13	/* supports request stacking */
 
 static inline int queue_is_locked(struct request_queue *q)
 {
@@ -547,6 +548,8 @@ enum {
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_flushing(q)	((q)->ordseq)
+#define blk_queue_stackable(q)	\
+	test_bit(QUEUE_FLAG_STACKABLE, &(q)->queue_flags)
 
 #define blk_fs_request(rq)	((rq)->cmd_type == REQ_TYPE_FS)
 #define blk_pc_request(rq)	((rq)->cmd_type == REQ_TYPE_BLOCK_PC)

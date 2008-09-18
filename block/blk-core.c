@@ -574,7 +574,8 @@ blk_init_queue_node(request_fn_proc *rfn, spinlock_t *lock, int node_id)
 	q->request_fn		= rfn;
 	q->prep_rq_fn		= NULL;
 	q->unplug_fn		= generic_unplug_device;
-	q->queue_flags		= (1 << QUEUE_FLAG_CLUSTER);
+	q->queue_flags		= (1 << QUEUE_FLAG_CLUSTER |
+				   1 << QUEUE_FLAG_STACKABLE);
 	q->queue_lock		= lock;
 
 	blk_queue_segment_boundary(q, 0xffffffff);
