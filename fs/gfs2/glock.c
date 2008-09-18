@@ -1580,8 +1580,6 @@ static const char *hflags2str(char *buf, unsigned flags, unsigned long iflags)
 		*p++ = 'a';
 	if (flags & GL_EXACT)
 		*p++ = 'E';
-	if (flags & GL_ATIME)
-		*p++ = 'a';
 	if (flags & GL_NOCACHE)
 		*p++ = 'c';
 	if (test_bit(HIF_HOLDER, &iflags))

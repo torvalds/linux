@@ -70,7 +70,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_scale_den = 1;
 	gt->gt_quota_cache_secs = 300;
 	gt->gt_quota_quantum = 60;
-	gt->gt_atime_quantum = 3600;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = 1 << 18;
 	gt->gt_stall_secs = 600;
@@ -135,22 +134,6 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 	return sdp;
 }
 
-static void init_vfs(struct super_block *sb, unsigned noatime)
-{
-	struct gfs2_sbd *sdp = sb->s_fs_info;
-
-	sb->s_magic = GFS2_MAGIC;
-	sb->s_op = &gfs2_super_ops;
-	sb->s_export_op = &gfs2_export_ops;
-	sb->s_time_gran = 1;
-	sb->s_maxbytes = MAX_LFS_FILESIZE;
-
-	if (sb->s_flags & (MS_NOATIME | MS_NODIRATIME))
-		set_bit(noatime, &sdp->sd_flags);
-
-	/* Don't let the VFS update atimes.  GFS2 handles this itself. */
-	sb->s_flags |= MS_NOATIME | MS_NODIRATIME;
-}
 
 /**
  * gfs2_check_sb - Check superblock
@@ -1100,7 +1083,11 @@ static int fill_super(struct super_block *sb, void *data, int silent)
 		goto fail;
 	}
 
-	init_vfs(sb, SDF_NOATIME);
+	sb->s_magic = GFS2_MAGIC;
+	sb->s_op = &gfs2_super_ops;
+	sb->s_export_op = &gfs2_export_ops;
+	sb->s_time_gran = 1;
+	sb->s_maxbytes = MAX_LFS_FILESIZE;
 
 	/* Set up the buffer cache and fill in some fake block size values
 	   to allow us to read-in the on-disk superblock. */

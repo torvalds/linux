@@ -20,6 +20,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/lm_interface.h>
+#include <linux/time.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -38,6 +39,7 @@
 #include "dir.h"
 #include "eattr.h"
 #include "bmap.h"
+#include "meta_io.h"
 
 /**
  * gfs2_write_inode - Make sure the inode is stable on the disk
@@ -50,16 +52,41 @@
 static int gfs2_write_inode(struct inode *inode, int sync)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_holder gh;
+	struct buffer_head *bh;
+	struct timespec atime;
+	struct gfs2_dinode *di;
+	int ret = 0;
 
-	/* Check this is a "normal" inode */
-	if (test_bit(GIF_USER, &ip->i_flags)) {
-		if (current->flags & PF_MEMALLOC)
-			return 0;
-		if (sync)
-			gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
+	/* Check this is a "normal" inode, etc */
+	if (!test_bit(GIF_USER, &ip->i_flags) ||
+	    (current->flags & PF_MEMALLOC))
+		return 0;
+	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
+	if (ret)
+		goto do_flush;
+	ret = gfs2_trans_begin(sdp, RES_DINODE, 0);
+	if (ret)
+		goto do_unlock;
+	ret = gfs2_meta_inode_buffer(ip, &bh);
+	if (ret == 0) {
+		di = (struct gfs2_dinode *)bh->b_data;
+		atime.tv_sec = be64_to_cpu(di->di_atime);
+		atime.tv_nsec = be32_to_cpu(di->di_atime_nsec);
+		if (timespec_compare(&inode->i_atime, &atime) > 0) {
+			gfs2_trans_add_bh(ip->i_gl, bh, 1);
+			gfs2_dinode_out(ip, bh->b_data);
+		}
+		brelse(bh);
 	}
-
-	return 0;
+	gfs2_trans_end(sdp);
+do_unlock:
+	gfs2_glock_dq_uninit(&gh);
+do_flush:
+	if (sync != 0)
+		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
+	return ret;
 }
 
 /**
@@ -296,14 +323,6 @@ static int gfs2_remount_fs(struct super_block *sb, int *flags, char *data)
 			error = gfs2_make_fs_rw(sdp);
 		}
 	}
-
-	if (*flags & (MS_NOATIME | MS_NODIRATIME))
-		set_bit(SDF_NOATIME, &sdp->sd_flags);
-	else
-		clear_bit(SDF_NOATIME, &sdp->sd_flags);
-
-	/* Don't let the VFS update atimes.  GFS2 handles this itself. */
-	*flags |= MS_NOATIME | MS_NODIRATIME;
 
 	return error;
 }

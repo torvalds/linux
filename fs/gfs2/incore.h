@@ -420,7 +420,6 @@ struct gfs2_tune {
 	unsigned int gt_quota_scale_den; /* Denominator */
 	unsigned int gt_quota_cache_secs;
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
-	unsigned int gt_atime_quantum; /* Min secs between atime updates */
 	unsigned int gt_new_files_jdata;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
 	unsigned int gt_stall_secs; /* Detects trouble! */
@@ -433,7 +432,6 @@ enum {
 	SDF_JOURNAL_CHECKED	= 0,
 	SDF_JOURNAL_LIVE	= 1,
 	SDF_SHUTDOWN		= 2,
-	SDF_NOATIME		= 3,
 };
 
 #define GFS2_FSNAME_LEN		256

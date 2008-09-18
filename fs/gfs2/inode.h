@@ -92,7 +92,6 @@ int gfs2_unlink_ok(struct gfs2_inode *dip, const struct qstr *name,
 		   const struct gfs2_inode *ip);
 int gfs2_permission(struct inode *inode, int mask);
 int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len);
-int gfs2_glock_nq_atime(struct gfs2_holder *gh);
 int gfs2_setattr_simple(struct gfs2_inode *ip, struct iattr *attr);
 struct inode *gfs2_lookup_simple(struct inode *dip, const char *name);
 void gfs2_dinode_out(const struct gfs2_inode *ip, void *buf);
