@@ -1806,6 +1806,22 @@ void end_request(struct request *req, int uptodate)
 }
 EXPORT_SYMBOL(end_request);
 
+static int end_that_request_data(struct request *rq, int error,
+				 unsigned int nr_bytes, unsigned int bidi_bytes)
+{
+	if (rq->bio) {
+		if (__end_that_request_first(rq, error, nr_bytes))
+			return 1;
+
+		/* Bidi request must be completed as a whole */
+		if (blk_bidi_rq(rq) &&
+		    __end_that_request_first(rq->next_rq, error, bidi_bytes))
+			return 1;
+	}
+
+	return 0;
+}
+
 /**
  * blk_end_io - Generic end_io function to complete a request.
  * @rq:           the request being processed
@@ -1832,15 +1848,8 @@ static int blk_end_io(struct request *rq, int error, unsigned int nr_bytes,
 	struct request_queue *q = rq->q;
 	unsigned long flags = 0UL;
 
-	if (rq->bio) {
-		if (__end_that_request_first(rq, error, nr_bytes))
-			return 1;
-
-		/* Bidi request must be completed as a whole */
-		if (blk_bidi_rq(rq) &&
-		    __end_that_request_first(rq->next_rq, error, bidi_bytes))
-			return 1;
-	}
+	if (end_that_request_data(rq, error, nr_bytes, bidi_bytes))
+		return 1;
 
 	/* Special feature for tricky drivers */
 	if (drv_callback && drv_callback(rq))
@@ -1921,6 +1930,36 @@ int blk_end_bidi_request(struct request *rq, int error, unsigned int nr_bytes,
 	return blk_end_io(rq, error, nr_bytes, bidi_bytes, NULL);
 }
 EXPORT_SYMBOL_GPL(blk_end_bidi_request);
+
+/**
+ * blk_update_request - Special helper function for request stacking drivers
+ * @rq:           the request being processed
+ * @error:        %0 for success, < %0 for error
+ * @nr_bytes:     number of bytes to complete @rq
+ *
+ * Description:
+ *     Ends I/O on a number of bytes attached to @rq, but doesn't complete
+ *     the request structure even if @rq doesn't have leftover.
+ *     If @rq has leftover, sets it up for the next range of segments.
+ *
+ *     This special helper function is only for request stacking drivers
+ *     (e.g. request-based dm) so that they can handle partial completion.
+ *     Actual device drivers should use blk_end_request instead.
+ */
+void blk_update_request(struct request *rq, int error, unsigned int nr_bytes)
+{
+	if (!end_that_request_data(rq, error, nr_bytes, 0)) {
+		/*
+		 * These members are not updated in end_that_request_data()
+		 * when all bios are completed.
+		 * Update them so that the request stacking driver can find
+		 * how many bytes remain in the request later.
+		 */
+		rq->nr_sectors = rq->hard_nr_sectors = 0;
+		rq->current_nr_sectors = rq->hard_cur_sectors = 0;
+	}
+}
+EXPORT_SYMBOL_GPL(blk_update_request);
 
 /**
  * blk_end_request_callback - Special helper function for tricky drivers
