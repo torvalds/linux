@@ -199,6 +199,22 @@ config HID_MONTEREY
 	---help---
 	Support for Monterey Genius KB29E.
 
+config HID_PANTHERLORD
+	tristate "Pantherlord devices support"
+	default m
+	depends on USB_HID
+	---help---
+	Support for PantherLord/GreenAsia based device support.
+
+
+config PANTHERLORD_FF
+	bool "Pantherlord force feedback support"
+	depends on HID_PANTHERLORD
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you have a PantherLord/GreenAsia based game controller
+	  or adapter and want to enable force feedback support for it.
+
 config HID_PETALYNX
 	tristate "Petalynx"
 	default m

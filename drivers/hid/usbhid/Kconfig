@@ -44,14 +44,6 @@ config HID_PID
 	  feedback for it. Microsoft Sidewinder Force Feedback 2 is one of such
 	  devices.
 
-config PANTHERLORD_FF
-	bool "PantherLord/GreenAsia based device support"
-	depends on HID_FF
-	select INPUT_FF_MEMLESS if USB_HID
-	help
-	  Say Y here if you have a PantherLord/GreenAsia based game controller
-	  or adapter and want to enable force feedback support for it.
-
 config THRUSTMASTER_FF
 	bool "ThrustMaster devices support"
 	depends on HID_FF

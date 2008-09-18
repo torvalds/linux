@@ -40,6 +40,9 @@ static int __init hid_dummy_init(void)
 #ifdef CONFIG_HID_MONTEREY_MODULE
 	HID_COMPAT_CALL_DRIVER(monterey);
 #endif
+#ifdef CONFIG_HID_PANTHERLORD_MODULE
+	HID_COMPAT_CALL_DRIVER(pantherlord);
+#endif
 #ifdef CONFIG_HID_PETALYNX_MODULE
 	HID_COMPAT_CALL_DRIVER(petalynx);
 #endif

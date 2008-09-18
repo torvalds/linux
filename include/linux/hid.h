@@ -760,7 +760,6 @@ void usbhid_set_leds(struct hid_device *hid);
 #ifdef CONFIG_HID_FF
 int hid_ff_init(struct hid_device *hid);
 
-int hid_plff_init(struct hid_device *hid);
 int hid_tmff_init(struct hid_device *hid);
 int hid_zpff_init(struct hid_device *hid);
 #ifdef CONFIG_HID_PID

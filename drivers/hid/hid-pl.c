@@ -9,7 +9,7 @@
  *   - contains two reports, one for each port (HID_QUIRK_MULTI_INPUT)
  *
  *  0e8f:0003 "GreenAsia Inc.    USB Joystick     "
- *   - tested with Köng Gaming gamepad
+ *   - tested with K??ng Gaming gamepad
  *
  *  Copyright (c) 2007 Anssi Hannula <anssi.hannula@gmail.com>
  */
@@ -38,7 +38,11 @@
 #include <linux/input.h>
 #include <linux/usb.h>
 #include <linux/hid.h>
-#include "usbhid.h"
+
+#include "hid-ids.h"
+
+#ifdef CONFIG_PANTHERLORD_FF
+#include "usbhid/usbhid.h"
 
 struct plff_device {
 	struct hid_report *report;
@@ -66,7 +70,7 @@ static int hid_plff_play(struct input_dev *dev, void *data,
 	return 0;
 }
 
-int hid_plff_init(struct hid_device *hid)
+static int plff_init(struct hid_device *hid)
 {
 	struct plff_device *plff;
 	struct hid_report *report;
@@ -137,3 +141,65 @@ int hid_plff_init(struct hid_device *hid)
 
 	return 0;
 }
+#else
+static inline int plff_init(struct hid_device *hid)
+{
+	return 0;
+}
+#endif
+
+static int pl_probe(struct hid_device *hdev, const struct hid_device_id *id)
+{
+	int ret;
+
+	if (id->driver_data)
+		hdev->quirks |= HID_QUIRK_MULTI_INPUT;
+
+	ret = hid_parse(hdev);
+	if (ret) {
+		dev_err(&hdev->dev, "parse failed\n");
+		goto err;
+	}
+
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_FF);
+	if (ret) {
+		dev_err(&hdev->dev, "hw start failed\n");
+		goto err;
+	}
+
+	plff_init(hdev);
+
+	return 0;
+err:
+	return ret;
+}
+
+static const struct hid_device_id pl_devices[] = {
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GAMERON, USB_DEVICE_ID_GAMERON_DUAL_PSX_ADAPTOR),
+		.driver_data = 1 }, /* Twin USB Joystick */
+	{ HID_USB_DEVICE(USB_VENDOR_ID_GREENASIA, 0x0003), }, /* GreenAsia Inc. USB Joystick */
+	{ }
+};
+MODULE_DEVICE_TABLE(hid, pl_devices);
+
+static struct hid_driver pl_driver = {
+	.name = "pantherlord",
+	.id_table = pl_devices,
+	.probe = pl_probe,
+};
+
+static int pl_init(void)
+{
+	return hid_register_driver(&pl_driver);
+}
+
+static void pl_exit(void)
+{
+	hid_unregister_driver(&pl_driver);
+}
+
+module_init(pl_init);
+module_exit(pl_exit);
+MODULE_LICENSE("GPL");
+
+HID_COMPAT_LOAD_DRIVER(pantherlord);

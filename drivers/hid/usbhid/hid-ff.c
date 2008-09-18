@@ -50,10 +50,6 @@ struct hid_ff_initializer {
  * be a PID device
  */
 static struct hid_ff_initializer inits[] = {
-#ifdef CONFIG_PANTHERLORD_FF
-	{ 0x810, 0x0001, hid_plff_init }, /* "Twin USB Joystick" */
-	{ 0xe8f, 0x0003, hid_plff_init }, /* "GreenAsia Inc.    USB Joystick     " */
-#endif
 #ifdef CONFIG_THRUSTMASTER_FF
 	{ 0x44f, 0xb300, hid_tmff_init },
 	{ 0x44f, 0xb304, hid_tmff_init },
