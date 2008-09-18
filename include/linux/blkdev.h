@@ -1004,47 +1004,6 @@ extern int blk_integrity_compare(struct block_device *, struct block_device *);
 extern int blk_rq_map_integrity_sg(struct request *, struct scatterlist *);
 extern int blk_rq_count_integrity_sg(struct request *);
 
-static inline unsigned short blk_integrity_tuple_size(struct blk_integrity *bi)
-{
-	if (bi)
-		return bi->tuple_size;
-
-	return 0;
-}
-
-static inline struct blk_integrity *bdev_get_integrity(struct block_device *bdev)
-{
-	return bdev->bd_disk->integrity;
-}
-
-static inline unsigned int bdev_get_tag_size(struct block_device *bdev)
-{
-	struct blk_integrity *bi = bdev_get_integrity(bdev);
-
-	if (bi)
-		return bi->tag_size;
-
-	return 0;
-}
-
-static inline int bdev_integrity_enabled(struct block_device *bdev, int rw)
-{
-	struct blk_integrity *bi = bdev_get_integrity(bdev);
-
-	if (bi == NULL)
-		return 0;
-
-	if (rw == READ && bi->verify_fn != NULL &&
-	    (bi->flags & INTEGRITY_FLAG_READ))
-		return 1;
-
-	if (rw == WRITE && bi->generate_fn != NULL &&
-	    (bi->flags & INTEGRITY_FLAG_WRITE))
-		return 1;
-
-	return 0;
-}
-
 static inline int blk_integrity_rq(struct request *rq)
 {
 	if (rq->bio == NULL)
@@ -1058,8 +1017,6 @@ static inline int blk_integrity_rq(struct request *rq)
 #define blk_integrity_rq(rq)			(0)
 #define blk_rq_count_integrity_sg(a)		(0)
 #define blk_rq_map_integrity_sg(a, b)		(0)
-#define bdev_get_integrity(a)			(0)
-#define bdev_get_tag_size(a)			(0)
 #define blk_integrity_compare(a, b)		(0)
 #define blk_integrity_register(a, b)		(0)
 #define blk_integrity_unregister(a)		do { } while (0);
