@@ -65,7 +65,7 @@ static inline int is_buffer_dma_capable(u64 mask, dma_addr_t addr, size_t size)
 
 static inline u64 dma_get_mask(struct device *dev)
 {
-	if (dev->dma_mask && *dev->dma_mask)
+	if (dev && dev->dma_mask && *dev->dma_mask)
 		return *dev->dma_mask;
 	return DMA_32BIT_MASK;
 }

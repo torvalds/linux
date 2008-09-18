@@ -276,11 +276,7 @@ cleanup1:
 static int
 address_needs_mapping(struct device *hwdev, dma_addr_t addr, size_t size)
 {
-	dma_addr_t mask = 0xffffffff;
-	/* If the device has a mask, use it, otherwise default to 32 bits */
-	if (hwdev && hwdev->dma_mask)
-		mask = *hwdev->dma_mask;
-	return !is_buffer_dma_capable(mask, addr, size);
+	return !is_buffer_dma_capable(dma_get_mask(hwdev), addr, size);
 }
 
 static int is_swiotlb_buffer(char *addr)
