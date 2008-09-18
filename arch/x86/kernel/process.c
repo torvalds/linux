@@ -270,8 +270,9 @@ static void c1e_idle(void)
 		rdmsr(MSR_K8_INT_PENDING_MSG, lo, hi);
 		if (lo & K8_INTP_C1E_ACTIVE_MASK) {
 			c1e_detected = 1;
-			mark_tsc_unstable("TSC halt in C1E");
-			printk(KERN_INFO "System has C1E enabled\n");
+			if (!boot_cpu_has(X86_FEATURE_CONSTANT_TSC))
+				mark_tsc_unstable("TSC halt in AMD C1E");
+			printk(KERN_INFO "System has AMD C1E enabled\n");
 			set_cpu_cap(&boot_cpu_data, X86_FEATURE_AMDC1E);
 		}
 	}
