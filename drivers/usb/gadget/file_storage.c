@@ -2676,11 +2676,24 @@ static int check_command(struct fsg_dev *fsg, int cmnd_size,
 	/* Verify the length of the command itself */
 	if (cmnd_size != fsg->cmnd_size) {
 
-		/* Special case workaround: MS-Windows issues REQUEST SENSE
-		 * with cbw->Length == 12 (it should be 6). */
-		if (fsg->cmnd[0] == SC_REQUEST_SENSE && fsg->cmnd_size == 12)
+		/* Special case workaround: There are plenty of buggy SCSI
+		 * implementations. Many have issues with cbw->Length
+		 * field passing a wrong command size. For those cases we
+		 * always try to work around the problem by using the length
+		 * sent by the host side provided it is at least as large
+		 * as the correct command length.
+		 * Examples of such cases would be MS-Windows, which issues
+		 * REQUEST SENSE with cbw->Length == 12 where it should
+		 * be 6, and xbox360 issuing INQUIRY, TEST UNIT READY and
+		 * REQUEST SENSE with cbw->Length == 10 where it should
+		 * be 6 as well.
+		 */
+		if (cmnd_size <= fsg->cmnd_size) {
+			DBG(fsg, "%s is buggy! Expected length %d "
+					"but we got %d\n", name,
+					cmnd_size, fsg->cmnd_size);
 			cmnd_size = fsg->cmnd_size;
-		else {
+		} else {
 			fsg->phase_error = 1;
 			return -EINVAL;
 		}
