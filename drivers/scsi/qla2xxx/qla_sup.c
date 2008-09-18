@@ -894,15 +894,17 @@ qla2xxx_flash_npiv_conf(scsi_qla_host_t *ha)
 		vid.node_name = wwn_to_u64(entry->node_name);
 
 		DEBUG2(qla_printk(KERN_DEBUG, ha, "NPIV[%02x]: wwpn=%llx "
-		    "wwnn=%llx vf_id=0x%x qos=0x%x.\n", cnt, vid.port_name,
-		    vid.node_name, le16_to_cpu(entry->vf_id),
-		    le16_to_cpu(entry->qos)));
+		    "wwnn=%llx vf_id=0x%x qos=0x%x.\n", cnt,
+		    (unsigned long long)vid.port_name,
+		    (unsigned long long)vid.node_name,
+		    le16_to_cpu(entry->vf_id), le16_to_cpu(entry->qos)));
 
 		vport = fc_vport_create(ha->host, 0, &vid);
 		if (!vport)
 			qla_printk(KERN_INFO, ha, "NPIV-Config: Failed to "
 			    "create vport [%02x]: wwpn=%llx wwnn=%llx.\n", cnt,
-			    vid.port_name, vid.node_name);
+			    (unsigned long long)vid.port_name,
+			    (unsigned long long)vid.node_name);
 	}
 done:
 	kfree(data);
