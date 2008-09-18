@@ -446,7 +446,8 @@ ieee80211_tx_h_rate_ctrl(struct ieee80211_tx_data *tx)
 	sband = tx->local->hw.wiphy->bands[tx->channel->band];
 
 	if (likely(tx->rate_idx < 0)) {
-		rate_control_get_rate(tx->dev, sband, tx->skb, &rsel);
+		rate_control_get_rate(tx->sdata, sband, tx->sta,
+				      tx->skb, &rsel);
 		if (tx->sta)
 			tx->sta->last_txrate_idx = rsel.rate_idx;
 		tx->rate_idx = rsel.rate_idx;
@@ -1955,7 +1956,7 @@ struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
 	skb->do_not_encrypt = 1;
 
 	info->band = band;
-	rate_control_get_rate(local->mdev, sband, skb, &rsel);
+	rate_control_get_rate(sdata, sband, NULL, skb, &rsel);
 
 	if (unlikely(rsel.rate_idx < 0)) {
 		if (net_ratelimit()) {

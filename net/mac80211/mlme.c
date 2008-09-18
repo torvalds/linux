@@ -1323,7 +1323,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		ieee80211_handle_ht(local, 1, &sta->sta.ht_info, &bss_info);
 	}
 
-	rate_control_rate_init(sta, local);
+	rate_control_rate_init(sta);
 
 	if (elems.wmm_param) {
 		set_sta_flags(sta, WLAN_STA_WME);
@@ -2342,7 +2342,7 @@ struct sta_info *ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata,
 	sta->sta.supp_rates[band] = supp_rates |
 			ieee80211_mandatory_rates(local, band);
 
-	rate_control_rate_init(sta, local);
+	rate_control_rate_init(sta);
 
 	if (sta_info_insert(sta))
 		return NULL;
