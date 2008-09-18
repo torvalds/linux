@@ -1120,31 +1120,31 @@ static int pxa_camera_probe(struct platform_device *pdev)
 	pcdev->dev = &pdev->dev;
 
 	/* request dma */
-	pcdev->dma_chans[0] = pxa_request_dma("CI_Y", DMA_PRIO_HIGH,
-					      pxa_camera_dma_irq_y, pcdev);
-	if (pcdev->dma_chans[0] < 0) {
+	err = pxa_request_dma("CI_Y", DMA_PRIO_HIGH,
+			      pxa_camera_dma_irq_y, pcdev);
+	if (err < 0) {
 		dev_err(pcdev->dev, "Can't request DMA for Y\n");
-		err = -ENOMEM;
 		goto exit_iounmap;
 	}
+	pcdev->dma_chans[0] = err;
 	dev_dbg(pcdev->dev, "got DMA channel %d\n", pcdev->dma_chans[0]);
 
-	pcdev->dma_chans[1] = pxa_request_dma("CI_U", DMA_PRIO_HIGH,
-					      pxa_camera_dma_irq_u, pcdev);
-	if (pcdev->dma_chans[1] < 0) {
+	err = pxa_request_dma("CI_U", DMA_PRIO_HIGH,
+			      pxa_camera_dma_irq_u, pcdev);
+	if (err < 0) {
 		dev_err(pcdev->dev, "Can't request DMA for U\n");
-		err = -ENOMEM;
 		goto exit_free_dma_y;
 	}
+	pcdev->dma_chans[1] = err;
 	dev_dbg(pcdev->dev, "got DMA channel (U) %d\n", pcdev->dma_chans[1]);
 
-	pcdev->dma_chans[2] = pxa_request_dma("CI_V", DMA_PRIO_HIGH,
-					      pxa_camera_dma_irq_v, pcdev);
-	if (pcdev->dma_chans[0] < 0) {
+	err = pxa_request_dma("CI_V", DMA_PRIO_HIGH,
+			      pxa_camera_dma_irq_v, pcdev);
+	if (err < 0) {
 		dev_err(pcdev->dev, "Can't request DMA for V\n");
-		err = -ENOMEM;
 		goto exit_free_dma_u;
 	}
+	pcdev->dma_chans[2] = err;
 	dev_dbg(pcdev->dev, "got DMA channel (V) %d\n", pcdev->dma_chans[2]);
 
 	DRCMR(68) = pcdev->dma_chans[0] | DRCMR_MAPVLD;
