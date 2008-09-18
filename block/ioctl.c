@@ -201,70 +201,6 @@ static int put_u64(unsigned long arg, u64 val)
 	return put_user(val, (u64 __user *)arg);
 }
 
-static int blkdev_locked_ioctl(struct file *file, struct block_device *bdev,
-				unsigned cmd, unsigned long arg)
-{
-	struct backing_dev_info *bdi;
-	int ret, n;
-
-	switch (cmd) {
-	case BLKRAGET:
-	case BLKFRAGET:
-		if (!arg)
-			return -EINVAL;
-		bdi = blk_get_backing_dev_info(bdev);
-		if (bdi == NULL)
-			return -ENOTTY;
-		return put_long(arg, (bdi->ra_pages * PAGE_CACHE_SIZE) / 512);
-	case BLKROGET:
-		return put_int(arg, bdev_read_only(bdev) != 0);
-	case BLKBSZGET: /* get the logical block size (cf. BLKSSZGET) */
-		return put_int(arg, block_size(bdev));
-	case BLKSSZGET: /* get block device hardware sector size */
-		return put_int(arg, bdev_hardsect_size(bdev));
-	case BLKSECTGET:
-		return put_ushort(arg, bdev_get_queue(bdev)->max_sectors);
-	case BLKRASET:
-	case BLKFRASET:
-		if(!capable(CAP_SYS_ADMIN))
-			return -EACCES;
-		bdi = blk_get_backing_dev_info(bdev);
-		if (bdi == NULL)
-			return -ENOTTY;
-		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
-		return 0;
-	case BLKBSZSET:
-		/* set the logical block size */
-		if (!capable(CAP_SYS_ADMIN))
-			return -EACCES;
-		if (!arg)
-			return -EINVAL;
-		if (get_user(n, (int __user *) arg))
-			return -EFAULT;
-		if (bd_claim(bdev, file) < 0)
-			return -EBUSY;
-		ret = set_blocksize(bdev, n);
-		bd_release(bdev);
-		return ret;
-	case BLKPG:
-		return blkpg_ioctl(bdev, (struct blkpg_ioctl_arg __user *) arg);
-	case BLKRRPART:
-		return blkdev_reread_part(bdev);
-	case BLKGETSIZE:
-		if ((bdev->bd_inode->i_size >> 9) > ~0UL)
-			return -EFBIG;
-		return put_ulong(arg, bdev->bd_inode->i_size >> 9);
-	case BLKGETSIZE64:
-		return put_u64(arg, bdev->bd_inode->i_size);
-	case BLKTRACESTART:
-	case BLKTRACESTOP:
-	case BLKTRACESETUP:
-	case BLKTRACETEARDOWN:
-		return blk_trace_ioctl(bdev, cmd, (char __user *) arg);
-	}
-	return -ENOIOCTLCMD;
-}
-
 int __blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 			unsigned cmd, unsigned long arg)
 {
@@ -299,6 +235,8 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 {
 	struct block_device *bdev = inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
+	struct backing_dev_info *bdi;
+	loff_t size;
 	int ret, n;
 	fmode_t mode = 0;
 	if (file) {
@@ -370,14 +308,74 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 			return -EFAULT;
 		return 0;
 	}
-	}
-
-	lock_kernel();
-	ret = blkdev_locked_ioctl(file, bdev, cmd, arg);
-	unlock_kernel();
-	if (ret != -ENOIOCTLCMD)
+	case BLKRAGET:
+	case BLKFRAGET:
+		if (!arg)
+			return -EINVAL;
+		bdi = blk_get_backing_dev_info(bdev);
+		if (bdi == NULL)
+			return -ENOTTY;
+		return put_long(arg, (bdi->ra_pages * PAGE_CACHE_SIZE) / 512);
+	case BLKROGET:
+		return put_int(arg, bdev_read_only(bdev) != 0);
+	case BLKBSZGET: /* get the logical block size (cf. BLKSSZGET) */
+		return put_int(arg, block_size(bdev));
+	case BLKSSZGET: /* get block device hardware sector size */
+		return put_int(arg, bdev_hardsect_size(bdev));
+	case BLKSECTGET:
+		return put_ushort(arg, bdev_get_queue(bdev)->max_sectors);
+	case BLKRASET:
+	case BLKFRASET:
+		if(!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		bdi = blk_get_backing_dev_info(bdev);
+		if (bdi == NULL)
+			return -ENOTTY;
+		lock_kernel();
+		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
+		unlock_kernel();
+		return 0;
+	case BLKBSZSET:
+		/* set the logical block size */
+		if (!capable(CAP_SYS_ADMIN))
+			return -EACCES;
+		if (!arg)
+			return -EINVAL;
+		if (get_user(n, (int __user *) arg))
+			return -EFAULT;
+		if (bd_claim(bdev, file) < 0)
+			return -EBUSY;
+		ret = set_blocksize(bdev, n);
+		bd_release(bdev);
 		return ret;
-
-	ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	case BLKPG:
+		lock_kernel();
+		ret = blkpg_ioctl(bdev, (struct blkpg_ioctl_arg __user *) arg);
+		unlock_kernel();
+		break;
+	case BLKRRPART:
+		lock_kernel();
+		ret = blkdev_reread_part(bdev);
+		unlock_kernel();
+		break;
+	case BLKGETSIZE:
+		size = bdev->bd_inode->i_size;
+		if ((size >> 9) > ~0UL)
+			return -EFBIG;
+		return put_ulong(arg, size >> 9);
+	case BLKGETSIZE64:
+		return put_u64(arg, bdev->bd_inode->i_size);
+	case BLKTRACESTART:
+	case BLKTRACESTOP:
+	case BLKTRACESETUP:
+	case BLKTRACETEARDOWN:
+		lock_kernel();
+		ret = blk_trace_ioctl(bdev, cmd, (char __user *) arg);
+		unlock_kernel();
+		break;
+	default:
+		ret = __blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	}
+	return ret;
 }
 EXPORT_SYMBOL_GPL(blkdev_ioctl);

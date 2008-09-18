@@ -688,12 +688,40 @@ static int compat_blkdev_driver_ioctl(struct block_device *bdev, fmode_t mode,
 	return __blkdev_driver_ioctl(bdev, mode, cmd, arg);
 }
 
-static int compat_blkdev_locked_ioctl(struct block_device *bdev,
-				unsigned cmd, unsigned long arg)
+/* Most of the generic ioctls are handled in the normal fallback path.
+   This assumes the blkdev's low level compat_ioctl always returns
+   ENOIOCTLCMD for unknown ioctls. */
+long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
+	int ret = -ENOIOCTLCMD;
+	struct inode *inode = file->f_mapping->host;
+	struct block_device *bdev = inode->i_bdev;
+	struct gendisk *disk = bdev->bd_disk;
+	fmode_t mode = file->f_mode;
 	struct backing_dev_info *bdi;
+	loff_t size;
+
+	if (file->f_flags & O_NDELAY)
+		mode |= FMODE_NDELAY_NOW;
 
 	switch (cmd) {
+	case HDIO_GETGEO:
+		return compat_hdio_getgeo(disk, bdev, compat_ptr(arg));
+	case BLKFLSBUF:
+	case BLKROSET:
+	case BLKDISCARD:
+	/*
+	 * the ones below are implemented in blkdev_locked_ioctl,
+	 * but we call blkdev_ioctl, which gets the lock for us
+	 */
+	case BLKRRPART:
+		return blkdev_ioctl(inode, file, cmd,
+				(unsigned long)compat_ptr(arg));
+	case BLKBSZSET_32:
+		return blkdev_ioctl(inode, file, BLKBSZSET,
+				(unsigned long)compat_ptr(arg));
+	case BLKPG:
+		return compat_blkpg_ioctl(inode, file, cmd, compat_ptr(arg));
 	case BLKRAGET:
 	case BLKFRAGET:
 		if (!arg)
@@ -719,67 +747,36 @@ static int compat_blkdev_locked_ioctl(struct block_device *bdev,
 		bdi = blk_get_backing_dev_info(bdev);
 		if (bdi == NULL)
 			return -ENOTTY;
+		lock_kernel();
 		bdi->ra_pages = (arg * 512) / PAGE_CACHE_SIZE;
+		unlock_kernel();
 		return 0;
 	case BLKGETSIZE:
-		if ((bdev->bd_inode->i_size >> 9) > ~0UL)
+		size = bdev->bd_inode->i_size;
+		if ((size >> 9) > ~0UL)
 			return -EFBIG;
-		return compat_put_ulong(arg, bdev->bd_inode->i_size >> 9);
+		return compat_put_ulong(arg, size >> 9);
 
 	case BLKGETSIZE64_32:
 		return compat_put_u64(arg, bdev->bd_inode->i_size);
 
 	case BLKTRACESETUP32:
-		return compat_blk_trace_setup(bdev, compat_ptr(arg));
+		lock_kernel();
+		ret = compat_blk_trace_setup(bdev, compat_ptr(arg));
+		unlock_kernel();
+		return ret;
 	case BLKTRACESTART: /* compatible */
 	case BLKTRACESTOP:  /* compatible */
 	case BLKTRACETEARDOWN: /* compatible */
-		return blk_trace_ioctl(bdev, cmd, compat_ptr(arg));
-	}
-	return -ENOIOCTLCMD;
-}
-
-/* Most of the generic ioctls are handled in the normal fallback path.
-   This assumes the blkdev's low level compat_ioctl always returns
-   ENOIOCTLCMD for unknown ioctls. */
-long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
-{
-	int ret = -ENOIOCTLCMD;
-	struct inode *inode = file->f_mapping->host;
-	struct block_device *bdev = inode->i_bdev;
-	struct gendisk *disk = bdev->bd_disk;
-	fmode_t mode = file->f_mode;
-	if (file->f_flags & O_NDELAY)
-		mode |= FMODE_NDELAY_NOW;
-
-	switch (cmd) {
-	case HDIO_GETGEO:
-		return compat_hdio_getgeo(disk, bdev, compat_ptr(arg));
-	case BLKFLSBUF:
-	case BLKROSET:
-	case BLKDISCARD:
-	/*
-	 * the ones below are implemented in blkdev_locked_ioctl,
-	 * but we call blkdev_ioctl, which gets the lock for us
-	 */
-	case BLKRRPART:
-		return blkdev_ioctl(inode, file, cmd,
-				(unsigned long)compat_ptr(arg));
-	case BLKBSZSET_32:
-		return blkdev_ioctl(inode, file, BLKBSZSET,
-				(unsigned long)compat_ptr(arg));
-	case BLKPG:
-		return compat_blkpg_ioctl(inode, file, cmd, compat_ptr(arg));
-	}
-
-	lock_kernel();
-	ret = compat_blkdev_locked_ioctl(bdev, cmd, arg);
-	unlock_kernel();
-	if (ret == -ENOIOCTLCMD && disk->fops->compat_ioctl)
-		ret = disk->fops->compat_ioctl(bdev, mode, cmd, arg);
-
-	if (ret != -ENOIOCTLCMD)
+		lock_kernel();
+		ret = blk_trace_ioctl(bdev, cmd, compat_ptr(arg));
+		unlock_kernel();
 		return ret;
-
-	return compat_blkdev_driver_ioctl(bdev, mode, cmd, arg);
+	default:
+		if (disk->fops->compat_ioctl)
+			ret = disk->fops->compat_ioctl(bdev, mode, cmd, arg);
+		if (ret == -ENOIOCTLCMD)
+			ret = compat_blkdev_driver_ioctl(bdev, mode, cmd, arg);
+		return ret;
+	}
 }
