@@ -68,6 +68,10 @@
 #define SDR0_UART3		0x0123
 #define SDR0_CUST0		0x4000
 
+/* SDRs (460EX/460GT) */
+#define SDR0_ETH_CFG		0x4103
+#define SDR0_ETH_CFG_ECS	0x00000100	/* EMAC int clk source */
+
 /*
  * All those DCR register addresses are offsets from the base address
  * for the SRAM0 controller (e.g. 0x20 on 440GX). The base address is
