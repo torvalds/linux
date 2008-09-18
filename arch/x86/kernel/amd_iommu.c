@@ -483,9 +483,10 @@ static unsigned long dma_mask_to_pages(unsigned long mask)
 static unsigned long dma_ops_alloc_addresses(struct device *dev,
 					     struct dma_ops_domain *dom,
 					     unsigned int pages,
-					     unsigned long align_mask)
+					     unsigned long align_mask,
+					     u64 dma_mask)
 {
-	unsigned long limit = dma_mask_to_pages(*dev->dma_mask);
+	unsigned long limit = dma_mask_to_pages(dma_mask);
 	unsigned long address;
 	unsigned long size = dom->aperture_size >> PAGE_SHIFT;
 	unsigned long boundary_size;
@@ -919,7 +920,8 @@ static dma_addr_t __map_single(struct device *dev,
 			       phys_addr_t paddr,
 			       size_t size,
 			       int dir,
-			       bool align)
+			       bool align,
+			       u64 dma_mask)
 {
 	dma_addr_t offset = paddr & ~PAGE_MASK;
 	dma_addr_t address, start;
@@ -933,7 +935,8 @@ static dma_addr_t __map_single(struct device *dev,
 	if (align)
 		align_mask = (1UL << get_order(size)) - 1;
 
-	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask);
+	address = dma_ops_alloc_addresses(dev, dma_dom, pages, align_mask,
+					  dma_mask);
 	if (unlikely(address == bad_dma_address))
 		goto out;
 
@@ -997,9 +1000,12 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 	struct protection_domain *domain;
 	u16 devid;
 	dma_addr_t addr;
+	u64 dma_mask;
 
 	if (!check_device(dev))
 		return bad_dma_address;
+
+	dma_mask = *dev->dma_mask;
 
 	get_device_resources(dev, &iommu, &domain, &devid);
 
@@ -1008,7 +1014,8 @@ static dma_addr_t map_single(struct device *dev, phys_addr_t paddr,
 		return (dma_addr_t)paddr;
 
 	spin_lock_irqsave(&domain->lock, flags);
-	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir, false);
+	addr = __map_single(dev, iommu, domain->priv, paddr, size, dir, false,
+			    dma_mask);
 	if (addr == bad_dma_address)
 		goto out;
 
@@ -1080,9 +1087,12 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 	struct scatterlist *s;
 	phys_addr_t paddr;
 	int mapped_elems = 0;
+	u64 dma_mask;
 
 	if (!check_device(dev))
 		return 0;
+
+	dma_mask = *dev->dma_mask;
 
 	get_device_resources(dev, &iommu, &domain, &devid);
 
@@ -1095,7 +1105,8 @@ static int map_sg(struct device *dev, struct scatterlist *sglist,
 		paddr = sg_phys(s);
 
 		s->dma_address = __map_single(dev, iommu, domain->priv,
-					      paddr, s->length, dir, false);
+					      paddr, s->length, dir, false,
+					      dma_mask);
 
 		if (s->dma_address) {
 			s->dma_length = s->length;
@@ -1168,6 +1179,7 @@ static void *alloc_coherent(struct device *dev, size_t size,
 	struct protection_domain *domain;
 	u16 devid;
 	phys_addr_t paddr;
+	u64 dma_mask = dev->coherent_dma_mask;
 
 	if (!check_device(dev))
 		return NULL;
@@ -1187,10 +1199,13 @@ static void *alloc_coherent(struct device *dev, size_t size,
 		return virt_addr;
 	}
 
+	if (!dma_mask)
+		dma_mask = *dev->dma_mask;
+
 	spin_lock_irqsave(&domain->lock, flags);
 
 	*dma_addr = __map_single(dev, iommu, domain->priv, paddr,
-				 size, DMA_BIDIRECTIONAL, true);
+				 size, DMA_BIDIRECTIONAL, true, dma_mask);
 
 	if (*dma_addr == bad_dma_address) {
 		free_pages((unsigned long)virt_addr, get_order(size));
