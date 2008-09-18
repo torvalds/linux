@@ -25,7 +25,6 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -34,6 +33,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 
@@ -114,6 +114,30 @@ static struct spi_board_info carmeva_spi_devices[] = {
 	},
 };
 
+static struct gpio_led carmeva_leds[] = {
+	{ /* "user led 1", LED9 */
+		.name			= "led9",
+		.gpio			= AT91_PIN_PA21,
+		.active_low		= 1,
+		.default_trigger	= "heartbeat",
+	},
+	{ /* "user led 2", LED10 */
+		.name			= "led10",
+		.gpio			= AT91_PIN_PA25,
+		.active_low		= 1,
+	},
+	{ /* "user led 3", LED11 */
+		.name			= "led11",
+		.gpio			= AT91_PIN_PA26,
+		.active_low		= 1,
+	},
+	{ /* "user led 4", LED12 */
+		.name			= "led12",
+		.gpio			= AT91_PIN_PA18,
+		.active_low		= 1,
+	}
+};
+
 static void __init carmeva_board_init(void)
 {
 	/* Serial */
@@ -132,6 +156,8 @@ static void __init carmeva_board_init(void)
 //	at91_add_device_cf(&carmeva_cf_data);
 	/* MMC */
 	at91_add_device_mmc(0, &carmeva_mmc_data);
+	/* LEDs */
+	at91_gpio_leds(carmeva_leds, ARRAY_SIZE(carmeva_leds));
 }
 
 MACHINE_START(CARMEVA, "Carmeva")
