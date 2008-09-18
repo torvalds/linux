@@ -111,12 +111,11 @@ static void init_kstat_irqs(struct irq_desc *desc, int nr_desc, int nr)
 	}
 }
 
+#ifdef CONFIG_HAVE_SPARSE_IRQ
 /*
  * Protect the sparse_irqs_free freelist:
  */
 static DEFINE_SPINLOCK(sparse_irq_lock);
-
-#ifdef CONFIG_HAVE_SPARSE_IRQ
 static struct irq_desc *sparse_irqs_free;
 struct irq_desc *sparse_irqs;
 #endif
