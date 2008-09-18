@@ -1557,7 +1557,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	 */
 	if (sdata->vif.type != NL80211_IFTYPE_STATION &&
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
-		return RX_DROP_MONITOR;
+		return RX_CONTINUE;
 
 	switch (mgmt->u.action.category) {
 	case WLAN_CATEGORY_BACK:
