@@ -172,6 +172,9 @@ extern void __init at91_add_device_ac97(struct atmel_ac97_data *data);
  /* ISI */
 extern void __init at91_add_device_isi(void);
 
+ /* Touchscreen Controller */
+extern void __init at91_add_device_tsadcc(void);
+
  /* LEDs */
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);

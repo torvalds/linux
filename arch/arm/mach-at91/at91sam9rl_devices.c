@@ -527,6 +527,51 @@ static void __init at91_add_device_tc(void) { }
 
 
 /* --------------------------------------------------------------------
+ *  Touchscreen
+ * -------------------------------------------------------------------- */
+
+#if defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC) || defined(CONFIG_TOUCHSCREEN_ATMEL_TSADCC_MODULE)
+static u64 tsadcc_dmamask = DMA_BIT_MASK(32);
+
+static struct resource tsadcc_resources[] = {
+	[0] = {
+		.start	= AT91SAM9RL_BASE_TSC,
+		.end	= AT91SAM9RL_BASE_TSC + SZ_16K - 1,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= AT91SAM9RL_ID_TSC,
+		.end	= AT91SAM9RL_ID_TSC,
+		.flags	= IORESOURCE_IRQ,
+	}
+};
+
+static struct platform_device at91sam9rl_tsadcc_device = {
+	.name		= "atmel_tsadcc",
+	.id		= -1,
+	.dev		= {
+				.dma_mask		= &tsadcc_dmamask,
+				.coherent_dma_mask	= DMA_BIT_MASK(32),
+	},
+	.resource	= tsadcc_resources,
+	.num_resources	= ARRAY_SIZE(tsadcc_resources),
+};
+
+void __init at91_add_device_tsadcc(void)
+{
+	at91_set_A_periph(AT91_PIN_PA17, 0);	/* AD0_XR */
+	at91_set_A_periph(AT91_PIN_PA18, 0);	/* AD1_XL */
+	at91_set_A_periph(AT91_PIN_PA19, 0);	/* AD2_YT */
+	at91_set_A_periph(AT91_PIN_PA20, 0);	/* AD3_TB */
+
+	platform_device_register(&at91sam9rl_tsadcc_device);
+}
+#else
+void __init at91_add_device_tsadcc(void) {}
+#endif
+
+
+/* --------------------------------------------------------------------
  *  RTC
  * -------------------------------------------------------------------- */
 

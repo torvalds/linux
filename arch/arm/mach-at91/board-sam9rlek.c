@@ -195,6 +195,8 @@ static void __init ek_board_init(void)
 	at91_add_device_mmc(0, &ek_mmc_data);
 	/* LCD Controller */
 	at91_add_device_lcdc(&ek_lcdc_data);
+	/* Touch Screen Controller */
+	at91_add_device_tsadcc();
 }
 
 MACHINE_START(AT91SAM9RLEK, "Atmel AT91SAM9RL-EK")
