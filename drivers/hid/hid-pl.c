@@ -90,7 +90,7 @@ static int plff_init(struct hid_device *hid)
 	   currently unknown. */
 
 	if (list_empty(report_list)) {
-		printk(KERN_ERR "hid-plff: no output reports found\n");
+		dev_err(&hid->dev, "no output reports found\n");
 		return -ENODEV;
 	}
 
@@ -99,18 +99,19 @@ static int plff_init(struct hid_device *hid)
 		report_ptr = report_ptr->next;
 
 		if (report_ptr == report_list) {
-			printk(KERN_ERR "hid-plff: required output report is missing\n");
+			dev_err(&hid->dev, "required output report is "
+					"missing\n");
 			return -ENODEV;
 		}
 
 		report = list_entry(report_ptr, struct hid_report, list);
 		if (report->maxfield < 1) {
-			printk(KERN_ERR "hid-plff: no fields in the report\n");
+			dev_err(&hid->dev, "no fields in the report\n");
 			return -ENODEV;
 		}
 
 		if (report->field[0]->report_count < 4) {
-			printk(KERN_ERR "hid-plff: not enough values in the field\n");
+			dev_err(&hid->dev, "not enough values in the field\n");
 			return -ENODEV;
 		}
 
@@ -136,7 +137,7 @@ static int plff_init(struct hid_device *hid)
 		usbhid_submit_report(hid, plff->report, USB_DIR_OUT);
 	}
 
-	printk(KERN_INFO "hid-plff: Force feedback for PantherLord/GreenAsia "
+	dev_info(&hid->dev, "Force feedback for PantherLord/GreenAsia "
 	       "devices by Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;

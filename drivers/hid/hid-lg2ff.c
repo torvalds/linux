@@ -71,18 +71,18 @@ int lg2ff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		printk(KERN_ERR "hid-lg2ff: no output report found\n");
+		dev_err(&hid->dev, "no output report found\n");
 		return -ENODEV;
 	}
 
 	report = list_entry(report_list->next, struct hid_report, list);
 
 	if (report->maxfield < 1) {
-		printk(KERN_ERR "hid-lg2ff: output report is empty\n");
+		dev_err(&hid->dev, "output report is empty\n");
 		return -ENODEV;
 	}
 	if (report->field[0]->report_count < 7) {
-		printk(KERN_ERR "hid-lg2ff: not enough values in the field\n");
+		dev_err(&hid->dev, "not enough values in the field\n");
 		return -ENODEV;
 	}
 
@@ -109,7 +109,7 @@ int lg2ff_init(struct hid_device *hid)
 
 	usbhid_submit_report(hid, report, USB_DIR_OUT);
 
-	printk(KERN_INFO "Force feedback for Logitech Rumblepad 2 by "
+	dev_info(&hid->dev, "Force feedback for Logitech Rumblepad 2 by "
 	       "Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;

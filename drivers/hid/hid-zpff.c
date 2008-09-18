@@ -73,14 +73,14 @@ static int zpff_init(struct hid_device *hid)
 	int error;
 
 	if (list_empty(report_list)) {
-		printk(KERN_ERR "hid-zpff: no output report found\n");
+		dev_err(&hid->dev, "no output report found\n");
 		return -ENODEV;
 	}
 
 	report = list_entry(report_list->next, struct hid_report, list);
 
 	if (report->maxfield < 4) {
-		printk(KERN_ERR "hid-zpff: not enough fields in report\n");
+		dev_err(&hid->dev, "not enough fields in report\n");
 		return -ENODEV;
 	}
 
@@ -103,7 +103,7 @@ static int zpff_init(struct hid_device *hid)
 	zpff->report->field[3]->value[0] = 0x00;
 	usbhid_submit_report(hid, zpff->report, USB_DIR_OUT);
 
-	printk(KERN_INFO "Force feedback for Zeroplus based devices by "
+	dev_info(&hid->dev, "force feedback for Zeroplus based devices by "
 	       "Anssi Hannula <anssi.hannula@gmail.com>\n");
 
 	return 0;

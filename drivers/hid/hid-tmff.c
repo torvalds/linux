@@ -149,27 +149,28 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 			switch (field->usage[0].hid) {
 			case THRUSTMASTER_USAGE_FF:
 				if (field->report_count < 2) {
-					warn("ignoring FF field with "
-							"report_count < 2");
+					dev_warn(&hid->dev, "ignoring FF field "
+						"with report_count < 2\n");
 					continue;
 				}
 
 				if (field->logical_maximum ==
 						field->logical_minimum) {
-					warn("ignoring FF field with "
-							"logical_maximum == "
-							"logical_minimum");
+					dev_warn(&hid->dev, "ignoring FF field "
+							"with logical_maximum "
+							"== logical_minimum\n");
 					continue;
 				}
 
 				if (tmff->report && tmff->report != report) {
-					warn("ignoring FF field in other "
-							"report");
+					dev_warn(&hid->dev, "ignoring FF field "
+							"in other report\n");
 					continue;
 				}
 
 				if (tmff->ff_field && tmff->ff_field != field) {
-					warn("ignoring duplicate FF field");
+					dev_warn(&hid->dev, "ignoring "
+							"duplicate FF field\n");
 					continue;
 				}
 
@@ -182,7 +183,8 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 				break;
 
 			default:
-				warn("ignoring unknown output usage %08x",
+				dev_warn(&hid->dev, "ignoring unknown output "
+						"usage %08x\n",
 						field->usage[0].hid);
 				continue;
 			}
@@ -190,7 +192,7 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 	}
 
 	if (!tmff->report) {
-		err("cant find FF field in output reports\n");
+		dev_err(&hid->dev, "can't find FF field in output reports\n");
 		error = -ENODEV;
 		goto fail;
 	}
@@ -199,8 +201,8 @@ static int tmff_init(struct hid_device *hid, const signed short *ff_bits)
 	if (error)
 		goto fail;
 
-	info("Force feedback for ThrustMaster devices by Zinx Verituse "
-			"<zinx@epicsol.org>");
+	dev_info(&hid->dev, "force feedback for ThrustMaster devices by Zinx "
+			"Verituse <zinx@epicsol.org>");
 	return 0;
 
 fail:
