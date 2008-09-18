@@ -16,6 +16,15 @@ EXPORT_SYMBOL(dma_ops);
 
 static int iommu_sac_force __read_mostly;
 
+/*
+ * If this is disabled the IOMMU will use an optimized flushing strategy
+ * of only flushing when an mapping is reused. With it true the GART is
+ * flushed for every mapping. Problem is that doing the lazy flush seems
+ * to trigger bugs with some popular PCI cards, in particular 3ware (but
+ * has been also also seen with Qlogic at least).
+ */
+int iommu_fullflush;
+
 #ifdef CONFIG_IOMMU_DEBUG
 int panic_on_overflow __read_mostly = 1;
 int force_iommu __read_mostly = 1;
@@ -171,6 +180,10 @@ static __init int iommu_setup(char *p)
 		}
 		if (!strncmp(p, "nomerge", 7))
 			iommu_merge = 0;
+		if (!strncmp(p, "fullflush", 8))
+			iommu_fullflush = 1;
+		if (!strncmp(p, "nofullflush", 11))
+			iommu_fullflush = 0;
 		if (!strncmp(p, "forcesac", 8))
 			iommu_sac_force = 1;
 		if (!strncmp(p, "allowdac", 8))

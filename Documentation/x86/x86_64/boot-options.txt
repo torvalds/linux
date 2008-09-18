@@ -233,8 +233,6 @@ IOMMU (input/output memory management unit)
   iommu options only relevant to the AMD GART hardware IOMMU:
     <size>             Set the size of the remapping area in bytes.
     allowed            Overwrite iommu off workarounds for specific chipsets.
-    fullflush          Flush IOMMU on each allocation (default).
-    nofullflush        Don't use IOMMU fullflush.
     leak               Turn on simple iommu leak tracing (only when
                        CONFIG_IOMMU_LEAK is on). Default number of leak pages
                        is 20.
