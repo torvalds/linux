@@ -640,8 +640,11 @@ static int __init cpufreq_gov_dbs_init(void)
 {
 	int err;
 	cputime64_t wall;
-	u64 idle_time = get_cpu_idle_time_us(smp_processor_id(), &wall);
+	u64 idle_time;
+	int cpu = get_cpu();
 
+	idle_time = get_cpu_idle_time_us(cpu, &wall);
+	put_cpu();
 	if (idle_time != -1ULL) {
 		/* Idle micro accounting is supported. Use finer thresholds */
 		dbs_tuners_ins.up_threshold = MICRO_FREQUENCY_UP_THRESHOLD;
