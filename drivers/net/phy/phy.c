@@ -366,7 +366,8 @@ int phy_mii_ioctl(struct phy_device *phydev,
 	switch (cmd) {
 	case SIOCGMIIPHY:
 		mii_data->phy_id = phydev->addr;
-		break;
+		/* fall through */
+
 	case SIOCGMIIREG:
 		mii_data->val_out = phy_read(phydev, mii_data->reg_num);
 		break;
@@ -413,7 +414,7 @@ int phy_mii_ioctl(struct phy_device *phydev,
 		break;
 
 	default:
-		return -ENOTTY;
+		return -EOPNOTSUPP;
 	}
 
 	return 0;
