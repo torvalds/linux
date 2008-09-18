@@ -15973,15 +15973,15 @@ static int alc662_auto_create_multi_out_ctls(struct alc_spec *spec,
 							      HDA_OUTPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_BIND_MUTE,
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
 					  "Center Playback Switch",
-					  HDA_COMPOSE_AMP_VAL(nid, 1, 2,
+					  HDA_COMPOSE_AMP_VAL(0x0e, 1, 0,
 							      HDA_INPUT));
 			if (err < 0)
 				return err;
-			err = add_control(spec, ALC_CTL_BIND_MUTE,
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE,
 					  "LFE Playback Switch",
-					  HDA_COMPOSE_AMP_VAL(nid, 2, 2,
+					  HDA_COMPOSE_AMP_VAL(0x0e, 2, 0,
 							      HDA_INPUT));
 			if (err < 0)
 				return err;
@@ -15993,9 +15993,9 @@ static int alc662_auto_create_multi_out_ctls(struct alc_spec *spec,
 			if (err < 0)
 				return err;
 			sprintf(name, "%s Playback Switch", chname[i]);
-			err = add_control(spec, ALC_CTL_BIND_MUTE, name,
-					  HDA_COMPOSE_AMP_VAL(nid, 3, 2,
-							      HDA_INPUT));
+			err = add_control(spec, ALC_CTL_WIDGET_MUTE, name,
+				HDA_COMPOSE_AMP_VAL(alc880_idx_to_mixer(i),
+						    3, 0, HDA_INPUT));
 			if (err < 0)
 				return err;
 		}
