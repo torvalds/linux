@@ -133,6 +133,16 @@ struct atmel_uart_data {
 extern void __init at91_add_device_serial(void);
 
 /*
+ * PWM
+ */
+#define AT91_PWM0	0
+#define AT91_PWM1	1
+#define AT91_PWM2	2
+#define AT91_PWM3	3
+
+extern void __init at91_add_device_pwm(u32 mask);
+
+/*
  * SSC -- accessed through ssc_request(id).  Drivers don't bind to SSC
  * platform devices.  Their SSC ID is part of their configuration data,
  * along with information about which SSC signals they should use.
