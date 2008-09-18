@@ -2069,9 +2069,10 @@ static irqreturn_t sbmac_intr(int irq,void *dev_instance)
 static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
+	unsigned long flags;
 
 	/* lock eth irq */
-	spin_lock_irq (&sc->sbm_lock);
+	spin_lock_irqsave(&sc->sbm_lock, flags);
 
 	/*
 	 * Put the buffer on the transmit ring.  If we
@@ -2081,14 +2082,14 @@ static int sbmac_start_tx(struct sk_buff *skb, struct net_device *dev)
 	if (sbdma_add_txbuffer(&(sc->sbm_txdma),skb)) {
 		/* XXX save skb that we could not send */
 		netif_stop_queue(dev);
-		spin_unlock_irq(&sc->sbm_lock);
+		spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
 		return 1;
 	}
 
 	dev->trans_start = jiffies;
 
-	spin_unlock_irq (&sc->sbm_lock);
+	spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
 	return 0;
 }
@@ -2568,14 +2569,15 @@ static void sbmac_mii_poll(struct net_device *dev)
 static void sbmac_tx_timeout (struct net_device *dev)
 {
 	struct sbmac_softc *sc = netdev_priv(dev);
+	unsigned long flags;
 
-	spin_lock_irq (&sc->sbm_lock);
+	spin_lock_irqsave(&sc->sbm_lock, flags);
 
 
 	dev->trans_start = jiffies;
 	dev->stats.tx_errors++;
 
-	spin_unlock_irq (&sc->sbm_lock);
+	spin_unlock_irqrestore(&sc->sbm_lock, flags);
 
 	printk (KERN_WARNING "%s: Transmit timed out\n",dev->name);
 }
