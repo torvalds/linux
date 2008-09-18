@@ -812,7 +812,7 @@ int save_mask_IO_APIC_setup(void)
 			kzalloc(sizeof(struct IO_APIC_route_entry) *
 				nr_ioapic_registers[apic], GFP_KERNEL);
 		if (!early_ioapic_entries[apic])
-			return -ENOMEM;
+			goto nomem;
 	}
 
 	for (apic = 0; apic < nr_ioapics; apic++)
@@ -826,17 +826,32 @@ int save_mask_IO_APIC_setup(void)
 				ioapic_write_entry(apic, pin, entry);
 			}
 		}
+
 	return 0;
+
+nomem:
+	for (; apic > 0; apic--)
+		kfree(early_ioapic_entries[apic]);
+	kfree(early_ioapic_entries[apic]);
+	memset(early_ioapic_entries, 0,
+		ARRAY_SIZE(early_ioapic_entries));
+
+	return -ENOMEM;
 }
 
 void restore_IO_APIC_setup(void)
 {
 	int apic, pin;
 
-	for (apic = 0; apic < nr_ioapics; apic++)
+	for (apic = 0; apic < nr_ioapics; apic++) {
+		if (!early_ioapic_entries[apic])
+			break;
 		for (pin = 0; pin < nr_ioapic_registers[apic]; pin++)
 			ioapic_write_entry(apic, pin,
 					   early_ioapic_entries[apic][pin]);
+		kfree(early_ioapic_entries[apic]);
+		early_ioapic_entries[apic] = NULL;
+	}
 }
 
 void reinit_intr_remapped_IO_APIC(int intr_remapping)

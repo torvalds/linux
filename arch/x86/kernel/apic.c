@@ -1360,7 +1360,12 @@ void enable_IR_x2apic(void)
 
 	local_irq_save(flags);
 	mask_8259A();
-	save_mask_IO_APIC_setup();
+
+	ret = save_mask_IO_APIC_setup();
+	if (ret) {
+		printk(KERN_INFO "Saving IO-APIC state failed: %d\n", ret);
+		goto end;
+	}
 
 	ret = enable_intr_remapping(1);
 
@@ -1370,14 +1375,15 @@ void enable_IR_x2apic(void)
 	}
 
 	if (ret)
-		goto end;
+		goto end_restore;
 
 	if (!x2apic) {
 		x2apic = 1;
 		apic_ops = &x2apic_ops;
 		enable_x2apic();
 	}
-end:
+
+end_restore:
 	if (ret)
 		/*
 		 * IR enabling failed
@@ -1386,6 +1392,7 @@ end:
 	else
 		reinit_intr_remapped_IO_APIC(x2apic_preenabled);
 
+end:
 	unmask_8259A();
 	local_irq_restore(flags);
 
