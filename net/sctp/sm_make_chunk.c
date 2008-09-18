@@ -1886,11 +1886,13 @@ static void sctp_process_ext_param(struct sctp_association *asoc,
 			    /* if the peer reports AUTH, assume that he
 			     * supports AUTH.
 			     */
-			    asoc->peer.auth_capable = 1;
+			    if (sctp_auth_enable)
+				    asoc->peer.auth_capable = 1;
 			    break;
 		    case SCTP_CID_ASCONF:
 		    case SCTP_CID_ASCONF_ACK:
-			    asoc->peer.asconf_capable = 1;
+			    if (sctp_addip_enable)
+				    asoc->peer.asconf_capable = 1;
 			    break;
 		    default:
 			    break;
@@ -2460,6 +2462,9 @@ do_addr_param:
 		break;
 
 	case SCTP_PARAM_SET_PRIMARY:
+		if (!sctp_addip_enable)
+			goto fall_through;
+
 		addr_param = param.v + sizeof(sctp_addip_param_t);
 
 		af = sctp_get_af_specific(param_type2af(param.p->type));
