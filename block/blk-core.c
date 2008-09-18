@@ -436,6 +436,14 @@ void blk_put_queue(struct request_queue *q)
 
 void blk_cleanup_queue(struct request_queue *q)
 {
+	/*
+	 * We know we have process context here, so we can be a little
+	 * cautious and ensure that pending block actions on this device
+	 * are done before moving on. Going into this function, we should
+	 * not have processes doing IO to this device.
+	 */
+	blk_sync_queue(q);
+
 	mutex_lock(&q->sysfs_lock);
 	queue_flag_set_unlocked(QUEUE_FLAG_DEAD, q);
 	mutex_unlock(&q->sysfs_lock);
