@@ -569,14 +569,16 @@ static ssize_t fill_periodic_buffer(struct debug_buffer *buf)
 				for (temp = 0; temp < seen_count; temp++) {
 					if (seen [temp].ptr != p.ptr)
 						continue;
-					if (p.qh->qh_next.ptr)
+					if (p.qh->qh_next.ptr) {
 						temp = scnprintf (next, size,
 							" ...");
-					p.ptr = NULL;
+						size -= temp;
+						next += temp;
+					}
 					break;
 				}
 				/* show more info the first time around */
-				if (temp == seen_count && p.ptr) {
+				if (temp == seen_count) {
 					u32	scratch = hc32_to_cpup(ehci,
 							&p.qh->hw_info1);
 					struct ehci_qtd	*qtd;
