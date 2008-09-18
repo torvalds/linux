@@ -1127,7 +1127,7 @@ bnx2_init_all_rx_contexts(struct bnx2 *bp)
 	}
 }
 
-static int
+static void
 bnx2_set_mac_link(struct bnx2 *bp)
 {
 	u32 val;
@@ -1193,8 +1193,6 @@ bnx2_set_mac_link(struct bnx2 *bp)
 
 	if (CHIP_NUM(bp) == CHIP_NUM_5709)
 		bnx2_init_all_rx_contexts(bp);
-
-	return 0;
 }
 
 static void
