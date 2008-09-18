@@ -1530,6 +1530,87 @@ void submit_bio(int rw, struct bio *bio)
 EXPORT_SYMBOL(submit_bio);
 
 /**
+ * blk_rq_check_limits - Helper function to check a request for the queue limit
+ * @q:  the queue
+ * @rq: the request being checked
+ *
+ * Description:
+ *    @rq may have been made based on weaker limitations of upper-level queues
+ *    in request stacking drivers, and it may violate the limitation of @q.
+ *    Since the block layer and the underlying device driver trust @rq
+ *    after it is inserted to @q, it should be checked against @q before
+ *    the insertion using this generic function.
+ *
+ *    This function should also be useful for request stacking drivers
+ *    in some cases below, so export this fuction.
+ *    Request stacking drivers like request-based dm may change the queue
+ *    limits while requests are in the queue (e.g. dm's table swapping).
+ *    Such request stacking drivers should check those requests agaist
+ *    the new queue limits again when they dispatch those requests,
+ *    although such checkings are also done against the old queue limits
+ *    when submitting requests.
+ */
+int blk_rq_check_limits(struct request_queue *q, struct request *rq)
+{
+	if (rq->nr_sectors > q->max_sectors ||
+	    rq->data_len > q->max_hw_sectors << 9) {
+		printk(KERN_ERR "%s: over max size limit.\n", __func__);
+		return -EIO;
+	}
+
+	/*
+	 * queue's settings related to segment counting like q->bounce_pfn
+	 * may differ from that of other stacking queues.
+	 * Recalculate it to check the request correctly on this queue's
+	 * limitation.
+	 */
+	blk_recalc_rq_segments(rq);
+	if (rq->nr_phys_segments > q->max_phys_segments ||
+	    rq->nr_phys_segments > q->max_hw_segments) {
+		printk(KERN_ERR "%s: over max segments limit.\n", __func__);
+		return -EIO;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blk_rq_check_limits);
+
+/**
+ * blk_insert_cloned_request - Helper for stacking drivers to submit a request
+ * @q:  the queue to submit the request
+ * @rq: the request being queued
+ */
+int blk_insert_cloned_request(struct request_queue *q, struct request *rq)
+{
+	unsigned long flags;
+
+	if (blk_rq_check_limits(q, rq))
+		return -EIO;
+
+#ifdef CONFIG_FAIL_MAKE_REQUEST
+	if (rq->rq_disk && rq->rq_disk->part0.make_it_fail &&
+	    should_fail(&fail_make_request, blk_rq_bytes(rq)))
+		return -EIO;
+#endif
+
+	spin_lock_irqsave(q->queue_lock, flags);
+
+	/*
+	 * Submitting request must be dequeued before calling this function
+	 * because it will be linked to another request_queue
+	 */
+	BUG_ON(blk_queued_rq(rq));
+
+	drive_stat_acct(rq, 1);
+	__elv_add_request(q, rq, ELEVATOR_INSERT_BACK, 0);
+
+	spin_unlock_irqrestore(q->queue_lock, flags);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(blk_insert_cloned_request);
+
+/**
  * __end_that_request_first - end I/O on a request
  * @req:      the request being processed
  * @error:    %0 for success, < %0 for error
