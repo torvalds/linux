@@ -240,6 +240,12 @@ struct switch_stack {
  */
 # define instruction_pointer(regs) ((regs)->cr_iip + ia64_psr(regs)->ri)
 
+static inline unsigned long user_stack_pointer(struct pt_regs *regs)
+{
+	/* FIXME: should this be bspstore + nr_dirty regs? */
+	return regs->ar_bspstore;
+}
+
 #define regs_return_value(regs) ((regs)->r8)
 
 /* Conserve space in histogram by encoding slot bits in address

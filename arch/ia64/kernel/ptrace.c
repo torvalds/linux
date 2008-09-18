@@ -2199,3 +2199,68 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *tsk)
 #endif
 	return &user_ia64_view;
 }
+
+struct syscall_get_set_args {
+	unsigned int i;
+	unsigned int n;
+	unsigned long *args;
+	struct pt_regs *regs;
+	int rw;
+};
+
+static void syscall_get_set_args_cb(struct unw_frame_info *info, void *data)
+{
+	struct syscall_get_set_args *args = data;
+	struct pt_regs *pt = args->regs;
+	unsigned long *krbs, cfm, ndirty;
+	int i, count;
+
+	if (unw_unwind_to_user(info) < 0)
+		return;
+
+	cfm = pt->cr_ifs;
+	krbs = (unsigned long *)info->task + IA64_RBS_OFFSET/8;
+	ndirty = ia64_rse_num_regs(krbs, krbs + (pt->loadrs >> 19));
+
+	count = 0;
+	if (in_syscall(pt))
+		count = min_t(int, args->n, cfm & 0x7f);
+
+	for (i = 0; i < count; i++) {
+		if (args->rw)
+			*ia64_rse_skip_regs(krbs, ndirty + i + args->i) =
+				args->args[i];
+		else
+			args->args[i] = *ia64_rse_skip_regs(krbs,
+				ndirty + i + args->i);
+	}
+
+	if (!args->rw) {
+		while (i < args->n) {
+			args->args[i] = 0;
+			i++;
+		}
+	}
+}
+
+void ia64_syscall_get_set_arguments(struct task_struct *task,
+	struct pt_regs *regs, unsigned int i, unsigned int n,
+	unsigned long *args, int rw)
+{
+	struct syscall_get_set_args data = {
+		.i = i,
+		.n = n,
+		.args = args,
+		.regs = regs,
+		.rw = rw,
+	};
+
+	if (task == current)
+		unw_init_running(syscall_get_set_args_cb, &data);
+	else {
+		struct unw_frame_info ufi;
+		memset(&ufi, 0, sizeof(ufi));
+		unw_init_from_blocked_task(&ufi, task);
+		syscall_get_set_args_cb(&ufi, &data);
+	}
+}
