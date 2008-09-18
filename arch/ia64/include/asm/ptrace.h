@@ -325,6 +325,8 @@ static inline unsigned long user_stack_pointer(struct pt_regs *regs)
   #define arch_has_block_step()   (1)
   extern void user_enable_block_step(struct task_struct *);
 
+#define __ARCH_WANT_COMPAT_SYS_PTRACE
+
 #endif /* !__KERNEL__ */
 
 /* pt_all_user_regs is used for PTRACE_GETREGS PTRACE_SETREGS */

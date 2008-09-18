@@ -1300,25 +1300,6 @@ sys32_waitpid (int pid, unsigned int *stat_addr, int options)
 	return compat_sys_wait4(pid, stat_addr, options, NULL);
 }
 
-static unsigned int
-ia32_peek (struct task_struct *child, unsigned long addr, unsigned int *val)
-{
-	size_t copied;
-	unsigned int ret;
-
-	copied = access_process_vm(child, addr, val, sizeof(*val), 0);
-	return (copied != sizeof(ret)) ? -EIO : 0;
-}
-
-static unsigned int
-ia32_poke (struct task_struct *child, unsigned long addr, unsigned int val)
-{
-
-	if (access_process_vm(child, addr, &val, sizeof(val), 1) != sizeof(val))
-		return -EIO;
-	return 0;
-}
-
 /*
  *  The order in which registers are stored in the ptrace regs structure
  */
@@ -1616,49 +1597,15 @@ restore_ia32_fpxstate (struct task_struct *tsk, struct ia32_user_fxsr_struct __u
 	return 0;
 }
 
-asmlinkage long
-sys32_ptrace (int request, pid_t pid, unsigned int addr, unsigned int data)
+long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
+	compat_ulong_t caddr, compat_ulong_t cdata)
 {
-	struct task_struct *child;
-	unsigned int value, tmp;
+	unsigned long addr = caddr;
+	unsigned long data = cdata;
+	unsigned int tmp;
 	long i, ret;
 
-	lock_kernel();
-	if (request == PTRACE_TRACEME) {
-		ret = ptrace_traceme();
-		goto out;
-	}
-
-	child = ptrace_get_task_struct(pid);
-	if (IS_ERR(child)) {
-		ret = PTR_ERR(child);
-		goto out;
-	}
-
-	if (request == PTRACE_ATTACH) {
-		ret = sys_ptrace(request, pid, addr, data);
-		goto out_tsk;
-	}
-
-	ret = ptrace_check_attach(child, request == PTRACE_KILL);
-	if (ret < 0)
-		goto out_tsk;
-
 	switch (request) {
-	      case PTRACE_PEEKTEXT:
-	      case PTRACE_PEEKDATA:	/* read word at location addr */
-		ret = ia32_peek(child, addr, &value);
-		if (ret == 0)
-			ret = put_user(value, (unsigned int __user *) compat_ptr(data));
-		else
-			ret = -EIO;
-		goto out_tsk;
-
-	      case PTRACE_POKETEXT:
-	      case PTRACE_POKEDATA:	/* write the word at location addr */
-		ret = ia32_poke(child, addr, data);
-		goto out_tsk;
-
 	      case PTRACE_PEEKUSR:	/* read word at addr in USER area */
 		ret = -EIO;
 		if ((addr & 3) || addr > 17*sizeof(int))
@@ -1723,27 +1670,9 @@ sys32_ptrace (int request, pid_t pid, unsigned int addr, unsigned int data)
 					    compat_ptr(data));
 		break;
 
-	      case PTRACE_GETEVENTMSG:   
-		ret = put_user(child->ptrace_message, (unsigned int __user *) compat_ptr(data));
-		break;
-
-	      case PTRACE_SYSCALL:	/* continue, stop after next syscall */
-	      case PTRACE_CONT:		/* restart after signal. */
-	      case PTRACE_KILL:
-	      case PTRACE_SINGLESTEP:	/* execute chile for one instruction */
-	      case PTRACE_DETACH:	/* detach a process */
-		ret = sys_ptrace(request, pid, addr, data);
-		break;
-
 	      default:
-		ret = ptrace_request(child, request, addr, data);
-		break;
-
+		return compat_ptrace_request(child, request, caddr, cdata);
 	}
-  out_tsk:
-	put_task_struct(child);
-  out:
-	unlock_kernel();
 	return ret;
 }
 
