@@ -6701,8 +6701,6 @@ struct bnx2 {
 
 	/* End of fields used in the performance code paths. */
 
-	char			*name;
-
 	int			timer_interval;
 	int			current_interval;
 	struct			timer_list timer;
