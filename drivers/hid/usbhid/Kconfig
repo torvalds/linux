@@ -44,17 +44,6 @@ config HID_PID
 	  feedback for it. Microsoft Sidewinder Force Feedback 2 is one of such
 	  devices.
 
-config THRUSTMASTER_FF
-	bool "ThrustMaster devices support"
-	depends on HID_FF
-	select INPUT_FF_MEMLESS if USB_HID
-	help
-	  Say Y here if you have a THRUSTMASTER FireStore Dual Power 2 or
-	  a THRUSTMASTER Ferrari GT Rumble Force or Force Feedback Wheel,
-	  and want to enable force feedback support for it.
-	  Note: if you say N here, this device will still be supported, but without
-	  force feedback.
-
 config ZEROPLUS_FF
 	bool "Zeroplus based game controller support"
 	depends on HID_FF
