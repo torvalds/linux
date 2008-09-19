@@ -838,3 +838,5 @@ config NETFILTER_XT_MATCH_HASHLIMIT
 
 endmenu
 
+source "net/netfilter/ipvs/Kconfig"
+
