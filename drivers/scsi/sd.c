@@ -1253,14 +1253,12 @@ void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	else
 		type = ((buffer[12] >> 1) & 7) + 1; /* P_TYPE 0 = Type 1 */
 
+	sdkp->protection_type = type;
+
 	switch (type) {
 	case SD_DIF_TYPE0_PROTECTION:
-		sdkp->protection_type = 0;
-		break;
-
 	case SD_DIF_TYPE1_PROTECTION:
 	case SD_DIF_TYPE3_PROTECTION:
-		sdkp->protection_type = type;
 		break;
 
 	case SD_DIF_TYPE2_PROTECTION:
@@ -1278,7 +1276,6 @@ void sd_read_protection_type(struct scsi_disk *sdkp, unsigned char *buffer)
 	return;
 
 disable:
-	sdkp->protection_type = 0;
 	sdkp->capacity = 0;
 }
 

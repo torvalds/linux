@@ -321,7 +321,6 @@ void sd_dif_config_host(struct scsi_disk *sdkp)
 		if (scsi_host_dif_capable(sdp->host, type) == 0) {
 			sd_printk(KERN_INFO, sdkp, "Type %d protection " \
 				  "unsupported by HBA. Disabling DIF.\n", type);
-			sdkp->protection_type = 0;
 			return;
 		}
 
