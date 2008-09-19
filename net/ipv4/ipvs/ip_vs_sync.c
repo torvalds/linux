@@ -30,6 +30,7 @@
 #include <linux/err.h>
 #include <linux/kthread.h>
 #include <linux/wait.h>
+#include <linux/kernel.h>
 
 #include <net/ip.h>
 #include <net/sock.h>
@@ -99,6 +100,7 @@ struct ip_vs_sync_thread_data {
 */
 
 #define SYNC_MESG_HEADER_LEN	4
+#define MAX_CONNS_PER_SYNCBUFF	255 /* nr_conns in ip_vs_sync_mesg is 8 bit */
 
 struct ip_vs_sync_mesg {
 	__u8                    nr_conns;
@@ -516,8 +518,8 @@ static int set_sync_mesg_maxlen(int sync_state)
 		num = (dev->mtu - sizeof(struct iphdr) -
 		       sizeof(struct udphdr) -
 		       SYNC_MESG_HEADER_LEN - 20) / SIMPLE_CONN_SIZE;
-		sync_send_mesg_maxlen =
-			SYNC_MESG_HEADER_LEN + SIMPLE_CONN_SIZE * num;
+		sync_send_mesg_maxlen = SYNC_MESG_HEADER_LEN +
+			SIMPLE_CONN_SIZE * min(num, MAX_CONNS_PER_SYNCBUFF);
 		IP_VS_DBG(7, "setting the maximum length of sync sending "
 			  "message %d.\n", sync_send_mesg_maxlen);
 	} else if (sync_state == IP_VS_STATE_BACKUP) {
