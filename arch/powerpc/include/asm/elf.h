@@ -409,6 +409,13 @@ do {									\
 /* Keep this the last entry.  */
 #define R_PPC64_NUM		107
 
+/* There's actually a third entry here, but it's unused */
+struct ppc64_opd_entry
+{
+	unsigned long funcaddr;
+	unsigned long r2;
+};
+
 #ifdef  __KERNEL__
 
 #ifdef CONFIG_SPU_BASE
