@@ -699,16 +699,58 @@ static inline __be16 sum16_as_be(__sum16 sum)
 	return (__force __be16)sum;
 }
 
-static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
+static int txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 {
 	struct mv643xx_eth_private *mp = txq_to_mp(txq);
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 	int tx_index;
 	struct tx_desc *desc;
 	u32 cmd_sts;
+	u16 l4i_chk;
 	int length;
 
 	cmd_sts = TX_FIRST_DESC | GEN_CRC | BUFFER_OWNED_BY_DMA;
+	l4i_chk = 0;
+
+	if (skb->ip_summed == CHECKSUM_PARTIAL) {
+		int tag_bytes;
+
+		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
+		       skb->protocol != htons(ETH_P_8021Q));
+
+		tag_bytes = (void *)ip_hdr(skb) - (void *)skb->data - ETH_HLEN;
+		if (unlikely(tag_bytes & ~12)) {
+			if (skb_checksum_help(skb) == 0)
+				goto no_csum;
+			kfree_skb(skb);
+			return 1;
+		}
+
+		if (tag_bytes & 4)
+			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
+		if (tag_bytes & 8)
+			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
+
+		cmd_sts |= GEN_TCP_UDP_CHECKSUM |
+			   GEN_IP_V4_CHECKSUM   |
+			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
+
+		switch (ip_hdr(skb)->protocol) {
+		case IPPROTO_UDP:
+			cmd_sts |= UDP_FRAME;
+			l4i_chk = ntohs(sum16_as_be(udp_hdr(skb)->check));
+			break;
+		case IPPROTO_TCP:
+			l4i_chk = ntohs(sum16_as_be(tcp_hdr(skb)->check));
+			break;
+		default:
+			BUG();
+		}
+	} else {
+no_csum:
+		/* Errata BTS #50, IHL must be 5 if no HW checksum */
+		cmd_sts |= 5 << TX_IHL_SHIFT;
+	}
 
 	tx_index = txq_alloc_desc_index(txq);
 	desc = &txq->tx_desc_area[tx_index];
@@ -721,56 +763,9 @@ static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 		length = skb->len;
 	}
 
+	desc->l4i_chk = l4i_chk;
 	desc->byte_cnt = length;
 	desc->buf_ptr = dma_map_single(NULL, skb->data, length, DMA_TO_DEVICE);
-
-	if (skb->ip_summed == CHECKSUM_PARTIAL) {
-		int mac_hdr_len;
-
-		BUG_ON(skb->protocol != htons(ETH_P_IP) &&
-		       skb->protocol != htons(ETH_P_8021Q));
-
-		cmd_sts |= GEN_TCP_UDP_CHECKSUM |
-			   GEN_IP_V4_CHECKSUM   |
-			   ip_hdr(skb)->ihl << TX_IHL_SHIFT;
-
-		mac_hdr_len = (void *)ip_hdr(skb) - (void *)skb->data;
-		switch (mac_hdr_len - ETH_HLEN) {
-		case 0:
-			break;
-		case 4:
-			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
-			break;
-		case 8:
-			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
-			break;
-		case 12:
-			cmd_sts |= MAC_HDR_EXTRA_4_BYTES;
-			cmd_sts |= MAC_HDR_EXTRA_8_BYTES;
-			break;
-		default:
-			if (net_ratelimit())
-				dev_printk(KERN_ERR, &txq_to_mp(txq)->dev->dev,
-				   "mac header length is %d?!\n", mac_hdr_len);
-			break;
-		}
-
-		switch (ip_hdr(skb)->protocol) {
-		case IPPROTO_UDP:
-			cmd_sts |= UDP_FRAME;
-			desc->l4i_chk = ntohs(sum16_as_be(udp_hdr(skb)->check));
-			break;
-		case IPPROTO_TCP:
-			desc->l4i_chk = ntohs(sum16_as_be(tcp_hdr(skb)->check));
-			break;
-		default:
-			BUG();
-		}
-	} else {
-		/* Errata BTS #50, IHL must be 5 if no HW checksum */
-		cmd_sts |= 5 << TX_IHL_SHIFT;
-		desc->l4i_chk = 0;
-	}
 
 	__skb_queue_tail(&txq->tx_skb, skb);
 
@@ -786,6 +781,8 @@ static void txq_submit_skb(struct tx_queue *txq, struct sk_buff *skb)
 	txq_enable(txq);
 
 	txq->tx_desc_count += nr_frags + 1;
+
+	return 0;
 }
 
 static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
@@ -794,7 +791,6 @@ static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 	int queue;
 	struct tx_queue *txq;
 	struct netdev_queue *nq;
-	int entries_left;
 
 	queue = skb_get_queue_mapping(skb);
 	txq = mp->txq + queue;
@@ -815,14 +811,17 @@ static int mv643xx_eth_xmit(struct sk_buff *skb, struct net_device *dev)
 		return NETDEV_TX_OK;
 	}
 
-	txq_submit_skb(txq, skb);
-	txq->tx_bytes += skb->len;
-	txq->tx_packets++;
-	dev->trans_start = jiffies;
+	if (!txq_submit_skb(txq, skb)) {
+		int entries_left;
 
-	entries_left = txq->tx_ring_size - txq->tx_desc_count;
-	if (entries_left < MAX_SKB_FRAGS + 1)
-		netif_tx_stop_queue(nq);
+		txq->tx_bytes += skb->len;
+		txq->tx_packets++;
+		dev->trans_start = jiffies;
+
+		entries_left = txq->tx_ring_size - txq->tx_desc_count;
+		if (entries_left < MAX_SKB_FRAGS + 1)
+			netif_tx_stop_queue(nq);
+	}
 
 	return NETDEV_TX_OK;
 }
