@@ -195,7 +195,9 @@ static int atmci_regs_show(struct seq_file *s, void *v)
 
 	/* Grab a more or less consistent snapshot */
 	spin_lock_irq(&host->mmc->lock);
+	clk_enable(host->mck);
 	memcpy_fromio(buf, host->regs, MCI_REGS_SIZE);
+	clk_disable(host->mck);
 	spin_unlock_irq(&host->mmc->lock);
 
 	seq_printf(s, "MR:\t0x%08x%s%s CLKDIV=%u\n",
