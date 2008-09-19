@@ -153,7 +153,7 @@ int mesh_path_add(u8 *dst, struct ieee80211_sub_if_data *sdata)
 	if (is_multicast_ether_addr(dst))
 		return -ENOTSUPP;
 
-	if (atomic_add_unless(&sdata->u.sta.mpaths, 1, MESH_MAX_MPATHS) == 0)
+	if (atomic_add_unless(&sdata->u.mesh.mpaths, 1, MESH_MAX_MPATHS) == 0)
 		return -ENOSPC;
 
 	err = -ENOMEM;
@@ -221,7 +221,7 @@ err_exists:
 err_node_alloc:
 	kfree(new_mpath);
 err_path_alloc:
-	atomic_dec(&sdata->u.sta.mpaths);
+	atomic_dec(&sdata->u.mesh.mpaths);
 	return err;
 }
 
@@ -306,7 +306,7 @@ static void mesh_path_node_reclaim(struct rcu_head *rp)
 	struct ieee80211_sub_if_data *sdata = node->mpath->sdata;
 
 	del_timer_sync(&node->mpath->timer);
-	atomic_dec(&sdata->u.sta.mpaths);
+	atomic_dec(&sdata->u.mesh.mpaths);
 	kfree(node->mpath);
 	kfree(node);
 }
@@ -401,7 +401,7 @@ void mesh_path_discard_frame(struct sk_buff *skb,
 	}
 
 	kfree_skb(skb);
-	sdata->u.sta.mshstats.dropped_frames_no_route++;
+	sdata->u.mesh.mshstats.dropped_frames_no_route++;
 }
 
 /**

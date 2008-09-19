@@ -73,4 +73,8 @@ int lbs_set_tx_power(struct lbs_private *priv, s16 dbm);
 
 int lbs_set_radio(struct lbs_private *priv, u8 preamble, u8 radio_on);
 
+int lbs_set_snmp_mib(struct lbs_private *priv, u32 oid, u16 val);
+
+int lbs_get_snmp_mib(struct lbs_private *priv, u32 oid, u16 *out_val);
+
 #endif /* _LBS_CMD_H */

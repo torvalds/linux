@@ -306,14 +306,14 @@ void iwl_reset_qos(struct iwl_priv *priv)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->qos_data.qos_active = 0;
 
-	if (priv->iw_mode == IEEE80211_IF_TYPE_IBSS) {
+	if (priv->iw_mode == NL80211_IFTYPE_ADHOC) {
 		if (priv->qos_data.qos_enable)
 			priv->qos_data.qos_active = 1;
 		if (!(priv->active_rate & 0xfff0)) {
 			cw_min = 31;
 			is_legacy = 1;
 		}
-	} else if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
+	} else if (priv->iw_mode == NL80211_IFTYPE_AP) {
 		if (priv->qos_data.qos_enable)
 			priv->qos_data.qos_active = 1;
 	} else if (!(priv->staging_rxon.flags & RXON_FLG_SHORT_SLOT_MSK)) {
@@ -932,7 +932,7 @@ int iwl_init_drv(struct iwl_priv *priv)
 	priv->ieee_rates = NULL;
 	priv->band = IEEE80211_BAND_2GHZ;
 
-	priv->iw_mode = IEEE80211_IF_TYPE_STA;
+	priv->iw_mode = NL80211_IFTYPE_STATION;
 
 	priv->use_ant_b_for_management_frame = 1; /* start with ant B */
 	priv->current_ht_config.sm_ps = WLAN_HT_CAP_SM_PS_DISABLED;
@@ -1396,7 +1396,7 @@ void iwl_radio_kill_sw_disable_radio(struct iwl_priv *priv)
 
 	iwl_scan_cancel(priv);
 	/* FIXME: This is a workaround for AP */
-	if (priv->iw_mode != IEEE80211_IF_TYPE_AP) {
+	if (priv->iw_mode != NL80211_IFTYPE_AP) {
 		spin_lock_irqsave(&priv->lock, flags);
 		iwl_write32(priv, CSR_UCODE_DRV_GP1_SET,
 			    CSR_UCODE_SW_BIT_RFKILL);

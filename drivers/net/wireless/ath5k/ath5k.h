@@ -1008,7 +1008,7 @@ struct ath5k_hw {
 
 	enum ath5k_int		ah_imr;
 
-	enum ieee80211_if_types	ah_op_mode;
+	enum nl80211_iftype	ah_op_mode;
 	enum ath5k_power_mode	ah_power_mode;
 	struct ieee80211_channel ah_current_channel;
 	bool			ah_turbo;
@@ -1117,7 +1117,7 @@ extern void ath5k_hw_detach(struct ath5k_hw *ah);
 
 /* Reset Functions */
 extern int ath5k_hw_nic_wakeup(struct ath5k_hw *ah, int flags, bool initial);
-extern int ath5k_hw_reset(struct ath5k_hw *ah, enum ieee80211_if_types op_mode, struct ieee80211_channel *channel, bool change_channel);
+extern int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode, struct ieee80211_channel *channel, bool change_channel);
 /* Power management functions */
 extern int ath5k_hw_set_power(struct ath5k_hw *ah, enum ath5k_power_mode mode, bool set_chip, u16 sleep_duration);
 

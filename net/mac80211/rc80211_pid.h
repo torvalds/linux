@@ -180,6 +180,8 @@ struct rc_pid_sta_info {
 	u32 tx_num_failed;
 	u32 tx_num_xmit;
 
+	int txrate_idx;
+
 	/* Average failed frames percentage error (i.e. actual vs. target
 	 * percentage), scaled by RC_PID_SMOOTHING. This value is computed
 	 * using using an exponential weighted average technique:

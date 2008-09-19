@@ -64,14 +64,14 @@ static inline u32 u32_field_get(u8 *preq_elem, int offset, bool ae)
 #define DSN_LT(x, y) ((long) (x) - (long) (y) < 0)
 
 #define net_traversal_jiffies(s) \
-	msecs_to_jiffies(s->u.sta.mshcfg.dot11MeshHWMPnetDiameterTraversalTime)
+	msecs_to_jiffies(s->u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime)
 #define default_lifetime(s) \
-	MSEC_TO_TU(s->u.sta.mshcfg.dot11MeshHWMPactivePathTimeout)
+	MSEC_TO_TU(s->u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout)
 #define min_preq_int_jiff(s) \
-	(msecs_to_jiffies(s->u.sta.mshcfg.dot11MeshHWMPpreqMinInterval))
-#define max_preq_retries(s) (s->u.sta.mshcfg.dot11MeshHWMPmaxPREQretries)
+	(msecs_to_jiffies(s->u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval))
+#define max_preq_retries(s) (s->u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries)
 #define disc_timeout_jiff(s) \
-	msecs_to_jiffies(sdata->u.sta.mshcfg.min_discovery_timeout)
+	msecs_to_jiffies(sdata->u.mesh.mshcfg.min_discovery_timeout)
 
 enum mpath_frame_type {
 	MPATH_PREQ = 0,
@@ -223,7 +223,7 @@ static u32 airtime_link_metric_get(struct ieee80211_local *local,
 	/* bitrate is in units of 100 Kbps, while we need rate in units of
 	 * 1Mbps. This will be corrected on tx_time computation.
 	 */
-	rate = sband->bitrates[sta->txrate_idx].bitrate;
+	rate = sband->bitrates[sta->last_txrate_idx].bitrate;
 	tx_time = (device_constant + 10 * test_frame_len / rate);
 	estimated_retx = ((1 << (2 * ARITH_SHIFT)) / (s_unit - err));
 	result = (tx_time * estimated_retx) >> (2 * ARITH_SHIFT) ;
@@ -395,7 +395,7 @@ static u32 hwmp_route_info_get(struct ieee80211_sub_if_data *sdata,
 static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_mgmt *mgmt,
 				    u8 *preq_elem, u32 metric) {
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_path *mpath;
 	u8 *dst_addr, *orig_addr;
 	u8 dst_flags, ttl;
@@ -414,11 +414,11 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		forward = false;
 		reply = true;
 		metric = 0;
-		if (time_after(jiffies, ifsta->last_dsn_update +
+		if (time_after(jiffies, ifmsh->last_dsn_update +
 					net_traversal_jiffies(sdata)) ||
-		    time_before(jiffies, ifsta->last_dsn_update)) {
-			dst_dsn = ++ifsta->dsn;
-			ifsta->last_dsn_update = jiffies;
+		    time_before(jiffies, ifmsh->last_dsn_update)) {
+			dst_dsn = ++ifmsh->dsn;
+			ifmsh->last_dsn_update = jiffies;
 		}
 	} else {
 		rcu_read_lock();
@@ -444,7 +444,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	if (reply) {
 		lifetime = PREQ_IE_LIFETIME(preq_elem);
-		ttl = ifsta->mshcfg.dot11MeshTTL;
+		ttl = ifmsh->mshcfg.dot11MeshTTL;
 		if (ttl != 0)
 			mesh_path_sel_frame_tx(MPATH_PREP, 0, dst_addr,
 				cpu_to_le32(dst_dsn), 0, orig_addr,
@@ -452,7 +452,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				cpu_to_le32(lifetime), cpu_to_le32(metric),
 				0, sdata);
 		else
-			ifsta->mshstats.dropped_frames_ttl++;
+			ifmsh->mshstats.dropped_frames_ttl++;
 	}
 
 	if (forward) {
@@ -462,7 +462,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 		ttl = PREQ_IE_TTL(preq_elem);
 		lifetime = PREQ_IE_LIFETIME(preq_elem);
 		if (ttl <= 1) {
-			ifsta->mshstats.dropped_frames_ttl++;
+			ifmsh->mshstats.dropped_frames_ttl++;
 			return;
 		}
 		--ttl;
@@ -475,7 +475,7 @@ static void hwmp_preq_frame_process(struct ieee80211_sub_if_data *sdata,
 				hopcount, ttl, cpu_to_le32(lifetime),
 				cpu_to_le32(metric), cpu_to_le32(preq_id),
 				sdata);
-		ifsta->mshstats.fwded_frames++;
+		ifmsh->mshstats.fwded_frames++;
 	}
 }
 
@@ -503,7 +503,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	ttl = PREP_IE_TTL(prep_elem);
 	if (ttl <= 1) {
-		sdata->u.sta.mshstats.dropped_frames_ttl++;
+		sdata->u.mesh.mshstats.dropped_frames_ttl++;
 		return;
 	}
 
@@ -517,7 +517,7 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 		spin_unlock_bh(&mpath->state_lock);
 		goto fail;
 	}
-	memcpy(next_hop, mpath->next_hop->addr, ETH_ALEN);
+	memcpy(next_hop, mpath->next_hop->sta.addr, ETH_ALEN);
 	spin_unlock_bh(&mpath->state_lock);
 	--ttl;
 	flags = PREP_IE_FLAGS(prep_elem);
@@ -529,16 +529,16 @@ static void hwmp_prep_frame_process(struct ieee80211_sub_if_data *sdata,
 
 	mesh_path_sel_frame_tx(MPATH_PREP, flags, orig_addr,
 		cpu_to_le32(orig_dsn), 0, dst_addr,
-		cpu_to_le32(dst_dsn), mpath->next_hop->addr, hopcount, ttl,
+		cpu_to_le32(dst_dsn), mpath->next_hop->sta.addr, hopcount, ttl,
 		cpu_to_le32(lifetime), cpu_to_le32(metric),
 		0, sdata);
 	rcu_read_unlock();
-	sdata->u.sta.mshstats.fwded_frames++;
+	sdata->u.mesh.mshstats.fwded_frames++;
 	return;
 
 fail:
 	rcu_read_unlock();
-	sdata->u.sta.mshstats.dropped_frames_no_route++;
+	sdata->u.mesh.mshstats.dropped_frames_no_route++;
 	return;
 }
 
@@ -557,7 +557,7 @@ static void hwmp_perr_frame_process(struct ieee80211_sub_if_data *sdata,
 	if (mpath) {
 		spin_lock_bh(&mpath->state_lock);
 		if (mpath->flags & MESH_PATH_ACTIVE &&
-		    memcmp(ta, mpath->next_hop->addr, ETH_ALEN) == 0 &&
+		    memcmp(ta, mpath->next_hop->sta.addr, ETH_ALEN) == 0 &&
 		    (!(mpath->flags & MESH_PATH_DSN_VALID) ||
 		    DSN_GT(dst_dsn, mpath->dsn))) {
 			mpath->flags &= ~MESH_PATH_ACTIVE;
@@ -631,7 +631,7 @@ void mesh_rx_path_sel_frame(struct ieee80211_sub_if_data *sdata,
 static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 {
 	struct ieee80211_sub_if_data *sdata = mpath->sdata;
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_preq_queue *preq_node;
 
 	preq_node = kmalloc(sizeof(struct mesh_preq_queue), GFP_KERNEL);
@@ -640,9 +640,9 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 		return;
 	}
 
-	spin_lock(&ifsta->mesh_preq_queue_lock);
-	if (ifsta->preq_queue_len == MAX_PREQ_QUEUE_LEN) {
-		spin_unlock(&ifsta->mesh_preq_queue_lock);
+	spin_lock(&ifmsh->mesh_preq_queue_lock);
+	if (ifmsh->preq_queue_len == MAX_PREQ_QUEUE_LEN) {
+		spin_unlock(&ifmsh->mesh_preq_queue_lock);
 		kfree(preq_node);
 		if (printk_ratelimit())
 			printk(KERN_DEBUG "Mesh HWMP: PREQ node queue full\n");
@@ -652,21 +652,21 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
 	memcpy(preq_node->dst, mpath->dst, ETH_ALEN);
 	preq_node->flags = flags;
 
-	list_add_tail(&preq_node->list, &ifsta->preq_queue.list);
-	++ifsta->preq_queue_len;
-	spin_unlock(&ifsta->mesh_preq_queue_lock);
+	list_add_tail(&preq_node->list, &ifmsh->preq_queue.list);
+	++ifmsh->preq_queue_len;
+	spin_unlock(&ifmsh->mesh_preq_queue_lock);
 
-	if (time_after(jiffies, ifsta->last_preq + min_preq_int_jiff(sdata)))
-		queue_work(sdata->local->hw.workqueue, &ifsta->work);
+	if (time_after(jiffies, ifmsh->last_preq + min_preq_int_jiff(sdata)))
+		queue_work(sdata->local->hw.workqueue, &ifmsh->work);
 
-	else if (time_before(jiffies, ifsta->last_preq)) {
+	else if (time_before(jiffies, ifmsh->last_preq)) {
 		/* avoid long wait if did not send preqs for a long time
 		 * and jiffies wrapped around
 		 */
-		ifsta->last_preq = jiffies - min_preq_int_jiff(sdata) - 1;
-		queue_work(sdata->local->hw.workqueue, &ifsta->work);
+		ifmsh->last_preq = jiffies - min_preq_int_jiff(sdata) - 1;
+		queue_work(sdata->local->hw.workqueue, &ifmsh->work);
 	} else
-		mod_timer(&ifsta->mesh_path_timer, ifsta->last_preq +
+		mod_timer(&ifmsh->mesh_path_timer, ifmsh->last_preq +
 						min_preq_int_jiff(sdata));
 }
 
@@ -677,25 +677,25 @@ static void mesh_queue_preq(struct mesh_path *mpath, u8 flags)
  */
 void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_if_sta *ifsta = &sdata->u.sta;
+	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct mesh_preq_queue *preq_node;
 	struct mesh_path *mpath;
 	u8 ttl, dst_flags;
 	u32 lifetime;
 
-	spin_lock(&ifsta->mesh_preq_queue_lock);
-	if (!ifsta->preq_queue_len ||
-		time_before(jiffies, ifsta->last_preq +
+	spin_lock(&ifmsh->mesh_preq_queue_lock);
+	if (!ifmsh->preq_queue_len ||
+		time_before(jiffies, ifmsh->last_preq +
 				min_preq_int_jiff(sdata))) {
-		spin_unlock(&ifsta->mesh_preq_queue_lock);
+		spin_unlock(&ifmsh->mesh_preq_queue_lock);
 		return;
 	}
 
-	preq_node = list_first_entry(&ifsta->preq_queue.list,
+	preq_node = list_first_entry(&ifmsh->preq_queue.list,
 			struct mesh_preq_queue, list);
 	list_del(&preq_node->list);
-	--ifsta->preq_queue_len;
-	spin_unlock(&ifsta->mesh_preq_queue_lock);
+	--ifmsh->preq_queue_len;
+	spin_unlock(&ifmsh->mesh_preq_queue_lock);
 
 	rcu_read_lock();
 	mpath = mesh_path_lookup(preq_node->dst, sdata);
@@ -720,18 +720,18 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 		goto enddiscovery;
 	}
 
-	ifsta->last_preq = jiffies;
+	ifmsh->last_preq = jiffies;
 
-	if (time_after(jiffies, ifsta->last_dsn_update +
+	if (time_after(jiffies, ifmsh->last_dsn_update +
 				net_traversal_jiffies(sdata)) ||
-	    time_before(jiffies, ifsta->last_dsn_update)) {
-		++ifsta->dsn;
-		sdata->u.sta.last_dsn_update = jiffies;
+	    time_before(jiffies, ifmsh->last_dsn_update)) {
+		++ifmsh->dsn;
+		sdata->u.mesh.last_dsn_update = jiffies;
 	}
 	lifetime = default_lifetime(sdata);
-	ttl = sdata->u.sta.mshcfg.dot11MeshTTL;
+	ttl = sdata->u.mesh.mshcfg.dot11MeshTTL;
 	if (ttl == 0) {
-		sdata->u.sta.mshstats.dropped_frames_ttl++;
+		sdata->u.mesh.mshstats.dropped_frames_ttl++;
 		spin_unlock_bh(&mpath->state_lock);
 		goto enddiscovery;
 	}
@@ -743,10 +743,10 @@ void mesh_path_start_discovery(struct ieee80211_sub_if_data *sdata)
 
 	spin_unlock_bh(&mpath->state_lock);
 	mesh_path_sel_frame_tx(MPATH_PREQ, 0, sdata->dev->dev_addr,
-			cpu_to_le32(ifsta->dsn), dst_flags, mpath->dst,
+			cpu_to_le32(ifmsh->dsn), dst_flags, mpath->dst,
 			cpu_to_le32(mpath->dsn), sdata->dev->broadcast, 0,
 			ttl, cpu_to_le32(lifetime), 0,
-			cpu_to_le32(ifsta->preq_id++), sdata);
+			cpu_to_le32(ifmsh->preq_id++), sdata);
 	mod_timer(&mpath->timer, jiffies + mpath->discovery_timeout);
 
 enddiscovery:
@@ -783,7 +783,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 		mpath = mesh_path_lookup(dst_addr, sdata);
 		if (!mpath) {
 			dev_kfree_skb(skb);
-			sdata->u.sta.mshstats.dropped_frames_no_route++;
+			sdata->u.mesh.mshstats.dropped_frames_no_route++;
 			err = -ENOSPC;
 			goto endlookup;
 		}
@@ -791,7 +791,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 
 	if (mpath->flags & MESH_PATH_ACTIVE) {
 		if (time_after(jiffies, mpath->exp_time -
-			msecs_to_jiffies(sdata->u.sta.mshcfg.path_refresh_time))
+			msecs_to_jiffies(sdata->u.mesh.mshcfg.path_refresh_time))
 				&& !memcmp(sdata->dev->dev_addr, hdr->addr4,
 					   ETH_ALEN)
 				&& !(mpath->flags & MESH_PATH_RESOLVING)
@@ -799,7 +799,7 @@ int mesh_nexthop_lookup(struct sk_buff *skb,
 			mesh_queue_preq(mpath,
 					PREQ_Q_F_START | PREQ_Q_F_REFRESH);
 		}
-		memcpy(hdr->addr1, mpath->next_hop->addr,
+		memcpy(hdr->addr1, mpath->next_hop->sta.addr,
 				ETH_ALEN);
 	} else {
 		if (!(mpath->flags & MESH_PATH_RESOLVING)) {

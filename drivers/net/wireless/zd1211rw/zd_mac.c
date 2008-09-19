@@ -3,7 +3,7 @@
  * Copyright (C) 2005-2007 Ulrich Kunitz <kune@deine-taler.de>
  * Copyright (C) 2006-2007 Daniel Drake <dsd@gentoo.org>
  * Copyright (C) 2006-2007 Michael Wu <flamingice@sourmilk.net>
- * Copyright (c) 2007 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
+ * Copyright (C) 2007-2008 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -29,8 +29,22 @@
 #include "zd_def.h"
 #include "zd_chip.h"
 #include "zd_mac.h"
-#include "zd_ieee80211.h"
 #include "zd_rf.h"
+
+struct zd_reg_alpha2_map {
+	u32 reg;
+	char alpha2[2];
+};
+
+static struct zd_reg_alpha2_map reg_alpha2_map[] = {
+	{ ZD_REGDOMAIN_FCC, "US" },
+	{ ZD_REGDOMAIN_IC, "CA" },
+	{ ZD_REGDOMAIN_ETSI, "DE" }, /* Generic ETSI, use most restrictive */
+	{ ZD_REGDOMAIN_JAPAN, "JP" },
+	{ ZD_REGDOMAIN_JAPAN_ADD, "JP" },
+	{ ZD_REGDOMAIN_SPAIN, "ES" },
+	{ ZD_REGDOMAIN_FRANCE, "FR" },
+};
 
 /* This table contains the hardware specific values for the modulation rates. */
 static const struct ieee80211_rate zd_rates[] = {
@@ -95,6 +109,21 @@ static void housekeeping_init(struct zd_mac *mac);
 static void housekeeping_enable(struct zd_mac *mac);
 static void housekeeping_disable(struct zd_mac *mac);
 
+static int zd_reg2alpha2(u8 regdomain, char *alpha2)
+{
+	unsigned int i;
+	struct zd_reg_alpha2_map *reg_map;
+	for (i = 0; i < ARRAY_SIZE(reg_alpha2_map); i++) {
+		reg_map = &reg_alpha2_map[i];
+		if (regdomain == reg_map->reg) {
+			alpha2[0] = reg_map->alpha2[0];
+			alpha2[1] = reg_map->alpha2[1];
+			return 0;
+		}
+	}
+	return 1;
+}
+
 int zd_mac_preinit_hw(struct ieee80211_hw *hw)
 {
 	int r;
@@ -115,6 +144,7 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 	int r;
 	struct zd_mac *mac = zd_hw_mac(hw);
 	struct zd_chip *chip = &mac->chip;
+	char alpha2[2];
 	u8 default_regdomain;
 
 	r = zd_chip_enable_int(chip);
@@ -139,7 +169,9 @@ int zd_mac_init_hw(struct ieee80211_hw *hw)
 	if (r)
 		goto disable_int;
 
-	zd_geo_init(hw, mac->regdomain);
+	r = zd_reg2alpha2(mac->regdomain, alpha2);
+	if (!r)
+		regulatory_hint(hw->wiphy, alpha2, NULL);
 
 	r = 0;
 disable_int:
@@ -684,15 +716,15 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 
-	/* using IEEE80211_IF_TYPE_INVALID to indicate no mode selected */
-	if (mac->type != IEEE80211_IF_TYPE_INVALID)
+	/* using NL80211_IFTYPE_UNSPECIFIED to indicate no mode selected */
+	if (mac->type != NL80211_IFTYPE_UNSPECIFIED)
 		return -EOPNOTSUPP;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_MNTR:
-	case IEEE80211_IF_TYPE_MESH_POINT:
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_MONITOR:
+	case NL80211_IFTYPE_MESH_POINT:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		mac->type = conf->type;
 		break;
 	default:
@@ -706,7 +738,7 @@ static void zd_op_remove_interface(struct ieee80211_hw *hw,
 				    struct ieee80211_if_init_conf *conf)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
-	mac->type = IEEE80211_IF_TYPE_INVALID;
+	mac->type = NL80211_IFTYPE_UNSPECIFIED;
 	zd_set_beacon_interval(&mac->chip, 0);
 	zd_write_mac_addr(&mac->chip, NULL);
 }
@@ -725,8 +757,8 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 	int associated;
 	int r;
 
-	if (mac->type == IEEE80211_IF_TYPE_MESH_POINT ||
-	    mac->type == IEEE80211_IF_TYPE_IBSS) {
+	if (mac->type == NL80211_IFTYPE_MESH_POINT ||
+	    mac->type == NL80211_IFTYPE_ADHOC) {
 		associated = true;
 		if (conf->changed & IEEE80211_IFCC_BEACON) {
 			struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
@@ -753,7 +785,7 @@ static int zd_op_config_interface(struct ieee80211_hw *hw,
 	return 0;
 }
 
-void zd_process_intr(struct work_struct *work)
+static void zd_process_intr(struct work_struct *work)
 {
 	u16 int_status;
 	struct zd_mac *mac = container_of(work, struct zd_mac, process_intr);
@@ -923,7 +955,7 @@ struct ieee80211_hw *zd_mac_alloc_hw(struct usb_interface *intf)
 	spin_lock_init(&mac->lock);
 	mac->hw = hw;
 
-	mac->type = IEEE80211_IF_TYPE_INVALID;
+	mac->type = NL80211_IFTYPE_UNSPECIFIED;
 
 	memcpy(mac->channels, zd_channels, sizeof(zd_channels));
 	memcpy(mac->rates, zd_rates, sizeof(zd_rates));

@@ -52,26 +52,26 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 	ATH5K_TRACE(ah->ah_sc);
 
 	switch (ah->ah_op_mode) {
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_ADHOC:
 		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_DESC_ANTENNA |
 			(ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_NO_PSPOLL : 0);
 		beacon_reg |= AR5K_BCR_ADHOC;
 		break;
 
-	case IEEE80211_IF_TYPE_AP:
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_AP:
+	case NL80211_IFTYPE_MESH_POINT:
 		pcu_reg |= AR5K_STA_ID1_AP | AR5K_STA_ID1_RTS_DEF_ANTENNA |
 			(ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_NO_PSPOLL : 0);
 		beacon_reg |= AR5K_BCR_AP;
 		break;
 
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		pcu_reg |= AR5K_STA_ID1_DEFAULT_ANTENNA |
 			(ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_PWR_SV : 0);
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		pcu_reg |= AR5K_STA_ID1_DEFAULT_ANTENNA |
 			(ah->ah_version == AR5K_AR5210 ?
 				AR5K_STA_ID1_NO_PSPOLL : 0);
@@ -649,7 +649,7 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	 * Set the additional timers by mode
 	 */
 	switch (ah->ah_op_mode) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		if (ah->ah_version == AR5K_AR5210) {
 			timer1 = 0xffffffff;
 			timer2 = 0xffffffff;

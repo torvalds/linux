@@ -1244,13 +1244,13 @@ generate_new:
 
 static void handle_irq_tbtt_indication(struct b43_wldev *dev)
 {
-	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_AP)) {
+	if (b43_is_mode(dev->wl, NL80211_IFTYPE_AP)) {
 		///TODO: PS TBTT
 	} else {
 		if (1 /*FIXME: the last PSpoll frame was sent successfully */ )
 			b43_power_saving_ctl_bits(dev, 0);
 	}
-	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS))
+	if (b43_is_mode(dev->wl, NL80211_IFTYPE_ADHOC))
 		dev->dfq_valid = 1;
 }
 
@@ -1599,8 +1599,8 @@ static void handle_irq_beacon(struct b43_wldev *dev)
 	struct b43_wl *wl = dev->wl;
 	u32 cmd, beacon0_valid, beacon1_valid;
 
-	if (!b43_is_mode(wl, IEEE80211_IF_TYPE_AP) &&
-	    !b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT))
+	if (!b43_is_mode(wl, NL80211_IFTYPE_AP) &&
+	    !b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT))
 		return;
 
 	/* This is the bottom half of the asynchronous beacon update. */
@@ -2568,10 +2568,10 @@ static void b43_adjust_opmode(struct b43_wldev *dev)
 	ctl &= ~B43_MACCTL_BEACPROMISC;
 	ctl |= B43_MACCTL_INFRA;
 
-	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
-	    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT))
+	if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+	    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT))
 		ctl |= B43_MACCTL_AP;
-	else if (b43_is_mode(wl, IEEE80211_IF_TYPE_IBSS))
+	else if (b43_is_mode(wl, NL80211_IFTYPE_ADHOC))
 		ctl &= ~B43_MACCTL_INFRA;
 
 	if (wl->filter_flags & FIF_CONTROL)
@@ -3406,8 +3406,8 @@ static int b43_op_config(struct ieee80211_hw *hw, struct ieee80211_conf *conf)
 		phy->ops->set_rx_antenna(dev, antenna);
 
 	/* Update templates for AP/mesh mode. */
-	if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
-	    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT))
+	if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+	    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT))
 		b43_set_beacon_int(dev, conf->beacon_int);
 
 	if (!!conf->radio_enabled != phy->radio_on) {
@@ -3595,14 +3595,14 @@ static int b43_op_config_interface(struct ieee80211_hw *hw,
 	else
 		memset(wl->bssid, 0, ETH_ALEN);
 	if (b43_status(dev) >= B43_STAT_INITIALIZED) {
-		if (b43_is_mode(wl, IEEE80211_IF_TYPE_AP) ||
-		    b43_is_mode(wl, IEEE80211_IF_TYPE_MESH_POINT)) {
+		if (b43_is_mode(wl, NL80211_IFTYPE_AP) ||
+		    b43_is_mode(wl, NL80211_IFTYPE_MESH_POINT)) {
 			B43_WARN_ON(vif->type != wl->if_type);
 			if (conf->changed & IEEE80211_IFCC_SSID)
 				b43_set_ssid(dev, conf->ssid, conf->ssid_len);
 			if (conf->changed & IEEE80211_IFCC_BEACON)
 				b43_update_templates(wl);
-		} else if (b43_is_mode(wl, IEEE80211_IF_TYPE_IBSS)) {
+		} else if (b43_is_mode(wl, NL80211_IFTYPE_ADHOC)) {
 			if (conf->changed & IEEE80211_IFCC_BEACON)
 				b43_update_templates(wl);
 		}
@@ -3903,7 +3903,7 @@ static void b43_set_synth_pu_delay(struct b43_wldev *dev, bool idle)
 		pu_delay = 3700;
 	else
 		pu_delay = 1050;
-	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS) || idle)
+	if (b43_is_mode(dev->wl, NL80211_IFTYPE_ADHOC) || idle)
 		pu_delay = 500;
 	if ((dev->phy.radio_ver == 0x2050) && (dev->phy.radio_rev == 8))
 		pu_delay = max(pu_delay, (u16)2400);
@@ -3917,7 +3917,7 @@ static void b43_set_pretbtt(struct b43_wldev *dev)
 	u16 pretbtt;
 
 	/* The time value is in microseconds. */
-	if (b43_is_mode(dev->wl, IEEE80211_IF_TYPE_IBSS)) {
+	if (b43_is_mode(dev->wl, NL80211_IFTYPE_ADHOC)) {
 		pretbtt = 2;
 	} else {
 		if (dev->phy.type == B43_PHYTYPE_A)
@@ -4084,11 +4084,11 @@ static int b43_op_add_interface(struct ieee80211_hw *hw,
 
 	/* TODO: allow WDS/AP devices to coexist */
 
-	if (conf->type != IEEE80211_IF_TYPE_AP &&
-	    conf->type != IEEE80211_IF_TYPE_MESH_POINT &&
-	    conf->type != IEEE80211_IF_TYPE_STA &&
-	    conf->type != IEEE80211_IF_TYPE_WDS &&
-	    conf->type != IEEE80211_IF_TYPE_IBSS)
+	if (conf->type != NL80211_IFTYPE_AP &&
+	    conf->type != NL80211_IFTYPE_MESH_POINT &&
+	    conf->type != NL80211_IFTYPE_STATION &&
+	    conf->type != NL80211_IFTYPE_WDS &&
+	    conf->type != NL80211_IFTYPE_ADHOC)
 		return -EOPNOTSUPP;
 
 	mutex_lock(&wl->mutex);
@@ -4234,7 +4234,8 @@ out_unlock:
 	return err;
 }
 
-static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
+static int b43_op_beacon_set_tim(struct ieee80211_hw *hw,
+				 struct ieee80211_sta *sta, bool set)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	unsigned long flags;
@@ -4249,7 +4250,7 @@ static int b43_op_beacon_set_tim(struct ieee80211_hw *hw, int aid, int set)
 static void b43_op_sta_notify(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      enum sta_notify_cmd notify_cmd,
-			      const u8 *addr)
+			      struct ieee80211_sta *sta)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 

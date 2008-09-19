@@ -2821,7 +2821,38 @@ void ath9k_hw_set_gpio(struct ath_hal *ah, u32 gpio, u32 val)
 		AR_GPIO_BIT(gpio));
 }
 
-static u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio)
+/*
+ * Configure GPIO Input lines
+ */
+void ath9k_hw_cfg_gpio_input(struct ath_hal *ah, u32 gpio)
+{
+	u32 gpio_shift;
+
+	ASSERT(gpio < ah->ah_caps.num_gpio_pins);
+
+	gpio_shift = gpio << 1;
+
+	REG_RMW(ah,
+		AR_GPIO_OE_OUT,
+		(AR_GPIO_OE_OUT_DRV_NO << gpio_shift),
+		(AR_GPIO_OE_OUT_DRV << gpio_shift));
+}
+
+#ifdef CONFIG_RFKILL
+static void ath9k_enable_rfkill(struct ath_hal *ah)
+{
+	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
+		    AR_GPIO_INPUT_EN_VAL_RFSILENT_BB);
+
+	REG_CLR_BIT(ah, AR_GPIO_INPUT_MUX2,
+		    AR_GPIO_INPUT_MUX2_RFSILENT);
+
+	ath9k_hw_cfg_gpio_input(ah, ah->ah_rfkill_gpio);
+	REG_SET_BIT(ah, AR_PHY_TEST, RFSILENT_BB);
+}
+#endif
+
+u32 ath9k_hw_gpio_get(struct ath_hal *ah, u32 gpio)
 {
 	if (gpio >= ah->ah_caps.num_gpio_pins)
 		return 0xffffffff;
@@ -3034,17 +3065,17 @@ static bool ath9k_hw_fill_cap_info(struct ath_hal *ah)
 
 	pCap->hw_caps |= ATH9K_HW_CAP_ENHANCEDPM;
 
+#ifdef CONFIG_RFKILL
 	ah->ah_rfsilent = ath9k_hw_get_eeprom(ahp, EEP_RF_SILENT);
 	if (ah->ah_rfsilent & EEP_RFSILENT_ENABLED) {
-		ahp->ah_gpioSelect =
+		ah->ah_rfkill_gpio =
 			MS(ah->ah_rfsilent, EEP_RFSILENT_GPIO_SEL);
-		ahp->ah_polarity =
+		ah->ah_rfkill_polarity =
 			MS(ah->ah_rfsilent, EEP_RFSILENT_POLARITY);
 
-		ath9k_hw_setcapability(ah, ATH9K_CAP_RFSILENT, 1, true,
-				       NULL);
 		pCap->hw_caps |= ATH9K_HW_CAP_RFSILENT;
 	}
+#endif
 
 	if ((ah->ah_macVersion == AR_SREV_VERSION_5416_PCI) ||
 	    (ah->ah_macVersion == AR_SREV_VERSION_5416_PCIE) ||
@@ -5961,6 +5992,10 @@ bool ath9k_hw_reset(struct ath_hal *ah,
 	ath9k_hw_init_interrupt_masks(ah, ah->ah_opmode);
 	ath9k_hw_init_qos(ah);
 
+#ifdef CONFIG_RFKILL
+	if (ah->ah_caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
+		ath9k_enable_rfkill(ah);
+#endif
 	ath9k_hw_init_user_settings(ah);
 
 	REG_WRITE(ah, AR_STA_ID1,
@@ -6489,31 +6524,6 @@ ath9k_hw_setbssidmask(struct ath_hal *ah, const u8 *mask)
 
 	return true;
 }
-
-#ifdef CONFIG_ATH9K_RFKILL
-static void ath9k_enable_rfkill(struct ath_hal *ah)
-{
-	struct ath_hal_5416 *ahp = AH5416(ah);
-
-	REG_SET_BIT(ah, AR_GPIO_INPUT_EN_VAL,
-		    AR_GPIO_INPUT_EN_VAL_RFSILENT_BB);
-
-	REG_CLR_BIT(ah, AR_GPIO_INPUT_MUX2,
-		    AR_GPIO_INPUT_MUX2_RFSILENT);
-
-	ath9k_hw_cfg_gpio_input(ah, ahp->ah_gpioSelect);
-	REG_SET_BIT(ah, AR_PHY_TEST, RFSILENT_BB);
-
-	if (ahp->ah_gpioBit == ath9k_hw_gpio_get(ah, ahp->ah_gpioSelect)) {
-
-		ath9k_hw_set_gpio_intr(ah, ahp->ah_gpioSelect,
-				       !ahp->ah_gpioBit);
-	} else {
-		ath9k_hw_set_gpio_intr(ah, ahp->ah_gpioSelect,
-				       ahp->ah_gpioBit);
-	}
-}
-#endif
 
 void
 ath9k_hw_write_associd(struct ath_hal *ah, const u8 *bssid,

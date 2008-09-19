@@ -173,7 +173,6 @@ IEEE80211_IF_FILE(assoc_tries, u.sta.assoc_tries, DEC);
 IEEE80211_IF_FILE(auth_algs, u.sta.auth_algs, HEX);
 IEEE80211_IF_FILE(auth_alg, u.sta.auth_alg, DEC);
 IEEE80211_IF_FILE(auth_transaction, u.sta.auth_transaction, DEC);
-IEEE80211_IF_FILE(num_beacons_sta, u.sta.num_beacons, DEC);
 
 static ssize_t ieee80211_if_fmt_flags(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -192,7 +191,6 @@ __IEEE80211_IF_FILE(flags);
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
 IEEE80211_IF_FILE(dtim_count, u.ap.dtim_count, DEC);
-IEEE80211_IF_FILE(num_beacons, u.ap.num_beacons, DEC);
 
 static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	const struct ieee80211_sub_if_data *sdata, char *buf, int buflen)
@@ -207,37 +205,37 @@ IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
 
 #ifdef CONFIG_MAC80211_MESH
 /* Mesh stats attributes */
-IEEE80211_IF_FILE(fwded_frames, u.sta.mshstats.fwded_frames, DEC);
-IEEE80211_IF_FILE(dropped_frames_ttl, u.sta.mshstats.dropped_frames_ttl, DEC);
+IEEE80211_IF_FILE(fwded_frames, u.mesh.mshstats.fwded_frames, DEC);
+IEEE80211_IF_FILE(dropped_frames_ttl, u.mesh.mshstats.dropped_frames_ttl, DEC);
 IEEE80211_IF_FILE(dropped_frames_no_route,
-		u.sta.mshstats.dropped_frames_no_route, DEC);
-IEEE80211_IF_FILE(estab_plinks, u.sta.mshstats.estab_plinks, ATOMIC);
+		u.mesh.mshstats.dropped_frames_no_route, DEC);
+IEEE80211_IF_FILE(estab_plinks, u.mesh.mshstats.estab_plinks, ATOMIC);
 
 /* Mesh parameters */
 IEEE80211_IF_WFILE(dot11MeshMaxRetries,
-		u.sta.mshcfg.dot11MeshMaxRetries, DEC, u8);
+		u.mesh.mshcfg.dot11MeshMaxRetries, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshRetryTimeout,
-		u.sta.mshcfg.dot11MeshRetryTimeout, DEC, u16);
+		u.mesh.mshcfg.dot11MeshRetryTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshConfirmTimeout,
-		u.sta.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
+		u.mesh.mshcfg.dot11MeshConfirmTimeout, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHoldingTimeout,
-		u.sta.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
-IEEE80211_IF_WFILE(dot11MeshTTL, u.sta.mshcfg.dot11MeshTTL, DEC, u8);
-IEEE80211_IF_WFILE(auto_open_plinks, u.sta.mshcfg.auto_open_plinks, DEC, u8);
+		u.mesh.mshcfg.dot11MeshHoldingTimeout, DEC, u16);
+IEEE80211_IF_WFILE(dot11MeshTTL, u.mesh.mshcfg.dot11MeshTTL, DEC, u8);
+IEEE80211_IF_WFILE(auto_open_plinks, u.mesh.mshcfg.auto_open_plinks, DEC, u8);
 IEEE80211_IF_WFILE(dot11MeshMaxPeerLinks,
-		u.sta.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
+		u.mesh.mshcfg.dot11MeshMaxPeerLinks, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPactivePathTimeout,
-		u.sta.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
+		u.mesh.mshcfg.dot11MeshHWMPactivePathTimeout, DEC, u32);
 IEEE80211_IF_WFILE(dot11MeshHWMPpreqMinInterval,
-		u.sta.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
+		u.mesh.mshcfg.dot11MeshHWMPpreqMinInterval, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPnetDiameterTraversalTime,
-		u.sta.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
+		u.mesh.mshcfg.dot11MeshHWMPnetDiameterTraversalTime, DEC, u16);
 IEEE80211_IF_WFILE(dot11MeshHWMPmaxPREQretries,
-		u.sta.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
+		u.mesh.mshcfg.dot11MeshHWMPmaxPREQretries, DEC, u8);
 IEEE80211_IF_WFILE(path_refresh_time,
-		u.sta.mshcfg.path_refresh_time, DEC, u32);
+		u.mesh.mshcfg.path_refresh_time, DEC, u32);
 IEEE80211_IF_WFILE(min_discovery_timeout,
-		u.sta.mshcfg.min_discovery_timeout, DEC, u16);
+		u.mesh.mshcfg.min_discovery_timeout, DEC, u16);
 #endif
 
 
@@ -265,7 +263,6 @@ static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_ADD(auth_alg, sta);
 	DEBUGFS_ADD(auth_transaction, sta);
 	DEBUGFS_ADD(flags, sta);
-	DEBUGFS_ADD(num_beacons_sta, sta);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
@@ -276,7 +273,6 @@ static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 
 	DEBUGFS_ADD(num_sta_ps, ap);
 	DEBUGFS_ADD(dtim_count, ap);
-	DEBUGFS_ADD(num_beacons, ap);
 	DEBUGFS_ADD(num_buffered_multicast, ap);
 }
 
@@ -345,26 +341,26 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
 		add_mesh_stats(sdata);
 		add_mesh_config(sdata);
 #endif
-		/* fall through */
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		add_sta_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		add_ap_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_WDS:
+	case NL80211_IFTYPE_WDS:
 		add_wds_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		add_monitor_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		add_vlan_files(sdata);
 		break;
 	default:
@@ -398,7 +394,6 @@ static void del_sta_files(struct ieee80211_sub_if_data *sdata)
 	DEBUGFS_DEL(auth_alg, sta);
 	DEBUGFS_DEL(auth_transaction, sta);
 	DEBUGFS_DEL(flags, sta);
-	DEBUGFS_DEL(num_beacons_sta, sta);
 }
 
 static void del_ap_files(struct ieee80211_sub_if_data *sdata)
@@ -409,7 +404,6 @@ static void del_ap_files(struct ieee80211_sub_if_data *sdata)
 
 	DEBUGFS_DEL(num_sta_ps, ap);
 	DEBUGFS_DEL(dtim_count, ap);
-	DEBUGFS_DEL(num_beacons, ap);
 	DEBUGFS_DEL(num_buffered_multicast, ap);
 }
 
@@ -482,26 +476,26 @@ static void del_files(struct ieee80211_sub_if_data *sdata)
 		return;
 
 	switch (sdata->vif.type) {
-	case IEEE80211_IF_TYPE_MESH_POINT:
+	case NL80211_IFTYPE_MESH_POINT:
 #ifdef CONFIG_MAC80211_MESH
 		del_mesh_stats(sdata);
 		del_mesh_config(sdata);
 #endif
-		/* fall through */
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+		break;
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		del_sta_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		del_ap_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_WDS:
+	case NL80211_IFTYPE_WDS:
 		del_wds_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_MONITOR:
 		del_monitor_files(sdata);
 		break;
-	case IEEE80211_IF_TYPE_VLAN:
+	case NL80211_IFTYPE_AP_VLAN:
 		del_vlan_files(sdata);
 		break;
 	default:

@@ -146,48 +146,6 @@ static int lbs_ret_reg_access(struct lbs_private *priv,
 	return ret;
 }
 
-static int lbs_ret_802_11_snmp_mib(struct lbs_private *priv,
-				    struct cmd_ds_command *resp)
-{
-	struct cmd_ds_802_11_snmp_mib *smib = &resp->params.smib;
-	u16 oid = le16_to_cpu(smib->oid);
-	u16 querytype = le16_to_cpu(smib->querytype);
-
-	lbs_deb_enter(LBS_DEB_CMD);
-
-	lbs_deb_cmd("SNMP_RESP: oid 0x%x, querytype 0x%x\n", oid,
-	       querytype);
-	lbs_deb_cmd("SNMP_RESP: Buf size %d\n", le16_to_cpu(smib->bufsize));
-
-	if (querytype == CMD_ACT_GET) {
-		switch (oid) {
-		case FRAGTHRESH_I:
-			priv->fragthsd =
-				le16_to_cpu(*((__le16 *)(smib->value)));
-			lbs_deb_cmd("SNMP_RESP: frag threshold %u\n",
-				    priv->fragthsd);
-			break;
-		case RTSTHRESH_I:
-			priv->rtsthsd =
-				le16_to_cpu(*((__le16 *)(smib->value)));
-			lbs_deb_cmd("SNMP_RESP: rts threshold %u\n",
-				    priv->rtsthsd);
-			break;
-		case SHORT_RETRYLIM_I:
-			priv->txretrycount =
-				le16_to_cpu(*((__le16 *)(smib->value)));
-			lbs_deb_cmd("SNMP_RESP: tx retry count %u\n",
-				    priv->rtsthsd);
-			break;
-		default:
-			break;
-		}
-	}
-
-	lbs_deb_enter(LBS_DEB_CMD);
-	return 0;
-}
-
 static int lbs_ret_802_11_rssi(struct lbs_private *priv,
 				struct cmd_ds_command *resp)
 {
@@ -258,10 +216,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 		ret = lbs_ret_80211_associate(priv, resp);
 		break;
 
-	case CMD_RET(CMD_802_11_SNMP_MIB):
-		ret = lbs_ret_802_11_snmp_mib(priv, resp);
-		break;
-
 	case CMD_RET(CMD_802_11_SET_AFC):
 	case CMD_RET(CMD_802_11_GET_AFC):
 		spin_lock_irqsave(&priv->driver_lock, flags);
@@ -271,7 +225,6 @@ static inline int handle_cmd_response(struct lbs_private *priv,
 
 		break;
 
-	case CMD_RET(CMD_802_11_RESET):
 	case CMD_RET(CMD_802_11_AUTHENTICATE):
 	case CMD_RET(CMD_802_11_BEACON_STOP):
 		break;

@@ -512,21 +512,9 @@ static void rfkill_release(struct device *dev)
 #ifdef CONFIG_PM
 static int rfkill_suspend(struct device *dev, pm_message_t state)
 {
-	struct rfkill *rfkill = to_rfkill(dev);
-
-	if (dev->power.power_state.event != state.event) {
-		if (state.event & PM_EVENT_SLEEP) {
-			/* Stop transmitter, keep state, no notifies */
-			update_rfkill_state(rfkill);
-
-			mutex_lock(&rfkill->mutex);
-			rfkill->toggle_radio(rfkill->data,
-						RFKILL_STATE_SOFT_BLOCKED);
-			mutex_unlock(&rfkill->mutex);
-		}
-
+	/* mark class device as suspended */
+	if (dev->power.power_state.event != state.event)
 		dev->power.power_state = state;
-	}
 
 	return 0;
 }

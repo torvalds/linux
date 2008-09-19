@@ -30,6 +30,14 @@ static inline void lbs_postpone_association_work(struct lbs_private *priv)
 	queue_delayed_work(priv->work_thread, &priv->assoc_work, HZ / 2);
 }
 
+static inline void lbs_do_association_work(struct lbs_private *priv)
+{
+	if (priv->surpriseremoved)
+		return;
+	cancel_delayed_work(&priv->assoc_work);
+	queue_delayed_work(priv->work_thread, &priv->assoc_work, 0);
+}
+
 static inline void lbs_cancel_association_work(struct lbs_private *priv)
 {
 	cancel_delayed_work(&priv->assoc_work);
@@ -266,21 +274,17 @@ static int lbs_set_rts(struct net_device *dev, struct iw_request_info *info,
 {
 	int ret = 0;
 	struct lbs_private *priv = dev->priv;
-	u32 rthr = vwrq->value;
+	u32 val = vwrq->value;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (vwrq->disabled) {
-		priv->rtsthsd = rthr = MRVDRV_RTS_MAX_VALUE;
-	} else {
-		if (rthr < MRVDRV_RTS_MIN_VALUE || rthr > MRVDRV_RTS_MAX_VALUE)
-			return -EINVAL;
-		priv->rtsthsd = rthr;
-	}
+	if (vwrq->disabled)
+		val = MRVDRV_RTS_MAX_VALUE;
 
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
-				    CMD_ACT_SET, CMD_OPTION_WAITFORRSP,
-				    OID_802_11_RTS_THRESHOLD, &rthr);
+	if (val > MRVDRV_RTS_MAX_VALUE) /* min rts value is 0 */
+		return -EINVAL;
+
+	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_RTS_THRESHOLD, (u16) val);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
@@ -289,21 +293,18 @@ static int lbs_set_rts(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
 {
-	int ret = 0;
 	struct lbs_private *priv = dev->priv;
+	int ret = 0;
+	u16 val = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	priv->rtsthsd = 0;
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
-				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
-				    OID_802_11_RTS_THRESHOLD, NULL);
+	ret = lbs_get_snmp_mib(priv, SNMP_MIB_OID_RTS_THRESHOLD, &val);
 	if (ret)
 		goto out;
 
-	vwrq->value = priv->rtsthsd;
-	vwrq->disabled = ((vwrq->value < MRVDRV_RTS_MIN_VALUE)
-			  || (vwrq->value > MRVDRV_RTS_MAX_VALUE));
+	vwrq->value = val;
+	vwrq->disabled = val > MRVDRV_RTS_MAX_VALUE; /* min rts value is 0 */
 	vwrq->fixed = 1;
 
 out:
@@ -314,24 +315,19 @@ out:
 static int lbs_set_frag(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_param *vwrq, char *extra)
 {
-	int ret = 0;
-	u32 fthr = vwrq->value;
 	struct lbs_private *priv = dev->priv;
+	int ret = 0;
+	u32 val = vwrq->value;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (vwrq->disabled) {
-		priv->fragthsd = fthr = MRVDRV_FRAG_MAX_VALUE;
-	} else {
-		if (fthr < MRVDRV_FRAG_MIN_VALUE
-		    || fthr > MRVDRV_FRAG_MAX_VALUE)
-			return -EINVAL;
-		priv->fragthsd = fthr;
-	}
+	if (vwrq->disabled)
+		val = MRVDRV_FRAG_MAX_VALUE;
 
-	ret = lbs_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
-				    CMD_ACT_SET, CMD_OPTION_WAITFORRSP,
-				    OID_802_11_FRAGMENTATION_THRESHOLD, &fthr);
+	if (val < MRVDRV_FRAG_MIN_VALUE || val > MRVDRV_FRAG_MAX_VALUE)
+		return -EINVAL;
+
+	ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_FRAG_THRESHOLD, (u16) val);
 
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
@@ -340,22 +336,19 @@ static int lbs_set_frag(struct net_device *dev, struct iw_request_info *info,
 static int lbs_get_frag(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_param *vwrq, char *extra)
 {
-	int ret = 0;
 	struct lbs_private *priv = dev->priv;
+	int ret = 0;
+	u16 val = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	priv->fragthsd = 0;
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_SNMP_MIB,
-				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
-				    OID_802_11_FRAGMENTATION_THRESHOLD, NULL);
+	ret = lbs_get_snmp_mib(priv, SNMP_MIB_OID_FRAG_THRESHOLD, &val);
 	if (ret)
 		goto out;
 
-	vwrq->value = priv->fragthsd;
-	vwrq->disabled = ((vwrq->value < MRVDRV_FRAG_MIN_VALUE)
-			  || (vwrq->value > MRVDRV_FRAG_MAX_VALUE));
+	vwrq->value = val;
+	vwrq->disabled = ((val < MRVDRV_FRAG_MIN_VALUE)
+			  || (val > MRVDRV_FRAG_MAX_VALUE));
 	vwrq->fixed = 1;
 
 out:
@@ -382,7 +375,7 @@ static int mesh_wlan_get_mode(struct net_device *dev,
 {
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	*uwrq = IW_MODE_REPEAT ;
+	*uwrq = IW_MODE_REPEAT;
 
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
@@ -425,31 +418,44 @@ out:
 static int lbs_set_retry(struct net_device *dev, struct iw_request_info *info,
 			  struct iw_param *vwrq, char *extra)
 {
-	int ret = 0;
 	struct lbs_private *priv = dev->priv;
+	int ret = 0;
+	u16 slimit = 0, llimit = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	if (vwrq->flags == IW_RETRY_LIMIT) {
-		/* The MAC has a 4-bit Total_Tx_Count register
-		   Total_Tx_Count = 1 + Tx_Retry_Count */
+        if ((vwrq->flags & IW_RETRY_TYPE) != IW_RETRY_LIMIT)
+                return -EOPNOTSUPP;
+
+	/* The MAC has a 4-bit Total_Tx_Count register
+	   Total_Tx_Count = 1 + Tx_Retry_Count */
 #define TX_RETRY_MIN 0
 #define TX_RETRY_MAX 14
-		if (vwrq->value < TX_RETRY_MIN || vwrq->value > TX_RETRY_MAX)
-			return -EINVAL;
+	if (vwrq->value < TX_RETRY_MIN || vwrq->value > TX_RETRY_MAX)
+		return -EINVAL;
 
-		/* Adding 1 to convert retry count to try count */
-		priv->txretrycount = vwrq->value + 1;
+	/* Add 1 to convert retry count to try count */
+	if (vwrq->flags & IW_RETRY_SHORT)
+		slimit = (u16) (vwrq->value + 1);
+	else if (vwrq->flags & IW_RETRY_LONG)
+		llimit = (u16) (vwrq->value + 1);
+	else
+		slimit = llimit = (u16) (vwrq->value + 1); /* set both */
 
-		ret = lbs_prepare_and_send_command(priv, CMD_802_11_SNMP_MIB,
-					    CMD_ACT_SET,
-					    CMD_OPTION_WAITFORRSP,
-					    OID_802_11_TX_RETRYCOUNT, NULL);
-
+	if (llimit) {
+		ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_LONG_RETRY_LIMIT,
+				       llimit);
 		if (ret)
 			goto out;
-	} else {
-		return -EOPNOTSUPP;
+	}
+
+	if (slimit) {
+		/* txretrycount follows the short retry limit */
+		priv->txretrycount = slimit;
+		ret = lbs_set_snmp_mib(priv, SNMP_MIB_OID_SHORT_RETRY_LIMIT,
+				       slimit);
+		if (ret)
+			goto out;
 	}
 
 out:
@@ -462,22 +468,30 @@ static int lbs_get_retry(struct net_device *dev, struct iw_request_info *info,
 {
 	struct lbs_private *priv = dev->priv;
 	int ret = 0;
+	u16 val = 0;
 
 	lbs_deb_enter(LBS_DEB_WEXT);
 
-	priv->txretrycount = 0;
-	ret = lbs_prepare_and_send_command(priv,
-				    CMD_802_11_SNMP_MIB,
-				    CMD_ACT_GET, CMD_OPTION_WAITFORRSP,
-				    OID_802_11_TX_RETRYCOUNT, NULL);
-	if (ret)
-		goto out;
-
 	vwrq->disabled = 0;
-	if (!vwrq->flags) {
-		vwrq->flags = IW_RETRY_LIMIT;
+
+	if (vwrq->flags & IW_RETRY_LONG) {
+		ret = lbs_get_snmp_mib(priv, SNMP_MIB_OID_LONG_RETRY_LIMIT, &val);
+		if (ret)
+			goto out;
+
 		/* Subtract 1 to convert try count to retry count */
-		vwrq->value = priv->txretrycount - 1;
+		vwrq->value = val - 1;
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_LONG;
+	} else {
+		ret = lbs_get_snmp_mib(priv, SNMP_MIB_OID_SHORT_RETRY_LIMIT, &val);
+		if (ret)
+			goto out;
+
+		/* txretry count follows the short retry limit */
+		priv->txretrycount = val;
+		/* Subtract 1 to convert try count to retry count */
+		vwrq->value = val - 1;
+		vwrq->flags = IW_RETRY_LIMIT | IW_RETRY_SHORT;
 	}
 
 out:
@@ -1578,12 +1592,14 @@ static int lbs_set_encodeext(struct net_device *dev,
 			set_bit(ASSOC_FLAG_SECINFO, &assoc_req->flags);
 		}
 
-		disable_wep (assoc_req);
+		/* Only disable wep if necessary: can't waste time here. */
+		if (priv->mac_control & CMD_ACT_MAC_WEP_ENABLE)
+			disable_wep(assoc_req);
 	}
 
 out:
-	if (ret == 0) {
-		lbs_postpone_association_work(priv);
+	if (ret == 0) {  /* key installation is time critical: postpone not! */
+		lbs_do_association_work(priv);
 	} else {
 		lbs_cancel_association_work(priv);
 	}

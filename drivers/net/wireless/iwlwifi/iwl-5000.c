@@ -1569,6 +1569,8 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.mod_params = &iwl50_mod_params,
 };
 
+MODULE_FIRMWARE("iwlwifi-5000" IWL5000_UCODE_API ".ucode");
+
 module_param_named(disable50, iwl50_mod_params.disable, int, 0444);
 MODULE_PARM_DESC(disable50,
 		  "manually disable the 50XX radio (default 0 [radio on])");

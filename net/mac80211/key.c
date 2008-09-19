@@ -118,12 +118,12 @@ static const u8 *get_mac_for_key(struct ieee80211_key *key)
 	 * address to indicate a transmit-only key.
 	 */
 	if (key->conf.alg != ALG_WEP &&
-	    (key->sdata->vif.type == IEEE80211_IF_TYPE_AP ||
-	     key->sdata->vif.type == IEEE80211_IF_TYPE_VLAN))
+	    (key->sdata->vif.type == NL80211_IFTYPE_AP ||
+	     key->sdata->vif.type == NL80211_IFTYPE_AP_VLAN))
 		addr = zero_addr;
 
 	if (key->sta)
-		addr = key->sta->addr;
+		addr = key->sta->sta.addr;
 
 	return addr;
 }
@@ -331,7 +331,7 @@ void ieee80211_key_link(struct ieee80211_key *key,
 		 */
 		key->conf.flags |= IEEE80211_KEY_FLAG_PAIRWISE;
 	} else {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			struct sta_info *ap;
 
 			/*

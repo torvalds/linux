@@ -163,6 +163,9 @@ struct iwl_lq_sta {
 	u32 dbg_fixed_rate;
 #endif
 	struct iwl_priv *drv;
+
+	/* used to be in sta_info */
+	int last_txrate_idx;
 };
 
 static void rs_rate_scale_perform(struct iwl_priv *priv,
@@ -356,18 +359,12 @@ static void rs_tl_turn_on_agg_for_tid(struct iwl_priv *priv,
 				      struct iwl_lq_sta *lq_data, u8 tid,
 				      struct sta_info *sta)
 {
-	unsigned long state;
 	DECLARE_MAC_BUF(mac);
 
-	spin_lock_bh(&sta->lock);
-	state = sta->ampdu_mlme.tid_state_tx[tid];
-	spin_unlock_bh(&sta->lock);
-
-	if (state == HT_AGG_STATE_IDLE &&
-	    rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
+	if (rs_tl_get_load(lq_data, tid) > IWL_AGG_LOAD_THRESHOLD) {
 		IWL_DEBUG_HT("Starting Tx agg: STA: %s tid: %d\n",
-				print_mac(mac, sta->addr), tid);
-		ieee80211_start_tx_ba_session(priv->hw, sta->addr, tid);
+				print_mac(mac, sta->sta.addr), tid);
+		ieee80211_start_tx_ba_session(priv->hw, sta->sta.addr, tid);
 	}
 }
 
@@ -821,7 +818,7 @@ static void rs_tx_status(void *priv_rate, struct net_device *dev,
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added)
 		goto out;
 
@@ -1151,10 +1148,10 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	s8 is_green = lq_sta->is_green;
 
 	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
-	    !sta->ht_info.ht_supported)
+	    !sta->sta.ht_info.ht_supported)
 		return -1;
 
-	if (((sta->ht_info.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
+	if (((sta->sta.ht_info.cap & IEEE80211_HT_CAP_SM_PS) >> 2)
 						== WLAN_HT_CAP_SM_PS_STATIC)
 		return -1;
 
@@ -1219,7 +1216,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	s32 rate;
 
 	if (!(conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) ||
-	    !sta->ht_info.ht_supported)
+	    !sta->sta.ht_info.ht_supported)
 		return -1;
 
 	IWL_DEBUG_RATE("LQ: try to switch to SISO\n");
@@ -1728,7 +1725,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 		return;
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
-	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
+	lq_sta->supp_rates = sta->sta.supp_rates[lq_sta->band];
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
 
@@ -1746,7 +1743,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	is_green = lq_sta->is_green;
 
 	/* current tx rate */
-	index = sta->last_txrate_idx;
+	index = lq_sta->last_txrate_idx;
 
 	IWL_DEBUG_RATE("Rate scale index %d for type %d\n", index,
 		       tbl->lq_type);
@@ -2059,15 +2056,7 @@ lq_update:
 out:
 	tbl->current_rate = rate_n_flags_from_tbl(tbl, index, is_green);
 	i = index;
-	sta->last_txrate_idx = i;
-
-	/* sta->txrate_idx is an index to A mode rates which start
-	 * at IWL_FIRST_OFDM_RATE
-	 */
-	if (lq_sta->band == IEEE80211_BAND_5GHZ)
-		sta->txrate_idx = i - IWL_FIRST_OFDM_RATE;
-	else
-		sta->txrate_idx = i;
+	lq_sta->last_txrate_idx = i;
 
 	return;
 }
@@ -2090,10 +2079,10 @@ static void rs_initialize_lq(struct iwl_priv *priv,
 		goto out;
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
-	i = sta->last_txrate_idx;
+	i = lq_sta->last_txrate_idx;
 
 	if ((lq_sta->lq.sta_id == 0xff) &&
-	    (priv->iw_mode == IEEE80211_IF_TYPE_IBSS))
+	    (priv->iw_mode == NL80211_IFTYPE_ADHOC))
 		goto out;
 
 	valid_tx_ant = priv->hw_params.valid_tx_ant;
@@ -2161,9 +2150,9 @@ static void rs_get_rate(void *priv_rate, struct net_device *dev,
 	}
 
 	lq_sta = (struct iwl_lq_sta *)sta->rate_ctrl_priv;
-	i = sta->last_txrate_idx;
+	i = lq_sta->last_txrate_idx;
 
-	if ((priv->iw_mode == IEEE80211_IF_TYPE_IBSS) &&
+	if ((priv->iw_mode == NL80211_IFTYPE_ADHOC) &&
 	    !lq_sta->ibss_sta_added) {
 		u8 sta_id = iwl_find_station(priv, hdr->addr1);
 		DECLARE_MAC_BUF(mac);
@@ -2230,8 +2219,7 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
 	lq_sta->flush_timer = 0;
-	lq_sta->supp_rates = sta->supp_rates[sband->band];
-	sta->txrate_idx = 3;
+	lq_sta->supp_rates = sta->sta.supp_rates[sband->band];
 	for (j = 0; j < LQ_SIZE; j++)
 		for (i = 0; i < IWL_RATE_COUNT; i++)
 			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
@@ -2243,18 +2231,18 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	 * after assoc.. */
 
 	lq_sta->ibss_sta_added = 0;
-	if (priv->iw_mode == IEEE80211_IF_TYPE_AP) {
-		u8 sta_id = iwl_find_station(priv, sta->addr);
+	if (priv->iw_mode == NL80211_IFTYPE_AP) {
+		u8 sta_id = iwl_find_station(priv, sta->sta.addr);
 		DECLARE_MAC_BUF(mac);
 
 		/* for IBSS the call are from tasklet */
 		IWL_DEBUG_RATE("LQ: ADD station %s\n",
-			     print_mac(mac, sta->addr));
+			     print_mac(mac, sta->sta.addr));
 
 		if (sta_id == IWL_INVALID_STATION) {
 			IWL_DEBUG_RATE("LQ: ADD station %s\n",
-				       print_mac(mac, sta->addr));
-			sta_id = iwl_add_station_flags(priv, sta->addr,
+				       print_mac(mac, sta->sta.addr));
+			sta_id = iwl_add_station_flags(priv, sta->sta.addr,
 							0, CMD_ASYNC, NULL);
 		}
 		if ((sta_id != IWL_INVALID_STATION)) {
@@ -2266,14 +2254,14 @@ static void rs_rate_init(void *priv_rate, void *priv_sta,
 	}
 
 	/* Find highest tx rate supported by hardware and destination station */
+	lq_sta->last_txrate_idx = 3;
 	for (i = 0; i < sband->n_bitrates; i++)
-		if (sta->supp_rates[sband->band] & BIT(i))
-			sta->txrate_idx = i;
+		if (sta->sta.supp_rates[sband->band] & BIT(i))
+			lq_sta->last_txrate_idx = i;
 
-	sta->last_txrate_idx = sta->txrate_idx;
 	/* For MODE_IEEE80211A, skip over cck rates in global rate table */
 	if (local->hw.conf.channel->band == IEEE80211_BAND_5GHZ)
-		sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
+		lq_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
 
 	lq_sta->is_dup = 0;
 	lq_sta->is_green = rs_use_green(priv, conf);

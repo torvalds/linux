@@ -103,7 +103,7 @@ void b43legacy_phy_lock(struct b43legacy_wldev *dev)
 	if (dev->dev->id.revision < 3) {
 		b43legacy_mac_suspend(dev);
 	} else {
-		if (!b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+		if (!b43legacy_is_mode(dev->wl, NL80211_IFTYPE_AP))
 			b43legacy_power_saving_ctl_bits(dev, -1, 1);
 	}
 }
@@ -118,7 +118,7 @@ void b43legacy_phy_unlock(struct b43legacy_wldev *dev)
 	if (dev->dev->id.revision < 3) {
 		b43legacy_mac_enable(dev);
 	} else {
-		if (!b43legacy_is_mode(dev->wl, IEEE80211_IF_TYPE_AP))
+		if (!b43legacy_is_mode(dev->wl, NL80211_IFTYPE_AP))
 			b43legacy_power_saving_ctl_bits(dev, -1, -1);
 	}
 }

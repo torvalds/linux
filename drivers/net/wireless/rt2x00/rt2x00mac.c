@@ -211,7 +211,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 		return -ENODEV;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_AP:
 		/*
 		 * We don't support mixed combinations of
 		 * sta and ap interfaces.
@@ -227,8 +227,8 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 			return -ENOBUFS;
 
 		break;
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
 		/*
 		 * We don't support mixed combinations of
 		 * sta and ap interfaces.
@@ -268,7 +268,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	 * increase interface count and start initialization.
 	 */
 
-	if (conf->type == IEEE80211_IF_TYPE_AP)
+	if (conf->type == NL80211_IFTYPE_AP)
 		rt2x00dev->intf_ap_count++;
 	else
 		rt2x00dev->intf_sta_count++;
@@ -277,7 +277,7 @@ int rt2x00mac_add_interface(struct ieee80211_hw *hw,
 	spin_lock_init(&intf->seqlock);
 	intf->beacon = entry;
 
-	if (conf->type == IEEE80211_IF_TYPE_AP)
+	if (conf->type == NL80211_IFTYPE_AP)
 		memcpy(&intf->bssid, conf->mac_addr, ETH_ALEN);
 	memcpy(&intf->mac, conf->mac_addr, ETH_ALEN);
 
@@ -311,11 +311,11 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	 * no interface is present.
 	 */
 	if (!test_bit(DEVICE_STATE_PRESENT, &rt2x00dev->flags) ||
-	    (conf->type == IEEE80211_IF_TYPE_AP && !rt2x00dev->intf_ap_count) ||
-	    (conf->type != IEEE80211_IF_TYPE_AP && !rt2x00dev->intf_sta_count))
+	    (conf->type == NL80211_IFTYPE_AP && !rt2x00dev->intf_ap_count) ||
+	    (conf->type != NL80211_IFTYPE_AP && !rt2x00dev->intf_sta_count))
 		return;
 
-	if (conf->type == IEEE80211_IF_TYPE_AP)
+	if (conf->type == NL80211_IFTYPE_AP)
 		rt2x00dev->intf_ap_count--;
 	else
 		rt2x00dev->intf_sta_count--;
@@ -331,7 +331,7 @@ void rt2x00mac_remove_interface(struct ieee80211_hw *hw,
 	 * are cleared to prevent false ACKing of frames.
 	 */
 	rt2x00lib_config_intf(rt2x00dev, intf,
-			      IEEE80211_IF_TYPE_INVALID, NULL, NULL);
+			      NL80211_IFTYPE_UNSPECIFIED, NULL, NULL);
 }
 EXPORT_SYMBOL_GPL(rt2x00mac_remove_interface);
 

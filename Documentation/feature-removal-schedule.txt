@@ -6,6 +6,24 @@ be removed from this file.
 
 ---------------------------
 
+What:	old static regulatory information and ieee80211_regdom module parameter
+When:	2.6.29
+Why:	The old regulatory infrastructure has been replaced with a new one
+	which does not require statically defined regulatory domains. We do
+	not want to keep static regulatory domains in the kernel due to the
+	the dynamic nature of regulatory law and localization. We kept around
+	the old static definitions for the regulatory domains of:
+		* US
+		* JP
+		* EU
+	and used by default the US when CONFIG_WIRELESS_OLD_REGULATORY was
+	set. We also kept around the ieee80211_regdom module parameter in case
+	some applications were relying on it. Changing regulatory domains
+	can now be done instead by using nl80211, as is done with iw.
+Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
+
+---------------------------
+
 What:	dev->power.power_state
 When:	July 2007
 Why:	Broken design for runtime control over driver power states, confusing

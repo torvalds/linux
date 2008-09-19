@@ -160,6 +160,7 @@ struct ieee80211_low_level_stats {
  * @BSS_CHANGED_ERP_PREAMBLE: preamble changed
  * @BSS_CHANGED_ERP_SLOT: slot timing changed
  * @BSS_CHANGED_HT: 802.11n parameters changed
+ * @BSS_CHANGED_BASIC_RATES: Basic rateset changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -167,6 +168,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_ERP_PREAMBLE	= 1<<2,
 	BSS_CHANGED_ERP_SLOT		= 1<<3,
 	BSS_CHANGED_HT                  = 1<<4,
+	BSS_CHANGED_BASIC_RATES		= 1<<5,
 };
 
 /**
@@ -187,6 +189,9 @@ enum ieee80211_bss_change {
  * @assoc_ht: association in HT mode
  * @ht_conf: ht capabilities
  * @ht_bss_conf: ht extended capabilities
+ * @basic_rates: bitmap of basic rates, each bit stands for an
+ *	index into the rate table configured by the driver in
+ *	the current band.
  */
 struct ieee80211_bss_conf {
 	/* association related data */
@@ -200,6 +205,7 @@ struct ieee80211_bss_conf {
 	u16 beacon_int;
 	u16 assoc_capability;
 	u64 timestamp;
+	u64 basic_rates;
 	/* ht related data */
 	bool assoc_ht;
 	struct ieee80211_ht_info *ht_conf;
@@ -294,6 +300,9 @@ enum mac80211_tx_control_flags {
  *  (2) driver internal use (if applicable)
  *  (3) TX status information - driver tells mac80211 what happened
  *
+ * The TX control's sta pointer is only valid during the ->tx call,
+ * it may be NULL.
+ *
  * @flags: transmit info flags, defined above
  * @band: TBD
  * @tx_rate_idx: TBD
@@ -321,10 +330,11 @@ struct ieee80211_tx_info {
 
 	union {
 		struct {
+			/* NB: vif can be NULL for injected frames */
 			struct ieee80211_vif *vif;
 			struct ieee80211_key_conf *hw_key;
+			struct ieee80211_sta *sta;
 			unsigned long jiffies;
-			u16 aid;
 			s8 rts_cts_rate_idx, alt_retry_rate_idx;
 			u8 retry_limit;
 			u8 icv_len;
@@ -472,33 +482,6 @@ struct ieee80211_conf {
 };
 
 /**
- * enum ieee80211_if_types - types of 802.11 network interfaces
- *
- * @IEEE80211_IF_TYPE_INVALID: invalid interface type, not used
- *	by mac80211 itself
- * @IEEE80211_IF_TYPE_AP: interface in AP mode.
- * @IEEE80211_IF_TYPE_MGMT: special interface for communication with hostap
- *	daemon. Drivers should never see this type.
- * @IEEE80211_IF_TYPE_STA: interface in STA (client) mode.
- * @IEEE80211_IF_TYPE_IBSS: interface in IBSS (ad-hoc) mode.
- * @IEEE80211_IF_TYPE_MNTR: interface in monitor (rfmon) mode.
- * @IEEE80211_IF_TYPE_WDS: interface in WDS mode.
- * @IEEE80211_IF_TYPE_VLAN: VLAN interface bound to an AP, drivers
- *	will never see this type.
- * @IEEE80211_IF_TYPE_MESH_POINT: 802.11s mesh point
- */
-enum ieee80211_if_types {
-	IEEE80211_IF_TYPE_INVALID,
-	IEEE80211_IF_TYPE_AP,
-	IEEE80211_IF_TYPE_STA,
-	IEEE80211_IF_TYPE_IBSS,
-	IEEE80211_IF_TYPE_MESH_POINT,
-	IEEE80211_IF_TYPE_MNTR,
-	IEEE80211_IF_TYPE_WDS,
-	IEEE80211_IF_TYPE_VLAN,
-};
-
-/**
  * struct ieee80211_vif - per-interface data
  *
  * Data in this structure is continually present for driver
@@ -509,7 +492,7 @@ enum ieee80211_if_types {
  *	sizeof(void *).
  */
 struct ieee80211_vif {
-	enum ieee80211_if_types type;
+	enum nl80211_iftype type;
 	/* must be last */
 	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
@@ -517,7 +500,7 @@ struct ieee80211_vif {
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
 #ifdef CONFIG_MAC80211_MESH
-	return vif->type == IEEE80211_IF_TYPE_MESH_POINT;
+	return vif->type == NL80211_IFTYPE_MESH_POINT;
 #endif
 	return false;
 }
@@ -528,7 +511,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  * @vif: pointer to a driver-use per-interface structure. The pointer
  *	itself is also used for various functions including
  *	ieee80211_beacon_get() and ieee80211_get_buffered_bc().
- * @type: one of &enum ieee80211_if_types constants. Determines the type of
+ * @type: one of &enum nl80211_iftype constants. Determines the type of
  *	added/removed interface.
  * @mac_addr: pointer to MAC address of the interface. This pointer is valid
  *	until the interface is removed (i.e. it cannot be used after
@@ -544,7 +527,7 @@ static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
  * in pure monitor mode.
  */
 struct ieee80211_if_init_conf {
-	enum ieee80211_if_types type;
+	enum nl80211_iftype type;
 	struct ieee80211_vif *vif;
 	void *mac_addr;
 };
@@ -670,6 +653,33 @@ struct ieee80211_key_conf {
  */
 enum set_key_cmd {
 	SET_KEY, DISABLE_KEY,
+};
+
+/**
+ * struct ieee80211_sta - station table entry
+ *
+ * A station table entry represents a station we are possibly
+ * communicating with. Since stations are RCU-managed in
+ * mac80211, any ieee80211_sta pointer you get access to must
+ * either be protected by rcu_read_lock() explicitly or implicitly,
+ * or you must take good care to not use such a pointer after a
+ * call to your sta_notify callback that removed it.
+ *
+ * @addr: MAC address
+ * @aid: AID we assigned to the station if we're an AP
+ * @supp_rates: Bitmap of supported rates (per band)
+ * @ht_info: HT capabilities of this STA
+ * @drv_priv: data area for driver use, will always be aligned to
+ *	sizeof(void *), size is determined in hw information.
+ */
+struct ieee80211_sta {
+	u64 supp_rates[IEEE80211_NUM_BANDS];
+	u8 addr[ETH_ALEN];
+	u16 aid;
+	struct ieee80211_ht_info ht_info;
+
+	/* must be last */
+	u8 drv_priv[0] __attribute__((__aligned__(sizeof(void *))));
 };
 
 /**
@@ -816,6 +826,8 @@ enum ieee80211_hw_flags {
  *
  * @vif_data_size: size (in bytes) of the drv_priv data area
  *	within &struct ieee80211_vif.
+ * @sta_data_size: size (in bytes) of the drv_priv data area
+ *	within &struct ieee80211_sta.
  */
 struct ieee80211_hw {
 	struct ieee80211_conf conf;
@@ -827,11 +839,14 @@ struct ieee80211_hw {
 	unsigned int extra_tx_headroom;
 	int channel_change_time;
 	int vif_data_size;
+	int sta_data_size;
 	u16 queues;
 	u16 ampdu_queues;
 	u16 max_listen_interval;
 	s8 max_signal;
 };
+
+struct ieee80211_hw *wiphy_to_hw(struct wiphy *wiphy);
 
 /**
  * SET_IEEE80211_DEV - set device for 802.11 hardware
@@ -1108,7 +1123,7 @@ enum ieee80211_ampdu_mlme_action {
  *	This callback must be implemented and atomic.
  *
  * @set_tim: Set TIM bit. mac80211 calls this function when a TIM bit
- * 	must be set or cleared for a given AID. Must be atomic.
+ * 	must be set or cleared for a given STA. Must be atomic.
  *
  * @set_key: See the section "Hardware crypto acceleration"
  *	This callback can sleep, and is only called between add_interface
@@ -1122,7 +1137,9 @@ enum ieee80211_ampdu_mlme_action {
  * @hw_scan: Ask the hardware to service the scan request, no need to start
  *	the scan state machine in stack. The scan must honour the channel
  *	configuration done by the regulatory agent in the wiphy's registered
- *	bands.
+ *	bands. When the scan finishes, ieee80211_scan_completed() must be
+ *	called; note that it also must be called when the scan cannot finish
+ *	because the hardware is turned off! Anything else is a bug!
  *
  * @get_stats: return low-level statistics
  *
@@ -1192,7 +1209,8 @@ struct ieee80211_ops {
 				 unsigned int changed_flags,
 				 unsigned int *total_flags,
 				 int mc_count, struct dev_addr_list *mc_list);
-	int (*set_tim)(struct ieee80211_hw *hw, int aid, int set);
+	int (*set_tim)(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
+		       bool set);
 	int (*set_key)(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		       const u8 *local_address, const u8 *address,
 		       struct ieee80211_key_conf *key);
@@ -1209,7 +1227,7 @@ struct ieee80211_ops {
 	int (*set_retry_limit)(struct ieee80211_hw *hw,
 			       u32 short_retry, u32 long_retr);
 	void (*sta_notify)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			enum sta_notify_cmd, const u8 *addr);
+			enum sta_notify_cmd, struct ieee80211_sta *sta);
 	int (*conf_tx)(struct ieee80211_hw *hw, u16 queue,
 		       const struct ieee80211_tx_queue_params *params);
 	int (*get_tx_stats)(struct ieee80211_hw *hw,
@@ -1219,7 +1237,7 @@ struct ieee80211_ops {
 	int (*tx_last_beacon)(struct ieee80211_hw *hw);
 	int (*ampdu_action)(struct ieee80211_hw *hw,
 			    enum ieee80211_ampdu_mlme_action action,
-			    const u8 *addr, u16 tid, u16 *ssn);
+			    struct ieee80211_sta *sta, u16 tid, u16 *ssn);
 };
 
 /**
@@ -1769,4 +1787,17 @@ void ieee80211_stop_tx_ba_cb_irqsafe(struct ieee80211_hw *hw, const u8 *ra,
  */
 void ieee80211_notify_mac(struct ieee80211_hw *hw,
 			  enum ieee80211_notification_types  notif_type);
+
+/**
+ * ieee80211_find_sta - find a station
+ *
+ * @hw: pointer as obtained from ieee80211_alloc_hw()
+ * @addr: station's address
+ *
+ * This function must be called under RCU lock and the
+ * resulting pointer is only valid under RCU lock as well.
+ */
+struct ieee80211_sta *ieee80211_find_sta(struct ieee80211_hw *hw,
+					 const u8 *addr);
+
 #endif /* MAC80211_H */

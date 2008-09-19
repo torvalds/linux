@@ -1825,7 +1825,7 @@ static void ath_setup_rates(struct ieee80211_local *local, struct sta_info *sta)
 
 	sband =  local->hw.wiphy->bands[local->hw.conf.channel->band];
 	for (i = 0; i < sband->n_bitrates; i++) {
-		if (sta->supp_rates[local->hw.conf.channel->band] & BIT(i)) {
+		if (sta->sta.supp_rates[local->hw.conf.channel->band] & BIT(i)) {
 			rc_priv->neg_rates.rs_rates[j]
 				= (sband->bitrates[i].bitrate * 2) / 10;
 			j++;
@@ -2039,7 +2039,6 @@ static void ath_rate_init(void *priv, void *priv_sta,
 	DPRINTF(sc, ATH_DBG_RATE, "%s\n", __func__);
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	sta->txrate_idx = rate_lowest_index(local, sband, sta);
 
 	ath_setup_rates(local, sta);
 	if (conf->flags & IEEE80211_CONF_SUPPORT_HT_MODE) {

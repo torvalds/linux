@@ -954,7 +954,7 @@ struct iwl_priv {
 	u8 *eeprom;
 	struct iwl_eeprom_calib_info *calib_info;
 
-	enum ieee80211_if_types iw_mode;
+	enum nl80211_iftype iw_mode;
 
 	struct sk_buff *ibss_beacon;
 

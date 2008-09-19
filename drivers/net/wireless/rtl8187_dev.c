@@ -836,11 +836,11 @@ static int rtl8187_add_interface(struct ieee80211_hw *dev,
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
 
-	if (priv->mode != IEEE80211_IF_TYPE_MNTR)
+	if (priv->mode != NL80211_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		priv->mode = conf->type;
 		break;
 	default:
@@ -865,7 +865,7 @@ static void rtl8187_remove_interface(struct ieee80211_hw *dev,
 {
 	struct rtl8187_priv *priv = dev->priv;
 	mutex_lock(&priv->conf_mutex);
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 	priv->vif = NULL;
 	mutex_unlock(&priv->conf_mutex);
 }
@@ -1057,7 +1057,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
 

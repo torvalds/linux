@@ -31,7 +31,7 @@
 
 void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 			   struct rt2x00_intf *intf,
-			   enum ieee80211_if_types type,
+			   enum nl80211_iftype type,
 			   u8 *mac, u8 *bssid)
 {
 	struct rt2x00intf_conf conf;
@@ -40,11 +40,11 @@ void rt2x00lib_config_intf(struct rt2x00_dev *rt2x00dev,
 	conf.type = type;
 
 	switch (type) {
-	case IEEE80211_IF_TYPE_IBSS:
-	case IEEE80211_IF_TYPE_AP:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_AP:
 		conf.sync = TSF_SYNC_BEACON;
 		break;
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		conf.sync = TSF_SYNC_INFRA;
 		break;
 	default:

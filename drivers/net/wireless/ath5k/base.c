@@ -507,7 +507,7 @@ ath5k_pci_probe(struct pci_dev *pdev,
 
 	sc->iobase = mem; /* So we can unmap it on detach */
 	sc->cachelsz = csz * sizeof(u32); /* convert to bytes */
-	sc->opmode = IEEE80211_IF_TYPE_STA;
+	sc->opmode = NL80211_IFTYPE_STATION;
 	mutex_init(&sc->lock);
 	spin_lock_init(&sc->rxbuflock);
 	spin_lock_init(&sc->txbuflock);
@@ -1377,8 +1377,8 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 	ret = ath5k_hw_get_tx_queueprops(ah, sc->bhalq, &qi);
 	if (ret)
 		return ret;
-	if (sc->opmode == IEEE80211_IF_TYPE_AP ||
-		sc->opmode == IEEE80211_IF_TYPE_MESH_POINT) {
+	if (sc->opmode == NL80211_IFTYPE_AP ||
+		sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/*
 		 * Always burst out beacon and CAB traffic
 		 * (aifs = cwmin = cwmax = 0)
@@ -1386,7 +1386,7 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 		qi.tqi_aifs = 0;
 		qi.tqi_cw_min = 0;
 		qi.tqi_cw_max = 0;
-	} else if (sc->opmode == IEEE80211_IF_TYPE_IBSS) {
+	} else if (sc->opmode == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * Adhoc mode; backoff between 0 and (2 * cw_min).
 		 */
@@ -1714,7 +1714,7 @@ ath5k_tasklet_rx(unsigned long data)
 			/* let crypto-error packets fall through in MNTR */
 			if ((rs.rs_status &
 				~(AR5K_RXERR_DECRYPT|AR5K_RXERR_MIC)) ||
-					sc->opmode != IEEE80211_IF_TYPE_MNTR)
+					sc->opmode != NL80211_IFTYPE_MONITOR)
 				goto next;
 		}
 accept:
@@ -1777,7 +1777,7 @@ accept:
 		ath5k_debug_dump_skb(sc, skb, "RX  ", 0);
 
 		/* check beacons in IBSS mode */
-		if (sc->opmode == IEEE80211_IF_TYPE_IBSS)
+		if (sc->opmode == NL80211_IFTYPE_ADHOC)
 			ath5k_check_ibss_tsf(sc, skb, &rxs);
 
 		__ieee80211_rx(sc->hw, skb, &rxs);
@@ -1892,7 +1892,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	ds = bf->desc;
 
 	flags = AR5K_TXDESC_NOACK;
-	if (sc->opmode == IEEE80211_IF_TYPE_IBSS && ath5k_hw_hasveol(ah)) {
+	if (sc->opmode == NL80211_IFTYPE_ADHOC && ath5k_hw_hasveol(ah)) {
 		ds->ds_link = bf->daddr;	/* self-linked */
 		flags |= AR5K_TXDESC_VEOL;
 		/*
@@ -1941,8 +1941,8 @@ ath5k_beacon_send(struct ath5k_softc *sc)
 
 	ATH5K_DBG_UNLIMIT(sc, ATH5K_DEBUG_BEACON, "in beacon_send\n");
 
-	if (unlikely(bf->skb == NULL || sc->opmode == IEEE80211_IF_TYPE_STA ||
-			sc->opmode == IEEE80211_IF_TYPE_MNTR)) {
+	if (unlikely(bf->skb == NULL || sc->opmode == NL80211_IFTYPE_STATION ||
+			sc->opmode == NL80211_IFTYPE_MONITOR)) {
 		ATH5K_WARN(sc, "bf=%p bf_skb=%p\n", bf, bf ? bf->skb : NULL);
 		return;
 	}
@@ -2116,9 +2116,9 @@ ath5k_beacon_config(struct ath5k_softc *sc)
 	sc->bmisscount = 0;
 	sc->imask &= ~(AR5K_INT_BMISS | AR5K_INT_SWBA);
 
-	if (sc->opmode == IEEE80211_IF_TYPE_STA) {
+	if (sc->opmode == NL80211_IFTYPE_STATION) {
 		sc->imask |= AR5K_INT_BMISS;
-	} else if (sc->opmode == IEEE80211_IF_TYPE_IBSS) {
+	} else if (sc->opmode == NL80211_IFTYPE_ADHOC) {
 		/*
 		 * In IBSS mode we use a self-linked tx descriptor and let the
 		 * hardware send the beacons automatically. We have to load it
@@ -2323,7 +2323,7 @@ ath5k_intr(int irq, void *dev_id)
 				* transmission time) in order to detect wether
 				* automatic TSF updates happened.
 				*/
-				if (sc->opmode == IEEE80211_IF_TYPE_IBSS) {
+				if (sc->opmode == NL80211_IFTYPE_ADHOC) {
 					 /* XXX: only if VEOL suppported */
 					u64 tsf = ath5k_hw_get_tsf64(ah);
 					sc->nexttbtt += sc->bintval;
@@ -2553,7 +2553,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	ath5k_debug_dump_skb(sc, skb, "TX  ", 1);
 
-	if (sc->opmode == IEEE80211_IF_TYPE_MNTR)
+	if (sc->opmode == NL80211_IFTYPE_MONITOR)
 		ATH5K_DBG(sc, ATH5K_DEBUG_XMIT, "tx in monitor (scan?)\n");
 
 	/*
@@ -2688,9 +2688,9 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 	sc->vif = conf->vif;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
-	case IEEE80211_IF_TYPE_IBSS:
-	case IEEE80211_IF_TYPE_MNTR:
+	case NL80211_IFTYPE_STATION:
+	case NL80211_IFTYPE_ADHOC:
+	case NL80211_IFTYPE_MONITOR:
 		sc->opmode = conf->type;
 		break;
 	default:
@@ -2761,7 +2761,7 @@ ath5k_config_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (conf->changed & IEEE80211_IFCC_BEACON &&
-	    vif->type == IEEE80211_IF_TYPE_IBSS) {
+	    vif->type == NL80211_IFTYPE_ADHOC) {
 		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
 		if (!beacon) {
 			ret = -ENOMEM;
@@ -2880,17 +2880,17 @@ static void ath5k_configure_filter(struct ieee80211_hw *hw,
 
 	/* XXX move these to mac80211, and add a beacon IFF flag to mac80211 */
 
-	if (sc->opmode == IEEE80211_IF_TYPE_MNTR)
+	if (sc->opmode == NL80211_IFTYPE_MONITOR)
 		rfilt |= AR5K_RX_FILTER_CONTROL | AR5K_RX_FILTER_BEACON |
 			AR5K_RX_FILTER_PROBEREQ | AR5K_RX_FILTER_PROM;
-	if (sc->opmode != IEEE80211_IF_TYPE_STA)
+	if (sc->opmode != NL80211_IFTYPE_STATION)
 		rfilt |= AR5K_RX_FILTER_PROBEREQ;
-	if (sc->opmode != IEEE80211_IF_TYPE_AP &&
-		sc->opmode != IEEE80211_IF_TYPE_MESH_POINT &&
+	if (sc->opmode != NL80211_IFTYPE_AP &&
+		sc->opmode != NL80211_IFTYPE_MESH_POINT &&
 		test_bit(ATH_STAT_PROMISC, sc->status))
 		rfilt |= AR5K_RX_FILTER_PROM;
-	if (sc->opmode == IEEE80211_IF_TYPE_STA ||
-		sc->opmode == IEEE80211_IF_TYPE_IBSS) {
+	if (sc->opmode == NL80211_IFTYPE_STATION ||
+		sc->opmode == NL80211_IFTYPE_ADHOC) {
 		rfilt |= AR5K_RX_FILTER_BEACON;
 	}
 
@@ -2995,7 +2995,7 @@ ath5k_reset_tsf(struct ieee80211_hw *hw)
 	 * in IBSS mode we need to update the beacon timers too.
 	 * this will also reset the TSF if we call it with 0
 	 */
-	if (sc->opmode == IEEE80211_IF_TYPE_IBSS)
+	if (sc->opmode == NL80211_IFTYPE_ADHOC)
 		ath5k_beacon_update_timers(sc, 0);
 	else
 		ath5k_hw_reset_tsf(sc->ah);
@@ -3010,7 +3010,7 @@ ath5k_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb)
 
 	ath5k_debug_dump_skb(sc, skb, "BC  ", 1);
 
-	if (sc->opmode != IEEE80211_IF_TYPE_IBSS) {
+	if (sc->opmode != NL80211_IFTYPE_ADHOC) {
 		ret = -EIO;
 		goto end;
 	}

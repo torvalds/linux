@@ -18,6 +18,7 @@
 #include <net/cfg80211.h>
 #include "core.h"
 #include "nl80211.h"
+#include "reg.h"
 
 /* the netlink family */
 static struct genl_family nl80211_fam = {
@@ -87,6 +88,9 @@ static struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] __read_mostly = {
 	[NL80211_ATTR_MESH_ID] = { .type = NLA_BINARY,
 				.len = IEEE80211_MAX_MESH_ID_LEN },
 	[NL80211_ATTR_MPATH_NEXT_HOP] = { .type = NLA_U32 },
+
+	[NL80211_ATTR_REG_ALPHA2] = { .type = NLA_STRING, .len = 2 },
+	[NL80211_ATTR_REG_RULES] = { .type = NLA_NESTED },
 
 	[NL80211_ATTR_BSS_CTS_PROT] = { .type = NLA_U8 },
 	[NL80211_ATTR_BSS_SHORT_PREAMBLE] = { .type = NLA_U8 },
@@ -1599,6 +1603,141 @@ static int nl80211_set_bss(struct sk_buff *skb, struct genl_info *info)
 	return err;
 }
 
+static const struct nla_policy
+	reg_rule_policy[NL80211_REG_RULE_ATTR_MAX + 1] = {
+	[NL80211_ATTR_REG_RULE_FLAGS]		= { .type = NLA_U32 },
+	[NL80211_ATTR_FREQ_RANGE_START]		= { .type = NLA_U32 },
+	[NL80211_ATTR_FREQ_RANGE_END]		= { .type = NLA_U32 },
+	[NL80211_ATTR_FREQ_RANGE_MAX_BW]	= { .type = NLA_U32 },
+	[NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN]	= { .type = NLA_U32 },
+	[NL80211_ATTR_POWER_RULE_MAX_EIRP]	= { .type = NLA_U32 },
+};
+
+static int parse_reg_rule(struct nlattr *tb[],
+	struct ieee80211_reg_rule *reg_rule)
+{
+	struct ieee80211_freq_range *freq_range = &reg_rule->freq_range;
+	struct ieee80211_power_rule *power_rule = &reg_rule->power_rule;
+
+	if (!tb[NL80211_ATTR_REG_RULE_FLAGS])
+		return -EINVAL;
+	if (!tb[NL80211_ATTR_FREQ_RANGE_START])
+		return -EINVAL;
+	if (!tb[NL80211_ATTR_FREQ_RANGE_END])
+		return -EINVAL;
+	if (!tb[NL80211_ATTR_FREQ_RANGE_MAX_BW])
+		return -EINVAL;
+	if (!tb[NL80211_ATTR_POWER_RULE_MAX_EIRP])
+		return -EINVAL;
+
+	reg_rule->flags = nla_get_u32(tb[NL80211_ATTR_REG_RULE_FLAGS]);
+
+	freq_range->start_freq_khz =
+		nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_START]);
+	freq_range->end_freq_khz =
+		nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_END]);
+	freq_range->max_bandwidth_khz =
+		nla_get_u32(tb[NL80211_ATTR_FREQ_RANGE_MAX_BW]);
+
+	power_rule->max_eirp =
+		nla_get_u32(tb[NL80211_ATTR_POWER_RULE_MAX_EIRP]);
+
+	if (tb[NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN])
+		power_rule->max_antenna_gain =
+			nla_get_u32(tb[NL80211_ATTR_POWER_RULE_MAX_ANT_GAIN]);
+
+	return 0;
+}
+
+static int nl80211_req_set_reg(struct sk_buff *skb, struct genl_info *info)
+{
+	int r;
+	char *data = NULL;
+
+	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
+		return -EINVAL;
+
+	data = nla_data(info->attrs[NL80211_ATTR_REG_ALPHA2]);
+
+#ifdef CONFIG_WIRELESS_OLD_REGULATORY
+	/* We ignore world regdom requests with the old regdom setup */
+	if (is_world_regdom(data))
+		return -EINVAL;
+#endif
+	mutex_lock(&cfg80211_drv_mutex);
+	r = __regulatory_hint(NULL, REGDOM_SET_BY_USER, data, NULL);
+	mutex_unlock(&cfg80211_drv_mutex);
+	return r;
+}
+
+static int nl80211_set_reg(struct sk_buff *skb, struct genl_info *info)
+{
+	struct nlattr *tb[NL80211_REG_RULE_ATTR_MAX + 1];
+	struct nlattr *nl_reg_rule;
+	char *alpha2 = NULL;
+	int rem_reg_rules = 0, r = 0;
+	u32 num_rules = 0, rule_idx = 0, size_of_regd;
+	struct ieee80211_regdomain *rd = NULL;
+
+	if (!info->attrs[NL80211_ATTR_REG_ALPHA2])
+		return -EINVAL;
+
+	if (!info->attrs[NL80211_ATTR_REG_RULES])
+		return -EINVAL;
+
+	alpha2 = nla_data(info->attrs[NL80211_ATTR_REG_ALPHA2]);
+
+	nla_for_each_nested(nl_reg_rule, info->attrs[NL80211_ATTR_REG_RULES],
+			rem_reg_rules) {
+		num_rules++;
+		if (num_rules > NL80211_MAX_SUPP_REG_RULES)
+			goto bad_reg;
+	}
+
+	if (!reg_is_valid_request(alpha2))
+		return -EINVAL;
+
+	size_of_regd = sizeof(struct ieee80211_regdomain) +
+		(num_rules * sizeof(struct ieee80211_reg_rule));
+
+	rd = kzalloc(size_of_regd, GFP_KERNEL);
+	if (!rd)
+		return -ENOMEM;
+
+	rd->n_reg_rules = num_rules;
+	rd->alpha2[0] = alpha2[0];
+	rd->alpha2[1] = alpha2[1];
+
+	nla_for_each_nested(nl_reg_rule, info->attrs[NL80211_ATTR_REG_RULES],
+			rem_reg_rules) {
+		nla_parse(tb, NL80211_REG_RULE_ATTR_MAX,
+			nla_data(nl_reg_rule), nla_len(nl_reg_rule),
+			reg_rule_policy);
+		r = parse_reg_rule(tb, &rd->reg_rules[rule_idx]);
+		if (r)
+			goto bad_reg;
+
+		rule_idx++;
+
+		if (rule_idx > NL80211_MAX_SUPP_REG_RULES)
+			goto bad_reg;
+	}
+
+	BUG_ON(rule_idx != num_rules);
+
+	mutex_lock(&cfg80211_drv_mutex);
+	r = set_regdom(rd);
+	mutex_unlock(&cfg80211_drv_mutex);
+	if (r)
+		goto bad_reg;
+
+	return r;
+
+bad_reg:
+	kfree(rd);
+	return -EINVAL;
+}
+
 static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_GET_WIPHY,
@@ -1733,6 +1872,18 @@ static struct genl_ops nl80211_ops[] = {
 	{
 		.cmd = NL80211_CMD_SET_BSS,
 		.doit = nl80211_set_bss,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_SET_REG,
+		.doit = nl80211_set_reg,
+		.policy = nl80211_policy,
+		.flags = GENL_ADMIN_PERM,
+	},
+	{
+		.cmd = NL80211_CMD_REQ_SET_REG,
+		.doit = nl80211_req_set_reg,
 		.policy = nl80211_policy,
 		.flags = GENL_ADMIN_PERM,
 	},

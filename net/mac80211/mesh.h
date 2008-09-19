@@ -206,7 +206,7 @@ int mesh_rmc_check(u8 *addr, struct ieee80211s_hdr *mesh_hdr,
 		struct ieee80211_sub_if_data *sdata);
 bool mesh_matches_local(struct ieee802_11_elems *ie,
 		struct ieee80211_sub_if_data *sdata);
-void mesh_ids_set_default(struct ieee80211_if_sta *sta);
+void mesh_ids_set_default(struct ieee80211_if_mesh *mesh);
 void mesh_mgmt_ies_add(struct sk_buff *skb,
 		struct ieee80211_sub_if_data *sdata);
 void mesh_rmc_free(struct ieee80211_sub_if_data *sdata);
@@ -214,6 +214,11 @@ int mesh_rmc_init(struct ieee80211_sub_if_data *sdata);
 void ieee80211s_init(void);
 void ieee80211s_stop(void);
 void ieee80211_mesh_init_sdata(struct ieee80211_sub_if_data *sdata);
+ieee80211_rx_result
+ieee80211_mesh_rx_mgmt(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		       struct ieee80211_rx_status *rx_status);
+void ieee80211_start_mesh(struct ieee80211_sub_if_data *sdata);
+void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata);
 
 /* Mesh paths */
 int mesh_nexthop_lookup(struct sk_buff *skb,
@@ -269,8 +274,8 @@ extern int mesh_allocated;
 
 static inline int mesh_plink_free_count(struct ieee80211_sub_if_data *sdata)
 {
-	return sdata->u.sta.mshcfg.dot11MeshMaxPeerLinks -
-	       atomic_read(&sdata->u.sta.mshstats.estab_plinks);
+	return sdata->u.mesh.mshcfg.dot11MeshMaxPeerLinks -
+	       atomic_read(&sdata->u.mesh.mshstats.estab_plinks);
 }
 
 static inline bool mesh_plink_availables(struct ieee80211_sub_if_data *sdata)
@@ -288,8 +293,12 @@ static inline void mesh_path_activate(struct mesh_path *mpath)
 	for (i = 0; i <= x->hash_mask; i++) \
 		hlist_for_each_entry_rcu(node, p, &x->hash_buckets[i], list)
 
+void ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local);
+
 #else
 #define mesh_allocated	0
+static inline void
+ieee80211_mesh_notify_scan_completed(struct ieee80211_local *local) {}
 #endif
 
 #endif /* IEEE80211S_H */

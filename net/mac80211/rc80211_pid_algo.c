@@ -75,7 +75,8 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 	struct ieee80211_sub_if_data *sdata;
 	struct ieee80211_supported_band *sband;
 	int cur_sorted, new_sorted, probe, tmp, n_bitrates, band;
-	int cur = sta->txrate_idx;
+	struct rc_pid_sta_info *spinfo = (void *)sta->rate_ctrl_priv;
+	int cur = spinfo->txrate_idx;
 
 	sdata = sta->sdata;
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
@@ -111,7 +112,7 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 	/* Fit the rate found to the nearest supported rate. */
 	do {
 		if (rate_supported(sta, band, rinfo[tmp].index)) {
-			sta->txrate_idx = rinfo[tmp].index;
+			spinfo->txrate_idx = rinfo[tmp].index;
 			break;
 		}
 		if (adj < 0)
@@ -121,9 +122,9 @@ static void rate_control_pid_adjust_rate(struct ieee80211_local *local,
 	} while (tmp < n_bitrates && tmp >= 0);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
-	rate_control_pid_event_rate_change(
-		&((struct rc_pid_sta_info *)sta->rate_ctrl_priv)->events,
-		sta->txrate_idx, sband->bitrates[sta->txrate_idx].bitrate);
+	rate_control_pid_event_rate_change(&spinfo->events,
+		spinfo->txrate_idx,
+		sband->bitrates[spinfo->txrate_idx].bitrate);
 #endif
 }
 
@@ -148,9 +149,7 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 				    struct ieee80211_local *local,
 				    struct sta_info *sta)
 {
-#ifdef CONFIG_MAC80211_MESH
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-#endif
 	struct rc_pid_sta_info *spinfo = sta->rate_ctrl_priv;
 	struct rc_pid_rateinfo *rinfo = pinfo->rinfo;
 	struct ieee80211_supported_band *sband;
@@ -181,11 +180,8 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 		pf = spinfo->last_pf;
 	else {
 		pf = spinfo->tx_num_failed * 100 / spinfo->tx_num_xmit;
-#ifdef CONFIG_MAC80211_MESH
-		if (pf == 100 &&
-		    sdata->vif.type == IEEE80211_IF_TYPE_MESH_POINT)
+		if (ieee80211_vif_is_mesh(&sdata->vif) && pf == 100)
 			mesh_plink_broken(sta);
-#endif
 		pf <<= RC_PID_ARITH_SHIFT;
 		sta->fail_avg = ((pf + (spinfo->last_pf << 3)) / 9)
 					>> RC_PID_ARITH_SHIFT;
@@ -195,16 +191,16 @@ static void rate_control_pid_sample(struct rc_pid_info *pinfo,
 	spinfo->tx_num_failed = 0;
 
 	/* If we just switched rate, update the rate behaviour info. */
-	if (pinfo->oldrate != sta->txrate_idx) {
+	if (pinfo->oldrate != spinfo->txrate_idx) {
 
 		i = rinfo[pinfo->oldrate].rev_index;
-		j = rinfo[sta->txrate_idx].rev_index;
+		j = rinfo[spinfo->txrate_idx].rev_index;
 
 		tmp = (pf - spinfo->last_pf);
 		tmp = RC_PID_DO_ARITH_RIGHT_SHIFT(tmp, RC_PID_ARITH_SHIFT);
 
 		rinfo[j].diff = rinfo[i].diff + tmp;
-		pinfo->oldrate = sta->txrate_idx;
+		pinfo->oldrate = spinfo->txrate_idx;
 	}
 	rate_control_pid_normalize(pinfo, sband->n_bitrates);
 
@@ -257,19 +253,20 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 	if (!sta)
 		goto unlock;
 
+	spinfo = sta->rate_ctrl_priv;
+
 	/* Don't update the state if we're not controlling the rate. */
 	sdata = sta->sdata;
 	if (sdata->force_unicast_rateidx > -1) {
-		sta->txrate_idx = sdata->max_ratectrl_rateidx;
+		spinfo->txrate_idx = sdata->max_ratectrl_rateidx;
 		goto unlock;
 	}
 
 	/* Ignore all frames that were sent with a different rate than the rate
 	 * we currently advise mac80211 to use. */
-	if (info->tx_rate_idx != sta->txrate_idx)
+	if (info->tx_rate_idx != spinfo->txrate_idx)
 		goto unlock;
 
-	spinfo = sta->rate_ctrl_priv;
 	spinfo->tx_num_xmit++;
 
 #ifdef CONFIG_MAC80211_DEBUGFS
@@ -286,17 +283,6 @@ static void rate_control_pid_tx_status(void *priv, struct net_device *dev,
 		spinfo->tx_num_failed++;
 		spinfo->tx_num_xmit++;
 	}
-
-	if (info->status.excessive_retries) {
-		sta->tx_retry_failed++;
-		sta->tx_num_consecutive_failures++;
-		sta->tx_num_mpdu_fail++;
-	} else {
-		sta->tx_num_consecutive_failures = 0;
-		sta->tx_num_mpdu_ok++;
-	}
-	sta->tx_retry_count += info->status.retry_count;
-	sta->tx_num_mpdu_fail += info->status.retry_count;
 
 	/* Update PID controller state. */
 	period = (HZ * pinfo->sampling_period + 500) / 1000;
@@ -317,6 +303,7 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
 	struct ieee80211_sub_if_data *sdata;
+	struct rc_pid_sta_info *spinfo;
 	struct sta_info *sta;
 	int rateidx;
 	u16 fc;
@@ -337,15 +324,14 @@ static void rate_control_pid_get_rate(void *priv, struct net_device *dev,
 
 	/* If a forced rate is in effect, select it. */
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	spinfo = (struct rc_pid_sta_info *)sta->rate_ctrl_priv;
 	if (sdata->force_unicast_rateidx > -1)
-		sta->txrate_idx = sdata->force_unicast_rateidx;
+		spinfo->txrate_idx = sdata->force_unicast_rateidx;
 
-	rateidx = sta->txrate_idx;
+	rateidx = spinfo->txrate_idx;
 
 	if (rateidx >= sband->n_bitrates)
 		rateidx = sband->n_bitrates - 1;
-
-	sta->last_txrate_idx = rateidx;
 
 	rcu_read_unlock();
 
@@ -367,9 +353,10 @@ static void rate_control_pid_rate_init(void *priv, void *priv_sta,
 	 * Until that method is implemented, we will use the lowest supported
 	 * rate as a workaround. */
 	struct ieee80211_supported_band *sband;
+	struct rc_pid_sta_info *spinfo = (void *)sta->rate_ctrl_priv;
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
-	sta->txrate_idx = rate_lowest_index(local, sband, sta);
+	spinfo->txrate_idx = rate_lowest_index(local, sband, sta);
 	sta->fail_avg = 0;
 }
 

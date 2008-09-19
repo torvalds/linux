@@ -43,7 +43,7 @@ const unsigned char bridge_tunnel_header[] __aligned(2) =
 
 
 u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
-			enum ieee80211_if_types type)
+			enum nl80211_iftype type)
 {
 	__le16 fc = hdr->frame_control;
 
@@ -77,10 +77,10 @@ u8 *ieee80211_get_bssid(struct ieee80211_hdr *hdr, size_t len,
 
 		if (ieee80211_is_back_req(fc)) {
 			switch (type) {
-			case IEEE80211_IF_TYPE_STA:
+			case NL80211_IFTYPE_STATION:
 				return hdr->addr2;
-			case IEEE80211_IF_TYPE_AP:
-			case IEEE80211_IF_TYPE_VLAN:
+			case NL80211_IFTYPE_AP:
+			case NL80211_IFTYPE_AP_VLAN:
 				return hdr->addr1;
 			default:
 				break; /* fall through to the return */
@@ -231,16 +231,21 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 					struct ieee80211_rate *rate)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
 	u16 dur;
 	int erp;
+	bool short_preamble = false;
 
 	erp = 0;
-	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
-		erp = rate->flags & IEEE80211_RATE_ERP_G;
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		short_preamble = sdata->bss_conf.use_short_preamble;
+		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			erp = rate->flags & IEEE80211_RATE_ERP_G;
+	}
 
 	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate, erp,
-				       sdata->bss_conf.use_short_preamble);
+				       short_preamble);
 
 	return cpu_to_le16(dur);
 }
@@ -252,7 +257,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
 	bool short_preamble;
 	int erp;
 	u16 dur;
@@ -260,13 +265,17 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	short_preamble = sdata->bss_conf.use_short_preamble;
+	short_preamble = false;
 
 	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 
 	erp = 0;
-	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
-		erp = rate->flags & IEEE80211_RATE_ERP_G;
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		short_preamble = sdata->bss_conf.use_short_preamble;
+		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			erp = rate->flags & IEEE80211_RATE_ERP_G;
+	}
 
 	/* CTS duration */
 	dur = ieee80211_frame_duration(local, 10, rate->bitrate,
@@ -289,7 +298,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_rate *rate;
-	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_sub_if_data *sdata;
 	bool short_preamble;
 	int erp;
 	u16 dur;
@@ -297,12 +306,16 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 
 	sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
 
-	short_preamble = sdata->bss_conf.use_short_preamble;
+	short_preamble = false;
 
 	rate = &sband->bitrates[frame_txctl->control.rts_cts_rate_idx];
 	erp = 0;
-	if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
-		erp = rate->flags & IEEE80211_RATE_ERP_G;
+	if (vif) {
+		sdata = vif_to_sdata(vif);
+		short_preamble = sdata->bss_conf.use_short_preamble;
+		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			erp = rate->flags & IEEE80211_RATE_ERP_G;
+	}
 
 	/* Data frame duration */
 	dur = ieee80211_frame_duration(local, frame_len, rate->bitrate,
@@ -376,15 +389,16 @@ void ieee80211_iterate_active_interfaces(
 
 	list_for_each_entry(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case IEEE80211_IF_TYPE_INVALID:
-		case IEEE80211_IF_TYPE_MNTR:
-		case IEEE80211_IF_TYPE_VLAN:
+		case __NL80211_IFTYPE_AFTER_LAST:
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case NL80211_IFTYPE_MONITOR:
+		case NL80211_IFTYPE_AP_VLAN:
 			continue;
-		case IEEE80211_IF_TYPE_AP:
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_IBSS:
-		case IEEE80211_IF_TYPE_WDS:
-		case IEEE80211_IF_TYPE_MESH_POINT:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
 			break;
 		}
 		if (netif_running(sdata->dev))
@@ -409,15 +423,16 @@ void ieee80211_iterate_active_interfaces_atomic(
 
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		switch (sdata->vif.type) {
-		case IEEE80211_IF_TYPE_INVALID:
-		case IEEE80211_IF_TYPE_MNTR:
-		case IEEE80211_IF_TYPE_VLAN:
+		case __NL80211_IFTYPE_AFTER_LAST:
+		case NL80211_IFTYPE_UNSPECIFIED:
+		case NL80211_IFTYPE_MONITOR:
+		case NL80211_IFTYPE_AP_VLAN:
 			continue;
-		case IEEE80211_IF_TYPE_AP:
-		case IEEE80211_IF_TYPE_STA:
-		case IEEE80211_IF_TYPE_IBSS:
-		case IEEE80211_IF_TYPE_WDS:
-		case IEEE80211_IF_TYPE_MESH_POINT:
+		case NL80211_IFTYPE_AP:
+		case NL80211_IFTYPE_STATION:
+		case NL80211_IFTYPE_ADHOC:
+		case NL80211_IFTYPE_WDS:
+		case NL80211_IFTYPE_MESH_POINT:
 			break;
 		}
 		if (netif_running(sdata->dev))
@@ -611,4 +626,60 @@ void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
 	skb->do_not_encrypt = !encrypt;
 
 	dev_queue_xmit(skb);
+}
+
+int ieee80211_set_freq(struct ieee80211_sub_if_data *sdata, int freqMHz)
+{
+	int ret = -EINVAL;
+	struct ieee80211_channel *chan;
+	struct ieee80211_local *local = sdata->local;
+
+	chan = ieee80211_get_channel(local->hw.wiphy, freqMHz);
+
+	if (chan && !(chan->flags & IEEE80211_CHAN_DISABLED)) {
+		if (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
+		    chan->flags & IEEE80211_CHAN_NO_IBSS) {
+			printk(KERN_DEBUG "%s: IBSS not allowed on frequency "
+				"%d MHz\n", sdata->dev->name, chan->center_freq);
+			return ret;
+		}
+		local->oper_channel = chan;
+
+		if (local->sw_scanning || local->hw_scanning)
+			ret = 0;
+		else
+			ret = ieee80211_hw_config(local);
+
+		rate_control_clear(local);
+	}
+
+	return ret;
+}
+
+u64 ieee80211_mandatory_rates(struct ieee80211_local *local,
+			      enum ieee80211_band band)
+{
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_rate *bitrates;
+	u64 mandatory_rates;
+	enum ieee80211_rate_flags mandatory_flag;
+	int i;
+
+	sband = local->hw.wiphy->bands[band];
+	if (!sband) {
+		WARN_ON(1);
+		sband = local->hw.wiphy->bands[local->hw.conf.channel->band];
+	}
+
+	if (band == IEEE80211_BAND_2GHZ)
+		mandatory_flag = IEEE80211_RATE_MANDATORY_B;
+	else
+		mandatory_flag = IEEE80211_RATE_MANDATORY_A;
+
+	bitrates = sband->bitrates;
+	mandatory_rates = 0;
+	for (i = 0; i < sband->n_bitrates; i++)
+		if (bitrates[i].flags & mandatory_flag)
+			mandatory_rates |= BIT(i);
+	return mandatory_rates;
 }

@@ -1139,7 +1139,7 @@ static int p54_start(struct ieee80211_hw *dev)
 
 	err = priv->open(dev);
 	if (!err)
-		priv->mode = IEEE80211_IF_TYPE_MNTR;
+		priv->mode = NL80211_IFTYPE_MONITOR;
 
 	p54_init_vdcf(dev);
 
@@ -1157,7 +1157,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 		kfree_skb(skb);
 	priv->stop(dev);
 	priv->tsf_high32 = priv->tsf_low32 = 0;
-	priv->mode = IEEE80211_IF_TYPE_INVALID;
+	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 }
 
 static int p54_add_interface(struct ieee80211_hw *dev,
@@ -1165,11 +1165,11 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 {
 	struct p54_common *priv = dev->priv;
 
-	if (priv->mode != IEEE80211_IF_TYPE_MNTR)
+	if (priv->mode != NL80211_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		priv->mode = conf->type;
 		break;
 	default:
@@ -1181,7 +1181,7 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 	p54_set_filter(dev, 0, NULL);
 
 	switch (conf->type) {
-	case IEEE80211_IF_TYPE_STA:
+	case NL80211_IFTYPE_STATION:
 		p54_set_filter(dev, 1, NULL);
 		break;
 	default:
@@ -1198,7 +1198,7 @@ static void p54_remove_interface(struct ieee80211_hw *dev,
 				 struct ieee80211_if_init_conf *conf)
 {
 	struct p54_common *priv = dev->priv;
-	priv->mode = IEEE80211_IF_TYPE_MNTR;
+	priv->mode = NL80211_IFTYPE_MONITOR;
 	memset(priv->mac_addr, 0, ETH_ALEN);
 	p54_set_filter(dev, 0, NULL);
 }
@@ -1380,7 +1380,7 @@ struct ieee80211_hw *p54_init_common(size_t priv_data_len)
 		return NULL;
 
 	priv = dev->priv;
-	priv->mode = IEEE80211_IF_TYPE_INVALID;
+	priv->mode = NL80211_IFTYPE_UNSPECIFIED;
 	skb_queue_head_init(&priv->tx_queue);
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING | /* not sure */
 		     IEEE80211_HW_RX_INCLUDES_FCS |

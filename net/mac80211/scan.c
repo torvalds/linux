@@ -32,26 +32,26 @@
 
 void ieee80211_rx_bss_list_init(struct ieee80211_local *local)
 {
-	spin_lock_init(&local->sta_bss_lock);
-	INIT_LIST_HEAD(&local->sta_bss_list);
+	spin_lock_init(&local->bss_lock);
+	INIT_LIST_HEAD(&local->bss_list);
 }
 
 void ieee80211_rx_bss_list_deinit(struct ieee80211_local *local)
 {
-	struct ieee80211_sta_bss *bss, *tmp;
+	struct ieee80211_bss *bss, *tmp;
 
-	list_for_each_entry_safe(bss, tmp, &local->sta_bss_list, list)
+	list_for_each_entry_safe(bss, tmp, &local->bss_list, list)
 		ieee80211_rx_bss_put(local, bss);
 }
 
-struct ieee80211_sta_bss *
+struct ieee80211_bss *
 ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len)
 {
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 
-	spin_lock_bh(&local->sta_bss_lock);
-	bss = local->sta_bss_hash[STA_HASH(bssid)];
+	spin_lock_bh(&local->bss_lock);
+	bss = local->bss_hash[STA_HASH(bssid)];
 	while (bss) {
 		if (!bss_mesh_cfg(bss) &&
 		    !memcmp(bss->bssid, bssid, ETH_ALEN) &&
@@ -63,13 +63,13 @@ ieee80211_rx_bss_get(struct ieee80211_local *local, u8 *bssid, int freq,
 		}
 		bss = bss->hnext;
 	}
-	spin_unlock_bh(&local->sta_bss_lock);
+	spin_unlock_bh(&local->bss_lock);
 	return bss;
 }
 
-/* Caller must hold local->sta_bss_lock */
+/* Caller must hold local->bss_lock */
 static void __ieee80211_rx_bss_hash_add(struct ieee80211_local *local,
-					struct ieee80211_sta_bss *bss)
+					struct ieee80211_bss *bss)
 {
 	u8 hash_idx;
 
@@ -79,20 +79,20 @@ static void __ieee80211_rx_bss_hash_add(struct ieee80211_local *local,
 	else
 		hash_idx = STA_HASH(bss->bssid);
 
-	bss->hnext = local->sta_bss_hash[hash_idx];
-	local->sta_bss_hash[hash_idx] = bss;
+	bss->hnext = local->bss_hash[hash_idx];
+	local->bss_hash[hash_idx] = bss;
 }
 
-/* Caller must hold local->sta_bss_lock */
+/* Caller must hold local->bss_lock */
 static void __ieee80211_rx_bss_hash_del(struct ieee80211_local *local,
-					struct ieee80211_sta_bss *bss)
+					struct ieee80211_bss *bss)
 {
-	struct ieee80211_sta_bss *b, *prev = NULL;
-	b = local->sta_bss_hash[STA_HASH(bss->bssid)];
+	struct ieee80211_bss *b, *prev = NULL;
+	b = local->bss_hash[STA_HASH(bss->bssid)];
 	while (b) {
 		if (b == bss) {
 			if (!prev)
-				local->sta_bss_hash[STA_HASH(bss->bssid)] =
+				local->bss_hash[STA_HASH(bss->bssid)] =
 					bss->hnext;
 			else
 				prev->hnext = bss->hnext;
@@ -103,11 +103,11 @@ static void __ieee80211_rx_bss_hash_del(struct ieee80211_local *local,
 	}
 }
 
-struct ieee80211_sta_bss *
+struct ieee80211_bss *
 ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
 		     u8 *ssid, u8 ssid_len)
 {
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 
 	bss = kzalloc(sizeof(*bss), GFP_ATOMIC);
 	if (!bss)
@@ -120,23 +120,23 @@ ieee80211_rx_bss_add(struct ieee80211_local *local, u8 *bssid, int freq,
 		bss->ssid_len = ssid_len;
 	}
 
-	spin_lock_bh(&local->sta_bss_lock);
+	spin_lock_bh(&local->bss_lock);
 	/* TODO: order by RSSI? */
-	list_add_tail(&bss->list, &local->sta_bss_list);
+	list_add_tail(&bss->list, &local->bss_list);
 	__ieee80211_rx_bss_hash_add(local, bss);
-	spin_unlock_bh(&local->sta_bss_lock);
+	spin_unlock_bh(&local->bss_lock);
 	return bss;
 }
 
 #ifdef CONFIG_MAC80211_MESH
-static struct ieee80211_sta_bss *
+static struct ieee80211_bss *
 ieee80211_rx_mesh_bss_get(struct ieee80211_local *local, u8 *mesh_id, int mesh_id_len,
 			  u8 *mesh_cfg, int freq)
 {
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 
-	spin_lock_bh(&local->sta_bss_lock);
-	bss = local->sta_bss_hash[mesh_id_hash(mesh_id, mesh_id_len)];
+	spin_lock_bh(&local->bss_lock);
+	bss = local->bss_hash[mesh_id_hash(mesh_id, mesh_id_len)];
 	while (bss) {
 		if (bss_mesh_cfg(bss) &&
 		    !memcmp(bss_mesh_cfg(bss), mesh_cfg, MESH_CFG_CMP_LEN) &&
@@ -149,15 +149,15 @@ ieee80211_rx_mesh_bss_get(struct ieee80211_local *local, u8 *mesh_id, int mesh_i
 		}
 		bss = bss->hnext;
 	}
-	spin_unlock_bh(&local->sta_bss_lock);
+	spin_unlock_bh(&local->bss_lock);
 	return bss;
 }
 
-static struct ieee80211_sta_bss *
+static struct ieee80211_bss *
 ieee80211_rx_mesh_bss_add(struct ieee80211_local *local, u8 *mesh_id, int mesh_id_len,
 			  u8 *mesh_cfg, int mesh_config_len, int freq)
 {
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 
 	if (mesh_config_len != MESH_CFG_LEN)
 		return NULL;
@@ -186,16 +186,16 @@ ieee80211_rx_mesh_bss_add(struct ieee80211_local *local, u8 *mesh_id, int mesh_i
 	memcpy(bss->mesh_cfg, mesh_cfg, MESH_CFG_CMP_LEN);
 	bss->mesh_id_len = mesh_id_len;
 	bss->freq = freq;
-	spin_lock_bh(&local->sta_bss_lock);
+	spin_lock_bh(&local->bss_lock);
 	/* TODO: order by RSSI? */
-	list_add_tail(&bss->list, &local->sta_bss_list);
+	list_add_tail(&bss->list, &local->bss_list);
 	__ieee80211_rx_bss_hash_add(local, bss);
-	spin_unlock_bh(&local->sta_bss_lock);
+	spin_unlock_bh(&local->bss_lock);
 	return bss;
 }
 #endif
 
-static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
+static void ieee80211_rx_bss_free(struct ieee80211_bss *bss)
 {
 	kfree(bss->ies);
 	kfree(bss_mesh_id(bss));
@@ -204,21 +204,21 @@ static void ieee80211_rx_bss_free(struct ieee80211_sta_bss *bss)
 }
 
 void ieee80211_rx_bss_put(struct ieee80211_local *local,
-			  struct ieee80211_sta_bss *bss)
+			  struct ieee80211_bss *bss)
 {
 	local_bh_disable();
-	if (!atomic_dec_and_lock(&bss->users, &local->sta_bss_lock)) {
+	if (!atomic_dec_and_lock(&bss->users, &local->bss_lock)) {
 		local_bh_enable();
 		return;
 	}
 
 	__ieee80211_rx_bss_hash_del(local, bss);
 	list_del(&bss->list);
-	spin_unlock_bh(&local->sta_bss_lock);
+	spin_unlock_bh(&local->bss_lock);
 	ieee80211_rx_bss_free(bss);
 }
 
-struct ieee80211_sta_bss *
+struct ieee80211_bss *
 ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee80211_rx_status *rx_status,
 			  struct ieee80211_mgmt *mgmt,
@@ -226,7 +226,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 			  struct ieee802_11_elems *elems,
 			  int freq, bool beacon)
 {
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 	int clen;
 
 #ifdef CONFIG_MAC80211_MESH
@@ -252,9 +252,9 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	} else {
 #if 0
 		/* TODO: order by RSSI? */
-		spin_lock_bh(&local->sta_bss_lock);
-		list_move_tail(&bss->list, &local->sta_bss_list);
-		spin_unlock_bh(&local->sta_bss_lock);
+		spin_lock_bh(&local->bss_lock);
+		list_move_tail(&bss->list, &local->bss_list);
+		spin_unlock_bh(&local->bss_lock);
 #endif
 	}
 
@@ -327,11 +327,11 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 }
 
 ieee80211_rx_result
-ieee80211_sta_rx_scan(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
-		      struct ieee80211_rx_status *rx_status)
+ieee80211_scan_rx(struct ieee80211_sub_if_data *sdata, struct sk_buff *skb,
+		  struct ieee80211_rx_status *rx_status)
 {
 	struct ieee80211_mgmt *mgmt;
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 	u8 *elements;
 	struct ieee80211_channel *channel;
 	size_t baselen;
@@ -424,38 +424,37 @@ static void ieee80211_send_nullfunc(struct ieee80211_local *local,
 	ieee80211_tx_skb(sdata, skb, 0);
 }
 
-static void ieee80211_restart_sta_timer(struct ieee80211_sub_if_data *sdata)
-{
-	if (sdata->vif.type == IEEE80211_IF_TYPE_STA ||
-	    ieee80211_vif_is_mesh(&sdata->vif))
-		ieee80211_sta_timer((unsigned long)sdata);
-}
-
 void ieee80211_scan_completed(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
 	union iwreq_data wrqu;
 
+	if (WARN_ON(!local->hw_scanning && !local->sw_scanning))
+		return;
+
 	local->last_scan_completed = jiffies;
 	memset(&wrqu, 0, sizeof(wrqu));
-	wireless_send_event(local->scan_sdata->dev, SIOCGIWSCAN, &wrqu, NULL);
 
-	if (local->sta_hw_scanning) {
-		local->sta_hw_scanning = 0;
+	/*
+	 * local->scan_sdata could have been NULLed by the interface
+	 * down code in case we were scanning on an interface that is
+	 * being taken down.
+	 */
+	sdata = local->scan_sdata;
+	if (sdata)
+		wireless_send_event(sdata->dev, SIOCGIWSCAN, &wrqu, NULL);
+
+	if (local->hw_scanning) {
+		local->hw_scanning = false;
 		if (ieee80211_hw_config(local))
 			printk(KERN_DEBUG "%s: failed to restore operational "
 			       "channel after scan\n", wiphy_name(local->hw.wiphy));
-		/* Restart STA timer for HW scan case */
-		rcu_read_lock();
-		list_for_each_entry_rcu(sdata, &local->interfaces, list)
-			ieee80211_restart_sta_timer(sdata);
-		rcu_read_unlock();
 
 		goto done;
 	}
 
-	local->sta_sw_scanning = 0;
+	local->sw_scanning = false;
 	if (ieee80211_hw_config(local))
 		printk(KERN_DEBUG "%s: failed to restore operational "
 		       "channel after scan\n", wiphy_name(local->hw.wiphy));
@@ -476,25 +475,24 @@ void ieee80211_scan_completed(struct ieee80211_hw *hw)
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		/* Tell AP we're back */
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
 				ieee80211_send_nullfunc(local, sdata, 0);
 				netif_tx_wake_all_queues(sdata->dev);
 			}
 		} else
 			netif_tx_wake_all_queues(sdata->dev);
-
-		ieee80211_restart_sta_timer(sdata);
 	}
 	rcu_read_unlock();
 
  done:
 	ieee80211_mlme_notify_scan_completed(local);
+	ieee80211_mesh_notify_scan_completed(local);
 }
 EXPORT_SYMBOL(ieee80211_scan_completed);
 
 
-void ieee80211_sta_scan_work(struct work_struct *work)
+void ieee80211_scan_work(struct work_struct *work)
 {
 	struct ieee80211_local *local =
 		container_of(work, struct ieee80211_local, scan_work.work);
@@ -504,7 +502,10 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 	int skip;
 	unsigned long next_delay = 0;
 
-	if (!local->sta_sw_scanning)
+	/*
+	 * Avoid re-scheduling when the sdata is going away.
+	 */
+	if (!netif_running(sdata->dev))
 		return;
 
 	switch (local->scan_state) {
@@ -538,7 +539,7 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 		chan = &sband->channels[local->scan_channel_idx];
 
 		if (chan->flags & IEEE80211_CHAN_DISABLED ||
-		    (sdata->vif.type == IEEE80211_IF_TYPE_IBSS &&
+		    (sdata->vif.type == NL80211_IFTYPE_ADHOC &&
 		     chan->flags & IEEE80211_CHAN_NO_IBSS))
 			skip = 1;
 
@@ -583,14 +584,13 @@ void ieee80211_sta_scan_work(struct work_struct *work)
 		break;
 	}
 
-	if (local->sta_sw_scanning)
-		queue_delayed_work(local->hw.workqueue, &local->scan_work,
-				   next_delay);
+	queue_delayed_work(local->hw.workqueue, &local->scan_work,
+			   next_delay);
 }
 
 
-int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
-			     u8 *ssid, size_t ssid_len)
+int ieee80211_start_scan(struct ieee80211_sub_if_data *scan_sdata,
+			 u8 *ssid, size_t ssid_len)
 {
 	struct ieee80211_local *local = scan_sdata->local;
 	struct ieee80211_sub_if_data *sdata;
@@ -615,27 +615,30 @@ int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 	  * ResultCode: SUCCESS, INVALID_PARAMETERS
 	 */
 
-	if (local->sta_sw_scanning || local->sta_hw_scanning) {
+	if (local->sw_scanning || local->hw_scanning) {
 		if (local->scan_sdata == scan_sdata)
 			return 0;
 		return -EBUSY;
 	}
 
 	if (local->ops->hw_scan) {
-		int rc = local->ops->hw_scan(local_to_hw(local),
-					     ssid, ssid_len);
-		if (!rc) {
-			local->sta_hw_scanning = 1;
-			local->scan_sdata = scan_sdata;
+		int rc;
+
+		local->hw_scanning = true;
+		rc = local->ops->hw_scan(local_to_hw(local), ssid, ssid_len);
+		if (rc) {
+			local->hw_scanning = false;
+			return rc;
 		}
-		return rc;
+		local->scan_sdata = scan_sdata;
+		return 0;
 	}
 
-	local->sta_sw_scanning = 1;
+	local->sw_scanning = true;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (sdata->vif.type == IEEE80211_IF_TYPE_STA) {
+		if (sdata->vif.type == NL80211_IFTYPE_STATION) {
 			if (sdata->u.sta.flags & IEEE80211_STA_ASSOCIATED) {
 				netif_tx_stop_all_queues(sdata->dev);
 				ieee80211_send_nullfunc(local, sdata, 1);
@@ -672,13 +675,14 @@ int ieee80211_sta_start_scan(struct ieee80211_sub_if_data *scan_sdata,
 }
 
 
-int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t ssid_len)
+int ieee80211_request_scan(struct ieee80211_sub_if_data *sdata,
+			   u8 *ssid, size_t ssid_len)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_sta *ifsta;
 
-	if (sdata->vif.type != IEEE80211_IF_TYPE_STA)
-		return ieee80211_sta_start_scan(sdata, ssid, ssid_len);
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return ieee80211_start_scan(sdata, ssid, ssid_len);
 
 	/*
 	 * STA has a state machine that might need to defer scanning
@@ -686,7 +690,7 @@ int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t
 	 * queue it up to the state machine in that case.
 	 */
 
-	if (local->sta_sw_scanning || local->sta_hw_scanning) {
+	if (local->sw_scanning || local->hw_scanning) {
 		if (local->scan_sdata == sdata)
 			return 0;
 		return -EBUSY;
@@ -704,9 +708,9 @@ int ieee80211_sta_req_scan(struct ieee80211_sub_if_data *sdata, u8 *ssid, size_t
 }
 
 
-static void ieee80211_sta_add_scan_ies(struct iw_request_info *info,
-				       struct ieee80211_sta_bss *bss,
-				       char **current_ev, char *end_buf)
+static void ieee80211_scan_add_ies(struct iw_request_info *info,
+				   struct ieee80211_bss *bss,
+				   char **current_ev, char *end_buf)
 {
 	u8 *pos, *end, *next;
 	struct iw_event iwe;
@@ -746,10 +750,10 @@ static void ieee80211_sta_add_scan_ies(struct iw_request_info *info,
 
 
 static char *
-ieee80211_sta_scan_result(struct ieee80211_local *local,
-			  struct iw_request_info *info,
-			  struct ieee80211_sta_bss *bss,
-			  char *current_ev, char *end_buf)
+ieee80211_scan_result(struct ieee80211_local *local,
+		      struct iw_request_info *info,
+		      struct ieee80211_bss *bss,
+		      char *current_ev, char *end_buf)
 {
 	struct iw_event iwe;
 	char *buf;
@@ -825,7 +829,7 @@ ieee80211_sta_scan_result(struct ieee80211_local *local,
 	current_ev = iwe_stream_add_point(info, current_ev, end_buf,
 					  &iwe, "");
 
-	ieee80211_sta_add_scan_ies(info, bss, &current_ev, end_buf);
+	ieee80211_scan_add_ies(info, bss, &current_ev, end_buf);
 
 	if (bss->supp_rates_len > 0) {
 		/* display all supported rates in readable format */
@@ -911,23 +915,23 @@ ieee80211_sta_scan_result(struct ieee80211_local *local,
 }
 
 
-int ieee80211_sta_scan_results(struct ieee80211_local *local,
-			       struct iw_request_info *info,
-			       char *buf, size_t len)
+int ieee80211_scan_results(struct ieee80211_local *local,
+			   struct iw_request_info *info,
+			   char *buf, size_t len)
 {
 	char *current_ev = buf;
 	char *end_buf = buf + len;
-	struct ieee80211_sta_bss *bss;
+	struct ieee80211_bss *bss;
 
-	spin_lock_bh(&local->sta_bss_lock);
-	list_for_each_entry(bss, &local->sta_bss_list, list) {
+	spin_lock_bh(&local->bss_lock);
+	list_for_each_entry(bss, &local->bss_list, list) {
 		if (buf + len - current_ev <= IW_EV_ADDR_LEN) {
-			spin_unlock_bh(&local->sta_bss_lock);
+			spin_unlock_bh(&local->bss_lock);
 			return -E2BIG;
 		}
-		current_ev = ieee80211_sta_scan_result(local, info, bss,
+		current_ev = ieee80211_scan_result(local, info, bss,
 						       current_ev, end_buf);
 	}
-	spin_unlock_bh(&local->sta_bss_lock);
+	spin_unlock_bh(&local->bss_lock);
 	return current_ev - buf;
 }

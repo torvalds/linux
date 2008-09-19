@@ -851,7 +851,7 @@ struct iwl3945_priv {
 	/* eeprom */
 	struct iwl3945_eeprom eeprom;
 
-	enum ieee80211_if_types iw_mode;
+	enum nl80211_iftype iw_mode;
 
 	struct sk_buff *ibss_beacon;
 

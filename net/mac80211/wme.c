@@ -210,7 +210,7 @@ int ieee80211_ht_agg_queue_add(struct ieee80211_local *local,
 				DECLARE_MAC_BUF(mac);
 				printk(KERN_DEBUG "allocated aggregation queue"
 					" %d tid %d addr %s pool=0x%lX\n",
-					i, tid, print_mac(mac, sta->addr),
+					i, tid, print_mac(mac, sta->sta.addr),
 					local->queue_pool[0]);
 			}
 #endif /* CONFIG_MAC80211_HT_DEBUG */
