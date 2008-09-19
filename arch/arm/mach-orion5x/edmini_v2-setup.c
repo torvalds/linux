@@ -25,6 +25,9 @@
 #include <linux/irq.h>
 #include <linux/mtd/physmap.h>
 #include <linux/mv643xx_eth.h>
+#include <linux/leds.h>
+#include <linux/gpio_keys.h>
+#include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/ata_platform.h>
 #include <linux/gpio.h>
@@ -120,6 +123,61 @@ static struct mv_sata_platform_data edmini_v2_sata_data = {
 };
 
 /*****************************************************************************
+ * GPIO LED (simple - doesn't use hardware blinking support)
+ ****************************************************************************/
+
+#define EDMINI_V2_GPIO_LED_POWER	16
+
+static struct gpio_led edmini_v2_leds[] = {
+	{
+		.name = "power:blue",
+		.gpio = EDMINI_V2_GPIO_LED_POWER,
+		.active_low = 1,
+	},
+};
+
+static struct gpio_led_platform_data edmini_v2_led_data = {
+	.num_leds = ARRAY_SIZE(edmini_v2_leds),
+	.leds = edmini_v2_leds,
+};
+
+static struct platform_device edmini_v2_gpio_leds = {
+	.name           = "leds-gpio",
+	.id             = -1,
+	.dev            = {
+		.platform_data  = &edmini_v2_led_data,
+	},
+};
+
+/****************************************************************************
+ * GPIO key
+ ****************************************************************************/
+
+#define EDMINI_V2_GPIO_KEY_POWER	18
+
+static struct gpio_keys_button edmini_v2_buttons[] = {
+	{
+		.code		= KEY_POWER,
+		.gpio		= EDMINI_V2_GPIO_KEY_POWER,
+		.desc		= "Power Button",
+		.active_low	= 0,
+	},
+};
+
+static struct gpio_keys_platform_data edmini_v2_button_data = {
+	.buttons	= edmini_v2_buttons,
+	.nbuttons	= ARRAY_SIZE(edmini_v2_buttons),
+};
+
+static struct platform_device edmini_v2_gpio_buttons = {
+	.name		= "gpio-keys",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &edmini_v2_button_data,
+	},
+};
+
+/*****************************************************************************
  * General Setup
  ****************************************************************************/
 static struct orion5x_mpp_mode edminiv2_mpp_modes[] __initdata = {
@@ -170,6 +228,8 @@ static void __init edmini_v2_init(void)
 	orion5x_setup_dev_boot_win(EDMINI_V2_NOR_BOOT_BASE,
 				EDMINI_V2_NOR_BOOT_SIZE);
 	platform_device_register(&edmini_v2_nor_flash);
+	platform_device_register(&edmini_v2_gpio_leds);
+	platform_device_register(&edmini_v2_gpio_buttons);
 
 	pr_notice("edmini_v2: USB device port, flash write and power-off "
 		  "are not yet supported.\n");
