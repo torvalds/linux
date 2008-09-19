@@ -356,7 +356,10 @@ struct mv643xx_eth_private {
 
 	int phy_addr;
 
+	struct timer_list mib_counters_timer;
+	spinlock_t mib_counters_lock;
 	struct mib_counters mib_counters;
+
 	struct work_struct tx_timeout_task;
 	struct mii_if_info mii;
 
@@ -1176,6 +1179,7 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 {
 	struct mib_counters *p = &mp->mib_counters;
 
+	spin_lock(&mp->mib_counters_lock);
 	p->good_octets_received += mib_read(mp, 0x00);
 	p->good_octets_received += (u64)mib_read(mp, 0x04) << 32;
 	p->bad_octets_received += mib_read(mp, 0x08);
@@ -1208,6 +1212,16 @@ static void mib_counters_update(struct mv643xx_eth_private *mp)
 	p->bad_crc_event += mib_read(mp, 0x74);
 	p->collision += mib_read(mp, 0x78);
 	p->late_collision += mib_read(mp, 0x7c);
+	spin_unlock(&mp->mib_counters_lock);
+
+	mod_timer(&mp->mib_counters_timer, jiffies + 30 * HZ);
+}
+
+static void mib_counters_timer_wrapper(unsigned long _mp)
+{
+	struct mv643xx_eth_private *mp = (void *)_mp;
+
+	mib_counters_update(mp);
 }
 
 
@@ -2148,6 +2162,8 @@ static int mv643xx_eth_stop(struct net_device *dev)
 	wrl(mp, INT_MASK(mp->port_num), 0x00000000);
 	rdl(mp, INT_MASK(mp->port_num));
 
+	del_timer_sync(&mp->mib_counters_timer);
+
 	napi_disable(&mp->napi);
 
 	del_timer_sync(&mp->rx_oom);
@@ -2624,6 +2640,19 @@ static int mv643xx_eth_probe(struct platform_device *pdev)
 		SET_ETHTOOL_OPS(dev, &mv643xx_eth_ethtool_ops_phyless);
 	}
 	init_pscr(mp, pd->speed, pd->duplex);
+
+
+	mib_counters_clear(mp);
+
+	init_timer(&mp->mib_counters_timer);
+	mp->mib_counters_timer.data = (unsigned long)mp;
+	mp->mib_counters_timer.function = mib_counters_timer_wrapper;
+	mp->mib_counters_timer.expires = jiffies + 30 * HZ;
+	add_timer(&mp->mib_counters_timer);
+
+	spin_lock_init(&mp->mib_counters_lock);
+
+	INIT_WORK(&mp->tx_timeout_task, tx_timeout_task);
 
 	netif_napi_add(dev, &mp->napi, mv643xx_eth_poll, 128);
 
