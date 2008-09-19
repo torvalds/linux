@@ -1196,6 +1196,7 @@ static struct usb_device_id af9015_usb_table[] = {
 /* 10 */{USB_DEVICE(USB_VID_XTENSIONS, USB_PID_XTENSIONS_XD_380)},
 	{USB_DEVICE(USB_VID_MSI_2,     USB_PID_MSI_DIGIVOX_DUO)},
 	{USB_DEVICE(USB_VID_AVERMEDIA, USB_PID_AVERMEDIA_VOLAR_X_2)},
+	{USB_DEVICE(USB_VID_TELESTAR, USB_PID_TELESTAR)},
 	{0},
 };
 MODULE_DEVICE_TABLE(usb, af9015_usb_table);
@@ -1346,7 +1347,7 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 
 		.i2c_algo = &af9015_i2c_algo,
 
-		.num_device_descs = 3,
+		.num_device_descs = 4,
 		.devices = {
 			{
 				.name = "Xtensions XD-380",
@@ -1361,6 +1362,11 @@ static struct dvb_usb_device_properties af9015_properties[] = {
 			{
 				.name = "Fujitsu-Siemens Slim Mobile USB DVB-T",
 				.cold_ids = {&af9015_usb_table[12], NULL},
+				.warm_ids = {NULL},
+			},
+			{
+				.name = "Telestar USB DVB-T",
+				.cold_ids = {&af9015_usb_table[13], NULL},
 				.warm_ids = {NULL},
 			},
 		}
