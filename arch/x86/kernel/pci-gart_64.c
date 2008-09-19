@@ -45,6 +45,15 @@ static unsigned long iommu_pages;	/* .. and in pages */
 
 static u32 *iommu_gatt_base;		/* Remapping table */
 
+/*
+ * If this is disabled the IOMMU will use an optimized flushing strategy
+ * of only flushing when an mapping is reused. With it true the GART is
+ * flushed for every mapping. Problem is that doing the lazy flush seems
+ * to trigger bugs with some popular PCI cards, in particular 3ware (but
+ * has been also also seen with Qlogic at least).
+ */
+int iommu_fullflush = 1;
+
 /* Allocation bitmap for the remapping area: */
 static DEFINE_SPINLOCK(iommu_bitmap_lock);
 /* Guarded by iommu_bitmap_lock: */
@@ -892,6 +901,10 @@ void __init gart_parse_options(char *p)
 #endif
 	if (isdigit(*p) && get_option(&p, &arg))
 		iommu_size = arg;
+	if (!strncmp(p, "fullflush", 8))
+		iommu_fullflush = 1;
+	if (!strncmp(p, "nofullflush", 11))
+		iommu_fullflush = 0;
 	if (!strncmp(p, "noagp", 5))
 		no_agp = 1;
 	if (!strncmp(p, "noaperture", 10))

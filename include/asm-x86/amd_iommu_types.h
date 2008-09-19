@@ -376,6 +376,12 @@ extern unsigned long *amd_iommu_pd_alloc_bitmap;
 /* will be 1 if device isolation is enabled */
 extern int amd_iommu_isolate;
 
+/*
+ * If true, the addresses will be flushed on unmap time, not when
+ * they are reused
+ */
+extern bool amd_iommu_unmap_flush;
+
 /* takes a PCI device id and prints it out in a readable form */
 static inline void print_devid(u16 devid, int nl)
 {

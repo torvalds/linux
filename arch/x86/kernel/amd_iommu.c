@@ -948,7 +948,7 @@ static dma_addr_t __map_single(struct device *dev,
 	}
 	address += offset;
 
-	if (unlikely(dma_dom->need_flush && !iommu_fullflush)) {
+	if (unlikely(dma_dom->need_flush && !amd_iommu_unmap_flush)) {
 		iommu_flush_tlb(iommu, dma_dom->domain.id);
 		dma_dom->need_flush = false;
 	} else if (unlikely(iommu_has_npcache(iommu)))
@@ -985,7 +985,7 @@ static void __unmap_single(struct amd_iommu *iommu,
 
 	dma_ops_free_addresses(dma_dom, dma_addr, pages);
 
-	if (iommu_fullflush)
+	if (amd_iommu_unmap_flush)
 		iommu_flush_pages(iommu, dma_dom->domain.id, dma_addr, size);
 }
 

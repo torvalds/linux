@@ -122,6 +122,7 @@ LIST_HEAD(amd_iommu_unity_map);		/* a list of required unity mappings
 					   we find in ACPI */
 unsigned amd_iommu_aperture_order = 26; /* size of aperture in power of 2 */
 int amd_iommu_isolate;			/* if 1, device isolation is enabled */
+bool amd_iommu_unmap_flush;		/* if true, flush on every unmap */
 
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 					   system */
@@ -1144,7 +1145,7 @@ int __init amd_iommu_init(void)
 	else
 		printk("disabled\n");
 
-	if (iommu_fullflush)
+	if (amd_iommu_unmap_flush)
 		printk(KERN_INFO "AMD IOMMU: IO/TLB flush on unmap enabled\n");
 	else
 		printk(KERN_INFO "AMD IOMMU: Lazy IO/TLB flushing enabled\n");
@@ -1214,6 +1215,8 @@ static int __init parse_amd_iommu_options(char *str)
 	for (; *str; ++str) {
 		if (strncmp(str, "isolate", 7) == 0)
 			amd_iommu_isolate = 1;
+		if (strncmp(str, "fullflush", 11) == 0)
+			amd_iommu_unmap_flush = true;
 	}
 
 	return 1;
