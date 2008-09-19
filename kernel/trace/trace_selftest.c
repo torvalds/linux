@@ -418,6 +418,15 @@ trace_selftest_startup_preemptirqsoff(struct tracer *trace, struct trace_array *
 }
 #endif /* CONFIG_IRQSOFF_TRACER && CONFIG_PREEMPT_TRACER */
 
+#ifdef CONFIG_NOP_TRACER
+int
+trace_selftest_startup_nop(struct tracer *trace, struct trace_array *tr)
+{
+	/* What could possibly go wrong? */
+	return 0;
+}
+#endif
+
 #ifdef CONFIG_SCHED_TRACER
 static int trace_wakeup_test_thread(void *data)
 {

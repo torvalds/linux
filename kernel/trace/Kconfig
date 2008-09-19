@@ -101,6 +101,16 @@ config SCHED_TRACER
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
 
+config NOP_TRACER
+	bool "NOP Tracer"
+	depends on HAVE_FTRACE
+	depends on DEBUG_KERNEL
+	select TRACING
+	help
+	  This tracer does nothing. The primary purpose for it is to
+	  politely print the output of ftrace_printk() calls without
+	  the overhead of an irrelevant trace taking place.
+
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
 	depends on HAVE_FTRACE
