@@ -4545,7 +4545,8 @@ static void b43_sprom_fixup(struct ssb_bus *bus)
 		    IS_PDEV(pdev, BROADCOM, 0x4320,    DELL, 0x0003) ||
 		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0015) ||
 		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0014) ||
-		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0013))
+		    IS_PDEV(pdev, BROADCOM, 0x4320, LINKSYS, 0x0013) ||
+		    IS_PDEV(pdev, BROADCOM, 0x4320, MOTOROLA, 0x7010))
 			bus->sprom.boardflags_lo &= ~B43_BFL_BTCOEXIST;
 	}
 }
