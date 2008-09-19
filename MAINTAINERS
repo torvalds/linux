@@ -1046,6 +1046,13 @@ L:	cbe-oss-dev@ozlabs.org
 W:	http://www.ibm.com/developerworks/power/cell/
 S:	Supported
 
+CISCO 10G ETHERNET DRIVER
+P:	Scott Feldman
+M:	scofeldm@cisco.com
+P:	Joe Eykholt
+M:	jeykholt@cisco.com
+S:	Supported
+
 CFAG12864B LCD DRIVER
 P:	Miguel Ojeda Sandonis
 M:	miguel.ojeda.sandonis@gmail.com
@@ -2319,6 +2326,12 @@ L:	video4linux-list@redhat.com
 W:	http://www.ivtvdriver.org
 S:	Maintained
 
+JME NETWORK DRIVER
+P:	Guo-Fu Tseng
+M:	cooldavid@cooldavid.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+
 JOURNALLING FLASH FILE SYSTEM V2 (JFFS2)
 P:	David Woodhouse
 M:	dwmw2@infradead.org
@@ -3380,6 +3393,13 @@ S:	Supported
 QLOGIC QLA3XXX NETWORK DRIVER
 P:	Ron Mercer
 M:	linux-driver@qlogic.com
+L:	netdev@vger.kernel.org
+S:	Supported
+
+QLOGIC QLGE 10Gb ETHERNET DRIVER
+P:	Ron Mercer
+M:	linux-driver@qlogic.com
+M:	ron.mercer@qlogic.com
 L:	netdev@vger.kernel.org
 S:	Supported
 

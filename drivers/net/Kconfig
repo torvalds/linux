@@ -1840,6 +1840,17 @@ config NE_H8300
 	  Say Y here if you want to use the NE2000 compatible
 	  controller on the Renesas H8/300 processor.
 
+config ATL2
+	tristate "Atheros L2 Fast Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	help
+	  This driver supports the Atheros L2 fast ethernet adapter.
+
+	  To compile this driver as a module, choose M here.  The module
+	  will be called atl2.
+
 source "drivers/net/fs_enet/Kconfig"
 
 endif # NET_ETHERNET
@@ -2302,6 +2313,18 @@ config ATL1E
 	  To compile this driver as a module, choose M here.  The module
 	  will be called atl1e.
 
+config JME
+	tristate "JMicron(R) PCI-Express Gigabit Ethernet support"
+	depends on PCI
+	select CRC32
+	select MII
+	---help---
+	  This driver supports the PCI-Express gigabit ethernet adapters
+	  based on JMicron JMC250 chipset.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called jme.
+
 endif # NETDEV_1000
 
 #
@@ -2376,6 +2399,13 @@ config EHEA
 
 	  To compile the driver as a module, choose M here. The module
 	  will be called ehea.
+
+config ENIC
+	tristate "E, the Cisco 10G Ethernet NIC"
+	depends on PCI && INET
+	select INET_LRO
+	help
+	  This enables the support for the Cisco 10G Ethernet card.
 
 config IXGBE
 	tristate "Intel(R) 10GbE PCI Express adapters support"
@@ -2495,6 +2525,15 @@ config BNX2X
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
+
+config QLGE
+	tristate "QLogic QLGE 10Gb Ethernet Driver Support"
+	depends on PCI
+	help
+	  This driver supports QLogic ISP8XXX 10Gb Ethernet cards.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called qlge.
 
 source "drivers/net/sfc/Kconfig"
 
