@@ -384,7 +384,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	sector_t block = rq->sector;
 	sector_t threshold;
 	unsigned int this_count = rq->nr_sectors;
-	int ret;
+	int ret, host_dif;
 
 	if (rq->cmd_type == REQ_TYPE_BLOCK_PC) {
 		ret = scsi_setup_blk_pc_cmnd(sdp, rq);
@@ -515,7 +515,8 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 					rq->nr_sectors));
 
 	/* Set RDPROTECT/WRPROTECT if disk is formatted with DIF */
-	if (scsi_host_dif_capable(sdp->host, sdkp->protection_type))
+	host_dif = scsi_host_dif_capable(sdp->host, sdkp->protection_type);
+	if (host_dif)
 		SCpnt->cmnd[1] = 1 << 5;
 	else
 		SCpnt->cmnd[1] = 0;
@@ -573,7 +574,7 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 	SCpnt->sdb.length = this_count * sdp->sector_size;
 
 	/* If DIF or DIX is enabled, tell HBA how to handle request */
-	if (sdkp->protection_type || scsi_prot_sg_count(SCpnt))
+	if (host_dif || scsi_prot_sg_count(SCpnt))
 		sd_dif_op(SCpnt, sdkp->protection_type, scsi_prot_sg_count(SCpnt));
 
 	/*
