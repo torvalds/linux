@@ -343,10 +343,11 @@ int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
 			return -EINVAL;
 		if (get_user(n, (int __user *) arg))
 			return -EFAULT;
-		if (bd_claim(bdev, file) < 0)
+		if (!(mode & FMODE_EXCL) && bd_claim(bdev, &bdev) < 0)
 			return -EBUSY;
 		ret = set_blocksize(bdev, n);
-		bd_release(bdev);
+		if (!(mode & FMODE_EXCL))
+			bd_release(bdev);
 		return ret;
 	case BLKPG:
 		lock_kernel();
