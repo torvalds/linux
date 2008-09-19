@@ -3893,6 +3893,7 @@ static int qlge_suspend(struct pci_dev *pdev, pm_message_t state)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 static int qlge_resume(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
@@ -3921,6 +3922,7 @@ static int qlge_resume(struct pci_dev *pdev)
 
 	return 0;
 }
+#endif /* CONFIG_PM */
 
 static void qlge_shutdown(struct pci_dev *pdev)
 {
