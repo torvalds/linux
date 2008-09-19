@@ -277,23 +277,6 @@ static struct irq_cfg *irq_cfg_alloc(unsigned int irq)
 
 	spin_unlock_irqrestore(&irq_cfg_lock, flags);
 
-	printk(KERN_DEBUG "found new irq_cfg for irq %d\n", cfg->irq);
-#ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
-	{
-		/* dump the results */
-		struct irq_cfg *cfg;
-		unsigned long phys;
-		unsigned long bytes = sizeof(struct irq_cfg);
-
-		printk(KERN_DEBUG "=========================== %d\n", irq);
-		printk(KERN_DEBUG "irq_cfg dump after get that for %d\n", irq);
-		for_each_irq_cfg(cfg) {
-			phys = __pa(cfg);
-			printk(KERN_DEBUG "irq_cfg %d ==> [%#lx - %#lx]\n", cfg->irq, phys, phys + bytes);
-		}
-		printk(KERN_DEBUG "===========================\n");
-	}
-#endif
 	return cfg;
 }
 #else
@@ -597,7 +580,6 @@ static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 		cfg->irq_2_pin = entry;
 		entry->apic = apic;
 		entry->pin = pin;
-		printk(KERN_DEBUG " 0 add_pin_to_irq: irq %d --> apic %d pin %d\n", irq, apic, pin);
 		return;
 	}
 
@@ -613,7 +595,6 @@ static void add_pin_to_irq(unsigned int irq, int apic, int pin)
 	entry = entry->next;
 	entry->apic = apic;
 	entry->pin = pin;
-	printk(KERN_DEBUG " x add_pin_to_irq: irq %d --> apic %d pin %d\n", irq, apic, pin);
 }
 
 /*

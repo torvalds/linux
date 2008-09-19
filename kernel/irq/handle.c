@@ -238,24 +238,6 @@ struct irq_desc *irq_to_desc_alloc(unsigned int irq)
 
 	spin_unlock_irqrestore(&sparse_irq_lock, flags);
 
-	printk(KERN_DEBUG "found new irq_desc for irq %d\n", desc->irq);
-#ifdef CONFIG_HAVE_SPARSE_IRQ_DEBUG
-	{
-		/* dump the results */
-		struct irq_desc *desc;
-		unsigned long phys;
-		unsigned long bytes = sizeof(struct irq_desc);
-		unsigned int irqx;
-
-		printk(KERN_DEBUG "=========================== %d\n", irq);
-		printk(KERN_DEBUG "irq_desc dump after get that for %d\n", irq);
-		for_each_irq_desc(irqx, desc) {
-			phys = __pa(desc);
-			printk(KERN_DEBUG "irq_desc %d ==> [%#lx - %#lx]\n", irqx, phys, phys + bytes);
-		}
-		printk(KERN_DEBUG "===========================\n");
-	}
-#endif
 	return desc;
 }
 #else
