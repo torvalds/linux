@@ -2301,9 +2301,12 @@ static int ocfs2_xattr_bucket_find(struct inode *inode,
 
 		/*
 		 * Check whether the hash of the last entry in our
-		 * bucket is larger than the search one.
+		 * bucket is larger than the search one. for an empty
+		 * bucket, the last one is also the first one.
 		 */
-		xe = &xh->xh_entries[le16_to_cpu(xh->xh_count) - 1];
+		if (xh->xh_count)
+			xe = &xh->xh_entries[le16_to_cpu(xh->xh_count) - 1];
+
 		last_hash = le32_to_cpu(xe->xe_name_hash);
 
 		/* record lower_bh which may be the insert place. */
@@ -2450,7 +2453,8 @@ static int ocfs2_iterate_xattr_buckets(struct inode *inode,
 		if (i == 0)
 			num_buckets = le16_to_cpu(bucket.xh->xh_num_buckets);
 
-		mlog(0, "iterating xattr bucket %llu\n", blkno);
+		mlog(0, "iterating xattr bucket %llu, first hash %u\n", blkno,
+		     le32_to_cpu(bucket.xh->xh_entries[0].xe_name_hash));
 		if (func) {
 			ret = func(inode, &bucket, para);
 			if (ret) {
@@ -3915,8 +3919,6 @@ static inline char *ocfs2_xattr_bucket_get_val(struct inode *inode,
 
 /*
  * Handle the normal xattr set, including replace, delete and new.
- * When the bucket is empty, "is_empty" is set and the caller can
- * free this bucket.
  *
  * Note: "local" indicates the real data's locality. So we can't
  * just its bucket locality by its length.
@@ -3925,8 +3927,7 @@ static void ocfs2_xattr_set_entry_normal(struct inode *inode,
 					 struct ocfs2_xattr_info *xi,
 					 struct ocfs2_xattr_search *xs,
 					 u32 name_hash,
-					 int local,
-					 int *is_empty)
+					 int local)
 {
 	struct ocfs2_xattr_entry *last, *xe;
 	int name_len = strlen(xi->name);
@@ -3979,14 +3980,23 @@ static void ocfs2_xattr_set_entry_normal(struct inode *inode,
 			ocfs2_xattr_set_local(xe, local);
 			return;
 		} else {
-			/* Remove the old entry. */
+			/*
+			 * Remove the old entry if there is more than one.
+			 * We don't remove the last entry so that we can
+			 * use it to indicate the hash value of the empty
+			 * bucket.
+			 */
 			last -= 1;
-			memmove(xe, xe + 1,
-				(void *)last - (void *)xe);
-			memset(last, 0, sizeof(struct ocfs2_xattr_entry));
 			le16_add_cpu(&xh->xh_count, -1);
-			if (xh->xh_count == 0 && is_empty)
-				*is_empty = 1;
+			if (xh->xh_count) {
+				memmove(xe, xe + 1,
+					(void *)last - (void *)xe);
+				memset(last, 0,
+				       sizeof(struct ocfs2_xattr_entry));
+			} else
+				xh->xh_free_start =
+					cpu_to_le16(OCFS2_XATTR_BUCKET_SIZE);
+
 			return;
 		}
 	} else {
@@ -3994,7 +4004,7 @@ static void ocfs2_xattr_set_entry_normal(struct inode *inode,
 		int low = 0, high = count - 1, tmp;
 		struct ocfs2_xattr_entry *tmp_xe;
 
-		while (low <= high) {
+		while (low <= high && count) {
 			tmp = (low + high) / 2;
 			tmp_xe = &xh->xh_entries[tmp];
 
@@ -4090,8 +4100,7 @@ static int ocfs2_xattr_set_entry_in_bucket(struct inode *inode,
 					   struct ocfs2_xattr_info *xi,
 					   struct ocfs2_xattr_search *xs,
 					   u32 name_hash,
-					   int local,
-					   int *bucket_empty)
+					   int local)
 {
 	int i, ret;
 	handle_t *handle = NULL;
@@ -4130,8 +4139,7 @@ static int ocfs2_xattr_set_entry_in_bucket(struct inode *inode,
 		}
 	}
 
-	ocfs2_xattr_set_entry_normal(inode, xi, xs, name_hash,
-				     local, bucket_empty);
+	ocfs2_xattr_set_entry_normal(inode, xi, xs, name_hash, local);
 
 	/*Only dirty the blocks we have touched in set xattr. */
 	ret = ocfs2_xattr_bucket_handle_journal(inode, handle, xs,
@@ -4280,69 +4288,6 @@ static int ocfs2_xattr_bucket_set_value_outside(struct inode *inode,
 	return __ocfs2_xattr_set_value_outside(inode, xv, val, value_len);
 }
 
-/*
- * Remove the xattr bucket pointed by bucket_bh.
- * All the buckets after it in the same xattr extent rec will be
- * move forward one by one.
- */
-static int ocfs2_rm_xattr_bucket(struct inode *inode,
-				 struct buffer_head *first_bh,
-				 struct ocfs2_xattr_bucket *bucket)
-{
-	int ret = 0, credits;
-	struct ocfs2_xattr_header *xh =
-				(struct ocfs2_xattr_header *)first_bh->b_data;
-	u16 bucket_num = le16_to_cpu(xh->xh_num_buckets);
-	u64 end, start = bucket->bhs[0]->b_blocknr;
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	handle_t *handle;
-	u16 blk_per_bucket = ocfs2_blocks_per_xattr_bucket(inode->i_sb);
-
-	end = first_bh->b_blocknr + (bucket_num - 1) * blk_per_bucket;
-
-	mlog(0, "rm xattr bucket %llu\n", start);
-	/*
-	 * We need to update the first xattr_header and all the buckets starting
-	 * from start in this xattr rec.
-	 *
-	 * XXX: Should we empty the old last bucket here?
-	 */
-	credits = 1 + end - start;
-	handle = ocfs2_start_trans(osb, credits);
-	if (IS_ERR(handle)) {
-		ret = PTR_ERR(handle);
-		mlog_errno(ret);
-		return ret;
-	}
-
-	ret = ocfs2_journal_access(handle, inode, first_bh,
-				   OCFS2_JOURNAL_ACCESS_WRITE);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_commit;
-	}
-
-
-	while (start < end) {
-		ret = ocfs2_cp_xattr_bucket(inode, handle,
-					    start + blk_per_bucket,
-					    start, 0);
-		if (ret) {
-			mlog_errno(ret);
-			goto out_commit;
-		}
-		start += blk_per_bucket;
-	}
-
-	/* update the first_bh. */
-	xh->xh_num_buckets = cpu_to_le16(bucket_num - 1);
-	ocfs2_journal_dirty(handle, first_bh);
-
-out_commit:
-	ocfs2_commit_trans(osb, handle);
-	return ret;
-}
-
 static int ocfs2_rm_xattr_cluster(struct inode *inode,
 				  struct buffer_head *root_bh,
 				  u64 blkno,
@@ -4432,57 +4377,6 @@ out:
 	return ret;
 }
 
-/*
- * Free the xattr bucket indicated by xs->bucket and if all the buckets
- * in the clusters is free, free the clusters also.
- */
-static int ocfs2_xattr_bucket_shrink(struct inode *inode,
-				     struct ocfs2_xattr_info *xi,
-				     struct ocfs2_xattr_search *xs,
-				     u32 name_hash)
-{
-	int ret;
-	u32 e_cpos, num_clusters;
-	u64 p_blkno;
-	struct buffer_head *first_bh = NULL;
-	struct ocfs2_xattr_header *first_xh;
-	struct ocfs2_xattr_block *xb =
-			(struct ocfs2_xattr_block *)xs->xattr_bh->b_data;
-
-	BUG_ON(xs->header->xh_count != 0);
-
-	ret = ocfs2_xattr_get_rec(inode, name_hash, &p_blkno,
-				  &e_cpos, &num_clusters,
-				  &xb->xb_attrs.xb_root.xt_list);
-	if (ret) {
-		mlog_errno(ret);
-		return ret;
-	}
-
-	ret = ocfs2_read_block(OCFS2_SB(inode->i_sb), p_blkno,
-			       &first_bh, OCFS2_BH_CACHED, inode);
-	if (ret) {
-		mlog_errno(ret);
-		return ret;
-	}
-
-	ret = ocfs2_rm_xattr_bucket(inode, first_bh, &xs->bucket);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
-
-	first_xh = (struct ocfs2_xattr_header *)first_bh->b_data;
-	if (first_xh->xh_num_buckets == 0)
-		ret = ocfs2_rm_xattr_cluster(inode, xs->xattr_bh,
-					     p_blkno, e_cpos,
-					     num_clusters);
-
-out:
-	brelse(first_bh);
-	return ret;
-}
-
 static void ocfs2_xattr_bucket_remove_xs(struct inode *inode,
 					 struct ocfs2_xattr_search *xs)
 {
@@ -4534,7 +4428,7 @@ static int ocfs2_xattr_set_in_bucket(struct inode *inode,
 				     struct ocfs2_xattr_info *xi,
 				     struct ocfs2_xattr_search *xs)
 {
-	int ret, local = 1, bucket_empty = 0;
+	int ret, local = 1;
 	size_t value_len;
 	char *val = (char *)xi->value;
 	struct ocfs2_xattr_entry *xe = xs->here;
@@ -4580,34 +4474,29 @@ static int ocfs2_xattr_set_in_bucket(struct inode *inode,
 		xi->value_len = OCFS2_XATTR_ROOT_SIZE;
 	}
 
-	ret = ocfs2_xattr_set_entry_in_bucket(inode, xi, xs, name_hash,
-					      local, &bucket_empty);
+	ret = ocfs2_xattr_set_entry_in_bucket(inode, xi, xs, name_hash, local);
 	if (ret) {
 		mlog_errno(ret);
 		goto out;
 	}
 
-	if (value_len > OCFS2_XATTR_INLINE_SIZE) {
-		/* allocate the space now for the outside block storage. */
-		ret = ocfs2_xattr_bucket_value_truncate_xs(inode, xs,
-							   value_len);
-		if (ret) {
-			mlog_errno(ret);
+	if (value_len <= OCFS2_XATTR_INLINE_SIZE)
+		goto out;
 
-			if (xs->not_found) {
-				/*
-				 * We can't allocate enough clusters for outside
-				 * storage and we have allocated xattr already,
-				 * so need to remove it.
-				 */
-				ocfs2_xattr_bucket_remove_xs(inode, xs);
-			}
-			goto out;
+	/* allocate the space now for the outside block storage. */
+	ret = ocfs2_xattr_bucket_value_truncate_xs(inode, xs,
+						   value_len);
+	if (ret) {
+		mlog_errno(ret);
+
+		if (xs->not_found) {
+			/*
+			 * We can't allocate enough clusters for outside
+			 * storage and we have allocated xattr already,
+			 * so need to remove it.
+			 */
+			ocfs2_xattr_bucket_remove_xs(inode, xs);
 		}
-	} else {
-		if (bucket_empty)
-			ret = ocfs2_xattr_bucket_shrink(inode, xi,
-							xs, name_hash);
 		goto out;
 	}
 
