@@ -236,8 +236,7 @@ static void tick_do_broadcast_on_off(void *why)
 		if (!cpu_isset(cpu, tick_broadcast_mask)) {
 			cpu_set(cpu, tick_broadcast_mask);
 			if (td->mode == TICKDEV_MODE_PERIODIC)
-				clockevents_set_mode(dev,
-						     CLOCK_EVT_MODE_SHUTDOWN);
+				clockevents_shutdown(dev);
 		}
 		if (*reason == CLOCK_EVT_NOTIFY_BROADCAST_FORCE)
 			tick_broadcast_force = 1;
@@ -254,7 +253,7 @@ static void tick_do_broadcast_on_off(void *why)
 
 	if (cpus_empty(tick_broadcast_mask)) {
 		if (!bc_stopped)
-			clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
+			clockevents_shutdown(bc);
 	} else if (bc_stopped) {
 		if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC)
 			tick_broadcast_start_periodic(bc);
@@ -306,7 +305,7 @@ void tick_shutdown_broadcast(unsigned int *cpup)
 
 	if (tick_broadcast_device.mode == TICKDEV_MODE_PERIODIC) {
 		if (bc && cpus_empty(tick_broadcast_mask))
-			clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
+			clockevents_shutdown(bc);
 	}
 
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
@@ -321,7 +320,7 @@ void tick_suspend_broadcast(void)
 
 	bc = tick_broadcast_device.evtdev;
 	if (bc)
-		clockevents_set_mode(bc, CLOCK_EVT_MODE_SHUTDOWN);
+		clockevents_shutdown(bc);
 
 	spin_unlock_irqrestore(&tick_broadcast_lock, flags);
 }

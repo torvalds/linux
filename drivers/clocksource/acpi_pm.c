@@ -178,11 +178,13 @@ static int verify_pmtmr_rate(void)
 
 /* Number of monotonicity checks to perform during initialization */
 #define ACPI_PM_MONOTONICITY_CHECKS 10
+/* Number of reads we try to get two different values */
+#define ACPI_PM_READ_CHECKS 10000
 
 static int __init init_acpi_pm_clocksource(void)
 {
 	cycle_t value1, value2;
-	unsigned int i, j, good = 0;
+	unsigned int i, j = 0;
 
 	if (!pmtmr_ioport)
 		return -ENODEV;
@@ -192,29 +194,26 @@ static int __init init_acpi_pm_clocksource(void)
 
 	/* "verify" this timing source: */
 	for (j = 0; j < ACPI_PM_MONOTONICITY_CHECKS; j++) {
+		udelay(100 * j);
 		value1 = clocksource_acpi_pm.read();
-		for (i = 0; i < 10000; i++) {
+		for (i = 0; i < ACPI_PM_READ_CHECKS; i++) {
 			value2 = clocksource_acpi_pm.read();
 			if (value2 == value1)
 				continue;
 			if (value2 > value1)
-				good++;
 				break;
 			if ((value2 < value1) && ((value2) < 0xFFF))
-				good++;
 				break;
 			printk(KERN_INFO "PM-Timer had inconsistent results:"
 			       " 0x%#llx, 0x%#llx - aborting.\n",
 			       value1, value2);
 			return -EINVAL;
 		}
-		udelay(300 * i);
-	}
-
-	if (good != ACPI_PM_MONOTONICITY_CHECKS) {
-		printk(KERN_INFO "PM-Timer failed consistency check "
-		       " (0x%#llx) - aborting.\n", value1);
-		return -ENODEV;
+		if (i == ACPI_PM_READ_CHECKS) {
+			printk(KERN_INFO "PM-Timer failed consistency check "
+			       " (0x%#llx) - aborting.\n", value1);
+			return -ENODEV;
+		}
 	}
 
 	if (verify_pmtmr_rate() != 0)
