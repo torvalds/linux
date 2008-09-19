@@ -316,19 +316,6 @@ static inline void omap_init_mmc_conf(const struct omap_mmc_config *mmc_conf)
 				omap_cfg_reg(MMC_DAT3);
 			}
 		}
-#if defined(CONFIG_ARCH_OMAP2420)
-		if (mmc_conf->mmc[0].internal_clock) {
-			/*
-			 * Use internal loop-back in MMC/SDIO
-			 * Module Input Clock selection
-			 */
-			if (cpu_is_omap24xx()) {
-				u32 v = omap_ctrl_readl(OMAP2_CONTROL_DEVCONF0);
-				v |= (1 << 24); /* not used in 243x */
-				omap_ctrl_writel(v, OMAP2_CONTROL_DEVCONF0);
-			}
-		}
-#endif
 	}
 
 #ifdef	CONFIG_ARCH_OMAP16XX
