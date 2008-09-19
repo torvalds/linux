@@ -40,6 +40,9 @@ MODULE_PARM_DESC(debug, "set debugging level (1=info, xfer=2, rc=4 "
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 
+struct cinergyt2_state {
+	u8 rc_counter;
+};
 
 /* We are missing a release hook with usb_device data */
 struct dvb_usb_device *cinergyt2_usb_device;
@@ -122,22 +125,57 @@ static struct dvb_usb_rc_key cinergyt2_rc_keys[] = {
 	{ 0x04,	0x5c,	KEY_NEXT }
 };
 
+/* Number of keypresses to ignore before detect repeating */
+#define RC_REPEAT_DELAY 3
+
+static int repeatable_keys[] = {
+	KEY_UP,
+	KEY_DOWN,
+	KEY_LEFT,
+	KEY_RIGHT,
+	KEY_VOLUMEUP,
+	KEY_VOLUMEDOWN,
+	KEY_CHANNELUP,
+	KEY_CHANNELDOWN
+};
+
 static int cinergyt2_rc_query(struct dvb_usb_device *d, u32 *event, int *state)
 {
+	struct cinergyt2_state *st = d->priv;
 	u8 key[5] = {0, 0, 0, 0, 0}, cmd = CINERGYT2_EP1_GET_RC_EVENTS;
+	int i;
+
 	*state = REMOTE_NO_KEY_PRESSED;
 
 	dvb_usb_generic_rw(d, &cmd, 1, key, sizeof(key), 0);
-	if (key[4] == 0xff)
+	if (key[4] == 0xff) {
+		/* key repeat */
+		st->rc_counter++;
+		if (st->rc_counter > RC_REPEAT_DELAY) {
+			for (i = 0; i < ARRAY_SIZE(repeatable_keys); i++) {
+				if (d->last_event == repeatable_keys[i]) {
+					*state = REMOTE_KEY_REPEAT;
+					*event = d->last_event;
+					deb_rc("repeat key, event %x\n",
+						   *event);
+					return 0;
+				}
+			}
+			deb_rc("repeated key (non repeatable)\n");
+		}
 		return 0;
+	}
 
-	/* hack to pass checksum on the custom field (is set to 0xeb) */
-	key[2] = ~0x04;
+	/* hack to pass checksum on the custom field */
+	key[2] = ~key[1];
 	dvb_usb_nec_rc_key_to_event(d, key, event, state);
-	if (key[0] != 0)
-		deb_info("key: %x %x %x %x %x\n",
-			 key[0], key[1], key[2], key[3], key[4]);
+	if (key[0] != 0) {
+		if (*event != d->last_event)
+			st->rc_counter = 0;
 
+		deb_rc("key: %x %x %x %x %x\n",
+		       key[0], key[1], key[2], key[3], key[4]);
+	}
 	return 0;
 }
 
@@ -157,7 +195,7 @@ static struct usb_device_id cinergyt2_usb_table[] = {
 MODULE_DEVICE_TABLE(usb, cinergyt2_usb_table);
 
 static struct dvb_usb_device_properties cinergyt2_properties = {
-
+	.size_of_priv = sizeof(struct cinergyt2_state),
 	.num_adapters = 1,
 	.adapter = {
 		{
