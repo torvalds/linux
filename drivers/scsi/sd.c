@@ -575,7 +575,8 @@ static int sd_prep_fn(struct request_queue *q, struct request *rq)
 
 	/* If DIF or DIX is enabled, tell HBA how to handle request */
 	if (host_dif || scsi_prot_sg_count(SCpnt))
-		sd_dif_op(SCpnt, sdkp->protection_type, scsi_prot_sg_count(SCpnt));
+		sd_dif_op(SCpnt, host_dif, scsi_prot_sg_count(SCpnt),
+			  sdkp->protection_type);
 
 	/*
 	 * We shouldn't disconnect in the middle of a sector, so with a dumb
