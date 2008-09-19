@@ -241,7 +241,6 @@ static void atmci_init_debugfs(struct atmel_mci *host)
 	struct mmc_host	*mmc;
 	struct dentry	*root;
 	struct dentry	*node;
-	struct resource	*res;
 
 	mmc = host->mmc;
 	root = mmc->debugfs_root;
@@ -254,9 +253,6 @@ static void atmci_init_debugfs(struct atmel_mci *host)
 		return;
 	if (!node)
 		goto err;
-
-	res = platform_get_resource(host->pdev, IORESOURCE_MEM, 0);
-	node->d_inode->i_size = res->end - res->start + 1;
 
 	node = debugfs_create_file("req", S_IRUSR, root, host, &atmci_req_fops);
 	if (!node)
