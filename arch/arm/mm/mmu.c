@@ -646,6 +646,13 @@ static void __init early_vmalloc(char **arg)
 			"vmalloc area too small, limiting to %luMB\n",
 			vmalloc_reserve >> 20);
 	}
+
+	if (vmalloc_reserve > VMALLOC_END - (PAGE_OFFSET + SZ_32M)) {
+		vmalloc_reserve = VMALLOC_END - (PAGE_OFFSET + SZ_32M);
+		printk(KERN_WARNING
+			"vmalloc area is too big, limiting to %luMB\n",
+			vmalloc_reserve >> 20);
+	}
 }
 __early_param("vmalloc=", early_vmalloc);
 
