@@ -559,7 +559,8 @@ static int qeth_l2_request_initial_mac(struct qeth_card *card)
 			"device %s: x%x\n", CARD_BUS_ID(card), rc);
 	}
 
-	if (card->info.guestlan) {
+	if ((card->info.type == QETH_CARD_TYPE_IQD) || 
+	    (card->info.guestlan)) {
 		rc = qeth_setadpparms_change_macaddr(card);
 		if (rc) {
 			QETH_DBF_MESSAGE(2, "couldn't get MAC address on "
