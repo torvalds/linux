@@ -177,7 +177,7 @@ struct compat_blkpg_ioctl_arg {
 	compat_caddr_t data;
 };
 
-static int compat_blkpg_ioctl(struct inode *inode, struct file *file,
+static int compat_blkpg_ioctl(struct block_device *bdev, fmode_t mode,
 		unsigned int cmd, struct compat_blkpg_ioctl_arg __user *ua32)
 {
 	struct blkpg_ioctl_arg __user *a = compat_alloc_user_space(sizeof(*a));
@@ -196,7 +196,7 @@ static int compat_blkpg_ioctl(struct inode *inode, struct file *file,
 	if (err)
 		return err;
 
-	return blkdev_ioctl(inode, file, cmd, (unsigned long)a);
+	return blkdev_ioctl(bdev, mode, cmd, (unsigned long)a);
 }
 
 #define BLKBSZGET_32		_IOR(0x12, 112, int)
@@ -715,13 +715,13 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 	 * but we call blkdev_ioctl, which gets the lock for us
 	 */
 	case BLKRRPART:
-		return blkdev_ioctl(inode, file, cmd,
+		return blkdev_ioctl(bdev, mode, cmd,
 				(unsigned long)compat_ptr(arg));
 	case BLKBSZSET_32:
-		return blkdev_ioctl(inode, file, BLKBSZSET,
+		return blkdev_ioctl(bdev, mode, BLKBSZSET,
 				(unsigned long)compat_ptr(arg));
 	case BLKPG:
-		return compat_blkpg_ioctl(inode, file, cmd, compat_ptr(arg));
+		return compat_blkpg_ioctl(bdev, mode, cmd, compat_ptr(arg));
 	case BLKRAGET:
 	case BLKFRAGET:
 		if (!arg)

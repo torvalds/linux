@@ -230,20 +230,13 @@ EXPORT_SYMBOL_GPL(__blkdev_driver_ioctl);
  * always keep this in sync with compat_blkdev_ioctl() and
  * compat_blkdev_locked_ioctl()
  */
-int blkdev_ioctl(struct inode *inode, struct file *file, unsigned cmd,
+int blkdev_ioctl(struct block_device *bdev, fmode_t mode, unsigned cmd,
 			unsigned long arg)
 {
-	struct block_device *bdev = inode->i_bdev;
 	struct gendisk *disk = bdev->bd_disk;
 	struct backing_dev_info *bdi;
 	loff_t size;
 	int ret, n;
-	fmode_t mode = 0;
-	if (file) {
-		mode = file->f_mode;
-		if (file->f_flags & O_NDELAY)
-			mode |= FMODE_NDELAY_NOW;
-	}
 
 	switch(cmd) {
 	case BLKFLSBUF:

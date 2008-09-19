@@ -1202,7 +1202,11 @@ static int blkdev_close(struct inode * inode, struct file * filp)
 
 static long block_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 {
-	return blkdev_ioctl(file->f_mapping->host, file, cmd, arg);
+	struct block_device *bdev = I_BDEV(file->f_mapping->host);
+	fmode_t mode = file->f_mode;
+	if (file->f_flags & O_NDELAY)
+		mode |= FMODE_NDELAY_NOW;
+	return blkdev_ioctl(bdev, mode, cmd, arg);
 }
 
 static const struct address_space_operations def_blk_aops = {
@@ -1238,7 +1242,7 @@ int ioctl_by_bdev(struct block_device *bdev, unsigned cmd, unsigned long arg)
 	int res;
 	mm_segment_t old_fs = get_fs();
 	set_fs(KERNEL_DS);
-	res = blkdev_ioctl(bdev->bd_inode, NULL, cmd, arg);
+	res = blkdev_ioctl(bdev, 0, cmd, arg);
 	set_fs(old_fs);
 	return res;
 }
