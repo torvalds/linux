@@ -118,4 +118,11 @@ dma_cache_sync(struct device *dev, void *vaddr, size_t size,
 	BUG();
 }
 
+static inline int
+dma_mapping_error(struct device *dev, dma_addr_t dma_handle)
+{
+	BUG();
+	return 0;
+}
+
 #endif
