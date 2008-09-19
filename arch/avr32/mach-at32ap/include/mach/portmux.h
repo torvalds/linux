@@ -24,6 +24,7 @@
 void at32_select_periph(unsigned int pin, unsigned int periph,
 			unsigned long flags);
 void at32_select_gpio(unsigned int pin, unsigned long flags);
+void at32_deselect_pin(unsigned int pin);
 void at32_reserve_pin(unsigned int pin);
 
 #endif /* __ASM_ARCH_PORTMUX_H__ */

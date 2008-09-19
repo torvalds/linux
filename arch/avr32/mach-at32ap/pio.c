@@ -134,6 +134,25 @@ fail:
 	dump_stack();
 }
 
+/*
+ * Undo a previous pin reservation. Will not affect the hardware
+ * configuration.
+ */
+void at32_deselect_pin(unsigned int pin)
+{
+	struct pio_device *pio;
+	unsigned int pin_index = pin & 0x1f;
+
+	pio = gpio_to_pio(pin);
+	if (unlikely(!pio)) {
+		printk("pio: invalid pin %u\n", pin);
+		dump_stack();
+		return;
+	}
+
+	clear_bit(pin_index, &pio->pinmux_mask);
+}
+
 /* Reserve a pin, preventing anyone else from changing its configuration. */
 void __init at32_reserve_pin(unsigned int pin)
 {
