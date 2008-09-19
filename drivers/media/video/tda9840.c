@@ -71,7 +71,6 @@ static void tda9840_write(struct i2c_client *client, u8 reg, u8 val)
 
 static int tda9840_command(struct i2c_client *client, unsigned cmd, void *arg)
 {
-	int result = 0;
 	int byte = *(int *)arg;
 
 	switch (cmd) {
@@ -175,9 +174,6 @@ static int tda9840_command(struct i2c_client *client, unsigned cmd, void *arg)
 	default:
 		return -ENOIOCTLCMD;
 	}
-
-	if (result)
-		return -EIO;
 
 	return 0;
 }
