@@ -1401,9 +1401,7 @@ void hrtimer_run_queues(void)
 		if (!base->first)
 			continue;
 
-		if (base->get_softirq_time)
-			base->softirq_time = base->get_softirq_time();
-		else if (gettime) {
+		if (gettime) {
 			hrtimer_get_softirq_time(cpu_base);
 			gettime = 0;
 		}
