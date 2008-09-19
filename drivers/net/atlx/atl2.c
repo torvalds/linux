@@ -1329,6 +1329,15 @@ static void atl2_setup_pcicmd(struct pci_dev *pdev)
 	pci_write_config_dword(pdev, REG_PM_CTRLSTAT, 0);
 }
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+static void atl2_poll_controller(struct net_device *netdev)
+{
+	disable_irq(netdev->irq);
+	atl2_intr(netdev->irq, netdev);
+	enable_irq(netdev->irq);
+}
+#endif
+
 /*
  * atl2_probe - Device Initialization Routine
  * @pdev: PCI device information struct
@@ -1412,6 +1421,9 @@ static int __devinit atl2_probe(struct pci_dev *pdev,
 	netdev->do_ioctl = &atl2_ioctl;
 	atl2_set_ethtool_ops(netdev);
 
+#ifdef CONFIG_NET_POLL_CONTROLLER
+	netdev->poll_controller = atl2_poll_controller;
+#endif
 #ifdef HAVE_TX_TIMEOUT
 	netdev->tx_timeout = &atl2_tx_timeout;
 	netdev->watchdog_timeo = 5 * HZ;
