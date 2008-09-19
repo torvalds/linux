@@ -147,7 +147,6 @@ struct hrtimer_sleeper {
  * @get_time:		function to retrieve the current time of the clock
  * @softirq_time:	the time when running the hrtimer queue in the softirq
  * @offset:		offset of this clock to the monotonic base
- * @reprogram:		function to reprogram the timer event
  */
 struct hrtimer_clock_base {
 	struct hrtimer_cpu_base	*cpu_base;
@@ -159,9 +158,6 @@ struct hrtimer_clock_base {
 	ktime_t			softirq_time;
 #ifdef CONFIG_HIGH_RES_TIMERS
 	ktime_t			offset;
-	int			(*reprogram)(struct hrtimer *t,
-					     struct hrtimer_clock_base *b,
-					     ktime_t n);
 #endif
 };
 
