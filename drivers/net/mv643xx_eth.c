@@ -546,11 +546,8 @@ static int rxq_process(struct rx_queue *rxq, int budget)
 			 */
 			skb_put(skb, byte_cnt - 2 - 4);
 
-			if (cmd_sts & LAYER_4_CHECKSUM_OK) {
+			if (cmd_sts & LAYER_4_CHECKSUM_OK)
 				skb->ip_summed = CHECKSUM_UNNECESSARY;
-				skb->csum = htons(
-					(cmd_sts & 0x0007fff8) >> 3);
-			}
 			skb->protocol = eth_type_trans(skb, mp->dev);
 			netif_receive_skb(skb);
 		}
@@ -1994,9 +1991,10 @@ static void port_start(struct mv643xx_eth_private *mp)
 
 	/*
 	 * Receive all unmatched unicast, TCP, UDP, BPDU and broadcast
-	 * frames to RX queue #0.
+	 * frames to RX queue #0, and include the pseudo-header when
+	 * calculating receive checksums.
 	 */
-	wrl(mp, PORT_CONFIG(mp->port_num), 0x00000000);
+	wrl(mp, PORT_CONFIG(mp->port_num), 0x02000000);
 
 	/*
 	 * Treat BPDUs as normal multicasts, and disable partition mode.
