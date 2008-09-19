@@ -4003,8 +4003,10 @@ static void ocfs2_xattr_set_entry_normal(struct inode *inode,
 			else if (name_hash <
 				 le32_to_cpu(tmp_xe->xe_name_hash))
 				high = tmp - 1;
-			else
+			else {
+				low = tmp;
 				break;
+			}
 		}
 
 		xe = &xh->xh_entries[low];
