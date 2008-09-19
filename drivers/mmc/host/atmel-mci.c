@@ -1059,6 +1059,10 @@ static int __init atmci_probe(struct platform_device *pdev)
 			host->present = !gpio_get_value(host->detect_pin);
 		}
 	}
+
+	if (!gpio_is_valid(host->detect_pin))
+		mmc->caps |= MMC_CAP_NEEDS_POLL;
+
 	if (gpio_is_valid(host->wp_pin)) {
 		if (gpio_request(host->wp_pin, "mmc_wp")) {
 			dev_dbg(&mmc->class_dev, "no WP pin available\n");
