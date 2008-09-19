@@ -330,7 +330,7 @@ static enum dma_state_client dmatest_add_channel(struct dma_chan *chan)
 		if (dtc->chan == chan)
 			return DMA_DUP;
 
-	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_ATOMIC);
+	dtc = kmalloc(sizeof(struct dmatest_chan), GFP_KERNEL);
 	if (!dtc) {
 		pr_warning("dmatest: No memory for %s\n", chan->dev.bus_id);
 		return DMA_NAK;
