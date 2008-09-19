@@ -208,8 +208,10 @@ cio_start_key (struct subchannel *sch,	/* subchannel structure */
 	case 1:		/* status pending */
 	case 2:		/* busy */
 		return -EBUSY;
-	default:		/* device/path not operational */
+	case 3:		/* device/path not operational */
 		return cio_start_handle_notoper(sch, lpm);
+	default:
+		return ccode;
 	}
 }
 

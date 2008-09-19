@@ -58,7 +58,7 @@
 #include <asm/gpio.h>
 #include <asm/portmux.h>
 
-#include <asm/mach/bf54x-lq043.h>
+#include <mach/bf54x-lq043.h>
 
 #define NO_BL_SUPPORT
 

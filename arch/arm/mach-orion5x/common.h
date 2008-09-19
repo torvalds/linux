@@ -41,6 +41,7 @@ struct pci_bus;
 struct pci_sys_data;
 
 void orion5x_pcie_id(u32 *dev, u32 *rev);
+void orion5x_pci_disable(void);
 void orion5x_pci_set_cardbus_mode(void);
 int orion5x_pci_sys_setup(int nr, struct pci_sys_data *sys);
 struct pci_bus *orion5x_pci_sys_scan_bus(int nr, struct pci_sys_data *sys);

@@ -1068,7 +1068,7 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	{
 		v4l2_std_id *id = arg;
 		int found = 0;
-		int i, err;
+		int i;
 
 		DEB_EE(("VIDIOC_S_STD\n"));
 
@@ -1116,7 +1116,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	case VIDIOC_OVERLAY:
 	{
 		int on = *(int *)arg;
-		int err = 0;
 
 		DEB_D(("VIDIOC_OVERLAY on:%d\n",on));
 		if (on != 0) {
@@ -1192,7 +1191,6 @@ int saa7146_video_do_ioctl(struct inode *inode, struct file *file, unsigned int 
 	case VIDIOCGMBUF:
 	{
 		struct video_mbuf *mbuf = arg;
-		struct videobuf_queue *q;
 		int i;
 
 		/* fixme: number of capture buffers and sizes for v4l apps */

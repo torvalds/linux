@@ -102,7 +102,7 @@ void machine_kexec(struct kimage *image)
 
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;
-	(*rnk)(page_list, reboot_code_buffer, image->start, vbr_reg);
+	(*rnk)(page_list, reboot_code_buffer, P2SEGADDR(image->start), vbr_reg);
 }
 
 void arch_crash_save_vmcoreinfo(void)

@@ -792,6 +792,10 @@ static int fs_enet_open(struct net_device *dev)
 	int r;
 	int err;
 
+	/* to initialize the fep->cur_rx,... */
+	/* not doing this, will cause a crash in fs_enet_rx_napi */
+	fs_init_bds(fep->ndev);
+
 	if (fep->fpi->use_napi)
 		napi_enable(&fep->napi);
 
@@ -1165,6 +1169,10 @@ static struct of_device_id fs_enet_match[] = {
 #ifdef CONFIG_FS_ENET_HAS_SCC
 	{
 		.compatible = "fsl,cpm1-scc-enet",
+		.data = (void *)&fs_scc_ops,
+	},
+	{
+		.compatible = "fsl,cpm2-scc-enet",
 		.data = (void *)&fs_scc_ops,
 	},
 #endif

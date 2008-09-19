@@ -108,6 +108,9 @@ static int i2c_device_probe(struct device *dev)
 	if (!driver->probe || !driver->id_table)
 		return -ENODEV;
 	client->driver = driver;
+	if (!device_can_wakeup(&client->dev))
+		device_init_wakeup(&client->dev,
+					client->flags & I2C_CLIENT_WAKE);
 	dev_dbg(dev, "probe\n");
 
 	status = driver->probe(client, i2c_match_id(driver->id_table, client));
@@ -262,9 +265,8 @@ i2c_new_device(struct i2c_adapter *adap, struct i2c_board_info const *info)
 	client->adapter = adap;
 
 	client->dev.platform_data = info->platform_data;
-	device_init_wakeup(&client->dev, info->flags & I2C_CLIENT_WAKE);
 
-	client->flags = info->flags & ~I2C_CLIENT_WAKE;
+	client->flags = info->flags;
 	client->addr = info->addr;
 	client->irq = info->irq;
 
@@ -1188,8 +1190,8 @@ int i2c_probe(struct i2c_adapter *adapter,
 		 && address_data->normal_i2c[0] == I2C_CLIENT_END)
 			return 0;
 
-		dev_warn(&adapter->dev, "SMBus Quick command not supported, "
-			 "can't probe for chips\n");
+		dev_dbg(&adapter->dev, "SMBus Quick command not supported, "
+			"can't probe for chips\n");
 		return -EOPNOTSUPP;
 	}
 
@@ -1350,6 +1352,10 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		}
 	}
 
+	/* Stop here if the classes do not match */
+	if (!(adapter->class & driver->class))
+		goto exit_free;
+
 	/* Stop here if we can't use SMBUS_QUICK */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_QUICK)) {
 		if (address_data->probe[0] == I2C_CLIENT_END
@@ -1361,10 +1367,6 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		err = -EOPNOTSUPP;
 		goto exit_free;
 	}
-
-	/* Stop here if the classes do not match */
-	if (!(adapter->class & driver->class))
-		goto exit_free;
 
 	/* Probe entries are done second, and are not affected by ignore
 	   entries either */

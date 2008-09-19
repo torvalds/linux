@@ -300,6 +300,8 @@ int __init acpi_table_init(void)
 
 static int __init acpi_parse_apic_instance(char *str)
 {
+	if (!str)
+		return -EINVAL;
 
 	acpi_apic_instance = simple_strtoul(str, NULL, 0);
 

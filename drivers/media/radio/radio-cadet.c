@@ -682,7 +682,7 @@ static int __init cadet_init(void)
 	}
 	if (!request_region(io,2,"cadet"))
 		goto fail;
-	if(video_register_device(&cadet_radio,VFL_TYPE_RADIO,radio_nr)==-1) {
+	if (video_register_device(&cadet_radio, VFL_TYPE_RADIO, radio_nr) < 0) {
 		release_region(io,2);
 		goto fail;
 	}
