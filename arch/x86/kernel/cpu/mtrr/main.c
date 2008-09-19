@@ -1218,11 +1218,10 @@ static int __init mtrr_cleanup(unsigned address_bits)
 
 	memset(range, 0, sizeof(range));
 	extra_remove_size = 0;
-	if (mtrr_tom2) {
-		extra_remove_base = 1 << (32 - PAGE_SHIFT);
+	extra_remove_base = 1 << (32 - PAGE_SHIFT);
+	if (mtrr_tom2)
 		extra_remove_size =
 			(mtrr_tom2 >> PAGE_SHIFT) - extra_remove_base;
-	}
 	nr_range = x86_get_mtrr_mem_range(range, 0, extra_remove_base,
 					  extra_remove_size);
 	range_sums = sum_ranges(range, nr_range);
