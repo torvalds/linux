@@ -37,14 +37,6 @@ int ftrace_enabled __read_mostly;
 static int last_ftrace_enabled;
 
 /*
- * Since MCOUNT_ADDR may point to mcount itself, we do not want
- * to get it confused by reading a reference in the code as we
- * are parsing on objcopy output of text. Use a variable for
- * it instead.
- */
-static unsigned long mcount_addr = MCOUNT_ADDR;
-
-/*
  * ftrace_disabled is set when an anomaly is discovered.
  * ftrace_disabled is much stronger than ftrace_enabled.
  */
@@ -177,6 +169,14 @@ static DEFINE_SPINLOCK(ftrace_hash_lock);
 #define ftrace_hash_lock(flags)   do { (void)(flags); } while (0)
 #define ftrace_hash_unlock(flags) do { } while(0)
 #endif
+
+/*
+ * Since MCOUNT_ADDR may point to mcount itself, we do not want
+ * to get it confused by reading a reference in the code as we
+ * are parsing on objcopy output of text. Use a variable for
+ * it instead.
+ */
+static unsigned long mcount_addr = MCOUNT_ADDR;
 
 static struct task_struct *ftraced_task;
 
