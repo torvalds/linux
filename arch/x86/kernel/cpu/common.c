@@ -797,7 +797,7 @@ void __cpuinit print_cpu_info(struct cpuinfo_x86 *c)
 	else if (c->cpuid_level >= 0)
 		vendor = c->x86_vendor_id;
 
-	if (vendor && strncmp(c->x86_model_id, vendor, strlen(vendor)))
+	if (vendor && !strstr(c->x86_model_id, vendor))
 		printk(KERN_CONT "%s ", vendor);
 
 	if (c->x86_model_id[0])
