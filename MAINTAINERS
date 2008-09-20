@@ -1359,7 +1359,7 @@ P:	Digi International, Inc
 M:	Eng.Linux@digi.com
 L:	Eng.Linux@digi.com
 W:	http://www.digi.com
-S:	Orphaned
+S:	Orphan
 
 DIRECTORY NOTIFICATION
 P:	Stephen Rothwell
@@ -1797,7 +1797,7 @@ FUTURE DOMAIN TMC-16x0 SCSI DRIVER (16-bit)
 P:	Rik Faith
 M:	faith@cs.unc.edu
 L:	linux-scsi@vger.kernel.org
-S:	Odd fixes (e.g., new signatures)
+S:	Odd Fixes (e.g., new signatures)
 
 GDT SCSI DISK ARRAY CONTROLLER DRIVER
 P:	Achim Leubner
@@ -1838,10 +1838,10 @@ S:	Maintained
 HARDWARE MONITORING
 L:	lm-sensors@lm-sensors.org
 W:	http://www.lm-sensors.org/
-S:	Orphaned
+S:	Orphan
 
 HARDWARE RANDOM NUMBER GENERATOR CORE
-S:	Orphaned
+S:	Orphan
 
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 P:	Robert Love
@@ -2735,7 +2735,7 @@ S:	Maintained
 MEGARAID SCSI DRIVERS
 P:	Neela Syam Kolli
 M:	megaraidlinux@lsi.com
-S:	linux-scsi@vger.kernel.org
+L:	linux-scsi@vger.kernel.org
 W:	http://megaraid.lsilogic.com
 S:	Maintained
 
@@ -2853,7 +2853,7 @@ MULTIMEDIA CARD (MMC) ETC. OVER SPI
 P:	David Brownell
 M:	dbrownell@users.sourceforge.net
 L:	linux-kernel@vger.kernel.org
-S:	Odd fixes
+S:	Odd Fixes
 
 MULTISOUND SOUND DRIVER
 P:	Andrew Veliath
@@ -3925,7 +3925,7 @@ S:	Maintained
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
 W:	http://mosquitonet.Stanford.EDU/strip.html
-S:	Unsupported ?
+S:	Orphan
 
 STRADIS MPEG-2 DECODER DRIVER
 P:	Nathan Laredo
