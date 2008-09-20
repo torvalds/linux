@@ -1330,7 +1330,9 @@ ip_vs_edit_service(struct ip_vs_service *svc, struct ip_vs_service_user_kern *u)
 
   out_unlock:
 	write_unlock_bh(&__ip_vs_svc_lock);
+#ifdef CONFIG_IP_VS_IPV6
   out:
+#endif
 
 	if (old_sched)
 		ip_vs_scheduler_put(old_sched);
