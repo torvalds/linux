@@ -522,8 +522,10 @@ static void atl2_intr_tx(struct atl2_adapter *adapter)
 		atomic_set(&adapter->txd_read_ptr, (int)txd_read_ptr);
 
 		/* tx statistics: */
-		if (txs->ok)
+		if (txs->ok) {
+			adapter->net_stats.tx_bytes += txs->pkt_size;
 			adapter->net_stats.tx_packets++;
+		}
 		else
 			adapter->net_stats.tx_errors++;
 
