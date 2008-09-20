@@ -897,7 +897,7 @@ struct sched_class {
 	void (*yield_task) (struct rq *rq);
 	int  (*select_task_rq)(struct task_struct *p, int sync);
 
-	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p);
+	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int sync);
 
 	struct task_struct * (*pick_next_task) (struct rq *rq);
 	void (*put_prev_task) (struct rq *rq, struct task_struct *p);

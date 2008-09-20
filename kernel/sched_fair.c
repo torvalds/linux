@@ -1331,7 +1331,7 @@ static inline int depth_se(struct sched_entity *se)
 /*
  * Preempt the current task with a newly woken task if needed:
  */
-static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
+static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int sync)
 {
 	struct task_struct *curr = rq->curr;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
@@ -1366,6 +1366,13 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p)
 
 	if (!sched_feat(WAKEUP_PREEMPT))
 		return;
+
+	if (sched_feat(WAKEUP_OVERLAP) && sync &&
+			se->avg_overlap < sysctl_sched_migration_cost &&
+			pse->avg_overlap < sysctl_sched_migration_cost) {
+		resched_task(curr);
+		return;
+	}
 
 	/*
 	 * preemption test can be made between sibling entities who are in the
@@ -1649,7 +1656,7 @@ static void prio_changed_fair(struct rq *rq, struct task_struct *p,
 		if (p->prio > oldprio)
 			resched_task(rq->curr);
 	} else
-		check_preempt_curr(rq, p);
+		check_preempt_curr(rq, p, 0);
 }
 
 /*
@@ -1666,7 +1673,7 @@ static void switched_to_fair(struct rq *rq, struct task_struct *p,
 	if (running)
 		resched_task(rq->curr);
 	else
-		check_preempt_curr(rq, p);
+		check_preempt_curr(rq, p, 0);
 }
 
 /* Account for a task changing its policy or group.

@@ -604,9 +604,9 @@ struct rq {
 
 static DEFINE_PER_CPU_SHARED_ALIGNED(struct rq, runqueues);
 
-static inline void check_preempt_curr(struct rq *rq, struct task_struct *p)
+static inline void check_preempt_curr(struct rq *rq, struct task_struct *p, int sync)
 {
-	rq->curr->sched_class->check_preempt_curr(rq, p);
+	rq->curr->sched_class->check_preempt_curr(rq, p, sync);
 }
 
 static inline int cpu_of(struct rq *rq)
@@ -2282,7 +2282,7 @@ out_running:
 	trace_mark(kernel_sched_wakeup,
 		"pid %d state %ld ## rq %p task %p rq->curr %p",
 		p->pid, p->state, rq, p, rq->curr);
-	check_preempt_curr(rq, p);
+	check_preempt_curr(rq, p, sync);
 
 	p->state = TASK_RUNNING;
 #ifdef CONFIG_SMP
@@ -2417,7 +2417,7 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	trace_mark(kernel_sched_wakeup_new,
 		"pid %d state %ld ## rq %p task %p rq->curr %p",
 		p->pid, p->state, rq, p, rq->curr);
-	check_preempt_curr(rq, p);
+	check_preempt_curr(rq, p, 0);
 #ifdef CONFIG_SMP
 	if (p->sched_class->task_wake_up)
 		p->sched_class->task_wake_up(rq, p);
@@ -2877,7 +2877,7 @@ static void pull_task(struct rq *src_rq, struct task_struct *p,
 	 * Note that idle threads have a prio of MAX_PRIO, for this test
 	 * to be always true for them.
 	 */
-	check_preempt_curr(this_rq, p);
+	check_preempt_curr(this_rq, p, 0);
 }
 
 /*
@@ -6007,7 +6007,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 	set_task_cpu(p, dest_cpu);
 	if (on_rq) {
 		activate_task(rq_dest, p, 0);
-		check_preempt_curr(rq_dest, p);
+		check_preempt_curr(rq_dest, p, 0);
 	}
 done:
 	ret = 1;
