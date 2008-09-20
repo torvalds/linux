@@ -551,7 +551,7 @@ int __init op_nmi_init(struct oprofile_operations *ops)
 	}
 
 	/* default values, can be overwritten by model */
-	__get_cpu_var(switch_index) = 0;
+	__raw_get_cpu_var(switch_index) = 0;
 	ops->create_files = nmi_create_files;
 	ops->setup = nmi_setup;
 	ops->shutdown = nmi_shutdown;
