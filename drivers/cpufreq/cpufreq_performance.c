@@ -22,7 +22,10 @@ static void cpufreq_gov_performance_limits(struct cpufreq_policy *policy)
 	__cpufreq_driver_target(policy, policy->max, CPUFREQ_RELATION_H);
 }
 
-static struct cpufreq_governor cpufreq_gov_performance = {
+#ifdef CONFIG_CPU_FREQ_GOV_PERFORMANCE_MODULE
+static
+#endif
+struct cpufreq_governor cpufreq_gov_performance = {
 	.name		= "performance",
 	.owner		= THIS_MODULE,
 	.limits		= cpufreq_gov_performance_limits,
