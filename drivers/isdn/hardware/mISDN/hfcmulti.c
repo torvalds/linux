@@ -135,7 +135,7 @@
  *	This register is needed for the TBR3 certification, so don't change it.
  *
  * clock:
- *	NOTE: only one clockdelay_te value must be given once
+ *	NOTE: only one clock value must be given once
  *	Selects interface with clock source for mISDN and applications.
  *	Set to card number starting with 1. Set to -1 to disable.
  *	By default, the first card is used as clock source.

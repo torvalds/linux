@@ -981,7 +981,7 @@ channel_dctrl(struct dchannel *dch, struct mISDN_ctrl_req *cq)
 		if (debug & DEBUG_L1OIP_SOCKET)
 			printk(KERN_DEBUG "%s: getting ip address.\n",
 				__func__);
-		(u32)cq->p1 = hc->remoteip;
+		cq->p1 = hc->remoteip;
 		cq->p2 = hc->remoteport | (hc->localport << 16);
 		break;
 	default:
