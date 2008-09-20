@@ -441,16 +441,8 @@ static inline void omap_init_uwire(void) {}
 
 #if	defined(CONFIG_OMAP_WATCHDOG) || defined(CONFIG_OMAP_WATCHDOG_MODULE)
 
-#ifdef CONFIG_ARCH_OMAP24XX
-#define	OMAP_WDT_BASE		0x48022000
-#else
-#define	OMAP_WDT_BASE		0xfffeb000
-#endif
-
 static struct resource wdt_resources[] = {
 	{
-		.start		= OMAP_WDT_BASE,
-		.end		= OMAP_WDT_BASE + 0x4f,
 		.flags		= IORESOURCE_MEM,
 	},
 };
@@ -464,6 +456,19 @@ static struct platform_device omap_wdt_device = {
 
 static void omap_init_wdt(void)
 {
+	if (cpu_is_omap16xx())
+		wdt_resources[0].start = 0xfffeb000;
+	else if (cpu_is_omap2420())
+		wdt_resources[0].start = 0x48022000; /* WDT2 */
+	else if (cpu_is_omap2430())
+		wdt_resources[0].start = 0x49016000; /* WDT2 */
+	else if (cpu_is_omap343x())
+		wdt_resources[0].start = 0x48314000; /* WDT2 */
+	else
+		return;
+
+	wdt_resources[0].end = wdt_resources[0].start + 0x4f;
+
 	(void) platform_device_register(&omap_wdt_device);
 }
 #else
