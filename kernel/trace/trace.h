@@ -319,38 +319,22 @@ extern int DYN_FTRACE_TEST_NAME(void);
 #endif
 
 #ifdef CONFIG_FTRACE_STARTUP_TEST
-#ifdef CONFIG_FTRACE
 extern int trace_selftest_startup_function(struct tracer *trace,
 					   struct trace_array *tr);
-#endif
-#ifdef CONFIG_IRQSOFF_TRACER
 extern int trace_selftest_startup_irqsoff(struct tracer *trace,
 					  struct trace_array *tr);
-#endif
-#ifdef CONFIG_PREEMPT_TRACER
 extern int trace_selftest_startup_preemptoff(struct tracer *trace,
 					     struct trace_array *tr);
-#endif
-#if defined(CONFIG_IRQSOFF_TRACER) && defined(CONFIG_PREEMPT_TRACER)
 extern int trace_selftest_startup_preemptirqsoff(struct tracer *trace,
 						 struct trace_array *tr);
-#endif
-#ifdef CONFIG_SCHED_TRACER
 extern int trace_selftest_startup_wakeup(struct tracer *trace,
 					 struct trace_array *tr);
-#endif
-#ifdef CONFIG_NOP_TRACER
 extern int trace_selftest_startup_nop(struct tracer *trace,
 					 struct trace_array *tr);
-#endif
-#ifdef CONFIG_CONTEXT_SWITCH_TRACER
 extern int trace_selftest_startup_sched_switch(struct tracer *trace,
 					       struct trace_array *tr);
-#endif
-#ifdef CONFIG_SYSPROF_TRACER
 extern int trace_selftest_startup_sysprof(struct tracer *trace,
 					       struct trace_array *tr);
-#endif
 #endif /* CONFIG_FTRACE_STARTUP_TEST */
 
 extern void *head_page(struct trace_array_cpu *data);
