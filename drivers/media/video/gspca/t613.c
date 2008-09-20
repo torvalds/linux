@@ -849,7 +849,7 @@ static int sd_getlowlight(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	int mode;
 
@@ -898,6 +898,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	setbrightness(gspca_dev);
 	setcontrast(gspca_dev);
 	setcolors(gspca_dev);
+	return 0;
 }
 
 static void sd_pkt_scan(struct gspca_dev *gspca_dev,

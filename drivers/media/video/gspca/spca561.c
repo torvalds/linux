@@ -699,7 +699,7 @@ static void setautogain(struct gspca_dev *gspca_dev)
 		sd->ag_cnt = -1;
 }
 
-static void sd_start_12a(struct gspca_dev *gspca_dev)
+static int sd_start_12a(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int Clck = 0x8a; /* lower 0x8X values lead to fps > 30 */
@@ -725,8 +725,9 @@ static void sd_start_12a(struct gspca_dev *gspca_dev)
 	setwhite(gspca_dev);
 	setautogain(gspca_dev);
 	setexposure(gspca_dev);
+	return 0;
 }
-static void sd_start_72a(struct gspca_dev *gspca_dev)
+static int sd_start_72a(struct gspca_dev *gspca_dev)
 {
 	struct usb_device *dev = gspca_dev->dev;
 	int Clck;
@@ -750,6 +751,7 @@ static void sd_start_72a(struct gspca_dev *gspca_dev)
 	reg_w_val(dev, 0x8700, Clck);	/* 0x27 clock */
 	reg_w_val(dev, 0x8112, 0x10 | 0x20);
 	setautogain(gspca_dev);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

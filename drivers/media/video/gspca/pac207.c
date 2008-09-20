@@ -281,7 +281,7 @@ static int sd_init(struct gspca_dev *gspca_dev)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	__u8 mode;
@@ -323,6 +323,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	sd->sof_read = 0;
 	sd->autogain_ignore_frames = 0;
 	atomic_set(&sd->avg_lum, -1);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

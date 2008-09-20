@@ -93,7 +93,7 @@ struct sd_desc {
 /* mandatory operations */
 	cam_cf_op config;	/* called on probe */
 	cam_op init;		/* called on probe and resume */
-	cam_v_op start;		/* called on stream on */
+	cam_op start;		/* called on stream on */
 	cam_pkt_op pkt_scan;
 /* optional operations */
 	cam_v_op stopN;		/* called on stream off - main alt */

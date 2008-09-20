@@ -1203,7 +1203,7 @@ static void setvflip(struct sd *sd)
 }
 
 /* -- start the camera -- */
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i;
@@ -1357,6 +1357,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 	}
 	setautogain(gspca_dev);
 	reg_w1(gspca_dev, 0x01, reg1);
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

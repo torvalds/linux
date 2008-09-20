@@ -1501,7 +1501,7 @@ static void setlightfreq(struct gspca_dev *gspca_dev)
 	usb_exchange(gspca_dev, ov7660_freq_tb[sd->lightfreq]);
 }
 
-static void sd_start(struct gspca_dev *gspca_dev)
+static int sd_start(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	const __u8 *GammaT = NULL;
@@ -1585,7 +1585,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		break;
 	default:
 		PDEBUG(D_PROBE, "Damned !! no sensor found Bye");
-		return;
+		return -EMEDIUMTYPE;
 	}
 	if (GammaT && MatrixT) {
 		put_tab_to_reg(gspca_dev, GammaT, 17, 0xb84a);
@@ -1621,6 +1621,7 @@ static void sd_start(struct gspca_dev *gspca_dev)
 		setautogain(gspca_dev);
 		setlightfreq(gspca_dev);
 	}
+	return 0;
 }
 
 static void sd_stopN(struct gspca_dev *gspca_dev)

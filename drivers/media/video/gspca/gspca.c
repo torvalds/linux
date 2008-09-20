@@ -584,7 +584,11 @@ static int gspca_init_transfer(struct gspca_dev *gspca_dev)
 			goto out;
 
 		/* start the cam */
-		gspca_dev->sd_desc->start(gspca_dev);
+		ret = gspca_dev->sd_desc->start(gspca_dev);
+		if (ret < 0) {
+			destroy_urbs(gspca_dev);
+			goto out;
+		}
 		gspca_dev->streaming = 1;
 		atomic_set(&gspca_dev->nevent, 0);
 
