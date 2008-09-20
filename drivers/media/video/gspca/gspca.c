@@ -102,6 +102,22 @@ static struct vm_operations_struct gspca_vm_ops = {
 	.close		= gspca_vm_close,
 };
 
+/* get the current input frame buffer */
+struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev)
+{
+	struct gspca_frame *frame;
+	int i;
+
+	i = gspca_dev->fr_i;
+	i = gspca_dev->fr_queue[i];
+	frame = &gspca_dev->frame[i];
+	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
+				!= V4L2_BUF_FLAG_QUEUED)
+		return NULL;
+	return frame;
+}
+EXPORT_SYMBOL(gspca_get_i_frame);
+
 /*
  * fill a video frame from an URB and resubmit
  */
@@ -110,7 +126,7 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 {
 	struct gspca_frame *frame;
 	__u8 *data;		/* address of data in the iso message */
-	int i, j, len, st;
+	int i, len, st;
 	cam_pkt_op pkt_scan;
 
 	if (urb->status != 0) {
@@ -124,11 +140,8 @@ static void fill_frame(struct gspca_dev *gspca_dev,
 	for (i = 0; i < urb->number_of_packets; i++) {
 
 		/* check the availability of the frame buffer */
-		j = gspca_dev->fr_i;
-		j = gspca_dev->fr_queue[j];
-		frame = &gspca_dev->frame[j];
-		if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-					!= V4L2_BUF_FLAG_QUEUED) {
+		frame = gspca_get_i_frame(gspca_dev);
+		if (!frame) {
 			gspca_dev->last_packet_type = DISCARD_PACKET;
 			break;
 		}
@@ -185,7 +198,6 @@ static void bulk_irq(struct urb *urb
 {
 	struct gspca_dev *gspca_dev = (struct gspca_dev *) urb->context;
 	struct gspca_frame *frame;
-	int j;
 
 	PDEBUG(D_PACK, "bulk irq");
 	if (!gspca_dev->streaming)
@@ -199,11 +211,8 @@ static void bulk_irq(struct urb *urb
 	}
 
 	/* check the availability of the frame buffer */
-	j = gspca_dev->fr_i;
-	j = gspca_dev->fr_queue[j];
-	frame = &gspca_dev->frame[j];
-	if ((frame->v4l2_buf.flags & BUF_ALL_FLAGS)
-				!= V4L2_BUF_FLAG_QUEUED) {
+	frame = gspca_get_i_frame(gspca_dev);
+	if (!frame) {
 		gspca_dev->last_packet_type = DISCARD_PACKET;
 	} else {
 		PDEBUG(D_PACK, "packet l:%d", urb->actual_length);

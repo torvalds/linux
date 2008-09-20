@@ -178,6 +178,7 @@ struct gspca_frame *gspca_frame_add(struct gspca_dev *gspca_dev,
 				    struct gspca_frame *frame,
 				    const __u8 *data,
 				    int len);
+struct gspca_frame *gspca_get_i_frame(struct gspca_dev *gspca_dev);
 #ifdef CONFIG_PM
 int gspca_suspend(struct usb_interface *intf, pm_message_t message);
 int gspca_resume(struct usb_interface *intf);
