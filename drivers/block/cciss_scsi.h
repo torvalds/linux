@@ -66,6 +66,10 @@ struct cciss_scsi_dev_t {
 	int devtype;
 	int bus, target, lun;		/* as presented to the OS */
 	unsigned char scsi3addr[8];	/* as presented to the HW */
+	unsigned char device_id[16];	/* from inquiry pg. 0x83 */
+	unsigned char vendor[8];	/* bytes 8-15 of inquiry data */
+	unsigned char model[16];	/* bytes 16-31 of inquiry data */
+	unsigned char revision[4];	/* bytes 32-35 of inquiry data */
 };
 
 struct cciss_scsi_hba_t {
