@@ -272,17 +272,18 @@ smp4m_ticker:
 	 */
 maybe_smp4m_msg:
 	GET_PROCESSOR4M_ID(o3)
-	set	sun4m_interrupts, %l5
-	ld	[%l5], %o5
+	sethi	%hi(sun4m_irq_percpu), %l5
+	sll	%o3, 2, %o3
+	or	%l5, %lo(sun4m_irq_percpu), %o5
 	sethi	%hi(0x40000000), %o2
-	sll	%o3, 12, %o3
 	ld	[%o5 + %o3], %o1
-	andcc	%o1, %o2, %g0
+	ld	[%o1 + 0x00], %o3	! sun4m_irq_percpu[cpu]->pending
+	andcc	%o3, %o2, %g0
 	be,a	smp4m_ticker
 	 cmp	%l7, 14
-	st	%o2, [%o5 + 0x4]
+	st	%o2, [%o1 + 0x04]	! sun4m_irq_percpu[cpu]->clear=0x40000000
 	WRITE_PAUSE
-	ld	[%o5], %g0
+	ld	[%o1 + 0x00], %g0	! sun4m_irq_percpu[cpu]->pending
 	WRITE_PAUSE
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -300,16 +301,16 @@ linux_trap_ipi15_sun4m:
 	SAVE_ALL
 	sethi	%hi(0x80000000), %o2
 	GET_PROCESSOR4M_ID(o0)
-	set	sun4m_interrupts, %l5
-	ld	[%l5], %o5
-	sll	%o0, 12, %o0
-	add	%o5, %o0, %o5
-	ld	[%o5], %o3
+	sethi	%hi(sun4m_irq_percpu), %l5
+	or	%l5, %lo(sun4m_irq_percpu), %o5
+	sll	%o0, 2, %o0
+	ld	[%o5 + %o0], %o5
+	ld	[%o5 + 0x00], %o3	! sun4m_irq_percpu[cpu]->pending
 	andcc	%o3, %o2, %g0
 	be	1f			! Must be an NMI async memory error
-	 st	%o2, [%o5 + 4]
+	 st	%o2, [%o5 + 0x04]	! sun4m_irq_percpu[cpu]->clear=0x80000000
 	WRITE_PAUSE
-	ld	[%o5], %g0
+	ld	[%o5 + 0x00], %g0	! sun4m_irq_percpu[cpu]->pending
 	WRITE_PAUSE
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -323,12 +324,11 @@ linux_trap_ipi15_sun4m:
 1:
 	/* NMI async memory error handling. */
 	sethi	%hi(0x80000000), %l4
-	sethi	%hi(0x4000), %o3
-	sub	%o5, %o0, %o5
-	add	%o5, %o3, %l5
-	st	%l4, [%l5 + 0xc]
+	sethi	%hi(sun4m_irq_global), %o5
+	ld	[%o5 + %lo(sun4m_irq_global)], %l5
+	st	%l4, [%l5 + 0x0c]	! sun4m_irq_global->mask_set=0x80000000
 	WRITE_PAUSE
-	ld	[%l5], %g0
+	ld	[%l5 + 0x00], %g0	! sun4m_irq_global->pending
 	WRITE_PAUSE
 	or	%l0, PSR_PIL, %l4
 	wr	%l4, 0x0, %psr
@@ -337,9 +337,9 @@ linux_trap_ipi15_sun4m:
 	WRITE_PAUSE
 	call	sun4m_nmi
 	 nop
-	st	%l4, [%l5 + 0x8]
+	st	%l4, [%l5 + 0x08]	! sun4m_irq_global->mask_clear=0x80000000
 	WRITE_PAUSE
-	ld	[%l5], %g0
+	ld	[%l5 + 0x00], %g0	! sun4m_irq_global->pending
 	WRITE_PAUSE
 	RESTORE_ALL
 

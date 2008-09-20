@@ -41,53 +41,25 @@
 
 #include "irq.h"
 
-/* On the sun4m, just like the timers, we have both per-cpu and master
- * interrupt registers.
- */
-
-/* These registers are used for sending/receiving irqs from/to
- * different cpu's.
- */
-struct sun4m_intreg_percpu {
-	unsigned int tbt;        /* Interrupts still pending for this cpu. */
-
-	/* These next two registers are WRITE-ONLY and are only
-	 * "on bit" sensitive, "off bits" written have NO affect.
-	 */
-	unsigned int clear;  /* Clear this cpus irqs here. */
-	unsigned int set;    /* Set this cpus irqs here. */
-	unsigned char space[PAGE_SIZE - 12];
+struct sun4m_irq_percpu {
+	u32		pending;
+	u32		clear;
+	u32		set;
 };
 
-/*
- * djhr
- * Actually the clear and set fields in this struct are misleading..
- * according to the SLAVIO manual (and the same applies for the SEC)
- * the clear field clears bits in the mask which will ENABLE that IRQ
- * the set field sets bits in the mask to DISABLE the IRQ.
- *
- * Also the undirected_xx address in the SLAVIO is defined as
- * RESERVED and write only..
- *
- * DAVEM_NOTE: The SLAVIO only specifies behavior on uniprocessor
- *             sun4m machines, for MP the layout makes more sense.
- */
-struct sun4m_intregs {
-	struct sun4m_intreg_percpu cpu_intregs[SUN4M_NCPUS];
-	unsigned int tbt;                /* IRQ's that are still pending. */
-	unsigned int irqs;               /* Master IRQ bits. */
-
-	/* Again, like the above, two these registers are WRITE-ONLY. */
-	unsigned int clear;              /* Clear master IRQ's by setting bits here. */
-	unsigned int set;                /* Set master IRQ's by setting bits here. */
-
-	/* This register is both READ and WRITE. */
-	unsigned int undirected_target;  /* Which cpu gets undirected irqs. */
+struct sun4m_irq_global {
+	u32		pending;
+	u32		mask;
+	u32		mask_clear;
+	u32		mask_set;
+	u32		interrupt_target;
 };
+
+/* Code in entry.S needs to get at these register mappings.  */
+struct sun4m_irq_percpu __iomem *sun4m_irq_percpu[SUN4M_NCPUS];
+struct sun4m_irq_global __iomem *sun4m_irq_global;
 
 static unsigned long dummy;
-
-struct sun4m_intregs *sun4m_interrupts;
 unsigned long *irq_rcvreg = &dummy;
 
 /* Dave Redman (djhr@tadpole.co.uk)
@@ -182,9 +154,9 @@ static void sun4m_disable_irq(unsigned int irq_nr)
 	mask = sun4m_get_irqmask(irq_nr);
 	local_irq_save(flags);
 	if (irq_nr > 15)
-		sun4m_interrupts->set = mask;
+		sbus_writel(mask, &sun4m_irq_global->mask_set);
 	else
-		sun4m_interrupts->cpu_intregs[cpu].set = mask;
+		sbus_writel(mask, &sun4m_irq_percpu[cpu]->set);
 	local_irq_restore(flags);    
 }
 
@@ -201,13 +173,13 @@ static void sun4m_enable_irq(unsigned int irq_nr)
 		mask = sun4m_get_irqmask(irq_nr);
 		local_irq_save(flags);
 		if (irq_nr > 15)
-			sun4m_interrupts->clear = mask;
+			sbus_writel(mask, &sun4m_irq_global->mask_clear);
 		else
-			sun4m_interrupts->cpu_intregs[cpu].clear = mask;
+			sbus_writel(mask, &sun4m_irq_percpu[cpu]->clear);
 		local_irq_restore(flags);    
 	} else {
 		local_irq_save(flags);
-		sun4m_interrupts->clear = SUN4M_INT_FLOPPY;
+		sbus_writel(SUN4M_INT_FLOPPY, &sun4m_irq_global->mask_clear);
 		local_irq_restore(flags);
 	}
 }
@@ -236,34 +208,30 @@ static unsigned long cpu_pil_to_imask[16] = {
  */
 static void sun4m_disable_pil_irq(unsigned int pil)
 {
-	sun4m_interrupts->set = cpu_pil_to_imask[pil];
+	sbus_writel(cpu_pil_to_imask[pil], &sun4m_irq_global->mask_set);
 }
 
 static void sun4m_enable_pil_irq(unsigned int pil)
 {
-	sun4m_interrupts->clear = cpu_pil_to_imask[pil];
+	sbus_writel(cpu_pil_to_imask[pil], &sun4m_irq_global->mask_clear);
 }
 
 #ifdef CONFIG_SMP
 static void sun4m_send_ipi(int cpu, int level)
 {
-	unsigned long mask;
-
-	mask = sun4m_get_irqmask(level);
-	sun4m_interrupts->cpu_intregs[cpu].set = mask;
+	unsigned long mask = sun4m_get_irqmask(level);
+	sbus_writel(mask, &sun4m_irq_percpu[cpu]->set);
 }
 
 static void sun4m_clear_ipi(int cpu, int level)
 {
-	unsigned long mask;
-
-	mask = sun4m_get_irqmask(level);
-	sun4m_interrupts->cpu_intregs[cpu].clear = mask;
+	unsigned long mask = sun4m_get_irqmask(level);
+	sbus_writel(mask, &sun4m_irq_percpu[cpu]->clear);
 }
 
 static void sun4m_set_udt(int cpu)
 {
-	sun4m_interrupts->undirected_target = cpu;
+	sbus_writel(cpu, &sun4m_irq_global->interrupt_target);
 }
 #endif
 
@@ -347,7 +315,7 @@ static void __init sun4m_init_timers(irq_handler_t counter_fn)
 	for (i = 0; i < num_cpu_timers; i++)
 		sbus_writel(0, &timers_percpu[i]->l14_limit);
 	if (num_cpu_timers == 4)
-		sbus_writel(SUN4M_INT_E14, &sun4m_interrupts->set);
+		sbus_writel(SUN4M_INT_E14, &sun4m_irq_global->mask_set);
 
 #ifdef CONFIG_SMP
 	{
@@ -372,62 +340,38 @@ static void __init sun4m_init_timers(irq_handler_t counter_fn)
 
 void __init sun4m_init_IRQ(void)
 {
-	int ie_node,i;
-	struct linux_prom_registers int_regs[PROMREG_MAX];
-	int num_regs;
-	struct resource r;
-	int mid;
-    
+	struct device_node *dp = of_find_node_by_name(NULL, "interrupt");
+	int len, i, mid, num_cpu_iregs;
+	const u32 *addr;
+
+	if (!dp) {
+		printk(KERN_ERR "sun4m_init_IRQ: No 'interrupt' node.\n");
+		return;
+	}
+
+	addr = of_get_property(dp, "address", &len);
+	if (!addr) {
+		printk(KERN_ERR "sun4m_init_IRQ: No 'address' prop.\n");
+		return;
+	}
+
+	num_cpu_iregs = (len / sizeof(u32)) - 1;
+	for (i = 0; i < num_cpu_iregs; i++) {
+		sun4m_irq_percpu[i] = (void __iomem *)
+			(unsigned long) addr[i];
+	}
+	sun4m_irq_global = (void __iomem *)
+		(unsigned long) addr[num_cpu_iregs];
+
 	local_irq_disable();
-	if((ie_node = prom_searchsiblings(prom_getchild(prom_root_node), "obio")) == 0 ||
-	   (ie_node = prom_getchild (ie_node)) == 0 ||
-	   (ie_node = prom_searchsiblings (ie_node, "interrupt")) == 0) {
-		prom_printf("Cannot find /obio/interrupt node\n");
-		prom_halt();
-	}
-	num_regs = prom_getproperty(ie_node, "reg", (char *) int_regs,
-				    sizeof(int_regs));
-	num_regs = (num_regs/sizeof(struct linux_prom_registers));
-    
-	/* Apply the obio ranges to these registers. */
-	prom_apply_obio_ranges(int_regs, num_regs);
-    
-	int_regs[4].phys_addr = int_regs[num_regs-1].phys_addr;
-	int_regs[4].reg_size = int_regs[num_regs-1].reg_size;
-	int_regs[4].which_io = int_regs[num_regs-1].which_io;
-	for(ie_node = 1; ie_node < 4; ie_node++) {
-		int_regs[ie_node].phys_addr = int_regs[ie_node-1].phys_addr + PAGE_SIZE;
-		int_regs[ie_node].reg_size = int_regs[ie_node-1].reg_size;
-		int_regs[ie_node].which_io = int_regs[ie_node-1].which_io;
-	}
 
-	memset((char *)&r, 0, sizeof(struct resource));
-	/* Map the interrupt registers for all possible cpus. */
-	r.flags = int_regs[0].which_io;
-	r.start = int_regs[0].phys_addr;
-	sun4m_interrupts = (struct sun4m_intregs *) of_ioremap(&r, 0,
-	    PAGE_SIZE*SUN4M_NCPUS, "interrupts_percpu");
-
-	/* Map the system interrupt control registers. */
-	r.flags = int_regs[4].which_io;
-	r.start = int_regs[4].phys_addr;
-	of_ioremap(&r, 0, int_regs[4].reg_size, "interrupts_system");
-
-	sun4m_interrupts->set = ~SUN4M_INT_MASKALL;
+	sbus_writel(~SUN4M_INT_MASKALL, &sun4m_irq_global->mask_set);
 	for (i = 0; !cpu_find_by_instance(i, NULL, &mid); i++)
-		sun4m_interrupts->cpu_intregs[mid].clear = ~0x17fff;
+		sbus_writel(~0x17fff, &sun4m_irq_percpu[mid]->clear);
 
-	if (!cpu_find_by_instance(1, NULL, NULL)) {
-		/* system wide interrupts go to cpu 0, this should always
-		 * be safe because it is guaranteed to be fitted or OBP doesn't
-		 * come up
-		 *
-		 * Not sure, but writing here on SLAVIO systems may puke
-		 * so I don't do it unless there is more than 1 cpu.
-		 */
-		irq_rcvreg = (unsigned long *)
-				&sun4m_interrupts->undirected_target;
-		sun4m_interrupts->undirected_target = 0;
+	if (num_cpu_iregs == 4) {
+		irq_rcvreg = (unsigned long *) &sun4m_irq_global->interrupt_target;
+		sbus_writel(0, &sun4m_irq_global->interrupt_target);
 	}
 	BTFIXUPSET_CALL(enable_irq, sun4m_enable_irq, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(disable_irq, sun4m_disable_irq, BTFIXUPCALL_NORM);
@@ -442,5 +386,6 @@ void __init sun4m_init_IRQ(void)
 	BTFIXUPSET_CALL(clear_cpu_int, sun4m_clear_ipi, BTFIXUPCALL_NORM);
 	BTFIXUPSET_CALL(set_irq_udt, sun4m_set_udt, BTFIXUPCALL_NORM);
 #endif
+
 	/* Cannot enable interrupts until OBP ticker is disabled. */
 }
