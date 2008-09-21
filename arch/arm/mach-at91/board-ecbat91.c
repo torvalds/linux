@@ -86,7 +86,7 @@ static struct mtd_partition __initdata my_flash0_partitions[] =
 	{	/* 0x8400 */
 		.name	= "Darrell-loader",
 		.offset	= 0,
-		.size	= 12* 1056,
+		.size	= 12 * 1056,
 	},
 	{
 		.name	= "U-boot",

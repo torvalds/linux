@@ -35,7 +35,6 @@
 
 #include <video/atmel_lcdc.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -44,6 +43,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
@@ -168,11 +168,11 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Partition 1",
 		.offset	= 0,
-		.size	= 256 * 1024,
+		.size	= SZ_256K,
 	},
 	{
 		.name	= "Partition 2",
-		.offset	= 256 * 1024 ,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };

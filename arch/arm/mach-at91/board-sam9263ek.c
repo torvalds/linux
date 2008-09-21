@@ -33,7 +33,6 @@
 
 #include <video/atmel_lcdc.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -42,6 +41,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 #include <mach/at91sam9_smc.h>
@@ -173,11 +173,11 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name	= "Partition 1",
 		.offset	= 0,
-		.size	= 64 * 1024 * 1024,
+		.size	= SZ_64M,
 	},
 	{
 		.name	= "Partition 2",
-		.offset	= 64 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };
@@ -227,7 +227,7 @@ static struct i2c_board_info __initdata ek_i2c_devices[] = {
 #if defined(CONFIG_FB_ATMEL) || defined(CONFIG_FB_ATMEL_MODULE)
 static struct fb_videomode at91_tft_vga_modes[] = {
 	{
-	        .name           = "TX09D50VM1CCA @ 60",
+		.name		= "TX09D50VM1CCA @ 60",
 		.refresh	= 60,
 		.xres		= 240,		.yres		= 320,
 		.pixclock	= KHZ2PICOS(4965),
@@ -243,7 +243,7 @@ static struct fb_videomode at91_tft_vga_modes[] = {
 
 static struct fb_monspecs at91fb_default_monspecs = {
 	.manufacturer	= "HIT",
-	.monitor        = "TX09D70VM1CCA",
+	.monitor	= "TX09D70VM1CCA",
 
 	.modedb		= at91_tft_vga_modes,
 	.modedb_len	= ARRAY_SIZE(at91_tft_vga_modes),
@@ -254,7 +254,7 @@ static struct fb_monspecs at91fb_default_monspecs = {
 };
 
 #define AT91SAM9263_DEFAULT_LCDCON2 	(ATMEL_LCDC_MEMOR_LITTLE \
-					| ATMEL_LCDC_DISTYPE_TFT    \
+					| ATMEL_LCDC_DISTYPE_TFT \
 					| ATMEL_LCDC_CLKMOD_ALWAYSACTIVE)
 
 static void at91_lcdc_power_control(int on)

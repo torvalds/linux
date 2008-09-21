@@ -28,7 +28,6 @@
 #include <linux/input.h>
 #include <linux/gpio_keys.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -37,6 +36,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 
@@ -114,7 +114,7 @@ static struct spi_board_info csb337_spi_devices[] = {
 };
 
 #define CSB_FLASH_BASE	AT91_CHIPSELECT_0
-#define CSB_FLASH_SIZE	0x800000
+#define CSB_FLASH_SIZE	SZ_8M
 
 static struct mtd_partition csb_flash_partitions[] = {
 	{

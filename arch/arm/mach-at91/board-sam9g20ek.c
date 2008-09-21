@@ -122,16 +122,16 @@ static struct mtd_partition __initdata ek_nand_partition[] = {
 	{
 		.name   = "Bootstrap",
 		.offset = 0,
-		.size   = 4 * 1024 * 1024,
+		.size   = 4 * SZ_1M,
 	},
 	{
 		.name	= "Partition 1",
-		.offset	= 4 * 1024 * 1024,
-		.size	= 60 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
+		.size	= 60 * SZ_1M,
 	},
 	{
 		.name	= "Partition 2",
-		.offset	= 64 * 1024 * 1024,
+		.offset	= MTDPART_OFS_NXTBLK,
 		.size	= MTDPART_SIZ_FULL,
 	},
 };

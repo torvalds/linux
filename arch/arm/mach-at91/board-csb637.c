@@ -25,7 +25,6 @@
 #include <linux/platform_device.h>
 #include <linux/mtd/physmap.h>
 
-#include <mach/hardware.h>
 #include <asm/setup.h>
 #include <asm/mach-types.h>
 #include <asm/irq.h>
@@ -34,6 +33,7 @@
 #include <asm/mach/map.h>
 #include <asm/mach/irq.h>
 
+#include <mach/hardware.h>
 #include <mach/board.h>
 #include <mach/gpio.h>
 
@@ -72,7 +72,7 @@ static struct at91_udc_data __initdata csb637_udc_data = {
 };
 
 #define CSB_FLASH_BASE	AT91_CHIPSELECT_0
-#define CSB_FLASH_SIZE	0x1000000
+#define CSB_FLASH_SIZE	SZ_16M
 
 static struct mtd_partition csb_flash_partitions[] = {
 	{
