@@ -175,6 +175,7 @@ extern void __init at91_add_device_isi(void);
  /* LEDs */
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
+extern void __init at91_pwm_leds(struct gpio_led *leds, int nr);
 
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);

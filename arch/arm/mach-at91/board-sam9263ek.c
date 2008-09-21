@@ -30,6 +30,7 @@
 #include <linux/fb.h>
 #include <linux/gpio_keys.h>
 #include <linux/input.h>
+#include <linux/leds.h>
 
 #include <video/atmel_lcdc.h>
 
@@ -339,22 +340,29 @@ static struct atmel_ac97_data ek_ac97_data = {
  * LEDs ... these could all be PWM-driven, for variable brightness
  */
 static struct gpio_led ek_leds[] = {
-	{	/* "left" led, green, userled1, pwm1 */
-		.name			= "ds1",
-		.gpio			= AT91_PIN_PB8,
-		.active_low		= 1,
-		.default_trigger	= "mmc0",
-	},
-	{	/* "right" led, green, userled2, pwm2 */
+	{	/* "right" led, green, userled2 (could be driven by pwm2) */
 		.name			= "ds2",
 		.gpio			= AT91_PIN_PC29,
 		.active_low		= 1,
 		.default_trigger	= "nand-disk",
 	},
-	{	/* "power" led, yellow, pwm0 */
+	{	/* "power" led, yellow (could be driven by pwm0) */
 		.name			= "ds3",
 		.gpio			= AT91_PIN_PB7,
 		.default_trigger	= "heartbeat",
+	}
+};
+
+/*
+ * PWM Leds
+ */
+static struct gpio_led ek_pwm_led[] = {
+	/* For now only DS1 is PWM-driven (by pwm1) */
+	{
+		.name			= "ds1",
+		.gpio			= 1,	/* is PWM channel number */
+		.active_low		= 1,
+		.default_trigger	= "none",
 	}
 };
 
@@ -388,6 +396,7 @@ static void __init ek_board_init(void)
 	at91_add_device_ac97(&ek_ac97_data);
 	/* LEDs */
 	at91_gpio_leds(ek_leds, ARRAY_SIZE(ek_leds));
+	at91_pwm_leds(ek_pwm_led, ARRAY_SIZE(ek_pwm_led));
 }
 
 MACHINE_START(AT91SAM9263EK, "Atmel AT91SAM9263-EK")
