@@ -1838,7 +1838,7 @@ void tcp_simple_retransmit(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	unsigned int mss = tcp_current_mss(sk, 0);
-	int lost = 0;
+	u32 prior_lost = tp->lost_out;
 
 	tcp_for_write_queue(skb, sk) {
 		if (skb == tcp_send_head(sk))
@@ -1849,17 +1849,13 @@ void tcp_simple_retransmit(struct sock *sk)
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 				tp->retrans_out -= tcp_skb_pcount(skb);
 			}
-			if (!(TCP_SKB_CB(skb)->sacked & TCPCB_LOST)) {
-				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
-				tp->lost_out += tcp_skb_pcount(skb);
-				lost = 1;
-			}
+			tcp_skb_mark_lost_uncond_verify(tp, skb);
 		}
 	}
 
 	tcp_clear_all_retrans_hints(tp);
 
-	if (!lost)
+	if (prior_lost == tp->lost_out)
 		return;
 
 	if (tcp_is_reno(tp))
@@ -2009,15 +2005,11 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
-	int packet_cnt;
 
-	if (tp->retransmit_skb_hint) {
+	if (tp->retransmit_skb_hint)
 		skb = tp->retransmit_skb_hint;
-		packet_cnt = tp->retransmit_cnt_hint;
-	} else {
+	else
 		skb = tcp_write_queue_head(sk);
-		packet_cnt = 0;
-	}
 
 	/* First pass: retransmit lost packets. */
 	if (tp->lost_out) {
@@ -2028,7 +2020,6 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 				break;
 			/* we could do better than to assign each time */
 			tp->retransmit_skb_hint = skb;
-			tp->retransmit_cnt_hint = packet_cnt;
 
 			/* Assume this retransmit will generate
 			 * only one packet for congestion window
@@ -2039,6 +2030,8 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 			 */
 			if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
 				return;
+			if (!before(TCP_SKB_CB(skb)->seq, tp->retransmit_high))
+				break;
 
 			if (sacked & TCPCB_LOST) {
 				if (!(sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))) {
@@ -2059,10 +2052,6 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 									  inet_csk(sk)->icsk_rto,
 									  TCP_RTO_MAX);
 				}
-
-				packet_cnt += tcp_skb_pcount(skb);
-				if (packet_cnt >= tp->lost_out)
-					break;
 			}
 		}
 	}

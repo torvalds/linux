@@ -358,7 +358,7 @@ struct tcp_sock {
 					 */
 
 	int     lost_cnt_hint;
-	int     retransmit_cnt_hint;
+	u32     retransmit_high;	/* L-bits may be on up to this seqno */
 
 	u32	lost_retrans_low;	/* Sent seq after any rxmit (lowest) */
 
