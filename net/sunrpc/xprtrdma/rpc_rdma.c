@@ -769,7 +769,7 @@ repost:
 	/* check for expected message types */
 	/* The order of some of these tests is important. */
 	switch (headerp->rm_type) {
-	case __constant_htonl(RDMA_MSG):
+	case htonl(RDMA_MSG):
 		/* never expect read chunks */
 		/* never expect reply chunks (two ways to check) */
 		/* never expect write chunks without having offered RDMA */
@@ -802,7 +802,7 @@ repost:
 		rpcrdma_inline_fixup(rqst, (char *)iptr, rep->rr_len);
 		break;
 
-	case __constant_htonl(RDMA_NOMSG):
+	case htonl(RDMA_NOMSG):
 		/* never expect read or write chunks, always reply chunks */
 		if (headerp->rm_body.rm_chunks[0] != xdr_zero ||
 		    headerp->rm_body.rm_chunks[1] != xdr_zero ||

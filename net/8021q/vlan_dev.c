@@ -48,7 +48,7 @@ static int vlan_dev_rebuild_header(struct sk_buff *skb)
 
 	switch (veth->h_vlan_encapsulated_proto) {
 #ifdef CONFIG_INET
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 
 		/* TODO:  Confirm this will work with VLAN headers... */
 		return arp_find(veth->h_dest, skb);

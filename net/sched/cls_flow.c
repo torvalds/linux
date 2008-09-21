@@ -67,9 +67,9 @@ static inline u32 addr_fold(void *addr)
 static u32 flow_get_src(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		return ntohl(ip_hdr(skb)->saddr);
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		return ntohl(ipv6_hdr(skb)->saddr.s6_addr32[3]);
 	default:
 		return addr_fold(skb->sk);
@@ -79,9 +79,9 @@ static u32 flow_get_src(const struct sk_buff *skb)
 static u32 flow_get_dst(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		return ntohl(ip_hdr(skb)->daddr);
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		return ntohl(ipv6_hdr(skb)->daddr.s6_addr32[3]);
 	default:
 		return addr_fold(skb->dst) ^ (__force u16)skb->protocol;
@@ -91,9 +91,9 @@ static u32 flow_get_dst(const struct sk_buff *skb)
 static u32 flow_get_proto(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		return ip_hdr(skb)->protocol;
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		return ipv6_hdr(skb)->nexthdr;
 	default:
 		return 0;
@@ -120,7 +120,7 @@ static u32 flow_get_proto_src(const struct sk_buff *skb)
 	u32 res = 0;
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP): {
+	case htons(ETH_P_IP): {
 		struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->frag_off&htons(IP_MF|IP_OFFSET)) &&
@@ -128,7 +128,7 @@ static u32 flow_get_proto_src(const struct sk_buff *skb)
 			res = ntohs(*(__be16 *)((void *)iph + iph->ihl * 4));
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6): {
+	case htons(ETH_P_IPV6): {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		if (has_ports(iph->nexthdr))
@@ -147,7 +147,7 @@ static u32 flow_get_proto_dst(const struct sk_buff *skb)
 	u32 res = 0;
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP): {
+	case htons(ETH_P_IP): {
 		struct iphdr *iph = ip_hdr(skb);
 
 		if (!(iph->frag_off&htons(IP_MF|IP_OFFSET)) &&
@@ -155,7 +155,7 @@ static u32 flow_get_proto_dst(const struct sk_buff *skb)
 			res = ntohs(*(__be16 *)((void *)iph + iph->ihl * 4 + 2));
 		break;
 	}
-	case __constant_htons(ETH_P_IPV6): {
+	case htons(ETH_P_IPV6): {
 		struct ipv6hdr *iph = ipv6_hdr(skb);
 
 		if (has_ports(iph->nexthdr))
@@ -213,9 +213,9 @@ static u32 flow_get_nfct(const struct sk_buff *skb)
 static u32 flow_get_nfct_src(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		return ntohl(CTTUPLE(skb, src.u3.ip));
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		return ntohl(CTTUPLE(skb, src.u3.ip6[3]));
 	}
 fallback:
@@ -225,9 +225,9 @@ fallback:
 static u32 flow_get_nfct_dst(const struct sk_buff *skb)
 {
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		return ntohl(CTTUPLE(skb, dst.u3.ip));
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		return ntohl(CTTUPLE(skb, dst.u3.ip6[3]));
 	}
 fallback:

@@ -1675,13 +1675,13 @@ static u16 simple_tx_hash(struct net_device *dev, struct sk_buff *skb)
 	}
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		ip_proto = ip_hdr(skb)->protocol;
 		addr1 = ip_hdr(skb)->saddr;
 		addr2 = ip_hdr(skb)->daddr;
 		ihl = ip_hdr(skb)->ihl;
 		break;
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		ip_proto = ipv6_hdr(skb)->nexthdr;
 		addr1 = ipv6_hdr(skb)->saddr.s6_addr32[3];
 		addr2 = ipv6_hdr(skb)->daddr.s6_addr32[3];

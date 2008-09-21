@@ -375,11 +375,11 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			if (memcmp
 			    (skb->data + 6, ethertype_ipv6,
 			     sizeof(ethertype_ipv6)) == 0)
-				skb->protocol = __constant_htons(ETH_P_IPV6);
+				skb->protocol = htons(ETH_P_IPV6);
 			else if (memcmp
 				 (skb->data + 6, ethertype_ipv4,
 				  sizeof(ethertype_ipv4)) == 0)
-				skb->protocol = __constant_htons(ETH_P_IP);
+				skb->protocol = htons(ETH_P_IP);
 			else
 				goto error;
 			skb_pull(skb, sizeof(llc_oui_ipv4));
@@ -404,9 +404,9 @@ static void br2684_push(struct atm_vcc *atmvcc, struct sk_buff *skb)
 			skb_reset_network_header(skb);
 			iph = ip_hdr(skb);
 			if (iph->version == 4)
-				skb->protocol = __constant_htons(ETH_P_IP);
+				skb->protocol = htons(ETH_P_IP);
 			else if (iph->version == 6)
-				skb->protocol = __constant_htons(ETH_P_IPV6);
+				skb->protocol = htons(ETH_P_IPV6);
 			else
 				goto error;
 			skb->pkt_type = PACKET_HOST;

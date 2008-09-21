@@ -129,7 +129,7 @@ int eth_rebuild_header(struct sk_buff *skb)
 
 	switch (eth->h_proto) {
 #ifdef CONFIG_INET
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		return arp_find(eth->h_dest, skb);
 #endif
 	default:

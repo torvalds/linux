@@ -938,7 +938,7 @@ ip_vs_out(unsigned int hooknum, struct sk_buff *skb,
 
 	EnterFunction(11);
 
-	af = (skb->protocol == __constant_htons(ETH_P_IP)) ? AF_INET : AF_INET6;
+	af = (skb->protocol == htons(ETH_P_IP)) ? AF_INET : AF_INET6;
 
 	if (skb->ipvs_property)
 		return NF_ACCEPT;
@@ -1258,7 +1258,7 @@ ip_vs_in(unsigned int hooknum, struct sk_buff *skb,
 	struct ip_vs_conn *cp;
 	int ret, restart, af;
 
-	af = (skb->protocol == __constant_htons(ETH_P_IP)) ? AF_INET : AF_INET6;
+	af = (skb->protocol == htons(ETH_P_IP)) ? AF_INET : AF_INET6;
 
 	ip_vs_fill_iphdr(af, skb_network_header(skb), &iph);
 

@@ -39,7 +39,7 @@ static unsigned int classify_1d(struct sk_buff *skb)
 		return skb->priority - 256;
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		dscp = ip_hdr(skb)->tos & 0xfc;
 		break;
 

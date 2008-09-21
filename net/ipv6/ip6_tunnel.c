@@ -1050,10 +1050,10 @@ ip6_tnl_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	switch (skb->protocol) {
-	case __constant_htons(ETH_P_IP):
+	case htons(ETH_P_IP):
 		ret = ip4ip6_tnl_xmit(skb, dev);
 		break;
-	case __constant_htons(ETH_P_IPV6):
+	case htons(ETH_P_IPV6):
 		ret = ip6ip6_tnl_xmit(skb, dev);
 		break;
 	default:
