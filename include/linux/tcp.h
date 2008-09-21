@@ -342,7 +342,6 @@ struct tcp_sock {
 	struct sk_buff* lost_skb_hint;
 	struct sk_buff *scoreboard_skb_hint;
 	struct sk_buff *retransmit_skb_hint;
-	struct sk_buff *forward_skb_hint;
 
 	struct sk_buff_head	out_of_order_queue; /* Out of order segments go here */
 
