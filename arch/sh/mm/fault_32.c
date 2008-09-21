@@ -21,26 +21,21 @@
 #include <asm/tlbflush.h>
 #include <asm/kgdb.h>
 
-#ifdef CONFIG_KPROBES
 static inline int notify_page_fault(struct pt_regs *regs, int trap)
 {
 	int ret = 0;
 
+#ifdef CONFIG_KPROBES
 	if (!user_mode(regs)) {
 		preempt_disable();
 		if (kprobe_running() && kprobe_fault_handler(regs, trap))
 			ret = 1;
 		preempt_enable();
 	}
+#endif
 
 	return ret;
 }
-#else
-static inline int notify_page_fault(struct pt_regs *regs, int trap)
-{
-	return 0;
-}
-#endif
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -58,7 +53,7 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	int fault;
 	siginfo_t info;
 
-	if (notify_page_fault(regs, writeaccess))
+	if (notify_page_fault(regs, lookup_exception_vector()))
 		return;
 
 #ifdef CONFIG_SH_KGDB
@@ -293,7 +288,7 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	pte_t *pte;
 	pte_t entry;
 
-	if (notify_page_fault(regs, writeaccess))
+	if (notify_page_fault(regs, lookup_exception_vector()))
 		return 0;
 
 #ifdef CONFIG_SH_KGDB
