@@ -992,6 +992,16 @@ static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
 		tp->retransmit_skb_hint = NULL;
 }
 
+static void tcp_skb_mark_lost(struct tcp_sock *tp, struct sk_buff *skb)
+{
+	if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_LOST|TCPCB_SACKED_ACKED))) {
+		tcp_verify_retransmit_hint(tp, skb);
+
+		tp->lost_out += tcp_skb_pcount(skb);
+		TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
+	}
+}
+
 /* This procedure tags the retransmission queue when SACKs arrive.
  *
  * We have three tag bits: SACKED(S), RETRANS(R) and LOST(L).
@@ -2216,11 +2226,7 @@ static void tcp_mark_head_lost(struct sock *sk, int packets)
 			cnt = packets;
 		}
 
-		if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
-			TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
-			tp->lost_out += tcp_skb_pcount(skb);
-			tcp_verify_retransmit_hint(tp, skb);
-		}
+		tcp_skb_mark_lost(tp, skb);
 	}
 	tcp_verify_left_out(tp);
 }
@@ -2262,11 +2268,7 @@ static void tcp_update_scoreboard(struct sock *sk, int fast_rexmit)
 			if (!tcp_skb_timedout(sk, skb))
 				break;
 
-			if (!(TCP_SKB_CB(skb)->sacked & (TCPCB_SACKED_ACKED|TCPCB_LOST))) {
-				TCP_SKB_CB(skb)->sacked |= TCPCB_LOST;
-				tp->lost_out += tcp_skb_pcount(skb);
-				tcp_verify_retransmit_hint(tp, skb);
-			}
+			tcp_skb_mark_lost(tp, skb);
 		}
 
 		tp->scoreboard_skb_hint = skb;
