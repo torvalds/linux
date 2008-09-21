@@ -712,7 +712,7 @@ void check_for_bios_corruption(void)
 static void periodic_check_for_corruption(unsigned long data)
 {
 	check_for_bios_corruption();
-	mod_timer(&periodic_check_timer, jiffies + corruption_check_period*HZ);
+	mod_timer(&periodic_check_timer, round_jiffies(jiffies + corruption_check_period*HZ));
 }
 
 void start_periodic_check_for_corruption(void)
