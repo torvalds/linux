@@ -1,8 +1,13 @@
 #
 # Architectures that offer an FTRACE implementation should select HAVE_FTRACE:
 #
+
+config NOP_TRACER
+	bool
+
 config HAVE_FTRACE
 	bool
+	select NOP_TRACER
 
 config HAVE_DYNAMIC_FTRACE
 	bool
@@ -100,16 +105,6 @@ config SCHED_TRACER
 	help
 	  This tracer tracks the latency of the highest priority task
 	  to be scheduled in, starting from the point it has woken up.
-
-config NOP_TRACER
-	bool "NOP Tracer"
-	depends on HAVE_FTRACE
-	depends on DEBUG_KERNEL
-	select TRACING
-	help
-	  This tracer does nothing. The primary purpose for it is to
-	  politely print the output of ftrace_printk() calls without
-	  the overhead of an irrelevant trace taking place.
 
 config CONTEXT_SWITCH_TRACER
 	bool "Trace process context switches"
