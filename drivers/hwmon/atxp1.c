@@ -31,7 +31,7 @@
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("System voltages control via Attansic ATXP1");
-MODULE_VERSION("0.6.2");
+MODULE_VERSION("0.6.3");
 MODULE_AUTHOR("Sebastian Witt <se.witt@gmx.net>");
 
 #define ATXP1_VID	0x00
@@ -289,16 +289,16 @@ static int atxp1_detect(struct i2c_client *new_client, int kind,
 	if (!((i2c_smbus_read_byte_data(new_client, 0x3e) == 0) &&
 	     (i2c_smbus_read_byte_data(new_client, 0x3f) == 0) &&
 	     (i2c_smbus_read_byte_data(new_client, 0xfe) == 0) &&
-	     (i2c_smbus_read_byte_data(new_client, 0xff) == 0) )) {
+	     (i2c_smbus_read_byte_data(new_client, 0xff) == 0)))
+		return -ENODEV;
 
-		/* No vendor ID, now checking if registers 0x10,0x11 (non-existent)
-		 * showing the same as register 0x00 */
-		temp = i2c_smbus_read_byte_data(new_client, 0x00);
+	/* No vendor ID, now checking if registers 0x10,0x11 (non-existent)
+	 * showing the same as register 0x00 */
+	temp = i2c_smbus_read_byte_data(new_client, 0x00);
 
-		if (!((i2c_smbus_read_byte_data(new_client, 0x10) == temp) &&
-			 (i2c_smbus_read_byte_data(new_client, 0x11) == temp) ))
-			return -ENODEV;
-	}
+	if (!((i2c_smbus_read_byte_data(new_client, 0x10) == temp) &&
+	      (i2c_smbus_read_byte_data(new_client, 0x11) == temp)))
+		return -ENODEV;
 
 	/* Get VRM */
 	temp = vid_which_vrm();
