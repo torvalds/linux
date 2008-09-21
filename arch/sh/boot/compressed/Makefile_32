@@ -23,6 +23,11 @@ IMAGE_OFFSET	:= $(shell /bin/bash -c 'printf "0x%08x" \
 
 LIBGCC	:= $(shell $(CC) $(KBUILD_CFLAGS) -print-libgcc-file-name)
 
+ifeq ($(CONFIG_FTRACE),y)
+ORIG_CFLAGS := $(KBUILD_CFLAGS)
+KBUILD_CFLAGS = $(subst -pg, , $(ORIG_CFLAGS))
+endif
+
 LDFLAGS_vmlinux := -Ttext $(IMAGE_OFFSET) -e startup -T $(obj)/../../kernel/vmlinux.lds
 
 $(obj)/vmlinux: $(OBJECTS) $(obj)/piggy.o $(LIBGCC) FORCE

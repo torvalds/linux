@@ -16,6 +16,7 @@
 #include <asm/delay.h>
 #include <asm/tlbflush.h>
 #include <asm/cacheflush.h>
+#include <asm/ftrace.h>
 
 extern int dump_fpu(struct pt_regs *, elf_fpregset_t *);
 extern struct hw_interrupt_type no_irq_type;
@@ -133,6 +134,9 @@ EXPORT_SYMBOL(__flush_purge_region);
 EXPORT_SYMBOL(clear_user_page);
 #endif
 
+#ifdef CONFIG_FTRACE
+EXPORT_SYMBOL(mcount);
+#endif
 EXPORT_SYMBOL(csum_partial);
 EXPORT_SYMBOL(csum_partial_copy_generic);
 #ifdef CONFIG_IPV6
