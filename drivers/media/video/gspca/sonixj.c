@@ -707,6 +707,7 @@ static void i2c_w8(struct gspca_dev *gspca_dev,
 			0x08, 0,		/* value, index */
 			gspca_dev->usb_buf, 8,
 			500);
+	msleep(2);
 }
 
 /* read 5 bytes in gspca_dev->usb_buf */
