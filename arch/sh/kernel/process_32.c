@@ -7,7 +7,11 @@
  *
  *  SuperH version:  Copyright (C) 1999, 2000  Niibe Yutaka & Kaz Kojima
  *		     Copyright (C) 2006 Lineo Solutions Inc. support SH4A UBC
- *		     Copyright (C) 2002 - 2007  Paul Mundt
+ *		     Copyright (C) 2002 - 2008  Paul Mundt
+ *
+ * This file is subject to the terms and conditions of the GNU General Public
+ * License.  See the file "COPYING" in the main directory of this archive
+ * for more details.
  */
 #include <linux/module.h>
 #include <linux/mm.h>
@@ -222,10 +226,10 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	struct task_struct *tsk = current;
 
 	fpvalid = !!tsk_used_math(tsk);
-	if (fpvalid) {
-		unlazy_fpu(tsk, regs);
-		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
-	}
+	if (fpvalid)
+		fpvalid = !fpregs_get(tsk, NULL, 0,
+				      sizeof(struct user_fpu_struct),
+				      fpu, NULL);
 #endif
 
 	return fpvalid;

@@ -23,7 +23,7 @@ config SUPERH32
 	def_bool !SUPERH64
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
-	select HAVE_ARCH_TRACEHOOK if !SH_FPU
+	select HAVE_ARCH_TRACEHOOK
 	select HAVE_FTRACE
 
 config SUPERH64

@@ -32,6 +32,7 @@
 #include <asm/processor.h>
 #include <asm/mmu_context.h>
 #include <asm/syscalls.h>
+#include <asm/fpu.h>
 
 /*
  * This routine will get a word off of the process kernel stack.
@@ -145,6 +146,54 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
+#ifdef CONFIG_SH_FPU
+int fpregs_get(struct task_struct *target,
+	       const struct user_regset *regset,
+	       unsigned int pos, unsigned int count,
+	       void *kbuf, void __user *ubuf)
+{
+	int ret;
+
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
+	if ((boot_cpu_data.flags & CPU_HAS_FPU))
+		return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+					   &target->thread.fpu.hard, 0, -1);
+
+	return user_regset_copyout(&pos, &count, &kbuf, &ubuf,
+				   &target->thread.fpu.soft, 0, -1);
+}
+
+static int fpregs_set(struct task_struct *target,
+		       const struct user_regset *regset,
+		       unsigned int pos, unsigned int count,
+		       const void *kbuf, const void __user *ubuf)
+{
+	int ret;
+
+	ret = init_fpu(target);
+	if (ret)
+		return ret;
+
+	set_stopped_child_used_math(target);
+
+	if ((boot_cpu_data.flags & CPU_HAS_FPU))
+		return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+					  &target->thread.fpu.hard, 0, -1);
+
+	return user_regset_copyin(&pos, &count, &kbuf, &ubuf,
+				  &target->thread.fpu.soft, 0, -1);
+}
+
+static int fpregs_active(struct task_struct *target,
+			 const struct user_regset *regset)
+{
+	return tsk_used_math(target) ? regset->n : 0;
+}
+#endif
+
 #ifdef CONFIG_SH_DSP
 static int dspregs_get(struct task_struct *target,
 		       const struct user_regset *regset,
@@ -194,6 +243,9 @@ static int dspregs_active(struct task_struct *target,
  */
 enum sh_regset {
 	REGSET_GENERAL,
+#ifdef CONFIG_SH_FPU
+	REGSET_FPU,
+#endif
 #ifdef CONFIG_SH_DSP
 	REGSET_DSP,
 #endif
@@ -213,6 +265,18 @@ static const struct user_regset sh_regsets[] = {
 		.get		= genregs_get,
 		.set		= genregs_set,
 	},
+
+#ifdef CONFIG_SH_FPU
+	[REGSET_FPU] = {
+		.core_note_type	= NT_PRFPREG,
+		.n		= sizeof(struct user_fpu_struct) / sizeof(long),
+		.size		= sizeof(long),
+		.align		= sizeof(long),
+		.get		= fpregs_get,
+		.set		= fpregs_set,
+		.active		= fpregs_active,
+	},
+#endif
 
 #ifdef CONFIG_SH_DSP
 	[REGSET_DSP] = {
@@ -304,6 +368,18 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 					     REGSET_GENERAL,
 					     0, sizeof(struct pt_regs),
 					     (const void __user *)data);
+#ifdef CONFIG_SH_FPU
+	case PTRACE_GETFPREGS:
+		return copy_regset_to_user(child, &user_sh_native_view,
+					   REGSET_FPU,
+					   0, sizeof(struct user_fpu_struct),
+					   (void __user *)data);
+	case PTRACE_SETFPREGS:
+		return copy_regset_from_user(child, &user_sh_native_view,
+					     REGSET_FPU,
+					     0, sizeof(struct user_fpu_struct),
+					     (const void __user *)data);
+#endif
 #ifdef CONFIG_SH_DSP
 	case PTRACE_GETDSPREGS:
 		return copy_regset_to_user(child, &user_sh_native_view,

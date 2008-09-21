@@ -108,10 +108,10 @@ typedef struct user_fpu_struct elf_fpregset_t;
 #define elf_check_fdpic(x)		((x)->e_flags & EF_SH_FDPIC)
 #define elf_check_const_displacement(x)	((x)->e_flags & EF_SH_PIC)
 
-#if defined(CONFIG_SUPERH32) && !defined(CONFIG_SH_FPU)
+#ifdef CONFIG_SUPERH32
 /*
- * Enable dump using regset for general purpose registers, use this as
- * the default once the FPU registers are moved over also.
+ * Enable dump using regset.
+ * This covers all of general/DSP/FPU regs.
  */
 #define CORE_DUMP_USE_REGSET
 #endif
