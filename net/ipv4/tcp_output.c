@@ -2096,10 +2096,8 @@ begin_fwd:
 		if (sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (tcp_retransmit_skb(sk, skb)) {
-			tp->retransmit_skb_hint = NULL;
+		if (tcp_retransmit_skb(sk, skb))
 			return;
-		}
 		NET_INC_STATS_BH(sock_net(sk), mib_idx);
 
 		if (skb == tcp_write_queue_head(sk))
