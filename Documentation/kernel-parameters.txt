@@ -796,6 +796,8 @@ and is between 256 and 4096 characters. It is defined in the file
 			Defaults to the default architecture's huge page size
 			if not specified.
 
+	hlt		[BUGS=ARM,SH]
+
 	i8042.direct	[HW] Put keyboard port into non-translated mode
 	i8042.dumbkbd	[HW] Pretend that controller can only read data from
 			     keyboard and cannot control its state
@@ -1206,6 +1208,10 @@ and is between 256 and 4096 characters. It is defined in the file
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
 
+	memchunk=nn[KMG]
+			[KNL,SH] Allow user to override the default size for
+			per-device physically contiguous DMA buffers.
+
 	memmap=exactmap	[KNL,X86-32,X86_64] Enable setting of an exact
 			E820 memory map, as specified by the user.
 			Such memmap=exactmap lines can be constructed based on
@@ -1365,6 +1371,8 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	nodisconnect	[HW,SCSI,M68K] Disables SCSI disconnects.
 
+	nodsp		[SH] Disable hardware DSP at boot time.
+
 	noefi		[X86-32,X86-64] Disable EFI runtime services support.
 
 	noexec		[IA-64]
@@ -1381,13 +1389,15 @@ and is between 256 and 4096 characters. It is defined in the file
 			noexec32=off: disable non-executable mappings
 				read implies executable mappings
 
+	nofpu		[SH] Disable hardware FPU at boot time.
+
 	nofxsr		[BUGS=X86-32] Disables x86 floating point extended
 			register save and restore. The kernel will only save
 			legacy floating-point registers on task switch.
 
 	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
 
-	nohlt		[BUGS=ARM]
+	nohlt		[BUGS=ARM,SH]
 
 	no-hlt		[BUGS=X86-32] Tells the kernel that the hlt
 			instruction doesn't work correctly and not to
