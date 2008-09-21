@@ -2032,6 +2032,7 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	const struct inet_connection_sock *icsk = inet_csk(sk);
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
+	int mib_idx;
 
 	if (tp->retransmit_skb_hint)
 		skb = tp->retransmit_skb_hint;
@@ -2059,27 +2060,26 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 				return;
 			if (!before(TCP_SKB_CB(skb)->seq, tp->retransmit_high))
 				break;
+			if (sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))
+				continue;
 
-			if (sacked & TCPCB_LOST) {
-				if (!(sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))) {
-					int mib_idx;
+			if (!(sacked & TCPCB_LOST))
+				continue;
 
-					if (tcp_retransmit_skb(sk, skb)) {
-						tp->retransmit_skb_hint = NULL;
-						return;
-					}
-					if (icsk->icsk_ca_state != TCP_CA_Loss)
-						mib_idx = LINUX_MIB_TCPFASTRETRANS;
-					else
-						mib_idx = LINUX_MIB_TCPSLOWSTARTRETRANS;
-					NET_INC_STATS_BH(sock_net(sk), mib_idx);
-
-					if (skb == tcp_write_queue_head(sk))
-						inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-									  inet_csk(sk)->icsk_rto,
-									  TCP_RTO_MAX);
-				}
+			if (tcp_retransmit_skb(sk, skb)) {
+				tp->retransmit_skb_hint = NULL;
+				return;
 			}
+			if (icsk->icsk_ca_state != TCP_CA_Loss)
+				mib_idx = LINUX_MIB_TCPFASTRETRANS;
+			else
+				mib_idx = LINUX_MIB_TCPSLOWSTARTRETRANS;
+			NET_INC_STATS_BH(sock_net(sk), mib_idx);
+
+			if (skb == tcp_write_queue_head(sk))
+				inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+							  inet_csk(sk)->icsk_rto,
+							  TCP_RTO_MAX);
 		}
 	}
 
