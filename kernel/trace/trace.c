@@ -142,24 +142,6 @@ static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
 /* trace_flags holds iter_ctrl options */
 unsigned long trace_flags = TRACE_ITER_PRINT_PARENT;
 
-static notrace void no_trace_init(struct trace_array *tr)
-{
-	int cpu;
-
-	ftrace_function_enabled = 0;
-	if(tr->ctrl)
-		for_each_online_cpu(cpu)
-			tracing_reset(tr->data[cpu]);
-	tracer_enabled = 0;
-}
-
-/* dummy trace to disable tracing */
-static struct tracer no_tracer __read_mostly = {
-	.name		= "none",
-	.init		= no_trace_init
-};
-
-
 /**
  * trace_wake_up - wake up tasks waiting for trace input
  *
@@ -962,7 +944,7 @@ ftrace_special(unsigned long arg1, unsigned long arg2, unsigned long arg3)
 	long disabled;
 	int cpu;
 
-	if (tracing_disabled || current_trace == &no_tracer || !tr->ctrl)
+	if (tracing_disabled || !tr->ctrl)
 		return;
 
 	local_irq_save(flags);
@@ -2795,6 +2777,7 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	unsigned long val;
 	char buf[64];
 	int i, ret;
+	struct trace_array *tr = filp->private_data;
 
 	if (cnt >= sizeof(buf))
 		return -EINVAL;
@@ -2814,9 +2797,9 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 
 	mutex_lock(&trace_types_lock);
 
-	if (current_trace != &no_tracer) {
+	if (tr->ctrl) {
 		cnt = -EBUSY;
-		pr_info("ftrace: set current_tracer to none"
+		pr_info("ftrace: please disable tracing"
 			" before modifying buffer size\n");
 		goto out;
 	}
@@ -2879,20 +2862,6 @@ tracing_entries_write(struct file *filp, const char __user *ubuf,
 	return cnt;
 }
 
-static int tracing_open_mark(struct inode *inode, struct file *filp)
-{
-	int ret;
-
-	ret = tracing_open_generic(inode, filp);
-	if (ret)
-		return ret;
-
-	if (current_trace == &no_tracer)
-		return -ENODEV;
-
-	return 0;
-}
-
 static int mark_printk(const char *fmt, ...)
 {
 	int ret;
@@ -2911,7 +2880,7 @@ tracing_mark_write(struct file *filp, const char __user *ubuf,
 	char *end;
 	struct trace_array *tr = &global_trace;
 
-	if (current_trace == &no_tracer || !tr->ctrl || tracing_disabled)
+	if (!tr->ctrl || tracing_disabled)
 		return -EINVAL;
 
 	if (cnt > TRACE_BUF_SIZE)
@@ -2971,7 +2940,7 @@ static struct file_operations tracing_entries_fops = {
 };
 
 static struct file_operations tracing_mark_fops = {
-	.open		= tracing_open_mark,
+	.open		= tracing_open_generic,
 	.write		= tracing_mark_write,
 };
 
@@ -3123,7 +3092,7 @@ int trace_vprintk(unsigned long ip, const char *fmt, va_list args)
 	long disabled;
 	int cpu, len = 0, write, written = 0;
 
-	if (current_trace == &no_tracer || !tr->ctrl || tracing_disabled)
+	if (!tr->ctrl || tracing_disabled)
 		return 0;
 
 	local_irq_save(flags);
@@ -3539,8 +3508,8 @@ __init static int tracer_alloc_buffers(void)
 
 	trace_init_cmdlines();
 
-	register_tracer(&no_tracer);
-	current_trace = &no_tracer;
+	register_tracer(&nop_trace);
+	current_trace = &nop_trace;
 
 	/* All seems OK, enable tracing */
 	global_trace.ctrl = tracer_enabled;

@@ -51,7 +51,7 @@ static void nop_trace_ctrl_update(struct trace_array *tr)
 		stop_nop_trace(tr);
 }
 
-static struct tracer nop_trace __read_mostly =
+struct tracer nop_trace __read_mostly =
 {
 	.name		= "nop",
 	.init		= nop_trace_init,
@@ -62,8 +62,3 @@ static struct tracer nop_trace __read_mostly =
 #endif
 };
 
-__init static int init_nop_trace(void)
-{
-	return register_tracer(&nop_trace);
-}
-device_initcall(init_nop_trace);

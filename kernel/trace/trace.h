@@ -369,4 +369,6 @@ enum trace_iterator_flags {
 	TRACE_ITER_PRINTK		= 0x400,
 };
 
+extern struct tracer nop_trace;
+
 #endif /* _LINUX_KERNEL_TRACE_H */
