@@ -53,13 +53,10 @@ asmlinkage void __kprobes do_page_fault(struct pt_regs *regs,
 	int fault;
 	siginfo_t info;
 
-	if (notify_page_fault(regs, lookup_exception_vector()))
-		return;
-
-#ifdef CONFIG_SH_KGDB
-	if (kgdb_nofault && kgdb_bus_err_hook)
-		kgdb_bus_err_hook();
-#endif
+	/*
+	 * We don't bother with any notifier callbacks here, as they are
+	 * all handled through the __do_page_fault() fast-path.
+	 */
 
 	tsk = current;
 	si_code = SEGV_MAPERR;
