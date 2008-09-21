@@ -2844,6 +2844,7 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 	int flag = 0;
 	u32 pkts_acked = 0;
 	u32 reord = tp->packets_out;
+	u32 prior_sacked = tp->sacked_out;
 	s32 seq_rtt = -1;
 	s32 ca_seq_rtt = -1;
 	ktime_t last_ackt = net_invalid_timestamp();
@@ -2925,9 +2926,11 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 
 		tcp_unlink_write_queue(skb, sk);
 		sk_wmem_free_skb(sk, skb);
-		tcp_clear_retrans_hints_partial(tp);
+		tp->scoreboard_skb_hint = NULL;
 		if (skb == tp->retransmit_skb_hint)
 			tp->retransmit_skb_hint = NULL;
+		if (skb == tp->lost_skb_hint)
+			tp->lost_skb_hint = NULL;
 	}
 
 	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
@@ -2946,6 +2949,15 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 			/* Non-retransmitted hole got filled? That's reordering */
 			if (reord < prior_fackets)
 				tcp_update_reordering(sk, tp->fackets_out - reord, 0);
+
+			/* No need to care for underflows here because
+			 * the lost_skb_hint gets NULLed if we're past it
+			 * (or something non-trivial happened)
+			 */
+			if (tcp_is_fack(tp))
+				tp->lost_cnt_hint -= pkts_acked;
+			else
+				tp->lost_cnt_hint -= prior_sacked - tp->sacked_out;
 		}
 
 		tp->fackets_out -= min(pkts_acked, tp->fackets_out);
