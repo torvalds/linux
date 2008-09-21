@@ -2035,16 +2035,22 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct sk_buff *skb;
 	struct sk_buff *hole = NULL;
+	u32 last_lost;
 	int mib_idx;
 	int fwd_rexmitting = 0;
 
 	if (!tp->lost_out)
 		tp->retransmit_high = tp->snd_una;
 
-	if (tp->retransmit_skb_hint)
+	if (tp->retransmit_skb_hint) {
 		skb = tp->retransmit_skb_hint;
-	else
+		last_lost = TCP_SKB_CB(skb)->end_seq;
+		if (after(last_lost, tp->retransmit_high))
+			last_lost = tp->retransmit_high;
+	} else {
 		skb = tcp_write_queue_head(sk);
+		last_lost = tp->snd_una;
+	}
 
 	/* First pass: retransmit lost packets. */
 	tcp_for_write_queue_from(skb, sk) {
@@ -2073,6 +2079,7 @@ begin_fwd:
 			mib_idx = LINUX_MIB_TCPFORWARDRETRANS;
 
 		} else if (!before(TCP_SKB_CB(skb)->seq, tp->retransmit_high)) {
+			tp->retransmit_high = last_lost;
 			if (!tcp_can_forward_retransmit(sk))
 				break;
 			/* Backtrack if necessary to non-L'ed skb */
@@ -2089,6 +2096,7 @@ begin_fwd:
 			continue;
 
 		} else {
+			last_lost = TCP_SKB_CB(skb)->end_seq;
 			if (icsk->icsk_ca_state != TCP_CA_Loss)
 				mib_idx = LINUX_MIB_TCPFASTRETRANS;
 			else
