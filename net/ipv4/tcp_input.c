@@ -2385,10 +2385,6 @@ static void tcp_undo_cwr(struct sock *sk, const int undo)
 	}
 	tcp_moderate_cwnd(tp);
 	tp->snd_cwnd_stamp = tcp_time_stamp;
-
-	/* There is something screwy going on with the retrans hints after
-	   an undo */
-	tcp_clear_all_retrans_hints(tp);
 }
 
 static inline int tcp_may_undo(struct tcp_sock *tp)
