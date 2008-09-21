@@ -97,6 +97,7 @@ static int
 multiq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 {
 	struct Qdisc *qdisc;
+	struct multiq_sched_data *q = qdisc_priv(sch);
 	int ret;
 
 	qdisc = multiq_classify(skb, sch, &ret);
@@ -113,6 +114,10 @@ multiq_requeue(struct sk_buff *skb, struct Qdisc *sch)
 	if (ret == NET_XMIT_SUCCESS) {
 		sch->q.qlen++;
 		sch->qstats.requeues++;
+		if (q->curband)
+			q->curband--;
+		else
+			q->curband = q->bands - 1;
 		return NET_XMIT_SUCCESS;
 	}
 	if (net_xmit_drop_count(ret))
