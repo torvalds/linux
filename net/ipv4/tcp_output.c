@@ -2034,53 +2034,54 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	struct sk_buff *skb;
 	int mib_idx;
 
+	if (!tp->lost_out)
+		tp->retransmit_high = tp->snd_una;
+
 	if (tp->retransmit_skb_hint)
 		skb = tp->retransmit_skb_hint;
 	else
 		skb = tcp_write_queue_head(sk);
 
 	/* First pass: retransmit lost packets. */
-	if (tp->lost_out) {
-		tcp_for_write_queue_from(skb, sk) {
-			__u8 sacked = TCP_SKB_CB(skb)->sacked;
+	tcp_for_write_queue_from(skb, sk) {
+		__u8 sacked = TCP_SKB_CB(skb)->sacked;
 
-			if (skb == tcp_send_head(sk))
-				break;
-			/* we could do better than to assign each time */
-			tp->retransmit_skb_hint = skb;
+		if (skb == tcp_send_head(sk))
+			break;
+		/* we could do better than to assign each time */
+		tp->retransmit_skb_hint = skb;
 
-			/* Assume this retransmit will generate
-			 * only one packet for congestion window
-			 * calculation purposes.  This works because
-			 * tcp_retransmit_skb() will chop up the
-			 * packet to be MSS sized and all the
-			 * packet counting works out.
-			 */
-			if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
-				return;
-			if (!before(TCP_SKB_CB(skb)->seq, tp->retransmit_high))
-				break;
-			if (sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))
-				continue;
+		/* Assume this retransmit will generate
+		 * only one packet for congestion window
+		 * calculation purposes.  This works because
+		 * tcp_retransmit_skb() will chop up the
+		 * packet to be MSS sized and all the
+		 * packet counting works out.
+		 */
+		if (tcp_packets_in_flight(tp) >= tp->snd_cwnd)
+			return;
+		if (!before(TCP_SKB_CB(skb)->seq, tp->retransmit_high))
+			break;
+		if (sacked & (TCPCB_SACKED_ACKED|TCPCB_SACKED_RETRANS))
+			continue;
 
-			if (!(sacked & TCPCB_LOST))
-				continue;
+		if (!(sacked & TCPCB_LOST))
+			continue;
 
-			if (tcp_retransmit_skb(sk, skb)) {
-				tp->retransmit_skb_hint = NULL;
-				return;
-			}
-			if (icsk->icsk_ca_state != TCP_CA_Loss)
-				mib_idx = LINUX_MIB_TCPFASTRETRANS;
-			else
-				mib_idx = LINUX_MIB_TCPSLOWSTARTRETRANS;
-			NET_INC_STATS_BH(sock_net(sk), mib_idx);
-
-			if (skb == tcp_write_queue_head(sk))
-				inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
-							  inet_csk(sk)->icsk_rto,
-							  TCP_RTO_MAX);
+		if (tcp_retransmit_skb(sk, skb)) {
+			tp->retransmit_skb_hint = NULL;
+			return;
 		}
+		if (icsk->icsk_ca_state != TCP_CA_Loss)
+			mib_idx = LINUX_MIB_TCPFASTRETRANS;
+		else
+			mib_idx = LINUX_MIB_TCPSLOWSTARTRETRANS;
+		NET_INC_STATS_BH(sock_net(sk), mib_idx);
+
+		if (skb == tcp_write_queue_head(sk))
+			inet_csk_reset_xmit_timer(sk, ICSK_TIME_RETRANS,
+						  inet_csk(sk)->icsk_rto,
+						  TCP_RTO_MAX);
 	}
 
 	/* OK, demanded retransmission is finished. */
