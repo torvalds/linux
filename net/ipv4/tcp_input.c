@@ -979,6 +979,19 @@ static void tcp_update_reordering(struct sock *sk, const int metric,
 	}
 }
 
+/* RFC: This is from the original, I doubt that this is necessary at all:
+ * clear xmit_retrans hint if seq of this skb is beyond hint. How could we
+ * retransmitted past LOST markings in the first place? I'm not fully sure
+ * about undo and end of connection cases, which can cause R without L?
+ */
+static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
+{
+	if ((tp->retransmit_skb_hint != NULL) &&
+	    before(TCP_SKB_CB(skb)->seq,
+		   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
+		tp->retransmit_skb_hint = NULL;
+}
+
 /* This procedure tags the retransmission queue when SACKs arrive.
  *
  * We have three tag bits: SACKED(S), RETRANS(R) and LOST(L).
@@ -2154,19 +2167,6 @@ static int tcp_time_to_recover(struct sock *sk)
 	}
 
 	return 0;
-}
-
-/* RFC: This is from the original, I doubt that this is necessary at all:
- * clear xmit_retrans hint if seq of this skb is beyond hint. How could we
- * retransmitted past LOST markings in the first place? I'm not fully sure
- * about undo and end of connection cases, which can cause R without L?
- */
-static void tcp_verify_retransmit_hint(struct tcp_sock *tp, struct sk_buff *skb)
-{
-	if ((tp->retransmit_skb_hint != NULL) &&
-	    before(TCP_SKB_CB(skb)->seq,
-		   TCP_SKB_CB(tp->retransmit_skb_hint)->seq))
-		tp->retransmit_skb_hint = NULL;
 }
 
 /* Mark head of queue up as lost. With RFC3517 SACK, the packets is
