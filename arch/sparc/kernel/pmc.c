@@ -8,7 +8,6 @@
 #include <linux/fs.h>
 #include <linux/errno.h>
 #include <linux/init.h>
-#include <linux/miscdevice.h>
 #include <linux/pm.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
@@ -24,7 +23,6 @@
  * #define PMC_NO_IDLE
  */
 
-#define PMC_MINOR	MISC_DYNAMIC_MINOR
 #define PMC_OBPNAME	"SUNW,pmc"
 #define PMC_DEVNAME "pmc"
 
