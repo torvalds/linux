@@ -30,6 +30,7 @@
 #include <asm/addrspace.h>
 #include <asm/delay.h>
 #include <asm/i2c-sh7760.h>
+#include <asm/sizes.h>
 
 /* Bus state controller registers for CS4 area */
 #define BSC_CS4BCR	0xA4FD0010
@@ -46,16 +47,16 @@ static struct mtd_partition edosk7760_nor_flash_partitions[] = {
 	{
 		.name = "bootloader",
 		.offset = 0,
-		.size = (1 * 1024 * 1024), /*1MB*/
+		.size = SZ_256K,
 		.mask_flags = MTD_WRITEABLE,	/* Read-only */
 	}, {
 		.name = "kernel",
 		.offset = MTDPART_OFS_APPEND,
-		.size = (2 * 1024 * 1024), /*2MB*/
+		.size = SZ_2M,
 	}, {
 		.name = "fs",
 		.offset = MTDPART_OFS_APPEND,
-		.size = (26 * 1024 * 1024),
+		.size = SZ_26M,
 	}, {
 		.name = "other",
 		.offset = MTDPART_OFS_APPEND,
@@ -73,7 +74,7 @@ static struct resource edosk7760_nor_flash_resources[] = {
 	[0] = {
 		.name	= "NOR Flash",
 		.start	= 0x00000000,
-		.end	= (32 * 1024 * 1024) -1,	/* 32MB*/
+		.end	= 0x00000000 + SZ_32M - 1,
 		.flags	= IORESOURCE_MEM,
 	}
 };
@@ -145,7 +146,7 @@ static struct smc91x_platdata smc91x_info = {
 static struct resource smc91x_res[] = {
 	[0] = {
 		.start	= SMC_IOADDR,
-		.end	= SMC_IOADDR + 0x1f,
+		.end	= SMC_IOADDR + SZ_32 - 1,
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
