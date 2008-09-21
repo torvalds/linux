@@ -2925,7 +2925,9 @@ static int tcp_clean_rtx_queue(struct sock *sk, int prior_fackets)
 
 		tcp_unlink_write_queue(skb, sk);
 		sk_wmem_free_skb(sk, skb);
-		tcp_clear_all_retrans_hints(tp);
+		tcp_clear_retrans_hints_partial(tp);
+		if (skb == tp->retransmit_skb_hint)
+			tp->retransmit_skb_hint = NULL;
 	}
 
 	if (skb && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_ACKED))
