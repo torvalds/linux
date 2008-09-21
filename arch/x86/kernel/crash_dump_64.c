@@ -33,14 +33,16 @@ ssize_t copy_oldmem_page(unsigned long pfn, char *buf,
 		return 0;
 
 	vaddr = ioremap(pfn << PAGE_SHIFT, PAGE_SIZE);
+	if (!vaddr)
+		return -ENOMEM;
 
 	if (userbuf) {
-		if (copy_to_user(buf, (vaddr + offset), csize)) {
+		if (copy_to_user(buf, vaddr + offset, csize)) {
 			iounmap(vaddr);
 			return -EFAULT;
 		}
 	} else
-	memcpy(buf, (vaddr + offset), csize);
+		memcpy(buf, vaddr + offset, csize);
 
 	iounmap(vaddr);
 	return csize;
