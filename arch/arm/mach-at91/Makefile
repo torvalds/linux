@@ -65,6 +65,7 @@ obj-y				+= leds.o
 
 # Power Management
 obj-$(CONFIG_PM)		+= pm.o
+obj-$(CONFIG_AT91_SLOW_CLOCK)	+= pm_slowclock.o
 
 ifeq ($(CONFIG_PM_DEBUG),y)
 CFLAGS_pm.o += -DDEBUG

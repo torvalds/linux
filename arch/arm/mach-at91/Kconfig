@@ -323,6 +323,19 @@ config AT91_PROGRAMMABLE_CLOCKS
 	  Select this if you need to program one or more of the PCK0..PCK3
 	  programmable clock outputs.
 
+config AT91_SLOW_CLOCK
+	bool "Suspend-to-RAM disables main oscillator"
+	depends on SUSPEND
+	help
+	  Select this if you want Suspend-to-RAM to save the most power
+	  possible (without powering off the CPU) by disabling the PLLs
+	  and main oscillator so that only the 32 KiHz clock is available.
+
+	  When only that slow-clock is available, some peripherals lose
+	  functionality.  Many can't issue wakeup events unless faster
+	  clocks are available.  Some lose their operating state and
+	  need to be completely re-initialized.
+
 config AT91_TIMER_HZ
        int "Kernel HZ (jiffies per second)"
        range 32 1024
