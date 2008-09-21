@@ -514,14 +514,6 @@ int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
 	return ret;
 }
 
-#ifdef CONFIG_CPU_HAS_SR_RB
-#define lookup_exception_vector(x)	\
-	__asm__ __volatile__ ("stc r2_bank, %0\n\t" : "=r" ((x)))
-#else
-#define lookup_exception_vector(x)	\
-	__asm__ __volatile__ ("mov r4, %0\n\t" : "=r" ((x)))
-#endif
-
 /*
  * Handle various address error exceptions:
  *  - instruction address error:
@@ -545,7 +537,7 @@ asmlinkage void do_address_error(struct pt_regs *regs,
 
 	/* Intentional ifdef */
 #ifdef CONFIG_CPU_HAS_SR_RB
-	lookup_exception_vector(error_code);
+	error_code = lookup_exception_vector();
 #endif
 
 	oldfs = get_fs();
@@ -686,7 +678,7 @@ asmlinkage void do_reserved_inst(unsigned long r4, unsigned long r5,
 	}
 #endif
 
-	lookup_exception_vector(error_code);
+	error_code = lookup_exception_vector();
 
 	local_irq_enable();
 	CHK_REMOTE_DEBUG(regs);
@@ -759,7 +751,7 @@ asmlinkage void do_illegal_slot_inst(unsigned long r4, unsigned long r5,
 	/* not a FPU inst. */
 #endif
 
-	lookup_exception_vector(inst);
+	inst = lookup_exception_vector();
 
 	local_irq_enable();
 	CHK_REMOTE_DEBUG(regs);
@@ -774,7 +766,7 @@ asmlinkage void do_exception_error(unsigned long r4, unsigned long r5,
 	struct pt_regs *regs = RELOC_HIDE(&__regs, 0);
 	long ex;
 
-	lookup_exception_vector(ex);
+	ex = lookup_exception_vector();
 	die_if_kernel("exception", regs, ex);
 }
 

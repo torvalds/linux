@@ -97,6 +97,31 @@ do {							\
 		: "=&r" (__dummy));			\
 } while (0)
 
+#ifdef CONFIG_CPU_HAS_SR_RB
+#define lookup_exception_vector()	\
+({					\
+	unsigned long _vec;		\
+					\
+	__asm__ __volatile__ (		\
+		"stc r2_bank, %0\n\t"	\
+		: "=r" (_vec)		\
+	);				\
+					\
+	_vec;				\
+})
+#else
+#define lookup_exception_vector()	\
+({					\
+	unsigned long _vec;		\
+	__asm__ __volatile__ (		\
+		"mov r4, %0\n\t"	\
+		: "=r" (_vec)		\
+	);				\
+					\
+	_vec;				\
+})
+#endif
+
 int handle_unaligned_access(opcode_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma);
 
