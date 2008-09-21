@@ -401,7 +401,6 @@ static int __init pio_probe(struct platform_device *pdev)
 }
 
 static struct platform_driver pio_driver = {
-	.probe		= pio_probe,
 	.driver		= {
 		.name		= "pio",
 	},
@@ -409,7 +408,7 @@ static struct platform_driver pio_driver = {
 
 static int __init pio_init(void)
 {
-	return platform_driver_register(&pio_driver);
+	return platform_driver_probe(&pio_driver, pio_probe);
 }
 postcore_initcall(pio_init);
 
