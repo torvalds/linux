@@ -2087,10 +2087,6 @@ void tcp_xmit_retransmit_queue(struct sock *sk)
 	if (!tcp_can_forward_retransmit(sk))
 		return;
 
-	/* If nothing is SACKed, highest_sack in the loop won't be valid */
-	if (!tp->sacked_out)
-		return;
-
 	if (tp->forward_skb_hint)
 		skb = tp->forward_skb_hint;
 	else
