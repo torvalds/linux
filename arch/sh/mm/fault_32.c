@@ -15,27 +15,12 @@
 #include <linux/mm.h>
 #include <linux/hardirq.h>
 #include <linux/kprobes.h>
+#include <linux/marker.h>
 #include <asm/io_trapped.h>
 #include <asm/system.h>
 #include <asm/mmu_context.h>
 #include <asm/tlbflush.h>
 #include <asm/kgdb.h>
-
-static inline int notify_page_fault(struct pt_regs *regs, int trap)
-{
-	int ret = 0;
-
-#ifdef CONFIG_KPROBES
-	if (!user_mode(regs)) {
-		preempt_disable();
-		if (kprobe_running() && kprobe_fault_handler(regs, trap))
-			ret = 1;
-		preempt_enable();
-	}
-#endif
-
-	return ret;
-}
 
 /*
  * This routine handles page faults.  It determines the address,
@@ -261,6 +246,25 @@ do_sigbus:
 		goto no_context;
 }
 
+static inline int notify_page_fault(struct pt_regs *regs, int trap)
+{
+	int ret = 0;
+
+	trace_mark(kernel_arch_trap_entry, "trap_id %d ip #p%ld",
+		   trap >> 5, instruction_pointer(regs));
+
+#ifdef CONFIG_KPROBES
+	if (!user_mode(regs)) {
+		preempt_disable();
+		if (kprobe_running() && kprobe_fault_handler(regs, trap))
+			ret = 1;
+		preempt_enable();
+	}
+#endif
+
+	return ret;
+}
+
 #ifdef CONFIG_SH_STORE_QUEUES
 /*
  * This is a special case for the SH-4 store queues, as pages for this
@@ -284,14 +288,17 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	pmd_t *pmd;
 	pte_t *pte;
 	pte_t entry;
+	int ret = 0;
 
 	if (notify_page_fault(regs, lookup_exception_vector()))
-		return 0;
+		goto out;
 
 #ifdef CONFIG_SH_KGDB
 	if (kgdb_nofault && kgdb_bus_err_hook)
 		kgdb_bus_err_hook();
 #endif
+
+	ret = 1;
 
 	/*
 	 * We don't take page faults for P1, P2, and parts of P4, these
@@ -302,24 +309,23 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 		pgd = pgd_offset_k(address);
 	} else {
 		if (unlikely(address >= TASK_SIZE || !current->mm))
-			return 1;
+			goto out;
 
 		pgd = pgd_offset(current->mm, address);
 	}
 
 	pud = pud_offset(pgd, address);
 	if (pud_none_or_clear_bad(pud))
-		return 1;
+		goto out;
 	pmd = pmd_offset(pud, address);
 	if (pmd_none_or_clear_bad(pmd))
-		return 1;
-
+		goto out;
 	pte = pte_offset_kernel(pmd, address);
 	entry = *pte;
 	if (unlikely(pte_none(entry) || pte_not_present(entry)))
-		return 1;
+		goto out;
 	if (unlikely(writeaccess && !pte_write(entry)))
-		return 1;
+		goto out;
 
 	if (writeaccess)
 		entry = pte_mkdirty(entry);
@@ -336,5 +342,8 @@ asmlinkage int __kprobes __do_page_fault(struct pt_regs *regs,
 	set_pte(pte, entry);
 	update_mmu_cache(NULL, address, entry);
 
-	return 0;
+	ret = 0;
+out:
+	trace_mark(kernel_arch_trap_exit, MARK_NOARGS);
+	return ret;
 }
