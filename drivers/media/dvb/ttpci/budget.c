@@ -52,6 +52,8 @@ static int diseqc_method;
 module_param(diseqc_method, int, 0444);
 MODULE_PARM_DESC(diseqc_method, "Select DiSEqC method for subsystem id 13c2:1003, 0: default, 1: more reliable (for newer revisions only)");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 static void Set22K (struct budget *budget, int state)
 {
 	struct saa7146_dev *dev=budget->dev;
@@ -598,7 +600,8 @@ static int budget_attach (struct saa7146_dev* dev, struct saa7146_pci_extension_
 
 	dev->ext_priv = budget;
 
-	if ((err = ttpci_budget_init (budget, dev, info, THIS_MODULE))) {
+	err = ttpci_budget_init(budget, dev, info, THIS_MODULE, adapter_nr);
+	if (err) {
 		printk("==> failed\n");
 		kfree (budget);
 		return err;

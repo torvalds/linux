@@ -92,6 +92,8 @@ static int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debugging information for IR decoding");
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 struct budget_ci_ir {
 	struct input_dev *dev;
 	struct tasklet_struct msp430_irq_tasklet;
@@ -1183,7 +1185,8 @@ static int budget_ci_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dev->ext_priv = budget_ci;
 
-	err = ttpci_budget_init(&budget_ci->budget, dev, info, THIS_MODULE);
+	err = ttpci_budget_init(&budget_ci->budget, dev, info, THIS_MODULE,
+				adapter_nr);
 	if (err)
 		goto out2;
 

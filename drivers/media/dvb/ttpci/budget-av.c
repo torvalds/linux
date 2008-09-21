@@ -57,6 +57,8 @@
 #define SLOTSTATUS_READY        8
 #define SLOTSTATUS_OCCUPIED     (SLOTSTATUS_PRESENT|SLOTSTATUS_RESET|SLOTSTATUS_READY)
 
+DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
+
 struct budget_av {
 	struct budget budget;
 	struct video_device *vd;
@@ -1127,7 +1129,9 @@ static int budget_av_attach(struct saa7146_dev *dev, struct saa7146_pci_extensio
 
 	dev->ext_priv = budget_av;
 
-	if ((err = ttpci_budget_init(&budget_av->budget, dev, info, THIS_MODULE))) {
+	err = ttpci_budget_init(&budget_av->budget, dev, info, THIS_MODULE,
+				adapter_nr);
+	if (err) {
 		kfree(budget_av);
 		return err;
 	}
