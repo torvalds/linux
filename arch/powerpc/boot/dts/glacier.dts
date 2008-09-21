@@ -14,7 +14,7 @@
 	#address-cells = <2>;
 	#size-cells = <1>;
 	model = "amcc,glacier";
-	compatible = "amcc,glacier", "amcc,canyonlands";
+	compatible = "amcc,glacier";
 	dcr-parent = <&{/cpus/cpu@0}>;
 
 	aliases {
