@@ -1883,7 +1883,7 @@ static void tcp_enter_frto_loss(struct sock *sk, int allowed_segments, int flag)
 	tp->high_seq = tp->snd_nxt;
 	TCP_ECN_queue_cwr(tp);
 
-	tcp_clear_retrans_hints_partial(tp);
+	tcp_clear_all_retrans_hints(tp);
 }
 
 static void tcp_clear_retrans_partial(struct tcp_sock *tp)
@@ -1934,12 +1934,11 @@ void tcp_enter_loss(struct sock *sk, int how)
 		/* Push undo marker, if it was plain RTO and nothing
 		 * was retransmitted. */
 		tp->undo_marker = tp->snd_una;
-		tcp_clear_retrans_hints_partial(tp);
 	} else {
 		tp->sacked_out = 0;
 		tp->fackets_out = 0;
-		tcp_clear_all_retrans_hints(tp);
 	}
+	tcp_clear_all_retrans_hints(tp);
 
 	tcp_for_write_queue(skb, sk) {
 		if (skb == tcp_send_head(sk))
