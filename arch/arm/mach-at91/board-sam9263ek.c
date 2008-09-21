@@ -297,7 +297,7 @@ static struct gpio_keys_button ek_buttons[] = {
 		.active_low	= 1,
 		.desc		= "right_click",
 		.wakeup		= 1,
-	},
+	}
 };
 
 static struct gpio_keys_platform_data ek_button_data = {
@@ -316,9 +316,9 @@ static struct platform_device ek_button_device = {
 
 static void __init ek_add_device_buttons(void)
 {
-	at91_set_GPIO_periph(AT91_PIN_PC5, 0);	/* left button */
+	at91_set_GPIO_periph(AT91_PIN_PC5, 1);	/* left button */
 	at91_set_deglitch(AT91_PIN_PC5, 1);
-	at91_set_GPIO_periph(AT91_PIN_PC4, 0);	/* right button */
+	at91_set_GPIO_periph(AT91_PIN_PC4, 1);	/* right button */
 	at91_set_deglitch(AT91_PIN_PC4, 1);
 
 	platform_device_register(&ek_button_device);

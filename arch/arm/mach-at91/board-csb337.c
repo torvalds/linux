@@ -193,11 +193,11 @@ static struct platform_device csb300_button_device = {
 
 static void __init csb300_add_device_buttons(void)
 {
-	at91_set_gpio_input(AT91_PIN_PB29, 0);	/* sw0 */
+	at91_set_gpio_input(AT91_PIN_PB29, 1);	/* sw0 */
 	at91_set_deglitch(AT91_PIN_PB29, 1);
-	at91_set_gpio_input(AT91_PIN_PB28, 0);	/* sw1 */
+	at91_set_gpio_input(AT91_PIN_PB28, 1);	/* sw1 */
 	at91_set_deglitch(AT91_PIN_PB28, 1);
-	at91_set_gpio_input(AT91_PIN_PA21, 0);	/* sw2 */
+	at91_set_gpio_input(AT91_PIN_PA21, 1);	/* sw2 */
 	at91_set_deglitch(AT91_PIN_PA21, 1);
 
 	platform_device_register(&csb300_button_device);
@@ -224,7 +224,7 @@ static struct gpio_led csb_leds[] = {
 		.gpio			= AT91_PIN_PB0,
 		.active_low		= 1,
 		.default_trigger	= "ide-disk",
-	},
+	}
 };
 
 
