@@ -6,7 +6,6 @@
 #include <linux/fs.h>
 #include <linux/mount.h>
 #include <linux/dqblk_v2.h>
-#include <linux/quotaio_v2.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -14,6 +13,8 @@
 #include <linux/quotaops.h>
 
 #include <asm/byteorder.h>
+
+#include "quotaio_v2.h"
 
 MODULE_AUTHOR("Jan Kara");
 MODULE_DESCRIPTION("Quota format v2 support");
@@ -129,8 +130,8 @@ static void mem2diskdqb(struct v2_disk_dqblk *d, struct mem_dqblk *m, qid_t id)
 	d->dqb_isoftlimit = cpu_to_le32(m->dqb_isoftlimit);
 	d->dqb_curinodes = cpu_to_le32(m->dqb_curinodes);
 	d->dqb_itime = cpu_to_le64(m->dqb_itime);
-	d->dqb_bhardlimit = cpu_to_le32(v2_qbtos(m->dqb_bhardlimit));
-	d->dqb_bsoftlimit = cpu_to_le32(v2_qbtos(m->dqb_bsoftlimit));
+	d->dqb_bhardlimit = cpu_to_le32(v2_stoqb(m->dqb_bhardlimit));
+	d->dqb_bsoftlimit = cpu_to_le32(v2_stoqb(m->dqb_bsoftlimit));
 	d->dqb_curspace = cpu_to_le64(m->dqb_curspace);
 	d->dqb_btime = cpu_to_le64(m->dqb_btime);
 	d->dqb_id = cpu_to_le32(id);

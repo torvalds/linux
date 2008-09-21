@@ -3,12 +3,13 @@
 #include <linux/quota.h>
 #include <linux/quotaops.h>
 #include <linux/dqblk_v1.h>
-#include <linux/quotaio_v1.h>
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/module.h>
 
 #include <asm/byteorder.h>
+
+#include "quotaio_v1.h"
 
 MODULE_AUTHOR("Jan Kara");
 MODULE_DESCRIPTION("Old quota format support");
