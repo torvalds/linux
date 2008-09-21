@@ -1298,9 +1298,6 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 					~(TCPCB_LOST|TCPCB_SACKED_RETRANS);
 				tp->lost_out -= tcp_skb_pcount(skb);
 				tp->retrans_out -= tcp_skb_pcount(skb);
-
-				/* clear lost hint */
-				tp->retransmit_skb_hint = NULL;
 			}
 		} else {
 			if (!(sacked & TCPCB_RETRANS)) {
@@ -1319,9 +1316,6 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 			if (sacked & TCPCB_LOST) {
 				TCP_SKB_CB(skb)->sacked &= ~TCPCB_LOST;
 				tp->lost_out -= tcp_skb_pcount(skb);
-
-				/* clear lost hint */
-				tp->retransmit_skb_hint = NULL;
 			}
 		}
 
@@ -1351,7 +1345,6 @@ static int tcp_sacktag_one(struct sk_buff *skb, struct sock *sk,
 	if (dup_sack && (TCP_SKB_CB(skb)->sacked & TCPCB_SACKED_RETRANS)) {
 		TCP_SKB_CB(skb)->sacked &= ~TCPCB_SACKED_RETRANS;
 		tp->retrans_out -= tcp_skb_pcount(skb);
-		tp->retransmit_skb_hint = NULL;
 	}
 
 	return flag;
