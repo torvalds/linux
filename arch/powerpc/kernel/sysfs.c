@@ -134,6 +134,7 @@ void ppc_enable_pmcs(void)
 }
 EXPORT_SYMBOL(ppc_enable_pmcs);
 
+#if defined(CONFIG_6xx) || defined(CONFIG_PPC64)
 /* XXX convert to rusty's on_one_cpu */
 static unsigned long run_on_cpu(unsigned long cpu,
 			        unsigned long (*func)(unsigned long),
@@ -152,6 +153,7 @@ static unsigned long run_on_cpu(unsigned long cpu,
 
 	return ret;
 }
+#endif
 
 #define SYSFS_PMCSETUP(NAME, ADDRESS) \
 static unsigned long read_##NAME(unsigned long junk) \
@@ -190,11 +192,11 @@ static ssize_t __used \
  * that are implemented on the current processor
  */
 
-#ifdef CONFIG_PPC64
+#if defined(CONFIG_PPC64)
 #define HAS_PPC_PMC_CLASSIC	1
 #define HAS_PPC_PMC_IBM		1
 #define HAS_PPC_PMC_PA6T	1
-#elif CONFIG_6xx
+#elif defined(CONFIG_6xx)
 #define HAS_PPC_PMC_CLASSIC	1
 #define HAS_PPC_PMC_IBM		1
 #define HAS_PPC_PMC_G4		1
