@@ -65,7 +65,7 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 			       int size, int offset)
 {
 	unsigned char buf[6];
-	int start, range, toggle, dev, code;
+	int start, range, toggle, dev, code, ircode;
 
 	/* poll IR chip */
 	if (size != i2c_master_recv(&ir->c,buf,size))
@@ -85,6 +85,24 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 	if (!start)
 		/* no key pressed */
 		return 0;
+	/*
+	 * Hauppauge remotes (black/silver) always use
+	 * specific device ids. If we do not filter the
+	 * device ids then messages destined for devices
+	 * such as TVs (id=0) will get through causing
+	 * mis-fired events.
+	 *
+	 * We also filter out invalid key presses which
+	 * produce annoying debug log entries.
+	 */
+	ircode= (start << 12) | (toggle << 11) | (dev << 6) | code;
+	if ((ircode & 0x1fff)==0x1fff)
+		/* invalid key press */
+		return 0;
+
+	if (dev!=0x1e && dev!=0x1f)
+		/* not a hauppauge remote */
+		return 0;
 
 	if (!range)
 		code += 64;
@@ -94,7 +112,7 @@ static int get_key_haup_common(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw,
 
 	/* return key */
 	*ir_key = code;
-	*ir_raw = (start << 12) | (toggle << 11) | (dev << 6) | code;
+	*ir_raw = ircode;
 	return 1;
 }
 

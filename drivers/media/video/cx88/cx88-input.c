@@ -394,7 +394,7 @@ void cx88_ir_irq(struct cx88_core *core)
 {
 	struct cx88_IR *ir = core->ir;
 	u32 samples, ircode;
-	int i;
+	int i, start, range, toggle, dev, code;
 
 	if (NULL == ir)
 		return;
@@ -463,9 +463,35 @@ void cx88_ir_irq(struct cx88_core *core)
 	case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 	case CX88_BOARD_HAUPPAUGE_HVR1100:
 	case CX88_BOARD_HAUPPAUGE_HVR3000:
-	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 	case CX88_BOARD_HAUPPAUGE_HVR4000:
 	case CX88_BOARD_HAUPPAUGE_HVR4000LITE:
+		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
+		ir_dprintk("biphase decoded: %x\n", ircode);
+		/*
+		 * RC5 has an extension bit which adds a new range
+		 * of available codes, this is detected here. Also
+		 * hauppauge remotes (black/silver) always use
+		 * specific device ids. If we do not filter the
+		 * device ids then messages destined for devices
+		 * such as TVs (id=0) will get through to the
+		 * device causing mis-fired events.
+		 */
+		/* split rc5 data block ... */
+		start = (ircode & 0x2000) >> 13;
+		range = (ircode & 0x1000) >> 12;
+		toggle= (ircode & 0x0800) >> 11;
+		dev   = (ircode & 0x07c0) >> 6;
+		code  = (ircode & 0x003f) | ((range << 6) ^ 0x0040);
+		if( start != 1)
+			/* no key pressed */
+			break;
+		if ( dev != 0x1e && dev != 0x1f )
+			/* not a hauppauge remote */
+			break;
+		ir_input_keydown(ir->input, &ir->ir, code, ircode);
+		ir->release = jiffies + msecs_to_jiffies(120);
+		break;
+	case CX88_BOARD_PINNACLE_PCTV_HD_800i:
 		ircode = ir_decode_biphase(ir->samples, ir->scount, 5, 7);
 		ir_dprintk("biphase decoded: %x\n", ircode);
 		if ((ircode & 0xfffff000) != 0x3000)
