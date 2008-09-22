@@ -432,6 +432,27 @@ static const struct wd_ops p6_wd_ops = {
 #define P4_CCCR_ENABLE		(1 << 12)
 #define P4_CCCR_OVF 		(1 << 31)
 
+#define P4_CONTROLS 18
+static unsigned int p4_controls[18] = {
+	MSR_P4_BPU_CCCR0,
+	MSR_P4_BPU_CCCR1,
+	MSR_P4_BPU_CCCR2,
+	MSR_P4_BPU_CCCR3,
+	MSR_P4_MS_CCCR0,
+	MSR_P4_MS_CCCR1,
+	MSR_P4_MS_CCCR2,
+	MSR_P4_MS_CCCR3,
+	MSR_P4_FLAME_CCCR0,
+	MSR_P4_FLAME_CCCR1,
+	MSR_P4_FLAME_CCCR2,
+	MSR_P4_FLAME_CCCR3,
+	MSR_P4_IQ_CCCR0,
+	MSR_P4_IQ_CCCR1,
+	MSR_P4_IQ_CCCR2,
+	MSR_P4_IQ_CCCR3,
+	MSR_P4_IQ_CCCR4,
+	MSR_P4_IQ_CCCR5,
+};
 /*
  * Set up IQ_COUNTER0 to behave like a clock, by having IQ_CCCR0 filter
  * CRU_ESCR0 (with any non-null event selector) through a complemented
@@ -473,6 +494,26 @@ static int setup_p4_watchdog(unsigned nmi_hz)
 		evntsel_msr = MSR_P4_CRU_ESCR0;
 		cccr_msr = MSR_P4_IQ_CCCR0;
 		cccr_val = P4_CCCR_OVF_PMI0 | P4_CCCR_ESCR_SELECT(4);
+
+		/*
+		 * If we're on the kdump kernel or other situation, we may
+		 * still have other performance counter registers set to
+		 * interrupt and they'll keep interrupting forever because
+		 * of the P4_CCCR_OVF quirk. So we need to ACK all the
+		 * pending interrupts and disable all the registers here,
+		 * before reenabling the NMI delivery. Refer to p4_rearm()
+		 * about the P4_CCCR_OVF quirk.
+		 */
+		if (reset_devices) {
+			unsigned int low, high;
+			int i;
+
+			for (i = 0; i < P4_CONTROLS; i++) {
+				rdmsr(p4_controls[i], low, high);
+				low &= ~(P4_CCCR_ENABLE | P4_CCCR_OVF);
+				wrmsr(p4_controls[i], low, high);
+			}
+		}
 	} else {
 		/* logical cpu 1 */
 		perfctr_msr = MSR_P4_IQ_PERFCTR1;
