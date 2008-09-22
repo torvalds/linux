@@ -575,7 +575,7 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm, int is_pbm
 {
 	unsigned long csr_reg, csr, csr_error_bits;
 	irqreturn_t ret = IRQ_NONE;
-	u16 stat;
+	u16 stat, *addr;
 
 	if (is_pbm_a) {
 		csr_reg = pbm->controller_regs + PSYCHO_PCIA_CTRL;
@@ -597,7 +597,9 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm, int is_pbm
 			printk("%s: PCI SERR signal asserted.\n", pbm->name);
 		ret = IRQ_HANDLED;
 	}
-	pci_read_config_word(pbm->pci_bus->self, PCI_STATUS, &stat);
+	addr = psycho_pci_config_mkaddr(pbm, pbm->pci_first_busno,
+					0, PCI_STATUS);
+	pci_config_read16(addr, &stat);
 	if (stat & (PCI_STATUS_PARITY |
 		    PCI_STATUS_SIG_TARGET_ABORT |
 		    PCI_STATUS_REC_TARGET_ABORT |
@@ -605,7 +607,7 @@ static irqreturn_t psycho_pcierr_intr_other(struct pci_pbm_info *pbm, int is_pbm
 		    PCI_STATUS_SIG_SYSTEM_ERROR)) {
 		printk("%s: PCI bus error, PCI_STATUS[%04x]\n",
 		       pbm->name, stat);
-		pci_write_config_word(pbm->pci_bus->self, PCI_STATUS, 0xffff);
+		pci_config_write16(addr, 0xffff);
 		ret = IRQ_HANDLED;
 	}
 	return ret;
@@ -744,16 +746,16 @@ static void psycho_register_error_handlers(struct pci_pbm_info *pbm)
 	 * the second will just error out since we do not pass in
 	 * IRQF_SHARED.
 	 */
-	err = request_irq(op->irqs[1], psycho_ue_intr, 0,
+	err = request_irq(op->irqs[1], psycho_ue_intr, IRQF_SHARED,
 			  "PSYCHO_UE", pbm);
-	err = request_irq(op->irqs[2], psycho_ce_intr, 0,
+	err = request_irq(op->irqs[2], psycho_ce_intr, IRQF_SHARED,
 			  "PSYCHO_CE", pbm);
 
 	/* This one, however, ought not to fail.  We can just warn
 	 * about it since the system can still operate properly even
 	 * if this fails.
 	 */
-	err = request_irq(op->irqs[0], psycho_pcierr_intr, 0,
+	err = request_irq(op->irqs[0], psycho_pcierr_intr, IRQF_SHARED,
 			  "PSYCHO_PCIERR", pbm);
 	if (err)
 		printk(KERN_WARNING "%s: Could not register PCIERR, "

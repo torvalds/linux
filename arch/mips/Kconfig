@@ -1886,6 +1886,15 @@ config STACKTRACE_SUPPORT
 
 source "init/Kconfig"
 
+config PROBE_INITRD_HEADER
+	bool "Probe initrd header created by addinitrd"
+	depends on BLK_DEV_INITRD
+	help
+	  Probe initrd header at the last page of kernel image.
+	  Say Y here if you are using arch/mips/boot/addinitrd.c to
+	  add initrd or initramfs image to the kernel image.
+	  Otherwise, say N.
+
 menu "Bus options (PCI, PCMCIA, EISA, ISA, TC)"
 
 config HW_HAS_EISA

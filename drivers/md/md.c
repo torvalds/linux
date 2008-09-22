@@ -3841,8 +3841,6 @@ static int do_md_stop(mddev_t * mddev, int mode, int is_open)
 
 		del_timer_sync(&mddev->safemode_timer);
 
-		invalidate_partition(disk, 0);
-
 		switch(mode) {
 		case 1: /* readonly */
 			err  = -ENXIO;
@@ -5763,7 +5761,11 @@ void md_do_sync(mddev_t *mddev)
 					 * time 'round when curr_resync == 2
 					 */
 					continue;
-				prepare_to_wait(&resync_wait, &wq, TASK_UNINTERRUPTIBLE);
+				/* We need to wait 'interruptible' so as not to
+				 * contribute to the load average, and not to
+				 * be caught by 'softlockup'
+				 */
+				prepare_to_wait(&resync_wait, &wq, TASK_INTERRUPTIBLE);
 				if (!kthread_should_stop() &&
 				    mddev2->curr_resync >= mddev->curr_resync) {
 					printk(KERN_INFO "md: delaying %s of %s"
@@ -5771,6 +5773,8 @@ void md_do_sync(mddev_t *mddev)
 					       " share one or more physical units)\n",
 					       desc, mdname(mddev), mdname(mddev2));
 					mddev_put(mddev2);
+					if (signal_pending(current))
+						flush_signals(current);
 					schedule();
 					finish_wait(&resync_wait, &wq);
 					goto try_again;

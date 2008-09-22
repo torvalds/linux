@@ -91,6 +91,9 @@ endif # SOUND_PRIME
 
 endif # !M68K
 
+endif # SOUND
+
+# AC97_BUS is used from both sound and ucb1400
 config AC97_BUS
 	tristate
 	help
@@ -99,4 +102,3 @@ config AC97_BUS
 	  sound although they're sharing the AC97 bus. Concerned drivers
 	  should "select" this.
 
-endif # SOUND

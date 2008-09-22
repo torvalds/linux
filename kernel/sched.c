@@ -4179,6 +4179,65 @@ void account_steal_time(struct task_struct *p, cputime_t steal)
 }
 
 /*
+ * Use precise platform statistics if available:
+ */
+#ifdef CONFIG_VIRT_CPU_ACCOUNTING
+cputime_t task_utime(struct task_struct *p)
+{
+	return p->utime;
+}
+
+cputime_t task_stime(struct task_struct *p)
+{
+	return p->stime;
+}
+#else
+cputime_t task_utime(struct task_struct *p)
+{
+	clock_t utime = cputime_to_clock_t(p->utime),
+		total = utime + cputime_to_clock_t(p->stime);
+	u64 temp;
+
+	/*
+	 * Use CFS's precise accounting:
+	 */
+	temp = (u64)nsec_to_clock_t(p->se.sum_exec_runtime);
+
+	if (total) {
+		temp *= utime;
+		do_div(temp, total);
+	}
+	utime = (clock_t)temp;
+
+	p->prev_utime = max(p->prev_utime, clock_t_to_cputime(utime));
+	return p->prev_utime;
+}
+
+cputime_t task_stime(struct task_struct *p)
+{
+	clock_t stime;
+
+	/*
+	 * Use CFS's precise accounting. (we subtract utime from
+	 * the total, to make sure the total observed by userspace
+	 * grows monotonically - apps rely on that):
+	 */
+	stime = nsec_to_clock_t(p->se.sum_exec_runtime) -
+			cputime_to_clock_t(task_utime(p));
+
+	if (stime >= 0)
+		p->prev_stime = max(p->prev_stime, clock_t_to_cputime(stime));
+
+	return p->prev_stime;
+}
+#endif
+
+inline cputime_t task_gtime(struct task_struct *p)
+{
+	return p->gtime;
+}
+
+/*
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
  *
@@ -7637,24 +7696,27 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  * and partition_sched_domains() will fallback to the single partition
  * 'fallback_doms', it also forces the domains to be rebuilt.
  *
+ * If doms_new==NULL it will be replaced with cpu_online_map.
+ * ndoms_new==0 is a special case for destroying existing domains.
+ * It will not create the default domain.
+ *
  * Call with hotplug lock held
  */
 void partition_sched_domains(int ndoms_new, cpumask_t *doms_new,
 			     struct sched_domain_attr *dattr_new)
 {
-	int i, j;
+	int i, j, n;
 
 	mutex_lock(&sched_domains_mutex);
 
 	/* always unregister in case we don't destroy any domains */
 	unregister_sched_domain_sysctl();
 
-	if (doms_new == NULL)
-		ndoms_new = 0;
+	n = doms_new ? ndoms_new : 0;
 
 	/* Destroy deleted domains */
 	for (i = 0; i < ndoms_cur; i++) {
-		for (j = 0; j < ndoms_new; j++) {
+		for (j = 0; j < n; j++) {
 			if (cpus_equal(doms_cur[i], doms_new[j])
 			    && dattrs_equal(dattr_cur, i, dattr_new, j))
 				goto match1;
@@ -7667,7 +7729,6 @@ match1:
 
 	if (doms_new == NULL) {
 		ndoms_cur = 0;
-		ndoms_new = 1;
 		doms_new = &fallback_doms;
 		cpus_andnot(doms_new[0], cpu_online_map, cpu_isolated_map);
 		dattr_new = NULL;
@@ -7704,8 +7765,13 @@ match2:
 int arch_reinit_sched_domains(void)
 {
 	get_online_cpus();
+
+	/* Destroy domains first to force the rebuild */
+	partition_sched_domains(0, NULL, NULL);
+
 	rebuild_sched_domains();
 	put_online_cpus();
+
 	return 0;
 }
 
@@ -7789,7 +7855,7 @@ static int update_sched_domains(struct notifier_block *nfb,
 	case CPU_ONLINE_FROZEN:
 	case CPU_DEAD:
 	case CPU_DEAD_FROZEN:
-		partition_sched_domains(0, NULL, NULL);
+		partition_sched_domains(1, NULL, NULL);
 		return NOTIFY_OK;
 
 	default:
@@ -8843,6 +8909,9 @@ static int sched_rt_global_constraints(void)
 	u64 rt_runtime, rt_period;
 	int ret = 0;
 
+	if (sysctl_sched_rt_period <= 0)
+		return -EINVAL;
+
 	rt_period = ktime_to_ns(tg->rt_bandwidth.rt_period);
 	rt_runtime = tg->rt_bandwidth.rt_runtime;
 
@@ -8858,6 +8927,9 @@ static int sched_rt_global_constraints(void)
 {
 	unsigned long flags;
 	int i;
+
+	if (sysctl_sched_rt_period <= 0)
+		return -EINVAL;
 
 	spin_lock_irqsave(&def_rt_bandwidth.rt_runtime_lock, flags);
 	for_each_possible_cpu(i) {

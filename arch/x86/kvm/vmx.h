@@ -370,8 +370,6 @@ enum vmcs_field {
 #define VMX_EPT_READABLE_MASK			0x1ull
 #define VMX_EPT_WRITABLE_MASK			0x2ull
 #define VMX_EPT_EXECUTABLE_MASK			0x4ull
-#define VMX_EPT_FAKE_ACCESSED_MASK		(1ull << 62)
-#define VMX_EPT_FAKE_DIRTY_MASK			(1ull << 63)
 
 #define VMX_EPT_IDENTITY_PAGETABLE_ADDR		0xfffbc000ul
 

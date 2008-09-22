@@ -383,7 +383,7 @@ errcopy:
 		hlist_for_each_safe(p, q, &newtbl->hash_buckets[i])
 			tbl->free_node(p, 0);
 	}
-	__mesh_table_free(tbl);
+	__mesh_table_free(newtbl);
 endgrow:
 	return NULL;
 }

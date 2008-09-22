@@ -981,11 +981,12 @@ static int string_to_context_struct(struct policydb *pol,
 	/* Check the validity of the new context. */
 	if (!policydb_context_isvalid(pol, ctx)) {
 		rc = -EINVAL;
-		context_destroy(ctx);
 		goto out;
 	}
 	rc = 0;
 out:
+	if (rc)
+		context_destroy(ctx);
 	return rc;
 }
 
@@ -1038,8 +1039,7 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 	} else if (rc)
 		goto out;
 	rc = sidtab_context_to_sid(&sidtab, &context, sid);
-	if (rc)
-		context_destroy(&context);
+	context_destroy(&context);
 out:
 	read_unlock(&policy_rwlock);
 	kfree(scontext2);

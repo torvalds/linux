@@ -113,7 +113,8 @@ ccwgroup_release (struct device *dev)
 
 	for (i = 0; i < gdev->count; i++) {
 		if (gdev->cdev[i]) {
-			dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
+			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
+				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 			put_device(&gdev->cdev[i]->dev);
 		}
 	}
@@ -296,6 +297,7 @@ error:
 			if (dev_get_drvdata(&gdev->cdev[i]->dev) == gdev)
 				dev_set_drvdata(&gdev->cdev[i]->dev, NULL);
 			put_device(&gdev->cdev[i]->dev);
+			gdev->cdev[i] = NULL;
 		}
 	mutex_unlock(&gdev->reg_mutex);
 	put_device(&gdev->dev);

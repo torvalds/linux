@@ -209,6 +209,7 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	unsigned int curlen;
 	struct ath_txq *cabq;
 	struct ath_txq *mcastq;
+	struct ieee80211_tx_info *info;
 	avp = sc->sc_vaps[if_id];
 
 	mcastq = &avp->av_mcastq;
@@ -231,6 +232,18 @@ static struct ath_buf *ath_beacon_generate(struct ath_softc *sc, int if_id)
 	 * of the TIM bitmap).
 	 */
 	curlen = skb->len;
+
+	info = IEEE80211_SKB_CB(skb);
+	if (info->flags & IEEE80211_TX_CTL_ASSIGN_SEQ) {
+		/*
+		 * TODO: make sure the seq# gets assigned properly (vs. other
+		 * TX frames)
+		 */
+		struct ieee80211_hdr *hdr = (struct ieee80211_hdr *) skb->data;
+		sc->seq_no += 0x10;
+		hdr->seq_ctrl &= cpu_to_le16(IEEE80211_SCTL_FRAG);
+		hdr->seq_ctrl |= cpu_to_le16(sc->seq_no);
+	}
 
 	/* XXX: spin_lock_bh should not be used here, but sparse bitches
 	 * otherwise. We should fix sparse :) */

@@ -409,6 +409,8 @@ CIFS_SessSetup(unsigned int xid, struct cifsSesInfo *ses, int first_time,
 #ifdef CONFIG_CIFS_WEAK_PW_HASH
 		char lnm_session_key[CIFS_SESS_KEY_SIZE];
 
+		pSMB->req.hdr.Flags2 &= ~SMBFLG2_UNICODE;
+
 		/* no capabilities flags in old lanman negotiation */
 
 		pSMB->old_req.PasswordLength = cpu_to_le16(CIFS_SESS_KEY_SIZE);

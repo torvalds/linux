@@ -84,10 +84,11 @@ _GLOBAL(power_save_ppc32_restore)
 	stw	r9,_NIP(r11)		/* make it do a blr */
 
 #ifdef CONFIG_SMP
-	mfspr	r12,SPRN_SPRG3
+	rlwinm	r12,r1,0,0,31-THREAD_SHIFT
 	lwz	r11,TI_CPU(r12)		/* get cpu number * 4 */
 	slwi	r11,r11,2
 #else
 	li	r11,0
 #endif
+
 	b	transfer_to_handler_cont

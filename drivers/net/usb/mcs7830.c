@@ -46,6 +46,10 @@
 
 #define MCS7830_VENDOR_ID	0x9710
 #define MCS7830_PRODUCT_ID	0x7830
+#define MCS7730_PRODUCT_ID	0x7730
+
+#define SITECOM_VENDOR_ID	0x0DF6
+#define LN_030_PRODUCT_ID	0x0021
 
 #define MCS7830_MII_ADVERTISE	(ADVERTISE_PAUSE_CAP | ADVERTISE_100FULL | \
 				 ADVERTISE_100HALF | ADVERTISE_10FULL | \
@@ -442,6 +446,29 @@ static struct ethtool_ops mcs7830_ethtool_ops = {
 	.nway_reset		= usbnet_nway_reset,
 };
 
+static int mcs7830_set_mac_address(struct net_device *netdev, void *p)
+{
+	int ret;
+	struct usbnet *dev = netdev_priv(netdev);
+	struct sockaddr *addr = p;
+
+	if (netif_running(netdev))
+		return -EBUSY;
+
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EINVAL;
+
+	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+
+	ret = mcs7830_set_reg(dev, HIF_REG_ETHERNET_ADDR, ETH_ALEN,
+			netdev->dev_addr);
+
+	if (ret < 0)
+		return ret;
+
+	return 0;
+}
+
 static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 {
 	struct net_device *net = dev->net;
@@ -455,6 +482,7 @@ static int mcs7830_bind(struct usbnet *dev, struct usb_interface *udev)
 	net->ethtool_ops = &mcs7830_ethtool_ops;
 	net->set_multicast_list = mcs7830_set_multicast;
 	mcs7830_set_multicast(net);
+	net->set_mac_address = mcs7830_set_mac_address;
 
 	/* reserve space for the status byte on rx */
 	dev->rx_urb_size = ETH_FRAME_LEN + 1;
@@ -491,7 +519,16 @@ static int mcs7830_rx_fixup(struct usbnet *dev, struct sk_buff *skb)
 }
 
 static const struct driver_info moschip_info = {
-	.description	= "MOSCHIP 7830 usb-NET adapter",
+	.description	= "MOSCHIP 7830/7730 usb-NET adapter",
+	.bind		= mcs7830_bind,
+	.rx_fixup	= mcs7830_rx_fixup,
+	.flags		= FLAG_ETHER,
+	.in		= 1,
+	.out		= 2,
+};
+
+static const struct driver_info sitecom_info = {
+	.description    = "Sitecom LN-30 usb-NET adapter",
 	.bind		= mcs7830_bind,
 	.rx_fixup	= mcs7830_rx_fixup,
 	.flags		= FLAG_ETHER,
@@ -503,6 +540,14 @@ static const struct usb_device_id products[] = {
 	{
 		USB_DEVICE(MCS7830_VENDOR_ID, MCS7830_PRODUCT_ID),
 		.driver_info = (unsigned long) &moschip_info,
+	},
+	{
+		USB_DEVICE(MCS7830_VENDOR_ID, MCS7730_PRODUCT_ID),
+		.driver_info = (unsigned long) &moschip_info,
+	},
+	{
+		USB_DEVICE(SITECOM_VENDOR_ID, LN_030_PRODUCT_ID),
+		.driver_info = (unsigned long) &sitecom_info,
 	},
 	{},
 };

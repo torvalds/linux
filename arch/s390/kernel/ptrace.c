@@ -170,6 +170,13 @@ static unsigned long __peek_user(struct task_struct *child, addr_t addr)
 		 */
 		tmp = (addr_t) task_pt_regs(child)->orig_gpr2;
 
+	} else if (addr < (addr_t) &dummy->regs.fp_regs) {
+		/*
+		 * prevent reads of padding hole between
+		 * orig_gpr2 and fp_regs on s390.
+		 */
+		tmp = 0;
+
 	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/* 
 		 * floating point regs. are stored in the thread structure
@@ -269,6 +276,13 @@ static int __poke_user(struct task_struct *child, addr_t addr, addr_t data)
 		 * orig_gpr2 is stored on the kernel stack
 		 */
 		task_pt_regs(child)->orig_gpr2 = data;
+
+	} else if (addr < (addr_t) &dummy->regs.fp_regs) {
+		/*
+		 * prevent writes of padding hole between
+		 * orig_gpr2 and fp_regs on s390.
+		 */
+		return 0;
 
 	} else if (addr < (addr_t) (&dummy->regs.fp_regs + 1)) {
 		/*
@@ -428,6 +442,13 @@ static u32 __peek_user_compat(struct task_struct *child, addr_t addr)
 		 */
 		tmp = *(__u32*)((addr_t) &task_pt_regs(child)->orig_gpr2 + 4);
 
+	} else if (addr < (addr_t) &dummy32->regs.fp_regs) {
+		/*
+		 * prevent reads of padding hole between
+		 * orig_gpr2 and fp_regs on s390.
+		 */
+		tmp = 0;
+
 	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*
 		 * floating point regs. are stored in the thread structure 
@@ -513,6 +534,13 @@ static int __poke_user_compat(struct task_struct *child,
 		 * orig_gpr2 is stored on the kernel stack
 		 */
 		*(__u32*)((addr_t) &task_pt_regs(child)->orig_gpr2 + 4) = tmp;
+
+	} else if (addr < (addr_t) &dummy32->regs.fp_regs) {
+		/*
+		 * prevent writess of padding hole between
+		 * orig_gpr2 and fp_regs on s390.
+		 */
+		return 0;
 
 	} else if (addr < (addr_t) (&dummy32->regs.fp_regs + 1)) {
 		/*

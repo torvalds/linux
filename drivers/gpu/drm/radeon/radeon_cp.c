@@ -223,7 +223,7 @@ static int radeon_do_wait_for_fifo(drm_radeon_private_t * dev_priv, int entries)
 			return 0;
 		DRM_UDELAY(1);
 	}
-	DRM_INFO("wait for fifo failed status : 0x%08X 0x%08X\n",
+	DRM_DEBUG("wait for fifo failed status : 0x%08X 0x%08X\n",
 		 RADEON_READ(RADEON_RBBM_STATUS),
 		 RADEON_READ(R300_VAP_CNTL_STATUS));
 
@@ -252,7 +252,7 @@ static int radeon_do_wait_for_idle(drm_radeon_private_t * dev_priv)
 		}
 		DRM_UDELAY(1);
 	}
-	DRM_INFO("wait idle failed status : 0x%08X 0x%08X\n",
+	DRM_DEBUG("wait idle failed status : 0x%08X 0x%08X\n",
 		 RADEON_READ(RADEON_RBBM_STATUS),
 		 RADEON_READ(R300_VAP_CNTL_STATUS));
 
