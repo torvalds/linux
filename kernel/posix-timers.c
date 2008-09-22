@@ -454,9 +454,8 @@ sys_timer_create(const clockid_t which_clock,
 		 struct sigevent __user *timer_event_spec,
 		 timer_t __user * created_timer_id)
 {
-	int error = 0;
 	struct k_itimer *new_timer;
-	int new_timer_id;
+	int error, new_timer_id;
 	struct task_struct *process;
 	sigevent_t event;
 	int it_id_set = IT_ID_NOT_SET;
@@ -478,9 +477,9 @@ sys_timer_create(const clockid_t which_clock,
 	error = idr_get_new(&posix_timers_id, (void *) new_timer,
 			    &new_timer_id);
 	spin_unlock_irq(&idr_lock);
-	if (error == -EAGAIN)
-		goto retry;
-	else if (error) {
+	if (error) {
+		if (error == -EAGAIN)
+			goto retry;
 		/*
 		 * Weird looking, but we return EAGAIN if the IDR is
 		 * full (proper POSIX return value for this)
@@ -541,6 +540,8 @@ sys_timer_create(const clockid_t which_clock,
 	new_timer->it_process = process;
 	list_add(&new_timer->list, &current->signal->posix_timers);
 	spin_unlock_irq(&current->sighand->siglock);
+
+	return 0;
  	/*
 	 * In the case of the timer belonging to another task, after
 	 * the task is unlocked, the timer is owned by the other task
@@ -548,9 +549,7 @@ sys_timer_create(const clockid_t which_clock,
 	 * new_timer after the unlock call.
 	 */
 out:
-	if (error)
-		release_posix_timer(new_timer, it_id_set);
-
+	release_posix_timer(new_timer, it_id_set);
 	return error;
 }
 
