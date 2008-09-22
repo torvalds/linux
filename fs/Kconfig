@@ -302,6 +302,10 @@ config PRINT_QUOTA_WARNING
 	  Note that this behavior is currently deprecated and may go away in
 	  future. Please use notification via netlink socket instead.
 
+# Generic support for tree structured quota files. Seleted when needed.
+config QUOTA_TREE
+	 tristate
+
 config QFMT_V1
 	tristate "Old quota format support"
 	depends on QUOTA
@@ -313,6 +317,7 @@ config QFMT_V1
 config QFMT_V2
 	tristate "Quota format v2 support"
 	depends on QUOTA
+	select QUOTA_TREE
 	help
 	  This quota format allows using quotas with 32-bit UIDs/GIDs. If you
 	  need this functionality say Y here.
