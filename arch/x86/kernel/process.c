@@ -272,6 +272,7 @@ static void c1e_idle(void)
 			c1e_detected = 1;
 			mark_tsc_unstable("TSC halt in C1E");
 			printk(KERN_INFO "System has C1E enabled\n");
+			set_cpu_cap(&boot_cpu_data, X86_FEATURE_AMDC1E);
 		}
 	}
 
