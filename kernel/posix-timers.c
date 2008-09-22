@@ -474,8 +474,7 @@ sys_timer_create(const clockid_t which_clock,
 		goto out;
 	}
 	spin_lock_irq(&idr_lock);
-	error = idr_get_new(&posix_timers_id, (void *) new_timer,
-			    &new_timer_id);
+	error = idr_get_new(&posix_timers_id, new_timer, &new_timer_id);
 	spin_unlock_irq(&idr_lock);
 	if (error) {
 		if (error == -EAGAIN)
@@ -567,12 +566,12 @@ static struct k_itimer * lock_timer(timer_t timer_id, unsigned long *flags)
 	 */
 
 	spin_lock_irqsave(&idr_lock, *flags);
-	timr = (struct k_itimer *) idr_find(&posix_timers_id, (int) timer_id);
+	timr = idr_find(&posix_timers_id, (int) timer_id);
 	if (timr) {
 		spin_lock(&timr->it_lock);
 
-		if ((timr->it_id != timer_id) || !(timr->it_process) ||
-				!same_thread_group(timr->it_process, current)) {
+		if (!timr->it_process ||
+		    !same_thread_group(timr->it_process, current)) {
 			spin_unlock(&timr->it_lock);
 			spin_unlock_irqrestore(&idr_lock, *flags);
 			timr = NULL;
