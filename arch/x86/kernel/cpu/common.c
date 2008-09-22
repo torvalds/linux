@@ -719,12 +719,24 @@ static void __cpuinit identify_cpu(struct cpuinfo_x86 *c)
 #endif
 }
 
+#ifdef CONFIG_X86_64
+static void vgetcpu_set_mode(void)
+{
+	if (cpu_has(&boot_cpu_data, X86_FEATURE_RDTSCP))
+		vgetcpu_mode = VGETCPU_RDTSCP;
+	else
+		vgetcpu_mode = VGETCPU_LSL;
+}
+#endif
+
 void __init identify_boot_cpu(void)
 {
 	identify_cpu(&boot_cpu_data);
 #ifdef CONFIG_X86_32
 	sysenter_setup();
 	enable_sep_cpu();
+#else
+	vgetcpu_set_mode();
 #endif
 }
 
