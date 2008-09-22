@@ -1355,20 +1355,20 @@ static void fdc_specify(void)
 	}
 
 	/* Convert step rate from microseconds to milliseconds and 4 bits */
-	srt = 16 - (DP->srt * scale_dtr / 1000 + NOMINAL_DTR - 1) / NOMINAL_DTR;
+	srt = 16 - DIV_ROUND_UP(DP->srt * scale_dtr / 1000, NOMINAL_DTR);
 	if (slow_floppy) {
 		srt = srt / 4;
 	}
 	SUPBOUND(srt, 0xf);
 	INFBOUND(srt, 0);
 
-	hlt = (DP->hlt * scale_dtr / 2 + NOMINAL_DTR - 1) / NOMINAL_DTR;
+	hlt = DIV_ROUND_UP(DP->hlt * scale_dtr / 2, NOMINAL_DTR);
 	if (hlt < 0x01)
 		hlt = 0x01;
 	else if (hlt > 0x7f)
 		hlt = hlt_max_code;
 
-	hut = (DP->hut * scale_dtr / 16 + NOMINAL_DTR - 1) / NOMINAL_DTR;
+	hut = DIV_ROUND_UP(DP->hut * scale_dtr / 16, NOMINAL_DTR);
 	if (hut < 0x1)
 		hut = 0x1;
 	else if (hut > 0xf)
@@ -2385,7 +2385,7 @@ static void rw_interrupt(void)
 
 #ifdef FLOPPY_SANITY_CHECK
 	if (nr_sectors / ssize >
-	    (in_sector_offset + current_count_sectors + ssize - 1) / ssize) {
+	    DIV_ROUND_UP(in_sector_offset + current_count_sectors, ssize)) {
 		DPRINT("long rw: %x instead of %lx\n",
 		       nr_sectors, current_count_sectors);
 		printk("rs=%d s=%d\n", R_SECTOR, SECTOR);

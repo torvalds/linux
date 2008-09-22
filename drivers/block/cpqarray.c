@@ -424,7 +424,7 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		hba[i]->pci_dev, NR_CMDS * sizeof(cmdlist_t),
 		&(hba[i]->cmd_pool_dhandle));
 	hba[i]->cmd_pool_bits = kcalloc(
-		(NR_CMDS+BITS_PER_LONG-1)/BITS_PER_LONG, sizeof(unsigned long),
+		DIV_ROUND_UP(NR_CMDS, BITS_PER_LONG), sizeof(unsigned long),
 		GFP_KERNEL);
 
 	if (!hba[i]->cmd_pool_bits || !hba[i]->cmd_pool)
